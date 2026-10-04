@@ -4,16 +4,19 @@
 // Recorre las 2304 combinaciones de entrada y fija que nunca queda el centro vacío,
 // la paridad de 'files' y 'git' con las fórmulas de referencia (copiadas abajo) salvo
 // «oculto manda sobre maximizado», el comportamiento de 'db' y del mosaico, la franja
-// inferior, la coherencia de divisores y `maximizadoCoherente` (con el camino real
-// simulado paso a paso). Depende solo de `layoutCentro.ts`.
+// inferior, la coherencia de divisores, `maximizadoCoherente` (con el camino real
+// simulado paso a paso), Git·Log a pantalla completa y qué hacen ahí las aperturas en el
+// editor (`aperturaDesdeGit`). Depende solo de `layoutCentro.ts`.
 // Decisiones: docs/decisiones/layout/oculto-manda-sobre-maximizado.md
 // =============================================================================
 
 import {
   RAZON_MOSAICO,
   RAZON_SIN_PERFIL_DB,
+  aperturaDesdeGit,
   derivarLayoutCentro,
   maximizadoCoherente,
+  pantallaCompletaGitCoherente,
   type EntradaLayoutCentro,
   type PanelInferiorCentro,
   type SalidaLayoutCentro,
@@ -175,6 +178,156 @@ function proyectarRef(r: ReferenciaApp): unknown {
     franja: r.franja,
     barraEstado: r.barraEstado
   }
+}
+
+/** El modo pedido + la entrada, ya corregido como lo hace `usePantallaCompletaGit`. */
+function coherenteDe(pedida: boolean, e: EntradaLayoutCentro): boolean {
+  return pantallaCompletaGitCoherente({ pedida, franja: derivarLayoutCentro(e).franja, mosaico: e.mosaico })
+}
+
+/** (10) Git·Log a pantalla completa: la regla en todas las combinaciones y el camino real. */
+function pantallaCompletaGit(entradas: EntradaLayoutCentro[]): void {
+  hr('(10) Git·Log a pantalla completa')
+  check(
+    'vale EXACTAMENTE con pedida + Git·Log en la franja + fuera de db + sin mosaico (2 vistas x 128 = 256)',
+    entradas.filter((e) => coherenteDe(true, e)).length === 256 &&
+      entradas.every(
+        (e) => coherenteDe(true, e) === (e.vista !== 'db' && e.panelInferior === 'gitlog' && !e.mosaico)
+      ),
+    `${entradas.filter((e) => coherenteDe(true, e)).length} combinaciones`
+  )
+  check(
+    'NEGATIVO: nunca se enciende sola, ni con terminal, ni sin franja, ni en db, ni en el mosaico',
+    entradas.every((e) => !coherenteDe(false, e)) &&
+      entradas
+        .filter((e) => e.vista === 'db' || e.mosaico || e.panelInferior !== 'gitlog')
+        .every((e) => !coherenteDe(true, e)),
+    '2304 combinaciones sin pedirla y todas las que no enseñan Git·Log'
+  )
+  check(
+    'es un punto fijo: corregir dos veces es corregir una (el hook la aplica en cada render)',
+    entradas.every((e) => coherenteDe(coherenteDe(true, e), e) === coherenteDe(true, e)),
+    '2304 combinaciones'
+  )
+
+  // App en miniatura: el modo es GLOBAL y efímero; la franja es del PERFIL (`panelPorPerfil`).
+  const app = { pedida: false, perfil: 'A', mosaico: false, vista: 'files' as VistaCentro }
+  const panel: Record<string, PanelInferiorCentro | null> = { A: 'gitlog', B: 'terminal' }
+  const render = (): boolean => {
+    const e: EntradaLayoutCentro = {
+      vista: app.vista,
+      mosaico: app.mosaico,
+      hayPestanasEditor: true,
+      ccExpandido: false,
+      ccOculto: false,
+      vistaDividida: false,
+      agenteDbVisible: false,
+      espacioAbierto: false,
+      hayPerfil: true,
+      panelInferior: panel[app.perfil] ?? null
+    }
+    app.pedida = coherenteDe(app.pedida, e)
+    return app.pedida
+  }
+  app.pedida = true
+  const alPulsar = render()
+  // Cambiar de PROYECTO no toca ni la vista ni la franja del perfil: la entrada es la misma.
+  const trasCambiarProyecto = render()
+  app.perfil = 'B'
+  const enB = render()
+  app.perfil = 'A'
+  const deVueltaEnA = render()
+  check(
+    'pulsar la enciende; cambiar de proyecto la conserva; un perfil sin Git·Log la apaga y al volver Git está en la franja',
+    alPulsar && trasCambiarProyecto && !enB && !deVueltaEnA,
+    j({ alPulsar, trasCambiarProyecto, enB, deVueltaEnA })
+  )
+  panel.B = 'gitlog'
+  app.pedida = true
+  render()
+  app.perfil = 'B'
+  const enBConGit = render()
+  check(
+    'pasar a un perfil que TAMBIÉN enseña Git·Log la conserva (Git sigue al objetivo, como con el proyecto)',
+    enBConGit,
+    j({ enBConGit })
+  )
+  panel.B = null
+  const trasCerrar = render()
+  panel.B = 'gitlog'
+  const alReabrir = render()
+  app.pedida = true
+  render()
+  app.mosaico = true
+  const enMosaico = render()
+  app.mosaico = false
+  const trasMosaico = render()
+  app.pedida = true
+  render()
+  app.vista = 'db'
+  const enDb = render()
+  app.vista = 'files'
+  const trasDb = render()
+  check(
+    'la X, el mosaico y la vista de datos la apagan, y Git vuelve en la franja (no resucita el modo)',
+    !trasCerrar && !alReabrir && !enMosaico && !trasMosaico && !enDb && !trasDb,
+    j({ trasCerrar, alReabrir, enMosaico, trasMosaico, enDb, trasDb })
+  )
+}
+
+/** (11) Las aperturas en el editor que pide Git·Log, dentro y fuera de pantalla completa. */
+function aperturasDesdeGit(): void {
+  hr('(11) Aperturas desde Git·Log y pantalla completa')
+  const fueraManual = aperturaDesdeGit({ origen: 'manual', pantallaCompleta: false })
+  const fueraAuto = aperturaDesdeGit({ origen: 'auto', pantallaCompleta: false })
+  check(
+    'fuera del modo TODO abre igual que antes y nada toca el modo (manual y auto)',
+    fueraManual.abrir && !fueraManual.salirDePantallaCompleta && fueraAuto.abrir && !fueraAuto.salirDePantallaCompleta,
+    j({ fueraManual, fueraAuto })
+  )
+  const dentroManual = aperturaDesdeGit({ origen: 'manual', pantallaCompleta: true })
+  check(
+    'a pantalla completa, el gesto explícito (clic/doble clic/Enter, historial, saltar al fuente) sale y abre',
+    dentroManual.abrir && dentroManual.salirDePantallaCompleta,
+    j(dentroManual)
+  )
+  const dentroAuto = aperturaDesdeGit({ origen: 'auto', pantallaCompleta: true })
+  check(
+    'NEGATIVO: a pantalla completa, la vista previa al moverse ni abre ni sale (ni colapsa el agente)',
+    !dentroAuto.abrir && !dentroAuto.salirDePantallaCompleta,
+    j(dentroAuto)
+  )
+
+  // Camino real en miniatura: el modo + las pestañas que abre el editor + el agente colapsado.
+  const app = { modo: true, pestanas: [] as string[], agenteColapsado: false }
+  const abrirDesdeGit = (origen: 'manual' | 'auto', diff: string): void => {
+    const d = aperturaDesdeGit({ origen, pantallaCompleta: app.modo })
+    if (d.salirDePantallaCompleta) app.modo = false
+    if (!d.abrir) return
+    app.pestanas.push(diff)
+    app.agenteColapsado = true
+  }
+  abrirDesdeGit('auto', 'commit-1')
+  abrirDesdeGit('auto', 'commit-2')
+  const trasMoverse = { ...app, pestanas: [...app.pestanas] }
+  // Restaurar con el botón no abre lo que se saltó: el token de la petición ya se consumió.
+  app.modo = false
+  const alRestaurar = { ...app, pestanas: [...app.pestanas] }
+  check(
+    'moverse por los commits a pantalla completa no deja nada: sigue el modo y al restaurar no hay pestañas ni colapso',
+    trasMoverse.modo && trasMoverse.pestanas.length === 0 && !trasMoverse.agenteColapsado &&
+      alRestaurar.pestanas.length === 0 && !alRestaurar.agenteColapsado,
+    j({ trasMoverse, alRestaurar })
+  )
+  app.modo = true
+  abrirDesdeGit('manual', 'archivo-a')
+  const trasManual = { ...app, pestanas: [...app.pestanas] }
+  abrirDesdeGit('auto', 'commit-3')
+  check(
+    'el clic en un archivo sale y abre; después, ya fuera, la vista previa vuelve a abrir como siempre',
+    !trasManual.modo && j(trasManual.pestanas) === j(['archivo-a']) && j(app.pestanas) === j(['archivo-a', 'commit-3']),
+    j({ trasManual, despues: app })
+  )
 }
 
 function main(): void {
@@ -676,6 +829,9 @@ function main(): void {
       j({ enC: enC.cc, deVuelta: deVuelta.cc })
     )
   }
+
+  pantallaCompletaGit(entradas)
+  aperturasDesdeGit()
 
   hr('RESULTADO (PASS/FAIL)')
   for (const r of results) {

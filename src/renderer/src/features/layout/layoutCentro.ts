@@ -1,7 +1,9 @@
 // =============================================================================
 // layoutCentro: qué se ve en el centro de la ventana, en una sola función pura.
 // Deriva de la vista, el mosaico, las pestañas del editor y el estado del agente qué
-// se oculta, qué crece, qué divisor se monta y qué dice la barra de estado.
+// se oculta, qué crece, qué divisor se monta y qué dice la barra de estado; y cuándo
+// vale Git·Log a pantalla completa (lo esconde el CSS de `.shell`, sin desmontar nada)
+// y qué hacen ahí las aperturas en el editor que pide Git.
 // Sin JSX, sin DOM y sin imports: lo prueba `test-layout-centro.mts` con `node`.
 // Decisiones: docs/decisiones/layout/oculto-manda-sobre-maximizado.md
 // =============================================================================
@@ -66,6 +68,35 @@ export function maximizadoCoherente(
   e: Pick<EntradaLayoutCentro, 'ccExpandido' | 'ccOculto' | 'hayPestanasEditor'>
 ): boolean {
   return e.ccExpandido && !(e.ccOculto && e.hayPestanasEditor)
+}
+
+/**
+ * El valor COHERENTE de Git·Log a pantalla completa: solo vive mientras Git·Log está A LA
+ * VISTA en la franja. Cerrarlo, cambiarlo por la terminal, ir a 'db', entrar en el mosaico
+ * o pasar a un perfil sin Git·Log lo apaga, y al volver Git se abre en la franja.
+ * Nunca lo enciende y es un punto fijo, así que se puede aplicar en cada render.
+ */
+export function pantallaCompletaGitCoherente(e: {
+  pedida: boolean
+  franja: Pick<SalidaLayoutCentro['franja'], 'gitlog'>
+  mosaico: boolean
+}): boolean {
+  return e.pedida && e.franja.gitlog && !e.mosaico
+}
+
+/**
+ * Qué hace una apertura en el EDITOR pedida desde Git·Log. Fuera de pantalla completa,
+ * todas abren y nada más (lo de siempre). Dentro, el editor está tapado: un gesto
+ * explícito (`'manual'`) sale del modo y abre; la vista previa al moverse (`'auto'`)
+ * no hace nada, ni abre ni sale, así que al restaurar no queda nada abierto por ella.
+ */
+export function aperturaDesdeGit(e: { origen: 'manual' | 'auto'; pantallaCompleta: boolean }): {
+  abrir: boolean
+  salirDePantallaCompleta: boolean
+} {
+  if (!e.pantallaCompleta) return { abrir: true, salirDePantallaCompleta: false }
+  const manual = e.origen === 'manual'
+  return { abrir: manual, salirDePantallaCompleta: manual }
 }
 
 /** Razón de bloqueo de las vistas 'files' y 'git' (la del editor). */

@@ -14,9 +14,10 @@ import { ArbolRamas } from './ArbolRamas'
 import { DetalleCommit } from './DetalleCommit'
 import { asegurarEstilosGit } from './estilosGit'
 import { HistorialArchivo } from './HistorialArchivo'
-import { IconoGitVacio, IconoRecargar } from './iconos'
+import { IconoGitVacio, IconoMaximizar, IconoRecargar, IconoRestaurar } from './iconos'
 import { ColumnaCentro } from './ListaCommits'
 import { useEstadoLog, type EstadoLog } from './useEstadoLog'
+import type { OrigenApertura } from './useSeleccionLog'
 import type { DiffEditorPane, DiffTarget } from '../editor'
 import type { DetectedRepo } from '../../../../shared/workspace-ipc'
 import type { OpenProject } from '../pestanas'
@@ -43,10 +44,16 @@ export interface GitLogPanelProps {
    * anclaje el backend contesta vacío y ese vacío no se distingue de un repo nuevo.
    */
   anclado: boolean
-  /** Sube el diff armado al abrir un archivo de un commit; el colapso lo decide la franja. */
-  onOpenDiff: (target: DiffTarget) => void
+  /**
+   * Sube el diff armado al abrir un archivo de un commit; el colapso lo decide la franja, y
+   * con el `origen` también qué se hace a pantalla completa (`aperturaDesdeGit`).
+   */
+  onOpenDiff: (target: DiffTarget, origen: OrigenApertura) => void
   /** Cierra la franja (botón × del header). */
   onClose: () => void
+  /** El panel ocupa toda el área de trabajo; el botón de restaurar se queda fijo. */
+  pantallaCompleta: boolean
+  onPantallaCompleta: (valor: boolean) => void
   /** Anchos de las columnas de ramas y de detalle (persistidos en ajustes). */
   anchoRamas: number
   onAnchoRamas: (px: number) => void
@@ -82,8 +89,11 @@ function CabeceraLog(p: {
   cargando: boolean
   recargarDeshabilitado: boolean
   onRecargar: () => void
+  pantallaCompleta: boolean
+  onPantallaCompleta: (valor: boolean) => void
   onClose: () => void
 }): React.JSX.Element {
+  const etiquetaModo = p.pantallaCompleta ? 'Restaurar el panel de git' : 'Maximizar el panel de git'
   return (
     <header className="panel-header">
       <span className="panel-title">
@@ -100,6 +110,19 @@ function CabeceraLog(p: {
           aria-label="Recargar el historial y las ramas"
         >
           <IconoRecargar girando={p.cargando} />
+        </button>
+        <button
+          // `fijo`: a pantalla completa es la única salida y no se esconde en reposo.
+          className={`git-icon-btn${p.pantallaCompleta ? ' fijo' : ''}`}
+          onClick={() => p.onPantallaCompleta(!p.pantallaCompleta)}
+          title={
+            p.pantallaCompleta
+              ? 'Restaurar: git vuelve al panel inferior'
+              : 'Maximizar: git ocupa toda el área de trabajo (sin cerrar nada)'
+          }
+          aria-label={etiquetaModo}
+        >
+          {p.pantallaCompleta ? <IconoRestaurar /> : <IconoMaximizar />}
         </button>
         <button
           className="git-icon-btn"
@@ -246,7 +269,7 @@ function ContenidoLog({ props, e }: { props: GitLogPanelProps; e: EstadoLog }): 
           onAnchoLista={props.onAnchoHistorial}
           colMin={props.colMin}
           colMax={props.colMax}
-          onAbrirEnEditor={props.onOpenDiff}
+          onAbrirEnEditor={(target) => props.onOpenDiff(target, 'manual')}
           onSaltarAlFuente={props.onSaltarAlFuente}
           VisorDiff={props.VisorDiff}
           colapsarSinCambios={props.colapsarSinCambios}
@@ -278,6 +301,8 @@ export function GitLogPanel(props: GitLogPanelProps): React.JSX.Element {
         cargando={e.datos.cargando}
         recargarDeshabilitado={e.datos.cargando || projectHostPath === null || !props.anclado}
         onRecargar={e.recargar}
+        pantallaCompleta={props.pantallaCompleta}
+        onPantallaCompleta={props.onPantallaCompleta}
         onClose={props.onClose}
       />
       {projectHostPath === null ? (

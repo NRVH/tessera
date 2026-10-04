@@ -65,7 +65,7 @@ function manejarTeclaCommits(e: Tecla, c: ContextoCommits): void {
     const hash = c.hashSeleccionado
     e.preventDefault()
     c.cancelarAuto()
-    c.setPeticionAuto((p) => ({ hash, token: (p?.token ?? 0) + 1 }))
+    c.setPeticionAuto((p) => ({ hash, token: (p?.token ?? 0) + 1, origen: 'manual' }))
   }
 }
 
@@ -92,7 +92,8 @@ function irA(destino: number, c: ContextoArchivos): void {
   if (nodo.tipo !== 'archivo') return
   const change = c.cambios.get(nodo.ruta)
   // El mismo temporizador que la lista de commits: una flecha aquí cancela su apertura.
-  if (change) c.programarApertura(c.commit, change)
+  // Moverse es vista previa, como en los commits: a pantalla completa no abre nada.
+  if (change) c.programarApertura(c.commit, change, 'auto')
 }
 
 /** Lleva el cursor a la carpeta que contiene a `ruta`, cancelando la apertura pendiente. */
@@ -135,7 +136,7 @@ function teclaEnterArchivos(e: Tecla, c: ContextoArchivos): void {
   const change = c.cambios.get(nodo.ruta)
   if (change) {
     c.cancelarAuto()
-    c.abrirDiff(c.commit, change)
+    c.abrirDiff(c.commit, change, 'manual')
   }
 }
 

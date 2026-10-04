@@ -22,6 +22,7 @@ import {
   ShutdownOverlay,
   useAtajosGlobales,
   useEstiloShell,
+  usePantallaCompletaGit,
   useTamanos,
   useVistasPorPerfil
 } from './features/layout/app'
@@ -108,14 +109,16 @@ function App(): React.JSX.Element {
   const mosaicoActivo = useStoreMosaico((s) => s.mosaicoActivo)
   const lay = agentes.lay
   const shellStyle = useEstiloShell(tintas, tamanos, lay.divisorAgente)
+  const gitPantallaCompleta = usePantallaCompletaGit(lay.franja, mosaicoActivo)
   // Lo que comparten el panel lateral y la franja inferior.
   const comun = { tabs, vistas, tamanos, densidad, editor, git }
+  const claseShell = `shell${mosaicoActivo ? ' modo-mosaico' : ''}${gitPantallaCompleta ? ' git-pantalla-completa' : ''}`
 
-  // `modo-mosaico` solo cambia la clase: el árbol es el mismo dentro y fuera del mosaico.
+  // Los dos modos solo cambian la clase: el árbol es el mismo dentro y fuera de ellos.
   return (
     <TerminalAppearanceContext.Provider value={apariencia.terminal}>
       <AgentAppearanceContext.Provider value={apariencia.agente}>
-        <div className={`shell${mosaicoActivo ? ' modo-mosaico' : ''}`} style={shellStyle}>
+        <div className={claseShell} style={shellStyle}>
           <BarraTitulo tabs={tabs} puntos={puntos} actividad={actividad} modo={modo} mosaico={mosaico} sesiones={sesiones} />
           <div className="shell-body">
             <RielActividad vistas={vistas} zonaEnfocada={zonaEnfocada} worktreeCount={git.worktreeCount} />
@@ -126,7 +129,13 @@ function App(): React.JSX.Element {
                 <CentroBd bd={bd} enConexiones={vistas.enConexiones} oculta={lay.dbAreaOculta} densidad={densidad} />
                 <ColumnaAgente {...{ tabs, tamanos, agentes, columna, mosaico, actividad, modo, espacios, montajes, sesiones }} />
               </div>
-              <FranjaInferior {...comun} lay={lay} terminales={terminales} tintasPorPerfil={tintas.tintasPorPerfil} />
+              <FranjaInferior
+                {...comun}
+                lay={lay}
+                gitPantallaCompleta={gitPantallaCompleta}
+                terminales={terminales}
+                tintasPorPerfil={tintas.tintasPorPerfil}
+              />
             </div>
           </div>
           <BarraEstadoApp

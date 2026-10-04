@@ -478,3 +478,6 @@ Tessera includes third-party software under its own licenses; see
 
 Made by **Noé Roberto Vázquez Herrera** · [GitHub](https://github.com/NRVH) ·
 [LinkedIn](https://www.linkedin.com/in/noe-vazquez-03863423a/)
+
+If Tessera is useful to you and you want to support its development, you can do so through
+**[PayPal](https://paypal.me/NoeRvH)**. Thank you!

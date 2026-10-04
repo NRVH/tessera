@@ -2974,6 +2974,33 @@ body {
   pointer-events: none;
 }
 
+/* GIT·LOG A PANTALLA COMPLETA: el panel de la franja ocupa el lienzo entero y la fila de
+   arriba (lateral, editor y agente) se apaga por la misma vía que en el mosaico: fuera del
+   flujo CON SU TAMAÑO (el que le deja la franja: su alto más los 6 px del divisor) y con
+   `content-visibility` + `visibility`. Así ni el editor ni las terminales cambian de
+   tamaño (ningún pty recibe un resize) y nada pierde su scroll; restaurar es quitar la
+   clase. Barra de título, bandas, riel y barra de estado viven fuera de `.shell-main`. */
+.shell.git-pantalla-completa .shell-main {
+  position: relative;
+}
+.shell.git-pantalla-completa .shell-main-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--panel-inferior-h) + 6px);
+  content-visibility: hidden;
+  visibility: hidden;
+  pointer-events: none;
+}
+.shell.git-pantalla-completa .shell-main > .splitter {
+  display: none;
+}
+.shell.git-pantalla-completa .git-log-panel {
+  flex: 1 1 auto;
+  border-top: none;
+}
+
 /* La columna del agente, convertida en rejilla. Las plantillas llegan inline de
    `calcularMosaico` (features/mosaico/mosaicoLayout.ts). El `gap` de 1 px deja ver el fondo
    de la rejilla, que es el color del borde: así se dibuja el filete entre casillas
@@ -6062,8 +6089,8 @@ body {
     /* MIENTRAS GIRA NO SE ESCONDE: ese icono deja de ser una acción y pasa a ser el
        ÚNICO aviso de que el historial se está recargando. Es la misma línea que ya
        exceptúa a la cuenta del agente y a las bases montadas — se esconden acciones,
-       no estado. */
-    .panel-actions .git-icon-btn:not(.girando),
+       no estado. Y el `fijo` (restaurar a pantalla completa) es la única salida del modo. */
+    .panel-actions .git-icon-btn:not(.girando):not(.fijo),
     .panel-title-actions .btn,
     .panel-name-btn,
     .terminal-tabs-add,

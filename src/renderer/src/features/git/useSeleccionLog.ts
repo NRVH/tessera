@@ -31,7 +31,16 @@ export interface FilasElevadas {
 export interface PeticionAuto {
   hash: string
   token: number
+  /** Enter sobre el commit es un gesto explícito; seleccionarlo (clic, flechas) es vista previa. */
+  origen: OrigenApertura
 }
+
+/**
+ * De dónde sale una apertura en el editor: un gesto explícito (`'manual'`: clic, doble clic
+ * o Enter sobre un archivo, Enter sobre un commit) o la vista previa al moverse (`'auto'`:
+ * seleccionar un commit, flechas en el árbol). Solo lo distingue Git·Log a pantalla completa.
+ */
+export type OrigenApertura = 'manual' | 'auto'
 
 export interface SeleccionLog {
   hashSeleccionado: string | null

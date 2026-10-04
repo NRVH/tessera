@@ -11,16 +11,17 @@ import { primeraFilaAbrible } from './modelo/autoAbrir'
 import type { FilaArbol } from './modelo/arbolArchivos'
 import { resolveDiffTarget } from './modelo/resolveDiffTarget'
 import { notifyError } from '../../comun/notifications'
-import { revelarIndice, type FilasElevadas, type SeleccionLog } from './useSeleccionLog'
+import { revelarIndice, type FilasElevadas, type OrigenApertura, type SeleccionLog } from './useSeleccionLog'
 import type { DiffTarget } from '../editor'
 import type { Commit, FileChange } from '../../../../shared/git-ipc'
 
 export interface AperturaLog {
-  abrirDiff: (commit: Commit, change: FileChange) => void
+  /** El origen viaja hasta `onOpenDiff`: a pantalla completa solo abre lo `'manual'`. */
+  abrirDiff: (commit: Commit, change: FileChange, origen: OrigenApertura) => void
   /** Doble clic o Enter: cancela la apertura pendiente y abre YA. */
   abrirDiffManual: (commit: Commit, change: FileChange) => void
   /** Programa la apertura de UN archivo con el antirrebote compartido. */
-  programarApertura: (commit: Commit, change: FileChange) => void
+  programarApertura: (commit: Commit, change: FileChange, origen: OrigenApertura) => void
   /** Recibe las filas del árbol del commit; estable, va en las deps del efecto que las eleva. */
   recibirFilas: (
     hash: string,
@@ -43,7 +44,7 @@ function useSeleccionarCommit(sel: SeleccionLog): AperturaLog['seleccionarCommit
       cancelarAuto()
       autoTimerRef.current = setTimeout(() => {
         autoTimerRef.current = null
-        setPeticionAuto({ hash, token: ++contadorAutoRef.current })
+        setPeticionAuto({ hash, token: ++contadorAutoRef.current, origen: 'auto' })
       }, AUTO_ABRIR_MS)
     },
     [cancelarAuto, autoTimerRef, contadorAutoRef, setPeticionAuto]
@@ -61,32 +62,32 @@ function useSeleccionarCommit(sel: SeleccionLog): AperturaLog['seleccionarCommit
 
 /** Aperturas de diff y selección de commit. */
 export function useAperturaLog(
-  onOpenDiff: (target: DiffTarget) => void,
+  onOpenDiff: (target: DiffTarget, origen: OrigenApertura) => void,
   sel: SeleccionLog,
   revelarRutaPendienteRef: { current: string | null }
 ): AperturaLog {
   const { cancelarAuto, autoTimerRef } = sel
   const { setRutaSeleccionada, setFilasArchivos, setRevelarArchivo } = sel
   const abrirDiff = useCallback(
-    (commit: Commit, change: FileChange): void => {
+    (commit: Commit, change: FileChange, origen: OrigenApertura): void => {
       setRutaSeleccionada(change.path)
-      onOpenDiff(resolveDiffTarget(commit.hash, commit.parents[0] ?? null, change))
+      onOpenDiff(resolveDiffTarget(commit.hash, commit.parents[0] ?? null, change), origen)
     },
     [onOpenDiff, setRutaSeleccionada]
   )
   const abrirDiffManual = useCallback(
     (commit: Commit, change: FileChange): void => {
       cancelarAuto()
-      abrirDiff(commit, change)
+      abrirDiff(commit, change, 'manual')
     },
     [abrirDiff, cancelarAuto]
   )
   const programarApertura = useCallback(
-    (commit: Commit, change: FileChange): void => {
+    (commit: Commit, change: FileChange, origen: OrigenApertura): void => {
       cancelarAuto()
       autoTimerRef.current = setTimeout(() => {
         autoTimerRef.current = null
-        abrirDiff(commit, change)
+        abrirDiff(commit, change, origen)
       }, AUTO_ABRIR_MS)
     },
     [abrirDiff, cancelarAuto, autoTimerRef]
@@ -153,7 +154,8 @@ export function useSeleccionarArchivo(p: {
         cancelarAuto()
         return
       }
-      programarApertura(commitSeleccionado, change)
+      // El clic en un archivo es un gesto explícito, aunque espere el antirrebote.
+      programarApertura(commitSeleccionado, change, 'manual')
     },
     [filasVigentes, commitSeleccionado, programarApertura, cancelarAuto, setRutaSeleccionada]
   )
@@ -182,7 +184,7 @@ export function useAutoApertura(p: {
     // Un commit con solo carpetas y empaquetados no abre nada.
     if (!fila || fila.nodo.tipo !== 'archivo') return
     const change = filasVigentes.cambios.get(fila.nodo.ruta)
-    if (change) abrirDiff(commit, change)
+    if (change) abrirDiff(commit, change, peticionAuto.origen)
   }, [peticionAuto, filasVigentes, visibles, abrirDiff, tokenAtendidoRef])
 }
 

@@ -66,6 +66,24 @@ export function IconoRecargar({ girando }: { girando: boolean }): React.JSX.Elem
   )
 }
 
+/** Maximizar el panel de Log: flechas a las cuatro esquinas (el mismo glifo que el agente). */
+export function IconoMaximizar(): React.JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+/** Restaurar el panel de Log a la franja: flechas hacia dentro. */
+export function IconoRestaurar(): React.JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 /** Chip de hash: dos hojas (copiar) o, tras copiar, un check de confirmación. */
 export function IconoCopiar({ copiado }: { copiado: boolean }): React.JSX.Element {
   return (

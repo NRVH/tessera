@@ -40,6 +40,8 @@ export interface EstadoLayout {
   /** Maximizado CRUDO de la columna del agente; lo que se pinta es el coherente. */
   ccExpanded: boolean
   ccOculto: MotivoCcOculto
+  /** Git·Log pedido a pantalla completa (CRUDO, efímero: no se persiste); se pinta el coherente. */
+  gitPantallaCompleta: boolean
 }
 
 /** Estado del layout de la ventana. */
@@ -59,7 +61,8 @@ export const useStoreLayout = create<EstadoLayout>()(() => ({
   activityBarOrder: [...ACTIVITY_BAR_DEFAULT_ORDER],
   bottomBarOrder: [...BOTTOM_BAR_DEFAULT_ORDER],
   ccExpanded: false,
-  ccOculto: 'no'
+  ccOculto: 'no',
+  gitPantallaCompleta: false
 }))
 
 /** Setter estable de un campo numérico o de lista del layout (para `onResize` y similares). */
@@ -78,7 +81,8 @@ export const fijadoresLayout = {
   gitLogArchivosH: fijadorLayout('gitLogArchivosH'),
   gitHistorialWidth: fijadorLayout('gitHistorialWidth'),
   activityBarOrder: fijadorLayout('activityBarOrder'),
-  bottomBarOrder: fijadorLayout('bottomBarOrder')
+  bottomBarOrder: fijadorLayout('bottomBarOrder'),
+  gitPantallaCompleta: fijadorLayout('gitPantallaCompleta')
 }
 
 /** Pone en `perfil` la vista `valor` solo si hoy es `si`; mismo objeto si no cambia. */

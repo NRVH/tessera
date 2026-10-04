@@ -2,12 +2,13 @@
 // Franja inferior de la ventana: un solo divisor para los dos paneles que se turnan
 // en el hueco, Git·Log (montado bajo demanda: sus cachés hacen instantáneo reabrir)
 // y las terminales (siempre montadas: la visibilidad es CSS y el pty sobrevive).
+// Git·Log se puede maximizar al área de trabajo (`usePantallaCompletaGit`, solo CSS).
 // =============================================================================
 import { useShallow } from 'zustand/react/shallow'
 import { GIT_LOG_ARCHIVOS_MIN, GIT_LOG_COL_MIN, TERMINAL_HEIGHT_MAX } from '../../../../shared/workspace-state-ipc'
 import { ErrorBoundary } from '../../comun/ErrorBoundary'
 import { Splitter } from '../../comun/Splitter'
-import type { SalidaLayoutCentro } from './layoutCentro'
+import { aperturaDesdeGit, type SalidaLayoutCentro } from './layoutCentro'
 import { fijadoresLayout, useStoreLayout } from './store'
 import type { Tamanos } from './useTamanos'
 import type { VistasPorPerfil } from './useVistasPorPerfil'
@@ -21,10 +22,23 @@ import { DiffEditorPane, type EditorApp } from '../editor'
 /** Setter estable del colapso de fragmentos sin cambios (compartido con los diffs). */
 const setDiffColapsar = fijarAjuste('diffColapsar')
 
+/**
+ * ¿Abre en el editor una apertura pedida desde Git·Log? Aplica `aperturaDesdeGit` y, si
+ * toca, sale de pantalla completa antes. Lee el store al llamar, no el render: la apertura
+ * con antirrebote llega 180 ms después con la closure de cuando se programó.
+ */
+function pedirAperturaDesdeGit(origen: 'manual' | 'auto'): boolean {
+  const d = aperturaDesdeGit({ origen, pantallaCompleta: useStoreLayout.getState().gitPantallaCompleta })
+  if (d.salirDePantallaCompleta) fijadoresLayout.gitPantallaCompleta(false)
+  return d.abrir
+}
+
 interface Props {
   tabs: UseTabs
   vistas: VistasPorPerfil
   lay: SalidaLayoutCentro
+  /** Git·Log ocupa el área de trabajo (el valor coherente, ver `usePantallaCompletaGit`). */
+  gitPantallaCompleta: boolean
   tamanos: Tamanos
   densidad: Densidad
   git: EstadoGitApp
@@ -33,8 +47,8 @@ interface Props {
   tintasPorPerfil: Record<string, string>
 }
 
-/** Panel de Git·Log de la franja, con el historial de un archivo como pestaña. */
-function PanelLog({ tabs, vistas, tamanos, densidad, git, editor }: Omit<Props, 'lay' | 'terminales' | 'tintasPorPerfil'>): React.JSX.Element {
+/** Lo que el panel de Log lee de los stores: anchos de layout, historial y consulta del perfil. */
+function useStoresPanelLog(perfilUI: string) {
   const l = useStoreLayout(
     useShallow((s) => ({
       gitLogArchivosH: s.gitLogArchivosH,
@@ -47,11 +61,18 @@ function PanelLog({ tabs, vistas, tamanos, densidad, git, editor }: Omit<Props, 
     useShallow((s) => ({
       historial: s.fileHistoryPath,
       historialToken: s.fileHistoryToken,
-      consulta: s.busquedaLogPorPerfil[vistas.perfilUI] ?? '',
+      consulta: s.busquedaLogPorPerfil[perfilUI] ?? '',
       commitTick: s.commitTick
     }))
   )
   const diffColapsar = useStoreAjustes((s) => s.diffColapsar)
+  return { l, g, diffColapsar }
+}
+
+/** Panel de Git·Log de la franja, con el historial de un archivo como pestaña. */
+function PanelLog(p: Omit<Props, 'lay' | 'terminales' | 'tintasPorPerfil'>): React.JSX.Element {
+  const { tabs, vistas, tamanos, densidad, git, editor } = p
+  const { l, g, diffColapsar } = useStoresPanelLog(vistas.perfilUI)
   const proyectoGit = git.objetivoGit?.project ?? null
   const perfilUI = vistas.perfilUI
   return (
@@ -65,7 +86,9 @@ function PanelLog({ tabs, vistas, tamanos, densidad, git, editor }: Omit<Props, 
       onCerrarHistorial={cerrarHistorial}
       anchoHistorial={l.gitHistorialWidth}
       onAnchoHistorial={fijadoresLayout.gitHistorialWidth}
-      onSaltarAlFuente={editor.abrirFuenteDelDiff}
+      onSaltarAlFuente={(target, linea) => {
+        if (pedirAperturaDesdeGit('manual')) editor.abrirFuenteDelDiff(target, linea)
+      }}
       VisorDiff={DiffEditorPane}
       colapsarSinCambios={diffColapsar}
       onColapsarSinCambios={setDiffColapsar}
@@ -80,12 +103,16 @@ function PanelLog({ tabs, vistas, tamanos, densidad, git, editor }: Omit<Props, 
       onSelectRepo={(repoHostPath) => {
         if (proyectoGit) tabs.setActiveRepo(proyectoGit.projectHostPath, repoHostPath)
       }}
-      // Efímera siempre y colapsando el agente, venga del doble clic o de la selección.
-      onOpenDiff={(target) => {
-        if (!git.ancladoGit) return
+      // Efímera siempre y colapsando el agente, venga del doble clic o de la selección; a
+      // pantalla completa, la selección no abre nada y el gesto explícito sale del modo.
+      onOpenDiff={(target, origen) => {
+        if (!git.ancladoGit || !pedirAperturaDesdeGit(origen)) return
         editor.openEditorTab({ kind: 'diff', target }, { colapsarAgente: true, efimera: true })
       }}
       onClose={() => vistas.cerrarPanelInferior()}
+      // Cerrar no toca el modo: lo apaga la regla coherente al dejar de verse Git·Log.
+      pantallaCompleta={p.gitPantallaCompleta}
+      onPantallaCompleta={fijadoresLayout.gitPantallaCompleta}
       anchoRamas={l.gitLogRamasWidth}
       onAnchoRamas={fijadoresLayout.gitLogRamasWidth}
       anchoDetalle={l.gitLogDetalleWidth}

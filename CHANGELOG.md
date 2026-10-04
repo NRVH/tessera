@@ -4,6 +4,15 @@ Todos los cambios relevantes de Tessera se documentan en este archivo. El format
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), y Tessera sigue el
 [versionado semántico](https://semver.org/lang/es/).
 
+## [0.73.0] - 2026-10-04
+
+- **Vista de Git a pantalla completa.** Un botón en la cabecera de la vista de Git la extiende
+  a todo el área de trabajo, tapando el explorador, el editor y el agente sin cerrarlos. Un
+  botón fijo la devuelve a la franja inferior tal como estaba. Abrir un archivo o saltar al
+  fuente desde ella vuelve a la franja y lo enseña en el editor; recorrer los commits no abre
+  nada mientras dura la pantalla completa.
+- **Apoya el proyecto.** El repositorio tiene botón «Sponsor» y un enlace de PayPal.
+
 ## [0.72.0] - 2026-10-04
 
 - **Pie del agente más limpio.** El uso de la cuenta y el contexto de la conversación se ven
