@@ -1,25 +1,27 @@
-## What changes for the user
+<!-- You can also write in English. -->
 
-<!-- What does this pull request do, seen from someone using Tessera? Link the issue if there is one: "Closes #123". -->
+## Qué cambia para el usuario
 
-## How it was tested
+<!-- ¿Qué hace este pull request, visto desde alguien que usa Tessera? Enlaza el issue si lo hay: "Closes #123". -->
 
-<!-- Which checks you ran and on which system. Tick what applies. -->
+## Cómo se probó
+
+<!-- Qué comprobaciones corriste y en qué sistema. Marca lo que aplique. -->
 
 - [ ] `npm run typecheck`
 - [ ] `npm run lint`
-- [ ] `test:cabeceras`, `test:comentarios` and `test:menciones` on the changed paths
-- [ ] The `test:*` scripts of the area: <!-- which ones -->
-- [ ] An e2e spec against the packaged app: <!-- which one, if the change lives on the boundary with the system -->
+- [ ] `test:cabeceras`, `test:comentarios` y `test:menciones` sobre las rutas cambiadas
+- [ ] Los scripts `test:*` del área: <!-- cuáles -->
+- [ ] Un spec e2e contra la app empaquetada: <!-- cuál, si el cambio vive en la frontera con el sistema -->
 
-## The other platform
+## La otra plataforma
 
-<!-- Tessera treats Windows and macOS as equals. What does this change do on the platform you
-could not test, and does it degrade it? If it does not apply there, why? -->
+<!-- Tessera trata Windows y macOS por igual. ¿Qué hace este cambio en la plataforma que no
+pudiste probar, y la degrada? Si allí no aplica, ¿por qué? -->
 
-- Tested on: <!-- Windows 11 / macOS -->
-- On the other platform:
+- Probado en: <!-- Windows 11 / macOS -->
+- En la otra plataforma:
 
-## Notes for the review
+## Notas para la revisión
 
-<!-- Anything a reviewer should know: decisions, trade-offs, an ADR added or updated. -->
+<!-- Cualquier cosa que deba saber quien revise: decisiones, compromisos, un ADR añadido o actualizado. -->

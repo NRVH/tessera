@@ -1,137 +1,148 @@
-# Contributing to Tessera
+<p align="center">
+  <a href="./CONTRIBUTING.en.md">Read in English</a>
+</p>
 
-Thank you for your interest in Tessera. Bug reports, ideas and pull requests are all
-welcome. This guide explains how the project is written and what a pull request needs.
+# Contribuir a Tessera
 
-## The code is in Spanish
+Gracias por tu interés en Tessera. Los reportes de errores, las ideas y los pull requests son
+bienvenidos. Esta guía explica cómo está escrito el proyecto y qué necesita un pull request.
 
-Identifiers, comments, interface texts and commit messages are written in Spanish. That
-is a deliberate choice of the project, and it does not have to stop you:
+## El código está en español
 
-- You can open issues and discuss pull requests **in English or in Spanish**.
-- If you are not comfortable writing Spanish, write your code and comments the best you
-  can, in Spanish or English, and say so in the pull request: the review will help with
-  the wording. What matters is the change.
-- Identifiers that already exist in English (`GitService`, `useTabs`…) stay as they are.
-  New ones are written in Spanish.
-- Never rename IPC channels or keys that are persisted to disk (`workspace-state.json`,
-  connections, settings): data already written on users' computers depends on them.
+Los identificadores, los comentarios, los textos de la interfaz y los mensajes de commit se
+escriben en español. Es una decisión deliberada del proyecto, y no tiene por qué frenarte:
 
-## Code standard
+- Puedes abrir issues y comentar pull requests **en español o en inglés**.
+- Si no te sientes cómodo escribiendo en español, escribe tu código y tus comentarios como
+  mejor puedas, en español o en inglés, y dilo en el pull request: la revisión ayudará con la
+  redacción. Lo que importa es el cambio.
+- Los identificadores que ya existen en inglés (`GitService`, `useTabs`…) se quedan como
+  están. Los nuevos se escriben en español.
+- Nunca renombres canales IPC ni claves que se guardan en disco (`workspace-state.json`,
+  conexiones, configuración): de ellos dependen datos ya escritos en los equipos de los
+  usuarios.
 
-The rules are in [`docs/ESTANDAR_CODIGO.md`](./docs/ESTANDAR_CODIGO.md), and the design
-decisions with weight are recorded as ADRs in [`docs/decisiones/`](./docs/decisiones/README.md).
-Read the ADRs of the area you are touching before changing it: they explain the things
-that would break without being visible in the code.
+## Estándar de código
 
-The essentials:
+Las reglas están en [`docs/ESTANDAR_CODIGO.md`](./docs/ESTANDAR_CODIGO.md), y las decisiones
+de diseño de peso se registran como ADR en [`docs/decisiones/`](./docs/decisiones/README.md).
+Lee los ADR del área que vas a tocar antes de cambiarla: explican lo que se rompería sin que
+se note en el código.
 
-- **Every code file opens with a short header** (3 to 8 lines) that says what the module
-  does and what it depends on, with a link to its ADR if it has one:
+Lo esencial:
+
+- **Cada archivo de código abre con una cabecera corta** (de 3 a 8 líneas) que dice qué hace
+  el módulo y de qué depende, con un enlace a su ADR si lo tiene:
 
   ```ts
   // =============================================================================
-  // What the module does, in one or two sentences.
-  // What it depends on (and who uses it, if that helps).
-  // Decisiones: docs/decisiones/<area>/<topic>.md
+  // Qué hace el módulo, en una o dos frases.
+  // De qué depende (y quién lo usa, si ayuda).
+  // Decisiones: docs/decisiones/<área>/<tema>.md
   // =============================================================================
   ```
 
-- A comment says the *why* that the code cannot say, in at most 10 lines. Longer
-  reasoning goes to an ADR. No history, dates or personal references in comments.
-- Comments do not name other products (editors, database clients, Git clients…): describe
-  the convention by what it does.
-- Size limits: 400 lines per file and 60 per function, 15 of cyclomatic complexity. ESLint
-  fails at twice those limits.
-- Pure logic lives in modules without JSX or DOM in their imports, so it can be tested with
-  plain `node`.
-- **The interface never sees or sends host paths**, and every IPC channel is declared in
-  `src/shared/*-ipc.ts` and exposed through `src/preload/`.
+- Un comentario dice el *porqué* que el código no puede decir, en 10 líneas como mucho. Un
+  razonamiento más largo va a un ADR. Nada de historia, fechas ni referencias personales en
+  los comentarios.
+- Los comentarios no nombran otros productos (editores, clientes de bases de datos, clientes
+  de Git…): describen la convención por lo que hace.
+- Límites de tamaño: 400 líneas por archivo y 60 por función, 15 de complejidad ciclomática.
+  ESLint falla al doble de esos límites.
+- La lógica pura vive en módulos sin JSX ni DOM en sus imports, para que se pueda probar con
+  `node` a secas.
+- **La interfaz nunca ve ni envía rutas del equipo**, y cada canal IPC se declara en
+  `src/shared/*-ipc.ts` y se expone por `src/preload/`.
 
-## Windows and macOS are both first class
+## Windows y macOS son de primera clase los dos
 
-Tessera runs on Windows and macOS, and neither is a port of the other. For a pull request
-this means:
+Tessera corre en Windows y en macOS, y ninguno es un port del otro. Para un pull request esto
+significa:
 
-- **Think every change through for both platforms**, even if you can only run one. Answer
-  two questions in the description: what does this do on the other platform, and does it
-  degrade it? If something does not apply there, say why in the code.
-- Never compare `process.platform` directly: use `esWindows()` / `esMac()` from
-  `src/shared/plataforma.ts`. In pure logic, the platform is a **parameter** with the
-  current system as default, so tests can cover both platforms from either machine.
-- In the interface (the renderer) `process` does not exist: the platform comes from
-  `window.tessera.plataforma`. This breaks only in the packaged app, so it is easy to miss.
-- Keyboard shortcuts are decided in `src/renderer/src/util/atajos.ts`, with the platform as
-  a parameter: sometimes the key itself is different, not only the modifier.
-- Texts that name the system, its file manager, its shell or its secret store come from
-  `src/shared/nombresSistema.ts`, never written by hand.
-- What you cannot run on your platform, leave written and ready (its test with the platform
-  as a parameter) and say clearly in the pull request that it is unverified there.
+- **Piensa cada cambio para las dos plataformas**, aunque solo puedas ejecutar una. Responde
+  dos preguntas en la descripción: qué hace esto en la otra plataforma, y si la degrada. Si
+  algo no aplica allí, explica por qué en el código.
+- Nunca compares `process.platform` directamente: usa `esWindows()` / `esMac()` de
+  `src/shared/plataforma.ts`. En la lógica pura, la plataforma es un **parámetro** con el
+  sistema actual por defecto, para que las pruebas cubran las dos plataformas desde
+  cualquiera de las dos máquinas.
+- En la interfaz (el renderer) no existe `process`: la plataforma llega por
+  `window.tessera.plataforma`. Esto solo se rompe en la app empaquetada, así que es fácil que
+  se escape.
+- Los atajos de teclado se deciden en `src/renderer/src/util/atajos.ts`, con la plataforma
+  como parámetro: a veces cambia la tecla misma, no solo el modificador.
+- Los textos que nombran el sistema, su gestor de archivos, su shell o su almacén de secretos
+  salen de `src/shared/nombresSistema.ts`, nunca escritos a mano.
+- Lo que no puedas ejecutar en tu plataforma, déjalo escrito y listo (su prueba con la
+  plataforma como parámetro) y di claramente en el pull request que allí queda sin verificar.
 
-## Testing your change
+## Probar tu cambio
 
-There is no `npm test`. Run what your change can affect:
+No hay `npm test`. Corre lo que tu cambio pueda afectar:
 
 ```bash
-npm run typecheck                  # main process, interface and e2e suite
-npm run lint                       # or: npx eslint <paths> for one area
-npm run test:cabeceras -- <paths>  # file headers
-npm run test:comentarios -- <paths>
-npm run test:menciones -- <paths>
-npm run test:<name>                # the test scripts of the area you touched
+npm run typecheck                  # proceso principal, interfaz y suite e2e
+npm run lint                       # o: npx eslint <rutas> para un área
+npm run test:cabeceras -- <rutas>  # cabeceras de los archivos
+npm run test:comentarios -- <rutas>
+npm run test:menciones -- <rutas>
+npm run test:<nombre>              # los scripts de prueba del área que tocaste
 ```
 
-- Unit tests are `test-*.mts` files next to the module they test, run with plain `node`.
-  Imports need an explicit extension (`'./modelo.ts'`) and no JSX or DOM in the chain. The
-  usual shape: local helpers `hr(title)` and `check(name, pass, evidence)`, a final
-  `VEREDICTO: n/m PASS` line and `process.exit(allPass ? 0 : 1)`.
-- `node scripts/pruebas/bateria.mjs <regex>` runs every `test:*` script whose name matches,
-  one after another. Some of them need Docker running; never run two of these at the same
-  time, they share containers and temporary folders.
-- If your change touches what lives on the boundary with the operating system (menus,
-  keyboard, packaging, clipboard, anything that only exists in the real renderer), it
-  deserves a case in `e2e/`. The suite drives the **packaged** app, so build it first:
+- Las pruebas unitarias son archivos `test-*.mts` junto al módulo que prueban, y corren con
+  `node` a secas. Los imports necesitan extensión explícita (`'./modelo.ts'`) y nada de JSX
+  ni DOM en la cadena. La forma habitual: helpers locales `hr(title)` y
+  `check(name, pass, evidence)`, una línea final `VEREDICTO: n/m PASS` y
+  `process.exit(allPass ? 0 : 1)`.
+- `node scripts/pruebas/bateria.mjs <regex>` corre, uno tras otro, todos los scripts
+  `test:*` cuyo nombre case. Algunos necesitan Docker levantado; nunca corras dos a la vez,
+  porque comparten contenedores y carpetas temporales.
+- Si tu cambio toca lo que vive en la frontera con el sistema operativo (menús, teclado,
+  empaquetado, portapapeles, cualquier cosa que solo exista en el renderer de verdad),
+  merece un caso en `e2e/`. La suite conduce la app **empaquetada**, así que compílala
+  primero:
 
   ```bash
-  npm run pack:dir        # Windows (npm run pack:mac:dir on macOS)
+  npm run pack:dir        # Windows (npm run pack:mac:dir en macOS)
   npx playwright test e2e/<spec>.spec.ts
   ```
 
-A new feature or a bug fix should come with a test that fails without it, whenever the
-logic can be tested.
+Una función nueva o un arreglo debería traer una prueba que falle sin él, siempre que la
+lógica se pueda probar.
 
-## Commit messages
+## Mensajes de commit
 
-Commits follow `type(area): description`, in Spanish and in lower case, and the
-description talks about the **effect for the user**, not the technique:
+Los commits siguen `tipo(ámbito): descripción`, en español y en minúscula, y la descripción
+habla del **efecto para el usuario**, no de la técnica:
 
-- `feat(ámbito): …` a new capability.
-- `fix(ámbito): …` something that was broken now works.
-- `perf(ámbito): …` the behavior does not change; what it costs does (time, memory, size).
-- `refactor(ámbito): …` neither behavior nor cost change: the code is reorganized to make a
-  coming change possible. The description says what is prepared and what does not change.
+- `feat(ámbito): …` una capacidad nueva.
+- `fix(ámbito): …` algo que estaba roto ahora funciona.
+- `perf(ámbito): …` el comportamiento no cambia; cambia lo que cuesta (tiempo, memoria,
+  tamaño).
+- `refactor(ámbito): …` no cambian ni el comportamiento ni el coste: se reorganiza el código
+  para que un cambio que viene sea posible. La descripción dice qué se prepara y qué no
+  cambia.
 
-For example: `fix(explorador): pegar varios archivos copiados en el Finder ya no pega solo el primero`.
+Por ejemplo: `fix(explorador): pegar varios archivos copiados en el Finder ya no pega solo el primero`.
 
-If writing the message in Spanish is a problem, write it in English: it can be adjusted
-when merging.
+Si escribir el mensaje en español te cuesta, escríbelo en inglés: se puede ajustar al
+integrarlo.
 
-## Proposing a change
+## Proponer un cambio
 
-1. For anything bigger than a small fix, **open an issue first** to agree on the approach.
-   It saves work on both sides.
-2. Fork the repository and create a branch from `main`.
-3. Make the change, with its tests, and run the checks above.
-4. Open a pull request using the template: what changes for the user, how you tested it,
-   and what it does on the other platform.
+1. Para cualquier cosa mayor que un arreglo pequeño, **abre primero un issue** para acordar
+   el enfoque. Ahorra trabajo a las dos partes.
+2. Haz un fork del repositorio y crea una rama desde `main`.
+3. Haz el cambio, con sus pruebas, y corre las comprobaciones de arriba.
+4. Abre un pull request con la plantilla: qué cambia para el usuario, cómo lo probaste y qué
+   hace en la otra plataforma.
 
-**How an accepted pull request lands.** The history of `main` is one commit per released
-version, so pull requests are not merged with the GitHub button. Once a pull request is
-approved, the maintainer applies it to the development tree with you as its author, and it
-ships in the next release commit. The release notes credit you, and the pull request is
-closed with a link to that release.
+**Cómo entra un pull request aceptado.** El historial de `main` es un commit por versión
+publicada, así que los pull requests no se integran con el botón de GitHub. Cuando un pull
+request se aprueba, el mantenedor lo aplica al árbol de desarrollo contigo como autor, y sale
+en el siguiente commit de versión. Las notas de la versión te dan el crédito, y el pull
+request se cierra con un enlace a esa versión.
 
-By contributing, you agree that your contribution is licensed under the
-[MIT License](./LICENSE) of the project. Please follow the
-[Code of Conduct](./CODE_OF_CONDUCT.md). To report a vulnerability, do **not** open a public
-issue: see [SECURITY.md](./SECURITY.md).
+Al contribuir, aceptas que tu contribución se licencia bajo la [licencia MIT](./LICENSE) del
+proyecto. Sigue, por favor, el [Código de conducta](./CODE_OF_CONDUCT.md). Para reportar una
+vulnerabilidad **no** abras un issue público: consulta [SECURITY.md](./SECURITY.md).

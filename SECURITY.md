@@ -1,61 +1,69 @@
-# Security policy
+<p align="center">
+  <a href="./SECURITY.en.md">Read in English</a>
+</p>
 
-Tessera runs AI agents next to your code, your credentials and your databases, so security
-reports are taken seriously and handled before anything else.
+# Política de seguridad
 
-## Reporting a vulnerability
+Tessera corre agentes de IA junto a tu código, tus credenciales y tus bases de datos, así que
+los reportes de seguridad se toman en serio y se atienden antes que cualquier otra cosa.
 
-**Please do not open a public issue for a security problem.**
+## Reportar una vulnerabilidad
 
-Report it privately through GitHub Security Advisories:
-**[Report a vulnerability](https://github.com/NRVH/tessera/security/advisories/new)**
-(the **Security** tab of the repository, then **Report a vulnerability**).
+**Por favor, no abras un issue público por un problema de seguridad.**
 
-Include, as far as you can:
+Repórtalo en privado mediante los avisos de seguridad de GitHub (Security Advisories):
+**[Reportar una vulnerabilidad](https://github.com/NRVH/tessera/security/advisories/new)**
+(la pestaña **Security** del repositorio y después **Report a vulnerability**).
 
-- what an attacker could do, and under which conditions;
-- the steps to reproduce it, or a proof of concept;
-- the Tessera version (**Settings › Acerca de**), the operating system and its version,
-  and whether the project was in Docker or native mode.
+Incluye, en la medida de lo posible:
 
-Tessera is maintained by one person, so you will get an answer as soon as possible rather
-than within a fixed time. Once the problem is
-confirmed, a fix is prepared privately, published in a new release, and the advisory is
-made public with credit to you, unless you prefer to stay anonymous.
+- qué podría hacer un atacante, y en qué condiciones;
+- los pasos para reproducirlo, o una prueba de concepto;
+- la versión de Tessera (**Configuración › Acerca de**), el sistema operativo y su versión,
+  y si el proyecto estaba en modo Docker o en modo nativo.
 
-## Supported versions
+Tessera lo mantiene una sola persona, así que recibirás respuesta lo antes posible, no en un
+plazo fijo. Una vez confirmado el problema, el arreglo se prepara en privado, se publica en
+una versión nueva y el aviso se hace público con tu crédito, salvo que prefieras quedar en el
+anonimato.
 
-Only the **latest release** receives security fixes. Installed copies update themselves,
-so the fix reaches users through the normal update.
+## Versiones soportadas
 
-| Version | Supported |
+Solo la **última versión** recibe arreglos de seguridad. Las copias instaladas se actualizan
+solas, así que el arreglo llega a los usuarios por la actualización normal.
+
+| Versión | Soportada |
 | --- | --- |
-| Latest release | Yes |
-| Older releases | No |
+| Última versión | Sí |
+| Versiones anteriores | No |
 
-## What is especially sensitive
+## Qué es especialmente sensible
 
-These areas carry the security promises of Tessera. A weakness in any of them is in scope:
+Estas áreas sostienen las promesas de seguridad de Tessera. Una debilidad en cualquiera de
+ellas entra en el alcance:
 
-- **The sandbox.** A workspace's container must see only that workspace's projects, its own
-  agent credentials and, read-only, the SSH keys. Anything that lets an agent reach the
-  host's files, another workspace's container or credentials, the Docker daemon, or gain
-  privileges beyond the container (escapes through mounts, the privileged helper, image
-  builds, environment or path handling) is a vulnerability.
-- **Agent credentials.** The sign-ins of each workspace and agent are kept apart and mounted
-  only while the agent runs. Any way for one workspace or project to read another's
-  credentials, or for them to leak into logs, is a vulnerability.
-- **Database access and `tdb`.** Passwords are encrypted with the system's secret store, and
-  agents query through `tdb` without receiving them. Read-only connections must stay
-  read-only for agents. Leaking a password to an agent, bypassing read-only, or using the
-  local bridge that `tdb` talks to from outside Tessera is a vulnerability.
-- **The boundary between the interface and the main process.** The interface runs isolated
-  and must never handle host paths. Path traversal outside a project, or a way for file
-  content (Markdown, HTML, SVG, PDF, a decompiled class) to run code in the app, is a
-  vulnerability.
-- **Updates.** Anything that could make Tessera install a build that did not come from this
-  repository's releases.
+- **El sandbox.** El contenedor de un espacio de trabajo solo debe ver los proyectos de ese
+  espacio, sus propias credenciales del agente y, en solo lectura, las llaves SSH. Cualquier
+  cosa que permita a un agente llegar a los archivos del equipo, al contenedor o las
+  credenciales de otro espacio de trabajo, al daemon de Docker, u obtener privilegios más
+  allá del contenedor (escapes por montajes, el ayudante con privilegios, la construcción de
+  imágenes, el manejo del entorno o de las rutas) es una vulnerabilidad.
+- **Las credenciales de los agentes.** Las sesiones de cada espacio de trabajo y agente se
+  guardan por separado y se montan solo mientras el agente corre. Cualquier forma de que un
+  espacio o un proyecto lea las credenciales de otro, o de que se filtren a los registros, es
+  una vulnerabilidad.
+- **El acceso a bases de datos y `tdb`.** Las contraseñas se cifran con el almacén de
+  secretos del sistema, y los agentes consultan por `tdb` sin recibirlas. Las conexiones de
+  solo lectura deben seguir siéndolo para los agentes. Filtrar una contraseña a un agente,
+  saltarse la solo lectura, o usar desde fuera de Tessera el puente local con el que habla
+  `tdb` es una vulnerabilidad.
+- **La frontera entre la interfaz y el proceso principal.** La interfaz corre aislada y nunca
+  debe manejar rutas del equipo. Recorrer rutas fuera de un proyecto (path traversal), o una
+  forma de que el contenido de un archivo (Markdown, HTML, SVG, PDF, una clase descompilada)
+  ejecute código en la app, es una vulnerabilidad.
+- **Las actualizaciones.** Cualquier cosa que pueda hacer que Tessera instale una compilación
+  que no salió de las releases de este repositorio.
 
-Out of scope: what an agent does with the access you deliberately give it (a project in
-native mode runs with your permissions by design), and problems in Claude Code, Codex,
-Docker or other third-party software, which should be reported to their maintainers.
+Fuera del alcance: lo que un agente haga con el acceso que tú le das a propósito (un
+proyecto en modo nativo corre con tus permisos por diseño), y los problemas de Claude Code,
+Codex, Docker u otro software de terceros, que se reportan a sus mantenedores.

@@ -181,6 +181,11 @@ jobs:
           else
             gh release create "$TAG" --verify-tag --draft --title "Tessera $TAG" --notes-file notas.md
           fi
+          # Copias con nombre FIJO para los enlaces de descarga directa del README
+          # (`releases/latest/download/<nombre>`): el de con versión cambia en cada release. Las
+          # apps no las usan: sus `latest*.yml` apuntan a los de con versión.
+          cp "artefactos/Tessera-$VERSION-Setup.exe" artefactos/Tessera-Setup.exe
+          cp "artefactos/Tessera-$VERSION-arm64.dmg" artefactos/Tessera-mac-arm64.dmg
           gh release upload "$TAG" artefactos/* --clobber
 
       - name: El borrador tiene todo lo que piden las apps
@@ -190,7 +195,8 @@ jobs:
           gh release view "$TAG" --json assets -q '.assets[].name' > subidos.txt
           cat subidos.txt
           for f in latest.yml latest-mac.yml "Tessera-$VERSION-Setup.exe" \
-                   "Tessera-$VERSION-arm64.dmg" "Tessera-$VERSION-arm64.zip"; do
+                   "Tessera-$VERSION-arm64.dmg" "Tessera-$VERSION-arm64.zip" \
+                   Tessera-Setup.exe Tessera-mac-arm64.dmg; do
             grep -qx "$f" subidos.txt || { echo "::error::El borrador no tiene $f: se queda sin publicar."; exit 1; }
           done
 

@@ -1,368 +1,379 @@
 <p align="center">
-  <img src="build/icon.png" width="96" height="96" alt="Tessera icon">
+  <img src="build/icon.png" width="96" height="96" alt="Icono de Tessera">
 </p>
 
 <h1 align="center">Tessera</h1>
 
 <p align="center">
-  <strong>The desktop IDE for people who work across several projects and several AI accounts.</strong>
+  <strong>El IDE de escritorio para quien trabaja en varios proyectos y con varias cuentas de IA.</strong>
 </p>
 
 <p align="center">
-  <a href="https://github.com/NRVH/tessera/releases/latest"><img src="https://img.shields.io/github/v/release/NRVH/tessera" alt="Latest release"></a>
-  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
-  <img src="https://img.shields.io/badge/platforms-Windows%20%7C%20macOS-lightgrey.svg" alt="Platforms: Windows | macOS">
+  <a href="https://github.com/NRVH/tessera/releases/latest"><img src="https://img.shields.io/github/v/release/NRVH/tessera" alt="Última versión"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="Licencia MIT"></a>
+  <img src="https://img.shields.io/badge/platforms-Windows%20%7C%20macOS-lightgrey.svg" alt="Plataformas: Windows | macOS">
 </p>
 
 <p align="center">
-  <a href="./README.es.md">Leer en español</a>
+  <a href="./README.en.md">Read in English</a>
 </p>
 
-![Tessera with several workspaces open, an agent working and the editor beside it](assets/capturas/principal.png)
+![Tessera con varios espacios de trabajo abiertos, un agente trabajando y el editor al lado](assets/capturas/principal.png)
 
-AI coding agents are powerful, and they are also a new kind of process running on your
-computer with your permissions. Tessera organizes your projects into **workspaces**, runs
-Claude Code and Codex next to them, and lets you decide project by project how far an agent
-can reach: natively, with the account on your computer, or inside the workspace's own Docker
-sandbox, with an account that belongs to that workspace and only its projects in view.
+Los agentes de IA para programar son potentes, y también son un tipo nuevo de proceso que
+corre en tu equipo con tus permisos. Tessera ordena tus proyectos en **espacios de
+trabajo**, corre Claude Code y Codex a su lado y te deja decidir proyecto por proyecto hasta
+dónde llega un agente: en nativo, con la cuenta de tu equipo, o dentro del sandbox de Docker
+del espacio de trabajo, con una cuenta propia de ese espacio y solo sus proyectos a la vista.
 
-> **Language note.** Tessera's interface is in Spanish for now. This README, the issue
-> templates and the release notes are in English.
+## Contenido
 
-## Contents
+- [Por qué Tessera](#por-qué-tessera)
+- [Descarga](#descarga)
+- [Requisitos](#requisitos)
+- [Primeros pasos](#primeros-pasos)
+- [Funciones](#funciones)
+- [Atajos de teclado](#atajos-de-teclado)
+- [Dónde se guardan tus datos](#dónde-se-guardan-tus-datos)
+- [Privacidad](#privacidad)
+- [Compilar desde el código](#compilar-desde-el-código)
+- [Arquitectura](#arquitectura)
+- [Pruebas](#pruebas)
+- [Contribuir](#contribuir)
+- [Licencia](#licencia)
+- [Autor](#autor)
 
-- [Why Tessera](#why-tessera)
-- [Download](#download)
-- [Requirements](#requirements)
-- [Getting started](#getting-started)
-- [Features](#features)
-- [Keyboard shortcuts](#keyboard-shortcuts)
-- [Where your data lives](#where-your-data-lives)
-- [Privacy](#privacy)
-- [Building from source](#building-from-source)
-- [Architecture](#architecture)
-- [Tests](#tests)
-- [Contributing](#contributing)
-- [License](#license)
-- [Author](#author)
+## Por qué Tessera
 
-## Why Tessera
+- **Varias cuentas de IA, cada una en su sitio.** Cada proyecto corre en uno de dos modos, y
+  el modo decide la cuenta. Los proyectos **nativos** (el modo por defecto) usan la cuenta de
+  Claude Code y de Codex que ya tienes iniciada en tu equipo, la misma en todos los espacios
+  de trabajo. Los proyectos **Docker** usan una cuenta del espacio de trabajo: inicias sesión
+  una vez dentro de ese espacio, se guarda con él y nunca se comparte con ningún otro. Pon tu
+  plan personal, el de tu equipo o una cuenta ligada a un proyecto en su propio espacio, pasa
+  esos proyectos a Docker, y cada uno conserva su historial de conversaciones y sus límites
+  de uso, sin cerrar sesión cada vez que cambias.
+- **En modo Docker, los agentes solo ven lo que tú les das.** El agente de un proyecto Docker
+  corre dentro del contenedor de su espacio de trabajo, con los proyectos de ese espacio
+  montados y nada más: ni tu carpeta personal, ni tus otros repositorios, ni el resto del
+  disco. Un comando equivocado o un prompt malicioso se quedan dentro de la caja. Un agente
+  nativo corre como tú, con tus permisos, igual que cualquier agente que arrancas desde una
+  terminal.
+- **El control es tuyo.** Los proyectos nuevos abren en nativo salvo que cambies el modo por
+  defecto en Configuración, y cualquier proyecto se pasa de nativo a Docker y al revés desde
+  su pestaña. Las credenciales del agente se montan solo mientras el agente corre. El acceso
+  a bases de datos pasa por un CLI pequeño que nunca le enseña una contraseña al agente, y
+  una conexión puede ser de solo lectura para los agentes.
+- **Todo en una ventana.** Editor, explorador de archivos, Git, terminales y conexiones a
+  bases de datos junto a los agentes, con una pestaña por espacio de trabajo y una
+  subpestaña por proyecto.
 
-- **Several AI accounts, each where it belongs.** Each project runs in one of two modes, and
-  the mode decides the account. **Native** projects (the default) use the Claude Code and
-  Codex account already signed in on your computer, the same one in every workspace.
-  **Docker** projects use an account that belongs to their workspace: you sign in once inside
-  that workspace, it is stored with it, and it is never shared with any other workspace. Put
-  your personal plan, your team's plan or an account tied to one project in its own
-  workspace, switch those projects to Docker, and each keeps its own conversation history and
-  usage limits, without signing out every time you switch.
-- **Agents see only what you give them, in Docker mode.** A Docker project's agent runs
-  inside its workspace's container, with that workspace's projects mounted and nothing else:
-  not your home folder, not your other repositories, not the rest of your disk. A wrong
-  command or a malicious prompt stays inside the box. A native agent runs as you, with your
-  permissions, like any agent you start from a terminal.
-- **You stay in control.** New projects open natively unless you change the default in
-  Settings, and any project can be switched between native and Docker from its tab. Agent
-  credentials are mounted only while the agent runs. Database access goes through a small
-  CLI that never shows the agent a password, and a connection can be made read-only for
-  agents.
-- **One window for all of it.** Editor, file explorer, Git, terminals and database
-  connections next to the agents, with a tab per workspace and a sub-tab per project.
+## Descarga
 
-## Download
-
-Get the latest version from **[Releases](https://github.com/NRVH/tessera/releases/latest)**.
-
-| Platform | File to download | Supported systems |
+| Plataforma | Descarga directa (última versión) | Sistemas soportados |
 | --- | --- | --- |
-| Windows | `Tessera-<version>-Setup.exe` | Windows 11 (64-bit) |
-| macOS | `Tessera-<version>-arm64.dmg` | macOS 12 Monterey or later, **Apple Silicon only** (M1 and newer) |
+| Windows | **[Descargar para Windows](https://github.com/NRVH/tessera/releases/latest/download/Tessera-Setup.exe)** (`.exe`) | Windows 11 (64 bits) |
+| macOS | **[Descargar para Mac](https://github.com/NRVH/tessera/releases/latest/download/Tessera-mac-arm64.dmg)** (`.dmg`) | macOS 12 Monterey o posterior, **solo Apple Silicon** (M1 y posteriores) |
 
-The Windows installer is per user (no administrator rights needed) and lets you choose the
-installation folder. On macOS, open the `.dmg` and drag Tessera to **Applications**.
+Las notas de cada versión y los instaladores anteriores están en
+**[Releases](https://github.com/NRVH/tessera/releases)**.
 
-Tessera updates itself on both platforms: a new version downloads in the background and is
-applied when you close the app (you can change that in **Settings › Actualizaciones**).
+El instalador de Windows es por usuario (no pide permisos de administrador) y te deja elegir
+la carpeta de instalación. En macOS, abre el `.dmg` y arrastra Tessera a **Aplicaciones**.
 
-### First launch of an unsigned app
+Tessera se actualiza sola en las dos plataformas: la versión nueva se descarga en segundo
+plano y se aplica al cerrar la app (puedes cambiarlo en **Configuración › Actualizaciones**).
 
-Tessera is an independent open source project and is not signed with a paid code-signing
-certificate, so both systems will warn you the first time you open it. This is expected.
+### Primer arranque de una app sin firma
 
-- **Windows.** SmartScreen shows "Windows protected your PC". Click **More info** and then
-  **Run anyway**.
-- **macOS 15 Sequoia and later.** The first open is blocked. Go to **System Settings ›
-  Privacy & Security**, scroll down and click **Open Anyway** next to the message about
-  Tessera, then confirm.
-- **macOS 12 to 14.** Right-click (or Control-click) Tessera in Applications, choose
-  **Open**, and confirm.
-- **Any macOS version, from the terminal:**
+Tessera es un proyecto de código abierto independiente y no está firmado con un
+certificado de pago, así que los dos sistemas avisan la primera vez que la abres. Es lo
+esperado.
+
+- **Windows.** SmartScreen enseña «Windows protegió tu PC». Pulsa **Más información** y
+  después **Ejecutar de todas formas**.
+- **macOS 15 Sequoia y posteriores.** La primera apertura se bloquea. Ve a **Ajustes del
+  Sistema › Privacidad y seguridad**, baja hasta el aviso sobre Tessera, pulsa **Abrir de
+  todos modos** y confirma.
+- **macOS 12 a 14.** Haz clic derecho (o Control-clic) sobre Tessera en Aplicaciones, elige
+  **Abrir** y confirma.
+- **Cualquier versión de macOS, desde la terminal:**
 
   ```bash
   xattr -dr com.apple.quarantine /Applications/Tessera.app
   ```
 
-You only have to do this once: automatic updates are downloaded by Tessera itself and do
-not trigger the warning again. If you would rather not trust a prebuilt binary, you can
-[build Tessera from source](#building-from-source).
+Solo hay que hacerlo una vez: las actualizaciones automáticas las descarga la propia
+Tessera y no vuelven a disparar el aviso. Si prefieres no fiarte de un binario ya
+compilado, puedes [compilar Tessera desde el código](#compilar-desde-el-código).
 
-On macOS the app carries an ad-hoc signature, which changes with every build. Because of
-that, macOS may ask again for permission to access folders such as Documents or Desktop
-after an update.
+En macOS la app lleva una firma ad-hoc, que cambia con cada compilación. Por eso, tras una
+actualización macOS puede volver a pedir permiso para acceder a carpetas como Documentos o
+el Escritorio.
 
-## Requirements
+## Requisitos
 
-| What | When you need it |
+| Qué | Cuándo lo necesitas |
 | --- | --- |
-| **Docker Desktop** | Only for sandbox mode. On Windows, with the WSL 2 backend. Tessera builds its sandbox image the first time a workspace needs it. |
-| **Claude Code** and/or **Codex** | Only for native mode: installed on your computer and signed in. In sandbox mode both come preinstalled in the image. |
-| **Git** | For the Git view, which runs on your computer. On macOS it comes with the Xcode Command Line Tools. |
-| **Java** (optional) | To decompile `.class` files. Tessera ships two engines: CFR, which runs on Java 6 or later, and Vineflower, which needs Java 17 or later. It finds every Java runtime installed and uses the best one for each engine. |
+| **Docker Desktop** | Solo para el modo sandbox. En Windows, con el backend de WSL 2. Tessera construye la imagen del sandbox la primera vez que un espacio de trabajo la necesita. |
+| **Claude Code** y/o **Codex** | Solo para el modo nativo: instalados en tu equipo y con la sesión iniciada. En modo sandbox los dos vienen preinstalados en la imagen. |
+| **Git** | Para la vista de Git, que corre en tu equipo. En macOS viene con las Command Line Tools de Xcode. |
+| **Java** (opcional) | Para descompilar archivos `.class`. Tessera trae dos motores: CFR, que corre con Java 6 o posterior, y Vineflower, que necesita Java 17 o posterior. Encuentra todas las instalaciones de Java del equipo y usa la mejor para cada motor. |
 
-Linux is not supported yet.
+Linux todavía no está soportado.
 
-## Getting started
+## Primeros pasos
 
-1. **Open Tessera.** A fresh installation starts with one workspace called **Personal**.
-   Workspaces are called *perfiles* in the interface.
-2. **Create more workspaces** with the **+** at the end of the workspace bar: give each one
-   a name and a color. Right-click a workspace to rename it, change its color, hibernate it
-   or delete it, and drag it to reorder.
-3. **Add projects** with the **+** in the project bar ("Abrir proyecto") and pick a folder.
-   A project can be a single repository or a folder that contains several.
-4. **Choose where the project runs.** New projects open in the mode set in
-   **Settings › Proyectos › Modo por defecto** (native unless you change it): native (on
-   your computer, with the account signed in on it, shared by every workspace), Docker
-   (isolated, with the workspace's own account) or ask every time. Right-click a project
-   tab to switch it between the two.
-5. **Sign in to the agent.** In Docker mode, the agent panel offers **Iniciar sesión** the
-   first time: that account is then used by every Docker project of the workspace. In native
-   mode, the agent uses the account you are already signed in with on your computer.
+1. **Abre Tessera.** Una instalación nueva arranca con un espacio de trabajo llamado
+   **Personal**. En la interfaz, los espacios de trabajo se llaman *perfiles*.
+2. **Crea más espacios de trabajo** con el **+** del final de la barra de perfiles: dale a
+   cada uno un nombre y un color. Con clic derecho sobre un perfil lo renombras, le cambias
+   el color, lo hibernas o lo eliminas, y arrastrándolo lo reordenas.
+3. **Añade proyectos** con el **+** de la barra de proyectos («Abrir proyecto») y elige una
+   carpeta. Un proyecto puede ser un solo repositorio o una carpeta que contiene varios.
+4. **Elige dónde corre el proyecto.** Los proyectos nuevos abren en el modo de
+   **Configuración › Proyectos › Modo por defecto** (nativo si no lo cambias): nativo (en tu
+   equipo, con la cuenta iniciada en él, la misma en todos los espacios), Docker (aislado,
+   con la cuenta propia del espacio de trabajo) o preguntar siempre. Con clic derecho sobre
+   la pestaña de un proyecto lo cambias de uno a otro.
+5. **Inicia sesión en el agente.** En modo Docker, el panel del agente ofrece **Iniciar
+   sesión** la primera vez: esa cuenta la usan después todos los proyectos Docker del
+   perfil. En modo nativo, el agente usa la cuenta con la que ya tienes la sesión iniciada
+   en tu equipo.
 
-## Features
+## Funciones
 
-### Workspaces and tabs
+### Espacios de trabajo y pestañas
 
-![Workspace bar with colored workspaces and project tabs](assets/capturas/espacios.png)
+![Barra de perfiles con espacios de colores y pestañas de proyecto](assets/capturas/espacios.png)
 
-- Two levels of tabs: workspaces on top, each with its own color so you always know which
-  account you are in, and the open projects of that workspace below.
-- Reorder workspaces and projects by dragging them.
-- Tessera remembers which projects each workspace had open and restores them when you
-  reopen the app, without starting every agent at once: an agent starts when you enter its
-  project.
-- **Hibernate a workspace** to stop its container and free its memory; it wakes up where you
-  left it when you go back to it.
-- **Idle agents hibernate on their own**: a native agent of a project that is not on screen
-  is closed after some minutes without activity (5 by default, or never) and resumes its
-  conversation when you come back. It never happens while the agent is working, waiting for
-  you or holding unsent text.
-- Each workspace's container uses an isolated network by default, or the host network
-  (when it is enabled in Docker Desktop) so that the servers an agent starts are reachable
-  from your browser.
+- Dos niveles de pestañas: arriba los espacios de trabajo, cada uno con su color para que
+  siempre sepas en qué cuenta estás, y debajo los proyectos abiertos de ese espacio.
+- Reordena espacios y proyectos arrastrándolos.
+- Tessera recuerda qué proyectos tenía abiertos cada espacio y los restaura al volver a
+  abrir la app, sin arrancar todos los agentes a la vez: un agente arranca cuando entras a
+  su proyecto.
+- **Hiberna un espacio de trabajo** para parar su contenedor y liberar su memoria; se
+  despierta donde lo dejaste al volver a él.
+- **Los agentes inactivos se hibernan solos**: el agente nativo de un proyecto que no está
+  en pantalla se cierra tras unos minutos sin actividad (5 por defecto, o nunca) y retoma su
+  conversación al volver. Nunca pasa mientras el agente trabaja, te espera o tiene texto
+  sin enviar.
+- El contenedor de cada espacio usa por defecto una red aislada, o la red del anfitrión
+  (cuando está activada en Docker Desktop) para que los servidores que levanta un agente se
+  alcancen desde tu navegador.
 
-### Claude Code and Codex
+### Claude Code y Codex
 
-![The agent panel, with Claude Code and Codex one click apart and the account usage in its footer](assets/capturas/agentes.png)
+![El panel del agente, con Claude Code y Codex a un clic y el uso de la cuenta en su pie](assets/capturas/agentes.png)
 
-- Both agents are available in every workspace, side by side, in a real terminal.
-- Accounts follow the project's mode. Native projects share the account signed in on your
-  computer. Docker projects use their workspace's own account, one per workspace and agent,
-  kept in its own folder and never shared with another workspace. If you want isolated
-  accounts, switch the project to Docker.
-- **Conversation history** per project: browse past conversations, resume any of them or
-  delete them. Opening a project resumes its last conversation.
-- **Account usage** in the agent's footer (the 5-hour and weekly limits), and how much of
-  the **context window** the current conversation is using.
-- **Keep agents up to date.** In native mode, one button checks for new Claude Code and
-  Codex versions, installs them and restarts only the sessions that need it, each one back
-  in its conversation; it waits while an affected agent is still working. In Docker mode,
-  "Actualizar agentes" rebuilds the sandbox image with the latest versions.
-- Paste images and files into the agent's terminal; in Docker mode they are copied inside
-  the container instead of passing a path the agent could not open.
+- Los dos agentes están disponibles en cada espacio de trabajo, lado a lado, en una
+  terminal de verdad.
+- Las cuentas siguen el modo del proyecto. Los proyectos nativos comparten la cuenta
+  iniciada en tu equipo. Los proyectos Docker usan la cuenta propia de su espacio de trabajo,
+  una por espacio y agente, guardada en su propia carpeta y nunca compartida con otro
+  espacio. Si quieres cuentas aisladas, cambia el proyecto a Docker.
+- **Historial de conversaciones** por proyecto: recorre las conversaciones anteriores,
+  reanuda cualquiera o bórralas. Al abrir un proyecto se reanuda su última conversación.
+- **Uso de la cuenta** en el pie del agente (los límites de 5 horas y semanal), y cuánto de
+  la **ventana de contexto** gasta la conversación actual.
+- **Agentes siempre al día.** En modo nativo, un botón comprueba si hay versión nueva de
+  Claude Code y de Codex, la instala y reinicia solo las sesiones que lo necesitan, cada una
+  en su conversación; espera mientras algún agente afectado siga trabajando. En modo Docker,
+  «Actualizar agentes» reconstruye la imagen del sandbox con las últimas versiones.
+- Pega imágenes y archivos en la terminal del agente; en modo Docker se copian dentro del
+  contenedor en vez de pasar una ruta que el agente no podría abrir.
 
-### Sandbox or native, per project
+### Sandbox o nativo, por proyecto
 
-- **Docker sandbox (isolated).** One container per workspace, created and managed by
-  Tessera. Projects are mounted under `/workspace/<folder>`; nothing else from your disk is
-  mounted except the agent's credentials and, read-only, your SSH keys, so Git over SSH keeps
-  working with your own host aliases. The agent has `sudo` inside its container to install
-  tools, without any extra Docker privileges. In **Settings › Proyectos** you can bake
-  document tools, the system libraries a test browser needs, or any other Debian packages
-  into the image.
-- **Native (the default).** The agent and the terminal run on your computer, with your own
-  account and your own tools: a desktop app started from local scripts, a database only
-  reachable through your VPN. It needs no Docker, and the agent has the same access you
-  have. Change the default in **Settings › Proyectos › Modo por defecto**, or switch a single
-  project from its tab.
+- **Sandbox de Docker (aislado).** Un contenedor por espacio de trabajo, creado y gestionado
+  por Tessera. Los proyectos se montan en `/workspace/<carpeta>`; del disco no se monta nada
+  más que las credenciales del agente y, en solo lectura, tus llaves SSH, así que Git por SSH
+  sigue funcionando con tus propios alias de host. El agente tiene `sudo` dentro de su
+  contenedor para instalar herramientas, sin privilegios extra de Docker. En
+  **Configuración › Proyectos** puedes hornear en la imagen herramientas de documentos, las
+  librerías de sistema que necesita un navegador de pruebas o cualquier otro paquete de
+  Debian.
+- **Nativo (el modo por defecto).** El agente y la terminal corren en tu equipo, con tu
+  propia cuenta y tus herramientas: una app de escritorio que arranca con scripts locales,
+  una base de datos que solo se alcanza por tu VPN. No necesita Docker, y el agente tiene el
+  mismo acceso que tú. Cambia el modo por defecto en **Configuración › Proyectos › Modo por
+  defecto**, o pasa un solo proyecto desde su pestaña.
 
-### Agent mosaic
+### Mosaico de agentes
 
-![Mosaic with several agents working at the same time](assets/capturas/mosaico.png)
+![Mosaico con varios agentes trabajando a la vez](assets/capturas/mosaico.png)
 
-Every agent that is working, in one grid of up to six tiles, so you can follow several
-projects at once. Jump to a tile, maximize it, and leave the mosaic with the same shortcut
-you used to enter it.
+Todos los agentes que trabajan, en una rejilla de hasta seis casillas, para seguir varios
+proyectos a la vez. Salta a una casilla, amplíala, y sal del mosaico con el mismo atajo con
+el que entraste.
 
-### Editor and viewers
+### Editor y visores
 
-![Monaco editor with a Markdown file in split view](assets/capturas/editor.png)
+![Editor Monaco con un Markdown en vista dividida](assets/capturas/editor.png)
 
-- **Monaco** editor with syntax highlighting for many languages, find and replace, and
-  tabs per project.
-- Detects each file's **encoding and line endings**, shows them in the status bar and lets
-  you convert them.
-- **Markdown** with a rendered view (including Mermaid diagrams), a code view, or both side
-  by side with synchronized scrolling. HTML files get an isolated preview.
-- **Viewers** for PDF, Word (`.docx`), ZIP archives and images (with zoom).
-- **Java archives**: `.jar`, `.war`, `.ear` and `.aar` open in the explorer like folders, and
-  `.class` files are decompiled on the fly. Comparing two versions of an archive shows which
-  entries changed and the diff of the decompiled classes.
+- Editor **Monaco** con resaltado de sintaxis para muchos lenguajes, buscar y reemplazar, y
+  pestañas por proyecto.
+- Detecta la **codificación y el fin de línea** de cada archivo, los enseña en la barra de
+  estado y te deja convertirlos.
+- **Markdown** con vista renderizada (diagramas Mermaid incluidos), vista de código, o las
+  dos lado a lado con el scroll sincronizado. Los HTML tienen una vista previa aislada.
+- **Visores** de PDF, Word (`.docx`), archivos ZIP e imágenes (con zoom).
+- **Archivos de Java**: los `.jar`, `.war`, `.ear` y `.aar` se abren en el explorador como
+  carpetas, y los `.class` se descompilan al vuelo. Comparar dos versiones de un archivo
+  enseña qué entradas cambiaron y el diff de las clases descompiladas.
 
-### File explorer
+### Explorador de archivos
 
-- Multi-select with Ctrl/⌘-click and Shift-click, drag and drop to move, create, rename and
-  delete.
-- Copy and paste files between Tessera and Explorer or Finder through the system clipboard.
-- **Search in files** across the whole project or one folder, with a live preview.
-- Git status colors on files and folders, refreshed as files change on disk.
-- **"Open with Tessera"** from the right-click menu of Windows Explorer (folders, any file,
-  or associated extensions, each switchable in Settings) and, on macOS, a Finder quick action
-  for folders plus "Open With" for code and text files. Tessera never makes itself the
-  default app for a file type.
+- Selección múltiple con Ctrl/⌘-clic y Mayús-clic, arrastrar y soltar para mover, crear,
+  renombrar y borrar.
+- Copia y pega archivos entre Tessera y el Explorador o el Finder por el portapapeles del
+  sistema.
+- **Buscar en archivos** en todo el proyecto o en una carpeta, con vista previa en vivo.
+- Colores de estado de Git en archivos y carpetas, al día según cambian en disco.
+- **«Abrir con Tessera»** desde el menú del clic derecho del Explorador de Windows (carpetas,
+  cualquier archivo o extensiones asociadas, cada uno se activa por separado en
+  Configuración) y, en macOS, una acción rápida del Finder para carpetas más «Abrir con»
+  para archivos de código y de texto. Tessera nunca se convierte en la app por defecto de un
+  tipo de archivo.
 
 ### Git
 
-![Git view with the history graph and a diff](assets/capturas/git.png)
+![Vista de Git con el grafo del historial y un diff](assets/capturas/git.png)
 
-- **Changes**: the working tree as a list or a tree, stage and unstage, discard, ignore
-  (in `.gitignore` or only locally) and commit.
-- **History** with its branch graph, filters, commit details and the history of a single
-  file.
-- **Editable diffs**: fix something directly in the diff of your working copy.
-- **Several repositories** in one project folder: pick which one the history shows.
+- **Cambios**: el árbol de trabajo como lista o como árbol, preparar y quitar del índice,
+  descartar, ignorar (en `.gitignore` o solo en local) y hacer commit.
+- **Historial** con su grafo de ramas, filtros, el detalle de cada commit y el historial de
+  un solo archivo.
+- **Diffs editables**: corrige algo directamente en el diff de tu copia de trabajo.
+- **Varios repositorios** en una misma carpeta de proyecto: eliges cuál enseña el historial.
 
-### Terminals
+### Terminales
 
-![Terminal panel at the bottom of the window](assets/capturas/terminales.png)
+![Panel de terminal en la parte inferior de la ventana](assets/capturas/terminales.png)
 
-- A terminal panel at the bottom of the window for the active project, with several
-  terminals in tabs: inside the workspace's container in Docker mode, or your own shell in
-  native mode (PowerShell on Windows, your login shell on macOS).
-- Find in the scrollback, copy and paste that behave like the platform expects, and
-  GPU-accelerated rendering that you can turn off in Settings.
+- Un panel de terminal en la parte inferior de la ventana para el proyecto activo, con
+  varias terminales en pestañas: dentro del contenedor del espacio en modo Docker, o tu
+  propia shell en modo nativo (PowerShell en Windows, tu shell de inicio de sesión en
+  macOS).
+- Buscar en el historial de la terminal, copiar y pegar como espera cada plataforma, y
+  renderizado acelerado por GPU que puedes apagar en Configuración.
 
-### Databases
+### Bases de datos
 
-![Connections view with the database tree, a SQL console and the result grid](assets/capturas/bases-de-datos.png)
+![Vista Conexiones con el árbol de la base, una consola SQL y la rejilla de resultados](assets/capturas/bases-de-datos.png)
 
-- **Oracle, PostgreSQL, SQL Server, MongoDB, Redis and SQLite**, in a **Connections** view
-  of their own, organized per workspace.
-- A tree of schemas and objects, a result grid with paging and export, SQL consoles with
-  autocomplete, formatting, explain plans and query history, and consoles for MongoDB and
-  Redis in their own syntax.
-- **Editing with confirmation**: changes in the grid or in a console wait until you send
-  them, all or nothing. Connections can be marked as development, testing or production,
-  and production asks before writing. Tessera warns; it never locks you out.
-- **Read-only is for agents.** Marking a connection read-only limits what agents can do with
-  it; it never limits you.
-- **`tdb` for agents.** Attach a connection to a project and the agent can query it with a
-  small CLI, `tdb`, by the connection's name. The agent never sees the password.
-- Oracle works out of the box in thin mode. Older servers that need thick mode use Oracle
-  Instant Client, which Tessera can download for you from oracle.com, or you can point it
-  to one you already have.
-- Passwords are encrypted with your system's secret store (DPAPI on Windows, the Keychain
-  on macOS).
+- **Oracle, PostgreSQL, SQL Server, MongoDB, Redis y SQLite**, en una vista **Conexiones**
+  propia, organizada por espacio de trabajo.
+- Un árbol de esquemas y objetos, una rejilla de resultados con paginado y exportación,
+  consolas SQL con autocompletado, formato, planes de ejecución e historial de consultas, y
+  consolas para MongoDB y Redis con su propia sintaxis.
+- **Edición con confirmación**: los cambios de la rejilla o de una consola esperan a que los
+  envíes, todo o nada. Las conexiones se pueden marcar como desarrollo, pruebas o producción,
+  y producción pregunta antes de escribir. Tessera avisa; nunca te bloquea.
+- **La solo lectura es para los agentes.** Marcar una conexión de solo lectura limita lo que
+  los agentes pueden hacer con ella; a ti nunca te limita.
+- **`tdb` para los agentes.** Monta una conexión en un proyecto y el agente puede
+  consultarla con un CLI pequeño, `tdb`, por el nombre de la conexión. El agente nunca ve la
+  contraseña.
+- Oracle funciona de entrada en modo thin. Los servidores antiguos que necesitan el modo
+  thick usan Oracle Instant Client, que Tessera puede descargar por ti desde oracle.com, o
+  puedes indicarle uno que ya tengas.
+- Las contraseñas se cifran con el almacén de secretos del sistema (DPAPI en Windows, el
+  Llavero en macOS).
 
-### Settings
+### Configuración
 
-![Settings with its category rail and search box](assets/capturas/configuracion.png)
+![Configuración con su riel de categorías y su buscador](assets/capturas/configuracion.png)
 
-A searchable settings window (Ctrl+, / ⌘,): appearance and zoom, terminal fonts, the
-default project mode and agent hibernation, the sandbox image, database defaults, system
-integration, updates, and an About page.
+Una ventana de configuración con buscador (Ctrl+, / ⌘,): apariencia y zoom, fuentes de las
+terminales, el modo por defecto de los proyectos y la hibernación de los agentes, la imagen
+del sandbox, los valores por defecto de bases de datos, la integración con el sistema, las
+actualizaciones y una página «Acerca de».
 
-### Automatic updates
+### Actualizaciones automáticas
 
-Tessera checks its release feed on GitHub, downloads new versions in the background and
-applies them when you close the app, on Windows and on macOS.
+Tessera consulta su canal de versiones en GitHub, descarga las nuevas en segundo plano y
+las aplica al cerrar la app, en Windows y en macOS.
 
-## Keyboard shortcuts
+## Atajos de teclado
 
-The main modifier is Ctrl on Windows and ⌘ on macOS. A few gestures use a different key
-on each platform, following each system's conventions.
+El modificador principal es Ctrl en Windows y ⌘ en macOS. Algunos gestos usan una tecla
+distinta en cada plataforma, siguiendo las convenciones de cada sistema.
 
-| Action | Windows | macOS |
+| Acción | Windows | macOS |
 | --- | --- | --- |
-| Settings | Ctrl+, | ⌘, |
-| Search in files | Ctrl+Shift+F | ⇧⌘F |
-| New file (new console in Connections) | Ctrl+N | ⌘N |
-| Show or hide the terminal panel | Ctrl+` | ⌃` |
-| Zoom in / out / reset | Ctrl+= / Ctrl+- / Ctrl+0 | ⌘= / ⌘- / ⌘0 |
-| Enter or leave the agent mosaic | Ctrl+Shift+M | ⇧⌘M |
-| Focus mosaic tile 1 to 6 | Ctrl+1 … Ctrl+6 | ⌘1 … ⌘6 |
-| Maximize or restore the focused tile | Ctrl+Shift+Enter | ⇧⌘↩ |
-| Find in a terminal | Ctrl+F | ⌘F |
-| Copy in a terminal (with a selection) | Ctrl+C | ⌘C |
-| Paste in a terminal | Ctrl+V | ⌘V |
-| Open the selected item (explorer, database tree) | F4 or Enter | F4, ⌘↓ or Enter |
-| Delete the selected files | Delete | ⌘⌫ or Delete |
+| Configuración | Ctrl+, | ⌘, |
+| Buscar en archivos | Ctrl+Shift+F | ⇧⌘F |
+| Archivo nuevo (consola nueva en Conexiones) | Ctrl+N | ⌘N |
+| Mostrar u ocultar el panel de terminal | Ctrl+` | ⌃` |
+| Acercar / alejar / restablecer el zoom | Ctrl+= / Ctrl+- / Ctrl+0 | ⌘= / ⌘- / ⌘0 |
+| Entrar o salir del mosaico de agentes | Ctrl+Shift+M | ⇧⌘M |
+| Enfocar la casilla 1 a 6 del mosaico | Ctrl+1 … Ctrl+6 | ⌘1 … ⌘6 |
+| Ampliar o restaurar la casilla enfocada | Ctrl+Shift+Enter | ⇧⌘↩ |
+| Buscar en una terminal | Ctrl+F | ⌘F |
+| Copiar en una terminal (con selección) | Ctrl+C | ⌘C |
+| Pegar en una terminal | Ctrl+V | ⌘V |
+| Abrir el elemento seleccionado (explorador, árbol de bases de datos) | F4 o Enter | F4, ⌘↓ o Enter |
+| Borrar los archivos seleccionados | Supr | ⌘⌫ o Supr |
 
-In the **Connections** view:
+En la vista **Conexiones**:
 
-| Action | Windows | macOS |
+| Acción | Windows | macOS |
 | --- | --- | --- |
-| Run the current statement | Ctrl+Enter | ⌘↩ |
-| Run the whole console | Alt+X or Ctrl+Shift+Enter | ⌥X or ⇧⌘↩ |
-| Stop | Ctrl+F2 | ⌘. |
+| Ejecutar la sentencia actual | Ctrl+Enter | ⌘↩ |
+| Ejecutar toda la consola | Alt+X o Ctrl+Shift+Enter | ⌥X o ⇧⌘↩ |
+| Detener | Ctrl+F2 | ⌘. |
 | Commit | Ctrl+Alt+Shift+K | ⌥⇧⌘K |
 | Rollback | Ctrl+Alt+Shift+R | ⌥⇧⌘R |
-| Explain plan | Ctrl+Shift+E | ⇧⌘E |
-| Query history | Ctrl+Shift+H | ⇧⌘H |
-| Format SQL | Ctrl+Alt+L | ⌥⌘L |
-| Close the tab | Ctrl+W | ⌘W |
-| Show or hide the agent | Ctrl+Alt+B | ⌥⌘B |
+| Plan de ejecución | Ctrl+Shift+E | ⇧⌘E |
+| Historial de consultas | Ctrl+Shift+H | ⇧⌘H |
+| Formatear el SQL | Ctrl+Alt+L | ⌥⌘L |
+| Cerrar la pestaña | Ctrl+W | ⌘W |
+| Mostrar u ocultar el agente | Ctrl+Alt+B | ⌥⌘B |
 
-## Where your data lives
+## Dónde se guardan tus datos
 
-| Platform | Folder |
+| Plataforma | Carpeta |
 | --- | --- |
 | Windows | `%APPDATA%\Tessera` |
 | macOS | `~/Library/Application Support/Tessera` |
 
-That folder holds your workspaces, the open tabs, settings, the agent sign-ins used in
-sandbox mode, database connections (with encrypted passwords), saved consoles, Oracle
-Instant Client if you downloaded it, and logs. Writes are crash-safe, with a backup copy of each file.
+En esa carpeta están tus espacios de trabajo, las pestañas abiertas, la configuración, las
+sesiones de los agentes del modo sandbox, las conexiones a bases de datos (con las
+contraseñas cifradas), las consolas guardadas, Oracle Instant Client si lo descargaste y los
+registros. Las escrituras resisten un cierre inesperado, con una copia de respaldo de
+cada archivo.
 
-**Your projects are never copied.** Tessera opens them where they are; in sandbox mode it
-mounts the project folders into the workspace's container. The Windows uninstaller asks
-whether to keep or delete your data, and an update never touches it.
+**Tus proyectos nunca se copian.** Tessera los abre donde están; en modo sandbox monta las
+carpetas de los proyectos en el contenedor del espacio de trabajo. El desinstalador de
+Windows pregunta si conservar o borrar tus datos, y una actualización nunca los toca.
 
-## Privacy
+## Privacidad
 
-- **What an agent sees.** In sandbox mode, only the projects of its workspace, its own
-  credentials and, read-only, your SSH keys. In native mode, an agent runs as you on your
-  computer, like it would in any terminal.
-- **No telemetry.** Tessera has no analytics, no crash reporting service and no usage
-  tracking. Logs are written only to the data folder above.
-- **Network connections Tessera makes by itself:**
-  - the update feed on GitHub (`github.com/NRVH/tessera/releases`);
-  - the account usage shown in the agent's footer, read from Anthropic's API with that
-    account's own token (for Codex it is read from local files);
-  - checks for new agent versions against the npm registry, the Claude Code release feed
-    and, on macOS, Homebrew;
-  - when you ask for it, the Oracle Instant Client download from oracle.com;
-  - when it builds the sandbox image, Docker pulls the base image and packages from their
-    public registries.
-- **What each agent does with its provider** (Anthropic for Claude Code, OpenAI for Codex)
-  is governed by that provider and your account, not by Tessera.
-- **Database passwords** are stored encrypted with the system's secret store, and agents
-  reach the databases through `tdb` without receiving them.
+- **Qué ve un agente.** En modo sandbox, solo los proyectos de su espacio de trabajo, sus
+  propias credenciales y, en solo lectura, tus llaves SSH. En modo nativo, el agente corre
+  como tú en tu equipo, igual que en cualquier terminal.
+- **Sin telemetría.** Tessera no tiene analítica, ni servicio de informes de fallos, ni
+  seguimiento de uso. Los registros se escriben solo en la carpeta de datos de arriba.
+- **Conexiones de red que hace Tessera por su cuenta:**
+  - el canal de actualizaciones en GitHub (`github.com/NRVH/tessera/releases`);
+  - el uso de la cuenta que enseña el pie del agente, leído de la API de Anthropic con el
+    propio token de esa cuenta (el de Codex se lee de archivos locales);
+  - la comprobación de versiones nuevas de los agentes contra el registro de npm, el canal
+    de versiones de Claude Code y, en macOS, Homebrew;
+  - cuando lo pides, la descarga de Oracle Instant Client desde oracle.com;
+  - al construir la imagen del sandbox, Docker descarga la imagen base y los paquetes de sus
+    registros públicos.
+- **Lo que cada agente hace con su proveedor** (Anthropic en Claude Code, OpenAI en Codex)
+  lo rigen ese proveedor y tu cuenta, no Tessera.
+- **Las contraseñas de bases de datos** se guardan cifradas con el almacén de secretos del
+  sistema, y los agentes llegan a las bases por `tdb` sin recibirlas.
 
-## Building from source
+## Compilar desde el código
 
-You need **Node.js 22.18 or later** (the release workflow uses the latest Node 22) and
-**Git**. For sandbox mode you also need Docker Desktop.
+Necesitas **Node.js 22.18 o posterior** (el flujo de publicación usa el último Node 22) y
+**Git**. Para el modo sandbox, también Docker Desktop.
 
 ```bash
 git clone https://github.com/NRVH/tessera.git
@@ -371,106 +382,110 @@ npm ci
 npm run dev
 ```
 
-`npm run dev` downloads the Electron binary on first run and opens the app with hot reload.
-The development instance keeps its data in a separate `Tessera-dev` folder, so it never
-touches an installed copy.
+`npm run dev` descarga el binario de Electron la primera vez y abre la app con recarga en
+caliente. La instancia de desarrollo guarda sus datos en una carpeta aparte, `Tessera-dev`,
+así que nunca toca una copia instalada.
 
-To build an installer for your own platform:
+Para generar el instalador de tu propia plataforma:
 
 ```bash
-npm run release:win   # Windows: dist/Tessera-<version>-Setup.exe
-npm run release:mac   # macOS:   dist/Tessera-<version>-arm64.dmg (and the .zip used by updates)
+npm run release:win   # Windows: dist/Tessera-<versión>-Setup.exe
+npm run release:mac   # macOS:   dist/Tessera-<versión>-arm64.dmg (y el .zip que usan las actualizaciones)
 ```
 
-electron-builder does not cross-compile, so each platform is built on that platform. On
-macOS the app is signed ad hoc automatically: you do not need an Apple developer account.
+electron-builder no compila de un sistema a otro, así que cada plataforma se compila en esa
+plataforma. En macOS la app se firma ad-hoc sola: no necesitas una cuenta de desarrollador
+de Apple.
 
-| Command | What it does |
+| Comando | Qué hace |
 | --- | --- |
-| `npm run dev` | Run the app in development mode with hot reload |
-| `npm run build` | Type-check and compile into `out/` |
-| `npm run pack:dir` / `npm run pack:mac:dir` | Package without an installer (`dist/win-unpacked`, `dist/mac-arm64`) |
-| `npm run release:win` / `npm run release:mac` | Build the installer for the current platform, without publishing |
-| `npm run typecheck` | Type-check the main process, the interface and the e2e suite |
-| `npm run lint` | ESLint over the whole repository |
-| `npm run test:<name>` | Run one test script (see `package.json`) |
-| `npm run test:e2e` | Run the Playwright suite against the packaged app |
+| `npm run dev` | Arranca la app en modo desarrollo con recarga en caliente |
+| `npm run build` | Comprueba los tipos y compila en `out/` |
+| `npm run pack:dir` / `npm run pack:mac:dir` | Empaqueta sin instalador (`dist/win-unpacked`, `dist/mac-arm64`) |
+| `npm run release:win` / `npm run release:mac` | Genera el instalador de la plataforma actual, sin publicar |
+| `npm run typecheck` | Comprueba los tipos del proceso principal, de la interfaz y de la suite e2e |
+| `npm run lint` | ESLint sobre todo el repositorio |
+| `npm run test:<nombre>` | Ejecuta un script de prueba (ver `package.json`) |
+| `npm run test:e2e` | Ejecuta la suite de Playwright contra la app empaquetada |
 
-## Architecture
+## Arquitectura
 
 ```
-            ┌──────────── Tessera (host) ────────────┐
-            │  editor · explorer · Git · settings    │
+            ┌──────────── Tessera (equipo) ──────────┐
+            │  editor · explorador · Git · ajustes   │
             └───────┬───────────────┬────────────────┘
                     │ IPC           │ IPC
           ┌─────────▼──────┐  ┌─────▼──────────┐
-          │ workspace A    │  │ workspace B    │   one container each
-          │ /workspace/…   │  │ /workspace/…   │   only its own projects
-          │ /agent-config  │  │ /agent-config  │   its own account, mounted
-          │ claude · codex │  │ claude · codex │   only while the agent runs
+          │ espacio A      │  │ espacio B      │   un contenedor cada uno
+          │ /workspace/…   │  │ /workspace/…   │   solo sus proyectos
+          │ /agent-config  │  │ /agent-config  │   su cuenta, montada solo
+          │ claude · codex │  │ claude · codex │   mientras el agente corre
           └────────────────┘  └────────────────┘
 ```
 
-- Electron, TypeScript and React, with electron-vite. Monaco for the editor, xterm.js and
-  node-pty for the terminals, the system's `git` binary for Git, and Docker for the sandbox.
-- The editor, the explorer and Git run on your computer (they are your tools); the agents
-  and their terminals run in the workspace's container, unless the project is native.
-- The interface runs with `contextIsolation` and `sandbox` enabled and talks to the main
-  process only through typed IPC. Two rules cross all of it:
-  - **The interface never sees or sends host paths.** Everything travels as paths relative
-    to the project folder, and the main process translates them.
-  - **Every IPC channel is declared** in `src/shared/*-ipc.ts`, with its request and
-    response types, and exposed through `src/preload/`.
-- The sandbox image is built from [`docker/sandbox/`](./docker/sandbox/).
+- Electron, TypeScript y React, con electron-vite. Monaco para el editor, xterm.js y
+  node-pty para las terminales, el binario `git` del sistema para Git, y Docker para el
+  sandbox.
+- El editor, el explorador y Git corren en tu equipo (son tus herramientas); los agentes y
+  sus terminales corren en el contenedor del espacio de trabajo, salvo que el proyecto sea
+  nativo.
+- La interfaz corre con `contextIsolation` y `sandbox` activados y solo habla con el proceso
+  principal por IPC tipado. Dos reglas lo atraviesan todo:
+  - **La interfaz nunca ve ni envía rutas del equipo.** Todo viaja como rutas relativas a la
+    carpeta del proyecto, y el proceso principal las traduce.
+  - **Cada canal IPC se declara** en `src/shared/*-ipc.ts`, con sus tipos de petición y de
+    respuesta, y se expone por `src/preload/`.
+- La imagen del sandbox se construye desde [`docker/sandbox/`](./docker/sandbox/).
 
 ```
 src/
-  main/       Electron main process: sandbox, agents, Git, files, databases, updates
-  preload/    the typed bridge exposed to the interface
-  renderer/   React interface, organized by feature
-  shared/     IPC contracts and pure logic used by both sides
-  tdb/        the database CLI that agents use
-docker/       the sandbox image
-e2e/          Playwright suite against the packaged app
+  main/       proceso principal de Electron: sandbox, agentes, Git, archivos, bases de datos, actualizaciones
+  preload/    el puente tipado que se expone a la interfaz
+  renderer/   interfaz en React, organizada por funciones
+  shared/     contratos IPC y lógica pura que usan los dos lados
+  tdb/        el CLI de bases de datos que usan los agentes
+docker/       la imagen del sandbox
+e2e/          suite de Playwright contra la app empaquetada
 ```
 
-The code standard is in [`docs/ESTANDAR_CODIGO.md`](./docs/ESTANDAR_CODIGO.md) and the
-design decisions are recorded in [`docs/decisiones/`](./docs/decisiones/README.md) (both
-in Spanish).
+El estándar de código está en [`docs/ESTANDAR_CODIGO.md`](./docs/ESTANDAR_CODIGO.md) y las
+decisiones de diseño, en [`docs/decisiones/`](./docs/decisiones/README.md).
 
-## Tests
+## Pruebas
 
 ```bash
 npm run typecheck
 npm run lint
-npm run test:<name>                   # one test script
-node scripts/pruebas/bateria.mjs git  # every test:* whose name matches a regex, one after another
-npm run test:e2e                      # Playwright against the PACKAGED app
+npm run test:<nombre>                 # un script de prueba
+node scripts/pruebas/bateria.mjs git  # todos los test:* cuyo nombre case con una regex, uno tras otro
+npm run test:e2e                      # Playwright contra la app EMPAQUETADA
 ```
 
-- Unit tests are `test-*.mts` files next to the module they test, run with plain `node`
-  (native type stripping). There is no test framework and no aggregate `npm test`; each one
-  has its own `test:<name>` script, and about thirty of them need Docker running.
-- `test:cabeceras`, `test:comentarios` and `test:menciones` check the code standard.
-- The end-to-end suite drives the packaged app (`dist/win-unpacked` or
-  `dist/mac-arm64/Tessera.app`), so rebuild it with `npm run pack:dir` or
-  `npm run pack:mac:dir` after changing application code.
+- Las pruebas unitarias son archivos `test-*.mts` junto al módulo que prueban, y corren con
+  `node` a secas (type-stripping nativo). No hay framework de pruebas ni un `npm test` que
+  las agrupe; cada una tiene su script `test:<nombre>`, y unas treinta necesitan Docker
+  levantado.
+- `test:cabeceras`, `test:comentarios` y `test:menciones` comprueban el estándar de código.
+- La suite de extremo a extremo conduce la app empaquetada (`dist/win-unpacked` o
+  `dist/mac-arm64/Tessera.app`), así que hay que reconstruirla con `npm run pack:dir` o
+  `npm run pack:mac:dir` después de cambiar código de la aplicación.
 
-## Contributing
+## Contribuir
 
-Issues and pull requests are welcome. Please read [CONTRIBUTING.md](./CONTRIBUTING.md)
-first: the code is written in Spanish, and Windows and macOS are both first-class
-platforms. Report vulnerabilities privately as described in [SECURITY.md](./SECURITY.md).
-Everyone taking part is expected to follow the [Code of Conduct](./CODE_OF_CONDUCT.md).
+Los issues y los pull requests son bienvenidos, en español o en inglés. Lee antes
+[CONTRIBUTING.md](./CONTRIBUTING.md): el código está escrito en español, y Windows y macOS
+son plataformas de primera clase las dos. Las vulnerabilidades se reportan en privado como explica
+[SECURITY.md](./SECURITY.md). Se espera que todo el que participe siga el
+[Código de conducta](./CODE_OF_CONDUCT.md).
 
-## License
+## Licencia
 
 [MIT](./LICENSE) © 2026 Noé Roberto Vázquez Herrera.
 
-Tessera includes third-party software under its own licenses; see
+Tessera incluye software de terceros con sus propias licencias; ver
 [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).
 
-## Author
+## Autor
 
-Made by **Noé Roberto Vázquez Herrera** · [GitHub](https://github.com/NRVH) ·
+Hecho por **Noé Roberto Vázquez Herrera** · [GitHub](https://github.com/NRVH) ·
 [LinkedIn](https://www.linkedin.com/in/noe-vazquez-03863423a/)

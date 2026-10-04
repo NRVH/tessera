@@ -1,28 +1,31 @@
-# Third-party notices
+# Avisos de terceros
 
-Tessera is released under the [MIT License](./LICENSE). It is built on, and ships with,
-software written by others, each under its own license. This file lists those components,
-the license under which Tessera uses each one, and anything their licenses ask us to say.
-It describes Tessera 0.71.0.
+Tessera se publica bajo la [licencia MIT](./LICENSE). Está construida sobre software escrito
+por otros, y lo distribuye, cada uno con su propia licencia. Este archivo enumera esos
+componentes, la licencia con la que Tessera usa cada uno y lo que sus licencias piden que se
+diga. Describe Tessera 0.71.1.
 
-## How third-party code travels with Tessera
+## Cómo viaja el código de terceros con Tessera
 
-- **Production npm dependencies** are copied, unmodified, into the app's `node_modules`
-  folder: `<installation folder>\resources\app\node_modules` on Windows and
-  `Tessera.app/Contents/Resources/app/node_modules` on macOS. The app is not packed into an
-  asar archive, so every package keeps its own folder and its own license file.
-- **Interface libraries** are bundled into the app's compiled code (`out/`) by Vite. They
-  are listed in [Libraries bundled into the interface](#libraries-bundled-into-the-interface).
-- **Java decompilers** live in `vendor/java/`, next to their license texts.
-- **Electron and Chromium** license files are shipped by electron-builder with the app.
+- **Las dependencias npm de producción** se copian, sin modificar, a la carpeta
+  `node_modules` de la app: `<carpeta de instalación>\resources\app\node_modules` en Windows
+  y `Tessera.app/Contents/Resources/app/node_modules` en macOS. La app no se empaqueta en un
+  archivo asar, así que cada paquete conserva su propia carpeta y su propio archivo de
+  licencia.
+- **Las bibliotecas de la interfaz** las integra Vite en el código compilado de la app
+  (`out/`). Se enumeran en
+  [Bibliotecas integradas en la interfaz](#bibliotecas-integradas-en-la-interfaz).
+- **Los descompiladores de Java** viven en `vendor/java/`, junto a sus textos de licencia.
+- **Los archivos de licencia de Electron y Chromium** los distribuye electron-builder con la
+  app.
 
-## Components with specific terms
+## Componentes con condiciones específicas
 
 ### CFR 0.152 (MIT)
 
-Java decompiler, redistributed unmodified as `vendor/java/cfr-0.152.jar` and run as a
-separate process with a Java runtime installed on the user's computer.
-Source: <https://github.com/leibnitz27/cfr> · <https://www.benf.org/other/cfr>
+Descompilador de Java, redistribuido sin modificar como `vendor/java/cfr-0.152.jar` y
+ejecutado como un proceso aparte con un entorno de Java instalado en el equipo del usuario.
+Código fuente: <https://github.com/leibnitz27/cfr> · <https://www.benf.org/other/cfr>
 
 ```
 The MIT License (MIT)
@@ -50,49 +53,52 @@ THE SOFTWARE.
 
 ### Vineflower 1.12.0 (Apache-2.0)
 
-Java decompiler, a maintained fork of the Fernflower decompiler. Redistributed unmodified as
-`vendor/java/vineflower-1.12.0.jar` and run as a separate process. Licensed under the
-Apache License 2.0; the full text is in `vendor/java/LICENSE-vineflower.txt` and in
-[Apache License 2.0](#apache-license-20) below.
-Source: <https://github.com/Vineflower/vineflower> · <https://vineflower.org>
+Descompilador de Java, una bifurcación mantenida del descompilador Fernflower. Redistribuido
+sin modificar como `vendor/java/vineflower-1.12.0.jar` y ejecutado como un proceso aparte.
+Con licencia Apache License 2.0; el texto completo está en
+`vendor/java/LICENSE-vineflower.txt` y en [Apache License 2.0](#apache-license-20), más abajo.
+Código fuente: <https://github.com/Vineflower/vineflower> · <https://vineflower.org>
 
 ### jschardet 3.1.4 (LGPL-2.1-or-later)
 
-Character encoding detection, used by the editor to guess a file's encoding.
-Copyright António Afonso and contributors.
+Detección de la codificación de caracteres, que usa el editor para adivinar la codificación
+de un archivo. Copyright António Afonso and contributors.
 
-- Tessera uses jschardet **unmodified**.
-- It is **not** bundled into Tessera's code: the main process loads it at runtime from its
-  own folder, `resources/app/node_modules/jschardet`, as a separate module. Because the app
-  is not packed into an asar archive, you can replace that folder with a modified version of
-  the library, built from its source, and Tessera will load it.
-- The source code of the exact version Tessera uses is available at
-  <https://github.com/aadsm/jschardet> (version 3.1.4) and in the `jschardet@3.1.4`
-  package on npm.
-- The license text (GNU Lesser General Public License, version 2.1) ships in the library's
-  folder and is available at <https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html>.
+- Tessera usa jschardet **sin modificar**.
+- **No** está integrado en el código de Tessera: el proceso principal lo carga en tiempo de
+  ejecución desde su propia carpeta, `resources/app/node_modules/jschardet`, como un módulo
+  aparte. Como la app no se empaqueta en un archivo asar, puedes reemplazar esa carpeta por
+  una versión modificada de la biblioteca, compilada desde su código fuente, y Tessera la
+  cargará.
+- El código fuente de la versión exacta que usa Tessera está disponible en
+  <https://github.com/aadsm/jschardet> (versión 3.1.4) y en el paquete `jschardet@3.1.4` de
+  npm.
+- El texto de la licencia (GNU Lesser General Public License, versión 2.1) viaja en la
+  carpeta de la biblioteca y está disponible en
+  <https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html>.
 
-### JSZip 3.10.1 (MIT, chosen from MIT OR GPL-3.0-or-later)
+### JSZip 3.10.1 (MIT, elegida entre MIT OR GPL-3.0-or-later)
 
-ZIP reading, a dependency of `mammoth` (the Word viewer). JSZip is dual licensed; Tessera
-uses it under the **MIT License**.
+Lectura de ZIP, una dependencia de `mammoth` (el visor de Word). JSZip tiene licencia dual;
+Tessera lo usa bajo la **licencia MIT**.
 Copyright (c) 2009-2016 Stuart Knightley, David Duponchel, Franz Buchinger, António Afonso.
 
-JSZip depends on **pako** 1.0.11 (MIT AND Zlib), Copyright (C) 2014-2017 by Vitaly Puzrin
+JSZip depende de **pako** 1.0.11 (MIT AND Zlib), Copyright (C) 2014-2017 by Vitaly Puzrin
 and Andrei Tuputcyn.
 
-### DOMPurify 3.4.11 (Apache-2.0, chosen from MPL-2.0 OR Apache-2.0)
+### DOMPurify 3.4.11 (Apache-2.0, elegida entre MPL-2.0 OR Apache-2.0)
 
-HTML sanitizer, bundled into the interface. DOMPurify is dual licensed; Tessera uses it
-under the **Apache License 2.0** (text [below](#apache-license-20)).
-Copyright Cure53 and other contributors. Source: <https://github.com/cure53/DOMPurify>
+Saneador de HTML, integrado en la interfaz. DOMPurify tiene licencia dual; Tessera lo usa
+bajo la **Apache License 2.0** (texto [más abajo](#apache-license-20)).
+Copyright Cure53 and other contributors. Código fuente: <https://github.com/cure53/DOMPurify>
 
-### libpg-query 18.1.5 (MIT; includes PostgreSQL code under the PostgreSQL License)
+### libpg-query 18.1.5 (MIT; incluye código de PostgreSQL bajo la PostgreSQL License)
 
-PostgreSQL's own SQL parser compiled to WebAssembly, used to analyze PostgreSQL statements.
-Copyright (c) 2021 Dan Lynch; Copyright (c) 2025 Constructive. Licensed under the MIT License.
+El propio analizador SQL de PostgreSQL compilado a WebAssembly, que se usa para analizar
+sentencias de PostgreSQL. Copyright (c) 2021 Dan Lynch; Copyright (c) 2025 Constructive. Con
+licencia MIT.
 
-The WebAssembly module contains parser code from PostgreSQL, distributed under the
+El módulo de WebAssembly contiene código del analizador de PostgreSQL, distribuido bajo la
 PostgreSQL License:
 
 ```
@@ -121,64 +127,65 @@ ON AN "AS IS" BASIS, AND THE UNIVERSITY OF CALIFORNIA HAS NO OBLIGATIONS TO
 PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 ```
 
-### node-oracledb 6.10.0 (Apache-2.0, chosen from Apache-2.0 OR UPL-1.0)
+### node-oracledb 6.10.0 (Apache-2.0, elegida entre Apache-2.0 OR UPL-1.0)
 
-Oracle Database driver. Dual licensed; Tessera uses it under the **Apache License 2.0**.
-Copyright (c) 2015, 2025 Oracle and/or its affiliates.
+Controlador de Oracle Database. Tiene licencia dual; Tessera lo usa bajo la
+**Apache License 2.0**. Copyright (c) 2015, 2025 Oracle and/or its affiliates.
 
 ### vscode-material-icons 0.1.1 (MIT)
 
-File and folder icons of the explorer. Copyright (c) 2024 Matěj Chalk.
+Iconos de archivos y carpetas del explorador. Copyright (c) 2024 Matěj Chalk.
 
 ### Monaco Editor 0.52.2 (MIT)
 
-The code editor. Copyright (c) 2016 - present Microsoft Corporation. The Codicons icon font
-included with Monaco is © Microsoft and licensed under the Creative Commons Attribution 4.0
+El editor de código. Copyright (c) 2016 - present Microsoft Corporation. La fuente de iconos
+Codicons incluida con Monaco es © Microsoft y tiene licencia Creative Commons Attribution 4.0
 International License (CC BY 4.0).
 
 ### node-pty 1.1.0 (MIT)
 
-Pseudo-terminals for the terminals and the agents. Copyright (c) 2012-2015, Christopher
-Jeffrey, and the node-pty contributors. On Windows it includes **winpty** (MIT, Copyright
-Ryan Prichard) and the **ConPTY** binaries (`conpty.dll`, `OpenConsole.exe`) from Microsoft
+Pseudoterminales para las terminales y los agentes. Copyright (c) 2012-2015, Christopher
+Jeffrey, and the node-pty contributors. En Windows incluye **winpty** (MIT, Copyright Ryan
+Prichard) y los binarios de **ConPTY** (`conpty.dll`, `OpenConsole.exe`) de Microsoft
 Terminal (MIT, Copyright (c) Microsoft Corporation).
 
-### Electron and Chromium
+### Electron y Chromium
 
-Tessera runs on [Electron](https://www.electronjs.org/) (MIT, Copyright (c) Electron
-contributors, Copyright (c) 2013-2020 GitHub Inc.), which embeds Chromium, Node.js and their
-own third-party components. electron-builder ships their license files with the app:
-`LICENSE.electron.txt` (Electron) and `LICENSES.chromium.html` (Chromium and everything it
-includes). On Windows they sit next to `Tessera.exe`.
+Tessera corre sobre [Electron](https://www.electronjs.org/) (MIT, Copyright (c) Electron
+contributors, Copyright (c) 2013-2020 GitHub Inc.), que integra Chromium, Node.js y sus
+propios componentes de terceros. electron-builder distribuye sus archivos de licencia con la
+app: `LICENSE.electron.txt` (Electron) y `LICENSES.chromium.html` (Chromium y todo lo que
+incluye). En Windows están junto a `Tessera.exe`.
 
-### Oracle Instant Client (not redistributed)
+### Oracle Instant Client (no se redistribuye)
 
-Tessera does **not** include or redistribute Oracle Instant Client. When a database needs it
-and the user asks for it, Tessera downloads it from Oracle's site (`download.oracle.com`)
-into the user's data folder. That download is governed by Oracle's own license terms for
-Instant Client (see <https://www.oracle.com/database/technologies/instant-client.html>),
-an agreement between the user and Oracle, not with Tessera. The user can also point Tessera to an Instant Client
-already installed.
+Tessera **no** incluye ni redistribuye Oracle Instant Client. Cuando una base de datos lo
+necesita y el usuario lo pide, Tessera lo descarga del sitio de Oracle
+(`download.oracle.com`) a la carpeta de datos del usuario. Esa descarga se rige por las
+condiciones de licencia de Oracle para Instant Client (ver
+<https://www.oracle.com/database/technologies/instant-client.html>), un acuerdo entre el
+usuario y Oracle, no con Tessera. El usuario también puede indicarle a Tessera un Instant
+Client que ya tenga instalado.
 
-## Other licenses in the dependency tree
+## Otras licencias en el árbol de dependencias
 
-Every other production dependency is under MIT, ISC, BSD-2-Clause, BSD-3-Clause or
-Apache-2.0, except these:
+Todas las demás dependencias de producción están bajo MIT, ISC, BSD-2-Clause, BSD-3-Clause o
+Apache-2.0, salvo estas:
 
-| Package | Version | License | Pulled in by |
+| Paquete | Versión | Licencia | Lo trae |
 | --- | --- | --- | --- |
-| argparse | 2.0.1 | Python-2.0 (PSF License) | `js-yaml`, a dependency of `electron-updater` |
-| sax | 1.6.0 | BlueOak-1.0.0 | `builder-util-runtime`, a dependency of `electron-updater` |
-| tslib | 2.8.1 | 0BSD | several packages |
+| argparse | 2.0.1 | Python-2.0 (PSF License) | `js-yaml`, una dependencia de `electron-updater` |
+| sax | 1.6.0 | BlueOak-1.0.0 | `builder-util-runtime`, una dependencia de `electron-updater` |
+| tslib | 2.8.1 | 0BSD | varios paquetes |
 | pako | 1.0.11 | MIT AND Zlib | `jszip` |
-| duck | 0.1.12 | BSD (2-clause text) | `mammoth` |
-| khroma | 2.1.0 | MIT (license file; no field in its `package.json`) | `mermaid` |
+| duck | 0.1.12 | BSD (texto de 2 cláusulas) | `mammoth` |
+| khroma | 2.1.0 | MIT (archivo de licencia; sin campo en su `package.json`) | `mermaid` |
 
-Their license texts ship in each package's folder.
+Sus textos de licencia viajan en la carpeta de cada paquete.
 
-## Direct dependencies
+## Dependencias directas
 
-| Package | Version | License |
+| Paquete | Versión | Licencia |
 | --- | --- | --- |
 | @mongodb-js/shell-bson-parser | 1.5.19 | Apache-2.0 |
 | acorn | 8.17.0 | MIT |
@@ -191,17 +198,17 @@ Their license texts ship in each package's folder.
 | mammoth | 1.12.0 | BSD-2-Clause |
 | mongodb | 7.7.0 | Apache-2.0 |
 | node-pty | 1.1.0 | MIT |
-| oracledb | 6.10.0 | Apache-2.0 OR UPL-1.0 (Apache-2.0 chosen) |
+| oracledb | 6.10.0 | Apache-2.0 OR UPL-1.0 (elegida Apache-2.0) |
 | pg | 8.22.0 | MIT |
 | pg-cursor | 2.22.0 | MIT |
 | tedious | 20.3.3 | MIT |
 
-## Libraries bundled into the interface
+## Bibliotecas integradas en la interfaz
 
-These are compiled into `out/` and do not keep a separate folder in the installed app, so
-they are listed here with their licenses.
+Estas se compilan dentro de `out/` y no conservan una carpeta propia en la app instalada, así
+que se enumeran aquí con sus licencias.
 
-| Package | Version | License |
+| Paquete | Versión | Licencia |
 | --- | --- | --- |
 | @braintree/sanitize-url | 7.1.2 | MIT |
 | @iconify/utils | 3.1.7 | MIT |
@@ -222,7 +229,7 @@ they are listed here with their licenses.
 | d3-sankey | 0.12.3 | BSD-3-Clause |
 | dagre-d3-es | 7.0.14 | MIT |
 | dayjs | 1.11.23 | MIT |
-| dompurify | 3.4.11 | MPL-2.0 OR Apache-2.0 (Apache-2.0 chosen) |
+| dompurify | 3.4.11 | MPL-2.0 OR Apache-2.0 (elegida Apache-2.0) |
 | es-toolkit | 1.52.0 | MIT |
 | fastdom | 1.0.12 | MIT |
 | internmap | 2.0.3 | ISC |
@@ -245,19 +252,19 @@ they are listed here with their licenses.
 | vscode-material-icons | 0.1.1 | MIT |
 | zustand | 5.0.15 | MIT |
 
-## Trademarks
+## Marcas registradas
 
-Postgres, PostgreSQL and the Slonik Logo are trademarks or registered trademarks of the
-PostgreSQL Community Association of Canada, and used with their permission. Oracle is a
-registered trademark of Oracle and/or its affiliates. Other product names that appear in
-Tessera, such as Claude Code, Codex, SQL Server, MongoDB, Redis or Docker, are trademarks of
-their respective owners. Their use does not imply any affiliation with or endorsement by
-them.
+Postgres, PostgreSQL y el logotipo de Slonik son marcas comerciales o marcas registradas de
+la PostgreSQL Community Association of Canada, y se usan con su permiso. Oracle es una marca
+registrada de Oracle y/o sus filiales. Los demás nombres de productos que aparecen en
+Tessera, como Claude Code, Codex, SQL Server, MongoDB, Redis o Docker, son marcas de sus
+respectivos dueños. Su uso no implica ninguna afiliación con ellos ni su respaldo.
 
 ## Apache License 2.0
 
-Applies to Vineflower, DOMPurify (as chosen), node-oracledb (as chosen), MongoDB's Node.js
-driver and `@mongodb-js/shell-bson-parser`, among others.
+Se aplica a Vineflower, DOMPurify (por elección), node-oracledb (por elección), el
+controlador de Node.js de MongoDB y `@mongodb-js/shell-bson-parser`, entre otros. El texto
+de la licencia se reproduce en inglés, que es su versión oficial.
 
 ```
                                  Apache License

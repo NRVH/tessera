@@ -1,38 +1,39 @@
-name: Feature request
-description: Suggest an idea or an improvement for Tessera.
+name: Proponer una mejora
+description: Sugiere una idea o una mejora para Tessera.
 labels: ["enhancement"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for the suggestion. You can write in English or in Spanish.
+        Gracias por la sugerencia.
+        You can also write in English.
   - type: textarea
     id: problem
     attributes:
-      label: The problem
-      description: What are you trying to do, and what gets in the way today?
+      label: El problema
+      description: ¿Qué intentas hacer, y qué te lo impide hoy?
     validations:
       required: true
   - type: textarea
     id: proposal
     attributes:
-      label: The proposal
-      description: How you imagine it working.
+      label: La propuesta
+      description: Cómo te imaginas que funcionaría.
     validations:
       required: true
   - type: dropdown
     id: platforms
     attributes:
-      label: Platforms
-      description: Where you would use it. Tessera treats Windows and macOS as equals, so say if it only makes sense on one.
+      label: Plataformas
+      description: Dónde lo usarías. Tessera trata Windows y macOS por igual, así que dilo si solo tiene sentido en una.
       options:
-        - Both
-        - Windows only
-        - macOS only
+        - Las dos
+        - Solo Windows
+        - Solo macOS
     validations:
       required: true
   - type: textarea
     id: alternatives
     attributes:
-      label: Alternatives
-      description: Other ways you have considered or use today.
+      label: Alternativas
+      description: Otras formas que has considerado o que usas hoy.

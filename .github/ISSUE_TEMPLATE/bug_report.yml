@@ -1,61 +1,62 @@
-name: Bug report
-description: Something in Tessera does not work as expected.
+name: Reportar un error
+description: Algo de Tessera no funciona como esperabas.
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to report a problem. You can write in English or in Spanish.
-        **Security problems must not be reported here**: see [SECURITY.md](https://github.com/NRVH/tessera/blob/main/SECURITY.md).
+        Gracias por tomarte el tiempo de reportar un problema.
+        You can also write in English.
+        **Los problemas de seguridad no se reportan aquí**: consulta [SECURITY.md](https://github.com/NRVH/tessera/blob/main/SECURITY.md).
   - type: input
     id: version
     attributes:
-      label: Tessera version
-      description: "Settings › Acerca de shows it (for example, 0.71.0)."
+      label: Versión de Tessera
+      description: "La enseña Configuración › Acerca de (por ejemplo, 0.71.0)."
       placeholder: "0.71.0"
     validations:
       required: true
   - type: dropdown
     id: os
     attributes:
-      label: Operating system
+      label: Sistema operativo
       options:
         - Windows 11
         - macOS (Apple Silicon)
-        - Other
+        - Otro
     validations:
       required: true
   - type: input
     id: os-version
     attributes:
-      label: System version
-      description: "For example: Windows 11 24H2, macOS 15.3."
+      label: Versión del sistema
+      description: "Por ejemplo: Windows 11 24H2, macOS 15.3."
     validations:
       required: true
   - type: dropdown
     id: mode
     attributes:
-      label: Project mode
-      description: Where the affected project runs, if it matters.
+      label: Modo del proyecto
+      description: Dónde corre el proyecto afectado, si importa.
       options:
         - Docker (sandbox)
-        - Native
-        - Not related to a project
-        - I don't know
+        - Nativo
+        - No tiene que ver con un proyecto
+        - No lo sé
     validations:
       required: true
   - type: input
     id: docker
     attributes:
-      label: Docker Desktop version
-      description: Only if the project runs in Docker mode.
+      label: Versión de Docker Desktop
+      description: Solo si el proyecto corre en modo Docker.
   - type: textarea
     id: steps
     attributes:
-      label: Steps to reproduce
-      description: The shortest sequence of steps that makes the problem appear.
+      label: Pasos para reproducirlo
+      description: La secuencia de pasos más corta que hace aparecer el problema.
       placeholder: |
-        1. Open a project in Docker mode
+        1. Abre un proyecto en modo Docker
         2. ...
         3. ...
     validations:
@@ -63,22 +64,22 @@ body:
   - type: textarea
     id: expected
     attributes:
-      label: What you expected
+      label: Qué esperabas
     validations:
       required: true
   - type: textarea
     id: actual
     attributes:
-      label: What happened instead
-      description: Include error messages and, if it helps, screenshots.
+      label: Qué pasó en su lugar
+      description: Incluye los mensajes de error y, si ayuda, capturas de pantalla.
     validations:
       required: true
   - type: textarea
     id: logs
     attributes:
-      label: Logs
+      label: Registros
       description: |
-        Relevant lines from the `logs` folder inside Tessera's data folder
-        (`%APPDATA%\Tessera\logs` on Windows, `~/Library/Application Support/Tessera/logs` on macOS).
-        Check them first and remove paths, names or anything you would rather not share.
+        Las líneas relevantes de la carpeta `logs` dentro de la carpeta de datos de Tessera
+        (`%APPDATA%\Tessera\logs` en Windows, `~/Library/Application Support/Tessera/logs` en macOS).
+        Revísalas antes y quita rutas, nombres o cualquier cosa que prefieras no compartir.
       render: text
