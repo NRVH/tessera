@@ -1,0 +1,223 @@
+/* =============================================================================
+   ÁREA DE BASES DE DATOS: el centro de la vista 'db' (tira de pestañas + panes
+   keep-alive + estado vacío). Lo importa `DbArea.tsx`. Esta hoja carga ANTES que
+   `styles.css`: lo que corrige `.editor-tab*` va calificado por `.db-area .db-tabs`.
+   NADA de `transform`, `filter`, `contain` ni `container-type` en `.db-area` ni en
+   sus contenedores: un menú o popover `position: fixed` dentro saldría desplazado
+   (el único `transform` es el del giro, una hoja sin hijos).
+   Decisiones: docs/decisiones/bd/ui-area-tira-de-pestanas.md
+   ============================================================================= */
+
+/* LA TIPOGRAFÍA MONOESPACIADA de la vista (rejilla, SQL, fuentes), SOLO en su
+   ámbito y no en `:root`: `.java-class-detalle` y `.buscar-fila-texto` ya leen
+   `var(--mono, …)` con su propia reserva, y definirla global les cambiaría la
+   letra. La pila cubre las dos plataformas: Cascadia y Consolas son de Windows,
+   SF Mono y Menlo de Mac, y Fira Code la tiene quien la instaló; `monospace` es
+   la red de siempre. */
+.db-area,
+.db-arbol {
+  --mono: 'Cascadia Code', 'Cascadia Mono', 'Fira Code', Consolas, 'SF Mono', Menlo, monospace;
+}
+
+/* Hermana de `.editor-area` en la fila central y con su mismo molde: crece, puede
+   encoger a 0 (la columna del agente al lado) y es columna flex (tira arriba, panes
+   debajo). `min-height: 0` es el eslabón de la cadena de scroll. */
+.db-area {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  /* El mismo fondo hundido que tenía la ventana vacía de Conexiones: el estado
+     vacío se lee como "aquí no hay nada abierto", no como un editor en blanco. */
+  background: var(--bg-deep);
+  font-size: var(--ui-font);
+}
+/* Es enfocable (tabIndex -1) para que Mod+W solo actúe con el foco DENTRO: clicar
+   una pestaña (que no es enfocable) deja el foco en el área. Sin anillo: el foco
+   de verdad se ve en lo que tenga dentro. */
+.db-area:focus {
+  outline: none;
+}
+/* Fuera de la vista o en el mosaico: se oculta sin desmontar, como `.editor-area`,
+   para que las consolas conserven su texto, su deshacer y su sesión. */
+.db-area.hidden {
+  display: none;
+}
+
+/* La nota del vacío con un registro de formato ajeno («no se pierde nada»): en su
+   propio renglón bajo el aviso, que es lo que hay que leer primero, y un punto más
+   tenue. Es parte de la PISTA (`.pane-empty-hint`, con su ancho acotado), no un
+   segundo bloque. */
+.db-area .db-area-vacio-nota {
+  display: block;
+  margin-top: 6px;
+  opacity: 0.85;
+}
+
+.db-panes {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+/* Un pane por pestaña de TODOS los perfiles; solo el visible participa del flex
+   (patrón de `.editor.hidden`). */
+.db-pane {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+.db-pane.hidden {
+  display: none;
+}
+
+/* --- Tira de pestañas -------------------------------------------------------- */
+
+/* El icono por tipo va en la caja de `.editor-tab-icon` (el tamaño del icono de
+   archivo); estos SVG de trazo no traen tamaño propio, así que llenan la caja. */
+.db-area .db-tabs .db-tab-icono {
+  display: inline-flex;
+  color: var(--fg-muted);
+}
+.db-area .db-tabs .db-tab-icono svg {
+  width: 100%;
+  height: 100%;
+}
+.db-area .db-tabs .editor-tab.active .db-tab-icono {
+  color: var(--accent);
+}
+
+/* El nombre ya viene recortado por el centro; el techo de ancho del editor (160 px)
+   lo cortaría otra vez por la derecha. */
+.db-area .db-tabs .db-tab-nombre {
+  max-width: none;
+}
+
+/* --- Reordenar arrastrando (DbTabs) ------------------------------------------
+   La RAYA de inserción: 2 px con el acento del perfil, en el hueco de 2 px entre
+   dos pestañas (`gap` de `.editor-tabs`), antes de la pestaña o tras la última. Es
+   un pseudo-elemento y no un borde: un borde movería el texto de la pestaña un
+   píxel mientras se arrastra. La pestaña que viaja se atenúa. */
+.db-area .db-tabs .editor-tab {
+  position: relative;
+}
+.db-area .db-tabs .editor-tab.soltar-antes::before,
+.db-area .db-tabs .editor-tab.soltar-despues::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+  pointer-events: none;
+}
+.db-area .db-tabs .editor-tab.soltar-antes::before {
+  left: -2px;
+}
+.db-area .db-tabs .editor-tab.soltar-despues::after {
+  right: -2px;
+}
+.db-area .db-tabs .editor-tab.arrastrando {
+  opacity: 0.5;
+}
+
+/* ENTORNO DE LA CONEXIÓN. La franja al PIE de la pestaña (arriba está el
+   acento del perfil de la activa), de lado a lado con el margen del radio de las
+   esquinas; no ocupa sitio en la fila flex. En PRODUCCIÓN, además, la pestaña teñida:
+   solo la IMAGEN de fondo, con la especificidad de la hoja (ver la cabecera), para
+   que el shorthand `background` de `.editor-tab:hover` / `.active` no la borre y el
+   fondo de la activa se componga debajo. */
+.db-area .db-tabs .editor-tab > .marca-entorno-compacta {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 0;
+  width: auto;
+  height: 2px;
+  border-radius: 1px 1px 0 0;
+  pointer-events: none;
+}
+.db-area .db-tabs .editor-tab.db-tab-produccion {
+  background-image: linear-gradient(var(--entorno-produccion-tinte), var(--entorno-produccion-tinte));
+}
+
+/* `[ALIAS]`: acompaña al nombre sin competir con él. */
+.db-tab-conexion {
+  color: var(--fg-faint);
+  white-space: nowrap;
+}
+
+/* EL INDICADOR EN EL HUECO DEL ASPA. Mismo intercambio que el punto de "sin
+   guardar" del editor: en reposo el indicador, al pasar el ratón el aspa. Aquí
+   hay que imponerlo también en la ACTIVA, a la que el editor le deja el aspa fija
+   (`.editor-tab:not(.dirty).active .editor-tab-close`): con un indicador, esa
+   regla lo taparía justo en la pestaña que estás mirando. */
+.db-area .db-tabs .editor-tab.con-indicador .editor-tab-close {
+  opacity: 0;
+}
+.db-area .db-tabs .editor-tab.con-indicador:hover .editor-tab-close {
+  opacity: 1;
+}
+.db-area .db-tabs .editor-tab.con-indicador:hover .db-tab-indicador {
+  display: none;
+}
+.db-tab-indicador {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Puntos de ESTADO: rojo relleno solo aquí, que es estado y no una acción. */
+.db-tab-punto {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.db-tab-punto-txPendiente {
+  background: var(--yellow);
+}
+/* Cambios de la rejilla sin enviar: el mismo ámbar (piden lo mismo, no cierres sin
+   decidir) pero en ANILLO, para no leerse como una transacción abierta. */
+.db-tab-punto-sinEnviar {
+  background: transparent;
+  border: 1.5px solid var(--yellow);
+}
+.db-tab-punto-error {
+  background: var(--red);
+}
+/* Sesión perdida: anillo y no punto, para distinguirla de un error de la última
+   sentencia (el color es el mismo; la forma es lo que se lee sin color). */
+.db-tab-punto-sesionPerdida {
+  background: transparent;
+  border: 1.5px solid var(--red);
+}
+
+/* Ejecutando / cargando: el giro, con el acento del perfil como en los puntos de
+   hibernación de la banda de perfiles. */
+.db-tab-giro {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  border-top-color: var(--accent);
+  animation: db-tab-giro 0.8s linear infinite;
+}
+@keyframes db-tab-giro {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* Sin movimiento: el anillo queda quieto y medio relleno, que sigue diciendo "en
+   marcha" sin girar. */
+@media (prefers-reduced-motion: reduce) {
+  .db-tab-giro {
+    animation: none;
+    border-right-color: var(--accent);
+  }
+}

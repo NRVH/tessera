@@ -1,0 +1,12 @@
+[
+  {
+    "id": "personal",
+    "nombre": "Personal",
+    "color": "#1D9E75",
+    "agentes": [
+      { "tipo": "claude-code", "configDir": "./.tessera/perfiles/personal/claude" },
+      { "tipo": "codex", "configDir": "./.tessera/perfiles/personal/codex" }
+    ],
+    "sandbox": { "habilitado": false }
+  }
+]

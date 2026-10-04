@@ -1,0 +1,623 @@
+/* =============================================================================
+   ÁRBOL DE BASES DE DATOS (DbArbol) y su POPOVER DE ESQUEMAS (DbEsquemasPopover).
+   Solo lo de este árbol (punto de sesión, insignias, metadatos, búsqueda, avisos):
+   `.sidebar*`, `.tree-row` (alto = `--ui-row-h`, el número que se pasa a VirtualList),
+   `.chevron`, `.tree-label` y `.drop-over` son de todos los árboles y copiarlos aquí
+   los haría divergir. Nada de `transform`, `filter`, `contain` ni `container-type` en
+   ancestros de menús o popovers: vuelven relativo a ellos un `position: fixed`.
+   ============================================================================= */
+
+/* --- Chasis ------------------------------------------------------------------ */
+.db-arbol-cuerpo {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding-top: 4px;
+}
+/* Un archivo del sistema encima (alta de una base de archivo al soltarlo): el cuerpo se
+   marca como destino con un contorno INTERIOR (un borde movería el contenido). */
+.db-arbol-cuerpo.db-arbol-soltando {
+  outline: 1px dashed var(--accent);
+  outline-offset: -4px;
+  border-radius: 6px;
+}
+.db-arbol-lista {
+  flex: 1 1 auto;
+  min-height: 0;
+  outline: none;
+}
+/* Con `:focus-visible` explícito a propósito: esta hoja la importa un componente y
+   se inyecta ANTES que styles.css (main.tsx importa App antes que la hoja global),
+   así que la regla global `:focus-visible` —misma especificidad— ganaba por orden y
+   pintaba un anillo de acento alrededor de TODO el lateral al enfocar el árbol. */
+.db-arbol-lista:focus-visible {
+  outline: none;
+}
+/* El foco vive en el CONTENEDOR (las filas se desmontan al salir de la ventana):
+   con teclado, la fila activa se contornea para que se vea dónde está el cursor.
+   Con ratón (:focus-visible no aplica) basta el relleno de la selección. */
+.db-arbol-lista:focus-visible .tree-row.active {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+/* El botón deshabilitado de la cabecera va envuelto para poder llevar el `title`
+   (Chromium no da eventos de ratón a un control deshabilitado). Sin caja propia. */
+.db-arbol .sidebar-actions .btn-envoltura {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+/* Estados en LÍNEA (sin perfil, sin conexiones, cargando). No centrados: el
+   centrado es del área de la derecha, que tiene el EstadoVacio grande; aquí un
+   bloque centrado competiría con él y saltaría al llegar el contenido. */
+.db-arbol-estado {
+  padding: 6px 16px;
+  color: var(--fg-faint);
+  line-height: 1.5;
+}
+.db-arbol-enlace {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* --- Filas ---------------------------------------------------------------------- */
+.db-chevron {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+.db-fila-icono,
+.db-motor-icono {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--icono-archivo);
+  height: var(--icono-archivo);
+  flex: 0 0 var(--icono-archivo);
+  color: var(--fg-muted);
+}
+.db-fila-icono svg,
+.db-motor-icono svg {
+  width: 100%;
+  height: 100%;
+}
+/* MARCA POR MOTOR (`IconoMotor`, iconosBd.tsx): cada motor trae su dibujo y sus colores.
+   El SVG lleva de respaldo el color del tema oscuro y aquí va el del claro, con contraste
+   de gráfico sobre #fafafa; el elefante de PostgreSQL no se recolorea. Global y no bajo
+   `.db-arbol`: el icono sale también en el diálogo, las pestañas, los menús y el popover
+   de montaje. Valores y contrastes: docs/decisiones/bd/ui-arbol-colores-de-marca.md */
+:root[data-theme='light'] {
+  --db-marca-oracle: #c0392b;
+  --db-marca-sqlite: #1f6fb2;
+  --db-marca-sqlserver: #9a6100;
+  --db-marca-mongodb: #00684a;
+  --db-marca-redis: #dc382d;
+}
+/* El cilindro de una BASE del nivel «Bases» (SQL Server sin base fija): el
+   gris de los iconos de fila, como el de un esquema; la marca de color es la conexión. */
+.db-fila-icono.db-icono-base {
+  color: var(--fg-muted);
+}
+/* El icono del motor en el popover de montaje del agente (su CSS de fila vive en
+   styles.css; esto solo le da caja al logo que lleva delante del alias). */
+.db-mount-item .db-mount-motor {
+  display: inline-flex;
+  flex: 0 0 14px;
+  width: 14px;
+  height: 14px;
+}
+.db-mount-item .db-mount-motor svg {
+  width: 100%;
+  height: 100%;
+}
+/* La llave de la clave primaria: ámbar, la convención habitual para la clave. */
+.db-fila-icono.db-icono-pk {
+  color: var(--yellow);
+}
+
+/* Punto de SESIÓN sobre el icono del motor: verde conectada, rojo perdida (es un
+   ESTADO: el único relleno rojo de la fila), gris latiendo mientras se conecta. El
+   aro del color del lateral lo despega del icono. */
+.db-sesion-punto {
+  position: absolute;
+  right: -2px;
+  bottom: -1px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1.5px var(--bg-elevated);
+}
+.db-sesion-punto.conectada {
+  background: var(--green);
+}
+.db-sesion-punto.caida {
+  background: var(--red);
+}
+.db-sesion-punto.conectando {
+  background: var(--fg-faint);
+  animation: db-latido 1.1s ease-in-out infinite;
+}
+@keyframes db-latido {
+  50% {
+    opacity: 0.35;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .db-sesion-punto.conectando {
+    animation: none;
+  }
+}
+
+.db-fila-nombre {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.db-conexion-alias {
+  font-weight: 600;
+}
+/* Metadatos detrás del nombre (tipo de una columna, firma de una rutina, «por
+   defecto»): apagados y los primeros en recortarse. */
+.db-fila-meta {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--fg-faint);
+  font-size: calc(var(--ui-font) - 1px);
+}
+.db-fila-cuenta {
+  flex: 0 0 auto;
+  color: var(--fg-faint);
+  font-size: calc(var(--ui-font) - 1px);
+  font-variant-numeric: tabular-nums;
+}
+.tree-row.atenuada .db-fila-nombre,
+.tree-row.atenuada .db-fila-icono {
+  color: var(--fg-faint);
+}
+/* CONEXIÓN AJENA (de un motor que esta versión no conoce, o de uno que conoce guardada
+   de una forma que no reconoce): atenuada entera —icono, alias y textos—, con el aviso
+   de su causa en cursiva como los marcadores «Cargando…», que
+   tampoco se abren. Al seleccionarla sube a `--fg-muted`: sobre el brillo de la
+   selección el `--fg-faint` se leía peor, y es justo cuando se está mirando. Cuando no
+   cabe, se recorta PRIMERO el aviso, luego el motor y lo último el alias (el
+   `flex-shrink` alto): el alias es lo que la identifica, y el aviso entero va en el
+   tooltip. */
+.tree-row.db-fila-ajena {
+  cursor: default;
+}
+.tree-row.db-fila-ajena .db-fila-nombre,
+.tree-row.db-fila-ajena .db-motor-icono {
+  color: var(--fg-faint);
+}
+.tree-row.db-fila-ajena.active .db-fila-nombre,
+.tree-row.db-fila-ajena.active .db-motor-icono,
+.tree-row.db-fila-ajena.active .db-ajena-aviso {
+  color: var(--fg-muted);
+}
+.db-fila-meta.db-ajena-motor {
+  flex-shrink: 20;
+}
+.db-ajena-aviso {
+  flex: 0 60 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg-faint);
+  font-size: calc(var(--ui-font) - 1px);
+  font-style: italic;
+}
+.tree-row.invalido .db-fila-nombre {
+  color: var(--red);
+}
+.db-fila-invalido {
+  flex: 0 0 auto;
+  color: var(--red);
+  font-size: calc(var(--ui-font) - 2px);
+  opacity: 0.85;
+}
+.tree-row.arrastrando > * {
+  opacity: 0.45;
+}
+
+/* ENTORNO DE LA CONEXIÓN. La franja (`MarcaEntorno` compacta) va pegada al
+   borde izquierdo de la fila, dentro de sus 8 px de sangría, así que no mueve nada. En
+   PRODUCCIÓN, además, la fila entera teñida de rojo: se declara solo la IMAGEN de
+   fondo (el tinte), con más especificidad que `.tree-row:hover` / `.active` de
+   `styles.css`, que usan el shorthand `background` y la resetearían; así el tinte
+   sobrevive y el azul de la seleccionada se compone debajo (el mismo gesto que
+   `.editor-tab.in-archive`). */
+.db-arbol .tree-row.db-fila-conexion {
+  position: relative;
+}
+.db-arbol .db-fila-conexion > .marca-entorno-compacta {
+  position: absolute;
+  left: 2px;
+  top: 4px;
+  bottom: 4px;
+  height: auto;
+}
+.db-arbol .tree-row.db-fila-produccion {
+  background-image: linear-gradient(var(--entorno-produccion-tinte), var(--entorno-produccion-tinte));
+}
+
+/* Chip RO: la conexión es de solo lectura PARA LOS AGENTES (la casilla no limita al
+   usuario). Verde porque es la opción SEGURA (y la recomendada). */
+.db-chip-ro {
+  flex: 0 0 auto;
+  padding: 0 4px;
+  border-radius: 3px;
+  font-size: max(9px, calc(var(--ui-font) - 3px));
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 14px;
+  color: var(--green);
+  background: color-mix(in srgb, var(--green) 14%, transparent);
+}
+/* ⚠ sin contraseña o ilegible: ámbar (algo que hacer, no un fallo). */
+.db-fila-aviso {
+  flex: 0 0 auto;
+  color: var(--yellow);
+  font-size: calc(var(--ui-font) - 1px);
+  cursor: help;
+}
+/* «N de M»: es un BOTÓN (abre el popover), pero en reposo se lee como un metadato;
+   se anima solo al apuntarlo. Cifras tabulares para que no baile al cambiar. */
+.db-insignia-esquemas {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 0 5px;
+  height: calc(var(--ui-row-h) - 6px);
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--fg-faint);
+  font: inherit;
+  font-size: calc(var(--ui-font) - 1px);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.db-insignia-esquemas:hover {
+  color: var(--fg);
+  background: var(--hover-suave, rgba(255, 255, 255, 0.08));
+}
+
+/* Fila de ERROR: el texto en rojo (no relleno) y UNA acción, la que lo arregla. */
+.tree-row.db-fila-error {
+  color: var(--red);
+  cursor: default;
+}
+.db-fila-error-texto {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.db-fila-accion {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 0 6px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: calc(var(--ui-font) - 1px);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.db-fila-accion:hover {
+  background: var(--hover-suave, rgba(255, 255, 255, 0.08));
+  text-decoration: underline;
+}
+
+/* Coincidencia de la búsqueda al teclear. */
+.db-arbol mark {
+  padding: 0;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--yellow) 32%, transparent);
+  color: inherit;
+}
+
+/* --- Barra de búsqueda (arriba, en el flujo: superpuesta tapaba la primera
+   coincidencia) ------------------------------------------------------------------- */
+.db-arbol-busqueda {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 6px 8px 0;
+  padding: 1px 2px 1px 8px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--bg-deep);
+}
+.db-arbol-busqueda input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: calc(var(--ui-row-h) - 2px);
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  outline: none;
+}
+.db-arbol-busqueda input::placeholder {
+  color: var(--fg-faint);
+}
+.db-arbol-busqueda-cuenta {
+  flex: 0 0 auto;
+  color: var(--fg-faint);
+  font-size: calc(var(--ui-font) - 1px);
+  font-variant-numeric: tabular-nums;
+}
+.db-arbol-busqueda .sidebar-icon-btn {
+  width: 20px;
+  height: 20px;
+}
+.db-arbol-busqueda .sidebar-icon-btn svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* --- Avisos (probar, desconectar, errores de una acción) ------------------------
+   El carril de la izquierda dice el NIVEL (azul de la paleta para información,
+   verde, rojo); el cuerpo no se rellena de color. */
+.db-arbol-aviso {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  margin: 6px 8px 0;
+  padding: 6px 2px 6px 10px;
+  max-height: 40%;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--azul);
+  border-radius: 6px;
+  background: var(--bg-deep);
+  font-size: calc(var(--ui-font) - 0.5px);
+  line-height: 1.45;
+  color: var(--fg);
+}
+.db-arbol-aviso.ok {
+  border-left-color: var(--green);
+}
+.db-arbol-aviso.error {
+  border-left-color: var(--red);
+}
+/* ÁMBAR = aviso, el mismo nivel que `.toast-warn`: ni información ni error. Lo usa el
+   del registro con un formato que esta versión no reconoce, que no es un fallo de la app
+   pero sí algo que el usuario tiene que saber y resolver. */
+.db-arbol-aviso.advertencia {
+  border-left-color: var(--yellow);
+}
+.db-arbol-aviso-titulo {
+  margin-bottom: 2px;
+  font-weight: 600;
+}
+/* El del formato ajeno es el ESTADO del árbol, no el resultado de una acción: ocupa el
+   sitio de la lista (que no hay), no se cierra y no lleva el tope de alto de los avisos
+   de acción, que están para no tapar una lista que aquí no existe. Sin botón de cerrar a
+   la derecha, el relleno se iguala por los dos lados. */
+.db-arbol-aviso.db-arbol-formato {
+  max-height: none;
+  padding-right: 10px;
+}
+.db-arbol-aviso-texto {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.db-arbol-aviso-detalle {
+  margin-top: 2px;
+  color: var(--fg-faint);
+  font-size: calc(var(--ui-font) - 1px);
+}
+.db-arbol-aviso .db-fila-accion {
+  margin: 4px 0 0 -6px;
+  display: block;
+}
+.db-arbol-aviso .sidebar-icon-btn.db-arbol-aviso-cerrar {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+}
+.db-arbol-aviso .sidebar-icon-btn.db-arbol-aviso-cerrar svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* =============================================================================
+   POPOVER DE ESQUEMAS. Va por portal a <body>: estas reglas NO pueden depender de
+   estar dentro de `.db-arbol`. Recibe las variables de densidad del árbol en su
+   propio `style`, así que `--ui-row-h` y `--ui-font` son las del árbol.
+   Fondo `--bg-modal`: flota por encima de todo, como los menús y los modales.
+   ============================================================================= */
+.db-esquemas-pop {
+  position: fixed;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 16px);
+  padding-top: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-modal);
+  box-shadow: var(--shadow-modal, 0 8px 24px rgba(0, 0, 0, 0.4));
+  color: var(--fg);
+  font-size: var(--ui-font);
+}
+.db-pop-cabecera {
+  padding: 0 12px 6px;
+  color: var(--fg-muted);
+  font-size: calc(var(--ui-font) - 1px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.db-pop-alias {
+  color: var(--fg);
+  font-weight: 600;
+}
+.db-pop-filtro {
+  margin: 0 8px 6px;
+  height: calc(var(--ui-row-h) + 4px);
+  padding: 0 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  background: var(--bg-deep);
+  color: var(--fg);
+  font: inherit;
+  outline: none;
+}
+.db-pop-filtro:focus {
+  border-color: var(--accent);
+}
+/* Sin esto, la regla global `:focus-visible` (que se inyecta DESPUÉS de esta hoja)
+   sumaba su anillo al borde de acento: doble contorno. Ver `.db-arbol-lista`. */
+.db-pop-filtro:focus-visible,
+.db-pop-lista:focus-visible {
+  outline: none;
+}
+.db-pop-filtro::placeholder {
+  color: var(--fg-faint);
+}
+.db-pop-fijas {
+  padding-bottom: 2px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.db-pop-lista {
+  outline: none;
+}
+.db-pop-fila {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 12px;
+  white-space: nowrap;
+  user-select: none;
+  cursor: pointer;
+}
+.db-pop-fila:hover {
+  background: var(--hover-suave, rgba(255, 255, 255, 0.06));
+}
+.db-pop-fila.activa {
+  background: var(--sel-glow);
+}
+.db-pop-fila.atenuada .db-pop-nombre {
+  color: var(--fg-faint);
+}
+.db-pop-nombre {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.db-pop-meta {
+  flex: 0 0 auto;
+  color: var(--fg-faint);
+  font-size: calc(var(--ui-font) - 1px);
+}
+.db-pop-estado {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  color: var(--fg-faint);
+}
+.db-pop-estado.error {
+  color: var(--red);
+}
+.db-pop-error-texto {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.db-pop-error {
+  margin: 4px 8px 0;
+  padding: 5px 8px;
+  border: 1px solid color-mix(in srgb, var(--red) 55%, var(--border));
+  border-radius: 6px;
+  color: var(--red);
+  font-size: calc(var(--ui-font) - 1px);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.db-pop-pie {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 5px 12px 6px;
+  border-top: 1px solid var(--border-soft);
+  color: var(--fg-faint);
+  font-size: calc(var(--ui-font) - 1px);
+}
+.db-pop-cuenta {
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* SELECTOR DE ESQUEMA DE LA CONSOLA (mismo popover, un solo elegido): la marca ✓ de
+   la opción vigente en una ranura fija, para que los nombres no bailen al moverla;
+   «Esquema de la conexión (X)» separada de la lista por su filete, como las filas
+   fijas del otro popover. */
+.db-pop-marca {
+  flex: 0 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  color: var(--accent);
+}
+.db-pop-marca svg {
+  width: 12px;
+  height: 12px;
+}
+.db-esquema-consola-pop .db-pop-fila.db-pop-conexion {
+  border-bottom: 1px solid var(--border-soft);
+}
+
+/* La casilla tri-estado es la de git (`features/git/Casilla.tsx`), pero su CSS vive en el
+   ámbito `.git-ui`: fuera de git sale sin estilo. Mismo dibujo, en el ámbito del
+   popover. */
+.db-esquemas-pop .git-casilla {
+  flex: 0 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  box-sizing: border-box;
+  border: 1px solid var(--fg-faint);
+  border-radius: 3px;
+  color: var(--bg);
+  cursor: pointer;
+}
+.db-esquemas-pop .git-casilla.llena,
+.db-esquemas-pop .git-casilla.parcial {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+.db-esquemas-pop .git-casilla svg {
+  width: 10px;
+  height: 10px;
+}
+.db-esquemas-pop .db-pop-fila:hover .git-casilla.vacia {
+  border-color: var(--fg-muted);
+}

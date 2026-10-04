@@ -1,0 +1,310 @@
+/* =============================================================================
+   Pestaña de colección y tabla de documentos (`TablaDocumentos.tsx`, también usada por la
+   consola, y `DbColeccionPane.tsx`). Solo consume variables del tema y de la densidad y
+   reutiliza de `rejilla.css` lo que ya es igual; aquí van las celdas en flex y el color por
+   tipo, que es del tema y no sigue al perfil (con un perfil verde, cadena y número no se
+   distinguirían). La cabecera ordena; la barra guiada es la común de `features/bd/filtro/`.
+   Sin transform, filter ni contain en la raíz o sus ancestros (el menú contextual es fixed).
+   ============================================================================= */
+
+/* --- La pestaña ------------------------------------------------------------------ */
+
+.db-coleccion {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+.db-coleccion.hidden {
+  display: none;
+}
+
+/* La barra JSON de MongoDB (el modo AVANZADO; el de por defecto es la barra guiada
+   común, `features/bd/filtro/`): tres campos (filtro, proyección, orden) y, a la
+   derecha, el botón «Guiado» que vuelve a la guiada. El filtro es el que se escribe de verdad
+   y lleva más sitio. El error cae bajo SU campo. */
+.db-filtro.db-docs-filtro {
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr) minmax(0, 2fr) auto;
+}
+/* El conmutador de modo: texto corto y compacto, a la altura de los campos (no un botón de
+   icono: «Guiado» / «JSON» se entienden sin descubrir qué dibuja un icono). */
+.db-docs-filtro-modo {
+  align-self: center;
+  height: calc(var(--ui-row-h) + 2px);
+  padding: 0 10px;
+  font-size: max(9px, calc(var(--ui-font) - 1px));
+  white-space: nowrap;
+}
+.db-filtro-error.campo-filtro {
+  grid-column: 1;
+}
+.db-filtro-error.campo-proyeccion {
+  grid-column: 2;
+}
+.db-filtro-error.campo-orden {
+  grid-column: 3;
+}
+/* El cuerpo: la tabla y, a su derecha, el panel JSON del documento elegido.
+   No se pasa el panel DEBAJO con una consulta de contenedor cuando la pestaña es
+   estrecha: `container-type` en un ancestro de la tabla ancla sus `position: fixed` (el
+   editor, los menús) a ese ancestro (cabecera de `rejilla.css`), y el propio contenedor no
+   se puede consultar a sí mismo. El panel tiene ancho mínimo y la tabla desplaza. */
+.db-docs-cuerpo-pestana {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+}
+.db-docs-cuerpo-pestana > .db-docs-zona-tabla {
+  flex: 1 1 60%;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.db-docs-panel {
+  flex: 0 0 40%;
+  min-width: 220px;
+  max-width: 70%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+.db-docs-panel-cab {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--ui-head-h, 30px);
+  padding: 0 6px 0 12px;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: max(9px, calc(var(--ui-font) - 1px));
+  color: var(--fg-muted);
+}
+.db-docs-panel-titulo {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono, monospace);
+}
+.db-docs-panel-cab .db-docs-panel-estado {
+  color: var(--azul);
+}
+.db-docs-json {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 8px 12px;
+  overflow: auto;
+  font-family: var(--mono, monospace);
+  font-size: var(--ui-font);
+  line-height: 1.5;
+  color: var(--fg);
+  white-space: pre;
+  user-select: text;
+  tab-size: 2;
+}
+/* El JSON editable: la misma letra y superficie HUNDIDA (piso de UX de los campos). */
+textarea.db-docs-json {
+  border: none;
+  outline: none;
+  resize: none;
+  background: var(--bg-deep);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.db-docs-panel-vacio {
+  flex: 1 1 auto;
+  display: flex;
+}
+.db-docs-panel-vacio > .pane-empty {
+  flex: 1 1 auto;
+}
+.db-docs-panel-acciones {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 6px 10px;
+  border-top: 1px solid var(--border-soft);
+}
+
+/* Tokens del panel JSON. */
+.db-docs-json .tk-clave {
+  color: var(--fg-muted);
+}
+.db-docs-json .tk-cadena {
+  color: var(--green);
+}
+.db-docs-json .tk-numero {
+  color: var(--azul);
+}
+.db-docs-json .tk-literal {
+  color: var(--yellow);
+}
+.db-docs-json .tk-constructor,
+.db-docs-json .tk-regex {
+  color: var(--yellow);
+  font-style: italic;
+}
+.db-docs-json .tk-puntuacion {
+  color: var(--fg-faint);
+}
+
+/* --- La tabla -------------------------------------------------------------------- */
+
+/* Cabecera y cuerpo en la MISMA letra monoespaciada: los anchos van en `ch`. */
+.db-docs-cab {
+  display: flex;
+  font-family: var(--mono, monospace);
+}
+.db-docs-esquina {
+  flex: 0 0 auto;
+  cursor: default;
+}
+.db-docs-th {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-right: 1px solid var(--border-soft);
+  user-select: none;
+}
+/* La cabecera ORDENA (clic; Mayús+clic añade): el nombre se recorta con elipsis
+   dentro de su `span` (en el `flex` la elipsis no llega al texto suelto) y la flecha, con su
+   número de prioridad si hay varias, queda a la derecha. `.db-rejilla-orden` (el color de
+   acento y el tamaño del SVG) viene de `rejilla.css`, como en la rejilla SQL. */
+.db-docs-th {
+  gap: 4px;
+}
+.db-docs-th.ordenable {
+  cursor: pointer;
+}
+.db-docs-th.ordenable:hover {
+  background: var(--hover-suave);
+  color: var(--fg);
+}
+.db-docs-th.ordenada {
+  color: var(--fg);
+}
+.db-docs-th-nombre {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.db-docs-orden {
+  gap: 1px;
+}
+.db-docs-orden-prioridad {
+  font-size: max(9px, calc(var(--ui-font) - 2px));
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.db-docs-fila {
+  display: flex;
+  width: 100%;
+}
+.db-docs-fila .db-rejilla-num {
+  flex: 0 0 auto;
+}
+.db-docs-celda {
+  position: relative;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  height: 100%;
+  padding: 0 8px;
+  overflow: hidden;
+  white-space: pre;
+  text-overflow: ellipsis;
+  line-height: var(--db-alto-fila);
+  color: var(--fg);
+  border-right: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+  user-select: none;
+  cursor: default;
+}
+.db-docs-fila.sel .db-docs-celda {
+  background: var(--sel-glow);
+}
+/* Un campo que FALTA no es null: la celda queda vacía y un pelo más oscura. */
+.db-docs-celda.ausente {
+  background: color-mix(in srgb, var(--bg-deep) 45%, transparent);
+}
+.db-docs-celda.tipo-string {
+  color: var(--green);
+}
+.db-docs-celda.tipo-int,
+.db-docs-celda.tipo-long,
+.db-docs-celda.tipo-double,
+.db-docs-celda.tipo-decimal {
+  color: var(--azul);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.db-docs-celda.tipo-null {
+  font-style: italic;
+  color: var(--fg-faint);
+}
+.db-docs-celda.tipo-bool {
+  color: var(--yellow);
+}
+.db-docs-celda.tipo-objectId,
+.db-docs-celda.tipo-date,
+.db-docs-celda.tipo-timestamp {
+  color: var(--fg-muted);
+}
+.db-docs-celda.tipo-objeto,
+.db-docs-celda.tipo-array,
+.db-docs-celda.tipo-binary {
+  font-style: italic;
+  color: var(--fg-muted);
+}
+/* Celda con un valor sin enviar: lo mismo que la rejilla SQL (tinte y filete azules). */
+.db-docs-celda.cambiada {
+  background: color-mix(in srgb, var(--azul) 16%, transparent);
+  box-shadow: inset 2px 0 0 var(--azul);
+}
+.db-rejilla-fila.nueva .db-docs-celda:not(.cambiada) {
+  background: color-mix(in srgb, var(--green) 8%, transparent);
+}
+.db-rejilla-fila.borrada .db-docs-celda {
+  color: var(--fg-faint);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--red) 70%, transparent);
+  background: color-mix(in srgb, var(--red) 9%, transparent);
+}
+/* El editor de celda llena su celda (la celda es su ancestro con posición). */
+.db-docs-editor {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.db-docs-pie {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+}
+.db-docs-pie-texto {
+  position: sticky;
+  left: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  line-height: var(--db-alto-fila);
+  font-style: italic;
+  color: var(--fg-faint);
+}

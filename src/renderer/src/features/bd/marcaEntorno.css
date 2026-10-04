@@ -1,0 +1,75 @@
+/* =============================================================================
+   MARCA DE ENTORNO: los TOKENS de color de Desarrollo, Pruebas y Producción y las
+   dos versiones de `MarcaEntorno.tsx` (chip y franja). Dónde va la franja lo decide
+   el CSS de quien la usa (arbol.css, area.css). Los tokens viven en `:root` y se
+   redefinen con `:root[data-theme='light']`. Los colores y sus contrastes medidos,
+   y por qué no son los del tema a secas: docs/decisiones/bd/ui-area-marca-de-entorno.md
+   ============================================================================= */
+
+:root {
+  --entorno-desarrollo: #74d39a;
+  --entorno-pruebas: #e0a64f;
+  --entorno-produccion: #ef6b74;
+  --entorno-produccion-relleno: #ef6b74;
+  --entorno-produccion-sobre: #1a0b0d;
+  --entorno-produccion-tinte: rgba(239, 107, 116, 0.1);
+}
+:root[data-theme='light'] {
+  --entorno-desarrollo: #176b3a;
+  --entorno-pruebas: #7d5200;
+  --entorno-produccion: #a8231b;
+  --entorno-produccion-relleno: #b3261e;
+  --entorno-produccion-sobre: #ffffff;
+  --entorno-produccion-tinte: rgba(179, 38, 30, 0.08);
+}
+
+/* El color de cada entorno en UNA variable local: las dos versiones y los
+   contenedores (la franja del árbol, la de la pestaña) leen `--marca-color`. */
+.marca-entorno {
+  --marca-color: var(--entorno-desarrollo);
+}
+.marca-entorno.marca-entorno-pruebas {
+  --marca-color: var(--entorno-pruebas);
+}
+.marca-entorno.marca-entorno-produccion {
+  --marca-color: var(--entorno-produccion);
+}
+
+/* --- Normal: chip con el nombre ------------------------------------------------
+   Del tamaño del chip RO del árbol (mismo peldaño de letra y 16 px de alto), para
+   que en una barra se lea como un dato más y no como un botón. */
+.marca-entorno-chip {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  height: 16px;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: max(9px, calc(var(--ui-font) - 2px));
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 16px;
+  white-space: nowrap;
+  color: var(--marca-color);
+  background: color-mix(in srgb, var(--marca-color) 16%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--marca-color) 40%, transparent);
+  cursor: default;
+}
+/* Producción: RELLENO (es un estado), con el texto oscuro que da 6,4:1. */
+.marca-entorno-chip.marca-entorno-produccion {
+  font-weight: 700;
+  color: var(--entorno-produccion-sobre);
+  background: var(--entorno-produccion-relleno);
+  box-shadow: none;
+}
+
+/* --- Compacta: franja ------------------------------------------------------------
+   Sola es una barrita vertical en línea; el contenedor la recoloca (ver arriba). */
+.marca-entorno-compacta {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 3px;
+  height: 1em;
+  border-radius: 2px;
+  background: var(--marca-color);
+}

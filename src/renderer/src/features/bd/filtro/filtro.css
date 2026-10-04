@@ -1,0 +1,230 @@
+/* =============================================================================
+   Filtro guiado: la barra `BarraFiltroGuiado` (pestaña de tabla y de colección), el modo
+   «SQL» de la tabla como MODIFICADOR `.filtro-sql` de `.db-filtro` y el número de prioridad
+   del orden de la cabecera. Hoja propia que importa el componente. Mide lo mismo que la
+   barra WHERE (relleno, filete y controles de `--ui-row-h + 2px`) para que cambiar de modo
+   no haga saltar la rejilla; valores en `--mono`; cada fila se parte antes de que un
+   control baje de su mínimo, sin anchos fijos en px para lo que lleva texto.
+   ============================================================================= */
+
+.filtro-guiado {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: 5px 8px 5px 16px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg);
+  font-size: var(--ui-font);
+  /* El ancho de la palabra de delante («donde / y / o»), del que cuelgan también el
+     sangrado del pie y el de los errores de fila. Sale de `--ui-font` y no de `em`: la
+     palabra va un peldaño MÁS PEQUEÑA que la barra, y con `em` cada uno mediría en su
+     propia letra y el pie no casaría con las filas. */
+  --filtro-conector: calc(3.2 * var(--ui-font));
+}
+
+/* Cada condición y, debajo, su error: el error ocupa el ancho de la fila, alineado con
+   la columna (no con la palabra de delante). */
+.filtro-guiado-bloque {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.filtro-guiado-fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* «donde / y / o»: una columna de ancho fijo que crece con la letra, a la derecha para
+   que la palabra quede pegada a su desplegable. */
+.filtro-guiado-conector {
+  flex: 0 0 var(--filtro-conector);
+  box-sizing: border-box;
+  text-align: right;
+  padding-right: 2px;
+  font-size: max(9px, calc(var(--ui-font) - 1px));
+  color: var(--fg-faint);
+  user-select: none;
+}
+
+/* Superficie HUNDIDA, el piso de los campos de la app (el de `.db-filtro-input`). */
+.filtro-guiado-control {
+  height: calc(var(--ui-row-h) + 2px);
+  min-width: 0;
+  padding: 0 6px;
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  background: var(--bg-deep);
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--ui-font);
+  outline: none;
+}
+.filtro-guiado-control:focus {
+  border-color: var(--accent);
+}
+/* La regla global `:focus-visible` se inyecta DESPUÉS de esta hoja y sumaba su anillo al
+   borde de acento (la trampa ya medida en `rejilla.css`): el foco lo dice el borde. */
+.filtro-guiado-control:focus-visible {
+  outline: none;
+}
+.filtro-guiado-control[aria-invalid='true'] {
+  border-color: var(--red);
+}
+.filtro-guiado-control:disabled {
+  opacity: 0.5;
+}
+
+/* La columna cede (los nombres largos se cortan en el desplegable cerrado; el `title`
+   lleva el nombre entero) con un suelo para que siga leyéndose. */
+.filtro-guiado-columna {
+  flex: 0 1 auto;
+  min-width: 7em;
+  max-width: 18em;
+}
+.filtro-guiado-operador {
+  flex: 0 0 auto;
+}
+input.filtro-guiado-valor {
+  flex: 1 1 10em;
+  min-width: 7em;
+  padding: 0 8px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+  font-family: var(--mono, monospace);
+}
+/* Una fecha tiene un largo conocido: no se estira a lo ancho de la pestaña. */
+input.filtro-guiado-valor.es-fecha {
+  flex: 0 1 18ch;
+}
+input.filtro-guiado-valor::placeholder {
+  color: var(--fg-faint);
+}
+select.filtro-guiado-valor {
+  flex: 0 0 auto;
+}
+.filtro-guiado-y {
+  font-size: max(9px, calc(var(--ui-font) - 1px));
+  color: var(--fg-faint);
+  user-select: none;
+}
+.filtro-guiado-quitar {
+  flex: 0 0 auto;
+}
+.filtro-guiado-quitar svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* El pie: «+ Condición» (y el conmutador) a la izquierda; «Aplicar» y el modo avanzado
+   a la derecha, SIEMPRE en el mismo sitio. Con condiciones, «+ Condición» se alinea con
+   los desplegables de columna (el ancho de la palabra de delante + su hueco). */
+.filtro-guiado-pie {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.filtro-guiado-pie.con-condiciones {
+  padding-left: calc(var(--filtro-conector) + 4px);
+}
+.filtro-guiado-vacio {
+  font-size: max(9px, calc(var(--ui-font) - 1px));
+  color: var(--fg-faint);
+  user-select: none;
+}
+.filtro-guiado-acciones {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+/* Los botones de texto de la barra, a la altura de los campos y con letra de meta. */
+.filtro-guiado .btn,
+.db-filtro.filtro-sql .filtro-modo {
+  height: calc(var(--ui-row-h) + 2px);
+  font-size: max(9px, calc(var(--ui-font) - 1px));
+}
+.filtro-guiado .btn.btn-icon {
+  width: calc(var(--ui-row-h) + 2px);
+}
+
+/* «todas / cualquiera»: el molde de `.db-clave-modos` (pista, radio, segmento apagado),
+   con el encendido en `btn-active`, la clase de todo lo «puesto» de la app. */
+.filtro-guiado-union {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  border-radius: 6px;
+  background: var(--bg-surface);
+  padding: 1px;
+  gap: 1px;
+}
+.filtro-guiado .filtro-guiado-union .btn {
+  height: calc(var(--ui-row-h));
+  padding: 0 9px;
+  border-radius: 5px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--fg-faint);
+}
+.filtro-guiado .filtro-guiado-union .btn:hover:not(:disabled) {
+  background: var(--bg-surface-hi);
+  color: var(--fg-muted);
+}
+.filtro-guiado .filtro-guiado-union .btn.btn-active {
+  background: var(--sel-glow);
+  color: var(--sel);
+}
+
+/* El error en línea: el de `.db-filtro-error` (monoespaciada, roja, con tope de alto y
+   desplazamiento propio: un mensaje de servidor puede ser largo). */
+.filtro-guiado-error {
+  min-width: 0;
+  max-height: calc(3 * var(--ui-row-h));
+  overflow: auto;
+  font-family: var(--mono, monospace);
+  font-size: max(9px, calc(var(--ui-font) - 1px));
+  line-height: 1.45;
+  color: var(--red);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.filtro-guiado-error.en-fila {
+  padding-left: calc(var(--filtro-conector) + 4px);
+}
+
+/* La envoltura de la barra guiada en la pestaña de tabla solo existe para que el foco
+   pueda volver a ella desde «SQL»: no maqueta (la barra sigue siendo el hijo del cuerpo
+   en columna, con su `flex: 0 0 auto`, y no encoge cuando la rejilla pide sitio). */
+.db-filtro-guiado {
+  display: contents;
+}
+
+/* --- El modo «SQL» de la pestaña de tabla ---------------------------------------
+   La barra WHERE de siempre (`.db-filtro`, de `rejilla.css`) sin el campo ORDER BY: el
+   campo ocupa el ancho y a su derecha va «Guiado», en el hueco del «SQL» de la barra
+   guiada. El error, a todo lo ancho. */
+.db-filtro.filtro-sql {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+.db-filtro.filtro-sql .db-filtro-error {
+  grid-column: 1 / -1;
+}
+
+/* --- El número de prioridad del orden de la cabecera ---------------------------
+   Solo con varias columnas (con una, la flecha basta). Micro y tabular, en el color de
+   la flecha, pegado a ella: «↑2». */
+.db-rejilla-orden-num {
+  margin-left: 1px;
+  font-size: max(9px, calc(var(--ui-font) - 2px));
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}

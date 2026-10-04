@@ -1,0 +1,84 @@
+name: Bug report
+description: Something in Tessera does not work as expected.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a problem. You can write in English or in Spanish.
+        **Security problems must not be reported here**: see [SECURITY.md](https://github.com/NRVH/tessera/blob/main/SECURITY.md).
+  - type: input
+    id: version
+    attributes:
+      label: Tessera version
+      description: "Settings › Acerca de shows it (for example, 0.71.0)."
+      placeholder: "0.71.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows 11
+        - macOS (Apple Silicon)
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: os-version
+    attributes:
+      label: System version
+      description: "For example: Windows 11 24H2, macOS 15.3."
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Project mode
+      description: Where the affected project runs, if it matters.
+      options:
+        - Docker (sandbox)
+        - Native
+        - Not related to a project
+        - I don't know
+    validations:
+      required: true
+  - type: input
+    id: docker
+    attributes:
+      label: Docker Desktop version
+      description: Only if the project runs in Docker mode.
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The shortest sequence of steps that makes the problem appear.
+      placeholder: |
+        1. Open a project in Docker mode
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened instead
+      description: Include error messages and, if it helps, screenshots.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        Relevant lines from the `logs` folder inside Tessera's data folder
+        (`%APPDATA%\Tessera\logs` on Windows, `~/Library/Application Support/Tessera/logs` on macOS).
+        Check them first and remove paths, names or anything you would rather not share.
+      render: text

@@ -1,0 +1,21 @@
+# Formato común de los archivos del repositorio. Los fines de línea de los guiones de shell
+# también los fija .gitattributes (eol=lf), que es lo que manda en git.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.md]
+# Dos espacios al final de una línea son un salto de línea en Markdown.
+trim_trailing_whitespace = false
+
+[*.{jar,png,ico,icns}]
+charset = unset
+end_of_line = unset
+insert_final_newline = unset
+trim_trailing_whitespace = unset

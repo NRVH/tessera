@@ -1,0 +1,21 @@
+SELECT 0
+FLUSHDB
+SET app:config:modo produccion
+SET app:config:version 0.67.0
+SET contador 42
+SET sesion:temporal abc EX 86400
+SET "clave con espacios" valor
+SET binario "\x00\x01\xff\xfeno-utf8"
+HSET usuario:1 nombre Ana edad 34 ciudad Madrid
+HSET usuario:2 nombre Luis edad 51
+HSET usuario:3:perfil tema oscuro idioma es
+RPUSH cola:tareas uno dos tres cuatro cinco
+SADD conjunto:etiquetas vip norte sur
+ZADD ranking 100 ana 85.5 luis 70 marta
+XADD eventos * tipo alta usuario 1
+XADD eventos * tipo baja usuario 2
+JSON.SET doc:pedido:1 $ "{\"id\":1,\"cliente\":\"Ana\",\"lineas\":[{\"sku\":\"A\",\"uds\":2}],\"total\":20.5}"
+SELECT 1
+FLUSHDB
+SET otra:base:clave hola
+HSET otra:base:hash campo valor

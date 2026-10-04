@@ -1,0 +1,29 @@
+/* =============================================================================
+   La acción de un aviso (`toast.accion`): lo único del Toaster que no vive en styles.css.
+   Texto de acento sin caja, pegado bajo el título y sangrado -4 px para que el texto quede
+   alineado con él. El anillo de foco lleva dos clases para ganar a la regla global de
+   `:focus-visible` sin depender del orden de las hojas.
+   ============================================================================= */
+
+.toast-accion {
+  display: inline-block;
+  margin: 4px 0 0 -4px;
+  padding: 1px 4px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 11.5px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.toast-accion:hover {
+  background: var(--hover-suave);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.toast .toast-accion:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}

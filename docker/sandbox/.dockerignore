@@ -1,0 +1,5 @@
+# El proyecto se monta en runtime; nada necesita entrar al contexto de build.
+**/node_modules
+**/package-lock.json
+*.log
+proyecto-demo/

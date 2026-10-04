@@ -1,0 +1,42 @@
+/* =============================================================================
+   Lo propio del registro de la consola de claves (`DbConsolaClavesPane`); lo demás viene de
+   la Salida de las otras consolas (`db-salida-*` en `../consola.css`). Aquí: los ms de cada
+   comando a la derecha de su eco, el tono de cada línea de respuesta (un error anidado va en
+   rojo aunque el comando saliera bien) y el conteo de claves del selector de base.
+   `white-space: pre-wrap` conserva la sangría de las listas anidadas.
+   ============================================================================= */
+
+.kv-registro-ms {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding-left: 12px;
+  color: var(--fg-faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Un comando que corre: su eco un punto más visible, para encontrarlo al mirar. */
+.kv-estado-corriendo > .db-salida-eco .db-salida-texto {
+  color: var(--fg);
+}
+
+.kv-tono-normal .db-salida-texto {
+  color: var(--fg);
+}
+.kv-tono-error .db-salida-texto {
+  color: var(--red);
+}
+.kv-tono-aviso .db-salida-texto {
+  color: var(--yellow);
+}
+.kv-tono-tenue .db-salida-texto {
+  color: var(--fg-muted);
+}
+
+.kv-pop-conteo {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding-left: 8px;
+  color: var(--fg-faint);
+  font-variant-numeric: tabular-nums;
+}

@@ -1,0 +1,198 @@
+# =============================================================================
+# Publica una versión de Tessera al empujar su etiqueta `vX.Y.Z`: compila Windows y macOS en
+# paralelo, crea la release como BORRADOR, sube los dos conjuntos y solo la publica como
+# «latest» cuando están los dos completos. La app lee el feed de
+# `releases/latest/download` (provider `generic`, ver `electron-builder.yml`).
+#
+# POR QUÉ EL BORRADOR: una «latest» publicada con el canal de una sola plataforma hace que la
+# otra pida su `latest*.yml` a esa release, reciba un 404 y muestre un error en cada
+# comprobación. «latest» ignora los borradores, así que mientras falte algo nadie lo ve.
+# Decisiones: docs/decisiones/despliegue/releases-de-github.md
+# =============================================================================
+name: Publicar
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publicar-${{ github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  comprobar:
+    name: Etiqueta = package.json
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: version
+        name: La etiqueta coincide con la versión del package.json
+        shell: bash
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          if [ "v$VERSION" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::La etiqueta $GITHUB_REF_NAME no coincide con package.json ($VERSION)."
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+  windows:
+    name: Windows (x64)
+    needs: comprobar
+    runs-on: windows-latest
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      # Lo mismo que en local: typecheck + electron-vite + electron-builder --win, sin publicar.
+      - run: npm run release:win
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows
+          if-no-files-found: error
+          compression-level: 0
+          path: |
+            dist/latest.yml
+            dist/Tessera-${{ needs.comprobar.outputs.version }}-Setup.exe
+            dist/Tessera-${{ needs.comprobar.outputs.version }}-Setup.exe.blockmap
+
+  mac:
+    name: macOS (arm64)
+    needs: comprobar
+    runs-on: macos-latest
+    env:
+      # Firma AD-HOC (`mac.identity: '-'`): no se busca ninguna identidad en el llavero.
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      # El `postinstall` devuelve el bit de ejecución al spawn-helper de node-pty.
+      - run: npm ci
+      # electron-builder --mac sin publicar y, después, `parchearMinimoMac.mjs`, que escribe
+      # el mínimo de macOS en Darwin en `latest-mac.yml`.
+      - run: npm run release:mac
+      - name: latest-mac.yml lleva el mínimo de sistema
+        shell: bash
+        run: |
+          grep -Eq '^minimumSystemVersion: [0-9]+\.[0-9]+\.[0-9]+$' dist/latest-mac.yml || {
+            echo "::error::dist/latest-mac.yml no lleva minimumSystemVersion en Darwin."
+            exit 1
+          }
+      - uses: actions/upload-artifact@v7
+        with:
+          name: mac
+          if-no-files-found: error
+          compression-level: 0
+          path: |
+            dist/latest-mac.yml
+            dist/Tessera-${{ needs.comprobar.outputs.version }}-arm64.dmg
+            dist/Tessera-${{ needs.comprobar.outputs.version }}-arm64.zip
+            dist/Tessera-${{ needs.comprobar.outputs.version }}-arm64.dmg.blockmap
+            dist/Tessera-${{ needs.comprobar.outputs.version }}-arm64.zip.blockmap
+
+  publicar:
+    name: Release de GitHub
+    needs: [comprobar, windows, mac]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ github.ref_name }}
+      VERSION: ${{ needs.comprobar.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          path: artefactos
+          merge-multiple: true
+
+      - name: Están los dos conjuntos completos
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd artefactos
+          ls -l
+          for f in latest.yml latest-mac.yml "Tessera-$VERSION-Setup.exe" \
+                   "Tessera-$VERSION-arm64.dmg" "Tessera-$VERSION-arm64.zip"; do
+            [ -f "$f" ] || { echo "::error::Falta $f: no se publica nada."; exit 1; }
+          done
+          for yml in latest.yml latest-mac.yml; do
+            grep -q "^version: $VERSION\$" "$yml" || { echo "::error::$yml no es la $VERSION."; exit 1; }
+          done
+          grep -Eq '^minimumSystemVersion: [0-9]+\.[0-9]+\.[0-9]+$' latest-mac.yml || {
+            echo "::error::latest-mac.yml no lleva minimumSystemVersion en Darwin."
+            exit 1
+          }
+
+      - name: Notas de la versión
+        shell: bash
+        run: |
+          set -euo pipefail
+          : > notas.md
+          # El bloque de esta versión de CHANGELOG.md («## 0.71.0», «## v0.71.0» o «## [0.71.0]»).
+          if [ -f CHANGELOG.md ]; then
+            awk -v v="$VERSION" '
+              /^## / { if (dentro) exit; h = $2; gsub(/[][v]/, "", h); if (h == v) { dentro = 1; next } }
+              dentro { print }
+            ' CHANGELOG.md > notas.md
+          fi
+          if [ ! -s notas.md ]; then
+            {
+              echo "Tessera $VERSION para Windows (x64) y macOS (Apple Silicon)."
+              echo
+              echo "- Windows: \`Tessera-$VERSION-Setup.exe\`. El instalador no está firmado: SmartScreen puede pedir «Más información › Ejecutar de todos modos»."
+              echo "- macOS: \`Tessera-$VERSION-arm64.dmg\`. La app lleva firma ad-hoc: la primera vez, Ajustes del Sistema › Privacidad y seguridad › «Abrir de todos modos»."
+              echo
+              echo "Las instalaciones existentes se actualizan solas."
+            } > notas.md
+          fi
+          cat notas.md
+
+      - name: Borrador con los dos conjuntos
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Una re-ejecución reutiliza el borrador; una release ya publicada no se toca.
+          if gh release view "$TAG" --json isDraft -q .isDraft > estado.txt 2>/dev/null; then
+            if [ "$(cat estado.txt)" != "true" ]; then
+              echo "::error::La release $TAG ya está publicada: no se sobrescribe."
+              exit 1
+            fi
+            gh release edit "$TAG" --title "Tessera $TAG" --notes-file notas.md
+          else
+            gh release create "$TAG" --verify-tag --draft --title "Tessera $TAG" --notes-file notas.md
+          fi
+          gh release upload "$TAG" artefactos/* --clobber
+
+      - name: El borrador tiene todo lo que piden las apps
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release view "$TAG" --json assets -q '.assets[].name' > subidos.txt
+          cat subidos.txt
+          for f in latest.yml latest-mac.yml "Tessera-$VERSION-Setup.exe" \
+                   "Tessera-$VERSION-arm64.dmg" "Tessera-$VERSION-arm64.zip"; do
+            grep -qx "$f" subidos.txt || { echo "::error::El borrador no tiene $f: se queda sin publicar."; exit 1; }
+          done
+
+      - name: Publicar como latest
+        run: gh release edit "$TAG" --draft=false --latest

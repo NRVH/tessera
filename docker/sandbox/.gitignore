@@ -1,0 +1,4 @@
+# Proyecto de prueba local que montan los test-*.mts del sandbox (tiene su propio .git).
+proyecto-demo/
+**/node_modules/
+*.log

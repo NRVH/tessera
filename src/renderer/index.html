@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- style-src 'unsafe-inline': xterm.js y Monaco inyectan <style> dinámicos
+         para su render; los estilos inline de React también lo requieren.
+         worker-src 'self' blob': Monaco corre sus language services en Web
+         Workers; el wrapper de worker de Vite los instancia desde el propio
+         origen ('self') o un blob del mismo origen.
+         frame-src 'self' blob': el visor de PDF pinta el archivo en un <iframe>
+         cuyo src es un Blob (object-URL) del mismo origen; Chromium usa su visor
+         nativo.
+         img-src 'self' data: blob': el visor de IMÁGENES pinta el archivo en un
+         <img> cuyo src es un Blob (object-URL) del mismo origen.
+         Todo lo demás permanece anclado a 'self' (sin orígenes remotos). -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; worker-src 'self' blob:; frame-src 'self' blob:"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tessera</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

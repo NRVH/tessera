@@ -1,0 +1,7 @@
+# =============================================================================
+# FINES DE LÍNEA QUE NO PUEDEN DEPENDER DE core.autocrlf.
+# Con autocrlf=true (lo normal en Windows), git escribe CRLF al sacar un archivo, y un guion
+# de bash con CRLF revienta con «$'\r': command not found». Los .sh de scripts/ se corren con
+# Git Bash en Windows y con bash/zsh en Mac: tienen que ser LF en las dos.
+# =============================================================================
+*.sh text eol=lf

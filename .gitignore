@@ -1,0 +1,33 @@
+node_modules
+out
+dist
+*.log
+.DS_Store
+
+# Datos de ejecución locales (perfiles, credenciales, cachés) — NO subir
+.tessera
+
+# Configuración local de editores y herramientas.
+.idea/
+
+# Referencia de secretos para `op run` (scripts `release:*:op`): apunta a una bóveda
+# concreta. No es secreto, pero es específico de cada entorno -> local.
+
+# Resultados de las pruebas de interfaz (capturas y trazas de los fallos).
+e2e/.resultados/
+
+# Cachés incrementales de tsc (`composite: true`). Se regeneran solas.
+*.tsbuildinfo
+
+# Restos de las pruebas: ficheros manuales (mermaid, html) y los `userData` de
+# mentira que montan los test-*.mts del sandbox y de los agentes (`.tmp-hibernate`,
+# `.tmp-agent-terminal`, `.tmp-agent-multi`…). El comodín cubre los que vengan: una
+# prueba que muere sin limpiar dejaba su carpeta SIN ignorar, o sea a un `git add -A`
+# de acabar en un commit con sus credenciales de pega dentro.
+.tmp-*/
+
+# Instantáneas que deja la automatización del navegador con Playwright fuera de las
+# pruebas de interfaz.
+.playwright-mcp/
+
+# Caché local del servidor de navegación de código y restos locales de experimentos.

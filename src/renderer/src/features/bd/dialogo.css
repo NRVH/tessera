@@ -1,0 +1,522 @@
+/* =============================================================================
+   DIÁLOGO DE CONEXIÓN (DbConexionDialogo + DriversLista). Solo lo de ESTE diálogo:
+   el cromo de la tarjeta sale de la regla compartida `:is(.modal-card, …)`.
+   Clases propias `dbc-*`, sin reutilizar nombres de otras hojas: así ninguna otra
+   regla puede tocar estos nodos ni depender del orden de carga.
+   Sin `container-type` en la tarjeta (implica `contain`, que vuelve absoluto un
+   `position: fixed` de dentro); el tamaño de letra se fija aquí, en píxeles.
+   Decisiones: docs/decisiones/bd/ui-conexion-dialogo.md
+   ============================================================================= */
+
+/* Más ancho que el ConfirmDialog (420 px): host y puerto, y usuario y contraseña,
+   van de dos en dos. Alto acotado al viewport con el CUERPO scrolleable: cabecera y
+   botones siempre a la vista, que es donde está «Guardar». El velo ya deja 24 px de
+   margen por lado. */
+.modal-card.db-conexion-modal {
+  width: min(560px, 100%);
+  max-height: calc(100vh - 48px);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  font-size: 12.5px;
+  color: var(--fg);
+}
+
+.dbc-form {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.dbc-cabecera {
+  flex: 0 0 auto;
+  padding: 18px 20px 4px;
+}
+.dbc-cabecera .modal-title {
+  margin-bottom: 4px;
+}
+
+.dbc-cuerpo {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px 20px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Fila de campos: reparte el ancho y nunca desborda la tarjeta. */
+.dbc-fila {
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+}
+
+.dbc-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.dbc-crece {
+  flex: 1 1 0;
+}
+.dbc-motor {
+  flex: 0 0 150px;
+}
+/* El logo del motor elegido, dentro de la caja del selector y a su izquierda. El
+   select sigue ocupando la caja entera (el clic en el logo abre la lista igual:
+   `pointer-events: none`), solo se le deja sitio con el padding. */
+.dbc-motor-control {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+.dbc-motor-logo {
+  position: absolute;
+  left: 9px;
+  top: calc(50% - 7.5px);
+  width: 15px;
+  height: 15px;
+  display: inline-flex;
+  pointer-events: none;
+}
+.dbc-motor-logo svg {
+  width: 100%;
+  height: 100%;
+}
+.dbc-campo .dbc-motor-control select {
+  padding-left: 31px;
+}
+.dbc-puerto {
+  flex: 0 0 96px;
+}
+/* El ancho MEDIO del descriptor de campos (`ancho: 'medio'` en camposConexion.ts):
+   el mismo que el selector de motor. Conserva el nombre de su primer usuario, el SID,
+   para que ninguna captura ni prueba que lo conozca tenga que cambiar. */
+.dbc-sid {
+  flex: 0 0 150px;
+}
+
+.dbc-etiqueta {
+  font-size: 12px;
+  color: var(--fg-muted);
+}
+.dbc-ayuda-inline {
+  color: var(--fg-faint);
+}
+
+.dbc-campo input,
+.dbc-campo select,
+.dbc-campo textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 0 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--bg-deep);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+}
+.dbc-campo input,
+.dbc-campo select {
+  height: 30px;
+}
+.dbc-campo textarea {
+  padding: 7px 10px;
+  line-height: 1.45;
+  resize: vertical;
+  min-height: 60px;
+}
+.dbc-campo input:focus,
+.dbc-campo select:focus,
+.dbc-campo textarea:focus {
+  border-color: var(--accent);
+}
+.dbc-campo input::placeholder,
+.dbc-campo textarea::placeholder {
+  color: var(--fg-faint);
+}
+/* Lo que el main rechazaría, tras un intento de guardar (`camposAMarcar`). Va DESPUÉS
+   de `:focus` y con su misma especificidad para ganarle: el campo que recibe el foco
+   por faltar tiene que seguir en rojo, con el foco dentro, hasta que deja de faltar. */
+.dbc-campo input[aria-invalid='true'] {
+  border-color: var(--red);
+}
+
+/* Archivo de un motor de archivo (SQLite): el nombre en un input de solo lectura que crece
+   y los dos botones a su derecha, que no se encogen (el nombre se recorta antes que ellos).
+   El input se ve como un campo más, pero con la mano: un clic elige, como un selector de
+   archivo nativo. */
+.dbc-archivo {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+}
+.dbc-archivo input {
+  flex: 1 1 auto;
+  min-width: 0;
+  cursor: pointer;
+  text-overflow: ellipsis;
+}
+.dbc-archivo .btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+/* «Pegar URI»: la misma fila de input y botones que el archivo, pero el
+   input se escribe (sin la mano). */
+.dbc-uri input {
+  cursor: text;
+}
+/* Un campo APAGADO por el valor de otro (el puerto con DNS SRV: `campoDeshabilitado`). */
+.dbc-campo input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Contraseña con ojo: el botón se superpone DENTRO del input para que la fila de dos
+   campos no pierda ancho. */
+.dbc-pass {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+.dbc-pass input {
+  padding-right: 32px;
+}
+.dbc-pass-ojo {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--fg-faint);
+  cursor: pointer;
+}
+.dbc-pass-ojo:hover {
+  color: var(--fg);
+  background: var(--hover-suave, rgba(255, 255, 255, 0.08));
+}
+.dbc-pass-ojo[aria-pressed='true'] {
+  color: var(--accent);
+}
+.dbc-pass-ojo svg {
+  width: 15px;
+  height: 15px;
+}
+
+.dbc-check {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--fg);
+  cursor: pointer;
+}
+.dbc-check input {
+  margin: 0;
+}
+/* El cifrado: sus dos casillas, una bajo otra y con el
+   mismo aire que «Solo lectura». */
+.dbc-cifrado {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* --- Entorno ---------------------------------------------------------------------
+   Un grupo de radios NATIVOS con aspecto de conmutador (el porqué, en su ADR).
+   El círculo del radio se esconde SIN sacarlo del árbol de accesibilidad ni del orden
+   de Tab (nada de `display: none`): la opción entera es la etiqueta, y el foco y lo
+   elegido se pintan en ella con `:has()`. El color de cada entorno sale de los tokens
+   de `marcaEntorno.css`, los mismos de la marca del árbol y de las barras. */
+.dbc-entorno {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+.dbc-entorno legend {
+  padding: 0;
+  margin-bottom: 5px;
+}
+.dbc-entorno-opciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.dbc-entorno-opcion {
+  --entorno-color: var(--fg-faint);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  padding: 0 12px 0 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--bg-deep);
+  color: var(--fg-muted);
+  font-size: 12.5px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+}
+.dbc-entorno-desarrollo {
+  --entorno-color: var(--entorno-desarrollo);
+}
+.dbc-entorno-pruebas {
+  --entorno-color: var(--entorno-pruebas);
+}
+.dbc-entorno-produccion {
+  --entorno-color: var(--entorno-produccion);
+}
+.dbc-entorno-opcion:hover {
+  color: var(--fg);
+  border-color: var(--border);
+  background: var(--hover-suave, rgba(255, 255, 255, 0.07));
+}
+.dbc-entorno-opcion input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+/* El punto: relleno con el color del entorno; «Sin entorno», un aro vacío. */
+.dbc-entorno-punto {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--entorno-color);
+}
+.dbc-entorno-ninguno .dbc-entorno-punto {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--fg-faint);
+}
+/* Lo elegido: borde del color del entorno y su tinte; el texto al color de siempre. */
+.dbc-entorno-opcion:has(input:checked) {
+  color: var(--fg);
+  border-color: var(--entorno-color);
+  background: color-mix(in srgb, var(--entorno-color) 14%, var(--bg-deep));
+}
+.dbc-entorno-ninguno:has(input:checked) {
+  border-color: var(--fg-muted);
+  background: var(--bg-surface);
+}
+/* El foco de teclado, en la opción (el radio va invisible): el anillo de siempre. */
+.dbc-entorno-opcion:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.dbc-ayuda {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--fg-faint);
+}
+/* La ayuda del entorno, pegada a su grupo (como la de una fila). */
+.dbc-entorno + .dbc-ayuda {
+  margin-top: -4px;
+}
+.dbc-ayuda code {
+  font-family: var(--mono, 'Cascadia Code', Consolas, 'SF Mono', Menlo, monospace);
+  color: var(--fg-muted);
+}
+/* La ayuda justo debajo de su fila se pega a ella (el gap del cuerpo la separaría). */
+.dbc-fila + .dbc-ayuda {
+  margin-top: -4px;
+}
+
+/* Aviso de la contraseña (sin guardar / ilegible): ámbar, porque no es un error del
+   formulario sino algo que el usuario tiene que hacer. */
+.dbc-aviso {
+  padding: 7px 10px;
+  border: 1px solid color-mix(in srgb, var(--yellow) 45%, var(--border));
+  border-left: 3px solid var(--yellow);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--yellow) 7%, transparent);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--fg);
+}
+
+/* Resultado de «Probar»: el mensaje va CRUDO (sirve para depurar la VPN), así que
+   parte palabras largas en vez de desbordar. */
+.dbc-prueba {
+  padding: 8px 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--fg-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.dbc-prueba.ok {
+  border-color: color-mix(in srgb, var(--green) 45%, var(--border));
+}
+.dbc-prueba.falla {
+  border-color: color-mix(in srgb, var(--red) 45%, var(--border));
+}
+.dbc-prueba-linea {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.dbc-prueba.ok .dbc-prueba-linea {
+  color: var(--green);
+}
+.dbc-prueba.falla .dbc-prueba-linea {
+  color: var(--red);
+}
+.dbc-prueba-mensaje {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.dbc-prueba-ms {
+  flex: 0 0 auto;
+  color: var(--fg-faint);
+  font-variant-numeric: tabular-nums;
+}
+.dbc-prueba-servidor {
+  margin-top: 3px;
+  font-family: var(--mono, 'Cascadia Code', Consolas, 'SF Mono', Menlo, monospace);
+  font-size: 11px;
+  color: var(--fg-faint);
+}
+
+/* Falta un driver: aviso INFORMATIVO (no es un error del usuario), anclado al azul
+   de la paleta y no al del perfil, igual que el `.aviso` compartido. */
+.dbc-driver-aviso {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--azul);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--azul) 10%, var(--bg-elevated));
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--fg);
+}
+.dbc-driver-botones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+/* --- Clientes de base de datos ------------------------------------------------ */
+.dbc-clientes {
+  border-top: 1px solid var(--border-soft);
+  padding-top: 8px;
+}
+.dbc-clientes summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--fg-muted);
+  padding: 2px 0;
+  user-select: none;
+}
+.dbc-clientes summary:hover {
+  color: var(--fg);
+}
+.dbc-drivers {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 6px;
+}
+.dbc-driver {
+  padding: 7px 8px;
+  border-radius: 6px;
+  border-bottom: 1px solid var(--border-soft);
+}
+/* El que pidió la prueba: se marca con el tinte suave del perfil (es una selección
+   de la vista, no un estado). */
+.dbc-driver.resaltado {
+  background: var(--sel-tenue, color-mix(in srgb, var(--accent) 10%, transparent));
+}
+.dbc-driver-nombre {
+  font-size: 12.5px;
+  color: var(--fg);
+}
+.dbc-driver-cubre {
+  margin: 2px 0 6px;
+  font-size: 11.5px;
+  color: var(--fg-faint);
+}
+/* «11.2–18c están fuera del soporte de Oracle; probado.»: tono de AVISO, no de error
+   (el pack se ofrece igual). Sube por encima del margen de `cubre` para leerse con él. */
+.dbc-driver-soporte {
+  margin: -4px 0 6px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--yellow);
+}
+.dbc-driver-estado {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.dbc-driver-estado .ok {
+  color: var(--green);
+  font-size: 12px;
+}
+/* «Oracle ya no lo publica…»: ocupa el hueco del botón que no existe. Es una frase,
+   no una etiqueta: se envuelve. */
+.dbc-driver-nota {
+  flex: 1 1 100%;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--fg-faint);
+}
+
+.dbc-error {
+  padding: 7px 10px;
+  border: 1px solid color-mix(in srgb, var(--red) 55%, var(--border));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--red) 10%, transparent);
+  color: var(--red);
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Pie: «Probar» a la izquierda (actúa sobre el servidor), Cancelar/Guardar a la
+   derecha (actúan sobre el diálogo). */
+.dbc-acciones {
+  flex: 0 0 auto;
+  align-items: center;
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--border-soft);
+}
+.dbc-hueco {
+  flex: 1 1 auto;
+}

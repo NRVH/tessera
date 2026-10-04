@@ -1,0 +1,257 @@
+# =============================================================================
+# Empaquetado de Tessera para Windows y macOS (electron-builder).
+# -----------------------------------------------------------------------------
+# DECISIÓN CLAVE: asar: false.
+#   La app hace `docker build -t <img> <appPath>/docker/sandbox` y monta los
+#   proyectos por -v. Docker corre en el HOST (WSL2) y NO sabe leer dentro de
+#   un archivo .asar; con asar, app.getAppPath() devolvería una ruta
+#   ".../app.asar/docker/sandbox" inexistente para procesos externos. Con
+#   asar: false, appPath es una carpeta REAL en disco y el contexto de build y los
+#   montajes funcionan igual que en desarrollo.
+#
+# node-pty (nativo) es N-API (1.1.0): el binario preconstruido funciona bajo el
+# ABI de Electron sin recompilar, así que npmRebuild: false evita depender de las
+# Build Tools de Visual Studio al empaquetar.
+# =============================================================================
+appId: com.noe.tessera
+productName: Tessera
+copyright: © 2026 Noé Roberto Vázquez Herrera
+
+asar: false
+npmRebuild: false
+
+directories:
+  output: dist
+  buildResources: build
+
+# Archivos de la app que van al paquete. Las dependencias de PRODUCCIÓN de
+# node_modules las incluye electron-builder automáticamente (según el árbol de
+# dependencias), no hace falta listarlas. Incluimos el contexto de build de Docker
+# (docker/sandbox) SIN sus node_modules/logs, y la semilla de perfiles (config).
+files:
+  - out/**
+  # Los sourcemaps de los WORKERS de Monaco NO viajan al instalador: son 24,8 MB de
+  # mapas del servicio de lenguaje de TypeScript/CSS/HTML/JSON (el de `ts.worker` solo
+  # son 17 MB). Es código de TERCEROS que nunca se va a depurar desde aquí, y con
+  # `asar: false` viajaría sin comprimir en cada instalador y en cada auto-update.
+  # Los mapas del código de TESSERA (~17 MB) sí van: son los que hacen que el
+  # crash-log de `main.tsx` siga sirviendo para algo con el renderer minificado.
+  # Siguen emitiéndose a `out/` igualmente, así que para depurar un worker en local
+  # están ahí; lo único que no hacen es viajar.
+  - '!out/renderer/assets/*worker*.js.map'
+  - config/**
+  - docker/sandbox/**
+  - '!docker/sandbox/node_modules/**'
+  - '!docker/sandbox/**/*.log'
+  # El proyecto de prueba de los test-*.mts del sandbox es local y no viaja.
+  - '!docker/sandbox/proyecto-demo/**'
+  # CLI `tdb` (conexiones a bases de datos). NO pasa por electron-vite: es .cjs plano
+  # que se invoca como SUBPROCESO con el propio ejecutable (ELECTRON_RUN_AS_NODE=1),
+  # así que viaja tal cual. Con `asar: false` la ruta es real en disco y coincide con
+  # la de desarrollo (`<appPath>/src/tdb/tdb.cjs`), sin necesidad de asarUnpack.
+  - src/tdb/**
+  - '!src/tdb/test-*.mts'
+  # Motores de descompilación de Java (CFR y Vineflower). Mismo caso que `src/tdb`:
+  # son .jar que se invocan como SUBPROCESO con el java del sistema, así que viajan
+  # tal cual y con `asar: false` su ruta es real en disco y coincide con la de
+  # desarrollo (`<appPath>/vendor/java/…`). Sin esta línea el instalador se genera
+  # igual pero abrir un .class falla en producción y funciona en dev, que es la peor
+  # combinación posible. Sus licencias van al lado por obligación de redistribución.
+  - vendor/**
+  - package.json
+  # La licencia de Tessera y los avisos de terceros viajan en el paquete: las licencias
+  # de lo que se redistribuye (MIT, Apache-2.0, LGPL) piden acompañar el binario con ellos.
+  - LICENSE
+  - THIRD_PARTY_NOTICES.md
+
+win:
+  target:
+    - target: nsis
+      arch: x64
+    - target: portable
+      arch: x64
+  # EL ICONO DE WINDOWS ES LA MISMA MARCA QUE LA APP ENSEÑA POR DENTRO. Sin esta
+  # línea el .exe, el acceso directo y la barra de tareas llevaban el ÁTOMO DE
+  # ELECTRON por defecto, mientras la barra de estado y "Acerca de" pintaban la
+  # tesela (`renderer/src/comun/marcaTessera.tsx`): dos identidades para el
+  # mismo producto. `build/icon.png` es esa marca —mismos colores del tema, mismas
+  # opacidades, sobre el gris del cromo— y electron-builder genera de ahí el .ico
+  # multi-tamaño del ejecutable y del instalador.
+  #
+  # SE MANTIENE COMO .png Y NO COMO .ico A PROPÓSITO: un .ico binario no se puede
+  # revisar en un diff ni regenerar sin herramientas; el PNG se ve en cualquier sitio
+  # y la conversión la hace el empaquetado. Si el glifo cambia en `marcaTessera.tsx`,
+  # hay que regenerar este PNG a mano — son dos representaciones del mismo dibujo y
+  # no hay nada que las mantenga sincronizadas.
+  icon: build/icon.png
+
+# =============================================================================
+# macOS
+# -----------------------------------------------------------------------------
+# ARQUITECTURA: sólo arm64, no `universal`. Un paquete universal DUPLICA el binario
+# de Electron (~200 MB de más por instalador y por auto-update) para dar soporte a
+# Macs Intel, que aquí no hay ninguno. Añadir x64 el día que haga falta es una línea;
+# pagarlo hoy en cada descarga, no.
+#
+# FIRMA AD-HOC (`identity: '-'`), sin Developer ID ni notarización. electron-builder
+# firma el .app entero con `codesign --sign -`: no acredita a nadie, pero deja un sello
+# coherente (`codesign --verify --deep --strict` limpio, `Identifier=com.noe.tessera`).
+# `identity: null` NO equivale: electron-builder salta la firma, el bundle conserva el
+# sello de fábrica del binario de Electron sobre recursos que ya son otros, y una copia
+# descargada (con cuarentena) muere con «"Tessera" está dañado».
+#
+# Quien la descarga ve el aviso de Gatekeeper de desarrollador no identificado y la abre
+# con Ajustes del Sistema › Privacidad y seguridad › «Abrir de todos modos», o con
+# `xattr -dr com.apple.quarantine /Applications/Tessera.app`.
+#
+# LA ACTUALIZACIÓN NO LA APLICA SQUIRREL.MAC: su requisito designado es el cdhash del
+# propio binario, y el paquete nuevo tiene otro, así que con firma ad-hoc nunca pasa. La
+# aplica el relevo propio (`src/main/update/relevoMac.ts`): baja el .zip con sha512
+# obligatorio y lo sustituye con un guion `sh` desprendido. Por eso el .zip es obligatorio.
+#
+# CON DEVELOPER ID bastaría con quitar `identity: '-'`, poner `hardenedRuntime: true` y
+# `notarize: true`, y añadir el derecho `com.apple.security.cs.disable-library-validation`
+# (el proceso de sesión y `tdb` cargan las dylibs del Instant Client, firmadas por Oracle).
+mac:
+  target:
+    - target: dmg
+      arch: arm64
+    - target: zip
+      arch: arm64
+  # El .icns lo genera electron-builder a partir de este PNG de 512×512, igual que el
+  # .ico de Windows. Se mantiene como PNG por lo mismo: un binario no se revisa en un
+  # diff (ver el comentario de `win.icon`).
+  icon: build/icon.png
+  category: public.app-category.developer-tools
+  # EL MÍNIMO DE macOS LO PONE ELECTRON (la 38 dejó el 11; la 44 dejará el 12) y sube con
+  # cada salto que lo mueva. Va al Info.plist como `LSMinimumSystemVersion`, y de ahí
+  # `scripts/parchearMinimoMac.mjs` lo copia, traducido a Darwin, como
+  # `minimumSystemVersion` en `latest-mac.yml` (electron-builder no escribe ese campo).
+  # Sin él electron-updater ofrecería la versión a un Mac que no puede con ella, y el
+  # relevo pondría un bundle que no arranca, sin vuelta atrás automática.
+  minimumSystemVersion: '12.0'
+  # Nombre de los artefactos de macOS, CON la arquitectura: el día que se añada x64,
+  # los dos conviven en `dist/` sin pisarse. Vale para el .zip; el .dmg tiene su propia
+  # sección (`dmg.artifactName`), que manda sobre esta.
+  #
+  # LOS DOS FORMATOS SE PUBLICAN Y NO SOBRA NINGUNO: el .dmg es lo que instala una
+  # persona la primera vez, y el .zip es lo que se ACTUALIZA solo — es el formato que
+  # el relevo de `update/relevoMac.ts` desempaqueta con `ditto`, y el único que el
+  # `latest-mac.yml` sabe describir con su sha512. Sin el zip no hay auto-update en
+  # Mac, no sólo "no hay caché".
+  artifactName: ${productName}-${version}-${arch}.${ext}
+  identity: '-'
+  # Con ad-hoc no hay notarización posible, y dejarlo implícito hace que el build
+  # falle con un error de Apple en vez de con una decisión nuestra. `hardenedRuntime`
+  # apagado por lo mismo: ad-hoc + hardened exige entitlements de library-validation
+  # (electron-builder avisa) y no compra nada sin Developer ID.
+  notarize: false
+  hardenedRuntime: false
+  extendInfo:
+    # POR QUÉ TESSERA PIDE ACCESO A TUS CARPETAS. macOS protege `~/Documents`,
+    # `~/Desktop`, `~/Downloads` y iCloud Drive con TCC: la primera vez que la app toca
+    # una de ellas, el sistema pregunta. Sin estas claves el diálogo sale con el texto
+    # genérico de Apple («Tessera quiere acceder a archivos de la carpeta Documentos»),
+    # que no dice para qué y invita a decir que no.
+    #
+    # NO ES COSMÉTICO: hasta que se concede, un `stat` sobre la carpeta del proyecto
+    # falla con EPERM (el árbol no abre nada y `pruneMissingProjects` lo da por perdido).
+    #
+    # Con firma ad-hoc el permiso SE PIERDE AL ACTUALIZAR: TCC lo ata a la firma, y cada
+    # build tiene otro cdhash. Con Developer ID la identidad sería estable.
+    NSDocumentsFolderUsageDescription: >-
+      Tessera necesita acceso para abrir los proyectos que tengas en Documentos.
+    NSDesktopFolderUsageDescription: >-
+      Tessera necesita acceso para abrir los proyectos que tengas en el Escritorio.
+    NSDownloadsFolderUsageDescription: >-
+      Tessera necesita acceso para abrir los proyectos que tengas en Descargas.
+    NSRemovableVolumesUsageDescription: >-
+      Tessera necesita acceso para abrir proyectos guardados en discos externos.
+    NSNetworkVolumesUsageDescription: >-
+      Tessera necesita acceso para abrir proyectos guardados en unidades de red.
+    # «ABRIR CON TESSERA» EN EL FINDER — la mitad de macOS de lo que en Windows son las
+    # claves de `HKCU\Software\Classes`.
+    #
+    # DIFERENCIA QUE IMPORTA Y QUE LA UI REFLEJA: en Windows esto se enciende y se apaga
+    # EN CALIENTE desde Configuración › Windows, porque son claves del registro. Aquí no:
+    # las asociaciones viven en el Info.plist del .app y las indexa Launch Services al
+    # instalarlo. Por eso `capacidades().integracionShellEnCaliente` es `false` en Mac y
+    # esa categoría de Configuración no se monta allí — una casilla que no puede cumplir
+    # es peor que ninguna casilla.
+    #
+    # `LSHandlerRank: Alternate` en TODO: Tessera se ofrece en «Abrir con», pero NUNCA se
+    # convierte en la app por defecto de un `.json` o un `.md`. Robarle la asociación a
+    # las apps del usuario al instalar sería un abuso, y además es exactamente lo que la
+    # rama de Windows evita con su propio ProgID.
+    CFBundleDocumentTypes:
+      # Las CARPETAS son el caso principal: un proyecto de Tessera es una carpeta.
+      - CFBundleTypeName: Carpeta de proyecto
+        CFBundleTypeRole: Editor
+        LSHandlerRank: Alternate
+        LSItemContentTypes:
+          - public.folder
+      # Y los archivos sueltos, el gemelo de `EXTENSIONES_SUGERIDAS` de
+      # `shared/extensionesShell.ts`. Se declaran por EXTENSIÓN y no por UTI porque
+      # varias de ellas (`.properties`, `.tsx`, `.jsx`) no tienen un UTI del sistema.
+      - CFBundleTypeName: Archivo de código o texto
+        CFBundleTypeRole: Editor
+        LSHandlerRank: Alternate
+        CFBundleTypeExtensions:
+          - java
+          - xml
+          - properties
+          - sql
+          - ts
+          - tsx
+          - js
+          - jsx
+          - json
+          - md
+          - py
+          - yml
+          - yaml
+          - css
+          - html
+          - sh
+          - txt
+
+dmg:
+  artifactName: ${productName}-${version}-${arch}.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  artifactName: ${productName}-${version}-Setup.${ext}
+  # Los datos del usuario (perfiles, cuentas, sesiones) viven en %APPDATA%\Tessera y
+  # NO se borran automáticamente: el desinstalador PREGUNTA si conservarlos o borrarlos
+  # (ver build/installer.nsh). Un UPDATE nunca los toca.
+  deleteAppDataOnUninstall: false
+
+portable:
+  artifactName: ${productName}-${version}-Portable.${ext}
+
+# =============================================================================
+# AUTO-UPDATE (electron-updater) contra las Releases de GitHub.
+# -----------------------------------------------------------------------------
+# Provider `generic` apuntando a `releases/latest/download`: la app pide
+# `${url}/latest.yml` (Windows) o `${url}/latest-mac.yml` (macOS; el sufijo `-mac` lo
+# añade electron-updater) y GitHub redirige a los ficheros de la release marcada como
+# «latest», que nunca es un borrador ni una prerelease.
+#
+# `generic` y NO `github`: con `github`, electron-builder no escribe `url:` en el
+# `app-update.yml` del paquete, `resolverFeed()` (`src/main/update/chequeo.ts`) no
+# tendría de dónde sacar la base del feed, y el relevo de macOS —que compone la URL del
+# .zip sobre esa base— caería a la descarga manual. Además no pasa por la API de GitHub
+# ni por su límite de peticiones anónimas.
+#
+# `useMultipleRangeRequest: false`: la descarga diferencial por blockmap no se da por
+# supuesta contra un CDN que puede no servir varios rangos en una petición.
+# =============================================================================
+publish:
+  - provider: generic
+    url: https://github.com/NRVH/tessera/releases/latest/download
+    channel: latest
+    useMultipleRangeRequest: false

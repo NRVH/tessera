@@ -1,0 +1,956 @@
+/* =============================================================================
+   Rejilla de datos, pestañas de datos y de fuente y visor de valor. La importan
+   `DbRejilla.tsx`, las dos pestañas y `VisorValor.tsx` (la de fuente no monta rejilla).
+   Solo consume variables del tema. Celdas y números de fila en `--mono`; el alto de fila
+   (`--db-alto-fila`) lo publica la rejilla desde el MISMO número de su cuenta de la ventana.
+   Sin `transform`, `filter`, `contain`, `container-type` ni opacidad < 1 en la raíz de la
+   rejilla o sus ancestros: anclarían el menú y los widgets de Monaco (`position: fixed`).
+   Decisiones: docs/decisiones/bd/ui-rejilla-vista.md
+   ============================================================================= */
+
+/* --- Pestañas (contenedores keep-alive) --------------------------------------- */
+
+.db-datos,
+.db-fuente {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+.db-datos.hidden,
+.db-fuente.hidden {
+  display: none;
+}
+
+/* Barra de la pestaña: `.panel-header` de Tessera (identidad y metadatos a la
+   izquierda, solo iconos a la derecha). Los metadatos son texto que NO se pulsa. */
+.db-barra-meta {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: max(9px, calc(var(--ui-font) - 1px));
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+.db-barra-meta .db-barra-aviso {
+  color: var(--yellow);
+}
+
+/* Cuerpo de la pestaña de datos: filtro arriba y la rejilla ocupando el resto. */
+.db-datos-cuerpo {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* El aviso de error de la pestaña y, si el motivo es un BLOQUEO (SQL Server), sus botones
+   «Reintentar» y «Leer sin esperar» debajo. La envoltura no existe para la maquetación
+   (`display: contents`): un aviso sin botones se maqueta como si no la hubiera. */
+.db-datos-aviso {
+  display: contents;
+}
+.db-datos-aviso-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: -4px 16px 14px;
+}
+
+/* --- Fila de filtro (WHERE / ORDER BY) ----------------------------------------- */
+
+/* Rejilla de dos columnas: así el error de un campo cae JUSTO debajo de ese campo
+   (su columna) y no a lo ancho de los dos. WHERE lleva más sitio: es donde se
+   escribe de verdad. */
+.db-filtro {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  column-gap: 14px;
+  row-gap: 3px;
+  padding: 5px 8px 5px 16px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg);
+}
+.db-filtro-campo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.db-filtro-etiqueta {
+  flex: 0 0 auto;
+  font-family: var(--mono, monospace);
+  font-size: max(9px, calc(var(--ui-font) - 1px));
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--fg-faint);
+  user-select: none;
+}
+/* Superficie HUNDIDA (piso de UX: los inputs conservan fondo). */
+.db-filtro-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: calc(var(--ui-row-h) + 2px);
+  padding: 0 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  background: var(--bg-deep);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+  color: var(--fg);
+  font-family: var(--mono, monospace);
+  font-size: var(--ui-font);
+  outline: none;
+}
+.db-filtro-input::placeholder {
+  color: var(--fg-faint);
+}
+.db-filtro-input:focus {
+  border-color: var(--accent);
+}
+/* La regla global `:focus-visible` se inyecta DESPUÉS de esta hoja (App se importa
+   antes que styles.css) y, con la misma especificidad, sumaba su anillo al borde de
+   acento. El foco del campo ya lo dice su borde. */
+.db-filtro-input:focus-visible {
+  outline: none;
+}
+.db-filtro-input[aria-invalid='true'] {
+  border-color: var(--red);
+}
+/* El error en línea, bajo su campo. El texto del servidor puede ser largo (un
+   ORA- con su contexto): se parte y, pasado un tope, desplaza por dentro en vez de
+   empujar la rejilla fuera de la pantalla. */
+.db-filtro-error {
+  min-width: 0;
+  max-height: calc(3 * var(--ui-row-h));
+  overflow: auto;
+  font-family: var(--mono, monospace);
+  font-size: max(9px, calc(var(--ui-font) - 1px));
+  line-height: 1.45;
+  color: var(--red);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.db-filtro-error.campo-where {
+  grid-column: 1;
+}
+.db-filtro-error.campo-orderBy {
+  grid-column: 2;
+}
+
+/* --- La rejilla ---------------------------------------------------------------- */
+
+.db-rejilla {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  font-size: var(--ui-font);
+  outline: none;
+  /* Contexto de apilado propio: la cabecera (2-3), la píldora (4) y el anillo de foco
+     (5) se ordenan entre ellos y no compiten con nada de fuera de la rejilla. */
+  isolation: isolate;
+}
+/* Anillo de foco por DENTRO (la rejilla llena su hueco y uno por fuera se
+   recortaría), y solo con teclado: al pulsar una celda con el ratón no se pinta.
+   Va en una capa ENCIMA del contenido y no como sombra de la propia rejilla: una
+   sombra `inset` se pinta por DEBAJO de los hijos, y aquí todos son opacos (la
+   cabecera pegada, los números de fila, las celdas), así que del anillo sólo se veía
+   el tramo de los lados por debajo de la última fila, sin borde de arriba. */
+.db-rejilla:focus-visible {
+  /* El anillo es el ::after: sin esto la regla global `:focus-visible` añadía el suyo. */
+  outline: none;
+}
+.db-rejilla:focus-visible::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  box-shadow: inset 0 0 0 1px var(--accent);
+  pointer-events: none;
+}
+
+.db-rejilla-scroll {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.db-rejilla-lienzo {
+  position: relative;
+  /* La cabecera ocupa al menos el ancho visible, aunque haya pocas columnas: si no,
+     su fondo se cortaría a mitad de pantalla. */
+  min-width: 100%;
+}
+
+/* Cabecera: pegada arriba. Es un ancestro con posición, así que sus celdas se
+   colocan en absoluto en su `x` y la esquina se pega además a la izquierda. */
+.db-rejilla-cab {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  color: var(--fg-muted);
+}
+.db-rejilla-esquina {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  height: 100%;
+  box-sizing: border-box;
+  background: var(--bg-elevated);
+  border-right: 1px solid var(--border);
+  cursor: pointer;
+}
+.db-rejilla-esquina:hover {
+  background: var(--hover-suave);
+}
+
+.db-rejilla-th {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  border-right: 1px solid var(--border-soft);
+  user-select: none;
+}
+.db-rejilla-th.ordenable {
+  cursor: pointer;
+}
+.db-rejilla-th.ordenable:hover,
+.db-rejilla-th.redimensionando {
+  background: var(--hover-suave);
+  color: var(--fg);
+}
+.db-rejilla-th-nombre {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.db-rejilla-pk,
+.db-rejilla-orden {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+}
+.db-rejilla-pk svg,
+.db-rejilla-orden svg {
+  width: 12px;
+  height: 12px;
+}
+.db-rejilla-pk {
+  color: var(--yellow);
+}
+.db-rejilla-orden {
+  color: var(--accent);
+}
+/* Asa de 4 px sobre el borde derecho. Monta 2 px sobre la columna siguiente, y el
+   z-index la deja por encima de esa cabecera (que va después en el DOM). */
+.db-rejilla-asa {
+  position: absolute;
+  top: 0;
+  right: -2px;
+  z-index: 1;
+  width: 4px;
+  height: 100%;
+  cursor: col-resize;
+  touch-action: none;
+}
+.db-rejilla-asa:hover,
+.db-rejilla-th.redimensionando .db-rejilla-asa {
+  background: var(--accent);
+}
+
+/* Cuerpo: aquí vive la letra monoespaciada, y de aquí la mide la rejilla. */
+.db-rejilla-cuerpo {
+  position: relative;
+  font-family: var(--mono, monospace);
+}
+
+.db-rejilla-fila {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+/* El número de fila es el ÚNICO hijo en flujo de la fila: por eso puede pegarse a
+   la izquierda dentro de ella (las celdas van en absoluto). */
+.db-rejilla-num {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 0 8px;
+  text-align: right;
+  line-height: var(--db-alto-fila);
+  color: var(--fg-faint);
+  background: var(--bg-elevated);
+  border-right: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  user-select: none;
+}
+.db-rejilla-num.sel {
+  color: var(--fg);
+  background: color-mix(in srgb, var(--sel) 16%, var(--bg-elevated));
+}
+
+.db-celda {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 0 8px;
+  overflow: hidden;
+  white-space: pre;
+  text-overflow: ellipsis;
+  line-height: var(--db-alto-fila);
+  color: var(--fg);
+  border-right: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+  user-select: none;
+  cursor: cell;
+}
+.db-celda-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+/* NULL no es una cadena vacía: se ve, en cursiva y apagado. */
+.db-celda-nulo {
+  font-style: italic;
+  color: var(--fg-faint);
+}
+.db-celda-bin,
+.db-celda-lob {
+  color: var(--fg-muted);
+}
+.db-celda-bin {
+  font-style: italic;
+}
+.db-celda.sel {
+  background: var(--sel-glow);
+}
+/* La celda activa: filete del color de selección por dentro (un borde cambiaría
+   su caja y movería el texto). */
+.db-celda.foco {
+  box-shadow: inset 0 0 0 1px var(--sel);
+}
+
+/* Fila de «cargando más» al final: el texto se pega a la izquierda para que se lea
+   aunque la rejilla esté desplazada en horizontal. */
+.db-rejilla-cargando {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+.db-rejilla-cargando-texto {
+  position: sticky;
+  left: 0;
+  display: inline-block;
+  padding: 0 12px;
+  line-height: var(--db-alto-fila);
+  font-style: italic;
+  color: var(--fg-faint);
+}
+
+/* «Sin filas»: bajo la cabecera, que se sigue viendo (las columnas SÍ llegaron). */
+.db-rejilla-vacia {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  pointer-events: none;
+}
+.db-rejilla-vacia > .pane-empty {
+  flex: 1 1 auto;
+}
+
+/* --- Píldora de filas ----------------------------------------------------------- */
+
+/* Flota sobre la esquina, apartada de las dos barras de desplazamiento. Es lo que
+   flota: `--bg-modal`, nunca más oscura que lo que tapa (piso de UX). */
+.db-pildora {
+  position: absolute;
+  right: calc(var(--sb-size, 12px) + 6px);
+  bottom: calc(var(--sb-size, 12px) + 6px);
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 48px);
+  padding: 2px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-modal);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  font-size: max(9px, calc(var(--ui-font) - 1px));
+  line-height: 1.6;
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.db-pildora-texto {
+  flex: 0 0 auto;
+}
+.db-pildora-sep {
+  flex: 0 0 auto;
+  color: var(--fg-faint);
+}
+.db-pildora-aviso {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--yellow);
+}
+.db-pildora-btn {
+  flex: 0 0 auto;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.db-pildora-btn:hover {
+  color: var(--accent);
+}
+.db-pildora-btn:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* --- Pestaña de fuente ---------------------------------------------------------- */
+
+/* Conmutador de partes (Especificación / Cuerpo): TEXTO a la izquierda de la barra,
+   porque dice qué estás leyendo (identidad), no una acción. Segmentado: las dos
+   opciones se ven a la vez y la encendida es donde estás. */
+.db-fuente-partes {
+  flex: 0 0 auto;
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 7px;
+  background: var(--bg-deep);
+}
+.db-fuente-parte {
+  padding: 1px 10px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: max(9px, calc(var(--ui-font) - 1px));
+  line-height: 1.6;
+  cursor: pointer;
+}
+.db-fuente-parte:hover {
+  color: var(--fg);
+}
+.db-fuente-parte[aria-checked='true'] {
+  background: var(--sel-glow);
+  color: var(--sel);
+}
+.db-fuente-parte:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* El host de Monaco NO se oculta nunca (un Monaco sin automaticLayout
+   creado en una caja que mide cero se queda en 5x5 px para siempre). Ocupa el cuerpo
+   por posición absoluta, y lo que tapa —el error, el vacío— es una CAPA opaca
+   encima. */
+.db-fuente-cuerpo {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.db-fuente-host {
+  position: absolute;
+  inset: 0;
+}
+.db-fuente-capa {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  background: var(--bg);
+}
+.db-fuente-capa > .pane-empty {
+  flex: 1 1 auto;
+}
+
+/* --- Píldora: lo de la segunda entrega ------------------------------------------ */
+
+/* «Exportando: N filas»: el mismo gris que el recuento, con los números tabulares
+   heredados de la píldora (no baila al subir la cifra). */
+.db-pildora-exportando {
+  color: var(--fg-muted);
+}
+
+/* --- Visor de valor (VisorValor.tsx) --------------------------------------------- */
+
+/* La tarjeta común (`.modal-card`: fondo, borde, sombra) con el tamaño de un visor: casi
+   toda la ventana hasta un tope cómodo para leer. Dos clases para ganar a la
+   `.modal-card` de styles.css, que se inyecta DESPUÉS de esta hoja con una sola clase.
+   Sin relleno: la cabecera y el editor llegan al borde, como en la pestaña de fuente.
+   Ni `container-type` ni `transform` propios: Monaco cuelga sus widgets `fixed`. */
+.modal-card.db-visor-modal {
+  width: min(960px, 100%);
+  height: min(680px, 100%);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Cabecera: identidad (columna y metadatos) a la izquierda, el conmutador del JSON
+   detrás, y solo iconos a la derecha (piso de UX de las barras). */
+.db-visor-cab {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 40px;
+  padding: 6px 8px 6px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.db-visor-identidad {
+  flex: 0 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.db-visor-columna {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono, monospace);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+}
+.db-visor-meta {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+.db-visor-cab > .db-fuente-partes {
+  flex: 0 0 auto;
+}
+
+/* Líneas de estado bajo la cabecera: cargando, parcial, tope, error. Texto que se lee
+   una vez: tamaño de interfaz, sin cajas. */
+.db-visor-avisos {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.db-visor-aviso {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+.db-visor-aviso.tono-aviso {
+  color: var(--yellow);
+}
+.db-visor-aviso.tono-error {
+  color: var(--red);
+}
+.db-visor-aviso-texto {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.db-visor-aviso .db-pildora-btn {
+  flex: 0 0 auto;
+}
+
+/* Cuerpo: el host de Monaco NUNCA se oculta (ver `.db-fuente-host`); NULL y vacío son
+   una capa opaca encima. */
+.db-visor-cuerpo {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  background: var(--bg);
+}
+.db-visor-host {
+  position: absolute;
+  inset: 0;
+}
+.db-visor-capa {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  background: var(--bg);
+}
+.db-visor-capa > .pane-empty {
+  flex: 1 1 auto;
+}
+
+/* =============================================================================
+   La edición (`EditorCelda`, lo pendiente en la rejilla, la barra y el diálogo de
+   «Enviar»). Colores de ESTADO, los de git, que no siguen al perfil (con un perfil del
+   mismo color no se distinguirían), tintados con `color-mix` sobre transparente. La
+   selección manda: una celda cambiada y seleccionada se pinta como seleccionada.
+   Decisiones: docs/decisiones/bd/ui-rejilla-editor-y-envio.md
+   ============================================================================= */
+
+/* Celda con un valor sin enviar: tinte azul y un filete a la izquierda, que se ve
+   también en escala de grises (no solo el color dice que cambió). */
+.db-celda.cambiada:not(.sel) {
+  background: color-mix(in srgb, var(--azul) 16%, transparent);
+}
+.db-celda.cambiada {
+  box-shadow: inset 2px 0 0 var(--azul);
+}
+.db-celda.cambiada.foco {
+  box-shadow: inset 2px 0 0 var(--azul), inset 0 0 0 1px var(--sel);
+}
+/* Fila nueva sin escribir: `<default>` como el `<null>`, en cursiva y apagado. */
+.db-celda.por-defecto {
+  font-style: italic;
+  color: var(--fg-faint);
+}
+.db-rejilla-fila.nueva .db-celda:not(.sel):not(.cambiada) {
+  background: color-mix(in srgb, var(--green) 8%, transparent);
+}
+.db-rejilla-fila.nueva .db-celda.cambiada:not(.sel) {
+  background: color-mix(in srgb, var(--green) 16%, transparent);
+}
+.db-rejilla-fila.nueva .db-celda.cambiada {
+  box-shadow: inset 2px 0 0 var(--green);
+}
+.db-rejilla-fila.nueva .db-celda.cambiada.foco {
+  box-shadow: inset 2px 0 0 var(--green), inset 0 0 0 1px var(--sel);
+}
+.db-rejilla-fila.nueva .db-rejilla-num {
+  color: var(--green);
+  font-weight: 700;
+  text-align: center;
+}
+/* Fila borrada: tachada y apagada hasta Enviar (y el número, en rojo). */
+.db-rejilla-fila.borrada .db-celda {
+  color: var(--fg-faint);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--red) 70%, transparent);
+}
+.db-rejilla-fila.borrada .db-celda:not(.sel) {
+  background: color-mix(in srgb, var(--red) 9%, transparent);
+}
+.db-rejilla-fila.borrada .db-rejilla-num {
+  color: var(--red);
+  text-decoration: line-through;
+}
+/* La fila de un envío que falló: filete rojo por DENTRO de la fila entera (por fuera
+   lo taparía la vecina, que se pinta después). */
+.db-rejilla-fila.con-error::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  box-shadow: inset 0 0 0 1px var(--red);
+  pointer-events: none;
+}
+.db-rejilla-fila.con-error .db-rejilla-num {
+  color: var(--red);
+  background: color-mix(in srgb, var(--red) 18%, var(--bg-elevated));
+}
+
+/* El editor de una celda: en su sitio, un pelo por encima de las filas (la cabecera
+   pegada, z 2, lo tapa al desplazar como a la celda). Superficie HUNDIDA, como los
+   campos de la app, y el anillo de acento por dentro: es el foco. */
+.db-celda-editor {
+  position: absolute;
+  z-index: 1;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0 7px;
+  border: none;
+  border-radius: 0;
+  background: var(--bg-deep);
+  box-shadow: inset 0 0 0 1px var(--accent), 0 4px 14px rgba(0, 0, 0, 0.35);
+  color: var(--fg);
+  font-family: var(--mono, monospace);
+  font-size: var(--ui-font);
+  line-height: var(--db-alto-fila);
+  white-space: pre;
+  overflow: auto;
+  resize: none;
+  outline: none;
+}
+/* El anillo es la sombra: sin esto la regla global `:focus-visible` añadía el suyo. */
+.db-celda-editor:focus-visible {
+  outline: none;
+}
+.db-celda-editor.al-derecha {
+  text-align: right;
+}
+.db-celda-editor::placeholder {
+  color: var(--fg-faint);
+  font-style: italic;
+}
+
+/* --- Barra de la pestaña de datos -------------------------------------------------- */
+
+.db-barra-meta .db-barra-pendientes {
+  color: var(--azul);
+}
+.db-barra-meta .db-barra-no-editable {
+  color: var(--fg-faint);
+}
+/* Los grupos de la derecha no crean caja: sus botones y su filete siguen siendo
+   hermanos en el flex de `.panel-actions` (con su `gap`). Existen para poder CEDER
+   enteros en una pestaña estrecha. */
+.db-barra-grupo {
+  display: contents;
+}
+/* Consulta propia de la cabecera (no de `.db-datos`: un `container-type` en un
+   ancestro de la rejilla anclaría el `fixed` de sus menús y widgets). Primero ceden
+   las otras vistas (en el menú del árbol), luego las de filas (Contar está en la
+   píldora; Exportar, en el menú de la rejilla). La consulta y la edición no ceden. */
+.db-datos > .db-barra {
+  container-type: inline-size;
+  container-name: dbbarra;
+}
+@container dbbarra (max-width: 560px) {
+  .db-barra .grupo-vistas {
+    display: none;
+  }
+}
+@container dbbarra (max-width: 440px) {
+  .db-barra .grupo-filas {
+    display: none;
+  }
+}
+
+/* «Enviar» con su recuento: una cifra pequeña en la esquina del icono, en el azul de
+   lo pendiente (dice que HAY algo que enviar sin abrir nada). */
+.db-envio-icono {
+  position: relative;
+  display: inline-flex;
+}
+.db-envio-cuenta {
+  position: absolute;
+  top: -5px;
+  right: -7px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  box-sizing: border-box;
+  border-radius: 7px;
+  background: var(--azul);
+  color: var(--bg);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+/* --- Diálogo «Enviar» (DialogoEnvio.tsx) ---------------------------------------------- */
+
+/* Dos clases para ganar a la `.modal-card` de styles.css (se inyecta después). Sin
+   relleno propio: la franja de producción va de borde a borde, y el cuerpo lo pone. */
+.modal-card.db-envio-modal {
+  width: min(760px, 100%);
+  max-height: min(640px, 100%);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.db-envio-cuerpo {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 18px 20px 16px;
+}
+/* PRODUCCIÓN: franja roja de borde a borde, arriba del todo. Tinte y filete, no un
+   rojo sólido con texto blanco: en el tema oscuro ese par no llega a 4,5:1. */
+.db-envio-franja {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 20px;
+  background: color-mix(in srgb, var(--red) 26%, var(--bg-modal));
+  box-shadow: inset 4px 0 0 var(--red);
+  border-bottom: 1px solid color-mix(in srgb, var(--red) 60%, transparent);
+  color: var(--red-hi, var(--red));
+}
+.db-envio-franja-texto {
+  flex: 0 0 auto;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+.db-envio-franja-alias {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.db-envio-titulo {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  margin-bottom: 4px;
+}
+.db-envio-tabla {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono, monospace);
+  font-weight: 500;
+  color: var(--fg-muted);
+}
+.db-envio-conexion {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin-bottom: 10px;
+  font-size: 12px;
+  color: var(--fg-muted);
+}
+.db-envio-alias {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.modal-message.db-envio-mensaje {
+  margin-bottom: 10px;
+}
+.db-envio-cab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.db-envio-cab-texto {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg-muted);
+}
+/* El SQL: monoespaciado, seleccionable, sin partir líneas (desplaza en horizontal) y
+   con tope de alto; lo demás del diálogo no se mueve. La monoespaciada lleva su
+   respaldo: `--mono` vive en el ámbito de `.db-area` y el portal cuelga de <body>. */
+.db-envio-sql {
+  flex: 1 1 auto;
+  min-height: 60px;
+  max-height: 320px;
+  margin: 0 0 12px;
+  padding: 6px 0;
+  overflow: auto;
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  background: var(--bg-deep);
+  font-family: var(--mono, ui-monospace, 'Cascadia Mono', Menlo, Consolas, monospace);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--fg);
+  white-space: pre;
+  user-select: text;
+  cursor: text;
+}
+.db-envio-sql:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+.db-envio-linea {
+  padding: 0 12px;
+  width: max-content;
+  min-width: 100%;
+  box-sizing: border-box;
+}
+.db-envio-linea.con-error {
+  background: color-mix(in srgb, var(--red) 18%, transparent);
+  box-shadow: inset 3px 0 0 var(--red);
+}
+.db-envio-error {
+  max-height: 120px;
+  overflow: auto;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--red) 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red) 45%, transparent);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.db-envio-error-titulo {
+  font-weight: 600;
+  color: var(--red-hi, var(--red));
+}
+.db-envio-error-texto {
+  margin-top: 2px;
+  color: var(--fg);
+  font-family: var(--mono, ui-monospace, Menlo, Consolas, monospace);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.db-envio-estado {
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--fg-muted);
+}
+/* «Ejecutar en producción»: contorno ROJO literal (no `.btn.danger`, que en los
+   diálogos sigue al color del perfil; ver la cabecera de DialogoEnvio). */
+.btn.db-envio-btn-prod {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red) 60%, transparent);
+  color: var(--red-hi, var(--red));
+  font-weight: 600;
+}
+.btn.db-envio-btn-prod:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--red) 17%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red) 75%, transparent);
+}
+.btn.db-envio-btn-prod:active:not(:disabled) {
+  background: color-mix(in srgb, var(--red) 28%, transparent);
+}

@@ -1,0 +1,889 @@
+/* =============================================================================
+   CONSOLA SQL de la vista de bases de datos: la columna (barra, editor, divisor,
+   resultados), la tira de resultados, la Salida y las marcas del margen de Monaco.
+   Solo variables del tema; la monoespaciada es `--mono`, del ámbito de `.db-area`.
+   Sin `transform`, `filter`, `contain` ni `container-type` en ancestros de menús o
+   popovers (vuelven relativo su `position: fixed`); la etiqueta de «Revertir» es la
+   del botón de reiniciar, sin copia; el subrayado de las marcas va en el tema de
+   Monaco (solo admite hex). Decisiones: docs/decisiones/bd/ui-consola-barra-y-pane.md
+   ============================================================================= */
+
+/* --- La columna ------------------------------------------------------------- */
+
+.db-consola {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  background: var(--bg);
+}
+.db-consola.hidden {
+  display: none;
+}
+
+/* El host de Monaco: el ÚNICO que crece. `min-height: 0` es obligatorio (un flex
+   item no encoge bajo su contenido sin él). `overflow: hidden` recorta el
+   editor mientras el divisor se arrastra; los widgets flotantes de Monaco salen igual
+   porque van con `fixedOverflowWidgets`. */
+.db-consola-editor {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* --- Barra ------------------------------------------------------------------ */
+
+/* Compone con `.panel-header` (alto, fondo, filete y sombra de las cabeceras de la
+   app); aquí solo lo propio: el bloque de identidad tiene que poder encogerse para
+   que los botones nunca se salgan. */
+.db-consola-barra {
+  gap: 12px;
+  padding-left: 12px;
+}
+
+.db-consola-identidad {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--ui-font);
+  white-space: nowrap;
+}
+
+.db-consola-alias {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--fg);
+  font-weight: 600;
+}
+
+/* EL ENTORNO: el chip de `MarcaEntorno`, pegado al alias. No encoge (cede
+   antes el alias, que trunca): el entorno es lo que no se puede perder de vista. En
+   producción la barra lleva además una franja roja ARRIBA, compuesta con la sombra de
+   `.panel-header` (con más especificidad: esta hoja entra antes que la global). */
+.db-consola-identidad > .marca-entorno-chip {
+  margin-left: 8px;
+}
+.db-consola-barra.db-consola-barra-produccion {
+  box-shadow: inset 0 2px 0 var(--entorno-produccion), var(--shadow-header);
+}
+
+/* Los datos van separados por « · » dibujado, no escrito: así el separador no se
+   copia al seleccionar ni lo lee un lector de pantalla como un carácter más. */
+.db-consola-dato {
+  flex: 0 0 auto;
+  color: var(--fg-muted);
+}
+.db-consola-dato::before,
+.db-consola-estado::before {
+  content: '·';
+  margin: 0 7px;
+  color: var(--fg-faint);
+}
+
+/* El botón del selector de esquema mientras su popover está abierto: el mismo fondo
+   que al pasar el ratón, para que se vea de qué botón cuelga lo que flota. No es
+   `.btn-active` (el toggle ENCENDIDO): abrir un popover no enciende nada. El del
+   historial es el mismo caso. */
+.db-consola-barra .btn.btn-icon.db-consola-esquema-btn.activo,
+.db-consola-barra .btn.btn-icon.db-consola-historial-btn.activo {
+  background: var(--hover-suave);
+  color: var(--fg);
+}
+
+/* «Tx pendiente (3)» es un ESTADO que se pierde si se cierra mal: ámbar, texto. */
+.db-consola-tx {
+  color: var(--yellow);
+}
+
+/* El estado vivo («Ejecutando 2 de 5 · 3 s», la pista) cede lo primero. */
+.db-consola-estado {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--fg-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Conflicto con el disco --------------------------------------------------- */
+
+.db-consola-conflicto {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 8px;
+  padding: 5px 12px;
+  border-bottom: 1px solid var(--border-soft);
+  background: color-mix(in srgb, var(--yellow) 10%, var(--bg));
+  font-size: var(--ui-font);
+}
+.db-consola-conflicto-texto {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--yellow);
+}
+.db-consola-conflicto .btn {
+  flex: 0 0 auto;
+  height: 22px;
+}
+
+/* --- Resultados ----------------------------------------------------------------- */
+
+/* El alto lo pone el pane en línea (reparto del divisor); aquí solo que no crezca
+   ni encoja por su cuenta. */
+.db-consola-resultados {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  min-height: 0;
+  background: var(--bg);
+}
+
+.db-resultados-cabecera {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 8px;
+  height: calc(var(--ui-head-h) + 4px);
+  padding: 0 8px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg-elevated);
+}
+
+/* La tira: se queda en el ancho de sus pestañas y desplaza en horizontal si no
+   caben (mismo criterio que `.terminal-tabs`), SIN contención. */
+.db-resultados-tabs {
+  display: flex;
+  align-items: center;
+  flex: 0 1 auto;
+  gap: 2px;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.db-resultados-tabs::-webkit-scrollbar {
+  height: 0;
+}
+
+.db-resultado-tab {
+  max-width: 240px;
+}
+
+/* La chincheta: pequeña y a la izquierda del nombre, en el color del texto. */
+.db-resultado-chincheta {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--fg-muted);
+}
+.db-resultado-chincheta svg {
+  width: 11px;
+  height: 11px;
+}
+
+/* Metadatos del resultado activo, junto a las pestañas: se leen de reojo. */
+.db-resultados-meta {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg-faint);
+  font-size: max(9px, calc(var(--ui-font) - 1px));
+  font-variant-numeric: tabular-nums;
+}
+
+.db-resultados-cuerpo {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Cada resultado ocupa el cuerpo entero; los ocultos siguen montados (conservan su
+   desplazamiento) pero no pintan. */
+.db-resultados-panel {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.db-resultados-panel.oculto {
+  display: none;
+}
+
+.db-resultados-error {
+  flex: 0 0 auto;
+  padding: 4px 10px;
+  color: var(--red);
+  font-size: max(9px, calc(var(--ui-font) - 1px));
+}
+
+/* --- Salida --------------------------------------------------------------------- */
+
+.db-salida {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 6px 0;
+  font-family: var(--mono, ui-monospace, 'Cascadia Code', Consolas, monospace);
+  font-size: max(9px, calc(var(--ui-font) - 1px));
+  line-height: 1.55;
+  user-select: text;
+}
+.db-salida:focus-visible {
+  outline: 1px solid var(--sel);
+  outline-offset: -1px;
+}
+
+.db-salida-fila {
+  display: flex;
+  gap: 12px;
+  padding: 0 12px;
+}
+
+.db-salida-hora {
+  flex: 0 0 auto;
+  color: var(--fg-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* `pre-wrap` y corte de palabra: un error de Oracle trae saltos y rutas largas, y
+   la línea tiene que poder leerse entera sin desplazar en horizontal. */
+.db-salida-texto {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--fg);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.db-salida-eco .db-salida-texto,
+.db-salida-info .db-salida-texto {
+  color: var(--fg-muted);
+}
+.db-salida-error .db-salida-texto {
+  color: var(--red);
+}
+.db-salida-aviso .db-salida-texto {
+  color: var(--yellow);
+}
+.db-salida-tx .db-salida-texto {
+  color: var(--green);
+}
+
+/* LO ANIDADO (segunda entrega): la salida del servidor y la lista de compilación
+   son DETALLE de la línea de arriba. Se sangran con un filete a la izquierda (como
+   la salida de un paso en un registro de CI) y la hora se atenúa hasta casi
+   desaparecer: es la misma que la de su sentencia y repetida no dice nada, pero se
+   conserva la columna para que el texto no baile. */
+.db-salida-fila.anidada .db-salida-hora {
+  opacity: 0.35;
+}
+.db-salida-fila.anidada .db-salida-texto {
+  padding-left: 10px;
+  margin-left: 4px;
+  border-left: 1px solid var(--border-soft);
+}
+/* DBMS_OUTPUT / NOTICE: el texto del usuario tal cual, en el color del texto (no es
+   un estado de Tessera). Un WARNING de PG, en ámbar. */
+.db-salida-servidor .db-salida-texto {
+  color: var(--fg);
+}
+.db-salida-servidorAviso .db-salida-texto {
+  color: var(--yellow);
+}
+
+.db-salida-punto {
+  color: var(--fg-faint);
+}
+
+/* Enlaces y acciones: botones de verdad con cara de enlace (se tabulan y se leen). */
+.db-salida-enlace,
+.db-salida-accion {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.db-salida-enlace:hover,
+.db-salida-accion:hover {
+  text-decoration-color: var(--accent);
+}
+.db-salida-enlace:focus-visible,
+.db-salida-accion:focus-visible {
+  outline: 1px solid var(--sel);
+  outline-offset: 1px;
+  border-radius: 2px;
+}
+
+/* La etiqueta de un lote que ya no tiene marcas: se lee, no se pulsa. */
+.db-salida-etiqueta-muerta {
+  color: var(--fg-faint);
+}
+
+/* --- Marcas del margen de Monaco ------------------------------------------------ */
+
+/* El glifo de la primera línea de cada sentencia. Monaco le pone posición y caja en
+   línea; aquí solo se centra el símbolo, que lo pinta el pseudo-elemento.
+   OJO: Monaco monta el glifo como `cgmr codicon <clase>`, y `.codicon` impone la
+   fuente de iconos de Monaco, que no tiene ✓ ni ✗. La fuente va explícita en el
+   pseudo-elemento para no depender del respaldo de fuentes del sistema. */
+.monaco-editor .db-glifo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.monaco-editor .db-glifo::before {
+  display: block;
+  font-family: system-ui, 'Segoe UI Symbol', 'Apple Symbols', sans-serif;
+  font-size: 12px;
+  line-height: 1;
+}
+.monaco-editor .db-glifo-ok::before {
+  content: '✓';
+  color: var(--green);
+  font-weight: 700;
+}
+.monaco-editor .db-glifo-error::before {
+  content: '✗';
+  color: var(--red);
+  font-weight: 700;
+}
+/* ✓ ÁMBAR: compiló, pero con avisos (PLSQL_WARNINGS). Es una ✓: la sentencia fue
+   bien y el lote siguió; el color dice «mira la Salida». */
+.monaco-editor .db-glifo-avisos::before {
+  content: '✓';
+  color: var(--yellow);
+  font-weight: 700;
+}
+.monaco-editor .db-glifo-cancelada::before {
+  content: '⊘';
+  color: var(--fg-muted);
+}
+.monaco-editor .db-glifo-cliente::before {
+  content: '⊘';
+  color: var(--fg-faint);
+}
+/* Omitida: círculo hueco (no llegó a enviarse). Pendiente: punto tenue (en cola). */
+.monaco-editor .db-glifo-omitida::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border: 1px solid var(--fg-faint);
+  border-radius: 50%;
+}
+.monaco-editor .db-glifo-pendiente::before {
+  content: '';
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--fg-faint);
+}
+/* Corriendo: el anillo que gira. Con movimiento reducido, un punto fijo. */
+.monaco-editor .db-glifo-corriendo::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid var(--accent);
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: db-glifo-giro 0.8s linear infinite;
+}
+@keyframes db-glifo-giro {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .monaco-editor .db-glifo-corriendo::before {
+    width: 6px;
+    height: 6px;
+    border: 0;
+    background: var(--accent);
+    animation: none;
+  }
+}
+
+/* La barra de 2 px en todas las líneas de lo ejecutado (el "recuadro"). */
+.monaco-editor .db-barra-ok {
+  box-shadow: inset 2px 0 0 var(--green);
+}
+.monaco-editor .db-barra-error {
+  box-shadow: inset 2px 0 0 var(--red);
+}
+.monaco-editor .db-barra-avisos {
+  box-shadow: inset 2px 0 0 var(--yellow);
+}
+.monaco-editor .db-barra-corriendo {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.monaco-editor .db-barra-cancelada {
+  box-shadow: inset 2px 0 0 var(--fg-muted);
+}
+
+/* Tinte de la sentencia que corre: se nota sin tapar el resaltado. */
+.monaco-editor .db-rango-corriendo {
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+
+/* El tiempo al final de la última línea de la sentencia (texto inyectado). */
+.monaco-editor .db-tiempo-linea {
+  margin-left: 2ch;
+  color: var(--fg-faint);
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+}
+.monaco-editor .db-tiempo-error {
+  color: var(--red);
+}
+
+/* =============================================================================
+   PRODUCTIVIDAD SQL: la marca del plan, el diálogo de parámetros, el popover del
+   historial y la pestaña «Plan».
+   ============================================================================= */
+
+/* La marca de un PLAN que llegó bien: un árbol (la esquina de una rama con su nodo),
+   en el acento y no en verde. No es una ✓ a propósito: la sentencia NO se ejecutó
+   (ver `descriptorMarca`), y sin barra de «lo ejecutado». */
+.monaco-editor .db-glifo-plan::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  margin-left: 2px;
+  border-left: 1.5px solid var(--accent);
+  border-bottom: 1.5px solid var(--accent);
+  border-bottom-left-radius: 1px;
+}
+
+/* --- Diálogo de parámetros ------------------------------------------------------ */
+
+/* DOS clases a propósito: la hoja del componente se inyecta ANTES que styles.css, y
+   `.modal-card` a secas le ganaría el ancho. */
+.modal-card.db-parametros-modal {
+  width: min(520px, calc(100vw - 32px));
+}
+.db-param-alias {
+  color: var(--fg-muted);
+  font-weight: 400;
+}
+/* La lista desplaza si hay muchos: el diálogo nunca crece más que la ventana. */
+.db-param-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: min(50vh, 360px);
+  overflow-y: auto;
+  padding: 2px;
+  margin-bottom: 8px;
+}
+.db-param-fila {
+  display: grid;
+  grid-template-columns: minmax(64px, max-content) 1fr auto;
+  align-items: center;
+  gap: 10px;
+}
+/* El nombre y el valor en monoespaciada: `:id` y `$1` son código. `--mono` vive en
+   el ámbito de `.db-area` y esto va por portal a <body>: con su respaldo. */
+.db-param-nombre,
+.db-param-valor {
+  font-family: var(--mono, ui-monospace, 'Cascadia Code', Consolas, monospace);
+}
+.db-param-nombre {
+  color: var(--fg);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+.db-param-valor:disabled {
+  opacity: 0.55;
+}
+.db-param-valor:disabled::placeholder {
+  color: var(--fg-muted);
+  font-style: italic;
+}
+.db-param-nulo {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--fg-muted);
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+.db-param-nulo input {
+  margin: 0;
+  accent-color: var(--accent);
+}
+.db-param-pie {
+  margin-bottom: 14px;
+  color: var(--fg-faint);
+  font-size: 11.5px;
+}
+
+/* --- Popover del historial ------------------------------------------------------ */
+
+/* Va por portal a <body>: nada de esto puede depender de estar dentro de la consola.
+   El cromo es el de los otros popovers de la vista (`.db-esquemas-pop`): fondo
+   `--bg-modal`, filete y sombra de modal. */
+.db-hist-pop {
+  position: fixed;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 16px);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-modal);
+  box-shadow: var(--shadow-modal, 0 8px 24px rgba(0, 0, 0, 0.4));
+  color: var(--fg);
+  font-size: var(--ui-font);
+}
+.db-hist-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 6px 4px 12px;
+}
+.db-hist-titulo {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.db-hist-cuenta {
+  margin-left: 6px;
+  color: var(--fg-faint);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+.db-hist-confirmar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 8px 8px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--red) 45%, var(--border));
+  border-radius: 6px;
+  color: var(--fg);
+  font-size: calc(var(--ui-font) - 1px);
+  line-height: 1.45;
+}
+.db-hist-confirmar-botones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.db-hist-confirmar-botones .btn {
+  height: 24px;
+  padding: 0 10px;
+}
+.db-hist-controles {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 8px 6px;
+}
+.db-hist-filtro {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: calc(var(--ui-row-h) + 4px);
+  padding: 0 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  background: var(--bg-deep);
+  color: var(--fg);
+  font: inherit;
+  outline: none;
+}
+.db-hist-filtro:focus {
+  border-color: var(--accent);
+}
+/* La regla global `:focus-visible` sumaría su anillo al borde de acento. */
+.db-hist-filtro:focus-visible {
+  outline: none;
+}
+.db-hist-filtro::placeholder {
+  color: var(--fg-faint);
+}
+.db-hist-solo {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  color: var(--fg-muted);
+  font-size: calc(var(--ui-font) - 1px);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+.db-hist-solo input {
+  margin: 0;
+  accent-color: var(--accent);
+}
+.db-hist-estado {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  color: var(--fg-faint);
+}
+.db-hist-estado.error {
+  color: var(--red);
+}
+.db-hist-error-texto {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Catorce filas antes de desplazar. */
+.db-hist-lista {
+  max-height: calc(var(--ui-row-h, 24px) * 14);
+  overflow-y: auto;
+  border-top: 1px solid var(--border-soft);
+}
+.db-hist-fila {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--ui-row-h, 24px);
+  padding: 0 6px 0 10px;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+.db-hist-fila:hover {
+  background: var(--hover-suave, rgba(255, 255, 255, 0.06));
+}
+.db-hist-fila.activa {
+  background: var(--sel-glow);
+}
+.db-hist-glifo {
+  flex: 0 0 12px;
+  text-align: center;
+  font-family: system-ui, 'Segoe UI Symbol', 'Apple Symbols', sans-serif;
+  font-weight: 700;
+}
+.db-hist-glifo.ok {
+  color: var(--green);
+}
+.db-hist-glifo.error {
+  color: var(--red);
+}
+.db-hist-glifo.cancelada {
+  color: var(--fg-muted);
+  font-weight: 400;
+}
+.db-hist-hora {
+  flex: 0 0 auto;
+  color: var(--fg-faint);
+  font-variant-numeric: tabular-nums;
+}
+.db-hist-sql {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--mono, ui-monospace, 'Cascadia Code', Consolas, monospace);
+}
+.db-hist-meta {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--fg-faint);
+  font-size: calc(var(--ui-font) - 1px);
+  font-variant-numeric: tabular-nums;
+}
+.db-hist-meta.borrada {
+  font-style: italic;
+}
+/* La papelera de la fila: solo en la que se apunta o la activa (en todas sería ruido). */
+.db-hist-borrar {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--fg-faint);
+  visibility: hidden;
+  cursor: pointer;
+}
+.db-hist-borrar svg {
+  width: 13px;
+  height: 13px;
+}
+.db-hist-fila:hover .db-hist-borrar,
+.db-hist-fila.activa .db-hist-borrar {
+  visibility: visible;
+}
+.db-hist-borrar:hover {
+  background: var(--hover-suave, rgba(255, 255, 255, 0.08));
+  color: var(--red);
+}
+.db-hist-pie {
+  padding: 5px 12px 6px;
+  border-top: 1px solid var(--border-soft);
+  color: var(--fg-faint);
+  font-size: calc(var(--ui-font) - 1px);
+}
+
+/* --- Pestaña «Plan» --------------------------------------------------------------- */
+
+.db-plan {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+/* La barra del plan: solo iconos, a la derecha (`.panel-actions` lleva el margin-left
+   auto). Los metadatos del plan van en la cabecera de resultados, no aquí: se pintaban
+   en los dos sitios (ver PlanExplain). */
+.db-plan-barra {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 8px;
+  height: calc(var(--ui-head-h) + 2px);
+  padding: 0 6px 0 10px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.db-plan-cuerpo {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+.db-plan-arbol {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: max(9px, calc(var(--ui-font) - 1px));
+  outline: none;
+}
+.db-plan-arbol:focus-visible {
+  outline: 1px solid var(--sel);
+  outline-offset: -1px;
+}
+.db-plan-arbol th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 3px 10px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg-elevated);
+  color: var(--fg-muted);
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+.db-plan-arbol td {
+  padding: 0 10px;
+  height: var(--ui-row-h, 22px);
+  white-space: nowrap;
+}
+.db-plan-arbol .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.db-plan-fila {
+  cursor: default;
+}
+.db-plan-fila:hover {
+  background: var(--hover-suave, rgba(255, 255, 255, 0.05));
+}
+.db-plan-fila.activa {
+  background: var(--sel-glow);
+}
+.db-plan-op {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--mono, ui-monospace, 'Cascadia Code', Consolas, monospace);
+}
+.db-plan-chevron {
+  display: inline-flex;
+  flex: 0 0 14px;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+.db-plan-chevron.hueco {
+  cursor: default;
+}
+.db-plan-chevron svg {
+  width: 12px;
+  height: 12px;
+  transition: transform 120ms ease;
+}
+.db-plan-chevron svg.open {
+  transform: rotate(90deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .db-plan-chevron svg {
+    transition: none;
+  }
+}
+.db-plan-objeto {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--fg);
+}
+/* El detalle (predicados) cede lo primero: se lee entero en el tooltip. */
+.db-plan-detalle {
+  max-width: 480px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--fg-muted);
+  font-family: var(--mono, ui-monospace, 'Cascadia Code', Consolas, monospace);
+}
+.db-plan-texto {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 8px 12px;
+  overflow: auto;
+  color: var(--fg);
+  font-family: var(--mono, ui-monospace, 'Cascadia Code', Consolas, monospace);
+  font-size: max(9px, calc(var(--ui-font) - 1px));
+  line-height: 1.5;
+  white-space: pre;
+  user-select: text;
+  outline: none;
+}
+.db-plan-texto:focus-visible {
+  outline: 1px solid var(--sel);
+  outline-offset: -1px;
+}

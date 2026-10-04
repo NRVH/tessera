@@ -1,0 +1,40 @@
+{
+  // ===========================================================================
+  // Tipos de las pruebas de INTERFAZ (`e2e/`, Playwright + Electron).
+  //
+  // POR QUÉ UN TSCONFIG PROPIO Y NO METERLO EN `tsconfig.node.json`. Estos archivos
+  // son un entorno mixto que ninguno de los dos existentes describe: corren en Node
+  // (arrancan procesos, leen el disco) pero sus callbacks de `evaluate()` se
+  // ejecutan DENTRO del renderer, así que necesitan a la vez los tipos de `node` y
+  // los del DOM. Meterlos en el tsconfig del main le habría dado `dom` a todo
+  // `src/main`, que es justo lo que ese proyecto evita para que un `document` por
+  // descuido no compile.
+  //
+  // Sin esto, los `e2e/*.ts` NO los miraba nadie: Playwright los transpila sin
+  // comprobar tipos, así que un error se descubría en tiempo de ejecución y con un
+  // mensaje del navegador. `npm run typecheck` lo incluye.
+  // ===========================================================================
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "esModuleInterop": true,
+    // Igual que en `tsconfig.node.json`: el repo importa con extensión explícita
+    // (`'./x.ts'`) para que los `test-*.mts` corran con `node` a secas, y la cadena
+    // de `src/preload/index.d.ts` llega hasta esos módulos.
+    "allowImportingTsExtensions": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "lib": ["ES2022", "DOM"],
+    "types": ["node"]
+  },
+  // `src/preload/index.d.ts` es lo que declara `window.tessera`: sin él, cada
+  // `evaluate(() => window.tessera…)` sería un error de tipo y habría que castear,
+  // que es como se pierde la única red de seguridad que tienen estas pruebas.
+  "include": ["e2e/**/*.ts", "playwright.config.ts", "src/preload/index.d.ts"]
+}

@@ -1,0 +1,363 @@
+/* =============================================================================
+   Visor de una clave (`DbClavePane.tsx`) y piezas de sus filas en el árbol (chip del tipo,
+   prefijo atenuado dentro de su carpeta, fila «Cargar más claves»). Solo consume variables del
+   tema y de la densidad; reutiliza la rejilla virtual de `rejilla.css` y las celdas de
+   `documentos.css`. Los colores del tipo son del tema y no siguen al perfil; `--orange`,
+   `--cyan` y `--magenta` no los define todo tema, así que llevan respaldo. Sin transform,
+   filter ni contain en la raíz o sus ancestros (el menú contextual es `position: fixed`).
+   ============================================================================= */
+
+/* --- El chip del tipo (visor y árbol) --------------------------------------------- */
+
+.db-kv-tipo {
+  --tono: var(--fg-muted);
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 5px;
+  border-radius: 3px;
+  font-family: var(--mono, monospace);
+  font-size: max(8px, calc(var(--ui-font) - 3px));
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+  color: var(--tono);
+  background: color-mix(in srgb, var(--tono) 14%, transparent);
+  white-space: nowrap;
+}
+.db-kv-tipo.tipo-string {
+  --tono: var(--green);
+}
+.db-kv-tipo.tipo-hash {
+  --tono: var(--azul);
+}
+.db-kv-tipo.tipo-list {
+  --tono: var(--yellow);
+}
+.db-kv-tipo.tipo-set {
+  --tono: var(--orange, #d19a66);
+}
+.db-kv-tipo.tipo-zset {
+  --tono: var(--cyan, #56b6c2);
+}
+.db-kv-tipo.tipo-stream {
+  --tono: var(--magenta, #c678dd);
+}
+.db-kv-tipo.tipo-json {
+  --tono: var(--green);
+}
+
+/* --- El árbol --------------------------------------------------------------------- */
+
+/* Una clave dentro de su carpeta lleva su nombre ENTERO; lo que ya dice la carpeta, apagado. */
+.db-kv-prefijo {
+  color: var(--fg-faint);
+}
+.tree-row.active .db-kv-prefijo {
+  color: inherit;
+  opacity: 0.7;
+}
+/* El chip en el árbol, un poco más discreto que en la cabecera del visor. */
+.db-fila-kv-clave .db-kv-tipo {
+  margin-left: auto;
+}
+.db-fila-kv-base .db-kv-patron {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 5px;
+  border-radius: 3px;
+  font-family: var(--mono, monospace);
+  font-size: calc(var(--ui-font) - 2px);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+/* «Cargar más claves»: la acción a la izquierda (se lee como un enlace) y la nota detrás. */
+.db-fila-kv-mas .db-fila-accion {
+  margin-left: 0;
+}
+.db-fila-kv-mas .db-kv-mas-nota {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-style: italic;
+  color: var(--fg-faint);
+  font-size: calc(var(--ui-font) - 1px);
+}
+.db-fila-kv-mas .db-kv-mas-nota.error {
+  font-style: normal;
+  color: var(--red);
+}
+.db-fila-kv-mas .db-kv-mas-cargando {
+  font-style: italic;
+  color: var(--fg-faint);
+}
+
+/* --- La pestaña del visor ----------------------------------------------------------- */
+
+.db-clave {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+.db-clave.hidden {
+  display: none;
+}
+
+/* La identidad de la cabecera: chip, nombre (monoespaciado, recortado por el centro no:
+   por la derecha, el nombre entero va en el tooltip y se copia con su botón) y los datos. */
+.db-clave-ident {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.db-clave-nombre {
+  flex: 0 1 auto;
+  min-width: 3ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono, monospace);
+  font-size: var(--ui-font);
+  color: var(--fg);
+  user-select: text;
+}
+.db-clave-ident .db-barra-meta {
+  flex: 0 1 auto;
+}
+.db-clave-ttl.caduca {
+  color: var(--yellow);
+}
+.db-clave-ttl.caducada {
+  color: var(--red);
+}
+
+/* Subbarra del cuerpo: el modo (Texto / JSON / Hex) y lo que se ve. */
+.db-clave-sub {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--ui-head-h, 30px);
+  padding: 0 8px 0 12px;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: max(9px, calc(var(--ui-font) - 1px));
+  color: var(--fg-muted);
+}
+.db-clave-sub-texto {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* El conmutador de modo: el molde de `.vista-modo-toggle` (pista, radio, segmento
+   apagado), con TEXTO en vez de iconos. El encendido es `btn-active`, la clase de todo lo
+   «puesto» de la app, que lleva el color del perfil. */
+.db-clave-modos {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  border-radius: 6px;
+  background: var(--bg-surface);
+  padding: 1px;
+  gap: 1px;
+}
+.db-clave-modos .btn {
+  min-height: 0;
+  height: calc(var(--ui-font) + 9px);
+  padding: 0 9px;
+  border-radius: 5px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--fg-faint);
+  font-size: max(9px, calc(var(--ui-font) - 1px));
+}
+.db-clave-modos .btn:hover:not(:disabled) {
+  background: var(--bg-surface-hi);
+  color: var(--fg-muted);
+}
+
+/* El aviso de un valor cortado (o del volcado hex con tope): una franja, no una caja. */
+.db-clave-aviso {
+  flex: 0 0 auto;
+  padding: 5px 12px;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: max(9px, calc(var(--ui-font) - 1px));
+  color: var(--yellow);
+  background: color-mix(in srgb, var(--yellow) 7%, var(--bg));
+}
+
+/* El texto de un string o un JSON: lo mismo que el panel de documentos. */
+.db-clave-texto {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 8px 12px;
+  overflow: auto;
+  font-family: var(--mono, monospace);
+  font-size: var(--ui-font);
+  line-height: 1.5;
+  color: var(--fg);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+  tab-size: 2;
+  outline: none;
+}
+/* Hex y JSON no se parten: sus columnas y su sangría son la lectura. */
+.db-clave-texto.modo-hex,
+.db-clave-texto.modo-json {
+  white-space: pre;
+  overflow-wrap: normal;
+}
+.db-clave-texto.modo-hex {
+  color: var(--fg-muted);
+}
+.db-clave-texto.binario {
+  color: var(--fg-muted);
+}
+.db-clave-texto:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.db-clave-texto .tk-clave {
+  color: var(--fg-muted);
+}
+.db-clave-texto .tk-cadena {
+  color: var(--green);
+}
+.db-clave-texto .tk-numero {
+  color: var(--azul);
+}
+.db-clave-texto .tk-literal {
+  color: var(--yellow);
+}
+.db-clave-texto .tk-puntuacion {
+  color: var(--fg-faint);
+}
+
+/* El cuerpo de los tipos con elementos: la tabla y, a la derecha, el detalle de la fila. */
+.db-clave-cuerpo {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.db-clave-cuerpo.con-detalle {
+  flex-direction: row;
+}
+.db-clave-zona {
+  flex: 1 1 60%;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.db-clave-detalle {
+  flex: 0 0 38%;
+  min-width: 220px;
+  max-width: 70%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+.db-clave-detalle-partes {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+.db-clave-parte + .db-clave-parte {
+  border-top: 1px solid var(--border-soft);
+}
+.db-clave-parte-cab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: calc(var(--ui-row-h, 22px) + 2px);
+  padding: 0 6px 0 12px;
+  font-size: max(9px, calc(var(--ui-font) - 1px));
+  color: var(--fg-muted);
+}
+.db-clave-parte-titulo {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.db-clave-parte-tamano {
+  flex: 0 0 auto;
+  color: var(--fg-faint);
+  font-variant-numeric: tabular-nums;
+}
+.db-clave-parte .db-clave-texto {
+  padding-top: 0;
+  overflow: visible;
+}
+
+/* La tabla: celdas en flex como las de documentos, con su color de dato. */
+.db-kv-celda.binario {
+  font-style: italic;
+  color: var(--fg-muted);
+}
+.db-kv-celda.numerica {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--azul);
+}
+.db-kv-celda.ausente {
+  background: color-mix(in srgb, var(--bg-deep) 45%, transparent);
+}
+.db-kv-th.numerica {
+  justify-content: flex-end;
+}
+/* «Cargar más» debajo de la última fila, pegado a la izquierda aunque la tabla se desplace. */
+.db-kv-pie {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+}
+.db-kv-pie-contenido {
+  position: sticky;
+  left: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  line-height: var(--db-alto-fila);
+  font-size: max(9px, calc(var(--ui-font) - 1px));
+  color: var(--fg-faint);
+}
+.db-kv-pie-contenido .btn {
+  min-height: 0;
+  height: calc(var(--db-alto-fila) - 4px);
+  padding: 0 10px;
+}
+
+/* Lo que tarda: la línea de «Leyendo…» con su Detener, en el sitio del cuerpo. */
+.db-clave-leyendo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  font-size: var(--ui-font);
+  font-style: italic;
+  color: var(--fg-faint);
+}

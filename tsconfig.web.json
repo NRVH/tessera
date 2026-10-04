@@ -1,0 +1,26 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "target": "ES2020",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    // Igual que tsconfig.node.json: permite que los scripts de test `.mts` del
+    // renderer (test-*.mts, ejecutados con `node` + type-stripping) importen con
+    // extensión `.ts` explícita. Inofensivo para el código real del renderer,
+    // que usa imports sin extensión.
+    "allowImportingTsExtensions": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": ["vite/client"]
+  },
+  "include": ["src/renderer/src/**/*", "src/shared/**/*", "src/main/profiles/types.ts", "src/preload/index.d.ts"]
+}
