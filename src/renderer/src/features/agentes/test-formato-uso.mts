@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 // =============================================================================
 // Prueba del formato del uso de cuenta del pie del agente (npm run test:formato-uso): el
-// nombre largo de cada ventana, el tramo de la escalera de anchos, el porcentaje y el color.
+// nombre largo y el corto de cada ventana, el tramo de la escalera de anchos, el porcentaje y el color.
 // Decisiones: docs/decisiones/agentes/uso-ventanas-de-la-cuenta.md
 // =============================================================================
 
-import { etiquetaLargaUso, formatoPorcentaje, tramoVentanas, varNivelUso } from './formatoUso.ts'
+import { etiquetaCortaUso, etiquetaLargaUso, formatoPorcentaje, tramoVentanas, varNivelUso } from './formatoUso.ts'
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -34,6 +34,24 @@ hr('1. El nombre largo de cada ventana')
   ]
   for (const [corta, larga] of casos) {
     check(`(1) «${corta}» → «${larga}»`, etiquetaLargaUso(corta) === larga, etiquetaLargaUso(corta))
+  }
+}
+
+hr('1b. La etiqueta corta de la línea compacta')
+{
+  const casos: Array<[string, string]> = [
+    ['5h', '5h'],
+    ['7d', '7d'],
+    ['Fable 7d', 'F'],
+    ['opus 7d', 'O'],
+    // La de sesión de un modelo conserva el «5h»: sola, «C» se leería como una semanal.
+    ['Cowork 5h', 'C 5h'],
+    ['Monthly', 'Monthly'],
+    ['Individual limit 30d', 'Individual limit 30d'],
+    ['Dos palabras 7d', 'Dos palabras 7d']
+  ]
+  for (const [larga, corta] of casos) {
+    check(`(1b) «${larga}» → «${corta}»`, etiquetaCortaUso(larga) === corta, etiquetaCortaUso(larga))
   }
 }
 

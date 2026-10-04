@@ -4,7 +4,7 @@
 // `minimumSystemVersion`, que electron-builder no rellena y electron-updater sí mira. Va
 // traducido a Darwin en semver (`os.release()` + `semver.lt`): macOS 11–15 son Darwin 20–24
 // y desde la 26, Darwin 25. Un «12.0» tal cual sería inválido y dejaría pasar la
-// actualización. Lo usan `parchearMinimoMac.mjs`, `publish-update.mjs` y `estado-feeds.mjs`.
+// actualización. Lo usan `parchearMinimoMac.mjs` y `estado-feeds.mjs`.
 // Decisiones: docs/decisiones/despliegue/releases-de-github.md
 // =============================================================================
 

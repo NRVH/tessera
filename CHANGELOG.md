@@ -4,6 +4,13 @@ Todos los cambios relevantes de Tessera se documentan en este archivo. El format
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), y Tessera sigue el
 [versionado semántico](https://semver.org/lang/es/).
 
+## [0.72.0] - 2026-10-04
+
+- **Pie del agente más limpio.** El uso de la cuenta y el contexto de la conversación se ven
+  como dos cápsulas separadas: la de la cuenta agrupa sus ventanas (sesión, semanal y la
+  semanal propia de un modelo) en tramos, y la del chat lleva el anillo. La semanal de un
+  modelo ocupa una sola letra («F» para Fable); su nombre completo sigue en el desplegable.
+
 ## [0.71.1] - 2026-10-04
 
 - **El repositorio, en español por defecto.** El README y los documentos del proyecto (la

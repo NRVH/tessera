@@ -3,7 +3,7 @@
 Tessera se publica bajo la [licencia MIT](./LICENSE). Está construida sobre software escrito
 por otros, y lo distribuye, cada uno con su propia licencia. Este archivo enumera esos
 componentes, la licencia con la que Tessera usa cada uno y lo que sus licencias piden que se
-diga. Describe Tessera 0.71.1.
+diga. Describe Tessera 0.72.0.
 
 ## Cómo viaja el código de terceros con Tessera
 

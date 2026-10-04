@@ -1,7 +1,7 @@
 {
   "name": "tessera",
   "productName": "Tessera",
-  "version": "0.71.1",
+  "version": "0.72.0",
   "description": "El IDE de escritorio para quien trabaja en varios proyectos y con varias cuentas de IA, con cada agente en nativo o en el sandbox de Docker de su espacio de trabajo",
   "author": "Noé Roberto Vázquez Herrera (https://github.com/NRVH)",
   "license": "MIT",
@@ -102,6 +102,7 @@
     "test:dialogos-nativos": "node src/main/util/adaptadores/test-dialogos-nativos.mts",
     "test:sistema-minimo": "node scripts/test-sistema-minimo.mts",
     "test:parchear-minimo-mac": "node scripts/test-parchear-minimo-mac.mts",
+    "test:estado-feeds": "node scripts/test-estado-feeds.mts",
     "test:clipboard-files": "node src/main/clipboard/test-clipboard-files.mts",
     "test:file-clipboard": "node src/renderer/src/features/explorador/test-file-clipboard.mts",
     "test:git": "node src/main/git/test-git.mts",

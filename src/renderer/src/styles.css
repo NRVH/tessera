@@ -3475,7 +3475,7 @@ body {
   margin-right: auto;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
   min-width: 0;
   overflow: hidden;
   /* Vuelve más rápido de lo que se fue: al retirar el ratón el botón ya se está
@@ -3500,10 +3500,21 @@ body {
   transition: opacity 200ms ease;
 }
 
+/* Dos cápsulas por significado: la CUENTA (sus ventanas, en tramos separados por un
+   filete) y la CONVERSACIÓN (el anillo). El fondo `--bg-surface` es el de las píldoras y
+   cards de la app, un escalón sobre el pie. */
+.agent-usage,
+.agent-context {
+  height: 20px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--bg-surface);
+}
+
 .agent-usage {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
   overflow: hidden;
   font-size: 11px;
@@ -3514,7 +3525,6 @@ body {
      una segunda fila que queda fuera del alto y no se ve, en vez de cortarse por la
      mitad. Lo normal lo decide antes la escalera de `@container agentfooter`. */
   flex-wrap: wrap;
-  height: 16px;
   row-gap: 16px;
 }
 
@@ -3523,6 +3533,15 @@ body {
   align-items: center;
   gap: 5px;
   height: 16px;
+}
+/* El filete entre tramos: corto (10 px) para que se lea como división dentro de una sola
+   pieza y no como el borde de otra caja. */
+.agent-usage-item + .agent-usage-item::before {
+  content: '';
+  width: 1px;
+  height: 10px;
+  margin-right: 3px;
+  background: var(--border-soft);
 }
 
 .agent-usage-label {
@@ -3538,7 +3557,7 @@ body {
   width: 30px;
   height: 4px;
   border-radius: 2px;
-  background: var(--border);
+  background: var(--border-soft); /* sobre la cápsula, `--border` apenas se distingue */
   overflow: hidden;
 }
 .agent-usage-mini > i {

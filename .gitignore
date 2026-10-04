@@ -10,9 +10,6 @@ dist
 # Configuración local de editores y herramientas.
 .idea/
 
-# Referencia de secretos para `op run` (scripts `release:*:op`): apunta a una bóveda
-# concreta. No es secreto, pero es específico de cada entorno -> local.
-
 # Resultados de las pruebas de interfaz (capturas y trazas de los fallos).
 e2e/.resultados/
 

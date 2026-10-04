@@ -25,6 +25,18 @@ export function etiquetaLargaUso(label: string): string {
 }
 
 /**
+ * Etiqueta de la línea compacta: la semanal propia de un modelo («Fable 7d») se queda en su
+ * inicial («F»), porque va junto a la semanal general y el nombre entero ya lo da el
+ * desplegable; la de sesión de un modelo conserva el «5h» para no confundirse con ella.
+ */
+export function etiquetaCortaUso(label: string): string {
+  const modelo = /^(\S+) (7d|5h)$/.exec(label)
+  if (!modelo) return label
+  const inicial = modelo[1].charAt(0).toUpperCase()
+  return modelo[2] === '7d' ? inicial : `${inicial} 5h`
+}
+
+/**
  * Cuántas ventanas enseña la línea compacta, para la escalera de anchos del pie: con dos
  * cabe todo; con tres o con cuatro o más, las micro-barras y las últimas ceden antes.
  */

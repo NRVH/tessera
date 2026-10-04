@@ -125,7 +125,9 @@ test.describe('uso de la cuenta en el pie del agente', () => {
   })
 
   test('con dos límites semanales, el pie enseña los dos', async () => {
-    await expect.poll(() => ventanasVisibles(s.win), { timeout: 30_000 }).toEqual(['5h 16%', '7d 96%', 'Fable 7d 17%'])
+    // La semanal del modelo va con su inicial; el nombre entero queda para lectores de pantalla.
+    await expect.poll(() => ventanasVisibles(s.win), { timeout: 30_000 }).toEqual(['5h 16%', '7d 96%', 'F 17%'])
+    await expect(s.win.locator('.agent-pane:not(.hidden) .agent-usage-label').nth(2)).toHaveAttribute('aria-label', 'Semanal Fable')
     // En el ancho por defecto de la columna caben las tres, y ninguna cortada.
     const pie = await s.win.evaluate(() => {
       const uso = document.querySelector<HTMLElement>('.agent-pane:not(.hidden) .agent-usage')!

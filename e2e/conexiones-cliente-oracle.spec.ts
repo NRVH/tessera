@@ -104,9 +104,19 @@ test.describe('cliente Oracle de Mac: el .dmg de Oracle se instala y carga', () 
   test('(3) el binario de la app, como Node, carga el cliente (dlopen de verdad)', async () => {
     const exe = rutaAppEmpaquetada()
     expect(exe).not.toBeNull()
-    // `oracledb` va dentro del asar y su .node en `app.asar.unpacked`: el binario lanzado
-    // con ELECTRON_RUN_AS_NODE los resuelve igual que cuando corre `tdb`.
-    const oracledb = join(dirname(exe!), '..', 'Resources', 'app.asar', 'node_modules', 'oracledb')
+    // `oracledb` se busca DONDE ESTÉ, y no sólo en el asar: Tessera empaqueta con
+    // `asar: false` (está en `electron-builder.yml`), así que el módulo vive en
+    // `Resources/app/node_modules` y la ruta fija al asar no existía — la prueba moría
+    // con «Cannot find module .../app.asar/node_modules/oracledb», que acusa al cliente
+    // de Oracle cuando lo que fallaba era la ruta. Se prueban las dos para que siga
+    // valiendo el día que el asar vuelva. El binario lanzado con ELECTRON_RUN_AS_NODE
+    // las resuelve igual que cuando corre `tdb`.
+    const recursos = join(dirname(exe!), '..', 'Resources')
+    const candidatos = [
+      join(recursos, 'app.asar', 'node_modules', 'oracledb'),
+      join(recursos, 'app', 'node_modules', 'oracledb')
+    ]
+    const oracledb = candidatos.find((c) => existsSync(c)) ?? candidatos[0]
     const guion =
       'const o = require(process.env.T_ORACLEDB);' +
       'o.initOracleClient({ libDir: process.env.T_LIBDIR });' +

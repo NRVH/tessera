@@ -4,8 +4,7 @@
 // si `latest-mac.yml` no trae `minimumSystemVersion`. Por defecto mira las Releases de GitHub;
 // `--feed <url>` o `TESSERA_FEED_BASE` consultan otro feed. Sale 0 (un desfase es legítimo);
 // con `--estricto`, 1 si falta publicar, 3 si el feed va por delante del repo y 2 si no se pudo
-// comprobar. Lee los campos sin parser de YAML. `publish-update.mjs` lo usa para no puentear a
-// otro feed una versión que GitHub aún no sirve (`veredictoDelPuente`).
+// comprobar. Lee los campos sin parser de YAML.
 // Decisiones: docs/decisiones/despliegue/releases-de-github.md
 // =============================================================================
 import { readFileSync, realpathSync } from 'node:fs'
@@ -129,23 +128,6 @@ export async function estadoDeFeeds(base = FEED_GITHUB) {
   return Promise.all(CANALES.map((c) => leerCanal(c, base)))
 }
 
-/**
- * Si el puente a otro feed puede subir `aPuentear` (`[{ plataforma, canal, version }]`): cada canal
- * tiene que servirse YA en `estadosGithub` con esa versión EXACTA. Un canal ilegible tampoco
- * vale: sin comprobarlo, las apps podrían saltar a un feed que aún no la tiene y quedarse sin
- * actualizaciones. Devuelve `{ permitido, motivos }`.
- */
-export function veredictoDelPuente(estadosGithub, aPuentear) {
-  const motivos = []
-  for (const p of aPuentear) {
-    const e = estadosGithub.find((x) => x.canal === p.canal)
-    if (!e || e.estado === 'ausente') motivos.push(`${p.plataforma}: GitHub aún no sirve ${p.canal}`)
-    else if (e.estado !== 'ok') motivos.push(`${p.plataforma}: no se pudo leer ${p.canal} en GitHub (${e.detalle})`)
-    else if (e.version !== p.version) motivos.push(`${p.plataforma}: GitHub sirve la ${e.version}, no la ${p.version}`)
-  }
-  return { permitido: motivos.length === 0, motivos }
-}
-
 /** `2026-09-06T19:24:57.016Z` → `2026-09-06 19:24`. Los milisegundos no dicen nada. */
 function fechaCorta(iso) {
   if (!iso) return ''
@@ -163,7 +145,7 @@ export function remedioDePublicar(base, version) {
       '  plataformas y solo saca la release de borrador cuando están las dos.'
     )
   }
-  return 'publica esa versión en ese feed (el puente de la transición, con los artefactos de la release).'
+  return 'publica esa versión en ese feed.'
 }
 
 /**

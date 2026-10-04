@@ -16,7 +16,7 @@ import {
 } from '../../../../shared/usage-ipc'
 import type { ConvAgent } from '../../../../shared/conversations-ipc'
 import { formatoAntiguedad, formatoReinicio } from '../../util/formatoTiempo'
-import { etiquetaLargaUso, formatoPorcentaje, tramoVentanas, varNivelUso } from './formatoUso'
+import { etiquetaCortaUso, etiquetaLargaUso, formatoPorcentaje, tramoVentanas, varNivelUso } from './formatoUso'
 
 interface UsageBarsProps {
   agente: ConvAgent
@@ -179,7 +179,9 @@ export function UsageBars(props: UsageBarsProps): React.JSX.Element | null {
       {windows.length ? (
         windows.map((w) => (
           <span className="agent-usage-item" key={w.key}>
-            <span className="agent-usage-label">{w.label}</span>
+            <span className="agent-usage-label" aria-label={etiquetaLargaUso(w.label)}>
+              {etiquetaCortaUso(w.label)}
+            </span>
             <span className="agent-usage-mini">
               <i style={{ width: `${w.percent}%`, background: `var(${varNivelUso(w.percent)})` }} />
             </span>
