@@ -3,11 +3,13 @@
 // devolución del foco a quien abrió y trampa de Tab opcional (`alPulsarTecla`).
 // Es un hook y no un componente porque las cáscaras de los modales difieren y lo común
 // es el comportamiento. Se llama arriba del todo del componente, antes de cualquier
-// efecto que mueva el foco. Solo depende de React.
+// efecto que mueva el foco. Depende de React y de `pilaDialogos`: con varios diálogos
+// abiertos, el Esc solo lo atiende el de encima, y ninguno si cierra la lista de un select.
 // Decisiones: docs/decisiones/renderer/dialogos-foco-y-teclado.md
 // =============================================================================
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useId, useRef } from 'react'
+import { apilar, desapilar, esCima } from './pilaDialogos'
 
 /** Enfocables de verdad para la trampa de Tab: `[tabindex="-1"]` queda fuera (tabs inactivos, botones ocultos). */
 const ENFOCABLES = [
@@ -20,6 +22,29 @@ const ENFOCABLES = [
 ]
   .map((s) => `${s}:not([tabindex="-1"])`)
   .join(',')
+
+/**
+ * ¿Viene la tecla de un `<select>` con su lista desplegada? Esa lista es un popover del motor
+ * (`selectDesplegable.css`), no un menú del sistema: su Esc también llega a `window`, y debe
+ * cerrar solo la lista.
+ */
+export function esDeUnaListaDeSelect(destino: EventTarget | null): boolean {
+  return destino instanceof Element && destino.closest('select')?.matches(':open') === true
+}
+
+/**
+ * El `onMouseDown` del VELO de un diálogo que cierra con el clic fuera. Solo cierra si el clic es
+ * en el propio velo (`target === currentTarget`) y frena la propagación: un diálogo montado dentro
+ * de otro (renombrar o eliminar sobre el historial) burbujearía, por el árbol de React, hasta el
+ * velo del padre y lo cerraría también.
+ */
+export function alClicEnVelo(onCancel: () => void): (e: React.MouseEvent) => void {
+  return (e) => {
+    if (e.target !== e.currentTarget) return
+    e.stopPropagation()
+    onCancel()
+  }
+}
 
 export interface Dialogo {
   /** Va en la CARD (no en el overlay): delimita la trampa de foco. */
@@ -38,20 +63,30 @@ export function useDialogo({
   cerrable?: boolean
 }): Dialogo {
   const ref = useRef<HTMLDivElement>(null)
+  const id = useId()
+
+  // En la pila mientras esté montado, sea o no `cerrable`: uno que no se puede cerrar sigue
+  // tapando a los de debajo, y el Esc que él no atiende tampoco debe cerrarlos.
+  useEffect(() => {
+    apilar(id)
+    return () => desapilar(id)
+  }, [id])
 
   // Esc en WINDOW y no en la card: el foco puede estar en un hueco no enfocable y la card
   // no recibiría teclas. Quien necesite quedarse un Esc lo para con `stopPropagation()`
   // en su handler de React, que corre antes de que el evento nativo llegue a window.
+  // Solo lo atiende el diálogo de la cima; `esCima` recibe el evento para que el orden de
+  // los manejadores en window no cambie la respuesta.
   useEffect(() => {
     if (!cerrable) return
     function onKey(e: KeyboardEvent): void {
-      if (e.key !== 'Escape') return
+      if (e.key !== 'Escape' || !esCima(id, e) || esDeUnaListaDeSelect(e.target)) return
       e.preventDefault()
       onClose()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose, cerrable])
+  }, [onClose, cerrable, id])
 
   // Devolución del foco a quien abrió el modal, capturado en el montaje. Se guarda la
   // cadena de ancestros y no solo el elemento: si quien abrió era la fila que se borra,
@@ -68,7 +103,7 @@ export function useDialogo({
   }, [])
 
   function alPulsarTecla(e: React.KeyboardEvent): void {
-    if (e.key !== 'Tab') return
+    if (e.key !== 'Tab' || esDeUnaListaDeSelect(e.target)) return
     const card = ref.current
     if (!card) return
     const lista = [...card.querySelectorAll<HTMLElement>(ENFOCABLES)].filter(

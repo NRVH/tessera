@@ -20,6 +20,16 @@ export interface TerminalSession {
   readonly exitCode: number | null
 }
 
+/**
+ * Un ejecutable que el pty lanza DIRECTAMENTE, sin shell delante (las sesiones SSH): su código de
+ * salida llega intacto y no hay citado de shell. `quitarEnv` son variables que no debe heredar.
+ */
+export interface EjecutableSesion {
+  archivo: string
+  args: string[]
+  quitarEnv?: string[]
+}
+
 /** Opciones de `TerminalService.createSession`. */
 export interface CreateSessionOptions {
   /** Proyecto al que anclar el cwd: ruta host, nombre de workspace o workspacePath neutro. */
@@ -41,6 +51,11 @@ export interface CreateSessionOptions {
    * Se conservan a través de reloadSession().
    */
   extraEnv?: Record<string, string>
+  /**
+   * Con él, el pty lanza este ejecutable en el HOST con cwd en HOME, y cerrar o recargar matan su
+   * árbol sin teclear nada. Pide `host: true`. Se conserva a través de reloadSession().
+   */
+  ejecutable?: EjecutableSesion
 }
 
 /**
@@ -59,6 +74,8 @@ export interface SessionRecord {
   launch?: string
   /** Variables extra del entorno (modo nativo); mutable por el mismo motivo que `launch`. */
   extraEnv?: Record<string, string>
+  /** Ejecutable lanzado sin shell (sesiones SSH); mutable por el mismo motivo que `launch`. */
+  ejecutable?: EjecutableSesion
   pty: IPty
   cols: number
   rows: number

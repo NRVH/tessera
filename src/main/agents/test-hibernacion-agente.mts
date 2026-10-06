@@ -397,6 +397,40 @@ hr('8. El handler IPC sanea la petición')
   )
 }
 
+hr('9. Recargar una sesión espera al borrado de su perfil')
+{
+  const c9 = crearControlador()
+  const id9 = (await c9.open({ profileId: 'p1', agente: 'claude-code', projectHostPath: 'C:\\proy\\k', mode: 'host' })).sessionId
+  const handlers = new Map<string, (e: unknown, req: unknown) => unknown>()
+  const esperados: unknown[] = []
+  let soltar = (): void => {}
+  registrarIpcTerminalAgente({
+    ipc: {
+      handle: (canal: string, fn: (e: unknown, req: unknown) => unknown) => handlers.set(canal, fn),
+      on: () => {}
+    } as never,
+    agentes: c9,
+    esperarBorrado: (profileId) => {
+      esperados.push(profileId)
+      return new Promise<void>((r) => {
+        soltar = r
+      })
+    }
+  })
+  const recarga = handlers.get(AGENT_TERMINAL_CHANNELS.RELOAD)
+  let hecha = false
+  const respuesta = Promise.resolve(recarga?.(null, { sessionId: id9 })).then((r) => {
+    hecha = true
+    return r as { sessionId: string } | undefined
+  })
+  await tick()
+  check('(9a) espera al candado del perfil DE LA SESIÓN y no recarga mientras dura', esperados[0] === 'p1' && !hecha, `esperados=${JSON.stringify(esperados)} hecha=${hecha}`)
+  soltar()
+  const r9 = await respuesta
+  check('(9b) al soltarlo recarga la misma sesión', hecha && r9?.sessionId === id9, JSON.stringify(r9))
+  check('(9c) una sesión que no existe no espera a ningún perfil', c9.perfilDeSesion('no-existe') === undefined && c9.perfilDeSesion(7) === undefined, 'undefined')
+}
+
 const allPass = results.every(Boolean)
 console.log(`\nVEREDICTO: ${results.filter(Boolean).length}/${results.length} PASS`)
 process.exit(allPass ? 0 : 1)

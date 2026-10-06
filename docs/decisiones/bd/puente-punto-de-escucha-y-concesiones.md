@@ -1,7 +1,7 @@
 # El puente local: `tdb` pregunta en cada invocación, y el punto de escucha cambia según el sistema
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/db/dbBridge.ts`, `puntoEscucha.ts` (macOS: sin verificar aquí)
+- **Ámbito:** `src/main/db/dbBridge.ts`, `puntoEscucha.ts` y las operaciones `ssh.*` que se registran en él (macOS: sin verificar aquí)
 
 ## Contexto
 
@@ -29,6 +29,10 @@ montar o desmontar aplica al momento, sin perder la conversación.
   valiendo) o, si no puede, a uno nuevo y `tdb` dice «Recarga la terminal». La carpeta se recrea SIN `recursive`:
   si ya existe, otro usuario pudo crearla y escuchar dentro le daría el socket. `stop()` es el apagado definitivo.
 - El token se compara en tiempo constante; «no autorizado» es el mismo mensaje para inexistente, caducado y gastado.
+- Otros dominios registran sus operaciones (`registrarOperacion`) sin tocar `resolve` ni su contrato: con token de SESIÓN (el puente
+  la busca y dice de quién es; un token de un solo uso no vale) o con token PROPIO, que valida la operación (`ssh.askpass`, con sus
+  fichas efímeras: el token de un agente nunca le sirve). Lo no registrado sigue siendo «operacion desconocida». El ámbito de las de
+  `tssh` (`ssh.listar`, `ssh.preparar`…) es el PERFIL entero de la sesión, no lo montado (ver `ssh/tssh-y-agentes.md`).
 
 ## Descartes
 

@@ -15,7 +15,7 @@ import { textoProgreso } from './consola/vivoConsola'
 // Por `DbEsquemasPopover` y no por su archivo: así `arbol.css` sigue entrando en la
 // cascada en el mismo punto (el orden de carga de los módulos decide el del CSS).
 import { SelectorEsquemaConsola } from './DbEsquemasPopover'
-import type { AnclaDerecha } from './consola/popoverFlotante'
+import type { AnclaDerecha } from '../../comun/popoverFlotante'
 import {
   AccionesBarraConsola,
   type BarraConsolaProps,

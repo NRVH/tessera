@@ -21,8 +21,14 @@ fiable bajo `contextIsolation` y `sandbox`.
   `term.paste()`, que aplica el bracketed paste solo si la aplicación lo activó.
 - El modificador de los atajos es uno por plataforma y exclusivo (`esModPrincipal`): Ctrl+C con
   selección copia y sin ella baja como ^C; en Mac Ctrl+F y Ctrl+V llegan al pty.
+- Lo que el manejador (`atajosTerminal.ts`) no reclama es de la shell. En Windows Ctrl+N con el
+  foco en la terminal es su ^N: xterm lo consume y el atajo global de archivo nuevo no lo ve. En
+  Mac ⌘N no es un control y sí llega. Divergencia ACEPTADA (decisión del usuario, oct-2026): el
+  README lo avisa en su tabla de atajos.
 
 ## Consecuencias
 
 - Volver a `ctrlKey || metaKey` roba Ctrl+F a readline en Mac y deja Ctrl+V muerto.
 - Nunca se inyectan marcadores `200~` a mano: una aplicación que no los entiende los mostraría.
+- Reclamar Ctrl+N en Windows para el archivo nuevo le quitaría a la shell su ^N (en readline, el
+  historial siguiente); quien lo pruebe en `e2e/` saca antes el foco de la terminal.

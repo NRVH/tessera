@@ -73,7 +73,9 @@ const BLOQUE_DDL_ORACLE = [
   '      IF SQLCODE <> -31608 THEN RAISE; END IF;',
   '    END;',
   '  END IF;',
-  '  :ddl := h;',
+  // Por cursor y no `:ddl := h`: el CLOB de salida de PL/SQL contra una 11.2.0.4 da ORA-03120 con
+  // el cliente 23 y ORA-03106 con el 19 según la forma del bloque (medido contra ER); el cursor, no.
+  '  OPEN :ddl FOR SELECT h FROM dual;',
   'END;'
 ].join('\n')
 

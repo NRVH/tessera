@@ -6,6 +6,7 @@
 // =============================================================================
 
 import { buildAgentLaunchCommand, buildHostAgentLaunchCommand } from '../lineaArranqueAgente'
+import { briefingCompuesto } from '../briefingCompuesto'
 import { claveSesionAgente } from '../../../shared/db-ipc'
 import { escribirBloqueSandbox } from '../sandboxMemory'
 import { AGENTES_DISPONIBLES, type Agente, type Profile } from '../../profiles/types'
@@ -149,7 +150,8 @@ async function abrirEnContenedor(
     n.sshSetup,
     req.resumeSessionId,
     extraEnv,
-    n.getDbBriefing(profile.id, req.projectHostPath, req.dbConnectionIds ?? [])
+    // En Docker también hay `tssh` (por el buzón del puente), así que va el de SSH detrás del de bases.
+    briefingCompuesto(n.getDbBriefing(profile.id, req.projectHostPath, req.dbConnectionIds ?? []), n.getSshBriefing(profile.id))
   )
   const session = await n.terminals.createSession(profile, {
     project: req.projectHostPath,
@@ -221,12 +223,9 @@ async function abrirNativo(
   n.log(`open() [NATIVO] perfil=${profile.id} agente=${agente} proyecto=${req.projectHostPath} bd=${dbIds.length}`)
   // El candado va lo primero, antes de acuñar tokens o entornos que la espera envejecería.
   await n.esperarCandado(agente)
-  const launch = buildHostAgentLaunchCommand(
-    n.binaries[agente],
-    agente,
-    req.resumeSessionId,
-    n.getDbBriefing(profile.id, req.projectHostPath, dbIds)
-  )
+  // El de bases tal cual delante y, detrás, el de SSH: en nativo el agente tiene `tssh` en el PATH.
+  const briefing = briefingCompuesto(n.getDbBriefing(profile.id, req.projectHostPath, dbIds), n.getSshBriefing(profile.id))
+  const launch = buildHostAgentLaunchCommand(n.binaries[agente], agente, req.resumeSessionId, briefing)
   const extraEnv = n.getHostEnv(profile.id, req.projectHostPath, dbIds)
   const session = await n.terminals.createSession(profile, {
     project: req.projectHostPath,

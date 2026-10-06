@@ -195,8 +195,8 @@ hr('(7) La línea completa del agente en contenedor')
     'sin saltos dentro del argumento'
   )
 
-  // Codex no tiene equivalente de --append-system-prompt: mismo límite, ya documentado,
-  // que en modo nativo. Lo que NO puede pasar es que se le cuele el flag de CC.
+  // Codex no tiene --append-system-prompt: el aviso le llega por `-c developer_instructions=…`.
+  // Lo que NO puede pasar es que se le cuele el flag de CC.
   const codex = buildAgentLaunchCommand(
     'codex',
     'codex',
@@ -207,9 +207,9 @@ hr('(7) La línea completa del agente en contenedor')
     BRIEFING
   )
   check(
-    'a Codex no se le pasa un flag que no tiene',
-    !codex.includes('--append-system-prompt'),
-    'correcto'
+    'a Codex no se le pasa un flag que no tiene, y sí su -c developer_instructions',
+    !codex.includes('--append-system-prompt') && codex.includes('developer_instructions=Avisos de Tessera: ') && /exec codex resume \S+ -c /.test(codex),
+    codex.slice(codex.indexOf('exec codex'), codex.indexOf('exec codex') + 80)
   )
   check('pero sí su subcomando resume', codex.includes(`resume ${ID}`), `resume ${ID}`)
   check('y su token', codex.includes(`${ENV_SESION}='a1b2`), 'sí')

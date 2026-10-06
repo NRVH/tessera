@@ -2,15 +2,17 @@
 // ContextMenu: popover genérico anclado al cursor (position: fixed) que reutilizan el
 // explorador, las pestañas, el editor, la sección de cambios de git y las cuentas de agente.
 // Se cierra con mousedown global o Escape; el propio menú detiene el mousedown para que
-// clicar una opción no lo cierre antes de disparar su acción. Se enfoca al abrirse y usa
-// roles ARIA de menú. Depende de `contextMenuModel`, `contextMenuEstilos` y `useNavegacionMenu`.
+// clicar una opción no lo cierre antes de disparar su acción. Se enfoca al abrirse (en la
+// primera opción) y, con `disparador`, devuelve el foco al
+// botón que lo abrió. Usa roles ARIA de menú. Depende de `contextMenuModel`,
+// `contextMenuEstilos` y `useNavegacionMenu`.
 // Decisiones: docs/decisiones/renderer/menu-contextual.md
 // =============================================================================
 
-import { useMemo, useRef } from 'react'
+import { useMemo, useRef, type RefObject } from 'react'
 import { ensureCtxStyles } from './contextMenuEstilos'
 import { isSeparator, normalizeEntries, type ContextMenuEntry, type ContextMenuItem } from './contextMenuModel'
-import { useNavegacionMenu, usePosicionMenu } from './useNavegacionMenu'
+import { useDevolverFoco, useNavegacionMenu, usePosicionMenu } from './useNavegacionMenu'
 
 // Los tipos y `SEP` viven en el modelo puro (testeable sin DOM); se reexportan aquí
 // para que los llamadores sigan importando todo desde './ContextMenu'.
@@ -22,6 +24,8 @@ interface ContextMenuProps {
   y: number
   items: ContextMenuEntry[]
   onClose: () => void
+  /** El botón que abrió el menú: al cerrarse, si el foco seguía en el menú, vuelve a él. */
+  disparador?: RefObject<HTMLElement>
 }
 
 interface OpcionesFila {
@@ -47,6 +51,7 @@ function renderOpcion(
       role={entry.checked !== undefined ? 'menuitemcheckbox' : 'menuitem'}
       aria-checked={entry.checked !== undefined ? entry.checked : undefined}
       disabled={entry.disabled}
+      title={entry.title}
       // tabIndex -1: el foco se gobierna con flechas desde el menú, no con Tab.
       tabIndex={-1}
       onClick={() => {
@@ -70,7 +75,7 @@ function renderOpcion(
   )
 }
 
-export function ContextMenu({ x, y, items, onClose }: ContextMenuProps): React.JSX.Element {
+export function ContextMenu({ x, y, items, onClose, disparador }: ContextMenuProps): React.JSX.Element {
   ensureCtxStyles()
 
   const entries = useMemo(() => normalizeEntries(items), [items])
@@ -86,6 +91,7 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps): React.J
 
   const pos = usePosicionMenu(menuRef, x, y, entries.length)
   useNavegacionMenu(entries, menuRef, itemRefs, onClose)
+  useDevolverFoco(menuRef, disparador)
 
   return (
     <div

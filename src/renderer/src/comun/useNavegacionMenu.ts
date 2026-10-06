@@ -1,12 +1,28 @@
 // =============================================================================
-// Hooks de `ContextMenu`: posición acotada al viewport y navegación por teclado
-// (foco al abrir, flechas, Inicio/Fin y Escape). Se llaman desde el propio componente,
-// en este orden, para que los efectos corran como corrían dentro de él.
-// Depende de `contextMenuModel.ts`.
+// Hooks de `ContextMenu`: posición acotada al viewport, navegación por teclado (foco al
+// abrir en la primera opción, flechas, Inicio/Fin y Escape) y la devolución del
+// foco al disparador al cerrarse. Se llaman desde el propio componente, en este orden, para
+// que los efectos corran como corrían dentro de él. Depende de `contextMenuModel.ts`.
 // =============================================================================
 
 import { useEffect, useLayoutEffect, useMemo, useState, type MutableRefObject, type RefObject } from 'react'
 import { focusableIndices, type ContextMenuEntry } from './contextMenuModel'
+
+/**
+ * Al cerrarse el menú, si el foco seguía DENTRO de él, vuelve al disparador (el botón que lo
+ * abrió). Es un efecto de layout a propósito: su limpieza corre antes de que React quite el
+ * DOM del menú, cuando el foco aún está en él; después ya habría caído en `<body>`. Si el
+ * foco se había ido a otro sitio (un clic fuera en un campo) no se toca.
+ */
+export function useDevolverFoco(menuRef: RefObject<HTMLDivElement>, disparador?: RefObject<HTMLElement>): void {
+  useLayoutEffect(
+    () => () => {
+      const menu = menuRef.current
+      if (menu && menu.contains(document.activeElement)) disparador?.current?.focus({ preventScroll: true })
+    },
+    [menuRef, disparador]
+  )
+}
 
 /** Posición efectiva del menú: parte de (x, y) y, tras medir, se acota al viewport con 8px de margen. */
 export function usePosicionMenu(
@@ -51,7 +67,8 @@ export function useNavegacionMenu(
     return focusable.findIndex((i) => itemRefs.current[i] === active)
   }
 
-  // Al abrirse el foco entra en el menú; sin ítems enfocables se enfoca el contenedor para que Esc siga valiendo.
+  // Al abrirse el foco entra en la primera opción; sin ítems enfocables se enfoca el contenedor
+  // para que Esc siga valiendo.
   useEffect(() => {
     if (focusable.length > 0) focusAt(0)
     else menuRef.current?.focus()

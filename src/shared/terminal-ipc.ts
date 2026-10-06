@@ -1,14 +1,21 @@
 // =============================================================================
 // Contrato IPC de la terminal de la interfaz (main <-> preload <-> UI); node-pty y los servicios
-// viven siempre en el main.
-// invoke (renderer -> main): OPEN, BOOTSTRAP_SESSION, RELOAD, CLOSE. send (renderer -> main):
-// WRITE, RESIZE, FLOW.
-// send (main -> renderer): DATA, EXIT.
+// viven siempre en el main. Sirve a las dos clases de sesión: la del shell del proyecto (OPEN) y la
+// de una conexión SSH del perfil (OPEN_SSH, en el pty del host); el resto de canales es común.
+// invoke (renderer -> main): OPEN, OPEN_SSH, BOOTSTRAP_SESSION, RELOAD, CLOSE. send (renderer -> main):
+// WRITE, RESIZE, FLOW. send (main -> renderer): DATA, EXIT (con `reason` si una SSH salió con 255).
+// Hermanos: `agent-terminal-ipc.ts` (terminal del agente) y `ssh-ipc.ts` (registro de conexiones).
 // =============================================================================
 
 export const TERMINAL_CHANNELS = {
   /** invoke: abre una sesión de terminal. OpenTerminalRequest -> OpenTerminalResult. */
   OPEN: 'terminal:open',
+  /**
+   * invoke: abre una conexión SSH del perfil en el pty del HOST (sin shell delante), aunque el
+   * proyecto sea de Docker. OpenSshRequest -> OpenTerminalResult con `projectHostPath` y
+   * `workspacePath` vacíos. Se recarga por RELOAD («Reconectar», con los datos vigentes de la conexión).
+   */
+  OPEN_SSH: 'terminal:openSsh',
   /**
    * invoke: bootstrap de la sesión de terminal (checkDocker -> ensureContainer
    * (Alfa) -> addProject(proyecto de prueba) -> createSession). Sin argumentos.
@@ -66,6 +73,12 @@ export interface OpenTerminalRequest {
   dbConnectionIds?: string[]
 }
 
+/** Petición para abrir una conexión SSH guardada: la conexión tiene que ser de ese perfil. */
+export interface OpenSshRequest {
+  profileId: string
+  conexionId: string
+}
+
 /** Respuesta al abrir una terminal: identidad de la sesión y su cwd neutro. */
 export interface OpenTerminalResult {
   /** Id estable de la sesión; se conserva a través de reload en el TerminalService. */
@@ -116,9 +129,21 @@ export interface TerminalDataMessage {
   data: string
 }
 
+/**
+ * Por qué terminó una sesión SSH que salió con 255 (el código de los fallos del propio ssh): la
+ * huella del servidor cambió, no se autenticó, no se llegó al servidor o se cortó la conexión, o
+ * no hubo algoritmos en común.
+ */
+export type TerminalExitReason = 'ssh-huella-cambiada' | 'ssh-autenticacion' | 'ssh-inalcanzable' | 'ssh-algoritmos'
+
 /** Evento main -> renderer cuando el shell termina (usuario `exit`, crash, etc.). */
 export interface TerminalExitMessage {
   sessionId: string
-  /** exitCode del shell; null si aún no se pudo determinar. */
+  /** exitCode del shell; -1 si el sistema no lo dio (ConPTY a veces avisa sin código). */
   exitCode: number | null
+  /**
+   * Solo en sesiones SSH, con exitCode 255 (en Windows también -1, que incluye la salida sin código)
+   * y si ssh dejó escrito por qué. Sin él, el 255 pudo darlo el comando remoto.
+   */
+  reason?: TerminalExitReason
 }

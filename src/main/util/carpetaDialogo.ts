@@ -24,6 +24,14 @@ export type DialogoCarpeta =
   | 'exportar-bd'
   /** Elegir o crear el archivo de una base de datos de archivo (SQLite). */
   | 'archivo-bd'
+  /** Elegir el archivo de clave de una conexión SSH (la primera vez, en `~/.ssh`). */
+  | 'clave-ssh'
+  /** Elegir el archivo `config` de OpenSSH del que importar conexiones SSH. */
+  | 'config-ssh'
+  /** La carpeta del equipo donde bajar desde el explorador SFTP. */
+  | 'sftp-descarga'
+  /** Lo que subir al servidor desde el explorador SFTP. */
+  | 'sftp-subida'
 
 /** ¿Se puede ofrecer `ruta` como carpeta inicial? Se inyecta para que el test no dependa del disco. */
 export type EsCarpeta = (ruta: string) => Promise<boolean>

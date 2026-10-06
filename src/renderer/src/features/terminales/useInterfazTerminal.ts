@@ -39,8 +39,11 @@ export interface InterfazTerminal {
   alClicDerecho: (e: MouseEvent) => void
 }
 
-/** Estado y acciones del buscador, las miniaturas, el menú contextual y el pegado. */
-export function useInterfazTerminal(refs: RefsTerminal): InterfazTerminal {
+/**
+ * Estado y acciones del buscador, las miniaturas, el menú contextual y el pegado. Con `soloTexto`
+ * (una sesión SSH) el pegado no manda rutas de archivos ni imágenes: solo texto.
+ */
+export function useInterfazTerminal(refs: RefsTerminal, soloTexto = false): InterfazTerminal {
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchResults, setSearchResults] = useState<ResultadosBusqueda | null>(null)
   const [imagePreviews, setImagePreviews] = useState<PastedImagePreview[]>([])
@@ -59,7 +62,7 @@ export function useInterfazTerminal(refs: RefsTerminal): InterfazTerminal {
   const pasteFromClipboard = (e?: ClipboardEvent): void => {
     const term = refs.term.current
     if (!term || !refs.session.current) return
-    void handleTerminalPaste(term, writeToPty, e, { onImagePreview: addImagePreview })
+    void handleTerminalPaste(term, writeToPty, e, { onImagePreview: addImagePreview, soloTexto })
   }
   const enfocar = (): void => refs.term.current?.focus()
   const closeSearch = (): void => cerrarBuscadorXterm(refs, setSearchResults, setSearchOpen)

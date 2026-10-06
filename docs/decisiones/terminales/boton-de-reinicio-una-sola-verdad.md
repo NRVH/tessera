@@ -19,8 +19,14 @@ Recuperarse de una caída en caliente sí existía, pero exige una sesión que l
   (verdad síncrona en un ref; el estado pintado va diferido).
 - Actualizar los agentes no añade un estado: entra como `reloading` con otra etiqueta.
 - Con la sesión atrasada el título del botón en reposo lo dice; la etiqueta sigue siendo el icono.
+- Los textos que dependen de qué se reinicia (`Reabrir`, `Reabriendo…` y los tooltips) son un parámetro
+  (`TextosBotonReinicio`) cuyo valor por defecto son los de siempre: una sesión SSH pasa los suyos y dice
+  «Reconectar» y «Reconectando…», sin Docker ni contenedor.
+- `bloqueo` deshabilita el botón aunque haya sesión y su texto es el tooltip: una conexión SSH eliminada no se
+  puede reconectar y el botón lo dice.
 
 ## Consecuencias
 
 - Colgar de nuevo el `disabled` de `!sessionId` reabre el fallo mudo (botón gris sin error).
 - La etiqueta crece solo cuando hay algo que decir (reintentar, reabrir, progreso).
+- Cambiar un texto de siempre cambia lo que leen las pruebas y las capturas: `test:reload-button` los fija.

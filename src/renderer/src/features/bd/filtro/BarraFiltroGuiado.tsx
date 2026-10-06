@@ -25,6 +25,7 @@ import {
   sinCondicion,
   type ColumnaFiltrable
 } from './modeloFiltro.ts'
+import { esDeUnaListaDeSelect } from '../../../comun/useDialogo'
 import './filtro.css'
 
 export interface BarraFiltroGuiadoProps {
@@ -300,6 +301,8 @@ export function BarraFiltroGuiado(p: BarraFiltroGuiadoProps): React.JSX.Element 
   // Intro en un campo o desplegable aplica; Esc pide volver a lo aplicado y sigue su camino.
   const tecla = (e: React.KeyboardEvent<HTMLDivElement>): void => {
     if (e.nativeEvent.isComposing) return
+    // Con la lista de un select desplegada, Intro elige y Esc la cierra: no son de la barra (burbujean desde el DOM).
+    if (esDeUnaListaDeSelect(e.target)) return
     const t = e.target as HTMLElement
     if (t.tagName !== 'INPUT' && t.tagName !== 'SELECT') return
     if (e.key === 'Enter' && !e.altKey && !e.shiftKey && !e.ctrlKey && !e.metaKey) {

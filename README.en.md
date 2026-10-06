@@ -67,9 +67,10 @@ sandbox, with an account that belongs to that workspace and only its projects in
   Settings, and any project can be switched between native and Docker from its tab. Agent
   credentials are mounted only while the agent runs. Database access goes through a small
   CLI that never shows the agent a password, and a connection can be made read-only for
-  agents.
-- **One window for all of it.** Editor, file explorer, Git, terminals and database
-  connections next to the agents, with a tab per workspace and a sub-tab per project.
+  agents. SSH connections work the same way: the agent reaches your servers with `tssh`
+  without seeing the password or the key.
+- **One window for all of it.** Editor, file explorer, Git, terminals, SSH connections and
+  database connections next to the agents, with a tab per workspace and a sub-tab per project.
 
 ## Download
 
@@ -120,6 +121,7 @@ after an update.
 | **Docker Desktop** | Only for sandbox mode. On Windows, with the WSL 2 backend. Tessera builds its sandbox image the first time a workspace needs it. |
 | **Claude Code** and/or **Codex** | Only for native mode: installed on your computer and signed in. In sandbox mode both come preinstalled in the image. |
 | **Git** | For the Git view, which runs on your computer. On macOS it comes with the Xcode Command Line Tools. |
+| **OpenSSH client** | For SSH connections. On Windows it is the optional feature "OpenSSH Client", installed by default on Windows 10 and 11 (if it is missing, Tessera uses the one that ships with Git and says so); on macOS it comes with the system. |
 | **Java** (optional) | To decompile `.class` files. Tessera ships two engines: CFR, which runs on Java 6 or later, and Vineflower, which needs Java 17 or later. It finds every Java runtime installed and uses the best one for each engine. |
 
 Linux is not supported yet.
@@ -254,6 +256,32 @@ you used to enter it.
   native mode (PowerShell on Windows, your login shell on macOS).
 - Find in the scrollback, copy and paste that behave like the platform expects, and
   GPU-accelerated rendering that you can turn off in Settings.
+- **Full screen**: the terminal takes the whole work area with a button or with
+  Ctrl+Shift+Enter (⇧⌘↩), without closing anything it covers.
+- **Terminal agent**: in full screen, the workspace's own agent sits to the right of the
+  terminal, with its own folder and history, to get help with your servers without
+  opening a project. Leaving full screen hides it without closing it.
+
+### SSH connections
+
+- **Each workspace's SSH connections**, named and in groups, open in terminal tabs that show
+  in all of its projects, and also with no project open. In full screen they stay pinned in
+  a rail on the left; otherwise, in the terminal's ▾, with the recent ones on top.
+- **Three ways in**: password, key file (`.pem` or OpenSSH, which Tessera keeps as a
+  protected copy without touching the original) or the system keys (the SSH agent and your
+  `.ssh` folder). The password and the key's passphrase are stored encrypted and supplied
+  automatically when connecting. "Test" checks the connection before saving it.
+- **Import from OpenSSH**: reads your `~/.ssh/config` (or a file you pick). With a single
+  `Host` it fills in the form; with several, it opens a review to choose which to import,
+  rename them, set the user and the group, and leave each one's password or key ready.
+- **SFTP explorer** for each connection in a tab: browse, create folders, rename, delete, and
+  upload and download files and folders (also by dropping them) with progress, cancellation
+  and confirmation before replacing.
+- **`tssh` for agents.** The agent of any project in the workspace, native or Docker, and the
+  terminal agent can list the connections, run commands and copy files with a small CLI,
+  `tssh`, by connection name. They never see the password or the key, and they only reach
+  servers whose fingerprint you already accepted. Each connection's "Available to agents"
+  checkbox decides whether they see it.
 
 ### Databases
 
@@ -305,11 +333,15 @@ on each platform, following each system's conventions.
 | Enter or leave the agent mosaic | Ctrl+Shift+M | ⇧⌘M |
 | Focus mosaic tile 1 to 6 | Ctrl+1 … Ctrl+6 | ⌘1 … ⌘6 |
 | Maximize or restore the focused tile | Ctrl+Shift+Enter | ⇧⌘↩ |
+| Full screen for the bottom panel (with focus in the terminal or in Git·Log) | Ctrl+Shift+Enter | ⇧⌘↩ |
 | Find in a terminal | Ctrl+F | ⌘F |
 | Copy in a terminal (with a selection) | Ctrl+C | ⌘C |
 | Paste in a terminal | Ctrl+V | ⌘V |
 | Open the selected item (explorer, database tree) | F4 or Enter | F4, ⌘↓ or Enter |
 | Delete the selected files | Delete | ⌘⌫ or Delete |
+
+With focus in a terminal, Ctrl+N on Windows belongs to the shell (it receives it as ^N) and
+does not create a file; on macOS ⌘N is not a control key and creates the file anyway.
 
 In the **Connections** view:
 
@@ -334,7 +366,8 @@ In the **Connections** view:
 | macOS | `~/Library/Application Support/Tessera` |
 
 That folder holds your workspaces, the open tabs, settings, the agent sign-ins used in
-sandbox mode, database connections (with encrypted passwords), saved consoles, Oracle
+sandbox mode, database connections (with encrypted passwords), SSH connections (with encrypted
+passwords, the protected copies of their keys and each server's fingerprints), saved consoles, Oracle
 Instant Client if you downloaded it, and logs. Writes are crash-safe, with a backup copy of each file.
 
 **Your projects are never copied.** Tessera opens them where they are; in sandbox mode it
@@ -361,6 +394,9 @@ whether to keep or delete your data, and an update never touches it.
   is governed by that provider and your account, not by Tessera.
 - **Database passwords** are stored encrypted with the system's secret store, and agents
   reach the databases through `tdb` without receiving them.
+- **SSH passwords and keys** follow the same path: encrypted with the system's secret store,
+  never in the environment or the logs, and agents reach the servers through `tssh` without
+  receiving them.
 
 ## Building from source
 
@@ -415,7 +451,8 @@ macOS the app is signed ad hoc automatically: you do not need an Apple developer
 ```
 
 - Electron, TypeScript and React, with electron-vite. Monaco for the editor, xterm.js and
-  node-pty for the terminals, the system's `git` binary for Git, and Docker for the sandbox.
+  node-pty for the terminals, the system's `git` binary for Git, the system's OpenSSH
+  client for SSH and SFTP, and Docker for the sandbox.
 - The editor, the explorer and Git run on your computer (they are your tools); the agents
   and their terminals run in the workspace's container, unless the project is native.
 - The interface runs with `contextIsolation` and `sandbox` enabled and talks to the main
@@ -433,6 +470,8 @@ src/
   renderer/   React interface, organized by feature
   shared/     IPC contracts and pure logic used by both sides
   tdb/        the database CLI that agents use
+  tssh/       the SSH connections CLI that agents use
+  askpass/    the helper that hands the saved password to the OpenSSH client
 docker/       the sandbox image
 e2e/          Playwright suite against the packaged app
 ```

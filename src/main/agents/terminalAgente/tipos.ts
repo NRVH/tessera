@@ -77,6 +77,8 @@ export interface AgentTerminalControllerOptions {
   getHostEnv?: EntornoHost
   /** Aviso de las bases montadas para el system prompt; null si no hay ninguna. */
   getDbBriefing?: BriefingBd
+  /** Aviso de las conexiones SSH del perfil (`tssh`), detrás del de bases; solo en nativo. null si no hay. */
+  getSshBriefing?: (profileId: string) => string | null
   /** Entorno de bases de datos del modo contenedor: token y ruta del buzón. */
   getContainerEnv?: EntornoContenedor
   /** Ata el token del puente que viaja en `extraEnv` a la sesión ya creada. */
@@ -147,6 +149,7 @@ export interface NucleoAgente {
   readonly sshSetup: SshSetup | null
   readonly getHostEnv: EntornoHost
   readonly getDbBriefing: BriefingBd
+  readonly getSshBriefing: (profileId: string) => string | null
   readonly getContainerEnv: EntornoContenedor
   readonly bindDbSession: (extraEnv: Record<string, string>, sessionId: string) => void
   readonly revokeDbSession: (sessionId: string) => void
@@ -197,6 +200,7 @@ export function crearNucleo(opts: AgentTerminalControllerOptions): NucleoAgente 
     binaries,
     sshSetup,
     ...bd,
+    getSshBriefing: opts.getSshBriefing ?? (() => null),
     eventos: opts.eventos,
     portapapeles: opts.portapapeles,
     anclas: opts.anclas ?? null,

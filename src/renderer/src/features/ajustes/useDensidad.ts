@@ -14,6 +14,9 @@ export interface Densidad {
   altoFilaGit: number
   altoCabeceraGit: number
   altoFilaBd: number
+  /** Alto de fila y de cabecera de la densidad BASE (la de la interfaz): lo que usan las listas del cromo, como las conexiones SSH. */
+  altoFilaBase: number
+  altoCabeceraBase: number
   varsExplorador: Record<string, string>
   varsGit: Record<string, string>
   varsBd: Record<string, string>
@@ -49,6 +52,8 @@ export function useDensidad(): Densidad {
     altoFilaGit: altoFila(fuenteGit),
     altoCabeceraGit: altoCabecera(fuenteGit),
     altoFilaBd: altoFila(fuenteBd),
+    altoFilaBase: altoFila(uiFontSize),
+    altoCabeceraBase: altoCabecera(uiFontSize),
     varsExplorador,
     varsGit,
     varsBd

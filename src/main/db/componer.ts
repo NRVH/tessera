@@ -15,6 +15,8 @@ import { escritorioDelSistema } from '../util/adaptadores/escritorio'
 import { emisorDeVentana, type EmisorEventos } from '../util/emisorEventos'
 import type { ReferenciasApp } from '../app/referencias'
 import type { PerfilesVivos } from '../profiles/types'
+import type { CandadoDeBorrado } from '../profiles/candadoDeBorrado'
+import type { LlegadaDePerfiles } from '../profiles/llegadaDePerfiles'
 import { loadWorkspaceSettings } from '../workspace/workspaceStateStore'
 import { ConnectionStore } from './ConnectionStore'
 import { cifradoDelSistema } from './adaptadores/cifradoSistema'
@@ -38,6 +40,10 @@ export interface DepsBd {
   refs: ReferenciasApp
   ipc: IpcMain
   perfiles: PerfilesVivos
+  /** El candado del borrado de cada perfil: preparar el espacio de datos lo espera. */
+  borrados: CandadoDeBorrado
+  /** La llegada de un perfil recién creado: preparar su espacio espera, con tope, al guardado que lo trae. */
+  llegada: LlegadaDePerfiles
 }
 
 /** Conexiones de BD; las de perfiles borrados se podan sin cortar el arranque si falla. */
@@ -73,6 +79,8 @@ function crearDbController({ refs, perfiles }: DepsBd, dbConnections: Connection
       guardar: (dialogo, nombre, opciones, donde) =>
         guardarConDialogo(dialogo, nombre, opciones, { ...donde, ventana: refs.ventana })
     },
+    // El espacio de datos de un perfil borrado va a la papelera, nunca en firme.
+    papelera: (ruta) => shell.trashItem(ruta),
     // Regenera el CLAUDE.md del espacio de datos del perfil tras cada cambio.
     onChanged: (profileId) => {
       const perfil = perfiles.lista.find((p) => p.id === profileId)
@@ -177,7 +185,7 @@ function crearExploradorBd(
 export function componerBd(deps: DepsBd): DbController {
   const dbConnections = crearConexionesBd(deps.perfiles)
   const dbController = crearDbController(deps, dbConnections)
-  registrarIpcBd({ ipc: deps.ipc, bd: dbController })
+  registrarIpcBd({ ipc: deps.ipc, bd: dbController, borrados: deps.borrados, perfiles: () => deps.perfiles.lista, llegada: deps.llegada })
   deps.refs.bd = dbController
   const exploradorBd = crearExploradorBd(deps, dbConnections, dbController)
   // Cada uno necesita al otro: el registro recibe los ganchos en cuanto el explorador existe.

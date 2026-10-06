@@ -22,8 +22,8 @@ import {
 import { formatoDuracion } from './consola/marcasConsola'
 import { cantidad } from './consola/salidaConsola'
 import { IconoEliminar } from '../../comun/iconosMenu'
-import { HUECO, MARGEN, recolocar, type PosicionPopover } from './consola/popoverFlotante'
-import { useCierreYFoco } from './consola/usePopoverFlotante'
+import { HUECO, MARGEN, recolocar, type PosicionPopover } from '../../comun/popoverFlotante'
+import { useCierreYFoco } from '../../comun/usePopoverFlotante'
 import { teclaHistorial, useHistorialConsultas, type HistorialConsultasProps } from './consola/useHistorialConsultas'
 
 const ANCHO = 600

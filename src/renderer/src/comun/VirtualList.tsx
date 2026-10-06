@@ -29,6 +29,8 @@ interface VirtualListProps<T> {
   getKey: (item: T, index: number) => string
   /** Filas extra montadas fuera de vista a cada lado (anti-parpadeo). Def. 6. */
   overscan?: number
+  /** Id del contenedor que scrollea: lo que nombra `aria-controls` de un filtro que gobierna la lista. */
+  id?: string
   className?: string
   ariaLabel?: string
   /**

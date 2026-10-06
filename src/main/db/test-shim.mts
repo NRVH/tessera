@@ -128,6 +128,51 @@ console.log('\nAtajos por plataforma\n')
   comprobar('Linux se comporta como macOS, no como Windows', otra.length === 1)
 }
 
+// --- Un usuario con «ñ» (C:\Users\Muñoz) --------------------------------------
+// PowerShell 5.1 lee un `.ps1` sin BOM en la página ANSI y cmd lee el `.cmd` en la OEM: la ruta
+// horneada llegaba cambiada. El `.ps1` va con BOM y el `.cmd` nombra la carpeta por su variable.
+
+console.log('\nUn usuario con «ñ» en la ruta\n')
+{
+  const B = String.fromCharCode(92)
+  const local = ['C:', 'Users', 'Muñoz', 'AppData', 'Local'].join(B)
+  const formas = generarShims({ exe: local + B + 'Programs' + B + 'Tessera.exe', script: local + B + 'Programs' + B + 'tdb.cjs', sello: 'T', env: { LOCALAPPDATA: local } }, 'windows')
+  const ps1 = formas.find((s) => s.nombre === 'tdb.ps1')!.contenido
+  const cmd = formas.find((s) => s.nombre === 'tdb.cmd')!.contenido
+  comprobar('el .ps1 empieza por el BOM', ps1.charCodeAt(0) === 0xfeff)
+  comprobar(
+    'el .cmd no lleva la «ñ»: las dos rutas van por %LOCALAPPDATA%',
+    [...cmd].every((c) => c.charCodeAt(0) < 0x80) && cmd.includes(`TESSERA_EXE=%LOCALAPPDATA%${B}Programs${B}Tessera.exe`) && cmd.includes(`TESSERA_TDB=%LOCALAPPDATA%${B}Programs${B}tdb.cjs`),
+    cmd.split('\r\n').filter((l) => l.includes('set "TESSERA_')).join(' | ')
+  )
+
+  // De verdad: una carpeta «Muñoz» con un guion que solo saluda, sin TESSERA_EXE ni TESSERA_TDB en
+  // el entorno, así que mandan las rutas horneadas.
+  if (!esWindows()) {
+    saltar('el atajo con «ñ» de verdad en PowerShell y cmd', 'solo en Windows')
+  } else {
+    const raizÑ = mkdtempSync(path.join(tmpdir(), 'tessera-shim-ñ-'))
+    const localÑ = path.join(raizÑ, 'Muñoz', 'AppData', 'Local')
+    const dirGuion = path.join(localÑ, 'Programs', 'tdb')
+    const binÑ = path.join(raizÑ, 'bin')
+    mkdirSync(dirGuion, { recursive: true })
+    mkdirSync(binÑ, { recursive: true })
+    writeFileSync(path.join(dirGuion, 'eco.cjs'), "process.stdout.write('eco-ñ:' + process.argv.slice(2).join(',') + '\\n')\n")
+    const generados = generarShims({ exe: process.execPath, script: path.join(dirGuion, 'eco.cjs'), sello: 'T', env: { LOCALAPPDATA: localÑ } }, 'windows')
+    for (const { nombre, contenido } of generados) writeFileSync(path.join(binÑ, nombre), contenido)
+    const sinRutas = { ...process.env, TESSERA_EXE: undefined, TESSERA_TDB: undefined, LOCALAPPDATA: localÑ, PATH: `${binÑ}${path.delimiter}${process.env.PATH ?? ''}`, Path: undefined } as NodeJS.ProcessEnv
+    for (const [shell, args] of [
+      ['powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', 'tdb a b']],
+      ['cmd.exe', ['/d', '/c', 'tdb a b']]
+    ] as const) {
+      const r = spawnSync(shell, [...args], { env: sinRutas, encoding: 'utf-8', timeout: 120_000, windowsHide: true })
+      const salida = `${r.stdout ?? ''}${r.stderr ?? ''}`
+      comprobar(`${shell}: el atajo arranca el guion de la carpeta «Muñoz»`, r.status === 0 && salida.includes('eco-') && salida.includes(':a,b'), salida.slice(0, 300))
+    }
+    rmSync(raizÑ, { recursive: true, force: true })
+  }
+}
+
 // --- Ejecución real ----------------------------------------------------------
 
 const tdbCjs = path.join(process.cwd(), 'src', 'tdb', 'tdb.cjs')
@@ -1333,9 +1378,8 @@ if (!shellTextos) {
     },
     { ...BASE, id: 'f8', alias: 'F8', motor: 'sqlserver', host: 'h', port: 1433, tls: { cifrar: true, confiarCertificado: true } },
     // MongoDB y Redis SIN usuario ni base (los dos opcionales en su
-    // motor), y un MongoDB con cifrado, `srv` y `opcionesUri`. La huella es la misma fórmula
-    // (`srv` y `opcionesUri` no entran en ella: el contrato no la cambia), así que
-    // lo que se fija es que las dos copias den lo mismo también con los campos AUSENTES.
+    // motor), y un MongoDB con cifrado, `srv` y `opcionesUri` (que entran en la huella como una
+    // lista más, solo si vienen): las dos copias dan lo mismo con los campos AUSENTES y con ellos.
     { ...BASE, id: 'f9', alias: 'F9', motor: 'mongodb', host: 'mongo.lan', port: 27017, database: undefined, user: undefined },
     { ...BASE, id: 'f10', alias: 'F10', motor: 'redis', host: 'redis.lan', port: 6379, database: undefined, user: undefined },
     {
@@ -1375,7 +1419,9 @@ if (!shellTextos) {
     ...(c.instancia !== undefined ? { instancia: c.instancia } : {}),
     ...(c.autenticacion !== undefined ? { autenticacion: c.autenticacion } : {}),
     ...(c.dominio !== undefined ? { dominio: c.dominio } : {}),
-    ...(c.tls !== undefined ? { tls: c.tls } : {})
+    ...(c.tls !== undefined ? { tls: c.tls } : {}),
+    ...(c.srv !== undefined ? { srv: c.srv } : {}),
+    ...(c.opcionesUri !== undefined ? { opcionesUri: c.opcionesUri } : {})
   })
   // Puro: la huella de un destino de red SIN los campos de SQL Server es la de antes al
   // byte (la fórmula de seis valores), y con ellos cambia si cambia cualquiera, también solo
@@ -1409,6 +1455,15 @@ if (!shellTextos) {
   comprobar(
     'huella: cambiar la instancia, la autenticación, el dominio o el cifrado (o quitarlo) la cambia',
     variantes.every((v) => huellaDestino(destinoDe(v)) !== huellaDestino(destinoDe(f7))),
+    ''
+  )
+  // MongoDB: con `srv` el host es un nombre DNS que lleva a otros servidores, y las opciones cambian
+  // cómo se autentica (`authSource`, `authMechanism`): cambiar cualquiera de los dos cambia la huella.
+  const f11 = FORMAS[10]
+  const variantesMongo = [{ ...f11, srv: undefined }, { ...f11, srv: false }, { ...f11, opcionesUri: 'authMechanism=PLAIN' }, { ...f11, opcionesUri: undefined }]
+  comprobar(
+    'huella: en MongoDB, cambiar o quitar `srv` o las opciones de la URI la cambia',
+    f11.id === 'f11' && variantesMongo.every((v) => huellaDestino(destinoDe(v)) !== huellaDestino(destinoDe(f11))),
     ''
   )
   const paridad = jsonDe(correr(shellTextos, 'tdb doctor --json', undefined, conHuellas((c) => huellaDestino(destinoDe(c)))).out)

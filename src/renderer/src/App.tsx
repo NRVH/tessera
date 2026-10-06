@@ -7,6 +7,7 @@
 // Decisiones: docs/decisiones/layout/estructura-de-la-ventana.md
 // =============================================================================
 import { useShallow } from 'zustand/react/shallow'
+import { CapaFlotante } from './comun/capaFlotante'
 import { Toaster } from './comun/Toaster'
 import { useZonaEnfocada } from './util/zonaEnfocada'
 import { contarRender } from './util/contadorRenders'
@@ -20,17 +21,21 @@ import {
   PanelLateral,
   RielActividad,
   ShutdownOverlay,
+  clasesPantallaCompleta,
+  useAtajoPantallaCompleta,
   useAtajosGlobales,
   useEstiloShell,
-  usePantallaCompletaGit,
+  usePantallaCompletaFranja,
   useTamanos,
   useVistasPorPerfil
 } from './features/layout/app'
 import { AreaEditor, useEditorApp, useRecargaEnVivo } from './features/editor/app'
 import { useTerminalesApp } from './features/terminales/app'
+import { useConexionesSsh } from './features/ssh/app'
 import {
   ColumnaAgente,
   useActividadAgentes,
+  useAgenteTerminal,
   useAgentesApp,
   useAutoHibernacion,
   useAvisosSandbox,
@@ -54,18 +59,19 @@ function usePrimerosDeLaVentana() {
   const columna = useColumnaAgente(editor, tabs)
   const densidad = useDensidad()
   const espacios = useEspaciosDatos(tabs)
-  const modo = useModoProyecto(espacios.esEspacioDeDatos)
+  const agenteTerminal = useAgenteTerminal(tabs)
+  const modo = useModoProyecto(espacios.esEspacioDeDatos, agenteTerminal.esCarpetaAgenteTerminal)
   const tamanos = useTamanos(vistas.activeView, vistas.panelInferior)
-  const agentes = useAgentesApp(tabs, vistas, columna, espacios, editor.editorTabs.tabs.length > 0)
+  const agentes = useAgentesApp(tabs, vistas, columna, espacios, agenteTerminal, editor.editorTabs.tabs.length > 0)
   const actividad = useActividadAgentes(tabs, agentes, columna.ccHidden)
   const tintas = useTintasPerfil(tabs)
-  return { tabs, vistas, editor, terminales, columna, densidad, espacios, modo, tamanos, agentes, actividad, tintas }
+  return { tabs, vistas, editor, terminales, columna, densidad, espacios, agenteTerminal, modo, tamanos, agentes, actividad, tintas }
 }
 
 /** Los hooks de cada feature, en el orden que fija el de sus efectos (no se reordena). */
 function useFeaturesDeLaVentana() {
   const primeros = usePrimerosDeLaVentana()
-  const { tabs, vistas, editor, espacios, modo, agentes, actividad, tintas } = primeros
+  const { tabs, vistas, editor, espacios, agenteTerminal, modo, agentes, actividad, tintas } = primeros
   const mosaico = useMosaico(
     tabs,
     actividad,
@@ -83,12 +89,14 @@ function useFeaturesDeLaVentana() {
   const git = useEstadoGit(tabs, editor)
   const accionesGit = useAccionesGit(editor)
   useRecargaEnVivo(editor)
+  useConexionesSsh()
   usePersistenciaAjustes()
   const cambiarZoom = useAtajosGlobales({
     activeView: vistas.activeView,
     alternarPanelInferior: vistas.alternarPanelInferior,
     abrirPanelInferior: vistas.abrirPanelInferior,
     alternarAgenteDb: espacios.alternarAgenteDb,
+    alternarAgenteTerminal: agenteTerminal.alternar,
     nuevaConsolaEnContexto: bd.nuevaConsolaEnContexto,
     newUntitledTab: editor.newUntitledTab
   })
@@ -97,10 +105,18 @@ function useFeaturesDeLaVentana() {
   return { ...primeros, mosaico, sesiones, montajes, bd, puntos, git, accionesGit, cambiarZoom }
 }
 
+/**
+ * Las clases de `.shell`: el mosaico, la franja a pantalla completa y el agente de la terminal a la
+ * derecha de la terminal. Solo cambian el CSS: el árbol es el mismo en todos los modos.
+ */
+function claseDeShell(mosaico: boolean, clasesFranja: string, agenteTerminal: boolean): string {
+  return `shell${mosaico ? ' modo-mosaico' : ''}${clasesFranja}${agenteTerminal ? ' agente-terminal-visible' : ''}`
+}
+
 function App(): React.JSX.Element {
   contarRender('App')
   const f = useFeaturesDeLaVentana()
-  const { tabs, vistas, editor, terminales, columna, densidad, espacios, modo, tamanos, agentes, actividad } = f
+  const { tabs, vistas, editor, terminales, columna, densidad, espacios, agenteTerminal, modo, tamanos, agentes, actividad } = f
   const { tintas, mosaico, sesiones, montajes, bd, puntos, git, accionesGit, cambiarZoom } = f
   const zonaEnfocada = useZonaEnfocada()
   const apariencia = useStoreAjustes(
@@ -109,10 +125,11 @@ function App(): React.JSX.Element {
   const mosaicoActivo = useStoreMosaico((s) => s.mosaicoActivo)
   const lay = agentes.lay
   const shellStyle = useEstiloShell(tintas, tamanos, lay.divisorAgente)
-  const gitPantallaCompleta = usePantallaCompletaGit(lay.franja, mosaicoActivo)
+  const franjaPantallaCompleta = usePantallaCompletaFranja(lay.franja, mosaicoActivo)
+  useAtajoPantallaCompleta()
   // Lo que comparten el panel lateral y la franja inferior.
   const comun = { tabs, vistas, tamanos, densidad, editor, git }
-  const claseShell = `shell${mosaicoActivo ? ' modo-mosaico' : ''}${gitPantallaCompleta ? ' git-pantalla-completa' : ''}`
+  const claseShell = claseDeShell(mosaicoActivo, clasesPantallaCompleta(franjaPantallaCompleta), lay.agente === 'terminal')
 
   // Los dos modos solo cambian la clase: el árbol es el mismo dentro y fuera de ellos.
   return (
@@ -127,23 +144,29 @@ function App(): React.JSX.Element {
                 <PanelLateral {...comun} accionesGit={accionesGit} bd={bd} montajes={montajes} />
                 <AreaEditor editor={editor} gitStatusById={git.gitStatusById} densidad={densidad} editorAreaOculta={lay.editorOculto} />
                 <CentroBd bd={bd} enConexiones={vistas.enConexiones} oculta={lay.dbAreaOculta} densidad={densidad} />
-                <ColumnaAgente {...{ tabs, tamanos, agentes, columna, mosaico, actividad, modo, espacios, montajes, sesiones }} />
+                <ColumnaAgente
+                  {...{ tabs, tamanos, agentes, columna, mosaico, actividad, modo, espacios, agenteTerminal, montajes, sesiones }}
+                />
               </div>
               <FranjaInferior
                 {...comun}
                 lay={lay}
-                gitPantallaCompleta={gitPantallaCompleta}
+                franjaPantallaCompleta={franjaPantallaCompleta}
                 terminales={terminales}
                 tintasPorPerfil={tintas.tintasPorPerfil}
+                agenteTerminalVisible={agenteTerminal.visible}
               />
             </div>
           </div>
           <BarraEstadoApp
             {...{ lay, editor, enConexiones: vistas.enConexiones, agenteDbVisible: agentes.agenteDbVisible }}
             {...{ alternarAgenteDb: espacios.alternarAgenteDb, toggleCcHidden: columna.toggleCcHidden }}
+            alternarAgenteTerminal={agenteTerminal.alternar}
             tituloAgenteDiferido={columna.textosDiferido?.tituloConmutador ?? null}
             activeBranch={git.activeBranch}
           />
+          {/* Dentro de `.shell` y fuera de `.shell-main`: los menús y popovers pintados aquí heredan el color del perfil. */}
+          <CapaFlotante />
           <CapaModales {...{ tabs, editor, bd, sesiones, cambiarZoom }} perfilUI={vistas.perfilUI} />
           <ShutdownOverlay />
           <Toaster />

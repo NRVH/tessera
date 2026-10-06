@@ -1,22 +1,54 @@
 // =============================================================================
-// Contexto del agente para el espacio de datos de un perfil: escribe el bloque gestionado en el `CLAUDE.md`
-// y el `AGENTS.md` de su carpeta, que es una por perfil, así ninguna otra sesión lo ve. El texto lo genera
-// `agentMemoryBlock.ts`; aquí solo el sistema de archivos. Retira además el bloque que la primera versión
-// dejaba en la memoria global del usuario.
+// Contexto de los agentes propios de un perfil: escribe un bloque gestionado en el `CLAUDE.md` y el
+// `AGENTS.md` de su carpeta (el espacio de datos aquí; el agente de la terminal desde `ssh/`), así
+// ninguna otra sesión lo ve. El texto lo genera `agentMemoryBlock.ts`; aquí solo el sistema de archivos.
+// Retira además el bloque que la primera versión dejaba en la memoria global del usuario.
 // =============================================================================
-import { existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import { writeFileAtomicSync } from '../util/atomicWrite.ts'
 import { bloqueEspacioDatos, reemplazarBloque } from './agentMemoryBlock.ts'
 import type { DbConnection } from '../../shared/db-ipc.ts'
 
-/** Archivos de contexto que se escriben en la carpeta del espacio de datos. */
+/** Archivos de contexto de la carpeta de un agente propio: el de Claude Code y el de Codex. */
 const ARCHIVOS_CONTEXTO = ['CLAUDE.md', 'AGENTS.md']
 
+/** Las marcas del bloque gestionado; sin ellas, las del espacio de datos (`agentMemoryBlock.ts`). */
+export interface MarcasBloque {
+  inicio?: string
+  fin?: string
+}
+
 /**
- * Escribe/actualiza el contexto del espacio de datos de un perfil. Idempotente y sin
- * escrituras inútiles: si el contenido no cambia no se toca el archivo.
+ * Escribe `bloque` entre sus marcas en el `CLAUDE.md` y el `AGENTS.md` de `dir`, que ya existe: lo
+ * escriben el espacio de datos y el agente de la terminal (`ssh/controlador/espacioTerminal.ts`).
+ * Vía `reemplazarBloque` y no sobrescribiendo: lo que el usuario añada a mano fuera de las marcas se
+ * conserva. Sin escrituras inútiles: si el contenido no cambia, no se toca el archivo. No crea la
+ * carpeta: la crea quien la prepara, y crearla aquí resucitaría la de un perfil que se está borrando.
+ * Un archivo que falla se cuenta por `alFallar` con su NOMBRE y no impide el otro.
+ */
+export function escribirBloqueContexto(
+  dir: string,
+  bloque: string,
+  marcas: MarcasBloque,
+  alFallar: (nombre: string, err: unknown) => void
+): void {
+  for (const nombre of ARCHIVOS_CONTEXTO) {
+    const archivo = path.join(dir, nombre)
+    try {
+      const actual = existsSync(archivo) ? readFileSync(archivo, 'utf-8') : ''
+      const resultado = reemplazarBloque(actual, bloque, marcas.inicio, marcas.fin)
+      if (resultado === actual) continue
+      writeFileAtomicSync(archivo, resultado)
+    } catch (err) {
+      alFallar(nombre, err)
+    }
+  }
+}
+
+/**
+ * Escribe/actualiza el contexto del espacio de datos de un perfil, cuya carpeta ya existe.
  *
  * @param avisoFormato el aviso del main si el registro tiene un formato que esta versión
  *                     no reconoce o no se pudo leer, o `null`. OBLIGATORIO y no opcional
@@ -32,20 +64,7 @@ export function escribirContextoEspacio(
   log?: (m: string) => void
 ): void {
   const bloque = bloqueEspacioDatos(nombrePerfil, conexiones, avisoFormato)
-  for (const nombre of ARCHIVOS_CONTEXTO) {
-    const archivo = path.join(dir, nombre)
-    try {
-      const actual = existsSync(archivo) ? readFileSync(archivo, 'utf-8') : ''
-      // Vía `reemplazarBloque` y no sobrescribiendo: si añades notas tuyas a mano en
-      // este archivo, se conservan; solo se regenera el bloque entre marcadores.
-      const resultado = reemplazarBloque(actual, bloque)
-      if (resultado === actual) continue
-      mkdirSync(dir, { recursive: true })
-      writeFileAtomicSync(archivo, resultado)
-    } catch (err) {
-      log?.(`no se pudo escribir ${archivo}: ${String(err)}`)
-    }
-  }
+  escribirBloqueContexto(dir, bloque, {}, (nombre, err) => log?.(`no se pudo escribir ${path.join(dir, nombre)}: ${String(err)}`))
 }
 
 /**

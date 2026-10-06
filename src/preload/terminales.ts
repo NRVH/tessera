@@ -7,6 +7,7 @@ import { ipcRenderer } from 'electron'
 import {
   TERMINAL_CHANNELS,
   type OpenTerminalRequest,
+  type OpenSshRequest,
   type OpenTerminalResult,
   type WriteTerminalMessage,
   type ResizeTerminalMessage,
@@ -33,6 +34,11 @@ import {
 export interface TerminalApi {
   /** Abre una sesión anclada a un proyecto de un perfil. */
   open: (req: OpenTerminalRequest) => Promise<OpenTerminalResult>
+  /**
+   * Abre una conexión SSH guardada del perfil, en el pty del host. Se cierra y se reconecta con
+   * `close` y `reload` (sin teclear nada en la sesión); su EXIT puede traer `reason`.
+   */
+  openSsh: (req: OpenSshRequest) => Promise<OpenTerminalResult>
   /** Bootstrap de la sesión de terminal (perfil por defecto + proyecto de prueba). */
   bootstrapTerminalSession: () => Promise<OpenTerminalResult>
   /** Envía stdin al shell. */
@@ -124,6 +130,7 @@ export interface AgentTerminalApi {
 
 export const terminal: TerminalApi = {
   open: (req) => ipcRenderer.invoke(TERMINAL_CHANNELS.OPEN, req),
+  openSsh: (req) => ipcRenderer.invoke(TERMINAL_CHANNELS.OPEN_SSH, req),
   bootstrapTerminalSession: () => ipcRenderer.invoke(TERMINAL_CHANNELS.BOOTSTRAP_SESSION),
   write: (msg) => ipcRenderer.send(TERMINAL_CHANNELS.WRITE, msg),
   resize: (msg) => ipcRenderer.send(TERMINAL_CHANNELS.RESIZE, msg),

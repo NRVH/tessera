@@ -57,6 +57,12 @@ ellas entra en el alcance:
   solo lectura deben seguir siéndolo para los agentes. Filtrar una contraseña a un agente,
   saltarse la solo lectura, o usar desde fuera de Tessera el puente local con el que habla
   `tdb` es una vulnerabilidad.
+- **Las conexiones SSH y `tssh`.** Las contraseñas y las frases de las claves se cifran con
+  el almacén de secretos del sistema, las claves se guardan como copia protegida, y los
+  agentes entran por `tssh` sin recibirlas, solo en servidores cuya huella aceptó el usuario.
+  Filtrar una contraseña o una clave a un agente o a los registros, que `tssh` alcance una
+  conexión no disponible para los agentes o un destino distinto del guardado, o que un
+  contenedor haga escribir a Tessera fuera del buzón del puente es una vulnerabilidad.
 - **La frontera entre la interfaz y el proceso principal.** La interfaz corre aislada y nunca
   debe manejar rutas del equipo. Recorrer rutas fuera de un proyecto (path traversal), o una
   forma de que el contenido de un archivo (Markdown, HTML, SVG, PDF, una clase descompilada)

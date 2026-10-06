@@ -2974,16 +2974,19 @@ body {
   pointer-events: none;
 }
 
-/* GIT·LOG A PANTALLA COMPLETA: el panel de la franja ocupa el lienzo entero y la fila de
-   arriba (lateral, editor y agente) se apaga por la misma vía que en el mosaico: fuera del
-   flujo CON SU TAMAÑO (el que le deja la franja: su alto más los 6 px del divisor) y con
-   `content-visibility` + `visibility`. Así ni el editor ni las terminales cambian de
-   tamaño (ningún pty recibe un resize) y nada pierde su scroll; restaurar es quitar la
-   clase. Barra de título, bandas, riel y barra de estado viven fuera de `.shell-main`. */
-.shell.git-pantalla-completa .shell-main {
+/* LA FRANJA INFERIOR A PANTALLA COMPLETA (Git·Log o la terminal): el panel ocupa el lienzo
+   entero y la fila de arriba (lateral, editor y agente) se apaga por la misma vía que en el
+   mosaico: fuera del flujo CON SU TAMAÑO (el que le deja la franja: su alto más los 6 px del
+   divisor) y con `content-visibility` + `visibility`. Así ni el editor ni las terminales de
+   arriba cambian de tamaño (su pty no recibe un resize) y nada pierde su scroll; restaurar
+   es quitar la clase. El panel maximizado sí cambia: la terminal de abajo se reajusta sola.
+   Barra de título, bandas, riel y barra de estado viven fuera de `.shell-main`.
+   PROHIBIDO en `.shell-main`: `transform`, `filter`, `opacity`, `z-index`, `contain`,
+   `will-change` y `container-type` (docs/decisiones/layout/marco-y-lienzo.md). */
+.shell.franja-pantalla-completa .shell-main {
   position: relative;
 }
-.shell.git-pantalla-completa .shell-main-top {
+.shell.franja-pantalla-completa .shell-main-top {
   position: absolute;
   top: 0;
   left: 0;
@@ -2993,12 +2996,52 @@ body {
   visibility: hidden;
   pointer-events: none;
 }
-.shell.git-pantalla-completa .shell-main > .splitter {
+.shell.franja-pantalla-completa .shell-main > .splitter {
   display: none;
 }
-.shell.git-pantalla-completa .git-log-panel {
+.shell.franja-pantalla-completa :is(.git-log-panel, .terminal-panel) {
   flex: 1 1 auto;
   border-top: none;
+}
+
+/* EL AGENTE DE LA TERMINAL, a la derecha de la terminal a pantalla completa (`.agente-terminal-visible`,
+   que App pone cuando la columna es suya). NADA SE DESMONTA (desmontar un pane cierra su sesión) ni se
+   reparenta: `.shell-main` pasa a ser una rejilla de dos columnas, la terminal a la izquierda y, a la
+   derecha, la fila de arriba (`.shell-main-top`), que deja de apagarse entera —un `content-visibility`
+   en un antepasado no se puede anular desde un hijo— y, como en el mosaico, aparta a los hermanos de la
+   columna del agente salvo su divisor (`.splitter-agente`). Salir del modo es quitar las clases: todo
+   vuelve a su sitio con su scroll. PROHIBIDO en `.shell-main`, también aquí: `transform`, `filter`,
+   `opacity`, `z-index`, `contain`, `will-change` y `container-type` (docs/decisiones/layout/marco-y-lienzo.md). */
+.shell.agente-terminal-visible .shell-main {
+  display: grid;
+  /* La columna mide `--cc-width` (el ancho del agente de la terminal) más los 6 px de su divisor. */
+  grid-template-columns: minmax(0, 1fr) calc(var(--cc-width) + 6px);
+  grid-template-rows: minmax(0, 1fr);
+}
+.shell.agente-terminal-visible .terminal-panel {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+}
+.shell.agente-terminal-visible .shell-main-top {
+  position: relative;
+  inset: auto;
+  grid-column: 2;
+  grid-row: 1;
+  content-visibility: visible;
+  visibility: visible;
+  pointer-events: auto;
+}
+.shell.agente-terminal-visible .shell-main-top > :not(.right-panel):not(.splitter-agente) {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--sidebar-width);
+  content-visibility: hidden;
+  /* Como en el mosaico: `content-visibility` no pinta el contenido, pero la caja propia sí. */
+  visibility: hidden;
+  pointer-events: none;
 }
 
 /* La columna del agente, convertida en rejilla. Las plantillas llegan inline de
@@ -4360,6 +4403,11 @@ body {
   line-height: 1.45;
   color: var(--fg-faint);
 }
+/* Los botones de PromptDialog van tras el campo, su nota o su error: el mismo aire (18 px) que
+   deja `.modal-message` antes de los de ConfirmDialog; sin él tocarían el campo. */
+:is(.modal-input, .modal-hint, .modal-error) + .modal-actions {
+  margin-top: 18px;
+}
 
 /* ==========================================================================
    CONFIGURACIÓN: la cáscara del MODAL con riel de categorías, y las filas de dentro.
@@ -4398,7 +4446,8 @@ body {
      cuerpo) se ignoraba en silencio. Es el card y no un `@media` porque el card mide un
      porcentaje del viewport. `container-type` implica `contain`, que convierte en
      `absolute` cualquier `position: fixed` descendiente: aquí es seguro porque el modal
-     no abre menús ni popovers propios (el desplegable de fuente es nativo). */
+     no abre menús propios, y la lista de un select va a la capa superior, que `contain`
+     no alcanza (`comun/selectDesplegable.css`). */
   container-type: inline-size;
   container-name: ajustesmodal;
 }
@@ -4993,11 +5042,8 @@ body {
   padding: 0 6px;
   border: 1px solid var(--border-soft);
   border-radius: 7px;
-  /* `--bg-deep`, igual que `.ajustes-select`: es un `<select>` NATIVO, y el fondo de
-     un select lo reusa Chromium para pintar su desplegable. Con `transparent` el
-     popup cae al lienzo por defecto (claro) y las opciones, que heredan
-     `--fg-muted`, quedan ilegibles encima. El argumento de "sin cuerpo dentro del
-     modal" vale para el control cerrado, no para una lista que dibuja el navegador. */
+  /* `--bg-deep`, igual que `.ajustes-select`: se ve como los demás select del modal. La
+     lista no depende de este fondo (la pone `comun/selectDesplegable.css`). */
   background: var(--bg-deep);
   color: var(--fg-muted);
   font-size: calc(var(--ui-font) - 1px);
@@ -5867,31 +5913,28 @@ body {
   align-items: center;
   flex: 1 1 auto;
   min-width: 0;
-  /* Contenedor propio para poder callar la etiqueta desplegable de "Reiniciar" cuando
-     la zona se queda estrecha (ver abajo). Lo heredó del pie que alojaba antes ese
-     botón: al mudarlo aquí, su tope se quedó allí y hacía falta reponerlo. */
-  container-type: inline-size;
-  container-name: terminaltabs;
-  /* RECORTE DE SEGURIDAD, y no sobra: `container-type: inline-size` implica
-     contención de tamaño, así que esta zona deja de reservar sitio para lo que lleva
-     dentro (su base flexible pasa a resolverse a 0). Crece igual porque es `flex-grow:
-     1`, pero cuando la franja va justa ya no empuja: lo de dentro se saldría por
-     encima de las acciones de la cabecera, que no recorta. Con esto, en el peor caso
-     algo se corta en su sitio en vez de montarse sobre otra cosa. */
+  /* RECORTE DE SEGURIDAD, y no sobra: con la franja justa esta zona cede (`min-width: 0`) y,
+     si aun así lo de dentro no cabe, se corta en su sitio en vez de salirse por encima de las
+     acciones de la cabecera, que no recorta. */
   overflow: hidden;
 }
 
-/* EL NOMBRE DEL BOTÓN NO SE DESPLIEGA SI NO CABE.
-   El botón es `flex: 0 0 auto` y lo único que cede en esta zona son las pestañas, que
-   ya pueden encogerse hasta cero; pasado ese punto, la etiqueta al hover (~99 px) hace
-   desbordar el contenido y se monta sobre las acciones de la cabecera, que no tiene
-   `overflow: hidden`. Por debajo de este ancho manda el `title` nativo, que dice lo
-   mismo sin ocupar sitio. Es el mismo tope que tenía en el pie, en su casa nueva. */
-@container terminaltabs (max-width: 240px) {
-  .terminal-reload-btn .boton-reinicio-etiqueta,
-  /* Y el estado ("Reiniciando…", "Reintentar"…), que NO es la etiqueta del hover sino
-     texto fijo del botón. Sin esta segunda mitad la regla no servía justo cuando hace
-     falta: el botón sólo se ensancha de verdad mientras está trabajando. */
+/* EL NOMBRE DEL BOTÓN DE REINICIO NO SE DESPLIEGA SI NO CABE.
+   Vive en el grupo de acciones de la derecha, y lo único que cede en la cabecera es la zona de
+   pestañas, que ya puede encogerse hasta cero: pasado ese punto, la etiqueta al hover (~99 px)
+   haría desbordar el contenido. Por debajo de este ancho de CABECERA (el botón ya no cuelga de
+   la zona de pestañas, así que el contenedor es la cabecera) manda el `title` nativo, que dice
+   lo mismo sin ocupar sitio.
+   El umbral está MEDIDO (app empaquetada, cabecera de 300 a 900 px): las pestañas ceden desde
+   su ancho + ~321 px con la etiqueta (~216 sin ella): 1 pestaña a ~420 px, 3 a ~580, 5 a ~740.
+   560 px de contenedor (~580 de cabecera) cubre hasta tres: ver lanzador-de-conexiones.md. */
+.terminal-panel > .panel-header {
+  container-type: inline-size;
+  container-name: terminalcab;
+}
+@container terminalcab (max-width: 560px) {
+  /* El estado ("Reiniciando…", "Reintentar"…), que NO es la etiqueta del hover sino
+     texto fijo del botón: el botón sólo se ensancha de verdad mientras está trabajando. */
   .terminal-reload-btn .terminal-reload-estado {
     display: none;
   }
@@ -6085,15 +6128,18 @@ body {
    desaparecería en el fotograma cero; y a opacidad cero seguiría recibiendo clics. */
 :is(.terminal-panel, .agent-pane, .git-log-panel):not(:hover):not(:focus-within)
   :is(
-    .panel-actions .btn:not(.db-mount-btn),
+    /* `fijo`: a pantalla completa, las DOS salidas del modo (restaurar y ocultar o cerrar el panel) se
+       quedan a la vista juntas: una fija y la otra escondida se leen como una avería. `abierto`: el botón
+       cuyo menú o lista flotante está desplegado (va fuera del panel y le quita el foco). */
+    .panel-actions .btn:not(.db-mount-btn):not(.fijo):not(.abierto),
     /* MIENTRAS GIRA NO SE ESCONDE: ese icono deja de ser una acción y pasa a ser el
        ÚNICO aviso de que el historial se está recargando. Es la misma línea que ya
        exceptúa a la cuenta del agente y a las bases montadas — se esconden acciones,
-       no estado. Y el `fijo` (restaurar a pantalla completa) es la única salida del modo. */
+       no estado. Y el `fijo` (restaurar y cerrar a pantalla completa) tampoco: son las salidas del modo. */
     .panel-actions .git-icon-btn:not(.girando):not(.fijo),
     .panel-title-actions .btn,
     .panel-name-btn,
-    .terminal-tabs-add,
+    .terminal-tabs-add:not(.abierto),
     .terminal-reload-btn,
     .agent-pane-footer .btn
   ):not(.diff-header *) {
@@ -6136,6 +6182,25 @@ body {
   }
 }
 
+/* LOS FILETES DE LA CABECERA DE LA TERMINAL son de sus acciones: con ellas escondidas en
+   reposo no pueden quedarse solos, como dos rayas sin nada entre medias. Mismo fundido que
+   los botones (aparecer rápido, irse despacio) y mismo gesto para quien pide menos movimiento. */
+.terminal-panel .panel-header .panel-actions-sep {
+  transition: opacity 180ms ease;
+}
+/* El filete que sigue a un botón `fijo` (a pantalla completa, entre «Restaurar» y «Ocultar») tampoco se
+   funde: separa dos botones que se quedan a la vista y solo se vería la raya desaparecer. */
+.terminal-panel:not(:hover):not(:focus-within) .panel-header .panel-actions-sep:not(.fijo + .panel-actions-sep) {
+  opacity: 0;
+  transition: opacity 350ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .terminal-panel .panel-header .panel-actions-sep,
+  .terminal-panel:not(:hover):not(:focus-within) .panel-header .panel-actions-sep {
+    transition: none;
+  }
+}
+
 /* Aquí `.btn.btn-icon` se REDECLARABA con `padding: 4px 6px` y, por ir más abajo en
    la hoja, pisaba en silencio el `padding: 0` de `.btn-icon` para TODA la app. No era
    un ajuste: con `box-sizing: border-box`, `width: 24px` y `height: 24px`, esos 6 px
@@ -6154,9 +6219,9 @@ body {
 /* AQUÍ VIVÍA `.terminal-panel-footer`, la franja de 34 px que alojaba "Reiniciar"
    abajo-derecha. Se RETIRÓ con el elemento: existía para un solo botón, le quitaba
    alto a la consola —lo único que se mira en este panel— y dejaba el botón lejos de
-   la pestaña sobre la que actúa. El botón vive ahora junto al "+", en la fila de
-   pestañas. Con él se fue su container query (`terminalfooter`), que sólo servía
-   para callar la etiqueta cuando el PIE se estrechaba. */
+   la pestaña sobre la que actúa. El botón vive ahora en la cabecera, el primero del
+   grupo de acciones de la derecha. Con él se fue su container query (`terminalfooter`),
+   que sólo servía para callar la etiqueta cuando el PIE se estrechaba. */
 .terminal-reload-btn {
   height: 24px;
   flex: 0 0 auto;

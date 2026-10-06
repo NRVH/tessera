@@ -5,7 +5,7 @@
 // Decisiones: docs/decisiones/bd/puente-atajos-de-tdb.md
 // =============================================================================
 import { plataformaActual, type Plataforma } from '../../shared/plataforma.ts'
-import { citarPowerShell, citarSh } from '../../shared/citarShell.ts'
+import { citarPowerShell, citarSh, rutaParaCmd } from '../../shared/citarShell.ts'
 
 /**
  * Versión del contrato de los atajos: sube cuando cambia lo que el shim espera del entorno o cómo invoca
@@ -25,7 +25,12 @@ export interface ShimOpts {
   script: string
   /** Cuándo se escribió. `tdb doctor` lo muestra para detectar atajos ajenos. */
   sello: string
+  /** El entorno del main: las carpetas del usuario con que el `.cmd` escribe una ruta sin «ñ» (`rutaParaCmd`). */
+  env?: Readonly<Record<string, string | undefined>>
 }
+
+/** Marca de orden de bytes UTF-8: sin ella, PowerShell 5.1 lee el `.ps1` en la página ANSI y una «ñ» de la ruta llega cambiada. */
+const BOM = String.fromCharCode(0xfeff)
 
 /** Un atajo generado: nombre de archivo, contenido y fin de línea. */
 export interface ShimGenerado {
@@ -124,49 +129,52 @@ function shimSh({ exe, script, sello }: ShimOpts): string {
 
 /** Atajo para PowerShell: el de la terminal de Tessera, y el que tecleas tú. */
 function shimPs1({ exe, script, sello }: ShimOpts): string {
-  return [
-    `# Atajo generado por Tessera (contrato ${SHIM_DIR}, ${sello}).`,
-    '# Se reescribe en cada arranque: no lo edites.',
-    'param([Parameter(ValueFromRemainingArguments = $true)] $TdbArgs)',
-    'if ($null -eq $TdbArgs) { $TdbArgs = @() }',
-    '',
-    '# El entorno manda sobre la ruta horneada (ver el atajo `tdb` de sh).',
-    `$exe = if ($env:TESSERA_EXE) { $env:TESSERA_EXE } else { ${citarPowerShell(exe)} }`,
-    `$guion = if ($env:TESSERA_TDB) { $env:TESSERA_TDB } else { ${citarPowerShell(script)} }`,
-    '',
-    '# La consola pasa a UTF-8 SOLO durante la invocación: `tdb` escribe UTF-8 (acentos,',
-    '# los bordes de la tabla) pero una consola española arranca en CP850 y esos bytes',
-    '# se ven como "ÔöÇ". Restaurar es obligatorio: en esta misma terminal se corren',
-    '# herramientas legacy que SÍ emiten CP850, y dejarlas mal cambia un problema por otro.',
-    '$previaSalida = [Console]::OutputEncoding',
-    '# Se restaura TAMBIÉN ELECTRON_RUN_AS_NODE. Antes se quedaba pegado a la sesión, así',
-    '# que cualquier app de Electron lanzada luego desde esta misma terminal arrancaba',
-    '# como node —sin ventana— sin que nada explicara por qué.',
-    '$previoNode = $env:ELECTRON_RUN_AS_NODE',
-    '$previoShim = $env:TESSERA_SHIM',
-    '$codigo = $null',
-    'try {',
-    '  [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)',
-    '  $env:ELECTRON_RUN_AS_NODE = "1"',
-    '  # El atajo se identifica ante `tdb` (ver el equivalente en el atajo de sh).',
-    '  $env:TESSERA_SHIM = $PSCommandPath',
-    '  # `| Out-Host` NO es decorativo: el ejecutable es de subsistema GUI y PowerShell no',
-    '  # espera a esos —devuelve el prompt al instante y la salida cae después, encima de',
-    '  # lo que estés escribiendo—. Al canalizar, PowerShell lee hasta el fin del flujo, o',
-    '  # sea hasta que el proceso muere. `$LASTEXITCODE` sigue siendo el del proceso nativo.',
-    '  & $exe $guion @TdbArgs | Out-Host',
-    '  $codigo = $LASTEXITCODE',
-    '} finally {',
-    '  [Console]::OutputEncoding = $previaSalida',
-    '  $env:ELECTRON_RUN_AS_NODE = $previoNode',
-    '  $env:TESSERA_SHIM = $previoShim',
-    '}',
-    '# Si el proceso ni llegó a arrancar, $LASTEXITCODE se queda nulo y `exit $null`',
-    '# sería un error de PowerShell encima del error de verdad.',
-    'if ($null -eq $codigo) { $codigo = 1 }',
-    'exit $codigo',
-    ''
-  ].join('\r\n')
+  return (
+    BOM +
+    [
+      `# Atajo generado por Tessera (contrato ${SHIM_DIR}, ${sello}).`,
+      '# Se reescribe en cada arranque: no lo edites.',
+      'param([Parameter(ValueFromRemainingArguments = $true)] $TdbArgs)',
+      'if ($null -eq $TdbArgs) { $TdbArgs = @() }',
+      '',
+      '# El entorno manda sobre la ruta horneada (ver el atajo `tdb` de sh).',
+      `$exe = if ($env:TESSERA_EXE) { $env:TESSERA_EXE } else { ${citarPowerShell(exe)} }`,
+      `$guion = if ($env:TESSERA_TDB) { $env:TESSERA_TDB } else { ${citarPowerShell(script)} }`,
+      '',
+      '# La consola pasa a UTF-8 SOLO durante la invocación: `tdb` escribe UTF-8 (acentos,',
+      '# los bordes de la tabla) pero una consola española arranca en CP850 y esos bytes',
+      '# se ven como "ÔöÇ". Restaurar es obligatorio: en esta misma terminal se corren',
+      '# herramientas legacy que SÍ emiten CP850, y dejarlas mal cambia un problema por otro.',
+      '$previaSalida = [Console]::OutputEncoding',
+      '# Se restaura TAMBIÉN ELECTRON_RUN_AS_NODE. Antes se quedaba pegado a la sesión, así',
+      '# que cualquier app de Electron lanzada luego desde esta misma terminal arrancaba',
+      '# como node —sin ventana— sin que nada explicara por qué.',
+      '$previoNode = $env:ELECTRON_RUN_AS_NODE',
+      '$previoShim = $env:TESSERA_SHIM',
+      '$codigo = $null',
+      'try {',
+      '  [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)',
+      '  $env:ELECTRON_RUN_AS_NODE = "1"',
+      '  # El atajo se identifica ante `tdb` (ver el equivalente en el atajo de sh).',
+      '  $env:TESSERA_SHIM = $PSCommandPath',
+      '  # `| Out-Host` NO es decorativo: el ejecutable es de subsistema GUI y PowerShell no',
+      '  # espera a esos —devuelve el prompt al instante y la salida cae después, encima de',
+      '  # lo que estés escribiendo—. Al canalizar, PowerShell lee hasta el fin del flujo, o',
+      '  # sea hasta que el proceso muere. `$LASTEXITCODE` sigue siendo el del proceso nativo.',
+      '  & $exe $guion @TdbArgs | Out-Host',
+      '  $codigo = $LASTEXITCODE',
+      '} finally {',
+      '  [Console]::OutputEncoding = $previaSalida',
+      '  $env:ELECTRON_RUN_AS_NODE = $previoNode',
+      '  $env:TESSERA_SHIM = $previoShim',
+      '}',
+      '# Si el proceso ni llegó a arrancar, $LASTEXITCODE se queda nulo y `exit $null`',
+      '# sería un error de PowerShell encima del error de verdad.',
+      'if ($null -eq $codigo) { $codigo = 1 }',
+      'exit $codigo',
+      ''
+    ].join('\r\n')
+  )
 }
 
 /**
@@ -180,14 +188,14 @@ function shimPs1({ exe, script, sello }: ShimOpts): string {
  * posible. Ningún contenido del batch puede deshacerlo, así que lo correcto es fallar
  * ruidosamente y señalar la salida.
  */
-function shimCmd({ exe, script, sello }: ShimOpts): string {
+function shimCmd({ exe, script, sello, env }: ShimOpts): string {
   return [
     '@echo off',
     `rem Atajo generado por Tessera (contrato ${SHIM_DIR}, ${sello}).`,
     'rem Se reescribe en cada arranque: no lo edites.',
     'setlocal',
-    `if not defined TESSERA_EXE set "TESSERA_EXE=${exe}"`,
-    `if not defined TESSERA_TDB set "TESSERA_TDB=${script}"`,
+    `if not defined TESSERA_EXE set "TESSERA_EXE=${rutaParaCmd(exe, env)}"`,
+    `if not defined TESSERA_TDB set "TESSERA_TDB=${rutaParaCmd(script, env)}"`,
     'set "ELECTRON_RUN_AS_NODE=1"',
     'rem El atajo se identifica ante tdb (ver el equivalente en el atajo de sh).',
     'set "TESSERA_SHIM=%~f0"',

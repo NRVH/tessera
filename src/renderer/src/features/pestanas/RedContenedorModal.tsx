@@ -2,7 +2,7 @@
 // RedContenedorModal: diálogo con el que se elige por dónde entran y salen las conexiones
 // del contenedor de un perfil (red aislada o red del anfitrión), con el diagnóstico previo
 // que llega del main ya redactado (`redContenedor.prevuelo`). «Aplicar» nunca se deshabilita.
-// Depende de comun/AvisoCaja y de shared/nombresSistema; lo abre `ProfileTabs`.
+// Depende de comun/AvisoCaja, comun/useDialogo y de shared/nombresSistema; lo abre `ProfileTabs`.
 // Decisiones: docs/decisiones/renderer/red-del-contenedor.md
 // =============================================================================
 import { useEffect, useRef, useState } from 'react'
@@ -10,6 +10,7 @@ import type { Profile } from '../../../../main/profiles/types'
 import type { ResultadoRedPrevuelo } from '../../../../shared/sandbox-red-ipc'
 import { nombresSistema } from '../../../../shared/nombresSistema'
 import { AvisoCaja } from '../../comun/AvisoCaja'
+import { useDialogo } from '../../comun/useDialogo'
 
 interface RedContenedorModalProps {
   profile: Profile
@@ -68,20 +69,6 @@ function useRedPrevuelo(
       })
   }, [eleccion, profileId])
   return { prevuelo, midiendo }
-}
-
-/** Escape cierra el diálogo, aunque esté «comprobando…» mientras Docker contesta. */
-function useCerrarConEscape(onCancel: () => void): void {
-  useEffect(() => {
-    const alPulsar = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') {
-        e.stopPropagation()
-        onCancel()
-      }
-    }
-    window.addEventListener('keydown', alPulsar, true)
-    return () => window.removeEventListener('keydown', alPulsar, true)
-  }, [onCancel])
 }
 
 function ElegirRed({
@@ -207,18 +194,20 @@ export function RedContenedorModal({
   onAplicar,
   onCancel
 }: RedContenedorModalProps): React.JSX.Element {
+  // Esc cierra aunque esté «comprobando…» mientras Docker contesta: el modal no tiene ningún
+  // estado que impida abandonarlo (el prevuelo se descarta al desmontar), así que siempre `cerrable`.
+  const dlg = useDialogo({ onClose: onCancel })
   const n = nombresSistema(window.tessera.plataforma)
   const actual: Eleccion = profile.sandbox?.redHost === true ? 'anfitrion' : 'aislada'
   const [eleccion, setEleccion] = useState<Eleccion>(actual)
   const { prevuelo, midiendo } = useRedPrevuelo(profile.id, eleccion)
-  useCerrarConEscape(onCancel)
 
   const cambia = eleccion !== actual
   const conFallas = eleccion === 'anfitrion' && prevuelo?.hayFallas === true
 
   return (
     <div className="modal-overlay" onMouseDown={onCancel}>
-      <div className="modal-card red-modal" onMouseDown={(e) => e.stopPropagation()}>
+      <div ref={dlg.ref} className="modal-card red-modal" onMouseDown={(e) => e.stopPropagation()}>
         <div className="modal-title">Red del contenedor de “{profile.nombre}”</div>
         <div className="modal-message">
           Decide por dónde entran y salen las conexiones de este perfil. El cambio se aplica al

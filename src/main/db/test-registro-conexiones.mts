@@ -2137,6 +2137,7 @@ hr('(16) el borrado ceñido al PERFIL, y los fallos sin RUTAS del host')
     appDir: process.cwd(),
     eventos: eventosNulos,
     dialogos: dialogosNulos,
+    papelera: async () => {},
     onChanged: () => {},
     onConexionEditada: (previo) => void ganchos.push(`editada ${previo.id}`),
     onConexionBorrada: (id, perfil) => void ganchos.push(`borrada ${id} ${perfil}`),
@@ -2344,6 +2345,7 @@ hr('(17) «Probar» sin rutas del host, y la mitad del renderer del borrado')
     appDir,
     eventos: eventosNulos,
     dialogos: dialogosNulos,
+    papelera: async () => {},
     log: (l) => void lineasLog.push(l)
   })
   registrarIpcBd({ ipc: { handle: (canal: string, fn: (evento: unknown, req: unknown) => unknown) => void handlers.set(canal, fn) } as never, bd: ctrl })
@@ -2470,6 +2472,7 @@ hr('(18) la limpieza POR PERFIL del explorador, cableada como en la app')
     appDir: process.cwd(),
     eventos: eventosNulos,
     dialogos: dialogosNulos,
+    papelera: async () => {},
     onChanged: () => {},
     log: () => {}
   })
@@ -3171,6 +3174,32 @@ hr('(27) «Probar» en vuelo y «Guardar» a la vez: el resultado solo se apunta
   p5.soltar()
   const r5 = await p5.respuesta
   check('NEGATIVO: sin editar nada, la prueba buena verifica y recuerda el driver, como siempre', r5.ok && store.get(e.id)?.verificada === true && store.get(e.id)?.driverId === 'instantclient-19-win', estado(e.id))
+}
+
+hr('(28) El espacio de datos (WORKSPACE_ENSURE) solo se prepara para un perfil que el main conoce')
+{
+  const handlers = new Map<string, (evento: unknown, req: unknown) => unknown>()
+  const llamadas: string[] = []
+  const bd = {
+    ensureWorkspace: (id: string, nombre: string) => {
+      llamadas.push(`${id}|${nombre}`)
+      return { projectHostPath: `conexiones/${id}`, name: 'Datos' }
+    }
+  }
+  registrarIpcBd({
+    ipc: { handle: (canal: string, fn: (evento: unknown, req: unknown) => unknown) => void handlers.set(canal, fn) } as never,
+    bd: bd as never,
+    perfiles: () => [{ id: 'vivo', nombre: 'Vivo del main' }]
+  })
+  const asegurar = (req: unknown): ReturnType<typeof intentar<unknown>> => intentar(() => handlers.get(DB_CHANNELS.WORKSPACE_ENSURE)!({}, req))
+  const borrado = asegurar({ profileId: 'borrado', nombrePerfil: 'Borrado' })
+  check(
+    'un perfil que el main no tiene (recién borrado) NO recupera su conexiones/<id>',
+    !borrado.ok && borrado.error.includes('Ese perfil no existe') && !llamadas.some((l) => l.startsWith('borrado|')),
+    borrado.ok ? 'se preparó' : borrado.error
+  )
+  const vivo = asegurar({ profileId: 'vivo', nombrePerfil: 'Lo que diga el renderer' })
+  check('uno vivo sí, con el nombre del main y no el del renderer', vivo.ok && llamadas.includes('vivo|Vivo del main'), llamadas.join(' ; '))
 }
 
 rmSync(dir, { recursive: true, force: true })

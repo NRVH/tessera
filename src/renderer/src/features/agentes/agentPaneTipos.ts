@@ -11,6 +11,7 @@ import type { Agente } from '../../../../main/profiles/types'
 import type { OpenAgentTarget } from '../pestanas'
 import type { CeldaMosaico, OpcionMosaico } from '../mosaico'
 import type { ApiAgentePane } from './tipos'
+import type { LugarAgente } from './textosMontajeBases'
 
 /**
  * Lo que el MOSAICO le cuenta a una casilla. Ausente = vista normal (la cabecera de
@@ -125,10 +126,16 @@ export interface AgentTerminalPaneProps {
   /** ¿Están cargados los ajustes de donde sale `dbMounted`? Sin ellos no se abre sesión. */
   dbReady?: boolean
   /**
-   * ¿Es el agente del ESPACIO DE DATOS? Solo cambia cómo se nombra el sitio en la
-   * cabecera (ver `textosMontajeBases.ts`); no toca el montaje ni el arranque.
+   * Dónde vive: un proyecto, el espacio de datos o la carpeta del agente de la terminal.
+   * Solo cambia cómo se nombra el sitio en la cabecera (ver `textosMontajeBases.ts`);
+   * no toca el montaje ni el arranque. Por omisión, 'proyecto'.
    */
-  esEspacioDeDatos?: boolean
+  lugar?: LugarAgente
+  /**
+   * Cierra el agente (desmonta su pane, que cierra la sesión). Solo lo lleva el agente de la
+   * terminal: con él, la cabecera pinta «Cerrar el agente de la terminal».
+   */
+  onCerrar?: (profileId: string) => void
   /** Cuenta elegida para este target, o null (el pane no arranca y pide iniciar sesión). */
   selectedAccountId: string | null
   /** Fija la cuenta del target (elegir/cambiar). null limpia (queda sin cuenta). */
@@ -175,8 +182,14 @@ export interface AgentTerminalPaneProps {
 
 /** Props con sus valores por omisión aplicados y las banderas de visibilidad derivadas. */
 export interface PropsAgentPane
-  extends Required<Omit<AgentTerminalPaneProps, 'onSelectAgent' | 'onChangeDbMounted' | 'onStatusChange' | 'onVivoChange' | 'onApi' | 'enPantalla' | 'mostrado'>> {
+  extends Required<
+    Omit<
+      AgentTerminalPaneProps,
+      'onSelectAgent' | 'onChangeDbMounted' | 'onStatusChange' | 'onVivoChange' | 'onApi' | 'onCerrar' | 'enPantalla' | 'mostrado'
+    >
+  > {
   onSelectAgent?: (profileId: string, agente: Agente) => void
+  onCerrar?: (profileId: string) => void
   onChangeDbMounted?: (profileId: string, projectHostPath: string, ids: string[]) => void
   onStatusChange?: (key: string, status: AgentPaneStatus) => void
   onVivoChange?: (key: string, vivo: boolean) => void
@@ -193,14 +206,14 @@ export interface PropsAgentPane
   seEstaMirando: boolean
 }
 
-function defectosSesion(p: AgentTerminalPaneProps): Pick<PropsAgentPane, 'hostMode' | 'hibernated' | 'agentsInProfile' | 'dbMounted' | 'dbReady' | 'esEspacioDeDatos'> {
+function defectosSesion(p: AgentTerminalPaneProps): Pick<PropsAgentPane, 'hostMode' | 'hibernated' | 'agentsInProfile' | 'dbMounted' | 'dbReady' | 'lugar'> {
   return {
     hostMode: p.hostMode ?? false,
     hibernated: p.hibernated ?? false,
     agentsInProfile: p.agentsInProfile ?? [],
     dbMounted: p.dbMounted ?? [],
     dbReady: p.dbReady ?? true,
-    esEspacioDeDatos: p.esEspacioDeDatos ?? false
+    lugar: p.lugar ?? 'proyecto'
   }
 }
 

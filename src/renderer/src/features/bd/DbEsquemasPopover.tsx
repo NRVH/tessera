@@ -3,7 +3,7 @@
 // bases con el nivel «Bases». Se abre desde la insignia de la fila de la conexión o
 // desde su menú («Esquemas visibles…»). Enter o clic fuera aplican; Esc cancela. El
 // estado vive en `consola/useEsquemasPopover.ts` y lo común de los popovers, en
-// `consola/popoverFlotante.ts`; la casilla es la de git, con su CSS en `arbol.css`.
+// `comun/popoverFlotante.ts`; la casilla es la de git, con su CSS en `arbol.css`.
 // Decisiones: docs/decisiones/bd/ui-consola-popovers.md
 // =============================================================================
 
@@ -17,11 +17,11 @@ import { fuentePopover, TEXTOS_POPOVER, type NivelPopover, type TextosPopover } 
 import { Casilla } from '../git'
 import { VirtualList } from '../../comun/VirtualList'
 import { EstadoCargaPopover } from './consola/EstadoCargaPopover'
-import { FILAS_MAX, HUECO, recolocar, teclaPopover, type AnclaPopover, type PosicionPopover } from './consola/popoverFlotante'
-import { useCierreYFoco } from './consola/usePopoverFlotante'
+import { FILAS_MAX, HUECO, recolocar, teclaPopover, type AnclaPopover, type PosicionPopover } from '../../comun/popoverFlotante'
+import { useCierreYFoco } from '../../comun/usePopoverFlotante'
 import { useEsquemasPopover, type FilaPop } from './consola/useEsquemasPopover'
 
-export type { AnclaPopover } from './consola/popoverFlotante'
+export type { AnclaPopover } from '../../comun/popoverFlotante'
 // `BarraConsola` lo importa desde aquí: ver allí el porqué.
 export { SelectorEsquemaConsola } from './consola/SelectorEsquemaConsola'
 

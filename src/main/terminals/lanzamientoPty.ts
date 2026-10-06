@@ -1,11 +1,12 @@
 // =============================================================================
 // Lanzamiento del pty de una sesión de terminal: `docker exec -it` dentro del contenedor
 // del perfil (con el cwd neutro que resuelve el registro de montajes), o el shell nativo del
-// sistema en la ruta real del proyecto. Decide los argumentos y el entorno; el pty lo crea
-// `adaptadores/pty.ts`. Lo usa `TerminalService`.
+// sistema en la ruta real del proyecto, o un ejecutable propio sin shell delante (las sesiones
+// SSH). Decide los argumentos y el entorno; el pty lo crea `adaptadores/pty.ts`. Lo usa `TerminalService`.
 // Decisiones: docs/decisiones/terminales/pty-y-detencion-de-sesion.md
 // =============================================================================
 import type { IPty } from 'node-pty'
+import os from 'node:os'
 import path from 'node:path'
 import type { Profile } from '../profiles/types.ts'
 import type { SandboxManager } from '../sandbox/SandboxManager.ts'
@@ -89,4 +90,40 @@ export function lanzarPtyNativo(record: SessionRecord): IPty {
     cwd: record.workspacePath,
     env
   })
+}
+
+/** El entorno sin esas variables, sin distinguir mayúsculas (en Windows `Ssh_Askpass` es la misma). */
+function sinVariables(env: Record<string, string>, nombres: readonly string[]): Record<string, string> {
+  const fuera = new Set(nombres.map((n) => n.toUpperCase()))
+  return Object.fromEntries(Object.entries(env).filter(([k]) => !fuera.has(k.toUpperCase())))
+}
+
+/**
+ * Pty que lanza el ejecutable de la sesión DIRECTAMENTE, sin shell del sistema delante: así su
+ * código de salida llega intacto y sus argumentos no pasan por el citado de ninguna shell. Corre
+ * en el host con cwd en HOME y el entorno heredado menos `quitarEnv`, más `extraEnv`: lo propio
+ * sobrevive aunque se llame igual que lo que no se hereda (el programa de contraseñas de Tessera).
+ */
+export function lanzarPtyDirecto(record: SessionRecord): IPty {
+  const ejecutable = record.ejecutable
+  if (!ejecutable) throw new Error(`La sesión "${record.id}" no tiene un ejecutable propio que lanzar.`)
+  const env = mergeEnv(sinVariables(cleanEnv(), ejecutable.quitarEnv ?? []), record.extraEnv)
+  // Solo el nombre del ejecutable y cuántos argumentos: la línea lleva el destino de la conexión.
+  dbLog(
+    'pty',
+    `directa session=${record.id} archivo=${path.basename(ejecutable.archivo)} args=${ejecutable.args.length} ` +
+      `extraEnvKeys=${Object.keys(record.extraEnv ?? {}).length}`
+  )
+  return lanzarPty(ejecutable.archivo, ejecutable.args, {
+    cols: record.cols,
+    rows: record.rows,
+    cwd: os.homedir(),
+    env
+  })
+}
+
+/** El pty de una sesión según su tipo: un ejecutable propio, el shell nativo o `docker exec`. */
+export function lanzarPtyDeSesion(record: SessionRecord): IPty {
+  if (record.ejecutable) return lanzarPtyDirecto(record)
+  return record.host ? lanzarPtyNativo(record) : lanzarPtyDocker(record)
 }

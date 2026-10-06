@@ -25,6 +25,7 @@ import {
   type DriverProgress,
   type DriverStatus
 } from '../../shared/db-ipc'
+import type { APapelera } from '../util/carpetaDePerfil'
 import type { EmisorEventos } from '../util/emisorEventos'
 import type { ConnectionStore } from './ConnectionStore'
 import type { DriverManager } from './DriverManager'
@@ -35,9 +36,9 @@ import { EspacioDatos } from './controlador/espacioDatos'
 import { contextoDeDrivers, InvocadorTdb } from './controlador/invocacionTdb'
 import { MotoresDeArchivo, type DialogosBd } from './controlador/motoresDeArchivo'
 import { probarConexion } from './controlador/probarConexion'
-import { DbBridge } from './dbBridge'
+import { DbBridge, type PuertaPuente } from './dbBridge'
 import { dbLog } from './dbLog'
-import { DockerBridge } from './dockerBridge'
+import { DockerBridge, type PuertaBuzon } from './dockerBridge'
 import type { CtxDrivers } from './explorador/protocoloTrabajador'
 import { avisosDeDescartados, construirEntornoHost, registroParaDescartes } from './hostEnv'
 import { SHIM_DIR } from './shims'
@@ -69,6 +70,8 @@ export interface DbControllerOptions extends Partial<GanchosConexion> {
   eventos: EmisorEventos
   /** Diálogos nativos ya anclados a la ventana. */
   dialogos: DialogosBd
+  /** La papelera del sistema (`shell.trashItem`): adonde va el espacio de datos de un perfil borrado. */
+  papelera: APapelera
   /** Se llama tras cada alta, baja o edición; el main regenera con él la memoria de los agentes. */
   onChanged?: (profileId: string) => void
   /** Se ESPERA antes de instalar, registrar u olvidar un pack: el explorador cierra ahí los procesos que lo cargan. */
@@ -110,7 +113,7 @@ export class DbController {
     this.onChanged = opts.onChanged ?? (() => {})
     this.antesDeCambiarDriver = opts.antesDeCambiarDriver ?? (() => Promise.resolve())
     this.log = opts.log ?? ((m) => console.log(`[db] ${m}`))
-    this.espacio = new EspacioDatos(this.userDataDir, this.connections, this.log)
+    this.espacio = new EspacioDatos(this.userDataDir, this.connections, opts.papelera, this.log)
     this.archivos = new MotoresDeArchivo({
       connections: this.connections,
       tdbScriptDir: () => this.tdbScriptDir(),
@@ -185,6 +188,16 @@ export class DbController {
   /** Revoca lo que tuviera esa sesión. Llamar desde TODOS los caminos de cierre. */
   revocarSesion(sessionId: string): void {
     this.puente.revoke(sessionId)
+  }
+
+  /** La puerta del puente para otros dominios: registran sus operaciones (`ssh.*`) sin tocar el contrato de `tdb`. */
+  get puertaPuente(): PuertaPuente {
+    return this.puente
+  }
+
+  /** La puerta del buzón de Docker para otros dominios: registran su programa (`tssh`) junto a `tdb`. */
+  get puertaBuzon(): PuertaBuzon {
+    return this.puenteDocker
   }
 
   /** Fija las bases montadas de un proyecto: la siguiente invocación de `tdb` ya las ve (montaje en caliente). */
@@ -297,6 +310,14 @@ export class DbController {
   /** Crea el espacio si hace falta, siembra el contexto del agente y devuelve la ruta para abrirlo como proyecto. */
   ensureWorkspace(profileId: string, nombrePerfil: string): { projectHostPath: string; name: string } {
     return this.espacio.asegurar(profileId, nombrePerfil)
+  }
+
+  /**
+   * El espacio de datos tal como lo borra el guardado de perfiles, con la papelera ya dentro: llega a la
+   * composición como dependencia, igual que la carpeta del agente de la terminal.
+   */
+  get espacioDatos(): Pick<EspacioDatos, 'borrar'> {
+    return this.espacio
   }
 
   /** Regenera el contexto del agente de un perfil, si su espacio ya existe. */

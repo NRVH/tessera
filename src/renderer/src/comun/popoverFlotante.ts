@@ -1,9 +1,9 @@
 // =============================================================================
-// Lo común y sin hooks de los popovers por portal de la vista de BD (esquemas visibles,
-// selector de esquema de la consola, historial): el ancla, la posición acotada al viewport y
-// el teclado de la lista. El foco y el cierre están en `usePopoverFlotante.ts`, y la lista
-// de la caché del catálogo en `useListaCatalogo.ts`.
-// Decisiones: docs/decisiones/bd/ui-consola-popovers.md
+// Lo común y sin hooks de los popovers flotantes de la app (los de la vista de BD —esquemas
+// visibles, selector de esquema de la consola, historial— y la lista de conexiones SSH): el
+// ancla, la posición acotada al viewport y el teclado de la lista. El foco y el cierre están en
+// `usePopoverFlotante.ts`. Solo depende de React (tipos).
+// Decisiones: docs/decisiones/bd/ui-consola-popovers.md, docs/decisiones/renderer/boton-dividido-y-capa-flotante.md
 // =============================================================================
 
 import type { Dispatch, SetStateAction } from 'react'

@@ -6,8 +6,8 @@
 ## Contexto
 
 La ventana no tiene marco nativo: el renderer pinta la barra de título, las bandas, el riel y la
-barra de estado. Los menús contextuales, popovers y diálogos no van por `createPortal`: se
-pintan como hijos `position: fixed` de quien los abre, dentro del centro de la ventana.
+barra de estado. Menús, popovers y diálogos se pintan como hijos `position: fixed` de quien los abre,
+salvo los que una zona con contención recortaría: van por portal a la capa flotante, dentro de `.shell`.
 
 ## Decisión
 
@@ -31,7 +31,8 @@ pintan como hijos `position: fixed` de quien los abre, dentro del centro de la v
 
 - Atenuar las casillas sin foco o animar su ampliación queda descartado mientras los menús del
   pane sigan siendo hijos suyos; el foco se marca con un `::after` sin `z-index`.
-- Portar las capas a `createPortal(document.body)` cerraría el riesgo; es un refactor aparte.
+- La capa flotante (`.capa-flotante`, `display: contents`) cumple estas prohibiciones y va dentro de `.shell`, no en
+  `<body>`, que no hereda `--perfil`: [../renderer/boton-dividido-y-capa-flotante.md](../renderer/boton-dividido-y-capa-flotante.md).
 
 ## Descartes
 

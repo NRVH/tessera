@@ -46,6 +46,9 @@ alfabético.
 - [agentes/actualizacion-nativa.md](agentes/actualizacion-nativa.md) — la actualización de los
   agentes nativos la orquesta el renderer en tres fases con la API de cada pane, localizado por su
   sesión del momento y no por la clave del target.
+- [agentes/agente-de-la-terminal.md](agentes/agente-de-la-terminal.md) — un agente propio del
+  perfil, con carpeta e historial definitivos, a la derecha de la terminal a pantalla completa por
+  CSS: salir lo oculta, «Cerrar» lo termina, y hibernar el perfil también duerme a los que no son pestaña.
 - [agentes/agente-diferido.md](agentes/agente-diferido.md) — un proyecto que nace para ver un
   archivo desde el sistema nace con el agente sin arrancar y su columna plegada, hasta que se pide.
 - [agentes/boton-agentes-nativos.md](agentes/boton-agentes-nativos.md) — el botón de los agentes
@@ -572,6 +575,9 @@ alfabético.
   apilamiento ni contención.
 - [layout/oculto-manda-sobre-maximizado.md](layout/oculto-manda-sobre-maximizado.md) — con el
   agente oculto y maximizado a la vez manda el oculto: ocultar cancela el maximizado en el origen.
+- [layout/pantalla-completa-de-la-franja.md](layout/pantalla-completa-de-la-franja.md) — la franja
+  inferior se maximiza con un solo estado coherente, solo con CSS y sin desmontar; abrir una
+  pestaña o elegir una vista lateral sale del modo, y el atajo solo vale con el foco en la franja.
 
 ### mosaico
 
@@ -642,6 +648,9 @@ alfabético.
 - [renderer/reordenar-proyectos-arrastrando.md](renderer/reordenar-proyectos-arrastrando.md) —
   los proyectos de un perfil se reordenan arrastrando su pestaña con la regla de los perfiles;
   arrastrar no activa, y el reductor solo acepta exactamente las rutas abiertas.
+- [renderer/select-con-lista-propia.md](renderer/select-con-lista-propia.md) — la lista de un
+  select de modal es la «select personalizable» del motor con la piel de los menús de Tessera, y
+  su Esc cierra solo la lista.
 
 ### sandbox
 
@@ -692,6 +701,27 @@ alfabético.
   contextual de Windows se escribe en HKCU con `reg.exe`, valor a valor y en cola, desde un estado
   en memoria que se reconcilia al arrancar.
 
+### ssh
+
+- [ssh/askpass-y-secretos.md](ssh/askpass-y-secretos.md) — la contraseña o la frase de una conexión
+  se guarda cifrada y la da un programa de contraseñas propio que pregunta al puente con fichas
+  efímeras y solo contesta las preguntas exactas de esa conexión; «Probar» guarda la huella.
+- [ssh/claves-importadas.md](ssh/claves-importadas.md) — el archivo de clave se importa como una
+  copia protegida (por SID en Windows, 0600 en macOS), validada por su contenido y comprobada con
+  `ssh-keygen -y`; el renderer solo ve una ficha y el nombre, y ssh la recibe por `-o IdentityFile`.
+- [ssh/registro-y-claves.md](ssh/registro-y-claves.md) — las conexiones SSH y sus grupos de un
+  nivel viven en un registro propio por perfil, calcado del de BD sin compartir código; el secreto
+  es de solo escritura y al arrancar solo se podan entradas, nunca archivos.
+- [ssh/motor-linea-y-huellas.md](ssh/motor-linea-y-huellas.md) — OpenSSH del sistema con ruta
+  fija y `-F none`; una huella por conexión, `accept-new` para la persona y estricto para el
+  agente; la sesión es el propio `ssh` en el pty y se cierra sin teclear.
+- [ssh/tssh-y-agentes.md](ssh/tssh-y-agentes.md) — los agentes nativos usan las conexiones del
+  perfil con `tssh`, de vocabulario cerrado, que pide la línea al puente (ámbito: el perfil) y nunca
+  ve un secreto; la casilla «Disponible para los agentes» es un contrato, no un cerrojo.
+- [ssh/explorador-sftp.md](ssh/explorador-sftp.md) — el explorador SFTP habla el protocolo SFTP v3
+  sobre `ssh -s sftp` del sistema (la línea, la huella y el secreto de la pestaña), en una pestaña del
+  perfil; nunca deja un archivo a medias encima de uno bueno ni pisa sin confirmar.
+
 ### terminales
 
 - [terminales/ajuste-de-alto-y-anclaje-al-fondo.md](terminales/ajuste-de-alto-y-anclaje-al-fondo.md)
@@ -703,6 +733,11 @@ alfabético.
   cerrar la sesión.
 - [terminales/contrapresion-del-pty.md](terminales/contrapresion-del-pty.md) — la salida del pty
   se frena con marcas alta y baja, y una pausa nunca dura más de cinco segundos.
+- [terminales/lanzador-de-conexiones.md](terminales/lanzador-de-conexiones.md) — la ▾ del botón
+  de nueva terminal abre la lista de conexiones SSH con «Recientes» y los grupos plegados (uno solo
+  abierto a la vez, sin recordarlo), y el reinicio pasa al grupo de acciones de la derecha.
+- [terminales/pestanas-ssh-del-perfil.md](terminales/pestanas-ssh-del-perfil.md) — las pestañas SSH
+  son del perfil, se ven sin proyecto, se abren solas solo la primera vez y no se reabren al arrancar.
 - [terminales/pty-entrada-de-un-pty-muerto.md](terminales/pty-entrada-de-un-pty-muerto.md) — la
   entrada de un pty de Windows lleva un oyente de error propio para que una escritura tardía no
   tumbe el proceso.
@@ -714,6 +749,9 @@ alfabético.
 - [terminales/raton-y-portapapeles-de-la-terminal.md](terminales/raton-y-portapapeles-de-la-terminal.md)
   — el clic derecho es de la aplicación cuando pide el ratón, y el portapapeles va por el IPC de
   Tessera.
+- [terminales/riel-de-conexiones.md](terminales/riel-de-conexiones.md) — la lista de conexiones SSH es un riel fijo
+  solo a pantalla completa, plegable, que se pliega solo si la terminal quedaría por debajo de 420 px sin tocar la
+  preferencia del perfil.
 - [terminales/terminales-keep-alive-y-reinicio-limpio.md](terminales/terminales-keep-alive-y-reinicio-limpio.md)
   — las terminales viven por ranura, siguen vivas al ocultarse y se reinician con la pantalla
   limpia.

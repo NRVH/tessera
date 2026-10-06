@@ -112,6 +112,20 @@ export interface CCPanelProps {
    * reciben el mismo selector, montaje y bases (ver `textosMontajeBases.ts`).
    */
   rutasEspacioDatos?: ReadonlySet<string>
+  /**
+   * Carpetas del agente de la terminal (una por perfil): ese pane se nombra «el agente de la terminal»,
+   * elige su agente con `onSelectAgentTerminal`, no monta bases y su cabecera ofrece cerrarlo.
+   */
+  rutasAgenteTerminal?: ReadonlySet<string>
+  /** Cambia el agente del agente de la terminal de un perfil: su selector es propio, no el del perfil. */
+  onSelectAgentTerminal?: (profileId: string, agente: Agente) => void
+  /** Cierra el agente de la terminal de un perfil (desmonta su pane, que cierra la sesión). */
+  onCerrarAgenteTerminal?: (profileId: string) => void
+  /**
+   * Durante UN commit, el pane del agente de la terminal se lleva el teclado: lo pidió el usuario. Fuera
+   * de él nunca lo roba (entrar o salir de pantalla completa no mueve el foco).
+   */
+  focoAgenteTerminal?: boolean
   /** El mosaico de agentes, o null/ausente en la vista normal. */
   mosaico?: MosaicoPanel | null
   /**

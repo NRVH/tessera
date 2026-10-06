@@ -1,11 +1,12 @@
 // =============================================================================
 // DialogosPerfil: los tres diálogos de la banda de perfiles (confirmar hibernación,
 // confirmar eliminación y red del contenedor). Sin estado propio: monta el que tenga abierto
-// `useAccionesPerfil`. Dependen de comun/ConfirmDialog y del modal de red.
+// `useAccionesPerfil`. Dependen de comun/ConfirmDialog, del modal de red y de shared/nombresSistema.
 // Decisiones: docs/decisiones/renderer/red-del-contenedor.md
 // =============================================================================
 import { ConfirmDialog } from '../../comun/ConfirmDialog'
 import { RedContenedorModal } from './RedContenedorModal'
+import { nombresSistema } from '../../../../shared/nombresSistema'
 import type { Profile } from '../../../../main/profiles/types'
 import type { AccionesPerfil, HibernacionPendiente } from './useAccionesPerfil'
 
@@ -49,12 +50,20 @@ function ConfirmarEliminarPerfil({
   onConfirm: () => void
   onCancel: () => void
 }): React.JSX.Element {
+  // En el renderer no hay `process`: la plataforma llega por el preload.
+  const { papelera } = nombresSistema(window.tessera.plataforma)
   return (
     <ConfirmDialog
       title={`Eliminar el perfil "${profile.nombre}"`}
       message={
-        'Se cerrarán sus sesiones y se detendrá su contenedor.\n' +
-        'No se borran sus credenciales del disco: si lo recreas, las reencuentra.'
+        'Se cerrarán sus sesiones y se detendrá su contenedor.\n\n' +
+        'Se borran sus conexiones SSH y su historial de consultas. Las carpetas\n' +
+        'de su agente de la terminal y de su agente de datos, con las notas y\n' +
+        `las consolas que tengan, van a ${papelera}: desde allí se recuperan.\n` +
+        'Sus conexiones de bases de datos se quitan al reiniciar Tessera (si lo\n' +
+        'recreas antes, las conserva).\n\n' +
+        'No se borran sus credenciales ni las conversaciones de sus cuentas:\n' +
+        'si lo recreas, las reencuentra.'
       }
       confirmLabel="Eliminar"
       cancelLabel="Cancelar"

@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react'
 import { terminalPaneKey, type ShellTerminalsState } from './shellTerminalsModel'
+import { sshPaneKey, type SshTabsState } from './sshTabsModel'
 import type { TerminalPaneApi, TerminalPaneInfo } from './terminalPaneTipos'
 
 export interface InfoPanes {
@@ -27,10 +28,11 @@ function mismaInfo(a: TerminalPaneInfo, b: TerminalPaneInfo): boolean {
   )
 }
 
-/** Estado y acciones reportados por los panes; olvida los de los panes desmontados. */
+/** Estado y acciones reportados por los panes (de shell y SSH); olvida los de los panes desmontados. */
 export function useInfoPanes(
   projects: { key: string }[],
-  terminals: ShellTerminalsState
+  terminals: ShellTerminalsState,
+  ssh: SshTabsState
 ): InfoPanes {
   const [infoByPane, setInfoByPane] = useState<Record<string, TerminalPaneInfo>>({})
   const apisRef = useRef<Record<string, TerminalPaneApi | null>>({})
@@ -53,6 +55,9 @@ export function useInfoPanes(
     for (const p of projects) {
       for (const t of terminals[p.key]?.list ?? []) alive.add(terminalPaneKey(p.key, t.id))
     }
+    for (const [perfil, cur] of Object.entries(ssh.porPerfil)) {
+      for (const t of cur.lista) alive.add(sshPaneKey(perfil, t.id))
+    }
     setInfoByPane((prev) => {
       const keys = Object.keys(prev)
       if (keys.every((k) => alive.has(k))) return prev
@@ -60,7 +65,7 @@ export function useInfoPanes(
       for (const k of keys) if (alive.has(k)) next[k] = prev[k]
       return next
     })
-  }, [projects, terminals])
+  }, [projects, terminals, ssh])
 
   return { infoByPane, apisRef, handleInfo, handleApi }
 }

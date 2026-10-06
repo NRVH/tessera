@@ -14,6 +14,7 @@ import { marcarPlataforma, seguirSemaforo } from './theme/chromeVentana'
 import { instalarDiagnosticoRendimiento } from './util/diagnosticoRendimiento'
 import '@xterm/xterm/css/xterm.css'
 import './styles.css'
+import './comun/selectDesplegable.css'
 
 // El tema se escribe antes de montar nada, no en un efecto de App: la hoja consume
 // variables (`var(--bg)`, `var(--accent)`…) que `applyTheme` publica en `:root`, y si App

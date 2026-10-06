@@ -14,7 +14,7 @@ export interface EntradaEstiloShell {
   tintaPerfilActivo: string | null
   resaltadoPerfil: string | null
   sidebarWidth: number
-  /** Ancho de la columna del agente que toca: el del agente de datos con su divisor, o el de siempre. */
+  /** Ancho de la columna del agente que toca: el del agente de datos o el de la terminal con su divisor, o el de siempre. */
   ccWidth: number
   altoPanelInferior: number
   gitLogRamasWidth: number
@@ -24,7 +24,7 @@ export interface EntradaEstiloShell {
 /** Estilo de `.shell` con los tamaños del store y la columna del agente que toca. */
 export function useEstiloShell(
   tintas: Pick<EntradaEstiloShell, 'tintaPerfilActivo' | 'resaltadoPerfil'>,
-  tamanos: Pick<Tamanos, 'sidebarWidth' | 'dbAgenteWidthVisible'>,
+  tamanos: Pick<Tamanos, 'sidebarWidth' | 'dbAgenteWidthVisible' | 'agenteTerminalAnchoVisible'>,
   divisorAgente: SalidaLayoutCentro['divisorAgente']
 ): React.CSSProperties {
   const l = useStoreLayout(
@@ -39,8 +39,14 @@ export function useEstiloShell(
     ...tintas,
     ...l,
     sidebarWidth: tamanos.sidebarWidth,
-    // Una sola variable para la columna del agente: con el divisor de BD, el ancho del agente de datos.
-    ccWidth: divisorAgente === 'db' ? tamanos.dbAgenteWidthVisible : l.ccWidth
+    // Una sola variable para la columna del agente: con el divisor de BD, el ancho del agente de datos,
+    // y con el de la terminal, el del agente de la terminal.
+    ccWidth:
+      divisorAgente === 'db'
+        ? tamanos.dbAgenteWidthVisible
+        : divisorAgente === 'terminal'
+          ? tamanos.agenteTerminalAnchoVisible
+          : l.ccWidth
   })
 }
 

@@ -21,6 +21,9 @@ export interface DestinoBd {
   autenticacion?: unknown
   dominio?: unknown
   tls?: unknown
+  /** (MongoDB.) `srv` y las opciones de la URI: con ellas cambia a qué servidores y cómo se autentica. */
+  srv?: unknown
+  opcionesUri?: unknown
 }
 
 /** Caracteres hexadecimales de la huella (128 bits). */
@@ -29,14 +32,17 @@ export const LARGO_HUELLA = 32
 /**
  * La huella del destino de una conexión. DEBE dar lo mismo que `huellaDestino` de `src/tdb/tdbConectar.cjs`.
  * El archivo entra como séptimo valor solo si la entrada lo trae, y instancia, autenticación, dominio y
- * `tls` como una lista más, solo si trae alguno: la huella de toda Oracle, PG o conexión de red sin ellos
- * es la de antes al byte.
+ * `tls` como una lista más, solo si trae alguno, y `srv` y `opcionesUri` como otra, igual: la huella de toda
+ * Oracle, PG o conexión de red sin ellos es la de antes al byte.
  */
 export function huellaDestino(c: DestinoBd): string {
   const valores: unknown[] = [c.motor, c.host, c.port, c.database, c.sid, c.user]
   if (c.archivo !== undefined) valores.push(c.archivo)
   if (c.instancia !== undefined || c.autenticacion !== undefined || c.dominio !== undefined || c.tls !== undefined) {
     valores.push([c.instancia, c.autenticacion, c.dominio, c.tls].map((v) => (v === undefined ? null : v)))
+  }
+  if (c.srv !== undefined || c.opcionesUri !== undefined) {
+    valores.push([c.srv, c.opcionesUri].map((v) => (v === undefined ? null : v)))
   }
   const campos = valores.map((v) => (v === undefined ? null : v))
   return createHash('sha256').update(JSON.stringify(campos), 'utf8').digest('hex').slice(0, LARGO_HUELLA)

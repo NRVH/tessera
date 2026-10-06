@@ -4,6 +4,7 @@
 // un fragmento (sin envoltorio: el CSS selecciona por la estructura del pane).
 // =============================================================================
 
+import './sshTerminal.css'
 import { useEffect } from 'react'
 import { SearchBox } from '../../comun/SearchBox'
 import { TerminalImageChips } from './TerminalImageChips'
@@ -57,11 +58,20 @@ function TerminalContextMenu({
   )
 }
 
-/** Buscador, miniaturas pegadas y menú contextual de una terminal, según su `InterfazTerminal`. */
-export function CapasTerminal({ ui }: { ui: InterfazTerminal }): React.JSX.Element {
+/**
+ * Buscador, miniaturas pegadas y menú contextual de una terminal, según su `InterfazTerminal`; y,
+ * en una sesión SSH que aún no ha dicho nada, el «Conectando a…» (`conectando` es su texto).
+ */
+export function CapasTerminal({ ui, conectando = null }: { ui: InterfazTerminal; conectando?: string | null }): React.JSX.Element {
   const { ctxMenu, setCtxMenu } = ui
   return (
     <>
+      {/* Capa ABSOLUTA: no empuja ni encoge la xterm, y no recibe el ratón (el clic llega al xterm). */}
+      {conectando !== null && (
+        <div className="terminal-conectando" role="status">
+          {conectando}
+        </div>
+      )}
       {/* Buscar y navegar van al mismo runSearch: el SearchAddon reancla desde la posición actual. */}
       {ui.searchOpen && (
         <SearchBox

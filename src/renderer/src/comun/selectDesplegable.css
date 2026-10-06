@@ -1,0 +1,82 @@
+/* =============================================================================
+   LA LISTA DE UN <select> DE MODAL, con la piel de los menús de Tessera. Es la «select
+   personalizable» de Chromium (`appearance: base-select`): la lista es un popover de la capa
+   superior, así que ni la recorta el cuerpo con scroll del modal ni la mueve su animación.
+   El select CERRADO conserva el aspecto que le da cada hoja; la lista toma de
+   `contextMenuEstilos.ts` el fondo, el filete, el radio, la sombra y el resaltado. Alcanza a
+   los select de un modal, no a los de una barra.
+   Decisiones: docs/decisiones/renderer/select-con-lista-propia.md
+   ============================================================================= */
+
+/* El control y su lista llevan `appearance` los dos: con solo el control, la lista no llega
+   a abrirse. `[multiple]` y `[size]` son listas abiertas, no desplegables. La especificidad
+   (0,2,1) gana a la de cada hoja sin depender del orden en que se carguen. */
+.modal-overlay select:not([multiple], [size]),
+.modal-overlay select:not([multiple], [size])::picker(select) {
+  appearance: base-select;
+}
+
+/* El control cerrado, como el nativo: texto centrado, en una línea y recortado en el borde
+   (`contain: paint`, porque el motor fija `overflow: visible`), sangrado los 4 px que el
+   nativo le deja por dentro y con la flecha a 8 px del filete, que es donde la dibuja. */
+.modal-overlay select:not([multiple], [size]) {
+  align-items: center;
+  padding-inline-end: 4px;
+  text-indent: 4px;
+  white-space: nowrap;
+  contain: paint;
+}
+
+/* La flecha: un chevron del color del texto (como el nativo) que se da la vuelta al abrir. */
+.modal-overlay select:not([multiple], [size])::picker-icon {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-right: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+  rotate: 45deg;
+  translate: 0 -2px;
+  transition:
+    rotate 150ms ease,
+    translate 150ms ease;
+}
+.modal-overlay select:not([multiple], [size]):open::picker-icon {
+  rotate: 225deg;
+  translate: 0 2px;
+}
+
+/* La lista: lo mismo que `.ctx-menu`. El tope de alto cabe en la mitad de la ventana para que
+   el motor la ponga siempre entera, encima o debajo del control. */
+.modal-overlay select:not([multiple], [size])::picker(select) {
+  max-height: min(320px, 45vh);
+  text-indent: 0;
+  margin-block: 4px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  color: var(--fg);
+}
+.modal-overlay select:not([multiple], [size]) option {
+  padding: 6px 10px;
+  border-radius: 4px;
+  color: var(--fg);
+}
+.modal-overlay select:not([multiple], [size]) option:hover:not(:disabled),
+.modal-overlay select:not([multiple], [size]) option:focus-visible:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  outline: none;
+}
+.modal-overlay select:not([multiple], [size]) option:disabled {
+  opacity: 0.4;
+}
+.modal-overlay select:not([multiple], [size]) option::checkmark {
+  color: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-overlay select:not([multiple], [size])::picker-icon {
+    transition: none;
+  }
+}

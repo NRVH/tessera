@@ -26,9 +26,16 @@ function argumentoReanudar(agente: Agente, resumeSessionId?: string): string | n
 }
 
 /**
- * `--append-system-prompt` con el briefing de las bases montadas, o null. Solo Claude Code
- * (Codex no tiene equivalente). Los saltos de línea se aplanan a espacios en las dos
- * líneas; un briefing en blanco no produce flag. `citar` es la regla de la shell que la
+ * Lo que Codex oye además del aviso: su sandbox (`workspace-write`) suele ir sin red, y `tdb` y
+ * `tssh` necesitan el puente de Tessera y la red.
+ */
+const AVISO_SANDBOX_CODEX =
+  'Si tu sandbox no tiene red, `tdb` y `tssh` fallarán dentro de él: pide permiso para ejecutarlos fuera del sandbox.'
+
+/**
+ * El aviso de arranque (bases y SSH) en el flag de cada CLI, o null: `--append-system-prompt`
+ * en Claude Code y `-c developer_instructions=…` en Codex. Los saltos de línea se aplanan a
+ * espacios; un briefing en blanco no produce flag. `citar` es la regla de la shell que la
  * recibe.
  */
 function argumentoBriefing(
@@ -36,9 +43,13 @@ function argumentoBriefing(
   agente: Agente,
   citar: (valor: string) => string
 ): string | null {
-  if (!briefing || agente !== 'claude-code') return null
+  if (!briefing) return null
   const plano = briefing.replace(/\r?\n/g, ' ').trim()
-  return plano.length > 0 ? `--append-system-prompt ${citar(plano)}` : null
+  if (plano.length === 0) return null
+  if (agente === 'claude-code') return `--append-system-prompt ${citar(plano)}`
+  // Codex: `-c` parsea el valor como TOML y, si no lo es, lo toma literal. El prefijo fijo empieza por una
+  // palabra, que no es un valor TOML, así que el aviso llega tal cual.
+  return `-c ${citar(`developer_instructions=Avisos de Tessera: ${plano} ${AVISO_SANDBOX_CODEX}`)}`
 }
 
 /**

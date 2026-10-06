@@ -88,6 +88,11 @@ export interface PasteOptions {
    * adjuntó. El pegado en sí (ruta al contenedor/temp) sigue igual, en paralelo.
    */
   onImagePreview?: (dataUrl: string) => void
+  /**
+   * Pega solo TEXTO: ni rutas de archivos ni imágenes. Es lo de una sesión SSH, donde la ruta de un
+   * archivo de este equipo no significa nada en el otro.
+   */
+  soloTexto?: boolean
 }
 
 /**
@@ -164,6 +169,7 @@ export async function handleTerminalPaste(
   e?: ClipboardEvent,
   opts?: PasteOptions
 ): Promise<void> {
+  if (opts?.soloTexto) return pegarTexto(term, e)
   const filePaths = filesToPaths(e?.clipboardData?.files)
   if (filePaths.length) {
     injectPaths(writeToPty, await stageOrPassthrough(filePaths, opts?.stagePath))

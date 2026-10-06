@@ -15,8 +15,8 @@ import { IconoCommit } from '../iconosBd'
 import { fuentePopover, textosSelectorConsola, type NivelSelectorConsola } from '../nivelBasesBd'
 import { EstadoCargaPopover } from './EstadoCargaPopover'
 import { indiceInicialEsquema, opcionesEsquemaConsola, type OpcionEsquemaConsola } from './esquemaConsola'
-import { FILAS_MAX, HUECO, MARGEN, recolocar, teclaPopover, type AnclaDerecha, type PosicionPopover } from './popoverFlotante'
-import { useCierreYFoco } from './usePopoverFlotante'
+import { FILAS_MAX, HUECO, MARGEN, recolocar, teclaPopover, type AnclaDerecha, type PosicionPopover } from '../../../comun/popoverFlotante'
+import { useCierreYFoco } from '../../../comun/usePopoverFlotante'
 import { useListaCatalogo } from './useListaCatalogo'
 
 /** Ancho del selector de esquema de la consola. */

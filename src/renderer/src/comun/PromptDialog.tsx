@@ -3,11 +3,13 @@
 // crear o renombrar. Esc cancela y Enter confirma; reutiliza la cáscara `.modal-*`.
 // Solo valida que no esté vacío: la validación de caracteres y colisiones vive en el main y
 // su error vuelve por `error`. El campo arranca enfocado y con el texto preseleccionado.
-// Depende de `util/pasteTrim`.
+// Esc, devolución del foco y trampa de Tab son de `useDialogo`. Depende de él y de `util/pasteTrim`.
+// Decisiones: docs/decisiones/renderer/dialogos-foco-y-teclado.md
 // =============================================================================
 
 import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react'
 import { pegarRecortado } from '../util/pasteTrim'
+import { alClicEnVelo, useDialogo } from './useDialogo'
 
 /** Enfoca el campo al montar y selecciona todo, o solo el nombre sin extensión si `selectBasename`. */
 function useSeleccionInicial(
@@ -27,15 +29,11 @@ function useSeleccionInicial(
   }, [])
 }
 
-/** Enter confirma y Escape cancela desde el campo. */
-function teclaDelCampo(e: KeyboardEvent<HTMLInputElement>, submit: () => void, onCancel: () => void): void {
-  if (e.key === 'Enter') {
-    e.preventDefault()
-    submit()
-  } else if (e.key === 'Escape') {
-    e.preventDefault()
-    onCancel()
-  }
+/** Enter confirma desde el campo; el Escape lo lleva `useDialogo`, que solo cierra el diálogo de encima. */
+function enterDelCampo(e: KeyboardEvent<HTMLInputElement>, submit: () => void): void {
+  if (e.key !== 'Enter') return
+  e.preventDefault()
+  submit()
 }
 
 interface PromptDialogProps {
@@ -77,6 +75,8 @@ export function PromptDialog({
   onConfirm,
   onCancel
 }: PromptDialogProps): React.JSX.Element {
+  // El primer hook: apunta a quién tenía el foco al montar, antes de que el campo lo tome.
+  const dlg = useDialogo({ onClose: onCancel })
   const [value, setValue] = useState(initialValue)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -88,12 +88,14 @@ export function PromptDialog({
   }
 
   return (
-    <div className="modal-overlay" role="presentation" onMouseDown={onCancel}>
+    <div className="modal-overlay" role="presentation" onMouseDown={alClicEnVelo(onCancel)}>
       <div
+        ref={dlg.ref}
         className="modal-card"
         role="dialog"
         aria-modal="true"
         aria-label={title}
+        onKeyDown={dlg.alPulsarTecla}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="modal-title">{title}</div>
@@ -108,7 +110,7 @@ export function PromptDialog({
           onChange={(e) => setValue(e.target.value)}
           // Un espacio invisible al final de lo pegado crea un nombre que no coincide con nada.
           onPaste={pegarRecortado(setValue)}
-          onKeyDown={(e) => teclaDelCampo(e, submit, onCancel)}
+          onKeyDown={(e) => enterDelCampo(e, submit)}
           spellCheck={false}
           autoComplete="off"
         />

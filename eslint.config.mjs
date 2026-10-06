@@ -48,7 +48,7 @@ const MAIN = ['src/main/**/*.{ts,mts}']
 // Raíces de composición: la app (con los `componer.ts` de cada dominio, que la parten) y el modo
 // relevo (el mismo binario arrancado para aplicar una actualización cuando la app ya no existe).
 // LISTA EXPLÍCITA: añadir un `componer.ts` es añadirlo aquí (un glob volvería raíz cualquiera).
-const COMPONER = ['src/main/db/componer.ts', 'src/main/agents/componer.ts']
+const COMPONER = ['src/main/db/componer.ts', 'src/main/ssh/componer.ts', 'src/main/agents/componer.ts']
 const RAICES = ['src/main/index.ts', ...COMPONER, 'src/main/relevo/index.ts']
 const IPC_MAIN = 'src/main/**/ipc.ts'
 
@@ -120,8 +120,8 @@ export default tseslint.config(
   },
 
   {
-    // CLI `tdb`: CommonJS plano que corre con ELECTRON_RUN_AS_NODE; imprimir es su salida.
-    files: ['src/tdb/**/*.cjs'],
+    // CLIs `tdb` y `tssh` y el programa de contraseñas de SSH: CommonJS plano que corre con ELECTRON_RUN_AS_NODE.
+    files: ['src/tdb/**/*.cjs', 'src/tssh/**/*.cjs', 'src/askpass/**/*.cjs'],
     languageOptions: { globals: globals.node, sourceType: 'commonjs' },
     rules: { '@typescript-eslint/no-require-imports': 'off' }
   },

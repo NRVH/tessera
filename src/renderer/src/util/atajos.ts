@@ -270,6 +270,29 @@ export function esAlternarAgente(
 }
 
 /**
+ * ¿Este evento pide ALTERNAR LA PANTALLA COMPLETA del panel de la franja inferior (la
+ * terminal o el historial de git)? Ctrl+Shift+↩ en Windows y Linux, ⌘⇧↩ en Mac: el mismo
+ * acorde con que el mosaico amplía una casilla (`accionMosaico`), así que «hacer grande lo
+ * que tengo delante» se pulsa igual en los dos sitios.
+ *
+ * Alt ANULA (AltGr llega en Windows como Ctrl+Alt, y ⌥ compone en Mac). Sin Shift no es
+ * nuestro: Mod+↩ es «ejecutar» en la consola SQL. El modificador es el exclusivo de la
+ * plataforma (`esModPrincipal`): ⌃⇧↩ en Mac y ⊞⇧↩ en Windows no cuentan. La tecla se lee
+ * por su nombre: Enter no cambia con la distribución.
+ *
+ * DÓNDE vale no se decide aquí: el llamador lo atiende solo con el foco dentro de la franja
+ * y fuera del mosaico, en fase de CAPTURA (xterm lo convertiría en un CR). La
+ * autorrepetición también responde «sí»: la consume el llamador.
+ */
+export function esAlternarPantallaCompleta(
+  e: TeclaAcorde,
+  plataforma: Plataforma = window.tessera.plataforma
+): boolean {
+  if (e.altKey || !e.shiftKey || e.key !== 'Enter') return false
+  return esModPrincipal(e, plataforma)
+}
+
+/**
  * ¿Este evento pide ABRIR el nodo seleccionado del árbol de bases de datos (o plegar y
  * desplegar un contenedor)?
  *
@@ -426,16 +449,18 @@ export interface AcordePorPlataforma {
 }
 
 /**
- * Los gestos con nombre. Los cuatro primeros tienen predicado en este archivo; los de
- * la consola (`ejecutar`…`rollback`) los registra Monaco con `addAction` con ESTOS
- * acordes para que el `title` diga la verdad. `explicar`, `historial` y `formatear`
- * tienen las dos cosas: su `addAction` en el editor y su predicado.
+ * Los gestos con nombre. Los cuatro primeros tienen predicado en este archivo, y también
+ * `pantallaCompleta` (`esAlternarPantallaCompleta`); los de la consola (`ejecutar`…`rollback`)
+ * los registra Monaco con `addAction` con ESTOS acordes para que el `title` diga la verdad.
+ * `explicar`, `historial` y `formatear` tienen las dos cosas: su `addAction` en el editor y
+ * su predicado.
  */
 export type IdAcorde =
   | 'cerrarPestana'
   | 'alternarAgente'
   | 'abrirNodo'
   | 'detener'
+  | 'pantallaCompleta'
   | 'nuevaConsola'
   | 'copiar'
   | 'ejecutar'
@@ -474,6 +499,10 @@ export const ACORDES: Readonly<Record<IdAcorde, AcordePorPlataforma>> = {
   detener: {
     pc: [{ mods: ['ctrl'], tecla: 'F2' }],
     mac: [{ mods: ['meta'], tecla: '.' }]
+  },
+  pantallaCompleta: {
+    pc: [{ mods: ['ctrl', 'shift'], tecla: 'Enter' }],
+    mac: [{ mods: ['meta', 'shift'], tecla: 'Enter' }]
   },
   nuevaConsola: {
     pc: [{ mods: ['ctrl'], tecla: 'N' }],

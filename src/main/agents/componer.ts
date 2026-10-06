@@ -24,6 +24,11 @@ import type { PerfilesVivos, Profile } from '../profiles/types'
 import { loadWorkspaceSettings } from '../workspace/workspaceStateStore'
 import type { DbController } from '../db/DbController'
 import { dbLog } from '../db/dbLog'
+import type { ControladorSsh } from '../ssh/ControladorSsh'
+import type { EspacioTerminal } from '../ssh/controlador/espacioTerminal'
+import { borrarPerfiles, type DepsBorradoCompleto, type DuenoDeCarpeta } from '../profiles/borradoDePerfil'
+import type { CandadoDeBorrado } from '../profiles/candadoDeBorrado'
+import type { LlegadaDePerfiles } from '../profiles/llegadaDePerfiles'
 import { SandboxManager, fijarBaseGestionada } from '../sandbox/SandboxManager'
 import { resolveSshSetup, type SshSetup } from '../sandbox/sshSetup'
 import { registrarIpcRedSandbox, registrarIpcActualizarAgentes } from '../sandbox/ipc'
@@ -64,6 +69,16 @@ export interface DepsSesiones {
   perfiles: PerfilesVivos
   accounts: AccountStore
   dbController: DbController
+  /** Las conexiones SSH: la terminal abre sus sesiones y el guardado de perfiles las borra con el perfil. */
+  ssh: ControladorSsh
+  /** La carpeta del agente de la terminal de cada perfil: el guardado de perfiles la manda a la papelera con el perfil. */
+  espacioTerminal: Pick<EspacioTerminal, 'borrar'>
+  /** El espacio de datos de cada perfil (`DbController.espacioDatos`): igual que la carpeta de arriba. */
+  espacioDatos: DuenoDeCarpeta
+  /** El candado del borrado de cada perfil: lo toma el guardado de perfiles y lo esperan sus sesiones al abrirse. */
+  borrados: CandadoDeBorrado
+  /** La llegada de un perfil recién creado: el guardado de perfiles despierta a quien espera uno nuevo. */
+  llegada: Pick<LlegadaDePerfiles, 'cambiaron'>
 }
 
 /** Pasa al sandbox los paquetes a hornear: solo marca la imagen como obsoleta, no la rehornea. */
@@ -130,7 +145,7 @@ function componerSandbox({ refs, ipc, perfiles, dbController }: DepsSesiones): S
 type EntornoHost = (profileId: string, projectHostPath: string, dbConnectionIds: string[]) => Record<string, string>
 
 /** La terminal de abajo. */
-function componerTerminal({ refs, ipc, perfiles, dbController }: DepsSesiones, sb: Sandbox, hostEnv: EntornoHost): TerminalController {
+function componerTerminal({ refs, ipc, perfiles, dbController, ssh, borrados }: DepsSesiones, sb: Sandbox, hostEnv: EntornoHost): TerminalController {
   const controller = new TerminalController({
     profiles: perfiles.lista,
     eventos: emisorDeVentana(() => refs.ventana),
@@ -142,10 +157,11 @@ function componerTerminal({ refs, ipc, perfiles, dbController }: DepsSesiones, s
     getContainerEnv: (perfil, proyecto, ids, buzon) =>
       dbController.entornoContenedor(perfil, proyecto, ids, buzon),
     bindDbSession: (env, sessionId) => dbController.atarSesion(env, sessionId),
-    revokeDbSession: (sessionId) => dbController.revocarSesion(sessionId)
+    revokeDbSession: (sessionId) => dbController.revocarSesion(sessionId),
+    lanzadorSsh: ssh
   })
   refs.terminales = controller
-  registrarIpcTerminal({ ipc, terminales: controller })
+  registrarIpcTerminal({ ipc, terminales: controller, esperarBorrado: (id) => borrados.esperar(id) })
   return controller
 }
 
@@ -181,6 +197,7 @@ function componerSesionAgente(deps: DepsSesiones, sb: Sandbox, hostEnv: EntornoH
     turnos: refs.vigilanteTurnos,
     getHostEnv: hostEnv,
     getDbBriefing: (profileId, proyecto, ids) => dbController.briefingParaAgente(profileId, proyecto, ids),
+    getSshBriefing: (profileId) => deps.ssh.briefingAgente(profileId),
     getContainerEnv: (perfil, proyecto, ids, buzon) =>
       dbController.entornoContenedor(perfil, proyecto, ids, buzon),
     bindDbSession: (env, sessionId) => dbController.atarSesion(env, sessionId),
@@ -193,7 +210,7 @@ function componerSesionAgente(deps: DepsSesiones, sb: Sandbox, hostEnv: EntornoH
     inactividadPruebasMs: umbralPruebasDe(process.env.TESSERA_AGENTE_INACTIVIDAD_MS)
   })
   refs.agentes = agentController
-  registrarIpcTerminalAgente({ ipc, agentes: agentController })
+  registrarIpcTerminalAgente({ ipc, agentes: agentController, esperarBorrado: (id) => deps.borrados.esperar(id) })
   return { anclasConversacion, baseDeCuenta, agentController }
 }
 
@@ -259,24 +276,51 @@ function componerCuentasYUso({ refs, ipc, accounts }: DepsSesiones, sesion: Sesi
   registrarIpcUso({ ipc, uso: new ServicioUso({ lector: usage, vigilante: usageWatcher, baseDe: sesion.baseDeCuenta }) })
 }
 
-/** CRUD de perfiles: persiste, re-apunta los controladores y para los contenedores de los borrados. */
-function registrarIpcGuardarPerfiles({ refs, ipc, perfiles, accounts }: DepsSesiones, sharedSandbox: SandboxManager): void {
+/**
+ * Lo que se borra de un perfil BORRADO, en orden. Primero se cierran las sesiones del perfil que sigan
+ * abiertas, SSH incluidas (el renderer ya las cierra al quitarlo; esto cubre la carrera): una SSH viva
+ * seguiría usando las claves y el known_hosts que se borran, y un proceso con la carpeta como directorio
+ * de trabajo la bloquearía en Windows. Luego su contenedor, su historial de consultas, sus conexiones SSH
+ * y las carpetas de sus dos agentes propios (la del agente de la terminal y el espacio de datos), que van
+ * a la papelera del sistema: el borrado se deduce de la lista guardada y tiene que poder deshacerse. El
+ * historial de las conversaciones vive en la cuenta y no se toca.
+ * Con el candado del perfil, y cada paso mira `perfiles.lista` de ESE momento (`profiles/borradoDePerfil.ts`).
+ */
+function depsDeBorrado(deps: DepsSesiones, sharedSandbox: SandboxManager): DepsBorradoCompleto<Profile> {
+  const { refs, perfiles, espacioTerminal, espacioDatos, ssh, borrados } = deps
+  return {
+    // La lista de cada momento: `SAVE_PROFILES` la reasigna, así que se lee al usarse.
+    idsVivos: () => perfiles.lista.map((n) => n.id),
+    candado: borrados,
+    pararContenedor: (p) => sharedSandbox.stopContainer(p),
+    borrarHistorial: async (id) => refs.explorador?.alBorrarPerfil(id),
+    borrarConexionesSsh: (id) => ssh.alBorrarPerfil(id),
+    cerrarSesiones: (id) => Promise.all([refs.agentes?.closeSessionsForProfile(id), refs.terminales?.closeSessionsForProfile(id, { incluirSsh: true })]),
+    // Cada dueño lleva su papelera desde que nace (`shell.trashItem`, en su composición).
+    carpetas: [
+      ['del agente de la terminal', espacioTerminal],
+      ['del espacio de datos', espacioDatos]
+    ],
+    log: (m) => console.log(m),
+    error: (m, err) => console.error(m, err)
+  }
+}
+
+/** CRUD de perfiles: persiste, re-apunta los controladores y, de los borrados, para su contenedor y borra lo suyo. */
+function registrarIpcGuardarPerfiles(deps: DepsSesiones, sharedSandbox: SandboxManager): void {
+  const { refs, ipc, perfiles, accounts } = deps
+  const borrado = depsDeBorrado(deps, sharedSandbox)
   ipc.handle(IPC_CHANNELS.SAVE_PROFILES, async (_e, next: Profile[]) => {
     saveProfilesMutable(next)
     const removed = perfiles.lista.filter((p) => !next.some((n) => n.id === p.id))
     perfiles.lista = next
+    // Quien prepara la carpeta de un perfil recién creado lo esperaba: ya está en la lista.
+    deps.llegada.cambiaron()
     refs.terminales?.updateProfiles(next)
     refs.agentes?.updateProfiles(next)
     accounts.ensureDefaults(next) // un perfil nuevo estrena sus cuentas default
-    for (const p of removed) {
-      try {
-        await sharedSandbox.stopContainer(p)
-      } catch (err) {
-        console.error(`[tessera] stopContainer(perfil eliminado ${p.id}) falló:`, err)
-      }
-      // Su historial de consultas vive fuera de su espacio de datos: nadie más lo borraría.
-      await refs.explorador?.alBorrarPerfil(p.id)
-    }
+    // Sin esperar nada antes: los candados de los borrados se toman aquí, en la misma vuelta.
+    await borrarPerfiles(borrado, removed)
   })
 }
 

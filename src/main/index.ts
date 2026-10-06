@@ -2,8 +2,8 @@
 // Raíz de composición del proceso main: al cargar prepara el proceso (relevo, instancia
 // única, blindaje) y en `whenReady` crea adaptadores y servicios por fases, registra los
 // `ipc.ts` de cada dominio (todos, de forma síncrona, antes de crear la ventana) y arranca.
-// Las bases de datos y las sesiones se componen en `db/componer.ts` y `agents/componer.ts`;
-// la fontanería de Electron (ventana, cierre, menú, eventos de `app`) vive en `app/`.
+// Las bases de datos, las conexiones SSH y las sesiones se componen en el `componer.ts` de `db/`,
+// `ssh/` y `agents/`; la fontanería de Electron (ventana, cierre, menú, eventos de `app`) vive en `app/`.
 // Decisiones: docs/decisiones/app/arranque-relevo-e-instancia-unica.md, docs/decisiones/app/cierre-ordenado.md
 // =============================================================================
 import { app, BrowserWindow, ipcMain } from 'electron'
@@ -17,8 +17,11 @@ import { portapapelesElectron } from './clipboard/adaptadores/portapapelesElectr
 import { ajustesSesionesDe } from '../shared/ajustesBd'
 import { loadProfilesMutable } from './profiles/store'
 import type { PerfilesVivos } from './profiles/types'
+import { CandadoDeBorrado } from './profiles/candadoDeBorrado'
+import { LlegadaDePerfiles } from './profiles/llegadaDePerfiles'
 import { loadWorkspaceSettings, proyectosPersistidos } from './workspace/workspaceStateStore'
 import { componerBd } from './db/componer'
+import { componerSsh } from './ssh/componer'
 import { limpiarMemoriaGlobal } from './db/agentMemory'
 import { dbLog } from './db/dbLog'
 import { aplicarExtrasSandbox, componerSesiones, crearCuentas } from './agents/componer'
@@ -184,8 +187,16 @@ async function arrancar(): Promise<void> {
   instalarTemaYMenu()
   const perfiles: PerfilesVivos = { lista: loadProfilesMutable() }
   console.log(`[tessera] ${perfiles.lista.length} perfiles cargados: ${perfiles.lista.map((p) => p.nombre).join(', ')}`)
+  // Uno para toda la app: lo toma el borrado de un perfil y lo espera lo que lo recrea (BD, SSH, sesiones).
+  const borrados = new CandadoDeBorrado()
+  // Uno para toda la app: lo despierta el guardado de perfiles y lo espera lo que prepara un perfil recién creado.
+  const llegada = new LlegadaDePerfiles(() => perfiles.lista.map((p) => p.id))
+  // Lo que reciben las tres composiciones de dominio (BD, SSH y sesiones).
+  const comun = { refs, ipc: ipcMain, perfiles, borrados, llegada }
   const accounts = crearCuentas(perfiles)
-  const dbController = componerBd({ refs, ipc: ipcMain, perfiles })
+  const dbController = componerBd(comun)
+  // Antes de las sesiones: la terminal abre las conexiones SSH con este controlador.
+  const ssh = componerSsh({ ...comun, puente: dbController.puertaPuente, buzon: dbController.puertaBuzon, binDir: dbController.binDir })
   // Retira el bloque que la primera versión dejaba en la memoria GLOBAL del agente. Idempotente.
   limpiarMemoriaGlobal((m) => dbLog('migracion', m))
   logNativeAbi()
@@ -199,7 +210,14 @@ async function arrancar(): Promise<void> {
   componerIntegracionSistema()
   componerEstadoWorkspace()
   componerArchivos()
-  const agentesNativos = componerSesiones({ refs, ipc: ipcMain, perfiles, accounts, dbController })
+  const agentesNativos = componerSesiones({
+    ...comun,
+    accounts,
+    dbController,
+    ssh: ssh.controlador,
+    espacioTerminal: ssh.espacio,
+    espacioDatos: dbController.espacioDatos
+  })
 
   refs.ventana = crearVentanaPrincipal()
   if (MODO_CAPTURA) {

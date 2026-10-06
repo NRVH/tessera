@@ -1,0 +1,41 @@
+/* =============================================================================
+   BOTÓN DIVIDIDO (`comun/BotonDividido.tsx`): «principal | ▾» con dos mitades de icono. La
+   principal es un `btn-icon` de 24×24; la flecha, de 22×24 con su chevron a 10 px; entre las dos,
+   2 px; sin flecha (`sinFlecha`) el grupo mide lo que la principal. Sin `transform`, `filter`,
+   `contain` ni `z-index`: lo que despliega la flecha no cuelga de aquí (va a la capa flotante), pero
+   el botón vive en una zona con contención y no debe empeorarla.
+   Decisiones: docs/decisiones/renderer/boton-dividido-y-capa-flotante.md
+   ============================================================================= */
+
+.boton-dividido {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
+/* La flecha, más estrecha que la principal: es el complemento, no el gesto habitual. */
+.boton-dividido .btn.btn-icon.boton-dividido-flecha {
+  width: 22px;
+}
+.boton-dividido-flecha svg {
+  width: 10px;
+  height: 10px;
+}
+
+/* La envoltura del botón principal apagado, que solo existe para llevar su `title`. */
+.boton-dividido .btn-envoltura {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+/* HOVER POR MITADES: con el ratón sobre el control, la mitad apuntada se enciende del todo y
+   la otra a medias, así se lee como UN control con dos mitades y no como dos botones sueltos. */
+.boton-dividido:hover .btn.btn-icon:not(:disabled) {
+  background: color-mix(in srgb, var(--hover-suave) 50%, transparent);
+}
+.boton-dividido .btn.btn-icon:hover:not(:disabled),
+.boton-dividido.abierto .btn.btn-icon.boton-dividido-flecha {
+  background: var(--hover-suave);
+  color: var(--fg);
+}

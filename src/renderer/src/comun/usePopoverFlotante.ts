@@ -1,8 +1,9 @@
 // =============================================================================
-// La mecánica de foco y cierre de los popovers por portal de la vista de BD (esquemas visibles,
-// selector de esquema de la consola, historial y los selectores de base de documentos y claves):
-// cerrar con un clic fuera y dar el foco al filtro, devolviéndolo al cerrar. Solo depende de React.
-// Decisiones: docs/decisiones/bd/ui-consola-popovers.md
+// La mecánica de foco y cierre de los popovers flotantes de la app (los de la vista de BD —esquemas
+// visibles, selector de esquema de la consola, historial y los selectores de base de documentos y
+// claves— y la lista de conexiones SSH): cerrar con un clic fuera y dar el foco al filtro,
+// devolviéndolo al cerrar. Solo depende de React.
+// Decisiones: docs/decisiones/bd/ui-consola-popovers.md, docs/decisiones/renderer/boton-dividido-y-capa-flotante.md
 // =============================================================================
 
 import { useEffect, useRef, type RefObject } from 'react'

@@ -1,0 +1,8 @@
+/* La capa flotante (`comun/capaFlotante.tsx`): un contenedor sin caja, para que sus hijos (menús y
+   popovers `position: fixed`) se coloquen contra la ventana y no contra un ancestro. Nada de
+   `transform`, `filter`, `contain`, `container-type` ni `z-index` aquí: convertiría al contenedor
+   en bloque de sus descendientes fijos, justo lo que existe para evitar.
+   Decisiones: docs/decisiones/renderer/boton-dividido-y-capa-flotante.md */
+.capa-flotante {
+  display: contents;
+}

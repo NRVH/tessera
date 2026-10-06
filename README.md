@@ -63,9 +63,10 @@ del espacio de trabajo, con una cuenta propia de ese espacio y solo sus proyecto
   defecto en Configuración, y cualquier proyecto se pasa de nativo a Docker y al revés desde
   su pestaña. Las credenciales del agente se montan solo mientras el agente corre. El acceso
   a bases de datos pasa por un CLI pequeño que nunca le enseña una contraseña al agente, y
-  una conexión puede ser de solo lectura para los agentes.
-- **Todo en una ventana.** Editor, explorador de archivos, Git, terminales y conexiones a
-  bases de datos junto a los agentes, con una pestaña por espacio de trabajo y una
+  una conexión puede ser de solo lectura para los agentes. Con las conexiones SSH pasa lo
+  mismo: el agente entra en tus servidores con `tssh` sin ver la contraseña ni la clave.
+- **Todo en una ventana.** Editor, explorador de archivos, Git, terminales, conexiones SSH y
+  conexiones a bases de datos junto a los agentes, con una pestaña por espacio de trabajo y una
   subpestaña por proyecto.
 
 ## Descarga
@@ -118,6 +119,7 @@ el Escritorio.
 | **Docker Desktop** | Solo para el modo sandbox. En Windows, con el backend de WSL 2. Tessera construye la imagen del sandbox la primera vez que un espacio de trabajo la necesita. |
 | **Claude Code** y/o **Codex** | Solo para el modo nativo: instalados en tu equipo y con la sesión iniciada. En modo sandbox los dos vienen preinstalados en la imagen. |
 | **Git** | Para la vista de Git, que corre en tu equipo. En macOS viene con las Command Line Tools de Xcode. |
+| **Cliente OpenSSH** | Para las conexiones SSH. En Windows es la función opcional «Cliente OpenSSH», que viene instalada en Windows 10 y 11 (si falta, Tessera usa el de Git y lo avisa); en macOS viene con el sistema. |
 | **Java** (opcional) | Para descompilar archivos `.class`. Tessera trae dos motores: CFR, que corre con Java 6 o posterior, y Vineflower, que necesita Java 17 o posterior. Encuentra todas las instalaciones de Java del equipo y usa la mejor para cada motor. |
 
 Linux todavía no está soportado.
@@ -258,6 +260,33 @@ el que entraste.
   macOS).
 - Buscar en el historial de la terminal, copiar y pegar como espera cada plataforma, y
   renderizado acelerado por GPU que puedes apagar en Configuración.
+- **Pantalla completa**: la terminal ocupa todo el área de trabajo con un botón o con
+  Ctrl+Shift+Enter (⇧⌘↩), sin cerrar nada de lo que tapa.
+- **Agente de la terminal**: a pantalla completa, un agente propio del espacio de trabajo a
+  la derecha de la terminal, con su carpeta y su historial, para pedir ayuda con tus
+  servidores sin abrir un proyecto. Salir de pantalla completa lo oculta sin cerrarlo.
+
+### Conexiones SSH
+
+- **Las conexiones SSH de cada espacio de trabajo**, con nombre y en grupos, se abren en
+  pestañas de la terminal que se ven en todos sus proyectos, también sin proyecto abierto. A
+  pantalla completa quedan fijas en un riel a la izquierda; si no, en la ▾ de la terminal,
+  con las recientes arriba.
+- **Tres formas de entrar**: contraseña, archivo de clave (`.pem` u OpenSSH, que Tessera
+  guarda como copia protegida sin tocar el original) o las claves del sistema (el agente de
+  claves y tu carpeta `.ssh`). La contraseña y la frase de la clave se guardan cifradas y se
+  dan solas al conectar. «Probar» comprueba la conexión antes de guardarla.
+- **Importar desde OpenSSH**: lee tu `~/.ssh/config` (o el archivo que elijas). Con un solo
+  `Host` rellena el formulario; con varios, abre una revisión para elegir cuáles importar,
+  cambiarles el nombre, el usuario y el grupo, y dejar la contraseña o la clave de cada una.
+- **Explorador SFTP** de cada conexión en una pestaña: navegar, crear carpetas, renombrar,
+  borrar, y subir y bajar archivos y carpetas (también soltándolos encima) con progreso,
+  cancelación y confirmación antes de reemplazar.
+- **`tssh` para los agentes.** El agente de cualquier proyecto del espacio de trabajo, nativo
+  o Docker, y el agente de la terminal pueden listar las conexiones, ejecutar comandos y
+  copiar archivos con un CLI pequeño, `tssh`, por el nombre de la conexión. Nunca ven la
+  contraseña ni la clave, y solo entran en servidores cuya huella ya aceptaste tú. La casilla
+  «Disponible para los agentes» de cada conexión decide si la ven.
 
 ### Bases de datos
 
@@ -311,11 +340,15 @@ distinta en cada plataforma, siguiendo las convenciones de cada sistema.
 | Entrar o salir del mosaico de agentes | Ctrl+Shift+M | ⇧⌘M |
 | Enfocar la casilla 1 a 6 del mosaico | Ctrl+1 … Ctrl+6 | ⌘1 … ⌘6 |
 | Ampliar o restaurar la casilla enfocada | Ctrl+Shift+Enter | ⇧⌘↩ |
+| Pantalla completa del panel inferior (con el foco en la terminal o en Git·Log) | Ctrl+Shift+Enter | ⇧⌘↩ |
 | Buscar en una terminal | Ctrl+F | ⌘F |
 | Copiar en una terminal (con selección) | Ctrl+C | ⌘C |
 | Pegar en una terminal | Ctrl+V | ⌘V |
 | Abrir el elemento seleccionado (explorador, árbol de bases de datos) | F4 o Enter | F4, ⌘↓ o Enter |
 | Borrar los archivos seleccionados | Supr | ⌘⌫ o Supr |
+
+Con el foco en una terminal, Ctrl+N en Windows es de la shell (le llega como ^N) y no crea
+un archivo; en macOS ⌘N no es una tecla de control y crea el archivo igual.
 
 En la vista **Conexiones**:
 
@@ -341,7 +374,8 @@ En la vista **Conexiones**:
 
 En esa carpeta están tus espacios de trabajo, las pestañas abiertas, la configuración, las
 sesiones de los agentes del modo sandbox, las conexiones a bases de datos (con las
-contraseñas cifradas), las consolas guardadas, Oracle Instant Client si lo descargaste y los
+contraseñas cifradas), las conexiones SSH (con las contraseñas cifradas, las copias
+protegidas de sus claves y las huellas de cada servidor), las consolas guardadas, Oracle Instant Client si lo descargaste y los
 registros. Las escrituras resisten un cierre inesperado, con una copia de respaldo de
 cada archivo.
 
@@ -369,6 +403,9 @@ Windows pregunta si conservar o borrar tus datos, y una actualización nunca los
   lo rigen ese proveedor y tu cuenta, no Tessera.
 - **Las contraseñas de bases de datos** se guardan cifradas con el almacén de secretos del
   sistema, y los agentes llegan a las bases por `tdb` sin recibirlas.
+- **Las contraseñas y las claves SSH** siguen el mismo camino: cifradas con el almacén de
+  secretos del sistema, nunca en el entorno ni en los registros, y los agentes entran en los
+  servidores por `tssh` sin recibirlas.
 
 ## Compilar desde el código
 
@@ -424,8 +461,8 @@ de Apple.
 ```
 
 - Electron, TypeScript y React, con electron-vite. Monaco para el editor, xterm.js y
-  node-pty para las terminales, el binario `git` del sistema para Git, y Docker para el
-  sandbox.
+  node-pty para las terminales, el binario `git` del sistema para Git, el cliente OpenSSH
+  del sistema para SSH y SFTP, y Docker para el sandbox.
 - El editor, el explorador y Git corren en tu equipo (son tus herramientas); los agentes y
   sus terminales corren en el contenedor del espacio de trabajo, salvo que el proyecto sea
   nativo.
@@ -444,6 +481,8 @@ src/
   renderer/   interfaz en React, organizada por funciones
   shared/     contratos IPC y lógica pura que usan los dos lados
   tdb/        el CLI de bases de datos que usan los agentes
+  tssh/       el CLI de conexiones SSH que usan los agentes
+  askpass/    el ayudante que da la contraseña guardada al cliente OpenSSH
 docker/       la imagen del sandbox
 e2e/          suite de Playwright contra la app empaquetada
 ```

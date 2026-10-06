@@ -47,8 +47,9 @@ const RAIZ = join(fileURLToPath(new URL('.', import.meta.url)), '..', '..')
  * No entra «Mac» a secas: casa dentro de demasiados identificadores legítimos
  * (`relevoMac`, `esMac`, `MacOS`) y el ruido acabaría con el guardián desactivado,
  * que es peor que no tenerlo. `macOS` sí, que es la forma que se escribe en la UI.
+ * «Papelera de reciclaje» entra entera: «papelera» a secas es el genérico que vale en los dos.
  */
-const NOMBRES = ['Windows', 'macOS', 'PowerShell', 'Explorador', 'Finder', 'DPAPI', 'Llavero']
+const NOMBRES = ['Windows', 'macOS', 'PowerShell', 'Explorador', 'Finder', 'DPAPI', 'Llavero', 'Papelera de reciclaje']
 
 /**
  * Archivos del renderer que SÍ pueden nombrar una plataforma a pelo, con el motivo.
@@ -232,8 +233,8 @@ function main(): void {
     const campos = Object.entries(n)
     const vacios = campos.filter(([, v]) => typeof v !== 'string' || v.trim() === '')
     check(
-      `${p}: cinco campos, ninguno vacío`,
-      campos.length === 5 && vacios.length === 0,
+      `${p}: siete campos, ninguno vacío`,
+      campos.length === 7 && vacios.length === 0,
       `${campos.length} campos, vacíos: ${vacios.length} — ${JSON.stringify(n)}`
     )
   }
@@ -263,6 +264,50 @@ function main(): void {
     'windows: los dos son Windows (que es por lo que el problema no se veía)',
     win.sistema === 'Windows' && win.tuEquipo === 'tu Windows',
     `sistema="${win.sistema}" tuEquipo="${win.tuEquipo}"`
+  )
+
+  // (2b) El agente de claves SSH ----------------------------------------------
+  hr('(2b) El agente de claves SSH: lleva artículo y no es el almacén de secretos')
+  check(
+    'windows y mac nombran cada uno el suyo, con artículo',
+    win.agenteClavesSsh === 'el agente SSH de Windows' && mac.agenteClavesSsh === 'el llavero y el agente SSH',
+    `windows="${win.agenteClavesSsh}" mac="${mac.agenteClavesSsh}"`
+  )
+  check(
+    "'otra' no nombra ningún sistema: «el agente SSH del sistema»",
+    otra.agenteClavesSsh === 'el agente SSH del sistema',
+    `otra="${otra.agenteClavesSsh}"`
+  )
+  check(
+    'no es lo mismo que el almacén de secretos en ninguna plataforma',
+    PLATAFORMAS.every((p) => nombresSistema(p).agenteClavesSsh !== nombresSistema(p).almacenSecretos),
+    PLATAFORMAS.map((p) => `${p}: ${nombresSistema(p).agenteClavesSsh}`).join(' · ')
+  )
+  check(
+    'sirve en la frase de la ayuda: «Usa … y las claves de tu carpeta .ssh»',
+    PLATAFORMAS.every((p) => {
+      const frase = `Usa ${nombresSistema(p).agenteClavesSsh} y las claves de tu carpeta .ssh`
+      return frase.startsWith('Usa el ') && frase.endsWith('carpeta .ssh')
+    }),
+    `Usa ${win.agenteClavesSsh} y las claves de tu carpeta .ssh`
+  )
+
+  // (2c) La papelera -----------------------------------------------------------
+  hr('(2c) La papelera: cada sistema la suya, con artículo')
+  check(
+    'windows: «la Papelera de reciclaje»; mac: «la Papelera»; otra: «la papelera»',
+    win.papelera === 'la Papelera de reciclaje' && mac.papelera === 'la Papelera' && otra.papelera === 'la papelera',
+    `windows="${win.papelera}" mac="${mac.papelera}" otra="${otra.papelera}"`
+  )
+  check(
+    'sirve en la frase del aviso: «van a … y desde allí se recuperan»',
+    PLATAFORMAS.every((p) => `van a ${nombresSistema(p).papelera} y desde allí se recuperan`.startsWith('van a la ')),
+    `van a ${win.papelera} y desde allí se recuperan`
+  )
+  check(
+    'el guardián caza «Papelera de reciclaje» escrita a mano',
+    nombreSuelto("    message: 'irá a la Papelera de reciclaje'") === 'Papelera de reciclaje',
+    `-> ${nombreSuelto("    message: 'irá a la Papelera de reciclaje'")}`
   )
 
   // (3) El guardián ---------------------------------------------------------

@@ -192,4 +192,9 @@ export class AgentTerminalController {
   liveSessionIds(): string[] {
     return [...this.sessions.keys()]
   }
+
+  /** El perfil de una sesión abierta, o `undefined` si no existe (o el id no es un texto). */
+  perfilDeSesion(sessionId: unknown): string | undefined {
+    return typeof sessionId === 'string' ? this.sessions.get(sessionId)?.profileId : undefined
+  }
 }

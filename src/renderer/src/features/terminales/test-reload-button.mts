@@ -8,7 +8,7 @@
 // Decisiones: docs/decisiones/terminales/boton-de-reinicio-una-sola-verdad.md
 // =============================================================================
 
-import { botonReinicio, type EntradaBotonReinicio } from './reloadButton.ts'
+import { TEXTOS_RECONEXION_SSH, TEXTOS_REINICIO, botonReinicio, type EntradaBotonReinicio } from './reloadButton.ts'
 
 // ---------------------------------------------------------------------------
 // Reporte PASS/FAIL (mismo patrón que los otros test-*.mts)
@@ -52,6 +52,20 @@ function shell(extra: Partial<EntradaBotonReinicio> = {}): EntradaBotonReinicio 
     // botón se contradecían.
     etiquetaNormal: 'Reiniciar',
     etiquetaProgreso: 'Reiniciando…',
+    ...extra
+  }
+}
+/** Una sesión SSH: «Reconectar», sin hibernación y con los textos de la reconexión. */
+function ssh(extra: Partial<EntradaBotonReinicio> = {}): EntradaBotonReinicio {
+  return {
+    status: 'live',
+    sessionId: 'ssh-1',
+    reloading: false,
+    hibernated: false,
+    puedeAbrir: true,
+    etiquetaNormal: 'Reconectar',
+    etiquetaProgreso: 'Reconectando…',
+    textos: TEXTOS_RECONEXION_SSH,
     ...extra
   }
 }
@@ -257,10 +271,102 @@ function main(): void {
   }
 
   // ---------------------------------------------------------------------------
+  hr('Los textos de SIEMPRE no cambian ni un carácter (el shell y el agente)')
+
+  {
+    const muerta = botonReinicio(shell({ status: 'exited' }))
+    const muertaEnVuelo = botonReinicio(shell({ status: 'exited', reloading: true }))
+    const fallido = botonReinicio(shell(ARRANQUE_FALLIDO))
+    const vivo = botonReinicio(shell())
+    check(
+      '(21) etiquetas: «Reabrir», «Reabriendo…», «Reintentar» y «Reiniciar», tal cual',
+      muerta.etiqueta === 'Reabrir' && muertaEnVuelo.etiqueta === 'Reabriendo…' && fallido.etiqueta === 'Reintentar' && vivo.etiqueta === 'Reiniciar',
+      `${muerta.etiqueta} | ${muertaEnVuelo.etiqueta} | ${fallido.etiqueta} | ${vivo.etiqueta}`
+    )
+    check(
+      '(22) tooltips: los tres de siempre, carácter por carácter',
+      muerta.titulo === 'Reabrir: vuelve a lanzar en el mismo panel (mismo id de sesión)' &&
+        fallido.titulo === 'Reintentar el arranque: vuelve a comprobar Docker y a levantar el contenedor' &&
+        vivo.titulo === 'Reiniciar robusto: relanza conservando la sesión',
+      `${muerta.titulo} | ${fallido.titulo} | ${vivo.titulo}`
+    )
+    check(
+      '(23) pasar los textos por defecto a mano no cambia nada (el de siempre ES el parámetro por defecto)',
+      JSON.stringify(botonReinicio(shell({ status: 'exited', textos: TEXTOS_REINICIO }))) === JSON.stringify(muerta) &&
+        JSON.stringify(botonReinicio(shell({ textos: TEXTOS_REINICIO }))) === JSON.stringify(vivo),
+      'misma salida'
+    )
+    check(
+      '(24) el agente conserva «Reiniciar robusto» y «Actualizando…»',
+      botonReinicio(agente()).titulo === 'Reiniciar robusto: relanza conservando la sesión' &&
+        botonReinicio(agente({ reloading: true, etiquetaProgreso: 'Actualizando…' })).etiqueta === 'Actualizando…',
+      botonReinicio(agente()).titulo
+    )
+  }
+
+  hr('Una sesión SSH dice «Reconectar», y una conexión eliminada deshabilita el botón con su motivo')
+
+  {
+    const vivo = botonReinicio(ssh())
+    check(
+      '(25) en reposo: solo icono, acción reload, «Reconectar»',
+      vivo.habilitado && vivo.etiqueta === 'Reconectar' && vivo.soloIcono && vivo.accion === 'reload' && vivo.titulo.startsWith('Reconectar: cierra esta sesión'),
+      `${fmt(vivo)} ${JSON.stringify(vivo.titulo)}`
+    )
+    const muerta = botonReinicio(ssh({ status: 'exited' }))
+    const enVuelo = botonReinicio(ssh({ status: 'exited', reloading: true }))
+    const normalEnVuelo = botonReinicio(ssh({ reloading: true }))
+    check(
+      '(26) con la sesión muerta: «Reconectar» con etiqueta; en vuelo, «Reconectando…» y deshabilitado',
+      muerta.habilitado && muerta.etiqueta === 'Reconectar' && !muerta.soloIcono && muerta.accion === 'reload' &&
+        enVuelo.etiqueta === 'Reconectando…' && !enVuelo.habilitado && normalEnVuelo.etiqueta === 'Reconectando…',
+      `${fmt(muerta)} | ${fmt(enVuelo)} | ${fmt(normalEnVuelo)}`
+    )
+    check(
+      '(27) MITAD NEGATIVA: ni «Reabrir» ni «Reiniciar» ni Docker en ningún texto SSH',
+      [vivo, muerta, enVuelo, botonReinicio(ssh(ARRANQUE_FALLIDO))].every((r) => !/Reabri|Reinicia|Docker|contenedor/i.test(`${r.etiqueta} ${r.titulo}`)),
+      [vivo.titulo, muerta.titulo, botonReinicio(ssh(ARRANQUE_FALLIDO)).titulo].join(' | ')
+    )
+    const fallido = botonReinicio(ssh(ARRANQUE_FALLIDO))
+    const fallidoEnVuelo = botonReinicio(ssh({ status: 'booting', sessionId: null, reloading: true }))
+    check(
+      '(28) la primera apertura que falló: «Reintentar» (abre de nuevo) y su tooltip es el SSH',
+      fallido.habilitado && fallido.etiqueta === 'Reintentar' && fallido.accion === 'open' && fallido.titulo === 'Reintentar: vuelve a abrir la conexión' &&
+        fallidoEnVuelo.etiqueta === 'Reintentando…',
+      `${fmt(fallido)} | ${fallidoEnVuelo.etiqueta}`
+    )
+    const motivo = 'Reconectar no está disponible: la conexión se eliminó'
+    const sinConexion = botonReinicio(ssh({ bloqueo: motivo }))
+    const sinConexionMuerta = botonReinicio(ssh({ status: 'exited', bloqueo: motivo }))
+    const sinConexionFallido = botonReinicio(ssh({ ...ARRANQUE_FALLIDO, bloqueo: motivo }))
+    check(
+      '(29) conexión eliminada: deshabilitado, accion nada y el motivo es el tooltip (con sesión viva, muerta o sin abrir)',
+      [sinConexion, sinConexionMuerta, sinConexionFallido].every((r) => !r.habilitado && r.accion === 'nada' && r.titulo === motivo),
+      `${fmt(sinConexion)} | ${fmt(sinConexionMuerta)} | ${fmt(sinConexionFallido)}`
+    )
+    check(
+      '(30) con la conexión eliminada la etiqueta sigue diciendo qué pasa (sesión muerta: «Reconectar», con texto)',
+      sinConexionMuerta.etiqueta === 'Reconectar' && !sinConexionMuerta.soloIcono && sinConexion.soloIcono,
+      `${sinConexionMuerta.etiqueta} soloIcono=${sinConexionMuerta.soloIcono}`
+    )
+    check(
+      '(31) MITAD NEGATIVA: sin `bloqueo` el botón del shell y el del agente no se bloquean (el de siempre)',
+      botonReinicio(shell()).habilitado && botonReinicio(agente()).habilitado && botonReinicio(shell({ bloqueo: undefined })).habilitado,
+      'habilitados'
+    )
+  }
+
+  // ---------------------------------------------------------------------------
   hr('Invariante')
 
   {
     const casos: EntradaBotonReinicio[] = [
+      ssh(),
+      ssh({ status: 'exited' }),
+      ssh(ARRANQUE_FALLIDO),
+      ssh({ reloading: true }),
+      ssh({ bloqueo: 'la conexión se eliminó' }),
+      ssh({ status: 'exited', bloqueo: 'la conexión se eliminó' }),
       agente(),
       agente(ARRANQUE_FALLIDO),
       agente({ ...ARRANQUE_FALLIDO, hibernated: true }),

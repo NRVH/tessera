@@ -31,7 +31,10 @@ calcula posiciones absolutas y el prompt salía duplicado, con lo tecleado en la
 
 ## Descartes
 
-- Una lista lateral de terminales: se comía 180 px del ANCHO de la terminal (una línea de log
-  que no cabe se parte) por una columna de casi siempre dos filas. Van en pestañas en la cabecera.
+- Una lista lateral de terminales: se comía 180 px del ANCHO (una línea de log que no cabe se parte) por una columna
+  de casi siempre dos filas: van en pestañas. Matiz a pantalla completa: [riel-de-conexiones.md](riel-de-conexiones.md).
 - Conservar el banner esperando al callback de `term.write` antes de lanzar el shell: no bastó,
   porque lo desacompasado no es el pintado sino la fila que el shell da por suya al arrancar.
+- Encolar en el renderer la salida de una sesión que aún no se conoce: la respuesta del open y del reload llega antes
+  que cualquier salida (el pty nace en el turno en que se responde y su salida sale de un temporizador de 8 ms o de un
+  callback nativo; medido en Electron 43, nada emitido a ≥ 2 ms de la respuesta la adelantó).

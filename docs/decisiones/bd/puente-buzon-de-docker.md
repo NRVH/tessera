@@ -25,4 +25,11 @@ caminos de datos. El puente al host recoge peticiones que el contenedor deja en 
   con mtime fresco deja fallar en un segundo si el bind se perdió. El lanzador `sh` lo escribe el host con LF
   explícito (con `core.autocrlf` un shebang llegaría con CR) y con `chmod 755`: en macOS virtiofs conserva el modo
   real y el contenedor daría `permission denied`.
+- El contenedor escribe en el buzón, así que el host nunca sigue un enlace de ahí: lo que escribe (clientes,
+  lanzadores, centinela, respuestas) lo crea en exclusiva tras quitar lo que hubiera, y una petición que no es un
+  archivo normal no se lee. Antes, un enlace llamado `tdb` hacía que el host pisara el archivo al que apuntaba
+  (medido también en Windows).
+- Otros dominios registran su programa en el mismo buzón (`registrarPrograma`; hoy `tssh`): sus archivos se copian con los
+  de `tdb`, su lanzador se escribe igual y sus peticiones llevan `prog`. Sin `prog` es de `tdb`, como las de un cliente de
+  antes; un `prog` que no está registrado contesta que se reinicie Tessera. El archivo de una petición pasa de 64 MiB: no se lee.
 - Truncar una respuesta en silencio haría creer que se vio todo: por encima de 8 MiB se descarta con un error.

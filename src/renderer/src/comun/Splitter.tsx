@@ -20,6 +20,8 @@ interface SplitterProps {
   direction: 1 | -1
   onResize: (nextPx: number) => void
   label: string
+  /** Clase propia además de `splitter` (p. ej. `splitter-agente`, que el CSS de `.shell` busca). */
+  className?: string
 }
 
 /** Paso del teclado (flechas) para mover el borde sin ratón. */
@@ -98,7 +100,8 @@ export function Splitter({
   max,
   direction,
   onResize,
-  label
+  label,
+  className
 }: SplitterProps): React.JSX.Element {
   const rafRef = useRef<number | null>(null)
   const pendingRef = useRef<number | null>(null)
@@ -134,7 +137,7 @@ export function Splitter({
 
   return (
     <div
-      className={`splitter splitter-${orientation}`}
+      className={`splitter splitter-${orientation}${className ? ` ${className}` : ''}`}
       role="separator"
       aria-orientation={orientation}
       aria-label={label}

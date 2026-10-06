@@ -19,8 +19,11 @@ entrecomillar, con `$` y backticks expandidos. Sin error visible.
   `shared/citarShell.ts`; aquí solo se elige.
 - El contenedor corre bajo `env -i`, que borra los `-e` de `docker exec`: las variables de bases
   se re-inyectan en la propia línea o el agente no ve `tdb`.
-- El briefing va por `--append-system-prompt` solo en Claude Code (Codex no lo tiene), aplanado a
-  una línea en las dos formas; en blanco no produce flag.
+- El briefing va por `--append-system-prompt` en Claude Code y por `-c developer_instructions=…` en
+  Codex (no tiene el otro), aplanado a una línea en las dos formas; en blanco no produce flag. En
+  Codex lleva el prefijo fijo «Avisos de Tessera:» (`-c` toma el valor como TOML si se puede, y una
+  palabra no lo es) y una frase más: su sandbox suele ir sin red, así que pida salir de él para
+  `tdb` y `tssh`. Abrirle la red desde Tessera no: el sandbox es configuración del usuario.
 - El id de reanudación solo si tiene forma de UUID: acaba dentro de un `sh -c`.
 
 ## Descartes

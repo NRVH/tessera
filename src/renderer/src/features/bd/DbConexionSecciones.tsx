@@ -22,7 +22,7 @@ import {
 } from './camposConexion'
 import { pegarRecortado } from '../../util/pasteTrim'
 import { IconoMotor } from './iconosBd'
-import { OjoIcon } from './DbConexionCampos'
+import { IconoOjo } from '../../comun/iconosFormulario'
 import { uriCerrada, type EstadoUri } from './useConexionDialogoEstado'
 
 type Editar = (parcial: Partial<BorradorConexion>) => void
@@ -238,7 +238,7 @@ export function CredencialesConexion({
             tabIndex={-1}
             onClick={() => setVerPassword((v) => !v)}
           >
-            <OjoIcon tachado={verPassword} />
+            <IconoOjo tachado={verPassword} />
           </button>
         </span>
       </label>

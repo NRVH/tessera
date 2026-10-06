@@ -31,6 +31,7 @@ const SEMILLA_ARCHIVOS = [
   'agent-accounts.json',
   'db-connections.json',
   'db-drivers.json',
+  'ssh-connections.json',
   'workspace-state.json',
   'conversation-titles.json'
 ]
@@ -41,8 +42,10 @@ const SEMILLA_ARCHIVOS = [
  * Oracle 11g —que exigen modo thick— y justo eso es lo que hay que poder probar.
  * `.tessera` lleva las credenciales de los agentes: sin ella habría que re-loguear
  * cada cuenta en dev, que es fricción suficiente para que nadie use la separación.
+ * `ssh` lleva las huellas aceptadas y las claves importadas de las conexiones SSH, y
+ * `terminal` la carpeta del agente de la terminal de cada perfil, con su contexto y sus notas.
  */
-const SEMILLA_CARPETAS = ['.tessera', 'conexiones', 'drivers']
+const SEMILLA_CARPETAS = ['.tessera', 'conexiones', 'drivers', 'ssh', 'terminal']
 
 /**
  * En DESARROLLO, reapunta `userData` a una carpeta propia. No-op en la app

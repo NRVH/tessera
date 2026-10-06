@@ -18,7 +18,7 @@ import {
   esBorrarEntrada,
   moverEnHistorial
 } from './historialConsola'
-import type { AnclaDerecha } from './popoverFlotante'
+import type { AnclaDerecha } from '../../../comun/popoverFlotante'
 import { textoError } from './salidaConsola'
 
 /** Lo que recibe el popover del historial de consultas. */

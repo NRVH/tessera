@@ -8,6 +8,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from 'react'
 import { altoFila, fontBusqueda, variablesCss } from '../../theme/densidad'
+import { esDeUnaListaDeSelect } from '../../comun/useDialogo'
 import {
   ESTADO_INICIAL,
   agregarLote,
@@ -236,6 +237,8 @@ export function teclaDeLista(
     alPulsarTecla: (e: React.KeyboardEvent) => void
   }
 ): void {
+  // Con la lista de un select desplegada, sus teclas son de la lista (es del DOM y burbujea).
+  if (esDeUnaListaDeSelect(e.target)) return
   if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
     e.preventDefault()
     ctx.setEstado((s) => mover(s, e.key === 'ArrowDown' ? 'abajo' : 'arriba'))

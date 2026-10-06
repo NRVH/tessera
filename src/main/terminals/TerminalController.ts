@@ -2,11 +2,14 @@
 // Controlador de las terminales de la interfaz: orquesta SandboxManager y TerminalService y
 // emite DATA/EXIT al renderer por un `EmisorEventos`. Lleva la cuenta de sesiones abiertas y
 // de perfiles "tocados" para limpiar sin huérfanos al cerrar la app.
-// Los canales los registra `ipc.ts`; los tipos, `shared/terminal-ipc`.
-// Decisiones: docs/decisiones/terminales/pty-y-detencion-de-sesion.md
+// Los canales los registra `ipc.ts`; los tipos, `shared/terminal-ipc`. Las sesiones SSH las abre
+// y reconecta `sesionSsh.ts` con lo que da el dominio SSH (`LanzadorSshTerminal`).
+// Decisiones: docs/decisiones/terminales/pty-y-detencion-de-sesion.md, docs/decisiones/ssh/motor-linea-y-huellas.md
 // =============================================================================
 import { SandboxManager } from '../sandbox/SandboxManager'
 import { TerminalService } from './TerminalService'
+import { abrirSesionSsh, recargarSesionSsh, salidaSsh, type SesionSsh } from './sesionSsh'
+import type { LanzadorSshTerminal } from './lanzadorSsh'
 import { dbLog } from '../db/dbLog'
 import type { Profile } from '../profiles/types'
 import type { EmisorEventos } from '../util/emisorEventos'
@@ -14,6 +17,7 @@ import { PREFIJO_DOCKER_NO_DISPONIBLE } from '../../shared/dockerErrors'
 import {
   TERMINAL_CHANNELS,
   type OpenTerminalRequest,
+  type OpenSshRequest,
   type OpenTerminalResult,
   type WriteTerminalMessage,
   type ResizeTerminalMessage,
@@ -70,6 +74,8 @@ export interface TerminalControllerOptions {
    * todos los cierres: olvidar uno dejaría un token válido para un pty que ya no existe.
    */
   revokeDbSession?: (sessionId: string) => void
+  /** El dominio SSH (`ssh/ControladorSsh`): sin él, `abrirSsh` no está disponible. */
+  lanzadorSsh?: LanzadorSshTerminal
 }
 
 interface OpenSession {
@@ -83,6 +89,8 @@ interface OpenSession {
   unsubData: () => void
   /** Cancela la suscripción onExit (primer nivel) hacia el renderer. */
   unsubExit: () => void
+  /** Sesión SSH: su conexión y la cola de salida con que se clasifica su EXIT. */
+  ssh?: SesionSsh
 }
 
 /** Puente entre el proceso main y las terminales: abre, recarga y cierra sesiones. */
@@ -108,6 +116,7 @@ export class TerminalController {
   ) => Record<string, string>
   private readonly bindDbSession: (extraEnv: Record<string, string>, sessionId: string) => void
   private readonly revokeDbSession: (sessionId: string) => void
+  private readonly lanzadorSsh: LanzadorSshTerminal | null
   private readonly log: (msg: string) => void
 
   constructor(opts: TerminalControllerOptions) {
@@ -121,6 +130,7 @@ export class TerminalController {
     this.getContainerEnv = opts.getContainerEnv ?? (() => ({}))
     this.bindDbSession = opts.bindDbSession ?? (() => {})
     this.revokeDbSession = opts.revokeDbSession ?? (() => {})
+    this.lanzadorSsh = opts.lanzadorSsh ?? null
     this.log = opts.log ?? ((m) => console.log(`[terminal] ${m}`))
   }
 
@@ -140,7 +150,7 @@ export class TerminalController {
 
   /** Entrada de teclado del renderer hacia el pty; un fallo se registra y no se propaga. */
   escribir(msg: WriteTerminalMessage): void {
-    this.log(`WRITE<-renderer session=${msg.sessionId} data=${JSON.stringify(msg.data)}`)
+    this.log(`WRITE<-renderer session=${msg.sessionId} bytes=${msg.data.length}`)
     try {
       this.terminals.write(msg.sessionId, msg.data)
     } catch (err) {
@@ -166,12 +176,26 @@ export class TerminalController {
     }
   }
 
+  /** Relanza el proceso de una sesión existente conservando su id y sus suscripciones. */
+  async reload(sessionId: string, dbConnectionIds?: string[]): Promise<OpenTerminalResult> {
+    const open = this.sessions.get(sessionId)
+    // Antes que nada: una sesión SSH no toca Docker ni pide `getHostEnv`, que fijaría el ámbito de BD del proyecto.
+    return open?.ssh ? this.reconectarSsh(sessionId, open.profileId, open.ssh) : this.recargarShell(sessionId, dbConnectionIds)
+  }
+
+  /** «Reconectar» una sesión SSH: con los datos vigentes de su conexión y sin rutas en la respuesta. */
+  private async reconectarSsh(sessionId: string, profileId: string, ssh: SesionSsh): Promise<OpenTerminalResult> {
+    const s = await recargarSesionSsh(this.terminals, this.exigirLanzadorSsh(), sessionId, profileId, ssh)
+    this.log(`reloadSession [SSH] OK -> id=${s.id}`)
+    return { sessionId: s.id, profileId: s.profileId, projectHostPath: '', workspacePath: '' }
+  }
+
   /**
    * Relanza el shell de una sesión existente. En modo contenedor primero lo reestablece
    * (checkDocker → ensureContainer → addProject): si murió, se recrea y el proyecto se vuelve
    * a montar. Las suscripciones onData/onExit sobreviven al reload.
    */
-  async reload(sessionId: string, dbConnectionIds?: string[]): Promise<OpenTerminalResult> {
+  private async recargarShell(sessionId: string, dbConnectionIds?: string[]): Promise<OpenTerminalResult> {
     const open = this.sessions.get(sessionId)
     const profile = open ? this.profiles.get(open.profileId) : undefined
     if (open && !open.host && profile) {
@@ -262,14 +286,35 @@ export class TerminalController {
     return this.wireSession(profile, session, mount.projectHostPath, false)
   }
 
+  /**
+   * Abre una conexión SSH guardada del perfil en el pty del HOST: sin Docker, sin entorno de bases
+   * de datos y sin rutas del host en la respuesta. No la cierra hibernar el perfil.
+   */
+  async abrirSsh(req: OpenSshRequest): Promise<OpenTerminalResult> {
+    const profile = this.profiles.get(req?.profileId)
+    if (!profile) throw new Error(`Perfil desconocido: "${req?.profileId}".`)
+    if (typeof req.conexionId !== 'string' || req.conexionId === '') throw new Error('Falta la conexión SSH que abrir.')
+    const { session, ssh } = await abrirSesionSsh(this.terminals, this.exigirLanzadorSsh(), profile, req.conexionId)
+    this.log(`createSession [SSH] OK -> id=${session.id}`)
+    this.wireSession(profile, session, '', true, ssh)
+    return { sessionId: session.id, profileId: profile.id, projectHostPath: '', workspacePath: '' }
+  }
+
+  private exigirLanzadorSsh(): LanzadorSshTerminal {
+    if (!this.lanzadorSsh) throw new Error('Las conexiones SSH no están disponibles en esta sesión de Tessera.')
+    return this.lanzadorSsh
+  }
+
   /** Cablea DATA/EXIT hacia el renderer, registra la sesión y devuelve el resultado IPC. */
   private wireSession(
     profile: Profile,
     session: { id: string; workspacePath: string },
     projectHostPath: string,
-    host: boolean
+    host: boolean,
+    ssh?: SesionSsh
   ): OpenTerminalResult {
     const unsubData = this.terminals.onData(session.id, (data) => {
+      ssh?.cola.anotar(data)
       const payload: TerminalDataMessage = { sessionId: session.id, data }
       this.eventos.emitir(TERMINAL_CHANNELS.DATA, payload)
     })
@@ -277,9 +322,11 @@ export class TerminalController {
     // El onExit de primer nivel sobrevive a reloadSession() y solo dispara en salidas reales
     // del shell (`exit`, un crash), no en el kill interno de un reload.
     const unsubExit = this.terminals.onExit(session.id, (exitCode) => {
-      const payload: TerminalExitMessage = { sessionId: session.id, exitCode }
+      ssh?.alTerminar()
+      const payload: TerminalExitMessage =
+        ssh && this.lanzadorSsh ? salidaSsh(session.id, exitCode, ssh, this.lanzadorSsh) : { sessionId: session.id, exitCode }
       this.eventos.emitir(TERMINAL_CHANNELS.EXIT, payload)
-      this.log(`shell EXIT session=${session.id} exitCode=${exitCode}`)
+      this.log(`shell EXIT session=${session.id} exitCode=${exitCode}${payload.reason ? ` motivo=${payload.reason}` : ''}`)
     })
 
     this.sessions.set(session.id, {
@@ -288,7 +335,8 @@ export class TerminalController {
       projectHostPath,
       host,
       unsubData,
-      unsubExit
+      unsubExit,
+      ...(ssh ? { ssh } : {})
     })
 
     return {
@@ -299,10 +347,15 @@ export class TerminalController {
     }
   }
 
-  /** Cierra todas las sesiones de un perfil (hibernar); nunca toca las de otro. */
-  async closeSessionsForProfile(profileId: string): Promise<string[]> {
+  /**
+   * Cierra las sesiones de un perfil (hibernar); nunca toca las de otro. Las SSH se quedan: no
+   * dependen del contenedor del perfil y cerrarlas cortaría el trabajo en el equipo remoto.
+   */
+  async closeSessionsForProfile(profileId: string, opciones: { incluirSsh?: boolean } = {}): Promise<string[]> {
+    // Hibernar NO cierra las pestañas SSH (sobreviven a hibernar, a propósito); BORRAR el perfil sí
+    // (`incluirSsh`): sus claves y huellas se borran y una sesión viva seguiría apoyada en ellas.
     const ids = [...this.sessions.values()]
-      .filter((s) => s.profileId === profileId)
+      .filter((s) => s.profileId === profileId && (opciones.incluirSsh === true || !s.ssh))
       .map((s) => s.sessionId)
     for (const id of ids) await this.close(id)
     return ids
@@ -314,9 +367,10 @@ export class TerminalController {
    * hibernación manual y el cierre de la app. `releaseSession` solo apunta en el contador.
    */
   async close(sessionId: string): Promise<void> {
-    // Lo primero: el token deja de valer aunque el resto del cierre falle a medias.
+    // Lo primero: el token (y la ficha de una sesión SSH) deja de valer aunque el resto del cierre falle a medias.
     this.revokeDbSession(sessionId)
     const open = this.sessions.get(sessionId)
+    open?.ssh?.alTerminar()
     if (open) {
       open.unsubData()
       open.unsubExit()
@@ -386,6 +440,11 @@ export class TerminalController {
   /** Sesiones actualmente abiertas. */
   liveSessionIds(): string[] {
     return [...this.sessions.keys()]
+  }
+
+  /** El perfil de una sesión abierta, o `undefined` si no existe (o el id no es un texto): su RELOAD espera al borrado de ese perfil. */
+  perfilDeSesion(sessionId: unknown): string | undefined {
+    return typeof sessionId === 'string' ? this.sessions.get(sessionId)?.profileId : undefined
   }
 }
 

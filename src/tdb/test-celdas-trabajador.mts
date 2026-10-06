@@ -484,12 +484,30 @@ async function main(): Promise<void> {
   hr('(13) Binds de salida de texto de Oracle (el DDL de DBMS_METADATA)')
   {
     const ora = require_('./sesionOracle.cjs')
-    const falso = { BIND_OUT: 3003, DB_TYPE_CLOB: { name: 'DB_TYPE_CLOB' } }
+    const falso = { BIND_OUT: 3003, CURSOR: { name: 'DB_TYPE_CURSOR' }, DB_TYPE_CLOB: { name: 'DB_TYPE_CLOB' } }
     const p = ora.prepararBinds(falso, { esq: 'HR', obj: null, ddl: { salida: 'texto', tope: 50 } })
     check(
-      '{ salida: "texto" } -> BIND_OUT de CLOB con su tope; lo demás, tal cual',
-      p.binds.esq === 'HR' && p.binds.obj === null && p.binds.ddl.dir === 3003 && p.binds.ddl.type === falso.DB_TYPE_CLOB && p.salidas.ddl === 50,
+      '{ salida: "texto" } -> BIND_OUT de CURSOR (no de CLOB: falla contra una 11.2.0.4) con su tope; lo demás, tal cual',
+      p.binds.esq === 'HR' && p.binds.obj === null && p.binds.ddl.dir === 3003 && p.binds.ddl.type === falso.CURSOR && p.salidas.ddl === 50,
       JSON.stringify(p)
+    )
+    // El cursor: su primera fila (en lista o en objeto) se lee como el CLOB de antes, recortada a su tope,
+    // y se cierra; sin filas o con NULL, `null`.
+    const cursorDe = (filas: unknown[]) => {
+      const c = { cerrado: false, getRows: async () => filas, close: async () => { c.cerrado = true } }
+      return c
+    }
+    const enLista = cursorDe([['x'.repeat(60)]])
+    const enObjeto = cursorDe([{ H: 'corto' }])
+    const vacio = cursorDe([])
+    const nulo = cursorDe([[null]])
+    const { leerSalidasTexto } = require_('./bindsSesionOracle.cjs')
+    const s = await leerSalidasTexto({ outBinds: { a: enLista, b: enObjeto, c: vacio, d: nulo } }, { a: 50, b: 50, c: 50, d: 50 })
+    check(
+      'salida por cursor: recortada a su tope, en objeto, vacía y NULL; y los cursores se cierran',
+      s.a.recortado === true && s.a.longitud === 60 && s.a.texto.length <= 50 && s.b.texto === 'corto' && s.b.recortado === false &&
+        s.c === null && s.d === null && [enLista, enObjeto, vacio, nulo].every((c) => c.cerrado),
+      JSON.stringify(s)
     )
     const posicionales = ora.prepararBinds(falso, ['a', 1])
     check('binds posicionales: sin salidas', Array.isArray(posicionales.binds) && posicionales.salidas === null, JSON.stringify(posicionales))

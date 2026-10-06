@@ -176,7 +176,7 @@ export function MenusAgentPane({ m }: PropsParte): React.JSX.Element {
           // En nativo no hay cuenta: la sintética satisface el contrato y el main la ignora.
           accountId={p.hostMode ? HOST_ACCOUNT_ID : p.selectedAccountId}
           projectHostPath={projectHostPath}
-          esEspacioDeDatos={p.esEspacioDeDatos}
+          lugar={p.lugar}
           mode={p.hostMode ? 'host' : 'container'}
           accentColor={p.accentColor}
           onResume={(sessionId) => m.sesion.resume(sessionId)}

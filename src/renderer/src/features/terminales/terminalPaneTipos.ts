@@ -23,6 +23,14 @@ export interface TerminalProjectTarget {
   key: string
 }
 
+/**
+ * De dónde sale la sesión de un pane: una terminal LOCAL de un proyecto (con su ruta y su modo) o
+ * una conexión SSH guardada del perfil. FIJO en vida del componente: va en la React key.
+ */
+export type OrigenTerminal =
+  | { tipo: 'local'; projectHostPath: string; hostMode: boolean }
+  | { tipo: 'ssh'; conexionId: string }
+
 /** Lo que el pane reporta hacia arriba para que el header pinte SU estado. */
 export interface TerminalPaneInfo {
   status: TerminalStatus
@@ -44,23 +52,21 @@ export interface TerminalPaneApi {
 }
 
 export interface TerminalPaneProps {
-  /** Identidad de la ranura (`${projectKey}|${terminalId}`); el pane la devuelve en cada reporte. */
+  /** Identidad de la ranura (`${projectKey}|${terminalId}`, o `ssh|perfil|sN`); el pane la devuelve en cada reporte. */
   paneKey: string
   /** Perfil de ESTA ranura. FIJO en vida del componente (va en la React key). */
   profileId: string
-  /** Proyecto de ESTA ranura (cwd/mount de la sesión). FIJO (va en la React key). */
-  projectHostPath: string
+  /**
+   * De dónde sale su sesión. Local: el proyecto de la ranura (cwd/mount) y su modo (nativo = un
+   * shell del host con cwd en la ruta real; si no, uno dentro del contenedor). Alternar el modo
+   * REMONTA el pane (va en la React key): otra sesión, otro shell. SSH: la conexión guardada.
+   */
+  origen: OrigenTerminal
   /**
    * ¿Es la terminal que se está mirando? Solo alterna CSS (display:none): un pane
    * oculto conserva su xterm, su scrollback y su pty. NUNCA desmonta.
    */
   visible: boolean
-  /**
-   * Modo nativo: la terminal es un shell del host con cwd en la ruta real del proyecto,
-   * en vez de un shell dentro del contenedor. FIJO (va en la React key: alternar el
-   * modo REMONTA el pane, que es lo correcto — otra sesión, otro shell).
-   */
-  hostMode?: boolean
   /**
    * Ids de las conexiones a base de datos montadas en este proyecto (mismo ámbito que
    * su sesión de agente). Se envían al ABRIR: cambiarlas exige reabrir la terminal.
@@ -73,7 +79,8 @@ export interface TerminalPaneProps {
   dbReady?: boolean
   /**
    * El proyecto está HIBERNADO: el backend ya mató esta sesión por detrás. El pane
-   * limpia su sessionId muerto y la reabre cuando vuelva a ser visible.
+   * limpia su sessionId muerto y la reabre cuando vuelva a ser visible. Una sesión SSH lo
+   * IGNORA: no depende del contenedor del perfil y el main no la cierra al hibernar.
    */
   hibernated?: boolean
   /** Color del perfil, ya en tinta (ver features/pestanas/colorPerfil). Solo tiñe el CURSOR. */
@@ -104,6 +111,13 @@ export interface RefsTerminal {
   dbMounted: MutableRefObject<string[]>
   /** ¿Ya abrió alguna vez? Solo para el banner de «relanzada» al despertar. */
   hasOpenedOnce: MutableRefObject<boolean>
+  /**
+   * ¿Ya intentó abrir? Una sesión SSH se abre sola SOLO la primera vez que se ve: si falla, o se
+   * cierra, volver a mirar la pestaña no la reintenta; eso es del botón «Reconectar».
+   */
+  intentado: MutableRefObject<boolean>
+  /** Cuándo (epoch ms) arrancó la sesión SSH vigente: de ahí sale si salió con 255 al conectar o después. */
+  inicioSesion: MutableRefObject<number>
   /** `visible` legible desde callbacks async (no robar foco si ya se fue a otra terminal). */
   visible: MutableRefObject<boolean>
   /** Temporizador del debounce del resize AL PTY (trailing). */

@@ -149,14 +149,16 @@ function nombreApp(ctx, con) {
 }
 
 /**
- * El cifrado EFECTIVO: el guardado o, sin él, el del motor (`tlsPorDefecto` de la fila de
- * `motores.cjs` si la trae; si no, el de shared copiado aquí). Como `tlsDeConexion` del main.
+ * El cifrado EFECTIVO: el guardado o, sin él, con `srv` cifrar y verificar (como Atlas), y si no el
+ * del motor (`tlsPorDefecto` de la fila de `motores.cjs` si la trae; si no, el de shared copiado
+ * aquí). Como `tlsEfectivo` del main.
  */
 function tlsDe(con) {
   const t = con && con.tls
   if (t && typeof t === 'object' && typeof t.cifrar === 'boolean' && typeof t.confiarCertificado === 'boolean') {
     return { cifrar: t.cifrar, confiarCertificado: t.confiarCertificado }
   }
+  if (con && con.srv === true) return { cifrar: true, confiarCertificado: false }
   const fila = motoresTdb.MOTORES.mongodb
   const d = fila && fila.tlsPorDefecto ? fila.tlsPorDefecto : TLS_MONGO_POR_DEFECTO
   return { cifrar: d.cifrar, confiarCertificado: d.confiarCertificado }

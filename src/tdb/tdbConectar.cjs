@@ -33,13 +33,17 @@ function envVarDestino(connectionId) {
  * `src/main/db/huellaDestino.ts` (el porqué, allí); `test-shim` fija que las dos dan lo
  * mismo. Los valores van tal cual salen del JSON. El `archivo` va como séptimo valor SOLO
  * si la entrada lo trae, y los de SQL Server (instancia, autenticación, dominio, cifrado)
- * como UN valor más, una lista, solo si trae alguno: la huella de un motor de red no cambia.
+ * como UN valor más, una lista, solo si trae alguno, y los de MongoDB (`srv`, `opcionesUri`) como
+ * otra, igual: la huella de un motor de red no cambia.
  */
 function huellaDestino(con) {
   const valores = [con.motor, con.host, con.port, con.database, con.sid, con.user]
   if (con.archivo !== undefined) valores.push(con.archivo)
   if (con.instancia !== undefined || con.autenticacion !== undefined || con.dominio !== undefined || con.tls !== undefined) {
     valores.push([con.instancia, con.autenticacion, con.dominio, con.tls].map((v) => (v === undefined ? null : v)))
+  }
+  if (con.srv !== undefined || con.opcionesUri !== undefined) {
+    valores.push([con.srv, con.opcionesUri].map((v) => (v === undefined ? null : v)))
   }
   const campos = valores.map((v) => (v === undefined ? null : v))
   return require('node:crypto').createHash('sha256').update(JSON.stringify(campos), 'utf8').digest('hex').slice(0, 32)

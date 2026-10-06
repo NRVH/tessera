@@ -1,0 +1,65 @@
+/* =============================================================================
+   EL RIEL DE CONEXIONES SSH: la lista fija a la izquierda de la terminal a pantalla completa, el
+   aviso de su límite de error y su conmutador en la cabecera de la terminal. La cabecera del riel es
+   la de los laterales (`.sidebar-header`, global). Va dentro de `.terminal-body` y no toca
+   `.shell-main`: ahí no caben `transform`, `contain` ni `container-type`.
+   Decisiones: docs/decisiones/terminales/riel-de-conexiones.md
+   ============================================================================= */
+
+/* El ancho lo pone el componente (es el que arrastra el divisor). Redeclara el tamaño de la interfaz:
+   las filas miden su alto con la densidad base y el texto tiene que seguirla. */
+.ssh-riel {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg-elevated);
+  color: var(--fg);
+  font-size: var(--ui-font);
+}
+
+/* La lista fija llena lo que deja la cabecera. Su `height: 100%` es de cuando es la única hija de un
+   contenedor con alto; aquí el alto lo reparte el flex. */
+.ssh-riel-cuerpo {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding-top: 8px;
+}
+.ssh-riel .ssh-lista[data-modo='fijo'] {
+  flex: 1 1 auto;
+  height: auto;
+}
+
+/* Un botón apagado dice su porqué desde un envoltorio vivo: Chromium no da eventos de ratón a un
+   control deshabilitado. Sin caja propia. */
+.ssh-riel .sidebar-actions .btn-envoltura {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+/* EL LÍMITE DE ERROR: sin caja propia, el riel y su divisor siguen siendo hijos de la fila de la terminal.
+   Si el riel falla, el aviso del `ErrorBoundary` común rellena el hueco (`flex: 1 1 auto`) y se repartiría
+   la fila con la terminal: aquí ocupa el ancho del riel (lo pone el componente) y ella conserva el resto. */
+.ssh-riel-limite {
+  display: contents;
+}
+.ssh-riel-limite > .error-boundary-pane {
+  flex: 0 0 auto;
+  width: var(--ssh-riel-ancho);
+  padding: 12px;
+}
+
+/* El conmutador del riel, el primero de la cabecera de la terminal a pantalla completa: no se encoge.
+   Apagado lo envuelve un span con su porqué (`title`) que mide lo que él. No es de `.panel-actions`:
+   gobierna la columna que tiene debajo, a su izquierda, y por eso no se funde en reposo. */
+.terminal-panel > .panel-header > .ssh-riel-conmutador,
+.terminal-panel > .panel-header > .btn-envoltura {
+  flex: 0 0 auto;
+}
+.terminal-panel > .panel-header > .btn-envoltura {
+  display: inline-flex;
+}

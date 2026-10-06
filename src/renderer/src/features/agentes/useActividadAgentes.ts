@@ -48,7 +48,8 @@ function useClaveVista(tabs: UseTabs, agentes: AgentesApp, ccHidden: boolean): s
     enfocada,
     teselas,
     activeTargetKey: agentes.activeTargetKeyEfectivo,
-    ccVisible: lay.agente === 'espacio' ? !lay.cc.hidden : !ccHidden && vistaConfirmada
+    // El agente de datos y el de la terminal no dependen del proyecto confirmado: se ven si su columna se ve.
+    ccVisible: lay.agente === 'espacio' || lay.agente === 'terminal' ? !lay.cc.hidden : !ccHidden && vistaConfirmada
   })
 }
 
@@ -106,11 +107,13 @@ export function useActividadAgentes(
     const open = new Set(targetsAgente.map((t) => t.key))
     actualizarActividad((s) => pruneActivity(s, open))
   }, [targetsAgente])
-  // Al hibernar no llega un 'idle' final: sin esto el 'working' quedaría pegado.
+  // Al hibernar no llega un 'idle' final: sin esto el 'working' quedaría pegado. Con los targets
+  // que no son pestaña de un perfil hibernado (la unión que ve la columna).
+  const hibernados = agentes.hibernatedTargetKeys
   useEffect(() => {
-    if (tabs.hibernatedTargetKeys.size === 0) return
-    actualizarActividad((s) => clearActivityKeys(s, tabs.hibernatedTargetKeys))
-  }, [tabs.hibernatedTargetKeys])
+    if (hibernados.size === 0) return
+    actualizarActividad((s) => clearActivityKeys(s, hibernados))
+  }, [hibernados])
   const activityAttention = useMemo(() => {
     const unseenProfiles = new Set<string>()
     const workingProfiles = new Set<string>()

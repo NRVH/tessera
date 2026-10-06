@@ -193,7 +193,7 @@ export class MontajesSandbox {
   }
 
   /**
-   * Monta el buzón del puente de BD y enlaza `tdb` en el PATH del contenedor. Best-effort:
+   * Monta el buzón del puente de BD y enlaza `tdb` y `tssh` en el PATH del contenedor. Best-effort:
    * si falla, el perfil se queda sin bases pero el contenedor y el agente siguen.
    */
   async mountDbBridge(profile: Profile): Promise<void> {
@@ -215,18 +215,19 @@ export class MontajesSandbox {
         )
         return
       }
+      // `tdb` y `tssh` (el programa que registra el dominio SSH en el mismo buzón), en un solo `exec`.
       const enlace = await runDocker([
         'exec',
         '-u',
         'root',
         containerNameFor(profile),
-        'ln',
-        '-sf',
-        `${DB_BRIDGE_CONTAINER}/tdb`,
-        '/usr/local/bin/tdb'
+        'sh',
+        '-c',
+        `ln -sf ${citarSh(`${DB_BRIDGE_CONTAINER}/tdb`)} /usr/local/bin/tdb && ` +
+          `ln -sf ${citarSh(`${DB_BRIDGE_CONTAINER}/tssh`)} /usr/local/bin/tssh`
       ])
       if (enlace.status !== 0) {
-        console.log(`[sandbox] no se pudo enlazar tdb en "${profile.id}": ${enlace.stderr.trim()}`)
+        console.log(`[sandbox] no se pudo enlazar tdb y tssh en "${profile.id}": ${enlace.stderr.trim()}`)
       }
     } catch (err) {
       console.log(`[sandbox] puente de BD no disponible en "${profile.id}": ${errText(err)}`)

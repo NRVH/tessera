@@ -382,6 +382,11 @@ export class ConsolasStore {
         return { ok: false, conflicto: true, texto: actual, version }
       }
     }
+    // El borrado del perfil pudo mandar su carpeta a la papelera desde que se leyó el índice (un guardado
+    // tardío del renderer): la escritura atómica crea las carpetas que falten y dejaría una huérfana.
+    if (!(await stat(carpeta).then((s) => s.isDirectory(), () => false))) {
+      throw new ErrorConsolas('noExiste', 'La consola ya no existe.')
+    }
     await this.escribirArchivo(ruta, texto)
     // La de los bytes MANDADOS (UTF-8 sin BOM), no la de releer el disco: releer adoptaría un
     // cambio de fuera caído justo después.

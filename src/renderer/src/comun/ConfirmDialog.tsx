@@ -7,7 +7,7 @@
 // =============================================================================
 
 import { useCallback, useEffect, useRef } from 'react'
-import { useDialogo } from './useDialogo'
+import { alClicEnVelo, useDialogo } from './useDialogo'
 
 interface ConfirmDialogProps {
   title: string
@@ -67,7 +67,7 @@ export function ConfirmDialog({
   }, [danger, cardRef])
 
   return (
-    <div className="modal-overlay" role="presentation" onMouseDown={onCancel}>
+    <div className="modal-overlay" role="presentation" onMouseDown={alClicEnVelo(onCancel)}>
       <div
         ref={cardRef}
         className="modal-card"

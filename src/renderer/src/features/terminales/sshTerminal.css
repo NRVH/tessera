@@ -1,0 +1,49 @@
+/* =============================================================================
+   LO PROPIO DE LAS SESIONES SSH en la terminal: el modificador `.ssh` de una pestaña (icono de
+   servidor delante del nombre), el filete que separa las pestañas del perfil de las del proyecto y
+   el «Conectando a…» que se ve hasta el primer dato. Las clases base de las pestañas
+   (`.terminal-tab*`) siguen en `styles.css`: las comparten las pestañas de resultados de BD y no
+   se tocan desde aquí.
+   Decisiones: docs/decisiones/terminales/pestanas-ssh-del-perfil.md
+   ============================================================================= */
+
+.terminal-tab.ssh {
+  padding-left: 6px;
+}
+.terminal-tab-icono {
+  flex: 0 0 auto;
+  display: inline-flex;
+  color: var(--fg-faint);
+}
+.terminal-tab-icono svg {
+  width: 12px;
+  height: 12px;
+}
+.terminal-tab.ssh.active .terminal-tab-icono {
+  color: var(--fg-muted);
+}
+
+/* No es una pestaña (`aria-hidden`): una raya tenue entre dos grupos que se leen distinto. */
+.terminal-tabs-filete {
+  flex: 0 0 auto;
+  width: 1px;
+  height: 14px;
+  margin: 0 4px;
+  background: var(--border);
+}
+
+/* Capa ABSOLUTA sobre el hueco de la xterm: no la empuja ni la encoge, y no recibe el ratón (un
+   clic sobre ella llega al hueco y enfoca la terminal). Se va con el primer dato o la salida. */
+.terminal-conectando {
+  position: absolute;
+  top: 18px;
+  left: 20px;
+  z-index: 1;
+  max-width: calc(100% - 40px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg-faint);
+  font-size: 12px;
+  pointer-events: none;
+}

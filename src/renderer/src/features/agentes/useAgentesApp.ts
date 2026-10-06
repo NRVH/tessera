@@ -1,7 +1,9 @@
 // =============================================================================
-// Targets de agente de la ventana: los de proyecto y los sintéticos de los espacios
-// de datos, cuál se ve (según layoutCentro) y la restauración del agente de datos.
-// También poda el estado de sesión y lleva a un (perfil, proyecto, agente).
+// Targets de agente de la ventana: los de proyecto y los sintéticos de los espacios de datos y del
+// agente de la terminal, cuál se ve (según layoutCentro), la restauración del agente de datos y del
+// de la terminal, y los hibernados que ve la columna. También poda el estado de sesión y lleva a un
+// (perfil, proyecto, agente).
+// Decisiones: docs/decisiones/agentes/agente-de-la-terminal.md
 // =============================================================================
 import { useCallback, useEffect, useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
@@ -9,9 +11,19 @@ import { AGENTES_DISPONIBLES, type Agente } from '../../../../main/profiles/type
 import type { AgentPaneStatus } from './agentPaneTipos'
 import { resolveSelectedAgent } from './agenteElegido'
 import { selectAgent, useStoreAgentes } from './store'
+import { useStoreAgenteTerminal } from './storeAgenteTerminal'
 import type { ColumnaAgenteEstado } from './useColumnaAgente'
+import { useRestaurarAgenteTerminal, type AgenteTerminalApp } from './useAgenteTerminal'
+import { useHibernacionFueraDePestanas } from './useHibernacionFueraDePestanas'
 import { agentTargetKey, useStorePestanas, type OpenAgentTarget, type UseTabs } from '../pestanas'
-import { cambiarVistaSi, derivarLayoutCentro, useStoreLayout, type SalidaLayoutCentro, type VistasPorPerfil } from '../layout'
+import {
+  cambiarVistaSi,
+  derivarLayoutCentro,
+  pantallaCompletaCoherente,
+  useStoreLayout,
+  type SalidaLayoutCentro,
+  type VistasPorPerfil
+} from '../layout'
 import { ocultarAgenteDb, useStoreBd, type EspaciosDatos } from '../bd'
 import { useStoreMosaico } from '../mosaico'
 
@@ -21,9 +33,24 @@ export interface AgentesApp {
   targetsAgente: OpenAgentTarget[]
   agenteDbVisible: boolean
   lay: SalidaLayoutCentro
-  /** El target cuya columna se ve: del espacio en 'db', del proyecto fuera, o ninguno. */
+  /** El target cuya columna se ve: del espacio en 'db', del agente de la terminal, del proyecto fuera, o ninguno. */
   activeTargetKeyEfectivo: string | null
+  /** Los hibernados que ve la columna: los de las pestañas y los que no son pestaña de un perfil hibernado. */
+  hibernatedTargetKeys: Set<string>
   openAgentTarget: (profileId: string, projectHostPath: string, agente: Agente) => void
+}
+
+/** Un target por agente para cada perfil abierto con su carpeta conocida (espacio de datos o agente de la terminal). */
+function targetsDeCarpetas(abiertos: ReadonlySet<string>, rutas: Record<string, string>): OpenAgentTarget[] {
+  const out: OpenAgentTarget[] = []
+  for (const profileId of abiertos) {
+    const ruta = rutas[profileId]
+    if (!ruta) continue
+    for (const agente of AGENTES_DISPONIBLES) {
+      out.push({ profileId, projectHostPath: ruta, agente, key: agentTargetKey(profileId, ruta, agente) })
+    }
+  }
+  return out
 }
 
 /** Targets sintéticos de los espacios de datos abiertos (uno por agente). */
@@ -31,17 +58,13 @@ function useTargetsEspacio(): OpenAgentTarget[] {
   const { espaciosAbiertos, dbWorkspacePaths } = useStoreBd(
     useShallow((s) => ({ espaciosAbiertos: s.espaciosAbiertos, dbWorkspacePaths: s.dbWorkspacePaths }))
   )
-  return useMemo(() => {
-    const out: OpenAgentTarget[] = []
-    for (const profileId of espaciosAbiertos) {
-      const ruta = dbWorkspacePaths[profileId]
-      if (!ruta) continue
-      for (const agente of AGENTES_DISPONIBLES) {
-        out.push({ profileId, projectHostPath: ruta, agente, key: agentTargetKey(profileId, ruta, agente) })
-      }
-    }
-    return out
-  }, [espaciosAbiertos, dbWorkspacePaths])
+  return useMemo(() => targetsDeCarpetas(espaciosAbiertos, dbWorkspacePaths), [espaciosAbiertos, dbWorkspacePaths])
+}
+
+/** Targets sintéticos del agente de la terminal de los perfiles que lo tienen abierto (uno por agente). */
+function useTargetsTerminal(): OpenAgentTarget[] {
+  const { abiertos, rutas } = useStoreAgenteTerminal(useShallow((s) => ({ abiertos: s.abiertos, rutas: s.rutas })))
+  return useMemo(() => targetsDeCarpetas(abiertos, rutas), [abiertos, rutas])
 }
 
 /** Al entrar en BD con la preferencia puesta, prepara el espacio; si falla, retira la preferencia. */
@@ -79,13 +102,18 @@ function usePodaEstadoSesion(targetsAgente: OpenAgentTarget[]): void {
   }, [targetsAgente])
 }
 
-/** Layout del centro del perfil activo y el espacio de datos que le toca. */
+/** Layout del centro del perfil activo, el espacio de datos que le toca y si la terminal está a pantalla completa. */
 function useLayoutDelCentro(
   tabs: UseTabs,
   vistas: Pick<VistasPorPerfil, 'activeView' | 'panelInferior'>,
   columna: ColumnaAgenteEstado,
   hayPestanasEditor: boolean
-): { lay: SalidaLayoutCentro; agenteDbVisible: boolean; espacioActivoPath: string | undefined } {
+): {
+  lay: SalidaLayoutCentro
+  agenteDbVisible: boolean
+  espacioActivoPath: string | undefined
+  pantallaCompletaTerminal: boolean
+} {
   const perfil = tabs.activeProfile
   const { espacioActivoPath, espacioAbierto, agenteDbVisible } = useStoreBd(
     useShallow((s) => ({
@@ -94,7 +122,14 @@ function useLayoutDelCentro(
       agenteDbVisible: perfil ? s.dbAgenteVisiblePorPerfil[perfil.id] === true : false
     }))
   )
+  const terminal = useStoreAgenteTerminal(
+    useShallow((s) => ({
+      visible: perfil ? s.visiblePorPerfil[perfil.id] === true : false,
+      abierto: perfil ? s.abiertos.has(perfil.id) && s.rutas[perfil.id] !== undefined : false
+    }))
+  )
   const mosaicoActivo = useStoreMosaico((s) => s.mosaicoActivo)
+  const pedida = useStoreLayout((s) => s.franjaPantallaCompleta)
   const lay = derivarLayoutCentro({
     vista: vistas.activeView,
     mosaico: mosaicoActivo,
@@ -105,9 +140,41 @@ function useLayoutDelCentro(
     agenteDbVisible,
     espacioAbierto: Boolean(perfil && espacioActivoPath && espacioAbierto),
     hayPerfil: perfil !== null,
-    panelInferior: vistas.panelInferior
+    panelInferior: vistas.panelInferior,
+    pantallaCompletaPedida: pedida,
+    agenteTerminalVisible: terminal.visible,
+    agenteTerminalAbierto: terminal.abierto
   })
-  return { lay, agenteDbVisible, espacioActivoPath }
+  const pantallaCompletaTerminal = pantallaCompletaCoherente({ pedida, franja: lay.franja, mosaico: mosaicoActivo }) === 'terminal'
+  return { lay, agenteDbVisible, espacioActivoPath, pantallaCompletaTerminal }
+}
+
+/**
+ * El target cuya columna se ve. Ninguno en 'db' con el agente oculto: si no, su sesión arrancaría sin
+ * que nadie la mirase. Tampoco con el agente DIFERIDO del proyecto: sin pane visible no hay sesión.
+ * El agente de la terminal tiene su propio agente elegido, no el del perfil.
+ */
+function useClaveEfectiva(
+  tabs: UseTabs,
+  lay: SalidaLayoutCentro,
+  espacioActivoPath: string | undefined,
+  proyecto: { clave: string | null; diferido: boolean }
+): string | null {
+  const perfil = tabs.activeProfile
+  const selectedAgentByProfile = useStoreAgentes((s) => s.selectedAgentByProfile)
+  const { rutaTerminal, agenteTerminal } = useStoreAgenteTerminal(
+    useShallow((s) => ({
+      rutaTerminal: perfil ? s.rutas[perfil.id] : undefined,
+      agenteTerminal: perfil ? s.agentePorPerfil[perfil.id] : undefined
+    }))
+  )
+  if (lay.agente === 'terminal' && perfil && rutaTerminal) {
+    return agentTargetKey(perfil.id, rutaTerminal, agenteTerminal ?? AGENTES_DISPONIBLES[0])
+  }
+  if (lay.agente === 'espacio' && perfil && espacioActivoPath) {
+    return agentTargetKey(perfil.id, espacioActivoPath, resolveSelectedAgent(perfil.id, selectedAgentByProfile) ?? AGENTES_DISPONIBLES[0])
+  }
+  return lay.agente === 'proyecto' && !proyecto.diferido ? proyecto.clave : null
 }
 
 /** Lleva a un (perfil, proyecto, agente): restaura la columna y sale de BD en el perfil de destino. */
@@ -159,6 +226,7 @@ export function useAgentesApp(
   vistas: Pick<VistasPorPerfil, 'activeView' | 'panelInferior' | 'enConexiones'>,
   columna: ColumnaAgenteEstado,
   espacios: EspaciosDatos,
+  agenteTerminal: AgenteTerminalApp,
   hayPestanasEditor: boolean
 ): AgentesApp {
   const confirmed = tabs.confirmedTarget
@@ -167,28 +235,23 @@ export function useAgentesApp(
   const activeTargetKey =
     confirmed && activeAgent ? agentTargetKey(confirmed.profileId, confirmed.project.projectHostPath, activeAgent) : null
   const espacioTargets = useTargetsEspacio()
-  // La lista que monta la columna y la que usan las podas: con los espacios de datos incluidos.
+  const terminalTargets = useTargetsTerminal()
+  const fueraDePestanas = useMemo(() => [...espacioTargets, ...terminalTargets], [espacioTargets, terminalTargets])
+  // La lista que monta la columna y la que usan las podas: con los targets que no son pestaña incluidos.
   const targetsAgente = useMemo(
-    () => (espacioTargets.length ? [...tabs.allOpenTargets, ...espacioTargets] : tabs.allOpenTargets),
-    [tabs.allOpenTargets, espacioTargets]
+    () => (fueraDePestanas.length ? [...tabs.allOpenTargets, ...fueraDePestanas] : tabs.allOpenTargets),
+    [tabs.allOpenTargets, fueraDePestanas]
   )
-  const { lay, agenteDbVisible, espacioActivoPath } = useLayoutDelCentro(tabs, vistas, columna, hayPestanasEditor)
-  const perfil = tabs.activeProfile
-  // Ninguno en 'db' con el agente oculto: si no, su sesión arrancaría sin que nadie la mirase.
-  // Tampoco con el agente DIFERIDO del proyecto: sin pane visible no hay latch ni sesión.
-  const activeTargetKeyEfectivo =
-    lay.agente === 'espacio' && perfil && espacioActivoPath
-      ? agentTargetKey(
-          perfil.id,
-          espacioActivoPath,
-          resolveSelectedAgent(perfil.id, selectedAgentByProfile) ?? AGENTES_DISPONIBLES[0]
-        )
-      : lay.agente === 'proyecto' && !columna.agenteDiferido
-        ? activeTargetKey
-        : null
+  const { lay, agenteDbVisible, espacioActivoPath, pantallaCompletaTerminal } = useLayoutDelCentro(tabs, vistas, columna, hayPestanasEditor)
+  const activeTargetKeyEfectivo = useClaveEfectiva(tabs, lay, espacioActivoPath, {
+    clave: activeTargetKey,
+    diferido: columna.agenteDiferido
+  })
+  const hibernatedTargetKeys = useHibernacionFueraDePestanas(tabs, fueraDePestanas, activeTargetKeyEfectivo)
   useQuitarDiferidoAlArrancar(tabs)
   useRestaurarAgenteDb(tabs, vistas.enConexiones, espacios)
+  useRestaurarAgenteTerminal(tabs.activeProfile, pantallaCompletaTerminal, agenteTerminal)
   usePodaEstadoSesion(targetsAgente)
   const openAgentTarget = useAbrirTargetAgente(tabs)
-  return { activeTargetKey, targetsAgente, agenteDbVisible, lay, activeTargetKeyEfectivo, openAgentTarget }
+  return { activeTargetKey, targetsAgente, agenteDbVisible, lay, activeTargetKeyEfectivo, hibernatedTargetKeys, openAgentTarget }
 }

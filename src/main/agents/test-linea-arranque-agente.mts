@@ -240,16 +240,18 @@ function main(): void {
     )
     const codex = buildHostAgentLaunchCommand('codex', 'codex', undefined, BRIEFING, p)
     check(
-      `(4c) [${p}] Codex no recibe --append-system-prompt aunque haya briefing`,
-      codex === 'codex',
-      codex
+      `(4c) [${p}] Codex recibe el briefing por -c developer_instructions, sin el flag de CC`,
+      codex.startsWith('codex -c ') && codex.includes('developer_instructions=Avisos de Tessera: ') && !codex.includes('--append-system-prompt'),
+      codex.slice(0, 80) + '…'
     )
     const codexResume = buildHostAgentLaunchCommand('codex', 'codex', ID, BRIEFING, p)
     check(
-      `(4d) [${p}] Codex reanuda con su subcomando y sigue sin el flag`,
-      codexResume === `codex resume ${ID}`,
-      codexResume
+      `(4d) [${p}] Codex reanuda con su subcomando y el -c va detrás`,
+      codexResume.startsWith(`codex resume ${ID} -c `),
+      codexResume.slice(0, 80) + '…'
     )
+    const codexSin = buildHostAgentLaunchCommand('codex', 'codex', undefined, null, p)
+    check(`(4e) [${p}] Codex sin briefing: la línea pelada`, codexSin === 'codex', codexSin)
   }
 
   // ---------------------------------------------------------------------------

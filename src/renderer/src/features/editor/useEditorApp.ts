@@ -107,7 +107,7 @@ function useCerrarPestana(editorTabs: UseEditorTabs, activeEditorKey: string | n
   )
 }
 
-/** Único punto de apertura de pestañas: sale del maximizado, ajusta el oculto y de la vista de BD. */
+/** Único punto de apertura de pestañas: sale del maximizado y de la pantalla completa de la franja, ajusta el oculto y la vista de BD. */
 function useAbrirPestana(
   editorTabs: UseEditorTabs,
   activeEditorKey: string | null,
@@ -115,10 +115,12 @@ function useAbrirPestana(
 ): EditorApp['openEditorTab'] {
   return useCallback(
     (pane: CenterPane, opts?: OpcionesApertura) => {
-      // En el mismo handler que `openTab`, no en un efecto: llegan en el mismo commit.
+      // En el mismo handler que `openTab`, no en un efecto: llegan en el mismo commit. Con la
+      // franja a pantalla completa el editor está tapado: abrir una pestaña sale del modo.
       useStoreLayout.setState((s) => ({
         ccExpanded: false,
-        ccOculto: siguienteMotivoCcOculto(s.ccOculto, pane, opts?.colapsarAgente === true)
+        ccOculto: siguienteMotivoCcOculto(s.ccOculto, pane, opts?.colapsarAgente === true),
+        franjaPantallaCompleta: null
       }))
       salirDeBd()
       editorTabs.openTab(pane, opts?.efimera === true)

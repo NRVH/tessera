@@ -1,7 +1,7 @@
 // =============================================================================
 // Modo de cada proyecto (nativo o contenedor): alternarlo desde su pestaña, forzarlo
 // a nativo y decidir el de un proyecto recién elegido (directo o con el modal).
-// El espacio de datos vive siempre en nativo y su modo no se puede cambiar.
+// El espacio de datos y el agente de la terminal viven siempre en nativo y su modo no se puede cambiar.
 // =============================================================================
 import { useCallback } from 'react'
 import type { DefaultProjectMode } from '../../../../shared/workspace-state-ipc'
@@ -18,16 +18,27 @@ export interface ModoProyecto {
   decideProjectMode: DecideProjectMode
 }
 
+/** Sin carpetas que bloquear: ninguna lo es. */
+function nunca(): boolean {
+  return false
+}
+
 /** Pregunta el modo con el modal; resuelve null si se cancela. */
 function preguntarModo(name: string): Promise<'windows' | 'docker' | null> {
   return new Promise((resolve) => useStorePestanas.setState({ modeAsk: { name, resolve } }))
 }
 
-/** Modo de los proyectos; `esEspacioDeDatos` bloquea el cambio en el espacio de datos. */
-export function useModoProyecto(esEspacioDeDatos: (projectHostPath: string) => boolean): ModoProyecto {
+/**
+ * Modo de los proyectos; `esEspacioDeDatos` y `esCarpetaAgenteTerminal` bloquean el cambio en esas
+ * carpetas, que viven en nativo (un cambio remontaría su agente en un contenedor sin `tdb` ni `tssh`).
+ */
+export function useModoProyecto(
+  esEspacioDeDatos: (projectHostPath: string) => boolean,
+  esCarpetaAgenteTerminal: (projectHostPath: string) => boolean = nunca
+): ModoProyecto {
   const toggleWindowsMode = useCallback(
     (profileId: string, projectHostPath: string) => {
-      if (esEspacioDeDatos(projectHostPath)) return
+      if (esEspacioDeDatos(projectHostPath) || esCarpetaAgenteTerminal(projectHostPath)) return
       useStorePestanas.setState((s) => {
         const key = editorTargetKey(profileId, projectHostPath)
         const next = new Set(s.windowsModeKeys)
@@ -36,7 +47,7 @@ export function useModoProyecto(esEspacioDeDatos: (projectHostPath: string) => b
         return { windowsModeKeys: next }
       })
     },
-    [esEspacioDeDatos]
+    [esEspacioDeDatos, esCarpetaAgenteTerminal]
   )
   const forzarModoWindows = useCallback(
     (profileId: string, projectHostPath: string) => asegurarModoNativo(editorTargetKey(profileId, projectHostPath)),

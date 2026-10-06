@@ -2,7 +2,8 @@
 
 - **Estado:** vigente
 - **Ámbito:** `src/renderer/src/features/bd/DbEsquemasPopover.tsx`, `consola/SelectorEsquemaConsola.tsx`,
-  `consola/popoverFlotante.ts`, `consola/usePopoverFlotante.ts`, `consola/useListaCatalogo.ts`
+  `consola/useListaCatalogo.ts` y la mecánica común, en `src/renderer/src/comun/popoverFlotante.ts` y
+  `comun/usePopoverFlotante.ts`
 
 ## Contexto
 
@@ -28,8 +29,10 @@ común con el resto de la barra está en [ui-consola-barra-y-pane.md](ui-consola
 
 ## Consecuencias
 
-La mecánica de foco y cierre (`usePopoverFlotante.ts`) la comparten los selectores de base de
-documentos y claves; el teclado y el estado de carga de esos selectores siguen siendo propios.
+La mecánica de foco y cierre (`usePopoverFlotante.ts`) y la posición acotada (`popoverFlotante.ts`) viven en
+`comun/`: solo dependen de React y las comparten los selectores de base de documentos y claves y la lista de
+conexiones SSH ([../renderer/boton-dividido-y-capa-flotante.md](../renderer/boton-dividido-y-capa-flotante.md)).
+El teclado y el estado de carga de esos selectores siguen siendo propios.
 
 ## Descartes
 

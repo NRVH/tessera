@@ -4,6 +4,7 @@
 // los dos niveles de resaltado del riel: color para la zona con el foco, gris para la abierta.
 // Sigue el FOCO y no el ratón, y escucha también `mousedown` porque las zonas no enfocables no
 // disparan `focusin`. El propio riel, la barra de título y la de estado no cambian la zona.
+// También resuelve cuál de los dos paneles de la franja contiene un elemento (`panelDeLaFranja`).
 // =============================================================================
 
 import { useEffect, useState } from 'react'
@@ -13,7 +14,9 @@ export type ZonaEnfocada = 'lateral' | 'inferior' | null
 
 /** Raíces de cada zona. Los cuatro paneles laterales comparten `aside.sidebar`. */
 const SEL_LATERAL = 'aside.sidebar'
-const SEL_INFERIOR = '.terminal-panel, .git-log-panel'
+const SEL_TERMINAL = '.terminal-panel'
+const SEL_GITLOG = '.git-log-panel'
+const SEL_INFERIOR = `${SEL_TERMINAL}, ${SEL_GITLOG}`
 /**
  * CROMO: lo único que NO cambia la zona. Es una lista de excepciones y no de zonas
  * neutras: lo desconocido (el centro vacío, un modal, el marco) es NEUTRO, y solo estas
@@ -32,6 +35,17 @@ function zonaDe(el: Element): ZonaEnfocada | undefined {
   if (el.closest(SEL_LATERAL)) return 'lateral'
   if (el.closest(SEL_INFERIOR)) return 'inferior'
   return null
+}
+
+/**
+ * Cuál de los dos paneles de la franja inferior contiene `destino` (el objetivo de un
+ * evento de teclado: el elemento con el foco), o `null` si está fuera de la franja.
+ * Los nombres son los de `PanelInferiorCentro` (`util/` no importa de `features/`).
+ */
+export function panelDeLaFranja(destino: EventTarget | null): 'terminal' | 'gitlog' | null {
+  if (!(destino instanceof Element)) return null
+  if (destino.closest(SEL_GITLOG)) return 'gitlog'
+  return destino.closest(SEL_TERMINAL) ? 'terminal' : null
 }
 
 export function useZonaEnfocada(): ZonaEnfocada {

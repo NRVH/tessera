@@ -4,8 +4,9 @@
 // Puro, sin DOM ni React: la plataforma se pasa siempre explícita, así que el valor por defecto
 // (`window.tessera`) nunca se evalúa. Depende de `atajos.ts`, cuyo único import es de tipo.
 // Fija el modificador exclusivo de cada plataforma, los gestos con tecla propia (borrar, detener,
-// abrir nodo), los acordes de la consola y de bases de datos, y que las etiquetas que se enseñan
-// coinciden con los predicados. Cada caso lleva sus mitades negativas: lo que NO debe hacerlo.
+// abrir nodo, pantalla completa de la franja), los acordes de la consola y de bases de datos, y
+// que las etiquetas que se enseñan coinciden con los predicados. Cada caso lleva sus mitades
+// negativas: lo que NO debe hacerlo.
 // Decisiones: docs/decisiones/renderer/atajos-por-plataforma.md
 // =============================================================================
 
@@ -14,6 +15,7 @@ import {
   accionMosaico,
   esAbrirNodo,
   esAlternarAgente,
+  esAlternarPantallaCompleta,
   esAtajoBorrado,
   esBorrarPestanaEnfocada,
   esCerrarPestana,
@@ -680,6 +682,7 @@ function main(): void {
     alternarAgente: ['Ctrl+Alt+B', '⌥⌘B'],
     abrirNodo: ['F4', 'F4'],
     detener: ['Ctrl+F2', '⌘.'],
+    pantallaCompleta: ['Ctrl+Shift+Enter', '⇧⌘↩'],
     nuevaConsola: ['Ctrl+N', '⌘N'],
     copiar: ['Ctrl+C', '⌘C'],
     ejecutar: ['Ctrl+Enter', '⌘↩'],
@@ -762,6 +765,7 @@ function main(): void {
     ['alternarAgente', esAlternarAgente],
     ['abrirNodo', esAbrirNodo],
     ['detener', esDetener],
+    ['pantallaCompleta', esAlternarPantallaCompleta],
     ['explicar', esExplicar],
     ['historial', esHistorial],
     ['formatear', esFormatear]
@@ -955,6 +959,76 @@ function main(): void {
     !esFormatear(tk('l', 'KeyL', { metaKey: true, altKey: true }), 'windows'),
     'mitad negativa'
   )
+
+  hr('21. esAlternarPantallaCompleta: Ctrl+Shift+↩ / ⌘⇧↩, con sus MITADES NEGATIVAS')
+
+  const intro = (mods: ModsAcorde): TeclaAcorde => tk('Enter', 'Enter', mods)
+  const alternan = (mods: ModsAcorde, p: Plataforma): boolean => esAlternarPantallaCompleta(intro(mods), p)
+  check('(21a) [windows] Ctrl+Shift+Enter alterna', alternan({ ctrlKey: true, shiftKey: true }, 'windows'), 'true')
+  check('(21b) [otra] Ctrl+Shift+Enter alterna, como Windows', alternan({ ctrlKey: true, shiftKey: true }, 'otra'), 'true')
+  check('(21c) [mac] ⌘⇧↩ alterna', alternan({ metaKey: true, shiftKey: true }, 'mac'), 'true')
+  check(
+    '(21d) [mac] ⌃⇧↩ NO alterna: Ctrl no cuenta en Mac',
+    !alternan({ ctrlKey: true, shiftKey: true }, 'mac'),
+    'mitad negativa: el acorde de Windows no se cuela'
+  )
+  check(
+    '(21e) [windows] ⊞+Shift+Enter NO alterna (Meta): el acorde de Mac no se cuela',
+    !alternan({ metaKey: true, shiftKey: true }, 'windows') && !alternan({ metaKey: true, shiftKey: true }, 'otra'),
+    'mitad negativa'
+  )
+  check(
+    '(21f) sin Shift NO alterna, en ninguna plataforma: Mod+Enter es «ejecutar» en la consola SQL',
+    PLATAFORMAS.every(
+      (p) => !alternan({ ctrlKey: true }, p) && !alternan({ metaKey: true }, p) && !alternan({}, p)
+    ),
+    'mitad negativa'
+  )
+  check(
+    '(21g) Shift+Enter a secas NO alterna, en ninguna plataforma',
+    PLATAFORMAS.every((p) => !alternan({ shiftKey: true }, p)),
+    'mitad negativa'
+  )
+  check(
+    '(21h) con Alt NO alterna, en ninguna plataforma: AltGr llega como Ctrl+Alt (marcado o no) y ⌥ compone',
+    !alternan({ ctrlKey: true, altKey: true, shiftKey: true }, 'windows') &&
+      !alternan({ ctrlKey: true, altKey: true, shiftKey: true, altGraph: true }, 'windows') &&
+      !alternan({ ctrlKey: true, altKey: true, shiftKey: true }, 'otra') &&
+      !alternan({ metaKey: true, altKey: true, shiftKey: true }, 'mac'),
+    'mitad negativa'
+  )
+  check(
+    '(21i) Ctrl y Meta a la vez NO alternan, en ninguna plataforma',
+    PLATAFORMAS.every((p) => !alternan({ ctrlKey: true, metaKey: true, shiftKey: true }, p)),
+    'mitad negativa'
+  )
+  check(
+    '(21j) otra tecla con el mismo modificador NO alterna: Ctrl+Shift+E (explicar), Ctrl+Shift+Espacio, ⌘⇧E',
+    !esAlternarPantallaCompleta(tk('E', 'KeyE', { ctrlKey: true, shiftKey: true }), 'windows') &&
+      !esAlternarPantallaCompleta(tk(' ', 'Space', { ctrlKey: true, shiftKey: true }), 'windows') &&
+      !esAlternarPantallaCompleta(tk('e', 'KeyE', { metaKey: true, shiftKey: true }), 'mac'),
+    'la tecla se lee por su nombre: Enter'
+  )
+  const autorrepetido = { ...intro({ ctrlKey: true, shiftKey: true }), repeat: true }
+  check(
+    '(21k) la autorrepetición NO la decide el predicado: la consume el llamador, que no actúa',
+    esAlternarPantallaCompleta(autorrepetido, 'windows'),
+    'devolver false dejaría el acorde seguir hasta xterm, que lo haría un CR por repetición'
+  )
+  // El mismo acorde lo usa el mosaico para ampliar una casilla: los dos llamadores se reparten
+  // el terreno (el del mosaico solo DENTRO, el de la franja solo FUERA), así que no se pisan.
+  for (const [p, mods] of [
+    ['windows', { ctrlKey: true, shiftKey: true }],
+    ['mac', { metaKey: true, shiftKey: true }]
+  ] as const) {
+    const dentro = accionMosaico(ev('Enter', 'Enter', mods), true, p)
+    const fuera = accionMosaico(ev('Enter', 'Enter', mods), false, p)
+    check(
+      `(21l) [${p}] el mismo acorde amplía DENTRO del mosaico y no es del mosaico fuera: el reparto no se pisa`,
+      alternan(mods, p) && txt(dentro) === 'ampliar' && fuera === null,
+      `predicado=true dentro=${txt(dentro)} fuera=${txt(fuera)}`
+    )
+  }
 
   hr('RESULTADO (PASS/FAIL)')
   for (const r of results) {

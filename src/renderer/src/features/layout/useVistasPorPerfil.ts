@@ -12,6 +12,7 @@ import type { UseTabs } from '../pestanas'
 import { useStoreBd } from '../bd'
 import { useStoreBusqueda } from '../busqueda'
 import { useStoreGit } from '../git'
+import { accionesSsh } from '../ssh'
 
 /** Vista y franja del perfil activo, con sus acciones estables. */
 export interface VistasPorPerfil {
@@ -49,6 +50,7 @@ function usePodaPorPerfil(tabs: UseTabs): void {
     useStoreBd.setState((s) => ({ dbAgenteVisiblePorPerfil: podarPorPerfil(s.dbAgenteVisiblePorPerfil, vivos) }))
     useStoreBusqueda.setState((s) => ({ buscarQueryPorPerfil: podarPorPerfil(s.buscarQueryPorPerfil, vivos) }))
     useStoreGit.setState((s) => ({ busquedaLogPorPerfil: podarPorPerfil(s.busquedaLogPorPerfil, vivos) }))
+    accionesSsh.podarPerfiles([...vivos])
   }, [idsPerfiles])
 }
 

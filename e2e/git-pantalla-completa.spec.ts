@@ -1,10 +1,11 @@
 // =============================================================================
 // Git·Log a pantalla completa sobre la app empaquetada: el botón de maximizar se revela
-// como sus hermanos, tapa lateral, editor y agente sin desmontarlos, el de restaurar se
-// queda fijo, restaurar devuelve el alto de la franja y la X a pantalla completa cierra
-// y restaura. Moverse por los commits no abre nada; abrir un archivo, el historial o el
-// fuente sale del modo. La regla la fija `features/layout/test-layout-centro.mts`. Agente
-// falso (`agenteFalso.ts`); nada depende del sistema. `TESSERA_E2E_CAPTURAS` guarda capturas.
+// como sus hermanos, tapa lateral, editor y agente sin desmontarlos, los de restaurar y la X
+// se quedan fijos (son las dos salidas del modo), restaurar devuelve el alto de la franja y la
+// X a pantalla completa cierra y restaura. Moverse por los commits no abre nada; abrir un
+// archivo, el historial o el fuente, o una pestaña desde fuera de Git (Mod+N), sale del modo.
+// La regla la fija `features/layout/test-layout-centro.mts`. Agente falso (`agenteFalso.ts`);
+// nada depende del sistema. `TESSERA_E2E_CAPTURAS` guarda capturas.
 // =============================================================================
 
 import { expect, test, type Locator, type Page } from '@playwright/test'
@@ -12,7 +13,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { montarAgenteFalso } from './agenteFalso'
-import { abrirTessera, borrarTemporal, type SesionTessera } from './tessera'
+import { abrirTessera, borrarTemporal, MOD, type SesionTessera } from './tessera'
 
 interface Montaje {
   raiz: string
@@ -157,10 +158,11 @@ test.describe('Git·Log a pantalla completa', () => {
     expect(await win.locator('.agent-pane').count(), 'los panes del agente siguen montados').toBe(panesAgente)
     await expect(win.locator('.editor-tab', { hasText: 'LEEME.txt' }), 'la pestaña sigue abierta').toHaveCount(1)
 
-    // --- Restaurar está FIJO: visible sin ratón ni foco, cuando la X ya se ha ido ---
+    // --- Restaurar y la X están FIJOS: son las dos salidas del modo y se ven sin ratón ni foco ---
     await enReposo(win)
-    await expect(cerrar).toBeHidden()
     await expect(restaurar, 'restaurar no se esconde en reposo').toBeVisible()
+    await expect(cerrar, 'la X tampoco: es la otra salida del modo').toBeVisible()
+    await expect(recargar, 'y recargar, que no sale del modo, sí se esconde').toBeHidden()
     await capturar(win, 'git-pantalla-completa')
 
     // --- Restaurar devuelve el layout de antes, con el alto de la franja ---
@@ -171,6 +173,8 @@ test.describe('Git·Log a pantalla completa', () => {
     await expect(agente).toBeVisible()
     expect(await alto(panel), 'la franja recupera su alto').toBe(altoFranja)
     expect(await alto(editor), 'y el editor el suyo').toBe(altoEditor)
+    await enReposo(win)
+    await expect(cerrar, 'fuera de pantalla completa la X vuelve a esconderse en reposo').toBeHidden()
 
     // --- La X a pantalla completa cierra Git y restaura; al reabrir vuelve a la franja ---
     await panel.locator('.panel-header').first().hover()
@@ -289,5 +293,31 @@ test.describe('Git·Log a pantalla completa', () => {
     await expect(pestanaActiva).toContainText('LEEME.txt')
     await expect(pestanaActiva.locator('.editor-tab-kind')).toHaveText('diff')
     await expect(diffVisible).toContainText('adiós')
+  })
+
+  test('a pantalla completa, abrir una pestaña desde fuera de Git (Mod+N) sale del modo y la pestaña se ve', async () => {
+    const win = s.win
+    const shell = win.locator('.shell')
+    const lateral = win.locator('.sidebar').first()
+    const editor = win.locator('.editor-area')
+    const panel = win.locator('.git-log-panel')
+    const maximizar = panel.getByRole('button', { name: 'Maximizar el panel de git' })
+    const nueva = win.locator('.editor-tab.active', { hasText: 'Sin título' })
+
+    // --- Punto de partida (lo deja la prueba anterior): Git en la franja y a pantalla completa ---
+    await expect(panel).toBeVisible()
+    await expect(shell).not.toHaveClass(/\bgit-pantalla-completa\b/)
+    await panel.locator('.panel-header').first().hover()
+    await maximizar.click()
+    await expect(shell).toHaveClass(/\bgit-pantalla-completa\b/)
+    await expect(editor, 'el editor está tapado: abrir algo ahí sería abrirlo a ciegas').toBeHidden()
+
+    // --- Archivo nuevo: no se abre a ciegas, se sale del modo y la pestaña nueva se ve ---
+    await win.keyboard.press(`${MOD}+n`)
+    await expect(shell, 'abrir una pestaña sale del modo').not.toHaveClass(/\bgit-pantalla-completa\b/)
+    await expect(nueva).toHaveCount(1)
+    await expect(editor).toBeVisible()
+    await expect(lateral).toBeVisible()
+    await expect(win.locator('.editor-area .monaco-editor').filter({ visible: true }).first(), 'y su editor se ve').toBeVisible()
   })
 })

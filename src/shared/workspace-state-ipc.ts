@@ -4,12 +4,20 @@
 // No persiste repos (se re-descubren) ni sesiones de agente (arrancan perezosas).
 // LOAD -> WorkspaceState | null (null = sin archivo); SAVE en cada cambio relevante y no
 // solo al salir, para sobrevivir a cierres sucios. Las rutas host son opacas.
-// Puro y con imports `.ts` (`ajustesBd.ts`, `ajustesAgente.ts`): lo cargan tests con `node`.
+// Puro y con imports `.ts` (`ajustesBd.ts`, `ajustesAgente.ts`, `ajustesTerminal.ts`): lo cargan tests con `node`.
 // Decisiones: docs/decisiones/workspace/estado-persistido-crash-safe.md
 // =============================================================================
 
 import type { DbTxModo } from './db-explorador-ipc.ts'
 import { AGENTE_INACTIVIDAD_MIN_POR_DEFECTO, normalizarInactividadAgenteMin } from './ajustesAgente.ts'
+import {
+  SSH_RIEL_ANCHO_POR_DEFECTO,
+  normalizarAgenteTerminalVisible,
+  normalizarAnchoRiel,
+  normalizarGruposPlegados,
+  normalizarRecientesPorPerfil,
+  normalizarRielVisiblePorPerfil
+} from './ajustesTerminal.ts'
 import {
   DB_FILAS_POR_PAGINA_POR_DEFECTO,
   DB_INACTIVIDAD_CONSOLA_MIN_POR_DEFECTO,
@@ -362,6 +370,33 @@ export interface WorkspaceSettings {
    * pantalla; 0 = Nunca. Lo aplica el main (decide y cierra) a petición del renderer.
    */
   agenteInactividadMin: number
+  /**
+   * Grupos de conexiones SSH plegados en la lista de conexiones, por PERFIL (`profileId` -> ids de
+   * grupo; `''` = «Sin grupo»). Sin entrada = todo desplegado, que es lo que ve quien nunca plegó.
+   * El saneado vive en `shared/ajustesTerminal.ts`; aquí solo su forma.
+   */
+  sshGruposPlegadosPorPerfil: Record<string, string[]>
+  /**
+   * Ancho (px) del riel de conexiones SSH que la terminal enseña a pantalla completa. GLOBAL, como los
+   * demás tamaños: es cómo te gusta repartir la pantalla, no algo del perfil. El rango, el saneado y el
+   * porqué viven en `shared/ajustesTerminal.ts`; aquí solo su forma.
+   */
+  sshRielAncho: number
+  /**
+   * ¿Se ve el riel de conexiones SSH a pantalla completa?, por PERFIL (`profileId` -> boolean). Sin
+   * entrada = se ve. Es una preferencia: que la terminal quede estrecha pliega el riel sin tocarla.
+   */
+  sshRielVisiblePorPerfil: Record<string, boolean>
+  /**
+   * Las últimas conexiones SSH abiertas desde Tessera, por PERFIL (`profileId` -> ids de conexión, la más
+   * reciente primero, hasta `SSH_RECIENTES_MAX`). El saneado vive en `shared/ajustesTerminal.ts`.
+   */
+  sshRecientesPorPerfil: Record<string, string[]>
+  /**
+   * ¿Se ve el agente de la terminal a la derecha de la terminal a pantalla completa?, por PERFIL
+   * (`profileId` -> true). Sin entrada = oculto. El saneado vive en `shared/ajustesTerminal.ts`.
+   */
+  agenteTerminalVisiblePorPerfil: Record<string, boolean>
 }
 
 /**
@@ -533,7 +568,12 @@ export const DEFAULT_SETTINGS: WorkspaceSettings = {
   dbFilasPorPagina: DB_FILAS_POR_PAGINA_POR_DEFECTO,
   dbTxInicial: DB_TX_INICIAL_POR_DEFECTO,
   dbConsolaInactividadMin: DB_INACTIVIDAD_CONSOLA_MIN_POR_DEFECTO,
-  agenteInactividadMin: AGENTE_INACTIVIDAD_MIN_POR_DEFECTO
+  agenteInactividadMin: AGENTE_INACTIVIDAD_MIN_POR_DEFECTO,
+  sshGruposPlegadosPorPerfil: {},
+  sshRielAncho: SSH_RIEL_ANCHO_POR_DEFECTO,
+  sshRielVisiblePorPerfil: {},
+  sshRecientesPorPerfil: {},
+  agenteTerminalVisiblePorPerfil: {}
 }
 
 /** Rango válido del tamaño de fuente de terminal (0 = usar el predeterminado). */
@@ -676,7 +716,12 @@ function normalizeSettings(raw: unknown): WorkspaceSettings {
     ...normalizarSistema(obj),
     ...normalizarVistasPorPerfil(obj),
     ...normalizarVistaBd(obj),
-    agenteInactividadMin: normalizarInactividadAgenteMin(obj.agenteInactividadMin)
+    agenteInactividadMin: normalizarInactividadAgenteMin(obj.agenteInactividadMin),
+    sshGruposPlegadosPorPerfil: normalizarGruposPlegados(obj.sshGruposPlegadosPorPerfil),
+    sshRielAncho: normalizarAnchoRiel(obj.sshRielAncho),
+    sshRielVisiblePorPerfil: normalizarRielVisiblePorPerfil(obj.sshRielVisiblePorPerfil),
+    sshRecientesPorPerfil: normalizarRecientesPorPerfil(obj.sshRecientesPorPerfil),
+    agenteTerminalVisiblePorPerfil: normalizarAgenteTerminalVisible(obj.agenteTerminalVisiblePorPerfil)
   }
 }
 

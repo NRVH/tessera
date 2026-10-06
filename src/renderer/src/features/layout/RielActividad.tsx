@@ -1,7 +1,8 @@
 // =============================================================================
-// Riel de actividad conectado a los stores: la vista lateral del perfil, el orden
-// de sus dos grupos (arrastrables) y los conmutadores de la franja inferior, que en
-// la vista de bases de datos llevan a Archivos y abren el panel.
+// Riel de actividad conectado a los stores: la vista lateral del perfil (elegir una saca
+// la franja de pantalla completa), el orden de sus dos grupos (arrastrables) y los
+// conmutadores de la franja inferior, que en la vista de bases de datos llevan a Archivos
+// y abren el panel.
 // =============================================================================
 import { useShallow } from 'zustand/react/shallow'
 import { ActivityBar } from './ActivityBar'
@@ -24,7 +25,11 @@ export function RielActividad({ vistas, zonaEnfocada, worktreeCount }: Props): R
   return (
     <ActivityBar
       active={vistas.activeView}
-      onSelect={(view) => vistas.setActiveView(view)}
+      onSelect={(view) => {
+        // A pantalla completa la columna lateral está tapada: elegir una vista sale del modo.
+        fijadoresLayout.franjaPantallaCompleta(null)
+        vistas.setActiveView(view)
+      }}
       order={activityBarOrder}
       onReorder={fijadoresLayout.activityBarOrder}
       bottomOrder={bottomBarOrder}

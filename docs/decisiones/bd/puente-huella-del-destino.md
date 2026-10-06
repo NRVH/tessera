@@ -16,8 +16,9 @@ con un PostgreSQL de mentira que apunta la contraseña que recibe).
 - La huella es el SHA-256 de `[motor, host, port, database, sid, user]` en JSON (`undefined` como `null`),
   recortado a 32 hex. Solo entra lo que decide adónde va la contraseña y como quién: renombrar, cambiar entorno,
   notas, driver o solo lectura no la manda a otro sitio.
-- El archivo (SQLite) entra como séptimo valor y `[instancia, autenticacion, dominio, tls]` como una lista más,
-  solo si la entrada los trae: la huella de toda conexión sin ellos es la de antes al byte, y una terminal abierta
+- El archivo (SQLite) entra como séptimo valor, `[instancia, autenticacion, dominio, tls]` como una lista más y
+  `[srv, opcionesUri]` (MongoDB: con `srv` el host lleva a otros servidores) como otra, cada una solo si la entrada
+  los trae: la huella de toda conexión sin ellos es la de antes al byte, y una terminal abierta
   antes de actualizar sigue casando.
 - Los dos lados parten del mismo JSON, sin normalizar: normalizar en uno solo sería el desajuste que esto detecta.
   `tdb.cjs` lleva una copia (no puede importar TypeScript) y `test-shim` fija que dan lo mismo.

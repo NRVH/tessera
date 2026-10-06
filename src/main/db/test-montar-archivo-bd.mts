@@ -98,6 +98,7 @@ const ctrl = new DbController({
   appDir: process.cwd(),
   eventos: { emitir: () => {}, hayDestino: () => false },
   dialogos: {} as never,
+  papelera: async () => {},
   contenedoraAnclada: () => anclada,
   log: () => {}
 })

@@ -27,16 +27,23 @@ export interface EstadoSesion {
   setError: Dispatch<SetStateAction<string | null>>
   reloading: boolean
   setReloading: Dispatch<SetStateAction<boolean>>
+  /** Solo SSH: ¿ya llegó algo de la sesión? Hasta entonces se ve «Conectando a…». */
+  datosRecibidos: boolean
+  setDatosRecibidos: Dispatch<SetStateAction<boolean>>
 }
 
-/** Estado de la sesión del pane: estado, id, código de salida, error y reload en vuelo. */
+/** Estado de la sesión del pane: estado, id, código de salida, error, reload en vuelo y si ya llegaron datos. */
 export function useEstadoSesion(): EstadoSesion {
   const [status, setStatus] = useState<TerminalStatus>('booting')
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [exitCode, setExitCode] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [reloading, setReloading] = useState(false)
-  return { status, setStatus, sessionId, setSessionId, exitCode, setExitCode, error, setError, reloading, setReloading }
+  const [datosRecibidos, setDatosRecibidos] = useState(false)
+  return {
+    status, setStatus, sessionId, setSessionId, exitCode, setExitCode, error, setError,
+    reloading, setReloading, datosRecibidos, setDatosRecibidos
+  }
 }
 
 /**
@@ -68,6 +75,8 @@ export function useRefsTerminal(
   const opening = useRef(false)
   const dbMountedRef = useRef(dbMounted)
   const hasOpenedOnce = useRef(false)
+  const intentado = useRef(false)
+  const inicioSesion = useRef(0)
   const visibleRef = useRef(visible)
   const resizeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const appearanceRef = useRef(appearance)
@@ -88,6 +97,8 @@ export function useRefsTerminal(
       opening,
       dbMounted: dbMountedRef,
       hasOpenedOnce,
+      intentado,
+      inicioSesion,
       visible: visibleRef,
       resizeTimer,
       appearance: appearanceRef,

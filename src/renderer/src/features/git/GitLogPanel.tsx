@@ -14,7 +14,9 @@ import { ArbolRamas } from './ArbolRamas'
 import { DetalleCommit } from './DetalleCommit'
 import { asegurarEstilosGit } from './estilosGit'
 import { HistorialArchivo } from './HistorialArchivo'
-import { IconoGitVacio, IconoMaximizar, IconoRecargar, IconoRestaurar } from './iconos'
+import { IconoMaximizar, IconoRestaurar } from '../../comun/iconosPanel'
+import { etiquetaAcorde } from '../../util/atajos'
+import { IconoGitVacio, IconoRecargar } from './iconos'
 import { ColumnaCentro } from './ListaCommits'
 import { useEstadoLog, type EstadoLog } from './useEstadoLog'
 import type { OrigenApertura } from './useSeleccionLog'
@@ -51,7 +53,7 @@ export interface GitLogPanelProps {
   onOpenDiff: (target: DiffTarget, origen: OrigenApertura) => void
   /** Cierra la franja (botón × del header). */
   onClose: () => void
-  /** El panel ocupa toda el área de trabajo; el botón de restaurar se queda fijo. */
+  /** El panel ocupa toda el área de trabajo; los botones de restaurar y de cerrar se quedan fijos. */
   pantallaCompleta: boolean
   onPantallaCompleta: (valor: boolean) => void
   /** Anchos de las columnas de ramas y de detalle (persistidos en ajustes). */
@@ -94,6 +96,8 @@ function CabeceraLog(p: {
   onClose: () => void
 }): React.JSX.Element {
   const etiquetaModo = p.pantallaCompleta ? 'Restaurar el panel de git' : 'Maximizar el panel de git'
+  // `fijo`: a pantalla completa restaurar y cerrar son las dos salidas del modo y no se esconden en reposo.
+  const fijo = p.pantallaCompleta ? ' fijo' : ''
   return (
     <header className="panel-header">
       <span className="panel-title">
@@ -112,20 +116,19 @@ function CabeceraLog(p: {
           <IconoRecargar girando={p.cargando} />
         </button>
         <button
-          // `fijo`: a pantalla completa es la única salida y no se esconde en reposo.
-          className={`git-icon-btn${p.pantallaCompleta ? ' fijo' : ''}`}
+          className={`git-icon-btn${fijo}`}
           onClick={() => p.onPantallaCompleta(!p.pantallaCompleta)}
-          title={
+          title={`${
             p.pantallaCompleta
               ? 'Restaurar: git vuelve al panel inferior'
               : 'Maximizar: git ocupa toda el área de trabajo (sin cerrar nada)'
-          }
+          } (${etiquetaAcorde('pantallaCompleta')})`}
           aria-label={etiquetaModo}
         >
           {p.pantallaCompleta ? <IconoRestaurar /> : <IconoMaximizar />}
         </button>
         <button
-          className="git-icon-btn"
+          className={`git-icon-btn${fijo}`}
           onClick={p.onClose}
           title="Cerrar el panel de git"
           aria-label="Cerrar el panel de git"

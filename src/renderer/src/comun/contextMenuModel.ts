@@ -34,6 +34,8 @@ export interface ContextMenuItem {
    * distancia es lo que de verdad evita el clic accidental.
    */
   danger?: boolean
+  /** Texto al apuntar la opción; sobre todo, por qué está deshabilitada (una opción apagada no se explica sola). */
+  title?: string
 }
 
 /** Línea divisoria entre grupos de opciones. */

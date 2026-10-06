@@ -11,7 +11,8 @@ import type { ConversationSummary, ConvAgent, ConvRunMode } from '../../../../sh
 import { ConfirmDialog } from '../../comun/ConfirmDialog'
 import { pegarRecortado } from '../../util/pasteTrim'
 import { PromptDialog } from '../../comun/PromptDialog'
-import { lugarHistorial } from './textosMontajeBases'
+import { useDialogo } from '../../comun/useDialogo'
+import { lugarHistorial, type LugarAgente } from './textosMontajeBases'
 
 /** Lo que se muestra en la fila: el nombre propio si lo hay; si no, el automático. */
 function displayTitle(c: ConversationSummary): string {
@@ -26,10 +27,10 @@ interface ConversationsModalProps {
   /** Proyecto activo (ruta host); las conversaciones se filtran por él. */
   projectHostPath: string
   /**
-   * El agente es el de la vista Bases de datos: su carpeta se llama como el id del
-   * perfil y el modal lo nombra «agente de datos». Solo cambia el TEXTO (`lugarHistorial`).
+   * Dónde vive el agente. El de datos y el de la terminal tienen una carpeta que se llama como
+   * el id del perfil, así que el modal los nombra por su vista. Solo cambia el TEXTO (`lugarHistorial`).
    */
-  esEspacioDeDatos?: boolean
+  lugar?: LugarAgente
   /**
    * Modo de ejecución. En 'host' (modo nativo) el historial se lee del home del usuario
    * en el sistema real y NO hace falta cuenta. Ausente => 'container'.
@@ -123,22 +124,12 @@ function filtrar(list: ConversationSummary[] | null, query: string): Conversatio
   )
 }
 
-function useCerrarConEscape(onClose: () => void): void {
-  useEffect(() => {
-    function onKey(e: KeyboardEvent): void {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        onClose()
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
-}
-
 /** Modal del historial de conversaciones del agente activo en el proyecto. */
 export function ConversationsModal(props: ConversationsModalProps): React.JSX.Element {
-  const { agente, accountId, projectHostPath, esEspacioDeDatos = false, mode = 'container', onClose } = props
+  const { agente, accountId, projectHostPath, lugar: dondeVive = 'proyecto', mode = 'container', onClose } = props
+  // Esc por la pila de diálogos: el renombrado y el borrado se montan encima, y un solo Esc
+  // cierra únicamente el de arriba.
+  useDialogo({ onClose })
   const [query, setQuery] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<ConversationSummary | null>(null)
   const [renaming, setRenaming] = useState<ConversationSummary | null>(null)
@@ -150,10 +141,8 @@ export function ConversationsModal(props: ConversationsModalProps): React.JSX.El
     mode
   })
 
-  useCerrarConEscape(onClose)
-
   const filtered = useMemo(() => filtrar(list, query), [list, query])
-  const lugar = lugarHistorial(esEspacioDeDatos, projectHostPath)
+  const lugar = lugarHistorial(dondeVive, projectHostPath)
 
   return (
     <div className="modal-overlay" role="presentation" onMouseDown={onClose}>

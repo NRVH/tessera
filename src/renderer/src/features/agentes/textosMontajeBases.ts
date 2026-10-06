@@ -1,10 +1,16 @@
 // =============================================================================
 // Textos de la cabecera del agente que dicen DÓNDE: el selector «Bases montadas»,
-// el rótulo del historial de conversaciones y el lugar que nombra su modal.
-// En el agente del espacio de datos se dice «el agente de datos», no «este
-// proyecto»; los textos de proyecto no cambian. Lógica pura con test bajo `node`.
+// el rótulo del historial de conversaciones y el lugar que nombra su modal. Cada
+// agente se nombra por la vista donde vive: «el agente de datos», «el agente de la
+// terminal»; los textos de proyecto no cambian. Lógica pura con test bajo `node`.
 // Decisiones: docs/decisiones/agentes/textos-espacio-de-datos.md
 // =============================================================================
+
+/**
+ * Dónde vive el agente de un pane: un proyecto, el espacio de datos (vista Bases de datos)
+ * o la carpeta del agente de la terminal (a pantalla completa de la terminal).
+ */
+export type LugarAgente = 'proyecto' | 'datos' | 'terminal'
 
 /** Lo que pinta el selector de montaje según dónde viva. */
 export interface TextosMontajeBases {
@@ -14,21 +20,29 @@ export interface TextosMontajeBases {
   rotuloBoton: string
 }
 
-/** Complemento de lugar en el agente de un proyecto (el texto de siempre). */
-const EN_PROYECTO = 'en este proyecto'
-/** Complemento de lugar en el agente del espacio de datos (vista Bases de datos). */
-const EN_ESPACIO_DE_DATOS = 'en el agente de datos'
-/** Complemento de pertenencia en el agente de un proyecto (el texto de siempre). */
-const DE_PROYECTO = 'de este proyecto'
-/** Complemento de pertenencia en el agente del espacio de datos. */
-const DEL_ESPACIO_DE_DATOS = 'del agente de datos'
+/** Complemento de lugar («en …») de cada sitio; el de proyecto es el texto de siempre. */
+const EN: Record<LugarAgente, string> = {
+  proyecto: 'en este proyecto',
+  datos: 'en el agente de datos',
+  terminal: 'en el agente de la terminal'
+}
 
-/**
- * Textos del selector. `esEspacioDeDatos` dice si el pane es el agente de la vista
- * Bases de datos; `montadas`, cuántas bases tiene montadas ahora.
- */
-export function textosMontajeBases(esEspacioDeDatos: boolean, montadas: number): TextosMontajeBases {
-  const donde = esEspacioDeDatos ? EN_ESPACIO_DE_DATOS : EN_PROYECTO
+/** Complemento de pertenencia («de …») de cada sitio; el de proyecto es el texto de siempre. */
+const DE: Record<LugarAgente, string> = {
+  proyecto: 'de este proyecto',
+  datos: 'del agente de datos',
+  terminal: 'del agente de la terminal'
+}
+
+/** Rótulo de la cabecera del modal en los agentes que no son de un proyecto. */
+const CABECERA: Record<Exclude<LugarAgente, 'proyecto'>, string> = {
+  datos: 'agente de datos',
+  terminal: 'agente de la terminal'
+}
+
+/** Textos del selector según dónde vive el pane y cuántas bases tiene montadas ahora. */
+export function textosMontajeBases(lugar: LugarAgente, montadas: number): TextosMontajeBases {
+  const donde = EN[lugar]
   return {
     titulo: `Bases montadas ${donde}`,
     rotuloBoton: montadas > 0 ? `${montadas} base(s) montada(s) ${donde}` : `Montar bases de datos ${donde}`
@@ -40,8 +54,8 @@ export function textosMontajeBases(esEspacioDeDatos: boolean, montadas: number):
  * del agente. El historial se filtra por la carpeta de la sesión, así que en el
  * espacio de datos son las conversaciones del agente de datos, no las de un proyecto.
  */
-export function rotuloHistorialConversaciones(esEspacioDeDatos: boolean): string {
-  return `Historial de conversaciones ${esEspacioDeDatos ? DEL_ESPACIO_DE_DATOS : DE_PROYECTO}`
+export function rotuloHistorialConversaciones(lugar: LugarAgente): string {
+  return `Historial de conversaciones ${DE[lugar]}`
 }
 
 /** Dónde dice el modal de historial que están las conversaciones. */
@@ -52,20 +66,14 @@ export interface LugarHistorial {
   enVacio: string
 }
 
-/** Rótulo de la cabecera del modal en el agente del espacio de datos. */
-const CABECERA_ESPACIO_DE_DATOS = 'agente de datos'
-
 /**
  * Lugar del modal de historial. En un proyecto es el nombre de su carpeta (lo de
- * siempre: el último segmento de la ruta, o «este proyecto» si no hay). En el espacio
- * de datos, esa carpeta es `<userData>/conexiones/<id del perfil>`: su nombre es el ID
- * del perfil, que no le dice nada al usuario, así que se nombra como en el resto de la
- * vista: «el agente de datos».
+ * siempre: el último segmento de la ruta, o «este proyecto» si no hay). El espacio de
+ * datos y el agente de la terminal viven en `<userData>/<…>/<id del perfil>`: su carpeta
+ * es el ID del perfil, que no le dice nada al usuario, así que se nombran como en su vista.
  */
-export function lugarHistorial(esEspacioDeDatos: boolean, projectHostPath: string): LugarHistorial {
-  if (esEspacioDeDatos) {
-    return { cabecera: CABECERA_ESPACIO_DE_DATOS, enVacio: EN_ESPACIO_DE_DATOS }
-  }
+export function lugarHistorial(lugar: LugarAgente, projectHostPath: string): LugarHistorial {
+  if (lugar !== 'proyecto') return { cabecera: CABECERA[lugar], enVacio: EN[lugar] }
   const carpeta = projectHostPath.split(/[\\/]+/).filter(Boolean).pop() ?? ''
   return { cabecera: carpeta, enVacio: `en ${carpeta || 'este proyecto'}` }
 }

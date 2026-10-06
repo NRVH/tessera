@@ -35,16 +35,23 @@ import { sanearPeticion } from './politicaHibernacion'
 export function registrarIpcTerminalAgente(deps: {
   ipc: Pick<IpcMain, 'handle' | 'on'>
   agentes: AgentTerminalController
+  /** Espera a que termine el borrado en curso de ese perfil: una sesión abierta a mitad sería del perfil recreado. */
+  esperarBorrado?: (profileId: unknown) => Promise<void>
 }): void {
-  const { ipc, agentes } = deps
-  ipc.handle(AGENT_TERMINAL_CHANNELS.OPEN, (_e: IpcMainInvokeEvent, req: AgentOpenRequest) => agentes.open(req))
+  const { ipc, agentes, esperarBorrado } = deps
+  ipc.handle(AGENT_TERMINAL_CHANNELS.OPEN, (_e: IpcMainInvokeEvent, req: AgentOpenRequest) =>
+    esperarBorrado ? esperarBorrado(req?.profileId).then(() => agentes.open(req)) : agentes.open(req)
+  )
   ipc.on(AGENT_TERMINAL_CHANNELS.WRITE, (_e, msg: AgentWriteMessage) => agentes.escribir(msg))
   ipc.on(AGENT_TERMINAL_CHANNELS.RESIZE, (_e, msg: AgentResizeMessage) => agentes.redimensionar(msg))
   ipc.on(AGENT_TERMINAL_CHANNELS.FLOW, (_e, msg: AgentFlowMessage) => agentes.flujo(msg))
   ipc.handle(AGENT_TERMINAL_CHANNELS.ACTIVITY_SNAPSHOT, () => agentes.snapshotActividad())
-  ipc.handle(AGENT_TERMINAL_CHANNELS.RELOAD, (_e, req: AgentReloadRequest) =>
-    agentes.reload(req.sessionId, req.dbConnectionIds, req.resumeSessionId)
-  )
+  // Recargar relanza el proceso (y en contenedor, lo levanta): también espera al borrado de su perfil.
+  ipc.handle(AGENT_TERMINAL_CHANNELS.RELOAD, (_e, req: AgentReloadRequest) => {
+    const recargar = (): ReturnType<AgentTerminalController['reload']> =>
+      agentes.reload(req.sessionId, req.dbConnectionIds, req.resumeSessionId)
+    return esperarBorrado ? esperarBorrado(agentes.perfilDeSesion(req?.sessionId)).then(recargar) : recargar()
+  })
   ipc.handle(AGENT_TERMINAL_CHANNELS.CLOSE, (_e, req: AgentCloseRequest) => agentes.close(req.sessionId))
   ipc.handle(AGENT_TERMINAL_CHANNELS.SAVE_IMAGE, (_e, req: AgentSaveImageRequest) => agentes.saveImage(req.sessionId))
   ipc.handle(AGENT_TERMINAL_CHANNELS.STAGE_FILE, (_e, req: AgentStageFileRequest) =>

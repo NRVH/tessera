@@ -16,7 +16,7 @@ import { MAX_FRAMES_CREACION } from '../documentos/consolaComun'
 import { useRepartoAlto } from '../documentos/useRepartoAlto'
 import type { DbConsolaPaneProps } from '../propsBd'
 import { retenerSilencioCancelaciones } from '../silencioCancelacionesMonaco'
-import type { AnclaDerecha } from './popoverFlotante'
+import type { AnclaDerecha } from '../../../comun/popoverFlotante'
 
 /** Crea el editor de la consola sobre su modelo y le da el foco. */
 function crearEditor(host: HTMLElement, modelo: editor.ITextModel, soloLectura: boolean): editor.IStandaloneCodeEditor {

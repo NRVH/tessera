@@ -2,11 +2,12 @@
 // Puente al host para el modo Docker: el contenedor nunca toca la base. `tdb` dentro del contenedor deja
 // una petición en un buzón bind-monteado por perfil; esto la recoge, ejecuta el `tdb` real en el host
 // (con sus Instant Clients y la VPN del usuario) y deja la respuesta. Ámbito y secretos salen siempre del
-// token; el SQL viaja en la petición, nunca como ruta. Cliente: `src/tdb/tdb-container.cjs`.
+// token; el SQL viaja en la petición, nunca como ruta. Cliente: `src/tdb/tdb-container.cjs`. Otros
+// dominios registran aquí su programa (`tssh`: `src/main/ssh/controlador/buzonTssh.ts`).
 // Decisiones: docs/decisiones/bd/puente-buzon-de-docker.md
 // =============================================================================
 // `readdirSync` sigue aquí para `barrer`, que corre una vez al preparar un perfil; el del sondeo es asíncrono.
-import { chmodSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs'
+import { closeSync, fchmodSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, renameSync, rmSync, statSync, utimesSync, writeSync } from 'node:fs'
 import { readdir } from 'node:fs/promises'
 import { execFile } from 'node:child_process'
 import path from 'node:path'
@@ -50,6 +51,69 @@ export interface DockerBridgeDeps {
 
 /** Tope del SQL que acepta una petición (el mismo que pone el cliente, `MAX_ENTRADA`). */
 const MAX_ENTRADA = 8 * 1024 * 1024
+
+/** Tope del archivo de una petición, sea del programa que sea: lo que cabe de verdad lo decide cada uno. */
+const MAX_PETICION = 64 * 1024 * 1024
+
+/** Nombre de un programa del buzón y de sus archivos: sin barras ni nada que el lanzador `sh` tenga que citar. */
+const NOMBRE_PROGRAMA = /^[a-z][a-z0-9-]{0,31}$/
+const NOMBRE_ARCHIVO = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/
+
+/**
+ * Escribe un archivo del buzón SIN seguir lo que hubiera en su sitio: el contenedor escribe en esta carpeta, y
+ * un enlace suyo con ese nombre haría que el host pisara el archivo del usuario al que apunta. Se quita lo que
+ * haya (el enlace, no su destino) y se crea en exclusiva (`wx`): si el contenedor lo vuelve a poner entre
+ * medias, falla en vez de seguirlo. El modo va por el descriptor, que tampoco sigue enlaces.
+ */
+function escribirEnBuzon(ruta: string, datos: string | Buffer, modo = 0o644): void {
+  rmSync(ruta, { force: true })
+  const fd = openSync(ruta, 'wx', modo)
+  try {
+    writeSync(fd, typeof datos === 'string' ? Buffer.from(datos, 'utf-8') : datos)
+    fchmodSync(fd, modo)
+  } finally {
+    closeSync(fd)
+  }
+}
+
+/** Lo que contesta un programa del buzón: su código, su salida de errores y los campos que lea su cliente. */
+export interface RespuestaPrograma {
+  exitCode: number
+  stderr: string
+  [campo: string]: unknown
+}
+
+/**
+ * Otro programa que el buzón sirve además de `tdb` (hoy `tssh`), que registra su dominio: sus archivos se
+ * copian al buzón en cada preparación, su lanzador se escribe como el de `tdb` y sus peticiones (`prog` = su
+ * nombre) las atiende él. El token viaja dentro y lo resuelve quien atiende, nunca este puente.
+ */
+export interface ProgramaBuzon {
+  nombre: string
+  /** Archivos que se copian al buzón: nombre en el buzón -> ruta en el host. */
+  archivos: Readonly<Record<string, string>>
+  /** El de `archivos` que arranca el lanzador con el `node` del contenedor. */
+  cliente: string
+  /** Tope de la respuesta serializada: por encima se contesta con un error. */
+  maxRespuesta: number
+  atender: (peticion: Readonly<Record<string, unknown>>) => Promise<RespuestaPrograma>
+}
+
+/** Lo que otros dominios ven del buzón: registrar su programa. */
+export interface PuertaBuzon {
+  registrarPrograma(programa: ProgramaBuzon): void
+}
+
+/** La petición de `tdb`, o null si no tiene su forma (`entrada` es opcional y con tope). */
+function peticionTdb(p: Record<string, unknown>): { token: string; argv: string[]; entrada?: string } | null {
+  if (p.v !== 1 || typeof p.token !== 'string' || !Array.isArray(p.argv)) return null
+  if (p.entrada !== undefined && (typeof p.entrada !== 'string' || p.entrada.length > MAX_ENTRADA)) return null
+  return {
+    token: p.token,
+    argv: p.argv.map((a) => String(a)),
+    ...(typeof p.entrada === 'string' ? { entrada: p.entrada } : {})
+  }
+}
 
 /**
  * Por qué NO se ejecuta una argv que llega por el buzón, o null si se puede. Hoy, un
@@ -117,7 +181,7 @@ export function ejecutarTdb(o: {
 }
 
 /** Puente al host para el modo Docker: recoge las peticiones del buzón de cada perfil y responde. */
-export class DockerBridge {
+export class DockerBridge implements PuertaBuzon {
   private readonly deps: DockerBridgeDeps
   private readonly log: (msg: string) => void
   private temporizador: NodeJS.Timeout | null = null
@@ -125,10 +189,25 @@ export class DockerBridge {
   /** Ids ya cogidos, para no atender dos veces la misma petición. */
   private readonly enCurso = new Set<string>()
   private readonly perfiles = new Set<string>()
+  /** Los programas registrados además de `tdb`, por nombre. */
+  private readonly programas = new Map<string, ProgramaBuzon>()
 
   constructor(deps: DockerBridgeDeps) {
     this.deps = deps
     this.log = deps.log ?? (() => {})
+  }
+
+  /**
+   * Registra otro programa del buzón. Los perfiles ya preparados lo reciben en su siguiente preparación (la
+   * de cada `ensureContainer`); los dominios lo registran al componerse, antes de abrir ningún contenedor.
+   */
+  registrarPrograma(programa: ProgramaBuzon): void {
+    const nombres = [programa.cliente, ...Object.keys(programa.archivos)]
+    if (!NOMBRE_PROGRAMA.test(programa.nombre) || programa.nombre === 'tdb' || !nombres.every((n) => NOMBRE_ARCHIVO.test(n))) {
+      throw new Error(`programa de buzón con un nombre no válido: ${programa.nombre}`)
+    }
+    if (!(programa.cliente in programa.archivos)) throw new Error(`el cliente de ${programa.nombre} no está entre sus archivos`)
+    this.programas.set(programa.nombre, programa)
   }
 
   /** Carpeta del buzón de un perfil en el HOST. */
@@ -149,11 +228,12 @@ export class DockerBridge {
     // Tessera sin rehornear la imagen del sandbox, que es un `docker build --no-cache`
     // de varios minutos.
     try {
-      copyFileSync(this.deps.clienteOrigen, path.join(dir, 'tdb-cliente.cjs'))
+      escribirEnBuzon(path.join(dir, 'tdb-cliente.cjs'), readFileSync(this.deps.clienteOrigen))
       this.escribirLanzador(dir)
     } catch (err) {
       this.log(`no se pudo copiar el cliente al buzón de "${profileId}": ${String(err)}`)
     }
+    for (const programa of this.programas.values()) this.copiarPrograma(dir, programa, profileId)
     this.barrer(dir)
     this.tocarCentinela(dir)
     this.perfiles.add(profileId)
@@ -222,12 +302,26 @@ export class DockerBridge {
     ]
     // LF explícito, no `os.EOL`: el intérprete de esto es `sh` dentro de un Linux,
     // no Windows, y un CR aquí sería el mismo fallo que se acaba de describir.
-    const destino = path.join(dir, 'tdb')
-    writeFileSync(destino, lineas.join('\n'), 'utf-8')
     // Bit de ejecución explícito, no redundante: en Windows el `chmod` es un no-op y el bind aparece como
     // `root:root 777`, pero en macOS virtiofs conserva el modo real (0644 según la umask) y el contenedor
     // vería `exec /usr/local/bin/tdb: permission denied`, un error que apunta al enlace y no al archivo.
-    chmodSync(destino, 0o755)
+    escribirEnBuzon(path.join(dir, 'tdb'), lineas.join('\n'), 0o755)
+  }
+
+  /** Los archivos de un programa y su lanzador, como los de `tdb` (LF explícito y bit de ejecución). */
+  private copiarPrograma(dir: string, programa: ProgramaBuzon, profileId: string): void {
+    try {
+      for (const [nombre, origen] of Object.entries(programa.archivos)) escribirEnBuzon(path.join(dir, nombre), readFileSync(origen))
+      const lineas = [
+        '#!/bin/sh',
+        `# Generado por Tessera. Reenvia \`${programa.nombre}\` al host por el buzon; no lo edites.`,
+        `exec node "\${TESSERA_DB_BRIDGE:-/agent-config/dbbridge}/${programa.cliente}" "$@"`,
+        ''
+      ]
+      escribirEnBuzon(path.join(dir, programa.nombre), lineas.join('\n'), 0o755)
+    } catch (err) {
+      this.log(`no se pudo copiar ${programa.nombre} al buzón de "${profileId}": ${String(err)}`)
+    }
   }
 
   /** Arranca el sondeo y el latido si no estaban ya. */
@@ -260,11 +354,18 @@ export class DockerBridge {
   private tocarCentinela(dir: string): void {
     const ruta = path.join(dir, '.alive')
     try {
-      if (existsSync(ruta)) {
+      // Solo se le cambia la hora a un archivo de verdad: un enlace del contenedor se sustituye, no se sigue.
+      let esArchivo = false
+      try {
+        esArchivo = lstatSync(ruta).isFile()
+      } catch {
+        // No existe.
+      }
+      if (esArchivo) {
         const ahora = new Date()
         utimesSync(ruta, ahora, ahora)
       } else {
-        writeFileSync(ruta, 'tessera', 'utf-8')
+        escribirEnBuzon(ruta, 'tessera')
       }
     } catch {
       /* best-effort */
@@ -312,7 +413,7 @@ export class DockerBridge {
   private async atender(dir: string, id: string, clave: string): Promise<void> {
     const rutaPeticion = path.join(dir, `${id}.req.json`)
     try {
-      const peticion = this.leerPeticion(rutaPeticion)
+      const cruda = this.leerPeticion(rutaPeticion)
       // La petición se borra ANTES de ejecutar: si `tdb` tardase y el repaso volviera
       // a pasar, no debe atenderse dos veces (el `enCurso` ya lo evita en memoria,
       // pero el archivo también tiene que desaparecer para no acumular basura).
@@ -321,6 +422,12 @@ export class DockerBridge {
       } catch {
         /* se recogerá por antigüedad */
       }
+      // Sin `prog` (o `tdb`) es de `tdb`, como las de un cliente de antes.
+      if (cruda && cruda.prog !== undefined && cruda.prog !== 'tdb') {
+        await this.atenderPrograma(dir, id, cruda)
+        return
+      }
+      const peticion = cruda ? peticionTdb(cruda) : null
       if (!peticion) {
         this.responder(dir, id, { exitCode: 2, stdout: '', stderr: 'petición ilegible\n' })
         return
@@ -341,24 +448,38 @@ export class DockerBridge {
     }
   }
 
-  private leerPeticion(ruta: string): { token: string; argv: string[]; entrada?: string } | null {
+  /** Una petición de otro programa: la atiende quien la registró, con su tope de respuesta. */
+  private async atenderPrograma(dir: string, id: string, cruda: Record<string, unknown>): Promise<void> {
+    const programa = typeof cruda.prog === 'string' ? this.programas.get(cruda.prog) : undefined
+    if (!programa || cruda.v !== 1 || typeof cruda.token !== 'string') {
+      const que = typeof cruda.prog === 'string' ? cruda.prog.slice(0, 32) : '?'
+      this.escribirRespuesta(dir, id, { exitCode: 2, stderr: `\n  ✗ Esta Tessera no sabe atender «${que}» por el buzón: reiníciala o actualízala.\n\n` })
+      return
+    }
+    const r = await programa.atender(cruda)
+    const texto = JSON.stringify({ ...r, v: 1 })
+    if (texto.length <= programa.maxRespuesta) {
+      this.escribirRespuesta(dir, id, texto)
+      return
+    }
+    // Truncar en silencio haría creer que se vio todo, que es peor que un error.
+    const mib = Math.round(programa.maxRespuesta / (1024 * 1024))
+    this.escribirRespuesta(dir, id, { exitCode: 1, stderr: `\n  ✗ La respuesta superó los ${mib} MiB que admite el puente al host y se descartó.\n\n` })
+  }
+
+  /** El JSON de una petición (de cualquier programa), o null si no se puede leer o pasa del tope. */
+  private leerPeticion(ruta: string): Record<string, unknown> | null {
     // Reintentos cortos: sobre 9p la entrada de directorio puede aparecer un
     // instante antes que el contenido (ver la nota simétrica en el cliente).
     for (let intento = 0; intento < 3; intento++) {
       try {
+        // Un enlace del contenedor no se lee: apuntaría a un archivo del equipo.
+        const st = lstatSync(ruta)
+        if (!st.isFile() || st.size > MAX_PETICION) return null
         const texto = readFileSync(ruta, 'utf-8')
         if (!texto.trim()) continue
-        const p = JSON.parse(texto) as { v?: number; token?: unknown; argv?: unknown; entrada?: unknown }
-        if (p.v !== 1) return null
-        if (typeof p.token !== 'string' || !Array.isArray(p.argv)) return null
-        // `entrada` (el SQL de `--stdin`/`--file`, leído en el contenedor) es opcional; si
-        // viene, tiene que ser texto y caber en el tope. Otra cosa no la manda el cliente.
-        if (p.entrada !== undefined && (typeof p.entrada !== 'string' || p.entrada.length > MAX_ENTRADA)) return null
-        return {
-          token: p.token,
-          argv: p.argv.map((a) => String(a)),
-          ...(typeof p.entrada === 'string' ? { entrada: p.entrada } : {})
-        }
+        const p = JSON.parse(texto) as unknown
+        return p !== null && typeof p === 'object' && !Array.isArray(p) ? (p as Record<string, unknown>) : null
       } catch {
         /* siguiente intento */
       }
@@ -380,10 +501,15 @@ export class DockerBridge {
         `Acota la consulta (por ejemplo con --limit).\n`
       r = { ...r, exitCode: 1 }
     }
+    this.escribirRespuesta(dir, id, JSON.stringify({ v: 1, exitCode: r.exitCode, stdout, stderr }))
+  }
+
+  /** Escribe la respuesta a `.tmp` y renombra: el cliente nunca lee una a medias. */
+  private escribirRespuesta(dir: string, id: string, r: string | RespuestaPrograma): void {
     const destino = path.join(dir, `${id}.res.json`)
     const tmp = `${destino}.tmp`
     try {
-      writeFileSync(tmp, JSON.stringify({ v: 1, exitCode: r.exitCode, stdout, stderr }), 'utf-8')
+      escribirEnBuzon(tmp, typeof r === 'string' ? r : JSON.stringify({ v: 1, ...r }))
       renameSync(tmp, destino)
     } catch (err) {
       this.log(`no se pudo escribir la respuesta ${id}: ${String(err)}`)

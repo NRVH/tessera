@@ -7,6 +7,7 @@
 // =============================================================================
 
 import { buildAgentLaunchCommand, buildHostAgentLaunchCommand } from '../lineaArranqueAgente'
+import { briefingCompuesto } from '../briefingCompuesto'
 import { claveSesionAgente } from '../../../shared/db-ipc'
 import { PREFIJO_DOCKER_NO_DISPONIBLE } from '../../../shared/dockerErrors'
 import type { Profile } from '../../profiles/types'
@@ -84,7 +85,7 @@ async function recargarNativo(
             n.binaries[open.agente],
             open.agente,
             reanudar,
-            n.getDbBriefing(open.profileId, open.projectHostPath, dbConnectionIds)
+            briefingCompuesto(n.getDbBriefing(open.profileId, open.projectHostPath, dbConnectionIds), n.getSshBriefing(open.profileId))
           ),
           extraEnv: n.getHostEnv(open.profileId, open.projectHostPath, dbConnectionIds)
         }
@@ -130,7 +131,7 @@ function relanzamientoContenedor(
       n.sshSetup,
       reanudar,
       extraEnv,
-      n.getDbBriefing(open.profileId, open.projectHostPath, dbConnectionIds)
+      briefingCompuesto(n.getDbBriefing(open.profileId, open.projectHostPath, dbConnectionIds), n.getSshBriefing(open.profileId))
     ),
     extraEnv
   }

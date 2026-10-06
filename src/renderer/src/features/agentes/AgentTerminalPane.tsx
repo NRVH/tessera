@@ -76,6 +76,8 @@ function AgentTerminalPaneSinMemo(props: AgentTerminalPaneProps): React.JSX.Elem
   return (
     <div
       className={clasePane(p.mostradoReal, mosaico)}
+      // Dónde vive: el atajo de pantalla completa reconoce por aquí el agente de la terminal.
+      data-lugar={p.lugar}
       aria-hidden={!p.mostradoReal}
       // En el mosaico cada casilla es una REGIÓN con nombre completo.
       role={mosaico ? 'region' : undefined}

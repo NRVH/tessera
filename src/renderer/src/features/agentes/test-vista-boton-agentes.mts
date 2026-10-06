@@ -47,7 +47,9 @@ const CENTINELA: NombresSistema = {
   tuEquipo: 'EQUIPO-CENTINELA',
   gestorArchivos: 'GESTOR-CENTINELA',
   shellNativa: 'SHELL-CENTINELA',
-  almacenSecretos: 'ALMACEN-CENTINELA'
+  almacenSecretos: 'ALMACEN-CENTINELA',
+  agenteClavesSsh: 'AGENTE-SSH-CENTINELA',
+  papelera: 'PAPELERA-CENTINELA'
 }
 /** Lo que no puede aparecer escrito a mano (con nombres centinela, no aparece nunca). */
 const PROHIBIDOS = ['Windows', 'macOS', 'Mac', 'PowerShell', 'Finder', 'Explorador']

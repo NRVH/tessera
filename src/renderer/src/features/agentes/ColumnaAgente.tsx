@@ -1,14 +1,19 @@
 // =============================================================================
-// Columna derecha de la ventana: el divisor que toque (el de siempre contra el
-// editor, o el del agente de datos en la vista de BD) y las terminales de agente
-// multiplexadas de todos los perfiles (CCPanel), que nunca se desmontan.
+// Columna derecha de la ventana: el divisor que toque (el de siempre contra el editor, el del
+// agente de datos en la vista de BD o el del agente de la terminal a pantalla completa) y las
+// terminales de agente multiplexadas de todos los perfiles (CCPanel), que nunca se desmontan.
+// También decide quién se lleva el teclado cuando la columna cambia de dueño.
+// Decisiones: docs/decisiones/agentes/columna-del-agente.md, docs/decisiones/agentes/agente-de-la-terminal.md
 // =============================================================================
+import { useEffect, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { CC_WIDTH_MIN } from '../../../../shared/workspace-state-ipc'
 import { Splitter } from '../../comun/Splitter'
 import { CCPanel, type MosaicoPanel } from './CCPanel'
 import { handleTargetStatus, handleTargetVivo, selectAccount, selectAgent, useStoreAgentes } from './store'
+import { cerrarAgenteTerminal, elegirAgenteTerminal, soltarFocoAgenteTerminal, useStoreAgenteTerminal } from './storeAgenteTerminal'
 import type { AgentesApp } from './useAgentesApp'
+import type { AgenteTerminalApp } from './useAgenteTerminal'
 import type { ColumnaAgenteEstado } from './useColumnaAgente'
 import type { SesionesNativas } from './useSesionesNativas'
 import { fijadoresLayout, useStoreLayout, type SalidaLayoutCentro, type Tamanos } from '../layout'
@@ -27,6 +32,7 @@ interface Props {
   actividad: ActividadAgentes
   modo: ModoProyecto
   espacios: EspaciosDatos
+  agenteTerminal: AgenteTerminalApp
   montajes: MontajesBd
   sesiones: SesionesNativas
 }
@@ -64,8 +70,7 @@ function usePanelMosaico(p: Pick<Props, 'mosaico' | 'actividad' | 'modo' | 'espa
   }
 }
 
-/** Divisores de la columna del agente y la columna misma. */
-/** El divisor que toque contra el centro: el del editor, el del agente de datos en BD, o ninguno. */
+/** El divisor que toque contra el centro: el del editor, el del agente de datos, el del agente de la terminal, o ninguno. */
 function DivisorAgente({
   divisor,
   tamanos
@@ -74,42 +79,54 @@ function DivisorAgente({
   tamanos: Tamanos
 }): React.JSX.Element | null {
   const ccWidth = useStoreLayout((s) => s.ccWidth)
-  if (divisor === 'editor') {
-    return (
-      <Splitter
-        orientation="vertical"
-        size={ccWidth}
-        min={CC_WIDTH_MIN}
-        max={tamanos.ccMax}
-        direction={-1}
-        onResize={fijadoresLayout.ccWidth}
-        label="Redimensionar Claude Code"
-      />
-    )
-  }
-  if (divisor === 'db') {
-    return (
-      <Splitter
-        orientation="vertical"
-        size={tamanos.dbAgenteWidthVisible}
-        min={CC_WIDTH_MIN}
-        max={tamanos.ccMaxDb}
-        direction={-1}
-        onResize={fijadoresLayout.dbAgenteWidth}
-        label="Redimensionar el agente"
-      />
-    )
-  }
-  return null
+  if (divisor === null) return null
+  const porDivisor = {
+    editor: { size: ccWidth, max: tamanos.ccMax, onResize: fijadoresLayout.ccWidth, label: 'Redimensionar Claude Code' },
+    db: { size: tamanos.dbAgenteWidthVisible, max: tamanos.ccMaxDb, onResize: fijadoresLayout.dbAgenteWidth, label: 'Redimensionar el agente' },
+    terminal: {
+      size: tamanos.agenteTerminalAnchoVisible,
+      max: tamanos.ccMaxTerminal,
+      onResize: fijadoresLayout.agenteTerminalAncho,
+      label: 'Redimensionar el agente de la terminal'
+    }
+  }[divisor]
+  // `splitter-agente`: el CSS del agente de la terminal lo deja a la vista y aparta a sus hermanos.
+  return <Splitter orientation="vertical" min={CC_WIDTH_MIN} direction={-1} className="splitter-agente" {...porDivisor} />
 }
 
-export function ColumnaAgente(props: Props): React.JSX.Element {
-  const { tabs, agentes, columna, tamanos, espacios, montajes, sesiones } = props
-  const lay = agentes.lay
-  const accountByTarget = useStoreAgentes((s) => s.accountByTarget)
+/**
+ * ¿Cambia en este render la columna hacia o desde el agente de la terminal? Lo compara con el último
+ * commit: entrar o salir de pantalla completa (por cualquier vía) cambia de dueño sin que nadie haya
+ * pedido el teclado, y en ese commit ningún pane se lo lleva.
+ */
+function useCambiaAgenteTerminal(agente: SalidaLayoutCentro['agente']): boolean {
+  const anterior = useRef(agente)
+  const cambia = anterior.current !== agente && (anterior.current === 'terminal' || agente === 'terminal')
+  useEffect(() => {
+    anterior.current = agente
+  })
+  return cambia
+}
+
+/** Quién se lleva el teclado: la salida del mosaico y los cambios de dueño no; un gesto en el agente de la terminal sí. */
+function useFocoDeLaColumna(lay: SalidaLayoutCentro): { tokenFoco: number; sinRobarFoco: boolean; focoAgenteTerminal: boolean } {
   const { tokenFocoMosaico, salidaSinFoco } = useStoreMosaico(
     useShallow((s) => ({ tokenFocoMosaico: s.tokenFocoMosaico, salidaSinFoco: s.salidaSinFoco }))
   )
+  const focoPedido = useStoreAgenteTerminal((s) => s.focoPedido)
+  const cambia = useCambiaAgenteTerminal(lay.agente)
+  // Vive un commit: los panes (hijos) ya decidieron cuando corre este efecto del padre.
+  useEffect(() => {
+    if (focoPedido) soltarFocoAgenteTerminal()
+  }, [focoPedido])
+  return { tokenFoco: tokenFocoMosaico, sinRobarFoco: salidaSinFoco || (cambia && !focoPedido), focoAgenteTerminal: focoPedido }
+}
+
+export function ColumnaAgente(props: Props): React.JSX.Element {
+  const { tabs, agentes, columna, tamanos, espacios, agenteTerminal, montajes, sesiones } = props
+  const lay = agentes.lay
+  const accountByTarget = useStoreAgentes((s) => s.accountByTarget)
+  const foco = useFocoDeLaColumna(lay)
   const windowsModeKeys = useStorePestanas((s) => s.windowsModeKeys)
   const dbMounts = useStoreBd((s) => s.dbMounts)
   const settingsLoaded = useStoreAjustes((s) => s.settingsLoaded)
@@ -121,7 +138,7 @@ export function ColumnaAgente(props: Props): React.JSX.Element {
         grow={lay.cc.grow}
         targets={agentes.targetsAgente}
         activeTargetKey={agentes.activeTargetKeyEfectivo}
-        hibernatedTargetKeys={tabs.hibernatedTargetKeys}
+        hibernatedTargetKeys={agentes.hibernatedTargetKeys}
         profiles={tabs.profiles}
         canExpand={lay.cc.canExpand}
         expanded={columna.ccExpanded}
@@ -130,8 +147,7 @@ export function ColumnaAgente(props: Props): React.JSX.Element {
         onTargetStatus={handleTargetStatus}
         onTargetVivo={handleTargetVivo}
         mosaico={mosaicoPanel}
-        tokenFoco={tokenFocoMosaico}
-        sinRobarFoco={salidaSinFoco}
+        {...foco}
         onSelectAgent={selectAgent}
         accountByTarget={accountByTarget}
         onSelectAccount={selectAccount}
@@ -140,6 +156,9 @@ export function ColumnaAgente(props: Props): React.JSX.Element {
         onChangeDbMounted={montajes.setDbMountedForProject}
         dbReady={settingsLoaded}
         rutasEspacioDatos={espacios.espacioPathsSet}
+        rutasAgenteTerminal={agenteTerminal.rutasSet}
+        onSelectAgentTerminal={elegirAgenteTerminal}
+        onCerrarAgenteTerminal={cerrarAgenteTerminal}
         onApiAgente={sesiones.actualizacionNativa.registrarApi}
         estadoAgentesNativos={sesiones.actualizacionNativa.estado}
         enEspera={

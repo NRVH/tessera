@@ -5,6 +5,11 @@
 // `app.ts` (docs/decisiones/renderer/barriles-sin-ciclos.md).
 // =============================================================================
 export { useStoreLayout, fijadoresLayout, cambiarVistaSi } from './store'
-export { derivarLayoutCentro, maximizadoCoherente, type SalidaLayoutCentro } from './layoutCentro'
+export {
+  derivarLayoutCentro,
+  maximizadoCoherente,
+  pantallaCompletaCoherente,
+  type SalidaLayoutCentro
+} from './layoutCentro'
 export type { VistasPorPerfil } from './useVistasPorPerfil'
 export type { Tamanos } from './useTamanos'

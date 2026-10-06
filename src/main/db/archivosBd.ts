@@ -7,6 +7,7 @@
 
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
+import { Fichas, VIDA_FICHA_POR_DEFECTO_MS } from '../util/fichas.ts'
 import { tocaContenedor } from '../../shared/jarPath.ts'
 import { normalizarRelativaProyecto } from '../../shared/rutasHost.ts'
 import { descriptor, etiquetaMotor, IDS_MOTORES } from '../../shared/motores/index.ts'
@@ -15,62 +16,47 @@ import type { Plataforma } from '../../shared/plataforma.ts'
 import type { DbArchivoElegido, DbMotor } from '../../shared/db-ipc.ts'
 import { canonizarRutaArchivo, claveRutaArchivo, nombreArchivoDeRuta, type DepsRutaArchivo } from './rutaArchivoBd.ts'
 
-/** Cuánto vale una ficha desde que se emite. */
-export const VIDA_FICHA_MS = 30 * 60 * 1000
+/** Cuánto vale una ficha desde que se emite: la misma vida que las demás fichas (`util/fichas.ts`). */
+export const VIDA_FICHA_MS = VIDA_FICHA_POR_DEFECTO_MS
 
 /** Lo que el main recuerda de una ficha. */
 export interface FichaArchivo {
   ruta: string
   motor: DbMotor
-  caduca: number
 }
 
 /** Mensaje de una ficha que el main no conoce (caducada o de antes de reiniciar). */
 export const MENSAJE_FICHA_DESCONOCIDA = 'Ese archivo ya no está elegido (pasó demasiado tiempo o se reinició Tessera). Vuelve a elegirlo.'
 
-/** Las fichas vivas del main. Una instancia por proceso. */
+/** Las fichas vivas del main, sobre las `Fichas` genéricas. Una instancia por proceso. */
 export class FichasArchivo {
-  private readonly fichas = new Map<string, FichaArchivo>()
-  private readonly ahora: () => number
-  private readonly vida: number
-  private readonly nuevoToken: () => string
+  private readonly fichas: Fichas<FichaArchivo>
 
   // Sin propiedades de parámetro: el test corre con `node` a secas (quita los tipos, no
   // transforma), y esa sintaxis no la admite.
   constructor(ahora: () => number = Date.now, vida: number = VIDA_FICHA_MS, nuevoToken: () => string = randomUUID) {
-    this.ahora = ahora
-    this.vida = vida
-    this.nuevoToken = nuevoToken
+    this.fichas = new Fichas<FichaArchivo>({ ahora, vidaMs: vida, nuevoToken })
   }
 
   /** Emite una ficha para `ruta` (ya canónica) y devuelve lo que cruza al renderer. */
   emitir(ruta: string, motor: DbMotor, plataforma: Plataforma): DbArchivoElegido {
-    this.podar()
-    const token = this.nuevoToken()
-    this.fichas.set(token, { ruta, motor, caduca: this.ahora() + this.vida })
+    const token = this.fichas.emitir({ ruta, motor })
     return { token, nombre: nombreArchivoDeRuta(ruta, plataforma) }
   }
 
   /** La ficha de `token` para `motor`. Lanza, con mensaje para el usuario, si no vale. */
   resolver(token: unknown, motor: DbMotor): FichaArchivo {
-    this.podar()
-    const f = typeof token === 'string' ? this.fichas.get(token) : undefined
+    const f = this.fichas.ver(token)
     if (!f) throw new Error(MENSAJE_FICHA_DESCONOCIDA)
     if (f.motor !== motor) {
       throw new Error(`Ese archivo se eligió para ${etiquetaMotor(f.motor)}, no para ${etiquetaMotor(motor)}: vuelve a elegirlo.`)
     }
-    return f
+    return { ...f }
   }
 
   /** Cuántas hay vivas (para el test). */
   get cuantas(): number {
-    this.podar()
-    return this.fichas.size
-  }
-
-  private podar(): void {
-    const t = this.ahora()
-    for (const [k, f] of this.fichas) if (f.caduca <= t) this.fichas.delete(k)
+    return this.fichas.cuantas
   }
 }
 

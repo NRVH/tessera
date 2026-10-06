@@ -41,6 +41,8 @@ import {
   dbClaves
 } from './bd'
 import { type DbExploradorApi, dbExplorador } from './bdExplorador'
+import { type SshApi, ssh } from './ssh'
+import { type SftpApi, sftp } from './sftp'
 import {
   type FilesApi,
   type ClipboardApi,
@@ -112,6 +114,8 @@ export interface TesseraApi {
   dbExplorador: DbExploradorApi
   dbDocumentos: DbDocumentosApi
   dbClaves: DbClavesApi
+  ssh: SshApi
+  sftp: SftpApi
   files: FilesApi
   git: GitApi
   workspace: WorkspaceApi
@@ -153,6 +157,8 @@ const api: TesseraApi = {
   dbExplorador,
   dbDocumentos,
   dbClaves,
+  ssh,
+  sftp,
   files,
   git,
   workspace,

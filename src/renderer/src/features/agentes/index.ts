@@ -5,6 +5,7 @@
 // compone App.tsx está en `app.ts` (docs/decisiones/renderer/barriles-sin-ciclos.md).
 // =============================================================================
 export { useStoreAgentes } from './store'
+export { useStoreAgenteTerminal } from './storeAgenteTerminal'
 export { resolveSelectedAgent } from './agenteElegido'
 export type { AgentPaneStatus } from './agentPaneTipos'
 export type { ColumnaAgenteEstado } from './useColumnaAgente'

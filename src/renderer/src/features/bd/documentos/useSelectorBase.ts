@@ -1,7 +1,7 @@
 // =============================================================================
 // La mecánica común de los selectores de base de las consolas de MongoDB y de Redis: cerrar
 // con un clic fuera y el teclado (flechas, Intro, Escape); el foco es el de los popovers
-// (`consola/usePopoverFlotante.ts`).
+// (`comun/usePopoverFlotante.ts`).
 // Nada de lo que se teclea en el selector es para la consola de debajo, porque el portal
 // burbuja los eventos por el árbol de React. Solo depende de React.
 // =============================================================================

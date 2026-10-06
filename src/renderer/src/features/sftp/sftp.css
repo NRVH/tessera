@@ -1,0 +1,340 @@
+/* =============================================================================
+   EL EXPLORADOR SFTP de una pestaña de la franja de terminales: barra con migas, lista de la carpeta
+   remota con sus columnas, tira de operaciones y estados de conexión. Solo variables del tema. Las
+   columnas se recortan según el ANCHO DEL PROPIO EXPLORADOR (`container-type` en `.sftp`; las consultas
+   van sobre sus descendientes, que es donde un @container aplica), no el de la ventana.
+   Decisiones: docs/decisiones/ssh/explorador-sftp.md
+   ============================================================================= */
+
+/* El explorador llena el `.terminal-pane` que lo aloja (columna absoluta que se oculta con `.hidden`). */
+.sftp {
+  container-type: inline-size;
+  container-name: sftp;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: var(--ui-font);
+}
+.sftp-centrado {
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+}
+.sftp-centrado > .aviso {
+  max-width: min(520px, 100%);
+}
+.sftp-conectando {
+  color: var(--fg-faint);
+}
+
+/* BARRA: botones de icono a los lados y las migas, que se encogen, en medio. */
+.sftp-barra {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--border);
+}
+.sftp-barra-sep {
+  flex: 0 0 auto;
+  width: 1px;
+  height: 14px;
+  margin: 0 4px;
+  background: var(--border);
+}
+.sftp-migas {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  margin: 0 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  scrollbar-width: none;
+}
+.sftp-migas::-webkit-scrollbar {
+  display: none;
+}
+.sftp-miga-grupo {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+.sftp-miga-sep {
+  padding: 0 2px;
+  color: var(--fg-faint);
+}
+.sftp-miga {
+  padding: 1px 5px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--fg-muted);
+  font: inherit;
+  cursor: pointer;
+}
+button.sftp-miga:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--fg);
+}
+.sftp-miga.actual {
+  color: var(--fg);
+  cursor: default;
+}
+
+/* AVISO de una acción puntual: dentro del explorador, sin tapar nada. */
+.sftp-aviso {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--danger-tinte, color-mix(in srgb, var(--red) 17%, transparent));
+  color: var(--fg);
+}
+.sftp-aviso-texto {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* LISTA: cabecera de columnas fija y filas en lista virtual. La cabecera reserva el mismo hueco de
+   scrollbar que la lista (`scrollbar-gutter`) para que las columnas no se descuadren. */
+.sftp-zona {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.sftp-zona.cargando .sftp-lista {
+  opacity: 0.6;
+}
+.sftp-cabecera,
+.sftp-fila {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 76px 138px 84px;
+  align-items: center;
+  column-gap: 8px;
+}
+.sftp-cabecera {
+  flex: 0 0 auto;
+  height: var(--ui-head-h);
+  padding: 0 8px;
+  overflow: hidden;
+  scrollbar-gutter: stable;
+  border-bottom: 1px solid var(--border);
+  color: var(--fg-faint);
+  user-select: none;
+}
+.sftp-lista {
+  flex: 1 1 auto;
+  min-height: 0;
+  scrollbar-gutter: stable;
+}
+.sftp-lista:focus-visible {
+  outline: none;
+}
+.sftp-fila {
+  padding: 0 8px;
+  color: var(--fg);
+  user-select: none;
+  cursor: default;
+  white-space: nowrap;
+}
+.sftp-fila:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+.sftp-fila.seleccionada {
+  background: var(--sel-glow);
+  box-shadow: inset 2px 0 0 var(--sel);
+}
+.sftp-fila.lider {
+  outline: 1px solid var(--sel-borde);
+  outline-offset: -1px;
+}
+.sftp-fila.roto {
+  color: var(--fg-faint);
+  font-style: italic;
+}
+.sftp-celda {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sftp-celda-nombre {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sftp-nombre {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sftp-etiqueta-enlace {
+  flex: 0 0 auto;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--fg-faint);
+  font-size: 0.85em;
+}
+.sftp-celda-tamano {
+  text-align: right;
+}
+.sftp-fila .sftp-celda-tamano,
+.sftp-fila .sftp-celda-fecha,
+.sftp-fila .sftp-celda-permisos {
+  color: var(--fg-muted);
+}
+.sftp-celda-permisos {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.92em;
+}
+.sftp-vacia {
+  position: absolute;
+  inset: var(--ui-head-h) 0 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-faint);
+  pointer-events: none;
+}
+
+/* SOLTAR: la zona se resalta con el acento mientras se arrastra algo del equipo por encima. */
+.sftp-zona.soltando {
+  box-shadow: inset 0 0 0 1px var(--accent);
+  background: var(--sel-tenue);
+}
+/* Soltar sobre una carpeta de la lista: el mismo resalte, en la fila que lo recibirá. */
+.sftp-fila.soltar-aqui {
+  box-shadow: inset 0 0 0 1px var(--accent);
+  background: var(--sel-tenue);
+}
+.sftp-aviso-soltar {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  padding: 4px 12px;
+  border-radius: 7px;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-chip);
+  color: var(--fg);
+  pointer-events: none;
+}
+
+/* OPERACIONES: una fila por subida, descarga o borrado, bajo la lista. */
+.sftp-operaciones {
+  flex: 0 0 auto;
+  max-height: 40%;
+  overflow-y: auto;
+  border-top: 1px solid var(--border);
+}
+.sftp-operacion {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: calc(var(--ui-row-h) + 6px);
+  padding: 2px 8px;
+}
+.sftp-operacion-verbo {
+  flex: 0 0 auto;
+  color: var(--fg-muted);
+}
+.sftp-operacion-nombre {
+  flex: 1 1 60px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sftp-operacion.error .sftp-operacion-verbo,
+.sftp-operacion.error .sftp-operacion-nombre {
+  color: var(--red);
+}
+.sftp-operacion.cancelada {
+  color: var(--fg-faint);
+}
+.sftp-operacion-avance {
+  flex: 0 0 auto;
+  color: var(--fg-faint);
+  white-space: nowrap;
+}
+.sftp-barra-avance {
+  flex: 0 0 90px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  overflow: hidden;
+}
+.sftp-barra-relleno {
+  height: 100%;
+  background: var(--accent);
+  transition: width 120ms linear;
+}
+.sftp-barra-avance.indeterminada .sftp-barra-relleno {
+  width: 35%;
+  animation: sftp-indeterminada 1.1s ease-in-out infinite alternate;
+}
+@keyframes sftp-indeterminada {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(185%);
+  }
+}
+.btn.sftp-operacion-boton {
+  flex: 0 0 auto;
+  height: 20px;
+}
+.sftp-operacion-cerrar {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--fg-muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.sftp-operacion-cerrar:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--fg);
+}
+
+/* ESTRECHO: primero se va Permisos, después Modificado; Nombre y Tamaño nunca. */
+@container sftp (max-width: 560px) {
+  .sftp-cabecera,
+  .sftp-fila {
+    grid-template-columns: minmax(0, 1fr) 76px 138px;
+  }
+  .sftp-celda-permisos {
+    display: none;
+  }
+}
+@container sftp (max-width: 400px) {
+  .sftp-cabecera,
+  .sftp-fila {
+    grid-template-columns: minmax(0, 1fr) 76px;
+  }
+  .sftp-celda-fecha {
+    display: none;
+  }
+  .sftp-barra-avance {
+    flex-basis: 48px;
+  }
+}

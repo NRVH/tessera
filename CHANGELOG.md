@@ -4,6 +4,51 @@ Todos los cambios relevantes de Tessera se documentan en este archivo. El format
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), y Tessera sigue el
 [versionado semántico](https://semver.org/lang/es/).
 
+## [0.74.0] - 2026-10-06
+
+- **Conexiones SSH en la terminal.** Cada espacio de trabajo guarda sus conexiones SSH con
+  nombre y en grupos, y se abren en pestañas de la terminal que se ven en todos sus proyectos,
+  también sin proyecto abierto. Se entra con contraseña, con un archivo de clave (`.pem` u
+  OpenSSH, guardado como copia protegida sin tocar el original) o con las claves del sistema.
+  La contraseña y la frase de la clave se guardan cifradas y se dan solas al conectar.
+  «Probar» comprueba la conexión, y se puede olvidar la huella guardada de un servidor.
+- **Importar desde OpenSSH.** El formulario de nueva conexión lee tu `~/.ssh/config` (o el
+  archivo que elijas): con un solo `Host` rellena el formulario, y con varios abre una
+  revisión para elegir cuáles importar, cambiarles el nombre, el usuario y el grupo, y dejar
+  la contraseña o la clave de cada una lista para conectar.
+- **Explorador SFTP.** Cada conexión abre un explorador de archivos en una pestaña de la
+  terminal: navegar, crear carpetas, renombrar, borrar, y subir y bajar archivos y carpetas
+  con progreso, cancelación y confirmación antes de reemplazar. Se puede soltar archivos sobre
+  la lista o sobre una carpeta.
+- **Terminal a pantalla completa.** Con un botón o con Ctrl+Shift+Enter (⇧⌘↩) la terminal
+  ocupa todo el área de trabajo; abrir un archivo o elegir una vista lateral la devuelve a la
+  franja. A pantalla completa, las conexiones SSH quedan fijas en un riel plegable a la
+  izquierda.
+- **Agente de la terminal.** A pantalla completa, a la derecha de la terminal hay un agente
+  propio del espacio de trabajo, con su carpeta y su historial, para pedir ayuda con tus
+  servidores sin abrir un proyecto. Salir de pantalla completa lo oculta sin cerrarlo.
+- **`tssh` para los agentes.** El agente de cualquier proyecto, nativo o Docker, y el agente
+  de la terminal usan las conexiones SSH del espacio de trabajo con `tssh`: listar, ejecutar
+  comandos y copiar archivos, sin ver nunca la contraseña ni la clave y solo en servidores
+  cuya huella ya aceptaste. La casilla «Disponible para los agentes» decide qué conexiones ven.
+- **Codex recibe el aviso de bases de datos y de SSH** al arrancar, como Claude Code, y sabe
+  salir de su sandbox para usar `tdb` y `tssh`.
+- **Cabecera de la terminal**: el «+» abre una terminal al instante y la ▾ abre la lista de
+  conexiones, con las recientes arriba. Los botones de la derecha son maximizar, reiniciar y
+  ocultar, los tres como iconos con su nombre al pasar el ratón.
+- **Seguridad**: lo que se teclea en una terminal deja de quedar escrito en la consola de la
+  app.
+- Arreglos:
+  - Un Esc en un diálogo abierto encima de otro cierra solo ese.
+  - Borrar un perfil y recrearlo enseguida con el mismo nombre ya no puede tocar las carpetas,
+    las sesiones ni las conexiones del nuevo; las carpetas de los agentes de un perfil borrado
+    van a la papelera.
+  - En «Buscar en archivos», con la lista de carpetas abierta, las flechas e Intro eligen
+    carpeta.
+  - MongoDB: cambiar a `srv` o las opciones de la URI corta la contraseña emitida para el
+    destino anterior.
+  - Oracle: «Ver DDL» funciona contra una 11.2.0.4 con el cliente 23 (el de Mac).
+
 ## [0.73.0] - 2026-10-04
 
 - **Vista de Git a pantalla completa.** Un botón en la cabecera de la vista de Git la extiende

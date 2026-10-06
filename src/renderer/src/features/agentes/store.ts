@@ -1,6 +1,7 @@
 // =============================================================================
 // Store de los agentes: agente y cuenta elegidos, estado de sesión que reportan los
-// panes, actividad (trabajando / terminó sin ver) y qué targets tienen agente vivo.
+// panes, actividad (trabajando / terminó sin ver), qué targets tienen agente vivo y los
+// hibernados que no son pestaña.
 // Los efectos que lo alimentan viven en useAgentesApp y useActividadAgentes. Una acción
 // que no cambia nada devuelve el mismo estado: con `{}` se avisaría a todos los oyentes.
 // =============================================================================
@@ -21,6 +22,11 @@ export interface EstadoAgentes {
   vivos: ReadonlySet<string>
   /** Cada incremento abre el panel del botón de agentes nativos. */
   tokenAbrirAgentes: number
+  /**
+   * Targets que NO son pestaña (el agente de datos y el de la terminal) cuya sesión cerró el main al
+   * hibernar su perfil. Las pestañas lo llevan en su modelo; estos, aquí.
+   */
+  hibernadosFueraDePestanas: ReadonlySet<string>
 }
 
 /** Estado de los agentes. */
@@ -30,7 +36,8 @@ export const useStoreAgentes = create<EstadoAgentes>()(() => ({
   agentStatus: {},
   activity: emptyActivityState,
   vivos: new Set(),
-  tokenAbrirAgentes: 0
+  tokenAbrirAgentes: 0,
+  hibernadosFueraDePestanas: new Set()
 }))
 
 /** Elige el agente de un perfil. */
@@ -72,4 +79,15 @@ export function handleTargetVivo(key: string, vivo: boolean): void {
 /** Aplica una transformación pura al estado de actividad. */
 export function actualizarActividad(f: (s: ActivityState) => ActivityState): void {
   useStoreAgentes.setState((s) => ({ activity: f(s.activity) }))
+}
+
+/**
+ * Aplica una transformación pura (las de `hibernacionFueraDePestanas.ts`) a los targets que no son
+ * pestaña marcados como hibernados. Sin cambio (mismo conjunto), no avisa a nadie.
+ */
+export function actualizarHibernadosFueraDePestanas(f: (m: ReadonlySet<string>) => ReadonlySet<string>): void {
+  useStoreAgentes.setState((s) => {
+    const m = f(s.hibernadosFueraDePestanas)
+    return m === s.hibernadosFueraDePestanas ? s : { hibernadosFueraDePestanas: m }
+  })
 }

@@ -3,10 +3,12 @@
 // --no-cache`, última versión publicada) y recrea los contenedores, con el progreso
 // del build en vivo y las versiones resultantes. Se hace desde el host porque el
 // auto-update dentro del contenedor no persiste (npm global de root, usuario neutro).
+// Depende de `comun/useDialogo` (Esc, foco y pila de diálogos).
 // =============================================================================
 
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import type { AgentsUpdateResult } from '../../../../shared/agents-update-ipc'
+import { useDialogo } from '../../comun/useDialogo'
 
 interface AgentsUpdateModalProps {
   onClose: () => void
@@ -24,18 +26,6 @@ const MAX_LOG_LINES = 500
 function anadirConTope(prev: string[], line: string): string[] {
   const next = [...prev, line]
   return next.length > MAX_LOG_LINES ? next.slice(next.length - MAX_LOG_LINES) : next
-}
-
-/** Esc cierra, salvo mientras corre (no dejar el build a medias sin querer); devuelve la limpieza. */
-function escucharEscape(phase: Phase, onClose: () => void): () => void {
-  function onKey(e: KeyboardEvent): void {
-    if (e.key === 'Escape' && phase !== 'running') {
-      e.preventDefault()
-      onClose()
-    }
-  }
-  window.addEventListener('keydown', onKey)
-  return () => window.removeEventListener('keydown', onKey)
 }
 
 function Cabecera({ phase, onClose }: { phase: Phase; onClose: () => void }): React.JSX.Element {
@@ -114,6 +104,8 @@ function Pie({ phase, onClose, onRun }: { phase: Phase; onClose: () => void; onR
 /** Modal que actualiza los agentes de Docker rehorneando la imagen base. */
 export function AgentsUpdateModal({ onClose }: AgentsUpdateModalProps): React.JSX.Element {
   const [phase, setPhase] = useState<Phase>('confirm')
+  // Esc y devolución del foco: no se cierra mientras corre (no dejar el build a medias sin querer).
+  const dlg = useDialogo({ onClose, cerrable: phase !== 'running' })
   const [log, setLog] = useState<string[]>([])
   const [result, setResult] = useState<AgentsUpdateResult | null>(null)
   const logRef = useRef<HTMLDivElement>(null)
@@ -133,8 +125,6 @@ export function AgentsUpdateModal({ onClose }: AgentsUpdateModalProps): React.JS
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight
   }, [log])
-
-  useEffect(() => escucharEscape(phase, onClose), [phase, onClose])
 
   async function run(): Promise<void> {
     setPhase('running')
@@ -160,7 +150,7 @@ export function AgentsUpdateModal({ onClose }: AgentsUpdateModalProps): React.JS
         if (phase !== 'running') onClose()
       }}
     >
-      <div className="agents-update-modal" role="dialog" aria-modal="true" aria-label="Actualizar agentes" onMouseDown={(e) => e.stopPropagation()}>
+      <div ref={dlg.ref} className="agents-update-modal" role="dialog" aria-modal="true" aria-label="Actualizar agentes" onMouseDown={(e) => e.stopPropagation()}>
         <Cabecera phase={phase} onClose={onClose} />
         <Cuerpo phase={phase} log={log} result={result} logRef={logRef} />
         <Pie phase={phase} onClose={onClose} onRun={() => void run()} />

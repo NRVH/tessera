@@ -1,12 +1,13 @@
 // =============================================================================
 // Escribe los tres atajos `tdb` (sh, PowerShell y cmd) en `bin/s<VERSION>/` y retira los de
 // contratos anteriores. Se reescriben en cada arranque porque tras una actualización cambia la ruta
-// del ejecutable. Depende de `shims.ts` (el contenido) y de `util/atomicWrite`.
+// del ejecutable. Depende de `shims.ts` (el contenido) y de `util/escrituraAtajos.ts` (la escritura,
+// común con los de `tssh`).
 // Decisiones: docs/decisiones/bd/puente-atajos-de-tdb.md
 // =============================================================================
-import { chmodSync, mkdirSync, readdirSync, rmSync } from 'node:fs'
+import { readdirSync, rmSync } from 'node:fs'
 import path from 'node:path'
-import { writeFileAtomicSync } from '../../util/atomicWrite.ts'
+import { escribirArchivosDeAtajo } from '../../util/escrituraAtajos.ts'
 import { dbLog } from '../dbLog.ts'
 import { generarShims, SHIM_DIR } from '../shims.ts'
 
@@ -44,22 +45,7 @@ export function escribirAtajos(destino: DestinoAtajos): void {
   const binDir = path.join(destino.binRoot, SHIM_DIR)
   const sello = new Date().toISOString()
   try {
-    mkdirSync(binDir, { recursive: true })
-    for (const { nombre, contenido, eol } of generarShims({
-      exe: process.execPath,
-      script: destino.tdbScript,
-      sello
-    })) {
-      // El de sh debe ir en LF: un CR de más da un «bad interpreter» que no lo menciona.
-      if (eol === 'lf' && contenido.includes('\r')) {
-        throw new Error(`el atajo ${nombre} debe ir en LF y lleva CR`)
-      }
-      const archivo = path.join(binDir, nombre)
-      writeFileAtomicSync(archivo, contenido)
-      // Los scripts POSIX (fin de línea LF) tienen que ser ejecutables: el archivo hereda el modo
-      // 0644 del temporal y zsh, en macOS, respondería «permission denied». En Windows es un no-op.
-      if (eol === 'lf') chmodSync(archivo, 0o755)
-    }
+    escribirArchivosDeAtajo(binDir, generarShims({ exe: process.execPath, script: destino.tdbScript, sello, env: process.env }))
     barrerAtajosViejos(destino.binRoot)
     dbLog(
       'shim',

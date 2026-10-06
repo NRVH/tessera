@@ -18,7 +18,7 @@ import {
   type CampoParametro,
   type ValorCampo
 } from './consola/parametrosConsola'
-import { useDialogo } from '../../comun/useDialogo'
+import { esDeUnaListaDeSelect, useDialogo } from '../../comun/useDialogo'
 
 export interface DialogoParametrosProps {
   campos: CampoParametro[]
@@ -100,6 +100,8 @@ function teclaParametros(
   alPulsarTecla: (e: React.KeyboardEvent<HTMLDivElement>) => void,
   aceptar: () => void
 ): void {
+  // Con la lista de un select desplegada, sus teclas son de la lista (es del DOM y burbujea).
+  if (esDeUnaListaDeSelect(e.target)) return
   alPulsarTecla(e)
   if (e.key === 'Escape') return
   e.stopPropagation()

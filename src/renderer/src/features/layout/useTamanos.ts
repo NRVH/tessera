@@ -22,6 +22,11 @@ const EDITOR_MIN_WIDTH = 380
 const DB_AREA_MIN_WIDTH = 420
 /** Ancho mínimo de la columna central de Git·Log (el grafo). */
 const GIT_LOG_CENTRO_MIN = 420
+/**
+ * Lo que la terminal a pantalla completa conserva junto a su agente (el suelo que también respeta el
+ * riel de conexiones, `TERMINAL_ANCHO_MIN`), más el riel de actividad y los canales del lienzo.
+ */
+const TERMINAL_JUNTO_AL_AGENTE = 420 + 60
 
 /** Tamaños derivados y topes de los divisores. */
 export interface Tamanos {
@@ -31,6 +36,10 @@ export interface Tamanos {
   ccMaxDb: number
   /** Lo que se pinta ya acotado, sin esperar al efecto. */
   dbAgenteWidthVisible: number
+  /** Tope del agente de la terminal: deja a la terminal su suelo. */
+  ccMaxTerminal: number
+  /** El ancho del agente de la terminal ya acotado a la ventana. */
+  agenteTerminalAnchoVisible: number
   panelInferiorMin: number
   gitLogColMax: number
 }
@@ -52,11 +61,12 @@ function useAnchoVentana(): number {
 /** Tamaños y topes; recorta los valores guardados cuando la ventana o el panel cambian. */
 export function useTamanos(activeView: ActivityView, panelInferior: PanelInferior | null): Tamanos {
   const windowWidth = useAnchoVentana()
-  const { anchoVista, anchoVistaDb, dbAgenteWidth } = useStoreLayout(
+  const { anchoVista, anchoVistaDb, dbAgenteWidth, agenteTerminalAncho } = useStoreLayout(
     useShallow((s) => ({
       anchoVista: s.sidebarWidthByView[activeView],
       anchoVistaDb: s.sidebarWidthByView['db'],
-      dbAgenteWidth: s.dbAgenteWidth
+      dbAgenteWidth: s.dbAgenteWidth,
+      agenteTerminalAncho: s.agenteTerminalAncho
     }))
   )
   // Cada vista recuerda su ancho lateral.
@@ -89,12 +99,16 @@ export function useTamanos(activeView: ActivityView, panelInferior: PanelInferio
       gitHistorialWidth: acotar(s.gitHistorialWidth)
     }))
   }, [gitLogColMax])
+  // Sin efecto que lo recorte: no se guarda, así que basta con acotar lo que se pinta.
+  const ccMaxTerminal = Math.max(CC_WIDTH_MIN, windowWidth - TERMINAL_JUNTO_AL_AGENTE)
   return {
     sidebarWidth,
     setSidebarWidth,
     ccMax,
     ccMaxDb,
     dbAgenteWidthVisible: Math.min(dbAgenteWidth, ccMaxDb),
+    ccMaxTerminal,
+    agenteTerminalAnchoVisible: Math.min(agenteTerminalAncho, ccMaxTerminal),
     panelInferiorMin,
     gitLogColMax
   }

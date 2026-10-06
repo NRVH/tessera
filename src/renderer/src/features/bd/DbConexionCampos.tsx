@@ -1,8 +1,8 @@
 // =============================================================================
 // Los campos del diálogo de conexión que salen del descriptor del motor: cada fila de
-// `FormularioMotor` con sus ayudas y avisos en vivo, cada campo según su `tipo`, el
-// selector del ARCHIVO de un motor de archivo y el ojo de la contraseña. `data-campo`
-// es la dirección por la que el diálogo lleva el foco al primer campo que falta.
+// `FormularioMotor` con sus ayudas y avisos en vivo, cada campo según su `tipo` y el
+// selector del ARCHIVO de un motor de archivo. `data-campo` es la dirección por la que
+// el diálogo lleva el foco al primer campo que falta.
 // Decisiones: docs/decisiones/bd/ui-conexion-dialogo.md
 // =============================================================================
 
@@ -26,17 +26,6 @@ const CLASE_ANCHO: Record<AnchoCampo, string> = {
   crece: 'dbc-crece',
   puerto: 'dbc-puerto',
   medio: 'dbc-sid'
-}
-
-/** Ojo abierto/tachado para revelar la contraseña. Mismo trazo Lucide que el resto. */
-export function OjoIcon({ tachado }: { tachado: boolean }): React.JSX.Element {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z" />
-      <circle cx="12" cy="12" r="2.8" />
-      {tachado && <path d="M4 20 20 4" />}
-    </svg>
-  )
 }
 
 interface PropsCampo {

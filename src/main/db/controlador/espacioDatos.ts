@@ -1,45 +1,52 @@
 // =============================================================================
 // Espacio de datos de un perfil: la carpeta `<userData>/conexiones/<perfil>` que se abre como un
-// proyecto más y donde se siembra el `CLAUDE.md`/`AGENTS.md` del agente de datos.
-// Depende de `agentMemory.ts` (el contexto que se escribe) y del registro de conexiones.
+// proyecto más, donde se siembra el `CLAUDE.md`/`AGENTS.md` del agente de datos y que va a la
+// papelera con el perfil. Depende de `agentMemory.ts` (el contexto que se escribe), del registro de conexiones y
+// de `util/carpetaDePerfil.ts` (la ruta y el borrado, con la papelera que le inyectan).
 // =============================================================================
 import { existsSync, mkdirSync } from 'node:fs'
 import path from 'node:path'
+import { hijaDirectaALaPapelera, rutaHijaDirecta, rutasHijas, type APapelera, type ResultadoBorrado } from '../../util/carpetaDePerfil.ts'
 import { escribirContextoEspacio } from '../agentMemory.ts'
 import type { ConnectionStore } from '../ConnectionStore.ts'
 import { mismaRuta } from '../hostEnv.ts'
 
 /** Gestiona la carpeta de datos de cada perfil y su contexto de agente. */
 export class EspacioDatos {
-  private readonly userDataDir: string
+  /** `<userData>/conexiones`, donde cuelga la carpeta de cada perfil. */
+  private readonly base: string
   private readonly connections: Pick<ConnectionStore, 'listaCompleta'>
+  /** La papelera del sistema (`shell.trashItem`), adonde va el espacio de un perfil borrado; nunca en firme. */
+  private readonly papelera: APapelera
   private readonly log: (msg: string) => void
 
-  constructor(userDataDir: string, connections: Pick<ConnectionStore, 'listaCompleta'>, log: (msg: string) => void) {
-    this.userDataDir = userDataDir
+  constructor(
+    userDataDir: string,
+    connections: Pick<ConnectionStore, 'listaCompleta'>,
+    papelera: APapelera,
+    log: (msg: string) => void
+  ) {
+    this.base = path.resolve(userDataDir, 'conexiones')
     this.connections = connections
+    this.papelera = papelera
     this.log = log
   }
 
   /**
    * Ruta `<userData>/conexiones/<perfilId>`, sin crearla, validando que sea hija directa de
-   * `conexiones/`: el id llega del renderer y un `..` o una barra sacarían la escritura de la
-   * carpeta. Lanza sin la ruta dentro del mensaje.
+   * `conexiones/` (`util/carpetaDePerfil.ts`): el id llega del renderer. Lanza sin la ruta en el mensaje.
    */
   ruta(profileId: string): string {
-    const base = path.resolve(this.userDataDir, 'conexiones')
-    const valido =
-      typeof profileId === 'string' &&
-      profileId !== '' &&
-      profileId !== '.' &&
-      profileId !== '..' &&
-      !profileId.includes('\u0000') &&
-      path.basename(profileId) === profileId
-    if (valido) {
-      const destino = path.resolve(base, profileId)
-      if (path.dirname(destino) === base) return destino
-    }
-    throw new Error('Identificador de perfil no válido.')
+    return rutaHijaDirecta(this.base, profileId)
+  }
+
+  /**
+   * El usuario BORRÓ el perfil: su espacio, con el contexto del agente, sus consolas y lo que haya
+   * dejado en él, va a la papelera del sistema. Solo lo llama el guardado de perfiles; `idsVivos` da
+   * los que existen en cada momento.
+   */
+  borrar(profileId: string, idsVivos: () => readonly string[]): Promise<ResultadoBorrado> {
+    return hijaDirectaALaPapelera(this.base, profileId, idsVivos, this.papelera)
   }
 
   /** `ruta` sin lanzar: un id inválido no tiene espacio y da cadena vacía, que no casa con ninguna ruta. */
@@ -61,15 +68,7 @@ export class EspacioDatos {
 
   /** Rutas del espacio de datos de cada perfil, sin crearlas; un id inválido se omite. */
   rutas(profileIds: string[]): Record<string, string> {
-    const out: Record<string, string> = {}
-    for (const id of profileIds) {
-      try {
-        out[id] = this.ruta(id)
-      } catch {
-        // Un id basura no tiene espacio de datos; los demás sí.
-      }
-    }
-    return out
+    return rutasHijas(this.base, profileIds)
   }
 
   /** Crea el espacio si hace falta, siembra el contexto del agente y devuelve la ruta que abrirá el renderer. */

@@ -52,7 +52,7 @@ function props(cambios: Partial<AgentTerminalPaneProps> = {}): AgentTerminalPane
     agentsInProfile: agentes,
     dbMounted: montadas,
     dbReady: true,
-    esEspacioDeDatos: false,
+    lugar: 'proyecto',
     selectedAccountId: null,
     onSelectAccount,
     canExpand: false,

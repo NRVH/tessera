@@ -7,6 +7,8 @@
 // Decisiones: docs/decisiones/bd/ui-conexion-dialogo.md
 // =============================================================================
 
+// El formulario común va ANTES que lo propio del diálogo: a igual especificidad gana la segunda.
+import '../../comun/formularioModal.css'
 import './dialogo.css'
 // Los tokens de color de los entornos (los puntos del selector) viven con la marca.
 import './marcaEntorno.css'

@@ -5,18 +5,19 @@
 // la paridad de 'files' y 'git' con las fórmulas de referencia (copiadas abajo) salvo
 // «oculto manda sobre maximizado», el comportamiento de 'db' y del mosaico, la franja
 // inferior, la coherencia de divisores, `maximizadoCoherente` (con el camino real
-// simulado paso a paso), Git·Log a pantalla completa y qué hacen ahí las aperturas en el
-// editor (`aperturaDesdeGit`). Depende solo de `layoutCentro.ts`.
-// Decisiones: docs/decisiones/layout/oculto-manda-sobre-maximizado.md
+// simulado paso a paso), la franja a pantalla completa (Git·Log y la terminal), qué hacen ahí
+// las aperturas desde Git y cuándo son del agente de la terminal la columna y el conmutador. Solo `layoutCentro.ts`.
+// Decisiones: docs/decisiones/layout/oculto-manda-sobre-maximizado.md, docs/decisiones/agentes/agente-de-la-terminal.md
 // =============================================================================
 
 import {
+  RAZON_GITLOG_PANTALLA_COMPLETA,
   RAZON_MOSAICO,
   RAZON_SIN_PERFIL_DB,
   aperturaDesdeGit,
   derivarLayoutCentro,
   maximizadoCoherente,
-  pantallaCompletaGitCoherente,
+  pantallaCompletaCoherente,
   type EntradaLayoutCentro,
   type PanelInferiorCentro,
   type SalidaLayoutCentro,
@@ -180,40 +181,61 @@ function proyectarRef(r: ReferenciaApp): unknown {
   }
 }
 
-/** El modo pedido + la entrada, ya corregido como lo hace `usePantallaCompletaGit`. */
-function coherenteDe(pedida: boolean, e: EntradaLayoutCentro): boolean {
-  return pantallaCompletaGitCoherente({ pedida, franja: derivarLayoutCentro(e).franja, mosaico: e.mosaico })
+/** Los paneles de la franja que se pueden pedir a pantalla completa. */
+const PEDIBLES: PanelInferiorCentro[] = ['gitlog', 'terminal']
+
+/** El modo pedido + la entrada, ya corregido como lo hace `usePantallaCompletaFranja`. */
+function coherenteDe(pedida: PanelInferiorCentro | null, e: EntradaLayoutCentro): PanelInferiorCentro | null {
+  return pantallaCompletaCoherente({ pedida, franja: derivarLayoutCentro(e).franja, mosaico: e.mosaico })
 }
 
-/** (10) Git·Log a pantalla completa: la regla en todas las combinaciones y el camino real. */
-function pantallaCompletaGit(entradas: EntradaLayoutCentro[]): void {
-  hr('(10) Git·Log a pantalla completa')
+/** (10) La regla de la franja a pantalla completa en todas las combinaciones, para los dos paneles. */
+function reglaDeLaFranja(entradas: EntradaLayoutCentro[]): void {
+  hr('(10) La franja a pantalla completa: Git·Log y la terminal')
+  for (const panel of PEDIBLES) {
+    const valen = entradas.filter((e) => coherenteDe(panel, e) === panel)
+    check(
+      `${panel} vale EXACTAMENTE con pedida + ese panel en la franja + fuera de db + sin mosaico (2 vistas x 128 = 256)`,
+      valen.length === 256 &&
+        entradas.every(
+          (e) => (coherenteDe(panel, e) === panel) === (e.vista !== 'db' && e.panelInferior === panel && !e.mosaico)
+        ),
+      `${valen.length} combinaciones`
+    )
+    check(
+      `NEGATIVO: ${panel} nunca vale con el otro panel, sin franja, en db ni en el mosaico`,
+      entradas
+        .filter((e) => e.vista === 'db' || e.mosaico || e.panelInferior !== panel)
+        .every((e) => coherenteDe(panel, e) === null),
+      'todas las combinaciones que no enseñan ese panel'
+    )
+  }
   check(
-    'vale EXACTAMENTE con pedida + Git·Log en la franja + fuera de db + sin mosaico (2 vistas x 128 = 256)',
-    entradas.filter((e) => coherenteDe(true, e)).length === 256 &&
-      entradas.every(
-        (e) => coherenteDe(true, e) === (e.vista !== 'db' && e.panelInferior === 'gitlog' && !e.mosaico)
-      ),
-    `${entradas.filter((e) => coherenteDe(true, e)).length} combinaciones`
+    'NEGATIVO: sin pedirla no se enciende nunca, en ninguna de las 2304 combinaciones',
+    entradas.every((e) => coherenteDe(null, e) === null),
+    '2304 combinaciones'
   )
   check(
-    'NEGATIVO: nunca se enciende sola, ni con terminal, ni sin franja, ni en db, ni en el mosaico',
-    entradas.every((e) => !coherenteDe(false, e)) &&
-      entradas
-        .filter((e) => e.vista === 'db' || e.mosaico || e.panelInferior !== 'gitlog')
-        .every((e) => !coherenteDe(true, e)),
-    '2304 combinaciones sin pedirla y todas las que no enseñan Git·Log'
+    'los dos paneles no se cruzan: pedir uno nunca pinta el otro, y con uno a la vista el otro no vale',
+    entradas.every((e) => {
+      const git = coherenteDe('gitlog', e)
+      const terminal = coherenteDe('terminal', e)
+      return (git === null || git === 'gitlog') && (terminal === null || terminal === 'terminal') && (git === null || terminal === null)
+    }),
+    '2304 combinaciones'
   )
   check(
     'es un punto fijo: corregir dos veces es corregir una (el hook la aplica en cada render)',
-    entradas.every((e) => coherenteDe(coherenteDe(true, e), e) === coherenteDe(true, e)),
-    '2304 combinaciones'
+    entradas.every((e) => [null, ...PEDIBLES].every((p) => coherenteDe(coherenteDe(p, e), e) === coherenteDe(p, e))),
+    '2304 combinaciones x 3 valores pedidos'
   )
+}
 
-  // App en miniatura: el modo es GLOBAL y efímero; la franja es del PERFIL (`panelPorPerfil`).
-  const app = { pedida: false, perfil: 'A', mosaico: false, vista: 'files' as VistaCentro }
-  const panel: Record<string, PanelInferiorCentro | null> = { A: 'gitlog', B: 'terminal' }
-  const render = (): boolean => {
+/** (10b) El camino real en miniatura: el modo es GLOBAL y efímero; la franja es del PERFIL (`panelPorPerfil`). */
+function caminoRealDeLaFranja(): void {
+  const app = { pedida: null as PanelInferiorCentro | null, perfil: 'A', mosaico: false, vista: 'files' as VistaCentro }
+  const panel: Record<string, PanelInferiorCentro | null> = { A: 'gitlog', B: 'terminal', C: null }
+  const render = (): PanelInferiorCentro | null => {
     const e: EntradaLayoutCentro = {
       vista: app.vista,
       mosaico: app.mosaico,
@@ -229,50 +251,75 @@ function pantallaCompletaGit(entradas: EntradaLayoutCentro[]): void {
     app.pedida = coherenteDe(app.pedida, e)
     return app.pedida
   }
-  app.pedida = true
-  const alPulsar = render()
-  // Cambiar de PROYECTO no toca ni la vista ni la franja del perfil: la entrada es la misma.
-  const trasCambiarProyecto = render()
-  app.perfil = 'B'
-  const enB = render()
-  app.perfil = 'A'
-  const deVueltaEnA = render()
-  check(
-    'pulsar la enciende; cambiar de proyecto la conserva; un perfil sin Git·Log la apaga y al volver Git está en la franja',
-    alPulsar && trasCambiarProyecto && !enB && !deVueltaEnA,
-    j({ alPulsar, trasCambiarProyecto, enB, deVueltaEnA })
-  )
-  panel.B = 'gitlog'
-  app.pedida = true
-  render()
-  app.perfil = 'B'
-  const enBConGit = render()
-  check(
-    'pasar a un perfil que TAMBIÉN enseña Git·Log la conserva (Git sigue al objetivo, como con el proyecto)',
-    enBConGit,
-    j({ enBConGit })
-  )
-  panel.B = null
-  const trasCerrar = render()
-  panel.B = 'gitlog'
-  const alReabrir = render()
-  app.pedida = true
-  render()
-  app.mosaico = true
-  const enMosaico = render()
-  app.mosaico = false
-  const trasMosaico = render()
-  app.pedida = true
-  render()
-  app.vista = 'db'
-  const enDb = render()
-  app.vista = 'files'
-  const trasDb = render()
-  check(
-    'la X, el mosaico y la vista de datos la apagan, y Git vuelve en la franja (no resucita el modo)',
-    !trasCerrar && !alReabrir && !enMosaico && !trasMosaico && !enDb && !trasDb,
-    j({ trasCerrar, alReabrir, enMosaico, trasMosaico, enDb, trasDb })
-  )
+  /** Pulsar el botón de maximizar del panel y que el hook corrija en el render siguiente. */
+  const pulsar = (p: PanelInferiorCentro): PanelInferiorCentro | null => {
+    app.pedida = p
+    return render()
+  }
+  // El perfil que enseña cada panel y el que enseña el otro.
+  const perfiles = { gitlog: { propio: 'A', ajeno: 'B' }, terminal: { propio: 'B', ajeno: 'A' } }
+  for (const p of PEDIBLES) {
+    const { propio, ajeno } = perfiles[p]
+    const otro: PanelInferiorCentro = p === 'gitlog' ? 'terminal' : 'gitlog'
+    app.perfil = propio
+    const alPulsar = pulsar(p)
+    // Cambiar de PROYECTO no toca ni la vista ni la franja del perfil: la entrada es la misma.
+    const trasCambiarProyecto = render()
+    app.perfil = ajeno
+    const enElAjeno = render()
+    app.perfil = propio
+    const deVuelta = render()
+    app.perfil = 'C'
+    const sinFranja = pulsar(p)
+    check(
+      `${p}: pulsar la enciende; cambiar de proyecto la conserva; un perfil que enseña OTRO panel o ninguno la apaga y al volver el panel está en la franja`,
+      alPulsar === p && trasCambiarProyecto === p && enElAjeno === null && deVuelta === null && sinFranja === null,
+      j({ alPulsar, trasCambiarProyecto, enElAjeno, deVuelta, sinFranja })
+    )
+
+    panel[ajeno] = p
+    app.perfil = propio
+    pulsar(p)
+    app.perfil = ajeno
+    const enElQueTambien = render()
+    panel[ajeno] = otro
+    check(
+      `${p}: pasar a un perfil que TAMBIÉN enseña ese panel la conserva (sigue al objetivo, como con el proyecto)`,
+      enElQueTambien === p,
+      j({ enElQueTambien })
+    )
+
+    // La X, el cambio de panel en el mismo perfil, el mosaico y la vista de datos: apagan y no resucitan.
+    app.perfil = propio
+    panel[propio] = p
+    const encendidas: Array<PanelInferiorCentro | null> = []
+    const apagadas: Array<PanelInferiorCentro | null> = []
+    encendidas.push(pulsar(p))
+    panel[propio] = null
+    apagadas.push(render())
+    panel[propio] = p
+    apagadas.push(render())
+    encendidas.push(pulsar(p))
+    panel[propio] = otro
+    apagadas.push(render())
+    panel[propio] = p
+    apagadas.push(render())
+    encendidas.push(pulsar(p))
+    app.mosaico = true
+    apagadas.push(render())
+    app.mosaico = false
+    apagadas.push(render())
+    encendidas.push(pulsar(p))
+    app.vista = 'db'
+    apagadas.push(render())
+    app.vista = 'files'
+    apagadas.push(render())
+    check(
+      `${p}: la X, cambiar de panel, el mosaico y la vista de datos la apagan, y al volver el panel está en la franja (no resucita)`,
+      encendidas.every((v) => v === p) && apagadas.every((v) => v === null),
+      j({ encendidas, apagadas })
+    )
+  }
 }
 
 /** (11) Las aperturas en el editor que pide Git·Log, dentro y fuera de pantalla completa. */
@@ -327,6 +374,258 @@ function aperturasDesdeGit(): void {
     'el clic en un archivo sale y abre; después, ya fuera, la vista previa vuelve a abrir como siempre',
     !trasManual.modo && j(trasManual.pestanas) === j(['archivo-a']) && j(app.pestanas) === j(['archivo-a', 'commit-3']),
     j({ trasManual, despues: app })
+  )
+}
+
+/** Las 2304 entradas cruzadas con lo que decide el agente de la terminal: pantalla completa pedida, preferencia y abierto. */
+function conAgenteTerminal(entradas: EntradaLayoutCentro[]): EntradaLayoutCentro[] {
+  const out: EntradaLayoutCentro[] = []
+  for (const e of entradas) {
+    for (const pantallaCompletaPedida of [null, ...PEDIBLES]) {
+      for (const agenteTerminalVisible of [false, true]) {
+        for (const agenteTerminalAbierto of [false, true]) {
+          out.push({ ...e, pantallaCompletaPedida, agenteTerminalVisible, agenteTerminalAbierto })
+        }
+      }
+    }
+  }
+  return out
+}
+
+/** La misma entrada sin lo del agente de la terminal: la salida de antes de esta fase. */
+function sinAgenteTerminal(e: EntradaLayoutCentro): EntradaLayoutCentro {
+  const { pantallaCompletaPedida: _p, agenteTerminalVisible: _v, agenteTerminalAbierto: _a, ...resto } = e
+  return resto
+}
+
+/** (12) El agente de la terminal: la columna es suya EXACTAMENTE con la terminal a pantalla completa. */
+function agenteDeLaTerminal(entradas: EntradaLayoutCentro[]): void {
+  hr('(12) El agente de la terminal, a la derecha de la terminal a pantalla completa')
+  const todas = conAgenteTerminal(entradas)
+  /** La terminal a pantalla completa (la coherente) con perfil: ahí el conmutador de la barra es del agente de la terminal. */
+  const gobierna = (e: EntradaLayoutCentro): boolean => coherenteDe(e.pantallaCompletaPedida ?? null, e) === 'terminal' && e.hayPerfil
+  const debe = (e: EntradaLayoutCentro): boolean =>
+    gobierna(e) && e.agenteTerminalVisible === true && e.agenteTerminalAbierto === true
+  const suyas = todas.filter((e) => derivarLayoutCentro(e).agente === 'terminal')
+  check(
+    "'terminal' EXACTAMENTE con la terminal a pantalla completa (la coherente) + perfil + pedido + abierto (2 vistas x 64 = 128)",
+    suyas.length === 128 && todas.every((e) => (derivarLayoutCentro(e).agente === 'terminal') === debe(e)),
+    `${suyas.length} de ${todas.length} combinaciones`
+  )
+  check(
+    'entonces la columna se ve sin crecer ni maximizarse, con su divisor y el conmutador del agente de la terminal',
+    suyas.every((e) => {
+      const s = derivarLayoutCentro(e)
+      return (
+        j(s.cc) === j({ hidden: false, grow: false, canExpand: false }) &&
+        s.divisorAgente === 'terminal' &&
+        j(s.barraEstado) === j({ ccVisible: true, razonBloqueo: null, accion: 'agente-terminal' })
+      )
+    }),
+    `${suyas.length} combinaciones`
+  )
+  check(
+    'y el resto de campos (editor, área de BD y franja) no cambia: lo esconde el CSS sin desmontar nada',
+    suyas.every((e) => {
+      const s = derivarLayoutCentro(e)
+      const antes = derivarLayoutCentro(sinAgenteTerminal(e))
+      return s.editorOculto === antes.editorOculto && s.dbAreaOculta === antes.dbAreaOculta && j(s.franja) === j(antes.franja)
+    }),
+    'editorOculto, dbAreaOculta y franja iguales'
+  )
+  check(
+    'NEGATIVO: nunca con Git·Log a pantalla completa, en la vista de BD ni en el mosaico',
+    todas
+      .filter((e) => e.pantallaCompletaPedida === 'gitlog' || e.vista === 'db' || e.mosaico)
+      .every((e) => derivarLayoutCentro(e).agente !== 'terminal'),
+    'ninguna'
+  )
+  check(
+    'NEGATIVO: pedida la terminal pero con Git·Log en la franja (incoherente) tampoco',
+    todas
+      .filter((e) => e.pantallaCompletaPedida === 'terminal' && e.panelInferior !== 'terminal')
+      .every((e) => derivarLayoutCentro(e).agente !== 'terminal'),
+    'ninguna'
+  )
+  const delConmutador = todas.filter(gobierna)
+  check(
+    'el conmutador de la barra es del agente de la terminal EXACTAMENTE con la terminal a pantalla completa (la coherente) + perfil, lo tenga a la vista o no (2 vistas x 64 x 4 = 512)',
+    delConmutador.length === 512 &&
+      todas.every((e) => (derivarLayoutCentro(e).barraEstado.accion === 'agente-terminal') === gobierna(e)),
+    `${delConmutador.length} de ${todas.length} combinaciones`
+  )
+  check(
+    'ahí está pulsado EXACTAMENTE si el agente está pedido, y nunca bloqueado (ni sin archivo abierto ni en vista dividida)',
+    delConmutador.every((e) => {
+      const b = derivarLayoutCentro(e).barraEstado
+      return b.ccVisible === (e.agenteTerminalVisible === true) && b.razonBloqueo === null
+    }),
+    `${delConmutador.length} combinaciones`
+  )
+  check(
+    'con el agente oculto o preparándose solo cambia la barra: la columna, el divisor, el editor, el área de BD y la franja son los de siempre',
+    delConmutador
+      .filter((e) => !debe(e))
+      .every((e) => {
+        const { barraEstado: _b, ...ahora } = derivarLayoutCentro(e)
+        const { barraEstado: _a, ...antes } = derivarLayoutCentro(sinAgenteTerminal(e))
+        return j(ahora) === j(antes)
+      }),
+    `${delConmutador.length - suyas.length} combinaciones`
+  )
+  check(
+    'NEGATIVO: fuera de ese caso (sin perfil, sin pantalla completa de la terminal, en db o en el mosaico; Git·Log a pantalla completa va aparte, en (12c)) las entradas nuevas no cambian NADA de la salida de antes',
+    todas
+      .filter((e) => !gobierna(e) && coherenteDe(e.pantallaCompletaPedida ?? null, e) !== 'gitlog')
+      .every((e) => j(derivarLayoutCentro(e)) === j(derivarLayoutCentro(sinAgenteTerminal(e)))),
+    'combinaciones idénticas'
+  )
+  check(
+    'sin las entradas nuevas (lo de siempre) la columna nunca es del agente de la terminal',
+    entradas.every((e) => derivarLayoutCentro(e).agente !== 'terminal'),
+    '2304 combinaciones'
+  )
+  caminoRealDelAgenteTerminal()
+  conmutadorConGitLogAPantallaCompleta(todas)
+}
+
+/** (12c) Con Git·Log a pantalla completa (la coherente) la columna está tapada: el conmutador se bloquea con su motivo. */
+function conmutadorConGitLogAPantallaCompleta(todas: EntradaLayoutCentro[]): void {
+  hr('(12c) Git·Log a pantalla completa: el conmutador de la barra, bloqueado con su motivo')
+  const enGit = todas.filter((e) => coherenteDe(e.pantallaCompletaPedida ?? null, e) === 'gitlog')
+  check(
+    'con Git·Log a pantalla completa (la coherente) el conmutador queda bloqueado con RAZON_GITLOG_PANTALLA_COMPLETA, con y sin perfil',
+    enGit.length > 0 &&
+      enGit.every((e) => derivarLayoutCentro(e).barraEstado.razonBloqueo === RAZON_GITLOG_PANTALLA_COMPLETA) &&
+      enGit.some((e) => e.hayPerfil) &&
+      enGit.some((e) => !e.hayPerfil),
+    `${enGit.length} combinaciones`
+  )
+  check(
+    'el motivo dice que no hay columna del agente y cómo salir (Restaurar)',
+    /no hay columna del agente/.test(RAZON_GITLOG_PANTALLA_COMPLETA) && /Restaurar/.test(RAZON_GITLOG_PANTALLA_COMPLETA),
+    RAZON_GITLOG_PANTALLA_COMPLETA
+  )
+  check(
+    'lo único que cambia respecto a no pedirla es el motivo: la acción del conmutador y el resto de la salida son los mismos',
+    enGit.every((e) => {
+      const { barraEstado: b, ...ahora } = derivarLayoutCentro(e)
+      const { barraEstado: a, ...antes } = derivarLayoutCentro({ ...e, pantallaCompletaPedida: null })
+      return j(ahora) === j(antes) && b.accion === a.accion && b.ccVisible === a.ccVisible
+    }),
+    'cc, divisor, editor, área de BD y franja iguales'
+  )
+  check(
+    'NEGATIVO: Git·Log pedido pero incoherente (en db, en el mosaico o sin Git·Log en la franja) NO bloquea por esta razón',
+    todas
+      .filter((e) => e.pantallaCompletaPedida === 'gitlog' && coherenteDe('gitlog', e) !== 'gitlog')
+      .every((e) => derivarLayoutCentro(e).barraEstado.razonBloqueo !== RAZON_GITLOG_PANTALLA_COMPLETA),
+    'ninguna'
+  )
+  check(
+    'NEGATIVO: ni la terminal a pantalla completa ni la franja normal se bloquean por esta razón',
+    todas
+      .filter((e) => coherenteDe(e.pantallaCompletaPedida ?? null, e) !== 'gitlog')
+      .every((e) => derivarLayoutCentro(e).barraEstado.razonBloqueo !== RAZON_GITLOG_PANTALLA_COMPLETA),
+    'ninguna'
+  )
+}
+
+/** (12b) El camino real: salir de pantalla completa lo OCULTA sin tocar la preferencia, y volver lo enseña. */
+function caminoRealDelAgenteTerminal(): void {
+  const base: EntradaLayoutCentro = {
+    vista: 'files',
+    mosaico: false,
+    hayPestanasEditor: true,
+    ccExpandido: false,
+    ccOculto: false,
+    vistaDividida: false,
+    agenteDbVisible: false,
+    espacioAbierto: false,
+    hayPerfil: true,
+    panelInferior: 'terminal',
+    pantallaCompletaPedida: 'terminal',
+    agenteTerminalVisible: true,
+    agenteTerminalAbierto: true
+  }
+  const agente = (cambios: Partial<EntradaLayoutCentro>): SalidaLayoutCentro['agente'] =>
+    derivarLayoutCentro({ ...base, ...cambios }).agente
+  const pasos = {
+    aPantallaCompleta: agente({}),
+    alRestaurar: agente({ pantallaCompletaPedida: null }),
+    alVolver: agente({}),
+    oculto: agente({ agenteTerminalVisible: false }),
+    preparandose: agente({ agenteTerminalAbierto: false }),
+    conGitLog: agente({ panelInferior: 'gitlog', pantallaCompletaPedida: 'gitlog' }),
+    enElMosaico: agente({ mosaico: true }),
+    sinPerfil: agente({ hayPerfil: false })
+  }
+  check(
+    'a pantalla completa es suyo; al restaurar vuelve el del proyecto y al volver otra vez el suyo; oculto, preparándose, con Git·Log, en el mosaico o sin perfil, no',
+    pasos.aPantallaCompleta === 'terminal' &&
+      pasos.alRestaurar === 'proyecto' &&
+      pasos.alVolver === 'terminal' &&
+      pasos.oculto === 'proyecto' &&
+      pasos.preparandose === 'proyecto' &&
+      pasos.conGitLog === 'proyecto' &&
+      pasos.enElMosaico === 'proyecto' &&
+      pasos.sinPerfil === 'proyecto',
+    j(pasos)
+  )
+
+  const barra = (cambios: Partial<EntradaLayoutCentro>): SalidaLayoutCentro['barraEstado'] =>
+    derivarLayoutCentro({ ...base, ...cambios }).barraEstado
+  const barras = {
+    aPantallaCompleta: barra({}),
+    alRestaurar: barra({ pantallaCompletaPedida: null }),
+    alVolver: barra({}),
+    oculto: barra({ agenteTerminalVisible: false }),
+    ocultoSinArchivo: barra({ agenteTerminalVisible: false, hayPestanasEditor: false }),
+    preparandose: barra({ agenteTerminalAbierto: false }),
+    conGitLog: barra({ panelInferior: 'gitlog', pantallaCompletaPedida: 'gitlog' }),
+    enElMosaico: barra({ mosaico: true }),
+    sinPerfil: barra({ hayPerfil: false })
+  }
+  const delAgente = (b: SalidaLayoutCentro['barraEstado'], pulsado: boolean): boolean =>
+    j(b) === j({ ccVisible: pulsado, razonBloqueo: null, accion: 'agente-terminal' })
+  check(
+    'a pantalla completa el conmutador es del agente de la terminal en los dos sentidos: pulsado a la vista y suelto oculto (también sin archivo abierto); preparándose, pulsado',
+    delAgente(barras.aPantallaCompleta, true) &&
+      delAgente(barras.alVolver, true) &&
+      delAgente(barras.oculto, false) &&
+      delAgente(barras.ocultoSinArchivo, false) &&
+      delAgente(barras.preparandose, true),
+    j(barras)
+  )
+  const deSiempre = [barras.alRestaurar, barras.conGitLog, barras.enElMosaico, barras.sinPerfil]
+  check(
+    'al restaurar, con Git·Log, en el mosaico o sin perfil el conmutador es el de siempre: el de la columna del proyecto',
+    deSiempre.every((b) => b.accion === 'cc'),
+    j(deSiempre)
+  )
+
+  // Cada pulsación hace lo de `alternar` (useAgenteTerminal): oculta si está pedido y, si no, lo prepara y lo
+  // muestra. La barra tiene que seguirlo sin desfase, también la primera vez (cuando aún no está preparado).
+  const modelo = { visible: false, abierto: false }
+  const alternar = (): void => {
+    if (modelo.visible) modelo.visible = false
+    else Object.assign(modelo, { visible: true, abierto: true })
+  }
+  const verlo = (): { pulsado: boolean; accion: string; columna: SalidaLayoutCentro['agente'] } => {
+    const cambios = { agenteTerminalVisible: modelo.visible, agenteTerminalAbierto: modelo.abierto }
+    return { pulsado: barra(cambios).ccVisible, accion: barra(cambios).accion, columna: agente(cambios) }
+  }
+  const secuencia = [verlo()]
+  for (let i = 0; i < 3; i++) {
+    alternar()
+    secuencia.push(verlo())
+  }
+  check(
+    'pulsar el conmutador alterna mostrar y ocultar sin cambiar de acción: sin preparar (columna del proyecto, suelto), a la vista (la del agente, pulsado), oculto y a la vista otra vez',
+    secuencia.every((v) => v.accion === 'agente-terminal') &&
+      j(secuencia.map((v) => v.pulsado)) === j([false, true, false, true]) &&
+      j(secuencia.map((v) => v.columna)) === j(['proyecto', 'terminal', 'proyecto', 'terminal']),
+    j(secuencia)
   )
 }
 
@@ -830,8 +1129,10 @@ function main(): void {
     )
   }
 
-  pantallaCompletaGit(entradas)
+  reglaDeLaFranja(entradas)
+  caminoRealDeLaFranja()
   aperturasDesdeGit()
+  agenteDeLaTerminal(entradas)
 
   hr('RESULTADO (PASS/FAIL)')
   for (const r of results) {

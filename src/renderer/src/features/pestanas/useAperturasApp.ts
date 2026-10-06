@@ -1,7 +1,8 @@
 // =============================================================================
 // «Abrir con Tessera» (integración con el gestor de archivos) en la ventana: lo que
 // llega de FUERA saca del mosaico antes de actuar, y revelar una ruta sale además
-// de la vista de bases de datos. La espera y el orden viven en useAperturasExplorador.
+// de la vista de bases de datos y de la franja a pantalla completa (que tapa el árbol).
+// La espera y el orden viven en useAperturasExplorador.
 // =============================================================================
 import { useMemo } from 'react'
 import type { UseTabs } from './useTabs'
@@ -10,6 +11,7 @@ import { useStorePestanas } from './store'
 import { salirMosaico } from '../mosaico'
 import { revelarRuta } from '../explorador'
 import type { EditorApp } from '../editor'
+import { fijadoresLayout } from '../layout'
 import { useStoreAjustes } from '../ajustes'
 
 /** Engancha las aperturas externas a las pestañas, el editor y el árbol. */
@@ -51,9 +53,11 @@ export function useAperturasApp(
       salirMosaico(false)
       openEditorTab({ kind: 'file', file })
     },
-    // En BD el árbol de archivos no está montado: revelar ahí no se vería.
+    // En BD el árbol de archivos no está montado, y con la franja a pantalla completa está
+    // tapado: revelar ahí no se vería, así que se sale de las dos cosas antes de revelar.
     revelarEnArbol: (rel) => {
       salirMosaico(false)
+      fijadoresLayout.franjaPantallaCompleta(null)
       salirDeBd()
       revelarRuta(rel)
     }

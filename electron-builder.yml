@@ -51,6 +51,16 @@ files:
   # la de desarrollo (`<appPath>/src/tdb/tdb.cjs`), sin necesidad de asarUnpack.
   - src/tdb/**
   - '!src/tdb/test-*.mts'
+  # CLI `tssh` (las conexiones SSH del perfil para los agentes): el mismo caso que `src/tdb`, .cjs plano que
+  # sus atajos de `bin/s<N>` invocan con el propio ejecutable; su ruta es `<appPath>/src/tssh/tssh.cjs`.
+  - src/tssh/**
+  - '!src/tssh/test-*'
+  # Programa de contraseñas de SSH en macOS (`askpass.cjs`): el mismo caso que `src/tdb`, lo arranca
+  # un lanzador `sh` con el propio ejecutable. En Windows es `out/askpass/tessera-askpass.exe`, que
+  # compila `scripts/compilarAskpass.mjs` y viaja con `out/**`; su fuente (.cs) no viaja.
+  - src/askpass/**
+  - '!src/askpass/*.cs'
+  - '!src/askpass/test-*'
   # Motores de descompilación de Java (CFR y Vineflower). Mismo caso que `src/tdb`:
   # son .jar que se invocan como SUBPROCESO con el java del sistema, así que viajan
   # tal cual y con `asar: false` su ruta es real en disco y coincide con la de

@@ -14,7 +14,7 @@ import { IconoCommit } from '../iconosBd'
 import { FILAS_MAX, HUECO, MARGEN, mensajeDe, posicionSelector, type AnclaSelector } from './consolaComun'
 import { EstadoSelector, FiltroSelector } from './piezasBarra'
 import { teclaSelector, useCierreFuera } from './useSelectorBase'
-import { useFocoDelFiltro } from '../consola/usePopoverFlotante'
+import { useFocoDelFiltro } from '../../../comun/usePopoverFlotante'
 
 const ANCHO_SELECTOR = 280
 

@@ -3,7 +3,8 @@
 // `userData` temporal, las cuentas de agente y los registros de versiones aislados, y
 // expone `PLATAFORMA` para que cada spec salte o parametrice lo propio de un sistema.
 // Lo que va aquí y no en un `test-*.mts` lo decide el ADR de reparto, en la misma carpeta.
-// Depende de `@playwright/test` (`_electron`) y de `shared/plataforma.ts`.
+// Depende de `@playwright/test` (`_electron`), de `shared/plataforma.ts` y de la marca del arnés
+// (`ARG_ARNES_E2E`, en `main/ssh/binariosSsh.ts`).
 // Decisiones: docs/decisiones/pruebas/arnes-e2e-sobre-la-app-empaquetada.md
 // =============================================================================
 
@@ -14,6 +15,7 @@ import { rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { plataformaDe, type Plataforma } from '../src/shared/plataforma.ts'
+import { ARG_ARNES_E2E } from '../src/main/ssh/binariosSsh.ts'
 
 /**
  * La plataforma de las pruebas, que es también la del paquete que arrancan:
@@ -254,7 +256,7 @@ export async function abrirTessera(
   delete entorno.ELECTRON_RUN_AS_NODE
   const app = await electron.launch({
     executablePath: ruta,
-    args: [`--user-data-dir=${datos}`, ...(opts.args ?? [])],
+    args: [`--user-data-dir=${datos}`, ARG_ARNES_E2E, ...(opts.args ?? [])], // sin la marca, nada de ssh falso
     env: entorno,
     timeout: 90_000
   })

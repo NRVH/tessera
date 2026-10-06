@@ -9,6 +9,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ENCODINGS, encodingLabel } from '../../../../shared/encodings'
 import { useToasts, dismissAll, type Toast } from '../../comun/notifications'
+import { IconoColumnaAgente } from '../../comun/iconosPanel'
 import type { EditorMeta } from '../editor'
 
 interface StatusBarProps {
@@ -26,7 +27,8 @@ interface StatusBarProps {
    * Tooltip del conmutador cuando SÍ se puede pulsar, o ausente para el de siempre
    * («Ocultar/Mostrar la columna del agente»). Lo decide quien sabe en qué vista estás
    * (`BarraEstadoApp`): en la vista de bases de datos el botón muestra u oculta el agente
-   * de datos. Con motivo de bloqueo manda el motivo.
+   * de datos y, con la terminal a pantalla completa, el de la terminal. Con motivo de
+   * bloqueo manda el motivo.
    */
   tituloCc?: string
   /**
@@ -111,7 +113,7 @@ export function StatusBar({
               : 'Mostrar la columna del agente (CC/Codex)')
           }
         >
-          <AgentPanelIcon />
+          <IconoColumnaAgente />
         </button>
       </div>
 
@@ -348,16 +350,6 @@ function ProblemIcon(): React.JSX.Element {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 4l9 15H3z" />
       <path d="M12 10v4M12 17h.01" />
-    </svg>
-  )
-}
-
-/** Panel derecho (columna del agente): rectángulo con una banda a la derecha. */
-function AgentPanelIcon(): React.JSX.Element {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round">
-      <rect x="3" y="4.5" width="18" height="15" rx="1.6" />
-      <line x1="15" y1="4.5" x2="15" y2="19.5" />
     </svg>
   )
 }

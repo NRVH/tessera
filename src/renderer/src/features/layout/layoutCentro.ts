@@ -1,11 +1,12 @@
 // =============================================================================
 // layoutCentro: qué se ve en el centro de la ventana, en una sola función pura.
 // Deriva de la vista, el mosaico, las pestañas del editor y el estado del agente qué
-// se oculta, qué crece, qué divisor se monta y qué dice la barra de estado; y cuándo
-// vale Git·Log a pantalla completa (lo esconde el CSS de `.shell`, sin desmontar nada)
-// y qué hacen ahí las aperturas en el editor que pide Git.
-// Sin JSX, sin DOM y sin imports: lo prueba `test-layout-centro.mts` con `node`.
-// Decisiones: docs/decisiones/layout/oculto-manda-sobre-maximizado.md
+// se oculta, qué crece, qué divisor se monta y qué dice la barra de estado; cuándo vale la
+// franja inferior (Git·Log o la terminal) a pantalla completa y si ahí la columna y el conmutador
+// de la barra son del agente de la terminal (lo esconde y lo coloca el CSS de `.shell`, sin
+// desmontar nada), y qué hacen ahí las aperturas en el editor que pide Git. Sin JSX, sin DOM y
+// sin imports: lo prueba `test-layout-centro.mts` con `node`.
+// Decisiones: docs/decisiones/layout/oculto-manda-sobre-maximizado.md, docs/decisiones/agentes/agente-de-la-terminal.md
 // =============================================================================
 
 export type VistaCentro = 'files' | 'git' | 'db'
@@ -30,6 +31,15 @@ export interface EntradaLayoutCentro {
   espacioAbierto: boolean
   hayPerfil: boolean
   panelInferior: PanelInferiorCentro | null
+  /**
+   * Panel de la franja PEDIDO a pantalla completa (el crudo del store); aquí se corrige con
+   * `pantallaCompletaCoherente`. Ausente = ninguno.
+   */
+  pantallaCompletaPedida?: PanelInferiorCentro | null
+  /** Preferencia del perfil: el usuario pidió ver el agente de la terminal a pantalla completa. */
+  agenteTerminalVisible?: boolean
+  /** El agente de la terminal del perfil está preparado (su carpeta conocida y sus targets montados). */
+  agenteTerminalAbierto?: boolean
 }
 
 export interface SalidaLayoutCentro {
@@ -39,16 +49,19 @@ export interface SalidaLayoutCentro {
   dbAreaOculta: boolean
   cc: { hidden: boolean; grow: boolean; canExpand: boolean }
   /** Qué divisor vertical se monta junto a la columna del agente, si alguno. */
-  divisorAgente: 'editor' | 'db' | null
-  /** De quién es la columna del agente: del proyecto, del espacio de datos o de nadie. */
-  agente: 'proyecto' | 'espacio' | null
+  divisorAgente: 'editor' | 'db' | 'terminal' | null
+  /** De quién es la columna del agente: del proyecto, del espacio de datos, de la terminal o de nadie. */
+  agente: 'proyecto' | 'espacio' | 'terminal' | null
   franja: { divisor: boolean; gitlog: boolean; terminalVisible: boolean }
   barraEstado: {
     ccVisible: boolean
     /** Por qué el conmutador no se puede pulsar, o null si se puede. */
     razonBloqueo: string | null
-    /** Qué hace el conmutador: la columna de siempre o el agente de datos. */
-    accion: 'cc' | 'agente-db'
+    /**
+     * Qué hace el conmutador: la columna de siempre, el agente de datos o el de la terminal (a pantalla
+     * completa de la terminal y con perfil gobierna el agente de la terminal, también para mostrarlo).
+     */
+    accion: 'cc' | 'agente-db' | 'agente-terminal'
   }
 }
 
@@ -58,6 +71,8 @@ export const RAZON_VISTA_DIVIDIDA =
 export const RAZON_MOSAICO =
   'En el mosaico de agentes las terminales ocupan toda la ventana. Sal del mosaico para ocultar la columna.'
 export const RAZON_SIN_PERFIL_DB = 'Abre un perfil para usar el agente de datos'
+export const RAZON_GITLOG_PANTALLA_COMPLETA =
+  'A pantalla completa de Git no hay columna del agente. Pulsa Restaurar en el panel para volver a verla.'
 
 /**
  * El valor COHERENTE del maximizado del agente: el que tiene, salvo que la columna
@@ -71,24 +86,26 @@ export function maximizadoCoherente(
 }
 
 /**
- * El valor COHERENTE de Git·Log a pantalla completa: solo vive mientras Git·Log está A LA
- * VISTA en la franja. Cerrarlo, cambiarlo por la terminal, ir a 'db', entrar en el mosaico
- * o pasar a un perfil sin Git·Log lo apaga, y al volver Git se abre en la franja.
- * Nunca lo enciende y es un punto fijo, así que se puede aplicar en cada render.
+ * El valor COHERENTE de la franja a pantalla completa: el panel pedido solo vive mientras
+ * ESE panel está A LA VISTA en la franja. Cerrarlo, cambiarlo por el otro, ir a 'db', entrar
+ * en el mosaico o pasar a un perfil que no lo enseña lo apaga, y al volver el panel se abre
+ * en la franja. Nunca lo enciende y es un punto fijo, así que se puede aplicar en cada render.
  */
-export function pantallaCompletaGitCoherente(e: {
-  pedida: boolean
-  franja: Pick<SalidaLayoutCentro['franja'], 'gitlog'>
+export function pantallaCompletaCoherente(e: {
+  pedida: PanelInferiorCentro | null
+  franja: Pick<SalidaLayoutCentro['franja'], 'gitlog' | 'terminalVisible'>
   mosaico: boolean
-}): boolean {
-  return e.pedida && e.franja.gitlog && !e.mosaico
+}): PanelInferiorCentro | null {
+  if (e.pedida === null || e.mosaico) return null
+  const aLaVista = e.pedida === 'gitlog' ? e.franja.gitlog : e.franja.terminalVisible
+  return aLaVista ? e.pedida : null
 }
 
 /**
- * Qué hace una apertura en el EDITOR pedida desde Git·Log. Fuera de pantalla completa,
- * todas abren y nada más (lo de siempre). Dentro, el editor está tapado: un gesto
- * explícito (`'manual'`) sale del modo y abre; la vista previa al moverse (`'auto'`)
- * no hace nada, ni abre ni sale, así que al restaurar no queda nada abierto por ella.
+ * Qué hace una apertura en el EDITOR pedida desde Git·Log; `pantallaCompleta` es la de
+ * Git·Log. Fuera de ella, todas abren y nada más (lo de siempre). Dentro, el editor está
+ * tapado: un gesto explícito (`'manual'`) sale del modo y abre; la vista previa al moverse
+ * (`'auto'`) no hace nada, ni abre ni sale, así que al restaurar no queda nada abierto por ella.
  */
 export function aperturaDesdeGit(e: { origen: 'manual' | 'auto'; pantallaCompleta: boolean }): {
   abrir: boolean
@@ -157,6 +174,59 @@ function columnaAgenteDe(
   return { hidden: ocultoEfectivo, grow: editorOculto }
 }
 
+/**
+ * ¿Es del agente de la terminal el conmutador de la barra de estado? Con la TERMINAL a pantalla completa
+ * (la coherente: nunca con Git·Log, en 'db' ni en el mosaico) y con perfil, lo tenga a la vista o no:
+ * ahí la columna del proyecto está tapada y alternarla no se vería.
+ */
+function conmutadorDelAgenteTerminal(e: EntradaLayoutCentro, franja: SalidaLayoutCentro['franja']): boolean {
+  if (!e.hayPerfil) return false
+  return pantallaCompletaCoherente({ pedida: e.pantallaCompletaPedida ?? null, franja, mosaico: e.mosaico }) === 'terminal'
+}
+
+/** El conmutador del agente de la terminal: pulsado si está pedido, y pulsable siempre (también para mostrarlo). */
+function barraDelAgenteTerminal(pedido: boolean): SalidaLayoutCentro['barraEstado'] {
+  return { ccVisible: pedido, razonBloqueo: null, accion: 'agente-terminal' }
+}
+
+/**
+ * La columna con el agente de la terminal: se ve sin crecer ni maximizarse, con su divisor y con el
+ * conmutador de la barra para ocultarlo. Lo demás (editor, área de BD, franja) no cambia: el CSS de
+ * `.shell` lo esconde sin desmontarlo.
+ */
+function conAgenteTerminal(s: SalidaLayoutCentro): SalidaLayoutCentro {
+  return {
+    ...s,
+    cc: { hidden: false, grow: false, canExpand: false },
+    divisorAgente: 'terminal',
+    agente: 'terminal',
+    barraEstado: barraDelAgenteTerminal(true)
+  }
+}
+
+/**
+ * Lo del agente de la terminal sobre la salida de siempre. Con el conmutador suyo, el agente pedido Y
+ * preparado ocupa la columna; si no (oculto o preparándose) solo cambia la barra: la columna sigue siendo
+ * la de siempre, tapada por el CSS, y el conmutador es el que lo muestra.
+ */
+function conTerminalAPantallaCompleta(e: EntradaLayoutCentro, s: SalidaLayoutCentro): SalidaLayoutCentro {
+  if (!conmutadorDelAgenteTerminal(e, s.franja)) return s
+  const pedido = e.agenteTerminalVisible === true
+  if (pedido && e.agenteTerminalAbierto === true) return conAgenteTerminal(s)
+  return { ...s, barraEstado: barraDelAgenteTerminal(pedido) }
+}
+
+/**
+ * Con Git·Log a pantalla completa (la coherente) la columna del proyecto está tapada y alternarla no se
+ * vería: el conmutador se desactiva con su motivo. El atajo no lo gobierna ahí (solo actúa en 'db' y con la
+ * terminal a pantalla completa), así que tampoco hace nada invisible.
+ */
+function conGitLogAPantallaCompleta(e: EntradaLayoutCentro, s: SalidaLayoutCentro): SalidaLayoutCentro {
+  const coherente = pantallaCompletaCoherente({ pedida: e.pantallaCompletaPedida ?? null, franja: s.franja, mosaico: e.mosaico })
+  if (coherente !== 'gitlog') return s
+  return { ...s, barraEstado: { ...s.barraEstado, razonBloqueo: RAZON_GITLOG_PANTALLA_COMPLETA } }
+}
+
 /** Deriva la visibilidad del centro. Pura y total: cualquier combinación de entrada vale. */
 export function derivarLayoutCentro(e: EntradaLayoutCentro): SalidaLayoutCentro {
   const db = e.vista === 'db'
@@ -168,7 +238,7 @@ export function derivarLayoutCentro(e: EntradaLayoutCentro): SalidaLayoutCentro 
   const listoDb = agenteDbListo(e)
   const columna = columnaAgenteDe(e, db, listoDb, ocultoEfectivo, editorOculto)
 
-  return {
+  const salida: SalidaLayoutCentro = {
     editorOculto,
     dbAreaOculta: !db || e.mosaico,
     cc: { hidden: columna.hidden, grow: columna.grow, canExpand: !db && hay },
@@ -181,4 +251,5 @@ export function derivarLayoutCentro(e: EntradaLayoutCentro): SalidaLayoutCentro 
       accion: db ? 'agente-db' : 'cc'
     }
   }
+  return conGitLogAPantallaCompleta(e, conTerminalAPantallaCompleta(e, salida))
 }

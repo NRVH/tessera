@@ -1,6 +1,6 @@
 // =============================================================================
 // Atajos globales de la ventana (en burbuja) y zoom: Ctrl+` (terminal; Control
-// también en macOS), el agente de datos, zoom con teclado y rueda, Configuración,
+// también en macOS), el agente de datos y el de la terminal, zoom con teclado y rueda, Configuración,
 // buscar en archivos y archivo nuevo o consola nueva. El listener se registra UNA
 // vez y lee el estado vivo por ref o del store. Cada cambio de zoom se persiste.
 // =============================================================================
@@ -11,6 +11,7 @@ import type { ActivityView, PanelInferior } from './ActivityBar'
 import { guardarAjustes, useStoreAjustes } from '../ajustes'
 import { abrirBusqueda } from '../busqueda'
 import { useStoreMosaico } from '../mosaico'
+import { useStoreLayout } from './store'
 
 /** Lo que los atajos necesitan de la ventana. */
 export interface EntradaAtajos {
@@ -18,8 +19,15 @@ export interface EntradaAtajos {
   alternarPanelInferior: (cual: PanelInferior) => void
   abrirPanelInferior: (cual: PanelInferior) => void
   alternarAgenteDb: () => void
+  /** Muestra u oculta el agente de la terminal (solo con la terminal a pantalla completa). */
+  alternarAgenteTerminal: () => void
   nuevaConsolaEnContexto: () => void
   newUntitledTab: () => void
+}
+
+/** ¿Está la terminal a pantalla completa? El store ya trae el valor coherente: lo corrige cada render. */
+function terminalAPantallaCompleta(): boolean {
+  return useStoreLayout.getState().franjaPantallaCompleta === 'terminal'
 }
 
 /** Refresca el espejo que pinta la fila de Zoom: `webFrame` es la verdad. */
@@ -27,7 +35,10 @@ function espejarZoom(): void {
   useStoreAjustes.setState({ zoomLevel: window.tessera.zoom.getLevel() })
 }
 
-/** Ctrl+` y el agente de datos: van antes del filtro del modificador principal. Devuelve si lo atendió. */
+/**
+ * Ctrl+` y el agente de datos (en BD) o el de la terminal (a pantalla completa): van antes del filtro
+ * del modificador principal. Devuelve si lo atendió.
+ */
 function atajoSinModPrincipal(e: KeyboardEvent, a: EntradaAtajos, vista: ActivityView): boolean {
   if (esCtrlLiteral(e) && e.key === '`') {
     e.preventDefault()
@@ -37,12 +48,13 @@ function atajoSinModPrincipal(e: KeyboardEvent, a: EntradaAtajos, vista: Activit
     else a.alternarPanelInferior('terminal')
     return true
   }
-  if (vista === 'db' && esAlternarAgente(e)) {
+  if ((vista === 'db' || terminalAPantallaCompleta()) && esAlternarAgente(e)) {
     e.preventDefault()
     // La autorrepetición se consume sin actuar: no debe hacer parpadear la columna.
     if (e.repeat || useStoreMosaico.getState().mosaicoActivo) return true
     if (hayModalAbierto()) return true
-    a.alternarAgenteDb()
+    if (vista === 'db') a.alternarAgenteDb()
+    else a.alternarAgenteTerminal()
     return true
   }
   return false

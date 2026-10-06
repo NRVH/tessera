@@ -16,6 +16,7 @@ import { editorTargetKey } from '../editor'
 import type { DisposicionMosaico, OpcionMosaico } from '../mosaico'
 import type { CCPanelProps, MosaicoPanel } from './CCPanel'
 import type { ColorPerfil, VersionesAgente } from './useCCPanelMosaico'
+import type { LugarAgente } from './textosMontajeBases'
 
 type PropsPane = ComponentProps<typeof AgentTerminalPane>
 type PropsVisibilidad = Pick<
@@ -28,7 +29,8 @@ type PropsBasesYCuenta = Pick<
   | 'dbMounted'
   | 'dbReady'
   | 'onChangeDbMounted'
-  | 'esEspacioDeDatos'
+  | 'lugar'
+  | 'onCerrar'
   | 'selectedAccountId'
   | 'onSelectAccount'
 >
@@ -73,12 +75,28 @@ function casillaDe(target: OpenAgentTarget, { enMosaico, mosaico, disposicion }:
 }
 
 /**
+ * ¿Se lleva el teclado al aparecer o al abrir? En el mosaico solo la ENFOCADA (si no, se lo robarían
+ * entre sí). El agente de la terminal, solo en el commit en que el usuario lo pidió: aparecer al entrar
+ * en pantalla completa no. Los demás, salvo en los commits sin foco (`sinRobarFoco`).
+ */
+function robaFocoDe(p: CCPanelProps, c: CalculoColumna, enfocada: boolean, lugar: LugarAgente): boolean {
+  if (c.enMosaico) return enfocada
+  return lugar === 'terminal' ? (p.focoAgenteTerminal ?? false) : !(p.sinRobarFoco ?? false)
+}
+
+/**
  * En el mosaico, `visible` solo sigue encendido si además es casilla: nada de fuera
  * (abrir desde el explorador del sistema, cerrar el activo) arranca una sesión que
  * nadie mira. La primera pasada de cada entrada es provisional (sin medir): en ella
  * solo la casilla ENFOCADA se pone en pantalla (WebGL, sondeos del pie).
  */
-function propsVisibilidad(target: OpenAgentTarget, p: CCPanelProps, c: CalculoColumna, casilla: Casilla): PropsVisibilidad {
+function propsVisibilidad(
+  target: OpenAgentTarget,
+  p: CCPanelProps,
+  c: CalculoColumna,
+  casilla: Casilla,
+  lugar: LugarAgente
+): PropsVisibilidad {
   const esActivo = target.key === p.activeTargetKey
   const enfocada = target.key === c.mosaico?.enfocada
   const provisional = c.disposicion?.origen === 'sin-medir'
@@ -87,8 +105,7 @@ function propsVisibilidad(target: OpenAgentTarget, p: CCPanelProps, c: CalculoCo
     // `hidden` es la columna PLEGADA: sigue montada y visible, pero no en pantalla.
     enPantalla: c.enMosaico ? casilla.mostrado && (!provisional || enfocada) : esActivo && !(p.hidden ?? false),
     mostrado: c.enMosaico ? casilla.mostrado : undefined,
-    // En el mosaico solo la ENFOCADA se lleva el teclado; si no, se lo robarían entre sí.
-    robaFoco: c.enMosaico ? enfocada : !(p.sinRobarFoco ?? false),
+    robaFoco: robaFocoDe(p, c, enfocada, lugar),
     // El MISMO token para todos: decide `robaFoco`. Con 0 al resto, enfocar una casilla
     // desde su buscador haría saltar su token y la terminal le robaría el foco.
     tokenFoco: p.tokenFoco ?? 0,
@@ -145,17 +162,26 @@ function propsMosaicoDe(
   }
 }
 
-/** Bases montadas (por proyecto, no por agente) y cuenta del target. */
-function propsBasesYCuenta(target: OpenAgentTarget, p: CCPanelProps): PropsBasesYCuenta {
+/** Dónde vive el agente de un target: decide los textos, de quién es su selector y si monta bases. */
+function lugarDe(target: OpenAgentTarget, p: CCPanelProps): LugarAgente {
+  if (p.rutasAgenteTerminal?.has(target.projectHostPath)) return 'terminal'
+  return p.rutasEspacioDatos?.has(target.projectHostPath) ? 'datos' : 'proyecto'
+}
+
+/** Bases montadas (por proyecto, no por agente), cuenta del target y lo propio del agente de la terminal. */
+function propsBasesYCuenta(target: OpenAgentTarget, p: CCPanelProps, lugar: LugarAgente): PropsBasesYCuenta {
   const { profileId, projectHostPath } = target
+  const terminal = lugar === 'terminal'
   return {
-    onSelectAgent: p.onSelectAgent,
+    // El agente de la terminal elige el suyo: no cambia el agente de los proyectos del perfil.
+    onSelectAgent: terminal ? p.onSelectAgentTerminal : p.onSelectAgent,
     dbMounted: p.dbMountsByProject?.[`${profileId}|${projectHostPath}`] ?? SIN_BASES_MONTADAS,
     dbReady: p.dbReady,
-    // Sin `onChangeDbMounted` el pane NO pinta el selector de bases montadas.
-    onChangeDbMounted: p.onChangeDbMounted,
-    // Solo TEXTOS de la cabecera: «el agente de datos» o «este proyecto».
-    esEspacioDeDatos: p.rutasEspacioDatos?.has(projectHostPath) ?? false,
+    // Sin `onChangeDbMounted` el pane NO pinta el selector de bases montadas: el de la terminal no monta (v1).
+    onChangeDbMounted: terminal ? undefined : p.onChangeDbMounted,
+    // Los TEXTOS de la cabecera: «este proyecto», «el agente de datos» o «el agente de la terminal».
+    lugar,
+    onCerrar: terminal ? p.onCerrarAgenteTerminal : undefined,
     selectedAccountId: p.accountByTarget?.[target.key] ?? null,
     onSelectAccount: p.onSelectAccount ?? sinElegirCuenta
   }
@@ -173,20 +199,21 @@ export function propsPaneDeTarget(target: OpenAgentTarget, p: CCPanelProps, c: C
   const profile = c.profiles.find((x) => x.id === target.profileId) ?? null
   const hostMode = p.windowsModeKeys?.has(editorTargetKey(target.profileId, target.projectHostPath)) ?? false
   const casilla = casillaDe(target, c)
+  const lugar = lugarDe(target, p)
   // El botón de maximizar solo existe en el pane a la vista. Dárselo a todos repintaría
   // todos los panes cada vez que el proyecto activo pasa de tener pestañas a no tenerlas.
   const esActivo = target.key === p.activeTargetKey
   return {
     target,
     hostMode,
-    ...propsVisibilidad(target, p, c, casilla),
+    ...propsVisibilidad(target, p, c, casilla, lugar),
     mosaico: propsMosaicoDe(target, profile, c, casilla),
     hibernated: p.hibernatedTargetKeys?.has(target.key) ?? false,
     profileName: profile?.nombre ?? null,
     accentColor: profile?.color ? tintaPerfil(profile.color) : null,
     // Agentes fijos del producto en TODOS los perfiles: con >1 el pane pinta el selector.
     agentsInProfile: AGENTES_DEL_PERFIL,
-    ...propsBasesYCuenta(target, p),
+    ...propsBasesYCuenta(target, p, lugar),
     canExpand: esActivo && p.canExpand,
     expanded: esActivo && p.expanded,
     onToggleExpand: p.onToggleExpand,

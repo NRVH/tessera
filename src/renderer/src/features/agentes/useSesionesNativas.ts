@@ -1,11 +1,13 @@
 // =============================================================================
 // Actualizar los agentes de tu equipo (sesiones nativas): el hook de la
 // actualización, si hay algún proyecto abierto en modo nativo (las consolas de
-// datos cuentan) y cómo se nombran y ordenan las sesiones en su popover.
+// datos y el agente de la terminal cuentan) y cómo se nombran y ordenan las
+// sesiones en su popover.
 // =============================================================================
 import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import type { InfoSesionesAgentes } from './sesionesPopoverAgentes'
+import { useStoreAgenteTerminal } from './storeAgenteTerminal'
 import { useActualizacionNativa, type UseActualizacionNativa } from './useActualizacionNativa'
 import type { ActividadAgentes } from './useActividadAgentes'
 import { agentTargetKey, tintaPerfil, useStorePestanas, type UseTabs } from '../pestanas'
@@ -20,6 +22,15 @@ export interface SesionesNativas {
   infoSesionesAgentes: InfoSesionesAgentes
 }
 
+/** ¿Alguna carpeta abierta (espacio de datos o agente de la terminal) está en modo nativo? */
+function hayCarpetaNativa(abiertos: ReadonlySet<string>, rutas: Record<string, string>, nativos: ReadonlySet<string>): boolean {
+  for (const profileId of abiertos) {
+    const ruta = rutas[profileId]
+    if (ruta !== undefined && nativos.has(editorTargetKey(profileId, ruta))) return true
+  }
+  return false
+}
+
 /** Actualización de agentes nativos y la información que pinta su botón. */
 export function useSesionesNativas(
   tabs: UseTabs,
@@ -32,25 +43,26 @@ export function useSesionesNativas(
   const { espaciosAbiertos, dbWorkspacePaths } = useStoreBd(
     useShallow((s) => ({ espaciosAbiertos: s.espaciosAbiertos, dbWorkspacePaths: s.dbWorkspacePaths }))
   )
+  const terminal = useStoreAgenteTerminal(useShallow((s) => ({ abiertos: s.abiertos, rutas: s.rutas })))
   // Cruza el modo con lo ABIERTO: el modo recuerda también proyectos cerrados.
-  const hayProyectoNativo = useMemo(() => {
-    if (tabs.allOpenProjects.some((p) => windowsModeKeys.has(editorTargetKey(p.profileId, p.projectHostPath)))) return true
-    for (const profileId of espaciosAbiertos) {
-      const ruta = dbWorkspacePaths[profileId]
-      if (ruta !== undefined && windowsModeKeys.has(editorTargetKey(profileId, ruta))) return true
-    }
-    return false
-  }, [tabs.allOpenProjects, windowsModeKeys, espaciosAbiertos, dbWorkspacePaths])
+  const hayProyectoNativo = useMemo(
+    () =>
+      tabs.allOpenProjects.some((p) => windowsModeKeys.has(editorTargetKey(p.profileId, p.projectHostPath))) ||
+      hayCarpetaNativa(espaciosAbiertos, dbWorkspacePaths, windowsModeKeys) ||
+      hayCarpetaNativa(terminal.abiertos, terminal.rutas, windowsModeKeys),
+    [tabs.allOpenProjects, windowsModeKeys, espaciosAbiertos, dbWorkspacePaths, terminal.abiertos, terminal.rutas]
+  )
   const infoSesionesAgentes = useMemo((): InfoSesionesAgentes => {
     const perfiles = new Map<string, { nombre: string; color: string | null }>()
     for (const p of tabs.profiles) perfiles.set(p.id, { nombre: p.nombre, color: p.color ? tintaPerfil(p.color) : null })
     const nombres: Record<string, string> = {}
     for (const p of tabs.allOpenProjects) nombres[editorTargetKey(p.profileId, p.projectHostPath)] = p.name
-    // El agente del espacio de datos se nombra por la vista donde vive.
+    // El agente del espacio de datos y el de la terminal se nombran por la vista donde viven.
     for (const [profileId, ruta] of Object.entries(dbWorkspacePaths)) nombres[editorTargetKey(profileId, ruta)] = 'Bases de datos'
+    for (const [profileId, ruta] of Object.entries(terminal.rutas)) nombres[editorTargetKey(profileId, ruta)] = 'Terminal'
     const orden = new Map(ordenarCandidatos(candidatosMosaico).map((c, i) => [c.key, i]))
     const posicion: InfoSesionesAgentes['posicion'] = (s) => orden.get(agentTargetKey(s.profileId, s.projectHostPath, s.agente))
     return { perfiles, nombresProyecto: nombres, posicion }
-  }, [tabs.profiles, tabs.allOpenProjects, dbWorkspacePaths, candidatosMosaico])
+  }, [tabs.profiles, tabs.allOpenProjects, dbWorkspacePaths, terminal.rutas, candidatosMosaico])
   return { actualizacionNativa, hayProyectoNativo, infoSesionesAgentes }
 }

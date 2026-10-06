@@ -38,6 +38,29 @@ export function lanzarPty(archivo: string, args: string[], opciones: OpcionesPty
   return ptySpawn(archivo, args, { name: PTY_NAME, ...opciones, useConptyDll: true })
 }
 
+/** Cada cuánto se mira si ConPTY ya tiene el código que no trajo `onExit`. */
+const SONDEO_CODIGO_MS = 10
+
+/**
+ * El código de salida que `onExit` no trajo. Con ConPTY (`useConptyDll`), node-pty emite la salida
+ * al cerrarse la tubería de salida y lee el código que le dejó el aviso nativo de fin de proceso;
+ * si la tubería se cierra antes, llega `onExit({})` y el código aparece en su agente unos
+ * milisegundos después (medido: 8 de 40 con un proceso que sale al instante, todos recuperados en
+ * menos de 60 ms). Se sondea ese campo interno hasta `topeMs`; `null` si no aparece. Fuera de
+ * Windows node-pty siempre trae el código y esto devuelve `null` enseguida.
+ */
+export async function codigoDeSalidaTardio(pty: IPty, topeMs: number): Promise<number | null> {
+  const agente = (pty as unknown as { _agent?: { exitCode?: unknown } })._agent
+  if (agente === undefined) return null
+  const limite = Date.now() + topeMs
+  for (;;) {
+    const codigo = agente.exitCode
+    if (typeof codigo === 'number') return codigo
+    if (Date.now() >= limite) return null
+    await esperar(SONDEO_CODIGO_MS)
+  }
+}
+
 /**
  * `taskkill /PID <pid> /T /F`: mata el proceso y todos sus descendientes; solo Windows (lo
  * decide quien llama). Ignora los errores —el proceso puede haber muerto ya— y la espera tiene

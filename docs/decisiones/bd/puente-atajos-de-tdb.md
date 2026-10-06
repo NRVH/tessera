@@ -1,7 +1,7 @@
 # Tres atajos `tdb` (sh, PowerShell, cmd), versionados por carpeta y con permisos explícitos
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/db/shims.ts`, `controlador/atajosTdb.ts` (macOS: sin verificar aquí)
+- **Ámbito:** `src/main/db/shims.ts`, `controlador/atajosTdb.ts`, `src/main/util/escrituraAtajos.ts` (macOS: sin verificar aquí)
 
 ## Contexto
 
@@ -22,6 +22,12 @@ Bash, así que el agente nunca pudo ejecutar `tdb`; Codex, igual.
   mencionar el CR. Y con `chmod 755`: `writeFileAtomicSync` deja el modo del temporal (0644) y zsh, en macOS,
   respondía `zsh: permission denied: tdb` con el archivo ahí y bien escrito. En Windows es un no-op.
 - El citado del ejecutable y la ruta está en `shared/citarShell.ts`: un usuario puede llamarse `O'Brien`.
+- La escritura (crear la carpeta, la guarda de LF, la escritura atómica y el 0755) es una sola para los atajos de
+  `tdb` y los de `tssh`: `util/escrituraAtajos.ts`. Lo que cambia entre los dos es solo el contenido.
+- Un usuario con «ñ» (`C:\Users\Muñoz\…`): el `.ps1` va con BOM, porque PowerShell 5.1 lee uno sin BOM en la página
+  ANSI y la ruta horneada llegaba cambiada; el `.cmd` escribe la ruta no ASCII con la variable de la carpeta del
+  usuario (`%LOCALAPPDATA%\…`, `rutaParaCmd` de `shared/citarShell.ts`, la misma que usan los de `tssh`), que cmd
+  expande ya en Unicode aunque lea el archivo en la página OEM.
 
 ## Consecuencias
 

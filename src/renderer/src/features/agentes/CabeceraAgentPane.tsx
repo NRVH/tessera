@@ -1,6 +1,7 @@
 // =============================================================================
 // Cabecera del pane del agente. En la vista normal: selector de agente, conversación
-// (historial y chat nuevo), bases montadas, cuenta y maximizar. En una casilla del
+// (historial y chat nuevo), bases montadas, cuenta, maximizar y, en el agente de la terminal,
+// cerrarlo. En una casilla del
 // mosaico la identidad va entera (punto, perfil, proyecto, agente, modo y bases) y el
 // selector de agente se va, porque cambiaría el agente de TODO el perfil.
 // Decisiones: docs/decisiones/agentes/terminal-del-agente.md
@@ -9,11 +10,12 @@
 import { ProfileDot, ModeIcon } from '../pestanas'
 import { PuntoMosaico } from '../mosaico'
 import { etiquetaModPrincipal } from '../../util/atajos'
+import { IconoCerrar } from '../../comun/iconosMenu'
 import { AGENT_LABEL, AGENT_LABEL_SHORT, type MosaicoPane } from './agentPaneTipos'
 import { rotuloHistorialConversaciones, textosMontajeBases } from './textosMontajeBases'
+import { IconoMaximizar, IconoRestaurar } from '../../comun/iconosPanel'
 import {
-  AccountIcon, CaretIcon, CollapseIcon, DbMountIcon, ExpandIcon, HistoryIcon, IconoCaret, IrAlProyectoIcon,
-  NewChatIcon, UpdateIcon
+  AccountIcon, CaretIcon, DbMountIcon, HistoryIcon, IconoCaret, IrAlProyectoIcon, NewChatIcon, UpdateIcon
 } from './iconosAgentPane'
 import type { ModeloAgentPane } from './useAgentPane'
 
@@ -28,7 +30,7 @@ interface PropsParte {
 function BotonBases({ m }: PropsParte): React.JSX.Element | null {
   const { p, montaje } = m
   if (!p.onChangeDbMounted) return null
-  const textosBases = textosMontajeBases(p.esEspacioDeDatos, p.dbMounted.length)
+  const textosBases = textosMontajeBases(p.lugar, p.dbMounted.length)
   return (
     <button
       type="button"
@@ -195,7 +197,7 @@ function AccionesConversacion({ m }: PropsParte): React.JSX.Element {
         className="btn btn-icon"
         onClick={() => ui.setShowHistory(true)}
         disabled={s.actualizando}
-        title={rotuloHistorialConversaciones(p.esEspacioDeDatos)}
+        title={rotuloHistorialConversaciones(p.lugar)}
         aria-label="Historial de conversaciones"
       >
         <HistoryIcon />
@@ -252,7 +254,7 @@ function AccionesCasilla({ mosaico }: { mosaico: MosaicoPane }): React.JSX.Eleme
         }
         aria-label={mosaico.ampliada ? 'Restaurar el mosaico' : 'Ampliar esta terminal'}
       >
-        {mosaico.ampliada ? <CollapseIcon /> : <ExpandIcon />}
+        {mosaico.ampliada ? <IconoRestaurar /> : <IconoMaximizar />}
       </button>
       <button
         type="button"
@@ -281,12 +283,34 @@ function BotonMaximizar({ m }: PropsParte): React.JSX.Element {
       }
       aria-label={expanded ? 'Restaurar editor' : 'Maximizar Claude Code'}
     >
-      {expanded ? <CollapseIcon /> : <ExpandIcon />}
+      {expanded ? <IconoRestaurar /> : <IconoMaximizar />}
     </button>
   )
 }
 
-/** Acciones de la derecha: bases (fuera de casilla), cuenta, y ampliar o maximizar. */
+/**
+ * «Cerrar el agente de la terminal»: termina su sesión, que ociosa ocupa más de un giga. Ocultarlo (el
+ * botón de la terminal) no la cierra; la conversación queda en el historial y se reanuda al volver.
+ */
+function BotonCerrar({ m }: PropsParte): React.JSX.Element | null {
+  const { onCerrar } = m.p
+  if (!onCerrar) return null
+  return (
+    <button
+      type="button"
+      className="btn btn-icon"
+      onClick={() => onCerrar(m.p.target.profileId)}
+      // A mitad de una actualización el pane está bloqueado: el orquestador cuenta con él.
+      disabled={m.s.actualizando}
+      title="Cerrar el agente de la terminal: termina su sesión y libera la memoria que ocupa (la conversación queda en el historial)"
+      aria-label="Cerrar el agente de la terminal"
+    >
+      <IconoCerrar />
+    </button>
+  )
+}
+
+/** Acciones de la derecha: bases (fuera de casilla), cuenta, ampliar o maximizar, y cerrar (el agente de la terminal). */
 function AccionesPanel({ m }: PropsParte): React.JSX.Element {
   const { mosaico, canExpand } = m.p
   return (
@@ -295,6 +319,7 @@ function AccionesPanel({ m }: PropsParte): React.JSX.Element {
       <BotonCuenta m={m} />
       {mosaico && <AccionesCasilla mosaico={mosaico} />}
       {!mosaico && canExpand && <BotonMaximizar m={m} />}
+      {!mosaico && <BotonCerrar m={m} />}
     </div>
   )
 }

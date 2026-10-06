@@ -1,7 +1,7 @@
 // =============================================================================
 // Cómo se llaman, en cada sistema, las cosas de las que Tessera habla: el sistema, el
-// gestor de archivos, la shell y el almacén de claves. Una frase de la interfaz que los
-// nombre los pide aquí en vez de escribir «Windows» a mano.
+// gestor de archivos, la shell, el almacén de secretos, el agente de claves SSH y la papelera. Una frase
+// de la interfaz que los nombre los pide aquí en vez de escribir «Windows» a mano.
 // La plataforma es OBLIGATORIA, sin valor por defecto: lo importan el main
 // (`plataformaActual()`) y el renderer (`window.tessera.plataforma`, donde no hay `process`).
 // Puro: sin `process`, Electron ni `fs`; solo importa un tipo.
@@ -39,6 +39,17 @@ export interface NombresSistema {
    * contraseña deja de descifrarse, el usuario tiene que saber QUÉ mirar.
    */
   almacenSecretos: string
+  /**
+   * Qué guarda las claves SSH del usuario y se las ofrece a `ssh`, CON ARTÍCULO. Es lo que
+   * hay detrás de la autenticación «Claves del sistema» de una conexión SSH: en Windows, el
+   * servicio de agente de OpenSSH; en macOS, el agente que lee el Llavero.
+   */
+  agenteClavesSsh: string
+  /**
+   * La papelera del sistema CON ARTÍCULO, con el nombre que el usuario busca para recuperar lo
+   * que Tessera mandó allí: «la Papelera de reciclaje» en Windows, «la Papelera» en macOS.
+   */
+  papelera: string
 }
 
 /**
@@ -53,21 +64,27 @@ const TABLA: Record<Plataforma, NombresSistema> = {
     tuEquipo: 'tu Windows',
     gestorArchivos: 'el Explorador',
     shellNativa: 'PowerShell',
-    almacenSecretos: 'el cifrado de Windows (DPAPI)'
+    almacenSecretos: 'el cifrado de Windows (DPAPI)',
+    agenteClavesSsh: 'el agente SSH de Windows',
+    papelera: 'la Papelera de reciclaje'
   },
   mac: {
     sistema: 'macOS',
     tuEquipo: 'tu Mac',
     gestorArchivos: 'el Finder',
     shellNativa: 'tu shell de inicio de sesión',
-    almacenSecretos: 'el Llavero de macOS'
+    almacenSecretos: 'el Llavero de macOS',
+    agenteClavesSsh: 'el llavero y el agente SSH',
+    papelera: 'la Papelera'
   },
   otra: {
     sistema: 'el sistema',
     tuEquipo: 'tu equipo',
     gestorArchivos: 'el gestor de archivos',
     shellNativa: 'tu shell de inicio de sesión',
-    almacenSecretos: 'el almacén de claves del escritorio'
+    almacenSecretos: 'el almacén de claves del escritorio',
+    agenteClavesSsh: 'el agente SSH del sistema',
+    papelera: 'la papelera'
   }
 }
 

@@ -1,7 +1,8 @@
 // =============================================================================
 // Persistencia del slice `settings` de workspace-state.json: lo hidrata una vez al
 // montar y lo guarda COMPLETO (buildSettings, desde los stores) al cambiar: cuentas
-// con 250 ms de espera, los ajustes de un clic en el acto y los tamaños con 400 ms.
+// con 250 ms de espera, los ajustes de un clic en el acto y los tamaños (también el del
+// riel de conexiones SSH) con 400 ms.
 // Las claves y formas son las del contrato de workspace-state-ipc; no se renombran.
 // Decisiones: docs/decisiones/renderer/estado-de-app.md
 // =============================================================================
@@ -19,19 +20,22 @@ import {
 } from '../../../../shared/workspace-state-ipc'
 import { normalizarFilasPorPagina, normalizarInactividadConsolaMin, normalizarTxInicial } from '../../../../shared/ajustesBd'
 import { normalizarInactividadAgenteMin } from '../../../../shared/ajustesAgente'
+import { SSH_RIEL_ANCHO_POR_DEFECTO } from '../../../../shared/ajustesTerminal'
 import { normalizarUiFont } from '../../theme/densidad'
 import { useStoreAjustes } from './store'
 import { useStoreLayout } from '../layout'
-import { useStoreAgentes } from '../agentes'
+import { useStoreAgenteTerminal, useStoreAgentes } from '../agentes'
 import { useStorePestanas } from '../pestanas'
 import { useStoreBd } from '../bd'
 import { useStoreMosaico } from '../mosaico'
+import { useStoreSsh } from '../ssh'
 
 /** Slice de ajustes COMPLETO con el estado vigente de los stores. */
 export function buildSettings(): WorkspaceSettings {
   const a = useStoreAjustes.getState()
   const l = useStoreLayout.getState()
   const bd = useStoreBd.getState()
+  const ssh = useStoreSsh.getState()
   return {
     zoomLevel: window.tessera.zoom.getLevel(),
     agentAccountByTarget: useStoreAgentes.getState().accountByTarget,
@@ -74,7 +78,12 @@ export function buildSettings(): WorkspaceSettings {
     dbFilasPorPagina: a.dbFilasPorPagina,
     dbTxInicial: a.dbTxInicial,
     dbConsolaInactividadMin: a.dbConsolaInactividadMin,
-    agenteInactividadMin: a.agenteInactividadMin
+    agenteInactividadMin: a.agenteInactividadMin,
+    sshGruposPlegadosPorPerfil: ssh.plegadosPorPerfil,
+    sshRielAncho: ssh.rielAncho,
+    sshRielVisiblePorPerfil: ssh.rielVisiblePorPerfil,
+    sshRecientesPorPerfil: ssh.recientesPorPerfil,
+    agenteTerminalVisiblePorPerfil: useStoreAgenteTerminal.getState().visiblePorPerfil
   }
 }
 
@@ -90,6 +99,13 @@ function hidratar(s: WorkspaceSettings): void {
   useStorePestanas.setState({ windowsModeKeys: new Set(s.windowsModeProjects ?? []) })
   useStoreMosaico.setState({ mosaicoPreset: s.mosaicoPreset ?? 'auto' })
   useStoreBd.setState({ dbMounts: s.dbMountsByProject ?? {}, dbAgenteVisiblePorPerfil: s.dbAgenteVisiblePorPerfil ?? {} })
+  useStoreSsh.setState({
+    plegadosPorPerfil: s.sshGruposPlegadosPorPerfil ?? {},
+    rielAncho: s.sshRielAncho ?? SSH_RIEL_ANCHO_POR_DEFECTO,
+    rielVisiblePorPerfil: s.sshRielVisiblePorPerfil ?? {},
+    recientesPorPerfil: s.sshRecientesPorPerfil ?? {}
+  })
+  useStoreAgenteTerminal.setState({ visiblePorPerfil: s.agenteTerminalVisiblePorPerfil ?? {} })
   hidratarLayout(s)
   hidratarAjustes(s)
 }
@@ -195,8 +211,9 @@ export function usePersistenciaAjustes(): void {
       s.dbResultadosAlto
     ])
   )
+  const rielAncho = useStoreSsh((s) => s.rielAncho)
   // El arrastre de un divisor emite un valor por frame: de ahí la espera larga.
-  useGuardadoConEspera(cargados, tamanos, 400, 'layout')
+  useGuardadoConEspera(cargados, [...tamanos, rielAncho], 400, 'layout')
 }
 
 /** Campos que se guardan en el acto: un ajuste aplicado en vivo que no esté aquí se pierde al reiniciar. */
@@ -233,5 +250,20 @@ function useCamposInmediatos(): unknown[] {
   const dbMounts = useStoreBd((s) => s.dbMounts)
   const dbAgenteVisible = useStoreBd((s) => s.dbAgenteVisiblePorPerfil)
   const mosaicoPreset = useStoreMosaico((s) => s.mosaicoPreset)
-  return [...ajustes, ...layout, windowsModeKeys, dbMounts, dbAgenteVisible, mosaicoPreset]
+  const sshPlegados = useStoreSsh((s) => s.plegadosPorPerfil)
+  const sshRielVisible = useStoreSsh((s) => s.rielVisiblePorPerfil)
+  const sshRecientes = useStoreSsh((s) => s.recientesPorPerfil)
+  const agenteTerminalVisible = useStoreAgenteTerminal((s) => s.visiblePorPerfil)
+  return [
+    ...ajustes,
+    ...layout,
+    windowsModeKeys,
+    dbMounts,
+    dbAgenteVisible,
+    mosaicoPreset,
+    sshPlegados,
+    sshRielVisible,
+    sshRecientes,
+    agenteTerminalVisible
+  ]
 }

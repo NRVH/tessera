@@ -1,8 +1,10 @@
 // =============================================================================
 // Sesiones de terminal interactivas (pty) sobre el contenedor persistente del SandboxManager,
 // ancladas al `workspacePath` neutro de un proyecto, o sobre el shell nativo del sistema.
-// Una sesión es un `docker exec -it … bash -il` (o el shell nativo) conectado a un pseudo-TTY.
-// Depende de `SandboxManager` (montajes) y del adaptador `adaptadores/pty.ts`.
+// Una sesión es un `docker exec -it … bash -il` (o el shell nativo, o un ejecutable sin shell como
+// ssh) conectado a un pseudo-TTY.
+// Depende de `SandboxManager` (montajes), del adaptador `adaptadores/pty.ts` y de `paradaSesion.ts`
+// (la parada de un agente nativo y la espera con tope de la salida del pty).
 // Decisiones: docs/decisiones/terminales/pty-y-detencion-de-sesion.md
 // =============================================================================
 // Extensión explícita en los imports: los tests `.mts` importan este módulo con `node` a secas.
@@ -14,10 +16,21 @@ import { dbLog } from '../db/dbLog.ts'
 import { blindarEntradaPty } from './entradaPty.ts'
 import { descartarSalida, programarVolcado, volcarAhora } from './bufferSalida.ts'
 import { colaMuertesDelProceso } from './colaMuertes.ts'
-import { lanzarPtyDocker, lanzarPtyNativo, resolverWorkspacePath } from './lanzamientoPty.ts'
-import { matarArbolPosix, matarArbolWindows } from './adaptadores/pty.ts'
+import { lanzarPtyDeSesion, resolverWorkspacePath } from './lanzamientoPty.ts'
+import { codigoDeSalidaTardio, matarArbolPosix, matarArbolWindows } from './adaptadores/pty.ts'
 import { esWindows } from '../../shared/plataforma.ts'
-import { conTope, esperar } from '../util/esperas.ts'
+import { esperar } from '../util/esperas.ts'
+import {
+  CTRL_C,
+  CTRL_C_SETTLE_MS,
+  REAP_TIMEOUT_MS,
+  abrirParada,
+  esperarSalida,
+  gestoDeParada,
+  registrarParada,
+  validarDetenible,
+  type EstadoParada
+} from './paradaSesion.ts'
 import type { CreateSessionOptions, SessionRecord, TerminalSession } from './tiposSesion.ts'
 
 export type { CreateSessionOptions, TerminalSession } from './tiposSesion.ts'
@@ -25,36 +38,14 @@ export type { CreateSessionOptions, TerminalSession } from './tiposSesion.ts'
 const DEFAULT_COLS = 80
 const DEFAULT_ROWS = 24
 
-/** ETX (Ctrl-C): aborta el comando en primer plano antes de pedir `exit`. */
-const CTRL_C = String.fromCharCode(3)
-/** Pausa entre el Ctrl-C y el `exit` para que readline procese el ^C. */
-const CTRL_C_SETTLE_MS = 150
 /** Margen para que el shell salga solo antes de forzar kill(). */
 const GRACEFUL_EXIT_MS = 3000
-/**
- * Tope para esperar a que un pty ya matado se recolecte: el seguro contra un `onExit` que no
- * llega nunca y cuelga el reinicio entero.
- */
-const REAP_TIMEOUT_MS = 1500
-/** `^C` que manda `detenerSesion` antes de recurrir al kill. */
-const DETENER_INTENTOS = 3
-/**
- * Espera de salida tras cada `^C` de la parada, después del asiento. Corta a propósito: el
- * siguiente `^C` debe caer dentro de la ventana de «pulsa otra vez para salir» del CLI.
- */
-const DETENER_ESPERA_MS = 500
+/** Tope para recuperar el código que ConPTY no trajo en `onExit`; menor que REAP_TIMEOUT_MS. */
+const CODIGO_TARDIO_TOPE_MS = 1000
 
 /** Nombre del contenedor del perfil: la convención `tessera-<id>` de SandboxManager. */
 function containerNameFor(profile: Profile): string {
   return `tessera-${profile.id}`
-}
-
-/** Medidas de una parada, para el registro final de `detenerSesion`. */
-interface EstadoParada {
-  inicio: number
-  elegante: boolean
-  intentos: number
-  recolectado: boolean
 }
 
 /** Sesiones de terminal (pty) de los perfiles: crea, recarga, detiene y cierra. */
@@ -91,6 +82,7 @@ export class TerminalService {
       host,
       launch: opts.launch,
       extraEnv: opts.extraEnv,
+      ejecutable: opts.ejecutable,
       // `pty`, las suscripciones y `exit` los rellena spawnShell().
       pty: undefined as unknown as IPty,
       cols: DEFAULT_COLS,
@@ -180,7 +172,7 @@ export class TerminalService {
    */
   async reloadSession(
     sessionId: string,
-    overrides?: { launch?: string; extraEnv?: Record<string, string> }
+    overrides?: { launch?: string; extraEnv?: Record<string, string>; ejecutable?: CreateSessionOptions['ejecutable'] }
   ): Promise<TerminalSession> {
     const record = this.require(sessionId)
 
@@ -188,6 +180,8 @@ export class TerminalService {
     // de datos (sus secretos van en el entorno del pty) y el aviso al agente (en su línea).
     if (overrides?.launch !== undefined) record.launch = overrides.launch
     if (overrides?.extraEnv !== undefined) record.extraEnv = overrides.extraEnv
+    // Reconectar una sesión SSH aplica los datos vigentes de su conexión.
+    if (overrides?.ejecutable !== undefined) record.ejecutable = overrides.ejecutable
 
     // Una parada en curso se deja terminar: al acabar deja `exitCode` fijado y el bloque de
     // abajo se salta el cierre elegante, que teclearía `exit` en el agente.
@@ -260,10 +254,7 @@ export class TerminalService {
     record.closing = true
     record.detenida = true
     descartarSalida(record)
-    let soltar: () => void = () => {}
-    record.parada = new Promise<void>((resolve) => {
-      soltar = resolve
-    })
+    const soltar = abrirParada(record)
     const turno = this.muertes.coger()
     const estado = { inicio: Date.now(), arbol: false, recolectado: true }
     try {
@@ -273,7 +264,7 @@ export class TerminalService {
       if (record.exitCode === null && this.sessions.get(sessionId) === record) {
         estado.arbol = true
         await this.matarArbol(record)
-        estado.recolectado = await this.esperarSalida(record, REAP_TIMEOUT_MS)
+        estado.recolectado = await esperarSalida(record, REAP_TIMEOUT_MS)
       }
     } finally {
       try {
@@ -321,15 +312,12 @@ export class TerminalService {
    */
   async detenerSesion(sessionId: string): Promise<{ elegante: boolean }> {
     const record = this.require(sessionId)
-    this.validarDetenible(record, sessionId)
+    validarDetenible(record, sessionId)
 
     // Antes del gesto: lo que el agente pinte al recibir los `^C` no llega al renderer.
     record.detenida = true
     descartarSalida(record)
-    let soltar: () => void = () => {}
-    record.parada = new Promise<void>((resolve) => {
-      soltar = resolve
-    })
+    const soltar = abrirParada(record)
     // El turno también se coge en síncrono: el orden de las paradas es el de las llamadas.
     const turno = this.muertes.coger()
 
@@ -337,65 +325,12 @@ export class TerminalService {
     try {
       await turno.anterior
       estado.inicio = Date.now()
-      await this.gestoDeParada(record, estado)
+      // El kill de reserva por el método: `test-onexit-reload` lo neutraliza en su instancia.
+      await gestoDeParada(record, estado, (r) => this.matarDeReserva(r))
     } finally {
       this.cerrarParada(record, estado, soltar, turno.soltar)
     }
     return { elegante: estado.elegante }
-  }
-
-  /** Comprueba, antes de tocar nada, que la sesión se puede detener: un rechazo la deja intacta. */
-  private validarDetenible(record: SessionRecord, sessionId: string): void {
-    if (!record.host || !record.launch) {
-      throw new Error(
-        `La sesión "${sessionId}" no es de un agente nativo: sólo esas se pueden detener.`
-      )
-    }
-    if (record.detenida || record.reloading || record.closing) {
-      throw new Error(
-        `La sesión "${sessionId}" ya está parada o a mitad de un reinicio o de un cierre.`
-      )
-    }
-    if (record.exitCode !== null) {
-      throw new Error(`La sesión "${sessionId}" ya no tiene un proceso vivo que detener.`)
-    }
-  }
-
-  /** El gesto de la parada: hasta tres `^C` y, si el agente no sale, el kill de reserva. */
-  private async gestoDeParada(record: SessionRecord, estado: EstadoParada): Promise<void> {
-    const pty = record.pty
-    // Con la lectura en pausa el agente puede quedarse bloqueado escribiendo y no atender el
-    // `^C`; su salida se va a descartar igual, así que se deja fluir.
-    if (record.paused) {
-      record.paused = false
-      try {
-        pty.resume()
-      } catch {
-        /* el pty ya no está vivo: nada que reanudar */
-      }
-    }
-
-    // Mientras esperaba su turno pudo salir por su cuenta (o caer con el cierre de la app):
-    // no hay gesto que hacer, y escribir en un pty muerto solo daría un EPIPE.
-    if (record.exitCode !== null) estado.elegante = !record.closing
-    for (let i = 1; i <= DETENER_INTENTOS && record.exitCode === null; i++) {
-      estado.intentos = i
-      try {
-        pty.write(CTRL_C)
-      } catch {
-        break // el pty ya no acepta escritura: al kill de reserva
-      }
-      if (await this.esperarSalida(record, CTRL_C_SETTLE_MS + DETENER_ESPERA_MS)) {
-        estado.elegante = true
-        break
-      }
-    }
-
-    if (!estado.elegante) {
-      // `closing` solo puede estar puesto aquí por `killAllPtysNow`, que ya mató el pty.
-      if (record.exitCode === null && !record.closing) await this.matarDeReserva(record)
-      estado.recolectado = await this.esperarSalida(record, REAP_TIMEOUT_MS)
-    }
   }
 
   /** Cierra la parada aunque la recolección venza: suelta el pty, los turnos y deja el registro. */
@@ -413,14 +348,7 @@ export class TerminalService {
       soltar()
       soltarTurno()
     }
-    // Al registro en disco: en la app empaquetada no hay consola y «cierre elegante» o
-    // «cierre forzado» es lo que dice si el gesto sirve con los CLIs reales.
-    dbLog(
-      'detener',
-      `session=${record.id} ${estado.elegante ? 'cierre elegante' : 'cierre forzado'} ` +
-        `intentos=${estado.intentos} ms=${Date.now() - estado.inicio}` +
-        (estado.elegante ? '' : ` recoleccion=${estado.recolectado ? 'ok' : 'vencida'}`)
-    )
+    registrarParada(record, estado)
   }
 
   /** ¿Tiene la sesión un proceso vivo que no está parado? */
@@ -499,7 +427,7 @@ export class TerminalService {
 
   /** Lanza el pty y engancha al record el fan-out de datos y la captura del exitCode. */
   private spawnShell(record: SessionRecord): void {
-    const pty = record.host ? lanzarPtyNativo(record) : lanzarPtyDocker(record)
+    const pty = lanzarPtyDeSesion(record)
     // Antes de que nadie escriba: en Windows, escribir en un pty recién muerto acababa en un
     // `write EAGAIN` no capturado. Ver `entradaPty.ts`.
     blindarEntradaPty(pty, record.id)
@@ -523,27 +451,33 @@ export class TerminalService {
       programarVolcado(record)
     })
     record.exitSub = pty.onExit(({ exitCode }) => {
-      // Vuelca la cola ANTES de anunciar la salida (orden DATA -> EXIT), salvo en un reinicio
-      // o una parada: su cola es el eco del cierre y el renderer ya limpió la pantalla.
-      if (!record.reloading && !record.detenida) volcarAhora(record)
-      record.exitCode = exitCode
-      record.resolveExit(exitCode)
-      // Se avisa solo de salidas que no provocamos nosotros. El record se conserva (`exited`)
-      // para que reloadSession pueda resucitarlo en el mismo panel; el cierre definitivo
-      // corre por closeSession/disposeAll.
-      if (!record.reloading && !record.closing && !record.detenida) {
-        for (const cb of record.exitListeners) cb(exitCode)
-      }
+      // ConPTY a veces avisa sin código (`onExit({})`): una pestaña SSH que no conecta perdería
+      // el 255 y con él «No se pudo conectar». Se recupera antes de anunciar nada.
+      if (typeof exitCode === 'number') this.alSalir(record, pty, exitCode)
+      else void codigoDeSalidaTardio(pty, CODIGO_TARDIO_TOPE_MS).then((codigo) => this.alSalir(record, pty, codigo))
     })
   }
 
   /**
-   * Espera la salida del pty con tope. Ninguna espera es ilimitada: `record.exit` solo se
-   * resuelve desde `onExit`, y si no llega, el reinicio se colgaría con `reloading` puesto y la
-   * salida descartada. Peor caso con tope: un pty huérfano que el sistema acaba recogiendo.
+   * Fija la salida de `pty` y la anuncia. Sin código (ConPTY no lo dio ni tarde) el record queda
+   * con -1, como `darPorMuerto`, y a quien escucha le llega ESE -1: el mismo valor que se ve en la
+   * sesión. En Windows -1 es también como sale ssh de sus fallos, así que una pestaña SSH sin código
+   * se clasifica igual por lo que escribió (`clasificarSalidaSsh`). Si entretanto se dio por muerto
+   * o tiene otro pty, no se toca: el código sería de un proceso que ya no es el suyo.
    */
-  private async esperarSalida(record: SessionRecord, ms: number): Promise<boolean> {
-    return (await conTope(record.exit, ms)) === 'a-tiempo'
+  private alSalir(record: SessionRecord, pty: IPty, codigo: number | null): void {
+    if (record.pty !== pty || record.exitCode !== null) return
+    // Vuelca la cola ANTES de anunciar la salida (orden DATA -> EXIT), salvo en un reinicio
+    // o una parada: su cola es el eco del cierre y el renderer ya limpió la pantalla.
+    if (!record.reloading && !record.detenida) volcarAhora(record)
+    record.exitCode = codigo ?? -1
+    record.resolveExit(record.exitCode)
+    // Se avisa solo de salidas que no provocamos nosotros. El record se conserva (`exited`)
+    // para que reloadSession pueda resucitarlo en el mismo panel; el cierre definitivo
+    // corre por closeSession/disposeAll.
+    if (!record.reloading && !record.closing && !record.detenida) {
+      for (const cb of record.exitListeners) cb(record.exitCode)
+    }
   }
 
   /**
@@ -552,8 +486,11 @@ export class TerminalService {
    * recurso porque en Windows sin consola adjunta enmascara el exitCode. Idempotente.
    */
   private async killCurrentShell(record: SessionRecord): Promise<void> {
-    if (record.exitCode !== null) {
-      await this.esperarSalida(record, REAP_TIMEOUT_MS)
+    // Sin shell delante no hay a quién pedir `exit`: un `^C` o un `exit` irían al programa (en una
+    // sesión SSH, al equipo remoto). Se mata el árbol sin teclear nada y se espera la recolección.
+    if (record.ejecutable && record.exitCode === null) await this.matarArbol(record)
+    if (record.exitCode !== null || record.ejecutable) {
+      await esperarSalida(record, REAP_TIMEOUT_MS)
       return
     }
 
@@ -567,46 +504,44 @@ export class TerminalService {
       // El pty ya no acepta escritura; caeremos al kill de abajo.
     }
 
-    const exitedGracefully = await this.esperarSalida(record, GRACEFUL_EXIT_MS)
+    const exitedGracefully = await esperarSalida(record, GRACEFUL_EXIT_MS)
 
     if (!exitedGracefully && record.exitCode === null) {
       record.pty.kill()
       // `kill()` pide la muerte, no la garantiza: con tope, se sigue adelante si no se recolecta.
-      await this.esperarSalida(record, REAP_TIMEOUT_MS)
+      await esperarSalida(record, REAP_TIMEOUT_MS)
     }
   }
 
   /**
-   * Kill de reserva de `detenerSesion`. En Windows, primero el árbol (`taskkill /T /F`) y luego
-   * el pty: al revés, los hijos de la PowerShell quedan huérfanos y fuera del árbol. Es un
-   * método aparte porque `test-onexit-reload` lo neutraliza para fabricar una recolección
-   * vencida.
+   * Kill de reserva de `detenerSesion`. En Windows es `matarArbol`: primero el árbol
+   * (`taskkill /T /F`), luego la espera con tope y solo entonces el pty; al revés, los hijos de la
+   * PowerShell quedan huérfanos, y sin la espera `kill()` caería sobre un ConPTY ya cerrado. En
+   * macOS sigue siendo solo `pty.kill()`. Es un método aparte porque `test-onexit-reload` lo
+   * neutraliza para fabricar una recolección vencida.
    */
   private async matarDeReserva(record: SessionRecord): Promise<void> {
-    const pty = record.pty
-    if (esWindows()) await matarArbolWindows(pty.pid)
-    // Si `taskkill` ya se lo llevó, el ConPTY está cerrado: un segundo cierre sería una
-    // llamada nativa sobre un handle muerto.
-    if (record.exitCode !== null) return
+    if (esWindows()) return this.matarArbol(record)
     try {
-      pty.kill()
+      record.pty.kill()
     } catch {
       /* ya muerto o sin handle: la recolección con tope de después decide */
     }
   }
 
   /**
-   * Mata el árbol entero de la sesión y después el pty, en ese orden (ver `matarDeReserva`).
-   * En macOS el árbol son los grupos y descendientes que decide `adaptadores/arbolProcesos`;
-   * la rama de Windows es la misma llamada que la del kill de reserva.
+   * Mata el árbol entero de la sesión y, solo si su salida no llega con tope, el pty; en Windows
+   * es también el kill de reserva de `detenerSesion`. En macOS el árbol son los grupos y
+   * descendientes que decide `adaptadores/arbolProcesos`. Quien llama espera después la
+   * recolección: si la salida ya llegó aquí, esa espera no tarda.
    */
   private async matarArbol(record: SessionRecord): Promise<void> {
     const pty = record.pty
     if (esWindows()) await matarArbolWindows(pty.pid)
     else await matarArbolPosix(pty.pid)
-    // Si `taskkill` ya se lo llevó, el ConPTY está cerrado: un segundo cierre sería una
-    // llamada nativa sobre un handle muerto.
-    if (record.exitCode !== null) return
+    // `onExit` llega DESPUÉS, asíncrono: mirar `exitCode` ya casi siempre daría null. Si `taskkill`
+    // se lo llevó, el ConPTY está cerrado y `kill()` sería una llamada nativa sobre un handle muerto.
+    if (await esperarSalida(record, REAP_TIMEOUT_MS)) return
     try {
       pty.kill()
     } catch {

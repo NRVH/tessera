@@ -98,7 +98,7 @@ declaran en `src/shared/*-ipc.ts`, y el renderer nunca ve ni envía rutas del ho
 
 Las **raíces de composición** son `src/main/index.ts` (la app), `src/main/relevo/index.ts` (el
 modo relevo: el mismo binario arrancado para aplicar una actualización cuando la app ya no
-existe) y los `componer.ts` que figuran en `RAICES` de `eslint.config.mjs` (hoy `db/` y
+existe) y los `componer.ts` que figuran en `RAICES` de `eslint.config.mjs` (hoy `db/`, `ssh/` y
 `agents/`). Solo ellas componen servicios con Electron y registran los `ipc.ts`. Un `componer.ts`
 es un trozo de la raíz de la app sacado de `index.ts` para que no crezca: recibe `refs`,
 `ipcMain` y lo ya compuesto, y **solo `index.ts` lo importa** (ni otro `componer.ts` ni el
@@ -187,7 +187,7 @@ npm run test:ciclos -- <rutas>
   Una opción que no conocen la cortan con salida 2: nunca se toma por una ruta.
 - `test:menciones` lee sus patrones de `--privados <archivo>` (o de la variable
   `TESSERA_PATRONES_PRIVADOS`; sin ninguna de las dos, de `.patrones-privados.txt`
-  de la raíz, si existe): una expresión regular por línea con los productos y los datos
+  de la raíz, versionado solo en el repo privado): una expresión regular por línea con los productos y los datos
   que no deben acabar en el repo. `!` delante marca un patrón permitido (un nombre de paquete o
   de proveedor, que se tapa antes de buscar) y `(?i)` delante lo hace insensible a mayúsculas.
   Ese archivo no se versiona.

@@ -9,7 +9,7 @@
 
 import { useEffect, useId, useRef } from 'react'
 import type { DbEntorno } from '../../../../shared/db-ipc'
-import { useDialogo } from '../../comun/useDialogo'
+import { esDeUnaListaDeSelect, useDialogo } from '../../comun/useDialogo'
 import { IconoCopiar } from '../../comun/iconosMenu'
 import { MarcaEntorno } from './MarcaEntorno'
 import { notify, notifyError } from '../../comun/notifications'
@@ -207,6 +207,8 @@ export function DialogoEnvio(p: DialogoEnvioProps): React.JSX.Element {
         aria-describedby={`${idBase}-mensaje`}
         onMouseDown={(e) => e.stopPropagation()}
         onKeyDown={(e) => {
+          // Con la lista de un select desplegada, sus teclas son de la lista (es del DOM y burbujea).
+          if (esDeUnaListaDeSelect(e.target)) return
           dlg.alPulsarTecla(e)
           if (e.key !== 'Escape') e.stopPropagation()
         }}

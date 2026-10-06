@@ -1,30 +1,23 @@
 // =============================================================================
-// Zona de pestañas de la cabecera del panel de terminales: una pestaña por ranura
-// (con renombrado en línea), el «+» pegado a la última y el botón de reinicio. Es
-// presentación pura: el estado del renombrado y las acciones son del panel, que no
-// monta esta zona sin proyecto ni terminales.
+// Zona de pestañas de la cabecera del panel de terminales: primero las pestañas SSH del perfil, un
+// filete y las terminales del proyecto (con renombrado en línea), y el botón dividido «Nueva terminal
+// | ▾» pegado a la última, cuya flecha abre el lanzador de conexiones y se va mientras el riel enseña la
+// lista. Es presentación pura: el estado del renombrado y las acciones son del panel. Se pinta siempre:
+// el botón dividido vive aquí y debe poder ofrecer una conexión SSH aunque no haya ni proyecto ni
+// terminales.
+// Decisiones: docs/decisiones/terminales/pestanas-ssh-del-perfil.md, docs/decisiones/terminales/lanzador-de-conexiones.md
 // =============================================================================
 
-import type { Dispatch, KeyboardEvent, SetStateAction } from 'react'
-import { esBorrarPestanaEnfocada } from '../../util/atajos'
-import { CloseIcon, PlusIcon, ReloadIcon } from './IconosTerminales'
-import type { SalidaBotonReinicio } from './reloadButton'
+import type { Dispatch, RefObject, SetStateAction } from 'react'
+import { BotonDividido } from '../../comun/BotonDividido'
+import { CloseIcon, PlusIcon } from './IconosTerminales'
+import { PestanaSsh } from './PestanaSsh'
+import { CampoRenombrar, teclaDePestana, type Renombrando } from './renombradoPestana'
 import { terminalName, terminalPaneKey, type ShellTerminal } from './shellTerminalsModel'
+import { sshPaneKey, type SshTab } from './sshTabsModel'
 import type { TerminalPaneInfo } from './terminalPaneTipos'
 
-/** Nombre completo del botón de reinicio, el que se despliega al hover (gemelo del agente). */
-const ETIQUETA_REINICIO = 'Reiniciar terminal'
-
-/**
- * Ranura que se está renombrando ahora mismo. LLEVA LA CLAVE DEL PROYECTO: los ids son
- * únicos solo DENTRO de un proyecto (`t1` existe en todos), y sin la clave el texto a
- * medias de un proyecto acababa renombrando la terminal de otro al cambiar de proyecto.
- */
-export interface Renombrando {
-  key: string
-  id: string
-  texto: string
-}
+export type { Renombrando } from './renombradoPestana'
 
 interface AccionesPestanas {
   onSelect: (projectKey: string, terminalId: string) => void
@@ -40,62 +33,6 @@ interface PestanaProps extends AccionesPestanas {
   info: TerminalPaneInfo | undefined
   renombrando: Renombrando | null
   setRenombrando: Dispatch<SetStateAction<Renombrando | null>>
-}
-
-interface CampoProps {
-  renombrando: Renombrando
-  terminalId: string
-  nombre: string
-  setRenombrando: Dispatch<SetStateAction<Renombrando | null>>
-  onRename: AccionesPestanas['onRename']
-}
-
-/** Input de renombrado: confirma al salir (perder lo escrito por hacer clic fuera enfada); Esc descarta. */
-function CampoRenombrar({ renombrando, terminalId, nombre, setRenombrando, onRename }: CampoProps): React.JSX.Element {
-  const confirmar = (): void => {
-    onRename(renombrando.key, terminalId, renombrando.texto)
-    setRenombrando(null)
-  }
-  return (
-    <input
-      className="terminal-tab-input"
-      // El ancho SIGUE al texto: uno fijo haría saltar las pestañas de la derecha al escribir.
-      size={Math.max(4, renombrando.texto.length)}
-      value={renombrando.texto}
-      autoFocus
-      onFocus={(e) => e.currentTarget.select()}
-      onChange={(e) =>
-        setRenombrando({ key: renombrando.key, id: terminalId, texto: e.target.value })
-      }
-      onBlur={confirmar}
-      onKeyDown={(e) => {
-        e.stopPropagation() // que las teclas no lleguen a la pestaña
-        if (e.key === 'Enter') confirmar()
-        else if (e.key === 'Escape') setRenombrando(null)
-      }}
-      aria-label={`Nombre de ${nombre}`}
-    />
-  )
-}
-
-/** Teclado de una pestaña: Enter/Espacio selecciona, F2 renombra y `esBorrarPestanaEnfocada` cierra (Supr; ⌘⌫ en Mac). */
-function teclaDePestana(
-  e: KeyboardEvent,
-  acciones: { seleccionar: () => void; renombrar: () => void; cerrar: () => void }
-): void {
-  if (e.key === 'Enter' || e.key === ' ') {
-    e.preventDefault()
-    acciones.seleccionar()
-  } else if (e.key === 'F2') {
-    e.preventDefault()
-    acciones.renombrar()
-  } else if (esBorrarPestanaEnfocada(e)) {
-    // La ✕ va a `tabIndex={-1}` para no meter dos paradas de tabulador por pestaña: sin
-    // esta tecla, cerrar una terminal sería solo con el ratón. El gesto es el de cada
-    // plataforma (`Supr`, o `⌘⌫` en Mac) y Mayús/Alt/Ctrl+Supr no cierran.
-    e.preventDefault()
-    acciones.cerrar()
-  }
 }
 
 function Pestana(p: PestanaProps): React.JSX.Element {
@@ -125,11 +62,14 @@ function Pestana(p: PestanaProps): React.JSX.Element {
     >
       {editando ? (
         <CampoRenombrar
-          renombrando={renombrando}
-          terminalId={t.id}
+          texto={renombrando.texto}
           nombre={nombre}
-          setRenombrando={setRenombrando}
-          onRename={p.onRename}
+          onTexto={(texto) => setRenombrando({ key: projectKey, id: t.id, texto })}
+          onConfirmar={() => {
+            p.onRename(projectKey, t.id, renombrando.texto)
+            setRenombrando(null)
+          }}
+          onCancelar={() => setRenombrando(null)}
         />
       ) : (
         <span className="terminal-tab-name">{nombre}</span>
@@ -156,83 +96,113 @@ function Pestana(p: PestanaProps): React.JSX.Element {
   )
 }
 
-/** Botón de reinicio de la terminal activa; ya no vive en una barra propia al pie. */
-function BotonReinicioTerminal({
-  boton,
-  onReload
-}: {
-  boton: SalidaBotonReinicio
-  onReload: () => void
-}): React.JSX.Element {
-  return (
-    <button
-      className={`btn btn-icon boton-reinicio terminal-reload-btn${boton.soloIcono ? ' solo-icono' : ''}`}
-      onClick={onReload}
-      disabled={!boton.habilitado}
-      title={`${boton.titulo} · solo esta terminal`}
-      aria-label={boton.soloIcono ? ETIQUETA_REINICIO : boton.etiqueta}
-    >
-      <ReloadIcon />
-      {boton.soloIcono ? (
-        <span className="boton-reinicio-etiqueta">
-          <span>{ETIQUETA_REINICIO}</span>
-        </span>
-      ) : (
-        // ENVUELTA, no suelta como texto: aquí comparte fila con las pestañas y, sin poder
-        // ocultarla, desbordaba sobre las acciones de la cabecera al pulsar el botón.
-        <span className="terminal-reload-estado">{boton.etiqueta}</span>
-      )}
-    </button>
-  )
+/** Las pestañas SSH del perfil y lo que se hace con ellas. */
+export interface PropsZonaSsh {
+  perfilId: string
+  lista: readonly SshTab[]
+  /** La que se ve, si lo que se ve es una SSH. */
+  activaId: string | null
+  onElegir: (id: string) => void
+  onCerrar: (id: string) => void
+  onRenombrar: (id: string, nombre: string) => void
+}
+
+/** El botón dividido «Nueva terminal | ▾»: la flecha abre el lanzador de conexiones, que monta quien aloja la zona. */
+export interface PropsNuevaTerminal {
+  /** Por qué la terminal local no se puede abrir (sin proyecto); ausente = se puede. */
+  noDisponible?: string
+  /** Sin flecha: con el riel a la vista la lista ya está al lado y el botón queda solo con el «+». */
+  sinFlecha: boolean
+  /** Sin perfil, la flecha no tiene nada que ofrecer. */
+  flechaDeshabilitada: boolean
+  /** El lanzador está a la vista. */
+  flechaAbierta: boolean
+  /** El id del lanzador, que nombra el `aria-controls` de la flecha. */
+  flechaControla: string
+  /** Abre o cierra el lanzador. */
+  onFlecha: () => void
+  /** El conjunto de los dos botones: de él cuelga el lanzador. */
+  grupoRef: RefObject<HTMLSpanElement>
+  /** A dónde va el foco si se quita la flecha con él puesto y la principal no se puede usar. */
+  destinoFocoSinPrincipal: () => void
 }
 
 interface ZonaPestanasProps extends AccionesPestanas {
-  projectKey: string
+  /** El proyecto que se mira, o `null` sin proyecto. */
+  projectKey: string | null
   lista: ShellTerminal[]
-  activeTerminalId: string | null
+  /** La terminal local que se ve (`null` si se ve una SSH o nada). */
+  localActivaId: string | null
   hostMode: boolean
   infoByPane: Record<string, TerminalPaneInfo>
   renombrando: Renombrando | null
   setRenombrando: Dispatch<SetStateAction<Renombrando | null>>
+  ssh: PropsZonaSsh
+  nueva: PropsNuevaTerminal
+  /** «Nueva terminal» en el proyecto que se mira. */
   onAdd: (projectKey: string) => void
-  boton: SalidaBotonReinicio
-  onReload: () => void
 }
 
 /**
- * Pestañas del proyecto activo con el «+» y el reinicio. La ZONA es la que crece; las
- * pestañas dentro solo ocupan lo suyo y desbordan con scroll, y el «+» es hermano del
- * scroller y no hijo para no irse con las pestañas al desbordar.
+ * Las pestañas SSH del perfil, un filete y las del proyecto, con el botón dividido. La ZONA es la que
+ * crece; las pestañas dentro solo ocupan lo suyo y desbordan con scroll, y el botón dividido es hermano
+ * del scroller y no hijo para no irse con las pestañas al desbordar.
  */
 export function ZonaPestanas(p: ZonaPestanasProps): React.JSX.Element {
+  const { ssh, projectKey } = p
   return (
     <div className="terminal-tabs-zona">
-      <div className="terminal-tabs" role="tablist" aria-label="Terminales del proyecto">
-        {p.lista.map((t) => (
-          <Pestana
+      <div className="terminal-tabs" role="tablist" aria-label="Terminales">
+        {ssh.lista.map((t) => (
+          <PestanaSsh
             key={t.id}
-            terminal={t}
-            projectKey={p.projectKey}
-            hostMode={p.hostMode}
-            activa={t.id === p.activeTerminalId}
-            info={p.infoByPane[terminalPaneKey(p.projectKey, t.id)]}
+            tab={t}
+            perfilId={ssh.perfilId}
+            activa={t.id === ssh.activaId}
+            info={p.infoByPane[sshPaneKey(ssh.perfilId, t.id)]}
             renombrando={p.renombrando}
             setRenombrando={p.setRenombrando}
-            onSelect={p.onSelect}
-            onClose={p.onClose}
-            onRename={p.onRename}
+            onSelect={ssh.onElegir}
+            onClose={ssh.onCerrar}
+            onRename={ssh.onRenombrar}
           />
         ))}
+        {/* Separa las del perfil de las del proyecto sin gastar una palabra; no es una pestaña. */}
+        {ssh.lista.length > 0 && p.lista.length > 0 && <div className="terminal-tabs-filete" aria-hidden="true" />}
+        {projectKey !== null &&
+          p.lista.map((t) => (
+            <Pestana
+              key={t.id}
+              terminal={t}
+              projectKey={projectKey}
+              hostMode={p.hostMode}
+              activa={t.id === p.localActivaId}
+              info={p.infoByPane[terminalPaneKey(projectKey, t.id)]}
+              renombrando={p.renombrando}
+              setRenombrando={p.setRenombrando}
+              onSelect={p.onSelect}
+              onClose={p.onClose}
+              onRename={p.onRename}
+            />
+          ))}
       </div>
-      <button
-        className="btn btn-icon terminal-tabs-add"
-        onClick={() => p.onAdd(p.projectKey)}
-        title="Nueva terminal (las demás siguen corriendo)"
-        aria-label="Nueva terminal"
-      >
-        <PlusIcon />
-      </button>
-      <BotonReinicioTerminal boton={p.boton} onReload={p.onReload} />
+      <BotonDividido
+        className="terminal-tabs-add"
+        grupoRef={p.nueva.grupoRef}
+        etiquetaPrincipal="Nueva terminal"
+        tituloPrincipal="Nueva terminal (las demás siguen corriendo)"
+        iconoPrincipal={<PlusIcon />}
+        onPrincipal={() => projectKey !== null && p.onAdd(projectKey)}
+        principalNoDisponible={p.nueva.noDisponible}
+        sinFlecha={p.nueva.sinFlecha}
+        etiquetaFlecha="Conexiones SSH"
+        tituloFlecha="Conexiones SSH: conectar, buscar o crear"
+        flechaDeshabilitada={p.nueva.flechaDeshabilitada}
+        flechaAbierta={p.nueva.flechaAbierta}
+        flechaControla={p.nueva.flechaControla}
+        onFlecha={p.nueva.onFlecha}
+        destinoFocoSinPrincipal={p.nueva.destinoFocoSinPrincipal}
+      />
     </div>
   )
 }

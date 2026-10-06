@@ -1,18 +1,19 @@
 #!/usr/bin/env node
 // =============================================================================
-// Compila las tres capas (`electron-vite build`) con heap suficiente para V8. Node dimensiona
-// el heap según la RAM: en una máquina de 8 GB da ~2,2 GB y Rollup, que sostiene ~3.350
-// módulos y 55 MB de sourcemaps (puestos a propósito: ver `electron.vite.config.ts`), muere
-// con «heap out of memory» en «rendering chunks» y `dist/` se queda con la versión anterior.
-// Se lanza `process.execPath` con `--max-old-space-size=4096` (holgura sin paginar 8 GB;
-// un techo exagerado convierte una fuga en media hora de paginación) salvo que `NODE_OPTIONS`
-// ya pida uno: la bandera de la línea de órdenes GANA a la variable, y se la respeta. Vale
-// en las dos plataformas: evita el `.bin/electron-vite`, que en Windows es un `.cmd`.
+// Compila las tres capas (`electron-vite build`) con heap suficiente para V8 y, al final, en Windows,
+// el programa de contraseñas de SSH (`compilarAskpass.mjs`). Node dimensiona el heap según la RAM: con
+// 8 GB da ~2,2 GB y Rollup (~3.350 módulos y 55 MB de sourcemaps, a propósito: ver
+// `electron.vite.config.ts`) muere con «heap out of memory» y `dist/` se queda con la versión anterior.
+// Se lanza `process.execPath` con `--max-old-space-size=4096` (holgura sin paginar 8 GB; un techo
+// exagerado convierte una fuga en media hora de paginación) salvo que `NODE_OPTIONS` ya pida uno: la
+// bandera GANA a la variable, y se la respeta. Vale en las dos plataformas: evita el
+// `.bin/electron-vite`, que en Windows es un `.cmd`.
 // =============================================================================
 
 import { spawnSync } from 'node:child_process'
 import { createRequire } from 'node:module'
 import path from 'node:path'
+import { compilarAskpass } from './compilarAskpass.mjs'
 
 const require = createRequire(import.meta.url)
 
@@ -53,5 +54,13 @@ if (signal) {
           'NODE_OPTIONS=--max-old-space-size=<MB>, que este script respeta.'
         : '')
   )
+}
+if (status === 0) {
+  try {
+    compilarAskpass({ siempre: true })
+  } catch (e) {
+    console.error(`[compilar] ${e instanceof Error ? e.message : String(e)}`)
+    process.exit(1)
+  }
 }
 process.exit(status ?? 1)

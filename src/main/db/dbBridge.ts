@@ -1,8 +1,9 @@
 // =============================================================================
 // Puente local: `tdb` le pregunta a Tessera, en cada invocación, qué bases tiene montadas y con qué
 // credenciales, así montar y desmontar aplica al momento. Un token por sesión ve solo lo montado en su
-// proyecto (o, el de un solo uso, su conexión); cada secreto viaja con la huella de su destino. Pipe en
-// Windows, socket en una carpeta 0700 en POSIX. Sin `electron`: el registro se inyecta.
+// proyecto (o, el de un solo uso, su conexión); cada secreto viaja con la huella de su destino. Otros
+// dominios registran sus operaciones (`ssh.*`) sin tocar `resolve`. Pipe en Windows, socket en una
+// carpeta 0700 en POSIX. Sin `electron`: el registro se inyecta.
 // Decisiones: docs/decisiones/bd/puente-punto-de-escucha-y-concesiones.md
 // =============================================================================
 import { createServer, type Server, type Socket } from 'node:net'
@@ -138,8 +139,38 @@ export interface RespuestaResolve {
   espacioDatos: boolean
 }
 
+/** De quién es la sesión que pide una operación con token de sesión: lo dice la concesión, nunca la petición. */
+export interface SesionDelPuente {
+  profileId: string
+  projectHostPath: string
+  espacioDatos: boolean
+}
+
+/** Lo que responde una operación registrada; viaja tal cual como una línea JSON. */
+export interface RespuestaOperacion {
+  ok: boolean
+  error?: string
+  [campo: string]: unknown
+}
+
+/**
+ * Una operación de otro dominio. Con token 'sesion', el puente exige un token de sesión vivo (nunca uno
+ * de un solo uso) y le dice de quién es; con 'propio', la operación valida su propio token y el puente
+ * solo comprueba la versión. Síncrona: la respuesta sale en la misma vuelta que la petición.
+ */
+export type OperacionPuente =
+  | { token: 'sesion'; manejar: (peticion: Record<string, unknown>, sesion: SesionDelPuente) => RespuestaOperacion }
+  | { token: 'propio'; manejar: (peticion: Record<string, unknown>) => RespuestaOperacion }
+
+/** Lo que el puente deja ver a otros dominios: si escucha, dónde, y el registro de sus operaciones. */
+export interface PuertaPuente {
+  readonly listo: boolean
+  readonly pipe: string
+  registrarOperacion(op: string, operacion: OperacionPuente): void
+}
+
 /** Puente local que sirve a `tdb` el ámbito y los secretos de una sesión en cada invocación. */
-export class DbBridge {
+export class DbBridge implements PuertaPuente {
   private readonly deps: DbBridgeDeps
   private servidor: Server | null = null
   private nombre = ''
@@ -169,6 +200,8 @@ export class DbBridge {
    * proyecto, sin que nadie tenga que ir buscando qué sesiones tocar.
    */
   private readonly ambitos = new Map<string, string[]>()
+  /** op -> operación de otro dominio. `resolve` no está aquí: es de `tdb` y su contrato no cambia. */
+  private readonly operaciones = new Map<string, OperacionPuente>()
 
   private readonly log: (msg: string) => void
 
@@ -484,6 +517,34 @@ export class DbBridge {
     return this.ambitos.get(claveProyecto(profileId, projectHostPath)) ?? []
   }
 
+  // --- Operaciones de otros dominios -------------------------------------------
+
+  /**
+   * Registra una operación de otro dominio (`ssh.askpass`…). `resolve` es de `tdb` y una op no se registra
+   * dos veces: lanzar aquí es un error de programación, no algo que pueda provocar un cliente.
+   */
+  registrarOperacion(op: string, operacion: OperacionPuente): void {
+    if (op === 'resolve' || this.operaciones.has(op)) throw new Error(`La operación del puente "${op}" ya existe.`)
+    this.operaciones.set(op, operacion)
+  }
+
+  /** Una operación registrada; lo no registrado sigue siendo «operacion desconocida», como siempre. */
+  private resolverOperacion(p: Record<string, unknown>): RespuestaOperacion {
+    const operacion = typeof p.op === 'string' ? this.operaciones.get(p.op) : undefined
+    if (!operacion) return { ok: false, error: 'operacion desconocida' }
+    try {
+      if (operacion.token === 'propio') return operacion.manejar(p)
+      const concesion = this.buscarConcesion(String(p.token ?? ''))
+      // Un token de un solo uso es del «Probar» de una base: no abre ninguna otra operación.
+      if (!concesion || concesion.unaVez) return { ok: false, error: 'no autorizado' }
+      const { profileId, projectHostPath, espacioDatos } = concesion
+      return operacion.manejar(p, { profileId, projectHostPath, espacioDatos })
+    } catch (err) {
+      this.log(`la operación ${String(p.op)} falló: ${err instanceof Error ? err.message : String(err)}`)
+      return { ok: false, error: 'error interno' }
+    }
+  }
+
   // --- Servidor --------------------------------------------------------------
 
   private atender(socket: Socket): void {
@@ -513,10 +574,10 @@ export class DbBridge {
   }
 
   /** Resuelve una petición ya parseada. Separado para poder probarlo sin sockets. */
-  resolver(peticion: unknown): { ok: boolean; error?: string } | RespuestaResolve {
+  resolver(peticion: unknown): { ok: boolean; error?: string } | RespuestaResolve | RespuestaOperacion {
     const p = peticion as { v?: number; token?: string; op?: string }
     if (p?.v !== PROTOCOLO) return { ok: false, error: 'version de protocolo distinta' }
-    if (p?.op !== 'resolve') return { ok: false, error: 'operacion desconocida' }
+    if (p?.op !== 'resolve') return this.resolverOperacion(p as Record<string, unknown>)
 
     const concesion = this.buscarConcesion(String(p.token ?? ''))
     // Mismo mensaje para "token inexistente", "token caducado" y "token gastado": un

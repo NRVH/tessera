@@ -1,6 +1,6 @@
 // =============================================================================
 // Binds de la sesión Oracle: convierte los binds que manda el main a los del driver (LOB
-// temporal, texto nacional o CHAR de entrada; CLOB de salida leído entero hasta su tope).
+// temporal, texto nacional o CHAR de entrada; cursor de salida con un CLOB, leído hasta su tope).
 // El trabajador sigue sin saber qué SQL ejecuta: solo convierte la forma del bind.
 // Depende de `celdas.cjs`; lo usa `sesionOracle.cjs`.
 // =============================================================================
@@ -12,9 +12,10 @@ const celdas = require('./celdas.cjs')
 const TOPE_SALIDA_TEXTO = 16 * 1024 * 1024
 
 /**
- * Binds con nombre del main -> binds de oracledb. Un valor `{ salida: 'texto', tope }` es un bind
- * de SALIDA de tipo CLOB (el DDL de DBMS_METADATA): se lee entero hasta su tope al terminar. Lo
- * demás pasa tal cual.
+ * Binds con nombre del main -> binds de oracledb. Un valor `{ salida: 'texto', tope }` es un CURSOR
+ * de salida con una fila y un CLOB (el DDL de DBMS_METADATA, `OPEN :x FOR SELECT h FROM dual`): se
+ * lee entero hasta su tope al terminar. No un CLOB de salida: contra una 11.2.0.4 falla en los
+ * clientes 19 y 23 según la forma del bloque. Lo demás pasa tal cual.
  */
 function prepararBinds(oracledb, binds) {
   if (Array.isArray(binds)) return { binds: binds.map((v) => bindEntrada(oracledb, v)), salidas: null }
@@ -24,7 +25,7 @@ function prepararBinds(oracledb, binds) {
   for (const k of Object.keys(binds)) {
     const v = binds[k]
     if (v && typeof v === 'object' && v.salida === 'texto') {
-      out[k] = { dir: oracledb.BIND_OUT, type: oracledb.DB_TYPE_CLOB }
+      out[k] = { dir: oracledb.BIND_OUT, type: oracledb.CURSOR }
       if (!salidas) salidas = {}
       salidas[k] = Number.isInteger(v.tope) && v.tope > 0 ? v.tope : TOPE_SALIDA_TEXTO
     } else {
@@ -64,11 +65,24 @@ function bindEntrada(oracledb, v) {
   }
 }
 
-/** Lee los CLOB de salida: `{ nombre: { texto, longitud, recortado } | null }`. */
+/** El valor de la primera columna de la primera fila del cursor (fila en lista u objeto), y lo cierra. */
+async function valorDeCursor(cursor) {
+  try {
+    const filas = await cursor.getRows(1)
+    const fila = filas && filas.length > 0 ? filas[0] : null
+    if (fila === null || fila === undefined) return null
+    return Array.isArray(fila) ? fila[0] : Object.values(fila)[0]
+  } finally {
+    await cursor.close().catch(() => {})
+  }
+}
+
+/** Lee los textos de salida (cursores con un CLOB): `{ nombre: { texto, longitud, recortado } | null }`. */
 async function leerSalidasTexto(res, salidas) {
   const r = {}
   for (const k of Object.keys(salidas)) {
-    const lob = res.outBinds ? res.outBinds[k] : null
+    const salida = res.outBinds ? res.outBinds[k] : null
+    const lob = salida && typeof salida.getRows === 'function' ? await valorDeCursor(salida) : salida
     if (lob === null || lob === undefined) {
       r[k] = null
       continue

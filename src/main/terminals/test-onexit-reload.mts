@@ -2,8 +2,9 @@
 // =============================================================================
 // Prueba de `TerminalService.onExit` de primer nivel (npm run test:onexit): sobrevive a
 // `reloadSession()` y no se dispara con el reload.
-// Dos pasos nativos previos, sin Docker: un onExit tardío tras `detenerSesion()` no se anuncia (H)
-// y escribir en un pty ya salido no deja una excepción sin capturar (E).
+// Pasos nativos previos, sin Docker: un onExit tardío tras `detenerSesion()` no se anuncia (H),
+// escribir en un pty ya salido no deja una excepción sin capturar (E) y una salida sin código se
+// anuncia con el mismo -1 de la sesión (S).
 // Después, con Docker: la misma suscripción dispara una vez al salir de verdad, el sessionId se
 // conserva y no quedan huérfanos.
 // Solo Node core + SandboxManager + TerminalService + node-pty.
@@ -135,9 +136,12 @@ async function pasoEscrituraTrasSalida(): Promise<void> {
     const entrada = socketEntradaDe(s.pty)
     const oyentes = entrada?.listenerCount('error') ?? 0
     let salio = false
+    // La primera escritura va en el `onExit` del propio pty, en el instante en que muere: el de
+    // TerminalService puede llegar después si ConPTY avisó sin código (C98) y hubo que recuperarlo,
+    // y para entonces node-pty ya destruyó la entrada y la escritura no llegaría a fallar.
+    s.pty.onExit(() => term.write(s.id, 'x'))
     term.onExit(s.id, () => {
       salio = true
-      term.write(s.id, 'x')
     })
     const salioATiempo = await esperarHasta(() => salio, 20000)
     await sleep(500) // el error de la escritura es ASÍNCRONO: se le deja llegar
@@ -277,6 +281,62 @@ async function pasoOnExitTardioTrasDetener(): Promise<void> {
   }
 }
 
+/**
+ * PASO S: una salida SIN código (ConPTY avisó con `onExit({})` y no lo dio ni tarde) se anuncia con
+ * el MISMO valor que queda en la sesión, -1, y no con `null`: así una pestaña SSH sin código se
+ * clasifica por lo que escribió. La salida sin código se fabrica llamando al anuncio del servicio
+ * (privado) con `null`, que es lo que hace cuando el código tardío no llega.
+ */
+async function pasoSalidaSinCodigo(): Promise<void> {
+  hr('PASO S - (nativo, sin Docker) una salida sin código se anuncia con el mismo -1 de la sesión')
+  const tmp = mkdtempSync(path.join(os.tmpdir(), 'tessera-sincodigo-'))
+  const registro = path.join(tmp, 'agente.log')
+  const partes = [process.execPath, path.join(MODULE_DIR, 'agenteFalsoDetener.mjs'), 'B', registro]
+  const launch = esWindows() ? '& ' + partes.map(citarPowerShell).join(' ') : partes.map(citarSh).join(' ')
+  const term = new TerminalService({} as unknown as SandboxManager)
+  const s = await term.createSession({ ...PERFIL_QA, id: 'onexitsincodigo', sandbox: { habilitado: false } }, { project: tmp, host: true, launch })
+  let salida = ''
+  term.onData(s.id, (d) => {
+    salida += d
+  })
+  const exits: Array<number | null> = []
+  term.onExit(s.id, (code) => exits.push(code))
+  const pty = s.pty
+  let pidAgente = -1
+  try {
+    await esperarHasta(() => salida.includes('LISTO'), 20000)
+    pidAgente = Number(/INICIO pid=(\d+)/.exec(readFileSync(registro, 'utf8'))?.[1] ?? -1)
+    const interno = term as unknown as { sessions: Map<string, unknown>; alSalir: (r: unknown, p: unknown, c: number | null) => void }
+    interno.alSalir(interno.sessions.get(s.id), pty, null)
+    check(
+      '(S1) sin código: el oyente recibe -1, el mismo valor que la sesión',
+      exits.length === 1 && exits[0] === -1 && s.exitCode === -1,
+      `oyente=${JSON.stringify(exits)} sesión=${s.exitCode}`
+    )
+  } finally {
+    if (esWindows()) spawnSync('taskkill', ['/PID', String(pty.pid), '/T', '/F'], { windowsHide: true })
+    try {
+      pty.kill()
+    } catch {
+      /* ya muerto */
+    }
+    if (pidAgente > 0) {
+      try {
+        process.kill(pidAgente) // red de seguridad: ningún agente falso sobrevive
+      } catch {
+        /* ya muerto */
+      }
+    }
+    for (const x of term.listSessions()) await term.closeSession(x.id)
+    await term.closeSession(s.id).catch(() => undefined)
+    try {
+      rmSync(tmp, { recursive: true, force: true })
+    } catch {
+      /* la carpeta temporal la recoge el sistema */
+    }
+  }
+}
+
 async function main(): Promise<void> {
   // Primero lo nativo: no depende de Docker, así que corre y deja su veredicto aunque
   // Docker no esté levantado (en ese caso el proceso sale abajo con código 2, como
@@ -284,6 +344,7 @@ async function main(): Promise<void> {
   // que el H porque su (E0c) cuenta un aviso que se da una sola vez por proceso.
   await pasoEscrituraTrasSalida()
   await pasoOnExitTardioTrasDetener()
+  await pasoSalidaSinCodigo()
 
   const sandbox = new SandboxManager()
 

@@ -113,10 +113,15 @@ function puro(): void {
   check('cifrado por defecto: sin cifrar (el de MongoDB, no el de SQL Server)', j(mg.tlsDe({})) === j({ cifrar: false, confiarCertificado: false }), j(mg.tlsDe({})))
   check('cifrado guardado: se respeta', j(mg.tlsDe({ tls: { cifrar: true, confiarCertificado: true } })) === j({ cifrar: true, confiarCertificado: true }), '')
   check('cifrado ilegible: el por defecto', j(mg.tlsDe({ tls: { cifrar: 'sí' } })) === j({ cifrar: false, confiarCertificado: false }), '')
+  // Una entrada vieja o editada a mano con `srv` y sin cifrado guardado: cifra y verifica, como el
+  // main (`tlsEfectivo`); sin esto iría sin cifrar a Atlas desde el agente.
+  check('cifrado sin guardar con srv: cifrar y verificar', j(mg.tlsDe({ srv: true })) === j({ cifrar: true, confiarCertificado: false }), j(mg.tlsDe({ srv: true })))
+  check('cifrado ilegible con srv: cifrar y verificar', j(mg.tlsDe({ srv: true, tls: { cifrar: 'sí' } })) === j({ cifrar: true, confiarCertificado: false }), '')
+  check('cifrado guardado con srv: se respeta', j(mg.tlsDe({ srv: true, tls: { cifrar: false, confiarCertificado: false } })) === j({ cifrar: false, confiarCertificado: false }), '')
   const cx = mg.conexionDe({ id: 'm1', alias: 'M', motor: 'mongodb', host: 'h', port: 27017, database: '', srv: true, opcionesUri: 'authSource=admin', readonly: true, secretEnc: 'NO' })
   check(
-    'conexión para mongoComun: sin base vacía, usuario "", srv, opcionesUri, tls efectivo, sin secretEnc',
-    cx.database === undefined && cx.user === '' && cx.srv === true && cx.opcionesUri === 'authSource=admin' && cx.tls.cifrar === false && !('secretEnc' in cx) && cx.readonly === true,
+    'conexión para mongoComun: sin base vacía, usuario "", srv, opcionesUri, tls efectivo (srv cifra), sin secretEnc',
+    cx.database === undefined && cx.user === '' && cx.srv === true && cx.opcionesUri === 'authSource=admin' && cx.tls.cifrar === true && cx.tls.confiarCertificado === false && !('secretEnc' in cx) && cx.readonly === true,
     j(cx)
   )
   const cy = mg.conexionDe({ id: 'm2', alias: 'M', motor: 'mongodb', host: 'h', port: 1, user: 'u', database: 'app', opcionesUri: '  ', readonly: false })

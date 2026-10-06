@@ -64,7 +64,7 @@ async function main(): Promise<void> {
   {
     const b = sqlDdlOracle({ esquema: 'HR', nombre: 'EMP', tipo: 'tabla' })
     check('tabla: TABLE, esquema y nombre por bind, nunca en el texto', b.binds.tipo === 'TABLE' && b.binds.esq === 'HR' && b.binds.obj === 'EMP' && !/\bEMP\b/.test(b.sql), JSON.stringify(b.binds))
-    check('un solo bloque con la transformación de SESIÓN y el CLOB por bind :ddl', /^DECLARE/.test(b.sql) && /SESSION_TRANSFORM, 'SQLTERMINATOR', TRUE/.test(b.sql) && /'SEGMENT_ATTRIBUTES', FALSE/.test(b.sql) && /:ddl := h;/.test(b.sql), 'ok')
+    check('un solo bloque con la transformación de SESIÓN y el CLOB por bind :ddl', /^DECLARE/.test(b.sql) && /SESSION_TRANSFORM, 'SQLTERMINATOR', TRUE/.test(b.sql) && /'SEGMENT_ATTRIBUTES', FALSE/.test(b.sql) && /OPEN :ddl FOR SELECT h FROM dual;/.test(b.sql) && !/:ddl :=/.test(b.sql), 'ok')
     check('índices: los que NO respaldan una PK o UNIQUE (esos ya van en el CREATE TABLE)', /NOT EXISTS \(SELECT 1 FROM all_constraints k/.test(b.sql) && /constraint_type IN \('P', 'U'\)/.test(b.sql), 'ok')
     check('comentarios: ORA-31608 (no hay) no es un error', /SQLCODE <> -31608/.test(b.sql), 'ok')
     const r = sqlDdlOracle({ esquema: 'HR', nombre: 'P', tipo: 'rutina' })

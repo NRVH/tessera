@@ -147,7 +147,7 @@ function CuerpoMontaje({ m }: { m: ModeloAgentPane }): React.JSX.Element {
 /** Popover de montaje; el color del perfil llega ya en tinta como variable. */
 export function PopoverMontaje({ m }: { m: ModeloAgentPane }): React.JSX.Element {
   const { p, montaje } = m
-  const textosBases = textosMontajeBases(p.esEspacioDeDatos, p.dbMounted.length)
+  const textosBases = textosMontajeBases(p.lugar, p.dbMounted.length)
   return (
     <div
       className="db-mount-pop"

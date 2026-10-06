@@ -53,6 +53,12 @@ These areas carry the security promises of Tessera. A weakness in any of them is
   agents query through `tdb` without receiving them. Read-only connections must stay
   read-only for agents. Leaking a password to an agent, bypassing read-only, or using the
   local bridge that `tdb` talks to from outside Tessera is a vulnerability.
+- **SSH connections and `tssh`.** Passwords and key passphrases are encrypted with the
+  system's secret store, keys are kept as a protected copy, and agents connect through `tssh`
+  without receiving them, only to servers whose fingerprint the user accepted. Leaking a
+  password or a key to an agent or to the logs, `tssh` reaching a connection that is not
+  available to agents or a destination other than the saved one, or a container making
+  Tessera write outside the bridge's mailbox is a vulnerability.
 - **The boundary between the interface and the main process.** The interface runs isolated
   and must never handle host paths. Path traversal outside a project, or a way for file
   content (Markdown, HTML, SVG, PDF, a decompiled class) to run code in the app, is a

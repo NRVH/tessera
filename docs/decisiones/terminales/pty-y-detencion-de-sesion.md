@@ -1,7 +1,7 @@
 # Todo pty se crea con la conpty.dll de node-pty, las paradas van de una en una y un reinicio descarta la cola del shell muerto
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/terminals/TerminalService.ts`, `terminals/colaMuertes.ts`, `terminals/lanzamientoPty.ts`, `terminals/adaptadores/pty.ts` y `terminals/TerminalController.ts`
+- **Ámbito:** `src/main/terminals/TerminalService.ts`, `terminals/paradaSesion.ts`, `terminals/colaMuertes.ts`, `terminals/lanzamientoPty.ts`, `terminals/adaptadores/pty.ts` y `terminals/TerminalController.ts`
 
 ## Contexto
 
@@ -26,6 +26,17 @@ renderer después de que este limpiara la pantalla y repinta un prompt viejo.
   (`onExit`) sí lo vuelca, para que el último output llegue antes del aviso.
 - `reloading` se limpia en un `finally` y toda espera tiene tope (`REAP_TIMEOUT_MS`): un `onExit`
   que no llega no puede dejar la sesión muda ni el reinicio colgado.
+- La entrada del renderer al pty se registra solo por tamaño: lo tecleado puede ser una contraseña.
+- La parada (`detenerSesion`: qué se puede detener, la promesa que hace esperar a un cierre o reinicio, el gesto y su
+  registro) vive en `paradaSesion.ts`; el kill de reserva sigue siendo un método del servicio, que una prueba neutraliza.
+- Con ConPTY, a veces `onExit` llega SIN código (`onExit({})`): node-pty emite la salida al cerrarse la tubería y, si se
+  cierra antes que el aviso nativo de fin, no tiene el código todavía. Una pestaña SSH que no conecta perdía su 255 y decía
+  «La sesión terminó (código undefined)» en vez de «No se pudo conectar». Se recupera sondeando el campo interno del agente de
+  node-pty (`codigoDeSalidaTardio`) hasta `CODIGO_TARDIO_TOPE_MS` (1 s, menor que `REAP_TIMEOUT_MS`) antes de anunciar nada;
+  si no aparece, el record queda con -1 y a quien escucha le llega ese mismo -1. Si entretanto la sesión se dio por muerta o ya
+  tiene otro pty, el código tardío no se aplica: sería de un proceso que ya no es el suyo.
+- El RELOAD de una sesión abierta (terminal y agente) espera al candado del borrado del perfil de esa sesión: relanzar a
+  mitad del borrado levantaría el contenedor de un perfil que se está borrando.
 
 ## Consecuencias
 
