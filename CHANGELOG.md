@@ -4,6 +4,20 @@ Todos los cambios relevantes de Tessera se documentan en este archivo. El format
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), y Tessera sigue el
 [versionado semántico](https://semver.org/lang/es/).
 
+## [0.75.0] - 2026-10-06
+
+- **Repositorios anidados en la vista de Git.** Una carpeta que no es un repositorio y agrupa
+  varios en subcarpetas (por área, por capa: `mensajeria/back/…`, `mensajeria/front/…`)
+  enseña ahora todos los que están hasta cuatro niveles por debajo, cada uno con sus cambios
+  e historial; preparar, descartar y hacer commit van al repositorio de cada archivo. No se
+  busca dentro de un repositorio ya encontrado, ni en dependencias, compilados o carpetas
+  ocultas.
+- **Los agentes saben qué es `tdb` aunque no haya bases montadas.** Todo agente que lanza
+  Tessera recibe un aviso corto de que `tdb` es el CLI de bases de datos; si le pides algo de
+  una base, mira las que hay con `tdb ls` o te pide que la montes.
+- **Seguridad**: un enlace dentro de la carpeta abierta ya no deja que Git opere, ni descarte
+  archivos, en un repositorio de fuera de ella.
+
 ## [0.74.0] - 2026-10-06
 
 - **Conexiones SSH en la terminal.** Cada espacio de trabajo guarda sus conexiones SSH con

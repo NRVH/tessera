@@ -90,8 +90,8 @@ export class WorkspaceService {
   }
 
   /**
-   * Escanea `projectHostPath` en busca de repos git de primer nivel (la raíz + subcarpetas
-   * directas). No activa ninguno; activar un repo detectado es un `setActiveProject` posterior.
+   * Escanea `projectHostPath` en busca de repos git (la raíz y los de dentro, ver `scanRepos`).
+   * No activa ninguno; activar un repo detectado es un `setActiveProject` posterior.
    */
   async scanRepos(req: ScanReposRequest): Promise<ScanReposResult> {
     const repos = await scanRepos(req.projectHostPath)

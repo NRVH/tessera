@@ -378,7 +378,11 @@ test.describe('actualizar los agentes nativos', () => {
     // a la misma.
     for (const agente of AGENTES) {
       for (const [proyecto, e] of vigentes(m, agente)) {
-        expect(e.argv, `${ETIQUETA[agente]} de ${proyecto} arrancó reanudando`).toEqual(argvReanudar(proyecto, agente))
+        const argv = e.argv ?? []
+        expect(argv.slice(0, 2), `${ETIQUETA[agente]} de ${proyecto} arrancó reanudando`).toEqual(argvReanudar(proyecto, agente))
+        // Detrás, solo el aviso de arranque: sin bases montadas, el corto que dice que `tdb` existe.
+        expect(argv.length, `${ETIQUETA[agente]} de ${proyecto}: reanudar y el aviso, nada más`).toBe(4)
+        expect(argv.slice(2).join(' '), `${ETIQUETA[agente]} de ${proyecto} sabe de tdb sin bases montadas`).toContain('tdb ls')
       }
     }
   })

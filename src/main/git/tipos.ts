@@ -30,7 +30,7 @@ export interface GitServiceOptions {
 /**
  * Un repo resuelto y listo para operar: dónde corre git (`root`) y cómo se traducen las
  * rutas entre el espacio del renderer (relativas a la CONTENEDORA) y el de git (relativas
- * al repo). Se resuelve por repo explícito o por la ruta de un archivo (su primer segmento).
+ * al repo). Se resuelve por repo explícito o por la ruta de un archivo (el repo de sus carpetas).
  */
 export interface RepoCtx {
   /** Raíz real del repo (cwd de git). Nunca cruza el IPC. */

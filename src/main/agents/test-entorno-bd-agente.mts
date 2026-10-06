@@ -13,6 +13,7 @@ import { buildAgentLaunchCommand } from './lineaArranqueAgente.ts'
 import {
   briefingBasesAgente,
   PRIMERA_LINEA_ESPACIO,
+  AVISO_SIN_BASES,
   PRIMERA_LINEA_PROYECTO,
   type ConexionAviso
 } from '../db/briefingAgente.ts'
@@ -293,6 +294,15 @@ hr('(9) El texto del aviso: proyecto sin cambios, espacio de datos sin «proyect
     '(9a) sin conexiones no hay aviso, en ninguno de los dos sitios',
     briefingBasesAgente([], false) === null && briefingBasesAgente([], true) === null,
     'null / null'
+  )
+  check(
+    '(9a-bis) el aviso sin bases nombra `tdb`, dice que no hay ninguna y manda a `tdb ls` y `tdb help`, sin dar ninguna por montada',
+    AVISO_SIN_BASES.includes('`tdb`') &&
+      AVISO_SIN_BASES.includes('no había ninguna montada') &&
+      AVISO_SIN_BASES.includes('`tdb ls`') &&
+      AVISO_SIN_BASES.includes('`tdb help`') &&
+      !AVISO_SIN_BASES.includes(PRIMERA_LINEA_PROYECTO),
+    AVISO_SIN_BASES.split('\n')[0]
   )
 
   const proyecto = briefingBasesAgente(CONEXIONES, false)

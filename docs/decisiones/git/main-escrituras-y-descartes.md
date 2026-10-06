@@ -27,7 +27,10 @@ Un fallo aquí borra o reescribe trabajo del usuario: ninguna de estas guardas e
 - **Ni el explorador ni el panel ofrecen descartar en conflicto** (`enConflicto`: eje `U`, AA o DD).
 - **Ignorar no saca de la lista a lo rastreado** (va a `omitidos`). El universo de una carpeta
   «entera» viene de `ls-files --cached --others`; si falla, no colapsar (ignorar de menos).
-- Un repo pedido por el renderer solo vale si es la contenedora o un hijo directo con `.git`.
+- Un repo pedido por el renderer solo vale si es la contenedora o uno de los que ofrece el escaneo
+  (`shared/reposAnidados.ts`): con `.git`, dentro de la profundidad, sin bajar por carpetas
+  excluidas y sin otro repo por encima. El repo dueño de una ruta se decide con la misma regla, así
+  que el main nunca opera en un repo que la vista de git no enseña.
 - El canal `COMMIT` no tiene consumidor en la interfaz; se conserva porque lo recorre `test:git-stage`.
 
 ## Descartes

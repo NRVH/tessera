@@ -1,12 +1,16 @@
 // =============================================================================
 // ¿Puede esta ráfaga del watcher haber cambiado la lista de repos de la contenedora?
-// `scanRepos` solo mira el `.git` de la raíz y el de sus subcarpetas DIRECTAS: cuentan una
-// entrada de primer nivel, `.git/...` y `repo/.git/...`; lo demás es ruido, por hondo que sea.
+// `scanRepos` solo mira el `.git` de la raíz y el de las carpetas hasta `PROFUNDIDAD_REPOS`: cuentan
+// una entrada de primer nivel y un `.git` a esa profundidad (`.git/...`, `repo/.git/...`,
+// `area/capa/repo/.git/...`); lo demás es ruido, por hondo que sea.
 // No es una optimización opcional: el antirrebote del renderer (400 ms) es menor que el
 // hueco entre eventos del main (600 ms), y sin el filtro cada evento de un build relanzaba
 // un escaneo de ~1000 `stat` con la carpeta padre de todos los proyectos abierta.
 // Con `parcial: true` no se puede decidir y se re-escanea. Puro, para probarlo con `node`.
 // =============================================================================
+
+import { PROFUNDIDAD_REPOS } from './reposAnidados.ts'
+
 export interface RafagaWatcher {
   /** Rutas POSIX relativas a la raíz activa. Puede venir truncada: ver `parcial`. */
   paths: readonly string[]
@@ -14,7 +18,7 @@ export interface RafagaWatcher {
   parcial: boolean
 }
 
-/** ¿Una ruta relativa concreta puede alterar la lista de repos de primer nivel? */
+/** ¿Una ruta relativa concreta puede alterar la lista de repos? */
 export function rutaAfectaRepos(rutaPosix: string): boolean {
   // Normalización defensiva: el contrato dice POSIX relativo, pero una barra
   // inicial o final colada convertiría el primer segmento en "" y nos haría
@@ -27,15 +31,14 @@ export function rutaAfectaRepos(rutaPosix: string): boolean {
   // lista (un `git clone` recién terminado, un `rm -rf` de un repo). Esta es la
   // rama por la que pasa el tráfico real de `files:changed`.
   if (partes.length === 1) return true
-  // `.git` de la raíz, o `.git` de una subcarpeta directa: es LITERALMENTE lo que
-  // decide si algo es un repo.
+  // `.git` de la raíz, o de una carpeta dentro de la profundidad del escaneo: es
+  // LITERALMENTE lo que decide si algo es un repo.
   // DEFENSIVAS: hoy ninguna ruta con `.git` llega por `files:changed` (el clasificador
   // de `FileService` la desvía antes, y la cubre `files:gitChanged`, que va sin filtrar).
   // Se dejan porque la respuesta no depende del canal: si mañana el clasificador deja
   // pasar un `.git`, el filtro tiene que seguir siendo correcto.
-  if (partes[0] === '.git') return true
-  if (partes[1] === '.git') return true
-  return false
+  const iGit = partes.indexOf('.git')
+  return iGit >= 0 && iGit <= PROFUNDIDAD_REPOS
 }
 
 /** ¿Hay que re-escanear los repos por esta ráfaga? */

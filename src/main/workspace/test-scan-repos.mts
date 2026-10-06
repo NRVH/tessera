@@ -3,7 +3,8 @@
 // Prueba de `scanRepos()` (npm run test:scan) contra fixtures desechables en el temporal del SO.
 // No necesita `git`: la detección es «existe `<dir>/.git`», así que se crea esa estructura mínima.
 // Cubre: contenedor con varios repos hijos, carpeta que es un repo, repo con repos hijos, carpeta
-// sin repos, subcarpetas sin `.git`, y `.git` como ARCHIVO (worktree) además de como directorio.
+// sin repos, subcarpetas sin `.git`, `.git` como ARCHIVO (worktree) además de como directorio, y
+// repos anidados en carpetas que agrupan (con lo que no se recorre).
 // =============================================================================
 
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, realpathSync } from 'node:fs'
@@ -204,6 +205,46 @@ async function main(): Promise<void> {
         repos.length === 1 && repos[0].isRoot === true && repos[0].name === 'rootWorktree',
         JSON.stringify(repos)
       )
+    }
+
+    // -----------------------------------------------------------------------
+    // (h) Carpeta que NO es repo con repos agrupados por área y por capa, a 2 y 3 niveles.
+    //     Ni se entra en un repo ya encontrado, ni en dependencias, ni en ocultas, ni más hondo
+    //     que PROFUNDIDAD_REPOS.
+    // -----------------------------------------------------------------------
+    hr('CASO (h) repos anidados en una carpeta que no es repo')
+    const areas = path.join(base, 'areas')
+    makeRepoDir(path.join(areas, 'herramientas', 'finalizador'))
+    makeRepoDir(path.join(areas, 'herramientas', 'finalizador', 'sub', 'interno')) // dentro de un repo: no
+    makeRepoDir(path.join(areas, 'mensajeria', 'back', 'java-mensajeria'))
+    makeRepoDir(path.join(areas, 'mensajeria', 'front', 'react-mensajeria'))
+    makePlainDir(path.join(areas, 'referencias'))
+    makeRepoDir(path.join(areas, 'node_modules', 'paquete')) // dependencias: no se baja
+    makeRepoDir(path.join(areas, '.idea', 'oculto')) // oculta: no se baja
+    makeRepoDir(path.join(areas, 'uno', 'dos', 'tres', 'cuatro')) // nivel 4: sí
+    makeRepoDir(path.join(areas, 'a', 'b', 'c', 'd', 'cinco')) // nivel 5: no
+    makeRepoDir(path.join(areas, 'build')) // un repo en primer nivel cuenta aunque se llame así
+    {
+      const repos = await scanRepos(areas)
+      const rels = repos.map((r) => path.relative(areas, r.repoHostPath).split(path.sep).join('/'))
+      check(
+        '(h) detecta los de 2, 3 y 4 niveles, ordenados por ruta, y nada de dentro de repos, dependencias, ocultas ni más hondo',
+        JSON.stringify(rels) ===
+          JSON.stringify(['build', 'herramientas/finalizador', 'mensajeria/back/java-mensajeria', 'mensajeria/front/react-mensajeria', 'uno/dos/tres/cuatro']) &&
+          repos.every((r) => !r.isRoot),
+        JSON.stringify(rels)
+      )
+      const java = repos.find((r) => r.name === 'java-mensajeria')
+      check('(h) el nombre es el de la carpeta del repo', !!java && java.repoHostPath === path.join(areas, 'mensajeria', 'back', 'java-mensajeria'), String(java?.repoHostPath))
+    }
+    // (h-bis) una raíz que ES repo sigue mirando solo sus hijos directos (no cuesta un recorrido por proyecto).
+    const repoConNietos = path.join(base, 'repoConNietos')
+    makeRepoDir(repoConNietos)
+    makeRepoDir(path.join(repoConNietos, 'hijo'))
+    makeRepoDir(path.join(repoConNietos, 'libs', 'nieto'))
+    {
+      const repos = await scanRepos(repoConNietos)
+      check('(h-bis) raíz que es repo: raíz + hijos directos, sin nietos', JSON.stringify(names(repos)) === JSON.stringify(['hijo', 'repoConNietos']), JSON.stringify(names(repos)))
     }
 
     // -----------------------------------------------------------------------

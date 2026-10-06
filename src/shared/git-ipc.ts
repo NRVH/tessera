@@ -437,8 +437,8 @@ export interface WorkingChange {
 /**
  * Petición del estado de VARIOS repos a la vez. `repos` son `repoHostPath` de
  * `DetectedRepo` (identificadores OPACOS que el renderer ya maneja). El main los
- * VALIDA contra la contenedora activa: solo acepta la propia contenedora o una
- * subcarpeta directa suya que sea repo, así que este parámetro no es una vía para
+ * VALIDA contra la contenedora activa: solo acepta la propia contenedora o un repo
+ * de los que ofrece el escaneo (`shared/reposAnidados.ts`), así que este parámetro no es una vía para
  * correr git en una carpeta arbitraria del host.
  */
 export interface MultiStatusRequest {

@@ -55,7 +55,19 @@ check(
   'rutaAfectaRepos("un-worktree/.git") = true'
 )
 
+check(
+  'DEFENSIVO: el .git de un repo anidado dentro de la profundidad del escaneo',
+  rutaAfectaRepos('area/capa/repo/.git/HEAD') && rutaAfectaRepos('uno/dos/tres/cuatro/.git'),
+  'rutaAfectaRepos("area/capa/repo/.git/HEAD") = true'
+)
+
 hr('RUTAS QUE NO afectan (el ruido que causaba el bucle)')
+
+check(
+  'un .git más hondo que la profundidad del escaneo',
+  !rutaAfectaRepos('a/b/c/d/e/.git/HEAD'),
+  'rutaAfectaRepos("a/b/c/d/e/.git/HEAD") = false'
+)
 
 check(
   'output de build a tres niveles: el caso real de mvn package',

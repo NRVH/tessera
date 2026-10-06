@@ -254,6 +254,18 @@ export function usuarioODialecto(c: Pick<DbConnection, 'motor' | 'user' | 'auten
 export const REGLA_PRODUCCION =
   'Las marcadas PRODUCCIÓN: no escribas en ellas (INSERT, UPDATE, DELETE, DDL, COMMIT…) salvo que el usuario te lo pida explícitamente.'
 
+/**
+ * El aviso sin ninguna base montada. `tdb` está igual en el PATH, y sin este aviso el agente no sabe
+ * qué es cuando el usuario lo nombra o le pide algo de una base. Dice que ahora no hay ninguna para
+ * que no se ponga a buscarlas, y cómo comprobarlo, porque se montan en caliente.
+ */
+export const AVISO_SIN_BASES = [
+  'Tessera te da `tdb`, su CLI de bases de datos: consulta las bases que el usuario monte en esta sesión,',
+  'sin pedir contraseñas (las pone Tessera). Al arrancar no había ninguna montada; el usuario las monta',
+  'desde Tessera y aparecen en caliente. Si te pide algo de una base o nombra `tdb`, ejecuta `tdb ls` para',
+  'ver las que hay AHORA y `tdb help` para los comandos; si no hay ninguna, pídele que la monte en Tessera.'
+].join('\n')
+
 /** Primera línea en el agente de un PROYECTO (el texto de siempre). */
 export const PRIMERA_LINEA_PROYECTO = 'Tienes bases de datos montadas en este proyecto, consultables con `tdb`.'
 /** Primera línea en el agente del ESPACIO DE DATOS (vista Bases de datos). */

@@ -101,7 +101,7 @@ export async function agruparPorRepo(
 ): Promise<{ grupos: GrupoRepo[]; invalidas: RutaInvalida[] }> {
   const invalidas: RutaInvalida[] = []
   const grupos = new Map<string, GrupoRepo>()
-  const ctxPorSegmento = new Map<string, RepoCtx | null>()
+  const ctxPorCarpeta = new Map<string, RepoCtx | null>()
   const vistas = new Set<string>()
 
   for (const original of paths.slice(0, MAX_RUTAS_LOTE)) {
@@ -113,9 +113,12 @@ export async function agruparPorRepo(
     if (vistas.has(rel)) continue
     vistas.add(rel)
 
-    const seg = rel.split('/')[0]
-    if (!ctxPorSegmento.has(seg)) ctxPorSegmento.set(seg, await n.ctxForPath(rel))
-    const ctx = ctxPorSegmento.get(seg) ?? null
+    // El repo lo deciden las carpetas de la ruta, así que se resuelve una vez por carpeta. En la
+    // raíz cuenta la propia entrada, que puede ser la carpeta de un repo.
+    const carpeta = rel.slice(0, Math.max(0, rel.lastIndexOf('/')))
+    const clave = carpeta === '' ? rel : carpeta
+    if (!ctxPorCarpeta.has(clave)) ctxPorCarpeta.set(clave, await n.ctxForPath(clave))
+    const ctx = ctxPorCarpeta.get(clave) ?? null
     if (!ctx) {
       invalidas.push({ path: original, error: 'No hay repositorio para esta ruta.' })
       continue

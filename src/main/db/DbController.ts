@@ -29,7 +29,7 @@ import type { APapelera } from '../util/carpetaDePerfil'
 import type { EmisorEventos } from '../util/emisorEventos'
 import type { ConnectionStore } from './ConnectionStore'
 import type { DriverManager } from './DriverManager'
-import { briefingBasesAgente } from './briefingAgente'
+import { AVISO_SIN_BASES, briefingBasesAgente } from './briefingAgente'
 import { escribirAtajos } from './controlador/atajosTdb'
 import { EdicionRegistro, sinRutasDelHost, type GanchosConexion } from './controlador/edicionRegistro'
 import { EspacioDatos } from './controlador/espacioDatos'
@@ -381,14 +381,16 @@ export class DbController {
   }
 
   /**
-   * Texto que se añade al system prompt del agente al arrancar para que sepa qué bases tiene montadas;
-   * `null` si no hay ninguna. Va por la línea de arranque y no por un archivo en el repo del usuario.
+   * Texto que se añade al system prompt del agente al arrancar para que sepa qué bases tiene montadas, o,
+   * sin ninguna, que `tdb` existe. Va por la línea de arranque y no por un archivo en el repo del usuario.
    */
   briefingParaAgente(profileId: string, projectHostPath: string, connectionIds: string[]): string | null {
     const validas = connectionIds
       .map((id) => this.connections.get(id))
       .filter((c): c is DbConnection => Boolean(c) && c!.profileId === profileId)
-    return briefingBasesAgente(validas, this.espacio.esEspacioDeDatos(profileId, projectHostPath))
+    const conBases = briefingBasesAgente(validas, this.espacio.esEspacioDeDatos(profileId, projectHostPath))
+    // Sin bases, el aviso corto de que `tdb` existe; sin puente, `tdb` no podría atender y no se anuncia.
+    return conBases ?? (this.puente.listo ? AVISO_SIN_BASES : null)
   }
 
   // --- Lo que atiende `ipc.ts` -------------------------------------------------

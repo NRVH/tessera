@@ -11,11 +11,11 @@
 
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { generateKeyPairSync } from 'node:crypto'
-import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { montarAgenteFalso } from './agenteFalso'
 import { BANNER_FALSO, HOST_QUE_FALLA, HUELLA_FALSA, HUELLA_NUEVA_FALSA, montarSshFalso, type SshFalso } from './sshFalso'
-import { abrirTessera, borrarTemporal, MOD, type SesionTessera } from './tessera'
+import { abrirTessera, borrarTemporal, MOD, PLATAFORMA, type SesionTessera } from './tessera'
 
 interface Montaje {
   raiz: string
@@ -406,9 +406,12 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     await expect(dialogo, 'Intro en la lista no cierra ni envía el formulario').toBeVisible()
     await expect(c.alias, 'ni marca lo que falta').not.toHaveAttribute('aria-invalid', 'true')
 
-    // Intro con el selector cerrado la abre; escribir salta a la opción que empieza así; Esc la cierra SOLO a ella.
-    await win.keyboard.press('Enter')
-    await expect.poll(abierta, { message: 'Intro abre la lista' }).toBe(true)
+    // La tecla que abre el selector cerrado es la del sistema: Intro en Windows y Espacio en macOS, donde
+    // Chromium no lo abre con Intro (como Safari y el sistema). Escribir salta a la opción que empieza así;
+    // Esc la cierra SOLO a ella.
+    const teclaAbrir = PLATAFORMA === 'mac' ? 'Space' : 'Enter'
+    await win.keyboard.press(teclaAbrir)
+    await expect.poll(abierta, { message: `${teclaAbrir} abre la lista` }).toBe(true)
     await win.keyboard.type(grupos[2].slice(0, 3))
     await expect.poll(enfocada, { message: 'escribir salta a la opción que empieza así' }).toBe(grupos[2])
     await win.keyboard.press('Escape')
@@ -865,7 +868,9 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     expect(argv).toContain('PreferredAuthentications=publickey')
     expect(argv, 'sin «-i»').not.toContain('-i')
     const copia = (identidad ?? '').slice('IdentityFile="'.length, -1)
-    expect(copia.replace(/\\/g, '/').startsWith(s.datos.replace(/\\/g, '/')), 'la copia vive en userData').toBe(true)
+    // Rutas reales a los dos lados: en macOS el temporal es `/var/...`, un enlace a `/private/var/...`.
+    const enDatos = realpathSync(copia).replace(/\\/g, '/').startsWith(realpathSync(s.datos).replace(/\\/g, '/'))
+    expect(enDatos, `la copia vive en userData (${copia})`).toBe(true)
     expect(readFileSync(copia, 'utf8'), 'copia normalizada (LF)').toBe(pem)
     expect({ texto: readFileSync(privada, 'utf8'), mtime: statSync(privada).mtimeMs }, 'el original no se toca').toEqual(original)
 

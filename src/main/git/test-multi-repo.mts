@@ -8,7 +8,7 @@
 
 import { execFileSync } from 'node:child_process'
 import { register } from 'node:module'
-import { mkdtempSync, mkdirSync, writeFileSync, existsSync, rmSync, realpathSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, existsSync, rmSync, realpathSync, symlinkSync } from 'node:fs'
 import * as os from 'node:os'
 import path from 'node:path'
 import type { RepoStatus } from '../../shared/git-ipc.ts'
@@ -281,6 +281,52 @@ try {
     `descartar un untracked del front lo borra del front -> ok=${discard.ok} untracked=${discard.wasUntracked}`
   )
   check('5b', existsSync(path.join(back, 'src', 'api.py')), 'el back sigue intacto tras el descarte')
+
+  hr('7. Repos anidados: una carpeta que agrupa repos por área y por capa')
+
+  // contenedora/area/capa/anidado es un repo a 3 niveles, como el que ofrece el escaneo.
+  const anidado = path.join(container, 'area', 'capa', 'anidado')
+  initRepo(anidado, 'main')
+  writeFileSync(path.join(anidado, 'src', 'a.txt'), 'v1\n')
+  writeFileSync(path.join(anidado, 'src', 'b.txt'), 'v1\n')
+  git(anidado, ['add', '-A'])
+  git(anidado, ['commit', '-qm', 'anidado: inicial'])
+  writeFileSync(path.join(anidado, 'src', 'a.txt'), 'v2\n')
+  writeFileSync(path.join(anidado, 'src', 'b.txt'), 'v2\n')
+  const sAnidado = (await svc.multiStatus([anidado]))[0]
+  check(
+    '7a',
+    JSON.stringify(sAnidado?.changes.map((c) => c.path).sort()) === JSON.stringify(['area/capa/anidado/src/a.txt', 'area/capa/anidado/src/b.txt']),
+    `multiStatus del anidado, con su ruta desde la contenedora -> ${JSON.stringify(sAnidado?.changes.map((c) => c.path))}`
+  )
+  const stageAnidado = await svc.stageFile('area/capa/anidado/src/a.txt')
+  const trasStage = (await svc.multiStatus([anidado]))[0]?.changes.find((c) => c.path === 'area/capa/anidado/src/a.txt')
+  check('7b', stageAnidado.ok && trasStage?.indexStatus === 'M', `stageFile por ruta va al repo anidado -> ok=${stageAnidado.ok} index="${trasStage?.indexStatus}"`)
+  const lote = await svc.stageFiles(['area/capa/anidado/src/b.txt', 'front/src/panel.tsx'])
+  const bLote = (await svc.multiStatus([anidado]))[0]?.changes.find((c) => c.path === 'area/capa/anidado/src/b.txt')
+  check('7c', lote.every((r) => r.ok) && bLote?.indexStatus === 'M', `un lote reparte cada ruta a su repo -> ${JSON.stringify(lote.map((r) => r.ok))}`)
+  const histAnidado = await svc.fileHistory('area/capa/anidado/src/a.txt')
+  check('7d', histAnidado.repoHostPath === anidado, `fileHistory resuelve el repo anidado -> "${path.basename(histAnidado.repoHostPath)}"`)
+  // Uno dentro de un repo y otro dentro de dependencias: el escaneo no los ofrece, y el main tampoco.
+  const dentroDeRepo = path.join(anidado, 'libs', 'interno')
+  initRepo(dentroDeRepo, 'main')
+  const enDependencias = path.join(container, 'node_modules', 'paquete')
+  initRepo(enDependencias, 'main')
+  check('7e', (await svc.multiStatus([dentroDeRepo])).length === 0, 'un repo DENTRO de un repo anidado no se ofrece')
+  check('7f', (await svc.multiStatus([enDependencias])).length === 0, 'un repo dentro de node_modules no se ofrece')
+
+  hr('8. Un enlace intermedio no lleva a un repo de fuera de la contenedora')
+
+  // contenedora/enlace -> tmp/fuera, y tmp/fuera/r es un repo: el escaneo no baja por enlaces,
+  // así que el main tampoco puede correr git ni descartar en él. (`junction` en Windows no pide permisos.)
+  const fuera = path.join(tmp, 'fuera')
+  const repoFuera = path.join(fuera, 'r')
+  initRepo(repoFuera, 'main')
+  writeFileSync(path.join(repoFuera, 'suelto.txt'), 'no borrar\n')
+  symlinkSync(fuera, path.join(container, 'enlace'), 'junction')
+  check('8a', (await svc.multiStatus([path.join(container, 'enlace', 'r')])).length === 0, 'multiStatus rechaza el repo de fuera a través del enlace')
+  const descarteFuera = await svcConfirm.discardChanges('enlace/r/suelto.txt')
+  check('8b', existsSync(path.join(repoFuera, 'suelto.txt')), `descartar a través del enlace no borra nada fuera -> ${JSON.stringify(descarteFuera)}`)
 
   hr(`VEREDICTO: ${passed}/${passed + failed} PASS — ${failed === 0 ? 'TODO PASS' : 'HAY FAIL'}`)
   if (failed > 0) process.exitCode = 1

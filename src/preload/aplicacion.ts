@@ -74,8 +74,8 @@ export interface WorkspaceApi {
    */
   setFilesRoot: (projectHostPath: string) => Promise<SetFilesRootResult>
   /**
-   * Escanea `projectHostPath` en busca de repos git de primer nivel (la raíz +
-   * subcarpetas directas). No activa ninguno; `repos` puede ser una lista
+   * Escanea `projectHostPath` en busca de repos git (la raíz y los que cuelgan
+   * de ella). No activa ninguno; `repos` puede ser una lista
    * vacía si la carpeta no contiene repos.
    */
   scanRepos: (projectHostPath: string) => Promise<ScanReposResult>

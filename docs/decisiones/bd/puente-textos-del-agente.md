@@ -6,11 +6,16 @@
 ## Contexto
 
 El agente no tiene otra forma de saber cómo funcionan las bases que estos textos: el bloque gestionado del
-`CLAUDE.md`/`AGENTS.md` del espacio de datos y el aviso de arranque de cualquier agente con bases montadas.
+`CLAUDE.md`/`AGENTS.md` del espacio de datos y el aviso de arranque de cualquier agente lanzado por Tessera.
 Cambiarlos cambia su conducta; los fijan `test-agent-memory` y `test-entorno-bd-agente` al carácter.
 
 ## Decisión
 
+- Sin ninguna base montada, el aviso de arranque no se omite: va uno corto (`AVISO_SIN_BASES`) que dice que
+  `tdb` existe, que al arrancar no había ninguna y que se comprueba con `tdb ls` y `tdb help`. `tdb` está en el
+  PATH de todo agente lanzado por Tessera, y sin aviso el agente no sabía qué era cuando el usuario lo nombraba.
+  Dice «no había ninguna» para que no se ponga a buscarlas, y lo que hay ahora lo da `tdb ls`, porque se montan
+  en caliente. Sin puente no se anuncia: `tdb` no podría atender.
 - La tabla es el catálogo del perfil, no la lista de lo consultable: el agente ve solo lo montado, y el texto lo
   manda a `tdb ls` (lo vigente, el montaje cambia en caliente) y a pedir que le monten la que falte. Sin decirlo,
   diagnosticaría una avería que no existe cuando `tdb` falle.

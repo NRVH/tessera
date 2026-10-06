@@ -6,7 +6,7 @@
 // =============================================================================
 
 import * as path from 'node:path'
-import { statSync } from 'node:fs'
+import { lstatSync, statSync } from 'node:fs'
 import { KeyedMutex } from '../util/mutex'
 import type { EmisorEventos } from '../util/emisorEventos'
 import { normalizarRelativaProyecto } from '../../shared/rutasHost'
@@ -19,8 +19,47 @@ import {
   type Prioridad
 } from './adaptadores/procesoGit'
 import { errMessage } from './errores'
-import { derivePrefixes } from './rutasRepo'
+import { derivePrefixes, isOutward, toPosixRel } from './rutasRepo'
+import { rutaPuedeSerRepo } from '../../shared/reposAnidados'
 import type { GitServiceOptions, RepoCtx } from './tipos'
+
+/** ¿Existe `<dir>/.git` (directorio o archivo)? */
+function tieneGit(dir: string): boolean {
+  try {
+    statSync(path.join(dir, '.git'))
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** ¿`dir` es una carpeta de verdad, no un enlace (symlink o junction)? */
+function esCarpetaReal(dir: string): boolean {
+  try {
+    const st = lstatSync(dir)
+    return st.isDirectory() && !st.isSymbolicLink()
+  } catch {
+    return false
+  }
+}
+
+/**
+ * El primer repo bajando por `segmentos` desde `contenedora`, con las reglas del escaneo: hasta su
+ * profundidad, sin bajar por carpetas excluidas ni por enlaces (llevarían fuera de la contenedora)
+ * y sin pasar de un repo a otro de dentro. El repo en sí puede ser un enlace, como en el escaneo.
+ * `null` si no hay.
+ */
+function repoDentroDe(contenedora: string, segmentos: readonly string[]): string | null {
+  const abiertaEsRepo = tieneGit(contenedora)
+  for (let i = 1; i <= segmentos.length; i++) {
+    const tramo = segmentos.slice(0, i)
+    if (!rutaPuedeSerRepo(tramo, abiertaEsRepo)) return null
+    const candidato = path.resolve(contenedora, ...tramo)
+    if (tieneGit(candidato)) return candidato
+    if (i < segmentos.length && !esCarpetaReal(candidato)) return null
+  }
+  return null
+}
 
 /** Estado y resolución de repos de `GitService`; las operaciones lo reciben como `n`. */
 export class NucleoGit {
@@ -117,7 +156,7 @@ export class NucleoGit {
   /**
    * Contexto de un repo pedido por el renderer (`repoHostPath`); sin él, el activo. Es la
    * ÚNICA puerta por la que el renderer influye en dónde corre git: solo vale la contenedora
-   * o un hijo directo con `.git`, o el proyecto (monorepo, resuelto por `activeCtx`); si no,
+   * o un repo de los que ofrece el escaneo (`isAllowedRepo`), o el proyecto (monorepo, resuelto por `activeCtx`); si no,
    * `null`.
    */
   async ctxForRepo(repoHostPath?: string): Promise<RepoCtx | null> {
@@ -130,37 +169,32 @@ export class NucleoGit {
   }
 
   /**
-   * Contexto del repo DUEÑO de una ruta contenedora-relativa: el primer segmento decide si
-   * `<contenedora>/<segmento>` es un repo; si no, el repo activo.
+   * Contexto del repo DUEÑO de una ruta contenedora-relativa: el primer repo que se encuentra
+   * bajando por sus carpetas (el mismo que ofrece el escaneo); si no hay, el repo activo.
    */
   async ctxForPath(relPosix: string): Promise<RepoCtx | null> {
     // Misma normalización que FileService: `\` solo es separador en Windows.
     const rel = normalizarRelativaProyecto(relPosix)
-    const seg = rel.split('/')[0]
-    if (this.containerPath !== null && seg) {
-      const candidate = path.resolve(this.containerPath, seg)
-      if (this.isAllowedRepo(candidate)) return this.ctxFor(candidate)
+    if (this.containerPath !== null && rel) {
+      const dueno = repoDentroDe(this.containerPath, rel.split('/'))
+      if (dueno !== null) return this.ctxFor(dueno)
     }
     return this.activeCtx()
   }
 
   /**
-   * ¿`root` es un repo que esta contenedora puede ofrecer? La contenedora misma o un hijo
-   * DIRECTO, con `.git` (directorio o archivo). Sin `.git` git emitiría rutas relativas a un
-   * ancestro y la traducción quedaría desplazada: esos casos caen a `activeCtx`.
+   * ¿`root` es un repo que esta contenedora puede ofrecer? La contenedora misma, o el repo que
+   * ofrece el escaneo para esa ruta (`shared/reposAnidados.ts`): con `.git` (directorio o archivo)
+   * y sin otro repo por encima dentro de la contenedora. Sin `.git` git emitiría rutas relativas a
+   * un ancestro y la traducción quedaría desplazada: esos casos caen a `activeCtx`.
    */
   private isAllowedRepo(root: string): boolean {
     const container = this.containerPath ?? this.projectRoot
     if (container === null) return false
-    const isContainer = root === container
-    const isDirectChild = path.dirname(root) === container
-    if (!isContainer && !isDirectChild) return false
-    try {
-      statSync(path.join(root, '.git'))
-      return true
-    } catch {
-      return false
-    }
+    if (root === container) return tieneGit(root)
+    const rel = path.relative(container, root)
+    if (rel === '' || isOutward(toPosixRel(rel))) return false
+    return repoDentroDe(container, toPosixRel(rel).split('/')) === root
   }
 
   /** Ejecuta git en la raíz del repo `ctx` por la cola global (ver `procesoGit`). */

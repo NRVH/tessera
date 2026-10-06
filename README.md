@@ -248,7 +248,9 @@ el que entraste.
 - **Historial** con su grafo de ramas, filtros, el detalle de cada commit y el historial de
   un solo archivo.
 - **Diffs editables**: corrige algo directamente en el diff de tu copia de trabajo.
-- **Varios repositorios** en una misma carpeta de proyecto: eliges cuál enseña el historial.
+- **Varios repositorios** en una misma carpeta de proyecto, también agrupados en subcarpetas
+  por área o por capa (hasta cuatro niveles): cada uno con sus cambios, y eliges cuál enseña
+  el historial.
 
 ### Terminales
 
