@@ -187,7 +187,7 @@ export class Estado {
         const prioridad = urgentes.has(repo) ? PRIORIDAD.VISIBLE : PRIORIDAD.FONDO
         try {
           // UN proceso por repo: `--branch` hace que `status` emita la rama en su cabecera.
-          const status: RepoStatus = { repo, ...(await this.statusIn(ctx, prioridad, ambito, vigente)) }
+          const status: RepoStatus = { repo, prefijo: ctx.prefix, ...(await this.statusIn(ctx, prioridad, ambito, vigente)) }
           emitir(status)
           return status
         } catch (err) {

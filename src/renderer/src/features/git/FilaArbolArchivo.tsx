@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef } from 'react'
 import { PREFETCH_HOVER_MS } from './modelo/blobCache'
 import { statusClass } from './modelo/statusBadge'
 import { dirOf, nameOf } from './modelo/rutasArchivo'
+import { rutaEnRepo } from './modelo/seccionesCambios'
 import type { EstadoMarca, FilaArbol, NodoArchivo } from './modelo/arbolArchivos'
 import { ANCHO_CHEVRON, ChevronArbol, IconoCarpeta } from '../../comun/iconosArbol'
 import { FileTypeIcon } from '../../comun/fileIcons'
@@ -17,6 +18,8 @@ import { Casilla } from './Casilla'
 
 const SANGRIA_BASE = 8
 const SANGRIA_NIVEL = 12
+/** Lo que se sangra un archivo bajo la cabecera de su repo: su casilla queda por dentro de la del repo. */
+const SANGRIA_EN_REPO = ANCHO_CHEVRON + 10
 
 export interface FilaArbolArchivoProps {
   fila: FilaArbol
@@ -48,6 +51,11 @@ export interface FilaArbolArchivoProps {
   idFila?: string
   /** Sustituye el tooltip que la fila arma sola (las entradas de un archivo comprimido). */
   titulo?: string
+  /**
+   * Lista plana DENTRO de un repo de la lista de varios: la fila se sangra bajo el nombre del repo y
+   * su carpeta en gris se cuenta desde el repo, sin esta carpeta (la del repo en la contenedora).
+   */
+  repo?: { prefijo: string | undefined }
 }
 
 /** La fila de archivo o carpeta de git, en modo árbol (commit) o lista plana (Cambios). */
@@ -68,7 +76,7 @@ export function FilaArbolArchivo(props: FilaArbolArchivoProps): React.JSX.Elemen
       role={rol}
       aria-selected={rol === 'option' ? seleccionada : undefined}
       tabIndex={enfocable ? 0 : undefined}
-      style={{ paddingLeft: sangria(plana, profundidad) }}
+      style={{ paddingLeft: sangria(plana, profundidad, props.repo !== undefined) }}
       onClick={activarFila}
       onDoubleClick={esCarpeta ? undefined : onAbrir}
       onMouseEnter={onPrefetch && !esCarpeta ? () => programarPrefetch(onPrefetch) : undefined}
@@ -81,7 +89,7 @@ export function FilaArbolArchivo(props: FilaArbolArchivoProps): React.JSX.Elemen
       {huecoDeChevron(nodo, plana, expandida)}
       {esCarpeta ? <IconoCarpeta abierto={expandida} /> : <FileTypeIcon name={nodo.nombre} />}
       {etiquetaDeNodo(nodo)}
-      {plana && carpetaEnGris(nodo)}
+      {plana && carpetaEnGris(nodo, props.repo)}
       {nodo.tipo === 'carpeta' && <span className="git-arbol-conteo">{nodo.archivos}</span>}
     </div>
   )
@@ -101,8 +109,9 @@ function claseFila(seleccionada: boolean, activa: boolean): string {
   return `git-arbol-fila${seleccionada ? ' selected' : ''}${activa ? ' active' : ''}`
 }
 
-function sangria(plana: boolean, profundidad: number): number {
-  return plana ? SANGRIA_BASE : SANGRIA_BASE + profundidad * SANGRIA_NIVEL
+function sangria(plana: boolean, profundidad: number, enRepo: boolean): number {
+  const base = plana ? SANGRIA_BASE : SANGRIA_BASE + profundidad * SANGRIA_NIVEL
+  return enRepo ? base + SANGRIA_EN_REPO : base
 }
 
 // Clic derecho = seleccionar (solo archivos) + menú.
@@ -130,9 +139,12 @@ function casillaDeFila(
 }
 
 // La carpeta del archivo, en gris y detrás del nombre: devuelve lo que la lista plana quita del árbol.
-function carpetaEnGris(nodo: NodoArchivo): React.JSX.Element | null {
-  if (nodo.tipo !== 'archivo' || dirOf(nodo.ruta) === '') return null
-  return <span className="git-arbol-carpeta">{dirOf(nodo.ruta)}</span>
+// Dentro de un repo se cuenta desde él: la carpeta del repo ya la dice su cabecera.
+function carpetaEnGris(nodo: NodoArchivo, repo: FilaArbolArchivoProps['repo']): React.JSX.Element | null {
+  if (nodo.tipo !== 'archivo') return null
+  const carpeta = dirOf(rutaEnRepo(nodo.ruta, repo?.prefijo))
+  if (carpeta === '') return null
+  return <span className="git-arbol-carpeta">{carpeta}</span>
 }
 
 // Debounce del hover: solo precalienta si el ratón se queda; salir antes lo cancela

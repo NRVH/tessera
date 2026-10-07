@@ -246,8 +246,8 @@ you used to enter it.
   file.
 - **Editable diffs**: fix something directly in the diff of your working copy.
 - **Several repositories** in one project folder, also grouped in subfolders by area or by
-  layer (up to four levels deep): each with its own changes, and you pick which one the
-  history shows.
+  layer (up to four levels deep): Changes shows only the ones with changes, each with a
+  checkbox to select it whole, and you pick which one the history shows.
 
 ### Terminals
 

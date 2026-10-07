@@ -13,12 +13,17 @@ import { contarItems } from './estadoRepos.ts'
 import {
   agruparMarcadas,
   alturaSeccionExpandida,
+  clavesDeRepo,
   clavesMarcables,
   construirItems,
   ejeDe,
   filaDe,
+  marcaDeRepo,
   podarMarcas,
-  repartirOrdenado
+  repartirOrdenado,
+  reposConCambios,
+  rutaEnRepo,
+  soloCambios
 } from './seccionesCambios.ts'
 
 function hr(title: string): void {
@@ -180,6 +185,46 @@ function main(): void {
       !clavesChoque.has('staged ambos-anaden.txt') &&
       !clavesChoque.has('unstaged ambos-borran.txt'),
     [...clavesChoque].sort().join('|')
+  )
+
+  hr('7) La lista de varios repos: solo los que tienen cambios, sin la cabecera repetida y con rutas del repo')
+  const soloModificados: WorkingChange[] = [cambio('area/repo/src/a.ts', '.', 'M'), cambio('area/repo/b.ts', '.', 'M')]
+  const sm = repartirOrdenado(soloModificados)
+  check('soloCambios: solo modificados sin preparar', soloCambios(sm) && !soloCambios(repartirOrdenado(choques)), '')
+  check(
+    'construirItems con omitirUnica quita la cabecera de «Cambios»; sin omitir, la conserva',
+    construirItems(sm, true).every((i) => i.kind === 'fila') && construirItems(sm)[0].kind === 'header',
+    construirItems(sm, true).map((i) => i.kind).join(',')
+  )
+  check(
+    'y el alto en la lista de varios lo descuenta (lo mismo que se pinta)',
+    alturaSeccionExpandida({ repo: '/r', branch: 'main', changes: soloModificados } as RepoStatus, cab, alto) === cab + 2 * alto,
+    String(alturaSeccionExpandida({ repo: '/r', branch: 'main', changes: soloModificados } as RepoStatus, cab, alto))
+  )
+  check(
+    'rutaEnRepo quita la carpeta del repo, y sin prefijo deja la ruta',
+    rutaEnRepo('area/repo/src/a.ts', 'area/repo') === 'src/a.ts' && rutaEnRepo('src/a.ts', '') === 'src/a.ts' && rutaEnRepo('otro/a.ts', 'area/repo') === 'otro/a.ts',
+    rutaEnRepo('area/repo/src/a.ts', 'area/repo')
+  )
+  const repos = [{ repoHostPath: '/limpio' }, { repoHostPath: '/sucio' }, { repoHostPath: '/roto' }, { repoHostPath: '/pendiente' }]
+  const estados = new Map<string, RepoStatus>([
+    ['/limpio', { repo: '/limpio', branch: 'main', changes: [] }],
+    ['/sucio', { repo: '/sucio', branch: 'main', changes: soloModificados }],
+    ['/roto', { repo: '/roto', branch: null, changes: [], error: 'boom' }]
+  ])
+  const ver = (perezosa: boolean): string => reposConCambios(repos, (r) => estados.get(r), perezosa).map((r) => r.repoHostPath).join(',')
+  check(
+    'reposConCambios: sin carga perezosa, solo los sucios o con error; con ella, todos (si no, un limpio no se volvería a pedir)',
+    ver(false) === '/sucio,/roto' && ver(true) === '/limpio,/sucio,/roto,/pendiente',
+    `${ver(false)} | ${ver(true)}`
+  )
+  const clavesSucio = clavesDeRepo(estados.get('/sucio'))
+  check(
+    'la casilla del repo: vacía, parcial y llena según sus marcas',
+    marcaDeRepo(clavesSucio, new Set()) === 'vacia' &&
+      marcaDeRepo(clavesSucio, new Set([clavesSucio[0]])) === 'parcial' &&
+      marcaDeRepo(clavesSucio, new Set(clavesSucio)) === 'llena',
+    clavesSucio.join('|')
   )
 
   hr('RESULTADO (PASS/FAIL)')

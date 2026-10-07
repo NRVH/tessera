@@ -10,7 +10,7 @@ import type { RepoStatus, WorkingChange } from '../../../../shared/git-ipc'
 import { EstadoVacio } from '../../comun/EstadoVacio'
 import { VirtualList } from '../../comun/VirtualList'
 import { FilaArbolArchivo } from './FilaArbolArchivo'
-import { IconoTodoLimpio } from './iconos'
+import { IconoLote, IconoTodoLimpio } from './iconos'
 import { prefetchDiff } from './modelo/blobCache'
 import type { Seccion } from './modelo/estadoRepos'
 import { resolveWorkingDiffTarget } from './modelo/resolveWorkingDiffTarget'
@@ -48,7 +48,7 @@ interface PropsCuerpoRepo {
 export function CuerpoRepo(props: PropsCuerpoRepo): React.JSX.Element {
   const { anidado, status, cargando, altoFila, altoCabecera, marcadas, acciones } = props
   const changes = status?.changes ?? null
-  const lista = useListaCambios(changes, marcadas, altoCabecera, altoFila)
+  const lista = useListaCambios(changes, marcadas, altoCabecera, altoFila, anidado)
   const pintarItem = (item: ItemCambio): React.JSX.Element => {
     if (item.kind === 'header') return cabeceraSubseccion(item, lista, acciones)
     return filaCambio(item, lista, props)
@@ -114,54 +114,76 @@ function cabeceraSubseccion(
 ): React.JSX.Element {
   const seleccion = lista.marcadasOrdenadas(item.seccion)
   const n = seleccion.length
-  const puedePreparar = item.seccion !== 'staged' && acciones.onStageMany
-  // Descartar no se ofrece en conflictos: el lote lo revertiría a HEAD sin diálogo.
-  const puedeDescartar =
-    item.seccion !== 'staged' && item.seccion !== 'conflict' && acciones.onDiscardMany
-  const etiquetaPreparar =
-    item.seccion === 'conflict' ? `Marcar ${n} como resueltos` : `Preparar ${n}`
   return (
     <div className="working-subsection-header">
       <span className="subseccion-titulo">
         {item.label} ({item.total})
       </span>
       {n > 0 && <span className="subseccion-marcadas">· {n}</span>}
-      {n > 0 && (
-        <span className="subseccion-acciones">
-          {item.seccion === 'staged' && acciones.onUnstageMany && (
-            <button
-              className="subseccion-btn"
-              onClick={() => acciones.onUnstageMany?.(seleccion)}
-              title={`Quitar ${n} de preparados`}
-            >
-              Quitar {n}
-            </button>
-          )}
-          {puedePreparar && (
-            <button
-              className="subseccion-btn"
-              onClick={() => acciones.onStageMany?.(seleccion)}
-              title={
-                item.seccion === 'conflict'
-                  ? `Marcar ${n} archivos como resueltos`
-                  : `Preparar ${n} archivos`
-              }
-            >
-              {etiquetaPreparar}
-            </button>
-          )}
-          {puedeDescartar && (
-            <button
-              className="subseccion-btn danger"
-              onClick={() => acciones.onDiscardMany?.(seleccion)}
-              title={`Descartar los cambios de ${n} archivos`}
-            >
-              Descartar {n}
-            </button>
-          )}
-        </span>
-      )}
+      <AccionesLote seccion={item.seccion} seleccion={seleccion} acciones={acciones} />
     </div>
+  )
+}
+
+/**
+ * Los botones de lote de una sección sobre sus archivos marcados; nada sin marcas. Los usan la
+ * cabecera de cada sección y, cuando «Cambios» va sin cabecera, la del repo (`CambiosPorRepo`).
+ */
+export function AccionesLote({
+  seccion,
+  seleccion,
+  acciones
+}: {
+  seccion: Seccion
+  seleccion: string[]
+  acciones: ManejadoresArchivo
+}): React.JSX.Element | null {
+  const n = seleccion.length
+  if (n === 0) return null
+  const puedePreparar = seccion !== 'staged' && acciones.onStageMany
+  // Descartar no se ofrece en conflictos: el lote lo revertiría a HEAD sin diálogo.
+  const puedeDescartar = seccion !== 'staged' && seccion !== 'conflict' && acciones.onDiscardMany
+  const etiquetaPreparar = seccion === 'conflict' ? `Marcar ${n} como resueltos` : `Preparar ${n}`
+  return (
+    <span className="subseccion-acciones">
+      {seccion === 'staged' && acciones.onUnstageMany && (
+        <BotonLote accion="quitar" texto={`Quitar ${n}`} titulo={`Quitar ${n} de preparados`} onClick={() => acciones.onUnstageMany?.(seleccion)} />
+      )}
+      {puedePreparar && (
+        <BotonLote
+          accion="preparar"
+          texto={etiquetaPreparar}
+          titulo={seccion === 'conflict' ? `Marcar ${n} archivos como resueltos` : `Preparar ${n} archivos`}
+          onClick={() => acciones.onStageMany?.(seleccion)}
+        />
+      )}
+      {puedeDescartar && (
+        <BotonLote
+          accion="descartar"
+          texto={`Descartar ${n}`}
+          titulo={`Descartar los cambios de ${n} archivos`}
+          onClick={() => acciones.onDiscardMany?.(seleccion)}
+        />
+      )}
+    </span>
+  )
+}
+
+/**
+ * Un botón de lote: icono y texto. Si la columna es estrecha el CSS esconde el texto y queda el
+ * icono, con el texto en el tooltip y como nombre accesible, que no cambia con el ancho.
+ */
+function BotonLote(p: { accion: 'preparar' | 'quitar' | 'descartar'; texto: string; titulo: string; onClick: () => void }): React.JSX.Element {
+  return (
+    <button
+      className={`subseccion-btn${p.accion === 'descartar' ? ' danger' : ''}`}
+      onClick={p.onClick}
+      title={p.titulo}
+      aria-label={p.texto}
+    >
+      <IconoLote accion={p.accion} />
+      <span className="subseccion-btn-texto">{p.texto}</span>
+    </button>
   )
 }
 
@@ -180,6 +202,7 @@ function filaCambio(
     <FilaArbolArchivo
       fila={fila}
       plana
+      repo={props.anidado ? { prefijo: props.status?.prefijo } : undefined}
       marca={marcada ? 'llena' : 'vacia'}
       seleccionada={seleccionada?.path === ruta && seleccionada.seccion === seccion}
       activa={activa?.path === ruta && activa.seccion === seccion}

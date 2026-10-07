@@ -29,7 +29,9 @@ export function useListaCambios(
   changes: readonly WorkingChange[] | null,
   marcadas: ReadonlySet<string>,
   altoCabecera: number,
-  altoFila: number
+  altoFila: number,
+  /** En la lista de varios repos: sin la cabecera de «Cambios» cuando es la única sección. */
+  omitirUnica = false
 ): ListaCambios {
   const secciones = useMemo(() => repartirOrdenado(changes ?? []), [changes])
 
@@ -40,7 +42,7 @@ export function useListaCambios(
     return m
   }, [secciones])
 
-  const items = useMemo<ItemCambio[]>(() => construirItems(secciones), [secciones])
+  const items = useMemo<ItemCambio[]>(() => construirItems(secciones, omitirUnica), [secciones, omitirUnica])
 
   const marcadasPorSeccion = useMemo(() => agruparMarcadas(marcadas), [marcadas])
 

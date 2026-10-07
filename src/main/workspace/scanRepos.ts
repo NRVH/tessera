@@ -8,7 +8,7 @@
 // ráfaga del watcher y cada foco de la ventana. Lo usa `WorkspaceService`; `test-scan-repos.mts` lo fija.
 // =============================================================================
 
-import { readdir, stat } from 'node:fs/promises'
+import { readdir, realpath, stat } from 'node:fs/promises'
 import * as path from 'node:path'
 import type { DetectedRepo } from '../../shared/workspace-ipc'
 import { profundidadDeRepos, seBajaA } from '../../shared/reposAnidados.ts'
@@ -94,7 +94,30 @@ export async function scanRepos(projectHostPath: string): Promise<DetectedRepo[]
   // Orden estable por ruta relativa (la raíz, si está, va primero).
   hijos.sort((a, b) => (a.rel < b.rel ? -1 : a.rel > b.rel ? 1 : 0))
   repos.push(...hijos.map((h) => h.repo))
-  return repos
+  return sinRepetidos(repos)
+}
+
+/**
+ * Un repo al que se llega por dos caminos (un enlace a otra carpeta de la misma raíz) sale una sola
+ * vez: por el camino que no pasa por un enlace, o, si los dos pasan, por el primero. Dos entradas
+ * del mismo repo partirían sus cambios en dos listas iguales.
+ */
+async function sinRepetidos(repos: DetectedRepo[]): Promise<DetectedRepo[]> {
+  const reales = await mapaConTope(repos, TOPE_STAT, async (r) => {
+    try {
+      return await realpath(r.repoHostPath)
+    } catch {
+      return r.repoHostPath
+    }
+  })
+  const elegido = new Map<string, number>()
+  reales.forEach((real, i) => {
+    const previo = elegido.get(real)
+    const directo = (j: number): boolean => reales[j] === path.resolve(repos[j].repoHostPath)
+    if (previo === undefined || (!directo(previo) && directo(i))) elegido.set(real, i)
+  })
+  const quedan = new Set(elegido.values())
+  return repos.filter((_, i) => quedan.has(i))
 }
 
 /** Entradas de una carpeta, o ninguna si no existe o no se puede leer. */

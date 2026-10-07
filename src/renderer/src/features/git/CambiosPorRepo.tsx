@@ -1,8 +1,9 @@
 // =============================================================================
 // CambiosPorRepo: la zona de cambios del panel. Con un solo repo se pinta plana;
-// con varios, una sección colapsable por repo (cabecera con nombre, rama y conteo)
-// dentro de una lista virtual. Es el dueño de la fila seleccionada y la activa, del
-// menú contextual único y de las marcas, para que crucen repos.
+// con varios, una sección colapsable por repo CON CAMBIOS (cabecera con casilla del
+// repo, nombre, conteo y rama) dentro de una lista virtual; los limpios no salen. Es
+// el dueño de la fila seleccionada y la activa, del menú contextual único y de las
+// marcas, para que crucen repos.
 // Ver docs/decisiones/git/cambios-lista-y-marcas.md.
 // =============================================================================
 
@@ -13,14 +14,20 @@ import { ContextMenu } from '../../comun/ContextMenu'
 import { EstadoVacio } from '../../comun/EstadoVacio'
 import { ChevronArbol } from '../../comun/iconosArbol'
 import { VirtualList } from '../../comun/VirtualList'
-import { CuerpoRepo } from './CuerpoRepo'
+import { Casilla } from './Casilla'
+import { AccionesLote, CuerpoRepo } from './CuerpoRepo'
 import { entradasMenuCambios } from './entradasMenuCambios'
-import { IconoGitVacio, IconoRama } from './iconos'
-import { MARGEN_VECINOS, type Seccion } from './modelo/estadoRepos'
+import { IconoGitVacio, IconoRama, IconoTodoLimpio } from './iconos'
+import { MARGEN_VECINOS, UMBRAL_PEREZOSO, dividirSecciones, type Seccion } from './modelo/estadoRepos'
 import { resolveWorkingDiffTarget } from './modelo/resolveWorkingDiffTarget'
 import {
   alturaSeccionExpandida,
+  clavesDeRepo,
   ejeDe,
+  marcaDeRepo,
+  repartirOrdenado,
+  reposConCambios,
+  soloCambios,
   type FilaRef,
   type ManejadoresArchivo,
   type ObjetivoMenu
@@ -58,7 +65,12 @@ export function CambiosPorRepo(props: PropsCambiosPorRepo): React.JSX.Element {
     () => new Map((props.repoStatuses ?? []).map((s) => [s.repo, s])),
     [props.repoStatuses]
   )
-  const { alturaSeccion, avisarVisibles } = useAlturasYVisibles(props, statusPorRepo)
+  // Solo los repos con cambios (o con un error): los limpios no ocupan la lista.
+  const visibles = useMemo(
+    () => (repos ? reposConCambios(repos, (r) => statusPorRepo.get(r), repos.length > UMBRAL_PEREZOSO) : null),
+    [repos, statusPorRepo]
+  )
+  const { alturaSeccion, avisarVisibles } = useAlturasYVisibles(props, visibles, statusPorRepo)
 
   // `anidado` = va DENTRO de una .repo-section (multi-repo): ahí no se virtualiza.
   const cuerpo = (repo: string, anidado: boolean): React.JSX.Element => (
@@ -86,12 +98,13 @@ export function CambiosPorRepo(props: PropsCambiosPorRepo): React.JSX.Element {
   // Sin lista de repos aún (escaneo en vuelo) o con uno solo: vista plana.
   const uno = repos === null || repos.length <= 1
   const repoUnico = repos?.[0]?.repoHostPath ?? activeRepoPath
+  const marcas: MarcasRepo = { marcadas, alternarMarcas, acciones: manejadores }
 
   return (
     <div className="working-changes">
       {uno
         ? vistaRepoUnico(repos, repoUnico, cuerpo)
-        : listaDeRepos(repos, props, statusPorRepo, { alturaSeccion, avisarVisibles }, cuerpo)}
+        : listaDeRepos(visibles ?? [], props, statusPorRepo, { alturaSeccion, avisarVisibles }, cuerpo, marcas)}
       {menu && (
         <ContextMenu
           x={menu.x}
@@ -128,12 +141,13 @@ function useFilaActiva(props: PropsCambiosPorRepo): {
 
 function useAlturasYVisibles(
   props: PropsCambiosPorRepo,
+  repos: DetectedRepo[] | null,
   statusPorRepo: Map<string, RepoStatus>
 ): {
   alturaSeccion: (i: number) => number
   avisarVisibles: (inicio: number, fin: number) => void
 } {
-  const { repos, isRepoExpanded, altoCabecera, altoFila, onReposVisibles } = props
+  const { isRepoExpanded, altoCabecera, altoFila, onReposVisibles } = props
   // Alto de la sección de un repo para la lista virtual: colapsado es solo su cabecera.
   const alturaSeccion = useCallback(
     (i: number): number => {
@@ -176,7 +190,15 @@ function vistaRepoUnico(
   return cuerpo(repoUnico, false)
 }
 
-// Lista VIRTUALIZADA de secciones de repo: el rango montado dispara la carga perezosa.
+/** Lo que necesita la cabecera de un repo para su casilla y sus acciones de lote. */
+interface MarcasRepo {
+  marcadas: ReadonlySet<string>
+  alternarMarcas: (claves: readonly string[], marcar: boolean) => void
+  acciones: ManejadoresArchivo
+}
+
+// Lista VIRTUALIZADA de secciones de repo: el rango montado dispara la carga perezosa. Solo trae
+// los repos con cambios; sin ninguno, el vacío de «todo al día» (o el aviso de carga si aún faltan).
 function listaDeRepos(
   repos: DetectedRepo[],
   props: PropsCambiosPorRepo,
@@ -185,9 +207,21 @@ function listaDeRepos(
     alturaSeccion: (i: number) => number
     avisarVisibles: (inicio: number, fin: number) => void
   },
-  cuerpo: (repo: string, anidado: boolean) => React.JSX.Element
+  cuerpo: (repo: string, anidado: boolean) => React.JSX.Element,
+  marcas: MarcasRepo
 ): React.JSX.Element {
   const { repoLabels, activeRepoPath, isRepoExpanded, onToggleRepo } = props
+  if (repos.length === 0) {
+    const total = props.repos?.length ?? 0
+    if (statusPorRepo.size < total) return <div className="git-state">Cargando cambios…</div>
+    return (
+      <EstadoVacio
+        icono={<IconoTodoLimpio />}
+        titulo="Sin cambios"
+        pista={`Ninguno de los ${total} repositorios tiene cambios sin commitear.`}
+      />
+    )
+  }
   return (
     <VirtualList
       className="repo-list"
@@ -203,13 +237,14 @@ function listaDeRepos(
         const expandida = isRepoExpanded(path)
         return (
           <div className={`repo-section${path === activeRepoPath ? ' active' : ''}`}>
-            {cabeceraRepo({
-              status: statusPorRepo.get(path),
-              expandida,
-              activo: path === activeRepoPath,
-              etiqueta: repoLabels.get(path) ?? repo.name,
-              onToggle: () => onToggleRepo(path)
-            })}
+            <CabeceraRepo
+              status={statusPorRepo.get(path)}
+              expandida={expandida}
+              activo={path === activeRepoPath}
+              etiqueta={repoLabels.get(path) ?? repo.name}
+              onToggle={() => onToggleRepo(path)}
+              marcas={marcas}
+            />
             {expandida && cuerpo(path, true)}
           </div>
         )
@@ -218,38 +253,67 @@ function listaDeRepos(
   )
 }
 
-function cabeceraRepo(d: {
+/**
+ * La cabecera de un repo: chevron, casilla de todo el repo y nombre a la izquierda; a la derecha
+ * las acciones de lote (cuando «Cambios» va sin su cabecera), el conteo y la rama, en gris. Toda la
+ * fila abre y cierra; la casilla y los botones no.
+ */
+function CabeceraRepo(d: {
   status: RepoStatus | undefined
   expandida: boolean
   activo: boolean
   etiqueta: string
   onToggle: () => void
+  marcas: MarcasRepo
 }): React.JSX.Element {
+  const { marcadas, alternarMarcas, acciones } = d.marcas
   const conteo = d.status?.changes.length ?? 0
+  const claves = useMemo(() => clavesDeRepo(d.status), [d.status])
+  const marca = marcaDeRepo(claves, marcadas)
+  // Sin la cabecera de «Cambios», sus acciones de lote viven aquí.
+  const seleccionCambios = useMemo(() => {
+    if (!d.status || !soloCambios(dividirSecciones(d.status.changes))) return []
+    return repartirOrdenado(d.status.changes)
+      .unstaged.map((c) => c.path)
+      .filter((p) => marcadas.has(`unstaged ${p}`))
+  }, [d.status, marcadas])
   return (
-    <button
+    <div
       className="repo-header"
+      role="button"
+      tabIndex={0}
       onClick={d.onToggle}
+      onKeyDown={(e) => {
+        if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return
+        e.preventDefault()
+        d.onToggle()
+      }}
       aria-expanded={d.expandida}
-      title={
-        d.activo
-          ? 'Repositorio activo (el del historial de abajo)'
-          : 'Abrir este repositorio y graficar su historial'
-      }
+      title={d.activo ? 'Repositorio activo (el del historial de abajo)' : 'Abrir este repositorio y graficar su historial'}
     >
       <ChevronArbol abierto={d.expandida} />
-      <span className="repo-name">{d.etiqueta}</span>
-      {d.status?.branch && (
-        <span className="repo-branch" title={`Rama actual: ${d.status.branch}`}>
-          <IconoRama />
-          {/* El asterisco marca "tiene cambios". */}
-          <span className="repo-branch-name">
-            {d.status.branch}
-            {conteo > 0 ? '*' : ''}
-          </span>
-        </span>
+      {claves.length > 0 && (
+        <Casilla estado={marca} etiqueta={`Marcar todo ${d.etiqueta}`} onAlternar={() => alternarMarcas(claves, marca !== 'llena')} />
       )}
-      {conteo > 0 && <span className="repo-count">{conteo}</span>}
-    </button>
+      <span className="repo-name">{d.etiqueta}</span>
+      <span className="repo-derecha">
+        {/* Los botones no abren ni cierran el repo. */}
+        <span onClick={(e) => e.stopPropagation()}>
+          <AccionesLote seccion="unstaged" seleccion={seleccionCambios} acciones={acciones} />
+        </span>
+        {/* Mientras hay marcas, los botones ocupan el sitio del conteo y de la rama: el nombre no se recorta. */}
+        {seleccionCambios.length === 0 && conteo > 0 && <span className="repo-count">{conteo}</span>}
+        {seleccionCambios.length === 0 && d.status?.branch && (
+          <span className="repo-branch" title={`Rama actual: ${d.status.branch}`}>
+            <IconoRama />
+            {/* El asterisco marca "tiene cambios". */}
+            <span className="repo-branch-name">
+              {d.status.branch}
+              {conteo > 0 ? '*' : ''}
+            </span>
+          </span>
+        )}
+      </span>
+    </div>
   )
 }

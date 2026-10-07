@@ -249,8 +249,8 @@ el que entraste.
   un solo archivo.
 - **Diffs editables**: corrige algo directamente en el diff de tu copia de trabajo.
 - **Varios repositorios** en una misma carpeta de proyecto, también agrupados en subcarpetas
-  por área o por capa (hasta cuatro niveles): cada uno con sus cambios, y eliges cuál enseña
-  el historial.
+  por área o por capa (hasta cuatro niveles): Cambios enseña solo los que tienen cambios, cada
+  uno con una casilla para marcarlo entero, y eliges cuál enseña el historial.
 
 ### Terminales
 

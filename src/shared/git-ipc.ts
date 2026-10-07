@@ -489,6 +489,11 @@ export interface RepoStatus {
   branch: string | null
   /** Cambios del working-tree, con rutas relativas a la CONTENEDORA (como el resto). */
   changes: WorkingChange[]
+  /**
+   * Carpeta del repo relativa a la contenedora (POSIX; '' si es la propia contenedora). Es lo que
+   * la lista quita de la ruta de cada archivo para enseñarla relativa a su repo.
+   */
+  prefijo?: string
   /** Mensaje de error si ESTE repo falló; los demás repos siguen devolviéndose. */
   error?: string
 }

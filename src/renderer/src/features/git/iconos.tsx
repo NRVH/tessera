@@ -40,6 +40,22 @@ export function IconoDesplegar(): React.JSX.Element {
   )
 }
 
+/** Los botones de lote de Cambios cuando solo cabe el icono: preparar (+), quitar (−) y descartar (deshacer). */
+export function IconoLote({ accion }: { accion: 'preparar' | 'quitar' | 'descartar' }): React.JSX.Element {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {accion === 'preparar' && <path d="M8 3.5v9M3.5 8h9" />}
+      {accion === 'quitar' && <path d="M3.5 8h9" />}
+      {accion === 'descartar' && (
+        <>
+          <path d="M3.5 6.5h6a3.2 3.2 0 0 1 0 6.4H7" />
+          <path d="M6 4L3.5 6.5 6 9" />
+        </>
+      )}
+    </svg>
+  )
+}
+
 /** Lupa del buscador de commits. */
 export function IconoBuscar(): React.JSX.Element {
   return (

@@ -74,13 +74,13 @@ const front = path.join(container, 'front')
 const outside = path.join(tmp, 'ajeno')
 
 try {
-  initRepo(back, 'fix/DA-2535')
+  initRepo(back, 'fix/TK-101')
   writeFileSync(path.join(back, 'src', 'api.py'), 'v1\n')
   git(back, ['add', '-A'])
   git(back, ['commit', '-qm', 'back: inicial'])
   writeFileSync(path.join(back, 'src', 'api.py'), 'v2\n') // modificado, unstaged
 
-  initRepo(front, 'feature/DA-2521')
+  initRepo(front, 'feature/TK-102')
   writeFileSync(path.join(front, 'src', 'panel.tsx'), 'v1\n')
   git(front, ['add', '-A'])
   git(front, ['commit', '-qm', 'front: inicial'])
@@ -110,7 +110,7 @@ try {
   )
   check(
     '1b',
-    sBack?.branch === 'fix/DA-2535' && sFront?.branch === 'feature/DA-2521',
+    sBack?.branch === 'fix/TK-101' && sFront?.branch === 'feature/TK-102',
     `cada repo trae SU rama actual -> back="${sBack?.branch}" front="${sFront?.branch}"`
   )
   const backPaths = sBack?.changes.map((c) => c.path).sort() ?? []

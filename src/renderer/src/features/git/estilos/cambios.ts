@@ -53,8 +53,10 @@ export const CSS_CAMBIOS = `
    La sombra inset dibuja DENTRO: se ve igual y no mide nada.
    (Sin comillas invertidas en este comentario: el archivo entero es un template
    literal y una sola lo parte en dos.) */
+/* Sin separadores entre repos: la lista solo trae los que tienen cambios, y la cabecera
+   de cada uno ya los parte, como las carpetas del explorador. */
 .git-panel .repo-section {
-  box-shadow: inset 0 -1px 0 var(--border-soft);
+  box-shadow: none;
 }
 /* Las transitorias de una sección ANIDADA miden lo que la lista virtual reservó
    para ellas (una fila). Un error largo se recorta con puntos suspensivos y se lee
@@ -74,8 +76,7 @@ export const CSS_CAMBIOS = `
 .git-panel .repo-header {
   display: flex;
   align-items: center;
-  gap: 4px;
-  width: 100%;
+  gap: 6px;
   /* ALTURA POR VARIABLE, no un 28px clavado. La lista de repos está virtualizada y
      eso obliga a saber cuánto mide una fila ANTES de montarla: el JS lo calcula con
      altoCabecera(fuente) y esta variable sale de la MISMA función. Con el 28
@@ -83,8 +84,12 @@ export const CSS_CAMBIOS = `
      se comía dos píxeles del siguiente y con cien repos el desfase era una pantalla
      entera. Medido con la app abierta: reservado 26 contra real 28. */
   height: var(--ui-head-h);
+  box-sizing: border-box;
+  /* Mismo margen y redondeo que las filas de archivo: se lee como una fila más del
+     árbol, no como una banda que cruza el panel. */
+  margin: 0 8px;
   padding: 0 8px 0 4px;
-  border: none;
+  border-radius: 6px;
   background: transparent;
   color: var(--fg);
   font-family: inherit;
@@ -96,6 +101,23 @@ export const CSS_CAMBIOS = `
 .git-panel .repo-header:hover {
   background: rgba(255, 255, 255, 0.04);
 }
+.git-panel .repo-header:hover .git-casilla.vacia {
+  border-color: var(--fg-muted);
+}
+/* Lo de la derecha (acciones de lote, conteo y rama) se pega al borde y no se encoge
+   antes que el nombre: la rama se recorta la última. */
+.git-panel .repo-header .repo-derecha {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 1 auto;
+  min-width: 0;
+  padding-left: 8px;
+}
+.git-panel .repo-header .repo-branch {
+  flex: 0 1 auto;
+}
 .git-panel .repo-header:focus-visible {
   outline: 1px solid var(--accent);
   outline-offset: -2px;
@@ -105,13 +127,14 @@ export const CSS_CAMBIOS = `
 .git-panel .repo-section.active > .repo-header {
   box-shadow: inset 2px 0 0 var(--sel);
 }
+/* El nombre es lo último que se recorta: guarda un mínimo legible frente a lo de la derecha. */
 .git-panel .repo-name {
   flex: 0 1 auto;
-  min-width: 0;
+  min-width: 6ch;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 500;
+  font-weight: 400;
 }
 /* Conteo de cambios del repo: nunca se encoge ni se sale del header. */
 .git-panel .repo-count {
@@ -201,5 +224,34 @@ export const CSS_CAMBIOS = `
 .git-panel .subseccion-btn.danger:hover {
   background: var(--danger-tinte);
   color: var(--red-hi);
+}
+.git-panel .subseccion-btn svg {
+  display: none;
+  width: 12px;
+  height: 12px;
+}
+
+/* COLUMNA ESTRECHA: los botones de lote se quedan en su icono (el texto sigue en el tooltip
+   y en el nombre accesible). Con texto, dos botones y el nombre del repo no caben y el
+   último se salía por la derecha. La consulta mide el panel entero, no la cabecera: el
+   contenedor no puede consultarse a sí mismo. */
+.git-panel {
+  container-type: inline-size;
+  container-name: gitcambios;
+}
+@container gitcambios (max-width: 340px) {
+  .git-panel .subseccion-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    padding: 0;
+  }
+  .git-panel .subseccion-btn svg {
+    display: block;
+  }
+  .git-panel .subseccion-btn .subseccion-btn-texto {
+    display: none;
+  }
 }
 `

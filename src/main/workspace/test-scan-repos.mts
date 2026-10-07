@@ -7,7 +7,7 @@
 // repos anidados en carpetas que agrupan (con lo que no se recorre).
 // =============================================================================
 
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, realpathSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, realpathSync, symlinkSync } from 'node:fs'
 import * as os from 'node:os'
 import path from 'node:path'
 import { scanRepos, type DetectedRepo } from './scanRepos.ts'
@@ -214,11 +214,11 @@ async function main(): Promise<void> {
     // -----------------------------------------------------------------------
     hr('CASO (h) repos anidados en una carpeta que no es repo')
     const areas = path.join(base, 'areas')
-    makeRepoDir(path.join(areas, 'herramientas', 'finalizador'))
-    makeRepoDir(path.join(areas, 'herramientas', 'finalizador', 'sub', 'interno')) // dentro de un repo: no
-    makeRepoDir(path.join(areas, 'mensajeria', 'back', 'java-mensajeria'))
-    makeRepoDir(path.join(areas, 'mensajeria', 'front', 'react-mensajeria'))
-    makePlainDir(path.join(areas, 'referencias'))
+    makeRepoDir(path.join(areas, 'utiles', 'generador'))
+    makeRepoDir(path.join(areas, 'utiles', 'generador', 'sub', 'interno')) // dentro de un repo: no
+    makeRepoDir(path.join(areas, 'ventas', 'back', 'api-ventas'))
+    makeRepoDir(path.join(areas, 'ventas', 'front', 'web-ventas'))
+    makePlainDir(path.join(areas, 'notas'))
     makeRepoDir(path.join(areas, 'node_modules', 'paquete')) // dependencias: no se baja
     makeRepoDir(path.join(areas, '.idea', 'oculto')) // oculta: no se baja
     makeRepoDir(path.join(areas, 'uno', 'dos', 'tres', 'cuatro')) // nivel 4: sí
@@ -230,12 +230,12 @@ async function main(): Promise<void> {
       check(
         '(h) detecta los de 2, 3 y 4 niveles, ordenados por ruta, y nada de dentro de repos, dependencias, ocultas ni más hondo',
         JSON.stringify(rels) ===
-          JSON.stringify(['build', 'herramientas/finalizador', 'mensajeria/back/java-mensajeria', 'mensajeria/front/react-mensajeria', 'uno/dos/tres/cuatro']) &&
+          JSON.stringify(['build', 'uno/dos/tres/cuatro', 'utiles/generador', 'ventas/back/api-ventas', 'ventas/front/web-ventas']) &&
           repos.every((r) => !r.isRoot),
         JSON.stringify(rels)
       )
-      const java = repos.find((r) => r.name === 'java-mensajeria')
-      check('(h) el nombre es el de la carpeta del repo', !!java && java.repoHostPath === path.join(areas, 'mensajeria', 'back', 'java-mensajeria'), String(java?.repoHostPath))
+      const api = repos.find((r) => r.name === 'api-ventas')
+      check('(h) el nombre es el de la carpeta del repo', !!api && api.repoHostPath === path.join(areas, 'ventas', 'back', 'api-ventas'), String(api?.repoHostPath))
     }
     // (h-bis) una raíz que ES repo sigue mirando solo sus hijos directos (no cuesta un recorrido por proyecto).
     const repoConNietos = path.join(base, 'repoConNietos')
@@ -245,6 +245,21 @@ async function main(): Promise<void> {
     {
       const repos = await scanRepos(repoConNietos)
       check('(h-bis) raíz que es repo: raíz + hijos directos, sin nietos', JSON.stringify(names(repos)) === JSON.stringify(['hijo', 'repoConNietos']), JSON.stringify(names(repos)))
+    }
+
+    // -----------------------------------------------------------------------
+    // (i) El mismo repo por dos caminos: area/capa-a/repo es real y area/capa-b/repo es un enlace a él.
+    //     Sale una vez, por el camino real, aunque el enlace se encuentre antes en el orden.
+    // -----------------------------------------------------------------------
+    hr('CASO (i) un enlace a un repo de la misma raíz no lo duplica')
+    const conEnlace = path.join(base, 'conEnlace')
+    makeRepoDir(path.join(conEnlace, 'area', 'capa-b', 'repo'))
+    mkdirSync(path.join(conEnlace, 'area', 'capa-a'), { recursive: true })
+    symlinkSync(path.join(conEnlace, 'area', 'capa-b', 'repo'), path.join(conEnlace, 'area', 'capa-a', 'repo'), 'junction')
+    {
+      const repos = await scanRepos(conEnlace)
+      const rels = repos.map((r) => path.relative(conEnlace, r.repoHostPath).split(path.sep).join('/'))
+      check('(i) una sola entrada, la del camino real', JSON.stringify(rels) === JSON.stringify(['area/capa-b/repo']), JSON.stringify(rels))
     }
 
     // -----------------------------------------------------------------------

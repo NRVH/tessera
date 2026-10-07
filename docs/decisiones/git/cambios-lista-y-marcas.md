@@ -28,6 +28,18 @@ marcado tiene que ser exactamente lo que el backend recibe.
 - El menú calcula su objetivo AL ABRIRSE: una fila marcada actúa sobre toda la selección de su
   sección, una sin marcar solo sobre ella. Abrir actúa siempre sobre la fila sola. La clave de
   la lista no depende de `marcadas`: si dependiera, cada clic reconstruiría la lista.
+- Con varios repos, la lista solo trae los que tienen cambios o un error (`reposConCambios`): los
+  limpios no ocupan sitio, y sus ramas siguen en la vista del historial. Con la carga perezosa
+  (más de `UMBRAL_PEREZOSO` repos) se enseñan todos, como antes: esa carga pide lo que se ve, así
+  que un repo escondido por limpio no se volvería a pedir al ensuciarse, y cada refresco (que vacía
+  los estados) haría aparecer y desaparecer la lista hasta pedir todos los repos.
+- Dentro de un repo de esa lista, «Cambios» va sin su cabecera cuando es la única sección
+  (`soloCambios`): solo repetiría el conteo del repo. Sus botones de lote pasan a la cabecera del
+  repo y ocupan el sitio del conteo y la rama mientras hay marcas, para no recortar el nombre. La
+  cabecera lleva una casilla de tres estados que marca todos los archivos del repo, y cada
+  archivo enseña su carpeta contada desde su repo (`prefijo` de `RepoStatus`, relativo a la
+  contenedora). El alto de la sección (`alturaSeccionExpandida`) descuenta la cabecera omitida
+  con la misma regla, o la lista virtual se desalinearía.
 
 ## Consecuencias
 

@@ -4,6 +4,19 @@ Todos los cambios relevantes de Tessera se documentan en este archivo. El format
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), y Tessera sigue el
 [versionado semántico](https://semver.org/lang/es/).
 
+## [0.76.0] - 2026-10-06
+
+- **Cambios con varios repositorios, rediseñado.** Solo salen los repositorios que tienen
+  cambios; los que están al día no ocupan la lista (con más de 50 repositorios en la carpeta se
+  siguen enseñando todos). Cada repositorio lleva una casilla para marcar todos sus archivos, su
+  nombre sin negrita y, a la derecha y en gris, el número de cambios y la rama. Los archivos
+  cuelgan de su repositorio con la carpeta contada desde él, y el encabezado «Cambios» ya no se
+  repite cuando es la única sección: sus botones de lote pasan a la cabecera del repositorio.
+  En una columna estrecha, los botones de lote se quedan en su icono.
+- **Un repositorio enlazado ya no sale dos veces.** Si dentro de la carpeta abierta hay un
+  enlace a un repositorio de la misma carpeta, Cambios lo enseña una sola vez, por su carpeta
+  real.
+
 ## [0.75.0] - 2026-10-06
 
 - **Repositorios anidados en la vista de Git.** Una carpeta que no es un repositorio y agrupa

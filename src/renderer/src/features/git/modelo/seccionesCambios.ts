@@ -100,19 +100,34 @@ export function filaDe(change: WorkingChange, seccion: Seccion): FilaArbol {
   }
 }
 
-/** La lista aplanada [cabecera, ...archivos] por cada sección con algo. */
-export function construirItems(secciones: Record<Seccion, WorkingChange[]>): ItemCambio[] {
+/**
+ * ¿La única sección con algo es «Cambios»? Es el caso corriente, y dentro de un repo su cabecera
+ * solo repetiría el conteo del repo: la lista de varios repos la omite y lleva sus acciones de lote
+ * en la cabecera del repo. Preparados, Conflictos y Sin versionar sí se nombran siempre.
+ */
+export function soloCambios(secciones: Record<Seccion, readonly WorkingChange[]>): boolean {
+  return SECCIONES.every((s) => (s === 'unstaged' ? secciones[s].length > 0 : secciones[s].length === 0))
+}
+
+/**
+ * La lista aplanada [cabecera, ...archivos] por cada sección con algo. Con `omitirUnica`, sin la
+ * cabecera cuando la única sección es «Cambios» (ver `soloCambios`).
+ */
+export function construirItems(secciones: Record<Seccion, WorkingChange[]>, omitirUnica = false): ItemCambio[] {
   const out: ItemCambio[] = []
+  const sinCabecera = omitirUnica && soloCambios(secciones)
   for (const seccion of SECCIONES) {
     const lista = secciones[seccion]
     if (lista.length === 0) continue
-    out.push({
-      kind: 'header',
-      id: `h-${seccion}`,
-      seccion,
-      label: ETIQUETA_SECCION[seccion],
-      total: lista.length
-    })
+    if (!sinCabecera) {
+      out.push({
+        kind: 'header',
+        id: `h-${seccion}`,
+        seccion,
+        label: ETIQUETA_SECCION[seccion],
+        total: lista.length
+      })
+    }
     for (const change of lista) {
       out.push({
         kind: 'fila',
@@ -173,7 +188,10 @@ export function agruparMarcadas(marcadas: ReadonlySet<string>): Record<Seccion, 
   return out
 }
 
-/** Alto de la sección EXPANDIDA de un repo: cabecera + una línea de aviso, o + sus cabeceras y filas. */
+/**
+ * Alto de la sección EXPANDIDA de un repo en la lista de varios: cabecera + una línea de aviso, o +
+ * sus cabeceras y filas, sin la de «Cambios» cuando es la única (lo mismo que pinta `construirItems`).
+ */
 export function alturaSeccionExpandida(
   status: RepoStatus | undefined,
   altoCabecera: number,
@@ -183,5 +201,43 @@ export function alturaSeccionExpandida(
   if (status.error) return altoCabecera + altoFila
   if (status.changes.length === 0) return altoCabecera + altoFila // "Sin cambios"
   const { cabeceras, filas } = contarItems(status.changes)
-  return altoCabecera + cabeceras * altoCabecera + filas * altoFila
+  const omitida = soloCambios(dividirSecciones(status.changes)) ? 1 : 0
+  return altoCabecera + (cabeceras - omitida) * altoCabecera + filas * altoFila
+}
+
+/** La ruta de un archivo relativa a su repo: sin la carpeta del repo dentro de la contenedora. */
+export function rutaEnRepo(ruta: string, prefijo: string | undefined): string {
+  if (!prefijo) return ruta
+  return ruta.startsWith(`${prefijo}/`) ? ruta.slice(prefijo.length + 1) : ruta
+}
+
+/**
+ * Qué repos enseña la lista de varios: los que tienen cambios o un error, nunca los limpios; uno que
+ * aún no ha llegado se esconde hasta que llega. Con la carga `perezosa` se enseñan TODOS: esa carga
+ * pide solo lo que se ve, así que un repo escondido por limpio no se volvería a pedir al ensuciarse,
+ * y cada refresco (que vacía los estados) haría aparecer y desaparecer la lista hasta pedirlos todos.
+ */
+export function reposConCambios<R extends { repoHostPath: string }>(
+  repos: readonly R[],
+  estadoDe: (repo: string) => RepoStatus | undefined,
+  perezosa: boolean
+): R[] {
+  if (perezosa) return [...repos]
+  return repos.filter((r) => {
+    const s = estadoDe(r.repoHostPath)
+    if (s === undefined) return false
+    return Boolean(s.error) || s.changes.length > 0
+  })
+}
+
+/** Las claves de marca de TODOS los archivos de un repo (las de sus cuatro secciones). */
+export function clavesDeRepo(status: RepoStatus | undefined): string[] {
+  return status ? [...clavesMarcables([status])] : []
+}
+
+/** La casilla de un repo: llena con todo marcado, vacía sin nada, parcial en medio. */
+export function marcaDeRepo(claves: readonly string[], marcadas: ReadonlySet<string>): 'vacia' | 'parcial' | 'llena' {
+  const n = claves.filter((c) => marcadas.has(c)).length
+  if (n === 0) return 'vacia'
+  return n === claves.length ? 'llena' : 'parcial'
 }
