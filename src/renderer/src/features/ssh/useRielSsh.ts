@@ -7,6 +7,7 @@
 // =============================================================================
 
 import { useCallback, useLayoutEffect, useState, type RefObject } from 'react'
+import { SSH_RIEL_ANCHO_MAX } from '../../../../shared/ajustesTerminal'
 import { anchoMaximoRiel, dondeConectar, flechaLanzadorVisible, ID_RIEL_SSH, resolverRiel } from './rielSsh'
 import { accionesSsh, useStoreSsh } from './store'
 
@@ -67,11 +68,16 @@ function useAnchoDe(ref: RefObject<HTMLElement>, activo: boolean): number {
  * El riel del perfil `perfilId`. `cuerpoRef` es el cuerpo de la terminal, cuyo ancho es el sitio que hay:
  * no depende del riel, así que medirlo no puede retroalimentarse.
  */
-export function useRielSsh(cuerpoRef: RefObject<HTMLElement>, pantallaCompleta: boolean, perfilId: string): RielSsh {
+export function useRielSsh(
+  cuerpoRef: RefObject<HTMLElement>,
+  pantallaCompleta: boolean,
+  perfilId: string,
+  sinTerminal = false
+): RielSsh {
   const ancho = useStoreSsh((s) => s.rielAncho)
   const oculto = useStoreSsh((s) => s.rielVisiblePorPerfil[perfilId] === false)
   const disponible = useAnchoDe(cuerpoRef, pantallaCompleta)
-  const { enRiel, visible } = resolverRiel({ pantallaCompleta, perfilId, oculto, disponible, ancho })
+  const { enRiel, visible } = resolverRiel({ pantallaCompleta, perfilId, oculto, disponible, ancho, sinTerminal })
   const alternar = useCallback(() => accionesSsh.alternarRiel(perfilId), [perfilId])
   const ocultar = useCallback(() => accionesSsh.fijarRielVisible(perfilId, false), [perfilId])
   const pedirLista = useCallback(() => {
@@ -85,7 +91,8 @@ export function useRielSsh(cuerpoRef: RefObject<HTMLElement>, pantallaCompleta: 
     visible,
     flechaVisible: flechaLanzadorVisible({ enRiel, visible }),
     ancho,
-    anchoMax: anchoMaximoRiel(disponible, ancho),
+    // Sin terminal el cuerpo mide lo que el riel: el tope sale del rango del riel, no del cuerpo.
+    anchoMax: sinTerminal ? SSH_RIEL_ANCHO_MAX : anchoMaximoRiel(disponible, ancho),
     alternar,
     pedirLista,
     ocultar,

@@ -361,6 +361,13 @@ hr('(11) El riel de pantalla completa: cuándo cabe, hasta dónde se ensancha y 
     `${ve({ disponible: 900, ancho: 260 })} · ${ve({ disponible: 900, ancho: 480 })}`
   )
   check(
+    'sin terminal que enseñar el cuerpo mide lo que el riel y aun así se ve; fuera de pantalla completa o sin perfil, no',
+    ve({ disponible: 266, sinTerminal: true }) === j({ enRiel: true, visible: true }) &&
+      ve({ disponible: 266, sinTerminal: true, pantallaCompleta: false }) === j({ enRiel: false, visible: false }) &&
+      ve({ disponible: 266, sinTerminal: true, perfilId: '' }) === j({ enRiel: false, visible: false }),
+    ve({ disponible: 266, sinTerminal: true })
+  )
+  check(
     'la resolución no devuelve preferencia alguna: plegar por falta de sitio no la toca',
     j(Object.keys(resolverRiel(base)).sort()) === j(['enRiel', 'visible']),
     j(Object.keys(resolverRiel(base)))

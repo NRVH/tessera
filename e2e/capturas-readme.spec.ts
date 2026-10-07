@@ -223,6 +223,61 @@ function instalarAgenteDemo(agente: AgenteFalso): void {
   if (existsSync(codexJs)) writeFileSync(codexJs, demo)
 }
 
+/**
+ * El «ssh» de demostración: la app lo lanza en lugar de OpenSSH (`TESSERA_SSH_BINARIO`, que solo el
+ * arnés e2e admite). Pinta el saludo de un servidor de ejemplo y un prompt, y contesta a unas pocas
+ * órdenes con salida fija. Nada toca la red.
+ */
+const PROGRAMA_SSH_DEMO = `'use strict'
+const NL = String.fromCharCode(13, 10)
+const E = String.fromCharCode(27)
+const verde = (t) => E + '[1;32m' + t + E + '[0m'
+const azul = (t) => E + '[1;34m' + t + E + '[0m'
+const prompt = () => verde('deploy@web-01') + ':' + azul('~') + '$ '
+const salidas = {
+  uptime: [' 10:42:17 up 23 days,  4:05,  1 user,  load average: 0.18, 0.22, 0.19'],
+  'df -h /': ['Filesystem      Size  Used Avail Use% Mounted on', '/dev/sda1        80G   31G   46G  41% /'],
+  'systemctl is-active nginx': ['active']
+}
+const saludo = [
+  'Welcome to Ubuntu 24.04.1 LTS (GNU/Linux 6.8.0-45-generic x86_64)',
+  '',
+  '  System load:  0.18               Processes:             132',
+  '  Usage of /:   41.2% of 79.0GB    Users logged in:       0',
+  '  Memory usage: 37%                IPv4 address for eth0: 192.0.2.10',
+  '',
+  'Last login: Mon Oct  5 18:20:44 2026 from 198.51.100.7'
+]
+process.stdout.write(saludo.join(NL) + NL + prompt())
+if (process.stdin.isTTY) process.stdin.setRawMode(true)
+let linea = ''
+process.stdin.on('data', (b) => {
+  for (const ch of b.toString('utf8')) {
+    if (ch === String.fromCharCode(13)) {
+      const orden = linea.trim()
+      linea = ''
+      process.stdout.write(NL)
+      if (orden === 'exit') process.exit(0)
+      for (const l of salidas[orden] || []) process.stdout.write(l + NL)
+      process.stdout.write(prompt())
+    } else if (ch === String.fromCharCode(127)) {
+      if (linea) { linea = linea.slice(0, -1); process.stdout.write(String.fromCharCode(8, 32, 8)) }
+    } else {
+      linea += ch
+      process.stdout.write(ch)
+    }
+  }
+})
+process.stdin.resume()
+`
+
+/** Escribe el ssh de demostración en `dir` y devuelve la variable de entorno que lo activa. */
+function instalarSshDemo(dir: string): Record<string, string> {
+  const guion = join(dir, 'ssh-demo.cjs')
+  writeFileSync(guion, PROGRAMA_SSH_DEMO)
+  return { TESSERA_SSH_BINARIO: JSON.stringify({ exe: process.execPath, args: [guion] }) }
+}
+
 async function asentar(win: Page): Promise<void> {
   await win.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
 }
@@ -323,7 +378,7 @@ test.describe('capturas del README', () => {
     agente = montarAgenteFalso()
     instalarAgenteDemo(agente)
     s = await abrirTessera(
-      { ...agente.env, TESSERA_USO_CLAUDE: `http://127.0.0.1:${port}/uso` },
+      { ...agente.env, ...instalarSshDemo(agente.raiz), TESSERA_USO_CLAUDE: `http://127.0.0.1:${port}/uso` },
       {
         sembrar: (datos) => {
           writeFileSync(
@@ -417,7 +472,9 @@ test.describe('capturas del README', () => {
     await expect(win.locator('.git-fila-commit').first()).toBeVisible()
     await win.locator('.git-fila-commit', { hasText: 'fix: redondeo del IVA' }).click()
     await expect(win.locator('.git-log-detalle .git-detalle-asunto')).toHaveText('fix: redondeo del IVA en el carrito')
-    // El detalle abre el primer archivo del commit; se vuelve al diff del cambio sin confirmar.
+    // El detalle abre el primer archivo del commit; se vuelve al diff del cambio sin confirmar. Se espera a
+    // que lo abra: si no, la apertura llega después del clic y tapa el diff que se quería enseñar.
+    await expect(win.locator('.editor-tab.active', { hasText: 'CHANGELOG.md' })).toHaveCount(1, { timeout: 15_000 })
     await win.locator('.editor-tab', { hasText: 'DIFF' }).filter({ hasText: 'carrito.ts' }).click()
     await expect(win.locator('.monaco-diff-editor').filter({ visible: true })).toContainText('envio')
     await win.waitForTimeout(1200)
@@ -441,6 +498,45 @@ test.describe('capturas del README', () => {
     await win.keyboard.press('Enter')
     await win.waitForTimeout(2500)
     await foto(win, 'terminales')
+  })
+
+  test('conexiones SSH: terminal a pantalla completa con el riel y una sesión, y el formulario', async () => {
+    const win = s.win
+    await win.evaluate(async () => {
+      const crear = (alias: string, grupoId: string | null, host: string, usuario: string) =>
+        window.tessera.ssh.crear({ profileId: 'personal', alias, grupoId, host, puerto: 22, usuario, metodo: 'sistema', disponibleAgentes: true })
+      const produccion = await window.tessera.ssh.crearGrupo({ profileId: 'personal', nombre: 'Producción' })
+      const pruebas = await window.tessera.ssh.crearGrupo({ profileId: 'personal', nombre: 'Pruebas' })
+      await crear('web-01', produccion.id, '192.0.2.10', 'deploy')
+      await crear('db-01', produccion.id, '192.0.2.11', 'deploy')
+      await crear('staging', pruebas.id, '192.0.2.20', 'deploy')
+      await crear('nas-casa', null, '192.0.2.30', 'admin')
+    })
+    const panel = win.locator('section.terminal-panel')
+    await panel.getByRole('button', { name: 'Maximizar el panel de terminal' }).click()
+    const riel = win.locator('aside.ssh-riel')
+    await expect(riel).toBeVisible()
+    // Un clic conecta. El texto de la terminal no se lee del DOM (se pinta por GPU): se espera a la pestaña.
+    await riel.getByRole('treeitem', { name: /^web-01,/ }).click()
+    await expect(panel.locator('.terminal-tab.active', { hasText: 'web-01' })).toHaveCount(1, { timeout: 30_000 })
+    await win.waitForTimeout(1500)
+    await panel.locator('.xterm').filter({ visible: true }).first().click()
+    for (const orden of ['uptime', 'df -h /', 'systemctl is-active nginx']) {
+      await win.keyboard.type(orden)
+      await win.keyboard.press('Enter')
+    }
+    await win.waitForTimeout(1500)
+    await foto(win, 'ssh')
+
+    await riel.getByRole('treeitem', { name: /^web-01,/ }).click({ button: 'right' })
+    await win.locator('.ctx-menu-item', { hasText: 'Editar…' }).click()
+    const dialogo = win.getByRole('dialog', { name: 'Editar conexión SSH' })
+    await expect(dialogo).toBeVisible()
+    await win.waitForTimeout(500)
+    await foto(win, 'ssh-conexion', dialogo)
+    await win.keyboard.press('Escape')
+    await expect(dialogo).toHaveCount(0)
+    await panel.getByRole('button', { name: 'Restaurar el panel de terminal' }).click()
   })
 
   test('configuración', async () => {

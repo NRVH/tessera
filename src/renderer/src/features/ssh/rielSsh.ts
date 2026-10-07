@@ -56,6 +56,8 @@ export interface EntradaRiel {
   disponible: number
   /** Ancho (px) que pide el riel. */
   ancho: number
+  /** No hay terminal que enseñar y el agente ocupa el resto: el riel no comparte el cuerpo con nadie. */
+  sinTerminal?: boolean
 }
 
 /** Qué ve el usuario. */
@@ -71,7 +73,7 @@ export interface ResolucionRiel {
  * devuelve: no hay nada que guardar) y reaparece solo cuando vuelve a haberlo.
  */
 export function resolverRiel(e: EntradaRiel): ResolucionRiel {
-  const enRiel = e.pantallaCompleta && e.perfilId !== '' && rielCabe(e.disponible, e.ancho)
+  const enRiel = e.pantallaCompleta && e.perfilId !== '' && (e.sinTerminal === true || rielCabe(e.disponible, e.ancho))
   return { enRiel, visible: enRiel && !e.oculto }
 }
 

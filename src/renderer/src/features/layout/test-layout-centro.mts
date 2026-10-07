@@ -17,6 +17,7 @@ import {
   aperturaDesdeGit,
   derivarLayoutCentro,
   maximizadoCoherente,
+  pantallaCompletaAlCambiarDePerfil,
   pantallaCompletaCoherente,
   type EntradaLayoutCentro,
   type PanelInferiorCentro,
@@ -251,6 +252,12 @@ function caminoRealDeLaFranja(): void {
     app.pedida = coherenteDe(app.pedida, e)
     return app.pedida
   }
+  const recordadas = new Map<string, PanelInferiorCentro | null>()
+  /** Cambiar de perfil como el hook: guarda el modo del que se va y recupera el del que llega. */
+  const cambiarA = (perfil: string): void => {
+    app.pedida = pantallaCompletaAlCambiarDePerfil(recordadas, app.perfil, perfil, app.pedida)
+    app.perfil = perfil
+  }
   /** Pulsar el botón de maximizar del panel y que el hook corrija en el render siguiente. */
   const pulsar = (p: PanelInferiorCentro): PanelInferiorCentro | null => {
     app.pedida = p
@@ -261,30 +268,33 @@ function caminoRealDeLaFranja(): void {
   for (const p of PEDIBLES) {
     const { propio, ajeno } = perfiles[p]
     const otro: PanelInferiorCentro = p === 'gitlog' ? 'terminal' : 'gitlog'
+    recordadas.clear()
     app.perfil = propio
     const alPulsar = pulsar(p)
     // Cambiar de PROYECTO no toca ni la vista ni la franja del perfil: la entrada es la misma.
     const trasCambiarProyecto = render()
-    app.perfil = ajeno
+    cambiarA(ajeno)
     const enElAjeno = render()
-    app.perfil = propio
+    cambiarA(propio)
     const deVuelta = render()
-    app.perfil = 'C'
+    cambiarA('C')
     const sinFranja = pulsar(p)
     check(
-      `${p}: pulsar la enciende; cambiar de proyecto la conserva; un perfil que enseña OTRO panel o ninguno la apaga y al volver el panel está en la franja`,
-      alPulsar === p && trasCambiarProyecto === p && enElAjeno === null && deVuelta === null && sinFranja === null,
+      `${p}: pulsar la enciende; cambiar de proyecto la conserva; un perfil que enseña OTRO panel o ninguno la apaga y al volver al suyo se recupera`,
+      alPulsar === p && trasCambiarProyecto === p && enElAjeno === null && deVuelta === p && sinFranja === null,
       j({ alPulsar, trasCambiarProyecto, enElAjeno, deVuelta, sinFranja })
     )
 
-    panel[ajeno] = p
-    app.perfil = propio
+    panel.D = p
+    cambiarA(propio)
     pulsar(p)
-    app.perfil = ajeno
+    cambiarA('D')
     const enElQueTambien = render()
-    panel[ajeno] = otro
+    cambiarA(propio)
+    delete panel.D
+    recordadas.delete('D')
     check(
-      `${p}: pasar a un perfil que TAMBIÉN enseña ese panel la conserva (sigue al objetivo, como con el proyecto)`,
+      `${p}: pasar a un perfil sin modo recordado que TAMBIÉN enseña ese panel la conserva (sigue al objetivo, como con el proyecto)`,
       enElQueTambien === p,
       j({ enElQueTambien })
     )

@@ -270,6 +270,8 @@ el que entraste.
 
 ### Conexiones SSH
 
+![Terminal a pantalla completa con el riel de conexiones SSH agrupadas y una sesión abierta](assets/capturas/ssh.png)
+
 - **Las conexiones SSH de cada espacio de trabajo**, con nombre y en grupos, se abren en
   pestañas de la terminal que se ven en todos sus proyectos, también sin proyecto abierto. A
   pantalla completa quedan fijas en un riel a la izquierda; si no, en la ▾ de la terminal,
@@ -278,6 +280,9 @@ el que entraste.
   guarda como copia protegida sin tocar el original) o las claves del sistema (el agente de
   claves y tu carpeta `.ssh`). La contraseña y la frase de la clave se guardan cifradas y se
   dan solas al conectar. «Probar» comprueba la conexión antes de guardarla.
+
+  ![Formulario de una conexión SSH: nombre, grupo, host, usuario y autenticación](assets/capturas/ssh-conexion.png)
+
 - **Importar desde OpenSSH**: lee tu `~/.ssh/config` (o el archivo que elijas). Con un solo
   `Host` rellena el formulario; con varios, abre una revisión para elegir cuáles importar,
   cambiarles el nombre, el usuario y el grupo, y dejar la contraseña o la clave de cada una.

@@ -231,7 +231,9 @@ export function TerminalsPanel(props: TerminalsPanelProps): React.JSX.Element {
   const botonNuevaRef = useRef<HTMLSpanElement>(null)
   const { infoByPane, apisRef, handleInfo, handleApi, activo } = usePanelTerminales(props)
   const { activePaneKey } = activo
-  const riel = useRielSsh(cuerpoRef, props.pantallaCompleta, props.ssh.perfilId)
+  // Sin terminal que enseñar y con el agente al lado, la columna se queda en el riel y el agente ocupa el resto.
+  const sinTerminal = activo.pane === null && props.pantallaCompleta && props.agenteTerminalVisible === true
+  const riel = useRielSsh(cuerpoRef, props.pantallaCompleta, props.ssh.perfilId, sinTerminal)
   const lista = datosListaSsh(props, activo)
 
   // La terminal que se ve recupera el foco en el siguiente fotograma, con el CSS ya aplicado.
@@ -256,7 +258,7 @@ export function TerminalsPanel(props: TerminalsPanelProps): React.JSX.Element {
   useFocoAlOcultarAgente(props.agenteTerminalVisible ?? false, props.pantallaCompleta, enfocarTerminal)
 
   return (
-    <section ref={panelRef} className={`terminal-panel${props.visible ? '' : ' hidden'}`} aria-label="Terminal" aria-hidden={!props.visible}>
+    <section ref={panelRef} className={`terminal-panel${props.visible ? '' : ' hidden'}${sinTerminal ? ' sin-terminal' : ''}`} aria-label="Terminal" aria-hidden={!props.visible}>
       <header className="panel-header">
         {/* Solo a pantalla completa y antes que el título: gobierna el riel, que queda justo debajo. */}
         <BotonRielSsh riel={riel} />

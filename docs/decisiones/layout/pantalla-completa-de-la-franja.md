@@ -14,8 +14,15 @@ búsqueda global abrían una pestaña que nadie veía.
 - Un solo estado, `franjaPantallaCompleta: 'gitlog' | 'terminal' | null`, efímero (no se persiste).
   Se pinta el valor COHERENTE (`pantallaCompletaCoherente`, pura): vale mientras ese panel está a
   la vista y no hay mosaico. Nunca lo enciende y es un punto fijo, así que el hook lo aplica en
-  cada render. La X, cambiar de panel, la vista de datos, el mosaico o un perfil sin ese panel lo
-  apagan, y al volver el panel se abre en la franja.
+  cada render. La X, cambiar de panel, la vista de datos o el mosaico lo apagan, y al volver el
+  panel se abre en la franja.
+- Cada perfil recuerda su modo mientras la app está abierta (`pantallaCompletaAlCambiarDePerfil`):
+  pasar a un perfil sin ese panel lo apaga allí, y volver al propio lo recupera. Quien trabaja con
+  la terminal maximizada no tiene que volver a maximizarla cada vez que mira otro perfil. Un perfil
+  sin modo recordado hereda el actual, y la coherencia decide si vale.
+- Con el agente al lado y sin terminal que enseñar, la columna de la terminal se queda en su
+  cabecera y su riel, y el agente ocupa el resto (`.sin-terminal`), como cuando el editor no tiene
+  pestañas. El riel no exige entonces el ancho mínimo de la terminal: no comparte el cuerpo.
 - Solo CSS y sin desmontar: la fila de arriba sale del flujo con su tamaño y se apaga con
   `content-visibility` + `visibility`, como en el mosaico. Ni el editor ni los agentes de arriba
   reciben un resize. El panel maximizado SÍ cambia de tamaño y el pty de la terminal visible se

@@ -125,7 +125,7 @@ function App(): React.JSX.Element {
   const mosaicoActivo = useStoreMosaico((s) => s.mosaicoActivo)
   const lay = agentes.lay
   const shellStyle = useEstiloShell(tintas, tamanos, lay.divisorAgente)
-  const franjaPantallaCompleta = usePantallaCompletaFranja(lay.franja, mosaicoActivo)
+  const franjaPantallaCompleta = usePantallaCompletaFranja(lay.franja, mosaicoActivo, tabs.activeProfile?.id ?? null)
   useAtajoPantallaCompleta()
   // Lo que comparten el panel lateral y la franja inferior.
   const comun = { tabs, vistas, tamanos, densidad, editor, git }

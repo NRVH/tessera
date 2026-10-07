@@ -3032,6 +3032,19 @@ body {
   visibility: visible;
   pointer-events: auto;
 }
+/* Sin terminal que enseñar (`.sin-terminal`), la columna de la terminal se queda en su cabecera y su
+   riel, y el agente ocupa el resto, como cuando el editor no tiene pestañas. Su divisor no tiene nada
+   que repartir. */
+.shell.agente-terminal-visible .shell-main:has(> .terminal-panel.sin-terminal) {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+.shell.agente-terminal-visible .terminal-panel.sin-terminal .terminal-stack,
+.shell.agente-terminal-visible .shell-main:has(> .terminal-panel.sin-terminal) .splitter-agente {
+  display: none;
+}
+.shell.agente-terminal-visible .shell-main:has(> .terminal-panel.sin-terminal) .right-panel {
+  flex: 1 1 0;
+}
 .shell.agente-terminal-visible .shell-main-top > :not(.right-panel):not(.splitter-agente) {
   position: absolute;
   top: 0;

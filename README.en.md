@@ -266,6 +266,8 @@ you used to enter it.
 
 ### SSH connections
 
+![Full-screen terminal with the rail of grouped SSH connections and an open session](assets/capturas/ssh.png)
+
 - **Each workspace's SSH connections**, named and in groups, open in terminal tabs that show
   in all of its projects, and also with no project open. In full screen they stay pinned in
   a rail on the left; otherwise, in the terminal's ▾, with the recent ones on top.
@@ -273,6 +275,9 @@ you used to enter it.
   protected copy without touching the original) or the system keys (the SSH agent and your
   `.ssh` folder). The password and the key's passphrase are stored encrypted and supplied
   automatically when connecting. "Test" checks the connection before saving it.
+
+  ![SSH connection form: name, group, host, user and authentication](assets/capturas/ssh-conexion.png)
+
 - **Import from OpenSSH**: reads your `~/.ssh/config` (or a file you pick). With a single
   `Host` it fills in the form; with several, it opens a review to choose which to import,
   rename them, set the user and the group, and leave each one's password or key ready.

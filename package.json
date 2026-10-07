@@ -1,7 +1,7 @@
 {
   "name": "tessera",
   "productName": "Tessera",
-  "version": "0.76.0",
+  "version": "0.76.1",
   "description": "El IDE de escritorio para quien trabaja en varios proyectos y con varias cuentas de IA, con cada agente en nativo o en el sandbox de Docker de su espacio de trabajo",
   "author": "Noé Roberto Vázquez Herrera (https://github.com/NRVH)",
   "license": "MIT",

@@ -75,7 +75,7 @@ export function fraseExcluidas(n: number): string | null {
 /** Las reglas de un agente con las conexiones SSH, las mismas en el aviso de arranque y en el `CLAUDE.md`. */
 export const REGLAS_SSH: readonly string[] = [
   'No pidas ni escribas contraseñas, frases de clave ni claves: `tssh` las resuelve. Si una conexión no tiene la suya guardada, díselo al usuario en vez de pedírsela.',
-  'Sin la huella confirmada no conectes: el usuario tiene que conectarse una vez desde la terminal de Tessera, porque solo usas equipos cuya huella ya aceptó una persona.',
+  'Sin la huella confirmada no conectes: el usuario tiene que conectarse una vez desde la terminal de Tessera, porque solo usas equipos cuya huella ya aceptó una persona. La comprueba `tssh` en cada conexión: si `tssh ls` la da por lista, ya la aceptó, aunque al arrancar no lo estuviera; no se la vuelvas a pedir.',
   'Antes de cambiar la configuración de un equipo (reiniciar servicios, editar archivos del sistema, tocar la red o el cortafuegos) explica qué vas a hacer y por qué, y espera a que el usuario lo confirme. Mirar y diagnosticar no necesita permiso.'
 ]
 

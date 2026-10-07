@@ -4,6 +4,18 @@ Todos los cambios relevantes de Tessera se documentan en este archivo. El format
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/), y Tessera sigue el
 [versionado semántico](https://semver.org/lang/es/).
 
+## [0.76.1] - 2026-10-07
+
+- **La terminal a pantalla completa se queda así al volver de otro perfil.** Cada perfil recuerda
+  si tenía la terminal maximizada, así que mirar otro perfil y volver ya no obliga a maximizarla
+  de nuevo.
+- **Sin terminales, el agente ocupa el sitio.** Con la terminal a pantalla completa y el agente
+  al lado, cerrar todas las terminales ya no deja un hueco con «No hay terminales»: la columna se
+  queda en su cabecera y en la lista de conexiones, y el agente ocupa el resto.
+- **El agente ya no pide aceptar otra vez una huella ya aceptada.** Si aceptas la huella de un
+  equipo después de arrancar el agente, el agente comprueba el estado actual de las conexiones
+  antes de decir que a una le falta algo.
+
 ## [0.76.0] - 2026-10-06
 
 - **Cambios con varios repositorios, rediseñado.** Solo salen los repositorios que tienen

@@ -85,7 +85,11 @@ try {
     check('(b1) nombra las disponibles con su destino', aviso.includes('«web» (root@10.0.0.5:22)') && aviso.includes("«nas 'casa'»"), aviso.slice(0, 200))
     check('(b2) y dice cuál no está lista aún: huella sin confirmar o sin contraseña guardada', aviso.includes('«nueva» (admin@192.0.2.10:22, huella sin confirmar)') && aviso.includes('«sin clave» (admin@192.0.2.10:22, sin la contraseña guardada)'), 'estados')
     check('(b3) NI el nombre de las excluidas NI las de otro perfil: solo cuántas', !aviso.includes('Servidor secreto') && !aviso.includes('otra oculta') && !aviso.includes('de otro perfil') && aviso.includes('Hay 2 conexiones más de este perfil que el usuario no dejó disponibles'), 'excluidas')
-    check('(b4) la lista puede cambiar y manda a `tssh ls`', aviso.includes('La lista puede cambiar mientras trabajas: `tssh ls` da la de ahora.'), 'tssh ls')
+    check(
+      '(b4) la lista y su estado son los del arranque: manda a `tssh ls` antes de decir que a una le falta algo',
+      aviso.includes('La lista y su estado son los del arranque') && aviso.includes('`tssh ls` da los de ahora') && aviso.includes('puede que ya lo haya resuelto'),
+      'tssh ls'
+    )
     check('(b5) prohíbe pedir contraseñas', aviso.includes('No pidas ni escribas contraseñas, frases de clave ni claves'), 'regla')
     check('(b6) pide explicar y esperar antes de cambiar la configuración de un equipo', aviso.includes('Antes de cambiar la configuración de un equipo') && aviso.includes('espera a que el') && aviso.includes('usuario lo confirme'), 'regla')
     check('(b7) el vocabulario de tssh: run con --, cp con <alias>:<ruta>, doctor y help', ['`tssh run <alias> -- <orden>`', '`tssh cp <origen> <destino>`', '`<alias>:<ruta>`', '`tssh doctor <alias>`', '`tssh help`'].every((s) => aviso.includes(s)), 'vocabulario')

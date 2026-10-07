@@ -60,7 +60,8 @@ export function briefingSsh(cat: CatalogoAgentes): string | null {
   return [
     'Conexiones SSH de Tessera: en este perfil puedes usar estas conexiones con el comando `tssh`, que pone las',
     `credenciales sin enseñártelas: ${lista(cat.disponibles)}.`,
-    'La lista puede cambiar mientras trabajas: `tssh ls` da la de ahora.',
+    'La lista y su estado son los del arranque y pueden cambiar mientras trabajas: `tssh ls` da los de ahora. Antes de',
+    'decirle al usuario que a una conexión le falta algo, míralo ahí: puede que ya lo haya resuelto.',
     '`tssh run <alias> -- <orden>` ejecuta una orden en el equipo y devuelve su salida y su código;',
     '`tssh cp <origen> <destino>` copia archivos (el lado remoto es `<alias>:<ruta>` y `-r` copia carpetas);',
     '`tssh doctor <alias>` dice por qué una conexión no conecta, y `tssh help` es la ayuda completa.',

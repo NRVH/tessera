@@ -102,6 +102,21 @@ export function pantallaCompletaCoherente(e: {
 }
 
 /**
+ * El modo al cambiar de perfil: guarda en `recordadas` el del perfil que se va y devuelve el que
+ * recuerda el que llega. Un perfil que no tiene nada guardado se queda con el actual, y la
+ * coherencia lo apaga si allí no vale.
+ */
+export function pantallaCompletaAlCambiarDePerfil(
+  recordadas: Map<string, PanelInferiorCentro | null>,
+  saliente: string | null,
+  entrante: string | null,
+  actual: PanelInferiorCentro | null
+): PanelInferiorCentro | null {
+  if (saliente !== null) recordadas.set(saliente, actual)
+  return entrante !== null && recordadas.has(entrante) ? (recordadas.get(entrante) ?? null) : actual
+}
+
+/**
  * Qué hace una apertura en el EDITOR pedida desde Git·Log; `pantallaCompleta` es la de
  * Git·Log. Fuera de ella, todas abren y nada más (lo de siempre). Dentro, el editor está
  * tapado: un gesto explícito (`'manual'`) sale del modo y abre; la vista previa al moverse
