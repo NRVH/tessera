@@ -6,8 +6,20 @@ FROM node:lts
 # --- Identidad neutra -------------------------------------------------------
 # Creamos un usuario generico "agente" con su propio home. Asi, dentro del
 # contenedor, nada delata el nombre de usuario real del host.
-RUN groupadd --gid 1001 agente \
- && useradd  --uid 1001 --gid 1001 --create-home --shell /bin/bash agente
+#
+# El uid y el gid son 1001 salvo en Linux, donde Tessera pasa los del usuario del
+# equipo: alli Docker monta el proyecto sin traducir duenos, y un agente con otro
+# uid no podria escribir en el ni dejaria archivos que el usuario pueda borrar.
+# Si ese uid ya existe en la imagen (el `node` de node:lts es 1000:1000, el
+# habitual del primer usuario de Linux), se retira antes: la imagen no lo usa. El
+# gid NO se borra si sigue existiendo: puede ser el grupo principal de otro usuario
+# del sistema (`users`, 100), y `agente` simplemente se une a ese grupo.
+ARG AGENTE_UID=1001
+ARG AGENTE_GID=1001
+RUN otro=$(getent passwd "$AGENTE_UID" | cut -d: -f1) \
+ && if [ -n "$otro" ]; then userdel --remove "$otro" 2>/dev/null || userdel "$otro"; fi \
+ && if ! getent group "$AGENTE_GID" >/dev/null; then groupadd --gid "$AGENTE_GID" agente; fi \
+ && useradd  --uid "$AGENTE_UID" --gid "$AGENTE_GID" --create-home --shell /bin/bash agente
 
 ENV HOME=/home/agente
 
@@ -98,11 +110,11 @@ RUN if [ "$PLAYWRIGHT_DEPS" = "1" ]; then \
 # nada al agente, y adelgazan la imagen. El chown final es la red de seguridad
 # para cualquier capa root futura que vuelva a escribir en el home.
 RUN rm -rf /home/agente/.npm /home/agente/.cache /home/agente/.npmrc \
- && chown -R agente:agente /home/agente
+ && chown -R agente: /home/agente
 
 # --- Ruta neutra ------------------------------------------------------------
 # /workspace es el unico punto donde se montara la carpeta del proyecto.
-RUN mkdir -p /workspace && chown agente:agente /workspace
+RUN mkdir -p /workspace && chown agente: /workspace
 WORKDIR /workspace
 
 # --- Sello de la imagen -----------------------------------------------------
@@ -116,7 +128,9 @@ WORKDIR /workspace
 #              coinciden la imagen se reconstruye en bucle sin arreglar nada. Por
 #              eso `test-sandbox-extras.mts` LEE este fichero y los compara.
 #   - extras:  lo elige el usuario en Ajustes; se sella para detectar cambios.
+#   - usuario: uid:gid de `agente`; en Linux cambia si cambia el usuario del equipo.
 LABEL tessera.sandbox.version="4"
 LABEL tessera.sandbox.extras="${EXTRA_APT}|${PLAYWRIGHT_DEPS}"
+LABEL tessera.sandbox.usuario="${AGENTE_UID}:${AGENTE_GID}"
 
 USER agente

@@ -1,13 +1,13 @@
 // =============================================================================
 // Las acciones de edición de la pestaña de colección: editar una celda o el documento entero,
 // borrar y añadir documentos, el menú contextual y «Enviar». La edición queda PENDIENTE hasta
-// «Enviar», que va sin confirmar: la política la decide el main, y si devuelve 'produccion' o
-// 'sinTransaccion' se pregunta y se reenvía con `confirmado` o `confirmadoSinTransaccion`.
+// «Enviar», que abre la vista previa con las órdenes; aceptarla en producción ya es confirmarla. Si
+// el main devuelve 'produccion' o 'sinTransaccion', se pregunta y se reenvía con esa confirmación.
 // Son funciones sobre el estado de `useEstadoEdicion`; `DbColeccionPane` las llama.
 // Decisiones: docs/decisiones/bd/ui-documentos-coleccion.md
 // =============================================================================
 
-import type { DbDocCambio } from '../../../../../shared/db-documentos-ipc'
+import type { DbDocCambio, DbDocDocumento } from '../../../../../shared/db-documentos-ipc'
 import type { DbErrorSql } from '../../../../../shared/db-explorador-ipc'
 import {
   DOCUMENTO_NUEVO,
@@ -35,6 +35,7 @@ import {
   type FilaDocs
 } from './coleccionDocs'
 import type { EstadoEdicion } from './useEdicionColeccion'
+import { lineaDeCambioDocs, resumenCambiosDocs, textoIdDe } from './envioDocs'
 import { errorDeInvoke, textoError } from '../panesBd'
 import { copiarTexto } from './utilPanes'
 import { notify } from '../../../comun/notifications'
@@ -237,6 +238,24 @@ export async function enviar(ed: EstadoEdicion, ctx: ContextoEnvio, conf: Confir
   ed.setEnviando(false)
   if (!r.ok) return avisarFalloEnvio(ed, r.error, conf)
   contarResultadoEnvio(ed, ctx, e, cambios.length, r.valor)
+}
+
+/**
+ * «Enviar»: abre la vista previa con una orden por cambio, en el orden en que viajan. El `_id` sale de
+ * los documentos LEÍDOS (`leidos`, la página), no de las filas: un reemplazo pendiente puede traer otro
+ * `_id` en su texto, y lo que se envía filtra por el original.
+ */
+export function abrirVistaPrevia(ed: EstadoEdicion, coleccion: string, leidos: readonly DbDocDocumento[]): void {
+  const cambios = cambiosDeEdicion(ed.edicionRef.current)
+  if (cambios.length === 0 || ed.enviando) return
+  const textoId = (idEjson: string): string => textoIdDe(leidos, idEjson)
+  ed.setVistaPrevia({ lineas: cambios.map((c) => lineaDeCambioDocs(coleccion, c, textoId)), resumen: resumenCambiosDocs(cambios) })
+}
+
+/** La vista previa aceptada: en producción, el botón ya era «Ejecutar en producción», así que va confirmado. */
+export function aceptarVistaPrevia(ed: EstadoEdicion, ctx: ContextoEnvio, produccion: boolean): void {
+  ed.setVistaPrevia(null)
+  void enviar(ed, ctx, produccion ? { confirmado: true } : {})
 }
 
 /** La respuesta al diálogo de confirmación: si acepta, reenvía con la confirmación de ese motivo. */

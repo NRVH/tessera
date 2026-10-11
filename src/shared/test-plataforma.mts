@@ -32,7 +32,7 @@ function main(): void {
   const traducciones: [string, string][] = [
     ['win32', 'windows'],
     ['darwin', 'mac'],
-    ['linux', 'otra'],
+    ['linux', 'linux'],
     ['freebsd', 'otra'],
     // Nada de lanzar ante un valor desconocido: un `process.platform` que no
     // reconocemos tiene que degradar a la rama POSIX, no tumbar el arranque.
@@ -64,9 +64,14 @@ function main(): void {
     capacidadesDe('mac').integracionShellEnCaliente,
     'true'
   )
-  // Linux/BSD: el menú contextual lo pone el escritorio (Nautilus, Dolphin, Thunar…),
-  // cada uno con su formato, y ninguno está escrito.
-  check('(2c) otras, no', !capacidadesDe('otra').integracionShellEnCaliente, 'false')
+  // Linux: un `.desktop` propio en `~/.local/share/applications` con
+  // `MimeType=inode/directory`, que vale en cualquier escritorio (`main/shell/escritorioLinux.ts`).
+  check(
+    '(2c) Linux sí (.desktop en ~/.local/share/applications)',
+    capacidadesDe('linux').integracionShellEnCaliente,
+    'true'
+  )
+  check('(2d) BSD no: no se empaqueta para ella', !capacidadesDe('otra').integracionShellEnCaliente, 'false')
 
   // -------------------------------------------------------------------------
   hr('(3) Capacidades: auto-instalar una actualización')
@@ -79,11 +84,8 @@ function main(): void {
   // se queda en `status:'available'` con descarga manual. Por eso `mac` es `true`.
   check('(3a) Windows sí (NSIS)', capacidadesDe('windows').autoInstalarUpdate, 'true')
   check('(3b) macOS sí (relevo propio, sin Squirrel)', capacidadesDe('mac').autoInstalarUpdate, 'true')
-  check(
-    '(3c) Linux/BSD no: ni instalador ni bundle que renombrar',
-    !capacidadesDe('otra').autoInstalarUpdate,
-    'false'
-  )
+  check('(3c) Linux sí (el AppImage)', capacidadesDe('linux').autoInstalarUpdate, 'true')
+  check('(3d) BSD no: no se empaqueta para ella', !capacidadesDe('otra').autoInstalarUpdate, 'false')
 
   // -------------------------------------------------------------------------
   hr('(4) El interface no crece en silencio (lista de campos fijada a mano)')
@@ -95,7 +97,7 @@ function main(): void {
   // si nadie, no es una capacidad (ver la cabecera de `CapacidadesPlataforma` y el
   // descarte de `portapapelesDeArchivos` que cuenta).
   const esperados = ['autoInstalarUpdate', 'integracionShellEnCaliente']
-  for (const plataforma of ['windows', 'mac', 'otra'] as const) {
+  for (const plataforma of ['windows', 'mac', 'linux', 'otra'] as const) {
     const campos = Object.keys(capacidadesDe(plataforma)).sort()
     check(
       `(4) ${plataforma}: el interface no ha crecido sin pasar por aquí (lista fijada a mano)`,

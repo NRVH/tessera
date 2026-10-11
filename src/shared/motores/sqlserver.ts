@@ -71,7 +71,7 @@ export const SQLSERVER: DescriptorMotor<'sqlserver'> = definirMotor({
   conexion: {
     puertoPorDefecto: 1433,
     obligatorios: ['alias', 'host', 'port', 'user'],
-    opcionales: ['database', 'instancia', 'autenticacion', 'dominio', 'tls'],
+    opcionales: ['database', 'instancia', 'autenticacion', 'dominio', 'tls', 'tunelSsh'],
     excluyentes: [],
     faltaDestino: {},
     descartarAlGuardar: ['sid'],
@@ -88,7 +88,7 @@ export const SQLSERVER: DescriptorMotor<'sqlserver'> = definirMotor({
     formateador: { dialecto: 'transactsql', parametros: null }
   },
   catalogo: {
-    carpetas: ['tabla', 'vista', 'rutina', 'sinonimo', 'secuencia', 'tipo'],
+    carpetas: ['tabla', 'vista', 'rutina', 'sinonimo', 'secuencia', 'tipo', 'disparador'],
     pseudoEsquemaPublico: null,
     esquemaImplicito: 'dbo',
     tieneDblinks: false,

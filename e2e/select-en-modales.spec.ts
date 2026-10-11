@@ -93,7 +93,7 @@ test.describe.serial('La lista de un select dentro de un modal', () => {
     await expect(modal).toHaveCount(0)
   })
 
-  test('diálogo de conexión de BD: el logo del motor sigue sobre el control y la lista sale por encima del formulario', async () => {
+  test('diálogo de conexión de BD: el logo del motor sigue sobre el control, cada opción lleva el suyo y la lista sale por encima del formulario', async () => {
     const win = s.win
     await win.locator('.activity-item[title="Conexiones a bases de datos"]').click()
     await expect(win.locator('.db-area:not(.hidden)')).toBeVisible()
@@ -105,6 +105,16 @@ test.describe.serial('La lista de un select dentro de un modal', () => {
     const logo = await modal.locator('.dbc-motor-logo').evaluate((el) => getComputedStyle(el).zIndex)
     expect(logo, 'el logo tiene su propio z-index').not.toBe('auto')
     await abrirYMirar(motor)
+    // Cada opción lleva la marca de su motor a la vista, a la izquierda del nombre.
+    const marcas = await motor.evaluate((el) =>
+      Array.from(el.querySelectorAll('option')).map((o) => {
+        const icono = o.querySelector('.dbc-motor-opcion-logo svg')?.getBoundingClientRect()
+        const caja = o.getBoundingClientRect()
+        return icono !== undefined && icono.width > 0 && icono.height > 0 && icono.left - caja.left < caja.width / 3
+      })
+    )
+    expect(marcas.length, 'hay opciones').toBeGreaterThan(3)
+    expect(marcas.every(Boolean), `cada opción con su marca a la izquierda: ${JSON.stringify(marcas)}`).toBe(true)
     await escCierraSoloLaLista(win, motor, modal)
     await win.keyboard.press('Escape')
     await expect(modal).toHaveCount(0)

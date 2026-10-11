@@ -257,14 +257,44 @@ hr('4. El chat con el que volverá cada sesión')
   const E = await abrir('claude-code', 'C:\\proy\\e', 'chat-con-el-que-abrio')
   const F = await abrir('claude-code', 'C:\\proy\\f')
   const G = await abrir('claude-code', 'C:\\proy\\g', 'chat-viejo')
+  const H = await abrir('claude-code', 'C:\\proy\\clear', 'chat-antes-del-clear')
+  const I = await abrir('claude-code', 'C:\\proy\\resume', 'chat-antes-del-resume')
+  const J = await abrir('claude-code', 'C:\\proy\\clear-resume', 'chat-j')
   // El usuario cambió de conversación en G: el ancla aprendió la nueva.
   anclas.pin(claveAncla('claude-code', base('claude-code'), 'C:\\proy\\g'), 'chat-nuevo', 'resume')
+  // En H tecleó `/clear` y nada más; en I, `/resume` a una vieja; en J, `/clear` y luego `/resume`.
+  ctrl.escribir({ sessionId: H, data: '/clear\r' })
+  ctrl.escribir({ sessionId: I, data: '/resume\r' })
+  ctrl.escribir({ sessionId: J, data: '/clear\r' })
+  ctrl.escribir({ sessionId: J, data: '/resume\r' })
+  // El comando ya terminó (el turno que arma el Enter no veta la ronda).
+  for (const id of [H, I, J]) {
+    const s = internas.get(id)
+    if (s) s.activity = { ...s.activity, state: () => 'idle', esperandoRespuesta: () => false }
+  }
   ahora += UMBRAL * 2
-  const r = ronda([proyecto('C:\\proy\\e'), proyecto('C:\\proy\\f'), proyecto('C:\\proy\\g')])
-  const chat = (id: string): string | undefined => r.hibernados.flatMap((h) => h.sesiones).find((s) => s.sessionId === id)?.resumeSessionId
-  check('(4a) la que abrió reanudando vuelve a ese chat', chat(E) === 'chat-con-el-que-abrio', String(chat(E)))
-  check('(4b) la que abrió sin reanudar y aún no tiene chat: ninguno (decide el pane)', chat(F) === undefined, String(chat(F)))
-  check('(4c) la que cambió de conversación vuelve a la ANCLADA, no a la de arranque', chat(G) === 'chat-nuevo', String(chat(G)))
+  const r = ronda(['e', 'f', 'g', 'clear', 'resume', 'clear-resume'].map((x) => proyecto(`C:\\proy\\${x}`)))
+  const sesion = (id: string) => r.hibernados.flatMap((h) => h.sesiones).find((s) => s.sessionId === id)
+  const chat = (id: string): string | undefined => sesion(id)?.resumeSessionId
+  const desde = (id: string): number | undefined => sesion(id)?.nuevaSiNadaDesde
+  check('(4a) la que abrió reanudando vuelve a ese chat', chat(E) === 'chat-con-el-que-abrio' && desde(E) === undefined, `${chat(E)} ${desde(E)}`)
+  check(
+    '(4b) la que abrió sin reanudar y aún no tiene chat: ninguno, y dice desde cuándo (si nada pasó, el pane empieza de cero)',
+    chat(F) === undefined && typeof desde(F) === 'number',
+    `${chat(F)} ${desde(F)}`
+  )
+  check('(4c) la que cambió de conversación vuelve a la ANCLADA, no a la de arranque', chat(G) === 'chat-nuevo' && desde(G) === undefined, `${chat(G)} ${desde(G)}`)
+  check(
+    '(4d) tras un `/clear`: ni el chat de antes ni ninguno, y desde cuándo',
+    chat(H) === undefined && typeof desde(H) === 'number',
+    `${chat(H)} ${desde(H)}`
+  )
+  check(
+    '(4e) tras un `/resume` (a una conversación que ya existe): ninguno y SIN instante (se reanuda la más reciente)',
+    sesion(I) !== undefined && chat(I) === undefined && desde(I) === undefined,
+    `${chat(I)} ${desde(I)}`
+  )
+  check('(4f) manda el ÚLTIMO cambio: `/clear` y luego `/resume` → como un `/resume`', sesion(J) !== undefined && chat(J) === undefined && desde(J) === undefined, `${chat(J)} ${desde(J)}`)
   await tick()
 }
 

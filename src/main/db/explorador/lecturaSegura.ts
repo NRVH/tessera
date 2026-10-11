@@ -2,7 +2,7 @@
 // Lógica pura del humo de solo lectura contra una base real (`test-db-oracle-lectura.mts`): encontrar la
 // conexión en el registro, forzarla a solo lectura, sacar su contraseña del puente, taparla en la salida
 // y vetar cualquier petición al trabajador que pudiera escribir o bloquear. Vive aparte porque el humo
-// solo corre por VPN en la máquina del usuario; lo que decide sin red lo fija `test-lectura-segura.mts`.
+// solo corre donde esa base es alcanzable; lo que decide sin red lo fija `test-lectura-segura.mts`.
 // Decisiones: docs/decisiones/bd/conexiones-humo-de-solo-lectura.md
 // =============================================================================
 

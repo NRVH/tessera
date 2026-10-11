@@ -82,12 +82,18 @@ export function norm(t: string): string {
   return t.replace(/\r\n?/g, '\n')
 }
 
-/** Alto que se reparten editor y resultados: la columna menos lo fijo (barra, divisor…). */
+/**
+ * Alto que se reparten editor y resultados: la columna menos lo fijo (barra, divisor…) y los
+ * márgenes de esas dos tarjetas, que `offsetHeight` no cuenta.
+ */
 export function altoRepartible(col: HTMLElement): number {
   let fijo = 0
   for (const hijo of Array.from(col.children)) {
-    if (hijo.classList.contains('db-consola-editor')) continue
-    if (hijo.classList.contains('db-consola-resultados')) continue
+    if (hijo.classList.contains('db-consola-editor') || hijo.classList.contains('db-consola-resultados')) {
+      const estilo = getComputedStyle(hijo)
+      fijo += (parseFloat(estilo.marginTop) || 0) + (parseFloat(estilo.marginBottom) || 0)
+      continue
+    }
     fijo += (hijo as HTMLElement).offsetHeight
   }
   return Math.max(0, col.clientHeight - fijo)

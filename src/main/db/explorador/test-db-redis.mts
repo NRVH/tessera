@@ -13,8 +13,14 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { IpcMain } from 'electron'
 import type { DbConnection } from '../../../shared/db-ipc.ts'
-import { KV_CHANNELS } from '../../../shared/db-claves-ipc.ts'
-import { ControladorClaves } from './claves/ControladorClaves.ts'
+import type { DbRespuesta } from '../../../shared/db-explorador-ipc.ts'
+import { KV_CHANNELS, type DbKvBytes, type DbKvPaginaClaves, type DbKvRespuesta, type DbKvResultado, type DbKvValor } from '../../../shared/db-claves-ipc.ts'
+import { escaparGlob } from '../../../renderer/src/features/bd/arbolClaves.ts'
+import { ejecutarBorrado, lotesDeBorrado, recogerClaves } from '../../../renderer/src/features/bd/claves/borradoClaves.ts'
+import { comandoDeAccion, resultadoDeAccion, type AccionClave } from '../../../renderer/src/features/bd/claves/edicionClaves.ts'
+import { comandoCrear } from '../../../renderer/src/features/bd/claves/edicionElementos.ts'
+import { documentoJsonDeClave, leerClaveEntera } from '../../../renderer/src/features/bd/claves/exportarClave.ts'
+import { ControladorClaves, type EntradaHistorialClaves } from './claves/ControladorClaves.ts'
 import { registrarIpcClaves } from './claves/ipc.ts'
 import { GestorClaves } from './claves/GestorClaves.ts'
 import { ProcesoTrabajador } from './ProcesoTrabajador.ts'
@@ -86,7 +92,7 @@ interface ClienteRedis {
   call(...args: Array<string | number>): Promise<unknown>
   scan(cursor: string, ...args: Array<string | number>): Promise<[string, string[]]>
   del(...claves: string[]): Promise<number>
-  exists(clave: string): Promise<number>
+  exists(...claves: string[]): Promise<number>
 }
 
 function conexionDe(id: string, d: Destino, extra: Partial<DbConnection> = {}): DbConnection {
@@ -181,9 +187,17 @@ async function main(): Promise<void> {
   })
   const handlers = new Map<string, (e: unknown, req: unknown) => Promise<unknown>>()
   const ipc = { handle: (c: string, fn: (e: unknown, req: unknown) => Promise<unknown>) => void handlers.set(c, fn) } as unknown as IpcMain
+  const historial: EntradaHistorialClaves[] = []
+  const guardados: Array<{ nombre: string; texto: string }> = []
   registrarIpcClaves({
     ipc,
-    controlador: new ControladorClaves({ conexiones: { get: (id) => conexiones.get(id) }, gestor, log: (l) => logs.push(l) })
+    controlador: new ControladorClaves({
+      conexiones: { get: (id) => conexiones.get(id) },
+      gestor,
+      alSentencia: (e) => historial.push(e),
+      guardarTexto: async (nombre, texto) => (guardados.push({ nombre, texto }), `${nombre}.json`),
+      log: (l) => logs.push(l)
+    })
   })
   const pedir = async (canal: string, req: unknown): Promise<Resp> => {
     const fn = handlers.get(canal)
@@ -213,6 +227,139 @@ async function main(): Promise<void> {
     } while (cursor !== '0' && vueltas < 500)
     const nombres = claves.map((c) => c.nombre.texto ?? `b64:${c.nombre.base64}`).sort()
     return { ok: cursor === '0', nombres, claves, vueltas }
+  }
+
+  /** Un comando del explorador (de la edición, el borrado…) por una sesión propia, como el renderer. */
+  const comandoVisor = (texto: string, extra: Record<string, unknown> = {}, conexionId = 'rw'): Promise<Resp> =>
+    pedir(KV_CHANNELS.CONSOLA_EJECUTAR, { perfilId: PERFIL, consolaId: 'visor-test', conexionId, base: 0, texto, desplazamiento: 0, ...extra })
+  const txt = (t: string): DbKvBytes => ({ texto: t, base64: b64(t) })
+  const respDe = (r: Resp): DbKvRespuesta => r.valor.respuesta as DbKvRespuesta
+
+  /** Ejecuta la acción de edición del visor tal como lo hace el renderer; devuelve lo que se le diría al usuario. */
+  const accion = async (clave: string, a: AccionClave, uno = '', dos = ''): Promise<string> => {
+    const c = comandoDeAccion(txt(clave), a, { uno, dos }, false)
+    if (!c.ok) return `sin comando: ${c.motivo}`
+    const r = await comandoVisor(c.texto)
+    if (!r.ok) return `error: ${r.error?.mensaje}`
+    const res = resultadoDeAccion(a, c.texto, respDe(r))
+    return res.ok ? res.aviso : res.mensaje
+  }
+
+  /** Los comandos de la edición de list, set, zset y stream contra un servidor de verdad. */
+  async function edicionDeElementos(): Promise<void> {
+    hr('(7) Edición de list, set, zset y stream, y crear claves')
+    const L = `${TMP}:lista`
+    const S = `${TMP}:set`
+    const Z = `${TMP}:zset`
+    const X = `${TMP}:stream`
+    await admin.call('DEL', L, S, Z, X)
+    check('crear una list: RPUSH, y la clave existe', (await accion(L, { tipo: 'anadir', de: 'list' }, 'uno')) === 'Elemento añadido' && (await admin.call('LRANGE', L, 0, -1) as string[]).join() === 'uno', '')
+    await accion(L, { tipo: 'anadir', de: 'list' }, 'dos')
+    check('LSET cambia el elemento por su índice', (await accion(L, { tipo: 'elemento', indice: 1, actual: 'dos' }, 'DOS')) === 'Elemento guardado' && (await admin.call('LRANGE', L, 0, -1) as string[]).join() === 'uno,DOS', '')
+    check('LSET fuera de rango: el error de Redis, tal cual', /index out of range/i.test(await accion(L, { tipo: 'elemento', indice: 9, actual: '' }, 'x')), '')
+    check('LREM quita el elemento', (await accion(L, { tipo: 'quitar', de: 'list', elemento: txt('uno') })) === 'Elemento borrado' && (await admin.call('LRANGE', L, 0, -1) as string[]).join() === 'DOS', '')
+    check('LREM de lo que ya no está: lo dice', (await accion(L, { tipo: 'quitar', de: 'list', elemento: txt('uno') })) === 'Ya no estaba.', '')
+    check('set: SADD añade y un repetido se dice', (await accion(S, { tipo: 'anadir', de: 'set' }, 'a')) === 'Miembro añadido' && (await accion(S, { tipo: 'anadir', de: 'set' }, 'a')) === 'Ya era miembro del conjunto.', '')
+    check('set: SREM quita', (await accion(S, { tipo: 'quitar', de: 'set', elemento: txt('a') })) === 'Miembro borrado' && (await admin.exists(S)) === 0, 'el último miembro borra la clave')
+    check('zset: ZADD añade con su puntuación', (await accion(Z, { tipo: 'anadir', de: 'zset' }, 'ana', '1.5')) === 'Miembro añadido' && String(await admin.call('ZSCORE', Z, 'ana')) === '1.5', '')
+    check('zset: ZADD de un miembro que ya está actualiza su puntuación', (await accion(Z, { tipo: 'anadir', de: 'zset' }, 'ana', '2')) === 'Puntuación actualizada', '')
+    check('zset: ZADD XX cambia la puntuación del miembro', (await accion(Z, { tipo: 'puntuacion', miembro: txt('ana'), actual: '2' }, '7')) === 'Puntuación guardada' && String(await admin.call('ZSCORE', Z, 'ana')) === '7', '')
+    await accion(Z, { tipo: 'quitar', de: 'zset', elemento: txt('ana') })
+    check('zset: ZADD XX de un miembro que ya no está NO lo crea', (await accion(Z, { tipo: 'puntuacion', miembro: txt('ana'), actual: '2' }, '7')) === 'Puntuación guardada' && (await admin.exists(Z)) === 0, '')
+    check('stream: XADD * añade una entrada', (await accion(X, { tipo: 'anadir', de: 'stream' }, 'campo', 'valor')) === 'Entrada añadida' && Number(await admin.call('XLEN', X)) === 1, '')
+    const id = String(((await admin.call('XRANGE', X, '-', '+')) as string[][])[0][0])
+    check('stream: XDEL borra por id', (await accion(X, { tipo: 'quitarEntrada', id })) === 'Entrada borrada' && (await accion(X, { tipo: 'quitarEntrada', id })) === 'La entrada ya no existía.', '')
+    check('WRONGTYPE al añadir a una clave de otro tipo se dice', /WRONGTYPE/.test(await accion(L, { tipo: 'anadir', de: 'set' }, 'x')), '')
+    // Crear: SET NX no pisa, y los demás tipos crean con su primer elemento.
+    const N = `${TMP}:nueva`
+    await admin.call('DEL', N)
+    const creaString = comandoCrear(N, 'string', { uno: 'hola', dos: '' })
+    const c1 = creaString.ok ? await comandoVisor(creaString.texto) : null
+    check('crear string: SET NX responde OK y la clave existe', c1?.ok === true && resultadoDeAccion({ tipo: 'crear' }, '', respDe(c1)).ok && String(await admin.call('GET', N)) === 'hola', j(c1))
+    const c2 = creaString.ok ? await comandoVisor(creaString.texto) : null
+    check('… y otra vez: nil, «ya existe», y no se pisa', c2?.ok === true && !resultadoDeAccion({ tipo: 'crear' }, '', respDe(c2)).ok, j(c2))
+    for (const [tipo, uno, dos] of [['hash', 'f', 'v'], ['list', 'x', ''], ['set', 'x', ''], ['zset', 'x', '3'], ['stream', 'c', 'v']] as const) {
+      await admin.call('DEL', `${N}:${tipo}`)
+      const cm = comandoCrear(`${N}:${tipo}`, tipo, { uno, dos })
+      const rr = cm.ok ? await comandoVisor(cm.texto) : null
+      check(`crear ${tipo}: la clave existe con ese tipo`, rr?.ok === true && String(await admin.call('TYPE', `${N}:${tipo}`)) === tipo, j(cm))
+    }
+  }
+
+  /** El filtro por tipo del SCAN. */
+  async function filtroPorTipo(): Promise<void> {
+    hr('(8) SCAN por tipo')
+    const porTipo = async (tipo: string): Promise<string[]> => {
+      const out: string[] = []
+      let cursor = '0'
+      do {
+        const r = await pedir(KV_CHANNELS.ESCANEAR, { conexionId: 'rw', base: 0, patron: 'usuario:*', cursor, cuenta: 1000, tipo })
+        if (!r.ok) throw new Error(r.error?.mensaje)
+        for (const k of r.valor.claves as Array<{ nombre: { texto?: string }; tipo: string }>) out.push(`${k.nombre.texto}:${k.tipo}`)
+        cursor = r.valor.cursor
+      } while (cursor !== '0')
+      return out.sort()
+    }
+    const hashes = await porTipo('hash')
+    check('tipo hash: solo los hashes de usuario:* (con su tipo)', hashes.length >= 1 && hashes.every((n) => n.endsWith(':hash')), j(hashes))
+    const strings = await porTipo('string')
+    check('tipo string: los demás no aparecen', strings.every((n) => n.endsWith(':string')) && !strings.some((n) => hashes.includes(n)), j(strings))
+  }
+
+  /** Borrar por patrón, exportar a JSON y el historial de la consola, contra un servidor de verdad. */
+  async function borradoExportacionYHistorial(): Promise<void> {
+    hr('(9) Borrar por patrón')
+    const P = `${TMP}:del`
+    const total = 650
+    const crear = admin.call('MSET', ...Array.from({ length: total }, (_, i) => [`${P}:${i}`, String(i)]).flat())
+    await crear
+    await admin.call('SET', `${TMP}:conserva`, '1')
+    const escanear = (patron: string) => async (cursor: string): Promise<DbRespuesta<DbKvPaginaClaves>> =>
+      (await pedir(KV_CHANNELS.ESCANEAR, { conexionId: 'rw', base: 0, patron, cursor, cuenta: 100 })) as DbRespuesta<DbKvPaginaClaves>
+    const rec = await recogerClaves(escanear(`${escaparGlob(P)}:*`), { cancelada: () => false })
+    check('la vista previa reúne las 650 y solo ellas', rec.ok && rec.valor.fin === 'completa' && rec.valor.claves.length === total, rec.ok ? String(rec.valor.claves.length) : j(rec))
+    const lotes = rec.ok ? lotesDeBorrado(rec.valor.claves) : []
+    check('en lotes de 200: 4 comandos', lotes.length === 4, String(lotes.length))
+    const sinConfirmar = await ejecutarBorrado(lotes, (t) => comandoVisor(t, {}, 'prod') as Promise<DbRespuesta<DbKvResultado>>, () => false)
+    check('producción sin confirmar: para en el primer lote y NO borra nada', sinConfirmar.paro?.tipo === 'error' && sinConfirmar.paro.error.motivo === 'produccion' && sinConfirmar.borradas === 0 && (await admin.exists(`${P}:0`)) === 1, j(sinConfirmar))
+    const borrado = await ejecutarBorrado(lotes, (t) => comandoVisor(t, { confirmado: true }, 'prod') as Promise<DbRespuesta<DbKvResultado>>, () => false)
+    check('producción confirmada: borra las 650, y no toca lo que no casa', borrado.borradas === total && borrado.paro === undefined && (await admin.exists(`${P}:0`, `${P}:649`)) === 0 && (await admin.exists(`${TMP}:conserva`)) === 1, j(borrado))
+    check('ninguno de esos comandos entró en el historial (son del explorador, no de una consola)', !historial.some((h) => /^UNLINK /.test(h.sql)), j(historial.length))
+
+    hr('(10) Exportar a JSON')
+    const H = `${TMP}:exporta`
+    await admin.call('DEL', H)
+    await admin.call('HSET', H, ...Array.from({ length: 1200 }, (_, i) => [`campo${i}`, `valor ${i}`]).flat())
+    await admin.call('PEXPIRE', H, 600000)
+    const lectura = await leerClaveEntera(
+      async (desde) => (await pedir(KV_CHANNELS.VALOR, { conexionId: 'rw', base: 0, clave: txt(H), cuantos: 100, ...(desde !== undefined ? { desde } : {}) })) as DbRespuesta<DbKvValor>,
+      () => false
+    )
+    const docu = lectura.ok ? (JSON.parse(documentoJsonDeClave(txt(H), lectura.valor)) as { clave: string; tipo: string; ttlMs: number | null; valor: Record<string, string> }) : null
+    check('el hash de 1200 campos se lee entero por trozos y sale como objeto', docu !== null && docu.tipo === 'hash' && docu.clave === H && Object.keys(docu.valor).length === 1200 && docu.valor.campo1199 === 'valor 1199', docu ? String(Object.keys(docu.valor).length) : j(lectura))
+    check('… con su caducidad', docu !== null && typeof docu.ttlMs === 'number' && docu.ttlMs > 0 && docu.ttlMs <= 600000, j(docu?.ttlMs))
+    const g = await pedir(KV_CHANNELS.GUARDAR_TEXTO, { conexionId: 'rw', nombre: 'exporta', texto: lectura.ok ? documentoJsonDeClave(txt(H), lectura.valor) : '' })
+    check('GUARDAR_TEXTO entrega el texto al diálogo y responde solo el nombre del archivo', g.ok && g.valor.archivo === 'exporta.json' && guardados.length === 1 && guardados[0].texto.includes('campo1199'), j(g))
+    const bin = await valor(0, 'binario')
+    const ent = bin.ok ? documentoJsonDeClave({ base64: b64('binario') }, bin.valor as DbKvValor) : ''
+    check('un string binario sale en base64', JSON.parse(ent).valor.base64 === b64(Buffer.concat([Buffer.from([0x00, 0x01, 0xff, 0xfe]), Buffer.from('no-utf8')])), ent.slice(0, 200))
+
+    hr('(11) Historial de la consola')
+    historial.length = 0
+    await consola('rw', 'GET contador', { consolaId: 'k-hist' })
+    await consola('rw', 'HGET contador x', { consolaId: 'k-hist' })
+    await consola('rw', 'SUBSCRIBE canal', { consolaId: 'k-hist' })
+    await consola('prod', `SET ${TMP}:h 1`, { consolaId: 'k-hist' })
+    check(
+      'lo que llegó al servidor se anota (ok y error de Redis); las barreras de Tessera (no admitido, producción sin confirmar), no',
+      j(historial.map((h) => [h.sql, h.resultado, h.esquema])) === j([['GET contador', 'ok', 'db0'], ['HGET contador x', 'error', 'db0']]),
+      j(historial.map((h) => [h.sql, h.resultado]))
+    )
+  }
+  async function edicionYBorrado(): Promise<void> {
+    await edicionDeElementos()
+    await filtroPorTipo()
+    await borradoExportacionYHistorial()
   }
 
   try {
@@ -317,6 +464,8 @@ async function main(): Promise<void> {
     check('tras desconectar, la siguiente petición vuelve a conectar', otraVez.ok, j(otraVez.error ?? null))
     const claves = [RW.secreto, LECTOR?.secreto, CLAVE_SIN_INFO].filter((x): x is string => typeof x === 'string' && x.length >= 4)
     check('ninguna clave aparece en el log', !logs.some((l) => claves.some((c) => l.includes(c))), `${logs.length} líneas`)
+
+    await edicionYBorrado()
   } finally {
     await gestor.cerrarTodo(2500).catch(() => undefined)
     try {

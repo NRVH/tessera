@@ -17,14 +17,16 @@
 #
 # Variables que pone `correr`: TESSERA_TEST_SSH=127.0.0.1:2222 y TESSERA_TEST_SSH_DIR=<secretos>.
 # Las pruebas leen los archivos de esa carpeta: ninguna clave viaja por el entorno.
+# Si el 2222 está ocupado, PRUEBAS_SSH_PUERTO elige otro (y `levantar --de-cero` recrea el contenedor
+# con él: el puerto se fija al crearlo). Hay que ponerla igual en `levantar` y en `correr`.
 #
-# MAC (sin verificar): debian:bookworm-slim es multiarquitectura.
+# MAC: debian:bookworm-slim es multiarquitectura.
 # =============================================================================
 . "$(dirname "${BASH_SOURCE[0]}")/comun.sh"
 NOMBRE=pruebas-ssh
 IMAGEN=pruebas-ssh-img
 VOLUMEN=pruebas-ssh-host
-PUERTO=2222
+PUERTO="${PRUEBAS_SSH_PUERTO:-2222}"
 
 # Contexto de construcción en una carpeta temporal: Dockerfile + la configuración de sshd.
 # Debian incluye sshd_config.d/*.conf al PRINCIPIO de su sshd_config, así que esto manda.

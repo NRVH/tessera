@@ -8,14 +8,16 @@
 
 import { useCallback } from 'react'
 import type { editor } from 'monaco-editor'
-import type { DbCancelar, DbRespuesta } from '../../../../../shared/db-explorador-ipc'
+import type { DbRespuesta } from '../../../../../shared/db-explorador-ipc'
 import type { DbDocResultado } from '../../../../../shared/db-documentos-ipc'
 import { PISTA_SIN_SENTENCIA } from '../consola/estadoConsola'
 import { TEXTO_SIN_RESPUESTA_STOP, textoError, type AccionSalida, type IrAPosicion } from '../consola/salidaConsola'
 import { ESPERA_STOP_MS } from '../consola/vivoConsola'
 import { baseTrasResultado, sentenciasShellAEjecutar, unirColumnas, type ModoEjecucionShell, type SentenciaShell } from './consolaDocs'
 import { respuestaDeError, uuid } from './consolaComun'
-import { cerrarLectorDeVista, type EstadoConsolaDocs, type VistaResultado } from './useEstadoConsolaDocs'
+import type { EstadoConsolaDocs } from './useEstadoConsolaDocs'
+import { anadirResultadoDocs, irASalidaDocs, resultadoDeRespuesta } from './resultadosConsolaDocs'
+import { actualizarResultado, empezarLote, ID_SALIDA, sinLectores } from '../resultados/pestanasResultado'
 import { modoDelCursor } from './useEditorConsola'
 import { cancelarDesde, ejecutarSentencia, type DepsLote } from './loteDocs'
 
@@ -49,41 +51,21 @@ function useEnviar(e: EstadoConsolaDocs): Enviar {
   )
 }
 
-function useAplicarResultado(e: EstadoConsolaDocs): (r: DbDocResultado) => void {
-  const { cambiarBase, baseRef, vistaRef, docs, setVista, setSeleccionado, setPestana } = e
+/** Una sentencia con algo que enseñar abre su pestaña: las de un mismo lote se suman. */
+function useAplicarResultado(e: EstadoConsolaDocs): (r: DbDocResultado, lote: number, sentencia: string) => void {
+  const { cambiarBase, baseRef, cambiarResultados } = e
   return useCallback(
-    (r: DbDocResultado): void => {
+    (r: DbDocResultado, lote: number, sentencia: string): void => {
       cambiarBase(baseTrasResultado(baseRef.current, r))
-      if (r.tipo === 'documentos') {
-        const v: VistaResultado = {
-          tipo: 'documentos',
-          columnas: r.pagina.columnas,
-          documentos: r.pagina.documentos,
-          lector: r.pagina.lector,
-          coleccion: r.coleccion,
-          ms: r.pagina.ms
-        }
-        cerrarLectorDeVista(docs, vistaRef.current)
-        vistaRef.current = v
-        setVista(v)
-        // El primero elegido: el panel JSON nunca empieza vacío si hay algo que enseñar.
-        setSeleccionado(r.pagina.documentos.length > 0 ? 0 : null)
-        setPestana('resultado')
-      } else if (r.tipo === 'valor') {
-        const v: VistaResultado = { tipo: 'valor', texto: r.texto }
-        cerrarLectorDeVista(docs, vistaRef.current)
-        vistaRef.current = v
-        setVista(v)
-        setSeleccionado(null)
-        setPestana('resultado')
-      }
+      const nuevo = resultadoDeRespuesta(r, sentencia)
+      if (nuevo) cambiarResultados((est) => anadirResultadoDocs(est, nuevo, lote))
     },
-    [cambiarBase, baseRef, vistaRef, docs, setVista, setSeleccionado, setPestana]
+    [cambiarBase, baseRef, cambiarResultados]
   )
 }
 
-function useCorrer(e: EstadoConsolaDocs, enviar: Enviar, aplicarResultado: (r: DbDocResultado) => void): (m: ModoEjecucionShell) => Promise<void> {
-  const { anotar, pedirConfirmacion, cambiarEnCurso, setPestana, baseRef, conexionRef, desmontadoRef, detenidoRef } = e
+function useCorrer(e: EstadoConsolaDocs, enviar: Enviar, aplicarResultado: DepsLote['aplicarResultado']): (m: ModoEjecucionShell) => Promise<void> {
+  const { anotar, pedirConfirmacion, cambiarEnCurso, cambiarResultados, baseRef, conexionRef, desmontadoRef, detenidoRef } = e
   const { modeloRef, marcasRef, cargadoRef, enCursoRef, dialogoRef, siguienteIdRef, stopRef } = e
   const { setPista, setConError, setLoteMarcado } = e
   return useCallback(
@@ -100,6 +82,8 @@ function useCorrer(e: EstadoConsolaDocs, enviar: Enviar, aplicarResultado: (r: D
       setConError(false)
       detenidoRef.current = false
       const lote = { marcas, sentencias, id: siguienteIdRef.current++ }
+      // Desde ya: elegir una pestaña mientras corre la primera sentencia cuenta como elección.
+      cambiarResultados((est) => sinLectores(empezarLote(est, lote.id)))
       marcas.iniciar(sentencias.map((s) => ({ desde: s.desde, hasta: s.hastaContenido })))
       setLoteMarcado(lote.id)
       const deps: DepsLote = {
@@ -108,7 +92,7 @@ function useCorrer(e: EstadoConsolaDocs, enviar: Enviar, aplicarResultado: (r: D
         pedirConfirmacion,
         aplicarResultado,
         cambiarEnCurso,
-        irAlSalida: () => setPestana('salida'),
+        irAlSalida: () => cambiarResultados((est) => sinLectores(irASalidaDocs(est))),
         baseRef,
         conexionRef,
         desmontadoRef
@@ -130,7 +114,7 @@ function useCorrer(e: EstadoConsolaDocs, enviar: Enviar, aplicarResultado: (r: D
       setConError(fallo)
     },
     [
-      anotar, enviar, pedirConfirmacion, aplicarResultado, cambiarEnCurso, setPestana, baseRef, conexionRef, desmontadoRef, detenidoRef,
+      anotar, enviar, pedirConfirmacion, aplicarResultado, cambiarEnCurso, cambiarResultados, baseRef, conexionRef, desmontadoRef, detenidoRef,
       modeloRef, marcasRef, cargadoRef, enCursoRef, dialogoRef, siguienteIdRef, stopRef, setPista, setConError, setLoteMarcado
     ]
   )
@@ -147,17 +131,15 @@ function useModoDelEditor(edRef: React.RefObject<editor.IStandaloneCodeEditor>, 
 }
 
 function useDetener(e: EstadoConsolaDocs): () => void {
-  const { api, perfilId, consolaId, anotar, enCursoRef, masRef, detenidoRef, conexionRef, stopRef } = e
+  const { api, perfilId, consolaId, anotar, enCursoRef, masRef, detenidoRef, stopRef } = e
   return useCallback((): void => {
     const en = enCursoRef.current
     const mas = masRef.current
     if (!en && !mas) return
     detenidoRef.current = true
     if (en) api.cancelar({ rol: 'consola', perfilId, consolaId, ejecucionId: en.peticionId }).catch(() => undefined)
-    if (mas) {
-      const c: DbCancelar = { rol: 'datos', conexionId: conexionRef.current.id, peticionId: mas }
-      api.cancelar(c).catch(() => undefined)
-    }
+    // El cursor de «Cargar más» vive en la sesión de la consola: se para por ella, con su `peticionId`.
+    if (mas) api.cancelar({ rol: 'consola', perfilId, consolaId, ejecucionId: mas }).catch(() => undefined)
     if (!en) return
     if (stopRef.current !== null) clearTimeout(stopRef.current)
     stopRef.current = setTimeout(() => {
@@ -167,7 +149,7 @@ function useDetener(e: EstadoConsolaDocs): () => void {
         anotar([{ tipo: 'aviso', texto: TEXTO_SIN_RESPUESTA_STOP, accion: { tipo: 'forzar', etiqueta: ETIQUETA_FORZAR_DOCS } }])
       }
     }, ESPERA_STOP_MS)
-  }, [api, perfilId, consolaId, anotar, enCursoRef, masRef, detenidoRef, conexionRef, stopRef])
+  }, [api, perfilId, consolaId, anotar, enCursoRef, masRef, detenidoRef, stopRef])
 }
 
 function useAccionSalida(e: EstadoConsolaDocs): (a: AccionSalida) => Promise<void> {
@@ -207,10 +189,12 @@ function useIrA(e: EstadoConsolaDocs, edRef: React.RefObject<editor.IStandaloneC
   )
 }
 
+/** «Cargar más» de la pestaña activa: la página siguiente de su lector, añadida a sus documentos. */
 function useCargarMas(e: EstadoConsolaDocs): () => Promise<void> {
-  const { docs, anotar, vistaRef, masRef, filasPorPaginaRef, desmontadoRef, setCargandoMas, setVista } = e
+  const { docs, anotar, resultadosRef, masRef, filasPorPaginaRef, desmontadoRef, setCargandoMas, cambiarResultados } = e
   return useCallback(async (): Promise<void> => {
-    const v = vistaRef.current
+    const id = resultadosRef.current.activa
+    const v = id === ID_SALIDA ? undefined : resultadosRef.current.resultados[id]
     if (!v || v.tipo !== 'documentos' || !v.lector || masRef.current) return
     const lector = v.lector
     const peticionId = uuid()
@@ -221,26 +205,29 @@ function useCargarMas(e: EstadoConsolaDocs): () => Promise<void> {
         .lectorMas({ lector, maxDocumentos: filasPorPaginaRef.current, peticionId })
         .catch((err: unknown) => respuestaDeError<never>(err))
       if (desmontadoRef.current) return
-      const actual = vistaRef.current
-      // Si mientras tanto llegó otro resultado, esta página ya no es de nadie.
-      if (!actual || actual.tipo !== 'documentos' || actual.lector !== lector) return
+      const actual = resultadosRef.current.resultados[id]
+      // Si mientras tanto la pestaña se cerró o se sustituyó, esta página ya no es de nadie, ni
+      // el cursor con el que volvió: se cierra, o seguiría abierto en el servidor.
+      if (!actual || actual.tipo !== 'documentos' || actual.lector !== lector) {
+        if (r.ok && r.valor.lector) docs.lectorCerrar(r.valor.lector).catch(() => undefined)
+        return
+      }
       if (!r.ok) {
         if (r.error.motivo !== 'cancelada') anotar([{ tipo: 'error', texto: `No se pudieron leer más documentos: ${textoError(r.error)}` }])
         return
       }
-      const sig: VistaResultado = {
+      const sig = {
         ...actual,
         columnas: unirColumnas(actual.columnas, r.valor.columnas),
         documentos: actual.documentos.concat(r.valor.documentos),
         lector: r.valor.lector
       }
-      vistaRef.current = sig
-      setVista(sig)
+      cambiarResultados((est) => sinLectores(actualizarResultado(est, id, sig)))
     } finally {
       if (masRef.current === peticionId) masRef.current = null
       setCargandoMas(false)
     }
-  }, [docs, anotar, vistaRef, masRef, filasPorPaginaRef, desmontadoRef, setCargandoMas, setVista])
+  }, [docs, anotar, resultadosRef, masRef, filasPorPaginaRef, desmontadoRef, setCargandoMas, cambiarResultados])
 }
 
 /** Todo lo que el pane necesita para ejecutar, detener y paginar. */

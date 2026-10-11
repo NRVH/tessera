@@ -13,6 +13,8 @@ import { logCrash } from './crashLog'
 import { logUpdate } from '../update/logUpdate'
 import { rutasDesdeArgv } from '../../shared/rutasDesdeArgv'
 import { encolarAperturas, hayRelevoEnMarcha } from '../shell/aperturasPendientes'
+import { ARCHIVO_DESKTOP } from '../shell/escritorioLinux'
+import { esLinux } from '../../shared/plataforma'
 
 /**
  * Prepara el proceso al cargar el módulo. Devuelve el encargo del relevo (o `null` si
@@ -34,6 +36,9 @@ export function prepararProceso(ventana: () => BrowserWindow | null): string | n
 function prepararTessera(ventana: () => BrowserWindow | null): void {
   // Tiene que ir antes de crear la ventana; `.dev` separa la de desarrollo en la barra de tareas.
   app.setAppUserModelId(app.isPackaged ? 'com.noe.tessera' : 'com.noe.tessera.dev')
+  // En Linux el identificador de la ventana en Wayland sale del nombre del `.desktop`: con el
+  // mismo que instala `shell/escritorioLinux.ts`, el lanzador asocia la ventana a esa entrada.
+  if (esLinux()) app.setDesktopName(ARCHIVO_DESKTOP)
   // Se mira antes del cerrojo: si ya hay una Tessera viva, la ruta viaja en su `second-instance`.
   const rutasDelExplorador = rutasDesdeArgv(process.argv)
   if (rutasDelExplorador.length > 0 && hayRelevoEnMarcha()) {

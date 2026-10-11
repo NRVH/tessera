@@ -31,12 +31,13 @@ export function baseDelFeed(argv = process.argv, env = process.env) {
 }
 
 /**
- * Los dos canales que electron-updater sabe pedir. El sufijo `-mac` lo añade el propio
- * updater en Darwin, así que estos dos nombres son fijos.
+ * Los tres canales que electron-updater sabe pedir. Los sufijos `-mac` y `-linux` los añade
+ * el propio updater en Darwin y en Linux, así que estos nombres son fijos.
  */
 export const CANALES = [
   { plataforma: 'Windows', canal: 'latest.yml' },
-  { plataforma: 'macOS', canal: 'latest-mac.yml' }
+  { plataforma: 'macOS', canal: 'latest-mac.yml' },
+  { plataforma: 'Linux', canal: 'latest-linux.yml' }
 ]
 
 /**
@@ -123,7 +124,7 @@ async function leerCanal(c, base) {
   }
 }
 
-/** Estado de los dos canales de `base`, en paralelo. */
+/** Estado de los canales de `base`, en paralelo. */
 export async function estadoDeFeeds(base = FEED_GITHUB) {
   return Promise.all(CANALES.map((c) => leerCanal(c, base)))
 }
@@ -141,8 +142,8 @@ function fechaCorta(iso) {
 export function remedioDePublicar(base, version) {
   if (base === FEED_GITHUB) {
     return (
-      `empuja la etiqueta v${version} al repo público: el workflow «Publicar» compila las dos\n` +
-      '  plataformas y solo saca la release de borrador cuando están las dos.'
+      `empuja la etiqueta v${version} al repo público: el workflow «Publicar» compila las tres\n` +
+      '  plataformas y solo saca la release de borrador cuando están las tres.'
     )
   }
   return 'publica esa versión en ese feed.'
@@ -238,7 +239,7 @@ function imprimirResumen({ faltaPublicar, adelantadas, ilegibles, sinMinimo }, e
   }
 
   if (faltaPublicar.length === 0 && adelantadas.length === 0 && ilegibles.length === 0) {
-    console.log('\n[feeds] ✓ Las dos plataformas sirven la misma versión.')
+    console.log('\n[feeds] ✓ Las tres plataformas sirven la misma versión.')
   }
   console.log('')
 }

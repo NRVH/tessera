@@ -1,7 +1,7 @@
 // =============================================================================
 // Categoría INTEGRACIÓN CON EL SISTEMA: que el clic derecho del gestor de archivos
-// ofrezca abrir una carpeta con Tessera. Dos bloques con mecanismos distintos: el
-// registro (Windows) y el servicio del Finder (macOS). Es la única categoría que
+// ofrezca abrir una carpeta con Tessera. Un bloque por mecanismo: el registro (Windows),
+// el servicio del Finder (macOS) y el `.desktop` (Linux, en `IntegracionLinux.tsx`). Es la única categoría que
 // escribe fuera de Tessera: viene apagada y cada cambio se aplica por su canal.
 // Quién enseña qué lo decide `catalogo.categoriasVisibles`; aquí solo se mira `ve(id)`.
 // Decisiones: docs/decisiones/renderer/integracion-con-el-sistema.md
@@ -16,6 +16,7 @@ import type { DisponibilidadShell } from '../../../../../shared/shell-windows-ip
 import type { DisponibilidadFinder } from '../../../../../shared/servicio-finder-ipc'
 import { Casillas, CampoTexto, Fila, Grupo, Interruptor } from '../primitivas'
 import type { PropsCategoria } from '../tipos'
+import { AbrirConLinux } from './IntegracionLinux'
 
 /** Qué se le dice al usuario cuando esto no se puede hacer aquí (Windows). */
 const MOTIVO: Record<Exclude<DisponibilidadShell, 'ok'>, string> = {
@@ -47,11 +48,13 @@ export function Integracion(props: PropsCategoria): React.JSX.Element | null {
   const veWindows =
     ve('menu-windows-carpetas') || ve('menu-windows-archivos') || ve('menu-windows-extensiones')
   const veFinder = ve('accion-rapida-finder')
-  if (!veWindows && !veFinder) return null
+  const veLinux = ve('abrir-con-linux')
+  if (!veWindows && !veFinder && !veLinux) return null
   return (
     <>
       {veWindows && <MenuExplorador {...props} />}
       {veFinder && <AccionRapidaFinder {...props} />}
+      {veLinux && <AbrirConLinux />}
     </>
   )
 }

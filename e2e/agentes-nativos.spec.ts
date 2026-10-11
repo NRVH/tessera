@@ -336,7 +336,8 @@ test.describe('actualizar los agentes nativos', () => {
     // Codex 0.156.1 publicado (con sus binarios) y 0.156.0 instalado; Claude al día.
     registro = await abrirRegistroFalso({ codex: '0.156.1', claude: '2.1.281' })
     m = montar()
-    s = await abrirTessera({ ...m.agente.env, ...registro.env }, { sembrar: (datos) => sembrar(datos, m) })
+    // Con volcados de caída (el paquete de pruebas no es alpha): el diagnóstico de abajo los lee.
+    s = await abrirTessera({ ...m.agente.env, ...registro.env, TESSERA_VOLCADOS: '1' }, { sembrar: (datos) => sembrar(datos, m) })
     const proc = s.app.process()
     const guardar = (b: Buffer): void => {
       salidaApp.push(...b.toString('utf8').split(/\r?\n/).filter(Boolean))
@@ -562,7 +563,7 @@ test.describe('actualizar los agentes nativos', () => {
   // muera todo lo que cuelga de la carpeta del paquete. El npm falso apunta QUÉ pids de
   // Codex seguían vivos al entrar y, como el de verdad, intenta sustituir su `codex.exe`.
   test('Windows: Codex se instala con npm con sus sesiones PARADAS y cada una vuelve UNA vez a su chat', async () => {
-    test.skip(PLATAFORMA !== 'windows', 'en macOS Codex se actualiza con `codex update` sin parar nada (prueba siguiente)')
+    test.skip(PLATAFORMA !== 'windows', 'en macOS y Linux Codex se actualiza con `codex update` sin parar nada (prueba siguiente)')
     test.setTimeout(240_000)
     const win = s.win
     const desde = m.agente.eventos().length
@@ -603,10 +604,10 @@ test.describe('actualizar los agentes nativos', () => {
     await expect(win.locator(`${BOTON} .boton-actualizacion-punto`)).toHaveCount(0)
   })
 
-  // MACOS: SIN PARADA. POSIX no bloquea un ejecutable en uso, así que `codex update`
+  // MACOS Y LINUX: SIN PARADA. POSIX no bloquea un ejecutable en uso, así que `codex update`
   // corre con las sesiones vivas y después se reinician las que corren la versión vieja.
-  test('macOS: Codex se actualiza con `codex update` y cada sesión vuelve UNA vez a su chat', async () => {
-    test.skip(PLATAFORMA !== 'mac', 'en Windows Codex se instala con npm parando antes sus sesiones (prueba anterior)')
+  test('macOS y Linux: Codex se actualiza con `codex update` y cada sesión vuelve UNA vez a su chat', async () => {
+    test.skip(PLATAFORMA === 'windows', 'en Windows Codex se instala con npm parando antes sus sesiones (prueba anterior)')
     test.setTimeout(240_000)
     const win = s.win
     m.agente.destinoUpdate('codex', '0.156.1')

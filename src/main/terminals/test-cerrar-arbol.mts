@@ -6,7 +6,7 @@
 // Cubre que mueren el agente y sus nietos SIN teclear nada, que un cierre o un reinicio
 // simultáneos esperan y tampoco teclean, que las muertes van de una en una con las paradas,
 // que una sesión ya muerta no dispara ningún kill y los rechazos.
-// Escrito para las dos plataformas; en macOS queda sin verificar desde Windows.
+// Escrito para las dos plataformas.
 // Decisiones: docs/decisiones/agentes/hibernacion-por-inactividad.md
 // =============================================================================
 

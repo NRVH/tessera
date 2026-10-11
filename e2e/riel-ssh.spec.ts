@@ -8,12 +8,12 @@
 // `TESSERA_E2E_CAPTURAS` guarda capturas.
 // =============================================================================
 
-import { expect, test, type Locator, type Page } from '@playwright/test'
+import { expect, test, type JSHandle, type Locator, type Page } from '@playwright/test'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { montarAgenteFalso } from './agenteFalso'
 import { montarSshFalso, type SshFalso } from './sshFalso'
-import { abrirTessera, borrarTemporal, MOD, type SesionTessera } from './tessera'
+import { abrirTessera, borrarTemporal, MOD, PLATAFORMA, type SesionTessera } from './tessera'
 
 /** La terminal que se ve, dentro del panel, y la misma desde la raíz (para mirar dónde está el foco). */
 const PANE_VISIBLE = '.terminal-pane[aria-hidden="false"]'
@@ -209,9 +209,9 @@ test.describe.serial('El riel de conexiones SSH a pantalla completa', () => {
     await expect(riel()).toHaveAttribute('aria-label', 'Conexiones SSH')
     expect(await anchoDe(riel()), 'mide 260 px, el ancho del lateral').toBe(260)
 
-    // Su cabecera es la de los laterales: el título y tres acciones.
+    // Su cabecera es la de los laterales: el título y sus acciones.
     await expect(riel().locator('.sidebar-header .sidebar-title')).toHaveText('Conexiones SSH')
-    for (const nombre of ['Nueva conexión SSH…', 'Nuevo grupo…', 'Ocultar la lista']) {
+    for (const nombre of ['Nueva conexión SSH…', 'Nuevo grupo…', 'Importar desde OpenSSH…', 'Exportar a OpenSSH…', 'Ocultar la lista']) {
       await expect(riel().getByRole('button', { name: nombre }), `la cabecera ofrece «${nombre}»`).toBeVisible()
     }
     await expect(riel().getByText('Sin conexiones SSH en este perfil'), 'sin conexiones, la lista lo dice').toBeVisible()
@@ -226,7 +226,7 @@ test.describe.serial('El riel de conexiones SSH a pantalla completa', () => {
     const cajaRiel = await riel().boundingBox()
     const cajaDivisor = await divisor().boundingBox()
     const cajaPila = await win.locator('.terminal-stack').boundingBox()
-    expect(cuerpo && cajaRiel && Math.abs(cajaRiel.x - cuerpo.x) <= 1, 'el riel pega con el borde izquierdo del cuerpo').toBe(true)
+    expect(cuerpo && cajaRiel && Math.abs(cajaRiel.x - cuerpo.x - 8) <= 1, 'el riel es una tarjeta a 8 px del borde izquierdo del cuerpo').toBe(true)
     expect(cajaRiel && cajaDivisor && cajaDivisor.x >= cajaRiel.x + cajaRiel.width - 1, 'el divisor va a su derecha').toBe(true)
     expect(cajaDivisor && cajaPila && cajaPila.x >= cajaDivisor.x + cajaDivisor.width - 1, 'y la pila de terminales, a la del divisor').toBe(true)
 
@@ -279,10 +279,14 @@ test.describe.serial('El riel de conexiones SSH a pantalla completa', () => {
     await expect(panel().locator('.terminal-tab.ssh'), 'guardar no abre ninguna pestaña').toHaveCount(0)
   })
 
-  test('un clic en una conexión abre su pestaña, enfoca su xterm y marca su fila; Intro en el filtro hace lo mismo', async () => {
+  test('un clic en una conexión solo la elige; el doble clic abre su pestaña, enfoca su xterm y marca su fila; Intro en el filtro hace lo mismo', async () => {
     const win = s.win
     await expect(fila('Router')).not.toHaveAttribute('aria-current', 'true')
     await fila('Router').click()
+    await expect(fila('Router'), 'el clic la elige').toHaveAttribute('aria-selected', 'true')
+    await expect(panel().locator('.terminal-tab.ssh'), 'un clic no abre ninguna pestaña').toHaveCount(0)
+    expect(m.ssh.arranques().length, 'ni lanza ssh').toBe(0)
+    await fila('Router').dblclick()
     const pestana = panel().getByRole('tab', { name: 'Router, SSH' })
     await expect(pestana, 'aparece la pestaña SSH').toBeVisible({ timeout: 30_000 })
     await expect(pestana).toHaveAttribute('aria-selected', 'true')
@@ -306,7 +310,7 @@ test.describe.serial('El riel de conexiones SSH a pantalla completa', () => {
     await capturar(win, 'riel-ssh-con-conexion')
 
     // La marca sigue a la pestaña que se ve.
-    await fila('Switch').click()
+    await fila('Switch').dblclick()
     await expect(panel().getByRole('tab', { name: 'Switch, SSH' })).toBeVisible({ timeout: 30_000 })
     await expect(fila('Switch')).toHaveAttribute('aria-current', 'true')
     await expect(fila('Router')).not.toHaveAttribute('aria-current', 'true')
@@ -614,7 +618,7 @@ test.describe.serial('El riel de conexiones SSH a pantalla completa', () => {
     // Al abrir una conexión desde el riel, el lanzador la pone la primera de las recientes, sin abrir su grupo.
     await conmutador().click()
     await expect(riel()).toBeVisible()
-    await riel().getByRole('treeitem', { name: /^Alfa 1,/ }).click()
+    await riel().getByRole('treeitem', { name: /^Alfa 1,/ }).dblclick()
     await expect(panel().getByRole('tab', { name: 'Alfa 1, SSH' })).toBeVisible({ timeout: 30_000 })
     await conmutador().click()
     await expect(riel()).toHaveCount(0)
@@ -624,6 +628,121 @@ test.describe.serial('El riel de conexiones SSH a pantalla completa', () => {
     await expect(grupoLanzador('Beta')).toHaveAttribute('aria-expanded', 'false')
     await expect(popover().getByRole('treeitem').first(), 'y es la primera de las recientes').toHaveAccessibleName(/^Reciente, Alfa 1,/)
     await win.keyboard.press('Escape')
+  })
+
+  test('varias a la vez en el riel: Ctrl/⌘ y Mayús marcan, se arrastran a otro grupo o a «Nuevo grupo…», «Mover…» y Supr con una sola confirmación', async () => {
+    const win = s.win
+    // Viene de la anterior: Router y Switch sueltas, «Alfa» y «Beta» con dos cada uno, y el riel plegado.
+    if ((await riel().count()) === 0) await conmutador().click()
+    await expect(riel()).toBeVisible()
+    const arbol = riel().getByRole('tree', { name: 'Conexiones SSH' })
+    await expect(arbol, 'el árbol del riel deja marcar varias').toHaveAttribute('aria-multiselectable', 'true')
+    const grupoDe = (alias: string): Promise<string | null> =>
+      win.evaluate(async (a) => {
+        const l = await window.tessera.ssh.listar()
+        const c = l.conexiones.find((x) => x.alias === a)
+        return c?.grupoId === null || c === undefined ? null : (l.grupos.find((g) => g.id === c.grupoId)?.nombre ?? null)
+      }, alias)
+    const cabecera = (nombre: string): Locator => riel().getByRole('treeitem', { name: new RegExp(`^${nombre}, \\d+ conexi`) })
+
+    // Clic, Ctrl/⌘+clic y Mayús+clic.
+    await fila('Router').click()
+    await fila('Alfa 2').click({ modifiers: [MOD] })
+    await expect(fila('Router'), 'Ctrl/⌘+clic añade').toHaveAttribute('aria-selected', 'true')
+    await expect(fila('Alfa 2')).toHaveAttribute('aria-selected', 'true')
+    await fila('Router').click()
+    await fila('Switch').click({ modifiers: ['Shift'] })
+    await expect(fila('Switch'), 'Mayús+clic marca el rango').toHaveAttribute('aria-selected', 'true')
+    await expect(fila('Alfa 2'), 'y suelta lo que no está en él').toHaveAttribute('aria-selected', 'false')
+    await capturar(win, 'riel-ssh-varias-marcadas')
+
+    // El menú de varias: «Mover 2 conexiones a un grupo…» → «Alfa».
+    await fila('Switch').click({ button: 'right' })
+    await expect(win.getByRole('menuitem', { name: 'Eliminar 2 conexiones…' })).toBeVisible()
+    await win.getByRole('menuitem', { name: 'Mover 2 conexiones a un grupo…' }).click()
+    const mover = win.getByRole('dialog', { name: 'Mover 2 conexiones' })
+    await mover.getByRole('combobox').selectOption({ label: 'Alfa' })
+    await mover.getByRole('button', { name: 'Mover' }).click()
+    await expect(mover).toHaveCount(0)
+    await expect.poll(async () => [await grupoDe('Router'), await grupoDe('Switch')], { message: 'las dos pasan a «Alfa» de una vez' }).toEqual(['Alfa', 'Alfa'])
+
+    // «Exportar 2 conexiones a OpenSSH…»: solo las marcadas, en el archivo que se elige (el diálogo nativo se
+    // sustituye en el main), y un aviso que lo cuenta.
+    const exportado = join(m.raiz, 'exportado', 'config-tessera')
+    mkdirSync(join(m.raiz, 'exportado'))
+    await s.app.evaluate(({ dialog }, ruta) => {
+      dialog.showSaveDialog = async (): Promise<Electron.SaveDialogReturnValue> => ({ canceled: false, filePath: ruta })
+    }, exportado)
+    await fila('Router').click()
+    await fila('Switch').click({ modifiers: [MOD] })
+    await fila('Switch').click({ button: 'right' })
+    await win.getByRole('menuitem', { name: 'Exportar 2 conexiones a OpenSSH…' }).click()
+    await expect(win.getByText('Se exportaron 2 conexiones a «config-tessera»'), 'el aviso cuenta lo exportado').toBeVisible({ timeout: 15_000 })
+    const texto = readFileSync(exportado, 'utf8')
+    expect(texto, 'las dos marcadas, en su grupo').toMatch(/# Grupo: Alfa\n\nHost Router\n[\s\S]*\nHost Switch\n/)
+    expect(texto, 'y ninguna otra').not.toContain('Host Alfa-1')
+
+    // Los eventos del arrastre van con un DataTransfer propio, como en la prueba del explorador SFTP: el gesto
+    // nativo de Chromium no lo conduce el ratón de Playwright de forma fiable.
+    const arrastre = (): Promise<JSHandle<DataTransfer>> => win.evaluateHandle(() => new DataTransfer())
+
+    // Arrastrar una sin marcar a la cabecera de otro grupo: se mueve solo ella. Mientras se arrastra, «Sin grupo»
+    // (ya vacío) aparece como destino y al pie sale «Nuevo grupo…».
+    const dt1 = await arrastre()
+    await fila('Alfa 1').dispatchEvent('dragstart', { dataTransfer: dt1 })
+    await expect(cabecera('Sin grupo'), 'al arrastrar, «Sin grupo» vacío es un destino más').toBeVisible()
+    await expect(riel().locator('.ssh-soltar-nuevo'), 'y al pie, «Nuevo grupo…»').toBeVisible()
+    await cabecera('Alfa').dispatchEvent('dragover', { dataTransfer: dt1 })
+    await expect(cabecera('Alfa'), 'MITAD NEGATIVA: su propio grupo no es destino').not.toHaveClass(/\bdestino\b/)
+    await cabecera('Beta').dispatchEvent('dragover', { dataTransfer: dt1 })
+    await expect(cabecera('Beta'), 'el grupo bajo el puntero se marca').toHaveClass(/\bdestino\b/)
+    await expect(fila('Beta 1'), 'y sus conexiones también').toHaveClass(/\ben-destino\b/)
+    await cabecera('Beta').dispatchEvent('drop', { dataTransfer: dt1 })
+    await expect.poll(() => grupoDe('Alfa 1'), { message: 'soltada en «Beta», pasa a «Beta»' }).toBe('Beta')
+    await expect(riel().locator('.ssh-soltar-nuevo'), 'al soltar se va la zona de «Nuevo grupo…»').toHaveCount(0)
+    await expect(cabecera('Sin grupo'), 'y «Sin grupo», vacío, deja de verse').toHaveCount(0)
+
+    // Arrastrar dos marcadas a «Nuevo grupo…»: pide el nombre y crea el grupo con ellas dentro.
+    await fila('Router').click()
+    await fila('Switch').click({ modifiers: [MOD] })
+    const dt2 = await arrastre()
+    await fila('Switch').dispatchEvent('dragstart', { dataTransfer: dt2 })
+    const zona = riel().locator('.ssh-soltar-nuevo')
+    await zona.dispatchEvent('dragover', { dataTransfer: dt2 })
+    await expect(zona).toHaveClass(/\bsobre\b/)
+    await capturar(win, 'riel-ssh-arrastrar-a-nuevo-grupo')
+    await zona.dispatchEvent('drop', { dataTransfer: dt2 })
+    const nuevo = win.getByRole('dialog', { name: 'Nuevo grupo con 2 conexiones' })
+    await nuevo.getByRole('textbox').fill('Red')
+    await nuevo.getByRole('button', { name: 'Crear' }).click()
+    await expect(nuevo).toHaveCount(0)
+    await expect.poll(async () => [await grupoDe('Router'), await grupoDe('Switch')], { message: 'el grupo nuevo se lleva las dos' }).toEqual(['Red', 'Red'])
+    await expect(cabecera('Red')).toHaveAccessibleName('Red, 2 conexiones')
+
+    // Supr con dos marcadas: una sola confirmación, con sus nombres, y se borran las dos.
+    await fila('Router').click()
+    await fila('Switch').click({ modifiers: [MOD] })
+    await win.keyboard.press(PLATAFORMA === 'mac' ? 'Meta+Backspace' : 'Delete')
+    const confirmar = win.getByRole('dialog', { name: 'Eliminar 2 conexiones' })
+    await expect(confirmar, 'una sola confirmación, que las nombra').toContainText('• Router')
+    await expect(confirmar).toContainText('• Switch')
+    await confirmar.getByRole('button', { name: 'Eliminar' }).click()
+    await expect(fila('Router')).toHaveCount(0)
+    await expect(fila('Switch')).toHaveCount(0)
+    await expect(cabecera('Red'), 'el grupo se queda, vacío').toHaveAccessibleName('Red, 0 conexiones')
+
+    // Mayús+↓ desde el filtro amplía la selección.
+    await fila('Beta 1').click()
+    await riel().getByRole('combobox', { name: 'Buscar conexión' }).press('Shift+ArrowDown')
+    await expect(fila('Beta 2'), 'Mayús+↓ amplía hasta la siguiente').toHaveAttribute('aria-selected', 'true')
+    await expect(fila('Beta 1')).toHaveAttribute('aria-selected', 'true')
+
+    // Plegar su grupo las suelta DE VERDAD: al desplegarlo no vuelven marcadas (un Supr no las borraría a escondidas).
+    await cabecera('Beta').click()
+    await expect(fila('Beta 1')).toHaveCount(0)
+    await cabecera('Beta').click()
+    await expect(fila('Beta 1'), 'desplegado, ya no está marcada').toHaveAttribute('aria-selected', 'false')
+    await expect(fila('Beta 2')).toHaveAttribute('aria-selected', 'false')
   })
 })
 

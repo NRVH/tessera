@@ -17,8 +17,11 @@ editores) no pueden desmontarse al cambiar de vista o de proyecto sin perder su 
 [ barra de estado ]
 ```
 
-- La franja inferior (terminal o Git·Log) vive DENTRO de la columna principal, no como hermana
-  del cuerpo: de ancho completo recortaba por abajo el riel de iconos.
+- La franja inferior (terminal o Git·Log) vive DENTRO de la columna principal y ocupa todo su
+  ancho, también bajo el lateral; no es hermana del cuerpo: de ancho completo recortaría el riel.
+  El riel es su propia tarjeta, así que no tiene que medir lo mismo que el lateral. Se probó a
+  unir riel y lateral en una tarjeta: obligaba a sacar la franja de debajo del lateral, y la
+  franja estrecha se echaba de menos más de lo que ganaba la unión.
 - La terminal y la columna del agente nunca se desmontan: se ocultan por CSS. Git·Log se monta
   bajo demanda (sus cachés hacen instantáneo reabrirlo).
 - El editor y el área de BD se ocultan enteros (sin desmontar) cuando el centro es de otra cosa.

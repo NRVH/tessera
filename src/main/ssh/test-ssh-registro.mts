@@ -14,7 +14,7 @@ import { createHash, createHmac, randomBytes } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { SSH_CHANNELS, type SshConexionInput, type SshListaConexiones } from '../../shared/ssh-ipc.ts'
+import { SSH_CHANNELS, SSH_LOTE_MAX, type SshConexionInput, type SshListaConexiones } from '../../shared/ssh-ipc.ts'
 import { ConexionesSsh } from './ConexionesSsh.ts'
 import { conservarAlEditarSsh, type ConexionSshPersistida } from './conservarAlEditarSsh.ts'
 import { ControladorSsh } from './ControladorSsh.ts'
@@ -139,7 +139,7 @@ try {
     const s = store(r)
     const l = s.listar()
     const alta = error(() => s.crear(entrada()))
-    s.podarPerfiles(new Set())
+    s.alBorrarPerfil('pa')
     check(
       `(b) ${nombre}`,
       l.formatoAjeno && l.aviso === MENSAJE_FORMATO_AJENO_SSH && l.conexiones.length === 0 && alta === MENSAJE_FORMATO_AJENO_SSH && readFileSync(r, 'utf-8') === antes,
@@ -338,7 +338,7 @@ try {
   }
 
   // ---------------------------------------------------------------------------
-  hr('J - Al arrancar se podan solo ENTRADAS; al borrar el perfil, también sus archivos')
+  hr('J - Al borrar el perfil se van sus entradas y sus archivos; nada se poda por no estar en la lista')
   {
     const sinPerfil = { id: 'j-sin', alias: 'huérfana' }
     const r = archivo({
@@ -348,10 +348,10 @@ try {
     for (const id of ['j1', 'j2', 'j4']) writeFileSync(path.join(dirHuellas, id), 'x')
     writeFileSync(path.join(dirClaves, 'j4'), 'clave')
     const s = store(r)
-    s.podarPerfiles(new Set(['pa', 'pc']))
+    s.alBorrarPerfil('pb')
     const ids = lista(disco(r), 'conexiones').map((c) => c.id).join(',')
-    check('(j1) se van las entradas (conocidas, ajenas y grupos) del perfil que no existe', ids === 'j1,j-sin,j4' && lista(disco(r), 'grupos').length === 0, ids)
-    check('(j2) pero NO sus archivos', existsSync(path.join(dirHuellas, 'j2')), 'huellas/j2 sigue')
+    check('(j1) se van las entradas (conocidas, ajenas y grupos) del perfil borrado, y solo esas', ids === 'j1,j-sin,j4' && lista(disco(r), 'grupos').length === 0, ids)
+    check('(j2) y sus archivos', !existsSync(path.join(dirHuellas, 'j2')) && existsSync(path.join(dirHuellas, 'j1')), 'huellas/j2 fuera, j1 sigue')
     s.alBorrarPerfil('pc')
     check('(j3) borrar el perfil quita sus entradas y sus archivos', !lista(disco(r), 'conexiones').some((c) => c.id === 'j4') && !existsSync(path.join(dirHuellas, 'j4')) && !existsSync(path.join(dirClaves, 'j4')), 'j4 fuera')
     check('(j4) la entrada sin perfil legible se conserva', lista(disco(r), 'conexiones').some((c) => c.id === 'j-sin'), 'j-sin sigue')
@@ -475,8 +475,8 @@ try {
     const invocar = (canal: string, req?: unknown): unknown => handlers.get(canal)?.({}, req)
     const enviado = (canal: string, req?: unknown): string | null => error(() => invocar(canal, req))
     check(
-      '(o1) se registran los trece canales invocables, con probar, olvidar la huella e importar de OpenSSH',
-      handlers.size === 13 && handlers.has(SSH_CHANNELS.IMPORTAR_OPENSSH) && handlers.has(SSH_CHANNELS.PROBAR) && handlers.has(SSH_CHANNELS.HUELLA_OLVIDAR) && !handlers.has(SSH_CHANNELS.CAMBIO) && !handlers.has(SSH_CHANNELS.AVISO),
+      '(o1) se registran los diecisiete canales invocables, con duplicar, mover y borrar varias, probar, olvidar la huella e importar y exportar OpenSSH',
+      handlers.size === 17 && handlers.has(SSH_CHANNELS.DUPLICAR) && handlers.has(SSH_CHANNELS.MOVER) && handlers.has(SSH_CHANNELS.BORRAR_VARIAS) && handlers.has(SSH_CHANNELS.IMPORTAR_OPENSSH) && handlers.has(SSH_CHANNELS.EXPORTAR_OPENSSH) && handlers.has(SSH_CHANNELS.PROBAR) && handlers.has(SSH_CHANNELS.HUELLA_OLVIDAR) && !handlers.has(SSH_CHANNELS.CAMBIO) && !handlers.has(SSH_CHANNELS.AVISO),
       [...handlers.keys()].join(' ')
     )
     const claveRara = enviado(SSH_CHANNELS.CREAR, { ...entrada(), metodo: 'clave', clave: { tipo: 'ruta', ruta: 'C:/x' } })
@@ -716,9 +716,96 @@ try {
       `${enOtro} · ${JSON.stringify(enSuyo.clave)}`
     )
 
-    // C78: la ruta de la copia la calcula un solo sitio.
+    // La ruta de la copia la calcula un solo sitio.
     check('(p17) C78: el registro y las claves importadas dan la misma ruta de copia', claves.rutaDe(enSuyo.id) === conexiones.rutaClave(enSuyo.id) && claves.rutaDe(enSuyo.id) === path.join(dirClavesP, enSuyo.id), conexiones.rutaClave(enSuyo.id))
     check('(p18) C78: y los dos rechazan el mismo id que no vale', error(() => claves.rutaDe('../x')) !== null && error(() => conexiones.rutaClave('../x')) !== null, String(error(() => claves.rutaDe('../x'))))
+
+    // «Duplicar»: la copia lleva su PROPIA copia de la clave; borrar la original no la deja sin ella.
+    const provAntes = provisionales().length
+    const d1 = await ctrl.duplicar({ id: enSuyo.id, profileId: 'pb' })
+    const rutaD1 = path.join(dirClavesP, d1.id)
+    check(
+      '(p19) Duplicar: «… (1)», otro id y su propia copia de la clave, idéntica (sin dejar provisional)',
+      d1.alias === 'soltada-en-pb (1)' && d1.id !== enSuyo.id && readFileSync(rutaD1, 'utf-8') === readFileSync(path.join(dirClavesP, enSuyo.id), 'utf-8') && JSON.stringify(d1.clave) === JSON.stringify(enSuyo.clave) && provisionales().length === provAntes,
+      `${d1.alias} · ${JSON.stringify(d1.clave)}`
+    )
+    const d2 = await ctrl.duplicar({ id: enSuyo.id, profileId: 'pb' })
+    check('(p20) la siguiente copia: «(2)»', d2.alias === 'soltada-en-pb (2)', d2.alias)
+    ctrl.borrar({ id: enSuyo.id, profileId: 'pb' })
+    check('(p21) borrar la original no toca la clave de la copia', existsSync(rutaD1) && !existsSync(path.join(dirClavesP, enSuyo.id)), readdirSync(dirClavesP).join(','))
+    const deOtro = await ctrl.duplicar({ id: d1.id, profileId: 'pa' }).then(() => null, (x: Error) => x.message)
+    check('(p22) una conexión de otro perfil no se duplica', deOtro === 'Esa conexión ya no existe.', String(deOtro))
+  }
+
+  hr('Q - Duplicar: los datos, el secreto y sin las huellas')
+  {
+    const reg = store(archivo(null))
+    const bastion = reg.crear(entrada({ alias: 'bastion', metodo: 'sistema' }))
+    const o = reg.crear(entrada({ alias: 'Producción', secreto: 'clave-de-prueba', saltoId: bastion.id, tuneles: [{ tipo: 'dinamico', puerto: 1080 }], disponibleAgentes: false }))
+    writeFileSync(reg.rutaHuellas(o.id), '[192.0.2.10]:22 ssh-ed25519 AAAA\n')
+    const copia = reg.duplicar(o.id, 'pa')
+    check(
+      '(q1) la copia: mismos datos, bastión, túneles y «Disponible para los agentes»; su contraseña cifrada se puede leer',
+      copia.host === o.host && copia.saltoId === bastion.id && JSON.stringify(copia.tuneles) === JSON.stringify(o.tuneles) && !copia.disponibleAgentes && copia.tieneSecreto && reg.secretoDe(copia.id) === 'clave-de-prueba',
+      JSON.stringify({ alias: copia.alias, saltoId: copia.saltoId, tuneles: copia.tuneles })
+    )
+    check('(q2) sin las huellas: la copia acepta la del servidor al conectar', copia.huellaServidor.length === 0 && !existsSync(reg.rutaHuellas(copia.id)), JSON.stringify(copia.huellaServidor))
+    const largo = reg.crear(entrada({ alias: 'x'.repeat(120) }))
+    const copiaLarga = reg.duplicar(largo.id, 'pa')
+    check('(q3) un nombre largo se recorta para que quepa « (1)» en el tope', copiaLarga.alias.length === 120 && copiaLarga.alias.endsWith(' (1)'), String(copiaLarga.alias.length))
+    const web = reg.crear(entrada({ alias: 'Web' }))
+    reg.crear(entrada({ alias: 'WEB (1)' }))
+    const w2 = reg.duplicar(web.id, 'pa')
+    check('(q4) el nombre de la copia no choca con uno que solo cambia en mayúsculas', w2.alias === 'Web (2)', w2.alias)
+    const w3 = reg.duplicar(w2.id, 'pa')
+    check('(q5) duplicar una copia no acumula números: «Web (2)» da «Web (3)», no «Web (2) (1)»', w3.alias === 'Web (3)', w3.alias)
+    const anio = reg.crear(entrada({ alias: 'Informe (2024) web' }))
+    check('(q6) un paréntesis que no va al final es parte del nombre', reg.duplicar(anio.id, 'pa').alias === 'Informe (2024) web (1)', 'Informe (2024) web (1)')
+    const solo = reg.crear(entrada({ alias: '(7)' }))
+    check('(q7) un nombre que es solo un número entre paréntesis no se queda vacío', reg.duplicar(solo.id, 'pa').alias === '(7) (1)', '(7) (1)')
+  }
+
+  hr('S - Varias a la vez: mover a un grupo y borrar, en una sola escritura')
+  {
+    const reg = store(archivo(null))
+    const g = reg.crearGrupo('pa', 'Web')
+    const otroPerfil = reg.crearGrupo('pb', 'Ajeno')
+    const a = reg.crear(entrada({ alias: 'a', secreto: 'clave-a', tuneles: [{ tipo: 'dinamico', puerto: 1081 }] }))
+    const b = reg.crear(entrada({ alias: 'b', grupoId: g.id }))
+    const c = reg.crear(entrada({ alias: 'c' }))
+    const deB = reg.crear(entrada({ profileId: 'pb', alias: 'de-pb' }))
+    const grupoDe = (id: string): string | null => reg.listar('pa').conexiones.find((x) => x.id === id)?.grupoId ?? null
+    const m = reg.mover([a.id, b.id, deB.id, 'no-existe'], 'pa', g.id)
+    check('(s1) mover cuenta solo las que cambian: la que ya estaba, la de otro perfil y la que no existe no', m.movidas === 1 && grupoDe(a.id) === g.id && grupoDe(b.id) === g.id, JSON.stringify(m))
+    check('(s2) la de otro perfil no se toca', reg.listar('pb').conexiones.find((x) => x.id === deB.id)?.grupoId === null, 'pb')
+    const sinCambios = reg.listar('pa').conexiones.find((x) => x.id === a.id)
+    check('(s3) mover no toca lo demás: secreto y túneles siguen', sinCambios?.tieneSecreto === true && reg.secretoDe(a.id) === 'clave-a' && sinCambios.tuneles.length === 1, JSON.stringify(sinCambios?.tuneles))
+    const aSin = reg.mover([a.id, b.id], 'pa', null)
+    check('(s4) a «Sin grupo» con null', aSin.movidas === 2 && grupoDe(a.id) === null && grupoDe(b.id) === null, JSON.stringify(aSin))
+    const ajeno = error(() => reg.mover([a.id], 'pa', otroPerfil.id))
+    check('(s5) un grupo de otro perfil no vale', ajeno === 'Ese grupo ya no existe en este perfil.' && grupoDe(a.id) === null, String(ajeno))
+    check('(s6) nada que mover: 0 y no se escribe', reg.mover([c.id], 'pa', null).movidas === 0, '0')
+    writeFileSync(reg.rutaHuellas(a.id), '[192.0.2.10]:22 ssh-ed25519 AAAA\n')
+    const bo = reg.borrarVarias([a.id, b.id, deB.id], 'pa')
+    const quedan = reg.listar('pa').conexiones.map((x) => x.alias)
+    check('(s7) borrar varias: solo las del perfil, y sus huellas se van', bo.borradas === 2 && JSON.stringify(quedan) === JSON.stringify(['c']) && !existsSync(reg.rutaHuellas(a.id)), JSON.stringify({ bo, quedan }))
+    check('(s8) la de otro perfil sigue', reg.listar('pb').conexiones.length === 1, 'pb')
+    check('(s9) un lote vacío no hace nada', reg.borrarVarias([], 'pa').borradas === 0 && reg.listar('pa').conexiones.length === 1, '0')
+
+    const handlers = new Map<string, (e: unknown, req?: unknown) => unknown>()
+    const emitidos: string[] = []
+    const ipc = { handle: (canal: string, h: (e: unknown, req?: unknown) => unknown) => void handlers.set(canal, h) }
+    const ssh = new ControladorSsh({ conexiones: reg, eventos: { emitir: (x) => void emitidos.push(x), hayDestino: () => true }, log: () => {} })
+    registrarIpcSsh({ ipc: ipc as never, ssh })
+    const invocar = (canal: string, req?: unknown): unknown => handlers.get(canal)?.({}, req)
+    const enviado = (canal: string, req?: unknown): string | null => error(() => invocar(canal, req))
+    const movidas = invocar(SSH_CHANNELS.MOVER, { ids: [c.id], profileId: 'pa', grupoId: g.id }) as { movidas: number }
+    check('(s10) MOVER por el canal mueve y avisa con ssh:cambio', movidas.movidas === 1 && grupoDe(c.id) === g.id && emitidos.includes(SSH_CHANNELS.CAMBIO), JSON.stringify(movidas))
+    check('(s11) ids que no son una lista de textos: mal formada', enviado(SSH_CHANNELS.MOVER, { ids: [5], profileId: 'pa', grupoId: null })?.includes('mal formada') === true, 'ids [5]')
+    check('(s12) más ids que el tope: mal formada', enviado(SSH_CHANNELS.BORRAR_VARIAS, { ids: Array.from({ length: SSH_LOTE_MAX + 1 }, (_, i) => `x${i}`), profileId: 'pa' })?.includes('mal formada') === true, 'tope')
+    check('(s13) un grupoId que no es texto ni null: mal formada', enviado(SSH_CHANNELS.MOVER, { ids: [c.id], profileId: 'pa', grupoId: 3 })?.includes('mal formada') === true, 'grupoId 3')
+    const borradas = invocar(SSH_CHANNELS.BORRAR_VARIAS, { ids: [c.id], profileId: 'pa' }) as { borradas: number }
+    check('(s14) BORRAR_VARIAS por el canal', borradas.borradas === 1 && reg.listar('pa').conexiones.length === 0, JSON.stringify(borradas))
   }
 } finally {
   try {

@@ -24,6 +24,7 @@ import type { DbPane, IndicadorPestana } from './dbTabsModel'
 import type { RevelarBd } from './dbVistaEstado'
 import type { DatosRejilla } from './rejilla/celdasRejilla'
 import type { OrdenRejilla } from './panesBd'
+import type { AbrirConsolaEn, BaseConsolaNueva } from './consola/basesConsola'
 
 /** Petición con token: cambiar el token re-dispara aunque el valor sea el mismo. */
 export interface PeticionToken<T> {
@@ -54,9 +55,10 @@ export interface DbArbolProps {
   onAbrir: (pane: DbPane) => void
   /**
    * Nueva consola. `conexionId` null = "en contexto": la decide `useBdApp` (pestaña
-   * activa, la única conexión, o un menú para elegir).
+   * activa, la única conexión, o un menú para elegir). `base`: la del nodo desde el que se
+   * pidió (una base, una colección, una clave), en la que nace.
    */
-  onNuevaConsola: (conexionId: string | null) => void
+  onNuevaConsola: (conexionId: string | null, base?: BaseConsolaNueva) => void
   /**
    * Se borró una conexión y ya no queda la conocida de su id en `perfilId`: `useBdApp` la desmonta
    * de los proyectos de ESE perfil y poda allí sus pestañas (la copia
@@ -83,7 +85,7 @@ export interface DbDatosPaneProps {
    */
   filasPorPagina: number
   onIndicador: (i: ReadonlySet<IndicadorPestana>) => void
-  onAbrirConsola: (conexionId: string, textoInicial?: string) => void
+  onAbrirConsola: AbrirConsolaEn
   /** "Ver definición" de una vista: abre su pestaña de fuente. */
   onAbrir: (pane: DbPane) => void
 }
@@ -98,7 +100,7 @@ export interface DbFuentePaneProps {
    */
   modo?: 'fuente' | 'ddl'
   visible: boolean
-  onAbrirConsola: (conexionId: string, textoInicial?: string) => void
+  onAbrirConsola: AbrirConsolaEn
 }
 
 /**

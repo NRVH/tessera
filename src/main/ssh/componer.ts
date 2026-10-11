@@ -20,17 +20,21 @@ import type { PuertaPuente } from '../db/dbBridge'
 import type { PuertaBuzon } from '../db/dockerBridge'
 import { dbLog } from '../db/dbLog'
 import { plataformaActual, type Plataforma } from '../../shared/plataforma'
-import { elegirConDialogo } from '../util/adaptadores/dialogosNativos'
+import { elegirConDialogo, guardarConDialogo } from '../util/adaptadores/dialogosNativos'
 import { emisorDeVentana } from '../util/emisorEventos'
 import { escribirArchivosDeAtajo } from '../util/escrituraAtajos'
+import { crearConfigSaltos } from './adaptadores/configSaltos'
 import { escribirLanzadorAskpass } from './adaptadores/lanzadorAskpass'
 import { asegurarCarpetaProtegida, ejecutarCorto, escribirClaveProtegida } from './adaptadores/permisosClave'
-import { crearRegistroTssh } from './adaptadores/registroTssh'
+import { crearRegistroTssh, leerRegistroTssh } from './adaptadores/registroTssh'
+import { actividadDe } from './actividadTssh'
+import type { SshActividadPerfil } from '../../shared/ssh-ipc'
 import { generarAtajosTssh } from './atajosTssh'
 import { admiteBinarioDePrueba, resolverBinariosSsh, type BinariosSsh } from './binariosSsh'
 import { ConexionesSsh } from './ConexionesSsh'
 import { ControladorSsh } from './ControladorSsh'
 import { AskpassSsh } from './controlador/askpassSsh'
+import { DialogoAskpass } from './controlador/dialogoAskpass'
 import { ejecutorTssh, programaTssh } from './controlador/buzonTssh'
 import { ClavesImportadas } from './controlador/clavesImportadas'
 import { EspacioTerminal, emisorQueRegenera, espacioParaIpc } from './controlador/espacioTerminal'
@@ -57,8 +61,11 @@ export interface DepsSsh {
   llegada: LlegadaDePerfiles
 }
 
-/** El registro, sin cortar el arranque si la poda de perfiles borrados falla. */
-function crearConexionesSsh(userData: string, perfiles: PerfilesVivos): ConexionesSsh {
+/**
+ * El registro. No se poda por la lista de perfiles: lo de un perfil solo se borra con su orden de
+ * borrado (`profiles/borradoDePerfil.ts`).
+ */
+function crearConexionesSsh(userData: string): ConexionesSsh {
   const dirHuellas = join(userData, 'ssh', 'huellas')
   // ssh no crea la carpeta de `UserKnownHostsFile`: sin ella, `accept-new` no guarda ninguna huella.
   try {
@@ -66,19 +73,13 @@ function crearConexionesSsh(userData: string, perfiles: PerfilesVivos): Conexion
   } catch (err) {
     console.error('[ssh] no se pudo crear la carpeta de huellas:', err)
   }
-  const conexiones = new ConexionesSsh({
+  return new ConexionesSsh({
     storePath: join(userData, 'ssh-connections.json'),
     dirHuellas,
     dirClaves: join(userData, 'ssh', 'claves'),
     cifrado: cifradoDelSistema,
     log: (m) => dbLog('ssh', m)
   })
-  try {
-    conexiones.podarPerfiles(new Set(perfiles.lista.map((p) => p.id)))
-  } catch (err) {
-    console.error('[ssh] no se pudieron podar las conexiones de perfiles borrados:', err)
-  }
-  return conexiones
 }
 
 /**
@@ -130,8 +131,9 @@ function prepararProgramaAskpass(userData: string, plataforma: Plataforma): stri
 }
 
 /** El programa de contraseñas sobre el puente; sin puente no contesta nada y las contraseñas se teclean. */
-function crearAskpass(conexiones: ConexionesSsh, programa: string, puente: PuertaPuente | null): AskpassSsh {
+function crearAskpass(conexiones: ConexionesSsh, programa: string, puente: PuertaPuente | null, dialogo: DialogoAskpass): AskpassSsh {
   return new AskpassSsh({
+    dialogo,
     puerta: puente,
     conexion: (id) => conexiones.conexion(id),
     secretoDe: (id) => conexiones.secretoDe(id),
@@ -165,6 +167,7 @@ function crearPuenteTssh(
     programaAskpass: programa,
     nombrePerfil: (id) => deps.perfiles.lista.find((p) => p.id === id)?.nombre,
     auditar: crearRegistroTssh(join(userData, 'logs')),
+    configSaltos: crearConfigSaltos(join(userData, 'ssh', 'saltos')),
     plataforma: plataformaActual(),
     log: (m) => dbLog('ssh', m)
   })
@@ -228,6 +231,21 @@ async function elegirConfigOpenSsh(refs: ReferenciasApp): Promise<string | null>
 }
 
 /**
+ * El diálogo de «Exportar a OpenSSH…»: propone `config-tessera` en lo último elegido o en `~/.ssh`, al lado
+ * del `config` del usuario sin pisarlo; con un `Include config-tessera` en él, ssh ya conoce las conexiones.
+ */
+async function elegirDestinoOpenSsh(refs: ReferenciasApp): Promise<string | null> {
+  const dirSsh = join(homedir(), '.ssh')
+  const r = await guardarConDialogo(
+    'config-ssh-exportar',
+    'config-tessera',
+    { title: 'Exportar las conexiones a OpenSSH', buttonLabel: 'Exportar', properties: ['showHiddenFiles', 'createDirectory', 'showOverwriteConfirmation'] },
+    { ventana: refs.ventana, despues: [dirSsh] }
+  )
+  return r.canceled || !r.filePath ? null : r.filePath
+}
+
+/**
  * El explorador SFTP: sus sesiones sobre la línea de cada conexión y los diálogos nativos de subir y bajar,
  * anclados a la ventana. Al salir se cierran todas (sin ellas, ssh se queda esperando su entrada).
  */
@@ -270,9 +288,10 @@ export interface ComposicionSsh {
 export function componerSsh(deps: DepsSsh): ComposicionSsh {
   const { refs, ipc, perfiles, puente } = deps
   const userData = app.getPath('userData')
-  const conexiones = crearConexionesSsh(userData, perfiles)
+  const conexiones = crearConexionesSsh(userData)
   const programa = prepararProgramaAskpass(userData, plataformaActual())
-  const askpass = crearAskpass(conexiones, programa, puente)
+  const dialogo = new DialogoAskpass(emisorDeVentana(() => refs.ventana))
+  const askpass = crearAskpass(conexiones, programa, puente, dialogo)
   // El cliente SSH, para `tssh` y para el controlador. El ssh de las pruebas (`TESSERA_SSH_BINARIO`)
   // solo vale sin empaquetar o con la marca del arnés e2e.
   const admitePrueba = admiteBinarioDePrueba(app.isPackaged, process.argv)
@@ -303,12 +322,22 @@ export function componerSsh(deps: DepsSsh): ComposicionSsh {
     ),
     claves: crearClavesImportadas(userData, refs),
     elegirConfigOpenSsh: () => elegirConfigOpenSsh(refs),
+    exportarOpenSsh: {
+      elegirDestino: () => elegirDestinoOpenSsh(refs),
+      permisos: {
+        asegurarCarpeta: (dir) => asegurarCarpetaProtegida(dir, plataformaActual()),
+        escribirProtegida: (ruta, texto) => escribirClaveProtegida(ruta, texto, plataformaActual())
+      }
+    },
     askpass,
     ejecutar: ejecutarCorto,
     binarios: binariosVigentes,
+    configSaltos: crearConfigSaltos(join(userData, 'ssh', 'saltos')),
     log: (m) => dbLog('ssh', m)
   })
-  registrarIpcSsh({ ipc, ssh: controlador, espacio: espacioParaIpc(espacio, () => perfiles.lista, deps.borrados, deps.llegada) })
+  const dirLogs = join(userData, 'logs')
+  const actividad = async (profileId: string): Promise<SshActividadPerfil> => actividadDe(await leerRegistroTssh(dirLogs), profileId)
+  registrarIpcSsh({ ipc, ssh: controlador, espacio: espacioParaIpc(espacio, () => perfiles.lista, deps.borrados, deps.llegada), dialogo, actividad })
   registrarIpcSftp(ipc, crearSesionesSftp(controlador, refs))
   return { controlador, espacio }
 }

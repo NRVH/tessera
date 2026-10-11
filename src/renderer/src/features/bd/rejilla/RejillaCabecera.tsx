@@ -6,12 +6,15 @@
 // =============================================================================
 
 import type { DbColumnaResultado } from '../../../../../shared/db-explorador-ipc'
+import { sinComparacion } from '../../../../../shared/filtroGuiado'
 import { IconoLlave } from '../iconosBd'
 import { anchoColumnaRejilla, lineasOrdenCabecera } from '../panesBd'
 import { ANCHO_MAX_MANUAL, MUESTRA_AJUSTE, OPCIONES_ANCHO, acotarAnchoManual } from './anchoColumnas'
 import { medidorDe } from './useRejillaGeometria'
 import { tipoVisible } from './visorValor'
 import type { Rejilla } from './rejillaTipos'
+
+const TEXTO_SIN_ORDEN = 'No se puede ordenar: el servidor no ordena este tipo de columna'
 
 /** Flecha del orden de la cabecera. */
 function FlechaOrden({ dir }: { dir: 'asc' | 'desc' }): React.JSX.Element {
@@ -91,9 +94,18 @@ function ariaSort(dir: 'asc' | 'desc' | null): 'ascending' | 'descending' | unde
   return dir === 'asc' ? 'ascending' : dir === 'desc' ? 'descending' : undefined
 }
 
+/** Las líneas del orden en el `title`: el de la columna, por qué no se ordena, o nada (la consola). */
+function lineasDeOrden(ordena: boolean, sinOrden: boolean, o: Parameters<typeof lineasOrdenCabecera>[0], total: number): string[] | null {
+  if (ordena) return [...lineasOrdenCabecera(o, total)]
+  return sinOrden ? [TEXTO_SIN_ORDEN] : null
+}
+
 function cabeceraDe(r: Rejilla, c: number): React.JSX.Element {
-  const { columnas, orden, onOrdenar } = r.props
+  const { columnas, orden } = r.props
   const col = columnas[c]
+  // Una columna que el servidor no sabe ordenar no se ofrece: el clic sería un error.
+  const sinOrden = r.props.onOrdenar !== undefined && sinComparacion(r.props.motor, col.tipoMotor)
+  const onOrdenar = sinOrden ? undefined : r.props.onOrdenar
   const o = orden?.find((x) => x.columna === c) ?? null
   const esPk = r.pk.has(col.nombre)
   const clase = `db-rejilla-th${onOrdenar ? ' ordenable' : ''}${r.redimensionando === c ? ' redimensionando' : ''}`
@@ -108,7 +120,7 @@ function cabeceraDe(r: Rejilla, c: number): React.JSX.Element {
       title={tituloCabecera(
         col,
         esPk,
-        onOrdenar ? lineasOrdenCabecera(o, orden?.length ?? 0) : null,
+        lineasDeOrden(onOrdenar !== undefined, sinOrden, o, orden?.length ?? 0),
         motivoColumna(r, c)
       )}
       // Mayús+clic extendería la selección de texto de la página: se corta en el mousedown.

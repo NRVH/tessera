@@ -129,8 +129,8 @@ export function BotonAgentesNativos({
 // --- Iconos: trazo 1.6 en viewBox 24 y `currentColor`, como el resto de la barra ---
 
 /**
- * El prompt de una terminal (`>_`) con una flecha que SUBE: los CLIs, a la versión
- * nueva. Distinto a propósito de la flecha circular del updater y de la nube del
+ * Una ventana de terminal redondeada, con su prompt y una flecha que SUBE: los CLIs, a la
+ * versión nueva. Con esquinas y trazo como el engranaje y el mosaico de la misma barra. Distinto a propósito de la flecha circular del updater y de la nube del
  * rehorneado Docker, para que dos botones vecinos no digan lo mismo.
  */
 function IconoAgentesNativos(): React.JSX.Element {
@@ -144,10 +144,11 @@ function IconoAgentesNativos(): React.JSX.Element {
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      <path d="M3.5 7.5 8 12l-4.5 4.5" />
-      <path d="M10 18.5h4" />
-      <path d="M18.5 17.5v-11" />
-      <path d="M15.3 9.7 18.5 6.5l3.2 3.2" />
+      {/* Del tamaño del engranaje de la barra (15 px y lo mismo del lienzo): el prompt y la flecha ocupan más de la ventana para leerse a ese tamaño. */}
+      <rect x="2.4" y="3.6" width="19.2" height="16.8" rx="3.6" />
+      <path d="M6.6 9.2l3.2 2.8-3.2 2.8" />
+      <path d="M16.4 16.6V8.4" />
+      <path d="M13.2 11.6l3.2-3.2 3.2 3.2" />
     </svg>
   )
 }

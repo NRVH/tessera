@@ -19,13 +19,6 @@ export interface EntornoFiltroGuiado {
   grandes: [string, string]
   /** ¿`activo` es un booleano del motor (PG boolean, SQL Server bit)? Si no, se salta. */
   booleano: boolean
-  /**
-   * Qué pasa con una columna que no existe: 'condicion' = error con su POSICIÓN, que vuelve
-   * como la condición culpable (PG, Oracle); 'error' = error sin posición que ubicar (SQL
-   * Server da la línea donde EMPIEZA la sentencia); 'literal' = ni siquiera es un error
-   * (SQLite lee `"NO_EXISTE"` como el TEXTO 'NO_EXISTE' y la condición se evalúa contra él).
-   */
-  columnaInexistente: 'condicion' | 'error' | 'literal'
   abrir: (p: { peticionId: string; filtro?: DbFiltroGuiado; orden?: DbOrdenColumna[]; maxFilas?: number }) => Promise<DbRespuesta<DbTablaAbierta>>
   leerMas: (lector: string, maxFilas: number) => Promise<DbRespuesta<DbPagina>>
   contar: (lector: string, peticionId: string) => Promise<DbRespuesta<number>>
@@ -189,32 +182,29 @@ async function masYContar(
   e.check(`${e.motor} · Contar con el filtro: 5`, cnt !== null && cnt.ok && cnt.valor === 5, J(cnt))
 }
 
-/** Un error del servidor dentro de una condición: cómo vuelve según el motor. */
+/**
+ * Un orden por una columna que no existe (una que se borró con la pestaña abierta): el error vuelve
+ * como del ORDER BY, que es lo que deja a la interfaz ofrecer «Quitar el orden».
+ */
+async function casosOrdenInexistente({ e, pet }: Contexto): Promise<void> {
+  const r = await e.abrir({ peticionId: pet(), orden: [{ columna: 'NO_EXISTE', dir: 'asc' }], maxFilas: 10 })
+  const err = r.ok ? (r.valor.resultado.tipo === 'error' ? r.valor.resultado.error : null) : r.error
+  e.check(`${e.motor} · orden por una columna inexistente -> campo 'orderBy'`, err !== null && err.campo === 'orderBy', J(err))
+}
+
+/**
+ * Una columna que no existe en una condición: error del servidor en la condición culpable, en los
+ * cuatro motores (con la posición que dé el servidor o, si no la da, por el nombre). En SQLite la
+ * columna va calificada: a secas, `"NO_EXISTE"` sería el TEXTO 'NO_EXISTE' y el filtro saldría vacío.
+ */
 async function casosColumnaInexistente({ e, pet }: Contexto): Promise<void> {
-  const { check } = e
   const r = await e.abrir({
     peticionId: pet(),
     filtro: { union: 'todas', condiciones: [condTexto(e, 'noVacio'), { columna: 'NO_EXISTE', categoria: 'texto', operador: 'igual', valor: 'x' }] },
     maxFilas: 10
   })
   const err = r.ok ? (r.valor.resultado.tipo === 'error' ? r.valor.resultado.error : null) : r.error
-  switch (e.columnaInexistente) {
-    case 'condicion':
-      check(`${e.motor} · columna inexistente en la 2.ª condición -> campo 'filtro', condicion 1`, err !== null && err.campo === 'filtro' && err.condicion === 1, J(err))
-      break
-    case 'error':
-      check(`${e.motor} · columna inexistente: vuelve el error del servidor (sin posición que ubicar)`, err !== null && err.motivo === 'servidor', J(err))
-      break
-    case 'literal': {
-      const filas = r.ok && r.valor.resultado.tipo === 'filas' ? (JSON.parse(r.valor.resultado.pagina.filasJson) as unknown[]).length : null
-      check(`${e.motor} · columna inexistente: SIN error, comparada como el texto 'NO_EXISTE' (0 filas; trampa conocida)`, err === null && filas === 0, J({ err, filas }))
-      break
-    }
-    default: {
-      const nunca: never = e.columnaInexistente
-      throw new Error(`caso sin contemplar: ${String(nunca)}`)
-    }
-  }
+  e.check(`${e.motor} · columna inexistente en la 2.ª condición -> campo 'filtro', condicion 1`, err !== null && err.campo === 'filtro' && err.condicion === 1, J(err))
 }
 
 // La tabla (id, nombre, sueldo, grande, alta, activo) es la misma en los cuatro motores:
@@ -234,4 +224,5 @@ export async function probarFiltroGuiado(e: EntornoFiltroGuiado): Promise<void> 
   await casosUnion(ctx)
   await casosOrdenYPaginado(ctx)
   await casosColumnaInexistente(ctx)
+  await casosOrdenInexistente(ctx)
 }

@@ -1,7 +1,8 @@
 // =============================================================================
 // Lo que flota sobre el lateral de BD: el menú contextual, el popover del «N de M» (por
 // portal), el diálogo de la conexión, las confirmaciones de eliminar (que dicen todo lo que
-// se pierde), los prompts de renombrar consola y filtrar claves, y la pregunta por una
+// se pierde), los prompts de renombrar consola y filtrar claves, los diálogos de claves (nueva y
+// borrar por patrón) y la pregunta por una
 // transacción pendiente. Está en el ciclo de importación: solo `function` al cargar.
 // Decisiones: docs/decisiones/bd/ui-arbol-componente.md
 // =============================================================================
@@ -18,7 +19,10 @@ import type { DbConsolaInfo, DbResolverTx } from '../../../../shared/db-explorad
 import { claveConexion, nombresDeRefs, sesionesConCambios, textoEliminarAjena, textoEliminarConexion } from './filasArbolBd'
 import { etiquetaBaseClaves } from './arbolClaves'
 import { cambiosPendientesDeConexion } from './rejilla/registroEdicion'
-import { eliminarConsola, eliminarPorId, renombrarConsola } from './DbArbolAcciones'
+import { eliminarConsola, eliminarPorId, refrescar, renombrarConsola } from './DbArbolAcciones'
+import { bytesDeTexto, pintarBytes } from './claves/bytesClaves'
+import { DialogoBorrarClaves } from './claves/DialogoBorrarClaves'
+import { DialogoNuevaClave } from './claves/DialogoNuevaClave'
 import { aplicarFiltroClaves } from './DbArbolNavegacion'
 import type { CtxArbol, EstadoDialogo, PeticionTx, PopoverArbol } from './DbArbolTipos'
 
@@ -190,6 +194,43 @@ function PromptsArbol({ a }: { a: CtxArbol }): React.JSX.Element {
   )
 }
 
+/** «Nueva clave» y «Borrar claves por patrón» de una base de Redis; al terminar refrescan el árbol. */
+function DialogosClavesArbol({ a }: { a: CtxArbol }): React.JSX.Element | null {
+  const { accionClaves, setAccionClaves } = a.e
+  const c = accionClaves ? a.d.porId.get(accionClaves.conexionId) : undefined
+  if (!accionClaves || !c) return null
+  const salir = (): void => {
+    setAccionClaves(null)
+    a.e.listaRef.current?.focus()
+  }
+  if (accionClaves.tipo === 'borrar') {
+    return (
+      <DialogoBorrarClaves
+        conexion={c}
+        base={accionClaves.indice}
+        patronInicial={accionClaves.patron}
+        tipo={accionClaves.tipoClave}
+        onCerrar={(huboBorrado) => {
+          salir()
+          if (huboBorrado) refrescar(a, c.id)
+        }}
+      />
+    )
+  }
+  return (
+    <DialogoNuevaClave
+      conexion={c}
+      base={accionClaves.indice}
+      onCerrar={salir}
+      alCrear={(nombre) => {
+        refrescar(a, c.id)
+        const clave = bytesDeTexto(nombre)
+        a.p.onAbrir({ kind: 'clave', conexionId: c.id, base: accionClaves.indice, clave: clave.base64, nombre: pintarBytes(clave) })
+      }}
+    />
+  )
+}
+
 /** Todo lo que flota sobre el lateral (menú, popover y diálogos), como hermanos de un fragmento. */
 export function DialogosArbol({ a }: { a: CtxArbol }): React.JSX.Element {
   const { menu, setMenu, popover, dialogo, peticionTx, setPeticionTx } = a.e
@@ -202,6 +243,7 @@ export function DialogosArbol({ a }: { a: CtxArbol }): React.JSX.Element {
       {dialogo && perfilId && <DialogoConexionArbol a={a} dialogo={dialogo} perfilId={perfilId} />}
       <ConfirmacionesArbol a={a} />
       <PromptsArbol a={a} />
+      <DialogosClavesArbol a={a} />
       {peticionTx && <DialogoTxArbol peticion={peticionTx} onCerrar={() => setPeticionTx(null)} />}
     </>
   )

@@ -28,7 +28,9 @@ const fijar = {
 }
 
 /** Invierte un ajuste booleano. */
-function alternar(clave: 'hideProfileNames' | 'aplicarUpdateAlCerrar' | 'depsNavegadorSandbox'): void {
+function alternar(
+  clave: 'hideProfileNames' | 'aplicarUpdateAlCerrar' | 'registroSalud' | 'volcadosCaida' | 'depsNavegadorSandbox'
+): void {
   useStoreAjustes.setState((s) => ({ [clave]: !s[clave] }))
 }
 
@@ -59,6 +61,10 @@ export function ModalAjustes({ sesiones, cambiarZoom }: Props): React.JSX.Elemen
         onToggleProfileNames={() => alternar('hideProfileNames')}
         aplicarUpdateAlCerrar={a.aplicarUpdateAlCerrar}
         onToggleAplicarUpdateAlCerrar={() => alternar('aplicarUpdateAlCerrar')}
+        registroSalud={a.registroSalud}
+        onToggleRegistroSalud={() => alternar('registroSalud')}
+        volcadosCaida={a.volcadosCaida}
+        onToggleVolcadosCaida={() => alternar('volcadosCaida')}
         actualizacionAgentes={sesiones.actualizacionNativa}
         onAbrirActualizacionAgentes={abrirActualizacionAgentes}
         paquetesSandbox={a.paquetesSandbox}

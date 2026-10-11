@@ -2,16 +2,18 @@
 // main: punto de entrada del renderer. Publica el tema y la plataforma antes de montar
 // nada, instala la red de seguridad de errores asíncronos y monta `App` bajo un
 // ErrorBoundary raíz, sin StrictMode.
-// Depende de `App`, `comun/ErrorBoundary`, `theme/atomOneDark`, `theme/chromeVentana` y
-// `util/diagnosticoRendimiento` (el diagnóstico apagado que se enciende con F12).
+// Depende de `App`, `comun/ErrorBoundary`, `comun/barrasDesplazamiento`, `theme/atomOneDark`, `theme/chromeVentana`,
+// `util/diagnosticoRendimiento` (el diagnóstico apagado que se enciende con F12) y `util/vigiaRendimiento` (alpha).
 // =============================================================================
 
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import { ErrorBoundary } from './comun/ErrorBoundary'
+import { instalarBarrasAlDesplazar } from './comun/barrasDesplazamiento'
 import { applyTheme } from './theme/atomOneDark'
 import { marcarPlataforma, seguirSemaforo } from './theme/chromeVentana'
 import { instalarDiagnosticoRendimiento } from './util/diagnosticoRendimiento'
+import { arrancarVigiaRendimiento } from './util/vigiaRendimiento'
 import '@xterm/xterm/css/xterm.css'
 import './styles.css'
 import './comun/selectDesplegable.css'
@@ -32,6 +34,10 @@ marcarPlataforma()
 seguirSemaforo()
 // Apagado hasta que alguien lo enciende desde las herramientas de desarrollo o una prueba.
 instalarDiagnosticoRendimiento()
+// La pastilla de una zona se ve mientras se desplaza, aunque el ratón no esté en ella.
+instalarBarrasAlDesplazar()
+// Solo en alpha: lo que le va lento a la ventana, para el registro de salud (el main decide si anota).
+if (window.tessera.esAlpha) arrancarVigiaRendimiento(window.tessera.salud)
 
 // Red de seguridad para errores asíncronos del renderer (promesas de IPC sin catch,
 // callbacks, timers): se loguean con prefijo y no tumban la UI. Los errores de render los

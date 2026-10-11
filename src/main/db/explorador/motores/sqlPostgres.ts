@@ -50,6 +50,9 @@ export function sqlConteos(_d: DialectoCatalogo, esquema: string): ConsultaCatal
       "  UNION ALL SELECT 'tipo' FROM pg_type y JOIN pg_namespace n ON n.oid = y.typnamespace",
       "   WHERE n.nspname = $1 AND y.typtype IN ('c', 'e', 'd', 'r')",
       "     AND (y.typtype <> 'c' OR EXISTS (SELECT 1 FROM pg_class rc WHERE rc.oid = y.typrelid AND rc.relkind = 'c'))",
+      "  UNION ALL SELECT 'disparador' FROM pg_trigger g JOIN pg_class gc ON gc.oid = g.tgrelid",
+      '   JOIN pg_namespace n ON n.oid = gc.relnamespace',
+      '   WHERE n.nspname = $1 AND NOT g.tgisinternal AND NOT gc.relispartition',
       ') t GROUP BY t.tipo'
     ],
     [esquema]
@@ -79,6 +82,20 @@ export function sqlObjetos(d: DialectoCatalogo, esquema: string, tipo: DbTipoObj
         '       NULL AS tabla',
         '  FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace',
         " WHERE n.nspname = $1 AND p.prokind IN ('f', 'p')",
+        ' ORDER BY 1, 5'
+      ],
+      [esquema]
+    )
+  }
+  if (tipo === 'disparador') {
+    // El nombre de un disparador solo es único dentro de su tabla: la tabla va también como firma,
+    // que es lo que distingue dos objetos del mismo nombre al pedir su fuente.
+    return pg(
+      [
+        "SELECT g.tgname, CASE WHEN g.tgenabled = 'D' THEN 'DISABLED' ELSE 'ENABLED' END AS subtipo, NULL AS estado,",
+        "       obj_description(g.oid, 'pg_trigger') AS comentario, c.relname AS firma, c.relname AS tabla",
+        '  FROM pg_trigger g JOIN pg_class c ON c.oid = g.tgrelid JOIN pg_namespace n ON n.oid = c.relnamespace',
+        ' WHERE n.nspname = $1 AND NOT g.tgisinternal AND NOT c.relispartition',
         ' ORDER BY 1, 5'
       ],
       [esquema]
@@ -231,6 +248,17 @@ export function sqlFuente(d: DialectoCatalogo, ref: DbRefObjeto): ConsultaCatalo
         '  FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace',
         " WHERE n.nspname = $1 AND p.proname = $2 AND p.prokind IN ('f', 'p')",
         '   AND pg_get_function_identity_arguments(p.oid) = $3'
+      ],
+      [ref.esquema, ref.nombre, ref.firma ?? '']
+    )
+  }
+  if (ref.tipo === 'disparador') {
+    // Filas: `[CREATE TRIGGER, función del disparador]`; la tabla viaja en la firma.
+    return pg(
+      [
+        'SELECT pg_get_triggerdef(g.oid, true), pg_get_functiondef(g.tgfoid)',
+        '  FROM pg_trigger g JOIN pg_class c ON c.oid = g.tgrelid JOIN pg_namespace n ON n.oid = c.relnamespace',
+        ' WHERE n.nspname = $1 AND g.tgname = $2 AND c.relname = $3 AND NOT g.tgisinternal'
       ],
       [ref.esquema, ref.nombre, ref.firma ?? '']
     )

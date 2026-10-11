@@ -22,7 +22,7 @@ import type {
   DbTipoObjeto
 } from '../../../../shared/db-explorador-ipc.ts'
 import type { DbDocBase, DbDocColeccion, DbDocPedirBases, DbDocPedirColecciones } from '../../../../shared/db-documentos-ipc.ts'
-import type { DbKvBases, DbKvEscanear, DbKvPaginaClaves, DbKvPedirBases } from '../../../../shared/db-claves-ipc.ts'
+import type { DbKvBases, DbKvEscanear, DbKvPaginaClaves, DbKvPedirBases, DbKvTipo } from '../../../../shared/db-claves-ipc.ts'
 import type { RecorridoClaves } from './arbolClaves.ts'
 
 /** Lo que la caché usa del explorador (lo cumple `window.tessera.dbExplorador`). */
@@ -84,6 +84,8 @@ export interface InstantaneaArbolBd {
   kvClaves: ReadonlyMap<string, RecorridoClaves>
   /** Por `claveBd.kvBase`: el patrón de las bases filtradas. */
   kvPatrones: ReadonlyMap<string, string>
+  /** Por `claveBd.kvBase`: el tipo por el que se filtran las bases filtradas por tipo. */
+  kvTipos: ReadonlyMap<string, DbKvTipo>
   /** Por `claveBd.kvBase`: las bases con una «Cargar más» en vuelo. */
   kvCargandoMas: ReadonlySet<string>
 }

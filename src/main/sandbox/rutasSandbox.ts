@@ -36,8 +36,25 @@ export interface RaicesSandbox {
   agentcfg: string
 }
 
-/** Raíces de Windows: dentro de la VM, donde el host no las ve. NO se tocan. */
-const RAICES_WINDOWS: RaicesSandbox = {
+/**
+ * Ocho cifras hexadecimales estables de una cadena (FNV-1a de 32 bits); no es criptográfica.
+ * Con `userData` como entrada es el sello de una instancia de Tessera: dos usuarios del mismo
+ * equipo, o la app y su arnés de pruebas, tienen carpetas de datos distintas.
+ */
+export function huellaInstancia(texto: string): string {
+  let h = 0x811c9dc5
+  for (let i = 0; i < texto.length; i++) {
+    h ^= texto.charCodeAt(i)
+    h = Math.imul(h, 0x01000193) >>> 0
+  }
+  return h.toString(16).padStart(8, '0')
+}
+
+/**
+ * Raíces de Windows que usaban todas las instancias a la vez. Solo las limpia el barrido de
+ * arranque de la app (no el del arnés de pruebas), para los montajes que dejó una versión anterior.
+ */
+export const RAICES_WINDOWS_HEREDADAS: RaicesSandbox = {
   proyectos: '/mnt/wsl/tessera-mm',
   agentcfg: '/mnt/wsl/tessera-agentcfg'
 }
@@ -45,13 +62,31 @@ const RAICES_WINDOWS: RaicesSandbox = {
 /**
  * Las raíces gestionadas para una plataforma.
  *
- * @param baseHost    Carpeta del host bajo la que colgar las raíces en macOS
- *                    (en producción, `userData`). Se IGNORA en Windows, donde las
- *                    raíces viven en la VM y no dependen de ninguna ruta del host.
+ * @param baseHost    Carpeta de datos de la instancia (en producción, `userData`). En macOS
+ *                    las raíces cuelgan de ella; en Windows y Linux solo da su huella, para
+ *                    que cada instancia tenga las suyas y ninguna barra los montajes de otra.
  * @param plataforma  Dónde corre. Por defecto la actual; el test pasa las dos.
  */
-export function raicesSandbox(baseHost: string, plataforma: Plataforma = plataformaActual()): RaicesSandbox {
-  if (plataforma === 'windows') return RAICES_WINDOWS
+export function raicesSandbox(
+  baseHost: string,
+  plataforma: Plataforma = plataformaActual(),
+  dirEjecucion?: string
+): RaicesSandbox {
+  // WINDOWS: dentro de la VM, donde el host no las ve.
+  if (plataforma === 'windows') {
+    const base = `/mnt/wsl/tessera-${huellaInstancia(baseHost)}`
+    return { proyectos: `${base}/sandbox-mm`, agentcfg: `${base}/sandbox-agentcfg` }
+  }
+  // LINUX: con Docker nativo, el auxiliar privilegiado monta en el espacio de nombres del
+  // PROPIO equipo, así que estas raíces son rutas vivas del usuario con sus proyectos dentro.
+  // Bajo `userData` un `rm -rf ~/.config/Tessera`, una copia de seguridad o un indexador
+  // entrarían en las carpetas reales. Van al directorio de ejecución del usuario (un tmpfs
+  // que se vacía al reiniciar y que nadie recorre), con una carpeta por `userData` para que
+  // dos instancias no se barran los montajes entre sí.
+  if (plataforma === 'linux' && dirEjecucion !== undefined && dirEjecucion.startsWith('/')) {
+    const base = `${dirEjecucion.replace(/\/+$/, '')}/tessera-${huellaInstancia(baseHost)}`
+    return { proyectos: `${base}/sandbox-mm`, agentcfg: `${base}/sandbox-agentcfg` }
+  }
   // Hermanos y sin prefijo común entre ellos (ver el comentario de `agentcfg`).
   // Cuelgan de `userData` porque es la carpeta que ya sobrevive a las actualizaciones
   // y está bajo `/Users`, o sea compartida con Docker Desktop de fábrica.

@@ -14,7 +14,7 @@ guirnalda que competía con el contenido y se salía del registro apagado y frí
 - La tinta (`tintaPerfil`) acota saturación (`SAT_MAX`) y luminosidad (`LUM_MIN`..`LUM_MAX`) a una
   banda cenizo/quemado y conserva el matiz, que es lo que distingue un perfil de otro.
 - Se aplica AL PINTAR, no al guardar: en `profiles.json` queda siempre el color elegido (es lo que
-  muestra el `<input type="color">`). Persistir la tinta apagaría el color un poco más cada vez que
+  muestra el selector). Persistir la tinta apagaría el color un poco más cada vez que
   alguien abriera el selector y guardara, hasta el gris, y nadie lo relacionaría con la causa.
 - Es idempotente por construcción (acota, no multiplica): los colores de la paleta, que ya nacen
   dentro de la banda, pasan por la tinta sin cambiar, y el selector muestra lo que verá la pestaña.
@@ -26,6 +26,14 @@ guirnalda que competía con el contenido y se salía del registro apagado y frí
   de toda la banda es 7,27:1. Cambia de intensidad, no de matiz.
 - Un gris (`s < 4`) se queda gris, y un hex inválido se devuelve tal cual: el color sale de un
   archivo editable a mano y aquí no se decide que un perfil se quede sin color.
+- El color se elige en un POPOVER propio bajo la pestaña del perfil (`SelectorColorPerfil.tsx`),
+  no en el selector del sistema: este rompía el estilo de la app y ofrecía todo el círculo de
+  colores cuando la tinta solo admite una banda. El popover tiene los colores base de la paleta,
+  los FIJADOS por el usuario (globales, en `coloresPerfilFijados` de los ajustes, como mucho
+  `MAX_COLORES_FIJADOS`) y un «Personalizado» de TONO y LUZ dentro de la banda, más un hex. Las
+  muestras enseñan la tinta. Elegir aplica en el acto, Esc deshace lo elegido desde que se abrió
+  y un clic fuera lo conserva. Se descartó un modal centrado: el color es un ajuste rápido de
+  esa pestaña, y verla teñirse mientras se elige vale más que una vista previa aparte.
 
 ## Consecuencias
 

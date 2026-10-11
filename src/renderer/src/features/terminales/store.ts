@@ -25,9 +25,11 @@ import {
   podarContextosSsh,
   podarSsh,
   renombrarSsh,
+  restaurarSsh,
   soltarSsh,
   type SshTabsState
 } from './sshTabsModel'
+import type { SshPestanasPorPerfil } from '../../../../shared/ajustesTerminal'
 
 /** Estado de las terminales. */
 export interface EstadoTerminales {
@@ -75,5 +77,7 @@ export const accionesTerminales = {
     aplicarSsh((s) => podarContextosSsh(podarSsh(s, perfilesVivos), contextosVivos)),
   /** Pone al día el alias de las pestañas cuya conexión cambió de nombre. */
   sincronizarAliasSsh: (aliasPorConexion: ReadonlyMap<string, string>): void =>
-    aplicarSsh((s) => actualizarAliasSsh(s, aliasPorConexion))
+    aplicarSsh((s) => actualizarAliasSsh(s, aliasPorConexion)),
+  /** Las pestañas SSH del arranque anterior, sin elegir ninguna: no se conectan hasta que se miran. */
+  restaurarSsh: (guardadas: SshPestanasPorPerfil): void => aplicarSsh((s) => restaurarSsh(s, guardadas))
 }

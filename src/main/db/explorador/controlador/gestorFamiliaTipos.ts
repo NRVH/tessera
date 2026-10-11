@@ -23,12 +23,14 @@ export interface DependenciasGestorFamilia {
   secreto: (id: string) => string | null
   /** Contexto de drivers para `abrir` (estas familias no lo usan; el protocolo lo exige). */
   ctxDrivers: () => CtxDrivers
+  /** El extremo local del túnel SSH de la conexión (`DbController.tunelDe`); ausente o `null`, sin túnel. */
+  tunel?: (con: DbConnection) => Promise<{ host: string; port: number }> | null
   /** `dbx:ev:sesion`: una sesión cambió de fase. */
   emitirSesion?: (estado: DbEstadoSesion) => void
   /** Una sesión se abrió contra el servidor (el main marca la conexión verificada). */
   alAbrir?: (conexionId: string) => void
   /** Plazo de inactividad de las consolas (el ajuste del usuario). Por defecto el de `limites.ts`. */
-  inactividadConsolaMs?: () => number
+  inactividadConsolaMs?: () => number | undefined
   ahora?: () => number
   /** Registro. NUNCA recibe sentencias, documentos, claves, valores ni secretos. */
   log?: (linea: string) => void

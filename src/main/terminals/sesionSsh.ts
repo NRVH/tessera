@@ -62,6 +62,22 @@ function unaVez(fn: (() => void) | undefined): () => void {
   }
 }
 
+/**
+ * Termina el ssh de la pestaña por su pid (el pty lanza ssh directamente): la pestaña lo ve salir como
+ * siempre y se puede reconectar. El pid se lee al matar, no al vincular: es el del ssh vigente.
+ */
+function matarPorPid(terminals: TerminalService, sessionId: string): () => void {
+  return () => {
+    const pid = terminals.pidDe(sessionId)
+    if (pid === null) return
+    try {
+      process.kill(pid)
+    } catch {
+      // Ya había salido.
+    }
+  }
+}
+
 /** Abre la sesión SSH de una conexión del perfil (que lo sea lo comprueba `preparar`). */
 export async function abrirSesionSsh(
   terminals: TerminalService,
@@ -69,11 +85,12 @@ export async function abrirSesionSsh(
   profile: Profile,
   conexionId: string
 ): Promise<{ session: TerminalSession; ssh: SesionSsh }> {
-  const { ejecutable, extraEnv, alTerminar } = lanzador.preparar(profile.id, conexionId)
+  const { ejecutable, extraEnv, alTerminar, vincular } = lanzador.preparar(profile.id, conexionId)
   const terminar = unaVez(alTerminar)
   try {
     // Siempre en el host, aunque el proyecto abierto sea de Docker, y con cwd en HOME.
     const session = await terminals.createSession(profile, { project: os.homedir(), host: true, ejecutable, extraEnv })
+    vincular?.(matarPorPid(terminals, session.id))
     return { session, ssh: { conexionId, cola: new ColaSalidaSsh(), alTerminar: terminar } }
   } catch (e) {
     terminar()
@@ -92,13 +109,15 @@ export async function recargarSesionSsh(
   profileId: string,
   ssh: SesionSsh
 ): Promise<TerminalSession> {
-  const { ejecutable, extraEnv, alTerminar } = lanzador.preparar(profileId, ssh.conexionId)
+  const { ejecutable, extraEnv, alTerminar, vincular } = lanzador.preparar(profileId, ssh.conexionId)
   // Lo que dijo el proceso anterior no puede decidir por qué termina el nuevo.
   ssh.cola.vaciar()
   ssh.alTerminar()
   ssh.alTerminar = unaVez(alTerminar)
   try {
-    return await terminals.reloadSession(sessionId, { ejecutable, extraEnv })
+    const session = await terminals.reloadSession(sessionId, { ejecutable, extraEnv })
+    vincular?.(matarPorPid(terminals, sessionId))
+    return session
   } catch (e) {
     ssh.alTerminar()
     throw e

@@ -1,25 +1,25 @@
 // =============================================================================
 // Qué sistema operativo es este. Puro: sin `os`, Electron ni `fs`.
-// `esWindows()` / `esMac()` y nunca `process.platform === 'win32'` suelto: se sustituye en
-// un test y `grep esWindows` es la lista de lo que falta para Linux. Cuidado con la negación:
-// hay ramas «Windows y lo demás» y ramas «macOS y lo demás».
+// `esWindows()` / `esMac()` / `esLinux()` y nunca `process.platform === 'win32'` suelto: se
+// sustituye en un test y `grep` encuentra cada bifurcación. Cuidado con la negación: hay ramas
+// «Windows y lo demás» y ramas «macOS y lo demás», y Linux cae en el «lo demás» de las dos.
 // `CapacidadesPlataforma` dice lo que una plataforma no puede hacer; esconder es lo último.
 // En el renderer no hay `process`: allí solo `plataformaDe`, `capacidadesDe` y los tipos.
 // Decisiones: docs/decisiones/shared/plataforma-y-nombres-del-sistema.md
 // =============================================================================
 
 /**
- * Las plataformas que Tessera reconoce. `'otra'` no es un error: es Linux y cualquier
- * BSD, donde la app puede arrancar en desarrollo. Se le da el nombre POSIX genérico
- * porque hoy su comportamiento es "como Mac salvo en lo que sea específico de Apple";
- * cuando Linux sea un objetivo de verdad tendrá su propia rama y este tipo dirá cómo.
+ * Las plataformas que Tessera reconoce. Las tres primeras se empaquetan y se publican.
+ * `'otra'` no es un error: es cualquier BSD, donde la app puede arrancar en desarrollo
+ * y se comporta como POSIX genérico, sin nada propio de un sistema concreto.
  */
-export type Plataforma = 'windows' | 'mac' | 'otra'
+export type Plataforma = 'windows' | 'mac' | 'linux' | 'otra'
 
 /** Traduce el `process.platform` de Node al vocabulario de Tessera. */
 export function plataformaDe(platform: string): Plataforma {
   if (platform === 'win32') return 'windows'
   if (platform === 'darwin') return 'mac'
+  if (platform === 'linux') return 'linux'
   return 'otra'
 }
 
@@ -36,6 +36,11 @@ export function esWindows(): boolean {
 /** ¿macOS? */
 export function esMac(): boolean {
   return plataformaActual() === 'mac'
+}
+
+/** ¿Linux? */
+export function esLinux(): boolean {
+  return plataformaActual() === 'linux'
 }
 
 /**
@@ -112,9 +117,11 @@ export interface CapacidadesPlataforma {
    * volver sola. Un interruptor que el sistema deshace es la casilla muerta que la
    * regla 3 prohíbe.
    *
-   * `'otra'` (Linux, BSD) sigue en `false`: allí el menú contextual lo pone el
-   * escritorio (Nautilus, Dolphin, Thunar…), cada uno con su formato, y ninguno está
-   * escrito.
+   * Linux también: un `tessera.desktop` propio en `~/.local/share/applications` con
+   * `MimeType=inode/directory` pone Tessera en el «Abrir con» de carpetas de cualquier
+   * escritorio, y borrarlo lo quita (`main/shell/escritorioLinux.ts`).
+   *
+   * `'otra'` (BSD) sigue en `false`: no se empaqueta ni se publica para ella.
    */
   integracionShellEnCaliente: boolean
   /**
@@ -140,18 +147,19 @@ export interface CapacidadesPlataforma {
    * respuesta es no, el ciclo se queda en `status:'available'` y ofrece la descarga
    * manual del .dmg. Ver `shared/update-ipc.ts`.
    *
-   * `'otra'` (Linux, BSD) sigue en `false`: no hay ni NSIS ni bundle que renombrar, y
-   * el formato de distribución allí ni siquiera está decidido.
+   * Linux también, con el AppImage: electron-updater baja el nuevo y sustituye el
+   * archivo que dice `APPIMAGE`. Una copia que no corre como AppImage no tiene nada que
+   * sustituir; esa es la pregunta de la copia (`update/nucleo.ts`, `autoInstalaEstaCopia`).
+   *
+   * `'otra'` (BSD) sigue en `false`: no se empaqueta ni se publica para ella.
    */
   autoInstalarUpdate: boolean
 }
 
 /** Las capacidades de una plataforma dada. Puro: se puede probar sin correr en ella. */
 export function capacidadesDe(plataforma: Plataforma): CapacidadesPlataforma {
-  return {
-    integracionShellEnCaliente: plataforma === 'windows' || plataforma === 'mac',
-    autoInstalarUpdate: plataforma === 'windows' || plataforma === 'mac'
-  }
+  const publicada = plataforma === 'windows' || plataforma === 'mac' || plataforma === 'linux'
+  return { integracionShellEnCaliente: publicada, autoInstalarUpdate: publicada }
 }
 
 /** Las capacidades de ESTE proceso. */

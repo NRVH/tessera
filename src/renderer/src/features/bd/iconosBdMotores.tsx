@@ -129,6 +129,7 @@ export const MARCAS_MOTOR: Record<DbMotor, MarcaMotor> = {
   postgres: { Logo: LogoPostgres },
   sqlite: { Logo: LogoArchivoBd },
   sqlserver: { Logo: LogoServidorBd },
+  mysql: { Logo: LogoDiscosBd },
   mongodb: { Logo: LogoHojaBd },
   redis: { Logo: LogoCapasBd }
 }
@@ -179,6 +180,22 @@ function LogoServidorBd({ className }: { className?: string }): React.JSX.Elemen
       <circle cx="7.2" cy="7.5" r="1.1" fill="#ffffff" fillOpacity="0.7" />
       <circle cx="7.2" cy="16.5" r="1.1" fill="#ffffff" fillOpacity="0.7" />
       <path d="M11 7.5h6.5M11 16.5h6.5" stroke="#ffffff" strokeOpacity="0.45" strokeWidth="1.3" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+/**
+ * MySQL y MariaDB: glifo PROPIO (una pila de tres discos), sin el delfín ni la foca de sus
+ * logos. Token `--db-marca-mysql`: el respaldo es el turquesa del tema oscuro y arbol.css da
+ * el del claro.
+ */
+function LogoDiscosBd({ className }: { className?: string }): React.JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={className} style={{ color: 'var(--db-marca-mysql, #3fb8c9)' }}>
+      <path fill="currentColor" d="M3.5 16.2c0 1.9 3.8 3.3 8.5 3.3s8.5-1.4 8.5-3.3v2.3c0 1.9-3.8 3.3-8.5 3.3s-8.5-1.4-8.5-3.3Z" />
+      <path fill="currentColor" d="M3.5 10.6c0 1.9 3.8 3.3 8.5 3.3s8.5-1.4 8.5-3.3v2.3c0 1.9-3.8 3.3-8.5 3.3s-8.5-1.4-8.5-3.3Z" />
+      <ellipse cx="12" cy="6.2" rx="8.5" ry="3.3" fill="currentColor" />
+      <ellipse cx="12" cy="6.2" rx="8.5" ry="3.3" fill="#ffffff" fillOpacity="0.38" />
     </svg>
   )
 }

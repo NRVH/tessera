@@ -1,6 +1,6 @@
 // =============================================================================
 // Las acciones de la cabecera del panel de terminales, a la derecha y en tres grupos separados por un
-// filete, de lo que más se usa a lo terminal: reiniciar (o reconectar) la terminal que se ve; maximizar
+// filete, de lo que más se usa a lo terminal: reiniciar la terminal local que se ve; maximizar
 // o restaurar el panel; y ocultarlo. Las acciones se ocultan en reposo con `visibility`, no `display`,
 // salvo restaurar y ocultar a pantalla completa: son las dos salidas del modo. El «+» y la ▾ de las
 // conexiones viven en las pestañas, y el conmutador del riel, al otro extremo de la cabecera. El del
@@ -13,7 +13,7 @@ import { etiquetaAcorde } from '../../util/atajos'
 import { HideIcon, ReloadIcon } from './IconosTerminales'
 import type { SalidaBotonReinicio } from './reloadButton'
 
-/** Cómo se llama el reinicio del pane que se ve y a qué alcanza: «Reiniciar terminal» o «Reconectar». */
+/** Cómo se llama el reinicio del pane que se ve y a qué alcanza. */
 export interface AlcanceReinicio {
   /** Nombre completo del botón: su nombre accesible en reposo. */
   etiqueta: string
@@ -23,8 +23,6 @@ export interface AlcanceReinicio {
 
 /** El reinicio de una terminal local, el de siempre. */
 export const REINICIO_LOCAL: AlcanceReinicio = { etiqueta: 'Reiniciar terminal', alcance: 'solo esta terminal' }
-/** La reconexión de una sesión SSH. */
-export const REINICIO_SSH: AlcanceReinicio = { etiqueta: 'Reconectar', alcance: 'solo esta sesión' }
 
 /** El reinicio del pane que se ve: su estado, a qué alcanza y qué hace. */
 export interface ReinicioPanel {

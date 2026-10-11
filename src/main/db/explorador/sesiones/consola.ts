@@ -13,7 +13,8 @@ import {
   type DbEntradaHistorial,
   type DbErrorSql,
   type DbRespuesta,
-  type DbResultadoSentencia
+  type DbResultadoSentencia,
+  MOTIVO_CARPETA_SIN_ESCRITURA
 } from '../../../../shared/db-explorador-ipc.ts'
 import { dialectoDeMotor, type DialectoSql } from '../../../../shared/sql/dialectosSql.ts'
 import { dividirSentencias, type Sentencia } from '../../../../shared/sql/divisorSql.ts'
@@ -83,7 +84,8 @@ export class ConsolaSesion {
         RELEER_ESQUEMA.indexOf(st.clase) >= 0 ||
         (cap.esquemaTransaccional && st.clase === 'tx') ||
         (st.sesion !== null && st.sesion.parametros.indexOf(PARAMETRO_USE) >= 0),
-      refijarFormatos: st.clase === 'plsql' || st.clase === 'rutina',
+      // `otra` es lo que no se sabe leer (en MySQL, un `/*! SET sql_mode=… */`): puede haber cambiado el formato.
+      refijarFormatos: st.clase === 'plsql' || st.clase === 'rutina' || st.clase === 'otra',
       // PG (`salidaServidorSiempre`): los NOTICE llegan sin viaje; Oracle, solo en esas clases.
       salidaServidor: cap.salidaServidorSiempre || CLASES_CON_SALIDA_ORACLE.indexOf(st.clase) >= 0,
       // SQL Server: la lectura en flujo; en los demás motores, nada.
@@ -179,7 +181,10 @@ export class ConsolaSesion {
     if (formato) return { ok: false, error: { motivo: 'interno', mensaje: formato } }
     if (this.n.ro(con)) {
       const permiso = permitidaEnSoloLectura(st, d)
-      if (!permiso.ok) return { ok: false, error: { motivo: 'soloLectura', mensaje: permiso.motivo } }
+      if (!permiso.ok) {
+        const mensaje = this.n.porCarpeta(con.id) ? MOTIVO_CARPETA_SIN_ESCRITURA : permiso.motivo
+        return { ok: false, error: { motivo: 'soloLectura', mensaje } }
+      }
     }
     // Después de la guardia de solo lectura, que manda; qué es escritura lo dice el MISMO
     // módulo que usa el diálogo de la consola.

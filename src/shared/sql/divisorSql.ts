@@ -15,14 +15,16 @@ import {
   recortarDerecha
 } from './divisorSqlCliente.ts'
 import { esBlanco, esSaltoDeLinea, finDeLinea, leerToken, tokenizar, esSignificativo, type Token } from './lexicoSql.ts'
+import { conDelimitador, terminadorDeDelimitador } from './lexicoSqlLectores.ts'
 import { clasificar, esAlcanceDeLote, esInicioBloquePlsql, type Clasificacion } from './clasificarSql.ts'
 import { avisosDeSentencia, type AvisoSql } from './avisosSql.ts'
 
 /**
  * Qué cerró la sentencia. `lineaCliente`: la cortó un metacomando de psql. `separadorLote`: la
- * cerró un `GO` en su línea (SQL Server).
+ * cerró un `GO` en su línea (SQL Server). `delimitador`: la cerró el terminador que fijó una
+ * línea `DELIMITER x` (MySQL).
  */
-export type Terminador = 'puntoYComa' | 'barra' | 'finDeLinea' | 'finDeTexto' | 'lineaCliente' | 'separadorLote'
+export type Terminador = 'puntoYComa' | 'barra' | 'finDeLinea' | 'finDeTexto' | 'lineaCliente' | 'separadorLote' | 'delimitador'
 
 /**
  * Cómo se traduce una posición de `texto` a una del modelo: el carácter
@@ -73,6 +75,8 @@ interface EnCurso {
   atomico: number
   /** SQLite: el cuerpo del disparador ya se cerró (un segundo BEGIN no abre otro). */
   cuerpoCerrado: boolean
+  /** MySQL (`cuerpoCompuesto`): se leyó un END y falta ver qué cierra (`END IF` no cierra un BEGIN). */
+  finPendiente: boolean
 }
 
 /** Lo que una división tiene a mano: el texto, el rango, las reglas y lo emitido hasta ahora. */
@@ -83,6 +87,32 @@ interface Division {
   inicio: number
   fin: number
   salida: Sentencia[]
+  /** El terminador vigente: `;`, u otro desde una línea `DELIMITER x` (MySQL). */
+  delimitador: string
+}
+
+/** ¿Empieza en `t` el terminador que fijó un `DELIMITER` (uno que no es `;`)? Un comentario o una cadena nunca. */
+function esDelimitadorPropio(v: Division, t: Token): boolean {
+  if (v.delimitador === ';' || t.tipo === 'comentario' || t.tipo === 'cadena' || t.tipo === 'identCitado') return false
+  return v.texto.startsWith(v.delimitador, t.desde) && t.desde + v.delimitador.length <= v.fin
+}
+
+/**
+ * En MySQL `$` (y otros signos) caben en un nombre: `END$$` es UNA palabra y el terminador no
+ * empezaría ningún token. Como el cliente, se corta donde aparezca: la palabra se relee hasta él.
+ */
+function cortarEnDelimitador(v: Division, t: Token, pos: number): Token {
+  if (v.delimitador === ';' || t.tipo === 'comentario' || t.tipo === 'cadena' || t.tipo === 'identCitado' || t.tipo === 'lineaCliente') return t
+  const k = v.texto.indexOf(v.delimitador, t.desde + 1)
+  if (k < 0 || k >= t.hasta) return t
+  return leerToken(v.texto, pos, v.r, v.inicio, k) ?? t
+}
+
+/** Una línea de cliente `DELIMITER x` cambia el terminador de lo que sigue. */
+function aplicarDelimitador(v: Division, t: Token): void {
+  if (!conDelimitador(v.r.comandosCliente) || t.tipo !== 'lineaCliente') return
+  if (!/^DELIMITER\s/i.test(t.valor)) return
+  v.delimitador = terminadorDeDelimitador(t.valor) || ';'
 }
 
 function emitir(
@@ -155,9 +185,24 @@ function enColumnaUno(v: Division, p: number): boolean {
  * Fuera de una sentencia: lo que sigue a un token que no es de comentario o separador. Devuelve
  * dónde sigue el escaneo si el token era una línea de cliente, o la sentencia que empieza en él.
  */
+/**
+ * MySQL, fuera de una sentencia: un terminador propio sin nada delante es una sentencia vacía (se
+ * salta) y un comentario ejecutable es una sentencia (el servidor ejecuta lo de dentro). null si no.
+ */
+function fueraDeMysql(v: Division, t: Token): EnCurso | number | null {
+  if (esDelimitadorPropio(v, t)) return t.desde + v.delimitador.length
+  if (t.tipo === 'comentario' && t.ejecutable) return enCursoDesde(t)
+  return null
+}
+
 function pasoFuera(v: Division, t: Token): EnCurso | number {
+  const deMysql = fueraDeMysql(v, t)
+  if (deMysql !== null) return deMysql
   if (t.tipo === 'comentario' || t.tipo === 'puntoYComa' || t.tipo === 'barraSola' || t.tipo === 'separadorLote') return t.hasta
-  if (t.tipo === 'lineaCliente') return emitirCliente(v, t)
+  if (t.tipo === 'lineaCliente') {
+    aplicarDelimitador(v, t)
+    return emitirCliente(v, t)
+  }
   if (conComandosSqlplus(v.r.comandosCliente) && t.inicioDeLinea) {
     const cmd = comandoSqlPlus(v.texto, t, v.r, v.inicio, v.fin)
     if (cmd) return cmd === 'exec' ? emitirExec(v, t) : emitirCliente(v, t)
@@ -166,7 +211,75 @@ function pasoFuera(v: Division, t: Token): EnCurso | number {
   if (conComandosPunto(v.r.comandosCliente) && v.texto.charCodeAt(t.desde) === 46 && enColumnaUno(v, t.desde)) {
     return emitirCliente(v, t)
   }
-  return { desde: t.desde, tokens: [t], significativos: [t], ultimoContenido: t.hasta, bloque: null, atomico: 0, cuerpoCerrado: false }
+  return enCursoDesde(t)
+}
+
+/** La sentencia que empieza en `t`. Un comentario no cuenta entre sus significativos. */
+function enCursoDesde(t: Token): EnCurso {
+  return {
+    desde: t.desde,
+    tokens: [t],
+    significativos: t.tipo === 'comentario' ? [] : [t],
+    ultimoContenido: t.hasta,
+    bloque: null,
+    atomico: 0,
+    cuerpoCerrado: false,
+    finPendiente: false
+  }
+}
+
+const ABREN_RUTINA_MYSQL = new Set(['PROCEDURE', 'FUNCTION', 'TRIGGER', 'EVENT'])
+/** Tras un END, lo que lo hace el cierre de un bloque que NO abrió un BEGIN ni un CASE. */
+const END_DE_BLOQUE_SIN_CONTAR = new Set(['IF', 'LOOP', 'WHILE', 'REPEAT'])
+
+/** MySQL: ¿los significativos (el último es el BEGIN que se mira) son la cabecera de un CREATE … de rutina? */
+function esCabeceraCompuesta(sig: readonly Token[]): boolean {
+  if (!(sig[0] && sig[0].tipo === 'palabra' && sig[0].valor === 'CREATE')) return false
+  for (let j = 1; j < sig.length - 1; j++) if (sig[j].tipo === 'palabra' && ABREN_RUTINA_MYSQL.has(sig[j].valor)) return true
+  return false
+}
+
+/** MySQL: ¿la sentencia empieza por `BEGIN NOT ATOMIC` (el bloque anónimo de MariaDB)? */
+function esBloqueAnonimo(sig: readonly Token[]): boolean {
+  const pal = (k: number): string | null => (sig[k] && sig[k].tipo === 'palabra' ? sig[k].valor : null)
+  return sig.length === 3 && pal(0) === 'BEGIN' && pal(1) === 'NOT' && pal(2) === 'ATOMIC'
+}
+
+/** MySQL: el END pendiente se resuelve con el token que lo sigue (no una palabra: cierra). */
+function resolverFinPendiente(e: EnCurso, t: Token): void {
+  if (!e.finPendiente || t.tipo === 'comentario' || t.tipo === 'palabra') return
+  e.finPendiente = false
+  cerrarNivel(e)
+}
+
+/** Un END cierra un nivel del cuerpo; al volver a 0 el cuerpo ya no se reabre. */
+function cerrarNivel(e: EnCurso): void {
+  e.atomico--
+  if (e.atomico === 0) e.cuerpoCerrado = true
+}
+
+/**
+ * MySQL: el cuerpo `BEGIN … END` de un CREATE de rutina, disparador o evento (o el de `BEGIN NOT
+ * ATOMIC`) abre un nivel; dentro cuentan BEGIN y CASE. Un END se resuelve con la palabra que lo
+ * sigue: `END IF`, `END LOOP`, `END WHILE` y `END REPEAT` cierran bloques que no se cuentan;
+ * `END CASE`, `END` a secas y `END etiqueta` cierran un nivel.
+ */
+function cuerpoCompuesto(e: EnCurso, t: Token): void {
+  if (e.finPendiente) {
+    e.finPendiente = false
+    if (END_DE_BLOQUE_SIN_CONTAR.has(t.valor)) return
+    cerrarNivel(e)
+    if (t.valor === 'CASE') return
+  }
+  if (e.atomico === 0) {
+    if (e.cuerpoCerrado) return
+    if ((t.valor === 'BEGIN' && esCabeceraCompuesta(e.significativos)) || (t.valor === 'ATOMIC' && esBloqueAnonimo(e.significativos))) {
+      e.atomico = 1
+    }
+    return
+  }
+  if (t.valor === 'BEGIN' || t.valor === 'CASE') e.atomico++
+  else if (t.valor === 'END') e.finPendiente = true
 }
 
 /** SQLite: el `BEGIN` del cuerpo de un CREATE [TEMP] TRIGGER abre un nivel que cierra su `END` (contando CASE…END). */
@@ -197,7 +310,23 @@ function cuerpoAtomico(e: EnCurso, t: Token): void {
  * Dentro de una sentencia: el token `t` la cierra, la sigue o cierra una línea de cliente.
  * Devuelve dónde sigue el escaneo si la sentencia se cerró, o -1 si sigue abierta.
  */
+/**
+ * MySQL, dentro de una sentencia: el terminador de un DELIMITER la cierra aunque esté en mitad de un
+ * cuerpo (es lo que hace el cliente) y devuelve dónde sigue; si no, resuelve el END pendiente y -1.
+ */
+function dentroDeMysql(v: Division, e: EnCurso, t: Token): number {
+  if (esDelimitadorPropio(v, t)) {
+    const hasta = t.desde + v.delimitador.length
+    cerrar(v, e, 'delimitador', hasta)
+    return hasta
+  }
+  if (v.r.cuerpoCompuesto) resolverFinPendiente(e, t)
+  return -1
+}
+
 function pasoDentro(v: Division, e: EnCurso, t: Token): number {
+  const cerrada = dentroDeMysql(v, e, t)
+  if (cerrada >= 0) return cerrada
   switch (t.tipo) {
     case 'comentario':
       e.tokens.push(t)
@@ -209,10 +338,12 @@ function pasoDentro(v: Division, e: EnCurso, t: Token): number {
       return t.hasta
     case 'lineaCliente':
       cerrar(v, e, 'lineaCliente', null)
+      aplicarDelimitador(v, t)
       return emitirCliente(v, t)
     case 'puntoYComa':
       if (e.bloque === null) e.bloque = esInicioBloquePlsql(e.significativos, v.d) || esAlcanceDeLote(e.significativos, v.d)
-      if (!e.bloque && e.atomico === 0) {
+      // Con un DELIMITER propio vigente, el `;` es contenido.
+      if (!e.bloque && e.atomico === 0 && v.delimitador === ';') {
         cerrar(v, e, 'puntoYComa', t.hasta)
         return t.hasta
       }
@@ -220,13 +351,17 @@ function pasoDentro(v: Division, e: EnCurso, t: Token): number {
     default:
       if (e.bloque === null) e.significativos.push(t)
   }
-  if (t.tipo === 'palabra') {
-    if (v.r.triggerBeginEnd) cuerpoDeDisparador(e, t)
-    if (v.r.cuerpoAtomico) cuerpoAtomico(e, t)
-  }
+  if (t.tipo === 'palabra') cuerposDeBloque(v, e, t)
   e.tokens.push(t)
   e.ultimoContenido = t.hasta
   return -1
+}
+
+/** Una palabra dentro de una sentencia: los cuerpos que no se parten por sus `;`, según el dialecto. */
+function cuerposDeBloque(v: Division, e: EnCurso, t: Token): void {
+  if (v.r.triggerBeginEnd) cuerpoDeDisparador(e, t)
+  if (v.r.cuerpoAtomico) cuerpoAtomico(e, t)
+  if (v.r.cuerpoCompuesto) cuerpoCompuesto(e, t)
 }
 
 /**
@@ -236,11 +371,12 @@ function pasoDentro(v: Division, e: EnCurso, t: Token): number {
 export function dividirSentencias(texto: string, d: DialectoSql, op: OpcionesDivision = {}): Sentencia[] {
   const inicio = Math.max(0, Math.min(op.desde !== undefined ? op.desde : 0, texto.length))
   const fin = Math.max(inicio, Math.min(op.hasta !== undefined ? op.hasta : texto.length, texto.length))
-  const v: Division = { texto, d, r: reglasDe(d), inicio, fin, salida: [] }
+  const v: Division = { texto, d, r: reglasDe(d), inicio, fin, salida: [], delimitador: ';' }
   let pos = inicio
   let e: EnCurso | null = null
   for (;;) {
-    const t = leerToken(texto, pos, v.r, inicio, fin)
+    const leido = leerToken(texto, pos, v.r, inicio, fin)
+    const t = leido ? cortarEnDelimitador(v, leido, pos) : leido
     if (!e) {
       if (!t) break
       const paso = pasoFuera(v, t)

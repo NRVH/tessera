@@ -260,6 +260,7 @@ export function offsetDeError(s: Sentencia, p: PosicionServidor, d: DialectoSql)
     case 'oracle':
       return offsetOracle(s, p)
     case 'sqlite':
+    case 'mysql':
       return offsetSqlite(s, p)
     case 'sqlserver':
       return offsetSqlserver(s, p, d)
@@ -303,7 +304,11 @@ function offsetOracle(s: Sentencia, p: PosicionServidor): number | null {
   return null
 }
 
-/** SQLite no da posición: la calcula el trabajador (prefijo más corto que da el mismo error) en `offsetCp`. */
+/**
+ * SQLite no da posición: la calcula el trabajador (prefijo más corto que da el mismo error) en
+ * `offsetCp`. MySQL da la línea y el texto desde el error (`near '…' at line N`), y con ellos la
+ * calcula también su trabajador.
+ */
 function offsetSqlite(s: Sentencia, p: PosicionServidor): number | null {
   const cp = p.offsetCp
   if (cp !== null && cp !== undefined && cp >= 0) return offsetEnviadoAModelo(s, puntosDeCodigoAUtf16(s.texto, cp))

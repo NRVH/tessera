@@ -20,7 +20,7 @@ import {
 } from '../../../shared/filtroGuiado.ts'
 import { nunca } from '../../../shared/nunca.ts'
 import type { DialectoSql } from '../../../shared/sql/dialectosSql.ts'
-import { citar } from '../../../shared/sql/identificadoresSql.ts'
+import { citar, citarGenerado } from '../../../shared/sql/identificadoresSql.ts'
 import type { BindEntradaLob } from './protocoloTrabajador.ts'
 import {
   Parametros,
@@ -67,6 +67,7 @@ export function filtroPorNombre(d: DialectoSql): boolean {
     case 'postgres':
     case 'sqlite':
     case 'sqlserver':
+    case 'mysql':
       return false
     default:
       return nunca(d, 'filtroPorNombre')
@@ -202,16 +203,19 @@ function condicionFecha(d: DialectoSql, c: DbCondicionFiltro, col: string, p: Pa
 }
 
 /** El SQL de UNA condición (ya validada por `validarFiltro`), o el problema. */
-function condicionSql(d: DialectoSql, c: DbCondicionFiltro, p: Parametros): CondicionCompilada {
-  const col = citar(c.columna)
+function condicionSql(d: DialectoSql, c: DbCondicionFiltro, p: Parametros, calificador: string): CondicionCompilada {
+  const col = calificador + citarGenerado(c.columna, d)
   const op = c.operador
-  const esTexto = c.categoria === 'texto' || c.categoria === 'id'
+  const esTexto = c.categoria === 'texto' || c.categoria === 'textoLargo' || c.categoria === 'id'
   if (op === 'vacio' || op === 'noVacio') return condicionVacio(d, col, op === 'vacio', esTexto)
 
   switch (c.categoria) {
     case 'texto':
     case 'id':
       return condicionTexto(d, c, col, p)
+    // Sin «=» ni «≠» (`validarFiltro`): lo que queda compara la columna convertida a texto.
+    case 'textoLargo':
+      return op === 'igual' || op === 'distinto' ? problema(OPERADOR_NO_VALE) : condicionTexto(d, c, col, p)
     case 'booleano':
       return condicionBooleano(d, c, col, p)
     case 'numero':
@@ -229,7 +233,7 @@ function condicionSql(d: DialectoSql, c: DbCondicionFiltro, p: Parametros): Cond
  * Compila el filtro guiado. `null` si no tiene condiciones (no hay WHERE que poner); el
  * problema, con el índice de su condición, si no es válido.
  */
-export function compilarFiltro(d: DialectoSql, f: unknown): FiltroCompilado | ErrorFiltroSql | null {
+export function compilarFiltro(d: DialectoSql, f: unknown, calificador = ''): FiltroCompilado | ErrorFiltroSql | null {
   const invalido = validarFiltro(f)
   if (invalido !== null) return { indice: invalido.indice, mensaje: invalido.mensaje }
   const filtro = f as DbFiltroGuiado
@@ -240,7 +244,7 @@ export function compilarFiltro(d: DialectoSql, f: unknown): FiltroCompilado | Er
   let texto = ''
   const rangos: Array<[number, number]> = []
   for (let i = 0; i < filtro.condiciones.length; i++) {
-    const r = condicionSql(d, filtro.condiciones[i], p)
+    const r = condicionSql(d, filtro.condiciones[i], p, calificador)
     if ('problema' in r) return { indice: i, mensaje: r.problema }
     if (i > 0) texto += '\n'
     const ini = texto.length
@@ -250,11 +254,24 @@ export function compilarFiltro(d: DialectoSql, f: unknown): FiltroCompilado | Er
   return { sql: texto, rangos, valores: porNombre ? [] : p.valores, nombrados: porNombre ? p.nombrados : null }
 }
 
-/** El ORDER BY de la cabecera (sin las palabras ORDER BY); null si está vacío; el problema si no vale. */
-export function compilarOrden(o: unknown): string | null | { mensaje: string } {
+/**
+ * El ORDER BY de la cabecera (sin las palabras ORDER BY); null si está vacío; el problema si no vale.
+ * `calificador`: lo que va delante de cada columna (ver `calificadorDeColumnas`).
+ */
+export function compilarOrden(o: unknown, calificador = '', d?: DialectoSql): string | null | { mensaje: string } {
   const invalido = validarOrden(o)
   if (invalido !== null) return { mensaje: invalido }
   const orden = o as DbOrdenColumna[]
   if (orden.length === 0) return null
-  return orden.map((x) => `${citar(x.columna)} ${x.dir === 'desc' ? 'DESC' : 'ASC'}`).join(', ')
+  const cita = (n: string): string => (d !== undefined ? citarGenerado(n, d) : citar(n))
+  return orden.map((x) => `${calificador}${cita(x.columna)} ${x.dir === 'desc' ? 'DESC' : 'ASC'}`).join(', ')
+}
+
+/**
+ * Lo que va delante de las columnas del filtro guiado y del orden: en SQLite, la tabla (`"main"."t".`).
+ * Tessera abre SQLite aceptando `"texto"` como cadena (vistas antiguas), así que `"NO_EXISTE"` a secas
+ * sería un texto y el filtro saldría vacío sin error; calificado no puede serlo y el servidor lo dice.
+ */
+export function calificadorDeColumnas(d: DialectoSql, fuente: string): string {
+  return d === 'sqlite' ? `${fuente}.` : '' // motor-fijo: las comillas dobles como cadena (DQS) solo las acepta SQLite
 }

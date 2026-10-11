@@ -15,6 +15,7 @@ const { errorDeUso } = require('./tsshSalida.cjs')
 function plataformaDelProceso() {
   if (process.platform === 'win32') return 'windows'
   if (process.platform === 'darwin') return 'mac'
+  if (process.platform === 'linux') return 'linux'
   return 'otra'
 }
 

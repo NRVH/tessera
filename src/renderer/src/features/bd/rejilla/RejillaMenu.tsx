@@ -16,6 +16,7 @@ import { IconoAnadirFila, IconoBorrarFilas, IconoEditar, IconoNulo, IconoReverti
 import { hayCambiosEnRango } from './cambiosRejilla'
 import { formatoEntero } from './celdasRejilla'
 import { FORMATOS_COPIAR_COMO, FORMATOS_EXPORTAR } from './exportarBd'
+import { IconoFormato } from './IconoFormato'
 import {
   abrirEditor,
   abrirVisor,
@@ -100,7 +101,7 @@ function itemsCopiarComo(r: Rejilla, sinSeleccion: boolean): ContextMenuEntry[] 
     // Título del paso: fila apagada (no enfocable).
     { label: 'Copiar como', onClick: () => undefined, disabled: true },
     ...FORMATOS_COPIAR_COMO.map(
-      (f): ContextMenuEntry => ({ label: NOMBRE_FORMATO[f], onClick: () => copiar(r, f), disabled: sinSeleccion })
+      (f): ContextMenuEntry => ({ label: NOMBRE_FORMATO[f], icon: <IconoFormato formato={f} />, onClick: () => copiar(r, f), disabled: sinSeleccion })
     )
   ]
 }
@@ -112,6 +113,7 @@ function itemsExportar(r: Rejilla): ContextMenuEntry[] {
     ...FORMATOS_EXPORTAR.map(
       (f: DbFormatoFilas): ContextMenuEntry => ({
         label: `${NOMBRE_FORMATO[f]}…`,
+        icon: <IconoFormato formato={f} />,
         onClick: () => onExportar?.(f),
         disabled: exportando !== null
       })

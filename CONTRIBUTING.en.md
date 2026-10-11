@@ -52,17 +52,17 @@ The essentials:
 - **The interface never sees or sends host paths**, and every IPC channel is declared in
   `src/shared/*-ipc.ts` and exposed through `src/preload/`.
 
-## Windows and macOS are both first class
+## Windows, macOS and Linux are all first class
 
-Tessera runs on Windows and macOS, and neither is a port of the other. For a pull request
+Tessera runs on Windows, macOS and Linux, and none is a port of another. For a pull request
 this means:
 
-- **Think every change through for both platforms**, even if you can only run one. Answer
-  two questions in the description: what does this do on the other platform, and does it
-  degrade it? If something does not apply there, say why in the code.
-- Never compare `process.platform` directly: use `esWindows()` / `esMac()` from
-  `src/shared/plataforma.ts`. In pure logic, the platform is a **parameter** with the
-  current system as default, so tests can cover both platforms from either machine.
+- **Think every change through for every platform**, even if you can only run one. Answer
+  two questions in the description: what does this do on the other platforms, and does it
+  degrade them? If something does not apply on one, say why in the code.
+- Never compare `process.platform` directly: use `esWindows()` / `esMac()` / `esLinux()`
+  from `src/shared/plataforma.ts`. In pure logic, the platform is a **parameter** with the
+  current system as default, so tests can cover every platform from any machine.
 - In the interface (the renderer) `process` does not exist: the platform comes from
   `window.tessera.plataforma`. This breaks only in the packaged app, so it is easy to miss.
 - Keyboard shortcuts are decided in `src/renderer/src/util/atajos.ts`, with the platform as
@@ -97,7 +97,7 @@ npm run test:<name>                # the test scripts of the area you touched
   deserves a case in `e2e/`. The suite drives the **packaged** app, so build it first:
 
   ```bash
-  npm run pack:dir        # Windows (npm run pack:mac:dir on macOS)
+  npm run pack:dir        # Windows (pack:mac:dir on macOS, pack:linux:dir on Linux)
   npx playwright test e2e/<spec>.spec.ts
   ```
 

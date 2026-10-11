@@ -121,6 +121,19 @@ export class GestorSesiones {
     this.n.fijarAjustes(sanearAjustesSesiones(a))
   }
 
+  /** ¿La conexión es de solo lectura porque la carpeta de su base no admite escritura? Lo dice su última apertura. */
+  soloLecturaPorCarpeta(conexionId: string): boolean {
+    return this.n.porCarpeta(conexionId)
+  }
+
+  /**
+   * Los ajustes vigentes, ya saneados: de aquí leen también los gestores de documentos y de claves.
+   * Una copia: cambiarlos es solo por `fijarAjustes`, que los sanea.
+   */
+  ajustes(): AjustesSesionesBd {
+    return { ...this.n.ajustes() }
+  }
+
   /** Corre `fn` como UNA tarea de la cola de `meta`; tras una pérdida se reintenta una vez. */
   catalogo<T>(conexionId: string, fn: (ctx: ContextoCatalogo) => Promise<T>, op?: { prioridad?: PrioridadCola; clave?: string; base?: string }): Promise<T> {
     return this.cat.catalogo(conexionId, fn, op)

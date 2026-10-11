@@ -4,7 +4,7 @@
 // expone `PLATAFORMA` para que cada spec salte o parametrice lo propio de un sistema.
 // Lo que va aquí y no en un `test-*.mts` lo decide el ADR de reparto, en la misma carpeta.
 // Depende de `@playwright/test` (`_electron`), de `shared/plataforma.ts` y de la marca del arnés
-// (`ARG_ARNES_E2E`, en `main/ssh/binariosSsh.ts`).
+// (`ARG_ARNES_E2E`, en `shared/arnesE2e.ts`).
 // Decisiones: docs/decisiones/pruebas/arnes-e2e-sobre-la-app-empaquetada.md
 // =============================================================================
 
@@ -15,7 +15,7 @@ import { rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { plataformaDe, type Plataforma } from '../src/shared/plataforma.ts'
-import { ARG_ARNES_E2E } from '../src/main/ssh/binariosSsh.ts'
+import { ARG_ARNES_E2E } from '../src/shared/arnesE2e.ts'
 
 /**
  * La plataforma de las pruebas, que es también la del paquete que arrancan:
@@ -24,6 +24,15 @@ import { ARG_ARNES_E2E } from '../src/main/ssh/binariosSsh.ts'
  * tiene sentido en un sistema, y así `grep PLATAFORMA` lista todo lo bifurcado.
  */
 export const PLATAFORMA: Plataforma = plataformaDe(process.platform)
+
+/**
+ * En Mac, `safeStorage` NO va al Llavero del usuario: cada paquete nuevo lleva otra firma ad-hoc y
+ * macOS vuelve a pedir permiso para «Tessera Safe Storage» con un diálogo que bloquea el main. Sin
+ * nadie que lo conteste, toda prueba que guarda una contraseña se colgaría hasta su tope de
+ * tiempo. Con el Llavero falso de Chromium cifra al momento y no toca credenciales reales.
+ * En Windows `safeStorage` es DPAPI, que no pregunta.
+ */
+const ARGS_LLAVERO: readonly string[] = PLATAFORMA === 'mac' ? ['--use-mock-keychain'] : []
 
 /**
  * El ejecutable de la app EMPAQUETADA en cada plataforma, o `null` donde Tessera no
@@ -42,14 +51,15 @@ export function rutaAppEmpaquetada(plataforma: Plataforma = PLATAFORMA): string 
   if (plataforma === 'mac') {
     return join(dist, 'mac-arm64', 'Tessera.app', 'Contents', 'MacOS', 'Tessera')
   }
+  if (plataforma === 'linux') return join(dist, 'linux-unpacked', 'tessera')
   return null
 }
 
 /** El comando que genera ese paquete, para que el error diga qué hacer. */
 function comandoParaEmpaquetar(plataforma: Plataforma): string {
-  return plataforma === 'windows'
-    ? '`npm run pack:dir`'
-    : '`npm run build:mac` (o `npm run pack:mac:dir`, más rápido, si no hace falta el .dmg)'
+  if (plataforma === 'windows') return '`npm run pack:dir`'
+  if (plataforma === 'linux') return '`npm run pack:linux:dir`'
+  return '`npm run build:mac` (o `npm run pack:mac:dir`, más rápido, si no hace falta el .dmg)'
 }
 
 /**
@@ -129,12 +139,16 @@ async function cerrarConTope(app: ElectronApplication): Promise<boolean> {
   const colgado = await Promise.race([cerrada, vencida])
   clearTimeout(reloj)
   if (!colgado) return false
-  const pid = app.process().pid
+  // `process()` también lanza si Playwright ya soltó la conexión a medio cerrar: no puede
+  // impedir que el cierre se explique.
+  let pid: number | undefined
   try {
+    const proceso = app.process()
+    pid = proceso.pid
     if (pid !== undefined && PLATAFORMA === 'windows') {
       execFileSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore', timeout: 15_000 })
     } else {
-      app.process().kill('SIGKILL')
+      proceso.kill('SIGKILL')
     }
   } catch (err) {
     console.warn(`[e2e] no se pudo matar la app colgada (pid ${pid}): ${String(err)}`)
@@ -256,7 +270,7 @@ export async function abrirTessera(
   delete entorno.ELECTRON_RUN_AS_NODE
   const app = await electron.launch({
     executablePath: ruta,
-    args: [`--user-data-dir=${datos}`, ARG_ARNES_E2E, ...(opts.args ?? [])], // sin la marca, nada de ssh falso
+    args: [`--user-data-dir=${datos}`, ARG_ARNES_E2E, ...ARGS_LLAVERO, ...(opts.args ?? [])], // sin la marca, nada de ssh falso
     env: entorno,
     timeout: 90_000
   })

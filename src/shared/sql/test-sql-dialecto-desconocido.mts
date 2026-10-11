@@ -16,7 +16,7 @@ import { esParteIdent, tokenizar } from './lexicoSql.ts'
 import { clasificar, esAlcanceDeLote, esInicioBloquePlsql, formatoFijadoPorTessera, permitidaEnSoloLectura } from './clasificarSql.ts'
 import { crearVista } from './clasificarSqlBase.ts'
 import { dividirSentencias, sentenciasAEjecutar } from './divisorSql.ts'
-import { citar, citarSiHaceFalta, claveDeNombre, mismoNombre, nombreCalificado, normalizarIdent, plegarSinComillas } from './identificadoresSql.ts'
+import { citar, citarGenerado, citarSiHaceFalta, claveDeNombre, mismoNombre, nombreCalificado, normalizarIdent, plegarSinComillas } from './identificadoresSql.ts'
 import { RESERVADAS, esReservada } from './palabrasSql.ts'
 import { claveDeBind, parametrosSql } from './parametrosSql.ts'
 import { offsetDeError } from './posicionErrorSql.ts'
@@ -55,8 +55,8 @@ function lanza(f: () => unknown): string | null {
 const esperado = (d: unknown): string => `Dialecto desconocido: "${String(d)}".`
 
 /** Los dialectos inventados: uno de mañana y los heredados de `Object.prototype`. */
-// ('mysql' hace de dialecto desconocido: antes lo hacía 'sqlite'.)
-const DESCONOCIDOS = ['mysql', 'constructor', 'toString', '__proto__', ''] as const
+// ('db2' hace de dialecto desconocido: antes lo hacía 'sqlite'.)
+const DESCONOCIDOS = ['db2', 'constructor', 'toString', '__proto__', ''] as const
 const DIALECTOS = Object.keys(REGLAS) as DialectoSql[]
 
 // Datos de partida, construido con un dialecto que existe.
@@ -86,6 +86,7 @@ const ENTRADAS: Readonly<Record<string, (d: DialectoSql) => unknown>> = {
   claveDeNombre: (d) => claveDeNombre('a', d),
   mismoNombre: (d) => mismoNombre('a', 'a', d),
   citarSiHaceFalta: (d) => citarSiHaceFalta('A', d),
+  citarGenerado: (d) => citarGenerado('a', d),
   nombreCalificado: (d) => nombreCalificado(null, 'a', d, { siempre: true }),
   esReservada: (d) => esReservada('SELECT', d),
   claveDeBind: (d) => claveDeBind(':a', d),

@@ -43,6 +43,7 @@ export async function leerDdlSqlServer(lector: LectorDdl, ref: DbRefObjeto): Pro
       return conDdl(ddlTablaSqlServer({ esquema: e, nombre: n, columnas, restricciones, indices }), 'sys.columns')
     }
     case 'vista':
+    case 'disparador':
     case 'rutina': {
       const fuente = mapearFuente(d, ref, await leer(() => sqlFuente(d, ref)))
       const parte = fuente.partes[0]

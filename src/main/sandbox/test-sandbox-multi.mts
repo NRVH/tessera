@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url'
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import path from 'node:path'
 import { SandboxManager } from './SandboxManager.ts'
+import { containerNameFor, managedRootFor } from './gestor/nombres.ts'
 import { tramosDelHost } from './centinelaHost.ts'
 import type { Profile } from '../profiles/types.ts'
 
@@ -38,8 +39,8 @@ const PERFIL_QA: Profile = {
   sandbox: { habilitado: true }
 }
 
-const CONTAINER = `tessera-${PERFIL_QA.id}`
-const MANAGED_ROOT = `/mnt/wsl/tessera-mm/${PERFIL_QA.id}`
+const CONTAINER = containerNameFor(PERFIL_QA)
+const MANAGED_ROOT = managedRootFor(PERFIL_QA)
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))

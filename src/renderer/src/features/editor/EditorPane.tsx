@@ -5,7 +5,10 @@
 // Cada pestaña monta su pane y solo el activo se ve. Se compone de hooks propios.
 // Decisiones: docs/decisiones/editor/panes-en-keep-alive.md
 // =============================================================================
+import { useContext } from 'react'
+import { createPortal } from 'react-dom'
 import { useVisibleLayout } from '../../comun/useVisibleLayout'
+import { SlotAccionesTira } from './slotAccionesTira'
 import { SearchBox } from '../../comun/SearchBox'
 import { AvisoCaja } from '../../comun/AvisoCaja'
 import { ControlModoVista } from './ControlModoVista'
@@ -31,18 +34,15 @@ import {
 
 export type { EditorMeta, EditorConvertReq } from './editorPaneTipos'
 
-/** Cabecera con el control de modo; existe solo si el archivo tiene vista previa. */
-function CabeceraEditor({ vista }: { vista: VistaDelPane }): React.JSX.Element | null {
-  // Depende del tipo de archivo y no de un aviso efímero: así la barra nunca aparece
-  // ni desaparece mientras se lee o se escribe, y el editor no salta de sitio.
-  if (vista.previa === null) return null
-  return (
-    <header className="panel-header editor-header">
-      <div className="panel-actions">
-        <ControlModoVista modoEfectivo={vista.modoEfectivo} onModo={vista.setModo} />
-      </div>
-    </header>
-  )
+/**
+ * El control de modo, en la tira de pestañas (por portal) y solo del pane visible; existe
+ * solo si el archivo tiene vista previa. No ocupa una fila propia: el texto empieza
+ * justo bajo las pestañas.
+ */
+function ModoEnLaTira({ vista, visible }: { vista: VistaDelPane; visible: boolean }): React.JSX.Element | null {
+  const slot = useContext(SlotAccionesTira)
+  if (vista.previa === null || !visible || slot === null) return null
+  return createPortal(<ControlModoVista modoEfectivo={vista.modoEfectivo} onModo={vista.setModo} />, slot)
 }
 
 /** Las tres cajas de aviso, hermanas y por orden de gravedad. */
@@ -151,12 +151,12 @@ export function EditorPane(props: EditorPaneProps): React.JSX.Element {
       aria-label="Editor"
       aria-hidden={!visible}
     >
-      <CabeceraEditor vista={vista} />
+      <ModoEnLaTira vista={vista} visible={visible} />
       <AvisosEditor loadError={loadError} saveError={saveError} notice={notice} />
       <CuerpoEditor vista={vista} hostRef={refs.host} nombre={file.name} />
       {busqueda.abierto && (
         <SearchBox
-          className="en-documento"
+          className="en-documento sin-cabecera"
           ariaLabel="Buscar en el documento"
           focusToken={busqueda.focusToken}
           onFind={busqueda.buscar}

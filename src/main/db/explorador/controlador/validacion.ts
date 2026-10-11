@@ -43,6 +43,8 @@ export const TIPOS_OBJETO: readonly DbTipoObjeto[] = [
   'tipoColeccion',
   'tipo',
   'disparador',
+  // Los eventos programados de MySQL.
+  'evento',
   // Las tablas virtuales de SQLite (fts5, rtree…), su carpeta en el árbol.
   'tablaVirtual'
 ]

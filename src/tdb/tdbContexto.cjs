@@ -88,6 +88,8 @@ async function entornoDelPuente() {
       entorno.scopeDefinido = !r.consola
       entorno.scope = (r.scope || []).join(',')
       if (typeof r.espacioDatos === 'boolean') entorno.espacioDatos = r.espacioDatos
+      // Solo en un «Probar» con túnel: su token ya se gastó y es la ficha con la que se pide el túnel.
+      if (typeof r.fichaTunel === 'string') entorno.fichaTunel = r.fichaTunel
       entorno.puente = 'vivo'
     } else {
       // Se sigue con el entorno, que puede traer un ámbito viejo y ningún secreto: peor que
@@ -116,7 +118,7 @@ async function contexto(opciones) {
     : { packs: [], externos: {} }
   const perfil = process.env[ENV_PERFIL] || ''
   const { delPerfil, formatoAjeno, avisoRegistro, origenRegistro } = leerConexiones(registro, perfil)
-  const { scope, scopeDefinido, espacioDatos, secretos, huellas, puente } = await entornoDelPuente()
+  const { scope, scopeDefinido, espacioDatos, secretos, huellas, puente, fichaTunel } = await entornoDelPuente()
 
   let visibles = delPerfil
   if (scopeDefinido) {
@@ -132,6 +134,7 @@ async function contexto(opciones) {
     secretos,
     huellas,
     puente,
+    fichaTunel: fichaTunel || null,
     // Las del perfil ENTERO, para poder decir "hay 4 en este perfil, 0 montadas aquí".
     delPerfil,
     // Sin conexiones que ver (formato ajeno o ilegible): `avisoRegistro` es lo que se dice.

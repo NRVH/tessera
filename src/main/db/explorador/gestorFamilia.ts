@@ -13,7 +13,8 @@ import { avisoDePerdida, errorTrabajadorDe, estadoDeSesion, mensajeDe, MENSAJE_C
 import type { ConfigFamilia, DependenciasGestorFamilia, OpcionesOperar, OpFamilia, ProcesoFamilia, SesionFamilia } from './controlador/gestorFamiliaTipos.ts'
 import { ErrorGestor } from './GestorSesiones.ts'
 import { CIERRE_TRABAJADORES_MS, INACTIVIDAD_CONSOLA_MS, MAX_CONSOLAS_VIVAS_POR_CONEXION, MAX_PROCESOS, PROCESO_SIN_SESIONES_MS, TIMEOUT_SQL_META_MS, umbralInactividadMs } from './limites.ts'
-import { PLAZOS_TRABAJADOR_MS, type ErrorTrabajador, type EventoTrabajador, type PeticionSinIdDe } from './protocoloTrabajador.ts'
+import { conTunel, PLAZOS_TRABAJADOR_MS, type ErrorTrabajador, type EventoTrabajador, type PeticionSinIdDe } from './protocoloTrabajador.ts'
+import { destinoPorTunel } from './sesiones/errores.ts'
 import { sinSoloLecturaImpuesta } from './soloLecturaImpuesta.ts'
 
 export { conexionTrabajadorFamilia, errorTrabajadorDe, mensajeDe } from './controlador/gestorFamiliaTipos.ts'
@@ -277,6 +278,7 @@ export class GestorFamilia<C, P extends { operacion: string }, R extends { [K in
     const secreto = this.secretoDe(con)
     // La impuesta por el explorador, no la casilla de los agentes (ver las dependencias).
     const soloLectura = (this.deps.soloLecturaImpuesta ?? sinSoloLecturaImpuesta)(con)
+    const destino = await destinoPorTunel(this.deps.tunel, con)
     const p = await this.procesoPara(con)
     s.abierta = false
     s.proceso = p
@@ -287,7 +289,7 @@ export class GestorFamilia<C, P extends { operacion: string }, R extends { [K in
           op: 'abrir',
           sesion: s.id,
           rol: s.rol,
-          conexion: { ...this.cfg.conexionTrabajador(con), readonly: soloLectura },
+          conexion: conTunel({ ...this.cfg.conexionTrabajador(con), readonly: soloLectura }, destino),
           secreto,
           ctx: this.deps.ctxDrivers(),
           opciones: { timeoutMs: s.rol === 'meta' ? TIMEOUT_SQL_META_MS : 0, accion: s.rol }

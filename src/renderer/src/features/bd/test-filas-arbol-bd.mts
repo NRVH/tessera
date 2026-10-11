@@ -606,7 +606,7 @@ hr('(12) etiquetas')
 // cazaría. El orden lo fija el main (`ajenasDelPerfil`: su `orden` y, sin él, el alias),
 // y el renderer no lo toca.
 const AJENAS: DbConexionAjena[] = [
-  { id: 'S1', profileId: 'P', alias: 'SQLS-VENTAS', motor: 'mysql' },
+  { id: 'S1', profileId: 'P', alias: 'SQLS-VENTAS', motor: 'db2' },
   { id: 'L1', profileId: 'P', alias: 'local.db', motor: 'sqlite' }
 ]
 const esAjena = (f: FilaArbol | undefined): f is FilaAjena => f !== undefined && f.kind === 'ajena'
@@ -654,7 +654,7 @@ hr('(13b) ajenas: lo que dicen')
   check('el aviso de la fila', TEXTO_AJENA === 'Requiere una versión más nueva de Tessera', j(TEXTO_AJENA))
   check(
     'motor desconocido: «requiere una versión más nueva»; motor CONOCIDO con forma no reconocida: «no reconoce cómo está guardada»',
-    textoAjena({ id: 'x', profileId: 'p', alias: 'X', motor: 'mysql' }) === TEXTO_AJENA &&
+    textoAjena({ id: 'x', profileId: 'p', alias: 'X', motor: 'db2' }) === TEXTO_AJENA &&
       textoAjena({ id: 'y', profileId: 'p', alias: 'Y', motor: 'postgres' }) === TEXTO_AJENA_FORMA &&
       textoAjena({ id: 'z', profileId: 'p', alias: 'Z', motor: 'oracle' }) === TEXTO_AJENA_FORMA,
     'ok'
@@ -672,15 +672,15 @@ hr('(13b) ajenas: lo que dicen')
     'ok'
   )
   const t = tooltipAjena(AJENAS[0])
-  check('el tooltip: alias, motor tal cual y el porqué', t.startsWith('SQLS-VENTAS\nMotor: mysql\n') && t.includes(TEXTO_AJENA), j(t))
+  check('el tooltip: alias, motor tal cual y el porqué', t.startsWith('SQLS-VENTAS\nMotor: db2\n') && t.includes(TEXTO_AJENA), j(t))
   check('el tooltip ofrece las dos salidas', t.includes('actualiza Tessera') && t.includes('elimínala'), j(t))
   check('un motor normal se enseña tal cual', motorAjeno(AJENAS[1]) === 'sqlite', motorAjeno(AJENAS[1]))
   const largo = motorAjeno({ motor: 'x'.repeat(200) })
   check('un motor absurdo se recorta (viene de otra versión o de una edición a mano)', largo.length === 33 && largo.endsWith('…'), `${largo.length}`)
-  const e = textoEliminarAjena({ alias: 'SQLS-VENTAS', motor: 'mysql', proyectos: null, consolas: [] })
+  const e = textoEliminarAjena({ alias: 'SQLS-VENTAS', motor: 'db2', proyectos: null, consolas: [] })
   check('eliminar: nombra la conexión y avisa de que es irreversible', e.includes('«SQLS-VENTAS»') && e.includes('No se puede deshacer'), j(e))
   check('eliminar: la base de datos no se toca', e.includes('la base de datos no se toca'), j(e))
-  check('eliminar: dice de qué motor es y que actualizar es la otra salida', e.includes('mysql') && e.includes('actualiza Tessera'), j(e))
+  check('eliminar: dice de qué motor es y que actualizar es la otra salida', e.includes('db2') && e.includes('actualiza Tessera'), j(e))
   check('eliminar sin saber los proyectos: en general', e.includes('todos los proyectos donde la tuvieras'), j(e))
   const e2 = textoEliminarAjena({ alias: 'X', motor: 'sqlite', proyectos: ['api'], consolas: ['informe'] })
   check('eliminar: nombra dónde estaba montada', e2.includes('Se desmontará de «api».'), j(e2))
@@ -801,7 +801,7 @@ hr('(13e) ajenas: la búsqueda al teclear las encuentra por el alias')
 // borrarla y crearla otra vez (en la versión que la escribió puede funcionar).
 hr('(13f) ajenas: UN solo criterio en todas las superficies')
 {
-  const porMotor: DbConexionAjena = { id: 'S1', profileId: 'P', alias: 'SQLS-VENTAS', motor: 'mysql' }
+  const porMotor: DbConexionAjena = { id: 'S1', profileId: 'P', alias: 'SQLS-VENTAS', motor: 'db2' }
   const porForma: DbConexionAjena = { id: 'G1', profileId: 'P', alias: 'PG-SOCKET', motor: 'postgres' }
   const eliminar = (a: DbConexionAjena): string =>
     textoEliminarAjena({ alias: a.alias, motor: a.motor, proyectos: ['api'], consolas: [] })
@@ -887,7 +887,7 @@ hr('(13f) ajenas: UN solo criterio en todas las superficies')
     tooltipAjena(porMotor).includes('elimínala') && !tooltipAjena(porMotor).includes('desmontar'),
     j(tooltipAjena(porMotor))
   )
-  check('popover: «motor · aviso»', mM.destino === 'mysql · Requiere una versión más nueva de Tessera', j(mM.destino))
+  check('popover: «motor · aviso»', mM.destino === 'db2 · Requiere una versión más nueva de Tessera', j(mM.destino))
   const larga = filaMontajeAjena({ id: 'X', profileId: 'P', alias: 'X', motor: 'm'.repeat(300) })
   check(
     'popover: un motor absurdo se recorta, como en el árbol, y el aviso sigue a la vista',
@@ -975,7 +975,7 @@ hr('(13g) ajenas: la clave y la búsqueda son las de `arbolBd`, no copias')
       })
       const deArbol = arbol.find((x) => x.kind === 'conexion')?.coincidencia ?? null
       const deAjena =
-        componerFilasArbol([], [{ id: 'A1', profileId: 'P', alias: al, motor: 'mysql' }], f).find(esAjena)?.coincidencia ?? null
+        componerFilasArbol([], [{ id: 'A1', profileId: 'P', alias: al, motor: 'db2' }], f).find(esAjena)?.coincidencia ?? null
       if (j(deArbol) !== j(deAjena)) distintas.push(`${al} / ${j(f)}: ${j(deArbol)} vs ${j(deAjena)}`)
     }
   }
@@ -1095,7 +1095,7 @@ hr('(13h) ajenas por id REPETIDO: su causa, sus textos, su clave y el popover')
     j({ claves: filas.map((f) => f.key), conFiltro: conFiltro.map((f) => f.key) })
   )
   // El popover de montaje: un montaje es de un ID; si una conocida lo usa, es suyo.
-  const sqls: DbConexionAjena = { id: 'S1', profileId: 'P', alias: 'SQLS', motor: 'mysql' }
+  const sqls: DbConexionAjena = { id: 'S1', profileId: 'P', alias: 'SQLS', motor: 'db2' }
   const conConocida = ajenasMontadasPopover([copia, sqls], ['C1', 'S1'], [conexion('C1')])
   const sinConocida = ajenasMontadasPopover([copia, sqls], ['C1', 'S1'], [])
   const sinMontar = ajenasMontadasPopover([copia, sqls], ['C1'], [])

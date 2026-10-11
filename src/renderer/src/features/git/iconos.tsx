@@ -66,6 +66,15 @@ export function IconoBuscar(): React.JSX.Element {
   )
 }
 
+/** Plegar o desplegar todos los repos: dos flechas que se juntan (plegar) o se separan (desplegar). */
+export function IconoPlegarRepos({ plegar }: { plegar: boolean }): React.JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d={plegar ? 'm7 20 5-5 5 5M7 4l5 5 5-5' : 'm7 15 5 5 5-5M7 9l5-5 5 5'} />
+    </svg>
+  )
+}
+
 /** Flecha circular de recargar; gira mientras hay una carga en vuelo. */
 export function IconoRecargar({ girando }: { girando: boolean }): React.JSX.Element {
   return (

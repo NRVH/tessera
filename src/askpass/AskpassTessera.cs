@@ -15,11 +15,12 @@ using System.Threading;
 static class AskpassTessera
 {
     // Fija y sin el texto del servidor: lo que este escriba no llega a la terminal por aquí.
-    const string MensajeNo = "Tessera no contesta esa pregunta del servidor; reconecta escribiendo en la terminal";
+    const string MensajeNo = "Tessera no contestó esa pregunta del servidor";
     const string PrefijoPipe = @"\\.\pipe\";
     const int TopeConexionMs = 5000;
-    // Por si Tessera se queda colgada a mitad de respuesta: ssh espera a este proceso.
-    const int TopeTotalMs = 10000;
+    // Por si Tessera se queda colgada a mitad de respuesta: ssh espera a este proceso. Holgado porque la
+    // respuesta puede tener que escribirla el usuario en un diálogo de Tessera.
+    const int TopeTotalMs = 150000;
     const int MaxRespuesta = 64 * 1024;
     // La respuesta la escribe JSON.stringify en el puente, con este orden de claves.
     const string InicioOk = "{\"ok\":true,\"respuesta\":\"";

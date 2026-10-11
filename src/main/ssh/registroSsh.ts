@@ -174,6 +174,23 @@ function esClaveConocida(v: unknown): boolean {
   return esObjeto(v) && typeof v.nombre === 'string' && typeof v.tipo === 'string' && typeof v.cifrada === 'boolean'
 }
 
+/**
+ * ¿Son túneles con la forma que el DTO enseña? Solo la forma: lo que vale cada campo se comprueba al abrir
+ * la terminal, como el host. Uno de un tipo que no se conoce deja toda la lista en el resto, intacta.
+ */
+function sonTunelesConForma(v: unknown): boolean {
+  const puerto = (p: unknown): boolean => typeof p === 'number' && Number.isInteger(p)
+  return (
+    Array.isArray(v) &&
+    v.every(
+      (t) =>
+        esObjeto(t) &&
+        puerto(t.puerto) &&
+        (t.tipo === 'dinamico' ? t.destinoHost === undefined && t.destinoPuerto === undefined : (t.tipo === 'local' || t.tipo === 'remoto') && typeof t.destinoHost === 'string' && puerto(t.destinoPuerto))
+    )
+  )
+}
+
 /** Una clave gobernada con un valor que no se entiende sale del registro y se conserva en el resto. */
 function apartar(
   registro: Record<string, unknown>,
@@ -198,6 +215,8 @@ export function separarConexion(crudo: Record<string, unknown>): EntradaConocida
   apartar(registro, resto, 'disponibleAgentes', (v) => typeof v === 'boolean')
   apartar(registro, resto, 'secretEnc', (v) => typeof v === 'string')
   apartar(registro, resto, 'clave', esClaveConocida)
+  apartar(registro, resto, 'saltoId', (v) => typeof v === 'string' && ID_SEGURO.test(v))
+  apartar(registro, resto, 'tuneles', sonTunelesConForma)
   return { tipo: 'conocida', registro: registro as unknown as ConexionSshPersistida, resto }
 }
 
@@ -286,21 +305,6 @@ export function idsConArchivos(reg: RegistroSsh): Set<string> {
     if (id !== null) ids.add(id.toLowerCase())
   }
   return ids
-}
-
-/**
- * Las entradas de perfiles que siguen existiendo, en las dos listas. Las ajenas se podan igual; las
- * que no traen un perfil legible se CONSERVAN: no se sabe de quién son.
- */
-export function podarPerfilesSsh(
-  reg: RegistroSsh,
-  idsVivos: ReadonlySet<string>
-): { grupos: EntradaGrupoSsh[]; conexiones: EntradaConexionSsh[] } {
-  const vive = (perfil: string | null): boolean => perfil === null || idsVivos.has(perfil)
-  return {
-    grupos: reg.grupos.filter((e) => vive(perfilDeEntrada(e))),
-    conexiones: reg.conexiones.filter((e) => vive(perfilDeEntrada(e)))
-  }
 }
 
 /** Lo que se sabe de UN archivo (el principal o el `.bak`) tras intentar leerlo. */

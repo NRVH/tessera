@@ -9,6 +9,7 @@
 import { useShallow } from 'zustand/react/shallow'
 import { CapaFlotante } from './comun/capaFlotante'
 import { Toaster } from './comun/Toaster'
+import { TooltipPropio } from './comun/TooltipPropio'
 import { useZonaEnfocada } from './util/zonaEnfocada'
 import { contarRender } from './util/contadorRenders'
 import { AgentAppearanceContext, TerminalAppearanceContext } from './theme/terminalAppearance'
@@ -25,12 +26,14 @@ import {
   useAtajoPantallaCompleta,
   useAtajosGlobales,
   useEstiloShell,
-  usePantallaCompletaFranja,
+  useEspejoPantallaCompleta,
   useTamanos,
   useVistasPorPerfil
 } from './features/layout/app'
 import { AreaEditor, useEditorApp, useRecargaEnVivo } from './features/editor/app'
-import { useTerminalesApp } from './features/terminales/app'
+import { useHayTerminalQueEnsenar, useTerminalesApp } from './features/terminales/app'
+import type { AgentesApp } from './features/agentes'
+import { agenteTerminalMaximizadoDe, useStoreLayout, type SalidaLayoutCentro } from './features/layout'
 import { useConexionesSsh } from './features/ssh/app'
 import {
   ColumnaAgente,
@@ -62,10 +65,14 @@ function usePrimerosDeLaVentana() {
   const agenteTerminal = useAgenteTerminal(tabs)
   const modo = useModoProyecto(espacios.esEspacioDeDatos, agenteTerminal.esCarpetaAgenteTerminal)
   const tamanos = useTamanos(vistas.activeView, vistas.panelInferior)
-  const agentes = useAgentesApp(tabs, vistas, columna, espacios, agenteTerminal, editor.editorTabs.tabs.length > 0)
+  const conTerminales = useHayTerminalQueEnsenar(terminales)
+  const agentes = useAgentesApp(tabs, vistas, columna, espacios, agenteTerminal, {
+    hayPestanasEditor: editor.editorTabs.tabs.length > 0,
+    conTerminales
+  })
   const actividad = useActividadAgentes(tabs, agentes, columna.ccHidden)
   const tintas = useTintasPerfil(tabs)
-  return { tabs, vistas, editor, terminales, columna, densidad, espacios, agenteTerminal, modo, tamanos, agentes, actividad, tintas }
+  return { tabs, vistas, editor, terminales, conTerminales, columna, densidad, espacios, agenteTerminal, modo, tamanos, agentes, actividad, tintas }
 }
 
 /** Los hooks de cada feature, en el orden que fija el de sus efectos (no se reordena). */
@@ -107,16 +114,52 @@ function useFeaturesDeLaVentana() {
 
 /**
  * Las clases de `.shell`: el mosaico, la franja a pantalla completa y el agente de la terminal a la
- * derecha de la terminal. Solo cambian el CSS: el árbol es el mismo en todos los modos.
+ * derecha de la terminal, con la columna de esta plegada o no. Solo cambian el CSS: el árbol es el mismo
+ * en todos los modos.
  */
-function claseDeShell(mosaico: boolean, clasesFranja: string, agenteTerminal: boolean): string {
-  return `shell${mosaico ? ' modo-mosaico' : ''}${clasesFranja}${agenteTerminal ? ' agente-terminal-visible' : ''}`
+function claseDeShell(mosaico: boolean, clasesFranja: string, lay: SalidaLayoutCentro): string {
+  const agente = lay.agente === 'terminal' ? ` agente-terminal-visible${lay.terminalPlegada ? ' terminal-plegada' : ''}` : ''
+  return `shell${mosaico ? ' modo-mosaico' : ''}${clasesFranja}${agente}`
+}
+
+/**
+ * El agente de la terminal maximizado sobre las terminales, ya coherente: lo pidió el perfil, está junto
+ * a la terminal y hay alguna que tapar. Solo se ofrece si la hay.
+ */
+function useMaximizarAgenteTerminal(
+  conTerminales: boolean,
+  lay: SalidaLayoutCentro,
+  perfilId: string
+): { canExpand: boolean; expanded: boolean } {
+  const maximizados = useStoreLayout((s) => s.maximizadoPorPerfil[perfilId])
+  return { canExpand: conTerminales, expanded: agenteTerminalMaximizadoDe({ m: maximizados, agente: lay.agente, conTerminales }) }
+}
+
+/** Lo que se pinta maximizado en el perfil a la vista: la franja y el agente de la terminal, y su atajo. */
+function useMaximizados(conTerminales: boolean, agentes: AgentesApp, tabs: ReturnType<typeof useTabs>) {
+  const perfilId = tabs.activeProfile?.id ?? ''
+  const { lay, pantallaCompleta: franjaPantallaCompleta } = agentes
+  useEspejoPantallaCompleta(franjaPantallaCompleta, perfilId)
+  const maximizarAgenteTerminal = useMaximizarAgenteTerminal(conTerminales, lay, perfilId)
+  useAtajoPantallaCompleta()
+  return { franjaPantallaCompleta, maximizarAgenteTerminal }
+}
+
+/** Lo que flota sobre todo sin depender del estado de la app: el cierre, los avisos y el tooltip. */
+function CapasDeAviso(): React.JSX.Element {
+  return (
+    <>
+      <ShutdownOverlay />
+      <Toaster />
+      <TooltipPropio />
+    </>
+  )
 }
 
 function App(): React.JSX.Element {
   contarRender('App')
   const f = useFeaturesDeLaVentana()
-  const { tabs, vistas, editor, terminales, columna, densidad, espacios, agenteTerminal, modo, tamanos, agentes, actividad } = f
+  const { tabs, vistas, editor, terminales, conTerminales, columna, densidad, espacios, agenteTerminal, modo, tamanos, agentes, actividad } = f
   const { tintas, mosaico, sesiones, montajes, bd, puntos, git, accionesGit, cambiarZoom } = f
   const zonaEnfocada = useZonaEnfocada()
   const apariencia = useStoreAjustes(
@@ -125,11 +168,10 @@ function App(): React.JSX.Element {
   const mosaicoActivo = useStoreMosaico((s) => s.mosaicoActivo)
   const lay = agentes.lay
   const shellStyle = useEstiloShell(tintas, tamanos, lay.divisorAgente)
-  const franjaPantallaCompleta = usePantallaCompletaFranja(lay.franja, mosaicoActivo, tabs.activeProfile?.id ?? null)
-  useAtajoPantallaCompleta()
+  const { franjaPantallaCompleta, maximizarAgenteTerminal } = useMaximizados(conTerminales, agentes, tabs)
   // Lo que comparten el panel lateral y la franja inferior.
   const comun = { tabs, vistas, tamanos, densidad, editor, git }
-  const claseShell = claseDeShell(mosaicoActivo, clasesPantallaCompleta(franjaPantallaCompleta), lay.agente === 'terminal')
+  const claseShell = claseDeShell(mosaicoActivo, clasesPantallaCompleta(franjaPantallaCompleta), lay)
 
   // Los dos modos solo cambian la clase: el árbol es el mismo dentro y fuera de ellos.
   return (
@@ -146,6 +188,7 @@ function App(): React.JSX.Element {
                 <CentroBd bd={bd} enConexiones={vistas.enConexiones} oculta={lay.dbAreaOculta} densidad={densidad} />
                 <ColumnaAgente
                   {...{ tabs, tamanos, agentes, columna, mosaico, actividad, modo, espacios, agenteTerminal, montajes, sesiones }}
+                  maximizarAgenteTerminal={maximizarAgenteTerminal}
                 />
               </div>
               <FranjaInferior
@@ -155,6 +198,7 @@ function App(): React.JSX.Element {
                 terminales={terminales}
                 tintasPorPerfil={tintas.tintasPorPerfil}
                 agenteTerminalVisible={agenteTerminal.visible}
+                agenteTerminalMaximizado={maximizarAgenteTerminal.expanded}
               />
             </div>
           </div>
@@ -168,8 +212,7 @@ function App(): React.JSX.Element {
           {/* Dentro de `.shell` y fuera de `.shell-main`: los menús y popovers pintados aquí heredan el color del perfil. */}
           <CapaFlotante />
           <CapaModales {...{ tabs, editor, bd, sesiones, cambiarZoom }} perfilUI={vistas.perfilUI} />
-          <ShutdownOverlay />
-          <Toaster />
+          <CapasDeAviso />
         </div>
       </AgentAppearanceContext.Provider>
     </TerminalAppearanceContext.Provider>

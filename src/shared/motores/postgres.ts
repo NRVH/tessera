@@ -18,7 +18,9 @@ export const POSTGRES: DescriptorMotor<'postgres'> = definirMotor({
   conexion: {
     puertoPorDefecto: 5432,
     obligatorios: ['alias', 'host', 'port', 'database', 'user'],
-    opcionales: [],
+    opcionales: ['tls', 'tunelSsh'],
+    tlsPorDefecto: { cifrar: false, confiarCertificado: false },
+    tlsSoloCifrando: true,
     excluyentes: [],
     faltaDestino: { database: 'PostgreSQL necesita el nombre de la base.' },
     // El SID que quedó escrito con Oracle elegido no se borra al cambiar de motor
@@ -38,7 +40,7 @@ export const POSTGRES: DescriptorMotor<'postgres'> = definirMotor({
     formateador: { dialecto: 'postgresql', parametros: null }
   },
   catalogo: {
-    carpetas: ['tabla', 'vista', 'vistaMaterializada', 'tablaForanea', 'rutina', 'secuencia', 'tipo'],
+    carpetas: ['tabla', 'vista', 'vistaMaterializada', 'tablaForanea', 'rutina', 'secuencia', 'tipo', 'disparador'],
     pseudoEsquemaPublico: null,
     // El `search_path` por defecto es `"$user", public`: lo de public se ve sin calificar.
     esquemaImplicito: 'public',

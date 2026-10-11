@@ -12,6 +12,8 @@ import {
   type CapacidadesPlataforma,
   type Plataforma
 } from '../shared/plataforma'
+import { ARGUMENTO_ALPHA, type ResumenRenderer } from '../shared/salud'
+import { SALUD_CHANNELS } from '../shared/salud-ipc'
 import type { Profile } from '../main/profiles/types'
 import { type TerminalApi, type AgentTerminalApi, terminal, agentTerminal } from './terminales'
 import {
@@ -63,6 +65,7 @@ import {
   type AppInfoApi,
   type ShellWindowsApi,
   type ServicioFinderApi,
+  type EscritorioLinuxApi,
   type ZoomApi,
   workspace,
   shutdown,
@@ -70,13 +73,16 @@ import {
   appInfo,
   shellWindows,
   servicioFinder,
+  escritorioLinux,
   zoom
 } from './aplicacion'
 
 export interface TesseraApi {
   getProfiles: () => Promise<Profile[]>
-  /** Persiste el arreglo COMPLETO de perfiles (CRUD/orden/color). */
+  /** Persiste el arreglo COMPLETO de perfiles (alta/nombre/orden/color). Nunca borra uno que falte. */
   saveProfiles: (profiles: Profile[]) => Promise<void>
+  /** El usuario borró el perfil: el main lo quita de la lista y borra lo suyo. */
+  deleteProfile: (profileId: string) => Promise<void>
   /** Abre una URL http(s)/mailto en el navegador del sistema (enlaces de la terminal). */
   openExternal: (url: string) => Promise<void>
   /**
@@ -107,6 +113,17 @@ export interface TesseraApi {
    * rellena después.
    */
   capacidades: CapacidadesPlataforma
+  /**
+   * ¿Es una versión alpha? El main lo avisa con un argumento de la ventana (`ARGUMENTO_ALPHA`),
+   * que el preload lee de `process.argv`. Síncrono por el mismo motivo que `plataforma`: decide
+   * qué filas de Configuración se montan (el registro de salud no existe en la pública).
+   */
+  esAlpha: boolean
+  /** Registro de salud (solo alpha): lo que la ventana cuenta de sí misma. El main sanea y decide si anota. */
+  salud: {
+    informarLento: (resumen: ResumenRenderer) => void
+    informarVisibilidad: (evento: 'tapada' | 'a-la-vista') => void
+  }
   terminal: TerminalApi
   agentTerminal: AgentTerminalApi
   agentAccounts: AgentAccountsApi
@@ -125,6 +142,7 @@ export interface TesseraApi {
   appInfo: AppInfoApi
   shellWindows: ShellWindowsApi
   servicioFinder: ServicioFinderApi
+  escritorioLinux: EscritorioLinuxApi
   zoom: ZoomApi
   clipboard: ClipboardApi
   conversations: ConversationsApi
@@ -141,6 +159,7 @@ export interface TesseraApi {
 const api: TesseraApi = {
   getProfiles: () => ipcRenderer.invoke(IPC_CHANNELS.GET_PROFILES),
   saveProfiles: (profiles) => ipcRenderer.invoke(IPC_CHANNELS.SAVE_PROFILES, profiles),
+  deleteProfile: (profileId) => ipcRenderer.invoke(IPC_CHANNELS.DELETE_PROFILE, profileId),
   openExternal: (url) => ipcRenderer.invoke(IPC_CHANNELS.OPEN_EXTERNAL_URL, url),
   getPathForFile: (file) => webUtils.getPathForFile(file),
   reportCrash: (report) => ipcRenderer.send(IPC_CHANNELS.REPORT_CRASH, report),
@@ -150,6 +169,11 @@ const api: TesseraApi = {
   // de render.
   plataforma: plataformaActual(),
   capacidades: capacidadesDelSistema(),
+  esAlpha: process.argv.includes(ARGUMENTO_ALPHA),
+  salud: {
+    informarLento: (resumen) => ipcRenderer.send(SALUD_CHANNELS.RENDERER, resumen),
+    informarVisibilidad: (evento) => ipcRenderer.send(SALUD_CHANNELS.VISIBILIDAD, evento)
+  },
   terminal,
   agentTerminal,
   agentAccounts,
@@ -168,6 +192,7 @@ const api: TesseraApi = {
   appInfo,
   shellWindows,
   servicioFinder,
+  escritorioLinux,
   zoom,
   clipboard,
   conversations,

@@ -38,6 +38,9 @@ function crearDiffEditor(monaco: Monaco, host: HTMLElement, colapsar: boolean): 
     // Desde la instancia y no desde la prop: el efecto de montaje corre una sola vez.
     hideUnchangedRegions: opcionesColapso(colapsar),
     minimap: { enabled: false },
+    // La regla de cambios propia del diff (las dos columnas y el recuadro de la vista), con el
+    // recuadro redondeado como las pastillas de las barras (`styles.css`, «diffViewport»).
+    renderOverviewRuler: true,
     renderWhitespace: 'selection'
   })
 }

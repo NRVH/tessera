@@ -15,6 +15,8 @@ import { SESION_POSTGRES } from './sesionPostgres.ts'
 import { SESION_SQLITE } from './sesionSqlite.ts'
 import { CATALOGO_SQLSERVER } from './catalogoSqlserver.ts'
 import { SESION_SQLSERVER } from './sesionSqlserver.ts'
+import { CATALOGO_MYSQL } from './catalogoMysql.ts'
+import { SESION_MYSQL } from './sesionMysql.ts'
 import type { MotorExplorador } from './tipos.ts'
 import { descriptorSql, esMotor, esMotorSql } from '../../../../shared/motores/index.ts'
 
@@ -33,7 +35,8 @@ export const MOTORES_EXPLORADOR: Readonly<Record<DbMotorSql, MotorExplorador>> =
   oracle: { catalogo: CATALOGO_ORACLE, sesion: SESION_ORACLE },
   postgres: { catalogo: CATALOGO_POSTGRES, sesion: SESION_POSTGRES },
   sqlite: { catalogo: CATALOGO_SQLITE, sesion: SESION_SQLITE },
-  sqlserver: { catalogo: CATALOGO_SQLSERVER, sesion: SESION_SQLSERVER }
+  sqlserver: { catalogo: CATALOGO_SQLSERVER, sesion: SESION_SQLSERVER },
+  mysql: { catalogo: CATALOGO_MYSQL, sesion: SESION_MYSQL }
 }
 
 /**

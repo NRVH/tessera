@@ -25,6 +25,7 @@ export interface AccionesXterm {
   setSearchResults: (r: ResultadosBusqueda | null) => void
   setExitCode: (codigo: number | null) => void
   setStatus: (estado: TerminalStatus) => void
+  setFinSsh: (motivo: string | null) => void
   copySelection: () => void
   pasteFromClipboard: (e?: ClipboardEvent) => void
   writeToPty: (data: string) => void
@@ -49,6 +50,7 @@ function alSalirSsh(term: Terminal, msg: TerminalExitMessage, acc: AccionesXterm
   acc.setExitCode(msg.exitCode)
   acc.setStatus('exited')
   const motivo = motivoFinSsh(msg.exitCode, Date.now() - inicio, msg.reason, window.tessera.plataforma)
+  acc.setFinSsh(motivo)
   term.write(`\r\n\x1b[38;2;224;108;117m${bannerFinSsh(motivo)}\x1b[0m\r\n`)
 }
 

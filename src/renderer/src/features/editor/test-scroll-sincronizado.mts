@@ -114,6 +114,16 @@ hr('4. Un repintado no es un gesto')
   // La ventana cambia de tamaño: cambia lo visible del código, no dónde está.
   medidas.codigo = { top: 2000, alto: 2200, visible: 150 }
   check('(4e) cambiar lo visible (la ventana) tampoco propaga', !sinc.alMoverse('codigo') && medidas.vista.top === 4000, movimientos.join(' '))
+  // Bajar el código hasta el final hace aparecer su barra horizontal: crece su alto en el mismo
+  // aviso que lo deja al final. Eso sí es el gesto, y la vista va al final.
+  medidas.vista.top = 3000
+  medidas.codigo = { top: 2062, alto: 2212, visible: 150 }
+  check('(4f) llegar al final aunque cambie la medida lleva la vista al final', sinc.alMoverse('codigo') && medidas.vista.top === 4000, movimientos.join(' '))
+  sinc.alMoverse('vista') // el eco
+  // Y al revés: al final la barra desaparece, el código encoge y su posición se acota hacia arriba.
+  medidas.vista.top = 3000
+  medidas.codigo = { top: 2050, alto: 2200, visible: 150 }
+  check('(4g) quedar al final del código acotado por su barra también lleva la vista al final', sinc.alMoverse('codigo') && medidas.vista.top === 4000, movimientos.join(' '))
 }
 
 const allPass = results.every(Boolean)

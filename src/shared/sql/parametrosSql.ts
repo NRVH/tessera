@@ -1,6 +1,6 @@
 // =============================================================================
 // Parámetros de una sentencia que el usuario rellena antes de ejecutar (`:x` de Oracle, `$1` de PG, los
-// de SQLite; ninguno en SQL Server). Los usan el diálogo (renderer) y el main, que vuelve a extraerlos y
+// de SQLite, el `?` de MySQL; ninguno en SQL Server). Los usan el diálogo (renderer) y el main, que vuelve a extraerlos y
 // rechaza si falta alguno. Se apoya en el léxico; la clave y el orden salen de `estiloParametros`.
 // No son parámetros el CREATE de una unidad PL/SQL ni los `$n` de un PREPARE. Puro, neutral y ES2020.
 // =============================================================================
@@ -46,6 +46,17 @@ function esSinParametrosPg(tokens: readonly Token[]): boolean {
   return t !== undefined && t.tipo === 'palabra' && (t.valor === 'FUNCTION' || t.valor === 'PROCEDURE')
 }
 
+/**
+ * SQLite: `?NNN` → el número (sin ceros a la izquierda); `?` a secas → '' (su número depende
+ * del ORDEN y lo pone `parametrosSqlite`); `:x`, `@x`, `$x` → el nombre sin prefijo, con su
+ * caja (ver `EstiloParametros`).
+ */
+function claveSqlite(crudo: string): string {
+  if (/^\?\d+$/.test(crudo)) return crudo.slice(1).replace(/^0+(?=\d)/, '')
+  if (crudo === '?') return ''
+  return /^[:@$]/.test(crudo) ? crudo.slice(1) : crudo
+}
+
 /** La clave de un token `bind` según el dialecto (ver la cabecera). */
 export function claveDeBind(crudo: string, d: DialectoSql): string {
   const estilo = reglasDe(d).estiloParametros
@@ -62,18 +73,15 @@ export function claveDeBind(crudo: string, d: DialectoSql): string {
       }
       return sinPrefijo.toUpperCase()
     }
-    case 'sqliteMixto': {
-      // `?NNN` → el número (sin ceros a la izquierda); `?` a secas → '' (su número depende
-      // del ORDEN y lo pone `parametrosSqlite`); `:x`, `@x`, `$x` → el nombre sin prefijo,
-      // con su caja (ver `EstiloParametros`).
-      if (/^\?\d+$/.test(crudo)) return crudo.slice(1).replace(/^0+(?=\d)/, '')
-      if (crudo === '?') return ''
-      return /^[:@$]/.test(crudo) ? crudo.slice(1) : crudo
-    }
+    case 'sqliteMixto':
+      return claveSqlite(crudo)
     case 'ninguno':
       // SQL Server: el dialecto no tiene parámetros del usuario (`@x` es una variable) y el
       // léxico no emite ningún bind; si alguien pidiera la clave de uno, es su texto.
       return crudo
+    case 'interrogacion':
+      // MySQL: `?` a secas → '' (su número depende del ORDEN y lo pone `parametrosSql`).
+      return crudo === '?' ? '' : crudo
     default:
       return nunca(estilo, 'claveDeBind')
   }
@@ -91,6 +99,10 @@ function sinParametrosDelUsuario(tokens: readonly Token[], estilo: EstiloParamet
     case 'ninguno':
       // SQL Server: ninguna sentencia tiene parámetros del usuario (ver `EstiloParametros`).
       return true
+    case 'interrogacion':
+      // MySQL: el `?` de un `PREPARE s FROM '…'` va dentro de la cadena y el léxico no lo ve;
+      // fuera de una cadena, todo `?` es del usuario.
+      return false
     default:
       return nunca(estilo, 'sinParametrosDelUsuario')
   }
@@ -142,6 +154,20 @@ function parametrosSqlite(tokens: readonly Token[], d: DialectoSql): ParametroSq
 }
 
 /**
+ * MySQL ('interrogacion'): cada `?` es un parámetro DISTINTO, con su número de orden como clave
+ * (`1`, `2`…), aunque dos se escriban igual: así los enlaza el servidor.
+ */
+function parametrosPorOrden(tokens: readonly Token[]): ParametroSql[] {
+  const lista: ParametroSql[] = []
+  for (const t of tokens) {
+    if (t.tipo !== 'bind' || t.sinCerrar) continue
+    const clave = String(lista.length + 1)
+    lista.push({ clave, texto: t.valor, apariciones: [{ desde: t.desde, hasta: t.hasta }] })
+  }
+  return lista
+}
+
+/**
  * Los parámetros de `texto[desde, hasta)`, uno por clave, en orden de primera
  * aparición (PG: por número). Vacío si es el CREATE de una unidad de PL/SQL.
  */
@@ -157,6 +183,8 @@ export function parametrosSql(
   switch (estilo) {
     case 'sqliteMixto':
       return parametrosSqlite(tokens, d)
+    case 'interrogacion':
+      return parametrosPorOrden(tokens)
     case 'dolarNumero':
     case 'dosPuntosNombre':
       break
@@ -175,17 +203,8 @@ export function parametrosSql(
     else porClave.set(clave, { clave, texto: t.valor, apariciones: [{ desde: t.desde, hasta: t.hasta }] })
   }
   const lista = Array.from(porClave.values())
-  switch (estilo) {
-    case 'dolarNumero':
-      lista.sort((a, b) => Number(a.clave) - Number(b.clave))
-      break
-    case 'dosPuntosNombre':
-      // En el orden de su primera aparición, que es el del Map.
-      break
-    // ('sqliteMixto' ya se devolvió arriba, con su propia numeración: `parametrosSqlite`.)
-    default:
-      return nunca(estilo, 'parametrosSql')
-  }
+  // PG por número; los nombrados, en el orden de su primera aparición, que es el del Map.
+  if (estilo === 'dolarNumero') lista.sort((a, b) => Number(a.clave) - Number(b.clave))
   return lista
 }
 

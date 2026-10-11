@@ -127,4 +127,16 @@ test.describe('Git · Cambios con varios repos', () => {
     await web.locator('.git-arbol-fila', { hasText: 'App.tsx' }).locator('.git-casilla').click()
     await expect(casillaWeb, 'con uno desmarcado, parcial').toHaveAttribute('aria-checked', 'mixed')
   })
+
+  test('el botón de la cabecera pliega todos los repos y los vuelve a desplegar', async () => {
+    const panel = s.win.locator('.git-panel')
+    const filas = panel.locator('.git-arbol-fila')
+    await expect(filas, 'de entrada, abiertos los dos repos con cambios').toHaveCount(3)
+    await panel.getByRole('button', { name: 'Plegar todos los repositorios' }).click()
+    await expect(filas, 'plegados, no se ve ningún archivo').toHaveCount(0)
+    await expect(panel.locator('.repo-header'), 'las cabeceras siguen').toHaveCount(2)
+    await panel.getByRole('button', { name: 'Desplegar los repositorios con cambios' }).click()
+    await expect(filas, 'desplegados otra vez').toHaveCount(3)
+    await expect(panel.getByRole('button', { name: 'Plegar todos los repositorios' })).toBeVisible()
+  })
 })

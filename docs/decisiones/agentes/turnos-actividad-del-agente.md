@@ -12,6 +12,8 @@ encendido para siempre. Los dos CLIs escriben el fin de turno en su transcript.
 
 ## Decisión
 
+- Todo esto vale para el agente que NO informa su estado: el que lo informa (OSC 7501) manda desde su primer aviso
+  (`turnos-estado-informado.md`).
 - Abrir lo decide el Enter del usuario (instantáneo). Cerrar, por este orden: la marca del
   transcript, el BEL (cubre «necesito tu aprobación», que no cierra nada en disco), el silencio
   absoluto (cero bytes, no un umbral: no puede oscilar) y un tope de duración que cierra en silencio.

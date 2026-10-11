@@ -1,6 +1,7 @@
 // =============================================================================
 // Entorno de los ptys de `TerminalService`: `cleanEnv` (el entorno del proceso sin
-// `undefined`) y `envDocker` (qué variables de `extraEnv` cruzan a un `docker exec`).
+// `undefined` ni las variables del AppImage) y `envDocker` (qué variables de `extraEnv`
+// cruzan a un `docker exec`).
 // Solo depende de la lista blanca de `shared/db-ipc`.
 // Decisiones: docs/decisiones/terminales/pty-y-detencion-de-sesion.md
 // =============================================================================
@@ -28,11 +29,18 @@ export function envDocker(extra: Record<string, string> | undefined): string[] {
   return args
 }
 
-/** `process.env` sin `undefined`, como exige el tipo de node-pty. */
-export function cleanEnv(): Record<string, string> {
+/**
+ * Las que pone el arranque de un AppImage y solo describen a Tessera: heredadas, otra app
+ * lanzada desde una terminal se creería ese AppImage (y su actualizador lo sustituiría) o
+ * buscaría sus archivos en un montaje que desaparece al cerrar Tessera.
+ */
+const VARIABLES_DEL_APPIMAGE = new Set(['APPIMAGE', 'APPDIR', 'OWD', 'ARGV0'])
+
+/** `process.env` sin `undefined` (como exige el tipo de node-pty) y sin las del AppImage. */
+export function cleanEnv(entorno: NodeJS.ProcessEnv = process.env): Record<string, string> {
   const env: Record<string, string> = {}
-  for (const [k, v] of Object.entries(process.env)) {
-    if (v !== undefined) env[k] = v
+  for (const [k, v] of Object.entries(entorno)) {
+    if (v !== undefined && !VARIABLES_DEL_APPIMAGE.has(k)) env[k] = v
   }
   return env
 }

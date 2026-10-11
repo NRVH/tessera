@@ -9,7 +9,7 @@
 
 import {
   aridad,
-  categoriaDeTipoLogico,
+  categoriaDeColumnaSql,
   OPERADORES_POR_CATEGORIA,
   validarFiltro,
   type DbCategoriaFiltro,
@@ -30,7 +30,7 @@ export const FILTRO_GUIADO_VACIO: DbFiltroGuiado = { union: 'todas', condiciones
 
 /** El operador con el que nace una condición según la categoría. */
 function operadorInicial(c: DbCategoriaFiltro): DbOperadorFiltro {
-  return c === 'texto' ? 'contiene' : c === 'otro' ? 'noVacio' : 'igual'
+  return c === 'texto' || c === 'textoLargo' ? 'contiene' : c === 'otro' ? 'noVacio' : 'igual'
 }
 
 /** Una condición nueva sobre `columna` (o la primera), con el operador por defecto de su tipo. */
@@ -137,15 +137,19 @@ export function conectorCondicion(union: DbFiltroGuiado['union'], i: number): 'd
 /**
  * Las columnas de un resultado SQL que se ofrecen en la barra, en su orden, con la categoría
  * que decide sus operadores. Un nombre repetido (dos columnas iguales en una vista rara) se
- * ofrece UNA vez: la condición se identifica por el nombre y la segunda sería la misma.
+ * ofrece UNA vez: la condición se identifica por el nombre y la segunda sería la misma. Con el
+ * motor, un texto que el servidor no compara con «=» sale como `textoLargo`.
  */
-export function columnasFiltrablesSql(columnas: readonly { nombre: string; tipoLogico: DbTipoLogico }[]): ColumnaFiltrable[] {
+export function columnasFiltrablesSql(
+  columnas: readonly { nombre: string; tipoLogico: DbTipoLogico; tipoMotor?: string }[],
+  motor = ''
+): ColumnaFiltrable[] {
   const vistas = new Set<string>()
   const r: ColumnaFiltrable[] = []
   for (const c of columnas) {
     if (vistas.has(c.nombre)) continue
     vistas.add(c.nombre)
-    r.push({ nombre: c.nombre, categoria: categoriaDeTipoLogico(c.tipoLogico) })
+    r.push({ nombre: c.nombre, categoria: categoriaDeColumnaSql(motor, { tipoLogico: c.tipoLogico, tipoMotor: c.tipoMotor ?? '' }) })
   }
   return r
 }

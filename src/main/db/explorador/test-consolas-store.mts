@@ -749,7 +749,7 @@ async function main(): Promise<void> {
       `listar encolado durante vaciar terminado=${hecho9.listar}`
     )
 
-    // B4: todas las escrituras de este store dejan la MISMA hora (el mismo tic, fijado
+    // Todas las escrituras de este store dejan la MISMA hora (el mismo tic, fijado
     // con `utimes` en segundos enteros, exactos en NTFS, APFS y ext4).
     const T = 1_700_000_000
     const tic = crearStore('windows', {

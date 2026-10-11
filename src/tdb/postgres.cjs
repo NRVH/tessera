@@ -9,8 +9,52 @@
 
 'use strict'
 
+const { SIN_CIFRAR, causaTls, certificadosDeConfianza, identidadPorTunel, mensajeCertificado, servidorDeMensaje, tlsDe } = require('./tlsComun.cjs')
+
 /** Tope de espera por sentencia, impuesto por el servidor. */
 const STATEMENT_TIMEOUT_MS = 60_000
+
+/**
+ * La opción `ssl` de `pg`: false sin cifrar; cifrando, verifica el certificado y el nombre del
+ * servidor (el `verify-full` de libpq) con las CA del paquete y del sistema, o no verifica
+ * nada si la conexión confía en el certificado (el `require`). `cas` entra por parámetro (el
+ * test lo sustituye); null = las de Node.
+ */
+function opcionesSsl(con, cas) {
+  const t = tlsDe(con, SIN_CIFRAR)
+  if (!t.cifrar) return false
+  if (t.confiarCertificado) return { rejectUnauthorized: false }
+  // Por túnel SSH, el certificado se verifica contra el host real, no contra 127.0.0.1.
+  return { rejectUnauthorized: true, ...(cas ? { ca: cas } : {}), ...identidadPorTunel(con) }
+}
+
+/**
+ * El error de conectar traducido a lo que el usuario arregla en la conexión, o el mismo error.
+ * El cifrado falla de tres maneras con mensajes del cliente o del servidor que no lo dicen.
+ */
+function errorAlConectar(err, con) {
+  const servidor = servidorDeMensaje(con)
+  const conMensaje = (mensaje, codigo) => {
+    const e = new Error(mensaje)
+    e.code = codigo
+    e.cause = err
+    return e
+  }
+  const tlsMalo = causaTls(err)
+  if (tlsMalo) return conMensaje(mensajeCertificado(servidor, tlsMalo, true), 'TESSERA-PG-CERTIFICADO')
+  const texto = String((err && err.message) || '')
+  if (/does not support SSL/i.test(texto)) {
+    return conMensaje(
+      `${servidor} no admite conexiones cifradas. Desmarca «Cifrar la conexión (SSL)» en la conexión, o activa SSL en el servidor.`,
+      'TESSERA-PG-SIN-SSL'
+    )
+  }
+  // pg_hba.conf solo con `hostssl`: el servidor rechaza la conexión sin cifrar.
+  if (/no pg_hba\.conf entry .*no encryption/i.test(texto)) {
+    return conMensaje(`${servidor} exige una conexión cifrada. Marca «Cifrar la conexión (SSL)» en la conexión.`, 'TESSERA-PG-EXIGE-SSL')
+  }
+  return err
+}
 
 /**
  * `opciones` (solo el explorador): { statement_timeout (0 = sin límite), application_name,
@@ -31,6 +75,7 @@ async function abrir(con, secreto, ctx, opciones) {
     application_name:
       explorador && op.application_name ? op.application_name : `Tessera/tdb ${ctx.usuarioWindows}@${con.alias}`,
     connectionTimeoutMillis: 20_000,
+    ssl: opcionesSsl(con, tlsDe(con, SIN_CIFRAR).cifrar ? certificadosDeConfianza() : null),
     // 0 es válido (sin límite): `pg` no lo envía y rige el del servidor.
     statement_timeout:
       explorador && Number.isInteger(op.statement_timeout) && op.statement_timeout >= 0
@@ -45,7 +90,11 @@ async function abrir(con, secreto, ctx, opciones) {
   }
   const cliente = new Client(config)
   if (explorador && typeof op.alError === 'function') cliente.on('error', op.alError)
-  await cliente.connect()
+  try {
+    await cliente.connect()
+  } catch (err) {
+    throw errorAlConectar(err, con)
+  }
 
   // Candado de solo lectura del servidor: rechaza INSERT/UPDATE/DELETE/DDL (error 25006).
   if (con.readonly !== false) {
@@ -182,4 +231,4 @@ async function sesiones(cliente) {
   return res.rows
 }
 
-module.exports = { abrir, consultar, banner, tablas, columnas, foraneas, sesiones }
+module.exports = { abrir, consultar, banner, tablas, columnas, foraneas, sesiones, opcionesSsl, errorAlConectar }

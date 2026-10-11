@@ -61,13 +61,14 @@ const NADA: TeclaAtajo = {
   repeat: false
 }
 
-/** Las dos que Tessera soporta; 'otra' (Linux) se prueba aparte porque va como Windows. */
-const PLATAFORMAS: readonly Plataforma[] = ['windows', 'mac']
+/** Las que Tessera publica; 'otra' (BSD) se prueba aparte porque va como Windows. */
+const PLATAFORMAS: readonly Plataforma[] = ['windows', 'mac', 'linux']
 
 /** El modificador principal de cada sistema, tal como llega en el evento. */
 const MOD: Record<Plataforma, Partial<TeclaAtajo>> = {
   windows: { ctrlKey: true },
   mac: { metaKey: true },
+  linux: { ctrlKey: true },
   otra: { ctrlKey: true }
 }
 

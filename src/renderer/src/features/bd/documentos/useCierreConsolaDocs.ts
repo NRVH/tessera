@@ -10,7 +10,8 @@ import { useCallback, useEffect, useRef } from 'react'
 import { registrarConsola } from '../registroConsolas'
 import { vaciaEnDisco } from '../consola/archivoConsola'
 import { confirmarCierre, preguntasDeCierre } from './cierreConsola'
-import { cerrarLectorDeVista, type EstadoConsolaDocs } from './useEstadoConsolaDocs'
+import type { EstadoConsolaDocs } from './useEstadoConsolaDocs'
+import { cerrarTodas } from '../resultados/pestanasResultado'
 
 /** Registra en la carcasa el cierre y el vaciado de esta consola. */
 export function useCierreConsolaDocs(
@@ -19,8 +20,8 @@ export function useCierreConsolaDocs(
   detener: () => void,
   vaciar: () => Promise<void>
 ): void {
-  const { api, docs, perfilId, consolaId, pedirConfirmacion, dialogoRef, consolaRef, enCursoRef, conflictoRef } = e
-  const { masRef, conexionRef, vistaRef, modeloRef, cargadoRef, borradaRef } = e
+  const { api, perfilId, consolaId, pedirConfirmacion, dialogoRef, consolaRef, enCursoRef, conflictoRef } = e
+  const { masRef, cambiarResultados, modeloRef, cargadoRef, borradaRef } = e
   const solicitarCierre = useCallback(async (): Promise<boolean> => {
     if (dialogoRef.current) return false
     const preguntar = preguntasDeCierre({ enCursoRef, conflictoRef }).length > 0
@@ -28,9 +29,9 @@ export function useCierreConsolaDocs(
       return false
     }
     const mas = masRef.current
-    if (mas) api.cancelar({ rol: 'datos', conexionId: conexionRef.current.id, peticionId: mas }).catch(() => undefined)
-    cerrarLectorDeVista(docs, vistaRef.current)
-    vistaRef.current = null
+    // El cursor de «Cargar más» vive en la sesión de la consola: se para por ella.
+    if (mas) api.cancelar({ rol: 'consola', perfilId, consolaId, ejecucionId: mas }).catch(() => undefined)
+    cambiarResultados(cerrarTodas)
     // La sesión de la consola en el gestor de documentos (sin transacción que resolver).
     await api.cerrarSesionConsola(perfilId, consolaId).catch(() => undefined)
     await vaciar()
@@ -40,8 +41,8 @@ export function useCierreConsolaDocs(
     }
     return true
   }, [
-    api, docs, perfilId, consolaId, pedirConfirmacion, detener, vaciar, dialogoRef, consolaRef, enCursoRef, conflictoRef,
-    masRef, conexionRef, vistaRef, modeloRef, cargadoRef, borradaRef
+    api, perfilId, consolaId, pedirConfirmacion, detener, vaciar, dialogoRef, consolaRef, enCursoRef, conflictoRef,
+    masRef, cambiarResultados, modeloRef, cargadoRef, borradaRef
   ])
 
   const registroRef = useRef({ solicitarCierre, vaciar })

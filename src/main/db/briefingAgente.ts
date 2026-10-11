@@ -181,6 +181,9 @@ export function nombreDialecto(d: DescriptorMotor): string | null {
       return null
     case 'transactsql':
       return 'T-SQL'
+    // Los nombres van entre acentos graves y `"x"` es una cadena: que el agente lo sepa.
+    case 'mysql':
+      return 'MySQL'
     default:
       return nunca(f, 'nombreDialecto')
   }

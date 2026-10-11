@@ -1,6 +1,7 @@
 // =============================================================================
 // Operaciones de `DOCS_CHANNELS` (MongoDB): valida la conexión y la forma de cada petición, decide la política de
-// escritura y se lo da al `GestorDocumentos`. Sin `electron`: sus canales los registra `ipc.ts`.
+// escritura y se lo da al `GestorDocumentos`; lo que la consola ejecuta va al historial (`alSentencia`).
+// Sin `electron`: sus canales los registra `ipc.ts`.
 // Depende de `familias.ts` y `filtroDocumentos.ts`.
 // Decisiones: docs/decisiones/bd/documentos-controlador.md
 // =============================================================================
@@ -14,9 +15,10 @@ import {
   type DbDocPedirBases,
   type DbDocPedirColecciones,
   type DbDocPedirDetalle,
-  type DbDocPedirMas
+  type DbDocPedirMas,
+  type DbDocResultado
 } from '../../../../shared/db-documentos-ipc.ts'
-import { DB_CONSOLA_MAX_BYTES, type DbRespuesta } from '../../../../shared/db-explorador-ipc.ts'
+import { DB_CONSOLA_MAX_BYTES, type DbEntradaHistorial, type DbRespuesta } from '../../../../shared/db-explorador-ipc.ts'
 import type { DbConnection } from '../../../../shared/db-ipc.ts'
 import { conexionDePeticion, type BuscadorConexiones } from '../familias.ts'
 import { esProduccion } from '../produccion.ts'
@@ -46,6 +48,27 @@ export interface OpcionesControladorDocumentos {
    * casilla `readonly` de la conexión es de los agentes. Solo la pasan los tests que la fijan.
    */
   soloLecturaImpuesta?: SoloLecturaImpuesta
+  /**
+   * Anota en el historial lo que la consola llegó a ejecutar (ver `resultadoHistorialDocs`). Sin
+   * esperar: el historial nunca retrasa ni rompe la respuesta. Ausente, no se anota.
+   */
+  alSentencia?: (e: EntradaHistorialDocs) => void
+}
+
+/** Una orden de la consola para el historial (el id, el lenguaje y el tapado los pone el almacén). */
+export type EntradaHistorialDocs = Omit<DbEntradaHistorial, 'id' | 'lenguaje'>
+
+/**
+ * Cómo queda una orden en el historial, o null si no llegó al servidor: las barreras de Tessera
+ * (producción sin confirmar, solo lectura, sintaxis que el intérprete no acepta: los códigos
+ * `TESSERA-…`) y lo que no se pudo enviar (driver, sesión ocupada) no se anotan, como en SQL.
+ */
+export function resultadoHistorialDocs(r: DbRespuesta<DbDocResultado>): DbEntradaHistorial['resultado'] | null {
+  if (r.ok) return 'ok'
+  const { motivo, codigo } = r.error
+  if (motivo === 'cancelada') return 'cancelada'
+  if (codigo !== undefined && codigo.startsWith('TESSERA-')) return null
+  return motivo === 'servidor' || motivo === 'timeout' || motivo === 'sesionPerdida' ? 'error' : null
 }
 
 /** Tope de cada texto de la barra de la pestaña de colección (filtro, proyección, orden). */
@@ -107,6 +130,30 @@ export class ControladorDocumentos {
     this.o = o
   }
 
+  /** Lo que la consola llegó a ejecutar, al historial. Nunca lanza. */
+  private anotarHistorial(req: DbDocEjecutar, r: DbRespuesta<DbDocResultado>, ms: number): void {
+    const anotar = this.o.alSentencia
+    const resultado = resultadoHistorialDocs(r)
+    if (!anotar || resultado === null) return
+    const e: EntradaHistorialDocs = {
+      en: Date.now(),
+      perfilId: req.perfilId,
+      conexionId: req.conexionId,
+      consolaId: req.consolaId,
+      sql: req.texto,
+      resultado,
+      ms,
+      // La base en la que corrió, que es lo que el popover enseña junto a la conexión.
+      esquema: req.base
+    }
+    if (r.ok && r.valor.tipo === 'documentos') e.filas = r.valor.pagina.documentos.length
+    try {
+      anotar(e)
+    } catch (err) {
+      this.o.log?.(`anotar en el historial falló: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+
   /** La solo lectura impuesta (ver `soloLecturaImpuesta.ts`); en el producto, ninguna. */
   private ro(con: DbConnection): boolean {
     return (this.o.soloLecturaImpuesta ?? sinSoloLecturaImpuesta)(con)
@@ -132,9 +179,12 @@ export class ControladorDocumentos {
       case 'CONSULTAR':
         return conValidado(this.validarConsultar(r), (p) => g.consultar(p))
       case 'CONSOLA_EJECUTAR':
-        return conValidado(this.validarEjecutar(r), (p) =>
-          g.ejecutarConsola(p.req, politicaDe(con, this.ro(con), p.req.confirmado), p.maxDocumentos)
-        )
+        return conValidado(this.validarEjecutar(r), async (p) => {
+          const inicio = Date.now()
+          const res = await g.ejecutarConsola(p.req, politicaDe(con, this.ro(con), p.req.confirmado), p.maxDocumentos)
+          this.anotarHistorial(p.req, res, Date.now() - inicio)
+          return res
+        })
       case 'ENVIAR':
         return conValidado(this.validarEnviar(r), (p) => g.enviar(p, politicaDe(con, this.ro(con), p.confirmado)))
       case 'LECTOR_MAS':

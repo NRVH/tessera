@@ -40,6 +40,7 @@ const EXTENDIDOS = {
   520: 'SQLITE_READONLY_CANTLOCK',
   776: 'SQLITE_READONLY_ROLLBACK',
   1032: 'SQLITE_READONLY_DBMOVED',
+  1544: 'SQLITE_READONLY_DIRECTORY',
   275: 'SQLITE_CONSTRAINT_CHECK',
   531: 'SQLITE_CONSTRAINT_COMMITHOOK',
   787: 'SQLITE_CONSTRAINT_FOREIGNKEY',
@@ -86,6 +87,7 @@ function esPerdida(err) {
 function claseDeSqlite(err, tessera, codigo, mensaje) {
   if (esPerdida(err)) return 'perdida'
   if (tessera === 'TESSERA-SQLITE-NO-PERMITIDO' && /solo lectura/i.test(mensaje)) return 'soloLectura'
+  if (tessera === 'TESSERA-SQLITE-CARPETA-SIN-ESCRITURA') return 'soloLectura'
   if (codigo && codigo.startsWith('SQLITE_READONLY')) return 'soloLectura'
   return 'servidor'
 }

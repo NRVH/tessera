@@ -51,6 +51,8 @@ function conexion(extra: Partial<SshConexion> & { alias: string }): SshConexion 
     tieneSecreto: false,
     disponibleAgentes: true,
     huellaServidor: [{ algoritmo: 'ssh-ed25519', sha256: 'AAAA' }],
+    saltoId: null,
+    tuneles: [],
     ...extra
   }
 }
@@ -145,7 +147,7 @@ try {
     const soloSsh = briefingSsh(catalogoAgentes(lista(trampa), 'pa')) ?? ''
     const compuesto = briefingCompuesto(avisoBd, soloSsh)
     const esperado = (compuesto ?? '').replace(/\r?\n/g, ' ').trim()
-    // El de bases lleva `"<SQL>"` y PowerShell 5.1 le quita esas comillas al pasarlo (anotado en el backlog):
+    // El de bases lleva `"<SQL>"` y PowerShell 5.1 le quita esas comillas al pasarlo:
     // aquí se mira que el argumento no se parte y que el bloque SSH llega entero.
     const sshPlano = soloSsh.replace(/\r?\n/g, ' ').trim()
     const leer = (): string[] => {

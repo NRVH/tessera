@@ -25,7 +25,7 @@ function BarraDelMosaico({ mosaico, actividad }: Pick<Props, 'mosaico' | 'activi
   const { teselas, preset, disposicion } = useStoreMosaico(
     useShallow((s) => ({ teselas: s.teselas, preset: s.mosaicoPreset, disposicion: s.disposicionMosaico }))
   )
-  const { trabajandoSet, activity } = actividad
+  const { trabajandoSet, esperandoSet, activity } = actividad
   const opciones = mosaico.opcionesMosaico
   const porClave = new Map(opciones.map((o) => [o.key, o]))
   // Fichas: solo cuando no se ven todas a la vez (ventana pequeña o una ampliada).
@@ -38,7 +38,7 @@ function BarraDelMosaico({ mosaico, actividad }: Pick<Props, 'mosaico' | 'activi
       ? teselas
           .map((k) => {
             const o = porClave.get(k)
-            return o === undefined ? undefined : { ...o, trabajando: trabajandoSet.has(k), sinVer: activity.unseen.has(k) }
+            return o === undefined ? undefined : { ...o, trabajando: trabajandoSet.has(k), sinVer: activity.unseen.has(k), esperando: esperandoSet.has(k) }
           })
           .filter((o): o is OpcionMosaico => o !== undefined)
       : []
@@ -74,8 +74,8 @@ export function BarraTitulo({ tabs, puntos, actividad, modo, mosaico, sesiones }
       projectDotStates={puntos.projectDotStates}
       attentionProfiles={actividad.activityAttention.unseenProfiles}
       workingProfiles={actividad.activityAttention.workingProfiles}
+      waitingProfiles={actividad.activityAttention.esperandoProfiles}
       hideProfileNames={hideProfileNames}
-      onShowProfileNames={() => useStoreAjustes.setState({ hideProfileNames: false })}
       windowsModeKeys={windowsModeKeys}
       onToggleWindowsMode={modo.toggleWindowsMode}
       decideProjectMode={modo.decideProjectMode}

@@ -109,7 +109,10 @@ export interface DbPlan {
   avisos?: string[]
 }
 
-/** Una sentencia ejecutada en una consola. Las contraseñas (IDENTIFIED BY, PASSWORD '…') se tapan antes de guardar. */
+/** El lenguaje de una entrada del historial: SQL, una orden del shell de MongoDB o un comando por línea (Redis). */
+export type DbLenguajeHistorial = 'sql' | 'mongosh' | 'comandos'
+
+/** Una sentencia ejecutada en una consola. Las contraseñas (IDENTIFIED BY, PASSWORD '…', pwd: '…') se tapan antes de guardar. */
 export interface DbEntradaHistorial {
   id: string
   /** Epoch ms del final. */
@@ -123,6 +126,8 @@ export interface DbEntradaHistorial {
   /** Filas devueltas (primera página) o afectadas. */
   filas?: number
   esquema?: string | null
+  /** Ausente = SQL (las entradas de antes de que hubiera otro lenguaje). */
+  lenguaje?: 'mongosh' | 'comandos'
 }
 
 export interface DbFiltroHistorial {
@@ -133,6 +138,8 @@ export interface DbFiltroHistorial {
   texto?: string
   /** Por defecto 200; el main no devuelve más de 1000. */
   limite?: number
+  /** Solo las de este lenguaje; ausente = todas. Cada consola pide las suyas: una orden del shell no se inserta en SQL. */
+  lenguaje?: DbLenguajeHistorial
 }
 
 /** Una clave ajena. */
@@ -367,6 +374,23 @@ export type DbOrigenExportacion =
     }
   /** Lo ya cargado en la rejilla (un RETURNING no se puede repetir). */
   | { tipo: 'filas'; columnas: DbColumnaResultado[]; filasJson: string }
+  /**
+   * MongoDB: la colección entera con el filtro y el orden de su pestaña (los mismos textos de `DbDocConsultar`).
+   * Solo en JSON y CSV; el main vuelve a leerla por páginas.
+   */
+  | {
+      tipo: 'coleccion'
+      conexionId: string
+      base: string
+      coleccion: string
+      filtro: string
+      proyeccion: string
+      orden: string
+      filtroGuiado?: DbFiltroGuiado
+      ordenColumnas?: DbOrdenColumna[]
+    }
+  /** MongoDB: una sentencia de LECTURA de la consola (`find`, `aggregate`), que se vuelve a ejecutar por páginas. */
+  | { tipo: 'sentencia'; conexionId: string; base: string | null; texto: string }
 
 export interface DbExportar {
   peticionId: string

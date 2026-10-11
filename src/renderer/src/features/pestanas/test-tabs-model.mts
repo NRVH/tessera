@@ -603,6 +603,28 @@ function main(): void {
       soloDespierto.byProfile.alfa.openProjects.find((p) => p.projectHostPath === H2)?.estado === 'hibernated',
     `H1=${soloDespierto.byProfile.alfa.openProjects.find((p) => p.projectHostPath === H1)?.estado} activo=${soloDespierto.byProfile.alfa.activePath}`
   )
+
+  // Ir a H1 (alfa dormido, con H2 como su activo) mirando beta, como «Abrir con Tessera» o saltar
+  // a su agente: `setActiveProject` con `entrar` activa H1 y entra en alfa en UNA acción, sin
+  // despertar H2, que nadie pidió.
+  const enBeta = run(hibProf, [{ type: 'setActiveProfile', profileId: 'beta' }])
+  const estadoEnAlfa = (s: TabsState, ruta: string): string | undefined => s.byProfile.alfa.openProjects.find((p) => p.projectHostPath === ruta)?.estado
+  const entrando = run(enBeta, [{ type: 'setActiveProject', profileId: 'alfa', projectHostPath: H1, entrar: true }])
+  check(
+    '(12i) setActiveProject con entrar: activa H1, entra en alfa y despierta SOLO H1',
+    entrando.activeProfileId === 'alfa' &&
+      entrando.byProfile.alfa.activePath === H1 &&
+      estadoEnAlfa(entrando, H1) === 'active' &&
+      estadoEnAlfa(entrando, H2) === 'hibernated',
+    `perfil=${entrando.activeProfileId} H1=${estadoEnAlfa(entrando, H1)} H2=${estadoEnAlfa(entrando, H2)}`
+  )
+  const sinEntrar = run(enBeta, [{ type: 'setActiveProject', profileId: 'alfa', projectHostPath: H1 }])
+  check('(12i2) sin entrar, el perfil activo no cambia', sinEntrar.activeProfileId === 'beta' && sinEntrar.byProfile.alfa.activePath === H1, String(sinEntrar.activeProfileId))
+  check(
+    '(12i3) entrar donde ya se está, con el proyecto ya activo y despierto -> MISMA referencia',
+    run(entrando, [{ type: 'setActiveProject', profileId: 'alfa', projectHostPath: H1, entrar: true }]) === entrando,
+    'no-op'
+  )
   check(
     '(12e2) wakeProject sobre uno ya despierto (o no abierto) -> MISMA referencia',
     run(soloDespierto, [{ type: 'wakeProject', profileId: 'alfa', projectHostPath: H1 }]) === soloDespierto &&

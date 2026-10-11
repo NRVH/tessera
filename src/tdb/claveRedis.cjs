@@ -1,7 +1,7 @@
 // =============================================================================
-// Las claves de Redis: las bases con claves, el SCAN de una página con su tipo y su TTL, y el
-// valor de una clave por tipo (el visor). Pieza de `redisComun.cjs`, que reexporta `bases`,
-// `escanear` y `valor`. Nunca KEYS; los valores son bytes (`DbKvBytes`).
+// Las claves de Redis: las bases con claves, el SCAN de una página con su tipo y su TTL (en Cluster,
+// maestro a maestro), y el valor de una clave por tipo (el visor). Pieza de `redisComun.cjs`, que
+// reexporta `bases`, `escanear` y `valor`. Nunca KEYS; los valores son bytes (`DbKvBytes`).
 // Decisiones: docs/decisiones/bd/adaptador-redis-cliente-y-marcas.md
 // =============================================================================
 
@@ -10,9 +10,13 @@
 const { errorUso, esRespuestaError } = require('./erroresRedis.cjs')
 const { aBuffer, textoDe, num, esUtf8, bytes } = require('./valoresRedis.cjs')
 const { estado, BASES_POR_DEFECTO } = require('./clienteRedis.cjs')
+const { esCluster } = require('./topologiaRedis.cjs')
+const { maestros, partirCursor, cursorTras } = require('./clusterRedis.cjs')
 
 const TOPE_STRING_BYTES = 256 * 1024
 const TOPE_JSON_CARACTERES = 1024 * 1024
+/** Por encima de esto (lo que ocupa en memoria, `MEMORY USAGE`), un JSON no se lee: se avisa. */
+const TOPE_JSON_LECTURA_BYTES = 16 * 1024 * 1024
 const CUANTOS_POR_DEFECTO = 100
 const CUANTOS_MAXIMO = 10000
 const CUENTA_MAXIMA = 100000
@@ -50,6 +54,7 @@ async function tuberia(cliente, comandos) {
  * `total` es `basesPorDefecto` con `totalDelServidor: false`; si `INFO` también, `conteosDesconocidos`.
  */
 async function bases(cliente, basesPorDefecto) {
+  if (esCluster(cliente)) return basesCluster(cliente)
   const porDefecto = Number.isInteger(basesPorDefecto) && basesPorDefecto > 0 ? basesPorDefecto : BASES_POR_DEFECTO
   const [cfg, info] = await tuberia(cliente, [
     ['CONFIG', 'GET', 'databases'],
@@ -76,6 +81,25 @@ async function bases(cliente, basesPorDefecto) {
   }
   salida.conClaves.sort((a, b) => a.indice - b.indice)
   return salida
+}
+
+/** Las bases de un Cluster: solo la 0, con las claves de todos los maestros (`INFO keyspace` de cada uno). */
+async function basesCluster(cluster) {
+  let claves = 0
+  let caducan = 0
+  try {
+    for (const nodo of maestros(cluster)) {
+      const m = /(?:^|\n)db0:keys=(\d+),expires=(\d+)/.exec(textoDe(await nodo.callBuffer('INFO', 'keyspace')))
+      if (m) {
+        claves += Number(m[1])
+        caducan += Number(m[2])
+      }
+    }
+  } catch (err) {
+    if (!esRespuestaError(err)) throw err
+    return { total: 1, totalDelServidor: true, conClaves: [], conteosDesconocidos: true }
+  }
+  return { total: 1, totalDelServidor: true, conClaves: claves > 0 ? [{ indice: 0, claves, caducan }] : [] }
 }
 
 /** El `TYPE` del servidor como `DbKvTipo`; `ReJSON-RL` es 'json'. */
@@ -138,9 +162,26 @@ async function clavesDeVuelta(cliente, nombres, tipo) {
   return claves
 }
 
-/** Una página de claves con SCAN: `{ cursor, claves, ms }`. */
+/**
+ * Una vuelta de SCAN en Cluster: la del maestro que dice el cursor compuesto (`clusterRedis`), con
+ * el TYPE y el PTTL pedidos a ese mismo nodo (sus claves son suyas).
+ */
+async function escanearCluster(cluster, opciones) {
+  const lista = maestros(cluster)
+  const { indice, cursor } = partirCursor(opciones.cursor)
+  const inicio = Date.now()
+  if (indice >= lista.length) return { cursor: '0', claves: [], ms: 0 }
+  const nodo = lista[indice]
+  const r = await pedirScan(nodo, estado(nodo), { ...opciones, cursor })
+  const nombres = Array.isArray(r[1]) ? r[1] : []
+  const claves = nombres.length > 0 ? await clavesDeVuelta(nodo, nombres, opciones.tipo) : []
+  return { cursor: cursorTras(indice, textoDe(r[0]), lista.length), claves, ms: Date.now() - inicio }
+}
+
+/** Una página de claves con SCAN: `{ cursor, claves, ms }`. En Cluster, de un maestro tras otro. */
 async function escanear(cliente, o = {}) {
   const opciones = opcionesScan(o)
+  if (esCluster(cliente)) return escanearCluster(cliente, opciones)
   const e = estado(cliente)
   const inicio = Date.now()
   const r = await pedirScan(cliente, e, opciones)
@@ -259,11 +300,26 @@ async function contenidoStream(cliente, clave, cuantos, desde) {
   return { tipo: 'stream', entradas, total: num(len.r) || 0, siguiente: hayMas && entradas.length > 0 ? entradas[entradas.length - 1].id : null }
 }
 
+/** `JSON.DEBUG MEMORY` del documento en bytes, o -1 si el servidor no lo da. */
+async function memoriaJson(cliente, clave) {
+  try {
+    const n = num(await cliente.call('JSON.DEBUG', 'MEMORY', clave))
+    return n === null ? -1 : n
+  } catch {
+    return -1
+  }
+}
+
 /**
  * json: `JSON.GET $` hasta `TOPE_JSON_CARACTERES`. Va COMPACTO, como lo da el servidor (sin los
  * corchetes del `$`): reindentarlo exigiría JSON.parse, que redondea los enteros de más de 2^53.
  */
-async function contenidoJson(cliente, clave) {
+async function contenidoJson(cliente, clave, memoria) {
+  // Uno enorme no se pide: el servidor lo serializaría ENTERO antes del corte y bloquearía el trabajador.
+  // El tamaño, el mayor que se sepa: `MEMORY USAGE` puede faltar (desactivado, sin permiso) o, con un
+  // módulo que no lo informa, dar solo lo que ocupa la clave; `JSON.DEBUG MEMORY` es el del documento.
+  const tamano = Math.max(memoria ?? -1, await memoriaJson(cliente, clave))
+  if (tamano > TOPE_JSON_LECTURA_BYTES) return { tipo: 'json', texto: '', truncado: true, omitidoBytes: tamano }
   let t = textoDe(await cliente.callBuffer('JSON.GET', clave, '$'))
   // `$` devuelve la lista de coincidencias: la raíz sola, entre corchetes.
   if (t.startsWith('[') && t.endsWith(']')) t = t.slice(1, -1)
@@ -276,7 +332,7 @@ async function contenidoJson(cliente, clave) {
   return { tipo: 'json', texto: t, truncado }
 }
 
-async function contenidoDe(cliente, clave, tipo, tipoServidor, cuantos, desde) {
+async function contenidoDe(cliente, clave, tipo, tipoServidor, cuantos, desde, memoria) {
   switch (tipo) {
     case 'string':
       return contenidoString(cliente, clave)
@@ -289,7 +345,7 @@ async function contenidoDe(cliente, clave, tipo, tipoServidor, cuantos, desde) {
     case 'stream':
       return contenidoStream(cliente, clave, cuantos, desde)
     case 'json':
-      return contenidoJson(cliente, clave)
+      return contenidoJson(cliente, clave, memoria)
     default:
       return { tipo: 'otro', tipoServidor }
   }
@@ -321,13 +377,13 @@ async function valor(cliente, claveBuffer, o = {}) {
   const ts = textoDe(t.r)
   if (ts === 'none' || (!ttl.err && num(ttl.r) === -2)) return { contenido: { tipo: 'noExiste' }, ttlMs: null, ms: Date.now() - inicio }
   const c = tipoDeServidor(ts)
-  const contenido = await contenidoDe(cliente, clave, c.tipo, c.tipoServidor || ts, cuantos, o.desde)
-  const salida = { contenido, ttlMs: ttl.err ? null : ttlDe(ttl.r), ms: 0 }
   const m = mem.err ? null : num(mem.r)
+  const contenido = await contenidoDe(cliente, clave, c.tipo, c.tipoServidor || ts, cuantos, o.desde, m)
+  const salida = { contenido, ttlMs: ttl.err ? null : ttlDe(ttl.r), ms: 0 }
   if (m !== null) salida.memoria = m
   if (!cod.err && cod.r !== null && cod.r !== undefined) salida.codificacion = textoDe(cod.r)
   salida.ms = Date.now() - inicio
   return salida
 }
 
-module.exports = { TOPE_STRING_BYTES, TOPE_JSON_CARACTERES, bases, escanear, valor }
+module.exports = { TOPE_STRING_BYTES, TOPE_JSON_CARACTERES, TOPE_JSON_LECTURA_BYTES, bases, escanear, valor }

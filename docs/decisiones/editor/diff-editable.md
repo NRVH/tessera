@@ -30,6 +30,11 @@ destruye un archivo.
 - **La lupa del scrollbar se calla con el colapso encendido:** el eje del scrollbar deja de ser
   proporcional a la línea y enseñaría un trozo equivocado. Se descartó invertir
   `getTopForLineNumber` por búsqueda binaria: es lo más delicado del módulo y no compensa.
+- **La regla de cambios propia del diff** (`renderOverviewRuler`: dos columnas, rojo del
+  original y verde del modificado, y el recuadro de la vista, que se arrastra), con el recuadro
+  redondeado y del color de las pastillas. Se probó a quitarla y llevar las marcas a la regla del
+  modificado, bajo la pastilla común: las marcas de un solo color por lado se leían peor que las
+  dos columnas, y se volvió a la regla con el aspecto nuevo.
 - El número de diferencias es `null` hasta que Monaco calcula; sin saberlo no se dice
   «Sin diferencias» sobre un diff viejo aún pintado.
 

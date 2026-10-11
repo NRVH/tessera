@@ -87,6 +87,7 @@ export const ORDEN_TIPO: Record<TipoSugerencia, number> = {
   tipoColeccion: 11,
   tipo: 12,
   disparador: 13,
+  evento: 14,
   esquema: 20,
   palabraClave: 30,
   join: 0,

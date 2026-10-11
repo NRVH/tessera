@@ -77,7 +77,8 @@ function usePublicarApi(p: PropsAgentPane, c: CtxBloqueo): void {
       preparar: () => prepararActualizacion(bloqueo),
       relanzar: (o) => r.relanzarApi.current(o),
       liberar: () => liberarActualizacion(bloqueo),
-      reanudarCon: (conversacionId) => r.sesion.pedirReanudar(conversacionId)
+      reanudarCon: (conversacionId) => r.sesion.pedirReanudar(conversacionId),
+      reanudarSiHuboDesde: (desde) => r.sesion.pedirSiNadaDesde(desde)
     }
     publicar(key, api)
     return () => publicar(key, null)

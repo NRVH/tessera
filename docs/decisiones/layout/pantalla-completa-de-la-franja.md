@@ -11,18 +11,46 @@ búsqueda global abrían una pestaña que nadie veía.
 
 ## Decisión
 
-- Un solo estado, `franjaPantallaCompleta: 'gitlog' | 'terminal' | null`, efímero (no se persiste).
-  Se pinta el valor COHERENTE (`pantallaCompletaCoherente`, pura): vale mientras ese panel está a
-  la vista y no hay mosaico. Nunca lo enciende y es un punto fijo, así que el hook lo aplica en
-  cada render. La X, cambiar de panel, la vista de datos o el mosaico lo apagan, y al volver el
-  panel se abre en la franja.
-- Cada perfil recuerda su modo mientras la app está abierta (`pantallaCompletaAlCambiarDePerfil`):
-  pasar a un perfil sin ese panel lo apaga allí, y volver al propio lo recupera. Quien trabaja con
-  la terminal maximizada no tiene que volver a maximizarla cada vez que mira otro perfil. Un perfil
-  sin modo recordado hereda el actual, y la coherencia decide si vale.
+- **Lo último que eligió el usuario, por perfil y por ventana.** La verdad es
+  `maximizadoPorPerfil` (efímero, no se persiste): cada perfil guarda si la terminal, Git·Log y el
+  agente de la terminal están maximizados, cada uno lo suyo. Cerrar la ventana y reabrirla, pasar
+  de la terminal a Git·Log y volver, cambiar de perfil, el mosaico o la vista de datos NO lo
+  borran: al volver, cada ventana está como la dejó. Lo borran el botón de restaurar, el acorde,
+  abrir una pestaña del editor y elegir una vista lateral, que es elegir ver esa vista.
+- **Lo que se pinta se deriva en el render** (`pantallaCompletaPedidaDe` + `pantallaCompletaCoherente`,
+  puras): el panel que está en la franja, si su perfil lo dejó maximizado, fuera de la vista de
+  datos y del mosaico. Nada se corrige en un efecto: al cambiar de perfil el primer render ya sale
+  bien, y el agente no recibe un resize de ida y vuelta (era un parpadeo visible). El store guarda
+  además un ESPEJO de lo que se pinta (`franjaPantallaCompleta`) y del perfil a la vista, solo para
+  los manejadores de eventos (atajos, aperturas), que no tienen el perfil.
 - Con el agente al lado y sin terminal que enseñar, la columna de la terminal se queda en su
-  cabecera y su riel, y el agente ocupa el resto (`.sin-terminal`), como cuando el editor no tiene
-  pestañas. El riel no exige entonces el ancho mínimo de la terminal: no comparte el cuerpo.
+  cabecera y su riel, y el agente ocupa el resto, como cuando el editor no tiene pestañas. Lo decide
+  `derivarLayoutCentro` (`terminalPlegada`), con la MISMA columna del agente que pinta el CSS: si lo
+  decidiera la preferencia, un agente pedido pero aún preparándose plegaría el panel sin nada al lado.
+  App lo lleva a `.shell` (`.terminal-plegada`) y el panel a su `.sin-terminal`; sin `:has()`. Un
+  proyecto cuya primera terminal aún no ha nacido (nace en el efecto que sigue al render) cuenta como
+  con terminales (`hayTerminalQueEnsenar`): si no, la columna se plegaría y desplegaría en dos commits
+  y el pty del agente recibiría dos resize.
+- El sitio del riel se mide SIEMPRE en `.shell-main`, que mide lo mismo plegada o no, y se le resta el
+  agente si está al lado (`--cc-width` + su divisor; `sitioDelRiel`). Medir el cuerpo de la terminal
+  cambiaba de significado al plegar: el render que despliega llevaba la medida de la columna plegada y
+  el riel se desmontaba un instante (perdía filtro y foco). Plegada, el vecino del riel es el agente:
+  solo cabe mientras le deja su mínimo (`CC_WIDTH_MIN`), y su tope de arrastre tampoco pasa de lo que
+  cabría junto a la terminal desplegada, para que restaurarlas no pliegue el riel. El mínimo de la
+  columna plegada (su cabecera) es un solo número: el panel lo pasa al CSS como `--columna-plegada-min`.
+- Con terminales, el agente de la terminal se puede maximizar sobre ellas como el de la columna
+  sobre los archivos, con la misma disposición `.sin-terminal` (`agenteTerminalMaximizadoDe`: pedido,
+  junto a la terminal y con alguna que tapar). Tapadas, sus pestañas no se dibujan: en una columna
+  estrecha no dejan hacer nada y solo meten ruido, así que quedan reducidas a un chip con su número
+  («3 terminales»), como un panel plegado, y la columna tampoco lleva los botones del panel: cada
+  nivel de maximizado tiene un solo restaurar a la vista, y dos iconos iguales con efectos distintos
+  uno junto al otro se confunden. El del agente baja un nivel; con las terminales de vuelta, el de la
+  terminal baja el siguiente. Lo restauran, en el mismo clic para que la terminal llegue
+  visible y con el foco, ese chip, el botón del agente y conectar o abrir un SFTP desde el riel. Un
+  `exit`, una sesión que se cae o cambiar de perfil no lo tocan. Cerrar el agente lo olvida: el
+  siguiente arranca sin maximizar. Tapadas, las terminales no están a la vista y sueltan su contexto
+  gráfico. Sin terminales, la cabecera, estrecha, pasa a dos líneas para que el «+» no quede bajo los
+  botones.
 - Solo CSS y sin desmontar: la fila de arriba sale del flujo con su tamaño y se apaga con
   `content-visibility` + `visibility`, como en el mosaico. Ni el editor ni los agentes de arriba
   reciben un resize. El panel maximizado SÍ cambia de tamaño y el pty de la terminal visible se

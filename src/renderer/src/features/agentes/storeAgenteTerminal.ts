@@ -12,6 +12,7 @@ import {
   podarMapaPorPerfil,
   type AgenteTerminalVisiblePorPerfil
 } from '../../../../shared/ajustesTerminal'
+import { fijarMaximizado } from '../layout'
 
 /** Estado del agente de la terminal de todos los perfiles. */
 export interface EstadoAgenteTerminal {
@@ -77,6 +78,8 @@ export function ocultarAgenteTerminal(profileId: string): void {
 
 /** Lo cierra: oculto y fuera de los abiertos, así su pane se desmonta y su sesión se cierra. */
 export function cerrarAgenteTerminal(profileId: string): void {
+  // Cerrar termina la sesión: el siguiente agente arranca sin maximizar.
+  fijarMaximizado('agenteTerminal', false, profileId)
   useStoreAgenteTerminal.setState((s) => {
     if (!s.abiertos.has(profileId) && s.visiblePorPerfil[profileId] !== true) return s
     const abiertos = new Set(s.abiertos)

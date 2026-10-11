@@ -13,8 +13,6 @@ import { useRenombrarPerfil } from './useRenombrarPerfil'
 
 interface OpcionesBanda {
   profiles: Profile[]
-  hideNames?: boolean
-  onShowNames?: () => void
   working?: Set<string>
   onAddProfile: (nombre: string, color: string) => void
   onRenameProfile: (profileId: string, nombre: string) => void

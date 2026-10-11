@@ -64,6 +64,7 @@ const TOOLTIP_POR_TIPO: { [K in FilaArbol['kind']]?: Tooltip<K> } = {
   columna: tooltipColumna,
   consola: (f, pistaAbrir) => `${f.consola.rutaRelativa}\n${pistaAbrir}`,
   'kv-clave': tooltipKvClave,
+  'doc-indice': (f) => `${f.indice.nombre}\n${f.indice.clave}${f.indice.unico ? '\nÚnico' : ''}`,
   'kv-base': (f) => (f.patron !== '' ? `${etiquetaBaseClaves(f.indice)} · filtrada por ${f.patron}` : undefined),
   'kv-carpeta': (f) => `${f.prefijo}* · ${f.cuenta.toLocaleString('es-ES')} ${f.cuenta === 1 ? 'clave cargada' : 'claves cargadas'}`,
   'kv-mas': (f) => f.vista.nota ?? undefined,

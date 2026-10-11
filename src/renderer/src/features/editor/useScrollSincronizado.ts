@@ -26,7 +26,9 @@ export function useScrollSincronizado(refs: RefsPane, vista: VistaDelPane & { vi
     const aplicador: Aplicador = {
       medir: (lado): MedidaScroll =>
         lado === 'codigo'
-          ? { top: ed.getScrollTop(), alto: ed.getScrollHeight(), visible: ed.getLayoutInfo().height }
+          ? // Hasta el pie de la última línea, no el alto del scroll: este suma la barra horizontal
+            // cuando hay desborde, y con la última línea a la vista le quedaría ese trozo.
+            { top: ed.getScrollTop(), alto: ed.getBottomForLineNumber(ed.getModel()?.getLineCount() ?? 1), visible: ed.getLayoutInfo().height }
           : { top: el.scrollTop, alto: el.scrollHeight, visible: el.clientHeight },
       mover: (lado, top) => {
         if (lado === 'codigo') ed.setScrollTop(top)

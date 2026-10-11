@@ -6,7 +6,8 @@
 // Decisiones: docs/decisiones/bd/ui-consola-historial.md
 // =============================================================================
 
-import type { DbEntradaHistorial } from '../../../../../shared/db-explorador-ipc.ts'
+import type { DbEntradaHistorial, DbLenguajeHistorial } from '../../../../../shared/db-explorador-ipc.ts'
+import { etiquetaMotor } from '../../../../../shared/motores/index.ts'
 import type { Plataforma } from '../../../../../shared/plataforma.ts'
 import type { DialectoSql } from '../../../../../shared/sql/dialectosSql.ts'
 import { esAlcanceDeLote } from '../../../../../shared/sql/clasificarSql.ts'
@@ -71,7 +72,9 @@ export function glifoHistorial(r: DbEntradaHistorial['resultado']): { simbolo: s
 /** Tooltip de una fila: el SQL entero y, debajo, lo que pasó. */
 export function detalleHistorial(e: DbEntradaHistorial, alias: string): string {
   const partes = [glifoHistorial(e.resultado).etiqueta, formatoDuracion(e.ms)]
-  if (typeof e.filas === 'number') partes.push(cantidad(e.filas, 'fila', 'filas'))
+  if (typeof e.filas === 'number') {
+    partes.push(e.lenguaje === 'mongosh' ? cantidad(e.filas, 'documento', 'documentos') : cantidad(e.filas, 'fila', 'filas'))
+  }
   partes.push(e.esquema ? `${alias} · ${e.esquema}` : alias)
   return `${e.sql}\n\n${partes.join(' · ')}`
 }
@@ -114,6 +117,14 @@ export function insercionHistorial(
     else if (esAlcanceDeLote(tokenizar(ultima.texto, dialecto), dialecto)) terminador = '\nGO'
     else terminador = ';'
   }
+  return insercionConTerminador(cuerpo, terminador, ctx, eol)
+}
+
+/**
+ * Lo común a las dos consolas: `cuerpo` (ya recortado) con su `terminador`, en su propia línea si
+ * el cursor tiene texto a los lados, con los saltos en el `eol` del modelo y el cursor detrás.
+ */
+export function insercionConTerminador(cuerpo: string, terminador: string, ctx: ContextoCursor, eol: '\n' | '\r\n'): Insercion {
   const prefijo = ctx.antes.trim() !== '' ? '\n' : ''
   const sufijo = ctx.despues.trim() !== '' ? '\n' : ''
   // Los saltos, en el fin de línea del MODELO: Monaco reescribe los de lo insertado al
@@ -193,6 +204,37 @@ export function esBorrarEntrada(e: TeclaBorrarEntrada, filtroVacio: boolean, pla
   return !(e.key === 'Backspace' && !e.ctrlKey && !e.metaKey)
 }
 
-/** La pregunta de «Borrar todo». */
-export const TEXTO_BORRAR_TODO =
-  '¿Borrar TODO el historial de consultas de este perfil? Incluye el de todas sus conexiones y no se puede deshacer.'
+/** Los textos del popover que nombran lo que guarda: consultas SQL u órdenes del shell. */
+export function textosHistorial(lenguaje: DbLenguajeHistorial): { una: string; varias: string; filtro: string; ninguna: string; vacio: string } {
+  if (lenguaje === 'comandos') {
+    return {
+      una: 'comando',
+      varias: 'comandos',
+      filtro: 'Filtrar por texto del comando',
+      ninguna: 'Ningún comando coincide.',
+      vacio: 'Todavía no hay comandos en el historial.'
+    }
+  }
+  if (lenguaje === 'mongosh') {
+    return {
+      una: 'orden',
+      varias: 'órdenes',
+      filtro: 'Filtrar por texto de la orden',
+      ninguna: 'Ninguna orden coincide.',
+      vacio: 'Todavía no hay órdenes en el historial.'
+    }
+  }
+  return {
+    una: 'consulta',
+    varias: 'consultas',
+    filtro: 'Filtrar por texto del SQL',
+    ninguna: 'Ninguna consulta coincide.',
+    vacio: 'Todavía no hay consultas en el historial.'
+  }
+}
+
+/** La pregunta de «Borrar todo»: solo el historial del lenguaje de la consola que lo pide. */
+export function textoBorrarTodo(lenguaje: DbLenguajeHistorial): string {
+  const que = lenguaje === 'comandos' ? `comandos de ${etiquetaMotor('redis')}` : lenguaje === 'mongosh' ? `órdenes de ${etiquetaMotor('mongodb')}` : 'consultas SQL'
+  return `¿Borrar TODO el historial de ${que} de este perfil? Incluye el de todas sus conexiones y no se puede deshacer.`
+}

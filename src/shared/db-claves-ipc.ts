@@ -19,8 +19,31 @@ export const KV_CHANNELS = {
   /** invoke: DbKvPedirValor -> DbRespuesta<DbKvValor>. El valor de una clave según su tipo, por trozos. */
   VALOR: 'kv:valor',
   /** invoke: DbKvEjecutar -> DbRespuesta<DbKvResultado>. Un comando de la consola (D5). */
-  CONSOLA_EJECUTAR: 'kv:consola:ejecutar'
+  CONSOLA_EJECUTAR: 'kv:consola:ejecutar',
+  /** invoke: DbKvGuardarTexto -> DbRespuesta<DbKvGuardado | null>. Guarda un texto en el archivo que el usuario elige (null = canceló). */
+  GUARDAR_TEXTO: 'kv:guardar-texto'
 } as const
+
+/**
+ * Empieza el `consolaId` de las sesiones que el explorador abre para sus propias acciones (editar una
+ * clave, borrar por patrón): no son consolas del usuario y no van al historial.
+ */
+export const PREFIJO_CONSOLA_VISOR = 'visor-'
+
+/** Tope del texto de `GUARDAR_TEXTO` (en caracteres): la exportación de una clave grande no llena la memoria del main. */
+export const KV_GUARDAR_MAX_CARACTERES = 64 * 1024 * 1024
+
+export interface DbKvGuardarTexto {
+  conexionId: string
+  /** El nombre propuesto, sin carpeta ni extensión; el main lo sanea. */
+  nombre: string
+  texto: string
+}
+
+/** Dónde quedó lo guardado (solo el nombre del archivo, nunca la ruta). */
+export interface DbKvGuardado {
+  archivo: string
+}
 
 /** Unos bytes de Redis (una clave, un campo, un valor): el texto si es UTF-8 válido y siempre el base64. */
 export interface DbKvBytes {
@@ -101,8 +124,11 @@ export type DbKvContenido =
   | { tipo: 'set'; miembros: DbKvBytes[]; total: number; siguiente: string | null }
   | { tipo: 'zset'; miembros: { miembro: DbKvBytes; puntuacion: string }[]; total: number; siguiente: string | null }
   | { tipo: 'stream'; entradas: { id: string; campos: { campo: DbKvBytes; valor: DbKvBytes }[] }[]; total: number; siguiente: string | null }
-  /** `JSON.GET clave $` (sin los corchetes del `$`); `truncado` si se cortó al tope del visor. */
-  | { tipo: 'json'; texto: string; truncado: boolean }
+  /**
+   * `JSON.GET clave $` (sin los corchetes del `$`); `truncado` si se cortó al tope del visor.
+   * `omitidoBytes`: no se leyó, por lo que ocupa en memoria (el texto va vacío).
+   */
+  | { tipo: 'json'; texto: string; truncado: boolean; omitidoBytes?: number }
   | { tipo: 'otro'; tipoServidor: string }
   /** La clave ya no existe (se borró o caducó después del SCAN). */
   | { tipo: 'noExiste' }

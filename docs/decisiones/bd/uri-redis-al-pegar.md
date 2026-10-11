@@ -24,8 +24,9 @@ guardar, con la misma función (`validarBaseRedis`).
 - Todo lo de detrás de `?` se descarta y se dice (`descartadas`): el descriptor no declara `opcionesUri` y las
   opciones de `ioredis` (`family`, timeouts, `db=`) no cambian a qué servidor se conecta. Por eso no se
   validan: una `?foo` sin valor no es un error.
-- Varios hosts es un error (Cluster y Sentinel no están soportados); IPv6 con corchetes y un socket local
-  como en MongoDB.
+- Varios hosts es un error: una URI `redis://` no dice si son sentinels o nodos de un cluster. Sentinel y
+  Cluster se eligen en el formulario ([redis-sentinel-y-cluster.md](redis-sentinel-y-cluster.md)). IPv6 con
+  corchetes y un socket local como en MongoDB.
 
 ## Descartes
 

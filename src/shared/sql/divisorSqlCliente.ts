@@ -24,9 +24,11 @@ export function conComandosSqlplus(cliente: ReglasDialecto['comandosCliente']): 
   switch (cliente) {
     case 'sqlplus':
       return true
-    // Los `.algo` de `sqlite3` y los `\x` de psql los reconoce el léxico o `conComandosPunto`.
+    // Los `.algo` de `sqlite3` y los `\x` de psql los reconoce el léxico o `conComandosPunto`; el
+    // `DELIMITER` del cliente de MySQL, el léxico.
     case 'psql':
     case 'sqlite3':
+    case 'mysql':
     case null:
       return false
     default:
@@ -41,6 +43,7 @@ export function conComandosPunto(cliente: ReglasDialecto['comandosCliente']): bo
       return true
     case 'sqlplus':
     case 'psql':
+    case 'mysql':
     case null:
       return false
     default:

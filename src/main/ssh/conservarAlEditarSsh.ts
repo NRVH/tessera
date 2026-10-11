@@ -7,7 +7,7 @@
 // Decisiones: docs/decisiones/ssh/registro-y-claves.md
 // =============================================================================
 
-import type { SshMetodo } from '../../shared/ssh-ipc.ts'
+import type { SshMetodo, SshTunel } from '../../shared/ssh-ipc.ts'
 
 /** El archivo de clave tal como se guarda; lo que traiga dentro y no se conozca viaja con él. */
 export interface ClaveSshPersistida {
@@ -33,6 +33,10 @@ export interface ConexionSshPersistida {
   /** Contraseña (o frase de la clave) cifrada, en base64. Nunca sale del main. */
   secretEnc?: string
   clave?: ClaveSshPersistida
+  /** El id de otra conexión del perfil por la que se salta; ausente = directo. */
+  saltoId?: string
+  /** Ausente o vacía = sin túneles. */
+  tuneles?: SshTunel[]
 }
 
 /** Un grupo tal como vive en `ssh-connections.json`. */
@@ -57,7 +61,9 @@ export const CLAVES_GOBERNADAS_CONEXION: Readonly<Record<keyof ConexionSshPersis
   metodo: true,
   clave: true,
   secretEnc: true,
-  disponibleAgentes: true
+  disponibleAgentes: true,
+  saltoId: true,
+  tuneles: true
 }
 
 /** Lo mismo para los grupos. */

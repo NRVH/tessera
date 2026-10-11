@@ -124,7 +124,7 @@ function otroAgenteDe(target: OpenAgentTarget, mosaico: MosaicoPanel): NonNullab
   if (iAgente < 0 || AGENTES_DISPONIBLES.length <= 1) return null
   const agente = AGENTES_DISPONIBLES[(iAgente + 1) % AGENTES_DISPONIBLES.length]
   const key = agentTargetKey(target.profileId, target.projectHostPath, agente)
-  return { key, agente, trabajando: mosaico.trabajando.has(key), sinVer: mosaico.sinVer.has(key) }
+  return { key, agente, trabajando: mosaico.trabajando.has(key), sinVer: mosaico.sinVer.has(key), esperando: mosaico.esperando.has(key) }
 }
 
 /** Datos y acciones de la casilla; una casilla por proyecto y dentro se elige el agente. */
@@ -145,6 +145,7 @@ function propsMosaicoDe(
     colorClaro: color?.claro ?? null,
     trabajando: mosaico.trabajando.has(target.key),
     terminadaSinVer: mosaico.sinVer.has(target.key),
+    esperando: mosaico.esperando.has(target.key),
     ampliada: mosaico.ampliada === target.key,
     enfocada: mosaico.enfocada === target.key,
     proyectoKey: editorTargetKey(profileId, projectHostPath),

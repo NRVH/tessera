@@ -4,7 +4,7 @@
 // del árbol sin teclear, la terminal de abajo intacta y la vuelta a SU conversación).
 // Usa el agente falso de `agenteFalso.ts` con `callar` y `conNieto`, y un umbral de 3 s por
 // `TESSERA_AGENTE_INACTIVIDAD_MS`; el ajuste sigue en sus 5 minutos de fábrica.
-// Corre en las dos plataformas; en Mac, sin verificar.
+// Corre en las dos plataformas.
 // Decisiones: docs/decisiones/agentes/hibernacion-por-inactividad.md
 // =============================================================================
 

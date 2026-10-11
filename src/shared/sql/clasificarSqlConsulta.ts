@@ -13,9 +13,12 @@ import {
   lectura,
   leerNombre,
   pal,
+  PROPIO,
   refDe,
   type Vista
 } from './clasificarSqlBase.ts'
+import { deDialecto } from './dialectosSql.ts'
+import { bloqueaEnModoCompartido, escribeArchivo } from './clasificarSqlMysql.ts'
 import type { Clasificacion, RefObjeto } from './clasificarSqlTipos.ts'
 import { conjunto } from './conjuntoSql.ts'
 
@@ -124,7 +127,9 @@ export function analizarSelect(v: Vista, i: number): Clasificacion {
     const creaTabla = selectIntoCreaTabla(v, i, fin)
     if (creaTabla) return creaTabla
   }
-  const bloqueo = tieneForUpdate(v, i, v.t.length)
+  const mysql = deDialecto(PROPIO, v.d).intoOutfile
+  if (mysql && escribeArchivo(v, i)) return base('SELECT INTO OUTFILE')
+  const bloqueo = tieneForUpdate(v, i, v.t.length) || (mysql && bloqueaEnModoCompartido(v, i))
   return lectura(bloqueo ? 'bloqueo' : 'consulta', 'SELECT', {
     devuelveFilas: true,
     consultaPura: !bloqueo && !tieneEfectos(v, 0, v.t.length),
@@ -184,7 +189,9 @@ export function analizarWith(v: Vista, i: number): Clasificacion {
   if (wp && DML.has(wp)) return { ...analizarDml(v, iPrincipal, v.t.length), tablaUnica: null }
   const cte = cteQueModifica(v, i)
   if (cte) return cte
-  const bloqueo = tieneForUpdate(v, i, v.t.length)
+  const mysql = deDialecto(PROPIO, v.d).intoOutfile
+  if (mysql && escribeArchivo(v, i)) return base('SELECT INTO OUTFILE')
+  const bloqueo = tieneForUpdate(v, i, v.t.length) || (mysql && bloqueaEnModoCompartido(v, i))
   return lectura(bloqueo ? 'bloqueo' : 'consulta', wp || 'SELECT', {
     devuelveFilas: true,
     consultaPura: !bloqueo && !tieneEfectos(v, 0, v.t.length)

@@ -88,6 +88,8 @@ interface VirtualListProps<T> {
   role?: string
   /** Id de la fila ACTIVA. Puede apuntar a una fila no montada: entonces no se anuncia. */
   'aria-activedescendant'?: string
+  /** La lista deja marcar varias filas (`aria-selected` en cada una). */
+  'aria-multiselectable'?: boolean
 }
 
 /** Asigna el nodo al ref interno y al `scrollRef` del padre (solo lo lee, aunque el tipo sea readonly). */

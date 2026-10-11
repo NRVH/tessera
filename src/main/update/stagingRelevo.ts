@@ -8,7 +8,7 @@
 // =============================================================================
 
 import { execFile, spawn } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
 import {
@@ -146,9 +146,9 @@ async function copiar(log: (m: string) => void): Promise<boolean> {
 }
 
 /**
- * Escribe el encargo y ARRANCA el relevo, desprendido de este proceso. Devuelve
- * true si el relevo quedó lanzado; el llamador debe entonces morirse SIN instalar
- * nada (el relevo se encarga).
+ * Escribe el encargo y ARRANCA el relevo, desprendido de este proceso. Devuelve su
+ * pid si quedó lanzado (el llamador debe entonces morirse SIN instalar nada: el relevo
+ * se encarga), o null.
  *
  * `detached` + `unref` son lo que hace que sobreviva a nuestra muerte, que es toda
  * la gracia del asunto.
@@ -157,8 +157,8 @@ export function lanzarRelevo(
   instalador: string,
   versionNueva: string,
   log: (m: string) => void
-): boolean {
-  if (!relevoListo()) return false
+): number | null {
+  if (!relevoListo()) return null
   try {
     const destino = dirRelevo()
     const rutaEncargo = path.join(destino, NOMBRE_ENCARGO)
@@ -185,10 +185,32 @@ export function lanzarRelevo(
       cwd: destino
     })
     hijo.unref()
-    log(`relevo lanzado (pid ${hijo.pid ?? '?'}); este proceso se cierra sin instalar.`)
-    return true
+    if (hijo.pid === undefined) {
+      log('no se pudo lanzar el relevo: el sistema no le dio pid.')
+      return null
+    }
+    log(`relevo lanzado (pid ${hijo.pid}); este proceso se cierra sin instalar.`)
+    return hijo.pid
   } catch (err) {
     log(`no se pudo lanzar el relevo: ${String(err)}`)
-    return false
+    return null
+  }
+}
+
+/**
+ * Deshace `lanzarRelevo` cuando el cierre se aborta y Tessera sigue viva: si no, el relevo
+ * acabaría su espera y lanzaría el instalador, que cierra la app sin preguntar.
+ */
+export function cancelarRelevo(pid: number, log: (m: string) => void): void {
+  try {
+    process.kill(pid)
+    log(`relevo cancelado (pid ${pid}).`)
+  } catch (err) {
+    log(`no se pudo cancelar el relevo (pid ${pid}): ${String(err)}`)
+  }
+  try {
+    rmSync(path.join(dirRelevo(), NOMBRE_ENCARGO), { force: true })
+  } catch {
+    /* el próximo `lanzarRelevo` lo pisa */
   }
 }

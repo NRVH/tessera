@@ -20,10 +20,12 @@ import type { LlegadaDePerfiles } from '../profiles/llegadaDePerfiles'
 import { loadWorkspaceSettings } from '../workspace/workspaceStateStore'
 import { ConnectionStore } from './ConnectionStore'
 import { cifradoDelSistema } from './adaptadores/cifradoSistema'
+import { guardarTextoDeUsuario } from './adaptadores/guardarTextoUsuario'
 import { DriverManager } from './DriverManager'
 import { DbController } from './DbController'
 import { registrarIpcBd } from './ipc'
 import { ExploradorController } from './explorador/ExploradorController'
+import { sanearNombreArchivo } from './explorador/ConsolasStore'
 import { registrarIpcExplorador } from './explorador/ipc'
 import { ControladorDocumentos } from './explorador/documentos/ControladorDocumentos'
 import { GestorDocumentos } from './explorador/documentos/GestorDocumentos'
@@ -46,18 +48,15 @@ export interface DepsBd {
   llegada: LlegadaDePerfiles
 }
 
-/** Conexiones de BD; las de perfiles borrados se podan sin cortar el arranque si falla. */
-function crearConexionesBd(perfiles: PerfilesVivos): ConnectionStore {
-  const dbConnections = new ConnectionStore({
+/**
+ * Conexiones de BD. No se podan por la lista de perfiles: lo de un perfil solo se borra con su orden
+ * de borrado (`profiles/borradoDePerfil.ts`).
+ */
+function crearConexionesBd(): ConnectionStore {
+  return new ConnectionStore({
     storePath: join(app.getPath('userData'), 'db-connections.json'),
     cifrado: cifradoDelSistema
   })
-  try {
-    dbConnections.pruneProfiles(new Set(perfiles.lista.map((p) => p.id)))
-  } catch (err) {
-    console.error('[db] no se pudieron podar las conexiones de perfiles borrados:', err)
-  }
-  return dbConnections
 }
 
 /** Registro de conexiones y drivers. Los ganchos del explorador llegan con `conectarExplorador`. */
@@ -97,9 +96,11 @@ function crearDbController({ refs, perfiles }: DepsBd, dbConnections: Connection
 function crearGestoresBd(
   dbController: DbController,
   dbConnections: ConnectionStore,
-  emisorVentana: EmisorEventos
+  emisorVentana: EmisorEventos,
+  inactividadConsolaMs: () => number | undefined
 ): { gestorDocumentos: GestorDocumentos; gestorClaves: GestorClaves } {
   const gestorDocumentos = new GestorDocumentos({
+    inactividadConsolaMs,
     lanzar: (con) =>
       new ProcesoTrabajador({
         rutaScript: join(dbController.tdbScriptDir(), 'sesion.cjs'),
@@ -108,6 +109,7 @@ function crearGestoresBd(
     conexion: (id) => dbConnections.get(id),
     secreto: (id) => dbConnections.secretOf(id),
     ctxDrivers: () => dbController.ctxDrivers(),
+    tunel: (con) => dbController.tunelDe(con),
     emitirSesion: (estado) => emisorVentana.emitir(DBX_CHANNELS.EV_SESION, estado),
     alAbrir: (id) => {
       if (dbConnections.marcarVerificada(id, null)) dbController.notificarCambio()
@@ -115,6 +117,7 @@ function crearGestoresBd(
     log: (m) => dbLog('documentos', m)
   })
   const gestorClaves = new GestorClaves({
+    inactividadConsolaMs,
     lanzar: (con) =>
       new ProcesoTrabajador({
         rutaScript: join(dbController.tdbScriptDir(), 'sesion.cjs'),
@@ -123,6 +126,7 @@ function crearGestoresBd(
     conexion: (id) => dbConnections.get(id),
     secreto: (id) => dbConnections.secretOf(id),
     ctxDrivers: () => dbController.ctxDrivers(),
+    tunel: (con) => dbController.tunelDe(con),
     emitirSesion: (estado) => emisorVentana.emitir(DBX_CHANNELS.EV_SESION, estado),
     alAbrir: (id) => {
       if (dbConnections.marcarVerificada(id, null)) dbController.notificarCambio()
@@ -140,7 +144,14 @@ function crearExploradorBd(
 ): ExploradorController {
   // Los dos gestores emiten con la guarda completa (ventana y `webContents` vivos).
   const emisorVentana = emisorDeVentana(() => refs.ventana)
-  const { gestorDocumentos, gestorClaves } = crearGestoresBd(dbController, dbConnections, emisorVentana)
+  // El plazo de inactividad de las consolas es el del ajuste del usuario, el mismo que aplica el
+  // explorador SQL (que nace después: hasta entonces, el de por defecto).
+  const { gestorDocumentos, gestorClaves } = crearGestoresBd(
+    dbController,
+    dbConnections,
+    emisorVentana,
+    () => refs.explorador?.ajustesVigentes().inactividadConsolaMs
+  )
   const escritorio = escritorioDelSistema()
   const explorador: ExploradorController = new ExploradorController({
     conexiones: dbConnections,
@@ -165,6 +176,7 @@ function crearExploradorBd(
     // Historial PRIVADO de Tessera: lo de `conexiones/<perfil>/` lo lee el agente.
     dirHistorial: join(app.getPath('userData'), 'db-historial'),
     documentos: gestorDocumentos,
+    exportarDocumentos: gestorDocumentos,
     claves: gestorClaves,
     log: (m) => dbLog('explorador', m)
   })
@@ -172,18 +184,29 @@ function crearExploradorBd(
   refs.explorador = explorador
   registrarIpcDocumentos({
     ipc,
-    controlador: new ControladorDocumentos({ conexiones: dbConnections, gestor: gestorDocumentos, log: (m) => dbLog('documentos', m) })
+    controlador: new ControladorDocumentos({
+      conexiones: dbConnections,
+      gestor: gestorDocumentos,
+      alSentencia: (e) => explorador.anotarHistorialDocs(e),
+      log: (m) => dbLog('documentos', m)
+    })
   })
   registrarIpcClaves({
     ipc,
-    controlador: new ControladorClaves({ conexiones: dbConnections, gestor: gestorClaves, log: (m) => dbLog('claves', m) })
+    controlador: new ControladorClaves({
+      conexiones: dbConnections,
+      gestor: gestorClaves,
+      alSentencia: (e) => explorador.anotarHistorialClaves(e),
+      guardarTexto: (nombre, texto) => guardarTextoDeUsuario(refs.ventana, `${sanearNombreArchivo(nombre, plataformaActual())}.json`, texto),
+      log: (m) => dbLog('claves', m)
+    })
   })
   return explorador
 }
 
 /** Bases de datos: conexiones, registro, explorador y sus familias, y el barrido de inactividad. */
 export function componerBd(deps: DepsBd): DbController {
-  const dbConnections = crearConexionesBd(deps.perfiles)
+  const dbConnections = crearConexionesBd()
   const dbController = crearDbController(deps, dbConnections)
   registrarIpcBd({ ipc: deps.ipc, bd: dbController, borrados: deps.borrados, perfiles: () => deps.perfiles.lista, llegada: deps.llegada })
   deps.refs.bd = dbController
@@ -192,7 +215,6 @@ export function componerBd(deps: DepsBd): DbController {
   dbController.conectarExplorador(exploradorBd)
   // Los ajustes del archivo al arrancar; cada cambio llega por SAVE_SETTINGS.
   exploradorBd.fijarAjustes(ajustesSesionesDe(loadWorkspaceSettings()))
-  void exploradorBd.podarHistorial(deps.perfiles.lista.map((p) => p.id))
   // Cierra sesiones ociosas (nunca con una transacción pendiente). `unref`: no retiene la app.
   setInterval(() => exploradorBd.barrer(), BARRIDO_MS).unref()
   return dbController

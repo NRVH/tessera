@@ -22,6 +22,7 @@ import { ejecutarEnvio, detenerEnvio, responderDescarte } from './datosEnvio'
 import { detenerTraerTodas } from './datosLectura'
 import { objetoReal } from './DatosBarra'
 import { FORMATOS_EXPORTAR } from './exportarBd'
+import { IconoFormato } from './IconoFormato'
 import { RAZON_SIN_CLAVE_PRIMARIA } from './visorValor'
 import type { VistaDatos } from './datosTipos'
 
@@ -132,6 +133,7 @@ export function menuExportarDatos(v: VistaDatos): React.ReactPortal | null {
   if (!menuExportar) return null
   const items: ContextMenuEntry[] = FORMATOS_EXPORTAR.map((f) => ({
     label: `${NOMBRE_FORMATO[f]}…`,
+    icon: <IconoFormato formato={f} />,
     onClick: () => exportar(v, f)
   }))
   return createPortal(

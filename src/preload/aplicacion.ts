@@ -1,6 +1,7 @@
 // =============================================================================
 // Preload: la aplicación y su ventana: workspace, zoom, cierre, actualización, «Acerca de»
-// e integración con el sistema (menú contextual de Windows y acción rápida del Finder).
+// e integración con el sistema (menú contextual de Windows, acción rápida del Finder y el
+// `.desktop` de Linux).
 // El zoom se aplica aquí, sin IPC, con `webFrame` (rango -3..5).
 // =============================================================================
 import { ipcRenderer, webFrame } from 'electron'
@@ -32,6 +33,11 @@ import {
   type EstadoServicioFinder,
   type ResultadoServicioFinder
 } from '../shared/servicio-finder-ipc'
+import {
+  ESCRITORIO_LINUX_CHANNELS,
+  type EstadoEscritorioLinux,
+  type ResultadoEscritorioLinux
+} from '../shared/escritorio-linux-ipc'
 
 /**
  * Zoom GLOBAL de la UI vía el mecanismo nativo de Electron (webFrame): escala de
@@ -181,6 +187,14 @@ export interface ServicioFinderApi {
   aplicar: (activo: boolean) => Promise<ResultadoServicioFinder>
 }
 
+/** «Abrir con Tessera» en Linux: el `tessera.desktop` propio. Ver `shared/escritorio-linux-ipc.ts`. */
+export interface EscritorioLinuxApi {
+  /** Qué hay instalado ahora mismo. Mira el DISCO. */
+  estado: () => Promise<EstadoEscritorioLinux>
+  /** Instala o borra el `.desktop`; devuelve los fallos en vez de lanzarlos. */
+  aplicar: (activo: boolean) => Promise<ResultadoEscritorioLinux>
+}
+
 export const workspace: WorkspaceApi = {
   openProjectDialog: () => ipcRenderer.invoke(WORKSPACE_CHANNELS.OPEN_PROJECT_DIALOG),
   setActiveProject: (projectHostPath) =>
@@ -261,4 +275,9 @@ export const shellWindows: ShellWindowsApi = {
 export const servicioFinder: ServicioFinderApi = {
   estado: () => ipcRenderer.invoke(SERVICIO_FINDER_CHANNELS.ESTADO),
   aplicar: (activo) => ipcRenderer.invoke(SERVICIO_FINDER_CHANNELS.APLICAR, { activo })
+}
+
+export const escritorioLinux: EscritorioLinuxApi = {
+  estado: () => ipcRenderer.invoke(ESCRITORIO_LINUX_CHANNELS.ESTADO),
+  aplicar: (activo) => ipcRenderer.invoke(ESCRITORIO_LINUX_CHANNELS.APLICAR, { activo })
 }

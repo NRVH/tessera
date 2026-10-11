@@ -148,12 +148,12 @@ check(
 check(
   'secretoOpcional: solo MongoDB y Redis (usuario opcional); nunca un motor desconocido',
   IDS_MOTORES.filter((m) => motoresTdb.secretoOpcional(m)).join(',') === 'mongodb,redis' &&
-    !motoresTdb.secretoOpcional('mysql') &&
+    !motoresTdb.secretoOpcional('db2') &&
     !motoresTdb.secretoOpcional('constructor') &&
     !motoresTdb.secretoOpcional(undefined),
   IDS_MOTORES.map((m) => `${m}=${motoresTdb.secretoOpcional(m)}`).join(' ')
 )
-check('usaOpcional con un motor desconocido: false', !motoresTdb.usaOpcional('mysql', 'instancia') && !motoresTdb.usaOpcional('constructor', 'instancia'), '')
+check('usaOpcional con un motor desconocido: false', !motoresTdb.usaOpcional('db2', 'instancia') && !motoresTdb.usaOpcional('constructor', 'instancia'), '')
 check('TIPO_CAMPO_FORMA igual que el de shared', j(motoresTdb.TIPO_CAMPO_FORMA) === j(TIPO_CAMPO_FORMA), j(motoresTdb.TIPO_CAMPO_FORMA))
 {
   // La MISMA regla de forma en los dos lados, entrada a entrada (la mitad por motor de
@@ -166,7 +166,7 @@ check('TIPO_CAMPO_FORMA igual que el de shared', j(motoresTdb.TIPO_CAMPO_FORMA) 
     { motor: 'sqlite', archivo: 'C:\\d\\a.db' },
     { motor: 'sqlite', archivo: 7 },
     { motor: 'sqlite', host: 'h', port: 1 },
-    { motor: 'mysql', host: 'h', port: 1 },
+    { motor: 'db2', host: 'h', port: 1 },
     { motor: 'constructor', host: 'h', port: 1 },
     { host: 'h', port: 1 },
     // sin usuario ni base es una forma válida; sin puerto, no.
@@ -214,7 +214,7 @@ hr('(4) esMotor: lo mismo que el de shared')
 {
   const VALORES: unknown[] = [
     ...IDS_MOTORES,
-    'mysql',
+    'db2',
     'SQLITE',
     'Oracle',
     ' oracle',
@@ -249,7 +249,7 @@ const CASOS: Array<Pick<DestinoConexion, 'database' | 'sid'>> = [
   {}
 ]
 // Los motores con el destino de red de siempre (SQL Server tiene el suyo: abajo).
-for (const motor of [...IDS_MOTORES.filter((m) => MOTORES[m].conexion.destinoLegible === destinoDeRed), 'mysql']) {
+for (const motor of [...IDS_MOTORES.filter((m) => MOTORES[m].conexion.destinoLegible === destinoDeRed), 'db2']) {
   for (const caso of CASOS) {
     const c: DestinoConexion = { motor, host: 'db.lan', port: 1521, user: 'u', ...caso }
     const t = motoresTdb.destinoLs(c)
@@ -276,6 +276,21 @@ for (const motor of IDS_MOTORES.filter((m) => usaOpcional(MOTORES[m], 'instancia
       const t = motoresTdb.destinoLs(c)
       const esperado = `db.lan:27017/${c.database || ''}`
       check(`${motor} ${j(caso)} = destinoLegible 'ls'`, t === destinoLegible(c, 'ls') && t === esperado, `«${t}» / «${destinoLegible(c, 'ls')}»`)
+    }
+    // Una lista de miembros (`a,b:27018`) va tal cual en las dos copias: el puerto de la conexión no se pega al último.
+    const lista = { motor, host: 'a,b:27018', port: 27017, user: 'u', database: 'app' } as DestinoConexion
+    check(
+      `${motor}: una lista de servidores se escribe tal cual, igual en tdb y en shared`,
+      motoresTdb.destinoLs(lista) === 'a,b:27018/app' && destinoLegible(lista, 'ls') === 'a,b:27018/app' && destinoLegible(lista, 'conUsuario') === 'u@a,b:27018/app',
+      `«${motoresTdb.destinoLs(lista)}» / «${destinoLegible(lista, 'conUsuario')}»`
+    )
+    for (const host of ['db:27018', '[::1]:27018']) {
+      const uno = { motor, host, port: 27017, user: '', database: 'app' } as DestinoConexion
+      check(
+        `${motor}: un host con su puerto (${host}) no lleva pegado el de la conexión, igual en tdb y en shared`,
+        motoresTdb.destinoLs(uno) === `${host}/app` && destinoLegible(uno, 'ls') === `${host}/app`,
+        `«${motoresTdb.destinoLs(uno)}» / «${destinoLegible(uno, 'ls')}»`
+      )
     }
     // La columna USUARIO: el usuario si lo hay; '' (nunca `undefined`) si no.
     const usuarios: Array<[unknown, string]> = [
@@ -389,7 +404,7 @@ interface Respuesta {
   // motor que no es un texto; ahora es TESSERA-MOTOR, como en `tdb.cjs` (que ya exigía un
   // texto) y en el main (`esMotor`). Inalcanzable desde el main, que solo manda motores del
   // registro; se fija para que nadie lo «arregle» de vuelta.
-  const MALOS: unknown[] = ['mysql', 'constructor', 'toString', '__proto__', '', undefined, ['oracle'], 1]
+  const MALOS: unknown[] = ['db2', 'constructor', 'toString', '__proto__', '', undefined, ['oracle'], 1]
   let n = 0
   for (const motor of MALOS) {
     const r = await pedir({ op: 'abrir', sesion: `malo-${n++}`, rol: 'meta', conexion: conexion(motor), secreto: 'x' })

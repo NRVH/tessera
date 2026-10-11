@@ -1,18 +1,24 @@
 // =============================================================================
 // La barra de la consola de Redis: alias, entorno, base y estado a la izquierda; iconos grises
-// a la derecha. Sin transacción, plan ni historial: en la consola no existen (un MULTI se
-// escribe a mano) y un botón apagado para siempre es ruido. Siempre hay selector de base.
+// a la derecha, con el historial como en la consola de MongoDB. Sin transacción ni plan: en la consola no
+// existen (un MULTI se escribe a mano) y un botón apagado para siempre es ruido. Hay selector de base salvo en Cluster.
 // Depende de `documentos/piezasBarra` y de `useBarraConsola`, que llevan lo común con la de MongoDB.
 // =============================================================================
 
 import type { DbConnection } from '../../../../../shared/db-ipc'
 import { etiquetaAcorde, etiquetasAcorde } from '../../../util/atajos'
+import { IconoHistorial } from '../../../comun/iconosMenu'
 import { etiquetaBaseClaves } from '../arbolClaves'
 import { IconoDetener, IconoEjecutar, IconoEjecutarTodo } from '../iconosBd'
 import type { EnCurso } from '../documentos/consolaComun'
 import { BotonBase, BotonCandado, BotonIcono, IdentidadBarra } from '../documentos/piezasBarra'
 import { useBarraConsola, type DatosBarraConsola } from '../documentos/useBarraConsola'
 import { SelectorBaseClaves } from './SelectorBaseClaves'
+
+/** ¿Es una conexión de Redis Cluster? (Solo la base 0.) */
+function esCluster(c: DbConnection): boolean {
+  return c.topologiaRedis?.modo === 'cluster'
+}
 
 interface PropsBarraConsolaClaves {
   conexion: DbConnection
@@ -26,6 +32,9 @@ interface PropsBarraConsolaClaves {
   onDetener: () => void
   onElegirBase: (base: number) => void
   onEditarConexion: () => void
+  /** Abre o cierra el popover del historial (lo pinta el pane). */
+  onHistorial: () => void
+  historialAbierto: boolean
 }
 
 function BotonesEjecucion({ p, b }: { p: PropsBarraConsolaClaves; b: DatosBarraConsola }): React.JSX.Element {
@@ -61,6 +70,20 @@ function BotonesEjecucion({ p, b }: { p: PropsBarraConsolaClaves; b: DatosBarraC
       >
         <IconoDetener />
       </BotonIcono>
+      {/* Un <button> propio por `aria-expanded` y el `mousedown`: sin cortarlo, el «clic fuera»
+          del popover abierto lo cerraría y este clic lo volvería a abrir. */}
+      <button
+        type="button"
+        className={`btn btn-icon db-consola-historial-btn${p.historialAbierto ? ' activo' : ''}`}
+        title={`Historial de comandos · ${etiquetaAcorde('historial')}`}
+        aria-label="Historial de comandos"
+        aria-haspopup="dialog"
+        aria-expanded={p.historialAbierto}
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={p.onHistorial}
+      >
+        <IconoHistorial />
+      </button>
     </>
   )
 }
@@ -72,14 +95,17 @@ function AccionesClaves({ p, b }: { p: PropsBarraConsolaClaves; b: DatosBarraCon
     <div className="panel-actions">
       <BotonesEjecucion p={p} b={b} />
       <span className="panel-actions-sep" aria-hidden="true" />
-      <BotonBase
-        corriendo={b.corriendo}
-        titulo={tituloBase}
-        etiqueta={`Base de la consola: ${nombreBase}`}
-        abierto={b.ancla !== null}
-        botonRef={b.botonBaseRef}
-        onAbrir={b.abrirBase}
-      />
+      {/* En Cluster solo existe la base 0: no hay nada que elegir. */}
+      {!esCluster(p.conexion) && (
+        <BotonBase
+          corriendo={b.corriendo}
+          titulo={tituloBase}
+          etiqueta={`Base de la consola: ${nombreBase}`}
+          abierto={b.ancla !== null}
+          botonRef={b.botonBaseRef}
+          onAbrir={b.abrirBase}
+        />
+      )}
       {p.conexion.readonly && <BotonCandado onEditarConexion={p.onEditarConexion} />}
     </div>
   )
@@ -93,7 +119,10 @@ export function BarraConsolaClaves(p: PropsBarraConsolaClaves): React.JSX.Elemen
   return (
     <div className={`panel-header db-consola-barra${produccion ? ' db-consola-barra-produccion' : ''}`}>
       <IdentidadBarra conexion={p.conexion} estado={b.estado} anunciado={b.anunciado}>
-        <span className="db-consola-dato db-consola-esquema" title={`Base actual: ${nombreBase} (también la cambia «SELECT n»)`}>
+        <span
+          className="db-consola-dato db-consola-esquema"
+          title={esCluster(p.conexion) ? 'Cluster: solo existe la base 0' : `Base actual: ${nombreBase} (también la cambia «SELECT n»)`}
+        >
           {nombreBase}
         </span>
       </IdentidadBarra>

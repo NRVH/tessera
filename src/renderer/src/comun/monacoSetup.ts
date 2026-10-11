@@ -25,6 +25,16 @@ import { buildAtomOneDarkTheme } from './monacoTema'
 export const MONACO_THEME = 'atom-one-dark'
 
 /**
+ * Las barras de Monaco, del mismo ancho que `--sb-size` de `styles.css`, que las pinta como la
+ * pastilla del resto de la app. Quien pase su propio `scrollbar` parte de este objeto, porque
+ * Monaco reemplaza el objeto entero.
+ */
+export const BARRAS_MONACO: monaco.editor.IEditorScrollbarOptions = {
+  verticalScrollbarSize: 12,
+  horizontalScrollbarSize: 12
+}
+
+/**
  * Opciones que comparten todos los editores de la app (solo lo que es igual en todos; el resto
  * lo decide cada pane). `automaticLayout: false` es deliberado: quien use estas opciones debe
  * registrar su propio `ResizeObserver` y llamar a `layout()`, o el editor mide 0×0 y el pane
@@ -32,7 +42,7 @@ export const MONACO_THEME = 'atom-one-dark'
  */
 export const OPCIONES_BASE_MONACO: monaco.editor.IEditorOptions = {
   automaticLayout: false,
-  fontFamily: '"Cascadia Code", "Fira Code", Consolas, "Courier New", monospace',
+  fontFamily: '"Cascadia Code", "Fira Code", Consolas, Menlo, "Courier New", monospace',
   fontSize: 13,
   lineHeight: 20,
   scrollBeyondLastLine: false,
@@ -40,6 +50,9 @@ export const OPCIONES_BASE_MONACO: monaco.editor.IEditorOptions = {
   // en el tema, porque la colorización la lee el modelo y no las opciones del editor.
   guides: { bracketPairs: false, highlightActiveBracketPair: false },
   smoothScrolling: true,
+  scrollbar: BARRAS_MONACO,
+  // Sin la raya que separa la regla de marcas del texto: con ella la barra se lee como dos.
+  overviewRulerBorder: false,
   // Saca los widgets flotantes (buscador, hovers) del contexto de recorte de `.editor-host`.
   fixedOverflowWidgets: true
 }

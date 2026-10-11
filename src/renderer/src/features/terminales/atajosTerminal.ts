@@ -8,7 +8,7 @@
 
 import type { Terminal } from '@xterm/xterm'
 import type { Plataforma } from '../../../../shared/plataforma'
-import { esModPrincipal } from '../../util/atajos.ts'
+import { esAlternarAgente, esModPrincipal } from '../../util/atajos.ts'
 
 /** Lo que los atajos disparan sobre el pane. */
 export interface AccionesAtajos {
@@ -81,6 +81,10 @@ export function crearManejadorAtajos(
 ): (e: KeyboardEvent) => boolean {
   return (e) => {
     if (e.type !== 'keydown') return true
+    // El acorde del agente lo atiende el oyente de la ventana. Fuera de Windows y macOS xterm
+    // lo tomaría por Alt+Ctrl+B, mandaría ESC ^B al pty y CANCELARÍA el evento antes de que
+    // llegue; devolver false lo deja subir sin tocarlo.
+    if (esAlternarAgente(e, plataforma)) return false
     const mod = esModPrincipal(e, plataforma)
     return (
       atajoBuscar(e, mod, acc) ??

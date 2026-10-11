@@ -519,7 +519,7 @@ function main(): void {
     // Antes: Oracle admitía cursor y rownum; PG solo limitOffset. Ahora lo dice
     // `sesion.paginado.admitidas`; la matriz entera, con el mensaje exacto del rechazo.
     // (SQLite no entra en la matriz de «antes»: sus formas las fija su propio test.)
-    const antes: Record<DialectoSql, readonly string[]> = { oracle: ['cursor', 'rownum'], postgres: ['limitOffset'], sqlite: ['keyset', 'limitOffset'], sqlserver: ['offsetFetch'] }
+    const antes: Record<DialectoSql, readonly string[]> = { oracle: ['cursor', 'rownum'], postgres: ['limitOffset'], sqlite: ['keyset', 'limitOffset'], sqlserver: ['offsetFetch'], mysql: ['limitOffset'] }
     const malas: string[] = []
     for (const d of ['oracle', 'postgres'] as const) {
       for (const forma of ['cursor', 'rownum', 'limitOffset', 'otra'] as const) {
@@ -775,7 +775,12 @@ function main(): void {
     const ks1 = ok(construirConsultaTabla({ dialecto: 'sqlite', objeto: SQ, forma: 'keyset', n: 11, clave: { tipo: 'rowid', alias: 'rowid' }, filtro: F }))
     check('keyset primera página: `LIMIT ?3`', ks1.sql.endsWith('\nORDER BY rowid\nLIMIT ?3') && J(ks1.binds).endsWith(',11]'), ks1.sql)
     const ksO = ok(construirConsultaTabla({ dialecto: 'sqlite', objeto: SQ, forma: 'keyset', n: 11, desde: 10, clave: { tipo: 'rowid', alias: 'rowid' }, orden: O, filtro: F }))
-    check('keyset con orden de la cabecera: cae a LIMIT/OFFSET `?3`/`?4`, sin clave', ksO.sql.endsWith('ORDER BY "SUELDO" DESC, "ID" ASC\nLIMIT ?3 OFFSET ?4') && !ksO.columnasClave && J(ksO.binds).endsWith(',11,10]'), ksO.sql)
+    check('keyset con orden de la cabecera: cae a LIMIT/OFFSET `?3`/`?4`, sin clave', ksO.sql.endsWith('ORDER BY "main"."emp"."SUELDO" DESC, "main"."emp"."ID" ASC\nLIMIT ?3 OFFSET ?4') && !ksO.columnasClave && J(ksO.binds).endsWith(',11,10]'), ksO.sql)
+    check(
+      'SQLite: las columnas del filtro y del orden van con su tabla (a secas, una que no existe sería un texto)',
+      /WHERE \(\n.*"main"\."emp"\."[A-Z]+"/.test(ksO.sql) && !/[^.]"SUELDO" DESC/.test(ksO.sql),
+      ksO.sql
+    )
 
     // Conteo: el filtro sí, el orden no.
     const cnt = ok(construirConteo({ dialecto: 'postgres', objeto: PG, filtro: F, orden: O }))

@@ -186,6 +186,7 @@ export function adaptadorArchivo(
     case 'oracle':
     case 'postgres':
     case 'sqlserver':
+    case 'mysql':
     case 'mongodb':
     case 'redis':
       return null

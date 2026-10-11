@@ -4,15 +4,7 @@
 // diff, metadatos del editor, motivo del oculto del agente, hook de pestañas). Lo que
 // solo compone App.tsx está en `app.ts` (docs/decisiones/renderer/barriles-sin-ciclos.md).
 // =============================================================================
-export {
-  useStoreEditor,
-  subirTokens,
-  setTabDirty,
-  setTabBorrado,
-  setModoVistaPane,
-  setPaneMeta,
-  type EstadoEditor
-} from './store'
+export { useStoreEditor, subirTokens, type EstadoEditor } from './store'
 export type { EditorApp, OpcionesApertura } from './useEditorApp'
 export { editorTargetKey } from './editorTabsModel'
 export type { OpenFile, CenterPane, MotivoCcOculto } from './centerPane'

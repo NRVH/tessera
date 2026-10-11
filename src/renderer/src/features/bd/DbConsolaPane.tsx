@@ -173,6 +173,7 @@ export function DbConsolaPane(props: DbConsolaPaneProps): React.JSX.Element {
 
       <Splitter
         orientation="horizontal"
+        className="splitter-hueco"
         size={sec.altoEfectivo}
         min={MIN_RESULTADOS}
         max={sec.maxResultados}
@@ -190,6 +191,7 @@ export function DbConsolaPane(props: DbConsolaPaneProps): React.JSX.Element {
           perfilId={perfilId}
           conexion={conexion}
           ancla={sec.anclaHistorial}
+          lenguaje="sql"
           onInsertar={c.insertarSql}
           onCerrar={c.cerrarHistorial}
         />

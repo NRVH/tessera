@@ -7,9 +7,10 @@
 
 import type { DbDocResultado } from '../../../../../shared/db-documentos-ipc.ts'
 import { cantidad } from '../consola/salidaConsola.ts'
+import { insercionConTerminador, type ContextoCursor, type Insercion } from '../consola/historialConsola.ts'
 
 /** Qué cerró la sentencia. */
-export type TerminadorShell = 'puntoYComa' | 'lineaEnBlanco' | 'finDeTexto'
+export type TerminadorShell = 'puntoYComa' | 'lineaEnBlanco' | 'finDeLinea' | 'finDeTexto'
 
 export interface SentenciaShell {
   /** Posición (0..n-1) dentro del resultado de la división. */
@@ -165,19 +166,52 @@ function finRegex(e: EstadoDivisor, i: number): number {
 
 // Cada paso devuelve el índice por donde sigue el recorrido, o -1 si no le toca.
 
-/** Un salto: si a profundidad 0 va seguido de una línea en blanco, cierra la sentencia abierta. */
+/**
+ * Las órdenes del shell que ocupan su línea entera (`use x`, `show dbs`): no son JavaScript, así que el salto
+ * las termina y una línea que sigue (`use x⏎db.c.find()`) es otra sentencia. El argumento empieza como un
+ * nombre: `show (x)` o `use [a]` son JavaScript y siguen.
+ */
+const ORDEN_DE_LINEA = /^(?:use|show)[ \t]+[\w$-][^\s;]*$/
+
+/** ¿Es `[desde, hasta)` una orden de línea? Mira el prefijo antes de copiar: el divisor pasa por cada salto. */
+function esOrdenDeLinea(texto: string, desde: number, hasta: number): boolean {
+  if (!texto.startsWith('use', desde) && !texto.startsWith('show', desde)) return false
+  return ORDEN_DE_LINEA.test(texto.slice(desde, hasta))
+}
+
+/** La línea que empieza en `j`, sin los blancos ni el comentario `//` de detrás: `[desde, hasta)`. */
+function lineaDesde(e: EstadoDivisor, j: number): { desde: number; hasta: number } {
+  while (j < e.fin && esBlanco(e.texto[j])) j++
+  let k = j
+  while (k < e.fin && !esSalto(e.texto[k]) && !e.texto.startsWith('//', k)) k++
+  let hasta = k
+  while (hasta > j && esBlanco(e.texto[hasta - 1])) hasta--
+  return { desde: j, hasta }
+}
+
+/**
+ * Un salto: a profundidad 0 cierra la sentencia abierta si es una orden de línea, si la línea que sigue lo es
+ * (una orden no continúa a la anterior) o si va seguido de una línea en blanco.
+ */
 function pasoSalto(e: EstadoDivisor, i: number): number {
   const c = e.texto[i]
   if (!esSalto(c)) return -1
-  if (e.pila.length === 0 && e.inicio >= 0) {
-    let j = i + (c === '\r' && e.texto[i + 1] === '\n' ? 2 : 1)
-    while (j < e.fin && esBlanco(e.texto[j])) j++
-    if (j < e.fin && esSalto(e.texto[j])) {
-      cerrar(e, e.ultimo, 'lineaEnBlanco')
-      return j
-    }
+  const siguiente = i + (c === '\r' && e.texto[i + 1] === '\n' ? 2 : 1)
+  if (e.pila.length !== 0 || e.inicio < 0) return i + 1
+  const l = lineaDesde(e, siguiente)
+  if (esOrdenDeLinea(e.texto, e.inicio, e.ultimo) || esOrdenDeLinea(e.texto, l.desde, l.hasta)) {
+    cerrar(e, e.ultimo, 'finDeLinea')
+    return siguiente
   }
-  return i + 1
+  return cerrarSiLineaEnBlanco(e, siguiente) ?? i + 1
+}
+
+/** Si tras el salto (en `j`) viene una línea en blanco, cierra la sentencia y devuelve por dónde seguir. */
+function cerrarSiLineaEnBlanco(e: EstadoDivisor, j: number): number | null {
+  while (j < e.fin && esBlanco(e.texto[j])) j++
+  if (j >= e.fin || !esSalto(e.texto[j])) return null
+  cerrar(e, e.ultimo, 'lineaEnBlanco')
+  return j
 }
 
 function pasoBlanco(e: EstadoDivisor, i: number): number {
@@ -309,7 +343,8 @@ function avanzar(e: EstadoDivisor, i: number): number {
  * Divide el texto de la consola en sentencias del shell. Con `rango` (una selección) se
  * parte SOLO ese tramo, como texto independiente, pero los offsets siguen siendo del
  * texto entero (los del modelo de Monaco). Corta en `;` a profundidad 0 y en una línea en
- * blanco a profundidad 0; un salto suelto no corta (`db.c.find()\n  .limit(5)` es una).
+ * blanco a profundidad 0; un salto suelto no corta (`db.c.find()\n  .limit(5)` es una), salvo tras
+ * una orden de línea (`use x`, `show dbs`).
  * Lo que se envía empieza en el primer carácter de código y acaba en el último.
  */
 export function dividirSentenciasShell(texto: string, rango?: { desde: number; hasta: number }): SentenciaShell[] {
@@ -353,6 +388,19 @@ export function sentenciaShellEnCursor(
   if (previa && !haySalto(texto, previa.hasta, cursor)) return previa
   if (siguiente && !haySalto(texto, cursor, siguiente.desde)) return siguiente
   return null
+}
+
+/**
+ * El texto que inserta el historial (INSERTA, no sustituye), con las reglas de la consola SQL
+ * (`insercionHistorial`): en su propia línea si el cursor tiene texto a los lados y TERMINADA,
+ * con `;` salvo una orden de línea (`use x`, `show dbs`), que la cierra el salto.
+ */
+export function insercionHistorialShell(texto: string, ctx: ContextoCursor, eol: '\n' | '\r\n' = '\n'): Insercion {
+  const cuerpo = texto.replace(/^\s+|\s+$/g, '')
+  const ss = dividirSentenciasShell(cuerpo)
+  const ultima = ss.length > 0 ? ss[ss.length - 1] : null
+  const abierta = ultima !== null && ultima.terminador === 'finDeTexto' && !esOrdenDeLinea(cuerpo, ultima.desde, ultima.hastaContenido)
+  return insercionConTerminador(cuerpo, abierta ? ';' : '', ctx, eol)
 }
 
 /** Lo que envía Ejecutar según el modo. Una selección vacía cuenta como cursor. */
@@ -410,6 +458,8 @@ export function textoResultadoDocs(r: DbDocResultado): string {
     }
     case 'valor':
       return 'Valor devuelto'
+    case 'plan':
+      return 'Plan de ejecución'
     case 'escritura':
       return resumenEscritura(r)
     case 'base':

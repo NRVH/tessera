@@ -9,7 +9,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { existsSync, renameSync, rmSync } from 'node:fs'
-import { open, readdir, rm, stat } from 'node:fs/promises'
+import { open, readFile, readdir, rm, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import type { Plataforma } from '../../../shared/plataforma.ts'
@@ -117,6 +117,24 @@ export class ClavesImportadas {
   async soltada(ruta: string, profileId: string): Promise<SshClaveElegida> {
     if (typeof ruta !== 'string' || ruta === '') throw new ErrorClave('Ese elemento no es un archivo del equipo.')
     return this.importar(ruta, profileId)
+  }
+
+
+  /**
+   * La copia de la clave de una conexión, para su duplicada: una copia provisional nueva (protegida) del
+   * contenido ya importado, con su ficha, que `instalar` pone en `ssh/claves/<id>` al guardar la duplicada.
+   */
+  async duplicada(origenId: string, profileId: string, clave: { nombre: string; tipo: string; cifrada: boolean }): Promise<SshClaveElegida> {
+    let texto: string
+    try {
+      texto = await readFile(this.rutaDe(origenId), 'utf8')
+    } catch (e) {
+      throw new ErrorClave(`No se encuentra la copia de la clave «${clave.nombre}»: edita la conexión y vuelve a elegir el archivo.`, { cause: e })
+    }
+    const provisional = await this.copiaProtegida(texto)
+    const tipo = clave.tipo === '' ? null : clave.tipo
+    const token = this.fichas.emitir({ ruta: provisional, nombre: clave.nombre, tipo, cifrada: clave.cifrada, profileId })
+    return { token, nombre: clave.nombre, tipo, cifrada: clave.cifrada }
   }
 
   /** La copia de la clave de una conexión. */

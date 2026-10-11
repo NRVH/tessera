@@ -1,7 +1,7 @@
 # La banda de perfiles es una fila hermana de la barra de título y pinta el color cenizo
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/features/pestanas/ProfileTabs.tsx` (y sus piezas), `features/layout/TabsBar.tsx`, `styles.css` (`.tabs-profiles`)
+- **Ámbito:** `src/renderer/src/features/pestanas/ProfileTabs.tsx` y `SelectorPerfil.tsx` (y sus piezas), `features/layout/TabsBar.tsx`, `styles.css` (`.tabs-profiles`, `.selector-perfil`)
 
 ## Contexto
 
@@ -18,9 +18,15 @@ Con colores puros, cinco pestañas se volvían una guirnalda que competía con e
   de la ventana (`-webkit-app-region: drag`) es solo `.titlebar`: dentro de ella Windows trata la
   zona como área no cliente y se come los eventos de ratón, y dejarían de responder el arrastre para
   reordenar, el menú contextual y el renombrado inline.
-- Cada pestaña ocupa `flex: 1` (1 perfil = todo, N = 1/N). Lo que cuelga de la banda desaparece al
-  colapsarla (`names-hidden`), así que nada que deba verse siempre (p. ej. el aviso de
-  actualización) va dentro de ella.
+- Cada pestaña ocupa `flex: 1` (1 perfil = todo, N = 1/N). Lo que cuelga de la banda desaparece en
+  el modo minimalista, así que nada que deba verse siempre (p. ej. el aviso de actualización) va
+  dentro de ella.
+- **Modo minimalista de perfiles** (ajuste de Apariencia): la banda no se monta y su sitio lo ocupa
+  `SelectorPerfil`, una pastilla en `.titlebar` (con `no-drag`, como los demás controles de esa
+  barra) con el punto y el nombre del perfil activo; la lista de perfiles sale al pulsarla. Usa el
+  mismo estado que la banda (`useBandaPerfiles`) y las mismas capas (`CapasPerfil`): crear,
+  renombrar (en la propia lista), color, red, hibernar y eliminar son las mismas piezas. Sustituye
+  al viejo modo colapsado, que dejaba una tira de color por perfil: mucho color para decir poco.
 - El color se PINTA cenizo con `tintaPerfil` (mismo matiz, menos intensidad): lo que protege de
   operar en el perfil equivocado es el matiz, no el grito. Lo guardado en `profiles.json` es siempre
   el color elegido, que es el que ve el `<input type="color">`.

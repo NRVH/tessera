@@ -6,7 +6,7 @@
 // Decisiones: docs/decisiones/bd/ui-datos-pestana.md
 // =============================================================================
 
-import { MAX_COLUMNAS_ORDEN } from '../../../../../shared/filtroGuiado'
+import { MAX_COLUMNAS_ORDEN, sinComparacion } from '../../../../../shared/filtroGuiado'
 import type { DbFormatoFilas, DbRespuesta, DbValor } from '../../../../../shared/db-explorador-ipc'
 import { dialectoDeMotor } from '../../../../../shared/sql/dialectosSql'
 import { nombreCalificado } from '../../../../../shared/sql/identificadoresSql'
@@ -54,7 +54,7 @@ export function volverAEjecutar(v: VistaDatos): void {
 /** Clic en la cabecera: `ciclarOrden` por NOMBRE y a consultar con el filtro APLICADO. */
 export function ordenar(v: VistaDatos, columna: number, multiple: boolean): void {
   const col = v.d.columnasVisibles[columna]
-  if (!col) return
+  if (!col || sinComparacion(v.props.conexion.motor, col.tipoMotor)) return
   const nuevo = ciclarOrden(v.n.aplicadoRef.current.orden, col.nombre, multiple)
   if (nuevo.length > MAX_COLUMNAS_ORDEN) {
     notify('warn', `Se ordena por hasta ${MAX_COLUMNAS_ORDEN} columnas`)
@@ -63,12 +63,20 @@ export function ordenar(v: VistaDatos, columna: number, multiple: boolean): void
   conDescarte(v.n, () => void v.a.consultar({ ...v.n.aplicadoRef.current, orden: nuevo }))
 }
 
+/**
+ * Consulta sin orden. Es la salida de un orden que el servidor rechaza (una columna borrada): sin
+ * resultado no hay cabecera en la que quitarlo.
+ */
+export function quitarOrden(v: VistaDatos): void {
+  conDescarte(v.n, () => void v.a.consultar({ ...v.n.aplicadoRef.current, orden: [] }))
+}
+
 /** Esc en la barra guiada: vuelve a lo último aplicado que funcionó. */
 export function restaurarGuiado(v: VistaDatos): void {
   v.n.setGuiadoTxt(v.n.aplicadoRef.current.guiado)
   v.n.setErrorGuiado(null)
-  const campo = v.e.errorCampo?.campo
-  if (campo === 'filtro' || campo === 'orderBy') v.n.setErrorCampo(null)
+  // El error del ORDEN se queda: lleva «Quitar el orden», que sin resultado es la única salida.
+  if (v.e.errorCampo?.campo === 'filtro') v.n.setErrorCampo(null)
 }
 
 /** Intro aplica; Esc devuelve el WHERE a lo último que funcionó (sin nada que deshacer, sigue). */
@@ -81,7 +89,8 @@ export function teclaWhere(v: VistaDatos, e: React.KeyboardEvent<HTMLInputElemen
   }
   if (e.key !== 'Escape') return
   const restaurado = v.e.aplicado.where
-  const conError = v.e.errorCampo?.campo === 'where' || v.e.errorCampo?.campo === 'orderBy'
+  // El del ORDEN no: lleva su salida, «Quitar el orden».
+  const conError = v.e.errorCampo?.campo === 'where'
   if (v.e.whereTxt === restaurado && !conError) return
   e.preventDefault()
   v.n.setWhereTxt(restaurado)
@@ -130,7 +139,9 @@ export function copiarTodo(v: VistaDatos): void {
 
 export function abrirConsola(v: VistaDatos): void {
   const { conexion, objeto, onAbrirConsola } = v.props
-  onAbrirConsola(conexion.id, consultaParaConsola(objeto, conexion.motor))
+  // Con base (nivel «Bases»), la consola nace en ella: lo que se escriba después corre allí.
+  const base = objeto.base !== undefined ? { familia: 'sql' as const, esquema: objeto.base } : undefined
+  onAbrirConsola(conexion.id, consultaParaConsola(objeto, conexion.motor), base)
 }
 
 /** Exporta la tabla ENTERA con el filtro APLICADO; los INSERT van a la tabla REAL calificada. */

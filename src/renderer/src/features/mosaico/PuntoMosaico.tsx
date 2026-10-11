@@ -11,7 +11,8 @@ export function PuntoMosaico({
   color,
   enMarcha = true,
   trabajando,
-  sinVer
+  sinVer,
+  esperando = false
 }: {
   /** Tinta del perfil, o null si no tiene color asignado. */
   color: string | null
@@ -19,8 +20,11 @@ export function PuntoMosaico({
   enMarcha?: boolean
   trabajando: boolean
   sinVer: boolean
+  /** Te espera: un anillo parpadea alrededor. Gana a los demás. */
+  esperando?: boolean
 }): React.JSX.Element {
   const c = color ?? 'var(--azul)'
+  const halo = sinVer && !trabajando && !esperando
   if (!enMarcha) {
     return (
       <span className="punto-mosaico vacio" style={{ boxShadow: `inset 0 0 0 1.5px ${c}` }} aria-hidden="true" />
@@ -28,9 +32,9 @@ export function PuntoMosaico({
   }
   return (
     <span
-      className={`punto-mosaico${trabajando ? ' working' : ''}${sinVer && !trabajando ? ' attention' : ''}`}
-      // `color` inline alimenta el currentColor del latido (animación CSS) y del halo.
-      style={{ background: c, color: c, ...(sinVer && !trabajando ? { boxShadow: `0 0 6px 1px ${c}` } : {}) }}
+      className={`punto-mosaico${esperando ? ' esperando' : trabajando ? ' working' : halo ? ' attention' : ''}`}
+      // `color` inline alimenta el currentColor del latido y del anillo (animaciones CSS) y del halo.
+      style={{ background: c, color: c, ...(halo ? { boxShadow: `0 0 6px 1px ${c}` } : {}) }}
       aria-hidden="true"
     />
   )

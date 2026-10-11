@@ -31,6 +31,11 @@ SCAN no promete nada: puede devolver una clave dos veces y vueltas vacías a med
   al desmontaje del lateral y a «Refrescar». Con comodines va tal cual; sin ellos se busca el
   texto en cualquier parte (`*texto*`). Un prefijo literal se escapa (`escaparGlob`): `cache:[v2]:`
   sin escapar es una clase de caracteres y casaría claves ajenas.
+- **El tipo se filtra aparte del patrón** (`SCAN … TYPE`, Redis 6+), también por base y en la caché: cambiar el
+  tipo tira lo recorrido igual que cambiar el patrón, y cada vuelta lo lleva. Se elige en el menú de la base
+  (una casilla por tipo, la activa lleva marca) y la fila de la base enseña su chip. Un servidor sin `TYPE` da su
+  error en la carga, con su «Reintentar». La fila de una clave enseña su chip de tipo y, si caduca, su TTL en una
+  sola unidad (`ttlCorto`: el de cuando se listó, no una cuenta atrás).
 - **Identidad = base64.** Lo que vuelve al main para pedir una clave es siempre su base64, nunca el
   texto pintado (`pintarBytes` solo enseña).
 

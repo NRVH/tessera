@@ -36,6 +36,9 @@ export { MENSAJE_FORMATO_FIJADO, MENSAJE_VACUUM_INTO, formatoFijadoPorTessera, p
  */
 export function clasificar(tokens: readonly Token[], d: DialectoSql, texto?: string): Clasificacion {
   const v = crearVista(tokens, d, texto)
+  // MySQL: lo de dentro de un `/*!…*/` se ejecuta y el clasificador no lo ve como sentencia: la
+  // que lo lleva no se puede comprobar (nunca pasa en solo lectura y pide confirmar en producción).
+  if (v.r.comentarioEjecutable && tokens.some((t) => t.ejecutable === true)) return base('/*!…*/')
   const t0 = v.t[0]
   if (!t0) return base('')
   // T-SQL: la unidad entera, no su primera palabra.

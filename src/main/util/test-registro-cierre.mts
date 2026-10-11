@@ -14,9 +14,10 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, wri
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { conTope, type RelojTope } from './esperas.ts'
+import { conTope, conTopeSinAvance, type RelojTope } from './esperas.ts'
 import {
   CronometroCierre,
+  TOPE_DOCKER_MS,
   TOPE_VACIAR_CONSOLAS_MS,
   TOPE_WORKSPACE_MS,
   initLogCierre,
@@ -95,6 +96,11 @@ async function main(): Promise<void> {
       TOPE_VACIAR_CONSOLAS_MS === 5000 && TOPE_WORKSPACE_MS === 5000,
       `${TOPE_VACIAR_CONSOLAS_MS}/${TOPE_WORKSPACE_MS}`
     )
+    check(
+      'el tope TOTAL de Docker: 30 s, por debajo de lo que espera UNA sola orden colgada (2 min)',
+      TOPE_DOCKER_MS === 30_000 && TOPE_DOCKER_MS < 120_000,
+      String(TOPE_DOCKER_MS)
+    )
   }
 
   // -------------------------------------------------------------------------------------
@@ -159,6 +165,52 @@ async function main(): Promise<void> {
     await conTope(Promise.resolve(), 60_000)
     const despues = timeouts()
     check('reloj real: al llegar, no queda el temporizador de 60 s vivo', despues === antes, `${antes} -> ${despues}`)
+
+    // conTopeSinAvance: el plazo vuelve a contar con cada avance; tras el tope, avanzar dice false.
+    const r6 = relojFalso()
+    let avanzar6: () => boolean = () => false
+    let acabar6: () => void = () => undefined
+    const e6 = conTopeSinAvance((av) => {
+      avanzar6 = av
+      return new Promise<void>((res) => (acabar6 = res))
+    }, 1000, r6)
+    const avanzo = avanzar6()
+    const puestosTrasAvance = r6.puestos
+    acabar6()
+    check(
+      'sin avance: avanzar reinicia el plazo (quita y pone) y llega a tiempo',
+      avanzo && puestosTrasAvance === 2 && (await e6.desenlace) === 'a-tiempo',
+      `${r6.puestos} puesto(s), ${r6.quitados} quitado(s)`
+    )
+    const r7 = relojFalso()
+    let avanzar7: () => boolean = () => false
+    let acabar7: () => void = () => undefined
+    const e7 = conTopeSinAvance((av) => {
+      avanzar7 = av
+      return new Promise<void>((res) => (acabar7 = res))
+    }, 1000, r7)
+    r7.disparar()
+    const v7 = await e7.desenlace
+    const tarde = avanzar7()
+    acabar7()
+    await e7.trabajo
+    check('sin avance: colgado sale por tope, avanzar tardío dice false, y el trabajo se puede esperar aparte', v7 === 'tope' && !tarde, `${v7}, tarde=${tarde}`)
+    const r8 = relojFalso()
+    let rechazar8: (e: Error) => void = () => undefined
+    const e8 = conTopeSinAvance(() => new Promise<void>((_, rej) => (rechazar8 = rej)), 1000, r8)
+    r8.disparar()
+    await e8.desenlace
+    rechazar8(new Error('tarde'))
+    await e8.trabajo
+    await vaciarMicro()
+    check('sin avance: un fallo tras el tope no sale como unhandledRejection, y el trabajo no rechaza', noAtendidos.length === 0, `${noAtendidos.length} sin atender`)
+    let visto9: unknown = null
+    try {
+      await conTopeSinAvance(() => Promise.reject(err), 1000, relojFalso()).desenlace
+    } catch (e) {
+      visto9 = e
+    }
+    check('sin avance: un fallo a tiempo se relanza', visto9 === err, String(visto9))
     process.off('unhandledRejection', alNoAtendido)
   }
 
@@ -355,10 +407,10 @@ async function main(): Promise<void> {
       'refs.vigilanteTurnos?.disposeAll()',
       'refs.agentesNativos?.parar()',
       'stopAutoUpdate()',
+      'forceKillPtys()',
       'stopAllContainers(',
       'esperar(450)',
       'planDeCierre()',
-      'forceKillPtys()',
       'runInstaller(',
       'openInstallerManually()',
       'reanudarTrasCierreAbortado()',
@@ -384,9 +436,9 @@ async function main(): Promise<void> {
       "sincrona('turnos'",
       "sincrona('agentes-nativos'",
       "sincrona('auto-update'",
+      "'cerrar-ptys'",
       "etapa('docker'",
       "etapa('pausa-listo'",
-      "'forzar-ptys'",
       "etapa('instalador'",
       "etapa('abrir-instalador'"
     ]
@@ -399,7 +451,7 @@ async function main(): Promise<void> {
       ["'vaciar-consolas'", 'vaciarConsolas('],
       ["etapa('workspace-state'", 'flushWorkspaceState()'],
       ["etapa('sesiones-bd'", 'cerrarTodo('],
-      ["etapa('docker'", 'stopAllContainers('],
+      ["etapa('docker'", 'empezar, notaSinAvance(TOPE_DOCKER_MS)'],
       ["etapa('pausa-listo'", 'esperar(450)'],
       ["etapa('instalador'", 'runInstaller('],
       ["etapa('abrir-instalador'", 'openInstallerManually()']
@@ -410,11 +462,35 @@ async function main(): Promise<void> {
       return a < 0 || b < 0 || b - a > 200
     })
     check('cada llamada asíncrona va dentro de su etapa', sueltas.length === 0, sueltas.length ? sueltas.map(([e]) => e).join(', ') : `${pares.length} pares`)
+    {
+      // Si el proceso muere a mitad del cierre, la actualización la sigue el relevo: tiene que
+      // estar lanzado ANTES de matar terminales y contenedores, y después de la pregunta de salida.
+      const iCerrando = cuerpo.indexOf('refs.cerrando = true')
+      const iRelevo = cuerpo.indexOf("sincrona('relevo', () => anticiparRelevo()")
+      const iParar = cuerpo.indexOf('forceKillPtys()')
+      check(
+        'el relevo se lanza al empezar el cierre: tras la pregunta de salida y antes de parar nada',
+        iCerrando > 0 && iRelevo > iCerrando && iParar > iRelevo,
+        JSON.stringify({ iCerrando, iRelevo, iParar })
+      )
+    }
     check(
       'las dos esperas de disco llevan tope',
       /conTope\(refs\.explorador\?\.vaciarConsolas\(win, ACUSE_VACIADO_MS\), TOPE_VACIAR_CONSOLAS_MS\)/.test(cuerpo) &&
         /conTope\(flushWorkspaceState\(\), TOPE_WORKSPACE_MS\)/.test(cuerpo),
       'vaciarConsolas y flushWorkspaceState'
+    )
+    check(
+      'la etapa de Docker lleva tope SIN AVANZAR, y su progreso pasa por `avanzar` (lo tardío no llega al overlay)',
+      /conTopeSinAvance\(\(avanzar\) => sandbox\.stopAllContainers\(progresoCon\(avanzar\)\), TOPE_DOCKER_MS\)/.test(cuerpo) &&
+        /if \(!avanzar\(\)\) return\s*\n\s*send\(p\)/.test(cuerpo),
+      'stopAllContainers'
+    )
+    const iPendiente = cuerpo.indexOf("etapa('docker-pendiente'")
+    check(
+      'plan C: espera a la limpieza de Docker que siguió tras el tope ANTES de devolver la app',
+      iPendiente > 0 && iPendiente < cuerpo.indexOf('refs.cerrando = false', iPendiente) && cuerpo.indexOf('reanudarTrasCierreAbortado()') > iPendiente,
+      String(iPendiente)
     )
     check('el progreso de Docker sigue llegando al overlay y deja su hito', /send\(p\)\s*\n\s*cierre\.hito\('docker', textoProgreso\(p\)\)/.test(cuerpo), 'send(p) y luego el hito')
     const arranque = leerMain('../app/arranque.ts')

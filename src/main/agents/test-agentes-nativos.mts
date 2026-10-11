@@ -20,6 +20,7 @@ import {
   raizCodexDesdeRuta,
   raizCodexDesdeShim,
   urlDistTags,
+  urlVersionNpm,
   versionCaskBrew,
   type InfoSesionNativa
 } from './agentesNativos.ts'
@@ -135,8 +136,22 @@ const EXE_PNPM = `${PNPM.plat}\\vendor\\x86_64-pc-windows-msvc\\bin\\codex.exe`
 const MAC_CASK = '/opt/homebrew/Caskroom/codex/0.156.0/bin/codex'
 const MAC_FORMULA = '/opt/homebrew/Cellar/codex/0.156.0/bin/codex'
 
+/** URL del documento de una versión de `@openai/codex` en el registro por defecto. */
+const urlDocCodex = (version: string): string => `https://registry.npmjs.org/@openai%2fcodex/${version}`
+/** El documento que sirve el registro para una versión ya publicada. */
+const docVersion = (version: string): string =>
+  JSON.stringify({ name: '@openai/codex', version, dist: { tarball: `https://registry.npmjs.org/@openai/codex/-/codex-${version}.tgz` } })
+/** Los documentos de los binarios de Windows x64 y Mac arm64 de `version`. */
+function docsBinarios(version: string): Record<string, string> {
+  return Object.fromEntries(
+    [`${version}-win32-x64`, `${version}-darwin-arm64`].map((v) => [urlDocCodex(v), docVersion(v)])
+  )
+}
+
 function redPorDefecto(): Record<string, string | Error> {
   return {
+    ...docsBinarios('0.156.1'),
+    ...docsBinarios('0.157.0'),
     [URL_TAGS_CODEX]: JSON.stringify({
       latest: '0.156.1',
       'win32-x64': '0.156.1-win32-x64',
@@ -1069,6 +1084,112 @@ for (const [nombre, respuesta] of [
     JSON.stringify(m.pasos.filter((p) => p.startsWith('red:')))
   )
 }
+
+// =============================================================================
+hr('(10b) Binario de la plataforma aún sin servir, y reparar un Codex que no responde')
+// =============================================================================
+for (const plataforma of ['windows', 'mac'] as const) {
+  const suf = plataforma === 'windows' ? 'win32-x64' : 'darwin-arm64'
+  const equipo = plataforma === 'windows' ? 'tu Windows' : 'tu Mac'
+  const urlDoc = urlDocCodex(`0.156.1-${suf}`)
+  {
+    // El dist-tag ya apunta al binario, pero su documento aún da 404.
+    const { m, svc } = crearMundo({ plataforma, red: { [urlDoc]: new Error('HTTP 404') } })
+    const e = await svc.comprobar()
+    check(
+      `(10b1·${plataforma}) dist-tag puesto y documento en 404 -> NO se ofrece y queda «pendiente»`,
+      e.codex.ultima === '0.156.1' && !e.codex.hayNueva && e.codex.binarioPendiente && !e.codex.reparar && m.pasos.includes(`red:${urlDoc}`),
+      JSON.stringify({ ultima: e.codex.ultima, nueva: e.codex.hayNueva, pendiente: e.codex.binarioPendiente })
+    )
+    const r = await svc.instalar({ agente: 'codex', detener: ['s1'] })
+    check(
+      `(10b2·${plataforma}) …instalar: 'sin-version', «aún no está lista para ${equipo}», sin orden ni paradas`,
+      r.motivo === 'sin-version' &&
+        (r.detalle ?? '').includes(`aún no está lista para ${equipo}`) &&
+        !m.llamadas.some((c) => c.startsWith('npm install') || c === 'codex update') &&
+        m.detenerPedidos.length === 0,
+      String(r.detalle)
+    )
+  }
+  {
+    // El registro responde, pero con el documento de OTRA versión (el del paquete principal).
+    const { svc } = crearMundo({ plataforma, red: { [urlDoc]: docVersion('0.156.1') } })
+    const e = await svc.comprobar()
+    check(`(10b3·${plataforma}) documento de otra versión -> no servido`, !e.codex.hayNueva && e.codex.binarioPendiente, JSON.stringify({ nueva: e.codex.hayNueva }))
+  }
+  {
+    // El caso real: la orden termina bien, npm saltó el binario opcional y Codex no arranca.
+    let llamadas = 0
+    const ordenes: string[] = []
+    const { m, svc } = crearMundo({
+      plataforma,
+      orden: (cmd) => {
+        ordenes.push(cmd)
+        llamadas++
+        m.ver.codex = llamadas === 1 ? null : '0.156.1'
+        return ok('added 1 package in 3s')
+      }
+    })
+    await svc.comprobar()
+    const r1 = await svc.instalar({ agente: 'codex', detener: [] })
+    check(
+      `(10b4·${plataforma}) la orden sale bien y Codex no responde -> fallo que lo dice y ofrece «Reparar Codex»`,
+      !r1.ok && r1.despues === null && (r1.detalle ?? '').includes('sin responder') && (r1.detalle ?? '').includes('Reparar Codex') && (r1.detalle ?? '').includes(equipo),
+      String(r1.detalle)
+    )
+    const e1 = svc.estado().codex
+    check(
+      `(10b5·${plataforma}) …justo después no se vuelve a ofrecer a ciegas: reparar, pero pendiente de que el registro lo sirva`,
+      e1.instalada === null && e1.reparar && !e1.hayNueva && e1.binarioPendiente,
+      JSON.stringify({ reparar: e1.reparar, nueva: e1.hayNueva, pendiente: e1.binarioPendiente })
+    )
+    const e2 = await svc.comprobar()
+    check(
+      `(10b6·${plataforma}) …al comprobar (binario servido) se ofrece REPARAR: método npm detectado sin «--version»`,
+      e2.codex.instalada === null && e2.codex.metodo === 'npm' && e2.codex.reparar && e2.codex.hayNueva && e2.codex.instalable && e2.codex.requiereParar === (plataforma === 'windows'),
+      JSON.stringify({ metodo: e2.codex.metodo, reparar: e2.codex.reparar, nueva: e2.codex.hayNueva, instalable: e2.codex.instalable })
+    )
+    const r2 = await svc.instalar({ agente: 'codex', detener: [] })
+    check(
+      `(10b7·${plataforma}) …reparar reinstala con npm (también en Mac, donde \`codex update\` no arrancaría) y queda en 0.156.1`,
+      r2.ok && r2.antes === null && r2.despues === '0.156.1' && ordenes[1]?.startsWith('npm install -g') && (ordenes[1] ?? '').includes('@openai/codex@0.156.1'),
+      `${JSON.stringify(r2)} | ${JSON.stringify(ordenes)}`
+    )
+    check(
+      `(10b8·${plataforma}) …el progreso dice «reparado» y el estado deja de pedir reparación`,
+      m.progreso.some((p) => p.fase === 'fin' && p.linea.includes('reparado')) && !svc.estado().codex.reparar && !svc.estado().codex.hayNueva,
+      JSON.stringify(m.progreso.filter((p) => p.fase === 'fin'))
+    )
+  }
+}
+{
+  // Sin un gestor que lo reinstale sin ejecutarlo, no se ofrece reparar.
+  const { svc } = crearMundo({ plataforma: 'mac', codex: null, reales: { [MAC.codexBin]: MAC_CASK }, red: { [URL_CASK_CODEX]: JSON.stringify({ version: '0.157.0' }) } })
+  const e = await svc.comprobar()
+  check('(10b9) Mac, Codex del cask sin responder -> ni reparar ni «hay nueva»', e.codex.metodo === 'brew' && !e.codex.reparar && !e.codex.hayNueva, JSON.stringify({ metodo: e.codex.metodo, reparar: e.codex.reparar }))
+}
+{
+  // Un `codex.exe` suelto que no cuelga de ningún paquete: método desconocido.
+  const { svc } = crearMundo({ codex: null, rutaCodex: 'C:\\herramientas\\codex.exe' })
+  const e = await svc.comprobar()
+  check('(10b10) Windows, ejecutable suelto que no responde -> ni reparar ni «hay nueva»', e.codex.metodo === 'desconocido' && !e.codex.reparar && !e.codex.hayNueva, JSON.stringify({ metodo: e.codex.metodo, reparar: e.codex.reparar }))
+  const r = await svc.instalar({ agente: 'codex', detener: [] })
+  check('(10b11) …e instalar dice que no puede leer la versión', r.motivo === 'sin-version' && (r.detalle ?? '').includes('versión instalada'), String(r.detalle))
+}
+{
+  const { svc } = crearMundo({ plataforma: 'mac', codex: null, red: { [urlDocCodex('0.156.1-darwin-arm64')]: new Error('HTTP 404') } })
+  const e = await svc.comprobar()
+  check(
+    '(10b12) Mac, npm, sin responder y binario aún sin servir -> reparar pendiente, no se ofrece',
+    e.codex.reparar && !e.codex.hayNueva && e.codex.binarioPendiente,
+    JSON.stringify({ reparar: e.codex.reparar, nueva: e.codex.hayNueva, pendiente: e.codex.binarioPendiente })
+  )
+}
+check(
+  '(10b13) urlVersionNpm escapa el scope como `%2f` y respeta la base',
+  urlVersionNpm('http://127.0.0.1:4873', '@openai/codex', '0.161.0-win32-x64') === 'http://127.0.0.1:4873/@openai%2fcodex/0.161.0-win32-x64',
+  urlVersionNpm('http://127.0.0.1:4873', '@openai/codex', '0.161.0-win32-x64')
+)
 
 // =============================================================================
 hr('(11) Cadencia y rebote')

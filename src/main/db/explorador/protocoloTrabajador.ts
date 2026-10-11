@@ -7,7 +7,7 @@
 // =============================================================================
 
 import type { DbColumnaResultado, DbEstadoTx, DbLineaSalida, DbRolSesion } from '../../../shared/db-explorador-ipc'
-import type { DbAutenticacion, DbMotor, DbTls, DriverRequerido } from '../../../shared/db-ipc'
+import type { DbAutenticacion, DbMotor, DbTls, DbTopologiaRedis, DriverRequerido } from '../../../shared/db-ipc'
 import type {
   DbDocBase,
   DbDocCambio,
@@ -61,6 +61,18 @@ export interface ConexionTrabajador {
   /** MongoDB: Ver `DbConnection.srv` y `opcionesUri`; los pasa `mongoComun.cjs`. */
   srv?: boolean
   opcionesUri?: string
+  /** Redis: Ver `DbConnection.topologiaRedis`; la aplica `clienteRedis.cjs`. */
+  topologiaRedis?: DbTopologiaRedis
+  /**
+   * Por túnel SSH: el host REAL del servidor, contra el que se verifica su certificado; `host` y `port`
+   * son ya los del extremo local del túnel (`conTunel`).
+   */
+  hostTls?: string
+}
+
+/** La conexión del trabajador por el túnel: al extremo local, verificando el certificado contra el host real. */
+export function conTunel(t: ConexionTrabajador, destino: { host: string; port: number } | null): ConexionTrabajador {
+  return destino === null ? t : { ...t, host: destino.host, port: destino.port, hostTls: t.host }
 }
 
 /** Lo que hoy arma `tdb.cjs` para cargar drivers (catálogo publicado por el main). */
@@ -469,6 +481,8 @@ export interface RespuestaAbrir {
   usuario: string | null
   /** PG: pid del backend (pg_stat_activity), para diagnóstico. */
   pidServidor?: number
+  /** SQLite: se pidió escritura y la carpeta de la base no la admite, así que se abrió en solo lectura. */
+  carpetaSinEscritura?: boolean
 }
 
 /** Lo que devuelve cada operación con éxito. */
@@ -529,6 +543,9 @@ export type PeticionDocs =
       columnas: string[]
     }
   | { operacion: 'mas'; lector: string; maxDocumentos: number }
+  | { operacion: 'exportarAbrir'; formato: FormatoExportacionDocs; maxDocumentos: number; origen: 'coleccion'; base: string; coleccion: string; filtro: string; proyeccion: string; orden: string }
+  | { operacion: 'exportarAbrir'; formato: FormatoExportacionDocs; maxDocumentos: number; origen: 'sentencia'; base: string | null; texto: string }
+  | { operacion: 'exportarMas'; lector: string; formato: FormatoExportacionDocs; maxDocumentos: number; columnas?: string[] }
   | { operacion: 'cerrarLector'; lector: string }
   | { operacion: 'consola'; base: string | null; texto: string; maxDocumentos: number; politica: PoliticaDocs }
   | {
@@ -542,6 +559,21 @@ export type PeticionDocs =
 
 export type OperacionDocs = PeticionDocs['operacion']
 
+/** Los formatos en que se exportan documentos. */
+export type FormatoExportacionDocs = 'json' | 'csv'
+
+/**
+ * Una página de una exportación de documentos, ya en filas del formato: JSON, una celda con el documento;
+ * CSV, una celda por columna (las de la primera página, que el main devuelve en las siguientes).
+ * `omitidos`: documentos con campos que no están en las columnas (solo CSV). `lector` es un id del trabajador.
+ */
+export interface PaginaExportacionDocs {
+  lector: string | null
+  columnas: string[]
+  filas: Array<Array<string | null>>
+  omitidos: number
+}
+
 export interface RespuestasDocs {
   bases: DbDocBase[]
   colecciones: DbDocColeccion[]
@@ -549,6 +581,8 @@ export interface RespuestasDocs {
   /** `lector` es un id del trabajador; el main lo envuelve antes de dárselo al renderer. */
   consultar: DbDocPagina
   mas: DbDocPagina
+  exportarAbrir: PaginaExportacionDocs
+  exportarMas: PaginaExportacionDocs
   cerrarLector: { cerrado: boolean }
   consola: DbDocResultado
   enviar: DbDocResultadoEnvio

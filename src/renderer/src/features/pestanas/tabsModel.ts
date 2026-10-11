@@ -148,7 +148,11 @@ export type TabsAction =
   | { type: 'quitarAgenteDiferido'; profileId: string; projectHostPath: string }
   /** Marca un proyecto ya abierto como activo dentro de su perfil. Al entrar, lo
    *  despierta (flip 'hibernated' -> 'active'). */
-  | { type: 'setActiveProject'; profileId: string; projectHostPath: string }
+  /**
+   * `entrar`: además pasa a ese perfil, en la MISMA acción. `setActiveProfile` despierta el activo
+   * del perfil; dar los dos pasos por separado despertaba (y arrancaba el agente de) uno que nadie pidió.
+   */
+  | { type: 'setActiveProject'; profileId: string; projectHostPath: string; entrar?: boolean }
   /** Cierra un proyecto de un perfil; si era el activo, elige un vecino. */
   | { type: 'closeProject'; profileId: string; projectHostPath: string }
   /**

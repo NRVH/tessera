@@ -79,7 +79,12 @@ export const ORACLE: DescriptorMotor<'oracle'> = definirMotor({
   conexion: {
     puertoPorDefecto: 1521,
     obligatorios: ['alias', 'host', 'port', 'user'],
-    opcionales: [],
+    opcionales: ['tls', 'tunelSsh'],
+    tlsPorDefecto: { cifrar: false, confiarCertificado: false },
+    tlsSoloCifrando: true,
+    cifraPorTunel: false,
+    // En thin oracledb verifica siempre el certificado (TCPS); en thick (11g) no hay cifrado.
+    admiteConfiarCertificado: false,
     // Service Name o SID, uno y solo uno: las 11g heredadas suelen ir por SID.
     excluyentes: [
       {

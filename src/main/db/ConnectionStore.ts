@@ -16,8 +16,10 @@ import type {
 } from '../../shared/db-ipc'
 import { nombresSistema } from '../../shared/nombresSistema'
 import { plataformaActual, type Plataforma } from '../../shared/plataforma'
+import { llevaSobre, secretoAGuardar } from '../../shared/topologiaRedis'
 import { writeFileAtomicSync } from '../util/atomicWrite'
 import type { CifradoSecretos } from './adaptadores/cifradoSistema'
+import { remedioSinAlmacen } from './adaptadores/almacenSeguro'
 import { huellaDestinoProbado, type ConexionPersistida } from './conservarAlEditar'
 import { codigoDe, conservarAparte, leerBytesSiExiste } from './controlador/copiaIlegible'
 import {
@@ -39,10 +41,10 @@ import {
   mensajeEscrituraRegistroFallida,
   mensajeRegistroRecuperado,
   normalizarIntrospeccion,
-  podarPerfiles,
   quitarPorId,
   serializarRegistro,
   siguienteOrden,
+  sinElPerfil,
   type EntradaConocida,
   type Registro,
   type TipoEntrada
@@ -113,9 +115,21 @@ export class ConnectionStore {
     return conocidas(this.reg)
   }
 
+  /** ¿Existe la conexión SSH `id` en el perfil? La pone quien compone el main (`conocerConexionesSsh`). */
+  private existeSsh: ((profileId: string, id: string) => boolean) | null = null
+
+  /** Desde aquí, el túnel SSH de una conexión se valida contra las conexiones SSH del perfil. */
+  conocerConexionesSsh(existe: (profileId: string, id: string) => boolean): void {
+    this.existeSsh = existe
+  }
+
   /** Las conocidas como las ve la validación. */
   private get guardadas(): ConexionesGuardadas {
-    return { conocidas: this.connections, ajenasDelPerfil: (profileId) => this.ajenas(profileId) }
+    return {
+      conocidas: this.connections,
+      ajenasDelPerfil: (profileId) => this.ajenas(profileId),
+      existeSsh: this.existeSsh ?? undefined
+    }
   }
 
   // --- Persistencia ----------------------------------------------------------
@@ -208,7 +222,7 @@ export class ConnectionStore {
       throw new Error(
         'No se puede guardar la contraseña: ' +
           `${nombresSistema(plataformaActual()).almacenSecretos} no está disponible. ` +
-          'Tessera nunca la guarda en claro.'
+          `Tessera nunca la guarda en claro.${remedioSinAlmacen(plataformaActual())}`
       )
     }
     return this.cifrado.cifrar(plain).toString('base64')
@@ -365,7 +379,14 @@ export class ConnectionStore {
       ...camposAGuardar(input, this.connections),
       orden: siguienteOrden(this.reg, input.profileId)
     }
-    if (input.password) record.secretEnc = this.encrypt(input.password)
+    const secreto = secretoAGuardar({
+      previo: null,
+      previoConSobre: false,
+      nuevoConSobre: llevaSobre(record.topologiaRedis),
+      password: input.password,
+      passwordSentinel: input.passwordSentinel
+    })
+    if (secreto) record.secretEnc = this.encrypt(secreto)
     this.aplicar((reg) => {
       reg.entradas.push({ tipo: 'conocida', registro: record, resto: {} })
     })
@@ -380,11 +401,23 @@ export class ConnectionStore {
     validarEntrada(input, this.guardadas, id)
     const previa = this.reg.entradas[idx] as EntradaConocida
     const nuevo: PersistedConnection = { id, ...camposAGuardar(input, this.connections, id) }
+    // Con los sentinels de contraseña propia, las dos van en un sobre: lo que se guarda sale de las dos entradas.
+    const previoConSobre = llevaSobre(previa.registro.topologiaRedis)
+    const nuevoConSobre = llevaSobre(nuevo.topologiaRedis)
+    const previo = previoConSobre || nuevoConSobre ? this.decrypt(previa.registro.secretEnc) : null
+    const password = secretoAGuardar({
+      previo,
+      previoConSobre,
+      nuevoConSobre,
+      password: input.password,
+      passwordSentinel: input.passwordSentinel,
+      previoIlegible: previo === null && previa.registro.secretEnc !== undefined
+    })
     // password: undefined = conserva la guardada; '' = la borra; texto = la sustituye (solo el texto se cifra aquí).
-    if (input.password !== undefined && input.password !== '') {
-      nuevo.secretEnc = this.encrypt(input.password)
+    if (password !== undefined && password !== '') {
+      nuevo.secretEnc = this.encrypt(password)
     }
-    const entrada = editarConocida(previa, nuevo, input.password)
+    const entrada = editarConocida(previa, nuevo, password)
     // En el mismo sitio de la copia: `aplicar` la clona tal cual, así que `idx` vale ahí.
     this.aplicar((reg) => {
       reg.entradas[idx] = entrada
@@ -398,7 +431,7 @@ export class ConnectionStore {
    * entrada que no valida o una ajena: otra edición.
    */
   soloCambiaLaCasillaDeAgentes(id: string, input: EntradaConexion): boolean {
-    if (input.password !== undefined || input.rutaArchivo !== undefined) return false
+    if (input.password !== undefined || input.passwordSentinel !== undefined || input.rutaArchivo !== undefined) return false
     const e = this.reg.entradas.find((x) => x.tipo === 'conocida' && x.registro.id === id)
     if (!e || e.tipo !== 'conocida') return false
     try {
@@ -548,11 +581,11 @@ export class ConnectionStore {
     })
   }
 
-  /** Elimina las conexiones de perfiles que ya no existen, ajenas incluidas; las sin perfil legible se conservan. */
-  pruneProfiles(idsVivos: Set<string>): void {
-    if (podarPerfiles(this.reg.entradas, idsVivos).length === this.reg.entradas.length) return
+  /** El usuario borró el perfil: se van sus conexiones, ajenas incluidas; las sin perfil legible se conservan. */
+  alBorrarPerfil(profileId: string): void {
+    if (sinElPerfil(this.reg.entradas, profileId).length === this.reg.entradas.length) return
     this.aplicar((reg) => {
-      reg.entradas = podarPerfiles(reg.entradas, idsVivos)
+      reg.entradas = sinElPerfil(reg.entradas, profileId)
     })
   }
 }

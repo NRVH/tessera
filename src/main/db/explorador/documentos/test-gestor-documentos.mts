@@ -26,7 +26,7 @@ import type { TrabajadorGestor } from '../GestorSesiones.ts'
 import { MENSAJE_SIN_LECTOR } from '../GestorSesiones.ts'
 import { MAX_LECTORES_POR_SESION, MAX_PROCESOS } from '../limites.ts'
 import { aConexionTrabajadorDocs, errorDocs, GestorDocumentos } from './GestorDocumentos.ts'
-import { ControladorDocumentos, politicaDe } from './ControladorDocumentos.ts'
+import { ControladorDocumentos, politicaDe, resultadoHistorialDocs, type EntradaHistorialDocs } from './ControladorDocumentos.ts'
 import { compilarFiltroDocs } from './filtroDocumentos.ts'
 import type { DbFiltroGuiado } from '../../../../shared/filtroGuiado.ts'
 
@@ -644,6 +644,44 @@ async function main(): Promise<void> {
     const bien = await pedir({ filtroGuiado: guiado, ordenColumnas: [] })
     const llego = bc.trabajadores[0]?.docs().find((d) => d.operacion === 'consultar') as Extract<Docs, { operacion: 'consultar' }> | undefined
     check('controlador: uno válido llega al gestor y el trabajador recibe el compilado', bien.ok && compilado.ok && llego?.filtro === compilado.valor.texto && llego.orden === '', j({ bien, filtro: llego?.filtro }))
+  }
+
+  hr('El historial de la consola: qué se anota')
+  {
+    const error = (motivo: string, codigo?: string) => ({ ok: false as const, error: { motivo, mensaje: 'x', ...(codigo ? { codigo } : {}) } as never })
+    const valor = { ok: true as const, valor: { tipo: 'valor' as const, texto: '3', base: 'pruebas' } }
+    check(
+      'ok, cancelada y un error del SERVIDOR se anotan',
+      resultadoHistorialDocs(valor) === 'ok' && resultadoHistorialDocs(error('cancelada')) === 'cancelada' && resultadoHistorialDocs(error('servidor', '11000')) === 'error',
+      'ok · cancelada · error'
+    )
+    check(
+      'las barreras de Tessera (TESSERA-…) y lo que no se envió, no',
+      resultadoHistorialDocs(error('servidor', CODIGO_DOCS_SINTAXIS)) === null &&
+        resultadoHistorialDocs(error('produccion', 'TESSERA-PRODUCCION')) === null &&
+        resultadoHistorialDocs(error('soloLectura')) === null &&
+        resultadoHistorialDocs(error('ocupada')) === null,
+      'null'
+    )
+    const bh = banco()
+    const anotadas: EntradaHistorialDocs[] = []
+    const gestorFalso = { ...bh.g, ejecutarConsola: async () => valor } as unknown as GestorDocumentos
+    const ctlH = new ControladorDocumentos({ conexiones: { get: (id) => bh.conexiones.get(id) }, gestor: gestorFalso, alSentencia: (e) => anotadas.push(e) })
+    const peticion = { perfilId: 'p1', consolaId: 'k1', conexionId: 'c1', base: 'pruebas', texto: 'db.clientes.countDocuments()', desplazamiento: 0 }
+    const rh = await ctlH.atender('CONSOLA_EJECUTAR', peticion)
+    check(
+      'el controlador anota la orden tal cual, con perfil, conexión y consola, y responde igual',
+      rh.ok && anotadas.length === 1 && anotadas[0].sql === peticion.texto && anotadas[0].perfilId === 'p1' && anotadas[0].consolaId === 'k1' && anotadas[0].resultado === 'ok',
+      j(anotadas)
+    )
+    const ctlRoto = new ControladorDocumentos({
+      conexiones: { get: (id) => bh.conexiones.get(id) },
+      gestor: gestorFalso,
+      alSentencia: () => {
+        throw new Error('disco')
+      }
+    })
+    check('un historial que lanza no rompe la respuesta', (await ctlRoto.atender('CONSOLA_EJECUTAR', peticion)).ok, 'ok')
   }
 
   hr('RESULTADO (PASS/FAIL)')

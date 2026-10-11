@@ -16,7 +16,7 @@ import {
   DEFAULT_GIT_LOG_RAMAS,
   DEFAULT_TERMINAL_HEIGHT
 } from '../../../../shared/workspace-state-ipc'
-import type { PanelInferiorCentro } from './layoutCentro'
+import { conMaximizado, type MaximizadosPerfil, type PanelInferiorCentro } from './layoutCentro'
 import type { MotivoCcOculto } from '../editor'
 
 /** Estado del layout; los mapas por perfil usan '' como clave de «sin perfil». */
@@ -43,14 +43,21 @@ export interface EstadoLayout {
   /** Maximizado CRUDO de la columna del agente; lo que se pinta es el coherente. */
   ccExpanded: boolean
   ccOculto: MotivoCcOculto
-  /** Panel de la franja pedido a pantalla completa (CRUDO, efímero: no se persiste); se pinta el coherente. */
+  /** Lo que cada perfil tiene maximizado (efímero: no se persiste). Es la verdad; lo que se pinta se deriva. */
+  maximizadoPorPerfil: Record<string, MaximizadosPerfil>
+  /**
+   * ESPEJO de lo que se pinta a pantalla completa y del perfil a la vista, que escribe
+   * `useEspejoPantallaCompleta` tras cada commit: para los manejadores de eventos, que no tienen el perfil.
+   */
   franjaPantallaCompleta: PanelInferiorCentro | null
+  perfilALaVista: string
 }
 
 /**
  * Ancho por defecto del agente de la terminal: unas 80 columnas con la letra por defecto (13 px),
  * no los 340 de la columna del agente, que le dejarían la mitad. Con él, a 1366 px de ancho la
- * terminal también conserva sus 80 (el riel de conexiones se pliega solo si no cabe).
+ * terminal también conserva sus 80 (el riel de conexiones se pliega solo si no cabe). En macOS la
+ * letra por defecto es más ancha y son 78 y 78: 80 y 80 no caben a 1366 px.
  */
 export const AGENTE_TERMINAL_ANCHO_POR_DEFECTO = 640
 
@@ -73,8 +80,32 @@ export const useStoreLayout = create<EstadoLayout>()(() => ({
   bottomBarOrder: [...BOTTOM_BAR_DEFAULT_ORDER],
   ccExpanded: false,
   ccOculto: 'no',
-  franjaPantallaCompleta: null
+  maximizadoPorPerfil: {},
+  franjaPantallaCompleta: null,
+  perfilALaVista: ''
 }))
+
+/** Maximiza o restaura `clave` en el perfil a la vista (o en `perfil`). */
+export function fijarMaximizado(
+  clave: keyof MaximizadosPerfil,
+  valor: boolean,
+  perfil: string = useStoreLayout.getState().perfilALaVista
+): void {
+  useStoreLayout.setState((s) => {
+    const siguiente = conMaximizado(s.maximizadoPorPerfil, perfil, clave, valor)
+    return siguiente === s.maximizadoPorPerfil ? s : { maximizadoPorPerfil: siguiente }
+  })
+}
+
+/**
+ * Restaura el panel de la franja del perfil a la vista, aunque el mosaico o la vista de datos no lo pinten:
+ * así, al volver, no tapa lo que se acaba de abrir. Elegir otra vista o abrir un archivo lo piden.
+ */
+export function salirDePantallaCompleta(): void {
+  const s = useStoreLayout.getState()
+  const panel = s.panelPorPerfil[s.perfilALaVista]
+  if (panel === 'terminal' || panel === 'gitlog') fijarMaximizado(panel, false)
+}
 
 /** Setter estable de un campo numérico o de lista del layout (para `onResize` y similares). */
 export function fijadorLayout<K extends keyof EstadoLayout>(clave: K): (valor: EstadoLayout[K]) => void {
@@ -93,8 +124,7 @@ export const fijadoresLayout = {
   gitHistorialWidth: fijadorLayout('gitHistorialWidth'),
   agenteTerminalAncho: fijadorLayout('agenteTerminalAncho'),
   activityBarOrder: fijadorLayout('activityBarOrder'),
-  bottomBarOrder: fijadorLayout('bottomBarOrder'),
-  franjaPantallaCompleta: fijadorLayout('franjaPantallaCompleta')
+  bottomBarOrder: fijadorLayout('bottomBarOrder')
 }
 
 /** Pone en `perfil` la vista `valor` solo si hoy es `si`; mismo objeto si no cambia. */

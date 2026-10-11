@@ -36,6 +36,7 @@ import { probarFiltroGuiado } from './casosFiltroGuiado.mts'
 import type { TrabajadorGestor } from './GestorSesiones.ts'
 import { MENSAJES } from './maquinaSesion.ts'
 import { ProcesoTrabajador } from './ProcesoTrabajador.ts'
+import { entornoConClienteOracle } from './entornoClienteOracle.ts'
 import {
   esFalloTrabajador,
   type CtxDrivers,
@@ -529,6 +530,13 @@ async function main(): Promise<void> {
   }
   const exportados = path.join(tmp, 'exportados')
   mkdirSync(exportados, { recursive: true })
+  const registro = {
+    ctxDrivers: () => ctx,
+    notificarCambio: () => {},
+    espacioDeDatos: (p: string) => path.join(tmp, 'conexiones', p),
+    tdbScriptDir: () => path.resolve(aqui, '..', '..', '..', 'tdb'),
+    ensureWorkspace: (p: string) => mkdirSync(path.join(tmp, 'conexiones', p), { recursive: true })
+  }
   const ex = new ExploradorController({
     // La solo lectura IMPUESTA a la conexión con la casilla marcada ('ro'): este test fija
     // contra un Oracle de verdad la maquinaria de solo lectura, que es el PRIMER candado del
@@ -536,13 +544,7 @@ async function main(): Promise<void> {
     // ninguna: la casilla es solo de los agentes.
     soloLecturaImpuesta: (c) => c.readonly,
     conexiones,
-    registro: {
-      ctxDrivers: () => ctx,
-      notificarCambio: () => {},
-      espacioDeDatos: (p) => path.join(tmp, 'conexiones', p),
-      tdbScriptDir: () => path.resolve(aqui, '..', '..', '..', 'tdb'),
-      ensureWorkspace: (p) => mkdirSync(path.join(tmp, 'conexiones', p), { recursive: true })
-    },
+    registro,
     perfilVivo: (id) => id === PERFIL,
     nombrePerfil: () => 'Pruebas',
     papelera: async (ruta) => rmSync(ruta, { force: true }),
@@ -564,7 +566,9 @@ async function main(): Promise<void> {
         execPath: electron,
         // Ver la cabecera: 'advanced' solo encaja con el mismo V8 en los dos lados.
         serializacion: process.versions.electron ? 'advanced' : 'json',
-        log: (l) => logs.push(l)
+        log: (l) => logs.push(l),
+        // El entorno con el que lo lanza la app (`controlador/piezas.ts`): en Linux, el thick depende de él.
+        env: entornoConClienteOracle(process.env, registro, plataforma)
       })
       procesos.push(p)
       procesoDe.set(con.id, p)
@@ -2675,7 +2679,6 @@ async function main(): Promise<void> {
         grandes: ['123456789012345678901234567890', '123456789012345678901234567891'],
         // Sin BOOLEAN de SQL hasta la 23: NUMBER(1) es 'numero' en la interfaz.
         booleano: false,
-        columnaInexistente: 'condicion',
         abrir: (p) => ex.abrirTabla({ conexionId: 'c1', objeto: refFg, maxFilas: 100, ...p }),
         leerMas: (l, m) => ex.leerMas(l, m),
         contar: (l, id) => ex.contar(l, id),

@@ -2,7 +2,8 @@
 // Qué contenedores son DE TESSERA, los únicos que el barrido, el cierre y la hibernación
 // pueden parar o borrar: nombre que EMPIEZA por `tessera-` Y nacido de la imagen del sandbox
 // (su etiqueta, o su `Config.Image` para los anteriores a la etiqueta). `pruebas-*` y los
-// del usuario no se tocan. Puro, sin Docker: se prueba con `node`.
+// del usuario no se tocan, ni los de otra instancia de Tessera en el mismo Docker (su sello).
+// Puro, sin Docker: se prueba con `node`.
 // Decisiones: docs/decisiones/sandbox/contenedores-propios.md
 // =============================================================================
 
@@ -11,6 +12,16 @@ export const PREFIJO_CONTENEDOR = 'tessera-'
 
 /** Etiqueta que la imagen del sandbox pone a cada contenedor que nace de ella. */
 export const ETIQUETA_IMAGEN_SANDBOX = 'tessera.sandbox.version'
+
+/** Etiqueta con el sello de la instancia de Tessera que creó el contenedor. */
+export const ETIQUETA_INSTANCIA = 'tessera.instancia'
+
+/** De qué instancia se barren los contenedores: `sello` vacío = de todas. */
+export interface FiltroInstancia {
+  sello: string
+  /** También los de versiones anteriores, que nacieron sin la etiqueta de instancia. */
+  heredados: boolean
+}
 
 /** Filtro de `docker ps` para los CANDIDATOS: anclado al principio del nombre. */
 export const FILTRO_NOMBRE_PROPIO = `name=^${PREFIJO_CONTENEDOR}`
@@ -56,10 +67,22 @@ export function leerFichas(stdout: string): FichaContenedor[] {
   }
 }
 
-/** Nombres de los contenedores de Tessera de una salida de `docker inspect`. */
-export function contenedoresDeTessera(stdoutInspect: string, imagenSandbox: string): string[] {
+/**
+ * ¿Lo creó ESTA instancia? Otra Tessera que comparte el Docker (otro usuario del equipo, o la
+ * app mientras corre su arnés de pruebas) tiene otro sello y sus contenedores no se tocan. Uno sin
+ * etiqueta es de una versión anterior: solo cuenta si se piden los heredados.
+ */
+export function esDeLaInstancia(f: FichaContenedor, filtro: FiltroInstancia): boolean {
+  if (filtro.sello === '') return true
+  const etiqueta = f.Config?.Labels?.[ETIQUETA_INSTANCIA]
+  if (typeof etiqueta === 'string' && etiqueta !== '') return etiqueta === filtro.sello
+  return filtro.heredados
+}
+
+/** Nombres de los contenedores de Tessera (de la instancia, si se filtra) de una salida de `docker inspect`. */
+export function contenedoresDeTessera(stdoutInspect: string, imagenSandbox: string, filtro?: FiltroInstancia): string[] {
   return leerFichas(stdoutInspect)
-    .filter((f) => esContenedorDeTessera(f, imagenSandbox))
+    .filter((f) => esContenedorDeTessera(f, imagenSandbox) && (filtro === undefined || esDeLaInstancia(f, filtro)))
     .map(nombreDeFicha)
 }
 
@@ -73,7 +96,8 @@ export type EjecutarDocker = (args: string[]) => Promise<{ status: number | null
  */
 export async function listarContenedoresDeTessera(
   docker: EjecutarDocker,
-  imagenSandbox: string
+  imagenSandbox: string,
+  filtro?: FiltroInstancia
 ): Promise<string[] | null> {
   const ps = await docker(['ps', '-a', '--filter', FILTRO_NOMBRE_PROPIO, '--format', '{{.Names}}'])
   if (ps.status !== 0) return null
@@ -89,7 +113,7 @@ export async function listarContenedoresDeTessera(
   // desmontaría las raíces con los contenedores vivos.
   const ins = await docker(['inspect', ...candidatos])
   if (ins.status !== 0 && ins.stdout.trim() === '') return null
-  return contenedoresDeTessera(ins.stdout, imagenSandbox)
+  return contenedoresDeTessera(ins.stdout, imagenSandbox, filtro)
 }
 
 /**

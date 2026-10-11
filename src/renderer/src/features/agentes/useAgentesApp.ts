@@ -20,7 +20,9 @@ import {
   cambiarVistaSi,
   derivarLayoutCentro,
   pantallaCompletaCoherente,
+  pantallaCompletaPedidaDe,
   useStoreLayout,
+  type PanelInferiorCentro,
   type SalidaLayoutCentro,
   type VistasPorPerfil
 } from '../layout'
@@ -33,6 +35,8 @@ export interface AgentesApp {
   targetsAgente: OpenAgentTarget[]
   agenteDbVisible: boolean
   lay: SalidaLayoutCentro
+  /** El panel de la franja que se pinta a pantalla completa, ya coherente: lo calcula UNA vez el layout. */
+  pantallaCompleta: PanelInferiorCentro | null
   /** El target cuya columna se ve: del espacio en 'db', del agente de la terminal, del proyecto fuera, o ninguno. */
   activeTargetKeyEfectivo: string | null
   /** Los hibernados que ve la columna: los de las pestañas y los que no son pestaña de un perfil hibernado. */
@@ -102,17 +106,23 @@ function usePodaEstadoSesion(targetsAgente: OpenAgentTarget[]): void {
   }, [targetsAgente])
 }
 
-/** Layout del centro del perfil activo, el espacio de datos que le toca y si la terminal está a pantalla completa. */
+/** Lo que hay en el centro y en la franja: pestañas del editor y terminales que enseñar. */
+export interface ContenidoCentro {
+  hayPestanasEditor: boolean
+  conTerminales: boolean
+}
+
+/** Layout del centro del perfil activo, el espacio de datos que le toca y el panel que se pinta a pantalla completa. */
 function useLayoutDelCentro(
   tabs: UseTabs,
   vistas: Pick<VistasPorPerfil, 'activeView' | 'panelInferior'>,
   columna: ColumnaAgenteEstado,
-  hayPestanasEditor: boolean
+  { hayPestanasEditor, conTerminales }: ContenidoCentro
 ): {
   lay: SalidaLayoutCentro
   agenteDbVisible: boolean
   espacioActivoPath: string | undefined
-  pantallaCompletaTerminal: boolean
+  pantallaCompleta: PanelInferiorCentro | null
 } {
   const perfil = tabs.activeProfile
   const { espacioActivoPath, espacioAbierto, agenteDbVisible } = useStoreBd(
@@ -129,7 +139,9 @@ function useLayoutDelCentro(
     }))
   )
   const mosaicoActivo = useStoreMosaico((s) => s.mosaicoActivo)
-  const pedida = useStoreLayout((s) => s.franjaPantallaCompleta)
+  // De lo que el perfil dejó maximizado, en este mismo render: sin esperar al espejo de un efecto.
+  const maximizados = useStoreLayout((s) => s.maximizadoPorPerfil[perfil?.id ?? ''])
+  const pedida = pantallaCompletaPedidaDe(maximizados, vistas.panelInferior)
   const lay = derivarLayoutCentro({
     vista: vistas.activeView,
     mosaico: mosaicoActivo,
@@ -143,10 +155,12 @@ function useLayoutDelCentro(
     panelInferior: vistas.panelInferior,
     pantallaCompletaPedida: pedida,
     agenteTerminalVisible: terminal.visible,
-    agenteTerminalAbierto: terminal.abierto
+    agenteTerminalAbierto: terminal.abierto,
+    conTerminales,
+    agenteTerminalMaximizadoPedido: maximizados?.agenteTerminal === true
   })
-  const pantallaCompletaTerminal = pantallaCompletaCoherente({ pedida, franja: lay.franja, mosaico: mosaicoActivo }) === 'terminal'
-  return { lay, agenteDbVisible, espacioActivoPath, pantallaCompletaTerminal }
+  const pantallaCompleta = pantallaCompletaCoherente({ pedida, franja: lay.franja, mosaico: mosaicoActivo })
+  return { lay, agenteDbVisible, espacioActivoPath, pantallaCompleta }
 }
 
 /**
@@ -186,8 +200,8 @@ function useAbrirTargetAgente(tabs: UseTabs): AgentesApp['openAgentTarget'] {
       cambiarVistaSi(profileId, 'db', 'files')
       // Quien pide ir a ESE agente lo quiere en marcha: deja de estar diferido.
       tabs.quitarAgenteDiferido(profileId, projectHostPath)
-      tabs.setActiveProfile(profileId)
-      tabs.setActiveProject(profileId, projectHostPath)
+      // Una sola acción: entrar al perfil por separado despertaría su proyecto activo, no este.
+      tabs.setActiveProject(profileId, projectHostPath, { entrar: true })
     },
     [tabs]
   )
@@ -227,7 +241,7 @@ export function useAgentesApp(
   columna: ColumnaAgenteEstado,
   espacios: EspaciosDatos,
   agenteTerminal: AgenteTerminalApp,
-  hayPestanasEditor: boolean
+  contenido: ContenidoCentro
 ): AgentesApp {
   const confirmed = tabs.confirmedTarget
   const selectedAgentByProfile = useStoreAgentes((s) => s.selectedAgentByProfile)
@@ -242,7 +256,7 @@ export function useAgentesApp(
     () => (fueraDePestanas.length ? [...tabs.allOpenTargets, ...fueraDePestanas] : tabs.allOpenTargets),
     [tabs.allOpenTargets, fueraDePestanas]
   )
-  const { lay, agenteDbVisible, espacioActivoPath, pantallaCompletaTerminal } = useLayoutDelCentro(tabs, vistas, columna, hayPestanasEditor)
+  const { lay, agenteDbVisible, espacioActivoPath, pantallaCompleta } = useLayoutDelCentro(tabs, vistas, columna, contenido)
   const activeTargetKeyEfectivo = useClaveEfectiva(tabs, lay, espacioActivoPath, {
     clave: activeTargetKey,
     diferido: columna.agenteDiferido
@@ -250,8 +264,8 @@ export function useAgentesApp(
   const hibernatedTargetKeys = useHibernacionFueraDePestanas(tabs, fueraDePestanas, activeTargetKeyEfectivo)
   useQuitarDiferidoAlArrancar(tabs)
   useRestaurarAgenteDb(tabs, vistas.enConexiones, espacios)
-  useRestaurarAgenteTerminal(tabs.activeProfile, pantallaCompletaTerminal, agenteTerminal)
+  useRestaurarAgenteTerminal(tabs.activeProfile, pantallaCompleta === 'terminal', agenteTerminal)
   usePodaEstadoSesion(targetsAgente)
   const openAgentTarget = useAbrirTargetAgente(tabs)
-  return { activeTargetKey, targetsAgente, agenteDbVisible, lay, activeTargetKeyEfectivo, hibernatedTargetKeys, openAgentTarget }
+  return { activeTargetKey, targetsAgente, agenteDbVisible, lay, pantallaCompleta, activeTargetKeyEfectivo, hibernatedTargetKeys, openAgentTarget }
 }

@@ -40,6 +40,12 @@ node-pty. Cerrar una terminal tecleaba `^C` y `exit`, que en una sesión remota 
 - Una biblioteca SSH en JavaScript: le faltan algoritmos, no lee la configuración del usuario, no admite PKCS#8 y
   el agente no podría usarla.
 - Un `ssh_config` generado: otro archivo que mantener para lo que caben unas pocas `-o`.
-- El `~/.ssh/config` del usuario: un `Host *` colaría multiplexado, `ProxyCommand` u otro destino.
+- El `~/.ssh/config` del usuario: un `Host *` colaría multiplexado, `ProxyCommand` u otro destino. Tampoco como
+  opción por conexión: la línea dejaría de depender solo de lo guardado (distinta en cada equipo, distinta para el
+  agente), y lo útil ya lo cubren «Importar desde OpenSSH», los bastiones y los túneles.
+- Reutilizar la conexión abierta (`ControlMaster`): el ssh de Windows no lo admite, y una pestaña colgada arrastraría
+  a las demás.
+- Reabrir algoritmos antiguos (`diffie-hellman-group1-sha1`, `ssh-rsa` con SHA-1, CBC) para equipos que solo
+  ofrecen esos: Tessera usa lo que el cliente del sistema acepta por defecto, y un equipo así se conecta por otra vía.
 - Buscar frases sueltas en toda la cola: el «Permission denied» de un `cat` remoto culpaba a la contraseña de un
   corte de red.

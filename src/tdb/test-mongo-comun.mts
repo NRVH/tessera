@@ -125,7 +125,9 @@ hr('(2) Intérprete: rechazados CON POSICIÓN (y nada se evalúa)')
     ['db.c.find({ a: 1, b: [1, { c: 2 }, this] })', 'this'],
     ['db.c.find({ a: `x${1}` })', '`'],
     ['db.c.find(...[{}])', 10],
-    ['db.c.drop()', 5],
+    ['db.c.dropIndexes()', 5],
+    ['db.c.find().count().limit(1)', 'count'],
+    ['db.c.insertOne({ a: 1 }).hint("x")', 'hint'],
     ['db.dropDatabase()', 3],
     ['db.runCommand({ dropDatabase: 1 })', 3],
     ['db.c.find({}).forEach(printjson)', 'forEach'],
@@ -210,6 +212,31 @@ hr('(4) Clasificador')
   check('show/use/getCollectionNames: lectura', c('show dbs').lectura && c('use x').lectura && c('db.getCollectionNames()').lectura, '')
   const ins = c('db.c.insertOne({ a: 1 })')
   check('insertOne: escritura con motivo', ins.lectura === false && ins.motivo.includes('insertOne'), j(ins))
+  const lecturasNuevas = [
+    'db.c.getIndexes()',
+    'db.c.stats()',
+    'db.c.find({ a: 1 }).hint("a_1").maxTimeMS(500)',
+    'db.c.find({ a: 1 }).count()',
+    'db.c.find({ a: 1 }).explain("executionStats")',
+    'db.c.aggregate([{ $match: {} }]).hint({ a: 1 }).maxTimeMS(10).explain()'
+  ]
+  for (const t of lecturasNuevas) check(`lectura: ${t}`, c(t).lectura === true, j(c(t)))
+  const escriturasNuevas = [
+    'db.c.findOneAndUpdate({ a: 1 }, { $set: { b: 2 } }, { returnNewDocument: true })',
+    'db.c.findOneAndDelete({ a: 1 })',
+    'db.c.findOneAndReplace({ a: 1 }, { b: 2 })',
+    'db.c.drop()',
+    'db.c.renameCollection("d", true)',
+    'db.c.createIndex({ a: 1 }, { unique: true })',
+    'db.c.dropIndex("a_1")',
+    'db.createCollection("nueva")'
+  ]
+  for (const t of escriturasNuevas) {
+    const r = c(t)
+    check(`escritura: ${t}`, r.lectura === false && typeof r.motivo === 'string', j(r))
+  }
+  const ex = comun.interpretarSentencia('db.c.find({ a: 1 }).hint("a_1").maxTimeMS(500)')
+  check('la cadena guarda hint y maxTimeMS con sus argumentos', j(ex.cadena) === j([{ metodo: 'hint', args: ['a_1'] }, { metodo: 'maxTimeMS', args: [500] }]), j(ex.cadena))
   check('$out al final: escritura', c('db.c.aggregate([{ $match: {} }, { $out: "z" }])').lectura === false, '')
   check('$merge en la PRIMERA etapa: escritura', c('db.c.aggregate([{ $merge: { into: "z" } }, { $match: {} }])').lectura === false, '')
   // BSON serializa un Map como documento; una etapa envuelta en él escribe igual.
@@ -292,13 +319,40 @@ hr('(6) opcionesCliente')
   check('sin usuario: sin auth', anon.opciones.auth === undefined, '')
   const v6 = comun.opcionesCliente({ ...base, host: '::1' }, '', {})
   check('IPv6 entre corchetes', v6.uri.startsWith('mongodb://[::1]:27117/'), v6.uri)
-  let err: Cualquiera = null
-  try {
-    comun.opcionesCliente({ ...base, host: 'a,b' }, '', {})
-  } catch (e) {
-    err = e
+  // Varios miembros sin srv: un replica set sin DNS SRV, cada uno con su puerto o el de la conexión.
+  const lista = comun.opcionesCliente({ ...base, host: 'a, b:27018,[::1]', opcionesUri: 'replicaSet=rs0' }, '', {})
+  check(
+    'varios hosts: todos en la URI, con su puerto o el de la conexión, y sin directConnection',
+    lista.uri === 'mongodb://a:27117,b:27018,[::1]:27117/pruebas?replicaSet=rs0',
+    lista.uri
+  )
+  const sinRs = comun.opcionesCliente({ ...base, host: 'a,b' }, '', {})
+  check('varios hosts sin replicaSet: tampoco directConnection (el driver descubre la topología)', !sinRs.uri.includes('directConnection'), sinRs.uri)
+  const falla = (con: Cualquiera): string => {
+    try {
+      comun.opcionesCliente({ ...base, ...con }, '', {})
+      return ''
+    } catch (e) {
+      return (e as Error).message
+    }
   }
-  check('varios hosts: error claro (no soportado)', err && /un solo host/.test(err.message), err?.message)
+  check('MITAD NEGATIVA: con srv, un solo host', /un solo nombre de host/.test(falla({ host: 'a,b', srv: true })), falla({ host: 'a,b', srv: true }))
+  check('MITAD NEGATIVA: con srv, sin puerto', /no lleva puerto/.test(falla({ host: 'a:27017', srv: true })), falla({ host: 'a:27017', srv: true }))
+  const malos = ['a,,b', 'u@a', 'a b', 'a:0', 'a:99999', 'a/b', '[::1', '[::1]x', 'a:1:2']
+  check(
+    'MITAD NEGATIVA: un miembro vacío, con usuario, con espacios, con un puerto malo o una IPv6 mal cerrada no vale',
+    malos.every((h) => /no es un servidor válido/.test(falla({ host: h }))),
+    malos.map((h) => falla({ host: h })).join(' | ')
+  )
+  const v6s = comun.opcionesCliente({ ...base, host: 'fe80::1,[::1]:27018' }, '', {})
+  check('IPv6 desnuda y entre corchetes en la lista', v6s.uri.startsWith('mongodb://[fe80::1]:27117,[::1]:27018/'), v6s.uri)
+  const conPuerto = comun.opcionesCliente({ ...base, host: 'db:27018' }, '', {})
+  check('un solo host con su puerto: ese puerto, y directa', conPuerto.uri.startsWith('mongodb://db:27018/') && conPuerto.uri.includes('directConnection=true'), conPuerto.uri)
+  check(
+    'MITAD NEGATIVA: con varios, directConnection=true o loadBalanced=true se rechazan con su motivo',
+    /varios servidores/.test(falla({ host: 'a,b', opcionesUri: 'directConnection=true' })) && /varios servidores/.test(falla({ host: 'a,b', opcionesUri: 'loadBalanced=true' })) && falla({ host: 'a,b', opcionesUri: 'directConnection=false' }) === '',
+    `${falla({ host: 'a,b', opcionesUri: 'directConnection=true' })} · false: «${falla({ host: 'a,b', opcionesUri: 'directConnection=false' })}»`
+  )
 }
 
 // ---------------------------------------------------------------------------------
@@ -414,6 +468,22 @@ async function conServidor(uri: string, uriLector: string | undefined): Promise<
     )
     const dv = await docs('meta', { operacion: 'detalle', base: 'pruebas', coleccion: 'vista_vip' })
     check('detalle de una vista: sin índices, con campos', dv.ok && dv.r.indices.length === 0 && dv.r.muestra === 1, j(dv.ok ? dv.r.muestra : dv.error))
+
+    hr('(8b) Con servidor: una lista de miembros sin DNS SRV')
+    {
+      // El mismo miembro por dos nombres: el driver descubre el replica set desde la lista, sin directConnection.
+      const servidores = `${conexion.host}:${conexion.port},localhost:${conexion.port}`
+      let lista: Cualquiera = null
+      try {
+        lista = await comun.conectar({ ...conexion, host: servidores, opcionesUri: 'replicaSet=rs0' }, secreto, { appName: 'Tessera/test-mongo-comun' })
+        const n = await lista.cliente.db('pruebas').collection('clientes').countDocuments()
+        check('conecta con la lista y lee: replica set rs0 con transacciones', lista.topologia.replicaSet === 'rs0' && lista.topologia.transacciones && n === 4, j({ topologia: lista.topologia, n }))
+      } catch (e) {
+        check('conecta con la lista y lee', false, (e as Error).message)
+      } finally {
+        await lista?.cliente.close()
+      }
+    }
 
     hr('(9) Con servidor: consultar y mas')
     await intentar(p.enviar({ op: 'abrir', sesion: 'datos', rol: 'datos', conexion, secreto, ctx, opciones: { timeoutMs: 0 } }))
@@ -536,6 +606,48 @@ async function conServidor(uri: string, uriLector: string | undefined): Promise<
       const rq = await lentaQ
       const msq = Date.now() - t1
       check('cancelar un consultar lento: «cancelada»', cq.ok && cq.r.cancelada === true && !rq.ok && rq.error.clase === 'cancelada' && msq < 2000, `${msq} ms ${j(rq.ok ? 'NO FALLÓ' : rq.error)}`)
+
+      // Un «Cargar más» lento de la consola.
+      const pag = await con('db.grande.find({ $where: "sleep(20) || true" })', RW, 'pruebas', 2)
+      const lector = pag.ok ? pag.r.pagina.lector : null
+      const t2 = Date.now()
+      const lentoMas = lector ? docs('consola:1', { operacion: 'mas', lector, maxDocumentos: 500 }) : Promise.resolve(null)
+      await new Promise((r) => setTimeout(r, 400))
+      const cm = await intentar(p.enviar({ op: 'cancelar', sesion: 'consola:1' }))
+      const rm = await lentoMas
+      const msm = Date.now() - t2
+      check('cancelar un «Cargar más» lento de la consola: «cancelada» y enseguida', !!rm && cm.ok && cm.r.cancelada === true && !rm.ok && rm.error.clase === 'cancelada' && msm < 2000, `${msm} ms ${j(rm && (rm.ok ? 'NO FALLÓ' : rm.error))}`)
+
+      // Una escritura larga: el servidor la para de verdad, no solo la respuesta.
+      const W = `${TMP}_lenta`
+      await dbDirecto.collection(W).insertMany(Array.from({ length: 200 }, (_, i) => ({ i })) as Cualquiera)
+      const t3 = Date.now()
+      const lentaW = con(`db.${W}.updateMany({ $where: "sleep(50) || true" }, { $set: { x: 1 } })`)
+      await new Promise((r) => setTimeout(r, 600))
+      const cw = await intentar(p.enviar({ op: 'cancelar', sesion: 'consola:1' }))
+      const rw = await lentaW
+      const msw = Date.now() - t3
+      const tocados = await dbDirecto.collection(W).countDocuments({ x: 1 } as Cualquiera)
+      await new Promise((r) => setTimeout(r, 1500))
+      const tocadosLuego = await dbDirecto.collection(W).countDocuments({ x: 1 } as Cualquiera)
+      check(
+        'cancelar un updateMany largo: «cancelada» enseguida y el servidor deja de escribir',
+        cw.ok && cw.r.cancelada === true && !rw.ok && rw.error.clase === 'cancelada' && /llegó a escribir algo/.test(rw.error.mensaje) && msw < 3000 && tocados < 200 && tocadosLuego === tocados,
+        `${msw} ms, ${tocados} → ${tocadosLuego} de 200 ${j(rw.ok ? 'NO FALLÓ' : rw.error)}`
+      )
+      const trasW = await con('db.clientes.countDocuments({})')
+      check('la sesión sigue sirviendo tras cancelar la escritura', trasW.ok && trasW.r.texto === '4', j(trasW))
+
+      // Dos sesiones escribiendo a la vez, cada una en su N-ésima operación: Stop en una no toca la otra.
+      const W2 = `${TMP}_ajena`
+      await dbDirecto.collection(W2).insertMany(Array.from({ length: 30 }, (_, i) => ({ i })) as Cualquiera)
+      const ajena = docs('datos', { operacion: 'consola', base: 'pruebas', texto: `db.${W2}.updateMany({ $where: "sleep(40) || true" }, { $set: { y: 1 } })`, maxDocumentos: 5, politica: RW })
+      const propia = con(`db.${W}.updateMany({ $where: "sleep(50) || true" }, { $set: { z: 1 } })`)
+      await new Promise((r) => setTimeout(r, 500))
+      await intentar(p.enviar({ op: 'cancelar', sesion: 'consola:1' }))
+      const [ra, rp] = await Promise.all([ajena, propia])
+      const enAjena = await dbDirecto.collection(W2).countDocuments({ y: 1 } as Cualquiera)
+      check('Stop en una consola no mata la escritura de otra sesión', ra.ok && ra.r.modificados === 30 && enAjena === 30 && !rp.ok && rp.error.clase === 'cancelada', j({ ra: ra.ok ? ra.r : ra.error, enAjena, rp: rp.ok ? 'NO FALLÓ' : rp.error.clase }))
     }
 
     hr('(13) Con servidor: el protocolo SQL no es de este motor')

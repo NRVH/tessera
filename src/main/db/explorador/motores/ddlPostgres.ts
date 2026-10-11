@@ -432,6 +432,7 @@ export function tieneDdlPg(tipo: DbTipoObjeto): boolean {
     tipo === 'vistaMaterializada' ||
     tipo === 'secuencia' ||
     tipo === 'rutina' ||
-    tipo === 'tipo'
+    tipo === 'tipo' ||
+    tipo === 'disparador'
   )
 }

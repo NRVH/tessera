@@ -28,7 +28,7 @@ function itemsDestinos(mosaico: MosaicoPane): ContextMenuEntry[] {
   const items: ContextMenuEntry[] = mosaico.destinos.map((d) => {
     const aqui = d.proyectoKey === mosaico.proyectoKey
     return {
-      icon: <PuntoMosaico color={d.color} enMarcha={d.enMarcha} trabajando={d.trabajando} sinVer={d.sinVer} />,
+      icon: <PuntoMosaico color={d.color} enMarcha={d.enMarcha} trabajando={d.trabajando} sinVer={d.sinVer} esperando={d.esperando} />,
       label: `${d.proyecto}${aqui ? '' : d.esCasilla ? ' (terminal abierta)' : d.dormido ? ' (dormido)' : ''}`,
       checked: aqui,
       disabled: d.esCasilla,

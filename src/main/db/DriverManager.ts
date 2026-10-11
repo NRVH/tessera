@@ -1,6 +1,6 @@
 // =============================================================================
 // DriverManager: consigue los clientes de base de datos que Tessera no empaqueta (Instant Client):
-// los detecta, los descarga (zip en Windows, .dmg en Mac) o registra uno que el usuario ya tiene.
+// los detecta, los descarga (zip en Windows y Linux, .dmg en Mac) o registra uno que el usuario ya tiene.
 // Todo vive en `userData/drivers`; la plataforma es una opción del constructor. Publica
 // `catalogo.json`, que lee `tdb` en otro proceso. Depende de `driverPacks.ts`, `descarga.ts` e `instalarDmg.ts`.
 // Decisiones: docs/decisiones/bd/drivers-descarga-y-plataformas.md
@@ -16,6 +16,7 @@ import {
   renameSync,
   rmdirSync,
   rmSync,
+  symlinkSync,
   writeFileSync
 } from 'node:fs'
 import { open } from 'node:fs/promises'
@@ -33,11 +34,13 @@ import {
   type DriverPackResuelto
 } from './driverPacks.ts'
 import { descargarConHuella } from './descarga.ts'
+import { destinoDeEnlace, enlacesDelZip } from './zipConEnlaces.ts'
 import {
   barrerArranque,
   huellaCoincide,
   instalarDesdeDmg,
   rutasInstalacionDmg,
+  sinAvisosDeObsoleto,
   type DepsInstalarDmg,
   type OrdenExterna
 } from './instalarDmg.ts'
@@ -83,7 +86,7 @@ function ejecutarOrden(orden: OrdenExterna): Promise<void> {
       { timeout: TIMEOUT_ORDEN_MS, maxBuffer: 4 * 1024 * 1024, windowsHide: true },
       (err, _stdout, stderr) => {
         if (!err) return resolve()
-        const detalle = String(stderr ?? '').trim() || err.message
+        const detalle = sinAvisosDeObsoleto(String(stderr ?? '')) || err.message
         reject(new Error(`${path.basename(orden.cmd)} ${orden.args[0] ?? ''}: ${detalle}`))
       }
     )
@@ -323,8 +326,11 @@ export class DriverManager {
     }
   }
 
-  /** Escribe el zip descomprimido APLANADO en `destino` y devuelve cuántos archivos escribió. */
-  private aplanarEn(destino: string, archivos: Record<string, Uint8Array>): number {
+  /**
+   * Escribe el zip descomprimido APLANADO en `destino` y devuelve cuántos archivos escribió. En
+   * Linux, los enlaces simbólicos del zip (`enlaces`) se crean como enlaces; el de Windows no trae.
+   */
+  private aplanarEn(destino: string, archivos: Record<string, Uint8Array>, enlaces: Set<string>): number {
     mkdirSync(destino, { recursive: true })
     let escritos = 0
     for (const [nombre, datos] of Object.entries(archivos)) {
@@ -334,7 +340,14 @@ export class DriverManager {
       if (!base || base === '.' || base === '..') continue
       // META-INF son las firmas del zip de Oracle: ruido.
       if (nombre.includes('META-INF/')) continue
-      writeFileSync(path.join(destino, base), datos)
+      if (this.plataforma === 'linux' && enlaces.has(nombre)) {
+        const apunta = destinoDeEnlace(datos)
+        if (apunta === null) continue
+        rmSync(path.join(destino, base), { force: true })
+        symlinkSync(apunta, path.join(destino, base))
+      } else {
+        writeFileSync(path.join(destino, base), datos)
+      }
       escritos++
     }
     return escritos
@@ -352,7 +365,7 @@ export class DriverManager {
       const archivos = await this.unzipToMemory(zip)
       // El zip trae todo bajo `instantclient_XX_YY/`: se aplana para que la ruta de `initOracleClient`
       // sea la misma venga de una descarga o de un driver externo.
-      const escritos = this.aplanarEn(destino, archivos)
+      const escritos = this.aplanarEn(destino, archivos, enlacesDelZip(zip))
       this.log(`${pack.id}: ${escritos} archivos en ${destino}`)
 
       if (!existsSync(path.join(destino, pack.centinela))) {

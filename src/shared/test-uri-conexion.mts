@@ -11,6 +11,7 @@ import {
   BASE_REDIS_MAX,
   OPCIONES_URI_MONGO,
   descomponerUriMongo,
+  descomponerUriPostgres,
   descomponerUriRedis,
   separarAuthSource,
   unirAuthSource,
@@ -169,7 +170,20 @@ hr('(8) Lo que se rechaza con su motivo')
   check('otro esquema: error con los dos esperados', /mongodb:\/\/ o mongodb\+srv:\/\//.test(error('postgres://h/b')), error('postgres://h/b'))
   check('sin esquema: error', error('h:27017') !== '', error('h:27017'))
   check('vacía: error', error('') !== '', error(''))
-  check('varios hosts sin srv: error con el remedio (replicaSet)', /replicaSet/.test(error('mongodb://a:1,b:2/?replicaSet=rs0')), error('mongodb://a:1,b:2/?replicaSet=rs0'))
+  const lista = campos('mongodb://a:1,b,[::1]:3/?replicaSet=rs0')
+  check(
+    'varios hosts sin srv: la lista entera al host, cada uno con su puerto (el de por defecto queda en port)',
+    lista?.host === 'a:1,b,[::1]:3' && lista.port === 27017 && lista.opcionesUri === 'replicaSet=rs0',
+    j(lista)
+  )
+  check('MITAD NEGATIVA: varios hosts con srv sigue siendo error', /un solo nombre de host/.test(error('mongodb+srv://a,b/')), error('mongodb+srv://a,b/'))
+  check('MITAD NEGATIVA: un miembro con un puerto malo, error', /puerto/.test(error('mongodb://a:1,b:0/')), error('mongodb://a:1,b:0/'))
+  check('MITAD NEGATIVA: una coma escapada (%2C) en un host no cuela otro servidor', /no es válido/.test(error('mongodb://a%2Cb:1,c:2/')), error('mongodb://a%2Cb:1,c:2/'))
+  check(
+    'MITAD NEGATIVA: varios hosts con directConnection=true o loadBalanced=true, error con su motivo',
+    /varios hosts/.test(error('mongodb://a,b/?directConnection=true')) && /varios hosts/.test(error('mongodb://a,b/?loadBalanced=true')),
+    error('mongodb://a,b/?directConnection=true')
+  )
   check('sin host: error', /host/.test(error('mongodb:///b')), error('mongodb:///b'))
   check('puerto no numérico: error', /puerto/.test(error('mongodb://h:abc')), error('mongodb://h:abc'))
   check('puerto 0: error', /puerto/.test(error('mongodb://h:0')), error('mongodb://h:0'))
@@ -347,6 +361,45 @@ hr('(14) La base de autenticación, fuera y dentro de las opciones')
     j([validarOpcionesFormularioMongo('authSource=a&authSource=b'), validarOpcionesFormularioMongo('authSource=%zz')])
   )
   check('lo unido pasa lo que el main aplica', validarOpcionesUriMongo(unirAuthSource('replicaSet=rs0', '$external', null)) === null, 'ok')
+}
+
+hr('(15) PostgreSQL: host, credenciales, base y sslmode')
+{
+  const ok = (uri: string): ReturnType<typeof descomponerUriPostgres> => descomponerUriPostgres(uri)
+  const c = (uri: string): { host: string; port: number; user: string; password: string; database: string; tls: { cifrar: boolean; confiarCertificado: boolean }; descartadas: string[] } | null => {
+    const r = ok(uri)
+    return r.ok ? r.campos : null
+  }
+  const a = c('postgres://ana:p%40ss%3A@db.local:6543/ventas?sslmode=require')
+  check(
+    'completa: host, puerto, usuario, clave decodificada, base y cifrado sin verificar',
+    a !== null && a.host === 'db.local' && a.port === 6543 && a.user === 'ana' && a.password === 'p@ss:' && a.database === 'ventas' && j(a.tls) === j({ cifrar: true, confiarCertificado: true }) && a.descartadas.length === 0,
+    j(a)
+  )
+  const b = c('postgresql://db.local')
+  check('postgresql://, sin puerto (5432), sin base, sin usuario y sin cifrar', b !== null && b.port === 5432 && b.database === '' && b.user === '' && j(b.tls) === j(SIN_CIFRAR), j(b))
+  const modos: Array<[string, boolean, boolean]> = [
+    ['disable', false, false],
+    ['allow', true, true],
+    ['prefer', true, true],
+    ['require', true, true],
+    ['verify-ca', true, false],
+    ['verify-full', true, false],
+    ['VERIFY-FULL', true, false]
+  ]
+  for (const [m, cifrar, confiar] of modos) {
+    const r = c(`postgres://h/b?sslmode=${m}`)
+    check(`sslmode=${m}`, r !== null && r.tls.cifrar === cifrar && r.tls.confiarCertificado === confiar, j(r?.tls))
+  }
+  const mal = ok('postgres://h/b?sslmode=casi')
+  check('sslmode desconocido: error con los admitidos', !mal.ok && mal.error.includes('verify-full'), j(mal))
+  check('sslmode sin valor: error', !ok('postgres://h?sslmode').ok, 'ok')
+  const d = c('postgres://h/b?application_name=x&sslmode=require&connect_timeout=5&application_name=y')
+  check('el resto de opciones se descarta y se dice, sin repetir', d !== null && j(d.descartadas) === j(['application_name', 'connect_timeout']) && d.tls.cifrar, j(d))
+  check('IPv6 con puerto', c('postgres://[::1]:5433/b')?.host === '::1' && c('postgres://[::1]:5433/b')?.port === 5433, j(c('postgres://[::1]:5433/b')))
+  check('varios hosts: error', !ok('postgres://a,b/x').ok, 'ok')
+  check('esquema ajeno y puerto malo: error', !ok('mysql://h').ok && !ok('postgres://h:0/x').ok && !ok('postgres://h:99999/x').ok, 'ok')
+  check('socket local y % suelto: error', !ok('postgres://%2Fvar%2Frun/x').ok && !ok('postgres://u:a%zz@h/x').ok, 'ok')
 }
 
 const pasadas = results.filter((r) => r.pass).length

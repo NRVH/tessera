@@ -22,6 +22,7 @@ import {
   marcasVisibles,
   puertoValido,
   trasGuardar,
+  tunelNuevo,
   usaSecreto,
   type BorradorSsh
 } from './borradorSsh.ts'
@@ -53,6 +54,8 @@ function valido(extra: Partial<BorradorSsh> = {}): BorradorSsh {
 function conexion(extra: Partial<SshConexion> = {}): SshConexion {
   return {
     id: 'c1',
+    saltoId: null,
+    tuneles: [],
     profileId: 'personal',
     alias: 'Router',
     grupoId: 'g1',
@@ -284,6 +287,25 @@ hr('(13) usaSecreto delega en la regla única de shared')
     ),
     'coinciden'
   )
+}
+
+hr('T - Bastión y túneles')
+{
+  const guardada = conexion({ saltoId: 'b1', tuneles: [{ tipo: 'local', puerto: 15432, destinoHost: 'localhost', destinoPuerto: 5432 }, { tipo: 'dinamico', puerto: 1080 }] })
+  const b = borradorDesde(guardada)
+  check('(T1) de la conexión al borrador: el bastión y los túneles con los puertos como texto', b.saltoId === 'b1' && b.tuneles.length === 2 && b.tuneles[0].puerto === '15432' && b.tuneles[1].destinoHost === '', j(b.tuneles))
+  const e = entradaDe(b)
+  check('(T2) de vuelta, tal cual (el SOCKS sin destino)', e.saltoId === 'b1' && j(e.tuneles) === j(guardada.tuneles), j(e.tuneles))
+  check('(T3) sin tocar nada no hay cambios (las claves de la lista no cuentan)', !hayCambios(borradorDesde(guardada), b), 'sin cambios')
+  check('(T4) cambiar el bastión o un puerto son cambios', hayCambios({ ...b, saltoId: null }, b) && hayCambios({ ...b, tuneles: [{ ...b.tuneles[0], puerto: '15433' }, b.tuneles[1]] }, b), 'sí')
+  const nuevo = { ...valido(), tuneles: [tunelNuevo()] }
+  check('(T5) un túnel a medio rellenar se marca (y no se guarda)', camposAMarcar(nuevo).includes('tuneles'), j(camposAMarcar(nuevo)))
+  const socks = { ...valido(), tuneles: [{ ...tunelNuevo(), tipo: 'dinamico' as const, puerto: '1080', destinoHost: '', destinoPuerto: '' }] }
+  check('(T6) el SOCKS solo necesita su puerto', !camposAMarcar(socks).includes('tuneles'), j(camposAMarcar(socks)))
+  check('(T7) un alta nace directa y sin túneles', borradorNuevo('p').saltoId === null && borradorNuevo('p').tuneles.length === 0 && entradaDe(valido()).saltoId === null, 'sí')
+  const t1 = tunelNuevo()
+  const t2 = tunelNuevo()
+  check('(T8) cada túnel nuevo tiene su propia clave de lista', t1.clave !== t2.clave, `${t1.clave} ${t2.clave}`)
 }
 
 hr('RESULTADO (PASS/FAIL)')

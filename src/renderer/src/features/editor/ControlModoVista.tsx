@@ -1,7 +1,7 @@
 // =============================================================================
 // Control segmentado de tres posiciones del modo de vista de un archivo con vista
 // previa: solo editor, editor y vista, solo vista. Los tres se ven a la vez, y el
-// encendido es el modo actual. Lo usa la cabecera de EditorPane.
+// encendido es el modo actual. Lo pinta EditorPane en la tira de pestañas.
 // =============================================================================
 import { MODOS_VISTA, type ModoVista } from './modoVista'
 

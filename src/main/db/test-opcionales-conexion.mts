@@ -72,9 +72,25 @@ check('con autenticación sql, el dominio NO se guarda', !('dominio' in opcional
 check('sin autenticación (= sql), tampoco', !('dominio' in opcionalesAGuardar(MOTORES.sqlserver, { ...todo, autenticacion: undefined })), '')
 check('instancia vacía o en blanco: no se guarda', !('instancia' in opcionalesAGuardar(MOTORES.sqlserver, { instancia: '   ' })), '')
 check('nada: {}', j(opcionalesAGuardar(MOTORES.sqlserver, {})) === '{}', '')
-for (const m of ['oracle', 'postgres', 'sqlite'] as const) {
-  check(`${m}: NINGUNO se guarda (su registro no cambia)`, j(opcionalesAGuardar(MOTORES[m], todo)) === '{}', j(opcionalesAGuardar(MOTORES[m], todo)))
-}
+check('sqlite: NINGUNO se guarda (su registro no cambia)', j(opcionalesAGuardar(MOTORES.sqlite, todo)) === '{}', j(opcionalesAGuardar(MOTORES.sqlite, todo)))
+check(
+  'postgres: solo el cifrado, tal cual (verificar o confiar)',
+  j(opcionalesAGuardar(MOTORES.postgres, todo)) === j({ tls: { cifrar: true, confiarCertificado: true } }),
+  j(opcionalesAGuardar(MOTORES.postgres, todo))
+)
+check(
+  'oracle: solo el cifrado, y SIN «confiar» (no puede cifrar sin verificar; llegaría de otro motor)',
+  j(opcionalesAGuardar(MOTORES.oracle, todo)) === j({ tls: { cifrar: true, confiarCertificado: false } }),
+  j(opcionalesAGuardar(MOTORES.oracle, todo))
+)
+check(
+  'oracle y postgres sin cifrar (escrito o no): no se guarda nada (el registro y la huella de una conexión vieja no cambian)',
+  j(opcionalesAGuardar(MOTORES.oracle, {})) === '{}' &&
+    j(opcionalesAGuardar(MOTORES.postgres, {})) === '{}' &&
+    j(opcionalesAGuardar(MOTORES.postgres, { tls: { cifrar: false, confiarCertificado: true } })) === '{}' &&
+    j(opcionalesAGuardar(MOTORES.oracle, { tls: { cifrar: false, confiarCertificado: false } })) === '{}',
+  ''
+)
 
 // ---------------------------------------------------------------------------------
 hr('(2b) El USUARIO opcional (MongoDB, Redis)')
@@ -201,10 +217,11 @@ check(
 )
 check('SQL Server sin cifrado escrito sigue sin guardarlo (no tiene tlsPorDefecto)', j(opcionalesAGuardar(MOTORES.sqlserver, {})) === j({}), j(opcionalesAGuardar(MOTORES.sqlserver, {})))
 const ajenosMongo = (['oracle', 'postgres', 'sqlite', 'sqlserver', 'redis'] as const).map((m) => [m, opcionalesAGuardar(MOTORES[m], { srv: true, opcionesUri: 'authSource=admin' })])
-// Redis guarda su cifrado efectivo, y `srv` (que no es suyo) NO lo enciende.
+// Redis guarda su cifrado efectivo (Oracle y PG, solo cifrando), y `srv` (que no es suyo) NO lo enciende.
+const conTlsPropio = new Set(['redis'])
 check(
   'srv y opcionesUri no viajan con ningún otro motor (Redis guarda su cifrado, y sin cifrar: srv no es suyo)',
-  ajenosMongo.every(([m, g]) => j(g) === (m === 'redis' ? j({ tls: { cifrar: false, confiarCertificado: false } }) : j({}))),
+  ajenosMongo.every(([m, g]) => j(g) === (conTlsPropio.has(m as string) ? j({ tls: { cifrar: false, confiarCertificado: false } }) : j({}))),
   j(ajenosMongo)
 )
 check('tlsEfectivo: basura en tls cae al del motor', j(tlsEfectivo(MOTORES.mongodb, { tls: 'si' })) === j({ cifrar: false, confiarCertificado: false }), '')

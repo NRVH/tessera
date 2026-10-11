@@ -138,6 +138,8 @@ export class ExportarTabla {
     let binds: BindsTrabajador
     switch (forma) {
       case 'limitOffset': {
+        // MySQL: su LIMIT no admite NULL y su trabajador no mantiene cursores: por páginas.
+        if (!cap.mantenerCursor) return this.exportarTablaPorPaginas(con, d, req, consumir, cancelada)
         // Los binds del filtro guiado van DELANTE: se cambian solo los dos últimos, que son
         // siempre los del LIMIT/OFFSET (`sqlRejilla`).
         const b = consulta.binds as unknown[]

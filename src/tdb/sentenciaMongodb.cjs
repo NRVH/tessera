@@ -12,15 +12,22 @@ const { ErrorSintaxis } = require('./erroresMongodb.cjs')
 const { TOPE_PROFUNDIDAD, MENSAJE_RECHAZO, cpDe, mensajeSintaxis, parsear, localizar } = require('./literalesMongodb.cjs')
 
 /** Métodos de colección que LEEN (lista blanca de solo lectura). */
-const LECTURA_COLECCION = new Set(['find', 'findOne', 'aggregate', 'countDocuments', 'estimatedDocumentCount', 'distinct'])
+const LECTURA_COLECCION = new Set(['find', 'findOne', 'aggregate', 'countDocuments', 'estimatedDocumentCount', 'distinct', 'getIndexes', 'stats'])
 /** Métodos de colección que escriben y se admiten en la consola. */
-const ESCRITURA_COLECCION = new Set(['insertOne', 'insertMany', 'updateOne', 'updateMany', 'replaceOne', 'deleteOne', 'deleteMany'])
-/** Métodos de `db` admitidos; todos leen (`aggregate` salvo `$out`/`$merge`). */
+const ESCRITURA_COLECCION = new Set([
+  'insertOne', 'insertMany', 'updateOne', 'updateMany', 'replaceOne', 'deleteOne', 'deleteMany',
+  'findOneAndUpdate', 'findOneAndDelete', 'findOneAndReplace', 'drop', 'renameCollection', 'createIndex', 'dropIndex'
+])
+/** Métodos de `db` que leen (`aggregate` salvo `$out`/`$merge`). */
 const METODOS_DB = new Set(['getCollectionNames', 'stats', 'getName', 'aggregate'])
+/** Métodos de `db` que escriben. */
+const ESCRITURA_DB = new Set(['createCollection'])
 /** Lo que se puede encadenar detrás de `find`. */
-const CADENA_FIND = new Set(['sort', 'limit', 'skip', 'projection'])
+const CADENA_FIND = new Set(['sort', 'limit', 'skip', 'projection', 'count'])
 /** Lo que se puede encadenar detrás de `find` o `aggregate` (`toArray`/`pretty` no hacen nada: se pagina igual). */
-const CADENA_CURSOR = new Set(['explain', 'toArray', 'pretty'])
+const CADENA_CURSOR = new Set(['explain', 'toArray', 'pretty', 'hint', 'maxTimeMS'])
+/** Los que cierran la cadena: `.count()` y `.explain()` sustituyen al cursor, nada se encadena detrás. */
+const CIERRAN_CADENA = new Set(['explain', 'count'])
 const ETAPAS_ESCRITURA = ['$out', '$merge']
 const OPERADORES_JS = ['$where', '$function', '$accumulator']
 const NOMBRE_BASE = /^[^\s/\\."$*<>:|?]{1,63}$/
@@ -102,11 +109,11 @@ function coleccionYResto(texto, raiz, llamadas) {
   if (raiz.type !== 'Identifier' || raiz.name !== 'db') return { coleccion: nombreColeccion(texto, raiz), resto: llamadas }
   const primera = llamadas[0]
   if (primera.metodo === 'getCollection') return coleccionDeGetCollection(texto, llamadas)
-  if (!METODOS_DB.has(primera.metodo)) {
+  if (!METODOS_DB.has(primera.metodo) && !ESCRITURA_DB.has(primera.metodo)) {
     throw rechazo(
       texto,
       primera.nodoMetodo,
-      `«db.${primera.metodo}()» no está admitido. De «db» se admiten: ${listaDe(METODOS_DB)}, getCollection("…").`
+      `«db.${primera.metodo}()» no está admitido. De «db» se admiten: ${listaDe(METODOS_DB)}, ${listaDe(ESCRITURA_DB)}, getCollection("…").`
     )
   }
   return { coleccion: null, resto: llamadas }
@@ -127,7 +134,7 @@ function validarLlamadas(texto, coleccion, principal, cadena) {
       (metodo === 'find' && (CADENA_FIND.has(c.metodo) || CADENA_CURSOR.has(c.metodo))) ||
       (metodo === 'aggregate' && CADENA_CURSOR.has(c.metodo))
     if (!permitida) throw rechazo(texto, c.nodoMetodo, `«.${c.metodo}()» no se admite detrás de «${metodo}».`)
-    if (c.metodo === 'explain' && i !== cadena.length - 1) throw rechazo(texto, c.nodoMetodo, '«.explain()» tiene que ir al final.')
+    if (CIERRAN_CADENA.has(c.metodo) && i !== cadena.length - 1) throw rechazo(texto, c.nodoMetodo, `«.${c.metodo}()» tiene que ir al final.`)
   })
 }
 
@@ -234,4 +241,4 @@ function clasificar(s) {
   return { lectura: true, avisos }
 }
 
-module.exports = { LECTURA_COLECCION, ESCRITURA_COLECCION, METODOS_DB, interpretarSentencia, clasificar }
+module.exports = { LECTURA_COLECCION, ESCRITURA_COLECCION, METODOS_DB, ESCRITURA_DB, CADENA_FIND, CADENA_CURSOR, interpretarSentencia, clasificar }

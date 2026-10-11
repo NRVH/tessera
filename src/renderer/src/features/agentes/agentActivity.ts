@@ -4,10 +4,11 @@
 // Combina la señal del main (`raw`: trabajando o no por target) con `unseen`, lo que
 // sólo sabe la UI: targets que cerraron un turno REAL sin que los estuvieras viendo.
 // `unseen` es pegajoso hasta visitar el target o que vuelva a trabajar; un cierre
-// 'idle' nunca lo marca. Sin React, para probarlo bajo `node`.
+// 'idle' nunca lo marca. `esperando` son los que te esperan (lo dice el agente): vuelven
+// a `unseen` cada vez que dejas de mirarlos sin contestar. Sin React, para probarlo bajo `node`.
 // =============================================================================
 
-import type { AgentActivityState } from '../../../../shared/agent-terminal-ipc'
+import type { AgentActivityState, AgentMotivoEspera } from '../../../../shared/agent-terminal-ipc'
 
 /**
  * Estado crudo VISIBLE de un target: trabajando o no. El main emite además 'done'
@@ -19,12 +20,30 @@ export type AgentWork = 'working' | 'idle'
 export interface ActivityState {
   /** Último estado crudo por key de target. */
   raw: Record<string, AgentWork>
-  /** Keys que terminaron sin ser vistos (badge "listo para revisar"). */
+  /** Keys que terminaron, o te esperan, sin ser vistos (el halo de «te necesita»). */
   unseen: Set<string>
+  /** Keys que te esperan (un permiso, una pregunta…), con lo que esperan si el agente lo dice. */
+  esperando: Map<string, AgentMotivoEspera | null>
 }
 
 /** Estado vacío inicial. */
-export const emptyActivityState: ActivityState = { raw: {}, unseen: new Set() }
+export const emptyActivityState: ActivityState = { raw: {}, unseen: new Set(), esperando: new Map() }
+
+/** `esperando` con `key` puesta (con su motivo) o quitada; el mismo mapa si no cambia nada. */
+function conEspera(
+  esperando: Map<string, AgentMotivoEspera | null>,
+  key: string,
+  motivo: AgentMotivoEspera | null | undefined
+): Map<string, AgentMotivoEspera | null> {
+  if (motivo === undefined) {
+    if (!esperando.has(key)) return esperando
+    const m = new Map(esperando)
+    m.delete(key)
+    return m
+  }
+  if (esperando.has(key) && esperando.get(key) === motivo) return esperando
+  return new Map(esperando).set(key, motivo)
+}
 
 /**
  * Aplica un evento de actividad del main para `key`.
@@ -36,6 +55,8 @@ export const emptyActivityState: ActivityState = { raw: {}, unseen: new Set() }
  *   - 'idle': cierre SILENCIOSO (turno trivial, sesión cerrada/hibernada). Apaga
  *     el indicador y NUNCA marca unseen: ahí está la diferencia con la v1, donde
  *     cualquier working->idle fabricaba un falso "listo por revisar".
+ *   - 'blocked': te espera. Como 'done' (avisa si no lo ves), y además entra en
+ *     `esperando` hasta que el agente diga otra cosa.
  * `isActive` = el target es el que el usuario ve ahora mismo. Devuelve el MISMO
  * objeto si nada cambió (identidad estable => sin re-render).
  */
@@ -43,31 +64,45 @@ export function applyActivity(
   state: ActivityState,
   key: string,
   event: AgentActivityState,
-  isActive: boolean
+  isActive: boolean,
+  motivo: AgentMotivoEspera | null = null
 ): ActivityState {
   const prev = state.raw[key]
-  // 'done' e 'idle' dejan el crudo igual (no trabaja); solo difieren en si avisan.
+  // 'done', 'idle' y 'blocked' dejan el crudo igual (no trabaja); difieren en si avisan.
   const work: AgentWork = event === 'working' ? 'working' : 'idle'
-  let nextUnseen = state.unseen
-
-  if (event === 'working') {
-    if (state.unseen.has(key)) {
-      nextUnseen = new Set(state.unseen)
-      nextUnseen.delete(key)
-    }
-  } else if (event === 'done') {
-    if (!isActive && !state.unseen.has(key)) {
-      nextUnseen = new Set(state.unseen)
-      nextUnseen.add(key)
-    }
-  }
+  const nextUnseen = unseenTras(state, key, event, isActive)
+  const esperando = conEspera(state.esperando, key, event === 'blocked' ? motivo : undefined)
 
   const rawChanged = prev !== work
-  if (!rawChanged && nextUnseen === state.unseen) return state
+  if (!rawChanged && nextUnseen === state.unseen && esperando === state.esperando) return state
   return {
     raw: rawChanged ? { ...state.raw, [key]: work } : state.raw,
-    unseen: nextUnseen
+    unseen: nextUnseen,
+    esperando
   }
+}
+
+/** `unseen` tras `event` en `key`; el mismo conjunto si no cambia. */
+function unseenTras(state: ActivityState, key: string, event: AgentActivityState, isActive: boolean): Set<string> {
+  const tiene = state.unseen.has(key)
+  const avisa = (event === 'done' || event === 'blocked') && !isActive && !tiene
+  // Una espera que se apaga sin terminar (cancelada, relanzada) se lleva su aviso: lo puso ella, y
+  // dejarlo diría «terminó» de algo que no terminó. Volver a trabajar también lo quita.
+  const quita = tiene && (event === 'working' || (event === 'idle' && state.esperando.has(key)))
+  if (avisa) return new Set(state.unseen).add(key)
+  if (!quita) return state.unseen
+  const sin = new Set(state.unseen)
+  sin.delete(key)
+  return sin
+}
+
+/**
+ * Dejaste de mirar `key`: si te sigue esperando, vuelve a avisar. Sin esto, mirar una pregunta y
+ * cambiar de pestaña sin contestarla la dejaría sin ninguna señal. Identidad estable si no aplica.
+ */
+export function dejarDeVer(state: ActivityState, key: string): ActivityState {
+  if (!state.esperando.has(key) || state.unseen.has(key)) return state
+  return { ...state, unseen: new Set(state.unseen).add(key) }
 }
 
 /**
@@ -78,7 +113,16 @@ export function markSeen(state: ActivityState, key: string): ActivityState {
   if (!state.unseen.has(key)) return state
   const unseen = new Set(state.unseen)
   unseen.delete(key)
-  return { raw: state.raw, unseen }
+  return { ...state, unseen }
+}
+
+/** El mapa de espera sin las keys que no cumplan `queda`; el mismo si no sobra nada. */
+function filtrarEspera(
+  esperando: Map<string, AgentMotivoEspera | null>,
+  queda: (k: string) => boolean
+): Map<string, AgentMotivoEspera | null> {
+  if ([...esperando.keys()].every(queda)) return esperando
+  return new Map([...esperando].filter(([k]) => queda(k)))
 }
 
 /* AQUÍ VIVÍA `markAllSeen`, que apagaba TODOS los avisos de una vez porque mirar el
@@ -97,12 +141,13 @@ export function pruneActivity(state: ActivityState, openKeys: Set<string>): Acti
   const rawKeys = Object.keys(state.raw)
   const rawStale = rawKeys.some((k) => !openKeys.has(k))
   const unseenStale = [...state.unseen].some((k) => !openKeys.has(k))
-  if (!rawStale && !unseenStale) return state
+  const esperando = filtrarEspera(state.esperando, (k) => openKeys.has(k))
+  if (!rawStale && !unseenStale && esperando === state.esperando) return state
   const raw: Record<string, AgentWork> = {}
   for (const k of rawKeys) if (openKeys.has(k)) raw[k] = state.raw[k]
   const unseen = new Set<string>()
   for (const k of state.unseen) if (openKeys.has(k)) unseen.add(k)
-  return { raw, unseen }
+  return { raw, unseen, esperando }
 }
 
 /**
@@ -115,12 +160,13 @@ export function clearActivityKeys(state: ActivityState, keys: Set<string>): Acti
   if (keys.size === 0) return state
   const rawHit = Object.keys(state.raw).some((k) => keys.has(k))
   const unseenHit = [...state.unseen].some((k) => keys.has(k))
-  if (!rawHit && !unseenHit) return state
+  const esperando = filtrarEspera(state.esperando, (k) => !keys.has(k))
+  if (!rawHit && !unseenHit && esperando === state.esperando) return state
   const raw: Record<string, AgentWork> = {}
   for (const k of Object.keys(state.raw)) if (!keys.has(k)) raw[k] = state.raw[k]
   const unseen = new Set<string>()
   for (const k of state.unseen) if (!keys.has(k)) unseen.add(k)
-  return { raw, unseen }
+  return { raw, unseen, esperando }
 }
 
 /**
@@ -132,12 +178,23 @@ export function clearActivityKeys(state: ActivityState, keys: Set<string>): Acti
  *
  * `unseen` NO se toca: es un aviso pendiente ("terminó y aún no lo revisas"), no un
  * estado de sesión, y borrarlo aquí tiraría avisos legítimos cada vez que vuelves a la
- * ventana. Identidad estable si nada cambia.
+ * ventana. `esperando` sí se sustituye por el de la foto: es estado de sesión, y uno que
+ * se quedara colgado avisaría para siempre. Identidad estable si nada cambia.
  */
 export function sincronizarActividad(
   state: ActivityState,
-  vivos: Record<string, AgentWork>
+  vivos: Record<string, AgentWork>,
+  esperandoVivos: Map<string, AgentMotivoEspera | null> = new Map()
 ): ActivityState {
+  const conEsperando = sincronizarCrudo(state, vivos)
+  const iguales =
+    esperandoVivos.size === state.esperando.size &&
+    [...esperandoVivos].every(([k, m]) => state.esperando.has(k) && state.esperando.get(k) === m)
+  return iguales ? conEsperando : { ...conEsperando, esperando: esperandoVivos }
+}
+
+/** El crudo de `sincronizarActividad`. */
+function sincronizarCrudo(state: ActivityState, vivos: Record<string, AgentWork>): ActivityState {
   const claves = new Set([...Object.keys(state.raw), ...Object.keys(vivos)])
   let cambio = false
   const raw: Record<string, AgentWork> = {}
@@ -153,7 +210,7 @@ export function sincronizarActividad(
     if (state.raw[k] !== nuevo) cambio = true
   }
   if (!cambio) return state
-  return { raw, unseen: state.unseen }
+  return { ...state, raw }
 }
 
 /** true si el target está trabajando ahora mismo. */

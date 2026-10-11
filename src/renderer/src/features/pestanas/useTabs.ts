@@ -125,8 +125,11 @@ export interface UseTabs {
    * Cancelar el diálogo no cierra nada.
    */
   replaceProjectInActiveProfile: (oldPath: string, decideMode?: DecideProjectMode) => Promise<void>
-  /** Marca un proyecto ya abierto como activo dentro de su perfil. */
-  setActiveProject: (profileId: string, projectHostPath: string) => void
+  /**
+   * Marca un proyecto ya abierto como activo dentro de su perfil; con `entrar`, además pasa a ese
+   * perfil en la misma acción, sin despertar el proyecto que el perfil tenía activo.
+   */
+  setActiveProject: (profileId: string, projectHostPath: string, opciones?: { entrar?: boolean }) => void
   /**
    * DESPIERTA un proyecto hibernado sin activarlo (ver la acción `wakeProject`): lo
    * usa el mosaico, donde traer a una casilla un proyecto dormido no debe mover dónde

@@ -243,7 +243,11 @@ export interface AgentHibernarInactivosRequest {
 export interface AgenteHibernado {
   profileId: string
   projectHostPath: string
-  sesiones: Array<{ sessionId: string; agente: AgentKind; resumeSessionId?: string }>
+  /**
+   * `nuevaSiNadaDesde` (epoch ms): la sesión no tenía chat conocido desde entonces (una conversación
+   * nueva o un `/clear`): al despertar se reanuda la más reciente solo si tuvo actividad después.
+   */
+  sesiones: Array<{ sessionId: string; agente: AgentKind; resumeSessionId?: string; nuevaSiNadaDesde?: number }>
 }
 
 /** Resultado de una ronda: lo hibernado y cuándo conviene volver a mirar. */
@@ -299,10 +303,15 @@ export type AgentExitReason = 'ok' | 'container-down' | 'daemon-down' | 'unknown
  *     interese): es la señal accionable "terminó y aún no lo revisas".
  *   - 'idle'    → cierre SILENCIOSO: turno trivial, sesión cerrada/hibernada, o
  *     simplemente no hay nada en marcha. Apaga el indicador SIN avisar de nada.
- * Es una HEURÍSTICA (no parsea la TUI): falla hacia el silencio, nunca inventa un
- * 'done' cuando no hubo un turno tuyo de por medio.
+ *   - 'blocked' → el agente te está esperando (un permiso, una pregunta, un login). Solo
+ *     lo dice el propio agente (OSC 7501): sin su aviso no se distingue de 'done'.
+ * Con los avisos del agente es lo que él dice; sin ellos, una HEURÍSTICA (no parsea la
+ * TUI) que falla hacia el silencio y nunca inventa un 'done' sin un turno tuyo de por medio.
  */
-export type AgentActivityState = 'working' | 'done' | 'idle'
+export type AgentActivityState = 'working' | 'done' | 'idle' | 'blocked'
+
+/** Qué espera de ti un agente en 'blocked', si lo dice. */
+export type AgentMotivoEspera = 'permission' | 'question' | 'auth'
 
 /**
  * Evento main -> renderer con el cambio de actividad de una sesión. Lleva la
@@ -316,6 +325,8 @@ export interface AgentActivityMessage {
   projectHostPath: string
   agente: AgentKind
   state: AgentActivityState
+  /** Con 'blocked': qué espera, o `null` si el agente no lo dice. */
+  motivo?: AgentMotivoEspera | null
 }
 
 /** Evento main -> renderer cuando el agente termina. */

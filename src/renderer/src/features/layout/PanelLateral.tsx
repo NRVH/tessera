@@ -66,9 +66,9 @@ function ArbolBd({ bd, densidad }: Pick<Props, 'bd' | 'densidad'>): React.JSX.El
       onAbrir={(pane) => {
         if (p !== null) vistaDb.abrir(p, pane)
       }}
-      onNuevaConsola={(conexionId) => {
+      onNuevaConsola={(conexionId, base) => {
         if (conexionId === null) bd.nuevaConsolaEnContexto()
-        else if (p !== null) void bd.crearConsolaEn(p, conexionId)
+        else if (p !== null) void bd.crearConsolaEn(p, conexionId, undefined, base)
       }}
       onConexionEliminada={bd.alEliminarConexion}
       onConsolasCambiaron={() => {
@@ -145,6 +145,7 @@ export function PanelLateral(props: Props): React.JSX.Element {
       </ErrorBoundary>
       <Splitter
         orientation="vertical"
+        className="splitter-hueco"
         size={tamanos.sidebarWidth}
         min={SIDEBAR_WIDTH_MIN}
         max={SIDEBAR_WIDTH_MAX}

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // =============================================================================
 // Prueba de decidirVistaBotonAgentes y textoAccion: cuándo se ve el botón de los
-// agentes nativos, qué punto lleva y qué dice (V1-V17, V9b).
+// agentes nativos, qué punto lleva y qué dice (V1-V21, V9b), también al reparar un CLI.
 // (node src/renderer/src/features/agentes/test-vista-boton-agentes.mts)
 // Ningún punto en un botón invisible, rojo pegajoso y verde que se retira, nada sin
 // proyecto nativo ni con un resumen abortado; el sistema sólo se nombra con `nombres`
@@ -65,6 +65,8 @@ function cli(agente: AgentKind, extra: Partial<EstadoCli> = {}): EstadoCli {
     requiereParar: false,
     ordenManual: null,
     hayNueva: false,
+    reparar: false,
+    binarioPendiente: false,
     bloqueadores: [],
     error: null,
     comprobadoEn: 0,
@@ -340,6 +342,37 @@ function main(): void {
       t === 'Actualizar y reiniciar' && plan.instalar.length === 0 && plan.reiniciar.length === 0,
       JSON.stringify(t)
     )
+  }
+  // Codex instalado pero sin responder: el main lo marca `reparar` y lo ofrece como reinstalación.
+  const CODEX_ROTO = cli('codex', { instalada: null, ultima: '0.161.0', hayNueva: true, reparar: true, requiereParar: true, error: 'No responde' })
+  {
+    const est = estado({ codex: CODEX_ROTO, sesiones: [] })
+    const plan = planificar(est)
+    const t = textoAccion(plan)
+    check(
+      '(V18) Codex que no responde → «Reparar Codex», con la instalación marcada como reparación',
+      t === 'Reparar Codex' && plan.instalar.length === 1 && plan.instalar[0].reparar && plan.instalar[0].de === null && plan.instalar[0].a === '0.161.0',
+      `${JSON.stringify(t)} | ${JSON.stringify(plan.instalar)}`
+    )
+  }
+  {
+    const est = estado({
+      claude: cli('claude-code', { instalada: '2.1.280', ultima: '2.1.281', hayNueva: true }),
+      codex: CODEX_ROTO,
+      sesiones: [sesion('k1', 'claude-code')]
+    })
+    const t = textoAccion(planificar(est))
+    check('(V19) actualizar uno y reparar otro → los dos verbos, en minúscula tras el primero', t === 'Actualizar Claude Code, reparar Codex y reiniciar 1 sesión', JSON.stringify(t))
+  }
+  {
+    const v = decidirVistaBotonAgentes(entrada({ estado: estado({ codex: CODEX_ROTO }), plan: planificar(estado({ codex: CODEX_ROTO })) }))
+    check('(V20) el botón avisa de la reparación con su punto', v.punto === 'aviso' && v.titulo.includes('Codex no responde') && v.titulo.includes('0.161.0'), v.titulo)
+  }
+  {
+    // Esperando al binario de la plataforma: el main no lo da por nuevo y aquí no se ofrece.
+    const pendiente = estado({ codex: cli('codex', { instalada: '0.160.0', ultima: '0.161.0', hayNueva: false, binarioPendiente: true }) })
+    const plan = planificar(pendiente)
+    check('(V21) binario pendiente → nada que instalar ni punto', plan.instalar.length === 0 && decidirVistaBotonAgentes(entrada({ estado: pendiente, plan })).punto === null, JSON.stringify(plan.instalar))
   }
   {
     const todas = combinaciones(CENTINELA).flatMap((c) => (c.plan ? [textoAccion(c.plan)] : []))

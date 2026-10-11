@@ -11,7 +11,7 @@ import { esAlternarPantallaCompleta } from '../../util/atajos'
 import { hayModalAbierto } from '../../util/modalAbierto'
 import { panelDeLaFranja } from '../../util/zonaEnfocada'
 import { useStoreMosaico } from '../mosaico'
-import { fijadoresLayout, useStoreLayout } from './store'
+import { fijarMaximizado, useStoreLayout } from './store'
 
 /** El pane del agente de la terminal (`data-lugar` de `features/agentes/AgentTerminalPane.tsx`). */
 const SEL_AGENTE_TERMINAL = '[data-lugar="terminal"]'
@@ -39,8 +39,7 @@ export function useAtajoPantallaCompleta(): void {
       e.preventDefault()
       e.stopPropagation()
       if (e.repeat) return
-      const actual = useStoreLayout.getState().franjaPantallaCompleta
-      fijadoresLayout.franjaPantallaCompleta(actual === panel ? null : panel)
+      fijarMaximizado(panel, useStoreLayout.getState().franjaPantallaCompleta !== panel)
     }
     window.addEventListener('keydown', alPulsar, true)
     return () => window.removeEventListener('keydown', alPulsar, true)

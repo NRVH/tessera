@@ -95,7 +95,7 @@ export class SalidaExplorador {
   }
 
   /**
-   * Un perfil se BORRÓ (lo llama `main/agents/componer.ts` desde el guardado de perfiles): fuera
+   * Un perfil se BORRÓ (lo llama `profiles/borradoDePerfil.ts` con su orden de borrado): fuera
    * su historial de consultas, que vive fuera de su espacio de datos y nadie más limpia.
    */
   alBorrarPerfil(perfilId: string): Promise<void> {
@@ -103,17 +103,6 @@ export class SalidaExplorador {
     return this.c.historial.borrar(perfilId, null).catch((e: unknown) => {
       this.c.log(`no se pudo borrar el historial de un perfil borrado: ${mensajeDe(e)}`)
     })
-  }
-
-  /** Al arrancar: borra el historial de los perfiles que ya no existen (como `pruneProfiles`). */
-  podarHistorial(perfilesVivos: readonly string[]): Promise<void> {
-    if (!this.c.historial) return Promise.resolve()
-    return this.c.historial
-      .podar(perfilesVivos)
-      .then((n) => {
-        if (n > 0) this.c.log(`historial: ${n} archivo(s) de perfiles borrados`)
-      })
-      .catch((e: unknown) => this.c.log(`no se pudo podar el historial: ${mensajeDe(e)}`))
   }
 
   /** Antes del UPDATE: editar con una transacción pendiente queda bloqueado. */
@@ -151,6 +140,11 @@ export class SalidaExplorador {
    */
   fijarAjustes(a: AjustesSesionesBd): void {
     this.c.gestor.fijarAjustes(a)
+  }
+
+  /** Los ajustes que aplica el gestor (saneados): el plazo de las consolas vale para todas las familias. */
+  ajustesVigentes(): AjustesSesionesBd {
+    return this.c.gestor.ajustes()
   }
 
   barrer(ahora?: number): void {

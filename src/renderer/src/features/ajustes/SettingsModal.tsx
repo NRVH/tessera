@@ -24,6 +24,7 @@ import { Proyectos } from './categorias/Proyectos'
 import { BasesDeDatos } from './categorias/BasesDeDatos'
 import { Integracion } from './categorias/Integracion'
 import { Actualizaciones } from './categorias/Actualizaciones'
+import { Experimental } from './categorias/Experimental'
 import { Acerca } from './categorias/Acerca'
 
 /** El panel de cada categoría. COMPLETO: una categoría sin panel no compila. */
@@ -34,6 +35,7 @@ const PANELES: Record<CategoriaId, (p: PropsCategoria) => React.JSX.Element | nu
   'bases-de-datos': BasesDeDatos,
   integracion: Integracion,
   actualizaciones: Actualizaciones,
+  experimental: Experimental,
   acerca: Acerca
 }
 

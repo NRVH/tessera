@@ -152,7 +152,7 @@ function clasificarClis(estado: EstadoAgentesNativos, forzado: boolean): ClisPla
       bloqueadores.push({ agente, procesos: cli.bloqueadores })
       continue
     }
-    instalar.push({ agente, fase: cli.requiereParar ? 'B' : 'A', de: cli.instalada, a: cli.ultima })
+    instalar.push({ agente, fase: cli.requiereParar ? 'B' : 'A', de: cli.instalada, a: cli.ultima, reparar: cli.reparar })
   }
   return { instalar, manuales, bloqueadores }
 }

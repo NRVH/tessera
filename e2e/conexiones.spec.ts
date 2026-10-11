@@ -5,7 +5,7 @@
 // la pestaña de datos, el agente de datos (falso: `agenteFalso.ts`) y el cierre de la app
 // con una transacción pendiente. En serie y compartiendo app: cada prueba parte de lo que
 // dejó la anterior y recoge lo que abre (el árbol es virtual). Con `TESSERA_E2E_CAPTURAS`
-// deja un PNG por estado. Acordes por `MOD` y `ACORDE_AGENTE`; en Mac, SIN VERIFICAR.
+// deja un PNG por estado. Acordes por `MOD` y `ACORDE_AGENTE`.
 // Decisiones: docs/decisiones/pruebas/que-va-en-e2e-y-que-en-test-mts.md
 // =============================================================================
 

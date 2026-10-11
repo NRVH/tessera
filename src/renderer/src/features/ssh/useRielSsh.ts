@@ -1,14 +1,21 @@
 // =============================================================================
 // El riel de conexiones SSH de la terminal: de dónde sale lo que se ve (la preferencia del perfil y el
-// ancho, del store; el sitio, medido en el cuerpo de la terminal mientras está a pantalla completa) y
+// ancho, del store; el sitio, medido en la zona de la terminal y su agente a pantalla completa) y
 // qué se hace con ello, también si la ▾ del lanzador se ve. Lo decide `rielSsh` (puro); aquí solo se mide
 // y se enlaza. Depende del store de SSH.
 // Decisiones: docs/decisiones/terminales/riel-de-conexiones.md
 // =============================================================================
 
 import { useCallback, useLayoutEffect, useState, type RefObject } from 'react'
-import { SSH_RIEL_ANCHO_MAX } from '../../../../shared/ajustesTerminal'
-import { anchoMaximoRiel, dondeConectar, flechaLanzadorVisible, ID_RIEL_SSH, resolverRiel } from './rielSsh'
+import {
+  anchoMaximoDe,
+  COLUMNA_PLEGADA_MIN,
+  dondeConectar,
+  flechaLanzadorVisible,
+  ID_RIEL_SSH,
+  resolverRiel,
+  sitioDelRiel
+} from './rielSsh'
 import { accionesSsh, useStoreSsh } from './store'
 
 /** El riel de conexiones de la terminal ahora y lo que se puede hacer con él. */
@@ -26,6 +33,8 @@ export interface RielSsh {
   ancho: number
   /** Hasta dónde se puede ensanchar con el sitio que hay. */
   anchoMax: number
+  /** Lo mínimo que mide la columna plegada (su cabecera): el panel lo lleva al CSS. */
+  columnaPlegadaMin: number
   /** Alterna la preferencia del perfil. */
   alternar: () => void
   /** Enseña la lista de conexiones sin elegir dónde: da el foco al filtro del riel si se ve y, si no, abre el lanzador. */
@@ -43,14 +52,15 @@ export function enfocarRielSsh(): boolean {
 }
 
 /**
- * El ancho de un elemento mientras `activo`: se mide antes de pintar (el riel no aparece un fotograma
- * tarde) y se sigue con un observador. Fuera de uso no observa nada, vale 0 y olvida la medida: al volver,
- * el primer render no puede decidir con el ancho que tenía la vez anterior.
+ * El ancho de la zona que reparten la terminal y su agente (`.shell-main`, antepasado del cuerpo) mientras
+ * `activo`. No cambia al plegar o desplegar la columna, así que ninguna medida queda de otro modo. Se mide
+ * antes de pintar (el riel no aparece un fotograma tarde) y se sigue con un observador. Fuera de uso no observa
+ * nada, vale 0 y olvida la medida: al volver, el primer render no puede decidir con el ancho de la vez anterior.
  */
-function useAnchoDe(ref: RefObject<HTMLElement>, activo: boolean): number {
+function useAnchoZona(cuerpoRef: RefObject<HTMLElement>, activo: boolean): number {
   const [ancho, setAncho] = useState(0)
   useLayoutEffect(() => {
-    const el = ref.current
+    const el = cuerpoRef.current?.closest<HTMLElement>('.shell-main') ?? null
     if (!activo || !el) return
     const medir = (): void => setAncho(el.clientWidth)
     medir()
@@ -60,23 +70,31 @@ function useAnchoDe(ref: RefObject<HTMLElement>, activo: boolean): number {
       observador.disconnect()
       setAncho(0)
     }
-  }, [ref, activo])
+  }, [cuerpoRef, activo])
   return activo ? ancho : 0
 }
 
+/** La columna de la terminal: si está plegada y el ancho del agente que tiene al lado (null si no lo tiene). */
+export interface ColumnaRiel {
+  plegada: boolean
+  agenteAncho: number | null
+}
+
 /**
- * El riel del perfil `perfilId`. `cuerpoRef` es el cuerpo de la terminal, cuyo ancho es el sitio que hay:
- * no depende del riel, así que medirlo no puede retroalimentarse.
+ * El riel del perfil `perfilId`. El sitio sale de la zona que reparten la terminal y su agente, menos el
+ * agente si está al lado (`sitioDelRiel`); no depende del riel, así que medirlo no puede retroalimentarse.
  */
 export function useRielSsh(
   cuerpoRef: RefObject<HTMLElement>,
   pantallaCompleta: boolean,
   perfilId: string,
-  sinTerminal = false
+  columna: ColumnaRiel
 ): RielSsh {
   const ancho = useStoreSsh((s) => s.rielAncho)
   const oculto = useStoreSsh((s) => s.rielVisiblePorPerfil[perfilId] === false)
-  const disponible = useAnchoDe(cuerpoRef, pantallaCompleta)
+  const zona = useAnchoZona(cuerpoRef, pantallaCompleta)
+  const sinTerminal = columna.plegada
+  const { disponible, desplegado } = sitioDelRiel(zona, columna.agenteAncho, sinTerminal)
   const { enRiel, visible } = resolverRiel({ pantallaCompleta, perfilId, oculto, disponible, ancho, sinTerminal })
   const alternar = useCallback(() => accionesSsh.alternarRiel(perfilId), [perfilId])
   const ocultar = useCallback(() => accionesSsh.fijarRielVisible(perfilId, false), [perfilId])
@@ -91,8 +109,8 @@ export function useRielSsh(
     visible,
     flechaVisible: flechaLanzadorVisible({ enRiel, visible }),
     ancho,
-    // Sin terminal el cuerpo mide lo que el riel: el tope sale del rango del riel, no del cuerpo.
-    anchoMax: sinTerminal ? SSH_RIEL_ANCHO_MAX : anchoMaximoRiel(disponible, ancho),
+    anchoMax: anchoMaximoDe({ disponible, ancho, sinTerminal, desplegado }),
+    columnaPlegadaMin: COLUMNA_PLEGADA_MIN,
     alternar,
     pedirLista,
     ocultar,

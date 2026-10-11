@@ -6,7 +6,7 @@
 // Decisiones: docs/decisiones/bd/puente-textos-del-agente.md
 // =============================================================================
 import { FIN, INICIO, bloqueEspacioDatos, reemplazarBloque } from './agentMemoryBlock.ts'
-import { briefingBasesAgente, REGLA_PRODUCCION } from './briefingAgente.ts'
+import { briefingBasesAgente, nombreDialecto, REGLA_PRODUCCION } from './briefingAgente.ts'
 import { mensajeRegistroIlegible } from './registroConexiones.ts'
 import type { DbConnection } from '../../shared/db-ipc.ts'
 import { MOTORES } from '../../shared/motores/index.ts'
@@ -281,7 +281,9 @@ console.log('\nEl destino de cada conexión, del descriptor de su motor\n')
       const fila = `| DEST | ${motor} | ${esperado} | APP |`
       comprobar(`bloque, ${motor} ${JSON.stringify(caso)}: «${esperado}»`, bloque.includes(fila), bloque.split('\n').find((l) => l.includes('DEST')))
       const aviso = briefingBasesAgente([c as unknown as DbConnection], false) ?? ''
-      const linea = `- DEST (${motor}, ${esperado}, usuario APP) — solo lectura`
+      // El dialecto que el agente no escribe por defecto va detrás del usuario (MySQL: acentos graves).
+      const dialecto = Object.prototype.hasOwnProperty.call(MOTORES, motor) ? nombreDialecto(MOTORES[motor as keyof typeof MOTORES]) : null
+      const linea = `- DEST (${motor}, ${esperado}, usuario APP${dialecto ? `, ${dialecto}` : ''}) — solo lectura`
       comprobar(`aviso, ${motor} ${JSON.stringify(caso)}: «${esperado}»`, aviso.split('\n').includes(linea), aviso.split('\n').find((l) => l.includes('DEST')))
     }
   }

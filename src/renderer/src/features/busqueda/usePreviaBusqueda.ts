@@ -7,7 +7,7 @@
 import { useEffect } from 'react'
 import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from 'react'
 import type { editor } from 'monaco-editor'
-import { MONACO_THEME, OPCIONES_BASE_MONACO, ensureMonaco } from '../../comun/monacoSetup'
+import { BARRAS_MONACO, MONACO_THEME, OPCIONES_BASE_MONACO, ensureMonaco } from '../../comun/monacoSetup'
 import { languageForFilename } from '../../../../shared/files-ipc'
 import type { CoincidenciaArchivo } from '../../../../shared/search-ipc'
 import {
@@ -76,7 +76,7 @@ export function useEditorPrevia({
       // Se lee, no se edita: sin cursor parpadeante ni línea resaltada que compita con la coincidencia.
       renderLineHighlight: 'none',
       cursorBlinking: 'solid',
-      scrollbar: { alwaysConsumeMouseWheel: false }
+      scrollbar: { ...BARRAS_MONACO, alwaysConsumeMouseWheel: false }
     })
     editorRef.current = ed
     decoracionesRef.current = ed.createDecorationsCollection([])

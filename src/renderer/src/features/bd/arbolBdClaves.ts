@@ -72,6 +72,9 @@ export const claveBd = {
   /** Una base de documentos; guarda SUS colecciones (también la base fija de la conexión). */
   docBase: (conexionId: string, base: string): string => unir(['docBase', conexionId, base]),
   coleccion: (conexionId: string, base: string, nombre: string): string => unir(['coleccion', conexionId, base, nombre]),
+  /** Un índice de una colección de documentos. */
+  docIndice: (conexionId: string, base: string, coleccion: string, nombre: string): string =>
+    unir(['docIndice', conexionId, base, coleccion, nombre]),
   /** Las bases numeradas de una conexión de claves (`DbKvBases`). */
   kvBases: (conexionId: string): string => unir(['kvBases', conexionId]),
   /** Una base numerada; guarda el recorrido de sus claves. */

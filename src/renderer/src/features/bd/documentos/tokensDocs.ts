@@ -235,10 +235,17 @@ function formatearPuntuacion(e: EstadoFormato, tokens: readonly Token[], k: numb
 export function formatearTokens(tokens: readonly Token[], sangria = '  '): Token[] {
   const e: EstadoFormato = { out: [], sangria, nivel: 0, parentesis: 0 }
   for (let k = siguienteSignificativo(tokens, 0); k >= 0; k = siguienteSignificativo(tokens, k + 1)) {
-    if (tokens[k].clase !== 'puntuacion') e.out.push(tokens[k])
-    else k = formatearPuntuacion(e, tokens, k)
+    if (tokens[k].clase !== 'puntuacion') {
+      e.out.push(tokens[k])
+      if (esNew(tokens[k])) e.out.push(espacio())
+    } else k = formatearPuntuacion(e, tokens, k)
   }
   return e.out
+}
+
+/** `new` es una palabra: sin su espacio, `new Date(…)` se pegaría en `newDate(…)`. */
+function esNew(t: Token): boolean {
+  return t.clase === 'constructor' && t.texto === 'new'
 }
 
 export function textoDeTokens(tokens: readonly Token[]): string {
@@ -256,7 +263,7 @@ export function compactarTexto(texto: string): string {
   for (const t of tokenizar(texto)) {
     if (t.clase === 'espacio') continue
     s += t.texto
-    if (t.clase === 'puntuacion' && (t.texto === ',' || t.texto === ':')) s += ' '
+    if ((t.clase === 'puntuacion' && (t.texto === ',' || t.texto === ':')) || esNew(t)) s += ' '
   }
   return s
 }

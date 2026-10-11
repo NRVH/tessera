@@ -316,6 +316,36 @@ export function actualizarResultado<R extends ResultadoConLector>(
   return { ...estado, resultados: { ...estado.resultados, [id]: resultado } }
 }
 
+/** Un cambio que no hace desaparecer pestañas: ningún lector que cerrar. */
+export function sinLectores<R extends ResultadoConLector>(estado: EstadoResultados<R>): CambioResultados<R> {
+  return { estado, lectoresPorCerrar: [] }
+}
+
+/** Lo que el usuario hace con una pestaña desde la tira (clic, menú, ✕). */
+export type AccionPestanaResultado = 'activar' | 'fijar' | 'desfijar' | 'cerrar' | 'cerrarOtras' | 'cerrarTodas'
+
+/** Aplica una acción de la tira a la pestaña `id`. */
+export function aplicarAccionPestana<R extends ResultadoConLector>(
+  estado: EstadoResultados<R>,
+  accion: AccionPestanaResultado,
+  id: string
+): CambioResultados<R> {
+  switch (accion) {
+    case 'activar':
+      return { estado: activar(estado, id), lectoresPorCerrar: [] }
+    case 'fijar':
+      return { estado: fijar(estado, id), lectoresPorCerrar: [] }
+    case 'desfijar':
+      return { estado: desfijar(estado, id), lectoresPorCerrar: [] }
+    case 'cerrar':
+      return cerrar(estado, id)
+    case 'cerrarOtras':
+      return cerrarOtrasNoFijadas(estado, id)
+    case 'cerrarTodas':
+      return cerrarTodas(estado)
+  }
+}
+
 /** La pestaña activa, o `null` si es «Salida». */
 export function pestanaActiva<R extends ResultadoConLector>(
   estado: EstadoResultados<R>

@@ -2,7 +2,7 @@
 // =============================================================================
 // Prueba del ACCESO A LOS REGISTROS POR MOTOR desde el renderer (npm run
 // test:db-acceso-motores): cada función que lee un registro por motor o dialecto,
-// con un motor fuera del registro («mysql», «constructor») o de otra familia, dice
+// con un motor fuera del registro («db2», «constructor») o de otra familia, dice
 // «Motor desconocido» o «no es un motor SQL» en vez de un TypeError; y una GUARDIA
 // sobre el código del renderer: ningún índice directo a un registro salvo por el
 // acceso que valida, tras un `esMotor(…)` o con el `d.id` de un descriptor.
@@ -122,8 +122,8 @@ const SITIOS_SQL: ReadonlyArray<readonly [string, (m: string) => unknown]> = [
 const SITIOS: ReadonlyArray<readonly [string, (m: string) => unknown]> = [...SITIOS_COMUNES, ...SITIOS_SQL]
 
 hr('(1) Un motor fuera del registro: «Motor desconocido», no un TypeError')
-// ('mysql' hace de motor fuera del registro.)
-for (const ajeno of ['mysql', 'constructor']) {
+// ('db2' hace de motor fuera del registro.)
+for (const ajeno of ['db2', 'constructor']) {
   const malos: string[] = []
   for (const [nombre, f] of SITIOS) {
     const e = errorDe(() => f(ajeno))

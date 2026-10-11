@@ -3,7 +3,7 @@
 // archivos DE VERDAD en el portapapeles del sistema (Windows: un `DataObject` de WinForms
 // con `Shell IDList Array` y `Preferred DropEffect`; Mac: JXA con `NSPasteboard` y
 // relectura de lo escrito, porque la primera lectura puede pillar una vista a medias y
-// cachearla) y comprueba que llegan por `clipboard.pasteInto`, la API del preload que usa
+// cachearla; Linux: el formato de GNOME, escrito por el main) y comprueba que llegan por `clipboard.pasteInto`, la API del preload que usa
 // «Pegar». Es la red de los parsers de `main/clipboard/clipboardFiles.ts`, cuyo test
 // simula `electron.clipboard`. USA EL PORTAPAPELES DE QUIEN LA CORRE y lo deja vacío.
 // =============================================================================
@@ -284,5 +284,51 @@ test.describe('macOS', () => {
     expect(res.fallidos).toEqual([])
     expect([...res.paths].sort()).toEqual(['a.txt', 'b.txt', 'c.txt'].map((n) => `${destino}/${n}`))
     expectCopiados(rutas, destino)
+  })
+})
+
+test.describe('Linux', () => {
+  test.skip(PLATAFORMA !== 'linux', 'formatos del portapapeles de los gestores de archivos de Linux')
+
+  // Sin herramienta del sistema fija para escribir un formato propio (depende de X11 o
+  // Wayland), el portapapeles lo escribe el main de la propia app: el mismo portapapeles del
+  // sistema que leería de un gestor de archivos.
+  test.afterAll(async () => {
+    await s?.app.evaluate(({ clipboard }) => clipboard.clear()).catch(() => {})
+  })
+
+  /** Pone las rutas en el formato de GNOME: `copy`/`cut` y una URI `file://` por línea. */
+  async function portapapelesGnome(rutas: string[], efecto: Efecto): Promise<void> {
+    const texto = [efecto, ...rutas.map((r) => `file://${encodeURI(r)}`)].join('\n')
+    await s.app.evaluate(({ clipboard }, t) => {
+      clipboard.writeBuffer('x-special/gnome-copied-files', Buffer.from(t, 'utf8'))
+    }, texto)
+  }
+
+  test('varios archivos copiados en el gestor de archivos llegan todos', async () => {
+    const rutas = crearOrigen('linux-varios', ['a.txt', 'b con espacio.txt'])
+    const destino = crearDestino('destino-linux-varios')
+    await portapapelesGnome(rutas, 'copy')
+
+    await expect.poll(sondear).toEqual({ kind: 'files', count: 2, effect: 'copy' })
+
+    const res = await pegarEn(destino)
+    expect(res.fallidos).toEqual([])
+    expect([...res.paths].sort()).toEqual(['a.txt', 'b con espacio.txt'].map((n) => `${destino}/${n}`))
+    expectCopiados(rutas, destino)
+  })
+
+  test('cortar en el gestor de archivos MUEVE el archivo', async () => {
+    const rutas = crearOrigen('linux-cortar', ['movido.txt'])
+    const contenido = readFileSync(rutas[0], 'utf8')
+    const destino = crearDestino('destino-linux-cortar')
+    await portapapelesGnome(rutas, 'cut')
+
+    await expect.poll(sondear).toEqual({ kind: 'files', count: 1, effect: 'cut' })
+
+    const res = await pegarEn(destino)
+    expect(res).toEqual({ paths: [`${destino}/movido.txt`], fallidos: [] })
+    expect(readFileSync(join(proyecto, destino, 'movido.txt'), 'utf8')).toBe(contenido)
+    expect(existsSync(rutas[0]), 'cortar tiene que quitarlo del origen').toBe(false)
   })
 })

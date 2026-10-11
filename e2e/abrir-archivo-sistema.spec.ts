@@ -57,6 +57,8 @@ interface ProyectoSembrado {
   /** ¿En modo nativo? Lo normal aquí: sin Docker. */
   nativo?: boolean
   agenteDiferido?: boolean
+  /** Restaurado dormido: su agente no arranca hasta que algo lo despierte. */
+  hibernado?: boolean
 }
 
 /** Dos perfiles sin sandbox («Personal», activo, y «Otro») con los proyectos que se digan. */
@@ -77,7 +79,7 @@ function sembrar(datos: string, porPerfil: { personal?: ProyectoSembrado[]; otro
       openProjects: lista.map((p) => ({
         projectHostPath: p.ruta,
         name: p.nombre,
-        estado: 'active',
+        estado: p.hibernado ? 'hibernated' : 'active',
         ...(p.agenteDiferido ? { agenteDiferido: true } : {})
       })),
       activePath: lista[0].ruta
@@ -100,6 +102,8 @@ interface Persistido {
   proyectos: string[]
   /** `perfil|ruta` de los que llevan la marca de agente diferido. */
   diferidos: string[]
+  /** `perfil|ruta` de los que siguen dormidos. */
+  hibernados: string[]
   nativos: string[]
 }
 
@@ -109,15 +113,20 @@ function persistido(datos: string): Persistido | null {
   if (!existsSync(ruta)) return null
   try {
     const doc = JSON.parse(readFileSync(ruta, 'utf8')) as {
-      byProfile?: Record<string, { openProjects?: Array<{ projectHostPath?: string; agenteDiferido?: boolean }> }>
+      byProfile?: Record<string, { openProjects?: Array<{ projectHostPath?: string; agenteDiferido?: boolean; estado?: string }> }>
       settings?: { windowsModeProjects?: string[] }
     }
     const todos = Object.entries(doc.byProfile ?? {}).flatMap(([id, t]) =>
-      (t.openProjects ?? []).map((p) => ({ clave: `${id}|${p.projectHostPath ?? ''}`, diferido: p.agenteDiferido === true }))
+      (t.openProjects ?? []).map((p) => ({
+        clave: `${id}|${p.projectHostPath ?? ''}`,
+        diferido: p.agenteDiferido === true,
+        dormido: p.estado === 'hibernated'
+      }))
     )
     return {
       proyectos: todos.map((p) => p.clave),
       diferidos: todos.filter((p) => p.diferido).map((p) => p.clave),
+      hibernados: todos.filter((p) => p.dormido).map((p) => p.clave),
       nativos: doc.settings?.windowsModeProjects ?? []
     }
   } catch {
@@ -263,6 +272,32 @@ test.describe('el agente diferido de un proyecto abierto para ver un archivo', (
         [`otro|${m.proyecto}`, `personal|${m.contenedora}`].sort()
       )
       expect(p?.diferidos, 'un proyecto ya abierto nunca se difiere').toEqual([])
+    })
+  })
+
+  test('abrir un proyecto de OTRO perfil dormido despierta solo ese, no el que el perfil tenía activo', async () => {
+    const m = montar()
+    // «suelto» es el activo de «Otro» (el primero) y los dos duermen: se pide el otro.
+    const siembra = {
+      personal: [{ ruta: m.contenedora, nombre: 'contenedora' }],
+      otro: [
+        { ruta: m.suelto, nombre: 'suelto', hibernado: true },
+        { ruta: m.proyecto, nombre: 'proyecto', hibernado: true }
+      ]
+    }
+    await conApp(m, [m.archivoDeProyecto], siembra, async ({ win, datos }) => {
+      await expect(pestanaEditor(win, 'leeme.txt')).toHaveCount(1, { timeout: 30_000 })
+      await expect(win.locator('.profile-tab.active', { hasText: 'Otro' })).toHaveCount(1)
+      await expect(proyectoActivo(win, 'proyecto')).toHaveCount(1)
+      await expect
+        .poll(() => persistido(datos)?.hibernados, { message: 'el pedido despierta y el otro sigue dormido', timeout: 15_000 })
+        .toEqual([`otro|${m.suelto}`])
+      const enCarpeta = (ruta: string): number =>
+        m.agente.arranques().filter((a) => resolve(a.cwd).toLowerCase() === resolve(ruta).toLowerCase()).length
+      await expect.poll(() => enCarpeta(m.proyecto), { message: 'arranca el agente del pedido', timeout: 60_000 }).toBe(1)
+      await win.waitForTimeout(MARGEN_ARRANQUE_MS)
+      expect(enCarpeta(m.suelto), 'y NO el del que el perfil tenía activo').toBe(0)
+      expect(persistido(datos)?.hibernados, 'que sigue dormido').toEqual([`otro|${m.suelto}`])
     })
   })
 

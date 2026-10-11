@@ -5,9 +5,9 @@
 
 ## Contexto
 
-El humo corre contra una base de desarrollo real y remota, y no se puede ejecutar desde la máquina
-donde se escribe: lo lanza el usuario y lo que falle allí cuesta un viaje de ida y vuelta. Todo lo que decide
-sin red vive en `lecturaSegura.ts` y lo fija `test-lectura-segura.mts`.
+El humo corre contra una base real y remota que no es de pruebas, así que no puede escribir nada, y solo
+corre donde esa base es alcanzable. Todo lo que decide sin red vive en `lecturaSegura.ts` y lo fija
+`test-lectura-segura.mts`.
 
 ## Decisión
 

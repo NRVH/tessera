@@ -52,6 +52,7 @@ export interface BarraFiltroGuiadoProps {
 /** La pista de cada categoría en el campo de valor. */
 const PISTA: Readonly<Record<DbCategoriaFiltro, string>> = {
   texto: 'texto',
+  textoLargo: 'texto',
   numero: 'número (12.5)',
   fecha: 'AAAA-MM-DD [HH:MM]',
   booleano: '',

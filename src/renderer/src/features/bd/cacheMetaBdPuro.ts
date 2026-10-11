@@ -10,7 +10,7 @@ import { partesAmbito, partesDetalle } from './arbolBd.ts'
 import { CUENTA_ESCANEO, recorrerClaves } from './arbolClaves.ts'
 import { nunca } from '../../../../shared/nunca.ts'
 import type { CargaBd } from './arbolBd.ts'
-import type { DbKvEscanear } from '../../../../shared/db-claves-ipc.ts'
+import type { DbKvEscanear, DbKvTipo } from '../../../../shared/db-claves-ipc.ts'
 import type {
   DbDetalle,
   DbErrorSql,
@@ -118,6 +118,7 @@ export function construirInstantanea(
   datos: ReadonlyMap<string, Entrada>,
   errores: ReadonlyMap<string, ErrorGuardado>,
   patronesKv: ReadonlyMap<string, string>,
+  tiposKv: ReadonlyMap<string, DbKvTipo>,
   kvMas: ReadonlySet<string>
 ): InstantaneaArbolBd {
   const mapas: Record<MapaInstantanea, Map<string, unknown>> = {
@@ -153,6 +154,7 @@ export function construirInstantanea(
     kvBases: mapas.kvBases,
     kvClaves: mapas.kvClaves,
     kvPatrones: new Map(patronesKv),
+    kvTipos: new Map(tiposKv),
     kvCargandoMas: new Set(kvMas)
   } as InstantaneaArbolBd
 }
@@ -161,15 +163,20 @@ export function construirInstantanea(
 export type CargaFamilia = Extract<CargaBd, { tipo: 'docBases' | 'colecciones' | 'kvBases' | 'kvClaves' }>
 
 /** La petición de una vuelta de SCAN (en el orden de campos del contrato). */
-export function escaneoClaves(conexionId: string, base: number, patron: string, cursor: string): DbKvEscanear {
-  return { conexionId, base, patron, cursor, cuenta: CUENTA_ESCANEO }
+export function escaneoClaves(conexionId: string, base: number, patron: string, cursor: string, tipo?: DbKvTipo): DbKvEscanear {
+  return { conexionId, base, patron, cursor, cuenta: CUENTA_ESCANEO, ...(tipo !== undefined ? { tipo } : {}) }
 }
 
 /**
  * La llamada de una carga de documentos o claves por su api; sin ella, un error con su motivo.
- * Las claves se recorren desde el principio con el patrón de la base (`patron`, leído al llamar).
+ * Las claves se recorren desde el principio con el patrón y el tipo de la base (leídos al llamar).
  */
-export function llamarFamilia(f: ApiFamiliasBd | null, carga: CargaFamilia, patron: () => string): Promise<DbRespuesta<unknown>> {
+export function llamarFamilia(
+  f: ApiFamiliasBd | null,
+  carga: CargaFamilia,
+  patron: () => string,
+  tipo: () => DbKvTipo | undefined = () => undefined
+): Promise<DbRespuesta<unknown>> {
   if (!f) return Promise.resolve({ ok: false, error: { motivo: 'interno', mensaje: 'Esta ventana no tiene el explorador de este motor.' } })
   switch (carga.tipo) {
     case 'docBases':
@@ -180,7 +187,8 @@ export function llamarFamilia(f: ApiFamiliasBd | null, carga: CargaFamilia, patr
       return f.kvBases({ conexionId: carga.conexionId })
     case 'kvClaves': {
       const p = patron()
-      return recorrerClaves((cursor) => f.kvEscanear(escaneoClaves(carga.conexionId, carga.base, p, cursor)), null, p)
+      const t = tipo()
+      return recorrerClaves((cursor) => f.kvEscanear(escaneoClaves(carga.conexionId, carga.base, p, cursor, t)), null, p)
     }
     default:
       return nunca(carga, 'cargarFamilia')

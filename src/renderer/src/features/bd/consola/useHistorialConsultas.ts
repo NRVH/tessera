@@ -8,7 +8,7 @@
 
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import type { DbConnection } from '../../../../../shared/db-ipc'
-import type { DbEntradaHistorial, DbRespuesta } from '../../../../../shared/db-explorador-ipc'
+import type { DbEntradaHistorial, DbLenguajeHistorial, DbRespuesta } from '../../../../../shared/db-explorador-ipc'
 import type { Plataforma } from '../../../../../shared/plataforma'
 import { esHistorial } from '../../../util/atajos'
 import {
@@ -26,6 +26,8 @@ export interface HistorialConsultasProps {
   perfilId: string
   conexion: DbConnection
   ancla: AnclaDerecha
+  /** Las entradas de qué lenguaje lista y borra: cada consola, las suyas. */
+  lenguaje: DbLenguajeHistorial
   onInsertar: (sql: string) => void
   onCerrar: () => void
 }
@@ -65,7 +67,7 @@ function useAliasConexiones(perfilId: string, conexion: DbConnection): ReadonlyM
  * respuesta de una pregunta vieja, o la que llega con el popover cerrado, se tira.
  */
 function useListaHistorial(p: HistorialConsultasProps, soloEsta: boolean, filtro: string) {
-  const { perfilId } = p
+  const { perfilId, lenguaje } = p
   const conexionId = p.conexion.id
   const api = window.tessera.dbExplorador
   const [entradas, setEntradas] = useState<DbEntradaHistorial[] | null>(null)
@@ -89,7 +91,7 @@ function useListaHistorial(p: HistorialConsultasProps, soloEsta: boolean, filtro
     primeraRef.current = false
     const t = setTimeout(() => {
       const texto = filtro.trim()
-      const pedido = { perfilId, ...(soloEsta ? { conexionId } : {}), ...(texto ? { texto } : {}), limite: LIMITE_HISTORIAL }
+      const pedido = { perfilId, lenguaje, ...(soloEsta ? { conexionId } : {}), ...(texto ? { texto } : {}), limite: LIMITE_HISTORIAL }
       void api
         .historial(pedido)
         .catch((err: unknown) => fallo<DbEntradaHistorial[]>(err))
@@ -118,7 +120,7 @@ function useListaHistorial(p: HistorialConsultasProps, soloEsta: boolean, filtro
       // Con un Enter esperando, una respuesta tardía insertaría tras cerrar con clic fuera.
       vigente = false
     }
-  }, [api, perfilId, conexionId, soloEsta, filtro, recarga])
+  }, [api, perfilId, lenguaje, conexionId, soloEsta, filtro, recarga])
 
   const reintentar = (): void => setRecarga((n) => n + 1)
   return { api, entradas, setEntradas, error, setError, activo, setActivo, reintentar, cerrarRef, vistaRef, enterEsperandoRef }
@@ -168,7 +170,7 @@ export function useHistorialConsultas(p: HistorialConsultasProps, filtroRef: Ref
   const borrarTodo = (): void => {
     cerrarConfirmacion()
     void api
-      .borrarHistorial(perfilId, null)
+      .borrarHistorial(perfilId, null, p.lenguaje)
       .catch((err: unknown) => fallo<void>(err))
       .then((r) => {
         if (!r.ok) setError(`No se pudo borrar: ${textoError(r.error)}`)
@@ -176,7 +178,7 @@ export function useHistorialConsultas(p: HistorialConsultasProps, filtroRef: Ref
       })
   }
 
-  return { ...l, filtro, setFiltro, soloEsta, setSoloEsta, confirmando, setConfirmando, alias, total, insertar, borrar, cerrarConfirmacion, borrarTodo }
+  return { ...l, lenguaje: p.lenguaje, filtro, setFiltro, soloEsta, setSoloEsta, confirmando, setConfirmando, alias, total, insertar, borrar, cerrarConfirmacion, borrarTodo }
 }
 
 type Historial = ReturnType<typeof useHistorialConsultas>

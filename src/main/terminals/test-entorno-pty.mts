@@ -14,6 +14,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { mergeEnv, colapsarPath, clavePath, primerPath, delimitadorPath } from './entornoPty.ts'
+import { cleanEnv } from './entornoDocker.ts'
 import { plataformaActual, type Plataforma } from '../../shared/plataforma.ts'
 
 function hr(title: string): void {
@@ -315,6 +316,16 @@ function main(): void {
     } finally {
       fs.rmSync(dir, { recursive: true, force: true })
     }
+  }
+
+  hr('(AppImage) cleanEnv no pasa las variables del AppImage a las terminales')
+  {
+    const e = cleanEnv({ APPIMAGE: '/home/a/Tessera.AppImage', APPDIR: '/tmp/.mount_x', OWD: '/home/a', ARGV0: 'Tessera', HOME: '/home/a', VACIA: undefined })
+    check(
+      'quita APPIMAGE, APPDIR, OWD y ARGV0, conserva el resto y descarta lo indefinido',
+      JSON.stringify(e) === JSON.stringify({ HOME: '/home/a' }),
+      JSON.stringify(e)
+    )
   }
 
   hr('RESULTADO (PASS/FAIL)')

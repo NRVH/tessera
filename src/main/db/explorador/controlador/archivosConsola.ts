@@ -28,7 +28,7 @@ import { falloTodaviaNo } from '../familias.ts'
 
 import type { ConsolaExplorador } from './consola.ts'
 import type { ContextoExplorador } from './tipos.ts'
-import { esObjeto, exigir, fallo, mensajeDe, ok, resolverOpcional } from './validacion.ts'
+import { esObjeto, exigir, fallo, MAX_IDENT, mensajeDe, ok, resolverOpcional } from './validacion.ts'
 
 /** Archivos de consola y operaciones comunes a todas las familias de motor: cancelar, forzar, desconectar y sesiones. */
 export class ArchivosConsola {
@@ -140,10 +140,18 @@ export class ArchivosConsola {
     })
   }
 
-  async crearConsola(perfilId: unknown, conexionId: unknown): Promise<DbRespuesta<DbConsolaInfo>> {
+  /**
+   * `esquema`: el de la consola nueva (en SQL Server, su base), guardado en el índice como si se
+   * hubiera elegido en su selector, sin abrir sesión: lo aplica la primera apertura, que dice si
+   * no existe. Solo en las familias SQL; las demás guardan su base en la consola.
+   */
+  async crearConsola(perfilId: unknown, conexionId: unknown, esquema?: unknown): Promise<DbRespuesta<DbConsolaInfo>> {
     return this.c.seguro(async () => {
       const p = exigir(perfilId, 'perfilId')
       const id = exigir(conexionId, 'conexionId')
+      if (esquema !== undefined && (typeof esquema !== 'string' || esquema === '' || esquema.length > MAX_IDENT)) {
+        return fallo('interno', 'Petición inválida: «esquema».')
+      }
       const con = this.c.conexiones.get(id)
       if (!con || con.profileId !== p) return fallo('interno', 'La conexión no existe en este perfil.')
       // Una consola SQL es `.sql`; una de MongoDB, `.js` (el lenguaje de
@@ -153,7 +161,12 @@ export class ArchivosConsola {
       const extension = extensionConsola(descriptor(con.motor))
       if (extension === null) return falloTodaviaNo(con.motor)
       this.asegurarEspacio(p)
-      const r = await respuestaConsolas(() => this.c.consolas.crear(p, id, extension))
+      const r = await respuestaConsolas(async () => {
+        const nueva = await this.c.consolas.crear(p, id, extension)
+        const d = descriptor(con.motor)
+        const conEsquema = esquema !== undefined && !esDeDocumentos(d) && !esDeClaves(d)
+        return conEsquema ? this.c.consolas.fijarEsquema(p, nueva.id, esquema) : nueva
+      })
       if (r.ok) this.sesionConsola.recordarConsola(r.valor)
       return r
     })

@@ -1599,7 +1599,7 @@ function main(): void {
     // de título, barra del mosaico y, maximizada en Windows, la barra de tareas—; son
     // aproximados, y cada caso dice de qué ventana sale.
     const CROMO_REAL = { ancho: 33, alto: 69 }
-    const HUECO_REAL = 1
+    const HUECO_REAL = 6
     const LETRA_13 = { ancho: 7.8, alto: 19 }
     const LETRA_14 = { ancho: 8.4, alto: 20 }
     const real = (celda: { ancho: number; alto: number }, ancho: number, alto: number, n: number, preset: PresetMosaico = 'auto'): DisposicionMosaico =>
@@ -1638,10 +1638,10 @@ function main(): void {
     check('(21a) 1920 × 1080 maximizada (≈ 1906 × 968), letra 8,4 × 20: 2 y 3 en columnas, 4 en 2×2, 5 en 3+2, 6 en 3+3', ok14, ev14)
     const [ok13, ev13] = ventana(LETRA_13, 1906, 968, [
       { n: 2, forma: 'columnas', filas: [2], cols: 117, filasTerm: 47, p: P_MAX },
-      { n: 3, forma: 'columnas', filas: [3], cols: 77, filasTerm: 47, p: (77 / 80) * (24 / 24) },
+      { n: 3, forma: 'columnas', filas: [3], cols: 76, filasTerm: 47, p: (76 / 80) * (24 / 24) },
       { n: 4, forma: 'rejilla', filas: [2, 2], cols: 117, filasTerm: 21, p: (80 / 80) * (21 / 24) },
-      { n: 5, forma: 'rejilla', filas: [3, 2], cols: 77, filasTerm: 21, p: (77 / 80) * (21 / 24) },
-      { n: 6, forma: 'rejilla', filas: [3, 3], cols: 77, filasTerm: 21, p: (77 / 80) * (21 / 24) }
+      { n: 5, forma: 'rejilla', filas: [3, 2], cols: 76, filasTerm: 21, p: (76 / 80) * (21 / 24) },
+      { n: 6, forma: 'rejilla', filas: [3, 3], cols: 76, filasTerm: 21, p: (76 / 80) * (21 / 24) }
     ])
     check('(21a2) …y con la letra por defecto, 7,8 × 19: la misma forma canónica para n = 2..6', ok13, ev13)
 
@@ -1691,8 +1691,8 @@ function main(): void {
     const q3a = real(LETRA_14, 2546, 1328, 3)
     const q3b = real(LETRA_13, 2546, 1328, 3)
     check(
-      '(21d) 2560 × 1440 (≈ 2546 × 1328) con 3 → tres columnas con las dos letras (97x62 y 104x66, las dos a 1)',
-      es(q3a, 'columnas', [3], 97, 62, P_MAX) && es(q3b, 'columnas', [3], 104, 66, P_MAX),
+      '(21d) 2560 × 1440 (≈ 2546 × 1328) con 3 → tres columnas con las dos letras (96x62 y 104x66, las dos a 1)',
+      es(q3a, 'columnas', [3], 96, 62, P_MAX) && es(q3b, 'columnas', [3], 104, 66, P_MAX),
       `8,4×20 ${corto(q3a)} | 7,8×19 ${corto(q3b)}`
     )
     //   n=4 con 8,4 × 20: 2×2 (2545/2 = 1272,5 − 33)/8,4 → 147 × (1327/2 = 663,5 − 69)/20 → 29 → satura: 1;
@@ -1708,8 +1708,8 @@ function main(): void {
     const q4b = real(LETRA_13, 2546, 1328, 4)
     const q4b2x2 = refRejilla(4, 2, { ancho: 2546, alto: 1328, hueco: HUECO_REAL, celdaAncho: 7.8, celdaAlto: 19, cromoAncho: 33, cromoAlto: 69 })
     check(
-      '(21e2) …con 4 y letra 7,8 × 19 → CUATRO COLUMNAS (77x66, 0,9625), no 2×2: al 96,3 % del 2×2 (158x31, 1), dentro del 5 % y con menos filas',
-      es(q4b, 'columnas', [4], 77, 66, (77 / 80) * (24 / 24)) &&
+      '(21e2) …con 4 y letra 7,8 × 19 → CUATRO COLUMNAS (76x66, 0,95), no 2×2: al 95 % del 2×2 (158x31, 1), en el borde de la banda del 5 % y con menos filas',
+      es(q4b, 'columnas', [4], 76, 66, (76 / 80) * (24 / 24)) &&
         q4b2x2.cols === 158 &&
         q4b2x2.filasTerm === 31 &&
         cerca(q4b2x2.p, P_MAX) &&
@@ -1747,7 +1747,7 @@ function main(): void {
     check(
       '(21f) portátil Mac (≈ 1456 × 880) con 3 → 2+1, NO tres columnas: pasan el suelo (53x40 y 57x42) pero quedan al 88,3 % y al 90,0 % de 2+1',
       es(macA, 'rejilla', [2, 1], 82, 18, (80 / 80) * (18 / 24)) &&
-        es(macB, 'rejilla', [2, 1], 89, 19, (80 / 80) * (19 / 24)) &&
+        es(macB, 'rejilla', [2, 1], 88, 19, (80 / 80) * (19 / 24)) &&
         es(macColA, 'columnas', [3], 53, 40, (53 / 80) * (24 / 24)) &&
         es(macColB, 'columnas', [3], 57, 42, (57 / 80) * (24 / 24)) &&
         macColA.presetRespetado &&

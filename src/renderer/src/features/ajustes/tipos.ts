@@ -17,7 +17,7 @@ export interface AjustesProps {
   /** Modo con el que NACE un proyecto nuevo (windows | docker | ask). */
   defaultProjectMode: DefaultProjectMode
   onChangeDefaultProjectMode: (mode: DefaultProjectMode) => void
-  /** Banda de perfiles colapsada (solo su línea de color). */
+  /** Modo minimalista de perfiles: sin banda, un selector en la barra de título. */
   hideProfileNames: boolean
   onToggleProfileNames: () => void
   /**
@@ -26,6 +26,12 @@ export interface AjustesProps {
    */
   aplicarUpdateAlCerrar: boolean
   onToggleAplicarUpdateAlCerrar: () => void
+  /** Registro de salud (solo versiones alpha): lo consume el main; aquí se enseña y se conmuta. */
+  registroSalud: boolean
+  onToggleRegistroSalud: () => void
+  /** Volcados de caída (solo versiones alpha): los lee el main al arrancar; aquí se enseña y se conmuta. */
+  volcadosCaida: boolean
+  onToggleVolcadosCaida: () => void
   /**
    * Actualización de los agentes NATIVOS: el MISMO estado que el botón de la barra de
    * título (lo posee `useActualizacionNativa`), así que las dos superficies no pueden contradecirse.

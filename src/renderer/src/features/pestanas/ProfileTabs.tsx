@@ -33,23 +33,16 @@ interface ProfileTabsProps {
   attention?: Set<string>
   /** ids de perfil con alguna sesión TRABAJANDO: su dot late en su color. */
   working?: Set<string>
-  /** Modo colapsado: la banda se reduce a la línea de color de cada perfil. */
-  hideNames?: boolean
-  /** Despliega la banda: renombrar necesita el input inline, que no cabe colapsada. */
-  onShowNames?: () => void
+  /** ids de perfil con algún agente que TE ESPERA: un anillo parpadea en su dot. */
+  waiting?: Set<string>
 }
 
-/** Banda de perfiles (nivel 1 de pestañas). */
+/** Banda de perfiles (nivel 1 de pestañas). En el modo minimalista no se monta: la sustituye `SelectorPerfil`. */
 export function ProfileTabs(props: ProfileTabsProps): React.JSX.Element {
-  const { profiles, activeProfileId, onSelectProfile, dotStates, attention, working } = props
-  const hideNames = props.hideNames ?? false
+  const { profiles, activeProfileId, onSelectProfile, dotStates, attention, working, waiting } = props
   const banda = useBandaPerfiles(props)
   return (
-    <div
-      className={`tabs-profiles${hideNames ? ' names-hidden' : ''}`}
-      role="tablist"
-      aria-label="Perfiles"
-    >
+    <div className="tabs-profiles" role="tablist" aria-label="Perfiles">
       {profiles.map((profile) => (
         <PestanaPerfil
           key={profile.id}
@@ -58,6 +51,7 @@ export function ProfileTabs(props: ProfileTabsProps): React.JSX.Element {
           dotState={dotStates[profile.id] ?? 'active'}
           hasAttention={attention?.has(profile.id) ?? false}
           isWorking={working?.has(profile.id) ?? false}
+          isWaiting={waiting?.has(profile.id) ?? false}
           arrastre={banda.arrastre}
           renombrado={banda.renombrado}
           onSelect={() => onSelectProfile(profile.id)}

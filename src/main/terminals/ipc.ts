@@ -28,7 +28,6 @@ export function registrarIpcTerminal(deps: {
   const trasBorrado = <T>(req: { profileId?: unknown } | undefined, abrir: () => T): T | Promise<T> =>
     esperarBorrado ? esperarBorrado(req?.profileId).then(abrir) : abrir()
   ipc.handle(TERMINAL_CHANNELS.OPEN, (_e, req: OpenTerminalRequest) => trasBorrado(req, () => terminales.open(req)))
-  ipc.handle(TERMINAL_CHANNELS.BOOTSTRAP_SESSION, () => terminales.abrirArranque())
   ipc.on(TERMINAL_CHANNELS.WRITE, (_e, msg: WriteTerminalMessage) => terminales.escribir(msg))
   ipc.on(TERMINAL_CHANNELS.RESIZE, (_e, msg: ResizeTerminalMessage) => terminales.redimensionar(msg))
   ipc.on(TERMINAL_CHANNELS.FLOW, (_e, msg: FlowControlMessage) => terminales.flujo(msg))

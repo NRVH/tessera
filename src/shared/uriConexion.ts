@@ -1,7 +1,7 @@
 // =============================================================================
-// «Pegar URI» del formulario de conexión: `descomponerUriMongo` y `descomponerUriRedis` la reparten en
-// campos; `validarOpcionesUriMongo` y `validarBaseRedis` validan lo que se guarda, y las usan el
-// formulario y el main, así que las dos puntas dicen lo mismo. Puro, sin DOM ni `process`.
+// «Pegar URI» del formulario de conexión: `descomponerUriMongo`, `descomponerUriRedis`, `descomponerUriPostgres`
+// y `descomponerUriMysql` la reparten en campos; `validarOpcionesUriMongo` y `validarBaseRedis` validan lo
+// que se guarda, y las usan el formulario y el main, así que las dos puntas dicen lo mismo. Puro, sin DOM ni `process`.
 // Decisiones: docs/decisiones/bd/uri-mongodb-al-pegar.md, docs/decisiones/bd/uri-redis-al-pegar.md
 // =============================================================================
 
@@ -336,20 +336,33 @@ const esBooleano = (v: string): boolean | null => (/^true$/i.test(v) ? true : /^
 
 // --- MongoDB -------------------------------------------------------------------------------
 
-/** El host de una URI de MongoDB: uno solo y, con `srv`, sin puerto, como exige el driver. */
+/** Un miembro de la lista de hosts tal como se guarda: con corchetes si es IPv6 y con su puerto si lo trae. */
+function miembroGuardado(host: string, puerto: number | null): string {
+  const h = host.includes(':') ? `[${host}]` : host
+  return puerto === null ? h : `${h}:${puerto}`
+}
+
+/**
+ * El host de una URI de MongoDB. Con `srv`, uno solo y sin puerto, como exige el driver. Sin él, uno o
+ * varios (los miembros de un replica set sin DNS SRV): uno va a `host` y `port`; varios van a `host` como
+ * lista (`h1:27017,h2:27018`), cada uno con su puerto, y `port` queda el de por defecto.
+ */
 function hostDeUriMongo(u: UriPartida, srv: boolean, puertoPorDefecto: number | null): ResultadoUri<{ host: string; port: number | null }> {
-  if (u.hosts.length > 1) {
-    return {
-      ok: false,
-      error: srv
-        ? 'Una URI mongodb+srv lleva un solo nombre de host.'
-        : 'La URI lleva varios hosts y la conexión va a uno solo: pon uno de los miembros y añade replicaSet=<nombre> en las opciones (el resto lo descubre el driver).'
-    }
+  if (srv && u.hosts.length > 1) return { ok: false, error: 'Una URI mongodb+srv lleva un solo nombre de host.' }
+  const miembros: { host: string; puerto: number | null }[] = []
+  for (const crudo of u.hosts) {
+    const h = partirHost(crudo)
+    if (!h.ok) return h
+    // Decodificado, un `%2C` sería una coma más en la lista guardada: otro servidor que la URI no nombra.
+    if (/[,\s@]/.test(h.host)) return { ok: false, error: `El host «${h.host}» no es válido.` }
+    miembros.push(h)
   }
-  const h = partirHost(u.hosts[0])
-  if (!h.ok) return h
-  if (srv && h.puerto !== null) return { ok: false, error: 'Una URI mongodb+srv no lleva puerto: lo dan los registros DNS del host.' }
-  return { ok: true, campos: { host: h.host, port: srv ? null : (h.puerto ?? puertoPorDefecto) } }
+  if (srv && miembros[0].puerto !== null) return { ok: false, error: 'Una URI mongodb+srv no lleva puerto: lo dan los registros DNS del host.' }
+  if (miembros.length === 1) {
+    const h = miembros[0]
+    return { ok: true, campos: { host: h.host, port: srv ? null : (h.puerto ?? puertoPorDefecto) } }
+  }
+  return { ok: true, campos: { host: miembros.map((m) => miembroGuardado(m.host, m.puerto)).join(','), port: puertoPorDefecto } }
 }
 
 /** Lo que sale de las opciones de una URI de MongoDB: el TLS a sus casillas y el resto, admitido o descartado. */
@@ -417,6 +430,10 @@ export function descomponerUriMongo(uri: string): ResultadoUri<CamposUriMongo> {
   if (srv && quedan.some((o) => o.clave === 'directConnection' && esBooleano(o.valor) === true)) {
     return { ok: false, error: 'Una URI mongodb+srv no admite directConnection=true.' }
   }
+  const unoSolo = ['directConnection', 'loadBalanced']
+  if (u.hosts.length > 1 && quedan.some((o) => unoSolo.includes(o.clave) && esBooleano(o.valor) === true)) {
+    return { ok: false, error: 'Con varios hosts no valen directConnection=true ni loadBalanced=true: quítalas o deja un solo host.' }
+  }
   anadirAuthSourceImplicito(u, srv, quedan)
   const opcionesUri = quedan.map((o) => `${o.clave}=${o.valor}`).join('&')
   // Lo que se guarda tiene que pasar la misma validación que el main aplica al guardar.
@@ -469,7 +486,8 @@ export function descomponerUriRedis(uri: string): ResultadoUri<CamposUriRedis> {
   if (u.hosts.length > 1) {
     return {
       ok: false,
-      error: 'La URI lleva varios hosts y la conexión va a un servidor solo (Cluster y Sentinel, todavía no): pon el del servidor.'
+      error:
+        'La URI lleva varios hosts y esta URI va a un servidor solo: para Sentinel o Cluster, elige el modo en «Conexión a» y escribe los servidores en Host, separados por comas.'
     }
   }
   const h = partirHost(u.hosts[0])
@@ -501,5 +519,128 @@ export function descomponerUriRedis(uri: string): ResultadoUri<CamposUriRedis> {
       tls: u.esquema === 'rediss' ? { cifrar: true, confiarCertificado: false } : tlsDeConexion(d, {}),
       descartadas
     }
+  }
+}
+
+// --- PostgreSQL -------------------------------------------------------------------------
+
+/**
+ * Las dos casillas de cifrado según el `sslmode` de una URI. `prefer` y `allow` admiten texto
+ * claro, pero el formulario solo tiene cifrar o no: se cifra (sin verificar), porque la
+ * alternativa, guardar sin cifrar, haría viajar la clave en claro a un servidor que sí
+ * cifraba; si el servidor no ofrece SSL, el error de conexión nombra la casilla.
+ */
+const TLS_POR_SSLMODE: Readonly<Record<string, DbTls>> = {
+  disable: { cifrar: false, confiarCertificado: false },
+  allow: { cifrar: true, confiarCertificado: true },
+  prefer: { cifrar: true, confiarCertificado: true },
+  require: { cifrar: true, confiarCertificado: true },
+  'verify-ca': { cifrar: true, confiarCertificado: false },
+  'verify-full': { cifrar: true, confiarCertificado: false }
+}
+
+/**
+ * Cada `ssl-mode` de una URI de MySQL o MariaDB (sin distinguir caja) -> el cifrado de Tessera:
+ * DISABLED sin cifrar; PREFERRED y REQUIRED cifran sin verificar el certificado; VERIFY_CA y
+ * VERIFY_IDENTITY lo verifican.
+ */
+const TLS_POR_SSL_MODE_MYSQL: Readonly<Record<string, DbTls>> = {
+  disabled: { cifrar: false, confiarCertificado: false },
+  preferred: { cifrar: true, confiarCertificado: true },
+  required: { cifrar: true, confiarCertificado: true },
+  verify_ca: { cifrar: true, confiarCertificado: false },
+  verify_identity: { cifrar: true, confiarCertificado: false }
+}
+
+/** Las claves con las que una URI de MySQL dice el modo de cifrado (`ssl-mode`, `sslMode`, `sslmode`). */
+const CLAVES_SSL_MODE_MYSQL = ['ssl-mode', 'sslmode']
+/** Las que lo dicen con un booleano (`ssl=true`, `useSSL=false`): con `true`, cifra y verifica. */
+const CLAVES_SSL_BOOLEANO_MYSQL = ['ssl', 'usessl']
+
+/** El cifrado que fija UNA opción de una URI de MySQL, null si la opción no es de cifrado, o el error. */
+function tlsDeOpcionMysql(clave: string, valor: string): DbTls | null | { error: string } {
+  const c = clave.toLowerCase()
+  const v = valor.toLowerCase()
+  if (CLAVES_SSL_MODE_MYSQL.includes(c)) {
+    if (!Object.hasOwn(TLS_POR_SSL_MODE_MYSQL, v)) {
+      return { error: `ssl-mode «${valor}» no es válido. Se admiten: ${Object.keys(TLS_POR_SSL_MODE_MYSQL).map((x) => x.toUpperCase()).join(', ')}.` }
+    }
+    return TLS_POR_SSL_MODE_MYSQL[v]
+  }
+  if (CLAVES_SSL_BOOLEANO_MYSQL.includes(c)) {
+    if (v === 'true' || v === '1') return { cifrar: true, confiarCertificado: false }
+    if (v === 'false' || v === '0') return { cifrar: false, confiarCertificado: false }
+    return { error: `${clave} tiene que ser true o false.` }
+  }
+  return null
+}
+
+/**
+ * MySQL y MariaDB (`mysql://` y `mariadb://`): host, puerto (el del motor sin decirlo), usuario,
+ * contraseña, base (opcional) y cifrado (`ssl-mode` o `ssl`); el resto de opciones se descarta y se dice.
+ */
+export function descomponerUriMysql(uri: string): ResultadoUri<CamposUri & { port: number }> {
+  const partida = partirUri(uri, ['mysql', 'mariadb'])
+  if (!partida.ok) return partida
+  const u = partida.campos
+  const d = descriptor('mysql')
+  if (u.hosts.length > 1) {
+    return { ok: false, error: 'La URI lleva varios hosts y la conexión va a un servidor solo: pon el del servidor.' }
+  }
+  const h = partirHost(u.hosts[0])
+  if (!h.ok) return h
+  let tls = tlsDeConexion(d, {})
+  const descartadas: string[] = []
+  for (const trozo of u.consulta.split('&')) {
+    if (trozo === '') continue
+    const igual = trozo.indexOf('=')
+    const clave = decodificar(igual < 0 ? trozo : trozo.slice(0, igual)) ?? trozo
+    const valor = decodificar(igual < 0 ? '' : trozo.slice(igual + 1)) ?? ''
+    const opcion = tlsDeOpcionMysql(clave, valor)
+    if (opcion === null) {
+      if (!descartadas.includes(clave)) descartadas.push(clave)
+      continue
+    }
+    if ('error' in opcion) return { ok: false, error: opcion.error }
+    tls = opcion
+  }
+  return {
+    ok: true,
+    campos: { host: h.host, port: h.puerto ?? d.conexion.puertoPorDefecto ?? 0, user: u.user, password: u.password, database: u.ruta, tls, descartadas }
+  }
+}
+
+/** PostgreSQL: el puerto siempre (el del motor sin decirlo); las opciones salvo `sslmode` se descartan y se dicen. */
+export function descomponerUriPostgres(uri: string): ResultadoUri<CamposUri & { port: number }> {
+  const partida = partirUri(uri, ['postgres', 'postgresql'])
+  if (!partida.ok) return partida
+  const u = partida.campos
+  const d = descriptor('postgres')
+  if (u.hosts.length > 1) {
+    return { ok: false, error: 'La URI lleva varios hosts y la conexión va a un servidor solo: pon el del servidor.' }
+  }
+  const h = partirHost(u.hosts[0])
+  if (!h.ok) return h
+
+  // Sin `sslmode`, sin cifrar (el valor del motor).
+  let tls = tlsDeConexion(d, {})
+  const descartadas: string[] = []
+  for (const trozo of u.consulta.split('&')) {
+    if (trozo === '') continue
+    const igual = trozo.indexOf('=')
+    const clave = decodificar(igual < 0 ? trozo : trozo.slice(0, igual)) ?? trozo
+    if (clave.toLowerCase() !== 'sslmode') {
+      if (!descartadas.includes(clave)) descartadas.push(clave)
+      continue
+    }
+    const modo = (decodificar(igual < 0 ? '' : trozo.slice(igual + 1)) ?? '').toLowerCase()
+    if (!Object.hasOwn(TLS_POR_SSLMODE, modo)) {
+      return { ok: false, error: `sslmode «${modo}» no es válido. Se admiten: ${Object.keys(TLS_POR_SSLMODE).join(', ')}.` }
+    }
+    tls = TLS_POR_SSLMODE[modo]
+  }
+  return {
+    ok: true,
+    campos: { host: h.host, port: h.puerto ?? d.conexion.puertoPorDefecto ?? 0, user: u.user, password: u.password, database: u.ruta, tls, descartadas }
   }
 }

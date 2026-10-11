@@ -142,6 +142,7 @@ export function avisoTruncado(c: DbKvContenido): string | null {
   if (c.tipo === 'string' && c.truncado) {
     return `Se ve el principio: ${bytesLegibles(tamanoBytes(c.valor))} de ${bytesLegibles(c.bytes)}. Para leerlo entero, usa GETRANGE en la consola.`
   }
+  if (c.tipo === 'json' && c.omitidoBytes !== undefined) return `El documento ocupa ${bytesLegibles(c.omitidoBytes)} en memoria: el visor no lo lee para no bloquear la conexión. Léelo por partes en la consola (JSON.GET clave $.campo).`
   if (c.tipo === 'json' && c.truncado) return 'El documento es más grande que el tope del visor y se ve cortado.'
   return null
 }
@@ -496,9 +497,10 @@ export function detalleDeFila(c: DbKvContenido, i: number): ParteDetalle[] {
 /**
  * El comando de LECTURA que enseña lo mismo que el visor, para seguir en la consola. Los
  * tipos grandes van ACOTADOS (los 100 primeros; SSCAN y no SMEMBERS): pegarlo tal cual no
- * debe traerse un millón de elementos.
+ * debe traerse un millón de elementos. Un JSON que el visor no leyó por grande (`grande`) empieza
+ * por sus claves de primer nivel, no por el documento entero.
  */
-export function comandoConsola(tipo: DbKvTipo | 'noExiste', clave: DbKvBytes): string {
+export function comandoConsola(tipo: DbKvTipo | 'noExiste', clave: DbKvBytes, grande = false): string {
   const k = citarRedisCli(clave)
   switch (tipo) {
     case 'string':
@@ -514,7 +516,7 @@ export function comandoConsola(tipo: DbKvTipo | 'noExiste', clave: DbKvBytes): s
     case 'stream':
       return `XRANGE ${k} - + COUNT 100`
     case 'json':
-      return `JSON.GET ${k} $`
+      return grande ? `JSON.OBJKEYS ${k} $` : `JSON.GET ${k} $`
     case 'otro':
     case 'noExiste':
       return `TYPE ${k}`

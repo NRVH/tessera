@@ -1,12 +1,12 @@
 // =============================================================================
-// La carcasa de una consola de MongoDB o de Redis: la sección que recibe Detener con el foco
-// fuera del editor y la pregunta pendiente. La pregunta va por portal a `document.body`: la
+// La carcasa de una consola de MongoDB o de Redis: la sección que recibe Detener (y el historial,
+// si la consola lo tiene) con el foco fuera del editor y la pregunta pendiente. La pregunta va por portal a `document.body`: la
 // carcasa puede pedir cerrar una consola OCULTA y un diálogo dentro de un `display:none`
 // dejaría su promesa colgada.
 // =============================================================================
 
 import { createPortal } from 'react-dom'
-import { esDetener } from '../../../util/atajos'
+import { esDetener, esHistorial } from '../../../util/atajos'
 import { ConfirmDialog } from '../../../comun/ConfirmDialog'
 import type { Dialogo } from './consolaComun'
 
@@ -17,6 +17,7 @@ export function CarcasaConsola({
   nombre,
   dialogo,
   onDetener,
+  onHistorial,
   children
 }: {
   colRef: (node: HTMLElement | null) => void
@@ -24,6 +25,8 @@ export function CarcasaConsola({
   nombre: string
   dialogo: Dialogo | null
   onDetener: () => void
+  /** El historial con el foco fuera del editor; la consola que no lo tiene no lo pasa. */
+  onHistorial?: () => void
   children: React.ReactNode
 }): React.JSX.Element {
   return (
@@ -37,6 +40,11 @@ export function CarcasaConsola({
         // Nunca a través de un diálogo ni desde un portal.
         if (dialogo !== null) return
         if (!(e.target instanceof Node && e.currentTarget.contains(e.target))) return
+        if (onHistorial && !e.repeat && esHistorial(e, window.tessera.plataforma)) {
+          e.preventDefault()
+          onHistorial()
+          return
+        }
         if (!esDetener(e, window.tessera.plataforma)) return
         e.preventDefault()
         onDetener()

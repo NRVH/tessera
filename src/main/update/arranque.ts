@@ -6,7 +6,7 @@
 // Decisiones: docs/decisiones/actualizacion/marcador-y-prevuelos.md
 // =============================================================================
 
-import { capacidades, esMac } from '../../shared/plataforma'
+import { esMac } from '../../shared/plataforma'
 import { logUpdate as log } from './logUpdate'
 import {
   MAX_INTENTOS_UPDATE,
@@ -18,7 +18,7 @@ import { borrarMarcador, guardarMarcador, instaladorPresente, leerMarcador } fro
 import { consumirMarcaRelevoMac } from './relevoMac'
 import type { ResultadoRelevo } from './relevoMacPuro'
 import { bundleAplicable } from './preparacionMac'
-import { ciclo, seAplicaAlCerrarAhora, setState, sistema } from './nucleo'
+import { autoInstalaEstaCopia, ciclo, seAplicaAlCerrarAhora, setState, sistema } from './nucleo'
 
 /** Lee el marcador y siembra el estado con el desenlace de la actualización anterior. */
 export function sembrarDesdeMarcador(): void {
@@ -77,7 +77,7 @@ export function sembrarDesdeMarcador(): void {
     // Donde no se puede auto-instalar, un marcador «listo» no sirve: sembrarlo como
     // `ready` prometería algo que nadie va a aplicar y ninguna revalidación lo armaría.
     // Se descarta y el primer chequeo lo convierte en el `available` que sí es verdad.
-    if (!capacidades().autoInstalarUpdate) {
+    if (!autoInstalaEstaCopia()) {
       log(
         `se descarta el marcador de ${d.marcador.versionDestino}: esta plataforma no puede ` +
           'auto-instalar; el chequeo la anunciará como descarga manual.'

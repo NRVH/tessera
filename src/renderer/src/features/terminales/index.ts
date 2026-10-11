@@ -7,6 +7,7 @@
 // (docs/decisiones/renderer/barriles-sin-ciclos.md).
 // =============================================================================
 export { useStoreTerminales, accionesTerminales } from './store'
+export { pestanasAGuardar } from './sshTabsModel'
 export type { TerminalesApp } from './useTerminalesApp'
 export { TerminalsPanel } from './TerminalsPanel'
 export { TerminalImageChips, type PastedImagePreview } from './TerminalImageChips'

@@ -25,7 +25,7 @@ const PASSWORD_EN_CADENA = /(\bpassword\s*=\s*)(''(?:\\''|[^'])*''|\\'(?:\\\\|\\
  * entre el `usuario:` y la `@`. Sin usuario (`scheme://host:5432`) no casa: ahí el `:`
  * es el del puerto y no hay `@` detrás.
  */
-const URI_CON_CLAVE = /(\b[a-z][a-z0-9+.-]*:\/\/[^\s:/@'"]+:)[^\s@/'"]+@/gi
+export const URI_CON_CLAVE = /(\b[a-z][a-z0-9+.-]*:\/\/[^\s:/@'"]+:)[^\s@/'"]+@/gi
 
 /** El valor de `PASSWORD_EN_CADENA` tapado, con las mismas comillas. */
 function tapadoEnCadena(valor: string): string {

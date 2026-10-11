@@ -146,7 +146,8 @@ hr('(6) Pantalla completa en Mac: sin semáforo no hay hueco, y Windows no se en
   const general = reglaCss(stylesCss, '.titlebar-inicio')
   check(
     'la general sigue centrando el botón en el eje del riel (es la que hereda Mac sin semáforo)',
-    /padding-left:\s*calc\(\(var\(--activity-width\)\s*-\s*28px\)\s*\/\s*2\)/.test(general ?? ''),
+    // El riel es una tarjeta: su eje queda tras el canal de --lienzo-gutter.
+    /padding-left:\s*calc\(var\(--lienzo-gutter\)\s*\+\s*\(var\(--activity-width\)\s*-\s*28px\)\s*\/\s*2\)/.test(general ?? ''),
     general?.match(/padding-left:[^;]*/)?.[0] ?? '—'
   )
 

@@ -27,9 +27,30 @@ descarte de la lista lateral en `terminales-keep-alive-y-reinicio-limpio.md`).
   40 px antes de ese borde (`RIEL_MARGEN_PLIEGUE`): llevado al tope, perder un píxel no pliega el riel.
 - El foco no va al riel al mostrarlo; conectar enfoca la xterm de la pestaña nueva. Ocultarlo desde su cabecera devuelve el
   foco a la terminal: el acorde de pantalla completa solo vale con el foco en la franja.
+- En el riel, un clic en una conexión solo la elige (para editarla, borrarla o ver su menú) y conectan el doble clic o
+  Intro, como en una lista fija de archivos. En el lanzador, que es un menú que se cierra, un clic conecta.
 - Marca la conexión de la pestaña SSH que se ve (`aria-current`) y cuenta las abiertas de cada una.
 - Sin conexiones, su cuerpo solo dice «Sin conexiones SSH en este perfil»: el alta es la de su cabecera (no hay botón repetido en
   el estado vacío). Su alta solo guarda (`OrigenAltaSsh` `'lista'`); «Sin grupo» no tiene menú.
+
+## Varias a la vez (`seleccionListaSsh.ts`, `useArrastreListaSsh.ts`)
+
+- Solo en el riel y solo CONEXIONES: Ctrl+clic (⌘ en Mac) alterna, Mayús+clic marca el rango desde el ancla, Mayús+↑/↓
+  lo amplía desde el filtro. Un clic en un grupo lo sigue plegando. Lo que deja de verse (un grupo plegado, un filtro, un
+  borrado) se suelta de la selección. El molde es la selección múltiple del explorador.
+- Con varias marcadas, el clic derecho sobre una de ellas da su menú común («Mover N conexiones a un grupo…», que abre un
+  selector con «Nuevo grupo…», y «Eliminar N conexiones…»), y Supr (⌘⌫ en Mac) las borra con UNA confirmación que las
+  nombra. Sobre una sin marcar, esa pasa a ser la única y sale su menú de siempre.
+- Arrastrar lleva la selección (o la fila sola, si no estaba marcada). Una cabecera, o cualquier conexión de un grupo, es
+  destino de ese grupo; se tiñe el grupo entero. Mientras dura el gesto, «Sin grupo» se enseña aunque esté vacío y al pie
+  sale «Nuevo grupo…»: soltar ahí pide el nombre y crea el grupo con ellas dentro.
+- El main mueve y borra el lote en UNA escritura (`ssh:mover`, `ssh:borrar:varias`, con tope de 1000 ids): o entran todas
+  o ninguna, y un solo aviso de cambio.
+- Lo que cambia la lista al empezar a arrastrar se aplaza fuera del `dragstart`: tocar el DOM dentro de él aborta el gesto.
+  El fin del arrastre se escucha también en la ventana (primer `mousemove` con el botón suelto), porque la fila de origen
+  puede salir de la lista virtual y su `dragend` perderse.
+- Descartado: marcar grupos para borrarlos en bloque (el clic de un grupo pliega; se borran uno a uno desde su menú) y crear
+  grupos en línea en el árbol (basta el diálogo de la cabecera y soltar en «Nuevo grupo…»).
 
 ## Consecuencias
 

@@ -24,9 +24,19 @@ import { claveBd } from './arbolBdClaves.ts'
 import { cargaDeConexion } from './arbolBdReglas.ts'
 import { SIN_HIJOS, cargados, inicioConexion, pendiente, type ContextoArbol, type HijosNodo, type Nodo } from './arbolBdNodo.ts'
 import type { DescriptorClaves, DescriptorDocumentos } from '../../../../shared/motores/index.ts'
-import type { DbDocBase, DbDocColeccion } from '../../../../shared/db-documentos-ipc.ts'
+import type { DbDocBase, DbDocColeccion, DbDocIndice } from '../../../../shared/db-documentos-ipc.ts'
 import type { DbConnection } from '../../../../shared/db-ipc.ts'
-import type { FilaColeccion, FilaConexion, FilaDocBase, FilaKvBase, FilaKvCarpeta, FilaKvClave, FilaKvMas } from './arbolBdTipos.ts'
+import type { DbKvTipo } from '../../../../shared/db-claves-ipc.ts'
+import type {
+  FilaColeccion,
+  FilaConexion,
+  FilaDocBase,
+  FilaIndiceColeccion,
+  FilaKvBase,
+  FilaKvCarpeta,
+  FilaKvClave,
+  FilaKvMas
+} from './arbolBdTipos.ts'
 
 /** La fila de una conexión de otra familia: sin insignia ni nivel «Bases» SQL. */
 function filaConexionSinCatalogoSql(c: DbConnection): FilaConexion {
@@ -82,6 +92,8 @@ function nodoDocBase(ctx: ContextoArbol, conexionId: string, b: DbDocBase): Nodo
 }
 
 function nodoColeccion(conexionId: string, base: string, x: DbDocColeccion, depth: number): Nodo {
+  const indices = x.indices ?? []
+  const expandible = indices.length > 0
   const fila: FilaColeccion = {
     kind: 'coleccion',
     key: claveBd.coleccion(conexionId, base, x.nombre),
@@ -89,9 +101,29 @@ function nodoColeccion(conexionId: string, base: string, x: DbDocColeccion, dept
     conexionId,
     base,
     coleccion: x,
+    expandible,
+    expandida: false,
     meta: metaColeccion(x)
   }
-  return { base: fila, contenedor: false, etiqueta: x.nombre, hijos: SIN_HIJOS }
+  return {
+    base: fila,
+    contenedor: expandible,
+    etiqueta: x.nombre,
+    hijos: () => ({ nodos: indices.map((i) => nodoIndice(conexionId, base, x.nombre, i, depth + 1)), estado: null })
+  }
+}
+
+function nodoIndice(conexionId: string, base: string, coleccion: string, indice: DbDocIndice, depth: number): Nodo {
+  const fila: FilaIndiceColeccion = {
+    kind: 'doc-indice',
+    key: claveBd.docIndice(conexionId, base, coleccion, indice.nombre),
+    depth,
+    conexionId,
+    base,
+    coleccion,
+    indice
+  }
+  return { base: fila, contenedor: false, etiqueta: indice.nombre, hijos: SIN_HIJOS }
 }
 
 // --- Claves -------------------------------------------------------------------------
@@ -118,14 +150,15 @@ export function nodoConexionClaves(ctx: ContextoArbol, c: DbConnection, d: Descr
 }
 
 /** Los hijos de una base con lo recorrido: sus carpetas, sus claves y, si el cursor sigue, «Cargar más». */
-function hijosRecorrido(ctx: ContextoArbol, conexionId: string, b: BaseClaves, rec: RecorridoClaves, patron: string): HijosNodo {
+function hijosRecorrido(ctx: ContextoArbol, conexionId: string, b: BaseClaves, rec: RecorridoClaves, patron: string, tipo?: DbKvTipo): HijosNodo {
   const clave = claveBd.kvBase(conexionId, b.indice)
-  const nodos = nodosDeCarpeta(conexionId, b.indice, carpetasDeRecorrido(rec), 2)
+  const nodos = nodosDeCarpeta(conexionId, b.indice, carpetasDeRecorrido(rec), 2, tipo)
   // Un cursor que no es '0' sigue abierto: «Cargar más» también sin ninguna clave todavía,
   // que NO es «Sin claves».
   if (rec.cursor !== '0') nodos.push(nodoKvMas(conexionId, b.indice, rec, ctx.e.kvCargandoMas?.has(clave) === true))
   if (nodos.length === 0) {
-    return { nodos, estado: { variante: 'empty', mensaje: patron === '' ? TEXTOS_CLAVES.sinClaves : textoSinCoincidencias(patron) } }
+    const sinFiltro = patron === '' && tipo === undefined
+    return { nodos, estado: { variante: 'empty', mensaje: sinFiltro ? TEXTOS_CLAVES.sinClaves : textoSinCoincidencias(patron, tipo) } }
   }
   return { nodos, estado: null }
 }
@@ -133,6 +166,7 @@ function hijosRecorrido(ctx: ContextoArbol, conexionId: string, b: BaseClaves, r
 function nodoKvBase(ctx: ContextoArbol, conexionId: string, b: BaseClaves): Nodo {
   const clave = claveBd.kvBase(conexionId, b.indice)
   const patron = ctx.e.kvPatrones?.get(clave) ?? ''
+  const tipo = ctx.e.kvTipos?.get(clave)
   const fila: FilaKvBase = {
     kind: 'kv-base',
     key: clave,
@@ -142,6 +176,7 @@ function nodoKvBase(ctx: ContextoArbol, conexionId: string, b: BaseClaves): Nodo
     claves: b.claves,
     porDefecto: b.porDefecto,
     patron,
+    ...(tipo !== undefined ? { tipo } : {}),
     expandida: false
   }
   return {
@@ -153,21 +188,21 @@ function nodoKvBase(ctx: ContextoArbol, conexionId: string, b: BaseClaves): Nodo
       // desconocidos (`claves` null) se recorre siempre.
       if (b.claves === 0) return { nodos: [], estado: { variante: 'empty', mensaje: TEXTOS_CLAVES.sinClaves } }
       const rec = ctx.e.kvClaves?.get(clave)
-      if (rec) return hijosRecorrido(ctx, conexionId, b, rec, patron)
+      if (rec) return hijosRecorrido(ctx, conexionId, b, rec, patron, tipo)
       return pendiente(ctx, { tipo: 'kvClaves', clave, conexionId, base: b.indice })
     }
   }
 }
 
 /** Lo de una carpeta (o de la raíz de la base): sus carpetas y después sus claves. */
-function nodosDeCarpeta(conexionId: string, indice: number, c: CarpetaClaves, depth: number): Nodo[] {
+function nodosDeCarpeta(conexionId: string, indice: number, c: CarpetaClaves, depth: number, tipo: DbKvTipo | undefined): Nodo[] {
   const nodos: Nodo[] = []
-  for (const h of c.carpetas) nodos.push(nodoKvCarpeta(conexionId, indice, h, depth))
+  for (const h of c.carpetas) nodos.push(nodoKvCarpeta(conexionId, indice, h, depth, tipo))
   for (const k of c.claves) nodos.push(nodoKvClave(conexionId, indice, k, depth, c.prefijo.length))
   return nodos
 }
 
-function nodoKvCarpeta(conexionId: string, indice: number, c: CarpetaClaves, depth: number): Nodo {
+function nodoKvCarpeta(conexionId: string, indice: number, c: CarpetaClaves, depth: number, tipo: DbKvTipo | undefined): Nodo {
   const fila: FilaKvCarpeta = {
     kind: 'kv-carpeta',
     key: claveBd.kvCarpeta(conexionId, indice, c.prefijo),
@@ -177,11 +212,12 @@ function nodoKvCarpeta(conexionId: string, indice: number, c: CarpetaClaves, dep
     prefijo: c.prefijo,
     nombre: etiquetaCarpetaClaves(c.nombre),
     cuenta: c.total,
+    ...(tipo !== undefined ? { tipo } : {}),
     expandida: false
   }
   // Como las carpetas SQL, no se buscan por su nombre: se buscan claves, que llevan el
   // prefijo en el suyo (buscar `usuario` encuentra todo lo de `usuario:`).
-  return { base: fila, contenedor: true, etiqueta: null, hijos: () => ({ nodos: nodosDeCarpeta(conexionId, indice, c, depth + 1), estado: null }) }
+  return { base: fila, contenedor: true, etiqueta: null, hijos: () => ({ nodos: nodosDeCarpeta(conexionId, indice, c, depth + 1, tipo), estado: null }) }
 }
 
 function nodoKvClave(conexionId: string, indice: number, k: ClaveVista, depth: number, largoPrefijo: number): Nodo {

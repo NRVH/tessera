@@ -4,9 +4,11 @@
 // activos; los demás, ocultos sin desmontarse). Se monta mientras algún proyecto
 // tenga pestañas y se oculta entera (sin desmontar) cuando el centro es de otro.
 // =============================================================================
+import { useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { ErrorBoundary } from '../../comun/ErrorBoundary'
 import { EditorTabs } from './EditorTabs'
+import { SlotAccionesTira } from './slotAccionesTira'
 import { paneDeTab, type ContextoPane } from './PaneDeTab'
 import { useStoreEditor } from './store'
 import type { EditorApp } from './useEditorApp'
@@ -39,6 +41,8 @@ export function AreaEditor({ editor, gitStatusById, densidad, editorAreaOculta }
   )
   const diffColapsar = useStoreAjustes((s) => s.diffColapsar)
   const worktreeTick = useStoreGit((s) => s.worktreeTick)
+  // El hueco de acciones de la tira: el pane visible pinta ahí su modo de vista.
+  const [slotAcciones, setSlotAcciones] = useState<HTMLElement | null>(null)
   const { editorTabs, activeEditorKey, paneKey } = editor
   if (editorTabs.allPanes.length === 0) return null
   const contexto: ContextoPane = {
@@ -64,8 +68,10 @@ export function AreaEditor({ editor, gitStatusById, densidad, editorAreaOculta }
           onSelectTab={editorTabs.setActiveTab}
           onCloseTab={editor.requestCloseTab}
           onSaveTab={editor.requestSaveTab}
+          slotAccionesRef={setSlotAcciones}
         />
       )}
+      <SlotAccionesTira.Provider value={slotAcciones}>
       {editorTabs.allPanes.map(({ targetKey, tab }) => {
         const pk = paneKey(targetKey, tab.id)
         const visible = targetKey === activeEditorKey && tab.id === editorTabs.activeId
@@ -76,6 +82,7 @@ export function AreaEditor({ editor, gitStatusById, densidad, editorAreaOculta }
           </ErrorBoundary>
         )
       })}
+      </SlotAccionesTira.Provider>
     </div>
   )
 }

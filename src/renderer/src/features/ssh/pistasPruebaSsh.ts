@@ -62,7 +62,7 @@ function textoFallo(r: Extract<SshResultadoPrueba, { ok: false }>, host: string,
       return {
         titulo: 'No entró: el servidor no aceptó las credenciales.',
         pista: r.preguntaSinContestar
-          ? 'El servidor pidió algo más (un código, una confirmación) que Tessera no contesta: la terminal te lo preguntará a ti.'
+          ? 'El servidor pidió algo más (un código, una confirmación) que Tessera no contesta sola: al conectar te lo preguntará a ti.'
           : 'Revisa el usuario y la contraseña (o la clave y su frase).'
       }
     case 'ssh-inalcanzable':

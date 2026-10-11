@@ -20,6 +20,9 @@ import { RegistroClaves } from './RegistroClaves'
 import { useArchivoConsolaClaves, useIndicadorConsolaClaves } from './useArchivoConsolaClaves'
 import { useCierreConsolaClaves } from './useCierreConsolaClaves'
 import { useEjecucionClaves } from './useEjecucionClaves'
+import { useHistorialConsolaClaves, type HistorialConsolaClaves } from './useHistorialConsolaClaves'
+import { useAutocompletadoClaves } from './proveedorClavesMonaco'
+import { HistorialConsultas } from '../HistorialConsultas'
 import '../consola.css'
 import './consolaClaves.css'
 
@@ -44,6 +47,28 @@ function useAccionesBarra(p: PropsConsolaClaves, e: EstadoConsolaClaves): { edit
   return { editarConexion, elegirBase }
 }
 
+/** El historial de comandos, colgado del reloj de la barra mientras está abierto. */
+function PopoverHistorialClaves({ p, h }: { p: PropsConsolaClaves; h: HistorialConsolaClaves }): React.JSX.Element | null {
+  if (!h.historialAbierto || !h.anclaHistorial) return null
+  return <HistorialConsultas perfilId={p.perfilId} conexion={p.conexion} ancla={h.anclaHistorial} lenguaje="comandos" onInsertar={h.insertar} onCerrar={h.cerrarHistorial} />
+}
+
+/** El divisor entre el editor y el registro de resultados. */
+function DivisorResultados(p: { alto: number; max: number; onResize: (alto: number) => void }): React.JSX.Element {
+  return (
+    <Splitter
+      orientation="horizontal"
+      className="splitter-hueco"
+      size={p.alto}
+      min={MIN_RESULTADOS}
+      max={p.max}
+      direction={-1}
+      onResize={p.onResize}
+      label="Reparto entre la consola y los resultados"
+    />
+  )
+}
+
 /** La pestaña de consola de una conexión de Redis. */
 export function DbConsolaClavesPane(p: PropsConsolaClaves): React.JSX.Element {
   const e = useEstadoConsolaClaves(p)
@@ -51,13 +76,22 @@ export function DbConsolaClavesPane(p: PropsConsolaClaves): React.JSX.Element {
   useIndicadorConsolaClaves(e)
   const { hostRef, ed, edRef } = useEditorConsola(e.modelo, p.visible, e.cargado)
   const x = useEjecucionClaves(e, edRef)
-  useAccionesConsola(ed, registrarAccionesConsolaClaves, x, archivo.guardar, e.quitarPista)
+  const { colRef: colReparto, maxResultados, altoEfectivo } = useRepartoAlto(p.altoResultados)
+  const h = useHistorialConsolaClaves(e, edRef, colReparto)
+  useAccionesConsola(ed, registrarAccionesConsolaClaves, { ...x, historial: h.alternarHistorial }, archivo.guardar, e.quitarPista)
   useCierreConsolaClaves(e, p.paneKey, x.detener, archivo.vaciar)
-  const { colRef, maxResultados, altoEfectivo } = useRepartoAlto(p.altoResultados)
+  useAutocompletadoClaves(ed, p.conexion.topologiaRedis?.modo === 'cluster')
   const { editarConexion, elegirBase } = useAccionesBarra(p, e)
 
   return (
-    <CarcasaConsola colRef={colRef} visible={p.visible} nombre={p.consola.nombre} dialogo={e.dialogo} onDetener={x.detener}>
+    <CarcasaConsola
+      colRef={h.colRef}
+      visible={p.visible}
+      nombre={p.consola.nombre}
+      dialogo={e.dialogo}
+      onDetener={x.detener}
+      onHistorial={h.alternarHistorial}
+    >
       <BarraConsolaClaves
         conexion={p.conexion}
         base={e.base}
@@ -70,21 +104,15 @@ export function DbConsolaClavesPane(p: PropsConsolaClaves): React.JSX.Element {
         onDetener={x.detener}
         onElegirBase={elegirBase}
         onEditarConexion={editarConexion}
+        onHistorial={h.alternarHistorial}
+        historialAbierto={h.historialAbierto}
       />
 
       {e.conflicto && <AvisoConflicto onCargarDelDisco={archivo.cargarDelDisco} onConservarLaMia={archivo.conservarLaMia} />}
 
       <div ref={hostRef} className="db-consola-editor" />
 
-      <Splitter
-        orientation="horizontal"
-        size={altoEfectivo}
-        min={MIN_RESULTADOS}
-        max={maxResultados}
-        direction={-1}
-        onResize={p.onAltoResultados}
-        label="Reparto entre la consola y los resultados"
-      />
+      <DivisorResultados alto={altoEfectivo} max={maxResultados} onResize={p.onAltoResultados} />
 
       <RegistroClaves
         alto={altoEfectivo}
@@ -95,6 +123,8 @@ export function DbConsolaClavesPane(p: PropsConsolaClaves): React.JSX.Element {
         onAccion={(a) => void x.accionRegistro(a)}
         onLimpiar={() => e.actualizarRegistro((r) => limpiarRegistro(r))}
       />
+
+      <PopoverHistorialClaves p={p} h={h} />
     </CarcasaConsola>
   )
 }

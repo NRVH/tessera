@@ -12,7 +12,7 @@ import type { LensPreview, LensRowKind } from './diffEditorTipos'
 type Monaco = ReturnType<typeof ensureMonaco>
 type Cambio = editor.ILineChange
 
-/** Ancho de la franja del borde derecho (sobre el scrollbar) que activa la lupa. */
+/** Ancho de la franja del borde derecho que activa la lupa: dentro de la regla de cambios del diff. */
 const LENS_SCROLLBAR_ZONE_PX = 22
 /** Líneas de contexto a cada lado de la línea apuntada. */
 const LENS_CONTEXT = 6

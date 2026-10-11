@@ -141,6 +141,16 @@ export function IconoDisparador(): React.JSX.Element {
   )
 }
 
+/** Evento programado: el reloj. */
+export function IconoEvento(): React.JSX.Element {
+  return (
+    <Svg>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7.5V12l3 2" />
+    </Svg>
+  )
+}
+
 export function IconoColumna(): React.JSX.Element {
   return (
     <Svg>
@@ -244,5 +254,7 @@ export function IconoObjetoBd({ tipo }: { tipo: DbTipoObjeto }): React.JSX.Eleme
       return <IconoTipoBd />
     case 'disparador':
       return <IconoDisparador />
+    case 'evento':
+      return <IconoEvento />
   }
 }

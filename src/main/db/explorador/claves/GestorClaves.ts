@@ -18,6 +18,7 @@ import type {
   DbKvValor
 } from '../../../../shared/db-claves-ipc.ts'
 import { puntosDeCodigoAUtf16 } from '../../../../shared/sql/posicionErrorSql.ts'
+import { esTopologiaRedis, topologiaAGuardar } from '../../../../shared/topologiaRedis.ts'
 import {
   CODIGO_DOCS_PRODUCCION,
   CODIGO_DOCS_SINTAXIS,
@@ -46,11 +47,14 @@ export interface ContextoErrorClaves {
 
 /**
  * La conexión tal como la necesita el trabajador de claves: la común de la familia (con el
- * cifrado EFECTIVO: el de Redis por defecto es sin cifrar) y la base por defecto, si la hay,
- * en su texto de siempre. Sin secreto (va aparte, en `abrir`).
+ * cifrado EFECTIVO: el de Redis por defecto es sin cifrar), la base por defecto, si la hay,
+ * en su texto de siempre, y la topología (Sentinel o Cluster) si la tiene. Sin secreto (va
+ * aparte, en `abrir`).
  */
 export function aConexionTrabajadorClaves(c: DbConnection): ConexionTrabajador {
-  return conexionTrabajadorFamilia(c)
+  const t = conexionTrabajadorFamilia(c)
+  if (esTopologiaRedis(c.topologiaRedis)) t.topologiaRedis = topologiaAGuardar(c.topologiaRedis)
+  return t
 }
 
 /**

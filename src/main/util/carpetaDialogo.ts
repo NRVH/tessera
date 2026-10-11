@@ -28,6 +28,8 @@ export type DialogoCarpeta =
   | 'clave-ssh'
   /** Elegir el archivo `config` de OpenSSH del que importar conexiones SSH. */
   | 'config-ssh'
+  /** Dónde guardar el `config` de OpenSSH con las conexiones SSH exportadas. */
+  | 'config-ssh-exportar'
   /** La carpeta del equipo donde bajar desde el explorador SFTP. */
   | 'sftp-descarga'
   /** Lo que subir al servidor desde el explorador SFTP. */

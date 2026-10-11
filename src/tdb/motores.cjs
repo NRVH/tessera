@@ -25,7 +25,7 @@ const MOTORES = Object.freeze({
     forma: Object.freeze(['host', 'port']),
     credenciales: 'usuarioClave',
     candadoSoloLectura: 'transaccionSoloLectura',
-    opcionales: Object.freeze([])
+    opcionales: Object.freeze(['tls', 'tunelSsh'])
   }),
   postgres: Object.freeze({
     etiqueta: 'PostgreSQL',
@@ -35,7 +35,7 @@ const MOTORES = Object.freeze({
     forma: Object.freeze(['host', 'port']),
     credenciales: 'usuarioClave',
     candadoSoloLectura: 'envoltorioRollback',
-    opcionales: Object.freeze([])
+    opcionales: Object.freeze(['tls', 'tunelSsh'])
   }),
   sqlite: Object.freeze({
     etiqueta: 'SQLite',
@@ -55,7 +55,17 @@ const MOTORES = Object.freeze({
     forma: Object.freeze(['host', 'port']),
     credenciales: 'usuarioClave',
     candadoSoloLectura: 'clasificadorYEnvoltorio',
-    opcionales: Object.freeze(['database', 'instancia', 'autenticacion', 'dominio', 'tls'])
+    opcionales: Object.freeze(['database', 'instancia', 'autenticacion', 'dominio', 'tls', 'tunelSsh'])
+  }),
+  mysql: Object.freeze({
+    etiqueta: 'MySQL / MariaDB',
+    familia: 'sql',
+    cli: './mysql.cjs',
+    sesion: './sesionMysql.cjs',
+    forma: Object.freeze(['host', 'port']),
+    credenciales: 'usuarioClave',
+    candadoSoloLectura: 'envoltorioRollback',
+    opcionales: Object.freeze(['database', 'tls', 'tunelSsh'])
   }),
   mongodb: Object.freeze({
     etiqueta: 'MongoDB',
@@ -65,7 +75,7 @@ const MOTORES = Object.freeze({
     forma: Object.freeze(['host', 'port']),
     credenciales: 'usuarioClave',
     candadoSoloLectura: 'listaBlanca',
-    opcionales: Object.freeze(['user', 'database', 'tls', 'srv', 'opcionesUri'])
+    opcionales: Object.freeze(['user', 'database', 'tls', 'srv', 'opcionesUri', 'tunelSsh'])
   }),
   redis: Object.freeze({
     etiqueta: 'Redis',
@@ -75,7 +85,7 @@ const MOTORES = Object.freeze({
     forma: Object.freeze(['host', 'port']),
     credenciales: 'usuarioClave',
     candadoSoloLectura: 'listaBlanca',
-    opcionales: Object.freeze(['user', 'database', 'tls'])
+    opcionales: Object.freeze(['user', 'database', 'tls', 'tunelSsh', 'topologiaRedis'])
   })
 })
 
@@ -216,7 +226,14 @@ function destinoLs(c) {
   // Los que no son SQL escriben `host:puerto/base` con la base posiblemente vacía y sin SID
   // (= `destinoDeRedUsuarioOpcional` de shared). Un motor desconocido sigue por el camino de
   // red de siempre, como en shared.
-  if (esMotor(c.motor) && !esFamiliaSql(c.motor)) return `${c.host}:${c.port}/${c.database || ''}`
+  // Un host que ya lleva su puerto o una lista de miembros (`a,b:27018`) va tal cual
+  // (= `hostLlevaPuerto` de shared).
+  if (esMotor(c.motor) && !esFamiliaSql(c.motor)) {
+    const h = typeof c.host === 'string' ? c.host : ''
+    const llevaPuerto = h.includes(',') || /^[^:[\]]+:\d+$/.test(h) || /^\[[^\]]+\]:\d+$/.test(h)
+    const servidor = llevaPuerto ? h : `${c.host}:${c.port}`
+    return `${servidor}/${c.database || ''}`
+  }
   if (deArchivo(c.motor)) return typeof c.archivo === 'string' ? path.basename(c.archivo) : ''
   // Un motor con instancia (SQL Server) escribe `host\INSTANCIA` sin puerto y sin SID
   // (= `destinoSqlServer` de shared).

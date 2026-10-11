@@ -2,7 +2,8 @@
 // =============================================================================
 // Prueba de las funciones PURAS de `clipboardFiles` (npm run test:clipboard-files): el parseo de
 // los buffers crudos del portapapeles (cuenta del CIDA, DropEffect por bits, FileNameW, el JSON
-// de PowerShell, el plist de macOS y las `file://` URL), que es donde están las trampas de formato
+// de PowerShell, el plist de macOS, las `file://` URL y los formatos del gestor de archivos de
+// Linux), que es donde están las trampas de formato
 // y donde un error silencioso trataría un COPIAR como CORTAR. El sondeo y la lectura reales
 // necesitan un portapapeles de verdad y se comprueban en `e2e/portapapeles-archivos.spec.ts`.
 // =============================================================================
@@ -235,6 +236,37 @@ check('6d', rutaDesdeFileUrl('') === null, 'cadena vacía -> null')
 check('6e', rutaDesdeFileUrl('https://ejemplo.com/x') === null, 'una URL http NO es un fichero')
 check('6f', rutaDesdeFileUrl('/Users/ana/uno.txt') === null, 'una ruta pelada no es una file:// URL')
 check('6g', rutaDesdeFileUrl('file://%%%') === null, 'URL rota -> null (no revienta)')
+
+const { copiadosLinux, parseGnomeCopiados, rutaDeUriLinux, rutasDeListaUris } = await import('./portapapelesLinux.ts')
+
+hr('(7) Linux: formatos del gestor de archivos')
+{
+  const g = parseGnomeCopiados('copy\nfile:///home/ana/uno.txt\nfile:///home/ana/dos%20con%20espacio.txt')
+  check(
+    '7a',
+    g.efecto === 'copy' && g.rutas.join('|') === '/home/ana/uno.txt|/home/ana/dos con espacio.txt',
+    'GNOME copiar: dos rutas decodificadas'
+  )
+  const c = parseGnomeCopiados('cut\r\nfile:///home/ana/uno.txt\r\n')
+  check('7b', c.efecto === 'cut' && c.rutas.length === 1, 'GNOME cortar (y con CRLF)')
+  const raro = parseGnomeCopiados('mover\nfile:///home/ana/uno.txt')
+  check('7c', raro.rutas.length === 0 && raro.efecto === 'copy', 'una primera línea desconocida no se lee como cortar')
+  check(
+    '7d',
+    rutasDeListaUris('# comentario\nfile:///home/ana/a.txt\nhttps://ejemplo.com/x\n\nfile:///home/ana/b.txt').length === 2,
+    'uri-list: comentarios, líneas vacías y URLs que no son ficheros fuera'
+  )
+  check('7e', rutaDeUriLinux('file://otra-maquina/home/ana/a.txt') === null, 'una URI con host remoto no es un fichero local')
+  check('7f', rutaDeUriLinux('file://localhost/home/ana/a.txt') === '/home/ana/a.txt', 'localhost sí es local')
+  const kde = copiadosLinux({ gnome: '', uris: 'file:///home/ana/a.txt', kdeCortar: '1' })
+  check('7g', kde.efecto === 'cut' && kde.rutas.length === 1, 'KDE: uri-list + marca de cortar = cortar')
+  const kdeCopia = copiadosLinux({ gnome: '', uris: 'file:///home/ana/a.txt', kdeCortar: '' })
+  check('7h', kdeCopia.efecto === 'copy', 'sin marca de KDE, copiar')
+  const ambos = copiadosLinux({ gnome: 'cut\nfile:///home/ana/a.txt', uris: 'file:///home/ana/a.txt', kdeCortar: '' })
+  check('7i', ambos.efecto === 'cut', 'manda el formato de GNOME, que lleva el efecto')
+  const nada = copiadosLinux({ gnome: '', uris: '', kdeCortar: '1' })
+  check('7j', nada.rutas.length === 0 && nada.efecto === 'copy', 'sin rutas la marca de cortar no cuenta')
+}
 
 hr(`VEREDICTO: ${passed}/${passed + failed} PASS — ${failed === 0 ? 'TODO PASS' : 'HAY FAIL'}`)
 if (failed > 0) process.exitCode = 1

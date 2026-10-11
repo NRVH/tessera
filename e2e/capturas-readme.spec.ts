@@ -475,7 +475,7 @@ test.describe('capturas del README', () => {
     // El detalle abre el primer archivo del commit; se vuelve al diff del cambio sin confirmar. Se espera a
     // que lo abra: si no, la apertura llega después del clic y tapa el diff que se quería enseñar.
     await expect(win.locator('.editor-tab.active', { hasText: 'CHANGELOG.md' })).toHaveCount(1, { timeout: 15_000 })
-    await win.locator('.editor-tab', { hasText: 'DIFF' }).filter({ hasText: 'carrito.ts' }).click()
+    await win.locator('.editor-tab', { has: win.getByRole('img', { name: 'Diferencias' }) }).filter({ hasText: 'carrito.ts' }).click()
     await expect(win.locator('.monaco-diff-editor').filter({ visible: true })).toContainText('envio')
     await win.waitForTimeout(1200)
     await foto(win, 'git')
@@ -516,8 +516,8 @@ test.describe('capturas del README', () => {
     await panel.getByRole('button', { name: 'Maximizar el panel de terminal' }).click()
     const riel = win.locator('aside.ssh-riel')
     await expect(riel).toBeVisible()
-    // Un clic conecta. El texto de la terminal no se lee del DOM (se pinta por GPU): se espera a la pestaña.
-    await riel.getByRole('treeitem', { name: /^web-01,/ }).click()
+    // El doble clic conecta. El texto de la terminal no se lee del DOM (se pinta por GPU): se espera a la pestaña.
+    await riel.getByRole('treeitem', { name: /^web-01,/ }).dblclick()
     await expect(panel.locator('.terminal-tab.active', { hasText: 'web-01' })).toHaveCount(1, { timeout: 30_000 })
     await win.waitForTimeout(1500)
     await panel.locator('.xterm').filter({ visible: true }).first().click()

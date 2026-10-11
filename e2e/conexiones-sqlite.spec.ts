@@ -299,6 +299,8 @@ test.describe('explorador de BD: SQLite', () => {
     await expect(boton).toHaveAttribute('title', `Desconectar ${ALIAS}`)
     await boton.click()
     await expect(boton, 'desconectada: se apaga').toBeDisabled({ timeout: 15_000 })
+    // Con el ratón encima, el tooltip de la app guarda el `title` aparte mientras lo enseña: se aparta.
+    await win.mouse.move(0, 400)
     // `has:` se busca DENTRO del envoltorio: el botón va relativo, no con la ruta de la página.
     await expect(win.locator('.db-arbol .sidebar-actions .btn-envoltura', { has: win.locator('button[aria-label="Desconectar"]') })).toHaveAttribute(
       'title',

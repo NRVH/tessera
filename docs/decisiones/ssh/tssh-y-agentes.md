@@ -2,8 +2,9 @@
 
 - **Estado:** vigente
 - **Ámbito:** `src/tssh/`, `src/main/ssh/` (`controlador/puenteTssh.ts`, `catalogoAgentes.ts`, `briefingSsh.ts`,
-  `atajosTssh.ts`, `lineaSsh.ts` en modo agente, `adaptadores/registroTssh.ts`, `controlador/buzonTssh.ts`, `transferenciaBuzon.ts`)
-  y `src/main/agents/briefingCompuesto.ts` (macOS: sin verificar)
+  `atajosTssh.ts`, `lineaSsh.ts` en modo agente, `adaptadores/registroTssh.ts`, `actividadTssh.ts`, `controlador/buzonTssh.ts`,
+  `transferenciaBuzon.ts`), `src/main/agents/briefingCompuesto.ts` y la actividad de `features/ssh/` (`DialogoActividadSsh.tsx`,
+  `actividadSsh.ts`) (macOS: sin verificar)
 
 ## Contexto
 
@@ -23,11 +24,20 @@ de un argumento (impares, lo parte), no analiza un apóstrofo tipográfico y lee
   secreto, sin redirecciones, `LocalCommand` ni terminal; scp con `-S` del ssh de su carpeta. Con secreto, una ficha del programa
   de contraseñas de 120 s y 3 usos que solo viaja en el entorno del ssh lanzado, nunca en el del agente.
 - Cada petición mira solo el perfil de su sesión (`ConexionesSsh.listar(perfil)`).
+- Una conexión con bastión salta por él aunque el bastión no esté disponible para los agentes, con su huella confirmada y su
+  secreto; nunca abre sus túneles (`tuneles-y-bastiones.md`).
 - Códigos propios, antes de conectar: 2 uso, 3 puente, 4 alias, 5 huella, 6 no se puede usar, 124 tope. Si la orden corre, el suyo.
 - Aviso de arranque en nativo: el de bases tal cual (prefijo exacto) y detrás el de SSH, con los textos del usuario sin comillas
   tipográficas ni dobles (`tssh` busca el alias con cualquier comilla). Codex lo recibe por `-c developer_instructions` (ver
   `agentes/sesion-linea-de-arranque.md`).
-- `logs/ssh.log`: perfil, subcomando, alias, código y duración; nunca la orden remota ni las rutas.
+- `logs/ssh.log`: perfil, subcomando, alias, código y duración; nunca la orden remota ni las rutas. La interfaz lo enseña en
+  «Actividad de los agentes…» (menú de una conexión, filtrada a su alias, y pie del lanzador, todo el perfil): las peticiones
+  rechazadas y las terminadas del perfil, la más reciente primero y con tope de 500 (`actividadTssh.ts`, que lee también el
+  `.old`). Cada fin se empareja con el inicio pendiente más antiguo de su uso y alias; un inicio sin fin (en curso, o el
+  agente o Tessera murieron antes de apuntarlo) se enseña como tal, porque es la línea que escribe el main por su cuenta.
+  El fin lo informa `tssh`: como todo lo del agente, es de fiar lo que el modelo de amenaza dice (corre como el usuario).
+  El filtro es por alias, que es lo que guarda el registro: abierta desde una conexión, solo ese alias exacto; una
+  conexión renombrada no reúne sus líneas viejas.
 - Atajos: el sh pide a MSYS que no convierta nada y `tssh` traduce las rutas locales (`/c/…`, y `/tmp/…` con `cygpath`); el ps1
   lleva BOM y no tiene `param` (así recibe `$input`); el cmd escribe la carpeta del usuario con su variable (`%LOCALAPPDATA%`).
 - El aviso de arranque y el `CLAUDE.md` del agente de la terminal salen del mismo catálogo y de las mismas frases (`catalogoAgentes`).

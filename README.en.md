@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://github.com/NRVH/tessera/releases/latest"><img src="https://img.shields.io/github/v/release/NRVH/tessera" alt="Latest release"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
-  <img src="https://img.shields.io/badge/platforms-Windows%20%7C%20macOS-lightgrey.svg" alt="Platforms: Windows | macOS">
+  <img src="https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg" alt="Platforms: Windows | macOS | Linux">
 </p>
 
 <p align="center">
@@ -78,20 +78,23 @@ sandbox, with an account that belongs to that workspace and only its projects in
 | --- | --- | --- |
 | Windows | **[Download for Windows](https://github.com/NRVH/tessera/releases/latest/download/Tessera-Setup.exe)** (`.exe`) | Windows 11 (64-bit) |
 | macOS | **[Download for Mac](https://github.com/NRVH/tessera/releases/latest/download/Tessera-mac-arm64.dmg)** (`.dmg`) | macOS 12 Monterey or later, **Apple Silicon only** (M1 and newer) |
+| Linux | **[Download for Linux](https://github.com/NRVH/tessera/releases/latest/download/Tessera-linux-x86_64.AppImage)** (`.AppImage`) | 64-bit (x86-64) desktop distributions with FUSE (`libfuse2`) |
 
 Release notes and earlier installers are on
 **[Releases](https://github.com/NRVH/tessera/releases)**.
 
 The Windows installer is per user (no administrator rights needed) and lets you choose the
-installation folder. On macOS, open the `.dmg` and drag Tessera to **Applications**.
+installation folder. On macOS, open the `.dmg` and drag Tessera to **Applications**. On
+Linux, make the AppImage executable (`chmod +x Tessera-linux-x86_64.AppImage`) and open it.
 
-Tessera updates itself on both platforms: a new version downloads in the background and is
-applied when you close the app (you can change that in **Settings › Actualizaciones**).
+Tessera updates itself on all three platforms: a new version downloads in the background and
+is applied when you close the app (you can change that in **Settings › Actualizaciones**).
 
-### First launch of an unsigned app
+### First launch of an app without a paid signature
 
 Tessera is an independent open source project and is not signed with a paid code-signing
-certificate, so both systems will warn you the first time you open it. This is expected.
+certificate, so Windows and macOS will warn you the first time you open it. This is
+expected.
 
 - **Windows.** SmartScreen shows "Windows protected your PC". Click **More info** and then
   **Run anyway**.
@@ -110,21 +113,21 @@ You only have to do this once: automatic updates are downloaded by Tessera itsel
 not trigger the warning again. If you would rather not trust a prebuilt binary, you can
 [build Tessera from source](#building-from-source).
 
-On macOS the app carries an ad-hoc signature, which changes with every build. Because of
-that, macOS may ask again for permission to access folders such as Documents or Desktop
-after an update.
+On macOS the app is signed with Tessera's own certificate, the same in every version, so the
+permissions you grant it (folder access, Accessibility, screen recording) survive updates.
+The Keychain does ask once after each update whether Tessera may use its saved passwords:
+click **Always Allow**.
 
 ## Requirements
 
 | What | When you need it |
 | --- | --- |
-| **Docker Desktop** | Only for sandbox mode. On Windows, with the WSL 2 backend. Tessera builds its sandbox image the first time a workspace needs it. |
+| **Docker** | Only for sandbox mode: Docker Desktop on Windows (with the WSL 2 backend) and on macOS, and the system's Docker on Linux (rootless Docker is not supported: Tessera explains it and offers native mode). Tessera builds its sandbox image the first time a workspace needs it. |
 | **Claude Code** and/or **Codex** | Only for native mode: installed on your computer and signed in. In sandbox mode both come preinstalled in the image. |
 | **Git** | For the Git view, which runs on your computer. On macOS it comes with the Xcode Command Line Tools. |
-| **OpenSSH client** | For SSH connections. On Windows it is the optional feature "OpenSSH Client", installed by default on Windows 10 and 11 (if it is missing, Tessera uses the one that ships with Git and says so); on macOS it comes with the system. |
+| **OpenSSH client** | For SSH connections. On Windows it is the optional feature "OpenSSH Client", installed by default on Windows 10 and 11 (if it is missing, Tessera uses the one that ships with Git and says so); on macOS and most Linux distributions it comes with the system. |
+| **GNOME Keyring or KWallet** | Only on Linux, to save passwords. Without either one, connections can still be created, but Tessera does not save their password: it never leaves it on disk in near plain text. |
 | **Java** (optional) | To decompile `.class` files. Tessera ships two engines: CFR, which runs on Java 6 or later, and Vineflower, which needs Java 17 or later. It finds every Java runtime installed and uses the best one for each engine. |
-
-Linux is not supported yet.
 
 ## Getting started
 
@@ -153,6 +156,9 @@ Linux is not supported yet.
 - Two levels of tabs: workspaces on top, each with its own color so you always know which
   account you are in, and the open projects of that workspace below.
 - Reorder workspaces and projects by dragging them.
+- **Minimalist mode** (Settings › Apariencia): the workspace bar is replaced by a small
+  selector in the middle of the title bar, showing the active workspace; click it to see the
+  others, with the same menu to rename them, change their color, hibernate or delete them.
 - Tessera remembers which projects each workspace had open and restores them when you
   reopen the app, without starting every agent at once: an agent starts when you enter its
   project.
@@ -232,9 +238,10 @@ you used to enter it.
 - **Search in files** across the whole project or one folder, with a live preview.
 - Git status colors on files and folders, refreshed as files change on disk.
 - **"Open with Tessera"** from the right-click menu of Windows Explorer (folders, any file,
-  or associated extensions, each switchable in Settings) and, on macOS, a Finder quick action
-  for folders plus "Open With" for code and text files. Tessera never makes itself the
-  default app for a file type.
+  or associated extensions, each switchable in Settings); on macOS, a Finder quick action
+  for folders plus "Open With" for code and text files; and on Linux, Tessera in your file
+  manager's "Open With" for folders and in the application launcher. Tessera never makes
+  itself the default app for a file type.
 
 ### Git
 
@@ -255,7 +262,7 @@ you used to enter it.
 
 - A terminal panel at the bottom of the window for the active project, with several
   terminals in tabs: inside the workspace's container in Docker mode, or your own shell in
-  native mode (PowerShell on Windows, your login shell on macOS).
+  native mode (PowerShell on Windows, your login shell on macOS and Linux).
 - Find in the scrollback, copy and paste that behave like the platform expects, and
   GPU-accelerated rendering that you can turn off in Settings.
 - **Full screen**: the terminal takes the whole work area with a button or with
@@ -274,13 +281,24 @@ you used to enter it.
 - **Three ways in**: password, key file (`.pem` or OpenSSH, which Tessera keeps as a
   protected copy without touching the original) or the system keys (the SSH agent and your
   `.ssh` folder). The password and the key's passphrase are stored encrypted and supplied
-  automatically when connecting. "Test" checks the connection before saving it.
+  automatically when connecting; if the server rejects them, or asks for a second factor,
+  Tessera asks you in a dialog. "Test" checks the connection before saving it.
 
   ![SSH connection form: name, group, host, user and authentication](assets/capturas/ssh-conexion.png)
 
+- **Bastions and tunnels**: a connection can jump through another one of the workspace to
+  reach a machine that is not directly visible (up to four hops), and open local, remote and
+  SOCKS tunnels that live as long as its terminal. The terminal, the SFTP explorer and the
+  agents go through the bastion the same way.
+- **Sessions reconnect** from the terminal itself (Enter or "Reconnect") when they drop, and
+  open SSH tabs come back when you reopen Tessera, without connecting until you look at them.
 - **Import from OpenSSH**: reads your `~/.ssh/config` (or a file you pick). With a single
   `Host` it fills in the form; with several, it opens a review to choose which to import,
-  rename them, set the user and the group, and leave each one's password or key ready.
+  rename them, set each one's user and group, and leave the password or key ready.
+- **Export to OpenSSH**: saves the workspace's connections (or the ones you select) to an
+  OpenSSH `config`, with their bastions, tunnels and a protected copy of their keys.
+- **Organize them your way**: groups, several at once with Ctrl/⌘-click and Shift-click,
+  drag them from one group to another, and "Duplicate" to make a full copy.
 - **SFTP explorer** for each connection in a tab: browse, create folders, rename, delete, and
   upload and download files and folders (also by dropping them) with progress, cancellation
   and confirmation before replacing.
@@ -288,14 +306,20 @@ you used to enter it.
   terminal agent can list the connections, run commands and copy files with a small CLI,
   `tssh`, by connection name. They never see the password or the key, and they only reach
   servers whose fingerprint you already accepted. Each connection's "Available to agents"
-  checkbox decides whether they see it.
+  checkbox decides whether they see it, and "Agent activity" shows what each one asked for,
+  with which connection, and how it ended.
 
 ### Databases
 
 ![Connections view with the database tree, a SQL console and the result grid](assets/capturas/bases-de-datos.png)
 
-- **Oracle, PostgreSQL, SQL Server, MongoDB, Redis and SQLite**, in a **Connections** view
-  of their own, organized per workspace.
+- **Oracle, PostgreSQL, SQL Server, MySQL, MariaDB, MongoDB, Redis and SQLite**, in a
+  **Connections** view of their own, organized per workspace. Redis also with Sentinel (it
+  follows the new primary after a failover) and with Cluster.
+- **Encrypted connections** (SSL/TLS, and TCPS on Oracle) with the certificate checked
+  against your computer's trusted authorities, and **through an SSH tunnel** over one of your
+  SSH connections, bastions included. Pasting a URI (`postgres://`, `mysql://`,
+  `mongodb://`…) fills in the form.
 - A tree of schemas and objects, a result grid with paging and export, SQL consoles with
   autocomplete, formatting, explain plans and query history, and consoles for MongoDB and
   Redis in their own syntax.
@@ -310,7 +334,7 @@ you used to enter it.
   Instant Client, which Tessera can download for you from oracle.com, or you can point it
   to one you already have.
 - Passwords are encrypted with your system's secret store (DPAPI on Windows, the Keychain
-  on macOS).
+  on macOS, GNOME Keyring or KWallet on Linux).
 
 ### Settings
 
@@ -323,14 +347,14 @@ integration, updates, and an About page.
 ### Automatic updates
 
 Tessera checks its release feed on GitHub, downloads new versions in the background and
-applies them when you close the app, on Windows and on macOS.
+applies them when you close the app, on Windows, macOS and Linux.
 
 ## Keyboard shortcuts
 
-The main modifier is Ctrl on Windows and ⌘ on macOS. A few gestures use a different key
-on each platform, following each system's conventions.
+The main modifier is Ctrl on Windows and Linux and ⌘ on macOS. A few gestures use a
+different key on each platform, following each system's conventions.
 
-| Action | Windows | macOS |
+| Action | Windows and Linux | macOS |
 | --- | --- | --- |
 | Settings | Ctrl+, | ⌘, |
 | Search in files | Ctrl+Shift+F | ⇧⌘F |
@@ -347,12 +371,13 @@ on each platform, following each system's conventions.
 | Open the selected item (explorer, database tree) | F4 or Enter | F4, ⌘↓ or Enter |
 | Delete the selected files | Delete | ⌘⌫ or Delete |
 
-With focus in a terminal, Ctrl+N on Windows belongs to the shell (it receives it as ^N) and
-does not create a file; on macOS ⌘N is not a control key and creates the file anyway.
+With focus in a terminal, Ctrl+N on Windows and Linux belongs to the shell (it receives it
+as ^N) and does not create a file; on macOS ⌘N is not a control key and creates the file
+anyway.
 
 In the **Connections** view:
 
-| Action | Windows | macOS |
+| Action | Windows and Linux | macOS |
 | --- | --- | --- |
 | Run the current statement | Ctrl+Enter | ⌘↩ |
 | Run the whole console | Alt+X or Ctrl+Shift+Enter | ⌥X or ⇧⌘↩ |
@@ -371,6 +396,7 @@ In the **Connections** view:
 | --- | --- |
 | Windows | `%APPDATA%\Tessera` |
 | macOS | `~/Library/Application Support/Tessera` |
+| Linux | `~/.config/Tessera` |
 
 That folder holds your workspaces, the open tabs, settings, the agent sign-ins used in
 sandbox mode, database connections (with encrypted passwords), SSH connections (with encrypted
@@ -408,7 +434,7 @@ whether to keep or delete your data, and an update never touches it.
 ## Building from source
 
 You need **Node.js 22.18 or later** (the release workflow uses the latest Node 22) and
-**Git**. For sandbox mode you also need Docker Desktop.
+**Git**. For sandbox mode you also need Docker.
 
 ```bash
 git clone https://github.com/NRVH/tessera.git
@@ -426,6 +452,7 @@ To build an installer for your own platform:
 ```bash
 npm run release:win   # Windows: dist/Tessera-<version>-Setup.exe
 npm run release:mac   # macOS:   dist/Tessera-<version>-arm64.dmg (and the .zip used by updates)
+npm run release:linux # Linux:   dist/Tessera-linux-x86_64.AppImage
 ```
 
 electron-builder does not cross-compile, so each platform is built on that platform. On
@@ -435,8 +462,8 @@ macOS the app is signed ad hoc automatically: you do not need an Apple developer
 | --- | --- |
 | `npm run dev` | Run the app in development mode with hot reload |
 | `npm run build` | Type-check and compile into `out/` |
-| `npm run pack:dir` / `npm run pack:mac:dir` | Package without an installer (`dist/win-unpacked`, `dist/mac-arm64`) |
-| `npm run release:win` / `npm run release:mac` | Build the installer for the current platform, without publishing |
+| `npm run pack:dir` / `npm run pack:mac:dir` / `npm run pack:linux:dir` | Package without an installer (`dist/win-unpacked`, `dist/mac-arm64`, `dist/linux-unpacked`) |
+| `npm run release:win` / `npm run release:mac` / `npm run release:linux` | Build the installer for the current platform, without publishing |
 | `npm run typecheck` | Type-check the main process, the interface and the e2e suite |
 | `npm run lint` | ESLint over the whole repository |
 | `npm run test:<name>` | Run one test script (see `package.json`) |
@@ -501,15 +528,16 @@ npm run test:e2e                      # Playwright against the PACKAGED app
   (native type stripping). There is no test framework and no aggregate `npm test`; each one
   has its own `test:<name>` script, and about thirty of them need Docker running.
 - `test:cabeceras`, `test:comentarios` and `test:menciones` check the code standard.
-- The end-to-end suite drives the packaged app (`dist/win-unpacked` or
-  `dist/mac-arm64/Tessera.app`), so rebuild it with `npm run pack:dir` or
-  `npm run pack:mac:dir` after changing application code.
+- The end-to-end suite drives the packaged app (`dist/win-unpacked`,
+  `dist/mac-arm64/Tessera.app` or `dist/linux-unpacked`), so rebuild it with
+  `npm run pack:dir`, `npm run pack:mac:dir` or `npm run pack:linux:dir` after changing
+  application code.
 
 ## Contributing
 
 Issues and pull requests are welcome, in English or in Spanish. Please read
-[CONTRIBUTING.en.md](./CONTRIBUTING.en.md) first: the code is written in Spanish, and Windows
-and macOS are both first-class platforms. Report vulnerabilities privately as described in
+[CONTRIBUTING.en.md](./CONTRIBUTING.en.md) first: the code is written in Spanish, and Windows,
+macOS and Linux are all first-class platforms. Report vulnerabilities privately as described in
 [SECURITY.en.md](./SECURITY.en.md). Everyone taking part is expected to follow the
 [Code of Conduct](./CODE_OF_CONDUCT.en.md).
 

@@ -16,7 +16,7 @@ import type {
   DbRespuesta,
   DbValor
 } from '../../../../shared/db-explorador-ipc'
-import { MONACO_THEME, OPCIONES_BASE_MONACO, ensureMonaco } from '../../comun/monacoSetup'
+import { BARRAS_MONACO, MONACO_THEME, OPCIONES_BASE_MONACO, ensureMonaco } from '../../comun/monacoSetup'
 import { useDialogo } from '../../comun/useDialogo'
 import { EstadoVacio } from '../../comun/EstadoVacio'
 import { IconoCerrar, IconoCopiar } from '../../comun/iconosMenu'
@@ -136,7 +136,7 @@ function crearEditorVisor(
     cursorBlinking: 'solid',
     wordBasedSuggestions: 'off',
     quickSuggestions: false,
-    scrollbar: { alwaysConsumeMouseWheel: true }
+    scrollbar: { ...BARRAS_MONACO, alwaysConsumeMouseWheel: true }
   })
   ed.layout({ width: host.clientWidth, height: host.clientHeight })
   return { ed, modelo }

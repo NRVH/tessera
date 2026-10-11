@@ -121,7 +121,7 @@ function formDe(dto: DbConnection, cambios: Partial<DbConnectionInput> = {}): Db
 const ORA = { id: 'ora-1', profileId: 'p1', alias: 'ORA-QA', motor: 'oracle', host: 'db.lan', port: 1521, database: 'QA', user: 'ADM', readonly: true, orden: 0, secretEnc: enc('pw'), colorFuturo: '#c0392b' }
 const LITE = { id: 'lite-1', profileId: 'p1', alias: 'Local SQLite', motor: 'sqlite', ruta: 'C:/datos/app.db', readonly: true, orden: 1 }
 const PG = { id: 'pg-1', profileId: 'p1', alias: 'PG-STG', motor: 'postgres', host: 'pg.lan', port: 5432, database: 'app', user: 'u', readonly: true, entorno: 'staging', orden: 2 }
-const MSSQL = { id: 'mssql-1', profileId: 'p1', alias: 'SQLSRV', motor: 'mysql', host: '127.0.0.1', port: 1433, database: 'master', user: 'sa', readonly: true, orden: 3, instancia: 'SQLEXPRESS' }
+const MSSQL = { id: 'mssql-1', profileId: 'p1', alias: 'SQLSRV', motor: 'db2', host: '127.0.0.1', port: 1433, database: 'master', user: 'sa', readonly: true, orden: 3, instancia: 'SQLEXPRESS' }
 const MEDIDO = { version: 2, connections: [ORA, LITE, PG, MSSQL] }
 
 hr('(1) El fallo medido, invertido: la primera escritura ya no borra nada')
@@ -144,7 +144,7 @@ hr('(1) El fallo medido, invertido: la primera escritura ya no borra nada')
       JSON.stringify(aj.valor) ===
         JSON.stringify([
           { id: 'lite-1', profileId: 'p1', alias: 'Local SQLite', motor: 'sqlite' },
-          { id: 'mssql-1', profileId: 'p1', alias: 'SQLSRV', motor: 'mysql' }
+          { id: 'mssql-1', profileId: 'p1', alias: 'SQLSRV', motor: 'db2' }
         ]),
     aj.ok ? JSON.stringify(aj.valor) : aj.error
   )
@@ -172,9 +172,9 @@ hr('(1) El fallo medido, invertido: la primera escritura ya no borra nada')
   const d3 = disco(ruta)
   check('reorder no toca el orden de las ajenas', de(d3, 'lite-1')?.orden === 1 && de(d3, 'mssql-1')?.orden === 3 && de(d3, 'pg-1')?.orden === 0, JSON.stringify(d3.connections.map((c) => [(c as Crudo).id, (c as Crudo).orden])))
 
-  // 'mysql' sirve de ejemplo de un motor que el registro no conoce.
-  const cr = intentar(() => store.create({ profileId: 'p1', alias: 'nueva', motor: 'mysql' as never, host: 'x', port: 1, user: 'u', readonly: true }))
-  check('crear una de motor mysql sigue fallando con «Motor desconocido»', !cr.ok && cr.error.includes('Motor desconocido'), cr.ok ? 'creó' : cr.error)
+  // 'db2' sirve de ejemplo de un motor que el registro no conoce.
+  const cr = intentar(() => store.create({ profileId: 'p1', alias: 'nueva', motor: 'db2' as never, host: 'x', port: 1, user: 'u', readonly: true }))
+  check('crear una de motor db2 sigue fallando con «Motor desconocido»', !cr.ok && cr.error.includes('Motor desconocido'), cr.ok ? 'creó' : cr.error)
 
   const otra = new ConnectionStore({ storePath: ruta })
   check(
@@ -229,9 +229,10 @@ hr('(2) El store con ajenas: borrar, podar, dar de alta, secretos')
   check('y al final del archivo, sin mover a nadie', ids(d)[ids(d).length - 1] === nueva.id && JSON.stringify(ids(d).slice(0, -1)) === JSON.stringify(['b-k1', 'b-a1', 'b-k2', 'b-a2', null, 'basura', 'b-sinperfil', 'b-a3', 'b-k3']), JSON.stringify(ids(d)))
   check('la raíz ajena (grupos) sobrevive a la escritura', JSON.stringify(d.grupos) === JSON.stringify([{ nombre: 'Ventas', ids: ['b-a1'] }]), JSON.stringify(d.grupos))
 
-  store.pruneProfiles(new Set(['p1']))
+  store.alBorrarPerfil('p2')
   const dp = disco(ruta)
-  check('pruneProfiles poda también las AJENAS del perfil borrado', !de(dp, 'b-a2') && !de(dp, 'b-k2'), JSON.stringify(ids(dp)))
+  check('alBorrarPerfil se lleva también las AJENAS del perfil borrado', !de(dp, 'b-a2') && !de(dp, 'b-k2'), JSON.stringify(ids(dp)))
+  check('NEGATIVO: las de los otros perfiles se quedan', !!de(dp, 'b-k1') && !!de(dp, 'b-a1') && !!de(dp, 'b-k3'), JSON.stringify(ids(dp)))
   check(
     'NEGATIVO: y conserva lo que no es de nadie que se sepa (null, basura, sin perfil)',
     dp.connections.includes(null) && dp.connections.includes('basura') && !!de(dp, 'b-sinperfil'),
@@ -340,7 +341,7 @@ hr('(4) Formato ajeno, BOM y .bak')
   const cr = intentar(() => store.create({ profileId: 'p1', alias: 'Nueva', motor: 'postgres', host: 'h', port: 5432, database: 'd', user: 'u', readonly: true }))
   check('dar de alta falla diciendo por qué (versión más nueva), en vez de destruir el archivo', !cr.ok && cr.error.includes('versión más nueva de Tessera'), cr.ok ? 'creó' : cr.error)
   check('NEGATIVO: la alta fallida no queda viva en memoria', store.list('p1').length === 0, JSON.stringify(store.list('p1').map((c) => c.alias)))
-  store.pruneProfiles(new Set())
+  store.alBorrarPerfil('p1')
   check('y el archivo sigue byte a byte (ni la alta ni la poda lo tocaron)', readFileSync(ruta, 'utf-8') === texto, 'igual')
 
   const conBom = archivo('\uFEFF' + JSON.stringify({ connections: [{ ...ORA, id: 'bom-1', alias: 'DEL-PRIMARIO' }] }))
@@ -632,25 +633,25 @@ hr('(7) Mover la conexión a otro servidor retira lo que no se gobierna')
 {
   // por la cadena REAL (`update` → `editarConocida` → `conservarAlEditar`
   // → `separarConocida`), que es donde las claves futuras viajan por el `resto`. Una
-  // versión más nueva guardó en la PG un túnel y una CA DEL SERVIDOR (db-a); aquí el
+  // versión más nueva guardó en la PG un proxy y una CA DEL SERVIDOR (db-a); aquí el
   // usuario la mueve a db-b. Antes sobrevivían, y la versión nueva conectaba a db-b por
-  // el bastión de db-a y con su CA. La regla y su porqué, en `conservarAlEditar.ts`.
+  // el proxy de db-a y con su CA. La regla y su porqué, en `conservarAlEditar.ts`.
   const FUT = {
     id: 'd-1', profileId: 'p1', alias: 'Futura', motor: 'postgres', host: 'db-a', port: 5432, database: 'app', user: 'u', readonly: true, orden: 0,
-    tunelSsh: { host: 'bastion-a' }, ssl: { ca: 'CA-de-db-a' }
+    proxy: { host: 'proxy-a' }, ssl: { ca: 'CA-de-db-a' }
   }
   const ruta = archivo({ version: 2, connections: [FUT] })
   const store = new ConnectionStore({ storePath: ruta })
   store.update('d-1', formDe(store.get('d-1')!, { user: 'otro', database: 'app2', alias: 'Futura2' }))
   let d1 = de(disco(ruta), 'd-1')!
   check(
-    'cambiar base, usuario y alias (MISMO servidor) conserva el túnel y la CA',
-    JSON.stringify(d1.tunelSsh) === '{"host":"bastion-a"}' && JSON.stringify(d1.ssl) === '{"ca":"CA-de-db-a"}' && d1.alias === 'Futura2',
+    'cambiar base, usuario y alias (MISMO servidor) conserva el proxy y la CA',
+    JSON.stringify(d1.proxy) === '{"host":"proxy-a"}' && JSON.stringify(d1.ssl) === '{"ca":"CA-de-db-a"}' && d1.alias === 'Futura2',
     JSON.stringify(d1)
   )
   store.update('d-1', formDe(store.get('d-1')!, { host: 'db-b' }))
   d1 = de(disco(ruta), 'd-1')!
-  check('NEGATIVO: cambiar el host los retira del disco (no se pegan al servidor nuevo)', !('tunelSsh' in d1) && !('ssl' in d1) && d1.host === 'db-b' && d1.orden === 0, JSON.stringify(d1))
+  check('NEGATIVO: cambiar el host los retira del disco (no se pegan al servidor nuevo)', !('proxy' in d1) && !('ssl' in d1) && d1.host === 'db-b' && d1.orden === 0, JSON.stringify(d1))
 }
 
 hr('(8) Un registro que NO SE PUEDE LEER no se sobrescribe')
@@ -671,7 +672,7 @@ hr('(8) Un registro que NO SE PUEDE LEER no se sobrescribe')
     intentar(() => s.setDriver(ORA.id, 'oracle-ic-19'))
     intentar(() => s.reorder('p1', [ORA.id]))
     intentar(() => s.remove(ORA.id))
-    intentar(() => s.pruneProfiles(new Set()))
+    intentar(() => s.alBorrarPerfil('p1'))
     return { alta }
   }
 
@@ -914,7 +915,7 @@ hr('(10) Un registro roto con Tessera ABIERTA tampoco se pisa')
     ['reorder', () => store.reorder('p1', [PG.id, ORA.id])],
     ['update', () => store.update(ORA.id, formDe(store.get(ORA.id)!, { alias: 'ORA-EDITADA' }))],
     ['remove', () => store.remove(PG.id)],
-    ['pruneProfiles', () => store.pruneProfiles(new Set())]
+    ['alBorrarPerfil', () => store.alBorrarPerfil('p1')]
   ]
   for (const [nombre, f] of escrituras) {
     const r = intentar(f)
@@ -1423,7 +1424,7 @@ hr('(11) El registro roto con .bak legible se guarda APARTE antes de sustituirlo
     avisoBloq
   )
   const altaG = intentar(() => sg.create(ALTA))
-  intentar(() => sg.pruneProfiles(new Set()))
+  intentar(() => sg.alBorrarPerfil('p1'))
   check(
     'y no se escribe nada: el alta falla con ese aviso, el .bak sigue igual y no aparece ninguna copia',
     !altaG.ok && altaG.error === avisoBloq && readFileSync(`${rutaBloq}.bak`, 'utf-8') === BAK && statSync(rutaBloq).isDirectory() && readdirSync(bloq).length === 2,
@@ -1898,7 +1899,7 @@ hr('(14) una escritura que FALLA no cambia la memoria')
     ['marcarVerificada', (s) => s.marcarVerificada(PG.id, 'pg-17', 7)],
     ['remove (una conocida)', (s) => s.remove(PG.id)],
     ['borrar (una ajena)', (s) => s.borrar(LITE.id, 'ajena')],
-    ['pruneProfiles', (s) => s.pruneProfiles(new Set())]
+    ['alBorrarPerfil', (s) => s.alBorrarPerfil('p1')]
   ]
   // La escritura buena de después, igual para todos: una que no toca lo de los mutadores.
   const despues = (s: Store): void => s.setIntrospeccion(PG.id, { totalEsquemas: 42, esquemaPorDefecto: 'public', en: 1 })
@@ -2601,20 +2602,23 @@ hr('(19) El alta valida el motor y el destino con el descriptor')
     return null
   }
   check(
-    'MOTORES_CONOCIDOS es IDS_MOTORES (el registro de descriptores): Oracle, PostgreSQL, SQLite, SQL Server, MongoDB y Redis',
+    'MOTORES_CONOCIDOS es IDS_MOTORES (el registro de descriptores): Oracle, PostgreSQL, SQLite, SQL Server, MySQL, MongoDB y Redis',
     reg.MOTORES_CONOCIDOS === IDS_MOTORES &&
-      JSON.stringify(reg.MOTORES_CONOCIDOS) === '["oracle","postgres","sqlite","sqlserver","mongodb","redis"]',
+      JSON.stringify(reg.MOTORES_CONOCIDOS) === '["oracle","postgres","sqlite","sqlserver","mysql","mongodb","redis"]',
     JSON.stringify(reg.MOTORES_CONOCIDOS)
   )
 
   const store = new ConnectionStore({ storePath: archivo({ version: 1, connections: [] }) })
   let k = 0
   // La copia de «antes» es la de los motores de RED; la de un motor de archivo está
-  // en (21), y la de SQL Server (base opcional, campos opcionales), en (22). 'mysql'
+  // en (21), y la de SQL Server (base opcional, campos opcionales), en (22). 'db2'
   // hace de motor desconocido (antes lo hacía 'sqlite', y luego 'sqlserver').
   const MOTORES_PRUEBA = [
-    ...IDS_MOTORES.filter((m) => !descriptor(m).conexion.deArchivo && descriptor(m).conexion.opcionales.length === 0),
-    'mysql',
+    // El cifrado y el túnel (los opcionales de Oracle y PG) no tocan la validación del destino.
+    ...IDS_MOTORES.filter(
+      (m) => !descriptor(m).conexion.deArchivo && descriptor(m).conexion.opcionales.every((o) => o === 'tls' || o === 'tunelSsh')
+    ),
+    'db2',
     'constructor',
     'toString'
   ]
@@ -2650,7 +2654,7 @@ hr('(19) El alta valida el motor y el destino con el descriptor')
   // Que la matriz no sea vacía: cada mensaje del destino y del motor salió al menos una vez.
   const ESPERADOS = [
     'null',
-    'Motor desconocido: "mysql".',
+    'Motor desconocido: "db2".',
     'Motor desconocido: "constructor".',
     'Motor desconocido: "toString".',
     'Falta el host.',
@@ -2918,8 +2922,10 @@ hr('(22) Una SQL Server en el registro (base opcional, instancia, dominio, cifra
   )
   const pgColado = intentar(() => store.create({ profileId: 'p22', alias: 'PG colado', motor: 'postgres', host: 'pg', port: 5432, database: 'a', user: 'u', readonly: true, instancia: 'X', tls: { cifrar: true, confiarCertificado: true } }))
   check(
-    'NEGATIVO: una PG con campos de SQL Server colados no los guarda (su registro no cambia)',
-    pgColado.ok && !('instancia' in (enDisco(pgColado.valor.id) ?? {})) && !('tls' in (enDisco(pgColado.valor.id) ?? {})),
+    'NEGATIVO: una PG con campos de SQL Server colados no los guarda, y el cifrado (que sí es suyo) sí',
+    pgColado.ok &&
+      !('instancia' in (enDisco(pgColado.valor.id) ?? {})) &&
+      JSON.stringify(enDisco(pgColado.valor.id)?.tls) === JSON.stringify({ cifrar: true, confiarCertificado: true }),
     pgColado.ok ? JSON.stringify(enDisco(pgColado.valor.id)) : pgColado.error
   )
   check('y se lee como CONOCIDA al releer el registro', r.ok && new ConnectionStore({ storePath: ruta }).get(r.valor.id) !== undefined, '')
@@ -3200,6 +3206,43 @@ hr('(28) El espacio de datos (WORKSPACE_ENSURE) solo se prepara para un perfil q
   )
   const vivo = asegurar({ profileId: 'vivo', nombrePerfil: 'Lo que diga el renderer' })
   check('uno vivo sí, con el nombre del main y no el del renderer', vivo.ok && llamadas.includes('vivo|Vivo del main'), llamadas.join(' ; '))
+}
+
+hr('(Redis) Sentinel y Cluster: topología guardada, túnel rechazado y la contraseña de los sentinels')
+{
+  const ruta = archivo({ version: 1, connections: [] })
+  const store = new ConnectionStore({ storePath: ruta })
+  const sentinel = { modo: 'sentinel' as const, maestro: ' principal ', claveSentinel: 'propia' as const }
+  const base = { profileId: 'p1', motor: 'redis' as const, host: 's1:26379, s2:26379', port: 26379, user: '', readonly: true }
+  const alta = store.create({ ...base, alias: 'RS', topologiaRedis: sentinel, password: 'redis-pw', passwordSentinel: 'sentinel-pw' })
+  const enDisco = de(disco(ruta), alta.id)!
+  check(
+    'alta Sentinel: la topología se guarda con el maestro recortado, y las dos contraseñas van en un sobre',
+    JSON.stringify(enDisco.topologiaRedis) === JSON.stringify({ modo: 'sentinel', maestro: 'principal', claveSentinel: 'propia' }) &&
+      store.secretOf(alta.id) === JSON.stringify(['tessera-redis-sentinel-1', 'redis-pw', 'sentinel-pw']) &&
+      alta.tieneSecreto,
+    JSON.stringify(enDisco.topologiaRedis)
+  )
+  const secretoAntes = de(disco(ruta), alta.id)!.secretEnc
+  store.update(alta.id, formDe(store.get(alta.id)!, { topologiaRedis: store.get(alta.id)!.topologiaRedis, notas: 'otra nota' }))
+  check('editar otra cosa no recifra el sobre (no se pierde la verificación por nada)', de(disco(ruta), alta.id)!.secretEnc === secretoAntes, '')
+  store.update(alta.id, formDe(store.get(alta.id)!, { topologiaRedis: store.get(alta.id)!.topologiaRedis, passwordSentinel: 'sentinel-2' }))
+  check('cambiar solo la de los sentinels conserva la de Redis', store.secretOf(alta.id) === JSON.stringify(['tessera-redis-sentinel-1', 'redis-pw', 'sentinel-2']), '')
+  store.update(alta.id, formDe(store.get(alta.id)!, { topologiaRedis: { modo: 'sentinel', maestro: 'principal', claveSentinel: 'misma' } }))
+  check('pasar a «la misma»: queda solo la de Redis, sin sobre', store.secretOf(alta.id) === 'redis-pw', '')
+  const cluster = store.create({ ...base, alias: 'RC', host: 'n1:6379', port: 6379, topologiaRedis: { modo: 'cluster' }, password: 'c' })
+  check('alta Cluster: la topología y la contraseña tal cual', JSON.stringify(de(disco(ruta), cluster.id)!.topologiaRedis) === '{"modo":"cluster"}' && store.secretOf(cluster.id) === 'c', '')
+  const tunel = intentar(() => store.create({ ...base, alias: 'RT', topologiaRedis: { modo: 'cluster' }, tunelSsh: { conexionId: 'ssh-1' } }))
+  check('Cluster o Sentinel con túnel SSH: rechazado con su motivo', !tunel.ok && /no van por túnel SSH/.test(tunel.error), tunel.ok ? 'CREÓ' : tunel.error)
+  const lista = intentar(() => store.create({ ...base, alias: 'RL' }))
+  check('una lista de servidores sin Sentinel ni Cluster: rechazada', !lista.ok && /Sentinel o Cluster/.test(lista.error), lista.ok ? 'CREÓ' : lista.error)
+  const baseCluster = intentar(() => store.create({ ...base, alias: 'RB', database: '4', topologiaRedis: { modo: 'cluster' } }))
+  check('Cluster con base 4: rechazado', !baseCluster.ok && /base 0/.test(baseCluster.error), baseCluster.ok ? 'CREÓ' : baseCluster.error)
+  const pgConTopologia = store.create({ profileId: 'p1', alias: 'PGT', motor: 'postgres', host: 'h', port: 5432, database: 'd', user: 'u', readonly: true, topologiaRedis: { modo: 'cluster' } })
+  check('MITAD NEGATIVA: un motor que no la declara no la guarda', !('topologiaRedis' in de(disco(ruta), pgConTopologia.id)!), '')
+  const aMano = archivo({ version: 1, connections: [{ id: 'r-mal', profileId: 'p1', alias: 'RM', motor: 'redis', host: 'h', port: 6379, user: '', readonly: true, topologiaRedis: { modo: 'otra' } }] })
+  const sm = new ConnectionStore({ storePath: aMano })
+  check('una topología editada a mano que no se entiende: no llega al DTO y se conserva en disco', sm.get('r-mal')?.topologiaRedis === undefined && JSON.stringify(de(disco(aMano), 'r-mal')!.topologiaRedis) === '{"modo":"otra"}', '')
 }
 
 rmSync(dir, { recursive: true, force: true })

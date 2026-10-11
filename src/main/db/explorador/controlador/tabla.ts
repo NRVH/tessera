@@ -11,6 +11,7 @@ import {
   type DbRespuesta,
   type DbResultadoEnvio,
   type DbTablaAbierta,
+  MOTIVO_CARPETA_SIN_ESCRITURA,
   TIPOS_CON_DATOS
 } from '../../../../shared/db-explorador-ipc.ts'
 import type { DbConnection } from '../../../../shared/db-ipc.ts'
@@ -242,7 +243,12 @@ export class TablaExplorador {
    * de los agentes, y en el producto la rejilla se edita en cualquier conexión.
    */
   roDe(con: DbConnection): boolean {
-    return (this.c.opciones.soloLecturaImpuesta ?? sinSoloLecturaImpuesta)(con)
+    return (this.c.opciones.soloLecturaImpuesta ?? sinSoloLecturaImpuesta)(con) || this.c.gestor.soloLecturaPorCarpeta(con.id)
+  }
+
+  /** El texto de por qué `roDe` dice solo lectura: la carpeta de una base de archivo, o el de siempre. */
+  motivoRo(con: DbConnection): string {
+    return this.c.gestor.soloLecturaPorCarpeta(con.id) ? MOTIVO_CARPETA_SIN_ESCRITURA : MOTIVO_SOLO_LECTURA
   }
 
   /** Lo que decide la identidad sin preguntar al catálogo (`edicionDe`, `identidadAntesDeLeer`). */
@@ -251,11 +257,12 @@ export class TablaExplorador {
     destino: DbRefObjeto,
     remoto: boolean,
     pk: readonly string[]
-  ): Pick<EntradaIdentidad, 'motor' | 'soloLectura' | 'sistema' | 'tipo' | 'remoto' | 'pk'> {
+  ): Pick<EntradaIdentidad, 'motor' | 'soloLectura' | 'motivoSoloLectura' | 'sistema' | 'tipo' | 'remoto' | 'pk'> {
     return {
       motor: con.motor,
       // La impuesta por el explorador, no la casilla de los agentes (ver `roDe`).
       soloLectura: this.roDe(con),
+      motivoSoloLectura: this.motivoRo(con),
       sistema: esEsquemaDelSistema(con.motor, destino.esquema),
       tipo: destino.tipo,
       remoto,
@@ -399,7 +406,7 @@ export class TablaExplorador {
         const objeto = this.c.refObjeto(v.objeto, v.conexionId)
         if (TIPOS_CON_DATOS.indexOf(objeto.tipo) < 0) return fallo('interno', 'Ese objeto no tiene datos que editar.')
         const con = this.c.conexionOError(v.conexionId)
-        if (this.roDe(con)) return fallo('soloLectura', MOTIVO_SOLO_LECTURA)
+        if (this.roDe(con)) return fallo('soloLectura', this.motivoRo(con))
         if (exigeConfirmacion(con, this.roDe(con), v.confirmado)) return fallo('produccion', mensajeProduccion(con.alias, 'enviar'))
         let destino: DbRefObjeto = objeto
         let dblink: string | null = null

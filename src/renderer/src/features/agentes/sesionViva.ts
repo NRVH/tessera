@@ -61,6 +61,28 @@ export const PLAN_SOLTAR: Readonly<Record<MotivoSoltar, Readonly<PlanSoltar>>> =
 export interface PedidoApertura {
   reanudar: string | null
   deCero: boolean
+  /**
+   * Sin nada concreto que reanudar: la más reciente de la carpeta solo vale si tuvo actividad
+   * desde este instante (epoch ms); si no, la conversación que había estaba vacía y se empieza de cero.
+   */
+  nadaDesde: number | null
+}
+
+/** La última conversación de la carpeta, con cuándo tuvo su último mensaje. */
+export interface UltimaConversacion {
+  id: string
+  updatedAt: number
+}
+
+/**
+ * Qué conversación reanuda una apertura: la pedida; ninguna si se pidió empezar de cero; y si
+ * no, la más reciente, salvo que no haya tenido actividad desde `nadaDesde`.
+ */
+export function conversacionAReanudar(pedido: PedidoApertura, ultima: UltimaConversacion | undefined): string | undefined {
+  if (pedido.reanudar) return pedido.reanudar
+  if (pedido.deCero || !ultima) return undefined
+  if (pedido.nadaDesde !== null && ultima.updatedAt < pedido.nadaDesde) return undefined
+  return ultima.id
 }
 
 const SIN_ESPEJO: EspejoSesion = {
@@ -76,6 +98,7 @@ export class SesionAgente {
   private cuenta: string | null = null
   private reanudar: string | null = null
   private deCero = false
+  private nadaDesde: number | null = null
   private abiertaAntes = false
   private espejo: EspejoSesion = SIN_ESPEJO
   private readonly puertos: PuertosSesion
@@ -116,12 +139,23 @@ export class SesionAgente {
   /** La próxima apertura reanuda esta conversación. */
   pedirReanudar(conversacionId: string): void {
     this.reanudar = conversacionId
+    this.nadaDesde = null
   }
 
   /** La próxima apertura empieza una conversación nueva. */
   pedirNueva(): void {
     this.deCero = true
     this.reanudar = null
+    this.nadaDesde = null
+  }
+
+  /**
+   * Al hibernar sin chat conocido desde `desde` (conversación nueva o `/clear`): la próxima
+   * apertura reanuda la más reciente solo si tuvo actividad desde entonces.
+   */
+  pedirSiNadaDesde(desde: number): void {
+    this.reanudar = null
+    this.nadaDesde = desde
   }
 
   /**
@@ -132,9 +166,10 @@ export class SesionAgente {
     if (!this.puedeAbrir()) return null
     this.enVuelo = true
     this.cuenta = cuenta
-    const pedido = { reanudar: this.reanudar, deCero: this.deCero }
+    const pedido = { reanudar: this.reanudar, deCero: this.deCero, nadaDesde: this.nadaDesde }
     this.reanudar = null
     this.deCero = false
+    this.nadaDesde = null
     return { banner: this.abiertaAntes, pedido }
   }
 
@@ -142,6 +177,7 @@ export class SesionAgente {
   devolverPedido(pedido: PedidoApertura): void {
     this.reanudar = pedido.reanudar
     this.deCero = pedido.deCero
+    this.nadaDesde = pedido.nadaDesde
   }
 
   /** Adopta la sesión que acaba de abrir el main. */

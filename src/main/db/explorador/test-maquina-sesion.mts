@@ -92,6 +92,24 @@ function main(): void {
     check('cierre mientras abre: cerrada sin efectos (aún no hay sesión)', rCierre.estado.fase === 'cerrada' && rCierre.efectos.length === 0, tipos(rCierre))
     const rHuerfana = transicion(rCierre.estado, { tipo: 'abierta', ahora: t(), esquema: 'X' })
     check('abierta tras el cierre: cerrarSesion (huérfana) y estado intacto', rHuerfana.estado === rCierre.estado && tipos(rHuerfana) === 'cerrarSesion', tipos(rHuerfana))
+    // Una base de archivo en una carpeta sin escritura: se pidió escritura en Manual y abrió en solo lectura.
+    const m1 = transicion(estadoInicial({ soloLectura: false, ahora: t(), txModo: 'manual' }), { tipo: 'abrir', ahora: t(), soloLectura: false })
+    const m2 = transicion(m1.estado, { tipo: 'abierta', ahora: t(), esquema: 'main', soloLectura: true })
+    check(
+      'abierta en solo lectura (la carpeta): lista, de solo lectura y en Auto, sin invariantes rotas',
+      m2.estado.fase === 'lista' && m2.estado.soloLectura && m2.estado.txModo === 'auto' && invariantesRotas(m2.estado).length === 0,
+      JSON.stringify(m2.estado)
+    )
+    const m3 = transicion(m2.estado, { tipo: 'cambioModo', ahora: t(), modo: 'manual' })
+    check('y Manual se rechaza por solo lectura', tipos(m3) === 'rechazar:soloLectura' && m3.estado.txModo === 'auto', tipos(m3))
+    const m4 = transicion(
+      transicion(m2.estado, { tipo: 'cierre', ahora: t(), motivo: 'usuario' }).estado,
+      { tipo: 'abrir', ahora: t(), soloLectura: true }
+    )
+    const m5 = transicion(m4.estado, { tipo: 'abierta', ahora: t(), esquema: 'main', soloLectura: false })
+    check('la carpeta vuelve a admitir escritura: la siguiente apertura deja de ser de solo lectura', !m5.estado.soloLectura && m5.estado.fase === 'lista', JSON.stringify(m5.estado))
+    const sinDato = transicion(m1.estado, { tipo: 'abierta', ahora: t(), esquema: 'main' })
+    check('sin `soloLectura` en abierta, manda la de abrir (Manual se conserva)', !sinDato.estado.soloLectura && sinDato.estado.txModo === 'manual', JSON.stringify(sinDato.estado))
   }
 
   hr('(3) Una ejecución por sesión')

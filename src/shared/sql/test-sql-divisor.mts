@@ -102,6 +102,11 @@ function main(): void {
   hr('3. LÉXICO: identificadores citados, $tag$, E, U&, binds')
   for (const d of DIALECTOS) {
     const ts = tokenizar('select "a""b", "Ñ x" from t', d)
+    // En MySQL (`comillasDoblesCadena`) `"…"` es una cadena: lo fija `test-sql-mysql`.
+    if (REGLAS[d].comillasDoblesCadena) {
+      check(`[${d}] "a""b" -> una cadena (no un nombre)`, ts[1].tipo === 'cadena' && ts[3].tipo === 'cadena', resumen(ts))
+      continue
+    }
     check(`[${d}] "a""b" -> identCitado sin comillas`, ts[1].tipo === 'identCitado' && ts[1].valor === 'a"b' && ts[3].valor === 'Ñ x', resumen(ts))
   }
   {

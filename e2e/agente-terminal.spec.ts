@@ -4,13 +4,14 @@
 // sin botón suyo en la cabecera de la terminal; el agente falso (`agenteFalso.ts`, en nativo) arranca en
 // la carpeta del perfil, no en la del proyecto; restaurar lo oculta sin cerrarlo y volver no lanza otro;
 // el del proyecto conserva su pid; Ctrl+Alt+B / ⌥⌘B lo alterna; entrar o salir de pantalla completa no
-// mueve el foco; terminal y agente conservan ~80 columnas a 1366 y a 1920 px; y «Cerrar» lo termina.
+// mueve el foco; terminal y agente conservan ~80 columnas (78 en Mac) a 1366 y a 1920 px; y «Cerrar» lo termina.
 // Solo el modificador depende del sistema.
 // =============================================================================
 
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { CC_WIDTH_MIN } from '../src/shared/workspace-state-ipc.ts'
 import { montarAgenteFalso, vivo, type AgenteFalso } from './agenteFalso'
 import { abrirTessera, borrarTemporal, MOD, PLATAFORMA, type SesionTessera } from './tessera'
 
@@ -19,7 +20,13 @@ const ACORDE_AGENTE = PLATAFORMA === 'mac' ? 'Meta+Alt+KeyB' : 'Control+Alt+KeyB
 /** Lo que vale pantalla completa en la franja (`esAlternarPantallaCompleta`). */
 const ACORDE_PANTALLA_COMPLETA = `${MOD}+Shift+Enter`
 /** La letra por defecto de las dos terminales (`DEFAULT_TERMINAL_FONT` a 13 px): con ella se cuentan las columnas. */
-const LETRA = '13px "Cascadia Code", "Fira Code", Consolas, "Courier New", monospace'
+const LETRA = '13px "Cascadia Code", "Fira Code", Consolas, Menlo, "Courier New", monospace'
+/**
+ * Columnas mínimas de cada una. En Mac la letra por defecto (Menlo) mide 0,60 em frente a los 0,55 de
+ * Consolas: los 640 px del agente (`AGENTE_TERMINAL_ANCHO_POR_DEFECTO`) dan 78, y a 1366 px 80 y 80
+ * pedirían unos 1378 con el marco. Un ancho propio de Mac daría 80 al agente quitándoselos a la terminal.
+ */
+const COLUMNAS_MINIMAS = PLATAFORMA === 'mac' ? 78 : 80
 
 const SHELL_XTERM = 'section.terminal-panel .terminal-pane[aria-hidden="false"] .xterm'
 const AGENTE_XTERM = '.right-panel .agent-pane:not(.hidden) .xterm'
@@ -242,11 +249,121 @@ test.describe.serial('El agente de la terminal', () => {
       await s.app.evaluate(({ BrowserWindow }, [w, h]) => BrowserWindow.getAllWindows()[0].setSize(w, h), [ancho, alto])
       await asentar(win)
       const real = await win.evaluate(() => window.innerWidth)
-      await expect.poll(() => columnas(win, SHELL_XTERM), { message: `la terminal a ${real} px` }).toBeGreaterThanOrEqual(80)
-      await expect.poll(() => columnas(win, AGENTE_XTERM), { message: `el agente a ${real} px` }).toBeGreaterThanOrEqual(80)
+      await expect.poll(() => columnas(win, SHELL_XTERM), { message: `la terminal a ${real} px` }).toBeGreaterThanOrEqual(COLUMNAS_MINIMAS)
+      await expect.poll(() => columnas(win, AGENTE_XTERM), { message: `el agente a ${real} px` }).toBeGreaterThanOrEqual(COLUMNAS_MINIMAS)
       console.log(`[agente-terminal] ${real} px: terminal ${await columnas(win, SHELL_XTERM)} col, agente ${await columnas(win, AGENTE_XTERM)} col`)
     }
     await s.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1500, 950))
+  })
+
+  test('se maximiza sobre las terminales, salir y volver a pantalla completa lo conserva, y el chip de las terminales tapadas lo restaura', async () => {
+    const win = s.win
+    const shell = win.locator('.shell')
+    const panel = win.locator('section.terminal-panel')
+    const pane = win.locator('.right-panel .agent-pane:not(.hidden)')
+    const pila = panel.locator('.terminal-stack')
+    await pane.locator('.panel-header').hover()
+    await pane.getByRole('button', { name: 'Maximizar Claude Code' }).click()
+    await expect(panel, 'la columna de la terminal se queda en su cabecera y su riel').toHaveClass(/\bsin-terminal\b/)
+    await expect(pila).toBeHidden()
+    await expect(pane.getByRole('button', { name: 'Restaurar terminales' })).toHaveCount(1)
+    expect(vivo(pidTerminal), 'maximizar no cierra nada').toBe(true)
+
+    await win.locator(`${AGENTE_XTERM}`).click()
+    await win.keyboard.press(ACORDE_PANTALLA_COMPLETA)
+    await expect(shell).not.toHaveClass(/\bagente-terminal-visible\b/)
+    await win.locator('section.terminal-panel .terminal-pane[aria-hidden="false"] .xterm-screen').click()
+    await win.keyboard.press(ACORDE_PANTALLA_COMPLETA)
+    await expect(shell).toHaveClass(/\bagente-terminal-visible\b/)
+    await expect(panel, 'volver a pantalla completa lo devuelve maximizado: es lo último que eligió').toHaveClass(/\bsin-terminal\b/)
+
+    await expect(panel.locator('.terminal-tab'), 'las pestañas tapadas no se dibujan').toHaveCount(0)
+    const chip = panel.getByRole('button', { name: /^Restaurar terminales \(\d+ terminal(es)?\)$/ })
+    await expect(chip.locator('.terminales-tapadas-n')).toHaveText(/^\d+$/)
+    // Al desplegarse cambia el sitio que tiene el riel: no puede desmontarse por ello (perdería su filtro).
+    // Una marca en su nodo dice si es el mismo después.
+    const riel = win.locator('.ssh-riel')
+    await riel.locator('.ssh-filtro').fill('sin-desmontar')
+    await riel.evaluate((el) => el.setAttribute('data-e2e-mismo', '1'))
+    await chip.click()
+    await expect(panel, 'pulsar el chip vuelve a enseñar las terminales').not.toHaveClass(/\bsin-terminal\b/)
+    await expect(win.locator('.ssh-riel[data-e2e-mismo="1"]'), 'el riel es el mismo nodo: no se desmontó al desplegar').toHaveCount(1)
+    await expect(riel.locator('.ssh-filtro'), 'y conserva su filtro').toHaveValue('sin-desmontar')
+    await riel.locator('.ssh-filtro').fill('')
+    await expect(panel.locator('.terminal-tab.active')).toHaveCount(1)
+    await expect(pila).toBeVisible()
+    await expect(pane.getByRole('button', { name: 'Maximizar Claude Code' })).toHaveCount(1)
+  })
+
+  test('con el agente maximizado, la cabecera de la terminal va en una línea y sin encimarse a 1024, 1366 y 1920 px, con el riel al mínimo, al máximo y oculto', async () => {
+    const info = test.info()
+    const win = s.win
+    const panel = win.locator('section.terminal-panel')
+    const pane = win.locator('.right-panel .agent-pane:not(.hidden)')
+    const cabecera = panel.locator('> .panel-header')
+    const divisor = panel.getByRole('separator', { name: 'Redimensionar la lista de conexiones SSH' })
+    const botonRiel = panel.getByRole('button', { name: 'Panel de conexiones' })
+    await pane.locator('.panel-header').hover()
+    await pane.getByRole('button', { name: 'Maximizar Claude Code' }).click()
+    await expect(panel).toHaveClass(/\bsin-terminal\b/)
+
+    const arrastrarRiel = async (dx: number): Promise<void> => {
+      const caja = await divisor.boundingBox()
+      if (!caja) throw new Error('sin divisor del riel')
+      const x = caja.x + caja.width / 2
+      const y = caja.y + caja.height / 2
+      await win.mouse.move(x, y)
+      await win.mouse.down()
+      await win.mouse.move(x + dx, y, { steps: 5 })
+      await win.mouse.up()
+    }
+    const comprobar = async (caso: string): Promise<void> => {
+      await asentar(win)
+      await cabecera.screenshot({ path: info.outputPath(`cabecera-${caso}.png`) })
+      await win.screenshot({ path: info.outputPath(`ventana-${caso}.png`) })
+      await expect(cabecera.locator('.panel-title'), `el título cabe entero — ${caso}`).toHaveJSProperty('scrollWidth', await cabecera.locator('.panel-title').evaluate((e) => e.clientWidth))
+      const m = await cabecera.evaluate((h) => {
+        const c = h.getBoundingClientRect()
+        const hijos = Array.from(h.children)
+          .map((e) => ({ clase: e.className, r: e.getBoundingClientRect() }))
+          .filter((e) => e.r.width > 0 && e.r.height > 0)
+        return { alto: c.height, caja: { l: c.left, r: c.right, t: c.top, b: c.bottom }, hijos: hijos.map((e) => ({ clase: e.clase, l: e.r.left, r: e.r.right, t: e.r.top, b: e.r.bottom })) }
+      })
+      const det = `${caso}: ${JSON.stringify(m)}`
+      expect(m.alto, `una sola línea — ${det}`).toBeLessThanOrEqual(36)
+      for (const h of m.hijos) {
+        expect(h.l >= m.caja.l - 0.5 && h.r <= m.caja.r + 0.5 && h.t >= m.caja.t - 0.5 && h.b <= m.caja.b + 0.5, `dentro de la cabecera — ${det}`).toBe(true)
+      }
+      for (let i = 1; i < m.hijos.length; i++) {
+        expect(m.hijos[i].l, `sin encimarse — ${det}`).toBeGreaterThanOrEqual(m.hijos[i - 1].r - 0.5)
+      }
+      if ((await divisor.count()) > 0) {
+        const [d, p] = await Promise.all([divisor.boundingBox(), panel.boundingBox()])
+        expect(Math.abs((d?.x ?? 0) + (d?.width ?? 0) - ((p?.x ?? 0) + (p?.width ?? 0))), `el riel llena la columna — ${caso}`).toBeLessThanOrEqual(1)
+        // El riel, ni arrastrado al máximo, deja al agente por debajo de su mínimo.
+        const agente = await win.locator('.right-panel').boundingBox()
+        expect(agente?.width ?? 0, `el agente conserva su mínimo — ${caso}`).toBeGreaterThanOrEqual(CC_WIDTH_MIN - 0.5)
+      }
+      await expect(panel.getByRole('button', { name: /^Restaurar terminales/ })).toBeInViewport({ ratio: 1 })
+      await expect(cabecera.locator('.panel-actions'), `tapadas, la columna no lleva los botones del panel — ${caso}`).toHaveCount(0)
+      await expect(win.getByRole('button', { name: 'Restaurar el panel de terminal' }), `el restaurar a la vista es el del agente — ${caso}`).toHaveCount(0)    }
+
+    for (const [ancho, alto] of [[1024, 700], [1366, 768], [1920, 1080]]) {
+      await s.app.evaluate(({ BrowserWindow }, t) => BrowserWindow.getAllWindows()[0].setSize(t.ancho, t.alto), { ancho, alto })
+      await arrastrarRiel(-600)
+      await comprobar(`${ancho}-riel-min`)
+      await arrastrarRiel(600)
+      await comprobar(`${ancho}-riel-max`)
+      await botonRiel.click()
+      await expect(win.locator('.ssh-riel')).toHaveCount(0)
+      await comprobar(`${ancho}-riel-oculto`)
+      await botonRiel.click()
+      await expect(win.locator('.ssh-riel')).toHaveCount(1)
+    }
+
+    await s.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1500, 950))
+    await panel.getByRole('button', { name: /^Restaurar terminales/ }).click()
+    await expect(panel).not.toHaveClass(/\bsin-terminal\b/)
   })
 
   test('«Cerrar el agente de la terminal» lo termina y deja al del proyecto', async () => {

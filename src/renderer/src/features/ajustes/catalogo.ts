@@ -68,8 +68,8 @@ export const CATEGORIAS = [
         ajustes: [
           {
             id: 'banda',
-            etiqueta: 'Colapsar la banda de perfiles',
-            claves: ['perfiles', 'compacta', 'nombres', 'banda']
+            etiqueta: 'Modo minimalista de perfiles',
+            claves: ['perfiles', 'minimalista', 'selector', 'compacta', 'banda']
           }
         ]
       }
@@ -202,11 +202,9 @@ export const CATEGORIAS = [
     ]
   },
   {
-    // Se llamaba «Windows» y sólo existía allí. Ahora las dos plataformas tienen su
-    // interruptor de menú contextual (`AJUSTES_POR_PLATAFORMA` decide cuál se monta),
-    // así que el título tiene que valer para las dos: lo que la categoría hace es
-    // integrar Tessera con el gestor de archivos DEL SISTEMA, se llame Explorador o
-    // Finder.
+    // Cada plataforma tiene su interruptor de «Abrir con Tessera» (`AJUSTES_POR_PLATAFORMA`
+    // decide cuál se monta), así que el título tiene que valer para todas: lo que la
+    // categoría hace es integrar Tessera con el gestor de archivos DEL SISTEMA.
     id: 'integracion',
     titulo: 'Integración con el sistema',
     grupos: [
@@ -270,6 +268,28 @@ export const CATEGORIAS = [
             ]
           }
         ]
+      },
+      {
+        // Linux: grupo propio por lo mismo que el del Finder. Solo se monta allí, así que el
+        // título puede nombrar el gestor sin depender de la plataforma.
+        titulo: 'Gestor de archivos',
+        ajustes: [
+          {
+            id: 'abrir-con-linux',
+            etiqueta: '«Abrir con Tessera» en carpetas',
+            claves: [
+              'menú',
+              'contextual',
+              'botón derecho',
+              'abrir con',
+              'carpeta',
+              'gestor de archivos',
+              'lanzador',
+              'aplicaciones',
+              'desktop'
+            ]
+          }
+        ]
       }
     ]
   },
@@ -303,6 +323,29 @@ export const CATEGORIAS = [
             id: 'update-al-cerrar',
             etiqueta: 'Aplicar al cerrar Tessera',
             claves: ['automática', 'reiniciar', 'instalar', 'salir', 'cerrar', 'sola', 'pendiente']
+          }
+        ]
+      }
+    ]
+  },
+  {
+    // Opciones de prueba de las versiones alpha. Todos sus ajustes van en `AJUSTES_SOLO_ALPHA`, así
+    // que en la pública la categoría se queda sin filas y la poda la quita entera.
+    id: 'experimental',
+    titulo: 'Experimental',
+    grupos: [
+      {
+        titulo: 'Diagnóstico',
+        ajustes: [
+          {
+            id: 'registro-salud',
+            etiqueta: 'Registro de salud',
+            claves: ['salud', 'memoria', 'registro', 'diagnóstico', 'alpha', 'experimental']
+          },
+          {
+            id: 'volcados-caida',
+            etiqueta: 'Volcados de caída',
+            claves: ['volcado', 'caída', 'crash', 'fallo', 'diagnóstico', 'alpha', 'experimental']
           }
         ]
       }
@@ -349,13 +392,13 @@ export type CategoriaId = (typeof CATEGORIAS)[number]['id']
  *
  * «Integración con el sistema» es el interruptor que pone "Abrir con Tessera" en el
  * menú del botón derecho del gestor de archivos. Existe en Windows (claves de
- * `HKCU\Software\Classes`) y en macOS (un `.workflow` en `~/Library/Services`), y por
- * eso `integracionShellEnCaliente` es `true` en las dos: la categoría se MONTA en las
- * dos, con contenido distinto (ver `AJUSTES_POR_PLATAFORMA`).
+ * `HKCU\Software\Classes`), en macOS (un `.workflow` en `~/Library/Services`) y en Linux
+ * (un `tessera.desktop` propio), y por eso `integracionShellEnCaliente` es `true` en las
+ * tres: la categoría se MONTA en las tres, con contenido distinto (ver
+ * `AJUSTES_POR_PLATAFORMA`).
  *
- * DONDE SIGUE CAYENDO ES EN `'otra'` (Linux, BSD): allí el menú contextual lo pone el
- * escritorio —Nautilus, Dolphin, Thunar, cada uno con su formato— y no hay ninguno
- * escrito, así que la categoría entera se queda sin nada que ofrecer.
+ * DONDE SIGUE CAYENDO ES EN `'otra'` (BSD): no se empaqueta para ella, así que la categoría
+ * entera se queda sin nada que ofrecer.
  *
  * POR QUÉ SE OCULTA LA CATEGORÍA ENTERA Y NO SE DEJA "EN GRIS". Un riel con una entrada
  * que abre un panel de casillas inertes se lee como una app rota, no como una
@@ -371,12 +414,13 @@ const CATEGORIAS_POR_CAPACIDAD: Partial<Record<CategoriaId, keyof CapacidadesPla
  * Ajustes que sólo existen en UNA plataforma CONCRETA, por el mecanismo que usan.
  *
  * POR QUÉ ESTO NO ES UNA CAPACIDAD MÁS. Las capacidades responden "¿esta plataforma
- * sabe hacer X?", y aquí las dos saben: Windows y macOS ponen las dos su entrada en el
+ * sabe hacer X?", y aquí las tres saben: Windows, macOS y Linux ponen su entrada en el
  * menú contextual, y por eso comparten `integracionShellEnCaliente`. Lo que no
  * comparten es CÓMO, y el cómo asoma en la interfaz porque no se puede esconder: en
  * Windows son tres superficies del registro que se encienden por separado (carpetas,
  * cualquier archivo, extensiones asociadas); en macOS es un único servicio del Finder,
- * porque las extensiones ya vienen declaradas en el paquete y no hay nada que conmutar.
+ * porque las extensiones ya vienen declaradas en el paquete y no hay nada que conmutar;
+ * en Linux, un único `.desktop` para carpetas.
  * Inventar una capacidad por cada fila (`menuEnCarpetas`, `menuEnArchivos`…) sería
  * fabricar un contrato de plataforma para describir un detalle de una pantalla, y el
  * propio `shared/plataforma.ts` avisa de que una capacidad sin lector es documentación
@@ -392,7 +436,8 @@ const AJUSTES_POR_PLATAFORMA: Partial<Record<AjusteId, Plataforma>> = {
   'menu-windows-carpetas': 'windows',
   'menu-windows-archivos': 'windows',
   'menu-windows-extensiones': 'windows',
-  'accion-rapida-finder': 'mac'
+  'accion-rapida-finder': 'mac',
+  'abrir-con-linux': 'linux'
 }
 
 /** Los ids de AJUSTE que existen, como tipo literal: una clave mal escrita abajo no compila. */
@@ -428,6 +473,13 @@ const AJUSTES_POR_CAPACIDAD: Partial<Record<AjusteId, keyof CapacidadesPlataform
 }
 
 /**
+ * Ajustes que solo existen en las versiones alpha. Se filtran aquí por la misma razón que
+ * los de arriba: el buscador cuenta sobre el catálogo y no debe anunciar una fila que la
+ * versión pública no monta. Si es alpha o no llega por el preload (`window.tessera.esAlpha`).
+ */
+const AJUSTES_SOLO_ALPHA: ReadonlySet<AjusteId> = new Set<AjusteId>(['registro-salud', 'volcados-caida'])
+
+/**
  * Una categoría tal y como la monta el riel: la del catálogo, ya sin lo que este
  * sistema no puede enseñar. `id` sigue siendo el literal (`ICONOS` y `PANELES` se
  * indexan con él); los grupos y ajustes son los buscables de siempre, pero pueden ser
@@ -452,8 +504,8 @@ export interface CategoriaVisible extends CategoriaBuscable {
  * EL TERCER NIVEL YA NO ES TEÓRICO, y es el cambio que trajo la acción rápida del
  * Finder. Antes ningún grupo del catálogo real se quedaba vacío —lo dice el párrafo
  * que había aquí— y la poda sólo se podía ejercitar con un catálogo sintético. Ahora
- * «Integración con el sistema» tiene DOS grupos, «Explorador de Windows» y «Finder»,
- * y en cada plataforma uno de los dos se queda literalmente sin filas. Sin esa poda,
+ * «Integración con el sistema» tiene un grupo por plataforma («Explorador de Windows»,
+ * «Finder», «Gestor de archivos»), y en cada una los ajenos se quedan sin filas. Sin esa poda,
  * un Mac enseñaría un título «Explorador de Windows» con nada debajo.
  *
  * POR QUÉ EL CATÁLOGO TAMBIÉN ES PARÁMETRO. Aunque el caso real ya exista, el
@@ -477,12 +529,13 @@ export interface CategoriaVisible extends CategoriaBuscable {
  * El valor por defecto SÓLO se evalúa cuando falta el argumento, así que bajo `node`
  * (sin `window`) basta con pasarlo explícito — que es lo que el test hace, y además
  * tiene que hacer para fijar las tres plataformas. Es el mismo contrato, palabra por
- * palabra, que `util/atajos.ts`.
+ * palabra, que `util/atajos.ts`. Lo mismo vale para `esAlpha`, que llega de `window.tessera.esAlpha`.
  */
 export function categoriasVisibles(
   capacidades: CapacidadesPlataforma,
   catalogo: readonly CategoriaBuscable[] = CATEGORIAS,
-  plataforma: Plataforma = window.tessera.plataforma
+  plataforma: Plataforma = window.tessera.plataforma,
+  esAlpha: boolean = window.tessera.esAlpha
 ): readonly CategoriaVisible[] {
   const puede = (capacidad: keyof CapacidadesPlataforma | undefined): boolean =>
     capacidad === undefined || capacidades[capacidad]
@@ -500,7 +553,8 @@ export function categoriasVisibles(
         ajustes: g.ajustes.filter(
           (a) =>
             puede(AJUSTES_POR_CAPACIDAD[a.id as AjusteId]) &&
-            esDeAqui(AJUSTES_POR_PLATAFORMA[a.id as AjusteId])
+            esDeAqui(AJUSTES_POR_PLATAFORMA[a.id as AjusteId]) &&
+            (esAlpha || !AJUSTES_SOLO_ALPHA.has(a.id as AjusteId))
         )
       }))
       .filter((g) => g.ajustes.length > 0)

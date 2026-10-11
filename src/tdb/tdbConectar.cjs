@@ -1,14 +1,16 @@
 // =============================================================================
 // Cómo `tdb` abre una conexión: el secreto solo llega al DESTINO para el que Tessera lo
-// emitió (huella), y sin él se dice qué falta antes de tocar el servidor.
-// Depende de `motores.cjs`, `tdbConexiones.cjs` y `tdbSalida.cjs`; lo usan los comandos.
-// Decisiones: docs/decisiones/bd/puente-huella-del-destino.md
+// emitió (huella), sin él se dice qué falta antes de tocar el servidor, y una conexión con
+// túnel SSH va al extremo local que abre Tessera (`db.tunel`).
+// Depende de `motores.cjs`, `tdbConexiones.cjs`, `tdbPuente.cjs` y `tdbSalida.cjs`; lo usan los comandos.
+// Decisiones: docs/decisiones/bd/puente-huella-del-destino.md, docs/decisiones/bd/conexiones-tunel-ssh.md
 // =============================================================================
 'use strict'
 
 const motoresTdb = require('./motores.cjs')
 const { adaptador } = require('./tdbConexiones.cjs')
 const { fallar } = require('./tdbSalida.cjs')
+const { pedirTunel } = require('./tdbPuente.cjs')
 
 /**
  * Nombre de la variable de entorno con el secreto de una conexión, derivado de su
@@ -34,7 +36,8 @@ function envVarDestino(connectionId) {
  * mismo. Los valores van tal cual salen del JSON. El `archivo` va como séptimo valor SOLO
  * si la entrada lo trae, y los de SQL Server (instancia, autenticación, dominio, cifrado)
  * como UN valor más, una lista, solo si trae alguno, y los de MongoDB (`srv`, `opcionesUri`) como
- * otra, igual: la huella de un motor de red no cambia.
+ * otra, igual, el túnel SSH como `['ssh', conexionId]` solo si lo trae y la topología de Redis como
+ * `['redis', topologia]`, igual: la huella de un motor de red no cambia.
  */
 function huellaDestino(con) {
   const valores = [con.motor, con.host, con.port, con.database, con.sid, con.user]
@@ -45,6 +48,11 @@ function huellaDestino(con) {
   if (con.srv !== undefined || con.opcionesUri !== undefined) {
     valores.push([con.srv, con.opcionesUri].map((v) => (v === undefined ? null : v)))
   }
+  if (con.tunelSsh !== undefined) {
+    const id = con.tunelSsh && con.tunelSsh.conexionId
+    valores.push(['ssh', id === undefined ? null : id])
+  }
+  if (con.topologiaRedis !== undefined) valores.push(['redis', con.topologiaRedis])
   const campos = valores.map((v) => (v === undefined ? null : v))
   return require('node:crypto').createHash('sha256').update(JSON.stringify(campos), 'utf8').digest('hex').slice(0, 32)
 }
@@ -153,8 +161,33 @@ async function conectar(ctx, con) {
   }
   const { secreto, cambio } = secretoDe(ctx, con)
   if (cambio !== undefined) fallarDestinoCambiado(ctx, con, cambio)
-  if (secreto === undefined) return abrirSinSecreto(ctx, con)
-  return adaptador(ctx, con).abrir(con, secreto, ctx)
+  // La huella se comprobó contra la entrada del disco; el driver va al extremo del túnel.
+  const destino = await porTunel(ctx, con)
+  if (secreto === undefined) return abrirSinSecreto(ctx, destino)
+  return adaptador(ctx, destino).abrir(destino, secreto, ctx)
+}
+
+/**
+ * La conexión tal como la abre el driver: sin túnel, la misma; con túnel SSH, al extremo local que
+ * abre Tessera (`db.tunel`), verificando el certificado contra el host real (`hostTls`). El túnel
+ * solo lo abre Tessera: sin puente, se dice y no se intenta la conexión directa.
+ */
+async function porTunel(ctx, con) {
+  if (con.tunelSsh === undefined || con.tunelSsh === null) return con
+  const pipe = process.env.TESSERA_DB_PIPE
+  const token = ctx.fichaTunel || process.env.TESSERA_DB_SESSION
+  if (ctx.puente !== 'vivo' || !pipe || !token) {
+    fallar(
+      ctx,
+      `"${con.alias}" va por un túnel SSH, y ese túnel lo abre Tessera: esta terminal no llega a ella\n` +
+        '    (el puente no responde o no está). Recarga la terminal; si sigue igual, reinicia Tessera.  (tdb doctor)'
+    )
+  }
+  const r = await pedirTunel(pipe, token, con.id)
+  if (!r || !r.ok) {
+    fallar(ctx, `No se pudo abrir el túnel SSH de "${con.alias}": ${r ? r.error : 'Tessera no contestó a tiempo.'}`)
+  }
+  return { ...con, host: r.host, port: r.port, hostTls: con.host }
 }
 
 module.exports = { secretoDe, conectar }

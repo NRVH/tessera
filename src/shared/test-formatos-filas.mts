@@ -1046,17 +1046,17 @@ function main(): void {
       return e instanceof Error ? e.message : String(e)
     }
   }
-  // ('mysql' hace de motor desconocido: antes lo hacía 'sqlite'.)
-  const raro = 'mysql' as DbMotor
+  // ('db2' hace de motor desconocido: antes lo hacía 'sqlite'.)
+  const raro = 'db2' as DbMotor
   check(
     'literalSql con un motor desconocido: el mensaje de siempre (el del `nunca` de segmentosLiteral)',
-    errorDe(() => literalSql('x', undefined, raro)) === 'Caso sin contemplar en segmentosLiteral: «mysql»',
+    errorDe(() => literalSql('x', undefined, raro)) === 'Caso sin contemplar en segmentosLiteral: «db2»',
     errorDe(() => literalSql('x', undefined, raro))
   )
   check("…y NULL sigue siendo 'NULL' sin preguntar al motor, como antes", literalSql(null, undefined, raro) === 'NULL', literalSql(null, undefined, raro))
   check(
     'el INSERT con un motor desconocido (sin columnas): el mensaje de siempre',
-    errorDe(() => crearEscritor('insert', [], { motor: raro })) === 'Caso sin contemplar en crearEscritor (insert): «mysql»',
+    errorDe(() => crearEscritor('insert', [], { motor: raro })) === 'Caso sin contemplar en crearEscritor (insert): «db2»',
     errorDe(() => crearEscritor('insert', [], { motor: raro }))
   )
   check(

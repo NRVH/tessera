@@ -105,6 +105,7 @@ export interface PropsZonaSsh {
   onElegir: (id: string) => void
   onCerrar: (id: string) => void
   onRenombrar: (id: string, nombre: string) => void
+  onReconectar: (id: string) => void
 }
 
 /** El botón dividido «Nueva terminal | ▾»: la flecha abre el lanzador de conexiones, que monta quien aloja la zona. */
@@ -165,6 +166,7 @@ export function ZonaPestanas(p: ZonaPestanasProps): React.JSX.Element {
             onSelect={ssh.onElegir}
             onClose={ssh.onCerrar}
             onRename={ssh.onRenombrar}
+            onReconectar={ssh.onReconectar}
           />
         ))}
         {/* Separa las del perfil de las del proyecto sin gastar una palabra; no es una pestaña. */}

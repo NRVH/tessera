@@ -11,7 +11,7 @@ import { IconoCarpeta } from '../../comun/iconosArbol'
 import { IconoBd, IconoClaveKv, IconoColeccion, IconoColumna, IconoConsola, IconoEsquema, IconoIndice, IconoLlave, IconoLlaveForanea, IconoObjetoBd } from './iconosBd'
 import type { Coincidencia, FilaBd } from './arbolBd'
 import { ETIQUETA_CARPETA, ETIQUETA_PARTE } from './filasArbolBd'
-import { etiquetaBaseClaves } from './arbolClaves'
+import { etiquetaBaseClaves, ttlCorto } from './arbolClaves'
 import { etiquetaTipo } from './claves/visorClaves'
 
 type FilaDe<K extends FilaBd['kind']> = Extract<FilaBd, { kind: K }>
@@ -121,7 +121,7 @@ export function contenidoObjeto(fila: FilaDe<'objeto'>, chevron: ReactNode): Rea
         <IconoObjetoBd tipo={o.tipo} />
       </span>
       <span className="tree-label db-fila-nombre">{marcar(o.nombre, fila.coincidencia)}</span>
-      {o.firma !== undefined && <span className="db-fila-meta">({o.firma})</span>}
+      {o.firma !== undefined && o.tipo !== 'disparador' && <span className="db-fila-meta">({o.firma})</span>}
       {o.tabla !== undefined && <span className="db-fila-meta">sobre {o.tabla}</span>}
       {o.estado === 'invalido' && <span className="db-fila-invalido">inválido</span>}
     </>
@@ -196,10 +196,28 @@ export function contenidoDocBase(fila: FilaDe<'doc-base'>, chevron: ReactNode): 
   )
 }
 
-/** La colección con sus llaves `{ }`, su tipo o los documentos estimados. */
-export function contenidoColeccion(fila: FilaDe<'coleccion'>): ReactNode {
+/** Un índice de una colección: su nombre, su clave en notación del shell y si es único. */
+export function contenidoIndiceColeccion(fila: FilaDe<'doc-indice'>): ReactNode {
+  const ind = fila.indice
   return (
     <>
+      <span className="db-fila-icono">
+        <IconoIndice />
+      </span>
+      <span className="tree-label db-fila-nombre">{marcar(ind.nombre, fila.coincidencia)}</span>
+      <span className="db-fila-meta">
+        {ind.clave}
+        {ind.unico ? ' único' : ''}
+      </span>
+    </>
+  )
+}
+
+/** La colección con sus llaves `{ }`, su tipo o los documentos estimados; con chevrón si tiene índices que enseñar. */
+export function contenidoColeccion(fila: FilaDe<'coleccion'>, chevron: ReactNode): ReactNode {
+  return (
+    <>
+      {chevron}
       <span className="db-fila-icono">
         <IconoColeccion />
       </span>
@@ -222,6 +240,11 @@ export function contenidoKvBase(fila: FilaDe<'kv-base'>, chevron: ReactNode): Re
       {fila.patron !== '' && (
         <span className="db-kv-patron" title={`Filtrada por ${fila.patron}`}>
           {fila.patron}
+        </span>
+      )}
+      {fila.tipo !== undefined && (
+        <span className={`db-kv-tipo tipo-${fila.tipo}`} title={`Solo claves de tipo ${etiquetaTipo(fila.tipo)}`}>
+          {etiquetaTipo(fila.tipo)}
         </span>
       )}
       {fila.claves !== null && <span className="db-fila-cuenta">{fila.claves.toLocaleString('es-ES')}</span>}
@@ -249,6 +272,11 @@ export function contenidoKvClave(fila: FilaDe<'kv-clave'>): ReactNode {
         <IconoClaveKv />
       </span>
       <span className="tree-label db-fila-nombre">{marcarConPrefijo(fila.nombre, fila.largoPrefijo, fila.coincidencia)}</span>
+      {fila.clave.ttlMs !== null && (
+        <span className="db-kv-ttl" title="Tiempo que le quedaba al listarla (TTL)">
+          {ttlCorto(fila.clave.ttlMs)}
+        </span>
+      )}
       <span className={`db-kv-tipo tipo-${fila.clave.tipo}`}>{etiquetaTipo(fila.clave.tipo, fila.clave.tipoServidor)}</span>
     </>
   )

@@ -66,6 +66,13 @@ function main(): void {
   check('(1b) número → «=» con valor', j(cNum) === j({ columna: 'IMPORTE', categoria: 'numero', operador: 'igual', valor: '' }), j(cNum))
   const cOtro = condicionNueva(COLS, 'FOTO')
   check('(1c) lo que no se compara → «no está vacío», SIN valor', j(cOtro) === j({ columna: 'FOTO', categoria: 'otro', operador: 'noVacio' }), j(cOtro))
+  const cLargo = condicionNueva([{ nombre: 'NOTAS', categoria: 'textoLargo' }])
+  const deTextoALargo = cambiarColumna({ columna: 'NOMBRE', categoria: 'texto', operador: 'igual', valor: 'x' }, { nombre: 'NOTAS', categoria: 'textoLargo' })
+  check(
+    '(1f) texto largo → nace con «contiene», y uno con «=» que pasa a texto largo cambia de operador',
+    j(cLargo) === j({ columna: 'NOTAS', categoria: 'textoLargo', operador: 'contiene', valor: '' }) && deTextoALargo.operador === 'contiene',
+    j([cLargo, deTextoALargo])
+  )
   check('(1d) sin columnas → null (no se puede añadir)', condicionNueva([]) === null, String(condicionNueva([])))
   check('(1e) columna que no existe → la primera', condicionNueva(COLS, 'NO_ESTA')?.columna === 'NOMBRE', j(condicionNueva(COLS, 'NO_ESTA')))
 

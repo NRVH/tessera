@@ -7,7 +7,8 @@
 // =============================================================================
 
 import type { DbConnection } from '../../../../../shared/db-ipc'
-import { textoCambiosDocs, consultaFiltra, esCampoBarra, motivoNoGuiarCampo, type CampoBarra, type ModoFiltroDocs } from './coleccionDocs'
+import { camposDeConsulta, textoCambiosDocs, consultaFiltra, esCampoBarra, motivoNoGuiarCampo, type CampoBarra, type ModoFiltroDocs } from './coleccionDocs'
+import { BotonExportarDocs } from './BotonExportarDocs'
 import type { ColumnaFiltrable } from '../filtro/modeloFiltro'
 import { BarraFiltroGuiado } from '../filtro/BarraFiltroGuiado'
 import { describirError, textoError } from '../panesBd'
@@ -146,6 +147,13 @@ export function cabeceraColeccion(d: DatosVista): React.JSX.Element {
         <span className="panel-actions-sep" aria-hidden="true" />
         {botonesEdicion(e, ed, acc)}
         <span className="panel-actions-sep" aria-hidden="true" />
+        <BotonExportarDocs
+          origen={{ tipo: 'coleccion', conexionId: conexion.id, base, coleccion, ...camposDeConsulta(e.aplicado) }}
+          motor={conexion.motor}
+          nombreSugerido={`${base}.${coleccion}`}
+          motivo={e.pagina ? null : 'Cargando…'}
+          titulo="Exportar la colección entera, con el filtro aplicado, a un archivo"
+        />
         <BotonBarraBd
           etiqueta={ed.panelJson ? 'Ocultar el documento' : 'Ver el documento'}
           titulo={ed.panelJson ? 'Ocultar el panel JSON del documento' : 'Ver el documento elegido en JSON'}

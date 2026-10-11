@@ -10,7 +10,7 @@ import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { existsSync, promises as fsp } from 'node:fs'
 import * as os from 'node:os'
-import { esMac, esWindows } from '../../shared/plataforma.ts'
+import { esLinux, esMac, esWindows } from '../../shared/plataforma.ts'
 import * as path from 'node:path'
 import type { EstadoJava, JavaVisible, MotorDisponible, OrigenJava } from '../../shared/java-ipc.ts'
 import {
@@ -47,7 +47,7 @@ const CLAVES_REGISTRO = [
   'HKLM\\SOFTWARE\\JavaSoft\\Java Runtime Environment'
 ]
 
-/** Carpetas donde suelen vivir los JDK en Windows. */
+/** Carpetas donde suelen vivir los JDK en cada sistema. */
 function carpetasConocidas(): string[] {
   const home = os.homedir()
 
@@ -73,6 +73,12 @@ function carpetasConocidas(): string[] {
       '/usr/local/opt',
       ...comunes
     ]
+  }
+
+  if (esLinux()) {
+    // Los paquetes de las distribuciones dejan cada JDK en `/usr/lib/jvm/<jdk>`; los RPM del
+    // fabricante, en `/usr/java`; el Homebrew de Linux, en su `opt`.
+    return ['/usr/lib/jvm', '/usr/java', '/home/linuxbrew/.linuxbrew/opt', ...comunes]
   }
 
   const programFiles = process.env.ProgramFiles ?? 'C:\\Program Files'

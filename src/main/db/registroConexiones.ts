@@ -8,6 +8,7 @@
 
 import { esEntorno, type DbComparteId, type DbConexionAjena, type DbIntrospeccion, type DbMotor } from '../../shared/db-ipc.ts'
 import { normalizarEsquemasVisibles } from '../../shared/dbEsquemas.ts'
+import { esTopologiaRedis } from '../../shared/topologiaRedis.ts'
 import { esObjeto } from '../util/valores.ts'
 import { IDS_MOTORES, tieneFormaDelMotor } from '../../shared/motores/index.ts'
 import { conservarAlEditar, esClaveGobernada, type ConexionPersistida } from './conservarAlEditar.ts'
@@ -478,6 +479,11 @@ export function separarConocida(crudo: Record<string, unknown>): EntradaConocida
     resto.opcionesUri = registro.opcionesUri
     delete registro.opcionesUri
   }
+  // (Redis.) Igual con una topología que no tiene la forma de `DbTopologiaRedis`.
+  if ('topologiaRedis' in registro && !esTopologiaRedis(registro.topologiaRedis)) {
+    resto.topologiaRedis = registro.topologiaRedis
+    delete registro.topologiaRedis
+  }
   const normalizadas: Array<[string, (v: unknown) => unknown]> = [
     ['esquemas', normalizarEsquemasVisibles],
     // Las bases visibles del nivel «Bases»: la forma de los esquemas.
@@ -794,15 +800,12 @@ export function limpiezaTrasBorrar(r: {
 }
 
 /**
- * Las entradas de perfiles que siguen existiendo. Las ajenas se podan igual que las
- * conocidas (una SQLite de un perfil borrado es igual de huérfana); las que no traen un
- * perfil legible se CONSERVAN: no se sabe de quién son, y «no lo toco».
+ * Las entradas sin las del perfil borrado. Las ajenas se van igual que las conocidas (una
+ * SQLite de un perfil borrado es igual de huérfana); las que no traen un perfil legible se
+ * CONSERVAN: no se sabe de quién son, y «no lo toco».
  */
-export function podarPerfiles(entradas: readonly Entrada[], idsVivos: ReadonlySet<string>): Entrada[] {
-  return entradas.filter((e) => {
-    const perfil = perfilDeEntrada(e)
-    return perfil === null || idsVivos.has(perfil)
-  })
+export function sinElPerfil(entradas: readonly Entrada[], profileId: string): Entrada[] {
+  return entradas.filter((e) => perfilDeEntrada(e) !== profileId)
 }
 
 /**

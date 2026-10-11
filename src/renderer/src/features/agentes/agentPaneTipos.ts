@@ -33,6 +33,8 @@ export interface MosaicoPane {
   trabajando: boolean
   /** Terminó un turno que aún no has mirado: el punto brilla. */
   terminadaSinVer: boolean
+  /** Te espera (un permiso, una pregunta): un anillo parpadea alrededor del punto. */
+  esperando: boolean
   /** ¿Esta casilla ocupa todo el mosaico? (icono y texto del botón de ampliar). */
   ampliada: boolean
   /** ¿Es la casilla con el foco? Lleva el marco del color de su perfil. */
@@ -58,7 +60,7 @@ export interface MosaicoPane {
    * casilla (no el agente seleccionado del perfil). Lleva su actividad para que el chip
    * no esconda trabajo en marcha del agente que no se ve.
    */
-  otroAgente: { key: string; agente: Agente; trabajando: boolean; sinVer: boolean } | null
+  otroAgente: { key: string; agente: Agente; trabajando: boolean; sinVer: boolean; esperando: boolean } | null
   /**
    * Cambia el modo del PROYECTO (contenedor ⇄ nativo) desde el glifo de la cabecera.
    * null = no se puede (el espacio de datos vive siempre en modo nativo). El pane se

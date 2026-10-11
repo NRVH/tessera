@@ -278,7 +278,7 @@ test.describe.serial('La terminal a pantalla completa', () => {
     expect(await contarEnTerminal(win, MARCADOR), 'y lo escrito sigue en pantalla').toBe(1)
   })
 
-  test('Ctrl+`, cambiar a Git·Log y abrir una pestaña (Mod+N) salen del modo, y reabrir el panel no lo resucita', async () => {
+  test('cerrar con Ctrl+` y cambiar a Git·Log lo recuerdan por ventana; abrir una pestaña (Mod+N) o elegir una vista sí lo restauran', async () => {
     const win = s.win
     const shell = win.locator('.shell')
     const lateral = win.locator('.sidebar').first()
@@ -299,29 +299,46 @@ test.describe.serial('La terminal a pantalla completa', () => {
     await expect(panel).toBeVisible()
     await expect(shell).not.toHaveClass(modo)
 
-    // --- Ctrl+`: alterna la terminal, o sea la cierra, y con ella el modo ---
+    // --- Ctrl+`: cierra la terminal (se ve lo de debajo) y al reabrirla vuelve maximizada ---
     await maximizarTerminal()
     await win.keyboard.press('Control+`')
-    await expect(shell, 'Ctrl+` sale del modo').not.toHaveClass(modo)
+    await expect(shell, 'cerrada, no se pinta el modo').not.toHaveClass(modo)
     await expect(win.locator('section.terminal-panel:not(.hidden)')).toHaveCount(0)
     await expect(lateral).toBeVisible()
     await expect(editor).toBeVisible()
     await expect(agente).toBeVisible()
     await win.keyboard.press('Control+`')
     await expect(panel).toBeVisible()
-    await expect(shell, 'reabrir la terminal no resucita el modo').not.toHaveClass(modo)
+    await expect(shell, 'reabrirla la devuelve maximizada: es lo último que eligió').toHaveClass(/\bterminal-pantalla-completa\b/)
 
-    // --- Cambiar a Git·Log: el panel que se ve es otro, y Git llega a la franja, no maximizado ---
-    await maximizarTerminal()
+    // --- Cambiar a Git·Log: cada ventana guarda lo suyo ---
     await riel('Git · Log').click()
     await expect(git).toBeVisible()
-    await expect(shell, 'cambiar a Git·Log sale del modo').not.toHaveClass(modo)
+    await expect(shell, 'Git llega como estaba: sin maximizar').not.toHaveClass(modo)
     await expect(panel).toBeHidden()
-    await expect(lateral).toBeVisible()
-    await expect(editor).toBeVisible()
+    await git.locator('.panel-header').first().hover()
+    await git.getByRole('button', { name: 'Maximizar el panel de git' }).click()
+    await expect(shell).toHaveClass(/\bgit-pantalla-completa\b/)
     await riel('Terminal').click()
     await expect(panel).toBeVisible()
-    await expect(shell, 'volver a la terminal tampoco lo resucita').not.toHaveClass(modo)
+    await expect(shell, 'volver a la terminal la devuelve maximizada').toHaveClass(/\bterminal-pantalla-completa\b/)
+    await riel('Git · Log').click()
+    await expect(shell, 'y volver a Git, también').toHaveClass(/\bgit-pantalla-completa\b/)
+    await git.locator('.panel-header').first().hover()
+    await git.getByRole('button', { name: 'Restaurar el panel de git' }).click()
+    await expect(shell).not.toHaveClass(modo)
+    await riel('Terminal').click()
+    await expect(shell).toHaveClass(/\bterminal-pantalla-completa\b/)
+
+    // --- Elegir una vista lateral la devuelve a su tamaño, sin cerrarla ---
+    await riel('Git · Cambios').click()
+    await expect(shell, 'elegir una vista restaura').not.toHaveClass(modo)
+    await expect(panel, 'sin cerrar la terminal').toBeVisible()
+    await riel('Archivos').click()
+    await win.keyboard.press('Control+`')
+    await win.keyboard.press('Control+`')
+    await expect(panel).toBeVisible()
+    await expect(shell, 'y eso queda: reabrirla ya no la maximiza').not.toHaveClass(modo)
 
     // --- Abrir una pestaña (archivo nuevo): no se abre a ciegas, sale del modo y se ve ---
     await maximizarTerminal()

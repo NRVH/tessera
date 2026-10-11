@@ -9,7 +9,14 @@
 // Decisiones: docs/decisiones/terminales/pestanas-ssh-del-perfil.md
 // =============================================================================
 
-import { conexionDelPane, derivarActivo, derivarPaneActivo, MOTIVO_CONEXION_ELIMINADA, type EntradaActivo } from './activoTerminales.ts'
+import {
+  conexionDelPane,
+  derivarActivo,
+  derivarPaneActivo,
+  hayTerminalQueEnsenar,
+  MOTIVO_CONEXION_ELIMINADA,
+  type EntradaActivo
+} from './activoTerminales.ts'
 import { bannerFinSsh, motivoFinSsh } from './finSesionSsh.ts'
 import { hayTextoVisible } from './textoSesionSsh.ts'
 import { addTerminal, ensureProject, terminalProjectKey, type ShellTerminalsState } from './shellTerminalsModel.ts'
@@ -24,9 +31,11 @@ import {
   initialSshTabsState,
   nombreSsh,
   perfilDeContexto,
+  pestanasAGuardar,
   podarContextosSsh,
   podarSsh,
   renombrarSsh,
+  restaurarSsh,
   soltarSsh,
   sshDePerfil,
   sshPaneKey,
@@ -35,6 +44,7 @@ import {
 } from './sshTabsModel.ts'
 import type { TerminalPaneInfo, TerminalProjectTarget } from './terminalPaneTipos.ts'
 import type { TerminalExitReason } from '../../../../shared/terminal-ipc.ts'
+import { normalizarPestanasSshPorPerfil, SSH_PESTANAS_MAX } from '../../../../shared/ajustesTerminal.ts'
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -237,6 +247,21 @@ hr('(9) Qué se ve: la SSH elegida, si no la local, si no la primera SSH, si nad
   check('al reabrir un proyecto cerrado se ve su terminal local nueva, no la SSH que se miraba antes de cerrarlo', derivarActivo(entrada({ ssh: s })).pane?.tipo === 'ssh' && reabierto.pane?.tipo === 'local' && reabierto.localActivaId === 't1', `antes: ssh · después: ${reabierto.pane?.tipo}`)
 }
 
+hr('(9b) ¿Hay terminal que enseñar? Un proyecto sin estrenar cuenta como que sí')
+{
+  const hay = (extra: Partial<EntradaActivo>): boolean => hayTerminalQueEnsenar(entrada(extra))
+  const vacio: ShellTerminalsState = { [KEY_A]: { list: [], activeId: null, nextN: 2 } }
+  check('con su terminal local, sí', hay({}), 'true')
+  check(
+    'un proyecto que aún no tiene lista, sí: su primera terminal nace en el efecto que sigue',
+    hay({ terminals: {} }) && derivarActivo(entrada({ terminals: {} })).pane === null,
+    'sin pane todavía, pero sí'
+  )
+  check('MITAD NEGATIVA: un proyecto con todas sus terminales cerradas a mano, no', !hay({ terminals: vacio }), 'false')
+  check('MITAD NEGATIVA: sin proyecto ni SSH, no', !hay({ activeProjectKey: null, projects: [], contexto: CTX_SIN, terminals: {} }), 'false')
+  check('sin locales pero con una SSH del perfil, sí', hay({ terminals: vacio, ssh: conTres() }), 'true')
+}
+
 hr('(10) El botón de reinicio del pane que se ve: «Reconectar» en SSH, el de siempre en local')
 {
   const s = soltarSsh(conTres(), CTX_A)
@@ -291,8 +316,8 @@ hr('(11) Qué se dice al terminar una sesión SSH')
   check('Windows: el 255 sin motivo sigue siendo fallo de ssh', w(255, 400) === 'No se pudo conectar' && w(255, 60_000) === 'Se cortó la conexión', `${w(255, 400)} · ${w(255, 60_000)}`)
   check('MITAD NEGATIVA: en mac, -1 y 4294967295 no son fallo de ssh', x(-1, 400) === 'La sesión terminó (código -1)' && x(4294967295, 400) === 'La sesión terminó (código 4294967295)', x(-1, 400))
   check('MITAD NEGATIVA: sin plataforma tampoco', m(-1, 400) === 'La sesión terminó (código -1)', m(-1, 400))
-  check('el banner manda a «Reconectar»', bannerFinSsh('La sesión terminó') === 'La sesión terminó. Usa «Reconectar» para volver a conectar.', bannerFinSsh('La sesión terminó'))
-  check('y no duplica la puntuación: «…¿falta la VPN?» ya cierra', bannerFinSsh('No se pudo conectar: el servidor no responde: ¿falta la VPN?') === 'No se pudo conectar: el servidor no responde: ¿falta la VPN? Usa «Reconectar» para volver a conectar.', 'una sola puntuación')
+  check('el banner dice que Intro vuelve a conectar', bannerFinSsh('La sesión terminó') === 'La sesión terminó. Pulsa Intro para volver a conectar.', bannerFinSsh('La sesión terminó'))
+  check('y no duplica la puntuación: «…¿falta la VPN?» ya cierra', bannerFinSsh('No se pudo conectar: el servidor no responde: ¿falta la VPN?') === 'No se pudo conectar: el servidor no responde: ¿falta la VPN? Pulsa Intro para volver a conectar.', 'una sola puntuación')
 }
 
 hr('(12) El «Conectando a…» se retira con el primer TEXTO, no con las secuencias con que se abre el pty')
@@ -320,6 +345,55 @@ hr('(13) La conexión que marca la lista (el riel y el popover): la de la pesta�
   check('MITAD NEGATIVA: con una terminal local a la vista no se marca ninguna', ve(soltarSsh(s, CTX_A)) === null, String(ve(soltarSsh(s, CTX_A))))
   check('MITAD NEGATIVA: sin nada que ver tampoco', ve(initialSshTabsState, { activeProjectKey: null, projects: [], contexto: CTX_SIN }) === null && conexionDelPane(null) === null, 'null · null')
   check('una pestaña cuya conexión se eliminó marca su id aunque ya no haya fila: la lista no la pinta', ve(elegirSsh(s, 'alfa', CTX_A, 's2'), { conexionesVivas: new Set(['c1', 'c3']) }) === 'c2', 'c2')
+}
+
+hr('R - Las pestañas vuelven al arrancar, sin conectarse')
+{
+  const ctx = contextoSsh('p1', null)
+  let s = abrirSsh(initialSshTabsState, ctx, 'p1', 'c-web', 'web')
+  s = abrirSsh(s, ctx, 'p1', 'c-web', 'web')
+  s = abrirSsh(s, ctx, 'p1', 'c-db', 'db', true)
+  s = renombrarSsh(s, 'p1', 's1', 'Logs')
+  s = abrirSsh(s, contextoSsh('p2', null), 'p2', 'c-borrada', 'vieja')
+  const g = pestanasAGuardar(s)
+  check(
+    '(R1) se guardan por perfil, en su orden, con su nombre a mano, su alias y si es SFTP',
+    JSON.stringify(g.p1) === JSON.stringify([{ conexionId: 'c-web', alias: 'web', nombre: 'Logs' }, { conexionId: 'c-web', alias: 'web' }, { conexionId: 'c-db', alias: 'db', sftp: true }]),
+    JSON.stringify(g.p1)
+  )
+  const sinBorrada = pestanasAGuardar(s, (id) => id !== 'c-borrada')
+  check('(R2) con la lista de conexiones, sin las de una conexión que ya no existe (y sin entrada el perfil que se queda sin ninguna)', !('p2' in sinBorrada) && sinBorrada.p1.length === 3, JSON.stringify(Object.keys(sinBorrada)))
+  const r = restaurarSsh(initialSshTabsState, g)
+  const p1 = sshDePerfil(r, 'p1')
+  check('(R3) vuelven las mismas, con sus nombres', JSON.stringify(p1.map((t) => nombreSsh(t))) === JSON.stringify(['Logs', 'web (2)', 'SFTP · db']), JSON.stringify(p1.map((t) => nombreSsh(t))))
+  check('(R4) ninguna elegida: nada se conecta hasta que se mira', Object.keys(r.activaPorContexto).length === 0, JSON.stringify(r.activaPorContexto))
+  const nueva = abrirSsh(r, ctx, 'p1', 'c-web', 'web')
+  check('(R5) la siguiente que se abre sigue numerando (un id no se reutiliza) y toma el hueco libre', sshDePerfil(nueva, 'p1')[3].id === 's4' && nombreSsh(sshDePerfil(nueva, 'p1')[3]) === 'web (3)', JSON.stringify(sshDePerfil(nueva, 'p1')[3]))
+  check('(R6) un perfil que ya tiene pestañas no se toca; sin nada que restaurar, el MISMO objeto', restaurarSsh(s, g) === s && restaurarSsh(r, {}) === r, 'mismo objeto')
+  const conIds = { porPerfil: { p1: { lista: [], siguiente: 7 } }, activaPorContexto: {} } as SshTabsState
+  check('(R7) tras cerrar todas, los ids restaurados siguen al último repartido', sshDePerfil(restaurarSsh(conIds, g), 'p1')[0].id === 's7', sshDePerfil(restaurarSsh(conIds, g), 'p1')[0].id)
+  const sinNada = { perfilId: 'p1', sshLista: sshDePerfil(r, 'p1'), sshElegidaId: null, proyectoKey: null, localActivaId: null }
+  check('(R9) sin proyecto ni terminal local, una restaurada sin elegir NO hace de pane de reserva (se conectaría sola)', derivarPaneActivo(sinNada) === null, JSON.stringify(derivarPaneActivo(sinNada)))
+  const elegida = elegirSsh(r, 'p1', ctx, 's2')
+  const t2 = sshDePerfil(elegida, 'p1').find((t) => t.id === 's2')
+  check('(R10) elegirla la quita de restaurada (y ya puede hacer de reserva); las demás siguen sin conectarse', t2?.restaurada === undefined && sshDePerfil(elegida, 'p1')[0].restaurada === true && elegida.activaPorContexto[ctx] === 's2', JSON.stringify(t2))
+  check(
+    '(R11) tras soltarla, la reserva es esa y no una restaurada',
+    derivarPaneActivo({ ...sinNada, sshLista: sshDePerfil(soltarSsh(elegida, ctx), 'p1') })?.paneKey === sshPaneKey('p1', 's2'),
+    String(derivarPaneActivo({ ...sinNada, sshLista: sshDePerfil(soltarSsh(elegida, ctx), 'p1') })?.paneKey)
+  )
+  check('(R12) lo restaurado no se guarda como tal: al guardar, sin la marca', !JSON.stringify(pestanasAGuardar(r)).includes('restaurada'), 'sin marca')
+  const n = normalizarPestanasSshPorPerfil({
+    p1: [{ conexionId: 'c-1', alias: 'a', nombre: '  ', sftp: 'si' }, { conexionId: '../x', alias: 'b' }, { conexionId: 'c-2' }, 'basura'],
+    '': [{ conexionId: 'c-3', alias: 'c' }],
+    p3: 'no es una lista',
+    p4: Array.from({ length: SSH_PESTANAS_MAX + 5 }, (_, i) => ({ conexionId: `c${i}`, alias: 'x' }))
+  })
+  check(
+    '(R8) lo leído del archivo se sanea entrada a entrada: un id raro, sin alias o sin forma fuera; un nombre en blanco no cuenta; con tope por perfil',
+    JSON.stringify(n.p1) === JSON.stringify([{ conexionId: 'c-1', alias: 'a' }]) && !('' in n) && !('p3' in n) && n.p4.length === SSH_PESTANAS_MAX,
+    JSON.stringify({ p1: n.p1, perfiles: Object.keys(n), p4: n.p4?.length })
+  )
 }
 
 hr('RESULTADO (PASS/FAIL)')

@@ -10,6 +10,7 @@
 'use strict'
 
 const clienteOracle = require('./clienteOracle.cjs')
+const { SIN_CIFRAR, causaTls, certificadosDeConfianza, mensajeCertificado, tlsDe } = require('./tlsComun.cjs')
 
 const { COD_VERSION_NO_SOPORTADA, limiteDeThin, avisoDeSoporte, versionDeNumero, versionDeTexto } = clienteOracle
 const { mensajeRequiereCliente, packParaServidor, cargarInstantClient, packCargado } = clienteOracle
@@ -17,12 +18,62 @@ const { mensajeRequiereCliente, packParaServidor, cargarInstantClient, packCarga
 /** Tope de espera por sentencia. Una consulta colgada no debe sostener una sesión. */
 const CALL_TIMEOUT_MS = 60_000
 
-/** Descriptor de conexión: Easy Connect por servicio, o TNS completo si es por SID. */
+/**
+ * Descriptor de conexión: Easy Connect por servicio, o TNS completo si es por SID. Cifrando,
+ * por TCPS (`tcps://` en Easy Connect); el certificado lo verifica siempre el cliente thin.
+ */
 function connectString(con) {
+  const cifrar = tlsDe(con, SIN_CIFRAR).cifrar
   if (con.sid) {
-    return `(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=${con.host})(PORT=${con.port}))(CONNECT_DATA=(SID=${con.sid})))`
+    const protocolo = cifrar ? 'TCPS' : 'TCP'
+    return `(DESCRIPTION=(ADDRESS=(PROTOCOL=${protocolo})(HOST=${con.host})(PORT=${con.port}))(CONNECT_DATA=(SID=${con.sid})))`
   }
-  return `${con.host}:${con.port}/${con.database}`
+  return `${cifrar ? 'tcps://' : ''}${con.host}:${con.port}/${con.database}`
+}
+
+let casFijadas = false
+
+/**
+ * Cifrando, las CA del sistema pasan a ser las de confianza por defecto del PROCESO: el
+ * cliente thin no admite CA por conexión (sin wallet usa las de Node). Una vez por proceso.
+ */
+function confiarEnCasDelSistema() {
+  if (casFijadas) return
+  const tls = require('node:tls')
+  const cas = certificadosDeConfianza(tls)
+  if (cas && typeof tls.setDefaultCACertificates === 'function') tls.setDefaultCACertificates(cas)
+  casFijadas = true
+}
+
+/** El cifrado solo existe en thin: el cliente thick lo configura con un wallet de Oracle que Tessera no gestiona. */
+function errorCifradoEnThick(con) {
+  const e = new Error(
+    `«${con.alias}» cifra la conexión, y el cifrado de Tessera en Oracle solo funciona con bases 12.1 o posteriores ` +
+      '(sin Instant Client). Desmarca «Cifrar la conexión (TCPS)» para conectar a esta base.'
+  )
+  e.code = 'TESSERA-ORA-CIFRADO-THICK'
+  return e
+}
+
+/** El error de conectar CIFRANDO traducido a lo que el usuario arregla, o el mismo error. */
+function errorAlConectar(err, con) {
+  const servidor = `${con.host}:${con.port}`
+  const conMensaje = (mensaje, codigo) => {
+    const e = new Error(mensaje)
+    e.code = codigo
+    e.cause = err
+    return e
+  }
+  const tlsMalo = causaTls(err)
+  if (tlsMalo) return conMensaje(mensajeCertificado(servidor, tlsMalo, false), 'TESSERA-ORA-CERTIFICADO')
+  // El puerto de siempre (TCP) corta el saludo TLS sin decir por qué.
+  if (/disconnected before secure TLS connection/i.test(String((err && err.message) || ''))) {
+    return conMensaje(
+      `${servidor} no respondió con TLS: comprueba que el puerto es el de TCPS (suele ser 2484, no 1521), o desmarca «Cifrar la conexión (TCPS)».`,
+      'TESSERA-ORA-SIN-TCPS'
+    )
+  }
+  return err
 }
 
 /**
@@ -102,11 +153,29 @@ async function abrir(con, secreto, ctx, opciones) {
   // Atributos de conexión del explorador: solo en thin.
   const credencialesThin = op.atributos && oracledb.thin ? { ...credenciales, ...op.atributos } : credenciales
 
+  const cifrar = tlsDe(con, SIN_CIFRAR).cifrar
+  if (cifrar) {
+    // Por el túnel el cliente conecta a 127.0.0.1 y compararía el certificado con ese nombre (lo rechaza también el guardado).
+    if (typeof con.hostTls === 'string' && con.hostTls !== '') {
+      const e = new Error(`«${con.alias}» cifra la conexión y va por un túnel SSH, y Oracle no puede verificar su certificado a través del túnel: desmarca «Cifrar la conexión (TCPS)».`)
+      e.code = 'TESSERA-ORA-CIFRADO-TUNEL'
+      throw e
+    }
+    // Otra sesión de este proceso ya cargó el cliente thick: este proceso ya no cifra.
+    if (!oracledb.thin) throw errorCifradoEnThick(con)
+    confiarEnCasDelSistema()
+  }
+
   let driverId = null
   let conexion
   try {
     conexion = await oracledb.getConnection(credencialesThin)
   } catch (err) {
+    if (cifrar) {
+      // Una base que pide thick (anterior a 12.1) no se puede cifrar: ni se escala.
+      if (limiteDeThin(err)) throw errorCifradoEnThick(con)
+      throw errorAlConectar(err, con)
+    }
     driverId = escalarAThick(oracledb, err, con, ctx, explorador)
     conexion = await oracledb.getConnection(credenciales)
   }
@@ -232,6 +301,8 @@ async function sesiones(conexion) {
 
 module.exports = {
   abrir,
+  connectString,
+  errorAlConectar,
   consultar,
   banner,
   tablas,

@@ -2,7 +2,8 @@
 
 - **Estado:** vigente
 - **Ámbito:** `src/main/ssh/` (`preguntasAskpass.ts`, `fichasAskpass.ts`, `programaAskpass.ts`, `controlador/askpassSsh.ts`,
-  `controlador/pruebaSsh.ts`, `ConexionesSsh.ts`), `src/askpass/`, `scripts/compilarAskpass.mjs` y el diálogo de `features/ssh/` (macOS: sin verificar)
+  `controlador/dialogoAskpass.ts`, `controlador/pruebaSsh.ts`, `ConexionesSsh.ts`), las operaciones tardías de `db/dbBridge.ts`,
+  `src/askpass/`, `scripts/compilarAskpass.mjs` y los diálogos de `features/ssh/` (`PreguntaAskpassSsh.tsx`) (macOS: sin verificar)
 
 ## Contexto
 
@@ -19,9 +20,19 @@ keyboard-interactive y frase, en ConPTY y sin consola (~150 ms). Con `NumberOfPa
   delante en el `PATH`; en macOS, un lanzador `sh` en `userData/ssh/askpass/askpass` que arranca Tessera como Node con
   `src/askpass/askpass.cjs`. Pregunta al puente de `tdb` (`ssh.askpass`); si Tessera no contesta, sale con 1 y una línea fija.
 - Contesta SOLO la contraseña de ESA conexión («u@h's password: », «(u@h) Password: ») y la frase de SU copia (como prefijo si llega
-  recortada). Un PIN, un código, una huella o algo truncado se cancela, y esa conexión se teclea hasta que se edite.
-- Fichas propias, atadas a una conexión, en tiempo constante: pestaña 2 min y 2 usos (contraseña y keyboard-interactive), revocada al
-  cerrar o reconectar; «Probar» 60 s. El token de sesión de un agente nunca vale para `ssh.askpass`.
+  recortada). Sin diálogo (`tssh`, «Probar»), un PIN, un código, una huella o algo truncado se cancela, y esa conexión se teclea hasta
+  que se edite.
+- Con diálogo (la pestaña y el explorador SFTP), lo que Tessera no contesta sola lo contesta el usuario en un diálogo de la ventana, y
+  la respuesta va a ssh sin guardarse ni registrarse: un segundo factor, la contraseña tras un rechazo (el secreto guardado se da UNA vez
+  por ficha; si ssh lo vuelve a pedir, el servidor lo rechazó, y el diálogo lo dice) y, en el explorador, que no tiene terminal, la
+  contraseña que no está guardada o no se puede leer. La línea admite entonces tres preguntas por método (`NumberOfPasswordPrompts=3`).
+  El texto del servidor se enseña marcado como suyo y sin caracteres de control; el de la conexión, con palabras de Tessera (y sin la
+  ruta de la copia de la clave). El diálogo vence a los 110 s (ssh suelta la autenticación a los 120) y se retira si su ssh termina;
+  cancelar no manda la pestaña a teclear. El puente admite operaciones que contestan más tarde, y una pausa corta a quien espera.
+- Fichas propias, atadas a una conexión, en tiempo constante: pestaña y explorador 5 min y 8 usos (da tiempo a contestar en el
+  diálogo), revocada al cerrar o reconectar; «Probar» 60 s y 2 usos. El token de sesión de un agente nunca vale para `ssh.askpass`.
+  El programa espera la respuesta hasta 150 s. Con bastiones, la ficha lleva también los suyos (con los usos de una conexión por
+  cada uno) y cada pregunta va a la conexión cuyo `usuario@host` o clave casa (ver `tuneles-y-bastiones.md`).
 - Sin puente, sin programa o con el secreto ilegible, la pestaña se abre sin él (se teclea) con un aviso: NUNCA el secreto en el entorno.
   El registro apunta la conexión y la decisión, nunca la pregunta ni el secreto.
 - «Probar»: la línea de la pestaña sin terminal, con `exit 0` y 20 s de tope; `accept-new` guarda la huella (el agente, en estricto, solo
@@ -31,7 +42,7 @@ keyboard-interactive y frase, en ConPTY y sin consola (~150 ms). Con `NumberOfPa
 
 ## Riesgos aceptados
 
-- **Una instalación de Windows cuya carpeta lleva «;» y además caracteres no ASCII** (decisión del usuario, 5-oct-2026). El programa va
+- **Una instalación de Windows cuya carpeta lleva «;» y además caracteres no ASCII**. El programa va
   por su nombre con su carpeta en el `PATH` porque el ssh del sistema no lanza una ruta con «ñ» o tildes (medido); un «;» partiría el
   `PATH`, así que en ese caso se cae a la ruta entera, que con caracteres no ASCII volvería a fallar: la contraseña guardada no se da y
   se teclea, con el aviso de siempre. Sin medir con una instalación así; las dos cosas juntas en la carpeta de instalación son raras.
@@ -46,4 +57,6 @@ copia protegida de la clave son higiene —el secreto no está en el contexto, n
 - Un `.cmd` como askpass: cmd.exe vuelve a analizar la pregunta (en keyboard-interactive la escribe el servidor: inyección) y la corta.
 - `NODE_OPTIONS` para colar un askpass en Node: depende de los fusibles de Electron y lo heredaría todo lo que se lance.
 - El secreto en el entorno del ssh: lo heredan sus hijos y se ve en un volcado del proceso.
-- Un diálogo de Tessera para cualquier pregunta del servidor: el texto es del servidor, y se confirmaría a ciegas un código o una huella.
+- Contestar sola cualquier pregunta del servidor: el texto es del servidor, y se confirmaría a ciegas un código o una huella. Por eso
+  lo que no es el secreto de la conexión lo decide una persona en el diálogo, viendo que el texto es del servidor.
+- Para un agente (`tssh`), el diálogo: una persona daría un segundo factor a una orden que no ve.

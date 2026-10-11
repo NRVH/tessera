@@ -10,7 +10,7 @@
 // =============================================================================
 
 import { spawnSync } from 'node:child_process'
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir, userInfo } from 'node:os'
 import path from 'node:path'
@@ -113,6 +113,7 @@ const sc = require_('./sqliteComun.cjs') as {
   verificarRuta(r: string, o?: { plataforma?: Plataforma; fsImpl?: unknown }): Array<{ tipo: string }>
   abrirSqlite(r: string, o?: { soloLectura?: boolean; respaldoSoloLectura?: boolean; plataforma?: Plataforma; sqlite?: unknown }): Conexion
   cerrarSqlite(c: Conexion): void
+  traducirCarpetaSinEscritura(c: Conexion, e: unknown, perfil?: string): unknown
   conPerfil<T>(c: Conexion, p: string, f: () => T): T
   conVacuum<T>(c: Conexion, f: () => T): T
   prepararUna(c: Conexion, t: string, o?: { perfil?: string }): Preparada | null
@@ -129,11 +130,16 @@ interface SesionSqlite {
   c: Conexion & { db: Conexion['db'] }
 }
 const ses = require_('./sesionSqlite.cjs') as {
-  abrir(con: { archivo: string; readonly: boolean }, secreto: string, ctx: null, op: { autoCommit?: boolean }): Promise<{ sesion: SesionSqlite }>
+  abrir(
+    con: { archivo: string; readonly: boolean },
+    secreto: string,
+    ctx: null,
+    op: { autoCommit?: boolean }
+  ): Promise<{ sesion: SesionSqlite; respuesta: { carpetaSinEscritura?: boolean } }>
   ejecutar(s: SesionSqlite, sql: string, binds: undefined, op: Record<string, unknown>): Promise<{ tipo: string; tx?: string }>
   tx(s: SesionSqlite, accion: string): Promise<{ tx: string }>
   cerrar(s: SesionSqlite): Promise<void>
-  normalizarError(e: unknown): { mensaje: string; codigo?: string }
+  normalizarError(e: unknown): { mensaje: string; codigo?: string; clase?: string }
 }
 const sqlite = require_('node:sqlite') as { DatabaseSync: new (r: string | URL, o?: unknown) => Conexion['db']; constants: Record<string, number> }
 
@@ -165,6 +171,10 @@ function mensajeDe(f: () => unknown): string {
 }
 
 const PLATAFORMAS: Plataforma[] = ['windows', 'mac', 'otra']
+
+/** Lo que da SQLite al no poder crear un archivo en una carpeta sin escritura: CANTOPEN en Windows, READONLY_DIRECTORY con el VFS de Unix. */
+const CODIGO_CARPETA = esWindows() ? 14 : 1544
+const CODIGO_CARPETA_TXT = esWindows() ? 'CANTOPEN' : 'READONLY_DIRECTORY'
 
 // ---------------------------------------------------------------------------------
 hr('(1) Paridad: los PRAGMA de lectura del autorizador son los de REGLAS.sqlite.pragmas')
@@ -244,7 +254,8 @@ hr('(3) La decisión de apertura (pura)')
   for (const [n, d, modo] of oks) check(n, d.ok && d.modo === modo, j(d))
   const mac = sc.mensajePermiso('x.db', 'mac')
   const win = sc.mensajePermiso('x.db', 'windows')
-  check('permiso en macOS: dice dónde darlo (Ajustes del Sistema) y que se pierde al actualizar', mac.includes('Ajustes del Sistema') && mac.includes('actualización'), mac)
+  // La app va firmada con un certificado que es el mismo en todas las versiones: el permiso se conserva al actualizar.
+  check('permiso en macOS: dice dónde darlo (Ajustes del Sistema) y no que se pierda al actualizar', mac.includes('Ajustes del Sistema') && !mac.includes('actualiza'), mac)
   check('permiso en Windows: no habla de macOS ni de sus Ajustes', !win.includes('macOS') && !win.includes('Ajustes'), win)
 }
 
@@ -403,6 +414,18 @@ try {
     w.exec('PRAGMA journal_mode = WAL')
     w.exec(SIEMBRA)
     w.close()
+    // Una WAL con cambios en su `-wal` (copiada con la aplicación viva) y una en modo rollback.
+    const fuenteWal = path.join(dir, 'viva para copiar.db')
+    const viva = new sqlite.DatabaseSync(fuenteWal)
+    viva.exec('PRAGMA journal_mode = WAL; PRAGMA wal_autocheckpoint = 0;' + SIEMBRA)
+    const conWal = path.join(ro, 'con wal.db')
+    copyFileSync(fuenteWal, conWal)
+    copyFileSync(fuenteWal + '-wal', conWal + '-wal')
+    viva.close()
+    const enRollback = path.join(ro, 'rollback.db')
+    const rb = new sqlite.DatabaseSync(enRollback)
+    rb.exec(SIEMBRA)
+    rb.close()
     const quitar = (): void => {
       if (esWindows()) spawnSync('icacls', [ro, '/remove:d', userInfo().username])
       else chmodSync(ro, 0o755)
@@ -430,7 +453,11 @@ try {
         } catch (e) {
           sinRespaldo = String((e as { errcode?: number }).errcode)
         }
-        check('sin el respaldo, la primera consulta da CANTOPEN (lo que veía el usuario)', sinRespaldo === '14', sinRespaldo)
+        check(
+          `sin el respaldo, la primera consulta da ${CODIGO_CARPETA_TXT} (lo que veía el usuario)`,
+          sinRespaldo === String(CODIGO_CARPETA),
+          sinRespaldo
+        )
         const c = sc.abrirSqlite(f, { soloLectura: false })
         const n = sc.prepararUna(c, 'select count(*) n from cliente')?.stmt.all()[0].n
         const escribir = codigoYMensaje(() => sc.prepararUna(c, "insert into cliente values (3, 'eva', 'AR')"))
@@ -438,6 +465,57 @@ try {
         check('en escritura se REABRE en solo lectura inmutable y lee', c.soloLectura && c.modo === 'inmutable' && c.estado.respaldo === true && n === 2n, `${c.modo} ro=${c.soloLectura} n=${String(n)}`)
         check('escribir se rechaza diciendo que es la CARPETA, no la conexión', escribir.codigo === 'TESSERA-SQLITE-NO-PERMITIDO' && /carpeta no admite escritura/.test(escribir.mensaje), escribir.mensaje)
         check('y la carpeta queda igual (ni -wal ni -shm)', readdirSync(ro).sort().join(',') === antes, readdirSync(ro).join(','))
+
+        // Con su `-wal`, ni en solo lectura se puede leer (hace falta crear el `-shm`), y la
+        // inmutable enseñaría datos viejos: error de Tessera que dice que es la carpeta, no un CANTOPEN.
+        for (const [etiqueta, soloLectura] of [['escritura', false], ['solo lectura', true]] as const) {
+          const r = codigoYMensaje(() => sc.cerrarSqlite(sc.abrirSqlite(conWal, { soloLectura })))
+          check(
+            `con su -wal, en ${etiqueta}: WAL-SIN-ESCRITURA diciendo que es la carpeta y qué hacer`,
+            r.codigo === 'TESSERA-SQLITE-WAL-SIN-ESCRITURA' && /carpeta de «con wal\.db» no admite escritura/.test(r.mensaje) && /Copia la base junto con su «-wal»/.test(r.mensaje),
+            `${r.codigo} ${r.mensaje}`
+          )
+        }
+        const rWal = await ses.abrir({ archivo: conWal, readonly: false }, '', null, {}).then(
+          () => 'abrió',
+          (e: unknown) => j(ses.normalizarError(e))
+        )
+        check('el trabajador del explorador da el mismo error al abrir (no un SQLITE_CANTOPEN)', /TESSERA-SQLITE-WAL-SIN-ESCRITURA/.test(rWal) && !/CANTOPEN/.test(rWal), rWal)
+
+        // El trabajador avisa al main de que la escritura que pidió acabó en solo lectura.
+        const a = await ses.abrir({ archivo: f, readonly: false }, '', null, {})
+        check('abrir dice `carpetaSinEscritura` cuando la escritura acabó en solo lectura', a.respuesta.carpetaSinEscritura === true, j(a.respuesta))
+        await ses.cerrar(a.sesion)
+
+        // Rollback: abre en escritura y lee, pero escribir necesita crear el `-journal`.
+        const rbc = sc.abrirSqlite(enRollback, { soloLectura: false })
+        const nRb = sc.prepararUna(rbc, 'select count(*) n from cliente')?.stmt.all()[0].n
+        let crudo: unknown = null
+        try {
+          sc.prepararUna(rbc, "insert into cliente values (3, 'eva', 'AR')")?.stmt.run()
+        } catch (e) {
+          crudo = e
+        }
+        const traducido = sc.traducirCarpetaSinEscritura(rbc, crudo, 'base') as { codigo?: string; message?: string }
+        sc.cerrarSqlite(rbc)
+        check('rollback: abre en escritura y lee (no hay forma de saberlo sin escribir)', !rbc.soloLectura && nRb === 2n, `ro=${rbc.soloLectura} n=${String(nRb)}`)
+        check(
+          `rollback: el ${CODIGO_CARPETA_TXT} de la escritura se traduce a CARPETA-SIN-ESCRITURA`,
+          (crudo as { errcode?: number } | null)?.errcode === CODIGO_CARPETA && traducido.codigo === 'TESSERA-SQLITE-CARPETA-SIN-ESCRITURA' && /carpeta no admite escritura/.test(String(traducido.message)),
+          `${String((crudo as { errcode?: number } | null)?.errcode)} -> ${traducido.codigo}: ${traducido.message}`
+        )
+        const sRb = await ses.abrir({ archivo: enRollback, readonly: false }, '', null, {})
+        const eRb = await ses.ejecutar(sRb.sesion, "insert into cliente values (3, 'eva', 'AR')", undefined, { esDml: true }).then(
+          () => ({ mensaje: 'escribió', clase: '', codigo: '' }),
+          (e: unknown) => ses.normalizarError(e)
+        )
+        await ses.cerrar(sRb.sesion)
+        check(
+          'rollback, trabajador: la escritura falla con clase soloLectura y el texto de la carpeta, no un CANTOPEN',
+          eRb.codigo === 'TESSERA-SQLITE-CARPETA-SIN-ESCRITURA' && eRb.clase === 'soloLectura' && sRb.respuesta.carpetaSinEscritura !== true,
+          j(eRb)
+        )
+        check('y la carpeta sigue igual tras todo eso', readdirSync(ro).sort().join(',') === antes, readdirSync(ro).join(','))
       }
     } finally {
       quitar()

@@ -68,7 +68,6 @@ function montar() {
     profiles: [],
     eventos,
     dockerfileDir: '',
-    bootstrapTarget: { profileId: 'qa', projectHostPath: '' },
     sandbox: {} as SandboxManager,
     log: (m) => lineas.push(m)
   })

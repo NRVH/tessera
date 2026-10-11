@@ -14,12 +14,15 @@ import { plataformaActual } from '../../shared/plataforma.ts'
 import type {
   SshConexion,
   SshConexionBorrada,
+  SshConexionesBorradas,
+  SshConexionesMovidas,
   SshConexionInput,
   SshGrupo,
   SshGrupoBorrado,
   SshListaConexiones
 } from '../../shared/ssh-ipc.ts'
 import type { CifradoSecretos } from '../db/adaptadores/cifradoSistema.ts'
+import { remedioSinAlmacen } from '../db/adaptadores/almacenSeguro.ts'
 import { writeFileAtomicSync } from '../util/atomicWrite.ts'
 import {
   conservarAlEditarSsh,
@@ -43,7 +46,6 @@ import {
   idsConArchivos,
   lecturaConRespaldoSsh,
   perfilDeEntrada,
-  podarPerfilesSsh,
   rutaCopiaClave,
   separarConexion,
   serializarRegistroSsh,
@@ -53,6 +55,7 @@ import {
 } from './registroSsh.ts'
 import {
   MENSAJE_FALTA_CLAVE,
+  aliasDeCopia,
   camposAGuardarSsh,
   validarEntradaSsh,
   validarNombreGrupo,
@@ -227,7 +230,9 @@ export class ConexionesSsh {
       metodo: c.metodo,
       tieneSecreto: typeof c.secretEnc === 'string' && c.secretEnc !== '',
       disponibleAgentes: c.disponibleAgentes === true,
-      huellaServidor: this.huellasDe(c)
+      huellaServidor: this.huellasDe(c),
+      saltoId: c.saltoId ?? null,
+      tuneles: (c.tuneles ?? []).map((t) => ({ ...t }))
     }
     if (!conocido && citado !== undefined && citado !== null) dto.grupoDesconocido = true
     if (c.clave) dto.clave = { nombre: c.clave.nombre, tipo: c.clave.tipo, cifrada: c.clave.cifrada }
@@ -253,7 +258,8 @@ export class ConexionesSsh {
     if (this.cifrado === null || !this.cifrado.disponible()) {
       throw new Error(
         `No se puede guardar ${metodo === 'clave' ? 'la frase de la clave' : 'la contraseña'}: ` +
-          `${nombresSistema(plataformaActual()).almacenSecretos} no está disponible. Tessera nunca la guarda en claro.`
+          `${nombresSistema(plataformaActual()).almacenSecretos} no está disponible. Tessera nunca la guarda en claro.` +
+          remedioSinAlmacen(plataformaActual())
       )
     }
     return this.cifrado.cifrar(plano).toString('base64')
@@ -351,6 +357,36 @@ export class ConexionesSsh {
     return this.dtoDe(id)
   }
 
+  /**
+   * Copia una conexión conocida del perfil con otro nombre («… (1)», «… (2)»…): sus datos, su grupo, su bastión, sus
+   * túneles y su secreto cifrado (el mismo almacén lo descifra); sin sus huellas, que la copia acepta al conectar,
+   * ni lo que esta versión no entiende. Con el método 'clave', `instalada` es la copia de su clave que quien llama
+   * ya dejó en `ssh/claves/<id>`.
+   */
+  duplicar(origenId: string, profileId: string, instalada: ClaveInstalada & { id?: string } = {}): SshConexion {
+    if (this.reg.formatoAjeno) throw new Error(this.reg.aviso)
+    const origen = conexionesConocidas(this.reg).find((c) => c.id === origenId && c.profileId === profileId)
+    if (!origen) throw new Error('Esa conexión ya no existe.')
+    const id = instalada.id ?? randomUUID()
+    if (!ID_SEGURO.test(id) || idsConArchivos(this.reg).has(id.toLowerCase())) throw new Error('No se pudo dar un id a la copia: inténtalo otra vez.')
+    const ctx = this.contexto()
+    const ocupados = [
+      ...ctx.conexiones.filter((c) => c.profileId === profileId).map((c) => c.alias),
+      ...ctx.ajenas.filter((a) => a.tipo === 'conexion' && a.profileId === profileId).map((a) => a.nombre)
+    ]
+    const { secretEnc, clave, ...datos } = structuredClone(origen)
+    const registro: ConexionSshPersistida = { ...datos, id, alias: aliasDeCopia(origen.alias, ocupados) }
+    if (origen.metodo === 'clave') {
+      if (clave === undefined || instalada.clave === undefined) throw new Error(MENSAJE_FALTA_CLAVE)
+      registro.clave = instalada.clave
+    }
+    if (secretEnc !== undefined) registro.secretEnc = secretEnc
+    this.aplicar((reg) => {
+      reg.conexiones.push({ tipo: 'conocida', registro, resto: {} })
+    })
+    return this.dtoDe(id)
+  }
+
   /** Borra la conexión conocida de ese perfil y, si ninguna otra entrada cita su id, sus archivos. */
   borrar(id: string, profileId: string): SshConexionBorrada {
     const idx = this.reg.conexiones.findIndex(
@@ -362,6 +398,45 @@ export class ConexionesSsh {
     })
     this.borrarArchivosSinDueno([id])
     return { borrada: true }
+  }
+
+  /**
+   * Borra de una vez las conexiones conocidas de ese perfil que estén en `ids` (las demás se ignoran) y, si
+   * ninguna otra entrada cita su id, sus archivos. Una sola escritura: o se van todas o ninguna.
+   */
+  borrarVarias(ids: readonly string[], profileId: string): SshConexionesBorradas {
+    const buscadas = new Set(ids)
+    const delLote = (e: RegistroSsh['conexiones'][number]): boolean => e.tipo === 'conocida' && e.registro.profileId === profileId && buscadas.has(e.registro.id)
+    const borradas = this.reg.conexiones.filter(delLote).map((e) => (e as Conocida).registro.id)
+    if (borradas.length === 0) return { borradas: 0 }
+    this.aplicar((reg) => {
+      reg.conexiones = reg.conexiones.filter((e) => !delLote(e))
+    })
+    this.borrarArchivosSinDueno(borradas)
+    return { borradas: borradas.length }
+  }
+
+  /**
+   * Pasa de una vez las conexiones conocidas de ese perfil que estén en `ids` a `grupoId` (`null` = «Sin grupo»),
+   * que tiene que ser un grupo conocido del perfil. Lo demás de cada conexión no se toca.
+   */
+  mover(ids: readonly string[], profileId: string, grupoId: string | null): SshConexionesMovidas {
+    if (this.reg.formatoAjeno) throw new Error(this.reg.aviso)
+    if (grupoId !== null && !gruposConocidos(this.reg).some((g) => g.id === grupoId && g.profileId === profileId)) {
+      throw new Error('Ese grupo ya no existe en este perfil.')
+    }
+    const buscadas = new Set(ids)
+    const aMover = (c: ConexionSshPersistida): boolean => c.profileId === profileId && buscadas.has(c.id) && (c.grupoId ?? null) !== grupoId
+    const movidas = conexionesConocidas(this.reg).filter(aMover).length
+    if (movidas === 0) return { movidas: 0 }
+    this.aplicar((reg) => {
+      for (const c of conexionesConocidas(reg)) {
+        if (!aMover(c)) continue
+        if (grupoId === null) delete c.grupoId
+        else c.grupoId = grupoId
+      }
+    })
+    return { movidas }
   }
 
   // --- Grupos ----------------------------------------------------------------
@@ -409,20 +484,6 @@ export class ConexionesSsh {
   }
 
   // --- Perfiles --------------------------------------------------------------
-
-  /**
-   * Al arrancar: quita las ENTRADAS de perfiles que ya no existen y nunca sus archivos (si la lista
-   * de perfiles se resembrara, una clave importada no se podría recuperar). Sin perfil legible, se conservan.
-   */
-  podarPerfiles(idsVivos: ReadonlySet<string>): void {
-    const podado = podarPerfilesSsh(this.reg, idsVivos)
-    if (podado.grupos.length === this.reg.grupos.length && podado.conexiones.length === this.reg.conexiones.length) return
-    this.aplicar((reg) => {
-      const p = podarPerfilesSsh(reg, idsVivos)
-      reg.grupos = p.grupos
-      reg.conexiones = p.conexiones
-    })
-  }
 
   /** El usuario borró el perfil: se van sus entradas (conocidas y ajenas) y los archivos de sus conexiones. */
   alBorrarPerfil(profileId: string): void {

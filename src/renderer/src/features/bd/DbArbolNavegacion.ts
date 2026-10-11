@@ -7,6 +7,7 @@
 // =============================================================================
 
 import type { DragEvent } from 'react'
+import type { DbKvTipo } from '../../../../shared/db-claves-ipc'
 import type { AnclaPopover } from './DbEsquemasPopover'
 import type { NivelPopover } from './nivelBasesBd'
 import { indicePadre, kindAbreTipo, paneDeFila, type FilaBd, type FilaPlaceholder } from './arbolBd'
@@ -145,6 +146,13 @@ export function cargarMasClaves(a: CtxArbol, conexionId: string, indice: number)
  */
 export function aplicarFiltroClaves(a: CtxArbol, f: FiltroClaves, escrito: string): void {
   cacheMetaBd().filtrarClaves(f.conexionId, f.indice, patronDeFiltro(escrito))
+  if (!a.p.expandidos.has(f.clave)) a.p.onAlternarExpandido(f.clave, true)
+  a.p.onSeleccion(f.clave)
+}
+
+/** Filtra una base de claves por tipo (undefined lo quita) y la despliega, como el filtro por patrón. */
+export function aplicarFiltroTipoClaves(a: CtxArbol, f: FiltroClaves, tipo: DbKvTipo | undefined): void {
+  cacheMetaBd().filtrarTipoClaves(f.conexionId, f.indice, tipo)
   if (!a.p.expandidos.has(f.clave)) a.p.onAlternarExpandido(f.clave, true)
   a.p.onSeleccion(f.clave)
 }

@@ -73,6 +73,7 @@ export interface ManejadoresConsolaClaves {
   ejecutar: () => void
   ejecutarTodo: () => void
   detener: () => void
+  historial: () => void
 }
 
 /** Los acordes de la consola en el editor (los mismos que las otras consolas). */
@@ -107,6 +108,14 @@ export function registrarAccionesConsolaClaves(
       contextMenuGroupId: grupo,
       contextMenuOrder: 3,
       run: () => h.detener()
+    }),
+    ed.addAction({
+      id: 'tessera.consolaClaves.historial',
+      label: 'Historial de comandos…',
+      keybindings: [KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.KeyH],
+      contextMenuGroupId: grupo,
+      contextMenuOrder: 4,
+      run: () => h.historial()
     })
   ]
 }

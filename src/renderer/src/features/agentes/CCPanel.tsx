@@ -46,6 +46,8 @@ export interface MosaicoPanel {
   trabajando: ReadonlySet<string>
   /** Claves cuyo agente terminó un turno que no has mirado. */
   sinVer: ReadonlySet<string>
+  /** Claves cuyo agente te espera. */
+  esperando: ReadonlySet<string>
   /**
    * TODOS los proyectos abiertos con su estado, uno por fila y en orden canónico: el
    * menú de destinos de cada casilla. Es la misma lista del selector «N de M» de la barra.

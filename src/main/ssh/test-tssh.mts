@@ -25,6 +25,7 @@ import { construirEntornoHost } from '../db/hostEnv.ts'
 import { SHIM_DIR, generarShims } from '../db/shims.ts'
 import { escribirArchivosDeAtajo } from '../util/escrituraAtajos.ts'
 import { rutaParaCmd } from '../../shared/citarShell.ts'
+import { crearConfigSaltos } from './adaptadores/configSaltos.ts'
 import { escribirLanzadorAskpass } from './adaptadores/lanzadorAskpass.ts'
 import { asegurarCarpetaProtegida, ejecutarCorto, escribirClaveProtegida } from './adaptadores/permisosClave.ts'
 import { crearRegistroTssh } from './adaptadores/registroTssh.ts'
@@ -292,7 +293,12 @@ try {
     const sinSecreto = conexiones.crear(entrada('sin secreto', { metodo: 'contrasena' }))
     const v6 = conexiones.crear(entrada('v6', { host: '2001:db8::1' }))
     const ajena = conexiones.crear(entrada('ajena', { profileId: 'pb' }))
-    for (const c of [web, nas, oculta, sinSecreto, ajena, v6]) confirmarHuella(conexiones, c.id, c.host, c.puerto)
+    // Un bastión NO disponible para los agentes, con contraseña; y otro sin huella confirmada.
+    const bastion = conexiones.crear(entrada('bastion', { disponibleAgentes: false, metodo: 'contrasena', usuario: 'salta', host: '192.0.2.20', secreto: 'secreto-del-bastion' }))
+    const bastionNuevo = conexiones.crear(entrada('bastion nuevo', { disponibleAgentes: false, host: '192.0.2.21' }))
+    const tras = conexiones.crear(entrada('tras', { host: '10.0.0.5', saltoId: bastion.id }))
+    const trasNuevo = conexiones.crear(entrada('tras nuevo', { host: '10.0.0.6', saltoId: bastionNuevo.id }))
+    for (const c of [web, nas, oculta, sinSecreto, ajena, v6, bastion, tras, trasNuevo]) confirmarHuella(conexiones, c.id, c.host, c.puerto)
     const puente = new DbBridge({ conexionesDelPerfil: () => [], secretoDe: () => null, log: () => {} })
     const fichas = new FichasAskpass()
     const programa = path.join(raiz, 'tessera-askpass.exe')
@@ -313,6 +319,7 @@ try {
       programaAskpass: programa,
       nombrePerfil: (id) => (id === 'pa' ? 'Perfil A' : undefined),
       auditar: (l) => auditadas.push(l),
+      configSaltos: crearConfigSaltos(path.join(raiz, 'ssh', 'saltos')),
       plataforma
     })
     // Escuchando, como cuando contesta a `tssh`: sin él, el programa de contraseñas no daría ninguna.
@@ -324,7 +331,7 @@ try {
 
     const ls = pedir(tokenA, 'ssh.listar')
     const alias = (ls.conexiones as Array<{ alias: string }>).map((c) => c.alias)
-    check('(d1) ssh.listar: solo las disponibles del perfil, y cuántas excluidas', ls.ok === true && j(alias) === j(['nas ’casa’', 'nueva', 'sin secreto', 'v6', 'web']) && ls.excluidas === 1, j({ alias, excluidas: ls.excluidas }))
+    check('(d1) ssh.listar: solo las disponibles del perfil, y cuántas excluidas', ls.ok === true && j(alias) === j(['nas ’casa’', 'nueva', 'sin secreto', 'tras', 'tras nuevo', 'v6', 'web']) && ls.excluidas === 3, j({ alias, excluidas: ls.excluidas }))
     const texto = j(ls)
     check('(d2) ni ids, ni rutas, ni el secreto, ni el nombre de la excluida ni la de otro perfil', !texto.includes(web.id) && !texto.includes(raiz.replace(/\\/g, '\\\\')) && !texto.includes('secreto-de-prueba') && !texto.includes('oculta') && !texto.includes('ajena'), texto.slice(0, 160))
     const filaNueva = (ls.conexiones as Array<Record<string, unknown>>).find((c) => c.alias === 'nueva')
@@ -368,10 +375,24 @@ try {
     check('(d19) la auditoría lleva perfil, subcomando, alias, código y duración, y nada de la salida remota', todas.includes('perfil=pa sub=run alias="nas ’casa’" codigo=255 ms=812 motivo=ssh-huella-cambiada') && todas.includes('sub=run alias="oculta" codigo=4 rechazada') && !todas.includes('hola-secreto-remoto') && !todas.includes('mi programa'), auditadas.slice(-3).join(' | '))
 
     const diag = pedir(tokenA, 'ssh.diagnostico')
-    check('(d20) diagnóstico: perfil, cliente, programa de contraseñas y recuentos', diag.ok === true && diag.perfil === 'Perfil A' && diag.disponibles === 5 && diag.excluidas === 1 && diag.contrasenas === true && (diag.cliente as Record<string, unknown>).ssh === binarios.ssh?.exe, j(diag).slice(0, 160))
+    check('(d20) diagnóstico: perfil, cliente, programa de contraseñas y recuentos', diag.ok === true && diag.perfil === 'Perfil A' && diag.disponibles === 7 && diag.excluidas === 3 && diag.contrasenas === true && (diag.cliente as Record<string, unknown>).ssh === binarios.ssh?.exe, j(diag).slice(0, 160))
     const diagOculta = pedir(tokenA, 'ssh.diagnostico', { alias: 'oculta' })
     const diagNueva = pedir(tokenA, 'ssh.diagnostico', { alias: 'nueva' })
     check('(d21) diagnóstico de un alias: la excluida no aparece; la nueva dice que le falta la huella', diagOculta.conexion === null && (diagOculta.problema as Record<string, unknown>).codigo === CODIGOS.alias && (diagNueva.conexion as Record<string, unknown>).alias === 'nueva' && (diagNueva.problema as Record<string, unknown>).codigo === CODIGOS.huella, j({ o: diagOculta.problema, n: diagNueva.problema }))
+
+    const porBastion = pedir(tokenA, 'ssh.preparar', { alias: 'tras', uso: 'run' })
+    const argsB = (porBastion.args ?? []) as string[]
+    const px = argsB.find((a) => a.startsWith('ProxyCommand=')) ?? ''
+    check(
+      '(d23) por un bastión no disponible para los agentes: salta (ProxyCommand), y la ficha cubre su contraseña sin enseñarla',
+      porBastion.ok === true && px.includes('tessera-salto-0') && j(fichas.conexiones(String(porBastion.ficha))) === j([tras.id, bastion.id]) && !j(porBastion).includes('secreto-del-bastion'),
+      j({ ok: porBastion.ok, error: porBastion.error, px: px.slice(0, 60) })
+    )
+    const ls2 = pedir(tokenA, 'ssh.listar')
+    check('(d24) el bastión sigue sin aparecer en `tssh ls`', !(ls2.conexiones as Array<{ alias: string }>).some((c) => c.alias.startsWith('bastion')), j((ls2.conexiones as Array<{ alias: string }>).map((c) => c.alias)))
+    const trasSin = pedir(tokenA, 'ssh.preparar', { alias: 'tras nuevo', uso: 'run' })
+    check('(d25) un bastión sin huella confirmada: código 5, nombrándolo', trasSin.codigo === CODIGOS.huella && String(trasSin.error).includes('«bastion nuevo»'), String(trasSin.error))
+    pedir(tokenA, 'ssh.terminar', { ficha: porBastion.ficha, alias: 'tras', uso: 'run', codigo: 0, ms: 1 })
 
     const env = entornoHijo({ PATH: 'C:\\Windows', Path2: 'x', TESSERA_DB_SESSION: 'tok', SSH_ASKPASS: 'otro' }, QUITAR_ENV_TSSH as string[], { PATH: 'C:\\askpass', TESSERA_SSH_TOKEN: 'ficha' })
     check('(d22) el entorno del hijo: sin la sesión ni el askpass heredado, con la ficha, y el PATH antepuesto', env.TESSERA_DB_SESSION === undefined && env.SSH_ASKPASS === undefined && env.TESSERA_SSH_TOKEN === 'ficha' && env.PATH === `C:\\askpass${path.delimiter}C:\\Windows`, j(env))

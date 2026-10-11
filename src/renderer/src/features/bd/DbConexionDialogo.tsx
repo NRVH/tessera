@@ -16,6 +16,8 @@ import type { DbArchivoElegido, DbConnection, DbMotor, DriverRequerido } from '.
 import { ayudasTrasFila, ayudasTrasFilaCredenciales, driversDelMotor, type CampoConexion } from './camposConexion'
 import { DriversLista, textoProgresoDriver } from './DriversLista'
 import { CampoArchivo, FilasDelFormulario } from './DbConexionCampos'
+import { SelectorTunelSsh } from './DbConexionTunel'
+import { ClaveSentinels, SelectorTopologiaRedis } from './DbConexionTopologia'
 import {
   CabeceraConexion,
   CampoNotas,
@@ -121,6 +123,7 @@ function FormularioConexion({ v, enfocarPassword }: { v: VistaConexion; enfocarP
         />
       )}
       {descriptor.uri && <CampoUri esquema={descriptor.uri} uri={e.uri} setUri={e.setUri} botonRef={v.botonUriRef} aplicarUri={a.aplicarUri} />}
+      <SelectorTopologiaRedis borrador={borrador} invalido={v.marcados.includes('topologiaRedis')} editar={a.editar} setBorrador={e.setBorrador} />
       <FilasDelFormulario filas={descriptor.filas} ayudas={ayudasTrasFila} {...filas} />
       {v.conCredenciales && (
         <CredencialesConexion
@@ -134,7 +137,9 @@ function FormularioConexion({ v, enfocarPassword }: { v: VistaConexion; enfocarP
         />
       )}
       {v.conCredenciales && v.avisoPassword && <div className="dbc-aviso">{v.avisoPassword}</div>}
+      {v.conCredenciales && <ClaveSentinels borrador={borrador} editar={a.editar} />}
       <FilasDelFormulario filas={descriptor.filasTrasCredenciales} ayudas={ayudasTrasFilaCredenciales} {...filas} />
+      <SelectorTunelSsh borrador={borrador} editar={a.editar} />
       <CasillaSoloLectura borrador={borrador} editar={a.editar} />
       <SelectorEntorno borrador={borrador} editar={a.editar} nombreRadio={e.nombreRadioEntorno} idAyuda={e.idAyudaEntorno} />
       <CampoNotas borrador={borrador} editar={a.editar} />

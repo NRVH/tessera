@@ -14,6 +14,7 @@ import {
   SANDBOX_IMAGE,
   WORKSPACE_ROOT,
   agentcfgRootFor,
+  argsEtiquetaInstancia,
   containerNameFor,
   managedRootFor,
   sshMountArgs
@@ -176,9 +177,10 @@ export class ContenedoresSandbox {
       // `.ssh` del perfil (READ-ONLY, solo la suya) y las carpetas ssh globales.
       ...sshMountArgs(profile),
       ...this.montajes.globalSshMountArgs(),
+      ...argsEtiquetaInstancia(),
       '-w',
       WORKSPACE_ROOT,
-      SANDBOX_IMAGE,
+      this.n.imagen,
       ...KEEPALIVE_CMD
     ]
   }

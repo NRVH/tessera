@@ -191,6 +191,52 @@ export function podarRecientes(mapa: SshRecientesPorPerfil, vivas: ReadonlySet<s
   return cambio ? out : mapa
 }
 
+// --- Las pestañas SSH abiertas, para el siguiente arranque --------------------------------------
+
+/** Tope de pestañas SSH que se recuerdan por perfil: más no las abre nadie a mano. */
+export const SSH_PESTANAS_MAX = 30
+
+/** Tope del nombre puesto a mano y del alias que se recuerdan de una pestaña. */
+const SSH_NOMBRE_PESTANA_MAX = 200
+
+/** Una pestaña SSH (o del explorador SFTP) abierta: su conexión, su nombre a mano y el alias que se le conocía. */
+export interface SshPestanaGuardada {
+  conexionId: string
+  /** El alias de la conexión al cerrar, para rotularla antes de que llegue la lista de conexiones. */
+  alias: string
+  nombre?: string
+  sftp?: true
+}
+
+/** Lo que se guarda: perfil -> sus pestañas SSH abiertas, en su orden. */
+export type SshPestanasPorPerfil = Record<string, SshPestanaGuardada[]>
+
+/** Una pestaña guardada saneada, o `null` si no tiene la forma. */
+function pestanaGuardada(raw: unknown): SshPestanaGuardada | null {
+  if (typeof raw !== 'object' || raw === null) return null
+  const p = raw as Record<string, unknown>
+  if (typeof p.conexionId !== 'string' || !ID_CONEXION.test(p.conexionId) || typeof p.alias !== 'string') return null
+  const out: SshPestanaGuardada = { conexionId: p.conexionId, alias: p.alias.slice(0, SSH_NOMBRE_PESTANA_MAX) }
+  if (typeof p.nombre === 'string' && p.nombre.trim() !== '') out.nombre = p.nombre.slice(0, SSH_NOMBRE_PESTANA_MAX)
+  if (p.sftp === true) out.sftp = true
+  return out
+}
+
+/**
+ * Las pestañas SSH guardadas SANEADAS: se descarta la entrada mala y nunca el mapa entero, con tope por
+ * perfil. Un perfil sin ninguna no ocupa entrada.
+ */
+export function normalizarPestanasSshPorPerfil(raw: unknown): SshPestanasPorPerfil {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {}
+  const out: SshPestanasPorPerfil = {}
+  for (const [perfil, lista] of Object.entries(raw as Record<string, unknown>)) {
+    if (perfil.length === 0 || !Array.isArray(lista)) continue
+    const limpias = lista.map(pestanaGuardada).filter((p): p is SshPestanaGuardada => p !== null).slice(0, SSH_PESTANAS_MAX)
+    if (limpias.length > 0) out[perfil] = limpias
+  }
+  return out
+}
+
 // --- El agente de la terminal --------------------------------------------------------------
 
 /** Lo que se guarda: perfil -> el usuario quiere ver el agente de la terminal a pantalla completa. Sin entrada = oculto. */

@@ -10,6 +10,7 @@
 
 const exactos = require('./exactosSqlserver.cjs')
 const celdasSqlserver = require('./celdasSqlserver.cjs')
+const { certificadosDeConfianza, causaTls, mensajeCertificado, servidorDeMensaje } = require('./tlsComun.cjs')
 
 /** La versión de tedious contra la que se escribió y se probó el parche de valores exactos. */
 const VERSION_TEDIOUS = '20.3.3'
@@ -72,34 +73,6 @@ function errorSqlServer(codigo, mensaje, extra) {
 
 // --- Configuración de la conexión (pura) ---------------------------------------------
 
-/**
- * Las CA en las que se confía al VERIFICAR el certificado del servidor: las del paquete de
- * Node y las del SISTEMA (almacén de Windows, llavero de macOS), sin repetir. `tlsMod` entra
- * por parámetro (el test lo sustituye). null si este Node no sabe leerlas (entonces tedious
- * usa las de Node).
- */
-function certificadosDeConfianza(tlsMod) {
-  const t = tlsMod || require('node:tls')
-  if (!t || typeof t.getCACertificates !== 'function') return null
-  const vistos = new Set()
-  const salida = []
-  for (const tipo of ['bundled', 'system']) {
-    let lista
-    try {
-      lista = t.getCACertificates(tipo) || []
-    } catch {
-      lista = []
-    }
-    for (const c of lista) {
-      if (!vistos.has(c)) {
-        vistos.add(c)
-        salida.push(c)
-      }
-    }
-  }
-  return salida.length > 0 ? salida : null
-}
-
 /** El cifrado efectivo de una conexión: el guardado o, sin él, cifrar y verificar (`TLS_POR_DEFECTO`). */
 function tlsDe(con) {
   const t = con && con.tls
@@ -155,6 +128,8 @@ function opcionesTedious(con, t, o) {
   if (t.cifrar && !t.confiarCertificado && Array.isArray(o.cas) && o.cas.length > 0) {
     opciones.cryptoCredentialsDetails = { ca: o.cas }
   }
+  // Por túnel SSH, el certificado se verifica contra el host real (tedious lo usa como `servername`).
+  if (t.cifrar && !t.confiarCertificado && typeof con.hostTls === 'string' && con.hostTls !== '') opciones.serverName = con.hostTls
   return opciones
 }
 
@@ -280,23 +255,6 @@ function erroresDe(err) {
   return [err]
 }
 
-/** La causa TLS de un error de conexión (tedious envuelve el de Node en `cause`). */
-function causaTls(err) {
-  let e = err
-  for (let i = 0; i < 4 && e; i++) {
-    const codigo = typeof e.code === 'string' ? e.code : ''
-    const msg = typeof e.message === 'string' ? e.message : ''
-    if (
-      /CERT|SELF_SIGNED|UNABLE_TO_(GET|VERIFY)|ERR_TLS/.test(codigo) ||
-      /self[- ]signed certificate|unable to verify|certificate (has expired|is not yet valid)|Hostname\/IP does not match/i.test(msg)
-    ) {
-      return e
-    }
-    e = e.cause
-  }
-  return null
-}
-
 /** ¿Deja el error la conexión inservible? ESOCKET, EINVALIDSTATE, ECLOSE o severidad >= 20 (596 de un KILL, 233…). */
 function esPerdida(err) {
   if (!err) return false
@@ -323,9 +281,7 @@ function errorDeConexion(d) {
   const tlsMalo = causaTls(err)
   if (tlsMalo) {
     return {
-      mensaje:
-        `No se pudo verificar el certificado de ${servidor} (${String(tlsMalo.message || tlsMalo.code)}). ` +
-        'Si es un servidor de tu red con un certificado propio, marca «Confiar en el certificado del servidor» en la conexión.',
+      mensaje: mensajeCertificado(servidor, tlsMalo, true),
       codigo: 'TESSERA-MSSQL-CERTIFICADO',
       clase: 'servidor'
     }
@@ -385,7 +341,7 @@ function normalizarError(err, con) {
   const lista = erroresDe(err)
   const primero = lista[0] || err || {}
   const codigoTedious = typeof primero.code === 'string' ? primero.code : typeof (err && err.code) === 'string' ? err.code : ''
-  const servidor = con && con.host ? (con.instancia ? `${con.host}\\${con.instancia}` : `${con.host}:${con.port}`) : 'el servidor'
+  const servidor = con && con.host ? (con.instancia ? `${con.host}\\${con.instancia}` : servidorDeMensaje(con)) : 'el servidor'
   return errorDeConexion({ err, con, primero, codigo: codigoTedious, servidor }) ?? errorDePeticion(err, lista, primero, codigoTedious)
 }
 

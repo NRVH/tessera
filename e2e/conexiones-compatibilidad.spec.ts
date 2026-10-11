@@ -6,7 +6,7 @@
 // arrancar y lee el archivo al final; las reglas las fijan `test-filas-arbol-bd.mts` y
 // `test-registro-conexiones.mts`. Solo el primer bloque abre una sesión (PostgreSQL de
 // `postgresEfimero.ts`; sin Docker se salta). Cada bloque va en serie con su app. Borrar:
-// `Supr` aquí y `⌘⌫` en Mac (`esAtajoBorrado`), donde queda escrito y SIN VERIFICAR.
+// `Supr` aquí y `⌘⌫` en Mac (`esAtajoBorrado`).
 // =============================================================================
 
 import { expect, test, type Page } from '@playwright/test'
@@ -21,7 +21,7 @@ import { PERFILES_SIN_SANDBOX, PLATAFORMA, abrirTessera, borrarTemporal, type Se
 const PERFIL = 'personal'
 const ID_PG = 'e2e-compat-pg'
 const ALIAS_PG = 'PG-COMPAT'
-const ID_AJENA = 'e2e-compat-mysql'
+const ID_AJENA = 'e2e-compat-db2'
 const ALIAS_AJENA = 'SQLS-FUTURA'
 /** Montada en el proyecto pero inexistente en el registro: la poda SÍ tiene que quitarla. */
 const ID_BORRADA = 'e2e-compat-borrada'
@@ -35,7 +35,7 @@ const AJENA_EN_DISCO = {
   id: ID_AJENA,
   profileId: PERFIL,
   alias: ALIAS_AJENA,
-  motor: 'mysql',
+  motor: 'db2',
   host: '127.0.0.1',
   port: 1433,
   database: 'ventas',
@@ -196,8 +196,8 @@ test.describe('explorador de BD: conexiones de un motor que esta versión no con
     await expect(ajena, 'la ajena montada no sale en el selector (su montaje sería un número fantasma)').toHaveCount(1, {
       timeout: 15_000
     })
-    await expect(ajena.locator('.db-mount-dest')).toHaveText(`mysql · ${TEXTO_AJENA}`)
-    await expect(ajena).toHaveAttribute('title', /Motor: mysql/)
+    await expect(ajena.locator('.db-mount-dest')).toHaveText(`db2 · ${TEXTO_AJENA}`)
+    await expect(ajena).toHaveAttribute('title', /Motor: db2/)
     await expect(ajena, 'allí la salida es desmontarla, no eliminarla').toHaveAttribute('title', /desmontar/)
     await pop.getByRole('button', { name: 'Cerrar' }).click()
     await expect(pop).toHaveCount(0)
@@ -215,8 +215,8 @@ test.describe('explorador de BD: conexiones de un motor que esta versión no con
     await expect(ajena, 'la conexión ajena no aparece en el árbol (desaparecía sin decir nada)').toHaveCount(1)
     await expect(fila(win, 'conexion', ALIAS_PG)).toHaveCount(1)
     await expect(ajena).toContainText(TEXTO_AJENA)
-    await expect(ajena).toContainText('mysql')
-    await expect(ajena).toHaveAttribute('title', /Motor: mysql/)
+    await expect(ajena).toContainText('db2')
+    await expect(ajena).toHaveAttribute('title', /Motor: db2/)
     // Al FINAL, aunque en el archivo va la primera: detrás de las conexiones conocidas.
     expect(await tiposDeFilas(win)).toEqual(['conexion', 'ajena'])
     // Sin chevron ni punto de sesión: no hay nada que desplegar ni a qué conectarse.

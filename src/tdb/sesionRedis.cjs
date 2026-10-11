@@ -1,6 +1,7 @@
 // =============================================================================
 // Sesión Redis del proceso de sesión del explorador: una conexión por sesión, con su base, su
-// MULTI y su `CLIENT ID` (lo que hace falta para soltarla con `CLIENT UNBLOCK` desde otra).
+// MULTI y su `CLIENT ID` (lo que hace falta para soltarla con `CLIENT UNBLOCK` desde otra). Con
+// Sentinel se reabre sola hacia el maestro de ahora; en Cluster cancelar es abandonar.
 // `sesion.cjs` despacha aquí `abrir`, `cancelar`, `cerrar` y la op `claves`; las operaciones SQL
 // del protocolo responden `protocolo`. Conectar, partir, clasificar y leer valores es de
 // `redisComun.cjs`, compartido con `tdb`. La política de solo lectura la aplica el trabajador.
@@ -17,6 +18,8 @@ const PLAZO_AUXILIAR_MS = 3000
 const MENSAJE_CANCELADA = 'Operación cancelada.'
 const MENSAJE_ABANDONADA =
   'Operación cancelada: Redis no interrumpe un comando en curso, así que el servidor puede haberlo terminado igual.'
+const MENSAJE_SIN_MAESTRO =
+  'La conexión con el maestro se cerró (puede ser un failover): vuelve a intentarlo y Tessera preguntará a los sentinels por el maestro de ahora.'
 
 function protocolo(mensaje) {
   return errorTrabajador('protocolo', mensaje, 'TESSERA-MENSAJE')
@@ -44,6 +47,8 @@ function politicaDe(a) {
 const cerradasPorNosotros = new WeakSet()
 
 async function idDe(cliente) {
+  // En Cluster cada comando puede ir a un nodo distinto: no hay UN cliente que soltar, se abandona.
+  if (comun.esCluster(cliente)) return null
   try {
     const r = await cliente.callBuffer('CLIENT', 'ID')
     return r === null || r === undefined ? null : String(r)
@@ -58,6 +63,8 @@ function instalar(s, cliente) {
   s.plantilla = cliente
   cliente.once('end', () => {
     if (cerradasPorNosotros.has(cliente) || s.cerrando || s.cliente !== cliente) return
+    // Sentinel: el maestro cerró (un failover lo degrada a réplica); `asegurar` pregunta otra vez.
+    if (comun.esSentinel(cliente)) return
     if (typeof s.ganchos.alPerder === 'function') {
       s.ganchos.alPerder({ clase: 'perdida', mensaje: 'La conexión con Redis se cerró.' })
     }
@@ -73,11 +80,15 @@ function soltarConexion(s) {
   comun.desconectar(c)
 }
 
-/** La conexión de la sesión, reabierta si se abandonó al cancelar. */
+/**
+ * La conexión de la sesión, reabierta si se abandonó al cancelar. Con Sentinel, también si se cerró:
+ * la nueva va al maestro que digan ahora los sentinels (un MULTI abierto se pierde).
+ */
 async function asegurar(s) {
   if (s.cliente) {
-    if (s.cliente.status === 'end') throw errorTrabajador('perdida', 'La conexión con Redis se cerró.')
-    return s.cliente
+    if (s.cliente.status !== 'end') return s.cliente
+    if (!comun.esSentinel(s.cliente)) throw errorTrabajador('perdida', 'La conexión con Redis se cerró.')
+    soltarConexion(s)
   }
   const c = await comun.reconectar(s.plantilla)
   instalar(s, c)
@@ -225,6 +236,20 @@ const OPERACIONES = new Map([
   ['consola', consola]
 ])
 
+/**
+ * El error con el que acaba una operación: el de cancelada (soltada o abandonada) si se canceló, el
+ * de un maestro que cerró con Sentinel, o el que fue.
+ */
+async function errorDeOperacion(s, en, err) {
+  const t = err && err.trabajador
+  if (s.cancelada === en && !(t && (t.clase === 'protocolo' || t.clase === 'soloLectura'))) {
+    if (en.soltando) await en.soltando
+    return errorTrabajador('cancelada', en.soltada ? MENSAJE_CANCELADA : MENSAJE_ABANDONADA)
+  }
+  if (comun.esSentinel(en.cliente) && comun.esPerdida(err)) return errorTrabajador('perdida', MENSAJE_SIN_MAESTRO)
+  return err
+}
+
 /** La op `claves` de `sesion.cjs` (dentro de `operar`: una a la vez por sesión). */
 async function claves(s, operacion, args) {
   const fn = OPERACIONES.get(operacion)
@@ -238,12 +263,7 @@ async function claves(s, operacion, args) {
     if (s.cancelada === en) throw errorTrabajador('cancelada', MENSAJE_CANCELADA)
     return await fn(s, args || {}, en)
   } catch (err) {
-    const t = err && err.trabajador
-    if (s.cancelada === en && !(t && (t.clase === 'protocolo' || t.clase === 'soloLectura'))) {
-      if (en.soltando) await en.soltando
-      throw errorTrabajador('cancelada', en.soltada ? MENSAJE_CANCELADA : MENSAJE_ABANDONADA)
-    }
-    throw err
+    throw await errorDeOperacion(s, en, err)
   } finally {
     if (s.enCurso === en) s.enCurso = null
     if (s.cancelada === en) s.cancelada = null

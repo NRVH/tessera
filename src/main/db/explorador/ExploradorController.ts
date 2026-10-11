@@ -51,6 +51,8 @@ import type { Exportador } from './exportacion.ts'
 import { falloTodaviaNo, mensajeTodaviaNo } from './familias.ts'
 import { ErrorGestor, type GestorSesiones } from './GestorSesiones.ts'
 import type { HistorialStore } from './HistorialStore.ts'
+import type { EntradaHistorialDocs } from './documentos/ControladorDocumentos.ts'
+import type { EntradaHistorialClaves } from './claves/ControladorClaves.ts'
 
 export type {
   ConexionesExplorador,
@@ -136,10 +138,10 @@ export class ExploradorController implements ContextoExplorador {
   readonly alBorrarConexion = this.salida.alBorrarConexion.bind(this.salida)
   readonly alOlvidarConexionEnPerfil = this.salida.alOlvidarConexionEnPerfil.bind(this.salida)
   readonly alBorrarPerfil = this.salida.alBorrarPerfil.bind(this.salida)
-  readonly podarHistorial = this.salida.podarHistorial.bind(this.salida)
   readonly puedeEditarConexion = this.salida.puedeEditarConexion.bind(this.salida)
   readonly antesDeCambiarDriver = this.salida.antesDeCambiarDriver.bind(this.salida)
   readonly fijarAjustes = this.salida.fijarAjustes.bind(this.salida)
+  readonly ajustesVigentes = this.salida.ajustesVigentes.bind(this.salida)
   readonly barrer = this.salida.barrer.bind(this.salida)
   readonly confirmarSalida = this.salida.confirmarSalida.bind(this.salida)
   readonly vaciarConsolas = this.salida.vaciarConsolas.bind(this.salida)
@@ -157,6 +159,19 @@ export class ExploradorController implements ContextoExplorador {
     this.historial = crearHistorial(this)
     this.gestor = crearGestor(this, this.historial)
     this.exportador = crearExportador(this, (op, ventana) => this.exportacion.dialogoGuardar(op, ventana))
+  }
+
+  /**
+   * Una orden de la consola de documentos al historial, sin esperar: el historial nunca retrasa
+   * ni rompe la respuesta. Un perfil borrado mientras corría no deja entradas.
+   */
+  anotarHistorialDocs(e: EntradaHistorialDocs): void {
+    if (this.historial && this.opciones.perfilVivo(e.perfilId)) void this.historial.anotarMongosh(e)
+  }
+
+  /** Un comando de la consola de Redis al historial, con las mismas garantías que el de documentos. */
+  anotarHistorialClaves(e: EntradaHistorialClaves): void {
+    if (this.historial && this.opciones.perfilVivo(e.perfilId)) void this.historial.anotarRedis(e)
   }
 
   /** Escribe una línea en el registro; el registro no puede romper lo que registra. */

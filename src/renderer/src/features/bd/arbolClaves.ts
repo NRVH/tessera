@@ -8,7 +8,7 @@
 // Decisiones: docs/decisiones/bd/ui-claves-arbol.md
 // =============================================================================
 
-import type { DbKvBases, DbKvBytes, DbKvClave, DbKvPaginaClaves } from '../../../../shared/db-claves-ipc.ts'
+import type { DbKvBases, DbKvBytes, DbKvClave, DbKvPaginaClaves, DbKvTipo } from '../../../../shared/db-claves-ipc.ts'
 import type { DbErrorSql, DbRespuesta } from '../../../../shared/db-explorador-ipc.ts'
 import type { DescriptorClaves } from '../../../../shared/motores/index.ts'
 import { pintarBytes } from './claves/bytesClaves.ts'
@@ -31,9 +31,23 @@ export const TEXTOS_CLAVES = {
   reintentar: 'Reintentar'
 } as const
 
-/** Lo que dice una base sin ninguna clave que case con su patrón. */
-export function textoSinCoincidencias(patron: string): string {
-  return `Ninguna clave casa con ${patron}`
+/** Lo que dice una base sin ninguna clave que case con su patrón y su tipo (cualquiera de los dos puede faltar). */
+export function textoSinCoincidencias(patron: string, tipo?: DbKvTipo): string {
+  if (tipo === undefined) return `Ninguna clave casa con ${patron}`
+  return patron === '' ? `Ninguna clave de tipo ${tipo.toUpperCase()}` : `Ninguna clave de tipo ${tipo.toUpperCase()} casa con ${patron}`
+}
+
+/** Los tipos por los que se filtra el árbol (los que el servidor admite en `SCAN … TYPE`). */
+export const TIPOS_FILTRABLES: readonly DbKvTipo[] = ['string', 'hash', 'list', 'set', 'zset', 'stream', 'json']
+
+/** El TTL de la fila de una clave, en una sola unidad y corto: «45 s», «12 min», «3 h», «2 d». */
+export function ttlCorto(ms: number): string {
+  if (ms < 1000) return '<1 s'
+  const s = Math.floor(ms / 1000)
+  if (s < 60) return `${s} s`
+  if (s < 3600) return `${Math.floor(s / 60)} min`
+  if (s < 86400) return `${Math.floor(s / 3600)} h`
+  return `${Math.floor(s / 86400)} d`
 }
 
 /**

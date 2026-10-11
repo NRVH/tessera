@@ -12,6 +12,7 @@ import { ESCRITURA_ORACLE } from './oracle.ts'
 import { ESCRITURA_POSTGRES } from './postgres.ts'
 import { ESCRITURA_SQLITE } from './sqlite.ts'
 import { ESCRITURA_SQLSERVER } from './sqlserver.ts'
+import { ESCRITURA_MYSQL } from './mysql.ts'
 
 export type { EscrituraSqlMotor, TerminadorSql, VistaDml } from './tipos.ts'
 
@@ -23,7 +24,8 @@ export const ESCRITURA_SQL: Readonly<Record<DbMotorSql, EscrituraSqlMotor>> = {
   oracle: ESCRITURA_ORACLE,
   postgres: ESCRITURA_POSTGRES,
   sqlite: ESCRITURA_SQLITE,
-  sqlserver: ESCRITURA_SQLSERVER
+  sqlserver: ESCRITURA_SQLSERVER,
+  mysql: ESCRITURA_MYSQL
 }
 
 /**

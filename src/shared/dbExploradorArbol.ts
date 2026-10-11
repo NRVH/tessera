@@ -30,6 +30,8 @@ export type DbTipoObjeto =
   | 'tipoColeccion'
   | 'tipo'
   | 'disparador'
+  /** Evento programado de MySQL y MariaDB (`CREATE EVENT … ON SCHEDULE`). */
+  | 'evento'
 
 /** Tipos que se abren como pestaña de DATOS (rejilla). */
 export const TIPOS_CON_DATOS: readonly DbTipoObjeto[] = [

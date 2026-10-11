@@ -45,6 +45,7 @@ export interface ManejadoresConsolaDocs {
   ejecutar: () => void
   ejecutarTodo: () => void
   detener: () => void
+  historial: () => void
 }
 
 /** Los acordes de la consola en el editor (los mismos que la SQL; ver el ADR). */
@@ -79,6 +80,14 @@ export function registrarAccionesConsolaDocs(
       contextMenuGroupId: grupo,
       contextMenuOrder: 3,
       run: () => h.detener()
+    }),
+    ed.addAction({
+      id: 'tessera.consolaDocs.historial',
+      label: 'Historial de órdenes…',
+      keybindings: [KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.KeyH],
+      contextMenuGroupId: grupo,
+      contextMenuOrder: 4,
+      run: () => h.historial()
     })
   ]
 }

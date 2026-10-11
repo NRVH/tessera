@@ -66,6 +66,7 @@ export function claveRutaArchivo(ruta: string, plataforma: Plataforma = platafor
       return path.win32.normalize(nfc).toLowerCase()
     case 'mac':
       return path.posix.normalize(nfc).toLowerCase()
+    case 'linux':
     case 'otra':
       return path.posix.normalize(nfc)
     default:

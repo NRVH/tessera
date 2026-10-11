@@ -68,7 +68,9 @@ function aplicar(resultado: AgentHibernarInactivosResult, v: Vivo): void {
     const { profileId, projectHostPath } = hibernado
     for (const s of hibernado.sesiones) {
       // Antes de marcar: el pane suelta su sesión al verse hibernado y ya no se le encontraría.
-      if (s.resumeSessionId) panes.find((p) => p.sessionId() === s.sessionId)?.reanudarCon(s.resumeSessionId)
+      const pane = panes.find((p) => p.sessionId() === s.sessionId)
+      if (s.resumeSessionId) pane?.reanudarCon(s.resumeSessionId)
+      else if (s.nuevaSiNadaDesde !== undefined) pane?.reanudarSiHuboDesde(s.nuevaSiNadaDesde)
     }
     v.tabs.hibernarAgentes(profileId, projectHostPath)
     // En otra tarea: el pane tiene que verse hibernado en un commit propio para soltar el

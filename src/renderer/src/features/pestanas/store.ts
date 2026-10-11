@@ -41,6 +41,8 @@ export interface EstadoPestanas {
   hibernando: Set<string>
   /** Claves `${profileId}|${projectHostPath}` de proyectos en modo nativo; se persiste. */
   windowsModeKeys: Set<string>
+  /** Colores de perfil fijados en el selector de color; se persiste (`coloresPerfilFijados`). */
+  coloresFijados: string[]
   modeAsk: PreguntaModo | null
 }
 
@@ -51,6 +53,7 @@ export const useStorePestanas = create<EstadoPestanas>()(() => ({
   confirmado: null,
   hibernando: new Set(),
   windowsModeKeys: new Set(),
+  coloresFijados: [],
   modeAsk: null
 }))
 

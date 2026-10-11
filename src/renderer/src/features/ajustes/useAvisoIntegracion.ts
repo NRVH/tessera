@@ -6,16 +6,23 @@
 import { useEffect } from 'react'
 import { notify } from '../../comun/notifications'
 import { nombresSistema } from '../../../../shared/nombresSistema'
+import type { Plataforma } from '../../../../shared/plataforma'
 import { useStoreAjustes } from './store'
 
 /** Pregunta la disponibilidad al canal de la plataforma y si ya está encendida. */
-function estadoIntegracion(esMac: boolean): Promise<{ disponibilidad: string; yaEsta: boolean }> {
-  return esMac
-    ? window.tessera.servicioFinder.estado().then((e) => ({ ...e, yaEsta: e.instalado }))
-    : window.tessera.shellWindows.integracionEstado().then((e) => ({
-        ...e,
-        yaEsta: e.aplicado.carpetas || e.aplicado.archivos || e.aplicado.extensiones.length > 0
-      }))
+function estadoIntegracion(
+  plataforma: Plataforma
+): Promise<{ disponibilidad: string; yaEsta: boolean }> {
+  if (plataforma === 'mac') {
+    return window.tessera.servicioFinder.estado().then((e) => ({ ...e, yaEsta: e.instalado }))
+  }
+  if (plataforma === 'linux') {
+    return window.tessera.escritorioLinux.estado().then((e) => ({ ...e, yaEsta: e.instalado }))
+  }
+  return window.tessera.shellWindows.integracionEstado().then((e) => ({
+    ...e,
+    yaEsta: e.aplicado.carpetas || e.aplicado.archivos || e.aplicado.extensiones.length > 0
+  }))
 }
 
 /** Enseña una vez el aviso de la integración con el gestor de archivos. */
@@ -25,9 +32,12 @@ export function useAvisoIntegracion(): void {
   useEffect(() => {
     if (!settingsLoaded || menuWindowsAvisado) return
     let vivo = true
-    const n = nombresSistema(window.tessera.plataforma)
-    const esMac = window.tessera.plataforma === 'mac'
-    estadoIntegracion(esMac)
+    const plataforma = window.tessera.plataforma
+    const n = nombresSistema(plataforma)
+    const esMac = plataforma === 'mac'
+    // En Windows también se ofrece sobre archivos; en macOS y Linux, solo carpetas.
+    const soloCarpetas = esMac || plataforma === 'linux'
+    estadoIntegracion(plataforma)
       .then((e) => {
         if (!vivo || e.disponibilidad !== 'ok') return
         // Ya encendida: no se avisa y se da por avisado (si no, al apagarla llegaría el estreno).
@@ -36,7 +46,7 @@ export function useAvisoIntegracion(): void {
             'info',
             `Nuevo: «${esMac ? 'Abrir en' : 'Abrir con'} Tessera» en ${n.gestorArchivos}`,
             'Actívalo en Configuración › Integración con el sistema para abrir ' +
-              (esMac ? 'una carpeta' : 'una carpeta o un archivo') +
+              (soloCarpetas ? 'una carpeta' : 'una carpeta o un archivo') +
               ' desde el botón derecho.'
           )
         }

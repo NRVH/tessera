@@ -1,7 +1,8 @@
 // =============================================================================
 // El explorador SFTP de verdad (E24), contra el servidor SSH de pruebas y con el OpenSSH del sistema: se
 // abre desde el menú de la conexión con su contraseña guardada, lista la carpeta de inicio, crea una carpeta,
-// entra y sale, y la borra con su confirmación. Solo corre con el servidor de pruebas levantado:
+// entra y sale, y la borra con su confirmación; sin contraseña guardada, la pide en el diálogo de Tessera.
+// Solo corre con el servidor de pruebas levantado:
 // `bash scripts/pruebas/ssh.sh correr npx playwright test e2e/explorador-sftp.spec.ts`; si no, se salta.
 // =============================================================================
 
@@ -103,5 +104,30 @@ test.describe.serial('El explorador SFTP contra un servidor de verdad', () => {
     const confirmar = win.getByRole('dialog', { name: 'Eliminar 1 elemento' })
     await confirmar.getByRole('button', { name: 'Eliminar', exact: true }).click()
     await expect(fila, 'se borró y la lista se refrescó').toHaveCount(0, { timeout: 15_000 })
+  })
+
+  test('sin contraseña guardada, la pide en el diálogo de Tessera y abre', async () => {
+    const win = s.win
+    const [host, puerto] = (DESTINO ?? '').split(':')
+    const secreto = readFileSync(join(SECRETOS ?? '', 'ssh-pw.txt'), 'utf8').trim()
+    await win.evaluate(
+      ({ host, puerto }) =>
+        window.tessera.ssh.crear({ profileId: 'personal', alias: 'Sin guardar', grupoId: null, host, puerto, usuario: 'pruebas', metodo: 'contrasena', disponibleAgentes: true }),
+      { host, puerto: Number(puerto) }
+    )
+    await win.locator('section.terminal-panel .panel-header').first().hover()
+    await panel().getByRole('button', { name: 'Conexiones SSH', exact: true }).click()
+    const lista = win.getByRole('dialog', { name: 'Conexiones SSH' })
+    await lista.getByRole('treeitem', { name: /^Sin guardar,/ }).click({ button: 'right' })
+    await win.getByRole('menuitem', { name: 'Abrir explorador SFTP' }).click()
+
+    const pregunta = win.getByRole('dialog', { name: 'Conexión SSH «Sin guardar»' })
+    await expect(pregunta, 'el explorador pregunta la contraseña').toBeVisible({ timeout: 30_000 })
+    await expect(pregunta).toContainText(`Contraseña de pruebas@${host}`)
+    await pregunta.locator('input[type="password"]').fill(secreto)
+    await pregunta.locator('input[type="password"]').press('Enter')
+    await expect(pregunta).toHaveCount(0)
+    const explorador = panel().locator('.terminal-pane:visible')
+    await expect(explorador.getByRole('toolbar', { name: 'Archivos remotos por SFTP' }), 'conectó con lo escrito').toBeVisible({ timeout: 30_000 })
   })
 })

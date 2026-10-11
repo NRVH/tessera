@@ -23,7 +23,11 @@ al revés): había que llevar las dos a mano para leer lo que se está escribien
 - Un `scroll` en el que cambió la MEDIDA del lado (alto o visible) y no su posición es un
   repintado, no un gesto, y no se propaga: la vista se refresca al escribir y el navegador acota
   y repone su scroll; un diagrama mide 0 hasta dibujarse. Sin esta regla, escribir movía el código
-  solo. El siguiente gesto real vuelve a casar los lados.
+  solo. El siguiente gesto real vuelve a casar los lados. Excepción: si el lado queda AL FINAL sí
+  se propaga. Llegar al final del código puede hacer aparecer o desaparecer su barra horizontal,
+  y ese cambio de alto llega en el último aviso del gesto; sin la excepción, la vista se quedaba
+  unos píxeles antes del final. En la vista hace falta además haber bajado: un refresco que la
+  encoge la acota al final sin que nadie la mueva.
 - Se suscribe al editor (`onDidScrollChange`) y al `scroll` del contenedor de la vista, solo en
   el pane visible, y se re-suscribe si el pane cambia de modelo.
 

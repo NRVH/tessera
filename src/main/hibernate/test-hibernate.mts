@@ -106,8 +106,7 @@ async function main(): Promise<void> {
     profiles: ALL,
     sandbox,
     eventos,
-    dockerfileDir: path.join(REPO_ROOT, 'docker', 'sandbox'),
-    bootstrapTarget: { profileId: P_A.id, projectHostPath: PROJECTS }
+    dockerfileDir: path.join(REPO_ROOT, 'docker', 'sandbox')
   })
   const accounts = new AccountStore({
     storePath: path.join(CREDS_ROOT, 'agent-accounts.json'),

@@ -355,15 +355,18 @@ test.describe('selección múltiple del explorador', () => {
     test.skip(alFrente !== String(pid), 'no se pudo poner esta Tessera al frente; no se teclea a ciegas')
 
     osascript('tell application "System Events" to keystroke "a" using command down')
-    await asentar(s.win)
 
-    const sel = await seleccionadas(s.win)
-    expect(
-      sel.length,
-      'si esto es 0 o 1, el ⌘A se lo comió el `role: selectAll` del menú «Edición» ' +
-        'antes de llegar al renderer: hay que darle al ítem un manejador propio que ' +
-        'reenvíe al árbol, o quitarle el acelerador'
-    ).toBeGreaterThan(1)
+    // Se sondea: `osascript` vuelve en cuanto System Events encola la pulsación, que llega al
+    // renderer cuando el sistema la entrega, no en un número fijo de fotogramas.
+    await expect
+      .poll(async () => (await seleccionadas(s.win)).length, {
+        message:
+          'si se queda en 0 o 1, el ⌘A se lo comió el `role: selectAll` del menú «Edición» ' +
+          'antes de llegar al renderer: hay que darle al ítem un manejador propio que ' +
+          'reenvíe al árbol, o quitarle el acelerador',
+        timeout: 5_000
+      })
+      .toBeGreaterThan(1)
   })
 
   test('⌘⌫ (el gesto del Finder) abre el diálogo de borrado', async () => {

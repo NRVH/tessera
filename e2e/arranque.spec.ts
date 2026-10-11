@@ -37,6 +37,13 @@ const ESPERADO: Record<Exclude<Plataforma, 'otra'>, Esperado> = {
     // El menú contextual son claves de `HKCU\Software\Classes` que `reg.exe` escribe y
     // borra sin reinstalar ni UAC; la actualización la aplica NSIS.
     capacidades: { integracionShellEnCaliente: true, autoInstalarUpdate: true }
+  },
+  linux: {
+    // `~/.config/Tessera` (XDG_CONFIG_HOME por defecto).
+    carpetaDatosReal: join('.config', 'Tessera'),
+    // «Abrir con Tessera» es un `.desktop` en `~/.local/share/applications` que se escribe
+    // y se borra en caliente; la actualización la aplica electron-updater sobre el AppImage.
+    capacidades: { integracionShellEnCaliente: true, autoInstalarUpdate: true }
   }
 }
 
@@ -121,8 +128,8 @@ test('el hueco del semáforo lo publica Chromium y se recalcula con el zoom', as
   expect(await padding()).toBeCloseTo(base, 0)
 })
 
-test('los botones de Windows tienen su hueco a la derecha, a cualquier zoom', async () => {
-  test.skip(PLATAFORMA !== 'windows', 'el Window Controls Overlay de la derecha es de Windows')
+test('los botones de Windows y Linux tienen su hueco a la derecha, a cualquier zoom', async () => {
+  test.skip(PLATAFORMA === 'mac', 'en macOS el hueco es el del semáforo, a la izquierda')
   // Los tres botones (─ □ ✕) los pinta el SISTEMA encima del contenido, y son los
   // nativos —no unos dibujados— porque sólo así «maximizar» ofrece Snap Layouts. El
   // renderer sólo tiene que dejarles sitio, y el sitio lo mide Chromium en

@@ -74,6 +74,8 @@ export interface DependenciasGestor {
 
   /** Contexto de drivers para `abrir` (el mismo que arma `tdb.cjs`). */
   ctxDrivers: () => CtxDrivers
+  /** El extremo local del túnel SSH de la conexión (`DbController.tunelDe`); ausente o `null`, sin túnel. */
+  tunel?: (con: DbConnection) => Promise<{ host: string; port: number }> | null
   /** `dbx:ev:sesion`: una sesión cambió de fase o de transacción. */
   emitirSesion: (estado: DbEstadoSesion) => void
   /** Una sesión se abrió contra el servidor (el main marca la conexión verificada). */

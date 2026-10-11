@@ -42,6 +42,8 @@ export const CLAVES_GOBERNADAS: Readonly<Record<keyof ConexionPersistida, boolea
   tls: true,
   srv: true,
   opcionesUri: true,
+  tunelSsh: true,
+  topologiaRedis: true,
   bases: true,
   readonly: true,
   entorno: true,
@@ -73,14 +75,26 @@ function mismoServidor(a: ConexionPersistida, b: ConexionPersistida): boolean {
     a.sid === b.sid &&
     a.archivo === b.archivo &&
     a.instancia === b.instancia &&
-    a.srv === b.srv
+    a.srv === b.srv &&
+    mismoTunel(a.tunelSsh, b.tunelSsh) &&
+    mismaTopologia(a.topologiaRedis, b.topologiaRedis)
   )
+}
+
+/** ¿Misma topología de Redis? Por su contenido; ausente en las dos = un servidor en las dos. */
+function mismaTopologia(a: ConexionPersistida['topologiaRedis'], b: ConexionPersistida['topologiaRedis']): boolean {
+  return JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
 }
 
 /** ¿Mismo cifrado? Por sus dos valores y no por referencia. Ausente en los dos = igual. */
 function mismoTls(a: ConexionPersistida['tls'], b: ConexionPersistida['tls']): boolean {
   if (a === undefined || b === undefined) return a === b
   return a.cifrar === b.cifrar && a.confiarCertificado === b.confiarCertificado
+}
+
+/** ¿Mismo túnel SSH? El mismo host visto desde otro servidor SSH puede ser otra máquina. */
+function mismoTunel(a: ConexionPersistida['tunelSsh'], b: ConexionPersistida['tunelSsh']): boolean {
+  return (a?.conexionId ?? null) === (b?.conexionId ?? null)
 }
 
 /**
@@ -94,11 +108,13 @@ function mismaDireccion(a: ConexionPersistida, b: ConexionPersistida): boolean {
     a.port === b.port &&
     a.archivo === b.archivo &&
     a.instancia === b.instancia &&
-    a.srv === b.srv
+    a.srv === b.srv &&
+    mismoTunel(a.tunelSsh, b.tunelSsh) &&
+    mismaTopologia(a.topologiaRedis, b.topologiaRedis)
   )
 }
 
-/** ¿Sigue igual todo lo que se probó (destino, autenticación, cifrado, usuario y contraseña)? */
+/** ¿Sigue igual todo lo que se probó (destino, túnel, autenticación, cifrado, usuario y contraseña)? */
 function mismoDestinoProbado(previo: ConexionPersistida, record: ConexionPersistida): boolean {
   return (
     previo.host === record.host &&
@@ -108,6 +124,8 @@ function mismoDestinoProbado(previo: ConexionPersistida, record: ConexionPersist
     previo.archivo === record.archivo &&
     previo.instancia === record.instancia &&
     previo.srv === record.srv &&
+    mismoTunel(previo.tunelSsh, record.tunelSsh) &&
+    mismaTopologia(previo.topologiaRedis, record.topologiaRedis) &&
     previo.opcionesUri === record.opcionesUri &&
     previo.autenticacion === record.autenticacion &&
     previo.dominio === record.dominio &&
@@ -128,6 +146,8 @@ const CAMPOS_PROBADOS = [
   'instancia',
   'srv',
   'opcionesUri',
+  'tunelSsh',
+  'topologiaRedis',
   'autenticacion',
   'dominio',
   'tls',

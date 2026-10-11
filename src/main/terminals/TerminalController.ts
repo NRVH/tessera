@@ -34,8 +34,6 @@ export interface TerminalControllerOptions {
   eventos: EmisorEventos
   /** Dockerfile del sandbox (se pasa explícito para no depender de rutas de bundle). */
   dockerfileDir: string
-  /** Perfil + proyecto que usa el bootstrap de sesión (BOOTSTRAP_SESSION). */
-  bootstrapTarget: { profileId: string; projectHostPath: string }
   /** Logger del main (por defecto console.log con prefijo). */
   log?: (msg: string) => void
   /**
@@ -102,7 +100,6 @@ export class TerminalController {
   /** Perfiles con contenedor levantado en esta sesión de app (para stopContainer al salir). */
   private readonly touchedProfiles: Set<string>
   private readonly eventos: EmisorEventos
-  private readonly bootstrapTarget: { profileId: string; projectHostPath: string }
   private readonly getHostEnv: (
     profileId: string,
     projectHostPath: string,
@@ -125,7 +122,6 @@ export class TerminalController {
     this.touchedProfiles = opts.touchedProfiles ?? new Set<string>()
     for (const p of opts.profiles) this.profiles.set(p.id, p)
     this.eventos = opts.eventos
-    this.bootstrapTarget = opts.bootstrapTarget
     this.getHostEnv = opts.getHostEnv ?? (() => ({}))
     this.getContainerEnv = opts.getContainerEnv ?? (() => ({}))
     this.bindDbSession = opts.bindDbSession ?? (() => {})
@@ -138,14 +134,6 @@ export class TerminalController {
   updateProfiles(profiles: Profile[]): void {
     this.profiles.clear()
     for (const p of profiles) this.profiles.set(p.id, p)
-  }
-
-  /** Abre la sesión de arranque (`BOOTSTRAP_SESSION`) sobre el perfil y proyecto configurados. */
-  abrirArranque(): Promise<OpenTerminalResult> {
-    return this.open({
-      profileId: this.bootstrapTarget.profileId,
-      projectHostPath: this.bootstrapTarget.projectHostPath
-    })
   }
 
   /** Entrada de teclado del renderer hacia el pty; un fallo se registra y no se propaga. */
@@ -260,9 +248,9 @@ export class TerminalController {
     if (!docker.ok) throw new Error(`${PREFIJO_DOCKER_NO_DISPONIBLE}\n${docker.detalle}`)
     this.log(`checkDocker OK -> ${docker.detalle}`)
 
-    await this.sandbox.ensureContainer(profile)
+    const handle = await this.sandbox.ensureContainer(profile)
     this.touchedProfiles.add(profile.id)
-    this.log(`ensureContainer(${profile.id}) OK -> contenedor tessera-${profile.id}`)
+    this.log(`ensureContainer(${profile.id}) OK -> contenedor ${handle.containerName}`)
 
     const mount = await this.sandbox.addProject(profile, req.projectHostPath)
     this.log(`addProject OK -> ${mount.projectHostPath} => ${mount.workspacePath}`)

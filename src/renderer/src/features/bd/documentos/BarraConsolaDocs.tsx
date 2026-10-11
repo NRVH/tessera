@@ -1,13 +1,15 @@
 // =============================================================================
 // La barra de la consola de MongoDB: alias, entorno, base y estado a la izquierda; iconos
-// grises a la derecha. Sin transacción, plan ni historial: no existen en esta consola y un
-// botón apagado para siempre es ruido. Con la base fijada en la conexión no hay selector.
+// grises a la derecha, con el historial como en la consola SQL. Sin transacción ni plan: no
+// existen en esta consola y un botón apagado para siempre es ruido. Con la base fijada en la
+// conexión no hay selector.
 // Depende de `piezasBarra` y de `useBarraConsola`, que llevan lo común con la de Redis.
 // =============================================================================
 
 import type { DbConnection } from '../../../../../shared/db-ipc'
 import { etiquetaAcorde, etiquetasAcorde } from '../../../util/atajos'
 import { IconoDetener, IconoEjecutar, IconoEjecutarTodo } from '../iconosBd'
+import { IconoHistorial } from '../../../comun/iconosMenu'
 import type { EnCurso } from './consolaComun'
 import { BotonBase, BotonCandado, BotonIcono, IdentidadBarra } from './piezasBarra'
 import { SelectorBaseDocs } from './SelectorBaseDocs'
@@ -27,6 +29,9 @@ interface PropsBarraConsolaDocs {
   onDetener: () => void
   onElegirBase: (base: string) => void
   onEditarConexion: () => void
+  /** Abre o cierra el popover del historial (lo pinta el pane). */
+  onHistorial: () => void
+  historialAbierto: boolean
 }
 
 function BotonesEjecucion({ p, b }: { p: PropsBarraConsolaDocs; b: DatosBarraConsola }): React.JSX.Element {
@@ -62,6 +67,20 @@ function BotonesEjecucion({ p, b }: { p: PropsBarraConsolaDocs; b: DatosBarraCon
       >
         <IconoDetener />
       </BotonIcono>
+      {/* Un <button> propio por `aria-expanded` y el `mousedown`: sin cortarlo, el «clic fuera»
+          del popover abierto lo cerraría y este clic lo volvería a abrir. */}
+      <button
+        type="button"
+        className={`btn btn-icon db-consola-historial-btn${p.historialAbierto ? ' activo' : ''}`}
+        title={`Historial de órdenes · ${etiquetaAcorde('historial')}`}
+        aria-label="Historial de órdenes"
+        aria-haspopup="dialog"
+        aria-expanded={p.historialAbierto}
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={p.onHistorial}
+      >
+        <IconoHistorial />
+      </button>
     </>
   )
 }

@@ -13,6 +13,7 @@ import type { DbConsolaInfo } from '../../../../../shared/db-explorador-ipc'
 import type { IndicadorPestana } from '../dbTabsModel'
 import { basePorDefectoClaves } from '../arbolClaves'
 import type { AccionSalida } from '../consola/salidaConsola'
+import { basesConsolaClaves, claveBaseConsola } from '../consola/basesConsola'
 import type { EnCurso } from '../documentos/consolaComun'
 import { useDialogoConsola } from '../documentos/useDialogoConsola'
 import type { MarcasConsolaDocs } from '../documentos/monacoConsolaDocs'
@@ -40,8 +41,6 @@ export interface Confirmaciones {
   confirmadoPeligroso: boolean
 }
 
-/** La base de cada consola, en memoria (sobrevive a un remontaje, no a reiniciar). Clave: `perfil\u0000consola`. */
-const basesPorConsola = new Map<string, number>()
 
 function useRefsConsolaClaves(p: PropsConsolaClaves) {
   const conexionRef = useRef(p.conexion)
@@ -81,14 +80,14 @@ function useBaseConsolaClaves(p: PropsConsolaClaves): {
   baseRef: React.MutableRefObject<number>
   cambiarBase: (b: number) => void
 } {
-  const claveBase = `${p.perfilId}\u0000${p.consola.id}`
-  const [base, setBaseEstado] = useState<number>(() => basesPorConsola.get(claveBase) ?? basePorDefectoClaves(p.conexion))
+  const claveBase = claveBaseConsola(p.perfilId, p.consola.id)
+  const [base, setBaseEstado] = useState<number>(() => basesConsolaClaves.get(claveBase) ?? basePorDefectoClaves(p.conexion))
   const baseRef = useRef(base)
   baseRef.current = base
   const cambiarBase = useCallback(
     (b: number): void => {
       baseRef.current = b
-      basesPorConsola.set(claveBase, b)
+      basesConsolaClaves.set(claveBase, b)
       setBaseEstado(b)
     },
     [claveBase]

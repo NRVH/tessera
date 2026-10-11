@@ -53,10 +53,11 @@ export interface NombresSistema {
 }
 
 /**
- * La tabla. `'otra'` (Linux, BSD) no dice «Linux» sino el genérico: allí el gestor
- * de archivos depende del escritorio (Nautilus, Dolphin, Thunar) y el almacén de
- * claves también, así que nombrar uno concreto sería acertar en un tercio de los
- * casos y mentir en dos.
+ * La tabla. En Linux el sistema sí se nombra, pero el gestor de archivos depende del
+ * escritorio, así que va el genérico: nombrar uno concreto sería acertar en un tercio
+ * de los casos y mentir en dos. El almacén de secretos sí nombra los dos que `safeStorage`
+ * sabe usar, porque es lo que el usuario tiene que instalar si falta. `'otra'` (BSD) no
+ * nombra nada.
  */
 const TABLA: Record<Plataforma, NombresSistema> = {
   windows: {
@@ -75,6 +76,15 @@ const TABLA: Record<Plataforma, NombresSistema> = {
     shellNativa: 'tu shell de inicio de sesión',
     almacenSecretos: 'el Llavero de macOS',
     agenteClavesSsh: 'el llavero y el agente SSH',
+    papelera: 'la Papelera'
+  },
+  linux: {
+    sistema: 'Linux',
+    tuEquipo: 'tu equipo',
+    gestorArchivos: 'el gestor de archivos',
+    shellNativa: 'tu shell de inicio de sesión',
+    almacenSecretos: 'el llavero del escritorio (GNOME Keyring o KWallet)',
+    agenteClavesSsh: 'el agente SSH de tu sesión',
     papelera: 'la Papelera'
   },
   otra: {

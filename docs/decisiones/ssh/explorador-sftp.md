@@ -19,8 +19,9 @@ y en unos 2 ms por petición.
   sobre la entrada y la salida de `ssh -T -s … sftp`, una sesión por pestaña. ssh sigue siendo el del sistema con la
   línea de la pestaña (`argumentosSsh` en modo humano); la biblioteca SSH en JavaScript sigue descartada
   (`motor-linea-y-huellas.md`): aquí solo se trocean paquetes.
-- Sin terminal nadie puede teclear: sin contraseña o frase guardada, `BatchMode`, y el fallo de autenticación dice que
-  se guarde o se use una clave. La ficha del programa de contraseñas se suelta en cuanto pasa el saludo.
+- Sin terminal, lo que ssh pregunte y no esté guardado (o no se pueda leer, o el servidor rechace) lo contesta el usuario
+  en el diálogo del programa de contraseñas (`askpass-y-secretos.md`), sin guardarlo; sin puente o sin el programa,
+  `BatchMode`. El saludo espera hasta 150 s para dar tiempo a contestar. La ficha se suelta en cuanto pasa el saludo.
 - Es una pestaña de la franja de terminales, del perfil, como las SSH; se abre desde el menú de la conexión.
 - El renderer solo ve rutas remotas: los diálogos de elegir carpeta o archivos se abren en el main, y de lo soltado
   saca la ruta el preload (`webUtils`).
@@ -40,4 +41,5 @@ y en unos 2 ms por petición.
 
 - `sftp.exe` por lotes o en vivo: ver el contexto. `scp` y órdenes de shell en el servidor (`ls`, `rm -rf`): exigen
   una shell POSIX, y un servidor solo-SFTP (`internal-sftp`) o de Windows no la tiene.
-- Preguntar la contraseña desde el explorador: es otra superficie de secretos; la pestaña SSH ya pregunta.
+- Un campo de contraseña propio del explorador: sería otra superficie de secretos; el diálogo del programa de contraseñas
+  es el mismo para la pestaña y el explorador, y lo que se escribe no sale de ssh.

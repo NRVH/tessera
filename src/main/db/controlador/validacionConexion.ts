@@ -25,10 +25,12 @@ export interface EntradaConexion extends Omit<DbConnectionInput, 'archivo'> {
 export interface ConexionesGuardadas {
   conocidas: readonly Pick<ConexionPersistida, 'id' | 'profileId' | 'alias' | 'motor' | 'archivo'>[]
   ajenasDelPerfil: (profileId: string) => readonly Pick<DbConexionAjena, 'id' | 'alias'>[]
+  /** ¿Existe la conexión SSH `id` en el perfil? Ausente = no se comprueba (pruebas sin el módulo SSH). */
+  existeSsh?: (profileId: string, id: string) => boolean
 }
 
 /** Claves que `camposAGuardar` escribe solo con valor: que una esté guardada y no salga en lo nuevo es un cambio. */
-const CLAVES_SOLO_CON_VALOR = ['archivo', 'instancia', 'autenticacion', 'dominio', 'tls', 'srv', 'opcionesUri'] as const
+const CLAVES_SOLO_CON_VALOR = ['archivo', 'instancia', 'autenticacion', 'dominio', 'tls', 'srv', 'opcionesUri', 'tunelSsh', 'topologiaRedis'] as const
 
 /** Igualdad de un valor guardado: `undefined` y `''` son lo mismo; `tls`, por su contenido. */
 function mismoValorGuardado(a: unknown, b: unknown): boolean {
@@ -158,7 +160,9 @@ const REGLAS_COMUNES: Record<CampoConexion, (c: ContextoCampo) => string | null>
   dominio: sinRegla,
   tls: sinRegla,
   srv: sinRegla,
-  opcionesUri: sinRegla
+  opcionesUri: sinRegla,
+  tunelSsh: sinRegla,
+  topologiaRedis: sinRegla
 }
 
 /** Valida la forma de una alta o edición. Lanza con un mensaje para el usuario. */
@@ -177,12 +181,25 @@ export function validarEntrada(input: EntradaConexion, guardadas: ConexionesGuar
     if (error !== null) throw new Error(error)
   }
   for (const campo of d.conexion.opcionales) {
-    const error = validarOpcional(campo, input)
+    const error = validarOpcional(campo, { ...input, host })
     if (error !== null) throw new Error(error)
+  }
+  // El túnel va por una conexión SSH de ESTE perfil: la de otro perfil no se puede usar.
+  const tunel = d.conexion.opcionales.includes('tunelSsh') ? input.tunelSsh : undefined
+  if (tunel && guardadas.existeSsh && !guardadas.existeSsh(input.profileId, tunel.conexionId)) {
+    throw new Error('La conexión SSH del túnel no existe en este perfil.')
+  }
+  if (tunel && d.conexion.cifraPorTunel === false && input.tls?.cifrar === true) {
+    throw new Error(
+      `${d.etiqueta} no puede verificar su certificado a través de un túnel SSH: desmarca el cifrado (el túnel ya cifra el tramo hasta el servidor SSH) o quita el túnel.`
+    )
   }
   // Un motor sin credenciales (SQLite) no guarda contraseña: quedaría un secreto huérfano.
   if (!pideUsuarioYClave(d) && typeof input.password === 'string' && input.password !== '') {
     throw new Error(`${d.etiqueta} no usa contraseña.`)
+  }
+  if (input.passwordSentinel !== undefined && typeof input.passwordSentinel !== 'string') {
+    throw new Error('La contraseña de los sentinels no es válida.')
   }
   // Lo que el destino exige es cosa del motor; va después de lo común (con el host vacío, el error es el del host).
   const errorDestino = d.conexion.validarDestino({ database, sid })

@@ -3,15 +3,16 @@
 // en el hueco, Git·Log (montado bajo demanda: sus cachés hacen instantáneo reabrir)
 // y las terminales (siempre montadas: la visibilidad es CSS y el pty sobrevive), con las
 // pestañas SSH del perfil.
-// Cada uno se puede maximizar al área de trabajo (`usePantallaCompletaFranja`, solo CSS).
+// Cada uno se puede maximizar al área de trabajo (solo CSS, ver `usePantallaCompletaFranja.ts`).
 // Decisiones: docs/decisiones/layout/pantalla-completa-de-la-franja.md
 // =============================================================================
+import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { GIT_LOG_ARCHIVOS_MIN, GIT_LOG_COL_MIN, TERMINAL_HEIGHT_MAX } from '../../../../shared/workspace-state-ipc'
 import { ErrorBoundary } from '../../comun/ErrorBoundary'
 import { Splitter } from '../../comun/Splitter'
 import { aperturaDesdeGit, type PanelInferiorCentro, type SalidaLayoutCentro } from './layoutCentro'
-import { fijadoresLayout, useStoreLayout } from './store'
+import { fijadoresLayout, fijarMaximizado, useStoreLayout } from './store'
 import type { Tamanos } from './useTamanos'
 import type { VistasPorPerfil } from './useVistasPorPerfil'
 import { GitLogPanel, cerrarHistorial, useStoreGit, type EstadoGitApp } from '../git'
@@ -32,22 +33,38 @@ const setDiffColapsar = fijarAjuste('diffColapsar')
 function pedirAperturaDesdeGit(origen: 'manual' | 'auto'): boolean {
   const pantallaCompleta = useStoreLayout.getState().franjaPantallaCompleta === 'gitlog'
   const d = aperturaDesdeGit({ origen, pantallaCompleta })
-  if (d.salirDePantallaCompleta) fijadoresLayout.franjaPantallaCompleta(null)
+  if (d.salirDePantallaCompleta) fijarMaximizado('gitlog', false)
   return d.abrir
 }
 
 /** El fijador de un panel para su botón de maximizar: `true` lo pide, `false` sale del modo. */
 function fijadorPantallaCompleta(panel: PanelInferiorCentro): (pedir: boolean) => void {
-  return (pedir) => fijadoresLayout.franjaPantallaCompleta(pedir ? panel : null)
+  return (pedir) => fijarMaximizado(panel, pedir)
 }
 const pantallaCompletaGit = fijadorPantallaCompleta('gitlog')
 const pantallaCompletaTerminal = fijadorPantallaCompleta('terminal')
+
+/**
+ * Elegir, abrir o conectar una terminal con el agente maximizado la vuelve a enseñar, en el MISMO gesto:
+ * así la terminal se pinta ya visible y recibe el foco. Pulsar la pestaña activa también cuenta, y
+ * conectar o abrir un SFTP desde el riel.
+ */
+function ensenandoTerminales<A extends unknown[]>(f: (...a: A) => void): (...a: A) => void {
+  return (...a) => {
+    fijarMaximizado('agenteTerminal', false)
+    f(...a)
+  }
+}
+const anadirTerminal = ensenandoTerminales(accionesTerminales.anadir)
+const elegirTerminal = ensenandoTerminales(accionesTerminales.elegir)
+const elegirSsh = ensenandoTerminales(accionesTerminales.elegirSsh)
+const restaurarTerminales = (): void => fijarMaximizado('agenteTerminal', false)
 
 interface Props {
   tabs: UseTabs
   vistas: VistasPorPerfil
   lay: SalidaLayoutCentro
-  /** El panel de la franja a pantalla completa, si hay (el valor coherente, ver `usePantallaCompletaFranja`). */
+  /** El panel de la franja a pantalla completa, si hay (el valor coherente que calcula el layout del centro). */
   franjaPantallaCompleta: PanelInferiorCentro | null
   tamanos: Tamanos
   densidad: Densidad
@@ -57,6 +74,8 @@ interface Props {
   tintasPorPerfil: Record<string, string>
   /** El agente de la terminal del perfil activo está pedido; al ocultarlo a pantalla completa, el foco vuelve a la terminal. */
   agenteTerminalVisible: boolean
+  /** El agente de la terminal se pinta maximizado sobre las terminales (el valor coherente, de App). */
+  agenteTerminalMaximizado: boolean
 }
 
 /** Lo que el panel de Log lee de los stores: anchos de layout, historial y consulta del perfil. */
@@ -136,24 +155,51 @@ function PanelLog(p: Omit<Props, 'lay' | 'terminales' | 'tintasPorPerfil' | 'age
   )
 }
 
-/** Terminales de shell de todos los proyectos y pestañas SSH de todos los perfiles (keep-alive). */
-function PanelTerminales({
-  lay,
-  vistas,
-  terminales,
-  tintasPorPerfil,
-  densidad,
-  franjaPantallaCompleta,
-  agenteTerminalVisible
-}: Pick<
+/** Las acciones SSH de la franja que enseñan las terminales, estables entre renders. */
+function useSshEnsenandoTerminales(terminales: Props['terminales']): {
+  onConectar: TerminalesApp['conectarSsh']
+  onAbrirSftp: TerminalesApp['abrirSftp']
+} {
+  const { conectarSsh, abrirSftp } = terminales
+  return useMemo(
+    () => ({ onConectar: ensenandoTerminales(conectarSsh), onAbrirSftp: ensenandoTerminales(abrirSftp) }),
+    [conectarSsh, abrirSftp]
+  )
+}
+
+type PropsPanelTerminales = Pick<
   Props,
-  'lay' | 'vistas' | 'terminales' | 'tintasPorPerfil' | 'densidad' | 'franjaPantallaCompleta' | 'agenteTerminalVisible'
->): React.JSX.Element {
+  | 'lay'
+  | 'vistas'
+  | 'terminales'
+  | 'tintasPorPerfil'
+  | 'densidad'
+  | 'tamanos'
+  | 'franjaPantallaCompleta'
+  | 'agenteTerminalVisible'
+  | 'agenteTerminalMaximizado'
+>
+
+/** Lo que la columna de la terminal sabe de su agente: maximizado, plegada y su ancho si está al lado. */
+function columnaDeLaTerminal(p: PropsPanelTerminales) {
+  const alLado = p.lay.agente === 'terminal'
+  return {
+    agenteMaximizado: p.agenteTerminalMaximizado,
+    onRestaurarTerminales: restaurarTerminales,
+    plegada: p.lay.terminalPlegada,
+    agenteAncho: alLado ? p.tamanos.agenteTerminalAnchoVisible : null
+  }
+}
+
+/** Terminales de shell de todos los proyectos y pestañas SSH de todos los perfiles (keep-alive). */
+function PanelTerminales(p: PropsPanelTerminales): React.JSX.Element {
+  const { lay, vistas, terminales, tintasPorPerfil, densidad, franjaPantallaCompleta, agenteTerminalVisible } = p
   const shellTerminals = useStoreTerminales((s) => s.shellTerminals)
   const estadoSsh = useStoreTerminales((s) => s.ssh)
   const windowsModeKeys = useStorePestanas((s) => s.windowsModeKeys)
   const dbMounts = useStoreBd((s) => s.dbMounts)
   const settingsLoaded = useStoreAjustes((s) => s.settingsLoaded)
+  const sshEnsenando = useSshEnsenandoTerminales(terminales)
   // En el mosaico no se toca `visible`: lo esconde el CSS (volver a verse robaría el foco).
   return (
     <TerminalsPanel
@@ -172,20 +218,20 @@ function PanelTerminales({
         estado: estadoSsh,
         altoFila: densidad.altoFilaBase,
         altoCabecera: densidad.altoCabeceraBase,
-        onConectar: terminales.conectarSsh,
-        onAbrirSftp: terminales.abrirSftp,
-        onElegir: accionesTerminales.elegirSsh,
+        ...sshEnsenando,
+        onElegir: elegirSsh,
         onCerrar: accionesTerminales.cerrarSsh,
         onRenombrar: accionesTerminales.renombrarSsh
       }}
-      onAdd={accionesTerminales.anadir}
+      onAdd={anadirTerminal}
       onClose={accionesTerminales.cerrar}
-      onSelect={accionesTerminales.elegir}
+      onSelect={elegirTerminal}
       onRename={accionesTerminales.renombrar}
       onClosePanel={() => vistas.cerrarPanelInferior()}
       pantallaCompleta={franjaPantallaCompleta === 'terminal'}
       onPantallaCompleta={pantallaCompletaTerminal}
       agenteTerminalVisible={agenteTerminalVisible}
+      {...columnaDeLaTerminal(p)}
     />
   )
 }
@@ -199,6 +245,7 @@ export function FranjaInferior(props: Props): React.JSX.Element {
       {lay.franja.divisor && (
         <Splitter
           orientation="horizontal"
+          className="splitter-hueco"
           size={altoPanelInferior}
           min={tamanos.panelInferiorMin}
           max={TERMINAL_HEIGHT_MAX}

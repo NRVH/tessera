@@ -168,13 +168,13 @@ export function Apariencia(props: PropsCategoria): React.JSX.Element {
       {ve('banda') && (
         <Grupo titulo="Barra de perfiles">
           <Fila
-            etiqueta="Colapsar la banda de perfiles"
-            ayuda="Deja solo la línea de color de cada perfil, sin nombres."
+            etiqueta="Modo minimalista de perfiles"
+            ayuda="Cambia la banda de perfiles por un selector compacto en la barra de título."
             control={
               <Interruptor
                 activo={hideProfileNames}
                 onChange={onToggleProfileNames}
-                etiqueta="Colapsar la banda de perfiles"
+                etiqueta="Modo minimalista de perfiles"
               />
             }
           />

@@ -94,7 +94,19 @@ export const ICONOS: Record<CategoriaId, () => React.JSX.Element> = {
   'bases-de-datos': IconoBasesDeDatos,
   integracion: IconoIntegracion,
   actualizaciones: IconoActualizaciones,
+  experimental: IconoExperimental,
   acerca: IconoAcerca
+}
+
+/** Experimental: un matraz, el signo de lo que está a prueba. */
+function IconoExperimental(): React.JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M9.5 3.5h5" strokeLinecap="round" />
+      <path d="M10.5 3.5v5.2L5.4 17.6a2 2 0 0 0 1.7 2.9h9.8a2 2 0 0 0 1.7-2.9l-5.1-8.9V3.5" strokeLinejoin="round" />
+      <path d="M7.6 14h8.8" strokeLinecap="round" />
+    </svg>
+  )
 }
 
 /**

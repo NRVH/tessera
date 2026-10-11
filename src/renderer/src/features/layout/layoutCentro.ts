@@ -32,7 +32,7 @@ export interface EntradaLayoutCentro {
   hayPerfil: boolean
   panelInferior: PanelInferiorCentro | null
   /**
-   * Panel de la franja PEDIDO a pantalla completa (el crudo del store); aquí se corrige con
+   * Panel de la franja que el perfil dejó maximizado (`pantallaCompletaPedidaDe`); aquí se corrige con
    * `pantallaCompletaCoherente`. Ausente = ninguno.
    */
   pantallaCompletaPedida?: PanelInferiorCentro | null
@@ -40,6 +40,10 @@ export interface EntradaLayoutCentro {
   agenteTerminalVisible?: boolean
   /** El agente de la terminal del perfil está preparado (su carpeta conocida y sus targets montados). */
   agenteTerminalAbierto?: boolean
+  /** Hay terminal que enseñar o está a punto de nacer (`hayTerminalQueEnsenar`). Ausente = sí. */
+  conTerminales?: boolean
+  /** El perfil dejó maximizado el agente de la terminal sobre las terminales. */
+  agenteTerminalMaximizadoPedido?: boolean
 }
 
 export interface SalidaLayoutCentro {
@@ -52,6 +56,11 @@ export interface SalidaLayoutCentro {
   divisorAgente: 'editor' | 'db' | 'terminal' | null
   /** De quién es la columna del agente: del proyecto, del espacio de datos, de la terminal o de nadie. */
   agente: 'proyecto' | 'espacio' | 'terminal' | null
+  /**
+   * Con el agente de la terminal en la columna, la de la terminal se queda en su cabecera y su riel y el
+   * agente ocupa el resto: no hay terminal que enseñar, o el agente está maximizado sobre ellas.
+   */
+  terminalPlegada: boolean
   franja: { divisor: boolean; gitlog: boolean; terminalVisible: boolean }
   barraEstado: {
     ccVisible: boolean
@@ -87,9 +96,10 @@ export function maximizadoCoherente(
 
 /**
  * El valor COHERENTE de la franja a pantalla completa: el panel pedido solo vive mientras
- * ESE panel está A LA VISTA en la franja. Cerrarlo, cambiarlo por el otro, ir a 'db', entrar
- * en el mosaico o pasar a un perfil que no lo enseña lo apaga, y al volver el panel se abre
- * en la franja. Nunca lo enciende y es un punto fijo, así que se puede aplicar en cada render.
+ * ESE panel está A LA VISTA en la franja. Cerrarlo, cambiarlo por el otro, ir a 'db' o entrar
+ * en el mosaico lo deja sin efecto mientras no se ve, pero lo pedido (por perfil y por ventana,
+ * `pantallaCompletaPedidaDe`) se recuerda y vuelve cuando el panel vuelve a verse. Nunca lo
+ * enciende y es un punto fijo, así que se puede aplicar en cada render.
  */
 export function pantallaCompletaCoherente(e: {
   pedida: PanelInferiorCentro | null
@@ -102,18 +112,45 @@ export function pantallaCompletaCoherente(e: {
 }
 
 /**
- * El modo al cambiar de perfil: guarda en `recordadas` el del perfil que se va y devuelve el que
- * recuerda el que llega. Un perfil que no tiene nada guardado se queda con el actual, y la
- * coherencia lo apaga si allí no vale.
+ * Lo que un perfil tiene maximizado: cada ventana de la franja y el agente de la terminal recuerdan lo
+ * suyo, y es lo último que eligió el usuario (cerrar la ventana o cambiar de perfil no lo borra).
  */
-export function pantallaCompletaAlCambiarDePerfil(
-  recordadas: Map<string, PanelInferiorCentro | null>,
-  saliente: string | null,
-  entrante: string | null,
-  actual: PanelInferiorCentro | null
+export interface MaximizadosPerfil {
+  terminal?: boolean
+  gitlog?: boolean
+  agenteTerminal?: boolean
+}
+
+/** El panel pedido a pantalla completa: el que está en la franja, si su perfil lo dejó maximizado. */
+export function pantallaCompletaPedidaDe(
+  m: MaximizadosPerfil | undefined,
+  panel: PanelInferiorCentro | null
 ): PanelInferiorCentro | null {
-  if (saliente !== null) recordadas.set(saliente, actual)
-  return entrante !== null && recordadas.has(entrante) ? (recordadas.get(entrante) ?? null) : actual
+  return panel !== null && m?.[panel] === true ? panel : null
+}
+
+/**
+ * ¿Se pinta el agente de la terminal maximizado sobre las terminales? Si su perfil lo pidió, está junto a
+ * la terminal a pantalla completa y hay alguna terminal que tapar. Fuera de eso no se borra: al volver,
+ * sigue como el usuario lo dejó.
+ */
+export function agenteTerminalMaximizadoDe(e: {
+  m: MaximizadosPerfil | undefined
+  agente: SalidaLayoutCentro['agente']
+  conTerminales: boolean
+}): boolean {
+  return e.m?.agenteTerminal === true && e.agente === 'terminal' && e.conTerminales
+}
+
+/** `prev` con `clave` del perfil a `valor`; el MISMO objeto si ya valía eso. */
+export function conMaximizado(
+  prev: Readonly<Record<string, MaximizadosPerfil>>,
+  perfil: string,
+  clave: keyof MaximizadosPerfil,
+  valor: boolean
+): Record<string, MaximizadosPerfil> {
+  if ((prev[perfil]?.[clave] === true) === valor) return prev as Record<string, MaximizadosPerfil>
+  return { ...prev, [perfil]: { ...prev[perfil], [clave]: valor } }
 }
 
 /**
@@ -209,12 +246,13 @@ function barraDelAgenteTerminal(pedido: boolean): SalidaLayoutCentro['barraEstad
  * conmutador de la barra para ocultarlo. Lo demás (editor, área de BD, franja) no cambia: el CSS de
  * `.shell` lo esconde sin desmontarlo.
  */
-function conAgenteTerminal(s: SalidaLayoutCentro): SalidaLayoutCentro {
+function conAgenteTerminal(e: EntradaLayoutCentro, s: SalidaLayoutCentro): SalidaLayoutCentro {
   return {
     ...s,
     cc: { hidden: false, grow: false, canExpand: false },
     divisorAgente: 'terminal',
     agente: 'terminal',
+    terminalPlegada: e.conTerminales === false || e.agenteTerminalMaximizadoPedido === true,
     barraEstado: barraDelAgenteTerminal(true)
   }
 }
@@ -227,7 +265,7 @@ function conAgenteTerminal(s: SalidaLayoutCentro): SalidaLayoutCentro {
 function conTerminalAPantallaCompleta(e: EntradaLayoutCentro, s: SalidaLayoutCentro): SalidaLayoutCentro {
   if (!conmutadorDelAgenteTerminal(e, s.franja)) return s
   const pedido = e.agenteTerminalVisible === true
-  if (pedido && e.agenteTerminalAbierto === true) return conAgenteTerminal(s)
+  if (pedido && e.agenteTerminalAbierto === true) return conAgenteTerminal(e, s)
   return { ...s, barraEstado: barraDelAgenteTerminal(pedido) }
 }
 
@@ -259,6 +297,7 @@ export function derivarLayoutCentro(e: EntradaLayoutCentro): SalidaLayoutCentro 
     cc: { hidden: columna.hidden, grow: columna.grow, canExpand: !db && hay },
     divisorAgente: divisorAgenteDe(e, db, listoDb, ocultoEfectivo),
     agente: agenteDe(e, db, listoDb),
+    terminalPlegada: false,
     franja: franjaDe(e, db),
     barraEstado: {
       ccVisible: e.mosaico || !columna.hidden,

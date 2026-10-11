@@ -20,6 +20,7 @@ import {
   type DbEstadoSesion,
   type DbEventoCatalogo,
   type DbEntradaHistorial,
+  type DbLenguajeHistorial,
   type DbEnviarCambios,
   type DbResultadoEnvio,
   type DbExplicar,
@@ -159,7 +160,8 @@ export interface DbExploradorApi {
   // --- Historial de consultas (privado: no va al espacio de datos) ---
   historial: (filtro: DbFiltroHistorial) => Promise<DbRespuesta<DbEntradaHistorial[]>>
   /** `ids` null = todo el historial del perfil. */
-  borrarHistorial: (perfilId: string, ids: string[] | null) => Promise<DbRespuesta<void>>
+  /** Con `ids` null, todo el del perfil; con `lenguaje`, todo el de ese lenguaje. */
+  borrarHistorial: (perfilId: string, ids: string[] | null, lenguaje?: DbLenguajeHistorial) => Promise<DbRespuesta<void>>
   // --- Conexión ---
   cancelar: (req: DbCancelar) => Promise<void>
   /**
@@ -175,7 +177,8 @@ export interface DbExploradorApi {
   sesiones: () => Promise<DbEstadoSesion[]>
   // --- Archivos de consola ---
   listarConsolas: (perfilId: string) => Promise<DbRespuesta<DbConsolaInfo[]>>
-  crearConsola: (perfilId: string, conexionId: string) => Promise<DbRespuesta<DbConsolaInfo>>
+  /** `esquema`: el de la consola nueva (en SQL Server, su base); sin él, el de la conexión. No abre sesión. */
+  crearConsola: (perfilId: string, conexionId: string, esquema?: string) => Promise<DbRespuesta<DbConsolaInfo>>
   leerConsola: (perfilId: string, consolaId: string) => Promise<DbRespuesta<DbConsolaTexto>>
   escribirConsola: (
     perfilId: string,
@@ -281,16 +284,16 @@ export const dbExplorador: DbExploradorApi = {
   fks: (conexionId, objeto, refrescar) =>
     ipcRenderer.invoke(DBX_CHANNELS.FKS, { conexionId, objeto, refrescar }),
   historial: (filtro) => ipcRenderer.invoke(DBX_CHANNELS.HISTORIAL_LISTAR, filtro),
-  borrarHistorial: (perfilId, ids) =>
-    ipcRenderer.invoke(DBX_CHANNELS.HISTORIAL_BORRAR, { perfilId, ids }),
+  borrarHistorial: (perfilId, ids, lenguaje) =>
+    ipcRenderer.invoke(DBX_CHANNELS.HISTORIAL_BORRAR, { perfilId, ids, ...(lenguaje ? { lenguaje } : {}) }),
   cancelar: (req) => ipcRenderer.invoke(DBX_CHANNELS.CANCELAR, req),
   forzar: (conexionId, consola) => ipcRenderer.invoke(DBX_CHANNELS.FORZAR, consola ? { conexionId, consola } : { conexionId }),
   desconectar: (conexionId, resolver) =>
     ipcRenderer.invoke(DBX_CHANNELS.DESCONECTAR, { conexionId, resolver }),
   sesiones: () => ipcRenderer.invoke(DBX_CHANNELS.SESIONES),
   listarConsolas: (perfilId) => ipcRenderer.invoke(DBX_CHANNELS.CONSOLAS_LISTAR, { perfilId }),
-  crearConsola: (perfilId, conexionId) =>
-    ipcRenderer.invoke(DBX_CHANNELS.CONSOLAS_CREAR, { perfilId, conexionId }),
+  crearConsola: (perfilId, conexionId, esquema) =>
+    ipcRenderer.invoke(DBX_CHANNELS.CONSOLAS_CREAR, { perfilId, conexionId, esquema }),
   leerConsola: (perfilId, consolaId) =>
     ipcRenderer.invoke(DBX_CHANNELS.CONSOLAS_LEER, { perfilId, consolaId }),
   escribirConsola: (perfilId, consolaId, texto) =>

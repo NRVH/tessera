@@ -76,6 +76,7 @@ function useOpciones(
         hibernados: tabs.hibernatedTargetKeys,
         trabajando: actividad.trabajandoSet,
         sinVer: actividad.activity.unseen,
+        esperando: actividad.esperandoSet,
         agenteDelProyecto,
         claveProyecto: editorTargetKey
       })

@@ -57,11 +57,10 @@ function ConfirmarEliminarPerfil({
       title={`Eliminar el perfil "${profile.nombre}"`}
       message={
         'Se cerrarán sus sesiones y se detendrá su contenedor.\n\n' +
-        'Se borran sus conexiones SSH y su historial de consultas. Las carpetas\n' +
-        'de su agente de la terminal y de su agente de datos, con las notas y\n' +
-        `las consolas que tengan, van a ${papelera}: desde allí se recuperan.\n` +
-        'Sus conexiones de bases de datos se quitan al reiniciar Tessera (si lo\n' +
-        'recreas antes, las conserva).\n\n' +
+        'Se borran sus conexiones SSH y de bases de datos y su historial de\n' +
+        'consultas. Las carpetas de su agente de la terminal y de su agente de\n' +
+        'datos, con las notas y las consolas que tengan, van a\n' +
+        `${papelera}: desde allí se recuperan.\n\n` +
         'No se borran sus credenciales ni las conversaciones de sus cuentas:\n' +
         'si lo recreas, las reencuentra.'
       }

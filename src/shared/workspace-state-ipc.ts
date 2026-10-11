@@ -15,8 +15,10 @@ import {
   normalizarAgenteTerminalVisible,
   normalizarAnchoRiel,
   normalizarGruposPlegados,
+  normalizarPestanasSshPorPerfil,
   normalizarRecientesPorPerfil,
-  normalizarRielVisiblePorPerfil
+  normalizarRielVisiblePorPerfil,
+  type SshPestanasPorPerfil
 } from './ajustesTerminal.ts'
 import {
   DB_FILAS_POR_PAGINA_POR_DEFECTO,
@@ -201,6 +203,17 @@ export interface WorkspaceSettings {
    */
   aplicarUpdateAlCerrar: boolean
   /**
+   * ¿Se graba el registro de salud (memoria y procesos cada pocos minutos, en un archivo local)?
+   * Solo tiene efecto en las versiones alpha (`shared/salud.ts`); en la pública se ignora y ni
+   * siquiera se enseña. Por defecto ACTIVADO, así que su saneado es `!== false`.
+   */
+  registroSalud: boolean
+  /**
+   * ¿Se guarda un volcado local cuando Tessera se cae? Como el registro de salud: solo en alpha,
+   * por defecto ACTIVADO (`!== false`), y vale al reiniciar (el registrador arranca al cargar).
+   */
+  volcadosCaida: boolean
+  /**
    * ¿El visor de diferencias esconde los fragmentos SIN CAMBIOS? Es el
    * «colapsar los fragmentos sin cambios» de los visores de diff, y se recuerda entre reinicios.
    *
@@ -320,6 +333,12 @@ export interface WorkspaceSettings {
    */
   mosaicoPreset: MosaicoPresetGuardado
   /**
+   * Colores de perfil FIJADOS desde el selector de color («Personalizado» → «Fijar»), para
+   * volver a usarlos en otro perfil. GLOBALES: son una paleta tuya, no de un perfil. Hex
+   * en minúsculas, sin repetidos y como mucho `MAX_COLORES_FIJADOS`.
+   */
+  coloresPerfilFijados: string[]
+  /**
    * ¿El usuario pidió VER el agente de datos en la vista de bases de datos? Por
    * PERFIL (`profileId -> true`), por lo mismo que la vista lateral: es una forma de
    * trabajar con las bases de UN perfil, no una preferencia global. Sin entrada =
@@ -392,6 +411,11 @@ export interface WorkspaceSettings {
    * reciente primero, hasta `SSH_RECIENTES_MAX`). El saneado vive en `shared/ajustesTerminal.ts`.
    */
   sshRecientesPorPerfil: Record<string, string[]>
+  /**
+   * Las pestañas SSH (y del explorador SFTP) abiertas al cerrar, por PERFIL, en su orden: vuelven al arrancar,
+   * sin conectarse hasta que se miran. El saneado vive en `shared/ajustesTerminal.ts`.
+   */
+  sshPestanasPorPerfil: SshPestanasPorPerfil
   /**
    * ¿Se ve el agente de la terminal a la derecha de la terminal a pantalla completa?, por PERFIL
    * (`profileId` -> true). Sin entrada = oculto. El saneado vive en `shared/ajustesTerminal.ts`.
@@ -550,6 +574,8 @@ export const DEFAULT_SETTINGS: WorkspaceSettings = {
   gitLogArchivosHeight: DEFAULT_GIT_LOG_ARCHIVOS_H,
   dbMountsByProject: {},
   aplicarUpdateAlCerrar: true,
+  registroSalud: true,
+  volcadosCaida: true,
   diffColapsarSinCambios: false,
   paquetesExtraSandbox: [],
   sandboxDepsNavegador: false,
@@ -561,6 +587,7 @@ export const DEFAULT_SETTINGS: WorkspaceSettings = {
   vistaLateralPorPerfil: {},
   panelInferiorPorPerfil: {},
   mosaicoPreset: 'auto',
+  coloresPerfilFijados: [],
   dbAgenteVisiblePorPerfil: {},
   dbAgenteWidth: DEFAULT_DB_AGENTE_WIDTH,
   dbResultadosAlto: DEFAULT_DB_RESULTADOS_ALTO,
@@ -573,6 +600,7 @@ export const DEFAULT_SETTINGS: WorkspaceSettings = {
   sshRielAncho: SSH_RIEL_ANCHO_POR_DEFECTO,
   sshRielVisiblePorPerfil: {},
   sshRecientesPorPerfil: {},
+  sshPestanasPorPerfil: {},
   agenteTerminalVisiblePorPerfil: {}
 }
 
@@ -721,6 +749,7 @@ function normalizeSettings(raw: unknown): WorkspaceSettings {
     sshRielAncho: normalizarAnchoRiel(obj.sshRielAncho),
     sshRielVisiblePorPerfil: normalizarRielVisiblePorPerfil(obj.sshRielVisiblePorPerfil),
     sshRecientesPorPerfil: normalizarRecientesPorPerfil(obj.sshRecientesPorPerfil),
+    sshPestanasPorPerfil: normalizarPestanasSshPorPerfil(obj.sshPestanasPorPerfil),
     agenteTerminalVisiblePorPerfil: normalizarAgenteTerminalVisible(obj.agenteTerminalVisiblePorPerfil)
   }
 }
@@ -752,6 +781,9 @@ function tamanoUi(v: unknown): number {
       : clampInt(v, UI_FONT_SIZE_MIN, UI_FONT_SIZE_MAX)
     : 0
 }
+
+/** Cuántos colores de perfil se pueden fijar: una fila del selector. */
+export const MAX_COLORES_FIJADOS = 8
 
 /** Strings recortados, no vacíos y sin duplicados; `[]` si no llega una lista. */
 function listaDeTextos(v: unknown, transformar: (s: string) => string): string[] {
@@ -882,6 +914,8 @@ function normalizarSistema(
 ): Pick<
   WorkspaceSettings,
   | 'aplicarUpdateAlCerrar'
+  | 'registroSalud'
+  | 'volcadosCaida'
   | 'diffColapsarSinCambios'
   | 'paquetesExtraSandbox'
   | 'sandboxDepsNavegador'
@@ -898,6 +932,8 @@ function normalizarSistema(
   // (en un `--build-arg` sin comillas y en una clave del registro).
   return {
     aplicarUpdateAlCerrar: obj.aplicarUpdateAlCerrar !== false,
+    registroSalud: obj.registroSalud !== false,
+    volcadosCaida: obj.volcadosCaida !== false,
     diffColapsarSinCambios: obj.diffColapsarSinCambios === true,
     paquetesExtraSandbox: listaDeTextos(obj.paquetesExtraSandbox, (s) => s.trim()),
     sandboxDepsNavegador: obj.sandboxDepsNavegador === true,
@@ -912,14 +948,18 @@ function normalizarSistema(
 /** Vista lateral y panel inferior recordados por perfil, y distribución del mosaico. */
 function normalizarVistasPorPerfil(
   obj: Record<string, unknown>
-): Pick<WorkspaceSettings, 'vistaLateralPorPerfil' | 'panelInferiorPorPerfil' | 'mosaicoPreset'> {
+): Pick<WorkspaceSettings, 'vistaLateralPorPerfil' | 'panelInferiorPorPerfil' | 'mosaicoPreset' | 'coloresPerfilFijados'> {
   // Un id retirado en una versión futura solo hace que ESE perfil abra el default. La
   // franja admite además '' (cerrada), que es un estado con significado. Un preset de
   // mosaico desconocido vuelve a Automático, que es el que siempre cabe.
   return {
     vistaLateralPorPerfil: mapaDeIds(obj.vistaLateralPorPerfil, ACTIVITY_BAR_DEFAULT_ORDER),
     panelInferiorPorPerfil: mapaDeIds(obj.panelInferiorPorPerfil, [...BOTTOM_BAR_DEFAULT_ORDER, '']),
-    mosaicoPreset: esPresetMosaico(obj.mosaicoPreset) ? obj.mosaicoPreset : DEFAULT_SETTINGS.mosaicoPreset
+    mosaicoPreset: esPresetMosaico(obj.mosaicoPreset) ? obj.mosaicoPreset : DEFAULT_SETTINGS.mosaicoPreset,
+    // Un hex que no lo sea (archivo editado a mano) se descarta: pintaría una muestra vacía.
+    coloresPerfilFijados: listaDeTextos(obj.coloresPerfilFijados, (s) => s.trim().toLowerCase())
+      .filter((s) => /^#[0-9a-f]{6}$/.test(s))
+      .slice(0, MAX_COLORES_FIJADOS)
   }
 }
 

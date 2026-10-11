@@ -79,6 +79,7 @@ export const KIND_DE_TIPO: Readonly<Record<TipoSugerencia, NombreKind>> = {
   tipoColeccion: 'Class',
   tipo: 'Class',
   disparador: 'Event',
+  evento: 'Event',
   columna: 'Field',
   palabraClave: 'Keyword',
   esquema: 'Folder',

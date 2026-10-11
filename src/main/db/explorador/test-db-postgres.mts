@@ -78,6 +78,11 @@ CREATE FUNCTION doble(x int) RETURNS int LANGUAGE sql AS $$ SELECT x * 2 $$;
 CREATE SEQUENCE seq_facturas START 1000;
 CREATE SCHEMA ventas;
 CREATE TABLE ventas.factura (id int PRIMARY KEY, importe numeric(10,2));
+CREATE TABLE ventas.otra (id int);
+CREATE FUNCTION ventas.tr_fn() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$;
+CREATE TRIGGER tr_aud BEFORE INSERT ON ventas.factura FOR EACH ROW EXECUTE FUNCTION ventas.tr_fn();
+CREATE TRIGGER tr_aud BEFORE INSERT ON ventas.otra FOR EACH ROW EXECUTE FUNCTION ventas.tr_fn();
+ALTER TABLE ventas.otra DISABLE TRIGGER tr_aud;
 INSERT INTO cliente VALUES
   (1, 'Ana', 12345678901234567890123456789012345.67, '2024-03-31 02:30:00+02', true, '\\x0a0bff', '{"a":1}'),
   (2, 'Bea', -0.5, NULL, false, NULL, NULL),
@@ -380,6 +385,25 @@ async function main(): Promise<void> {
     check('detalle: columnas con la PK, índices y restricciones', det.ok && id?.pk === 1 && (det.valor.columnas?.length ?? 0) === 7 && (det.valor.restricciones ?? []).some((r) => r.tipo === 'pk'), det.ok ? `id.pk=${id?.pk} cols=${det.valor.columnas?.length} restr=${det.valor.restricciones?.length}` : JSON.stringify(det))
     const fuente = await ex.fuente('c1', { esquema: 'public', nombre: 'v_clientes_activos', tipo: 'vista' })
     check('fuente de la vista', fuente.ok && /SELECT/i.test(fuente.valor.partes[0]?.texto ?? ''), fuente.ok ? fuente.valor.partes[0]?.texto.slice(0, 60) ?? '' : JSON.stringify(fuente))
+    const cvVentas = await ex.resumen('c1', 'ventas')
+    check('disparadores: la carpeta cuenta los de ventas (dos, uno por tabla)', cvVentas.ok && cvVentas.valor.disparador === 2, JSON.stringify(cvVentas))
+    const disp = await ex.objetos('c1', 'ventas', 'disparador')
+    const dispTxt = disp.ok ? disp.valor.map((o) => `${o.nombre}@${o.tabla}/${o.firma}/${o.subtipo}`).join(',') : JSON.stringify(disp)
+    check('disparadores: mismo nombre en dos tablas, con su tabla y su estado', dispTxt === 'tr_aud@factura/factura/ENABLED,tr_aud@otra/otra/DISABLED', dispTxt)
+    const fuenteTr = await ex.fuente('c1', { esquema: 'ventas', nombre: 'tr_aud', tipo: 'disparador', firma: 'otra' })
+    const partesTr = fuenteTr.ok ? fuenteTr.valor.partes : []
+    check(
+      'fuente del disparador: el CREATE TRIGGER de SU tabla y la función que ejecuta',
+      partesTr.length === 2 && /CREATE TRIGGER tr_aud BEFORE INSERT ON ventas\.otra/.test(partesTr[0].texto) && /FUNCTION ventas\.tr_fn\(\)/.test(partesTr[1].texto),
+      JSON.stringify(fuenteTr)
+    )
+    const ddlTr = await ex.ddl('c1', { esquema: 'ventas', nombre: 'tr_aud', tipo: 'disparador', firma: 'factura' })
+    const ddlTrTxt = ddlTr.ok ? (ddlTr.valor.partes[0]?.texto ?? '') : JSON.stringify(ddlTr)
+    check(
+      'Ver DDL del disparador: la función primero, el CREATE TRIGGER después, cada una con su ;',
+      ddlTrTxt.indexOf('CREATE OR REPLACE FUNCTION ventas.tr_fn()') >= 0 && ddlTrTxt.indexOf('CREATE TRIGGER tr_aud') > ddlTrTxt.indexOf('CREATE OR REPLACE FUNCTION') && ddlTrTxt.trimEnd().endsWith(';'),
+      ddlTrTxt
+    )
     const idx = await ex.nombres('c1')
     const nomIdx = idx.ok ? idx.valor.objetos.map((o) => `${idx.valor.esquemas[o[1]]}.${o[0]}`) : []
     check('autocompletado: los nombres de public, no los de ventas', idx.ok && nomIdx.includes('public.cliente') && !nomIdx.includes('ventas.factura'), nomIdx.join(','))
@@ -1850,7 +1874,6 @@ INSERT INTO edicion.alterada VALUES (1, 'uno');
         col: { id: 'id', nombre: 'nombre', sueldo: 'sueldo', grande: 'grande', alta: 'alta', activo: 'activo' },
         grandes: ['123456789012345678901234567890', '123456789012345678901234567891'],
         booleano: true,
-        columnaInexistente: 'condicion',
         abrir: (p) => ex.abrirTabla({ conexionId: 'c1', objeto: ref, maxFilas: 100, ...p }),
         leerMas: (l, m) => ex.leerMas(l, m),
         contar: (l, id) => ex.contar(l, id),

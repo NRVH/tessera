@@ -8,7 +8,7 @@
 // =============================================================================
 
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
@@ -153,7 +153,9 @@ async function main(): Promise<void> {
   for (const k of Object.keys(process.env)) {
     if (k.toUpperCase().startsWith('TESSERA_')) delete process.env[k]
   }
-  const tmp = mkdtempSync(path.join(os.tmpdir(), 'tessera-dbx-sqlite-'))
+  // La ruta REAL, como la que guarda el main (`rutaArchivoBd`): en macOS el temporal es `/var/...`, un
+  // enlace a `/private/var/...`, y la guardia de enlaces la rechazaría.
+  const tmp = realpathSync.native(mkdtempSync(path.join(os.tmpdir(), 'tessera-dbx-sqlite-')))
   process.on('exit', () => {
     try {
       rmSync(tmp, { recursive: true, force: true })
@@ -674,7 +676,6 @@ async function main(): Promise<void> {
         grandes: ['9007199254740993', '9007199254740994'],
         // SQLite no tiene booleano: una columna INTEGER es 'numero' en la interfaz.
         booleano: false,
-        columnaInexistente: 'literal',
         abrir: (p) => controlador.abrirTabla({ conexionId: 'c1', objeto: objeto('fg'), maxFilas: 100, ...p }),
         leerMas: (l, m) => controlador.leerMas(l, m),
         contar: (l, id) => controlador.contar(l, id),

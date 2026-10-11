@@ -116,6 +116,14 @@ export function mapearFks(esquema: string, objeto: string, filas: readonly FilaC
 export function mapearFuente(_d: DialectoCatalogo, ref: DbRefObjeto, filas: readonly FilaCatalogo[]): DbFuente {
   const cabecera = `${citar(ref.esquema)}.${citar(ref.nombre)}`
   const valor = filas.length > 0 ? textoOpcional(filas[0][0]) : undefined
+  if (ref.tipo === 'disparador') {
+    const origen = 'pg_get_triggerdef'
+    if (valor === undefined) return { partes: [], origen, aviso: AVISO_SIN_FUENTE }
+    const partes: DbFuente['partes'] = [{ titulo: 'Definición', texto: valor }]
+    const funcion = textoOpcional(filas[0][1])
+    if (funcion !== undefined) partes.push({ titulo: 'Cuerpo', texto: funcion })
+    return { partes, origen }
+  }
   let origen: string
   let prefijo = ''
   if (ref.tipo === 'rutina') {

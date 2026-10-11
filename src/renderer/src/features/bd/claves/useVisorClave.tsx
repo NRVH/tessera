@@ -1,6 +1,7 @@
 // =============================================================================
 // El estado de vista del visor de clave: la tabla del contenido, la fila elegida y su
-// detalle, el modo de texto, el panel de detalle y el menú contextual de una fila.
+// detalle, el modo de texto, el panel de detalle y el menú contextual de una fila (y el
+// de «Más acciones» de la barra, que usa el mismo `menu`).
 // Lo usa `DbClavePane`; la lógica de tablas y detalles está en `visorClaves.ts`.
 // =============================================================================
 
@@ -10,6 +11,7 @@ import { detalleDeFila, tablaDeContenido, type ModoVista, type ParteDetalle, typ
 import { textoParte } from './PiezasVisorClave'
 import { copiarTexto } from '../documentos/utilPanes'
 import { type ContextMenuEntry } from '../../../comun/ContextMenu'
+import { SEP } from '../../../comun/contextMenuModel'
 import { IconoCopiar } from '../../../comun/iconosMenu'
 
 export interface VisorClave {
@@ -28,8 +30,11 @@ export interface VisorClave {
   abrirMenuFila: (i: number, x: number, y: number) => void
 }
 
-/** Estado de la vista del valor leído; el menú de una fila ofrece copiar cada parte de su detalle. */
-export function useVisorClave(valor: DbKvValor | null): VisorClave {
+/**
+ * Estado de la vista del valor leído; el menú de una fila ofrece copiar cada parte de su detalle y,
+ * detrás, lo que añada `extraFila` (editar o borrar un campo de un hash).
+ */
+export function useVisorClave(valor: DbKvValor | null, extraFila?: (i: number) => ContextMenuEntry[]): VisorClave {
   const contenido: DbKvContenido | null = valor?.contenido ?? null
   const tabla: TablaValor | null = useMemo(() => (contenido ? tablaDeContenido(contenido) : null), [contenido])
   const [seleccion, setSeleccion] = useState<string | null>(null)
@@ -51,7 +56,8 @@ export function useVisorClave(valor: DbKvValor | null): VisorClave {
         icon: <IconoCopiar />,
         onClick: () => copiarTexto(textoParte(parte), parte.titulo)
       }))
-    setMenu({ x, y, items })
+    const extra = extraFila?.(i) ?? []
+    setMenu({ x, y, items: extra.length > 0 ? [...items, SEP, ...extra] : items })
   }
 
   return { contenido, tabla, setSeleccion, indiceSel, partes, modoElegido, setModoElegido, panelDetalle, setPanelDetalle, menu, setMenu, abrirMenuFila }

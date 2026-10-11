@@ -37,10 +37,17 @@ renderer después de que este limpiara la pantalla y repinta un prompt viejo.
   tiene otro pty, el código tardío no se aplica: sería de un proceso que ya no es el suyo.
 - El RELOAD de una sesión abierta (terminal y agente) espera al candado del borrado del perfil de esa sesión: relanzar a
   mitad del borrado levantaría el contenedor de un perfil que se está borrando.
+- En Linux el pty se lanza envuelto en `bash`, que cierra todo descriptor mayor que 2 y ejecuta en su lugar la shell
+  (`adaptadores/descriptoresHeredados.ts`): node-pty hace allí `forkpty` + `execvp` sin cerrar nada, y la shell heredaba
+  los `.pak`, la memoria compartida, las tuberías y los sockets del IPC de Chromium, que un proceso suelto de un agente
+  (un servidor MCP) retenía con Tessera ya cerrada. En macOS node-pty usa `posix_spawn` con
+  `POSIX_SPAWN_CLOEXEC_DEFAULT` y en Windows ConPTY no hereda: allí no se envuelve. La envoltura es un `bash -c` no
+  interactivo, que ejecuta el guion de `BASH_ENV` al arrancar: esa variable viaja apartada
+  (`TESSERA_BASH_ENV_APARTADO`) y la envoltura la devuelve a su sitio antes de ejecutar la shell, que la recibe intacta.
 
 ## Consecuencias
 
-- Quien cree un pty nuevo debe pasar por `lanzarPty`; sin la opción vuelve el segfault.
+- Quien cree un pty nuevo debe pasar por `lanzarPty`; sin la opción vuelve el segfault, y en Linux la herencia.
 - Una parada cuesta unos 0,7 s por sesión que sale elegante; es un reinicio masivo pedido a mano.
 - No se puede paralelizar la parada para ganar tiempo.
 

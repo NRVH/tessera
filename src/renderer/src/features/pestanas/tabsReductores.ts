@@ -161,12 +161,14 @@ export function reducirSetActiveProject(state: TabsState, action: Accion<'setAct
   const exists = tabs.openProjects.some((p) => p.projectHostPath === action.projectHostPath)
   if (!exists) return state
   const openProjects = wakeProject(tabs.openProjects, action.projectHostPath)
-  // No-op solo si NADA cambia (ya activo Y ya 'active').
-  if (openProjects === tabs.openProjects && tabs.activePath === action.projectHostPath) return state
-  return patchProfile(state, action.profileId, {
+  const cambiaPerfil = action.entrar === true && state.activeProfileId !== action.profileId
+  // No-op solo si NADA cambia (ya activo Y ya 'active', y ya en su perfil si se pidió entrar).
+  if (openProjects === tabs.openProjects && tabs.activePath === action.projectHostPath && !cambiaPerfil) return state
+  const next = patchProfile(state, action.profileId, {
     openProjects,
     activePath: action.projectHostPath
   })
+  return cambiaPerfil ? { ...next, activeProfileId: action.profileId } : next
 }
 
 /** Despierta un proyecto sin activarlo. */

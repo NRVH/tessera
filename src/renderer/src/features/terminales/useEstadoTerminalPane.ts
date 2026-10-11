@@ -30,6 +30,9 @@ export interface EstadoSesion {
   /** Solo SSH: ¿ya llegó algo de la sesión? Hasta entonces se ve «Conectando a…». */
   datosRecibidos: boolean
   setDatosRecibidos: Dispatch<SetStateAction<boolean>>
+  /** Solo SSH: qué pasó al terminar la sesión, para la franja de reconexión; `null` mientras vive. */
+  finSsh: string | null
+  setFinSsh: Dispatch<SetStateAction<string | null>>
 }
 
 /** Estado de la sesión del pane: estado, id, código de salida, error, reload en vuelo y si ya llegaron datos. */
@@ -40,9 +43,10 @@ export function useEstadoSesion(): EstadoSesion {
   const [error, setError] = useState<string | null>(null)
   const [reloading, setReloading] = useState(false)
   const [datosRecibidos, setDatosRecibidos] = useState(false)
+  const [finSsh, setFinSsh] = useState<string | null>(null)
   return {
     status, setStatus, sessionId, setSessionId, exitCode, setExitCode, error, setError,
-    reloading, setReloading, datosRecibidos, setDatosRecibidos
+    reloading, setReloading, datosRecibidos, setDatosRecibidos, finSsh, setFinSsh
   }
 }
 

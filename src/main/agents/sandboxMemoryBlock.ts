@@ -43,7 +43,9 @@ function seccionEntorno(plataforma: Plataforma): string[] {
     INICIO_SANDBOX,
     '# Entorno: contenedor de Tessera',
     '',
-    'Corres dentro de un contenedor Docker (Debian) como el usuario `agente` (uid 1001).',
+    plataforma === 'linux'
+      ? 'Corres dentro de un contenedor Docker (Debian) como el usuario `agente`, con el mismo uid que el usuario del equipo.'
+      : 'Corres dentro de un contenedor Docker (Debian) como el usuario `agente` (uid 1001).',
     'La carpeta del proyecto, en `/workspace/<proyecto>`, es una carpeta REAL del disco',
     `de ${nombresSistema(plataforma).sistema} montada aquí: lo que escribas ahí es permanente.`,
     ''
@@ -164,7 +166,7 @@ function seccionPlaywright(ctx: ContextoSandbox, plataforma: Plataforma): string
         ]
       : [
           '- Las rutas del `.mcp.json` tienen que ser las de AQUÍ DENTRO (`/workspace/...`).',
-          '  Una ruta del anfitrión (`/Users/...`) es JSON válido, así que no da error al',
+          `  Una ruta del anfitrión (\`${plataforma === 'mac' ? '/Users' : '/home'}/...\`) es JSON válido, así que no da error al`,
           '  leerse: el servidor MCP arranca, no encuentra nada y falla mucho más tarde.'
         ]),
     FIN_SANDBOX

@@ -201,6 +201,7 @@ function CuerpoLog({ props, e }: { props: GitLogPanelProps; e: EstadoLog }): Rea
       />
       <Splitter
         orientation="vertical"
+        className="splitter-hueco"
         size={props.anchoRamas}
         min={props.colMin}
         max={props.colMax}
@@ -216,6 +217,7 @@ function CuerpoLog({ props, e }: { props: GitLogPanelProps; e: EstadoLog }): Rea
       />
       <Splitter
         orientation="vertical"
+        className="splitter-hueco"
         size={props.anchoDetalle}
         min={props.colMin}
         max={props.colMax}

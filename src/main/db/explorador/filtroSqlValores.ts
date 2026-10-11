@@ -55,6 +55,9 @@ export function partirNumero(valor: string): NumeroPartido | null {
 
 /** SQL Server: el mayor DECIMAL. */
 const PRECISION_SQLSERVER = 38
+/** El DECIMAL más ancho de MySQL: 65 cifras, 30 de ellas decimales. */
+const PRECISION_MYSQL = 65
+const ESCALA_MYSQL = 30
 
 /** Un valor que se enlaza y su expresión en función del marcador que le toque. */
 export interface ValorConExpr {
@@ -80,6 +83,13 @@ function numeroSql(d: DialectoSql, n: NumeroPartido): ValorConExpr | string {
     }
     case 'sqlite':
       return { valor: { sqlite: n.int8 ? 'entero' : 'real', valor: n.texto }, expr: (m) => m }
+    case 'mysql': {
+      if (n.int8) return { valor: n.texto, expr: (m) => `CAST(${m} AS SIGNED)` }
+      if (n.entera.length + n.fraccion.length > PRECISION_MYSQL || n.fraccion.length > ESCALA_MYSQL) {
+        return `Este motor compara números de hasta ${PRECISION_MYSQL} cifras, ${ESCALA_MYSQL} de ellas decimales.`
+      }
+      return { valor: n.texto, expr: (m) => `CAST(${m} AS DECIMAL(${PRECISION_MYSQL}, ${n.fraccion.length}))` }
+    }
     default:
       return nunca(d, 'numeroSql')
   }
@@ -103,6 +113,9 @@ export function fechaSql(d: DialectoSql, dia: string, hora: string | null): Valo
       return { valor: hora === null ? dia : `${dia} ${hora}`, expr: (m) => m }
     case 'sqlserver':
       return { valor: `${dia}T${hora ?? '00:00:00'}`, expr: (m) => m }
+    // MySQL convierte la cadena al tipo de la columna (DATE, DATETIME o TIMESTAMP) al comparar.
+    case 'mysql':
+      return { valor: `${dia} ${hora ?? '00:00:00'}`, expr: (m) => m }
     default:
       return nunca(d, 'fechaSql')
   }
@@ -120,6 +133,8 @@ export function comoTexto(d: DialectoSql, c: string): string {
       return `CAST(${c} AS text)`
     case 'sqlserver':
       return `CAST(${c} AS NVARCHAR(MAX))`
+    case 'mysql':
+      return `CAST(${c} AS CHAR)`
     default:
       return nunca(d, 'comoTexto')
   }
@@ -135,6 +150,7 @@ export function escaparLike(d: DialectoSql, s: string): string {
     case 'oracle':
     case 'postgres':
     case 'sqlite':
+    case 'mysql':
       especiales = /[!%_]/g
       break
     default:
@@ -152,6 +168,7 @@ export function likeSql(d: DialectoSql, c: string, m: string): string {
     case 'postgres':
       return `${comoTexto(d, c)} ILIKE ${m} ESCAPE '!'`
     case 'sqlserver':
+    case 'mysql':
       return `LOWER(${comoTexto(d, c)}) LIKE LOWER(${m}) ESCAPE '!'`
     default:
       return nunca(d, 'likeSql')
@@ -166,6 +183,7 @@ export function vacioEsNull(d: DialectoSql): boolean {
     case 'postgres':
     case 'sqlite':
     case 'sqlserver':
+    case 'mysql':
       return false
     default:
       return nunca(d, 'vacioEsNull')
@@ -179,6 +197,7 @@ export function booleanoSql(d: DialectoSql, b: boolean): ValorFiltroSql {
       return b ? 'true' : 'false'
     case 'oracle':
     case 'sqlserver':
+    case 'mysql':
       return b ? 1 : 0
     case 'sqlite':
       return { sqlite: 'entero', valor: b ? '1' : '0' }

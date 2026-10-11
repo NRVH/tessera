@@ -9,7 +9,7 @@
 import { BarraFiltroGuiado } from '../filtro/BarraFiltroGuiado'
 import type { ErrorBarraFiltro } from '../filtro/modeloFiltro'
 import { textoError } from '../panesBd'
-import { aplicarEscrito, cambiarModo, restaurarGuiado, teclaWhere } from './datosAcciones'
+import { aplicarEscrito, cambiarModo, quitarOrden, restaurarGuiado, teclaWhere } from './datosAcciones'
 import type { VistaDatos } from './datosTipos'
 
 /** El error del ORDEN (una columna que el servidor no sabe ordenar), o null. */
@@ -18,13 +18,26 @@ function errorOrden(v: VistaDatos): string | null {
   return errorCampo?.campo === 'orderBy' ? `No se pudo ordenar: ${textoError(errorCampo)}` : null
 }
 
-/** El error que pinta la barra guiada: el suyo, el del servidor en su fila, o el del orden. */
+/** El error que pinta la barra guiada: el suyo o el del servidor en su fila (el del orden va aparte). */
 function errorGuiada(v: VistaDatos): ErrorBarraFiltro | null {
   const { errorGuiado, errorCampo } = v.e
   if (errorGuiado) return errorGuiado
   if (errorCampo?.campo === 'filtro') return { condicion: errorCampo.condicion ?? null, mensaje: textoError(errorCampo) }
+  return null
+}
+
+/** El error del orden con su salida, «Quitar el orden», en las dos barras. */
+function avisoOrden(v: VistaDatos): React.JSX.Element | null {
   const orden = errorOrden(v)
-  return orden !== null ? { condicion: null, mensaje: orden } : null
+  if (orden === null) return null
+  return (
+    <div className="db-filtro-error campo-orderBy" role="alert">
+      <span>{orden}</span>
+      <button type="button" className="btn" onClick={() => quitarOrden(v)}>
+        Quitar el orden
+      </button>
+    </div>
+  )
 }
 
 function filtroGuiado(v: VistaDatos): React.JSX.Element {
@@ -49,6 +62,7 @@ function filtroGuiado(v: VistaDatos): React.JSX.Element {
           onClick: () => cambiarModo(n, 'sql')
         }}
       />
+      {avisoOrden(v)}
     </div>
   )
 }
@@ -56,7 +70,6 @@ function filtroGuiado(v: VistaDatos): React.JSX.Element {
 function filtroSql(v: VistaDatos): React.JSX.Element {
   const { n } = v
   const { errorCampo } = v.e
-  const orden = errorOrden(v)
   return (
     <div className="db-filtro filtro-sql">
       <label className="db-filtro-campo">
@@ -88,11 +101,7 @@ function filtroSql(v: VistaDatos): React.JSX.Element {
           {textoError(errorCampo)}
         </div>
       )}
-      {orden !== null && (
-        <div className="db-filtro-error campo-orderBy" role="alert">
-          {orden}
-        </div>
-      )}
+      {avisoOrden(v)}
     </div>
   )
 }

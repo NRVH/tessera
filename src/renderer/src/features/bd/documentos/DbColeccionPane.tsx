@@ -18,6 +18,7 @@ import * as edicion from './edicionColeccion'
 import { barraFiltro, cabeceraColeccion, zonaTabla, type AccionesVista } from './vistaColeccion'
 import { panelDocumento } from './PanelDocumento'
 import { dialogosColeccion } from './DialogosColeccion'
+import type { AbrirConsolaEn } from '../consola/basesConsola'
 import './documentos.css'
 
 export interface PropsColeccion {
@@ -30,8 +31,8 @@ export interface PropsColeccion {
   /** Documentos por página (Configuración › «Bases de datos»). */
   filasPorPagina: number
   onIndicador: (i: ReadonlySet<IndicadorPestana>) => void
-  /** Abre una consola de esta conexión con un texto inicial. */
-  onAbrirConsola?: (conexionId: string, textoInicial?: string) => void
+  /** Abre una consola de esta conexión con un texto inicial, en la base de la colección. */
+  onAbrirConsola?: AbrirConsolaEn
 }
 
 /** La pestaña de una colección de MongoDB (ver la cabecera del módulo). */
@@ -63,9 +64,11 @@ export function DbColeccionPane(p: PropsColeccion): React.JSX.Element {
       if (ed.filaSel) edicion.alternarBorradoFila(ed, ed.filaSel)
     },
     revertir: () => void descarte.pedirDescarte(),
-    enviar: () => void edicion.enviar(ed, ctx, {}),
+    enviar: () => edicion.abrirVistaPrevia(ed, coleccion, e.pagina?.documentos ?? []),
     alternarPanel: () => ed.setPanelJson((v) => !v),
-    abrirConsola: p.onAbrirConsola && (() => p.onAbrirConsola?.(conexion.id, barra.textoDeConsola(conexion.database, base, coleccion, e.aplicado))),
+    abrirConsola:
+      p.onAbrirConsola &&
+      (() => p.onAbrirConsola?.(conexion.id, barra.textoDeConsola(conexion.database, base, coleccion, e.aplicado), { familia: 'documentos', base })),
     cambiarModo: (m) => barra.cambiarModo(e, consultar, m),
     teclaCampo: (ev) => barra.teclaCampo(e, consultar, ev),
     restaurarGuiado: () => barra.restaurarGuiado(e),
@@ -86,13 +89,11 @@ export function DbColeccionPane(p: PropsColeccion): React.JSX.Element {
         {ed.panelJson && panelDocumento({ ed, documentoParcial, onAplicarJson: () => edicion.aplicarJson(ed, documentoParcial) })}
       </div>
       {dialogosColeccion({
-        conexion,
-        base,
-        coleccion,
-        ed,
+        ...datos,
         descarte: descarte.descarte,
         onResponderDescarte: descarte.responderDescarte,
-        onResponderConfirmacion: (ok) => edicion.responderConfirmacion(ed, ctx, ok)
+        onResponderConfirmacion: (ok) => edicion.responderConfirmacion(ed, ctx, ok),
+        onAceptarVistaPrevia: () => edicion.aceptarVistaPrevia(ed, ctx, conexion.entorno === 'produccion')
       })}
     </section>
   )

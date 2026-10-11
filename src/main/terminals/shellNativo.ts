@@ -1,8 +1,8 @@
 // =============================================================================
 // Qué shell lanza el modo nativo de la terminal en cada sistema: PowerShell en Windows y el shell
-// de login del usuario (`$SHELL`) en macOS.
-// En macOS los argumentos llevan siempre `-il` (`-ilc` con agente): una app lanzada por `launchd`
-// no hereda el PATH del usuario y `-lc` no lee `~/.zshrc`.
+// de login del usuario (`$SHELL`) en macOS y Linux.
+// En POSIX los argumentos llevan siempre `-il` (`-ilc` con agente): una app lanzada por `launchd`
+// o desde el menú del escritorio no hereda el PATH del usuario y `-lc` no lee `~/.zshrc`.
 // Puro y sin `node-pty`; la plataforma es el último parámetro y vale la actual por defecto.
 // Decisiones: docs/decisiones/terminales/pty-shell-nativo-y-entorno.md
 // =============================================================================
@@ -21,13 +21,15 @@ export interface ShellNativo {
 }
 
 /**
- * El shell de login por defecto de macOS desde Catalina. Sólo se usa si `$SHELL` no
- * viene en el entorno, que es raro pero posible: un `launchd` muy recortado, o un
- * usuario cuyo `NSHomeDirectory` no tiene shell asignado. Preferir un valor conocido a
+ * El shell que se usa si `$SHELL` no viene en el entorno, que es raro pero posible: un
+ * `launchd` muy recortado, o un usuario sin shell asignado. Preferir un valor conocido a
  * fallar es lo correcto aquí — una terminal en `zsh` cuando el usuario quería `fish` es
- * un inconveniente; una terminal que no abre es un fallo.
+ * un inconveniente; una terminal que no abre es un fallo. En macOS es el de fábrica desde
+ * Catalina; en Linux, `bash`, porque muchas distribuciones no instalan `zsh`.
  */
-const SHELL_MAC_POR_DEFECTO = '/bin/zsh'
+export function shellPosixPorDefecto(plataforma: Plataforma): string {
+  return plataforma === 'mac' ? '/bin/zsh' : '/bin/bash'
+}
 
 /**
  * Decide shell y argumentos para el modo nativo.
@@ -65,9 +67,9 @@ export function shellNativoPara(
     }
   }
 
-  // macOS (y cualquier POSIX). `$SHELL` es el shell que el usuario eligió: respetarlo hace que
-  // su `.zshrc`, sus alias y su prompt aparezcan aquí como en cualquier otra terminal.
-  const archivo = shellEnv?.trim() || SHELL_MAC_POR_DEFECTO
+  // macOS, Linux y cualquier POSIX. `$SHELL` es el shell que el usuario eligió: respetarlo hace
+  // que su `.zshrc`, sus alias y su prompt aparezcan aquí como en cualquier otra terminal.
+  const archivo = shellEnv?.trim() || shellPosixPorDefecto(plataforma)
   return {
     archivo,
     // `-il` en los dos casos (`-l` trae el PATH de `.zprofile` e `-i` el de `.zshrc`):

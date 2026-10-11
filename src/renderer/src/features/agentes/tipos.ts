@@ -60,6 +60,11 @@ export interface ApiAgentePane {
    * no se reanude «la última de la carpeta».
    */
   reanudarCon(conversacionId: string): void
+  /**
+   * Hibernado sin chat conocido desde `desde` (conversación nueva o `/clear`): al volver reanuda
+   * la más reciente de la carpeta solo si tuvo actividad desde entonces; si no, empieza de cero.
+   */
+  reanudarSiHuboDesde(desde: number): void
 }
 
 /** Fases que el botón enseña mientras corre. */
@@ -76,6 +81,8 @@ export interface InstalacionPlaneada {
   fase: 'A' | 'B'
   de: string | null
   a: string
+  /** Reinstala `a` sobre un CLI que no responde (`EstadoCli.reparar`), no lo actualiza. */
+  reparar: boolean
 }
 
 /** Un aviso que NO bloquea pero que el usuario debe ver antes de confirmar. */

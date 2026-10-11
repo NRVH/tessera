@@ -176,7 +176,7 @@ test.describe('Git·Log a pantalla completa', () => {
     await enReposo(win)
     await expect(cerrar, 'fuera de pantalla completa la X vuelve a esconderse en reposo').toBeHidden()
 
-    // --- La X a pantalla completa cierra Git y restaura; al reabrir vuelve a la franja ---
+    // --- La X a pantalla completa cierra Git; al reabrirlo vuelve como lo dejó: maximizado ---
     await panel.locator('.panel-header').first().hover()
     await maximizar.click()
     await expect(shell).toHaveClass(/\bgit-pantalla-completa\b/)
@@ -189,7 +189,11 @@ test.describe('Git·Log a pantalla completa', () => {
     await expect(agente).toBeVisible()
     await win.getByRole('button', { name: 'Git · Log' }).click()
     await expect(panel).toBeVisible()
-    await expect(shell, 'reabrir Git no resucita la pantalla completa').not.toHaveClass(/\bgit-pantalla-completa\b/)
+    await expect(shell, 'reabrir Git lo devuelve maximizado: es lo último que eligió el usuario').toHaveClass(
+      /\bgit-pantalla-completa\b/
+    )
+    await restaurar.click()
+    await expect(shell).not.toHaveClass(/\bgit-pantalla-completa\b/)
     expect(await alto(panel)).toBe(altoFranja)
   })
 
@@ -240,7 +244,7 @@ test.describe('Git·Log a pantalla completa', () => {
     // Control: fuera del modo la misma selección SÍ abre (la prueba de arriba no es vacía).
     await commits.nth(1).click()
     await expect(asunto).toHaveText('Primer commit de la prueba')
-    await expect(pestanaActiva.locator('.editor-tab-kind'), 'fuera del modo abre su diff').toHaveText('diff')
+    await expect(pestanaActiva.locator('.editor-tab-kind'), 'fuera del modo abre su diff').toHaveAttribute('aria-label', 'Diferencias')
     await expect(agente, 'y colapsa el agente, como siempre').toHaveClass(/\bcc-hidden\b/)
     await commits.nth(0).click()
     await elegido('Segundo commit de la prueba')
@@ -252,7 +256,7 @@ test.describe('Git·Log a pantalla completa', () => {
     await archivoDelCommit('OTRO.txt').click()
     await expect(shell, 'el clic sale del modo').not.toHaveClass(/\bgit-pantalla-completa\b/)
     await expect(pestanaActiva).toContainText('OTRO.txt')
-    await expect(pestanaActiva.locator('.editor-tab-kind')).toHaveText('diff')
+    await expect(pestanaActiva.locator('.editor-tab-kind')).toHaveAttribute('aria-label', 'Diferencias')
     await expect(diffVisible, 'y el diff se ve en el editor').toContainText('otro')
 
     // --- Doble clic, igual ---
@@ -262,7 +266,7 @@ test.describe('Git·Log a pantalla completa', () => {
     await archivoDelCommit('LEEME.txt').dblclick()
     await expect(shell, 'el doble clic sale del modo').not.toHaveClass(/\bgit-pantalla-completa\b/)
     await expect(pestanaActiva).toContainText('LEEME.txt')
-    await expect(pestanaActiva.locator('.editor-tab-kind')).toHaveText('diff')
+    await expect(pestanaActiva.locator('.editor-tab-kind')).toHaveAttribute('aria-label', 'Diferencias')
     await expect(diffVisible).toContainText('adiós')
 
     // --- (c) Historial de un archivo: doble clic en una versión y «Saltar al fuente» salen del modo ---
@@ -291,7 +295,7 @@ test.describe('Git·Log a pantalla completa', () => {
     await versiones.first().dblclick()
     await expect(shell, 'el doble clic en el historial sale del modo').not.toHaveClass(/\bgit-pantalla-completa\b/)
     await expect(pestanaActiva).toContainText('LEEME.txt')
-    await expect(pestanaActiva.locator('.editor-tab-kind')).toHaveText('diff')
+    await expect(pestanaActiva.locator('.editor-tab-kind')).toHaveAttribute('aria-label', 'Diferencias')
     await expect(diffVisible).toContainText('adiós')
   })
 

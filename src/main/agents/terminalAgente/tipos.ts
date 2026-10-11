@@ -120,6 +120,11 @@ export interface OpenAgentSession {
   activity: ActivityTracker
   /** Clave del ancla (agente + base + proyecto); vacía si no hay con qué anclar. */
   claveAncla: string
+  /**
+   * Cuándo el usuario envió el último `/clear` o `/new` (epoch ms), si el último cambio de
+   * conversación fue uno de ésos; un `/resume` lo quita. Ver `sinChatDesde`.
+   */
+  chatVacioDesde?: number
   detectorEnvio: DetectorEnvio
   /** Nativo: versión del CLI del proceso actual; null hasta que responde la sonda. */
   versionLanzada: string | null

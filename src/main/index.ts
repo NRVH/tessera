@@ -48,10 +48,17 @@ import { registrarIpcShell } from './shell/ipc'
 import { sistemaShellElectron } from './shell/adaptadores/sistemaElectron'
 import { IntegracionShellService } from './shell/IntegracionShellService'
 import { ServicioFinderService } from './shell/ServicioFinderService'
+import { EscritorioLinuxService } from './shell/EscritorioLinuxService'
+import { rutaEjecutableLinux } from './shell/escritorioLinux'
 import { crearReferencias } from './app/referencias'
 import { blindarProceso, prepararProceso } from './app/proceso'
+import { activarVolcados } from './app/volcados'
 import { applyOverlayZoom, crearVentana } from './app/ventana'
 import { iniciarCierre } from './app/cierre'
+import { RegistroSalud } from './salud/RegistroSalud'
+import { depsSaludElectron } from './salud/adaptadores/saludElectron'
+import { LlamadasIpc } from './salud/llamadasIpc'
+import { instrumentarIpc, registrarIpcSalud } from './salud/ipc'
 import { instalarTemaYMenu, logNativeAbi, prepararArranque } from './app/arranque'
 import { registrarActivacion, registrarAperturaMac, registrarEventosDeApp } from './app/eventosApp'
 import { esArranqueTrasActualizar } from './app/instanciaUnica'
@@ -61,8 +68,12 @@ import { registrarIpcAcercaDe, registrarIpcEnlacesExternos, registrarIpcFallos }
 // Lo primero: todo lo que lee rutas o versión de la app lo hace por `util/infoApp`.
 fijarInfoApp(infoAppElectron)
 const refs = crearReferencias()
+// Las peticiones de la ventana, para el registro de salud (ver `instrumentarIpc` en `arrancar`).
+const llamadasIpc = new LlamadasIpc()
 // Al cargar el módulo, antes de `whenReady` (ver la decisión del arranque).
 const encargoRelevo = prepararProceso(() => refs.ventana)
+// Tras reapuntar `userData` (desarrollo y relevo) y tras salir la segunda instancia.
+activarVolcados()
 blindarProceso()
 
 /** «Abrir con Tessera»: la cola de aperturas y quien escribe el menú del sistema. */
@@ -80,18 +91,29 @@ function componerIntegracionSistema(): void {
   })
   // La acción rápida del Finder: su estado es el disco, no los ajustes (el usuario puede borrarla).
   const servicioFinder = new ServicioFinderService({ sistema })
+  // El `.desktop` de Linux: lanza el AppImage real, no su montaje temporal; el icono viaja en los recursos.
+  const escritorioLinux = new EscritorioLinuxService({
+    sistema,
+    ejecutable: () => rutaEjecutableLinux(process.env.APPIMAGE, process.execPath),
+    iconoOrigen: join(process.resourcesPath, 'icon.png'),
+    xdgDataHome: process.env.XDG_DATA_HOME,
+    xdgConfigHome: process.env.XDG_CONFIG_HOME
+  })
   // Los canales se registran aunque la cola ya tenga rutas desde la carga del módulo.
   registrarIpcShell({
     ipc: ipcMain,
     getWindow: () => refs.ventana,
     persistidos: proyectosPersistidos,
     integracionShell,
-    servicioFinder
+    servicioFinder,
+    escritorioLinux
   })
   // Si Tessera cambió de carpeta, el menú apuntaría a un .exe que ya no existe. No se espera.
   void integracionShell.reconciliar()
   // En macOS la ruta del .app cambia sola; solo REESCRIBE lo ya instalado, nunca lo crea.
   void servicioFinder.reconciliar()
+  // En Linux el AppImage se mueve o cambia de nombre al actualizar; lo mismo, solo reescribe.
+  void escritorioLinux.reconciliar()
 }
 
 /** `workspace-state.json`: el esqueleto de pestañas y los ajustes globales (canal hermano). */
@@ -102,6 +124,7 @@ function componerEstadoWorkspace(): void {
       // Este canal llega por TODOS los caminos por los que cambian los ajustes: por eso avisa a
       // la actualización, al sandbox, al explorador de BD (saneado otra vez) y al overlay del zoom.
       refrescarPreferenciaUpdate()
+      refs.registroSalud?.fijarAjuste(settings.registroSalud)
       aplicarExtrasSandbox(refs.sandbox, settings)
       refs.explorador?.fijarAjustes(ajustesSesionesDe(settings))
       // Después de guardar y con try/catch: un overlay fallido no puede hacer mentir al guardado.
@@ -114,6 +137,26 @@ function componerEstadoWorkspace(): void {
       }
     }
   })
+}
+
+/** Registro de salud: solo graba en alpha y con el ajuste encendido (`shared/salud.ts`). */
+function componerRegistroSalud(): void {
+  const registro = new RegistroSalud(
+    depsSaludElectron({
+      version: app.getVersion(),
+      carpeta: join(app.getPath('userData'), 'logs'),
+      ventana: () => refs.ventana,
+      sesiones: () => ({
+        terminales: refs.terminales?.liveSessionIds().length ?? 0,
+        agentes: refs.agentes?.liveSessionIds().length ?? 0
+      }),
+      ipcEn: (desde, hasta) => llamadasIpc.en(desde, hasta, performance.now()),
+      ipcLentas: () => llamadasIpc.tomarLentas()
+    })
+  )
+  refs.registroSalud = registro
+  registrarIpcSalud({ ipc: ipcMain, registro: () => refs.registroSalud })
+  registro.fijarAjuste(loadWorkspaceSettings().registroSalud)
 }
 
 /** Explorador de archivos, jar/java, búsqueda, git, comprimidos y proyecto activo. */
@@ -183,6 +226,9 @@ async function arrancar(): Promise<void> {
     return
   }
   await prepararArranque()
+  // Antes de registrar ningún canal: el registro de salud sabe qué peticiones estaban en curso
+  // durante un bloqueo. Solo canal y tiempo; cuesta dos lecturas del reloj por petición.
+  instrumentarIpc(ipcMain, llamadasIpc, () => performance.now())
   registrarIpcFallos({ ipc: ipcMain })
   instalarTemaYMenu()
   const perfiles: PerfilesVivos = { lista: loadProfilesMutable() }
@@ -197,6 +243,9 @@ async function arrancar(): Promise<void> {
   const dbController = componerBd(comun)
   // Antes de las sesiones: la terminal abre las conexiones SSH con este controlador.
   const ssh = componerSsh({ ...comun, puente: dbController.puertaPuente, buzon: dbController.puertaBuzon, binDir: dbController.binDir })
+  // Los túneles SSH de las bases usan las conexiones SSH del perfil.
+  dbController.conectarSsh(ssh.controlador)
+  ssh.controlador.alCambiarConexion(() => dbController.alCambiarConexionSsh())
   // Retira el bloque que la primera versión dejaba en la memoria GLOBAL del agente. Idempotente.
   limpiarMemoriaGlobal((m) => dbLog('migracion', m))
   logNativeAbi()
@@ -219,6 +268,7 @@ async function arrancar(): Promise<void> {
     espacioDatos: dbController.espacioDatos
   })
 
+  componerRegistroSalud()
   refs.ventana = crearVentanaPrincipal()
   if (MODO_CAPTURA) {
     console.log('[shot] TESSERA_SHOT=1 -> capturaré layout + zoom de la UI real y saldré.')

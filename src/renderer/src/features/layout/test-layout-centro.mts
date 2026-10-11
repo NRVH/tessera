@@ -17,9 +17,12 @@ import {
   aperturaDesdeGit,
   derivarLayoutCentro,
   maximizadoCoherente,
-  pantallaCompletaAlCambiarDePerfil,
+  agenteTerminalMaximizadoDe,
+  conMaximizado,
   pantallaCompletaCoherente,
+  pantallaCompletaPedidaDe,
   type EntradaLayoutCentro,
+  type MaximizadosPerfil,
   type PanelInferiorCentro,
   type SalidaLayoutCentro,
   type VistaCentro
@@ -232,10 +235,12 @@ function reglaDeLaFranja(entradas: EntradaLayoutCentro[]): void {
   )
 }
 
-/** (10b) El camino real en miniatura: el modo es GLOBAL y efímero; la franja es del PERFIL (`panelPorPerfil`). */
+/** (10b) El camino real en miniatura: el modo es por perfil y por ventana (`maximizadoPorPerfil`); la franja es del PERFIL (`panelPorPerfil`). */
 function caminoRealDeLaFranja(): void {
-  const app = { pedida: null as PanelInferiorCentro | null, perfil: 'A', mosaico: false, vista: 'files' as VistaCentro }
+  const app = { perfil: 'A', mosaico: false, vista: 'files' as VistaCentro }
   const panel: Record<string, PanelInferiorCentro | null> = { A: 'gitlog', B: 'terminal', C: null }
+  let maximizados: Record<string, MaximizadosPerfil> = {}
+  /** Lo que pinta el hook: lo pedido por el panel que está en la franja, corregido. */
   const render = (): PanelInferiorCentro | null => {
     const e: EntradaLayoutCentro = {
       vista: app.vista,
@@ -249,87 +254,121 @@ function caminoRealDeLaFranja(): void {
       hayPerfil: true,
       panelInferior: panel[app.perfil] ?? null
     }
-    app.pedida = coherenteDe(app.pedida, e)
-    return app.pedida
+    return coherenteDe(pantallaCompletaPedidaDe(maximizados[app.perfil], e.panelInferior), e)
   }
-  const recordadas = new Map<string, PanelInferiorCentro | null>()
-  /** Cambiar de perfil como el hook: guarda el modo del que se va y recupera el del que llega. */
-  const cambiarA = (perfil: string): void => {
-    app.pedida = pantallaCompletaAlCambiarDePerfil(recordadas, app.perfil, perfil, app.pedida)
-    app.perfil = perfil
-  }
-  /** Pulsar el botón de maximizar del panel y que el hook corrija en el render siguiente. */
-  const pulsar = (p: PanelInferiorCentro): PanelInferiorCentro | null => {
-    app.pedida = p
+  /** El botón de maximizar o restaurar de un panel, en el perfil a la vista. */
+  const fijar = (p: PanelInferiorCentro, valor: boolean): PanelInferiorCentro | null => {
+    maximizados = conMaximizado(maximizados, app.perfil, p, valor)
     return render()
   }
-  // El perfil que enseña cada panel y el que enseña el otro.
   const perfiles = { gitlog: { propio: 'A', ajeno: 'B' }, terminal: { propio: 'B', ajeno: 'A' } }
   for (const p of PEDIBLES) {
     const { propio, ajeno } = perfiles[p]
     const otro: PanelInferiorCentro = p === 'gitlog' ? 'terminal' : 'gitlog'
-    recordadas.clear()
+    maximizados = {}
+    panel.A = 'gitlog'
+    panel.B = 'terminal'
     app.perfil = propio
-    const alPulsar = pulsar(p)
-    // Cambiar de PROYECTO no toca ni la vista ni la franja del perfil: la entrada es la misma.
-    const trasCambiarProyecto = render()
-    cambiarA(ajeno)
+    const alPulsar = fijar(p, true)
+    app.perfil = ajeno
     const enElAjeno = render()
-    cambiarA(propio)
+    app.perfil = propio
     const deVuelta = render()
-    cambiarA('C')
-    const sinFranja = pulsar(p)
+    app.perfil = 'C'
+    const sinFranja = fijar(p, true)
     check(
-      `${p}: pulsar la enciende; cambiar de proyecto la conserva; un perfil que enseña OTRO panel o ninguno la apaga y al volver al suyo se recupera`,
-      alPulsar === p && trasCambiarProyecto === p && enElAjeno === null && deVuelta === p && sinFranja === null,
-      j({ alPulsar, trasCambiarProyecto, enElAjeno, deVuelta, sinFranja })
+      `${p}: pulsar la enciende; otro perfil enseña lo suyo y, al volver, el propio sigue maximizado; sin el panel en la franja no se pinta`,
+      alPulsar === p && enElAjeno === null && deVuelta === p && sinFranja === null,
+      j({ alPulsar, enElAjeno, deVuelta, sinFranja })
     )
 
     panel.D = p
-    cambiarA(propio)
-    pulsar(p)
-    cambiarA('D')
+    app.perfil = 'D'
     const enElQueTambien = render()
-    cambiarA(propio)
     delete panel.D
-    recordadas.delete('D')
     check(
-      `${p}: pasar a un perfil sin modo recordado que TAMBIÉN enseña ese panel la conserva (sigue al objetivo, como con el proyecto)`,
-      enElQueTambien === p,
+      `${p}: un perfil que también enseña ese panel pero no lo maximizó lo ve normal (cada perfil, lo suyo)`,
+      enElQueTambien === null,
       j({ enElQueTambien })
     )
 
-    // La X, el cambio de panel en el mismo perfil, el mosaico y la vista de datos: apagan y no resucitan.
+    // Cada VENTANA recuerda lo suyo: cerrar, cambiar a la otra y volver, el mosaico y la vista de datos no lo borran.
     app.perfil = propio
     panel[propio] = p
-    const encendidas: Array<PanelInferiorCentro | null> = []
-    const apagadas: Array<PanelInferiorCentro | null> = []
-    encendidas.push(pulsar(p))
+    maximizados = {}
+    const alMaximizar = fijar(p, true)
     panel[propio] = null
-    apagadas.push(render())
+    const cerrada = render()
     panel[propio] = p
-    apagadas.push(render())
-    encendidas.push(pulsar(p))
+    const reabierta = render()
     panel[propio] = otro
-    apagadas.push(render())
+    const laOtra = render()
+    const laOtraMaximizada = fijar(otro, true)
     panel[propio] = p
-    apagadas.push(render())
-    encendidas.push(pulsar(p))
+    const vueltaALaPrimera = render()
+    panel[propio] = otro
+    const vueltaALaOtra = render()
+    panel[propio] = p
     app.mosaico = true
-    apagadas.push(render())
+    const enMosaico = render()
     app.mosaico = false
-    apagadas.push(render())
-    encendidas.push(pulsar(p))
+    const trasMosaico = render()
     app.vista = 'db'
-    apagadas.push(render())
+    const enDatos = render()
     app.vista = 'files'
-    apagadas.push(render())
+    const trasDatos = render()
     check(
-      `${p}: la X, cambiar de panel, el mosaico y la vista de datos la apagan, y al volver el panel está en la franja (no resucita)`,
-      encendidas.every((v) => v === p) && apagadas.every((v) => v === null),
-      j({ encendidas, apagadas })
+      `${p}: se recuerda al cerrar y reabrir, al pasar a la otra ventana (que guarda el suyo) y tras el mosaico o la vista de datos`,
+      alMaximizar === p &&
+        cerrada === null &&
+        reabierta === p &&
+        laOtra === null &&
+        laOtraMaximizada === otro &&
+        vueltaALaPrimera === p &&
+        vueltaALaOtra === otro &&
+        enMosaico === null &&
+        trasMosaico === p &&
+        enDatos === null &&
+        trasDatos === p,
+      j({ alMaximizar, cerrada, reabierta, laOtra, laOtraMaximizada, vueltaALaPrimera, vueltaALaOtra, enMosaico, trasMosaico, enDatos, trasDatos })
+    )
+
+    const restaurada = fijar(p, false)
+    panel[propio] = null
+    panel[propio] = p
+    const trasRestaurarYReabrir = render()
+    check(
+      `${p}: restaurar es lo último que eligió: cerrar y reabrir la deja normal`,
+      restaurada === null && trasRestaurarYReabrir === null,
+      j({ restaurada, trasRestaurarYReabrir })
     )
   }
+  const mismo = conMaximizado(maximizados, 'B', 'terminal', false)
+  check('fijar lo que ya vale devuelve el MISMO objeto (no despierta a nadie)', mismo === maximizados, 'identidad')
+}
+
+/** (10c) El agente de la terminal maximizado sobre las terminales. */
+function agenteTerminalMaximizado(): void {
+  hr('(10c) El agente de la terminal maximizado')
+  const m: MaximizadosPerfil = { agenteTerminal: true }
+  const casos = [
+    { e: { m, agente: 'terminal' as const, conTerminales: true }, vale: true },
+    { e: { m, agente: 'terminal' as const, conTerminales: false }, vale: false },
+    { e: { m, agente: 'proyecto' as const, conTerminales: true }, vale: false },
+    { e: { m: {}, agente: 'terminal' as const, conTerminales: true }, vale: false },
+    { e: { m: undefined, agente: 'terminal' as const, conTerminales: true }, vale: false }
+  ]
+  check(
+    'se pinta SOLO si el perfil lo pidió, el agente está junto a la terminal y hay alguna terminal que tapar',
+    casos.every((c) => agenteTerminalMaximizadoDe(c.e) === c.vale),
+    j(casos.map((c) => agenteTerminalMaximizadoDe(c.e)))
+  )
+  check(
+    'salir de pantalla completa u ocultar el agente no lo borra: al volver, sigue como lo dejó',
+    agenteTerminalMaximizadoDe({ m, agente: 'proyecto', conTerminales: true }) === false &&
+      agenteTerminalMaximizadoDe({ m, agente: 'terminal', conTerminales: true }) === true,
+    'recordado'
+  )
 }
 
 /** (11) Las aperturas en el editor que pide Git·Log, dentro y fuera de pantalla completa. */
@@ -581,6 +620,32 @@ function caminoRealDelAgenteTerminal(): void {
       pasos.enElMosaico === 'proyecto' &&
       pasos.sinPerfil === 'proyecto',
     j(pasos)
+  )
+
+  const plegada = (cambios: Partial<EntradaLayoutCentro>): boolean => derivarLayoutCentro({ ...base, ...cambios }).terminalPlegada
+  const plegados = {
+    conTerminales: plegada({ conTerminales: true }),
+    sinTerminales: plegada({ conTerminales: false }),
+    maximizado: plegada({ agenteTerminalMaximizadoPedido: true }),
+    sinDecir: plegada({})
+  }
+  check(
+    'la columna de la terminal se pliega junto a su agente sin terminales que enseñar o con el agente maximizado; con terminales, o sin decirlo, no',
+    !plegados.conTerminales && plegados.sinTerminales && plegados.maximizado && !plegados.sinDecir,
+    j(plegados)
+  )
+  // La preferencia sola no pliega nada: con el agente oculto o preparándose la columna no es suya y el CSS
+  // tampoco la pinta al lado; si el panel se plegara por la preferencia, taparía las terminales sin agente.
+  const sinColumna = [
+    { agenteTerminalVisible: false },
+    { agenteTerminalAbierto: false },
+    { pantallaCompletaPedida: null },
+    { mosaico: true }
+  ].map((c) => plegada({ ...c, conTerminales: false, agenteTerminalMaximizadoPedido: true }))
+  check(
+    'NEGATIVO: sin la columna del agente de la terminal (oculto, preparándose, sin pantalla completa o en el mosaico) nunca se pliega, ni sin terminales ni con el maximizado pedido',
+    sinColumna.every((p) => !p),
+    j(sinColumna)
   )
 
   const barra = (cambios: Partial<EntradaLayoutCentro>): SalidaLayoutCentro['barraEstado'] =>
@@ -1141,6 +1206,7 @@ function main(): void {
 
   reglaDeLaFranja(entradas)
   caminoRealDeLaFranja()
+  agenteTerminalMaximizado()
   aperturasDesdeGit()
   agenteDeLaTerminal(entradas)
 

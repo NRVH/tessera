@@ -40,6 +40,7 @@ import {
 import { borradorNuevo, entradaDe, type BorradorConexion } from './borradorConexion.ts'
 import {
   avisoDeCampo,
+  avisoTopologiaRedis,
   ayudasTrasFilaCredenciales,
   campoDeshabilitado,
   campoVisible,
@@ -176,8 +177,8 @@ hr('(2) Oracle')
   check('y no bajo la de host', ayudasTrasFila('oracle', 0).length === 0, j(ayudasTrasFila('oracle', 0)))
   check('fila inexistente: nada', ayudasTrasFila('oracle', 9).length === 0, '[]')
   check(
-    'orden del formulario',
-    j(ordenFormulario('oracle')) === j(['alias', 'host', 'port', 'database', 'sid', 'user']),
+    'orden del formulario (el cifrado tras el usuario)',
+    j(ordenFormulario('oracle')) === j(['alias', 'host', 'port', 'database', 'sid', 'user', 'tls']),
     j(ordenFormulario('oracle'))
   )
 }
@@ -585,8 +586,8 @@ hr('(9) entorno: opciones, radio y ayuda')
 hr('(10) la ayuda de «Clientes de base de datos»: los motores sin clientes, del registro')
 {
   // El texto, al byte. SQLite tampoco necesita clientes (node:sqlite va dentro de Electron);
-  // SQL Server, MongoDB y Redis entran en la frase por el registro.
-  const hoy = 'PostgreSQL, SQLite, SQL Server, MongoDB y Redis no necesitan ninguno.'
+  // SQL Server, MySQL, MongoDB y Redis entran en la frase por el registro.
+  const hoy = 'PostgreSQL, SQLite, SQL Server, MySQL / MariaDB, MongoDB y Redis no necesitan ninguno.'
   check(`hoy: «${hoy}»`, ayudaSinClientes() === hoy, ayudaSinClientes())
   check('ninguno: sin frase', fraseSinClientes([]) === '', j(fraseSinClientes([])))
   check('uno: singular', fraseSinClientes(['SQLite']) === 'SQLite no necesita ninguno.', fraseSinClientes(['SQLite']))
@@ -629,6 +630,16 @@ hr('(11) motores de archivo: la oferta por extensión y la ayuda de «Solo lectu
     'sin credenciales: ni servidor ni usuario de base (tdb abre el archivo en solo lectura)',
     !arch.includes('servidor') && !arch.includes('un usuario') && arch.includes('archivo') && /tdb/.test(arch),
     arch
+  )
+  check(
+    'sin credenciales (un archivo): avisa de que una transacción abierta bloquea a las demás aplicaciones del archivo',
+    /transacción esté abierta/.test(arch) && /demás aplicaciones/.test(arch) && /pueden no poder escribir/.test(arch),
+    arch
+  )
+  check(
+    'MITAD NEGATIVA: en una base de servidor no se avisa de bloquear el archivo',
+    !/demás aplicaciones/.test(red) && !/demás aplicaciones/.test(ayudaSoloLectura('mongodb')),
+    red
   )
   // Ninguna ayuda promete que TESSERA rechace las escrituras del usuario: limita a los agentes.
   const todas = IDS_MOTORES.map((m) => ayudaSoloLectura(m))
@@ -676,14 +687,27 @@ hr('(12) SQL Server: sus campos, lo que se marca y la paridad con validarOpciona
   check('bajo la fila de la instancia, su ayuda (el puerto no se usa)', ayudasTrasFila('sqlserver', 1).some((a) => a.includes('SQL Browser') && a.includes('puerto')), j(ayudasTrasFila('sqlserver', 1)))
   check('bajo host|puerto y la de autenticación, nada', ayudasTrasFila('sqlserver', 0).length === 0 && ayudasTrasFila('sqlserver', 2).length === 0, 'ok')
   check('bajo el cifrado, su ayuda', ayudasTrasFilaCredenciales('sqlserver', 0).some((a) => a.includes('Confiar en el certificado del servidor')), j(ayudasTrasFilaCredenciales('sqlserver', 0)))
-  // Oracle y PG: nada de esto (los de siempre).
-  for (const m of ['oracle', 'postgres', 'sqlite'] as const) {
-    check(`${m}: sin filas tras las credenciales ni ayudas nuevas`, descriptorDe(m).filasTrasCredenciales.length === 0 && ayudasTrasFilaCredenciales(m, 0).length === 0, 'ok')
+  // SQLite: nada de esto. Oracle y PG: solo el cifrado tras las credenciales.
+  check('sqlite: sin filas tras las credenciales ni ayudas nuevas', descriptorDe('sqlite').filasTrasCredenciales.length === 0 && ayudasTrasFilaCredenciales('sqlite', 0).length === 0, 'ok')
+  {
+    const pg = descriptorDe('postgres').filasTrasCredenciales
+    const ora = descriptorDe('oracle').filasTrasCredenciales
+    check(
+      'postgres: el cifrado con las dos casillas, la de confiar con la MISMA etiqueta',
+      pg.length === 1 && pg[0][0].tipo === 'cifrado' && pg[0][0].etiquetaConfiar === ETIQUETA_CONFIAR_CERTIFICADO,
+      j(pg)
+    )
+    check(
+      'oracle: el cifrado SIN la casilla de confiar, y la ayuda dice que verifica siempre y el puerto TCPS',
+      ora.length === 1 && ora[0][0].tipo === 'cifrado' && ora[0][0].etiquetaConfiar === null &&
+        ayudasTrasFilaCredenciales('oracle', 0).some((a) => a.includes('2484') && a.includes('siempre')),
+      j(ora)
+    )
   }
   check(
-    'Oracle: orden del formulario de siempre (sin opcionales)',
-    j(ordenFormulario('oracle')) === j(['alias', 'host', 'port', 'database', 'sid', 'user']),
-    j(ordenFormulario('oracle'))
+    'PostgreSQL: orden del formulario (el cifrado tras el usuario)',
+    j(ordenFormulario('postgres')) === j(['alias', 'host', 'port', 'database', 'user', 'tls']),
+    j(ordenFormulario('postgres'))
   )
   check(
     'SQL Server: orden del formulario (el cifrado tras el usuario)',
@@ -742,10 +766,18 @@ hr('(12) SQL Server: sus campos, lo que se marca y la paridad con validarOpciona
   check('con la casilla ya marcada: no', !proponeConfiarCertificado('sqlserver', falloCert, { cifrar: true, confiarCertificado: true }), 'no')
   check('una prueba buena: no', !proponeConfiarCertificado('sqlserver', { ok: true, mensaje: 'Conectado' }, undefined), 'no')
   check('otro fallo: no', !proponeConfiarCertificado('sqlserver', { ok: false, mensaje: 'Login failed for user' }, undefined), 'no')
-  check('en un motor sin cifrado (PG): no', !proponeConfiarCertificado('postgres', falloCert, undefined), 'no')
-  // La cita es la del .cjs que traduce el error (sqlserverComun): si cambia allí, esto lo ve.
-  const cjs = readFileSync(fileURLToPath(new URL('../../../../tdb/sqlserverComun.cjs', import.meta.url)), 'utf8')
-  check('sqlserverComun.cjs cita la casilla con la MISMA etiqueta', cjs.includes(`«${ETIQUETA_CONFIAR_CERTIFICADO}»`), ETIQUETA_CONFIAR_CERTIFICADO)
+  check('en un motor sin cifrado (SQLite): no', !proponeConfiarCertificado('sqlite', falloCert, undefined), 'no')
+  check('PostgreSQL, con el mismo mensaje: se ofrece', proponeConfiarCertificado('postgres', falloCert, { cifrar: true, confiarCertificado: false }), 'sí')
+  // La cita es la del .cjs que traduce el error (tlsComun, el de todos los motores): si cambia allí, esto lo ve.
+  const tdb = (archivo: string): string => readFileSync(fileURLToPath(new URL(`../../../../tdb/${archivo}`, import.meta.url)), 'utf8')
+  check('tlsComun.cjs cita la casilla con la MISMA etiqueta', tdb('tlsComun.cjs').includes(`«${ETIQUETA_CONFIAR_CERTIFICADO}»`), ETIQUETA_CONFIAR_CERTIFICADO)
+  // Y los remedios de PG y Oracle nombran su casilla de cifrar tal como la pinta el formulario.
+  const etiquetaCifrar = (m: 'postgres' | 'oracle'): string => descriptorDe(m).filasTrasCredenciales[0][0].etiqueta
+  check(
+    'postgres.cjs y oracle.cjs citan su casilla de cifrar con la MISMA etiqueta',
+    tdb('postgres.cjs').includes(`«${etiquetaCifrar('postgres')}»`) && tdb('oracle.cjs').includes(`«${etiquetaCifrar('oracle')}»`),
+    `${etiquetaCifrar('postgres')} / ${etiquetaCifrar('oracle')}`
+  )
 }
 
 // ---------------------------------------------------------------------------------
@@ -814,9 +846,9 @@ hr('(14) MongoDB: SRV, cifrado, opciones de la URI y «Pegar URI»')
     j(ordenFormulario('mongodb')) === j(['alias', 'host', 'port', 'srv', 'database', 'user', 'tls', 'opcionesUri']),
     j(ordenFormulario('mongodb'))
   )
-  // «Pegar URI»: MongoDB y Redis; los SQL, no.
+  // «Pegar URI»: los motores con un esquema de URI propio.
   const conUri = MOTORES_CONEXION.filter((m) => descriptorDe(m).uri !== null)
-  check('«Pegar URI»: MongoDB y Redis (hoy)', j(conUri) === j(['mongodb', 'redis']), j(conUri))
+  check('«Pegar URI»: PostgreSQL, MySQL, MongoDB y Redis (hoy)', j(conUri) === j(['postgres', 'mysql', 'mongodb', 'redis']), j(conUri))
   check('con su ejemplo mongodb://', (d.uri?.ejemplo ?? '').startsWith('mongodb://'), j(d.uri?.ejemplo))
 
   // El puerto se apaga con SRV, por el VALOR y solo en un motor que declara el SRV.
@@ -873,8 +905,8 @@ hr('(15) Redis: cifrado, base numérica en vivo y «Pegar URI»')
   check('el cifrado: la casilla del certificado con la MISMA etiqueta', cifrado.tipo === 'cifrado' && cifrado.etiquetaConfiar === ETIQUETA_CONFIAR_CERTIFICADO, j(cifrado))
   check('bajo el cifrado, su ayuda', ayudasTrasFilaCredenciales('redis', 0).length === 1, j(ayudasTrasFilaCredenciales('redis', 0)))
   check(
-    'orden del formulario: la base tras el puerto; el cifrado tras el usuario',
-    j(ordenFormulario('redis')) === j(['alias', 'host', 'port', 'database', 'user', 'tls']),
+    'orden del formulario: la topología antes del destino, la base tras el puerto; el cifrado tras el usuario',
+    j(ordenFormulario('redis')) === j(['alias', 'topologiaRedis', 'host', 'port', 'database', 'user', 'tls']),
     j(ordenFormulario('redis'))
   )
   check('la etiqueta de la base dice que es un número', d.filas[1][0].etiqueta === 'Base (número)', j(d.filas[1][0].etiqueta))
@@ -912,12 +944,31 @@ hr('(15) Redis: cifrado, base numérica en vivo y «Pegar URI»')
 
   // Cada opcional con presentación propia tiene su fila: el 'tls' de Redis estaba en el
   // descriptor y la casilla no salía (ver la cabecera). El usuario lo pinta el diálogo por
-  // `credenciales`, fuera de las filas.
+  // `credenciales`, fuera de las filas, el túnel SSH su selector propio (`DbConexionTunel.tsx`) y la
+  // topología de Redis el suyo (`DbConexionTopologia.tsx`).
+  const conSelectorPropio = new Set<string>(['user', 'tunelSsh', 'topologiaRedis'])
   for (const m of MOTORES_CONEXION) {
     const pintados = new Set<string>([...camposVisibles(m), ...descriptorDe(m).filasTrasCredenciales.flatMap((f) => f.map((c) => c.campo))])
-    const sinFila = descriptor(m).conexion.opcionales.filter((c) => c !== 'user' && !pintados.has(c))
+    const sinFila = descriptor(m).conexion.opcionales.filter((c) => !conSelectorPropio.has(c) && !pintados.has(c))
     check(`${m}: todo opcional tiene su fila en el formulario`, sinFila.length === 0, j(sinFila))
   }
+}
+
+hr('Redis Sentinel y Cluster en el formulario')
+{
+  const r = { ...borradorNuevo('p1', 'redis'), alias: 'R', host: 'h1:26379,h2:26379' }
+  check('una lista de servidores con «Un servidor»: se marca la topología y no se puede guardar', faltantes(r).includes('topologiaRedis') && !listoParaGuardar(r), j(faltantes(r)))
+  check('… y el aviso dice que elija Sentinel o Cluster', /Sentinel o Cluster/.test(avisoTopologiaRedis(r) ?? ''), avisoTopologiaRedis(r) ?? '')
+  const s = { ...r, modoRedis: 'sentinel' as const }
+  check('Sentinel sin maestro: falta, con su motivo', faltantes(s).includes('topologiaRedis') && /maestro/.test(avisoTopologiaRedis(s) ?? ''), j(faltantes(s)))
+  check('Sentinel con maestro: listo', listoParaGuardar({ ...s, maestroSentinel: 'principal' }), j(faltantes({ ...s, maestroSentinel: 'principal' })))
+  check('con túnel: no se puede guardar, y se dice', /túnel SSH/.test(avisoTopologiaRedis({ ...s, maestroSentinel: 'm', tunelSsh: 'ssh-1' }) ?? ''), '')
+  const c = { ...r, modoRedis: 'cluster' as const, database: '7' }
+  check('Cluster: la base no se pinta y la que quedara escrita no bloquea el guardado', !campoVisible('database', c) && listoParaGuardar(c), j(faltantes(c)))
+  check('MITAD NEGATIVA: fuera de Cluster la base sí se pinta', campoVisible('database', r), '')
+  check('la topología va la primera del destino, tras el nombre', ordenFormulario('redis').indexOf('topologiaRedis') === 1, j(ordenFormulario('redis')))
+  check('MITAD NEGATIVA: otro motor ni la pinta ni la marca', !ordenFormulario('mongodb').includes('topologiaRedis') && avisoTopologiaRedis({ ...r, motor: 'mongodb' }) === null, '')
+  check('sin host, el aviso es el del host (no se repite aquí)', avisoTopologiaRedis({ ...s, host: '' }) === null, '')
 }
 
 // ---------------------------------------------------------------------------------

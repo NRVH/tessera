@@ -1,6 +1,7 @@
 // =============================================================================
 // TabsBar: el bloque superior del shell, en tres franjas: `.titlebar` (mosaico, agentes,
-// asa de arrastre, aviso y engranaje), las pestañas de perfil y las de proyecto.
+// asa de arrastre, aviso y engranaje), las pestañas de perfil y las de proyecto. En el modo
+// minimalista de perfiles no hay banda: el selector de perfil va en `.titlebar`.
 // Los botones de ventana no se pintan aquí: solo se reserva su hueco en `.titlebar`.
 // Depende de `../pestanas` (ProfileTabs, ProjectTabs), `../actualizaciones` y `util/atajos`.
 // Decisiones: docs/decisiones/layout/barra-superior-en-tres-franjas.md
@@ -9,6 +10,7 @@
 import {
   ProfileTabs,
   ProjectTabs,
+  SelectorPerfil,
   type UseTabs,
   type DecideProjectMode,
   type ProfileDotState,
@@ -30,10 +32,10 @@ interface TabsBarProps {
   attentionProfiles: Set<string>
   /** ids de perfil con alguna sesión TRABAJANDO: pulsa su dot en su propio color. */
   workingProfiles: Set<string>
-  /** Modo colapsado: la banda de perfiles se reduce a su línea de color. */
+  /** ids de perfil con algún agente que TE ESPERA: un anillo parpadea en su dot. */
+  waitingProfiles: Set<string>
+  /** Modo minimalista de perfiles: sin banda; un selector en la barra de título. */
   hideProfileNames: boolean
-  /** Despliega la banda de perfiles (la necesita el renombrado inline). */
-  onShowProfileNames: () => void
   /** Claves `${profileId}|${projectHostPath}` de proyectos en modo Windows (host nativo). */
   windowsModeKeys: Set<string>
   /** Alterna el modo Windows de un proyecto (host nativo ⇄ Docker aislado). */
@@ -67,8 +69,8 @@ export function TabsBar({
   projectDotStates,
   attentionProfiles,
   workingProfiles,
+  waitingProfiles,
   hideProfileNames,
-  onShowProfileNames,
   windowsModeKeys,
   onToggleWindowsMode,
   decideProjectMode,
@@ -90,17 +92,29 @@ export function TabsBar({
         onToggleMosaico={onToggleMosaico}
         barraMosaico={barraMosaico}
         botonAgentes={botonAgentes}
+        selectorPerfil={
+          hideProfileNames && !mosaicoActivo ? (
+            <SelectorPerfil
+              {...propsDePerfiles(tabs)}
+              dotStates={profileDotStates}
+              attention={attentionProfiles}
+              working={workingProfiles}
+              waiting={waitingProfiles}
+            />
+          ) : null
+        }
         settingsActive={settingsActive}
         onToggleSettings={onToggleSettings}
       />
-      <FranjaPerfiles
-        tabs={tabs}
-        dotStates={profileDotStates}
-        attention={attentionProfiles}
-        working={workingProfiles}
-        hideNames={hideProfileNames}
-        onShowNames={onShowProfileNames}
-      />
+      {!hideProfileNames && (
+        <ProfileTabs
+          {...propsDePerfiles(tabs)}
+          dotStates={profileDotStates}
+          attention={attentionProfiles}
+          working={workingProfiles}
+          waiting={waitingProfiles}
+        />
+      )}
       <FranjaProyectos
         tabs={tabs}
         dotStates={projectDotStates}
@@ -118,43 +132,54 @@ interface FranjaTituloProps {
   onToggleMosaico: () => void
   barraMosaico?: React.ReactNode
   botonAgentes?: React.ReactNode
+  /** El selector del modo minimalista de perfiles, o null (banda visible o mosaico abierto). */
+  selectorPerfil: React.ReactNode
   settingsActive: boolean
   onToggleSettings: () => void
 }
 
-/** `.titlebar`: mosaico, agentes nativos, controles del mosaico, asa de arrastre, aviso y engranaje. */
+/**
+ * Mosaico de agentes: primer control de la barra, centrado sobre el eje del riel de iconos
+ * (`.titlebar-inicio`). Pulsado mientras está abierto, el mismo botón es la salida; sin nada
+ * en marcha se deshabilita diciendo por qué.
+ */
+function BotonMosaico(p: Pick<FranjaTituloProps, 'mosaicoActivo' | 'mosaicoDisponible' | 'onToggleMosaico'>): React.JSX.Element {
+  return (
+    <div className="titlebar-inicio">
+      <button
+        className={`titlebar-btn${p.mosaicoActivo ? ' active' : ''}`}
+        onClick={p.onToggleMosaico}
+        disabled={!p.mosaicoActivo && !p.mosaicoDisponible}
+        aria-pressed={p.mosaicoActivo}
+        title={
+          p.mosaicoActivo
+            ? `Salir del mosaico (${etiquetaModPrincipal()}+Shift+M)`
+            : p.mosaicoDisponible
+              ? `Mosaico de agentes: todas las terminales en marcha a la vista (${etiquetaModPrincipal()}+Shift+M)`
+              : 'Mosaico de agentes: no hay ningún agente en marcha'
+        }
+        aria-label="Mosaico de agentes"
+      >
+        <MosaicoIcon />
+      </button>
+    </div>
+  )
+}
+
+/** `.titlebar`: mosaico, agentes nativos, selector de perfil, controles del mosaico, asa de arrastre, aviso y engranaje. */
 function FranjaTitulo({
   mosaicoActivo,
   mosaicoDisponible,
   onToggleMosaico,
   barraMosaico,
   botonAgentes,
+  selectorPerfil,
   settingsActive,
   onToggleSettings
 }: FranjaTituloProps): React.JSX.Element {
   return (
     <div className="titlebar">
-      {/* Mosaico de agentes: primer control de la barra, centrado sobre el eje del riel de
-          iconos (`.titlebar-inicio`). Pulsado mientras está abierto, el mismo botón es la
-          salida; sin nada en marcha se deshabilita diciendo por qué. */}
-      <div className="titlebar-inicio">
-        <button
-          className={`titlebar-btn${mosaicoActivo ? ' active' : ''}`}
-          onClick={onToggleMosaico}
-          disabled={!mosaicoActivo && !mosaicoDisponible}
-          aria-pressed={mosaicoActivo}
-          title={
-            mosaicoActivo
-              ? `Salir del mosaico (${etiquetaModPrincipal()}+Shift+M)`
-              : mosaicoDisponible
-                ? `Mosaico de agentes: todas las terminales en marcha a la vista (${etiquetaModPrincipal()}+Shift+M)`
-                : 'Mosaico de agentes: no hay ningún agente en marcha'
-          }
-          aria-label="Mosaico de agentes"
-        >
-          <MosaicoIcon />
-        </button>
-      </div>
+      <BotonMosaico mosaicoActivo={mosaicoActivo} mosaicoDisponible={mosaicoDisponible} onToggleMosaico={onToggleMosaico} />
       {/* Botón de agentes nativos, justo tras el del mosaico y en el mosaico antes de sus
           controles, separado de los tipos de vista por un filete y sin desplegar su etiqueta
           (ver `.titlebar-agentes.en-mosaico`). Una sola ranura para los dos modos: con una por
@@ -162,6 +187,7 @@ function FranjaTitulo({
       {botonAgentes ? (
         <div className={`titlebar-agentes${mosaicoActivo ? ' en-mosaico' : ''}`}>{botonAgentes}</div>
       ) : null}
+      {selectorPerfil}
       {mosaicoActivo && barraMosaico}
       {/* El asa ocupa la franja hasta el aviso de actualización: se arrastra la ventana y el
           doble clic la maximiza. */}
@@ -186,55 +212,31 @@ function FranjaTitulo({
   )
 }
 
-interface FranjaPerfilesProps {
-  tabs: UseTabs
-  dotStates: Record<string, ProfileDotState>
-  attention: Set<string>
-  working: Set<string>
-  hideNames: boolean
-  onShowNames: () => void
-}
-
-/** Banda de perfiles a ancho completo. */
-function FranjaPerfiles({
-  tabs,
-  dotStates,
-  attention,
-  working,
-  hideNames,
-  onShowNames
-}: FranjaPerfilesProps): React.JSX.Element {
-  const {
-    profiles,
-    activeProfile,
-    setActiveProfile,
-    hibernateProfile,
-    addProfile,
-    renameProfile,
-    recolorProfile,
-    setProfileRedHost,
-    deleteProfile,
-    reorderProfiles
-  } = tabs
-  return (
-    <ProfileTabs
-      profiles={profiles}
-      activeProfileId={activeProfile?.id ?? null}
-      onSelectProfile={setActiveProfile}
-      onAddProfile={addProfile}
-      onRenameProfile={renameProfile}
-      onRecolorProfile={recolorProfile}
-      onToggleRedHost={setProfileRedHost}
-      onDeleteProfile={deleteProfile}
-      onReorderProfiles={reorderProfiles}
-      onHibernateProfile={hibernateProfile}
-      dotStates={dotStates}
-      attention={attention}
-      working={working}
-      hideNames={hideNames}
-      onShowNames={onShowNames}
-    />
-  )
+/** Los perfiles y sus acciones, lo mismo para la banda y para el selector del modo minimalista. */
+function propsDePerfiles(tabs: UseTabs): {
+  profiles: UseTabs['profiles']
+  activeProfileId: string | null
+  onSelectProfile: UseTabs['setActiveProfile']
+  onAddProfile: UseTabs['addProfile']
+  onRenameProfile: UseTabs['renameProfile']
+  onRecolorProfile: UseTabs['recolorProfile']
+  onToggleRedHost: UseTabs['setProfileRedHost']
+  onDeleteProfile: UseTabs['deleteProfile']
+  onReorderProfiles: UseTabs['reorderProfiles']
+  onHibernateProfile: UseTabs['hibernateProfile']
+} {
+  return {
+    profiles: tabs.profiles,
+    activeProfileId: tabs.activeProfile?.id ?? null,
+    onSelectProfile: tabs.setActiveProfile,
+    onAddProfile: tabs.addProfile,
+    onRenameProfile: tabs.renameProfile,
+    onRecolorProfile: tabs.recolorProfile,
+    onToggleRedHost: tabs.setProfileRedHost,
+    onDeleteProfile: tabs.deleteProfile,
+    onReorderProfiles: tabs.reorderProfiles,
+    onHibernateProfile: tabs.hibernateProfile
+  }
 }
 
 interface FranjaProyectosProps {
@@ -310,11 +312,12 @@ function FranjaProyectos({
 /** Mosaico de agentes: cuatro casillas redondeadas (una cuadrícula de puntos se lee como «más opciones»). */
 function MosaicoIcon(): React.JSX.Element {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
-      <rect x="3.5" y="3.5" width="7.5" height="7.5" rx="1.6" />
-      <rect x="13" y="3.5" width="7.5" height="7.5" rx="1.6" />
-      <rect x="3.5" y="13" width="7.5" height="7.5" rx="1.6" />
-      <rect x="13" y="13" width="7.5" height="7.5" rx="1.6" />
+    // Ocupa lo mismo que el engranaje de su barra (unos 17-19 de los 24), para que los iconos se vean iguales.
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3.2" y="3.2" width="7.6" height="7.6" rx="2.2" />
+      <rect x="13.2" y="3.2" width="7.6" height="7.6" rx="2.2" />
+      <rect x="3.2" y="13.2" width="7.6" height="7.6" rx="2.2" />
+      <rect x="13.2" y="13.2" width="7.6" height="7.6" rx="2.2" />
     </svg>
   )
 }

@@ -6,7 +6,7 @@
 // la sesión en cada caso, incluido lo que NO hace (cerrar lo que el main ya cerró).
 // =============================================================================
 
-import { PLAN_SOLTAR, SesionAgente, type MotivoSoltar } from './sesionViva.ts'
+import { PLAN_SOLTAR, SesionAgente, conversacionAReanudar, type MotivoSoltar, type PedidoApertura } from './sesionViva.ts'
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -76,6 +76,49 @@ hr('(1) Apertura')
   void s.soltar('desmontaje')
   const d = s.empezarApertura('c1')
   check('pedir una nueva olvida la reanudación pedida', d?.pedido.deCero === true && d.pedido.reanudar === null, JSON.stringify(d))
+}
+
+hr('(1b) Hibernada sin chat conocido: la más reciente solo si tuvo actividad desde entonces')
+{
+  const { s } = nueva()
+  s.pedirSiNadaDesde(5000)
+  const a = s.empezarApertura('c1')
+  check('la apertura lleva el instante y lo consume', a?.pedido.nadaDesde === 5000 && a.pedido.reanudar === null && !a.pedido.deCero, JSON.stringify(a))
+  s.devolverPedido(a!.pedido)
+  s.terminarApertura()
+  check('un open fallido lo devuelve', s.empezarApertura('c1')?.pedido.nadaDesde === 5000, 'devuelto')
+  s.terminarApertura()
+  check('y la siguiente apertura ya no lo lleva', s.empezarApertura('c1')?.pedido.nadaDesde === null, 'consumido')
+  s.terminarApertura()
+  s.pedirSiNadaDesde(5000)
+  s.pedirReanudar('conv-9')
+  const b = s.empezarApertura('c1')
+  check('reanudar una concreta lo anula', b?.pedido.nadaDesde === null && b.pedido.reanudar === 'conv-9', JSON.stringify(b))
+  s.terminarApertura()
+  s.pedirSiNadaDesde(5000)
+  s.pedirNueva()
+  check('pedir una nueva también', s.empezarApertura('c1')?.pedido.nadaDesde === null, 'anulado')
+
+  const pedido = (p: Partial<PedidoApertura>): PedidoApertura => ({ reanudar: null, deCero: false, nadaDesde: null, ...p })
+  const ultima = { id: 'reciente', updatedAt: 4000 }
+  check('sin nada pedido: la más reciente', conversacionAReanudar(pedido({}), ultima) === 'reciente', 'reciente')
+  check(
+    'D10a: nueva o `/clear` sin escribir (la reciente es ANTERIOR) → de cero, no la vieja',
+    conversacionAReanudar(pedido({ nadaDesde: 5000 }), ultima) === undefined,
+    'de cero'
+  )
+  check(
+    'pero si se escribió desde entonces, esa conversación (la reciente es POSTERIOR)',
+    conversacionAReanudar(pedido({ nadaDesde: 3000 }), ultima) === 'reciente',
+    'reciente'
+  )
+  check(
+    'la pedida manda; empezar de cero también; y sin ninguna en la carpeta, de cero',
+    conversacionAReanudar(pedido({ reanudar: 'x', nadaDesde: 9000 }), ultima) === 'x' &&
+      conversacionAReanudar(pedido({ deCero: true }), ultima) === undefined &&
+      conversacionAReanudar(pedido({}), undefined) === undefined,
+    'tabla'
+  )
 }
 
 hr('(2) Cuenta con la que se abrió')

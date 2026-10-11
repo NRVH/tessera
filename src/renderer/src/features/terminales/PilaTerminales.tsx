@@ -6,6 +6,7 @@
 // Decisiones: docs/decisiones/terminales/terminales-keep-alive-y-reinicio-limpio.md
 // =============================================================================
 
+import { useState } from 'react'
 import { ErrorBoundary } from '../../comun/ErrorBoundary'
 import { EstadoVacio, IconoTerminalVacia } from '../../comun/EstadoVacio'
 import { IconoServidor } from '../ssh'
@@ -118,6 +119,13 @@ const textoMotivoSftp = (motivo: Parameters<typeof motivoFinSsh>[2]): string => 
  * Los panes de las pestañas SSH de TODOS los perfiles. La React key no lleva el modo de ningún
  * proyecto (una conexión SSH no depende de él) ni la hibernación: sobreviven a las dos.
  */
+/** Monta su contenido la primera vez que es visible y ya no lo desmonta al ocultarse. */
+function TrasVerse({ visible, children }: { visible: boolean; children: React.ReactNode }): React.JSX.Element | null {
+  const [visto, setVisto] = useState(visible)
+  if (visible && !visto) setVisto(true)
+  return visto || visible ? <>{children}</> : null
+}
+
 function PanesSsh({ panel, activo, onInfo, onApi }: PilaTerminalesProps): React.JSX.Element {
   const todas = Object.entries(panel.ssh.estado.porPerfil).flatMap(([perfil, cur]) => cur.lista.map((tab) => ({ perfil, tab })))
   return (
@@ -125,19 +133,23 @@ function PanesSsh({ panel, activo, onInfo, onApi }: PilaTerminalesProps): React.
       {enOrdenEstable(todas, ({ perfil, tab }) => sshPaneKey(perfil, tab.id)).map(({ perfil, tab }) => {
         const key = sshPaneKey(perfil, tab.id)
         if (esPestanaSftp(tab)) {
+          const visible = panel.visible && key === activo.activePaneKey
           return (
             <ErrorBoundary key={key} label="el explorador SFTP" variant="pane">
-              <div className={`terminal-pane${panel.visible && key === activo.activePaneKey ? '' : ' hidden'}`}>
+              <div className={`terminal-pane${visible ? '' : ' hidden'}`}>
                 {/* La clave del pane es la id de la sesión: lleva el perfil, porque las ids de pestaña se repiten
                     entre perfiles (con la id sola, dos exploradores compartirían sesión y servidor). Al desmontarse
-                    el pane, el explorador cierra la suya. */}
-                <ExploradorSftp
-                  sesionId={key}
-                  profileId={perfil}
-                  conexionId={tab.conexionId}
-                  altoFila={panel.ssh.altoFila}
-                  textoMotivo={textoMotivoSftp}
-                />
+                    el pane, el explorador cierra la suya. Se monta (y conecta) la primera vez que se ve: una
+                    pestaña restaurada al arrancar no se conecta sola. */}
+                <TrasVerse visible={visible}>
+                  <ExploradorSftp
+                    sesionId={key}
+                    profileId={perfil}
+                    conexionId={tab.conexionId}
+                    altoFila={panel.ssh.altoFila}
+                    textoMotivo={textoMotivoSftp}
+                  />
+                </TrasVerse>
               </div>
             </ErrorBoundary>
           )

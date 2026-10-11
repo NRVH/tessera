@@ -129,6 +129,8 @@ test.describe.serial('capturas de referencia de App.tsx', () => {
     await win.getByRole('button', { name: 'Git · Log' }).click()
     await win.locator('.git-fila-commit', { hasText: 'segundo commit' }).click()
     await expect(win.locator('.git-log-detalle .git-detalle-asunto')).toHaveText('segundo commit: amplía dos.txt')
+    // El commit abre el diff de su archivo: la captura no puede salir antes de que lo pinte.
+    await expect(win.locator('.monaco-diff-editor').filter({ visible: true })).toContainText('beta')
     await aparcarRaton(win)
     await expect(win).toHaveScreenshot('ventana-historial-git.png', await opciones(win))
   })
@@ -148,6 +150,9 @@ test.describe.serial('capturas de referencia de App.tsx', () => {
 
   test('panel de terminales con dos terminales', async () => {
     const win = s.win
+    // La referencia lleva lo que dejan las pruebas anteriores (pestañas de diff, vista de
+    // Cambios): corrida sola, con `-g`, fallaría o regeneraría una referencia que la serie no casa.
+    await expect(win.locator('.editor-tab', { hasText: 'dos.txt' })).toHaveCount(2)
     await win.getByRole('button', { name: 'Terminal' }).click()
     const panel = win.locator('section.terminal-panel')
     await expect(panel.locator('.terminal-tab')).toHaveCount(1)

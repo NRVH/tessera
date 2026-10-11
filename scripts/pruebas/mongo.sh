@@ -36,7 +36,7 @@
 #   TESSERA_TEST_MONGO_SUELTO  = mongodb://127.0.0.1:27118/pruebas   (sin auth; si está arriba)
 # La clave sale de `mongo-pw.txt` (ver comun.sh), se genera si falta y nunca se imprime.
 #
-# MAC (sin verificar): la imagen oficial `mongo` es multiarquitectura (amd64 y arm64), así
+# MAC: la imagen oficial `mongo` es multiarquitectura (amd64 y arm64), así
 # que en Apple Silicon corre nativa, sin Rosetta.
 # =============================================================================
 . "$(dirname "${BASH_SOURCE[0]}")/comun.sh"
@@ -44,7 +44,9 @@ NOMBRE=pruebas-mongo
 PUERTO=27117
 NOMBRE_SUELTO=pruebas-mongo-suelto
 PUERTO_SUELTO=27118
-IMAGEN="${IMAGEN:-mongo:8.0}"
+# 8.2 y no 8.0: la 8.0 se niega a arrancar con el kernel 6.19 o posterior de la VM de Docker
+# (SERVER-121912), y Docker Desktop ya lo trae. Un contenedor ya creado conserva su imagen.
+IMAGEN="${IMAGEN:-mongo:8.2}"
 SIEMBRA="$(dirname "${BASH_SOURCE[0]}")/mongo-siembra.js"
 
 # mongosh dentro del contenedor; la clave va por el ENTORNO del exec (process.env.PW).

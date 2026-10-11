@@ -224,7 +224,7 @@ async function consultar(c, sql, limite) {
     try {
       ultimo = ejecutarUna(c, sig.p, limite, sig.perfil)
     } catch (e) {
-      throw errorDeSentencia(e, n, c)
+      throw errorDeSentencia(comun.traducirCarpetaSinEscritura(c, e, sig.perfil), n, c)
     }
     resto = sig.p.cola
   }

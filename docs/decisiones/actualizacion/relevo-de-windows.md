@@ -18,8 +18,15 @@ unos 12 caracteres en el renombrado, pasa de MAX_PATH (260, sin prefijo `\\?\`).
   (robocopy tiene handles sobre la carpeta mientras la recorre). Códigos 0-7 de robocopy son éxito.
 - robocopy y el relevo arrancan con `cwd` fuera de la carpeta de instalación: el directorio actual de un proceso es
   un handle abierto sobre ella.
-- Solo con `relanzar` (el botón): al cerrar, el usuario no pidió una ventana que sobreviva a la app. Va DESPUÉS de
-  liberar la carpeta y del pre-vuelo de MAX_PATH, y sin relevo se sigue por `quitAndInstall`.
+- Solo con `relanzar` (el botón): al cerrar, el usuario no pidió una ventana que sobreviva a la app. Se lanza al
+  EMPEZAR el cierre (`anticiparRelevo`), tras la pregunta de salida y antes de matar terminales y contenedores: el
+  proceso de Tessera llegó a morir a mitad del cierre sin dejar rastro (sin volcado, sin evento del sistema) justo
+  después de matar las pseudoconsolas, y con el relevo al final eso era «se cerró y no pasó nada». Como el relevo
+  solo espera a que desaparezca el pid, sigue aunque la app muera, y su ventana sale en el acto. Espera hasta 3 min
+  (el cierre entero, Docker incluido); agotada, instala igual y el instalador cierra la app que siga viva. Si el
+  cierre se aborta (un pre-vuelo, plan C) se CANCELA: si no, instalaría encima de la app abierta. Si la copia no
+  estaba lista al empezar, se lanza tras liberar la carpeta y el pre-vuelo de MAX_PATH, y sin relevo se sigue por
+  `quitAndInstall`, que entonces lo cancela antes (serían dos instaladores).
 - Liberar la carpeta: se enumera por RUTA con `Get-CimInstance Win32_Process` (`tasklist` no da ruta ni padre;
   `wmic` está retirado), con salida en UTF-8 (sin eso una ruta con tilde no casaba y el proceso no se mataba) y
   `windowsHide`. Se mata todo lo que corra desde la carpeta salvo la propia app (mismo ejecutable) y se sondea 8 s.

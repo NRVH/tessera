@@ -17,6 +17,7 @@ import type { SearchService } from '../search/SearchService'
 import type { DbController } from '../db/DbController'
 import type { ExploradorController } from '../db/explorador/ExploradorController'
 import type { UsageWatcher } from '../usage/UsageWatcher'
+import type { RegistroSalud } from '../salud/RegistroSalud'
 
 /** Servicios y estado de la app que se consultan después de componerla. */
 export interface ReferenciasApp {
@@ -38,6 +39,8 @@ export interface ReferenciasApp {
   vigilanteTurnos: TurnWatcher | null
   /** El controlador del agente lo usa por clausuras; el cierre para sus temporizadores. */
   agentesNativos: AgentesNativos | null
+  /** Solo en alpha graba; el cierre le quita el temporizador y los oyentes. */
+  registroSalud: RegistroSalud | null
   /** Cierre en curso: la X, Salir y `before-quit` se atienden una sola vez. */
   cerrando: boolean
   /** El diálogo de salida está abierto (cerrojo aparte de `cerrando`: se puede cancelar). */
@@ -61,6 +64,7 @@ export function crearReferencias(): ReferenciasApp {
     vigilanteUso: null,
     vigilanteTurnos: null,
     agentesNativos: null,
+    registroSalud: null,
     cerrando: false,
     confirmandoCierre: false
   }

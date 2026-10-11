@@ -61,7 +61,10 @@ const MOTIVO_SESION: Readonly<Record<DialectoSql, string>> = {
   // SQL Server: SET, con las opciones en mayúsculas (como las escribe la
   // documentación; el motor no pliega), y USE, que también pasa.
   sqlserver:
-    'La conexión es de solo lectura: solo se permite SET LOCK_TIMEOUT, NOCOUNT, STATISTICS, DEADLOCK_PRIORITY o TRANSACTION (y USE para cambiar de base).'
+    'La conexión es de solo lectura: solo se permite SET LOCK_TIMEOUT, NOCOUNT, STATISTICS, DEADLOCK_PRIORITY o TRANSACTION (y USE para cambiar de base).',
+  // MySQL: SET con la lista en minúsculas (no pliega) y USE, que cambia de base.
+  mysql:
+    'La conexión es de solo lectura: solo se permite SET time_zone, lock_wait_timeout, innodb_lock_wait_timeout, max_execution_time o max_statement_time (y USE para cambiar de base).'
 }
 
 /**
@@ -75,8 +78,10 @@ function efectoCliente(cliente: ReglasDialecto['comandosCliente']): { barra: boo
       return { barra: true, sqlplus: false }
     case 'sqlplus':
       return { barra: false, sqlplus: true }
-    // Los `.algo` de sqlite3 no son `\cmd` ni comandos de SQL*Plus (los fija el test del léxico).
+    // Los `.algo` de sqlite3 no son `\cmd` ni comandos de SQL*Plus (los fija el test del léxico),
+    // y el `DELIMITER` de MySQL tampoco (lo fija `test-sql-mysql`).
     case 'sqlite3':
+    case 'mysql':
     case null:
       return { barra: false, sqlplus: false }
     default:

@@ -17,6 +17,7 @@ import { DOCS_CHANNELS } from '../../../shared/db-documentos-ipc.ts'
 import { ControladorDocumentos } from './documentos/ControladorDocumentos.ts'
 import { registrarIpcDocumentos } from './documentos/ipc.ts'
 import { GestorDocumentos } from './documentos/GestorDocumentos.ts'
+import { origenDocumentos, productorDocumentos } from './documentos/exportarDocumentos.ts'
 import { ProcesoTrabajador } from './ProcesoTrabajador.ts'
 
 function hr(title: string): void {
@@ -142,6 +143,7 @@ async function main(): Promise<void> {
   const azar = randomBytes(4).toString('hex')
   const TMP = `tmp_${azar}`
   const TMP_F = `tmp_${azar}_filtro`
+  const TMP_I = `tmp_${azar}_indices`
   const BASE = RW.database ?? 'pruebas'
   const logs: string[] = []
   const conexiones = new Map<string, DbConnection>()
@@ -293,6 +295,16 @@ async function main(): Promise<void> {
     check('Cancelar una consulta larga: cancelada en menos de 5 s', handlerCancelar && !rl.ok && rl.error?.motivo === 'cancelada' && ms < 5000, j({ rl, ms }))
     const despues = await consola('rw', 'db.clientes.countDocuments({})')
     check('… y la sesión de la consola sigue', despues.ok && String(despues.valor.texto).trim() === '4', j(despues))
+    // «Cargar más» de la consola: su cursor vive en la sesión de la consola, y es ahí donde lo para su Stop.
+    const pag = await consola('rw', 'db.grande.find({ $where: "sleep(5) || true" })', { peticionId: 'pag' })
+    const lectorConsola = pag.ok ? pag.valor.pagina?.lector : null
+    const t1 = Date.now()
+    const mas = lectorConsola ? pedir(DOCS_CHANNELS.LECTOR_MAS, { lector: lectorConsola, maxDocumentos: 1000, peticionId: 'mas-larga' }) : Promise.resolve(null)
+    await new Promise((r) => setTimeout(r, 600))
+    const cancelaMas = gestor.cancelar({ rol: 'consola', perfilId: PERFIL, consolaId: 'k-rw', ejecucionId: 'mas-larga' })
+    const rm = await mas
+    const msm = Date.now() - t1
+    check('Cancelar un «Cargar más» largo de la consola: cancelado en menos de 3 s', !!lectorConsola && cancelaMas && !!rm && !rm.ok && rm.error?.motivo === 'cancelada' && msm < 3000, j({ lectorConsola, cancelaMas, rm, msm }))
 
     hr('(7) Lectores, sesiones, desconectar, log y cierre')
     const noHay = await pedir(DOCS_CHANNELS.LECTOR_MAS, { lector: 'docs:999999', maxDocumentos: 5 })
@@ -398,9 +410,145 @@ async function main(): Promise<void> {
     check('filtro guiado + filtro de texto: Petición inválida', !choque.ok && choque.error?.motivo === 'interno', j(choque))
     const texto = await pedir(DOCS_CHANNELS.CONSULTAR, { conexionId: 'rw', base: BASE, coleccion: TMP_F, filtro: '{ edad: { $gt: 45 } }', proyeccion: '', orden: '{ edad: 1 }', maxDocumentos: 50 })
     check('la barra de TEXTO sigue igual (sin filtroGuiado)', idsDe(texto) === j(['d5', 'd4']), idsDe(texto))
+
+    hr('(9) Índices, consola ampliada y explain')
+    const X = TMP_I
+    const textoDe = (r: Resp): string => (r.ok ? String(r.valor.texto ?? '') : `ERROR ${j(r.error)}`)
+    await consola('rw', `db.${X}.insertMany([{ _id: 1, edad: 10, n: "a" }, { _id: 2, edad: 20, n: "b" }, { _id: 3, edad: 30, n: "c" }])`)
+    const ci = await consola('rw', `db.${X}.createIndex({ edad: 1 }, { name: "edad_idx" })`)
+    check('createIndex: devuelve el nombre del índice', textoDe(ci).includes('edad_idx'), textoDe(ci))
+    const colsI = await pedir(DOCS_CHANNELS.COLECCIONES, { conexionId: 'rw', base: BASE })
+    const deX = ((colsI.valor ?? []) as Array<{ nombre: string; indices?: Array<{ nombre: string; clave: string; unico: boolean }> }>).find((c) => c.nombre === X)
+    check(
+      'el listado de colecciones trae los índices de cada una (para el árbol)',
+      !!deX && j((deX.indices ?? []).map((i) => [i.nombre, i.clave, i.unico])) === j([['_id_', '{ _id: 1 }', true], ['edad_idx', '{ edad: 1 }', false]]),
+      j(deX?.indices)
+    )
+    const vistaI = ((colsI.valor ?? []) as Array<{ nombre: string; tipo: string; indices?: unknown }>).find((c) => c.tipo === 'vista')
+    check('… y una vista no los trae', !!vistaI && vistaI.indices === undefined, j(vistaI))
+    const gi = await consola('rw', `db.${X}.getIndexes()`)
+    check('getIndexes: los dos índices con su clave', textoDe(gi).includes('edad_idx') && textoDe(gi).includes('_id_'), textoDe(gi).slice(0, 120))
+    const hint = await consola('rw', `db.${X}.find({ edad: { $gt: 5 } }).hint("edad_idx")`)
+    check('.hint("nombre"): devuelve los 3 documentos', hint.ok && hint.valor.tipo === 'documentos' && hint.valor.pagina.documentos.length === 3, j(hint.ok ? hint.valor.tipo : hint.error))
+    const hintMal = await consola('rw', `db.${X}.find({ edad: 1 }).hint("no_existe")`)
+    check('.hint con un índice que no existe: error del servidor', !hintMal.ok && hintMal.error?.motivo === 'servidor', j(hintMal))
+    const tope = await consola('rw', 'db.grande.find({ $where: "sleep(400) || true" }).maxTimeMS(100)')
+    check('.maxTimeMS(100) corta una consulta lenta con el error del servidor', !tope.ok && tope.error?.motivo === 'servidor', j(tope))
+    const cnt = await consola('rw', `db.${X}.find({ edad: { $gte: 20 } }).count()`)
+    check('find(…).count(): cuenta lo que casa (2)', cnt.ok && cnt.valor.tipo === 'valor' && String(cnt.valor.texto).trim() === '2', j(cnt))
+    const cntLim = await consola('rw', `db.${X}.find({ edad: { $gte: 20 } }).limit(1).count()`)
+    check('… y no mira el limit (como el shell)', cntLim.ok && String(cntLim.valor.texto).trim() === '2', j(cntLim.ok ? cntLim.valor : cntLim.error))
+    const fu = await consola('rw', `db.${X}.findOneAndUpdate({ _id: 1 }, { $set: { n: "z" } }, { returnNewDocument: true })`)
+    check('findOneAndUpdate con returnNewDocument: el documento DESPUÉS del cambio', fu.ok && String(fu.valor.texto).includes('"z"'), textoDe(fu))
+    const fuAntes = await consola('rw', `db.${X}.findOneAndUpdate({ _id: 2 }, { $set: { n: "y" } })`)
+    check('sin la opción: el documento de ANTES', fuAntes.ok && String(fuAntes.valor.texto).includes('"b"'), textoDe(fuAntes))
+    const fd = await consola('rw', `db.${X}.findOneAndDelete({ _id: 3 })`)
+    check('findOneAndDelete: devuelve el borrado', fd.ok && String(fd.valor.texto).includes('_id: 3'), textoDe(fd))
+    const fr = await consola('rw', `db.${X}.findOneAndReplace({ _id: 1 }, { edad: 11, n: "r" }, { returnDocument: "after" })`)
+    check('findOneAndReplace con returnDocument "after"', fr.ok && String(fr.valor.texto).includes('"r"'), textoDe(fr))
+    const nada = await consola('rw', `db.${X}.findOneAndDelete({ _id: 999 })`)
+    check('findOneAndDelete sin coincidencia: null', nada.ok && String(nada.valor.texto).trim() === 'null', textoDe(nada))
+    const st = await consola('rw', `db.${X}.stats()`)
+    check('stats(): el $collStats con su storageStats', st.ok && String(st.valor.texto).includes('storageStats') && String(st.valor.texto).includes('count'), textoDe(st).slice(0, 120))
+    const sinPerm = await consola('prod', `db.${X}.drop()`)
+    check('drop en producción sin confirmar: barrera de producción', !sinPerm.ok && sinPerm.error?.motivo === 'produccion', j(sinPerm))
+    const sinRo = await consola('rw', `db.${X}.dropIndex({ edad: 1 })`)
+    check('dropIndex con la clave { edad: 1 } (nombre estándar «edad_1»): el índice se llama «edad_idx», así que falla en el servidor', !sinRo.ok && sinRo.error?.motivo === 'servidor', j(sinRo))
+    const di = await consola('rw', `db.${X}.dropIndex("edad_idx")`)
+    check('dropIndex("edad_idx")', di.ok, textoDe(di))
+    const cc = await consola('rw', `db.createCollection("${X}_c")`)
+    check('db.createCollection', cc.ok, textoDe(cc))
+    const rn = await consola('rw', `db.${X}_c.renameCollection("${X}_r")`)
+    check('renameCollection', rn.ok, textoDe(rn))
+    const dr = await consola('rw', `db.${X}_r.drop()`)
+    check('drop() devuelve true', dr.ok && String(dr.valor.texto).trim() === 'true', textoDe(dr))
+    const quedan = ((await pedir(DOCS_CHANNELS.COLECCIONES, { conexionId: 'rw', base: BASE })).valor ?? []) as Array<{ nombre: string }>
+    check('… y no queda ninguna de las dos', !quedan.some((c) => c.nombre === `${X}_c` || c.nombre === `${X}_r`), j(quedan.filter((c) => c.nombre.startsWith(X))))
+    await consola('rw', `db.${X}.createIndex({ edad: 1 }, { name: "edad_idx" })`)
+
+    hr('(9b) Explain')
+    const pl = await consola('rw', `db.${X}.find({ edad: 20 }).explain()`)
+    const nodos = (pl.ok && pl.valor.tipo === 'plan' ? pl.valor.plan.nodos : []) as Array<{ operacion: string; objeto?: string; filas?: number }>
+    check('explain() devuelve un PLAN, no un valor', pl.ok && pl.valor.tipo === 'plan' && typeof pl.valor.plan.texto === 'string', j(pl.ok ? pl.valor.tipo : pl.error))
+    check('usa el índice: un IXSCAN con edad_idx y las estadísticas de ejecución', nodos.some((n) => n.operacion === 'IXSCAN' && n.objeto === 'edad_idx') && nodos.some((n) => n.filas === 1), j(nodos))
+    const plEsp = await consola('rw', `db.${X}.find({ edad: 20 }).explain("queryPlanner")`)
+    check('explain("queryPlanner"): también un plan, sin cifras de ejecución', plEsp.ok && plEsp.valor.tipo === 'plan' && !plEsp.valor.plan.texto.includes('executionStats'), j(plEsp.ok ? plEsp.valor.tipo : plEsp.error))
+    const plScan = await consola('rw', `db.${X}.find({ n: "r" }).explain()`)
+    check('sin índice para el filtro: COLLSCAN y el aviso', plScan.ok && plScan.valor.tipo === 'plan' && (plScan.valor.avisos ?? []).some((a: string) => a.includes('COLLSCAN')), j(plScan.ok ? plScan.valor.avisos : plScan.error))
+    const plAgg = await consola('rw', `db.${X}.aggregate([{ $match: { edad: { $gte: 10 } } }, { $group: { _id: null, n: { $sum: 1 } } }]).explain()`)
+    // El motor decide si empuja el $group dentro del cursor: lo que se fija es que sea un plan de varios pasos con el índice.
+    const opsAgg = plAgg.ok && plAgg.valor.tipo === 'plan' ? (plAgg.valor.plan.nodos as Array<{ operacion: string }>).map((n) => n.operacion) : []
+    check('explain de una agregación: un plan de varios pasos que llega al índice', opsAgg.length >= 2 && opsAgg.some((o) => /group/i.test(o)) && opsAgg.some((o) => /ixscan|ixseek/i.test(o)), j(plAgg.ok ? opsAgg : plAgg.error))
+    const plMal = await consola('rw', `db.${X}.find().explain("otra")`)
+    check('explain con un nivel que no existe: error', !plMal.ok, j(plMal.ok ? plMal.valor : plMal.error))
+
+    hr('(10) Exportar')
+    type Pagina = { columnas: string[]; filas: Array<Array<string | null>> }
+    const volcar = async (o: Record<string, unknown>, formato: 'json' | 'csv'): Promise<{ paginas: Pagina[]; aviso?: string }> => {
+      const origen = origenDocumentos({ conexionId: 'rw', ...o }, formato)
+      const paginas: Pagina[] = []
+      const r = await productorDocumentos(gestor, origen, formato, 'exp')(
+        async (p) => void paginas.push({ columnas: p.columnas.map((c) => c.nombre), filas: JSON.parse(p.filasJson) }),
+        () => false
+      )
+      return { paginas, aviso: r ? r.aviso : undefined }
+    }
+    const todas = await volcar({ tipo: 'coleccion', base: BASE, coleccion: 'grande', filtro: '', proyeccion: '', orden: '{ n: 1 }' }, 'csv')
+    const filasG = todas.paginas.flatMap((p) => p.filas)
+    check('la colección de 5000 documentos sale en 5 páginas de 1000, en orden', todas.paginas.length === 5 && filasG.length === 5000 && todas.paginas.every((p) => p.filas.length === 1000), j(todas.paginas.map((p) => p.filas.length)))
+    check('CSV: las columnas de la primera página en todas y los valores como texto plano', j(todas.paginas[4].columnas) === j(todas.paginas[0].columnas) && todas.paginas[0].columnas.includes('texto') && filasG[4999].includes('fila 4999'), j(todas.paginas[0].columnas))
+    check('… y sin aviso (todos los documentos tienen los mismos campos)', todas.aviso === undefined, String(todas.aviso))
+    const conFiltro = await volcar({ tipo: 'coleccion', base: BASE, coleccion: 'grande', filtro: '{ par: true }', proyeccion: '{ n: 1 }', orden: '' }, 'json')
+    const docsJ = conFiltro.paginas.flatMap((p) => p.filas.map((f) => JSON.parse(String(f[0])) as Record<string, unknown>))
+    check('JSON con filtro y proyección: 2500 documentos solo con _id y n', docsJ.length === 2500 && docsJ.every((d) => j(Object.keys(d).sort()) === j(['_id', 'n']) && (d.n as number) % 2 === 0), j(docsJ[0]))
+    check('… _id en EJSON ($oid) y n como número', docsJ.every((d) => typeof (d._id as { $oid?: string }).$oid === 'string' && typeof d.n === 'number'), j(docsJ[0]))
+    const guiado = await volcar({ tipo: 'coleccion', base: BASE, coleccion: 'grande', filtro: '', proyeccion: '', orden: '', filtroGuiado: { union: 'todas', condiciones: [{ columna: 'n', categoria: 'numero', operador: 'menor', valor: '3' }] }, ordenColumnas: [{ columna: 'n', dir: 'desc' }] }, 'csv')
+    check('con filtro guiado y orden de la cabecera: n < 3 de mayor a menor', guiado.paginas.flatMap((p) => p.filas).map((f) => f[guiado.paginas[0].columnas.indexOf('n')]).join(',') === '2,1,0', j(guiado.paginas[0]))
+    const deClientes = await volcar({ tipo: 'sentencia', base: BASE, texto: 'db.clientes.find({}, { nombre: 1, saldo: 1, direccion: 1, visitas: 1, alta: 1 })' }, 'csv')
+    const colsC = deClientes.paginas[0].columnas
+    const filaAna = deClientes.paginas[0].filas.find((f) => f[colsC.indexOf('nombre')] === 'Ana')
+    check(
+      'una sentencia: Decimal128, fecha y subdocumento sin envoltorios en CSV',
+      !!filaAna && filaAna[colsC.indexOf('saldo')] === '1234.50' && filaAna[colsC.indexOf('alta')] === '2024-01-15T10:00:00.000Z' && String(filaAna[colsC.indexOf('direccion')]).includes('"ciudad":"Madrid"'),
+      j(filaAna)
+    )
+    const largo = deClientes.paginas[0].filas.find((f) => f[colsC.indexOf('nombre')] === 'Luis')
+    check('… y el Long más allá de 2^53 sale exacto', !!largo && largo[colsC.indexOf('visitas')] === '9007199254740993', j(largo))
+    const agg = await volcar({ tipo: 'sentencia', base: BASE, texto: 'db.grande.aggregate([{ $group: { _id: "$grupo", n: { $sum: 1 } } }, { $sort: { _id: 1 } }])' }, 'json')
+    check('una agregación se exporta en JSON (10 grupos)', agg.paginas.flatMap((p) => p.filas).length === 10, j(agg.paginas.map((p) => p.filas.length)))
+    for (const [texto, motivo] of [
+      ['db.grande.deleteMany({})', 'una escritura NO se vuelve a ejecutar para exportar'],
+      ['db.grande.countDocuments({})', 'un valor suelto no se exporta'],
+      ['db.grande.find().explain()', 'un explain no se exporta']
+    ] as const) {
+      let fallo = ''
+      try {
+        await volcar({ tipo: 'sentencia', base: BASE, texto }, 'json')
+      } catch (e) {
+        fallo = e instanceof Error ? e.message : String(e)
+      }
+      check(`rechaza: ${motivo}`, fallo !== '', fallo)
+    }
+    check('la escritura rechazada no borró nada', (await consola('rw', 'db.grande.countDocuments({})')).valor?.texto?.trim() === '5000', '')
+    // Un Stop entre páginas: el productor cierra el cursor del servidor (el siguiente `mas` a ese lector ya no existe).
+    let lectorAbierto: string | null = null
+    const envoltura = { ...gestor, exportarAbrir: gestor.exportarAbrir.bind(gestor), exportarMas: gestor.exportarMas.bind(gestor), cerrarLector: gestor.cerrarLector.bind(gestor) }
+    const abrirOriginal = envoltura.exportarAbrir
+    envoltura.exportarAbrir = async (...a) => {
+      const r = await abrirOriginal(...a)
+      if (r.ok) lectorAbierto = r.valor.lector
+      return r
+    }
+    let paginasStop = 0
+    await productorDocumentos(envoltura, origenDocumentos({ conexionId: 'rw', tipo: 'coleccion', base: BASE, coleccion: 'grande', filtro: '', proyeccion: '', orden: '' }, 'json'), 'json', 'stop')(
+      async () => void paginasStop++,
+      () => paginasStop >= 1
+    )
+    const trasStop = lectorAbierto ? await pedir(DOCS_CHANNELS.LECTOR_MAS, { lector: lectorAbierto, maxDocumentos: 5 }) : null
+    check('un Stop tras la primera página deja una sola y cierra el cursor', paginasStop === 1 && !!lectorAbierto && !!trasStop && !trasStop.ok && trasStop.error?.motivo === 'noReleible', j({ paginasStop, lectorAbierto, trasStop }))
   } finally {
     await gestor.cerrarTodo(2500).catch(() => undefined)
-    for (const col of [TMP, TMP_F]) {
+    for (const col of [TMP, TMP_F, TMP_I, `${TMP_I}_c`, `${TMP_I}_r`]) {
       try {
         await admin.db(BASE).collection(col).drop()
       } catch {

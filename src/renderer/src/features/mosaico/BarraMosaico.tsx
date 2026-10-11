@@ -121,7 +121,7 @@ function itemsDelSelector(opciones: OpcionMosaico[], onAlternar: (key: string) =
   return opciones.map((o) => ({
     label: `${o.perfil} · ${o.proyecto}${o.dormido ? ' (dormido)' : ''}`,
     checked: o.esCasilla,
-    icon: <PuntoMosaico color={o.color} enMarcha={o.enMarcha} trabajando={o.trabajando} sinVer={o.sinVer} />,
+    icon: <PuntoMosaico color={o.color} enMarcha={o.enMarcha} trabajando={o.trabajando} sinVer={o.sinVer} esperando={o.esperando} />,
     onClick: () => onAlternar(o.key)
   }))
 }
@@ -195,7 +195,7 @@ function FichasMosaico({
             onClick={() => onElegirFicha(f.key)}
             title={`${f.perfil} · ${f.proyecto} · ${f.agente}`}
           >
-            <PuntoMosaico color={f.color} enMarcha={f.enMarcha} trabajando={f.trabajando} sinVer={f.sinVer} />
+            <PuntoMosaico color={f.color} enMarcha={f.enMarcha} trabajando={f.trabajando} sinVer={f.sinVer} esperando={f.esperando} />
             <span className="barra-mosaico-ficha-nombre">{nombre}</span>
           </button>
         )

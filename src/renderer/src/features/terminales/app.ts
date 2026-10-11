@@ -3,4 +3,4 @@
 // la ventana. Las demás features usan `index.ts`; esto va aparte por la misma regla
 // que en las demás features. Ver docs/decisiones/renderer/barriles-sin-ciclos.md.
 // =============================================================================
-export { useTerminalesApp } from './useTerminalesApp'
+export { useTerminalesApp, useHayTerminalQueEnsenar } from './useTerminalesApp'

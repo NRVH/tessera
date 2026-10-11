@@ -327,6 +327,13 @@ async function main(): Promise<void> {
     )
     const tipos = await ex.objetos('c1', 'dbo', 'tipo')
     check('tipos: el alias y el de tabla', tipos.ok && j(tipos.valor.map((o) => [o.nombre, o.subtipo])) === j([['TablaIds', 'TABLE'], ['Telefono', 'ALIAS']]), j(tipos))
+    check('conteos de dbo: un disparador', cv.disparador === 1, j(conteos))
+    const disp = await ex.objetos('c1', 'dbo', 'disparador')
+    check('disparadores: el de pedido, con su tabla y su estado', disp.ok && j(disp.valor.map((o) => [o.nombre, o.tabla, o.subtipo])) === j([['tr_pedido', 'pedido', 'ENABLED']]), j(disp))
+    const fuenteTr = await ex.fuente('c1', { esquema: 'dbo', nombre: 'tr_pedido', tipo: 'disparador' })
+    check('fuente del disparador: su definición', fuenteTr.ok && /CREATE TRIGGER dbo\.tr_pedido ON dbo\.pedido/.test(fuenteTr.valor.partes[0]?.texto ?? ''), j(fuenteTr))
+    const ddlTr = await ex.ddl('c1', { esquema: 'dbo', nombre: 'tr_pedido', tipo: 'disparador' })
+    check('Ver DDL del disparador: su definición', ddlTr.ok && /CREATE TRIGGER dbo\.tr_pedido/.test(ddlTr.valor.partes[0]?.texto ?? ''), j(ddlTr))
     const refCli = { esquema: 'dbo', nombre: 'cliente', tipo: 'tabla' as const }
     const det = await ex.detalle('c1', refCli, ['columnas', 'indices', 'restricciones'])
     const cols = det.ok ? det.valor.columnas ?? [] : []
@@ -717,6 +724,17 @@ async function main(): Promise<void> {
     const fij = await ex.fijarBases('srv', { modo: 'lista', porDefecto: true, esquemas: [BASE, BASE2] })
     const bases2 = await ex.bases('srv')
     check('fijar las bases visibles: la por defecto y dos más, «3 de M»', fij.ok && bases2.ok && bases2.valor.nVisibles === 3, j(bases2.ok ? bases2.valor.config : bases2))
+    // «Nueva consola» desde una base: nace en ella y no en la por defecto (master).
+    const kb = await ex.crearConsola(PERFIL, 'srv', BASE2)
+    const KB = kb.ok ? kb.valor.id : ''
+    const sinSesion = await ex.estadoConsola(PERFIL, KB)
+    check('consola creada en una base: la lleva elegida y aún sin sesión', kb.ok && kb.valor.esquema === BASE2 && sinSesion === null, j({ kb, sinSesion }))
+    const listadas = await ex.listarConsolas(PERFIL)
+    check('…y queda en el índice', listadas.ok && listadas.valor.find((c) => c.id === KB)?.esquema === BASE2, j(listadas.ok ? listadas.valor.find((c) => c.id === KB) : listadas))
+    const dbName = await ex.ejecutar({ perfilId: PERFIL, consolaId: KB, ejecucionId: 'kb1', sql: 'SELECT DB_NAME()', maxFilas: 10 })
+    check('…y su primera sentencia corre en esa base', dbName.ok && j(filasDe(dbName.valor)) === j([[BASE2]]), j(dbName))
+    const kMal = await ex.crearConsola(PERFIL, 'srv', '')
+    check('un esquema vacío al crear se rechaza', !kMal.ok, j(kMal))
     const conBaseMal = await ex.objetos('c1', 'dbo', 'tabla', false, BASE2)
     check('una conexión CON base fija no admite otra base', !conBaseMal.ok, j(conBaseMal))
 
@@ -753,14 +771,43 @@ async function main(): Promise<void> {
         col: { id: 'id', nombre: 'nombre', sueldo: 'sueldo', grande: 'grande', alta: 'alta', activo: 'activo' },
         grandes: ['123456789012345678901234567890', '123456789012345678901234567891'],
         booleano: true,
-        // Un 207 («nombre de columna no válido») da la línea donde EMPIEZA la sentencia
-        // (ver `campoDeErrorEnLinea`): no hay condición que señalar.
-        columnaInexistente: 'error',
         abrir: (p) => ex.abrirTabla({ conexionId: 'c1', objeto: ref, maxFilas: 100, ...p }),
         leerMas: (l, m) => ex.leerMas(l, m),
         contar: (l, id) => ex.contar(l, id),
         check
       })
+
+      // text, ntext y xml: el servidor no los compara con «=» (son `textoLargo`), pero lo demás va
+      // convertido a texto y tiene que valer.
+      for (const s of [
+        "IF OBJECT_ID(N'dbo.tl') IS NOT NULL DROP TABLE dbo.tl",
+        'CREATE TABLE dbo.tl (id int NOT NULL PRIMARY KEY, t text NULL, n ntext NULL, x xml NULL)',
+        "INSERT INTO dbo.tl VALUES (1, 'hola mundo', N'Ñandú azul', N'<a>uno</a>'), (2, NULL, NULL, NULL)"
+      ]) {
+        const r = await ejecutar(s, KF)
+        if (!r.ok) check('siembra de dbo.tl', false, j(r))
+      }
+      const refTl = { esquema: 'dbo', nombre: 'tl', tipo: 'tabla' as const }
+      let nTl = 0
+      const idsTl = async (columna: string, operador: 'contiene' | 'vacio', valor = ''): Promise<string> => {
+        const condiciones = [{ columna, categoria: 'textoLargo' as const, operador, ...(operador === 'vacio' ? {} : { valor }) }]
+        const r = await ex.abrirTabla({ conexionId: 'c1', objeto: refTl, maxFilas: 10, peticionId: `tl-${++nTl}`, filtro: { union: 'todas', condiciones } })
+        const res = r.ok ? r.valor.resultado : null
+        return res && res.tipo === 'filas' ? (JSON.parse(res.pagina.filasJson) as unknown[][]).map((f) => String(f[0])).join(',') : j(r.ok ? res : r)
+      }
+      const contiene = [await idsTl('t', 'contiene', 'MUNDO'), await idsTl('n', 'contiene', 'ñandú'), await idsTl('x', 'contiene', 'UNO')]
+      check('text / ntext / xml: «contiene» sin distinguir mayúsculas -> [1] en las tres', j(contiene) === j(['1', '1', '1']), j(contiene))
+      const vacias = [await idsTl('t', 'vacio'), await idsTl('n', 'vacio'), await idsTl('x', 'vacio')]
+      check('text / ntext / xml: «está vacío» -> [2] en las tres', j(vacias) === j(['2', '2', '2']), j(vacias))
+      const igual = await ex.abrirTabla({
+        conexionId: 'c1',
+        objeto: refTl,
+        maxFilas: 10,
+        peticionId: 'tl-igual',
+        filtro: { union: 'todas', condiciones: [{ columna: 'n', categoria: 'textoLargo', operador: 'igual', valor: 'x' }] }
+      })
+      const errIgual = igual.ok ? (igual.valor.resultado.tipo === 'error' ? igual.valor.resultado.error : null) : igual.error
+      check('textoLargo con «=»: rechazado antes del servidor', errIgual !== null && /operador/.test(errIgual.mensaje), j(igual))
       await ex.borrarConsola(PERFIL, KF)
     }
 

@@ -14,6 +14,7 @@ import {
   borradorNuevo,
   cambiarMotor,
   conArchivoElegido,
+  conModoRedis,
   conSrv,
   conUri,
   entradaDe,
@@ -21,8 +22,8 @@ import {
   tlsImplicito,
   type BorradorConexion
 } from './borradorConexion.ts'
-import { descriptorDe, MOTORES_CONEXION } from './camposConexion.ts'
-import { descomponerUriMongo, descomponerUriRedis } from '../../../../shared/uriConexion.ts'
+import { campoVisible, descriptorDe, MOTORES_CONEXION } from './camposConexion.ts'
+import { descomponerUriMongo, descomponerUriPostgres, descomponerUriRedis } from '../../../../shared/uriConexion.ts'
 import type { DbConnection } from '../../../../shared/db-ipc.ts'
 
 function hr(title: string): void {
@@ -249,11 +250,12 @@ hr('(9) motor de archivo')
 // ---------------------------------------------------------------------------------
 hr('(10) SQL Server: los opcionales viajan SOLO con el motor que los declara')
 {
-  // La entrada de Oracle y PG, al byte: ni una clave nueva.
-  const CLAVES_RED = ['profileId', 'alias', 'motor', 'host', 'port', 'database', 'sid', 'user', 'readonly', 'notas', 'password']
+  // La entrada de Oracle y PG, al byte: solo el cifrado de más.
+  const CLAVES_RED = ['profileId', 'alias', 'motor', 'host', 'port', 'database', 'sid', 'user', 'readonly', 'notas', 'tls', 'password']
   for (const m of ['oracle', 'postgres'] as const) {
     const b = { ...borradorNuevo('P', m), instancia: 'X', autenticacion: 'ntlm' as const, dominio: 'D', tls: { cifrar: false, confiarCertificado: true } }
-    check(`${m}: la entrada lleva las claves de siempre (ni instancia, ni autenticación, ni dominio, ni cifrado)`, j(Object.keys(entradaDe(b))) === j(CLAVES_RED), j(Object.keys(entradaDe(b))))
+    check(`${m}: la entrada lleva las claves de siempre y el cifrado (ni instancia, ni autenticación, ni dominio)`, j(Object.keys(entradaDe(b))) === j(CLAVES_RED), j(Object.keys(entradaDe(b))))
+    check(`${m}: el alta nace sin cifrar`, j(borradorNuevo('P', m).tls) === j({ cifrar: false, confiarCertificado: false }), j(borradorNuevo('P', m).tls))
     const orig = borradorDesde({ ...CON, motor: m })
     check(`${m}: cambiar un opcional escrito no es un cambio (no viaja)`, !hayCambios({ ...orig, instancia: 'X', dominio: 'D' }, orig), 'false')
   }
@@ -430,6 +432,62 @@ hr('(12) Redis: cifrado del motor y «Pegar URI» redis:// y rediss://')
   const enEdicion = conUri(ed, sinClave.campos)
   check('en una edición, una URI sin contraseña CONSERVA la guardada', enEdicion.password === undefined && !('password' in entradaDe(enEdicion)), j(enEdicion.password))
   check('y cambiar la base por la URI es un cambio', enEdicion.database === '2' && hayCambios(enEdicion, ed), 'true')
+}
+
+hr('PostgreSQL: «Pegar URI» y el cifrado de sslmode')
+{
+  const alta = borradorNuevo('P', 'postgres')
+  const u = descomponerUriPostgres('postgres://ana:p%40ss@db.local:6543/ventas?sslmode=verify-full&application_name=x')
+  if (!u.ok) throw new Error(u.error)
+  const pegada = conUri({ ...alta, alias: 'VENTAS' }, u.campos)
+  check(
+    'pegar: host, puerto, usuario, contraseña, base y cifrado verificando; el nombre no se toca',
+    pegada.host === 'db.local' && pegada.port === 6543 && pegada.user === 'ana' && pegada.password === 'p@ss' && pegada.database === 'ventas' && j(pegada.tls) === j({ cifrar: true, confiarCertificado: false }) && pegada.alias === 'VENTAS',
+    j(pegada)
+  )
+  const r = descomponerUriPostgres('postgres://h/b?sslmode=require')
+  if (!r.ok) throw new Error(r.error)
+  const confiando = conUri(alta, r.campos)
+  check('require: cifra confiando, sin puerto el 5432, y viaja así', j(confiando.tls) === j({ cifrar: true, confiarCertificado: true }) && confiando.port === 5432 && j(entradaDe({ ...confiando, alias: 'N' }).tls) === j({ cifrar: true, confiarCertificado: true }), j(confiando))
+  const s = descomponerUriPostgres('postgres://h/b')
+  if (!s.ok) throw new Error(s.error)
+  check('sin sslmode: pegar sobre una cifrada la deja sin cifrar', j(conUri({ ...alta, tls: { cifrar: true, confiarCertificado: true } }, s.campos).tls) === j({ cifrar: false, confiarCertificado: false }), 'ok')
+}
+
+hr('Redis Sentinel y Cluster en el borrador')
+{
+  const alta = { ...borradorNuevo('p1', 'redis'), alias: 'R', host: 's1,s2' }
+  const s = conModoRedis(alta, 'sentinel')
+  check('elegir Sentinel: el puerto de fábrica pasa al de un sentinel (26379)', s.port === 26379 && s.modoRedis === 'sentinel', String(s.port))
+  check('volver a un servidor: el 6379 de Redis', conModoRedis(s, 'servidor').port === 6379, '')
+  check('MITAD NEGATIVA: un puerto escrito a mano no se toca', conModoRedis({ ...alta, port: 7000 }, 'sentinel').port === 7000, '')
+  const aPg = cambiarMotor(conModoRedis(alta, 'cluster'), 'postgres')
+  check(
+    'cambiar de motor deja la topología de Redis atrás: la base vuelve a verse y se valida',
+    aPg.modoRedis === 'servidor' && campoVisible('database', aPg) && cambiarMotor(s, 'mongodb').modoRedis === 'servidor',
+    aPg.modoRedis
+  )
+  check('Sentinel o Cluster quitan el túnel SSH', conModoRedis({ ...alta, tunelSsh: 'ssh-1' }, 'cluster').tunelSsh === '' && conModoRedis({ ...alta, modoRedis: 'cluster', tunelSsh: '' }, 'servidor').tunelSsh === '', '')
+  const conClaves: BorradorConexion = { ...s, maestroSentinel: ' principal ', claveSentinel: 'propia', password: 'r', passwordSentinel: 'sp' }
+  const e = entradaDe(conClaves)
+  check(
+    'lo que viaja con Sentinel: la topología con el maestro recortado y las dos contraseñas',
+    j(e.topologiaRedis) === j({ modo: 'sentinel', maestro: 'principal', claveSentinel: 'propia' }) && e.password === 'r' && e.passwordSentinel === 'sp',
+    j(e)
+  )
+  check('con «la misma» o «ninguna», la de los sentinels no viaja', entradaDe({ ...conClaves, claveSentinel: 'misma' }).passwordSentinel === undefined, '')
+  const c = entradaDe({ ...conModoRedis(alta, 'cluster'), database: '5' })
+  check('Cluster: la topología y la base vacía (no se enseña: solo existe la 0)', j(c.topologiaRedis) === j({ modo: 'cluster' }) && c.database === '', j(c))
+  check('MITAD NEGATIVA: un servidor no manda topología', entradaDe(alta).topologiaRedis === undefined, '')
+  check('MITAD NEGATIVA: otro motor no manda topología aunque el borrador la tenga', entradaDe({ ...conClaves, motor: 'postgres' }).topologiaRedis === undefined, '')
+  const guardada: DbConnection = {
+    id: 'r1', profileId: 'p1', alias: 'R', motor: 'redis', host: 's1,s2', port: 26379, user: '', readonly: true, tieneSecreto: true,
+    topologiaRedis: { modo: 'sentinel', maestro: 'principal', claveSentinel: 'propia' }
+  }
+  const ed = borradorDesde(guardada)
+  check('editar: el borrador sale con el modo, el maestro y la clave de los sentinels, sin contraseñas', ed.modoRedis === 'sentinel' && ed.maestroSentinel === 'principal' && ed.claveSentinel === 'propia' && ed.passwordSentinel === undefined && ed.password === undefined, j(ed))
+  check('sin tocar nada no hay cambios; una contraseña de sentinels nueva sí es un cambio', !hayCambios(ed, borradorDesde(guardada)) && hayCambios({ ...ed, passwordSentinel: 'x' }, borradorDesde(guardada)), '')
+  check('en una edición, la de los sentinels sin escribir no viaja (se conserva)', entradaDe(ed).passwordSentinel === undefined && entradaDe({ ...ed, passwordSentinel: 'n' }).passwordSentinel === 'n', '')
 }
 
 // ---------------------------------------------------------------------------------

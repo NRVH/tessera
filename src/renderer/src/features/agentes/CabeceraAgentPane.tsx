@@ -81,6 +81,7 @@ function BotonNombreCasilla({ m, mosaico }: PropsParte & { mosaico: MosaicoPane 
 }
 
 function tituloOtroAgente(otro: NonNullable<MosaicoPane['otroAgente']>): string {
+  if (otro.esperando) return `${AGENT_LABEL[otro.agente]} te está ESPERANDO en este proyecto: pulsa para verlo aquí`
   if (otro.trabajando) return `${AGENT_LABEL[otro.agente]} está TRABAJANDO en este proyecto: pulsa para verlo aquí`
   if (otro.sinVer) return `${AGENT_LABEL[otro.agente]} terminó y no lo has revisado: pulsa para verlo aquí`
   return `Ver ${AGENT_LABEL[otro.agente]} de este proyecto en esta casilla`
@@ -103,8 +104,8 @@ function ChipAgente({ m, mosaico }: PropsParte & { mosaico: MosaicoPane }): Reac
     >
       {AGENT_LABEL_SHORT[agente]}
       {/* El otro agente reclama: sin este punto su trabajo quedaría invisible. */}
-      {(otro.trabajando || otro.sinVer) && (
-        <PuntoMosaico color={mosaico.color} trabajando={otro.trabajando} sinVer={otro.sinVer} />
+      {(otro.trabajando || otro.sinVer || otro.esperando) && (
+        <PuntoMosaico color={mosaico.color} trabajando={otro.trabajando} sinVer={otro.sinVer} esperando={otro.esperando} />
       )}
     </button>
   )
@@ -146,6 +147,7 @@ function IdentidadCasilla({ m, mosaico }: PropsParte & { mosaico: MosaicoPane })
         color={mosaico.color ?? 'var(--accent)'}
         working={mosaico.trabajando}
         attention={mosaico.terminadaSinVer}
+        waiting={mosaico.esperando}
       />
       <BotonNombreCasilla m={m} mosaico={mosaico} />
       <ChipAgente m={m} mosaico={mosaico} />
@@ -269,19 +271,23 @@ function AccionesCasilla({ mosaico }: { mosaico: MosaicoPane }): React.JSX.Eleme
   )
 }
 
-/** Maximizar/restaurar la columna del agente (vista normal, con pestañas de editor). */
+/** Lo que tapa el agente al maximizarse: los archivos abiertos o, el de la terminal, las terminales. */
+const TEXTOS_RESTAURAR = {
+  archivos: { titulo: 'Restaurar: vuelve a mostrar los archivos abiertos', aria: 'Restaurar editor', sinCerrar: 'archivos' },
+  terminales: { titulo: 'Restaurar: vuelve a mostrar las terminales abiertas', aria: 'Restaurar terminales', sinCerrar: 'terminales' }
+} as const
+
+/** Maximizar/restaurar el agente sobre lo que tiene al lado. */
 function BotonMaximizar({ m }: PropsParte): React.JSX.Element {
   const { expanded, onToggleExpand } = m.p
+  const t = TEXTOS_RESTAURAR[m.p.lugar === 'terminal' ? 'terminales' : 'archivos']
+  const agente = AGENT_LABEL[m.p.target.agente]
   return (
     <button
       className="btn btn-icon"
       onClick={onToggleExpand}
-      title={
-        expanded
-          ? 'Restaurar: vuelve a mostrar los archivos abiertos'
-          : 'Maximizar: Claude Code ocupa todo el espacio (sin cerrar archivos)'
-      }
-      aria-label={expanded ? 'Restaurar editor' : 'Maximizar Claude Code'}
+      title={expanded ? t.titulo : `Maximizar: ${agente} ocupa todo el espacio (sin cerrar ${t.sinCerrar})`}
+      aria-label={expanded ? t.aria : `Maximizar ${agente}`}
     >
       {expanded ? <IconoRestaurar /> : <IconoMaximizar />}
     </button>

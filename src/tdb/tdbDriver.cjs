@@ -1,14 +1,15 @@
 // =============================================================================
 // `tdb driver ls | install <id>`: los clientes de base de datos del catálogo y la descarga
 // de su ZIP a la carpeta de drivers. El Instant Client de Mac (un `.dmg`) lo instala Tessera.
-// Depende de `tdbContexto` (solo `ENV_DRIVERS`) y `tdbSalida`; lo usa `tdb.cjs`.
+// Depende de `tdbContexto` (solo `ENV_DRIVERS`), `tdbSalida` y `zipPlano`; lo usa `tdb.cjs`.
 // =============================================================================
 'use strict'
 
 const path = require('node:path')
-const { existsSync, mkdirSync, writeFileSync, rmSync } = require('node:fs')
+const { existsSync, rmSync } = require('node:fs')
 const { ENV_DRIVERS } = require('./tdbContexto.cjs')
 const { fallar, pintarTabla } = require('./tdbSalida.cjs')
+const { enlacesDelZip, escribirPlano } = require('./zipPlano.cjs')
 
 /** La carpeta donde está instalado el pack (la externa registrada o la de Tessera), o `null`. */
 function rutaDePack(ctx, pack) {
@@ -46,13 +47,8 @@ async function bajarYDescomprimir(pack, destino) {
   const archivos = await new Promise((resolve, reject) =>
     unzip(zip, (err, data) => (err ? reject(err) : resolve(data)))
   )
-  mkdirSync(destino, { recursive: true })
-  for (const [nombre, datos] of Object.entries(archivos)) {
-    if (nombre.endsWith('/') || datos.length === 0 || nombre.includes('META-INF/')) continue
-    const base = path.basename(nombre)
-    if (!base || base === '.' || base === '..') continue
-    writeFileSync(path.join(destino, base), datos)
-  }
+  // Solo Linux crea los enlaces: el ZIP de Windows no los trae y allí crearlos pide permisos.
+  escribirPlano(destino, archivos, enlacesDelZip(zip), process.platform === 'linux')
   if (!existsSync(path.join(destino, pack.centinela))) {
     throw new Error(`el paquete no contiene ${pack.centinela}`)
   }

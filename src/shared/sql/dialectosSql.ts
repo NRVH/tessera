@@ -24,8 +24,11 @@ export type { DialectoSql, GramaticaLocal, PragmasDialecto }
  *   como TEXTO (es lo que casa con la afinidad de la columna). (SQLite)
  * - 'ninguno': el dialecto NO tiene parámetros del usuario que pedir; en T-SQL `@x` es una VARIABLE
  *   del lote. `extraer` devuelve siempre la lista vacía. (SQL Server)
+ * - 'interrogacion': `?` sin número, como en una sentencia preparada; cada `?` es un parámetro
+ *   distinto, numerado por su orden de aparición (claves `1`, `2`…). `@x` es una variable de
+ *   la sesión, no un parámetro. (MySQL)
  */
-export type EstiloParametros = 'dosPuntosNombre' | 'dolarNumero' | 'sqliteMixto' | 'ninguno'
+export type EstiloParametros = 'dosPuntosNombre' | 'dolarNumero' | 'sqliteMixto' | 'ninguno' | 'interrogacion'
 
 export interface ReglasDialecto {
   /** Cadenas q-quote de Oracle: `q'[..]'`, `Q'{..}'`, `nq'<..>'`, `q'!..!'`. */
@@ -52,7 +55,7 @@ export interface ReglasDialecto {
    * `\x` de psql, o los `.algo` del CLI `sqlite3` (`.tables`, `.schema`…: un punto al
    * principio de la línea, fuera de una sentencia, hasta el fin de línea).
    */
-  comandosCliente: 'sqlplus' | 'psql' | 'sqlite3' | null
+  comandosCliente: 'sqlplus' | 'psql' | 'sqlite3' | 'mysql' | null
   /** Binds `:x` / `:1` (Oracle). En PG `:` es operador (`::`, `a[1:2]`). */
   bindDosPuntos: boolean
   /** Binds posicionales `$1` (PG). */
@@ -152,9 +155,10 @@ export interface ReglasDialecto {
    * Marcador del parámetro posicional n-ésimo en el SQL que GENERA Tessera: `:n` (Oracle),
    * `$n` (PG) o `?n` (SQLite: `?NNN`, que enlaza por número y no por orden de aparición,
    * así que un mismo n puede repetirse; o `@pn` (SQL Server: los parámetros de
-   * `sp_executesql`, que el trabajador declara como `@p1 nvarchar(max), …`).
+   * `sp_executesql`, que el trabajador declara como `@p1 nvarchar(max), …`), o `?` a secas
+   * (MySQL: enlaza por ORDEN, así que el SQL generado usa cada número una vez y en orden).
    */
-  marcadorPosicional: 'dosPuntos' | 'dolar' | 'interrogacion' | 'arrobaP'
+  marcadorPosicional: 'dosPuntos' | 'dolar' | 'interrogacion' | 'arrobaP' | 'interrogacionSola'
   /** La cadena vacía ES NULL (Oracle). En PG, '' y NULL son distintos. */
   cadenaVaciaEsNull: boolean
   /** Hay `INSERT INTO t DEFAULT VALUES` para una fila nueva sin ningún valor (PG); Oracle no lo tiene. */
@@ -279,6 +283,38 @@ export interface ReglasDialecto {
    * Server). `OUTPUT … INTO @t` no devuelve filas al cliente.
    */
   clausulaOutput: boolean
+
+  // --- Banderas de MySQL y MariaDB ---------------------------------------------------------
+  // Los demás dialectos las declaran en false: su léxico no cambia.
+
+  /** `"…"` es una CADENA, no un identificador (MySQL sin el modo ANSI_QUOTES, que Tessera quita). */
+  comillasDoblesCadena: boolean
+  /** Dentro de `'…'` y `"…"`, la barra escapa el carácter siguiente (`'it\'s'`). */
+  barraEscapaEnCadena: boolean
+  /** `#` hasta el fin de línea es un comentario. */
+  comentarioAlmohadilla: boolean
+  /** `--` solo abre un comentario si lo sigue un blanco (o el fin): `1--1` es una resta. */
+  guionesPidenBlanco: boolean
+  /**
+   * `/*!…*\/` y `/*M!…*\/` no son comentarios: el servidor EJECUTA lo de dentro. El léxico los
+   * marca (`Token.ejecutable`) y el clasificador trata la sentencia que los lleva como una que
+   * no se puede comprobar: nunca pasa por una consulta en solo lectura.
+   */
+  comentarioEjecutable: boolean
+  /**
+   * El cuerpo compuesto `BEGIN … END` de CREATE PROCEDURE/FUNCTION/TRIGGER/EVENT (y el
+   * `BEGIN NOT ATOMIC … END` suelto) no se parte por sus `;`: termina el END que cierra ese
+   * BEGIN, contando BEGIN y CASE dentro y sin contar END IF, END LOOP, END WHILE ni END REPEAT.
+   */
+  cuerpoCompuesto: boolean
+  /**
+   * `SET` admite VARIAS asignaciones separadas por comas (`SET @a = 1, sql_mode = ''`), con
+   * ámbito (`GLOBAL`, `SESSION`, `@@session.x`) y variables de usuario (`@x`). El clasificador
+   * lee todas, no solo la primera.
+   */
+  setVariasAsignaciones: boolean
+  /** `@x` es una VARIABLE DE USUARIO de la sesión: asignarla no toca datos y pasa en solo lectura. */
+  variablesDeUsuario: boolean
   /**
    * La GRAMÁTICA del motor que Tessera tiene en local para subrayar los errores de
    * sintaxis mientras se escribe, sin ejecutar nada (`sintaxisSql.ts`), o null si no hay
@@ -354,6 +390,14 @@ export const REGLAS: Readonly<Record<DialectoSql, ReglasDialecto>> = {
     sinSeparadorSeEjecutanJuntas: false,
     conservaPuntoYComaFinal: false,
     clausulaOutput: false,
+    comillasDoblesCadena: false,
+    barraEscapaEnCadena: false,
+    comentarioAlmohadilla: false,
+    guionesPidenBlanco: false,
+    comentarioEjecutable: false,
+    cuerpoCompuesto: false,
+    setVariasAsignaciones: false,
+    variablesDeUsuario: false,
     gramaticaLocal: null
   },
   postgres: {
@@ -412,6 +456,14 @@ export const REGLAS: Readonly<Record<DialectoSql, ReglasDialecto>> = {
     sinSeparadorSeEjecutanJuntas: false,
     conservaPuntoYComaFinal: false,
     clausulaOutput: false,
+    comillasDoblesCadena: false,
+    barraEscapaEnCadena: false,
+    comentarioAlmohadilla: false,
+    guionesPidenBlanco: false,
+    comentarioEjecutable: false,
+    cuerpoCompuesto: false,
+    setVariasAsignaciones: false,
+    variablesDeUsuario: false,
     gramaticaLocal: 'postgres'
   },
   // SQLite 3.53 (el de node:sqlite del Electron de Tessera): cada valor es lo que hace SQLite,
@@ -535,6 +587,14 @@ export const REGLAS: Readonly<Record<DialectoSql, ReglasDialecto>> = {
     sinSeparadorSeEjecutanJuntas: false,
     conservaPuntoYComaFinal: false,
     clausulaOutput: false,
+    comillasDoblesCadena: false,
+    barraEscapaEnCadena: false,
+    comentarioAlmohadilla: false,
+    guionesPidenBlanco: false,
+    comentarioEjecutable: false,
+    cuerpoCompuesto: false,
+    setVariasAsignaciones: false,
+    variablesDeUsuario: false,
     gramaticaLocal: null
   },
   // SQL Server 2012+ (T-SQL). Cada valor es lo que hace SQL Server (medido en 2022 con tedious),
@@ -644,6 +704,122 @@ export const REGLAS: Readonly<Record<DialectoSql, ReglasDialecto>> = {
     sinSeparadorSeEjecutanJuntas: true,
     conservaPuntoYComaFinal: true,
     clausulaOutput: true,
+    comillasDoblesCadena: false,
+    barraEscapaEnCadena: false,
+    comentarioAlmohadilla: false,
+    guionesPidenBlanco: false,
+    comentarioEjecutable: false,
+    cuerpoCompuesto: false,
+    setVariasAsignaciones: false,
+    variablesDeUsuario: false,
+    gramaticaLocal: null
+  },
+  // MySQL 8.0+ y MariaDB 10.4+, con el modo SQL que fija Tessera (sin ANSI_QUOTES ni
+  // NO_BACKSLASH_ESCAPES). Cada valor es lo que hacen los dos servidores.
+  mysql: {
+    cadenaQ: false,
+    cadenaE: false,
+    cadenaUnicode: false,
+    // `b'0101'` y `x'1F'` (y `0x1F`, `hex0x`).
+    cadenaBits: true,
+    cadenaDolar: false,
+    comentariosAnidados: false,
+    barraTermina: false,
+    bloquesPlsql: false,
+    // `BEGIN [WORK]` abre una transacción; el BEGIN de un cuerpo compuesto lo trata
+    // `cuerpoCompuesto`.
+    beginEsTransaccion: true,
+    // `DELIMITER x` cambia el terminador de las sentencias que siguen.
+    comandosCliente: 'mysql',
+    bindDosPuntos: false,
+    bindDolar: false,
+    almohadillaEnIdent: false,
+    // Las columnas no distinguen caja; las tablas, según el sistema del servidor.
+    cajaSinComillas: 'insensible',
+    cuerpoAtomico: false,
+    sentenciasFueraDeTx: false,
+    // Lo que una conexión de solo lectura puede cambiar de su sesión: la zona horaria y los
+    // topes de espera y de tiempo. `USE`, que cambia de base, lo permite `verbosDelDialecto`.
+    sesionSoloLectura: ['time_zone', 'lock_wait_timeout', 'innodb_lock_wait_timeout', 'max_execution_time', 'max_statement_time'],
+    // El juego de caracteres de los resultados (las celdas se leen en utf8mb4) y el modo SQL
+    // (con ANSI_QUOTES `"x"` es un nombre y con NO_BACKSLASH_ESCAPES la barra no escapa: el
+    // léxico de Tessera clasificaría otra sentencia).
+    formatosFijados: ['sql_mode', 'names', 'character', 'charset', 'character_set_results', 'character_set_client', 'character_set_connection'],
+    numerosConBase: false,
+    sufijoFlotante: false,
+    // `SELECT … INTO @x` o `INTO OUTFILE` no crean tablas.
+    selectIntoCreaTabla: false,
+    // MariaDB tiene `DELETE/INSERT … RETURNING`, y devuelve filas.
+    returningDevuelveFilas: true,
+    // `EXPLAIN [FORMAT=…] …` devuelve el plan sin ejecutar; `EXPLAIN ANALYZE` ejecuta.
+    explain: 'conOpciones',
+    alterSession: false,
+    setDeSesion: true,
+    verbosDelDialecto: [
+      'TABLE',
+      'SHOW',
+      'BEGIN',
+      'START',
+      'USE',
+      'DESCRIBE',
+      'DESC',
+      'HELP',
+      'LOAD',
+      'HANDLER',
+      'UNLOCK',
+      'XA',
+      'DO',
+      'OPTIMIZE',
+      'REPAIR',
+      'CHECK',
+      'CHECKSUM',
+      'FLUSH',
+      'INSTALL',
+      'UNINSTALL',
+      'DEALLOCATE'
+    ],
+    // `ANALYZE TABLE` actualiza las estadísticas: mantenimiento.
+    analyzeEsDdl: false,
+    // `CALL` devuelve los conjuntos de los SELECT del procedimiento.
+    callDevuelveFilas: true,
+    // `EXECUTE stmt` ejecuta una sentencia preparada con PREPARE, que puede escribir.
+    ejecutar: 'sentenciaPreparada',
+    fetchDevuelveFilas: false,
+    formaSetSesion: 'SET ',
+    estiloParametros: 'interrogacion',
+    marcadorPosicional: 'interrogacionSola',
+    cadenaVaciaEsNull: false,
+    // `INSERT INTO t () VALUES ()` y no DEFAULT VALUES.
+    insertDefaultValues: false,
+    tablaFicticia: { esquema: '', nombre: 'DUAL' },
+    identCorchetes: false,
+    identAcentoGrave: true,
+    bindInterrogacion: true,
+    bindArroba: false,
+    bindDolarNombre: false,
+    triggerBeginEnd: false,
+    hex0x: true,
+    pragmas: null,
+    corcheteEscapeDoble: false,
+    cadenaNacional: false,
+    almohadillaInicial: false,
+    // `@x` (de usuario) y `@@x` (del sistema) son UN token; nunca un parámetro.
+    variablesArroba: true,
+    literalDinero: false,
+    numerosTsql: false,
+    separadorLote: null,
+    hastaSeparadorLote: [],
+    sinSeparadorSeEjecutanJuntas: false,
+    conservaPuntoYComaFinal: false,
+    clausulaOutput: false,
+    comillasDoblesCadena: true,
+    barraEscapaEnCadena: true,
+    comentarioAlmohadilla: true,
+    guionesPidenBlanco: true,
+    comentarioEjecutable: true,
+    cuerpoCompuesto: true,
+    setVariasAsignaciones: true,
+    variablesDeUsuario: true,
     gramaticaLocal: null
   }
 }
@@ -688,6 +864,8 @@ export function marcadorPosicional(d: DialectoSql, n: number): string {
       return `?${n}`
     case 'arrobaP':
       return `@p${n}`
+    case 'interrogacionSola':
+      return '?'
     default:
       return nunca(m, 'marcadorPosicional')
   }

@@ -1,22 +1,42 @@
 // =============================================================================
-// LA BATERÍA: todos los scripts `test:*` de package.json (salvo test:e2e) uno tras otro,
-// con un resumen al final. Uso: node scripts/pruebas/bateria.mjs [filtro-regex]
-//
-// POR QUÉ UNO TRAS OTRO: unos 30 levantan o usan Docker (sandbox, terminales, agentes) y
-// dos baterías a la vez se pisan los contenedores y las carpetas temporales (medido: cinco
-// rojos falsos). Por lo mismo, NO correrla dos veces a la vez ni junto al e2e.
-// Los de Oracle y SQL Server salen en verde SALTÁNDOSE sin su destino en el entorno: para
-// correrlos de verdad, `oracle.sh correr …` y `mssql.sh correr …` de esta carpeta.
+// LA BATERÍA: los scripts `test:*` (salvo test:e2e) uno tras otro, con resumen. Uso: node
+// scripts/pruebas/bateria.mjs [--afectadas[=ref]] [--explicar] [--solo-lista] [filtro-regex].
+// `--afectadas`: solo las que dependen de lo cambiado desde `ref` (HEAD; con lo no confirmado),
+// ver `afectadas.mjs`. Uno tras otro porque unos 30 usan Docker y se pisarían: nunca dos a la
+// vez ni junto al e2e. Oracle y SQL Server se saltan sin su destino (`oracle.sh`, `mssql.sh`).
 // =============================================================================
 import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { pruebasAfectadas } from './afectadas.mjs'
 
 const raiz = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const pkg = JSON.parse(readFileSync(resolve(raiz, 'package.json'), 'utf8'))
-const filtro = process.argv[2] ? new RegExp(process.argv[2]) : null
-const nombres = Object.keys(pkg.scripts).filter((n) => n.startsWith('test:') && n !== 'test:e2e' && (!filtro || filtro.test(n)))
+const args = process.argv.slice(2)
+const afectadas = args.find((a) => a === '--afectadas' || a.startsWith('--afectadas='))
+const explicar = args.includes('--explicar')
+const patron = args.find((a) => !a.startsWith('--'))
+const filtro = patron ? new RegExp(patron) : null
+let nombres = Object.keys(pkg.scripts).filter((n) => n.startsWith('test:') && n !== 'test:e2e' && (!filtro || filtro.test(n)))
+
+if (afectadas) {
+  const ref = afectadas.includes('=') ? afectadas.slice(afectadas.indexOf('=') + 1) : 'HEAD'
+  const r = pruebasAfectadas(raiz, ref, nombres, pkg.scripts)
+  if (r.todas) {
+    console.log(`Afectadas desde ${ref}: TODAS (${r.motivo})\n`)
+  } else {
+    console.log(`Afectadas desde ${ref}: ${r.elegidas.size} de ${nombres.length} scripts (${r.cambiados.length} archivos cambiados)\n`)
+    if (explicar) for (const [n, por] of r.elegidas) console.log(`  ${n}  <-  ${por}`)
+    if (explicar && r.elegidas.size) console.log('')
+    nombres = nombres.filter((n) => r.elegidas.has(n))
+  }
+}
+if (args.includes('--solo-lista')) {
+  console.log(nombres.join('\n'))
+  process.exit(0)
+}
+
 const fallos = []
 for (const n of nombres) {
   const t0 = Date.now()

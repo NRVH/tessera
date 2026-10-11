@@ -1,14 +1,18 @@
 // =============================================================================
 // Adaptador de procesos de la terminal: único sitio que crea ptys (node-pty) y que mata un
-// árbol de procesos (`taskkill` en Windows; señales a grupos en macOS, con el plan de
-// `arbolProcesos.ts`). No importa nada del dominio.
+// árbol de procesos (`taskkill` en Windows; señales a grupos en macOS y Linux, con el plan de
+// `arbolProcesos.ts`). En Linux el pty nace sin lo heredado del main (`descriptoresHeredados.ts`).
+// No importa nada del dominio.
 // Lo usa `TerminalService`, que le pasa ya resueltos el archivo, los argumentos y el entorno.
 // Decisiones: docs/decisiones/terminales/pty-y-detencion-de-sesion.md
 // =============================================================================
 import { spawn as ptySpawn } from 'node-pty'
 import type { IPty } from 'node-pty'
 import { execFile } from 'node:child_process'
+import { existsSync } from 'node:fs'
+import { plataformaActual } from '../../../shared/plataforma.ts'
 import { conTope, esperar } from '../../util/esperas.ts'
+import { BASH, lanzamientoSinHerencia } from './descriptoresHeredados.ts'
 import { leerTablaPs, planMuerte, planRemate, type PlanMuerte, type ProcesoPs } from './arbolProcesos.ts'
 
 /** Nombre del pty "type" que se anuncia al shell (TERM). */
@@ -35,7 +39,24 @@ export interface OpcionesPty {
  * Windows no hace nada. Ninguna llamada a este módulo debe quitarlo.
  */
 export function lanzarPty(archivo: string, args: string[], opciones: OpcionesPty): IPty {
-  return ptySpawn(archivo, args, { name: PTY_NAME, ...opciones, useConptyDll: true })
+  const lanzamiento = lanzamientoSinHerencia(archivo, args, plataformaActual(), existsSync(BASH), opciones.env)
+  return ptySpawn(lanzamiento.archivo, lanzamiento.args, { name: PTY_NAME, ...opciones, env: lanzamiento.env, useConptyDll: true })
+}
+
+/**
+ * Suelta lo que un pty de Windows retiene en este proceso cuando ya no se usa. node-pty crea un hilo
+ * (worker) por pty para leer su salida y, con `useConptyDll`, solo lo termina desde `kill()` y aun así
+ * únicamente si después llega salida: un proceso que sale solo, o al que mata `taskkill`, deja el hilo
+ * vivo con varios MB nativos hasta cerrar la app. `dispose()` drena la salida pendiente un segundo y
+ * termina el hilo; repetirlo no hace nada nuevo. Fuera de Windows el pty no tiene ese hilo. Nunca lanza.
+ */
+export function liberarPty(pty: IPty | undefined): void {
+  try {
+    const agente = (pty as unknown as { _agent?: { _conoutSocketWorker?: { dispose?: () => void } } } | undefined)?._agent
+    agente?._conoutSocketWorker?.dispose?.()
+  } catch {
+    /* el pty ya está destruido: no queda nada que soltar */
+  }
 }
 
 /** Cada cuánto se mira si ConPTY ya tiene el código que no trajo `onExit`. */

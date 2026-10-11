@@ -16,14 +16,12 @@ dentro de la terminal a pantalla completa, con su historial, sin mezclarse con n
   historial de Claude Code se indexa por la carpeta, así que no cambia nunca. Su `CLAUDE.md` y su
   `AGENTS.md` llevan el bloque `tessera:ssh` (conexiones disponibles para los agentes sin secretos ni
   rutas, cuántas se excluyen, `tssh` y las reglas), regenerado con cada `ssh:cambio`.
-- La carpeta vive lo que vive el perfil (decisión del usuario, 5-oct-2026): al BORRAR el perfil sale
+- La carpeta vive lo que vive el perfil: al BORRAR el perfil sale
   entera, con sus notas, igual que su espacio de datos (`conexiones/<perfil>`, con sus consolas).
-  Las dos van a la PAPELERA del sistema, nunca en firme (decisión del usuario, 5-oct-2026): el
-  borrado no llega por un canal propio sino que se DEDUCE de la lista de perfiles guardada (E70), así
-  que un guardado con la lista recortada por un fallo del renderer se llevaría carpetas que nadie
-  quiso borrar, y eso tiene que poder deshacerse. Sus conexiones SSH y su historial de consultas se
-  siguen borrando aparte. Lo hace solo el guardado de perfiles (`agents/componer.ts`), para los
-  perfiles que desaparecen de la lista y tras cerrar sus sesiones, por una sola vía: los dos dueños
+  Las dos van a la PAPELERA del sistema, nunca en firme, para
+  que un borrado se pueda deshacer. Sus conexiones SSH y de bases de datos y su historial de
+  consultas se borran aparte. Lo hace solo la orden de borrar el perfil (`profiles:delete`, ver
+  `workspace/borrar-perfil-con-orden.md`), tras cerrar sus sesiones, por una sola vía: los dos dueños
   (`EspacioTerminal` y `EspacioDatos`) le llegan como dependencia y cada uno lleva `shell.trashItem`
   inyectado UNA vez, al nacer en su composición;
   nunca una poda al arrancar. Antes de mandar nada a la papelera se valida como al crearla
@@ -83,7 +81,7 @@ dentro de la terminal a pantalla completa, con su historial, sin mezclarse con n
 - Reutilizar el espacio de datos: mezclaría su historial con el del agente de datos.
 - Conservar la carpeta al borrar el perfil: un perfil nuevo con el mismo nombre (mismo id) heredaba
   notas y un `CLAUDE.md` con conexiones ya borradas.
-- Borrarla en firme (`rm`), como hasta el 5-oct-2026: con el borrado deducido de la lista guardada,
+- Borrarla en firme (`rm`): con el borrado deducido de la lista guardada,
   un fallo del renderer perdería notas y consolas sin vuelta atrás.
 - Solo comprobar la lista antes de cada paso, sin candado: no cubre lo que pasa DURANTE el paso (parar
   el contenedor tarda segundos), en que el perfil recreado ya podría abrir sesiones o sembrar su carpeta.

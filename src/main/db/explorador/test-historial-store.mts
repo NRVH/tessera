@@ -210,7 +210,7 @@ async function main(): Promise<void> {
   await h8.anotar(entrada(), 'oracle')
   check('y la cadena sigue viva', parsearHistorial(fs8.archivos.get(ruta1) ?? '').length === 1, '1')
 
-  hr('(9) Nombres de archivo y podar')
+  hr('(9) Nombres de archivo y borrar el de un perfil')
   check('un id sencillo es su nombre', archivoDePerfil('perfil-1_a') === 'perfil-1_a.jsonl', archivoDePerfil('perfil-1_a'))
   for (const raro of ['..', '../x', 'a b', 'Año', 'con', 'C:\\x', 'x/y']) {
     const nombre = archivoDePerfil(raro)
@@ -220,10 +220,10 @@ async function main(): Promise<void> {
   const fs9 = new FsMemoria()
   for (const nombre of ['vivo.jsonl', 'muerto.jsonl', 'muerto.jsonl.bak', archivoDePerfil('a b'), 'otra-cosa.txt']) fs9.archivos.set(path.join(DIR, nombre), 'x')
   const h9 = new HistorialStore({ dir: DIR, fs: fs9 })
-  const podados = await h9.podar(['vivo', 'a b'])
+  await h9.borrar('muerto', null)
   check(
-    'podar: fuera el del perfil muerto (y su .bak); los vivos y lo ajeno quedan',
-    podados === 2 && j((await fs9.listar(DIR)).sort()) === j([archivoDePerfil('a b'), 'otra-cosa.txt', 'vivo.jsonl'].sort()),
+    'borrar un perfil: fuera su archivo (y su .bak); los demás y lo ajeno quedan',
+    j((await fs9.listar(DIR)).sort()) === j([archivoDePerfil('a b'), 'otra-cosa.txt', 'vivo.jsonl'].sort()),
     j(await fs9.listar(DIR))
   )
 
@@ -242,6 +242,66 @@ async function main(): Promise<void> {
   } finally {
     rmSync(tmp, { recursive: true, force: true })
   }
+
+  hr('(11) Órdenes del shell de MongoDB')
+  const fs11 = new FsMemoria()
+  let q = 0
+  const h11 = new HistorialStore({ dir: DIR, fs: fs11, nuevoId: () => `m${++q}` })
+  await h11.anotar(entrada({ sql: 'SELECT 1 FROM dual' }), 'oracle')
+  const { esquema: _sinEsquema, ...sinEsquema } = entrada()
+  await h11.anotarMongosh({ ...sinEsquema, conexionId: 'mongo', sql: "db.createUser({ user: 'ana', pwd: 'Secreta2', roles: [] })" })
+  const crudo11 = fs11.archivos.get(ruta1) ?? ''
+  check('la clave de la orden NO llega al disco', !/Secreta2/.test(crudo11) && /pwd: '\*\*\*'/.test(crudo11), j(crudo11.slice(-120)))
+  const mongo = await h11.listar({ perfilId: 'p1', lenguaje: 'mongosh' })
+  check('por lenguaje mongosh: solo la orden, marcada', mongo.length === 1 && mongo[0].lenguaje === 'mongosh', j(mongo.map((e) => e.id)))
+  const sql = await h11.listar({ perfilId: 'p1', lenguaje: 'sql' })
+  check('por lenguaje sql: las de antes, sin marca, cuentan como SQL', sql.length === 1 && sql[0].lenguaje === undefined, j(sql.map((e) => e.id)))
+  check('sin lenguaje: todas', (await h11.listar({ perfilId: 'p1' })).length === 2, '2')
+  fs11.archivos.set(ruta1 + '.tmp', 'una escritura cortada con todo el historial')
+  await h11.borrar('p1', null, 'mongosh')
+  check('«Borrar todo» de un lenguaje quita también el .tmp de una escritura cortada', !fs11.archivos.has(ruta1 + '.tmp'), j([...fs11.archivos.keys()]))
+  const trasBorrar = await h11.listar({ perfilId: 'p1' })
+  check('«Borrar todo» de un lenguaje deja el del otro', trasBorrar.length === 1 && trasBorrar[0].lenguaje === undefined, j(trasBorrar.map((e) => e.sql)))
+  check(
+    'un lenguaje desconocido en el archivo invalida la entrada',
+    parsearHistorial(JSON.stringify({ id: 'x', en: 1, perfilId: 'p1', conexionId: 'c', consolaId: 'k', sql: 'x', resultado: 'ok', ms: 1, lenguaje: 'otro' })).length === 0,
+    '0'
+  )
+
+  hr('(12) Los topes son por lenguaje')
+  const fs12 = new FsMemoria()
+  let w = 0
+  const h12 = new HistorialStore({ dir: DIR, fs: fs12, tope: 10, margen: 5, topeBytes: 4000, nuevoId: () => `w${++w}` })
+  for (let i = 0; i < 3; i++) await h12.anotar(entrada({ sql: `SELECT ${i} FROM dual` }), 'oracle')
+  const { esquema: _e12, ...sin12 } = entrada()
+  for (let i = 0; i < 40; i++) await h12.anotarMongosh({ ...sin12, sql: `db.c.insertMany([${'{ a: 1 }, '.repeat(20)}])` })
+  const sql12 = await h12.listar({ perfilId: 'p1', lenguaje: 'sql' })
+  const mongo12 = await h12.listar({ perfilId: 'p1', lenguaje: 'mongosh', limite: 1000 })
+  check('llenar el de MongoDB (por número y por tamaño) no se lleva NADA del SQL', sql12.length === 3, j(sql12.map((e) => e.sql)))
+  check('el de MongoDB se recorta a su tope', mongo12.length > 0 && mongo12.length <= 15, `${mongo12.length} órdenes`)
+  check('y quedan las más recientes', mongo12[0].id === 'w43', mongo12[0].id)
+
+  hr('(13) Comandos de la consola de Redis')
+  const fs13 = new FsMemoria()
+  let r13 = 0
+  const h13 = new HistorialStore({ dir: DIR, fs: fs13, nuevoId: () => `r${++r13}` })
+  await h13.anotar(entrada({ sql: 'SELECT 1 FROM dual' }), 'oracle')
+  await h13.anotarMongosh({ ...sinEsquema, sql: 'db.a.find()' })
+  await h13.anotarRedis({ ...sinEsquema, conexionId: 'redis', sql: 'AUTH admin Secreta3', esquema: 'db0' })
+  await h13.anotarRedis({ ...sinEsquema, conexionId: 'redis', sql: 'GET contador', esquema: 'db0' })
+  const crudo13 = fs13.archivos.get(ruta1) ?? ''
+  check('la clave de un AUTH NO llega al disco', !/Secreta3/.test(crudo13) && /AUTH \*\*\* \*\*\*/.test(crudo13), j(crudo13.slice(-160)))
+  const redis13 = await h13.listar({ perfilId: 'p1', lenguaje: 'comandos' })
+  check('por lenguaje comandos: solo los de Redis, marcados, el último primero', j(redis13.map((e) => [e.sql, e.lenguaje])) === j([['GET contador', 'comandos'], ['AUTH *** ***', 'comandos']]), j(redis13.map((e) => e.sql)))
+  check('SQL y MongoDB no ven los de Redis', (await h13.listar({ perfilId: 'p1', lenguaje: 'sql' })).length === 1 && (await h13.listar({ perfilId: 'p1', lenguaje: 'mongosh' })).length === 1, '1 y 1')
+  await h13.borrar('p1', null, 'comandos')
+  const resto13 = await h13.listar({ perfilId: 'p1' })
+  check('«Borrar todo» de Redis deja SQL y MongoDB', resto13.length === 2 && resto13.every((e) => e.lenguaje !== 'comandos'), j(resto13.map((e) => e.sql)))
+  check(
+    'una entrada de Redis leída del archivo es válida',
+    parsearHistorial(JSON.stringify({ id: 'x', en: 1, perfilId: 'p1', conexionId: 'c', consolaId: 'k', sql: 'GET a', resultado: 'ok', ms: 1, lenguaje: 'comandos' })).length === 1,
+    '1'
+  )
 
   hr('RESULTADO')
   const pasan = results.filter((r) => r.pass).length

@@ -81,7 +81,9 @@ export function parametrosDeLote(
 function clavesPorNumero(dialecto: DialectoSql): boolean {
   const estilo = reglasDeMotor(dialecto).estiloParametros
   switch (estilo) {
+    // MySQL: la clave de cada `?` es su número de orden.
     case 'dolarNumero':
+    case 'interrogacion':
       return true
     // 'sqliteMixto': por nombre en su orden de aparición y por número detrás; ese orden lo
     // da ya `parametrosSql` (ver `EstiloParametros`), así que aquí no se reordena.
@@ -175,6 +177,9 @@ export function etiquetaDeClave(clave: string, dialecto: DialectoSql): string {
     case 'ninguno':
       // SQL Server: sin parámetros del usuario (`@x` es una variable); no se llama nunca.
       return clave
+    // MySQL: todos se escriben `?`; lo que los distingue es su orden.
+    case 'interrogacion':
+      return `? n.º ${clave}`
     default:
       return nunca(estilo, 'etiquetaDeClave')
   }
@@ -197,6 +202,8 @@ export function pieDialogoParametros(dialecto: DialectoSql): string {
       // SQL Server: sin diálogo de parámetros (`@x` es una variable del lote); no debería llamarse,
       // pero si se llama, dice la verdad.
       return 'Sin parámetros: @x es una variable del lote (DECLARE)'
+    case 'interrogacion':
+      return 'Por orden: cada ? es un valor (@x es una variable de la sesión)'
     default:
       return nunca(estilo, 'pieDialogoParametros')
   }

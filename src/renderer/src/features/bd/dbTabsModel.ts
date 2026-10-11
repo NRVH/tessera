@@ -93,7 +93,8 @@ export const ETIQUETA_TIPO_OBJETO: Record<DbTipoObjeto, string> = {
   tipoObjeto: 'Tipo de objeto',
   tipoColeccion: 'Tipo colección',
   tipo: 'Tipo',
-  disparador: 'Disparador'
+  disparador: 'Disparador',
+  evento: 'Evento'
 }
 
 // --- Identidad --------------------------------------------------------------------
@@ -127,6 +128,18 @@ export function abrirPestana(s: DbTabsState, pane: DbPane): DbTabsState {
   const id = idDbPane(pane)
   if (s.tabs.some((t) => t.id === id)) return activarPestana(s, id)
   return { tabs: [...s.tabs, { id, pane }], activeId: id }
+}
+
+/**
+ * La pestaña `id` pasa a enseñar `pane` en el MISMO sitio (una clave renombrada). Si ya había una
+ * pestaña de `pane`, se cierra `id` y se activa aquella: nunca quedan dos con la misma identidad.
+ */
+export function reemplazarPestana(s: DbTabsState, id: string, pane: DbPane): DbTabsState {
+  const nuevoId = idDbPane(pane)
+  if (!s.tabs.some((t) => t.id === id)) return s
+  if (nuevoId === id) return { tabs: s.tabs.map((t) => (t.id === id ? { id, pane } : t)), activeId: s.activeId }
+  if (s.tabs.some((t) => t.id === nuevoId)) return activarPestana(cerrarVarias(s, [id]), nuevoId)
+  return { tabs: s.tabs.map((t) => (t.id === id ? { id: nuevoId, pane } : t)), activeId: s.activeId === id ? nuevoId : s.activeId }
 }
 
 /** Activa `id`; no-op si ya es la activa o no existe. */

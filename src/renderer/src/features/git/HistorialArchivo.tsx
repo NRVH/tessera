@@ -74,6 +74,7 @@ export function HistorialArchivo(props: HistorialArchivoProps): React.JSX.Elemen
       </div>
       <Splitter
         orientation="vertical"
+        className="splitter-hueco"
         size={anchoLista}
         min={colMin}
         max={colMax}

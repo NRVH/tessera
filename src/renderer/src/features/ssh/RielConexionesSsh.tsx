@@ -1,7 +1,7 @@
 // =============================================================================
 // El riel de conexiones SSH: la lista de conexiones fija, a la izquierda de la terminal, mientras está
-// a pantalla completa. Una cabecera como la de los laterales (el título y cuatro acciones: nueva
-// conexión, nuevo grupo, importar de OpenSSH y ocultar) sobre la MISMA `ListaConexionesSsh` en modo fijo, y un divisor
+// a pantalla completa. Una cabecera como la de los laterales (el título y cinco acciones: nueva
+// conexión, nuevo grupo, importar de OpenSSH, exportar a OpenSSH y ocultar) sobre la MISMA `ListaConexionesSsh` en modo fijo, y un divisor
 // para ensancharlo. No tiene sesión que conservar: se monta al mostrarse. Lleva su propio límite de
 // error, porque un fallo suyo no puede desmontar las terminales. Depende de `comun/`.
 // Decisiones: docs/decisiones/terminales/riel-de-conexiones.md
@@ -15,7 +15,8 @@ import { IconoCarpetaNueva } from '../../comun/iconosMenu'
 import { Splitter } from '../../comun/Splitter'
 import { SSH_RIEL_ANCHO_MIN } from '../../../../shared/ajustesTerminal'
 import { IconoOcultarLista } from './iconosRielSsh'
-import { IconoImportar, IconoServidorNuevo } from './iconosSsh'
+import { exportarAOpenSsh } from './exportacionSsh'
+import { IconoExportar, IconoImportar, IconoServidorNuevo } from './iconosSsh'
 import { importarDesdeOpenSsh } from './importacionSsh'
 import { ListaConexionesSsh, type DatosListaConexionesSsh } from './ListaConexionesSsh'
 import { ID_RIEL_SSH } from './rielSsh'
@@ -45,6 +46,9 @@ function CabeceraRiel({ perfilId, onOcultar }: { perfilId: string; onOcultar: ()
         <BotonCabecera titulo="Importar desde OpenSSH…" motivo={avisoAjeno} onClick={() => void importarDesdeOpenSsh(perfilId)}>
           <IconoImportar />
         </BotonCabecera>
+        <BotonCabecera titulo="Exportar a OpenSSH…" motivo={avisoAjeno} onClick={() => void exportarAOpenSsh(perfilId)}>
+          <IconoExportar />
+        </BotonCabecera>
         <BotonCabecera titulo="Ocultar la lista" motivo={null} onClick={onOcultar}>
           <IconoOcultarLista />
         </BotonCabecera>
@@ -66,6 +70,7 @@ function RielYDivisor({ ancho, anchoMax, onAncho, onOcultar, ...lista }: PropsRi
       </aside>
       <Splitter
         orientation="vertical"
+        className="splitter-hueco"
         size={ancho}
         min={SSH_RIEL_ANCHO_MIN}
         max={anchoMax}

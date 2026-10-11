@@ -325,6 +325,7 @@ function escenarioCompleto(opciones: {
     },
     borrarHistorial: async (id) => paso('historial', id),
     borrarConexionesSsh: (id) => paso('ssh', id),
+    borrarConexionesBd: (id) => paso('bd', id),
     cerrarSesiones: async (id) => paso('cerrar', id),
     carpetas: [carpeta('terminal'), carpeta('datos')],
     log: () => {},
@@ -338,8 +339,8 @@ hr('(12) El borrado entero, sin carrera: todos los pasos, en orden (las sesiones
   const { deps, pasos } = escenarioCompleto({ lista: ['beta'] })
   await borrarPerfiles(deps, [{ id: 'trabajo' }])
   check(
-    '(12a) sesiones, contenedor, historial, SSH y las dos carpetas',
-    pasos.join(' | ') === 'cerrar trabajo | parar trabajo | historial trabajo | ssh trabajo | papelera-terminal trabajo | papelera-datos trabajo',
+    '(12a) sesiones, contenedor, historial, SSH, BD y las dos carpetas',
+    pasos.join(' | ') === 'cerrar trabajo | parar trabajo | historial trabajo | ssh trabajo | bd trabajo | papelera-terminal trabajo | papelera-datos trabajo',
     pasos.join(' | ')
   )
   // Una SSH viva (incluirSsh) seguiría usando las claves y el known_hosts que borra `ssh`.
@@ -382,7 +383,7 @@ hr('(14) Recreado entre el historial y las conexiones SSH: sus conexiones (en fi
   check('(14a) se para tras el historial: ni SSH ni carpetas', pasos.join(' | ') === 'cerrar trabajo | parar trabajo | historial trabajo', pasos.join(' | '))
 }
 
-hr('(15) Recreado tras las conexiones SSH: ni sus carpetas')
+hr('(15) Recreado tras las conexiones SSH: ni sus conexiones de BD (en firme) ni sus carpetas')
 {
   const { deps, pasos } = escenarioCompleto({
     lista: ['beta'],
@@ -394,7 +395,19 @@ hr('(15) Recreado tras las conexiones SSH: ni sus carpetas')
   check('(15a) se para tras SSH', pasos.join(' | ') === 'cerrar trabajo | parar trabajo | historial trabajo | ssh trabajo', pasos.join(' | '))
 }
 
-hr('(16) Dos perfiles en el mismo guardado: el segundo, recreado antes de su parada, no se para')
+hr('(15b) Recreado tras las conexiones de BD: ni sus carpetas')
+{
+  const { deps, pasos } = escenarioCompleto({
+    lista: ['beta'],
+    durante: (paso, id, crear) => {
+      if (paso === 'bd') crear(id)
+    }
+  })
+  await borrarPerfiles(deps, [{ id: 'trabajo' }])
+  check('(15c) se para tras BD', pasos.join(' | ') === 'cerrar trabajo | parar trabajo | historial trabajo | ssh trabajo | bd trabajo', pasos.join(' | '))
+}
+
+hr('(16) Dos perfiles en el mismo borrado: el segundo, recreado antes de su parada, no se para')
 {
   const { deps, pasos } = escenarioCompleto({
     lista: ['beta'],
@@ -404,7 +417,7 @@ hr('(16) Dos perfiles en el mismo guardado: el segundo, recreado antes de su par
     }
   })
   await borrarPerfiles(deps, [{ id: 'uno' }, { id: 'dos' }])
-  check('(16a) «uno» se borra entero', pasos.filter((p) => p.endsWith(' uno')).length === 6, pasos.join(' | '))
+  check('(16a) «uno» se borra entero', pasos.filter((p) => p.endsWith(' uno')).length === 7, pasos.join(' | '))
   check('(16b) de «dos» no se toca nada, ni su contenedor', !pasos.some((p) => p.endsWith(' dos')), pasos.join(' | '))
   check('(16c) y van uno detrás de otro (nada de «dos» antes de acabar «uno»)', pasos.at(-1) === 'papelera-datos uno', String(pasos.at(-1)))
 }
@@ -443,7 +456,7 @@ hr('(17) El candado: preparar la carpeta del perfil recreado (ESPACIO_ASEGURAR) 
   check('(17e) y la sesión se abre después', sesionAbierta, `sesionAbierta=${sesionAbierta}`)
 }
 
-hr('(18) Los candados de TODOS los perfiles del guardado se toman al llamar')
+hr('(18) Los candados de TODOS los perfiles del borrado se toman al llamar')
 {
   const candado = new CandadoDeBorrado()
   const parada = aMano()

@@ -54,18 +54,18 @@ Lo esencial:
 - **La interfaz nunca ve ni envía rutas del equipo**, y cada canal IPC se declara en
   `src/shared/*-ipc.ts` y se expone por `src/preload/`.
 
-## Windows y macOS son de primera clase los dos
+## Windows, macOS y Linux son de primera clase los tres
 
-Tessera corre en Windows y en macOS, y ninguno es un port del otro. Para un pull request esto
-significa:
+Tessera corre en Windows, en macOS y en Linux, y ninguno es un port de otro. Para un pull
+request esto significa:
 
-- **Piensa cada cambio para las dos plataformas**, aunque solo puedas ejecutar una. Responde
-  dos preguntas en la descripción: qué hace esto en la otra plataforma, y si la degrada. Si
-  algo no aplica allí, explica por qué en el código.
-- Nunca compares `process.platform` directamente: usa `esWindows()` / `esMac()` de
-  `src/shared/plataforma.ts`. En la lógica pura, la plataforma es un **parámetro** con el
-  sistema actual por defecto, para que las pruebas cubran las dos plataformas desde
-  cualquiera de las dos máquinas.
+- **Piensa cada cambio para todas las plataformas**, aunque solo puedas ejecutar una.
+  Responde dos preguntas en la descripción: qué hace esto en las otras plataformas, y si las
+  degrada. Si algo no aplica en alguna, explica por qué en el código.
+- Nunca compares `process.platform` directamente: usa `esWindows()` / `esMac()` /
+  `esLinux()` de `src/shared/plataforma.ts`. En la lógica pura, la plataforma es un
+  **parámetro** con el sistema actual por defecto, para que las pruebas cubran todas las
+  plataformas desde cualquier máquina.
 - En la interfaz (el renderer) no existe `process`: la plataforma llega por
   `window.tessera.plataforma`. Esto solo se rompe en la app empaquetada, así que es fácil que
   se escape.
@@ -103,7 +103,7 @@ npm run test:<nombre>              # los scripts de prueba del área que tocaste
   primero:
 
   ```bash
-  npm run pack:dir        # Windows (npm run pack:mac:dir en macOS)
+  npm run pack:dir        # Windows (pack:mac:dir en macOS, pack:linux:dir en Linux)
   npx playwright test e2e/<spec>.spec.ts
   ```
 

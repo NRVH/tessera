@@ -116,10 +116,10 @@ function baseDe(con) {
   return null
 }
 
-/** La conexión del registro con la forma de `ConexionTrabajador` que espera `redisComun`. */
+/** La conexión del registro con la forma de `ConexionTrabajador` que espera `redisComun` (con su topología, si la tiene). */
 function conexionDe(con) {
   const base = baseDe(con)
-  return {
+  const salida = {
     id: con.id,
     alias: con.alias,
     motor: con.motor,
@@ -130,6 +130,16 @@ function conexionDe(con) {
     readonly: con.readonly !== false,
     tls: tlsDe(con)
   }
+  if (con.topologiaRedis !== undefined && con.topologiaRedis !== null) salida.topologiaRedis = con.topologiaRedis
+  return salida
+}
+
+/** Cómo llega `tdb` al servidor, para `banner`: '' a un servidor, o Sentinel con su maestro, o Cluster. */
+function topologiaLegible(con) {
+  const t = con ? con.topologiaRedis : null
+  if (!t || typeof t !== 'object') return ''
+  if (t.modo === 'cluster') return 'Cluster (solo la base 0)'
+  return t.modo === 'sentinel' ? `Sentinel, maestro «${String(t.maestro || '')}»` : ''
 }
 
 /**
@@ -371,8 +381,10 @@ async function foraneas(c) {
 async function banner(c) {
   const t = tlsDe(c.con)
   const conUsuario = typeof c.con.user === 'string' && c.con.user !== ''
+  const topologia = topologiaLegible(c.con)
   const partes = [
     `Redis ${c.version || '(versión desconocida)'}`,
+    ...(topologia ? [topologia] : []),
     `base ${c.base}`,
     conUsuario ? `como ${c.con.user}` : 'usuario default',
     t.cifrar ? (t.confiarCertificado ? 'cifrada, certificado sin verificar' : 'cifrada') : 'sin cifrar',
@@ -460,6 +472,7 @@ module.exports = {
   baseDe,
   tlsDe,
   conexionDe,
+  topologiaLegible,
   nombreApp,
   camposCliente
 }

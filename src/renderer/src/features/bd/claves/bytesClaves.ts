@@ -16,6 +16,25 @@ export function binarioDe(b: DbKvBytes): string | null {
   }
 }
 
+/** Los bytes UTF-8 de un texto escrito (un nombre nuevo), con su base64. */
+export function bytesDeTexto(texto: string): DbKvBytes {
+  let binario = ''
+  for (const b of new TextEncoder().encode(texto)) binario += String.fromCharCode(b)
+  return { texto, base64: btoa(binario) }
+}
+
+/** Unos bytes desde su base64, con su texto si son UTF-8 válido (como los manda el main). */
+export function bytesDeBase64(base64: string): DbKvBytes {
+  const binario = binarioDe({ base64 })
+  if (binario === null) return { base64 }
+  try {
+    const texto = new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(binario, (c) => c.charCodeAt(0)))
+    return { texto, base64 }
+  } catch {
+    return { base64 }
+  }
+}
+
 /** Cuántos bytes son (del base64, sin decodificarlo: el visor lo pide en cada fila). */
 export function tamanoBytes(b: DbKvBytes): number {
   const s = b.base64

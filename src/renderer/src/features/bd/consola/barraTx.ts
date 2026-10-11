@@ -5,7 +5,12 @@
 // Decisiones: docs/decisiones/bd/ui-consola-estado.md
 // =============================================================================
 
-import type { DbEstadoSesion, DbEstadoTx, DbTxModo } from '../../../../../shared/db-explorador-ipc.ts'
+import {
+  type DbEstadoSesion,
+  type DbEstadoTx,
+  type DbTxModo,
+  MOTIVO_CARPETA_SIN_ESCRITURA
+} from '../../../../../shared/db-explorador-ipc.ts'
 
 /** Lo que pinta la barra de la consola sobre la transacción. */
 export interface BarraTx {
@@ -13,6 +18,8 @@ export interface BarraTx {
   /** `Tx: Auto` / `Tx: Manual` (texto no pulsable de la izquierda). */
   textoModo: string
   soloLectura: boolean
+  /** `title` del «Solo lectura»: por qué lo es (la carpeta de una base de archivo, o la conexión); null si no lo es. */
+  tituloSoloLectura: string | null
   /** `Tx pendiente (3)`, `Tx abierta`, `Tx fallida: haz Rollback`, o null. */
   textoTx: string | null
   /**
@@ -54,21 +61,27 @@ function textoTxDe(tx: DbEstadoTx, n: number): string | null {
   return null
 }
 
-function barraSoloLectura(modo: DbTxModo): BarraTx {
+function barraSoloLectura(modo: DbTxModo, titulo: string): BarraTx {
   return {
     modo,
     textoModo: textoModoDe(modo),
     soloLectura: true,
+    tituloSoloLectura: titulo,
     textoTx: null,
     tituloTx: null,
     modoPulsado: modo === 'manual',
     puedeCambiarModo: false,
-    tituloModo: TITULO_SOLO_LECTURA,
+    tituloModo: titulo,
     puedeCommit: false,
-    tituloCommit: TITULO_SOLO_LECTURA,
+    tituloCommit: titulo,
     puedeRollback: false,
-    tituloRollback: TITULO_SOLO_LECTURA
+    tituloRollback: titulo
   }
+}
+
+/** Por qué es de solo lectura: la carpeta de una base de archivo lo dice; si no, la conexión. */
+function tituloSoloLecturaDe(sesion: DbEstadoSesion | null): string {
+  return sesion?.soloLecturaPorCarpeta === true ? MOTIVO_CARPETA_SIN_ESCRITURA : TITULO_SOLO_LECTURA
 }
 
 function tituloCommitDe(puede: boolean, corriendo: boolean, tx: DbEstadoTx): string {
@@ -95,7 +108,7 @@ export function estadoBarraTx(
 ): BarraTx {
   const modo: DbTxModo = sesion ? sesion.txModo : (opciones.modoSinSesion ?? 'auto')
   const ro = sesion ? sesion.soloLectura : opciones.soloLectura === true
-  if (ro) return barraSoloLectura(modo)
+  if (ro) return barraSoloLectura(modo, tituloSoloLecturaDe(sesion))
   const tx: DbEstadoTx = sesion ? sesion.tx : 'ninguna'
   const corriendo = opciones.ejecutando === true
   const textoTx = textoTxDe(tx, sesion ? sesion.sentenciasEnTx : 0)
@@ -107,6 +120,7 @@ export function estadoBarraTx(
     modo,
     textoModo: textoModoDe(modo),
     soloLectura: false,
+    tituloSoloLectura: null,
     textoTx,
     tituloTx: textoTx !== null && opciones.deArchivo === true ? TITULO_TX_ARCHIVO : null,
     modoPulsado: modo === 'manual',

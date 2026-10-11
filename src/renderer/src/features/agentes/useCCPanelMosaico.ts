@@ -23,8 +23,8 @@ import type { MosaicoPanel } from './CCPanel'
  * cambian de alto, se cambia aquí.
  */
 const CROMO_CASILLA = { ancho: 33, alto: 69 }
-/** El `gap` de la rejilla (styles.css, `.right-panel.cc-mosaico`): el filete entre casillas. */
-const HUECO_CASILLAS = 1
+/** El `gap` de la rejilla (styles.css, `.right-panel.cc-mosaico`): `--lienzo-gutter`, el hueco entre casillas. */
+const HUECO_CASILLAS = 6
 
 /** Versiones de la sesión nativa de un target: con cuál arrancó y cuál hay instalada. */
 export type VersionesAgente = { lanzada: string | null; instalada: string | null }

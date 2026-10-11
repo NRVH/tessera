@@ -106,14 +106,14 @@ export async function moveAcrossVolumes(srcAbs: string, destAbs: string): Promis
  *
  * El caso contrario —un volumen case-sensitive con dos entradas que sólo difieren en la caja—
  * hay que buscarlo a propósito, y el precio de equivocarse ahí es reconocer DE MÁS: nada se
- * pierde. Linux (`'otra'`) sí distingue por defecto y se deja tal cual.
+ * pierde. Linux y los BSD sí distinguen por defecto y se dejan tal cual.
  *
  * LA PLATAFORMA ES UN PARÁMETRO con el sistema actual por defecto: leyéndola por dentro, la
- * rama `'otra'` no se podía comprobar desde ninguna de las dos máquinas donde Tessera se
- * desarrolla. Se exportan las tres para que `test-import.mts` fije las tres plataformas.
+ * rama POSIX sensible no se podía comprobar desde Windows ni macOS. Se exportan las tres para
+ * que `test-import.mts` fije todas las plataformas.
  */
 export function comparablePath(abs: string, plataforma: Plataforma = plataformaActual()): string {
-  return plataforma === 'otra' ? abs : abs.toLowerCase()
+  return plataforma === 'windows' || plataforma === 'mac' ? abs.toLowerCase() : abs
 }
 
 /** true si `a` y `b` apuntan al mismo archivo/carpeta. */

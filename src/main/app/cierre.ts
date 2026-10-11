@@ -8,6 +8,8 @@
 import { app, type BrowserWindow } from 'electron'
 import { SHUTDOWN_CHANNELS, type ShutdownProgress } from '../../shared/shutdown-ipc'
 import {
+  anticiparRelevo,
+  cancelarRelevoAnticipado,
   cierreCanceladoAntesDeInstalar,
   openInstallerManually,
   planDeCierre,
@@ -18,8 +20,16 @@ import {
 import { flushWorkspaceState } from '../workspace/workspaceStateStore'
 import { ACUSE_VACIADO_MS, CIERRE_TRABAJADORES_MS } from '../db/explorador/limites'
 import type { ExploradorController } from '../db/explorador/ExploradorController'
-import { conTope, esperar } from '../util/esperas'
-import { CronometroCierre, TOPE_VACIAR_CONSOLAS_MS, TOPE_WORKSPACE_MS, notaTope, textoProgreso } from '../util/registroCierre'
+import { conTope, conTopeSinAvance, esperar, type Desenlace, type EsperaSinAvance } from '../util/esperas'
+import {
+  CronometroCierre,
+  TOPE_DOCKER_MS,
+  TOPE_VACIAR_CONSOLAS_MS,
+  TOPE_WORKSPACE_MS,
+  notaSinAvance,
+  notaTope,
+  textoProgreso
+} from '../util/registroCierre'
 import type { ReferenciasApp } from './referencias'
 
 type Enviar = (p: ShutdownProgress) => void
@@ -70,19 +80,71 @@ function soltarRecursos(refs: ReferenciasApp, cierre: CronometroCierre): void {
     cierre.sincrona('uso', () => refs.vigilanteUso?.disposeAll())
     cierre.sincrona('turnos', () => refs.vigilanteTurnos?.disposeAll())
     cierre.sincrona('agentes-nativos', () => refs.agentesNativos?.parar())
+    cierre.sincrona('registro-salud', () => refs.registroSalud?.detener())
     cierre.sincrona('auto-update', () => stopAutoUpdate()) // no afecta a un install en curso
   } catch (err) {
     console.error('[tessera] cierre de watchers falló:', err)
   }
 }
 
-/** Consolas, workspace, sesiones de BD, recursos y contenedores, en ese orden. */
+/**
+ * Cierra las terminales y los agentes con el proceso aún entero. En Windows, cerrar una
+ * pseudoconsola espera a que alguien lea su salida: dejarlo al apagado del proceso, cuando sus
+ * lectores ya no existen, puede dejarlo vivo con la ventana cerrada. Además, sus OpenConsole.exe
+ * salen de la carpeta de instalación y el instalador no podría reemplazarla. Un fallo no frena el cierre.
+ */
+function cerrarPtys(refs: ReferenciasApp, cierre: CronometroCierre): void {
+  try {
+    cierre.sincrona(
+      'cerrar-ptys',
+      () => (refs.terminales?.forceKillPtys() ?? 0) + (refs.agentes?.forceKillPtys() ?? 0),
+      (n) => `${n} pty(s)`
+    )
+  } catch (err) {
+    console.error('[tessera] cierre de las terminales falló:', err)
+  }
+}
+
+/**
+ * `docker rm -f` de todos los contenedores, que mata también los ptys y agentes de dentro; cada
+ * aviso deja su hito. Con tope SIN AVANZAR: Docker sin responder no deja la ventana colgada
+ * minutos, y muchos contenedores que van cayendo no se cortan. Devuelve la limpieza que siguió
+ * tras el tope (null si acabó), que el plan C espera antes de devolver la app.
+ */
+async function detenerContenedores(refs: ReferenciasApp, cierre: CronometroCierre, send: Enviar): Promise<DockerPendiente | null> {
+  const sandbox = refs.sandbox
+  if (!sandbox) return null
+  // Tras el tope, lo que llegue tarde ya no es de este cierre: ni al overlay ni al registro.
+  const progresoCon =
+    (avanzar: () => boolean) =>
+    (p: ShutdownProgress): void => {
+      if (!avanzar()) return
+      send(p)
+      cierre.hito('docker', textoProgreso(p))
+    }
+  let espera: EsperaSinAvance | null = null
+  const empezar = (): Promise<Desenlace> => {
+    espera = conTopeSinAvance((avanzar) => sandbox.stopAllContainers(progresoCon(avanzar)), TOPE_DOCKER_MS)
+    return espera.desenlace
+  }
+  const d = await cierre.etapa('docker', empezar, notaSinAvance(TOPE_DOCKER_MS))
+  if (d === 'a-tiempo' || espera === null) return null
+  send({ phase: 'done', done: 0, total: 0, label: 'Docker no responde: sus contenedores se limpiarán al volver a abrir Tessera' })
+  return { trabajo: (espera as EsperaSinAvance).trabajo }
+}
+
+/** La limpieza de Docker que siguió tras su tope (en un objeto: una promesa devuelta por un `async` se desenvolvería). */
+interface DockerPendiente {
+  trabajo: Promise<void>
+}
+
+/** Consolas, workspace, sesiones de BD, recursos y contenedores, en ese orden. Devuelve la limpieza de Docker que quedó en curso. */
 async function pararServicios(
   refs: ReferenciasApp,
   cierre: CronometroCierre,
   win: BrowserWindow | null,
   send: Enviar
-): Promise<void> {
+): Promise<DockerPendiente | null> {
   // Con acuse del renderer y con tope: pasado el tope se sigue y la escritura acaba sola.
   try {
     await cierre.etapa(
@@ -105,19 +167,12 @@ async function pararServicios(
     console.error('[tessera] cierre de los procesos de sesión falló:', err)
   }
   soltarRecursos(refs, cierre)
+  cerrarPtys(refs, cierre)
   try {
-    // `docker rm -f` mata también los ptys y agentes de dentro; cada aviso deja su hito.
-    const sandbox = refs.sandbox
-    if (sandbox) {
-      await cierre.etapa('docker', () =>
-        sandbox.stopAllContainers((p) => {
-          send(p)
-          cierre.hito('docker', textoProgreso(p))
-        })
-      )
-    }
+    return await detenerContenedores(refs, cierre, send)
   } catch (err) {
     console.error('[tessera] error en el cierre:', err)
+    return null
   }
 }
 
@@ -139,6 +194,12 @@ export async function iniciarCierre(refs: ReferenciasApp): Promise<void> {
   const explorador = refs.explorador
   if (explorador && (await preguntarAntesDeSalir(refs, explorador, cierre)) === 'parar') return
   refs.cerrando = true
+  // Antes de matar nada: si este proceso muere a mitad del cierre, la actualización sigue.
+  try {
+    cierre.sincrona('relevo', () => anticiparRelevo(), (lanzado) => (lanzado ? 'lanzado' : 'no aplica'))
+  } catch (err) {
+    console.error('[tessera] no se pudo anticipar el relevo:', err)
+  }
   const win = refs.ventana
   const send: Enviar = (p) => {
     if (win && !win.isDestroyed() && !win.webContents.isDestroyed()) {
@@ -147,7 +208,7 @@ export async function iniciarCierre(refs: ReferenciasApp): Promise<void> {
   }
   // El overlay, antes del primer `docker ps`.
   send({ phase: 'stopping', done: 0, total: 0, label: 'Cerrando Tessera…' })
-  await pararServicios(refs, cierre, win, send)
+  const dockerPendiente = await pararServicios(refs, cierre, win, send)
   // Deja ver el «Listo» un instante antes de salir o de instalar.
   await cierre.etapa('pausa-listo', () => esperar(450))
 
@@ -156,11 +217,13 @@ export async function iniciarCierre(refs: ReferenciasApp): Promise<void> {
   if (plan.tipo === 'ninguno') {
     // `motivo` es prosa para el registro: no se ramifica sobre él.
     console.log(`[tessera] cierre normal: ${plan.motivo}`)
+    // Sin instalar no puede quedar un relevo esperando nuestra muerte para instalar.
+    cancelarRelevoAnticipado()
     salir(win, cierre, `sale (plan ninguno: ${plan.motivo})`)
     return
   }
   cierre.nota(`plan de cierre: instalar (origen ${plan.origen}, relanzar ${plan.relanzar ? 'sí' : 'no'})`)
-  await aplicarActualizacion(refs, cierre, win, send, plan)
+  await aplicarActualizacion(refs, cierre, win, send, plan, dockerPendiente)
 }
 
 /**
@@ -172,16 +235,9 @@ async function aplicarActualizacion(
   cierre: CronometroCierre,
   win: BrowserWindow | null,
   send: Enviar,
-  plan: PlanInstalar
+  plan: PlanInstalar,
+  dockerPendiente: DockerPendiente | null
 ): Promise<void> {
-  // En Windows los ptys cargan OpenConsole.exe de la carpeta de instalación; los huérfanos los remata `runInstaller`.
-  const killed = cierre.sincrona(
-    'forzar-ptys',
-    () => (refs.terminales?.forceKillPtys() ?? 0) + (refs.agentes?.forceKillPtys() ?? 0),
-    (n) => `${n} pty(s)`
-  )
-  console.log(`[tessera] update: ${killed} pty(s) forzado(s) a cerrar antes del instalador`)
-
   // Solo el main sabe si se va a relanzar.
   const sub = plan.relanzar
     ? 'Tessera volverá a abrirse sola al terminar.'
@@ -213,6 +269,12 @@ async function aplicarActualizacion(
 
   // Plan C: se aborta el cierre y la ventana vuelve con el error; la app sigue usable.
   console.error('[tessera] update imposible; se aborta el cierre y se informa al usuario.')
+  // La limpieza de Docker que siguió tras su tope borra los contenedores y vacía el estado del
+  // sandbox: con la app ya de vuelta se llevaría los que se abrieran entretanto.
+  if (dockerPendiente) {
+    send({ phase: 'stopping', done: 0, total: 0, label: 'Esperando a que Docker termine…' })
+    await cierre.etapa('docker-pendiente', () => dockerPendiente.trabajo)
+  }
   refs.cerrando = false
   // Sin quitar su pestillo, abrir una sesión fallaría con «Tessera se está cerrando».
   refs.explorador?.reanudarTrasCierreAbortado()

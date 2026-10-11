@@ -308,14 +308,14 @@ function main(): void {
     // La lista se escribe LITERAL a propósito: borrar un ajuste por accidente
     // rompe el test en vez de desaparecer de la pantalla en silencio.
     const ESPERADOS = [
-      'accion-rapida-finder',
+      'abrir-con-linux', 'accion-rapida-finder',
       'acerca', 'agente-fuente', 'agente-inactividad', 'agente-tamano', 'banda',
       'db-filas-pagina', 'db-font', 'db-inactividad-consola', 'db-tx-inicial',
       'explorer-font', 'git-font',
       'menu-windows-archivos', 'menu-windows-carpetas', 'menu-windows-extensiones',
-      'modo-proyecto', 'sandbox-docs', 'sandbox-navegador', 'sandbox-otros',
+      'modo-proyecto', 'registro-salud', 'sandbox-docs', 'sandbox-navegador', 'sandbox-otros',
       'term-fuente', 'term-render', 'term-tamano', 'ui-font',
-      'update', 'update-agentes', 'update-al-cerrar', 'zoom'
+      'update', 'update-agentes', 'update-al-cerrar', 'volcados-caida', 'zoom'
     ]
     const presentes = [...filtrarAjustes(gruposDe(CATEGORIAS), '')].sort()
     check(
@@ -373,7 +373,7 @@ function main(): void {
     )
     check(
       'la categoría va entre Proyectos e Integración con el sistema',
-      CATEGORIAS.map((c) => c.id).join(',') === 'apariencia,terminales,proyectos,bases-de-datos,integracion,actualizaciones,acerca',
+      CATEGORIAS.map((c) => c.id).join(',') === 'apariencia,terminales,proyectos,bases-de-datos,integracion,actualizaciones,experimental,acerca',
       CATEGORIAS.map((c) => c.id).join(',')
     )
     check(
@@ -428,10 +428,11 @@ function main(): void {
     // La plataforma se pasa siempre: hay filas que dependen de la PLATAFORMA y no de
     // una capacidad, y sin pasarla se mezclarían capacidades de una con filas de otra.
     // Además el valor por defecto es `window.tessera.plataforma`, y bajo `node` no hay
-    // `window`: omitirla da un `ReferenceError`.
-    const win = categoriasVisibles(capacidadesDe('windows'), CATEGORIAS, 'windows')
-    const mac = categoriasVisibles(capacidadesDe('mac'), CATEGORIAS, 'mac')
-    const otra = categoriasVisibles(capacidadesDe('otra'), CATEGORIAS, 'otra')
+    // `window`: omitirla da un `ReferenceError`. Igual `esAlpha`: aquí en alpha (ve todas las
+    // filas); la versión pública se fija más abajo.
+    const win = categoriasVisibles(capacidadesDe('windows'), CATEGORIAS, 'windows', true)
+    const mac = categoriasVisibles(capacidadesDe('mac'), CATEGORIAS, 'mac', true)
+    const otra = categoriasVisibles(capacidadesDe('otra'), CATEGORIAS, 'otra', true)
     const idsDe = (cats: ReturnType<typeof categoriasVisibles>): string[] =>
       [...filtrarAjustes(gruposDe(cats), '')].sort()
     const todosLosIds = [...filtrarAjustes(gruposDe(CATEGORIAS), '')].sort()
@@ -444,8 +445,9 @@ function main(): void {
       win.map((c) => c.id).join(',')
     )
     check(
-      'Windows pierde EXACTAMENTE la fila del Finder, nada más',
-      todosLosIds.filter((id) => !idsDe(win).includes(id)).join(',') === 'accion-rapida-finder',
+      'Windows pierde EXACTAMENTE las filas del Finder y de Linux, nada más',
+      todosLosIds.filter((id) => !idsDe(win).includes(id)).join(',') ===
+        'abrir-con-linux,accion-rapida-finder',
       todosLosIds.filter((id) => !idsDe(win).includes(id)).join(',') || '∅'
     )
     // Y el grupo «Finder», que se queda sin filas, tiene que desaparecer ENTERO: un
@@ -495,9 +497,9 @@ function main(): void {
       idsDe(mac).filter((id) => id.startsWith('menu-windows')).join(',') || '∅'
     )
     check(
-      'Mac pierde EXACTAMENTE las filas de Windows, nada más',
+      'Mac pierde EXACTAMENTE las filas de Windows y la de Linux, nada más',
       todosLosIds.filter((id) => !idsDe(mac).includes(id)).join(',') ===
-        ['menu-windows-archivos', 'menu-windows-carpetas', 'menu-windows-extensiones'].join(','),
+        ['abrir-con-linux', 'menu-windows-archivos', 'menu-windows-carpetas', 'menu-windows-extensiones'].join(','),
       todosLosIds.filter((id) => !idsDe(mac).includes(id)).join(',')
     )
     // El espejo del check de Windows: en Mac el grupo que sobrevive es el del Finder.
@@ -516,12 +518,29 @@ function main(): void {
         integracionMac?.titulo === 'Integración con el sistema',
       `${integracionWin?.titulo} / ${integracionMac?.titulo}`
     )
-    // Linux/BSD: ahí no hay ni registro ni `~/Library/Services`, así que la categoría
-    // entera sigue cayendo — ahora es el ÚNICO sitio donde eso pasa.
+    // Linux: la categoría se monta con su único grupo, el del `.desktop`.
+    const linux = categoriasVisibles(capacidadesDe('linux'), CATEGORIAS, 'linux', true)
+    const integracionLinux = linux.find((c) => c.id === 'integracion')
     check(
-      'en «otra» (Linux/BSD) la categoría de integración NO se monta',
+      'en Linux la categoría de integración enseña sólo el grupo del gestor de archivos',
+      integracionLinux !== undefined &&
+        integracionLinux.grupos.map((g) => g.titulo).join(',') === 'Gestor de archivos' &&
+        integracionLinux.titulo === 'Integración con el sistema',
+      integracionLinux ? integracionLinux.grupos.map((g) => g.titulo).join(' | ') : 'ausente'
+    )
+    check(
+      'Linux pierde EXACTAMENTE las filas de Windows y la del Finder (el AppImage se aplica al cerrar)',
+      todosLosIds.filter((id) => !idsDe(linux).includes(id)).join(',') ===
+        ['accion-rapida-finder', 'menu-windows-archivos', 'menu-windows-carpetas', 'menu-windows-extensiones'].join(','),
+      todosLosIds.filter((id) => !idsDe(linux).includes(id)).join(',')
+    )
+    // BSD: no se empaqueta para ella, así que la categoría entera sigue cayendo.
+    check(
+      'en «otra» (BSD) la categoría de integración NO se monta',
       !otra.some((c) => c.id === 'integracion') &&
-        !idsDe(otra).some((id) => id.startsWith('menu-windows') || id.startsWith('accion-rapida')),
+        !idsDe(otra).some(
+          (id) => id.startsWith('menu-windows') || id.startsWith('accion-rapida') || id === 'abrir-con-linux'
+        ),
       otra.map((c) => c.id).join(',')
     )
     // Y la fila inerte sigue existiendo para quien de verdad no puede aplicar nada.
@@ -580,8 +599,8 @@ function main(): void {
         grupos: [{ titulo: 'Solo una fila', ajustes: [{ id: 'update-al-cerrar', etiqueta: 'Aplicar al cerrar' }] }]
       }
     ]
-    const sinteticaWin = categoriasVisibles(capacidadesDe('windows'), catalogoSintetico, 'windows')
-    const sinteticaOtra = categoriasVisibles(capacidadesDe('otra'), catalogoSintetico, 'otra')
+    const sinteticaWin = categoriasVisibles(capacidadesDe('windows'), catalogoSintetico, 'windows', false)
+    const sinteticaOtra = categoriasVisibles(capacidadesDe('otra'), catalogoSintetico, 'otra', false)
     check(
       'catálogo sintético: en Windows la categoría de un solo ajuste sobrevive',
       sinteticaWin.length === 1 && sinteticaWin[0].grupos.length === 1 && sinteticaWin[0].grupos[0].ajustes.length === 1,
@@ -592,6 +611,33 @@ function main(): void {
       sinteticaOtra.length === 0,
       sinteticaOtra.map((c) => `${c.id}:${c.grupos.length}`).join(' ') || '∅ (ninguna categoría)'
     )
+
+    // El registro de salud solo existe en las versiones alpha, en las tres plataformas.
+    for (const [nombre, plat] of [['windows', 'windows'], ['mac', 'mac'], ['otra', 'otra']] as const) {
+      const alpha = categoriasVisibles(capacidadesDe(nombre), CATEGORIAS, plat, true)
+      const publica = categoriasVisibles(capacidadesDe(nombre), CATEGORIAS, plat, false)
+      check(
+        `en alpha (${nombre}) se ve «registro-salud» y el buscador lo encuentra por «memoria»`,
+        idsDe(alpha).includes('registro-salud') &&
+          filtrarAjustes(gruposDe(alpha), 'memoria').has('registro-salud'),
+        idsDe(alpha).filter((id) => id.startsWith('registro')).join(',') || 'ninguno'
+      )
+      check(
+        `en la versión pública (${nombre}) NO se ve «registro-salud» ni lo cuenta el buscador`,
+        !idsDe(publica).includes('registro-salud') && !filtrarAjustes(gruposDe(publica), 'salud').has('registro-salud'),
+        idsDe(publica).filter((id) => id.startsWith('registro')).join(',') || '∅'
+      )
+      check(
+        `«volcados-caida» se ve en alpha (${nombre}) y lo encuentra «caída»; en la pública no`,
+        filtrarAjustes(gruposDe(alpha), 'caída').has('volcados-caida') && !idsDe(publica).includes('volcados-caida'),
+        `alpha=${idsDe(alpha).includes('volcados-caida')} publica=${idsDe(publica).includes('volcados-caida')}`
+      )
+      check(
+        `la categoría «Experimental» está en alpha (${nombre}) y en la pública desaparece entera`,
+        alpha.some((c) => c.id === 'experimental') && !publica.some((c) => c.id === 'experimental'),
+        `alpha=${alpha.map((c) => c.id).join(',')} publica=${publica.map((c) => c.id).join(',')}`
+      )
+    }
   }
 
   // ---------------------------------------------------------------------------

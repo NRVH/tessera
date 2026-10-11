@@ -33,6 +33,7 @@ import {
   tieneFormaDelMotor,
   tieneNivelBases,
   usaOpcional,
+  tlsDeConexion,
   autenticacionDe,
   esAutenticacion,
   type CapacidadesSql,
@@ -208,7 +209,7 @@ const HOY: Record<DbMotorSql, ValoresHoy> = {
     lenguajeConsola: 'pgsql',
     lenguajeFuente: 'pgsql',
     formateador: { dialecto: 'postgresql', parametros: null },
-    carpetas: ['tabla', 'vista', 'vistaMaterializada', 'tablaForanea', 'rutina', 'secuencia', 'tipo'],
+    carpetas: ['tabla', 'vista', 'vistaMaterializada', 'tablaForanea', 'rutina', 'secuencia', 'tipo', 'disparador'],
     pseudoEsquemaPublico: null,
     esquemaImplicito: 'public',
     tieneSinonimos: false,
@@ -287,7 +288,7 @@ const HOY: Record<DbMotorSql, ValoresHoy> = {
     lenguajeConsola: 'sql',
     lenguajeFuente: 'sql',
     formateador: { dialecto: 'transactsql', parametros: null },
-    carpetas: ['tabla', 'vista', 'rutina', 'sinonimo', 'secuencia', 'tipo'],
+    carpetas: ['tabla', 'vista', 'rutina', 'sinonimo', 'secuencia', 'tipo', 'disparador'],
     pseudoEsquemaPublico: null,
     esquemaImplicito: 'dbo',
     tieneSinonimos: true,
@@ -304,6 +305,45 @@ const HOY: Record<DbMotorSql, ValoresHoy> = {
       salidaServidorSiempre: true,
       explainPideValores: false,
       ddlConfirmaImplicito: false,
+      rutinasConfirmanPorDentro: true,
+      identidadSinPk: 'unicaNoNula',
+      procesoPorSesion: false
+    }
+  },
+  // MySQL y MariaDB (lo que declara; el porqué de cada uno, en `mysql.ts`).
+  mysql: {
+    etiqueta: 'MySQL / MariaDB',
+    puerto: 3306,
+    obligatorios: ['alias', 'host', 'port', 'user'],
+    forma: ['host', 'port'],
+    deArchivo: false,
+    extensionesArchivo: [],
+    credenciales: 'usuarioClave',
+    soloLecturaPorDefecto: true,
+    excluyentes: [],
+    descartarAlGuardar: ['sid'],
+    usaClientes: false,
+    dialecto: 'mysql',
+    lenguajeConsola: 'mysql',
+    lenguajeFuente: 'mysql',
+    formateador: { dialecto: 'mysql', parametros: null },
+    carpetas: ['tabla', 'vista', 'rutina', 'disparador', 'evento'],
+    pseudoEsquemaPublico: null,
+    esquemaImplicito: null,
+    tieneSinonimos: false,
+    tieneDblinks: false,
+    sesion: {
+      versionMinima: 8,
+      paginado: { rejilla: 'limitOffset', relectura: 'limitOffset', admitidas: ['limitOffset'] },
+      paginasInestablesSinOrden: true,
+      lectorPorId: false,
+      mantenerCursor: false,
+      candadoSoloLectura: 'envoltorioRollback',
+      esquemaTransaccional: false,
+      fijarEsquemaValida: true,
+      salidaServidorSiempre: true,
+      explainPideValores: true,
+      ddlConfirmaImplicito: true,
       rutinasConfirmanPorDentro: true,
       identidadSinPk: 'unicaNoNula',
       procesoPorSesion: false
@@ -342,7 +382,7 @@ const OTRAS_FAMILIAS: Record<Exclude<DbMotor, DbMotorSql>, ValoresOtraFamilia> =
     etiqueta: 'MongoDB',
     puerto: 27017,
     obligatorios: ['alias', 'host', 'port'],
-    opcionales: ['user', 'database', 'tls', 'srv', 'opcionesUri'],
+    opcionales: ['user', 'database', 'tls', 'srv', 'opcionesUri', 'tunelSsh'],
     forma: ['host', 'port'],
     deArchivo: false,
     extensionesArchivo: [],
@@ -358,8 +398,8 @@ const OTRAS_FAMILIAS: Record<Exclude<DbMotor, DbMotorSql>, ValoresOtraFamilia> =
     etiqueta: 'Redis',
     puerto: 6379,
     obligatorios: ['alias', 'host', 'port'],
-    // + 'tls' (`rediss://`), sin cifrar por defecto.
-    opcionales: ['user', 'database', 'tls'],
+    // + 'tls' (`rediss://`), sin cifrar por defecto, y la topología (Sentinel o Cluster).
+    opcionales: ['user', 'database', 'tls', 'tunelSsh', 'topologiaRedis'],
     forma: ['host', 'port'],
     deArchivo: false,
     extensionesArchivo: [],
@@ -423,8 +463,8 @@ function main(): void {
   // -------------------------------------------------------------------------
   hr('(1) El registro')
   check(
-    'las claves de MOTORES son oracle, postgres, sqlite, sqlserver, mongodb y redis, en ese orden (el del selector)',
-    igual(motores, ['oracle', 'postgres', 'sqlite', 'sqlserver', 'mongodb', 'redis']),
+    'las claves de MOTORES son oracle, postgres, sqlite, sqlserver, mysql, mongodb y redis, en ese orden (el del selector)',
+    igual(motores, ['oracle', 'postgres', 'sqlite', 'sqlserver', 'mysql', 'mongodb', 'redis']),
     j(motores)
   )
   check('IDS_MOTORES es Object.keys(MOTORES)', igual(IDS_MOTORES, motores), j(IDS_MOTORES))
@@ -526,9 +566,10 @@ function main(): void {
     'catalogo.carpetas de cada motor (los literales de antes)',
     igual(carpetas, {
       oracle: ['tabla', 'vista', 'vistaMaterializada', 'rutina', 'paquete', 'secuencia', 'sinonimo', 'tipoObjeto', 'tipoColeccion', 'disparador'],
-      postgres: ['tabla', 'vista', 'vistaMaterializada', 'tablaForanea', 'rutina', 'secuencia', 'tipo'],
+      postgres: ['tabla', 'vista', 'vistaMaterializada', 'tablaForanea', 'rutina', 'secuencia', 'tipo', 'disparador'],
       sqlite: ['tabla', 'vista', 'tablaVirtual'],
-      sqlserver: ['tabla', 'vista', 'rutina', 'sinonimo', 'secuencia', 'tipo']
+      sqlserver: ['tabla', 'vista', 'rutina', 'sinonimo', 'secuencia', 'tipo', 'disparador'],
+      mysql: ['tabla', 'vista', 'rutina', 'disparador', 'evento']
     }),
     j(carpetas)
   )
@@ -538,7 +579,7 @@ function main(): void {
   }
   // Un motor fuera del registro no cae en otro dialecto ni da un TypeError anónimo: el
   // mensaje es el de `descriptor()` (antes, «reading 'sql'»).
-  for (const raro of ['mysql', 'constructor']) {
+  for (const raro of ['db2', 'constructor']) {
     let msg = ''
     try {
       dialectoDeMotor(raro as DbMotor)
@@ -680,7 +721,7 @@ function main(): void {
   // Las copias eran de los motores de RED; el de archivo (SQLite) tiene su destino aparte (abajo).
   // SQL Server es de red pero tiene su destino propio (la instancia, el dominio): se
   // prueba aparte en (13). Aquí, los que usan el destino de red de siempre.
-  for (const motor of [...motores.filter((m) => MOTORES[m].conexion.destinoLegible === destinoDeRed), 'mysql']) {
+  for (const motor of [...motores.filter((m) => MOTORES[m].conexion.destinoLegible === destinoDeRed), 'db2']) {
     for (const database of [undefined, '', 'ORCL', 'mi_base']) {
       for (const sid of [undefined, '', 'XE']) {
         casos.push({ motor, host: '10.0.0.1', port: 1521, database, sid, user: 'ALFA_LECTOR' })
@@ -713,26 +754,26 @@ function main(): void {
 
   // -------------------------------------------------------------------------
   hr('(6) Un motor desconocido no rompe nada')
-  for (const x of ['mysql', 'mariadb', 'SQLITE', 'constructor', 'toString', '__proto__', 'hasOwnProperty', 'ORACLE', '', ' oracle']) {
+  for (const x of ['db2', 'mariadb', 'MYSQL', 'SQLITE', 'constructor', 'toString', '__proto__', 'hasOwnProperty', 'ORACLE', '', ' oracle']) {
     check(`esMotor(${j(x)}) es falso`, !esMotor(x), '')
   }
   for (const x of [undefined, null, 1, {}, ['oracle']]) {
     check(`esMotor(${j(x) ?? 'undefined'}) es falso`, !esMotor(x), '')
   }
   for (const m of motores) check(`esMotor(${j(m)})`, esMotor(m), '')
-  const e1 = lanza(() => descriptor('mysql' as DbMotor))
-  check('descriptor de un motor desconocido LANZA, con el motor en el mensaje', e1 !== null && e1.indexOf('mysql') >= 0, String(e1))
+  const e1 = lanza(() => descriptor('db2' as DbMotor))
+  check('descriptor de un motor desconocido LANZA, con el motor en el mensaje', e1 !== null && e1.indexOf('db2') >= 0, String(e1))
   const e2 = lanza(() => descriptor('constructor' as DbMotor))
   check('descriptor("constructor") también lanza', e2 !== null, String(e2))
-  check("etiquetaMotor('mysql') devuelve el id", etiquetaMotor('mysql') === 'mysql', etiquetaMotor('mysql'))
+  check("etiquetaMotor('db2') devuelve el id", etiquetaMotor('db2') === 'db2', etiquetaMotor('db2'))
   check("etiquetaMotor('sqlite') devuelve la etiqueta", etiquetaMotor('sqlite') === 'SQLite', etiquetaMotor('sqlite'))
   check("etiquetaMotor('postgres') devuelve la etiqueta", etiquetaMotor('postgres') === 'PostgreSQL', etiquetaMotor('postgres'))
   check("etiquetaMotor('constructor') no devuelve una función", etiquetaMotor('constructor') === 'constructor', String(etiquetaMotor('constructor')))
   // Los mensajes que nombran motores salen del registro.
   check("listaLegible: '', «A», «A y B», «A, B y C»", j([[], ['A'], ['A', 'B'], ['A', 'B', 'C']].map(listaLegible)) === j(['', 'A', 'A y B', 'A, B y C']), j([[], ['A'], ['A', 'B'], ['A', 'B', 'C']].map(listaLegible)))
   check(
-    'etiquetasDonde(todos) = «Oracle, PostgreSQL, SQLite, SQL Server, MongoDB y Redis», en el orden del registro',
-    etiquetasDonde(() => true) === 'Oracle, PostgreSQL, SQLite, SQL Server, MongoDB y Redis',
+    'etiquetasDonde(todos) = «Oracle, PostgreSQL, SQLite, SQL Server, MySQL / MariaDB, MongoDB y Redis», en el orden del registro',
+    etiquetasDonde(() => true) === 'Oracle, PostgreSQL, SQLite, SQL Server, MySQL / MariaDB, MongoDB y Redis',
     etiquetasDonde(() => true)
   )
   check("etiquetasDonde(ninguno) = ''", etiquetasDonde(() => false) === '', etiquetasDonde(() => false))
@@ -745,8 +786,8 @@ function main(): void {
     etiquetasSqlDonde((d) => d.sesion.identidadSinPk === 'rowid')
   )
   check(
-    'etiquetasSqlDonde(todos) = «Oracle, PostgreSQL, SQLite y SQL Server» (sin MongoDB ni Redis)',
-    etiquetasSqlDonde(() => true) === 'Oracle, PostgreSQL, SQLite y SQL Server',
+    'etiquetasSqlDonde(todos) = «Oracle, PostgreSQL, SQLite, SQL Server y MySQL / MariaDB» (sin MongoDB ni Redis)',
+    etiquetasSqlDonde(() => true) === 'Oracle, PostgreSQL, SQLite, SQL Server y MySQL / MariaDB',
     etiquetasSqlDonde(() => true)
   )
   check(
@@ -883,6 +924,43 @@ function main(): void {
       sinSeparadorSeEjecutanJuntas: true,
       conservaPuntoYComaFinal: true,
       clausulaOutput: true
+    },
+    // MySQL y MariaDB (el porqué de cada uno, en su fila de REGLAS).
+    mysql: {
+      numerosConBase: false,
+      sufijoFlotante: false,
+      selectIntoCreaTabla: false,
+      returningDevuelveFilas: true,
+      explain: 'conOpciones',
+      alterSession: false,
+      setDeSesion: true,
+      analyzeEsDdl: false,
+      callDevuelveFilas: true,
+      ejecutar: 'sentenciaPreparada',
+      fetchDevuelveFilas: false,
+      formaSetSesion: 'SET ',
+      estiloParametros: 'interrogacion',
+      marcadorPosicional: 'interrogacionSola',
+      cadenaVaciaEsNull: false,
+      insertDefaultValues: false,
+      tablaFicticia: { esquema: '', nombre: 'DUAL' },
+      comandosCliente: 'mysql',
+      cadenaBits: true,
+      beginEsTransaccion: true,
+      cajaSinComillas: 'insensible',
+      identCorchetes: false,
+      identAcentoGrave: true,
+      bindInterrogacion: true,
+      hex0x: true,
+      variablesArroba: true,
+      comillasDoblesCadena: true,
+      barraEscapaEnCadena: true,
+      comentarioAlmohadilla: true,
+      guionesPidenBlanco: true,
+      comentarioEjecutable: true,
+      cuerpoCompuesto: true,
+      setVariasAsignaciones: true,
+      variablesDeUsuario: true
     }
   }
   for (const d of dialectos) {
@@ -895,6 +973,7 @@ function main(): void {
   check("marcadorPosicional('postgres', 12) = '$12'", marcadorPosicional('postgres', 12) === '$12', marcadorPosicional('postgres', 12))
   check("marcadorPosicional('sqlite', 7) = '?7'", marcadorPosicional('sqlite', 7) === '?7', marcadorPosicional('sqlite', 7))
   check("marcadorPosicional('sqlserver', 2) = '@p2'", marcadorPosicional('sqlserver', 2) === '@p2', marcadorPosicional('sqlserver', 2))
+  check("marcadorPosicional('mysql', 4) = '?' (enlaza por orden)", marcadorPosicional('mysql', 4) === '?', marcadorPosicional('mysql', 4))
   const lote = REGLAS.sqlserver.hastaSeparadorLote
   check(
     'REGLAS.sqlserver.hastaSeparadorLote: en MAYÚSCULAS, sin repetidos, con CREATE PROCEDURE y DECLARE, sin BEGIN TRAN',
@@ -1035,25 +1114,48 @@ function main(): void {
   hr('(13) SQL Server: opcionales, nivel «Bases», autenticación, destino y caja')
   const opcionales = porMotor((d) => d.conexion.opcionales)
   check(
-    'conexion.opcionales: vacía en Oracle, PG y SQLite; SQL Server con base, instancia, autenticación, dominio y cifrado; MongoDB usuario, base, cifrado, SRV y opciones de URI; Redis, usuario, base y cifrado',
+    'conexion.opcionales: vacía en SQLite; Oracle y PG, el cifrado; SQL Server con base, instancia, autenticación, dominio y cifrado; MySQL con base y cifrado; MongoDB usuario, base, cifrado, SRV y opciones de URI; Redis, usuario, base, cifrado y topología; y el túnel SSH en todos los de red',
     igual(opcionales, {
-      oracle: [],
-      postgres: [],
+      oracle: ['tls', 'tunelSsh'],
+      postgres: ['tls', 'tunelSsh'],
       sqlite: [],
-      sqlserver: ['database', 'instancia', 'autenticacion', 'dominio', 'tls'],
-      mongodb: ['user', 'database', 'tls', 'srv', 'opcionesUri'],
-      redis: ['user', 'database', 'tls']
+      sqlserver: ['database', 'instancia', 'autenticacion', 'dominio', 'tls', 'tunelSsh'],
+      mysql: ['database', 'tls', 'tunelSsh'],
+      mongodb: ['user', 'database', 'tls', 'srv', 'opcionesUri', 'tunelSsh'],
+      redis: ['user', 'database', 'tls', 'tunelSsh', 'topologiaRedis']
     }),
     j(opcionales)
   )
   check('usaOpcional(sqlserver, instancia) y no en postgres', usaOpcional(MOTORES.sqlserver, 'instancia') && !usaOpcional(MOTORES.postgres, 'instancia'), '')
+  check(
+    'Oracle, PG y MySQL nacen sin cifrar (una conexión guardada antes no cambia), y solo Oracle no admite confiar en el certificado',
+    igual(porMotor((d) => (usaOpcional(d, 'tls') ? tlsDeConexion(d, {}) : null)), {
+      oracle: { cifrar: false, confiarCertificado: false },
+      postgres: { cifrar: false, confiarCertificado: false },
+      sqlite: null,
+      sqlserver: { cifrar: true, confiarCertificado: false },
+      mysql: { cifrar: false, confiarCertificado: false },
+      mongodb: { cifrar: false, confiarCertificado: false },
+      redis: { cifrar: false, confiarCertificado: false }
+    }) && igual(porMotor((d) => d.conexion.admiteConfiarCertificado !== false), {
+      oracle: false,
+      postgres: true,
+      sqlite: true,
+      sqlserver: true,
+      mysql: true,
+      mongodb: true,
+      redis: true
+    }),
+    ''
+  )
   check(
     'la base NO es obligatoria en SQL Server (árbol híbrido) y validarDestino no pide nada',
     MOTORES.sqlserver.conexion.obligatorios.indexOf('database') < 0 && MOTORES.sqlserver.conexion.validarDestino({ database: '', sid: '' }) === null,
     j(MOTORES.sqlserver.conexion.obligatorios)
   )
   const niveles = porMotorSql((d) => d.catalogo.nivelBases)
-  check('catalogo.nivelBases: solo SQL Server tiene nivel «Bases»', igual(niveles, { oracle: 'ninguno', postgres: 'ninguno', sqlite: 'ninguno', sqlserver: 'sinBaseFija' }), j(niveles))
+  // MySQL no: sus bases SON sus esquemas.
+  check('catalogo.nivelBases: solo SQL Server tiene nivel «Bases»', igual(niveles, { oracle: 'ninguno', postgres: 'ninguno', sqlite: 'ninguno', sqlserver: 'sinBaseFija', mysql: 'ninguno' }), j(niveles))
   // MongoDB tiene el MISMO árbol híbrido, con el valor en SU grupo (`documentos`).
   const nb: Array<[DbMotorSql | 'mongodb', string | null | undefined, boolean]> = [
     ['sqlserver', undefined, true],
@@ -1199,45 +1301,46 @@ function main(): void {
   check("descriptorSql('mongodb') LANZA «MongoDB no es un motor SQL.»", eMongo === 'MongoDB no es un motor SQL.', String(eMongo))
   const eRedis = lanza(() => descriptorSql('redis'))
   check("descriptorSql('redis') LANZA «Redis no es un motor SQL.»", eRedis === 'Redis no es un motor SQL.', String(eRedis))
-  const eDesc = lanza(() => descriptor('mysql' as DbMotor))
-  const eDescSql = lanza(() => descriptorSql('mysql' as DbMotor))
+  const eDesc = lanza(() => descriptor('db2' as DbMotor))
+  const eDescSql = lanza(() => descriptorSql('db2' as DbMotor))
   check(
-    "descriptor('mysql') y descriptorSql('mysql') LANZAN «Motor desconocido: \"mysql\".»",
-    eDesc === 'Motor desconocido: "mysql".' && eDescSql === 'Motor desconocido: "mysql".',
+    "descriptor('db2') y descriptorSql('db2') LANZAN «Motor desconocido: \"db2\".»",
+    eDesc === 'Motor desconocido: "db2".' && eDescSql === 'Motor desconocido: "db2".',
     `${eDesc} · ${eDescSql}`
   )
   check("descriptorSql('constructor') también lanza «Motor desconocido»", lanza(() => descriptorSql('constructor' as DbMotor)) === 'Motor desconocido: "constructor".', '')
 
   // (c) `esMotorSql`, `familiaDe`, `IDS_MOTORES_SQL`, `porMotorSql`, `candadoSoloLecturaDe`.
   check(
-    'esMotorSql: sí los cuatro SQL; no MongoDB, Redis, un desconocido ni lo que no es un id',
+    'esMotorSql: sí los cinco SQL; no MongoDB, Redis, un desconocido ni lo que no es un id',
     motoresSql.every((m) => esMotorSql(m)) &&
-      [...Object.keys(OTRAS_FAMILIAS), 'mysql', 'constructor', '', 'ORACLE', undefined, null, 1].every((x) => !esMotorSql(x)),
+      [...Object.keys(OTRAS_FAMILIAS), 'db2', 'constructor', '', 'ORACLE', undefined, null, 1].every((x) => !esMotorSql(x)),
     j(motores.map((m) => [m, esMotorSql(m)]))
   )
   const familias = porMotor((d) => familiaDe(d.id))
   check(
-    'familiaDe: sql los cuatro SQL, documentos MongoDB, claves Redis',
-    igual(familias, { oracle: 'sql', postgres: 'sql', sqlite: 'sql', sqlserver: 'sql', mongodb: 'documentos', redis: 'claves' }),
+    'familiaDe: sql los cinco SQL, documentos MongoDB, claves Redis',
+    igual(familias, { oracle: 'sql', postgres: 'sql', sqlite: 'sql', sqlserver: 'sql', mysql: 'sql', mongodb: 'documentos', redis: 'claves' }),
     j(familias)
   )
-  const eFam = lanza(() => familiaDe('mysql' as DbMotor))
-  check("familiaDe('mysql') LANZA «Motor desconocido» (como descriptor)", eFam === 'Motor desconocido: "mysql".', String(eFam))
+  const eFam = lanza(() => familiaDe('db2' as DbMotor))
+  check("familiaDe('db2') LANZA «Motor desconocido» (como descriptor)", eFam === 'Motor desconocido: "db2".', String(eFam))
   check(
-    'IDS_MOTORES_SQL = oracle, postgres, sqlite y sqlserver, en el orden del registro',
-    igual(IDS_MOTORES_SQL, ['oracle', 'postgres', 'sqlite', 'sqlserver']),
+    'IDS_MOTORES_SQL = oracle, postgres, sqlite, sqlserver y mysql, en el orden del registro',
+    igual(IDS_MOTORES_SQL, ['oracle', 'postgres', 'sqlite', 'sqlserver', 'mysql']),
     j(IDS_MOTORES_SQL)
   )
   const porSql = porMotorSql((d) => d.sesion.versionMinima)
-  check('porMotorSql: una entrada por motor SQL, y ninguna de otra familia', igual(porSql, { oracle: 11, postgres: 12, sqlite: 3, sqlserver: 11 }), j(porSql))
+  check('porMotorSql: una entrada por motor SQL, y ninguna de otra familia', igual(porSql, { oracle: 11, postgres: 12, sqlite: 3, sqlserver: 11, mysql: 8 }), j(porSql))
   const candados = porMotor(candadoSoloLecturaDe)
   check(
-    'candadoSoloLecturaDe de los seis: el de la sesión en SQL, listaBlanca en MongoDB y Redis',
+    'candadoSoloLecturaDe de los siete: el de la sesión en SQL, listaBlanca en MongoDB y Redis',
     igual(candados, {
       oracle: 'transaccionSoloLectura',
       postgres: 'envoltorioRollback',
       sqlite: 'autorizador',
       sqlserver: 'clasificadorYEnvoltorio',
+      mysql: 'envoltorioRollback',
       mongodb: 'listaBlanca',
       redis: 'listaBlanca'
     }),

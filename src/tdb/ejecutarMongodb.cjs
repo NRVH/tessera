@@ -2,14 +2,16 @@
 // La EJECUCIÓN de una sentencia interpretada contra un cliente de MongoDB: `ejecutar` devuelve
 // documentos con su cursor (abierto solo si hay más), un valor, el resultado de una escritura o
 // la base elegida; `siguientes` pide más documentos. Cancelar es `signal` en lo que lo admite y
-// `comment: 'tessera:<id>'` siempre; las escrituras no aceptan `signal` y no se simula.
-// Depende de `erroresMongodb.cjs` y `literalesMongodb.cjs`; lo usan `mongoComun.cjs` y las sesiones.
+// `comment: 'tessera:<id>'` siempre; las escrituras no aceptan `signal`, y las para quien cancela con
+// un `killOp` por ese `comment` (`sesionMongodb.cjs`).
+// Depende de `erroresMongodb.cjs`, `literalesMongodb.cjs` y `sentenciaMongodb.cjs`; lo usan `mongoComun.cjs` y las sesiones.
 // Decisiones: docs/decisiones/bd/mongodb-conexion-y-tipos.md
 // =============================================================================
 'use strict'
 
 const { errorUso } = require('./erroresMongodb.cjs')
 const { esDocumentoPlano } = require('./literalesMongodb.cjs')
+const { ESCRITURA_COLECCION: ESCRITURAS } = require('./sentenciaMongodb.cjs')
 
 function exigirBase(base) {
   if (typeof base !== 'string' || base === '') throw errorUso('No hay base elegida: escribe «use <base>» antes.')
@@ -35,6 +37,53 @@ function entero(x, que) {
 
 function escritura(parcial) {
   return { tipo: 'escritura', casados: 0, modificados: 0, insertados: 0, borrados: 0, ...parcial }
+}
+
+const VERBOSIDADES = ['queryPlanner', 'executionStats', 'allPlansExecution']
+const CONFIRMACION = { ok: 1 }
+
+/** Las opciones que pone la cadena de un cursor: `.hint()` y `.maxTimeMS()`. */
+function opcionesDeCadena(s) {
+  const o = {}
+  for (const c of s.cadena) {
+    if (c.metodo === 'hint') {
+      if (typeof c.args[0] !== 'string' && !esDocumentoPlano(c.args[0])) {
+        throw errorUso('«hint» pide el nombre del índice entre comillas o su clave { … }.')
+      }
+      o.hint = c.args[0]
+    } else if (c.metodo === 'maxTimeMS') {
+      o.maxTimeMS = Math.max(0, entero(c.args[0], 'maxTimeMS'))
+    }
+  }
+  return o
+}
+
+/** Con qué detalle se explica (null = la sentencia no explica). Sin argumento, con las estadísticas de ejecución. */
+function verbosidadDe(s) {
+  const c = s.cadena.find((x) => x.metodo === 'explain')
+  if (!c) return null
+  const v = c.args[0] === undefined ? 'executionStats' : c.args[0]
+  if (!VERBOSIDADES.includes(v)) throw errorUso(`«explain» admite ${VERBOSIDADES.map((x) => `"${x}"`).join(', ')}.`)
+  return v
+}
+
+/** El nombre de una colección nueva: texto no vacío, sin `$` ni NUL. */
+function nombreNuevo(x, que) {
+  if (typeof x !== 'string' || x === '' || x.includes('$') || x.includes('\u0000')) {
+    throw errorUso(`${que} tiene que ser un texto no vacío, sin «$».`)
+  }
+  return x
+}
+
+/** El nombre estándar de un índice a partir de su clave (`{ a: 1, b: -1 }` -> `a_1_b_-1`), o el nombre dado. */
+function nombreDeIndice(x) {
+  if (typeof x === 'string' && x !== '') return x
+  if (esDocumentoPlano(x) && Object.keys(x).length > 0) {
+    return Object.entries(x)
+      .map(([k, v]) => `${k}_${typeof v === 'object' && v !== null ? v.valueOf() : v}`)
+      .join('_')
+  }
+  throw errorUso('«dropIndex» pide el nombre del índice entre comillas o su clave { … }.')
 }
 
 /** Cierra un cursor sin que un fallo (ya cerrado, conexión caída) importe. */
@@ -68,7 +117,8 @@ async function resultadoCursor(crear, max, coleccion, explicar, signal) {
   const cursor = crear(0, signal)
   if (explicar) {
     try {
-      return { tipo: 'valor', valor: await cursor.explain() }
+      // `plan`: el resultado es un explain, que la sesión convierte al plan que enseña el visor.
+      return { tipo: 'valor', valor: await cursor.explain(explicar), plan: true }
     } finally {
       await cerrarCursor(cursor)
     }
@@ -82,7 +132,7 @@ async function resultadoCursor(crear, max, coleccion, explicar, signal) {
 function creadorFind(col, s, max, comun) {
   const a = s.args
   const filtro = doc(a[0], 'El filtro')
-  const opciones = opcionesDe(a[2], 'find')
+  const opciones = { ...opcionesDe(a[2], 'find'), ...opcionesDeCadena(s) }
   let orden = null
   let proyeccion = a[1] === undefined || a[1] === null ? null : doc(a[1], 'La proyección')
   let limite = 0
@@ -109,7 +159,7 @@ function creadorFind(col, s, max, comun) {
 function creadorAggregate(destino, s, max, comun) {
   const pipeline = s.args[0] === undefined ? [] : s.args[0]
   if (!Array.isArray(pipeline)) throw errorUso('«aggregate» pide una lista de etapas: [ { … }, … ].')
-  const opciones = opcionesDe(s.args[1], 'aggregate')
+  const opciones = { ...opcionesDe(s.args[1], 'aggregate'), ...opcionesDeCadena(s) }
   return (saltar, signal) => {
     const o = { ...opciones, ...comun, promoteValues: false, batchSize: max }
     if (signal) o.signal = signal
@@ -148,6 +198,9 @@ async function ejecutarDb(c) {
       return { tipo: 'valor', valor: await db.command({ dbStats: 1, ...conComment }, o.signal ? { signal: o.signal } : {}) }
     case 'aggregate':
       return resultadoCursor(creadorAggregate(db, s, max, conComment), max, null, explicar, o.signal)
+    case 'createCollection':
+      await db.createCollection(nombreNuevo(s.args[0], 'El nombre de la colección'), { ...opcionesDe(s.args[1], 'createCollection'), ...conComment })
+      return { tipo: 'valor', valor: CONFIRMACION }
     default:
       throw errorUso(`«db.${s.metodo}()» no está admitido.`)
   }
@@ -167,6 +220,13 @@ async function lecturaDeColeccion(c, col) {
       return { tipo: 'valor', valor: await col.countDocuments(doc(a[0], 'El filtro'), { ...opcionesDe(a[1], 'countDocuments'), ...conSignal }) }
     case 'estimatedDocumentCount':
       return { tipo: 'valor', valor: await col.estimatedDocumentCount({ ...opcionesDe(a[0], 'estimatedDocumentCount'), ...conComment }) }
+    case 'getIndexes':
+      return { tipo: 'valor', valor: await col.listIndexes(conSignal).toArray() }
+    case 'stats': {
+      // `$collStats` en vez de `collStats`: el comando está en desuso y `$collStats` lo cubre el rol `read`.
+      const r = await col.aggregate([{ $collStats: { storageStats: {} } }], { ...conSignal, promoteValues: false }).toArray()
+      return { tipo: 'valor', valor: r.length === 1 ? r[0] : r }
+    }
     default: {
       // `distinct` va como comando: `col.distinct` no admite `signal`.
       if (typeof a[0] !== 'string' || a[0] === '') throw errorUso('«distinct» pide el nombre del campo entre comillas.')
@@ -198,10 +258,50 @@ async function escrituraDeColeccion(c, col) {
       const r = await col[s.metodo](filtro, a[1], { ...opcionesDe(a[2], s.metodo), ...conComment })
       return escritura({ casados: r.matchedCount, modificados: r.modifiedCount, insertados: r.upsertedCount || 0 })
     }
-    default: {
+    case 'deleteOne':
+    case 'deleteMany': {
       const r = await col[s.metodo](doc(a[0], 'El filtro'), { ...opcionesDe(a[1], s.metodo), ...conComment })
       return escritura({ borrados: r.deletedCount })
     }
+    default:
+      return escrituraDeEstructura(c, col)
+  }
+}
+
+/** `findOneAnd…`: devuelve el documento (el de antes, o el de después con `returnDocument: "after"`). */
+async function findOneAnd(c, col) {
+  const { s, conComment } = c
+  const a = s.args
+  const conCambio = s.metodo !== 'findOneAndDelete'
+  if (conCambio && (a[1] === undefined || a[1] === null)) throw errorUso(`«${s.metodo}» pide el cambio (segundo argumento).`)
+  const opc = { ...opcionesDe(a[conCambio ? 2 : 1], s.metodo), ...conComment, promoteValues: false }
+  // El nombre antiguo de la opción, el que muchos recuerdan.
+  if (opc.returnNewDocument === true) opc.returnDocument = 'after'
+  delete opc.returnNewDocument
+  const filtro = doc(a[0], 'El filtro')
+  const valor = conCambio ? await col[s.metodo](filtro, a[1], opc) : await col.findOneAndDelete(filtro, opc)
+  return { tipo: 'valor', valor }
+}
+
+/** Las que cambian la estructura de la colección (índices, nombre, existencia) y los `findOneAnd…`. */
+async function escrituraDeEstructura(c, col) {
+  const { s, conComment } = c
+  const a = s.args
+  switch (s.metodo) {
+    case 'findOneAndUpdate':
+    case 'findOneAndReplace':
+    case 'findOneAndDelete':
+      return findOneAnd(c, col)
+    case 'drop':
+      return { tipo: 'valor', valor: await col.drop(conComment) }
+    case 'renameCollection':
+      await col.rename(nombreNuevo(a[0], 'El nombre nuevo'), { dropTarget: a[1] === true, ...conComment })
+      return { tipo: 'valor', valor: CONFIRMACION }
+    case 'createIndex':
+      if (!esDocumentoPlano(a[0]) || Object.keys(a[0]).length === 0) throw errorUso('«createIndex» pide la clave del índice: { campo: 1 }.')
+      return { tipo: 'valor', valor: await col.createIndex(a[0], { ...opcionesDe(a[1], 'createIndex'), ...conComment }) }
+    default:
+      return { tipo: 'valor', valor: await col.dropIndex(nombreDeIndice(a[0]), conComment) }
   }
 }
 
@@ -210,6 +310,7 @@ async function ejecutarColeccion(c) {
   const col = db.collection(s.coleccion)
   switch (s.metodo) {
     case 'find':
+      if (s.cadena.some((x) => x.metodo === 'count')) return contarFind(c, col)
       return resultadoCursor(creadorFind(col, s, max, conComment), max, s.coleccion, explicar, o.signal)
     case 'aggregate':
       return resultadoCursor(creadorAggregate(col, s, max, conComment), max, s.coleccion, explicar, o.signal)
@@ -217,18 +318,19 @@ async function ejecutarColeccion(c) {
     case 'countDocuments':
     case 'estimatedDocumentCount':
     case 'distinct':
+    case 'getIndexes':
+    case 'stats':
       return lecturaDeColeccion(c, col)
-    case 'insertOne':
-    case 'insertMany':
-    case 'updateOne':
-    case 'updateMany':
-    case 'replaceOne':
-    case 'deleteOne':
-    case 'deleteMany':
-      return escrituraDeColeccion(c, col)
     default:
-      throw errorUso(`«${s.metodo}» no está admitido.`)
+      if (!ESCRITURAS.has(s.metodo)) throw errorUso(`«${s.metodo}» no está admitido.`)
+      return escrituraDeColeccion(c, col)
   }
+}
+
+/** `find(filtro).count()`: cuenta lo que casa con el filtro, sin `limit` ni `skip` (como el shell). */
+async function contarFind(c, col) {
+  const { s, conSignal } = c
+  return { tipo: 'valor', valor: await col.countDocuments(doc(s.args[0], 'El filtro'), { ...opcionesDeCadena(s), ...conSignal }) }
 }
 
 /** Ejecuta una sentencia interpretada. `o`: `maxDocumentos`, `signal`, `comment`. */
@@ -242,7 +344,7 @@ async function ejecutar(cliente, base, s, o = {}) {
   if (s.tipo === 'show') return ejecutarShow(cliente, base, s, conSignal, conComment)
   if (!s || s.tipo !== 'metodo') throw errorUso('Sentencia desconocida.')
   exigirBase(base)
-  const explicar = s.cadena.some((c) => c.metodo === 'explain')
+  const explicar = verbosidadDe(s)
   const c = { db: cliente.db(base), s, base, max, o, conSignal, conComment, explicar }
   return s.coleccion === null ? ejecutarDb(c) : ejecutarColeccion(c)
 }

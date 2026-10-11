@@ -8,8 +8,11 @@
 import type { DbTipoLogico } from './db-explorador-ipc.ts'
 import type { DbDocTipo } from './db-documentos-ipc.ts'
 
-/** Qué operadores admite una columna. `id` es el `_id`/ObjectId de Mongo (sin «contiene»). */
-export type DbCategoriaFiltro = 'texto' | 'numero' | 'fecha' | 'booleano' | 'id' | 'otro'
+/**
+ * Qué operadores admite una columna. `id` es el `_id`/ObjectId de Mongo (sin «contiene»).
+ * `textoLargo` es un texto que el servidor no compara con «=» (`sinComparacion`).
+ */
+export type DbCategoriaFiltro = 'texto' | 'textoLargo' | 'numero' | 'fecha' | 'booleano' | 'id' | 'otro'
 
 export type DbOperadorFiltro =
   | 'contiene'
@@ -53,6 +56,7 @@ export const MAX_VALOR_FILTRO = 4000
 
 export const OPERADORES_POR_CATEGORIA: Readonly<Record<DbCategoriaFiltro, readonly DbOperadorFiltro[]>> = {
   texto: ['contiene', 'empiezaPor', 'igual', 'distinto', 'vacio', 'noVacio'],
+  textoLargo: ['contiene', 'empiezaPor', 'vacio', 'noVacio'],
   numero: ['igual', 'distinto', 'mayor', 'menor', 'entre', 'vacio', 'noVacio'],
   fecha: ['igual', 'distinto', 'mayor', 'menor', 'entre', 'vacio', 'noVacio'],
   booleano: ['igual', 'distinto', 'vacio', 'noVacio'],
@@ -77,6 +81,31 @@ export const ETIQUETA_OPERADOR: Readonly<Record<DbOperadorFiltro, string>> = {
 export function aridad(op: DbOperadorFiltro): 0 | 1 | 2 {
   if (op === 'vacio' || op === 'noVacio') return 0
   return op === 'entre' ? 2 : 1
+}
+
+/** Por motor, los tipos (`DbColumnaResultado.tipoMotor`) que el servidor no compara con «=» ni ordena. */
+const SIN_COMPARACION: Readonly<Record<string, RegExp>> = {
+  sqlserver: /^(n?text|xml|image|geography|geometry)$/i,
+  postgres: /^((xml|json)(\[\])?|point|line|lseg|box|path|polygon|circle)$/i,
+  oracle: /^(n?clob|blob|bfile|xmltype|long|long raw)$/i
+}
+
+/**
+ * ¿El servidor rechaza comparar con «=» u ordenar esta columna? Lo demás del filtro guiado sí vale:
+ * va convertido a texto. La cabecera no las ordena y el filtro les quita «=» y «≠».
+ */
+export function sinComparacion(motor: string, tipoMotor: string): boolean {
+  return SIN_COMPARACION[motor]?.test(tipoMotor) ?? false
+}
+
+/**
+ * Categoría de una columna SQL de un motor: la de su tipo lógico, o `textoLargo` si no admite «=». En
+ * Oracle el filtro no convierte la columna a texto (`XMLTYPE` o `LONG` tampoco admiten LIKE): solo vacío.
+ */
+export function categoriaDeColumnaSql(motor: string, c: { tipoLogico: DbTipoLogico; tipoMotor: string }): DbCategoriaFiltro {
+  const categoria = categoriaDeTipoLogico(c.tipoLogico)
+  if (categoria !== 'texto' || !sinComparacion(motor, c.tipoMotor)) return categoria
+  return motor === 'oracle' ? 'otro' : 'textoLargo' // motor-fijo: solo en Oracle XMLTYPE y LONG tampoco admiten LIKE
 }
 
 /** Categoría de una columna SQL por su tipo lógico (`DbColumnaResultado.tipoLogico`). */
@@ -196,6 +225,7 @@ export function problemaDeValor(categoria: DbCategoriaFiltro, valor: string | un
       return leerBooleano(valor) === null ? 'Escribe true o false.' : null
     case 'id':
     case 'texto':
+    case 'textoLargo':
     case 'otro':
       return null
     default: {

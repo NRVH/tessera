@@ -121,15 +121,27 @@ interface PropioDelDialecto {
   replaceEsDml: boolean
   /** `VACUUM … INTO 'archivo'` existe y escribe una copia (SQLite). */
   vacuumInto: boolean
+  /**
+   * `SELECT … INTO OUTFILE|DUMPFILE 'archivo'` escribe un archivo EN EL SERVIDOR, y
+   * `LOCK IN SHARE MODE` bloquea como un `FOR SHARE` (MySQL).
+   */
+  intoOutfile: boolean
+  /**
+   * Los verbos propios de MySQL (USE, DESCRIBE, HELP, LOAD DATA, XA, `BEGIN NOT ATOMIC`…), que
+   * `clasificarSqlMysql.ts` clasifica cuando están en `verbosDelDialecto`.
+   */
+  verbosDeMysql: boolean
 }
 
 /** Por dialecto y exhaustiva: uno nuevo no compila hasta que dé la suya. */
 export const PROPIO: Readonly<Record<DialectoSql, PropioDelDialecto>> = {
-  oracle: { reindexConTipo: false, replaceEsDml: false, vacuumInto: false, alterDatabaseFueraDeTx: false },
-  postgres: { reindexConTipo: true, replaceEsDml: false, vacuumInto: false, alterDatabaseFueraDeTx: false },
-  sqlite: { reindexConTipo: false, replaceEsDml: true, vacuumInto: true, alterDatabaseFueraDeTx: false },
+  oracle: { reindexConTipo: false, replaceEsDml: false, vacuumInto: false, alterDatabaseFueraDeTx: false, intoOutfile: false, verbosDeMysql: false },
+  postgres: { reindexConTipo: true, replaceEsDml: false, vacuumInto: false, alterDatabaseFueraDeTx: false, intoOutfile: false, verbosDeMysql: false },
+  sqlite: { reindexConTipo: false, replaceEsDml: true, vacuumInto: true, alterDatabaseFueraDeTx: false, intoOutfile: false, verbosDeMysql: false },
   // T-SQL no tiene REINDEX (es ALTER INDEX … REBUILD), ni `REPLACE INTO`, ni VACUUM.
-  sqlserver: { reindexConTipo: false, replaceEsDml: false, vacuumInto: false, alterDatabaseFueraDeTx: true }
+  sqlserver: { reindexConTipo: false, replaceEsDml: false, vacuumInto: false, alterDatabaseFueraDeTx: true, intoOutfile: false, verbosDeMysql: false },
+  // MySQL: `REPLACE INTO t …` borra la fila que choca y la vuelve a insertar: un DML.
+  mysql: { reindexConTipo: false, replaceEsDml: true, vacuumInto: false, alterDatabaseFueraDeTx: false, intoOutfile: true, verbosDeMysql: true }
 }
 
 /** La clasificación de partida: `otra`, que cuenta como que escribe (lo desconocido no pasa en solo lectura). */

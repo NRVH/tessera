@@ -27,6 +27,7 @@ import { ORACLE } from './oracle.ts'
 import { POSTGRES } from './postgres.ts'
 import { SQLITE } from './sqlite.ts'
 import { SQLSERVER } from './sqlserver.ts'
+import { MYSQL } from './mysql.ts'
 import { MONGODB } from './mongodb.ts'
 import { REDIS } from './redis.ts'
 
@@ -78,6 +79,7 @@ export const MOTORES: { readonly [M in DbMotor]: DescriptorMotor<M> } = {
   postgres: POSTGRES,
   sqlite: SQLITE,
   sqlserver: SQLSERVER,
+  mysql: MYSQL,
   mongodb: MONGODB,
   redis: REDIS
 }

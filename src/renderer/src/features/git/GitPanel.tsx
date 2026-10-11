@@ -1,7 +1,7 @@
 // =============================================================================
 // GitPanel: la columna lateral de git, SOLO el working-tree del proyecto en las
 // cuatro secciones de `git status` (Conflictos, Preparados, Cambios, Sin versionar);
-// con varios repos, una sección colapsable por repo. No pide datos: `repoStatuses`
+// con varios repos, una sección colapsable por repo y un botón que las pliega o despliega todas. No pide datos: `repoStatuses`
 // baja de `useEstadoGit`, que ya los carga para el badge y las decoraciones, y así
 // la lista y el badge no discrepan. La historia vive en `GitLogPanel`.
 // Ver docs/decisiones/git/cambios-lista-y-marcas.md.
@@ -15,7 +15,7 @@ import type { DiffTarget, OpenFile } from '../editor'
 import { EstadoVacio, IconoCarpetaVacia } from '../../comun/EstadoVacio'
 import { CambiosPorRepo } from './CambiosPorRepo'
 import { asegurarEstilosGit } from './estilosGit'
-import { IconoRecargar } from './iconos'
+import { IconoPlegarRepos, IconoRecargar } from './iconos'
 import { computeRepoLabels } from './modelo/rutasArchivo'
 
 export interface GitPanelProps {
@@ -93,12 +93,13 @@ export function GitPanel(props: GitPanelProps): React.JSX.Element {
   const projectHostPath = activeProject?.projectHostPath ?? null
   const repoHostPath = activeRepo?.repoHostPath ?? null
 
-  const { isRepoExpanded, onToggleRepo } = useExpansionRepos(
+  const { isRepoExpanded, onToggleRepo, setExpandedOverride } = useExpansionRepos(
     projectHostPath,
     repoStatuses,
     repoHostPath,
     onSelectRepo
   )
+  const plegado = plegadoRepos(repos, isRepoExpanded, setExpandedOverride)
 
   // El CSS scoped se inyecta en un efecto de LAYOUT: con un useEffect el panel se vería un frame sin estilos.
   useLayoutEffect(() => asegurarEstilosGit(), [])
@@ -111,6 +112,7 @@ export function GitPanel(props: GitPanelProps): React.JSX.Element {
         repoUnico={repos !== null && repos.length === 1 ? repos[0].name : null}
         deshabilitado={projectHostPath === null}
         girando={(refrescando || repoStatuses === null) && projectHostPath !== null}
+        plegado={projectHostPath === null ? null : plegado}
         onRescanRepos={onRescanRepos}
         onWorktreeChanged={onWorktreeChanged}
       />
@@ -164,7 +166,11 @@ function useExpansionRepos(
   repoStatuses: RepoStatus[] | null,
   repoActivo: string | null,
   onSelectRepo: (repoHostPath: string) => void
-): { isRepoExpanded: (repo: string) => boolean; onToggleRepo: (repo: string) => void } {
+): {
+  isRepoExpanded: (repo: string) => boolean
+  onToggleRepo: (repo: string) => void
+  setExpandedOverride: (o: Record<string, boolean>) => void
+} {
   const [expandedOverride, setExpandedOverride] = useState<Record<string, boolean>>({})
   useLayoutEffect(() => setExpandedOverride({}), [projectHostPath])
 
@@ -187,17 +193,43 @@ function useExpansionRepos(
     // EXPANDIR también ACTIVA: el historial de abajo sigue al repo que abres.
     if (!estaba && repo !== repoActivo) onSelectRepo(repo)
   }
-  return { isRepoExpanded, onToggleRepo }
+  return { isRepoExpanded, onToggleRepo, setExpandedOverride }
+}
+
+/** El botón de plegar o desplegar todos los repos: solo con más de uno. */
+interface PlegadoRepos {
+  /** ¿Hay alguno abierto? Entonces el botón pliega; si no, despliega. */
+  plegar: boolean
+  onClick: () => void
+}
+
+/**
+ * Plegar todos cierra cada repo a mano; desplegar vuelve a lo de por defecto (abiertos los que tienen
+ * cambios): abrir también los limpios solo llenaría la lista de secciones vacías.
+ */
+function plegadoRepos(
+  repos: DetectedRepo[] | null,
+  isRepoExpanded: (repo: string) => boolean,
+  setExpandedOverride: (o: Record<string, boolean>) => void
+): PlegadoRepos | null {
+  if (repos === null || repos.length < 2) return null
+  const plegar = repos.some((r) => isRepoExpanded(r.repoHostPath))
+  return {
+    plegar,
+    onClick: () => setExpandedOverride(plegar ? Object.fromEntries(repos.map((r) => [r.repoHostPath, false])) : {})
+  }
 }
 
 function CabeceraCambios(props: {
   repoUnico: string | null
   deshabilitado: boolean
   girando: boolean
+  plegado: PlegadoRepos | null
   onRescanRepos?: () => void
   onWorktreeChanged?: () => void
 }): React.JSX.Element {
-  const { repoUnico, deshabilitado, girando, onRescanRepos, onWorktreeChanged } = props
+  const { repoUnico, deshabilitado, girando, plegado, onRescanRepos, onWorktreeChanged } = props
+  const etiquetaPlegado = plegado?.plegar ? 'Plegar todos los repositorios' : 'Desplegar los repositorios con cambios'
   return (
     <div
       className="sidebar-header"
@@ -219,6 +251,11 @@ function CabeceraCambios(props: {
           <span className="repo-label" title={repoUnico}>
             {repoUnico}
           </span>
+        )}
+        {plegado !== null && (
+          <button className="git-icon-btn" onClick={plegado.onClick} title={etiquetaPlegado} aria-label={etiquetaPlegado}>
+            <IconoPlegarRepos plegar={plegado.plegar} />
+          </button>
         )}
         <button
           className="git-icon-btn"

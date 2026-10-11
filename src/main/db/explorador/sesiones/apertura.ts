@@ -8,9 +8,10 @@ import type { DbConnection } from '../../../../shared/db-ipc.ts'
 import type { DbErrorSql, DbEstadoTx } from '../../../../shared/db-explorador-ipc.ts'
 import { esErrorCola } from '../colaSesion.ts'
 import { MENSAJES, tieneTxPendiente } from '../maquinaSesion.ts'
+import { esProduccion } from '../produccion.ts'
 import { MAX_CONSOLAS_VIVAS_POR_CONEXION, TIMEOUT_SQL_META_MS } from '../limites.ts'
-import { esFalloTrabajador, type PeticionSinIdDe, type RespuestasPorOp } from '../protocoloTrabajador.ts'
-import { ErrorGestor, mensajeDe, mensajePerdida, motivoDeClase, motivoDeRechazo, textoError } from './errores.ts'
+import { conTunel, esFalloTrabajador, type PeticionSinIdDe, type RespuestasPorOp } from '../protocoloTrabajador.ts'
+import { destinoPorTunel, ErrorGestor, mensajeDe, mensajePerdida, motivoDeClase, motivoDeRechazo, textoError } from './errores.ts'
 import type { EsquemaConsola } from './esquemaConsola.ts'
 import type { NucleoSesiones } from './NucleoSesiones.ts'
 import type { Procesos } from './procesos.ts'
@@ -59,16 +60,19 @@ export class Apertura {
     const secreto = this.n.secretoDe(con)
     const archivo = this.n.archivoDe(con)
     if (s.rol === 'consola') this.hacerSitioConsola(s)
-    // Una sola lectura para la máquina y para el trabajador: los dos con el MISMO valor.
-    const soloLectura = this.n.ro(con)
-    const ef = this.n.aplicar(s, { tipo: 'abrir', ahora: this.n.ahora(), soloLectura })
+    // Al trabajador, solo la impuesta: así vuelve a probar la escritura de una base de archivo
+    // cuya carpeta no la admitía; la máquina abre con la que se conoce y `abierta` la corrige.
+    const soloLectura = this.n.roImpuesta(con)
+    const ef = this.n.aplicar(s, { tipo: 'abrir', ahora: this.n.ahora(), soloLectura: this.n.ro(con) })
     if (!ef.some((e) => e.tipo === 'abrirSesion')) {
       if (s.estado.fase === 'lista') return
       throw new ErrorGestor('ocupada', MENSAJES.ocupada)
     }
     this.n.efectosSincronos(s, ef)
     let p: Proceso
+    let destino: { host: string; port: number } | null
     try {
+      destino = await destinoPorTunel(this.n.deps.tunel, con)
       p = await this.proc.procesoPara(con, s)
     } catch (e) {
       this.n.aplicar(s, { tipo: 'errorAbrir', ahora: this.n.ahora() })
@@ -80,12 +84,13 @@ export class Apertura {
     this.n.log(`abrir ${s.rol} de ${con.id} en el proceso #${p.id}`)
     let respuesta: RespuestasPorOp['abrir']
     try {
-      respuesta = await p.trabajador.enviar<'abrir'>(this.peticionAbrir(s, con, archivo, secreto, soloLectura))
+      respuesta = await p.trabajador.enviar<'abrir'>(this.peticionAbrir(s, con, archivo, secreto, soloLectura, destino))
     } catch (e) {
       throw this.falloAlAbrir(s, p, e)
     }
     s.driver = { modo: respuesta.modo, driverId: respuesta.driverId, version: respuesta.version }
     if (respuesta.driverId) p.driverId = respuesta.driverId
+    const soloLecturaReal = this.anotarCarpeta(s, con, soloLectura, respuesta.carpetaSinEscritura === true)
     let esquema = respuesta.esquema
     if (s.rol === 'consola') {
       s.esquemaConexion = respuesta.esquema
@@ -93,7 +98,7 @@ export class Apertura {
       // abierta: el selector no llega a ver el de la conexión entre medias.
       esquema = await this.esq.reaplicarEsquema(s, p, con, respuesta.esquema)
     }
-    const ef2 = this.n.aplicar(s, { tipo: 'abierta', ahora: this.n.ahora(), esquema })
+    const ef2 = this.n.aplicar(s, { tipo: 'abierta', ahora: this.n.ahora(), esquema, soloLectura: soloLecturaReal })
     if (ef2.some((e) => e.tipo === 'cerrarSesion')) {
       // Se cerró (o se perdió) mientras abría: la sesión recién abierta es huérfana.
       this.n.enviarCerrarEn(p, s.idTrabajador)
@@ -103,19 +108,36 @@ export class Apertura {
     this.avisarAlAbrir(con.id, respuesta.driverId)
   }
 
+  /**
+   * Anota lo que dijo la apertura sobre la carpeta (antes de `abierta`: lo que emite la máquina ya
+   * dice por qué es de solo lectura) y devuelve la solo lectura real de la sesión.
+   */
+  private anotarCarpeta(s: Sesion, con: DbConnection, soloLectura: boolean, sinEscritura: boolean): boolean {
+    if (soloLectura) return true
+    const eraPorCarpeta = this.n.porCarpeta(con.id)
+    this.n.anotarCarpeta(con.id, sinEscritura)
+    // La carpeta vuelve a admitir escritura: la consola abrió en el Auto forzado por la solo
+    // lectura, y una de producción o con la preferencia en Manual tiene que volver a Manual.
+    if (eraPorCarpeta && !sinEscritura && s.rol === 'consola') {
+      s.manualPendiente ??= esProduccion(con) ? 'produccion' : 'preferencia'
+    }
+    return sinEscritura
+  }
+
   /** El mensaje `abrir` del trabajador. El contexto de drivers se pide aquí, justo antes de enviar. */
   private peticionAbrir(
     s: Sesion,
     con: DbConnection,
     archivo: string | null,
     secreto: string,
-    soloLectura: boolean
+    soloLectura: boolean,
+    destino: { host: string; port: number } | null
   ): PeticionSinIdDe<'abrir'> {
     return {
       op: 'abrir',
       sesion: s.idTrabajador,
       rol: s.rol,
-      conexion: aConexionTrabajador(con, archivo, soloLectura),
+      conexion: conTunel(aConexionTrabajador(con, archivo, soloLectura), destino),
       secreto,
       ctx: this.n.deps.ctxDrivers(),
       opciones: {

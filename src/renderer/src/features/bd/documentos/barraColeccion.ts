@@ -84,7 +84,11 @@ export function ordenarPor(e: EstadoConsulta, consultar: Consultar, columna: str
   void consultar(c)
 }
 
-/** El texto con el que se abre la consola: el `find` de la colección (y `use` si la base no es la fija). */
+/**
+ * El texto con el que se abre la consola: el `find` de la colección, y `use` si la base no es la
+ * fija. La consola ya nace en esa base, pero eso vive en memoria: el `use` va en el archivo y
+ * la sigue diciendo tras reiniciar.
+ */
 export function textoDeConsola(baseFija: string | undefined, base: string, coleccion: string, aplicado: ConsultaColeccion): string {
   const col = /^[A-Za-z_$][\w$]*$/.test(coleccion) ? `db.${coleccion}` : `db.getCollection(${JSON.stringify(coleccion)})`
   // `;` y línea en blanco: son DOS sentencias para el divisor de la consola (un salto de

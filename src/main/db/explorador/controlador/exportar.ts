@@ -22,10 +22,12 @@ import {
   TIPOS_CON_DATOS
 } from '../../../../shared/db-explorador-ipc.ts'
 import type { DbMotor } from '../../../../shared/db-ipc.ts'
-import { descriptorSql, esMotor } from '../../../../shared/motores/index.ts'
+import { descriptor, descriptorSql, esDeDocumentos, esMotor } from '../../../../shared/motores/index.ts'
 import { dialectoDeMotor } from '../../../../shared/sql/dialectosSql.ts'
 
+import { escritorJsonDocumentos, origenDocumentos, productorDocumentos } from '../documentos/exportarDocumentos.ts'
 import { filasDePagina, type OpcionesDialogoGuardar, type ProductorExportacion } from '../exportacion.ts'
+import type { FormatoExportacionDocs } from '../protocoloTrabajador.ts'
 import { ErrorGestor, MENSAJE_FILA_DESAPARECIDA, type RefConsola } from '../GestorSesiones.ts'
 import { construirConsultaTabla, detalleDeErrorRejilla, esErrorRejilla } from '../sqlRejilla.ts'
 import { columnasClave, construirConsultaValor, esErrorValor, valorDeLectura } from '../valorCelda.ts'
@@ -181,6 +183,8 @@ export class ExportarExplorador {
       if (!esObjeto(req.origen)) return fallo('interno', 'Petición inválida: falta «origen».')
       if (this.c.exportador.enMarcha(peticionId)) return fallo('ocupada', 'Esa exportación ya está en curso.')
       const origen = req.origen
+      const deDocumentos = origen.tipo === 'coleccion' || origen.tipo === 'sentencia'
+      if (deDocumentos && formato !== 'json' && formato !== 'csv') return fallo('interno', 'Petición inválida: los documentos se exportan en JSON o CSV.')
       // El productor se arma DENTRO de la exportación ya apuntada (`preparar`): lee el
       // catálogo (la PK, el sinónimo) y un Stop en ese tramo tiene que valer, o el
       // diálogo de guardar se abriría sobre una pestaña ya cerrada. `exportar` apunta la
@@ -191,7 +195,8 @@ export class ExportarExplorador {
         nombreSugerido,
         motor: req.motor,
         ...(tablaInsert !== undefined ? { tablaInsert } : {}),
-        preparar: () => this.productorExportacion(origen, peticionId),
+        preparar: () => this.productorExportacion(origen, peticionId, formato),
+        ...(deDocumentos && formato === 'json' ? { escritor: escritorJsonDocumentos } : {}),
         ventana
       })
       return ok(exportado)
@@ -199,11 +204,24 @@ export class ExportarExplorador {
   }
 
   /** Valida el origen y devuelve quién produce sus páginas. Lanza `ErrorGestor`. */
-  private async productorExportacion(o: Record<string, unknown>, peticionId: string): Promise<ProductorExportacion> {
+  private async productorExportacion(o: Record<string, unknown>, peticionId: string, formato: DbFormatoFilas): Promise<ProductorExportacion> {
     if (o.tipo === 'filas') return this.productorFilas(o)
     if (o.tipo === 'consulta') return this.productorConsulta(o, peticionId)
     if (o.tipo === 'tabla') return this.productorTabla(o, peticionId)
+    if ((o.tipo === 'coleccion' || o.tipo === 'sentencia') && (formato === 'json' || formato === 'csv')) {
+      return this.productorDocumentos(o, formato, peticionId)
+    }
     throw new ErrorGestor('interno', 'Petición inválida: origen desconocido.')
+  }
+
+  /** Origen `coleccion` o `sentencia` (MongoDB): se vuelve a leer por páginas del trabajador. */
+  private productorDocumentos(o: Record<string, unknown>, formato: FormatoExportacionDocs, peticionId: string): ProductorExportacion {
+    const gestor = this.c.opciones.exportarDocumentos
+    if (!gestor) throw new ErrorGestor('interno', 'Este motor no se puede exportar desde aquí.')
+    const origen = origenDocumentos(o, formato)
+    const motor = this.c.conexionOError(origen.conexionId).motor
+    if (!esMotor(motor) || !esDeDocumentos(descriptor(motor))) throw new ErrorGestor('interno', 'Esa conexión no es de documentos.')
+    return productorDocumentos(gestor, origen, formato, peticionId)
   }
 
   /** Origen `filas`: las que el renderer ya tiene, validadas. */

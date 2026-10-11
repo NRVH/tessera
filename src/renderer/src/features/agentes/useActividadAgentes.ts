@@ -7,9 +7,11 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import type { Agente } from '../../../../main/profiles/types'
+import type { AgentMotivoEspera } from '../../../../shared/agent-terminal-ipc'
 import {
   applyActivity,
   clearActivityKeys,
+  dejarDeVer,
   markSeen,
   pruneActivity,
   sincronizarActividad,
@@ -26,7 +28,9 @@ export interface ActividadAgentes {
   activity: ActivityState
   /** Claves que trabajan ahora. */
   trabajandoSet: Set<string>
-  activityAttention: { unseenProfiles: Set<string>; workingProfiles: Set<string> }
+  /** Claves que te esperan (lo dice el agente). */
+  esperandoSet: Set<string>
+  activityAttention: { unseenProfiles: Set<string>; workingProfiles: Set<string>; esperandoProfiles: Set<string> }
 }
 
 /** Qué se está mirando AHORA: la regla única de «visto» (suscripción y marca). */
@@ -60,7 +64,7 @@ function useSuscripcionActividad(claveVistaRef: { current: string | null }): voi
       window.tessera.agentTerminal.onActivity((msg) => {
         const key = agentTargetKey(msg.profileId, msg.projectHostPath, msg.agente as Agente)
         const isActive = key === claveVistaRef.current
-        actualizarActividad((s) => applyActivity(s, key, msg.state, isActive))
+        actualizarActividad((s) => applyActivity(s, key, msg.state, isActive, msg.motivo ?? null))
       }),
     [claveVistaRef]
   )
@@ -71,11 +75,13 @@ function useSuscripcionActividad(claveVistaRef: { current: string | null }): voi
         .activitySnapshot()
         .then((fotos) => {
           const vivos: Record<string, AgentWork> = {}
+          const esperando = new Map<string, AgentMotivoEspera | null>()
           for (const msg of fotos) {
             const key = agentTargetKey(msg.profileId, msg.projectHostPath, msg.agente as Agente)
             vivos[key] = msg.state === 'working' ? 'working' : 'idle'
+            if (msg.state === 'blocked') esperando.set(key, msg.motivo ?? null)
           }
-          actualizarActividad((s) => sincronizarActividad(s, vivos))
+          actualizarActividad((s) => sincronizarActividad(s, vivos, esperando))
         })
         .catch(() => {
           // Sin foto se sigue con lo que haya: el main acabará emitiendo el cierre.
@@ -99,7 +105,12 @@ export function useActividadAgentes(
   const claveVistaRef = useRef(claveVistaActual)
   claveVistaRef.current = claveVistaActual
   useSuscripcionActividad(claveVistaRef)
+  // Lo que dejas de mirar sin contestar vuelve a avisar; lo que miras queda visto.
+  const vistaAnterior = useRef<string | null>(null)
   useEffect(() => {
+    const anterior = vistaAnterior.current
+    vistaAnterior.current = claveVistaActual
+    if (anterior && anterior !== claveVistaActual) actualizarActividad((s) => dejarDeVer(s, anterior))
     if (claveVistaActual) actualizarActividad((s) => markSeen(s, claveVistaActual))
   }, [claveVistaActual])
   const targetsAgente: OpenAgentTarget[] = agentes.targetsAgente
@@ -117,15 +128,18 @@ export function useActividadAgentes(
   const activityAttention = useMemo(() => {
     const unseenProfiles = new Set<string>()
     const workingProfiles = new Set<string>()
+    const esperandoProfiles = new Set<string>()
     for (const t of targetsAgente) {
       if (activity.unseen.has(t.key)) unseenProfiles.add(t.profileId)
       if (activity.raw[t.key] === 'working') workingProfiles.add(t.profileId)
+      if (activity.esperando.has(t.key)) esperandoProfiles.add(t.profileId)
     }
-    return { unseenProfiles, workingProfiles }
+    return { unseenProfiles, workingProfiles, esperandoProfiles }
   }, [targetsAgente, activity])
   const trabajandoSet = useMemo(
     () => new Set(Object.keys(activity.raw).filter((k) => activity.raw[k] === 'working')),
     [activity.raw]
   )
-  return { activity, trabajandoSet, activityAttention }
+  const esperandoSet = useMemo(() => new Set(activity.esperando.keys()), [activity.esperando])
+  return { activity, trabajandoSet, esperandoSet, activityAttention }
 }

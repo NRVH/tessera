@@ -6,6 +6,7 @@
 // =============================================================================
 import { useEffect } from 'react'
 import { pegarRecortado } from '../../util/pasteTrim'
+import { PaletaColorPerfil } from './SelectorColorPerfil'
 
 /** Cierra el popover con Escape o con cualquier mousedown (el propio popover lo detiene). */
 function useCierrePopover(onCancel: () => void): void {
@@ -65,10 +66,7 @@ export function CrearPerfilPopover({
           if (e.key === 'Enter') onSubmit()
         }}
       />
-      <label className="profile-create-color">
-        <span>Color</span>
-        <input type="color" value={color} onChange={(e) => onColor(e.target.value)} />
-      </label>
+      <PaletaColorPerfil color={color} onElegir={onColor} />
       <div className="profile-create-actions">
         <button className="btn" onClick={onCancel}>
           Cancelar

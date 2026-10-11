@@ -8,11 +8,16 @@
 // =============================================================================
 'use strict'
 
+const { contexto, ENV_DRIVERS } = require('./tdbContexto.cjs')
+// En Linux el cliente Oracle necesita sus carpetas en LD_LIBRARY_PATH desde el arranque: si faltan,
+// este proceso se relanza con ellas, espera al relanzado y no sigue de aquí (el `return` es el del
+// módulo). Va antes de leer nada de la entrada estándar.
+if (require('./bibliotecasOracle.cjs').relanzarSiFaltan(process.env[ENV_DRIVERS] || '')) return
+
 const { existsSync, readFileSync } = require('node:fs')
 // Qué motores hay, su adaptador y el destino de `ls`. Sin drivers en su cadena de carga.
 const motoresTdb = require('./motores.cjs')
 const { fallar } = require('./tdbSalida.cjs')
-const { contexto } = require('./tdbContexto.cjs')
 const { adaptador, buscarConexion } = require('./tdbConexiones.cjs')
 const { cmdLs } = require('./tdbLs.cjs')
 const { cmdTest, ejecutarConsulta } = require('./tdbConsulta.cjs')

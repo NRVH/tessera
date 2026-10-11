@@ -83,10 +83,22 @@ export interface EstadoCli {
   /** Orden para copiar y pegar cuando NO es instalable (o como ayuda si falló). */
   ordenManual: string | null
   /**
-   * ¿Hay una versión nueva que instalar? `ultima` > `instalada` y, en Codex, con el
-   * binario de ESTA plataforma ya publicado (npm publica `latest` minutos antes).
+   * ¿Hay algo que instalar? `ultima` > `instalada`, o `reparar`; en Codex, con el
+   * binario de ESTA plataforma ya servido (npm publica `latest` minutos antes).
    */
   hayNueva: boolean
+  /**
+   * Está instalado pero no responde a `--version` (p. ej. una instalación a la que le
+   * faltó el binario de la plataforma) y su gestor lo reinstala sin ejecutarlo: lo que
+   * se instale es una REPARACIÓN, con `ultima` como destino. Si además está `hayNueva`,
+   * se ofrece; si no, espera a `binarioPendiente`.
+   */
+  reparar: boolean
+  /**
+   * Hay algo que instalar (versión nueva o reparación), pero el registro aún no sirve el
+   * binario de ESTA plataforma: no se ofrece hasta que lo sirva.
+   */
+  binarioPendiente: boolean
   /** Procesos ajenos a Tessera que bloquearían la instalación (Windows). */
   bloqueadores: ProcesoBloqueador[]
   /** Último error de sonda o de consulta, en español y para el usuario; null si no hubo. */

@@ -206,13 +206,14 @@ hr('(4) Atajos: la misma tabla para la terminal y el agente, en las dos platafor
 {
   interface Tecla {
     key: string
+    code?: string
     ctrlKey?: boolean
     metaKey?: boolean
     shiftKey?: boolean
     altKey?: boolean
     type?: string
   }
-  function probar(plataforma: 'windows' | 'mac', t: Tecla, opciones: { seleccion?: boolean; puedeBuscar?: boolean } = {}): string {
+  function probar(plataforma: 'windows' | 'mac' | 'linux', t: Tecla, opciones: { seleccion?: boolean; puedeBuscar?: boolean } = {}): string {
     const hechos: string[] = []
     const term = { hasSelection: () => opciones.seleccion ?? false, clearSelection: () => hechos.push('limpiar') }
     const manejar = crearManejadorAtajos(
@@ -228,6 +229,8 @@ hr('(4) Atajos: la misma tabla para la terminal y el agente, en las dos platafor
     const e = {
       type: t.type ?? 'keydown',
       key: t.key,
+      code: t.code ?? '',
+      getModifierState: () => false,
       ctrlKey: t.ctrlKey ?? false,
       metaKey: t.metaKey ?? false,
       shiftKey: t.shiftKey ?? false,
@@ -270,6 +273,18 @@ hr('(4) Atajos: la misma tabla para la terminal y el agente, en las dos platafor
     )
     check(`${pl}: keyup no es nuestro`, probar(pl, { key: 'f', type: 'keyup', ...mod }) === 'true:', probar(pl, { key: 'f', type: 'keyup', ...mod }))
   }
+  // El acorde del agente sube a la ventana sin pasar por el pty ni prevenirse: en Linux xterm
+  // lo traduciría a ESC ^B y lo cancelaría.
+  const acordeAgente = { key: 'b', code: 'KeyB', ctrlKey: true, altKey: true }
+  for (const pl of ['windows', 'linux'] as const) {
+    check(`${pl}: Ctrl+Alt+B sube a la ventana`, probar(pl, acordeAgente) === 'false:', probar(pl, acordeAgente))
+  }
+  check(
+    'mac: ⌥⌘B sube a la ventana',
+    probar('mac', { key: '∫', code: 'KeyB', metaKey: true, altKey: true }) === 'false:',
+    probar('mac', { key: '∫', code: 'KeyB', metaKey: true, altKey: true })
+  )
+  check('linux: Ctrl+B sin Alt sigue llegando al pty', probar('linux', { key: 'b', code: 'KeyB', ctrlKey: true }) === 'true:', probar('linux', { key: 'b', code: 'KeyB', ctrlKey: true }))
 }
 
 hr('RESULTADO DE VERIFICACIONES (PASS/FAIL)')

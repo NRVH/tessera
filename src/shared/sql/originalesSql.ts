@@ -126,7 +126,8 @@ export function comparacionOriginal(d: DialectoSql, tipo: string): ComparacionOr
       return comparacionOriginalSqlite(tipo)
     case 'postgres':
     case 'sqlserver':
-      // SQL Server identifica como PG ('unicaNoNula', sin pseudo-columna): nunca por 'rowid'.
+    case 'mysql':
+      // SQL Server y MySQL identifican como PG ('unicaNoNula', sin pseudo-columna): nunca por 'rowid'.
       return null
     default:
       return nunca(d, 'comparacionOriginal')

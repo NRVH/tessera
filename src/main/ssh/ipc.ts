@@ -5,9 +5,10 @@
 // Decisiones: docs/decisiones/ssh/registro-y-claves.md
 // =============================================================================
 import type { IpcMain } from 'electron'
-import { SSH_CHANNELS, type SshConexionInput, type SshMetodo } from '../../shared/ssh-ipc.ts'
+import { SSH_CHANNELS, SSH_LOTE_MAX, type SshActividadPerfil, type SshConexionInput, type SshExportarOpenSsh, type SshMetodo, type SshTipoTunel, type SshTunel } from '../../shared/ssh-ipc.ts'
 import { esObjeto } from '../util/valores.ts'
 import type { ControladorSsh } from './ControladorSsh.ts'
+import type { DialogoAskpass } from './controlador/dialogoAskpass.ts'
 
 const MAL_FORMADA = 'Petición de conexiones SSH mal formada'
 
@@ -54,7 +55,21 @@ export function entradaSshDe(v: unknown): SshConexionInput {
   const clave = claveDe(o.clave)
   if (clave !== undefined) entrada.clave = clave
   if (typeof o.secreto === 'string') entrada.secreto = o.secreto
+  if (o.saltoId !== undefined) entrada.saltoId = o.saltoId === null ? null : texto(o, 'saltoId')
+  if (o.tuneles !== undefined) entrada.tuneles = tunelesDe(o.tuneles)
   return entrada
+}
+
+/** Los túneles con la forma del contrato: una lista de objetos; lo que vale cada campo lo decide el registro. */
+function tunelesDe(v: unknown): SshTunel[] {
+  if (!Array.isArray(v)) throw new Error(`${MAL_FORMADA}: «tuneles» tiene que ser una lista.`)
+  return v.map((t) => {
+    const o = objeto(t, 'un túnel')
+    const tunel: SshTunel = { tipo: texto(o, 'tipo') as SshTipoTunel, puerto: o.puerto as number }
+    if (o.destinoHost !== undefined) tunel.destinoHost = texto(o, 'destinoHost')
+    if (o.destinoPuerto !== undefined) tunel.destinoPuerto = o.destinoPuerto as number
+    return tunel
+  })
 }
 
 /** La carpeta del agente de la terminal, tal como la usan sus dos canales (`controlador/espacioTerminal.ts`). */
@@ -69,12 +84,29 @@ export interface DependenciasIpcSsh {
   ssh: ControladorSsh
   /** Sin ella no se registran los dos canales de la carpeta del agente de la terminal. */
   espacio?: EspacioTerminalIpc
+  /** Las preguntas de ssh que contesta el usuario; sin él no se registra `ASKPASS_RESPONDER`. */
+  dialogo?: Pick<DialogoAskpass, 'responder'>
+  /** La actividad de los agentes con `tssh` de un perfil; sin ella no se registra `ACTIVIDAD`. */
+  actividad?: (profileId: string) => Promise<SshActividadPerfil>
 }
 
 /** Los ids de `ESPACIO_RUTAS`: una lista, de la que se descarta lo que no sea un texto. */
 function idsDe(v: unknown): string[] {
   if (!Array.isArray(v)) throw new Error(`${MAL_FORMADA}: «profileIds» tiene que ser una lista.`)
   return v.filter((id): id is string => typeof id === 'string')
+}
+
+/** Las ids de un lote (`BORRAR_VARIAS`, `MOVER`): una lista de textos, con tope. */
+function loteDe(v: unknown): string[] {
+  if (!Array.isArray(v) || !v.every((id) => typeof id === 'string')) throw new Error(`${MAL_FORMADA}: «ids» tiene que ser una lista de textos.`)
+  if (v.length > SSH_LOTE_MAX) throw new Error(`${MAL_FORMADA}: «ids» trae más de ${SSH_LOTE_MAX}.`)
+  return v
+}
+
+/** La petición de `EXPORTAR_OPENSSH`: el perfil y, si vienen, las ids. */
+function peticionExportar(req: unknown): SshExportarOpenSsh {
+  const o = objeto(req, 'la petición')
+  return { profileId: texto(o, 'profileId'), ...(o.ids === undefined ? {} : { ids: loteDe(o.ids) }) }
 }
 
 /** Los dos canales de la carpeta del agente de la terminal. */
@@ -84,19 +116,33 @@ function registrarIpcEspacio(ipc: Pick<IpcMain, 'handle'>, espacio: EspacioTermi
 }
 
 /**
- * Registra los trece canales invocables de `SSH_CHANNELS` y, con `espacio`, los dos de la carpeta del
- * agente de la terminal (`CAMBIO` y `AVISO` los emite el controlador).
+ * Registra los dieciséis canales invocables del controlador y, si llegan sus dependencias, los dos de la carpeta
+ * del agente de la terminal (`espacio`), la respuesta del diálogo de contraseñas (`dialogo`) y la actividad
+ * de los agentes (`actividad`). `CAMBIO`, `AVISO` y las preguntas del diálogo los emite el main.
  */
-export function registrarIpcSsh({ ipc, ssh, espacio }: DependenciasIpcSsh): void {
+export function registrarIpcSsh({ ipc, ssh, espacio, dialogo, actividad }: DependenciasIpcSsh): void {
+  if (actividad) ipc.handle(SSH_CHANNELS.ACTIVIDAD, (_e, req: unknown) => actividad(texto(objeto(req, 'la petición'), 'profileId')))
   ipc.handle(SSH_CHANNELS.LISTAR, () => ssh.listar())
   ipc.handle(SSH_CHANNELS.CREAR, (_e, input: unknown) => ssh.crear(entradaSshDe(input)))
   ipc.handle(SSH_CHANNELS.EDITAR, (_e, req: unknown) => {
     const o = objeto(req, 'la petición')
     return ssh.editar({ id: texto(o, 'id'), input: entradaSshDe(o.input) })
   })
+  ipc.handle(SSH_CHANNELS.DUPLICAR, (_e, req: unknown) => {
+    const o = objeto(req, 'la petición')
+    return ssh.duplicar({ id: texto(o, 'id'), profileId: texto(o, 'profileId') })
+  })
   ipc.handle(SSH_CHANNELS.BORRAR, (_e, req: unknown) => {
     const o = objeto(req, 'la petición')
     return ssh.borrar({ id: texto(o, 'id'), profileId: texto(o, 'profileId') })
+  })
+  ipc.handle(SSH_CHANNELS.BORRAR_VARIAS, (_e, req: unknown) => {
+    const o = objeto(req, 'la petición')
+    return ssh.borrarVarias({ ids: loteDe(o.ids), profileId: texto(o, 'profileId') })
+  })
+  ipc.handle(SSH_CHANNELS.MOVER, (_e, req: unknown) => {
+    const o = objeto(req, 'la petición')
+    return ssh.mover({ ids: loteDe(o.ids), profileId: texto(o, 'profileId'), grupoId: o.grupoId === null ? null : texto(o, 'grupoId') })
   })
   ipc.handle(SSH_CHANNELS.GRUPO_CREAR, (_e, req: unknown) => {
     const o = objeto(req, 'la petición')
@@ -120,7 +166,16 @@ export function registrarIpcSsh({ ipc, ssh, espacio }: DependenciasIpcSsh): void
     return ssh.claveSoltada({ profileId: texto(o, 'profileId'), ruta: texto(o, 'ruta') })
   })
   ipc.handle(SSH_CHANNELS.IMPORTAR_OPENSSH, (_e, req: unknown) => ssh.leerOpenSsh({ profileId: texto(objeto(req, 'la petición'), 'profileId') }))
+  ipc.handle(SSH_CHANNELS.EXPORTAR_OPENSSH, (_e, req: unknown) => ssh.exportarOpenSsh(peticionExportar(req)))
   ipc.handle(SSH_CHANNELS.PROBAR, (_e, req: unknown) => ssh.probar({ id: texto(objeto(req, 'la petición'), 'id') }))
   ipc.handle(SSH_CHANNELS.HUELLA_OLVIDAR, (_e, req: unknown) => ssh.olvidarHuella({ id: texto(objeto(req, 'la petición'), 'id') }))
   if (espacio) registrarIpcEspacio(ipc, espacio)
+  if (dialogo) {
+    ipc.handle(SSH_CHANNELS.ASKPASS_RESPONDER, (_e, req: unknown) => {
+      const o = objeto(req, 'la petición')
+      const r = o.respuesta
+      if (r !== null && typeof r !== 'string') throw new Error(`${MAL_FORMADA}: «respuesta» tiene que ser un texto o null.`)
+      dialogo.responder(texto(o, 'id'), r)
+    })
+  }
 }

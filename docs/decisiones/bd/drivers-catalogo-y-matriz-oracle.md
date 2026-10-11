@@ -1,7 +1,7 @@
 # Catálogo de clientes Oracle: un pack puede cubrir más de lo que Oracle soporta, y lo dice
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/db/driverPacks.ts` (macOS: sin verificar aquí)
+- **Ámbito:** `src/main/db/driverPacks.ts`, `zipConEnlaces.ts`, `src/tdb/bibliotecasOracle.cjs`, `src/tdb/zipPlano.cjs` (macOS: sin verificar aquí)
 
 ## Contexto
 
@@ -21,9 +21,21 @@ alcanzan a 11.2 sin haberlo medido: el Instant Client 23.26 de Windows entra en 
 - macOS: un solo pack, el Instant Client 23 arm64, que Oracle publica solo como .dmg. Cubre 11.2 y superior con el
   aviso de 11.2–18c. Su URL es la versionada con su SHA-256, no el enlace «permanente» (sirve la 23.3): subir de
   versión es un cambio que se revisa y exige volver a pasar `test:db-oracle` contra una 11.2. Sus dylibs piden
-  macOS 13 y Tessera admite el 12: allí el pack se lista sin descarga y con el porqué. Sin pack para Intel ni Linux.
+  macOS 13 y Tessera admite el 12: allí el pack se lista sin descarga y con el porqué. Sin pack para Intel.
+- Linux x64: el Instant Client 19.28 Basic Light, el mismo de Windows en zip (soportado desde 11.2). Su zip trae los
+  `.so` como ENLACES simbólicos (`libclntsh.so -> libclntsh.so.19.1`), que `fflate` da como si fueran el contenido:
+  los dos instaladores (el main, `zipConEnlaces.ts`, y `tdb driver install`, `zipPlano.cjs`) leen del directorio
+  central cuáles son enlaces y los crean como enlaces, solo hacia un nombre de la misma carpeta. Con `libDir` no basta:
+  el enlazador busca las dependencias de `libclntsh.so` en `LD_LIBRARY_PATH`, que solo se lee al arrancar el
+  proceso. `tdb` se relanza una vez con él (`bibliotecasOracle.cjs`) y el main lo pone en el entorno del proceso de
+  sesión del explorador (`entornoClienteOracle.ts`); nunca en el de las terminales, donde estorbaría a otros
+  clientes de Oracle del usuario. Ubuntu 24.04 renombró `libaio.so.1` a `libaio.so.1t64`: si solo está esa, un
+  enlace `libaio.so.1` en `<drivers>/oracle/compat-linux` la cubre; si no hay ninguna, el error dice qué instalar.
 
 ## Descartes
 
 - Un `centinela: string` compartido con alternativas («oci.dll o libclntsh.dylib»): en Windows aceptaría una
   carpeta de Mac copiada por error y el fallo aparecería al cargar la librería.
+- Linux: poner `LD_LIBRARY_PATH` en el entorno de las terminales para que `tdb` no se relance: cada programa del
+  usuario cargaría las librerías de este Instant Client. Y precargar las dependencias por ruta antes de
+  `initOracleClient`: el Instant Client abre otras por nombre en tiempo de ejecución, y `libaio` no casaría por nombre.

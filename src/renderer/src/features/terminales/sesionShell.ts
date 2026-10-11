@@ -8,6 +8,7 @@
 
 import { normalizarErrorIpc } from '../../../../shared/dockerErrors'
 import type { OpenTerminalResult } from '../../../../shared/terminal-ipc'
+import { bannerFinSsh } from './finSesionSsh'
 import type { EstadoSesion } from './useEstadoTerminalPane'
 import type { OrigenTerminal, RefsTerminal } from './terminalPaneTipos'
 
@@ -50,12 +51,19 @@ export async function abrirSesion(c: ContextoSesion): Promise<void> {
   estado.setExitCode(null)
   estado.setError(null)
   estado.setDatosRecibidos(false)
+  estado.setFinSsh(null)
   try {
     const res = await abrirPty(c)
     // Desmontado durante el open: no dejar la sesión huérfana en el main.
     if (!refs.term.current) {
       void window.tessera.terminal.close(res.sessionId)
       return
+    }
+    // Una SSH que se vuelve a abrir (tras cancelar o fallar) empieza limpia, como al reconectar: si no, lo
+    // escrito antes asoma bajo el «Conectando a…». Tras el éxito, para que un fallo no borre el historial.
+    if (c.origen.tipo === 'ssh' && refs.hasOpenedOnce.current) {
+      refs.flow.current?.reset()
+      term.reset()
     }
     refs.session.current = res.sessionId
     refs.hasOpenedOnce.current = true
@@ -115,6 +123,7 @@ async function relanzar(c: ContextoSesion, id: string): Promise<void> {
     term.reset()
     refs.inicioSesion.current = Date.now()
     estado.setDatosRecibidos(false)
+    estado.setFinSsh(null)
     estado.setExitCode(null)
     estado.setStatus('live')
     requestAnimationFrame(() => {
@@ -130,6 +139,30 @@ async function relanzar(c: ContextoSesion, id: string): Promise<void> {
   } finally {
     estado.setReloading(false)
   }
+}
+
+/** Lo que se dice al cancelar una conexión SSH que aún no ha dicho nada. */
+export const MOTIVO_CANCELADA = 'Conexión cancelada'
+
+/**
+ * Cancela una conexión SSH que aún no ha dicho nada: cierra su sesión en el main y deja el pane como una
+ * apertura fallida (`error` sin sesión), así reconectar vuelve a abrir desde cero. La sesión se suelta
+ * ANTES de cerrarla: su fin ya no es de este pane y no debe escribir el aviso de «se cortó».
+ */
+export function cancelarConexion(c: ContextoSesion): void {
+  const { refs, estado } = c
+  const id = refs.session.current
+  const term = refs.term.current
+  if (!id || !term || estado.reloading) return
+  refs.session.current = null
+  refs.flow.current?.reset()
+  void window.tessera.terminal.close(id)
+  estado.setSessionId(null)
+  estado.setStatus('error')
+  estado.setFinSsh(MOTIVO_CANCELADA)
+  term.write(`\r\n\x1b[38;2;224;108;117m${bannerFinSsh(MOTIVO_CANCELADA)}\x1b[0m\r\n`)
+  // El botón pulsado desaparece y se lleva el foco: sin devolverlo, el Intro que anuncia el aviso no llega.
+  term.focus()
 }
 
 /** Acción del botón de reinicio: `open` reintenta el arranque; `reload` relanza la sesión viva. */

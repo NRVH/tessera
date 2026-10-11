@@ -400,12 +400,12 @@ async function main(): Promise<void> {
   check(
     // También el de la consola de SQLite.
     'un registro por lenguaje, aunque se llame dos veces',
-    j(registros.map((r) => r.lenguaje)) === j(['sql', 'pgsql', 'tessera-oracle-sql', 'tessera-sqlite-sql']),
+    j(registros.map((r) => r.lenguaje)) === j(['sql', 'mysql', 'pgsql', 'tessera-oracle-sql', 'tessera-sqlite-sql']),
     j(registros.map((r) => r.lenguaje))
   )
   check('el mismo proveedor para los tres', registros[0].proveedor === registros[1].proveedor && registros[1].proveedor === registros[2].proveedor, 'identidad')
   check('triggerCharacters = ["."]', j(registros[0].proveedor.triggerCharacters) === '["."]', j(registros[0].proveedor.triggerCharacters))
-  check('y la acción de código en todos', j(acciones) === j(['sql', 'pgsql', 'tessera-oracle-sql', 'tessera-sqlite-sql']), j(acciones))
+  check('y la acción de código en todos', j(acciones) === j(['sql', 'mysql', 'pgsql', 'tessera-oracle-sql', 'tessera-sqlite-sql']), j(acciones))
   // El lenguaje de la consola de cada motor sale de su descriptor; uno nuevo que no esté
   // en `LENGUAJES_SQL` se quedaría sin autocompletado sin que nada fallara. Solo los motores
   // SQL: MongoDB y Redis no tienen consola SQL.
@@ -424,7 +424,7 @@ async function main(): Promise<void> {
   ]
   check(
     'un motor nuevo con su lenguaje: entra, sin repetidos y sin mover los de hoy',
-    j(lenguajesConsolaSql(MAS)) === j(['sql', 'pgsql', 'tessera-oracle-sql', 'tessera-sqlite-sql']),
+    j(lenguajesConsolaSql(MAS)) === j(['sql', 'mysql', 'pgsql', 'tessera-oracle-sql', 'tessera-sqlite-sql']),
     j(lenguajesConsolaSql(MAS))
   )
   check('LENGUAJES_SQL es lo que sale del registro', j(LENGUAJES_SQL) === j(lenguajesConsolaSql()), j(LENGUAJES_SQL))

@@ -6,7 +6,7 @@
 // =============================================================================
 import { useShallow } from 'zustand/react/shallow'
 import { ActivityBar } from './ActivityBar'
-import { fijadoresLayout, useStoreLayout } from './store'
+import { fijadoresLayout, salirDePantallaCompleta, useStoreLayout } from './store'
 import type { VistasPorPerfil } from './useVistasPorPerfil'
 import type { ZonaEnfocada } from '../../util/zonaEnfocada'
 
@@ -27,7 +27,7 @@ export function RielActividad({ vistas, zonaEnfocada, worktreeCount }: Props): R
       active={vistas.activeView}
       onSelect={(view) => {
         // A pantalla completa la columna lateral está tapada: elegir una vista sale del modo.
-        fijadoresLayout.franjaPantallaCompleta(null)
+        salirDePantallaCompleta()
         vistas.setActiveView(view)
       }}
       order={activityBarOrder}

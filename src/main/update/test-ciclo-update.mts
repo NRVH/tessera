@@ -3,12 +3,13 @@
 // Prueba del CICLO de actualización con un `SistemaUpdate` falso (npm run test:ciclo-update):
 // el ciclo sin inicializar (`planDeCierre` da «ninguno» y no lanza), `sembrarDesdeMarcador` con
 // un marcador real en una `userData` temporal (preparada, aplicada y fallida) y `planDeCierre`
-// empaquetada con y sin descarga lista. Sin `electron`: las rutas entran por `fijarInfoApp` y el
+// empaquetada con y sin descarga lista, y `anticiparRelevo` (cuándo lanza el relevo y que un cierre
+// abortado lo cancela). Sin `electron`: las rutas entran por `fijarInfoApp` y el
 // resto por el doble; el resolver-hook solo reintenta con `.ts` los imports sin extensión.
 // =============================================================================
 
 import { register } from 'node:module'
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
@@ -25,8 +26,13 @@ export async function resolve(spec, ctx, next) {
 }`
 register('data:text/javascript,' + encodeURIComponent(resolveTsHook))
 
+const raiz = mkdtempSync(path.join(tmpdir(), 'tessera-ciclo-update-'))
+// La copia del relevo vive en LOCALAPPDATA: la de la prueba, en el temporal y no en la del usuario.
+process.env.LOCALAPPDATA = path.join(raiz, 'local')
+
 const { ciclo, fijarSistema, motor, sistema, seAplicaAlCerrarAhora } = await import('./nucleo.ts')
-const { planDeCierre } = await import('./instalacion.ts')
+const { anticiparRelevo, planDeCierre, runInstaller } = await import('./instalacion.ts')
+const { dirRelevo, exeRelevo, NOMBRE_ENCARGO } = await import('./stagingRelevo.ts')
 const { sembrarDesdeMarcador } = await import('./arranque.ts')
 await import('./chequeo.ts')
 await import('./preparacionMac.ts')
@@ -34,7 +40,7 @@ const { guardarMarcador, leerMarcador, rutaMarcador } = await import('./marcador
 const { nuevoMarcador, marcadorConIntento } = await import('./marcadorUpdatePuro.ts')
 const { fijarInfoApp } = await import('../util/infoApp.ts')
 const { initialUpdateState } = await import('../../shared/update-ipc.ts')
-const { capacidades, esMac } = await import('../../shared/plataforma.ts')
+const { capacidades, esMac, esWindows } = await import('../../shared/plataforma.ts')
 type SistemaUpdate = import('./adaptadores/sistemaElectron.ts').SistemaUpdate
 
 interface CheckResult {
@@ -54,7 +60,6 @@ function hr(title: string): void {
 }
 const j = (v: unknown): string => JSON.stringify(v)
 
-const raiz = mkdtempSync(path.join(tmpdir(), 'tessera-ciclo-update-'))
 const userData = path.join(raiz, 'userData')
 mkdirSync(userData, { recursive: true })
 // En Mac la regla «¿se puede sustituir el .app?» mira el bundle del ejecutable: uno en el temporal.
@@ -241,8 +246,51 @@ try {
     )
     check('el marcador NO se borra: el siguiente arranque sigue sabiendo de esta versión', leerMarcador()?.intentos === 1, j(leerMarcador()?.intentos))
   }
+
+  // ---------------------------------------------------------------------------------
+  hr('(5) anticiparRelevo: el relevo sale al empezar el cierre, y solo cuando toca')
+  {
+    reiniciarCiclo(sistemaFalso({ version: '1.2.0' }))
+    const instalador = prepararMarcador('1.3.0')
+    ciclo.marcador = leerMarcador()
+    ciclo.state = { ...ciclo.state, status: 'installing', newVersion: '1.3.0', installerPath: instalador }
+    ciclo.motorArmado = true
+    ciclo.chequeoConcluido = true
+    if (!esWindows()) {
+      check('fuera de Windows no se lanza nada', anticiparRelevo() === false, process.platform)
+    } else {
+      // La copia del relevo, en un LOCALAPPDATA temporal: un ejecutable inocuo con el nombre de la app.
+      const encargo = path.join(dirRelevo(), NOMBRE_ENCARGO)
+      check('sin copia preparada, no se lanza', anticiparRelevo() === false && !existsSync(encargo), dirRelevo())
+      mkdirSync(dirRelevo(), { recursive: true })
+      copyFileSync(path.join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'whoami.exe'), exeRelevo())
+      writeFileSync(path.join(dirRelevo(), 'version.txt'), '1.2.0')
+      ciclo.state = { ...ciclo.state, status: 'ready' }
+      check('al cerrar con una preparada (sin relanzar), no se lanza', anticiparRelevo() === false && !existsSync(encargo), 'ready')
+      ciclo.state = { ...ciclo.state, status: 'installing' }
+      ciclo.motorArmado = false
+      check('si el feed no la confirmó, no se lanza (abortará antes de ceder nada)', anticiparRelevo() === false && !existsSync(encargo), 'motor sin armar')
+      ciclo.motorArmado = true
+      const lanzado = anticiparRelevo()
+      const leido = existsSync(encargo) ? (JSON.parse(readFileSync(encargo, 'utf8')) as { pidPadre?: number; versionNueva?: string; instalador?: string }) : null
+      check(
+        '«Actualizar ahora» con todo listo: se lanza, con el encargo de ESTE proceso',
+        lanzado && leido?.pidPadre === process.pid && leido?.versionNueva === '1.3.0' && leido?.instalador === instalador,
+        j(leido)
+      )
+      check('una segunda llamada no lanza otro', anticiparRelevo() === true, 'idempotente')
+      // Un pre-vuelo que aborta deja la app viva: el relevo esperando su muerte se cancela.
+      rmSync(instalador, { force: true })
+      writeFileSync(encargo, '{}')
+      const r = await runInstaller({ relanzar: true, origen: 'manual' })
+      check('si el cierre se aborta, el relevo se cancela (y su encargo se borra)', r === false && !existsSync(encargo), j({ r, encargo: existsSync(encargo) }))
+      writeFileSync(instalador, 'instalador de mentira')
+      check('cancelado, el siguiente «Actualizar ahora» lo vuelve a lanzar', anticiparRelevo() === true && existsSync(encargo), 'relanzado')
+    }
+  }
 } finally {
-  rmSync(raiz, { recursive: true, force: true })
+  // Con reintentos: el relevo de mentira de (5) puede seguir saliendo con su cwd en el temporal.
+  rmSync(raiz, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 })
 }
 
 const pasadas = results.filter((r) => r.pass).length

@@ -38,6 +38,7 @@ export function esContenedor(fila: FilaBd): boolean {
     case 'kv-carpeta':
       return true
     case 'objeto':
+    case 'coleccion':
       return fila.expandible
     default:
       return false

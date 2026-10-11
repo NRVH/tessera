@@ -2,6 +2,8 @@
 // Cómo se actualiza cada CLI de agente en este equipo, en puro (plataforma y arquitectura
 // por parámetro): cómo está instalado, qué orden lo actualiza y si hay que parar sus
 // sesiones antes, y por qué falló una instalación, dicho para el usuario.
+// También la orden que reinstala un CLI que ya no responde y si el registro sirve ya el
+// binario de Codex de la plataforma.
 // Lo usa el servicio de los agentes nativos; lo prueba `test-comando-actualizacion.mts`.
 // Decisiones: docs/decisiones/agentes/nativos-orden-por-metodo.md
 // =============================================================================
@@ -256,10 +258,26 @@ export function ordenActualizacion(e: {
   return ordenCodexWindows(e)
 }
 
+/** El sufijo `<so>-<arch>` del binario de Codex de esta plataforma (`win32-x64`, `darwin-arm64`). */
+function sufijoBinarioCodex(plataforma: Plataforma, arch: string): string {
+  const so = plataforma === 'windows' ? 'win32' : plataforma === 'mac' ? 'darwin' : 'linux'
+  return `${so}-${arch}`
+}
+
 /**
- * ¿Está publicado el binario de Codex de ESTA plataforma para `version`? npm publica
+ * La versión de `@openai/codex` que lleva el binario de esta plataforma para `version`
+ * (`0.161.0-win32-x64`): el paquete principal la declara como dependencia opcional.
+ */
+export function versionBinarioCodex(version: string, plataforma: Plataforma, arch: string): string {
+  return `${version}-${sufijoBinarioCodex(plataforma, arch)}`
+}
+
+/**
+ * ¿Anuncia el registro el binario de Codex de ESTA plataforma para `version`? npm publica
  * `latest` minutos antes que los paquetes de plataforma: sí solo si el dist-tag
- * `<so>-<arch>` apunta exactamente a `<version>-<so>-<arch>`.
+ * `<so>-<arch>` apunta exactamente a `<version>-<so>-<arch>`. Es condición necesaria, no
+ * suficiente: el documento de esa versión puede tardar más en servirse (ver
+ * `documentoVersionServido`).
  *
  * @param arch  La de Node (`x64`, `arm64`).
  */
@@ -270,9 +288,66 @@ export function binarioCodexPublicado(
   arch: string
 ): boolean {
   if (!esVersionExacta(version)) return false
-  const so = plataforma === 'windows' ? 'win32' : plataforma === 'mac' ? 'darwin' : 'linux'
-  const clave = `${so}-${arch}`
-  return Object.prototype.hasOwnProperty.call(distTags, clave) && distTags[clave] === `${version}-${clave}`
+  const clave = sufijoBinarioCodex(plataforma, arch)
+  return Object.prototype.hasOwnProperty.call(distTags, clave) && distTags[clave] === versionBinarioCodex(version, plataforma, arch)
+}
+
+/**
+ * ¿Es `texto` el documento de `version` tal como lo sirve el registro, con su tarball?
+ * Mientras no lo es, npm salta el binario de plataforma como dependencia opcional,
+ * termina sin error y deja el CLI sin poder arrancar.
+ */
+export function documentoVersionServido(texto: string, version: string): boolean {
+  let datos: unknown
+  try {
+    datos = JSON.parse(texto)
+  } catch {
+    return false
+  }
+  if (datos === null || typeof datos !== 'object' || Array.isArray(datos)) return false
+  const d = datos as { version?: unknown; dist?: unknown }
+  if (d.version !== version || d.dist === null || typeof d.dist !== 'object') return false
+  const tarball = (d.dist as { tarball?: unknown }).tarball
+  return typeof tarball === 'string' && /^https?:\/\/\S+$/i.test(tarball)
+}
+
+// -----------------------------------------------------------------------------
+// 2b. Reparar: el CLI está instalado pero no responde
+// -----------------------------------------------------------------------------
+
+/**
+ * ¿Se puede reinstalar `agente` instalado con `metodo` sin ejecutar el propio CLI? Solo
+ * con un gestor de paquetes JS cuya orden Tessera sabe dar: `codex update` y
+ * `claude update` necesitan un binario que arranque. Claude Code no: su método puede salir
+ * de su configuración sin que el CLI esté en el PATH, y «no responde» sería «no está».
+ */
+export function esReparable(agente: AgentKind, metodo: MetodoInstalacion): boolean {
+  if (agente === 'claude-code') return false
+  return metodo === 'npm' || metodo === 'pnpm' || metodo === 'bun'
+}
+
+/**
+ * La orden que REINSTALA `version` de un `agente` que está instalado pero no responde a
+ * `--version`: la de su gestor de paquetes en las dos plataformas, con parada en Windows
+ * (la carpeta que el gestor sustituye puede seguir abierta).
+ */
+export function ordenReparacion(e: EntradaOrden & { agente: AgentKind }): OrdenActualizacion {
+  const nombre = ETIQUETA_AGENTE[e.agente]
+  if (!esReparable(e.agente, e.metodo)) {
+    return {
+      tipo: 'manual',
+      orden: null,
+      motivo: `${nombre} no responde y Tessera no sabe reinstalarlo tal como está instalado: reinstálalo por donde lo instalaste`
+    }
+  }
+  if (!esVersionExacta(e.version)) return { tipo: 'manual', orden: null, motivo: SIN_VERSION }
+  const metodo = e.metodo as 'npm' | 'pnpm' | 'bun'
+  const paquete = e.agente === 'codex' ? PAQUETE_CODEX : PAQUETE_CLAUDE
+  return {
+    tipo: 'auto',
+    orden: ordenGestorJs(metodo, paquete, e.version, e.plataforma),
+    requiereParar: e.plataforma === 'windows'
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -343,9 +418,15 @@ function detallePermisos(e: EntradaClasificar, nombre: string): string {
   // En Windows, sin elevar se repetiría el mismo EACCES.
   const terminal =
     e.plataforma === 'windows' ? `una terminal de ${tuEquipo} abierta como administrador` : `una terminal de ${tuEquipo}`
+  // En Linux el Node de la distribución instala lo global en `/usr`, que es de root: repetir la
+  // orden sin más da el mismo EACCES, así que se dice cómo salir de ahí.
+  const linux =
+    e.plataforma === 'linux'
+      ? ' Si está en una carpeta del sistema, ejecútala con sudo o cambia el prefijo de npm a tu carpeta personal (npm config set prefix ~/.local).'
+      : ''
   return e.orden
-    ? `No hay permiso para escribir donde está instalado ${nombre}. Ejecuta esta orden en ${terminal}: ${e.orden}`
-    : `No hay permiso para escribir donde está instalado ${nombre}.`
+    ? `No hay permiso para escribir donde está instalado ${nombre}. Ejecuta esta orden en ${terminal}: ${e.orden}${linux}`
+    : `No hay permiso para escribir donde está instalado ${nombre}.${linux}`
 }
 
 /** Motivo y frase de un fallo que no es tope, en orden: bloqueo, permisos, red y genérico. */

@@ -27,6 +27,7 @@ import {
   type CargaFamilia
 } from './cacheMetaBdPuro.ts'
 import type { CargaBd } from './arbolBd.ts'
+import type { DbKvTipo } from '../../../../shared/db-claves-ipc.ts'
 import type {
   DbBasesRespuesta,
   DbColumnaInfo,
@@ -72,6 +73,8 @@ export class CacheMetaBd {
   private readonly familias: ApiFamiliasBd | null
   /** El patrón de cada base de claves filtrada, por `claveBd.kvBase`. */
   private readonly patronesKv = new Map<string, string>()
+  /** El tipo por el que se filtra cada base de claves, por `claveBd.kvBase`. */
+  private readonly tiposKv = new Map<string, DbKvTipo>()
   /** Las bases con una «Cargar más» en vuelo, por `claveBd.kvBase`. */
   private readonly kvMas = new Set<string>()
 
@@ -432,8 +435,12 @@ export class CacheMetaBd {
    * en la clave de la carga, con la MISMA deduplicación, errores e invalidación que las SQL.
    */
   private cargarFamilia(carga: CargaFamilia): Promise<DbRespuesta<unknown>> {
-    // El patrón se lee al llamar, como el resto de la petición.
-    return this.cargarEn(carga.clave, () => llamarFamilia(this.familias, carga, () => this.patronesKv.get(carga.clave) ?? ''), true)
+    // El patrón y el tipo se leen al llamar, como el resto de la petición.
+    return this.cargarEn(
+      carga.clave,
+      () => llamarFamilia(this.familias, carga, () => this.patronesKv.get(carga.clave) ?? '', () => this.tiposKv.get(carga.clave)),
+      true
+    )
   }
 
   /**
@@ -451,12 +458,13 @@ export class CacheMetaBd {
     const enVuelo = this.vuelos.get(clave)
     if (enVuelo && !enVuelo.obsoleta) return enVuelo.promesa
     const patron = this.patronesKv.get(clave) ?? ''
+    const tipo = this.tiposKv.get(clave)
     this.kvMas.add(clave)
     this.notificar()
     const p = this.pedir(
       clave,
       clave,
-      () => recorrerClaves((cursor) => f.kvEscanear(escaneoClaves(conexionId, base, patron, cursor)), previo, patron),
+      () => recorrerClaves((cursor) => f.kvEscanear(escaneoClaves(conexionId, base, patron, cursor, tipo)), previo, patron),
       (v, obsoleta) => this.datos.set(clave, { valor: v, obsoleta }),
       true
     )
@@ -482,6 +490,24 @@ export class CacheMetaBd {
     if ((this.patronesKv.get(clave) ?? '') === patron) return
     if (patron === '') this.patronesKv.delete(clave)
     else this.patronesKv.set(clave, patron)
+    this.reiniciarRecorrido(clave)
+  }
+
+  /** El tipo por el que se filtra una base de claves (undefined = todos). */
+  tipoClaves(conexionId: string, base: number): DbKvTipo | undefined {
+    return this.tiposKv.get(claveBd.kvBase(conexionId, base))
+  }
+
+  /** Cambia el tipo de una base (undefined lo quita); tira el recorrido igual que `filtrarClaves`. */
+  filtrarTipoClaves(conexionId: string, base: number, tipo: DbKvTipo | undefined): void {
+    const clave = claveBd.kvBase(conexionId, base)
+    if (this.tiposKv.get(clave) === tipo) return
+    if (tipo === undefined) this.tiposKv.delete(clave)
+    else this.tiposKv.set(clave, tipo)
+    this.reiniciarRecorrido(clave)
+  }
+
+  private reiniciarRecorrido(clave: string): void {
     this.datos.delete(clave)
     this.errores.delete(clave)
     this.vuelos.delete(clave)
@@ -498,7 +524,7 @@ export class CacheMetaBd {
   /** Lo cargado para el árbol, con la forma de `EntradaArbolBd`. Misma identidad mientras no cambie nada. */
   instantaneaArbol(): InstantaneaArbolBd {
     if (this.instantanea && this.instantanea.ver === this.ver) return this.instantanea.valor
-    const valor = construirInstantanea(this.datos, this.errores, this.patronesKv, this.kvMas)
+    const valor = construirInstantanea(this.datos, this.errores, this.patronesKv, this.tiposKv, this.kvMas)
     this.instantanea = { ver: this.ver, valor }
     return valor
   }

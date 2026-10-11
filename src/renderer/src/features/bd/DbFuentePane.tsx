@@ -13,7 +13,7 @@ import type { DbErrorSql, DbFuente, DbRespuesta } from '../../../../shared/db-ex
 import { dialectoDeMotor } from '../../../../shared/sql/dialectosSql'
 import { nombreCalificado } from '../../../../shared/sql/identificadoresSql'
 import type { DbFuentePaneProps } from './propsBd'
-import { MONACO_THEME, OPCIONES_BASE_MONACO, ensureMonaco } from '../../comun/monacoSetup'
+import { BARRAS_MONACO, MONACO_THEME, OPCIONES_BASE_MONACO, ensureMonaco } from '../../comun/monacoSetup'
 import { useVisibleLayout } from '../../comun/useVisibleLayout'
 import { AvisoCaja } from '../../comun/AvisoCaja'
 import { EstadoVacio } from '../../comun/EstadoVacio'
@@ -133,7 +133,7 @@ function crearEditorFuente(
     cursorBlinking: 'solid',
     wordBasedSuggestions: 'off',
     quickSuggestions: false,
-    scrollbar: { alwaysConsumeMouseWheel: false }
+    scrollbar: { ...BARRAS_MONACO, alwaysConsumeMouseWheel: false }
   })
   ed.layout({ width: host.clientWidth, height: host.clientHeight })
   return { ed, modelo }
@@ -356,7 +356,9 @@ export function DbFuentePane(props: DbFuentePaneProps): React.JSX.Element {
         parteActual={parteActual}
         elegirParte={elegirParte}
         refrescar={() => void cargar(true)}
-        abrirEnConsola={(texto) => onAbrirConsola(conexion.id, texto)}
+        abrirEnConsola={(texto) =>
+          onAbrirConsola(conexion.id, texto, objeto.base !== undefined ? { familia: 'sql', esquema: objeto.base } : undefined)
+        }
       />
 
       {fuente?.aviso && !error && <AvisoCaja tono="info" titulo={fuente.aviso} />}

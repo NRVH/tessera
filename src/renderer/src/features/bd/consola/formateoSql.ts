@@ -35,10 +35,10 @@ export type Formateador = (sql: string, d: DialectoSql) => string
 let carga: Promise<Formateador> | null = null
 
 async function importarFormateador(): Promise<Formateador> {
-  const { formatDialect, plsql, postgresql, sqlite, transactsql } = await import('sql-formatter')
+  const { formatDialect, plsql, postgresql, sqlite, transactsql, mysql } = await import('sql-formatter')
   // Un `Record` por nombre de dialecto de sql-formatter: si un motor pide uno que aquí
   // no se importa, no compila (en vez de caer en el de otro motor).
-  const DIALECTOS: Readonly<Record<FormateadorMotor['dialecto'], typeof plsql>> = { plsql, postgresql, sqlite, transactsql }
+  const DIALECTOS: Readonly<Record<FormateadorMotor['dialecto'], typeof plsql>> = { plsql, postgresql, sqlite, transactsql, mysql }
   return (sql, d) => {
     const f = descriptorSql(d).sql.formateador
     // Sin `parametros` NO se pasa la clave `paramTypes` (se queda la de la librería).

@@ -10,7 +10,7 @@ import { descriptorSql, etiquetasSqlDonde, type DescriptorSql, type FormaPaginad
 import { nunca } from '../../../shared/nunca.ts'
 import { marcadorPosicional, type DialectoSql } from '../../../shared/sql/dialectosSql.ts'
 import { COLUMNA_ROWID } from '../../../shared/sql/dmlRejilla.ts'
-import { citar } from '../../../shared/sql/identificadoresSql.ts'
+import { citar, citarGenerado } from '../../../shared/sql/identificadoresSql.ts'
 import type { ValorFiltroSql } from './filtroSql.ts'
 import { soloMotoresCon } from './motores/filasCatalogo.ts'
 import { motorExplorador } from './motores/index.ts'
@@ -23,6 +23,7 @@ import {
   type Clausulas
 } from './sqlRejillaClausulas.ts'
 import {
+  campoDeColumnaInexistente,
   campoDeError,
   campoDeErrorEnLinea,
   campoDeErrorEnPuntosDeCodigo
@@ -47,7 +48,7 @@ import {
 } from './sqlRejillaTipos.ts'
 
 export type { FormaPaginado }
-export { COLUMNA_ROWID, PREFIJO_COLUMNA_CLAVE, campoDeError, campoDeErrorEnLinea, campoDeErrorEnPuntosDeCodigo }
+export { COLUMNA_ROWID, PREFIJO_COLUMNA_CLAVE, campoDeColumnaInexistente, campoDeError, campoDeErrorEnLinea, campoDeErrorEnPuntosDeCodigo }
 export { detalleDeErrorRejilla, esErrorRejilla, validarFragmento }
 export type {
   BindsRejilla,
@@ -117,7 +118,8 @@ function fuenteDe(d: DialectoSql, objeto: ObjetoRejilla): string | ErrorRejilla 
   if (publico !== null && esquema === publico) {
     return fallo(`${publico} no es un esquema: hay que resolver el sinónimo antes de consultarlo.`, null, null)
   }
-  let fuente = esquema ? citar(esquema) + '.' + citar(nombre) : citar(nombre)
+  const c = (n: string): string => citarGenerado(n, d)
+  let fuente = esquema ? c(esquema) + '.' + c(nombre) : c(nombre)
   if (dblink) fuente += '@' + (DBLINK_SIN_COMILLAS.test(dblink) ? dblink : citar(dblink))
   return objeto.base ? conBase(d, objeto, esquema, fuente) : fuente
 }
@@ -192,7 +194,7 @@ export function construirConsultaTabla(p: PeticionConsultaTabla): ResultadoRejil
   }
   const fuente = fuenteDe(d, p.objeto)
   if (typeof fuente !== 'string') return fuente
-  const c = clausulasDe(d, p, true)
+  const c = clausulasDe(d, p, true, fuente)
   if ('error' in c) return c
   const cab = cabeceraDe(p, motor, fuente)
   if ('error' in cab) return cab
@@ -367,7 +369,7 @@ function consultaPaginada(
 export function construirConteo(p: PeticionConteo): ResultadoRejilla {
   const fuente = fuenteDe(p.dialecto, p.objeto)
   if (typeof fuente !== 'string') return fuente
-  const c = clausulasDe(p.dialecto, p, false)
+  const c = clausulasDe(p.dialecto, p, false, fuente)
   if ('error' in c) return c
   const base = componerBase('SELECT COUNT(*) FROM ' + fuente, c, [])
   return { sql: base.sql, binds: bindsDelFiltro(c), rangos: base.rangos, columnasExtraAlFinal: 0 }

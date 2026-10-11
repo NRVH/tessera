@@ -24,6 +24,10 @@ export interface DestinoBd {
   /** (MongoDB.) `srv` y las opciones de la URI: con ellas cambia a qué servidores y cómo se autentica. */
   srv?: unknown
   opcionesUri?: unknown
+  /** El túnel SSH: por él va la contraseña, así que otro túnel es otro destino. */
+  tunelSsh?: unknown
+  /** (Redis.) Sentinel o Cluster: la misma lista de host es otro destino si cambia a quién se le pregunta. */
+  topologiaRedis?: unknown
 }
 
 /** Caracteres hexadecimales de la huella (128 bits). */
@@ -32,8 +36,9 @@ export const LARGO_HUELLA = 32
 /**
  * La huella del destino de una conexión. DEBE dar lo mismo que `huellaDestino` de `src/tdb/tdbConectar.cjs`.
  * El archivo entra como séptimo valor solo si la entrada lo trae, y instancia, autenticación, dominio y
- * `tls` como una lista más, solo si trae alguno, y `srv` y `opcionesUri` como otra, igual: la huella de toda
- * Oracle, PG o conexión de red sin ellos es la de antes al byte.
+ * `tls` como una lista más, solo si trae alguno, `srv` y `opcionesUri` como otra, igual, y el túnel como
+ * `['ssh', conexionId]`, también solo si lo trae, y la topología de Redis como `['redis', topologia]`, igual:
+ * la huella de toda Oracle, PG o conexión de red sin ellos es la de antes al byte.
  */
 export function huellaDestino(c: DestinoBd): string {
   const valores: unknown[] = [c.motor, c.host, c.port, c.database, c.sid, c.user]
@@ -44,6 +49,11 @@ export function huellaDestino(c: DestinoBd): string {
   if (c.srv !== undefined || c.opcionesUri !== undefined) {
     valores.push([c.srv, c.opcionesUri].map((v) => (v === undefined ? null : v)))
   }
+  if (c.tunelSsh !== undefined) {
+    const id = c.tunelSsh !== null && typeof c.tunelSsh === 'object' ? (c.tunelSsh as { conexionId?: unknown }).conexionId : undefined
+    valores.push(['ssh', id === undefined ? null : id])
+  }
+  if (c.topologiaRedis !== undefined) valores.push(['redis', c.topologiaRedis])
   const campos = valores.map((v) => (v === undefined ? null : v))
   return createHash('sha256').update(JSON.stringify(campos), 'utf8').digest('hex').slice(0, LARGO_HUELLA)
 }

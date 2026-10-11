@@ -62,9 +62,10 @@ export interface OpcionMosaico {
    * mosaico con coste de backend y quien pinta la lista tiene que poder avisar.
    */
   dormido: boolean
-  /** ¿Alguno de sus agentes trabaja / terminó sin que lo mirases? */
+  /** ¿Alguno de sus agentes trabaja / terminó sin que lo mirases / te espera? */
   trabajando: boolean
   sinVer: boolean
+  esperando: boolean
 }
 
 /** Tope de teselas: lo más que la rejilla sabe repartir. */

@@ -1,7 +1,8 @@
 # El historial de consultas es un popover que filtra en el main e inserta en el cursor, nunca desde una lista vieja
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/features/bd/HistorialConsultas.tsx`, `consola/useHistorialConsultas.ts`, `consola/historialConsola.ts`
+- **Ámbito:** `src/renderer/src/features/bd/HistorialConsultas.tsx`, `consola/useHistorialConsultas.ts`, `consola/historialConsola.ts`,
+  `consola/useAnclaHistorial.ts`, `documentos/useHistorialConsolaDocs.ts`, `shared/secretosMongo.ts`
 
 ## Contexto
 
@@ -27,6 +28,12 @@ portal hasta la sección de la consola, que tiene sus propios atajos.
   teclado dejaría de responder.
 - Borrar una: la papelera de la fila, o Supr / ⌘⌫ solo con el filtro vacío.
 - Sin lista virtual: como mucho `LIMITE_HISTORIAL` (500) filas de texto.
+- **Un historial por lenguaje**: el popover es el mismo en la consola SQL y en la de MongoDB, y
+  cada una pide y borra solo el suyo (`lenguaje`, `sql` o `mongosh`; las entradas sin marca son
+  SQL). Una orden del shell insertada en SQL, o al revés, solo daría un error, y «Borrar todo»
+  desde una consola se llevaría el historial de la otra. En MongoDB se termina con `;` salvo una
+  orden de línea (`use x`, `show dbs`), y antes de guardar se tapan `pwd`, `password`, el segundo
+  argumento de `changeUserPassword` y de `db.auth` y la clave de una URI.
 
 ## Descartes
 

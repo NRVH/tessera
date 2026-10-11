@@ -100,6 +100,7 @@
   --db-marca-oracle: #c0392b;
   --db-marca-sqlite: #1f6fb2;
   --db-marca-sqlserver: #9a6100;
+  --db-marca-mysql: #00758f;
   --db-marca-mongodb: #00684a;
   --db-marca-redis: #dc382d;
 }
@@ -240,6 +241,16 @@
    `.editor-tab.in-archive`). */
 .db-arbol .tree-row.db-fila-conexion {
   position: relative;
+}
+/* Los objetos (tablas, vistas, columnas…) en `--fg-datos`, como los valores de la rejilla; la conexión,
+   la fila apuntada y la elegida, en el claro. */
+/* `:where` deja la especificidad baja: una fila que trae su propio color (la de error, en rojo)
+   lo conserva también apuntada o elegida. */
+.db-arbol :where(.tree-row) {
+  color: var(--fg-datos);
+}
+.db-arbol :where(.tree-row.db-fila-conexion, .tree-row:hover, .tree-row.active) {
+  color: var(--fg);
 }
 .db-arbol .db-fila-conexion > .marca-entorno-compacta {
   position: absolute;

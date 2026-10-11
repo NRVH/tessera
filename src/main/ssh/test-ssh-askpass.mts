@@ -4,7 +4,8 @@
 // y negativas: OTP, PIN, huella, truncadas, de otra conexión o de otra clave), las fichas, el controlador del
 // askpass sobre un puente real, el lanzador `sh` y el guion de Node, y el `.exe` de Windows de verdad. Con
 // TESSERA_TEST_SSH (`bash scripts/pruebas/ssh.sh correr npm run -s test:ssh-askpass`): «Probar» y una pestaña
-// reales con contraseña, keyboard-interactive y frase; una mala, una sola pregunta; y la huella cambiada.
+// reales con contraseña, keyboard-interactive y frase; una mala, una sola pregunta; la huella cambiada; y el
+// salto por bastiones (cada uno con su contraseña) y un túnel local.
 // Decisiones: docs/decisiones/ssh/askpass-y-secretos.md
 // =============================================================================
 
@@ -12,23 +13,26 @@ import { register } from 'node:module'
 import { spawn, spawnSync } from 'node:child_process'
 import { generateKeyPairSync } from 'node:crypto'
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import net from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { nombresSistema } from '../../shared/nombresSistema.ts'
 import { esWindows, plataformaActual, type Plataforma } from '../../shared/plataforma.ts'
-import { SSH_CHANNELS, type SshAviso, type SshConexionInput, type SshResultadoPrueba } from '../../shared/ssh-ipc.ts'
+import { SSH_CHANNELS, type SshAviso, type SshConexionInput, type SshPreguntaAskpass, type SshResultadoPrueba } from '../../shared/ssh-ipc.ts'
 import { TERMINAL_CHANNELS, type TerminalDataMessage } from '../../shared/terminal-ipc.ts'
-import { DbBridge, type OperacionPuente, type PuertaPuente } from '../db/dbBridge.ts'
+import { DbBridge, type OperacionPuente, type PuertaPuente, type RespuestaOperacion } from '../db/dbBridge.ts'
 import type { Profile } from '../profiles/types.ts'
 import type { SandboxManager } from '../sandbox/SandboxManager.ts'
 import { sinAnsi } from '../terminals/sesionSsh.ts'
+import { crearConfigSaltos } from './adaptadores/configSaltos.ts'
 import { escribirLanzadorAskpass } from './adaptadores/lanzadorAskpass.ts'
 import { asegurarCarpetaProtegida, ejecutarCorto, escribirClaveProtegida } from './adaptadores/permisosClave.ts'
 import { resolverBinariosSsh, type BinariosSsh } from './binariosSsh.ts'
 import { ConexionesSsh } from './ConexionesSsh.ts'
 import { ControladorSsh } from './ControladorSsh.ts'
 import { AskpassSsh, OP_ASKPASS } from './controlador/askpassSsh.ts'
+import { DialogoAskpass, type PreguntaUsuario } from './controlador/dialogoAskpass.ts'
 import { ClavesImportadas } from './controlador/clavesImportadas.ts'
 import { detalleSinRutas, huellaPresentada, resultadoPrueba } from './controlador/pruebaSsh.ts'
 import { FICHA_PESTANA, FICHA_PRUEBA, FichasAskpass } from './fichasAskpass.ts'
@@ -74,7 +78,7 @@ async function esperarHasta(cond: () => boolean, ms: number): Promise<boolean> {
 }
 
 const RAIZ_REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
-const MENSAJE_NO = 'Tessera no contesta esa pregunta del servidor; reconecta escribiendo en la terminal'
+const MENSAJE_NO = 'Tessera no contestó esa pregunta del servidor'
 const plataforma = plataformaActual()
 const temporales: string[] = []
 function temporal(base: string, prefijo: string): string {
@@ -228,14 +232,22 @@ try {
   {
     let t = 1_000
     const f = new FichasAskpass({ ahora: () => t })
-    check('(b0) pestaña: 2 min y 2 usos; «Probar»: 60 s', j(FICHA_PESTANA) === j({ vidaMs: 120_000, usos: 2 }) && j(FICHA_PRUEBA) === j({ vidaMs: 60_000, usos: 2 }), `${j(FICHA_PESTANA)} ${j(FICHA_PRUEBA)}`)
-    const a = f.emitir('c1', FICHA_PESTANA)
+    check(
+      '(b0) pestaña: 5 min, 8 usos y diálogo; «Probar»: 60 s y 2 usos',
+      j(FICHA_PESTANA) === j({ vidaMs: 300_000, usos: 8, dialogo: true }) && j(FICHA_PRUEBA) === j({ vidaMs: 60_000, usos: 2 }),
+      `${j(FICHA_PESTANA)} ${j(FICHA_PRUEBA)}`
+    )
+    const a = f.emitir('c1', FICHA_PRUEBA)
     check('(b1) vale dos veces y la tercera no', f.usar(a) === 'c1' && f.usar(a) === 'c1' && f.usar(a) === null, 'c1, c1, null')
     const b = f.emitir('c2', FICHA_PESTANA)
-    t += 119_999
+    t += 299_999
     const viva = f.usar(b)
     t += 2
-    check('(b2) caduca a los 2 min', viva === 'c2' && f.usar(b) === null, `${viva} y luego null`)
+    check('(b2) caduca a los 5 min', viva === 'c2' && f.usar(b) === null, `${viva} y luego null`)
+    const g = f.emitir('c5', FICHA_PESTANA)
+    const sinDar = f.secretoDado(g)
+    f.anotarSecretoDado(g)
+    check('(b8) recuerda si dio ya el secreto y si pregunta al usuario', !sinDar && f.secretoDado(g) && f.conDialogo(g) && !f.conDialogo(f.emitir('c6', FICHA_PRUEBA)), `${sinDar} -> ${f.secretoDado(g)}`)
     const c = f.emitir('c3', FICHA_PRUEBA)
     f.revocar(c)
     check('(b3) revocada no vale', f.usar(c) === null, 'null')
@@ -298,7 +310,7 @@ try {
   const op = operaciones.get(OP_ASKPASS)
   check("(c1) registra «ssh.askpass» con token 'propio'", op?.token === 'propio', j(op?.token))
   const pedir = (token: string, prompt: string): Record<string, unknown> => (op?.token === 'propio' ? op.manejar({ v: 1, token, op: OP_ASKPASS, prompt }) : {}) as Record<string, unknown>
-  const e = askpassC.entorno(conexionC('c-pw'), FICHA_PESTANA, true)
+  const e = askpassC.entorno(conexionC('c-pw'), FICHA_PRUEBA, true)
   check(
     '(c2) con secreto legible, puente y programa: SSH_ASKPASS con force, el pipe y la ficha; nunca el secreto',
     e.conAskpass && e.env.SSH_ASKPASS_REQUIRE === 'force' && e.env.TESSERA_DB_PIPE === puertaFalsa.pipe && /^[0-9a-f]{48}$/.test(e.env.TESSERA_SSH_TOKEN ?? '') && !Object.values(e.env).some((v) => v.includes('secreto')),
@@ -317,7 +329,7 @@ try {
   check('(c3) la pregunta de su contraseña se contesta con el secreto (comillas, barra y ñ intactas)', r1.ok === true && r1.respuesta === SECRETO_C, `ok=${String(r1.ok)}`)
   const r2 = pedir(e.ficha ?? '', '(pruebas@127.0.0.1) Password: ')
   const r3 = pedir(e.ficha ?? '', "pruebas@127.0.0.1's password: ")
-  check('(c4) la ficha de una pestaña contesta dos veces y la tercera no', r2.ok === true && r3.ok === false && r3.error === 'no autorizado', `${j(r2.ok)} ${j(r3)}`)
+  check('(c4) una ficha de dos usos contesta dos veces y la tercera no', r2.ok === true && r3.ok === false && r3.error === 'no autorizado', `${j(r2.ok)} ${j(r3)}`)
   check('(c5) el registro dice conexión y decisión, nunca la pregunta ni el secreto', registroC.length === 2 && registroC.every((m) => m.includes('c-pw') && m.includes('contestada') && !m.includes('password') && !m.includes('secreto')), j(registroC))
   const ficha2 = fichaDe(askpassC, conexionC('c-pw'))
   const otp = pedir(ficha2, '(pruebas@127.0.0.1) Verification code: ')
@@ -365,6 +377,116 @@ try {
     const ficha = fichasP.emitir('c-pw', FICHA_PRUEBA)
     const conFicha = puente.resolver({ v: 1, token: ficha, op: OP_ASKPASS, prompt: "pruebas@127.0.0.1's password: " }) as Record<string, unknown>
     check('(c16) el token de sesión de un agente no vale para ssh.askpass; la ficha sí', conSesion.ok === false && conSesion.error === 'no autorizado' && conFicha.ok === true, `${j(conSesion)} ${j(conFicha.ok)}`)
+  }
+
+  // ---------------------------------------------------------------------------
+  hr('I - El diálogo: lo que Tessera no contesta sola lo contesta el usuario, sin guardarlo')
+  {
+    const emitidosI: Array<[string, unknown]> = []
+    let hayVentana = true
+    const emisorI = { emitir: (canal: string, payload?: unknown) => void emitidosI.push([canal, payload]), hayDestino: () => hayVentana }
+    let vence: (() => void) | null = null
+    let n = 0
+    const dialogo = new DialogoAskpass(emisorI, { nuevoId: () => `d${++n}`, programar: (fn) => ((vence = fn), () => (vence = null)) })
+    const preguntas = (): SshPreguntaAskpass[] => emitidosI.filter(([c]) => c === SSH_CHANNELS.ASKPASS_PREGUNTA).map(([, p]) => p as SshPreguntaAskpass)
+    const registroI: string[] = []
+    const opsI = new Map<string, OperacionPuente>()
+    const askpassI = new AskpassSsh({ ...depsC, fichas: new FichasAskpass(), dialogo, log: (m: string) => registroI.push(m), puerta: { ...puertaFalsa, registrarOperacion: (o: string, x: OperacionPuente) => void opsI.set(o, x) } })
+    const opI = opsI.get(OP_ASKPASS)
+    const pedirI = (token: string, prompt: string): RespuestaOperacion | Promise<RespuestaOperacion> =>
+      opI?.token === 'propio' ? opI.manejar({ v: 1, token, op: OP_ASKPASS, prompt }) : { ok: false }
+    const tick = (): Promise<void> => new Promise((r) => setImmediate(r))
+
+    const eI = askpassI.entorno(conexionC('c-pw'), FICHA_PESTANA, true)
+    check('(i1) la pestaña con diálogo: askpass y diálogo; la línea admite tres preguntas', eI.conAskpass && eI.conDialogo && argumentosSsh(conexionC('c-pw'), { modo: 'humano', rutaHuellas: 'h', plataforma: W, conAskpass: true, conDialogo: true }).includes('NumberOfPasswordPrompts=3'), j(eI.conDialogo))
+    const primera = pedirI(eI.ficha ?? '', "pruebas@127.0.0.1's password: ")
+    check('(i2) la primera vez, el secreto guardado sin preguntar', !(primera instanceof Promise) && primera.respuesta === SECRETO_C && preguntas().length === 0, j(preguntas().length))
+    const segunda = pedirI(eI.ficha ?? '', "pruebas@127.0.0.1's password: ")
+    await tick()
+    const p2 = preguntas()[0]
+    check(
+      '(i3) si ssh la vuelve a pedir, el servidor la rechazó: se pregunta al usuario con palabras de Tessera',
+      segunda instanceof Promise && p2?.rechazada === true && p2.delServidor === false && p2.texto === 'Contraseña de pruebas@127.0.0.1' && p2.alias === 'c-pw',
+      j(p2)
+    )
+    dialogo.responder(p2?.id ?? '', 'tecleada')
+    const r2 = await segunda
+    check('(i4) la respuesta del usuario va a ssh, y el registro no la dice', r2.ok === true && r2.respuesta === 'tecleada' && !registroI.some((m) => m.includes('tecleada')), j(registroI))
+
+    const codigo = pedirI(eI.ficha ?? '', '(pruebas@127.0.0.1) Verification\u0007 code: ')
+    await tick()
+    const p3 = preguntas()[1]
+    check('(i5) un código: el texto del servidor, sin caracteres de control y marcado como suyo', p3?.delServidor === true && p3.rechazada === false && p3.texto === '(pruebas@127.0.0.1) Verification  code:', j(p3))
+    dialogo.responder(p3?.id ?? '', null)
+    const r3 = await codigo
+    check('(i6) cancelar el diálogo cancela la pregunta, y la pestaña siguiente sigue con el secreto guardado', r3.ok === false && r3.error === 'cancelada' && askpassI.entorno(conexionC('c-pw'), FICHA_PESTANA, true).conAskpass, j(r3))
+
+    const otra = pedirI(eI.ficha ?? '', '(pruebas@127.0.0.1) Token: ')
+    await tick()
+    const p4 = preguntas()[2]
+    askpassI.soltar(eI.ficha)
+    const r4 = await otra
+    check('(i7) si su ssh termina, el diálogo se retira y la pregunta se cancela', r4.ok === false && emitidosI.some(([c, x]) => c === SSH_CHANNELS.ASKPASS_RETIRAR && (x as { id: string }).id === p4?.id) && dialogo.cuantas === 0, j(r4))
+
+    const eT = askpassI.entorno(conexionC('c-pw'), FICHA_PESTANA, true)
+    const tarde = pedirI(eT.ficha ?? '', '(pruebas@127.0.0.1) Token: ')
+    await tick()
+    const fnVence = vence as (() => void) | null
+    fnVence?.()
+    const r5 = await tarde
+    check('(i8) si el usuario no contesta a tiempo, se retira y se cancela', fnVence !== null && r5.ok === false && emitidosI.filter(([c]) => c === SSH_CHANNELS.ASKPASS_RETIRAR).length === 2, j(r5))
+
+    const eLinea = askpassI.entorno(conexionC('c-pw'), FICHA_PESTANA, true)
+    pedirI(eLinea.ficha ?? '', "pruebas@127.0.0.1's password: ")
+    const conSalto = pedirI(eLinea.ficha ?? '', "pruebas@127.0.0.1's password: ")
+    await tick()
+    dialogo.responder(preguntas()[preguntas().length - 1]?.id ?? '', 'a\nb')
+    const r6 = await conSalto
+    check('(i9) una respuesta con un salto de línea no llega a ssh (sería otra respuesta): se cancela', r6.ok === false, j(r6))
+
+    hayVentana = false
+    const eV = askpassI.entorno(conexionC('c-pw'), FICHA_PESTANA, true)
+    const sinVentana = pedirI(eV.ficha ?? '', '(pruebas@127.0.0.1) Token: ')
+    const r7 = await sinVentana
+    hayVentana = true
+    check('(i10) sin ventana que lo enseñe: se cancela en el acto', r7.ok === false && preguntas().length === 5, `${j(r7)} ${preguntas().length}`)
+
+    const sinS = askpassI.entornoSftp(conexionC('c-sin'))
+    const sisS = askpassI.entornoSftp(conexionC('c-sis'))
+    const ilegS = askpassI.entornoSftp(conexionC('c-ilegible'))
+    check('(i11) el explorador SFTP pregunta siempre: sin secreto, con «Claves del sistema» o ilegible', [sinS, sisS, ilegS].every((x) => x.conAskpass && x.conDialogo && x.aviso === undefined), j([sinS.conDialogo, sisS.conDialogo, ilegS.conDialogo]))
+    const deIlegible = pedirI(ilegS.ficha ?? '', "pruebas@127.0.0.1's password: ")
+    await tick()
+    const p8 = preguntas()[preguntas().length - 1]
+    dialogo.responder(p8?.id ?? '', 'x')
+    const r8 = await deIlegible
+    check('(i12) con el guardado ilegible, su contraseña la escribe el usuario (sin decir que la rechazaron)', r8.ok === true && p8?.rechazada === false && p8.delServidor === false, j(p8))
+    const sinDialogo = new AskpassSsh({ ...depsC, fichas: new FichasAskpass(), puerta: { ...puertaFalsa, registrarOperacion: () => {} } })
+    check('(i13) sin diálogo, el SFTP sin secreto no lleva askpass (BatchMode, lo de siempre)', !sinDialogo.entornoSftp(conexionC('c-sin')).conAskpass, 'sin askpass')
+    const caido = new AskpassSsh({ ...depsC, fichas: new FichasAskpass(), dialogo, puerta: { ...puertaFalsa, listo: false, registrarOperacion: () => {} } })
+    const sinPuenteS = caido.entornoSftp(conexionC('c-pw'))
+    check('(i14) sin puente, el SFTP tampoco: el aviso de siempre', !sinPuenteS.conAskpass && sinPuenteS.aviso?.includes('puente') === true, String(sinPuenteS.aviso))
+    const eK = askpassI.entorno(conexionC('c-pw'), FICHA_PESTANA, true)
+    let matado = 0
+    askpassI.vincular(eK.ficha, () => matado++)
+    const cancelada = pedirI(eK.ficha ?? '', '(pruebas@127.0.0.1) Token: ')
+    await tick()
+    dialogo.responder(preguntas()[preguntas().length - 1]?.id ?? '', null)
+    await cancelada
+    check('(i16) cancelar termina su ssh (sin él mandaría una respuesta vacía y volvería a preguntar)', matado === 1, `matado=${matado}`)
+    const eS = askpassI.entorno(conexionC('c-pw'), FICHA_PESTANA, true)
+    askpassI.vincular(eS.ficha, () => matado++)
+    askpassI.soltar(eS.ficha)
+    check('(i17) un ssh que ya terminó no se vuelve a matar', matado === 1, `matado=${matado}`)
+    const eF = askpassI.entornoSftp(conexionC('c-sis'))
+    const local = pedirI(eF.ficha ?? '', "Enter passphrase for key 'C:/Users/u/.ssh/id_ed25519': ")
+    await tick()
+    const pLocal = preguntas()[preguntas().length - 1]
+    dialogo.responder(pLocal?.id ?? '', 'f')
+    await local
+    check('(i18) la frase de una clave del sistema la pregunta el ssh local, no el servidor', pLocal?.delServidor === false, j(pLocal))
+    const dialogoSinVentana = new DialogoAskpass({ emitir: () => {}, hayDestino: () => false })
+    check('(i15) DialogoAskpass sin ventana: null sin emitir', (await dialogoSinVentana.preguntar({ alias: 'a', texto: 't', delServidor: true, rechazada: false })) === null, 'null')
   }
 
   // ---------------------------------------------------------------------------
@@ -502,7 +624,7 @@ try {
       check('(f2) una pregunta que no es suya: 1, nada en stdout y la línea fija (sin repetir el texto del servidor)', otra.codigo === 1 && otra.salida === '' && otra.errores.trim() === MENSAJE_NO, `codigo=${otra.codigo} ${otra.errores.trim()}`)
       check('(f3) la pregunta llega al puente intacta por el JSON del .exe (comillas, barra, ñ, emoji, tabulador)', preguntas[preguntas.length - 1] === rara, j(preguntas[preguntas.length - 1]))
       const sinFicha = await correr(exe, ["pruebas@127.0.0.1's password: "], env('inventado'))
-      check('(f4) sin ficha válida: cancela', sinFicha.codigo === 1 && sinFicha.salida === '' && sinFicha.errores.includes('Tessera no contesta'), `codigo=${sinFicha.codigo}`)
+      check('(f4) sin ficha válida: cancela', sinFicha.codigo === 1 && sinFicha.salida === '' && sinFicha.errores.includes(MENSAJE_NO), `codigo=${sinFicha.codigo}`)
       const sinEntorno = await correr(exe, ["pruebas@127.0.0.1's password: "], entornoCon({}))
       check('(f5) sin el entorno del puente: cancela', sinEntorno.codigo === 1 && sinEntorno.salida === '', `codigo=${sinEntorno.codigo}`)
       const pipe = puente.pipe
@@ -625,8 +747,18 @@ async function pruebaReal(programaWindows: string | null, guion: string): Promis
     exe: process.execPath,
     plataforma,
     fichas,
+    // El usuario, guionizado: contesta lo que haya en `respuestasUsuario` y cancela lo demás.
+    dialogo: {
+      preguntar: async (p) => {
+        preguntadas.push(p)
+        return respuestasUsuario.shift() ?? null
+      },
+      retirar: () => {}
+    },
     log: () => {}
   })
+  const preguntadas: PreguntaUsuario[] = []
+  const respuestasUsuario: string[] = []
   const claves = new ClavesImportadas({
     dir: dirClaves,
     plataforma,
@@ -637,7 +769,16 @@ async function pruebaReal(programaWindows: string | null, guion: string): Promis
     log: () => {}
   })
   const emitidos: string[] = []
-  const ctrl = new ControladorSsh({ conexiones, eventos: { emitir: (c) => void emitidos.push(c), hayDestino: () => true }, claves, askpass, ejecutar: ejecutarCorto, plataforma, log: () => {} })
+  const ctrl = new ControladorSsh({
+    conexiones,
+    eventos: { emitir: (c) => void emitidos.push(c), hayDestino: () => true },
+    claves,
+    askpass,
+    ejecutar: ejecutarCorto,
+    configSaltos: crearConfigSaltos(path.join(raiz, 'saltos con espacios')),
+    plataforma,
+    log: () => {}
+  })
   const alta = (alias: string, usuario: string, extra: Partial<SshConexionInput> = {}): string =>
     ctrl.crear({ profileId: 'pa', alias, grupoId: null, host, puerto, usuario, metodo: 'contrasena', disponibleAgentes: true, ...extra }).id
   const probar = async (id: string): Promise<{ r: SshResultadoPrueba; preguntas: string[] }> => {
@@ -670,7 +811,7 @@ async function pruebaReal(programaWindows: string | null, guion: string): Promis
     `${resumen(f.r)} preguntas=${f.preguntas.length}`
   )
   check(
-    `(g6) C69 medido: con la copia a ${Buffer.byteLength(rutaCopia)} bytes, ssh la imprime recortada a ${Buffer.byteLength(enPregunta)} y se reconoce como prefijo`,
+    `(g6) con la copia a ${Buffer.byteLength(rutaCopia)} bytes, ssh la imprime recortada a ${Buffer.byteLength(enPregunta)} y se reconoce como prefijo`,
     Buffer.byteLength(rutaCopia) > BYTES_RUTA_CLAVE && Buffer.byteLength(enPregunta) <= BYTES_RUTA_CLAVE && rutaCopia.replace(/\\/g, '/').toLowerCase().startsWith(enPregunta.replace(/\uFFFD+$/u, '').toLowerCase()),
     j(enPregunta)
   )
@@ -700,12 +841,103 @@ async function pruebaReal(programaWindows: string | null, guion: string): Promis
   // Sin ficha válida: el askpass cancela y ssh no entra (y la línea fija llega a su salida de errores).
   const linea = argumentosSsh({ host, puerto, usuario: 'pruebas', metodo: 'contrasena' }, { modo: 'humano', rutaHuellas: conexiones.rutaHuellas(idPw), plataforma, conAskpass: true })
   const sinFicha = await correr(binarios.ssh.exe, [...linea.slice(0, -2), '-T', '-n', '--', host, 'exit', '0'], entornoCon(entornoAskpass({ programa, pipe: puente.pipe, token: 'inventado', plataforma, exe: process.execPath })), 30_000)
-  check('(g11) con una ficha inventada, el askpass cancela: 255 y la línea fija en la salida de ssh', sinFicha.codigo === 255 && sinFicha.errores.includes('Tessera no contesta esa pregunta'), `codigo=${sinFicha.codigo}`)
+  check('(g11) con una ficha inventada, el askpass cancela: 255 y la línea fija en la salida de ssh', sinFicha.codigo === 255 && sinFicha.errores.includes(MENSAJE_NO), `codigo=${sinFicha.codigo}`)
 
   // Sin huella guardada: la pestaña la guarda y, al cerrarla, avisa (C53).
   ctrl.olvidarHuella({ id: idPw })
   await pestanaReal(ctrl, fichas, idPw, emitidos)
+  await dialogoReal(ctrl, alta, { preguntadas, respuestasUsuario }, contrasena, host)
+  await bastionReal({ ctrl, alta, probar, resumen, usuario: { preguntadas, respuestasUsuario }, contrasena, idBastion: idPw, host, puerto, raiz })
   puente.stop()
+}
+
+/** Lo que necesita la parte real del bastión y los túneles. */
+interface PruebaBastion {
+  ctrl: ControladorSsh
+  alta: (alias: string, usuario: string, extra?: Partial<SshConexionInput>) => string
+  probar: (id: string) => Promise<{ r: SshResultadoPrueba; preguntas: string[] }>
+  resumen: (r: SshResultadoPrueba) => string
+  usuario: UsuarioGuionizado
+  contrasena: string
+  /** La conexión «pruebas» del servidor de pruebas, con la contraseña guardada y la huella aceptada. */
+  idBastion: string
+  host: string
+  puerto: number
+  raiz: string
+}
+
+/** Un puerto libre de este equipo. */
+async function puertoLibre(): Promise<number> {
+  const srv = net.createServer()
+  await new Promise<void>((r) => srv.listen(0, '127.0.0.1', () => r()))
+  const p = (srv.address() as net.AddressInfo).port
+  await new Promise<void>((r) => srv.close(() => r()))
+  return p
+}
+
+/** Lo primero que dice quien escucha en `127.0.0.1:puerto`, o '' si nadie contesta en `ms`. */
+function saludoEn(puerto: number, ms: number): Promise<string> {
+  return new Promise((resolve) => {
+    const s = net.connect(puerto, '127.0.0.1')
+    const fin = (t: string): void => {
+      s.destroy()
+      resolve(t)
+    }
+    s.setTimeout(ms, () => fin(''))
+    s.on('data', (b) => fin(b.toString('utf8')))
+    s.on('error', () => fin(''))
+  })
+}
+
+/**
+ * REAL: el servidor de pruebas hace de bastión de sí mismo (dentro del contenedor, `localhost:22` es su sshd):
+ * cada salto con su contraseña guardada, una cadena de dos, el diálogo para un bastión sin contraseña y un túnel
+ * local que lleva al sshd del contenedor.
+ */
+async function bastionReal(b: PruebaBastion): Promise<void> {
+  hr('J - REAL: saltar por un bastión (con la contraseña de cada uno) y un túnel local')
+  const tras = b.alta('tras el bastión', 'pruebas', { host: 'localhost', puerto: 22, secreto: b.contrasena, saltoId: b.idBastion })
+  const p1 = await b.probar(tras)
+  check(
+    '(j1) por el bastión: «Probar» entra con DOS preguntas, cada una contestada con la contraseña de su conexión',
+    p1.r.ok && !p1.r.soloAlcance && j(p1.preguntas) === j([`pruebas@${b.host}'s password: `, "pruebas@localhost's password: "]),
+    `${b.resumen(p1.r)} preguntas=${j(p1.preguntas)}`
+  )
+  check('(j2) la huella del destino se guarda en el known_hosts de SU conexión, como «localhost»', p1.r.ok && p1.r.huellas.length >= 1, j(p1.r.huellas))
+  const dos = b.alta('dos saltos', 'kbd', { host: 'localhost', puerto: 22, secreto: b.contrasena, saltoId: tras })
+  const p2 = await b.probar(dos)
+  check(
+    '(j3) una cadena de dos bastiones (la configuración generada vive en una carpeta con espacios)',
+    p2.r.ok && p2.preguntas.length === 3 && p2.preguntas[2] === '(kbd@localhost) Password: ' && b.raiz.length > 0,
+    `${b.resumen(p2.r)} preguntas=${j(p2.preguntas)}`
+  )
+  const sinGuardar = b.alta('bastión sin guardar', 'pruebas', { host: b.host, puerto: b.puerto })
+  const porSinGuardar = b.alta('por el bastión sin guardar', 'pruebas', { host: 'localhost', puerto: 22, secreto: b.contrasena, saltoId: sinGuardar })
+  const prep = b.ctrl.preparar('pa', porSinGuardar)
+  b.usuario.respuestasUsuario.push(b.contrasena)
+  const antes = b.usuario.preguntadas.length
+  const r = await ejecutarCorto(prep.ejecutable.archivo, [...prep.ejecutable.args, 'exit 4'], { topeMs: 40_000, quitarEnv: QUITAR_ENV_SSH, extraEnv: prep.extraEnv })
+  prep.alTerminar?.()
+  const pd = b.usuario.preguntadas.slice(antes)
+  check(
+    '(j4) la pestaña con un bastión sin contraseña guardada la pide en el diálogo (no en la terminal) y entra',
+    r.codigo === 4 && pd.length === 1 && pd[0].texto === `Contraseña de pruebas@${b.host}` && pd[0].alias === 'bastión sin guardar',
+    `codigo=${r.codigo} preguntas=${j(pd)}`
+  )
+  const local = await puertoLibre()
+  const conTunel = b.alta('con túnel', 'pruebas', { secreto: b.contrasena, tuneles: [{ tipo: 'local', puerto: local, destinoHost: 'localhost', destinoPuerto: 22 }] })
+  const pt = b.ctrl.preparar('pa', conTunel)
+  const vivo = ejecutarCorto(pt.ejecutable.archivo, [...pt.ejecutable.args, 'sleep 6'], { topeMs: 40_000, quitarEnv: QUITAR_ENV_SSH, extraEnv: pt.extraEnv })
+  let saludo = ''
+  for (let i = 0; i < 40 && !saludo.startsWith('SSH-'); i++) {
+    await new Promise((res) => setTimeout(res, 250))
+    saludo = await saludoEn(local, 1000)
+  }
+  await vivo
+  pt.alTerminar?.()
+  check('(j5) el túnel local: 127.0.0.1 de este equipo lleva al sshd que se ve desde el servidor', saludo.startsWith('SSH-2.0'), j(saludo.slice(0, 40)))
+  const cerrado = await saludoEn(local, 1500)
+  check('(j6) al terminar la sesión, el túnel se cierra con ella', cerrado === '', j(cerrado.slice(0, 20)))
 }
 
 /** La pestaña: TerminalController + ConPTY (o el pty de macOS) con la contraseña guardada, sin teclearla. */
@@ -725,7 +957,6 @@ async function pestanaReal(ctrl: ControladorSsh, fichas: FichasAskpass, idPw: st
       hayDestino: () => true
     },
     dockerfileDir: '',
-    bootstrapTarget: { profileId: 'pa', projectHostPath: '' },
     sandbox,
     lanzadorSsh: ctrl,
     log: () => {}
@@ -740,6 +971,75 @@ async function pestanaReal(ctrl: ControladorSsh, fichas: FichasAskpass, idPw: st
   await terminal.close(sessionId)
   check('(g14) al cerrar la pestaña, su ficha se revoca', fichas.cuantas === antes, `${fichas.cuantas}`)
   check('(g15) C53: la pestaña guardó la huella y, al terminar, avisó con ssh:cambio', emitidos.slice(emitidosAntes).includes(SSH_CHANNELS.CAMBIO), j(emitidos.slice(emitidosAntes)))
+}
+
+/** Lo que de verdad contesta el usuario en el diálogo (guionizado por `respuestasUsuario`). */
+interface UsuarioGuionizado {
+  preguntadas: PreguntaUsuario[]
+  respuestasUsuario: string[]
+}
+
+/** REAL: lo que Tessera no contesta sola llega al diálogo y su respuesta entra en el servidor. */
+async function dialogoReal(
+  ctrl: ControladorSsh,
+  alta: (alias: string, usuario: string, extra?: Partial<SshConexionInput>) => string,
+  { preguntadas, respuestasUsuario }: UsuarioGuionizado,
+  contrasena: string,
+  host: string
+): Promise<void> {
+  // La línea de la pestaña con una orden remota detrás: sin terminal, sale con el código de la orden.
+  const idMala = alta('guardada mala', 'pruebas', { secreto: 'no-es-la-buena' })
+  const prepMala = ctrl.preparar('pa', idMala)
+  respuestasUsuario.push(contrasena)
+  const antesMala = preguntadas.length
+  const conMala = await ejecutarCorto(prepMala.ejecutable.archivo, [...prepMala.ejecutable.args, 'exit 7'], { topeMs: 30_000, quitarEnv: QUITAR_ENV_SSH, extraEnv: prepMala.extraEnv })
+  prepMala.alTerminar?.()
+  const pMala = preguntadas.slice(antesMala)
+  check(
+    '(g16) la contraseña guardada es mala: el servidor la rechaza, el usuario la escribe en el diálogo y entra',
+    conMala.codigo === 7 && pMala.length === 1 && pMala[0].rechazada && !pMala[0].delServidor,
+    `codigo=${conMala.codigo} preguntas=${j(pMala)}`
+  )
+
+  // El explorador SFTP de una conexión SIN contraseña guardada: el subsistema, con la entrada cerrada.
+  const idSinGuardar = alta('sin guardar', 'pruebas')
+  const lineaSftp = ctrl.prepararSftp('pa', idSinGuardar)
+  respuestasUsuario.push(contrasena)
+  const antesSftp = preguntadas.length
+  const sftp = await new Promise<number | null>((resolve) => {
+    const hijo = spawn(lineaSftp.exe, lineaSftp.args, { env: lineaSftp.env, windowsHide: true, stdio: ['pipe', 'ignore', 'ignore'] })
+    const tope = setTimeout(() => hijo.kill(), 30_000)
+    hijo.on('error', () => resolve(null))
+    hijo.on('close', (codigo) => {
+      clearTimeout(tope)
+      resolve(codigo)
+    })
+    hijo.stdin?.end()
+  })
+  lineaSftp.alConectar()
+  const pSftp = preguntadas.slice(antesSftp)
+  check(
+    '(g17) el explorador SFTP sin contraseña guardada la pide en el diálogo y entra (sin «rechazada»)',
+    sftp === 0 && pSftp.length === 1 && !pSftp[0].rechazada && pSftp[0].texto === `Contraseña de pruebas@${host}`,
+    `codigo=${sftp} preguntas=${j(pSftp)}`
+  )
+
+  // Cancelar en el diálogo: el ssh se termina en vez de mandar respuestas vacías y volver a preguntar.
+  const lineaCancelada = ctrl.prepararSftp('pa', idSinGuardar)
+  const antesCancelar = preguntadas.length
+  const cancelado = await new Promise<{ codigo: number | null; ms: number }>((resolve) => {
+    const t0 = Date.now()
+    const hijo = spawn(lineaCancelada.exe, lineaCancelada.args, { env: lineaCancelada.env, windowsHide: true, stdio: ['pipe', 'ignore', 'ignore'] })
+    lineaCancelada.vincular?.(() => hijo.kill())
+    const tope = setTimeout(() => hijo.kill(), 30_000)
+    hijo.on('close', (codigo) => {
+      clearTimeout(tope)
+      resolve({ codigo, ms: Date.now() - t0 })
+    })
+  })
+  lineaCancelada.alConectar()
+  const pCancelar = preguntadas.slice(antesCancelar)
+  check('(g18) cancelar el diálogo corta la conexión: una sola pregunta y ningún reintento', cancelado.codigo !== 0 && pCancelar.length === 1 && cancelado.ms < 15_000, `codigo=${cancelado.codigo} ms=${cancelado.ms} preguntas=${pCancelar.length}`)
 }
 
 const allPass = results.every(Boolean)

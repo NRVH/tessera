@@ -1,14 +1,14 @@
 // =============================================================================
-// Rastreador de actividad de un pty de agente: dice si el CLI trabaja o está quieto y cuándo
-// terminó un turno. Abrir lo decide el Enter del usuario; cerrar, por este orden, la marca del
-// transcript, el BEL, el silencio absoluto y un tope de duración. El fin real del turno lo dice
-// el transcript (`TurnWatcher`), no el pty. Scheduler y reloj se inyectan.
-// Lo usa la terminal del agente. Decisiones: docs/decisiones/agentes/turnos-actividad-del-agente.md
+// Rastreador de actividad de un pty de agente: dice si el CLI trabaja, te espera o está quieto y
+// cuándo terminó un turno. Si el agente informa su estado (OSC 7501, `estadoPrograma.ts`), manda
+// eso y nada más. Si no, se deduce: abrir lo decide el Enter del usuario; cerrar, por este orden,
+// la marca del transcript (`TurnWatcher`), el BEL, el silencio absoluto y un tope de duración.
+// Scheduler y reloj se inyectan. Lo usa la terminal del agente.
+// Decisiones: docs/decisiones/agentes/turnos-actividad-del-agente.md,
+// docs/decisiones/agentes/turnos-estado-informado.md
 // =============================================================================
-import type { AgentActivityState } from '../../shared/agent-terminal-ipc'
-
-/** BEL: el carácter de campana del terminal. CC lo emite al reclamar atención. */
-const BELL = '\x07'
+import type { AgentActivityState, AgentMotivoEspera } from '../../shared/agent-terminal-ipc'
+import { crearLectorPrograma, type AvisoPrograma, type EstadoInformado, type LectorPrograma } from './estadoPrograma.ts'
 
 /**
  * Bracketed paste: el terminal envuelve lo pegado entre estos marcadores para que el CLI lo
@@ -101,8 +101,10 @@ export interface ActivityTrackerOptions {
    * fecha el agente (dentro del contenedor) y el envío el main, son dos relojes.
    */
   markToleranceMs: number
-  /** Se llama en cada transición: 'working' al abrir, 'done'/'idle' al cerrar. */
-  onChange: (state: AgentActivityState) => void
+  /** Se llama en cada transición: 'working' al abrir, 'done'/'idle' al cerrar y 'blocked' (con su motivo) al esperarte. */
+  onChange: (state: AgentActivityState, motivo?: AgentMotivoEspera | null) => void
+  /** Contesta a la sonda del protocolo de estado (escribe en el pty): sin respuesta, el agente no informa. */
+  responderSonda?: () => void
   /** Programa `fn` para dentro de `ms` y devuelve un cancelador (setTimeout en producción). */
   schedule: (fn: () => void, ms: number) => () => void
   /** Reloj inyectable; en producción, `Date.now`. */
@@ -131,12 +133,14 @@ export interface ActivityTracker {
    * ventana, desarma y para el muestreo. Se llama al cerrar, hibernar, recargar o morir.
    */
   finish: () => void
-  /** Estado actual (para depurar y tests). */
-  state: () => 'working' | 'idle'
+  /** Estado actual: 'blocked' solo si el agente informa que te espera. */
+  state: () => 'working' | 'idle' | 'blocked'
+  /** Con 'blocked', qué espera (si lo dice). */
+  motivoEspera: () => AgentMotivoEspera | null
   /**
-   * ¿El agente está parado esperando una respuesta (un diálogo de permiso)? Turno cerrado sin
-   * marca de fin y con una apertura del transcript sin cierre detrás. No es un estado de
-   * actividad: el indicador sigue en 'idle'. Sin marcas, false.
+   * ¿El agente está parado esperando una respuesta? Si informa su estado, es su 'blocked'. Si no,
+   * se deduce: turno cerrado sin marca de fin y con una apertura del transcript sin cierre detrás
+   * (sin marcas, false).
    */
   esperandoRespuesta: () => boolean
   /** Cancela cualquier temporizador pendiente (al cerrar la sesión). */
@@ -197,6 +201,17 @@ interface Estado {
   flowPaused: boolean
   /** Epoch ms en que empezó la congelación por `suppress` (para acotarla). */
   suppressStart: number
+  /** Separa del flujo los avisos de estado del agente, su sonda y las campanas de verdad. */
+  readonly lector: LectorPrograma
+  /**
+   * El último estado que informó el agente de su registro raíz; `null` mientras no haya informado
+   * ninguno. Con un aviso, el agente manda y la deducción (Enter, BEL, silencio, marcas, tope) calla.
+   */
+  informado: Exclude<EstadoInformado, 'clear'> | null
+  /** Qué espera, mientras informa 'blocked'. */
+  motivo: AgentMotivoEspera | null
+  /** Ya se contestó la sonda de este proceso: solo desde ahí cuentan sus avisos. */
+  sondaContestada: boolean
 }
 
 /**
@@ -231,7 +246,11 @@ export function createActivityTracker(opts: ActivityTrackerOptions): ActivityTra
     echoActive: false,
     suppressed: false,
     flowPaused: false,
-    suppressStart: 0
+    suppressStart: 0,
+    lector: crearLectorPrograma(),
+    informado: null,
+    motivo: null,
+    sondaContestada: false
   }
   return {
     onData: (chunk) => onData(r, chunk),
@@ -240,7 +259,8 @@ export function createActivityTracker(opts: ActivityTrackerOptions): ActivityTra
     suppress: (ms) => suppress(r, ms),
     setPaused: (paused) => setPaused(r, paused),
     finish: () => finish(r),
-    state: () => r.current,
+    state: () => (r.informado === 'blocked' ? 'blocked' : r.current),
+    motivoEspera: () => (r.informado === 'blocked' ? r.motivo : null),
     esperandoRespuesta: () => esperando(r),
     dispose: () => dispose(r)
   }
@@ -273,6 +293,12 @@ function startTurn(r: Estado): void {
  * (`at === 0`) también es un fin dicho por el CLI.
  */
 function endTurn(r: Estado, real: boolean, marca: { at: number } | null = null): void {
+  cerrarEstado(r, marca)
+  r.opts.onChange(real ? 'done' : 'idle')
+}
+
+/** Deja el turno cerrado sin avisar de nada: lo avisa quien llama. */
+function cerrarEstado(r: Estado, marca: { at: number } | null): void {
   const marcaAt = marca?.at ?? 0
   r.turnOpen = false
   r.turnTicks = 0
@@ -286,7 +312,6 @@ function endTurn(r: Estado, real: boolean, marca: { at: number } | null = null):
   else r.cierreLocalAt = Math.max(r.cierreLocalAt, r.now())
   r.cierreSinMarca = marca === null
   r.current = 'idle'
-  r.opts.onChange(real ? 'done' : 'idle')
 }
 
 /**
@@ -297,6 +322,7 @@ function endTurn(r: Estado, real: boolean, marca: { at: number } | null = null):
  * exige un turno, y un turno exige un Enter desde el último `finish`.
  */
 function esperando(r: Estado): boolean {
+  if (r.informado !== null) return r.informado === 'blocked'
   return (
     !r.turnOpen &&
     r.cierreSinMarca &&
@@ -352,17 +378,23 @@ function tick(r: Estado): void {
     r.cur = 0
     if (r.win.length > r.opts.windowTicks) r.win.shift()
   }
-  const sum = r.win.reduce((a, b) => a + b, 0)
-
-  if (r.turnOpen) cerrarPorTick(r)
-  // Apertura de respaldo: rescata el caso raro de un envío que `stripPastes` no ve como tal.
-  else if (!frozen(r) && r.armed && sum >= r.opts.openBytes) startTurn(r)
+  // Si el agente informa, ni el silencio cierra ni el caudal abre: lo dice él. Solo queda el tope,
+  // contado desde su último 'working': un agente colgado que no avisa no deja el punto encendido.
+  if (r.informado === null) deducirPorTick(r)
+  else if (r.turnOpen && r.turnTicks >= r.opts.maxTurnTicks) endTurn(r, false)
   avisarEspera(r)
 
   // Sin turno, sin nada que medir y sin congelación que levantar: apaga el muestreo hasta el
   // próximo chunk (las congelaciones lo reavivan al expirar).
   if (!r.turnOpen && !frozen(r) && r.win.every((b) => b === 0)) return
   ensureTicker(r)
+}
+
+/** Sin avisos del agente: cierra el turno abierto o, si no hay, lo abre por caudal. */
+function deducirPorTick(r: Estado): void {
+  if (r.turnOpen) cerrarPorTick(r)
+  // Apertura de respaldo: rescata el caso raro de un envío que `stripPastes` no ve como tal.
+  else if (!frozen(r) && r.armed && r.win.reduce((a, b) => a + b, 0) >= r.opts.openBytes) startTurn(r)
 }
 
 /**
@@ -385,9 +417,20 @@ function cerrarPorTick(r: Estado): void {
 }
 
 function onData(r: Estado, chunk: string): void {
-  // El BEL se atiende antes de cualquier guarda: es una señal explícita y llega cuando el
-  // usuario suele estar tecleando (ventana de eco) o acaba de cambiar de pestaña (supresión).
-  if (chunk.includes(BELL)) {
+  // Lo que dice el agente se atiende antes de cualquier guarda: son señales explícitas, y llegan
+  // cuando el usuario suele estar tecleando (ventana de eco) o acaba de cambiar de pestaña.
+  const lectura = r.lector.leer(chunk)
+  // Una sola respuesta por proceso, y solo desde ella cuentan sus avisos: una sonda o un aviso que
+  // salgan en lo que el agente enseña (un archivo, una salida) no pueden apagar la deducción ni
+  // escribirle a ciegas, y los del proceso que muere tras `finish` no caen sobre el nuevo.
+  if (lectura.sonda && !r.sondaContestada) {
+    r.sondaContestada = true
+    r.opts.responderSonda?.()
+  }
+  if (r.sondaContestada) for (const aviso of lectura.avisos) aplicarAviso(r, aviso)
+  if (lectura.avisos.length > 0) avisarEspera(r)
+  // Solo una campana suelta: el BEL que cierra un OSC (un título, un aviso) no lo es.
+  if (lectura.campanas > 0 && r.informado === null) {
     if (r.turnOpen) {
       r.bellPending = true // se cierra en el próximo tick, con aviso
     } else if (r.armed) {
@@ -408,16 +451,50 @@ function onData(r: Estado, chunk: string): void {
   ensureTicker(r)
 }
 
+/**
+ * Un aviso del agente sobre su registro raíz: desde el primero, el estado es el que él dice. Los de
+ * un hijo (`id`) no se miran: el raíz ya resume el programa entero. Solo se avisa de los cambios: el
+ * agente repite 'working' con cada paso que da.
+ */
+function aplicarAviso(r: Estado, aviso: AvisoPrograma): void {
+  if (aviso.id !== null) return
+  const antes = r.informado
+  const motivoAntes = r.motivo
+  const estado = aviso.estado === 'clear' ? 'idle' : aviso.estado
+  const motivo = estado === 'blocked' ? aviso.motivo : null
+  r.informado = estado
+  r.motivo = motivo
+  if (estado === 'working') {
+    // Un turno abierto por la deducción antes del primer aviso se queda como está. Cada paso
+    // reinicia el tope: lo que cuenta es cuánto lleva sin decir nada, no cuánto dura el turno.
+    if (!r.turnOpen) startTurn(r)
+    r.turnTicks = 0
+    // El muestreo cuenta el tope; sin un Enter de por medio (un `/loop`, una tarea de fondo) nadie lo arrancó.
+    ensureTicker(r)
+    return
+  }
+  if (estado === antes && motivo === motivoAntes) return
+  const abierto = r.turnOpen
+  if (abierto) cerrarEstado(r, null)
+  if (estado === 'blocked') {
+    r.opts.onChange('blocked', motivo)
+    return
+  }
+  // Un aviso de cierre solo es noticia si cierra algo: el 'idle' del arranque o el 'done' repetido no.
+  if (abierto || antes === 'working' || antes === 'blocked') r.opts.onChange(estado === 'idle' ? 'idle' : 'done')
+}
+
 function onInput(r: Estado, data: string): void {
   // Cualquier tecla del usuario contesta (o descarta) el diálogo que esperaba; el ruido del
   // terminal no (el foco que se va al pulsar el botón de actualizar).
   if (!esSoloRespuestaDeTerminal(data)) r.cierreSinMarca = false
   // Enter = prompt enviado (lo pegado se descarta antes). El turno se abre aquí y no al superar
-  // un umbral de bytes: esperar al caudal añadía hasta tres segundos de retraso al indicador.
+  // un umbral de bytes: esperar al caudal añadía hasta tres segundos de retraso al indicador. Si
+  // el agente informa, no: un Enter en una línea vacía o en un menú no es trabajo, y él lo dirá.
   if (esEnvio(data)) {
     r.armed = true
     r.lastSubmitAt = r.now()
-    if (!r.turnOpen) startTurn(r)
+    if (!r.turnOpen && r.informado === null) startTurn(r)
   }
   // Cualquier tecla congela la detección un momento: lo que salga es el eco de la caja de entrada.
   r.echoActive = true
@@ -449,7 +526,8 @@ function onTurnMark(r: Estado, marca: { tipo: 'abre' | 'cierra'; at: number }): 
 function cerrarConMarca(r: Estado, marca: { tipo: 'abre' | 'cierra'; at: number }): void {
   // Solo con turno abierto: el vigilante relee la cola del transcript en cada escritura, así que
   // la misma marca de cierre llega una y otra vez y sin esta guarda emitiría otro 'done' cada vez.
-  if (!r.turnOpen || marca.tipo !== 'cierra') return
+  // Si el agente informa, su aviso ya cerró: la marca llega después y no dice nada nuevo.
+  if (!r.turnOpen || marca.tipo !== 'cierra' || r.informado !== null) return
   if (marca.at > 0) {
     // Del turno anterior, por dos vías: más vieja que el envío (menos el margen de reloj: al
     // reanudar, el transcript ya trae el cierre de la sesión pasada) o no posterior al último
@@ -507,6 +585,13 @@ function setPaused(r: Estado, paused: boolean): void {
 
 function finish(r: Estado): void {
   if (r.turnOpen) endTurn(r, false)
+  // La espera muere con el proceso: se apaga sin avisar de nada.
+  else if (r.informado === 'blocked') r.opts.onChange('idle')
+  // El proceso relanzado vuelve a preguntar si se le entiende: hasta que informe, se deduce.
+  r.informado = null
+  r.motivo = null
+  r.sondaContestada = false
+  r.lector.reiniciar()
   // Reinicio completo: el proceso del agente muere aquí. Desarmar impide que el volcado del CLI
   // relanzado (con --resume reproduce la conversación entera) se cuente como trabajo nuevo.
   r.armed = false

@@ -9,6 +9,7 @@
 
 const path = require('node:path')
 const { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } = require('node:fs')
+const { remedioLibaio } = require('./bibliotecasOracle.cjs')
 
 /** Error de thin que significa "esta base es demasiado vieja, usa thick". */
 const COD_VERSION_NO_SOPORTADA = 'NJS-138'
@@ -161,7 +162,10 @@ function cargarInstantClient(oracledb, ctx, packIdPreferido, explorador) {
       try {
         oracledb.initOracleClient(configDir ? { libDir: ruta, configDir } : { libDir: ruta })
       } catch (err) {
-        throw sinRutasDelCliente(err)
+        const limpio = sinRutasDelCliente(err)
+        const remedio = remedioLibaio(limpio.message)
+        if (remedio) limpio.message = `${limpio.message}\n${remedio}`
+        throw limpio
       }
       clienteCargado = { ruta, packId }
       return { ruta, packId }

@@ -69,21 +69,28 @@ function listaY(partes: string[]): string {
  * («Reiniciar igualmente») lo rotula el componente aparte.
  */
 export function textoAccion(plan: PlanActualizacion): string {
-  const etiquetas = plan.instalar.map((i) => ETIQUETA_AGENTE[i.agente])
+  const etiquetas = (reparar: boolean): string[] =>
+    plan.instalar.filter((i) => i.reparar === reparar).map((i) => ETIQUETA_AGENTE[i.agente])
+  const actualizar = etiquetas(false)
+  const reparar = etiquetas(true)
   const n = plan.reiniciar.length
-  if (etiquetas.length > 0 && n > 0) return `Actualizar ${listaY(etiquetas)} y reiniciar ${sesiones(n)}`
-  if (etiquetas.length > 0) return `Actualizar ${listaY(etiquetas)}`
-  if (n > 0) return `Reiniciar ${sesiones(n)}`
-  return 'Actualizar y reiniciar'
+  const partes: string[] = []
+  if (actualizar.length > 0) partes.push(`actualizar ${listaY(actualizar)}`)
+  if (reparar.length > 0) partes.push(`reparar ${listaY(reparar)}`)
+  if (n > 0) partes.push(`reiniciar ${sesiones(n)}`)
+  if (partes.length === 0) return 'Actualizar y reiniciar'
+  const frase = listaY(partes)
+  return frase.charAt(0).toUpperCase() + frase.slice(1)
 }
 
 function clis(estado: EstadoAgentesNativos): EstadoCli[] {
   return [estado.claude, estado.codex]
 }
 
-/** «Codex 0.156.0 → 0.156.1» (o sólo la nueva si la instalada no se conoce). */
+/** «Codex 0.156.0 → 0.156.1» (o sólo la nueva si la instalada no se conoce, o la reparación). */
 function salto(cli: EstadoCli): string {
   const etq = ETIQUETA_AGENTE[cli.agente]
+  if (cli.reparar) return `${etq} no responde: se puede reparar con ${cli.ultima}`
   return cli.instalada ? `${etq} ${cli.instalada} → ${cli.ultima}` : `${etq} ${cli.ultima}`
 }
 

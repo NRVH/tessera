@@ -8,6 +8,7 @@
 
 import { reglasDe, type DialectoSql, type ReglasDialecto } from './dialectosSql.ts'
 import { PARAMETRO_USE } from './clasificarSqlTipos.ts'
+import { esVariableDeUsuario } from './clasificarSqlMysql.ts'
 import type { ClaseSentencia, Clasificacion, PermisoSoloLectura, SesionSentencia } from './clasificarSqlTipos.ts'
 import { nunca } from '../nunca.ts'
 
@@ -49,7 +50,9 @@ function sesionEnLista(ses: SesionSentencia | null, r: ReglasDialecto): boolean 
     !!ses &&
     ses.accion === 'set' &&
     ses.parametros.length > 0 &&
-    ses.parametros.every((p) => lista.indexOf(p) >= 0 || (p === PARAMETRO_USE && usePermitido(r)))
+    ses.parametros.every(
+      (p) => lista.indexOf(p) >= 0 || (p === PARAMETRO_USE && usePermitido(r)) || (r.variablesDeUsuario && esVariableDeUsuario(p))
+    )
   )
 }
 
@@ -135,7 +138,16 @@ const REMEDIO_FORMATO: Readonly<Record<string, string>> = {
   language: 'usa FORMAT con su cultura para verlo en otro idioma',
   textsize: 'usa SUBSTRING para leer un valor largo por partes',
   implicit_transactions: 'usa el modo Manual de la consola para abrir la transacción',
-  quoted_identifier: 'usa corchetes para los nombres y comillas simples para las cadenas'
+  quoted_identifier: 'usa corchetes para los nombres y comillas simples para las cadenas',
+  // MySQL: el modo SQL decide cómo se leen las comillas y la barra; el juego de caracteres, cómo
+  // llegan las celdas.
+  sql_mode: 'usa acentos graves para los nombres; los demás modos se pueden pedir en la propia sentencia (CAST, IGNORE)',
+  names: 'usa CONVERT(… USING juego) para leer un valor en otro juego de caracteres',
+  character: 'usa CONVERT(… USING juego) para leer un valor en otro juego de caracteres',
+  charset: 'usa CONVERT(… USING juego) para leer un valor en otro juego de caracteres',
+  character_set_results: 'usa CONVERT(… USING juego) para leer un valor en otro juego de caracteres',
+  character_set_client: 'usa CONVERT(… USING juego) para leer un valor en otro juego de caracteres',
+  character_set_connection: 'usa CONVERT(… USING juego) para leer un valor en otro juego de caracteres'
 }
 const REMEDIO_TO_CHAR = 'usa TO_CHAR para verlo con otro formato'
 

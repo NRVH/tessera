@@ -19,9 +19,12 @@ import {
   usaOpcional
 } from '../../../../shared/motores/index.ts'
 import { separarAuthSource, unirAuthSource, type CamposUri, type OrigenAuthSource } from '../../../../shared/uriConexion.ts'
+import { PUERTO_SENTINEL, esTopologiaRedis } from '../../../../shared/topologiaRedis.ts'
 import type {
   DbArchivoElegido,
   DbAutenticacion,
+  DbClaveSentinel,
+  DbTopologiaRedis,
   DbConnection,
   DbConnectionInput,
   DbEntorno,
@@ -75,7 +78,20 @@ export interface BorradorConexion {
   authSource: string
   /** De dónde salió el `authSource` (para devolverlo igual al guardar); null = nuevo o ninguno. */
   authSourceOrigen: OrigenAuthSource | null
+  /** El id de la conexión SSH del túnel; '' = conexión directa. */
+  tunelSsh: string
+  /** Redis: a un servidor, a Sentinel o a Cluster (`DbTopologiaRedis`). */
+  modoRedis: ModoRedis
+  /** Redis Sentinel: el nombre del maestro que vigilan los sentinels. */
+  maestroSentinel: string
+  /** Redis Sentinel: qué contraseña llevan los sentinels. */
+  claveSentinel: DbClaveSentinel
+  /** La de los sentinels con `claveSentinel: 'propia'`; `undefined` = conservar la guardada (edición). */
+  passwordSentinel: string | undefined
 }
+
+/** A qué se conecta una conexión de Redis en el formulario. */
+export type ModoRedis = 'servidor' | 'sentinel' | 'cluster'
 
 /**
  * El cifrado que IMPLICAN el motor y el SRV: con SRV (en un motor que lo declara), cifrar y
@@ -92,7 +108,21 @@ const mismoTls = (a: DbTls, b: DbTls): boolean => a.cifrar === b.cifrar && a.con
 /** Los opcionales con su valor de partida para un motor. */
 function opcionalesDePartida(
   motor: DbMotor
-): Pick<BorradorConexion, 'instancia' | 'autenticacion' | 'dominio' | 'tls' | 'srv' | 'opcionesUri' | 'authSource' | 'authSourceOrigen'> {
+): Pick<
+  BorradorConexion,
+  | 'instancia'
+  | 'autenticacion'
+  | 'dominio'
+  | 'tls'
+  | 'srv'
+  | 'opcionesUri'
+  | 'authSource'
+  | 'authSourceOrigen'
+  | 'tunelSsh'
+  | 'modoRedis'
+  | 'maestroSentinel'
+  | 'claveSentinel'
+> {
   return {
     instancia: '',
     autenticacion: autenticacionDe(undefined),
@@ -101,8 +131,37 @@ function opcionalesDePartida(
     srv: false,
     opcionesUri: '',
     authSource: '',
-    authSourceOrigen: null
+    authSourceOrigen: null,
+    tunelSsh: '',
+    modoRedis: 'servidor',
+    maestroSentinel: '',
+    claveSentinel: 'ninguna'
   }
+}
+
+/** Los campos del borrador que salen de la topología de Redis guardada (o los de un servidor). */
+function deTopologia(t: DbTopologiaRedis | undefined): Pick<BorradorConexion, 'modoRedis' | 'maestroSentinel' | 'claveSentinel'> {
+  if (!esTopologiaRedis(t)) return { modoRedis: 'servidor', maestroSentinel: '', claveSentinel: 'ninguna' }
+  if (t.modo === 'cluster') return { modoRedis: 'cluster', maestroSentinel: '', claveSentinel: 'ninguna' }
+  return { modoRedis: 'sentinel', maestroSentinel: t.maestro, claveSentinel: t.claveSentinel }
+}
+
+/** La topología que viaja con el borrador; `undefined` = un servidor. */
+export function topologiaDelBorrador(b: Pick<BorradorConexion, 'modoRedis' | 'maestroSentinel' | 'claveSentinel'>): DbTopologiaRedis | undefined {
+  if (b.modoRedis === 'cluster') return { modo: 'cluster' }
+  if (b.modoRedis === 'sentinel') return { modo: 'sentinel', maestro: b.maestroSentinel.trim(), claveSentinel: b.claveSentinel }
+  return undefined
+}
+
+/**
+ * Cambia a un servidor, Sentinel o Cluster. El puerto de fábrica sigue al modo (26379 de un sentinel,
+ * 6379 de Redis) si nadie lo cambió; Sentinel y Cluster no van por túnel SSH, así que se quita.
+ */
+export function conModoRedis(b: BorradorConexion, modo: ModoRedis): BorradorConexion {
+  if (b.modoRedis === modo) return b
+  const puertoDe = (m: ModoRedis): number => (m === 'sentinel' ? PUERTO_SENTINEL : (descriptorDe(b.motor).puertoPorDefecto ?? 0))
+  const port = b.port === puertoDe(b.modoRedis) ? puertoDe(modo) : b.port
+  return { ...b, modoRedis: modo, port, tunelSsh: modo === 'servidor' ? b.tunelSsh : '' }
 }
 
 /** Las opciones guardadas o pegadas, repartidas entre sus dos campos. */
@@ -124,6 +183,7 @@ export function borradorNuevo(profileId: string, motor: DbMotor = 'oracle'): Bor
     sid: '',
     user: '',
     password: '',
+    passwordSentinel: '',
     readonly: true,
     entorno: null,
     notas: '',
@@ -158,7 +218,10 @@ export function borradorDesde(c: DbConnection): BorradorConexion {
       ? { cifrar: c.tls.cifrar === true, confiarCertificado: c.tls.confiarCertificado === true }
       : tlsDeConexion(descriptor(c.motor), {}),
     srv: c.srv === true,
-    ...conOpciones(c.opcionesUri ?? '')
+    ...conOpciones(c.opcionesUri ?? ''),
+    tunelSsh: typeof c.tunelSsh?.conexionId === 'string' ? c.tunelSsh.conexionId : '',
+    ...deTopologia(c.topologiaRedis),
+    passwordSentinel: undefined
   }
 }
 
@@ -169,7 +232,8 @@ export function borradorDesde(c: DbConnection): BorradorConexion {
 export function cambiarMotor(b: BorradorConexion, motor: DbMotor): BorradorConexion {
   if (b.motor === motor) return b
   const tls = mismoTls(b.tls, tlsImplicito(b.motor, b.srv)) ? tlsImplicito(motor, b.srv) : b.tls
-  return { ...b, motor, port: descriptorDe(motor).puertoPorDefecto ?? 0, tls }
+  // La topología de Redis no pasa a otro motor: ahí escondería la base y cambiaría el puerto.
+  return { ...b, ...deTopologia(undefined), motor, port: descriptorDe(motor).puertoPorDefecto ?? 0, tls }
 }
 
 /** ¿Es un puerto que el main acepta? (La cota de `sinValor` de `camposConexion`.) */
@@ -214,6 +278,16 @@ function passwordNueva(b: BorradorConexion): boolean {
   return b.password !== undefined && b.password !== ''
 }
 
+/** ¿Lleva una contraseña NUEVA de los sentinels (solo cuenta con la suya propia)? */
+function passwordSentinelNueva(b: BorradorConexion): boolean {
+  return conClaveSentinelPropia(b) && b.passwordSentinel !== undefined && b.passwordSentinel !== ''
+}
+
+/** ¿Es Redis Sentinel con los sentinels de contraseña propia? */
+export function conClaveSentinelPropia(b: Pick<BorradorConexion, 'motor' | 'modoRedis' | 'claveSentinel'>): boolean {
+  return usaOpcional(descriptor(b.motor), 'topologiaRedis') && b.modoRedis === 'sentinel' && b.claveSentinel === 'propia'
+}
+
 /**
  * ¿Hay algo sin guardar? Un alta siempre (no hay nada guardado todavía). Una
  * edición, si algún campo que VIAJA difiere del original o se escribió una
@@ -221,7 +295,7 @@ function passwordNueva(b: BorradorConexion): boolean {
  */
 export function hayCambios(b: BorradorConexion, original: BorradorConexion | null): boolean {
   if (b.id === undefined || original === null) return true
-  if (passwordNueva(b)) return true
+  if (passwordNueva(b) || passwordSentinelNueva(b)) return true
   // Un archivo elegido de nuevo es un cambio aunque se llame igual que el guardado (otra
   // carpeta, otra base): lo que viaja es su ficha, no el nombre.
   if (b.origenArchivo !== undefined && descriptorDe(b.motor).deArchivo) return true
@@ -239,7 +313,10 @@ function difierenLosQueViajan(a: BorradorConexion, o: BorradorConexion): boolean
   )
 }
 
-type OpcionalesEntrada = Pick<DbConnectionInput, 'instancia' | 'autenticacion' | 'dominio' | 'tls' | 'srv' | 'opcionesUri'>
+type OpcionalesEntrada = Pick<
+  DbConnectionInput,
+  'instancia' | 'autenticacion' | 'dominio' | 'tls' | 'srv' | 'opcionesUri' | 'tunelSsh' | 'topologiaRedis'
+>
 
 /**
  * Los opcionales que viajan con el motor del borrador: solo los que declara
@@ -256,6 +333,11 @@ function opcionalesQueViajan(b: BorradorConexion): OpcionalesEntrada {
   if (usaOpcional(d, 'srv')) r.srv = b.srv
   // Con la base de autenticación de vuelta en su sitio (`unirAuthSource`).
   if (usaOpcional(d, 'opcionesUri')) r.opcionesUri = unirAuthSource(b.opcionesUri, b.authSource, b.authSourceOrigen)
+  // Sin túnel, el campo no va: ausente es «conexión directa».
+  if (usaOpcional(d, 'tunelSsh') && b.tunelSsh !== '') r.tunelSsh = { conexionId: b.tunelSsh }
+  // Un servidor: el campo no va (ausente es standalone).
+  const topologia = usaOpcional(d, 'topologiaRedis') ? topologiaDelBorrador(b) : undefined
+  if (topologia !== undefined) r.topologiaRedis = topologia
   return r
 }
 
@@ -276,6 +358,8 @@ export function entradaDe(borrador: BorradorConexion): DbConnectionInput {
   }
   // Sin entorno, el campo NO va: ausente es «sin entorno».
   if (b.entorno !== null) entrada.entorno = b.entorno
+  // En Cluster la base no se enseña (solo existe la 0): lo que quedara escrito no viaja.
+  if (b.modoRedis === 'cluster' && usaOpcional(descriptor(b.motor), 'topologiaRedis')) entrada.database = ''
   Object.assign(entrada, opcionalesQueViajan(b))
   // Motor de archivo: solo si se eligió uno NUEVO (ausente = el guardado). En un motor de red no va nunca.
   if (b.origenArchivo !== undefined && descriptorDe(b.motor).deArchivo) entrada.archivo = b.origenArchivo
@@ -284,6 +368,10 @@ export function entradaDe(borrador: BorradorConexion): DbConnectionInput {
   if (!pideCredenciales(b.motor)) return entrada
   if (b.id === undefined) entrada.password = b.password ?? ''
   else if (passwordNueva(b)) entrada.password = b.password
+  if (conClaveSentinelPropia(b)) {
+    if (b.id === undefined) entrada.passwordSentinel = b.passwordSentinel ?? ''
+    else if (passwordSentinelNueva(b)) entrada.passwordSentinel = b.passwordSentinel
+  }
   return entrada
 }
 

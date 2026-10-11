@@ -1,7 +1,7 @@
 // =============================================================================
-// El PATH del propio proceso main en macOS. Una app lanzada desde el Finder la arranca `launchd`
-// con el PATH mínimo del sistema, y `spawn('docker', …)` muere con ENOENT con Docker Desktop a la
-// vista. `asegurarPathDelHost` pregunta al shell de login e interactivo (`-ilc`) su PATH, entre
+// El PATH del propio proceso main en macOS y Linux. Una app lanzada desde el Finder la arranca
+// `launchd` con el PATH mínimo del sistema (y en Linux, el lanzador del escritorio con el de la
+// sesión gráfica), y `spawn('docker', …)` muere con ENOENT con Docker a la vista. `asegurarPathDelHost` pregunta al shell de login e interactivo (`-ilc`) su PATH, entre
 // dos marcadores, y lo fusiona con el del proceso; si el shell falla, añade igual las carpetas
 // fijas donde suele estar `docker`. El delimitador lo da `delimitadorPath` (terminales). La parte
 // pura (`fusionarPath`, `extraerPathMarcado`, `extraerEntreMarcas`, compartida con
@@ -11,8 +11,9 @@
 
 import { execFile, type ExecFileException } from 'node:child_process'
 import os from 'node:os'
-import { esWindows } from '../../shared/plataforma.ts'
+import { esWindows, plataformaActual, type Plataforma } from '../../shared/plataforma.ts'
 import { delimitadorPath } from '../terminals/entornoPty.ts'
+import { shellPosixPorDefecto } from '../terminals/shellNativo.ts'
 
 /** Marcador que precede al PATH en la salida del shell. */
 export const MARCA_INICIO = '__TESSERA_PATH__'
@@ -50,21 +51,22 @@ export const COMANDO_PATH_MARCADO =
   '/usr/bin/printenv PATH || printenv PATH; ' +
   `printf '%s' '${MARCA_FIN}'`
 
-/** Shell que se usa si `$SHELL` no viene en el entorno (el de macOS desde Catalina). */
-const SHELL_POR_DEFECTO = '/bin/zsh'
-
 /**
- * Sitios donde `docker` (y poco más) puede estar y que un PATH de `launchd` no trae.
- * Se añaden SIEMPRE, también cuando el shell respondió: no cuestan nada si ya
- * estaban (se deduplican) y salvan el caso del `.zshrc` que se rompió a medias.
+ * Sitios donde `docker` y los CLIs de agente pueden estar y que un PATH de `launchd` o
+ * del lanzador del escritorio no trae. Se añaden SIEMPRE, también cuando el shell
+ * respondió: no cuestan nada si ya estaban (se deduplican) y salvan el caso del
+ * `.zshrc` que se rompió a medias.
  */
-export function extrasDelHost(home: string = os.homedir()): string[] {
-  return [
-    '/usr/local/bin',
-    '/opt/homebrew/bin',
-    `${home}/.docker/bin`,
-    '/Applications/Docker.app/Contents/Resources/bin'
-  ]
+export function extrasDelHost(home: string = os.homedir(), plataforma: Plataforma = plataformaActual()): string[] {
+  if (plataforma === 'mac') {
+    return [
+      '/usr/local/bin',
+      '/opt/homebrew/bin',
+      `${home}/.docker/bin`,
+      '/Applications/Docker.app/Contents/Resources/bin'
+    ]
+  }
+  return ['/usr/local/bin', `${home}/.local/bin`, '/snap/bin', '/home/linuxbrew/.linuxbrew/bin']
 }
 
 /**
@@ -154,7 +156,7 @@ export interface LecturaPathLogin {
  * último comando devuelve distinto de cero no invalida lo que imprimió.
  */
 export function leerPathDeLoginConMotivo(
-  shell: string = process.env.SHELL || SHELL_POR_DEFECTO,
+  shell: string = process.env.SHELL || shellPosixPorDefecto(plataformaActual()),
   timeoutMs = 5000
 ): Promise<LecturaPathLogin> {
   return new Promise((resolve) => {

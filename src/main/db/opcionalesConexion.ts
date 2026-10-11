@@ -1,19 +1,23 @@
 // =============================================================================
 // Campos opcionales de una conexión al guardarla (instancia, autenticación, dominio, cifrado, SRV,
-// opciones de URI, usuario opcional, base numérica de Redis): qué se valida y qué se guarda según los
+// opciones de URI, túnel SSH, usuario opcional, base numérica y topología de Redis): qué se valida y qué se guarda según los
 // que declara el motor. Puro; lo carga también una prueba del renderer, por eso los imports llevan extensión.
 // Decisiones: docs/decisiones/bd/conexiones-campos-opcionales.md
 // =============================================================================
 
-import type { DbAutenticacion, DbConnectionInput, DbTls } from '../../shared/db-ipc.ts'
+import type { DbAutenticacion, DbConnectionInput, DbTls, DbTopologiaRedis, DbTunelSsh } from '../../shared/db-ipc.ts'
 import type { CampoOpcional, DescriptorMotor } from '../../shared/motores/index.ts'
 import { autenticacionDe, esAutenticacion, esDeClaves, pideDominio, tlsDeConexion, usaOpcional } from '../../shared/motores/index.ts'
 import { nunca } from '../../shared/nunca.ts'
+import { esTopologiaRedis, topologiaAGuardar, validarTopologiaRedis } from '../../shared/topologiaRedis.ts'
 import { BASE_REDIS_MAX, validarBaseRedis, validarOpcionesUriMongo } from '../../shared/uriConexion.ts'
 
 /** Lo que se mira de la entrada (un `DbConnectionInput` o lo que llega por IPC sin validar). */
-export type OpcionalesEntrada = Pick<DbConnectionInput, 'instancia' | 'autenticacion' | 'dominio' | 'tls' | 'srv' | 'opcionesUri'> &
-  Partial<Pick<DbConnectionInput, 'user'>>
+export type OpcionalesEntrada = Pick<
+  DbConnectionInput,
+  'instancia' | 'autenticacion' | 'dominio' | 'tls' | 'srv' | 'opcionesUri' | 'tunelSsh' | 'topologiaRedis'
+> &
+  Partial<Pick<DbConnectionInput, 'user' | 'host' | 'port' | 'database'>>
 
 /** Lo que se guarda de los opcionales (solo las claves con valor). */
 export interface OpcionalesGuardados {
@@ -23,6 +27,35 @@ export interface OpcionalesGuardados {
   tls?: DbTls
   srv?: boolean
   opcionesUri?: string
+  tunelSsh?: DbTunelSsh
+  topologiaRedis?: DbTopologiaRedis
+}
+
+/** El túnel SSH de la entrada, si tiene la forma de `DbTunelSsh`. */
+export function esTunelSsh(x: unknown): x is DbTunelSsh {
+  if (x === null || typeof x !== 'object') return false
+  const id = (x as Record<string, unknown>).conexionId
+  return typeof id === 'string' && id.trim() !== '' && id.length <= 200
+}
+
+/**
+ * Lo que no cabe por un túnel de un solo puerto: el driver iría a los demás servidores por su nombre,
+ * saltándose el túnel (MongoDB con SRV, con varios servidores, con `replicaSet` o sin conexión directa), o pediría el puerto
+ * por UDP a SQL Browser (SQL Server con instancia). null si cabe.
+ */
+function rechazoPorTunel(input: OpcionalesEntrada): string | null {
+  if (input.srv === true) return 'Una dirección SRV (mongodb+srv) no puede ir por un túnel SSH: pon el servidor y el puerto.'
+  if (input.topologiaRedis !== undefined && input.topologiaRedis !== null) {
+    return 'Sentinel y Cluster no van por túnel SSH: el cliente se conecta a servidores que el túnel no lleva. Quita el túnel o elige «Un servidor».'
+  }
+  if (typeof input.host === 'string' && input.host.includes(',')) return 'Con túnel SSH, la conexión admite un solo servidor.'
+  if (typeof input.opcionesUri === 'string' && /(^|&)(replicaSet=|directConnection=false)/i.test(input.opcionesUri)) {
+    return 'Con túnel SSH, la conexión va directa a un servidor: quita replicaSet y directConnection=false de las opciones.'
+  }
+  if (typeof input.instancia === 'string' && input.instancia.trim() !== '') {
+    return 'Con túnel SSH, la conexión necesita el puerto y no la instancia: el túnel no lleva la consulta que la resuelve.'
+  }
+  return null
 }
 
 /**
@@ -105,7 +138,20 @@ const REGLAS_OPCIONALES: Record<CampoOpcional, (input: OpcionalesEntrada) => str
     if (v === undefined || v === null) return null
     if (typeof v !== 'string') return 'Las opciones de la URI no son válidas.'
     return validarOpcionesUriMongo(v)
-  }
+  },
+  tunelSsh: (input) => {
+    const v = input.tunelSsh
+    if (v === undefined || v === null) return null
+    return esTunelSsh(v) ? rechazoPorTunel(input) : 'El túnel SSH de la conexión no es válido.'
+  },
+  // Corre también sin topología: una lista de servidores sin Sentinel ni Cluster se rechaza.
+  topologiaRedis: (input) =>
+    validarTopologiaRedis(input.topologiaRedis, {
+      host: typeof input.host === 'string' ? input.host : '',
+      port: typeof input.port === 'number' ? input.port : 0,
+      database: typeof input.database === 'string' ? input.database : '',
+      tunel: esTunelSsh(input.tunelSsh)
+    })
 }
 
 /** El rechazo exacto de un campo opcional de la entrada, o `null` si vale; se llama solo para los del motor. */
@@ -148,12 +194,20 @@ function dominioAGuardar(d: DescriptorMotor, input: OpcionalesEntrada): Opcional
 
 /**
  * Cifrado como objeto nuevo con sus dos claves en orden fijo (la huella se calcula sobre el JSON). Con
- * `tlsPorDefecto` propio (MongoDB) siempre el efectivo; sin él (SQL Server), solo el escrito.
+ * `tlsSoloCifrando` (PG, Oracle), solo si cifra; con `tlsPorDefecto` propio (MongoDB, Redis) siempre el
+ * efectivo; sin él (SQL Server), solo el escrito.
  */
 function tlsAGuardar(d: DescriptorMotor, input: OpcionalesEntrada): OpcionalesGuardados {
   if (!usaOpcional(d, 'tls')) return {}
-  if (d.conexion.tlsPorDefecto) return { tls: tlsEfectivo(d, input) }
-  return esTls(input.tls) ? { tls: { cifrar: input.tls.cifrar, confiarCertificado: input.tls.confiarCertificado } } : {}
+  // Un motor que no cifra sin verificar (Oracle) no guarda «confiar»: llegaría de otro motor al cambiarlo en el formulario.
+  const admisible = (t: DbTls): DbTls =>
+    d.conexion.admiteConfiarCertificado === false ? { cifrar: t.cifrar, confiarCertificado: false } : t
+  if (d.conexion.tlsSoloCifrando) {
+    const t = tlsEfectivo(d, input)
+    return t.cifrar ? { tls: admisible(t) } : {}
+  }
+  if (d.conexion.tlsPorDefecto) return { tls: admisible(tlsEfectivo(d, input)) }
+  return esTls(input.tls) ? { tls: admisible({ cifrar: input.tls.cifrar, confiarCertificado: input.tls.confiarCertificado }) } : {}
 }
 
 /** `srv` y opciones de URI, si el motor los declara y vienen con valor. */
@@ -163,6 +217,16 @@ function uriAGuardar(d: DescriptorMotor, input: OpcionalesEntrada): OpcionalesGu
   const opcionesUri = usaOpcional(d, 'opcionesUri') ? textoRecortado(input.opcionesUri) : undefined
   if (opcionesUri !== undefined) salida.opcionesUri = opcionesUri
   return salida
+}
+
+/** El túnel SSH como objeto nuevo con solo su id, si el motor lo declara y viene. */
+function tunelAGuardar(d: DescriptorMotor, input: OpcionalesEntrada): OpcionalesGuardados {
+  return usaOpcional(d, 'tunelSsh') && esTunelSsh(input.tunelSsh) ? { tunelSsh: { conexionId: input.tunelSsh.conexionId } } : {}
+}
+
+/** La topología de Redis como objeto nuevo, si el motor la declara y viene. */
+function topologiaAGuardarDe(d: DescriptorMotor, input: OpcionalesEntrada): OpcionalesGuardados {
+  return usaOpcional(d, 'topologiaRedis') && esTopologiaRedis(input.topologiaRedis) ? { topologiaRedis: topologiaAGuardar(input.topologiaRedis) } : {}
 }
 
 /**
@@ -176,6 +240,8 @@ export function opcionalesAGuardar(d: DescriptorMotor, input: OpcionalesEntrada)
     autenticacionAGuardar(d, input),
     dominioAGuardar(d, input),
     tlsAGuardar(d, input),
-    uriAGuardar(d, input)
+    uriAGuardar(d, input),
+    tunelAGuardar(d, input),
+    topologiaAGuardarDe(d, input)
   )
 }

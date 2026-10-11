@@ -99,7 +99,9 @@ export function bindsParaTrabajador(
     binds && Object.prototype.hasOwnProperty.call(binds, clave) ? binds[clave] : null
   const estilo = reglasDe(d).estiloParametros
   switch (estilo) {
+    // MySQL: cada `?` lleva su número de orden como clave; el array es el mismo que el de PG.
     case 'dolarNumero':
+    case 'interrogacion':
       return bindsPosicionales(params, d, valorDe)
     case 'dosPuntosNombre': {
       const obj: Record<string, string | null> = {}

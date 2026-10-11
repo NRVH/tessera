@@ -2,7 +2,7 @@
 // Lo que se enseña al importar de OpenSSH, sin efectos: con un solo `Host`, cómo se rellena el formulario de
 // alta (y qué nota lo acompaña); con varios, las filas de la revisión con su credencial (método, contraseña
 // o archivo de clave), sus problemas (nombre vacío, repetido o ya usado, sin usuario, sin archivo, puerto que
-// no es número) y el alta de cada fila elegida. Lo usan
+// no es número), el grupo de cada una y el alta de cada fila elegida. Lo usan
 // `DialogoConexionSsh`, `DialogoImportarOpenSsh` e `importacionSsh.ts`; lo prueba `test-importacion-openssh.mts`.
 // Decisiones: docs/decisiones/ssh/registro-y-claves.md
 // =============================================================================
@@ -71,6 +71,8 @@ export interface FilaImportacion {
   secreto: string
   /** El archivo de clave: el del `IdentityFile` o uno elegido aquí, con su ficha. */
   clave: SshClaveElegida | null
+  /** El grupo al que va: `null` = «Sin grupo». */
+  grupoId: string | null
   /** El error del alta, si falló al importar. */
   error: string | null
 }
@@ -89,8 +91,39 @@ export function filasIniciales(l: SshLecturaOpenSsh): FilaImportacion[] {
     metodo: c.clave ? 'clave' : 'sistema',
     secreto: '',
     clave: c.clave,
+    grupoId: null,
     error: null
   }))
+}
+
+/**
+ * Las filas MARCADAS al mismo grupo: el atajo para no elegirlo fila a fila. Las desmarcadas no se importan, y
+ * tocarlas haría creer que sí.
+ */
+export function conGrupoEnMarcadas(filas: readonly FilaImportacion[], grupoId: string | null): FilaImportacion[] {
+  return filas.map((f) => (f.elegida ? { ...f, grupoId, error: null } : f))
+}
+
+/**
+ * Marca o desmarca la fila `i`. Al marcarla entra en el grupo que comparten las marcadas (si van a varios, en
+ * «Sin grupo»); al desmarcarla vuelve a «Sin grupo», como todo lo que no se importa.
+ */
+export function conMarca(filas: readonly FilaImportacion[], i: number, elegida: boolean): FilaImportacion[] {
+  const comun = grupoComun(filas)
+  const grupoId = elegida ? (comun ?? null) : null
+  return filas.map((f, j) => (j === i ? { ...f, elegida, grupoId, error: null } : f))
+}
+
+/** El grupo que comparten las filas marcadas (`null` sin ninguna marcada); `undefined` si van a grupos distintos. */
+export function grupoComun(filas: readonly FilaImportacion[]): string | null | undefined {
+  const grupos = new Set(filas.filter((f) => f.elegida).map((f) => f.grupoId))
+  if (grupos.size === 0) return null
+  return grupos.size === 1 ? [...grupos][0] : undefined
+}
+
+/** El grupo de una fila si aún existe; si se borró mientras se revisaba, «Sin grupo». */
+export function grupoVigente(f: FilaImportacion, existentes: ReadonlySet<string>): string | null {
+  return f.grupoId !== null && existentes.has(f.grupoId) ? f.grupoId : null
 }
 
 const clave = (alias: string): string => alias.trim().toLowerCase()
@@ -115,10 +148,10 @@ export function resumenImportacion(filas: readonly FilaImportacion[], existentes
   return { elegidas: elegidas.length, listo: elegidas.length > 0 && elegidas.every((f) => problemaDeFila(f, filas, existentes) === null) }
 }
 
-/** El alta de una fila con su método: el secreto solo si se escribió (y nunca con las claves del sistema). */
-export function entradaDeFila(f: FilaImportacion, perfilId: string, grupoId: string | null): SshConexionInput {
+/** El alta de una fila con su método y su grupo: el secreto solo si se escribió (y nunca con las claves del sistema). */
+export function entradaDeFila(f: FilaImportacion, perfilId: string): SshConexionInput {
   const c = f.candidata
-  const base = { profileId: perfilId, alias: f.alias.trim(), grupoId, host: c.host, puerto: c.puerto ?? 22, usuario: f.usuario.trim(), disponibleAgentes: true }
+  const base = { profileId: perfilId, alias: f.alias.trim(), grupoId: f.grupoId, host: c.host, puerto: c.puerto ?? 22, usuario: f.usuario.trim(), disponibleAgentes: true }
   const secreto = f.secreto !== '' ? { secreto: f.secreto } : {}
   if (f.metodo === 'sistema') return { ...base, metodo: 'sistema' }
   if (f.metodo === 'clave' && f.clave) return { ...base, metodo: 'clave', clave: { tipo: 'elegida', token: f.clave.token }, ...secreto }
@@ -130,8 +163,17 @@ export function pideSecreto(f: FilaImportacion): boolean {
   return f.metodo === 'contrasena' || (f.metodo === 'clave' && f.clave?.cifrada === true)
 }
 
-/** El aviso al terminar: cuántas entraron y en qué grupo. */
-export function tituloImportadas(n: number, grupo: string | null): string {
-  const donde = grupo === null ? 'en «Sin grupo»' : `en «${grupo}»`
-  return n === 1 ? `Se importó 1 conexión SSH ${donde}` : `Se importaron ${n} conexiones SSH ${donde}`
+/**
+ * El aviso al terminar: cuántas entraron y en qué grupo, con el nombre del grupo de cada importada (`null` =
+ * «Sin grupo»). Si van a varios, el reparto, del grupo con más al de menos.
+ */
+export function tituloImportadas(grupos: readonly (string | null)[]): string {
+  const n = grupos.length
+  const cuantas = n === 1 ? 'Se importó 1 conexión SSH' : `Se importaron ${n} conexiones SSH`
+  const nombre = (g: string | null): string => `«${g ?? 'Sin grupo'}»`
+  const cuenta = new Map<string | null, number>()
+  for (const g of grupos) cuenta.set(g, (cuenta.get(g) ?? 0) + 1)
+  if (cuenta.size <= 1) return `${cuantas} en ${nombre(grupos[0] ?? null)}`
+  const partes = [...cuenta].sort((a, b) => b[1] - a[1]).map(([g, k]) => `${k} en ${nombre(g)}`)
+  return `${cuantas}: ${partes.slice(0, -1).join(', ')} y ${partes[partes.length - 1]}`
 }

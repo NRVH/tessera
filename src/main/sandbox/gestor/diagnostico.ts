@@ -6,7 +6,7 @@
 // =============================================================================
 import type { Profile } from '../../profiles/types.ts'
 import { EXTRAS_VACIOS, extrasDesdeSello } from '../../../shared/sandboxExtras.ts'
-import { pasosDocker } from '../../../shared/dockerErrors.ts'
+import { DETALLE_DOCKER_ROOTLESS, esDockerRootless, pasosDocker } from '../../../shared/dockerErrors.ts'
 import { runDocker } from '../adaptadores/docker.ts'
 import { containerNameFor } from './nombres.ts'
 import type { NucleoSandbox } from './NucleoSandbox.ts'
@@ -60,9 +60,10 @@ export class DiagnosticoSandbox {
 
   /** ¿Responde el daemon? Sonda caliente: timeout corto para que un daemon colgado falle rápido. */
   async checkDocker(): Promise<DockerCheckResult> {
-    const info = await runDocker(['info', '--format', '{{.ServerVersion}} {{.OSType}}/{{.Architecture}}'], {
-      timeoutMs: 30_000
-    })
+    const info = await runDocker(
+      ['info', '--format', '{{.ServerVersion}} {{.OSType}}/{{.Architecture}}|{{json .SecurityOptions}}'],
+      { timeoutMs: 30_000 }
+    )
     if (info.error || info.status !== 0) {
       // Los pasos salen de `pasosDocker` para que el detalle y el texto del main sean el MISMO.
       const detalle = [
@@ -74,7 +75,10 @@ export class DiagnosticoSandbox {
       ].join('\n')
       return { ok: false, detalle }
     }
-    return { ok: true, detalle: info.stdout.trim() }
+    const [version, opciones = ''] = info.stdout.trim().split('|')
+    // Sin root, el gestor no puede montar los proyectos en caliente en el contenedor vivo.
+    if (esDockerRootless(opciones)) return { ok: false, detalle: DETALLE_DOCKER_ROOTLESS }
+    return { ok: true, detalle: version }
   }
 
   /** Clasifica POR QUÉ murió una sesión (ver `ContainerDeathCause`). */

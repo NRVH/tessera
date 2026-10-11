@@ -10,6 +10,7 @@ import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from 'reac
 import type { DbArbolProps } from './propsBd'
 import type { DbArchivoElegido, DbConexionAjena, DbConnection, DbMotor, DriverRequerido } from '../../../../shared/db-ipc'
 import type { DbConsolaInfo, DbResolverTx } from '../../../../shared/db-explorador-ipc'
+import type { DbKvTipo } from '../../../../shared/db-claves-ipc'
 import type { Plataforma } from '../../../../shared/plataforma'
 import type { ContextMenuEntry } from '../../comun/ContextMenu'
 import type { AnclaPopover } from './DbEsquemasPopover'
@@ -89,6 +90,11 @@ export interface FiltroClaves {
   clave: string
 }
 
+/** Un diálogo de claves abierto desde una base o una carpeta: crear una clave o borrar por patrón. */
+export type AccionClavesArbol =
+  | { tipo: 'nueva'; conexionId: string; indice: number }
+  | { tipo: 'borrar'; conexionId: string; indice: number; patron: string; tipoClave?: DbKvTipo }
+
 export interface ArrastreArbol {
   id: string
   sobre: string | null
@@ -109,6 +115,8 @@ export interface EstadoUiArbol {
   /** «Filtrar claves…» de una base de claves abierto: su base y el patrón de ahora. */
   filtrandoClaves: (FiltroClaves & { actual: string }) | null
   setFiltrandoClaves: Setter<(FiltroClaves & { actual: string }) | null>
+  accionClaves: AccionClavesArbol | null
+  setAccionClaves: Setter<AccionClavesArbol | null>
   peticionTx: PeticionTx | null
   setPeticionTx: Setter<PeticionTx | null>
   probando: string | null

@@ -151,6 +151,10 @@ export function cuerpoClave(e: EntradaCuerpo): React.JSX.Element {
     case 'string':
       return <VistaBytes bytes={contenido.valor} aviso={avisoTruncado(contenido)} modoElegido={modoElegido} onModo={setModoElegido} />
     case 'json': {
+      // No leído por grande: no es un documento vacío, así que no se pinta como tal.
+      if (contenido.omitidoBytes !== undefined) {
+        return <EstadoVacio icono={<IconoClaveKv />} titulo="Documento demasiado grande para el visor" pista={avisoTruncado(contenido) ?? ''} />
+      }
       const b: DbKvBytes = { texto: contenido.texto, base64: '' }
       return <VistaBytes bytes={b} aviso={avisoTruncado(contenido)} modoElegido={modoElegido} onModo={setModoElegido} soloTexto />
     }

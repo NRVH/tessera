@@ -9,7 +9,7 @@
 import type { BrowserWindow } from 'electron'
 import type { AppUpdater } from 'electron-updater'
 import { UPDATE_CHANNELS, initialUpdateState, type UpdateState } from '../../shared/update-ipc'
-import { capacidades } from '../../shared/plataforma'
+import { capacidades, esLinux } from '../../shared/plataforma'
 import { describeUpdateError, rawDetail } from './updateErrors'
 import { urlDescargaManual } from './descargaManual'
 import { logUpdate as log } from './logUpdate'
@@ -135,6 +135,16 @@ export function motor(): AppUpdater {
   return sistemaActual.motor()
 }
 
+/**
+ * ¿Puede ESTA copia instalarse sola una actualización? La plataforma sabe hacerlo
+ * (`capacidades`), pero en Linux solo un AppImage: electron-updater sustituye el archivo
+ * que dice `APPIMAGE`, y una carpeta desempaquetada no tiene nada que sustituir.
+ */
+export function autoInstalaEstaCopia(): boolean {
+  if (!capacidades().autoInstalarUpdate) return false
+  return !esLinux() || Boolean(process.env.APPIMAGE)
+}
+
 /** Fuente única de verdad, difundida entera en cada transición. */
 export function setState(patch: Partial<UpdateState>): void {
   // `aplicable` NO se parchea: se DERIVA aquí, en el único sitio por el que pasa todo
@@ -185,7 +195,7 @@ export function seAplicaAlCerrarAhora(): boolean {
   // Donde no se puede auto-instalar (hoy Linux/BSD) tampoco al cerrar: prometerlo
   // quemaría un intento por cierre sin instalar nada. En Mac lo que puede faltar es el
   // bundle escribible, y eso se comprueba antes de descargar (`atenderUpdateMac`).
-  if (!capacidades().autoInstalarUpdate) return false
+  if (!autoInstalaEstaCopia()) return false
   // Sin motor armado no se puede prometer: un `ready` sembrado del marcador no se puede
   // aplicar todavía (`decisionInstalar.ts`).
   if (!ciclo.motorArmado) return false

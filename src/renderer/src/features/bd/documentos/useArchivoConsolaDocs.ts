@@ -13,7 +13,8 @@ import { mismosIndicadores } from '../consola/vivoConsola'
 import { soltarModelo, tomarModelo, vaciarAlDesmontar } from '../consola/archivoConsola'
 import { useArchivoConsola, type ArchivoConsolaHook } from '../consola/useArchivoConsola'
 import { ensureMonaco } from '../../../comun/monacoSetup'
-import { cerrarLectorDeVista, type EstadoConsolaDocs } from './useEstadoConsolaDocs'
+import type { EstadoConsolaDocs } from './useEstadoConsolaDocs'
+import { cerrarTodas } from '../resultados/pestanasResultado'
 import {
   LENGUAJE_CONSOLA_DOCS,
   MarcasConsolaDocs,
@@ -31,8 +32,9 @@ function liberarConsola(e: EstadoConsolaDocs, m: editor.ITextModel, marcas: Marc
     e.api.cancelar({ rol: 'consola', perfilId: e.perfilId, consolaId: e.consolaId, ejecucionId: enCurso.peticionId }).catch(() => undefined)
   }
   const mas = e.masRef.current
-  if (mas) e.api.cancelar({ rol: 'datos', conexionId: e.conexionRef.current.id, peticionId: mas }).catch(() => undefined)
-  cerrarLectorDeVista(e.docs, e.vistaRef.current)
+  // El cursor de «Cargar más» vive en la sesión de la consola: se para por ella.
+  if (mas) e.api.cancelar({ rol: 'consola', perfilId: e.perfilId, consolaId: e.consolaId, ejecucionId: mas }).catch(() => undefined)
+  e.cambiarResultados(cerrarTodas)
   e.dialogoRef.current?.resolver(false)
   marcas.dispose()
   e.marcasRef.current = null

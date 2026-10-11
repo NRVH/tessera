@@ -39,8 +39,6 @@ export interface TerminalApi {
    * `close` y `reload` (sin teclear nada en la sesión); su EXIT puede traer `reason`.
    */
   openSsh: (req: OpenSshRequest) => Promise<OpenTerminalResult>
-  /** Bootstrap de la sesión de terminal (perfil por defecto + proyecto de prueba). */
-  bootstrapTerminalSession: () => Promise<OpenTerminalResult>
   /** Envía stdin al shell. */
   write: (msg: WriteTerminalMessage) => void
   /** Reflow del pty. */
@@ -131,7 +129,6 @@ export interface AgentTerminalApi {
 export const terminal: TerminalApi = {
   open: (req) => ipcRenderer.invoke(TERMINAL_CHANNELS.OPEN, req),
   openSsh: (req) => ipcRenderer.invoke(TERMINAL_CHANNELS.OPEN_SSH, req),
-  bootstrapTerminalSession: () => ipcRenderer.invoke(TERMINAL_CHANNELS.BOOTSTRAP_SESSION),
   write: (msg) => ipcRenderer.send(TERMINAL_CHANNELS.WRITE, msg),
   resize: (msg) => ipcRenderer.send(TERMINAL_CHANNELS.RESIZE, msg),
   setFlow: (msg) => ipcRenderer.send(TERMINAL_CHANNELS.FLOW, msg),

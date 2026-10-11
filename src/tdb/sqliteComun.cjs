@@ -21,6 +21,8 @@ const TIMEOUT_MS = 3000
 /** Códigos PRIMARIOS de SQLite con los que `abrirSqlite` reabre en solo lectura. */
 const READONLY = 8
 const CANTOPEN = 14
+/** Extendido (READONLY | 6 << 8): la carpeta de la base no admite escritura. Lo da el VFS de Unix (macOS); Windows da CANTOPEN. */
+const READONLY_DIRECTORY = 1544
 
 /** El texto de VACUUM INTO, el MISMO en escritura y en solo lectura, aquí y en `MENSAJE_VACUUM_INTO` de `shared/sql/clasificarSql.ts`. */
 const MENSAJE_VACUUM_INTO = 'VACUUM INTO escribe una copia de la base fuera de ella: en Tessera está cerrado siempre.'
@@ -67,10 +69,54 @@ function debeReabrirSoloLectura(db) {
     db.prepare('SELECT 1 FROM sqlite_schema LIMIT 1').get()
     return false
   } catch (e) {
-    const primario = e && typeof e.errcode === 'number' ? e.errcode & 0xff : null
+    const primario = primarioDe(e)
     if (primario !== CANTOPEN && primario !== READONLY) throw e
     return true
   }
+}
+
+function primarioDe(e) {
+  return e && typeof e.errcode === 'number' ? e.errcode & 0xff : null
+}
+
+/**
+ * Una base WAL con su `-wal` en una carpeta sin escritura no se puede leer ni en solo lectura:
+ * para leer lo que hay en el `-wal`, SQLite necesita crear el `-shm` junto a ella. Abrirla
+ * inmutable ignoraría ese `-wal` y enseñaría datos viejos sin avisar.
+ */
+function mensajeWalSinCarpeta(nombre) {
+  return (
+    `La carpeta de «${nombre}» no admite escritura, y la base tiene cambios sin consolidar en su «-wal» ` +
+    'que SQLite solo puede leer creando un archivo junto a ella. Copia la base junto con su «-wal» a una ' +
+    'carpeta donde se pueda escribir, o ábrela una vez con la aplicación que la usa para que los consolide.'
+  )
+}
+
+/**
+ * Lanza el error de Tessera si la primera lectura de una base WAL en solo lectura no puede abrir
+ * sus auxiliares. Solo en modo normal: en solo lectura, una WAL en modo normal es la que tiene su `-wal`.
+ */
+function comprobarLecturaWal(db, d, soloLectura, nombre) {
+  if (!soloLectura || !d.wal || d.modo !== 'normal') return
+  if (debeReabrirSoloLectura(db)) throw errorSqlite('WAL-SIN-ESCRITURA', mensajeWalSinCarpeta(nombre))
+}
+
+/**
+ * Una escritura en una conexión de escritura que da SQLITE_CANTOPEN (Windows) o
+ * SQLITE_READONLY_DIRECTORY (macOS): SQLite no pudo crear el
+ * diario (`-journal`) junto a la base, que es lo que pasa en una carpeta sin escritura de una
+ * base en modo rollback (abre y lee sin quejarse). Solo con el perfil de escritura (`base`): el
+ * CANTOPEN de una lectura es de otra cosa (temporales, bases adjuntas). Devuelve el error de
+ * Tessera que lo dice, con el original al final, o el mismo error si es otro.
+ */
+function traducirCarpetaSinEscritura(con, err, perfil) {
+  if (!con || con.soloLectura || perfil !== 'base') return err
+  if (primarioDe(err) !== CANTOPEN && !(err && err.errcode === READONLY_DIRECTORY)) return err
+  return errorSqlite(
+    'CARPETA-SIN-ESCRITURA',
+    `No se pudo escribir en «${con.nombre}»: SQLite no pudo crear su diario junto a la base, porque la carpeta no admite escritura. ` +
+      `Para editarla, cópiala a una carpeta donde se pueda escribir. (SQLite: ${String(err.message || err)})`
+  )
 }
 
 /**
@@ -114,6 +160,7 @@ function abrirSqlite(ruta, o = {}) {
       db.close()
       return abrirSqlite(ruta, { ...o, soloLectura: true, respaldo: true })
     }
+    comprobarLecturaWal(db, d, soloLectura, nombre)
     return {
       db,
       ruta,
@@ -433,6 +480,7 @@ module.exports = {
   autorizador,
   abrirSqlite,
   cerrarSqlite,
+  traducirCarpetaSinEscritura,
   conPerfil,
   conVacuum,
   prepararUna,

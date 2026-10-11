@@ -46,6 +46,21 @@ export class ErrorGestor extends Error {
 }
 
 /**
+ * El extremo local del túnel SSH de la conexión antes de abrir una sesión, o `null` sin túnel. Su error
+ * (huella sin confirmar, ssh que no conecta) es un mensaje para el usuario y sale tal cual.
+ */
+export async function destinoPorTunel<C>(
+  tunel: ((con: C) => Promise<{ host: string; port: number }> | null) | undefined,
+  con: C
+): Promise<{ host: string; port: number } | null> {
+  try {
+    return (await tunel?.(con)) ?? null
+  } catch (e) {
+    throw new ErrorGestor('servidor', e instanceof Error ? e.message : String(e))
+  }
+}
+
+/**
  * Pone en el error del servidor DÓNDE cayó (`campoDeError`): el campo con su posición, o
  * la condición del filtro guiado, que no tiene posición que marcar.
  */

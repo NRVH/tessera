@@ -2,7 +2,7 @@
 // Lo común de Redis para `tdb` (`redis.cjs`) y el trabajador del explorador (`sesionRedis.cjs`):
 // una sola copia de cómo se conecta, cómo se parte un comando, qué es lectura y cómo se lee un
 // valor. Fachada: reexporta `clienteRedis`, `comandosRedis`, `politicaRedis`, `ejecucionRedis`,
-// `claveRedis`, `valoresRedis` y `erroresRedis`, que es donde vive cada parte. `ioredis` se carga a demanda.
+// `claveRedis`, `valoresRedis`, `erroresRedis` y `topologiaRedis`, donde vive cada parte. `ioredis` se carga a demanda.
 // Decisiones: docs/decisiones/bd/adaptador-redis-cliente-y-marcas.md
 // =============================================================================
 
@@ -15,6 +15,7 @@ const cliente = require('./clienteRedis.cjs')
 const politica = require('./politicaRedis.cjs')
 const ejecucion = require('./ejecucionRedis.cjs')
 const clave = require('./claveRedis.cjs')
+const topologia = require('./topologiaRedis.cjs')
 
 module.exports = {
   ErrorSintaxis: errores.ErrorSintaxis,
@@ -36,6 +37,9 @@ module.exports = {
   bases: clave.bases,
   escanear: clave.escanear,
   valor: clave.valor,
+  esCluster: topologia.esCluster,
+  esSentinel: topologia.esSentinel,
+  topologiaDe: topologia.topologiaDe,
   normalizarError: errores.normalizarError,
   esPerdida: errores.esPerdida,
   esRespuestaError: errores.esRespuestaError,
@@ -48,5 +52,6 @@ module.exports = {
   LUA: comandos.LUA,
   BASES_POR_DEFECTO: cliente.BASES_POR_DEFECTO,
   TOPE_STRING_BYTES: clave.TOPE_STRING_BYTES,
-  TOPE_JSON_CARACTERES: clave.TOPE_JSON_CARACTERES
+  TOPE_JSON_CARACTERES: clave.TOPE_JSON_CARACTERES,
+  TOPE_JSON_LECTURA_BYTES: clave.TOPE_JSON_LECTURA_BYTES
 }

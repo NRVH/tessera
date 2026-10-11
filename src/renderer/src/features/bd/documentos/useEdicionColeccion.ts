@@ -25,6 +25,12 @@ export type Confirmacion =
   | { tipo: 'produccion'; confirmadoSinTransaccion: boolean }
   | { tipo: 'sinTransaccion'; confirmado: boolean }
 
+/** Lo que enseña la vista previa de «Enviar»: una orden por cambio y el resumen por tipo. */
+export interface VistaPreviaDocs {
+  lineas: string[]
+  resumen: string
+}
+
 export interface EstadoEdicion {
   edicionRef: React.MutableRefObject<EdicionDocs>
   ponerEdicion: (e: EdicionDocs) => void
@@ -32,6 +38,9 @@ export interface EstadoEdicion {
   setEnviando: (v: boolean) => void
   confirmacion: Confirmacion | null
   setConfirmacion: (c: Confirmacion | null) => void
+  /** La vista previa de «Enviar», abierta hasta que se acepta o se cancela. */
+  vistaPrevia: VistaPreviaDocs | null
+  setVistaPrevia: (v: VistaPreviaDocs | null) => void
   /** La clave de la fila del cambio que falló al enviar. */
   filaError: string | null
   setFilaError: (c: string | null) => void
@@ -63,6 +72,7 @@ export function useEstadoEdicion(pagina: Pagina | null): EstadoEdicion {
   }, [])
   const [enviando, setEnviando] = useState(false)
   const [confirmacion, setConfirmacion] = useState<Confirmacion | null>(null)
+  const [vistaPrevia, setVistaPrevia] = useState<VistaPreviaDocs | null>(null)
   const [filaError, setFilaError] = useState<string | null>(null)
   const [seleccion, setSeleccion] = useState<string | null>(null)
   const [editando, setEditando] = useState<EstadoEdicion['editando']>(null)
@@ -79,7 +89,7 @@ export function useEstadoEdicion(pagina: Pagina | null): EstadoEdicion {
   const pendientes = numCambiosDocs(edicion)
 
   return {
-    edicionRef, ponerEdicion, enviando, setEnviando, confirmacion, setConfirmacion, filaError, setFilaError,
+    edicionRef, ponerEdicion, enviando, setEnviando, confirmacion, setConfirmacion, vistaPrevia, setVistaPrevia, filaError, setFilaError,
     setSeleccion, editando, setEditando, jsonEdit, setJsonEdit, panelJson, setPanelJson, menu, setMenu,
     filas, columnas, documentosTabla, estadosTabla, indiceSel, filaSel, pendientes
   }

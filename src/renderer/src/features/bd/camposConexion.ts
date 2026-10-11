@@ -18,6 +18,7 @@ import {
   porMotor,
   usaOpcional
 } from '../../../../shared/motores/index.ts'
+import { validarTopologiaRedis } from '../../../../shared/topologiaRedis.ts'
 import { PRESENTACION } from './camposConexionPresentacion.ts'
 import type { DbMotor } from '../../../../shared/db-ipc.ts'
 import type { CampoConexion, CampoTextoDestino } from '../../../../shared/motores/index.ts'
@@ -109,10 +110,36 @@ export function camposTrasCredenciales(motor: DbMotor): CampoFormulario[] {
   return descriptorDe(motor).filasTrasCredenciales.flatMap((fila) => fila.map((c) => c.campo))
 }
 
-/** ¿Se pinta este campo con estos valores? Todos, salvo el DOMINIO con una autenticación que no lo pide. */
-export function campoVisible(campo: CampoFormulario, v: Pick<ValoresConexion, 'autenticacion'>): boolean {
+/**
+ * ¿Se pinta este campo con estos valores? Todos, salvo el DOMINIO con una autenticación que no lo
+ * pide y la BASE de Redis Cluster (solo existe la 0).
+ */
+export function campoVisible(campo: CampoFormulario, v: Pick<ValoresConexion, 'autenticacion' | 'modoRedis'>): boolean {
   if (campo === 'dominio') return pideDominio(autenticacionDe(v.autenticacion))
+  if (campo === 'database') return v.modoRedis !== 'cluster'
   return true
+}
+
+/**
+ * Lo que se dice EN VIVO de la topología de Redis (Sentinel o Cluster, o una lista de servidores
+ * sin ninguno de los dos), o null: la misma regla que el main (`validarTopologiaRedis`).
+ */
+export function avisoTopologiaRedis(v: ValoresConexion): string | null {
+  // Sin host lo dice ya el propio campo: no se repite aquí.
+  if (!usaOpcional(descriptor(v.motor), 'topologiaRedis') || limpiarDestinoBd(v.host) === '') return null
+  const modo = v.modoRedis ?? 'servidor'
+  const topologia =
+    modo === 'cluster'
+      ? { modo: 'cluster' as const }
+      : modo === 'sentinel'
+        ? { modo: 'sentinel' as const, maestro: v.maestroSentinel ?? '', claveSentinel: v.claveSentinel ?? 'ninguna' }
+        : undefined
+  return validarTopologiaRedis(topologia, {
+    host: limpiarDestinoBd(v.host),
+    port: v.port,
+    database: modo === 'cluster' ? '' : v.database,
+    tunel: (v.tunelSsh ?? '') !== ''
+  })
 }
 
 /**
@@ -165,7 +192,16 @@ export function ordenFormulario(motor: DbMotor): CampoConexion[] {
   const usuario: CampoConexion[] = pideUsuarioYClave(descriptor(motor)) ? ['user'] : []
   // La base de autenticación no se marca nunca como falta: no entra.
   const delRegistro = (c: CampoFormulario): c is Exclude<CampoFormulario, 'authSource'> => c !== 'authSource'
-  return ['alias', ...archivo, ...camposVisibles(motor).filter(delRegistro), ...usuario, ...camposTrasCredenciales(motor).filter(delRegistro)]
+  // La topología de Redis va encima del destino (su selector abre la sección).
+  const topologia: CampoConexion[] = usaOpcional(descriptor(motor), 'topologiaRedis') ? ['topologiaRedis'] : []
+  return [
+    'alias',
+    ...archivo,
+    ...topologia,
+    ...camposVisibles(motor).filter(delRegistro),
+    ...usuario,
+    ...camposTrasCredenciales(motor).filter(delRegistro)
+  ]
 }
 
 /**
@@ -204,6 +240,8 @@ function sinValor(v: ValoresConexion, campo: CampoConexion): boolean {
     case 'tls':
     case 'srv':
     case 'opcionesUri':
+    case 'tunelSsh':
+    case 'topologiaRedis':
       // No son obligatorios en ningún motor: lo que el main rechaza de ellos lo marca `opcionalInvalido`.
       return false
     default:
@@ -225,9 +263,10 @@ export function faltantes(v: ValoresConexion): CampoConexion[] {
     if (g.alMenosUno && g.campos.every((c) => sinValor(v, c))) for (const c of g.campos) faltan.add(c)
   }
   for (const c of descriptor(v.motor).conexion.opcionales) if (opcionalInvalido(v, c)) faltan.add(c)
+  if (avisoTopologiaRedis(v) !== null) faltan.add('topologiaRedis')
   for (const def of camposConValidacion(v.motor)) {
     // La base de autenticación no tiene `validar` (ver `ordenFormulario`).
-    if (def.campo !== 'authSource' && avisoDeCampo(def.campo, v) !== null) faltan.add(def.campo)
+    if (def.campo !== 'authSource' && campoVisible(def.campo, v) && avisoDeCampo(def.campo, v) !== null) faltan.add(def.campo)
   }
   return ordenFormulario(v.motor).filter((c) => faltan.has(c))
 }

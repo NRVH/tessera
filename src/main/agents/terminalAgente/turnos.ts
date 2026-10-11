@@ -11,11 +11,13 @@ import {
   AGENT_TERMINAL_CHANNELS,
   type AgentActivityMessage,
   type AgentActivityState,
+  type AgentMotivoEspera,
   type AgentExitMessage,
   type AgentExitReason
 } from '../../../shared/agent-terminal-ipc'
 import { createActivityTracker, esEnvio, realScheduler, type ActivityTracker } from '../agentActivity'
-import { esCambioDeConversacion } from '../lineaEnviada'
+import { RESPUESTA_SONDA } from '../estadoPrograma'
+import { esCambioDeConversacion, esConversacionVacia } from '../lineaEnviada'
 import { claveAncla } from '../../context/anclaConversacion'
 import { basenameSuelto } from '../../conversations/slugProyecto'
 import {
@@ -40,7 +42,8 @@ export function snapshotActividad(n: NucleoAgente): AgentActivityMessage[] {
     profileId: s.profileId,
     projectHostPath: s.projectHostPath,
     agente: s.agente,
-    state: s.activity.state()
+    state: s.activity.state(),
+    motivo: s.activity.motivoEspera()
   }))
 }
 
@@ -55,6 +58,21 @@ export function alinearChatConAncla(n: NucleoAgente, open: OpenAgentSession): vo
   if (!ancla || ancla.refs !== 1) return
   if (ancla.estado.tipo === 'anclada') open.resumeSessionId = ancla.estado.sessionId
   else if (ancla.estado.tipo === 'dudosa') open.resumeSessionId = undefined
+}
+
+/**
+ * Desde cuándo la sesión está en una conversación VACÍA sin chat conocido: arrancó sin reanudar
+ * ('esperando') o lo último fue un `/clear` o `/new` ('dudosa'). Al volver, la más reciente de
+ * la carpeta solo es la suya si tuvo actividad desde entonces; si no, se empieza de cero.
+ * Undefined si se sabe el chat, la clave es compartida o lo último fue un `/resume` (ese va a
+ * una conversación que ya existe: se sigue reanudando la más reciente).
+ */
+export function sinChatDesde(n: NucleoAgente, open: OpenAgentSession): number | undefined {
+  if (!n.anclas || !open.claveAncla || open.resumeSessionId) return undefined
+  const ancla = n.anclas.get(open.claveAncla)
+  if (!ancla || ancla.refs !== 1) return undefined
+  if (ancla.estado.tipo === 'esperando') return ancla.estado.desde
+  return ancla.estado.tipo === 'dudosa' ? open.chatVacioDesde : undefined
 }
 
 /** Lanza sin esperarla la sonda de versión de una sesión nativa y la guarda si sigue vigente. */
@@ -106,7 +124,11 @@ export function anclarPorEntrada(n: NucleoAgente, open: OpenAgentSession, data: 
   const linea = open.detectorEnvio.alEscribir(data)
   if (!n.anclas || !open.claveAncla) return
   // `dudar` reinicia el estado: la marca de envío va después para fecharla con este Enter.
-  if (linea !== null && esCambioDeConversacion(linea)) n.anclas.dudar(open.claveAncla)
+  if (linea !== null && esCambioDeConversacion(linea)) {
+    n.anclas.dudar(open.claveAncla)
+    // El ÚLTIMO cambio decide: un `/clear` deja una conversación vacía; un `/resume`, una que existe.
+    open.chatVacioDesde = esConversacionVacia(linea) ? Date.now() : undefined
+  }
   if (esEnvio(data)) n.anclas.touch(open.claveAncla)
 }
 
@@ -171,9 +193,10 @@ function emitActivity(
   profileId: string,
   projectHostPath: string,
   agente: Agente,
-  state: AgentActivityState
+  state: AgentActivityState,
+  motivo: AgentMotivoEspera | null
 ): void {
-  const payload: AgentActivityMessage = { sessionId, profileId, projectHostPath, agente, state }
+  const payload: AgentActivityMessage = { sessionId, profileId, projectHostPath, agente, state, motivo }
   n.eventos.emitir(AGENT_TERMINAL_CHANNELS.ACTIVITY, payload)
   // «Trabajando» bloquea el reinicio masivo: el botón de los agentes nativos se entera aquí.
   if (n.sessions.get(sessionId)?.host) n.alCambiarSesiones()
@@ -198,7 +221,10 @@ export function makeActivityTracker(
     maxPauseMs: ACTIVITY_MAX_PAUSE_MS,
     markToleranceMs: ACTIVITY_MARK_TOLERANCE_MS,
     schedule: realScheduler,
-    onChange: (state) => emitActivity(n, sessionId, profileId, projectHostPath, agente, state),
+    onChange: (state, motivo) => emitActivity(n, sessionId, profileId, projectHostPath, agente, state, motivo ?? null),
+    // Sin respuesta, el agente no informa de su estado y queda la deducción. Se escribe en el acto,
+    // antes de que la terminal conteste al `CSI c` que sigue a la sonda (eso sería «no lo entiendo»).
+    responderSonda: () => n.terminals.write(sessionId, RESPUESTA_SONDA),
     // «Espera tu respuesta» no es un estado de actividad: el botón se entera por aquí.
     alCambiarEspera: () => {
       if (n.sessions.get(sessionId)?.host) n.alCambiarSesiones()

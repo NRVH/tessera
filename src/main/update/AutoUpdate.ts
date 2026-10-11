@@ -11,7 +11,7 @@ import type { BrowserWindow } from 'electron'
 import { existsSync } from 'node:fs'
 import { initialUpdateState, type AvisoDescartable, type UpdateState } from '../../shared/update-ipc'
 import { rawDetail } from './updateErrors'
-import { capacidades, esMac } from '../../shared/plataforma'
+import { esMac } from '../../shared/plataforma'
 import { prepararRelevo } from './stagingRelevo'
 import { podarPendientesMac } from './descargaMac'
 import { initLogUpdate, logUpdate as log, rutaLogUpdate } from './logUpdate'
@@ -20,6 +20,7 @@ import { borrarMarcador, guardarMarcador } from './marcadorUpdate'
 import type { SistemaUpdate } from './adaptadores/sistemaElectron'
 import {
   anunciarDescargaManual,
+  autoInstalaEstaCopia,
   motor,
   ciclo,
   fail,
@@ -45,6 +46,8 @@ import { sembrarDesdeMarcador } from './arranque'
 import { simulateUpdate } from './simulacion'
 
 export {
+  anticiparRelevo,
+  cancelarRelevoAnticipado,
   cierreCanceladoAntesDeInstalar,
   openInstallerManually,
   planDeCierre,
@@ -102,9 +105,10 @@ function cablearMotor(): void {
       })
       return
     }
-    // Donde no se puede auto-instalar (hoy Linux/BSD) aquí acaba el ciclo: `available` con
-    // la URL del fichero que una persona instala a mano, y sin marcador en disco.
-    if (!capacidades().autoInstalarUpdate) {
+    // Donde no se puede auto-instalar (BSD, o un Linux que no corre como AppImage) aquí acaba
+    // el ciclo: `available` con la URL del fichero que una persona instala a mano, y sin
+    // marcador en disco.
+    if (!autoInstalaEstaCopia()) {
       anunciarDescargaManual(
         String(info.version),
         info.files,
@@ -234,8 +238,9 @@ export function initAutoUpdate(opts: AutoUpdateOptions): void {
   // Descargar sin preguntar es el estándar cuando lo descarga electron-updater. En macOS
   // se apaga porque `MacUpdater.doDownloadUpdate` levanta un servidor HTTP local para
   // Squirrel.Mac, el camino que no funciona sin Developer ID: el zip lo baja
-  // `atenderUpdateMac`. En Linux/BSD (`'otra'`) se apaga porque no hay forma de aplicarlo.
-  motor().autoDownload = capacidades().autoInstalarUpdate && !esMac()
+  // `atenderUpdateMac`. Donde esta copia no puede aplicarlo (BSD, Linux fuera de un AppImage)
+  // se apaga porque no habría forma de aplicarlo.
+  motor().autoDownload = autoInstalaEstaCopia() && !esMac()
   motor().autoInstallOnAppQuit = false // el cierre es nuestro
   motor().logger = {
     info: (m: unknown) => log(String(m)),

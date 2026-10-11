@@ -1,5 +1,5 @@
 // =============================================================================
-// El estado de la consola de MongoDB: sus props, lo que enseña el panel «Resultado», los
+// El estado de la consola de MongoDB: sus props, las pestañas de resultado, los
 // refs que leen los callbacks asíncronos y el estado de React. Lo crea `useEstadoConsolaDocs`
 // y lo reciben los hooks de la consola, que se llaman en el orden que fija el panel: los
 // efectos corren en ese orden.
@@ -10,11 +10,13 @@ import { useCallback, useRef, useState } from 'react'
 import type { editor } from 'monaco-editor'
 import type { DbConnection } from '../../../../../shared/db-ipc'
 import type { DbConsolaInfo } from '../../../../../shared/db-explorador-ipc'
-import type { DbDocDocumento } from '../../../../../shared/db-documentos-ipc'
 import type { IndicadorPestana } from '../dbTabsModel'
 import { agregarSalida, salidaVacia, type NuevaEntrada, type SalidaConsola as DatosSalida } from '../consola/salidaConsola'
+import { basesConsolaDocs, claveBaseConsola } from '../consola/basesConsola'
 import type { EnCurso } from './consolaComun'
 import type { MarcasConsolaDocs } from './monacoConsolaDocs'
+import { estadoInicialResultados, type CambioResultados } from '../resultados/pestanasResultado'
+import type { EstadoResultadosDocs, ResultadoDocs } from './resultadosConsolaDocs'
 import { useDialogoConsola } from './useDialogoConsola'
 
 export interface PropsConsolaDocs {
@@ -35,24 +37,9 @@ export interface PropsConsolaDocs {
   onEditarConexion?: (conexionId: string) => void
 }
 
-/** Lo que enseña el panel «Resultado». */
-export type VistaResultado =
-  | {
-      tipo: 'documentos'
-      columnas: string[]
-      documentos: DbDocDocumento[]
-      lector: string | null
-      coleccion: string | null
-      ms: number
-    }
-  | { tipo: 'valor'; texto: string }
-
-/** La base de cada consola, en memoria (sobrevive a un remontaje, no a reiniciar). Clave: `perfil\u0000consola`. */
-const basesPorConsola = new Map<string, string | null>()
-
-/** Cierra el lector abierto de la vista de documentos, si lo hay. */
-export function cerrarLectorDeVista(docs: typeof window.tessera.dbDocumentos, v: VistaResultado | null): void {
-  if (v && v.tipo === 'documentos' && v.lector) docs.lectorCerrar(v.lector).catch(() => undefined)
+/** Cierra en el main los lectores de las pestañas que desaparecieron. */
+export function cerrarLectores(docs: typeof window.tessera.dbDocumentos, lectores: readonly string[]): void {
+  for (const l of lectores) docs.lectorCerrar(l).catch(() => undefined)
 }
 
 function useRefsConsolaDocs(p: PropsConsolaDocs) {
@@ -66,14 +53,14 @@ function useRefsConsolaDocs(p: PropsConsolaDocs) {
   onIndicadorRef.current = p.onIndicador
   const visibleRef = useRef(p.visible)
   visibleRef.current = p.visible
-  const vistaRef = useRef<VistaResultado | null>(null)
+  const resultadosRef = useRef<EstadoResultadosDocs>(estadoInicialResultados<ResultadoDocs>())
   return {
     conexionRef,
     consolaRef,
     filasPorPaginaRef,
     onIndicadorRef,
     visibleRef,
-    vistaRef,
+    resultadosRef,
     modeloRef: useRef<editor.ITextModel | null>(null),
     marcasRef: useRef<MarcasConsolaDocs | null>(null),
     cargadoRef: useRef(false),
@@ -107,11 +94,8 @@ export function useEstadoConsolaDocs(p: PropsConsolaDocs) {
   const [conError, setConError] = useState(false)
   const [pista, setPista] = useState<string | null>(null)
   const [salida, setSalida] = useState<DatosSalida>(salidaVacia)
-  const [vista, setVista] = useState<VistaResultado | null>(null)
-  const [seleccionado, setSeleccionado] = useState<number | null>(null)
-  const [pestana, setPestana] = useState<'salida' | 'resultado'>('salida')
+  const [resultados, setResultados] = useState<EstadoResultadosDocs>(refs.resultadosRef.current)
   const [loteMarcado, setLoteMarcado] = useState<number | null>(null)
-  refs.vistaRef.current = vista
   const dialogo = useDialogoConsola(refs.desmontadoRef)
 
   const anotar = useCallback((nuevas: NuevaEntrada[]): void => {
@@ -119,7 +103,19 @@ export function useEstadoConsolaDocs(p: PropsConsolaDocs) {
     setSalida((s) => agregarSalida(s, nuevas, Date.now()))
   }, [])
   const quitarPista = useCallback((): void => setPista(null), [])
-  const { conflictoRef, enCursoRef } = refs
+  const { conflictoRef, enCursoRef, resultadosRef } = refs
+  const docs = window.tessera.dbDocumentos
+  // Ref y estado a la vez, y los lectores de las pestañas que desaparecen, cerrados en el main.
+  const cambiarResultados = useCallback(
+    (f: (e: EstadoResultadosDocs) => CambioResultados<ResultadoDocs>): void => {
+      const { estado, lectoresPorCerrar } = f(resultadosRef.current)
+      cerrarLectores(docs, lectoresPorCerrar)
+      if (estado === resultadosRef.current) return
+      resultadosRef.current = estado
+      setResultados(estado)
+    },
+    [docs, resultadosRef]
+  )
   const cambiarConflicto = useCallback(
     (c: { texto: string } | null): void => {
       conflictoRef.current = c
@@ -136,12 +132,12 @@ export function useEstadoConsolaDocs(p: PropsConsolaDocs) {
   )
 
   return {
-    ...refs, ...base, ...dialogo, anotar, cambiarConflicto, cambiarEnCurso, quitarPista,
+    ...refs, ...base, ...dialogo, anotar, cambiarConflicto, cambiarEnCurso, quitarPista, cambiarResultados,
     perfilId: p.perfilId, consolaId: p.consola.id, visible: p.visible,
-    api: window.tessera.dbExplorador, docs: window.tessera.dbDocumentos,
+    api: window.tessera.dbExplorador, docs,
     modelo, setModelo, cargado, setCargado, errorCarga, setErrorCarga, conflicto, enCurso,
     cargandoMas, setCargandoMas, conError, setConError, pista, setPista, salida, setSalida,
-    vista, setVista, seleccionado, setSeleccionado, pestana, setPestana, loteMarcado, setLoteMarcado
+    resultados, loteMarcado, setLoteMarcado
   }
 }
 
@@ -150,16 +146,16 @@ function useBaseConsolaDocs(p: PropsConsolaDocs): {
   baseRef: React.MutableRefObject<string | null>
   cambiarBase: (b: string | null) => void
 } {
-  const claveBase = `${p.perfilId}\u0000${p.consola.id}`
+  const claveBase = claveBaseConsola(p.perfilId, p.consola.id)
   const [base, setBaseEstado] = useState<string | null>(() =>
-    basesPorConsola.has(claveBase) ? (basesPorConsola.get(claveBase) ?? null) : p.conexion.database?.trim() || null
+    basesConsolaDocs.has(claveBase) ? (basesConsolaDocs.get(claveBase) ?? null) : p.conexion.database?.trim() || null
   )
   const baseRef = useRef(base)
   baseRef.current = base
   const cambiarBase = useCallback(
     (b: string | null): void => {
       baseRef.current = b
-      basesPorConsola.set(claveBase, b)
+      basesConsolaDocs.set(claveBase, b)
       setBaseEstado(b)
     },
     [claveBase]

@@ -14,6 +14,7 @@ import {
 } from './agentPaneTipos'
 import { fitAndSyncNow } from './terminalAgente'
 import type { ResultadoRelanzar } from './tipos'
+import { conversacionAReanudar, type UltimaConversacion } from './sesionViva'
 import type { EstadoSesion } from './useEstadoAgentPane'
 import type { RefsAgentPane } from './useRefsAgentPane'
 
@@ -34,11 +35,11 @@ export interface CtxSesion {
 }
 
 /**
- * Id de la última conversación de este (perfil, agente, cuenta, proyecto), para
- * reanudarla al abrir o despertar; undefined si no hay o ante cualquier fallo.
- * `soloUltima` evita que el main parsee todos los transcripts en el camino crítico.
+ * La última conversación de este (perfil, agente, cuenta, proyecto), para reanudarla al
+ * abrir o despertar; undefined si no hay o ante cualquier fallo. `soloUltima` evita que
+ * el main parsee todos los transcripts en el camino crítico.
  */
-async function resolveLatestConversationId(ctx: CtxSesion, accountId: string): Promise<string | undefined> {
+async function ultimaConversacion(ctx: CtxSesion, accountId: string): Promise<UltimaConversacion | undefined> {
   const { profileId, agente, projectHostPath, hostMode } = ctx.d
   try {
     const list = await window.tessera.conversations.list({
@@ -49,7 +50,8 @@ async function resolveLatestConversationId(ctx: CtxSesion, accountId: string): P
       mode: hostMode ? 'host' : 'container',
       soloUltima: true
     })
-    return list[0]?.id
+    const c = list[0]
+    return c ? { id: c.id, updatedAt: c.updatedAt } : undefined
   } catch {
     return undefined
   }
@@ -80,8 +82,8 @@ export async function abrirSesion(ctx: CtxSesion, accountId: string): Promise<vo
   if (!apertura) return
   if (apertura.banner) term.write(WAKE_BANNER)
   const { pedido } = apertura
-  let resumeSessionId = pedido.reanudar ?? undefined
-  if (!resumeSessionId && !pedido.deCero) resumeSessionId = await resolveLatestConversationId(ctx, accountId)
+  const ultima = !pedido.reanudar && !pedido.deCero ? await ultimaConversacion(ctx, accountId) : undefined
+  const resumeSessionId = conversacionAReanudar(pedido, ultima)
   // Un desmontaje o una segunda apertura pudieron ocurrir durante el await.
   if (!r.term.current || r.sesion.id() !== null) {
     r.sesion.terminarApertura()
@@ -244,7 +246,7 @@ export async function relanzarSesion(ctx: CtxSesion, opts: { enfocar: boolean; b
     s.setReloading(true)
     term.write(opts.banner)
     try {
-      const resumeId = await resolveLatestConversationId(ctx, cuentaDeReanudacion(ctx.d))
+      const resumeId = (await ultimaConversacion(ctx, cuentaDeReanudacion(ctx.d)))?.id
       // Durante el await el pane pudo desmontarse, hibernar o cambiar de sesión.
       if (!r.term.current || r.hibernated.current || r.sesion.id() !== id) return 'saltada'
       // La entrada se reabre ANTES de relanzar: `disableStdin` corta también las

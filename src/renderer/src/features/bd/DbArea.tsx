@@ -19,6 +19,7 @@ import { useAreaPorPane } from './useAreaPorPane'
 import { useAreaTira } from './useAreaTira'
 import { useAreaCierre } from './useAreaCierre'
 import { useAreaRenombrar } from './useAreaRenombrar'
+import type { BaseConsolaNueva } from './consola/basesConsola'
 
 export interface DbAreaProps {
   /** Oculta entera (fuera de la vista 'db' o en el mosaico); nunca se desmonta por eso. */
@@ -56,7 +57,7 @@ export interface DbAreaProps {
   /** Acción del estado vacío "Sin conexiones": abre el diálogo de alta. */
   onNuevaConexion: () => void
   /** Crea una consola en esa conexión (con texto inicial opcional) y la abre. */
-  onAbrirConsola: (perfilId: string, conexionId: string, textoInicial?: string) => void
+  onAbrirConsola: (perfilId: string, conexionId: string, textoInicial?: string, base?: BaseConsolaNueva) => void
   /** Abre el diálogo de edición de una conexión (el candado de la consola). */
   onEditarConexion: (conexionId: string) => void
   /** Algo cambió en las consolas de ese perfil (cerrar una vacía, renombrar). */

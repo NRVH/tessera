@@ -14,7 +14,8 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { esWindows } from '../../shared/plataforma.ts'
-import { admiteBinarioDePrueba, ARG_ARNES_E2E, entornoSsh, resolverBinariosSsh, VAR_SSH_BINARIO } from './binariosSsh.ts'
+import { admiteBinarioDePrueba, entornoSsh, resolverBinariosSsh, VAR_SSH_BINARIO } from './binariosSsh.ts'
+import { ARG_ARNES_E2E } from '../../shared/arnesE2e.ts'
 import { clasificarSalidaSsh, esSalidaDeFalloSsh } from './clasificacionSalida.ts'
 import { argumentosSsh, citarRutaOpcion, MENSAJE_SIN_COPIA_CLAVE, type DestinoLineaSsh } from './lineaSsh.ts'
 
@@ -75,7 +76,7 @@ hr('1 - Dónde se busca el cliente SSH (nunca en el PATH)')
   const mala = resolverBinariosSsh({ plataforma: 'mac', env: { [VAR_SSH_BINARIO]: '{"exe": 5}' }, existe: existen('/usr/bin/ssh'), admitePrueba: true })
   const rota = resolverBinariosSsh({ plataforma: 'mac', env: { [VAR_SSH_BINARIO]: 'no es json' }, existe: existen('/usr/bin/ssh'), admitePrueba: true })
   check(`(1i) un ${VAR_SSH_BINARIO} sin la forma se ignora`, mala.pruebaInvalida === true && rota.pruebaInvalida === true && mala.ssh?.exe === '/usr/bin/ssh' && !mala.dePrueba, JSON.stringify(mala))
-  // C51: la app instalada no lanza otro programa en lugar de ssh aunque la variable esté puesta.
+  // La app instalada no lanza otro programa en lugar de ssh aunque la variable esté puesta.
   for (const plataforma of ['windows', 'mac'] as const) {
     const ssh = plataforma === 'windows' ? 'C:\\Windows\\System32\\OpenSSH\\ssh.exe' : '/usr/bin/ssh'
     const env = { SystemRoot: 'C:\\Windows', [VAR_SSH_BINARIO]: JSON.stringify({ exe: 'node', args: ['falso.js'] }) }
@@ -263,7 +264,7 @@ hr('4 - Por qué salió con 255: solo mensajes de ssh a principio de línea (y n
     const motivo = clasificarSalidaSsh(codigo, 'pruebas@127.0.0.1: Permission denied (password).')
     check(`(4-) ${nombre}: sin motivo`, motivo === undefined, String(motivo))
   }
-  // C56: en Windows el corte sin exit-status del servidor sale con -1 (medido con ssh.exe 9.5 por ConPTY), y
+  // En Windows el corte sin exit-status del servidor sale con -1 (ssh.exe 9.5 por ConPTY), y
   // según quien lo lea, como 4294967295; en macOS ese mismo `exit(-1)` ya llega como 255.
   const cortes: Array<[string, string]> = [
     ['el servidor cerró la conexión', `${prompt}Connection to 127.0.0.1 closed by remote host.\r\nConnection to 127.0.0.1 closed.\r\n`],

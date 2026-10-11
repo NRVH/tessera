@@ -43,6 +43,8 @@ import {
   type DbKvBases,
   type DbKvEjecutar,
   type DbKvEscanear,
+  type DbKvGuardado,
+  type DbKvGuardarTexto,
   type DbKvPaginaClaves,
   type DbKvPedirBases,
   type DbKvPedirValor,
@@ -144,6 +146,8 @@ export interface DbClavesApi {
   escanear: (p: DbKvEscanear) => Promise<DbRespuesta<DbKvPaginaClaves>>
   valor: (p: DbKvPedirValor) => Promise<DbRespuesta<DbKvValor>>
   ejecutarConsola: (p: DbKvEjecutar) => Promise<DbRespuesta<DbKvResultado>>
+  /** Guarda un texto en el archivo que el usuario elige; `null` si cancela el diálogo. */
+  guardarTexto: (p: DbKvGuardarTexto) => Promise<DbRespuesta<DbKvGuardado | null>>
 }
 
 /**
@@ -213,5 +217,6 @@ export const dbClaves: DbClavesApi = {
   bases: (p) => ipcRenderer.invoke(KV_CHANNELS.BASES, p),
   escanear: (p) => ipcRenderer.invoke(KV_CHANNELS.ESCANEAR, p),
   valor: (p) => ipcRenderer.invoke(KV_CHANNELS.VALOR, p),
-  ejecutarConsola: (p) => ipcRenderer.invoke(KV_CHANNELS.CONSOLA_EJECUTAR, p)
+  ejecutarConsola: (p) => ipcRenderer.invoke(KV_CHANNELS.CONSOLA_EJECUTAR, p),
+  guardarTexto: (p) => ipcRenderer.invoke(KV_CHANNELS.GUARDAR_TEXTO, p)
 }

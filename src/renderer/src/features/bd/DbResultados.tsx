@@ -6,8 +6,7 @@
 // Decisiones: docs/decisiones/bd/ui-resultados-pestanas.md
 // =============================================================================
 
-import { memo, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { memo } from 'react'
 import { dialectoDeMotor, type DialectoSql } from '../../../../shared/sql/dialectosSql'
 import type { AccionPestana, ResultadoConsola } from './consola/estadoConsola'
 import { formatoDuracion } from './consola/marcasConsola'
@@ -19,12 +18,10 @@ import {
   type SalidaConsola as DatosSalida
 } from './consola/salidaConsola'
 import { formatoEntero } from './rejilla/celdasRejilla'
-import { ID_SALIDA, puedeFijar, type EstadoResultados } from './resultados/pestanasResultado'
+import { ID_SALIDA, type EstadoResultados } from './resultados/pestanasResultado'
+import { TiraResultados } from './resultados/TiraResultados'
 import { RejillaResultado, type DuenoRejillaResultado } from './resultados/DbResultadosRejilla'
-import { ContextMenu, SEP, type ContextMenuEntry } from '../../comun/ContextMenu'
-import { esBorrarPestanaEnfocada } from '../../util/atajos'
-import { IconoCerrar } from '../../comun/iconosMenu'
-import { IconoFijar, IconoLimpiar } from './iconosBd'
+import { IconoLimpiar } from './iconosBd'
 import { PlanExplain, metaPlan } from './PlanExplain'
 import { SalidaConsola } from './SalidaConsola'
 
@@ -79,152 +76,16 @@ function tituloPestana(titulo: string, fijada: boolean, r: ResultadoConsola | un
   return partes.join('\n')
 }
 
-type OnPestana = DbResultadosProps['onPestana']
-
-/** El menú contextual de una pestaña de resultado. */
-function itemsMenuPestana(
-  resultados: EstadoResultados<ResultadoConsola>,
-  id: string,
-  onPestana: OnPestana
-): ContextMenuEntry[] {
-  const pestana = resultados.pestanas.find((x) => x.id === id)
-  if (!pestana) return []
-  return [
-    pestana.fijada
-      ? { label: 'Desfijar', icon: <IconoFijar />, onClick: () => onPestana('desfijar', id) }
-      : {
-          label: 'Fijar',
-          icon: <IconoFijar />,
-          disabled: !puedeFijar(resultados),
-          onClick: () => onPestana('fijar', id)
-        },
-    SEP,
-    { label: 'Cerrar', icon: <IconoCerrar />, onClick: () => onPestana('cerrar', id) },
-    { label: 'Cerrar las demás sin fijar', onClick: () => onPestana('cerrarOtras', id) },
-    SEP,
-    { label: 'Cerrar todos los resultados', onClick: () => onPestana('cerrarTodas', id) }
-  ]
-}
-
-function teclaPestana(e: React.KeyboardEvent, id: string, onPestana: OnPestana): void {
-  if (e.key === 'Enter' || e.key === ' ') {
-    e.preventDefault()
-    onPestana('activar', id)
-  } else if (id !== ID_SALIDA && esBorrarPestanaEnfocada(e)) {
-    // La ✕ va a tabIndex -1 (una parada de Tab por pestaña): el gesto de borrar de cada
-    // plataforma (`Supr`, o `⌘⌫` en Mac) es su teclado.
-    e.preventDefault()
-    onPestana('cerrar', id)
-  }
-}
-
-/** Una pestaña de resultado: chincheta si está fijada, título y ✕; clic central cierra. */
-function PestanaResultado(p: {
-  t: EstadoResultados<ResultadoConsola>['pestanas'][number]
-  esActiva: boolean
-  titulo: string
-  onPestana: OnPestana
-  abrirMenu: (x: number, y: number) => void
-}): React.JSX.Element {
-  const { t, esActiva, onPestana } = p
+/** Lo de la derecha de la cabecera: «Limpiar la salida», con la Salida a la vista. */
+function AccionesResultados({ p }: { p: DbResultadosProps }): React.JSX.Element | null {
+  if (p.resultados.activa !== ID_SALIDA) return null
+  const vacia = p.salida.entradas.length === 0
   return (
-    <div
-      className={`terminal-tab db-resultado-tab${esActiva ? ' active' : ''}${t.fijada ? ' fijada' : ''}`}
-      role="tab"
-      aria-selected={esActiva}
-      tabIndex={0}
-      onClick={() => onPestana('activar', t.id)}
-      onMouseDown={(e) => {
-        // Sin esto, el botón central arranca el autodesplazamiento de Chromium.
-        if (e.button === 1) e.preventDefault()
-      }}
-      onAuxClick={(e) => {
-        if (e.button !== 1) return
-        e.preventDefault()
-        onPestana('cerrar', t.id)
-      }}
-      onContextMenu={(e) => {
-        e.preventDefault()
-        p.abrirMenu(e.clientX, e.clientY)
-      }}
-      onKeyDown={(e) => teclaPestana(e, t.id, onPestana)}
-      title={p.titulo}
-    >
-      {t.fijada && (
-        <span className="db-resultado-chincheta" aria-label="Fijada">
-          <IconoFijar />
-        </span>
-      )}
-      <span className="terminal-tab-name">{t.titulo}</span>
-      <button
-        type="button"
-        className="terminal-tab-kill"
-        tabIndex={-1}
-        title="Cerrar este resultado"
-        aria-label={`Cerrar ${t.titulo}`}
-        onClick={(e) => {
-          e.stopPropagation()
-          onPestana('cerrar', t.id)
-        }}
-      >
-        <IconoCerrar />
+    <span className="btn-envoltura" title={vacia ? 'La salida ya está vacía' : 'Limpiar la salida'}>
+      <button type="button" className="btn btn-icon" aria-label="Limpiar la salida" disabled={vacia} onClick={p.onLimpiarSalida}>
+        <IconoLimpiar />
       </button>
-    </div>
-  )
-}
-
-/** La cabecera: tira de pestañas, metadatos a la izquierda y «Limpiar la salida» a la derecha. */
-function CabeceraResultados(p: {
-  props: DbResultadosProps
-  meta: string
-  abrirMenu: (x: number, y: number, id: string) => void
-}): React.JSX.Element {
-  const { resultados, salida, onPestana } = p.props
-  const activa = resultados.activa
-  const enSalida = activa === ID_SALIDA
-  const dialecto = dialectoDeMotor(p.props.motor)
-  return (
-    <div className="db-resultados-cabecera">
-      <div className="db-resultados-tabs" role="tablist" aria-label="Salida y resultados">
-        <div
-          className={`terminal-tab db-resultado-tab${enSalida ? ' active' : ''}`}
-          role="tab"
-          aria-selected={enSalida}
-          tabIndex={0}
-          onClick={() => onPestana('activar', ID_SALIDA)}
-          onKeyDown={(e) => teclaPestana(e, ID_SALIDA, onPestana)}
-          title="Salida: lo que pasó en cada ejecución"
-        >
-          <span className="terminal-tab-name">Salida</span>
-        </div>
-        {resultados.pestanas.map((t) => (
-          <PestanaResultado
-            key={t.id}
-            t={t}
-            esActiva={t.id === activa}
-            titulo={tituloPestana(t.titulo, t.fijada, resultados.resultados[t.id], dialecto)}
-            onPestana={onPestana}
-            abrirMenu={(x, y) => p.abrirMenu(x, y, t.id)}
-          />
-        ))}
-      </div>
-      {p.meta !== '' && <span className="db-resultados-meta">{p.meta}</span>}
-      <div className="panel-actions">
-        {enSalida && (
-          <span className="btn-envoltura" title={salida.entradas.length === 0 ? 'La salida ya está vacía' : 'Limpiar la salida'}>
-            <button
-              type="button"
-              className="btn btn-icon"
-              aria-label="Limpiar la salida"
-              disabled={salida.entradas.length === 0}
-              onClick={p.props.onLimpiarSalida}
-            >
-              <IconoLimpiar />
-            </button>
-          </span>
-        )}
-      </div>
-    </div>
+    </span>
   )
 }
 
@@ -270,10 +131,10 @@ function CuerpoResultados({ p }: { p: DbResultadosProps }): React.JSX.Element {
 
 function DbResultadosSinMemo(p: DbResultadosProps): React.JSX.Element {
   const { resultados, salida } = p
-  const [menu, setMenu] = useState<{ x: number; y: number; id: string } | null>(null)
   const activa = resultados.activa
   const enSalida = activa === ID_SALIDA
   const rActiva = enSalida ? null : resultados.resultados[activa]
+  const dialecto = dialectoDeMotor(p.motor)
 
   const meta = enSalida
     ? cantidad(salida.entradas.length, 'entrada', 'entradas')
@@ -283,18 +144,14 @@ function DbResultadosSinMemo(p: DbResultadosProps): React.JSX.Element {
 
   return (
     <section className="db-consola-resultados" style={{ height: p.alto }} aria-label="Resultados de la consola">
-      <CabeceraResultados props={p} meta={meta} abrirMenu={(x, y, id) => setMenu({ x, y, id })} />
+      <TiraResultados
+        resultados={resultados}
+        tituloDe={(t, r) => tituloPestana(t.titulo, t.fijada, r, dialecto)}
+        onPestana={p.onPestana}
+        meta={meta}
+        acciones={<AccionesResultados p={p} />}
+      />
       <CuerpoResultados p={p} />
-      {menu &&
-        createPortal(
-          <ContextMenu
-            x={menu.x}
-            y={menu.y}
-            items={itemsMenuPestana(resultados, menu.id, p.onPestana)}
-            onClose={() => setMenu(null)}
-          />,
-          document.body
-        )}
     </section>
   )
 }

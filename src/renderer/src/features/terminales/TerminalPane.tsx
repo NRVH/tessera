@@ -11,24 +11,41 @@
 import { useContext } from 'react'
 import { AvisoCaja } from '../../comun/AvisoCaja'
 import { clasificarErrorArranque, normalizarErrorIpc } from '../../../../shared/dockerErrors'
+import type { SshConexion } from '../../../../shared/ssh-ipc'
 import { TerminalAppearanceContext } from '../../theme/terminalAppearance'
 import { conexionPorId, destinoSsh, useStoreSsh } from '../ssh'
 import { crearAjusteTamano } from './ajusteTamano'
-import { CapasTerminal } from './CapasTerminal'
+import { CapasTerminal, type CapasSsh } from './CapasTerminal'
 import type { OrigenTerminal, TerminalPaneProps } from './terminalPaneTipos'
 import { useActivado, useEstadoSesion, useRefsTerminal, type EstadoSesion } from './useEstadoTerminalPane'
 import { useInterfazTerminal } from './useInterfazTerminal'
-import { useAperturaSesion, usePrimerDatoSsh, usePublicacionPane } from './useSesionShell'
+import { useAccionesSsh, useAperturaSesion, usePrimerDatoSsh, usePublicacionPane, type AccionesSsh } from './useSesionShell'
 import { useAjustesVivosXterm, useCicloXterm } from './useXtermPane'
 import { contarRender } from '../../util/contadorRenders'
 
-/** «Conectando a usuario@host…» mientras una sesión SSH no ha dicho nada; `null` en cualquier otro caso. */
-function useTextoConectando(origen: OrigenTerminal, estado: EstadoSesion): string | null {
-  const conexion = useStoreSsh((s) => (origen.tipo === 'ssh' ? conexionPorId(s, origen.conexionId) : undefined))
-  if (origen.tipo !== 'ssh') return null
+/**
+ * Lo que una sesión SSH enseña sobre su xterm: «Conectando a usuario@host…» mientras no ha dicho nada
+ * (cancelable una vez abierta la sesión), y la franja de reconexión cuando terminó. Una local, nada.
+ */
+function capasSsh(origen: OrigenTerminal, estado: EstadoSesion, acciones: AccionesSsh, conexion: SshConexion | undefined): CapasSsh {
+  if (origen.tipo !== 'ssh') return { conectando: null, fin: null }
   const sinDatos = estado.status === 'booting' || (estado.status === 'live' && !estado.datosRecibidos)
-  if (!sinDatos) return null
-  return conexion ? `Conectando a ${destinoSsh(conexion)}…` : 'Conectando…'
+  const conectando = sinDatos
+    ? {
+        texto: conexion ? `Conectando a ${destinoSsh(conexion)}…` : 'Conectando…',
+        onCancelar: estado.status === 'live' && !estado.reloading ? acciones.cancelar : null
+      }
+    : null
+  // Un fallo al ABRIR ya lo cuenta su aviso de error: la franja solo trae el botón.
+  const terminada = estado.status === 'exited' || estado.status === 'error'
+  const fin = terminada
+    ? {
+        motivo: estado.finSsh ?? (estado.error ? 'No se pudo abrir la conexión' : 'La sesión terminó'),
+        enVuelo: estado.reloading,
+        onReconectar: conexion ? acciones.reconectar : null
+      }
+    : null
+  return { conectando, fin }
 }
 
 /** Una terminal (xterm y sesión pty) que reporta su estado y acciones al panel. */
@@ -46,14 +63,16 @@ export function TerminalPane(props: TerminalPaneProps): React.JSX.Element {
   useCicloXterm(
     activated,
     refs,
-    { ...ui, setExitCode: estado.setExitCode, setStatus: estado.setStatus, fitAndSyncDebounced },
+    { ...ui, setExitCode: estado.setExitCode, setStatus: estado.setStatus, setFinSsh: estado.setFinSsh, fitAndSyncDebounced },
     origen
   )
   useAjustesVivosXterm(refs, { appearance, accentColor, visible, activated }, fitAndSyncNow)
   useAperturaSesion(props, refs, estado, activated, fitAndSyncNow)
   usePrimerDatoSsh(props, refs, estado)
   usePublicacionPane(props, refs, estado, fitAndSyncNow)
-  const conectando = useTextoConectando(origen, estado)
+  const conexion = useStoreSsh((s) => (origen.tipo === 'ssh' ? conexionPorId(s, origen.conexionId) : undefined))
+  const accionesSsh = useAccionesSsh(props, refs, estado, fitAndSyncNow, conexion !== undefined)
+  const ssh = capasSsh(origen, estado, accionesSsh, conexion)
 
   return (
     <div className={`terminal-pane${visible ? '' : ' hidden'}${esSsh ? ' ssh' : ''}`} aria-hidden={!visible}>
@@ -72,7 +91,7 @@ export function TerminalPane(props: TerminalPaneProps): React.JSX.Element {
         onClick={ui.enfocar}
         onContextMenu={ui.alClicDerecho}
       />
-      <CapasTerminal ui={ui} conectando={conectando} />
+      <CapasTerminal ui={ui} ssh={ssh} />
     </div>
   )
 }

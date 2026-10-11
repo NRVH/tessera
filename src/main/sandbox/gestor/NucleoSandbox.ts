@@ -4,11 +4,25 @@
 // ningún mapa ni candado existe dos veces.
 // Decisiones: docs/decisiones/sandbox/gestor-concurrencia.md
 // =============================================================================
+import os from 'node:os'
 import type { SshSetup } from '../sshSetup.ts'
 import { EXTRAS_VACIOS, type SandboxExtras } from '../../../shared/sandboxExtras.ts'
 import { KeyedMutex } from '../../util/mutex.ts'
 import type { AvisoRed } from '../../../shared/sandbox-red-ipc.ts'
 import type { AgentConfigMount, CapacidadesSandbox, ContainerHandle, ProjectMount } from './tipos.ts'
+import { plataformaActual } from '../../../shared/plataforma.ts'
+import { nombreImagen, usuarioImagenPara, type UsuarioImagen } from './usuarioImagen.ts'
+import { SANDBOX_IMAGE } from './nombres.ts'
+
+/** El usuario del equipo, si esta plataforma lo hornea en la imagen; `null` si no se puede leer. */
+function usuarioDelEquipo(): UsuarioImagen | null {
+  try {
+    const { uid, gid } = os.userInfo()
+    return usuarioImagenPara(plataformaActual(), uid, gid)
+  } catch {
+    return null
+  }
+}
 
 /** Fase del progreso de un rebuild automático de la imagen. */
 export type FaseImagen = 'inicio' | 'fin' | 'error'
@@ -33,6 +47,10 @@ export class NucleoSandbox {
   sshSetup: SshSetup | null = null
   /** Paquetes extra a hornear; cambiarlos deja la imagen obsoleta (van en el sello). */
   extras: SandboxExtras = EXTRAS_VACIOS
+  /** Uid y gid del `agente` horneado; `null` = el de la imagen (fuera de Linux). Va en el sello. */
+  readonly usuario: UsuarioImagen | null = usuarioDelEquipo()
+  /** Imagen de la que nacen los contenedores: la base, o la del uid horneado. */
+  readonly imagen: string = nombreImagen(SANDBOX_IMAGE, this.usuario)
   /** Build de la imagen en vuelo, por sello. */
   imageInFlight: { sello: string; promesa: Promise<void> } | null = null
   /** Sello de unos extras cuyo build automático falló: se construye sin ellos. */

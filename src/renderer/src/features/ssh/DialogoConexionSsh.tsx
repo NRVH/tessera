@@ -26,6 +26,7 @@ import {
 } from './CamposConexionSsh'
 import { CampoClaveSsh } from './CampoClaveSsh'
 import { CampoSecretoSsh } from './CampoSecretoSsh'
+import { SeccionSaltoTunelesSsh } from './CamposSaltoTunelesSsh'
 import { leerOpenSsh, seguirLectura } from './importacionSsh'
 import { ResultadoPruebaSsh } from './ResultadoPruebaSsh'
 import { useDialogoConexionSsh, type OpcionesDialogoConexionSsh, type VistaDialogoConexionSsh } from './useDialogoConexionSsh'
@@ -88,6 +89,7 @@ function CuerpoConexionSsh({ v }: { v: VistaDialogoConexionSsh }): React.JSX.Ele
       )}
       {usaSecreto(borrador) && <CampoSecretoSsh borrador={borrador} destino={v.destinoSecreto} marcados={marcados} editar={editar} />}
       <CasillaAgentesSsh borrador={borrador} idAyuda={v.idAyudaAgentes} editar={editar} />
+      <SeccionSaltoTunelesSsh borrador={borrador} bastiones={v.bastiones} marcados={marcados} editar={editar} />
       {v.error !== null && (
         <div className="dbc-error" role="alert">
           {v.error}

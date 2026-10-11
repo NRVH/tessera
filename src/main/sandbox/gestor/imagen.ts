@@ -1,6 +1,6 @@
 // =============================================================================
 // Imagen base del sandbox: la pone al día (build incremental, coalescido por sello de
-// versión + extras), degrada a una imagen sin extras si su build falla, la rehornea sin
+// versión + extras + usuario en Linux), degrada a una imagen sin extras si su build falla, la rehornea sin
 // caché para «Actualizar agentes» y lee las versiones de los CLI horneados.
 // Decisiones: docs/decisiones/sandbox/imagen-y-extras.md
 // =============================================================================
@@ -12,7 +12,7 @@ import {
   type SandboxExtras
 } from '../../../shared/sandboxExtras.ts'
 import { runDocker, runDockerBuild } from '../adaptadores/docker.ts'
-import { SANDBOX_IMAGE } from './nombres.ts'
+import { argsBuildUsuario, imagenAlDia } from './usuarioImagen.ts'
 import type { FaseImagen, NucleoSandbox } from './NucleoSandbox.ts'
 
 /** Construcción y consulta de la imagen base. */
@@ -43,16 +43,17 @@ export class ImagenSandbox {
     // Extras EFECTIVOS: sin ellos si su build ya falló (`selloExtrasFallido`).
     const selloPedido = selloExtras(this.n.extras)
     const extras = this.n.selloExtrasFallido === selloPedido ? EXTRAS_VACIOS : this.n.extras
-    // Las dos etiquetas de una vez; sin etiqueta el template da `<no value>` y tampoco cuadra.
-    const esperado = `${SANDBOX_IMAGE_VERSION}|${selloExtras(extras)}`
+    // Las tres etiquetas de una vez; sin etiqueta el template da `<no value>` y tampoco cuadra.
+    const esperado = { version: SANDBOX_IMAGE_VERSION, extras: selloExtras(extras), usuario: this.n.usuario }
     const inspect = await runDocker([
       'image',
       'inspect',
-      SANDBOX_IMAGE,
+      this.n.imagen,
       '--format',
-      '{{index .Config.Labels "tessera.sandbox.version"}}|{{index .Config.Labels "tessera.sandbox.extras"}}'
+      '{{index .Config.Labels "tessera.sandbox.version"}}|{{index .Config.Labels "tessera.sandbox.extras"}}' +
+        '|{{index .Config.Labels "tessera.sandbox.usuario"}}'
     ])
-    if (inspect.status === 0 && inspect.stdout.trim() === esperado) return
+    if (inspect.status === 0 && imagenAlDia(inspect.stdout, esperado)) return
 
     const motivo = inspect.status === 0 ? 'está desactualizada' : 'no existe'
     this.logImagen(`La imagen del sandbox ${motivo}: preparándola…`, 'inicio')
@@ -65,7 +66,7 @@ export class ImagenSandbox {
 
     // Falló CON extras: se degrada a una imagen sin ellos en vez de dejar el perfil sin agente.
     if (extras.apt.length === 0 && !extras.depsNavegador) {
-      throw new Error(`No se pudo construir la imagen "${SANDBOX_IMAGE}" desde "${this.n.dockerfileDir}".`)
+      throw new Error(`No se pudo construir la imagen "${this.n.imagen}" desde "${this.n.dockerfileDir}".`)
     }
     this.n.selloExtrasFallido = selloPedido
     this.logImagen(
@@ -74,7 +75,7 @@ export class ImagenSandbox {
       'error'
     )
     if (!(await this.construirImagen(EXTRAS_VACIOS))) {
-      throw new Error(`No se pudo construir la imagen "${SANDBOX_IMAGE}" desde "${this.n.dockerfileDir}".`)
+      throw new Error(`No se pudo construir la imagen "${this.n.imagen}" desde "${this.n.dockerfileDir}".`)
     }
     this.logImagen('Imagen del sandbox lista (sin los paquetes extra).', 'fin')
   }
@@ -82,7 +83,7 @@ export class ImagenSandbox {
   /** Un `docker build` con unos extras; si sale bien con los vetados, levanta el veto. */
   private async construirImagen(extras: SandboxExtras): Promise<boolean> {
     const code = await runDockerBuild(
-      ['build', ...argsBuildExtras(extras), '-t', SANDBOX_IMAGE, this.n.dockerfileDir],
+      ['build', ...argsBuildExtras(extras), ...argsBuildUsuario(this.n.usuario), '-t', this.n.imagen, this.n.dockerfileDir],
       { onLog: (line) => this.logImagen(line) }
     )
     if (code === 0 && this.n.selloExtrasFallido === selloExtras(extras)) {
@@ -103,11 +104,19 @@ export class ImagenSandbox {
    */
   async rebuildImage(onLog?: (line: string) => void): Promise<void> {
     const code = await runDockerBuild(
-      ['build', '--no-cache', ...argsBuildExtras(this.n.extras), '-t', SANDBOX_IMAGE, this.n.dockerfileDir],
+      [
+        'build',
+        '--no-cache',
+        ...argsBuildExtras(this.n.extras),
+        ...argsBuildUsuario(this.n.usuario),
+        '-t',
+        this.n.imagen,
+        this.n.dockerfileDir
+      ],
       { onLog }
     )
     if (code !== 0) {
-      throw new Error(`Falló la reconstrucción de la imagen "${SANDBOX_IMAGE}" (docker build salió con ${code}).`)
+      throw new Error(`Falló la reconstrucción de la imagen "${this.n.imagen}" (docker build salió con ${code}).`)
     }
     // Salió bien CON los extras del usuario: se levanta el veto de un fallo anterior.
     this.n.selloExtrasFallido = null
@@ -120,7 +129,7 @@ export class ImagenSandbox {
       '--rm',
       '--entrypoint',
       'sh',
-      SANDBOX_IMAGE,
+      this.n.imagen,
       '-lc',
       'codex --version 2>/dev/null; echo "---"; claude --version 2>/dev/null'
     ])

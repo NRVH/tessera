@@ -545,6 +545,19 @@ async function conServidor(uri: string, uriLector: string | undefined, uriDefaul
       doc = null
     }
     check('json: el documento sin los corchetes del $', js.contenido.tipo === 'json' && js.contenido.truncado === false && doc?.cliente === 'Ana' && doc?.lineas?.[0]?.uds === 2, js.contenido.texto)
+    // Uno que ocupa más que el tope de lectura: no se pide entero, se avisa con lo que ocupa.
+    const jsonGrande = `tmp:json:grande:${process.pid}`
+    try {
+      await c.call('JSON.SET', jsonGrande, '$', JSON.stringify('x'.repeat(comun.TOPE_JSON_LECTURA_BYTES + 1024 * 1024)))
+      const jg = await val(jsonGrande)
+      check(
+        'json más grande que el tope de lectura: texto vacío, truncado y omitidoBytes (sin JSON.GET)',
+        jg.contenido.tipo === 'json' && jg.contenido.texto === '' && jg.contenido.truncado === true && jg.contenido.omitidoBytes > comun.TOPE_JSON_LECTURA_BYTES,
+        j({ ...jg.contenido, texto: jg.contenido.texto?.length })
+      )
+    } finally {
+      await c.del(jsonGrande)
+    }
     const tt = await val('sesion:temporal')
     check('ttlMs de una clave que caduca', tt.ttlMs > 0 && tt.ttlMs <= 86400000, String(tt.ttlMs))
     const ne = await val('no:existe:' + process.pid)

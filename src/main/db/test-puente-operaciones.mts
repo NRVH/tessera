@@ -123,6 +123,19 @@ hr('6 - Por el pipe real: la respuesta de una operación viaja como una línea J
   check('(6a) el puente escucha y la operación contesta por el pipe (UTF-8 incluido)', puente.listo && r?.ok === true && r.eco === 'ñ€', j(r))
   const d = await pedirPorPipe(JSON.stringify({ v: 1, token: 't', op: 'no.registrada' }) + '\n')
   check('(6b) y lo no registrado, igual que siempre', j(d) === j({ ok: false, error: 'operacion desconocida' }), j(d))
+  puente.registrarOperacion('prueba.tarde', {
+    token: 'propio',
+    manejar: (p) => new Promise((resolve) => setTimeout(() => resolve({ ok: true, eco: p.dato ?? null }), 100))
+  })
+  puente.registrarOperacion('prueba.promesa-rota', { token: 'propio', manejar: () => Promise.reject(new Error('rota')) })
+  const tarde = await pedirPorPipe(JSON.stringify({ v: 1, token: 't', op: 'prueba.tarde', dato: 7 }) + '\n')
+  check('(6c) una operación que contesta más tarde (una promesa) responde por el mismo socket', tarde?.ok === true && tarde.eco === 7, j(tarde))
+  const rota = await pedirPorPipe(JSON.stringify({ v: 1, token: 't', op: 'prueba.promesa-rota' }) + '\n')
+  check('(6d) y si su promesa falla, «error interno» como las síncronas', j(rota) === j({ ok: false, error: 'error interno' }), j(rota))
+  const colgada = pedirPorPipe(JSON.stringify({ v: 1, token: 't', op: 'prueba.tarde', dato: 8 }) + '\n')
+  await new Promise((r) => setTimeout(r, 20))
+  await puente.pausar()
+  check('(6e) una pausa corta al cliente que espera una respuesta tardía (no la espera)', (await colgada) === null, 'null')
   puente.stop()
 }
 

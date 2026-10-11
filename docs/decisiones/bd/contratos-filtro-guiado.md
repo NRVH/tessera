@@ -23,6 +23,12 @@ veces lo que se quiere es «esta columna, este operador, este valor».
   - «está vacío» es NULL (o campo ausente) y, en texto, también la cadena vacía.
   - Fechas ISO: una fecha sin hora contra una columna con hora es el día entero (`= 28` es [28, 29), `> 28`
     es desde el 29, `entre 1 y 3` es [1, 4)). «entre» incluye los dos extremos.
+- Los tipos que el servidor no compara con «=» ni ordena (`sinComparacion`: `text`, `ntext`, `xml`,
+  `image` y los espaciales en SQL Server; `xml`, `json`, sus arrays y los geométricos en PostgreSQL; los LOB,
+  `XMLTYPE` y `LONG` en Oracle) no se ofrecen para eso: un texto así es la categoría `textoLargo`, que conserva
+  «contiene», «empieza por» y «está vacío» (que comparan la columna convertida a texto), y la cabecera no los
+  ordena. En Oracle el filtro no convierte a texto, así que allí quedan en «está vacío». Ofrecerlos acababa en
+  un error del servidor.
 - Sin DOM, sin `process`, sin electron: lo importan renderer, main y pruebas con `node` a secas.
 
 ## Descartes

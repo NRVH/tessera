@@ -53,7 +53,7 @@ export function partesDetalle(tipo: DbTipoObjeto): readonly DbParteDetalle[] {
   return PARTES_DETALLE[tipo] ?? []
 }
 
-const TIPOS_FUENTE: readonly DbTipoObjeto[] = ['paquete', 'rutina', 'disparador', 'tipoObjeto', 'tipoColeccion']
+const TIPOS_FUENTE: readonly DbTipoObjeto[] = ['paquete', 'rutina', 'disparador', 'evento', 'tipoObjeto', 'tipoColeccion']
 
 /** Qué pestaña abre un objeto de este tipo, o null si no abre ninguna. */
 export function kindAbreTipo(tipo: DbTipoObjeto): 'datos' | 'fuente' | null {

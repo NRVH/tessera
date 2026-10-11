@@ -2,7 +2,7 @@
 // Persistencia del slice `settings` de workspace-state.json: lo hidrata una vez al
 // montar y lo guarda COMPLETO (buildSettings, desde los stores) al cambiar: cuentas
 // con 250 ms de espera, los ajustes de un clic en el acto y los tamaños (también el del
-// riel de conexiones SSH) con 400 ms.
+// riel de conexiones SSH) con 400 ms. También las pestañas SSH abiertas, que vuelven al arrancar.
 // Las claves y formas son las del contrato de workspace-state-ipc; no se renombran.
 // Decisiones: docs/decisiones/renderer/estado-de-app.md
 // =============================================================================
@@ -29,6 +29,7 @@ import { useStorePestanas } from '../pestanas'
 import { useStoreBd } from '../bd'
 import { useStoreMosaico } from '../mosaico'
 import { useStoreSsh } from '../ssh'
+import { accionesTerminales, pestanasAGuardar, useStoreTerminales } from '../terminales'
 
 /** Slice de ajustes COMPLETO con el estado vigente de los stores. */
 export function buildSettings(): WorkspaceSettings {
@@ -41,6 +42,8 @@ export function buildSettings(): WorkspaceSettings {
     agentAccountByTarget: useStoreAgentes.getState().accountByTarget,
     hideProfileNames: a.hideProfileNames,
     aplicarUpdateAlCerrar: a.aplicarUpdateAlCerrar,
+    registroSalud: a.registroSalud,
+    volcadosCaida: a.volcadosCaida,
     diffColapsarSinCambios: a.diffColapsar,
     windowsModeProjects: [...useStorePestanas.getState().windowsModeKeys],
     defaultProjectMode: a.defaultProjectMode,
@@ -71,6 +74,7 @@ export function buildSettings(): WorkspaceSettings {
     vistaLateralPorPerfil: l.vistaPorPerfil,
     panelInferiorPorPerfil: l.panelPorPerfil,
     mosaicoPreset: useStoreMosaico.getState().mosaicoPreset,
+    coloresPerfilFijados: useStorePestanas.getState().coloresFijados,
     dbAgenteVisiblePorPerfil: bd.dbAgenteVisiblePorPerfil,
     dbAgenteWidth: l.dbAgenteWidth,
     dbResultadosAlto: l.dbResultadosAlto,
@@ -83,8 +87,20 @@ export function buildSettings(): WorkspaceSettings {
     sshRielAncho: ssh.rielAncho,
     sshRielVisiblePorPerfil: ssh.rielVisiblePorPerfil,
     sshRecientesPorPerfil: ssh.recientesPorPerfil,
+    sshPestanasPorPerfil: pestanasSshAGuardar(),
     agenteTerminalVisiblePorPerfil: useStoreAgenteTerminal.getState().visiblePorPerfil
   }
+}
+
+/**
+ * Las pestañas SSH abiertas, para el siguiente arranque. Con una lista de conexiones de fiar se dejan fuera las
+ * de una conexión que ya no existe; sin ella (aún no llegó, o es la de un archivo ajeno o recuperado) van todas.
+ */
+function pestanasSshAGuardar(): ReturnType<typeof pestanasAGuardar> {
+  const ssh = useStoreSsh.getState()
+  const deFiar = ssh.cargado && ssh.avisoFormatoAjeno === null && ssh.avisoRecuperado === null
+  const vivas = new Set(ssh.conexiones.map((c) => c.id))
+  return pestanasAGuardar(useStoreTerminales.getState().ssh, deFiar ? (id) => vivas.has(id) : undefined)
 }
 
 /** Guarda el slice completo; `etiqueta` prefija el error en consola. */
@@ -96,7 +112,7 @@ export function guardarAjustes(etiqueta: string): void {
 function hidratar(s: WorkspaceSettings): void {
   window.tessera.zoom.setLevel(s.zoomLevel)
   useStoreAgentes.setState({ accountByTarget: s.agentAccountByTarget ?? {} })
-  useStorePestanas.setState({ windowsModeKeys: new Set(s.windowsModeProjects ?? []) })
+  useStorePestanas.setState({ windowsModeKeys: new Set(s.windowsModeProjects ?? []), coloresFijados: s.coloresPerfilFijados ?? [] })
   useStoreMosaico.setState({ mosaicoPreset: s.mosaicoPreset ?? 'auto' })
   useStoreBd.setState({ dbMounts: s.dbMountsByProject ?? {}, dbAgenteVisiblePorPerfil: s.dbAgenteVisiblePorPerfil ?? {} })
   useStoreSsh.setState({
@@ -105,6 +121,7 @@ function hidratar(s: WorkspaceSettings): void {
     rielVisiblePorPerfil: s.sshRielVisiblePorPerfil ?? {},
     recientesPorPerfil: s.sshRecientesPorPerfil ?? {}
   })
+  accionesTerminales.restaurarSsh(s.sshPestanasPorPerfil ?? {})
   useStoreAgenteTerminal.setState({ visiblePorPerfil: s.agenteTerminalVisiblePorPerfil ?? {} })
   hidratarLayout(s)
   hidratarAjustes(s)
@@ -134,6 +151,8 @@ function hidratarAjustes(s: WorkspaceSettings): void {
     hideProfileNames: s.hideProfileNames === true,
     // `!== false`: el valor por defecto es ACTIVADO.
     aplicarUpdateAlCerrar: s.aplicarUpdateAlCerrar !== false,
+    registroSalud: s.registroSalud !== false,
+    volcadosCaida: s.volcadosCaida !== false,
     defaultProjectMode: s.defaultProjectMode ?? 'windows',
     terminalAppearance: { fontFamily: s.terminalFontFamily ?? '', fontSize: s.terminalFontSize ?? 0 },
     agentAppearance: { fontFamily: s.agentFontFamily ?? '', fontSize: s.agentFontSize ?? 0 },
@@ -222,6 +241,8 @@ function useCamposInmediatos(): unknown[] {
     useShallow((s) => [
       s.hideProfileNames,
       s.aplicarUpdateAlCerrar,
+      s.registroSalud,
+      s.volcadosCaida,
       s.diffColapsar,
       s.defaultProjectMode,
       s.terminalAppearance,
@@ -247,23 +268,31 @@ function useCamposInmediatos(): unknown[] {
     useShallow((s) => [s.activityBarOrder, s.bottomBarOrder, s.vistaPorPerfil, s.panelPorPerfil])
   )
   const windowsModeKeys = useStorePestanas((s) => s.windowsModeKeys)
+  const coloresFijados = useStorePestanas((s) => s.coloresFijados)
   const dbMounts = useStoreBd((s) => s.dbMounts)
   const dbAgenteVisible = useStoreBd((s) => s.dbAgenteVisiblePorPerfil)
   const mosaicoPreset = useStoreMosaico((s) => s.mosaicoPreset)
   const sshPlegados = useStoreSsh((s) => s.plegadosPorPerfil)
   const sshRielVisible = useStoreSsh((s) => s.rielVisiblePorPerfil)
   const sshRecientes = useStoreSsh((s) => s.recientesPorPerfil)
+  // Abrir, cerrar o renombrar una pestaña SSH cambia su lista; elegir otra no (y no se guarda). La lista de
+  // conexiones también: decide cuáles se guardan, y una pestaña abierta antes de que llegue la suya se perdería.
+  const sshPestanas = useStoreTerminales((s) => s.ssh.porPerfil)
+  const sshConexiones = useStoreSsh((s) => s.conexiones)
   const agenteTerminalVisible = useStoreAgenteTerminal((s) => s.visiblePorPerfil)
   return [
     ...ajustes,
     ...layout,
     windowsModeKeys,
+    coloresFijados,
     dbMounts,
     dbAgenteVisible,
     mosaicoPreset,
     sshPlegados,
     sshRielVisible,
     sshRecientes,
+    sshPestanas,
+    sshConexiones,
     agenteTerminalVisible
   ]
 }

@@ -33,7 +33,18 @@ const PASOS_MAC: readonly string[] = [
   '  3. Reintentar:   docker info'
 ]
 
-/** Linux/BSD: sin Docker Desktop garantizado ni WSL2; lo genérico que sigue siendo cierto. */
+/**
+ * Los pasos de Linux: Docker Engine como servicio del sistema (o Docker Desktop, que también
+ * lo hay), y lo que allí falla de verdad: el usuario fuera del grupo `docker`, que da
+ * «permission denied» sobre el socket aunque el servicio esté en marcha.
+ */
+const PASOS_LINUX: readonly string[] = [
+  '  1. El servicio en marcha:  systemctl status docker  (o Docker Desktop abierto).',
+  '  2. Tu usuario en el grupo docker:  groups  (si no sale, sudo usermod -aG docker $USER y vuelve a entrar en la sesión).',
+  '  3. Reintentar:   docker info'
+]
+
+/** BSD: sin Docker Desktop garantizado ni WSL2; lo genérico que sigue siendo cierto. */
 const PASOS_OTRA: readonly string[] = [
   '  1. El daemon de Docker en marcha (Docker Desktop abierto, o el servicio `docker` activo).',
   '  2. `docker` visible desde la app: en una terminal, `which docker`.',
@@ -64,8 +75,27 @@ const PASOS_OTRA: readonly string[] = [
 export function pasosDocker(plataforma: Plataforma = plataformaActual()): readonly string[] {
   if (plataforma === 'windows') return PASOS_WINDOWS
   if (plataforma === 'mac') return PASOS_MAC
+  if (plataforma === 'linux') return PASOS_LINUX
   return PASOS_OTRA
 }
+
+/**
+ * ¿Es un daemon sin root? Recibe `{{json .SecurityOptions}}` de `docker info`. Sin root, el
+ * contenedor auxiliar privilegiado que monta los proyectos en caliente entra en el espacio de
+ * nombres del daemon del usuario y no en el del sistema, así que el sandbox no puede funcionar.
+ */
+export function esDockerRootless(opcionesSeguridad: string): boolean {
+  return /name=rootless/.test(opcionesSeguridad)
+}
+
+/** Lo que se le dice al usuario cuando el daemon no tiene root. */
+export const DETALLE_DOCKER_ROOTLESS = [
+  'Docker funciona en modo sin root (rootless), y el sandbox de Tessera no puede montar los proyectos en él.',
+  '',
+  'Qué hacer:',
+  '  1. Abre este proyecto en modo nativo (Configuración → Proyectos), sin contenedor, o',
+  '  2. usa el Docker del sistema: sudo systemctl enable --now docker y añade tu usuario al grupo docker.'
+].join('\n')
 
 /** Todas las causas, como VALOR, para que el test pueda recorrerlas. */
 export const RAZONES_SALIDA: readonly AgentExitReason[] = [

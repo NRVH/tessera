@@ -88,6 +88,8 @@ async function main(): Promise<void> {
   {
     const ro = decidirIdentidad({ ...BASE, soloLectura: true, pk: ['id'] })
     check('solo lectura: ninguna, AUNQUE tenga PK', ro.tipo === 'ninguna' && ro.motivo === MOTIVO_SOLO_LECTURA, j(ro))
+    const roCarpeta = decidirIdentidad({ ...BASE, motor: 'sqlite', soloLectura: true, motivoSoloLectura: 'por la carpeta', pk: ['id'] })
+    check('solo lectura con su motivo (la carpeta de una SQLite): ninguna, con ESE motivo', roCarpeta.tipo === 'ninguna' && roCarpeta.motivo === 'por la carpeta', j(roCarpeta))
     const roOra = decidirIdentidad({ ...BASE, motor: 'oracle', soloLectura: true })
     check('solo lectura en Oracle sin PK: ninguna (y por tanto SIN columna ROWID)', roOra.tipo === 'ninguna', j(roOra))
     for (const tipo of ['vista', 'vistaMaterializada', 'tablaForanea'] as const) {
@@ -985,7 +987,9 @@ async function main(): Promise<void> {
     // shared; PG: tres nombres exactos), contra lo que responde ahora el descriptor.
     const nombres = ['SYS', 'SYSTEM', 'XDB', 'APEX_040200', 'HR', 'SCOTT', 'sys', 'pg_catalog', 'information_schema', 'pg_toast', 'pg_temp_1', 'public', 'PUBLIC', '']
     // (SQLite no tiene esquemas del sistema por nombre: solo `main`. SQL
-    // Server: `sys`, `INFORMATION_SCHEMA`, `guest` y los de los roles fijos, por nombre EXACTO.)
+    // Server: `sys`, `INFORMATION_SCHEMA`, `guest` y los de los roles fijos, por nombre EXACTO.
+    // MySQL: `mysql`, `sys`, `information_schema` y `performance_schema`, sin distinguir caja.)
+    const MYSQL = ['mysql', 'sys', 'information_schema', 'performance_schema']
     const reglaDeAntes = (m: string, n: string): boolean =>
       m === 'oracle'
         ? esEsquemaSistemaOracle(n)
@@ -993,7 +997,9 @@ async function main(): Promise<void> {
           ? n === 'pg_catalog' || n === 'information_schema' || n === 'pg_toast'
           : m === 'sqlserver'
             ? n === 'sys'
-            : false
+            : m === 'mysql'
+              ? MYSQL.includes(n.toLowerCase())
+              : false
     const distintos = IDS_MOTORES_SQL.flatMap((m) => nombres.filter((n) => esEsquemaDelSistema(m, n) !== reglaDeAntes(m, n)).map((n) => `${m}/${n}`))
     check(`esEsquemaDelSistema: ${nombres.length} nombres por motor, la respuesta de antes`, distintos.length === 0, distintos.join(', ') || 'iguales')
 

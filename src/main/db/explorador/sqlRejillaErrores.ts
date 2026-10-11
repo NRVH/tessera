@@ -68,6 +68,39 @@ export function campoDeErrorEnLinea(
 }
 
 /**
+ * Una columna que no existe sin posición útil del servidor (SQL Server da la línea donde empieza la
+ * sentencia; en SQLite la posición puede caer en otro fragmento): el fragmento que la nombra, por este
+ * orden: el ORDER BY, la condición del filtro guiado o el WHERE libre. El orden va primero porque es el
+ * que deja la pestaña sin salida (sin resultado no hay cabecera en la que quitarlo); quitarlo es inocuo.
+ */
+export function campoDeColumnaInexistente(consulta: ConsultaRejilla, nombre: string): UbicacionErrorRejilla | null {
+  if (nombre === '') return null
+  // Fuera de los literales de texto, y como identificador entero: «ID» no está en «CLIENTE_ID» ni en 'ID'.
+  const nombra = ([ini, fin]: [number, number]): boolean =>
+    identificadorEn(consulta.sql.slice(ini, fin).replace(/'(?:[^']|'')*'/g, "''"), nombre)
+  const { where, filtro, orderBy } = consulta.rangos
+  if (orderBy && nombra(orderBy)) return { campo: 'orderBy', posicion: 0 }
+  const i = (filtro ?? []).findIndex(nombra)
+  if (i >= 0) return { campo: 'filtro', condicion: i }
+  return where && nombra(where) ? { campo: 'where', posicion: 0 } : null
+}
+
+/**
+ * ¿`texto` nombra `nombre` como COLUMNA: identificador entero (sin letras, cifras ni `_@#$` pegados) y
+ * no como calificador (`"t".` delante de otra columna, que en SQLite lleva cada condición)?
+ */
+function identificadorEn(texto: string, nombre: string): boolean {
+  const esDeNombre = (c: string | undefined): boolean => c !== undefined && /[\p{L}\p{N}_@#$]/u.test(c)
+  for (let i = texto.indexOf(nombre); i >= 0; i = texto.indexOf(nombre, i + 1)) {
+    let fin = i + nombre.length
+    if (esDeNombre(texto[i - 1]) || esDeNombre(texto[fin])) continue
+    if (texto[fin] === '"' || texto[fin] === ']' || texto[fin] === '`') fin++
+    if (texto[fin] !== '.') return true
+  }
+  return false
+}
+
+/**
  * Igual que `campoDeError`, desde el `offsetCp` que manda el trabajador (puntos de código
  * base 0 del SQL enviado): la conversión vive aquí, junto al SQL que la produjo.
  */

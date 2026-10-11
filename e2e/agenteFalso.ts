@@ -1,12 +1,11 @@
 // =============================================================================
-// El mundo falso de los agentes para las pruebas de interfaz: `claude`, `codex` y `npm`
-// de mentira por delante en el PATH, y un registro de versiones por HTTP local.
-// `--version` contesta desde un fichero sin contar como arranque; `update` sube esa
-// versión; lo demás es el AGENTE (tty crudo, apunta argv, pid y cada byte; sale al
-// segundo ^C; la línea `fin` toca la campana). El paquete de Codex tiene la forma exacta
-// que deja npm y su `codex.exe` (una copia del Node de las pruebas) cuelga de la raíz,
-// para que uno vivo bloquee la carpeta (`EBUSY`) como el real. En Mac, `SHELL` es un guion
-// sin perfiles. Lo importan 25 specs: un cambio aquí se verifica con la suite completa.
+// El mundo falso de los agentes para las pruebas de interfaz: `claude`, `codex` y `npm` de mentira
+// en el PATH y un registro de versiones por HTTP local. `--version` contesta de un fichero; `update`
+// sube esa versión; lo demás es el AGENTE (tty crudo, apunta argv, pid y cada byte; sale al segundo
+// ^C; `fin` toca la campana; con `informa`, sondea el estado informado y `osc:<cuerpo>` lo informa).
+// El paquete de Codex tiene la forma de npm y su `codex.exe` (copia del Node de las pruebas) cuelga
+// de la raíz, para que uno vivo bloquee la carpeta (`EBUSY`) como el real. En Mac, `SHELL` es un
+// guion sin perfiles. Lo importan muchas specs: un cambio aquí se verifica con la suite completa.
 // =============================================================================
 
 import {
@@ -33,7 +32,7 @@ export type AgenteCli = 'claude' | 'codex'
 export interface EventoFalso {
   /** Epoch ms de quien lo apuntó. */
   t: number
-  tipo: 'arranque' | 'entrada' | 'salida' | 'campana' | 'update' | 'npm' | 'nieto'
+  tipo: 'arranque' | 'entrada' | 'salida' | 'campana' | 'update' | 'npm' | 'nieto' | 'sonda'
   agente: AgenteCli | 'npm'
   pid: number
   cwd: string
@@ -67,6 +66,7 @@ const [estado, agente, ...args] = process.argv.slice(2)
 const NL = String.fromCharCode(10)
 const CRLF = String.fromCharCode(13, 10)
 const BEL = String.fromCharCode(7)
+const ESC = String.fromCharCode(27)
 const LOG = path.join(estado, 'eventos.log')
 const fichero = (n) => path.join(estado, n)
 const leer = (n, d) => { try { return fs.readFileSync(fichero(n), 'utf8').trim() } catch { return d } }
@@ -160,6 +160,8 @@ function agenteVivo() {
     apunta('nieto', { nieto: hijo.pid })
   }
   process.stdout.write('AGENTE FALSO ' + agente + ' pid=' + process.pid + CRLF + process.cwd() + CRLF)
+  // Como el CLI real: la sonda del estado informado y, detrás, la pregunta de atributos (CSI c).
+  if (existe('informa')) process.stdout.write(ESC + ']7501;?' + BEL + ESC + '[c')
   // Algo vivo en la terminal, y además el latido que un CLI de verdad tiene mientras
   // piensa: sin él, un turno abierto se cerraría por silencio y no por la campana. Una
   // carpeta apuntada en «callados» deja de latir: es el CLI ocioso en su prompt.
@@ -171,6 +173,7 @@ function agenteVivo() {
   let linea = ''
   process.stdin.on('data', (b) => {
     apunta('entrada', { hex: b.toString('hex') })
+    if (b.toString('latin1').indexOf(ESC + ']7501;?') >= 0) apunta('sonda')
     for (const byte of b) {
       if (byte === 3) {
         // Dos ^C seguidos (en menos de 3 s) salen; uno solo avisa, como los CLIs reales.
@@ -188,6 +191,7 @@ function agenteVivo() {
           apunta('campana')
           process.stdout.write(BEL)
         }
+        if (linea.indexOf('osc:') === 0) process.stdout.write(ESC + ']7501;' + linea.slice(4) + BEL)
         linea = ''
       } else if (byte === 127 || byte === 8) {
         linea = linea.slice(0, -1)
@@ -245,6 +249,8 @@ export interface AgenteFalso {
   callar: (cwd: string, si: boolean) => void
   /** Los agentes que arranquen a partir de ahora lanzan (o no) un proceso suelto y lo apuntan. */
   conNieto: (si: boolean) => void
+  /** Los agentes que arranquen a partir de ahora preguntan (o no) si la terminal entiende el estado informado. */
+  informa: (si: boolean) => void
 }
 
 /** ¿Sigue vivo ese proceso? `kill(pid, 0)` no mata: sólo pregunta. */
@@ -409,7 +415,8 @@ export function montarAgenteFalso(opts: OpcionesAgenteFalso = {}): AgenteFalso {
       const sin = lista.filter((c) => c !== cwd)
       writeFileSync(ruta, (si ? [...sin, cwd] : sin).join('\n'))
     },
-    conNieto: (si) => marca('nieto', si)
+    conNieto: (si) => marca('nieto', si),
+    informa: (si) => marca('informa', si)
   }
 }
 
@@ -447,7 +454,7 @@ function distTagsCodex(v: string): Record<string, string> {
 
 /**
  * Levanta el registro falso en `127.0.0.1` con un puerto libre. Responde lo mismo que
- * el de verdad para las tres URLs que pide el servicio; el resto, 404.
+ * el de verdad para las URLs que pide el servicio; el resto, 404.
  */
 export async function abrirRegistroFalso(inicial: Partial<VersionesPublicadas> = {}): Promise<RegistroFalso> {
   const publicado: VersionesPublicadas = { codex: '0.156.0', claude: '2.1.281', claudeStable: '2.1.273', ...inicial }
@@ -469,6 +476,15 @@ export async function abrirRegistroFalso(inicial: Partial<VersionesPublicadas> =
       res.end(t)
     }
     if (ruta === '/npm/-/package/@openai/codex/dist-tags') return json(distTagsCodex(publicado.codex))
+    // El documento de cada binario de plataforma anunciado (ya decodificado el `%2f`).
+    const binario = /^\/npm\/@openai\/codex\/(.+)$/.exec(ruta)
+    if (binario && Object.values(distTagsCodex(publicado.codex)).includes(binario[1])) {
+      return json({
+        name: '@openai/codex',
+        version: binario[1],
+        dist: { tarball: `http://127.0.0.1/npm/@openai/codex/-/codex-${binario[1]}.tgz` }
+      })
+    }
     if (ruta === '/npm/-/package/@anthropic-ai/claude-code/dist-tags') {
       return json({ latest: publicado.claude, stable: publicado.claudeStable })
     }

@@ -187,6 +187,22 @@ export const DRIVER_PACKS: readonly DriverPackDef[] = [
     centinela: { mac: 'libclntsh.dylib' },
     servidorDesde: 11.2,
     servidorHasta: 99
+  },
+  {
+    // El zip de Linux trae `libclntsh.so` como ENLACE a `libclntsh.so.19.1` (se instala con
+    // `zipConEnlaces.ts`). Su carpeta tiene que estar en LD_LIBRARY_PATH desde que arranca el
+    // proceso que lo carga, y pide la `libaio` del sistema (`src/tdb/bibliotecasOracle.cjs`).
+    id: 'oracle-ic-19-linux-x64',
+    motor: 'oracle',
+    nombre: 'Oracle Instant Client 19.28 (Basic Light)',
+    sizeMB: 39,
+    cubre: 'Oracle 11.2 y superior',
+    url: 'https://download.oracle.com/otn_software/linux/instantclient/1928000/instantclient-basiclite-linux.x64-19.28.0.0.0dbru.zip',
+    carpetaInterna: 'instantclient_19_28',
+    plataformas: ['linux'],
+    centinela: { linux: 'libclntsh.so' },
+    servidorDesde: 11.2,
+    servidorHasta: 99
   }
 ]
 

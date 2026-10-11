@@ -59,7 +59,13 @@ export function ayudaSoloLectura(motor: DbMotor): string {
         'verdad sigue siendo darles un usuario de base de datos con permisos de lectura.'
       )
     case 'ninguna':
-      return AYUDA_SOLO_LECTURA_QUIEN + 'tdb abre el archivo en solo lectura y rechaza sus escrituras.'
+      // Sin servidor que reparta el archivo, una transacción abierta lo bloquea para las demás aplicaciones
+      // (en WAL solo si escribe: de ahí el «pueden», como en `TITULO_TX_ARCHIVO`).
+      return (
+        AYUDA_SOLO_LECTURA_QUIEN +
+        'tdb abre el archivo en solo lectura y rechaza sus escrituras. Mientras una transacción esté abierta, ' +
+        'las demás aplicaciones que usan el archivo pueden no poder escribir en él.'
+      )
     default:
       return nunca(c, 'ayudaSoloLectura')
   }

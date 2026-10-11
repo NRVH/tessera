@@ -6,6 +6,8 @@
 // Decisiones: docs/decisiones/bd/ui-conexion-dialogo.md
 // =============================================================================
 
+import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { ALIAS_MAX, type DbMotor, type DbTestResult } from '../../../../shared/db-ipc'
 import { cambiarMotor, type BorradorConexion } from './borradorConexion'
 import {
@@ -46,6 +48,27 @@ export function CabeceraConexion({ idTitulo, esEdicion }: { idTitulo: string; es
 }
 
 /** Nombre y motor, en una fila. */
+/**
+ * Una opción de «Motor» con la marca de su motor delante. React 18 solo admite texto como hijo de
+ * un `<option>`, así que el icono entra por un portal en el propio elemento (la lista es la
+ * «select personalizable» de Chromium, que sí pinta lo que lleve dentro).
+ */
+function OpcionMotor({ motor }: { motor: DbMotor }): React.JSX.Element {
+  const [el, setEl] = useState<HTMLOptionElement | null>(null)
+  return (
+    <option ref={setEl} value={motor}>
+      {descriptorDe(motor).etiqueta}
+      {el &&
+        createPortal(
+          <span className="dbc-motor-opcion-logo" aria-hidden="true">
+            <IconoMotor motor={motor} />
+          </span>,
+          el
+        )}
+    </option>
+  )
+}
+
 export function FilaNombreMotor({
   borrador,
   aliasInvalido,
@@ -79,17 +102,16 @@ export function FilaNombreMotor({
       </label>
       <label className="dbc-campo dbc-motor">
         <span className="dbc-etiqueta">Motor</span>
-        {/* La marca del motor elegido va DENTRO de la caja del selector: un <option> no
-            admite imágenes, y un conmutador de botones con logo no escala con los motores. */}
+        {/* La marca del motor elegido va DENTRO de la caja del selector, y la de cada motor en
+            su opción de la lista (`OpcionMotor`); un conmutador de botones con logo no escala con
+            los motores. */}
         <span className="dbc-motor-control">
           <span className="dbc-motor-logo" aria-hidden="true">
             <IconoMotor motor={borrador.motor} />
           </span>
           <select value={borrador.motor} onChange={(e) => setBorrador((b) => cambiarMotor(b, e.target.value as DbMotor))}>
             {MOTORES_CONEXION.map((m) => (
-              <option key={m} value={m}>
-                {descriptorDe(m).etiqueta}
-              </option>
+              <OpcionMotor key={m} motor={m} />
             ))}
           </select>
         </span>

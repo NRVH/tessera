@@ -6,11 +6,13 @@
 // =============================================================================
 
 import { createHash, randomUUID } from 'node:crypto'
-import { appendFile, mkdir, readdir, readFile, unlink } from 'node:fs/promises'
+import { appendFile, mkdir, readFile, unlink } from 'node:fs/promises'
 import path from 'node:path'
-import type { DbEntradaHistorial, DbFiltroHistorial } from '../../../shared/db-explorador-ipc.ts'
+import type { DbEntradaHistorial, DbFiltroHistorial, DbLenguajeHistorial } from '../../../shared/db-explorador-ipc.ts'
 import type { DialectoSql } from '../../../shared/sql/dialectosSql.ts'
 import { taparSecretosSql } from '../../../shared/sql/secretosSql.ts'
+import { taparSecretosMongo } from '../../../shared/secretosMongo.ts'
+import { taparSecretosRedis } from '../../../shared/secretosRedis.ts'
 import { writeFileAtomic } from '../../util/atomicWrite.ts'
 import { KeyedMutex } from '../../util/mutex.ts'
 import {
@@ -32,8 +34,6 @@ export interface FsHistorial {
   escribir(ruta: string, texto: string): Promise<void>
   /** Borra; no falla si no existe. */
   borrar(ruta: string): Promise<void>
-  /** Nombres de archivo de la carpeta; [] si no existe. */
-  listar(dir: string): Promise<string[]>
 }
 
 function codigo(e: unknown): string | undefined {
@@ -61,14 +61,6 @@ export const FS_NODO: FsHistorial = {
     } catch (e) {
       if (codigo(e) !== 'ENOENT') throw e
     }
-  },
-  async listar(dir) {
-    try {
-      return await readdir(dir)
-    } catch (e) {
-      if (codigo(e) === 'ENOENT') return []
-      throw e
-    }
   }
 }
 
@@ -87,11 +79,30 @@ export interface OpcionesHistorial {
 /** Una entrada antes de tener id (la pone el store). */
 export type NuevaEntrada = Omit<DbEntradaHistorial, 'id'>
 
+/** Cuántas entradas de un lenguaje hay y cuánto ocupan sus líneas (unidades UTF-16). */
+interface Medida {
+  cuenta: number
+  tamano: number
+}
+
+const lenguajeDe = (e: DbEntradaHistorial): DbLenguajeHistorial => e.lenguaje ?? 'sql'
+
+/** La medida de cada lenguaje: los topes son POR LENGUAJE, y una consola no empuja fuera el historial de la otra. */
+function medir(entradas: readonly DbEntradaHistorial[]): Record<DbLenguajeHistorial, Medida> {
+  const por: Record<DbLenguajeHistorial, Medida> = { sql: { cuenta: 0, tamano: 0 }, mongosh: { cuenta: 0, tamano: 0 }, comandos: { cuenta: 0, tamano: 0 } }
+  for (const e of entradas) {
+    const m = por[lenguajeDe(e)]
+    m.cuenta++
+    m.tamano += linea(e).length
+  }
+  return por
+}
+
 interface EstadoPerfil {
   /** De la más vieja a la más reciente, como en el archivo. */
   entradas: DbEntradaHistorial[]
-  /** Unidades UTF-16 de las líneas (aproxima el tamaño del archivo). */
-  tamano: number
+  /** La medida de cada lenguaje, para saber cuándo compactar el suyo. */
+  por: Record<DbLenguajeHistorial, Medida>
   /** El archivo acaba en salto de línea (o no existe). */
   terminaEnSalto: boolean
 }
@@ -135,7 +146,11 @@ function tieneCamposObligatorios(e: Record<string, unknown>): boolean {
 }
 
 function tieneCamposOpcionales(e: Record<string, unknown>): boolean {
-  return (e.filas === undefined || typeof e.filas === 'number') && (e.esquema === undefined || e.esquema === null || typeof e.esquema === 'string')
+  return (
+    (e.filas === undefined || typeof e.filas === 'number') &&
+    (e.esquema === undefined || e.esquema === null || typeof e.esquema === 'string') &&
+    (e.lenguaje === undefined || e.lenguaje === 'mongosh' || e.lenguaje === 'comandos')
+  )
 }
 
 /** Líneas de un archivo -> entradas válidas (las rotas se saltan). */
@@ -215,7 +230,7 @@ export class HistorialStore {
     const entradas = texto === null ? [] : parsearHistorial(texto)
     const estado: EstadoPerfil = {
       entradas,
-      tamano: entradas.reduce((n, e) => n + linea(e).length, 0),
+      por: medir(entradas),
       terminaEnSalto: texto === null || texto === '' || texto.endsWith('\n')
     }
     this.estados.set(perfilId, estado)
@@ -229,19 +244,33 @@ export class HistorialStore {
     else await this.fs.escribir(ruta, entradas.map(linea).join(''))
     await this.fs.borrar(ruta + '.bak')
     estado.entradas = entradas
-    estado.tamano = entradas.reduce((n, e) => n + linea(e).length, 0)
+    estado.por = medir(entradas)
     estado.terminaEnSalto = true
   }
 
-  /** Las más recientes que caben en el tope de número y en el objetivo de tamaño, en orden de archivo. */
-  private recortar(entradas: readonly DbEntradaHistorial[]): DbEntradaHistorial[] {
+  /**
+   * De `lenguaje`, las más recientes que caben en el tope de número y en el objetivo de tamaño; las
+   * del otro lenguaje se quedan todas. En orden de archivo.
+   */
+  private recortar(entradas: readonly DbEntradaHistorial[], lenguaje: DbLenguajeHistorial): DbEntradaHistorial[] {
     const quedan: DbEntradaHistorial[] = []
+    let cuenta = 0
     let tamano = 0
-    for (let i = entradas.length - 1; i >= 0 && quedan.length < this.tope; i--) {
-      const t = linea(entradas[i]).length
-      if (tamano + t > this.objetivoBytes) break
+    let lleno = false
+    for (let i = entradas.length - 1; i >= 0; i--) {
+      const e = entradas[i]
+      if (lenguajeDe(e) !== lenguaje) {
+        quedan.push(e)
+        continue
+      }
+      const t = linea(e).length
+      if (lleno || cuenta >= this.tope || tamano + t > this.objetivoBytes) {
+        lleno = true
+        continue
+      }
+      cuenta++
       tamano += t
-      quedan.push(entradas[i])
+      quedan.push(e)
     }
     return quedan.reverse()
   }
@@ -252,16 +281,33 @@ export class HistorialStore {
    */
   anotar(e: NuevaEntrada, d: DialectoSql): Promise<void> {
     if (e.sql.length > this.topeSql) return Promise.resolve()
-    const entrada: DbEntradaHistorial = { id: this.nuevoId(), ...e, sql: taparSecretosSql(e.sql, d) }
+    return this.guardar({ id: this.nuevoId(), ...e, sql: taparSecretosSql(e.sql, d) })
+  }
+
+  /** Lo mismo para una orden del shell de MongoDB (`sql` es su texto), con sus contraseñas tapadas. */
+  anotarMongosh(e: Omit<NuevaEntrada, 'lenguaje'>): Promise<void> {
+    if (e.sql.length > this.topeSql) return Promise.resolve()
+    return this.guardar({ id: this.nuevoId(), ...e, sql: taparSecretosMongo(e.sql), lenguaje: 'mongosh' })
+  }
+
+  /** Lo mismo para un comando de la consola de Redis (`sql` es su texto), con sus contraseñas tapadas. */
+  anotarRedis(e: Omit<NuevaEntrada, 'lenguaje'>): Promise<void> {
+    if (e.sql.length > this.topeSql) return Promise.resolve()
+    return this.guardar({ id: this.nuevoId(), ...e, sql: taparSecretosRedis(e.sql), lenguaje: 'comandos' })
+  }
+
+  private guardar(e: DbEntradaHistorial): Promise<void> {
     return this.enFila(e.perfilId, async () => {
       const estado = await this.cargar(e.perfilId)
-      const l = linea(entrada)
+      const l = linea(e)
       await this.fs.anexar(this.ruta(e.perfilId), (estado.terminaEnSalto ? '' : '\n') + l)
       estado.terminaEnSalto = true
-      estado.entradas.push(entrada)
-      estado.tamano += l.length
-      if (estado.entradas.length > this.tope + this.margen || estado.tamano > this.topeBytes) {
-        await this.reescribir(e.perfilId, estado, this.recortar(estado.entradas))
+      estado.entradas.push(e)
+      const m = estado.por[lenguajeDe(e)]
+      m.cuenta++
+      m.tamano += l.length
+      if (m.cuenta > this.tope + this.margen || m.tamano > this.topeBytes) {
+        await this.reescribir(e.perfilId, estado, this.recortar(estado.entradas, lenguajeDe(e)))
       }
     }).catch((err: unknown) => {
       this.log(`historial: no se pudo anotar (${codigo(err) ?? 'error'})`)
@@ -279,6 +325,7 @@ export class HistorialStore {
       for (let i = estado.entradas.length - 1; i >= 0 && salida.length < limite; i--) {
         const e = estado.entradas[i]
         if (filtro.conexionId !== undefined && e.conexionId !== filtro.conexionId) continue
+        if (filtro.lenguaje !== undefined && (e.lenguaje ?? 'sql') !== filtro.lenguaje) continue
         if (aguja && this.normalizada(e).indexOf(aguja) < 0) continue
         salida.push(e)
       }
@@ -286,15 +333,26 @@ export class HistorialStore {
     })
   }
 
-  /** Borra esas entradas del perfil, o TODO su historial con `null`. */
-  borrar(perfilId: string, ids: readonly string[] | null): Promise<void> {
+  /**
+   * Borra esas entradas del perfil, o TODO su historial con `null`. Con `lenguaje` y `null`, solo
+   * las de ese lenguaje: «Borrar todo» desde una consola no se lleva el historial de la otra.
+   */
+  borrar(perfilId: string, ids: readonly string[] | null, lenguaje?: DbLenguajeHistorial): Promise<void> {
     return this.enFila(perfilId, async () => {
+      if (ids === null && lenguaje !== undefined) {
+        const estado = await this.cargar(perfilId)
+        const quedan = estado.entradas.filter((e) => (e.lenguaje ?? 'sql') !== lenguaje)
+        if (quedan.length !== estado.entradas.length) await this.reescribir(perfilId, estado, quedan)
+        // Un `.tmp` de una escritura cortada guarda el historial entero, también lo de este lenguaje.
+        await this.fs.borrar(this.ruta(perfilId) + '.tmp')
+        return
+      }
       if (ids === null) {
         const ruta = this.ruta(perfilId)
         await this.fs.borrar(ruta)
         await this.fs.borrar(ruta + '.bak')
         await this.fs.borrar(ruta + '.tmp')
-        this.estados.set(perfilId, { entradas: [], tamano: 0, terminaEnSalto: true })
+        this.estados.set(perfilId, { entradas: [], por: medir([]), terminaEnSalto: true })
         return
       }
       const estado = await this.cargar(perfilId)
@@ -311,19 +369,6 @@ export class HistorialStore {
       const quedan = estado.entradas.filter((e) => e.conexionId !== conexionId)
       if (quedan.length !== estado.entradas.length) await this.reescribir(perfilId, estado, quedan)
     })
-  }
-
-  /** Borra los archivos de los perfiles que ya no existen (al arrancar, como `pruneProfiles`). */
-  async podar(perfilesVivos: readonly string[]): Promise<number> {
-    const vivos = new Set(perfilesVivos.map(archivoDePerfil))
-    let borrados = 0
-    for (const nombre of await this.fs.listar(this.dir)) {
-      const base = nombre.replace(/\.(bak|tmp)$/, '')
-      if (!base.endsWith(EXTENSION) || vivos.has(base)) continue
-      await this.fs.borrar(path.join(this.dir, nombre))
-      borrados++
-    }
-    return borrados
   }
 
   /** Espera a que termine lo encolado (tests y cierre). */

@@ -18,6 +18,11 @@ export interface PreparacionSsh {
    * guardó una huella. Se llama una sola vez.
    */
   alTerminar?: () => void
+  /**
+   * Recibe cómo terminar ESTE ssh, para cuando el usuario no contesta una pregunta del diálogo: sin ella,
+   * ssh mandaría una respuesta vacía al servidor y volvería a preguntar (intentos fallidos).
+   */
+  vincular?: (matar: () => void) => void
 }
 
 /** El dominio SSH visto desde la terminal. */

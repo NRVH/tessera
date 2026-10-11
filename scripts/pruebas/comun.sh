@@ -2,16 +2,12 @@
 # =============================================================================
 # LO COMÚN DE LOS SCRIPTS DE PRUEBAS: dónde está el repo y dónde viven los SECRETOS.
 #
-# POR QUÉ UNA CARPETA FIJA FUERA DEL REPO. Durante las fases 1-4 del explorador de BD
-# estos scripts vivían en el scratchpad de UNA sesión de Claude Code, con rutas fijas a
-# él: un chat nuevo no los veía, y la regla de «un chat por paso» fallaba en el primer
-# relevo. Ahora viven versionados aquí y las claves en `~/.tessera-pruebas/` (o la carpeta
-# de $TESSERA_PRUEBAS_DIR), que NO se versiona y los scripts nunca imprimen:
+# Los scripts se versionan; las claves viven en una carpeta fija FUERA del repo,
+# `~/.tessera-pruebas/` (o la de $TESSERA_PRUEBAS_DIR), que NO se versiona y los scripts
+# nunca imprimen:
 #   oracle-pw.txt       clave de los contenedores pruebas-ora11 / pruebas-ora21
 #   mssql-pw.txt        clave del contenedor pruebas-mssql ('sa' y sus dos usuarios)
-#   humo-remoto.alias   alias (en el registro de conexiones) de la base REMOTA de humo
-#   humo-remoto-pw.txt  su contraseña
-# Las de Docker se generan solas la primera vez; las de la base remota las pone el usuario.
+# Las de Docker se generan solas la primera vez.
 #
 # DOS PLATAFORMAS: Git Bash en Windows y bash/zsh en macOS. Nada de rutas de un solo
 # sistema salvo donde se bifurca a propósito (`carpeta_datos_tessera`).

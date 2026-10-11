@@ -28,23 +28,23 @@ export const CSS_LOG_CHASIS = `
 .git-vistas-tabs {
   flex: 0 0 auto;
   display: flex;
-  align-items: stretch;
+  align-items: center;
   gap: 2px;
   height: var(--ui-head-h);
   padding: 0 8px;
-  background: var(--bg-deep);
-  border-bottom: 1px solid var(--border-soft);
+  /* Del color del panel y sin filete debajo: tira y contenido son una tarjeta. */
+  background: var(--bg);
   overflow-x: auto;
 }
 .git-vista-tab {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  height: min(calc(var(--ui-head-h) - 6px), 24px);
   padding: 0 10px;
   border: none;
-  /* Esquinas de arriba, como las pestañas de archivo: la tira está ENCIMA de su
-     contenido, así que la pestaña se lee como una lengüeta que lo sostiene. */
-  border-radius: 6px 6px 0 0;
+  /* La misma cápsula que las pestañas de archivo y de terminal. */
+  border-radius: 6px;
   background: transparent;
   color: var(--fg-muted);
   font-family: inherit;
@@ -63,7 +63,10 @@ export const CSS_LOG_CHASIS = `
 .git-vista-tab.activa {
   color: var(--perfil-sobre-tinte);
   background: var(--sel-glow);
-  box-shadow: inset 0 -2px 0 var(--sel);
+  box-shadow: inset 0 0 0 1px var(--sel-borde);
+}
+.git-vista-tab.activa:hover {
+  background: var(--sel-fuerte);
 }
 .git-vista-tab-cerrar {
   display: inline-flex;

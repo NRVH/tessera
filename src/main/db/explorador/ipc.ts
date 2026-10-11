@@ -101,7 +101,7 @@ function registrarConsola({ h, explorador: x }: Envoltorios): void {
   h(C.CONSOLA_SINTAXIS, (r) => x.sintaxis.validar(r), interno)
   // Historial de consultas (privado: fuera del espacio de datos).
   h(C.HISTORIAL_LISTAR, (r) => x.historialListar(r), interno)
-  h(C.HISTORIAL_BORRAR, (r) => x.historialBorrar(r.perfilId, r.ids), interno)
+  h(C.HISTORIAL_BORRAR, (r) => x.historialBorrar(r.perfilId, r.ids, r.lenguaje), interno)
 }
 
 function registrarConexion({ h, explorador: x }: Envoltorios): void {
@@ -110,7 +110,7 @@ function registrarConexion({ h, explorador: x }: Envoltorios): void {
   h(C.DESCONECTAR, (r) => x.desconectar(r.conexionId, r.resolver), interno)
   h(C.SESIONES, () => x.sesiones(), (): DbEstadoSesion[] => [])
   h(C.CONSOLAS_LISTAR, (r) => x.listarConsolas(r.perfilId), interno)
-  h(C.CONSOLAS_CREAR, (r) => x.crearConsola(r.perfilId, r.conexionId), interno)
+  h(C.CONSOLAS_CREAR, (r) => x.crearConsola(r.perfilId, r.conexionId, r.esquema), interno)
   h(C.CONSOLAS_LEER, (r) => x.leerConsola(r.perfilId, r.consolaId), interno)
   h(C.CONSOLAS_ESCRIBIR, (r) => x.escribirConsola(r.perfilId, r.consolaId, r.texto), interno)
   h(C.CONSOLAS_RENOMBRAR, (r) => x.renombrarConsola(r.perfilId, r.consolaId, r.nombre), interno)

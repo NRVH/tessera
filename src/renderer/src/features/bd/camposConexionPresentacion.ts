@@ -10,6 +10,8 @@ import { limpiarDestinoBd } from '../../../../shared/destinoBd.ts'
 import { AUTENTICACIONES, descriptor, etiquetaMotor, usaOpcional } from '../../../../shared/motores/index.ts'
 import {
   descomponerUriMongo,
+  descomponerUriMysql,
+  descomponerUriPostgres,
   descomponerUriRedis,
   validarBaseRedis,
   validarOpcionesFormularioMongo
@@ -75,6 +77,12 @@ export const AYUDA_BASE_DOCUMENTOS =
 export const AYUDA_BASE_CLAVES =
   'La base con la que se abre la conexión (0 si va vacía); el árbol enseña todas. Usuario y contraseña son opcionales, y la contraseña vale sin usuario.'
 
+/** La ayuda del host de MongoDB: uno, o los miembros de un replica set sin DNS SRV. */
+export const AYUDA_HOST_MONGO =
+  'Un servidor o, sin DNS SRV, los miembros de un replica set separados por comas (h1,h2:27018): el puerto vale para los que no llevan el suyo.'
+
+const HOST_MONGO: DefCampo = { ...HOST, ayuda: AYUDA_HOST_MONGO }
+
 /** La ayuda del SRV: qué es, y que con él el puerto no se usa y se cifra. */
 export const AYUDA_SRV =
   'Para Atlas y los clústeres que publican sus miembros en DNS: el host es el nombre del clúster, el puerto no se usa y la conexión se cifra salvo que desmarques el cifrado.'
@@ -100,6 +108,23 @@ const URI_REDIS: EsquemaUri = {
   descomponer: descomponerUriRedis
 }
 
+const URI_POSTGRES: EsquemaUri = {
+  ejemplo: 'postgres://usuario:clave@host:5432/base?sslmode=require',
+  ayuda:
+    'Rellena host, puerto, usuario, contraseña, base y cifrado (sslmode: require, prefer y allow cifran sin verificar el certificado; verify-ca y verify-full lo verifican; sin él o disable, sin cifrar). La URI no se guarda: solo sus campos; el resto de opciones se deja fuera.',
+  descomponer: descomponerUriPostgres
+}
+
+const URI_MYSQL: EsquemaUri = {
+  ejemplo: 'mysql://usuario:clave@host:3306/base?ssl-mode=REQUIRED',
+  ayuda:
+    'Rellena host, puerto, usuario, contraseña, base y cifrado (ssl-mode: REQUIRED y PREFERRED cifran sin verificar el certificado; VERIFY_CA y VERIFY_IDENTITY lo verifican; sin él o DISABLED, sin cifrar). Vale también mariadb://. La URI no se guarda: solo sus campos; el resto de opciones se deja fuera.',
+  descomponer: descomponerUriMysql
+}
+
+/** La ayuda bajo la base de MySQL: es opcional y el árbol enseña todas. */
+export const AYUDA_BASE_MYSQL = 'La base en la que abre la sesión. Sin ella, el árbol enseña igual todas las que el usuario puede ver.'
+
 /** La base de un motor de claves EN VIVO: la validación del main sobre el valor que se guarda (limpio). */
 const validarBaseClaves = (valor: string): string | null => validarBaseRedis(limpiarDestinoBd(valor))
 
@@ -116,6 +141,10 @@ function filaCifrado(etiqueta: string): DefCampo[] {
   return [{ campo: 'tls', tipo: 'cifrado', etiqueta, etiquetaConfiar: ETIQUETA_CONFIAR_CERTIFICADO, ancho: 'crece', ayuda: AYUDA_CIFRADO }]
 }
 
+/** La ayuda del cifrado de Oracle: siempre verifica, y no con las 11g. */
+const AYUDA_CIFRADO_ORACLE =
+  'Conecta por TCPS: el puerto suele ser otro (2484, no 1521). El certificado se verifica siempre contra las autoridades de confianza de tu equipo; si el servidor usa uno propio, instala su autoridad en el sistema. No disponible con bases anteriores a 12.1.'
+
 /** La presentación de cada motor. `Record<DbMotor, …>`: un motor sin ella no compila. */
 export const PRESENTACION: Readonly<Record<DbMotor, PresentacionMotor>> = {
   oracle: {
@@ -126,6 +155,9 @@ export const PRESENTACION: Readonly<Record<DbMotor, PresentacionMotor>> = {
         { campo: 'sid', tipo: 'texto', etiqueta: 'SID', ancho: 'medio' }
       ]
     ],
+    filasTrasCredenciales: [
+      [{ campo: 'tls', tipo: 'cifrado', etiqueta: 'Cifrar la conexión (TCPS)', etiquetaConfiar: null, ancho: 'crece', ayuda: AYUDA_CIFRADO_ORACLE }]
+    ],
     ayudasExcluyentes: ['Service Name o SID, no los dos. Las 11g heredadas suelen ir por SID.']
   },
   postgres: {
@@ -133,7 +165,9 @@ export const PRESENTACION: Readonly<Record<DbMotor, PresentacionMotor>> = {
       [HOST, PUERTO],
       [{ campo: 'database', tipo: 'texto', etiqueta: 'Base de datos', placeholder: 'mi_base', ancho: 'crece' }]
     ],
-    ayudasExcluyentes: []
+    filasTrasCredenciales: [filaCifrado('Cifrar la conexión (SSL)')],
+    ayudasExcluyentes: [],
+    uri: URI_POSTGRES
   },
   // Sin filas de texto: el archivo es el selector que el diálogo pinta por `deArchivo`.
   sqlite: {
@@ -157,11 +191,21 @@ export const PRESENTACION: Readonly<Record<DbMotor, PresentacionMotor>> = {
     filasTrasCredenciales: [filaCifrado('Cifrar la conexión')],
     ayudasExcluyentes: []
   },
+  // La base opcional: en MySQL la base es el esquema, y el árbol enseña todas las visibles.
+  mysql: {
+    filas: [
+      [HOST, PUERTO],
+      [{ campo: 'database', tipo: 'texto', etiqueta: 'Base de datos', placeholder: 'opcional', ancho: 'crece', ayuda: AYUDA_BASE_MYSQL }]
+    ],
+    filasTrasCredenciales: [filaCifrado('Cifrar la conexión (TLS)')],
+    ayudasExcluyentes: [],
+    uri: URI_MYSQL
+  },
   // La base opcional (sin ella, el árbol empieza en las bases que el usuario puede leer) y el
   // SRV bajo host y puerto (apaga el puerto); usuario y contraseña, sin exigirlos.
   mongodb: {
     filas: [
-      [HOST, PUERTO],
+      [HOST_MONGO, PUERTO],
       [{ campo: 'srv', tipo: 'casilla', etiqueta: 'DNS SRV (mongodb+srv)', ancho: 'crece', ayuda: AYUDA_SRV }],
       [{ campo: 'database', tipo: 'texto', etiqueta: 'Base de datos', placeholder: 'opcional: sin ella, todas', ancho: 'crece', ayuda: AYUDA_BASE_DOCUMENTOS }]
     ],

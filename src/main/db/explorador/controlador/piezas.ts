@@ -18,6 +18,7 @@ import { Exportador, type OpcionesDialogoGuardar } from '../exportacion.ts'
 import { GestorSesiones, type TrabajadorGestor } from '../GestorSesiones.ts'
 import { HistorialStore } from '../HistorialStore.ts'
 import { ProcesoTrabajador } from '../ProcesoTrabajador.ts'
+import { entornoConClienteOracle } from '../entornoClienteOracle.ts'
 
 import type { ContextoExplorador } from './tipos.ts'
 import { mensajeDe } from './validacion.ts'
@@ -55,7 +56,9 @@ function lanzadorDe(c: ContextoExplorador): (con: DbConnection) => TrabajadorGes
     ((con) =>
       new ProcesoTrabajador({
         rutaScript: path.join(c.registro.tdbScriptDir(), 'sesion.cjs'),
-        log: (l) => c.log(`[${con.id.slice(0, 8)}] ${l}`)
+        log: (l) => c.log(`[${con.id.slice(0, 8)}] ${l}`),
+        // Al lanzar, no al crear el gestor: el cliente Oracle se puede instalar con la app abierta.
+        env: entornoConClienteOracle(process.env, c.registro, c.opciones.plataforma)
       }))
   )
 }
@@ -76,6 +79,7 @@ export function crearGestor(c: ContextoExplorador, historial: HistorialStore | n
       }
     },
     ctxDrivers: () => registro.ctxDrivers(),
+    tunel: (con) => registro.tunelDe?.(con) ?? null,
     emitirSesion: (estado) => c.emitir(DBX_CHANNELS.EV_SESION, estado),
     alAbrir: (conexionId, driverId) => {
       if (conexiones.marcarVerificada(conexionId, driverId)) registro.notificarCambio()

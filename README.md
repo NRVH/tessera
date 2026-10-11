@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://github.com/NRVH/tessera/releases/latest"><img src="https://img.shields.io/github/v/release/NRVH/tessera" alt="Última versión"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="Licencia MIT"></a>
-  <img src="https://img.shields.io/badge/platforms-Windows%20%7C%20macOS-lightgrey.svg" alt="Plataformas: Windows | macOS">
+  <img src="https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg" alt="Plataformas: Windows | macOS | Linux">
 </p>
 
 <p align="center">
@@ -75,20 +75,22 @@ del espacio de trabajo, con una cuenta propia de ese espacio y solo sus proyecto
 | --- | --- | --- |
 | Windows | **[Descargar para Windows](https://github.com/NRVH/tessera/releases/latest/download/Tessera-Setup.exe)** (`.exe`) | Windows 11 (64 bits) |
 | macOS | **[Descargar para Mac](https://github.com/NRVH/tessera/releases/latest/download/Tessera-mac-arm64.dmg)** (`.dmg`) | macOS 12 Monterey o posterior, **solo Apple Silicon** (M1 y posteriores) |
+| Linux | **[Descargar para Linux](https://github.com/NRVH/tessera/releases/latest/download/Tessera-linux-x86_64.AppImage)** (`.AppImage`) | Distribuciones de escritorio de 64 bits (x86-64) con FUSE (`libfuse2`) |
 
 Las notas de cada versión y los instaladores anteriores están en
 **[Releases](https://github.com/NRVH/tessera/releases)**.
 
 El instalador de Windows es por usuario (no pide permisos de administrador) y te deja elegir
-la carpeta de instalación. En macOS, abre el `.dmg` y arrastra Tessera a **Aplicaciones**.
+la carpeta de instalación. En macOS, abre el `.dmg` y arrastra Tessera a **Aplicaciones**. En
+Linux, dale permiso de ejecución al AppImage (`chmod +x Tessera-linux-x86_64.AppImage`) y ábrelo.
 
-Tessera se actualiza sola en las dos plataformas: la versión nueva se descarga en segundo
+Tessera se actualiza sola en las tres plataformas: la versión nueva se descarga en segundo
 plano y se aplica al cerrar la app (puedes cambiarlo en **Configuración › Actualizaciones**).
 
-### Primer arranque de una app sin firma
+### Primer arranque de una app sin firma de pago
 
 Tessera es un proyecto de código abierto independiente y no está firmado con un
-certificado de pago, así que los dos sistemas avisan la primera vez que la abres. Es lo
+certificado de pago, así que Windows y macOS avisan la primera vez que la abres. Es lo
 esperado.
 
 - **Windows.** SmartScreen enseña «Windows protegió tu PC». Pulsa **Más información** y
@@ -108,21 +110,21 @@ Solo hay que hacerlo una vez: las actualizaciones automáticas las descarga la p
 Tessera y no vuelven a disparar el aviso. Si prefieres no fiarte de un binario ya
 compilado, puedes [compilar Tessera desde el código](#compilar-desde-el-código).
 
-En macOS la app lleva una firma ad-hoc, que cambia con cada compilación. Por eso, tras una
-actualización macOS puede volver a pedir permiso para acceder a carpetas como Documentos o
-el Escritorio.
+En macOS la app va firmada con un certificado propio de Tessera, el mismo en todas las
+versiones, así que los permisos que le des (acceso a carpetas, Accesibilidad, grabación de
+pantalla) se conservan al actualizar. El Llavero sí vuelve a preguntar una vez tras cada
+actualización si Tessera puede usar sus contraseñas guardadas: pulsa **Permitir siempre**.
 
 ## Requisitos
 
 | Qué | Cuándo lo necesitas |
 | --- | --- |
-| **Docker Desktop** | Solo para el modo sandbox. En Windows, con el backend de WSL 2. Tessera construye la imagen del sandbox la primera vez que un espacio de trabajo la necesita. |
+| **Docker** | Solo para el modo sandbox: Docker Desktop en Windows (con el backend de WSL 2) y en macOS, y el Docker del sistema en Linux (Docker sin root no está soportado: Tessera lo explica y propone el modo nativo). Tessera construye la imagen del sandbox la primera vez que un espacio de trabajo la necesita. |
 | **Claude Code** y/o **Codex** | Solo para el modo nativo: instalados en tu equipo y con la sesión iniciada. En modo sandbox los dos vienen preinstalados en la imagen. |
 | **Git** | Para la vista de Git, que corre en tu equipo. En macOS viene con las Command Line Tools de Xcode. |
-| **Cliente OpenSSH** | Para las conexiones SSH. En Windows es la función opcional «Cliente OpenSSH», que viene instalada en Windows 10 y 11 (si falta, Tessera usa el de Git y lo avisa); en macOS viene con el sistema. |
+| **Cliente OpenSSH** | Para las conexiones SSH. En Windows es la función opcional «Cliente OpenSSH», que viene instalada en Windows 10 y 11 (si falta, Tessera usa el de Git y lo avisa); en macOS y en la mayoría de distribuciones de Linux viene con el sistema. |
+| **GNOME Keyring o KWallet** | Solo en Linux, para guardar contraseñas. Sin uno de los dos, las conexiones se crean igual, pero Tessera no guarda su contraseña: nunca la deja en el disco casi en claro. |
 | **Java** (opcional) | Para descompilar archivos `.class`. Tessera trae dos motores: CFR, que corre con Java 6 o posterior, y Vineflower, que necesita Java 17 o posterior. Encuentra todas las instalaciones de Java del equipo y usa la mejor para cada motor. |
-
-Linux todavía no está soportado.
 
 ## Primeros pasos
 
@@ -152,6 +154,10 @@ Linux todavía no está soportado.
 - Dos niveles de pestañas: arriba los espacios de trabajo, cada uno con su color para que
   siempre sepas en qué cuenta estás, y debajo los proyectos abiertos de ese espacio.
 - Reordena espacios y proyectos arrastrándolos.
+- **Modo minimalista** (Configuración › Apariencia): la barra de espacios se cambia por un
+  selector pequeño en el centro de la barra de título, con el espacio activo; al pulsarlo
+  salen los demás, con el mismo menú para renombrarlos, cambiarles el color, hibernarlos o
+  eliminarlos.
 - Tessera recuerda qué proyectos tenía abiertos cada espacio y los restaura al volver a
   abrir la app, sin arrancar todos los agentes a la vez: un agente arranca cuando entras a
   su proyecto.
@@ -235,9 +241,10 @@ el que entraste.
 - Colores de estado de Git en archivos y carpetas, al día según cambian en disco.
 - **«Abrir con Tessera»** desde el menú del clic derecho del Explorador de Windows (carpetas,
   cualquier archivo o extensiones asociadas, cada uno se activa por separado en
-  Configuración) y, en macOS, una acción rápida del Finder para carpetas más «Abrir con»
-  para archivos de código y de texto. Tessera nunca se convierte en la app por defecto de un
-  tipo de archivo.
+  Configuración); en macOS, una acción rápida del Finder para carpetas más «Abrir con»
+  para archivos de código y de texto, y en Linux, Tessera en el «Abrir con» de las carpetas
+  de tu gestor de archivos y en el lanzador de aplicaciones. Tessera nunca se convierte en la
+  app por defecto de un tipo de archivo.
 
 ### Git
 
@@ -259,7 +266,7 @@ el que entraste.
 - Un panel de terminal en la parte inferior de la ventana para el proyecto activo, con
   varias terminales en pestañas: dentro del contenedor del espacio en modo Docker, o tu
   propia shell en modo nativo (PowerShell en Windows, tu shell de inicio de sesión en
-  macOS).
+  macOS y en Linux).
 - Buscar en el historial de la terminal, copiar y pegar como espera cada plataforma, y
   renderizado acelerado por GPU que puedes apagar en Configuración.
 - **Pantalla completa**: la terminal ocupa todo el área de trabajo con un botón o con
@@ -279,13 +286,25 @@ el que entraste.
 - **Tres formas de entrar**: contraseña, archivo de clave (`.pem` u OpenSSH, que Tessera
   guarda como copia protegida sin tocar el original) o las claves del sistema (el agente de
   claves y tu carpeta `.ssh`). La contraseña y la frase de la clave se guardan cifradas y se
-  dan solas al conectar. «Probar» comprueba la conexión antes de guardarla.
+  dan solas al conectar; si el servidor las rechaza, o pide un segundo factor, Tessera lo
+  pregunta en un diálogo. «Probar» comprueba la conexión antes de guardarla.
 
   ![Formulario de una conexión SSH: nombre, grupo, host, usuario y autenticación](assets/capturas/ssh-conexion.png)
 
+- **Bastiones y túneles**: una conexión puede saltar por otra del espacio de trabajo para
+  llegar a un equipo que no se ve directamente (hasta cuatro saltos), y abrir túneles locales,
+  remotos y SOCKS que viven lo que vive su terminal. La terminal, el explorador SFTP y los
+  agentes atraviesan el bastión igual.
+- **Las sesiones se reconectan** desde la propia terminal (Intro o «Reconectar») cuando se
+  cortan, y las pestañas SSH abiertas vuelven al abrir Tessera, sin conectarse hasta que las
+  miras.
 - **Importar desde OpenSSH**: lee tu `~/.ssh/config` (o el archivo que elijas). Con un solo
   `Host` rellena el formulario; con varios, abre una revisión para elegir cuáles importar,
-  cambiarles el nombre, el usuario y el grupo, y dejar la contraseña o la clave de cada una.
+  cambiarles el nombre, el usuario y el grupo de cada una, y dejar la contraseña o la clave.
+- **Exportar a OpenSSH**: guarda las conexiones del espacio (o las que marques) en un `config`
+  de OpenSSH, con sus bastiones, túneles y una copia protegida de sus claves.
+- **Organízalas a tu manera**: grupos, varias a la vez con Ctrl/⌘-clic y Mayús-clic,
+  arrastrarlas de un grupo a otro, y «Duplicar» para crear una copia con todo.
 - **Explorador SFTP** de cada conexión en una pestaña: navegar, crear carpetas, renombrar,
   borrar, y subir y bajar archivos y carpetas (también soltándolos encima) con progreso,
   cancelación y confirmación antes de reemplazar.
@@ -293,14 +312,20 @@ el que entraste.
   o Docker, y el agente de la terminal pueden listar las conexiones, ejecutar comandos y
   copiar archivos con un CLI pequeño, `tssh`, por el nombre de la conexión. Nunca ven la
   contraseña ni la clave, y solo entran en servidores cuya huella ya aceptaste tú. La casilla
-  «Disponible para los agentes» de cada conexión decide si la ven.
+  «Disponible para los agentes» de cada conexión decide si la ven, y «Actividad de los
+  agentes» enseña qué pidió cada uno, con qué conexión y cómo acabó.
 
 ### Bases de datos
 
 ![Vista Conexiones con el árbol de la base, una consola SQL y la rejilla de resultados](assets/capturas/bases-de-datos.png)
 
-- **Oracle, PostgreSQL, SQL Server, MongoDB, Redis y SQLite**, en una vista **Conexiones**
-  propia, organizada por espacio de trabajo.
+- **Oracle, PostgreSQL, SQL Server, MySQL, MariaDB, MongoDB, Redis y SQLite**, en una vista
+  **Conexiones** propia, organizada por espacio de trabajo. Redis también con Sentinel (sigue
+  al maestro nuevo tras un failover) y con Cluster.
+- **Conexiones cifradas** (SSL/TLS, y TCPS en Oracle) con el certificado verificado contra
+  las autoridades de confianza de tu equipo, y **por un túnel SSH** a través de una de tus
+  conexiones SSH, también con bastión. Pegar una URI (`postgres://`, `mysql://`,
+  `mongodb://`…) rellena el formulario.
 - Un árbol de esquemas y objetos, una rejilla de resultados con paginado y exportación,
   consolas SQL con autocompletado, formato, planes de ejecución e historial de consultas, y
   consolas para MongoDB y Redis con su propia sintaxis.
@@ -316,7 +341,7 @@ el que entraste.
   thick usan Oracle Instant Client, que Tessera puede descargar por ti desde oracle.com, o
   puedes indicarle uno que ya tengas.
 - Las contraseñas se cifran con el almacén de secretos del sistema (DPAPI en Windows, el
-  Llavero en macOS).
+  Llavero en macOS, GNOME Keyring o KWallet en Linux).
 
 ### Configuración
 
@@ -330,14 +355,14 @@ actualizaciones y una página «Acerca de».
 ### Actualizaciones automáticas
 
 Tessera consulta su canal de versiones en GitHub, descarga las nuevas en segundo plano y
-las aplica al cerrar la app, en Windows y en macOS.
+las aplica al cerrar la app, en Windows, en macOS y en Linux.
 
 ## Atajos de teclado
 
-El modificador principal es Ctrl en Windows y ⌘ en macOS. Algunos gestos usan una tecla
-distinta en cada plataforma, siguiendo las convenciones de cada sistema.
+El modificador principal es Ctrl en Windows y Linux y ⌘ en macOS. Algunos gestos usan una
+tecla distinta en cada plataforma, siguiendo las convenciones de cada sistema.
 
-| Acción | Windows | macOS |
+| Acción | Windows y Linux | macOS |
 | --- | --- | --- |
 | Configuración | Ctrl+, | ⌘, |
 | Buscar en archivos | Ctrl+Shift+F | ⇧⌘F |
@@ -354,12 +379,12 @@ distinta en cada plataforma, siguiendo las convenciones de cada sistema.
 | Abrir el elemento seleccionado (explorador, árbol de bases de datos) | F4 o Enter | F4, ⌘↓ o Enter |
 | Borrar los archivos seleccionados | Supr | ⌘⌫ o Supr |
 
-Con el foco en una terminal, Ctrl+N en Windows es de la shell (le llega como ^N) y no crea
-un archivo; en macOS ⌘N no es una tecla de control y crea el archivo igual.
+Con el foco en una terminal, Ctrl+N en Windows y Linux es de la shell (le llega como ^N) y no
+crea un archivo; en macOS ⌘N no es una tecla de control y crea el archivo igual.
 
 En la vista **Conexiones**:
 
-| Acción | Windows | macOS |
+| Acción | Windows y Linux | macOS |
 | --- | --- | --- |
 | Ejecutar la sentencia actual | Ctrl+Enter | ⌘↩ |
 | Ejecutar toda la consola | Alt+X o Ctrl+Shift+Enter | ⌥X o ⇧⌘↩ |
@@ -378,6 +403,7 @@ En la vista **Conexiones**:
 | --- | --- |
 | Windows | `%APPDATA%\Tessera` |
 | macOS | `~/Library/Application Support/Tessera` |
+| Linux | `~/.config/Tessera` |
 
 En esa carpeta están tus espacios de trabajo, las pestañas abiertas, la configuración, las
 sesiones de los agentes del modo sandbox, las conexiones a bases de datos (con las
@@ -417,7 +443,7 @@ Windows pregunta si conservar o borrar tus datos, y una actualización nunca los
 ## Compilar desde el código
 
 Necesitas **Node.js 22.18 o posterior** (el flujo de publicación usa el último Node 22) y
-**Git**. Para el modo sandbox, también Docker Desktop.
+**Git**. Para el modo sandbox, también Docker.
 
 ```bash
 git clone https://github.com/NRVH/tessera.git
@@ -435,6 +461,7 @@ Para generar el instalador de tu propia plataforma:
 ```bash
 npm run release:win   # Windows: dist/Tessera-<versión>-Setup.exe
 npm run release:mac   # macOS:   dist/Tessera-<versión>-arm64.dmg (y el .zip que usan las actualizaciones)
+npm run release:linux # Linux:   dist/Tessera-linux-x86_64.AppImage
 ```
 
 electron-builder no compila de un sistema a otro, así que cada plataforma se compila en esa
@@ -445,8 +472,8 @@ de Apple.
 | --- | --- |
 | `npm run dev` | Arranca la app en modo desarrollo con recarga en caliente |
 | `npm run build` | Comprueba los tipos y compila en `out/` |
-| `npm run pack:dir` / `npm run pack:mac:dir` | Empaqueta sin instalador (`dist/win-unpacked`, `dist/mac-arm64`) |
-| `npm run release:win` / `npm run release:mac` | Genera el instalador de la plataforma actual, sin publicar |
+| `npm run pack:dir` / `npm run pack:mac:dir` / `npm run pack:linux:dir` | Empaqueta sin instalador (`dist/win-unpacked`, `dist/mac-arm64`, `dist/linux-unpacked`) |
+| `npm run release:win` / `npm run release:mac` / `npm run release:linux` | Genera el instalador de la plataforma actual, sin publicar |
 | `npm run typecheck` | Comprueba los tipos del proceso principal, de la interfaz y de la suite e2e |
 | `npm run lint` | ESLint sobre todo el repositorio |
 | `npm run test:<nombre>` | Ejecuta un script de prueba (ver `package.json`) |
@@ -512,15 +539,16 @@ npm run test:e2e                      # Playwright contra la app EMPAQUETADA
   las agrupe; cada una tiene su script `test:<nombre>`, y unas treinta necesitan Docker
   levantado.
 - `test:cabeceras`, `test:comentarios` y `test:menciones` comprueban el estándar de código.
-- La suite de extremo a extremo conduce la app empaquetada (`dist/win-unpacked` o
-  `dist/mac-arm64/Tessera.app`), así que hay que reconstruirla con `npm run pack:dir` o
-  `npm run pack:mac:dir` después de cambiar código de la aplicación.
+- La suite de extremo a extremo conduce la app empaquetada (`dist/win-unpacked`,
+  `dist/mac-arm64/Tessera.app` o `dist/linux-unpacked`), así que hay que reconstruirla con
+  `npm run pack:dir`, `npm run pack:mac:dir` o `npm run pack:linux:dir` después de cambiar
+  código de la aplicación.
 
 ## Contribuir
 
 Los issues y los pull requests son bienvenidos, en español o en inglés. Lee antes
-[CONTRIBUTING.md](./CONTRIBUTING.md): el código está escrito en español, y Windows y macOS
-son plataformas de primera clase las dos. Las vulnerabilidades se reportan en privado como explica
+[CONTRIBUTING.md](./CONTRIBUTING.md): el código está escrito en español, y Windows, macOS y
+Linux son plataformas de primera clase las tres. Las vulnerabilidades se reportan en privado como explica
 [SECURITY.md](./SECURITY.md). Se espera que todo el que participe siga el
 [Código de conducta](./CODE_OF_CONDUCT.md).
 

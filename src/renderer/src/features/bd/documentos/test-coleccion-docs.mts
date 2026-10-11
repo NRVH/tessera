@@ -2,8 +2,9 @@
 // Prueba de la lógica pura de la pestaña de colección (`coleccionDocs.ts`, `tokensDocs.ts`
 // y `camposDocs.ts`), con `node` a secas (`npm run test:coleccion-docs`). Fija el
 // tokenizador y el formato, los campos de primer nivel, el tipo y la vista de un valor
-// editado, los cambios pendientes por `_id`, el envío sin transacción, las filas de la tabla
-// y la consulta (modos guiado y JSON, orden de cabecera, destino de un error, columnas).
+// editado, los cambios pendientes por `_id`, el envío sin transacción, las filas de la tabla,
+// la consulta (modos guiado y JSON, orden de cabecera, destino de un error, columnas) y la
+// vista previa de «Enviar» (`envioDocs.ts`).
 // =============================================================================
 
 import {
@@ -50,6 +51,7 @@ import {
   unirColumnas,
   valorDeCampo
 } from './coleccionDocs.ts'
+import { lineaDeCambioDocs, resumenCambiosDocs, textoIdDe } from './envioDocs.ts'
 import type { DbDocCampoMuestra, DbDocDocumento } from '../../../../../shared/db-documentos-ipc.ts'
 import type { DbErrorSql } from '../../../../../shared/db-explorador-ipc.ts'
 import type { DbFiltroGuiado, DbOrdenColumna } from '../../../../../shared/filtroGuiado.ts'
@@ -258,6 +260,49 @@ function main(): void {
   )
   check('sin muestra todavía: todo sale de la página', j(columnasFiltrables(null, ['_id', 'raro'], docsF)) === j([{ nombre: '_id', categoria: 'id' }, { nombre: 'raro', categoria: 'texto' }]), j(columnasFiltrables(null, ['_id', 'raro'], docsF)))
   check('un campo sin celdas ni muestra: «otro» (solo vacío / no vacío)', j(columnasFiltrables(null, ['fantasma'], docsF)) === j([{ nombre: 'fantasma', categoria: 'otro' }]), 'otro')
+
+  hr('(9) vista previa de «Enviar»: una orden del shell por cambio')
+  const OID = '{"$oid":"65a1b2c3d4e5f60718293a4b"}'
+  const docsP: DbDocDocumento[] = [{ idEjson: OID, texto: '{ _id: ObjectId("65a1b2c3d4e5f60718293a4b"), nombre: "Ana" }', celdas: {} }]
+  const idP = (id: string): string => textoIdDe(docsP, id)
+  check('el _id sale como lo enseña la tabla', idP(OID) === 'ObjectId("65a1b2c3d4e5f60718293a4b")', idP(OID))
+  const fuera = (ejson: string): string => textoIdDe(docsP, ejson)
+  check('un _id fuera de la página: su EJSON en notación del shell (ObjectId)', fuera('{"$oid":"65a1b2c3d4e5f60718293a4c"}') === 'ObjectId("65a1b2c3d4e5f60718293a4c")', fuera('{"$oid":"65a1b2c3d4e5f60718293a4c"}'))
+  check('… y NumberInt, NumberLong, UUID', fuera('{"$numberInt":"7"}') === 'NumberInt("7")' && fuera('{"$numberLong":"9007199254740993"}') === 'NumberLong("9007199254740993")' && fuera('{"$uuid":"0f8e5b2a-1c3d-4e5f-8a9b-0c1d2e3f4a5b"}') === 'UUID("0f8e5b2a-1c3d-4e5f-8a9b-0c1d2e3f4a5b")', fuera('{"$numberInt":"7"}'))
+  check('… una fecha, como ISODate', fuera('{"$date":{"$numberLong":"1577836800000"}}') === 'ISODate("2020-01-01T00:00:00.000Z")', fuera('{"$date":{"$numberLong":"1577836800000"}}'))
+  check('… un _id compuesto, por dentro', fuera('{"tienda":"Norte","n":{"$numberInt":"3"},"mi clave":true}') === '{tienda: "Norte", n: NumberInt("3"), "mi clave": true}', fuera('{"tienda":"Norte","n":{"$numberInt":"3"},"mi clave":true}'))
+  check('… un texto plano, entre comillas', fuera('"pedido-12"') === '"pedido-12"', fuera('"pedido-12"'))
+  check('… y lo que no es JSON, tal cual', fuera('no json') === 'no json', fuera('no json'))
+  check('`new Date(…)` conserva su espacio al compactar', compactarTexto('{d: new Date("2020-01-01")}') === '{d: new Date("2020-01-01")}', compactarTexto('{d: new Date("2020-01-01")}'))
+  check('… y al sangrar para el panel', formatearDocumento('{d: new Date(NaN)}') === '{\n  d: new Date(NaN)\n}', JSON.stringify(formatearDocumento('{d: new Date(NaN)}')))
+  check(
+    '… y en la orden de la vista previa',
+    lineaDeCambioDocs('c', { tipo: 'actualizar', idEjson: OID, poner: { d: 'new Date("2020-01-01")' }, quitar: [] }, idP).endsWith('{$set: {d: new Date("2020-01-01")}})'),
+    lineaDeCambioDocs('c', { tipo: 'actualizar', idEjson: OID, poner: { d: 'new Date("2020-01-01")' }, quitar: [] }, idP)
+  )
+  const lineas = [
+    lineaDeCambioDocs('clientes', { tipo: 'actualizar', idEjson: OID, poner: { nombre: '"Eva"', 'mi campo': '3' }, quitar: ['viejo'] }, idP),
+    lineaDeCambioDocs('clientes', { tipo: 'reemplazar', idEjson: OID, documento: '{\n  _id: ObjectId("65a1b2c3d4e5f60718293a4b"),\n  n: 1\n}' }, idP),
+    lineaDeCambioDocs('clientes', { tipo: 'borrar', idEjson: OID }, idP),
+    lineaDeCambioDocs('stats', { tipo: 'insertar', documento: '{ a: 1 }' }, idP)
+  ]
+  check(
+    'actualizar: $set con las claves raras entre comillas y $unset',
+    lineas[0] === 'db.getCollection("clientes").updateOne({_id: ObjectId("65a1b2c3d4e5f60718293a4b")}, {$set: {nombre: "Eva", "mi campo": 3}, $unset: {viejo: ""}})',
+    lineas[0]
+  )
+  check('reemplazar: el documento en una línea', lineas[1] === 'db.getCollection("clientes").replaceOne({_id: ObjectId("65a1b2c3d4e5f60718293a4b")}, {_id: ObjectId("65a1b2c3d4e5f60718293a4b"), n: 1})', lineas[1])
+  check('borrar', lineas[2] === 'db.getCollection("clientes").deleteOne({_id: ObjectId("65a1b2c3d4e5f60718293a4b")})', lineas[2])
+  check('insertar, y una colección que se llama como un método de db va por getCollection', lineas[3] === 'db.getCollection("stats").insertOne({a: 1})', lineas[3])
+  const soloQuitar = lineaDeCambioDocs('c', { tipo: 'actualizar', idEjson: OID, poner: {}, quitar: ['x'] }, idP)
+  check('actualizar solo quitando: sin $set', soloQuitar.endsWith('{$unset: {x: ""}})') && !soloQuitar.includes('$set'), soloQuitar)
+  const resumen = resumenCambiosDocs([
+    { tipo: 'actualizar', idEjson: OID, poner: {}, quitar: ['x'] },
+    { tipo: 'reemplazar', idEjson: OID, documento: '{}' },
+    { tipo: 'insertar', documento: '{}' },
+    { tipo: 'borrar', idEjson: OID }
+  ])
+  check('el resumen cuenta reemplazar como actualización', resumen === '2 actualizaciones, 1 inserción y 1 borrado', resumen)
 
   hr('RESULTADO (PASS/FAIL)')
   for (const res of results) {

@@ -3,7 +3,7 @@
 Tessera se publica bajo la [licencia MIT](./LICENSE). Está construida sobre software escrito
 por otros, y lo distribuye, cada uno con su propia licencia. Este archivo enumera esos
 componentes, la licencia con la que Tessera usa cada uno y lo que sus licencias piden que se
-diga. Describe Tessera 0.76.1.
+diga. Describe Tessera 0.80.0.
 
 ## Cómo viaja el código de terceros con Tessera
 
@@ -197,6 +197,7 @@ Sus textos de licencia viajan en la carpeta de cada paquete.
 | libpg-query | 18.1.5 | MIT |
 | mammoth | 1.12.0 | BSD-2-Clause |
 | mongodb | 7.7.0 | Apache-2.0 |
+| mysql2 | 3.24.4 | MIT |
 | node-pty | 1.1.0 | MIT |
 | oracledb | 6.10.0 | Apache-2.0 OR UPL-1.0 (elegida Apache-2.0) |
 | pg | 8.22.0 | MIT |

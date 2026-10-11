@@ -7,7 +7,13 @@
 
 import type { DbConnection } from '../../../../shared/db-ipc.ts'
 import { mismoArchivo } from '../../rutaArchivoBd.ts'
-import type { DbErrorSql, DbRespuesta, DbResultadoEnvio, DbTiempos } from '../../../../shared/db-explorador-ipc.ts'
+import {
+  type DbErrorSql,
+  type DbRespuesta,
+  type DbResultadoEnvio,
+  type DbTiempos,
+  MOTIVO_CARPETA_SIN_ESCRITURA
+} from '../../../../shared/db-explorador-ipc.ts'
 import { dialectoDeMotor, type DialectoSql } from '../../../../shared/sql/dialectosSql.ts'
 import {
   type BindsEnvio,
@@ -98,7 +104,8 @@ export class EnvioRejilla {
     }
     if (this.n.ro(con)) {
       // El MISMO texto que el controlador y que la identidad 'ninguna' (uno solo).
-      return { ok: false, error: { motivo: 'soloLectura', mensaje: MOTIVO_SOLO_LECTURA } }
+      const mensaje = this.n.porCarpeta(con.id) ? MOTIVO_CARPETA_SIN_ESCRITURA : MOTIVO_SOLO_LECTURA
+      return { ok: false, error: { motivo: 'soloLectura', mensaje } }
     }
     if (exigeConfirmacion(con, this.n.ro(con), req.confirmado)) {
       return { ok: false, error: { motivo: 'produccion', mensaje: mensajeProduccion(con.alias, 'enviar') } }

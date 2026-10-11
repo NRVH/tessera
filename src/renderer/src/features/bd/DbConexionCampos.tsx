@@ -69,15 +69,17 @@ function casillasCifrado(def: DefDe<'cifrado'>, p: PropsCampo): React.JSX.Elemen
         />
         {def.etiqueta}
       </label>
-      <label className="dbc-check">
-        <input
-          type="checkbox"
-          data-casilla="confiarCertificado"
-          checked={borrador.tls.confiarCertificado}
-          onChange={(e) => onEditar({ tls: { ...borrador.tls, confiarCertificado: e.target.checked } })}
-        />
-        {def.etiquetaConfiar}
-      </label>
+      {def.etiquetaConfiar !== null && (
+        <label className="dbc-check">
+          <input
+            type="checkbox"
+            data-casilla="confiarCertificado"
+            checked={borrador.tls.confiarCertificado}
+            onChange={(e) => onEditar({ tls: { ...borrador.tls, confiarCertificado: e.target.checked } })}
+          />
+          {def.etiquetaConfiar}
+        </label>
+      )}
     </div>
   )
 }

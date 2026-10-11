@@ -1,0 +1,22 @@
+/* =============================================================================
+   El tooltip de la app (`TooltipPropio.tsx`): una caja pequeña de la app, por encima de
+   todo y sin recibir el ratón, con los saltos de línea del `title`. Solo variables del tema.
+   ============================================================================= */
+
+.tooltip-propio {
+  position: fixed;
+  z-index: 10000;
+  max-width: 320px;
+  padding: 4px 8px;
+  /* La piel de los menús contextuales: lo que flota en la app se ve igual. */
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  color: var(--fg);
+  font-size: 12px;
+  line-height: 1.35;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}

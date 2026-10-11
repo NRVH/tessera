@@ -38,6 +38,14 @@ export function urlDistTags(registro: string, paquete: string): string {
   return `${registro}/-/package/${paquete}/dist-tags`
 }
 
+/**
+ * URL del documento de UNA versión de un paquete, con el `@scope/nombre` escapado como
+ * `@scope%2fnombre` (la forma que acepta cualquier registro compatible con npm).
+ */
+export function urlVersionNpm(registro: string, paquete: string, version: string): string {
+  return `${registro}/${paquete.replace('/', '%2f')}/${encodeURIComponent(version)}`
+}
+
 /** dist-tags de npm: sólo las entradas de texto; null si no es un objeto JSON. */
 export function parsearDistTags(texto: string): Record<string, string> | null {
   let datos: unknown

@@ -7,6 +7,7 @@
 import { app, Menu, nativeTheme } from 'electron'
 import * as nodePty from 'node-pty'
 import { initCrashLog } from './crashLog'
+import { revisarVolcados } from './volcados'
 import { plantillaMenuAplicacion } from './menuAplicacion'
 import { initDbLog } from '../db/dbLog'
 import { initLogCierre } from '../util/registroCierre'
@@ -20,6 +21,7 @@ import { asegurarPathDelHost } from '../util/pathDeLogin'
  */
 export function prepararArranque(): Promise<void> {
   initCrashLog()
+  revisarVolcados()
   // En la app empaquetada no hay consola: sin él, un fallo al montar una base no deja rastro.
   initDbLog(app.getPath('userData'))
   // Al arrancar, para que su rotación no caiga dentro del cierre que mide.

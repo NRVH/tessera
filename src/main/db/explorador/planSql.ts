@@ -1,7 +1,7 @@
 // =============================================================================
 // Plan de ejecución (Explain): el SQL que lo pide y el parseo de lo que devuelve cada motor a
 // `DbNodoPlan[]` más texto. Nunca ejecuta la sentencia. Aquí, Oracle (`EXPLAIN PLAN` sobre
-// PLAN_TABLE) y la posición del error; PostgreSQL, SQLite y SQL Server viven en `planSql*.ts`
+// PLAN_TABLE) y la posición del error; PostgreSQL, SQLite, SQL Server y MySQL viven en `planSql*.ts`
 // y se reexportan. Puro y sin electron; lo fija `test-plan-sql.mts`.
 // Decisiones: docs/decisiones/bd/motores-explicar.md
 // =============================================================================
@@ -12,6 +12,7 @@ import { MAX_NODOS_PLAN, numero, texto } from './planSqlComun.ts'
 export * from './planSqlPg.ts'
 export * from './planSqlSqlite.ts'
 export * from './planSqlSqlserver.ts'
+export * from './planSqlMysql.ts'
 export { MAX_NODOS_PLAN }
 
 // --- Oracle ----------------------------------------------------------------------------

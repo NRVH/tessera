@@ -175,6 +175,9 @@ export class CicloDeVida {
     // El «solo lectura» de antes y de ahora es el que IMPONE el explorador (`ro`), no la
     // casilla de los agentes: marcarla o desmarcarla no mueve el modo de ninguna consola.
     const roPrevio = this.n.ro(previo)
+    // La conexión editada puede apuntar a otro archivo: si su carpeta admite escritura, lo dirá
+    // la próxima apertura.
+    this.n.anotarCarpeta(nuevo.id, false)
     const roNuevo = this.n.ro(nuevo)
     const motivo = this.motivoManual(previo, nuevo, roPrevio, roNuevo)
     // Las sesiones sin proceso toman ya el nuevo «solo lectura» (y con él, Auto).
@@ -229,6 +232,7 @@ export class CicloDeVida {
 
   /** La conexión se borró: fuera sus sesiones (el `salir` revierte) y su proceso. */
   alBorrarConexion(conexionId: string): void {
+    this.n.anotarCarpeta(conexionId, false)
     for (const s of this.n.sesionesDeConexion(conexionId)) this.n.olvidarSesion(s)
     for (const p of [...this.n.procesos()]) {
       if (p.conexionId === conexionId && !p.salido) void this.proc.retirar(p, 'conexionBorrada')

@@ -66,7 +66,14 @@ function esPerdida(err) {
   if (!err || esRespuestaError(err)) return false
   if (CODIGOS_RED.has(err.code)) return true
   const m = String(err.message || '')
-  return m === 'Connection is closed.' || m.startsWith("Stream isn't writeable") || err.name === 'MaxRetriesPerRequestError'
+  return (
+    m === 'Connection is closed.' ||
+    m.startsWith("Stream isn't writeable") ||
+    err.name === 'MaxRetriesPerRequestError' ||
+    // Cluster: se cayó entero o no se pudo releer su topología.
+    m === 'Cluster is disconnected.' ||
+    err.name === 'ClusterAllFailedError'
+  )
 }
 
 function mensajeRed(err) {
@@ -77,11 +84,20 @@ function mensajeRed(err) {
   return m === 'Connection is closed.' ? 'La conexión con Redis se cerró.' : m
 }
 
+/** Lo que se añade a un error del servidor que en Cluster no se entiende solo. */
+const EXPLICACIONES = new Map([
+  [
+    'CROSSSLOT',
+    'En Cluster, las claves de un mismo comando tienen que caer en el mismo slot: dales una etiqueta {…} común (p. ej. {pedido:7}:a y {pedido:7}:b).'
+  ]
+])
+
 /** Un error del servidor con su código en mayúsculas (`WRONGTYPE`, `NOPERM`), si el mensaje empieza por uno. */
 function errorDeServidorDesdeMensaje(mensaje) {
   const e = { clase: 'servidor', mensaje }
   const m = /^([A-Z][A-Z0-9_-]*)(?:\s|$)/.exec(mensaje)
   if (m) e.codigo = m[1]
+  if (m && EXPLICACIONES.has(m[1])) e.mensaje = `${mensaje}\n${EXPLICACIONES.get(m[1])}`
   return e
 }
 

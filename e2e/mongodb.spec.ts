@@ -12,7 +12,8 @@ import { expect, test } from '@playwright/test'
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { montarAgenteFalso, type AgenteFalso } from './agenteFalso'
-import { PESTANAS, aLaVista, crearProyecto, desplegar, fila } from './consolaAyudas'
+import { CONSOLA, PESTANAS, aLaVista, crearProyecto, desplegar, elegirDelMenu, esperarFinEjecucion, fila } from './consolaAyudas'
+import { esperarConsolaLista, monacoConsola } from './monaco'
 import { abrirTessera, borrarTemporal, PERFILES_SIN_SANDBOX, type SesionTessera } from './tessera'
 
 const PERFIL = 'personal'
@@ -297,5 +298,70 @@ test.describe('explorador de BD: MongoDB', () => {
     await win.keyboard.press('Escape')
     await expect(pane.locator('.db-docs-editor')).toHaveCount(0)
     await expect(pane.locator('.db-barra-pendientes'), 'cancelar no deja nada pendiente').toHaveCount(0)
+  })
+
+  // (5) «Enviar» abre la vista previa con una orden del shell por cambio, como la rejilla SQL
+  // enseña su DML. Cancelarla no envía nada: el cambio sigue pendiente.
+  test('(5) «Enviar» enseña antes la orden de cada cambio, y cancelar no envía', async () => {
+    const win = s!.win
+    const pane = win.locator(PANE)
+    await pane.locator('.db-docs-fila').filter({ hasText: 'Ana' }).first().locator('.db-docs-celda[data-campo="nombre"]').dblclick()
+    const editor = pane.locator('.db-docs-editor')
+    await expect(editor).toHaveCount(1)
+    await editor.fill('"Anita"')
+    await editor.press('Enter')
+    await expect(pane.locator('.db-barra-pendientes'), 'el cambio queda pendiente').toHaveCount(1)
+    await pane.locator('button[aria-label="Enviar cambios"]').click()
+    const dlg = win.getByRole('dialog', { name: /Enviar 1 cambio/ })
+    await expect(dlg).toBeVisible()
+    await expect(dlg.getByLabel('Vista previa de las órdenes')).toHaveText(
+      'db.getCollection("clientes").updateOne({_id: ObjectId("650000000000000000000001")}, {$set: {nombre: "Anita"}})'
+    )
+    await expect(dlg).toContainText('1 actualización')
+    await dlg.getByRole('button', { name: 'Cancelar' }).click()
+    await expect(dlg).toHaveCount(0)
+    await expect(pane.locator('.db-barra-pendientes'), 'cancelar la vista previa no envía').toHaveCount(1)
+  })
+
+  // (6) La CONSOLA tiene lo de la de SQL: una pestaña por resultado al ejecutar varias órdenes,
+  // el historial de lo ejecutado (solo órdenes del shell) y el autocompletado de colecciones y campos.
+  test('(6) la consola: una pestaña por resultado, historial y autocompletado', async () => {
+    const win = s!.win
+    const antes = await win.locator(PESTANAS).count()
+    await fila(win, 'conexion', ALIAS).click({ button: 'right' })
+    await elegirDelMenu(win, 'Nueva consola')
+    await expect(win.locator(PESTANAS)).toHaveCount(antes + 1)
+    await expect(win.locator(CONSOLA)).toBeVisible()
+    await esperarConsolaLista(win)
+    const consola = win.locator(CONSOLA)
+
+    await monacoConsola(win, { op: 'fijar', texto: 'db.clientes.find({})\n\ndb.clientes.countDocuments()' })
+    await consola.locator('.db-consola-run-todo').click()
+    await esperarFinEjecucion(win)
+    const tira = consola.locator('.db-resultados-tabs [role="tab"]')
+    await expect(tira, 'Salida y una pestaña por orden con algo que enseñar').toHaveText(['Salida', 'clientes', 'Resultado 2'])
+    await expect(tira.nth(2), 'activa la última').toHaveAttribute('aria-selected', 'true')
+    await tira.nth(1).click()
+    await expect(consola.locator('.db-resultados-panel:not(.oculto) .db-docs-fila'), 'la primera conserva sus documentos').toHaveCount(4)
+
+    await consola.locator('.db-consola-historial-btn').click()
+    const historial = win.getByRole('dialog', { name: `Historial de órdenes de ${ALIAS}` })
+    await expect(historial).toBeVisible()
+    await expect(historial, 'lista lo ejecutado').toContainText('db.clientes.countDocuments()')
+    await expect(historial).toContainText('db.clientes.find({})')
+    await win.keyboard.press('Escape')
+    await expect(historial).toHaveCount(0)
+
+    await monacoConsola(win, { op: 'fijar', texto: '' })
+    await monacoConsola(win, { op: 'teclear', texto: 'db.' })
+    await monacoConsola(win, { op: 'sugerir' })
+    const widget = win.locator('.suggest-widget.visible')
+    await expect(widget.locator('.monaco-list-row').filter({ hasText: 'clientes' }).first(), 'db. ofrece las colecciones').toBeVisible({ timeout: 15_000 })
+    await win.keyboard.press('Escape')
+    await monacoConsola(win, { op: 'fijar', texto: '' })
+    await monacoConsola(win, { op: 'teclear', texto: 'db.clientes.find({ ' })
+    await monacoConsola(win, { op: 'sugerir' })
+    await expect(widget.locator('.monaco-list-row').filter({ hasText: 'nombre' }).first(), 'una clave ofrece los campos').toBeVisible({ timeout: 15_000 })
+    await win.keyboard.press('Escape')
   })
 })

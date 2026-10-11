@@ -2,7 +2,7 @@
 // La lista de conexiones SSH de un perfil: un filtro (combobox) y un árbol de grupos plegables
 // con las conexiones, en lista virtual. `modo` 'flotante' es el lanzador de la cabecera (un solo grupo
 // abierto, sus recientes, pie de altas y alto acotado); 'fijo' llena su contenedor, para el riel de la
-// terminal a pantalla completa. El foco real está en el filtro y la fila activa se nombra con
+// terminal a pantalla completa, y en él se marcan varias y se arrastran entre grupos (o a «Nuevo grupo…»). El foco real está en el filtro y la fila activa se nombra con
 // `aria-activedescendant`. Las altas y el teclado salen de `useListaSsh`; el orden, el filtro y las
 // teclas, de `listaSsh` (puro).
 // Decisiones: docs/decisiones/terminales/pestanas-ssh-del-perfil.md, docs/decisiones/terminales/lanzador-de-conexiones.md
@@ -18,6 +18,8 @@ import { FilaConexionSsh, FilaGrupoSsh, FilaSeccionSsh } from './FilasListaSsh'
 import { IconoServidorNuevo } from './iconosSsh'
 import { textoSinCoincidencias, type FilaLista } from './listaSsh'
 import { MenuFilaSsh } from './menuListaSsh'
+import { destinoDeFila, type ModificadoresClicSsh } from './seleccionListaSsh'
+import { DESTINO_NUEVO } from './useArrastreListaSsh'
 import { useListaSsh, type OpcionesListaSsh, type VistaListaSsh } from './useListaSsh'
 
 /** Lo que recibe la lista. */
@@ -54,22 +56,29 @@ function ArbolConexiones({ v, p, idArbol }: { v: VistaListaSsh; p: PropsListaCon
   const { altoFila, altoCabecera } = p
   const altoDe = useCallback((i: number): number => altoDeFila(v.filas[i], altoFila, altoCabecera), [v.filas, altoFila, altoCabecera])
   const total = v.filas.reduce((suma, f) => suma + altoDeFila(f, altoFila, altoCabecera), 0)
+  const fijo = p.modo === 'fijo'
+  const varias = v.seleccion.ids.size > 1
   const renderFila = (f: FilaLista, i: number): React.JSX.Element => {
     if (f.tipo === 'seccion') return <FilaSeccionSsh fila={f} alto={altoCabecera} />
     const comunes = {
       id: v.idFila(f),
       activa: i === v.indiceActivo,
       alto: f.tipo === 'grupo' ? altoCabecera : altoFila,
-      onPulsar: () => v.alPulsar(f),
-      onMenu: (x: number, y: number) => v.abrirMenu(f, x, y)
+      onPulsar: (mods: ModificadoresClicSsh) => v.alPulsar(f, mods),
+      onMenu: (x: number, y: number) => v.abrirMenu(f, x, y),
+      enDestino: v.dnd.destino !== null && destinoDeFila(v.filas, i) === v.dnd.destino,
+      soltar: fijo ? v.dnd.soltarEnFila(i) : undefined
     }
-    return f.tipo === 'grupo' ? (
-      <FilaGrupoSsh fila={f} {...comunes} />
-    ) : (
+    if (f.tipo === 'grupo') return <FilaGrupoSsh fila={f} {...comunes} />
+    const id = f.conexion.id
+    return (
       <FilaConexionSsh
         fila={f}
-        abiertas={p.abiertasPorConexion[f.conexion.id] ?? 0}
-        enSesion={f.conexion.id === p.conexionActivaId}
+        abiertas={p.abiertasPorConexion[id] ?? 0}
+        enSesion={id === p.conexionActivaId}
+        marcada={v.seleccion.ids.has(id) && !f.reciente ? (varias ? 'varias' : 'sola') : undefined}
+        onDoblePulsar={() => v.alDoblePulsar(f)}
+        onArrastrar={fijo && !f.reciente ? { onDragStart: (ev) => v.dnd.alEmpezar(id, ev), onDragEnd: v.dnd.alTerminar } : undefined}
         {...comunes}
       />
     )
@@ -80,6 +89,7 @@ function ArbolConexiones({ v, p, idArbol }: { v: VistaListaSsh; p: PropsListaCon
       role="tree"
       className="ssh-arbol"
       ariaLabel="Conexiones SSH"
+      aria-multiselectable={fijo || undefined}
       // Flotante: el alto justo de las filas, hasta un tope; fijo: lo que dé su contenedor.
       style={p.modo === 'flotante' ? { height: Math.min(total, FILAS_MAX * altoFila) } : undefined}
       items={v.filas}
@@ -91,7 +101,10 @@ function ArbolConexiones({ v, p, idArbol }: { v: VistaListaSsh; p: PropsListaCon
   )
 }
 
-/** El pie del lanzador: las dos altas («Importar desde OpenSSH…» vive en el formulario de alta). */
+/**
+ * El pie del lanzador: las dos altas («Importar desde OpenSSH…» vive en el formulario de alta) y, aparte, la
+ * actividad de los agentes del perfil.
+ */
 function PieAltas({ v }: { v: VistaListaSsh }): React.JSX.Element {
   return (
     <div className="ssh-pie">
@@ -103,6 +116,20 @@ function PieAltas({ v }: { v: VistaListaSsh }): React.JSX.Element {
         <IconoCarpetaNueva />
         Nuevo grupo…
       </button>
+      <button type="button" className="ssh-pie-boton ssh-pie-actividad" onClick={v.verActividad}>
+        Actividad de los agentes…
+      </button>
+    </div>
+  )
+}
+
+/** Mientras se arrastran conexiones en el riel: soltarlas aquí crea un grupo nuevo con ellas dentro. */
+function ZonaNuevoGrupo({ v }: { v: VistaListaSsh }): React.JSX.Element {
+  const sobre = v.dnd.destino === DESTINO_NUEVO
+  return (
+    <div className={`ssh-soltar-nuevo${sobre ? ' sobre' : ''}`} {...v.dnd.soltarEnNuevo}>
+      <IconoCarpetaNueva />
+      <span>Nuevo grupo…</span>
     </div>
   )
 }
@@ -116,7 +143,13 @@ export function ListaConexionesSsh(p: PropsListaConexionesSsh): React.JSX.Elemen
   const activa = v.filas[v.indiceActivo]
   const conArbol = v.estado === 'filas'
   return (
-    <div className="ssh-lista" data-modo={p.modo}>
+    <div
+      className="ssh-lista"
+      data-modo={p.modo}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) v.dnd.alSalir()
+      }}
+    >
       <input
         ref={filtroRef}
         className="ssh-filtro"
@@ -135,6 +168,7 @@ export function ListaConexionesSsh(p: PropsListaConexionesSsh): React.JSX.Elemen
       />
       {v.avisos.recuperado !== null && <AvisoCaja tono="info" titulo="Se usan las conexiones de la copia de respaldo" sugerencia={v.avisos.recuperado} />}
       {conArbol ? <ArbolConexiones v={v} p={p} idArbol={idArbol} /> : <EstadoSinFilas v={v} />}
+      {p.modo === 'fijo' && v.dnd.arrastrando && <ZonaNuevoGrupo v={v} />}
       {p.modo === 'flotante' && (v.estado === 'filas' || v.estado === 'sinCoincidencias' || v.estado === 'vacia') && <PieAltas v={v} />}
       {v.menu && <MenuFilaSsh menu={v.menu} disparador={filtroRef} onClose={v.cerrarMenu} />}
     </div>

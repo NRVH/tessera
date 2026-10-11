@@ -56,6 +56,16 @@ export function IconoImportar(): React.JSX.Element {
   )
 }
 
+/** Exportar (a un archivo de OpenSSH): una flecha que sube de una bandeja. */
+export function IconoExportar(): React.JSX.Element {
+  return (
+    <Svg>
+      <path d="M12 14.5V4M7.5 8.5 12 4l4.5 4.5" />
+      <path d="M4.5 15.5v2.5a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-2.5" />
+    </Svg>
+  )
+}
+
 /** Contraseña: un candado. */
 export function IconoContrasena(): React.JSX.Element {
   return (

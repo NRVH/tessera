@@ -30,7 +30,8 @@ export interface EntradaPaneActivo {
 
 /**
  * El pane que se ve. La SSH elegida del contexto manda; sin ella, la local activa; sin local (un
- * proyecto sin terminales, o ningún proyecto), la primera SSH del perfil; y sin nada, `null`.
+ * proyecto sin terminales, o ningún proyecto), la primera SSH del perfil que no esté recién restaurada; y sin
+ * nada, `null`.
  */
 export function derivarPaneActivo(e: EntradaPaneActivo): PaneActivo | null {
   const ssh = (tab: SshTab): PaneActivo => ({ tipo: 'ssh', paneKey: sshPaneKey(e.perfilId, tab.id), perfilId: e.perfilId, tab })
@@ -39,7 +40,8 @@ export function derivarPaneActivo(e: EntradaPaneActivo): PaneActivo | null {
   if (e.proyectoKey !== null && e.localActivaId !== null) {
     return { tipo: 'local', paneKey: terminalPaneKey(e.proyectoKey, e.localActivaId), projectKey: e.proyectoKey, terminalId: e.localActivaId }
   }
-  const primera = e.sshLista[0]
+  // Una restaurada aún sin elegir no: verse la conectaría sola.
+  const primera = e.sshLista.find((t) => t.restaurada === undefined)
   return primera ? ssh(primera) : null
 }
 
@@ -136,8 +138,11 @@ function idsVistos(pane: PaneActivo | null): Pick<ActivoTerminales, 'localActiva
   }
 }
 
-/** Lo que se ve y el botón de reinicio de ese pane. */
-export function derivarActivo(e: EntradaActivo): ActivoTerminales {
+/** Lo que decide qué pane se ve. */
+type EntradaPane = Pick<EntradaActivo, 'projects' | 'activeProjectKey' | 'terminals' | 'perfilId' | 'contexto' | 'ssh'>
+
+/** El pane que se ve con lo que hay: el proyecto activo, sus terminales y las pestañas SSH del perfil. */
+function paneDe(e: EntradaPane): { activeProject: TerminalProjectTarget | null; sshLista: readonly SshTab[]; pane: PaneActivo | null } {
   const activeProject = e.projects.find((p) => p.key === e.activeProjectKey) ?? null
   const proyecto = e.activeProjectKey ? e.terminals[e.activeProjectKey] : undefined
   const sshLista = sshDePerfil(e.ssh, e.perfilId)
@@ -148,6 +153,23 @@ export function derivarActivo(e: EntradaActivo): ActivoTerminales {
     proyectoKey: activeProject?.key ?? null,
     localActivaId: proyecto?.activeId ?? null
   })
+  return { activeProject, sshLista, pane }
+}
+
+/**
+ * ¿Hay alguna terminal (local o SSH) que enseñar? La misma regla que el panel, para quien no lo monta. Un
+ * proyecto que aún no tiene lista cuenta como que sí: su primera terminal nace en el efecto que sigue a este
+ * render (`asegurar`), y contarlo como vacío haría que el layout se plegara y desplegara en dos commits.
+ */
+export function hayTerminalQueEnsenar(e: EntradaPane): boolean {
+  const { activeProject, pane } = paneDe(e)
+  return pane !== null || (activeProject !== null && e.terminals[activeProject.key] === undefined)
+}
+
+/** Lo que se ve y el botón de reinicio de ese pane. */
+export function derivarActivo(e: EntradaActivo): ActivoTerminales {
+  const { activeProject, sshLista, pane } = paneDe(e)
+  const proyecto = e.activeProjectKey ? e.terminals[e.activeProjectKey] : undefined
   const activeHostMode = activeProject !== null && e.windowsModeKeys.has(activeProject.key)
   return {
     activeProject,

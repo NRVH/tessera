@@ -95,7 +95,8 @@ export const ETIQUETA_CARPETA: Record<DbTipoObjeto, string> = {
   tipoObjeto: 'tipos de objeto',
   tipoColeccion: 'tipos colección',
   tipo: 'tipos',
-  disparador: 'disparadores'
+  disparador: 'disparadores',
+  evento: 'eventos'
 }
 
 /** Nombre de cada carpeta de detalle de una tabla. */
@@ -348,6 +349,8 @@ export function nombreDeFila(fila: FilaArbol): string | null {
       return fila.base
     case 'coleccion':
       return fila.coleccion.nombre
+    case 'doc-indice':
+      return fila.indice.nombre
     case 'kv-base':
       return etiquetaBaseClaves(fila.indice)
     case 'kv-clave':

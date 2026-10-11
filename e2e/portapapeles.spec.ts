@@ -173,8 +173,8 @@ test('el menú de aplicación construido trae los roles de edición y ninguno de
   }
 })
 
-test('en Windows NO hay menú de aplicación, ni siquiera escondido', async () => {
-  test.skip(PLATAFORMA !== 'windows', 'en Mac el menú es obligatorio: lo fija la prueba anterior')
+test('en Windows y Linux NO hay menú de aplicación, ni siquiera escondido', async () => {
+  test.skip(PLATAFORMA === 'mac', 'en Mac el menú es obligatorio: lo fija la prueba anterior')
   // La mitad de Windows de la misma decisión. Un menú ESCONDIDO sigue despachando los
   // aceleradores de sus roles: con el de Electron por defecto, `reload` le robaba Ctrl+R
   // a la búsqueda inversa de bash y `close` hacía que Ctrl+W cerrase la app. Por eso en

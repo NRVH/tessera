@@ -13,7 +13,7 @@
  * tablas ni por descuido. Coincide con `DialectoSql` (la invariante
  * dialecto = motor), y lo fija `test-motores`.
  */
-export type DbMotorSql = 'oracle' | 'postgres' | 'sqlite' | 'sqlserver'
+export type DbMotorSql = 'oracle' | 'postgres' | 'sqlite' | 'sqlserver' | 'mysql'
 
 /** Motores de DOCUMENTOS: bases → colecciones → documentos. */
 export type DbMotorDocumentos = 'mongodb'
@@ -55,6 +55,30 @@ export interface DbTls {
 
 /** El cifrado de una conexión que no dice nada: cifrar y verificar (ver `DbTls`). */
 export const TLS_POR_DEFECTO: Readonly<DbTls> = Object.freeze({ cifrar: true, confiarCertificado: false })
+
+/**
+ * Túnel SSH de una conexión de red: Tessera abre un reenvío local por la conexión SSH
+ * `conexionId` (del mismo perfil, con sus saltos) hasta el host y el puerto de la conexión,
+ * vistos DESDE el servidor SSH. Ausente = conexión directa.
+ */
+export interface DbTunelSsh {
+  conexionId: string
+}
+
+/**
+ * Qué contraseña mandan los sentinels de una conexión Sentinel: ninguna, la misma que Redis, o una
+ * propia (`DbConnectionInput.passwordSentinel`; se guarda cifrada junto a la de Redis).
+ */
+export type DbClaveSentinel = 'ninguna' | 'misma' | 'propia'
+
+/**
+ * Solo Redis: a qué se conecta cuando no es un servidor solo. Ausente = un servidor (standalone).
+ *   - 'sentinel': `host` es la lista de sentinels (`h1:26379,h2:26379`) y `maestro`, el nombre del
+ *     maestro que vigilan; Tessera les pregunta por él y se conecta al que digan.
+ *   - 'cluster': `host` es la lista de nodos semilla; la topología la descubre el cliente. Solo la base 0.
+ * Ninguno de los dos admite túnel SSH: el cliente va a servidores que no están en la lista.
+ */
+export type DbTopologiaRedis = { modo: 'sentinel'; maestro: string; claveSentinel: DbClaveSentinel } | { modo: 'cluster' }
 
 /**
  * De dónde sale el ARCHIVO de una conexión de un motor de archivo (SQLite)
@@ -286,7 +310,8 @@ export interface DbConnection {
   /**
    * postgres: nombre de la base. oracle: SERVICE_NAME. Excluyente con `sid`. sqlserver: la
    * base en la que trabaja la conexión, OPCIONAL (sin ella, el árbol tiene un nivel «Bases»
-   * y la sesión abre en la base por defecto del login).
+   * y la sesión abre en la base por defecto del login). mysql: la base (que en MySQL es el
+   * esquema) en la que abre la sesión, OPCIONAL; el árbol enseña igual todas las visibles.
    */
   database?: string
   /** oracle: SID (las 11g heredadas suelen ir por aquí). Excluyente con `database`. */
@@ -329,6 +354,10 @@ export interface DbConnection {
    * mongosh).
    */
   opcionesUri?: string
+  /** Ver `DbTunelSsh`. Solo los motores de red que lo declaran en `opcionales`. */
+  tunelSsh?: DbTunelSsh
+  /** Ver `DbTopologiaRedis`. Solo Redis; ausente = un servidor. */
+  topologiaRedis?: DbTopologiaRedis
   /** ¿Tiene contraseña guardada? (el valor jamás sale del main). */
   tieneSecreto: boolean
   /**
@@ -440,8 +469,15 @@ export interface DbConnectionInput {
   /** Ver `DbConnection.srv` y `DbConnection.opcionesUri`. */
   srv?: boolean
   opcionesUri?: string
+  tunelSsh?: DbTunelSsh
+  topologiaRedis?: DbTopologiaRedis
   /** En `update`, `undefined` = conserva la guardada; `''` = borra la guardada. */
   password?: string
+  /**
+   * La contraseña de los sentinels, solo con `topologiaRedis.claveSentinel: 'propia'` (si no, se
+   * ignora). Las mismas reglas que `password`.
+   */
+  passwordSentinel?: string
   readonly: boolean
   /** Ausente o `undefined` = sin entorno. */
   entorno?: DbEntorno

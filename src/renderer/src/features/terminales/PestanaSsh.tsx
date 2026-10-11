@@ -1,16 +1,19 @@
 // =============================================================================
 // Una pestaña SSH de la tira de terminales: el nombre (el alias de su conexión, o el que se le puso
-// a mano), con el icono de servidor delante, un solo indicador (el ● de «desconectada») y su ✕.
+// a mano), con el icono de servidor delante, un solo indicador (el ● de «desconectada») y su ✕; con
+// clic derecho, su menú (reconectar, renombrar, cerrar).
 // Reutiliza las clases base de las pestañas (`.terminal-tab*`, que comparten las de resultados de
 // BD) con el modificador `.ssh`. Presentación pura: cambiar, cerrar y renombrar son del panel.
 // Decisiones: docs/decisiones/terminales/pestanas-ssh-del-perfil.md
 // =============================================================================
 
 import './sshTerminal.css'
-import type { Dispatch, SetStateAction } from 'react'
+import { useState, type Dispatch, type SetStateAction } from 'react'
+import { ContextMenu, SEP, type ContextMenuEntry } from '../../comun/ContextMenu'
 import { conexionPorId, destinoSsh, IconoServidor, useStoreSsh } from '../ssh'
 import { IconoSftp } from '../sftp'
 import type { SshConexion } from '../../../../shared/ssh-ipc'
+import { MOTIVO_CONEXION_ELIMINADA } from './activoTerminales'
 import { CloseIcon } from './IconosTerminales'
 import { CampoRenombrar, claveRenombradoSsh, teclaDePestana, type Renombrando } from './renombradoPestana'
 import { esPestanaSftp, nombreSsh, type SshTab } from './sshTabsModel'
@@ -26,6 +29,8 @@ export interface PestanaSshProps {
   onSelect: (id: string) => void
   onClose: (id: string) => void
   onRename: (id: string, nombre: string) => void
+  /** Reconecta la pestaña (la elige primero, para que se vea qué se reconecta). */
+  onReconectar: (id: string) => void
 }
 
 /** Cómo está la sesión, para el tooltip. */
@@ -41,7 +46,8 @@ function tituloDe(nombre: string, conexion: SshConexion | undefined, info: Termi
   const atajoCerrar = window.tessera.plataforma === 'mac' ? '⌘⌫' : 'Supr'
   // El explorador no lleva pty: su estado (conectando, error) lo cuenta él dentro de su pane.
   const estado = sftp ? 'Archivos remotos por SFTP' : estadoDe(info)
-  return `${nombre}\n${destino}\n${estado}\nDoble clic para renombrar · ${atajoCerrar} para cerrar`
+  const reconectar = sftp ? '' : ' · Clic derecho para reconectar'
+  return `${nombre}\n${destino}\n${estado}\nDoble clic para renombrar · ${atajoCerrar} para cerrar${reconectar}`
 }
 
 /** ¿Ya no hay sesión viva (terminó o no abrió)? */
@@ -73,10 +79,22 @@ function BotonCerrar({ nombre, onCerrar }: { nombre: string; onCerrar: () => voi
   )
 }
 
+/**
+ * El menú de la pestaña: reconectar (no en el explorador SFTP, que se reconecta desde dentro), renombrar
+ * y cerrar. Cerrar es desconectar: no hay un «Desconectar» aparte.
+ */
+function itemsMenu(sftp: boolean, conexionExiste: boolean, acciones: { reconectar: () => void; renombrar: () => void; cerrar: () => void }): ContextMenuEntry[] {
+  const reconectar: ContextMenuEntry[] = sftp
+    ? []
+    : [{ label: 'Reconectar', onClick: acciones.reconectar, disabled: !conexionExiste, ...(conexionExiste ? {} : { title: MOTIVO_CONEXION_ELIMINADA }) }]
+  return [...reconectar, { label: 'Renombrar', onClick: acciones.renombrar }, SEP, { label: 'Cerrar', onClick: acciones.cerrar }]
+}
+
 /** Una pestaña SSH. */
 export function PestanaSsh(p: PestanaSshProps): React.JSX.Element {
   const { tab, perfilId, info, renombrando, setRenombrando } = p
   const conexion = useStoreSsh((s) => conexionPorId(s, tab.conexionId))
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   const sftp = esPestanaSftp(tab)
   const dead = !sftp && terminoSesion(info)
   const nombre = nombreSsh(tab)
@@ -84,7 +102,9 @@ export function PestanaSsh(p: PestanaSshProps): React.JSX.Element {
   const editando = renombrando?.id === tab.id && renombrando.key === clave
   const abrirRenombrado = (): void => setRenombrando({ key: clave, id: tab.id, texto: nombre })
   const teclas = { seleccionar: () => p.onSelect(tab.id), renombrar: abrirRenombrado, cerrar: () => p.onClose(tab.id) }
+  const acciones = { reconectar: () => p.onReconectar(tab.id), renombrar: abrirRenombrado, cerrar: () => p.onClose(tab.id) }
   return (
+    <>
     <div
       className={`terminal-tab ssh${p.activa ? ' active' : ''}${editando ? ' editando' : ''}`}
       role="tab"
@@ -94,6 +114,11 @@ export function PestanaSsh(p: PestanaSshProps): React.JSX.Element {
       onClick={() => p.onSelect(tab.id)}
       // Doble clic = renombrar; el primer clic ya seleccionó, así renombras la que ves.
       onDoubleClick={abrirRenombrado}
+      onContextMenu={(e) => {
+        if (editando) return
+        e.preventDefault()
+        setMenu({ x: e.clientX, y: e.clientY })
+      }}
       onKeyDown={(e) => teclaDePestana(e, teclas)}
       title={editando ? undefined : tituloDe(nombre, conexion, info, sftp)}
     >
@@ -121,5 +146,8 @@ export function PestanaSsh(p: PestanaSshProps): React.JSX.Element {
       )}
       <BotonCerrar nombre={nombre} onCerrar={() => p.onClose(tab.id)} />
     </div>
+    {/* Hermano de la pestaña y no hijo: un clic en el menú no debe burbujear hasta seleccionarla. */}
+    {menu && <ContextMenu x={menu.x} y={menu.y} items={itemsMenu(sftp, conexion !== undefined, acciones)} onClose={() => setMenu(null)} />}
+    </>
   )
 }

@@ -2,23 +2,28 @@
 // Validación de una conexión o un grupo SSH antes de guardarlos, y la forma en que se escriben.
 // Puro: el registro en uso llega por parámetro. Los campos acaban en la línea de `ssh`, así que se
 // rechaza lo que ssh podría leer como una opción o expandir (`-` inicial, `%`, `${`) y lo que
-// rompería la línea (espacios); el secreto, lo que cortaría su respuesta. Mensajes para el usuario.
+// rompería la línea (espacios); el secreto, lo que cortaría su respuesta; el bastión, un círculo o un hueco
+// en la cadena. Mensajes para el usuario.
 // Decisiones: docs/decisiones/ssh/registro-y-claves.md, docs/decisiones/ssh/askpass-y-secretos.md
 // =============================================================================
 
 import {
   SSH_ALIAS_MAX,
   SSH_GRUPO_MAX,
+  SSH_SALTOS_MAX,
   SSH_SECRETO_MAX_BYTES,
+  SSH_TUNELES_MAX,
   type SshConexionInput,
   type SshEntradaAjena,
-  type SshMetodo
+  type SshMetodo,
+  type SshTunel
 } from '../../shared/ssh-ipc.ts'
+import { esObjeto } from '../util/valores.ts'
 import type { ConexionSshPersistida, GrupoSshPersistido } from './conservarAlEditarSsh.ts'
 
 /** Lo que la validación necesita del registro en uso. */
 export interface ContextoValidacionSsh {
-  conexiones: readonly Pick<ConexionSshPersistida, 'id' | 'profileId' | 'alias'>[]
+  conexiones: readonly Pick<ConexionSshPersistida, 'id' | 'profileId' | 'alias' | 'saltoId'>[]
   grupos: readonly GrupoSshPersistido[]
   ajenas: readonly SshEntradaAjena[]
 }
@@ -99,6 +104,63 @@ export function errorSecreto(secreto: unknown, metodo: SshMetodo): string | null
   return null
 }
 
+/** Un túnel: su tipo, puertos enteros y, salvo el dinámico, un destino que valdría como host. */
+export function errorTunel(t: unknown): string | null {
+  if (!esObjeto(t)) return 'Un túnel no tiene la forma esperada.'
+  if (t.tipo !== 'local' && t.tipo !== 'remoto' && t.tipo !== 'dinamico') return `Tipo de túnel desconocido: "${String(t.tipo)}".`
+  if (errorPuerto(t.puerto) !== null) return 'El puerto de un túnel debe ser un entero entre 1 y 65535.'
+  if (t.tipo === 'dinamico') return t.destinoHost === undefined && t.destinoPuerto === undefined ? null : 'Un túnel dinámico (SOCKS) no lleva destino.'
+  const host = errorHost(typeof t.destinoHost === 'string' ? t.destinoHost.trim() : '')
+  if (host !== null) return `En el destino de un túnel: ${host}`
+  return errorPuerto(t.destinoPuerto) === null ? null : 'El puerto de destino de un túnel debe ser un entero entre 1 y 65535.'
+}
+
+/**
+ * Los túneles de una conexión: con tope y sin dos que escuchen en el mismo puerto del mismo lado (los locales
+ * y los dinámicos, en este equipo; los remotos, en el servidor).
+ */
+export function errorTuneles(tuneles: unknown): string | null {
+  if (!Array.isArray(tuneles)) return 'Los túneles tienen que ser una lista.'
+  if (tuneles.length > SSH_TUNELES_MAX) return `Una conexión no puede tener más de ${SSH_TUNELES_MAX} túneles.`
+  const escuchas = new Set<string>()
+  for (const t of tuneles) {
+    const error = errorTunel(t)
+    if (error !== null) return error
+    const tunel = t as SshTunel
+    const escucha = `${tunel.tipo === 'remoto' ? 'servidor' : 'equipo'}:${tunel.puerto}`
+    if (escuchas.has(escucha)) {
+      return tunel.tipo === 'remoto' ? `Dos túneles remotos usan el puerto ${tunel.puerto} del servidor.` : `Dos túneles usan el puerto ${tunel.puerto} de este equipo.`
+    }
+    escuchas.add(escucha)
+  }
+  return null
+}
+
+/**
+ * El bastión: otra conexión del perfil, y la cadena que empieza en él sin volver a la editada, sin huecos y
+ * con tope. Un hueco (un bastión borrado) también se rechaza aquí: guardar algo que no se puede abrir no ayuda.
+ */
+function validarSalto(input: SshConexionInput, ctx: ContextoValidacionSsh, idEditada?: string): void {
+  const saltoId = input.saltoId
+  if (saltoId === undefined || saltoId === null) return
+  if (typeof saltoId !== 'string') throw new Error('El bastión tiene que ser una conexión.')
+  if (saltoId === idEditada) throw new Error('Una conexión no puede saltar por sí misma.')
+  const delPerfil = (id: string): ContextoValidacionSsh['conexiones'][number] | undefined =>
+    ctx.conexiones.find((c) => c.id === id && c.profileId === input.profileId)
+  let actual = delPerfil(saltoId)
+  if (actual === undefined) throw new Error('La conexión elegida como bastión ya no existe en este perfil.')
+  const vistos = new Set<string>(idEditada === undefined ? [] : [idEditada])
+  for (let saltos = 1; ; saltos++) {
+    if (saltos > SSH_SALTOS_MAX) throw new Error(`No se puede encadenar más de ${SSH_SALTOS_MAX} bastiones.`)
+    vistos.add(actual.id)
+    if (actual.saltoId === undefined) return
+    if (vistos.has(actual.saltoId)) throw new Error(`El bastión «${actual.alias}» acaba saltando por esta misma conexión: se formaría un círculo.`)
+    const siguiente = delPerfil(actual.saltoId)
+    if (siguiente === undefined) throw new Error(`El bastión «${actual.alias}» salta por una conexión que ya no existe: edítalo primero.`)
+    actual = siguiente
+  }
+}
+
 /**
  * Valida una alta o una edición. Lanza con un mensaje para el usuario. Que el método 'clave' traiga
  * su archivo lo comprueba el registro, que sabe si la conexión ya tenía uno.
@@ -116,6 +178,14 @@ export function validarEntradaSsh(input: SshConexionInput, ctx: ContextoValidaci
   if (input.grupoId !== null && !ctx.grupos.some((g) => g.id === input.grupoId && g.profileId === input.profileId)) {
     throw new Error('Ese grupo ya no existe en este perfil.')
   }
+  validarSaltoYTuneles(input, ctx, idEditada)
+}
+
+/** El bastión y los túneles, si la entrada los trae (ausentes, se conservan los de antes). */
+function validarSaltoYTuneles(input: SshConexionInput, ctx: ContextoValidacionSsh, idEditada?: string): void {
+  validarSalto(input, ctx, idEditada)
+  const tuneles = input.tuneles === undefined ? null : errorTuneles(input.tuneles)
+  if (tuneles !== null) throw new Error(tuneles)
 }
 
 /**
@@ -124,7 +194,7 @@ export function validarEntradaSsh(input: SshConexionInput, ctx: ContextoValidaci
  */
 export function camposAGuardarSsh(
   input: SshConexionInput,
-  previo?: Pick<ConexionSshPersistida, 'disponibleAgentes'>
+  previo?: Pick<ConexionSshPersistida, 'disponibleAgentes' | 'saltoId' | 'tuneles'>
 ): Omit<ConexionSshPersistida, 'id' | 'secretEnc' | 'clave'> {
   const disponible =
     typeof input.disponibleAgentes === 'boolean'
@@ -142,7 +212,32 @@ export function camposAGuardarSsh(
     disponibleAgentes: disponible
   }
   if (input.grupoId !== null) campos.grupoId = input.grupoId
+  const saltoId = input.saltoId === undefined ? previo?.saltoId : input.saltoId
+  if (typeof saltoId === 'string') campos.saltoId = saltoId
+  const tuneles = input.tuneles === undefined ? (previo?.tuneles ?? []) : input.tuneles.map(tunelAGuardar)
+  if (tuneles.length > 0) campos.tuneles = tuneles
   return campos
+}
+
+/** Un túnel ya validado tal como se escribe: solo sus campos, y el destino sin espacios en los extremos. */
+function tunelAGuardar(t: SshTunel): SshTunel {
+  if (t.tipo === 'dinamico') return { tipo: t.tipo, puerto: t.puerto }
+  return { tipo: t.tipo, puerto: t.puerto, destinoHost: (t.destinoHost ?? '').trim(), destinoPuerto: t.destinoPuerto }
+}
+
+/**
+ * El nombre de la copia de una conexión: «Alias (1)», o el primer «Alias (N)» libre (sin distinguir mayúsculas),
+ * recortando el original para que quepa en el tope. El número de una copia no se acumula: duplicar «Alias (1)»
+ * da «Alias (2)», no «Alias (1) (1)».
+ */
+export function aliasDeCopia(alias: string, ocupados: readonly string[]): string {
+  const usados = new Set(ocupados.map((o) => o.trim().toLowerCase()))
+  const base = alias.trim().replace(/\s*\(\d+\)$/, '') || alias.trim()
+  for (let n = 1; ; n++) {
+    const sufijo = ` (${n})`
+    const nombre = `${base.slice(0, SSH_ALIAS_MAX - sufijo.length).trimEnd()}${sufijo}`
+    if (!usados.has(nombre.toLowerCase())) return nombre
+  }
 }
 
 /** Nombre de grupo: no vacío, con tope y único en el perfil (sin distinguir mayúsculas, contando ajenos). */

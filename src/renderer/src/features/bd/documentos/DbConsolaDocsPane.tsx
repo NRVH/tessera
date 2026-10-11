@@ -17,10 +17,15 @@ import { MIN_RESULTADOS } from './consolaComun'
 import { useEstadoConsolaDocs, type EstadoConsolaDocs, type PropsConsolaDocs } from './useEstadoConsolaDocs'
 import { registrarAccionesConsolaDocs } from './monacoConsolaDocs'
 import { ResultadosDocs } from './ResultadosDocs'
+import { seleccionarDocumento } from './resultadosConsolaDocs'
+import { aplicarAccionPestana, sinLectores, type AccionPestanaResultado } from '../resultados/pestanasResultado'
 import { useArchivoConsolaDocs, useIndicadorConsolaDocs } from './useArchivoConsolaDocs'
 import { useCierreConsolaDocs } from './useCierreConsolaDocs'
 import { useEditorConsola, useAccionesConsola } from './useEditorConsola'
 import { useEjecucionDocs } from './useEjecucionDocs'
+import { useHistorialConsolaDocs, type HistorialConsolaDocs } from './useHistorialConsolaDocs'
+import { useAutocompletadoDocs } from './proveedorDocsMonaco'
+import { HistorialConsultas } from '../HistorialConsultas'
 import { useRepartoAlto } from './useRepartoAlto'
 import '../consola.css'
 
@@ -45,6 +50,61 @@ function useAccionesBarra(p: PropsConsolaDocs, e: EstadoConsolaDocs): { editarCo
   return { editarConexion, elegirBase }
 }
 
+/** Lo que hacen la tira y las tablas de resultados; estables, para no repintar los paneles. */
+function useAccionesResultados(e: EstadoConsolaDocs): {
+  onPestana: (accion: AccionPestanaResultado, id: string) => void
+  onSeleccionar: (id: string, i: number) => void
+} {
+  const { cambiarResultados } = e
+  const onPestana = useCallback(
+    (accion: AccionPestanaResultado, id: string): void => cambiarResultados((est) => aplicarAccionPestana(est, accion, id)),
+    [cambiarResultados]
+  )
+  const onSeleccionar = useCallback(
+    (id: string, i: number): void => cambiarResultados((est) => sinLectores(seleccionarDocumento(est, id, i))),
+    [cambiarResultados]
+  )
+  return { onPestana, onSeleccionar }
+}
+
+/** La mitad de abajo: la Salida y las pestañas de resultado. */
+function ResultadosConsolaDocs({ p, e, x, alto }: { p: PropsConsolaDocs; e: EstadoConsolaDocs; x: ReturnType<typeof useEjecucionDocs>; alto: number }): React.JSX.Element {
+  const { onPestana, onSeleccionar } = useAccionesResultados(e)
+  return (
+    <ResultadosDocs
+      conexion={p.conexion}
+      alto={alto}
+      altoFila={p.altoFila}
+      visible={p.visible}
+      resultados={e.resultados}
+      onPestana={onPestana}
+      salida={e.salida}
+      loteMarcado={e.loteMarcado}
+      onSeleccionar={onSeleccionar}
+      cargandoMas={e.cargandoMas}
+      onCargarMas={() => void x.cargarMas()}
+      onIrA={x.irA}
+      onAccionSalida={(a) => void x.accionSalida(a)}
+      onLimpiarSalida={() => e.setSalida((s) => limpiarSalida(s))}
+    />
+  )
+}
+
+/** El historial de órdenes, colgado del reloj de la barra mientras está abierto. */
+function PopoverHistorialDocs({ p, h }: { p: PropsConsolaDocs; h: HistorialConsolaDocs }): React.JSX.Element | null {
+  if (!h.historialAbierto || !h.anclaHistorial) return null
+  return (
+    <HistorialConsultas
+      perfilId={p.perfilId}
+      conexion={p.conexion}
+      ancla={h.anclaHistorial}
+      lenguaje="mongosh"
+      onInsertar={h.insertar}
+      onCerrar={h.cerrarHistorial}
+    />
+  )
+}
+
 /** La pestaña de consola de una conexión de MongoDB. */
 export function DbConsolaDocsPane(p: PropsConsolaDocs): React.JSX.Element {
   const e = useEstadoConsolaDocs(p)
@@ -52,15 +112,24 @@ export function DbConsolaDocsPane(p: PropsConsolaDocs): React.JSX.Element {
   useIndicadorConsolaDocs(e)
   const { hostRef, ed, edRef } = useEditorConsola(e.modelo, p.visible, e.cargado)
   const x = useEjecucionDocs(e, edRef)
-  useAccionesConsola(ed, registrarAccionesConsolaDocs, x, archivo.guardar, e.quitarPista)
+  const { colRef: colReparto, maxResultados, altoEfectivo } = useRepartoAlto(p.altoResultados)
+  const h = useHistorialConsolaDocs(e, edRef, colReparto)
+  useAccionesConsola(ed, registrarAccionesConsolaDocs, { ...x, historial: h.alternarHistorial }, archivo.guardar, e.quitarPista)
   useCierreConsolaDocs(e, p.paneKey, x.detener, archivo.vaciar)
-  const { colRef, maxResultados, altoEfectivo } = useRepartoAlto(p.altoResultados)
+  useAutocompletadoDocs(ed, e.modelo, e.conexionRef, e.baseRef)
 
   const d = descriptor(p.conexion.motor)
   const { editarConexion, elegirBase } = useAccionesBarra(p, e)
 
   return (
-    <CarcasaConsola colRef={colRef} visible={p.visible} nombre={p.consola.nombre} dialogo={e.dialogo} onDetener={x.detener}>
+    <CarcasaConsola
+      colRef={h.colRef}
+      visible={p.visible}
+      nombre={p.consola.nombre}
+      dialogo={e.dialogo}
+      onDetener={x.detener}
+      onHistorial={h.alternarHistorial}
+    >
       <BarraConsolaDocs
         conexion={p.conexion}
         base={e.base}
@@ -75,6 +144,8 @@ export function DbConsolaDocsPane(p: PropsConsolaDocs): React.JSX.Element {
         onDetener={x.detener}
         onElegirBase={elegirBase}
         onEditarConexion={editarConexion}
+        onHistorial={h.alternarHistorial}
+        historialAbierto={h.historialAbierto}
       />
 
       {e.conflicto && <AvisoConflicto onCargarDelDisco={archivo.cargarDelDisco} onConservarLaMia={archivo.conservarLaMia} />}
@@ -83,6 +154,7 @@ export function DbConsolaDocsPane(p: PropsConsolaDocs): React.JSX.Element {
 
       <Splitter
         orientation="horizontal"
+        className="splitter-hueco"
         size={altoEfectivo}
         min={MIN_RESULTADOS}
         max={maxResultados}
@@ -91,23 +163,9 @@ export function DbConsolaDocsPane(p: PropsConsolaDocs): React.JSX.Element {
         label="Reparto entre la consola y los resultados"
       />
 
-      <ResultadosDocs
-        alto={altoEfectivo}
-        altoFila={p.altoFila}
-        visible={p.visible}
-        pestana={e.pestana}
-        onPestana={e.setPestana}
-        salida={e.salida}
-        loteMarcado={e.loteMarcado}
-        vista={e.vista}
-        seleccionado={e.seleccionado}
-        onSeleccionar={e.setSeleccionado}
-        cargandoMas={e.cargandoMas}
-        onCargarMas={() => void x.cargarMas()}
-        onIrA={x.irA}
-        onAccionSalida={(a) => void x.accionSalida(a)}
-        onLimpiarSalida={() => e.setSalida((s) => limpiarSalida(s))}
-      />
+      <ResultadosConsolaDocs p={p} e={e} x={x} alto={altoEfectivo} />
+
+      <PopoverHistorialDocs p={p} h={h} />
     </CarcasaConsola>
   )
 }

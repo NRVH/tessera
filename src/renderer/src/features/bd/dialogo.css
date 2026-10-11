@@ -37,6 +37,25 @@
 .dbc-campo .dbc-motor-control select {
   padding-left: 31px;
 }
+/* La marca de cada motor en su opción de la lista (`OpcionMotor`): delante del nombre (`order`;
+   el texto de la opción es un hijo anónimo) y tras la marca de la elegida (`::checkmark`, que va
+   antes en el orden del documento). */
+.dbc-motor-control select option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dbc-motor-opcion-logo {
+  order: -1;
+  flex: 0 0 15px;
+  width: 15px;
+  height: 15px;
+  display: inline-flex;
+}
+.dbc-motor-opcion-logo svg {
+  width: 100%;
+  height: 100%;
+}
 /* El ancho MEDIO del descriptor de campos (`ancho: 'medio'` en camposConexion.ts):
    el mismo que el selector de motor. Conserva el nombre de su primer usuario, el SID,
    para que ninguna captura ni prueba que lo conozca tenga que cambiar. */

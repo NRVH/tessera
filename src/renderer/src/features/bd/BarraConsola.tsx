@@ -100,7 +100,11 @@ function IdentidadConsola({
           RO agentes
         </span>
       )}
-      {tx.soloLectura && <span className="db-consola-dato">Solo lectura</span>}
+      {tx.soloLectura && (
+        <span className="db-consola-dato" title={tx.tituloSoloLectura ?? undefined}>
+          Solo lectura
+        </span>
+      )}
       {tx.textoTx && (
         <span className="db-consola-dato db-consola-tx" title={tx.tituloTx ?? undefined}>
           {tx.textoTx}

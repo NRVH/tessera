@@ -1,19 +1,25 @@
 // =============================================================================
 // Operaciones de `KV_CHANNELS` (Redis): valida la conexión y la forma de cada petición, decide la política de la consola
-// (con `confirmadoPeligroso`) y se lo da al `GestorClaves`. Sin `electron`: sus canales los registra `ipc.ts`.
-// Gemelo de `documentos/ControladorDocumentos.ts`.
+// (con `confirmadoPeligroso`), anota en el historial lo que la consola ejecutó y se lo da al `GestorClaves`;
+// guardar un texto (la exportación de una clave) delega en el diálogo de guardar que le inyectan.
+// Sin `electron`: sus canales los registra `ipc.ts`. Gemelo de `documentos/ControladorDocumentos.ts`.
 // Decisiones: docs/decisiones/bd/claves-controlador.md
 // =============================================================================
 
 import {
   KV_CHANNELS,
+  KV_GUARDAR_MAX_CARACTERES,
+  PREFIJO_CONSOLA_VISOR,
   type DbKvEjecutar,
   type DbKvEscanear,
+  type DbKvGuardado,
+  type DbKvGuardarTexto,
   type DbKvPedirBases,
   type DbKvPedirValor,
+  type DbKvResultado,
   type DbKvTipo
 } from '../../../../shared/db-claves-ipc.ts'
-import { DB_CONSOLA_MAX_BYTES, type DbRespuesta } from '../../../../shared/db-explorador-ipc.ts'
+import { DB_CONSOLA_MAX_BYTES, type DbEntradaHistorial, type DbRespuesta } from '../../../../shared/db-explorador-ipc.ts'
 import type { DbConnection } from '../../../../shared/db-ipc.ts'
 import { MAX_BASE_CLAVES } from '../../opcionalesConexion.ts'
 import { conexionDePeticion, type BuscadorConexiones } from '../familias.ts'
@@ -29,6 +35,9 @@ export type OperacionClaves = keyof typeof KV_CHANNELS
 /** Lo que el controlador usa del gestor (el test lo sustituye por un falso). */
 export type GestorClavesAtiende = Pick<GestorClaves, 'bases' | 'escanear' | 'valor' | 'ejecutarConsola'>
 
+/** Tope del nombre propuesto para el archivo guardado. */
+const MAX_NOMBRE_ARCHIVO = 256
+
 export interface OpcionesControladorClaves {
   /** El registro de conexiones (`ConnectionStore`). */
   conexiones: BuscadorConexiones
@@ -36,6 +45,32 @@ export interface OpcionesControladorClaves {
   log?: (linea: string) => void
   /** Como en documentos (`OpcionesControladorDocumentos`): ausente, ninguna. */
   soloLecturaImpuesta?: SoloLecturaImpuesta
+  /**
+   * Anota en el historial un comando de la consola que llegó al servidor (ver `resultadoHistorialClaves`).
+   * Sin esperar: el historial nunca retrasa ni rompe la respuesta. Ausente, no se anota.
+   */
+  alSentencia?: (e: EntradaHistorialClaves) => void
+  /**
+   * Abre el diálogo de guardar con ese nombre propuesto y escribe el texto donde el usuario elija:
+   * el nombre del archivo, o null si canceló. Ausente, `GUARDAR_TEXTO` responde que no hay diálogo.
+   */
+  guardarTexto?: (nombre: string, texto: string) => Promise<string | null>
+}
+
+/** Un comando de la consola para el historial (el id, el lenguaje y el tapado los pone el almacén). */
+export type EntradaHistorialClaves = Omit<DbEntradaHistorial, 'id' | 'lenguaje'>
+
+/**
+ * Cómo queda un comando en el historial, o null si no llegó al servidor: las barreras de Tessera (los
+ * códigos `TESSERA-…`) y lo que no se pudo enviar no se anotan, como en SQL. Una respuesta de error de
+ * Redis (`WRONGTYPE`…) sí llegó, y cuenta como error.
+ */
+export function resultadoHistorialClaves(r: DbRespuesta<DbKvResultado>): DbEntradaHistorial['resultado'] | null {
+  if (r.ok) return r.valor.respuesta.tipo === 'error' ? 'error' : 'ok'
+  const { motivo, codigo } = r.error
+  if (motivo === 'cancelada') return 'cancelada'
+  if (codigo !== undefined && codigo.startsWith('TESSERA-')) return null
+  return motivo === 'servidor' || motivo === 'timeout' || motivo === 'sesionPerdida' ? 'error' : null
 }
 
 /** Tope del COUNT de una vuelta de SCAN (una pista para el servidor; 10 000 es holgado). */
@@ -100,10 +135,56 @@ export class ControladorClaves {
       case 'VALOR':
         return conValidado(this.validarValor(r), (p) => g.valor(p))
       case 'CONSOLA_EJECUTAR':
-        return conValidado(this.validarEjecutar(r), (p) =>
-          g.ejecutarConsola(p, politicaClavesDe(con, this.ro(con), p.confirmado, p.confirmadoPeligroso))
-        )
+        return conValidado(this.validarEjecutar(r), async (p) => {
+          const inicio = Date.now()
+          const res = await g.ejecutarConsola(p, politicaClavesDe(con, this.ro(con), p.confirmado, p.confirmadoPeligroso))
+          this.anotarHistorial(p, res, Date.now() - inicio)
+          return res
+        })
+      case 'GUARDAR_TEXTO':
+        return conValidado(this.validarGuardarTexto(r), (p) => this.guardarTexto(p))
     }
+  }
+
+  /** Lo que la consola llegó a ejecutar, al historial. Las sesiones propias del explorador no son consolas. Nunca lanza. */
+  private anotarHistorial(req: DbKvEjecutar, r: DbRespuesta<DbKvResultado>, ms: number): void {
+    const anotar = this.o.alSentencia
+    const resultado = resultadoHistorialClaves(r)
+    if (!anotar || resultado === null || req.consolaId.startsWith(PREFIJO_CONSOLA_VISOR)) return
+    try {
+      anotar({
+        en: Date.now(),
+        perfilId: req.perfilId,
+        conexionId: req.conexionId,
+        consolaId: req.consolaId,
+        sql: req.texto,
+        resultado,
+        ms,
+        // La base en la que corrió (un `SELECT n` la cambia), que es lo que el popover enseña junto a la conexión.
+        esquema: `db${r.ok ? r.valor.base : req.base}`
+      })
+    } catch (err) {
+      this.o.log?.(`anotar en el historial falló: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+
+  /** `GUARDAR_TEXTO`: el diálogo y la escritura son de quien lo inyecta; aquí solo el contrato. */
+  private async guardarTexto(p: DbKvGuardarTexto): Promise<DbRespuesta<DbKvGuardado | null>> {
+    const guardar = this.o.guardarTexto
+    if (!guardar) return invalida('no hay diálogo de guardar en este entorno')
+    try {
+      const archivo = await guardar(p.nombre, p.texto)
+      return { ok: true, valor: archivo === null ? null : { archivo } }
+    } catch (err) {
+      this.log(`guardar texto: ${err instanceof Error ? err.name : 'error'}`)
+      return { ok: false, error: { motivo: 'interno', mensaje: 'No se pudo guardar el archivo (sin permiso o el destino está en uso).' } }
+    }
+  }
+
+  private validarGuardarTexto(r: Record<string, unknown>): Validado<DbKvGuardarTexto> {
+    if (typeof r.nombre !== 'string' || r.nombre === '' || r.nombre.length > MAX_NOMBRE_ARCHIVO) return invalida('«nombre» no es válido')
+    if (typeof r.texto !== 'string' || r.texto.length > KV_GUARDAR_MAX_CARACTERES) return invalida('«texto» no es válido o es demasiado grande')
+    return { ok: true, valor: { conexionId: r.conexionId as string, nombre: r.nombre, texto: r.texto } }
   }
 
   // --- Validación de la forma (la conexión ya está validada) -----------------------------
@@ -111,7 +192,8 @@ export class ControladorClaves {
   private validarEscanear(r: Record<string, unknown>): Validado<DbKvEscanear> {
     if (!esEnteroEn(r.base, 0, MAX_BASE_CLAVES)) return invalida('«base» tiene que ser un entero entre 0 y ' + MAX_BASE_CLAVES)
     if (typeof r.patron !== 'string' || r.patron.length > MAX_PATRON) return invalida('«patron» no es un texto válido')
-    if (typeof r.cursor !== 'string' || !/^\d{1,20}$/.test(r.cursor)) return invalida('«cursor» no es válido')
+    // Hasta 24 cifras: en Cluster el cursor lleva delante el maestro por el que va (`clusterRedis.cjs`).
+    if (typeof r.cursor !== 'string' || !/^\d{1,24}$/.test(r.cursor)) return invalida('«cursor» no es válido')
     if (!esEnteroEn(r.cuenta, 1, MAX_CUENTA_SCAN)) return invalida('«cuenta» fuera de rango')
     if (r.tipo !== undefined && !TIPOS_SCAN.includes(r.tipo as DbKvTipo)) return invalida('«tipo» no es un tipo de clave válido')
     const peticionId = peticionIdDe(r)

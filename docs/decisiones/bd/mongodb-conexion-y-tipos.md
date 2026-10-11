@@ -14,7 +14,8 @@ Driver `mongodb` 7.7.0 (JS puro) bajo el Node de Electron. BSON y EJSON salen de
   (`cargaMongodb.cjs`): `tdb ls` no los paga, y `test-motores-tdb` fija que cargar un adaptador no arrastra
   ningún driver.
 - La contraseña nunca va en la URI (acabaría en logs y mensajes de error): va en `opciones.auth`, con el
-  usuario. `directConnection=true` con un solo host, sin `srv` y sin `replicaSet=`, `directConnection=` ni
+  usuario. El host puede ser una lista de miembros sin `srv` (ver uri-mongodb-al-pegar.md).
+  `directConnection=true` con un solo host, sin `srv` y sin `replicaSet=`, `directConnection=` ni
   `loadBalanced=` en `opcionesUri` (lo que hace mongosh: un replica set no se queda en la dirección que se
   le da, y detrás de un túnel eso rompe). Las claves `tls*` y `ssl*` de `opcionesUri` se descartan aquí
   aunque el main ya las rechace al guardar: el cifrado lo decide `tls`, no dos sitios a la vez.

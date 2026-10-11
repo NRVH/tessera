@@ -18,6 +18,15 @@ export const SSH_CHANNELS = {
   EDITAR: 'ssh:editar',
   /** invoke: borra una conexión del perfil. SshBorrarConexion -> SshConexionBorrada. */
   BORRAR: 'ssh:borrar',
+  /** invoke: borra varias conexiones del perfil en una sola escritura. SshBorrarConexiones -> SshConexionesBorradas. */
+  BORRAR_VARIAS: 'ssh:borrar:varias',
+  /** invoke: pasa varias conexiones del perfil a un grupo (o a «Sin grupo») en una sola escritura. SshMoverConexiones -> SshConexionesMovidas. */
+  MOVER: 'ssh:mover',
+  /**
+   * invoke: copia una conexión del perfil con otro nombre («… (1)», «… (2)»…), con su clave y su secreto guardado y sin sus
+   * huellas. SshDuplicarConexion -> SshConexion (la copia).
+   */
+  DUPLICAR: 'ssh:duplicar',
   /** invoke: SshCrearGrupo -> SshGrupo. */
   GRUPO_CREAR: 'ssh:grupo:crear',
   /** invoke: SshRenombrarGrupo -> SshGrupo. */
@@ -39,6 +48,11 @@ export const SSH_CHANNELS = {
    * lo hace el renderer con `CREAR` cuando la persona lo revisa. SshImportarOpenSsh -> SshLecturaOpenSsh | null.
    */
   IMPORTAR_OPENSSH: 'ssh:importar:openssh',
+  /**
+   * invoke: diálogo nativo de guardar (en el main) y escribe un `config` de OpenSSH con las conexiones del perfil,
+   * y junto a él una carpeta con las copias de sus claves. SshExportarOpenSsh -> SshExportacionOpenSsh | null.
+   */
+  EXPORTAR_OPENSSH: 'ssh:exportar:openssh',
   /** invoke: prueba la conexión GUARDADA (no lo que tenga el formulario) con la línea de la pestaña. SshProbar -> SshResultadoPrueba. */
   PROBAR: 'ssh:probar',
   /** invoke: olvida las huellas guardadas del servidor; la próxima conexión acepta la que presente. SshOlvidarHuella -> void. */
@@ -53,7 +67,18 @@ export const SSH_CHANNELS = {
   /** send (main -> renderer), sin argumentos: el registro (o una huella) cambió y toca volver a LISTAR. */
   CAMBIO: 'ssh:cambio',
   /** send (main -> renderer), SshAviso: una pestaña SSH se abrió sin la contraseña guardada y hay que decir por qué. */
-  AVISO: 'ssh:aviso'
+  AVISO: 'ssh:aviso',
+  /**
+   * send (main -> renderer), SshPreguntaAskpass: ssh pregunta algo que Tessera no contesta sola (un código, o la
+   * contraseña tras rechazar la guardada) y lo contesta el usuario en un diálogo. La respuesta no se guarda.
+   */
+  ASKPASS_PREGUNTA: 'ssh:askpass:pregunta',
+  /** send (main -> renderer), SshPreguntaRetirada: esa pregunta ya no espera respuesta (venció o ssh terminó). */
+  ASKPASS_RETIRAR: 'ssh:askpass:retirar',
+  /** invoke: la respuesta del usuario, o `null` si canceló. SshRespuestaAskpass -> void. */
+  ASKPASS_RESPONDER: 'ssh:askpass:responder',
+  /** invoke: lo que hicieron los agentes con `tssh` en un perfil (`logs/ssh.log`). SshPedirActividad -> SshActividadPerfil. */
+  ACTIVIDAD: 'ssh:actividad'
 } as const
 
 /**
@@ -82,6 +107,29 @@ export type SshMetodo = 'contrasena' | 'clave' | 'sistema'
 export function pideSecretoSsh(c: { metodo: SshMetodo; clave?: { cifrada: boolean } | null }): boolean {
   return c.metodo === 'contrasena' || (c.metodo === 'clave' && c.clave?.cifrada === true)
 }
+
+/**
+ * Un túnel de una conexión, abierto mientras está abierta su terminal. 'local' (`-L`): un puerto de este equipo
+ * (solo en 127.0.0.1) lleva a `destinoHost:destinoPuerto` visto desde el servidor. 'remoto' (`-R`): un puerto
+ * del servidor lleva a `destinoHost:destinoPuerto` visto desde este equipo. 'dinamico' (`-D`): un proxy SOCKS
+ * en 127.0.0.1, sin destino.
+ */
+export type SshTipoTunel = 'local' | 'remoto' | 'dinamico'
+
+export interface SshTunel {
+  tipo: SshTipoTunel
+  /** El puerto que escucha: de este equipo ('local', 'dinamico') o del servidor ('remoto'). */
+  puerto: number
+  /** Ausentes en 'dinamico'. */
+  destinoHost?: string
+  destinoPuerto?: number
+}
+
+/** Tope de túneles por conexión. */
+export const SSH_TUNELES_MAX = 20
+
+/** Tope de bastiones encadenados hasta una conexión (el suyo, el del suyo…). */
+export const SSH_SALTOS_MAX = 4
 
 /** Una huella guardada del servidor: el tipo de clave y su SHA256 en base64 sin relleno. */
 export interface SshHuella {
@@ -156,6 +204,10 @@ export interface SshConexion {
   disponibleAgentes: boolean
   /** Las huellas del servidor que ya se aceptaron para esta conexión (vacía si nunca se conectó). */
   huellaServidor: SshHuella[]
+  /** La conexión del perfil por la que se salta para llegar (el bastión), o `null` si se llega directo. */
+  saltoId: string | null
+  /** Sus túneles, en el orden en que se guardaron. */
+  tuneles: SshTunel[]
 }
 
 /**
@@ -175,6 +227,10 @@ export interface SshConexionInput {
   disponibleAgentes: boolean
   secreto?: string
   clave?: { tipo: 'elegida'; token: string }
+  /** El bastión: otra conexión del perfil, o `null` = directo. Ausente: en un alta, directo; en una edición, el de antes. */
+  saltoId?: string | null
+  /** Los túneles. Ausentes: en un alta, ninguno; en una edición, los de antes. */
+  tuneles?: SshTunel[]
 }
 
 /** Petición de `EDITAR`. */
@@ -189,9 +245,44 @@ export interface SshBorrarConexion {
   profileId: string
 }
 
+/** Petición de `DUPLICAR`: solo se copia una conexión conocida de ese perfil. */
+export interface SshDuplicarConexion {
+  id: string
+  profileId: string
+}
+
 /** Respuesta de `BORRAR`. */
 export interface SshConexionBorrada {
   borrada: boolean
+}
+
+/** Tope de conexiones de una petición de `BORRAR_VARIAS` o `MOVER`. */
+export const SSH_LOTE_MAX = 1000
+
+/** Petición de `BORRAR_VARIAS`: solo se borran las conexiones conocidas de ese perfil; las demás ids se ignoran. */
+export interface SshBorrarConexiones {
+  ids: string[]
+  profileId: string
+}
+
+/** Respuesta de `BORRAR_VARIAS`. */
+export interface SshConexionesBorradas {
+  borradas: number
+}
+
+/**
+ * Petición de `MOVER`: las conexiones conocidas de ese perfil pasan a `grupoId` (`null` = «Sin grupo»), que
+ * tiene que ser un grupo del perfil. Las ids de otro perfil, o que no existen, se ignoran.
+ */
+export interface SshMoverConexiones {
+  ids: string[]
+  profileId: string
+  grupoId: string | null
+}
+
+/** Respuesta de `MOVER`: cuántas cambiaron de grupo (las que ya estaban en él no cuentan). */
+export interface SshConexionesMovidas {
+  movidas: number
 }
 
 /** Petición de `GRUPO_CREAR`. */
@@ -292,6 +383,32 @@ export interface SshLecturaOpenSsh {
   include: number
 }
 
+/** Petición de `EXPORTAR_OPENSSH`: las conexiones de ese perfil (`ids`, o todas sin ellas). */
+export interface SshExportarOpenSsh {
+  profileId: string
+  ids?: string[]
+}
+
+/** Respuesta de `EXPORTAR_OPENSSH`: dónde quedó y lo que hay que contar. Solo nombres, nunca rutas. */
+export interface SshExportacionOpenSsh {
+  /** El nombre del archivo, sin su carpeta. */
+  archivo: string
+  conexiones: number
+  /** Los bastiones que se añadieron porque una conexión exportada salta por ellos. */
+  bastiones: number
+  /** La carpeta con las copias de las claves, junto al archivo; `null` si no hay ninguna. */
+  carpetaClaves: string | null
+  claves: number
+  /** Conexiones con archivo de clave cuya copia no estaba: van sin `IdentityFile`. */
+  sinClave: number
+  /** Conexiones con contraseña (o con la frase de la clave guardada): ssh la pedirá al conectar. */
+  conSecreto: number
+  /** Conexiones cuyo nombre de `Host` no es su alias (espacios, comodines…). */
+  renombradas: number
+  /** Se guardó en `~/.ssh` con otro nombre que `config`: se usa con un `Include` de ese nombre. */
+  incluible: boolean
+}
+
 /** Petición de `PROBAR`. */
 export interface SshProbar {
   id: string
@@ -334,6 +451,65 @@ export type SshResultadoPrueba =
 export interface SshAviso {
   alias: string
   texto: string
+}
+
+/**
+ * Lo que manda `ASKPASS_PREGUNTA`. `texto` es lo que pregunta el servidor (sin caracteres de control) o, con la
+ * contraseña o la frase de la propia conexión, una etiqueta de Tessera; `rechazada`, que el servidor no aceptó
+ * la guardada.
+ */
+export interface SshPreguntaAskpass {
+  id: string
+  alias: string
+  texto: string
+  /** El texto lo escribió el servidor, no Tessera. */
+  delServidor: boolean
+  rechazada: boolean
+}
+
+/** Lo que manda `ASKPASS_RETIRAR`. */
+export interface SshPreguntaRetirada {
+  id: string
+}
+
+/** Petición de `ASKPASS_RESPONDER`: `null` si el usuario canceló. */
+export interface SshRespuestaAskpass {
+  id: string
+  respuesta: string | null
+}
+
+/** Lo que pide un agente con `tssh`: una orden remota, una copia o la prueba de `tssh doctor <alias>`. */
+export type SshUsoTssh = 'run' | 'cp' | 'doctor'
+
+/**
+ * Una petición de un agente con `tssh`, tal como quedó en el registro: rechazada antes de lanzar ssh (con el
+ * código propio de `tssh`), o terminada (con el código de ssh, lo que tardó y, si ssh falló, por qué). Nunca
+ * la orden remota ni las rutas: el registro no las guarda.
+ */
+export interface SshActividad {
+  /** ISO 8601. */
+  fecha: string
+  uso: SshUsoTssh
+  /** El alias que escribió el agente (puede no existir: por eso se rechazó). */
+  alias: string
+  /** 'sinFinal': empezó y no consta cómo acabó (sigue en curso, o se interrumpió antes de apuntarlo). */
+  estado: 'rechazada' | 'terminada' | 'sinFinal'
+  codigo: number | null
+  ms: number | null
+  /** La cortó su `--timeout`. */
+  tope: boolean
+  motivo?: TerminalExitReason
+}
+
+/** Petición de `ACTIVIDAD`. */
+export interface SshPedirActividad {
+  profileId: string
+}
+
+/** Respuesta de `ACTIVIDAD`: la más reciente primero, con un tope; `mas` si había más antiguas. */
+export interface SshActividadPerfil {
+  entradas: SshActividad[]
+  mas: boolean
 }
 
 /** Petición de `ESPACIO_ASEGURAR`: el perfil. El nombre que se escribe en el contexto lo pone el main. */

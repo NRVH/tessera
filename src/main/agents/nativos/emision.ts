@@ -12,22 +12,50 @@ import type {
   ProgresoAgentesNativos,
   SesionNativa
 } from '../../../shared/agentes-nativos-ipc.ts'
-import { hayVersionNueva, sesionAtrasada } from '../../../shared/versionesCli.ts'
-import { ordenActualizacion, type OrdenActualizacion } from '../comandoActualizacion.ts'
+import { esVersionExacta, hayVersionNueva, sesionAtrasada } from '../../../shared/versionesCli.ts'
+import { esReparable, ordenActualizacion, ordenReparacion, type OrdenActualizacion } from '../comandoActualizacion.ts'
 import { errMsg, type InfoSesionNativa, type NucleoNativos } from './tipos.ts'
 
-/** ¿Hay una versión mayor que `instalada`? En Codex, además, con su binario ya publicado. */
-export function hayNueva(e: NucleoNativos, agente: AgentKind, instalada: string | null): boolean {
-  const i = e.info[agente]
-  if (!hayVersionNueva(instalada, i.ultima)) return false
-  return agente !== 'codex' || i.binarioPublicado
+/** ¿Está el binario de la última listo para esta plataforma? Solo Codex por npm puede no estarlo. */
+function binarioListo(e: NucleoNativos, agente: AgentKind): boolean {
+  return agente !== 'codex' || e.info[agente].binarioPublicado
 }
 
-/** La orden (o por qué no hay) para la última conocida; null si aún no se comprobó. */
+/**
+ * ¿Está instalado pero sin responder a `--version`, con un gestor que lo reinstala sin
+ * ejecutarlo? Con la última exacta: es la versión que se reinstala.
+ */
+export function enReparacion(e: NucleoNativos, agente: AgentKind, instalada: string | null): boolean {
+  const i = e.info[agente]
+  return instalada === null && i.comprobadoEn !== null && esReparable(agente, i.metodo) && esVersionExacta(i.ultima)
+}
+
+/**
+ * ¿Hay algo que instalar sobre `instalada`? Una versión mayor o, si no responde y se puede
+ * reparar, la última; en Codex, además, con su binario ya servido para esta plataforma.
+ */
+export function hayNueva(e: NucleoNativos, agente: AgentKind, instalada: string | null): boolean {
+  const i = e.info[agente]
+  if (!hayVersionNueva(instalada, i.ultima) && !enReparacion(e, agente, instalada)) return false
+  return binarioListo(e, agente)
+}
+
+/** ¿Hay algo que instalar que espera solo a que el registro sirva el binario de esta plataforma? */
+export function binarioPendiente(e: NucleoNativos, agente: AgentKind, instalada: string | null): boolean {
+  const i = e.info[agente]
+  if (binarioListo(e, agente)) return false
+  return hayVersionNueva(instalada, i.ultima) || enReparacion(e, agente, instalada)
+}
+
+/**
+ * La orden (o por qué no hay) para la última conocida, la de reparación si el CLI no
+ * responde; null si aún no se comprobó.
+ */
 export function ordenPara(e: NucleoNativos, agente: AgentKind): OrdenActualizacion | null {
   const i = e.info[agente]
   if (i.comprobadoEn === null) return null
-  return ordenActualizacion({ agente, metodo: i.metodo, plataforma: e.deps.plataforma, version: i.ultima })
+  const entrada = { agente, metodo: i.metodo, plataforma: e.deps.plataforma, version: i.ultima }
+  return enReparacion(e, agente, e.sondas[agente].valor) ? ordenReparacion(entrada) : ordenActualizacion(entrada)
 }
 
 function estadoCli(e: NucleoNativos, agente: AgentKind): EstadoCli {
@@ -45,6 +73,8 @@ function estadoCli(e: NucleoNativos, agente: AgentKind): EstadoCli {
     requiereParar: orden !== null && orden.tipo === 'auto' && orden.requiereParar,
     ordenManual: orden !== null && orden.tipo === 'manual' ? orden.orden : i.ordenAyuda,
     hayNueva: hayNueva(e, agente, s.valor),
+    reparar: enReparacion(e, agente, s.valor),
+    binarioPendiente: binarioPendiente(e, agente, s.valor),
     bloqueadores: i.bloqueadores,
     error: s.error ?? i.error,
     comprobadoEn: i.comprobadoEn

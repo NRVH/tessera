@@ -84,6 +84,76 @@
 .ssh-fila.activa {
   background: var(--sel-glow);
 }
+/* MARCADAS EN EL RIEL: el mismo relleno que el cursor, así un clic suelto se ve igual que siempre. Con varias, la
+   que lleva el cursor (de la que mide Mayús) se contornea; con una sola, el contorno sería ruido. */
+.ssh-fila.marcada {
+  background: var(--sel-glow);
+}
+.ssh-fila.marcada.varias.activa {
+  outline: 1px solid var(--sel-borde);
+  outline-offset: -1px;
+}
+/* EL DESTINO DE UN ARRASTRE: su grupo entero teñido de acento y su cabecera con contorno, para ver adónde va. Va
+   después de lo marcado: el destino manda mientras dura el gesto. */
+.ssh-fila.en-destino {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.ssh-fila-grupo.destino {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+  border-radius: 4px;
+  color: var(--fg);
+}
+.ssh-fila-conexion[draggable='true'] {
+  cursor: default;
+}
+/* «Nuevo grupo…» al pie del riel, solo mientras se arrastra: soltar ahí crea el grupo con lo arrastrado. */
+.ssh-soltar-nuevo {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 6px 8px 8px;
+  padding: 10px 12px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  color: var(--fg-muted);
+  font-size: 12px;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+.ssh-soltar-nuevo svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+.ssh-soltar-nuevo.sobre {
+  border-style: solid;
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--fg);
+}
+/* La imagen del arrastre de varias: una pastilla con cuántas van. Se pinta fuera de la vista y se toma al empezar. */
+.ssh-arrastre-fantasma {
+  position: fixed;
+  top: -100px;
+  left: -100px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--accent);
+  color: var(--fg);
+  font-size: 12px;
+  white-space: nowrap;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ssh-soltar-nuevo {
+    transition: none;
+  }
+}
 /* LA CONEXIÓN QUE SE VE: una barra de acento a la izquierda de su fila, aparte del cursor de la lista
    (que es del teclado y se mueve). Es un estado, no una acción. Vale en el popover y en el riel. */
 .ssh-fila-conexion.en-sesion {
@@ -241,6 +311,79 @@
   width: 14px;
   height: 14px;
 }
+/* La actividad de los agentes no es un alta: va aparte, a la derecha (o en su propia línea si no cabe). */
+.ssh-pie-boton.ssh-pie-actividad {
+  margin-left: auto;
+  color: var(--fg-faint);
+}
+
+/* --- La actividad de los agentes por SSH ------------------------------------------------- */
+.modal-card.db-conexion-modal.ssh-actividad-modal {
+  width: min(760px, 100%);
+}
+.ssh-actividad-filtro {
+  margin-bottom: 10px;
+}
+/* La tabla se desplaza dentro del diálogo; su cabecera se queda arriba. */
+.ssh-actividad-tabla-caja {
+  max-height: min(420px, 55vh);
+  overflow: auto;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+}
+.ssh-actividad-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.ssh-actividad-tabla th {
+  position: sticky;
+  top: 0;
+  padding: 6px 10px;
+  background: var(--bg-deep);
+  color: var(--fg-muted);
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+.ssh-actividad-tabla td {
+  padding: 5px 10px;
+  border-top: 1px solid var(--border-soft);
+  color: var(--fg);
+  vertical-align: top;
+}
+.ssh-actividad-tabla .ssh-actividad-num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.ssh-actividad-fecha {
+  white-space: nowrap;
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+.ssh-actividad-alias {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ssh-actividad-uso {
+  white-space: nowrap;
+}
+.ssh-actividad-resultado.ssh-actividad-ok {
+  color: var(--green);
+}
+.ssh-actividad-resultado.ssh-actividad-error {
+  color: var(--red);
+}
+.ssh-actividad-resultado.ssh-actividad-aviso {
+  color: var(--yellow);
+}
+.ssh-actividad-vacia {
+  margin: 12px 0;
+  color: var(--fg-muted);
+}
 
 /* --- El diálogo de una conexión --------------------------------------------------------- */
 .modal-card.db-conexion-modal.ssh-conexion-modal {
@@ -281,9 +424,59 @@
 
 /* La revisión de un archivo con varios Host: una fila por Host, con el nombre y el usuario editables. */
 .modal-card.db-conexion-modal.ssh-conexion-modal.ssh-importar-modal {
-  width: min(620px, 100%);
+  width: min(700px, 100%);
 }
+/* El grupo de cada fila, al final de la línea de la credencial, con el mismo aspecto que los campos de la fila. */
+.ssh-importar-credencial .ssh-importar-grupo {
+  flex: 0 0 160px;
+  min-width: 0;
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  background: var(--bg-deep);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+  color: var(--fg);
+  font: inherit;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  outline: none;
+  cursor: pointer;
+}
+.ssh-importar-credencial .ssh-importar-grupo:hover:not(:disabled) {
+  border-color: var(--border);
+}
+.ssh-importar-credencial .ssh-importar-grupo:focus-visible {
+  border-color: var(--accent);
+}
+.ssh-importar-credencial .ssh-importar-grupo:disabled {
+  cursor: default;
+}
+/* El botón propio de los selectores de grupo de la revisión: lo elegido ocupa lo que deja la flecha y se recorta con «…». */
+.ssh-selector-grupo-boton {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: inherit;
+}
+.ssh-selector-grupo-boton selectedcontent {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* La fila se recoloca por el ancho de la LISTA, no de la ventana: el zoom y la densidad lo cambian sin cambiar la ventana. */
 .ssh-importar-lista {
+  container: importar-lista / inline-size;
+  /* En un modal bajo, el que hace scroll es el cuerpo: la lista no se encoge, que recortaría sus filas. */
+  flex-shrink: 0;
   list-style: none;
   margin: 4px 0 10px;
   padding: 0;
@@ -325,16 +518,18 @@
 .ssh-importar-campos input[aria-invalid='true'] {
   border-color: color-mix(in srgb, var(--red) 55%, var(--border));
 }
+/* Anchos que no dependen del contenido: las columnas de todas las filas quedan alineadas, y el destino se recorta
+   antes que el nombre y el usuario, que son lo que se edita. */
 .ssh-importar-nombre {
-  flex: 1 1 40%;
+  flex: 1 1 0;
   min-width: 0;
 }
 .ssh-importar-usuario {
-  flex: 0 1 26%;
+  flex: 0 0 26%;
   min-width: 0;
 }
 .ssh-importar-destino {
-  flex: 0 1 auto;
+  flex: 0 0 28%;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -351,8 +546,13 @@
   min-width: 0;
 }
 .ssh-importar-credencial > :first-child {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-width: 0;
+}
+/* La frase de un archivo de clave cifrado, al lado del archivo: los dos se reparten la línea. */
+.ssh-importar-credencial > .ssh-importar-secreto:not(:first-child) {
+  flex: 1 1 120px;
+  min-width: 80px;
 }
 .ssh-importar-campos input,
 .ssh-importar-credencial .ssh-importar-secreto {
@@ -372,6 +572,33 @@
 }
 .ssh-importar-credencial .ssh-importar-secreto:focus {
   border-color: var(--accent);
+}
+/* Estrecha: la credencial ocupa su línea y debajo van el método y el grupo, que se queda el resto. */
+@container importar-lista (max-width: 560px) {
+  .ssh-importar-credencial {
+    flex-wrap: wrap;
+  }
+  .ssh-importar-credencial > :first-child {
+    flex-basis: 100%;
+  }
+  .ssh-importar-credencial .ssh-importar-grupo {
+    flex: 1 1 0;
+  }
+}
+/* Muy estrecha: el destino baja a su propia línea bajo el nombre y el usuario. */
+@container importar-lista (max-width: 400px) {
+  .ssh-importar-campos {
+    flex-wrap: wrap;
+  }
+  .ssh-importar-nombre {
+    flex-basis: 50%;
+  }
+  .ssh-importar-usuario {
+    flex: 1 1 0;
+  }
+  .ssh-importar-destino {
+    flex-basis: 100%;
+  }
 }
 .btn.ssh-importar-archivo {
   justify-content: flex-start;
@@ -578,4 +805,80 @@
 .ssh-prueba-botones {
   display: flex;
   margin-top: 8px;
+}
+
+/* Lo que pregunta el servidor en el diálogo del programa de contraseñas: suyo, en mono y enmarcado. */
+.pregunta-askpass-servidor {
+  margin-bottom: 10px;
+  padding: 6px 10px;
+  border-left: 3px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-deep);
+  font-family: var(--mono, 'Cascadia Code', Consolas, 'SF Mono', Menlo, monospace);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--fg);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* «Bastión y túneles»: plegable, con su resumen como una etiqueta más del formulario. */
+.ssh-avanzado {
+  min-width: 0;
+}
+.ssh-avanzado > summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--fg-muted);
+  user-select: none;
+}
+.ssh-avanzado > summary:hover {
+  color: var(--fg);
+}
+.ssh-avanzado-cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 10px;
+}
+.ssh-tuneles {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0;
+  padding: 0;
+  list-style: none;
+}
+.ssh-tunel {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.ssh-tunel-fila {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.dbc-campo .ssh-tunel-fila select {
+  flex: 0 0 auto;
+  width: auto;
+}
+.dbc-campo .ssh-tunel-fila .ssh-tunel-puerto {
+  flex: 0 0 72px;
+  width: 72px;
+}
+.dbc-campo .ssh-tunel-fila .ssh-tunel-host {
+  flex: 1 1 0;
+}
+.ssh-tunel-flecha {
+  flex: 0 0 auto;
+  color: var(--fg-faint);
+}
+.btn.btn-icon.ssh-tunel-quitar {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  margin-left: auto;
 }

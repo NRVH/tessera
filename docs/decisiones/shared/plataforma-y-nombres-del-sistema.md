@@ -11,11 +11,16 @@ los `test-*.mts`, y el renderer va con `sandbox: true`: allí no existe `process
 
 ## Decisión
 
-- `esWindows()` / `esMac()`, nunca `process.platform === 'win32'` suelto: se puede sustituir en un test y
-  `grep esWindows` es la lista de lo que falta para Linux.
+- `esWindows()` / `esMac()` / `esLinux()`, nunca `process.platform === 'win32'` suelto: se puede
+  sustituir en un test y `grep` encuentra cada bifurcación.
 - Se elige la negación correcta: hay ramas «Windows y lo demás» (el registro) y ramas «macOS y lo demás»
-  (el hueco de los botones de ventana). `esWindows() ? A : B` no equivale a `esMac() ? B : A` en cuanto
-  entre Linux.
+  (el hueco de los botones de ventana). `esWindows() ? A : B` no equivale a `esMac() ? B : A`: Linux cae
+  en el «lo demás» de las dos.
+- Linux es la tercera plataforma publicada (`'linux'`). `'otra'` queda para los BSD: arrancan en
+  desarrollo por la rama POSIX genérica y no tienen nada propio. Linux no se trata como «macOS sin lo de
+  Apple»: donde lo POSIX genérico no basta, tiene su rama (la shell de respaldo es `bash`, el PATH de
+  login añade `~/.local/bin`, `/snap/bin` y Linuxbrew, los JDK se buscan en `/usr/lib/jvm`, el
+  portapapeles lee los formatos del gestor de archivos de GNOME y KDE).
 - La cadena es la de `process.platform`: existe en los cuatro entornos y es la que ya usan Node y Electron.
 - Lo que una plataforma no puede hacer se declara en `CapacidadesPlataforma` y la UI pregunta. Esconder es
   el último recurso: antes se construye el equivalente nativo.

@@ -38,6 +38,8 @@ function conexion(c: Partial<SshConexion> & Pick<SshConexion, 'id' | 'alias'>): 
   return {
     profileId: 'alfa',
     grupoId: null,
+    saltoId: null,
+    tuneles: [],
     host: '192.0.2.10',
     puerto: 22,
     usuario: 'admin',

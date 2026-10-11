@@ -199,7 +199,8 @@ export function useDerivadosDatos(n: NucleoDatos, a: AccionesDatos, e: EstadoDat
     () => motivosColumnas(columnasVisibles, noEditablesPorNombre(res?.noEditables)),
     [columnasVisibles, res?.noEditables]
   )
-  const columnasFiltro = useMemo(() => columnasFiltrablesSql(columnasVisibles), [columnasVisibles])
+  // El motor de la pestaña no cambia: se lee del ref.
+  const columnasFiltro = useMemo(() => columnasFiltrablesSql(columnasVisibles, n.propsRef.current.conexion.motor), [columnasVisibles, n])
   // Sin resultado las columnas están vacías y se llevaría todo lo escrito por delante.
   useEffect(() => {
     if (columnasFiltro.length === 0) return

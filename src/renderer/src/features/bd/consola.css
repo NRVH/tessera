@@ -65,13 +65,13 @@
 
 /* EL ENTORNO: el chip de `MarcaEntorno`, pegado al alias. No encoge (cede
    antes el alias, que trunca): el entorno es lo que no se puede perder de vista. En
-   producción la barra lleva además una franja roja ARRIBA, compuesta con la sombra de
-   `.panel-header` (con más especificidad: esta hoja entra antes que la global). */
+   producción la barra lleva además una franja roja ARRIBA (con más especificidad que
+   `.panel-header`: esta hoja entra antes que la global). */
 .db-consola-identidad > .marca-entorno-chip {
   margin-left: 8px;
 }
 .db-consola-barra.db-consola-barra-produccion {
-  box-shadow: inset 0 2px 0 var(--entorno-produccion), var(--shadow-header);
+  box-shadow: inset 0 2px 0 var(--entorno-produccion);
 }
 
 /* Los datos van separados por « · » dibujado, no escrito: así el separador no se
@@ -95,6 +95,19 @@
 .db-consola-barra .btn.btn-icon.db-consola-historial-btn.activo {
   background: var(--hover-suave);
   color: var(--fg);
+}
+
+/* Ejecutar y Detener dicen al apuntarlos qué van a hacer: el mismo fondo tenue de cualquier
+   botón de icono, teñido de verde (lanza) o de rojo (para), y el icono en ese color. Las tres
+   consolas (SQL, documentos y claves) usan estas clases. */
+.db-consola-barra .btn.btn-icon.db-consola-run:hover:not(:disabled),
+.db-consola-barra .btn.btn-icon.db-consola-run-todo:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--green) 14%, transparent);
+  color: var(--green);
+}
+.db-consola-barra .btn.btn-icon.db-consola-detener:hover:not(:disabled) {
+  background: var(--danger-tinte);
+  color: var(--red-hi);
 }
 
 /* «Tx pendiente (3)» es un ESTADO que se pierde si se cierra mal: ámbar, texto. */

@@ -11,8 +11,9 @@
 const net = require('node:net')
 
 // Fija y sin el texto del servidor: lo que este escriba no llega a la terminal por aquí.
-const MENSAJE_NO = 'Tessera no contesta esa pregunta del servidor; reconecta escribiendo en la terminal'
-const TOPE_MS = 5000
+const MENSAJE_NO = 'Tessera no contestó esa pregunta del servidor'
+// Holgado: la respuesta puede tener que escribirla el usuario en un diálogo de Tessera.
+const TOPE_MS = 150_000
 const MAX_RESPUESTA = 64 * 1024
 
 /** Sale escribiendo antes: en macOS la salida a una tubería es asíncrona y `exit` la cortaría. */

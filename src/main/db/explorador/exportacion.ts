@@ -72,6 +72,8 @@ interface PeticionExportacionBase {
   tablaInsert?: string
   /** Ventana sobre la que abrir el diálogo (la del emisor). */
   ventana?: unknown
+  /** El escritor del formato cuando no es el de filas de `shared/formatosFilas.ts` (documentos en JSON). */
+  escritor?: () => EscritorFilas
 }
 
 /**
@@ -317,13 +319,15 @@ export class Exportador {
   }
 
   private async iniciar(v: Volcado, columnas: readonly DbColumnaResultado[]): Promise<EscritorFilas> {
-    const e = crearEscritor(v.p.formato, columnas, {
-      motor: v.p.motor,
-      ...(v.p.tablaInsert ? { tablaInsert: v.p.tablaInsert } : {}),
-      cabecera: true,
-      bom: v.p.formato === 'csv',
-      saltoFinal: v.p.formato === 'csv' || v.p.formato === 'tsv'
-    })
+    const e =
+      v.p.escritor?.() ??
+      crearEscritor(v.p.formato, columnas, {
+        motor: v.p.motor,
+        ...(v.p.tablaInsert ? { tablaInsert: v.p.tablaInsert } : {}),
+        cabecera: true,
+        bom: v.p.formato === 'csv',
+        saltoFinal: v.p.formato === 'csv' || v.p.formato === 'tsv'
+      })
     await this.escribir(v, e.inicio())
     return e
   }

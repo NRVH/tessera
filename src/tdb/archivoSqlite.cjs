@@ -37,6 +37,7 @@ function errorSqlite(codigo, mensaje, extra) {
 function plataformaDelProceso() {
   if (process.platform === 'win32') return 'windows'
   if (process.platform === 'darwin') return 'mac'
+  if (process.platform === 'linux') return 'linux'
   return 'otra'
 }
 
@@ -236,7 +237,7 @@ function mensajePermiso(nombre, plataforma = plataformaDelProceso()) {
     return (
       `macOS no deja a Tessera leer «${nombre}». Si está en Documentos, Escritorio, Descargas o iCloud, ` +
       'dale permiso a Tessera en Ajustes del Sistema › Privacidad y seguridad › Archivos y carpetas ' +
-      '(o Acceso total al disco) y vuelve a intentarlo. Ese permiso se pierde con cada actualización.'
+      '(o Acceso total al disco) y vuelve a intentarlo.'
     )
   }
   return `No hay permiso para leer «${nombre}».`

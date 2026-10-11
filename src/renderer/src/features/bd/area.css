@@ -127,8 +127,7 @@
   opacity: 0.5;
 }
 
-/* ENTORNO DE LA CONEXIÓN. La franja al PIE de la pestaña (arriba está el
-   acento del perfil de la activa), de lado a lado con el margen del radio de las
+/* ENTORNO DE LA CONEXIÓN. La franja al PIE de la pestaña, de lado a lado con el margen del radio de las
    esquinas; no ocupa sitio en la fila flex. En PRODUCCIÓN, además, la pestaña teñida:
    solo la IMAGEN de fondo, con la especificidad de la hoja (ver la cabecera), para
    que el shorthand `background` de `.editor-tab:hover` / `.active` no la borre y el

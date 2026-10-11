@@ -15,7 +15,7 @@ import type { EditorMeta } from './EditorPane'
 import type { DiffTarget } from './diffEditorTipos'
 import { conMarca, podarConjunto, podarMapa, subirTokens, useStoreEditor } from './store'
 import { fijarAmbito } from '../git'
-import { useStoreLayout, type VistasPorPerfil } from '../layout'
+import { salirDePantallaCompleta, useStoreLayout, type VistasPorPerfil } from '../layout'
 import type { UseTabs } from '../pestanas'
 
 /** Opciones de apertura de una pestaña del editor. */
@@ -119,9 +119,9 @@ function useAbrirPestana(
       // franja a pantalla completa el editor está tapado: abrir una pestaña sale del modo.
       useStoreLayout.setState((s) => ({
         ccExpanded: false,
-        ccOculto: siguienteMotivoCcOculto(s.ccOculto, pane, opts?.colapsarAgente === true),
-        franjaPantallaCompleta: null
+        ccOculto: siguienteMotivoCcOculto(s.ccOculto, pane, opts?.colapsarAgente === true)
       }))
+      salirDePantallaCompleta()
       salirDeBd()
       editorTabs.openTab(pane, opts?.efimera === true)
       // Por token y no por el pane: dos coincidencias del mismo archivo son la misma pestaña.

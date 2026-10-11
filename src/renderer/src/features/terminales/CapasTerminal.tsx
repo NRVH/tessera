@@ -58,20 +58,53 @@ function TerminalContextMenu({
   )
 }
 
+/** Lo que una sesión SSH pinta sobre su xterm; los dos `null` en una local. */
+export interface CapasSsh {
+  /** Mientras no ha dicho nada: su texto y cómo cancelarla (`null` si aún no hay sesión que cancelar). */
+  conectando: { texto: string; onCancelar: (() => void) | null } | null
+  /** Terminada: qué pasó y cómo reconectar (`null` si su conexión se eliminó). */
+  fin: { motivo: string; enVuelo: boolean; onReconectar: (() => void) | null } | null
+}
+
+/** La franja de una sesión SSH terminada: qué pasó y «Reconectar», que también hace Intro. */
+function FranjaFinSsh({ fin }: { fin: NonNullable<CapasSsh['fin']> }): React.JSX.Element {
+  return (
+    <div className="terminal-fin-ssh" role="status">
+      <span className="terminal-fin-ssh-motivo">{fin.motivo}</span>
+      {fin.onReconectar ? (
+        <button className="btn terminal-fin-ssh-boton" onClick={fin.onReconectar} disabled={fin.enVuelo} title="Reconectar (Intro)">
+          {fin.enVuelo ? 'Reconectando…' : 'Reconectar'}
+        </button>
+      ) : (
+        <span className="terminal-fin-ssh-nota">La conexión se eliminó</span>
+      )}
+    </div>
+  )
+}
+
+const SIN_SSH: CapasSsh = { conectando: null, fin: null }
+
 /**
- * Buscador, miniaturas pegadas y menú contextual de una terminal, según su `InterfazTerminal`; y,
- * en una sesión SSH que aún no ha dicho nada, el «Conectando a…» (`conectando` es su texto).
+ * Buscador, miniaturas pegadas y menú contextual de una terminal, según su `InterfazTerminal`; y, en una
+ * sesión SSH, el «Conectando a…» mientras no ha dicho nada y la franja de reconexión al terminar.
  */
-export function CapasTerminal({ ui, conectando = null }: { ui: InterfazTerminal; conectando?: string | null }): React.JSX.Element {
+export function CapasTerminal({ ui, ssh = SIN_SSH }: { ui: InterfazTerminal; ssh?: CapasSsh }): React.JSX.Element {
   const { ctxMenu, setCtxMenu } = ui
+  const { conectando, fin } = ssh
   return (
     <>
-      {/* Capa ABSOLUTA: no empuja ni encoge la xterm, y no recibe el ratón (el clic llega al xterm). */}
+      {/* Capa ABSOLUTA: no empuja ni encoge la xterm; solo «Cancelar» recibe el ratón. */}
       {conectando !== null && (
         <div className="terminal-conectando" role="status">
-          {conectando}
+          <span className="terminal-conectando-texto">{conectando.texto}</span>
+          {conectando.onCancelar && (
+            <button className="terminal-conectando-cancelar" onClick={conectando.onCancelar}>
+              Cancelar
+            </button>
+          )}
         </div>
       )}
+      {fin !== null && <FranjaFinSsh fin={fin} />}
       {/* Buscar y navegar van al mismo runSearch: el SearchAddon reancla desde la posición actual. */}
       {ui.searchOpen && (
         <SearchBox

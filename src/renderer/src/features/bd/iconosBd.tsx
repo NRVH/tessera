@@ -222,6 +222,37 @@ export function IconoVerValor(): React.JSX.Element {
   )
 }
 
+/** Editar un valor: el lápiz sobre una línea. */
+export function IconoEditarValor(): React.JSX.Element {
+  return (
+    <Svg>
+      <path d="M4 20h16" />
+      <path d="M6 16v-3l9-9a2.1 2.1 0 0 1 3 3l-9 9H6z" />
+    </Svg>
+  )
+}
+
+/** Añadir un elemento: el `+` en una caja. */
+export function IconoAnadirElemento(): React.JSX.Element {
+  return (
+    <Svg>
+      <rect x="4" y="4" width="16" height="16" rx="3" />
+      <path d="M12 8v8M8 12h8" />
+    </Svg>
+  )
+}
+
+/** Más acciones: los tres puntos, que abren un menú. */
+export function IconoMasAcciones(): React.JSX.Element {
+  return (
+    <Svg>
+      <circle cx="5.5" cy="12" r="1.3" />
+      <circle cx="12" cy="12" r="1.3" />
+      <circle cx="18.5" cy="12" r="1.3" />
+    </Svg>
+  )
+}
+
 /** Traer todas: dos cheurones hacia abajo hasta el final. */
 export function IconoTraerTodas(): React.JSX.Element {
   return (

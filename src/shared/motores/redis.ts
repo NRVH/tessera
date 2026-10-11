@@ -1,7 +1,7 @@
 // =============================================================================
-// Descriptor de REDIS (standalone): el primer motor de la familia `claves`. Sin usuario obligatorio,
-// `database` es el número de la base, TLS sin cifrar por defecto y solo lectura por lista blanca.
-// Neutral y ES2020.
+// Descriptor de REDIS: el primer motor de la familia `claves`, a un servidor, a Sentinel o a Cluster
+// (`topologiaRedis`). Sin usuario obligatorio, `database` es el número de la base, TLS sin cifrar por
+// defecto y solo lectura por lista blanca. Neutral y ES2020.
 // Decisiones: docs/decisiones/bd/registro-motores-mongodb-y-redis.md
 // =============================================================================
 
@@ -16,7 +16,7 @@ export const REDIS: DescriptorMotor<'redis'> = definirMotor({
   conexion: {
     puertoPorDefecto: 6379,
     obligatorios: ['alias', 'host', 'port'],
-    opcionales: ['user', 'database', 'tls'],
+    opcionales: ['user', 'database', 'tls', 'tunelSsh', 'topologiaRedis'],
     tlsPorDefecto: { cifrar: false, confiarCertificado: false },
     excluyentes: [],
     faltaDestino: {},

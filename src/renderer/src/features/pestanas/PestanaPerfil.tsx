@@ -19,6 +19,8 @@ interface PestanaPerfilProps {
   dotState: ProfileDotState
   hasAttention: boolean
   isWorking: boolean
+  /** Un agente del perfil te espera. */
+  isWaiting: boolean
   arrastre: ReturnType<typeof useArrastrePerfiles>
   renombrado: ReturnType<typeof useRenombrarPerfil>
   onSelect: () => void
@@ -31,8 +33,7 @@ function claseDePestana(
   dragOver: boolean,
   dragging: boolean
 ): string {
-  // `state-*` lleva el estado de hibernación a la PESTAÑA para que, con la banda colapsada
-  // (sin dot visible), lo cargue la propia línea de color.
+  // `state-*` lleva el estado de hibernación a la PESTAÑA (el nombre se atenúa con él).
   return (
     `profile-tab state-${dotState}${active ? ' active' : ''}` +
     `${dragOver ? ' drag-over' : ''}` +
@@ -63,13 +64,9 @@ function InputRenombrar({
   )
 }
 
-// `--profile-color` alimenta la línea de color en modo compacto; en la activa también
-// tiñe el borde inferior en cualquier modo.
-function estiloDePestana(tinta: string, active: boolean): React.CSSProperties {
-  return {
-    '--profile-color': tinta,
-    ...(active ? { borderBottomColor: tinta } : {})
-  } as React.CSSProperties
+// `--profile-color` alimenta el contorno y el halo de la activa.
+function estiloDePestana(tinta: string): React.CSSProperties {
+  return { '--profile-color': tinta } as React.CSSProperties
 }
 
 /** Pestaña de un perfil dentro de la banda. */
@@ -79,6 +76,7 @@ export function PestanaPerfil({
   dotState,
   hasAttention,
   isWorking,
+  isWaiting,
   arrastre,
   renombrado,
   onSelect,
@@ -98,7 +96,8 @@ export function PestanaPerfil({
         arrastre.dragId === profile.id
       )}
       title={profile.nombre}
-      style={estiloDePestana(tinta, active)}
+      data-perfil-id={profile.id}
+      style={estiloDePestana(tinta)}
       draggable={!renaming}
       onDragStart={(e) => arrastre.alEmpezar(profile.id, e)}
       onDragOver={(e) => arrastre.alPasarSobre(profile.id, e)}
@@ -120,7 +119,7 @@ export function PestanaPerfil({
         }
       }}
     >
-      <ProfileDot state={dotState} color={tinta} working={isWorking} attention={hasAttention} />
+      <ProfileDot state={dotState} color={tinta} working={isWorking} attention={hasAttention} waiting={isWaiting} />
       {renaming ? (
         <InputRenombrar renombrado={renombrado} />
       ) : (

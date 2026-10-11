@@ -134,11 +134,11 @@ async function main(): Promise<void> {
   // Con un motor fuera del registro, el error prometido y no un TypeError.
   let errorDesconocido = ''
   try {
-    lenguajeConsola('mysql' as DbMotor)
+    lenguajeConsola('db2' as DbMotor)
   } catch (e) {
     errorDesconocido = e instanceof Error ? `${e.name}: ${e.message}` : String(e)
   }
-  check('motor desconocido -> «Motor desconocido», no un TypeError', errorDesconocido === 'Error: Motor desconocido: "mysql".', errorDesconocido)
+  check('motor desconocido -> «Motor desconocido», no un TypeError', errorDesconocido === 'Error: Motor desconocido: "db2".', errorDesconocido)
   // Un motor de OTRA familia no tiene consola SQL; se dice en voz alta, no cae en otra.
   {
     const noSql = IDS_MOTORES.filter((m) => !esMotorSql(m))

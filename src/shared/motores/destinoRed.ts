@@ -28,14 +28,20 @@ export function destinoDeRed(c: DestinoConexion, forma: FormaDestino): string {
   }
 }
 
+/** ¿El host ya dice su puerto, o es una lista de servidores? (`h:1`, `[v6]:1` o con comas). Copia en `tdb/motores.cjs`. */
+export function hostLlevaPuerto(host: string): boolean {
+  return host.includes(',') || /^[^:[\]]+:\d+$/.test(host) || /^\[[^\]]+\]:\d+$/.test(host)
+}
+
 /**
  * El destino de un motor de red con el USUARIO OPCIONAL y sin SID (MongoDB
  * y Redis, que se conectan sin autenticar o, Redis, con la clave sola): lo mismo que
  * `destinoDeRed` salvo que 'conUsuario' sin usuario no escribe un `@` huérfano. En Redis la
- * «base» es su número (`host:6379/2`).
+ * «base» es su número (`host:6379/2`). Un host de MongoDB que ya lleva su puerto (`db:27018`) o una lista de
+ * miembros (`a,b:27018`) se escribe tal cual: pegarle el de la conexión enseñaría uno que no se usa.
  */
 export function destinoDeRedUsuarioOpcional(c: DestinoConexion, forma: FormaDestino): string {
-  const servidor = `${c.host}:${c.port}`
+  const servidor = hostLlevaPuerto(c.host) ? c.host : `${c.host}:${c.port}`
   const base = c.database ? `/${c.database}` : ''
   switch (forma) {
     case 'completo':

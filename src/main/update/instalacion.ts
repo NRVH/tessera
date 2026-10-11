@@ -9,7 +9,7 @@
 
 import { existsSync } from 'node:fs'
 import { dirname } from 'node:path'
-import { esMac } from '../../shared/plataforma'
+import { esLinux, esMac, esWindows } from '../../shared/plataforma'
 import {
   describeUpdateError,
   installerNotStartedError,
@@ -18,14 +18,16 @@ import {
   updateNotApplicableError
 } from './updateErrors'
 import { freeInstallDirForUpdate, preflightInstallDirPaths } from './installDirLock'
-import { esperarCopiaRelevo, lanzarRelevo } from './stagingRelevo'
+import { cancelarRelevo, esperarCopiaRelevo, lanzarRelevo } from './stagingRelevo'
 import { decidirComoInstalar } from './decisionInstalar'
 import { bundleDeLaApp, lanzarRelevoMac, sePuedeEscribirEnElBundle } from './relevoMac'
+import { procesoVivo } from '../relevo/supervisor'
 import { logUpdate as log } from './logUpdate'
 import {
   MAX_INTENTOS_UPDATE,
   decidirPlanDeCierre,
   estadoTrasCierreCancelado,
+  type MarcadorUpdate,
   type PlanDeCierre
 } from './marcadorUpdatePuro'
 import { guardarMarcador, instaladorPresente, sellarIntentoSync } from './marcadorUpdate'
@@ -70,14 +72,71 @@ export function planDeCierre(): PlanDeCierre {
   // `runInstaller` abortara un instante después, en CADA cierre. Sólo el camino
   // automático: el manual conserva su plan B y el handler de INSTALL ya revalida.
   if (plan.tipo === 'instalar' && plan.origen === 'cierre') {
-    const puede = decidirComoInstalar({
-      motorArmado: ciclo.motorArmado,
-      instaladorEnDisco: !!ciclo.state.installerPath && existsSync(ciclo.state.installerPath),
-      chequeoConcluido: ciclo.chequeoConcluido
-    })
+    const puede = decisionActual()
     if (puede.via === 'abortar') return { tipo: 'ninguno', motivo: puede.motivo }
   }
   return plan
+}
+
+/** El relevo que lanzó `anticiparRelevo`, para cederle el control o cancelarlo. */
+let relevoAnticipado: number | null = null
+
+/** El marcador de la actualización que se le puede ceder al relevo ahora mismo, o null. Sin efectos. */
+function relevoAplicable(): MarcadorUpdate | null {
+  const plan = planDeCierre()
+  if (plan.tipo !== 'instalar' || !plan.relanzar) return null
+  const m = ciclo.marcador
+  if (m === null || !instaladorPresente(m)) return null
+  return decisionActual().via === 'quitAndInstall' ? m : null
+}
+
+/** «¿Podemos aplicarla ahora?» con el estado del ciclo: la misma pregunta para el cierre, el relevo y el instalador. */
+function decisionActual(): ReturnType<typeof decidirComoInstalar> {
+  return decidirComoInstalar({
+    motorArmado: ciclo.motorArmado,
+    instaladorEnDisco: !!ciclo.state.installerPath && existsSync(ciclo.state.installerPath),
+    chequeoConcluido: ciclo.chequeoConcluido
+  })
+}
+
+/**
+ * Windows, «Actualizar ahora»: lanza el relevo al EMPEZAR el cierre, antes de matar terminales
+ * y contenedores. Su ventana sale en el acto, y como solo espera a que desaparezca este pid, la
+ * actualización sigue aunque este proceso muera a mitad del cierre sin llegar a `runInstaller`.
+ * Si el cierre acaba abortándose, `fallarInstalacion` lo cancela. Devuelve si quedó lanzado.
+ */
+export function anticiparRelevo(): boolean {
+  if (relevoAnticipado !== null) return true
+  const marcador = esWindows() ? relevoAplicable() : null
+  if (marcador === null) return false
+  relevoAnticipado = lanzarRelevo(marcador.rutaInstalador, marcador.versionDestino, (m) => log(m))
+  return relevoAnticipado !== null
+}
+
+/** Cancela el relevo anticipado, si lo hay. Lo usa también el cierre que acaba sin instalar. */
+export function cancelarRelevoAnticipado(): void {
+  if (relevoAnticipado === null) return
+  cancelarRelevo(relevoAnticipado, (m) => log(m))
+  relevoAnticipado = null
+}
+
+/**
+ * ¿Hay un relevo vivo al que entregarle el trabajo? Normalmente ya está lanzado desde el
+ * principio del cierre (`anticiparRelevo`); si no (la copia aún no estaba) o se cayó mientras
+ * esperaba, se lanza aquí, DESPUÉS de los dos pre-vuelos. Sólo con `relanzar`: al cerrar, abrir
+ * una ventana que sobreviva a la app es justo lo que el usuario no pidió. Sin copia, `false` y
+ * se sigue por el camino de siempre.
+ */
+function relevoEnMarcha(opts: RunInstallerOptions): boolean {
+  if (relevoAnticipado !== null && !procesoVivo(relevoAnticipado)) {
+    log(`el relevo anticipado (pid ${relevoAnticipado}) ya no existe; se lanza otro.`)
+    relevoAnticipado = null
+  }
+  if (!opts.relanzar || ciclo.marcador === null || !instaladorPresente(ciclo.marcador)) return false
+  if (relevoAnticipado !== null) return true
+  relevoAnticipado = lanzarRelevo(ciclo.marcador.rutaInstalador, ciclo.marcador.versionDestino, (m) => log(m))
+  if (relevoAnticipado === null) log('no hay relevo preparado; se instala por el camino de siempre.')
+  return relevoAnticipado !== null
 }
 
 /**
@@ -95,6 +154,8 @@ function fallarInstalacion(
 ): void {
   const { message, detail } = describeUpdateError(err, feedParaMensajes())
   log(`ERROR (${context}): ${rawDetail(err)}`)
+  // Tessera se queda: un relevo esperando su muerte instalaría encima de la app abierta.
+  cancelarRelevoAnticipado()
 
   if (bloquearSiCierre && opts.origen === 'cierre' && ciclo.marcador !== null) {
     ciclo.marcador = { ...ciclo.marcador, bloqueado: `no se pudo aplicar al cerrar: ${context}` }
@@ -140,11 +201,7 @@ export async function runInstaller(opts: RunInstallerOptions): Promise<false> {
   // antes de liberar la carpeta y MUY antes del sello: abortar aquí no ha cedido ni
   // quemado nada.
   paso('Comprobando el instalador descargado…')
-  const decision = decidirComoInstalar({
-    motorArmado: ciclo.motorArmado,
-    instaladorEnDisco: !!ciclo.state.installerPath && existsSync(ciclo.state.installerPath),
-    chequeoConcluido: ciclo.chequeoConcluido
-  })
+  const decision = decisionActual()
   if (decision.via === 'abortar') {
     log(`no se puede aplicar la actualización: ${decision.motivo}.`)
     // El motivo real, no «el instalador no arrancó»: ese texto invita a abrirlo a mano y
@@ -159,7 +216,8 @@ export async function runInstaller(opts: RunInstallerOptions): Promise<false> {
   }
 
   // Aquí se bifurca la plataforma, y ni un byte más abajo: lo que sigue es maquinaria de
-  // NSIS y de los handles de Windows, sin equivalente en macOS (`relevoMac.ts`).
+  // NSIS y de los handles de Windows, sin equivalente en macOS (`relevoMac.ts`). En Linux
+  // cada paso de Windows vuelve en el acto y `quitAndInstall` sustituye el AppImage.
   if (esMac()) return instalarEnMac(opts, paso)
 
   // La copia del relevo (robocopy sobre la carpeta de instalación) puede seguir viva con
@@ -195,26 +253,21 @@ export async function runInstaller(opts: RunInstallerOptions): Promise<false> {
     log(`el pre-vuelo de rutas lanzó (se sigue): ${rawDetail(err)}`)
   }
 
-  // EL RELEVO: si hay copia preparada se le entrega el trabajo y esta Tessera muere SIN
-  // instalar. Va DESPUÉS de los dos pre-vuelos (el relevo sólo sondea, no arregla) y
-  // sólo con `relanzar`: al cerrar, abrir una ventana que sobreviva a la app es justo lo
-  // que el usuario no pidió. Sin copia, se sigue por el camino de siempre.
-  if (opts.relanzar && ciclo.marcador !== null && instaladorPresente(ciclo.marcador)) {
-    if (lanzarRelevo(ciclo.marcador.rutaInstalador, ciclo.marcador.versionDestino, (m) => log(m))) {
-      paso('Entregando a la ventana de actualización…')
-      // Se sella ANTES de morir: después de `app.exit` no hay `finally`, y el arranque
-      // siguiente necesita saber que se intentó.
-      sellarIntento(opts)
-      log(`intento ${ciclo.marcador.intentos}/${MAX_INTENTOS_UPDATE} sellado; el relevo toma el control.`)
-      // Morimos del todo: mientras este proceso exista sus DLL siguen cargadas desde la
-      // carpeta que hay que reemplazar, y el relevo espera a que este pid desaparezca.
-      sistema().salir(0)
-      // Nunca resuelve, igual que `quitAndInstall`: resolver `false` despertaría al plan B
-      // en el hueco entre el `exit` y la muerte real.
-      return new Promise<false>(() => {})
-    }
-    log('no hay relevo preparado; se instala por el camino de siempre.')
+  if (relevoEnMarcha(opts)) {
+    paso('Entregando a la ventana de actualización…')
+    // Se sella ANTES de morir: después de `app.exit` no hay `finally`, y el arranque
+    // siguiente necesita saber que se intentó.
+    sellarIntento(opts)
+    log(`intento ${ciclo.marcador?.intentos}/${MAX_INTENTOS_UPDATE} sellado; el relevo toma el control.`)
+    // Morimos del todo: mientras este proceso exista sus DLL siguen cargadas desde la
+    // carpeta que hay que reemplazar, y el relevo espera a que este pid desaparezca.
+    sistema().salir(0)
+    // Nunca resuelve, igual que `quitAndInstall`: resolver `false` despertaría al plan B
+    // en el hueco entre el `exit` y la muerte real.
+    return new Promise<false>(() => {})
   }
+  // Por el camino de siempre no puede quedar un relevo esperando: serían dos instaladores.
+  cancelarRelevoAnticipado()
 
   return new Promise((resolve) => {
     paso('Aplicando la actualización…')
@@ -341,9 +394,10 @@ export async function openInstallerManually(): Promise<boolean> {
     log('plan B imposible: no hay instalador descargado en disco.')
     return false
   }
-  if (esMac()) {
+  // En Linux el paquete es un AppImage sin permiso de ejecución: abrirlo no lo lanza.
+  if (esMac() || esLinux()) {
     sistema().revelarEnCarpeta(ciclo.state.installerPath)
-    log(`plan B: se revela el paquete en el Finder (${ciclo.state.installerPath}).`)
+    log(`plan B: se revela el paquete en su carpeta (${ciclo.state.installerPath}).`)
     return true
   }
   try {

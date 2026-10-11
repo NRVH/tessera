@@ -145,24 +145,33 @@ function main(): void {
   }
 
   // -------------------------------------------------------------------------
-  hr('(4) `otra` (Linux) va por la rama POSIX, no por la de Windows')
+  hr('(4) Linux y `otra` (BSD) van por la rama POSIX, no por la de Windows')
   // -------------------------------------------------------------------------
-  // Hoy Linux no es un objetivo, pero si alguien arranca ahí en desarrollo lo correcto
-  // es un shell POSIX y no un `powershell.exe` que no existe.
   {
-    const s = shellNativoPara(undefined, '/bin/bash', 'otra')
+    const s = shellNativoPara(undefined, '/usr/bin/fish', 'linux')
     check(
       '(4a) Linux -> $SHELL -il, nunca PowerShell',
-      s.archivo === '/bin/bash' && s.args.join(' ') === '-il',
+      s.archivo === '/usr/bin/fish' && s.args.join(' ') === '-il',
       `${s.archivo} ${s.args.join(' ')}`
     )
   }
   {
-    const s = shellNativoPara('exec codex', '/bin/bash', 'otra')
+    const s = shellNativoPara('exec codex', '/bin/bash', 'linux')
     check(
       '(4b) Linux con agente -> -ilc, igual que macOS',
       s.archivo === '/bin/bash' && s.args[0] === '-ilc',
       `${s.archivo} ${JSON.stringify(s.args)}`
+    )
+  }
+  {
+    // Muchas distribuciones no traen zsh: sin `$SHELL`, bash; en macOS sigue siendo zsh.
+    const l = shellNativoPara(undefined, undefined, 'linux')
+    const m = shellNativoPara(undefined, '  ', 'mac')
+    const o = shellNativoPara(undefined, undefined, 'otra')
+    check(
+      '(4c) sin $SHELL: /bin/bash en Linux y en BSD, /bin/zsh en macOS',
+      l.archivo === '/bin/bash' && o.archivo === '/bin/bash' && m.archivo === '/bin/zsh',
+      `linux=${l.archivo} otra=${o.archivo} mac=${m.archivo}`
     )
   }
 

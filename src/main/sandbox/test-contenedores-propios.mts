@@ -9,9 +9,11 @@
 import { spawnSync } from 'node:child_process'
 import {
   ETIQUETA_IMAGEN_SANDBOX,
+  ETIQUETA_INSTANCIA,
   FILTRO_NOMBRE_PROPIO,
   contenedoresDeTessera,
   esContenedorDeTessera,
+  esDeLaInstancia,
   leerFichas,
   listarContenedoresDeTessera,
   mensajeContenedorAjeno,
@@ -133,6 +135,22 @@ async function main(): Promise<void> {
     j(await listarContenedoresDeTessera(todosSeFueron, IMAGEN)) === '[]',
     'ok'
   )
+  hr('(3b) Solo los de ESTA instancia (otro usuario del Docker, o la app con su arnés de pruebas)')
+  const mia = { ...conEtiqueta, [ETIQUETA_INSTANCIA]: 'aaaa1111' }
+  const otra = { ...conEtiqueta, [ETIQUETA_INSTANCIA]: 'bbbb2222' }
+  const filtroMio = { sello: 'aaaa1111', heredados: false }
+  check('el suyo, sí', esDeLaInstancia(ficha('tessera-aaaa1111-qa', IMAGEN, mia), filtroMio), 'sí')
+  check('NEGATIVO: el de otra instancia, nunca (ni con heredados)', !esDeLaInstancia(ficha('tessera-bbbb2222-qa', IMAGEN, otra), filtroMio) && !esDeLaInstancia(ficha('tessera-bbbb2222-qa', IMAGEN, otra), { ...filtroMio, heredados: true }), 'no')
+  check(
+    'uno sin sello (de una versión anterior) solo con heredados: el arranque de la app sí, el arnés no',
+    esDeLaInstancia(ficha('tessera-qa', IMAGEN, conEtiqueta), { ...filtroMio, heredados: true }) && !esDeLaInstancia(ficha('tessera-qa', IMAGEN, conEtiqueta), filtroMio),
+    'ok'
+  )
+  check('sin sello fijado (las pruebas que no pasan por el main): todos, como antes', esDeLaInstancia(ficha('tessera-bbbb2222-qa', IMAGEN, otra), { sello: '', heredados: false }), 'sí')
+  const tres = j([ficha('tessera-aaaa1111-qa', IMAGEN, mia), ficha('tessera-bbbb2222-qa', IMAGEN, otra), ficha('tessera-qa', IMAGEN, conEtiqueta)])
+  check('contenedoresDeTessera con filtro deja fuera el de la otra instancia', j(contenedoresDeTessera(tres, IMAGEN, filtroMio)) === j(['tessera-aaaa1111-qa']), j(contenedoresDeTessera(tres, IMAGEN, filtroMio)))
+  check('una imagen con la etiqueta del uid (Linux) es la nuestra', esContenedorDeTessera(ficha('tessera-qa', `${IMAGEN}:u1000`), IMAGEN), 'sí')
+
   check('el mensaje del contenedor ajeno dice qué hacer', /no creó Tessera/.test(mensajeContenedorAjeno('tessera-qa')) && /docker rename/.test(mensajeContenedorAjeno('tessera-qa')), mensajeContenedorAjeno('tessera-qa'))
 
   hr('(4) contra el Docker de verdad')

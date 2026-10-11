@@ -16,7 +16,7 @@ import {
   quitarCadenasControl,
   type ActivityTracker
 } from './agentActivity.ts'
-import type { AgentActivityState } from '../../shared/agent-terminal-ipc.ts'
+import type { AgentActivityState, AgentMotivoEspera } from '../../shared/agent-terminal-ipc.ts'
 
 const results: { name: string; pass: boolean; evidence: string }[] = []
 function check(name: string, pass: boolean, evidence: string): void {
@@ -79,9 +79,17 @@ function setup(): {
   abre: (at?: number) => void
   /** Cada aviso de `alCambiarEspera`, en orden. */
   esperas: boolean[]
+  /** El motivo de cada `onChange` (null salvo en 'blocked'). */
+  motivos: (AgentMotivoEspera | null)[]
+  /** Cuándo se contestó cada sonda del protocolo de estado. */
+  sondas: number[]
+  /** El agente informa su estado: un OSC 7501 con ese cuerpo. */
+  informa: (cuerpo: string) => void
 } {
   const clock = makeClock()
   const changes: AgentActivityState[] = []
+  const motivos: (AgentMotivoEspera | null)[] = []
+  const sondas: number[] = []
   const esperas: boolean[] = []
   const tracker = createActivityTracker({
     tickMs: TICK,
@@ -95,8 +103,12 @@ function setup(): {
     markToleranceMs: TOLERANCIA,
     schedule: clock.schedule,
     now: clock.now,
-    onChange: (s) => changes.push(s),
-    alCambiarEspera: (e) => esperas.push(e)
+    onChange: (s, m) => {
+      changes.push(s)
+      motivos.push(m ?? null)
+    },
+    alCambiarEspera: (e) => esperas.push(e),
+    responderSonda: () => sondas.push(clock.now())
   })
   return {
     tracker,
@@ -113,7 +125,10 @@ function setup(): {
     out: (bytes, bell = false) => tracker.onData('x'.repeat(bytes) + (bell ? '\x07' : '')),
     cierra: (at) => tracker.onTurnMark({ tipo: 'cierra', at: at ?? clock.now() }),
     abre: (at) => tracker.onTurnMark({ tipo: 'abre', at: at ?? clock.now() }),
-    esperas
+    esperas,
+    motivos,
+    sondas,
+    informa: (cuerpo) => tracker.onData(`\x1b]7501;${cuerpo}\x07`)
   }
 }
 
@@ -705,6 +720,99 @@ const espera = (t: ActivityTracker): string => `state=${t.state()} esperandoResp
   )
   const sinOsc = quitarCadenasControl('\x1b]11;rgb:1e1e/1e1e/1e1e\x1b\\/clear\x1b]10;?\x07\r')
   check('(21f) quitarCadenasControl deja lo tecleado intacto', sinOsc === '/clear\r', JSON.stringify(sinOsc))
+}
+
+// (22) El agente INFORMA su estado (OSC 7501): desde su primer aviso, manda él y la deducción calla.
+{
+  const { tracker, ticks, out, submit, cierra, changes, motivos, sondas, informa, clock } = setup()
+  out(10, false)
+  tracker.onData('\x1b]7501;?\x07\x1b[c')
+  check('(22a) la sonda se contesta en el acto, una vez', sondas.length === 1 && sondas[0] === clock.now(), `sondas=${sondas.join()}`)
+  informa('state=idle:app=claude-code')
+  check('(22b) el idle del arranque no avisa de nada', changes.length === 0 && tracker.state() === 'idle', `changes=[${changes.join(',')}]`)
+  submit()
+  check('(22c) informado, el Enter no abre: lo dirá el agente', changes.length === 0 && tracker.state() === 'idle', `changes=[${changes.join(',')}]`)
+  informa('state=working:app=claude-code')
+  informa('state=working:app=claude-code:msg=' + Buffer.from('Paso 1').toString('base64'))
+  check('(22d) working abre; repetido (con otro paso) no vuelve a avisar', changes.join(',') === 'working' && tracker.state() === 'working', `changes=[${changes.join(',')}]`)
+  ticks(SILENCE_TICKS * 3)
+  out(100, true)
+  ticks(2)
+  cierra()
+  check('(22e) ni el silencio, ni una campana, ni la marca del transcript lo cierran', changes.join(',') === 'working' && tracker.state() === 'working', `changes=[${changes.join(',')}]`)
+  informa('state=blocked:app=claude-code:kind=question')
+  check(
+    '(22f) blocked: cierra el turno, avisa con su motivo y espera tu respuesta',
+    changes.join(',') === 'working,blocked' && motivos[1] === 'question' && tracker.state() === 'blocked' && tracker.motivoEspera() === 'question' && tracker.esperandoRespuesta(),
+    `changes=[${changes.join(',')}] motivos=${motivos.join()} state=${tracker.state()}`
+  )
+  informa('state=blocked:app=claude-code:kind=question')
+  informa('state=blocked:id=sub:kind=permission')
+  check('(22g) el mismo blocked repetido y el aviso de un hijo no cambian nada', changes.length === 2, `changes=[${changes.join(',')}]`)
+  informa('state=working:app=claude-code')
+  informa('state=done:app=claude-code')
+  check('(22h) contestada, vuelve a trabajar y done avisa de un fin real', changes.join(',') === 'working,blocked,working,done' && !tracker.esperandoRespuesta(), `changes=[${changes.join(',')}]`)
+  informa('state=done:app=claude-code')
+  informa('state=idle:app=claude-code')
+  check('(22i) un done repetido y el idle siguiente no avisan', changes.length === 4, `changes=[${changes.join(',')}]`)
+  informa('state=working')
+  informa('state=blocked:kind=permission')
+  informa('state=idle')
+  check('(22j) una espera cancelada (Esc) se apaga sin avisar «terminó»', changes.slice(4).join(',') === 'working,blocked,idle', `changes=[${changes.join(',')}]`)
+  informa('state=working')
+  informa('state=clear')
+  check('(22k) clear (al salir) cierra en silencio', changes.slice(7).join(',') === 'working,idle' && tracker.state() === 'idle', `changes=[${changes.join(',')}]`)
+}
+{
+  const { tracker, submit, changes, informa, sondas } = setup()
+  informa('?')
+  informa('state=working')
+  informa('state=blocked:kind=permission')
+  tracker.finish()
+  check('(22l) relanzar con una espera abierta la apaga', changes.join(',') === 'working,blocked,idle' && !tracker.esperandoRespuesta(), `changes=[${changes.join(',')}]`)
+  // El proceso viejo aún escribe su despedida tras `finish`: no es del nuevo.
+  informa('state=clear')
+  submit()
+  check('(22m) y el proceso nuevo, hasta que informe, se deduce: el Enter abre (la despedida del viejo no cuenta)', tracker.state() === 'working', `state=${tracker.state()}`)
+  informa('?')
+  check('(22m2) el proceso nuevo vuelve a preguntar y se le contesta', sondas.length === 2, `sondas=${sondas.length}`)
+}
+{
+  // Un aviso o una sonda que salen en lo que el agente enseña (un archivo, un log) no son suyos.
+  const { tracker, submit, changes, informa, sondas } = setup()
+  informa('state=idle')
+  submit()
+  check('(22p) un aviso sin sonda contestada se ignora: sigue la deducción', tracker.state() === 'working' && changes.join(',') === 'working', `changes=[${changes.join(',')}]`)
+  informa('?')
+  informa('?')
+  check('(22q) la sonda se contesta una sola vez por proceso', sondas.length === 1, `sondas=${sondas.length}`)
+}
+{
+  // Informado, el tope cuenta desde el último 'working': colgado sin avisar, el punto se apaga.
+  const { tracker, ticks, changes, informa, out } = setup()
+  informa('?')
+  informa('state=working')
+  for (let i = 0; i < 4; i++) {
+    ticks(MAX_TURN_TICKS / 2)
+    out(10)
+    informa('state=working')
+  }
+  check('(22r) un trabajo largo que sigue avisando no se corta por el tope', tracker.state() === 'working' && changes.join(',') === 'working', `changes=[${changes.join(',')}]`)
+  ticks(MAX_TURN_TICKS + 1)
+  check('(22s) sin un aviso en todo el tope, cierra en silencio', tracker.state() === 'idle' && changes.join(',') === 'working,idle', `changes=[${changes.join(',')}]`)
+  informa('state=working')
+  check('(22t) y si vuelve a avisar, vuelve a trabajar', tracker.state() === 'working', `state=${tracker.state()}`)
+}
+{
+  // Sin avisos (un agente que no informa), el BEL que cierra un título no es la campana.
+  const { tracker, ticks, submit, changes } = setup()
+  submit()
+  tracker.onData('\x1b]0;✳ Claude Code\x07' + 'x'.repeat(50))
+  ticks(2)
+  check('(22n) el BEL de un OSC no cierra el turno deducido', tracker.state() === 'working' && changes.join(',') === 'working', `changes=[${changes.join(',')}]`)
+  tracker.onData('\x07')
+  ticks(1)
+  check('(22o) una campana suelta sí', changes.join(',') === 'working,done', `changes=[${changes.join(',')}]`)
 }
 
 const allPass = results.every((r) => r.pass)

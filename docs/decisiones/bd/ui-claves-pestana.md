@@ -5,13 +5,13 @@
 
 ## Contexto
 
-El visor de una clave es de solo lectura y su lógica de tablas y detalles vive en `visorClaves.ts`
+El visor de una clave edita lo de todos los días (ver su ADR) y su lógica de tablas y detalles vive en `visorClaves.ts`
 (ver [ui-claves-visor.md](ui-claves-visor.md)). Esta decisión es la de la pestaña que lo pinta.
 
 ## Decisión
 
-- **No se registra en `registroEdicion`:** al ser de lectura, cerrar la pestaña no tiene nada que
-  perder. «Abrir consola» abre el comando de lectura del tipo y, si la clave es de otra base que
+- **No se registra en `registroEdicion`:** cada edición se ejecuta al aceptar su diálogo, así que
+  cerrar la pestaña no tiene nada pendiente que perder. «Abrir consola» abre el comando de lectura del tipo y, si la clave es de otra base que
   la de la conexión, con `SELECT n` delante: se sigue desde donde se estaba mirando.
 - **La lectura lleva `peticionId` y Stop la cancela** con el rol `datos`; el trabajador abandona la
   conexión, porque Redis no cancela un comando en el servidor. «Detener» está siempre en la barra y,
@@ -29,4 +29,4 @@ El visor de una clave es de solo lectura y su lógica de tablas y detalles vive 
 
 ## Consecuencias
 
-Editar desde el visor queda pendiente; se escribe por la consola.
+Las listas, sets, zsets y streams se escriben por la consola.

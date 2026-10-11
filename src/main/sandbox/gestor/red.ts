@@ -20,7 +20,7 @@ import {
   rutasAjustesDocker
 } from '../redAnfitrion.ts'
 import { runDocker } from '../adaptadores/docker.ts'
-import { SANDBOX_IMAGE } from './nombres.ts'
+import { argsEtiquetaInstancia } from './nombres.ts'
 import type { NucleoSandbox } from './NucleoSandbox.ts'
 
 /**
@@ -233,7 +233,8 @@ export class RedSandbox {
           'host',
           // NUNCA al registro: la imagen es local y un diagnóstico no dispara un build.
           '--pull=never',
-          SANDBOX_IMAGE,
+          ...argsEtiquetaInstancia(),
+          this.n.imagen,
           'node',
           '-e',
           guion

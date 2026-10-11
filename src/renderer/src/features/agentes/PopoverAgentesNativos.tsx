@@ -85,7 +85,12 @@ function BloquePreparacion({
 
   // Con un CLI que se instala a mano o bloqueado, el plan también sale sin nada que
   // instalar, pero decir «al día» sería mentir.
-  const alDia = plan.todoAlDia && plan.manuales.length === 0 && plan.bloqueadores.length === 0
+  const alDia =
+    plan.todoAlDia &&
+    plan.manuales.length === 0 &&
+    plan.bloqueadores.length === 0 &&
+    !estado.claude.binarioPendiente &&
+    !estado.codex.binarioPendiente
   // Con nada que instalar ni atrasar, la lista y la acción son las de «Reiniciar igualmente».
   const planAccion = plan.todoAlDia ? planForzado : plan
 
@@ -101,8 +106,8 @@ function BloquePreparacion({
       {act.errorComprobar ? <div className="agentes-nativos-error">{act.errorComprobar}</div> : null}
 
       <div className="agentes-nativos-clis">
-        <FilaCli cli={estado.claude} plan={plan} />
-        <FilaCli cli={estado.codex} plan={plan} />
+        <FilaCli cli={estado.claude} plan={plan} nombres={nombres} />
+        <FilaCli cli={estado.codex} plan={plan} nombres={nombres} />
       </div>
 
       <ListaSesiones plan={planAccion} info={info} />
@@ -111,7 +116,7 @@ function BloquePreparacion({
         <button
           type="button"
           className="btn"
-          disabled={!planAccion.puedeEjecutar}
+          disabled={act.comprobando || !planAccion.puedeEjecutar}
           onClick={() => act.ejecutar(planAccion.forzado)}
         >
           {planAccion.forzado ? `Reiniciar igualmente (${planAccion.reiniciar.length})` : textoAccion(planAccion)}
@@ -128,13 +133,23 @@ type Manual = PlanActualizacion['manuales'][number]
 type Bloqueo = PlanActualizacion['bloqueadores'][number]
 
 /** Qué se hará con un CLI, dicho en una frase. */
-function queHaraCli(cli: EstadoCli, plan: PlanActualizacion, manual: Manual | undefined, bloqueo: Bloqueo | undefined): React.ReactNode {
+function queHaraCli(
+  cli: EstadoCli,
+  plan: PlanActualizacion,
+  manual: Manual | undefined,
+  bloqueo: Bloqueo | undefined,
+  tuEquipo: string
+): React.ReactNode {
   const instalacion = plan.instalar.find((i) => i.agente === cli.agente)
   const atrasadas = plan.reiniciar.filter((s) => s.agente === cli.agente && s.atrasada).length
   if (instalacion) {
+    const reparacion = instalacion.reparar ? `No responde: se reinstalará ${instalacion.a}. ` : ''
     return instalacion.fase === 'B'
-      ? 'Se detendrán sus sesiones antes de instalar (su ejecutable en uso bloquea la carpeta) y volverán solas en su conversación.'
-      : 'Se instala con sus sesiones abiertas; después se reinician.'
+      ? `${reparacion}Se detendrán sus sesiones antes de instalar (su ejecutable en uso bloquea la carpeta) y volverán solas en su conversación.`
+      : `${reparacion}Se instala con sus sesiones abiertas; después se reinician.`
+  }
+  if (cli.binarioPendiente) {
+    return `${cli.ultima ?? 'La versión nueva'} aún no está lista para ${tuEquipo}: el registro todavía no sirve su binario. Vuelve a comprobar en unos minutos.`
   }
   if (manual) {
     return (
@@ -186,7 +201,7 @@ function ProcesosBloqueo({ bloqueo, etq }: { bloqueo: Bloqueo; etq: string }): R
 }
 
 /** Una fila por CLI: versiones y qué se hará con él. */
-function FilaCli({ cli, plan }: { cli: EstadoCli; plan: PlanActualizacion }): React.JSX.Element {
+function FilaCli({ cli, plan, nombres }: { cli: EstadoCli; plan: PlanActualizacion; nombres: NombresSistema }): React.JSX.Element {
   const [copiado, setCopiado] = useState(false)
   const etq = ETIQUETA_AGENTE[cli.agente]
   const manual = plan.manuales.find((m) => m.agente === cli.agente)
@@ -195,7 +210,7 @@ function FilaCli({ cli, plan }: { cli: EstadoCli; plan: PlanActualizacion }): Re
   return (
     <div className="agentes-nativos-cli">
       <VersionesCli cli={cli} etq={etq} />
-      <div className="actualizacion-pop-msg">{queHaraCli(cli, plan, manual, bloqueo)}</div>
+      <div className="actualizacion-pop-msg">{queHaraCli(cli, plan, manual, bloqueo, nombres.tuEquipo)}</div>
       {manual?.orden ? (
         <div className="agentes-nativos-orden">
           <code>{manual.orden}</code>

@@ -9,7 +9,7 @@
  * Los motores SQL, por su fila de reglas léxicas. Subconjunto de `DbMotor`, y cada uno es el
  * dialecto de SU motor, con el mismo id (`MOTORES[m].sql.dialecto === m`).
  */
-export type DialectoSql = 'oracle' | 'postgres' | 'sqlite' | 'sqlserver'
+export type DialectoSql = 'oracle' | 'postgres' | 'sqlite' | 'sqlserver' | 'mysql'
 
 /**
  * Los PRAGMA de SQLite que solo LEEN, en minúsculas: la MISMA lista con la que el autorizador de

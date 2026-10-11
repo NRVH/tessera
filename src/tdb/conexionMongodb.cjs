@@ -1,8 +1,9 @@
 // =============================================================================
 // La CONEXIÓN a MongoDB: de la conexión del trabajador (`host`, `port`, `user`, `database`, `tls`,
 // `srv`, `opcionesUri`) a la URI y las opciones del driver, y `conectar`, que abre el cliente y lee
-// la topología. La contraseña va en `opciones.auth`, nunca en la URI; `directConnection=true` con
-// un solo host sin `srv`. Depende de `cargaMongodb.cjs`, `erroresMongodb.cjs` y, al conectar con
+// la topología. El host puede ser una lista de miembros (`h1,h2:27018`) sin `srv`. La contraseña va en
+// `opciones.auth`, nunca en la URI; `directConnection=true` con un solo host sin `srv`. Depende de
+// `cargaMongodb.cjs`, `erroresMongodb.cjs` y, al conectar con
 // cifrado verificado, de `sqlserverComun.cjs` (sus CA del sistema).
 // Decisiones: docs/decisiones/bd/mongodb-conexion-y-tipos.md
 // =============================================================================
@@ -43,24 +44,51 @@ function paresDeOpciones(texto) {
   return pares
 }
 
-/** El host de la conexión, validado: uno solo, sin usuario ni opciones. */
-function hostDe(con) {
-  const host = typeof con.host === 'string' ? con.host.trim() : ''
-  if (!host) throw errorConfig('La conexión no tiene servidor.')
-  if (/[\s,/?#@]/.test(host)) throw errorConfig(`«${host}» no es un servidor válido (un solo host, sin usuario ni opciones).`)
-  return host
+/** Un miembro de la lista: `host`, `host:puerto`, `[v6]` o `[v6]:puerto`; sin puerto, `puerto` es null. */
+function miembroDe(texto) {
+  const v6 = /^\[([^\]]+)\](?::(\d+))?$/.exec(texto)
+  if (v6) return { host: v6[1], puerto: v6[2] === undefined ? null : Number(v6[2]) }
+  const m = /^([^:[\]]+)(?::(\d+))?$/.exec(texto)
+  if (m) return { host: m[1], puerto: m[2] === undefined ? null : Number(m[2]) }
+  // Una IPv6 desnuda (sin corchetes) es todo host: con `::` o con sus ocho grupos, y solo cifras y `:`.
+  const v6Desnuda = /^[0-9a-f:.]+$/i.test(texto) && (texto.includes('::') || texto.split(':').length === 8)
+  return v6Desnuda ? { host: texto, puerto: null } : null
+}
+
+/** ¿Vale `true` alguna de esas claves en las opciones? (`pares` ya decodificados). */
+function opcionVerdadera(pares, claves) {
+  return pares.some(([k, v]) => claves.includes(k.toLowerCase()) && /^true$/i.test(v.trim()))
+}
+
+/**
+ * Los servidores de la conexión, validados: uno o, sin `srv`, varios separados por comas (los miembros de
+ * un replica set sin DNS SRV), cada uno con su puerto o sin él.
+ */
+function servidoresDe(con, srv) {
+  const texto = typeof con.host === 'string' ? con.host.trim() : ''
+  if (!texto) throw errorConfig('La conexión no tiene servidor.')
+  const trozos = texto.split(',').map((t) => t.trim())
+  if (srv && trozos.length > 1) throw errorConfig('Con DNS SRV la conexión lleva un solo nombre de host.')
+  return trozos.map((t) => {
+    const m = t === '' || /[\s/?#@]/.test(t) ? null : miembroDe(t)
+    const malo = m === null || (m.puerto !== null && !(m.puerto > 0 && m.puerto < 65536))
+    if (malo) throw errorConfig(`«${t}» no es un servidor válido (host o host:puerto, sin usuario ni opciones).`)
+    if (srv && m.puerto !== null) throw errorConfig('Con DNS SRV el host no lleva puerto: lo dan los registros DNS.')
+    return m
+  })
 }
 
 // Sin `authSource`, el driver AUTENTICA en la base de la ruta (la del árbol), como mongosh: no se
 // fuerza `admin`, porque rompe al usuario creado en su propia base. El remedio es `authSource` en
 // las opciones de la URI, que el formulario enseña como «Base de autenticación».
-function uriDe(con, host, srv, pares) {
-  const hostUri = host.includes(':') && !host.startsWith('[') ? `[${host}]` : host
-  let uri = (srv ? 'mongodb+srv://' : 'mongodb://') + hostUri
-  if (!srv) {
-    const p = Number(con.port)
-    uri += ':' + (Number.isInteger(p) && p > 0 && p < 65536 ? p : 27017)
-  }
+function uriDe(con, servidores, srv, pares) {
+  const p = Number(con.port)
+  const puerto = Number.isInteger(p) && p > 0 && p < 65536 ? p : 27017
+  const hosts = servidores.map((s) => {
+    const host = s.host.includes(':') ? `[${s.host}]` : s.host
+    return srv ? host : `${host}:${s.puerto ?? puerto}`
+  })
+  let uri = (srv ? 'mongodb+srv://' : 'mongodb://') + hosts.join(',')
   uri += '/'
   const base = typeof con.database === 'string' ? con.database.trim() : ''
   if (base) uri += encodeURIComponent(base)
@@ -90,16 +118,24 @@ function opcionesDeCifrado(t, cas) {
 /** `{ uri, opciones }` del driver. `secreto` '' = sin contraseña; `uri` no lleva secreto ni usuario. */
 function opcionesCliente(conexion, secreto, o = {}) {
   const con = conexion || {}
-  const host = hostDe(con)
   const srv = con.srv === true
+  const servidores = servidoresDe(con, srv)
   const pares = paresDeOpciones(con.opcionesUri)
   const claves = new Set(pares.map(([k]) => k.toLowerCase()))
-  if (!srv && !claves.has('replicaset') && !claves.has('directconnection') && !claves.has('loadbalanced')) {
+  // Directa solo a un servidor suelto: con varios, el driver descubre la topología entre ellos, y las dos
+  // opciones que exigen uno solo se rechazan aquí con su motivo en vez de con el error del driver.
+  const suelto = servidores.length === 1
+  if (!suelto && opcionVerdadera(pares, ['directconnection', 'loadbalanced'])) {
+    throw errorConfig('Con varios servidores no valen directConnection=true ni loadBalanced=true: quítalas o deja un solo servidor.')
+  }
+  if (!srv && suelto && !claves.has('replicaset') && !claves.has('directconnection') && !claves.has('loadbalanced')) {
     pares.push(['directConnection', 'true'])
   }
-  const uri = uriDe(con, host, srv, pares)
+  const uri = uriDe(con, servidores, srv, pares)
   const t = tlsDe(con)
   const opciones = { tls: t.cifrar, ...opcionesDeTiempo(claves, o), ...opcionesDeCifrado(t, o.cas) }
+  // Por túnel SSH, el certificado se verifica contra el host real, no contra 127.0.0.1.
+  if (t.cifrar && !t.confiarCertificado) Object.assign(opciones, require('./tlsComun.cjs').identidadPorTunel(con))
   const usuario = typeof con.user === 'string' ? con.user : ''
   if (usuario) {
     opciones.auth = { username: usuario }
@@ -113,7 +149,7 @@ async function conectar(conexion, secreto, o = {}) {
   const { MongoClient } = cargarMongo()
   const t = tlsDe(conexion || {})
   // Las CA del sistema, con la misma función que SQL Server (sin cargar tedious: es perezoso).
-  const cas = t.cifrar && !t.confiarCertificado ? require('./sqlserverComun.cjs').certificadosDeConfianza() : null
+  const cas = t.cifrar && !t.confiarCertificado ? require('./tlsComun.cjs').certificadosDeConfianza() : null
   const { uri, opciones } = opcionesCliente(conexion, secreto, { ...o, cas })
   const cliente = new MongoClient(uri, opciones)
   try {

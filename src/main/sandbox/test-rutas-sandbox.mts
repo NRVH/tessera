@@ -8,7 +8,7 @@
 // =============================================================================
 
 import { plataformaActual } from '../../shared/plataforma.ts'
-import { aRutaDelDaemon, normalizarRutaResuelta, raicesSandbox } from './rutasSandbox.ts'
+import { RAICES_WINDOWS_HEREDADAS, aRutaDelDaemon, normalizarRutaResuelta, raicesSandbox } from './rutasSandbox.ts'
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -71,9 +71,19 @@ function main(): void {
   // -------------------------------------------------------------------------
   const win = raicesSandbox(BASE_MAC, 'windows')
   check(
-    '(2a) Windows: dentro de la VM, y la base del host se IGNORA',
-    win.proyectos === '/mnt/wsl/tessera-mm' && win.agentcfg === '/mnt/wsl/tessera-agentcfg',
+    '(2a) Windows: dentro de la VM, con la huella de la instancia y no su ruta',
+    /^\/mnt\/wsl\/tessera-[0-9a-f]{8}\/sandbox-mm$/.test(win.proyectos) &&
+      /^\/mnt\/wsl\/tessera-[0-9a-f]{8}\/sandbox-agentcfg$/.test(win.agentcfg),
     `${win.proyectos} | ${win.agentcfg}`
+  )
+  const winOtra = raicesSandbox('C:\\Users\\ana\\AppData\\Local\\Temp\\e2e\\datos', 'windows')
+  check(
+    '(2a2) Windows: otra instancia (el arnés de pruebas) tiene las suyas, y ninguna es la compartida de antes',
+    winOtra.proyectos !== win.proyectos &&
+      raicesSandbox(BASE_MAC, 'windows').proyectos === win.proyectos &&
+      win.proyectos !== RAICES_WINDOWS_HEREDADAS.proyectos &&
+      !win.proyectos.startsWith(`${RAICES_WINDOWS_HEREDADAS.proyectos}/`),
+    `${winOtra.proyectos} vs ${win.proyectos}`
   )
   const mac = raicesSandbox(BASE_MAC, 'mac')
   check(
@@ -86,6 +96,26 @@ function main(): void {
     !mac.proyectos.includes('/mnt/wsl') && !mac.agentcfg.includes('/mnt/wsl'),
     `${mac.proyectos} | ${mac.agentcfg}`
   )
+  const datosA = '/home/ana/.config/Tessera'
+  const lin = raicesSandbox(datosA, 'linux', '/run/user/1000/')
+  check(
+    '(2d) Linux: en el directorio de ejecución, NUNCA bajo userData (un rm -rf de la config entraría en los proyectos)',
+    lin.proyectos.startsWith('/run/user/1000/tessera-') && lin.agentcfg.startsWith('/run/user/1000/tessera-') && !lin.proyectos.startsWith(datosA),
+    `${lin.proyectos} | ${lin.agentcfg}`
+  )
+  const otraInstancia = raicesSandbox('/tmp/tessera-e2e-x/datos', 'linux', '/run/user/1000')
+  check(
+    '(2e) Linux: cada userData tiene la suya (dos instancias no se barren los montajes) y es estable',
+    otraInstancia.proyectos !== lin.proyectos && raicesSandbox(datosA, 'linux', '/run/user/1000').proyectos === lin.proyectos,
+    `${otraInstancia.proyectos} vs ${lin.proyectos}`
+  )
+  check(
+    '(2f) Linux: hermanas y ninguna es prefijo de la otra',
+    !lin.agentcfg.startsWith(lin.proyectos) && !lin.proyectos.startsWith(lin.agentcfg),
+    `${lin.proyectos} | ${lin.agentcfg}`
+  )
+  const sinRun = raicesSandbox(datosA, 'linux', '')
+  check('(2g) Linux sin directorio de ejecución: bajo userData, como en macOS', sinRun.proyectos.startsWith(datosA), sinRun.proyectos)
 
   // -------------------------------------------------------------------------
   hr('(3) Los dos árboles, SEPARADOS y sin prefijo común')

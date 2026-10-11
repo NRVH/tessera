@@ -69,6 +69,12 @@ const CTX_STYLES = `
   width: 14px;
   height: 14px;
 }
+/* Un icono de archivo (una imagen: el de los formatos de exportar): ocupa la columna entera, como en el
+   explorador; su dibujo ya trae su propio margen. */
+.ctx-menu-icono img {
+  width: 16px;
+  height: 16px;
+}
 .ctx-menu-item:hover:not(:disabled) .ctx-menu-icono,
 .ctx-menu-item:focus-visible:not(:disabled) .ctx-menu-icono,
 .ctx-menu-item.danger .ctx-menu-icono {

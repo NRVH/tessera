@@ -23,8 +23,11 @@ export function leerDelimitado(texto: string, i: number, fin: number, q: string)
   }
 }
 
-/** `E'…'`: la barra escapa el carácter siguiente; `''` también escapa. `i` apunta a la comilla. */
-export function leerCadenaE(texto: string, i: number, fin: number): Fin {
+/**
+ * `E'…'`: la barra escapa el carácter siguiente; la comilla doblada también escapa. `i` apunta a
+ * la comilla, que es `q` (`'` en PG; `'` o `"` en MySQL).
+ */
+export function leerCadenaE(texto: string, i: number, fin: number, q = "'"): Fin {
   let j = i + 1
   while (j < fin) {
     const c = texto[j]
@@ -32,8 +35,8 @@ export function leerCadenaE(texto: string, i: number, fin: number): Fin {
       j += 2
       continue
     }
-    if (c === "'") {
-      if (j + 1 < fin && texto[j + 1] === "'") {
+    if (c === q) {
+      if (j + 1 < fin && texto[j + 1] === q) {
         j += 2
         continue
       }
@@ -222,11 +225,54 @@ export function metacomandosConBarra(cliente: ReglasDialecto['comandosCliente'])
   switch (cliente) {
     case 'psql':
       return true
+    // Los `\G` y `\c` del cliente de MySQL no se escriben en un guion: la barra es un carácter más.
     case 'sqlplus':
     case 'sqlite3':
+    case 'mysql':
     case null:
       return false
     default:
       return nunca(cliente, 'metacomandosConBarra')
   }
+}
+
+/**
+ * ¿Tiene el cliente de línea del dialecto el comando `DELIMITER x`, que cambia el terminador de
+ * las sentencias que siguen? (el cliente de MySQL y los guiones que lo usan para los cuerpos de
+ * los procedimientos).
+ */
+export function conDelimitador(cliente: ReglasDialecto['comandosCliente']): boolean {
+  switch (cliente) {
+    case 'mysql':
+      return true
+    case 'psql':
+    case 'sqlplus':
+    case 'sqlite3':
+    case null:
+      return false
+    default:
+      return nunca(cliente, 'conDelimitador')
+  }
+}
+
+/**
+ * `DELIMITER x` al principio de una línea (`conDelimitador`): el final de la línea de cliente
+ * (sin los blancos de detrás), o -1 si en `i` no empieza una. La palabra tiene que ir seguida
+ * de un blanco de línea: `delimiter_x` es un nombre.
+ */
+export function finLineaDelimitador(texto: string, i: number, fin: number): number {
+  const p = 'DELIMITER'
+  if (i + p.length >= fin || texto.slice(i, i + p.length).toUpperCase() !== p) return -1
+  if (!esBlancoDeLinea(texto.charCodeAt(i + p.length))) return -1
+  let f = i + p.length
+  while (f < fin && !esSaltoDeLinea(texto.charCodeAt(f))) f++
+  while (f > i && esBlancoDeLinea(texto.charCodeAt(f - 1))) f--
+  return f
+}
+
+/** El terminador que fija una línea `DELIMITER x` (su primer trozo sin blancos), o '' si no trae ninguno. */
+export function terminadorDeDelimitador(linea: string): string {
+  const resto = linea.slice('DELIMITER'.length).trim()
+  const m = /^\S+/.exec(resto)
+  return m ? m[0] : ''
 }

@@ -1,6 +1,6 @@
 // =============================================================================
-// El borrado de lo de un perfil BORRADO: cerrar sus sesiones, parar su contenedor, su historial de
-// consultas, sus conexiones SSH y mandar a la papelera sus carpetas. Cada perfil con su candado
+// El borrado de lo de un perfil BORRADO, solo con su orden explícita: cerrar sus sesiones, parar su
+// contenedor, su historial de consultas, sus conexiones SSH y de bases de datos, y mandar a la papelera sus carpetas. Cada perfil con su candado
 // (`candadoDeBorrado.ts`) de principio a fin, y cada paso irreversible decidido contra la lista de
 // perfiles de ESE momento: entre medias pasan segundos y el usuario puede haber recreado el perfil con
 // el mismo id. Pura y sin Electron (todo llega inyectado), para probarla con `node` a secas
@@ -13,9 +13,8 @@ import type { CandadoDeBorrado } from './candadoDeBorrado.ts'
 
 /**
  * El dueño de una carpeta del perfil (`EspacioTerminal`, `EspacioDatos`): la manda a la papelera del
- * sistema, que lleva inyectada desde que nace, con los ids vivos de cada momento. No hay otra forma de
- * quitar las carpetas: el borrado se deduce de la lista guardada, y lo que se quite así tiene que poder
- * recuperarse.
+ * sistema, que lleva inyectada desde que nace, con los ids vivos de cada momento: lo que se quita así
+ * tiene que poder recuperarse.
  */
 export interface DuenoDeCarpeta {
   borrar: (profileId: string, idsVivos: () => readonly string[]) => Promise<ResultadoBorrado>
@@ -34,7 +33,7 @@ export interface DepsBorradoDePerfil {
   error: (mensaje: string, err?: unknown) => void
 }
 
-/** Lo que borra un perfil entero: sus sesiones, su contenedor, su historial, sus conexiones SSH y sus carpetas. */
+/** Lo que borra un perfil entero: sus sesiones, su contenedor, su historial, sus conexiones y sus carpetas. */
 export interface DepsBorradoCompleto<P extends { id: string }> extends DepsBorradoDePerfil {
   /** El candado por id que espera lo que recrea un perfil (su carpeta, su espacio de datos, sus sesiones). */
   candado: Pick<CandadoDeBorrado, 'mientrasSeBorra'>
@@ -43,6 +42,8 @@ export interface DepsBorradoCompleto<P extends { id: string }> extends DepsBorra
   borrarHistorial: (profileId: string) => Promise<unknown>
   /** Sus conexiones SSH y lo que cuelga de ellas (huellas, claves): se borran EN FIRME, sin papelera. */
   borrarConexionesSsh: (profileId: string) => void
+  /** Sus conexiones de bases de datos, con sus contraseñas guardadas: también en firme. */
+  borrarConexionesBd: (profileId: string) => void
 }
 
 /**
@@ -99,7 +100,8 @@ async function mandarCarpetasAPapelera(deps: DepsBorradoDePerfil, profileId: str
 }
 
 /**
- * Lo de un perfil, en orden: sus sesiones, su contenedor, su historial, sus conexiones SSH y sus carpetas.
+ * Lo de un perfil, en orden: sus sesiones, su contenedor, su historial, sus conexiones SSH y de bases de
+ * datos, y sus carpetas.
  * Justo antes de cada paso se mira si sigue borrado, sin nada que esperar entre esa comprobación y el paso: parar
  * el contenedor de un perfil recreado mataría sus agentes, y sus conexiones SSH se borran en firme.
  */
@@ -127,11 +129,17 @@ async function borrarPerfil<P extends { id: string }>(deps: DepsBorradoCompleto<
   } catch (err) {
     deps.error(`[tessera] no se pudieron borrar las conexiones SSH del perfil eliminado ${id}:`, err)
   }
+  if (!sigueBorrado(deps, id, 'sus conexiones de bases de datos ni nada suyo')) return
+  try {
+    deps.borrarConexionesBd(id)
+  } catch (err) {
+    deps.error(`[tessera] no se pudieron borrar las conexiones de bases de datos del perfil eliminado ${id}:`, err)
+  }
   await mandarCarpetasAPapelera(deps, id)
 }
 
 /**
- * Borra lo de los perfiles que un guardado quitó, uno detrás de otro. Los candados de TODOS se toman
+ * Borra lo de los perfiles que el usuario borró (o que quedaron a medio borrar al cerrar), uno detrás de otro. Los candados de TODOS se toman
  * al llamar, antes de esperar nada: si no, lo que recrease el segundo mientras se borra el primero no
  * tendría a qué esperar.
  */

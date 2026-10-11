@@ -16,7 +16,7 @@ export const MONGODB: DescriptorMotor<'mongodb'> = definirMotor({
   conexion: {
     puertoPorDefecto: 27017,
     obligatorios: ['alias', 'host', 'port'],
-    opcionales: ['user', 'database', 'tls', 'srv', 'opcionesUri'],
+    opcionales: ['user', 'database', 'tls', 'srv', 'opcionesUri', 'tunelSsh'],
     tlsPorDefecto: { cifrar: false, confiarCertificado: false },
     excluyentes: [],
     faltaDestino: {},

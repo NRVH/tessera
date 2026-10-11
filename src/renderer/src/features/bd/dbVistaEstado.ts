@@ -15,6 +15,7 @@ import {
   filtrarPestanas,
   moverPestana,
   paneKeyDb,
+  reemplazarPestana,
   type DbPane,
   type DbTab,
   type DbTabsState
@@ -97,6 +98,11 @@ function conPestanas(v: DbVistaPerfil, pestanas: DbTabsState): DbVistaPerfil {
 
 export function abrirEnVista(v: DbVistaPerfil, pane: DbPane): DbVistaPerfil {
   return conPestanas(v, abrirPestana(v.pestanas, pane))
+}
+
+/** La pestaña `id` pasa a enseñar `pane` en su sitio (ver `reemplazarPestana`). */
+export function reemplazarEnVista(v: DbVistaPerfil, id: string, pane: DbPane): DbVistaPerfil {
+  return conPestanas(v, reemplazarPestana(v.pestanas, id, pane))
 }
 
 export function activarEnVista(v: DbVistaPerfil, id: string): DbVistaPerfil {

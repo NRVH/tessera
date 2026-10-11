@@ -22,7 +22,8 @@ const TIPOS_OBJETO: Partial<Record<DbTipoObjeto, readonly string[]>> = {
   vista: ['V'],
   rutina: ['P', 'PC', 'FN', 'IF', 'TF', 'FS', 'FT'],
   sinonimo: ['SN'],
-  secuencia: ['SO']
+  secuencia: ['SO'],
+  disparador: ['TR']
 }
 
 /** `sys.objects.type` → carpeta (lo leen los conteos, el autocompletado y el tipo de un sinónimo). */
@@ -38,6 +39,7 @@ export const CARPETA_DE_TIPO: Record<string, DbTipoObjeto> = {
   FT: 'rutina',
   SN: 'sinonimo',
   SO: 'secuencia',
+  TR: 'disparador',
   TY: 'tipo'
 }
 
@@ -47,6 +49,8 @@ function listaTipos(tipos: readonly string[]): string {
 }
 
 const TIPOS_CONTADOS = listaTipos(Object.keys(CARPETA_DE_TIPO).filter((t) => t !== 'TY'))
+/** Los nombres que se escriben en una sentencia: un disparador nunca se nombra en ella. */
+const TIPOS_NOMBRABLES = listaTipos(Object.keys(CARPETA_DE_TIPO).filter((t) => t !== 'TY' && t !== 'TR'))
 
 /** El JOIN de un objeto con su esquema, filtrado por los dos binds (`@p1` esquema, `@p2` nombre). */
 function objetoPorNombre(b: string, alias = 'o'): string[] {
@@ -104,7 +108,8 @@ export function sqlConteos(d: DialectoCatalogo, esquema: string): ConsultaCatalo
       'SELECT x.tipo, COUNT(*) FROM (',
       `  SELECT CASE RTRIM(o.type) ${casos} END AS tipo`,
       `    FROM ${b}sys.objects o JOIN ${b}sys.schemas s ON s.schema_id = o.schema_id`,
-      `   WHERE s.name = @p1 AND o.type IN (${TIPOS_CONTADOS})`,
+      // Un disparador de DDL no cuelga de una tabla (parent_object_id = 0): no es de esta carpeta.
+      `   WHERE s.name = @p1 AND o.type IN (${TIPOS_CONTADOS}) AND (o.type <> 'TR' OR o.parent_object_id <> 0)`,
       "  UNION ALL SELECT 'tipo'",
       `    FROM ${b}sys.types t JOIN ${b}sys.schemas s ON s.schema_id = t.schema_id`,
       '   WHERE s.name = @p1 AND t.is_user_defined = 1',
@@ -118,6 +123,20 @@ export function sqlConteos(d: DialectoCatalogo, esquema: string): ConsultaCatalo
 export function sqlObjetos(d: DialectoCatalogo, esquema: string, tipo: DbTipoObjeto): ConsultaCatalogo {
   const b = prefijoBase(d.base)
   const tipos = TIPOS_OBJETO[tipo]
+  if (tipo === 'disparador') {
+    return ss(
+      [
+        "SELECT o.name, CASE WHEN tr.is_disabled = 1 THEN 'DISABLED' ELSE 'ENABLED' END, NULL, NULL, NULL, po.name",
+        `  FROM ${b}sys.objects o`,
+        ...objetoPorNombre(b),
+        `  JOIN ${b}sys.triggers tr ON tr.object_id = o.object_id`,
+        `  JOIN ${b}sys.objects po ON po.object_id = o.parent_object_id`,
+        ` WHERE s.name = @p1 AND o.type = 'TR'`,
+        ' ORDER BY o.name'
+      ],
+      [esquema]
+    )
+  }
   if (tipos) {
     const subtipo =
       tipo === 'rutina' ? "CASE WHEN RTRIM(o.type) IN ('P', 'PC') THEN 'PROCEDURE' ELSE 'FUNCTION' END" : 'RTRIM(o.type)'
@@ -289,7 +308,7 @@ export function sqlFks(d: DialectoCatalogo, esquema: string, objeto: string): Co
 /** Filas: `[definicion, tipo]` de `sys.sql_modules` (definición NULL = cifrada o sin permiso). */
 export function sqlFuente(d: DialectoCatalogo, ref: DbRefObjeto): ConsultaCatalogo {
   const tipos = TIPOS_OBJETO[ref.tipo]
-  if (ref.tipo !== 'vista' && ref.tipo !== 'rutina') return noDisponible(d.motor, `fuente de ${ref.tipo}`)
+  if (ref.tipo !== 'vista' && ref.tipo !== 'rutina' && ref.tipo !== 'disparador') return noDisponible(d.motor, `fuente de ${ref.tipo}`)
   const b = prefijoBase(d.base ?? ref.base)
   return ss(
     [
@@ -351,7 +370,7 @@ export function sqlNombres(d: DialectoCatalogo, esquemas: readonly string[]): Co
         [
           'SELECT s.name, o.name, RTRIM(o.type)',
           `  FROM ${b}sys.objects o JOIN ${b}sys.schemas s ON s.schema_id = o.schema_id`,
-          ` WHERE s.name IN (${marcas}) AND o.type IN (${TIPOS_CONTADOS})`
+          ` WHERE s.name IN (${marcas}) AND o.type IN (${TIPOS_NOMBRABLES})`
         ],
         tanda.slice()
       )

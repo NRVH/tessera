@@ -17,11 +17,13 @@ import { dialectoDeMotor, type DialectoSql } from '../../../../shared/sql/dialec
 import {
   type BindsTrabajador,
   esFalloTrabajador,
+  type ErrorTrabajador,
   type OpcionesEjecucion,
   type ResultadoFilasTrabajador,
   type ResultadoTrabajador
 } from '../protocoloTrabajador.ts'
 import {
+  campoDeColumnaInexistente,
   campoDeErrorEnLinea,
   campoDeErrorEnPuntosDeCodigo,
   construirConsultaTabla,
@@ -209,13 +211,37 @@ export class TablaSesion {
         `o «Leer sin esperar», que enseña también lo que aún no se ha confirmado. (${et.mensaje})`
       return { tipo: 'error', error, tiempos }
     }
-    if (typeof et.offsetCp === 'number') {
-      ubicarError(error, campoDeErrorEnPuntosDeCodigo(consulta, et.offsetCp))
-    } else if (typeof et.linea === 'number') {
-      // SQL Server: solo la LÍNEA; cada fragmento del usuario (y cada condición del filtro
-      // guiado) empieza en su propia línea.
-      ubicarError(error, campoDeErrorEnLinea(consulta, et.linea))
-    }
+    ubicarErrorDeTabla(error, et, consulta, motor)
     return { tipo: 'error', error, tiempos }
   }
+}
+
+/** Sitúa el error en el fragmento del usuario que lo causó, con lo que el servidor diga de dónde. */
+function ubicarErrorDeTabla(error: DbErrorSql, et: ErrorTrabajador, consulta: ConsultaRejilla, motor: string | undefined): void {
+  // Una columna que no existe se ubica por su NOMBRE: SQL Server da la línea donde empieza la sentencia,
+  // y en SQLite la posición que se deduce puede caer en otro fragmento.
+  const nombre = columnaInexistenteDe(et, motor)
+  const porNombre = nombre ? campoDeColumnaInexistente(consulta, nombre) : null
+  if (porNombre) {
+    ubicarError(error, porNombre)
+  } else if (typeof et.offsetCp === 'number') {
+    ubicarError(error, campoDeErrorEnPuntosDeCodigo(consulta, et.offsetCp))
+  } else if (typeof et.linea === 'number') {
+    // SQL Server: solo la LÍNEA; cada fragmento del usuario (y cada condición del filtro
+    // guiado) empieza en su propia línea.
+    ubicarError(error, campoDeErrorEnLinea(consulta, et.linea))
+  }
+}
+
+/** El nombre de la columna que no existe según el error del servidor, o null si el error es otro. */
+function columnaInexistenteDe(et: ErrorTrabajador, motor: string | undefined): string | null {
+  // SQL Server, 207: «Invalid column name 'X'.» (el nombre, entre comillas simples, en todos los idiomas).
+  if (motor === 'sqlserver' && et.codigo === '207') return /'([^']+)'/.exec(et.mensaje)?.[1] ?? null // motor-fijo: el 207 y su texto son de SQL Server
+  if (motor !== 'sqlite') return null // motor-fijo: «no such column» es el texto de SQLite; los demás motores no lo necesitan
+  // SQLite: «no such column: X», o «main.t.X» si la columna va calificada (lo que Tessera hace siempre).
+  const sqlite = /no such column: (.+)$/.exec(et.mensaje)?.[1]
+  if (!sqlite) return null
+  const partes = sqlite.split('.')
+  // Calificada, la columna es lo que sigue a esquema y tabla (y puede llevar puntos).
+  return partes.length >= 3 ? partes.slice(2).join('.') : (partes.pop() ?? null)
 }

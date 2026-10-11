@@ -22,7 +22,7 @@ import { basenameSuelto } from '../../conversations/slugProyecto'
 import { dbLog } from '../../db/dbLog'
 import { decidirHibernacion, type DecisionHibernacion, type SesionMedida } from '../politicaHibernacion'
 import { soltarSesion } from './cierre'
-import { alinearChatConAncla } from './turnos'
+import { alinearChatConAncla, sinChatDesde } from './turnos'
 import { errMsg, type NucleoAgente, type OpenAgentSession } from './tipos'
 
 /** Las medidas de un proceso recién lanzado: sin E/S previa ni tareas heredadas. */
@@ -122,9 +122,15 @@ export function hibernarInactivos(n: NucleoAgente, req: AgentHibernarInactivosRe
       const open = n.sessions.get(id)
       if (!open) continue
       alinearChatConAncla(n, open)
+      const desde = sinChatDesde(n, open)
       soltarSesion(n, id)
       matarEnSegundoPlano(n, id)
-      sesiones.push({ sessionId: id, agente: open.agente, resumeSessionId: open.resumeSessionId })
+      sesiones.push({
+        sessionId: id,
+        agente: open.agente,
+        resumeSessionId: open.resumeSessionId,
+        ...(desde !== undefined ? { nuevaSiNadaDesde: desde } : {})
+      })
     }
     hibernados.push({ profileId: p.profileId, projectHostPath: p.projectHostPath, sesiones })
   }

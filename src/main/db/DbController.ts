@@ -42,6 +42,15 @@ import { DockerBridge, type PuertaBuzon } from './dockerBridge'
 import type { CtxDrivers } from './explorador/protocoloTrabajador'
 import { avisosDeDescartados, construirEntornoHost, registroParaDescartes } from './hostEnv'
 import { SHIM_DIR } from './shims'
+import { GestorTuneles, type DestinoTunel, type LineaTunel } from './tuneles/GestorTuneles'
+import { escucha, lanzarTunel, puertoLibre } from './tuneles/sistemaTuneles'
+
+/** Lo que los túneles de las bases piden al módulo SSH (lo cumple `ControladorSsh`). */
+export interface SshParaTuneles {
+  prepararTunelBd(profileId: string, conexionId: string, destino: { host: string; puerto: number }, puertoLocal: number): LineaTunel
+  aliasDe(conexionId: string): string | null
+  existeEnPerfil(profileId: string, id: string): boolean
+}
 
 export { mensajeFalloTdb } from './controlador/invocacionTdb'
 export type { DialogosBd } from './controlador/motoresDeArchivo'
@@ -102,6 +111,9 @@ export class DbController {
   private readonly espacio: EspacioDatos
   private readonly archivos: MotoresDeArchivo
   private readonly edicion: EdicionRegistro
+  /** El módulo SSH, que nace después (necesita el puente): sin él no se abre ningún túnel. */
+  private ssh: SshParaTuneles | null = null
+  private readonly tuneles: GestorTuneles
 
   constructor(opts: DbControllerOptions) {
     this.connections = opts.connections
@@ -140,9 +152,26 @@ export class DbController {
       onChanged: (profileId) => this.onChanged(profileId),
       avisarCambio: () => this.sendChanged()
     })
+    this.tuneles = new GestorTuneles({
+      preparar: (profileId, sshId, destino, puertoLocal) => {
+        if (this.ssh === null) throw new Error('Tessera aún no puede abrir túneles SSH.')
+        return this.ssh.prepararTunelBd(profileId, sshId, destino, puertoLocal)
+      },
+      aliasSsh: (id) => this.ssh?.aliasDe(id) ?? null,
+      lanzar: lanzarTunel,
+      puertoLibre,
+      escucha,
+      esperar: (ms) => new Promise((r) => setTimeout(r, ms)),
+      ahora: () => Date.now(),
+      log: (m) => dbLog('tuneles', m)
+    })
     this.puente = new DbBridge({
       conexionesDelPerfil: (id) => this.connections.list(id),
       secretoDe: (id) => this.connections.secretOf(id),
+      tunelDe: (c) => {
+        const con = this.connections.get(c.id)
+        return con ? this.tunelDe(con) : null
+      },
       log: (m) => dbLog('puente', m)
     })
     this.puente.start()
@@ -175,6 +204,28 @@ export class DbController {
       onConexionOlvidadaEnPerfil: (id, profileId) => explorador.alOlvidarConexionEnPerfil(id, profileId)
     }
     this.antesDeCambiarDriver = (packId) => explorador.antesDeCambiarDriver(packId)
+  }
+
+  /** Engancha el módulo SSH, que nace después: desde aquí se validan y se abren los túneles de las bases. */
+  conectarSsh(ssh: SshParaTuneles): void {
+    this.ssh = ssh
+    this.connections.conocerConexionesSsh((profileId, id) => ssh.existeEnPerfil(profileId, id))
+  }
+
+  /**
+   * El extremo local del túnel SSH de una conexión, abriéndolo si hace falta; `null` si no lleva túnel.
+   * Lo piden `tdb` (por el puente) y el explorador antes de abrir una sesión.
+   */
+  tunelDe(con: DbConnection): Promise<DestinoTunel> | null {
+    return this.tuneles.destino(con)
+  }
+
+  /**
+   * Una conexión SSH cambió, se borró u olvidó su huella (puede ser el bastión de cualquiera): cada túnel
+   * se reabre con los datos nuevos en su siguiente uso, sin cortar lo que ya va por el de antes.
+   */
+  alCambiarConexionSsh(): void {
+    this.tuneles.marcarViejos()
   }
 
   // --- Puente ----------------------------------------------------------------
@@ -258,6 +309,8 @@ export class DbController {
   pararPuente(): void {
     void this.puente.pausar()
     this.puenteDocker.stop()
+    // Si el cierre se aborta, cada túnel se vuelve a abrir al usarse.
+    this.tuneles.cerrarTodos()
   }
 
   /**
@@ -393,6 +446,13 @@ export class DbController {
     return conBases ?? (this.puente.listo ? AVISO_SIN_BASES : null)
   }
 
+  /** El usuario borró el perfil (`profiles/borradoDePerfil.ts`): fuera sus conexiones, ajenas incluidas. */
+  alBorrarPerfil(profileId: string): void {
+    for (const c of this.connections.list(profileId)) this.tuneles.cerrar(c.id)
+    this.connections.alBorrarPerfil(profileId)
+    this.sendChanged()
+  }
+
   // --- Lo que atiende `ipc.ts` -------------------------------------------------
 
   /** Conexiones conocidas de un perfil. */
@@ -412,12 +472,16 @@ export class DbController {
 
   /** Edición de una conexión: se bloquea antes de tocar el registro si hay una transacción pendiente. */
   editarConexion(req: { id: string; input: DbConnectionInput }): DbConnection {
+    // El túnel no se cierra aquí: si cambió su destino, la siguiente petición abre otro y el de antes sigue
+    // sirviendo a lo que ya iba por él (la casilla de los agentes se edita con una transacción pendiente).
     return this.edicion.actualizar(DB_CHANNELS.UPDATE, req)
   }
 
   /** Borra la entrada pedida y avisa al explorador de lo que cuelga de su id. */
   borrarConexion(req: DbBorrarConexion): DbConexionBorrada {
-    return this.edicion.borrar(DB_CHANNELS.DELETE, req)
+    const borrada = this.edicion.borrar(DB_CHANNELS.DELETE, req)
+    this.tuneles.cerrar(req.id)
+    return borrada
   }
 
   /** Reordena las conexiones de un perfil. */

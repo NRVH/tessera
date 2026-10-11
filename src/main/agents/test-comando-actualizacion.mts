@@ -3,7 +3,8 @@
 // Prueba de comandoActualizacion (npm run test:comando-actualizacion), para las dos
 // plataformas desde cualquiera: detección del método de Codex y de Claude, la tabla
 // método × plataforma con su entrecomillado, versiones hostiles, que Windows nunca
-// devuelva `codex update`, el binario publicado y la clasificación de los errores.
+// devuelva `codex update`, el binario publicado y servido, la orden que repara un CLI
+// que no responde y la clasificación de los errores.
 // Decisiones: docs/decisiones/agentes/nativos-orden-por-metodo.md
 // =============================================================================
 
@@ -12,7 +13,11 @@ import {
   clasificarErrorInstalacion,
   detectarMetodoClaude,
   detectarMetodoCodex,
+  documentoVersionServido,
+  esReparable,
   ordenActualizacion,
+  ordenReparacion,
+  versionBinarioCodex,
   type OrdenActualizacion
 } from './comandoActualizacion.ts'
 import type { MetodoInstalacion } from '../../shared/agentes-nativos-ipc.ts'
@@ -601,6 +606,58 @@ hr('(7) clasificarErrorInstalacion')
     const r = clasificarErrorInstalacion({ salida: '', codigo: 1, tope: false, plataforma: 'windows', bloqueadores: [] })
     check('(7k) sin agente ni salida: frase completa, sin orden manual', r.motivo === 'fallo' && r.detalle.includes('el agente') && r.ordenManual === undefined, JSON.stringify(r))
   }
+}
+
+// ---------------------------------------------------------------------------
+hr('(8) el binario de la plataforma, servido de verdad')
+{
+  check('(8a) Windows x64 → 0.161.0-win32-x64', versionBinarioCodex('0.161.0', 'windows', 'x64') === '0.161.0-win32-x64', versionBinarioCodex('0.161.0', 'windows', 'x64'))
+  check('(8b) Mac arm64 → 0.161.0-darwin-arm64', versionBinarioCodex('0.161.0', 'mac', 'arm64') === '0.161.0-darwin-arm64', versionBinarioCodex('0.161.0', 'mac', 'arm64'))
+  const doc = (o: unknown): string => JSON.stringify(o)
+  const bueno = { version: '0.161.0-win32-x64', dist: { tarball: 'https://registry.npmjs.org/@openai/codex/-/codex-0.161.0-win32-x64.tgz' } }
+  check('(8c) documento con su versión y su tarball → servido', documentoVersionServido(doc(bueno), '0.161.0-win32-x64'), doc(bueno))
+  const malos: Array<[string, string]> = [
+    ['(8d) otra versión (la del paquete principal)', doc({ ...bueno, version: '0.161.0' })],
+    ['(8e) sin `dist`', doc({ version: '0.161.0-win32-x64' })],
+    ['(8f) `dist` sin tarball', doc({ version: '0.161.0-win32-x64', dist: {} })],
+    ['(8g) tarball que no es una URL http(s)', doc({ version: '0.161.0-win32-x64', dist: { tarball: 'file:///x.tgz' } })],
+    ['(8h) el cuerpo de un 404 (`"Not Found"`)', '"Not Found"'],
+    ['(8i) HTML de un proxy', '<html>proxy</html>'],
+    ['(8j) un array', '[]']
+  ]
+  for (const [nombre, texto] of malos) check(`${nombre} → NO servido`, !documentoVersionServido(texto, '0.161.0-win32-x64'), texto)
+}
+
+// ---------------------------------------------------------------------------
+hr('(9) ordenReparacion: reinstalar un CLI que no responde, sin ejecutarlo')
+{
+  for (const plataforma of ['windows', 'mac'] as const) {
+    for (const metodo of ['npm', 'pnpm', 'bun'] as const) {
+      const o = ordenReparacion({ agente: 'codex', metodo, plataforma, version: '0.161.0' })
+      const esperada = { npm: 'npm install -g', pnpm: 'pnpm add -g', bun: 'bun add -g' }[metodo]
+      check(
+        `(9a·${plataforma}·${metodo}) Codex: la orden del gestor (nunca \`codex update\`), parando solo en Windows`,
+        o.tipo === 'auto' && o.orden.startsWith(esperada) && o.orden.includes('@openai/codex@0.161.0') && o.requiereParar === (plataforma === 'windows'),
+        txt(o)
+      )
+    }
+    for (const metodo of ['vite-plus', 'nativo', 'brew', 'gestor', 'desconocido'] as const) {
+      const o = ordenReparacion({ agente: 'codex', metodo, plataforma, version: '0.161.0' })
+      check(`(9b·${plataforma}·${metodo}) Codex sin gestor reparable → manual`, o.tipo === 'manual' && o.orden === null, txt(o))
+    }
+    const claudeNpm = ordenReparacion({ agente: 'claude-code', metodo: 'npm', plataforma, version: '2.1.290' })
+    check(`(9c·${plataforma}) Claude por npm (sin CLI puede ser que no esté) → manual, sin orden`, claudeNpm.tipo === 'manual' && claudeNpm.orden === null, txt(claudeNpm))
+    const claudeNativo = ordenReparacion({ agente: 'claude-code', metodo: 'nativo', plataforma, version: '2.1.290' })
+    check(`(9d·${plataforma}) Claude nativo (\`claude update\` necesita el binario) → manual`, claudeNativo.tipo === 'manual', txt(claudeNativo))
+    const hostil = ordenReparacion({ agente: 'codex', metodo: 'npm', plataforma, version: "0.161.0'; rm -rf ~ #" })
+    check(`(9e·${plataforma}) versión hostil → ninguna orden`, hostil.tipo === 'manual' && hostil.orden === null, txt(hostil))
+  }
+  check(
+    '(9f) esReparable: Codex por npm/pnpm/bun, Claude nunca',
+    esReparable('codex', 'npm') && esReparable('codex', 'pnpm') && esReparable('codex', 'bun') && !esReparable('codex', 'brew') &&
+      !esReparable('claude-code', 'npm') && !esReparable('claude-code', 'nativo') && !esReparable('claude-code', 'pnpm'),
+    'tabla'
+  )
 }
 
 hr(`VEREDICTO: ${pasadas}/${total} PASS`)

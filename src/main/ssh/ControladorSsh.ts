@@ -1,16 +1,17 @@
 // =============================================================================
 // Controlador de las conexiones SSH: atiende los canales de `ssh-ipc.ts` sobre `ConexionesSsh`, las claves
-// importadas y «Probar», avisa al renderer con `ssh:cambio` tras cada cambio (también de huellas) y
+// importadas, importar y exportar con OpenSSH y «Probar», avisa al renderer con `ssh:cambio` tras cada cambio (también de huellas) y
 // responde el entorno del cliente SSH. Para la terminal es el `LanzadorSshTerminal`: prepara la línea de
-// ssh de una conexión (con el programa de contraseñas si guarda un secreto) y clasifica su salida.
+// ssh de una conexión (con el programa de contraseñas si guarda un secreto, el salto por sus bastiones y sus
+// túneles) y clasifica su salida.
 // Sin `electron`: lo recibe todo por parámetro.
 // Decisiones: docs/decisiones/ssh/registro-y-claves.md, docs/decisiones/ssh/motor-linea-y-huellas.md,
 // docs/decisiones/ssh/claves-importadas.md, docs/decisiones/ssh/askpass-y-secretos.md
 // =============================================================================
 import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { readFile, stat } from 'node:fs/promises'
-import { homedir, userInfo } from 'node:os'
+import { readFile } from 'node:fs/promises'
+import { homedir } from 'node:os'
 import { basename } from 'node:path'
 import { plataformaActual, type Plataforma } from '../../shared/plataforma.ts'
 import {
@@ -18,16 +19,23 @@ import {
   pideSecretoSsh,
   type SshAviso,
   type SshBorrarConexion,
+  type SshBorrarConexiones,
   type SshBorrarGrupo,
   type SshClaveElegida,
   type SshClaveSoltada,
   type SshConexion,
   type SshConexionBorrada,
+  type SshConexionesBorradas,
+  type SshConexionesMovidas,
+  type SshMoverConexiones,
   type SshConexionInput,
   type SshCrearGrupo,
+  type SshDuplicarConexion,
   type SshEditarConexion,
   type SshElegirClave,
   type SshEntorno,
+  type SshExportacionOpenSsh,
+  type SshExportarOpenSsh,
   type SshGrupo,
   type SshGrupoBorrado,
   type SshImportarOpenSsh,
@@ -48,15 +56,18 @@ import { clasificarSalidaSsh } from './clasificacionSalida.ts'
 import { analizarConfigOpenSsh, candidatasOpenSsh } from './configOpenSsh.ts'
 import type { ConexionesSsh } from './ConexionesSsh.ts'
 import type { ConexionSshPersistida } from './conservarAlEditarSsh.ts'
-import { SIN_SECRETO, type AskpassSsh } from './controlador/askpassSsh.ts'
+import { SIN_SECRETO, type AskpassSsh, type EntornoSecreto } from './controlador/askpassSsh.ts'
 import { ErrorClave, type ClavesImportadas, type InstalacionClave } from './controlador/clavesImportadas.ts'
+import { exportarOpenSsh, leerConfigOpenSsh, usuarioLocal, type DepsExportacionOpenSsh } from './controlador/archivosOpenSsh.ts'
+import { citaDe, proxyDeSaltos, type DepsLineaSaltos } from './controlador/lineaSaltos.ts'
 import { TOPE_PRUEBA_MS, resultadoPrueba, type EjecutarSsh } from './controlador/pruebaSsh.ts'
-import { FICHA_PESTANA, FICHA_PRUEBA } from './fichasAskpass.ts'
+import { FICHA_PESTANA, FICHA_PRUEBA, FICHA_TUNEL } from './fichasAskpass.ts'
 import { huellasDeKnownHosts } from './huellasSsh.ts'
 import { MENSAJE_SIN_COPIA_CLAVE, argumentosSsh } from './lineaSsh.ts'
 import { QUITAR_ENV_SSH } from './programaAskpass.ts'
 import { mensajeDeFalloSsh } from './registroSsh.ts'
-import { errorHost, errorPuerto, errorUsuario } from './validacionSsh.ts'
+import { cadenaDeSaltos, type CitaProxy } from './saltosSsh.ts'
+import { errorHost, errorPuerto, errorTuneles, errorUsuario } from './validacionSsh.ts'
 import type { LineaSftp } from './sftp/SesionesSftp.ts'
 
 /** Lo que recibe el controlador. */
@@ -75,8 +86,12 @@ export interface OpcionesControladorSsh {
   existe?: (ruta: string) => boolean
   /** El diálogo nativo del archivo `config` de OpenSSH: su ruta, o `null` si se cancela. Sin él no se importa. */
   elegirConfigOpenSsh?: () => Promise<string | null>
+  /** «Exportar a OpenSSH…»: el diálogo de guardar y los permisos de las copias. Sin ellos no se exporta. */
+  exportarOpenSsh?: Pick<DepsExportacionOpenSsh, 'elegirDestino' | 'permisos'>
   /** El home del usuario, para los `IdentityFile` de OpenSSH (se sustituye en las pruebas). */
   home?: string
+  /** Dónde se escribe la configuración de los saltos (`adaptadores/configSaltos.ts`); sin ella no se salta por un bastión. */
+  configSaltos?: DepsLineaSaltos['config']
   plataforma?: Plataforma
   ahora?: () => number
   log?: (mensaje: string) => void
@@ -87,33 +102,14 @@ function fichaDe(input: SshConexionInput): string | null {
   return input.metodo === 'clave' && input.clave !== undefined ? input.clave.token : null
 }
 
-/** Tope del archivo `config` de OpenSSH: uno de verdad no pasa de unos KiB. */
-const TOPE_CONFIG_OPENSSH_BYTES = 1024 * 1024
-
-/** Lee el archivo elegido; un error sin rutas del host si no se puede o es demasiado grande para ser un `config`. */
-async function leerConfigOpenSsh(ruta: string): Promise<string> {
-  try {
-    if ((await stat(ruta)).size > TOPE_CONFIG_OPENSSH_BYTES) throw new Error('grande')
-    return await readFile(ruta, 'utf8')
-  } catch (e) {
-    throw new Error('No se pudo leer ese archivo como configuración de OpenSSH.', { cause: e })
-  }
-}
-
-/** El usuario local, para `%u` en un `IdentityFile`; vacío si el sistema no lo dice. */
-function usuarioLocal(): string {
-  try {
-    return userInfo().username
-  } catch {
-    return ''
-  }
-}
-
-/** Una conexión lista para lanzar ssh: sus datos comprobados, la copia de su clave y el cliente SSH. */
+/** Una conexión lista para lanzar ssh: sus datos comprobados, la copia de su clave, sus bastiones y el cliente SSH. */
 interface DestinoSsh {
   c: ConexionSshPersistida
   rutaClave: string | undefined
   ssh: EjecutableSsh
+  /** Sus bastiones, del más cercano al más lejano. */
+  cadena: ConexionSshPersistida[]
+  cita: CitaProxy
 }
 
 /** Las conexiones SSH de los perfiles, para el renderer y para la terminal. */
@@ -126,10 +122,13 @@ export class ControladorSsh implements LanzadorSshTerminal {
   private readonly binarios: () => BinariosSsh
   private readonly existe: (ruta: string) => boolean
   private readonly elegirConfigOpenSsh: (() => Promise<string | null>) | null
+  private readonly exportacion: Pick<DepsExportacionOpenSsh, 'elegirDestino' | 'permisos'> | null
   private readonly home: string
+  private readonly configSaltos: DepsLineaSaltos['config'] | null
   private readonly plataforma: Plataforma
   private readonly ahora: () => number
   private readonly log: (mensaje: string) => void
+  private readonly oyentesCambio: Array<() => void> = []
 
   constructor(opts: OpcionesControladorSsh) {
     this.conexiones = opts.conexiones
@@ -141,7 +140,9 @@ export class ControladorSsh implements LanzadorSshTerminal {
     this.binarios = opts.binarios ?? (() => resolverBinariosSsh({ plataforma: this.plataforma }))
     this.existe = opts.existe ?? existsSync
     this.elegirConfigOpenSsh = opts.elegirConfigOpenSsh ?? null
+    this.exportacion = opts.exportarOpenSsh ?? null
     this.home = opts.home ?? homedir()
+    this.configSaltos = opts.configSaltos ?? null
     this.ahora = opts.ahora ?? Date.now
     this.log = opts.log ?? ((m) => console.log(`[ssh] ${m}`))
   }
@@ -227,6 +228,23 @@ export class ControladorSsh implements LanzadorSshTerminal {
     return { archivo: basename(ruta), candidatas, conPatrones: config.patrones, include: config.include }
   }
 
+  /**
+   * «Exportar a OpenSSH…»: escribe un `config` con las conexiones del perfil (`ids`, o todas) y sus bastiones, y
+   * las copias de sus claves en una carpeta junto a él (ver `controlador/archivosOpenSsh.ts`). `null` si se cancela.
+   */
+  async exportarOpenSsh(req: SshExportarOpenSsh): Promise<SshExportacionOpenSsh | null> {
+    if (this.exportacion === null) throw new Error('Esta ventana de Tessera no puede exportar conexiones a OpenSSH.')
+    const l = this.conexiones.listar(req.profileId)
+    if (l.formatoAjeno) throw new Error(l.aviso)
+    return exportarOpenSsh(l, req.ids, {
+      ...this.exportacion,
+      leerClave: (id) => readFile(this.rutaClaveDe(id, true), 'utf8'),
+      home: this.home,
+      plataforma: this.plataforma,
+      log: this.log
+    })
+  }
+
   editar(req: SshEditarConexion): SshConexion {
     const editada = this.cambiar(SSH_CHANNELS.EDITAR, () => {
       const token = fichaDe(req.input)
@@ -238,13 +256,50 @@ export class ControladorSsh implements LanzadorSshTerminal {
       return this.conClave(token, req.id, previa.profileId, (i) => this.conexiones.editar(req.id, req.input, { clave: i.clave }))
     })
     this.askpass?.alCambiarConexion(req.id)
+    this.avisarCambioConexion()
     return editada
+  }
+
+  /** Quien abre túneles por estas conexiones (las bases de datos) se entera de cada cambio. */
+  alCambiarConexion(cb: () => void): void {
+    this.oyentesCambio.push(cb)
+  }
+
+  private avisarCambioConexion(): void {
+    for (const cb of this.oyentesCambio) cb()
+  }
+
+  /**
+   * «Duplicar»: la copia de la conexión con otro nombre, con su secreto cifrado y, si usa archivo de clave, su
+   * propia copia de la clave (la de la original no se comparte: borrar una no deja a la otra sin clave).
+   */
+  async duplicar(req: SshDuplicarConexion): Promise<SshConexion> {
+    const origen = this.conexiones.conexion(req.id)
+    if (!origen || origen.profileId !== req.profileId) throw new Error('Esa conexión ya no existe.')
+    if (origen.metodo !== 'clave' || origen.clave === undefined) {
+      return this.cambiar(SSH_CHANNELS.DUPLICAR, () => this.conexiones.duplicar(req.id, req.profileId))
+    }
+    const elegida = await this.clavesImportadas().duplicada(origen.id, origen.profileId, origen.clave)
+    const id = randomUUID()
+    return this.cambiar(SSH_CHANNELS.DUPLICAR, () => this.conClave(elegida.token, id, origen.profileId, (i) => this.conexiones.duplicar(req.id, req.profileId, { id, clave: i.clave })))
   }
 
   borrar(req: SshBorrarConexion): SshConexionBorrada {
     const r = this.cambiar(SSH_CHANNELS.BORRAR, () => this.conexiones.borrar(req.id, req.profileId))
     this.askpass?.alCambiarConexion(req.id)
+    this.avisarCambioConexion()
     return r
+  }
+
+  borrarVarias(req: SshBorrarConexiones): SshConexionesBorradas {
+    const r = this.cambiar(SSH_CHANNELS.BORRAR_VARIAS, () => this.conexiones.borrarVarias(req.ids, req.profileId))
+    for (const id of req.ids) this.askpass?.alCambiarConexion(id)
+    this.avisarCambioConexion()
+    return r
+  }
+
+  mover(req: SshMoverConexiones): SshConexionesMovidas {
+    return this.cambiar(SSH_CHANNELS.MOVER, () => this.conexiones.mover(req.ids, req.profileId, req.grupoId))
   }
 
   crearGrupo(req: SshCrearGrupo): SshGrupo {
@@ -287,6 +342,7 @@ export class ControladorSsh implements LanzadorSshTerminal {
   /** Olvida las huellas guardadas del servidor de una conexión: la próxima vez acepta la que presente. */
   olvidarHuella(req: SshOlvidarHuella): void {
     this.cambiar(SSH_CHANNELS.HUELLA_OLVIDAR, () => this.conexiones.olvidarHuellas(req.id))
+    this.avisarCambioConexion()
   }
 
   /** El usuario borró un perfil: se van sus conexiones, sus grupos y los archivos de sus conexiones. */
@@ -310,10 +366,32 @@ export class ControladorSsh implements LanzadorSshTerminal {
     const error = errorHost(c.host) ?? errorPuerto(c.puerto) ?? errorUsuario(c.usuario)
     if (error !== null) throw new Error(`La conexión "${c.alias}" tiene un dato que no vale: ${error} Edítala para corregirlo.`)
     const rutaClave = c.metodo === 'clave' ? this.rutaClaveDe(c.id, c.clave !== undefined) : undefined
+    const cadena = cadenaDeSaltos(c, (id) => this.conexiones.conexion(id))
     const b = this.binarios()
     if (b.ssh === null) throw new Error(mensajeSinSsh(this.plataforma))
     if (b.dePrueba) this.log('ssh con TESSERA_SSH_BINARIO (solo pruebas)')
-    return { c, rutaClave, ssh: b.ssh }
+    return { c, rutaClave, ssh: b.ssh, cadena, cita: citaDe(this.plataforma, b.origen) }
+  }
+
+  /**
+   * El `ProxyCommand` de los bastiones del destino, con su configuración escrita; `undefined` sin bastiones.
+   * Si no se puede, la ficha del programa de contraseñas (que aún no llegó a nadie) se revoca.
+   */
+  private saltar(d: DestinoSsh, secreto: EntornoSecreto): string | undefined {
+    if (d.cadena.length === 0) return undefined
+    try {
+      if (this.configSaltos === null) throw new Error('Esta ventana de Tessera no puede saltar por un bastión.')
+      const deps = { rutaHuellas: (id: string) => this.conexiones.rutaHuellas(id), rutaClave: (id: string) => this.conexiones.rutaClave(id), existe: this.existe, config: this.configSaltos, plataforma: this.plataforma }
+      return proxyDeSaltos(d.cadena, { modo: 'humano', conAskpass: secreto.conAskpass, conDialogo: secreto.conDialogo, ssh: d.ssh, cita: d.cita }, deps)
+    } catch (e) {
+      this.askpass?.soltar(secreto.ficha)
+      throw e
+    }
+  }
+
+  /** Los `known_hosts` de la conexión y de sus bastiones, para saber al terminar si ssh guardó alguna huella. */
+  private huellasDeCadena(d: DestinoSsh): string {
+    return JSON.stringify([d.c, ...d.cadena].map((x) => this.conexiones.textoHuellas(x.id)))
   }
 
   /** Dice al renderer (y al registro) por qué una pestaña no usará el secreto guardado. */
@@ -328,36 +406,62 @@ export class ControladorSsh implements LanzadorSshTerminal {
    * terminar, la ficha del programa de contraseñas se revoca y, si ssh guardó una huella, se avisa.
    */
   preparar(profileId: string, conexionId: string): PreparacionSsh {
-    const { c, rutaClave, ssh } = this.destino(conexionId, profileId)
-    const secreto = this.askpass?.entorno(c, FICHA_PESTANA, true) ?? SIN_SECRETO
+    const d = this.destino(conexionId, profileId)
+    const { c, rutaClave, ssh } = d
+    const tuneles = errorTuneles(c.tuneles ?? [])
+    if (tuneles !== null) throw new Error(`La conexión "${c.alias}" tiene un túnel que no vale: ${tuneles} Edítala para corregirlo.`)
+    const secreto = this.askpass?.entorno(c, FICHA_PESTANA, true, d.cadena) ?? SIN_SECRETO
     if (secreto.aviso !== undefined) this.avisar(c, secreto.aviso)
+    const proxyCommand = this.saltar(d, secreto)
     const rutaHuellas = this.conexiones.rutaHuellas(c.id)
-    const args = argumentosSsh(c, { modo: 'humano', rutaHuellas, rutaClave, plataforma: this.plataforma, conAskpass: secreto.conAskpass })
-    const huellasAntes = this.conexiones.textoHuellas(c.id)
+    const args = argumentosSsh(c, {
+      modo: 'humano',
+      rutaHuellas,
+      rutaClave,
+      plataforma: this.plataforma,
+      conAskpass: secreto.conAskpass,
+      conDialogo: secreto.conDialogo,
+      ...(proxyCommand === undefined ? {} : { proxyCommand }),
+      tuneles: c.tuneles ?? []
+    })
+    const huellasAntes = this.huellasDeCadena(d)
     return {
       ejecutable: { archivo: ssh.exe, args: [...ssh.args, ...args], quitarEnv: [...QUITAR_ENV_SSH] },
       extraEnv: { TERM: 'xterm-256color', ...secreto.env },
       alTerminar: () => {
         this.askpass?.soltar(secreto.ficha)
-        if (this.conexiones.textoHuellas(c.id) !== huellasAntes) this.eventos.emitir(SSH_CHANNELS.CAMBIO)
-      }
+        if (this.huellasDeCadena(d) !== huellasAntes) this.eventos.emitir(SSH_CHANNELS.CAMBIO)
+      },
+      vincular: (matar) => this.askpass?.vincular(secreto.ficha, matar)
     }
   }
 
   /**
    * La línea del explorador SFTP de una conexión del perfil: la de la pestaña (huella, clave y contraseña
    * guardada) con el subsistema `sftp` y sin terminal. El entorno es el de Tessera sin lo que ssh no debe
-   * heredar, más el del programa de contraseñas. `alConectar` suelta la ficha y avisa de una huella nueva.
+   * heredar, más el del programa de contraseñas, que pregunta al usuario lo que no tenga guardado.
+   * `alConectar` suelta la ficha y avisa de una huella nueva.
    */
   prepararSftp(profileId: string, conexionId: string): LineaSftp {
-    const { c, rutaClave, ssh } = this.destino(conexionId, profileId)
-    const secreto = this.askpass?.entorno(c, FICHA_PESTANA, true) ?? SIN_SECRETO
+    const d = this.destino(conexionId, profileId)
+    const { c, rutaClave, ssh } = d
+    const secreto = this.askpass?.entornoSftp(c, d.cadena) ?? SIN_SECRETO
     if (secreto.aviso !== undefined) this.avisar(c, secreto.aviso)
+    const proxyCommand = this.saltar(d, secreto)
     const rutaHuellas = this.conexiones.rutaHuellas(c.id)
-    const args = argumentosSsh(c, { modo: 'humano', rutaHuellas, rutaClave, plataforma: this.plataforma, conAskpass: secreto.conAskpass, subsistemaSftp: true })
+    const args = argumentosSsh(c, {
+      modo: 'humano',
+      rutaHuellas,
+      rutaClave,
+      plataforma: this.plataforma,
+      conAskpass: secreto.conAskpass,
+      conDialogo: secreto.conDialogo,
+      subsistemaSftp: true,
+      ...(proxyCommand === undefined ? {} : { proxyCommand })
+    })
     const quitar = new Set(QUITAR_ENV_SSH.map((k) => k.toUpperCase()))
     const env: NodeJS.ProcessEnv = Object.fromEntries(Object.entries(process.env).filter(([k]) => !quitar.has(k.toUpperCase())))
-    const huellasAntes = this.conexiones.textoHuellas(c.id)
+    const huellasAntes = this.huellasDeCadena(d)
     let soltada = false
     return {
       exe: ssh.exe,
@@ -367,9 +471,64 @@ export class ControladorSsh implements LanzadorSshTerminal {
         if (soltada) return
         soltada = true
         this.askpass?.soltar(secreto.ficha)
-        if (this.conexiones.textoHuellas(c.id) !== huellasAntes) this.eventos.emitir(SSH_CHANNELS.CAMBIO)
-      }
+        if (this.huellasDeCadena(d) !== huellasAntes) this.eventos.emitir(SSH_CHANNELS.CAMBIO)
+      },
+      vincular: (matar) => this.askpass?.vincular(secreto.ficha, matar)
     }
+  }
+
+  /**
+   * La línea del túnel de una conexión de base de datos: `ssh -N` con el reenvío de `127.0.0.1:puertoLocal`
+   * a `destino` (visto desde el servidor SSH), por la conexión del perfil y sus bastiones. Como un agente:
+   * solo servidores cuya huella ya confirmó una persona y solo el secreto guardado, sin diálogo (lo abre
+   * también un `tdb` de un agente). `alConectar` suelta la ficha.
+   */
+  prepararTunelBd(profileId: string, conexionId: string, destino: { host: string; puerto: number }, puertoLocal: number): LineaSftp {
+    const d = this.destino(conexionId, profileId)
+    const { c, rutaClave, ssh } = d
+    const sinHuella = [c, ...d.cadena].find((x) => (this.conexiones.textoHuellas(x.id) ?? '').trim() === '')
+    if (sinHuella !== undefined) {
+      throw new Error(
+        `La huella del servidor SSH de «${sinHuella.alias}» no está confirmada: pulsa «Probar» en esa conexión SSH ` +
+          '(o conéctate una vez desde la terminal) y vuelve a intentarlo.'
+      )
+    }
+    const secreto = this.askpass?.entorno(c, FICHA_TUNEL, false, d.cadena) ?? SIN_SECRETO
+    if (secreto.aviso !== undefined) this.log(`tunel conexion=${c.id}: ${secreto.aviso}`)
+    const proxyCommand = this.saltar(d, secreto)
+    const args = argumentosSsh(c, {
+      modo: 'agente',
+      rutaHuellas: this.conexiones.rutaHuellas(c.id),
+      rutaClave,
+      plataforma: this.plataforma,
+      conAskpass: secreto.conAskpass,
+      ...(proxyCommand === undefined ? {} : { proxyCommand }),
+      reenvioBd: { puertoLocal, host: destino.host, puerto: destino.puerto }
+    })
+    const quitar = new Set(QUITAR_ENV_SSH.map((k) => k.toUpperCase()))
+    const env: NodeJS.ProcessEnv = Object.fromEntries(Object.entries(process.env).filter(([k]) => !quitar.has(k.toUpperCase())))
+    let soltada = false
+    return {
+      exe: ssh.exe,
+      args: [...ssh.args, ...args],
+      env: { ...env, ...secreto.env },
+      alConectar: () => {
+        if (soltada) return
+        soltada = true
+        this.askpass?.soltar(secreto.ficha)
+      },
+      vincular: (matar) => this.askpass?.vincular(secreto.ficha, matar)
+    }
+  }
+
+  /** El alias de una conexión SSH, para los mensajes del túnel de una base; `null` si no existe. */
+  aliasDe(conexionId: string): string | null {
+    return this.conexiones.conexion(conexionId)?.alias ?? null
+  }
+
+  /** ¿Existe la conexión SSH `id` en el perfil? (el túnel de una base solo usa las de su perfil). */
+  existeEnPerfil(profileId: string, id: string): boolean {
+    return this.conexiones.conexion(id)?.profileId === profileId
   }
 
   clasificar(exitCode: number | null, cola: string): TerminalExitReason | undefined {
@@ -382,10 +541,21 @@ export class ControladorSsh implements LanzadorSshTerminal {
    */
   async probar(req: SshProbar): Promise<SshResultadoPrueba> {
     if (this.ejecutar === null) throw new Error('Esta ventana de Tessera no puede probar conexiones SSH.')
-    const { c, rutaClave, ssh } = this.destino(req.id)
-    const secreto = this.askpass?.entorno(c, FICHA_PRUEBA, false) ?? SIN_SECRETO
+    const d = this.destino(req.id)
+    const { c, rutaClave, ssh } = d
+    const secreto = this.askpass?.entorno(c, FICHA_PRUEBA, false, d.cadena) ?? SIN_SECRETO
+    const proxyCommand = this.saltar(d, secreto)
     const rutaHuellas = this.conexiones.rutaHuellas(c.id)
-    const opciones = { modo: 'humano' as const, rutaHuellas, rutaClave, plataforma: this.plataforma, conAskpass: secreto.conAskpass, prueba: true }
+    const opciones = {
+      modo: 'humano' as const,
+      rutaHuellas,
+      rutaClave,
+      plataforma: this.plataforma,
+      conAskpass: secreto.conAskpass,
+      prueba: true,
+      ...(proxyCommand === undefined ? {} : { proxyCommand })
+    }
+    const huellasAntes = this.huellasDeCadena(d)
     const antes = this.conexiones.textoHuellas(c.id)
     const t0 = this.ahora()
     const salida = await this.ejecutar(ssh.exe, [...ssh.args, ...argumentosSsh(c, opciones)], {
@@ -396,7 +566,7 @@ export class ControladorSsh implements LanzadorSshTerminal {
     const ms = this.ahora() - t0
     const preguntaSinContestar = this.askpass?.soltar(secreto.ficha) ?? false
     const despues = this.conexiones.textoHuellas(c.id)
-    if (despues !== antes) this.eventos.emitir(SSH_CHANNELS.CAMBIO)
+    if (despues !== antes || this.huellasDeCadena(d) !== huellasAntes) this.eventos.emitir(SSH_CHANNELS.CAMBIO)
     // Solo el código y lo que tardó: la salida de ssh lleva rutas y no va al registro.
     this.log(`probar conexion=${c.id} codigo=${salida.codigo ?? (salida.agotado ? 'tope' : '-')} ms=${ms}`)
     return resultadoPrueba(salida, {

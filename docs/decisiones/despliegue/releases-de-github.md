@@ -1,4 +1,4 @@
-# Las versiones se publican en las Releases de GitHub desde Actions, como borrador hasta tener las dos plataformas
+# Las versiones se publican en las Releases de GitHub desde Actions, como borrador hasta tener todas las plataformas
 
 - **Estado:** vigente
 - **Ámbito:** `electron-builder.yml` (`publish`), `.github/workflows/release.yml`, `scripts/parchearMinimoMac.mjs`, `scripts/sistemaMinimo.mjs`, `scripts/estado-feeds.mjs`
@@ -17,11 +17,15 @@ entero: un Mac por debajo del mínimo de Electron acabaría con una app que no a
   No `github`: con él electron-builder no escribe `url:` en `app-update.yml`, `resolverFeed()` se
   queda sin base y el relevo de macOS cae a la descarga manual. «latest» ignora borradores y
   prereleases, y los ficheros llegan por redirecciones 302 que `net.request` sigue solo.
-- Se publica empujando la etiqueta `vX.Y.Z` al repo público. Actions compila Windows y macOS en
-  paralelo (`npm run release:win` / `release:mac`, los mismos guiones que en local) y un último
-  trabajo crea la release como BORRADOR, sube los dos conjuntos, comprueba que están los dos
-  manifiestos y el mínimo de macOS, y solo entonces la marca como publicada y «latest». Si falta
-  algo, falla sin publicar.
+- Se publica empujando la etiqueta `vX.Y.Z` al repo público. Actions compila Windows, macOS y
+  Linux en paralelo (`npm run release:win` / `release:mac` / `release:linux`, los mismos guiones
+  que en local) y un último trabajo crea la release como BORRADOR, sube los tres conjuntos,
+  comprueba que están los tres manifiestos y el mínimo de macOS, y solo entonces la marca como
+  publicada y «latest». Si falta algo, falla sin publicar.
+- Linux se publica solo como AppImage x64: es el formato que electron-updater sustituye solo
+  (`latest-linux.yml`). Su nombre NO lleva la versión: con ella, electron-updater escribe la
+  nueva en otro archivo y borra el viejo, y todo acceso al AppImage (el `.desktop` de «Abrir con
+  Tessera») apuntaría a una ruta que ya no existe. Sirve también de enlace fijo para el README.
 - El mínimo de macOS se copia del Info.plist del artefacto al manifiesto, TRADUCIDO a Darwin
   (`parchearMinimoMac.mjs`): electron-updater compara con `os.release()` por `semver.lt`, macOS
   11–15 son Darwin 20–24 (+9) y desde la 26, Darwin 25 (−1). Un «12.0» tal cual es semver

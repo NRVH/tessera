@@ -1,15 +1,17 @@
 // =============================================================================
 // Todo lo que sabe y hace la lista de conexiones SSH de un perfil: el filtro, la fila activa, qué
-// filas se pintan (en el lanzador, con un solo grupo abierto y las conexiones recientes), el menú de una
-// fila y las acciones (conectar, plegar, editar, eliminar…) que salen del teclado, del ratón y del menú.
+// filas se pintan (en el lanzador, con un solo grupo abierto y las conexiones recientes), en el riel lo
+// marcado y el arrastre (`useArrastreListaSsh`), el menú de una fila y las acciones (conectar, plegar,
+// editar, mover, eliminar…) que salen del teclado, del ratón y del menú.
 // El teclado lo decide `accionTeclaLista` (puro); aquí se ejecuta. Devuelve la VISTA que pinta
 // `ListaConexionesSsh`. Depende del store de SSH.
 // Decisiones: docs/decisiones/terminales/pestanas-ssh-del-perfil.md, docs/decisiones/terminales/lanzador-de-conexiones.md
 // =============================================================================
 
-import { useId, useMemo, useState, type KeyboardEvent, type RefObject } from 'react'
+import { useEffect, useId, useMemo, useState, type KeyboardEvent, type RefObject } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { anclaDelFoco } from '../../comun/anclaDelFoco'
+import { notify } from '../../comun/notifications'
 import type { ContextMenuEntry } from '../../comun/ContextMenu'
 import type { SshConexion } from '../../../../shared/ssh-ipc'
 import {
@@ -24,7 +26,20 @@ import {
   type FilaGrupo,
   type FilaLista
 } from './listaSsh'
-import { itemsMenuConexion, itemsMenuGrupo, type MenuFilaAbierto } from './menuListaSsh'
+import { mensajeDeErrorSsh } from './erroresSsh'
+import { exportarAOpenSsh } from './exportacionSsh'
+import { itemsMenuConexion, itemsMenuGrupo, itemsMenuVarias, type MenuFilaAbierto } from './menuListaSsh'
+import {
+  SELECCION_SSH_VACIA,
+  extenderHasta,
+  idsVisibles,
+  podarSeleccion,
+  resolverClicDerechoSsh,
+  resolverClicSsh,
+  type ModificadoresClicSsh,
+  type SeleccionSsh
+} from './seleccionListaSsh'
+import { useArrastreListaSsh } from './useArrastreListaSsh'
 import { accionesSsh, datosDePerfil, useStoreSsh, type DatosPerfilSsh } from './store'
 
 /** Lo que la lista recibe de quien la aloja. */
@@ -82,17 +97,45 @@ function useEstadoListaSsh(o: OpcionesListaSsh) {
   const [activoClave, setActivoClave] = useState<string | null>(null)
   // El único grupo abierto del lanzador: nace sin ninguno (con «Recientes» arriba no hace falta ver el resto) y no se recuerda.
   const [abierto, fijarAbierto] = useState<string | null>(null)
+  // Lo que se arrastra en el riel: mientras dura, «Sin grupo» se enseña aunque esté vacío, para poder soltar ahí.
+  const [arrastre, fijarArrastre] = useState<string[] | null>(null)
   const plegados = useMemo(
     () => (flotante ? plegadosDeAcordeon(datos.grupos, abierto) : new Set(plegadosGuardados ?? [])),
     [flotante, datos.grupos, abierto, plegadosGuardados]
   )
   const recientes = useMemo(() => (flotante ? recientesDe(recientesGuardados, datos.conexiones) : []), [flotante, recientesGuardados, datos.conexiones])
+  const mostrarSinGrupo = arrastre !== null
   const filas = useMemo(
-    () => construirFilas({ grupos: datos.grupos, conexiones: datos.conexiones, filtro, plegados, recientes }),
-    [datos, filtro, plegados, recientes]
+    () => construirFilas({ grupos: datos.grupos, conexiones: datos.conexiones, filtro, plegados, recientes, mostrarSinGrupo }),
+    [datos, filtro, plegados, recientes, mostrarSinGrupo]
   )
   const estado = estadoDe(avisos.cargado, avisos.ajeno, datos, filas, filtro)
-  return { datos, avisos, filtro, setFiltro, setActivoClave, filas, estado, indiceActivo: indiceActivoDe(filas, activoClave), abierto, fijarAbierto }
+  // Solo el riel marca varias; lo marcado que deja de verse (un grupo plegado, un filtro, un borrado) se suelta.
+  const [seleccionCruda, fijarSeleccion] = useState<SeleccionSsh>(SELECCION_SSH_VACIA)
+  const visibles = useMemo(() => (flotante ? [] : idsVisibles(filas)), [flotante, filas])
+  const seleccion = podarSeleccion(seleccionCruda, visibles)
+  // Lo que se soltó se OLVIDA: si solo se ocultara, volvería a estar marcado al desplegar el grupo o vaciar el filtro, y
+  // un Supr o un arrastre actuaría sobre conexiones que ya no se veían marcadas.
+  useEffect(() => {
+    if (seleccion !== seleccionCruda) fijarSeleccion(seleccion)
+  }, [seleccion, seleccionCruda])
+  return {
+    datos,
+    avisos,
+    filtro,
+    setFiltro,
+    setActivoClave,
+    filas,
+    estado,
+    indiceActivo: indiceActivoDe(filas, activoClave),
+    abierto,
+    fijarAbierto,
+    seleccion,
+    fijarSeleccion,
+    visibles,
+    arrastre,
+    fijarArrastre
+  }
 }
 
 type EstadoLista = ReturnType<typeof useEstadoListaSsh>
@@ -101,6 +144,32 @@ type EstadoLista = ReturnType<typeof useEstadoListaSsh>
 function conDialogo(o: OpcionesListaSsh, abrir: () => void): void {
   abrir()
   o.alAbrirDialogo?.()
+}
+
+/** «Duplicar»: la copia («Alias (1)») la crea el main y queda en la lista, sin abrir nada; si no se puede, el motivo. */
+async function duplicar(c: SshConexion): Promise<void> {
+  try {
+    const copia = await window.tessera.ssh.duplicar({ id: c.id, profileId: c.profileId })
+    notify('success', `Se duplicó como «${copia.alias}»`)
+  } catch (err) {
+    notify('error', 'No se pudo duplicar la conexión', mensajeDeErrorSsh(err))
+  }
+}
+
+/** Las conexiones de esas ids, en el orden de las ids (las que ya no existen se saltan). */
+function conexionesDe(datos: DatosPerfilSsh, ids: Iterable<string>): SshConexion[] {
+  const porId = new Map(datos.conexiones.map((c) => [c.id, c]))
+  return [...ids].flatMap((id) => porId.get(id) ?? [])
+}
+
+/** El menú de varias conexiones marcadas: moverlas a un grupo o eliminarlas, todas a la vez. */
+function itemsDeVarias(o: OpcionesListaSsh, varias: readonly SshConexion[]): ContextMenuEntry[] {
+  return itemsMenuVarias({
+    n: varias.length,
+    onMoverAGrupo: () => conDialogo(o, () => accionesSsh.moverConexiones(o.perfilId, varias)),
+    onExportar: () => void exportarAOpenSsh(o.perfilId, varias.map((c) => c.id)),
+    onEliminar: () => conDialogo(o, () => accionesSsh.pedirEliminarConexiones(o.perfilId, varias))
+  })
 }
 
 /** Las opciones del menú de la fila `f`. */
@@ -112,8 +181,11 @@ function itemsDeFila(o: OpcionesListaSsh, datos: DatosPerfilSsh, f: FilaGrupo | 
       onAbrirSftp: () => o.onAbrirSftp(c),
       onIrASesion: (o.abiertasPorConexion[c.id] ?? 0) > 0 ? () => o.onIrASesion(c.id) : null,
       onEditar: () => conDialogo(o, () => accionesSsh.editarConexion(c)),
+      // Sin diálogo: el lanzador sigue abierto y la copia aparece en él.
+      onDuplicar: () => void duplicar(c),
       onMoverAGrupo: () => conDialogo(o, () => accionesSsh.editarConexion(c, true)),
-      onEliminar: () => conDialogo(o, () => accionesSsh.pedirEliminarConexion(c))
+      onEliminar: () => conDialogo(o, () => accionesSsh.pedirEliminarConexion(c)),
+      onVerActividad: () => conDialogo(o, () => accionesSsh.verActividad(o.perfilId, c.alias))
     })
   }
   const g = datos.grupos.find((x) => x.id === f.grupoId)
@@ -123,6 +195,18 @@ function itemsDeFila(o: OpcionesListaSsh, datos: DatosPerfilSsh, f: FilaGrupo | 
     onRenombrar: () => g && conDialogo(o, () => accionesSsh.renombrarGrupo(g)),
     onEliminar: () => g && conDialogo(o, () => accionesSsh.pedirEliminarGrupo(g, datos.conexiones.filter((c) => c.grupoId === g.id).length))
   })
+}
+
+/**
+ * Las opciones del menú que se abre sobre `f`. En el riel, sobre una conexión marcada junto a otras, el de todas
+ * ellas; sobre una sin marcar, esa pasa a ser la única marcada y sale su menú de siempre.
+ */
+function itemsAlAbrirMenu(o: OpcionesListaSsh, e: EstadoLista, f: FilaGrupo | FilaConexion): ContextMenuEntry[] {
+  if (o.modo !== 'fijo' || f.tipo !== 'conexion' || f.reciente) return itemsDeFila(o, e.datos, f)
+  const sel = resolverClicDerechoSsh(e.seleccion, f.conexion.id)
+  e.fijarSeleccion(sel)
+  if (sel.ids.size <= 1) return itemsDeFila(o, e.datos, f)
+  return itemsDeVarias(o, conexionesDe(e.datos, e.visibles.filter((id) => sel.ids.has(id))))
 }
 
 /** Lo que una acción de teclado necesita para ejecutarse. */
@@ -150,11 +234,32 @@ function accionDeGrupo(a: Extract<AccionLista, { tipo: 'renombrarGrupo' | 'elimi
   else conDialogo(o, () => accionesSsh.pedirEliminarGrupo(grupo, e.datos.conexiones.filter((c) => c.grupoId === grupo.id).length))
 }
 
+/**
+ * Mueve el cursor a la fila `indice`; en el riel la selección lo sigue (la conexión, sola) o, con `extender`, se
+ * amplía hasta ella desde el ancla.
+ */
+function moverCursor(c: ContextoAccion, indice: number, extender: boolean): void {
+  const { e } = c
+  const f = e.filas[indice]
+  e.setActivoClave(f?.clave ?? null)
+  if (c.o.modo !== 'fijo' || f?.tipo !== 'conexion') {
+    if (c.o.modo === 'fijo' && !extender) e.fijarSeleccion(SELECCION_SSH_VACIA)
+    return
+  }
+  const actual = e.filas[e.indiceActivo]
+  const desde = actual?.tipo === 'conexion' ? actual.conexion.id : null
+  e.fijarSeleccion(extender ? extenderHasta(e.seleccion, e.visibles, desde, f.conexion.id) : { ids: new Set([f.conexion.id]), ancla: f.conexion.id })
+}
+
 /** Hace lo que una tecla pidió (`accionTeclaLista`). */
 function ejecutarAccion(a: AccionLista, c: ContextoAccion): void {
   switch (a.tipo) {
     case 'mover':
-      return c.e.setActivoClave(c.e.filas[a.indice]?.clave ?? null)
+      return moverCursor(c, a.indice, false)
+    case 'extender':
+      return moverCursor(c, a.indice, true)
+    case 'eliminarConexiones':
+      return conDialogo(c.o, () => accionesSsh.pedirEliminarConexiones(c.o.perfilId, conexionesDe(c.e.datos, a.conexionIds)))
     case 'plegar':
       return c.plegarGrupo(a.grupoId, a.plegar)
     case 'menu':
@@ -173,12 +278,12 @@ export function useListaSsh(o: OpcionesListaSsh, filtroRef: RefObject<HTMLInputE
   const idBase = useId()
   const [menu, setMenu] = useState<MenuFilaAbierto | null>(null)
   const idFila = (f: FilaLista): string => `${idBase}-${f.clave}`
-
+  const arrastre = useArrastreListaSsh({ ...e, perfilId: o.perfilId })
   const abrirMenu = (f: FilaLista, x: number, y: number): void => {
     if (f.tipo === 'seccion') return
     e.setActivoClave(f.clave)
+    const items = itemsAlAbrirMenu(o, e, f)
     // «Sin grupo» no tiene menú: sin opciones no se abre nada.
-    const items = itemsDeFila(o, e.datos, f)
     setMenu(items.length > 0 ? { x, y, items } : null)
   }
   const abrirMenuDe = (indice: number): void => {
@@ -194,36 +299,46 @@ export function useListaSsh(o: OpcionesListaSsh, filtroRef: RefObject<HTMLInputE
   }
   const alTeclear = (ev: KeyboardEvent<HTMLInputElement>): void => {
     if (ev.nativeEvent.isComposing) return
-    const contexto = { filas: e.filas, activo: e.indiceActivo, filtroVacio: e.filtro === '' }
+    const contexto = { filas: e.filas, activo: e.indiceActivo, filtroVacio: e.filtro === '', multiple: o.modo === 'fijo', marcadas: e.seleccion.ids }
     const a = accionTeclaLista(ev, contexto, window.tessera.plataforma)
     if (!a) return
     ev.preventDefault()
     ejecutarAccion(a, { o, e, abrirMenuDe, plegarGrupo })
   }
-  /** Clic en una fila: una conexión conecta; una cabecera pliega (con filtro no: lo ignora). */
-  const alPulsar = (f: FilaLista): void => {
+  /**
+   * Clic en una fila: una cabecera pliega (con filtro no: lo ignora); una conexión se marca en el riel
+   * (con Ctrl o ⌘ se alterna, con Mayús se marca el rango; conecta el doble clic o Intro, y así se puede
+   * elegir para editarla, moverla o borrarla) y conecta en el lanzador, que es un menú.
+   */
+  const alPulsar = (f: FilaLista, mods: ModificadoresClicSsh = { mod: false, shift: false }): void => {
     if (f.tipo === 'seccion') return
     e.setActivoClave(f.clave)
     filtroRef.current?.focus()
-    if (f.tipo === 'conexion') o.onConectar(f.conexion)
-    else if (e.filtro === '') plegarGrupo(f.grupoId, f.abierto)
+    if (f.tipo === 'conexion') {
+      if (o.modo === 'flotante') o.onConectar(f.conexion)
+      else if (!f.reciente) e.fijarSeleccion(resolverClicSsh(e.seleccion, e.visibles, f.conexion.id, mods))
+    } else if (e.filtro === '') plegarGrupo(f.grupoId, f.abierto)
   }
-  const cambiarFiltro = (texto: string): void => {
-    e.setFiltro(texto)
-    e.setActivoClave(null)
-  }
+  /** Doble clic en una conexión del riel: conecta. */
   return {
     ...e,
     idBase,
     idFila,
+    dnd: arrastre,
     menu,
     cerrarMenu: () => setMenu(null),
     abrirMenu,
     alTeclear,
     alPulsar,
-    cambiarFiltro,
+    /** Doble clic en una conexión del riel: conecta. */
+    alDoblePulsar: (f: FilaLista) => f.tipo === 'conexion' && o.modo === 'fijo' && o.onConectar(f.conexion),
+    cambiarFiltro: (texto: string) => {
+      e.setFiltro(texto)
+      e.setActivoClave(null)
+    },
     nuevaConexion: () => conDialogo(o, () => accionesSsh.nuevaConexion(o.perfilId)),
-    nuevoGrupo: () => conDialogo(o, () => accionesSsh.nuevoGrupo(o.perfilId))
+    nuevoGrupo: () => conDialogo(o, () => accionesSsh.nuevoGrupo(o.perfilId)),
+    verActividad: () => conDialogo(o, () => accionesSsh.verActividad(o.perfilId))
   }
 }
 

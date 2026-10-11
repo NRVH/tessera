@@ -206,6 +206,25 @@ select.filtro-guiado-valor {
 .db-filtro-guiado {
   display: contents;
 }
+/* El error del orden y su salida, «Quitar el orden»: el mensaje se recorta, el botón no. */
+.db-filtro-error.campo-orderBy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.db-filtro-error.campo-orderBy > span {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.db-filtro-error.campo-orderBy > .btn {
+  flex: 0 0 auto;
+  font-family: inherit;
+}
+/* En el guiado es hijo directo de la columna del cuerpo (`display: contents`): como la barra, no se encoge. */
+.db-filtro-guiado > .db-filtro-error.campo-orderBy {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+}
 
 /* --- El modo «SQL» de la pestaña de tabla ---------------------------------------
    La barra WHERE de siempre (`.db-filtro`, de `rejilla.css`) sin el campo ORDER BY: el

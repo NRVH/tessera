@@ -60,7 +60,6 @@ API expuesta (`window.tessera.terminal`):
 |---|---|---|
 | `open({ profileId, projectHostPath })` | invoke | Abre sesión: `checkDocker → ensureContainer → addProject → createSession`. Devuelve `{ sessionId, workspacePath, … }`. |
 | `openSsh({ profileId, conexionId })` | invoke | Abre una conexión SSH guardada del perfil: ssh directo en un pty del host (sin shell, cwd en HOME), sin entorno de BD. Devuelve `{ sessionId, … }` con `projectHostPath` y `workspacePath` vacíos. `close` y `reload` («Reconectar», con los datos vigentes) matan el árbol sin teclear nada; hibernar el perfil no la cierra. |
-| `bootstrapTerminalSession()` | invoke | `open()` con el perfil de arranque y el proyecto de prueba local (`docker/sandbox/proyecto-demo`). |
 | `write({ sessionId, data })` | send | stdin hacia el shell. |
 | `resize({ sessionId, cols, rows })` | send | Reflow del pty. |
 | `setFlow({ sessionId, paused })` | send | Contrapresión: pausa/reanuda la lectura del pty cuando xterm no da abasto. |
@@ -81,7 +80,8 @@ la instancia del pty por debajo.
 `SandboxManager.stopAllContainers()` (`docker rm -f` = SIGKILL, que arrastra los ptys y agentes
 de dentro, desmonta y verifica). No se usa el cierre "elegante" de
 `TerminalController.disposeAll()` (Ctrl-C/exit por sesión, lento y frágil): `rm -f` es completo
-y rápido. `disposeAll()` sigue disponible para la hibernación por perfil. En el camino de
-actualización, además, `forceKillPtys()` remata los ptys de Windows.
+y rápido. `disposeAll()` sigue disponible para la hibernación por perfil. Antes de Docker, en
+todo cierre, `forceKillPtys()` cierra los ptys nativos con el proceso aún entero (etapa
+`cerrar-ptys` de `app/cierre.ts`).
 
 Se prueba con `test:terminal` y `test:onexit`; las sesiones SSH, con `test:sesion-ssh`.

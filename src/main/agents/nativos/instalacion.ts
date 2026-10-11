@@ -15,16 +15,16 @@ import type {
 } from '../../../shared/agentes-nativos-ipc.ts'
 import { ETIQUETA_AGENTE } from '../../../shared/etiquetasAgente.ts'
 import { nombresSistema } from '../../../shared/nombresSistema.ts'
-import { compararVersiones, esVersionExacta, hayVersionNueva } from '../../../shared/versionesCli.ts'
+import { compararVersiones, esVersionExacta } from '../../../shared/versionesCli.ts'
 import {
   clasificarErrorInstalacion,
-  ordenActualizacion,
+  esReparable,
   type MotivoErrorInstalacion,
   type OrdenActualizacion
 } from '../comandoActualizacion.ts'
 import type { ResultadoEjecucion } from '../ejecutorShell.ts'
 import { sondear } from './deteccion.ts'
-import { emitirAhora, hayNueva, progreso } from './emision.ts'
+import { binarioPendiente, emitirAhora, hayNueva, ordenPara, progreso } from './emision.ts'
 import { bloqueadoresAhora, refrescarAgente } from './refresco.ts'
 import { BINARIO } from './urls.ts'
 import { errMsg, type InfoCli, type NucleoNativos } from './tipos.ts'
@@ -91,11 +91,14 @@ function detalleSinVersion(e: NucleoNativos, agente: AgentKind, instalada: strin
   if (!esVersionExacta(i.ultima)) {
     return `No se sabe cuál es la última versión de ${nombre}${i.error ? `: ${i.error}` : '.'}`
   }
-  if (instalada === null) return `No se pudo leer la versión instalada de ${nombre}.`
-  if (agente === 'codex' && hayVersionNueva(instalada, i.ultima) && !i.binarioPublicado) {
-    const { sistema } = nombresSistema(e.deps.plataforma)
-    return `Codex ${i.ultima} aún no tiene publicado el binario para ${sistema}: vuelve a intentarlo en unos minutos.`
+  if (binarioPendiente(e, agente, instalada)) {
+    const { tuEquipo } = nombresSistema(e.deps.plataforma)
+    return (
+      `${nombre} ${i.ultima} aún no está lista para ${tuEquipo}: el registro todavía no sirve su binario. ` +
+      'Vuelve a intentarlo en unos minutos.'
+    )
   }
+  if (instalada === null) return `No se pudo leer la versión instalada de ${nombre}.`
   return `${nombre} ya está al día (${instalada}).`
 }
 
@@ -134,11 +137,12 @@ async function revalidar(
     c.antes = await sondear(e, agente)
   }
   const info = e.info[agente]
-  const ultima = info.ultima
-  if (!esVersionExacta(ultima) || !hayNueva(e, agente, c.antes)) {
+  if (!esVersionExacta(info.ultima) || !hayNueva(e, agente, c.antes)) {
     return fallo(c, 'sin-version', detalleSinVersion(e, agente, c.antes))
   }
-  const orden = ordenActualizacion({ agente, metodo: info.metodo, plataforma: e.deps.plataforma, version: ultima })
+  // La sonda de arriba ya dejó `c.antes` como la instalada: decide entre actualizar y reparar.
+  const orden = ordenPara(e, agente)
+  if (orden === null) return fallo(c, 'sin-version', detalleSinVersion(e, agente, c.antes))
   if (orden.tipo !== 'auto') {
     return fallo(c, 'no-instalable', orden.orden ? `${orden.motivo}. A mano: ${orden.orden}` : `${orden.motivo}.`)
   }
@@ -172,6 +176,25 @@ async function comprobarBloqueo(e: NucleoNativos, c: Curso, info: InfoCli): Prom
     'Ciérralo (tu editor u otra terminal) y vuelve a intentarlo.'
   progreso(e, c.agente, detalle, 'error')
   return fallo(c, 'bloqueado', detalle, { bloqueadores: quedan, detenidas: c.detenidas })
+}
+
+/**
+ * La orden salió bien y el CLI no responde (npm salta sin error un binario de plataforma
+ * que el registro aún no sirve): se dice y, si su gestor lo reinstala, se ofrece reparar.
+ */
+function falloSinResponder(e: NucleoNativos, c: Curso, info: InfoCli): InstalarResultado {
+  const { agente, nombre, antes, detenidas } = c
+  const { tuEquipo } = nombresSistema(e.deps.plataforma)
+  const remedio = esReparable(agente, info.metodo)
+    ? `Vuelve a intentarlo en unos minutos con «Reparar ${nombre}».`
+    : 'Vuelve a instalarlo por donde lo instalaste.'
+  const causa = agente === 'codex' ? `: puede que su binario para ${tuEquipo} aún no estuviera disponible` : ''
+  // El registro lo anunciaba y aun así no llegó: no se vuelve a ofrecer hasta que una
+  // comprobación lo vea servido de nuevo.
+  if (agente === 'codex') info.binarioPublicado = false
+  const detalle = `La instalación dejó ${nombre} sin responder a «${BINARIO[agente]} --version»${causa}. ${remedio}`
+  progreso(e, agente, detalle, 'error')
+  return { ok: false, agente, antes, despues: null, motivo: 'fallo', detalle, detenidas }
 }
 
 /** Fase 5: el resultado a partir de la orden y de la versión re-sondeada. */
@@ -209,18 +232,14 @@ async function resultado(
       detenidas
     }
   }
-  if (despues === null) {
-    const detalle = `La instalación dejó ${nombre} sin responder a «${BINARIO[agente]} --version».`
-    progreso(e, agente, detalle, 'error')
-    return { ok: false, agente, antes, despues, motivo: 'fallo', detalle, detenidas }
-  }
+  if (despues === null) return falloSinResponder(e, c, info)
   if (antes !== null && compararVersiones(despues, antes) <= 0) {
     const detalle = `La orden terminó sin error, pero ${nombre} sigue en ${despues}.`
     progreso(e, agente, detalle, 'error')
     return { ok: false, agente, antes, despues, motivo: 'fallo', detalle, detenidas }
   }
   info.ordenAyuda = null
-  progreso(e, agente, `${nombre} ${antes ?? '?'} → ${despues}`, 'fin')
+  progreso(e, agente, antes === null ? `${nombre} reparado: ${despues}` : `${nombre} ${antes} → ${despues}`, 'fin')
   return { ok: true, agente, antes, despues, detenidas }
 }
 

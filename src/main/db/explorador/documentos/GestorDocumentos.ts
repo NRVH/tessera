@@ -32,6 +32,7 @@ import {
   PLAZOS_TRABAJADOR_MS,
   type ConexionTrabajador,
   type ErrorTrabajador,
+  type PaginaExportacionDocs,
   type PeticionDocs,
   type PoliticaDocs,
   type RespuestasDocs
@@ -73,6 +74,10 @@ export interface ContextoErrorDocs {
 
 /** Documentos por página de la consola si la petición no dice otra cosa. */
 export const DOCS_PAGINA_CONSOLA = 100
+
+/** Las peticiones del trabajador que abren y siguen una exportación de documentos. */
+export type PeticionExportarAbrir = Extract<PeticionDocs, { operacion: 'exportarAbrir' }>
+export type PeticionExportarMas = Extract<PeticionDocs, { operacion: 'exportarMas' }>
 
 // --- Funciones puras ---------------------------------------------------------------------
 
@@ -225,18 +230,30 @@ export class GestorDocumentos extends GestorFamilia<ContextoErrorDocs, PeticionD
   }
 
   async leerMas(req: DbDocPedirMas): Promise<DbRespuesta<DbDocPagina>> {
-    const l = this.lectores.get(req.lector)
+    return this.masDeLector(
+      req.lector,
+      (lector) => ({ operacion: 'mas', lector, maxDocumentos: req.maxDocumentos }),
+      req.peticionId
+    )
+  }
+
+  /**
+   * La página siguiente de un lector, pedida con la petición que arma `armar` a partir del id del trabajador
+   * (`mas` para la tabla, `exportarMas` para un archivo); un lector que ya no existe es `noReleible`.
+   */
+  private async masDeLector<O extends 'mas' | 'exportarMas'>(
+    lector: string,
+    armar: (lectorTrabajador: string) => Extract<PeticionDocs, { operacion: O }>,
+    clave?: string
+  ): Promise<DbRespuesta<RespuestasDocs[O]>> {
+    const l = this.lectores.get(lector)
     if (!l || !l.sesion.abierta) {
       if (l) this.olvidarLector(l.id)
       return { ok: false, error: { motivo: 'noReleible', mensaje: MENSAJE_SIN_LECTOR } }
     }
     return this.respuesta(async () => {
       try {
-        const pagina = await this.operarEn(
-          l.sesion,
-          { operacion: 'mas', lector: l.lectorTrabajador, maxDocumentos: req.maxDocumentos },
-          { clave: req.peticionId }
-        )
+        const pagina = await this.operarEn(l.sesion, armar(l.lectorTrabajador), { clave })
         if (pagina.lector === null) this.olvidarLector(l.id)
         return { ...pagina, lector: pagina.lector === null ? null : l.id }
       } catch (e) {
@@ -244,6 +261,19 @@ export class GestorDocumentos extends GestorFamilia<ContextoErrorDocs, PeticionD
         throw e
       }
     })
+  }
+
+  /** La primera página de una exportación (ver `PaginaExportacionDocs`): deja el cursor vivo si quedan más. */
+  async exportarAbrir(conexionId: string, pet: PeticionExportarAbrir, peticionId?: string): Promise<DbRespuesta<PaginaExportacionDocs>> {
+    return this.respuesta(async () => {
+      const s = this.sesionPara(conexionId, { rol: 'datos', conexionId })
+      return this.envolverPagina(s, await this.operarEn(s, pet, { clave: peticionId, reintentar: true }))
+    })
+  }
+
+  /** La página siguiente de una exportación abierta con `exportarAbrir`. */
+  async exportarMas(lector: string, pet: Omit<PeticionExportarMas, 'operacion' | 'lector'>): Promise<DbRespuesta<PaginaExportacionDocs>> {
+    return this.masDeLector(lector, (lectorTrabajador) => ({ operacion: 'exportarMas', lector: lectorTrabajador, ...pet }))
   }
 
   async cerrarLector(lector: string): Promise<void> {
@@ -315,7 +345,7 @@ export class GestorDocumentos extends GestorFamilia<ContextoErrorDocs, PeticionD
   }
 
   /** La página con su lector del trabajador sustituido por un id del main. */
-  private envolverPagina(s: SesionFamilia, pagina: DbDocPagina): DbDocPagina {
+  private envolverPagina<T extends { lector: string | null }>(s: SesionFamilia, pagina: T): T {
     if (pagina.lector === null) return pagina
     const id = `docs:${++this.secuenciaLector}`
     const l: LectorDocs = { id, sesion: s, lectorTrabajador: pagina.lector }

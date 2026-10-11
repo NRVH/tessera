@@ -4,8 +4,11 @@
 // por CONTEXTO (el proyecto que se mira, o «ningún proyecto» del perfil) cuál es la elegida, si lo
 // es alguna: sin elegida se ve la terminal local activa. El pty, el xterm y el sessionId son del
 // pane; aquí solo cuántas hay, en qué orden y cuál se mira. El `id` no se reutiliza jamás.
+// Las pestañas abiertas se guardan para el siguiente arranque y vuelven sin elegir (sin conectar).
 // Decisiones: docs/decisiones/terminales/pestanas-ssh-del-perfil.md
 // =============================================================================
+
+import type { SshPestanaGuardada, SshPestanasPorPerfil } from '../../../../shared/ajustesTerminal.ts'
 
 /** Una pestaña SSH de un perfil. */
 export interface SshTab {
@@ -23,6 +26,11 @@ export interface SshTab {
   aliasConocido: string
   /** `true` = no es una terminal SSH sino el explorador SFTP de la conexión: «SFTP · alias», sin pty ni reinicio. */
   sftp?: true
+  /**
+   * Vuelve del arranque anterior y aún no se ha elegido: no hace de pane de reserva (la primera SSH cuando no hay
+   * otra cosa que enseñar), o se conectaría sola. Elegirla lo quita.
+   */
+  restaurada?: true
 }
 
 /** Las pestañas SSH de UN perfil. */
@@ -145,10 +153,22 @@ export function cerrarSsh(s: SshTabsState, perfilId: string, id: string): SshTab
   return { porPerfil: { ...s.porPerfil, [perfilId]: { ...cur, lista } }, activaPorContexto }
 }
 
-/** Elige la pestaña que se mira en este contexto. Ignora ids que no existan en el perfil. */
+/** Elige la pestaña que se mira en este contexto (y deja de ser «restaurada»). Ignora ids que no existan en el perfil. */
 export function elegirSsh(s: SshTabsState, perfilId: string, contexto: string, id: string): SshTabsState {
-  if (!sshDePerfil(s, perfilId).some((t) => t.id === id) || s.activaPorContexto[contexto] === id) return s
-  return { ...s, activaPorContexto: { ...s.activaPorContexto, [contexto]: id } }
+  const tab = sshDePerfil(s, perfilId).find((t) => t.id === id)
+  if (!tab || (s.activaPorContexto[contexto] === id && tab.restaurada === undefined)) return s
+  const cur = s.porPerfil[perfilId]
+  const porPerfil =
+    tab.restaurada === undefined
+      ? s.porPerfil
+      : { ...s.porPerfil, [perfilId]: { ...cur, lista: cur.lista.map((t) => (t.id === id ? sinRestaurada(t) : t)) } }
+  return { porPerfil, activaPorContexto: { ...s.activaPorContexto, [contexto]: id } }
+}
+
+/** La pestaña sin la marca de restaurada. */
+function sinRestaurada(t: SshTab): SshTab {
+  const { restaurada: _restaurada, ...resto } = t
+  return resto
 }
 
 /** Suelta la elección de este contexto (al elegir una terminal local): vuelve a verse la local activa. */
@@ -235,6 +255,58 @@ export function podarContextosSsh(s: SshTabsState, contextosVivos: Iterable<stri
   const activaPorContexto: Record<string, string> = {}
   for (const c of contextos) if (vivos.has(c)) activaPorContexto[c] = s.activaPorContexto[c]
   return { ...s, activaPorContexto }
+}
+
+/**
+ * Las pestañas que se guardan para el siguiente arranque: las de cada perfil, en su orden, con su nombre a
+ * mano y el alias que se les conoce. Con `existe`, sin las de una conexión que ya no está (no tendría nada que
+ * reabrir). Un perfil sin ninguna no ocupa entrada.
+ */
+export function pestanasAGuardar(s: SshTabsState, existe?: (conexionId: string) => boolean): SshPestanasPorPerfil {
+  const out: SshPestanasPorPerfil = {}
+  for (const [perfil, cur] of Object.entries(s.porPerfil)) {
+    const lista = cur.lista
+      .filter((t) => existe === undefined || existe(t.conexionId))
+      .map((t): SshPestanaGuardada => ({
+        conexionId: t.conexionId,
+        alias: t.aliasConocido,
+        ...(t.nombre !== undefined ? { nombre: t.nombre } : {}),
+        ...(esPestanaSftp(t) ? { sftp: true as const } : {})
+      }))
+    if (lista.length > 0) out[perfil] = lista
+  }
+  return out
+}
+
+/**
+ * Vuelve a poner las pestañas guardadas de los perfiles que aún no tienen ninguna, SIN elegir ninguna: un pane
+ * sin elegir no se ve y no abre su sesión, así que nada se conecta hasta que se mira. Un perfil que ya tiene
+ * pestañas (se abrió alguna antes de leer lo guardado) se deja como está. Devuelve el MISMO objeto si no cambia.
+ */
+export function restaurarSsh(s: SshTabsState, guardadas: SshPestanasPorPerfil): SshTabsState {
+  let porPerfil: Record<string, SshTabsPerfil> | null = null
+  for (const [perfil, lista] of Object.entries(guardadas)) {
+    if (lista.length === 0 || (s.porPerfil[perfil]?.lista.length ?? 0) > 0) continue
+    // Los ids siguen al último que repartió el perfil: un id no se reutiliza jamás.
+    const desde = s.porPerfil[perfil]?.siguiente ?? 1
+    const tabs: SshTab[] = []
+    for (const g of lista) {
+      const n = desde + tabs.length
+      const sftp = g.sftp === true
+      tabs.push({
+        id: `s${n}`,
+        n,
+        conexionId: g.conexionId,
+        indice: indiceLibre(tabs, g.conexionId, sftp),
+        aliasConocido: g.alias.trim() === '' ? ALIAS_SSH_DESCONOCIDO : g.alias,
+        ...(g.nombre !== undefined ? { nombre: g.nombre } : {}),
+        ...(sftp ? { sftp: true as const } : {}),
+        restaurada: true
+      })
+    }
+    porPerfil = { ...(porPerfil ?? s.porPerfil), [perfil]: { lista: tabs, siguiente: desde + tabs.length } }
+  }
+  return porPerfil === null ? s : { ...s, porPerfil }
 }
 
 /**

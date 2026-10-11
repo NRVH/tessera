@@ -1,7 +1,8 @@
 // =============================================================================
 // Las operaciones del puente que usa `tssh`, con el token de SESIÓN (su ámbito es el perfil entero):
 // `ssh.listar`, `ssh.preparar` (la línea de ssh o scp en modo agente y, si el método pide secreto, una
-// ficha del programa de contraseñas), `ssh.terminar` (revoca la ficha y clasifica un 255) y
+// ficha del programa de contraseñas; si la conexión tiene bastión, el salto, pero nunca sus túneles),
+// `ssh.terminar` (revoca la ficha y clasifica un 255) y
 // `ssh.diagnostico`. `tssh` nunca recibe un secreto. En `logs/ssh.log` quedan alias, subcomando, código y
 // duración, nunca la orden remota ni las rutas. Sin `electron`: todo llega por parámetro.
 // Decisiones: docs/decisiones/ssh/tssh-y-agentes.md
@@ -19,8 +20,10 @@ import type { ConexionSshPersistida } from '../conservarAlEditarSsh.ts'
 import { FICHA_AGENTE, type UsoFicha } from '../fichasAskpass.ts'
 import { argumentosScp, argumentosSsh, hostParaScp } from '../lineaSsh.ts'
 import { QUITAR_ENV_SSH } from '../programaAskpass.ts'
+import { cadenaDeSaltos, type CitaProxy } from '../saltosSsh.ts'
 import { errorHost, errorPuerto, errorUsuario } from '../validacionSsh.ts'
 import type { EntornoSecreto } from './askpassSsh.ts'
+import { citaDe, problemaDeSalto, proxyDeSaltos, type DepsLineaSaltos } from './lineaSaltos.ts'
 
 /** Las operaciones del puente que usa `tssh`. */
 export const OP_LISTAR = 'ssh.listar'
@@ -41,6 +44,17 @@ export const QUITAR_ENV_TSSH: readonly string[] = [...QUITAR_ENV_SSH, 'TESSERA_D
 
 /** Para qué se prepara la línea: `tssh run`, `tssh cp` o la prueba de `tssh doctor <alias>`. */
 type Uso = 'run' | 'cp' | 'doctor'
+
+/** Lo que hace falta para componer la línea de un agente. */
+interface LineaAgente {
+  c: ConexionSshPersistida
+  /** Sus bastiones, del más cercano al más lejano. */
+  cadena: ConexionSshPersistida[]
+  uso: Uso
+  ssh: EjecutableSsh
+  scp: string | null
+  cita: CitaProxy
+}
 
 /** Un «no» con su código de salida y un mensaje para el agente. */
 interface Rechazo {
@@ -64,13 +78,18 @@ export interface DepsPuenteTssh {
   rutaHuellas: (id: string) => string
   rutaClave: (id: string) => string
   /** El programa de contraseñas; sin él, una conexión que pide secreto no se puede usar desde un agente. */
-  askpass: { entorno: (c: ConexionSshPersistida, uso: UsoFicha, pestana: boolean) => EntornoSecreto; soltar: (ficha: string | null) => boolean } | null
+  askpass: {
+    entorno: (c: ConexionSshPersistida, uso: UsoFicha, pestana: boolean, saltos?: readonly ConexionSshPersistida[]) => EntornoSecreto
+    soltar: (ficha: string | null) => boolean
+  } | null
   binarios: () => BinariosSsh
   existe: (ruta: string) => boolean
   programaAskpass: string
   nombrePerfil: (profileId: string) => string | undefined
   /** Escribe una línea en `logs/ssh.log`. */
   auditar: (linea: string) => void
+  /** Dónde se escribe la configuración de los saltos; sin ella, una conexión con bastión no se puede usar. */
+  configSaltos?: DepsLineaSaltos['config']
   plataforma: Plataforma
   log?: (mensaje: string) => void
 }
@@ -185,6 +204,42 @@ export class PuenteTssh {
     return null
   }
 
+  /**
+   * Los bastiones de la conexión, cada uno con lo que impediría usarlo: sus datos, la copia de su clave, su
+   * huella confirmada por una persona y su secreto. No hace falta que estén disponibles para los agentes: el
+   * usuario eligió el bastión de una conexión que sí lo está.
+   */
+  private saltos(c: ConexionSshPersistida, profileId: string): { cadena: ConexionSshPersistida[]; dtos: SshConexion[] } | Rechazo {
+    let cadena: ConexionSshPersistida[]
+    try {
+      cadena = cadenaDeSaltos(c, (id) => this.d.conexion(id))
+    } catch (e) {
+      return noUsable(`${e instanceof Error ? e.message : String(e)} Díselo al usuario.`)
+    }
+    if (cadena.length === 0) return { cadena, dtos: [] }
+    if (this.d.configSaltos === undefined) return noUsable(`«${c.alias}» salta por un bastión y Tessera no puede prepararlo ahora. Díselo al usuario.`)
+    const delPerfil = this.d.listar(profileId).conexiones
+    const dtos: SshConexion[] = []
+    for (const s of cadena) {
+      const dto = delPerfil.find((x) => x.id === s.id)
+      if (dto === undefined) return noUsable(`El bastión de «${c.alias}» ya no existe en este perfil. Díselo al usuario.`)
+      const dato = problemaDeSalto(s, { existe: this.d.existe, rutaClave: this.d.rutaClave })
+      if (dato !== null) return noUsable(`Para llegar a «${c.alias}»: ${dato} Díselo al usuario.`)
+      if (dto.huellaServidor.length === 0) {
+        return {
+          codigo: CODIGOS_TSSH.huella,
+          error:
+            `Se llega a «${c.alias}» por el bastión «${s.alias}», cuya huella no está confirmada. Pide al usuario que se conecte ` +
+            'una vez a ese bastión desde la terminal de Tessera (o que pulse «Probar» en él): solo puedes usar equipos cuya huella ya aceptó una persona.'
+        }
+      }
+      const secreto = this.problemaDeSecreto(dto)
+      if (secreto !== null) return secreto
+      dtos.push(dto)
+    }
+    return { cadena, dtos }
+  }
+
   /** Lo primero que impide usar la conexión desde un agente, comprobado ahora; `null` si está lista. */
   private problema(dto: SshConexion, c: ConexionSshPersistida, uso: Uso, b: BinariosSsh): Rechazo | null {
     const dato = errorHost(c.host) ?? errorPuerto(c.puerto) ?? errorUsuario(c.usuario)
@@ -217,9 +272,11 @@ export class PuenteTssh {
     const b = this.d.binarios()
     const problema = this.problema(elegida.dto, c, uso, b)
     if (problema !== null || b.ssh === null) return this.rechazar(s, uso, c.alias, problema ?? noUsable(mensajeSinSsh(this.d.plataforma)))
-    const secreto = this.secretoPara(elegida.dto, c)
+    const saltos = this.saltos(c, s.profileId)
+    if ('error' in saltos) return this.rechazar(s, uso, c.alias, saltos)
+    const secreto = this.secretoPara(elegida.dto, c, saltos)
     if (secreto !== null && 'error' in secreto) return this.rechazar(s, uso, c.alias, secreto)
-    const linea = this.lineaConFicha(c, uso, b.ssh, b.scp, secreto, p)
+    const linea = this.lineaConFicha({ c, cadena: saltos.cadena, uso, ssh: b.ssh, scp: b.scp, cita: citaDe(this.d.plataforma, b.origen) }, secreto, p)
     this.auditar(s, uso, c.alias, 'inicio')
     return {
       ok: true,
@@ -232,34 +289,51 @@ export class PuenteTssh {
     }
   }
 
-  /** El secreto que dará el programa de contraseñas; `null` si el método no lo pide, o por qué no se puede. */
-  private secretoPara(dto: SshConexion, c: ConexionSshPersistida): EntornoSecreto | Rechazo | null {
-    if (!pideSecretoSsh(dto) || this.d.askpass === null) return null
-    const secreto = this.d.askpass.entorno(c, FICHA_AGENTE, false)
+  /**
+   * El secreto que dará el programa de contraseñas (el de la conexión y el de sus bastiones); `null` si ninguno
+   * lo pide, o por qué no se puede.
+   */
+  private secretoPara(dto: SshConexion, c: ConexionSshPersistida, saltos: { cadena: ConexionSshPersistida[]; dtos: SshConexion[] }): EntornoSecreto | Rechazo | null {
+    if (![dto, ...saltos.dtos].some(pideSecretoSsh) || this.d.askpass === null) return null
+    const secreto = this.d.askpass.entorno(c, FICHA_AGENTE, false, saltos.cadena)
     if (secreto.conAskpass) return secreto
     // El motivo concreto (pensado para una persona) va al registro; al agente, qué hacer.
     this.log(`tssh conexion=${c.id}: ${secreto.aviso ?? 'sin programa de contraseñas'}`)
-    return noUsable(`Tessera no puede dar ahora el secreto guardado de «${c.alias}». No lo pidas: díselo al usuario.`)
+    return noUsable(`Tessera no puede dar ahora el secreto guardado de «${c.alias}» o de su bastión. No lo pidas: díselo al usuario.`)
   }
 
   /** La línea; si no se puede componer, la ficha (que no llegó a nadie) se revoca ya, sin esperar a que caduque. */
-  private lineaConFicha(c: ConexionSshPersistida, uso: Uso, ssh: EjecutableSsh, scp: string | null, secreto: EntornoSecreto | null, p: Record<string, unknown>): { exe: string; args: string[] } {
+  private lineaConFicha(l: LineaAgente, secreto: EntornoSecreto | null, p: Record<string, unknown>): { exe: string; args: string[] } {
     try {
-      return this.linea(c, uso, ssh, scp, secreto !== null, p)
+      return this.linea(l, secreto !== null, p)
     } catch (e) {
       if (secreto !== null) this.d.askpass?.soltar(secreto.ficha)
       throw e
     }
   }
 
-  /** La línea de ssh (`run`, `doctor`) o de scp (`cp`) en modo agente. */
-  private linea(c: ConexionSshPersistida, uso: Uso, ssh: EjecutableSsh, scp: string | null, conAskpass: boolean, p: Record<string, unknown>): { exe: string; args: string[] } {
+  /** La línea de ssh (`run`, `doctor`) o de scp (`cp`) en modo agente, saltando por sus bastiones si los tiene. */
+  private linea(l: LineaAgente, conAskpass: boolean, p: Record<string, unknown>): { exe: string; args: string[] } {
+    const { c, uso, ssh, scp } = l
+    // Con bastión y sin dónde preparar el salto se lanza: nunca directo a un equipo que se alcanza por él.
+    if (l.cadena.length > 0 && this.d.configSaltos === undefined) throw new Error(`«${c.alias}» salta por un bastión y Tessera no puede prepararlo ahora.`)
+    const proxyCommand =
+      l.cadena.length === 0 || this.d.configSaltos === undefined
+        ? undefined
+        : proxyDeSaltos(l.cadena, { modo: 'agente', conAskpass, conDialogo: false, ssh, cita: l.cita }, {
+            rutaHuellas: this.d.rutaHuellas,
+            rutaClave: this.d.rutaClave,
+            existe: this.d.existe,
+            config: this.d.configSaltos,
+            plataforma: this.d.plataforma
+          })
     const opts = {
       modo: 'agente' as const,
       rutaHuellas: this.d.rutaHuellas(c.id),
       rutaClave: c.metodo === 'clave' ? this.d.rutaClave(c.id) : undefined,
       plataforma: this.d.plataforma,
-      conAskpass
+      conAskpass,
+      ...(proxyCommand === undefined ? {} : { proxyCommand })
     }
     if (uso === 'cp' && scp !== null) {
       return { exe: scp, args: argumentosScp(c, { ...opts, ssh: sshHermano(scp, this.d.plataforma), recursivo: p.recursivo === true }) }
@@ -303,7 +377,8 @@ export class PuenteTssh {
     const elegida = this.elegir(cat, alias)
     if ('error' in elegida) return { ...base, conexion: null, problema: elegida }
     const c = this.d.conexion(elegida.dto.id)
-    const problema = c ? this.problema(elegida.dto, c, 'run', b) : sinAlias(alias)
+    const saltos = c ? this.saltos(c, s.profileId) : null
+    const problema = c ? (this.problema(elegida.dto, c, 'run', b) ?? (saltos !== null && 'error' in saltos ? saltos : null)) : sinAlias(alias)
     return { ...base, conexion: filaTssh(elegida.dto, cat.grupos), problema }
   }
 }

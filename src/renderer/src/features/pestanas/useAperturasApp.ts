@@ -11,7 +11,7 @@ import { useStorePestanas } from './store'
 import { salirMosaico } from '../mosaico'
 import { revelarRuta } from '../explorador'
 import type { EditorApp } from '../editor'
-import { fijadoresLayout } from '../layout'
+import { salirDePantallaCompleta } from '../layout'
 import { useStoreAjustes } from '../ajustes'
 
 /** Engancha las aperturas externas a las pestañas, el editor y el árbol. */
@@ -39,13 +39,9 @@ export function useAperturasApp(
       salirMosaico(false)
       return tabs.openKnownProject(...a)
     },
-    setActiveProject: (profileId, projectHostPath) => {
+    setActiveProject: (profileId, projectHostPath, opciones) => {
       salirMosaico(false)
-      tabs.setActiveProject(profileId, projectHostPath)
-    },
-    setActiveProfile: (profileId) => {
-      salirMosaico(false)
-      tabs.setActiveProfile(profileId)
+      tabs.setActiveProject(profileId, projectHostPath, opciones)
     },
     forzarModoWindows,
     quitarAgenteDiferido: tabs.quitarAgenteDiferido,
@@ -57,7 +53,7 @@ export function useAperturasApp(
     // tapado: revelar ahí no se vería, así que se sale de las dos cosas antes de revelar.
     revelarEnArbol: (rel) => {
       salirMosaico(false)
-      fijadoresLayout.franjaPantallaCompleta(null)
+      salirDePantallaCompleta()
       salirDeBd()
       revelarRuta(rel)
     }

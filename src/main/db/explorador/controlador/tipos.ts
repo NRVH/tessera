@@ -21,6 +21,7 @@ import type { CacheCatalogo } from '../CacheCatalogo.ts'
 import type { DialectoCatalogo, FilaCatalogo } from '../catalogoSql.ts'
 import type { GestorClaves } from '../claves/GestorClaves.ts'
 import type { ConsolasStore } from '../ConsolasStore.ts'
+import type { GestorExportaDocumentos } from '../documentos/exportarDocumentos.ts'
 import type { GestorDocumentos } from '../documentos/GestorDocumentos.ts'
 import type { Exportador } from '../exportacion.ts'
 import type { GestorSesiones, TrabajadorGestor } from '../GestorSesiones.ts'
@@ -57,6 +58,8 @@ export interface ConexionesExplorador {
 /** Lo que el explorador usa de `DbController`. */
 export interface RegistroExplorador {
   ctxDrivers(): CtxDrivers
+  /** El extremo local del túnel SSH de la conexión, abriéndolo si hace falta; `null` sin túnel. Ausente, sin túneles. */
+  tunelDe?(con: DbConnection): Promise<{ host: string; port: number }> | null
   /** Emite `db:changed`. */
   notificarCambio(): void
   /** `<userData>/conexiones/<perfil>`, validado como hija directa y SIN crearla. */
@@ -117,6 +120,8 @@ export interface OpcionesExplorador {
    * los canales comunes (ver la cabecera, «OTRAS FAMILIAS»). Sin él, solo SQL.
    */
   documentos?: GestorDocumentosDelegado
+  /** De ese mismo gestor, lo que exporta documentos a un archivo (`exportarDocumentos.ts`). Sin él, MongoDB no exporta. */
+  exportarDocumentos?: GestorExportaDocumentos
   /** El gestor de los motores de CLAVES (Redis), delegado igual. */
   claves?: GestorClavesDelegado
   log?: (linea: string) => void

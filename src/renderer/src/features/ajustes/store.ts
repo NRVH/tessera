@@ -21,6 +21,8 @@ import { resolverCategoria, type CategoriaId } from './catalogo'
 export interface EstadoAjustes {
   hideProfileNames: boolean
   aplicarUpdateAlCerrar: boolean
+  registroSalud: boolean
+  volcadosCaida: boolean
   diffColapsar: boolean
   paquetesSandbox: string[]
   depsNavegadorSandbox: boolean
@@ -56,6 +58,8 @@ export interface EstadoAjustes {
 export const useStoreAjustes = create<EstadoAjustes>()((set) => ({
   hideProfileNames: false,
   aplicarUpdateAlCerrar: true,
+  registroSalud: true,
+  volcadosCaida: true,
   diffColapsar: false,
   paquetesSandbox: [],
   depsNavegadorSandbox: false,

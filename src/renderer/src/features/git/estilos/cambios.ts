@@ -41,6 +41,7 @@ export const CSS_CAMBIOS = `
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 /* SECCIÓN POR REPO: una cabecera colapsable por repo, con su nombre, su rama y su

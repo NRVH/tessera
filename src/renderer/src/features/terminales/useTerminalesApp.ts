@@ -10,7 +10,8 @@ import { useCallback, useEffect, useMemo } from 'react'
 import { accionesSsh, conexionPorId, useStoreSsh } from '../ssh'
 import { terminalProjectKey } from './shellTerminalsModel'
 import { contextoSsh, contextosVivosSsh } from './sshTabsModel'
-import { accionesTerminales } from './store'
+import { hayTerminalQueEnsenar } from './activoTerminales'
+import { accionesTerminales, useStoreTerminales } from './store'
 import type { TerminalProjectTarget } from './terminalPaneTipos'
 import { useStorePestanas, type UseTabs } from '../pestanas'
 
@@ -43,12 +44,14 @@ export interface TerminalesApp {
  */
 function usePodaSsh(tabs: UseTabs, terminalProjects: TerminalProjectTarget[]): void {
   const cargadas = useStorePestanas((s) => s.pestanasCargadas)
+  // También cuando llegan las pestañas guardadas del arranque anterior: pueden ser de un perfil que ya no está.
+  const perfilesConPestanas = useStoreTerminales((s) => Object.keys(s.ssh.porPerfil).join('\u0000'))
   const { profiles } = tabs
   useEffect(() => {
     if (!cargadas) return
     const perfilesVivos = profiles.map((p) => p.id)
     accionesTerminales.podarSsh(perfilesVivos, contextosVivosSsh(terminalProjects.map((p) => p.key), perfilesVivos))
-  }, [cargadas, profiles, terminalProjects])
+  }, [cargadas, profiles, terminalProjects, perfilesConPestanas])
 }
 
 /** El nombre de una pestaña SSH sigue al alias de su conexión: lo pone al día cada vez que cambian las conexiones. */
@@ -116,4 +119,22 @@ export function useTerminalesApp(tabs: UseTabs, terminalVisible: boolean): Termi
     [perfilTerminal, contextoTerminal]
   )
   return { terminalProjects, activeTerminalProjectKey, hibernatedProjectKeys, perfilTerminal, contextoTerminal, conectarSsh, abrirSftp }
+}
+
+
+/**
+ * ¿Hay alguna terminal que enseñar? Para quien decide sin montar el panel: si la columna de la terminal se
+ * pliega junto a su agente y si se le ofrece maximizarse sobre ellas.
+ */
+export function useHayTerminalQueEnsenar(t: Pick<TerminalesApp, 'terminalProjects' | 'activeTerminalProjectKey' | 'perfilTerminal' | 'contextoTerminal'>): boolean {
+  return useStoreTerminales((s) =>
+    hayTerminalQueEnsenar({
+      projects: t.terminalProjects,
+      activeProjectKey: t.activeTerminalProjectKey,
+      terminals: s.shellTerminals,
+      perfilId: t.perfilTerminal,
+      contexto: t.contextoTerminal,
+      ssh: s.ssh
+    })
+  )
 }

@@ -23,8 +23,12 @@ import { esperar } from '../util/esperas'
  */
 const ARGS_INSTALADOR = ['/S', '--updated'] as const
 
-/** Cuánto se espera, como mucho, a que el proceso padre desaparezca. */
-const ESPERA_PADRE_MS = 30_000
+/**
+ * Cuánto se espera, como mucho, a que el proceso padre desaparezca. El relevo se lanza al
+ * EMPEZAR el cierre, así que cubre el cierre entero (contenedores incluidos). Si se agota,
+ * se instala igual: el instalador cierra la Tessera que siga viva.
+ */
+const ESPERA_PADRE_MS = 180_000
 /** Cuánto se insiste en que la carpeta llegue a estar renombrable. */
 const ESPERA_CARPETA_MS = 20_000
 const SONDEO_MS = 250

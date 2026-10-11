@@ -29,6 +29,7 @@ import {
   paneKeyDb,
   pestanaActiva,
   recortarCentro,
+  reemplazarPestana,
   titulosPestanas,
   type DbPane,
   type DbTabsState,
@@ -501,6 +502,22 @@ function main(): void {
     check('dos bases: dbN › nombre', j(nombres) === j(['db0 › usuario:1', 'db1 › usuario:1']), j(nombres))
     const podada = filtrarPestanas(s, (p) => p.conexionId !== 'r1')
     check('la poda por conexión la cierra', podada.tabs.length === 0 && podada.activeId === null, j(podada))
+  }
+
+  hr('reemplazar una pestaña en su sitio (una clave renombrada)')
+  {
+    const cl = (b64: string, nombre: string): DbPane => ({ kind: 'clave', conexionId: 'r1', base: 0, clave: b64, nombre })
+    const [a, b, c] = [cl('YQ==', 'a'), cl('Yg==', 'b'), cl('Yw==', 'c')]
+    let s = ESTADO_PESTANAS_INICIAL
+    for (const p of [a, b, c]) s = abrirPestana(s, p)
+    s = activarPestana(s, idDbPane(b))
+    const r = reemplazarPestana(s, idDbPane(b), cl('YjI=', 'b2'))
+    check('queda en el MISMO sitio, con el pane y el id nuevos, y sigue activa', j(r.tabs.map((t) => t.id)) === j([idDbPane(a), idDbPane(cl('YjI=', 'b2')), idDbPane(c)]) && r.activeId === idDbPane(cl('YjI=', 'b2')), j(r.tabs.map((t) => (t.pane as { nombre: string }).nombre)))
+    const r2 = reemplazarPestana(s, idDbPane(a), cl('YjI=', 'b2'))
+    check('reemplazar una que no es la activa no cambia la activa', r2.activeId === idDbPane(b), String(r2.activeId))
+    const r3 = reemplazarPestana(s, idDbPane(b), c)
+    check('si ya había una pestaña de la nueva: se cierra la vieja y se activa aquella (nunca dos iguales)', j(r3.tabs.map((t) => t.id)) === j([idDbPane(a), idDbPane(c)]) && r3.activeId === idDbPane(c), j(r3))
+    check('NEGATIVO: una pestaña que no existe no cambia nada', reemplazarPestana(s, 'fantasma', c) === s, 'igual')
   }
 
   hr('RESULTADO (PASS/FAIL)')

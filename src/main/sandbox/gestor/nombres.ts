@@ -1,14 +1,17 @@
 // =============================================================================
 // Nombres, rutas y traducciones del sandbox: imagen, usuario neutro, puntos de montaje del
-// contenedor, raíces gestionadas por perfil (UNA variable, fijada con `fijarBaseGestionada`)
-// y el paso de una ruta del host a la que ve el daemon (`rutasSandbox.ts`).
+// contenedor, raíces gestionadas por perfil y sello de la instancia (fijados con
+// `fijarBaseGestionada`) y el paso de una ruta del host a la que ve el daemon (`rutasSandbox.ts`).
 // Decisiones: docs/decisiones/sandbox/raices-por-plataforma.md
 // =============================================================================
 import path from 'node:path'
 import os from 'node:os'
 import type { Profile } from '../../profiles/types.ts'
+import { plataformaActual } from '../../../shared/plataforma.ts'
+import { ETIQUETA_INSTANCIA } from '../contenedoresPropios.ts'
 import {
   aRutaDelDaemon,
+  huellaInstancia,
   normalizarRutaResuelta,
   raicesSandbox,
   type RaicesSandbox
@@ -34,9 +37,22 @@ export const AGENT_CONFIG_ROOT = '/agent-config'
 /** Buzón del puente de BD en el contenedor: bajo una raíz `rshared` para que el bind se propague. */
 export const DB_BRIDGE_CONTAINER = `${AGENT_CONFIG_ROOT}/dbbridge`
 
-/** Nombre del contenedor de un perfil. */
+/**
+ * Nombre del contenedor de un perfil. Lleva el sello de la instancia: dos usuarios de un mismo
+ * Docker, o la app y su arnés de pruebas, pueden tener un perfil con el mismo id.
+ */
 export function containerNameFor(profile: Profile): string {
-  return `tessera-${profile.id}`
+  return SELLO === '' ? `tessera-${profile.id}` : `tessera-${SELLO}-${profile.id}`
+}
+
+/** `--label` del sello de la instancia para un `docker run`; ninguno sin sello. */
+export function argsEtiquetaInstancia(): string[] {
+  return SELLO === '' ? [] : ['--label', `${ETIQUETA_INSTANCIA}=${SELLO}`]
+}
+
+/** Sello de esta instancia; `''` si el main no lo fijó (las pruebas que no pasan por él). */
+export function selloInstancia(): string {
+  return SELLO
 }
 
 /** Mensaje legible de un error desconocido (para los logs best-effort de limpieza). */
@@ -44,16 +60,18 @@ export function errText(err: unknown): string {
   return err instanceof Error ? err.message : String(err)
 }
 
-// El respaldo `~/.tessera` es el que usan las pruebas, que no pasan por el main; en
-// Windows se ignora (las raíces viven en la VM).
+// El respaldo `~/.tessera` y el sello vacío son los de las pruebas, que no pasan por el main.
 let RAICES = raicesSandbox(path.join(os.homedir(), '.tessera'))
+let SELLO = ''
 
 /**
- * Fija la carpeta del host bajo la que cuelgan las raíces gestionadas en macOS. La llama
- * el main una sola vez, con `userData`, ANTES de crear ningún contenedor.
+ * Fija la instancia con su `userData`: las raíces gestionadas (en macOS cuelgan de ahí; en
+ * Windows y Linux llevan su huella) y el sello de sus contenedores. La llama el main una sola
+ * vez, ANTES de crear ningún contenedor.
  */
 export function fijarBaseGestionada(baseHost: string): void {
-  RAICES = raicesSandbox(baseHost)
+  RAICES = raicesSandbox(baseHost, plataformaActual(), process.env.XDG_RUNTIME_DIR || `/run/user/${os.userInfo().uid}`)
+  SELLO = huellaInstancia(baseHost)
 }
 
 /** Las dos raíces base vigentes (proyectos y credenciales). */

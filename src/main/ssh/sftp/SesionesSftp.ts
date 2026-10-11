@@ -35,6 +35,8 @@ export interface LineaSftp {
   env: NodeJS.ProcessEnv
   /** Suelta la ficha del programa de contraseñas y avisa si ssh guardó una huella nueva. */
   alConectar: () => void
+  /** Recibe cómo terminar este ssh si el usuario no contesta una pregunta del diálogo. */
+  vincular?: (matar: () => void) => void
 }
 
 export interface DepsSesionesSftp {
@@ -50,8 +52,11 @@ export interface DepsSesionesSftp {
   log: (m: string) => void
 }
 
-/** Tope del saludo: conectar (10 s) más autenticarse con la red lenta. */
-const TOPE_SALUDO_MS = 30_000
+/**
+ * Tope del saludo: conectar (10 s) más autenticarse, que puede esperar a que el usuario conteste en el
+ * diálogo de Tessera (`TOPE_DIALOGO_MS`). Un servidor que no llega lo corta antes `ConnectTimeout`.
+ */
+const TOPE_SALUDO_MS = 150_000
 /** Cada cuánto se avisa del avance de una operación. */
 const AVANCE_MS = 250
 /** Un plan sin confirmar caduca. */
@@ -100,7 +105,7 @@ function textoDe(e: unknown): string {
 /** Lo que dice el renderer de un fallo al abrir, según por qué salió ssh. */
 function textoDeCaida(motivo: TerminalExitReason | undefined, errores: string): string {
   if (motivo === 'ssh-huella-cambiada') return 'La huella del servidor no es la que se confirmó: puede que alguien se haga pasar por él. Revísalo antes de seguir.'
-  if (motivo === 'ssh-autenticacion') return 'El servidor rechazó la autenticación. El explorador no puede preguntar la contraseña: guárdala en la conexión, o usa una clave.'
+  if (motivo === 'ssh-autenticacion') return 'El servidor rechazó la autenticación (o se canceló la pregunta). Vuelve a abrir el explorador y escribe la contraseña, o guárdala en la conexión.'
   if (motivo === 'ssh-inalcanzable') return 'No se pudo llegar al servidor (¿VPN, red o puerto?).'
   if (motivo === 'ssh-algoritmos') return 'El servidor no admite los algoritmos de este cliente SSH.'
   if (/subsystem request failed/i.test(errores)) return 'El servidor no tiene SFTP activado.'
@@ -129,6 +134,7 @@ export class SesionesSftp {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
     const proceso = spawn(linea.exe, linea.args, { env: linea.env, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] })
+    linea.vincular?.(() => proceso.kill())
     const cliente = new ClienteSftp(proceso.stdin!, proceso.stdout!)
     const sesion: Sesion = { proceso, cliente, errores: '', ops: new Set(), abierta: false, profileId, conexionId }
     this.sesiones.set(sesionId, sesion)

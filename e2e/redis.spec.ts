@@ -281,4 +281,18 @@ test.describe('explorador de BD: Redis', () => {
     await win.keyboard.press(`${MOD}+Enter`)
     await expect(consola).toContainText('"42"', { timeout: 30_000 })
   })
+
+  // (4) «Nueva consola» desde otra base: nace en ella, no en la de la conexión (db0).
+  test('(4) «Nueva consola» desde db1 nace en db1', async () => {
+    const win = s!.win
+    await fila(win, 'kv-base', 'db1').click({ button: 'right' })
+    await elegirDelMenu(win, 'Nueva consola')
+    const consola = win.locator(CONSOLA)
+    await expect(consola.locator('.db-consola-esquema'), 'la barra dice la base del nodo').toHaveText('db1')
+    await esperarConsolaLista(win)
+    await monacoConsola(win, { op: 'fijar', texto: 'GET otra:base:clave' })
+    await monacoConsola(win, { op: 'foco' })
+    await win.keyboard.press(`${MOD}+Enter`)
+    await expect(consola, 'la clave que solo existe en db1').toContainText('"hola"', { timeout: 30_000 })
+  })
 })

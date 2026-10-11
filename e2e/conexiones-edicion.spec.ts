@@ -584,26 +584,31 @@ test.describe('explorador de BD: edición en la rejilla', () => {
     //     izquierda (medido en Windows). El gesto es el de cada sistema para cerrar una
     //     app minimizada: en Windows, el aspa de su miniatura en la barra de tareas (el
     //     'close' de la ventana); en macOS, Salir desde el Dock (`before-quit`).
-    const minimizada = (): Promise<boolean> =>
-      sesion.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.isMinimized() ?? false)
-    await sesion.app.evaluate(({ BrowserWindow }) => {
-      BrowserWindow.getAllWindows()[0]?.minimize()
-    })
-    await expect.poll(minimizada, { message: 'la ventana no llegó a minimizarse' }).toBe(true)
-    await responder(1)
-    if (PLATAFORMA === 'mac') {
-      await sesion.app.evaluate(({ app }) => {
-        app.quit()
+    //     En Linux no se prueba: con Wayland el compositor no le dice a la app que está
+    //     minimizada, y la pantalla virtual de las pruebas no tiene gestor de ventanas que
+    //     sepa minimizar.
+    if (PLATAFORMA !== 'linux') {
+      const minimizada = (): Promise<boolean> =>
+        sesion.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.isMinimized() ?? false)
+      await sesion.app.evaluate(({ BrowserWindow }) => {
+        BrowserWindow.getAllWindows()[0]?.minimize()
       })
-    } else {
-      await pulsarX()
+      await expect.poll(minimizada, { message: 'la ventana no llegó a minimizarse' }).toBe(true)
+      await responder(1)
+      if (PLATAFORMA === 'mac') {
+        await sesion.app.evaluate(({ app }) => {
+          app.quit()
+        })
+      } else {
+        await pulsarX()
+      }
+      await expect.poll(async () => (await dialogos()).length, { message: 'cerrar minimizada no preguntó' }).toBe(3)
+      expect((await dialogos())[2], 'minimizada pregunta lo mismo').toEqual(q)
+      await expect.poll(minimizada, { message: 'el diálogo de salida no trajo la ventana a la vista' }).toBe(false)
+      await win.waitForTimeout(500)
+      await expect(win.locator('.titlebar'), 'la ventana sigue abierta').toBeVisible()
+      await expect(celda(win, 0, 1), 'el cambio sigue ahí').toHaveText('tres')
     }
-    await expect.poll(async () => (await dialogos()).length, { message: 'cerrar minimizada no preguntó' }).toBe(3)
-    expect((await dialogos())[2], 'minimizada pregunta lo mismo').toEqual(q)
-    await expect.poll(minimizada, { message: 'el diálogo de salida no trajo la ventana a la vista' }).toBe(false)
-    await win.waitForTimeout(500)
-    await expect(win.locator('.titlebar'), 'la ventana sigue abierta').toBeVisible()
-    await expect(celda(win, 0, 1), 'el cambio sigue ahí').toHaveText('tres')
 
     // 3) La X otra vez, «Descartar y salir»: vuelve a preguntar y cierra, sin escribir nada.
     const cerrada = sesion.app.waitForEvent('close', { timeout: 60_000 })

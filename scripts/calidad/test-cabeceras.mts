@@ -89,7 +89,8 @@ function autoprueba(): void {
 
 const op = leerArgumentos(process.argv.slice(2))
 autoprueba()
-const archivos = archivosDelAmbito(EXT_CODIGO, op.rutas)
+// Un guion de flujo de agentes (`*.workflow.js`) tiene que abrir con `export const meta`: su cabecera va debajo.
+const archivos = archivosDelAmbito(EXT_CODIGO, op.rutas).filter((f) => !f.endsWith('.workflow.js'))
 const hallazgos = archivos.flatMap((a) => analizarCabecera(a, leer(a)))
 hr(`Cabeceras de módulo: ${archivos.length} archivo(s) revisado(s)`)
 check('hay archivos en el ámbito', archivos.length > 0, `${archivos.length} archivo(s)`)

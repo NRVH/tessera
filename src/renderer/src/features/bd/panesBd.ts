@@ -115,8 +115,8 @@ export function sinOrdenEstable(
 export function consultaParaConsola(objeto: Pick<DbRefObjeto, 'esquema' | 'nombre' | 'base'>, motor: DbMotor): string {
   const d = dialectoDeMotor(motor)
   const dos = nombreCalificado(objeto.esquema, objeto.nombre, d)
-  // Con base (nivel «Bases»), el nombre de TRES partes: la consola nueva
-  // abre en la base por defecto del login, que puede no ser la de la tabla.
+  // Con base (nivel «Bases»), el nombre de TRES partes: la consola nace en la base de la
+  // tabla, pero el texto se guarda y puede volver a correrse cuando la sesión esté en otra.
   return `SELECT * FROM ${objeto.base !== undefined ? `${citarSiHaceFalta(objeto.base, d)}.${dos}` : dos}`
 }
 
@@ -321,7 +321,7 @@ export function motivoSinLector(e: DbErrorSql): string {
  * Lenguaje de Monaco por motor, de su descriptor (`sql.lenguajeFuente`). `plsql` no
  * existe en Monaco: Oracle va como `sql`.
  */
-export function lenguajeFuente(motor: DbMotor): 'sql' | 'pgsql' {
+export function lenguajeFuente(motor: DbMotor): 'sql' | 'pgsql' | 'mysql' {
   return descriptorSql(motor).sql.lenguajeFuente
 }
 

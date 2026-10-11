@@ -23,7 +23,10 @@ const SEGURO: Readonly<Record<DialectoSql, RegExp>> = {
   // SQL Server: el «identificador regular» de T-SQL en ASCII: letra o `_` al
   // principio (`@` y `#` iniciales son variables y temporales: se citan) y detrás letras,
   // dígitos, `_`, `@`, `$` y `#`. Conserva la caja, como SQLite. Fuera de ASCII, se cita.
-  sqlserver: /^[A-Za-z_][A-Za-z0-9_@$#]*$/
+  sqlserver: /^[A-Za-z_][A-Za-z0-9_@$#]*$/,
+  // MySQL conserva la caja; letra o `_` al principio y detrás letras, dígitos, `_` y `$`.
+  // Fuera de ASCII, se cita.
+  mysql: /^[A-Za-z_][A-Za-z0-9_$]*$/
 }
 
 /** Pliega un identificador escrito SIN comillas como lo guardaría el motor. */
@@ -52,7 +55,9 @@ export function plegarSinComillas(crudo: string, d: DialectoSql): string {
 export function normalizarIdent(crudo: string, d: DialectoSql): string {
   const r = reglasDe(d) // valida también cuando el nombre va citado y no llega a plegarse
   const t = crudo.trim()
-  return sinComillasDobles(t) ?? sinCorchetes(t, r) ?? sinAcentoGrave(t, r) ?? plegarSinComillas(t, d)
+  // En MySQL `"x"` es una cadena, no un nombre citado.
+  const dobles = r.comillasDoblesCadena ? null : sinComillasDobles(t)
+  return dobles ?? sinCorchetes(t, r) ?? sinAcentoGrave(t, r) ?? plegarSinComillas(t, d)
 }
 
 /** `"x"` y `U&"x"` (PG): el contenido con `""` -> `"`; null si no va así. */
@@ -117,12 +122,27 @@ export function mismoNombre(a: string, b: string, d: DialectoSql): boolean {
  * Cita SIEMPRE, duplicando las comillas internas. Con el dialecto, cita como ESE motor: en SQL
  * Server (`corcheteEscapeDoble`) entre corchetes, con `]` doblado (`[a]]b]`), porque `"x"` solo
  * es un nombre con QUOTED_IDENTIFIER ON y el `sqlcmd` de ODBC lo abre en OFF (medido: su
- * SESSIONPROPERTY da 0), así que un guion exportado con `"x"` no correría allí. Sin dialecto,
- * o en los demás, `"x"` como siempre.
+ * SESSIONPROPERTY da 0), así que un guion exportado con `"x"` no correría allí. En MySQL
+ * (`comillasDoblesCadena`) `"x"` es una CADENA: el nombre va entre acentos graves, con el
+ * acento doblado. Sin dialecto, o en los demás, `"x"` como siempre: el SQL que se genera
+ * para un motor tiene que pasar SU dialecto.
  */
 export function citar(nombre: string, d?: DialectoSql): string {
-  if (d !== undefined && reglasDe(d).corcheteEscapeDoble) return '[' + nombre.split(']').join(']]') + ']'
+  if (d !== undefined) {
+    const r = reglasDe(d)
+    if (r.corcheteEscapeDoble) return '[' + nombre.split(']').join(']]') + ']'
+    if (r.comillasDoblesCadena) return '`' + nombre.split('`').join('``') + '`'
+  }
   return '"' + nombre.split('"').join('""') + '"'
+}
+
+/**
+ * Cita un nombre del SQL que GENERA Tessera para el motor `d` (rejilla, filtro, valor de una
+ * celda): `"x"` donde las comillas dobles son un nombre (en SQL Server también, porque la sesión
+ * abre con QUOTED_IDENTIFIER ON) y acentos graves donde son una cadena (MySQL).
+ */
+export function citarGenerado(nombre: string, d: DialectoSql): string {
+  return reglasDe(d).comillasDoblesCadena ? citar(nombre, d) : citar(nombre)
 }
 
 /** Cita solo si el nombre no se leería igual sin comillas en el motor `d`. */

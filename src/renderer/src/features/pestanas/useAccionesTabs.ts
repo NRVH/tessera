@@ -145,8 +145,10 @@ export function useAccionesProyecto(rescanActiveProject: () => () => void): Acci
     dispatch({ type: 'setActiveProfile', profileId })
   }, [])
 
-  const setActiveProject = useCallback((profileId: string, projectHostPath: string) => {
-    dispatch({ type: 'setActiveProject', profileId, projectHostPath })
+  const setActiveProject = useCallback((profileId: string, projectHostPath: string, opciones?: { entrar?: boolean }) => {
+    const entrar = opciones?.entrar === true
+    if (entrar && leerTabs().activeProfileId !== profileId) iniciarTramo('perfil:cambio')
+    dispatch({ type: 'setActiveProject', profileId, projectHostPath, ...(entrar ? { entrar } : {}) })
   }, [])
 
   const wakeProject = useCallback((profileId: string, projectHostPath: string) => {
@@ -243,6 +245,10 @@ export function useAccionesCrudPerfiles(): AccionesCrudPerfiles {
 
   const deleteProfile = useCallback((profileId: string) => {
     dispatch({ type: 'deleteProfile', profileId })
+    // Guardar la lista nunca borra: lo del perfil solo se borra con esta orden.
+    window.tessera.deleteProfile(profileId).catch((err) => {
+      console.error('[tabs] deleteProfile falló:', err)
+    })
   }, [])
 
   const reorderProfiles = useCallback((orderedIds: string[]) => {

@@ -10,6 +10,7 @@ import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { plataformaActual, type Plataforma } from '../../shared/plataforma.ts'
 import type { SshEntorno } from '../../shared/ssh-ipc.ts'
+import { lanzadaPorElArnes } from '../../shared/arnesE2e.ts'
 
 /** La variable de las pruebas de interfaz: `{"exe": "…", "args": […]}` se lanza con `args` delante de los de ssh. */
 export const VAR_SSH_BINARIO = 'TESSERA_SSH_BINARIO'
@@ -45,18 +46,12 @@ export interface OpcionesBinariosSsh {
 }
 
 /**
- * La marca con la que el arnés e2e (`e2e/tessera.ts`) lanza la app, y que nadie más pasa. NO vale
- * `--user-data-dir`: el relevo de actualización de macOS relanza la app instalada justo con él.
- */
-export const ARG_ARNES_E2E = '--tessera-arnes-e2e'
-
-/**
  * ¿Se hace caso de `TESSERA_SSH_BINARIO`? Sin empaquetar, sí; empaquetada, solo con la marca del arnés
  * (`ARG_ARNES_E2E`). La instalada, la abra el usuario o la relance una actualización, nunca lanza otro
  * programa en lugar de ssh (con la línea, el askpass y los secretos), aunque la variable esté puesta.
  */
 export function admiteBinarioDePrueba(empaquetada: boolean, argv: readonly string[]): boolean {
-  return !empaquetada || argv.includes(ARG_ARNES_E2E)
+  return !empaquetada || lanzadaPorElArnes(argv)
 }
 
 /** Una variable del entorno; en Windows sin distinguir mayúsculas, como la busca el sistema. */
@@ -149,8 +144,17 @@ export function entornoSsh(b: BinariosSsh): SshEntorno {
 
 /** Sin cliente SSH: el remedio depende del sistema, así que se bifurca la frase entera. */
 export function mensajeSinSsh(plataforma: Plataforma): string {
-  return plataforma === 'windows'
-    ? 'No se encontró el cliente SSH del sistema (OpenSSH). Instala «Cliente OpenSSH» desde las ' +
-        'características opcionales del sistema y vuelve a intentarlo.'
-    : 'No se encontró el cliente SSH del sistema en /usr/bin/ssh.'
+  if (plataforma === 'windows') {
+    return (
+      'No se encontró el cliente SSH del sistema (OpenSSH). Instala «Cliente OpenSSH» desde las ' +
+      'características opcionales del sistema y vuelve a intentarlo.'
+    )
+  }
+  if (plataforma === 'linux') {
+    return (
+      'No se encontró el cliente SSH del sistema en /usr/bin/ssh. Instala el paquete del cliente ' +
+      'OpenSSH de tu distribución (openssh-client u openssh-clients) y vuelve a intentarlo.'
+    )
+  }
+  return 'No se encontró el cliente SSH del sistema en /usr/bin/ssh.'
 }

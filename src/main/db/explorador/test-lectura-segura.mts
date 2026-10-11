@@ -117,8 +117,8 @@ const REGISTRO_EN_DISCO = {
     // Tres que esta versión NO sabe usar, del mismo perfil: sin alias (forma), de un
     // motor que no conoce, y una sin alias ni id (no se puede ni nombrar).
     { id: 'c-sin-alias', profileId: 'alfa', motor: 'oracle', host: 'h3', port: 1521, sid: 'X', user: 'u3' },
-    { id: 'c-sqls', profileId: 'alfa', alias: 'Ventas SQLS', motor: 'mysql', host: 'h4', port: 1433, user: 'sa' },
-    { profileId: 'alfa', motor: 'mysql' },
+    { id: 'c-sqls', profileId: 'alfa', alias: 'Ventas SQLS', motor: 'db2', host: 'h4', port: 1433, user: 'sa' },
+    { profileId: 'alfa', motor: 'db2' },
     'basura',
     null
   ]
@@ -224,7 +224,7 @@ check('sin perfil conocido busca en todo el registro (como tdb)', sinPerfil.ok &
   const deMotor = buscarEnRegistro(REGISTRO, 'ventas sqls', 'alfa')
   check(
     'una AJENA de motor que casa por alias: no se devuelve, y dice su motor',
-    !deMotor.ok && deMotor.mensaje.startsWith('«Ventas SQLS» es de un motor (mysql)') && deMotor.mensaje.includes('actualiza Tessera'),
+    !deMotor.ok && deMotor.mensaje.startsWith('«Ventas SQLS» es de un motor (db2)') && deMotor.mensaje.includes('actualiza Tessera'),
     deMotor.ok ? `la devolvió: ${String(deMotor.entrada.id)}` : deMotor.mensaje
   )
   // la COPIA de una conocida con su mismo id (pegada a mano) es ajena por

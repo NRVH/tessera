@@ -8,6 +8,7 @@ import type { DbConnection } from '../../../../shared/db-ipc'
 import { notify, notifyError } from '../../comun/notifications'
 import { anclaDelFoco } from '../../comun/anclaDelFoco'
 import { conexionDeClave } from './arbolBd'
+import { esquemaAlCrear, sembrarBaseConsola, type BaseConsolaNueva } from './consola/basesConsola'
 import { pestanaActiva } from './dbTabsModel'
 import { vivasParaPodarPestanas } from './dbMounts'
 import { TITULO_FORMATO_AJENO, motivoSinConsola } from './filasArbolBd'
@@ -28,7 +29,8 @@ export interface BdApp {
   conexionesBd: ConexionesBd
   consolasBd: ConsolasBd
   sesionesBd: ReturnType<typeof useSesionesBd>
-  crearConsolaEn: (perfilId: string, conexionId: string, textoInicial?: string) => Promise<void>
+  /** `base`: la del nodo desde el que se pidió; sin ella, la de la conexión. */
+  crearConsolaEn: (perfilId: string, conexionId: string, textoInicial?: string, base?: BaseConsolaNueva) => Promise<void>
   /** Mod+N en la vista: la conexión seleccionada, la de la pestaña activa o la única. */
   nuevaConsolaEnContexto: () => void
   alEliminarConexion: (conexionId: string, perfilId: string) => void
@@ -39,13 +41,14 @@ function useCrearConsola(consolasBd: ConsolasBd, vistaDb: DbVistaApi): BdApp['cr
   const { anadir: anadirConsolaBd } = consolasBd
   const { abrir: abrirPestanaBd } = vistaDb
   return useCallback(
-    async (perfilId: string, conexionId: string, textoInicial?: string): Promise<void> => {
+    async (perfilId: string, conexionId: string, textoInicial?: string, base?: BaseConsolaNueva): Promise<void> => {
       try {
-        const r = await window.tessera.dbExplorador.crearConsola(perfilId, conexionId)
+        const r = await window.tessera.dbExplorador.crearConsola(perfilId, conexionId, esquemaAlCrear(base))
         if (!r.ok) {
           notifyError('No se pudo crear la consola', r.error.mensaje)
           return
         }
+        sembrarBaseConsola(perfilId, r.valor.id, base)
         if (textoInicial !== undefined && textoInicial !== '') {
           const w = await window.tessera.dbExplorador.escribirConsola(perfilId, r.valor.id, textoInicial)
           if (!w.ok) notifyError('No se pudo escribir el texto inicial de la consola', w.error.mensaje)

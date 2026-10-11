@@ -1,10 +1,10 @@
 // =============================================================================
 // useAccionesPerfil: acciones del menú de un perfil que abren un diálogo o un selector:
 // cambiar color, eliminar, hibernar y red del contenedor. Guarda qué diálogo está abierto
-// y el input <color> oculto. Lo llama `useBandaPerfiles`; depende del tipo `Profile` del main.
+// y dónde se abre el selector de color. Lo llama `useBandaPerfiles`; depende del tipo `Profile` del main.
 // Decisiones: docs/decisiones/renderer/red-del-contenedor.md
 // =============================================================================
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import type { Profile } from '../../../../main/profiles/types'
 
 /**
@@ -25,48 +25,59 @@ interface OpcionesAcciones {
   onHibernateProfile: (profileId: string) => void
 }
 
+/** El selector de color abierto: de qué perfil y dónde (bajo su pestaña). */
+export interface SelectorColorAbierto {
+  profile: Profile
+  x: number
+  y: number
+}
+
 export interface AccionesPerfil {
   deleting: Profile | null
   hibernating: HibernacionPendiente | null
   /** Perfil cuyo diálogo de red está abierto. */
   redModal: string | null
-  colorInputRef: React.RefObject<HTMLInputElement>
+  selectorColor: SelectorColorAbierto | null
   openColorPicker: (profile: Profile) => void
+  cerrarSelectorColor: () => void
   requestDelete: (profile: Profile) => void
   requestHibernate: (profile: Profile, trabajando: boolean) => void
   abrirRed: (profileId: string) => void
   cerrarRed: () => void
   aplicarRed: (profile: Profile, redHost: boolean) => void
-  elegirColor: (color: string) => void
+  elegirColor: (profileId: string, color: string) => void
   confirmarHibernacion: () => void
   cancelarHibernacion: () => void
   confirmarEliminar: () => void
   cancelarEliminar: () => void
 }
 
-// Input <color> oculto reutilizado para "Cambiar color" de un perfil existente: se le
-// fija el valor y se dispara .click() para abrir el selector nativo.
+/** Ancho del selector de color (`.selector-color`), para centrarlo bajo la pestaña. */
+const ANCHO_SELECTOR = 264
+
+/**
+ * «Cambiar color» abre el selector bajo la pestaña del perfil, centrado en ella y sin salirse
+ * de la ventana. Sin la pestaña a la vista (banda plegada) cae bajo el borde de arriba.
+ */
 function useSelectorColor(
   cerrarMenu: () => void,
   onRecolorProfile: (profileId: string, color: string) => void
-): Pick<AccionesPerfil, 'colorInputRef' | 'openColorPicker' | 'elegirColor'> {
-  const colorInputRef = useRef<HTMLInputElement>(null)
-  const colorTargetRef = useRef<string | null>(null)
+): Pick<AccionesPerfil, 'selectorColor' | 'openColorPicker' | 'cerrarSelectorColor' | 'elegirColor'> {
+  const [selectorColor, setSelectorColor] = useState<SelectorColorAbierto | null>(null)
   return {
-    colorInputRef,
+    selectorColor,
     openColorPicker: (profile) => {
       cerrarMenu()
-      colorTargetRef.current = profile.id
-      const input = colorInputRef.current
-      if (input) {
-        input.value = profile.color
-        input.click()
-      }
+      const pestana = document.querySelector<HTMLElement>(`.profile-tab[data-perfil-id="${CSS.escape(profile.id)}"]`)
+      const caja = pestana?.getBoundingClientRect()
+      const centro = caja ? caja.left + caja.width / 2 : window.innerWidth / 2
+      const x = Math.max(8, Math.min(window.innerWidth - ANCHO_SELECTOR - 8, centro - ANCHO_SELECTOR / 2))
+      // Con la banda plegada la pestaña sigue en el DOM con unos px de alto: el tope de 40 lo
+      // saca de debajo de la barra de título.
+      setSelectorColor({ profile, x, y: Math.max(caja?.bottom ?? 0, 40) + 6 })
     },
-    elegirColor: (color) => {
-      const id = colorTargetRef.current
-      if (id) onRecolorProfile(id, color)
-    }
+    cerrarSelectorColor: () => setSelectorColor(null),
+    elegirColor: onRecolorProfile
   }
 }
 

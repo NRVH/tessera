@@ -43,7 +43,7 @@ export type {
   ProjectMount,
   ShutdownProgressLite
 } from './gestor/tipos.ts'
-export { fijarBaseGestionada } from './gestor/nombres.ts'
+export { containerNameFor, fijarBaseGestionada } from './gestor/nombres.ts'
 
 const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url))
 /** src/main/sandbox -> raíz del repo -> docker/sandbox (contexto del `docker build`). */
@@ -229,12 +229,12 @@ export class SandboxManager {
     return this.contenedores.stopContainer(profile)
   }
 
-  /** Lanza (una vez) el barrido de arranque; `ensureContainer` lo espera. */
-  beginStartupSweep(): void {
-    this.barrido.beginStartupSweep()
+  /** Lanza (una vez) el barrido de arranque; `ensureContainer` lo espera. `heredados`: ver `BarridoSandbox`. */
+  beginStartupSweep(heredados = true): void {
+    this.barrido.beginStartupSweep(heredados)
   }
 
-  /** Cierre total: elimina los contenedores de Tessera y libera las raíces base. */
+  /** Cierre total: elimina los contenedores de esta instancia y libera sus raíces base. */
   stopAllContainers(onProgress?: (p: ShutdownProgressLite) => void): Promise<number> {
     return this.barrido.stopAllContainers(onProgress)
   }

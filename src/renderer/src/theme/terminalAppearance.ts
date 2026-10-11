@@ -15,8 +15,11 @@ export interface TerminalAppearance {
   fontSize: number
 }
 
-/** Fuente y tamaño por defecto de las terminales. */
-export const DEFAULT_TERMINAL_FONT = '"Cascadia Code", "Fira Code", Consolas, "Courier New", monospace'
+/**
+ * Fuente y tamaño por defecto de las terminales. Menlo es la monoespaciada de macOS: sin ella, en Mac
+ * (que no trae ninguna de las anteriores) se caía en Courier New. En Windows no existe y no cambia nada.
+ */
+export const DEFAULT_TERMINAL_FONT = '"Cascadia Code", "Fira Code", Consolas, Menlo, "Courier New", monospace'
 export const DEFAULT_TERMINAL_FONT_SIZE = 13
 
 export const DEFAULT_TERMINAL_APPEARANCE: TerminalAppearance = {
@@ -52,5 +55,6 @@ export const TERMINAL_FONT_OPTIONS: { label: string; value: string }[] = [
   { label: 'Courier New', value: '"Courier New", monospace' },
   { label: 'Fira Code', value: '"Fira Code", monospace' },
   { label: 'JetBrains Mono', value: '"JetBrains Mono", monospace' },
-  { label: 'Lucida Console', value: '"Lucida Console", monospace' }
+  { label: 'Lucida Console', value: '"Lucida Console", monospace' },
+  { label: 'Menlo', value: 'Menlo, monospace' }
 ]

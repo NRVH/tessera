@@ -63,6 +63,8 @@ import {
   prefijosDeClave,
   recorrerClaves,
   textoSinCoincidencias,
+  TIPOS_FILTRABLES,
+  ttlCorto,
   vistaCargarMas,
   type RecorridoClaves
 } from './arbolClaves.ts'
@@ -450,6 +452,34 @@ function seccionFamilias(): void {
   const buscada = aplanarArbolBd({ ...conDatos, expandidos: new Set(), filtro: 'zet' })
   check('la búsqueda encuentra una colección y abre su cadena', j(resumen(buscada)) === j(['0|conexion:MONGO-DEV', '1|docBase:app', '2|coleccion:zeta']), j(resumen(buscada)))
 
+  // --- Documentos: los índices cuelgan de la colección ---
+  const indicesP = [
+    { nombre: '_id_', clave: '{ _id: 1 }', unico: true },
+    { nombre: 'cliente_1', clave: '{ cliente: 1 }', unico: false }
+  ]
+  const colsConIndices = [{ nombre: 'pedidos', tipo: 'coleccion' as const, indices: indicesP }, { nombre: 'vista1', tipo: 'vista' as const }]
+  const conIndices = (expandidos: string[], extra: Partial<EntradaArbolBd> = {}): EntradaArbolBd =>
+    vacia([M2], [claveBd.conexion('m2'), ...expandidos], { colecciones: new Map([[claveBd.docBase('m2', 'app'), colsConIndices]]), ...extra })
+  const plegada = aplanarArbolBd(conIndices([]))
+  check(
+    'una colección con índices es un contenedor plegado; una vista, una hoja',
+    j(resumen(plegada)) === j(['0|conexion:MONGO-APP', '1|coleccion:pedidos', '1|coleccion:vista1']) &&
+      esContenedor(plegada[1]) &&
+      !esContenedor(plegada[2]) &&
+      accionTecla(plegada[1], 'dcha') === 'expandir' &&
+      accionTecla(plegada[1], 'abrir') === 'abrir',
+    j(resumen(plegada))
+  )
+  const abierta = aplanarArbolBd(conIndices([claveBd.coleccion('m2', 'app', 'pedidos')]))
+  check(
+    'desplegada, sus índices cuelgan de ella, un nivel más adentro',
+    j(resumen(abierta)) === j(['0|conexion:MONGO-APP', '1|coleccion:pedidos', '2|docIndice:_id_', '2|docIndice:cliente_1', '1|coleccion:vista1']),
+    j(resumen(abierta))
+  )
+  const porIndice = aplanarArbolBd(conIndices([], { filtro: 'cliente_' }))
+  check('la búsqueda por el nombre de un índice abre su colección', j(resumen(porIndice)) === j(['0|conexion:MONGO-APP', '1|coleccion:pedidos', '2|docIndice:cliente_1']), j(resumen(porIndice)))
+  check('el índice no abre pestaña ni se despliega', paneDeFila(abierta[2]) === null && !esContenedor(abierta[2]) && accionTecla(abierta[2], 'abrir') === 'nada', '')
+
   // --- El error de hoy (el esqueleto del main) se pinta como el de una conexión SQL ---
   const errDriver: DbErrorSql = { motivo: 'driver', mensaje: 'Todavía no se puede conectar a MongoDB desde esta versión.' }
   const conError = aplanarArbolBd(vacia([M1], [claveBd.conexion('m1')], { errores: new Map([[claveBd.docBases('m1'), errDriver]]) }))
@@ -560,6 +590,15 @@ function seccionFamilias(): void {
   )
   const carpetaUsuario = kvPag.find((f) => f.kind === 'kv-carpeta')
   check('una carpeta se despliega y no abre nada', carpetaUsuario !== undefined && esContenedor(carpetaUsuario) && paneDeFila(carpetaUsuario) === null, j(carpetaUsuario))
+  // Borrar una carpeta con la base filtrada por tipo borra solo ese tipo: las carpetas, a cualquier nivel, lo llevan.
+  const carpetasPorTipo = conRecorrido([claveBd.kvCarpeta('r1', 1, 'usuario:')], { kvTipos: new Map([[claveBd.kvBase('r1', 1), 'hash' as DbKvTipo]]) }).filter(
+    (f) => f.kind === 'kv-carpeta'
+  )
+  check(
+    'con la base filtrada por tipo, sus carpetas (y las de dentro) llevan el tipo; sin filtro, ninguna',
+    carpetasPorTipo.length === 2 && carpetasPorTipo.every((f) => f.kind === 'kv-carpeta' && f.tipo === 'hash') && kvPag.every((f) => f.kind !== 'kv-carpeta' || f.tipo === undefined),
+    j(carpetasPorTipo)
+  )
   const buscadaKv = aplanarArbolBd({
     ...vacia([R1], [], { kvBases: new Map([[claveBd.kvBases('r1'), resp]]), kvClaves: new Map([[claveBd.kvBase('r1', 1), recorrido]]) }),
     filtro: 'perf'
@@ -604,6 +643,33 @@ function seccionFamilias(): void {
       trasLaBase[0].mensaje === textoSinCoincidencias('*x*'),
     j(trasLaBase)
   )
+
+  // El filtro por tipo: la fila de la base lo lleva y, sin nada, el mensaje lo nombra.
+  const kvPorTipoVacia = aplanarArbolBd(
+    vacia([R1], [claveBd.conexion('r1'), claveBd.kvBase('r1', 1)], {
+      kvBases: new Map([[claveBd.kvBases('r1'), resp]]),
+      kvClaves: new Map([[claveBd.kvBase('r1', 1), acumularPagina(null, { cursor: '0', claves: [], ms: 1 }, '').recorrido]]),
+      kvTipos: new Map([[claveBd.kvBase('r1', 1), 'hash' as DbKvTipo]])
+    })
+  )
+  const filaBasePorTipo = kvPorTipoVacia.find((f) => f.kind === 'kv-base' && f.indice === 1)
+  const trasPorTipo = deLaBase(kvPorTipoVacia)
+  check(
+    'con tipo y el recorrido acabado sin nada: lo dice con el tipo, y la fila de la base lo lleva',
+    filaBasePorTipo?.kind === 'kv-base' && filaBasePorTipo.tipo === 'hash' && trasPorTipo.length === 1 && trasPorTipo[0].kind === 'placeholder' && trasPorTipo[0].mensaje === 'Ninguna clave de tipo HASH',
+    j(trasPorTipo)
+  )
+  check(
+    'textoSinCoincidencias con tipo y patrón a la vez',
+    textoSinCoincidencias('a*', 'zset') === 'Ninguna clave de tipo ZSET casa con a*' && textoSinCoincidencias('a*') === 'Ninguna clave casa con a*',
+    textoSinCoincidencias('a*', 'zset')
+  )
+  check(
+    'ttlCorto: una sola unidad, hacia abajo',
+    [500, 1000, 59_999, 60_000, 3_599_999, 3_600_000, 86_400_000, 200_000_000].map(ttlCorto).join('|') === '<1 s|1 s|59 s|1 min|59 min|1 h|1 d|2 d',
+    [500, 1000, 59_999, 60_000, 3_599_999, 3_600_000, 86_400_000, 200_000_000].map(ttlCorto).join('|')
+  )
+  check('los tipos filtrables son los del servidor (sin «otro»)', TIPOS_FILTRABLES.join() === 'string,hash,list,set,zset,stream,json', TIPOS_FILTRABLES.join())
 
   // --- Las piezas puras de cada familia ---
   check('basePorDefectoClaves: vacío o no numérico -> 0; «3» -> 3', basePorDefectoClaves({}) === 0 && basePorDefectoClaves({ database: 'x' }) === 0 && basePorDefectoClaves({ database: ' 3 ' }) === 3, 'ok')
@@ -819,6 +885,35 @@ async function seccionRecorridoClaves(): Promise<void> {
   soltar({ ok: true, valor: { cursor: '0', claves: [clave('vieja')], ms: 1 } })
   await p1
   check('caché: la respuesta del patrón VIEJO no se guarda', !cache2.instantaneaArbol().kvClaves.has(K3), j([...cache2.instantaneaArbol().kvClaves.keys()]))
+
+  // El filtro por tipo: se recuerda por base, tira lo recorrido y viaja en cada vuelta de SCAN.
+  const cache3 = new CacheMetaBd(apiSql, undefined, familias)
+  respuestas = [pag('9', ['a'])]
+  await cache3.cargar(carga3)
+  cache3.filtrarTipoClaves('r1', 3, 'hash')
+  const porTipo = cache3.instantaneaArbol()
+  check(
+    'caché: filtrar por tipo TIRA lo recorrido y lo recuerda por base (y no mezcla las demás)',
+    !porTipo.kvClaves.has(K3) && porTipo.kvTipos.get(K3) === 'hash' && cache3.tipoClaves('r1', 3) === 'hash' && cache3.tipoClaves('r1', 4) === undefined,
+    j([...porTipo.kvTipos])
+  )
+  const antesTipo = escaneos.length
+  respuestas = [pag('7', ['h1'])]
+  await cache3.cargar(carga3)
+  respuestas = [pag('0', ['h2'])]
+  await cache3.cargarMasClaves('r1', 3)
+  check(
+    'caché: la carga y «Cargar más» piden con el tipo de la base',
+    escaneos.slice(antesTipo).length === 2 && escaneos.slice(antesTipo).every((e) => e.tipo === 'hash'),
+    j(escaneos.slice(antesTipo))
+  )
+  cache3.filtrarTipoClaves('r1', 3, undefined)
+  check('caché: quitar el tipo lo olvida y vuelve a tirar lo recorrido', cache3.tipoClaves('r1', 3) === undefined && !cache3.instantaneaArbol().kvClaves.has(K3), '')
+  cache3.filtrarTipoClaves('r1', 3, 'set')
+  respuestas = [pag('0', ['s'])]
+  await cache3.cargar(carga3)
+  cache3.filtrarTipoClaves('r1', 3, 'set')
+  check('caché: poner el MISMO tipo otra vez no tira lo recorrido', cache3.instantaneaArbol().kvClaves.has(K3), '')
 }
 
 function entrada(expandidos: string[], extra: Partial<EntradaArbolBd> = {}): EntradaArbolBd {
@@ -866,6 +961,8 @@ function etiqueta(f: FilaBd): string {
       return `docBase:${f.base}`
     case 'coleccion':
       return `coleccion:${f.coleccion.nombre}`
+    case 'doc-indice':
+      return `docIndice:${f.indice.nombre}`
     case 'kv-base':
       return `kvBase:${f.indice}(${f.claves === null ? '?' : f.claves})`
     case 'kv-carpeta':

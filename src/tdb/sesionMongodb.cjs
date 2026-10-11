@@ -1,21 +1,29 @@
 // =============================================================================
 // Adaptador MongoDB del proceso de sesión del explorador: `sesion.cjs` despacha aquí `abrir`,
 // `cancelar`, `cerrar` y la op `docs` (`bases`, `colecciones`, `detalle`, `consultar`, `mas`,
-// `cerrarLector`, `consola`, `enviar`). La política (solo lectura, producción) se aplica antes de tocar
+// `cerrarLector`, `consola`, `enviar`, `exportarAbrir`, `exportarMas`). La política (solo lectura, producción) se aplica antes de tocar
 // el servidor; los cursores viven aquí, por id, con un tope por sesión. Las operaciones SQL del
 // protocolo responden `protocolo`. Depende de `mongoComun.cjs`, `protocoloMongodb.cjs` y `cambiosMongodb.cjs`.
 // Decisiones: docs/decisiones/bd/mongodb-sesion-lectores-y-enviar.md
 // =============================================================================
 'use strict'
 
+const { randomUUID } = require('node:crypto')
 const comun = require('./mongoComun.cjs')
 const { CODIGO_LECTOR, protocolo, textoDe, enteroDe, politicaDe, guardia } = require('./protocoloMongodb.cjs')
 const { errorDe } = require('./sesionProtocolo.cjs')
 const { enviar } = require('./cambiosMongodb.cjs')
+const { planDeExplain } = require('./planMongodb.cjs')
+const { FORMATOS: FORMATOS_EXPORTAR, paginaExportada } = require('./exportarMongodb.cjs')
 
 const TOPE_LECTORES = 8
 const MUESTRA = 100
 const TOPE_CONTEOS = 200
+/** Una escritura de la consola no va en transacción: lo que llegó a escribir antes de pararse se queda. */
+const MENSAJE_ESCRITURA_CANCELADA =
+  'Operación cancelada. Si el servidor llegó a escribir algo antes de pararse, eso se queda: una escritura de la consola no se deshace a medias.'
+const INTENTOS_KILLOP = 5
+const ESPERA_KILLOP_MS = 200
 
 // --- Abrir y cerrar ----------------------------------------------------------------------------
 
@@ -31,9 +39,14 @@ async function abrir(con, secreto, ctx, opciones, ganchos) {
     topologia,
     lectores: new Map(),
     siguienteLector: 1,
+    // El `comment` de cada operación lo usa el `killOp` de Stop, que mira todas las del usuario: tiene que
+    // ser único entre sesiones, procesos y equipos con la misma cuenta.
+    prefijoOp: randomUUID(),
     siguienteOp: 1,
     controlador: null,
     cancelado: false,
+    escribiendo: false,
+    comentario: null,
     ganchos: ganchos || {}
   }
   return {
@@ -64,7 +77,33 @@ async function cancelar(s) {
   if (!s || !s.controlador) return { cancelada: false }
   s.cancelado = true
   s.controlador.abort()
+  // Las escrituras de la consola no admiten `signal`: sin esto seguirían en el servidor hasta acabar.
+  // Las lecturas ya las para la señal, y «enviar» resuelve su propio lote.
+  if (s.escribiendo && s.comentario) void matarEnServidor(s, s.comentario)
   return { cancelada: true }
+}
+
+/**
+ * Mata en el servidor las operaciones propias con ese `comment`, único de esta sesión. Si el Stop llega
+ * antes de que el servidor registre la escritura, reintenta mientras siga siendo la operación en curso.
+ * Sin permiso, no hace nada: queda la cancelación del lado del cliente.
+ */
+async function matarEnServidor(s, comentario) {
+  const admin = s.cliente.db('admin')
+  for (let intento = 0; intento < INTENTOS_KILLOP && s.comentario === comentario; intento++) {
+    try {
+      const ops = await admin
+        .aggregate([{ $currentOp: { allUsers: false, idleConnections: false } }, { $match: { 'command.comment': comentario } }])
+        .toArray()
+      if (ops.length > 0) {
+        await Promise.allSettled(ops.map((op) => admin.command({ killOp: 1, op: op.opid })))
+        return
+      }
+    } catch {
+      return
+    }
+    await new Promise((r) => setTimeout(r, ESPERA_KILLOP_MS))
+  }
 }
 
 // --- Lectores ----------------------------------------------------------------------------------
@@ -94,7 +133,16 @@ function paginaDe(s, cursor, crear, documentos, hayMas, conocidas, controlador, 
   } else {
     comun.cerrarCursor(cursor)
   }
-  return { lector, documentos: documentos.map(comun.documento), columnas, ms: Date.now() - inicio }
+  return conCrudos({ lector, documentos: documentos.map(comun.documento), columnas, ms: Date.now() - inicio }, documentos)
+}
+
+/**
+ * Los documentos tal como los dio el driver, colgados de la página SIN ser enumerables: no viajan al main, y
+ * la exportación los convierte a su formato sin volver a interpretar su texto.
+ */
+function conCrudos(pagina, crudos) {
+  Object.defineProperty(pagina, 'crudos', { value: crudos, enumerable: false })
+  return pagina
 }
 
 // --- Suboperaciones de `docs` -----------------------------------------------------------------
@@ -129,20 +177,32 @@ async function colecciones(s, a, o) {
   // se omite antes que tardar.
   const contables = salida.filter((c) => c.tipo === 'coleccion')
   if (contables.length <= TOPE_CONTEOS) {
-    const conteos = await Promise.allSettled(contables.map((c) => db.collection(c.nombre).estimatedDocumentCount({ comment: o.comment })))
+    // Los índices cuelgan de cada colección en el árbol: se piden con los conteos, con el mismo tope.
+    const [conteos, indices] = await Promise.all([
+      Promise.allSettled(contables.map((c) => db.collection(c.nombre).estimatedDocumentCount({ comment: o.comment }))),
+      Promise.allSettled(contables.map((c) => indicesDe(db.collection(c.nombre), o)))
+    ])
     conteos.forEach((r, i) => {
       if (r.status === 'fulfilled' && typeof r.value === 'number') contables[i].documentosEstimados = r.value
     })
+    indices.forEach((r, i) => {
+      if (r.status === 'fulfilled') contables[i].indices = r.value
+    })
   }
   return salida
+}
+
+/** Los índices de una colección: nombre, clave en notación del shell y si es único. */
+async function indicesDe(col, o) {
+  const lista = await col.listIndexes({ comment: o.comment }).toArray()
+  return lista.map((i) => ({ nombre: String(i.name), clave: comun.texto(i.key, true), unico: i.unique === true || i.name === '_id_' }))
 }
 
 async function detalle(s, a, o) {
   const col = s.cliente.db(textoDe(a.base, 'base')).collection(textoDe(a.coleccion, 'coleccion'))
   let indices
   try {
-    const lista = await col.listIndexes({ comment: o.comment }).toArray()
-    indices = lista.map((i) => ({ nombre: String(i.name), clave: comun.texto(i.key, true), unico: i.unique === true || i.name === '_id_' }))
+    indices = await indicesDe(col, o)
   } catch {
     // Una vista no tiene índices propios (listIndexes falla): se deja vacío.
     indices = []
@@ -216,7 +276,10 @@ async function mas(s, a) {
     s.lectores.delete(id)
     comun.cerrarCursor(lec.cursor)
   }
-  return { lector: r.hayMas ? id : null, documentos: r.documentos.map(comun.documento), columnas: lec.columnas, ms: Date.now() - inicio }
+  return conCrudos(
+    { lector: r.hayMas ? id : null, documentos: r.documentos.map(comun.documento), columnas: lec.columnas, ms: Date.now() - inicio },
+    r.documentos
+  )
 }
 
 async function cerrarLectorDocs(s, a) {
@@ -238,6 +301,7 @@ async function consola(s, a, o) {
   const sentencia = comun.interpretarSentencia(a.texto)
   const clase = comun.clasificar(sentencia)
   if (!clase.lectura) guardia(politica, clase.motivo)
+  s.escribiendo = !clase.lectura
   const inicio = Date.now()
   const r = await comun.ejecutar(s.cliente, base, sentencia, { maxDocumentos: max, signal: o.controlador.signal, comment: o.comment })
   const avisos = clase.avisos.length > 0 ? { avisos: clase.avisos } : {}
@@ -247,6 +311,12 @@ async function consola(s, a, o) {
       return { tipo: 'documentos', pagina, base, coleccion: r.coleccion, ...avisos }
     }
     case 'valor':
+      if (r.plan) {
+        // Los avisos del plan (colección entera, muchos documentos examinados) salen también en la Salida.
+        const plan = planDeExplain(r.valor, Date.now() - inicio)
+        const todos = [...clase.avisos, ...(plan.avisos || [])]
+        return { tipo: 'plan', plan, base, ...(todos.length > 0 ? { avisos: todos } : {}) }
+      }
       return { tipo: 'valor', texto: comun.texto(r.valor), base, ...avisos }
     case 'escritura':
       return {
@@ -265,6 +335,48 @@ async function consola(s, a, o) {
   }
 }
 
+// --- Exportar ----------------------------------------------------------------------------------
+
+/** La página de una sentencia de lectura de la consola (`find`, `aggregate`); lo demás no se exporta. */
+async function paginaDeSentencia(s, a, o) {
+  if (typeof a.texto !== 'string') throw protocolo('Falta «texto».')
+  const clase = comun.clasificar(comun.interpretarSentencia(a.texto))
+  if (!clase.lectura) throw protocolo(`Solo se exporta el resultado de una consulta: ${clase.motivo}`)
+  const soloLectura = { soloLectura: true, produccion: true, confirmado: false }
+  const r = await consola(s, { ...a, politica: soloLectura }, o)
+  if (r.tipo !== 'documentos') throw protocolo('La sentencia no devuelve documentos: no hay nada que exportar.')
+  return r.pagina
+}
+
+function formatoDe(v) {
+  if (!FORMATOS_EXPORTAR.includes(v)) throw protocolo('«formato» tiene que ser json o csv.')
+  return v
+}
+
+/** La página en filas del formato; en CSV, con las columnas dadas o, en la primera página, las suyas. */
+function respuestaExportacion(pagina, formato, columnas) {
+  const cols = formato === 'csv' ? (columnas || comun.columnasDe(pagina.crudos, [])) : []
+  const { filas, omitidos } = paginaExportada(pagina.crudos, formato, cols)
+  return { lector: pagina.lector, columnas: cols, filas, omitidos }
+}
+
+/** La primera página de una exportación: la de una colección con su filtro, o la de una sentencia de lectura. */
+async function exportarAbrir(s, a, o) {
+  const formato = formatoDe(a.formato)
+  let pagina
+  if (a.origen === 'coleccion') pagina = await consultar(s, { ...a, columnas: [] }, o)
+  else if (a.origen === 'sentencia') pagina = await paginaDeSentencia(s, a, o)
+  else throw protocolo('Origen de exportación desconocido.')
+  return respuestaExportacion(pagina, formato, null)
+}
+
+/** La página siguiente de una exportación abierta; `columnas` son las que fijó la primera. */
+async function exportarMas(s, a) {
+  const formato = formatoDe(a.formato)
+  if (formato === 'csv' && !Array.isArray(a.columnas)) throw protocolo('Falta «columnas».')
+  return respuestaExportacion(await mas(s, a), formato, formato === 'csv' ? a.columnas : null)
+}
+
 const OPERACIONES = new Map([
   ['bases', bases],
   ['colecciones', colecciones],
@@ -273,7 +385,9 @@ const OPERACIONES = new Map([
   ['mas', mas],
   ['cerrarLector', cerrarLectorDocs],
   ['consola', consola],
-  ['enviar', enviar]
+  ['enviar', enviar],
+  ['exportarAbrir', exportarAbrir],
+  ['exportarMas', exportarMas]
 ])
 
 /** La op `docs` de `sesion.cjs` (dentro de `operar`: una a la vez por sesión). */
@@ -283,18 +397,22 @@ async function docs(s, operacion, args) {
   const controlador = new AbortController()
   s.controlador = controlador
   s.cancelado = false
-  const comment = `tessera:${s.siguienteOp++}`
+  s.escribiendo = false
+  const comment = `tessera:${s.prefijoOp}:${s.siguienteOp++}`
+  s.comentario = comment
   try {
     return await fn(s, args || {}, { controlador, signal: controlador.signal, comment })
   } catch (err) {
     const t = err && err.trabajador
     if (s.cancelado && !(t && (t.clase === 'protocolo' || t.clase === 'soloLectura'))) {
-      throw errorDe('cancelada', 'Operación cancelada.')
+      throw errorDe('cancelada', s.escribiendo ? MENSAJE_ESCRITURA_CANCELADA : 'Operación cancelada.')
     }
     throw err
   } finally {
     s.controlador = null
     s.cancelado = false
+    s.escribiendo = false
+    s.comentario = null
   }
 }
 

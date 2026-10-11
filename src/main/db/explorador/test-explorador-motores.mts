@@ -71,7 +71,8 @@ const VERSION_DE_PRUEBA: Readonly<Record<DbMotorSql, string>> = {
   oracle: '11.2.0.2.0',
   postgres: '12.4',
   sqlite: '3.53.4',
-  sqlserver: '11.0.2100.60'
+  sqlserver: '11.0.2100.60',
+  mysql: '8.0.36'
 }
 
 /** Lo que el trabajador falso recibe: op y, en `ejecutar`, el SQL, sus binds y su propósito. */
@@ -771,13 +772,14 @@ async function main(): Promise<void> {
       bases: async (req: unknown) => (llamadasKv.push({ op: 'bases', req }), { ok: true as const, valor: 'bases' as never }),
       escanear: async (req: unknown) => (llamadasKv.push({ op: 'escanear', req }), { ok: true as const, valor: 'escanear' as never }),
       valor: async (req: unknown) => (llamadasKv.push({ op: 'valor', req }), { ok: true as const, valor: 'valor' as never }),
-      ejecutarConsola: async (req: unknown, politica: unknown) => (llamadasKv.push({ op: 'ejecutarConsola', req, politica }), { ok: true as const, valor: 'ejecutarConsola' as never })
+      ejecutarConsola: async (req: unknown, politica: unknown) => (llamadasKv.push({ op: 'ejecutarConsola', req, politica }), { ok: true as const, valor: { base: 0, respuesta: { tipo: 'texto', texto: 'ejecutarConsola' } } as never })
     }
     const validaKv: Record<string, Record<string, unknown>> = {
       [KV_CHANNELS.BASES]: {},
       [KV_CHANNELS.ESCANEAR]: { base: 0, patron: 'usuario:*', cursor: '0', cuenta: 500 },
       [KV_CHANNELS.VALOR]: { base: 1, clave: { texto: 'a b', base64: 'YSBi' } },
-      [KV_CHANNELS.CONSOLA_EJECUTAR]: { consolaId: 'k1', base: 0, texto: 'GET a', desplazamiento: 0 }
+      [KV_CHANNELS.CONSOLA_EJECUTAR]: { consolaId: 'k1', base: 0, texto: 'GET a', desplazamiento: 0 },
+      [KV_CHANNELS.GUARDAR_TEXTO]: { nombre: 'clave', texto: '{}' }
     }
     const familias: Array<{
       nombre: string
@@ -807,11 +809,11 @@ async function main(): Promise<void> {
         canales: KV_CHANNELS,
         propia: 'redis',
         ajenas: ['mongo', 'ora'],
-        registrar: (ipc) => registrarIpcClaves({ ipc, controlador: new ControladorClaves({ conexiones, gestor: gestorClavesFalso }) }),
+        registrar: (ipc) => registrarIpcClaves({ ipc, controlador: new ControladorClaves({ conexiones, gestor: gestorClavesFalso, guardarTexto: async () => 'clave.json' }) }),
         sinConexion: [],
         valida: (canal) => validaKv[canal] ?? {},
         // Ya no es esqueleto: la petición válida llega al gestor (sin el «todavía no»).
-        propiaBien: (r) => r.ok === true && typeof r.valor === 'string'
+        propiaBien: (r) => r.ok === true && r.valor !== null && r.valor !== undefined
       }
     ]
     for (const f of familias) {
@@ -1022,6 +1024,12 @@ async function main(): Promise<void> {
       emitir: () => {}
     })
     try {
+      // El plazo de las consolas que leen los gestores de documentos y de claves: el del ajuste, saneado.
+      exD.fijarAjustes({ txInicial: 'auto', inactividadConsolaMs: 45 * 60_000 })
+      const plazo = exD.ajustesVigentes().inactividadConsolaMs
+      exD.fijarAjustes({ txInicial: 'auto', inactividadConsolaMs: Number.NaN })
+      const plazoSaneado = exD.ajustesVigentes().inactividadConsolaMs
+      check('ajustesVigentes: el plazo de las consolas tal cual se fijó, y saneado si no vale', plazo === 45 * 60_000 && Number.isFinite(plazoSaneado) && plazoSaneado > 0, j({ plazo, plazoSaneado }))
       exD.cancelar({ rol: 'datos', conexionId: 'mongo', peticionId: 'q1' })
       exD.cancelar({ rol: 'consola', perfilId: 'p1', consolaId: 'k1', ejecucionId: 'e1' })
       exD.forzar('mongo')

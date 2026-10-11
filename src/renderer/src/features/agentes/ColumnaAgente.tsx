@@ -16,7 +16,7 @@ import type { AgentesApp } from './useAgentesApp'
 import type { AgenteTerminalApp } from './useAgenteTerminal'
 import type { ColumnaAgenteEstado } from './useColumnaAgente'
 import type { SesionesNativas } from './useSesionesNativas'
-import { fijadoresLayout, useStoreLayout, type SalidaLayoutCentro, type Tamanos } from '../layout'
+import { fijadoresLayout, fijarMaximizado, useStoreLayout, type SalidaLayoutCentro, type Tamanos } from '../layout'
 import { useStorePestanas, type ModoProyecto, type UseTabs } from '../pestanas'
 import { useStoreBd, type EspaciosDatos, type MontajesBd } from '../bd'
 import { useStoreAjustes } from '../ajustes'
@@ -35,6 +35,8 @@ interface Props {
   agenteTerminal: AgenteTerminalApp
   montajes: MontajesBd
   sesiones: SesionesNativas
+  /** El agente de la terminal maximizado sobre las terminales, ya coherente (de App). */
+  maximizarAgenteTerminal: { canExpand: boolean; expanded: boolean }
 }
 
 /** Lo que el mosaico pinta en la columna; null fuera del mosaico. */
@@ -58,6 +60,7 @@ function usePanelMosaico(p: Pick<Props, 'mosaico' | 'actividad' | 'modo' | 'espa
     nombresProyecto: p.mosaico.nombresProyecto,
     trabajando: p.actividad.trabajandoSet,
     sinVer: p.actividad.activity.unseen,
+    esperando: p.actividad.esperandoSet,
     opciones: p.mosaico.opcionesMosaico,
     onElegirDestino: p.mosaico.elegirDestinoCasilla,
     onAbrirProyecto: p.mosaico.abrirProyectoEnCasilla,
@@ -91,7 +94,7 @@ function DivisorAgente({
     }
   }[divisor]
   // `splitter-agente`: el CSS del agente de la terminal lo deja a la vista y aparta a sus hermanos.
-  return <Splitter orientation="vertical" min={CC_WIDTH_MIN} direction={-1} className="splitter-agente" {...porDivisor} />
+  return <Splitter orientation="vertical" min={CC_WIDTH_MIN} direction={-1} className="splitter-agente splitter-hueco" {...porDivisor} />
 }
 
 /**
@@ -122,6 +125,21 @@ function useFocoDeLaColumna(lay: SalidaLayoutCentro): { tokenFoco: number; sinRo
   return { tokenFoco: tokenFocoMosaico, sinRobarFoco: salidaSinFoco || (cambia && !focoPedido), focoAgenteTerminal: focoPedido }
 }
 
+/**
+ * Maximizar el agente: sobre los archivos abiertos (el de la columna) o, el de la terminal, sobre las
+ * terminales, que solo se ofrece si hay alguna que tapar.
+ */
+function maximizarDe(
+  lay: SalidaLayoutCentro,
+  columna: Props['columna'],
+  terminal: Props['maximizarAgenteTerminal']
+): { canExpand: boolean; expanded: boolean; onToggleExpand: () => void } {
+  if (lay.agente !== 'terminal') {
+    return { canExpand: lay.cc.canExpand, expanded: columna.ccExpanded, onToggleExpand: columna.alternarCcMaximizado }
+  }
+  return { ...terminal, onToggleExpand: () => fijarMaximizado('agenteTerminal', !terminal.expanded) }
+}
+
 export function ColumnaAgente(props: Props): React.JSX.Element {
   const { tabs, agentes, columna, tamanos, espacios, agenteTerminal, montajes, sesiones } = props
   const lay = agentes.lay
@@ -131,6 +149,7 @@ export function ColumnaAgente(props: Props): React.JSX.Element {
   const dbMounts = useStoreBd((s) => s.dbMounts)
   const settingsLoaded = useStoreAjustes((s) => s.settingsLoaded)
   const mosaicoPanel = usePanelMosaico(props)
+  const maximizar = maximizarDe(lay, columna, props.maximizarAgenteTerminal)
   return (
     <>
       <DivisorAgente divisor={lay.divisorAgente} tamanos={tamanos} />
@@ -140,9 +159,7 @@ export function ColumnaAgente(props: Props): React.JSX.Element {
         activeTargetKey={agentes.activeTargetKeyEfectivo}
         hibernatedTargetKeys={agentes.hibernatedTargetKeys}
         profiles={tabs.profiles}
-        canExpand={lay.cc.canExpand}
-        expanded={columna.ccExpanded}
-        onToggleExpand={columna.alternarCcMaximizado}
+        {...maximizar}
         hidden={lay.cc.hidden}
         onTargetStatus={handleTargetStatus}
         onTargetVivo={handleTargetVivo}

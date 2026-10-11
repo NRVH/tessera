@@ -10,7 +10,7 @@
 import type { DbConnection } from '../../../../shared/db-ipc'
 import type { DbRefObjeto, DbTxModo } from '../../../../shared/db-explorador-ipc'
 import { descriptor, esDeClaves, esDeDocumentos, esMotorSql } from '../../../../shared/motores/index'
-import { pestanaActiva, type DbPane, type DbPaneObjeto, type DbTab } from './dbTabsModel'
+import { idDbPane, pestanaActiva, type DbPane, type DbPaneObjeto, type DbTab } from './dbTabsModel'
 import { motivoSinConsola, vacioAreaSinConexiones } from './filasArbolBd'
 import type { DbVistaApi, PestanaBdMontada } from './useDbVista'
 import type { AreaPorPane } from './useAreaPorPane'
@@ -20,6 +20,7 @@ import { ErrorBoundary } from '../../comun/ErrorBoundary'
 import { DbDatosPane } from './DbDatosPane'
 import { DbFuentePane } from './DbFuentePane'
 import { DbConsolaPane } from './DbConsolaPane'
+import type { AbrirConsolaEn, BaseConsolaNueva } from './consola/basesConsola'
 import { DbColeccionPane } from './documentos/DbColeccionPane'
 import { DbConsolaDocsPane } from './documentos/DbConsolaDocsPane'
 import { DbClavePane } from './claves/DbClavePane'
@@ -37,7 +38,7 @@ interface ContextoPanes {
   onAltoResultados: (px: number) => void
   filasPorPagina: number
   txInicial: DbTxModo
-  onAbrirConsola: (perfilId: string, conexionId: string, textoInicial?: string) => void
+  onAbrirConsola: (perfilId: string, conexionId: string, textoInicial?: string, base?: BaseConsolaNueva) => void
   onEditarConexion: (conexionId: string) => void
   porPane: AreaPorPane
 }
@@ -48,7 +49,7 @@ interface PaneEnCurso {
   pk: string
   conexion: DbConnection
   visible: boolean
-  abrirConsola: (conexionId: string, textoInicial?: string) => void
+  abrirConsola: AbrirConsolaEn
 }
 
 /** La familia de la conexión, que elige el pane. */
@@ -174,7 +175,7 @@ function contenidoPane(pane: DbPane, p: PaneEnCurso, ctx: ContextoPanes): React.
     )
   }
   if (pane.kind === 'clave') {
-    // El visor es de lectura: no pregunta al cerrarse (no entra en `registroEdicion`).
+    // Cada edición del visor se ejecuta al aceptar su diálogo: no pregunta al cerrarse (no entra en `registroEdicion`).
     if (!f.deClaves) return noDisponible('Esta conexión no es de claves.')
     return (
       <DbClavePane
@@ -187,6 +188,7 @@ function contenidoPane(pane: DbPane, p: PaneEnCurso, ctx: ContextoPanes): React.
         altoFila={ctx.altoFila}
         onIndicador={ctx.porPane.onIndicadorDe(p.pk)}
         onAbrirConsola={p.abrirConsola}
+        onRenombrada={(clave, nombre) => ctx.vista.reemplazar(p.pid, idDbPane(pane), { ...pane, clave, nombre })}
       />
     )
   }
@@ -204,7 +206,7 @@ export function paneDeArea({ perfilId: pid, tab, paneKey: pk }: PestanaBdMontada
   const visible = !ctx.oculta && pid === ctx.perfilId && activaDelPerfil?.id === tab.id
   const conexion = ctx.porPane.conexionDe(pid, tab.pane.conexionId, pk)
   if (conexion === null) return null
-  const abrirConsola = (conexionId: string, textoInicial?: string): void => ctx.onAbrirConsola(pid, conexionId, textoInicial)
+  const abrirConsola: AbrirConsolaEn = (conexionId, textoInicial, base) => ctx.onAbrirConsola(pid, conexionId, textoInicial, base)
   const contenido = contenidoPane(tab.pane, { pid, pk, conexion, visible, abrirConsola }, ctx)
   if (contenido === null) return null
   return (

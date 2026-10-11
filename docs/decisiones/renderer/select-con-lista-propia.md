@@ -17,7 +17,7 @@ menús de Tessera (el contextual, los popovers) son propios. En macOS era ademá
   lo elegido marcado en acento) y se limita a 320 px o al 45 % de la ventana.
 - El control CERRADO conserva el aspecto que le da la hoja de cada select: el modo base centra mal, deja envolver el texto y
   dibuja otra flecha, así que se compensa (texto centrado y sangrado 4 px como el nativo, una línea recortada en el borde con
-  `contain: paint`, flecha propia con `::picker-icon` a 8 px del filete). La regla pesa (0,2,1) a propósito: gana a la de
+  `contain: paint`, flecha propia con `::picker-icon` a 14 px del filete, más adentro que el nativo para que no se vea pegada al borde). La regla pesa (0,2,1) a propósito: gana a la de
   cada hoja sin depender del orden de carga. `contain: paint` hace del select un contexto de apilado: el logo del motor de
   BD lleva `z-index`.
 - El Esc con la lista abierta llega también a `window`. `useDialogo` lo deja pasar si viene de un select con `:open`, y así
@@ -35,4 +35,5 @@ menús de Tessera (el contextual, los popovers) son propios. En macOS era ademá
 
 - Una lista propia en React: repite el teclado, el foco, escribir para saltar y la accesibilidad que el elemento ya trae.
 - Un `<button>` con `<selectedcontent>` dentro de cada select: arreglaría el texto largo, pero obliga a cambiar el marcado de
-  todos.
+  todos. Queda para los selectores donde un texto largo es lo normal, que lo llevan por su cuenta: los de grupo de la
+  revisión de «Importar desde OpenSSH» (`DialogoImportarOpenSsh.tsx`).

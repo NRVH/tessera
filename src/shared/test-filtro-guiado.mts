@@ -11,6 +11,7 @@
 
 import {
   aridad,
+  categoriaDeColumnaSql,
   categoriaDeDocTipos,
   categoriaDeTipoLogico,
   diaSiguiente,
@@ -20,9 +21,12 @@ import {
   MAX_CONDICIONES,
   OPERADORES_POR_CATEGORIA,
   problemaDeValor,
+  sinComparacion,
   validarFiltro,
   validarOrden
 } from './filtroGuiado.ts'
+
+const j = (v: unknown): string => JSON.stringify(v)
 
 const results: Array<{ name: string; pass: boolean }> = []
 function hr(title: string): void {
@@ -42,6 +46,33 @@ function main(): void {
 
   hr('Categorías')
   check('tipo lógico', categoriaDeTipoLogico('texto') === 'texto' && categoriaDeTipoLogico('fechaHora') === 'fecha' && categoriaDeTipoLogico('lob') === 'otro' && categoriaDeTipoLogico('booleano') === 'booleano')
+  check(
+    'sin «=» ni orden: text/ntext/xml/image de SQL Server, xml/json de PG y los LOB de Oracle; varchar y jsonb sí',
+    ['text', 'NTEXT', 'xml', 'image'].every((t) => sinComparacion('sqlserver', t)) &&
+      ['xml', 'json'].every((t) => sinComparacion('postgres', t)) &&
+      ['CLOB', 'NCLOB', 'BLOB', 'BFILE'].every((t) => sinComparacion('oracle', t)) &&
+      !sinComparacion('sqlserver', 'nvarchar(max)') && !sinComparacion('postgres', 'jsonb') && !sinComparacion('postgres', 'text') &&
+      !sinComparacion('sqlite', 'TEXT') && !sinComparacion('oracle', 'VARCHAR2')
+  )
+  check(
+    'columna SQL: un texto sin «=» es textoLargo; un texto normal y un LOB, como siempre',
+    categoriaDeColumnaSql('sqlserver', { tipoLogico: 'texto', tipoMotor: 'ntext' }) === 'textoLargo' &&
+      categoriaDeColumnaSql('postgres', { tipoLogico: 'texto', tipoMotor: 'xml' }) === 'textoLargo' &&
+      categoriaDeColumnaSql('sqlserver', { tipoLogico: 'texto', tipoMotor: 'nvarchar(50)' }) === 'texto' &&
+      categoriaDeColumnaSql('oracle', { tipoLogico: 'lob', tipoMotor: 'CLOB' }) === 'otro' &&
+      categoriaDeColumnaSql('oracle', { tipoLogico: 'texto', tipoMotor: 'XMLTYPE' }) === 'otro' &&
+      categoriaDeColumnaSql('oracle', { tipoLogico: 'texto', tipoMotor: 'LONG' }) === 'otro'
+  )
+  check(
+    'tampoco se ordenan: geography de SQL Server, geométricos y arrays de xml/json de PG',
+    sinComparacion('sqlserver', 'geography') && ['point', 'polygon', 'json[]', 'xml[]'].every((t) => sinComparacion('postgres', t)) && !sinComparacion('postgres', 'int4[]')
+  )
+  check(
+    'textoLargo: contiene, empieza por y vacío; «=» y «≠» se rechazan (segunda barrera del main)',
+    j(OPERADORES_POR_CATEGORIA.textoLargo) === j(['contiene', 'empiezaPor', 'vacio', 'noVacio']) &&
+      validarFiltro({ union: 'todas', condiciones: [{ columna: 'X', categoria: 'textoLargo', operador: 'igual', valor: 'a' }] })?.indice === 0 &&
+      validarFiltro({ union: 'todas', condiciones: [{ columna: 'X', categoria: 'textoLargo', operador: 'contiene', valor: 'a' }] }) === null
+  )
   check('Mongo: manda el más frecuente que no sea null', categoriaDeDocTipos(['null', 'string']) === 'texto' && categoriaDeDocTipos(['long', 'string']) === 'numero')
   check('Mongo: _id es id, subdocumento es otro', categoriaDeDocTipos(['objectId']) === 'id' && categoriaDeDocTipos(['objeto']) === 'otro' && categoriaDeDocTipos([]) === 'otro')
 

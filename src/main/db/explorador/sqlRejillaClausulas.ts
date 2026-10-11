@@ -8,9 +8,9 @@
 
 import type { DbFiltroGuiado, DbOrdenColumna } from '../../../shared/filtroGuiado.ts'
 import type { DialectoSql } from '../../../shared/sql/dialectosSql.ts'
-import { citar } from '../../../shared/sql/identificadoresSql.ts'
+import { citarGenerado } from '../../../shared/sql/identificadoresSql.ts'
 import { tokenizar, type Token } from '../../../shared/sql/lexicoSql.ts'
-import { compilarFiltro, compilarOrden, esErrorFiltro, type ValorFiltroSql } from './filtroSql.ts'
+import { calificadorDeColumnas, compilarFiltro, compilarOrden, esErrorFiltro, type ValorFiltroSql } from './filtroSql.ts'
 import type { BindEntradaLob } from './protocoloTrabajador.ts'
 import {
   esErrorRejilla,
@@ -117,6 +117,8 @@ export interface Clausulas {
   valores: ValorFiltroSql[]
   /** Oracle: los del filtro por nombre (`{ f1: … }`); null en los posicionales. */
   nombrados: Record<string, string | number | BindEntradaLob> | null
+  /** El dialecto con el que se citan los nombres que se añaden (el orden implícito por la PK). */
+  dialecto: DialectoSql
 }
 
 /** Los campos de una petición que `clausulasDe` mira. */
@@ -133,9 +135,9 @@ function conTexto(s: string | null | undefined): boolean {
 }
 
 /** Compila el filtro guiado sobre `c`; el error si no vale o si viene con el WHERE libre. */
-function aplicarFiltro(d: DialectoSql, p: EntradaClausulas, c: Clausulas): ErrorRejilla | null {
+function aplicarFiltro(d: DialectoSql, p: EntradaClausulas, c: Clausulas, calificador: string): ErrorRejilla | null {
   if (p.filtro == null) return null
-  const f = compilarFiltro(d, p.filtro)
+  const f = compilarFiltro(d, p.filtro, calificador)
   if (f !== null && esErrorFiltro(f)) {
     const e = fallo(f.mensaje, 'filtro', null)
     if (f.indice >= 0) e.condicion = f.indice
@@ -151,9 +153,9 @@ function aplicarFiltro(d: DialectoSql, p: EntradaClausulas, c: Clausulas): Error
 }
 
 /** Compila el orden de la cabecera sobre `c`; el error si no vale o si viene con el ORDER BY libre. */
-function aplicarOrden(p: EntradaClausulas, c: Clausulas): ErrorRejilla | null {
+function aplicarOrden(p: EntradaClausulas, c: Clausulas, calificador: string): ErrorRejilla | null {
   if (p.orden == null) return null
-  const o = compilarOrden(p.orden)
+  const o = compilarOrden(p.orden, calificador, c.dialecto)
   if (o !== null && typeof o !== 'string') return fallo(o.mensaje, null, null)
   if (o === null) return null
   if (conTexto(p.orderBy)) return fallo('El orden de la cabecera y el ORDER BY libre no van juntos: se aplica uno u otro.', null, null)
@@ -163,18 +165,20 @@ function aplicarOrden(p: EntradaClausulas, c: Clausulas): ErrorRejilla | null {
 
 /**
  * Valida los fragmentos del usuario, compila el filtro y el orden y comprueba que no vengan a
- * la vez con su texto libre. `conOrden` false (el recuento): sin ORDER BY.
+ * la vez con su texto libre. `conOrden` false (el recuento): sin ORDER BY. `fuente`: la tabla del
+ * FROM, con la que se califican las columnas del filtro y del orden donde hace falta.
  */
-export function clausulasDe(d: DialectoSql, p: EntradaClausulas, conOrden: boolean): Clausulas | ErrorRejilla {
+export function clausulasDe(d: DialectoSql, p: EntradaClausulas, conOrden: boolean, fuente = ''): Clausulas | ErrorRejilla {
+  const calificador = fuente === '' ? '' : calificadorDeColumnas(d, fuente)
   const where = fragmento(p.where, 'where', d)
   if (where !== null && typeof where !== 'string') return where
   const orderBy = conOrden ? fragmento(p.orderBy, 'orderBy', d) : null
   if (orderBy !== null && typeof orderBy !== 'string') return orderBy
-  const c: Clausulas = { where, condiciones: null, orderBy, valores: [], nombrados: null }
-  const errorFiltro = aplicarFiltro(d, p, c)
+  const c: Clausulas = { where, condiciones: null, orderBy, valores: [], nombrados: null, dialecto: d }
+  const errorFiltro = aplicarFiltro(d, p, c, calificador)
   if (errorFiltro !== null) return errorFiltro
   if (conOrden) {
-    const errorOrden = aplicarOrden(p, c)
+    const errorOrden = aplicarOrden(p, c, calificador)
     if (errorOrden !== null) return errorOrden
   }
   return c
@@ -211,8 +215,7 @@ export function componerBase(cabecera: string, c: Clausulas, ordenImplicito: rea
     // vuelve como `campo: 'orderBy'` y los datos se quedan en vez de sustituirse por un aviso.
     rangos.orderBy = [ini, sql.length]
   } else if (ordenImplicito.length > 0) {
-    // Con una flecha: `.map(citar)` pasaría el índice como el dialecto opcional de `citar`.
-    sql += '\nORDER BY ' + ordenImplicito.map((x) => citar(x)).join(', ')
+    sql += '\nORDER BY ' + ordenImplicito.map((x) => citarGenerado(x, c.dialecto)).join(', ')
   }
   return { sql, rangos }
 }

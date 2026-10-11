@@ -1,14 +1,12 @@
 // =============================================================================
-// La franja inferior a pantalla completa: qué panel se pinta maximizado
-// (`pantallaCompletaCoherente`) y la corrección del store cuando deja de valer, para que
-// no resucite la próxima vez que se abra ese panel. Cada perfil recuerda el suyo mientras
-// la app está abierta; no se persiste. Lo compone
-// App.tsx, que pone la clase en `.shell`; ocultar lo demás es solo CSS, así que nada
-// se desmonta.
+// La franja inferior a pantalla completa: las clases de `.shell` para el panel que se pinta
+// maximizado (lo calcula una sola vez el layout del centro, en el render) y el espejo de ese
+// valor y del perfil a la vista para los manejadores de eventos. Lo compone App.tsx; ocultar
+// lo demás es solo CSS, así que nada se desmonta.
 // Decisiones: docs/decisiones/layout/pantalla-completa-de-la-franja.md
 // =============================================================================
-import { useLayoutEffect, useRef } from 'react'
-import { pantallaCompletaAlCambiarDePerfil, pantallaCompletaCoherente, type PanelInferiorCentro, type SalidaLayoutCentro } from './layoutCentro'
+import { useLayoutEffect } from 'react'
+import type { PanelInferiorCentro } from './layoutCentro'
 import { useStoreLayout } from './store'
 
 /** La clase de cada panel (`git-pantalla-completa` la busca el e2e de Git·Log). */
@@ -22,30 +20,15 @@ export function clasesPantallaCompleta(panel: PanelInferiorCentro | null): strin
   return panel === null ? '' : ` franja-pantalla-completa ${CLASE_POR_PANEL[panel]}`
 }
 
-/** ¿Qué panel de la franja se pinta a pantalla completa? Corrige el store antes de pintar si ya no vale. */
-export function usePantallaCompletaFranja(
-  franja: SalidaLayoutCentro['franja'],
-  mosaico: boolean,
-  perfilId: string | null
-): PanelInferiorCentro | null {
-  const pedida = useStoreLayout((s) => s.franjaPantallaCompleta)
-  const coherente = pantallaCompletaCoherente({ pedida, franja, mosaico })
-  const recordadas = useRef(new Map<string, PanelInferiorCentro | null>())
-  const perfilPrevio = useRef(perfilId)
-  // Antes que la corrección: guarda el modo del perfil que se va tal y como estaba en el store.
+/**
+ * Publica lo que se pinta y el perfil a la vista para los atajos y las aperturas, que no tienen el
+ * perfil. Solo es el espejo: lo que se pinta ya salió del render.
+ */
+export function useEspejoPantallaCompleta(pantallaCompleta: PanelInferiorCentro | null, perfilId: string): void {
   useLayoutEffect(() => {
-    const saliente = perfilPrevio.current
-    if (saliente === perfilId) return
-    perfilPrevio.current = perfilId
-    const actual = useStoreLayout.getState().franjaPantallaCompleta
-    const siguiente = pantallaCompletaAlCambiarDePerfil(recordadas.current, saliente, perfilId, actual)
-    if (siguiente !== actual) useStoreLayout.setState({ franjaPantallaCompleta: siguiente })
-  }, [perfilId])
-  // Se recalcula con el store de ahora: el efecto de arriba puede haberlo cambiado en este mismo commit.
-  useLayoutEffect(() => {
-    const actual = useStoreLayout.getState().franjaPantallaCompleta
-    const corregida = pantallaCompletaCoherente({ pedida: actual, franja, mosaico })
-    if (corregida !== actual) useStoreLayout.setState({ franjaPantallaCompleta: corregida })
+    const s = useStoreLayout.getState()
+    if (s.franjaPantallaCompleta !== pantallaCompleta || s.perfilALaVista !== perfilId) {
+      useStoreLayout.setState({ franjaPantallaCompleta: pantallaCompleta, perfilALaVista: perfilId })
+    }
   })
-  return coherente
 }

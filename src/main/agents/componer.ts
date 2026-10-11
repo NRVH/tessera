@@ -25,8 +25,10 @@ import { loadWorkspaceSettings } from '../workspace/workspaceStateStore'
 import type { DbController } from '../db/DbController'
 import { dbLog } from '../db/dbLog'
 import type { ControladorSsh } from '../ssh/ControladorSsh'
+import { lanzadaPorElArnes } from '../../shared/arnesE2e'
 import type { EspacioTerminal } from '../ssh/controlador/espacioTerminal'
 import { borrarPerfiles, type DepsBorradoCompleto, type DuenoDeCarpeta } from '../profiles/borradoDePerfil'
+import { BorradosPendientes, borrarPorOrden, listaAGuardar, terminarBorradosPendientes } from '../profiles/ordenDeBorrado'
 import type { CandadoDeBorrado } from '../profiles/candadoDeBorrado'
 import type { LlegadaDePerfiles } from '../profiles/llegadaDePerfiles'
 import { SandboxManager, fijarBaseGestionada } from '../sandbox/SandboxManager'
@@ -59,9 +61,6 @@ import { fetchTextoConTope } from './adaptadores/redElectron'
 import { AccountStore } from './AccountStore'
 import { TurnWatcher } from './TurnWatcher'
 
-/** Perfil + proyecto de prueba que usa el bootstrap de sesión (BOOTSTRAP_SESSION). */
-const BOOTSTRAP_PROFILE_ID = 'personal'
-
 /** Lo que la composición de las sesiones recibe de `index.ts`. */
 export interface DepsSesiones {
   refs: ReferenciasApp
@@ -84,11 +83,6 @@ export interface DepsSesiones {
 /** Pasa al sandbox los paquetes a hornear: solo marca la imagen como obsoleta, no la rehornea. */
 export function aplicarExtrasSandbox(sandbox: SandboxManager | null, settings: WorkspaceSettings): void {
   sandbox?.setExtras(normalizarExtras(settings.paquetesExtraSandbox, settings.sandboxDepsNavegador))
-}
-
-/** El bootstrap de sesión usa el proyecto de prueba local junto al contexto de la imagen. */
-function bootstrapProjectPath(): string {
-  return join(app.getAppPath(), 'docker', 'sandbox', 'proyecto-demo')
 }
 
 /** Cuentas de agente: registro y credenciales en `userData`, que sobrevive a actualizar. */
@@ -137,8 +131,9 @@ function componerSandbox({ refs, ipc, perfiles, dbController }: DepsSesiones): S
   )
   sharedSandbox.setAvisoRedHandler((aviso) => emisorSinContenido.emitir(SANDBOX_RED_CHANNELS.AVISO, aviso))
   registrarIpcRedSandbox({ ipc, sandbox: sharedSandbox, perfiles: () => perfiles.lista })
-  // Barrido de montajes colgados de un cierre sucio; `ensureContainer` lo espera.
-  sharedSandbox.beginStartupSweep()
+  // Barrido de montajes colgados de un cierre sucio; `ensureContainer` lo espera. Bajo el
+  // arnés de pruebas no se barren los heredados: pueden ser de la Tessera abierta del usuario.
+  sharedSandbox.beginStartupSweep(!lanzadaPorElArnes(process.argv))
   return { sharedSandbox, dockerfileDir, sshSetup, emisorSinContenido, touchedProfiles: new Set<string>() }
 }
 
@@ -150,7 +145,6 @@ function componerTerminal({ refs, ipc, perfiles, dbController, ssh, borrados }: 
     profiles: perfiles.lista,
     eventos: emisorDeVentana(() => refs.ventana),
     dockerfileDir: sb.dockerfileDir,
-    bootstrapTarget: { profileId: BOOTSTRAP_PROFILE_ID, projectHostPath: bootstrapProjectPath() },
     sandbox: sb.sharedSandbox,
     touchedProfiles: sb.touchedProfiles,
     getHostEnv: hostEnv,
@@ -281,20 +275,21 @@ function componerCuentasYUso({ refs, ipc, accounts }: DepsSesiones, sesion: Sesi
  * abiertas, SSH incluidas (el renderer ya las cierra al quitarlo; esto cubre la carrera): una SSH viva
  * seguiría usando las claves y el known_hosts que se borran, y un proceso con la carpeta como directorio
  * de trabajo la bloquearía en Windows. Luego su contenedor, su historial de consultas, sus conexiones SSH
- * y las carpetas de sus dos agentes propios (la del agente de la terminal y el espacio de datos), que van
- * a la papelera del sistema: el borrado se deduce de la lista guardada y tiene que poder deshacerse. El
- * historial de las conversaciones vive en la cuenta y no se toca.
+ * y de bases de datos, y las carpetas de sus dos agentes propios (la del agente de la terminal y el
+ * espacio de datos), que van a la papelera del sistema para poder deshacerse. El historial de las
+ * conversaciones vive en la cuenta y no se toca.
  * Con el candado del perfil, y cada paso mira `perfiles.lista` de ESE momento (`profiles/borradoDePerfil.ts`).
  */
 function depsDeBorrado(deps: DepsSesiones, sharedSandbox: SandboxManager): DepsBorradoCompleto<Profile> {
-  const { refs, perfiles, espacioTerminal, espacioDatos, ssh, borrados } = deps
+  const { refs, perfiles, espacioTerminal, espacioDatos, ssh, dbController, borrados } = deps
   return {
-    // La lista de cada momento: `SAVE_PROFILES` la reasigna, así que se lee al usarse.
+    // La lista de cada momento: el guardado y la orden de borrado la reasignan, así que se lee al usarse.
     idsVivos: () => perfiles.lista.map((n) => n.id),
     candado: borrados,
     pararContenedor: (p) => sharedSandbox.stopContainer(p),
     borrarHistorial: async (id) => refs.explorador?.alBorrarPerfil(id),
     borrarConexionesSsh: (id) => ssh.alBorrarPerfil(id),
+    borrarConexionesBd: (id) => dbController.alBorrarPerfil(id),
     cerrarSesiones: (id) => Promise.all([refs.agentes?.closeSessionsForProfile(id), refs.terminales?.closeSessionsForProfile(id, { incluirSsh: true })]),
     // Cada dueño lleva su papelera desde que nace (`shell.trashItem`, en su composición).
     carpetas: [
@@ -306,22 +301,37 @@ function depsDeBorrado(deps: DepsSesiones, sharedSandbox: SandboxManager): DepsB
   }
 }
 
-/** CRUD de perfiles: persiste, re-apunta los controladores y, de los borrados, para su contenedor y borra lo suyo. */
+/**
+ * CRUD de perfiles. Guardar persiste y re-apunta los controladores, y nunca borra: a la lista que llega
+ * se le devuelven los perfiles que no trae. Lo de un perfil solo se borra con `DELETE_PROFILE`
+ * (`profiles/ordenDeBorrado.ts`), y al arrancar se terminan los borrados que quedaron a medias.
+ */
 function registrarIpcGuardarPerfiles(deps: DepsSesiones, sharedSandbox: SandboxManager): void {
   const { refs, ipc, perfiles, accounts } = deps
   const borrado = depsDeBorrado(deps, sharedSandbox)
-  ipc.handle(IPC_CHANNELS.SAVE_PROFILES, async (_e, next: Profile[]) => {
+  const pendientes = new BorradosPendientes<Profile>(join(app.getPath('userData'), 'perfiles-borrados.json'), (m) => console.error(m))
+  const fijarLista = (next: Profile[]): void => {
     saveProfilesMutable(next)
-    const removed = perfiles.lista.filter((p) => !next.some((n) => n.id === p.id))
     perfiles.lista = next
     // Quien prepara la carpeta de un perfil recién creado lo esperaba: ya está en la lista.
     deps.llegada.cambiaron()
     refs.terminales?.updateProfiles(next)
     refs.agentes?.updateProfiles(next)
     accounts.ensureDefaults(next) // un perfil nuevo estrena sus cuentas default
-    // Sin esperar nada antes: los candados de los borrados se toman aquí, en la misma vuelta.
-    await borrarPerfiles(borrado, removed)
+  }
+  ipc.handle(IPC_CHANNELS.SAVE_PROFILES, (_e, next: Profile[]) => {
+    const { lista, retenidos } = listaAGuardar(perfiles.lista, next)
+    for (const p of retenidos) console.error(`[tessera] el guardado no trae el perfil ${p.id}: se conserva (solo se borra con su orden)`)
+    fijarLista(lista)
   })
+  ipc.handle(IPC_CHANNELS.DELETE_PROFILE, async (_e, profileId: unknown) => {
+    if (typeof profileId !== 'string') throw new Error('deleteProfile: se esperaba el id del perfil.')
+    // Sin esperar nada antes: el candado del borrado se toma en la misma vuelta que sale de la lista.
+    await borrarPorOrden({ lista: () => perfiles.lista, fijarLista, pendientes, borrar: (ps) => borrarPerfiles(borrado, ps), log: (m) => console.log(m) }, profileId)
+  })
+  void terminarBorradosPendientes(pendientes, borrado.idsVivos, (ps) => borrarPerfiles(borrado, ps), (m) => console.log(m)).catch((err: unknown) =>
+    console.error('[tessera] no se pudieron terminar los borrados de perfil pendientes:', err)
+  )
 }
 
 /** Sandbox, terminales, agentes, cuentas, uso, hibernación y perfiles, en su orden. */

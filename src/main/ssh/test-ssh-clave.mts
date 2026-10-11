@@ -466,7 +466,7 @@ hr('J - Barrido y perfil: la copia de una ficha viva no se barre, y una soltada 
     await claves.barrerCaducadas()
     check('(j5) caducada la ficha, su copia se borra: solo queda la clave guardada', j(enCarpeta()) === j(['conexion-j']), enCarpeta().join(','))
 
-    // C72: al salir se borran las provisionales de la sesión; las guardadas y los originales, nunca.
+    // Al salir se borran las provisionales de la sesión; las guardadas y los originales, nunca.
     const sinGuardar = await soltar('id_sin_guardar', 'pa')
     const aGuardar = await soltar('id_a_guardar', 'pa')
     claves.instalar(aGuardar.token, 'conexion-k', 'pa').confirmar()

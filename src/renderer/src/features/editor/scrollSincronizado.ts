@@ -69,8 +69,14 @@ export function crearSincronizador(aplicador: Aplicador): Sincronizador {
       // Cambió lo que mide el lado y no dónde está: es un repintado (la vista se refresca al
       // escribir, un diagrama termina de dibujarse, la ventana cambia de tamaño) y el navegador
       // ha acotado o repuesto el scroll. Nadie lo movió: no se propaga, el siguiente gesto
-      // vuelve a casar los lados.
-      if (anterior && (anterior.alto !== propio.alto || anterior.visible !== propio.visible)) return false
+      // vuelve a casar los lados. Salvo si el lado queda AL FINAL: llegar al final del código puede
+      // hacer aparecer o desaparecer su barra horizontal, que cambia su alto en el último aviso
+      // del gesto (y al encoger acota su posición). En la vista hace falta además haber bajado:
+      // un refresco que la encoge la acota al final sin que nadie la mueva.
+      const cambioMedida = anterior && (anterior.alto !== propio.alto || anterior.visible !== propio.visible)
+      const alFinal = propio.top >= propio.alto - propio.visible - 1
+      const llegaAlFinal = alFinal && anterior !== undefined && (lado === 'codigo' || propio.top > anterior.top)
+      if (cambioMedida && !llegaAlFinal) return false
       if (anterior && anterior.top === propio.top) return false
       const destino = otro(lado)
       const medidaDestino = aplicador.medir(destino)

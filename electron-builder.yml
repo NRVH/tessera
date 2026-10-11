@@ -1,5 +1,5 @@
 # =============================================================================
-# Empaquetado de Tessera para Windows y macOS (electron-builder).
+# Empaquetado de Tessera para Windows, macOS y Linux (electron-builder).
 # -----------------------------------------------------------------------------
 # DECISIÓN CLAVE: asar: false.
 #   La app hace `docker build -t <img> <appPath>/docker/sandbox` y monta los
@@ -103,12 +103,19 @@ win:
 # Macs Intel, que aquí no hay ninguno. Añadir x64 el día que haga falta es una línea;
 # pagarlo hoy en cada descarga, no.
 #
-# FIRMA AD-HOC (`identity: '-'`), sin Developer ID ni notarización. electron-builder
-# firma el .app entero con `codesign --sign -`: no acredita a nadie, pero deja un sello
-# coherente (`codesign --verify --deep --strict` limpio, `Identifier=com.noe.tessera`).
-# `identity: null` NO equivale: electron-builder salta la firma, el bundle conserva el
-# sello de fábrica del binario de Electron sobre recursos que ya son otros, y una copia
-# descargada (con cuarentena) muere con «"Tessera" está dañado».
+# FIRMA: AD-HOC AQUÍ Y EL CERTIFICADO DE TESSERA ENCIMA (`afterSign`), sin Developer ID ni
+# notarización. electron-builder firma el .app entero con `codesign --sign -`: no acredita
+# a nadie, pero deja un sello coherente (`codesign --verify --deep --strict` limpio,
+# `Identifier=com.noe.tessera`). `identity: null` NO equivale: electron-builder salta la
+# firma, el bundle conserva el sello de fábrica del binario de Electron sobre recursos que
+# ya son otros, y una copia descargada (con cuarentena) muere con «"Tessera" está dañado».
+#
+# Con la firma ad-hoc el requisito designado es el cdhash del binario, distinto en cada
+# versión, así que tras actualizar macOS pierde los permisos que el usuario dio a la app
+# (Accesibilidad, grabación de pantalla, acceso a carpetas). `scripts/firmarMac.mjs` vuelve
+# a firmar con el certificado de Tessera cuando hay llavero (`TESSERA_FIRMA_MAC_LLAVERO`):
+# el requisito pasa a ser el certificado y es el mismo en todas las versiones. El workflow
+# de publicación lo exige; en local, sin llavero, se queda en ad-hoc.
 #
 # Quien la descarga ve el aviso de Gatekeeper de desarrollador no identificado y la abre
 # con Ajustes del Sistema › Privacidad y seguridad › «Abrir de todos modos», o con
@@ -122,6 +129,9 @@ win:
 # CON DEVELOPER ID bastaría con quitar `identity: '-'`, poner `hardenedRuntime: true` y
 # `notarize: true`, y añadir el derecho `com.apple.security.cs.disable-library-validation`
 # (el proceso de sesión y `tdb` cargan las dylibs del Instant Client, firmadas por Oracle).
+afterSign: scripts/firmarMac.mjs
+# Solo actúa en Linux: ver la sección `linux`.
+afterPack: scripts/lanzadorLinux.mjs
 mac:
   target:
     - target: dmg
@@ -224,6 +234,47 @@ mac:
           - html
           - sh
           - txt
+
+# =============================================================================
+# Linux
+# -----------------------------------------------------------------------------
+# SOLO APPIMAGE x64: es el único formato que electron-updater sabe actualizar solo
+# (sustituye el archivo y relanza), y corre en casi cualquier distribución sin instalar
+# nada. Un .deb o un .rpm se actualizarían con el gestor de paquetes, no con la app.
+#
+# DOCKER Y EL MONTAJE DEL APPIMAGE: la app corre desde un montaje FUSE temporal
+# (`/tmp/.mount_*`) que el daemon de Docker, como root, no ve. No hace falta: el
+# contexto de `docker build` lo sube el CLI (que sí lo ve) y lo que entra al contenedor
+# se copia antes al buzón de `userData`; nada se monta desde la carpeta de la app.
+#
+# `executableName` en minúsculas es la convención de Linux. Con `afterPack`
+# (`scripts/lanzadorLinux.mjs`), `tessera` es un guion que lanza el binario real
+# (`tessera-bin`) y solo le añade `--no-sandbox` donde Chromium no podría crear su sandbox
+# (Ubuntu 23.10+ restringe los espacios de nombres y un AppImage no puede llevar
+# `chrome-sandbox` con SUID de root). Las pruebas arrancan ese guion.
+#
+# El PNG de la marca viaja suelto en `resources/` porque «Abrir con Tessera» lo copia al
+# tema de iconos del usuario al instalar su `tessera.desktop` (`src/main/shell/escritorioLinux.ts`):
+# dentro de un AppImage el icono del paquete vive en un montaje temporal que desaparece al cerrar.
+# =============================================================================
+linux:
+  target:
+    - target: AppImage
+      arch: x64
+  icon: build/icon.png
+  category: Development
+  executableName: tessera
+  # SIN la versión en el nombre: con ella, electron-updater escribe la versión nueva en OTRO
+  # archivo y borra el viejo, y el `.desktop` de «Abrir con Tessera» (y cualquier acceso que el
+  # usuario se hiciera) apuntaría a una ruta que ya no existe. Sin ella, la sustituye en su sitio.
+  artifactName: ${productName}-linux-${arch}.${ext}
+  synopsis: Varios proyectos y varias cuentas de IA en un solo lugar
+  desktop:
+    entry:
+      StartupWMClass: Tessera
+  extraResources:
+    - from: build/icon.png
+      to: icon.png
 
 dmg:
   artifactName: ${productName}-${version}-${arch}.${ext}

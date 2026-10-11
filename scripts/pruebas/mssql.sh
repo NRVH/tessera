@@ -16,7 +16,7 @@
 # (formato de `destinoDePrueba` en src/tdb/sqlserverComun.cjs; la clave no lleva «/» ni «@»).
 # La clave sale de `mssql-pw.txt` (ver comun.sh), se genera si falta y nunca se imprime.
 #
-# MAC (sin verificar): la imagen es x86-64; en Apple Silicon va con la emulación Rosetta de
+# MAC: la imagen es x86-64; en Apple Silicon va con la emulación Rosetta de
 # Docker Desktop. Si 2022-latest entra en bucle de reinicios, fijar etiqueta con IMAGEN=…
 # (p. ej. 2022-CU27-ubuntu-22.04, sin comprobar); OrbStack es el plan B.
 # =============================================================================

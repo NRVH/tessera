@@ -111,12 +111,14 @@ export interface AccionesConsola {
   ejecutar: () => void
   ejecutarTodo: () => void
   detener: () => void
+  /** Abre o cierra el historial; la consola que no lo tiene no lo pasa. */
+  historial?: () => void
 }
 
 /** Engancha los acordes, el guardado al perder el foco y la pista que se va al mover el cursor. */
 export function useAccionesConsola(
   ed: editor.IStandaloneCodeEditor | null,
-  registrar: (ed: editor.IStandaloneCodeEditor, plataforma: Plataforma, h: AccionesConsola) => IDisposable[],
+  registrar: (ed: editor.IStandaloneCodeEditor, plataforma: Plataforma, h: Required<AccionesConsola>) => IDisposable[],
   acciones: AccionesConsola,
   guardar: () => Promise<void>,
   quitarPista: () => void
@@ -128,7 +130,8 @@ export function useAccionesConsola(
     const ds = registrar(ed, window.tessera.plataforma, {
       ejecutar: () => accionesRef.current.ejecutar(),
       ejecutarTodo: () => accionesRef.current.ejecutarTodo(),
-      detener: () => accionesRef.current.detener()
+      detener: () => accionesRef.current.detener(),
+      historial: () => accionesRef.current.historial?.()
     })
     const blur = ed.onDidBlurEditorText(() => void guardar())
     const cursor = ed.onDidChangeCursorPosition(quitarPista)

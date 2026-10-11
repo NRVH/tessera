@@ -1,7 +1,7 @@
 # =============================================================================
-# Publica una versión de Tessera al empujar su etiqueta `vX.Y.Z`: compila Windows y macOS en
-# paralelo, crea la release como BORRADOR, sube los dos conjuntos y solo la publica como
-# «latest» cuando están los dos completos. La app lee el feed de
+# Publica una versión de Tessera al empujar su etiqueta `vX.Y.Z`: compila Windows, macOS y Linux
+# en paralelo, crea la release como BORRADOR, sube los tres conjuntos y solo la publica como
+# «latest» cuando están los tres completos. La app lee el feed de
 # `releases/latest/download` (provider `generic`, ver `electron-builder.yml`).
 #
 # POR QUÉ EL BORRADOR: una «latest» publicada con el canal de una sola plataforma hace que la
@@ -75,8 +75,12 @@ jobs:
     needs: comprobar
     runs-on: macos-latest
     env:
-      # Firma AD-HOC (`mac.identity: '-'`): no se busca ninguna identidad en el llavero.
+      # electron-builder firma ad-hoc (`mac.identity: '-'`) sin buscar identidades, y el gancho
+      # `afterSign` (`scripts/firmarMac.mjs`) vuelve a firmar con el certificado de Tessera.
+      # Aquí es OBLIGATORIO: una versión firmada con otra cosa haría que cada Mac instalado
+      # perdiera los permisos dados a la app al actualizar.
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      TESSERA_FIRMA_MAC_OBLIGATORIA: '1'
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -85,9 +89,44 @@ jobs:
           cache: npm
       # El `postinstall` devuelve el bit de ejecución al spawn-helper de node-pty.
       - run: npm ci
+      # El certificado (`.p12` en base64 y su clave, secretos del repo) entra en un llavero
+      # temporal del runner, sin tiempo de bloqueo y con acceso de codesign sin preguntar.
+      - name: Certificado de firma de Tessera
+        shell: bash
+        env:
+          P12_BASE64: ${{ secrets.TESSERA_MAC_CERT_P12 }}
+          P12_CLAVE: ${{ secrets.TESSERA_MAC_CERT_CLAVE }}
+        run: |
+          if [ -z "$P12_BASE64" ] || [ -z "$P12_CLAVE" ]; then
+            echo "::error::Faltan los secretos TESSERA_MAC_CERT_P12 y TESSERA_MAC_CERT_CLAVE: la versión de macOS no se publica sin el certificado de Tessera."
+            exit 1
+          fi
+          llavero="$RUNNER_TEMP/firma-tessera.keychain-db"
+          p12="$RUNNER_TEMP/tessera-mac.p12"
+          # La clave privada en claro no sobrevive al paso, salga bien o mal.
+          trap 'rm -f "$p12"' EXIT
+          clave_llavero="$(openssl rand -hex 24)"
+          security create-keychain -p "$clave_llavero" "$llavero"
+          security set-keychain-settings "$llavero"
+          security unlock-keychain -p "$clave_llavero" "$llavero"
+          printf '%s' "$P12_BASE64" | base64 --decode > "$p12"
+          security import "$p12" -k "$llavero" -P "$P12_CLAVE" -T /usr/bin/codesign >/dev/null
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$clave_llavero" "$llavero" >/dev/null
+          # En la lista de búsqueda, además de pasarlo con --keychain: codesign busca ahí la cadena del certificado.
+          security list-keychains -d user -s "$llavero" $(security list-keychains -d user | tr -d '"')
+          echo "TESSERA_FIRMA_MAC_LLAVERO=$llavero" >> "$GITHUB_ENV"
       # electron-builder --mac sin publicar y, después, `parchearMinimoMac.mjs`, que escribe
       # el mínimo de macOS en Darwin en `latest-mac.yml`.
       - run: npm run release:mac
+      # Fuera el llavero en cuanto se ha firmado, también si el build falla: los pasos de después
+      # (y las acciones de terceros) no necesitan la clave.
+      - name: Borrar el llavero de firma
+        if: always()
+        shell: bash
+        run: |
+          if [ -n "${TESSERA_FIRMA_MAC_LLAVERO:-}" ]; then
+            security delete-keychain "$TESSERA_FIRMA_MAC_LLAVERO" || true
+          fi
       - name: latest-mac.yml lleva el mínimo de sistema
         shell: bash
         run: |
@@ -107,9 +146,40 @@ jobs:
             dist/Tessera-${{ needs.comprobar.outputs.version }}-arm64.dmg.blockmap
             dist/Tessera-${{ needs.comprobar.outputs.version }}-arm64.zip.blockmap
 
+  linux:
+    name: Linux (x64, AppImage)
+    needs: comprobar
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      # node-pty no trae binario para Linux: `npm ci` lo compila con el compilador del runner.
+      - run: npm ci
+      - run: npm run release:linux
+      # El nombre NO lleva la versión (ver `linux.artifactName`) y la arquitectura va como la
+      # escribe el formato (x86_64), así que se busca en vez de suponerla.
+      - name: Están el AppImage y su canal
+        shell: bash
+        run: |
+          set -euo pipefail
+          ls -l dist
+          ls dist/Tessera-linux-*.AppImage >/dev/null
+          grep -q "^version: ${{ needs.comprobar.outputs.version }}\$" dist/latest-linux.yml
+      - uses: actions/upload-artifact@v7
+        with:
+          name: linux
+          if-no-files-found: error
+          compression-level: 0
+          path: |
+            dist/latest-linux.yml
+            dist/Tessera-linux-*.AppImage
+
   publicar:
     name: Release de GitHub
-    needs: [comprobar, windows, mac]
+    needs: [comprobar, windows, mac, linux]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -125,17 +195,20 @@ jobs:
           path: artefactos
           merge-multiple: true
 
-      - name: Están los dos conjuntos completos
+      - name: Están los tres conjuntos completos
         shell: bash
         run: |
           set -euo pipefail
           cd artefactos
           ls -l
-          for f in latest.yml latest-mac.yml "Tessera-$VERSION-Setup.exe" \
+          for f in latest.yml latest-mac.yml latest-linux.yml "Tessera-$VERSION-Setup.exe" \
                    "Tessera-$VERSION-arm64.dmg" "Tessera-$VERSION-arm64.zip"; do
             [ -f "$f" ] || { echo "::error::Falta $f: no se publica nada."; exit 1; }
           done
-          for yml in latest.yml latest-mac.yml; do
+          appimage="$(ls Tessera-linux-*.AppImage 2>/dev/null | head -n1)"
+          [ -n "$appimage" ] || { echo "::error::Falta el AppImage: no se publica nada."; exit 1; }
+          grep -q "$appimage" latest-linux.yml || { echo "::error::latest-linux.yml no apunta a $appimage."; exit 1; }
+          for yml in latest.yml latest-mac.yml latest-linux.yml; do
             grep -q "^version: $VERSION\$" "$yml" || { echo "::error::$yml no es la $VERSION."; exit 1; }
           done
           grep -Eq '^minimumSystemVersion: [0-9]+\.[0-9]+\.[0-9]+$' latest-mac.yml || {
@@ -157,17 +230,18 @@ jobs:
           fi
           if [ ! -s notas.md ]; then
             {
-              echo "Tessera $VERSION para Windows (x64) y macOS (Apple Silicon)."
+              echo "Tessera $VERSION para Windows (x64), macOS (Apple Silicon) y Linux (x64)."
               echo
               echo "- Windows: \`Tessera-$VERSION-Setup.exe\`. El instalador no está firmado: SmartScreen puede pedir «Más información › Ejecutar de todos modos»."
-              echo "- macOS: \`Tessera-$VERSION-arm64.dmg\`. La app lleva firma ad-hoc: la primera vez, Ajustes del Sistema › Privacidad y seguridad › «Abrir de todos modos»."
+              echo "- macOS: \`Tessera-$VERSION-arm64.dmg\`. La app va firmada con el certificado de Tessera, no con uno de Apple: la primera vez, Ajustes del Sistema › Privacidad y seguridad › «Abrir de todos modos»."
+              echo "- Linux: \`$(ls artefactos/Tessera-linux-*.AppImage | head -n1 | xargs basename)\`. Dale permiso de ejecución (\`chmod +x\`) y ábrelo; necesita FUSE (\`libfuse2\`)."
               echo
               echo "Las instalaciones existentes se actualizan solas."
             } > notas.md
           fi
           cat notas.md
 
-      - name: Borrador con los dos conjuntos
+      - name: Borrador con los tres conjuntos
         shell: bash
         run: |
           set -euo pipefail
@@ -183,7 +257,8 @@ jobs:
           fi
           # Copias con nombre FIJO para los enlaces de descarga directa del README
           # (`releases/latest/download/<nombre>`): el de con versión cambia en cada release. Las
-          # apps no las usan: sus `latest*.yml` apuntan a los de con versión.
+          # apps no las usan: sus `latest*.yml` apuntan a los de con versión. El AppImage ya se
+          # llama siempre igual (`linux.artifactName`) y no necesita copia.
           cp "artefactos/Tessera-$VERSION-Setup.exe" artefactos/Tessera-Setup.exe
           cp "artefactos/Tessera-$VERSION-arm64.dmg" artefactos/Tessera-mac-arm64.dmg
           gh release upload "$TAG" artefactos/* --clobber
@@ -194,11 +269,12 @@ jobs:
           set -euo pipefail
           gh release view "$TAG" --json assets -q '.assets[].name' > subidos.txt
           cat subidos.txt
-          for f in latest.yml latest-mac.yml "Tessera-$VERSION-Setup.exe" \
+          for f in latest.yml latest-mac.yml latest-linux.yml "Tessera-$VERSION-Setup.exe" \
                    "Tessera-$VERSION-arm64.dmg" "Tessera-$VERSION-arm64.zip" \
                    Tessera-Setup.exe Tessera-mac-arm64.dmg; do
             grep -qx "$f" subidos.txt || { echo "::error::El borrador no tiene $f: se queda sin publicar."; exit 1; }
           done
+          grep -q '^Tessera-linux-.*\.AppImage$' subidos.txt || { echo "::error::El borrador no tiene el AppImage."; exit 1; }
 
       - name: Publicar como latest
         run: gh release edit "$TAG" --draft=false --latest

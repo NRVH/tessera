@@ -22,6 +22,11 @@ export function esCambioDeConversacion(linea: string): boolean {
   return CAMBIO_CONVERSACION.test(linea.trim())
 }
 
+/** ¿Esta línea abre una conversación VACÍA (`/clear`, `/new`)? `/resume` va a una que ya existe. */
+export function esConversacionVacia(linea: string): boolean {
+  return /^\/(clear|new)\b/i.test(linea.trim())
+}
+
 /** Lo que expone el detector: la línea enviada y la posibilidad de un borrador sin enviar. */
 export interface DetectorEnvio {
   /**

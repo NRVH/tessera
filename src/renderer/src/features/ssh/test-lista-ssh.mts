@@ -28,7 +28,13 @@ import {
   type TeclaLista
 } from './listaSsh.ts'
 import {
+  AGENTE_DIVISOR,
+  anchoMaximoDe,
   anchoMaximoRiel,
+  COLUMNA_PLEGADA_MIN,
+  HUECO_TARJETAS,
+  MARCO_RIEL,
+  sitioDelRiel,
   dondeConectar,
   flechaLanzadorVisible,
   ID_LANZADOR_SSH,
@@ -43,6 +49,7 @@ import {
   type ModoLanzador
 } from './rielSsh.ts'
 import { SSH_RIEL_ANCHO_MAX, SSH_RIEL_ANCHO_MIN, SSH_RIEL_ANCHO_POR_DEFECTO } from '../../../../shared/ajustesTerminal.ts'
+import { CC_WIDTH_MIN } from '../../../../shared/workspace-state-ipc.ts'
 import type { Plataforma } from '../../../../shared/plataforma.ts'
 import type { SshConexion, SshGrupo } from '../../../../shared/ssh-ipc.ts'
 
@@ -66,6 +73,8 @@ const j = (v: unknown): string => JSON.stringify(v)
 function con(id: string, alias: string, extra: Partial<SshConexion> = {}): SshConexion {
   return {
     id,
+    saltoId: null,
+    tuneles: [],
     profileId: 'personal',
     alias,
     grupoId: null,
@@ -360,13 +369,55 @@ hr('(11) El riel de pantalla completa: cuándo cabe, hasta dónde se ensancha y 
     ve({ disponible: 900, ancho: 260 }) === j({ enRiel: true, visible: true }) && ve({ disponible: 900, ancho: 480 }) === j({ enRiel: false, visible: false }),
     `${ve({ disponible: 900, ancho: 260 })} · ${ve({ disponible: 900, ancho: 480 })}`
   )
+  const SI = j({ enRiel: true, visible: true })
+  const NO = j({ enRiel: false, visible: false })
   check(
-    'sin terminal que enseñar el cuerpo mide lo que el riel y aun así se ve; fuera de pantalla completa o sin perfil, no',
-    ve({ disponible: 266, sinTerminal: true }) === j({ enRiel: true, visible: true }) &&
-      ve({ disponible: 266, sinTerminal: true, pantallaCompleta: false }) === j({ enRiel: false, visible: false }) &&
-      ve({ disponible: 266, sinTerminal: true, perfilId: '' }) === j({ enRiel: false, visible: false }),
-    ve({ disponible: 266, sinTerminal: true })
+    'columna plegada: el sitio son las dos columnas y el vecino es el agente (330 px). 1400 admiten 480; fuera de pantalla completa o sin perfil, no',
+    ve({ disponible: 1400, ancho: 480, sinTerminal: true }) === SI &&
+      ve({ disponible: 1400, sinTerminal: true, pantallaCompleta: false }) === NO &&
+      ve({ disponible: 1400, sinTerminal: true, perfilId: '' }) === NO,
+    ve({ disponible: 1400, ancho: 480, sinTerminal: true })
   )
+  check(
+    'columna plegada en ventana estrecha: un riel de 480 en 800 px dejaría al agente en 314, así que se pliega; el de 260, no',
+    CC_WIDTH_MIN === 330 && ve({ disponible: 800, ancho: 480, sinTerminal: true }) === NO && ve({ disponible: 800, ancho: 260, sinTerminal: true }) === SI,
+    `${ve({ disponible: 800, ancho: 480, sinTerminal: true })} · ${ve({ disponible: 800, ancho: 260, sinTerminal: true })}`
+  )
+  check(
+    'columna plegada con un riel más estrecho que su cabecera: la columna mide 240 igualmente, marcos incluidos (559 px no dejan 330 al agente; 560, sí)',
+    COLUMNA_PLEGADA_MIN === 240 && ve({ disponible: 559, ancho: 180, sinTerminal: true }) === NO && ve({ disponible: 560, ancho: 180, sinTerminal: true }) === SI,
+    `${ve({ disponible: 559, ancho: 180, sinTerminal: true })} · ${ve({ disponible: 560, ancho: 180, sinTerminal: true })}`
+  )
+  check(
+    'el tope de arrastre plegada sale del sitio real menos el agente (800 → 424) y no del rango a ciegas; sin plegar, de la terminal (800 → 334)',
+    anchoMaximoDe({ disponible: 800, ancho: 260, sinTerminal: true }) === 424 &&
+      anchoMaximoDe({ disponible: 2000, ancho: 260, sinTerminal: true }) === SSH_RIEL_ANCHO_MAX &&
+      anchoMaximoDe({ disponible: 800, ancho: 260 }) === 334,
+    `${anchoMaximoDe({ disponible: 800, ancho: 260, sinTerminal: true })} · ${anchoMaximoDe({ disponible: 800, ancho: 260 })}`
+  )
+  // El sitio sale siempre de la misma zona (`.shell-main`): plegar o desplegar no deja ninguna medida de otro modo.
+  check(
+    'el sitio, sin los marcos de las tarjetas (10): sin agente al lado, la zona; con él, menos su ancho y su divisor; plegada, la zona menos el hueco hasta el agente (6), que la reparte con él',
+    j(sitioDelRiel(1400, null, false)) === j({ disponible: 1390, desplegado: 1390 }) &&
+      j(sitioDelRiel(1400, 500, false)) === j({ disponible: 884, desplegado: 884 }) &&
+      j(sitioDelRiel(1400, 500, true)) === j({ disponible: 1384, desplegado: 884 }) &&
+      AGENTE_DIVISOR === 6 &&
+      MARCO_RIEL === 10 &&
+      HUECO_TARJETAS === 6,
+    `${j(sitioDelRiel(1400, 500, false))} · ${j(sitioDelRiel(1400, 500, true))}`
+  )
+  {
+    // 1400 de zona y un agente de 500: plegada cabría un riel de 480 junto al agente, pero al restaurar las
+    // terminales el cuerpo mide 884 y 480 no deja a la terminal sus 420. El tope plegado es el de desplegada.
+    const { disponible, desplegado } = sitioDelRiel(1400, 500, true)
+    const tope = anchoMaximoDe({ disponible, ancho: 260, sinTerminal: true, desplegado })
+    const sinCruzar = anchoMaximoDe({ disponible, ancho: 260, sinTerminal: true })
+    check(
+      'plegada, el tope de arrastre no pasa de lo que cabe junto a la terminal desplegada: restaurar no pliega un riel ensanchado plegada',
+      tope === anchoMaximoRiel(884) && tope < sinCruzar && rielCabe(884, tope) && ve({ disponible: 884, ancho: tope }) === SI,
+      `tope ${tope} (solo junto al agente ${sinCruzar}) · cabe al desplegar: ${rielCabe(884, tope)}`
+    )
+  }
   check(
     'la resolución no devuelve preferencia alguna: plegar por falta de sitio no la toca',
     j(Object.keys(resolverRiel(base)).sort()) === j(['enRiel', 'visible']),
@@ -708,6 +759,25 @@ hr('(17) El acordeón por teclado: → abre un grupo cerrando el otro; ← e Int
   check('«Sin grupo» se abre con Intro como cualquier otro', abierto === '', String(abierto))
   pulsar(tecla('ArrowRight'), 0)
   check('MITAD NEGATIVA: → sobre un grupo ya abierto no lo cierra ni cierra otro (baja a su primera conexión)', abierto === '', String(abierto))
+}
+
+hr('(R) El riel: Mayús+↑/↓ amplía, Supr borra todas las marcadas y «Sin grupo» vacío se enseña al arrastrar')
+{
+  const riel = (e: TeclaLista, activo: number, marcadas: string[] = [], plataforma: Plataforma = 'windows'): AccionLista | null =>
+    accionTeclaLista(e, { filas: F, activo, filtroVacio: true, multiple: true, marcadas: new Set(marcadas) }, plataforma)
+  check('Mayús+↓ en el riel amplía hasta la siguiente fila', j(riel(tecla('ArrowDown', { shiftKey: true }), 1)) === j({ tipo: 'extender', indice: 2 }), j(riel(tecla('ArrowDown', { shiftKey: true }), 1)))
+  check('Mayús+↑ en el riel amplía hacia arriba', j(riel(tecla('ArrowUp', { shiftKey: true }), 3)) === j({ tipo: 'extender', indice: 2 }), j(riel(tecla('ArrowUp', { shiftKey: true }), 3)))
+  check('MITAD NEGATIVA: en el lanzador (que no marca varias) Mayús+↓ no hace nada', accion(tecla('ArrowDown', { shiftKey: true }), 1) === null, j(accion(tecla('ArrowDown', { shiftKey: true }), 1)))
+  check('MITAD NEGATIVA: Ctrl+Mayús+↓ no amplía', riel(tecla('ArrowDown', { shiftKey: true, ctrlKey: true }), 1) === null, 'null')
+  const varias = riel(tecla('Delete'), 2, ['c6', 'c5', 'c1'])
+  check('Supr con el cursor en una de varias marcadas: las borra todas', varias?.tipo === 'eliminarConexiones' && j([...varias.conexionIds].sort()) === j(['c1', 'c5', 'c6']), j(varias))
+  check('⌘⌫ en Mac hace lo mismo', riel(tecla('Backspace', { metaKey: true }), 2, ['c6', 'c5'], 'mac')?.tipo === 'eliminarConexiones', 'mac')
+  check('con una sola marcada, Supr borra esa (como siempre)', j(riel(tecla('Delete'), 2, ['c5'])) === j({ tipo: 'eliminarConexion', conexionId: 'c5' }), j(riel(tecla('Delete'), 2, ['c5'])))
+  check('MITAD NEGATIVA: el cursor fuera de lo marcado borra solo la del cursor', j(riel(tecla('Delete'), 3, ['c6', 'c5'])) === j({ tipo: 'eliminarConexion', conexionId: 'c1' }), j(riel(tecla('Delete'), 3, ['c6', 'c5'])))
+  const conVacia = construirFilas({ grupos: GRUPOS, conexiones: CONEXIONES.filter((c) => c.grupoId !== null && !c.grupoDesconocido), filtro: '', plegados: new Set(), mostrarSinGrupo: true })
+  check('al arrastrar, «Sin grupo» se enseña aunque esté vacío (para soltar ahí)', ver(conVacia).startsWith('[Sin grupo 0]'), ver(conVacia))
+  const planaArrastrando = construirFilas({ grupos: [], conexiones: CONEXIONES, filtro: '', plegados: new Set(), mostrarSinGrupo: true })
+  check('MITAD NEGATIVA: sin grupos en el perfil sigue siendo una lista plana, sin «Sin grupo»', !ver(planaArrastrando).includes('Sin grupo'), ver(planaArrastrando))
 }
 
 hr('RESULTADO (PASS/FAIL)')

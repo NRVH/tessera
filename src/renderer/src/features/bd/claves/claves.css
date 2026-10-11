@@ -61,6 +61,18 @@
 .db-fila-kv-clave .db-kv-tipo {
   margin-left: auto;
 }
+/* El TTL va antes del chip: es él quien empuja a la derecha, y el chip se queda pegado. */
+.db-fila-kv-clave .db-kv-ttl {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-family: var(--mono, monospace);
+  font-size: calc(var(--ui-font) - 2px);
+  color: var(--fg-faint);
+  white-space: nowrap;
+}
+.db-fila-kv-clave .db-kv-ttl + .db-kv-tipo {
+  margin-left: 6px;
+}
 .db-fila-kv-base .db-kv-patron {
   flex: 0 1 auto;
   min-width: 0;

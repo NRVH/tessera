@@ -23,7 +23,7 @@ fiable bajo `contextIsolation` y `sandbox`.
   selección copia y sin ella baja como ^C; en Mac Ctrl+F y Ctrl+V llegan al pty.
 - Lo que el manejador (`atajosTerminal.ts`) no reclama es de la shell. En Windows Ctrl+N con el
   foco en la terminal es su ^N: xterm lo consume y el atajo global de archivo nuevo no lo ve. En
-  Mac ⌘N no es un control y sí llega. Divergencia ACEPTADA (decisión del usuario, oct-2026): el
+  Mac ⌘N no es un control y sí llega. Divergencia ACEPTADA: el
   README lo avisa en su tabla de atajos.
 
 ## Consecuencias

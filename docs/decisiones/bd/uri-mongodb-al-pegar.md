@@ -14,8 +14,11 @@ campos. La descomposición y la validación de las opciones que se guardan (`opc
 - Lo que el driver rechaza se rechaza aquí, con su motivo y en español (medido contra `mongodb@7.7.0`):
   `srv` con puerto, con varios nombres o con `directConnection=true`, `tls` y `ssl` que no coinciden, una
   opción sin valor o repetida. Mejor el error al pegar que un `MongoParseError` al probar.
-- Varios hosts sin `srv` es un error con su remedio: la forma en disco es un host y un puerto (la huella
-  del destino no cambia), y un replica set se alcanza desde uno de sus miembros con `replicaSet=`.
+- Varios hosts sin `srv` (un replica set sin DNS SRV) van al campo host como lista, `h1:27017,h2:27018`,
+  cada uno con su puerto si lo trae, y `port` es el de los que no. Es el mismo texto que escribe quien la
+  teclea a mano, y la huella del destino lo cubre entero: la contraseña va solo a esa lista. Con varios no
+  se añade `directConnection=true` (el driver descubre la topología entre ellos). Antes era un error y
+  había que dejar un miembro; los que estaban detrás de un DNS sin SRV no podían conectarse si ese caía.
 - El TLS sale de las opciones y va a las casillas (`DbTls`): `tls`/`ssl` a `cifrar`;
   `tlsAllowInvalidCertificates`/`tlsInsecure` a `confiarCertificado`. Sin decir nada: con `srv`, cifrar; sin
   `srv`, el valor por defecto del motor (sin cifrar), no `TLS_POR_DEFECTO`. `tlsAllowInvalidCertificates`

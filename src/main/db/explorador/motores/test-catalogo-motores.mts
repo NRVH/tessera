@@ -179,7 +179,9 @@ const VALORES_DE_ANTES: Readonly<
   // SQLite (no es «de antes»: es lo que SQLite declara; ver `catalogoSqlite.ts` y su descriptor).
   sqlite: { pkEnColumnas: true, leeTiposDeclarados: true, tieneSinonimos: false, pseudoEsquemaPublico: null, rejilla: 'keyset' },
   // lo que SQL Server declara (su catálogo del main aún es un esqueleto: ver abajo).
-  sqlserver: { pkEnColumnas: true, leeTiposDeclarados: false, tieneSinonimos: true, pseudoEsquemaPublico: null, rejilla: 'offsetFetch' }
+  sqlserver: { pkEnColumnas: true, leeTiposDeclarados: false, tieneSinonimos: true, pseudoEsquemaPublico: null, rejilla: 'offsetFetch' },
+  // Lo que MySQL declara: la PK en sus columnas, sin sinónimos y LIMIT/OFFSET.
+  mysql: { pkEnColumnas: true, leeTiposDeclarados: false, tieneSinonimos: false, pseudoEsquemaPublico: null, rejilla: 'limitOffset' }
 }
 
 async function main(): Promise<void> {
@@ -331,7 +333,7 @@ async function main(): Promise<void> {
   }
 
   hr('(6) Un motor desconocido lanza (antes caía en el SQL de PostgreSQL)')
-  const desconocido = 'mysql' as DbMotor // (antes, 'sqlite')
+  const desconocido = 'db2' as DbMotor // (antes, 'sqlite')
   const intentos: Array<[string, string | null]> = [
     ['sqlEsquemas', lanza(() => sqlEsquemas({ motor: desconocido, versionMayor: 3 }))],
     ['sqlFks', lanza(() => sqlFks({ motor: desconocido, versionMayor: 3 }, 'E', 'T'))],
@@ -342,7 +344,7 @@ async function main(): Promise<void> {
     ['mapearConteos', lanza(() => mapearConteos(desconocido, [['tabla', 1]]))]
   ]
   for (const [nombre, msg] of intentos) {
-    check(`${nombre}('mysql') lanza «Motor desconocido»`, msg !== null && msg.indexOf('Motor desconocido') >= 0 && msg.indexOf('mysql') >= 0, String(msg))
+    check(`${nombre}('db2') lanza «Motor desconocido»`, msg !== null && msg.indexOf('Motor desconocido') >= 0 && msg.indexOf('db2') >= 0, String(msg))
   }
 
   hr('(7) El contrato del lector: toda consulta de leerFks y leerDdl sale de construir')

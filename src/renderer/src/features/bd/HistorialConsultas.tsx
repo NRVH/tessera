@@ -11,7 +11,8 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type RefO
 import { createPortal } from 'react-dom'
 import type { DbEntradaHistorial } from '../../../../shared/db-explorador-ipc'
 import {
-  TEXTO_BORRAR_TODO,
+  textoBorrarTodo,
+  textosHistorial,
   TEXTO_CONEXION_BORRADA,
   aliasHistorial,
   detalleHistorial,
@@ -38,7 +39,7 @@ function CabeceraHistorial({ h }: { h: Historial }): React.JSX.Element {
   return (
     <div className="db-hist-cabecera">
       <span className="db-hist-titulo">
-        Historial <span className="db-hist-cuenta">{h.entradas ? cantidad(h.total, 'consulta', 'consultas') : ''}</span>
+        Historial <span className="db-hist-cuenta">{h.entradas ? cantidad(h.total, textosHistorial(h.lenguaje).una, textosHistorial(h.lenguaje).varias) : ''}</span>
       </span>
       <div className="panel-actions">
         {vacioDeVerdad ? (
@@ -67,7 +68,7 @@ function CabeceraHistorial({ h }: { h: Historial }): React.JSX.Element {
 function FranjaBorrarTodo({ h }: { h: Historial }): React.JSX.Element {
   return (
     <div className="db-hist-confirmar" role="alert">
-      <span className="db-hist-confirmar-texto">{TEXTO_BORRAR_TODO}</span>
+      <span className="db-hist-confirmar-texto">{textoBorrarTodo(h.lenguaje)}</span>
       <div className="db-hist-confirmar-botones">
         <button type="button" className="btn btn-ghost" autoFocus onClick={h.cerrarConfirmacion}>
           Cancelar
@@ -98,7 +99,7 @@ function ControlesHistorial({
         ref={filtroRef}
         className="db-hist-filtro"
         value={h.filtro}
-        placeholder="Filtrar por texto del SQL"
+        placeholder={textosHistorial(h.lenguaje).filtro}
         spellCheck={false}
         role="combobox"
         aria-expanded="true"
@@ -143,7 +144,7 @@ function EstadoHistorial({ h }: { h: Historial }): React.JSX.Element {
       {!h.error && h.entradas === null && <div className="db-hist-estado">Cargando el historial…</div>}
       {!h.error && h.entradas !== null && h.total === 0 && (
         <div className="db-hist-estado">
-          {h.filtro.trim() !== '' ? 'Ninguna consulta coincide.' : 'Todavía no hay consultas en el historial.'}
+          {h.filtro.trim() !== '' ? textosHistorial(h.lenguaje).ninguna : textosHistorial(h.lenguaje).vacio}
         </div>
       )}
     </>
@@ -241,7 +242,7 @@ export function HistorialConsultas(p: HistorialConsultasProps): React.JSX.Elemen
       ref={raizRef}
       className="db-hist-pop"
       role="dialog"
-      aria-label={`Historial de consultas de ${conexion.alias}`}
+      aria-label={`Historial de ${textosHistorial(p.lenguaje).varias} de ${conexion.alias}`}
       style={{ left: pos.left, top: pos.top, width: `min(${ANCHO}px, calc(100vw - ${MARGEN * 2}px))` }}
       onKeyDown={(e) => teclaHistorial(e, h, plataforma, filtroRef.current)}
     >

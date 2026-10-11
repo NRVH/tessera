@@ -39,8 +39,9 @@ tope de 5 MiB), dentro del debounce del tecleo. El historial de consultas (`Hist
 fuera del espacio de datos a propósito: es privado de Tessera y el agente no debe leerlo.
 
 Al borrar el perfil, su espacio de datos entero, consolas incluidas, va a la papelera del sistema,
-igual que una consola suelta y nunca en firme (decisión del usuario del 5-oct-2026): el borrado
-se deduce de la lista de perfiles guardada (E70), así que tiene que poder deshacerse. Si la papelera
+igual que una consola suelta y nunca en firme: un borrado
+tiene que poder deshacerse. Solo lo dispara la orden de borrar el perfil
+(`workspace/borrar-perfil-con-orden.md`), nunca una lista guardada a la que le falte. Si la papelera
 falla, el espacio se queda en su sitio y se registra. El porqué, las guardas y lo medido, en
 `docs/decisiones/agentes/agente-de-la-terminal.md`. El diálogo de borrar el perfil lo dice, con el
 nombre de la papelera de cada sistema (`shared/nombresSistema.ts`).

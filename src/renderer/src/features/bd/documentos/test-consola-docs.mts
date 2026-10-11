@@ -10,6 +10,7 @@
 import {
   baseTrasResultado,
   dividirSentenciasShell,
+  insercionHistorialShell,
   resumenEscritura,
   sentenciaShellEnCursor,
   sentenciasShellAEjecutar,
@@ -111,10 +112,44 @@ function main(): void {
     s6[1].texto === 'db.b.find()' && s6[1].hasta === s6[1].hastaContenido && s6[1].terminador === 'finDeTexto',
     json(s6[1])
   )
-  const t6b = 'show dbs\r\n\r\nuse x'
+  const t6b = 'db.a.find()\r\n\r\nuse x'
   const s6b = dividirSentenciasShell(t6b)
-  check('CRLF: la línea en blanco corta', igual(textos(s6b), ['show dbs', 'use x']) && s6b[0].terminador === 'lineaEnBlanco', json(s6b))
+  check('CRLF: la línea en blanco corta', igual(textos(s6b), ['db.a.find()', 'use x']) && s6b[0].terminador === 'lineaEnBlanco', json(s6b))
   check('los índices van en orden', s6b.every((s, i) => s.indice === i), json(s6b.map((s) => s.indice)))
+
+  hr('(6b) Órdenes de línea: `use` y `show` terminan en su salto, como en mongosh')
+  const t6c = 'use tienda\ndb.pedidos.find()'
+  const s6c = dividirSentenciasShell(t6c)
+  check(
+    '`use x` y la sentencia en líneas separadas son dos, y el use cierra por fin de línea',
+    igual(textos(s6c), ['use tienda', 'db.pedidos.find()']) && s6c[0].terminador === 'finDeLinea',
+    json(s6c)
+  )
+  casoTextos('con CRLF y `show`', 'show collections\r\ndb.c.countDocuments()', ['show collections', 'db.c.countDocuments()'])
+  casoTextos('`use x;` con su punto y coma, igual', 'use x;\ndb.c.find()', ['use x', 'db.c.find()'])
+  casoTextos('con un comentario detrás del use', 'use x // la de pruebas\ndb.c.find()', ['use x', 'db.c.find()'])
+  check(
+    'el cursor en la segunda línea ejecuta solo la sentencia, no el use',
+    sentenciaShellEnCursor(s6c, t6c, t6c.length)?.texto === 'db.pedidos.find()',
+    String(sentenciaShellEnCursor(s6c, t6c, t6c.length)?.texto)
+  )
+  casoTextos(
+    'MITAD NEGATIVA: una sentencia de JS que sigue en la línea siguiente no se corta',
+    'db.c.find()\n  .limit(5)\nuse = 3\nx',
+    ['db.c.find()\n  .limit(5)\nuse = 3\nx']
+  )
+  casoTextos('MITAD NEGATIVA: dentro de paréntesis tampoco', 'f(\nuse x\n)', ['f(\nuse x\n)'])
+  casoTextos(
+    'una orden tras otra sentencia, sin línea en blanco: también corta antes de ella',
+    'db.a.find()\nuse b\ndb.b.find()',
+    ['db.a.find()', 'use b', 'db.b.find()']
+  )
+  casoTextos('y con un comentario detrás de la orden', 'db.a.find()\n  use b // pruebas\nx', ['db.a.find()', 'use b', 'x'])
+  casoTextos(
+    'MITAD NEGATIVA: `show (x)` o `use [a]` son JavaScript y siguen en la línea siguiente',
+    'show (x)\n  .then(f)\nuse [a]\n.length',
+    ['show (x)\n  .then(f)\nuse [a]\n.length']
+  )
   check('texto = slice(desde, hastaContenido)', s6.every((s) => t6.slice(s.desde, s.hastaContenido) === s.texto), 'ok')
 
   hr('(7) Sentencia bajo el cursor')
@@ -184,6 +219,16 @@ function main(): void {
   const cols = ['_id', 'a']
   check('columnas: sin nuevas, mismo arreglo', unirColumnas(cols, ['a', '_id']) === cols, 'identidad')
   check('columnas: nuevas detrás en su orden', igual(unirColumnas(cols, ['b', 'a', 'c']), ['_id', 'a', 'b', 'c']), json(unirColumnas(cols, ['b', 'a', 'c'])))
+
+  const vacio = { antes: '', despues: '' }
+  const i1 = insercionHistorialShell('  db.c.find({ a: 1 })\n', vacio)
+  check('historial: se termina con «;» y el cursor queda detrás', i1.texto === 'db.c.find({ a: 1 });' && i1.cursor === i1.texto.length, json(i1))
+  check('historial: ya terminada, no se duplica', insercionHistorialShell('db.c.find();', vacio).texto === 'db.c.find();', 'ok')
+  check('historial: una orden de línea no lleva «;»', insercionHistorialShell('use tienda', vacio).texto === 'use tienda', 'ok')
+  const i2 = insercionHistorialShell('db.c.find()\n  .limit(5)', { antes: 'db.x.count()', despues: '' }, '\r\n')
+  check('historial: con texto delante va en su línea, con el fin de línea del modelo', i2.texto === '\r\ndb.c.find()\r\n  .limit(5);' && i2.cursor === i2.texto.length, json(i2))
+  const i3 = insercionHistorialShell('db.c.find()', { antes: '', despues: 'db.y.find()' })
+  check('historial: con texto detrás, el salto va después y el cursor antes de él', i3.texto === 'db.c.find();\n' && i3.cursor === 'db.c.find();'.length, json(i3))
 
   const total = results.length
   const passed = results.filter((x) => x.pass).length

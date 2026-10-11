@@ -1,5 +1,5 @@
 // =============================================================================
-// Léxico SQL de Oracle, PostgreSQL, SQLite y SQL Server: `tokenizar` y `leerToken`. Puro, sin DOM
+// Léxico SQL de Oracle, PostgreSQL, SQLite, SQL Server y MySQL: `tokenizar` y `leerToken`. Puro, sin DOM
 // ni `process`, ES2020. Lo usan el renderer (marcas, cursor, avisos) y el main, que es la
 // autoridad: vuelve a partir cada sentencia con este mismo código. Offsets en UTF-16 del texto.
 // Cada diferencia entre motores sale de las banderas de `dialectosSql.ts`, nunca de comparar `d`.
@@ -21,7 +21,9 @@ import {
 } from './lexicoSqlCaracteres.ts'
 import {
   cadena,
+  conDelimitador,
   finEtiquetaDolar,
+  finLineaDelimitador,
   finVariableSqlite,
   leerCadenaE,
   leerCadenaQ,
@@ -48,12 +50,25 @@ export function esParteIdent(c: number, d: DialectoSql): boolean {
 /** Firma común de los lectores de un token: el texto, dónde empieza, el fin del rango y sus reglas. */
 type Lector = (texto: string, i: number, fin: number, r: ReglasDialecto, ini: boolean, c1: number) => Token | null
 
+/** `--` abre un comentario; con `guionesPidenBlanco` (MySQL), solo si lo sigue un blanco o el fin. */
+function abreComentarioDeLinea(texto: string, i: number, fin: number, r: ReglasDialecto): boolean {
+  return !r.guionesPidenBlanco || i + 2 >= fin || esBlanco(texto.charCodeAt(i + 2))
+}
+
+/** `/*!` o `/*M!` en `i` (MySQL y MariaDB): un comentario cuyo contenido SÍ se ejecuta. */
+function esComentarioEjecutable(texto: string, i: number, fin: number): boolean {
+  const c2 = i + 2 < fin ? texto[i + 2] : ''
+  return c2 === '!' || ((c2 === 'M' || c2 === 'm') && i + 3 < fin && texto[i + 3] === '!')
+}
+
 const leerComentarioOBarra: Lector = (texto, i, fin, r, ini, c1) => {
   const c = texto.charCodeAt(i)
-  if (c === 45 && c1 === 45) return token('comentario', texto, i, finDeLinea(texto, i, fin), ini)
+  if (c === 45 && c1 === 45 && abreComentarioDeLinea(texto, i, fin, r)) return token('comentario', texto, i, finDeLinea(texto, i, fin), ini)
   if (c === 47 && c1 === 42) {
     const f = leerComentarioBloque(texto, i, fin, r.comentariosAnidados)
-    return token('comentario', texto, i, f.hasta, ini, f.sinCerrar)
+    const t = token('comentario', texto, i, f.hasta, ini, f.sinCerrar)
+    if (r.comentarioEjecutable && esComentarioEjecutable(texto, i, fin)) t.ejecutable = true
+    return t
   }
   if (c === 47 && r.barraTermina && ini && restoDeLineaBlanco(texto, i + 1, fin)) return token('barraSola', texto, i, i + 1, ini)
   return null
@@ -78,10 +93,15 @@ function leerIdentCorchetes(texto: string, i: number, fin: number, r: ReglasDial
   return token('identCitado', texto, i, f.hasta, ini, f.sinCerrar, texto.slice(i + 1, f.sinCerrar ? f.hasta : f.hasta - 1))
 }
 
+/** Una cadena entre `q`: con `barraEscapaEnCadena` (MySQL) la barra escapa el carácter siguiente. */
+function cadenaCitada(texto: string, i: number, fin: number, r: ReglasDialecto, ini: boolean, q: string): Token {
+  return cadena(texto, i, r.barraEscapaEnCadena ? leerCadenaE(texto, i, fin, q) : leerDelimitado(texto, i, fin, q), ini)
+}
+
 const leerCitado: Lector = (texto, i, fin, r, ini) => {
   const c = texto.charCodeAt(i)
-  if (c === 39) return cadena(texto, i, leerDelimitado(texto, i, fin, "'"), ini)
-  if (c === 34) return identCitado(texto, i, fin, ini, '"')
+  if (c === 39) return cadenaCitada(texto, i, fin, r, ini, "'")
+  if (c === 34) return r.comillasDoblesCadena ? cadenaCitada(texto, i, fin, r, ini, '"') : identCitado(texto, i, fin, ini, '"')
   if (c === 91 && r.identCorchetes) return leerIdentCorchetes(texto, i, fin, r, ini)
   if (c === 96 && r.identAcentoGrave) return identCitado(texto, i, fin, ini, '`')
   return null
@@ -98,9 +118,13 @@ function leerPalabraConPrefijo(texto: string, i: number, fin: number, r: ReglasD
   return token('palabra', texto, i, h, ini, false, texto.slice(i, h).toUpperCase())
 }
 
-/** SQLite: `?` y `?NNN` (`bindInterrogacion`), `@x` (`bindArroba`); SQL Server: `@x`/`#tmp` como palabra. */
+/**
+ * SQLite: `?` y `?NNN` (`bindInterrogacion`), `@x` (`bindArroba`); SQL Server: `@x`/`#tmp` como
+ * palabra; MySQL: `#` hasta el fin de línea es un comentario.
+ */
 const leerVariable: Lector = (texto, i, fin, r, ini, c1) => {
   const c = texto.charCodeAt(i)
+  if (c === 35 && r.comentarioAlmohadilla) return token('comentario', texto, i, finDeLinea(texto, i, fin), ini)
   if (c === 63 && r.bindInterrogacion) {
     let j = i + 1
     while (j < fin && esDigito(texto.charCodeAt(j))) j++
@@ -160,9 +184,17 @@ function leerUnicode(texto: string, i: number, fin: number, r: ReglasDialecto, i
   return token('identCitado', texto, i, f.hasta, ini, f.sinCerrar, valorCitado(texto, i + 2, f))
 }
 
+/** MySQL: `DELIMITER x` al principio de una línea es una línea de cliente entera. */
+function leerDelimitador(texto: string, i: number, fin: number, r: ReglasDialecto, ini: boolean): Token | null {
+  if (!ini || !conDelimitador(r.comandosCliente)) return null
+  const f = finLineaDelimitador(texto, i, fin)
+  return f < 0 ? null : token('lineaCliente', texto, i, f, ini)
+}
+
 const leerPalabraOCadena: Lector = (texto, i, fin, r, ini, c1) => {
   if (!esInicioIdent(texto.charCodeAt(i))) return null
   const especial =
+    leerDelimitador(texto, i, fin, r, ini) ??
     leerGo(texto, i, fin, r, ini) ??
     leerQuote(texto, i, fin, r, ini, c1) ??
     leerCadenaConPrefijo(texto, i, fin, r, ini, c1) ??

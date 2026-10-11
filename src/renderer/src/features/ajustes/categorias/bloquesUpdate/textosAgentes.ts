@@ -15,7 +15,13 @@ export function textoCli(cli: EstadoCli, tuEquipo: string): string {
   // `instalada === null` son dos cosas en el contrato: no instalado, o la sonda falló.
   // Con un error de sonda delante se enseña el error, no «no está instalado».
   if (cli.instalada === null) {
-    return cli.error ? `No responde: ${cli.error}` : `No está instalado en ${tuEquipo}.`
+    const base = cli.error ? `No responde: ${cli.error}` : `No está instalado en ${tuEquipo}.`
+    if (cli.reparar && cli.hayNueva && cli.ultima) return `${base} Se puede reparar reinstalando ${cli.ultima}.`
+    if (cli.binarioPendiente && cli.ultima) return `${base} Se podrá reparar cuando ${cli.ultima} esté lista para ${tuEquipo}.`
+    return base
+  }
+  if (cli.binarioPendiente && cli.ultima) {
+    return `${cli.instalada} · ${cli.ultima} aún no está lista para ${tuEquipo}.`
   }
   if (cli.hayNueva && cli.ultima) {
     return cli.instalable

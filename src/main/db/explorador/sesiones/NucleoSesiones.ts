@@ -8,7 +8,13 @@
 // =============================================================================
 
 import type { DbConnection } from '../../../../shared/db-ipc.ts'
-import type { DbEstadoSesion, DbEstadoTx, DbRefSesion, DbTxModo } from '../../../../shared/db-explorador-ipc.ts'
+import {
+  type DbEstadoSesion,
+  type DbEstadoTx,
+  type DbRefSesion,
+  type DbTxModo,
+  MOTIVO_CARPETA_SIN_ESCRITURA
+} from '../../../../shared/db-explorador-ipc.ts'
 import { descriptor, pideUsuarioYClave } from '../../../../shared/motores/index.ts'
 import type { ClaseSentencia } from '../../../../shared/sql/clasificarSql.ts'
 import { AJUSTES_SESIONES_POR_DEFECTO, type AjustesSesionesBd } from '../../../../shared/ajustesBd.ts'
@@ -48,6 +54,13 @@ export class NucleoSesiones {
   private secuenciaPlan = 0
 
   private cerrando = false
+
+  /**
+   * Conexiones de archivo cuya última apertura de escritura acabó en solo lectura porque la
+   * carpeta no la admite (`RespuestaAbrir.carpetaSinEscritura`). Se aprende de cada apertura y
+   * se olvida al editar o borrar la conexión.
+   */
+  private readonly sinEscrituraPorCarpeta = new Set<string>()
 
   /**
    * Ajustes del usuario que aplica el gestor: la preferencia de Tx de las consolas nuevas
@@ -148,10 +161,27 @@ export class NucleoSesiones {
   /**
    * ¿El explorador trata `con` como de solo lectura? La que IMPONE quien construye el gestor
    * (`soloLecturaImpuesta.ts`), NUNCA la casilla `con.readonly`, que es solo de los
-   * agentes. En el producto, ninguna.
+   * agentes. En el producto, ninguna. Y la de una base de archivo cuya carpeta no admite
+   * escritura (`porCarpeta`), que no la impone nadie pero tampoco se puede saltar.
    */
   ro(con: DbConnection): boolean {
+    return this.roImpuesta(con) || this.sinEscrituraPorCarpeta.has(con.id)
+  }
+
+  /** Solo la impuesta: la que se pide al trabajador, que así vuelve a probar la escritura en cada apertura. */
+  roImpuesta(con: DbConnection): boolean {
     return (this.deps.soloLecturaImpuesta ?? sinSoloLecturaImpuesta)(con)
+  }
+
+  /** ¿La conexión es de solo lectura porque la carpeta de su base no admite escritura? */
+  porCarpeta(conexionId: string): boolean {
+    return this.sinEscrituraPorCarpeta.has(conexionId)
+  }
+
+  /** Lo que dijo la última apertura de escritura de la conexión. */
+  anotarCarpeta(conexionId: string, sinEscritura: boolean): void {
+    if (sinEscritura) this.sinEscrituraPorCarpeta.add(conexionId)
+    else this.sinEscrituraPorCarpeta.delete(conexionId)
   }
 
   log(linea: string): void {
@@ -163,7 +193,9 @@ export class NucleoSesiones {
   }
 
   dto(s: Sesion): DbEstadoSesion {
-    return aEstadoSesion(s.estado, s.ref, s.conexionId, s.driver)
+    const dto = aEstadoSesion(s.estado, s.ref, s.conexionId, s.driver)
+    if (dto.soloLectura && this.porCarpeta(s.conexionId)) dto.soloLecturaPorCarpeta = true
+    return dto
   }
 
   /**
@@ -190,7 +222,11 @@ export class NucleoSesiones {
       if (s.manualPendiente) this.aplicarManualPendiente(s)
       this.emitir(s)
     }
-    return t.efectos
+    if (!this.porCarpeta(s.conexionId)) return t.efectos
+    // El rechazo por solo lectura dice el motivo de verdad: la carpeta, no la conexión.
+    return t.efectos.map((e) =>
+      e.tipo === 'rechazar' && e.motivo === 'soloLectura' ? { ...e, mensaje: MOTIVO_CARPETA_SIN_ESCRITURA } : e
+    )
   }
 
   /**

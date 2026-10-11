@@ -45,9 +45,15 @@ export type DialogoSsh =
       importada?: ImportacionEnFormulario
     }
   | { tipo: 'importarOpenSsh'; perfilId: string; lectura: SshLecturaOpenSsh }
-  | { tipo: 'grupo'; perfilId: string; grupo: SshGrupo | null }
+  /** Crear un grupo (y, con `mover`, pasar esas conexiones a él) o renombrar uno. */
+  | { tipo: 'grupo'; perfilId: string; grupo: SshGrupo | null; mover?: readonly string[] }
   | { tipo: 'eliminarConexion'; conexion: SshConexion }
+  /** Las marcadas en el riel: borrarlas o pasarlas a otro grupo, con una sola confirmación. */
+  | { tipo: 'eliminarConexiones'; perfilId: string; conexiones: readonly SshConexion[] }
+  | { tipo: 'moverConexiones'; perfilId: string; conexiones: readonly SshConexion[] }
   | { tipo: 'eliminarGrupo'; grupo: SshGrupo; conexiones: number }
+  /** Lo que hicieron los agentes con `tssh` en el perfil; con `alias`, filtrado a esa conexión. */
+  | { tipo: 'actividad'; perfilId: string; alias: string }
 
 /** Estado de las conexiones SSH. */
 export interface EstadoSsh {
@@ -136,10 +142,16 @@ export const accionesSsh = {
       dialogo: { tipo: 'conexion', perfilId: conexion.profileId, conexion, grupoId: conexion.grupoId, enfocarGrupo }
     }),
   nuevoGrupo: (perfilId: string): void => useStoreSsh.setState({ dialogo: { tipo: 'grupo', perfilId, grupo: null } }),
+  /** Un grupo nuevo con esas conexiones dentro: lo que se suelta en «Nuevo grupo…» del riel. */
+  nuevoGrupoCon: (perfilId: string, mover: readonly string[]): void => useStoreSsh.setState({ dialogo: { tipo: 'grupo', perfilId, grupo: null, mover } }),
+  pedirEliminarConexiones: (perfilId: string, conexiones: readonly SshConexion[]): void =>
+    useStoreSsh.setState({ dialogo: { tipo: 'eliminarConexiones', perfilId, conexiones } }),
+  moverConexiones: (perfilId: string, conexiones: readonly SshConexion[]): void => useStoreSsh.setState({ dialogo: { tipo: 'moverConexiones', perfilId, conexiones } }),
   renombrarGrupo: (grupo: SshGrupo): void => useStoreSsh.setState({ dialogo: { tipo: 'grupo', perfilId: grupo.profileId, grupo } }),
   pedirEliminarConexion: (conexion: SshConexion): void => useStoreSsh.setState({ dialogo: { tipo: 'eliminarConexion', conexion } }),
   pedirEliminarGrupo: (grupo: SshGrupo, conexiones: number): void =>
     useStoreSsh.setState({ dialogo: { tipo: 'eliminarGrupo', grupo, conexiones } }),
+  verActividad: (perfilId: string, alias = ''): void => useStoreSsh.setState({ dialogo: { tipo: 'actividad', perfilId, alias } }),
   cerrarDialogo: (): void => useStoreSsh.setState({ dialogo: null }),
   abrirLista: (): void => useStoreSsh.setState({ listaAbierta: true }),
   cerrarLista: (): void => useStoreSsh.setState({ listaAbierta: false }),

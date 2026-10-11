@@ -6,6 +6,7 @@
 
 import { base, lectura, leerNombre, pal, type Vista } from './clasificarSqlBase.ts'
 import type { Clasificacion, SesionSentencia } from './clasificarSqlTipos.ts'
+import { analizarSetMysql } from './clasificarSqlMysql.ts'
 
 function sesionOtra(): SesionSentencia {
   return { accion: 'otra', parametros: [] }
@@ -30,6 +31,7 @@ function parametroDeSet(v: Vista, k: number): string | null {
 }
 
 export function analizarSet(v: Vista, i: number): Clasificacion {
+  if (v.r.setVariasAsignaciones) return analizarSetMysql(v, i)
   const w = pal(v, i + 1)
   const primero = setTxORol(w, true)
   if (primero) return primero

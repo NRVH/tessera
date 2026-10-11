@@ -6,7 +6,7 @@
 // Decisiones: docs/decisiones/bd/ui-consola-motor.md
 // =============================================================================
 
-import { useCallback, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import type { DbConnection } from '../../../../../shared/db-ipc'
 import type { DbTxModo } from '../../../../../shared/db-explorador-ipc'
 import { descriptor } from '../../../../../shared/motores/index'
@@ -31,14 +31,7 @@ import { useAtajosConsola, useSalidaConsola } from './useConsolaSalida'
 import { useElegirEsquema, useSesionConsola, useTxConsola } from './useConsolaSesion'
 import { useStopConsola } from './useConsolaStop'
 import { puedeDetener } from './vivoConsola'
-
-/** Si el popover del historial (que es del pane) está abierto. */
-function useHistorialAbierto() {
-  const [historialAbierto, setHistorialAbierto] = useState(false)
-  const alternarHistorial = useCallback((): void => setHistorialAbierto((v) => !v), [])
-  const cerrarHistorial = useCallback((): void => setHistorialAbierto(false), [])
-  return { historialAbierto, alternarHistorial, cerrarHistorial }
-}
+import { useHistorialAbierto } from './useAnclaHistorial'
 
 /** La barra de transacción: el estado que manda el main o, sin sesión, el de nacimiento. */
 function useBarraTx(n: NucleoConsola, conexion: DbConnection, txInicial: DbTxModo, ejecutando: boolean): BarraTx {

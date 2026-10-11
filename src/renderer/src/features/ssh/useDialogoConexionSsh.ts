@@ -70,6 +70,8 @@ export interface VistaDialogoConexionSsh extends PruebaSsh {
   marcados: readonly CampoSsh[]
   /** Los grupos entre los que se elige, por nombre. */
   grupos: readonly SshGrupo[]
+  /** Las conexiones del perfil que pueden ser su bastión (todas menos ella), por nombre. */
+  bastiones: readonly SshConexion[]
   guardando: boolean
   error: string | null
   cambios: boolean
@@ -100,6 +102,12 @@ function useGruposElegibles(perfilId: string, creados: readonly SshGrupo[]): rea
     const conocidos = new Set(delStore.map((g) => g.id))
     return [...delStore, ...creados.filter((g) => !conocidos.has(g.id))].sort((a, b) => compararNombres(a.nombre, b.nombre))
   }, [delStore, creados])
+}
+
+/** Las conexiones del perfil que pueden ser el bastión de `propia` (todas menos ella), por nombre. */
+function useBastiones(perfilId: string, propia: string | undefined): readonly SshConexion[] {
+  const delStore = useStoreSsh((s) => datosDePerfil(s, perfilId).conexiones)
+  return useMemo(() => delStore.filter((c) => c.id !== propia).sort((a, b) => compararNombres(a.alias, b.alias)), [delStore, propia])
 }
 
 type Editar = (parcial: Partial<BorradorSsh>) => void
@@ -223,6 +231,7 @@ export function useDialogoConexionSsh(o: OpcionesDialogoConexionSsh): VistaDialo
   const editar: Editar = (parcial) => g.setBorrador((b) => conCambio(b, parcial))
   const importacion = useImportacionClave(o.perfilId, editar)
   const grupo = useGrupoNuevo(o.perfilId, editar, dialogo.ref)
+  const bastiones = useBastiones(o.perfilId, g.borrador.id)
   const guardar = async (): Promise<void> => {
     if (g.guardando || importacion.clave.importando) return
     // Lo ya guardado (por «Probar», o una edición sin tocar) no se vuelve a mandar.
@@ -230,7 +239,7 @@ export function useDialogoConexionSsh(o: OpcionesDialogoConexionSsh): VistaDialo
     if (c !== null) o.onCerrar()
   }
   return {
-    dialogo, idTitulo, nombreRadioMetodo, idAyudaMetodo, idAyudaAgentes, esEdicion, cambios, editar, guardar,
+    dialogo, idTitulo, nombreRadioMetodo, idAyudaMetodo, idAyudaAgentes, esEdicion, cambios, editar, guardar, bastiones,
     borrador: g.borrador,
     guardando: g.guardando,
     error: g.error,

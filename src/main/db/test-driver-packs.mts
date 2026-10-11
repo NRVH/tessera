@@ -122,6 +122,28 @@ async function main(): Promise<void> {
     mac.map((p) => p.id).join(',')
   )
   check('otra: ningún pack (thin basta y nadie pidió thick)', otra.length === 0, `${otra.length}`)
+  const linux = packsDePlataforma('linux')
+  const icLinux = linux[0]
+  check(
+    'linux: solo el 19.28 x64 en zip, con libclntsh.so de centinela y la misma carpeta que el de Windows',
+    linux.map((p) => p.id).join(',') === 'oracle-ic-19-linux-x64' &&
+      icLinux.centinela === 'libclntsh.so' &&
+      icLinux.url === 'https://download.oracle.com/otn_software/linux/instantclient/1928000/instantclient-basiclite-linux.x64-19.28.0.0.0dbru.zip' &&
+      icLinux.formato === undefined &&
+      icLinux.carpetaInterna === 'instantclient_19_28' &&
+      icLinux.servidorDesde === 11.2 &&
+      icLinux.sizeMB === 39,
+    JSON.stringify(icLinux)
+  )
+  check(
+    'linux: 11.2 y versión desconocida -> el 19 de Linux; 12.1+ -> thin; ninguno de otra plataforma existe aquí',
+    packParaServidor(11.2, 'linux')?.id === 'oracle-ic-19-linux-x64' &&
+      packParaServidor(null, 'linux')?.id === 'oracle-ic-19-linux-x64' &&
+      packParaServidor(19, 'linux') === null &&
+      packById('oracle-ic-19', 'linux') === undefined &&
+      packById('oracle-ic-19-linux-x64', 'windows') === undefined,
+    String(packParaServidor(11.2, 'linux')?.id)
+  )
   check(
     'NEGATIVA: el zip de Windows no existe en Mac',
     packById('oracle-ic-19', 'mac') === undefined,
@@ -355,7 +377,7 @@ async function main(): Promise<void> {
   // -------------------------------------------------------------------------
   const base = mkdtempSync(path.join(os.tmpdir(), 'tessera-driver-packs-'))
   try {
-    for (const plataforma of ['windows', 'mac'] as const) {
+    for (const plataforma of ['windows', 'mac', 'linux'] as const) {
       const userDataDir = path.join(base, plataforma)
       const dm = new DriverManager({
         userDataDir,
@@ -424,6 +446,12 @@ async function main(): Promise<void> {
           status.find((s) => s.id === 'oracle-ic-19')?.descargable === true &&
             status.find((s) => s.id === 'oracle-ic-12.1')?.descargable === false,
           status.map((s) => `${s.id}:${s.descargable}`).join(',')
+        )
+      } else if (plataforma === 'linux') {
+        check(
+          'linux: el 19 descargable, sin aviso ni noDisponible',
+          status.length === 1 && status[0].descargable === true && status[0].aviso === undefined && status[0].noDisponible === undefined,
+          JSON.stringify(status)
         )
       } else {
         const st23 = status.find((s) => s.id === 'oracle-ic-23-macos-arm64')

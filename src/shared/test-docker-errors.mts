@@ -13,7 +13,9 @@ import {
   PREFIJO_DOCKER_NO_DISPONIBLE,
   RAZONES_SALIDA,
   TEXTOS_SALIDA,
+  DETALLE_DOCKER_ROOTLESS,
   clasificarErrorArranque,
+  esDockerRootless,
   normalizarErrorIpc,
   pasosDocker,
   razonDeMensaje
@@ -210,7 +212,24 @@ function main(): void {
       pasosDocker().join('\n') === pasosDocker(plataformaActual()).join('\n'),
       pasosDocker()[0]
     )
+    const linux = pasosDocker('linux')
+    check(
+      '(11g) Linux: servicio, grupo docker y docker info; nada de WSL',
+      linux.length === 3 &&
+        linux[0].includes('systemctl') &&
+        linux[1].includes('grupo docker') &&
+        linux.every((p) => !/wsl/i.test(p)),
+      JSON.stringify(linux)
+    )
   }
+
+  // ---------------------------------------------------------------------------
+  hr('Docker sin root')
+  // ---------------------------------------------------------------------------
+  check('(12a) rootless se reconoce', esDockerRootless('["name=seccomp,profile=builtin","name=rootless","name=cgroupns"]'), 'rootless')
+  check('(12b) con root no', !esDockerRootless('["name=seccomp,profile=builtin","name=cgroupns"]'), 'root')
+  check('(12c) salida vacía no', !esDockerRootless(''), 'vacía')
+  check('(12d) el aviso propone el modo nativo', DETALLE_DOCKER_ROOTLESS.includes('modo nativo'), 'modo nativo')
 
   // ---------------------------------------------------------------------------
   // Reporte final

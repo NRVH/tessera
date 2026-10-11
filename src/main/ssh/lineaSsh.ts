@@ -2,13 +2,14 @@
 // Los argumentos de `ssh` (y de `scp`, para `tssh cp`) para una conexión: `-F none` y unas opciones `-o`
 // decididas aquí, para que la configuración del usuario no cuele multiplexado ni comandos; el `known_hosts`
 // PROPIO de la conexión, la copia importada de su clave si la usa, siempre `--` antes del host y, en
-// «Probar», `exit 0` detrás. El modo agente es estricto con la huella y nunca pregunta. Puro, con la
+// «Probar», `exit 0` detrás; el salto por el bastión y los túneles de la pestaña si los tiene. El modo agente
+// es estricto con la huella y nunca pregunta. Puro, con la
 // plataforma como parámetro: rutas con barras normales en Windows, `%` doblado y entre comillas.
 // Decisiones: docs/decisiones/ssh/motor-linea-y-huellas.md, docs/decisiones/ssh/claves-importadas.md,
 // docs/decisiones/ssh/askpass-y-secretos.md, docs/decisiones/ssh/tssh-y-agentes.md
 // =============================================================================
 import { plataformaActual, type Plataforma } from '../../shared/plataforma.ts'
-import type { SshMetodo } from '../../shared/ssh-ipc.ts'
+import type { SshMetodo, SshTunel } from '../../shared/ssh-ipc.ts'
 
 /** Quién usa la línea: una pestaña de la terminal ('humano') o un agente por `tssh` ('agente'). */
 export type ModoLineaSsh = 'humano' | 'agente'
@@ -31,6 +32,11 @@ export interface OpcionesLineaSsh {
   /** Tessera dará el secreto guardado por el programa de contraseñas: una sola pregunta por método. */
   conAskpass?: boolean
   /**
+   * Con `conAskpass`: lo que Tessera no contesta sola lo contesta el usuario en un diálogo, así que ssh puede
+   * volver a preguntar tras un rechazo (tres veces por método, lo de siempre de ssh).
+   */
+  conDialogo?: boolean
+  /**
    * «Probar»: sin terminal ni entrada (`-T -n`) y con `exit 0` como orden remota; sin programa de
    * contraseñas nadie puede contestar (`BatchMode`) y, con contraseña, solo se saluda (`none`).
    */
@@ -45,6 +51,21 @@ export interface OpcionesLineaSsh {
    * terminal nadie puede teclear una contraseña: sin programa de contraseñas, `BatchMode`.
    */
   subsistemaSftp?: boolean
+  /** El `ProxyCommand` que salta por el bastión (`saltosSsh.ts`); ausente, se llega directo. */
+  proxyCommand?: string
+  /**
+   * Las opciones son las de un bastión dentro de la configuración de los saltos: nadie teclea en él
+   * (sin programa de contraseñas, `BatchMode`) ni reenvía nada más que el salto.
+   */
+  salto?: boolean
+  /** Los túneles: solo en la pestaña de la terminal (modo 'humano', sin prueba, orden ni SFTP). */
+  tuneles?: readonly SshTunel[]
+  /**
+   * El túnel de una conexión de base de datos: solo el reenvío de `127.0.0.1:puertoLocal` a `host:puerto`
+   * (visto desde el servidor), sin terminal ni orden remota, y ssh sale si no puede abrirlo. Va con el modo
+   * 'agente' (huella ya confirmada, sin preguntar) salvo en que este reenvío sí se abre.
+   */
+  reenvioBd?: { puertoLocal: number; host: string; puerto: number }
 }
 
 /** Una conexión con archivo de clave cuya copia no está: sin ella ssh probaría las claves por defecto. */
@@ -77,22 +98,29 @@ function opcionesDeMetodo(destino: DestinoLineaSsh, opts: OpcionesLineaSsh, plat
   return [`IdentityFile=${citarRutaOpcion(opts.rutaClave, plataforma)}`, 'IdentitiesOnly=yes', 'PreferredAuthentications=publickey']
 }
 
-/** Lo que añade quién contesta: Tessera una sola vez por método, o nadie (una prueba o un agente sin él). */
+/**
+ * Lo que añade quién contesta: Tessera una sola vez por método, Tessera y luego el usuario en un diálogo, o
+ * nadie (una prueba o un agente sin él).
+ */
 function opcionesDePreguntas(opts: OpcionesLineaSsh): string[] {
-  if (opts.conAskpass) return ['NumberOfPasswordPrompts=1']
-  return opts.prueba || opts.modo === 'agente' || opts.subsistemaSftp ? ['BatchMode=yes'] : []
+  if (opts.conAskpass) return [`NumberOfPasswordPrompts=${opts.conDialogo ? 3 : 1}`]
+  return opts.prueba || opts.modo === 'agente' || opts.subsistemaSftp || opts.salto ? ['BatchMode=yes'] : []
 }
 
 /**
- * Lo que añade el modo agente: ni redirecciones ni órdenes locales. Con `-F none` ya son los valores por
- * defecto; ir explícitas hace que la línea las niegue aunque alguien añada algo delante.
+ * Lo que añade el modo agente (y un bastión): ni redirecciones ni órdenes locales. Con `-F none` ya son los
+ * valores por defecto; ir explícitas hace que la línea las niegue aunque alguien añada algo delante.
  */
 function opcionesDeModo(opts: OpcionesLineaSsh): string[] {
-  return opts.modo === 'agente' ? ['ClearAllForwardings=yes', 'ForwardAgent=no', 'ForwardX11=no', 'PermitLocalCommand=no'] : []
+  if (opts.reenvioBd) return ['ExitOnForwardFailure=yes', 'ForwardAgent=no', 'ForwardX11=no', 'PermitLocalCommand=no']
+  return opts.modo === 'agente' || opts.salto ? ['ClearAllForwardings=yes', 'ForwardAgent=no', 'ForwardX11=no', 'PermitLocalCommand=no'] : []
 }
 
-/** Las `-o` de una conexión, comunes a ssh y a scp. */
-function opcionesSsh(destino: DestinoLineaSsh, opts: OpcionesLineaSsh, plataforma: Plataforma): string[] {
+/**
+ * Las opciones de una conexión como `Clave=valor`: las `-o` comunes a ssh y a scp y, con `salto`, las líneas
+ * de su bloque en la configuración de los saltos (ssh lee igual las dos formas).
+ */
+export function opcionesSsh(destino: DestinoLineaSsh, opts: OpcionesLineaSsh, plataforma: Plataforma): string[] {
   return [
     'ControlMaster=no',
     'ControlPath=none',
@@ -105,12 +133,36 @@ function opcionesSsh(destino: DestinoLineaSsh, opts: OpcionesLineaSsh, plataform
     'ServerAliveCountMax=3',
     ...opcionesDePreguntas(opts),
     ...opcionesDeMetodo(destino, opts, plataforma),
-    ...opcionesDeModo(opts)
+    ...opcionesDeModo(opts),
+    ...(opts.proxyCommand === undefined ? [] : [`ProxyCommand=${opts.proxyCommand}`])
   ]
+}
+
+/** Una dirección como la leen `-L` y `-R` delante de `:puerto`: una IPv6 entre corchetes. */
+function hostDeReenvio(host: string): string {
+  return host.includes(':') ? `[${host}]` : host
+}
+
+/**
+ * Los túneles de la pestaña. Los locales y el SOCKS escuchan solo en 127.0.0.1: sin decirlo, ssh no abre el
+ * puerto a la red, pero con `GatewayPorts` en otro sitio podría; aquí no hay otro sitio (`-F none`).
+ */
+function argumentosTuneles(opts: OpcionesLineaSsh): string[] {
+  if (opts.modo !== 'humano' || opts.prueba || opts.orden || opts.subsistemaSftp) return []
+  return (opts.tuneles ?? []).flatMap((t) => {
+    if (t.tipo === 'dinamico') return ['-D', `127.0.0.1:${t.puerto}`]
+    const destino = `${hostDeReenvio(t.destinoHost ?? '')}:${t.destinoPuerto}`
+    return t.tipo === 'local' ? ['-L', `127.0.0.1:${t.puerto}:${destino}`] : ['-R', `${t.puerto}:${destino}`]
+  })
 }
 
 /** Lo que va entre las opciones y el `--`: «Probar» y `tssh run` sin terminal; sin entrada si no la leen. */
 function sinTerminal(opts: OpcionesLineaSsh): string[] {
+  if (opts.reenvioBd) {
+    const r = opts.reenvioBd
+    // `-v`: ssh dice en stderr cuándo empieza la sesión, y solo llega ahí si el reenvío ya escucha (ver `GestorTuneles`).
+    return ['-v', '-N', '-T', '-n', '-L', `127.0.0.1:${r.puertoLocal}:${hostDeReenvio(r.host)}:${r.puerto}`]
+  }
   if (opts.prueba) return ['-T', '-n']
   if (opts.subsistemaSftp) return ['-T', '-s']
   if (opts.orden) return opts.orden.conEntrada ? ['-T'] : ['-T', '-n']
@@ -132,6 +184,7 @@ export function argumentosSsh(destino: DestinoLineaSsh, opts: OpcionesLineaSsh):
     String(destino.puerto),
     '-l',
     destino.usuario,
+    ...argumentosTuneles(opts),
     ...sinTerminal(opts),
     '--',
     destino.host,
@@ -140,7 +193,7 @@ export function argumentosSsh(destino: DestinoLineaSsh, opts: OpcionesLineaSsh):
 }
 
 /** Un valor de una opción `-o` entre comillas dobles: ssh lee `\"` y `\\` como el carácter (un usuario `DOMINIO\nombre`). */
-function citarValorOpcion(valor: string): string {
+export function citarValorOpcion(valor: string): string {
   return `"${valor.replace(/["\\]/g, (c) => `\\${c}`)}"`
 }
 

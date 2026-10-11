@@ -42,7 +42,7 @@ export function CentroBd({ bd, enConexiones, oculta, densidad }: Props): React.J
         altoResultados={dbResultadosAlto}
         onAltoResultados={fijadoresLayout.dbResultadosAlto}
         onNuevaConexion={pedirAltaConexion}
-        onAbrirConsola={(perfilId, conexionId, textoInicial) => void bd.crearConsolaEn(perfilId, conexionId, textoInicial)}
+        onAbrirConsola={(perfilId, conexionId, textoInicial, base) => void bd.crearConsolaEn(perfilId, conexionId, textoInicial, base)}
         onEditarConexion={pedirEdicionConexion}
         onConsolasCambiaron={consolasBd.recargar}
       />

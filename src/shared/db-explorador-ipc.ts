@@ -139,7 +139,7 @@ export const DBX_CHANNELS = {
   // --- Archivos de consola (espacio de datos del perfil) ----------------------
   /** invoke: (perfilId) -> DbRespuesta<DbConsolaInfo[]> */
   CONSOLAS_LISTAR: 'dbx:consolas:listar',
-  /** invoke: (perfilId, conexionId) -> DbRespuesta<DbConsolaInfo> */
+  /** invoke: (perfilId, conexionId, esquema?) -> DbRespuesta<DbConsolaInfo>. `esquema`: en el que nace (SQL). */
   CONSOLAS_CREAR: 'dbx:consolas:crear',
   /** invoke: (perfilId, consolaId) -> DbRespuesta<DbConsolaTexto> */
   CONSOLAS_LEER: 'dbx:consolas:leer',

@@ -115,7 +115,10 @@ async function abrir(con, _secreto, _ctx, opciones) {
         driverId: null,
         version: String(version || ''),
         esquema: 'main',
-        usuario: null
+        usuario: null,
+        // Se pidió escritura y la carpeta no la admite: la base quedó en solo lectura
+        // (`abrirSqlite`), y el main tiene que dejar de ofrecer lo que escribe.
+        ...(c.estado.respaldo === true ? { carpetaSinEscritura: true } : {})
       }
     }
   } catch (err) {
@@ -170,7 +173,8 @@ function correrSentencia(s, p, binds, op, d) {
     return op.esDml === true
       ? { tipo: 'afectadas', filas: Number(r.changes) || 0, comando: null, ms: ms(d.t0) }
       : { tipo: 'hecho', comando: null, ms: ms(d.t0) }
-  } catch (err) {
+  } catch (original) {
+    const err = comun.traducirCarpetaSinEscritura(c, original, d.perfil)
     // La transacción que había (o la que abrió el BEGIN perezoso) desapareció con el error:
     // `INSERT OR ROLLBACK`, `RAISE(ROLLBACK)`…; el error lo dice en su detalle.
     if (err && typeof err === 'object' && d.enTxAlEmpezar && !c.cerrada && !c.db.isTransaction) err.__revertida = true

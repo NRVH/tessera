@@ -6,6 +6,21 @@
 // =============================================================================
 import type { ProfileDotState } from './profileDotState'
 
+/** Lo que dice el dot de la actividad (también su clase CSS): esperar gana a trabajar, y trabajar al halo. */
+type ActividadDot = 'esperando' | 'working' | 'attention'
+
+const TITULOS: Record<ActividadDot, string> = {
+  esperando: 'Un agente te está esperando',
+  working: 'Trabajando…',
+  attention: 'Un agente terminó y aún no lo revisas'
+}
+
+function actividadDelDot(working: boolean, attention: boolean, waiting: boolean): ActividadDot | null {
+  if (waiting) return 'esperando'
+  if (working) return 'working'
+  return attention ? 'attention' : null
+}
+
 /**
  * Dot del perfil: spinner al hibernar o despertar, anillo hueco si está hibernado y el
  * color del perfil (con latido si trabaja, halo si algo terminó sin revisar) si está activo.
@@ -14,7 +29,8 @@ export function ProfileDot({
   state,
   color,
   working = false,
-  attention = false
+  attention = false,
+  waiting = false
 }: {
   state: ProfileDotState
   color: string
@@ -22,6 +38,8 @@ export function ProfileDot({
   working?: boolean
   /** Algo TERMINÓ sin revisar: el dot brilla (halo) en su propio color. */
   attention?: boolean
+  /** Un agente del perfil TE ESPERA: un anillo parpadea alrededor del dot. Gana a los demás: es lo único que no avanza sin ti. */
+  waiting?: boolean
 }): React.JSX.Element {
   if (state === 'hibernating' || state === 'waking') {
     return (
@@ -45,23 +63,18 @@ export function ProfileDot({
       />
     )
   }
-  const title = working
-    ? 'Trabajando…'
-    : attention
-      ? 'Un agente terminó y aún no lo revisas'
-      : undefined
+  const actividad = actividadDelDot(working, attention, waiting)
+  const halo = actividad === 'attention'
   return (
     <span
-      className={`profile-tab-dot${working ? ' working' : ''}${
-        attention && !working ? ' attention' : ''
-      }`}
-      // `color` inline alimenta el currentColor del latido (animación CSS) y del halo.
+      className={`profile-tab-dot${actividad === null ? '' : ` ${actividad}`}`}
+      // `color` inline alimenta el currentColor del latido y del anillo (animaciones CSS) y del halo.
       style={{
         background: color,
         color,
-        ...(attention && !working ? { boxShadow: `0 0 6px 1px ${color}` } : {})
+        ...(halo ? { boxShadow: `0 0 6px 1px ${color}` } : {})
       }}
-      title={title}
+      title={actividad === null ? undefined : TITULOS[actividad]}
     />
   )
 }

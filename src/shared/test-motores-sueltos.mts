@@ -129,6 +129,11 @@ const EXCEPCIONES_NOMBRE: readonly { archivo: string; texto?: string; motivo: st
     motivo: 'el rechazo de pedir tipos declarados a un motor que no los necesita: dice cuál sí los tiene'
   },
   {
+    archivo: 'src/main/db/explorador/motores/catalogoMysql.ts',
+    texto: 'Los tipos declarados solo se leen de Oracle',
+    motivo: 'el rechazo de pedir tipos declarados a un motor que no los necesita: dice cuál sí los tiene'
+  },
+  {
     archivo: 'src/main/db/explorador/lecturaSegura.ts',
     texto: 'este smoke es solo de Oracle',
     motivo: 'el smoke de lectura segura es de Oracle (la línea de arriba lleva su `motor-fijo:`)'
@@ -805,7 +810,8 @@ function main(): void {
     ['familia', ['sql', 'documentos', 'claves']],
     ['rejilla', ['cursor', 'rownum', 'limitOffset', 'keyset', 'offsetFetch']],
     ['explain', ['planFor', 'conOpciones', 'queryPlan', 'showplan']],
-    ['estiloParametros', ['dosPuntosNombre', 'dolarNumero', 'sqliteMixto', 'ninguno']],
+    // MySQL: 'interrogacion' (el `?` por orden de aparición).
+    ['estiloParametros', ['dosPuntosNombre', 'dolarNumero', 'sqliteMixto', 'ninguno', 'interrogacion']],
     ['nivelBases', ['ninguno', 'sinBaseFija']],
     ['credenciales', ['usuarioClave', 'ninguna']],
     // La forma de esperar un bloqueo: ya no es una bandera del descriptor sino el campo

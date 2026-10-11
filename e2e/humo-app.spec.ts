@@ -7,6 +7,8 @@
 // =============================================================================
 
 import { expect, test, type Locator, type Page } from '@playwright/test'
+import { writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import {
   abrirDesdeArbol,
   abrirHumo,
@@ -100,10 +102,29 @@ test.describe.serial('humo: lo que compone App.tsx', () => {
 
     await fila.dblclick()
     const pestana = win.locator('.editor-tab.active', { hasText: 'uno.txt' })
-    await expect(pestana.locator('.editor-tab-kind')).toHaveText('diff')
+    await expect(pestana.locator('.editor-tab-kind')).toHaveAttribute('aria-label', 'Diferencias')
     const diff = win.locator('.monaco-diff-editor').filter({ visible: true })
     await expect(diff).toContainText('linea dos cambiada')
     await expect(diff.locator('.editor.original')).toContainText('linea dos')
+  })
+
+  test('barras: el diff lleva su regla de cambios con el recuadro redondeado, y la del sistema no anula la propia', async () => {
+    const win = s.win
+    const diff = win.locator('.monaco-diff-editor').filter({ visible: true })
+    await expect(diff.locator('.diffOverview'), 'la regla de cambios del diff').toHaveCount(1)
+    const recuadro = await diff.locator('.diffViewport').evaluate((el) => getComputedStyle(el).borderTopLeftRadius)
+    expect(recuadro, 'el recuadro de la vista es redondeado').toBe('6px')
+    const barra = diff.locator('.editor.modified .scrollbar.vertical').first()
+    expect((await barra.boundingBox())?.width, 'del ancho de --sb-size').toBeCloseTo(12, 0)
+    const radio = await barra.locator('.slider').evaluate((el) => getComputedStyle(el).borderTopLeftRadius)
+    expect(radio, 'la pastilla de Monaco es redondeada').toBe('999px')
+    // Un `scrollbar-width` o `scrollbar-color` distinto de `auto` haría que Chromium ignorase el
+    // `::-webkit-scrollbar` y pintase la barra rectangular del sistema.
+    const estandar = await win.locator('.git-panel').evaluate((el) => {
+      const c = getComputedStyle(el)
+      return `${c.scrollbarWidth} ${c.scrollbarColor}`
+    })
+    expect(estandar).toBe('auto auto')
   })
 
   test('historial de git: log, detalle de un commit y su archivo', async () => {
@@ -177,5 +198,33 @@ test.describe.serial('humo: lo que compone App.tsx', () => {
       )
       .toBe(1)
     await buscador.getByRole('button', { name: 'Cerrar buscador' }).click()
+  })
+
+  test('tira del editor: el modo de vista de un .md va en la tira y la flecha lista las pestañas que no se ven', async () => {
+    const win = s.win
+    writeFileSync(join(m.proyecto, 'notas.md'), '# Título de las notas\n\nUn párrafo.\n')
+    for (let i = 1; i <= 14; i++) writeFileSync(join(m.proyecto, `largo-${String(i).padStart(2, '0')}.txt`), `${i}\n`)
+    await win.locator('.activity-item[title="Archivos"]').click()
+    await expect(filaArbol(win, 'notas.md')).toBeVisible({ timeout: 30_000 })
+
+    await abrirDesdeArbol(win, 'notas.md')
+    const tira = win.locator('.editor-tabs.con-acciones')
+    const modos = tira.getByRole('radiogroup', { name: 'Modo de vista' })
+    await expect(modos, 'el modo va en la tira, no en una fila propia').toBeVisible()
+    await modos.getByRole('radio', { name: 'Solo vista previa' }).click()
+    const titulo = win.locator('.editor:not(.hidden) .markdown-preview h1')
+    await expect(titulo).toHaveText('Título de las notas')
+    const [cajaTira, cajaTitulo] = await Promise.all([tira.boundingBox(), titulo.boundingBox()])
+    expect((cajaTitulo?.y ?? 0) - ((cajaTira?.y ?? 0) + (cajaTira?.height ?? 0)), 'el documento empieza cerca de las pestañas').toBeLessThan(32)
+
+    for (let i = 1; i <= 14; i++) await abrirDesdeArbol(win, `largo-${String(i).padStart(2, '0')}.txt`)
+    await expect(modos, 'un .txt no tiene modo de vista').toHaveCount(0)
+    const flecha = tira.getByRole('button', { name: 'Pestañas que no se ven' })
+    await expect(flecha).toBeVisible()
+    await flecha.click()
+    const item = win.locator('.ctx-menu').getByText('notas.md', { exact: true })
+    await expect(item, 'la primera pestaña quedó fuera de la vista').toBeVisible()
+    await item.click()
+    await expect(win.locator('.editor-tab.active', { hasText: 'notas.md' })).toBeInViewport()
   })
 })

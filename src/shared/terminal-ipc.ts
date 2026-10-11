@@ -2,7 +2,7 @@
 // Contrato IPC de la terminal de la interfaz (main <-> preload <-> UI); node-pty y los servicios
 // viven siempre en el main. Sirve a las dos clases de sesión: la del shell del proyecto (OPEN) y la
 // de una conexión SSH del perfil (OPEN_SSH, en el pty del host); el resto de canales es común.
-// invoke (renderer -> main): OPEN, OPEN_SSH, BOOTSTRAP_SESSION, RELOAD, CLOSE. send (renderer -> main):
+// invoke (renderer -> main): OPEN, OPEN_SSH, RELOAD, CLOSE. send (renderer -> main):
 // WRITE, RESIZE, FLOW. send (main -> renderer): DATA, EXIT (con `reason` si una SSH salió con 255).
 // Hermanos: `agent-terminal-ipc.ts` (terminal del agente) y `ssh-ipc.ts` (registro de conexiones).
 // =============================================================================
@@ -16,12 +16,6 @@ export const TERMINAL_CHANNELS = {
    * `workspacePath` vacíos. Se recarga por RELOAD («Reconectar», con los datos vigentes de la conexión).
    */
   OPEN_SSH: 'terminal:openSsh',
-  /**
-   * invoke: bootstrap de la sesión de terminal (checkDocker -> ensureContainer
-   * (Alfa) -> addProject(proyecto de prueba) -> createSession). Sin argumentos.
-   * -> OpenTerminalResult.
-   */
-  BOOTSTRAP_SESSION: 'terminal:bootstrapSession',
   /** send: stdin del usuario hacia el shell. WriteTerminalMessage. */
   WRITE: 'terminal:write',
   /** send: reflow del pty (cols/rows). ResizeTerminalMessage. */

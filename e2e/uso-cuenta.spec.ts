@@ -3,7 +3,7 @@
 // enseña las ventanas que trae la cuenta (dos semanales si las tiene), cambia con ellas y
 // no corta ninguna por la mitad al estrecharse el pie.
 // El uso lo sirve un servidor local (`TESSERA_USO_CLAUDE`) y el agente es el falso de
-// `agenteFalso.ts`. Corre en las dos plataformas; en Mac, sin verificar desde Windows.
+// `agenteFalso.ts`. Corre en las dos plataformas.
 // Decisiones: docs/decisiones/agentes/uso-ventanas-de-la-cuenta.md
 // =============================================================================
 

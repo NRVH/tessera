@@ -14,7 +14,7 @@ import { MOTORES_EXPLORADOR } from './motores/index.ts'
 import type { DialectoCatalogo } from './motores/tipos.ts'
 import { planDesdeXmlSqlServer } from './planSql.ts'
 import { esFalloTrabajador, FalloTrabajador } from './protocoloTrabajador.ts'
-import { campoDeErrorEnLinea, construirConsultaTabla, esErrorRejilla, type ConsultaRejilla } from './sqlRejilla.ts'
+import { campoDeColumnaInexistente, campoDeErrorEnLinea, construirConsultaTabla, esErrorRejilla, type ConsultaRejilla } from './sqlRejilla.ts'
 import { construirConsultaValor, esErrorValor } from './valorCelda.ts'
 
 function hr(title: string): void {
@@ -115,6 +115,53 @@ async function main(): Promise<void> {
     'la línea de un error de sintaxis del WHERE va a su campo (línea 3 = la del fragmento)',
     j(campoDeErrorEnLinea(c, 3)) === j({ campo: 'where', posicion: 0 }) && campoDeErrorEnLinea(c, 1) === null && campoDeErrorEnLinea(c, 99) === null,
     j([campoDeErrorEnLinea(c, 3), campoDeErrorEnLinea(c, 1)])
+  )
+  check(
+    'una columna inexistente (207) va al fragmento que la nombra: el ORDER BY antes que el WHERE',
+    j(campoDeColumnaInexistente(c, 'b')) === j({ campo: 'orderBy', posicion: 0 }) &&
+      j(campoDeColumnaInexistente(c, 'a')) === j({ campo: 'where', posicion: 0 }) &&
+      campoDeColumnaInexistente(c, 'zz') === null &&
+      campoDeColumnaInexistente(c, '') === null,
+    j([campoDeColumnaInexistente(c, 'b'), campoDeColumnaInexistente(c, 'a')])
+  )
+  // El caso de la cabecera: orden compilado y filtro guiado, con nombres que se contienen.
+  const guiada = construirConsultaTabla({
+    dialecto: 'sqlserver',
+    objeto: { esquema: 'dbo', nombre: 'x' },
+    filtro: { union: 'todas', condiciones: [{ columna: 'CLIENTE_ID', categoria: 'texto', operador: 'igual', valor: 'ID' }] },
+    orden: [{ columna: 'ID', dir: 'asc' }],
+    pkColumnas: ['id'],
+    n: 10,
+    desde: 0,
+    forma: 'offsetFetch'
+  })
+  const g = guiada as ConsultaRejilla
+  check(
+    'orden de la cabecera por «ID» con un filtro guiado sobre «CLIENTE_ID» = \'ID\': el 207 de «ID» es del ORDER BY',
+    !esErrorRejilla(guiada) &&
+      j(campoDeColumnaInexistente(g, 'ID')) === j({ campo: 'orderBy', posicion: 0 }) &&
+      j(campoDeColumnaInexistente(g, 'CLIENTE_ID')) === j({ campo: 'filtro', condicion: 0 }),
+    j(esErrorRejilla(guiada) ? guiada : [campoDeColumnaInexistente(g, 'ID'), g.sql])
+  )
+  // SQLite: cada columna va calificada con su tabla. Una columna que se llama como la tabla no se
+  // confunde con el calificador de las demás condiciones.
+  const sq = construirConsultaTabla({
+    dialecto: 'sqlite',
+    objeto: { esquema: 'main', nombre: 'nota' },
+    filtro: { union: 'todas', condiciones: [{ columna: 'id', categoria: 'numero', operador: 'igual', valor: '1' }, { columna: 'nota', categoria: 'texto', operador: 'vacio' }] },
+    orden: [{ columna: 'SUELDO', dir: 'desc' }],
+    n: 10,
+    desde: 0,
+    forma: 'limitOffset'
+  })
+  const s = sq as ConsultaRejilla
+  check(
+    'SQLite: «nota» (como la tabla) es la 2.ª condición, no el calificador de la 1.ª; el orden por SUELDO, al orden',
+    !esErrorRejilla(sq) &&
+      j(campoDeColumnaInexistente(s, 'nota')) === j({ campo: 'filtro', condicion: 1 }) &&
+      j(campoDeColumnaInexistente(s, 'SUELDO')) === j({ campo: 'orderBy', posicion: 0 }) &&
+      campoDeColumnaInexistente(s, 'main') === null,
+    j(esErrorRejilla(sq) ? sq : [campoDeColumnaInexistente(s, 'nota'), s.sql])
   )
   const valor = construirConsultaValor({
     dialecto: 'sqlserver',

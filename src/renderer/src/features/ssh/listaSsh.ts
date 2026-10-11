@@ -71,6 +71,8 @@ export interface EntradaLista {
   plegados: ReadonlySet<string>
   /** Las conexiones recientes que enseña el lanzador, la más reciente primero. Con filtro no salen. */
   recientes?: readonly SshConexion[]
+  /** «Sin grupo» se enseña aunque no tenga conexiones (si hay grupos): mientras se arrastra, es un destino más. */
+  mostrarSinGrupo?: boolean
 }
 
 /** `usuario@host`, con `:puerto` solo si no es el 22. */
@@ -166,7 +168,7 @@ function filasDelArbol(e: EntradaLista, palabras: readonly string[]): FilaLista[
   if (e.grupos.length === 0) return (reparto.get(ID_SIN_GRUPO) ?? []).map((c) => filaConexion(c, 1))
   const filas: FilaLista[] = []
   const sueltas = reparto.get(ID_SIN_GRUPO) ?? []
-  if (sueltas.length > 0) {
+  if (sueltas.length > 0 || e.mostrarSinGrupo === true) {
     filas.push(...bloqueDeGrupo({ id: ID_SIN_GRUPO, nombre: NOMBRE_SIN_GRUPO, real: false }, sueltas, abierto(ID_SIN_GRUPO)))
   }
   for (const g of [...e.grupos].sort((a, b) => compararNombres(a.nombre, b.nombre))) {
@@ -265,11 +267,18 @@ export interface ContextoTeclaLista {
   activo: number
   /** Con texto en el filtro las flechas laterales, Inicio, Fin y Supr son del campo, no de la lista. */
   filtroVacio: boolean
+  /** La lista admite marcar varias (el riel): Mayús+↑/↓ amplía y Supr borra todas las marcadas. */
+  multiple?: boolean
+  /** Las conexiones marcadas, por id. */
+  marcadas?: ReadonlySet<string>
 }
 
 /** Qué pide una tecla sobre la lista. */
 export type AccionLista =
   | { tipo: 'mover'; indice: number }
+  /** Mayús+↑/↓ en el riel: mueve el cursor y amplía la selección hasta él. */
+  | { tipo: 'extender'; indice: number }
+  | { tipo: 'eliminarConexiones'; conexionIds: string[] }
   | { tipo: 'plegar'; grupoId: string; plegar: boolean }
   | { tipo: 'conectar'; conexionId: string }
   | { tipo: 'editar'; conexionId: string }
@@ -307,6 +316,16 @@ function teclaDeMovimiento(e: TeclaLista, c: ContextoTeclaLista): AccionLista | 
   return null
 }
 
+/** Mayús+↑/↓ en una lista que marca varias: el cursor se mueve y la selección se amplía hasta él. */
+function teclaDeExtension(e: TeclaLista, c: ContextoTeclaLista): AccionLista | null {
+  if (c.multiple !== true || !e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return null
+  if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return null
+  const primera = vecina(c.filas, -1, 1)
+  if (primera === null) return null
+  const destino = c.activo < 0 ? primera : vecina(c.filas, c.activo, e.key === 'ArrowDown' ? 1 : -1)
+  return { tipo: 'extender', indice: destino ?? c.activo }
+}
+
 /** ← pliega (o sube a la cabecera) y → despliega (o baja a la primera conexión), solo con el filtro vacío. */
 function teclaLateral(e: TeclaLista, c: ContextoTeclaLista): AccionLista | null {
   const fila = filaActiva(c)
@@ -334,10 +353,16 @@ function teclaDeAccion(e: TeclaLista, c: ContextoTeclaLista): AccionLista | null
   return fila.real ? { tipo: 'renombrarGrupo', grupoId: fila.grupoId } : null
 }
 
-/** Supr (⌘⌫ en Mac) elimina lo activo, con confirmación del que llama; con texto en el filtro es del campo. */
+/**
+ * Supr (⌘⌫ en Mac) elimina lo activo, con confirmación del que llama; con varias marcadas y el cursor en una de
+ * ellas, todas a la vez. Con texto en el filtro es del campo.
+ */
 function teclaDeBorrado(e: TeclaLista, c: ContextoTeclaLista, plataforma: Plataforma): AccionLista | null {
   const fila = filaActiva(c)
   if (!fila || !c.filtroVacio || !esBorrarPestanaEnfocada(e, plataforma)) return null
+  if (fila.tipo === 'conexion' && c.marcadas !== undefined && c.marcadas.size > 1 && c.marcadas.has(fila.conexion.id)) {
+    return { tipo: 'eliminarConexiones', conexionIds: [...c.marcadas] }
+  }
   if (fila.tipo === 'conexion') return { tipo: 'eliminarConexion', conexionId: fila.conexion.id }
   return fila.real ? { tipo: 'eliminarGrupo', grupoId: fila.grupoId } : null
 }
@@ -357,6 +382,7 @@ function teclaDeMenu(e: TeclaLista, c: ContextoTeclaLista): AccionLista | null {
 export function accionTeclaLista(e: TeclaLista, c: ContextoTeclaLista, plataforma: Plataforma): AccionLista | null {
   return (
     teclaDeMovimiento(e, c) ??
+    teclaDeExtension(e, c) ??
     teclaLateral(e, c) ??
     teclaDeAccion(e, c) ??
     teclaDeBorrado(e, c, plataforma) ??

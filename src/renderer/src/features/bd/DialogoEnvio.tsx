@@ -1,9 +1,9 @@
 // =============================================================================
-// DialogoEnvio: vista previa de «Enviar» de la rejilla. Enseña el DML, cuántos cambios son y,
-// al aceptar, la pestaña lo manda al main, que lo aplica todo o nada con COMMIT.
-// Las líneas salen de `sentenciaDeCambio`, la misma función con la que el main construye lo que
-// ejecuta (aquí con literales para leerlas; lo que viaja son binds). El foco lo decide
-// `focoEnvio` (`rejilla/cambiosRejilla.ts`). Lo abre `DbDatosPane` por portal.
+// DialogoEnvio: vista previa de «Enviar». Enseña una línea por cambio, cuántos son y, al aceptar,
+// la pestaña los manda al main. En la rejilla SQL las líneas salen de `sentenciaDeCambio`, la misma
+// función con la que el main construye lo que ejecuta (con literales; lo que viaja son binds); en
+// una colección de MongoDB, de `documentos/envioDocs.ts`. El foco lo decide `focoEnvio`
+// (`rejilla/cambiosRejilla.ts`). Lo abren por portal `DbDatosPane` y `documentos/DialogosColeccion.tsx`.
 // Decisiones: docs/decisiones/bd/ui-rejilla-editor-y-envio.md
 // =============================================================================
 
@@ -35,10 +35,23 @@ export interface DialogoEnvioProps {
   resumen: string
   lineas: readonly string[]
   estado: EstadoEnvio
+  /** Qué se enseña: el DML de la rejilla (por defecto) o las órdenes del shell de una colección. */
+  lenguaje?: 'sql' | 'shell'
+  /** Lo que va tras el resumen; por defecto, que va en UNA transacción. */
+  mensaje?: string
   onEnviar: () => void
-  onDetener: () => void
+  /** Solo hace falta si el diálogo se queda abierto mientras envía. */
+  onDetener?: () => void
   onCerrar: () => void
 }
+
+/** Los rótulos de la vista previa según lo que enseña. */
+const ROTULOS = {
+  sql: { cabecera: 'Vista previa del SQL', copiar: 'Copiar el SQL', copiado: 'SQL copiado' },
+  shell: { cabecera: 'Vista previa de las órdenes', copiar: 'Copiar las órdenes', copiado: 'Órdenes copiadas' }
+} as const
+
+type Rotulos = (typeof ROTULOS)[keyof typeof ROTULOS]
 
 type RefBoton = React.RefObject<HTMLButtonElement>
 
@@ -86,28 +99,29 @@ function useFocoEnvio(p: DialogoEnvioProps, produccion: boolean, indiceError: nu
   return { enviarRef, cancelarRef, detenerRef, preRef }
 }
 
-/** Cabecera «Vista previa del SQL» con «Copiar» y el `<pre>` con una línea por cambio. */
+/** Cabecera «Vista previa del SQL» (o de las órdenes) con «Copiar» y el `<pre>` con una línea por cambio. */
 function SqlEnvio(props: {
   lineas: readonly string[]
   indiceError: number | null
   preRef: React.RefObject<HTMLPreElement>
+  rotulos: Rotulos
 }): React.JSX.Element {
-  const { lineas, indiceError } = props
+  const { lineas, indiceError, rotulos } = props
   const copiar = (): void => {
     window.tessera.clipboard
       .write(lineas.join('\n'))
-      .then(() => notify('success', 'SQL copiado', `${textoCambios(lineas.length)} en el portapapeles.`))
+      .then(() => notify('success', rotulos.copiado, `${textoCambios(lineas.length)} en el portapapeles.`))
       .catch((err: unknown) => notifyError('No se pudo copiar', err))
   }
   return (
     <>
       <div className="db-envio-cab">
-        <span className="db-envio-cab-texto">Vista previa del SQL</span>
-        <button type="button" className="btn btn-icon" onClick={copiar} title="Copiar el SQL" aria-label="Copiar el SQL">
+        <span className="db-envio-cab-texto">{rotulos.cabecera}</span>
+        <button type="button" className="btn btn-icon" onClick={copiar} title={rotulos.copiar} aria-label={rotulos.copiar}>
           <IconoCopiar />
         </button>
       </div>
-      <pre ref={props.preRef} className="db-envio-sql" tabIndex={0} aria-label="Vista previa del SQL">
+      <pre ref={props.preRef} className="db-envio-sql" tabIndex={0} aria-label={rotulos.cabecera}>
         {lineas.map((l, i) => (
           <div
             key={i}
@@ -229,9 +243,10 @@ export function DialogoEnvio(p: DialogoEnvioProps): React.JSX.Element {
             <span className="db-envio-alias">{p.alias}</span>
           </div>
           <div className="modal-message db-envio-mensaje" id={`${idBase}-mensaje`}>
-            {p.resumen ? `${p.resumen}, ` : ''}en UNA transacción: si uno falla, no se aplica ninguno.
+            {p.resumen ? `${p.resumen}, ` : ''}
+            {p.mensaje ?? 'en UNA transacción: si uno falla, no se aplica ninguno.'}
           </div>
-          <SqlEnvio lineas={p.lineas} indiceError={indiceError} preRef={refs.preRef} />
+          <SqlEnvio lineas={p.lineas} indiceError={indiceError} preRef={refs.preRef} rotulos={ROTULOS[p.lenguaje ?? 'sql']} />
           <EstadoDelEnvio estado={p.estado} />
           <AccionesEnvio p={p} produccion={produccion} refs={refs} />
         </div>

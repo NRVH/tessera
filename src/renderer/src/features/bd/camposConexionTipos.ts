@@ -6,7 +6,7 @@
 // =============================================================================
 
 import type { CamposUri, ResultadoUri } from '../../../../shared/uriConexion.ts'
-import type { DbAutenticacion, DbMotor, DbTls } from '../../../../shared/db-ipc.ts'
+import type { DbAutenticacion, DbClaveSentinel, DbMotor, DbTls } from '../../../../shared/db-ipc.ts'
 import type {
   CampoConexion,
   CampoTextoDestino,
@@ -54,8 +54,11 @@ export type DefCampo =
   | (DefCampoComun & {
       tipo: 'cifrado'
       campo: 'tls'
-      /** La etiqueta de la segunda casilla (la primera es `etiqueta`). */
-      etiquetaConfiar: string
+      /**
+       * La etiqueta de la segunda casilla (la primera es `etiqueta`); null = no la hay, porque
+       * el motor no puede cifrar sin verificar (`admiteConfiarCertificado: false`).
+       */
+      etiquetaConfiar: string | null
     })
   | (DefCampoComun & { tipo: 'casilla'; campo: 'srv' })
 
@@ -126,8 +129,15 @@ export interface ValoresConexion {
   tls?: DbTls
   srv?: boolean
   opcionesUri?: string
+  /** El id de la conexión SSH del túnel (`DbTunelSsh.conexionId`); '' o ausente = conexión directa. */
+  tunelSsh?: string
   /** La base de autenticación: el `authSource` de las opciones, con campo propio en el formulario. */
   authSource?: string
+  /** Redis: a un servidor, a Sentinel o a Cluster; ausente = un servidor. */
+  modoRedis?: 'servidor' | 'sentinel' | 'cluster'
+  /** Redis Sentinel: el maestro y qué contraseña llevan los sentinels. */
+  maestroSentinel?: string
+  claveSentinel?: DbClaveSentinel
 }
 
 /** Lo que el formulario pone de SUYO por motor; las reglas son del descriptor compartido. */

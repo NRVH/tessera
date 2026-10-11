@@ -10,6 +10,7 @@ import { base, finDeSentencia, finDelParentesis, lectura, leerNombre, pal, PROPI
 import { analizarDml, analizarSelect, analizarWith } from './clasificarSqlConsulta.ts'
 import { analizarAlter, analizarComment, analizarCreate, analizarDrop, analizarTruncate } from './clasificarSqlDdl.ts'
 import { analizarReset, analizarSet } from './clasificarSqlSesion.ts'
+import { clasificarVerboMysql, escribeArchivo } from './clasificarSqlMysql.ts'
 import type { Clasificacion } from './clasificarSqlTipos.ts'
 import type { Token } from './lexicoSql.ts'
 import { conjunto } from './conjuntoSql.ts'
@@ -124,6 +125,8 @@ function analizarExplainConOpciones(v: Vista, i: number): Clasificacion {
 
 /** SELECT, WITH, VALUES, TABLE, SHOW, EXPLAIN e INSERT/UPDATE/DELETE/MERGE. */
 function clasificarConsultaODml(v: Vista, i: number, w: string, propio: boolean): Clasificacion | null {
+  // `TABLE t INTO OUTFILE …` y `VALUES ROW(1) INTO OUTFILE …` escriben un archivo, como el SELECT.
+  if ((w === 'VALUES' || w === 'TABLE') && deDialecto(PROPIO, v.d).intoOutfile && escribeArchivo(v, i)) return base('SELECT INTO OUTFILE')
   switch (w) {
     case 'SELECT':
       return analizarSelect(v, i)
@@ -294,7 +297,9 @@ export function clasificarDesde(v: Vista, i0: number): Clasificacion {
   // Un verbo con clasificación PROPIA en este dialecto (TABLE, SHOW, DO… de PG); fuera de la lista,
   // cae en la genérica `base(w)` del final.
   const propio = v.r.verbosDelDialecto.indexOf(w) >= 0
+  const deMysql = propio && deDialecto(PROPIO, v.d).verbosDeMysql ? clasificarVerboMysql(v, i, w) : null
   return (
+    deMysql ??
     clasificarConsultaODml(v, i, w, propio) ??
     clasificarEstructura(v, i, w) ??
     clasificarTransaccion(v, i, w, propio) ??

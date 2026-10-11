@@ -153,7 +153,7 @@ async function main(): Promise<void> {
   }
 
   hr('(2) Un motor desconocido')
-  for (const x of ['mysql', 'constructor', '__proto__']) {
+  for (const x of ['db2', 'constructor', '__proto__']) {
     const mensaje = lanza(() => motorExplorador(x as DbMotor))
     check(`motorExplorador(${j(x)}) lanza con el motor en el mensaje`, mensaje !== null && mensaje.indexOf(x) >= 0, String(mensaje))
   }
@@ -172,7 +172,7 @@ async function main(): Promise<void> {
       check(`${m}: motorExplorador lanza «${esperado}» (no «Motor desconocido»)`, deExplorador === esperado, String(deExplorador))
     }
     // Y el desconocido sigue siendo desconocido para los dos.
-    check('descriptorSql("mysql") lanza «Motor desconocido»', String(lanza(() => descriptorSql('mysql' as DbMotor))).indexOf('Motor desconocido') >= 0, '')
+    check('descriptorSql("db2") lanza «Motor desconocido»', String(lanza(() => descriptorSql('db2' as DbMotor))).indexOf('Motor desconocido') >= 0, '')
   }
 
   hr('(3) La lista de esquemas del sistema de Oracle')
@@ -263,7 +263,9 @@ async function main(): Promise<void> {
               ? 'SQLite no tiene el esquema VENTAS: cada archivo es una base con un único esquema, main.'
               : m === 'sqlserver'
                 ? 'No se puede usar la base VENTAS en esta conexión: no existe o no tienes acceso a ella.'
-                : 'No se puede usar el esquema VENTAS en esta conexión: no existe o no tienes permiso de uso (USAGE) sobre él.'
+                : m === 'mysql'
+                  ? 'No se puede usar la base VENTAS en esta conexión: no existe o no tienes permiso sobre ella.'
+                  : 'No se puede usar el esquema VENTAS en esta conexión: no existe o no tienes permiso de uso (USAGE) sobre él.'
         )
       ),
     j(mensajes)

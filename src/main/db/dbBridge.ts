@@ -56,6 +56,12 @@ const MAX_PETICION = 4096
 /** Un cliente que no completa su petición en este tiempo se descarta. */
 const TIMEOUT_SOCKET_MS = 5000
 
+/**
+ * Lo que espera una operación que contesta más tarde (una pregunta al usuario): su propio tope es
+ * menor, así que este solo descarta un cliente que se quedó colgado.
+ */
+const TIMEOUT_OPERACION_LARGA_MS = 180_000
+
 /** Vida de un token de un solo uso (el del botón "Probar" del panel). */
 const TOKEN_EFIMERO_MS = 60_000
 
@@ -107,7 +113,15 @@ export interface DbBridgeDeps {
    * `electron`: así su test corre con `node` a secas, como el resto de los del repo.
    */
   log?: (msg: string) => void
+  /**
+   * El extremo local del túnel SSH de una conexión que lo lleva (`GestorTuneles`), abriéndolo si hace
+   * falta; lanza con un mensaje para el usuario. Sin él, `db.tunel` contesta que no hay túneles.
+   */
+  tunelDe?: (c: ConexionDelPuente) => Promise<{ host: string; port: number }> | null
 }
+
+/** Lo que vive una ficha de túnel de «Probar»: lo justo para que `tdb` conecte tras su `resolve`. */
+const VIDA_FICHA_TUNEL_MS = 60_000
 
 /** Lo que el puente responde a un `resolve`. */
 export interface RespuestaResolve {
@@ -131,6 +145,11 @@ export interface RespuestaResolve {
    * siguiente.
    */
   consola: false
+  /**
+   * Solo con un token de un solo uso (el «Probar» de una base) cuya conexión lleva túnel SSH: la ficha,
+   * también de un solo uso, con la que `tdb` pide el túnel por `db.tunel` (el token ya se gastó).
+   */
+  fichaTunel?: string
   /**
    * ¿Es la sesión del agente de datos? INFORMATIVO: `tdb` elige con esto la
    * redacción de sus mensajes («el agente de datos» / «este proyecto») y manda sobre
@@ -156,11 +175,11 @@ export interface RespuestaOperacion {
 /**
  * Una operación de otro dominio. Con token 'sesion', el puente exige un token de sesión vivo (nunca uno
  * de un solo uso) y le dice de quién es; con 'propio', la operación valida su propio token y el puente
- * solo comprueba la versión. Síncrona: la respuesta sale en la misma vuelta que la petición.
+ * solo comprueba la versión. Con una promesa, la respuesta sale cuando se cumple (una pregunta al usuario).
  */
 export type OperacionPuente =
   | { token: 'sesion'; manejar: (peticion: Record<string, unknown>, sesion: SesionDelPuente) => RespuestaOperacion }
-  | { token: 'propio'; manejar: (peticion: Record<string, unknown>) => RespuestaOperacion }
+  | { token: 'propio'; manejar: (peticion: Record<string, unknown>) => RespuestaOperacion | Promise<RespuestaOperacion> }
 
 /** Lo que el puente deja ver a otros dominios: si escucha, dónde, y el registro de sus operaciones. */
 export interface PuertaPuente {
@@ -202,6 +221,10 @@ export class DbBridge implements PuertaPuente {
   private readonly ambitos = new Map<string, string[]>()
   /** op -> operación de otro dominio. `resolve` no está aquí: es de `tdb` y su contrato no cambia. */
   private readonly operaciones = new Map<string, OperacionPuente>()
+  /** Clientes cuya operación contesta más tarde: una pausa los corta para no esperar a su respuesta. */
+  private readonly enEspera = new Set<Socket>()
+  /** ficha de túnel -> la conexión y el perfil que autoriza y cuándo caduca (ver `RespuestaResolve.fichaTunel`). */
+  private readonly fichasTunel = new Map<string, { id: string; profileId: string; caduca: number }>()
 
   private readonly log: (msg: string) => void
 
@@ -314,6 +337,8 @@ export class DbBridge implements PuertaPuente {
     const servidor = this.servidor
     this.servidor = null
     this.nombre = ''
+    for (const socket of this.enEspera) socket.destroy()
+    this.enEspera.clear()
     let cierre: Promise<void> = Promise.resolve()
     if (servidor) {
       cierre = new Promise<void>((resolve) => {
@@ -529,19 +554,25 @@ export class DbBridge implements PuertaPuente {
   }
 
   /** Una operación registrada; lo no registrado sigue siendo «operacion desconocida», como siempre. */
-  private resolverOperacion(p: Record<string, unknown>): RespuestaOperacion {
+  private resolverOperacion(p: Record<string, unknown>): RespuestaOperacion | Promise<RespuestaOperacion> {
     const operacion = typeof p.op === 'string' ? this.operaciones.get(p.op) : undefined
     if (!operacion) return { ok: false, error: 'operacion desconocida' }
+    const fallo = (err: unknown): RespuestaOperacion => {
+      this.log(`la operación ${String(p.op)} falló: ${err instanceof Error ? err.message : String(err)}`)
+      return { ok: false, error: 'error interno' }
+    }
     try {
-      if (operacion.token === 'propio') return operacion.manejar(p)
+      if (operacion.token === 'propio') {
+        const r = operacion.manejar(p)
+        return r instanceof Promise ? r.catch(fallo) : r
+      }
       const concesion = this.buscarConcesion(String(p.token ?? ''))
       // Un token de un solo uso es del «Probar» de una base: no abre ninguna otra operación.
       if (!concesion || concesion.unaVez) return { ok: false, error: 'no autorizado' }
       const { profileId, projectHostPath, espacioDatos } = concesion
       return operacion.manejar(p, { profileId, projectHostPath, espacioDatos })
     } catch (err) {
-      this.log(`la operación ${String(p.op)} falló: ${err instanceof Error ? err.message : String(err)}`)
-      return { ok: false, error: 'error interno' }
+      return fallo(err)
     }
   }
 
@@ -569,14 +600,25 @@ export class DbBridge implements PuertaPuente {
       } catch {
         respuesta = { ok: false, error: 'peticion invalida' }
       }
-      socket.end(JSON.stringify(respuesta) + '\n')
+      if (!(respuesta instanceof Promise)) {
+        socket.end(JSON.stringify(respuesta) + '\n')
+        return
+      }
+      // Contesta más tarde: el socket espera, y una pausa del puente lo corta (`pausar`).
+      socket.setTimeout(TIMEOUT_OPERACION_LARGA_MS)
+      this.enEspera.add(socket)
+      socket.once('close', () => this.enEspera.delete(socket))
+      void respuesta.then((r) => {
+        if (!socket.destroyed) socket.end(JSON.stringify(r) + '\n')
+      })
     })
   }
 
   /** Resuelve una petición ya parseada. Separado para poder probarlo sin sockets. */
-  resolver(peticion: unknown): { ok: boolean; error?: string } | RespuestaResolve | RespuestaOperacion {
+  resolver(peticion: unknown): { ok: boolean; error?: string } | RespuestaResolve | RespuestaOperacion | Promise<RespuestaOperacion> {
     const p = peticion as { v?: number; token?: string; op?: string }
     if (p?.v !== PROTOCOLO) return { ok: false, error: 'version de protocolo distinta' }
+    if (p?.op === 'db.tunel') return this.resolverTunel(p as Record<string, unknown>)
     if (p?.op !== 'resolve') return this.resolverOperacion(p as Record<string, unknown>)
 
     const concesion = this.buscarConcesion(String(p.token ?? ''))
@@ -593,7 +635,11 @@ export class DbBridge implements PuertaPuente {
       this.gastar(String(p.token))
       const con = delPerfil.find((c) => c.id === id)
       if (!con) return { ok: false, error: 'no autorizado' }
-      return this.armar([con], concesion.espacioDatos)
+      const respuesta = this.armar([con], concesion.espacioDatos)
+      if (con.tunelSsh === undefined) return respuesta
+      const ficha = randomBytes(24).toString('hex')
+      this.fichasTunel.set(ficha, { id, profileId: concesion.profileId, caduca: this.ahora() + VIDA_FICHA_TUNEL_MS })
+      return { ...respuesta, fichaTunel: ficha }
     }
 
     // ÁMBITO VIGENTE, no el que hubiera al arrancar la sesión. Aquí es donde el
@@ -604,6 +650,40 @@ export class DbBridge implements PuertaPuente {
     return this.armar(
       delPerfil.filter((c) => permitidos.has(c.id)),
       concesion.espacioDatos
+    )
+  }
+
+  private ahora(): number {
+    return this.deps.ahora ? this.deps.ahora() : Date.now()
+  }
+
+  /**
+   * `db.tunel`: el extremo local del túnel SSH de UNA conexión, abriéndolo si hace falta. Lo autoriza un
+   * token de sesión vivo cuyo ámbito VIGENTE incluye la conexión, o la ficha de un solo uso que dio el
+   * `resolve` de un «Probar». El error del túnel viaja tal cual: es un mensaje para el usuario.
+   */
+  private resolverTunel(p: Record<string, unknown>): RespuestaOperacion | Promise<RespuestaOperacion> {
+    const token = String(p.token ?? '')
+    const id = String(p.id ?? '')
+    let profileId: string | null = null
+    const ficha = this.fichasTunel.get(token)
+    if (ficha) {
+      this.fichasTunel.delete(token)
+      if (ficha.id === id && ficha.caduca >= this.ahora()) profileId = ficha.profileId
+    } else {
+      const concesion = this.buscarConcesion(token)
+      if (concesion && !concesion.unaVez && this.getScope(concesion.profileId, concesion.projectHostPath).includes(id)) {
+        profileId = concesion.profileId
+      }
+    }
+    if (profileId === null) return { ok: false, error: 'no autorizado' }
+    const con = this.deps.conexionesDelPerfil(profileId).find((c) => c.id === id)
+    if (!con) return { ok: false, error: 'no autorizado' }
+    const apertura = this.deps.tunelDe?.(con) ?? null
+    if (apertura === null) return { ok: false, error: 'Esta conexión no lleva túnel SSH, o Tessera no puede abrirlo ahora.' }
+    return apertura.then(
+      (d) => ({ ok: true, host: d.host, port: d.port }),
+      (e: unknown) => ({ ok: false, error: e instanceof Error ? e.message : String(e) })
     )
   }
 

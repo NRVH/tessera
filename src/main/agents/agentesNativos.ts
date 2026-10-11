@@ -31,6 +31,7 @@ export {
   raizCodexDesdeRuta,
   raizCodexDesdeShim,
   urlDistTags,
+  urlVersionNpm,
   versionCaskBrew
 } from './nativos/urls.ts'
 

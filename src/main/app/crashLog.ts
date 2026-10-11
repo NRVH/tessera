@@ -31,6 +31,11 @@ export function initCrashLog(): void {
   }
 }
 
+/** ¿Hay archivo donde escribir? Falso si `initCrashLog` no pudo prepararlo. */
+export function crashLogDisponible(): boolean {
+  return crashLogPath !== ''
+}
+
 /**
  * Registra un incidente en disco (best-effort; NO escribe en consola: el llamador ya
  * lo hace con su propio mensaje). `tag` clasifica el origen; `detail` es el error/razón.

@@ -49,7 +49,11 @@ export type MotivoRechazo = 'ocupada' | 'txPendiente' | 'txFallida' | 'soloLectu
 export type EventoSesion =
   /** Hace falta la sesión. `soloLectura` es el valor ACTUAL de la conexión. */
   | { tipo: 'abrir'; ahora: number; soloLectura: boolean }
-  | { tipo: 'abierta'; ahora: number; esquema: string | null }
+  /**
+   * `soloLectura`: la que la sesión tiene DE VERDAD tras abrir, si difiere de la pedida (una base
+   * de archivo en una carpeta sin escritura se abre en solo lectura); ausente, la de `abrir`.
+   */
+  | { tipo: 'abierta'; ahora: number; esquema: string | null; soloLectura?: boolean }
   | { tipo: 'errorAbrir'; ahora: number }
   | { tipo: 'ejecutar'; ahora: number }
   /**
@@ -268,11 +272,15 @@ function alAbrir(estado: EstadoMaquinaSesion, evento: Evento<'abrir'>): Transici
 
 function alAbrirse(estado: EstadoMaquinaSesion, evento: Evento<'abierta'>): Transicion {
   if (estado.fase === 'abriendo') {
+    const soloLectura = evento.soloLectura ?? estado.soloLectura
     return {
       estado: con(estado, {
         fase: 'lista',
         tx: 'ninguna',
         esquema: evento.esquema,
+        soloLectura,
+        // Como en `alAbrir`: una sesión de solo lectura no puede seguir en Manual.
+        txModo: soloLectura ? 'auto' : estado.txModo,
         ultimoUso: evento.ahora,
         aviso: undefined
       }),

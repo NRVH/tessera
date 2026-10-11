@@ -65,10 +65,8 @@ export interface AperturasExploradorArgs {
   ) => void
   /** Quita la marca de agente diferido de un proyecto abierto (no-op si no la lleva). */
   quitarAgenteDiferido: (profileId: string, projectHostPath: string) => void
-  /** Activa un proyecto que ya estaba abierto. */
-  setActiveProject: (profileId: string, projectHostPath: string) => void
-  /** Cambia el PERFIL activo: el proyecto puede estar abierto en un perfil que no se mira. */
-  setActiveProfile: (profileId: string) => void
+  /** Activa un proyecto que ya estaba abierto; con `entrar`, además pasa a su perfil (puede no ser el que se mira). */
+  setActiveProject: (profileId: string, projectHostPath: string, opciones?: { entrar?: boolean }) => void
   /**
    * Marca un proyecto como "modo nativo" (corre en el host) antes de abrirlo. El
    * nombre conserva el "Windows" del modo viejo: es el callback de `useModoProyecto`.
@@ -87,12 +85,12 @@ export interface AperturasExploradorArgs {
 function abrirProyecto(ap: AperturaResuelta, perfilActivo: string, a: AperturasExploradorArgs): string {
   const plan = planApertura(ap, perfilActivo, a.abiertos)
   if (plan.tipo === 'activar') {
-    // Hay que cambiar también de perfil: `confirmedTarget` sigue al perfil ACTIVO, y
-    // activar el proyecto solo dentro de su perfil dejaba la pantalla como estaba.
-    if (plan.profileId !== a.activeProfileId) a.setActiveProfile(plan.profileId)
-    a.setActiveProject(plan.profileId, plan.projectHostPath)
-    // Abierto como carpeta: aunque naciera para ver un archivo, ahora se quiere el proyecto.
+    // Abierto como carpeta: aunque naciera para ver un archivo, ahora se quiere el proyecto. Antes
+    // de activarlo: no hay ningún instante con él a la vista y aún diferido.
     if (plan.quitarDiferido) a.quitarAgenteDiferido(plan.profileId, plan.projectHostPath)
+    // Entrando también en su perfil (`confirmedTarget` sigue al perfil ACTIVO), en la misma
+    // acción: entrar por separado despertaba (y arrancaba el agente de) el activo del perfil.
+    a.setActiveProject(plan.profileId, plan.projectHostPath, { entrar: true })
     return plan.profileId
   }
   // El modo se fija ANTES de abrir: `openKnownProject` no pasa por `decideProjectMode`

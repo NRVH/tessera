@@ -91,13 +91,15 @@
      --sb-size; el grosor VISIBLE del thumb = --sb-size - 2*pad (borde transparente
      con background-clip). Al hover/arrastre el pad baja -> el thumb se ensancha,
      pero el área clickable sigue siendo la misma, así que aunque se vea fino nunca
-     "pelea" para darle click. Fallback de color por si el tema aún no inyectó. */
+     "pelea" para darle click. Fallback de color por si el tema aún no inyectó.
+     Las barras de Monaco beben de las mismas variables (bloque «Monaco» de abajo) y
+     su tamaño en `monacoSetup.ts` (BARRAS_MONACO) casa con --sb-size. */
   --sb-size: 12px;
   --sb-pad: 3px; /* visible ≈ 6px en reposo */
-  --sb-pad-hover: 2px; /* visible ≈ 8px al posar el cursor */
-  --sb-pad-active: 1px; /* visible ≈ 10px al arrastrar */
-  --sb-thumb: rgba(171, 178, 191, 0.16);
-  --sb-thumb-hover: rgba(171, 178, 191, 0.34);
+  --sb-pad-hover: 1px; /* visible ≈ 10px al posar el cursor o arrastrar */
+  --sb-pad-active: 1px;
+  --sb-thumb: rgba(171, 178, 191, 0.26);
+  --sb-thumb-hover: rgba(171, 178, 191, 0.42);
   --sb-thumb-active: rgba(97, 175, 239, 0.62);
   font-synthesis: none;
   -webkit-font-smoothing: antialiased;
@@ -112,16 +114,20 @@
 }
 
 /* ==========================================================================
-   Scrollbars — finos, modernos y theme-aware. Reemplazan a los nativos (fondo
-   blanco feo en modo oscuro). Thumb sutil en reposo (descubrible), se aviva al
-   entrar a la zona con scroll (fundido, no "en seco"), se ensancha y contrasta
-   al posar el cursor, y toma el acento del tema al arrastrar.
+   Scrollbars — una pastilla redondeada, la misma en toda la app. Oculta mientras
+   el ratón no está en su zona; aparece al entrar en ella o al desplazarla
+   (`.desplazandose`, que pone `comun/barrasDesplazamiento.ts`), crece al posar el
+   cursor encima y al arrastrar toma el color del perfil (`.shell` redefine
+   `--sb-thumb-active`; el valor de aquí solo vale fuera de él).
    ========================================================================== */
-* {
-  /* Firefox/estándar: fino y sin pista blanca. En Electron manda el bloque
-     -webkit- de abajo, pero esto lo deja correcto en cualquier motor. */
-  scrollbar-width: thin;
-  scrollbar-color: var(--sb-thumb-hover) transparent;
+/* Las propiedades estándar solo para un motor sin `::-webkit-scrollbar`: en Chromium,
+   un `scrollbar-width` o `scrollbar-color` distinto de `auto` anula el bloque -webkit-
+   entero y deja la barra del sistema, rectangular y sin estados. */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--sb-thumb) transparent;
+  }
 }
 
 ::-webkit-scrollbar {
@@ -137,7 +143,7 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: var(--sb-thumb);
+  background-color: transparent;
   background-clip: padding-box; /* el color no invade el borde transparente */
   border: var(--sb-pad) solid transparent; /* grosor visible = size - 2*pad */
   border-radius: 999px;
@@ -148,21 +154,55 @@
     border-color 160ms ease;
 }
 
-/* Al entrar a CUALQUIER zona con scroll el thumb se aviva (fundido suave). */
-*:hover::-webkit-scrollbar-thumb {
-  background-color: var(--sb-thumb-hover);
+/* Con el ratón en la zona, o mientras se desplaza, la pastilla aparece. */
+*:hover::-webkit-scrollbar-thumb,
+.desplazandose::-webkit-scrollbar-thumb {
+  background-color: var(--sb-thumb);
 }
 
-/* Al posar el cursor SOBRE el thumb: un pelín más ancho + más contraste. */
+/* Al posar el cursor SOBRE la pastilla: más ancha y con más contraste. */
 ::-webkit-scrollbar-thumb:hover {
   background-color: var(--sb-thumb-hover);
   border-width: var(--sb-pad-hover);
 }
 
-/* Al arrastrar: acento del tema y el más ancho, para feedback claro. */
+/* Al arrastrar: el color del perfil y el más ancho, para feedback claro. */
 ::-webkit-scrollbar-thumb:active {
   background-color: var(--sb-thumb-active);
   border-width: var(--sb-pad-active);
+}
+
+/* Monaco dibuja su propia barra (un div `.slider` de --sb-size, sin estados de
+   grosor): la misma pastilla, con el mismo borde transparente que la estrecha. La
+   aparición y el fundido al salir del editor ya los hace Monaco. `:root` delante
+   para ganar a su hoja, que se inyecta después. */
+:root .monaco-scrollable-element > .scrollbar > .slider {
+  box-sizing: border-box;
+  background: var(--sb-thumb);
+  background-clip: padding-box;
+  border: var(--sb-pad) solid transparent;
+  border-radius: 999px;
+}
+:root .monaco-scrollable-element > .scrollbar > .slider:hover {
+  background: var(--sb-thumb-hover);
+  background-clip: padding-box;
+  border-width: var(--sb-pad-hover);
+}
+:root .monaco-scrollable-element > .scrollbar > .slider.active {
+  background: var(--sb-thumb-active);
+  background-clip: padding-box;
+  border-width: var(--sb-pad-active);
+}
+/* El recuadro de la vista en la regla de cambios del diff: la misma pastilla, a su ancho. */
+:root .monaco-diff-editor .diffViewport {
+  background: var(--sb-thumb);
+  border-radius: 6px;
+}
+:root .monaco-diff-editor .diffViewport:hover {
+  background: var(--sb-thumb-hover);
+}
+:root .monaco-diff-editor .diffViewport:active {
+  background: var(--sb-thumb-active);
 }
 
 html,
@@ -219,6 +259,8 @@ body {
      `--sel-glow` (el perfil al 18 %), así que se apunta a él en vez de repetir la
      mezcla: eran el mismo azul al mismo alfa desde el rediseño. */
   --accent-glow: var(--sel-glow);
+  /* La pastilla de las barras al arrastrarla, también del color del perfil. */
+  --sb-thumb-active: color-mix(in srgb, var(--perfil) 62%, transparent);
 }
 
 /* El acento de cada casilla del MOSAICO sigue a SU perfil, no al activo: mismo
@@ -347,9 +389,8 @@ body {
    bajo la banda de tabs. min-height:0 para que las columnas con scroll interno
    (explorador, editor, terminal) no desborden el shell.
 
-   Su fondo es el GRIS DEL MARCO, y eso es lo único que se ve de él: el riel de
-   iconos se pinta encima con el mismo gris y el lienzo (.shell-main) deja un canal
-   de --lienzo-gutter alrededor por el que asoma. */
+   Su fondo es el GRIS DEL MARCO, y eso es lo único que se ve de él: asoma por el canal
+   de --lienzo-gutter que dejan la tarjeta del riel y el lienzo (.shell-main). */
 .shell-body {
   display: flex;
   flex: 1 1 auto;
@@ -359,15 +400,14 @@ body {
 }
 
 /* Columna principal: lo que hay a la DERECHA del riel, apilado en vertical: arriba
-   sidebar+editor+agente, abajo la franja (terminal o Git·Log). La franja vive AQUÍ y no
-   como hermana de .shell-body para que no recorte el riel por abajo: pasa bajo la
-   sidebar (el explorador cede alto) y el riel queda intacto.
+   lateral + editor + agente, abajo la franja (terminal o Git·Log) a TODO el ancho, también
+   bajo el lateral. El riel es su propia tarjeta, así que no tiene que medir lo mismo que él.
    min-width/min-height a 0: los eslabones que dejan encoger a los hijos con scroll propio.
-   Y ES EL LIENZO: el panel oscuro redondeado sobre el gris del marco; `overflow: hidden`
-   recorta las esquinas cuadradas de sus hijos sin cambiar el layout.
-   PROHIBIDO EN ESTE SELECTOR: `transform`, `filter`, `backdrop-filter`, `contain` y
-   `container-type`: lo harían bloque contenedor de los `position: fixed` de dentro y
-   romperían menús, popovers y modales (docs/decisiones/layout/marco-y-lienzo.md). */
+   No pinta nada: deja el canal de --lienzo-gutter alrededor y cada zona grande dentro es
+   su propia tarjeta (bloque «Zonas como tarjetas»). Los modos que sacan algo del flujo
+   con su tamaño la posicionan (debajo). PROHIBIDO AQUÍ: `transform`, `filter`,
+   `backdrop-filter`, `contain` y `container-type`: harían de bloque contenedor de los
+   `position: fixed` de dentro (docs/decisiones/layout/marco-y-lienzo.md). */
 .shell-main {
   display: flex;
   flex-direction: column;
@@ -375,19 +415,84 @@ body {
   min-width: 0;
   min-height: 0;
   margin: var(--lienzo-gutter) var(--lienzo-gutter) var(--lienzo-gutter) 0;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--lienzo-radio);
+  /* Con la ventana más estrecha que los mínimos de las zonas, las tarjetas se cortan aquí
+     y no por fuera de la ventana. */
   overflow: hidden;
 }
+/* Ancla de lo que los modos sacan del flujo; fuera de ellos `.shell-main` no se posiciona
+   para no recortar con su `overflow` capas absolutas ancladas más arriba. */
+.shell:is(.franja-pantalla-completa, .agente-terminal-visible, .modo-mosaico) .shell-main {
+  position: relative;
+}
 
-/* Fila de arriba de la columna principal: sidebar + editor (grower) + agente.
-   Es la que cede alto cuando se abre la franja de abajo. */
+/* Fila de arriba de la columna principal: lateral + editor (grower) + agente. Es la que
+   cede alto cuando se abre la franja de abajo. */
 .shell-main-top {
   display: flex;
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
+}
+
+/* ZONAS COMO TARJETAS: cada zona grande (lateral, editor, BD, agente, terminal y Git·Log)
+   es un panel redondeado sobre el gris del marco, separado de la vecina por el hueco que
+   deja su divisor. `overflow: hidden` recorta las esquinas cuadradas del contenido (xterm,
+   Monaco, rejillas); no afecta a menús ni diálogos, que son `position: fixed` o van por
+   portal. El borde entero manda sobre el filete de un lado de la regla base de cada zona. */
+.shell-main-top > .sidebar,
+.shell-main-top > .editor-area,
+.shell-main-top > .db-area,
+.shell-main-top > .right-panel,
+.shell-main > .terminal-panel,
+.shell-main > .git-log-panel,
+.shell-main-top > .error-boundary-pane,
+.shell-main > .error-boundary-pane,
+.right-panel.cc-mosaico > .error-boundary-pane {
+  border: 1px solid var(--border);
+  border-radius: var(--lienzo-radio);
+  overflow: hidden;
+}
+.shell-main-top > .editor-area {
+  background: var(--bg);
+}
+
+/* TARJETAS ANIDADAS: dentro de una zona, las partes que se reparten su espacio con un divisor
+   (columnas de Git·Log, el riel SSH junto a la terminal, la consola de BD y sus resultados)
+   son tarjetas sobre el tono hundido de la zona, con el hueco del divisor entre ellas. La
+   cabecera de la zona va sobre ese mismo tono, sin caja. */
+.shell-main > .git-log-panel,
+.db-area .db-consola {
+  background: var(--bg-elevated);
+}
+.shell-main > .git-log-panel > :is(.panel-header, .git-vistas-tabs),
+.db-area .db-consola > .panel-header {
+  background: transparent;
+}
+.git-log-panel .git-log-body {
+  padding: 0 6px 6px;
+}
+.git-log-panel .git-log-body > .git-log-col,
+.ssh-riel-limite > .ssh-riel,
+.ssh-riel-limite > .error-boundary-pane,
+.db-area .db-consola > :is(.db-consola-editor, .db-consola-resultados) {
+  border: 1px solid var(--border);
+  border-radius: var(--lienzo-radio);
+  overflow: hidden;
+}
+.git-log-panel .git-log-body > .git-log-col {
+  background: var(--bg);
+}
+/* El margen izquierdo y el borde de la tarjeta de la terminal los descuenta `MARCO_RIEL` (rielSsh.ts),
+   también para el aviso que lo sustituye si falla. */
+.ssh-riel-limite > .ssh-riel,
+.ssh-riel-limite > .error-boundary-pane {
+  margin: 0 0 8px 8px;
+}
+.db-area .db-consola > .db-consola-editor {
+  margin: 0 6px;
+}
+.db-area .db-consola > .db-consola-resultados {
+  margin: 0 6px 6px;
 }
 
 /* --- Barra de título + banda de proyectos -------------------------------- */
@@ -414,6 +519,8 @@ body {
    como área NO cliente y se COMA los eventos de ratón de lo que encierra. Por eso hay
    una lista explícita de `no-drag` debajo, que hay que ampliar con cada control nuevo. */
 .titlebar {
+  /* `relative`: el selector del modo minimalista se centra sobre ella (ver `.selector-perfil`). */
+  position: relative;
   flex: 0 0 auto;
   display: flex;
   align-items: stretch;
@@ -473,7 +580,8 @@ body {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  padding-left: calc((var(--activity-width) - 28px) / 2);
+  /* El riel empieza tras el canal de --lienzo-gutter (es una tarjeta con su margen). */
+  padding-left: calc(var(--lienzo-gutter) + (var(--activity-width) - 28px) / 2);
   -webkit-app-region: no-drag;
 }
 /* En Mac esa esquina es del semáforo: el botón va justo detrás, donde las apps nativas
@@ -734,14 +842,10 @@ body {
   height: var(--profiles-h);
   display: flex;
   align-items: stretch;
-  gap: 2px;
-  /* SIN padding vertical: la pestaña activa tiene que llegar al borde INFERIOR de la
-     banda para que su línea de color quede al ras y se lea como el subrayado de la
-     empresa. Se probó darle aire arriba y abajo para convertirla en una pastilla
-     suelta y quedaba peor: con el reparto a partes iguales, esa pastilla mide media
-     pantalla y el subrayado recto dentro de unas esquinas redondeadas se ve como un
-     error. El modo colapsado también lo pone a 0. */
-  padding: 0 6px;
+  gap: 4px;
+  /* Aire arriba y abajo: cada perfil es una CÁPSULA suelta en la banda. El modo
+     colapsado lo pone a 0. */
+  padding: 3px 6px;
   background: var(--bg-chrome);
 }
 
@@ -752,24 +856,16 @@ body {
   height: 100%;
   padding: 0 14px;
   border: none;
-  /* borde inferior transparente reservado: en la activa se tiñe con profile.color
-     (inline) sin que las inactivas cambien de alto. */
-  border-bottom: 2px solid transparent;
   background: transparent;
   color: var(--fg-muted);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
-  /* LA SILUETA VIVE AQUÍ Y NO EN `.active`: es la MISMA lengüeta para los dos
-     fondos que puede pintar esta pestaña —el del hover y el de la activa—, así que
-     el radio tiene que ser propiedad de la pestaña, no del estado. Cuando estaba
-     solo en `.active`, el hover pintaba un RECTÁNGULO de esquinas rectas a toda la
-     altura de la banda: al lado de la lengüeta redondeada no se leía como "la misma
-     pestaña resaltada" sino como un recuadro pegado encima. Con el fondo
-     transparente de reposo el radio no se ve, solo recorta a quien pinte. */
-  border-radius: 9px 9px 0 0;
-  transition: color 120ms ease, background 120ms ease;
+  /* LA SILUETA VIVE AQUÍ Y NO EN `.active`: es la MISMA cápsula para el hover y para la
+     activa, así que el radio es de la pestaña, no del estado. */
+  border-radius: 8px;
+  transition: color 120ms ease, background 120ms ease, box-shadow 120ms ease;
 }
 
 .profile-tab:hover {
@@ -777,19 +873,18 @@ body {
   background: rgba(255, 255, 255, 0.04);
 }
 
+/* ACTIVA: contorno y un halo suave del color del perfil, SIN relleno. Es el nivel más alto
+   de la jerarquía de pestañas y el más ancho (media banda con dos perfiles): rellenarlo
+   de color pesaría más que todo lo demás. Los proyectos van con relleno neutro y las
+   pestañas de contenido (editor, terminal) con relleno del color. `--profile-color` lo
+   pone el componente. */
 .profile-tab.active {
   color: var(--fg);
   font-weight: 600;
-  /* Pestaña HUNDIDA en el marco: fondo = superficie del contenido, más oscuro que el gris
-     que la rodea, con las esquinas de ARRIBA redondeadas y la línea de color al ras
-     abajo (el borderBottomColor lo fija el componente con profile.color).
-     No se cierra por los cuatro lados: con el reparto a partes iguales cada celda mide
-     media pantalla, la pastilla saldría enorme y un subrayado recto dentro de esquinas
-     redondeadas se lee como un fallo de render. La lengüeta funciona porque el subrayado
-     es su borde, no un elemento metido dentro. */
-  background: var(--bg);
-  /* El radio ya lo pone `.profile-tab` (misma silueta para el hover y para esto). */
-  box-shadow: var(--shadow-tab);
+  background: color-mix(in srgb, var(--profile-color, var(--accent)) 7%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--profile-color, var(--accent)) 70%, transparent),
+    0 0 10px color-mix(in srgb, var(--profile-color, var(--accent)) 22%, transparent);
 }
 
 /* Punto de color por perfil (siempre visible): color = profile.color inline. */
@@ -856,6 +951,27 @@ body {
 .profile-tab-dot.attention {
   opacity: 1 !important;
 }
+/* TE ESPERA (un permiso, una pregunta): el dot lleno con un anillo que parpadea alrededor.
+   Distinto del latido (trabaja) y del halo fijo (terminó), y sin depender del fondo: el
+   anillo es un `outline` con separación. Lo comparte el punto del mosaico. */
+.profile-tab-dot.esperando,
+.punto-mosaico.esperando {
+  outline: 1.5px solid currentColor;
+  outline-offset: 2px;
+  animation: dot-espera 1.6s ease-in-out infinite;
+  opacity: 1 !important;
+}
+@keyframes dot-espera {
+  50% {
+    outline-color: transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .profile-tab-dot.esperando,
+  .punto-mosaico.esperando {
+    animation: none;
+  }
+}
 
 @keyframes profile-dot-breathe {
   0%,
@@ -879,85 +995,179 @@ body {
    sigue vivo. Qué proyecto terminó lo dice el MOSAICO de agentes (antes, el inspector
    de Progreso y el badge de su icono del riel, retirados con él). */
 
-/* MODO COLAPSADO (ajuste "Colapsar la banda de perfiles"): la banda se reduce a una
-   tira de color —una franja por perfil, sin nombres ni dots ni botones—. Cada pestaña
-   PINTA su segmento con --profile-color (inline): atenuado si está inactiva, pleno en la
-   activa; el estado de hibernación lo lleva la propia franja (clases state-*).
-   LA TIRA LLEGA DE BORDE A BORDE porque la banda tiene su propia fila
-   (docs/decisiones/renderer/banda-de-perfiles.md): compartiendo fila con los botones de
-   ventana moría al 64 % y se leía como una línea rota. Nada que deba verse siempre (el
-   aviso de actualización vive en `.titlebar-acciones`) cuelga de esta lista de `display: none`. */
-.tabs-profiles.names-hidden {
-  height: 6px;
-  gap: 0;
-  padding: 0;
-  overflow: hidden;
+/* MODO MINIMALISTA DE PERFILES: sin banda, una pastilla en el CENTRO de la barra de título con
+   el punto y el nombre del perfil activo, y su lista al pulsarla. Centrada respecto a la VENTANA y
+   no al hueco libre: así no se mueve cuando aparece la etiqueta del botón de agentes o el aviso de
+   actualización. Fuera del flujo, el asa de arrastre sigue a los dos lados; con la ventana estrecha
+   se recorta el nombre (`max-width`) antes de pisar los grupos de los lados.
+   La pastilla es una `.profile-tab.active` en pequeño: el mismo contorno y halo del color del
+   perfil (`--profile-color`, inline), con el alto de los botones de la barra. */
+.selector-perfil {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  max-width: min(320px, 34vw);
+  -webkit-app-region: no-drag;
 }
-.tabs-profiles.names-hidden .profile-tab-name,
-.tabs-profiles.names-hidden .profile-tab-dot,
-.tabs-profiles.names-hidden .profile-add-btn {
-  display: none;
-}
-.tabs-profiles.names-hidden .profile-tab {
-  gap: 0;
-  padding: 0;
-  /* el borderBottomColor inline de la activa deja de aplicar: sin grosor, no pinta. */
-  border-bottom-width: 0;
-  /* Y SE LE QUITA EL RADIO DE LENGÜETA: plegada, esto ya no es una pestaña sino un
-     SEGMENTO de una tira de 6 px pegada a sus vecinos (gap 0). Con 9 px de radio
-     sobre 6 px de alto las esquinas se comen el segmento entero y la tira sale
-     dentada, con calvas de marco entre colores. */
-  border-radius: 0;
-  /* Se mezcla contra --bg-chrome y NO contra `transparent`, que es lo que hacía
-     antes: mezclar con transparente baja el alfa, y un color al 32% de alfa sobre el
-     gris del marco casi desaparece. Mezclando contra el propio marco el segmento
-     queda opaco y atenuado —que es lo que se quería— en vez de translúcido. */
-  background: color-mix(in srgb, var(--profile-color, transparent) 45%, var(--bg-chrome));
+.selector-perfil-pastilla {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  max-width: 100%;
+  height: 24px;
+  padding: 0 8px 0 11px;
+  border: none;
+  border-radius: 8px;
+  color: var(--fg);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  background: color-mix(in srgb, var(--profile-color, var(--accent)) 7%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--profile-color, var(--accent)) 70%, transparent),
+    0 0 8px color-mix(in srgb, var(--profile-color, var(--accent)) 18%, transparent);
   transition: background 120ms ease;
 }
-.tabs-profiles.names-hidden .profile-tab:hover {
-  background: color-mix(in srgb, var(--profile-color, transparent) 75%, var(--bg-chrome));
+.selector-perfil-pastilla:hover,
+.selector-perfil-pastilla.abierto {
+  background: color-mix(in srgb, var(--profile-color, var(--accent)) 14%, transparent);
 }
-.tabs-profiles.names-hidden .profile-tab.active {
-  background: var(--profile-color, transparent);
+.selector-perfil-nombre {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-/* HIBERNADO en la tira: MEDIA ALTURA, no gris.
-
-   Aquí no hay dot al que cambiarle la forma, así que la señal de forma es el
-   GROSOR: el segmento se pinta solo en la mitad inferior de los 6 px y se lee como
-   hundido junto a los de los perfiles vivos, que ocupan la franja entera. Conserva
-   el color del perfil por la misma razón que el anillo del dot: el color dice de
-   quién es la franja, el estado lo dice la forma. Pintarlo gris —que es lo que
-   hacía— dejó de funcionar en cuanto los colores pasaron a ser cenizos, porque el
-   gris de estado y el ceniza de identidad se confundían. */
-.tabs-profiles.names-hidden .profile-tab.state-hibernated {
-  background: linear-gradient(
-    to bottom,
-    transparent 50%,
-    color-mix(in srgb, var(--profile-color, transparent) 45%, var(--bg-chrome)) 50%
-  );
+.selector-perfil-flecha {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  color: var(--fg-muted);
 }
-.tabs-profiles.names-hidden .profile-tab.state-hibernated:hover {
-  background: linear-gradient(
-    to bottom,
-    transparent 50%,
-    color-mix(in srgb, var(--profile-color, transparent) 75%, var(--bg-chrome)) 50%
-  );
+.selector-perfil-punto {
+  display: inline-flex;
+  flex: 0 0 auto;
 }
-.tabs-profiles.names-hidden .profile-tab.state-hibernated.active {
-  background: linear-gradient(to bottom, transparent 50%, var(--profile-color, transparent) 50%);
+.selector-perfil-punto .profile-tab-dot {
+  width: 8px;
+  height: 8px;
+  flex-basis: 8px;
 }
-/* HIBERNANDO / DESPERTANDO: sin sitio para el spinner, la franja late. */
-.tabs-profiles.names-hidden .profile-tab.state-hibernating,
-.tabs-profiles.names-hidden .profile-tab.state-waking {
-  animation: profile-line-pulse 1s ease-in-out infinite;
+/* RESPIRA mientras el perfil está activo (no hibernado): más lento y suave que el latido de
+   «trabajando», que si está, manda (va en la propia clase del punto). */
+.selector-perfil-punto.respira .profile-tab-dot:not(.working):not(.esperando) {
+  animation: perfil-respira 3.2s ease-in-out infinite;
 }
-@keyframes profile-line-pulse {
+@keyframes perfil-respira {
+  0%,
+  100% {
+    opacity: 0.55;
+    box-shadow: 0 0 0 0 transparent;
+  }
   50% {
-    opacity: 0.3;
+    opacity: 1;
+    box-shadow: 0 0 5px 1px currentColor;
   }
 }
-
+/* En la capa flotante (`position: fixed`), centrada bajo la pastilla: `left` es su centro. */
+.selector-perfil-lista {
+  position: fixed;
+  transform: translateX(-50%);
+  z-index: 60;
+  min-width: 200px;
+  max-width: 320px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+.selector-perfil-fila {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-radius: 6px;
+}
+.selector-perfil-fila:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+.selector-perfil-fila.activa {
+  background: color-mix(in srgb, var(--profile-color, var(--accent)) 10%, transparent);
+}
+.selector-perfil-elegir,
+.selector-perfil-nuevo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 26px;
+  padding: 0 8px;
+  border: none;
+  background: transparent;
+  color: var(--fg-muted);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.selector-perfil-fila.activa .selector-perfil-elegir {
+  color: var(--fg);
+  font-weight: 600;
+}
+.selector-perfil-elegir:hover,
+.selector-perfil-nuevo:hover {
+  color: var(--fg);
+}
+.selector-perfil-elegir .profile-rename-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.selector-perfil-mas {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 22px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+  /* Solo al pasar por la fila (o con el foco): una columna de ⋯ fijos sería ruido. */
+  opacity: 0;
+}
+.selector-perfil-mas svg {
+  width: 14px;
+  height: 14px;
+}
+.selector-perfil-fila:hover .selector-perfil-mas,
+.selector-perfil-mas:focus-visible {
+  opacity: 1;
+}
+.selector-perfil-mas:hover {
+  color: var(--fg);
+  background: rgba(255, 255, 255, 0.08);
+}
+.selector-perfil-sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border-soft);
+}
+.selector-perfil-mas-signo {
+  display: inline-flex;
+  justify-content: center;
+  width: 7px;
+  color: var(--fg-muted);
+}
 /* PROPORCIONAL: cada perfil reparte el ancho por igual (1 -> todo, N -> 1/N). */
 .profile-tab {
   flex: 1 1 0;
@@ -976,13 +1186,15 @@ body {
 }
 
 /* Input inline de renombrado: se funde con la pestaña (mismo tipo/tamaño). */
+/* Sin borde propio: el contorno de la cápsula ya enmarca el campo. Un velo leve dice dónde se
+   escribe. */
 .profile-rename-input {
   min-width: 0;
   flex: 1 1 auto;
   padding: 2px 4px;
-  border: 1px solid var(--accent);
+  border: none;
   border-radius: 4px;
-  background: var(--bg-deep, var(--bg));
+  background: rgba(255, 255, 255, 0.05);
   color: var(--fg);
   font-size: 13px;
   font-weight: 500;
@@ -1014,22 +1226,11 @@ body {
   background: rgba(255, 255, 255, 0.07);
 }
 
-/* Input de color oculto (se dispara por "Cambiar color" del menú contextual). */
-.profile-color-hidden {
-  position: absolute;
-  width: 0;
-  height: 0;
-  padding: 0;
-  border: 0;
-  opacity: 0;
-  pointer-events: none;
-}
-
 /* Popover de creación de perfil (nombre + color). */
 .profile-create {
   position: fixed;
   z-index: 1000;
-  width: 240px;
+  width: 264px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1062,22 +1263,144 @@ body {
   outline: none;
   border-color: var(--accent);
 }
-.profile-create-color {
+/* EL SELECTOR DE COLOR de un perfil (`SelectorColorPerfil.tsx`): popover bajo su pestaña con
+   el mismo marco que «Nuevo perfil», que usa su cuerpo (`.selector-color-cuerpo`). */
+.selector-color {
+  position: fixed;
+  z-index: 1000;
+  width: 264px;
+  box-sizing: border-box;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-elevated);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  -webkit-app-region: no-drag;
+}
+.selector-color-titulo {
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.selector-color-cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.selector-color-rotulo {
+  margin-top: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+}
+.selector-color-rejilla {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+}
+.selector-color-muestra {
+  aspect-ratio: 1;
+  width: 100%;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.selector-color-muestra:hover {
+  transform: scale(1.12);
+}
+/* La elegida: un anillo separado del disco por el fondo del popover. */
+.selector-color-muestra.elegida {
+  box-shadow:
+    0 0 0 2px var(--bg-elevated),
+    0 0 0 4px var(--fg-muted);
+}
+.selector-color-muestra:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.selector-color-vacio {
+  font-size: 11px;
+  color: var(--fg-faint);
+}
+.selector-color-personalizado {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+/* Los deslizadores pintan lo que ofrecen: el arco de tonos en la banda cenizo y, para la
+   luz, el tono elegido de lo más oscuro a lo más claro de la banda. */
+.selector-color-personalizado input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 10px;
+  margin: 0;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.selector-color-tono {
+  background: linear-gradient(
+    to right,
+    hsl(0 32% 58%),
+    hsl(60 32% 58%),
+    hsl(120 32% 58%),
+    hsl(180 32% 58%),
+    hsl(240 32% 58%),
+    hsl(300 32% 58%),
+    hsl(360 32% 58%)
+  );
+}
+.selector-color-luz {
+  background: linear-gradient(to right, hsl(var(--tono) 32% 53%), hsl(var(--tono) 32% 64%));
+}
+.selector-color-personalizado input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--fg);
+  box-shadow: 0 0 0 2px var(--bg-elevated), 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+.selector-color-fila {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--fg-muted);
+  gap: 6px;
 }
-.profile-create-color input[type='color'] {
-  width: 44px;
+.selector-color-vista {
+  flex: 0 0 22px;
+  height: 22px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+.selector-color-hex {
+  flex: 1 1 auto;
+  min-width: 0;
   height: 26px;
-  padding: 0;
+  box-sizing: border-box;
+  padding: 0 6px;
   border: 1px solid var(--border-soft);
   border-radius: 5px;
-  background: transparent;
-  cursor: pointer;
+  background: var(--bg-deep, var(--bg));
+  color: var(--fg);
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+}
+.selector-color-hex:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+}
+.selector-color-fila .btn {
+  height: 26px;
+  padding: 0 8px;
 }
 .profile-create-actions {
   display: flex;
@@ -1139,12 +1462,13 @@ body {
   background: rgba(255, 255, 255, 0.045);
 }
 
+/* ACTIVA: el peldaño intermedio de la jerarquía de pestañas. Un contorno fino del color
+   del perfil, más tenue que el del perfil y sin halo, sobre un relleno neutro leve; el
+   perfil lleva contorno y halo, y las pestañas de contenido, relleno del color. */
 .project-tab.active {
   color: var(--fg);
-  /* Pill elevada (superficie + sombra) como ÚNICO indicador de activa; sin la barra
-     de acento a la izquierda (se reserva para las pestañas de archivo del editor). */
-  background: var(--bg-surface);
-  box-shadow: var(--shadow-chip);
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--perfil) 45%, transparent);
 }
 
 /* Contenedor del nombre: ocupa el hueco restante de la pestaña (ancho fijo) y
@@ -1349,12 +1673,12 @@ body {
   align-items: center;
   gap: 4px;
   padding: 8px 0;
-  /* MARCO: el riel corre pegado al borde izquierdo de la ventana, fuera del lienzo, como
-     lateral del contorno gris. Sin `border-right`: el que separa es el canal de
-     --lienzo-gutter que deja el lienzo, y un hairline más un canal de 6 px se leen como
-     una raya doble. */
-  background: var(--bg-chrome);
-  margin-right: var(--lienzo-gutter);
+  /* Una tarjeta propia, del tono del lateral, con el canal del marco alrededor: lo separa
+     del lateral el mismo hueco que separa las demás zonas. */
+  background: var(--bg-elevated);
+  margin: var(--lienzo-gutter);
+  border: 1px solid var(--border);
+  border-radius: var(--lienzo-radio);
 }
 
 /* Empuja el SEGUNDO GRUPO del riel (los conmutadores de la franja inferior:
@@ -1554,7 +1878,6 @@ body {
   text-transform: uppercase;
   color: var(--fg-muted);
   flex: 0 0 auto;
-  box-shadow: var(--shadow-header);
 }
 
 /* Título del explorador: ocupa el espacio y recorta con "…" si no cabe, dejando
@@ -1653,6 +1976,8 @@ body {
 .sidebar-body-tree .tree-virtual {
   flex: 1 1 auto;
   min-height: 0;
+  /* El hueco de la barra, siempre: al aparecer no empuja las letras de git de la derecha. */
+  scrollbar-gutter: stable;
 }
 
 /* Fila del árbol del explorador (carpeta o archivo). El padding-left lo fija el
@@ -1985,8 +2310,8 @@ body {
 }
 
 /* Tira de tabs de editor: primer hijo de .editor-area, alto fijo, encabezando los
-   panes. Calca .tabs-projects (mismo peso visual) pero con separador INFERIOR (va
-   arriba del área). overflow-x: los excedentes hacen scroll sin romper el layout. */
+   panes. La separa del contenido el TONO, el gris del panel lateral sobre el del editor,
+   sin filete. overflow-x: los excedentes hacen scroll sin romper el layout. */
 .editor-tabs {
   flex: 0 0 auto;
   /* DERIVADA de la escalera, no clavada en 32px. A --ui-font: 12px da exactamente los
@@ -1997,27 +2322,61 @@ body {
      interfaz por defecto la tira ya no crece con la letra. */
   height: min(calc(var(--ui-head-h) + 6px), 32px);
   display: flex;
-  align-items: stretch;
+  align-items: center;
   gap: 2px;
   padding: 0 8px;
-  background: var(--bg-deep);
-  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg-elevated);
   overflow-x: auto;
 }
+/* La tira del editor: la lista de pestañas se desplaza y, a la derecha y fijas, la flecha
+   de las que no se ven y las acciones del pane visible (`EditorTabs`). */
+.editor-tabs.con-acciones {
+  gap: 6px;
+  overflow: hidden;
+}
+.editor-tabs-lista {
+  position: relative; /* referencia de `offsetLeft` para saber qué pestañas no se ven */
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.editor-tabs-lista::-webkit-scrollbar {
+  height: 0;
+}
+.editor-tabs-acciones {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+.editor-tabs-slot:empty {
+  display: none;
+}
+/* El modo de vista cabe en la tira con cualquier tamaño de interfaz: sus botones siguen al alto
+   de la tira y no al de un botón de icono suelto. */
+.editor-tabs-slot .vista-modo-toggle .btn-icon {
+  height: min(calc(var(--ui-head-h) - 6px), 22px);
+  width: min(calc(var(--ui-head-h) - 4px), 24px);
+}
 
-/* Pestaña de archivo/diff: clon de .project-tab (fuente 12px, borde activo con
-   var(--accent)). */
+/* Pestaña de archivo/diff: la misma CÁPSULA que las pestañas de la terminal
+   (`.terminal-tab`), con la activa rellena del color del perfil. */
 .editor-tab {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 100%;
+  flex: 0 0 auto;
+  /* El alto de la pestaña de terminal con la interfaz por defecto, y sigue a la letra. */
+  height: min(calc(var(--ui-head-h) - 4px), 24px);
   /* 8px por la izquierda y no 12: con icono delante, el propio dibujo aporta su margen. */
   padding: 0 6px 0 8px;
-  /* Pestaña elevada: esquinas superiores redondeadas; la activa lleva la barra de
-     acento ARRIBA en vez del borde inferior. */
-  border-bottom: none;
-  border-radius: 8px 8px 0 0;
+  border-radius: 6px;
   color: var(--fg-muted);
   /* Peldaño META de la escalera, CON SUELO Y TECHO. La etiqueta acompaña al icono, que es
      quien dice de qué archivo se trata. Reducirla es una decisión propia (los editores
@@ -2036,18 +2395,19 @@ body {
 
 .editor-tab:hover {
   color: var(--fg);
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.05);
 }
 
+/* ACTIVA: relleno con el color del PERFIL, como la de la terminal. El color dice una
+   sola cosa, en qué perfil estás; el tipo de archivo ya lo dice el icono. */
 .editor-tab.active {
   color: var(--fg);
-  background: var(--bg);
-  /* Barra de acento ARRIBA, con el acento DEL PERFIL. Se teñía por tipo de archivo
-     (--tab-accent, de una tabla de colores a mano en fileIcons.tsx) para ir "conforme al
-     icono"; ahora el icono está de verdad ahí delante y decía lo mismo dos veces, así que
-     el color vuelve a significar UNA cosa: en qué perfil estás. La tabla se borró con el
-     cambio. */
-  box-shadow: var(--shadow-tab), inset 0 2px 0 var(--accent);
+  background: var(--sel-glow);
+  box-shadow: inset 0 0 0 1px var(--sel-borde);
+}
+/* Solo el color: el atajo `background` borraría el tinte de `.in-archive`. */
+.editor-tab.active:hover {
+  background-color: var(--sel-fuerte);
 }
 
 /* Pestaña de algo que vive DENTRO de un .jar: mismo tinte que sus filas en el árbol. Se
@@ -2082,26 +2442,21 @@ body {
 }
 
 /* VISTA PREVIA (pestaña efímera): la que se reemplaza al abrir el siguiente diff del
-   historial. Solo el NOMBRE en cursiva —la insignia "diff" y la x no se inclinan, porque
+   historial. Solo el NOMBRE en cursiva —los iconos y la x no se inclinan, porque
    la cursiva marca el CONTENIDO y no el cromo—. Es la convención habitual de los editores
    y no necesita leyenda; sin ella, una pestaña desaparecería al abrir otra sin aviso. */
 .editor-tab.efimera .editor-tab-name {
   font-style: italic;
 }
 
-/* Marca discreta de "diff" (distingue el diff del archivo homónimo). */
+/* El icono de un diff: las dos flechas, en el color del acento como los iconos de tipo. */
 .editor-tab-kind {
-  /* Un peldaño por debajo del nombre, también en el TECHO: el nombre para en 12 px
-     (ver `.editor-tab`) y la insignia en 11. Sin techo, con la interfaz grande la
-     insignia acababa MAYOR que el nombre al que califica. */
-  font-size: clamp(9px, calc(var(--ui-font) - 2px), 11px);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  padding: 1px 4px;
-  border-radius: 3px;
-  color: var(--fg-faint);
-  background: rgba(255, 255, 255, 0.06);
+  display: inline-flex;
+  color: var(--accent);
+}
+.editor-tab-kind svg {
+  width: 100%;
+  height: 100%;
 }
 
 /* Slot de ancho FIJO que comparten el dot y la x: así el intercambio dot<->x no
@@ -2774,7 +3129,7 @@ body {
   pointer-events: none;
   overflow: hidden;
   max-height: 72vh;
-  font-family: 'Cascadia Code', 'Fira Code', Consolas, 'Courier New', monospace;
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, Menlo, 'Courier New', monospace;
   font-size: 12px;
 }
 .diff-lens-row {
@@ -2947,7 +3302,6 @@ body {
 .shell.modo-mosaico .shell-main {
   margin-left: var(--lienzo-gutter);
 }
-.shell.modo-mosaico .shell-main,
 .shell.modo-mosaico .shell-main-top {
   position: relative;
 }
@@ -2980,12 +3334,8 @@ body {
    divisor) y con `content-visibility` + `visibility`. Así ni el editor ni las terminales de
    arriba cambian de tamaño (su pty no recibe un resize) y nada pierde su scroll; restaurar
    es quitar la clase. El panel maximizado sí cambia: la terminal de abajo se reajusta sola.
-   Barra de título, bandas, riel y barra de estado viven fuera de `.shell-main`.
    PROHIBIDO en `.shell-main`: `transform`, `filter`, `opacity`, `z-index`, `contain`,
    `will-change` y `container-type` (docs/decisiones/layout/marco-y-lienzo.md). */
-.shell.franja-pantalla-completa .shell-main {
-  position: relative;
-}
 .shell.franja-pantalla-completa .shell-main-top {
   position: absolute;
   top: 0;
@@ -3001,7 +3351,6 @@ body {
 }
 .shell.franja-pantalla-completa :is(.git-log-panel, .terminal-panel) {
   flex: 1 1 auto;
-  border-top: none;
 }
 
 /* EL AGENTE DE LA TERMINAL, a la derecha de la terminal a pantalla completa (`.agente-terminal-visible`,
@@ -3032,18 +3381,94 @@ body {
   visibility: visible;
   pointer-events: auto;
 }
-/* Sin terminal que enseñar (`.sin-terminal`), la columna de la terminal se queda en su cabecera y su
-   riel, y el agente ocupa el resto, como cuando el editor no tiene pestañas. Su divisor no tiene nada
-   que repartir. */
-.shell.agente-terminal-visible .shell-main:has(> .terminal-panel.sin-terminal) {
+/* Sin terminal que enseñar o con el agente maximizado (`.terminal-plegada`, que App pone desde el layout
+   del centro, y `.sin-terminal` en el panel, del mismo dato), la columna de la terminal se queda en su
+   cabecera y su riel, y el agente ocupa el resto, como cuando el editor no tiene pestañas. Su divisor no
+   tiene nada que repartir. */
+.shell.agente-terminal-visible.terminal-plegada .shell-main {
   grid-template-columns: auto minmax(0, 1fr);
+  /* Sin divisor, el hueco entre las dos tarjetas lo pone la rejilla. */
+  column-gap: var(--lienzo-gutter);
 }
 .shell.agente-terminal-visible .terminal-panel.sin-terminal .terminal-stack,
-.shell.agente-terminal-visible .shell-main:has(> .terminal-panel.sin-terminal) .splitter-agente {
+.shell.agente-terminal-visible.terminal-plegada .shell-main .splitter-agente {
   display: none;
 }
-.shell.agente-terminal-visible .shell-main:has(> .terminal-panel.sin-terminal) .right-panel {
+.shell.agente-terminal-visible.terminal-plegada .shell-main .right-panel {
   flex: 1 1 0;
+}
+/* El ancho lo marca el riel, no la cabecera: con muchas pestañas abiertas no ensanchan la columna.
+   La cabecera pasa a dos líneas (título y acciones arriba, pestañas debajo, a todo el ancho) para que
+   el «+» no quede tapado. Con el riel oculto queda un mínimo para la cabecera. */
+.shell.agente-terminal-visible .terminal-panel.sin-terminal {
+  /* El número es `COLUMNA_PLEGADA_MIN` (rielSsh.ts), con el que se calcula si el riel cabe. */
+  min-width: var(--columna-plegada-min);
+}
+/* Un riel más estrecho que ese mínimo lo rellena, con su divisor en el borde: no queda una franja vacía. */
+.shell.agente-terminal-visible .terminal-panel.sin-terminal .ssh-riel {
+  flex-grow: 1;
+}
+.shell.agente-terminal-visible .terminal-panel.sin-terminal > .panel-header {
+  contain: inline-size;
+  flex-wrap: wrap;
+  height: auto;
+  min-height: 35px;
+  row-gap: 0;
+}
+.shell.agente-terminal-visible .terminal-panel.sin-terminal > .panel-header .terminal-tabs-zona {
+  order: 1;
+  flex-basis: 100%;
+}
+/* Con el agente maximizado, las pestañas tapadas se reducen a un chip con su número: pulsarlo las devuelve.
+   Sin pestañas la cabecera vuelve a ser de una línea, y lo que cede al estrecharse es el texto (el título
+   trunca y la palabra del chip desaparece), nunca los botones. */
+.shell.agente-terminal-visible .terminal-panel.sin-terminal > .panel-header:has(> .terminales-tapadas) {
+  flex-wrap: nowrap;
+  height: 35px;
+}
+.terminal-panel > .panel-header:has(> .terminales-tapadas) > .panel-title {
+  display: block;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.terminales-tapadas {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  height: 20px;
+  margin-left: -2px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 120ms ease, background 120ms ease;
+}
+.terminales-tapadas-n {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+@container terminalcab (max-width: 280px) {
+  .terminales-tapadas-txt {
+    display: none;
+  }
+}
+.terminales-tapadas:hover {
+  background: rgba(255, 255, 255, 0.10);
+  color: var(--fg);
+}
+.terminales-tapadas:focus-visible {
+  outline: 1px solid var(--sel);
+  outline-offset: -1px;
 }
 .shell.agente-terminal-visible .shell-main-top > :not(.right-panel):not(.splitter-agente) {
   position: absolute;
@@ -3058,24 +3483,30 @@ body {
 }
 
 /* La columna del agente, convertida en rejilla. Las plantillas llegan inline de
-   `calcularMosaico` (features/mosaico/mosaicoLayout.ts). El `gap` de 1 px deja ver el fondo
-   de la rejilla, que es el color del borde: así se dibuja el filete entre casillas
-   sin que cada una lleve borde propio (que descuadraría la cuenta de columnas). */
+   `calcularMosaico` (features/mosaico/mosaicoLayout.ts). En el mosaico la tarjeta no es la
+   columna sino cada casilla, con el hueco del marco entre ellas (`HUECO_CASILLAS` en
+   useCCPanelMosaico.ts). Sin borde propio en la casilla, que descuadraría la cuenta de
+   columnas: la separa el contraste con el marco, y con varias, el marco de su perfil. */
 .right-panel.cc-mosaico {
   display: grid;
-  gap: 1px;
-  background: var(--border);
-  border-left: none;
+  gap: var(--lienzo-gutter);
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  overflow: visible;
   min-width: 0;
   flex: 1 1 0;
 }
 .right-panel.cc-mosaico > .agent-pane {
   min-width: 0;
   min-height: 0;
+  border-radius: var(--lienzo-radio);
+  overflow: hidden;
 }
 .right-panel.cc-mosaico > .cc-empty {
   grid-area: 1 / 1 / -1 / -1;
   background: var(--bg);
+  border-radius: var(--lienzo-radio);
 }
 
 /* CADA CASILLA LLEVA EL MARCO DE SU PERFIL, y el FOCO es el mismo marco encendido. Son
@@ -3093,6 +3524,7 @@ body {
   position: absolute;
   inset: 0;
   border: 2px solid color-mix(in srgb, var(--perfil) 55%, transparent);
+  border-radius: inherit;
   pointer-events: none;
   transition: border-color 120ms ease;
 }
@@ -3103,6 +3535,15 @@ body {
 .right-panel.cc-mosaico.cc-mosaico-varias > .agent-pane.enfocada::after {
   border-width: 3px;
   border-color: var(--perfil);
+}
+/* Con una sola casilla, el borde de tarjeta de las demás zonas, también como capa encima. */
+.right-panel.cc-mosaico:not(.cc-mosaico-varias) > .agent-pane::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--border);
+  border-radius: inherit;
+  pointer-events: none;
 }
 @media (prefers-reduced-motion: reduce) {
   .right-panel.cc-mosaico.cc-mosaico-varias > .agent-pane::after {
@@ -3359,9 +3800,9 @@ body {
   align-items: center;
   gap: 10px;
   padding: 0 8px 0 16px;
-  border-bottom: 1px solid var(--border-soft);
+  /* Sin filete ni sombra debajo: la cabecera y su contenido son la misma tarjeta, y lo
+     que separa una zona de otra es el hueco entre tarjetas. */
   background: var(--bg);
-  box-shadow: var(--shadow-header);
 }
 
 .panel-title {
@@ -5607,8 +6048,7 @@ body {
 /* Terminal ON-DEMAND: fila INFERIOR DE .shell-main. Comparte el hueco —y la variable de
    alto— con el panel de Git·Log, que se turna con ella.
    NO es hermana de .shell-body ni ocupa el ancho completo: está dentro de .shell-main
-   para empezar a la derecha del riel y del explorador en vez de cruzar la ventana por
-   debajo de ellos (docs/decisiones/layout/estructura-de-la-ventana.md).
+   para empezar a la derecha del riel en vez de cruzar la ventana por debajo de él (docs/decisiones/layout/estructura-de-la-ventana.md).
    Al ocultarse se quita del layout con display:none SIN desmontar el componente (la
    sesión pty sobrevive; por eso este panel siempre está montado y el de git no). */
 .terminal-panel {
@@ -5705,24 +6145,29 @@ body {
      una caja con contorno propio. Valor provisional, a ajustar viéndolo en uso. */
   padding-bottom: 16px;
 }
+/* La tarjeta del agente es del tono de su consola, cabecera y pie incluidos, igual que la
+   terminal de abajo con el suyo: una sola superficie. */
+.agent-pane,
+.agent-pane .panel-header,
+.agent-pane-footer {
+  background: var(--bg-deep);
+}
 
-/* LA CONSOLA DE LA SHELL DE ABAJO: color propio y contorno, como un panel.
+/* LA CONSOLA DE LA SHELL DE ABAJO: color propio.
    `.terminal-panel` DELANTE no es decorativo: `.terminal-host` es la clase de LAS DOS
-   terminales y sin el prefijo la columna del agente se pinta también gris. Va en el
-   HUECO y no en `.terminal-panel` entero porque el panel aloja también la cabecera y
-   los avisos, que siguen sobre `--bg`.
+   terminales y sin el prefijo la columna del agente se pinta también gris.
    EL COLOR VA A JUEGO CON EL TEMA DE XTERM: aquí el anillo del padding y allí el lienzo
-   (`XTERM_THEME_SHELL.background`); con uno solo cambiado queda un marco de otro tono.
-   EL BORDE Y EL RADIO son los MISMOS del lienzo (`.shell-main`): la consola se lee como
-   una superficie delimitada igual que git o el editor, no como un rectángulo a sangre.
-   `overflow: hidden` recorta el lienzo de xterm contra las esquinas. */
+   (`XTERM_THEME_SHELL.background`); con uno solo cambiado queda un marco de otro tono. */
 .terminal-panel .terminal-host {
   background: var(--bg-terminal);
-  border: 1px solid var(--border);
-  border-radius: var(--lienzo-radio);
-  /* El hueco respira dentro del panel, o el contorno quedaría pegado a la cabecera
-     y al borde inferior y no se leería como una caja. */
+  /* El texto respira dentro de la tarjeta sin tocar sus bordes. */
   margin: 0 8px 8px;
+}
+/* La tarjeta entera de la terminal es del color de la consola, cabecera incluida: sin
+   caja dentro ni filete, se lee como una sola superficie. */
+.shell-main > .terminal-panel,
+.shell-main > .terminal-panel > .panel-header {
+  background: var(--bg-terminal);
 }
 
 /* SCROLLBAR de las terminales (xterm), la shell y la del agente (ambas .terminal-host).
@@ -5742,11 +6187,14 @@ body {
 .terminal-host .xterm-viewport {
   cursor: default; /* sobre el canalón/barra, cursor de flecha (no el de texto) */
 }
-/* Thumb siempre visible y con algo de cuerpo para agarrarlo cómodo. */
-.terminal-host .xterm-viewport::-webkit-scrollbar-thumb {
+/* El ratón sobre el texto está en `.xterm-screen`, hermana del viewport y no hija: el
+   `:hover` genérico no lo alcanzaría y la barra no aparecería al entrar en la terminal. */
+.terminal-host:hover .xterm-viewport::-webkit-scrollbar-thumb {
+  background-color: var(--sb-thumb);
+}
+.terminal-host .xterm-viewport::-webkit-scrollbar-thumb:hover {
   background-color: var(--sb-thumb-hover);
 }
-.terminal-host .xterm-viewport::-webkit-scrollbar-thumb:hover,
 .terminal-host .xterm-viewport::-webkit-scrollbar-thumb:active {
   background-color: var(--sb-thumb-active);
 }
@@ -5841,6 +6289,10 @@ body {
    botón de cerrar. Se baja justo por debajo. */
 .search-box.en-documento {
   top: 43px;
+}
+/* El editor no tiene cabecera (su modo de vista va en la tira de pestañas): arriba del todo. */
+.search-box.en-documento.sin-cabecera {
+  top: 8px;
 }
 
 /* Resaltado de coincidencias en las vistas RENDERIZADAS (.md / .docx). Se pinta con
@@ -6277,14 +6729,10 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  /* ALINEADO CON EL BORDE DEL LIENZO, no con el de la ventana. Debajo de este bloque
-     empieza el riel de iconos (`--activity-width`), y el panel del explorador arranca
-     justo donde el riel acaba, porque `.shell-main` no lleva margen izquierdo. Sin
-     este relleno, la rama quedaba flotando sobre el riel, alineada con nada; con él,
-     su píldora empieza en la misma vertical que el recuadro del panel y la barra de
-     estado deja de tener una columna que no le corresponde. Se le resta el relleno
-     propio de la barra para no sumarlo dos veces. */
-  padding-left: calc(var(--activity-width) - 6px);
+  /* ALINEADO CON EL BORDE DE LA TARJETA del riel y el lateral, que empieza tras el canal
+     de --lienzo-gutter: la píldora de la rama arranca en la misma vertical. Se le resta el
+     relleno propio de la barra para no sumarlo dos veces. */
+  padding-left: calc(var(--lienzo-gutter) - 6px);
 }
 
 /* LA MARCA, centrada. Es una firma, no un control: no debe leerse antes que la rama o la
@@ -6586,7 +7034,7 @@ body {
 /* --- Splitters de redimensionado ---------------------------------------- */
 
 /* Borde arrastrable entre paneles. Ocupa 6px de layout (zona de agarre cómoda) y
-   pinta una línea fina centrada (1px) que se tiñe de acento al hover/foco/drag.
+   pinta una línea fina centrada (1px); al usarlo, una barra de 4 px del color del PERFIL.
    El sizing real de cada panel lo llevan las variables CSS (--sidebar-width, etc.)
    que App fija inline; el splitter solo aporta el borde y el hit area. */
 .splitter {
@@ -6600,7 +7048,11 @@ body {
   content: '';
   position: absolute;
   background: var(--border);
-  transition: background 120ms ease;
+  transition:
+    background 120ms ease,
+    width 120ms ease,
+    height 120ms ease,
+    transform 120ms ease;
 }
 
 .splitter-vertical {
@@ -6630,10 +7082,30 @@ body {
   transform: translateY(-0.5px);
 }
 
-.splitter:hover::before,
-.splitter:focus-visible::before,
+/* Al usarlo: una barra redondeada de 4 px del color del perfil. El hover espera un instante
+   para que cruzar el divisor con el ratón no lo encienda; arrastrar lo enciende ya. */
+.splitter:is(:hover, :focus-visible, .dragging)::before {
+  background: var(--perfil);
+  border-radius: 2px;
+}
+.splitter-vertical:is(:hover, :focus-visible, .dragging)::before {
+  width: 4px;
+  transform: translateX(-2px);
+}
+.splitter-horizontal:is(:hover, :focus-visible, .dragging)::before {
+  height: 4px;
+  transform: translateY(-2px);
+}
+.splitter:hover::before {
+  transition-delay: 150ms;
+}
 .splitter.dragging::before {
-  background: var(--accent);
+  transition-delay: 0ms;
+}
+/* EL HUECO entre tarjetas (`splitter-hueco`, lo pone quien separa dos tarjetas): en reposo
+   no pinta nada, el hueco ya separa. */
+.splitter-hueco::before {
+  background: transparent;
 }
 
 .splitter:focus-visible {
@@ -6888,6 +7360,11 @@ body.is-resizing * {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
+  padding-top: 14px;
+}
+/* El documento empieza bajo las pestañas: el margen de arriba del primer título lo alejaba. */
+.markdown-preview > :first-child {
+  margin-top: 0;
 }
 
 /* VISOR DE HTML: el archivo va dentro de un iframe con sandbox (ver EditorPane).
@@ -7291,7 +7768,7 @@ body.is-resizing * {
 .image-source {
   margin: 0;
   padding: 14px 16px;
-  font-family: 'Cascadia Code', 'Fira Code', Consolas, 'Courier New', monospace;
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, Menlo, 'Courier New', monospace;
   font-size: 12.5px;
   line-height: 1.5;
   color: var(--fg);

@@ -15,11 +15,13 @@ import type {
   DbResultadoSentencia,
   DbTiempos
 } from '../../../../../shared/db-explorador-ipc.ts'
+import { MOTIVO_CARPETA_SIN_ESCRITURA } from '../../../../../shared/dbExploradorSesiones.ts'
 import { dividirSentencias, type Sentencia } from '../../../../../shared/sql/divisorSql.ts'
 import type { DialectoSql } from '../../../../../shared/sql/dialectosSql.ts'
 import { ID_SALIDA } from '../resultados/pestanasResultado.ts'
 import { SEPARADOR_MILES } from '../rejilla/celdasRejilla.ts'
 import { descriptorMarca, formatoDuracion, HOVER_CLIENTE, HOVER_OMITIDA } from './marcasConsola.ts'
+import { basesConsolaClaves, basesConsolaDocs, claveBaseConsola, esquemaAlCrear, sembrarBaseConsola } from './basesConsola.ts'
 import {
   crearLote,
   detener,
@@ -662,9 +664,19 @@ function main(): void {
     check(
       'solo lectura: todo deshabilitado con «La conexión es de solo lectura»',
       !ro.puedeCommit && !ro.puedeRollback && !ro.puedeCambiarModo && ro.tituloCommit === TITULO_SOLO_LECTURA &&
-        ro.tituloModo === TITULO_SOLO_LECTURA && ro.soloLectura,
+        ro.tituloModo === TITULO_SOLO_LECTURA && ro.soloLectura && ro.tituloSoloLectura === TITULO_SOLO_LECTURA,
       JSON.stringify(ro)
     )
+    // Una base de archivo en una carpeta sin escritura: ni Manual ni Commit, y el `title` dice por qué.
+    const carpeta = estadoBarraTx(sesion({ soloLectura: true, soloLecturaPorCarpeta: true }))
+    check(
+      'solo lectura por la carpeta: todo deshabilitado y cada `title` dice que es la carpeta',
+      carpeta.soloLectura && !carpeta.puedeCambiarModo && !carpeta.puedeCommit && carpeta.modo === 'auto' &&
+        carpeta.tituloModo === MOTIVO_CARPETA_SIN_ESCRITURA && carpeta.tituloCommit === MOTIVO_CARPETA_SIN_ESCRITURA &&
+        carpeta.tituloSoloLectura === MOTIVO_CARPETA_SIN_ESCRITURA && /carpeta de la base no admite escritura/.test(MOTIVO_CARPETA_SIN_ESCRITURA),
+      JSON.stringify(carpeta)
+    )
+    check('con escritura no hay `title` de solo lectura', nada.tituloSoloLectura === null, String(nada.tituloSoloLectura))
     // En una base de archivo, el texto de la tx explica el bloqueo del archivo entero.
     const archPend = estadoBarraTx(sesion({ txModo: 'manual', tx: 'pendiente', sentenciasEnTx: 2 }), { deArchivo: true })
     const archAb = estadoBarraTx(sesion({ tx: 'abierta' }), { deArchivo: true })
@@ -981,6 +993,33 @@ function main(): void {
     check('SQL Server: `select * from t1` se titula t1 (no pruebas.t1)', sqls.resultados.pestanas[0]?.titulo === 't1', j(sqls.resultados.pestanas.map((p) => p.titulo)))
     const pg = correrLote(estadoInicialConsola('postgres', sesion()), ss, () => filas(1), { esquema: 'ventas' }).e
     check('PG: sigue calificando con el esquema de la sesión', pg.resultados.pestanas[0]?.titulo === 'ventas.t1', j(pg.resultados.pestanas.map((p) => p.titulo)))
+  }
+
+  hr('La consola nueva nace en la base del nodo desde el que se pidió')
+  {
+    check(
+      'SQL: el esquema va al main al crearla; documentos y claves, no',
+      esquemaAlCrear({ familia: 'sql', esquema: 'ventas' }) === 'ventas' &&
+        esquemaAlCrear({ familia: 'documentos', base: 'ventas' }) === undefined &&
+        esquemaAlCrear({ familia: 'claves', indice: 3 }) === undefined &&
+        esquemaAlCrear(undefined) === undefined,
+      'tabla'
+    )
+    sembrarBaseConsola('p1', 'kd', { familia: 'documentos', base: 'tienda' })
+    sembrarBaseConsola('p1', 'kc', { familia: 'claves', indice: 5 })
+    sembrarBaseConsola('p1', 'ks', { familia: 'sql', esquema: 'ventas' })
+    sembrarBaseConsola('p1', 'kn', undefined)
+    check(
+      'documentos y claves se siembran en la consola, cada una en su mapa; SQL y sin base, en ninguno',
+      basesConsolaDocs.get(claveBaseConsola('p1', 'kd')) === 'tienda' &&
+        basesConsolaClaves.get(claveBaseConsola('p1', 'kc')) === 5 &&
+        !basesConsolaClaves.has(claveBaseConsola('p1', 'kd')) &&
+        !basesConsolaDocs.has(claveBaseConsola('p1', 'kc')) &&
+        !basesConsolaDocs.has(claveBaseConsola('p1', 'ks')) &&
+        !basesConsolaClaves.has(claveBaseConsola('p1', 'kn')),
+      JSON.stringify({ docs: [...basesConsolaDocs], claves: [...basesConsolaClaves] })
+    )
+    check('la clave separa perfil y consola', claveBaseConsola('p1', 'k') !== claveBaseConsola('p', '1k'), claveBaseConsola('p1', 'k'))
   }
 
   // ---------------------------------------------------------------------------

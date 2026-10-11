@@ -31,6 +31,8 @@ export type CampoConexion =
   | 'tls'
   | 'srv'
   | 'opcionesUri'
+  | 'tunelSsh'
+  | 'topologiaRedis'
 
 /**
  * Los campos que un motor USA sin exigirlos: los que el
@@ -50,11 +52,13 @@ export type CampoConexion =
  *     obligatorio y va en `obligatorios`.
  *   - 'srv', 'opcionesUri': solo MongoDB: `mongodb+srv://` y el resto de
  *     la URI (ver `DbConnection`). El formulario los rellena también al «pegar URI» (D7).
- * Oracle, PG y SQLite: ninguno (lo de siempre).
+ *   - 'tunelSsh': el túnel SSH (`DbTunelSsh`), en todos los motores de red.
+ *   - 'topologiaRedis': solo Redis: Sentinel o Cluster (`DbTopologiaRedis`); ausente, un servidor.
+ * SQLite: ninguno.
  */
 export type CampoOpcional = Extract<
   CampoConexion,
-  'user' | 'database' | 'instancia' | 'autenticacion' | 'dominio' | 'tls' | 'srv' | 'opcionesUri'
+  'user' | 'database' | 'instancia' | 'autenticacion' | 'dominio' | 'tls' | 'srv' | 'opcionesUri' | 'tunelSsh' | 'topologiaRedis'
 >
 
 /**
@@ -144,15 +148,34 @@ export interface CapacidadesConexion {
   puertoPorDefecto: number | null
   /** Los que el main exige por sí solos (los de un grupo excluyente van en el grupo). */
   obligatorios: readonly CampoConexion[]
-  /** Los que el motor usa sin exigirlos (ver `CampoOpcional`). Vacía en Oracle, PG y SQLite. */
+  /** Los que el motor usa sin exigirlos (ver `CampoOpcional`). Vacía en SQLite. */
   opcionales: readonly CampoOpcional[]
   /**
    * El cifrado de una conexión de este motor que no dice nada, si no es
-   * `TLS_POR_DEFECTO` (cifrar y verificar, el de SQL Server). MongoDB: sin cifrar (un
-   * servidor local no cifra; Atlas llega por `srv`, que lo activa). Solo tiene sentido con
-   * 'tls' en `opcionales`. Lo lee `tlsDeConexion` (`motores/index.ts`).
+   * `TLS_POR_DEFECTO` (cifrar y verificar, el de SQL Server). MongoDB, Redis, PostgreSQL y
+   * Oracle: sin cifrar (un servidor local no cifra, y las conexiones guardadas antes de que el
+   * motor tuviera cifrado no lo llevan; Atlas llega por `srv`, que lo activa). Solo tiene
+   * sentido con 'tls' en `opcionales`. Lo lee `tlsDeConexion` (`motores/index.ts`).
    */
   tlsPorDefecto?: Readonly<DbTls>
+  /**
+   * false si el cliente del motor no puede cifrar SIN verificar el certificado (Oracle en thin:
+   * oracledb verifica siempre). El formulario apaga «confiar en el certificado» y el main
+   * lo guarda siempre apagado. Ausente = sí puede.
+   */
+  admiteConfiarCertificado?: boolean
+  /**
+   * true si el cifrado solo se guarda cuando cifra (PostgreSQL y Oracle): sin él, el registro y la
+   * huella del destino de sus conexiones sin cifrar siguen siendo los de antes de tener cifrado.
+   * Ausente = se guarda siempre el efectivo (con `tlsPorDefecto`) o el escrito (sin él).
+   */
+  tlsSoloCifrando?: boolean
+  /**
+   * false si el cliente no puede verificar el certificado por un túnel SSH (Oracle en thin solo lo
+   * compara con el host al que conecta, y por el túnel es 127.0.0.1): el main rechaza guardar las
+   * dos cosas a la vez. Ausente = sí puede (se verifica contra el host real).
+   */
+  cifraPorTunel?: boolean
   /**
    * DERIVADA (`definirMotor`): los campos de la FORMA en disco, en el orden de
    * `obligatorios` (ver `CampoForma`). Oracle y PG: host y puerto; SQLite: el archivo.
@@ -205,7 +228,7 @@ export interface ParametrosFormateador {
 
 export interface FormateadorMotor {
   /** Nombre del dialecto de sql-formatter (el objeto lo importa el renderer, perezoso). */
-  dialecto: 'plsql' | 'postgresql' | 'sqlite' | 'transactsql'
+  dialecto: 'plsql' | 'postgresql' | 'sqlite' | 'transactsql' | 'mysql'
   /** `paramTypes` que se pasan, o null para no pasar la clave (el de la librería). */
   parametros: ParametrosFormateador | null
 }
@@ -220,7 +243,7 @@ export interface CapacidadesSql<M extends DbMotorSql = DbMotorSql> {
   /** Id del lenguaje de Monaco del modelo de una CONSOLA. */
   lenguajeConsola: string
   /** Id del lenguaje de Monaco de la pestaña de FUENTE (`plsql` no existe en Monaco). */
-  lenguajeFuente: 'sql' | 'pgsql'
+  lenguajeFuente: 'sql' | 'pgsql' | 'mysql'
   /** Con qué formatea «Formatear» de la consola. */
   formateador: FormateadorMotor
 }
@@ -260,14 +283,15 @@ export interface CapacidadesCatalogo {
  * El nivel «Bases» del árbol (el árbol
  * HÍBRIDO):
  *   - 'ninguno': una conexión es una base y el árbol empieza en sus esquemas (Oracle, PG,
- *     SQLite: lo de siempre).
+ *     SQLite: lo de siempre). MySQL también: en MySQL «base» y «esquema» son lo mismo, así
+ *     que sus bases son el nivel de los esquemas y el selector de la consola hace `USE`.
  *   - 'sinBaseFija': si la conexión FIJA una base (`database`), el árbol es como el de PG
  *     (esquemas → carpetas) y la sesión trabaja en ella; si la deja VACÍA, el árbol empieza
  *     en un nivel «Bases» con su «N de M» (`DbConnection.bases`, la misma forma que los
  *     esquemas visibles), y el selector de la consola elige la BASE (`USE`), no el esquema:
  *     en SQL Server no se cambia el esquema de una sesión, se cambia de base (SQL Server).
- * Una unión y no un booleano: Azure SQL Database (sin `USE` ni nombres de tres partes) o
- * MySQL (base = esquema) traerán su valor.
+ * Una unión y no un booleano: Azure SQL Database (sin `USE` ni nombres de tres partes)
+ * traerá su valor.
  */
 export type NivelBases = 'ninguno' | 'sinBaseFija'
 
@@ -305,7 +329,10 @@ export interface PaginadoMotor {
  * - 'transaccionSoloLectura': `SET TRANSACTION READ ONLY` antes de cada sentencia; tras un
  *   error hay que revertir para soltarla (Oracle).
  * - 'envoltorioRollback': cada sentencia dentro de `BEGIN READ ONLY … ROLLBACK`; lo que
- *   tenga que sobrevivir (la lista blanca de SET) va FUERA del envoltorio (PG).
+ *   tenga que sobrevivir (la lista blanca de SET) va FUERA del envoltorio (PG). MySQL con
+ *   `START TRANSACTION READ ONLY … ROLLBACK` y, además, la sesión entera en `READ ONLY`:
+ *   un DDL confirma y cierra la transacción antes de ejecutarse, y es la característica
+ *   de la sesión la que lo sigue rechazando.
  * - 'autorizador': lo impone el propio proceso con el autorizador de SQLite
  *   (`sqlite3_set_authorizer`, perfil de lectura de `src/tdb/sqliteComun.cjs`) sobre una
  *   conexión abierta con `readOnly`; no hay transacción que abrir ni que revertir (SQLite).

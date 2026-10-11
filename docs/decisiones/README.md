@@ -123,6 +123,8 @@ alfabético.
   atajos de ventana por `before-input-event`.
 - [app/cierre-ordenado.md](app/cierre-ordenado.md) — todo cierre pasa por un único cierre
   ordenado que pregunta antes, apaga en orden y decide la actualización al final.
+- [app/registro-de-salud.md](app/registro-de-salud.md) — las versiones alpha graban un registro
+  local de memoria y procesos; la pública no graba nada.
 - [app/ventana-arranque-y-recuperacion.md](app/ventana-arranque-y-recuperacion.md) — la ventana
   nace maximizada en el monitor principal, se muestra aunque no llegue `ready-to-show` y se
   recupera sola.
@@ -136,6 +138,11 @@ alfabético.
 - [bd/adaptador-postgres-arranque-de-sesion.md](bd/adaptador-postgres-arranque-de-sesion.md) — las
   opciones de sesión de PostgreSQL van al constructor del cliente y el oyente de error antes de
   conectar.
+- [bd/adaptador-mysql-conexion-y-celdas.md](bd/adaptador-mysql-conexion-y-celdas.md) — MySQL
+  verifica el certificado contra el servidor real también por el túnel y deja cada valor como su
+  texto exacto.
+- [bd/adaptador-mysql-solo-lectura.md](bd/adaptador-mysql-solo-lectura.md) — en MySQL el agente
+  solo lee: el servidor en READ ONLY, una sentencia por orden y lo que el prefijo no ve, rechazado.
 - [bd/adaptador-redis-cliente-y-marcas.md](bd/adaptador-redis-cliente-y-marcas.md) — el cliente de
   Redis se configura contra los defectos de ioredis y lo que es lectura lo dicen las marcas.
 - [bd/adaptador-redis-solo-lectura-y-texto.md](bd/adaptador-redis-solo-lectura-y-texto.md) — en
@@ -150,6 +157,8 @@ alfabético.
   el solo lectura lo impone Tessera con tres capas, y el tope de filas cancela la petición.
 - [bd/catalogo-ddl.md](bd/catalogo-ddl.md) — «Ver DDL» sale de DBMS_METADATA en Oracle, con
   repliegue a ALL_* y el cuerpo de PL/SQL intacto, y se genera desde el catálogo en el resto.
+- [bd/catalogo-motores-mysql.md](bd/catalogo-motores-mysql.md) — el catálogo de MySQL sale de
+  `information_schema` con las listas en JSON, y el «Ver DDL», de `SHOW CREATE`.
 - [bd/catalogo-motores-oracle.md](bd/catalogo-motores-oracle.md) — el catálogo de Oracle sirve a
   la 11.2: binds con nombre, sin FETCH/OFFSET, y las FK en tres consultas con el hint medido.
 - [bd/catalogo-motores-postgres.md](bd/catalogo-motores-postgres.md) — el catálogo de PostgreSQL
@@ -242,6 +251,8 @@ alfabético.
   un registro exhaustivo, lo que falta lanza y los archivos por motor no importan `index.ts`.
 - [bd/motores-explicar.md](bd/motores-explicar.md) — el Explain nunca ejecuta la sentencia y no
   estropea la transacción del usuario.
+- [bd/motores-sesion-mysql.md](bd/motores-sesion-mysql.md) — en MySQL el «esquema» de la consola
+  es la base (`USE`) y la rejilla no edita lo que su texto no escribe.
 - [bd/motores-sesion-sqlite.md](bd/motores-sesion-sqlite.md) — SQLite edita por el alias del
   rowid, conserva la clase de almacenamiento y espera por archivo.
 - [bd/motores-sesion-sqlserver.md](bd/motores-sesion-sqlserver.md) — en SQL Server el «esquema»
@@ -260,6 +271,8 @@ alfabético.
   `tdb` pregunta al puente en cada invocación, por named pipe o por un socket en carpeta 0700.
 - [bd/puente-textos-del-agente.md](bd/puente-textos-del-agente.md) — los textos que lee el agente
   distinguen catálogo de montado, dan la regla de producción y dicen quién impone el solo lectura.
+- [bd/redis-sentinel-y-cluster.md](bd/redis-sentinel-y-cluster.md) — Redis a Sentinel y a Cluster con
+  un campo de topología: sin túnel, el SCAN de Cluster con un cursor compuesto y lo que no tiene sentido, dicho.
 - [bd/registro-motores-descriptor.md](bd/registro-motores-descriptor.md) — lo que cambia de un motor
   a otro es un descriptor de datos, en una unión por familia.
 - [bd/registro-motores-guardia-de-motores-sueltos.md](bd/registro-motores-guardia-de-motores-sueltos.md) —
@@ -267,6 +280,8 @@ alfabético.
 - [bd/registro-motores-mongodb-y-redis.md](bd/registro-motores-mongodb-y-redis.md) — los
   descriptores de MongoDB y Redis: sin usuario obligatorio, sin TLS por defecto y solo lectura por
   lista blanca.
+- [bd/registro-motores-mysql.md](bd/registro-motores-mysql.md) — MySQL y MariaDB son un motor: la
+  base es el esquema, mysql2 en JavaScript y el léxico con el modo SQL que fija Tessera.
 - [bd/registro-motores-sqlite.md](bd/registro-motores-sqlite.md) — el descriptor de SQLite: un
   archivo, un proceso por consola y nunca un cursor vivo.
 - [bd/registro-motores-sqlserver.md](bd/registro-motores-sqlserver.md) — el descriptor de SQL
@@ -313,6 +328,8 @@ alfabético.
   main y no usa lo que el main no usa.
 - [bd/trabajador-ciclo-de-vida.md](bd/trabajador-ciclo-de-vida.md) — el proceso de sesión no toca
   stdout, no muere por una promesa huérfana y sale a mano.
+- [bd/trabajador-mysql-sesion.md](bd/trabajador-mysql-sesion.md) — la sesión MySQL sigue la
+  transacción por el estado del servidor y Detener es un KILL QUERY desde otra conexión.
 - [bd/trabajador-oracle-sesion.md](bd/trabajador-oracle-sesion.md) — la sesión Oracle fija formato
   por execute, lee con cursor vivo y pone el candado sentencia a sentencia.
 - [bd/trabajador-postgres-sesion.md](bd/trabajador-postgres-sesion.md) — la sesión PostgreSQL lee
@@ -608,6 +625,9 @@ alfabético.
   plataforma como parámetro.
 - [renderer/banda-de-perfiles.md](renderer/banda-de-perfiles.md) — la banda de perfiles es una
   fila hermana de la barra de título, fuera de la región de arrastre, y pinta el color cenizo.
+- [renderer/barras-de-desplazamiento.md](renderer/barras-de-desplazamiento.md) — una sola pastilla
+  de barra en toda la app (nativas y Monaco), oculta fuera de su zona; sin propiedades estándar
+  que en Chromium anulen el `::-webkit-scrollbar`.
 - [renderer/barriles-sin-ciclos.md](renderer/barriles-sin-ciclos.md) — lo que solo compone
   App.tsx sale del `index.ts` a un `app.ts` por feature, y lo que dos features se necesitan va por
   prop: entre barriles no queda ningún ciclo y `test:ciclos` no deja que vuelva.
@@ -691,6 +711,9 @@ alfabético.
 
 ### sistema
 
+- [sistema/abrir-con-en-linux.md](sistema/abrir-con-en-linux.md) — en Linux «Abrir con Tessera»
+  es un `tessera.desktop` propio en `$XDG_DATA_HOME/applications` con `inode/directory`, marcado
+  con una clave propia y reconciliado al arrancar; no cambia la aplicación por defecto.
 - [sistema/accion-rapida-del-finder.md](sistema/accion-rapida-del-finder.md) — en macOS «Abrir con
   Tessera» es un `.workflow` en `~/Library/Services` que se reconcilia al arrancar y cuya verdad es
   el disco, no el ajuste.
@@ -764,6 +787,9 @@ alfabético.
 
 ### workspace
 
+- [workspace/borrar-perfil-con-orden.md](workspace/borrar-perfil-con-orden.md) — lo de un perfil
+  solo se borra con su orden explícita; guardar la lista nunca borra, y al arrancar solo se terminan
+  los borrados que quedaron a medias.
 - [workspace/estado-persistido-crash-safe.md](workspace/estado-persistido-crash-safe.md) — los JSON
   de estado se escriben crash-safe desde una copia en memoria con debounce, y una versión más nueva
   se archiva antes de degradarla.

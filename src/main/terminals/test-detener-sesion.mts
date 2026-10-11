@@ -7,7 +7,7 @@
 // Cubre la salida elegante y la forzada, que la parada no avise a los exitListeners ni deje pasar
 // un `exit`, que la sesión se pueda relanzar y cerrar, que se rechacen las sesiones que no toca y
 // que dos paradas simultáneas vayan de una en una.
-// Escrito para las dos plataformas; en macOS queda sin verificar desde Windows.
+// Escrito para las dos plataformas.
 // =============================================================================
 
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'

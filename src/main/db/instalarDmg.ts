@@ -100,6 +100,18 @@ export function ordenVerificarFirma(archivo: string, teamId: string): OrdenExter
   return { cmd: CODESIGN, args: ['--verify', '--strict', '-R', requisitoFirma(teamId), archivo] }
 }
 
+/**
+ * El stderr de una orden sin los avisos de «obsoleto» del sistema (`hdiutil: WARNING: '…' is
+ * deprecated…`): no dicen nada del fallo y en el mensaje al usuario taparían la causa.
+ */
+export function sinAvisosDeObsoleto(stderr: string): string {
+  return stderr
+    .split('\n')
+    .filter((l) => !/^\S+: WARNING: .* is deprecated\b/i.test(l.trim()))
+    .join('\n')
+    .trim()
+}
+
 /** ¿Coincide la huella calculada con la publicada? Sin caja ni espacios de más. */
 export function huellaCoincide(calculada: string, esperada: string): boolean {
   const a = calculada.trim().toLowerCase()

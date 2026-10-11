@@ -6,7 +6,7 @@
 // Decisiones: docs/decisiones/bd/ui-consola-barra-y-pane.md
 // =============================================================================
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { editor } from 'monaco-editor'
 import { asegurarAutocompletadoSql } from '../autocompletado/proveedorSqlMonaco'
 import { useConsola } from './useConsola'
@@ -16,7 +16,7 @@ import { MAX_FRAMES_CREACION } from '../documentos/consolaComun'
 import { useRepartoAlto } from '../documentos/useRepartoAlto'
 import type { DbConsolaPaneProps } from '../propsBd'
 import { retenerSilencioCancelaciones } from '../silencioCancelacionesMonaco'
-import type { AnclaDerecha } from '../../../comun/popoverFlotante'
+import { useAnclaHistorial } from './useAnclaHistorial'
 
 /** Crea el editor de la consola sobre su modelo y le da el foco. */
 function crearEditor(host: HTMLElement, modelo: editor.ITextModel, soloLectura: boolean): editor.IStandaloneCodeEditor {
@@ -130,20 +130,7 @@ export function useSeccionDelPane(
     [colRepartoRef]
   )
 
-  // El popover cuelga del botón del reloj, lo abra el ratón o el acorde. Una consola que
-  // se oculta lo cierra: por portal seguiría flotando sobre lo que se vea después.
-  const [anclaHistorial, setAnclaHistorial] = useState<AnclaDerecha | null>(null)
-  useLayoutEffect(() => {
-    if (!historialAbierto) {
-      setAnclaHistorial(null)
-      return
-    }
-    const r = seccionRef.current?.querySelector('.db-consola-historial-btn')?.getBoundingClientRect()
-    if (r) setAnclaHistorial({ left: r.left, right: r.right, top: r.top, bottom: r.bottom })
-  }, [historialAbierto])
-  useEffect(() => {
-    if (!visible && historialAbierto) cerrarHistorial()
-  }, [visible, historialAbierto, cerrarHistorial])
+  const anclaHistorial = useAnclaHistorial(seccionRef, historialAbierto, visible, cerrarHistorial)
 
   return { colRef, maxResultados, altoEfectivo, anclaHistorial }
 }

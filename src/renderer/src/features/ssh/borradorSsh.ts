@@ -2,13 +2,14 @@
 // El BORRADOR del diálogo de una conexión SSH: lógica pura de `DialogoConexionSsh`. De una
 // conexión a un borrador editable, de vuelta a lo que viaja al main (`SshConexionInput`), qué
 // campos marcar tras un intento de guardar, si hay cambios y cómo se llaman los botones. Del archivo
-// de clave solo guarda el nombre y la ficha; del secreto, lo TECLEADO: la ruta y el guardado no llegan.
+// de clave solo guarda el nombre y la ficha; del secreto, lo TECLEADO: la ruta y el guardado no llegan. El
+// bastión y los túneles viajan siempre (el formulario los enseña todos).
 // Sin React ni DOM: se fija bajo `node` (`test-borrador-ssh.mts`).
 // Decisiones: docs/decisiones/terminales/pestanas-ssh-del-perfil.md, docs/decisiones/ssh/askpass-y-secretos.md
 // =============================================================================
 
 import { SSH_ALIAS_MAX, SSH_SECRETO_MAX_BYTES, pideSecretoSsh } from '../../../../shared/ssh-ipc.ts'
-import type { SshClaveElegida, SshConexion, SshConexionInput, SshMetodo } from '../../../../shared/ssh-ipc.ts'
+import type { SshClaveElegida, SshConexion, SshConexionInput, SshMetodo, SshTipoTunel, SshTunel } from '../../../../shared/ssh-ipc.ts'
 
 /** El puerto con el que nace una conexión. */
 export const PUERTO_SSH_POR_DEFECTO = 22
@@ -54,10 +55,58 @@ export interface BorradorSsh {
   tieneSecreto: boolean
   /** …y este equipo no lo puede descifrar. */
   secretoIlegible: boolean
+  /** El bastión (otra conexión del perfil), o `null` = directo. */
+  saltoId: string | null
+  /** Los túneles, con los puertos TECLEADOS. */
+  tuneles: TunelBorrador[]
+}
+
+/** Un túnel del formulario: lo tecleado, y una clave propia para la lista (no viaja). */
+export interface TunelBorrador {
+  clave: string
+  tipo: SshTipoTunel
+  puerto: string
+  /** Vacíos en el dinámico. */
+  destinoHost: string
+  destinoPuerto: string
 }
 
 /** Los campos que puede marcar una validación, en el orden del formulario (el del foco). */
-export type CampoSsh = 'alias' | 'host' | 'puerto' | 'usuario' | 'metodo' | 'clave' | 'secreto'
+export type CampoSsh = 'alias' | 'host' | 'puerto' | 'usuario' | 'metodo' | 'clave' | 'secreto' | 'tuneles'
+
+let tunelesCreados = 0
+
+/** Un túnel nuevo del formulario: local, vacío. */
+export function tunelNuevo(): TunelBorrador {
+  return { clave: `t${++tunelesCreados}`, tipo: 'local', puerto: '', destinoHost: 'localhost', destinoPuerto: '' }
+}
+
+/** Un túnel guardado, como fila del formulario. */
+function tunelDesde(t: SshTunel): TunelBorrador {
+  return { clave: `t${++tunelesCreados}`, tipo: t.tipo, puerto: String(t.puerto), destinoHost: t.destinoHost ?? '', destinoPuerto: t.destinoPuerto === undefined ? '' : String(t.destinoPuerto) }
+}
+
+/** ¿Le falta algo a un túnel del formulario? Los puertos y, salvo en el dinámico, el destino. */
+export function tunelIncompleto(t: TunelBorrador): boolean {
+  if (!puertoValido(t.puerto)) return true
+  return t.tipo !== 'dinamico' && (t.destinoHost.trim() === '' || !puertoValido(t.destinoPuerto))
+}
+
+/** Un túnel del formulario como viaja al main (ya completo). */
+function tunelDe(t: TunelBorrador): SshTunel {
+  if (t.tipo === 'dinamico') return { tipo: 'dinamico', puerto: Number(t.puerto.trim()) }
+  return { tipo: t.tipo, puerto: Number(t.puerto.trim()), destinoHost: t.destinoHost.trim(), destinoPuerto: Number(t.destinoPuerto.trim()) }
+}
+
+/** Los túneles comparables: sin la clave de la lista y sin lo que el main no distingue. */
+function firmaTuneles(tuneles: readonly TunelBorrador[]): string {
+  return JSON.stringify(tuneles.map((t) => [t.tipo, t.puerto.trim(), t.tipo === 'dinamico' ? '' : t.destinoHost.trim(), t.tipo === 'dinamico' ? '' : t.destinoPuerto.trim()]))
+}
+
+/** ¿Cambió el bastión o algún túnel? */
+function cambiaronSaltoOTuneles(b: BorradorSsh, original: BorradorSsh): boolean {
+  return b.saltoId !== original.saltoId || firmaTuneles(b.tuneles) !== firmaTuneles(original.tuneles)
+}
 
 /** Borrador de un alta: puerto 22, contraseña y disponible para los agentes. */
 export function borradorNuevo(profileId: string, grupoId: string | null = null): BorradorSsh {
@@ -74,7 +123,9 @@ export function borradorNuevo(profileId: string, grupoId: string | null = null):
     secreto: '',
     olvidarSecreto: false,
     tieneSecreto: false,
-    secretoIlegible: false
+    secretoIlegible: false,
+    saltoId: null,
+    tuneles: []
   }
 }
 
@@ -94,7 +145,9 @@ export function borradorDesde(c: SshConexion): BorradorSsh {
     secreto: '',
     olvidarSecreto: false,
     tieneSecreto: c.tieneSecreto,
-    secretoIlegible: c.secretoIlegible === true
+    secretoIlegible: c.secretoIlegible === true,
+    saltoId: c.saltoId,
+    tuneles: c.tuneles.map(tunelDesde)
   }
 }
 
@@ -114,7 +167,9 @@ const CAMPOS_EDITABLES = [
   'clave',
   'disponibleAgentes',
   'secreto',
-  'olvidarSecreto'
+  'olvidarSecreto',
+  'saltoId',
+  'tuneles'
 ] as const satisfies readonly (keyof BorradorSsh)[]
 
 /**
@@ -169,6 +224,7 @@ export function camposAMarcar(b: BorradorSsh): CampoSsh[] {
   // Al editar, sin clave nueva vale la guardada; sin ninguna (un alta, o al pasar a este método), falta.
   if (b.metodo === 'clave' && b.clave === null) marcas.push('clave')
   if (usaSecreto(b) && bytesUtf8(b.secreto) > SSH_SECRETO_MAX_BYTES) marcas.push('secreto')
+  if (b.tuneles.some(tunelIncompleto)) marcas.push('tuneles')
   return marcas
 }
 
@@ -191,7 +247,9 @@ export function entradaDe(b: BorradorSsh): SshConexionInput {
     puerto: Number(b.puerto.trim()),
     usuario: b.usuario.trim(),
     metodo: b.metodo,
-    disponibleAgentes: b.disponibleAgentes
+    disponibleAgentes: b.disponibleAgentes,
+    saltoId: b.saltoId,
+    tuneles: b.tuneles.map(tunelDe)
   }
   if (b.metodo === 'clave' && b.clave !== null && b.clave.token !== null) entrada.clave = { tipo: 'elegida', token: b.clave.token }
   if (usaSecreto(b) && b.secreto !== '') entrada.secreto = b.secreto
@@ -209,6 +267,7 @@ export function hayCambios(b: BorradorSsh, original: BorradorSsh): boolean {
     b.usuario.trim() !== original.usuario.trim() ||
     b.metodo !== original.metodo ||
     b.disponibleAgentes !== original.disponibleAgentes ||
+    cambiaronSaltoOTuneles(b, original) ||
     (b.clave?.token ?? null) !== (original.clave?.token ?? null) ||
     b.secreto !== '' ||
     b.olvidarSecreto

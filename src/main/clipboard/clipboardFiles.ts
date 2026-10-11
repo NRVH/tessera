@@ -1,7 +1,8 @@
 // =============================================================================
 // Ficheros del portapapeles del sistema, en el main: en Windows por los formatos registrados del
 // Shell (`Shell IDList Array`, `Preferred DropEffect`, `FileNameW`) con PowerShell de reserva para
-// la lista completa; en macOS por el plist de `NSFilenamesPboardType` o `public.file-url`. Un
+// la lista completa; en macOS por el plist de `NSFilenamesPboardType` o `public.file-url`; en
+// Linux por los formatos del gestor de archivos (`portapapelesLinux.ts`). Un
 // sondeo barato para el menú contextual y la lista completa solo al pegar; un fallo es «no pega»,
 // nunca «pierde datos». El portapapeles entra por `adaptadores/portapapelesElectron.ts`.
 // Decisiones: docs/decisiones/explorador/portapapeles-del-sistema.md
@@ -13,7 +14,14 @@ import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import type { PortapapelesSistema } from './adaptadores/portapapelesElectron'
-import { esMac, esWindows } from '../../shared/plataforma'
+import { esLinux, esMac, esWindows } from '../../shared/plataforma'
+import {
+  copiadosLinux,
+  FMT_LINUX_GNOME,
+  FMT_LINUX_KDE_CORTAR,
+  FMT_LINUX_URIS,
+  type CopiadosLinux
+} from './portapapelesLinux'
 import { MAX_TEXTO_SONDEO, type ClipboardProbe } from '../../shared/clipboard-ipc'
 import type { PasteResult } from '../../shared/files-ipc'
 
@@ -92,10 +100,12 @@ export function probeClipboard(pp: PortapapelesSistema): ClipboardProbe {
   // otras respuestas. Ver `sondearMac`.
   if (esMac()) return sondearMac(pp)
 
-  // En cualquier otro sistema (Linux) solo se informa del TEXTO: no hay
-  // implementación de lectura de ficheros, y anunciar 'files' ofrecería un "Pegar"
-  // que no podría cumplir. El texto sí, porque es lo que valida el portapapeles
-  // INTERNO del explorador, que funciona en cualquier plataforma.
+  if (esLinux()) return sondearLinux(pp)
+
+  // En cualquier otro sistema (BSD) solo se informa del TEXTO: no hay implementación
+  // de lectura de ficheros, y anunciar 'files' ofrecería un "Pegar" que no podría
+  // cumplir. El texto sí, porque es lo que valida el portapapeles INTERNO del
+  // explorador, que funciona en cualquier plataforma.
   if (!esWindows()) {
     return { kind: 'none', count: 0, effect: 'copy', texto: safeReadText(pp) }
   }
@@ -270,6 +280,30 @@ export function rutaDesdeFileUrl(url: string): string | null {
   }
 }
 
+// -----------------------------------------------------------------------------
+// Linux — formatos del gestor de archivos (ver `portapapelesLinux.ts`)
+// -----------------------------------------------------------------------------
+
+/**
+ * Se leen los tres formatos sin mirar antes `availableFormats()`: según el servidor
+ * gráfico, Chromium no siempre anuncia los formatos que no son estándar, y leer uno
+ * ausente devuelve cadena vacía. Son unos cientos de bytes por formato.
+ */
+function copiadosDelPortapapelesLinux(pp: PortapapelesSistema): CopiadosLinux {
+  return copiadosLinux({
+    gnome: safeRead(pp, FMT_LINUX_GNOME),
+    uris: safeRead(pp, FMT_LINUX_URIS),
+    kdeCortar: safeRead(pp, FMT_LINUX_KDE_CORTAR)
+  })
+}
+
+function sondearLinux(pp: PortapapelesSistema): ClipboardProbe {
+  const { rutas, efecto } = copiadosDelPortapapelesLinux(pp)
+  if (rutas.length > 0) return { kind: 'files', count: rutas.length, effect: efecto }
+  if (pp.formatos().includes(MIME_IMAGE)) return { kind: 'image', count: 1, effect: 'copy' }
+  return { kind: 'none', count: 0, effect: 'copy', texto: safeReadText(pp) }
+}
+
 /** `clipboard.read` tolerante. Nunca lanza (mismo criterio que `safeReadBuffer`). */
 function safeRead(pp: PortapapelesSistema, formato: string): string {
   try {
@@ -341,6 +375,10 @@ export async function readClipboardFiles(pp: PortapapelesSistema): Promise<Clipb
   // mejor pegar de menos que fallar entero.
   if (esMac()) {
     return { paths: rutasDelPortapapelesMac(pp).filter((p) => existsSync(p)), effect: 'copy' }
+  }
+  if (esLinux()) {
+    const { rutas, efecto } = copiadosDelPortapapelesLinux(pp)
+    return { paths: rutas.filter((p) => existsSync(p)), effect: efecto }
   }
 
   if (probe.count === 1) {

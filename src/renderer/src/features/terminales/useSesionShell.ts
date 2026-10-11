@@ -1,14 +1,15 @@
 // =============================================================================
 // Efectos de sesión de un `TerminalPane`: reconcile de apertura, hibernación, fit al volver a ser
-// visible, el primer dato de una sesión SSH y publicación de estado y acciones hacia el panel. Se
+// visible, el primer dato de una sesión SSH, reconectar o cancelar una SSH desde el propio pane y
+// publicación de estado y acciones hacia el panel. Se
 // llaman en este orden (React corre los efectos de un componente en el orden de declaración).
 // Una sesión SSH no depende del contenedor ni de los ajustes de montaje, ignora la hibernación y se
 // abre sola solo la primera vez que se ve.
 // Decisiones: docs/decisiones/terminales/terminales-keep-alive-y-reinicio-limpio.md
 // =============================================================================
 
-import { useEffect } from 'react'
-import { abrirSesion, manejarReload, type ContextoSesion } from './sesionShell'
+import { useEffect, useRef } from 'react'
+import { abrirSesion, cancelarConexion, manejarReload, type ContextoSesion } from './sesionShell'
 import { hayTextoVisible } from './textoSesionSsh'
 import type { RefsTerminal, TerminalPaneProps } from './terminalPaneTipos'
 import type { EstadoSesion } from './useEstadoTerminalPane'
@@ -51,7 +52,7 @@ export function useAperturaSesion(
   useEffect(() => {
     if (!activated || !visible) return
     if (esSsh) {
-      // Si falló o se cerró, mirar la pestaña otra vez no reintenta: eso es del botón «Reconectar».
+      // Si falló o se cerró, mirar la pestaña otra vez no reintenta: eso es de «Reconectar» o de Intro.
       if (refs.intentado.current) return
     } else {
       if (hibernated) return
@@ -100,6 +101,52 @@ export function usePrimerDatoSsh(props: TerminalPaneProps, refs: RefsTerminal, e
       if (msg.sessionId === refs.session.current && hayTextoVisible(msg.data)) setDatosRecibidos(true)
     })
   }, [esSsh, datosRecibidos, refs, setDatosRecibidos])
+}
+
+/** Reconectar y cancelar una sesión SSH desde su propio pane. */
+export interface AccionesSsh {
+  reconectar: () => void
+  cancelar: () => void
+}
+
+/**
+ * Las acciones SSH del pane: reconectar (relanza la sesión que hay o, sin ella, abre otra) y cancelar
+ * la conexión en curso. Con la sesión terminada, Intro en la terminal también reconecta, salvo si la
+ * conexión se eliminó; la entrada ya no llega a nadie, así que no se le roba nada a la sesión.
+ */
+export function useAccionesSsh(
+  props: TerminalPaneProps,
+  refs: RefsTerminal,
+  estado: EstadoSesion,
+  fitAndSyncNow: () => void,
+  conexionExiste: boolean
+): AccionesSsh {
+  const c = contextoSesion(props, refs, estado, fitAndSyncNow)
+  // Guarda SÍNCRONA: dos Intro antes del siguiente render verían los dos `reloading` en falso.
+  const enVuelo = useRef(false)
+  const acciones: AccionesSsh = {
+    reconectar: () => {
+      if (enVuelo.current) return
+      enVuelo.current = true
+      void manejarReload(refs.session.current ? 'reload' : 'open', c).finally(() => {
+        enVuelo.current = false
+      })
+    },
+    cancelar: () => cancelarConexion(c)
+  }
+  const ultimas = useRef(acciones)
+  ultimas.current = acciones
+  const esSsh = props.origen.tipo === 'ssh'
+  const terminada = estado.status === 'exited' || estado.status === 'error'
+  useEffect(() => {
+    const term = refs.term.current
+    if (!esSsh || !terminada || !conexionExiste || !term) return
+    const sub = term.onData((data) => {
+      if (data === '\r') ultimas.current.reconectar()
+    })
+    return () => sub.dispose()
+  }, [esSsh, terminada, conexionExiste, refs])
+  return acciones
 }
 
 /** Publica el estado y las acciones del pane hacia el header del panel (solo pinta el ACTIVO). */

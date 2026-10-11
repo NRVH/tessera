@@ -26,6 +26,7 @@ import {
   ordenVerificarFirma,
   requisitoFirma,
   rutasInstalacionDmg,
+  sinAvisosDeObsoleto,
   type DepsInstalarDmg,
   type OrdenExterna,
   type PackDmg
@@ -310,6 +311,16 @@ async function main(): Promise<void> {
         ]) &&
       requisitoFirma('ABC').startsWith('=anchor apple generic and '),
     firma.args.join(' | ')
+  )
+  const stderrMacos27 =
+    "hdiutil: WARNING: 'hdiutil attach -nobrowse -readonly -mountpoint ...' is deprecated. Please use 'diskutil image attach --mountOptions nobrowse --readOnly --mountPoint ...' instead.\n" +
+    'hdiutil: attach failed - No queda espacio en el dispositivo\n'
+  check(
+    'el aviso de «obsoleto» del sistema se quita del error; la causa se queda',
+    sinAvisosDeObsoleto(stderrMacos27) === 'hdiutil: attach failed - No queda espacio en el dispositivo' &&
+      sinAvisosDeObsoleto("hdiutil: WARNING: 'hdiutil detach' is deprecated.") === '' &&
+      sinAvisosDeObsoleto('codesign: WARNING: algo distinto') === 'codesign: WARNING: algo distinto',
+    JSON.stringify(sinAvisosDeObsoleto(stderrMacos27))
   )
 
   // -------------------------------------------------------------------------

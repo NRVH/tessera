@@ -12,12 +12,13 @@ import type { IPty, IDisposable } from 'node-pty'
 import path from 'node:path'
 import type { Profile } from '../profiles/types.ts'
 import type { SandboxManager } from '../sandbox/SandboxManager.ts'
+import { containerNameFor } from '../sandbox/gestor/nombres.ts'
 import { dbLog } from '../db/dbLog.ts'
 import { blindarEntradaPty } from './entradaPty.ts'
 import { descartarSalida, programarVolcado, volcarAhora } from './bufferSalida.ts'
 import { colaMuertesDelProceso } from './colaMuertes.ts'
 import { lanzarPtyDeSesion, resolverWorkspacePath } from './lanzamientoPty.ts'
-import { codigoDeSalidaTardio, matarArbolPosix, matarArbolWindows } from './adaptadores/pty.ts'
+import { codigoDeSalidaTardio, liberarPty, matarArbolPosix, matarArbolWindows } from './adaptadores/pty.ts'
 import { esWindows } from '../../shared/plataforma.ts'
 import { esperar } from '../util/esperas.ts'
 import {
@@ -42,11 +43,6 @@ const DEFAULT_ROWS = 24
 const GRACEFUL_EXIT_MS = 3000
 /** Tope para recuperar el código que ConPTY no trajo en `onExit`; menor que REAP_TIMEOUT_MS. */
 const CODIGO_TARDIO_TOPE_MS = 1000
-
-/** Nombre del contenedor del perfil: la convención `tessera-<id>` de SandboxManager. */
-function containerNameFor(profile: Profile): string {
-  return `tessera-${profile.id}`
-}
 
 /** Sesiones de terminal (pty) de los perfiles: crea, recarga, detiene y cierra. */
 export class TerminalService {
@@ -451,6 +447,11 @@ export class TerminalService {
       programarVolcado(record)
     })
     record.exitSub = pty.onExit(({ exitCode }) => {
+      // Con el proceso fuera, el hilo lector de salida de Windows ya no tiene nada que leer. Es el
+      // ÚNICO sitio que lo suelta: antes de la salida, un `kill()` que node-pty aún tiene en cola
+      // (pty sin su primer byte) necesita ese hilo para llegar a ejecutarse. Toda salida recolectada
+      // pasa por aquí; una que no se recolectó conserva su lector.
+      liberarPty(pty)
       // ConPTY a veces avisa sin código (`onExit({})`): una pestaña SSH que no conecta perdería
       // el 255 y con él «No se pudo conectar». Se recupera antes de anunciar nada.
       if (typeof exitCode === 'number') this.alSalir(record, pty, exitCode)

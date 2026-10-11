@@ -200,7 +200,8 @@
   background: var(--bg-elevated);
   border-bottom: 1px solid var(--border);
   font-weight: 600;
-  color: var(--fg-muted);
+  /* La cabecera en el claro y los valores en `--fg-datos`: el nombre de la columna destaca sobre sus datos. */
+  color: var(--fg);
 }
 .db-rejilla-esquina {
   position: sticky;
@@ -321,7 +322,7 @@
   white-space: pre;
   text-overflow: ellipsis;
   line-height: var(--db-alto-fila);
-  color: var(--fg);
+  color: var(--fg-datos);
   border-right: 1px solid var(--border-soft);
   border-bottom: 1px solid var(--border-soft);
   user-select: none;
@@ -345,6 +346,11 @@
 }
 .db-celda.sel {
   background: var(--sel-glow);
+}
+/* Seleccionado, el dato sube al claro; un NULL, un binario o un LOB conservan su gris, o se
+   confundirían con un texto que dijera lo mismo. */
+.db-celda.sel:not(.db-celda-nulo, .db-celda-bin, .db-celda-lob) {
+  color: var(--fg);
 }
 /* La celda activa: filete del color de selección por dentro (un borde cambiaría
    su caja y movería el texto). */

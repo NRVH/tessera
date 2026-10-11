@@ -21,7 +21,7 @@ import type { DialectoSql } from '../../../../../shared/sql/dialectosSql.ts'
 import type { ClaseSentencia, PeligroSentencia, RefObjeto } from '../../../../../shared/sql/clasificarSql.ts'
 import type { Sentencia } from '../../../../../shared/sql/divisorSql.ts'
 import type { DatosRejilla } from '../rejilla/celdasRejilla.ts'
-import { ID_SALIDA, type EstadoResultados, type ResultadoConLector } from '../resultados/pestanasResultado.ts'
+import { ID_SALIDA, type AccionPestanaResultado, type EstadoResultados, type ResultadoConLector } from '../resultados/pestanasResultado.ts'
 import type { Lote } from './lote.ts'
 import { agregarSalida, type NuevaEntrada, type SalidaConsola } from './salidaConsola.ts'
 
@@ -114,7 +114,7 @@ export interface Peligro {
 }
 
 /** Lo que se puede hacer con una pestaña de resultado desde su menú o su cabecera. */
-export type AccionPestana = 'activar' | 'fijar' | 'desfijar' | 'cerrar' | 'cerrarOtras' | 'cerrarTodas'
+export type AccionPestana = AccionPestanaResultado
 
 type Posicion = { linea: number; columna: number }
 

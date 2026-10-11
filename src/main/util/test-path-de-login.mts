@@ -260,15 +260,26 @@ async function main(): Promise<void> {
   hr('(9) extrasDelHost')
   // -------------------------------------------------------------------------
   {
-    const e = extrasDelHost('/Users/prueba')
+    const e = extrasDelHost('/Users/prueba', 'mac')
     check(
-      '(9a) los cuatro sitios, con ~/.docker/bin colgando del home dado',
+      '(9a) macOS: los cuatro sitios, con ~/.docker/bin colgando del home dado',
       e.length === 4 &&
         e.includes('/usr/local/bin') &&
         e.includes('/opt/homebrew/bin') &&
         e.includes('/Users/prueba/.docker/bin') &&
         e.includes('/Applications/Docker.app/Contents/Resources/bin'),
       e.join(':')
+    )
+    const l = extrasDelHost('/home/prueba', 'linux')
+    check(
+      '(9b) Linux: ~/.local/bin del home dado, snap y linuxbrew; nada de rutas de macOS',
+      l.includes('/usr/local/bin') &&
+        l.includes('/home/prueba/.local/bin') &&
+        l.includes('/snap/bin') &&
+        l.includes('/home/linuxbrew/.linuxbrew/bin') &&
+        !l.includes('/opt/homebrew/bin') &&
+        !l.some((s) => s.startsWith('/Applications')),
+      l.join(':')
     )
   }
 

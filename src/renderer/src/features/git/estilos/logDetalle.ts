@@ -19,6 +19,8 @@ export const CSS_LOG_DETALLE = `/* --- Columna 3: detalle del commit -----------
   flex: 0 0 auto;
   min-height: 0;
   overflow-y: auto;
+  /* El hueco de la barra, siempre: al aparecer no empuja los conteos de la derecha. */
+  scrollbar-gutter: stable;
   padding: 2px 0 4px;
 }
 .git-detalle-meta {

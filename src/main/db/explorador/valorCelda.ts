@@ -14,7 +14,7 @@ import type {
   DbValor
 } from '../../../shared/db-explorador-ipc.ts'
 import { marcadorPosicional, type DialectoSql } from '../../../shared/sql/dialectosSql.ts'
-import { citar } from '../../../shared/sql/identificadoresSql.ts'
+import { citarGenerado } from '../../../shared/sql/identificadoresSql.ts'
 import { motorExplorador } from './motores/index.ts'
 
 export interface ColumnaClave {
@@ -76,6 +76,7 @@ export function construirConsultaValor(p: PeticionConsultaValor): ConsultaValor 
   const binds: string[] = []
   const condiciones: string[] = []
   const sesion = motorExplorador(p.dialecto).sesion
+  const citar = (n: string): string => citarGenerado(n, p.dialecto)
   for (let i = 0; i < p.pk.length; i++) {
     const v = p.clave[i]
     if (v === null || v === undefined) return { error: 'La clave de la fila tiene un valor nulo.' }

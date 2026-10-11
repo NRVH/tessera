@@ -17,6 +17,12 @@ lo último que se tecleó, y sin que el instalador tropiece con archivos en uso.
 - Orden: overlay; vaciar consolas (con acuse y tope); `workspace-state` (con tope); procesos de sesión de BD; pausar el
   puente de `tdb` y soltar vigilantes y temporizadores; `docker rm -f` de todos los contenedores con progreso; 450 ms
   de «Listo». Cada etapa deja su duración en `logs/cierre.log`.
+- La etapa de Docker lleva un tope de 30 s SIN AVANZAR (`conTopeSinAvance`), además del de cada orden (2 min): con
+  Docker sin responder encadenaba el listado, los desmontajes y la verificación, y la ventana se quedaba minutos en
+  «Cerrando». Un tope total se descartó: con muchos contenedores y Docker sano cortaba un cierre que avanzaba y dejaba
+  agentes vivos sobre los proyectos. Pasado el tope se dice en el overlay y se sale; lo que quede lo retira el barrido
+  del siguiente arranque. La limpieza sigue en segundo plano: su progreso tardío ya no llega al overlay ni al registro,
+  y el plan C la espera antes de devolver la app (vaciaría el estado del sandbox con la app ya en uso).
 - `window-all-closed` no sale mientras `cerrando`: `destroy()` lo emite síncrono y salía antes de lanzar el instalador.
 - Con actualización: se matan los ptys registrados (en Windows cargan `OpenConsole.exe` desde la carpeta de
   instalación) y se lanza el instalador. Si falla y el cierre lo pidió el usuario al CERRAR, se sale igual (nunca se

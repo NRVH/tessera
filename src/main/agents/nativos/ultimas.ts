@@ -7,7 +7,13 @@
 
 import type { MetodoInstalacion } from '../../../shared/agentes-nativos-ipc.ts'
 import { esVersionExacta } from '../../../shared/versionesCli.ts'
-import { binarioCodexPublicado, PAQUETE_CLAUDE, PAQUETE_CODEX } from '../comandoActualizacion.ts'
+import {
+  binarioCodexPublicado,
+  documentoVersionServido,
+  PAQUETE_CLAUDE,
+  PAQUETE_CODEX,
+  versionBinarioCodex
+} from '../comandoActualizacion.ts'
 import {
   API_BREW_POR_DEFECTO,
   REGISTRO_NPM_POR_DEFECTO,
@@ -16,6 +22,7 @@ import {
   baseUrl,
   parsearDistTags,
   urlDistTags,
+  urlVersionNpm,
   versionCaskBrew
 } from './urls.ts'
 import { errMsg, type NucleoNativos } from './tipos.ts'
@@ -29,14 +36,35 @@ async function pedirTexto(e: NucleoNativos, url: string): Promise<string> {
   return texto
 }
 
+function registroNpm(e: NucleoNativos): string {
+  return baseUrl(e.deps.env.TESSERA_REGISTRO_NPM, REGISTRO_NPM_POR_DEFECTO)
+}
+
 async function distTags(e: NucleoNativos, paquete: string): Promise<Record<string, string>> {
-  const registro = baseUrl(e.deps.env.TESSERA_REGISTRO_NPM, REGISTRO_NPM_POR_DEFECTO)
-  const tags = parsearDistTags(await pedirTexto(e, urlDistTags(registro, paquete)))
+  const tags = parsearDistTags(await pedirTexto(e, urlDistTags(registroNpm(e), paquete)))
   if (tags === null) throw new Error('el registro de npm no devolvió dist-tags legibles')
   return tags
 }
 
-/** Codex por npm: `latest`, y «publicado» solo si el dist-tag de `<so>-<arch>` ya apunta a ella. */
+/**
+ * ¿Sirve ya el registro el binario de Codex de esta plataforma para `version`? El dist-tag
+ * puede apuntar a él antes de que su documento responda; cualquier fallo (un 404 incluido)
+ * cuenta como «aún no».
+ */
+async function binarioCodexServido(e: NucleoNativos, tags: Record<string, string>, version: string): Promise<boolean> {
+  const { plataforma, arch } = e.deps
+  if (!binarioCodexPublicado(tags, version, plataforma, arch)) return false
+  const delBinario = versionBinarioCodex(version, plataforma, arch)
+  try {
+    const texto = await pedirTexto(e, urlVersionNpm(registroNpm(e), PAQUETE_CODEX, delBinario))
+    return documentoVersionServido(texto, delBinario)
+  } catch (err) {
+    e.deps.log(`agentes nativos: el registro aún no sirve Codex ${delBinario}: ${errMsg(err)}`)
+    return false
+  }
+}
+
+/** Codex por npm: `latest`, y «publicado» solo si el registro ya sirve su binario de `<so>-<arch>`. */
 export async function ultimaCodex(e: NucleoNativos): Promise<UltimaCodex> {
   try {
     const tags = await distTags(e, PAQUETE_CODEX)
@@ -44,11 +72,7 @@ export async function ultimaCodex(e: NucleoNativos): Promise<UltimaCodex> {
     if (!esVersionExacta(latest)) {
       return { ultima: null, binarioPublicado: false, error: 'El registro de npm no da una versión exacta de Codex.' }
     }
-    return {
-      ultima: latest,
-      binarioPublicado: binarioCodexPublicado(tags, latest, e.deps.plataforma, e.deps.arch),
-      error: null
-    }
+    return { ultima: latest, binarioPublicado: await binarioCodexServido(e, tags, latest), error: null }
   } catch (err) {
     return {
       ultima: null,

@@ -34,4 +34,5 @@ export function registrarIpcClaves({ ipc, controlador }: DependenciasIpcClaves):
   h(K.ESCANEAR, 'ESCANEAR')
   h(K.VALOR, 'VALOR')
   h(K.CONSOLA_EJECUTAR, 'CONSOLA_EJECUTAR')
+  h(K.GUARDAR_TEXTO, 'GUARDAR_TEXTO')
 }

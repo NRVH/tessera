@@ -153,7 +153,8 @@ export const PROGRESO_EXPORTACION_MS = 250
 // --- Historial de consultas ------------------------------------------------
 
 /**
- * Entradas que se conservan por perfil. 5000 son semanas de trabajo diario (lo habitual en
+ * Entradas que se conservan por perfil y LENGUAJE (SQL y órdenes de MongoDB, cada uno con lo suyo:
+ * una consola no empuja fuera el historial de la otra). 5000 son semanas de trabajo diario (lo habitual en
  * un cliente de BD son miles por fuente) y el archivo se queda en pocos MB.
  */
 export const TOPE_HISTORIAL_POR_PERFIL = 5000
@@ -162,7 +163,7 @@ export const TOPE_HISTORIAL_POR_PERFIL = 5000
  * archivo entero en CADA sentencia; con 1000, una reescritura cada mil.
  */
 export const MARGEN_COMPACTAR_HISTORIAL = 1000
-/** Tamaño máximo del archivo de un perfil (unidades UTF-16), con muchas sentencias largas. */
+/** Tamaño máximo de las entradas de un lenguaje en el archivo de un perfil (unidades UTF-16). */
 export const TOPE_BYTES_HISTORIAL = 16 * 1024 * 1024
 /**
  * Sentencias más largas que esto NO se guardan (256 Ki): suelen ser volcados de datos

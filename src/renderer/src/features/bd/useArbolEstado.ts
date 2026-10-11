@@ -19,6 +19,7 @@ export function useArbolEstado(): EstadoUiArbol {
   const [confirmacion, setConfirmacion] = useState<EstadoUiArbol['confirmacion']>(null)
   const [renombrando, setRenombrando] = useState<EstadoUiArbol['renombrando']>(null)
   const [filtrandoClaves, setFiltrandoClaves] = useState<EstadoUiArbol['filtrandoClaves']>(null)
+  const [accionClaves, setAccionClaves] = useState<EstadoUiArbol['accionClaves']>(null)
   const [peticionTx, setPeticionTx] = useState<EstadoUiArbol['peticionTx']>(null)
   const [probando, setProbando] = useState<string | null>(null)
   const [ordenLocal, setOrdenLocal] = useState<EstadoUiArbol['ordenLocal']>(null)
@@ -42,6 +43,8 @@ export function useArbolEstado(): EstadoUiArbol {
     setRenombrando,
     filtrandoClaves,
     setFiltrandoClaves,
+    accionClaves,
+    setAccionClaves,
     peticionTx,
     setPeticionTx,
     probando,

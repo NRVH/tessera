@@ -5,7 +5,7 @@
 // Decisiones: docs/decisiones/bd/contratos-documentos.md
 // =============================================================================
 
-import type { DbRespuesta } from './db-explorador-ipc.ts'
+import type { DbPlan, DbRespuesta } from './db-explorador-ipc.ts'
 import type { DbFiltroGuiado, DbOrdenColumna } from './filtroGuiado.ts'
 
 export const DOCS_CHANNELS = {
@@ -66,6 +66,8 @@ export interface DbDocColeccion {
   tipo: 'coleccion' | 'vista' | 'serieTemporal'
   /** `estimatedDocumentCount` (barato: metadatos); ausente en una vista. */
   documentosEstimados?: number
+  /** Sus índices (`listIndexes`), con el conteo y con el mismo tope; ausente en una vista o si no se pudieron leer. */
+  indices?: DbDocIndice[]
 }
 
 export interface DbDocIndice {
@@ -201,6 +203,8 @@ export type DbDocResultado =
     }
   /** Un valor suelto (count, distinct, show dbs, un findOne), en notación del shell. */
   | { tipo: 'valor'; texto: string; base: string | null; avisos?: string[] }
+  /** El `explain` de una consulta, como plan para el visor de planes (`texto` es el del servidor). */
+  | { tipo: 'plan'; plan: DbPlan; base: string | null; avisos?: string[] }
   /** Una escritura: cuántos documentos casaron, cambiaron, se insertaron o borraron. */
   | {
       tipo: 'escritura'

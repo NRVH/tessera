@@ -1,6 +1,7 @@
 // =============================================================================
-// DbClavePane: la pestaña de clave de Redis, el visor de una clave (solo lectura: se escribe
-// por la consola). Cabecera con tipo, nombre, TTL con cuenta atrás, memoria y codificación;
+// DbClavePane: la pestaña de clave de Redis, el visor de una clave, que también edita (el valor
+// de un string, los elementos de un hash, list, set, zset o stream, la caducidad, renombrar, borrar) y la
+// exporta a JSON. Cabecera con tipo, nombre, TTL con cuenta atrás, memoria y codificación;
 // el cuerpo depende del tipo. Cumple el contrato de `DbArea`: no pide nada hasta su primer
 // `visible`, publica sus indicadores y al desmontarse cancela lo que tenga en vuelo.
 // Decisiones: docs/decisiones/bd/ui-claves-pestana.md
@@ -12,17 +13,23 @@ import type { DbConnection } from '../../../../../shared/db-ipc'
 import type { DbKvBytes, DbKvContenido, DbKvValor } from '../../../../../shared/db-claves-ipc'
 import type { IndicadorPestana } from '../dbTabsModel'
 import { basePorDefectoClaves } from '../arbolClaves'
-import { pintarBytes } from './bytesClaves'
+import type { AbrirConsolaEn } from '../consola/basesConsola'
+import { bytesDeBase64, bytesDeTexto, pintarBytes } from './bytesClaves'
+import type { AccionClave } from './edicionClaves'
 import { bytesLegibles, comandoConsola, etiquetaTipo, resumenElementos, ttlLegible } from './visorClaves'
 import { useLecturaClave, useTtlClave, useVigilanciaClave, type LecturaClave } from './useLecturaClave'
 import { useVisorClave, type VisorClave } from './useVisorClave'
 import { cuerpoClave } from './cuerpoClave'
+import { useEdicionClave } from './useEdicionClave'
+import { botonesEdicion, itemsFilaEdicion, nombreCampoDe } from './accionesEdicionClave'
+import { DialogoEdicionClave } from './DialogoEdicionClave'
 import { copiarTexto } from '../documentos/utilPanes'
 import { ContextMenu } from '../../../comun/ContextMenu'
 import { IconoCopiar } from '../../../comun/iconosMenu'
 import { BotonBarraBd } from '../rejilla/DatosBotonBarra'
 import { MarcaEntorno } from '../MarcaEntorno'
-import { IconoConsola, IconoDetener, IconoRefrescar, IconoVerValor } from '../iconosBd'
+import { IconoConsola, IconoDetener, IconoExportar, IconoRefrescar, IconoVerValor } from '../iconosBd'
+import { useExportarClave, type ExportarClave } from './useExportarClave'
 import '../rejilla.css'
 import '../documentos/documentos.css'
 import './claves.css'
@@ -39,8 +46,10 @@ export interface PropsClave {
   visible: boolean
   altoFila: number
   onIndicador: (i: ReadonlySet<IndicadorPestana>) => void
-  /** Abre una consola de esta conexión con un texto inicial. */
-  onAbrirConsola?: (conexionId: string, textoInicial?: string) => void
+  /** Abre una consola de esta conexión con un texto inicial, en la base de la clave. */
+  onAbrirConsola?: AbrirConsolaEn
+  /** La clave se renombró: la pestaña pasa a enseñar la nueva (sus bytes en base64 y su nombre pintado). */
+  onRenombrada?: (clave: string, nombre: string) => void
 }
 
 /** Lo que dice la cabecera del valor leído: tamaño, elementos, memoria, codificación y ms. */
@@ -96,10 +105,33 @@ function identidadClave(p: PropsClave, l: LecturaClave, contenido: DbKvContenido
   )
 }
 
-function accionesClave(p: PropsClave, l: LecturaClave, visor: VisorClave, abrirConsola: () => void): React.JSX.Element {
+function BotonExportar({ exportacion, sinClave }: { exportacion: ExportarClave; sinClave: boolean }): React.JSX.Element {
+  return (
+    <BotonBarraBd
+      etiqueta="Exportar a JSON"
+      titulo="Guardar la clave entera (tipo, caducidad y valor) en un archivo JSON"
+      motivo={exportacion.exportando ? 'Exportando…' : sinClave ? 'No hay ninguna clave que exportar' : null}
+      onClick={() => void exportacion.exportar()}
+    >
+      <IconoExportar />
+    </BotonBarraBd>
+  )
+}
+
+function accionesClave(
+  p: PropsClave,
+  l: LecturaClave,
+  visor: VisorClave,
+  abrirConsola: () => void,
+  edicion: React.ReactNode,
+  exportacion: ExportarClave
+): React.JSX.Element {
   const { contenido, tabla, panelDetalle, setPanelDetalle } = visor
+  const sinClave = contenido === null || contenido.tipo === 'noExiste'
   const enCurso = l.cargando || l.cargandoMas
-  const copiableValor = contenido?.tipo === 'string' ? pintarBytes(contenido.valor) : contenido?.tipo === 'json' ? contenido.texto : null
+  // Un JSON que no se leyó (`omitidoBytes`) no tiene nada que copiar.
+  const copiableValor =
+    contenido?.tipo === 'string' ? pintarBytes(contenido.valor) : contenido?.tipo === 'json' && contenido.omitidoBytes === undefined ? contenido.texto : null
   return (
     <div className="panel-actions">
       <BotonBarraBd etiqueta="Refrescar" titulo="Volver a leer la clave" motivo={l.cargando ? 'Leyendo…' : null} onClick={() => void l.leer()}>
@@ -117,6 +149,7 @@ function accionesClave(p: PropsClave, l: LecturaClave, visor: VisorClave, abrirC
           <IconoCopiar />
         </BotonBarraBd>
       )}
+      <BotonExportar exportacion={exportacion} sinClave={sinClave} />
       {tabla && (
         <BotonBarraBd
           etiqueta={panelDetalle ? 'Ocultar el elemento' : 'Ver el elemento'}
@@ -126,6 +159,7 @@ function accionesClave(p: PropsClave, l: LecturaClave, visor: VisorClave, abrirC
           <IconoVerValor />
         </BotonBarraBd>
       )}
+      {edicion}
       {p.onAbrirConsola && (
         <BotonBarraBd etiqueta="Abrir consola" titulo="Abrir una consola con el comando que lee esta clave" onClick={abrirConsola}>
           <IconoConsola />
@@ -135,24 +169,47 @@ function accionesClave(p: PropsClave, l: LecturaClave, visor: VisorClave, abrirC
   )
 }
 
+/**
+ * Tras una edición que entró: renombrar o borrar (la clave, o el último elemento que la sostenía) cambia las
+ * claves que lista el árbol, que se vuelve a pedir; renombrar pasa la pestaña a la clave nueva, y lo
+ * demás vuelve a leer la clave.
+ */
+function trasEditarClave(p: PropsClave, l: LecturaClave, a: AccionClave, nuevoNombre?: string): void {
+  if (a.tipo === 'renombrar' || a.tipo === 'borrar' || a.tipo.startsWith('quitar')) {
+    void window.tessera.dbExplorador.refrescar(p.conexion.id).catch(() => undefined)
+  }
+  if (a.tipo === 'renombrar' && nuevoNombre !== undefined && p.onRenombrada) {
+    const nueva = bytesDeTexto(nuevoNombre)
+    p.onRenombrada(nueva.base64, pintarBytes(nueva))
+    return
+  }
+  void l.leer()
+}
+
 /** La pestaña de un visor de clave de Redis (ver la cabecera del módulo). */
 export function DbClavePane(p: PropsClave): React.JSX.Element {
   const { conexion, base, clave, nombre, visible, altoFila } = p
   const propsRef = useRef(p)
   propsRef.current = p
-  const bytesClave: DbKvBytes = useMemo(() => ({ base64: clave }), [clave])
+  // Con su texto si es UTF-8: los comandos que salen de la pestaña la escriben como el usuario.
+  const bytesClave: DbKvBytes = useMemo(() => bytesDeBase64(clave), [clave])
 
   const lectura = useLecturaClave(conexion.id, base, bytesClave, visible)
   const lento = useVigilanciaClave(lectura, propsRef)
   const ttl = useTtlClave(lectura.valor, lectura.leidoEn, visible)
-  const visor = useVisorClave(lectura.valor)
+  const edicion = useEdicionClave(conexion, base, (a, nuevoNombre) => trasEditarClave(p, lectura, a, nuevoNombre))
+  const visor = useVisorClave(lectura.valor, (i) => itemsFilaEdicion(lectura.valor?.contenido ?? null, i, edicion))
   const { contenido, menu, setMenu } = visor
+  const botones = botonesEdicion({ contenido, edicion, clave: bytesClave, ttlMs: ttl, abrirMenu: (x, y, items) => setMenu({ x, y, items }) })
+  const exportacion = useExportarClave(conexion.id, base, bytesClave)
 
   const abrirConsola = (): void => {
     const tipo = contenido === null ? 'otro' : contenido.tipo
-    const cmd = comandoConsola(tipo, bytesClave)
+    const cmd = comandoConsola(tipo, bytesClave, contenido?.tipo === 'json' && contenido.omitidoBytes !== undefined)
+    // La consola nace en la base de la clave, pero eso vive en memoria: el `SELECT` va en el
+    // archivo y la sigue diciendo tras reiniciar.
     const select = base === basePorDefectoClaves(conexion) ? '' : `SELECT ${base}\n`
-    p.onAbrirConsola?.(conexion.id, `${select}${cmd}`)
+    p.onAbrirConsola?.(conexion.id, `${select}${cmd}`, { familia: 'claves', indice: base })
   }
 
   return (
@@ -160,11 +217,25 @@ export function DbClavePane(p: PropsClave): React.JSX.Element {
       <header className="panel-header db-barra">
         <MarcaEntorno entorno={conexion.entorno} />
         {identidadClave(p, lectura, contenido, ttl)}
-        {accionesClave(p, lectura, visor, abrirConsola)}
+        {accionesClave(p, lectura, visor, abrirConsola, botones, exportacion)}
       </header>
 
       {cuerpoClave({ lectura, visor, lento, altoFila, nombre, onAbrirConsola: p.onAbrirConsola ? abrirConsola : undefined })}
 
+      {edicion.accion &&
+        createPortal(
+          <DialogoEdicionClave
+            conexion={conexion}
+            base={base}
+            clave={bytesClave}
+            nombre={nombre}
+            conTtl={lectura.valor?.ttlMs != null}
+            nombreCampo={nombreCampoDe(edicion.accion)}
+            accion={edicion.accion}
+            edicion={edicion}
+          />,
+          document.body
+        )}
       {menu && createPortal(<ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />, document.body)}
     </section>
   )

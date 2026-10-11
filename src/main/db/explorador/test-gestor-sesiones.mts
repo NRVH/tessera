@@ -19,6 +19,7 @@ import type {
   DbResultadoFilas,
   DbTxModo
 } from '../../../shared/db-explorador-ipc.ts'
+import { MOTIVO_CARPETA_SIN_ESCRITURA } from '../../../shared/dbExploradorSesiones.ts'
 import {
   AVISO_BINDS_ORACLE,
   PREFIJO_EXPLICAR_PG,
@@ -3998,6 +3999,107 @@ async function main(): Promise<void> {
     const rEx = await e.gestor.leerTabla({ ...base, peticionId: 'g5', where: 'a = 1' })
     check('filtro + WHERE libre: rechazado sin campo', !rEx.ok && rEx.error.motivo === 'interno', JSON.stringify(rEx))
     await e.gestor.cerrarTodo(100)
+  }
+
+  // Una SQLite en una carpeta sin escritura: el trabajador la abre en solo lectura aunque se
+  // pidiera escritura y lo dice (`carpetaSinEscritura`). El gestor del PRODUCTO (sin solo lectura
+  // impuesta) deja de ofrecer Manual, escribir y «Enviar», y dice que es la carpeta.
+  hr('(37) SQLite en una carpeta sin escritura: la sesión pasa a solo lectura y dice por qué')
+  {
+    const previa = conexion('s1', { motor: 'sqlite', host: '', port: 0, user: '', database: undefined, tieneSecreto: false, archivoVisible: 'base.db' })
+    const mapa = new Map<string, DbConnection>([['s1', previa]])
+    const falsos: TrabajadorFalso[] = []
+    const eventos: DbEstadoSesion[] = []
+    let carpetaSinEscritura = true
+    const g = new GestorSesiones({
+      lanzar: (con) => {
+        const f = new TrabajadorFalso(con, (p, t) =>
+          p.op === 'abrir' && carpetaSinEscritura ? { ...(respuestaPorDefecto(p, t) as object), carpetaSinEscritura: true } : respuestaPorDefecto(p, t)
+        )
+        falsos.push(f)
+        return f
+      },
+      conexion: (id) => mapa.get(id),
+      secreto: () => null,
+      rutaArchivo: () => 'C:\\solo lectura\\base.db',
+      ctxDrivers: () => ({ packs: [], externos: {}, driversDir: '', usuarioWindows: 'prueba' }),
+      emitirSesion: (e) => eventos.push(e),
+      log: () => {}
+    })
+    const sel = await ejecutar(g, 'select 1', 'k1', 's1')
+    const est = g.estadoConsola('perfil1', 'k1')
+    const abrir = falsos[0]?.ops('abrir')[0] as PeticionSinIdDe<'abrir'> | undefined
+    check('el trabajador recibe la petición de ESCRITURA (prueba la carpeta en cada apertura)', abrir?.conexion.readonly === false, JSON.stringify(abrir?.conexion.readonly))
+    check(
+      'la consola queda en solo lectura, en Auto y con el motivo de la carpeta',
+      sel.ok && est?.soloLectura === true && est.soloLecturaPorCarpeta === true && est.txModo === 'auto' && g.soloLecturaPorCarpeta('s1'),
+      JSON.stringify(est)
+    )
+    check('lo emitido al renderer ya lo dice', eventos.some((e) => e.conexionId === 's1' && e.soloLectura && e.soloLecturaPorCarpeta === true), String(eventos.length))
+    const man = await g.modoTx(refConsola('k1', 's1'), 'manual')
+    check('pasar a Manual se rechaza con el texto de la carpeta', !man.ok && man.error.motivo === 'soloLectura' && man.error.mensaje === MOTIVO_CARPETA_SIN_ESCRITURA, JSON.stringify(man))
+    const antes = falsos.flatMap((f) => f.ejecutados()).length
+    const up = await ejecutar(g, 'update t set a = 1', 'k1', 's1')
+    check(
+      'una escritura de la consola se rechaza en el main, sin salir, con el texto de la carpeta',
+      !up.ok && up.error.motivo === 'soloLectura' && up.error.mensaje === MOTIVO_CARPETA_SIN_ESCRITURA && falsos.flatMap((f) => f.ejecutados()).length === antes,
+      JSON.stringify(up)
+    )
+    const env = await g.enviarCambios({ conexionId: 's1', peticionId: 'env-c', sentencias: [{ tipo: 'actualizar', sql: 'UPDATE "t" SET "a" = ?1', binds: ['x'] }] })
+    check('«Enviar» de la rejilla se rechaza con el texto de la carpeta', !env.ok && env.error.motivo === 'soloLectura' && env.error.mensaje === MOTIVO_CARPETA_SIN_ESCRITURA, JSON.stringify(env))
+    const consola2 = await ejecutar(g, 'select 2', 'k2', 's1')
+    check('otra consola de la misma conexión nace ya en solo lectura', consola2.ok && g.estadoConsola('perfil1', 'k2')?.soloLecturaPorCarpeta === true, JSON.stringify(g.estadoConsola('perfil1', 'k2')))
+
+    // La carpeta vuelve a admitir escritura (o la conexión apunta a otro archivo): editar la conexión
+    // lo olvida y la siguiente apertura vuelve a escribir.
+    carpetaSinEscritura = false
+    const nueva = { ...previa, archivoVisible: 'otra.db' }
+    mapa.set('s1', nueva)
+    g.alCambiarConexion(previa, nueva)
+    check('editar la conexión olvida la carpeta sin escritura', !g.soloLecturaPorCarpeta('s1'), String(g.soloLecturaPorCarpeta('s1')))
+    const otra = await ejecutar(g, 'select 1', 'k1', 's1')
+    const est2 = g.estadoConsola('perfil1', 'k1')
+    check('y al reabrir con escritura la consola ya no es de solo lectura', otra.ok && est2?.soloLectura === false && est2.soloLecturaPorCarpeta === undefined, JSON.stringify(est2))
+    const man2 = await g.modoTx(refConsola('k1', 's1'), 'manual')
+    check('… y Manual vuelve a poderse', man2.ok && man2.valor.txModo === 'manual', JSON.stringify(man2))
+    await g.cerrarTodo(100)
+  }
+
+  // La carpeta vuelve a admitir escritura SIN editar la conexión (el proceso se pierde y la consola
+  // reabre): una de producción abrió en el Auto forzado y tiene que volver a Manual.
+  hr('(37b) SQLite de producción: al reabrir con escritura, la consola vuelve a Manual')
+  {
+    const prod = conexion('s2', { motor: 'sqlite', host: '', port: 0, user: '', database: undefined, tieneSecreto: false, archivoVisible: 'base.db', entorno: 'produccion' })
+    const falsos: TrabajadorFalso[] = []
+    let carpetaSinEscritura = true
+    const g = new GestorSesiones({
+      lanzar: (con) => {
+        const f = new TrabajadorFalso(con, (p, t) =>
+          p.op === 'abrir' && carpetaSinEscritura ? { ...(respuestaPorDefecto(p, t) as object), carpetaSinEscritura: true } : respuestaPorDefecto(p, t)
+        )
+        falsos.push(f)
+        return f
+      },
+      conexion: (id) => (id === 's2' ? prod : undefined),
+      secreto: () => null,
+      rutaArchivo: () => 'C:\\solo lectura\\base.db',
+      ctxDrivers: () => ({ packs: [], externos: {}, driversDir: '', usuarioWindows: 'prueba' }),
+      emitirSesion: () => {},
+      log: () => {}
+    })
+    await ejecutar(g, 'select 1', 'k1', 's2')
+    const ro = g.estadoConsola('perfil1', 'k1')
+    check('en la carpeta sin escritura: solo lectura y Auto', ro?.soloLectura === true && ro.txModo === 'auto', JSON.stringify(ro))
+    carpetaSinEscritura = false
+    falsos[0]?.matar()
+    const otra = await ejecutar(g, 'select 2', 'k1', 's2')
+    const est = g.estadoConsola('perfil1', 'k1')
+    check(
+      'al reabrir con escritura vuelve a Manual (producción), sin el motivo de la carpeta',
+      otra.ok && est?.soloLectura === false && est.txModo === 'manual' && !g.soloLecturaPorCarpeta('s2'),
+      JSON.stringify(est)
+    )
+    await g.cerrarTodo(100)
   }
 
   hr('RESULTADO (PASS/FAIL)')

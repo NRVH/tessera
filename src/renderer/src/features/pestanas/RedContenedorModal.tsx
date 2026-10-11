@@ -234,7 +234,7 @@ export function RedContenedorModal({
           </button>
           {/* Nunca deshabilitado: la sonda puede dar un falso negativo, y con el mismo modo
               elegido el botón sigue siendo una forma legítima de reiniciar el contenedor. */}
-          <button className="btn" onClick={() => onAplicar(eleccion === 'anfitrion')}>
+          <button className="btn primary" onClick={() => onAplicar(eleccion === 'anfitrion')}>
             {conFallas ? 'Aplicar de todas formas y reiniciar' : 'Aplicar y reiniciar el contenedor'}
           </button>
         </div>

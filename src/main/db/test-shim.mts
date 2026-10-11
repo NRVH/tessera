@@ -698,7 +698,7 @@ if (!shellTextos) {
       connections: [
         { id: 'k1', profileId: 'p1', alias: 'base-pg', motor: 'postgres', host: 'localhost', port: 5432, database: 'demo', user: 'u', readonly: true },
         { id: 'a1', profileId: 'p1', alias: 'Local DuckDB', motor: 'duckdb', ruta: 'C:/datos/app.db', readonly: true },
-        { id: 'a2', profileId: 'p1', alias: 'SQLSRV', motor: 'mysql', host: '127.0.0.1', port: 1, database: 'master', user: 'sa', readonly: true, entorno: 'produccion' },
+        { id: 'a2', profileId: 'p1', alias: 'SQLSRV', motor: 'db2', host: '127.0.0.1', port: 1, database: 'master', user: 'sa', readonly: true, entorno: 'produccion' },
         // Lo que el main conserva sin poder ni listarlo: tampoco debe tumbar a `tdb`.
         null,
         'basura'
@@ -722,7 +722,7 @@ if (!shellTextos) {
   comprobar(`${shellTextos}: \`ls\` no se cae con entradas que no son objetos`, ls.code === 0, `code=${ls.code} ${ls.out.slice(0, 300)}`)
   comprobar(
     `${shellTextos}: \`ls\` lista la DuckDB y la SQL Server con su motor y la marca`,
-    lineaDe('Local DuckDB').includes('duckdb') && lineaDe('Local DuckDB').includes(MARCA) && lineaDe('SQLSRV').includes('mysql') && lineaDe('SQLSRV').includes(MARCA),
+    lineaDe('Local DuckDB').includes('duckdb') && lineaDe('Local DuckDB').includes(MARCA) && lineaDe('SQLSRV').includes('db2') && lineaDe('SQLSRV').includes(MARCA),
     `${lineaDe('Local DuckDB')} / ${lineaDe('SQLSRV')}`
   )
   comprobar(`${shellTextos}: NEGATIVO: ni «:0/» ni «undefined» en la tabla`, !ls.out.includes(':0/') && !ls.out.includes('undefined'), ls.out.slice(0, 500))
@@ -764,7 +764,7 @@ if (!shellTextos) {
   const prueba = correr(shellTextos, 'tdb test SQLSRV', undefined, conAjenas)
   comprobar(
     `${shellTextos}: probar la SQL Server es el error explícito, sin hablar con su puerto`,
-    prueba.code === 1 && prueba.out.includes(errorDe('SQLSRV', 'mysql')) && !/ECONNREFUSED|timeout/i.test(prueba.out),
+    prueba.code === 1 && prueba.out.includes(errorDe('SQLSRV', 'db2')) && !/ECONNREFUSED|timeout/i.test(prueba.out),
     `code=${prueba.code} ${prueba.out.slice(0, 300)}`
   )
   const sinSecreto = correr(shellTextos, 'tdb test "Local DuckDB"', undefined, {
@@ -779,18 +779,18 @@ if (!shellTextos) {
   const escritura = correr(shellTextos, 'tdb query SQLSRV --stdin', 'DELETE FROM t', conAjenas)
   comprobar(
     `${shellTextos}: una escritura contra ella da el error del motor, no el de SOLO LECTURA`,
-    escritura.out.includes(errorDe('SQLSRV', 'mysql')) && !escritura.out.includes('SOLO LECTURA'),
+    escritura.out.includes(errorDe('SQLSRV', 'db2')) && !escritura.out.includes('SOLO LECTURA'),
     escritura.out.slice(0, 300)
   )
   const pruebaJson = jsonDe(correr(shellTextos, 'tdb test SQLSRV --json', undefined, conAjenas).out)
   // el MISMO contrato en las dos órdenes. `ls --json` marcaba con
-  // `motorDesconocido: true` y el error con `motorDesconocido: 'mysql'`, así que un
+  // `motorDesconocido: true` y el error con `motorDesconocido: 'db2'`, así que un
   // agente que lo comprobara de una sola forma se comportaba distinto según la orden.
   // Ahora es booleano en los dos, y el motor va en `motor`, que es el campo con que
   // `ls --json` ya lo daba (la entrada entera).
   comprobar(
     `${shellTextos}: con --json, el error lleva \`motorDesconocido: true\` y el motor en \`motor\``,
-    pruebaJson?.ok === false && pruebaJson?.motorDesconocido === true && pruebaJson?.motor === 'mysql' && String(pruebaJson?.error).includes('actualiza Tessera'),
+    pruebaJson?.ok === false && pruebaJson?.motorDesconocido === true && pruebaJson?.motor === 'db2' && String(pruebaJson?.error).includes('actualiza Tessera'),
     JSON.stringify(pruebaJson)
   )
   comprobar(
@@ -1062,7 +1062,7 @@ if (!shellTextos) {
   // negativa: ids distintos (también por mayúsculas: un id no se compara sin distinguirlas).
   // Un motor que esta versión no conoce (antes era una SQLite; hoy
   // SQLite se conoce y su FORMA es otra: ver los casos de abajo).
-  const LITE = { id: 'r1', profileId: 'p1', alias: 'Lite', motor: 'mysql', instancia: 'SQLEXPRESS' }
+  const LITE = { id: 'r1', profileId: 'p1', alias: 'Lite', motor: 'db2', instancia: 'SQLEXPRESS' }
   const ROTA = { ...ORIGINAL, alias: 'Rota', port: 'x' }
   // la FORMA de cada motor sale de su descriptor en los tres sitios (main, `tdb`,
   // ConnectionStore). Una SQLite con su `archivo` es conocida en los dos lados, SIN host ni
@@ -1394,6 +1394,20 @@ if (!shellTextos) {
       tls: { cifrar: true, confiarCertificado: false },
       srv: true,
       opcionesUri: 'authSource=admin'
+    },
+    // Con túnel SSH: entra como `['ssh', conexionId]` en las dos copias.
+    { ...BASE, id: 'f12', alias: 'F12', host: 'pg.interno', tunelSsh: { conexionId: 'ssh-1' } },
+    // Redis Sentinel: la topología entra como `['redis', topologia]` en las dos copias.
+    {
+      ...BASE,
+      id: 'f13',
+      alias: 'F13',
+      motor: 'redis',
+      host: 's1:26379,s2:26379',
+      port: 26379,
+      database: undefined,
+      user: undefined,
+      topologiaRedis: { modo: 'sentinel', maestro: 'principal', claveSentinel: 'propia' }
     }
   ]
   const rutaFormas = path.join(dir, 'db-connections-formas.json')
@@ -1421,7 +1435,9 @@ if (!shellTextos) {
     ...(c.dominio !== undefined ? { dominio: c.dominio } : {}),
     ...(c.tls !== undefined ? { tls: c.tls } : {}),
     ...(c.srv !== undefined ? { srv: c.srv } : {}),
-    ...(c.opcionesUri !== undefined ? { opcionesUri: c.opcionesUri } : {})
+    ...(c.opcionesUri !== undefined ? { opcionesUri: c.opcionesUri } : {}),
+    ...(c.tunelSsh !== undefined ? { tunelSsh: c.tunelSsh } : {}),
+    ...(c.topologiaRedis !== undefined ? { topologiaRedis: c.topologiaRedis } : {})
   })
   // Puro: la huella de un destino de red SIN los campos de SQL Server es la de antes al
   // byte (la fórmula de seis valores), y con ellos cambia si cambia cualquiera, también solo
@@ -1464,6 +1480,14 @@ if (!shellTextos) {
   comprobar(
     'huella: en MongoDB, cambiar o quitar `srv` o las opciones de la URI la cambia',
     f11.id === 'f11' && variantesMongo.every((v) => huellaDestino(destinoDe(v)) !== huellaDestino(destinoDe(f11))),
+    ''
+  )
+  // Redis: la misma lista de servidores es otro destino si pasa de Sentinel a Cluster o cambia el maestro.
+  const f13 = FORMAS[12]
+  const variantesRedis = [{ ...f13, topologiaRedis: { modo: 'cluster' } }, { ...f13, topologiaRedis: { modo: 'sentinel', maestro: 'otro', claveSentinel: 'propia' } }, { ...f13, topologiaRedis: undefined }]
+  comprobar(
+    'huella: en Redis, cambiar o quitar la topología la cambia',
+    f13.id === 'f13' && variantesRedis.every((v) => huellaDestino(destinoDe(v)) !== huellaDestino(destinoDe(f13))),
     ''
   )
   const paridad = jsonDe(correr(shellTextos, 'tdb doctor --json', undefined, conHuellas((c) => huellaDestino(destinoDe(c)))).out)

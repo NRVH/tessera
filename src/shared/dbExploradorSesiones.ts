@@ -40,9 +40,18 @@ export interface DbEstadoSesion {
   /** Esquema actual de la sesión; se relee tras `ALTER SESSION`/`SET` y PL/SQL. */
   esquema: string | null
   soloLectura: boolean
+  /**
+   * La solo lectura no la impone Tessera: la base de archivo (SQLite) está en una carpeta que no
+   * admite escritura y se abrió en solo lectura. Ver `MOTIVO_CARPETA_SIN_ESCRITURA`.
+   */
+  soloLecturaPorCarpeta?: boolean
   driver?: { modo: 'thin' | 'thick' | 'nativo'; driverId: string | null; version: string }
   aviso?: DbAvisoSesion
 }
+
+/** Por qué una base de archivo no se puede editar: la MISMA frase en la barra de la consola y en la rejilla. */
+export const MOTIVO_CARPETA_SIN_ESCRITURA =
+  'La carpeta de la base no admite escritura, así que se abrió en solo lectura. Para editarla, cópiala a una carpeta donde se pueda escribir.'
 
 export interface DbEventoCatalogo {
   conexionId: string

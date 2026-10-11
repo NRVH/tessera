@@ -257,8 +257,10 @@ export function esCerrarPestana(
  * ⌃ en Mac y ⊞ en Windows, también.
  *
  * Debe llegar también con el foco en la terminal del agente, para ocultarlo desde ahí:
- * xterm trata Ctrl+Alt como AltGr en Windows y no cancela el evento, y en Mac no traduce
- * ningún acorde con ⌘. El llamador lo CONSUME (`preventDefault`).
+ * xterm trata Ctrl+Alt como AltGr en Windows y no cancela el evento, en Mac no traduce
+ * ningún acorde con ⌘, y en Linux lo traduciría a ESC ^B y lo cancelaría, así que el filtro
+ * de teclas de las terminales lo deja pasar (`atajosTerminal.ts`). El llamador lo CONSUME
+ * (`preventDefault`).
  */
 export function esAlternarAgente(
   e: TeclaAcorde,

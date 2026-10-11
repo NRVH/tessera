@@ -59,6 +59,8 @@ function cli(agente: AgentKind, extra: Partial<EstadoCli> = {}): EstadoCli {
     requiereParar: false,
     ordenManual: null,
     hayNueva: false,
+    reparar: false,
+    binarioPendiente: false,
     bloqueadores: [],
     error: null,
     comprobadoEn: 0,
@@ -146,6 +148,7 @@ class PaneFalso implements ApiAgentePane {
   }
   // La actualización nativa no lo usa: es de la hibernación por inactividad.
   reanudarCon(): void {}
+  reanudarSiHuboDesde(): void {}
   async relanzar(opts: { banner: string; error?: boolean }): Promise<ResultadoRelanzar> {
     this.log.push(`relanzar:${this.id}`)
     this.banner = opts

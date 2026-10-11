@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url'
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import path from 'node:path'
 import { SandboxManager } from '../sandbox/SandboxManager.ts'
+import { agentcfgRootFor, managedRootFor } from '../sandbox/gestor/nombres.ts'
 import { AgentLauncher } from './AgentLauncher.ts'
 import type { Profile } from '../profiles/types.ts'
 
@@ -319,8 +320,8 @@ async function main(): Promise<void> {
       ).stdout.trim()
       if (psRaw.length > 0) residualIssues.push(`contenedor huérfano: ${psRaw}`)
 
-      const wsRoot = `/mnt/wsl/tessera-mm/${p.id}`
-      const cfgRoot = `/mnt/wsl/tessera-agentcfg/${p.id}`
+      const wsRoot = managedRootFor(p)
+      const cfgRoot = agentcfgRootFor(p)
       const wsGone = /\bGONE\b/.test(daemonProbe(`test -d ${wsRoot} && echo EXISTS || echo GONE`))
       const cfgGone = /\bGONE\b/.test(daemonProbe(`test -d ${cfgRoot} && echo EXISTS || echo GONE`))
       const cfgMounts = (daemonProbe(`grep " ${cfgRoot}" /proc/self/mountinfo | wc -l`).trim().split(/\r?\n/).pop() ?? '?')

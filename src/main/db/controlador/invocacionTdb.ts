@@ -23,6 +23,7 @@ import type { ConnectionStore } from '../ConnectionStore.ts'
 import type { DriverManager } from '../DriverManager.ts'
 import { variablesDeSecreto } from '../hostEnv.ts'
 import type { CtxDrivers } from '../explorador/protocoloTrabajador.ts'
+import { entornoConClienteOracle } from '../explorador/entornoClienteOracle.ts'
 
 /** Tope de espera de una invocación de `tdb` (conectar por VPN + consulta). */
 const TDB_TIMEOUT_MS = 90_000
@@ -135,7 +136,7 @@ export class InvocadorTdb {
     return ejecutarTdb({
       ejecutable: process.execPath,
       argv: [this.d.tdbScript, ...argv],
-      env: {
+      env: this.conClienteOracle({
         ...process.env,
         ELECTRON_RUN_AS_NODE: '1',
         [ENV_PERFIL]: perfil,
@@ -144,7 +145,7 @@ export class InvocadorTdb {
         [ENV_MODO]: 'pipe',
         [ENV_PIPE]: this.d.puente.pipe,
         [ENV_SESION]: token
-      },
+      }),
       entrada,
       timeoutMs: TDB_TIMEOUT_MS,
       maxBuffer: TDB_MAX_BUFFER
@@ -157,7 +158,7 @@ export class InvocadorTdb {
         process.execPath,
         [this.d.tdbScript, ...args, '--json'],
         {
-          env: this.entornoDe(con),
+          env: this.conClienteOracle(this.entornoDe(con)),
           timeout: TDB_TIMEOUT_MS,
           maxBuffer: TDB_MAX_BUFFER,
           windowsHide: true
@@ -180,6 +181,17 @@ export class InvocadorTdb {
           resolve({ ok: false, error: mensajeFalloTdb(err, errores !== '', TDB_TIMEOUT_MS) })
         }
       )
+    })
+  }
+
+  /**
+   * En Linux, con las carpetas del cliente Oracle en LD_LIBRARY_PATH: así `tdb` no tiene que
+   * relanzarse para tenerlas (`src/tdb/bibliotecasOracle.cjs`). Fuera de Linux, el mismo.
+   */
+  private conClienteOracle(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+    return entornoConClienteOracle(env, {
+      ctxDrivers: () => contextoDeDrivers(this.d.drivers.driversDir),
+      tdbScriptDir: () => path.dirname(this.d.tdbScript)
     })
   }
 

@@ -13,6 +13,7 @@ import {
   markSeen,
   pruneActivity,
   clearActivityKeys,
+  dejarDeVer,
   sincronizarActividad,
   isWorking
 } from './agentActivity.ts'
@@ -161,6 +162,34 @@ const B = 'perfilA|C:\\p\\2|codex'
 // (13) era la de `markAllSeen` —«mirar el inspector es revisarlo»—, y se fue con el
 //      inspector: hoy el aviso se apaga target por target (markSeen, caso 5), que es
 //      lo que hacen las dos vistas que quedan.
+
+// (14) 'blocked' (el agente te espera): avisa como 'done' y además queda en `esperando`
+//      hasta que el agente diga otra cosa; dejar de mirarlo sin contestar vuelve a avisar.
+{
+  let s = emptyActivityState
+  s = applyActivity(s, A, 'working', true)
+  s = applyActivity(s, A, 'blocked', true, 'question')
+  check('(14a) blocked mirándolo: espera, sin halo (lo tienes delante)', s.esperando.get(A) === 'question' && !s.unseen.has(A) && !isWorking(s, A), `esperando=${[...s.esperando]}`)
+  s = dejarDeVer(s, A)
+  check('(14b) dejas de mirarlo sin contestar: vuelve a avisar', s.unseen.has(A), `unseen=${[...s.unseen]}`)
+  s = markSeen(s, A)
+  check('(14c) volver a mirarlo apaga el halo pero sigue esperando', !s.unseen.has(A) && s.esperando.has(A), '')
+  s = applyActivity(s, A, 'working', true)
+  check('(14d) contestada (vuelve a trabajar): ya no espera', !s.esperando.has(A) && isWorking(s, A), '')
+  check('(14e) dejar de mirar algo que no espera no avisa', dejarDeVer(s, A) === s, '')
+  s = applyActivity(s, B, 'blocked', false, null)
+  check('(14f) blocked sin mirarlo: halo y espera (sin motivo)', s.unseen.has(B) && s.esperando.has(B) && s.esperando.get(B) === null, '')
+  const igual = applyActivity(s, B, 'blocked', false, null)
+  check('(14g) el mismo blocked otra vez => misma referencia', igual === s, '')
+  s = applyActivity(s, B, 'idle', false)
+  check('(14h) idle (Esc o cierre) quita la espera y su aviso: no terminó nada', !s.esperando.has(B) && !s.unseen.has(B), `unseen=${[...s.unseen]}`)
+  s = applyActivity(s, B, 'blocked', false, 'permission')
+  check('(14i) la poda y la hibernación la quitan', !pruneActivity(s, new Set([A])).esperando.has(B) && !clearActivityKeys(s, new Set([B])).esperando.has(B), '')
+  const foto = sincronizarActividad(s, { [B]: 'idle' }, new Map())
+  check('(14j) la foto del main manda sobre la espera (una colgada se apaga)', !foto.esperando.has(B) && foto.unseen.has(B), `esperando=${[...foto.esperando]}`)
+  const repuesta = sincronizarActividad(emptyActivityState, { [B]: 'idle' }, new Map([[B, 'auth']]))
+  check('(14k) y la repone tras recargar', repuesta.esperando.get(B) === 'auth', '')
+}
 
 const allPass = results.every((r) => r.pass)
 console.log('\n' + '='.repeat(60))

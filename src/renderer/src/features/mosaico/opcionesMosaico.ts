@@ -17,6 +17,7 @@ export interface EntradaOpciones {
   hibernados: ReadonlySet<string>
   trabajando: ReadonlySet<string>
   sinVer: ReadonlySet<string>
+  esperando: ReadonlySet<string>
   /** Qué agente se ofrece de un proyecto (el mismo orden que «abrir otro proyecto»). */
   agenteDelProyecto: (profileId: string, projectHostPath: string) => Agente
   claveProyecto: (profileId: string, projectHostPath: string) => string
@@ -57,7 +58,8 @@ export function opcionesDelMosaico(e: EntradaOpciones): OpcionMosaico[] {
       // Dormido se dice aparte: elegirlo levanta además su contenedor, que tarda.
       dormido: agentes.every((c) => e.hibernados.has(c.key)),
       trabajando: agentes.some((c) => e.trabajando.has(c.key)),
-      sinVer: agentes.some((c) => e.sinVer.has(c.key))
+      sinVer: agentes.some((c) => e.sinVer.has(c.key)),
+      esperando: agentes.some((c) => e.esperando.has(c.key))
     })
   }
   return opciones

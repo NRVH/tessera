@@ -18,6 +18,7 @@ import {
   cerrarEnVista,
   fijarSeleccion as fijarSeleccionEn,
   moverEnVista,
+  reemplazarEnVista,
   plegarTodo as plegarTodoEn,
   podarConexion as podarConexionEn,
   podarConexiones as podarConexionesEn,
@@ -43,6 +44,8 @@ interface AccionesVistaBd {
   abrir: (perfilId: string, pane: DbPane) => void
   activar: (perfilId: string, tabId: string) => void
   cerrar: (perfilId: string, tabIds: readonly string[]) => void
+  /** La pestaña `tabId` pasa a enseñar `pane` en su sitio (una clave renombrada). */
+  reemplazar: (perfilId: string, tabId: string, pane: DbPane) => void
   /** Reordena la tira (arrastre): `tabId` queda antes de `antesDe` (null = al final). */
   mover: (perfilId: string, tabId: string, antesDe: string | null) => void
   alternarExpandido: (perfilId: string, clave: string, abierto?: boolean) => void
@@ -77,6 +80,7 @@ const ACCIONES: AccionesVistaBd = {
   abrir: (perfilId, pane) => enPerfil(perfilId, (v) => abrirEnVista(v, pane)),
   activar: (perfilId, tabId) => enPerfil(perfilId, (v) => activarEnVista(v, tabId)),
   cerrar: (perfilId, tabIds) => enPerfil(perfilId, (v) => cerrarEnVista(v, tabIds)),
+  reemplazar: (perfilId, tabId, pane) => enPerfil(perfilId, (v) => reemplazarEnVista(v, tabId, pane)),
   mover: (perfilId, tabId, antesDe) => enPerfil(perfilId, (v) => moverEnVista(v, tabId, antesDe)),
   alternarExpandido: (perfilId, clave, abierto) => enPerfil(perfilId, (v) => alternarExpandidoEn(v, clave, abierto)),
   plegarTodo: (perfilId) => enPerfil(perfilId, plegarTodoEn),

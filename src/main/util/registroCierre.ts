@@ -20,6 +20,18 @@ const LOG_MAX_BYTES = 1024 * 1024
 export const TOPE_VACIAR_CONSOLAS_MS = 5000
 /** Tope de la escritura pendiente de `workspace-state.json`. */
 export const TOPE_WORKSPACE_MS = 5000
+/**
+ * Tope SIN AVANZAR de la etapa de Docker (`conTopeSinAvance`). Cada orden ya tiene el suyo (dos
+ * minutos), pero con Docker sin responder la etapa encadena varias; con muchos contenedores y
+ * Docker sano, en cambio, cada uno avanza y no se corta. Pasado el tope se sale: lo que quede lo
+ * retira el barrido del siguiente arranque.
+ */
+export const TOPE_DOCKER_MS = 30_000
+
+/** La nota de una etapa con tope sin avance. */
+export function notaSinAvance(ms: number): (d: Desenlace) => string | null {
+  return (d) => (d === 'tope' ? `TOPE: ${ms} ms sin avanzar, se sigue sin esperar` : null)
+}
 
 /** Largo máximo del mensaje de un fallo en una línea (el resto va a la consola). */
 const MENSAJE_MAX = 200

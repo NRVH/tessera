@@ -15,6 +15,7 @@ import {
 } from 'electron'
 import { join } from 'node:path'
 import { esMac } from '../../shared/plataforma'
+import { ARGUMENTO_ALPHA, esVersionAlpha } from '../../shared/salud'
 import { loadWorkspaceSettings } from '../workspace/workspaceStateStore'
 import { logUpdate } from '../update/logUpdate'
 import { atenderSegundaInstanciaPendiente, esArranqueTrasActualizar, traerAlFrente } from './instanciaUnica'
@@ -116,7 +117,9 @@ function opcionesDeVentana(inicio: Rectangle): BrowserWindowConstructorOptions {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true
+      sandbox: true,
+      // El renderer no tiene `process`: la versión alpha le llega por el preload.
+      additionalArguments: esVersionAlpha(app.getVersion()) ? [ARGUMENTO_ALPHA] : []
     }
   }
 }

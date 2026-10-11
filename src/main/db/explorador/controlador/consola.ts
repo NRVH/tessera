@@ -9,6 +9,7 @@ import type {
   DbConsolaInfo,
   DbEntradaHistorial,
   DbEstadoSesion,
+  DbLenguajeHistorial,
   DbPlan,
   DbRespuesta,
   DbResultadoSentencia,
@@ -33,6 +34,9 @@ import {
   opcional,
   resolverOpcional
 } from './validacion.ts'
+
+/** Los lenguajes que distingue el historial (un valor desconocido en un filtro se ignora). */
+const LENGUAJES_HISTORIAL: readonly DbLenguajeHistorial[] = ['sql', 'mongosh', 'comandos']
 
 /** Consolas SQL: ejecutar, explicar, transacciones, esquema de la consola e historial de consultas. */
 export class ConsolaExplorador {
@@ -192,13 +196,15 @@ export class ConsolaExplorador {
       const conexionId = opcional(filtro.conexionId, 'conexionId', MAX_IDENT)
       const texto = opcional(filtro.texto, 'texto', MAX_FRAGMENTO)
       const limite = typeof filtro.limite === 'number' && Number.isFinite(filtro.limite) ? filtro.limite : undefined
+      const lenguaje = LENGUAJES_HISTORIAL.includes(filtro.lenguaje as DbLenguajeHistorial) ? (filtro.lenguaje as DbLenguajeHistorial) : undefined
       if (!this.c.historial || !this.c.opciones.perfilVivo(perfilId)) return ok([])
       return ok(
         await this.c.historial.listar({
           perfilId,
           ...(conexionId !== undefined ? { conexionId } : {}),
           ...(texto ? { texto } : {}),
-          ...(limite !== undefined ? { limite } : {})
+          ...(limite !== undefined ? { limite } : {}),
+          ...(lenguaje !== undefined ? { lenguaje } : {})
         })
       )
     })
@@ -206,9 +212,10 @@ export class ConsolaExplorador {
 
   /**
    * HISTORIAL_BORRAR: esas entradas, o TODO el historial del perfil con `ids`
-   * EXACTAMENTE null (un `undefined` que llegue por un error del renderer no borra nada).
+   * EXACTAMENTE null (un `undefined` que llegue por un error del renderer no borra nada); con
+   * `lenguaje`, todo el de ese lenguaje.
    */
-  async historialBorrar(perfilId: unknown, ids: unknown): Promise<DbRespuesta<void>> {
+  async historialBorrar(perfilId: unknown, ids: unknown, lenguaje?: unknown): Promise<DbRespuesta<void>> {
     return this.c.seguro(async () => {
       const p = exigir(perfilId, 'perfilId')
       let lista: string[] | null
@@ -216,7 +223,8 @@ export class ConsolaExplorador {
       else if (Array.isArray(ids) && ids.length <= 100_000 && ids.every((x) => typeof x === 'string' && x.length > 0 && x.length <= 200)) {
         lista = ids as string[]
       } else return fallo('interno', 'Petición inválida: «ids».')
-      if (this.c.historial) await this.c.historial.borrar(p, lista)
+      const deLenguaje = LENGUAJES_HISTORIAL.includes(lenguaje as DbLenguajeHistorial) ? (lenguaje as DbLenguajeHistorial) : undefined
+      if (this.c.historial) await this.c.historial.borrar(p, lista, deLenguaje)
       return ok(undefined)
     })
   }

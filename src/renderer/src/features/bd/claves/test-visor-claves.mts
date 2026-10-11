@@ -3,13 +3,16 @@
 // Prueba del visor de claves y de cómo se pintan sus bytes, sin servidor
 // (npm run test:visor-claves; lógica pura de `visorClaves.ts` y `bytesClaves.ts`).
 // Cubre los bytes (escapes, tamaño, hex), la cabecera (tipo, TTL, resumen), los modos
-// texto/JSON/hex, los trozos de «Cargar más», la tabla por tipo con su detalle y el comando
-// de lectura para la consola.
+// texto/JSON/hex, los trozos de «Cargar más», la tabla por tipo con su detalle, el comando
+// de lectura para la consola y la edición desde el visor (`edicionClaves.ts`).
 // =============================================================================
 
-import type { DbKvBytes, DbKvContenido, DbKvValor } from '../../../../../shared/db-claves-ipc.ts'
+import type { DbKvBytes, DbKvContenido, DbKvRespuesta, DbKvValor } from '../../../../../shared/db-claves-ipc.ts'
+import { comandoDeAccion, nombreRenombrable, resultadoDeAccion, textoEditable, type AccionClave } from './edicionClaves.ts'
 import {
   BYTES_POR_LINEA_HEX,
+  bytesDeBase64,
+  bytesDeTexto,
   citarRedisCli,
   escaparBinario,
   hexCorto,
@@ -147,7 +150,8 @@ function main(): void {
     avisoTruncado({ tipo: 'string', valor: bin(...new Array(2048).fill(65)), bytes: 10 * 1024 * 1024, truncado: true }) ===
       'Se ve el principio: 2,0 KB de 10 MB. Para leerlo entero, usa GETRANGE en la consola.' &&
       avisoTruncado({ tipo: 'string', valor: txt('x'), bytes: 1, truncado: false }) === null &&
-      avisoTruncado({ tipo: 'json', texto: '{}', truncado: true }) !== null,
+      avisoTruncado({ tipo: 'json', texto: '{}', truncado: true }) !== null &&
+      /ocupa 20 MB en memoria: el visor no lo lee/.test(avisoTruncado({ tipo: 'json', texto: '', truncado: true, omitidoBytes: 20 * 1024 * 1024 }) ?? ''),
     String(avisoTruncado({ tipo: 'string', valor: bin(...new Array(2048).fill(65)), bytes: 10 * 1024 * 1024, truncado: true }))
   )
 
@@ -279,9 +283,40 @@ function main(): void {
       comandoConsola('zset', txt('z')) === 'ZRANGE z 0 99 WITHSCORES' &&
       comandoConsola('stream', txt('ev')) === 'XRANGE ev - + COUNT 100' &&
       comandoConsola('json', txt('doc')) === 'JSON.GET doc $' &&
+      comandoConsola('json', txt('doc'), true) === 'JSON.OBJKEYS doc $' &&
       comandoConsola('otro', bin(0xff)) === 'TYPE "\\xff"',
     j([comandoConsola('string', txt('a b')), comandoConsola('otro', bin(0xff))])
   )
+
+  // ---------------------------------------------------------------------------
+  hr('(7) Editar desde el visor: el comando de cada acción y lo que se dice de su respuesta')
+  const k = txt('usuario:1')
+  const e = (uno: string, dos = ''): { uno: string; dos: string } => ({ uno, dos })
+  const cmd = (a: AccionClave, uno = '', dos = '', conTtl = false): string => {
+    const c = comandoDeAccion(k, a, e(uno, dos), conTtl)
+    return c.ok ? c.texto : `NO: ${c.motivo}`
+  }
+  check('un string: SET, con las comillas de redis-cli', cmd({ tipo: 'valor', actual: 'x' }, 'hola "mundo"\n') === 'SET usuario:1 "hola \\"mundo\\"\\n"', cmd({ tipo: 'valor', actual: 'x' }, 'hola "mundo"\n'))
+  check('… y si la clave caduca, con KEEPTTL (SET le quitaría la caducidad)', cmd({ tipo: 'valor', actual: 'x' }, 'y', '', true) === 'SET usuario:1 y KEEPTTL', cmd({ tipo: 'valor', actual: 'x' }, 'y', '', true))
+  check('el campo de un hash, con el campo en sus bytes exactos', cmd({ tipo: 'campo', campo: bin(0xff), actual: 'a' }, 'b c') === 'HSET usuario:1 "\\xff" "b c"', cmd({ tipo: 'campo', campo: bin(0xff), actual: 'a' }, 'b c'))
+  check('un campo nuevo pide su nombre', cmd({ tipo: 'campo', campo: null, actual: '' }, '', 'v').startsWith('NO:') && cmd({ tipo: 'campo', campo: null, actual: '' }, 'edad', '30') === 'HSET usuario:1 edad 30', cmd({ tipo: 'campo', campo: null, actual: '' }, 'edad', '30'))
+  check('borrar un campo: HDEL', cmd({ tipo: 'quitarCampo', campo: txt('edad') }) === 'HDEL usuario:1 edad', cmd({ tipo: 'quitarCampo', campo: txt('edad') }))
+  check('caducidad: segundos -> EXPIRE; vacío -> PERSIST', cmd({ tipo: 'ttl', segundos: null }, ' 60 ') === 'EXPIRE usuario:1 60' && cmd({ tipo: 'ttl', segundos: 5 }, '') === 'PERSIST usuario:1', cmd({ tipo: 'ttl', segundos: null }, ' 60 '))
+  check('NEGATIVO: caducidad 0, negativa, con decimales o texto no se envía', ['0', '-5', '1.5', 'diez', '99999999999999999999'].every((v) => cmd({ tipo: 'ttl', segundos: null }, v).startsWith('NO:')), 'todas rechazadas')
+  check('renombrar: RENAMENX, que no pisa una clave que ya exista', cmd({ tipo: 'renombrar', actual: 'usuario:1' }, 'usuario:2') === 'RENAMENX usuario:1 usuario:2', cmd({ tipo: 'renombrar', actual: 'usuario:1' }, 'usuario:2'))
+  check('NEGATIVO: renombrar vacío o al mismo nombre no se envía', cmd({ tipo: 'renombrar', actual: 'usuario:1' }, '').startsWith('NO:') && cmd({ tipo: 'renombrar', actual: 'usuario:1' }, 'usuario:1').startsWith('NO:'), 'rechazados')
+  check('borrar la clave: DEL', cmd({ tipo: 'borrar' }) === 'DEL usuario:1', cmd({ tipo: 'borrar' }))
+  check('una clave binaria va en sus bytes exactos', comandoDeAccion(bin(0x00, 0x41), { tipo: 'borrar' }, e(''), false).ok && (comandoDeAccion(bin(0x00, 0x41), { tipo: 'borrar' }, e(''), false) as { texto: string }).texto === 'DEL "\\x00A"', j(comandoDeAccion(bin(0x00, 0x41), { tipo: 'borrar' }, e(''), false)))
+  const ent = (valor: string): DbKvRespuesta => ({ tipo: 'entero', valor })
+  check('RENAMENX que da 0: el nombre ya existe, y se dice', resultadoDeAccion({ tipo: 'renombrar', actual: 'a' }, 'RENAMENX a b', ent('0')).ok === false, j(resultadoDeAccion({ tipo: 'renombrar', actual: 'a' }, 'RENAMENX a b', ent('0'))))
+  check('DEL o HDEL que dan 0: ya no existía', !resultadoDeAccion({ tipo: 'borrar' }, 'DEL a', ent('0')).ok && !resultadoDeAccion({ tipo: 'quitarCampo', campo: txt('c') }, 'HDEL a c', ent('0')).ok, 'fallo')
+  check('PERSIST que da 0 no es un fallo; EXPIRE que da 0 sí (la clave ya no está)', resultadoDeAccion({ tipo: 'ttl', segundos: 5 }, 'PERSIST a', ent('0')).ok && !resultadoDeAccion({ tipo: 'ttl', segundos: null }, 'EXPIRE a 5', ent('0')).ok, 'ok')
+  check('un error de Redis (WRONGTYPE…) se dice tal cual', j(resultadoDeAccion({ tipo: 'valor', actual: '' }, 'SET a b', { tipo: 'error', texto: 'WRONGTYPE Operation' })) === j({ ok: false, mensaje: 'WRONGTYPE Operation' }), 'tal cual')
+  check('la clave desde su base64: con su texto si es UTF-8, para escribirla sin comillas', j(bytesDeBase64(txt('añ:1').base64)) === j({ texto: 'añ:1', base64: txt('añ:1').base64 }) && bytesDeBase64(bin(0xff, 0x41).base64).texto === undefined, j(bytesDeBase64(bin(0xff, 0x41).base64)))
+  check('NEGATIVO: un valor con CR (CRLF) no se edita aquí: el cuadro de texto lo cambiaría a LF al guardar', !textoEditable(txt('a\r\nb')).ok && !textoEditable(txt('a\rb')).ok && textoEditable(txt('a\nb')).ok, j(textoEditable(txt('a\r\nb'))))
+  check('NEGATIVO: una clave cuyo nombre no es UTF-8 no se renombra aquí; una de texto sí, con su texto', !nombreRenombrable(bin(0x61, 0xff, 0x62)).ok && j(nombreRenombrable(txt('a:b'))) === j({ ok: true, texto: 'a:b' }), j(nombreRenombrable(bin(0x61, 0xff, 0x62))))
+  check('el nombre nuevo escrito, en sus bytes UTF-8 (lo que identifica la pestaña de la clave renombrada)', j(bytesDeTexto('añ:1')) === j(txt('añ:1')) && bytesDeBase64(bytesDeTexto('añ:1').base64).texto === 'añ:1', j(bytesDeTexto('añ:1')))
+  check('lo que no es texto, o está cortado, no se edita aquí', !textoEditable(bin(0xff)).ok && !textoEditable(txt('a'), true).ok && textoEditable(txt('a')).ok, 'motivos')
 
   // ---------------------------------------------------------------------------
   const pasadas = results.filter((r) => r.pass).length

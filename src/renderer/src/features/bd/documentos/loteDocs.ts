@@ -31,7 +31,8 @@ export interface DepsLote {
   anotar: (n: NuevaEntrada[]) => void
   enviar: (s: SentenciaShell, peticionId: string, confirmado: boolean) => Promise<DbRespuesta<DbDocResultado>>
   pedirConfirmacion: (d: PeticionDialogo) => Promise<boolean>
-  aplicarResultado: (r: DbDocResultado) => void
+  /** El resultado de la sentencia, con el lote y el texto que lo devolvió (su pestaña). */
+  aplicarResultado: (r: DbDocResultado, lote: number, sentencia: string) => void
   cambiarEnCurso: (e: EnCurso | null) => void
   irAlSalida: () => void
   baseRef: React.MutableRefObject<string | null>
@@ -58,7 +59,7 @@ function tipoDeEntrada(res: DbDocResultado): 'afectadas' | 'filas' | 'info' {
 
 function pintarExito(d: DepsLote, lote: LoteDocs, i: number, res: DbDocResultado): void {
   lote.marcas.estado(i, 'ok', textoResultadoDocs(res))
-  d.aplicarResultado(res)
+  d.aplicarResultado(res, lote.id, lote.sentencias[i].texto)
   d.anotar([{ tipo: tipoDeEntrada(res), texto: textoResultadoDocs(res) }])
   // Los avisos del clasificador (JavaScript de servidor: `$where`, `$function`…).
   if (res.tipo !== 'base' && res.avisos) d.anotar(res.avisos.map((texto) => ({ tipo: 'aviso' as const, texto })))

@@ -18,10 +18,10 @@
 
 /* El control cerrado, como el nativo: texto centrado, en una línea y recortado en el borde
    (`contain: paint`, porque el motor fija `overflow: visible`), sangrado los 4 px que el
-   nativo le deja por dentro y con la flecha a 8 px del filete, que es donde la dibuja. */
+   nativo le deja por dentro y con la flecha a 14 px del filete, con aire hasta el borde. */
 .modal-overlay select:not([multiple], [size]) {
   align-items: center;
-  padding-inline-end: 4px;
+  padding-inline-end: 10px;
   text-indent: 4px;
   white-space: nowrap;
   contain: paint;

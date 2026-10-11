@@ -55,7 +55,7 @@ export const ATOM_ONE_DARK = {
   terminal: '#1d2027',
   bg: '#16171d', // editor / contenido (superficie protagonista, la más clara)
   bgElevated: '#131419', // sidebar, barra de actividad, headers, barra de estado
-  bgDeep: '#101116', // zonas hundidas: banda de proyectos, editor-tabs, terminales
+  bgDeep: '#101116', // zonas hundidas: banda de proyectos, terminales
   surface: '#1c1e26', // botones, inputs, pill de proyecto activo, cards
   surfaceHi: '#23262f', // hover de botones
   border: 'rgba(255,255,255,0.06)', // hairline: separadores entre columnas
@@ -307,6 +307,9 @@ export const THEMES: Record<ThemeName, Record<string, string>> = {
     '--hover-suave': 'rgba(255,255,255,0.07)',
     '--hover-fuerte': 'rgba(255,255,255,0.12)',
     '--yellow': ATOM_ONE_DARK.yellow,
+    // Los DATOS (valores de la rejilla, nombres del árbol de bases): un gris claro por debajo de
+    // `--fg`, para que las cabeceras de columna y lo seleccionado destaquen sobre ellos. ~8:1 sobre `--bg`.
+    '--fg-datos': '#a9adbb',
     '--selection': ATOM_ONE_DARK.selection,
     // Resaltado del buscador en las vistas RENDERIZADAS (.md / .docx), que se pinta
     // con la CSS Custom Highlight API. Mismos valores que las decoraciones de xterm
@@ -347,15 +350,13 @@ export const THEMES: Record<ThemeName, Record<string, string>> = {
      */
     '--scrim': 'rgba(0,0,0,0.5)',
     '--shadow-modal': '0 18px 50px rgba(0,0,0,0.5)',
-    // Sombras del rediseño: chips con cuerpo, pestañas elevadas, headers con base.
+    // Sombra de los chips con cuerpo.
     '--shadow-chip': '0 1px 2px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(255,255,255,0.06)',
-    '--shadow-tab': '0 -2px 10px rgba(0,0,0,0.22)',
-    '--shadow-header': '0 1px 0 rgba(0,0,0,0.28)',
     // Scrollbars: el color sale del tema (se adaptará solo cuando exista 'light').
     // Tres estados: reposo (tenue, descubrible), hover (más contraste), arrastre
     // (acento). Derivados de fg/accent con alfa para fundirse con cualquier fondo.
-    '--sb-thumb': 'rgba(171, 178, 191, 0.16)', // fg @ 16%
-    '--sb-thumb-hover': 'rgba(171, 178, 191, 0.34)', // fg @ 34%
+    '--sb-thumb': 'rgba(171, 178, 191, 0.26)', // fg @ 26%
+    '--sb-thumb-hover': 'rgba(171, 178, 191, 0.42)', // fg @ 42%
     '--sb-thumb-active': 'rgba(97, 175, 239, 0.62)' // accent @ 62%
   }
 }

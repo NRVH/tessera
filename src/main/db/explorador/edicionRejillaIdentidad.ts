@@ -16,6 +16,8 @@ import { COLUMNA_ROWID } from './sqlRejilla.ts'
 export interface EntradaIdentidad {
   motor: DbMotor
   soloLectura: boolean
+  /** Por qué es de solo lectura, si no es la que impone el explorador (`MOTIVO_SOLO_LECTURA`). */
+  motivoSoloLectura?: string
   /** El objeto es de un esquema DEL SISTEMA (ver `esEsquemaDelSistema` y `conMarcasDeTabla`): no se edita. */
   sistema: boolean
   /** El tipo del objeto YA RESUELTO (el destino si era un sinónimo). */
@@ -84,7 +86,7 @@ function identidadSinPk(e: EntradaIdentidad): DbIdentidadFila {
 
 /** Lo que decide la identidad (ver el ADR). Nunca lanza con un motor conocido. */
 export function decidirIdentidad(e: EntradaIdentidad): DbIdentidadFila {
-  if (e.soloLectura) return { tipo: 'ninguna', motivo: MOTIVO_SOLO_LECTURA }
+  if (e.soloLectura) return { tipo: 'ninguna', motivo: e.motivoSoloLectura ?? MOTIVO_SOLO_LECTURA }
   if (e.remoto) return { tipo: 'ninguna', motivo: 'Es un objeto remoto (@dblink): la rejilla no escribe a través de un enlace.' }
   if (e.tipo !== 'tabla') return { tipo: 'ninguna', motivo: motivoDeTipo(e.tipo) }
   if (e.sistema) return { tipo: 'ninguna', motivo: 'Es una tabla del sistema: la rejilla no la edita.' }

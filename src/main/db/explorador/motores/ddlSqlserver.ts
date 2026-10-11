@@ -228,5 +228,5 @@ export function ddlTipoSqlServer(esquema: string, nombre: string, filas: readonl
 
 /** Tipos del árbol de SQL Server que tienen DDL (todas sus carpetas). */
 export function tieneDdlSqlServer(tipo: DbTipoObjeto): boolean {
-  return tipo === 'tabla' || tipo === 'vista' || tipo === 'rutina' || tipo === 'secuencia' || tipo === 'sinonimo' || tipo === 'tipo'
+  return tipo === 'tabla' || tipo === 'vista' || tipo === 'rutina' || tipo === 'disparador' || tipo === 'secuencia' || tipo === 'sinonimo' || tipo === 'tipo'
 }

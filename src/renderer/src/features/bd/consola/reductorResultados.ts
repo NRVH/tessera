@@ -7,23 +7,12 @@
 // =============================================================================
 
 import { anexarPagina, SIN_RECORTES, type MapaRecortes } from '../rejilla/celdasRejilla.ts'
-import {
-  activar,
-  actualizarResultado,
-  cerrar,
-  cerrarOtrasNoFijadas,
-  cerrarTodas,
-  desfijar,
-  fijar,
-  type CambioResultados,
-  type EstadoResultados
-} from '../resultados/pestanasResultado.ts'
+import { actualizarResultado, aplicarAccionPestana } from '../resultados/pestanasResultado.ts'
 import {
   MOTIVO_LIBERADA,
   conLectores,
   conSalida,
   type AccionDe,
-  type AccionPestana,
   type EstadoConsola,
   type ResultadoConsola
 } from './modeloConsola.ts'
@@ -98,29 +87,8 @@ function liberar(e: EstadoConsola, a: AccionDe<'liberar'>): EstadoConsola {
   )
 }
 
-function cambioDePestana(
-  r: EstadoResultados<ResultadoConsola>,
-  accion: AccionPestana,
-  id: string
-): CambioResultados<ResultadoConsola> {
-  switch (accion) {
-    case 'activar':
-      return { estado: activar(r, id), lectoresPorCerrar: [] }
-    case 'fijar':
-      return { estado: fijar(r, id), lectoresPorCerrar: [] }
-    case 'desfijar':
-      return { estado: desfijar(r, id), lectoresPorCerrar: [] }
-    case 'cerrar':
-      return cerrar(r, id)
-    case 'cerrarOtras':
-      return cerrarOtrasNoFijadas(r, id)
-    case 'cerrarTodas':
-      return cerrarTodas(r)
-  }
-}
-
 function pestana(e: EstadoConsola, a: AccionDe<'pestana'>): EstadoConsola {
-  const cambio = cambioDePestana(e.resultados, a.accion, a.id)
+  const cambio = aplicarAccionPestana(e.resultados, a.accion, a.id)
   if (cambio.estado === e.resultados && cambio.lectoresPorCerrar.length === 0) return e
   return {
     ...e,

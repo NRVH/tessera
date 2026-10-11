@@ -1,7 +1,8 @@
 /* =============================================================================
    LO PROPIO DE LAS SESIONES SSH en la terminal: el modificador `.ssh` de una pestaña (icono de
    servidor delante del nombre), el filete que separa las pestañas del perfil de las del proyecto y
-   el «Conectando a…» que se ve hasta el primer dato. Las clases base de las pestañas
+   el «Conectando a…» que se ve hasta el primer dato, la franja de reconexión y el menú de la
+   pestaña. Las clases base de las pestañas
    (`.terminal-tab*`) siguen en `styles.css`: las comparten las pestañas de resultados de BD y no
    se tocan desde aquí.
    Decisiones: docs/decisiones/terminales/pestanas-ssh-del-perfil.md
@@ -32,18 +33,74 @@
   background: var(--border);
 }
 
-/* Capa ABSOLUTA sobre el hueco de la xterm: no la empuja ni la encoge, y no recibe el ratón (un
-   clic sobre ella llega al hueco y enfoca la terminal). Se va con el primer dato o la salida. */
+/* Capa ABSOLUTA sobre el hueco de la xterm: no la empuja ni la encoge, y solo «Cancelar» recibe el
+   ratón (un clic en el resto llega al hueco y enfoca la terminal). Va OPACA y tapa la primera fila
+   entera: el cursor de la xterm vive ahí y, si no, se pinta encima del texto. Los márgenes calcan los
+   de `.terminal-panel .terminal-host`. Se va con el primer dato o la salida. */
 .terminal-conectando {
   position: absolute;
-  top: 18px;
-  left: 20px;
-  z-index: 1;
-  max-width: calc(100% - 40px);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  top: 0;
+  left: 8px;
+  right: 8px;
+  /* Por encima de las capas propias de la xterm (enlaces, ayudas), que llegan a 5: si no, se comen el clic. */
+  z-index: 10;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-height: 40px;
+  padding: 8px 10px;
+  background: var(--bg-terminal);
   color: var(--fg-faint);
   font-size: 12px;
   pointer-events: none;
+}
+.terminal-conectando-texto {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.terminal-conectando-cancelar {
+  flex: 0 0 auto;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--fg-muted);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.terminal-conectando-cancelar:hover {
+  color: var(--fg);
+}
+
+/* La franja de una sesión terminada, EN EL FLUJO bajo la xterm (la encoge una fila, no la tapa): el
+   aviso escrito en la terminal se queda en el historial y esta franja lleva la acción. */
+.terminal-fin-ssh {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 8px 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--red) 10%, var(--bg-terminal));
+  font-size: 12px;
+}
+.terminal-fin-ssh-motivo {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg-muted);
+}
+.terminal-fin-ssh-boton {
+  flex: 0 0 auto;
+}
+.terminal-fin-ssh-nota {
+  flex: 0 0 auto;
+  color: var(--fg-faint);
 }

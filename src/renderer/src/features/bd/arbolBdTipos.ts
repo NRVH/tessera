@@ -5,8 +5,8 @@
 // Decisiones: docs/decisiones/bd/ui-arbol-modelo.md
 // =============================================================================
 
-import type { DbDocBase, DbDocColeccion } from '../../../../shared/db-documentos-ipc.ts'
-import type { DbKvBases, DbKvClave } from '../../../../shared/db-claves-ipc.ts'
+import type { DbDocBase, DbDocColeccion, DbDocIndice } from '../../../../shared/db-documentos-ipc.ts'
+import type { DbKvBases, DbKvClave, DbKvTipo } from '../../../../shared/db-claves-ipc.ts'
 import type {
   DbBasesRespuesta,
   DbColumnaInfo,
@@ -173,14 +173,24 @@ export interface FilaDocBase extends FilaContenedor {
   conexionId: string
   base: string
 }
-/** Una colección (o vista, o serie temporal). Hoja: doble clic o Enter abre su pestaña. */
-export interface FilaColeccion extends FilaBase {
+/** Una colección (o vista, o serie temporal): doble clic o Enter abre su pestaña, y se despliega en sus índices. */
+export interface FilaColeccion extends FilaContenedor {
   kind: 'coleccion'
   conexionId: string
   base: string
   coleccion: DbDocColeccion
+  /** Lo lleva si el servidor dio sus índices; sin ellos (una vista) no se despliega y `expandida` es siempre false. */
+  expandible: boolean
   /** Lo que acompaña al nombre (`metaColeccion`): el tipo o los documentos estimados. */
   meta: string | null
+}
+/** Un índice de una colección. Hoja. */
+export interface FilaIndiceColeccion extends FilaBase {
+  kind: 'doc-indice'
+  conexionId: string
+  base: string
+  coleccion: string
+  indice: DbDocIndice
 }
 /** Una base numerada de una conexión de claves: sus hijos son sus claves. */
 export interface FilaKvBase extends FilaContenedor {
@@ -192,6 +202,8 @@ export interface FilaKvBase extends FilaContenedor {
   porDefecto: boolean
   /** El MATCH con el que se recorre la base ('' = sin filtro). */
   patron: string
+  /** El tipo por el que se filtra; ausente = todos. */
+  tipo?: DbKvTipo
 }
 /** Una carpeta de claves (el prefijo hasta un `:`). */
 export interface FilaKvCarpeta extends FilaContenedor {
@@ -204,6 +216,8 @@ export interface FilaKvCarpeta extends FilaContenedor {
   nombre: string
   /** Claves CARGADAS dentro (en cualquier nivel). */
   cuenta: number
+  /** El tipo por el que se filtra su base: borrar la carpeta borra solo lo que se ve. */
+  tipo?: DbKvTipo
 }
 /** Una clave. Hoja: abre su pestaña de visor. */
 export interface FilaKvClave extends FilaBase {
@@ -231,6 +245,7 @@ export type FilaBd =
   | FilaConexion
   | FilaDocBase
   | FilaColeccion
+  | FilaIndiceColeccion
   | FilaKvBase
   | FilaKvCarpeta
   | FilaKvClave
@@ -277,6 +292,8 @@ export interface EntradaArbolBd {
   kvClaves?: ReadonlyMap<string, RecorridoClaves>
   /** Por `claveBd.kvBase`: el patrón de la base, si tiene. */
   kvPatrones?: ReadonlyMap<string, string>
+  /** Por `claveBd.kvBase`: el tipo por el que se filtra la base, si se filtra. */
+  kvTipos?: ReadonlyMap<string, DbKvTipo>
   /** Por `claveBd.kvBase`: las bases con una «Cargar más» en vuelo. */
   kvCargandoMas?: ReadonlySet<string>
 }

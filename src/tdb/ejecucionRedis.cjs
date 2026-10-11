@@ -1,7 +1,8 @@
 // =============================================================================
 // Ejecutar un comando de Redis con `callBuffer` y llevar la cuenta de la base y del MULTI de la
 // conexión (la cola de lo encolado, para saber la base tras un EXEC y pintar sus respuestas por
-// comando). Pieza de `redisComun.cjs`, que reexporta `ejecutar`.
+// comando). En Cluster, lo que no va a un solo nodo pasa por `clusterRedis.cjs`. Pieza de
+// `redisComun.cjs`, que reexporta `ejecutar`.
 // Decisiones: docs/decisiones/bd/adaptador-redis-cliente-y-marcas.md
 // =============================================================================
 
@@ -11,6 +12,8 @@ const { errorUso, esRespuestaError } = require('./erroresRedis.cjs')
 const { nombreComando } = require('./comandosRedis.cjs')
 const { aBuffer, nombreEnvio, respuestaDe } = require('./valoresRedis.cjs')
 const { estado } = require('./clienteRedis.cjs')
+const { esCluster } = require('./topologiaRedis.cjs')
+const { ejecutarEnCluster } = require('./clusterRedis.cjs')
 
 /** El EXEC de un MULTI abierto: cierra la cola, toma la base del último `SELECT` que ejecutó y pinta cada respuesta por su comando. */
 function terminarMulti(e, r, ctx) {
@@ -49,6 +52,13 @@ function registrar(e, nombre, argv) {
 async function ejecutar(cliente, argv) {
   if (!Array.isArray(argv) || argv.length === 0) throw errorUso('No hay ningún comando.')
   const nombre = nombreComando(argv)
+  if (esCluster(cliente)) {
+    // Sin MULTI ni bases: lo que no va a un solo nodo lo resuelve `clusterRedis`.
+    const envio = [nombreEnvio(argv[0]), ...argv.slice(1).map(aBuffer)]
+    const propio = await ejecutarEnCluster(cliente, nombre, envio)
+    const r = propio !== undefined ? propio : await cliente.callBuffer(envio[0], ...envio.slice(1))
+    return respuestaDe(r, { nombre, argc: argv.length, enMulti: false })
+  }
   const e = estado(cliente)
   const enMulti = e.multi !== null && nombre !== 'exec' && nombre !== 'discard' && nombre !== 'multi'
   let r

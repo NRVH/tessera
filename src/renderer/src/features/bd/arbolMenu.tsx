@@ -9,6 +9,7 @@
 import { SEP, type ContextMenuEntry } from '../../comun/ContextMenu'
 import { IconoAbrir, IconoAjustes, IconoCopiar, IconoEliminar, IconoRed, IconoRenombrar, IconoRuta } from '../../comun/iconosMenu'
 import {
+  IconoAnadirElemento,
   IconoDdl,
   IconoDefinicion,
   IconoDesconectar,
@@ -29,7 +30,9 @@ import {
   tieneSesiones,
   type FilaArbol
 } from './filasArbolBd'
-import { escaparGlob } from './arbolClaves'
+import { TIPOS_FILTRABLES, escaparGlob } from './arbolClaves'
+import { etiquetaTipo } from './claves/visorClaves'
+import type { BaseConsolaNueva } from './consola/basesConsola'
 import { etiquetaAcorde } from '../../util/atajos'
 import { esMotorSql } from '../../../../shared/motores/index'
 import type { DbConexionAjena, DbConnection } from '../../../../shared/db-ipc'
@@ -41,6 +44,7 @@ import {
   activarFila,
   anclaDe,
   aplicarFiltroClaves,
+  aplicarFiltroTipoClaves,
   cargarMasClaves,
   ejecutarAccionError,
   idFila,
@@ -60,8 +64,14 @@ interface MenuFila {
   copiarNombre: ContextMenuEntry
 }
 
-function itemNuevaConsola(a: CtxArbol, conexionId: string): ContextMenuEntry {
-  return { label: 'Nueva consola', icon: <IconoNuevaConsola />, onClick: () => a.p.onNuevaConsola(conexionId) }
+/** «Nueva consola»; con `base`, nace en la del nodo y no en la de la conexión. */
+function itemNuevaConsola(a: CtxArbol, conexionId: string, base?: BaseConsolaNueva): ContextMenuEntry {
+  return { label: 'Nueva consola', icon: <IconoNuevaConsola />, onClick: () => a.p.onNuevaConsola(conexionId, base) }
+}
+
+/** La base SQL de una fila (solo las conexiones con nivel «Bases», SQL Server: allí el esquema de la consola ES la base). */
+function baseSql(base: string | undefined): BaseConsolaNueva | undefined {
+  return base === undefined ? undefined : { familia: 'sql', esquema: base }
 }
 
 function itemRefrescar(onClick: () => void): ContextMenuEntry {
@@ -151,7 +161,7 @@ function menuConsola(fila: FilaDe<'consola'>, { a }: MenuFila): ContextMenuEntry
 /** Una base del nivel «Bases»: sus esquemas visibles se eligen aquí (configuración de la conexión). */
 function menuBase(fila: FilaDe<'base'>, { a, x, y, copiarNombre }: MenuFila): ContextMenuEntry[] {
   return [
-    itemNuevaConsola(a, fila.conexionId),
+    itemNuevaConsola(a, fila.conexionId, baseSql(fila.base)),
     itemRefrescar(() => refrescar(a, fila.conexionId, undefined, fila.base)),
     SEP,
     {
@@ -176,7 +186,7 @@ function menuBase(fila: FilaDe<'base'>, { a, x, y, copiarNombre }: MenuFila): Co
 }
 
 function menuEsquema(fila: FilaDe<'esquema'>, { a, copiarNombre }: MenuFila): ContextMenuEntry[] {
-  return [itemNuevaConsola(a, fila.conexionId), itemRefrescar(() => refrescar(a, fila.conexionId, fila.esquema, fila.base)), copiarNombre]
+  return [itemNuevaConsola(a, fila.conexionId, baseSql(fila.base)), itemRefrescar(() => refrescar(a, fila.conexionId, fila.esquema, fila.base)), copiarNombre]
 }
 
 function menuCarpeta(fila: FilaDe<'carpeta' | 'carpeta-detalle'>, { a }: MenuFila): ContextMenuEntry[] {
@@ -218,7 +228,7 @@ function menuObjeto(fila: FilaDe<'objeto'>, { a, c, copiarNombre }: MenuFila): C
   const paneDdl = paneDdlDeFila(fila)
   const verDdl: ContextMenuEntry[] = paneDdl ? [{ label: 'Ver DDL', icon: <IconoDdl />, onClick: () => a.p.onAbrir(paneDdl) }] : []
   if (abre === 'datos') {
-    return [...itemsDatosObjeto(a, fila, acorde), ...verDdl, itemNuevaConsola(a, fila.conexionId), SEP, copiarNombre, cualificado]
+    return [...itemsDatosObjeto(a, fila, acorde), ...verDdl, itemNuevaConsola(a, fila.conexionId, baseSql(fila.base)), SEP, copiarNombre, cualificado]
   }
   if (abre === 'fuente') {
     return [
@@ -232,7 +242,7 @@ function menuObjeto(fila: FilaDe<'objeto'>, { a, c, copiarNombre }: MenuFila): C
   return verDdl.length > 0 ? [...verDdl, SEP, copiarNombre, cualificado] : [copiarNombre, cualificado]
 }
 
-function menuHoja(_fila: FilaDe<'columna' | 'indice' | 'restriccion'>, { copiarNombre }: MenuFila): ContextMenuEntry[] {
+function menuHoja(_fila: FilaDe<'columna' | 'indice' | 'restriccion' | 'doc-indice'>, { copiarNombre }: MenuFila): ContextMenuEntry[] {
   return [copiarNombre]
 }
 
@@ -241,22 +251,35 @@ function menuPlaceholder(fila: FilaDe<'placeholder'>, { a }: MenuFila): ContextM
   return acc ? [{ label: acc.etiqueta, onClick: () => ejecutarAccionError(a, fila) }] : []
 }
 
-// Documentos: la consola nace en la base de la conexión (elegir la de la fila pediría que
-// `onNuevaConsola` recibiera la base).
 function menuDocBase(fila: FilaDe<'doc-base'>, { a, copiarNombre }: MenuFila): ContextMenuEntry[] {
-  return [itemNuevaConsola(a, fila.conexionId), itemRefrescar(() => refrescar(a, fila.conexionId)), copiarNombre]
+  return [itemNuevaConsola(a, fila.conexionId, { familia: 'documentos', base: fila.base }), itemRefrescar(() => refrescar(a, fila.conexionId)), copiarNombre]
 }
 
 function menuKvBase(fila: FilaDe<'kv-base'>, { a, copiarNombre }: MenuFila): ContextMenuEntry[] {
   const filtro = { conexionId: fila.conexionId, indice: fila.indice, clave: fila.key }
   return [
-    itemNuevaConsola(a, fila.conexionId),
+    itemNuevaConsola(a, fila.conexionId, { familia: 'claves', indice: fila.indice }),
     itemRefrescar(() => refrescar(a, fila.conexionId)),
     SEP,
     { label: 'Filtrar claves…', icon: <IconoFiltro />, onClick: () => a.e.setFiltrandoClaves({ ...filtro, actual: fila.patron }) },
     ...(fila.patron !== '' ? [{ label: 'Quitar el filtro', onClick: () => aplicarFiltroClaves(a, filtro, '') }] : []),
+    ...TIPOS_FILTRABLES.map(
+      (t): ContextMenuEntry => ({
+        label: `Solo ${etiquetaTipo(t)}`,
+        checked: fila.tipo === t,
+        onClick: () => aplicarFiltroTipoClaves(a, filtro, fila.tipo === t ? undefined : t)
+      })
+    ),
     SEP,
-    copiarNombre
+    copiarNombre,
+    SEP,
+    { label: 'Nueva clave…', icon: <IconoAnadirElemento />, onClick: () => a.e.setAccionClaves({ tipo: 'nueva', conexionId: fila.conexionId, indice: fila.indice }) },
+    {
+      label: 'Borrar claves por patrón…',
+      icon: <IconoEliminar />,
+      danger: true,
+      onClick: () => a.e.setAccionClaves({ tipo: 'borrar', conexionId: fila.conexionId, indice: fila.indice, patron: fila.patron, tipoClave: fila.tipo })
+    }
   ]
 }
 
@@ -268,7 +291,14 @@ function menuKvCarpeta(fila: FilaDe<'kv-carpeta'>, { a }: MenuFila): ContextMenu
     { label: `Filtrar por ${fila.prefijo}*`, icon: <IconoFiltro />, onClick: () => aplicarFiltroClaves(a, filtro, `${escaparGlob(fila.prefijo)}*`) },
     itemRefrescar(() => refrescar(a, fila.conexionId)),
     SEP,
-    { label: 'Copiar prefijo', icon: <IconoCopiar />, onClick: () => copiar(a, nombreDeFila(fila)) }
+    { label: 'Copiar prefijo', icon: <IconoCopiar />, onClick: () => copiar(a, nombreDeFila(fila)) },
+    SEP,
+    {
+      label: `Borrar las claves ${fila.prefijo}*…`,
+      icon: <IconoEliminar />,
+      danger: true,
+      onClick: () => a.e.setAccionClaves({ tipo: 'borrar', conexionId: fila.conexionId, indice: fila.indice, patron: `${escaparGlob(fila.prefijo)}*`, tipoClave: fila.tipo })
+    }
   ]
 }
 
@@ -280,7 +310,11 @@ function menuKvMas(fila: FilaDe<'kv-mas'>, { a }: MenuFila): ContextMenuEntry[] 
 function menuAbrible(fila: FilaDe<'coleccion' | 'kv-clave'>, { a, copiarNombre }: MenuFila): ContextMenuEntry[] {
   return [
     { label: `Abrir (${etiquetaAcorde('abrirNodo', a.plataforma)})`, icon: <IconoAbrir />, onClick: () => activarFila(a, fila) },
-    itemNuevaConsola(a, fila.conexionId),
+    itemNuevaConsola(
+      a,
+      fila.conexionId,
+      fila.kind === 'coleccion' ? { familia: 'documentos', base: fila.base } : { familia: 'claves', indice: fila.indice }
+    ),
     SEP,
     copiarNombre
   ]
@@ -298,6 +332,7 @@ const MENU_POR_TIPO: { [K in FilaBd['kind']]: (fila: FilaDe<K>, m: MenuFila) => 
   columna: menuHoja,
   indice: menuHoja,
   restriccion: menuHoja,
+  'doc-indice': menuHoja,
   placeholder: menuPlaceholder,
   'doc-base': menuDocBase,
   'kv-base': menuKvBase,

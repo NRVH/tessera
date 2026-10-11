@@ -3,7 +3,7 @@
 // (el código de los fallos del propio ssh) o con un motivo del main en menos de 20 s, con el motivo
 // si lo hay; «Se cortó la conexión» si fue un fallo después; y «La sesión terminó» (con el código si
 // no fue 0 ni la salida sin código de Windows) para el resto. Y el banner con el que el xterm lo
-// cuenta y manda a «Reconectar». Se fija bajo `node` (`test-pestanas-ssh.mts`).
+// cuenta y dice cómo volver a conectar. Se fija bajo `node` (`test-pestanas-ssh.mts`).
 // Decisiones: docs/decisiones/terminales/pestanas-ssh-del-perfil.md
 // =============================================================================
 
@@ -66,5 +66,5 @@ export function motivoFinSsh(
 /** El aviso que el xterm escribe al terminar la sesión: lo que pasó y qué pulsar para volver a conectar. */
 export function bannerFinSsh(motivo: string): string {
   const puntoFinal = /[.?!]$/.test(motivo) ? '' : '.'
-  return `${motivo}${puntoFinal} Usa «Reconectar» para volver a conectar.`
+  return `${motivo}${puntoFinal} Pulsa Intro para volver a conectar.`
 }

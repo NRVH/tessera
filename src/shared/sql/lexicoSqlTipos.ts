@@ -39,6 +39,8 @@ export interface Token {
   sinCerrar?: true
   /** La palabra `GO` de un `GO n` solo en su línea (SQL Server): no es separador; el aviso lo dice. */
   loteRepetido?: true
+  /** Un comentario `/*!…*\/` o `/*M!…*\/` (MySQL, `comentarioEjecutable`): el servidor ejecuta lo de dentro. */
+  ejecutable?: true
 }
 
 /** Dónde acaba un elemento delimitado y si llegó al final del rango sin cerrarse. */

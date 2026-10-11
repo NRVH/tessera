@@ -154,7 +154,6 @@ function controlador(eventos: Eventos, lanzadorSsh?: LanzadorSshTerminal): Contr
     profiles: [PERFIL],
     eventos,
     dockerfileDir: '',
-    bootstrapTarget: { profileId: PERFIL.id, projectHostPath: '' },
     sandbox: SANDBOX_FALSO,
     getHostEnv: () => {
       llamadasBd.push('getHostEnv')

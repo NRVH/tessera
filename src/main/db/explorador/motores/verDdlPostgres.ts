@@ -17,6 +17,7 @@ import {
   sqlSecuenciaPg,
   sqlTipoPg
 } from '../ddlCatalogo.ts'
+import { sinTerminador } from '../ddlCatalogoComun.ts'
 import type { LectorDdl } from './catalogo.ts'
 import { mapearColumnas, mapearFuente, mapearIndices, mapearRestricciones } from './mapeoPostgres.ts'
 import { sqlColumnas, sqlFuente, sqlIndices, sqlRestricciones } from './sqlPostgres.ts'
@@ -58,6 +59,12 @@ export async function leerDdlPostgres(lector: LectorDdl, ref: DbRefObjeto): Prom
     case 'rutina': {
       const fuente = mapearFuente(d, ref, await leer(() => sqlFuente(d, ref)))
       return conDdl(ddlRutinaPg(fuente), 'pg_get_functiondef')
+    }
+    case 'disparador': {
+      // El CREATE TRIGGER y, detrás, la función que ejecuta: el DDL completo del disparador.
+      const fuente = mapearFuente(d, ref, await leer(() => sqlFuente(d, ref)))
+      const sentencias = fuente.partes.map((p) => `${sinTerminador(p.texto)};`)
+      return conDdl(sentencias.length > 0 ? sentencias.reverse().join('\n\n') : null, 'pg_get_triggerdef')
     }
     default:
       throw lector.fallo('Ese tipo de objeto no tiene DDL en PostgreSQL.')

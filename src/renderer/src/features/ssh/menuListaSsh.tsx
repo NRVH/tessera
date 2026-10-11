@@ -1,7 +1,7 @@
 // =============================================================================
 // Los menús de la lista de conexiones SSH: el de una conexión (Conectar, Ir a la sesión abierta,
-// Editar, Mover a grupo, Eliminar) y el de un grupo real (Nueva conexión aquí, Renombrar, Eliminar
-// grupo; «Sin grupo» no tiene), más el componente que los pinta en la capa flotante: la lista flotante tiene su propio
+// Actividad de los agentes, Editar, Duplicar, Mover a grupo, Eliminar), el de varias marcadas en el riel (Mover a un grupo,
+// Exportar a OpenSSH, Eliminar) y el de un grupo real (Nueva conexión aquí, Renombrar, Eliminar grupo; «Sin grupo» no tiene), más el componente que los pinta en la capa flotante: la lista flotante tiene su propio
 // recorte y el menú no puede colgar de ella. Depende de `ContextMenu` y `capaFlotante`.
 // Decisiones: docs/decisiones/terminales/pestanas-ssh-del-perfil.md
 // =============================================================================
@@ -11,7 +11,7 @@ import { EnCapaFlotante } from '../../comun/capaFlotante'
 import { ContextMenu, SEP, type ContextMenuEntry } from '../../comun/ContextMenu'
 import { IconoCarpetaNueva, IconoEliminar, IconoRenombrar } from '../../comun/iconosMenu'
 import { IconoSftp } from '../sftp'
-import { IconoServidor, IconoServidorNuevo } from './iconosSsh'
+import { IconoExportar, IconoServidor, IconoServidorNuevo } from './iconosSsh'
 
 /** Lo que hace cada opción del menú de una conexión. */
 export interface AccionesMenuConexion {
@@ -21,22 +21,51 @@ export interface AccionesMenuConexion {
   /** Lleva a la pestaña ya abierta de esta conexión; `null` si no hay ninguna (la opción no sale). */
   onIrASesion: (() => void) | null
   onEditar: () => void
+  /** Crea la copia «… (1)» y la deja en la lista, sin abrir nada. */
+  onDuplicar: () => void
   /** Abre «Editar» con el foco en el selector de grupo. */
   onMoverAGrupo: () => void
   onEliminar: () => void
+  /** Lo que hicieron los agentes con esta conexión. */
+  onVerActividad: () => void
 }
 
-/** Conectar · Abrir explorador SFTP · Ir a la sesión abierta (si hay) · — · Editar… · Mover a grupo… · — · Eliminar… */
+/**
+ * Conectar · Abrir explorador SFTP · Ir a la sesión abierta (si hay) · — · Actividad de los agentes… · — ·
+ * Editar… · Duplicar · Mover a grupo… · — · Eliminar…
+ */
 export function itemsMenuConexion(a: AccionesMenuConexion): ContextMenuEntry[] {
   return [
     { label: 'Conectar', icon: <IconoServidor />, onClick: a.onConectar },
     { label: 'Abrir explorador SFTP', icon: <IconoSftp />, onClick: a.onAbrirSftp },
     ...(a.onIrASesion ? [{ label: 'Ir a la sesión abierta', onClick: a.onIrASesion }] : []),
     SEP,
+    { label: 'Actividad de los agentes…', onClick: a.onVerActividad },
+    SEP,
     { label: 'Editar…', icon: <IconoRenombrar />, onClick: a.onEditar },
+    { label: 'Duplicar', onClick: a.onDuplicar },
     { label: 'Mover a grupo…', icon: <IconoCarpetaNueva />, onClick: a.onMoverAGrupo },
     SEP,
     { label: 'Eliminar…', icon: <IconoEliminar />, danger: true, onClick: a.onEliminar }
+  ]
+}
+
+/** Lo que hace cada opción del menú de varias conexiones marcadas en el riel. */
+export interface AccionesMenuVarias {
+  /** Cuántas hay marcadas. */
+  n: number
+  onMoverAGrupo: () => void
+  onExportar: () => void
+  onEliminar: () => void
+}
+
+/** Mover N conexiones a un grupo… · Exportar N conexiones a OpenSSH… · — · Eliminar N conexiones… */
+export function itemsMenuVarias(a: AccionesMenuVarias): ContextMenuEntry[] {
+  return [
+    { label: `Mover ${a.n} conexiones a un grupo…`, icon: <IconoCarpetaNueva />, onClick: a.onMoverAGrupo },
+    { label: `Exportar ${a.n} conexiones a OpenSSH…`, icon: <IconoExportar />, onClick: a.onExportar },
+    SEP,
+    { label: `Eliminar ${a.n} conexiones…`, icon: <IconoEliminar />, danger: true, onClick: a.onEliminar }
   ]
 }
 
