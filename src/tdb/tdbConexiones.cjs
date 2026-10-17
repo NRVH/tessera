@@ -2,13 +2,14 @@
 // Qué conexiones sabe usar `tdb`: forma conocida, ids repetidos, búsqueda por alias o id y
 // carga del adaptador de su motor por el mapa de `motores.cjs`.
 // Una entrada que no sabe usar falla con un error explícito, no cae en el adaptador de otro.
-// Depende de `motores.cjs` y `tdbSalida.cjs`; lo usan los comandos de `tdb*.cjs`.
+// Depende de `motores.cjs`, `tdbSalida.cjs` y `textosTdb.cjs`; lo usan los comandos de `tdb*.cjs`.
 // Decisiones: docs/decisiones/bd/tdb-registro-como-el-main.md
 // =============================================================================
 'use strict'
 
 const motoresTdb = require('./motores.cjs')
 const { fallar } = require('./tdbSalida.cjs')
+const { textosTdb } = require('./textosTdb.cjs')
 
 /** ¿Tiene adaptador este motor? Lo que no está en el mapa de `motores.cjs` no se intenta. */
 function motorConocido(motor) {
@@ -22,12 +23,12 @@ function motorConocido(motor) {
 function nombreDe(con) {
   if (typeof con.alias === 'string' && con.alias.trim()) return con.alias
   if (typeof con.id === 'string' && con.id.trim()) return con.id
-  return '(sin nombre)'
+  return textosTdb().sinNombre
 }
 
 /** El motor tal como se enseña en un texto: el del registro o, si no es legible, «desconocido». */
 function motorLegible(motor) {
-  return typeof motor === 'string' && motor.trim() ? motor : 'desconocido'
+  return typeof motor === 'string' && motor.trim() ? motor : textosTdb().motorDesconocidoNombre
 }
 
 /**
@@ -96,30 +97,19 @@ function entendida(con) {
  */
 function exigirConocida(ctx, con) {
   if (entendida(con)) return
+  const t = textosTdb()
   const repetido = idRepetidoDe(con)
   if (repetido) {
-    const otra = repetido.comparteCon !== undefined ? `"${repetido.comparteCon}"` : 'una conexión de otro perfil'
-    fallar(
-      ctx,
-      `"${nombreDe(con)}" comparte su identificador con ${otra}: este tdb no puede distinguirlas\n` +
-        '    y usa la primera del registro. Tessera la conserva tal cual; elimínala desde\n' +
-        '    Tessera si sobra.',
-      { idRepetido: true, motor: con.motor, ...repetido }
-    )
+    const otra = repetido.comparteCon !== undefined ? `"${repetido.comparteCon}"` : t.unaDeOtroPerfil
+    fallar(ctx, t.idRepetido(nombreDe(con), otra), { idRepetido: true, motor: con.motor, ...repetido })
   }
   if (!motorConocido(con.motor)) {
-    fallar(ctx, `"${nombreDe(con)}" es de un motor (${motorLegible(con.motor)}) que este tdb no conoce: actualiza Tessera`, {
+    fallar(ctx, t.motorDesconocido(nombreDe(con), motorLegible(con.motor)), {
       motorDesconocido: true,
       motor: con.motor
     })
   }
-  fallar(
-    ctx,
-    `"${nombreDe(con)}" está guardada de una forma que este tdb no reconoce.\n` +
-      '    Puede venir de una versión más nueva de Tessera (actualiza para usarla) o de una\n' +
-      '    edición a mano del archivo; Tessera la conserva tal cual.',
-    { formaDesconocida: true, motor: con.motor }
-  )
+  fallar(ctx, t.formaDesconocida(nombreDe(con)), { formaDesconocida: true, motor: con.motor })
 }
 
 /** Busca por alias (sin caja ni espacios sobrantes) o por id; falla si no hay ninguna usable. */
@@ -134,13 +124,9 @@ function buscarConexion(ctx, alias) {
     if (ctx.formatoAjeno) fallar(ctx, ctx.avisoRegistro, { formatoAjeno: true })
     // «Disponibles» son las que se pueden USAR, con el mismo nombre que les da `ls`.
     const usables = ctx.conexiones.filter(entendida)
-    const disponibles = usables.map((c) => `"${nombreDe(c)}"`).join(', ') || '(ninguna)'
-    const otras = ctx.conexiones.length - usables.length
-    fallar(
-      ctx,
-      `No hay ninguna conexión llamada "${alias}" en este perfil.\n    Disponibles: ${disponibles}` +
-        (otras > 0 ? `\n    (y ${otras} que este tdb no sabe usar: tdb ls)` : '')
-    )
+    const t = textosTdb()
+    const disponibles = usables.map((c) => `"${nombreDe(c)}"`).join(', ') || t.ningunaDisponible
+    fallar(ctx, t.noHayConexion(alias, disponibles, ctx.conexiones.length - usables.length))
   }
   // Aquí y no al conectar: antes que la guardia de solo lectura y que la contraseña, cuyos
   // mensajes darían un consejo equivocado para una conexión que este `tdb` no sabe usar.

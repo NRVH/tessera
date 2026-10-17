@@ -1,13 +1,16 @@
 # Lo que cambia de un motor a otro es un descriptor de datos, en una unión por familia
 
 - **Estado:** vigente
-- **Ámbito:** `src/shared/motores/` (`tipos.ts`, `definir.ts`, `index.ts`, `autenticacion.ts`, `destinoRed.ts`), `src/tdb/motores.cjs`
+- **Ámbito:** `src/shared/motores/` (`tipos.ts`, `definir.ts`, `index.ts`, `autenticacion.ts`, `destinoRed.ts`), `src/tdb/motores.cjs`, `src/shared/sql/dialectosSql*.ts` y quien lee `REGLAS`
 
 ## Contexto
 
-Unos 190 sitios decidían por motor con `motor === 'oracle' ? A : B`; con un tercer motor cada uno caía en
-silencio en la rama de PostgreSQL. El descriptor pone cada decisión como una capacidad con nombre, y
-`MOTORES` tiene una entrada por `DbMotor`: un motor nuevo no compila hasta tenerlas todas.
+Decidir por motor con `motor === 'oracle' ? A : B` hace que cada motor nuevo caiga en silencio en la
+rama de otro; comparar el dialecto con su nombre (`d === 'oracle'`) tiene el mismo fallo, y un índice a
+pelo (`REGLAS[d]`) con un valor mal validado da un TypeError anónimo. El descriptor pone cada decisión
+como una capacidad con nombre, y `MOTORES` tiene una entrada por `DbMotor`: un motor nuevo no compila
+hasta tenerlas todas. Léxico, divisor, clasificador, parámetros y avisos son uno para todos los
+motores SQL; lo que cambia es dato.
 
 ## Decisión
 
@@ -31,9 +34,24 @@ silencio en la rama de PostgreSQL. El descriptor pone cada decisión como una ca
 - La forma de esperar un bloqueo (`FormaEsperaBloqueo`) es de la sesión de cada motor, con su SQL: no queda
   copia en el descriptor. `destinoLegible` no unifica las formas de `tdb ls` y del bloque de memoria: las
   leen agentes que ya las conocen.
+- **Lo que cambia del LENGUAJE SQL es una tabla de banderas** (`REGLAS`, en `src/shared/sql/dialectosSql*.ts`):
+  cada diferencia es una bandera sí/no o una unión cerrada, y el `switch` que la lee cierra con
+  `nunca`. Las tablas por dialecto (`REGLAS`, `RESERVADAS`, `PALABRAS_CLAVE`, `SEGURO`) son `Record`s
+  exhaustivos. Lo que depende del motor y no del lenguaje (catálogo, sesión, formulario) vive en el
+  descriptor.
+- `deDialecto` valida la clave con `hasOwnProperty` (con `'constructor'` o `'toString'`, `in` encuentra
+  lo heredado de `Object.prototype`) y lanza «Dialecto desconocido: "x".». Lo llama cada entrada
+  exportada al empezar, no cada lectura; `test-sql-dialecto-desconocido` exige que todo export con
+  `DialectoSql` esté en su tabla.
+- Las reglas de identificadores: la caja sin comillas es un modo (`mayus`, `minus`, `insensible`,
+  `insensibleUnicode`); SQL Server escribe corchetes porque `"x"` depende de QUOTED_IDENTIFIER.
+- `ReglasDialecto` debe seguir en `dialectosSql.ts`: `test-motores-sueltos` lee de ahí las uniones.
 
 ## Descartes
 
+- Una clase por motor con métodos para el lenguaje: escondería en qué se parecen dos motores.
+- Guardar el paginado en `REGLAS`: depende de la versión del servidor y vive en el descriptor.
+- Deducir el dialecto del texto: un `BEGIN` es un bloque en Oracle y una transacción en PG.
 - Descriptor plano con grupos opcionales (`sql?`, `documentos?`): cada lector comprobaría lo que le
   falta y un `?.` olvidado es el fallo en silencio que se quiere evitar.
 - Fundir `DialectoSql` con `DbMotor`: MongoDB y Redis no tienen dialecto y `REGLAS` les exigiría fila.

@@ -13,6 +13,7 @@ import { reglasDe, type DialectoSql } from '../../../shared/sql/dialectosSql.ts'
 import { parametrosQueFaltan, type ParametroSql } from '../../../shared/sql/parametrosSql.ts'
 import { tokenizar } from '../../../shared/sql/lexicoSql.ts'
 import type { BindsSqlite } from './protocoloTrabajador.ts'
+import { txBinds } from './textosRejilla.ts'
 
 /** Parámetros distintos por sentencia (y claves en una petición): más es un error. */
 export const MAX_BINDS = 1000
@@ -34,19 +35,19 @@ export type ValidacionBinds = { ok: true; binds: DbBinds | undefined } | { ok: f
  */
 export function validarBinds(v: unknown): ValidacionBinds {
   if (v === undefined || v === null) return { ok: true, binds: undefined }
-  if (typeof v !== 'object' || Array.isArray(v)) return { ok: false, mensaje: 'Los parámetros no tienen la forma esperada.' }
+  if (typeof v !== 'object' || Array.isArray(v)) return { ok: false, mensaje: txBinds().formaInesperada }
   const claves = Object.keys(v)
-  if (claves.length > MAX_BINDS) return { ok: false, mensaje: `Demasiados parámetros (más de ${MAX_BINDS}).` }
+  if (claves.length > MAX_BINDS) return { ok: false, mensaje: txBinds().demasiados(MAX_BINDS) }
   const binds: DbBinds = {}
   let total = 0
   for (const k of claves) {
     const valor = (v as Record<string, unknown>)[k]
-    if (k.length === 0 || k.length > MAX_CLAVE_BIND) return { ok: false, mensaje: 'Un parámetro tiene un nombre no válido.' }
+    if (k.length === 0 || k.length > MAX_CLAVE_BIND) return { ok: false, mensaje: txBinds().nombreNoValido }
     if (valor !== null && typeof valor !== 'string') {
-      return { ok: false, mensaje: `El valor de «${k}» tiene que ser texto o NULL.` }
+      return { ok: false, mensaje: txBinds().valorTexto(k) }
     }
     total += valor === null ? 0 : valor.length
-    if (total > MAX_TEXTO_BINDS) return { ok: false, mensaje: 'Los valores de los parámetros son demasiado grandes.' }
+    if (total > MAX_TEXTO_BINDS) return { ok: false, mensaje: txBinds().muyGrandes }
     binds[k] = valor
   }
   return { ok: true, binds }
@@ -66,9 +67,7 @@ export function claveOracle(clave: string): string {
 /** Mensaje de `parametros` para las claves que faltan, escritas como en la sentencia. */
 export function mensajeFaltan(params: readonly ParametroSql[], faltan: readonly string[]): string {
   const escritos = faltan.map((k) => params.find((p) => p.clave === k)?.texto ?? k)
-  return escritos.length === 1
-    ? `Falta el valor del parámetro ${escritos[0]}.`
-    : `Faltan los valores de los parámetros ${escritos.join(', ')}.`
+  return escritos.length === 1 ? txBinds().falta(escritos[0]) : txBinds().faltan(escritos.join(', '))
 }
 
 export type BindsResueltos =
@@ -131,7 +130,7 @@ function bindsPosicionales(
   // no hay valor que pedir.
   if (!(n <= MAX_POSICION_PG)) {
     const alto = params.find((p) => !(Number(p.clave) <= MAX_POSICION_PG))
-    return { ok: false, faltan: [], mensaje: `${etiquetaMotor(d)} admite como mucho $${MAX_POSICION_PG}: ${alto?.texto ?? 'el parámetro'} no puede enviarse.` }
+    return { ok: false, faltan: [], mensaje: txBinds().posicionMax(etiquetaMotor(d), MAX_POSICION_PG, alto?.texto ?? null) }
   }
   const arr: Array<string | null> = []
   for (let i = 1; i <= n; i++) arr.push(valorDe(String(i)))
@@ -144,11 +143,11 @@ function bindsPosicionales(
  */
 function bindsSqliteMixtos(texto: string | undefined, d: DialectoSql, valorDe: (clave: string) => string | null): BindsResueltos {
   if (texto === undefined) {
-    return { ok: false, faltan: [], mensaje: 'Falta el texto de la sentencia para enlazar sus parámetros.' }
+    return { ok: false, faltan: [], mensaje: txBinds().faltaTexto }
   }
   const disposicion = disposicionSqlite(texto, d)
   if (disposicion.mayor > MAX_INDICE_SQLITE) {
-    return { ok: false, faltan: [], mensaje: `Como mucho ?${MAX_INDICE_SQLITE}: la sentencia usa un número de parámetro más alto.` }
+    return { ok: false, faltan: [], mensaje: txBinds().indiceMax(MAX_INDICE_SQLITE) }
   }
   const nombrados: Record<string, string | null> = {}
   for (const [nombre] of disposicion.nombres) nombrados[nombre] = valorDe(nombre.slice(1))
@@ -223,8 +222,8 @@ function avisoChoquesSqlite(choques: ReadonlyArray<{ numero: string; nombre: str
   const motor = etiquetaMotor(d)
   if (choques.length === 1) {
     const [c] = choques
-    return `En ${motor}, ${c.numero} y ${c.nombre} son el MISMO parámetro: se usó el valor de ${c.nombre} y el de ${c.numero} no.`
+    return txBinds().choque(motor, c.numero, c.nombre)
   }
-  const parejas = choques.map((c) => `${c.numero} y ${c.nombre}`).join('; ')
-  return `En ${motor}, cada pareja es el MISMO parámetro (${parejas}): se usaron los valores de los nombres y los de los números no.`
+  const parejas = choques.map((c) => txBinds().pareja(c.numero, c.nombre)).join('; ')
+  return txBinds().choques(motor, parejas)
 }

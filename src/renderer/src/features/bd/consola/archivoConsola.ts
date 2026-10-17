@@ -11,6 +11,7 @@ import type { DbConsolaTexto, DbEscrituraConsola, DbRespuesta } from '../../../.
 import { mensajeDe, norm } from '../documentos/consolaComun.ts'
 import { reemplazarConservandoDeshacer } from './reemplazoModelo.ts'
 import { textoError } from './salidaConsola.ts'
+import { txPane } from './textosPane.ts'
 import { decidirTrasLeer, textoVacio } from './vivoConsola.ts'
 
 type Ref<T> = { current: T }
@@ -90,7 +91,7 @@ export function lecturaPermitida(
 function avisarErrorGuardado(a: ArchivoConsola, msg: string): void {
   if (a.r.errorGuardadoRef.current === msg) return
   a.r.errorGuardadoRef.current = msg
-  a.avisar(`No se pudo guardar la consola: ${msg}`)
+  a.avisar(txPane().noSePudoGuardar(msg))
 }
 
 async function escribir(a: ArchivoConsola, m: editor.ITextModel, texto: string): Promise<void> {
@@ -166,7 +167,7 @@ export async function leerArchivoConsola(a: LecturaArchivoConsola): Promise<void
     if (!res.ok) {
       const msg = textoError(res.error)
       if (primera) a.setErrorCarga(msg)
-      else a.avisar(`No se pudo leer la consola: ${msg}`)
+      else a.avisar(txPane().noSePudoLeer(msg))
       return
     }
     adoptarLectura(a, m, res.valor.texto, primera)

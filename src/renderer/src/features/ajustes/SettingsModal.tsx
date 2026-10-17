@@ -17,12 +17,15 @@ import {
 } from './filtrarAjustes'
 import { CabeceraModal, RielCategorias } from './PartesModal'
 import type { AjustesProps, PropsCategoria } from './tipos'
+import { txModal } from './textos.ts'
 import { useRielAjustes } from './useRielAjustes'
 import { Apariencia } from './categorias/Apariencia'
 import { Terminales } from './categorias/Terminales'
 import { Proyectos } from './categorias/Proyectos'
+import { Agentes } from './categorias/Agentes'
 import { BasesDeDatos } from './categorias/BasesDeDatos'
 import { Integracion } from './categorias/Integracion'
+import { Copia } from './categorias/Copia'
 import { Actualizaciones } from './categorias/Actualizaciones'
 import { Experimental } from './categorias/Experimental'
 import { Acerca } from './categorias/Acerca'
@@ -32,8 +35,10 @@ const PANELES: Record<CategoriaId, (p: PropsCategoria) => React.JSX.Element | nu
   apariencia: Apariencia,
   terminales: Terminales,
   proyectos: Proyectos,
+  agentes: Agentes,
   'bases-de-datos': BasesDeDatos,
   integracion: Integracion,
+  copia: Copia,
   actualizaciones: Actualizaciones,
   experimental: Experimental,
   acerca: Acerca
@@ -78,7 +83,7 @@ function ResultadosBusqueda({
   bloques: React.MutableRefObject<Map<string, HTMLDivElement>>
 }): React.JSX.Element {
   if (vacio) {
-    return <div className="ajustes-sin-resultados">Ningún ajuste coincide con «{consulta.trim()}».</div>
+    return <div className="ajustes-sin-resultados">{txModal().sinResultados(consulta.trim())}</div>
   }
   return (
     <>
@@ -140,7 +145,7 @@ function PanelModal({
         // El MISMO id al que apuntan los `aria-controls` del riel: con consulta el
         // panel apila todas las categorías, y la seleccionada sigue "controlándolo".
         id={`ajustes-panel-${categoria}`}
-        aria-label="Resultados de la búsqueda"
+        aria-label={txModal().resultados}
         // Scrollea y puede no tener nada enfocable dentro.
         tabIndex={0}
       >

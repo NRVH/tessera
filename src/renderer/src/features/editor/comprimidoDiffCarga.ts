@@ -1,6 +1,7 @@
 // =============================================================================
 // Peticiones del diff de un comprimido al main: comparar el contenedor y pedir el contenido de
-// la entrada elegida. Cada una devuelve su limpieza para el efecto que la lanza.
+// la entrada elegida, siempre con la contenedora del proyecto del pane. Cada una devuelve su
+// limpieza para el efecto que la lanza.
 // Lo usan `useComparacionComprimido` y `useContenidoEntrada`.
 // Decisiones: docs/decisiones/editor/visores-de-archivos.md
 // =============================================================================
@@ -20,6 +21,8 @@ const PEDIR_MS = 250
 const RECOMPARAR_MS = 400
 
 interface EntradaComparar {
+  /** Contenedora del proyecto del pane: el main lee los blobs y el disco de ese, no del anclado. */
+  raiz: string
   lados: { antes: LadoComprimido; despues: LadoComprimido }
   dentro: string[]
   peticionRef: MutableRefObject<number>
@@ -36,7 +39,7 @@ interface EntradaComparar {
  * del watcher se agrupan y no lo enseñan, para no parpadear el diff que se está leyendo.
  */
 export function iniciarComparacion(e: EntradaComparar): () => void {
-  const { lados, dentro, peticionRef, nivelMostradoRef, seleccionadaRef } = e
+  const { raiz, lados, dentro, peticionRef, nivelMostradoRef, seleccionadaRef } = e
   let vivo = true
   let temporizador: ReturnType<typeof setTimeout> | null = null
   const mia = ++peticionRef.current
@@ -47,7 +50,7 @@ export function iniciarComparacion(e: EntradaComparar): () => void {
   const pedir = (): void => {
     temporizador = null
     void window.tessera.comprimidos
-      .comparar({ antes: lados.antes, despues: lados.despues, dentro })
+      .comparar({ raiz, antes: lados.antes, despues: lados.despues, dentro })
       .then((res) => {
         if (!vivo || mia !== peticionRef.current) return
         nivelMostradoRef.current = nivel
@@ -86,6 +89,8 @@ export function iniciarComparacion(e: EntradaComparar): () => void {
 }
 
 interface EntradaContenido {
+  /** Contenedora del proyecto del pane (ver `EntradaComparar`). */
+  raiz: string
   lados: { antes: LadoComprimido; despues: LadoComprimido }
   dentro: string[]
   nombre: string
@@ -99,7 +104,7 @@ interface EntradaContenido {
 
 /** Pide, con antirrebote, el contenido de la entrada elegida. Devuelve la cancelación. */
 export function pedirContenidoEntrada(e: EntradaContenido): (() => void) | undefined {
-  const { lados, dentro, nombre, paneKey, temporizadorRef, tokenRef } = e
+  const { raiz, lados, dentro, nombre, paneKey, temporizadorRef, tokenRef } = e
   const como = comoPedir(nombre)
   if (como === null) {
     e.setContenido(null)
@@ -110,7 +115,7 @@ export function pedirContenidoEntrada(e: EntradaContenido): (() => void) | undef
     temporizadorRef.current = null
     const token = ++tokenRef.current
     void window.tessera.comprimidos
-      .entrada({ antes: lados.antes, despues: lados.despues, dentro, nombre, como, paneKey, token })
+      .entrada({ raiz, antes: lados.antes, despues: lados.despues, dentro, nombre, como, paneKey, token })
       .then((res) => {
         // El `token` descarta una entrada anterior de ESTE pane; `descartado` lo dice el main
         // cuando ni llegó a hacer el trabajo.

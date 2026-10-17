@@ -9,6 +9,7 @@
 
 import { promises as fs } from 'node:fs'
 import zlib from 'node:zlib'
+import { txJava } from './textos.ts'
 
 /** Firmas de las estructuras del formato. */
 const SIG_EOCD = 0x06054b50
@@ -110,7 +111,7 @@ export async function abrirLectorDeArchivo(abs: string): Promise<LectorRango> {
       async leer(desde: number, longitud: number): Promise<Buffer> {
         if (longitud <= 0) return Buffer.alloc(0)
         if (desde < 0 || desde + longitud > stat.size) {
-          throw new ErrorZip('El archivo está incompleto o dañado (se pidió leer más allá de su final).')
+          throw new ErrorZip(txJava().zip.incompletoLejos)
         }
         const buf = Buffer.alloc(longitud)
         let leidos = 0
@@ -120,7 +121,7 @@ export async function abrirLectorDeArchivo(abs: string): Promise<LectorRango> {
           leidos += bytesRead
         }
         if (leidos !== longitud) {
-          throw new ErrorZip('El archivo está incompleto o dañado (lectura corta).')
+          throw new ErrorZip(txJava().zip.incompletoCorta)
         }
         return buf
       },
@@ -146,7 +147,7 @@ export function lectorDeBuffer(bytes: Buffer): LectorRango {
     async leer(desde: number, longitud: number): Promise<Buffer> {
       if (longitud <= 0) return Buffer.alloc(0)
       if (desde < 0 || desde + longitud > bytes.length) {
-        throw new ErrorZip('El archivo comprimido está incompleto o dañado.')
+        throw new ErrorZip(txJava().zip.comprimidoIncompleto)
       }
       return bytes.subarray(desde, desde + longitud)
     },
@@ -177,7 +178,7 @@ function fechaDos(hora: number, fecha: number): number {
 function leerU64(buf: Buffer, offset: number): number {
   const valor = buf.readBigUInt64LE(offset)
   if (valor > BigInt(Number.MAX_SAFE_INTEGER)) {
-    throw new ErrorZip('El archivo declara tamaños que Tessera no puede manejar.')
+    throw new ErrorZip(txJava().zip.tamanos)
   }
   return Number(valor)
 }
@@ -188,7 +189,7 @@ function leerU64(buf: Buffer, offset: number): number {
  */
 async function localizarEocd(lector: LectorRango): Promise<{ cola: Buffer; pos: number; base: number }> {
   if (lector.tamano < LEN_EOCD) {
-    throw new ErrorZip('El archivo es demasiado pequeño para ser un .jar o .zip válido.')
+    throw new ErrorZip(txJava().zip.pequeno)
   }
   const longitud = Math.min(COLA_EOCD, lector.tamano)
   const base = lector.tamano - longitud
@@ -202,7 +203,7 @@ async function localizarEocd(lector: LectorRango): Promise<{ cola: Buffer; pos: 
       if (i + LEN_EOCD + lenComentario === cola.length) return { cola, pos: i, base }
     }
   }
-  throw new ErrorZip('No parece un archivo comprimido válido (no se encontró su índice).')
+  throw new ErrorZip(txJava().zip.sinIndice)
 }
 
 /** Localización del directorio central, resolviendo ZIP64 si hace falta. */
@@ -222,12 +223,12 @@ async function localizarDirectorioCentral(
     // El localizador ZIP64 va inmediatamente ANTES del EOCD.
     const posLocalizador = pos - 20
     if (posLocalizador < 0 || cola.readUInt32LE(posLocalizador) !== SIG_EOCD64_LOCATOR) {
-      throw new ErrorZip('El archivo dice ser ZIP64 pero le falta su índice extendido.')
+      throw new ErrorZip(txJava().zip.zip64Falta)
     }
     const offsetEocd64 = leerU64(cola, posLocalizador + 8)
     const eocd64 = await lector.leer(offsetEocd64, 56)
     if (eocd64.readUInt32LE(0) !== SIG_EOCD64) {
-      throw new ErrorZip('El índice extendido (ZIP64) del archivo está dañado.')
+      throw new ErrorZip(txJava().zip.zip64Danado)
     }
     total = leerU64(eocd64, 32)
     tamano = leerU64(eocd64, 40)
@@ -289,7 +290,7 @@ function aplicarZip64(
 export async function leerIndice(lector: LectorRango): Promise<IndiceZip> {
   const { offset, tamano, total } = await localizarDirectorioCentral(lector)
   if (offset + tamano > lector.tamano) {
-    throw new ErrorZip('El índice del archivo apunta fuera de él (está dañado o incompleto).')
+    throw new ErrorZip(txJava().zip.indiceFuera)
   }
   const central = await lector.leer(offset, tamano)
 
@@ -319,7 +320,7 @@ export async function leerIndice(lector: LectorRango): Promise<IndiceZip> {
     const inicioExtra = inicioNombre + lenNombre
     const finRegistro = inicioExtra + lenExtra + lenComentario
     if (finRegistro > central.length) {
-      avisos.push('El índice del archivo se corta a mitad de una entrada; se listó lo que se pudo leer.')
+      avisos.push(txJava().zip.indiceCortado)
       truncado = true
       break
     }
@@ -337,7 +338,7 @@ export async function leerIndice(lector: LectorRango): Promise<IndiceZip> {
     // Nombres tóxicos: un NUL rompería las claves compuestas del renderer, y un
     // nombre absoluto o con '..' es zip-slip. No se abren y se cuentan.
     if (nombre.includes('\u0000') || nombre.startsWith('/') || nombre.split('/').includes('..')) {
-      avisos.push(`Se ignoró una entrada con un nombre no admitido: ${JSON.stringify(nombre.slice(0, 80))}`)
+      avisos.push(txJava().zip.nombreNoAdmitido(JSON.stringify(nombre.slice(0, 80))))
       continue
     }
     if (nombre === '') continue
@@ -362,15 +363,13 @@ export async function leerIndice(lector: LectorRango): Promise<IndiceZip> {
 
     if (entradas.length >= MAX_ENTRADAS_INDICE) {
       truncado = true
-      avisos.push(
-        `El archivo tiene más de ${MAX_ENTRADAS_INDICE.toLocaleString('es')} entradas; se listaron las primeras.`
-      )
+      avisos.push(txJava().zip.masDeEntradas(MAX_ENTRADAS_INDICE))
       break
     }
   }
 
   if (duplicados > 0) {
-    avisos.push(`Se ignoraron ${duplicados} entrada(s) repetida(s); se conservó la primera de cada nombre.`)
+    avisos.push(txJava().zip.repetidas(duplicados))
   }
 
   return { entradas, totalDeclarado: total, truncado, avisos }
@@ -411,20 +410,15 @@ export async function leerEntrada(
   const maxBytes = opciones.maxBytes ?? MAX_ENTRADA_BYTES
   if (entrada.esDir) return Buffer.alloc(0)
   if (entrada.tamano > maxBytes) {
-    throw new ErrorZip(
-      `«${entrada.nombre}» ocupa ${Math.round(entrada.tamano / 1024 / 1024)} MB descomprimido y supera el máximo que Tessera abre.`
-    )
+    throw new ErrorZip(txJava().zip.entradaGrande(entrada.nombre, Math.round(entrada.tamano / 1024 / 1024)))
   }
   if (entrada.metodo !== METODO_STORED && entrada.metodo !== METODO_DEFLATE) {
-    throw new ErrorZip(
-      `«${entrada.nombre}» usa una compresión que Tessera no sabe leer (método ${entrada.metodo}). ` +
-        'Ábrelo con una herramienta externa.'
-    )
+    throw new ErrorZip(txJava().zip.compresion(entrada.nombre, entrada.metodo))
   }
 
   const local = await lector.leer(entrada.offsetLocal, LEN_LOCAL)
   if (local.readUInt32LE(0) !== SIG_LOCAL) {
-    throw new ErrorZip(`El archivo está dañado: la entrada «${entrada.nombre}» no está donde dice su índice.`)
+    throw new ErrorZip(txJava().zip.entradaDesplazada(entrada.nombre))
   }
   const lenNombre = local.readUInt16LE(26)
   const lenExtra = local.readUInt16LE(28)
@@ -433,7 +427,7 @@ export async function leerEntrada(
   const comprimidos = await lector.leer(inicioDatos, entrada.tamanoComprimido)
   if (entrada.metodo === METODO_STORED) {
     if (comprimidos.length > maxBytes) {
-      throw new ErrorZip(`«${entrada.nombre}» supera el máximo que Tessera abre.`)
+      throw new ErrorZip(txJava().zip.entradaSupera(entrada.nombre))
     }
     return comprimidos
   }
@@ -443,9 +437,6 @@ export async function leerEntrada(
     // forma asíncrona la conserva igual y trabaja en el pool de libuv (ver el ADR).
     return await inflarRaw(comprimidos, maxBytes)
   } catch (err) {
-    throw new ErrorZip(
-      `No se pudo descomprimir «${entrada.nombre}» (puede estar dañada o cifrada).`,
-      { cause: err }
-    )
+    throw new ErrorZip(txJava().zip.noDescomprime(entrada.nombre), { cause: err })
   }
 }

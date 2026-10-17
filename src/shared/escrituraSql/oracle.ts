@@ -11,6 +11,7 @@ import type { ColumnaFormato, EscritorFilas } from '../formatosFilas.ts'
 import type { EscrituraSqlMotor, VistaDml } from './tipos.ts'
 import { NUMERAL_SQL, cadenaSql, celda, hexDe, type Filas } from './comun.ts'
 import { bytesUtf8, bytesUtf8DelCaracter } from '../sql/posicionErrorSql.ts'
+import { txSql } from '../sql/textosSql.ts'
 
 const TROZO_CLOB = 1000
 /**
@@ -379,10 +380,7 @@ function bloqueOracle(cuerpo: string, grandes: readonly BinarioGrande[], declara
   for (const g of grandes) {
     const bytes = g.hex.length / 2
     if (g.comoRaw && bytes > MAX_RAW_PLSQL) {
-      l.push(
-        `-- ${bytes} bytes no caben en una variable RAW de PL/SQL (tope ${MAX_RAW_PLSQL}): ` +
-          'esta fila fallará con ORA-06502, y no hay forma de insertarla con SQL.'
-      )
+      l.push(txSql().script.rawGrande(bytes, MAX_RAW_PLSQL))
     }
   }
   if (grandes.length > 0 || declarar.length > 0) l.push('DECLARE')

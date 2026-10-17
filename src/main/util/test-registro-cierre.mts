@@ -26,6 +26,7 @@ import {
   logCierre,
   mensajeCorto,
   notaTope,
+  resumenRecursos,
   rutaLogCierre,
   textoProgreso
 } from './registroCierre.ts'
@@ -90,6 +91,9 @@ async function main(): Promise<void> {
     check('mensajeCorto de algo que no es Error', mensajeCorto('EPERM\nsegunda') === 'EPERM | segunda', mensajeCorto('EPERM\nsegunda'))
     const p = textoProgreso({ phase: 'unmounting', done: 0, total: 2, label: 'Liberando montajes…' })
     check('textoProgreso', p === '«Liberando montajes…» [unmounting 0/2]', p)
+    const recursos = resumenRecursos(['Timeout', 'PipeWrap', 'FSReqCallback', 'PipeWrap', 'PipeWrap', 'Timeout'])
+    check('resumenRecursos cuenta por tipo, de más a menos', recursos === 'PipeWrap×3, Timeout×2, FSReqCallback×1', recursos)
+    check('resumenRecursos sin nada: ninguno', resumenRecursos([]) === 'ninguno', resumenRecursos([]))
     check('notaTope: nada si llegó, y lo que pasó si no', notaTope(5000)('a-tiempo') === null && notaTope(5000)('tope') === 'TOPE de 5000 ms: se sigue sin esperar', String(notaTope(5000)('tope')))
     check(
       'los topes de disco: 5 s, por encima del plazo del acuse (1 s)',
@@ -407,7 +411,8 @@ async function main(): Promise<void> {
       'refs.vigilanteTurnos?.disposeAll()',
       'refs.agentesNativos?.parar()',
       'stopAutoUpdate()',
-      'forceKillPtys()',
+      'matarPtysConArbol(TOPE_PTYS_MS',
+      'rematarPtysSueltos()',
       'stopAllContainers(',
       'esperar(450)',
       'planDeCierre()',
@@ -436,7 +441,8 @@ async function main(): Promise<void> {
       "sincrona('turnos'",
       "sincrona('agentes-nativos'",
       "sincrona('auto-update'",
-      "'cerrar-ptys'",
+      "etapa(\n      'cerrar-ptys'",
+      "etapa(\n      'ptys-sueltos'",
       "etapa('docker'",
       "etapa('pausa-listo'",
       "etapa('instalador'",
@@ -451,6 +457,8 @@ async function main(): Promise<void> {
       ["'vaciar-consolas'", 'vaciarConsolas('],
       ["etapa('workspace-state'", 'flushWorkspaceState()'],
       ["etapa('sesiones-bd'", 'cerrarTodo('],
+      ["'cerrar-ptys'", 'matarPtysConArbol(TOPE_PTYS_MS'],
+      ["'ptys-sueltos'", 'rematarPtysSueltos()'],
       ["etapa('docker'", 'empezar, notaSinAvance(TOPE_DOCKER_MS)'],
       ["etapa('pausa-listo'", 'esperar(450)'],
       ["etapa('instalador'", 'runInstaller('],
@@ -467,7 +475,7 @@ async function main(): Promise<void> {
       // estar lanzado ANTES de matar terminales y contenedores, y después de la pregunta de salida.
       const iCerrando = cuerpo.indexOf('refs.cerrando = true')
       const iRelevo = cuerpo.indexOf("sincrona('relevo', () => anticiparRelevo()")
-      const iParar = cuerpo.indexOf('forceKillPtys()')
+      const iParar = cuerpo.indexOf('matarPtysConArbol(')
       check(
         'el relevo se lanza al empezar el cierre: tras la pregunta de salida y antes de parar nada',
         iCerrando > 0 && iRelevo > iCerrando && iParar > iRelevo,
@@ -506,6 +514,17 @@ async function main(): Promise<void> {
       'cada salida del proceso (app.exit) va precedida de su «termina»',
       salidas.length === 3 && sinTermina.length === 0,
       `${salidas.length} salidas, ${sinTermina.length} sin su «termina»${sinTermina.length ? `: ${sinTermina.map((i) => lineasCuerpo[i].trim()).join(' | ')}` : ''}`
+    )
+    // Tras `app.exit` no corre JS que pueda cortar un desmontaje colgado: antes de cada salida se
+    // anotan los ptys pendientes, se escucha el `exit` de Node y se arma el guardián.
+    const sinGuardia = salidas.filter((i) => {
+      const antes = lineasCuerpo.slice(Math.max(0, i - 20), i).join('\n')
+      return !(antes.includes('ptysPendientes()') && antes.includes("process.once('exit'") && antes.includes('armarGuardianSalida('))
+    })
+    check(
+      'antes de cada app.exit: ptys pendientes, el exit de Node y el guardián',
+      salidas.length === 3 && sinGuardia.length === 0,
+      `${salidas.length} salidas, ${sinGuardia.length} sin guardia`
     )
     // Y los desenlaces que NO salen del proceso también cierran el registro: cancelar en
     // el diálogo, el cierre que ya iba por otra vía y el plan C (la app sigue abierta).

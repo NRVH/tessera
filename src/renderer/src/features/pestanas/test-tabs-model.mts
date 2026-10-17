@@ -4,8 +4,7 @@
 // Corre bajo `node` a secas: tabsModel no usa React, DOM ni IPC. Cubre el nivel 3
 // (repo activo por proyecto): openProject, setScannedRepos (raíz o primero por defecto,
 // repo recordado, re-escaneo idempotente), setActiveRepo, closeProject y
-// selectGitTargetPath; y el objetivo de git: selectObjetivoGit (repos null frente a [])
-// y backendAnclado, la única puerta de «pedir».
+// selectGitTargetPath; y el objetivo de git: selectObjetivoGit (repos null frente a []).
 // =============================================================================
 
 import {
@@ -18,7 +17,6 @@ import {
   selectGitTargetPath,
   selectObjetivoGit,
   selectObjetivoGitMostrado,
-  backendAnclado,
   selectAllOpenProjects,
   selectAllOpenTargets,
   selectHibernatedTargetKeys,
@@ -673,12 +671,11 @@ function main(): void {
   )
 
   // ---------------------------------------------------------------------------
-  // (13) EL OBJETIVO DE GIT: identidad SÍNCRONA del perfil mostrado, y la puerta
-  //      de "pedir". Es lo que quita el parpadeo al cambiar de perfil: la vista
+  // (13) EL OBJETIVO DE GIT: identidad SÍNCRONA del perfil mostrado. Es lo que quita el parpadeo al cambiar de perfil: la vista
   //      deja de derivar su identidad del objetivo CONFIRMADO (que llega tras un
   //      round-trip) y pasa a derivarla de aquí, que cambia con el clic.
   // ---------------------------------------------------------------------------
-  hr('(13) selectObjetivoGit / backendAnclado / reposHuerfanos')
+  hr('(13) selectObjetivoGit / reposHuerfanos')
 
   const O_ALFA = 'C:\\p\\alfa-proj'
   const O_BETA = 'C:\\p\\beta-proj'
@@ -745,52 +742,6 @@ function main(): void {
     '(13d) repos: null (escaneo en vuelo) y [] (sin repos) NO se colapsan',
     oSin?.repos === null && oSin.repo === null && oVacio?.repos?.length === 0 && oVacio.repo === null,
     `sinEscanear.repos=${JSON.stringify(oSin?.repos)} escaneadoVacio.repos=${JSON.stringify(oVacio?.repos)}`
-  )
-
-  // (13e) LA PUERTA DE PEDIR. Este es el test que garantiza que no se puede
-  // preguntar al backend antes de que se haya re-apuntado: `ctxForRepo` rechazaría
-  // el repo y contestaría VACÍO, que es indistinguible de "repo sin commits" — y
-  // además se cachearía.
-  const confirmadoAlfa = {
-    profileId: 'alfa',
-    project: { projectHostPath: O_ALFA },
-    repo: { repoHostPath: O_ALFA_REPO }
-  }
-  check(
-    '(13e) backendAnclado: false con el confirmado de OTRO perfil',
-    backendAnclado(objBeta, confirmadoAlfa) === false,
-    'objetivo=beta confirmado=alfa -> false'
-  )
-  check(
-    '(13f) backendAnclado: false con otro proyecto y con otro repo del mismo perfil',
-    backendAnclado(objMostrado, {
-      profileId: 'alfa',
-      project: { projectHostPath: 'C:\\p\\otro' },
-      repo: { repoHostPath: O_ALFA_REPO }
-    }) === false &&
-      backendAnclado(objMostrado, {
-        profileId: 'alfa',
-        project: { projectHostPath: O_ALFA },
-        repo: { repoHostPath: 'C:\\p\\otro-repo' }
-      }) === false,
-    'ambos false'
-  )
-  check(
-    '(13g) backendAnclado: true solo cuando perfil, proyecto y repo coinciden',
-    backendAnclado(objMostrado, confirmadoAlfa) === true,
-    'true'
-  )
-  check(
-    '(13h) backendAnclado: false si falta cualquiera de los dos lados',
-    backendAnclado(objMostrado, null) === false && backendAnclado(null, confirmadoAlfa) === false,
-    'ambos false'
-  )
-  // Sin repo escaneado en los dos lados, el objetivo es la contenedora: eso SÍ
-  // está anclado (es el caso de un proyecto que aún no ha escaneado).
-  check(
-    '(13i) backendAnclado: true con repo null en ambos lados (contenedora)',
-    backendAnclado(oSin, { profileId: 'alfa', project: { projectHostPath: O_ALFA }, repo: null }) === true,
-    'true'
   )
 
   // (13j) "El proyecto ya no está" se resuelve SOLO, porque el objetivo es

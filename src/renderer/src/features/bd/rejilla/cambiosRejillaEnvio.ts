@@ -24,6 +24,7 @@ import {
   type ComparacionOriginal
 } from '../../../../../shared/sql/originalesSql.ts'
 import type { CambiosRejilla, FilaEditada, RefFila } from './cambiosRejillaModelo.ts'
+import { txEdicionRejilla } from './textosEdicionRejilla.ts'
 
 /** Lo que hace falta de la pestaña para convertir los cambios en el contrato. */
 export interface ContextoEnvio {
@@ -54,10 +55,11 @@ export type ResultadoEnvio =
   | { ok: false; error: string; fila: RefFila }
 
 function claveDe(ctx: ContextoEnvio, f: number): { ok: true; clave: DbCelda[] } | { ok: false; error: string } {
+  const t = txEdicionRejilla()
   const fila = ctx.filas[f]
-  if (!fila) return { ok: false, error: 'La fila ya no está cargada: vuelve a abrir la tabla.' }
+  if (!fila) return { ok: false, error: t.filaYaNoCargada }
   const id = ctx.identidad
-  if (id.tipo === 'ninguna') return { ok: false, error: id.motivo || 'Esta tabla no se puede editar.' }
+  if (id.tipo === 'ninguna') return { ok: false, error: id.motivo || t.tablaNoSeEdita }
   const columnas = id.tipo === 'rowid' ? [id.columna] : id.columnas
   const nombres = ctx.columnas.map((c) => c.nombre)
   const clave: DbCelda[] = []
@@ -65,8 +67,8 @@ function claveDe(ctx: ContextoEnvio, f: number): { ok: true; clave: DbCelda[] } 
     // Por NOMBRE EXACTO: en PG "ID" e id son columnas distintas. Con 'rowid' es la
     // ÚLTIMA (la oculta), aunque otra se llamara igual.
     const c = id.tipo === 'rowid' ? nombres.length - 1 : nombres.indexOf(k)
-    if (c < 0 || nombres[c] !== k) return { ok: false, error: `La columna ${k} de la clave no está en el resultado.` }
-    if (ctx.recortada?.(f, c)) return { ok: false, error: `El valor de ${k} (clave) llegó recortado: no sirve para encontrar la fila.` }
+    if (c < 0 || nombres[c] !== k) return { ok: false, error: t.columnaClaveNoEsta(k) }
+    if (ctx.recortada?.(f, c)) return { ok: false, error: t.claveRecortada(k) }
     clave.push(c < fila.length ? fila[c] : null)
   }
   return { ok: true, clave }
@@ -242,9 +244,8 @@ export function tiposPorNombre(columnas: readonly DbColumnaResultado[]): Record<
  */
 export function mensajeFallo(error: { mensaje: string; codigo?: string }, filas: number | undefined): string {
   if (filas !== undefined && filas !== 1) {
-    return filas === 0
-      ? 'La fila cambió o ya no existe: el cambio no encontró ninguna fila con la clave que se leyó.'
-      : `El cambio tocaba ${filas} filas en vez de una: la clave no identifica una sola fila.`
+    const t = txEdicionRejilla()
+    return filas === 0 ? t.filaCambio : t.tocabaVarias(filas)
   }
   return error.codigo ? `[${error.codigo}] ${error.mensaje}` : error.mensaje
 }

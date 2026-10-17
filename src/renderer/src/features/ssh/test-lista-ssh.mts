@@ -15,8 +15,8 @@ import {
   cabeceraDe,
   construirFilas,
   destinoSsh,
-  NOMBRE_CONEXIONES,
-  NOMBRE_RECIENTES,
+  nombreConexiones,
+  nombreRecientes,
   plegadosDeAcordeon,
   primeraConexion,
   RECIENTES_MAX,
@@ -689,7 +689,7 @@ hr('(15) Las conexiones recientes: las últimas tres que siguen existiendo, solo
     ver(plana) === '{Recientes} | r:Nube | {Conexiones} | Huérfana | Nube | Ñandú | router casa | servidor 2 | Servidor 10',
     ver(plana)
   )
-  check('los rótulos son los de la interfaz', NOMBRE_RECIENTES === 'Recientes' && NOMBRE_CONEXIONES === 'Conexiones', `${NOMBRE_RECIENTES} · ${NOMBRE_CONEXIONES}`)
+  check('los rótulos son los de la interfaz', nombreRecientes() === 'Recientes' && nombreConexiones() === 'Conexiones', `${nombreRecientes()} · ${nombreConexiones()}`)
 }
 
 hr('(16) Teclado con «Recientes»: los rótulos no se alcanzan, ni con las flechas ni con Inicio y Fin')

@@ -19,6 +19,8 @@ import {
 } from '../../../../../shared/sql/produccionSql.ts'
 import { recortarCentro } from '../dbTabsModel.ts'
 import { cantidad, textoError } from './salidaConsola.ts'
+import { txLote } from './textosLote.ts'
+import { txSalida } from './textosSalida.ts'
 
 /** Una sentencia del lote que escribe en producción. `indice` = posición en el lote. */
 export interface EscrituraProduccion {
@@ -45,9 +47,13 @@ export interface PeligroEnConfirmacion {
 const ALIAS_TITULO_MAX = 40
 
 /** Etiqueta del botón que acepta un lote en producción. */
-export const ETIQUETA_EJECUTAR_PRODUCCION = 'Ejecutar en producción'
+export function etiquetaEjecutarProduccion(): string {
+  return txLote().ejecutarEnProduccion
+}
 /** Etiqueta del botón que acepta el COMMIT en producción. */
-export const ETIQUETA_COMMIT_PRODUCCION = 'Confirmar (Commit)'
+export function etiquetaCommitProduccion(): string {
+  return txLote().confirmarCommit
+}
 
 /** ¿Es una conexión de producción? La regla vive en `shared/sql/produccionSql.ts`. */
 export function esProduccion(entorno: DbEntorno | null | undefined): boolean {
@@ -65,7 +71,7 @@ export function prevueloProduccion(
   if (!esProduccion(entorno)) return { confirmar: false }
   const escrituras: EscrituraProduccion[] = []
   sentencias.forEach((s, indice) => {
-    if (requiereConfirmacionProduccion(s)) escrituras.push({ indice, verbo: s.verbo || 'Sentencia' })
+    if (requiereConfirmacionProduccion(s)) escrituras.push({ indice, verbo: s.verbo || txLote().verboSentencia })
   })
   return escrituras.length === 0 ? { confirmar: false } : { confirmar: true, escrituras }
 }
@@ -81,8 +87,9 @@ export function resumenVerbos(escrituras: readonly EscrituraProduccion[]): strin
 function fraseEscrituras(total: number, escrituras: readonly EscrituraProduccion[]): string {
   const n = escrituras.length
   const verbos = resumenVerbos(escrituras)
-  if (n === total) return total === 1 ? `La sentencia escribe: ${verbos}.` : `Las ${total} sentencias escriben: ${verbos}.`
-  return n === 1 ? `Escribe 1 de las ${total} sentencias: ${verbos}.` : `Escriben ${n} de las ${total} sentencias: ${verbos}.`
+  const t = txLote()
+  if (n === total) return total === 1 ? t.escribeUna(verbos) : t.escribenTodas(total, verbos)
+  return n === 1 ? t.escribeUnaDe(total, verbos) : t.escribenAlgunas(n, total, verbos)
 }
 
 /** Un DDL que confirmará de rebote lo pendiente: cuántas sentencias y en qué motor. */
@@ -164,37 +171,30 @@ export function confirmacionLoteProduccion(o: {
   commitImplicito?: CommitImplicitoDdl | null
   commitEnBloque?: CommitEnBloques | null
 }): TextosConfirmacion {
-  const partes = [`«${o.alias}» es una conexión de producción.`, fraseEscrituras(o.total, o.escrituras)]
+  const t = txLote()
+  const u = txSalida()
+  const partes = [t.esProduccion(o.alias), fraseEscrituras(o.total, o.escrituras)]
   const peligros = o.peligros ?? []
   if (peligros.length > 0) partes.push(peligros.map((p) => `· ${p.motivo}\n   ${p.extracto}`).join('\n'))
   if (o.commitImplicito) {
     const n = o.commitImplicito.sentencias
-    const cuantas = n > 0 ? ` (${cantidad(n, 'sentencia', 'sentencias')})` : ''
-    partes.push(
-      `En ${o.commitImplicito.motor}, un DDL hace COMMIT de lo pendiente: los cambios sin confirmar de esta consola${cuantas} ` +
-        'quedarán confirmados y ya no se podrán revertir.'
-    )
+    const cuantas = n > 0 ? ` (${cantidad(n, u.sentencia, u.sentencias)})` : ''
+    partes.push(t.ddlConfirma(o.commitImplicito.motor, cuantas))
   }
   if (o.commitEnBloque) {
     const { bloques, pendientes } = o.commitEnBloque
     const sujeto =
-      o.total === 1
-        ? 'Este bloque contiene un COMMIT'
-        : bloques === 1
-          ? 'Un bloque del lote contiene un COMMIT'
-          : `${bloques} bloques del lote contienen un COMMIT`
+      o.total === 1 ? t.bloqueUno : bloques === 1 ? t.bloqueDeLote : t.bloquesDeLote(bloques)
     const efecto =
       pendientes === null
-        ? 'lo escrito hasta ese punto queda confirmado sin pasar por la confirmación del COMMIT, y ya no se podrá revertir.'
-        : `confirma también los cambios sin confirmar de esta consola${
-            pendientes > 0 ? ` (${cantidad(pendientes, 'sentencia', 'sentencias')})` : ''
-          } sin pasar por la confirmación del COMMIT, y ya no se podrán revertir.`
-    partes.push(`${sujeto}: ${efecto}`)
+        ? t.efectoSinPendientes
+        : t.efectoConPendientes(pendientes > 0 ? ` (${cantidad(pendientes, u.sentencia, u.sentencias)})` : '')
+    partes.push(t.sujetoEfecto(sujeto, efecto))
   }
   return {
-    titulo: `Producción: ¿ejecutar en ${recortarCentro(o.alias, ALIAS_TITULO_MAX)}?`,
+    titulo: t.tituloEjecutarProd(recortarCentro(o.alias, ALIAS_TITULO_MAX)),
     mensaje: partes.join('\n\n'),
-    confirmar: ETIQUETA_EJECUTAR_PRODUCCION
+    confirmar: etiquetaEjecutarProduccion()
   }
 }
 
@@ -205,13 +205,13 @@ export function commitPideConfirmacion(entorno: DbEntorno | null | undefined): b
 
 /** Los textos de la confirmación del COMMIT de la barra en producción. */
 export function confirmacionCommitProduccion(o: { alias: string; sentenciasEnTx: number }): TextosConfirmacion {
-  const cuantas = o.sentenciasEnTx > 0 ? ` (${cantidad(o.sentenciasEnTx, 'sentencia', 'sentencias')})` : ''
+  const u = txSalida()
+  const cuantas = o.sentenciasEnTx > 0 ? ` (${cantidad(o.sentenciasEnTx, u.sentencia, u.sentencias)})` : ''
+  const t = txLote()
   return {
-    titulo: `Producción: ¿confirmar en ${recortarCentro(o.alias, ALIAS_TITULO_MAX)}?`,
-    mensaje:
-      `«${o.alias}» es una conexión de producción.\n\n` +
-      `El COMMIT hace definitivos los cambios pendientes de esta consola${cuantas}.`,
-    confirmar: ETIQUETA_COMMIT_PRODUCCION
+    titulo: t.tituloConfirmarProd(recortarCentro(o.alias, ALIAS_TITULO_MAX)),
+    mensaje: t.commitProd(o.alias, cuantas),
+    confirmar: etiquetaCommitProduccion()
   }
 }
 
@@ -226,7 +226,7 @@ export function contextoTxPendiente(
   o: { alias: string; entorno: DbEntorno | null | undefined; tx: DbEstadoTx }
 ): string {
   if (!esProduccion(o.entorno) || o.tx === 'fallida') return contexto
-  return `${contexto}\n«${o.alias}» es una conexión de producción: «Confirmar (Commit)» hace definitivos los cambios.`
+  return txLote().contextoProd(contexto, o.alias)
 }
 
 /**
@@ -250,16 +250,16 @@ export function modoTxPorDefecto(
  * Se mira el TEXTO y no se da por hecho: un main anterior, u otro mensaje, puede no
  * decirlo, y entonces el prefijo es lo que tranquiliza.
  */
-const YA_DICE_NO_ENVIADO = /no se envi[oó]/i
+const YA_DICE_NO_ENVIADO = /no se envi[oó]|nothing was sent/i
 
 /** Una sentencia que el main rechazó por 'produccion': no llegó al servidor. */
 export function textoRechazoProduccion(error: Pick<DbErrorSql, 'codigo' | 'mensaje'>): string {
   const t = textoError(error)
-  return YA_DICE_NO_ENVIADO.test(t) ? t : `No se envió: ${t}`
+  return YA_DICE_NO_ENVIADO.test(t) ? t : txSalida().noSeEnvio(t)
 }
 
 /** Un COMMIT que el main rechazó por 'produccion': no se confirmó nada. */
 export function textoCommitRechazado(error: Pick<DbErrorSql, 'codigo' | 'mensaje'>): string {
   const t = textoError(error)
-  return YA_DICE_NO_ENVIADO.test(t) ? t : `No se confirmó: ${t}`
+  return YA_DICE_NO_ENVIADO.test(t) ? t : txLote().noSeConfirmo(t)
 }

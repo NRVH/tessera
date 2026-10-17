@@ -7,6 +7,7 @@ import { app, type BrowserWindow } from 'electron'
 import { writeFile } from 'node:fs/promises'
 import { basename, extname } from 'node:path'
 import { guardarConDialogo } from '../../util/adaptadores/dialogosNativos'
+import { txAdaptadores } from './textosAdaptadores.ts'
 
 /**
  * El nombre del archivo guardado, o null si el usuario canceló el diálogo. Lanza si no se pudo escribir.
@@ -17,7 +18,7 @@ export async function guardarTextoDeUsuario(ventana: BrowserWindow | null, propu
     'exportar-bd',
     propuesto,
     {
-      title: 'Exportar la clave a JSON',
+      title: txAdaptadores().exportarClave,
       filters: [{ name: 'JSON', extensions: ['json'] }],
       properties: ['createDirectory', 'showOverwriteConfirmation']
     },

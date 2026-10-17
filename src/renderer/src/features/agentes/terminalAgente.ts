@@ -1,18 +1,15 @@
 // =============================================================================
 // Operaciones del xterm del agente que solo leen refs y setters estables: ajustar al
-// hueco, sincronizar el tamaño del pty, escribir, copiar, pegar, buscar, compactar y el
+// hueco, sincronizar el tamaño del pty, escribir, copiar, pegar, compactar y el
 // clic derecho.
 // Como no capturan valores de un render, valen igual desde un efecto viejo que desde
 // un evento de ahora.
 // =============================================================================
 
 import type { MouseEvent } from 'react'
-import type { SearchOptions } from '../../comun/SearchBox'
 import {
   ajustarConRebote,
   ajustarXterm,
-  buscarEnXterm,
-  cerrarBuscadorXterm,
   copiarSeleccion,
   debeAbrirMenuContextual,
   handleTerminalPaste,
@@ -23,7 +20,7 @@ import type { RefsAgentPane } from './useRefsAgentPane'
 import { contarEvento } from '../../util/contadorRenders'
 
 /** Setters de la interfaz que tocan estas operaciones. */
-export type UiTerminal = Pick<EstadoUi, 'setSearchOpen' | 'setSearchResults' | 'setImagePreviews'>
+export type UiTerminal = Pick<EstadoUi, 'setImagePreviews'>
 
 /**
  * Envía al pty el tamaño del xterm. Ignora tamaños no positivos (un reflow transitorio
@@ -40,6 +37,22 @@ export function syncPtySize(r: RefsAgentPane): void {
     contarEvento('pty:resize')
     window.tessera.agentTerminal.resize({ sessionId: id, cols: term.cols, rows: term.rows })
   }
+}
+
+/**
+ * Ajusta el xterm y devuelve el tamaño con el que debe nacer el pty de una sesión que se
+ * abre; undefined si aún no se pudo medir (el main usa el suyo y el ajuste lo corrige).
+ */
+export function tamanoParaAbrir(r: RefsAgentPane): { cols: number; rows: number } | undefined {
+  const term = r.term.current
+  if (!term) return undefined
+  ajustarXterm(r)
+  return term.cols > 0 && term.rows > 0 ? { cols: term.cols, rows: term.rows } : undefined
+}
+
+/** Apunta como ya enviado el tamaño con el que nació la sesión `id`, para no repetirlo. */
+export function apuntarTamanoDeNacimiento(r: RefsAgentPane, id: string, tamano: { cols: number; rows: number } | undefined): void {
+  if (tamano) r.ultimoTam.current = { id, ...tamano }
 }
 
 /** Ajusta y sincroniza el pty en el acto. */
@@ -64,16 +77,6 @@ export function writeToPty(r: RefsAgentPane, data: string): void {
 /** Copia la selección del xterm al portapapeles. */
 export function copySelection(r: RefsAgentPane): void {
   copiarSeleccion(r)
-}
-
-/** Busca en el scrollback y la pantalla. Query vacía = limpia resaltados. */
-export function runSearch(r: RefsAgentPane, ui: UiTerminal, query: string, opts: SearchOptions, direction: 'next' | 'prev'): void {
-  buscarEnXterm(r, ui.setSearchResults, query, opts, direction)
-}
-
-/** Cierra el buscador: limpia resaltados y devuelve el foco a la terminal. */
-export function closeSearch(r: RefsAgentPane, ui: UiTerminal): void {
-  cerrarBuscadorXterm(r, ui.setSearchResults, ui.setSearchOpen)
 }
 
 /**

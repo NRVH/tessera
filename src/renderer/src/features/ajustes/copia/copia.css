@@ -1,0 +1,117 @@
+/* =============================================================================
+   Los modales de exportar e importar la configuración: listas de casillas (la de importar,
+   en árbol por perfil), el resumen y la vista previa. La cáscara (cabecera, cuerpo, campos, acciones) es la de
+   `formularioModal.css`.
+   ============================================================================= */
+
+.copia-modal {
+  width: min(520px, calc(100vw - 48px));
+}
+
+.copia-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  min-width: 0;
+}
+
+.copia-lista legend {
+  padding: 0;
+  margin-bottom: 4px;
+}
+
+/* La casilla de «Todo» encabeza la lista, separada de ella por un filete. */
+.copia-todo {
+  margin-top: 8px;
+  padding-bottom: 6px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.copia-casilla {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 12.5px;
+  color: var(--fg);
+}
+
+.copia-casilla input,
+.copia-casilla label {
+  cursor: pointer;
+}
+
+.copia-casilla input {
+  margin-top: 2px;
+  /* El color del perfil, como el botón «Importar» y las demás elecciones de la app. */
+  accent-color: var(--accent);
+}
+
+.copia-grupo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.copia-hijos {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 22px;
+}
+
+.copia-detalle-fila {
+  color: var(--fg-muted);
+  font-size: 12px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.copia-ya {
+  color: var(--fg-muted);
+}
+
+/* «Ya existe» como píldora y no como texto suelto: se distingue de los nombres de un vistazo. */
+.copia-ya-existe {
+  flex: none;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--hover-suave);
+  color: var(--fg-muted);
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+/* Ocupa lo que la casilla, para que lo que ya está quede alineado con lo marcable. */
+.copia-hueco-casilla {
+  flex: none;
+  width: 13px;
+  margin: 2px 3px 0 4px;
+}
+
+.copia-resumen {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.copia-resumen p {
+  margin: 0;
+}
+
+.copia-ok {
+  font-size: 12.5px;
+  color: var(--green);
+}
+
+.copia-detalle {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--fg-muted);
+  overflow-wrap: anywhere;
+}

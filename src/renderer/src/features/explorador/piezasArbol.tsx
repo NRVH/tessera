@@ -3,7 +3,9 @@
 // de estado bajo una carpeta expandida (cargando, vacía o con error).
 // Sin estado propio: lo que pintan lo decide `FileTree`.
 // =============================================================================
+import { EsperaCarga } from '../../comun/IndicadorCarga'
 import { basename } from './posixPath'
+import { txExplorador } from './textos.ts'
 import type { FlatRow } from './treeFlatten'
 import type { Arbol } from './tiposArbol'
 
@@ -40,6 +42,7 @@ function RefreshIcon(): React.JSX.Element {
 export function CabeceraArbol({ arbol }: { arbol: Arbol }): React.JSX.Element {
   const { selectedDir, setDialog, bumpRefresh } = arbol
   const { projectName } = arbol.props
+  const t = txExplorador()
   return (
     <div className="sidebar-header">
       <span className="sidebar-title" title={projectName}>
@@ -48,24 +51,24 @@ export function CabeceraArbol({ arbol }: { arbol: Arbol }): React.JSX.Element {
       <div className="sidebar-actions">
         <button
           className="sidebar-icon-btn"
-          title={selectedDir ? `Nuevo archivo en "${basename(selectedDir)}"` : 'Nuevo archivo'}
-          aria-label="Nuevo archivo"
+          title={selectedDir ? t.nuevoArchivoEn(basename(selectedDir)) : t.nuevoArchivo}
+          aria-label={t.nuevoArchivo}
           onClick={() => setDialog({ kind: 'newFile', dir: selectedDir })}
         >
           <NewFileIcon />
         </button>
         <button
           className="sidebar-icon-btn"
-          title={selectedDir ? `Nueva carpeta en "${basename(selectedDir)}"` : 'Nueva carpeta'}
-          aria-label="Nueva carpeta"
+          title={selectedDir ? t.nuevaCarpetaEn(basename(selectedDir)) : t.nuevaCarpeta}
+          aria-label={t.nuevaCarpeta}
           onClick={() => setDialog({ kind: 'newFolder', dir: selectedDir })}
         >
           <NewFolderIcon />
         </button>
         <button
           className="sidebar-icon-btn"
-          title="Refrescar"
-          aria-label="Refrescar"
+          title={t.refrescar}
+          aria-label={t.refrescar}
           onClick={bumpRefresh}
         >
           <RefreshIcon />
@@ -82,8 +85,19 @@ export function PlaceholderRow({
   row: Extract<FlatRow, { kind: 'placeholder' }>
 }): React.JSX.Element {
   const paddingLeft = 8 + row.depth * 12 + 14
-  const text =
-    row.variant === 'error' ? (row.message ?? 'error') : row.variant === 'empty' ? '(vacío)' : 'cargando…'
+  const t = txExplorador()
+  if (row.variant === 'loading') {
+    return (
+      <EsperaCarga
+        sinAnuncio
+        variante="fila"
+        texto={t.cargando}
+        className="tree-row muted"
+        style={{ paddingLeft }}
+      />
+    )
+  }
+  const text = row.variant === 'error' ? (row.message ?? t.errorGenerico) : t.vacio
   return (
     <div className={`tree-row ${row.variant === 'error' ? 'error' : 'muted'}`} style={{ paddingLeft }}>
       {text}

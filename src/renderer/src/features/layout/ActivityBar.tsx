@@ -11,6 +11,8 @@ import { reorderByDrag } from '../../util/reorderByDrag'
 import { moverEntreGrupos } from '../../util/gruposRiel'
 import { IconoCambios, IconoRama } from '../git'
 import { IconoBd } from '../bd'
+import { IconoArchivos, IconoTerminal } from '../../comun/iconosPanel'
+import { txLayout } from './textos.ts'
 
 /** Vistas de la columna lateral. */
 export type ActivityView = 'files' | 'git' | 'db'
@@ -75,23 +77,10 @@ interface ActivityBarProps {
   gitBadge?: number | null
 }
 
-// Glifos de línea: trazo redondeado y coherente.
-
-/** Archivos: una carpeta (dos hojas superpuestas se leen como «copiar», una acción). */
-function FilesIcon(): React.JSX.Element {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z" />
-    </svg>
-  )
-}
+// Glifos de línea: trazo redondeado y coherente. Archivos y terminal viven en `comun/iconosPanel`
+// porque el pie del agente los repite para decir dónde vive.
+const FilesIcon = IconoArchivos
+const TerminalIcon = IconoTerminal
 
 /**
  * Rama de git: el historial (franja inferior). Reutiliza `IconoRama`, el mismo glifo de
@@ -107,37 +96,25 @@ function DbIcon(): React.JSX.Element {
   return <IconoBd />
 }
 
-/** Terminal: un marco cuadrado con una sola marca, el cursor. */
-function TerminalIcon(): React.JSX.Element {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <rect x="3" y="3" width="18" height="18" rx="3" />
-      <path d="M6.4 15.8h6.8" />
-    </svg>
-  )
-}
-
 /** Metadatos de cada vista lateral (icono + etiqueta). El badge lo decide el render. */
-const VIEWS: Record<ActivityView, { label: string; icon: () => React.JSX.Element }> = {
-  files: { label: 'Archivos', icon: FilesIcon },
-  // Dos entradas de git con iconos distintos: el mismo glifo en dos sitios se lee como la misma ventana.
-  git: { label: 'Git · Cambios', icon: IconoCambios },
-  db: { label: 'Conexiones a bases de datos', icon: DbIcon }
+function vistasDelRiel(): Record<ActivityView, { label: string; icon: () => React.JSX.Element }> {
+  const t = txLayout().riel
+  return {
+    files: { label: t.archivos, icon: FilesIcon },
+    // Dos entradas de git con iconos distintos: el mismo glifo en dos sitios se lee como la misma ventana.
+    git: { label: t.gitCambios, icon: IconoCambios },
+    db: { label: t.conexiones, icon: DbIcon }
+  }
 }
 
 /** Metadatos de cada panel inferior. */
-const PANELES: Record<PanelInferior, { label: string; icon: () => React.JSX.Element; title: string }> =
-  {
-    terminal: { label: 'Terminal', icon: TerminalIcon, title: 'Terminal (Ctrl+`)' },
-    gitlog: { label: 'Git · Log', icon: GitIcon, title: 'Historial de git' }
+function panelesDelRiel(): Record<PanelInferior, { label: string; icon: () => React.JSX.Element; title: string }> {
+  const t = txLayout().riel
+  return {
+    terminal: { label: t.terminal, icon: TerminalIcon, title: t.terminalTitulo },
+    gitlog: { label: t.gitLog, icon: GitIcon, title: t.gitLogTitulo }
   }
+}
 
 /** Resultado de soltar: las dos listas del riel ya resueltas. */
 interface ListasRiel {
@@ -309,7 +286,7 @@ interface ContextoRiel {
 
 /** Icono de un panel inferior: toggle (pulsar el abierto cierra la franja, viva el icono donde viva). */
 function pintarPanel(id: PanelInferior, grupo: Grupo, ctx: ContextoRiel): React.JSX.Element {
-  const meta = PANELES[id]
+  const meta = panelesDelRiel()[id]
   const Icon = meta.icon
   const abierto = ctx.panelInferior === id
   return (
@@ -330,12 +307,12 @@ function pintarPanel(id: PanelInferior, grupo: Grupo, ctx: ContextoRiel): React.
 /** El único badge del riel: cambios de git sin confirmar (99+ como tope), o null. */
 function badgeDeVista(vista: ActivityView, gitBadge: number | null | undefined): { text: string; aria: string } | null {
   if (vista !== 'git' || gitBadge == null || gitBadge <= 0) return null
-  return { text: gitBadge > 99 ? '99+' : String(gitBadge), aria: `${gitBadge} cambios sin confirmar` }
+  return { text: gitBadge > 99 ? '99+' : String(gitBadge), aria: txLayout().riel.cambiosSinConfirmar(gitBadge) }
 }
 
 /** Icono de una vista lateral: radio (siempre hay exactamente una activa). */
 function pintarVista(vista: ActivityView, grupo: Grupo, ctx: ContextoRiel): React.JSX.Element {
-  const meta = VIEWS[vista]
+  const meta = vistasDelRiel()[vista]
   const Icon = meta.icon
   const isActive = ctx.active === vista
   const badge = badgeDeVista(vista, ctx.gitBadge)
@@ -399,8 +376,8 @@ export function ActivityBar({
     esPanel(id) ? pintarPanel(id, grupo, ctx) : pintarVista(id as ActivityView, grupo, ctx)
 
   return (
-    <nav className="activity-bar" aria-label="Barra de actividad">
-      <div className="activity-grupo-arriba" role="group" aria-label="Grupo superior del riel">
+    <nav className="activity-bar" aria-label={txLayout().riel.barra}>
+      <div className="activity-grupo-arriba" role="group" aria-label={txLayout().riel.grupoSuperior}>
         {ids.map((id) => pintar(id, 'arriba'))}
       </div>
 
@@ -414,7 +391,7 @@ export function ActivityBar({
       <div
         className={`activity-grupo-abajo${riel.sobreHueco === 'abajo' ? ' drop-zona' : ''}`}
         role="group"
-        aria-label="Grupo inferior del riel"
+        aria-label={txLayout().riel.grupoInferior}
         {...riel.propsHueco('abajo')}
       >
         {idsAbajo.map((id) => pintar(id, 'abajo'))}

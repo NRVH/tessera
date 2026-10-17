@@ -10,7 +10,10 @@ import { ErrorBoundary } from '../../comun/ErrorBoundary'
 import { EditorTabs } from './EditorTabs'
 import { SlotAccionesTira } from './slotAccionesTira'
 import { paneDeTab, type ContextoPane } from './PaneDeTab'
+import { raizDeTarget } from './editorTabsModel'
+import { RaizDelProyecto } from '../../comun/raizDelProyecto'
 import { useStoreEditor } from './store'
+import { txEditor } from './textos.ts'
 import type { EditorApp } from './useEditorApp'
 import { fijarAjuste, useStoreAjustes, type Densidad } from '../ajustes'
 import { bumpWorktree, useStoreGit } from '../git'
@@ -59,6 +62,7 @@ export function AreaEditor({ editor, gitStatusById, densidad, editorAreaOculta }
   return (
     <div className={`editor-area${editorAreaOculta ? ' hidden' : ''}`}>
       {editorTabs.tabs.length > 0 && (
+        <RaizDelProyecto.Provider value={activeEditorKey === null ? '' : raizDeTarget(activeEditorKey)}>
         <EditorTabs
           tabs={editorTabs.tabs}
           activeId={editorTabs.activeId}
@@ -70,6 +74,7 @@ export function AreaEditor({ editor, gitStatusById, densidad, editorAreaOculta }
           onSaveTab={editor.requestSaveTab}
           slotAccionesRef={setSlotAcciones}
         />
+        </RaizDelProyecto.Provider>
       )}
       <SlotAccionesTira.Provider value={slotAcciones}>
       {editorTabs.allPanes.map(({ targetKey, tab }) => {
@@ -77,8 +82,10 @@ export function AreaEditor({ editor, gitStatusById, densidad, editorAreaOculta }
         const visible = targetKey === activeEditorKey && tab.id === editorTabs.activeId
         // Un boundary por pane (key = pk conserva la identidad keep-alive).
         return (
-          <ErrorBoundary key={pk} label="el editor" variant="pane">
-            {paneDeTab({ targetKey, tab, pk, visible }, contexto)}
+          <ErrorBoundary key={pk} label={txEditor().errorBoundary} variant="pane">
+            <RaizDelProyecto.Provider value={raizDeTarget(targetKey)}>
+              {paneDeTab({ targetKey, tab, pk, visible }, contexto)}
+            </RaizDelProyecto.Provider>
           </ErrorBoundary>
         )
       })}

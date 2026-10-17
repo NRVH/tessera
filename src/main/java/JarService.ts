@@ -19,6 +19,7 @@ import {
 import type { FileEntry } from '../../shared/files-ipc.ts'
 import { listarNivel } from './jarListado.ts'
 import { JarIndexCache } from './JarIndexCache.ts'
+import { txJava } from './textos.ts'
 import {
   ErrorZip,
   abrirLectorDeArchivo,
@@ -138,7 +139,7 @@ export class JarService {
   async leerBytes(absContenedor: string, rutaVirtual: string): Promise<Buffer> {
     const partido = parseRutaArchivo(rutaVirtual)
     if (partido === null) {
-      throw new ErrorZip('Esa ruta no apunta a nada dentro de un archivo comprimido.')
+      throw new ErrorZip(txJava().zip.rutaVacia)
     }
     const { contenedor: abierto, entradaFinal } = await this.abrirCadena(absContenedor, partido)
     const entrada = this.buscarEntrada(abierto, entradaFinal, rutaVirtual)
@@ -154,7 +155,7 @@ export class JarService {
   async statEntrada(absContenedor: string, rutaVirtual: string): Promise<EntradaZip> {
     const partido = parseRutaArchivo(rutaVirtual)
     if (partido === null) {
-      throw new ErrorZip('Esa ruta no apunta a nada dentro de un archivo comprimido.')
+      throw new ErrorZip(txJava().zip.rutaVacia)
     }
     const { contenedor: abierto, entradaFinal } = await this.abrirCadena(absContenedor, partido)
     return this.buscarEntrada(abierto, entradaFinal, rutaVirtual)
@@ -208,10 +209,7 @@ export class JarService {
   private buscarEntrada(contenedor: ContenedorAbierto, interna: string, rutaVirtual: string): EntradaZip {
     const entrada = contenedor.porNombre().get(interna)
     if (entrada === undefined) {
-      throw new ErrorZip(
-        `«${interna}» ya no está dentro del archivo. ` +
-          'Puede que se haya reconstruido desde la última vez que lo abriste.'
-      )
+      throw new ErrorZip(txJava().zip.yaNoEsta(interna))
     }
     void rutaVirtual
     return entrada
@@ -227,7 +225,7 @@ export class JarService {
     partido: RutaArchivo
   ): Promise<{ contenedor: ContenedorAbierto; entradaFinal: string }> {
     if (partido.entradas.length > MAX_ANIDAMIENTO) {
-      throw new ErrorZip('Hay demasiados archivos anidados unos dentro de otros.')
+      throw new ErrorZip(txJava().zip.demasiadosAnidados)
     }
 
     const stat = await fs.stat(absContenedor)
@@ -235,12 +233,10 @@ export class JarService {
       // El desempate del que habla jarPath: una CARPETA real llamada "algo.jar" no
       // es un contenedor. Aquí se resuelve mirando el disco, que es lo único que
       // puede distinguirlo.
-      throw new ErrorZip('Eso es una carpeta, no un archivo comprimido.')
+      throw new ErrorZip(txJava().zip.esCarpeta)
     }
     if (stat.size > MAX_CONTENEDOR_BYTES) {
-      throw new ErrorZip(
-        `El archivo ocupa ${Math.round(stat.size / 1024 / 1024)} MB y supera el máximo que Tessera abre.`
-      )
+      throw new ErrorZip(txJava().zip.muyGrande(Math.round(stat.size / 1024 / 1024)))
     }
 
     let clave = JarIndexCache.claveDisco(absContenedor, stat.mtimeMs, stat.size)
@@ -251,7 +247,7 @@ export class JarService {
     for (let i = 0; i < partido.entradas.length - 1; i++) {
       const interna = partido.entradas[i]
       if (!esNombreContenedor(interna)) {
-        throw new ErrorZip(`«${interna}» no es un archivo que Tessera pueda abrir por dentro.`)
+        throw new ErrorZip(txJava().zip.noAbrible(interna))
       }
       const claveHija = JarIndexCache.claveAnidada(clave, interna)
       actual = await this.abrirAnidado(actual, interna, claveHija)
@@ -316,12 +312,10 @@ export class JarService {
     const tarea = (async (): Promise<ContenedorAbierto> => {
       const entrada = padre.porNombre().get(interna)
       if (entrada === undefined) {
-        throw new ErrorZip(`«${interna}» no está dentro del archivo que lo contiene.`)
+        throw new ErrorZip(txJava().zip.noEstaEnPadre(interna))
       }
       if (entrada.tamano > MAX_JAR_ANIDADO_BYTES) {
-        throw new ErrorZip(
-          `El archivo anidado «${interna}» ocupa ${Math.round(entrada.tamano / 1024 / 1024)} MB y es demasiado grande para abrirlo por dentro.`
-        )
+        throw new ErrorZip(txJava().zip.anidadoGrande(interna, Math.round(entrada.tamano / 1024 / 1024)))
       }
 
       const lectorPadre = await padre.abrirLector()

@@ -4,7 +4,7 @@
 // su espacio de datos, abrir sus sesiones) espera a que se suelte. Sin él, recrear el perfil mientras se
 // borra dejaría que el borrado tocase lo del perfil nuevo. Un `KeyedMutex` por la clave del id
 // (`claveDePerfil` de `util/carpetaDePerfil.ts`, el mismo criterio que el resto del borrado); sin Electron.
-// Decisiones: docs/decisiones/agentes/agente-de-la-terminal.md
+// Decisiones: docs/decisiones/workspace/borrar-perfil-con-orden.md
 // =============================================================================
 import { claveDePerfil as clave } from '../util/carpetaDePerfil.ts'
 import { KeyedMutex } from '../util/mutex.ts'

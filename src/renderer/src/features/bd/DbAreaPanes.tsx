@@ -26,6 +26,7 @@ import { DbConsolaDocsPane } from './documentos/DbConsolaDocsPane'
 import { DbClavePane } from './claves/DbClavePane'
 import { DbConsolaClavesPane } from './claves/DbConsolaClavesPane'
 import { IconoBd } from './iconosBd'
+import { txArea } from './textosArea.ts'
 
 /** Lo que los panes reciben del área, igual para todos. */
 interface ContextoPanes {
@@ -60,7 +61,7 @@ interface Familia {
 }
 
 function noDisponible(pista: string): React.JSX.Element {
-  return <EstadoVacio icono={<IconoBd />} titulo="Pestaña no disponible" pista={pista} />
+  return <EstadoVacio icono={<IconoBd />} titulo={txArea().pestanaNoDisponible} pista={pista} />
 }
 
 function consolaPane(
@@ -69,7 +70,7 @@ function consolaPane(
   ctx: ContextoPanes,
   f: Familia
 ): React.JSX.Element | null {
-  if (!f.deDocumentos && !f.deClaves && !f.deSql) return noDisponible('Esta pestaña es de SQL y la conexión no lo es.')
+  if (!f.deDocumentos && !f.deClaves && !f.deSql) return noDisponible(txArea().pestanaSqlNoSql)
   const consola = ctx.porPane.consolaDe(p.pid, pane.consolaId, p.pk)
   if (consola === null) return null
   const comunes = {
@@ -159,7 +160,7 @@ function contenidoPane(pane: DbPane, p: PaneEnCurso, ctx: ContextoPanes): React.
   const sinPestana = motivoSinConsola(p.conexion)
   if (sinPestana !== null) return noDisponible(sinPestana)
   if (pane.kind === 'coleccion') {
-    if (!f.deDocumentos) return noDisponible('Esta conexión no es de documentos.')
+    if (!f.deDocumentos) return noDisponible(txArea().noEsDeDocumentos)
     return (
       <DbColeccionPane
         paneKey={p.pk}
@@ -176,7 +177,7 @@ function contenidoPane(pane: DbPane, p: PaneEnCurso, ctx: ContextoPanes): React.
   }
   if (pane.kind === 'clave') {
     // Cada edición del visor se ejecuta al aceptar su diálogo: no pregunta al cerrarse (no entra en `registroEdicion`).
-    if (!f.deClaves) return noDisponible('Esta conexión no es de claves.')
+    if (!f.deClaves) return noDisponible(txArea().noEsDeClaves)
     return (
       <DbClavePane
         paneKey={p.pk}
@@ -193,7 +194,7 @@ function contenidoPane(pane: DbPane, p: PaneEnCurso, ctx: ContextoPanes): React.
     )
   }
   if (pane.kind === 'consola') return consolaPane(pane, p, ctx, f)
-  if (!f.deSql) return noDisponible('Esta pestaña es de SQL y la conexión no lo es.')
+  if (!f.deSql) return noDisponible(txArea().pestanaSqlNoSql)
   return objetoPane(pane, p, ctx)
 }
 
@@ -211,7 +212,7 @@ export function paneDeArea({ perfilId: pid, tab, paneKey: pk }: PestanaBdMontada
   if (contenido === null) return null
   return (
     <div key={pk} className={`db-pane${visible ? '' : ' hidden'}`}>
-      <ErrorBoundary key={pk} label="la pestaña de datos" variant="pane">
+      <ErrorBoundary key={pk} label={txArea().laPestanaDeDatos} variant="pane">
         {contenido}
       </ErrorBoundary>
     </div>
@@ -250,7 +251,7 @@ function vacioSinConexiones(d: DatosVacio): React.JSX.Element {
       accion={
         sinConexiones.ofrecerAlta ? (
           <button className="btn" onClick={d.onNuevaConexion}>
-            Nueva conexión…
+            {txArea().nuevaConexion}
           </button>
         ) : undefined
       }
@@ -263,16 +264,17 @@ function vacioSinConexiones(d: DatosVacio): React.JSX.Element {
  * enseña nada: un «Cargando…» saltaría al llegar la lista y «Sin conexiones» sería falso.
  */
 export function vacioDeArea(d: DatosVacio): React.JSX.Element | null {
+  const t = txArea()
   if (d.perfilId === null) {
-    return <EstadoVacio icono={<IconoBd />} titulo="Sin perfil activo" pista="Abre un perfil para ver sus conexiones." />
+    return <EstadoVacio icono={<IconoBd />} titulo={t.sinPerfilTitulo} pista={t.sinPerfilPista} />
   }
   if (d.tabs.length !== 0 || d.cargandoConexiones) return null
   if ((d.conexionesActuales?.length ?? 0) === 0) return vacioSinConexiones(d)
   return (
     <EstadoVacio
       icono={<IconoBd />}
-      titulo="Ninguna tabla abierta"
-      pista={`Abre una tabla o una vista del árbol con ${etiquetaAbrirNodo()}, o una consola SQL con ${etiquetaAcorde('nuevaConsola')}.`}
+      titulo={t.ningunaTablaTitulo}
+      pista={t.ningunaTablaPista(etiquetaAbrirNodo(), etiquetaAcorde('nuevaConsola'))}
     />
   )
 }

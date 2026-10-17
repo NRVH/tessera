@@ -2,7 +2,7 @@
 // Identificadores: plegado según la caja del motor, citado (si el nombre no es «seguro» o es reservada)
 // y `ESQUEMA.OBJETO` con cada parte citada. SQLite y SQL Server no pliegan y comparan con `claveDeNombre`;
 // SQL Server escribe corchetes, y `citar(n)` sin dialecto da `"x"`. Neutral y ES2020.
-// Decisiones: docs/decisiones/bd/sql-dialectos-como-tabla.md
+// Decisiones: docs/decisiones/bd/registro-motores-descriptor.md
 // =============================================================================
 
 import { deDialecto, reglasDe, type DialectoSql, type ReglasDialecto } from './dialectosSql.ts'

@@ -5,14 +5,14 @@
 // =============================================================================
 
 import type { DbErrorSql, DbRespuesta } from '../../../../shared/db-explorador-ipc.ts'
+import { txDocumentos } from './textosDocumentos.ts'
 
 /** Tope de un identificador (perfil, consola, petición, nombre de base o colección; holgado). */
 export const MAX_NOMBRE = 1024
 
 /** Lo que responde un handler cuando se escapa una excepción. */
-export const INTERNO: { ok: false; error: DbErrorSql } = {
-  ok: false,
-  error: { motivo: 'interno', mensaje: 'Error interno del explorador de bases de datos.' }
+export function respuestaInterna(): { ok: false; error: DbErrorSql } {
+  return { ok: false, error: { motivo: 'interno', mensaje: txDocumentos().errorInterno } }
 }
 
 /** Resultado de validar la forma de una petición: la misma forma que una respuesta del canal. */

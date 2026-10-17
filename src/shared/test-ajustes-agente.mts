@@ -9,14 +9,17 @@
 import {
   AGENTE_INACTIVIDAD_MIN_POR_DEFECTO,
   AGENTE_INACTIVIDAD_NUNCA,
-  AGENTE_INACTIVIDAD_OPCIONES,
   AGENTE_INACTIVIDAD_PRUEBAS_SUELO_MS,
-  AYUDA_INACTIVIDAD_AGENTE,
+  agenteInactividadOpciones,
+  ayudaInactividadAgente,
   inactividadAgenteMs,
   normalizarInactividadAgenteMin,
   umbralEfectivoMs,
   umbralPruebasDe
 } from './ajustesAgente.ts'
+
+const AGENTE_INACTIVIDAD_OPCIONES = agenteInactividadOpciones()
+const AYUDA_INACTIVIDAD_AGENTE = ayudaInactividadAgente()
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))

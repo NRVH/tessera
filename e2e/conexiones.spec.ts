@@ -82,7 +82,7 @@ async function seVeEnSuCentro(loc: Locator): Promise<boolean> {
 /** Una fila del árbol por su tipo y su nombre EXACTO (el `textContent` lleva metadatos pegados). */
 function fila(win: Page, tipo: string, nombre: string): Locator {
   return win
-    .locator(`.db-arbol .db-fila-${tipo}`)
+    .locator(`.db-arbol:visible .db-fila-${tipo}`)
     .filter({ has: win.locator('.db-fila-nombre', { hasText: new RegExp(`^${nombre}$`) }) })
 }
 
@@ -106,7 +106,8 @@ async function filaTras(win: Page, ancla: Locator, tipo: string, marca: string, 
           (el, a) => {
             // En orden de DOCUMENTO y no por hermanos: la lista virtual envuelve cada
             // fila en su propia caja posicionada.
-            const filas = Array.from(document.querySelectorAll('.db-arbol .db-fila'))
+            // Las del árbol del ancla: los de otros perfiles siguen en el DOM, ocultos.
+            const filas = Array.from((el.closest('.db-arbol') ?? document).querySelectorAll('.db-fila'))
             const desde = filas.indexOf(el)
             if (desde < 0) return false
             const tipoAncla = el.getAttribute('data-tipo')
@@ -330,7 +331,7 @@ test.describe('explorador de bases de datos', () => {
     const win = s!.win
     await aLaVista(win)
     await botonVista(win, 'Archivos').click()
-    await expect(win.locator('.sidebar .tree-row').first()).toBeVisible({ timeout: 30_000 })
+    await expect(win.locator('.sidebar .tree-row:visible').first()).toBeVisible({ timeout: 30_000 })
     await capturar(win, '00-vista-files')
     await botonVista(win, 'Git · Cambios').click()
     await asentar(win)
@@ -1197,7 +1198,7 @@ test.describe('explorador de bases de datos', () => {
     const win = s!.win
     await botonVista(win, 'Archivos').click()
     await expect(win.locator('.db-area')).toBeHidden()
-    await expect(win.locator('.sidebar .tree-row').first()).toBeVisible()
+    await expect(win.locator('.sidebar .tree-row:visible').first()).toBeVisible()
     // La columna del agente del PROYECTO vuelve: ocultar la del agente de datos no la
     // toca (son dos destinos distintos del mismo panel).
     await expect(win.locator('.right-panel')).toBeVisible()

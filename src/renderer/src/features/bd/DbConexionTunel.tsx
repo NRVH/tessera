@@ -7,17 +7,9 @@
 import { descriptor, usaOpcional } from '../../../../shared/motores/index'
 import { datosDePerfil, destinoSsh, useStoreSsh } from '../ssh'
 import type { BorradorConexion } from './borradorConexion'
+import { txConexionDialogo } from './textosConexionDialogo.ts'
 
 type Editar = (cambio: Partial<BorradorConexion>) => void
-
-/** La ayuda bajo el selector: qué cambia con el túnel y lo que necesita la conexión SSH. */
-const AYUDA_TUNEL =
-  'Tessera llega a la base a través de esa conexión SSH: el host y el puerto de arriba son los del servidor de base de datos visto desde el servidor SSH. ' +
-  'La huella del servidor SSH tiene que estar confirmada y su contraseña o clave, guardada.'
-
-/** Por qué Redis Sentinel y Cluster no ofrecen túnel (el selector se pinta apagado). */
-const SIN_TUNEL_TOPOLOGIA =
-  'Sentinel y Cluster no van por túnel SSH: Tessera se conecta a servidores que el túnel no lleva (el maestro que den los sentinels, los nodos del cluster). Para usar un túnel, elige «Un servidor».'
 
 export function SelectorTunelSsh({ borrador, editar }: { borrador: BorradorConexion; editar: Editar }): React.JSX.Element | null {
   const conexiones = useStoreSsh((s) => datosDePerfil(s, borrador.profileId).conexiones)
@@ -25,14 +17,15 @@ export function SelectorTunelSsh({ borrador, editar }: { borrador: BorradorConex
   if (!usaOpcional(d, 'tunelSsh')) return null
   const apagado = usaOpcional(d, 'topologiaRedis') && borrador.modoRedis !== 'servidor'
   const elegidaFalta = borrador.tunelSsh !== '' && !conexiones.some((c) => c.id === borrador.tunelSsh)
+  const t = txConexionDialogo()
   return (
     <>
       <div className="dbc-fila">
         <label className="dbc-campo dbc-crece">
-          <span className="dbc-etiqueta">Túnel SSH</span>
+          <span className="dbc-etiqueta">{t.tunelSsh}</span>
           <select data-campo="tunelSsh" disabled={apagado} value={apagado ? '' : borrador.tunelSsh} onChange={(e) => editar({ tunelSsh: e.target.value })}>
-            <option value="">{conexiones.length === 0 ? 'Ninguno (este perfil no tiene conexiones SSH)' : 'Ninguno (conexión directa)'}</option>
-            {elegidaFalta && <option value={borrador.tunelSsh}>Una conexión SSH que ya no existe</option>}
+            <option value="">{conexiones.length === 0 ? t.ningunoSinSsh : t.ningunoDirecta}</option>
+            {elegidaFalta && <option value={borrador.tunelSsh}>{t.conexionSshInexistente}</option>}
             {conexiones.map((c) => (
               <option key={c.id} value={c.id}>
                 {`${c.alias} (${destinoSsh(c)})`}
@@ -41,8 +34,10 @@ export function SelectorTunelSsh({ borrador, editar }: { borrador: BorradorConex
           </select>
         </label>
       </div>
-      {apagado && <p className="dbc-ayuda">{SIN_TUNEL_TOPOLOGIA}</p>}
-      {!apagado && borrador.tunelSsh !== '' && <p className="dbc-ayuda">{AYUDA_TUNEL}</p>}
+      {/* Por qué Redis Sentinel y Cluster no ofrecen túnel (el selector se pinta apagado). */}
+      {apagado && <p className="dbc-ayuda">{t.sinTunelTopologia}</p>}
+      {/* Qué cambia con el túnel y lo que necesita la conexión SSH. */}
+      {!apagado && borrador.tunelSsh !== '' && <p className="dbc-ayuda">{t.ayudaTunel}</p>}
     </>
   )
 }

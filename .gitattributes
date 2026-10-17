@@ -5,3 +5,5 @@
 # Git Bash en Windows y con bash/zsh en Mac: tienen que ser LF en las dos.
 # =============================================================================
 *.sh text eol=lf
+# Los hooks no llevan extensión y los corre `sh`, que con CRLF no encuentra la orden.
+.githooks/* text eol=lf

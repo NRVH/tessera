@@ -10,6 +10,8 @@ import type { DbDocBase, DbDocColeccion } from '../../../../shared/db-documentos
 import type { DescriptorDocumentos } from '../../../../shared/motores/index.ts'
 import { tieneNivelBases } from '../../../../shared/motores/index.ts'
 import { nunca } from '../../../../shared/nunca.ts'
+import { localeActual } from '../../../../shared/i18n.ts'
+import { txArbolNodos } from './textosArbolNodos.ts'
 
 /**
  * Lo que cuelga de una conexión de documentos: el nivel «Bases», o las colecciones de la
@@ -24,10 +26,10 @@ export function raizDocumentos(d: DescriptorDocumentos, c: { database?: string |
 }
 
 /** Los textos del árbol de documentos que no dependen de los datos. */
-export const TEXTOS_DOCUMENTOS = {
-  sinBases: 'Ninguna base visible',
-  sinColecciones: 'Sin colecciones'
-} as const
+export function textosDocumentos(): { readonly sinBases: string; readonly sinColecciones: string } {
+  const t = txArbolNodos()
+  return { sinBases: t.ningunaBaseVisible, sinColecciones: t.sinColecciones }
+}
 
 /**
  * Las bases en el orden del servidor (`listDatabases` ya las da por nombre), sin repetir. Se
@@ -50,7 +52,7 @@ export function ordenarBasesDocumentos(lista: readonly DbDocBase[]): DbDocBase[]
  * la fila. `listCollections` no promete ningún orden.
  */
 export function ordenarColecciones(lista: readonly DbDocColeccion[]): DbDocColeccion[] {
-  return [...lista].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { numeric: true }))
+  return [...lista].sort((a, b) => a.nombre.localeCompare(b.nombre, localeActual(), { numeric: true }))
 }
 
 /**
@@ -61,11 +63,11 @@ export function ordenarColecciones(lista: readonly DbDocColeccion[]): DbDocColec
 export function metaColeccion(c: DbDocColeccion): string | null {
   switch (c.tipo) {
     case 'vista':
-      return 'vista'
+      return txArbolNodos().metaVista
     case 'serieTemporal':
-      return 'serie temporal'
+      return txArbolNodos().metaSerieTemporal
     case 'coleccion':
-      return c.documentosEstimados === undefined ? null : `~${c.documentosEstimados.toLocaleString('es-ES')}`
+      return c.documentosEstimados === undefined ? null : `~${c.documentosEstimados.toLocaleString(localeActual())}`
     default:
       return nunca(c.tipo, 'metaColeccion')
   }

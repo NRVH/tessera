@@ -13,6 +13,7 @@ import type {
   SesionNativa
 } from '../../../../shared/agentes-nativos-ipc.ts'
 import { ETIQUETA_AGENTE } from '../../../../shared/etiquetasAgente.ts'
+import { txActualizacion } from './textosActualizacion.ts'
 import type { AvisoSesion, InstalacionPlaneada, PlanActualizacion } from './tipos.ts'
 
 export interface OpcionesActualizacion {
@@ -22,34 +23,58 @@ export interface OpcionesActualizacion {
   sinRevisar?: ReadonlySet<string>
 }
 
-/** Motivos de `ResultadoSesion`, en un solo sitio para que el test los compare. */
+/**
+ * Motivos de `ResultadoSesion`, en un solo sitio para que el test los compare. Cada uno se lee
+ * del idioma activo al pedirlo (por eso son accesores y no valores).
+ */
 export const MOTIVO = {
-  panelCambio: 'el panel cambió o se cerró',
-  empezoATrabajar: 'empezó a trabajar',
-  esperaRespuesta: 'espera tu respuesta',
-  textoNuevo: 'empezaste a escribir en ella',
-  noArranco: 'no volvió a arrancar',
-  cerrada: 'se cerró antes de reiniciarla',
-  sinResondeo: 'no se pudo volver a comprobar su versión',
-  versionDesconocida: 'no se sabe con qué versión arrancó',
-  alDia: 'ya corre la versión instalada'
-} as const
+  get panelCambio() {
+    return txActualizacion().motivos.panelCambio
+  },
+  get empezoATrabajar() {
+    return txActualizacion().motivos.empezoATrabajar
+  },
+  get esperaRespuesta() {
+    return txActualizacion().motivos.esperaRespuesta
+  },
+  get textoNuevo() {
+    return txActualizacion().motivos.textoNuevo
+  },
+  get noArranco() {
+    return txActualizacion().motivos.noArranco
+  },
+  get cerrada() {
+    return txActualizacion().motivos.cerrada
+  },
+  get sinResondeo() {
+    return txActualizacion().motivos.sinResondeo
+  },
+  get versionDesconocida() {
+    return txActualizacion().motivos.versionDesconocida
+  },
+  get alDia() {
+    return txActualizacion().motivos.alDia
+  }
+}
 
 const AGENTES: readonly AgentKind[] = ['claude-code', 'codex']
 
 /** Por qué la parada del main rechazó una sesión, dicho para el usuario. */
-const CAUSA_DETENER: Readonly<Record<CausaRechazoDetener, string>> = {
-  trabajando: MOTIVO.empezoATrabajar,
-  'esperando-respuesta': MOTIVO.esperaRespuesta,
-  'no-nativa': 'ya no corre en modo nativo',
-  'no-existe': 'se cerró',
-  muerta: 'su proceso ya había salido',
-  ocupada: 'estaba a mitad de otro reinicio'
+function causaDetener(): Readonly<Record<CausaRechazoDetener, string>> {
+  const m = txActualizacion().motivos
+  return {
+    trabajando: m.empezoATrabajar,
+    'esperando-respuesta': m.esperaRespuesta,
+    'no-nativa': m.noNativa,
+    'no-existe': m.seCerro,
+    muerta: m.muerta,
+    ocupada: m.ocupada
+  }
 }
 
 /** El texto de una causa de rechazo; una que no conozcamos se enseña tal cual. */
 export function textoCausa(causa: string): string {
-  return (CAUSA_DETENER as Readonly<Record<string, string>>)[causa] ?? causa
+  return (causaDetener() as Readonly<Record<string, string>>)[causa] ?? causa
 }
 
 /** El estado del CLI de un agente dentro de la foto del main. */
@@ -58,15 +83,16 @@ export function cliDe(estado: EstadoAgentesNativos, agente: AgentKind): EstadoCl
 }
 
 function motivoManual(cli: EstadoCli): string {
+  const p = txActualizacion().plan
   switch (cli.metodo) {
     case 'brew':
-      return 'Está instalado con Homebrew: se actualiza con su orden'
+      return p.brew
     case 'gestor':
-      return 'Está instalado con un gestor del sistema que Tessera no maneja'
+      return p.gestor
     case 'desconocido':
-      return 'No se sabe cómo se instaló: actualízalo por donde lo instalaste'
+      return p.desconocido
     default:
-      return 'Tessera no tiene una orden automática para esta instalación en este equipo'
+      return p.sinOrden
   }
 }
 
@@ -99,11 +125,7 @@ function bloquea(s: SesionNativa): boolean {
 function motivoEspera(bloqueantes: readonly SesionNativa[]): string {
   const trabajando = bloqueantes.filter((s) => s.trabajando).length
   const esperando = bloqueantes.length - trabajando
-  const agentes = (n: number): string => (n === 1 ? '1 agente' : `${n} agentes`)
-  const esperan = (n: number): string => (n === 1 ? 'espera' : 'esperan')
-  if (esperando === 0) return `Espera: ${agentes(trabajando)} trabajando`
-  if (trabajando === 0) return `Espera: ${agentes(esperando)} ${esperan(esperando)} tu respuesta`
-  return `Espera: ${agentes(trabajando)} trabajando y ${esperando} que ${esperan(esperando)} tu respuesta`
+  return txActualizacion().plan.espera(trabajando, esperando)
 }
 
 /**
@@ -114,7 +136,7 @@ function motivoEspera(bloqueantes: readonly SesionNativa[]): string {
 export function motivoPorOtra(agente: AgentKind, rechazos: InstalarResultado['rechazos']): string {
   const causas = new Set((rechazos ?? []).map((x) => x.causa))
   const espera = causas.has('esperando-respuesta') && !causas.has('trabajando')
-  return `otra sesión de ${ETIQUETA_AGENTE[agente]} ${espera ? 'espera tu respuesta' : 'estaba trabajando'}`
+  return txActualizacion().motivos.otraSesion(ETIQUETA_AGENTE[agente], espera)
 }
 
 /**
@@ -171,8 +193,8 @@ function motivoNoEjecutar(
   hayTrabajo: boolean,
   bloqueantes: readonly SesionNativa[]
 ): string | null {
-  if (estado.instalando !== null) return 'Ya hay una actualización en curso'
-  if (!hayTrabajo) return 'No hay nada que actualizar ni reiniciar'
+  if (estado.instalando !== null) return txActualizacion().plan.yaEnCurso
+  if (!hayTrabajo) return txActualizacion().plan.nadaQueHacer
   if (bloqueantes.length > 0) return motivoEspera(bloqueantes)
   return null
 }
@@ -211,18 +233,19 @@ interface Banner {
 /** Banner de una sesión cuyo agente se intentó instalar en esta pasada. */
 function bannerTrasInstalar(s: SesionNativa, inst: InstalarResultado, instaladaAhora: string | null): Banner {
   const etq = ETIQUETA_AGENTE[s.agente]
+  const b = txActualizacion().banner
   if (!inst.ok) {
     const sigue = instaladaAhora ?? inst.despues ?? inst.antes
     return {
-      banner: sigue ? `── ${etq} sigue en ${sigue}: no se pudo actualizar ──` : `── ${etq}: no se pudo actualizar ──`,
+      banner: sigue ? b.sigue(etq, sigue) : b.sinVersion(etq),
       error: true
     }
   }
   const nueva = instaladaAhora ?? inst.despues
-  if (nueva === null) return { banner: `── ${etq} no responde tras actualizar ──`, error: true }
+  if (nueva === null) return { banner: b.noResponde(etq), error: true }
   const de = s.versionLanzada ?? inst.antes
-  if (de !== null && de !== nueva) return { banner: `── ${etq} ${de} → ${nueva} ──`, error: false }
-  return { banner: `── ${etq} reiniciado en ${nueva} ──`, error: false }
+  if (de !== null && de !== nueva) return { banner: b.salto(etq, de, nueva), error: false }
+  return { banner: b.reiniciadoEn(etq, nueva), error: false }
 }
 
 /**
@@ -237,13 +260,14 @@ export function bannerPara(
   forzado: boolean
 ): Banner {
   const etq = ETIQUETA_AGENTE[s.agente]
-  if (forzado) return { banner: `── ${etq} reiniciado ──`, error: false }
+  const b = txActualizacion().banner
+  if (forzado) return { banner: b.reiniciado(etq), error: false }
   // `trabajando` = el main no tocó nada: para esta sesión no hubo instalación.
   if (inst && inst.motivo !== 'trabajando') return bannerTrasInstalar(s, inst, instaladaAhora)
   // Sólo atrasada: el binario nuevo ya estaba en disco.
   const de = s.versionLanzada
   if (de !== null && instaladaAhora !== null && de !== instaladaAhora) {
-    return { banner: `── ${etq} ${de} → ${instaladaAhora} ──`, error: false }
+    return { banner: b.salto(etq, de, instaladaAhora), error: false }
   }
-  return { banner: `── ${etq} reiniciado ──`, error: false }
+  return { banner: b.reiniciado(etq), error: false }
 }

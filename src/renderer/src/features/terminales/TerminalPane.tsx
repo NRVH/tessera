@@ -17,6 +17,7 @@ import { conexionPorId, destinoSsh, useStoreSsh } from '../ssh'
 import { crearAjusteTamano } from './ajusteTamano'
 import { CapasTerminal, type CapasSsh } from './CapasTerminal'
 import type { OrigenTerminal, TerminalPaneProps } from './terminalPaneTipos'
+import { txTerminales } from './textos.ts'
 import { useActivado, useEstadoSesion, useRefsTerminal, type EstadoSesion } from './useEstadoTerminalPane'
 import { useInterfazTerminal } from './useInterfazTerminal'
 import { useAccionesSsh, useAperturaSesion, usePrimerDatoSsh, usePublicacionPane, type AccionesSsh } from './useSesionShell'
@@ -29,10 +30,11 @@ import { contarRender } from '../../util/contadorRenders'
  */
 function capasSsh(origen: OrigenTerminal, estado: EstadoSesion, acciones: AccionesSsh, conexion: SshConexion | undefined): CapasSsh {
   if (origen.tipo !== 'ssh') return { conectando: null, fin: null }
+  const t = txTerminales()
   const sinDatos = estado.status === 'booting' || (estado.status === 'live' && !estado.datosRecibidos)
   const conectando = sinDatos
     ? {
-        texto: conexion ? `Conectando a ${destinoSsh(conexion)}…` : 'Conectando…',
+        texto: conexion ? t.conectandoA(destinoSsh(conexion)) : t.conectando,
         onCancelar: estado.status === 'live' && !estado.reloading ? acciones.cancelar : null
       }
     : null
@@ -40,7 +42,7 @@ function capasSsh(origen: OrigenTerminal, estado: EstadoSesion, acciones: Accion
   const terminada = estado.status === 'exited' || estado.status === 'error'
   const fin = terminada
     ? {
-        motivo: estado.finSsh ?? (estado.error ? 'No se pudo abrir la conexión' : 'La sesión terminó'),
+        motivo: estado.finSsh ?? (estado.error ? t.noSePudoAbrirConexion : t.sesionTermino),
         enVuelo: estado.reloading,
         onReconectar: conexion ? acciones.reconectar : null
       }
@@ -79,11 +81,11 @@ export function TerminalPane(props: TerminalPaneProps): React.JSX.Element {
       {/* El mensaje llega ENVUELTO por el IPC de Electron; clasificarErrorArranque lo
           desenvuelve y, si es Docker apagado, dice qué hacer. */}
       {estado.error && !esSsh && (
-        <AvisoCaja tono="error" {...clasificarErrorArranque(estado.error, 'No se pudo abrir la terminal')} />
+        <AvisoCaja tono="error" {...clasificarErrorArranque(estado.error, txTerminales().noSePudoAbrirTerminal)} />
       )}
       {/* El main explica en español, sin rutas, por qué no abrió: se enseña tal cual, no plegado. */}
       {estado.error && esSsh && (
-        <AvisoCaja tono="error" titulo="No se pudo abrir la conexión SSH" sugerencia={normalizarErrorIpc(estado.error)} />
+        <AvisoCaja tono="error" titulo={txTerminales().noSePudoAbrirConexionSsh} sugerencia={normalizarErrorIpc(estado.error)} />
       )}
       <div
         className="terminal-host"

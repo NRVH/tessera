@@ -368,7 +368,7 @@ async function readCodexUsage(base: string): Promise<UsageSnapshot> {
 }
 
 /** Busca en la COLA del rollout el último `token_count` que traiga `rate_limits`. */
-async function readCodexRollout(file: string, size: number): Promise<UsageSnapshot | null> {
+export async function readCodexRollout(file: string, size: number): Promise<UsageSnapshot | null> {
   const lines = await readTailLines(file, size)
   for (let i = lines.length - 1; i >= 0; i--) {
     const obj = lines[i]

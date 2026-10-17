@@ -9,6 +9,7 @@
 import { SEP, type ContextMenuEntry } from '../../comun/ContextMenu'
 import { IconoCerrar, IconoCerrarTodo, IconoRenombrar } from '../../comun/iconosMenu'
 import { idsDerecha, idsIzquierda, type DbTab, type DbTabsState } from './dbTabsModel'
+import { txArea } from './textosArea.ts'
 
 /** Lo que el menú necesita de la tira. */
 interface AccionesMenuPestana {
@@ -20,35 +21,36 @@ interface AccionesMenuPestana {
 /** Las entradas del menú de `tabMenu` en la tira `estadoTira` (ver la cabecera). */
 export function itemsMenuPestana(estadoTira: DbTabsState, tabMenu: DbTab, a: AccionesMenuPestana): ContextMenuEntry[] {
   const { tabs } = estadoTira
+  const t = txArea()
   return [
-    { icon: <IconoCerrar />, label: 'Cerrar', onClick: () => a.onCerrar([tabMenu.id]) },
+    { icon: <IconoCerrar />, label: t.cerrar, onClick: () => a.onCerrar([tabMenu.id]) },
     {
-      label: 'Cerrar otras',
+      label: t.cerrarOtras,
       disabled: tabs.length <= 1,
       onClick: () => a.onCerrar(tabs.filter((t) => t.id !== tabMenu.id).map((t) => t.id))
     },
     {
-      label: 'Cerrar a la izquierda',
+      label: t.cerrarIzquierda,
       disabled: idsIzquierda(estadoTira, tabMenu.id).length === 0,
       onClick: () => a.onCerrar(idsIzquierda(estadoTira, tabMenu.id))
     },
     {
-      label: 'Cerrar a la derecha',
+      label: t.cerrarDerecha,
       disabled: idsDerecha(estadoTira, tabMenu.id).length === 0,
       onClick: () => a.onCerrar(idsDerecha(estadoTira, tabMenu.id))
     },
     {
       icon: <IconoCerrarTodo />,
-      label: 'Cerrar todas',
+      label: t.cerrarTodas,
       onClick: () => a.onCerrar(tabs.map((t) => t.id))
     },
     SEP,
-    { label: 'Mostrar en el árbol', onClick: () => a.onMostrarEnArbol(tabMenu.id) },
+    { label: t.mostrarEnArbol, onClick: () => a.onMostrarEnArbol(tabMenu.id) },
     ...(tabMenu.pane.kind === 'consola'
       ? [
           {
             icon: <IconoRenombrar />,
-            label: 'Renombrar consola…',
+            label: t.renombrarConsolaPuntos,
             onClick: () => a.onRenombrarConsola(tabMenu.id)
           }
         ]

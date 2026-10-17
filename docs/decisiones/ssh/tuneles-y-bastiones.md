@@ -3,7 +3,7 @@
 - **Estado:** vigente
 - **Ámbito:** `src/main/ssh/` (`saltosSsh.ts`, `controlador/lineaSaltos.ts`, `adaptadores/configSaltos.ts`, `lineaSsh.ts`,
   `validacionSsh.ts`, `fichasAskpass.ts`, `controlador/askpassSsh.ts`, `controlador/puenteTssh.ts`, `ControladorSsh.ts`)
-  y el formulario de `features/ssh/` (`CamposSaltoTunelesSsh.tsx`, `borradorSsh.ts`) (macOS: sin verificar)
+  y el formulario de `features/ssh/` (`CamposSaltoTunelesSsh.tsx`, `borradorSsh.ts`)
 
 ## Contexto
 

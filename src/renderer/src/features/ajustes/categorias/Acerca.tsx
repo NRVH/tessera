@@ -9,6 +9,7 @@
 import { useEffect, useState } from 'react'
 import type { AppInfo } from '../../../../../shared/app-info-ipc'
 import type { PropsCategoria } from '../tipos'
+import { txCategorias } from '../textosSistema.ts'
 import { MarcaTessera } from '../../../comun/marcaTessera'
 import { nombresSistema } from '../../../../../shared/nombresSistema'
 import type { Plataforma } from '../../../../../shared/plataforma'
@@ -43,12 +44,7 @@ function queHace(plataforma: Plataforma): readonly string[] {
   // El enfoque es «varios proyectos, varias cuentas de IA»; el mismo mensaje que el
   // README, y si cambia uno cambia el otro. El modo nativo es la excepción que se elige
   // a propósito, no la regla.
-  return [
-    'Cada espacio de trabajo tiene su propio sandbox y sus propias cuentas de IA: varias licencias conviven sin chocar ni mezclar conversaciones.',
-    `Claude Code y Codex sólo ven los proyectos de su espacio, no ${n.tuEquipo}; sólo el proyecto que tú elijas corre en nativo, con tu cuenta.`,
-    'Editor, explorador, Git, terminales y bases de datos junto a los agentes, cambiando de proyecto con una pestaña.',
-    'El mosaico enseña a la vez todos los agentes que trabajan, y un botón los pone al día sin cortar a ninguno.'
-  ]
+  return txCategorias().acerca.puntos(n.tuEquipo)
 }
 
 export function Acerca({ ve }: PropsCategoria): React.JSX.Element | null {
@@ -80,7 +76,7 @@ function BloqueAutor(): React.JSX.Element {
   return (
     <div className="ajustes-acerca-autor">
       <span className="ajustes-acerca-autor-nombre">{AUTOR}</span>
-      <span className="ajustes-acerca-autor-rol">Ingeniero de Software</span>
+      <span className="ajustes-acerca-autor-rol">{txCategorias().acerca.rol}</span>
       {/* Los perfiles del autor: son lo que lo distingue de cualquier homónimo. */}
       <span className="ajustes-acerca-enlaces">
         {ENLACES_AUTOR.map((e, i) => (
@@ -98,6 +94,7 @@ function TarjetaAcerca(): React.JSX.Element {
   const info = useAppInfo()
   // En una constante local: así el `?:` de abajo estrecha a `string`.
   const repo = REPO_URL
+  const t = txCategorias().acerca
 
   return (
     <section className="ajustes-acerca">
@@ -105,9 +102,7 @@ function TarjetaAcerca(): React.JSX.Element {
       <h2 className="ajustes-acerca-nombre">Tessera</h2>
       <span className="ajustes-acerca-version">{info ? `v${info.version}` : '—'}</span>
 
-      <p className="ajustes-acerca-lema">
-        El IDE de escritorio para trabajar en varios proyectos y con varias cuentas de IA.
-      </p>
+      <p className="ajustes-acerca-lema">{t.lema}</p>
 
       {/* La lista se alinea a la IZQUIERDA dentro de un bloque centrado: varias líneas
           de dos renglones centradas no se leen, se miran. */}
@@ -122,11 +117,11 @@ function TarjetaAcerca(): React.JSX.Element {
       {/* Licencia siempre; el enlace al código solo cuando el repositorio exista (ver
           `shared/proyecto.ts`): un enlace a un 404 es peor que no tener enlace. */}
       <p className="ajustes-acerca-enlaces">
-        <span>Código abierto · licencia {LICENCIA}</span>
+        <span>{t.licencia(LICENCIA)}</span>
         {repo ? (
           <>
             {' · '}
-            <EnlaceExterno url={repo}>Código fuente</EnlaceExterno>
+            <EnlaceExterno url={repo}>{t.codigoFuente}</EnlaceExterno>
           </>
         ) : null}
       </p>
@@ -134,18 +129,13 @@ function TarjetaAcerca(): React.JSX.Element {
       <p className="ajustes-acerca-runtime">
         {info
           ? `Electron ${info.electron} · Chromium ${info.chrome} · Node ${info.node}`
-          : 'Cargando información del entorno…'}
+          : t.cargando}
       </p>
 
       {/* Atribución de marcas: el árbol de bases de datos pinta el logo oficial de
           PostgreSQL y su política de marcas recomienda este texto. Oracle no lleva logo,
           pero su nombre sí aparece: de ahí la línea genérica. */}
-      <p className="ajustes-acerca-runtime">
-        Postgres, PostgreSQL y el logo del elefante (Slonik) son marcas o marcas registradas
-        de la PostgreSQL Community Association of Canada, y se usan con su permiso. Oracle es
-        una marca registrada de Oracle y/o sus filiales. Los demás nombres de productos son
-        marcas de sus titulares.
-      </p>
+      <p className="ajustes-acerca-runtime">{t.marcas}</p>
     </section>
   )
 }

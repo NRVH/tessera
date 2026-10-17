@@ -17,6 +17,7 @@ import {
 } from './estadoConsola'
 import { commitPideConfirmacion, confirmacionCommitProduccion, modoTxPorDefecto } from './produccionConsola'
 import { textoError } from './salidaConsola'
+import { txPane } from './textosPane.ts'
 import type { RefsConsola } from './tiposConsola'
 import type { DialogosConsola, PreguntaConsola } from './useConsolaDialogos'
 import type { NucleoConsola } from './useConsolaNucleo'
@@ -80,7 +81,7 @@ async function alternarModo(p: Piezas, pedirResolucionTx: DialogosConsola['pedir
   const s = r.estadoRef.current.sesion
   let resolver: DbResolverTx | undefined
   if (destino === 'auto' && pasoAAutoRequiereResolver(s)) {
-    const res = await pedirResolucionTx(s, 'Para pasar a Tx Auto hay que confirmarla o revertirla antes.')
+    const res = await pedirResolucionTx(s, txPane().contextoAuto)
     if (!res) return
     resolver = res
   }
@@ -183,7 +184,7 @@ async function fijarEsquema(p: PiezasEsquema, esquema: string | null): Promise<v
       r.esquemaElegidoRef.current = esquema
       p.despachar({ tipo: 'sesion', sesion: res.valor, ahora: Date.now() })
     } else {
-      p.salida('error', `No se pudo cambiar el esquema: ${textoError(res.error)}`)
+      p.salida('error', txPane().noSePudoCambiarEsquema(textoError(res.error)))
     }
   } finally {
     r.cambiandoEsquemaRef.current = false

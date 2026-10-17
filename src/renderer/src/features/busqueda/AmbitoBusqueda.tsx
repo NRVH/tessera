@@ -7,6 +7,7 @@
 import { useMemo } from 'react'
 import type { CarpetasResult, ProyectoBuscable } from '../../../../shared/search-ipc'
 import { useCarpetasBusqueda } from './useCarpetasBusqueda'
+import { txBusqueda } from './textos.ts'
 
 /**
  * Sangría de cada nivel del desplegable: dos espacios duros (U+00A0). Se escriben con
@@ -78,6 +79,7 @@ export function AmbitoBusqueda({
     return opciones.findIndex((o) => o.raiz === seleccion.raiz && o.carpeta === seleccion.carpeta)
   }, [opciones, seleccion])
   const activando = seleccion !== null && raizActiva !== null && seleccion.raiz !== raizActiva
+  const t = txBusqueda()
 
   return (
     <div className="buscar-ambito">
@@ -86,7 +88,7 @@ export function AmbitoBusqueda({
         <>
           <select
             className="buscar-ambito-select"
-            aria-label="Carpeta en la que buscar"
+            aria-label={t.carpetaEnLaQueBuscar}
             value={indice}
             disabled={cargando || opciones.length === 0}
             onChange={(e) => {
@@ -96,9 +98,7 @@ export function AmbitoBusqueda({
           >
             {/* El hueco «sin elegir» solo existe mientras no hay elección. */}
             {indice < 0 && (
-              <option value={-1}>
-                {cargando ? 'Leyendo las carpetas…' : 'Elige una carpeta…'}
-              </option>
+              <option value={-1}>{cargando ? t.leyendoCarpetas : t.eligeCarpetaPuntos}</option>
             )}
             {agrupar(opciones).map((g) => (
               <optgroup key={g.raiz} label={g.proyecto}>
@@ -119,15 +119,16 @@ export function AmbitoBusqueda({
 
 /** Los dos botones de modo. */
 function ModosAmbito({ modo, onModo }: { modo: Modo; onModo: (m: Modo) => void }): React.JSX.Element {
+  const t = txBusqueda()
   return (
-    <div className="buscar-ambito-modos" role="group" aria-label="Ámbito de la búsqueda">
+    <div className="buscar-ambito-modos" role="group" aria-label={t.ambitoBusqueda}>
       <button
         type="button"
         className={`buscar-ambito-modo${modo === 'proyecto' ? ' activo' : ''}`}
         onClick={() => onModo('proyecto')}
         aria-pressed={modo === 'proyecto'}
       >
-        En el proyecto
+        {t.enElProyecto}
       </button>
       <button
         type="button"
@@ -135,7 +136,7 @@ function ModosAmbito({ modo, onModo }: { modo: Modo; onModo: (m: Modo) => void }
         onClick={() => onModo('carpeta')}
         aria-pressed={modo === 'carpeta'}
       >
-        En una carpeta
+        {t.enUnaCarpeta}
       </button>
     </div>
   )
@@ -152,13 +153,14 @@ function NotasAmbito({
   datos: CarpetasResult | null
 }): React.JSX.Element {
   const avisos = (datos?.proyectos ?? []).filter((p) => p.error !== undefined || p.truncado)
+  const t = txBusqueda()
   return (
     <>
       {error !== null && <span className="buscar-ambito-nota es-error">{error}</span>}
-      {activando && <span className="buscar-ambito-nota">Cambiando de proyecto…</span>}
+      {activando && <span className="buscar-ambito-nota">{t.cambiandoProyecto}</span>}
       {error === null && !activando && avisos.length > 0 && (
         <span className="buscar-ambito-nota" title={avisos.map(textoAviso).join('\n')}>
-          {avisos.length === 1 ? textoAviso(avisos[0]) : `${avisos.length} proyectos con avisos`}
+          {avisos.length === 1 ? textoAviso(avisos[0]) : t.proyectosConAvisos(avisos.length)}
         </span>
       )}
     </>
@@ -168,7 +170,7 @@ function NotasAmbito({
 /** El aviso de un proyecto que no se pudo leer entero. Nunca se calla por omisión. */
 function textoAviso(p: CarpetasResult['proyectos'][number]): string {
   if (p.error !== undefined) return `${p.nombre}: ${p.error}`
-  return `${p.nombre}: hay más carpetas de las que caben en la lista`
+  return txBusqueda().hayMasCarpetas(p.nombre)
 }
 
 /**

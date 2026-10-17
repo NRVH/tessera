@@ -353,7 +353,7 @@ test.describe('explorador de BD: SQL Server', () => {
     const dbo = await filaTras(win, conexion, 'esquema', 'fija-dbo', 'dbo')
     // Lo que cuelga de la fija es el esquema, sin una fila de base en medio.
     const tiposBajo = await conexion.evaluate((el) => {
-      const filas = Array.from(document.querySelectorAll('.db-arbol .db-fila'))
+      const filas = Array.from((el.closest('.db-arbol') ?? document).querySelectorAll('.db-fila'))
       const out: string[] = []
       for (const f of filas.slice(filas.indexOf(el) + 1)) {
         const t = f.getAttribute('data-tipo') ?? ''

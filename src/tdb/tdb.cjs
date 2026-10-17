@@ -25,6 +25,7 @@ const { cmdSchema, cmdDescribe, cmdSessions } = require('./tdbEsquema.cjs')
 const { cmdDriver } = require('./tdbDriver.cjs')
 const { cmdDoctor } = require('./tdbDoctor.cjs')
 const { ayuda } = require('./tdbAyuda.cjs')
+const { textosTdb } = require('./textosTdb.cjs')
 
 /** Filas por defecto de una consulta. Un SELECT sin tope quema la ventana de
  *  contexto del agente y tira la sesión; el tope es una función, no una molestia. */
@@ -63,11 +64,7 @@ function exigirSoloLectura(ctx, con, alias, sql) {
     const g = api.guardiaSoloLectura(sql)
     if (!g.ok) fallar(ctx, api.mensajeGuardia(alias, g))
   } else if (motoresTdb.guardiaPorPrefijo(con.motor) && !esSoloLectura(sql)) {
-    fallar(
-      ctx,
-      `"${alias}" es de SOLO LECTURA y esa sentencia no es una consulta.\n` +
-        `    Permitidas: ${INICIOS_LECTURA.join(', ')}.`
-    )
+    fallar(ctx, textosTdb().soloLecturaNoConsulta(alias, INICIOS_LECTURA.join(', ')))
   }
 }
 
@@ -104,7 +101,7 @@ function pareceExpandido(texto) {
 }
 
 function requerido(ctx, valor, nombre) {
-  if (!valor) fallar(ctx, `Falta el argumento <${nombre}>. Usa 'tdb help'.`)
+  if (!valor) fallar(ctx, textosTdb().faltaArgumento(nombre))
   return valor
 }
 
@@ -113,36 +110,21 @@ function requerido(ctx, valor, nombre) {
  * Los dos primeros son inmunes al parser del shell; el tercero pasa por el detector de expansión.
  */
 function resolverSql(ctx, libres, porStdin, archivoSql) {
+  const t = textosTdb()
   if (porStdin) {
     const sql = leerStdin().trim()
-    if (!sql) {
-      fallar(
-        ctx,
-        'No llegó nada por la entrada estándar.\n' +
-          "    Desde bash:  tdb query <base> --stdin <<'SQL'  …  SQL"
-      )
-    }
+    if (!sql) fallar(ctx, t.stdinVacio)
     return sql
   }
   if (archivoSql !== undefined) {
-    if (!archivoSql) fallar(ctx, 'Falta la ruta después de --file.')
-    if (!existsSync(archivoSql)) fallar(ctx, `No existe el archivo "${archivoSql}".`)
+    if (!archivoSql) fallar(ctx, t.faltaRutaFile)
+    if (!existsSync(archivoSql)) fallar(ctx, t.noExisteArchivo(archivoSql))
     const sql = readFileSync(archivoSql, 'utf-8').trim()
-    if (!sql) fallar(ctx, `El archivo "${archivoSql}" está vacío.`)
+    if (!sql) fallar(ctx, t.archivoVacio(archivoSql))
     return sql
   }
-  const sql = requerido(ctx, libres[2], 'SQL')
-  if (pareceExpandido(sql)) {
-    fallar(
-      ctx,
-      'Tu shell parece haber expandido una variable DENTRO del SQL: la consulta lleva\n' +
-        '    incrustada una ruta del sistema. Suele pasar en cmd.exe con un LIKE que\n' +
-        '    contiene %algo%, y no daría error: devolvería otras filas.\n' +
-        '\n' +
-        '    Pásalo por la entrada estándar, que no atraviesa ningún parser:\n' +
-        "      tdb query <base> --stdin <<'SQL'  …  SQL"
-    )
-  }
+  const sql = requerido(ctx, libres[2], t.argSql)
+  if (pareceExpandido(sql)) fallar(ctx, t.sqlExpandido)
   return sql
 }
 
@@ -174,27 +156,28 @@ function leerArgumentos(argv) {
 
 function despachar(cmd, ctx, a) {
   const { libres } = a
+  const t = textosTdb()
   switch (cmd) {
     case 'ls':
       return cmdLs(ctx)
     case 'doctor':
       return cmdDoctor(ctx)
     case 'test':
-      return cmdTest(ctx, requerido(ctx, libres[1], 'alias'))
+      return cmdTest(ctx, requerido(ctx, libres[1], t.argAlias))
     case 'query':
-      return cmdQuery(ctx, requerido(ctx, libres[1], 'alias'), resolverSql(ctx, libres, a.porStdin, a.archivoSql), a.limite)
+      return cmdQuery(ctx, requerido(ctx, libres[1], t.argAlias), resolverSql(ctx, libres, a.porStdin, a.archivoSql), a.limite)
     case 'schema':
       // El tercer argumento es el patrón de MATCH (solo motores de claves), y `--limit`, si se
       // da, cuántas claves enseña (sin él, el tope del adaptador).
-      return cmdSchema(ctx, requerido(ctx, libres[1], 'alias'), libres[2], a.limiteDado ? a.limite : undefined)
+      return cmdSchema(ctx, requerido(ctx, libres[1], t.argAlias), libres[2], a.limiteDado ? a.limite : undefined)
     case 'describe':
-      return cmdDescribe(ctx, requerido(ctx, libres[1], 'alias'), requerido(ctx, libres[2], 'tabla'))
+      return cmdDescribe(ctx, requerido(ctx, libres[1], t.argAlias), requerido(ctx, libres[2], t.argTabla))
     case 'sessions':
-      return cmdSessions(ctx, requerido(ctx, libres[1], 'alias'))
+      return cmdSessions(ctx, requerido(ctx, libres[1], t.argAlias))
     case 'driver':
       return cmdDriver(ctx, libres[1], libres[2])
     default:
-      return fallar(ctx, `Comando desconocido: "${cmd}". Usa 'tdb help'.`)
+      return fallar(ctx, t.comandoDesconocido(cmd))
   }
 }
 

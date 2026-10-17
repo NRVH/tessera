@@ -1,8 +1,8 @@
 // =============================================================================
-// Árbol, lectura y escritura de archivos del proyecto activo, leyendo siempre del host (node:fs)
-// en el main: el `/workspace` del contenedor es un bind mount de la misma carpeta, así que los
-// bytes son idénticos y no hace falta `docker exec`. El renderer solo maneja rutas POSIX relativas
-// al proyecto; `resolveSafe` resuelve cada una contra la única raíz real y bloquea salir de ella.
+// Árbol, lectura y escritura de archivos de un proyecto, leyendo siempre del host (node:fs) en el
+// main: el `/workspace` del contenedor es un bind mount de la misma carpeta, así que los bytes son
+// idénticos y no hace falta `docker exec`. El renderer manda rutas POSIX relativas con su proyecto;
+// `paraRaiz` elige la vista de ese proyecto y `resolveSafe` resuelve contra su raíz sin salir de ella.
 // Los .jar se enrutan a `JarService`; el escritorio (revelar, abrir, icono del arrastre, «Guardar
 // como») entra por `adaptadores/escritorioElectron.ts` y los canales se registran en `ipc.ts`.
 // =============================================================================
@@ -53,6 +53,7 @@ import {
   isBinaryBuffer,
   losesDataOnEncode
 } from './textCodec'
+import { txArchivos } from './textos.ts'
 
 /** Tamaño máximo que se envía al editor (2 MiB). Más grande -> se trunca. */
 const MAX_FILE_BYTES = 2 * 1024 * 1024
@@ -129,9 +130,8 @@ export class FileService {
   /**
    * Raíz real del proyecto ACTIVO, resuelta y absoluta, o `null` si aún no hay
    * proyecto activo (arranque limpio). Nunca se expone al renderer. Mutable de
-   * forma controlada vía `setProjectRoot()`: hay una única vista de archivos a la
-   * vez (la del proyecto activo), y cambiar de proyecto re-apunta esta raíz en
-   * vez de crear una instancia por proyecto.
+   * forma controlada vía `setProjectRoot()`: es la que vigila el watcher; las
+   * peticiones de otro proyecto ya anclado se atienden en su vista (`paraRaiz`).
    */
   private root: string | null
   private readonly log: (msg: string) => void
@@ -161,9 +161,14 @@ export class FileService {
    * memoria (una sesión de app) y se suelta al cerrar la pestaña.
    */
   private readonly untitledTargets = new Map<string, string>()
+  /** Contenedoras ancladas alguna vez en la sesión (`comparablePath`): las únicas a las que se atiende. */
+  private readonly conocidas = new Set<string>()
+  /** Una vista sin vigilante por cada contenedora conocida que no es la anclada (`paraRaiz`). */
+  private readonly vistas = new Map<string, FileService>()
 
   constructor(opts: FileServiceOptions) {
     this.root = opts.projectRoot != null ? path.resolve(opts.projectRoot) : null
+    if (this.root !== null) this.conocidas.add(comparablePath(this.root))
     this.getWindow = opts.getWindow
     this.escritorio = opts.escritorio
     this.log = opts.log ?? ((m) => console.log(`[files] ${m}`))
@@ -178,6 +183,7 @@ export class FileService {
    */
   setProjectRoot(projectRoot: string): void {
     this.root = path.resolve(projectRoot)
+    this.conocidas.add(comparablePath(this.root))
     this.log(`proyecto activo -> "${path.basename(this.root)}"`)
     // Re-apunta el watcher a la nueva raíz (cierra el anterior). Así el árbol del
     // proyecto que se acaba de activar se auto-refresca desde ya.
@@ -191,6 +197,28 @@ export class FileService {
    */
   raizAnclada(): string | null {
     return this.root
+  }
+
+  /**
+   * El servicio que atiende una petición del proyecto `raiz` (`EnProyecto` de files-ipc): este si es
+   * el anclado; si no, una vista sin vigilante con esa raíz. Solo de proyectos que ya se anclaron en
+   * la sesión, como los que `setFilesRoot` acepta. Así una petición nacida en un proyecto se resuelve
+   * siempre contra el suyo, aunque el ancla ya se haya movido a otro.
+   */
+  paraRaiz(raiz: unknown): FileService {
+    if (typeof raiz !== 'string' || raiz === '') throw new Error(txArchivos().proyectoDesconocido)
+    const abs = path.resolve(raiz)
+    if (this.root !== null && samePath(abs, this.root)) return this
+    const clave = comparablePath(abs)
+    if (!this.conocidas.has(clave)) throw new Error(txArchivos().proyectoDesconocido)
+    let vista = this.vistas.get(clave)
+    if (vista === undefined) {
+      // Sin `getWindow`: la vista no vigila; los avisos de cambios son del proyecto anclado.
+      vista = new FileService({ projectRoot: abs, escritorio: this.escritorio, log: this.log })
+      vista.setJarService(this.jar)
+      this.vistas.set(clave, vista)
+    }
+    return vista
   }
 
   /** Suelta el destino recordado de una pestaña sin título que se cierra. */
@@ -209,7 +237,7 @@ export class FileService {
    * proyecto activo, o si detecta un intento de salir (../, ruta absoluta, etc.).
    */
   private resolveSafe(relPosix: string): string {
-    if (this.root === null) throw new Error('No hay proyecto activo.')
+    if (this.root === null) throw new Error(txArchivos().sinProyecto)
     // GUARDA DE RUTAS VIRTUALES. Una ruta de dentro de un .jar no existe en el disco:
     // resolverla daría una carpeta creíble pero falsa ("x.jar!") y crear, renombrar o
     // borrar ahí ensuciaría el proyecto. Los pocos caminos que SÍ leen dentro de un
@@ -220,9 +248,7 @@ export class FileService {
     // `esRutaVirtual`: atrapa también la forma degenerada `x.jar!` (sin su barra), que
     // sale de hacer `parentDir` sobre una entrada de la raíz del jar.
     if (tocaContenedor(relPosix)) {
-      throw new Error(
-        'Esa ruta está dentro de un archivo comprimido y no se puede modificar desde aquí.'
-      )
+      throw new Error(txArchivos().dentroComprimido)
     }
     return this.resolveProyecto(relPosix)
   }
@@ -234,7 +260,7 @@ export class FileService {
    * validación ni saltarse la raíz del proyecto activo.
    */
   resolveProyecto(relPosix: string): string {
-    if (this.root === null) throw new Error('No hay proyecto activo.')
+    if (this.root === null) throw new Error(txArchivos().sinProyecto)
     // Normaliza separadores y descarta prefijos que intenten "anclar" fuera. La
     // traducción de `\` a `/` la decide la PLATAFORMA (`normalizarRelativaProyecto`):
     // hacerla siempre rompía en Mac los nombres con barra invertida, que ahí es un
@@ -243,7 +269,7 @@ export class FileService {
     const abs = path.resolve(this.root, rel)
     const rootWithSep = this.root.endsWith(path.sep) ? this.root : this.root + path.sep
     if (abs !== this.root && !abs.startsWith(rootWithSep)) {
-      throw new Error('Ruta fuera del proyecto (path traversal bloqueado).')
+      throw new Error(txArchivos().fueraDelProyecto)
     }
     return abs
   }
@@ -277,6 +303,7 @@ export class FileService {
   /** Inyecta el servicio de jars (lo construye `index.ts`, que es quien lo posee). */
   setJarService(jar: JarService | null): void {
     this.jar = jar
+    for (const vista of this.vistas.values()) vista.setJarService(jar)
   }
 
   /** Lista una carpeta del proyecto (lazy). Carpetas primero, luego alfabético. */
@@ -432,10 +459,7 @@ export class FileService {
     // carácter lo sustituiría por '?' (corrupción silenciosa). Antes de escribir se
     // aborta con un error claro (el editor lo muestra) en vez de corromper el archivo.
     if (losesDataOnEncode(content, encoding)) {
-      throw new Error(
-        `El texto tiene caracteres que la codificación seleccionada no admite; ` +
-          `guardar los perdería. Cambia a UTF-8 para conservarlos.`
-      )
+      throw new Error(txArchivos().codificacionPierde)
     }
     // Codifica con el encoding del archivo (el editor lo reenvía en cada guardado
     // para preservarlo; solo cambia si el usuario elige otro en el selector).
@@ -473,8 +497,8 @@ export class FileService {
         'guardar-como',
         req.suggestedName,
         {
-          title: 'Guardar como',
-          buttonLabel: 'Guardar',
+          title: txArchivos().guardarComo,
+          buttonLabel: txArchivos().guardar,
           properties: ['createDirectory', 'showOverwriteConfirmation']
         },
         { ventana: this.getWindow?.() ?? null, antes: [this.root] }
@@ -564,7 +588,7 @@ export class FileService {
     // y las lecturas bifurcan ANTES de `resolveSafe`. Sin esta rama caía en la guarda
     // de ESCRITURA y el usuario recibía "no se puede modificar desde aquí" por haber
     // hecho doble clic para MIRAR: un mensaje que describe algo que nadie intentó.
-    const buffer = await this.bytesParaVisor(rel, relPosix, 'Documento demasiado grande para previsualizar (>50 MiB).')
+    const buffer = await this.bytesParaVisor(rel, relPosix, txArchivos().documentoGrande)
     // La conversión OOXML->HTML de mammoth es CPU-pesada y SÍNCRONA: corre en un
     // worker_threads para no congelar el hilo main con un .docx grande/complejo.
     const { html, messages } = await runFileWorker<{ html: string; messages: string[] }>('docx-html', buffer)
@@ -580,7 +604,7 @@ export class FileService {
   async readZip(relPosix: string): Promise<ZipListing> {
     const rel = normalizarRelativaProyecto(relPosix)
     // Igual que readDocx: un .zip dentro de un contenedor se LISTA, no se modifica.
-    const buffer = await this.bytesParaVisor(rel, relPosix, 'Archivo comprimido demasiado grande para listar (>50 MiB).')
+    const buffer = await this.bytesParaVisor(rel, relPosix, txArchivos().comprimidoGrande)
     // El recorrido del índice del zip (unzipSync) es síncrono: en un zip con decenas
     // de miles de entradas bloqueaba el main. Corre en un worker; el orden se aplica
     // aquí (barato) para mantener la lógica de presentación en el servicio.
@@ -658,7 +682,7 @@ export class FileService {
     const relPosix = dirRel ? `${dirRel}/${clean}` : clean
     const abs = this.resolveSafe(relPosix)
     // No pisar algo existente (archivo o carpeta con ese nombre).
-    if (await exists(abs)) throw new Error(`Ya existe "${clean}" en esa carpeta.`)
+    if (await exists(abs)) throw new Error(txArchivos().yaExiste(clean))
     if (kind === 'dir') {
       await fs.mkdir(abs)
     } else {
@@ -693,7 +717,7 @@ export class FileService {
     const destAbs = this.resolveSafe(destRel)
     if (destAbs === abs) return { path: rel } // mismo nombre EXACTO: no-op
     const soloOtraCaja = samePath(destAbs, abs)
-    if (!soloOtraCaja && (await exists(destAbs))) throw new Error(`Ya existe "${clean}" en esa carpeta.`)
+    if (!soloOtraCaja && (await exists(destAbs))) throw new Error(txArchivos().yaExiste(clean))
     await fs.rename(abs, destAbs)
     return { path: destRel }
   }
@@ -723,7 +747,7 @@ export class FileService {
     const destDir = normalizarRelativaProyecto(destDirRelPosix).replace(/\/+$/, '')
     const destDirAbs = this.resolveSafe(destDir)
     const destStat = await fs.stat(destDirAbs).catch(() => null)
-    if (!destStat?.isDirectory()) throw new Error('El destino no es una carpeta.')
+    if (!destStat?.isDirectory()) throw new Error(txArchivos().destinoNoCarpeta)
 
     interface Job {
       srcAbs: string
@@ -735,12 +759,12 @@ export class FileService {
     const nombres = new Set<string>()
     for (const src of srcsRelPosix) {
       const srcRel = normalizarRelativaProyecto(src).replace(/\/+$/, '')
-      if (!srcRel) throw new Error('Origen inválido.')
+      if (!srcRel) throw new Error(txArchivos().origenInvalido)
       const slash = srcRel.lastIndexOf('/')
       const srcParent = slash < 0 ? '' : srcRel.slice(0, slash)
       if (destDir === srcParent) continue // ya está ahí: no-op silencioso
       if (destDir === srcRel || destDir.startsWith(`${srcRel}/`)) {
-        throw new Error('No se puede mover una carpeta dentro de sí misma.')
+        throw new Error(txArchivos().carpetaEnSiMisma)
       }
       const name = srcRel.slice(slash + 1)
       // Dos orígenes con el MISMO nombre (de carpetas distintas) colisionan ENTRE
@@ -754,9 +778,7 @@ export class FileService {
       // mismo motivo por el que `rename` usa `samePath`.
       const clave = comparablePath(name)
       if (nombres.has(clave)) {
-        throw new Error(
-          `Hay dos elementos llamados "${name}" en la selección: no caben los dos en la misma carpeta.`
-        )
+        throw new Error(txArchivos().dosElementos(name))
       }
       nombres.add(clave)
       const srcAbs = this.resolveSafe(srcRel)
@@ -765,7 +787,7 @@ export class FileService {
       // elemento acaba de borrar un build reventaba con un ENOENT crudo A MITAD del
       // bucle, dejando el lote movido a medias — justo el estado que el todo-o-nada
       // existe para impedir. El `stat` cuesta lo mismo que el `exists` del destino.
-      if (!(await exists(srcAbs))) throw new Error(`Ya no existe "${name}".`)
+      if (!(await exists(srcAbs))) throw new Error(txArchivos().yaNoExiste(name))
       const rel = destDir ? `${destDir}/${name}` : name
       jobs.push({ srcAbs, destAbs: this.resolveSafe(rel), rel, name })
     }
@@ -806,12 +828,12 @@ export class FileService {
    * original del usuario es peor que dejarle dos copias.
    */
   async paste(req: PasteOptions): Promise<PasteResult> {
-    if (this.root === null) throw new Error('No hay proyecto activo.')
+    if (this.root === null) throw new Error(txArchivos().sinProyecto)
     const projectRoot = this.root
     const destDir = normalizarRelativaProyecto(req.destDir).replace(/\/+$/, '')
     const destDirAbs = this.resolveSafe(destDir)
     const destStat = await fs.stat(destDirAbs).catch(() => null)
-    if (!destStat?.isDirectory()) throw new Error('El destino no es una carpeta.')
+    if (!destStat?.isDirectory()) throw new Error(txArchivos().destinoNoCarpeta)
 
     // Origen unificado: interno (relativo) y externo (absoluto) acaban ambos en una
     // lista de rutas ABSOLUTAS ya validadas. `resolveSafe` cubre el interno; el
@@ -819,13 +841,13 @@ export class FileService {
     const sources: string[] = []
     for (const src of req.srcs ?? []) {
       const srcRel = normalizarRelativaProyecto(src).replace(/\/+$/, '')
-      if (!srcRel) throw new Error('Origen inválido.')
+      if (!srcRel) throw new Error(txArchivos().origenInvalido)
       sources.push(this.resolveSafe(srcRel))
     }
     for (const hostPath of req.hostPaths ?? []) sources.push(path.resolve(hostPath))
-    if (sources.length === 0) throw new Error('No hay nada que pegar.')
+    if (sources.length === 0) throw new Error(txArchivos().nadaQuePegar)
     if (req.nombre !== undefined && sources.length > 1) {
-      throw new Error('No se puede renombrar al pegar varios elementos.')
+      throw new Error(txArchivos().noRenombrarVarios)
     }
 
     const pasted: string[] = []
@@ -854,9 +876,9 @@ export class FileService {
     // del portapapeles, que es justo lo que evita que el siguiente pegado falle sobre
     // rutas ya inexistentes.
     if (pasted.length === 0) {
-      if (failed.length === 0) throw new Error('No había nada que pegar.')
-      const que = failed.length > 1 ? 'ninguno de los elementos' : `"${failed[0]}"`
-      throw new Error(`No se pudo pegar ${que}.`)
+      if (failed.length === 0) throw new Error(txArchivos().nadaPegado)
+      const que = failed.length > 1 ? txArchivos().ninguno : `"${failed[0]}"`
+      throw new Error(txArchivos().noSePudoPegar(que))
     }
     return { paths: pasted, fallidos: failed }
   }
@@ -951,12 +973,12 @@ export class FileService {
     destDirRelPosix: string,
     overwrite: boolean
   ): Promise<ImportResult> {
-    if (this.root === null) throw new Error('No hay proyecto activo.')
+    if (this.root === null) throw new Error(txArchivos().sinProyecto)
     const projectRoot = this.root
     const destDir = normalizarRelativaProyecto(destDirRelPosix).replace(/\/+$/, '')
     const destDirAbs = this.resolveSafe(destDir)
     const destStat = await fs.stat(destDirAbs)
-    if (!destStat.isDirectory()) throw new Error('El destino no es una carpeta.')
+    if (!destStat.isDirectory()) throw new Error(txArchivos().destinoNoCarpeta)
 
     // Valida TODO antes de tocar NADA: el resultado es todo-o-nada.
     interface Job {
@@ -971,15 +993,15 @@ export class FileService {
     for (const hostPath of hostPaths) {
       const srcAbs = path.resolve(hostPath)
       const name = path.basename(srcAbs)
-      if (!name) throw new Error('Origen inválido.')
+      if (!name) throw new Error(txArchivos().origenInvalido)
       const srcStat = await fs.stat(srcAbs).catch(() => null)
-      if (!srcStat) throw new Error(`No se pudo leer "${name}".`)
-      if (!srcStat.isFile() && !srcStat.isDirectory()) throw new Error(`"${name}" no es un archivo.`)
+      if (!srcStat) throw new Error(txArchivos().noSePudoLeer(name))
+      if (!srcStat.isFile() && !srcStat.isDirectory()) throw new Error(txArchivos().noEsUnArchivo(name))
       const rel = destDir ? `${destDir}/${name}` : name
       const destAbs = this.resolveSafe(rel)
       // Meter una carpeta dentro de sí misma (o de un descendiente) recursaría sin fin.
       if (srcStat.isDirectory() && isInside(destDirAbs, srcAbs)) {
-        throw new Error(`No se puede mover "${name}" dentro de sí misma.`)
+        throw new Error(txArchivos().noMoverEnSiMisma(name))
       }
       // Soltar algo justo donde ya está: no-op silencioso (cp/rename fallarían con src===dest).
       if (samePath(srcAbs, destAbs)) continue
@@ -1074,9 +1096,7 @@ export class FileService {
     // "prohibido" ni nada: el renderer pinta este mensaje en su banner.
     if (abs.length === 0) {
       throw new Error(
-        relPosixList.length === 1
-          ? 'Eso ya no está en el proyecto: no hay nada que arrastrar.'
-          : 'Ninguno de esos elementos sigue en el proyecto: no hay nada que arrastrar.'
+        relPosixList.length === 1 ? txArchivos().nadaQueArrastrarUno : txArchivos().nadaQueArrastrarVarios
       )
     }
     const imagen = this.escritorio.imagenDesdeDataUrl(icono)
@@ -1108,7 +1128,7 @@ export class FileService {
     const objetivos = relPosixList.map((rel) => {
       const abs = this.resolveSafe(rel)
       // Guarda extra: nunca borrar la raíz del proyecto en sí.
-      if (abs === this.root) throw new Error('No se puede eliminar la raíz del proyecto.')
+      if (abs === this.root) throw new Error(txArchivos().noEliminarRaiz)
       return { rel, abs }
     })
     const deleted: string[] = []
@@ -1290,14 +1310,14 @@ function runFileWorker<T>(kind: 'zip-list' | 'docx-html', bytes: Buffer): Promis
       finish(() =>
         msg && msg.ok
           ? resolve(msg.result as T)
-          : reject(new Error(msg?.error ?? 'Error en el worker de archivos.'))
+          : reject(new Error(msg?.error ?? txArchivos().workerError))
       )
     })
     worker.once('error', (err) => finish(() => reject(err)))
     worker.once('exit', (code) => {
       if (!settled) {
         settled = true
-        reject(new Error(`El worker de archivos salió inesperadamente (código ${code}).`))
+        reject(new Error(txArchivos().workerSalio(code)))
       }
     })
   })

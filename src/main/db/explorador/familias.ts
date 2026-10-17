@@ -8,10 +8,11 @@ import type { DbConnection, DbMotor } from '../../../shared/db-ipc.ts'
 import type { DbErrorSql } from '../../../shared/db-explorador-ipc.ts'
 import { descriptor, esMotor, familiaDe, type FamiliaMotor } from '../../../shared/motores/index.ts'
 import { nunca } from '../../../shared/nunca.ts'
+import { txFamilia } from './textosExplorador.ts'
 
 /** «Todavía no se puede conectar a <etiqueta> desde esta versión.» (ver la cabecera). */
 export function mensajeTodaviaNo(motor: DbMotor): string {
-  return `Todavía no se puede conectar a ${descriptor(motor).etiqueta} desde esta versión.`
+  return txFamilia().sinSoporte(descriptor(motor).etiqueta)
 }
 
 /** La respuesta de un canal a un motor que esta versión aún no sabe abrir (ver la cabecera). */
@@ -21,13 +22,14 @@ export function falloTodaviaNo(motor: DbMotor): { ok: false; error: DbErrorSql }
 
 /** Cómo se nombra una familia en un mensaje: «SQL», «de documentos», «de claves». */
 function nombreFamilia(f: FamiliaMotor): string {
+  const nombres = txFamilia().nombreFamilia
   switch (f) {
     case 'sql':
-      return 'SQL'
+      return nombres.sql
     case 'documentos':
-      return 'de documentos'
+      return nombres.documentos
     case 'claves':
-      return 'de claves'
+      return nombres.claves
     default:
       return nunca(f, 'nombreFamilia')
   }
@@ -42,15 +44,13 @@ export function conexionDeFamilia(
   con: DbConnection | null | undefined,
   familia: FamiliaMotor
 ): { ok: true; con: DbConnection } | { ok: false; error: DbErrorSql } {
-  if (!con) return { ok: false, error: { motivo: 'interno', mensaje: 'La conexión ya no existe.' } }
-  if (!esMotor(con.motor)) return { ok: false, error: { motivo: 'interno', mensaje: `Motor desconocido: "${String(con.motor)}".` } }
+  const t = txFamilia()
+  if (!con) return { ok: false, error: { motivo: 'interno', mensaje: t.sinConexion } }
+  if (!esMotor(con.motor)) return { ok: false, error: { motivo: 'interno', mensaje: t.motorDesconocido(String(con.motor)) } }
   if (familiaDe(con.motor) !== familia) {
     return {
       ok: false,
-      error: {
-        motivo: 'interno',
-        mensaje: `${descriptor(con.motor).etiqueta} no es un motor ${nombreFamilia(familia)}: esta petición no es para esta conexión.`
-      }
+      error: { motivo: 'interno', mensaje: t.motorNoEsFamilia(descriptor(con.motor).etiqueta, nombreFamilia(familia)) }
     }
   }
   return { ok: true, con }
@@ -80,7 +80,7 @@ export function conexionDePeticion(
   const v = conexionDeFamilia(conexiones.get(r.conexionId), familia)
   if (!v.ok) return v
   if (r.perfilId !== undefined && r.perfilId !== v.con.profileId) {
-    return { ok: false, error: { motivo: 'interno', mensaje: 'La consola no pertenece a este perfil.' } }
+    return { ok: false, error: { motivo: 'interno', mensaje: txFamilia().consolaOtroPerfil } }
   }
   return v
 }

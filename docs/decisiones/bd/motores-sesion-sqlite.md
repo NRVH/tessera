@@ -28,8 +28,8 @@ errores de compilación que leer (`sqlErroresCompilacion` es null).
   texto al valor guardado (numérica, texto); sin afinidad o BLOB no se compara.
 - «Enviar» espera por el `busy_timeout` de la conexión (`PRAGMA busy_timeout` como primera
   sentencia; al vencer, SQLITE_BUSY). Una consola con cambios pendientes bloquea siempre; una
-  que solo leyó, solo en modo rollback (`lectorBloquea`, por la cabecera del archivo): medido
-  con dos procesos, en rollback el COMMIT espera 3 s y falla; en WAL entra en 6 ms.
+  que solo leyó, solo en modo rollback (`lectorBloquea`, por la cabecera del archivo): en rollback
+  el COMMIT espera el `busy_timeout` y falla; en WAL entra sin esperar.
 - Explain: `EXPLAIN QUERY PLAN` con el perfil `explain` del autorizador, también en solo
   lectura; un error no aborta la transacción.
 

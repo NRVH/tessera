@@ -1,5 +1,5 @@
 ; =============================================================================
-; Hook de DESINSTALACIÓN de Tessera (electron-builder auto-incluye build/installer.nsh).
+; Hooks de DESINSTALACIÓN e INSTALACIÓN (abajo) de Tessera (electron-builder auto-incluye build/installer.nsh).
 ; -----------------------------------------------------------------------------
 ; Hace dos cosas, con guardas distintas porque son preguntas distintas:
 ;
@@ -75,6 +75,15 @@
         Goto tessera_progid_bucle
     tessera_progid_fin:
 
+    ; La extensión `.tessera` (`fileAssociations`): electron-builder borra su ProgID pero deja
+    ; el valor por defecto de `.tessera` apuntando a él. Solo se quita si sigue siendo el nuestro.
+    ReadRegStr $1 SHELL_CONTEXT "Software\Classes\.tessera" ""
+    StrCmp $1 "Tessera.Configuracion.1" 0 tessera_ext_fin
+      DeleteRegValue SHELL_CONTEXT "Software\Classes\.tessera" ""
+      DeleteRegKey /ifempty SHELL_CONTEXT "Software\Classes\.tessera\OpenWithProgids"
+      DeleteRegKey /ifempty SHELL_CONTEXT "Software\Classes\.tessera"
+    tessera_ext_fin:
+
     Pop $2
     Pop $1
     Pop $0
@@ -92,4 +101,15 @@
     tessera_keep_data:
     tessera_data_done:
   ${endIf}
+!macroend
+
+; =============================================================================
+; Hook de INSTALACIÓN: retoca la asociación de `.tessera` que acaba de escribir electron-builder.
+; Su verbo `open` lleva el texto fijo «Open with Tessera», en inglés; sin texto, el Explorador
+; pone el nombre del verbo en el idioma del sistema. Y avisa al Explorador del cambio de
+; asociaciones, que si no enseña el icono nuevo de los `.tessera` hasta reiniciar la sesión.
+; =============================================================================
+!macro customInstall
+  DeleteRegValue SHELL_CONTEXT "Software\Classes\Tessera.Configuracion.1\shell\open" ""
+  System::Call "shell32::SHChangeNotify(i,i,i,i) (0x08000000, 0x1000, 0, 0)"
 !macroend

@@ -7,6 +7,7 @@
 // =============================================================================
 import type { Readable, Writable } from 'node:stream'
 import { ABRIR, ESTADO, Escritor, Lector, TIPO, Troceador, type Atributos } from './protocoloSftp.ts'
+import { txSsh } from '../textos.ts'
 
 /** Un fallo del servidor (`SSH_FXP_STATUS`) o de la sesión, con un texto para el usuario. */
 export class ErrorSftp extends Error {
@@ -20,13 +21,14 @@ export class ErrorSftp extends Error {
 
 /** El texto de un estado del servidor sobre `ruta` (su propio mensaje solo si no hay uno nuestro). */
 function textoDeEstado(codigo: number, delServidor: string, ruta: string | undefined): string {
-  const sobre = ruta !== undefined ? ` «${ruta}»` : ''
-  if (codigo === ESTADO.NO_EXISTE) return `No existe${sobre}.`
-  if (codigo === ESTADO.SIN_PERMISO) return `El servidor no da permiso sobre${sobre || ' eso'}.`
-  if (codigo === ESTADO.NO_ADMITIDO) return 'El servidor no admite esta operación.'
-  if (codigo === ESTADO.SIN_CONEXION || codigo === ESTADO.CONEXION_PERDIDA) return 'Se perdió la conexión con el servidor.'
+  const t = txSsh().sftp
+  const sobre = ruta !== undefined ? ` ${txSsh().sftp.comillas(ruta)}` : ''
+  if (codigo === ESTADO.NO_EXISTE) return t.noExiste(sobre)
+  if (codigo === ESTADO.SIN_PERMISO) return t.sinPermiso(sobre)
+  if (codigo === ESTADO.NO_ADMITIDO) return t.noAdmitido
+  if (codigo === ESTADO.SIN_CONEXION || codigo === ESTADO.CONEXION_PERDIDA) return t.conexionPerdida
   const detalle = delServidor.trim() && delServidor.trim().toLowerCase() !== 'failure' ? `: ${delServidor.trim()}` : ''
-  return `El servidor no pudo hacerlo${sobre}${detalle}.`
+  return t.noPudo(sobre, detalle)
 }
 
 /** Una entrada de una carpeta: su nombre y sus atributos (`lstat`: un enlace es un enlace). */
@@ -56,7 +58,7 @@ export class ClienteSftp {
   constructor(entrada: Writable, salida: Readable) {
     this.entrada = entrada
     salida.on('data', (trozo: Buffer) => this.recibir(trozo))
-    entrada.on('error', () => this.cortar('Se perdió la conexión con el servidor.'))
+    entrada.on('error', () => this.cortar(txSsh().sftp.conexionPerdida))
   }
 
   /** La sesión se acabó (ssh salió o se cerró): todo lo pendiente falla con este texto. */
@@ -74,7 +76,7 @@ export class ClienteSftp {
   /** El saludo: INIT 3 -> VERSION. Resuelve con las extensiones del servidor. */
   iniciar(topeMs: number): Promise<void> {
     return new Promise((resolve, reject) => {
-      const tope = setTimeout(() => reject(new ErrorSftp(ESTADO.SIN_CONEXION, 'El servidor no contestó al abrir SFTP.')), topeMs)
+      const tope = setTimeout(() => reject(new ErrorSftp(ESTADO.SIN_CONEXION, txSsh().sftp.noContestoAbrir)), topeMs)
       this.alVersion = (r) => {
         clearTimeout(tope)
         this.extensiones = r.extensiones
@@ -94,7 +96,7 @@ export class ClienteSftp {
     try {
       paquetes = this.troceador.meter(trozo)
     } catch {
-      this.cortar('El servidor no habla SFTP.')
+      this.cortar(txSsh().sftp.noHablaSftp)
       return
     }
     for (const { tipo, cuerpo } of paquetes) {
@@ -139,7 +141,7 @@ export class ClienteSftp {
     return new Promise((resolve, reject) => {
       const tope = setTimeout(() => {
         this.pendientes.delete(id)
-        reject(new ErrorSftp(ESTADO.SIN_CONEXION, 'El servidor no contestó a tiempo.'))
+        reject(new ErrorSftp(ESTADO.SIN_CONEXION, txSsh().sftp.noContesto))
       }, TOPE_PETICION_MS)
       this.pendientes.set(id, {
         resolver: (r) => {
@@ -165,7 +167,7 @@ export class ClienteSftp {
   private async esperar(tipo: number, rellenar: (e: Escritor) => Escritor, esperado: number, ruta?: string): Promise<Lector | null> {
     const r = await this.peticion(tipo, rellenar)
     if (r.tipo === esperado && esperado !== TIPO.STATUS) return r.lector
-    if (r.tipo !== TIPO.STATUS) throw new ErrorSftp(ESTADO.MENSAJE_MALO, 'El servidor contestó algo inesperado.')
+    if (r.tipo !== TIPO.STATUS) throw new ErrorSftp(ESTADO.MENSAJE_MALO, txSsh().sftp.inesperado)
     const codigo = r.lector.u32()
     if (codigo === ESTADO.OK || (codigo === ESTADO.EOF && esperado !== TIPO.STATUS)) return null
     let mensaje = ''
@@ -185,19 +187,19 @@ export class ClienteSftp {
   /** La ruta canónica (absoluta, sin `..`). */
   async realpath(ruta: string): Promise<string> {
     const l = await this.esperar(TIPO.REALPATH, (e) => e.cadena(ruta), TIPO.NAME, ruta)
-    if (!l || l.u32() < 1) throw new ErrorSftp(ESTADO.FALLO, `No existe «${ruta}».`)
+    if (!l || l.u32() < 1) throw new ErrorSftp(ESTADO.FALLO, txSsh().sftp.noExisteRuta(ruta))
     return l.cadena()
   }
 
   async stat(ruta: string): Promise<Atributos> {
     const l = await this.esperar(TIPO.STAT, (e) => e.cadena(ruta), TIPO.ATTRS, ruta)
-    if (!l) throw new ErrorSftp(ESTADO.FALLO, `No existe «${ruta}».`)
+    if (!l) throw new ErrorSftp(ESTADO.FALLO, txSsh().sftp.noExisteRuta(ruta))
     return l.atributos()
   }
 
   async lstat(ruta: string): Promise<Atributos> {
     const l = await this.esperar(TIPO.LSTAT, (e) => e.cadena(ruta), TIPO.ATTRS, ruta)
-    if (!l) throw new ErrorSftp(ESTADO.FALLO, `No existe «${ruta}».`)
+    if (!l) throw new ErrorSftp(ESTADO.FALLO, txSsh().sftp.noExisteRuta(ruta))
     return l.atributos()
   }
 
@@ -214,7 +216,7 @@ export class ClienteSftp {
   /** El contenido de una carpeta, sin `.` ni `..`. */
   async listar(ruta: string): Promise<EntradaRemota[]> {
     const lh = await this.esperar(TIPO.OPENDIR, (e) => e.cadena(ruta), TIPO.HANDLE, ruta)
-    if (!lh) throw new ErrorSftp(ESTADO.FALLO, `No se pudo abrir «${ruta}».`)
+    if (!lh) throw new ErrorSftp(ESTADO.FALLO, txSsh().sftp.noSeAbrioRuta(ruta))
     const handle = lh.bytes()
     const entradas: EntradaRemota[] = []
     try {
@@ -265,7 +267,7 @@ export class ClienteSftp {
   async abrir(ruta: string, modo: 'leer' | 'crear', permisos?: number): Promise<Buffer> {
     const banderas = modo === 'leer' ? ABRIR.LEER : ABRIR.ESCRIBIR | ABRIR.CREAR | ABRIR.EXCLUSIVO
     const l = await this.esperar(TIPO.OPEN, (e) => e.cadena(ruta).u32(banderas).atributos(permisos), TIPO.HANDLE, ruta)
-    if (!l) throw new ErrorSftp(ESTADO.FALLO, `No se pudo abrir «${ruta}».`)
+    if (!l) throw new ErrorSftp(ESTADO.FALLO, txSsh().sftp.noSeAbrioRuta(ruta))
     return l.bytes()
   }
 

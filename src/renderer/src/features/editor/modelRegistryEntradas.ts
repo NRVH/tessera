@@ -6,8 +6,8 @@
 // =============================================================================
 
 import { languageForFilename } from '../../../../shared/files-ipc.ts'
-import type { Contexto, Entry, LoadedText, SharedTextModel } from './modelRegistryTipos.ts'
-import { esArchivoInexistente } from './modelRegistryTipos.ts'
+import type { Contexto, Entry, LoadedText, RutaArchivo, SharedTextModel } from './modelRegistryTipos.ts'
+import { esArchivoInexistente, rutaDe } from './modelRegistryTipos.ts'
 
 /** Vista inmutable de la entrada en este instante. */
 export function snapshot<M>(e: Entry<M>): SharedTextModel<M> {
@@ -81,7 +81,7 @@ async function startLoad<M>(
   let res: LoadedText
   let naceBorrado = false
   try {
-    res = await ctx.deps.load(e.path, forcedEncoding)
+    res = await ctx.deps.load(rutaDe(e), forcedEncoding)
   } catch (err) {
     res = lecturaFallida(ctx, e, err)
     naceBorrado = true
@@ -114,10 +114,11 @@ async function startLoad<M>(
   return e.shared
 }
 
-function nuevaEntrada<M>(key: string, path: string): Entry<M> {
+function nuevaEntrada<M>(key: string, { raiz, path }: RutaArchivo): Entry<M> {
   return {
     key,
     path,
+    raiz,
     refs: 0,
     promise: null as unknown as Promise<SharedTextModel<M>>,
     shared: null,
@@ -141,17 +142,17 @@ function nuevaEntrada<M>(key: string, path: string): Entry<M> {
 export function adquirir<M>(
   ctx: Contexto<M>,
   key: string,
-  path: string,
+  ruta: RutaArchivo,
   opts?: { forcedEncoding?: string }
 ): Promise<SharedTextModel<M>> {
   let e = ctx.entries.get(key)
   if (e === undefined) {
-    e = nuevaEntrada<M>(key, path)
+    e = nuevaEntrada<M>(key, ruta)
     ctx.entries.set(key, e)
     e.promise = startLoad(ctx, e, opts?.forcedEncoding)
-  } else if (e.path !== path) {
-    // La key deriva de la ruta: solo pasa si alguien la construyó a mano.
-    throw new Error(`Colisión de key "${key}": "${e.path}" vs "${path}".`)
+  } else if (e.path !== ruta.path || e.raiz !== ruta.raiz) {
+    // La key deriva del proyecto y la ruta: solo pasa si alguien la construyó a mano.
+    throw new Error(`Colisión de key "${key}": "${e.raiz}|${e.path}" vs "${ruta.raiz}|${ruta.path}".`)
   }
   // El incremento va ANTES de cualquier await: dos panes montados en el mismo tick con
   // la carga en vuelo dejarían el refcount en 1 y el primer cierre dispondría el modelo.

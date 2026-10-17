@@ -5,6 +5,7 @@
 // enseña), y los tres tienen que llegar al mismo número. No lee la plataforma.
 // Decisiones: docs/decisiones/agentes/hibernacion-por-inactividad.md
 // =============================================================================
+import { crearTextos } from './i18n.ts'
 
 /** «Nunca»: el valor que se guarda en el archivo. */
 export const AGENTE_INACTIVIDAD_NUNCA = 0
@@ -12,19 +13,48 @@ export const AGENTE_INACTIVIDAD_NUNCA = 0
 /** Por defecto: 5 minutos. */
 export const AGENTE_INACTIVIDAD_MIN_POR_DEFECTO = 5
 
+/** Los minutos que ofrece el selector, en orden; «Nunca» al final. */
+const AGENTE_INACTIVIDAD_MINUTOS: readonly number[] = [5, 10, 15, 30, 60, AGENTE_INACTIVIDAD_NUNCA]
+
+const txAjustesAgente = crearTextos(
+  {
+    minutos: (n: number) => `${n} minutos`,
+    unaHora: '1 hora',
+    nunca: 'Nunca',
+    ayuda:
+      'Cierra el agente (Claude Code o Codex) de un proyecto que no está en pantalla cuando lleva ese tiempo sin ' +
+      'escribir ni recibir nada, y libera su memoria y la de sus servidores MCP. Al volver a su pestaña se reanuda ' +
+      'su conversación; tarda unos segundos. No se cierra un agente que Tessera ve trabajando, con una tarea en ' +
+      'segundo plano, esperando tu respuesta, con texto sin enviar o con un resultado que aún no has visto; ni ' +
+      'las terminales. Solo se aplica a los proyectos en modo nativo.',
+    ayudaNunca: 'Los agentes siguen abiertos hasta que cierres su pestaña, hibernes el perfil o cierres Tessera.'
+  },
+  {
+    minutos: (n: number) => `${n} minutes`,
+    unaHora: '1 hour',
+    nunca: 'Never',
+    ayuda:
+      'Closes the agent (Claude Code or Codex) of a project that is not on screen once it has gone that long without ' +
+      'typing or receiving anything, and frees its memory and that of its MCP servers. When you return to its tab its ' +
+      'conversation resumes; it takes a few seconds. An agent that Tessera sees working, with a background task, ' +
+      'waiting for your reply, with unsent text or with a result you have not seen yet is not closed; neither are ' +
+      'terminals. It only applies to projects in native mode.',
+    ayudaNunca: 'Agents stay open until you close their tab, hibernate the profile or close Tessera.'
+  }
+)
+
 /** Lo que ofrece el selector, en minutos y en orden; «Nunca» al final. */
-export const AGENTE_INACTIVIDAD_OPCIONES: readonly { min: number; etiqueta: string }[] = [
-  { min: 5, etiqueta: '5 minutos' },
-  { min: 10, etiqueta: '10 minutos' },
-  { min: 15, etiqueta: '15 minutos' },
-  { min: 30, etiqueta: '30 minutos' },
-  { min: 60, etiqueta: '1 hora' },
-  { min: AGENTE_INACTIVIDAD_NUNCA, etiqueta: 'Nunca' }
-]
+export function agenteInactividadOpciones(): readonly { min: number; etiqueta: string }[] {
+  const t = txAjustesAgente()
+  return AGENTE_INACTIVIDAD_MINUTOS.map((min) => ({
+    min,
+    etiqueta: min === AGENTE_INACTIVIDAD_NUNCA ? t.nunca : min === 60 ? t.unaHora : t.minutos(min)
+  }))
+}
 
 /** Minutos SANEADOS: solo un valor de la lista (0 = Nunca); lo demás, o la ausencia, 5. */
 export function normalizarInactividadAgenteMin(v: unknown): number {
-  return typeof v === 'number' && AGENTE_INACTIVIDAD_OPCIONES.some((o) => o.min === v)
+  return typeof v === 'number' && AGENTE_INACTIVIDAD_MINUTOS.includes(v)
     ? v
     : AGENTE_INACTIVIDAD_MIN_POR_DEFECTO
 }
@@ -66,13 +96,11 @@ export function umbralEfectivoMs(min: unknown, pruebas: UmbralPruebas): number |
  * La ayuda de la fila. Dice solo lo que se garantiza: qué se cierra, qué muere con él y
  * qué cuesta volver.
  */
-export const AYUDA_INACTIVIDAD_AGENTE =
-  'Cierra el agente (Claude Code o Codex) de un proyecto que no está en pantalla cuando lleva ese tiempo sin ' +
-  'escribir ni recibir nada, y libera su memoria y la de sus servidores MCP. Al volver a su pestaña se reanuda ' +
-  'su conversación; tarda unos segundos. No se cierra un agente que Tessera ve trabajando, con una tarea en ' +
-  'segundo plano, esperando tu respuesta, con texto sin enviar o con un resultado que aún no has visto; ni ' +
-  'las terminales. Solo se aplica a los proyectos en modo nativo.'
+export function ayudaInactividadAgente(): string {
+  return txAjustesAgente().ayuda
+}
 
 /** La ayuda de la fila con «Nunca». */
-export const AYUDA_INACTIVIDAD_AGENTE_NUNCA =
-  'Los agentes siguen abiertos hasta que cierres su pestaña, hibernes el perfil o cierres Tessera.'
+export function ayudaInactividadAgenteNunca(): string {
+  return txAjustesAgente().ayudaNunca
+}

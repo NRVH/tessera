@@ -8,7 +8,9 @@
 
 import type { DbKvBytes, DbKvPaginaClaves, DbKvResultado } from '../../../../../shared/db-claves-ipc.ts'
 import type { DbErrorSql, DbRespuesta } from '../../../../../shared/db-explorador-ipc.ts'
+import { localeActual } from '../../../../../shared/i18n.ts'
 import { citarRedisCli } from './bytesClaves.ts'
+import { txEdicionClaves } from './textosEdicionClaves.ts'
 
 /** Claves, como mucho, por borrado: más se borra en otra vuelta, y la vista previa cabe en memoria. */
 export const TOPE_BORRADO = 100_000
@@ -119,13 +121,15 @@ export async function ejecutarBorrado(
 
 /** «1 clave», «2.345 claves». */
 export function textoClaves(n: number): string {
-  return `${n.toLocaleString('es-ES')} ${n === 1 ? 'clave' : 'claves'}`
+  const t = txEdicionClaves()
+  return `${n.toLocaleString(localeActual())} ${n === 1 ? t.unaClave : t.variasClaves}`
 }
 
 /** Lo que dice la vista previa de lo recogido. */
 export function resumenVistaPrevia(r: Recogida): string {
+  const t = txEdicionClaves()
   const n = textoClaves(r.claves.length)
-  if (r.fin === 'tope') return `Se han encontrado ${n} y la búsqueda se ha parado ahí: se borrarán estas, y si quedan más habrá que repetirlo.`
-  if (r.fin === 'detenida') return `Búsqueda detenida: ${n} hasta ahora. Se borrarán solo estas.`
-  return r.claves.length === 0 ? 'Ninguna clave casa con ese patrón.' : `Se borrarán ${n}.`
+  if (r.fin === 'tope') return t.seHanEncontrado(n)
+  if (r.fin === 'detenida') return t.busquedaDetenida(n)
+  return r.claves.length === 0 ? t.ningunaCasa : t.seBorraran(n)
 }

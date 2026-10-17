@@ -13,6 +13,7 @@ import {
   ModelSaveBlocked,
   type LoadedText,
   type RegistryDeps,
+  type RutaArchivo,
   type SharedTextModel,
   type WriteOutcome
 } from './modelRegistryCore.ts'
@@ -57,6 +58,8 @@ interface Harness {
   existencias: string[]
   /** Escrituras registradas: [ruta, contenido, encoding]. */
   writes: Array<[string, string, string]>
+  /** El proyecto (`raiz`) de cada escritura, en el mismo orden que `writes`. */
+  raicesEscritas: string[]
   /** Modelos creados, en orden (para comprobar disposes). */
   created: FakeModel[]
   /** Fija lo que devolverá la próxima carga de esa ruta. */
@@ -80,6 +83,7 @@ function makeHarness(): Harness {
   const loads: string[] = []
   const existencias: string[] = []
   const writes: Array<[string, string, string]> = []
+  const raicesEscritas: string[] = []
   const created: FakeModel[] = []
   let nextId = 1
   let held: Array<() => void> | null = null
@@ -139,7 +143,7 @@ function makeHarness(): Harness {
         model.subs.delete(onChange)
       }
     },
-    async load(path) {
+    async load({ path }) {
       loads.push(path)
       if (borrados.has(path)) {
         // El texto es el que de verdad llega: el `fs` del main envuelto por el IPC
@@ -153,13 +157,14 @@ function makeHarness(): Harness {
       }
       return fileOf(path)
     },
-    async existe(path) {
+    async existe({ path }) {
       existencias.push(path)
       if (falloExistencia) throw new Error('el IPC de existencia se cayó')
       return !borrados.has(path)
     },
-    async write(path, content, encoding): Promise<WriteOutcome> {
+    async write({ raiz, path }, content, encoding): Promise<WriteOutcome> {
       writes.push([path, content, encoding])
+      raicesEscritas.push(raiz)
       return { bytesWritten: Buffer.byteLength(content, 'utf8') }
     }
   }
@@ -169,6 +174,7 @@ function makeHarness(): Harness {
     loads,
     existencias,
     writes,
+    raicesEscritas,
     created,
     romperExistencia(roto) {
       falloExistencia = roto
@@ -218,6 +224,10 @@ function makeHarness(): Harness {
 
 const KEY_A = 'perfil1|C:/proy/a\u0000src/index.ts'
 const KEY_B = 'perfil1|C:/proy/b\u0000src/index.ts'
+/** Un archivo del proyecto `raiz` (de serie, el de KEY_A). */
+const en = (path: string, raiz = 'C:/proy/a'): RutaArchivo => ({ raiz, path })
+const EN_A = en('src/index.ts')
+const EN_B = en('src/index.ts', 'C:/proy/b')
 
 // =============================================================================
 // Main
@@ -230,8 +240,8 @@ async function main(): Promise<void> {
     const h = makeHarness()
     const reg = createRegistry(h.deps)
 
-    const s1 = await reg.acquire(KEY_A, 'src/index.ts')
-    const s2 = await reg.acquire(KEY_A, 'src/index.ts')
+    const s1 = await reg.acquire(KEY_A, EN_A)
+    const s2 = await reg.acquire(KEY_A, EN_A)
 
     check(
       '(1a) una sola lectura de disco para dos adquisiciones',
@@ -252,8 +262,8 @@ async function main(): Promise<void> {
   {
     const h = makeHarness()
     const reg = createRegistry(h.deps)
-    const s = await reg.acquire(KEY_A, 'src/index.ts')
-    await reg.acquire(KEY_A, 'src/index.ts')
+    const s = await reg.acquire(KEY_A, EN_A)
+    await reg.acquire(KEY_A, EN_A)
 
     reg.release(KEY_A)
     check(
@@ -293,8 +303,8 @@ async function main(): Promise<void> {
     h.holdLoads()
 
     // Dos adquisiciones en el MISMO tick, antes de que la carga resuelva.
-    const p1 = reg.acquire(KEY_A, 'src/index.ts')
-    const p2 = reg.acquire(KEY_A, 'src/index.ts')
+    const p1 = reg.acquire(KEY_A, EN_A)
+    const p2 = reg.acquire(KEY_A, EN_A)
     check(
       '(3a) el refcount sube SÍNCRONO: 2 aunque la carga siga en vuelo',
       reg.refCount(KEY_A) === 2,
@@ -314,7 +324,7 @@ async function main(): Promise<void> {
     const reg = createRegistry(h.deps)
     h.holdLoads()
 
-    const p = reg.acquire(KEY_A, 'src/index.ts')
+    const p = reg.acquire(KEY_A, EN_A)
     reg.release(KEY_A) // el pane se desmonta ANTES de que la carga termine
     await h.flushLoads()
     const s = await p
@@ -337,12 +347,22 @@ async function main(): Promise<void> {
   {
     const h = makeHarness()
     const reg = createRegistry(h.deps)
-    const a = await reg.acquire(KEY_A, 'src/index.ts')
-    const b = await reg.acquire(KEY_B, 'src/index.ts')
+    const a = await reg.acquire(KEY_A, EN_A)
+    const b = await reg.acquire(KEY_B, EN_B)
     check(
       '(4a) dos keys distintas -> dos modelos distintos, dos lecturas',
       a.model !== b.model && h.loads.length === 2,
       `id_a=${a.model?.id} id_b=${b.model?.id} loads=${h.loads.length}`
+    )
+    // Pérdida de datos: con la misma ruta relativa, cada buffer escribe en SU proyecto, no en el anclado.
+    h.type(a.model!, 'de a\n')
+    h.type(b.model!, 'de b\n')
+    await reg.save(KEY_A)
+    await reg.save(KEY_B)
+    check(
+      '(4c) cada buffer guarda con la contenedora de su proyecto',
+      h.raicesEscritas.join(',') === 'C:/proy/a,C:/proy/b' && h.writes.every(([p]) => p === 'src/index.ts'),
+      `raices=${JSON.stringify(h.raicesEscritas)}`
     )
     reg.release(KEY_A)
     check(
@@ -358,8 +378,8 @@ async function main(): Promise<void> {
   {
     const h = makeHarness()
     const reg = createRegistry(h.deps)
-    const s = await reg.acquire(KEY_A, 'src/index.ts')
-    await reg.acquire(KEY_A, 'src/index.ts')
+    const s = await reg.acquire(KEY_A, EN_A)
+    await reg.acquire(KEY_A, EN_A)
 
     const vistos1: boolean[] = []
     const vistos2: boolean[] = []
@@ -405,7 +425,7 @@ async function main(): Promise<void> {
   {
     const h = makeHarness()
     const reg = createRegistry(h.deps)
-    await reg.acquire(KEY_A, 'src/index.ts')
+    await reg.acquire(KEY_A, EN_A)
     const res = await reg.save(KEY_A)
     check(
       '(6a) guardar un buffer limpio devuelve null y NO escribe (no bumpea el mtime)',
@@ -426,7 +446,7 @@ async function main(): Promise<void> {
     }
 
     const reg = createRegistry(h.deps)
-    const s = await reg.acquire(KEY_A, 'src/index.ts')
+    const s = await reg.acquire(KEY_A, EN_A)
     h.type(s.model!, 'version 1\n')
 
     const guardando = reg.save(KEY_A)
@@ -450,7 +470,7 @@ async function main(): Promise<void> {
     h.setFile('grande.txt', { content: 'solo el principio\n', truncated: true })
     const reg = createRegistry(h.deps)
     const key = 'p|c\u0000grande.txt'
-    const s = await reg.acquire(key, 'grande.txt')
+    const s = await reg.acquire(key, en('grande.txt'))
     h.type(s.model!, 'editado\n')
 
     let bloqueado = false
@@ -472,7 +492,7 @@ async function main(): Promise<void> {
     h.setFile('logo.png', { content: '', binary: true })
     const reg = createRegistry(h.deps)
     const key = 'p|c\u0000logo.png'
-    const s = await reg.acquire(key, 'logo.png')
+    const s = await reg.acquire(key, en('logo.png'))
     check('(7b) un binario no tiene modelo que compartir', s.model === null && s.binary, `model=${s.model}`)
 
     let bloqueado = false
@@ -495,8 +515,8 @@ async function main(): Promise<void> {
     const h = makeHarness()
     h.setFile('src/index.ts', { content: 'original\n' })
     const reg = createRegistry(h.deps)
-    const s = await reg.acquire(KEY_A, 'src/index.ts')
-    await reg.acquire(KEY_A, 'src/index.ts')
+    const s = await reg.acquire(KEY_A, EN_A)
+    await reg.acquire(KEY_A, EN_A)
     const antes = s.model!
 
     const vistos: boolean[] = []
@@ -525,7 +545,7 @@ async function main(): Promise<void> {
   {
     const h = makeHarness()
     const reg = createRegistry(h.deps)
-    await reg.acquire(KEY_A, 'src/index.ts')
+    await reg.acquire(KEY_A, EN_A)
     const cargasIniciales = h.loads.length
 
     // Dos recargas en el mismo tick: descartar cambios con la pestaña Y el diff abiertos.
@@ -555,7 +575,7 @@ async function main(): Promise<void> {
     const h = makeHarness()
     h.setFile('src/index.ts', { content: 'igual que en disco\n' })
     const reg = createRegistry(h.deps)
-    const s = await reg.acquire(KEY_A, 'src/index.ts')
+    const s = await reg.acquire(KEY_A, EN_A)
     const m = s.model!
     const versionAntes = m.version
 
@@ -589,7 +609,7 @@ async function main(): Promise<void> {
     h.setFile('acentos.txt', { content: 'mojibake\n', encoding: 'utf8' })
     const reg = createRegistry(h.deps)
     const key = 'p|c\u0000acentos.txt'
-    await reg.acquire(key, 'acentos.txt')
+    await reg.acquire(key, en('acentos.txt'))
 
     h.setFile('acentos.txt', { content: 'función café\n', encoding: 'windows1252' })
     await reg.reload(key, { forcedEncoding: 'windows1252' })
@@ -611,7 +631,7 @@ async function main(): Promise<void> {
   {
     const h = makeHarness()
     const reg = createRegistry(h.deps)
-    await reg.acquire(KEY_A, 'src/index.ts')
+    await reg.acquire(KEY_A, EN_A)
 
     const noop = await reg.convert(KEY_A, { encodingId: 'utf8', eol: 'LF' })
     check(
@@ -642,7 +662,7 @@ async function main(): Promise<void> {
       `peek=${antesPeek} refCount=${antesRef} loads=${h.loads.length}`
     )
 
-    await reg.acquire(KEY_A, 'src/index.ts')
+    await reg.acquire(KEY_A, EN_A)
     reg.peek(KEY_A)
     reg.peek(KEY_A)
     check(
@@ -674,13 +694,13 @@ async function main(): Promise<void> {
 
     let lanzo = false
     try {
-      await reg.acquire(KEY_A, 'src/index.ts')
+      await reg.acquire(KEY_A, EN_A)
     } catch {
       lanzo = true
     }
     reg.release(KEY_A) // el pane suelta en su cleanup aunque la carga fallara
 
-    const s = await reg.acquire(KEY_A, 'src/index.ts')
+    const s = await reg.acquire(KEY_A, EN_A)
     check(
       '(11a) tras un fallo de lectura, el siguiente acquire REINTENTA y funciona',
       lanzo && s.model !== null,
@@ -699,7 +719,7 @@ async function main(): Promise<void> {
     let lanzo = false
     let s: SharedTextModel<FakeModel> | null = null
     try {
-      s = await reg.acquire('k:java', 'src/App.java')
+      s = await reg.acquire('k:java', en('src/App.java'))
     } catch {
       lanzo = true
     }
@@ -758,9 +778,9 @@ async function main(): Promise<void> {
       })
 
     const reg = createRegistry(h.deps)
-    const p1 = reg.acquire(KEY_A, 'src/index.ts')
+    const p1 = reg.acquire(KEY_A, EN_A)
     reg.release(KEY_A) // suelta con la primera carga aun en vuelo
-    const p2 = reg.acquire(KEY_A, 'src/index.ts') // titular NUEVO, entrada nueva
+    const p2 = reg.acquire(KEY_A, EN_A) // titular NUEVO, entrada nueva
 
     esperas[0]() // ahora falla la lectura VIEJA
     await p1.catch(() => {})
@@ -804,7 +824,7 @@ async function main(): Promise<void> {
     const h = makeHarness()
     const reg = createRegistry(h.deps)
     h.setFile('src/env', { content: 'A=1\n' })
-    await reg.acquire('k:src/env', 'src/env')
+    await reg.acquire('k:src/env', en('src/env'))
 
     const vistos: boolean[] = []
     const off = reg.subscribeBorrado('k:src/env', (b) => vistos.push(b))
@@ -867,7 +887,7 @@ async function main(): Promise<void> {
     const h = makeHarness()
     const reg = createRegistry(h.deps)
     h.setFile('a.txt', { content: 'uno\n' })
-    await reg.acquire('k:a', 'a.txt')
+    await reg.acquire('k:a', en('a.txt'))
     h.borrarArchivo('a.txt')
     await reg.reload('k:a')
     check('(13i) marcado tras el borrado', reg.estaBorrado('k:a'), 'estaBorrado=true')
@@ -885,7 +905,7 @@ async function main(): Promise<void> {
     // Un fallo que NO es «no existe» SÍ tiene que subir: ahí el cartel dice la verdad.
     const h = makeHarness()
     const reg = createRegistry(h.deps)
-    await reg.acquire('k:b', 'b.txt')
+    await reg.acquire('k:b', en('b.txt'))
     const original = h.deps.load
     h.deps.load = async () => {
       throw new Error('EACCES: permission denied')
@@ -931,7 +951,7 @@ async function main(): Promise<void> {
     // pestaña no se tachaba justo cuando más importaba.
     const h = makeHarness()
     const reg = createRegistry(h.deps)
-    const compartido = await reg.acquire('k:a', 'a.txt')
+    const compartido = await reg.acquire('k:a', en('a.txt'))
     h.type(compartido.model as FakeModel, 'MIS CAMBIOS\n')
     check('(15a) el buffer está sucio', reg.isDirty('k:a'), 'isDirty=true')
 
@@ -979,7 +999,7 @@ async function main(): Promise<void> {
     const reg = createRegistry(h.deps)
     check('(15i) una key no adquirida responde false sin reventar', (await reg.revisarBorrado('k:nada')) === false, '')
 
-    await reg.acquire('k:a', 'a.txt')
+    await reg.acquire('k:a', en('a.txt'))
     h.borrarArchivo('a.txt')
     await reg.revisarBorrado('k:a')
     check('(15j) marcada', reg.estaBorrado('k:a'), 'estaBorrado=true')
@@ -997,7 +1017,7 @@ async function main(): Promise<void> {
     // esa ventana marca la entrada sobre un archivo que git acaba de escribir.
     const h = makeHarness()
     const reg = createRegistry(h.deps)
-    await reg.acquire('k:a', 'a.txt')
+    await reg.acquire('k:a', en('a.txt'))
     h.borrarArchivo('a.txt')
     await reg.revisarBorrado('k:a')
     check('(15m) marcada por la ventana del checkout', reg.estaBorrado('k:a'), 'estaBorrado=true')
@@ -1019,7 +1039,7 @@ async function main(): Promise<void> {
     // exista el archivo o no. Es lo que el estándar promete y no se puede ablandar.
     const h = makeHarness()
     const reg = createRegistry(h.deps)
-    const s = await reg.acquire('k:a', 'a.txt')
+    const s = await reg.acquire('k:a', en('a.txt'))
     h.type(s.model as FakeModel, 'MIS CAMBIOS\n')
     h.borrarArchivo('a.txt')
     await reg.revisarBorrado('k:a')
@@ -1038,7 +1058,7 @@ async function main(): Promise<void> {
     // Y el caso legítimo sigue funcionando: limpio, marcado y el archivo NO está.
     const h = makeHarness()
     const reg = createRegistry(h.deps)
-    await reg.acquire('k:a', 'a.txt')
+    await reg.acquire('k:a', en('a.txt'))
     h.borrarArchivo('a.txt')
     await reg.revisarBorrado('k:a')
     const res = await reg.save('k:a')
@@ -1054,7 +1074,7 @@ async function main(): Promise<void> {
     // gesto: el usuario pulsó Ctrl+S, así que se escribe.
     const h = makeHarness()
     const reg = createRegistry(h.deps)
-    await reg.acquire('k:a', 'a.txt')
+    await reg.acquire('k:a', en('a.txt'))
     h.borrarArchivo('a.txt')
     await reg.revisarBorrado('k:a')
     h.romperExistencia(true)
@@ -1071,11 +1091,11 @@ async function main(): Promise<void> {
     // Guarda post-await: la key se recicla para OTRO archivo mientras se pregunta.
     const h = makeHarness()
     const reg = createRegistry(h.deps)
-    await reg.acquire('k:a', 'viejo.txt')
+    await reg.acquire('k:a', en('viejo.txt'))
     h.borrarArchivo('viejo.txt')
     const enVuelo = reg.revisarBorrado('k:a')
     reg.release('k:a')
-    await reg.acquire('k:a', 'nuevo.txt')
+    await reg.acquire('k:a', en('nuevo.txt'))
     await enVuelo
     check(
       '(15l) la respuesta del inquilino VIEJO no marca al NUEVO',

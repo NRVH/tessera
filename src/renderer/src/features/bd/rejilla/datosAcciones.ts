@@ -19,6 +19,7 @@ import { copiarComo } from './copiarComo'
 import { conDescarte } from './datosEnvio'
 import { claveDeFila } from './visorValor'
 import type { Filtro, NucleoDatos, VistaDatos } from './datosTipos'
+import { txRejilla } from './textosRejilla.ts'
 
 /**
  * Aplica lo escrito en el modo VISIBLE, con el orden aplicado. En el guiado, lo que no
@@ -57,7 +58,7 @@ export function ordenar(v: VistaDatos, columna: number, multiple: boolean): void
   if (!col || sinComparacion(v.props.conexion.motor, col.tipoMotor)) return
   const nuevo = ciclarOrden(v.n.aplicadoRef.current.orden, col.nombre, multiple)
   if (nuevo.length > MAX_COLUMNAS_ORDEN) {
-    notify('warn', `Se ordena por hasta ${MAX_COLUMNAS_ORDEN} columnas`)
+    notify('warn', txRejilla().esMuchasColumnas(MAX_COLUMNAS_ORDEN))
     return
   }
   conDescarte(v.n, () => void v.a.consultar({ ...v.n.aplicadoRef.current, orden: nuevo }))
@@ -98,15 +99,12 @@ export function teclaWhere(v: VistaDatos, e: React.KeyboardEvent<HTMLInputElemen
 }
 
 function notasCopiarTodo(hayMas: boolean, conCambios: boolean, incompletas: number): string[] {
+  const t = txRejilla()
   const notas: string[] = []
-  if (hayMas) notas.push('Solo las cargadas: el servidor tiene más.')
-  if (conCambios) notas.push('Lo leído del servidor: sin los cambios pendientes.')
+  if (hayMas) notas.push(t.soloLasCargadas)
+  if (conCambios) notas.push(t.leidoSinPendientes)
   if (incompletas > 0) {
-    notas.push(
-      `${formatoEntero(incompletas)} ${
-        incompletas === 1 ? 'celda llegó recortada' : 'celdas llegaron recortadas'
-      }: lo copiado no es el valor entero.`
-    )
+    notas.push(t.loCopiadoNoEntero(formatoEntero(incompletas), incompletas === 1 ? t.celdaRecortada : t.celdasRecortadas))
   }
   return notas
 }
@@ -128,13 +126,14 @@ export function copiarTodo(v: VistaDatos): void {
     .write(copia.texto)
     .then(() => {
       const notas = notasCopiarTodo(base.datos.hayMas, numCambios(cambiosRef.current) > 0, copia.incompletas)
+      const t = txRejilla()
       notify(
         copia.incompletas > 0 ? 'warn' : 'success',
-        `${formatoEntero(n)} ${n === 1 ? 'fila copiada' : 'filas copiadas'}`,
+        `${formatoEntero(n)} ${n === 1 ? t.filaCopiada : t.filasCopiadas}`,
         notas.length > 0 ? notas.join(' ') : undefined
       )
     })
-    .catch((err: unknown) => notifyError('No se pudo copiar', err))
+    .catch((err: unknown) => notifyError(txRejilla().noSePudoCopiar, err))
 }
 
 export function abrirConsola(v: VistaDatos): void {
@@ -183,7 +182,7 @@ export async function valorCompleto(n: NucleoDatos, f: number, c: number): Promi
   const base = n.resRef.current
   const con = n.propsRef.current.conexion
   if (!base || !base.columnas[c]) {
-    return { ok: false, error: { motivo: 'interno', mensaje: 'Los datos ya no están cargados.' } }
+    return { ok: false, error: { motivo: 'interno', mensaje: txRejilla().datosYaNoCargados } }
   }
   const recortesFila = base.datos.recortes.get(f)
   const clave = claveDeFila(

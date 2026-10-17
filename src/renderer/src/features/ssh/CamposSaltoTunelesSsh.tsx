@@ -10,22 +10,27 @@ import { useId, useState } from 'react'
 import type { SshConexion, SshTipoTunel } from '../../../../shared/ssh-ipc'
 import { SSH_TUNELES_MAX } from '../../../../shared/ssh-ipc'
 import { puertoValido, tunelNuevo, type BorradorSsh, type CampoSsh, type TunelBorrador } from './borradorSsh'
+import { txFormularioSsh } from './textosFormulario.ts'
 
 type Editar = (parcial: Partial<BorradorSsh>) => void
 
-const TIPOS: ReadonlyArray<{ tipo: SshTipoTunel; etiqueta: string }> = [
-  { tipo: 'local', etiqueta: 'Local (-L)' },
-  { tipo: 'remoto', etiqueta: 'Remoto (-R)' },
-  { tipo: 'dinamico', etiqueta: 'SOCKS (-D)' }
-]
+function tiposTunel(): ReadonlyArray<{ tipo: SshTipoTunel; etiqueta: string }> {
+  const t = txFormularioSsh()
+  return [
+    { tipo: 'local', etiqueta: t.tunelLocal },
+    { tipo: 'remoto', etiqueta: t.tunelRemoto },
+    { tipo: 'dinamico', etiqueta: t.tunelSocks }
+  ]
+}
 
 /** Qué hace un túnel, en una frase, con lo tecleado. */
 function ayudaTunel(t: TunelBorrador): string {
+  const tx = txFormularioSsh()
   const puerto = t.puerto.trim() || '…'
   const destino = `${t.destinoHost.trim() || '…'}:${t.destinoPuerto.trim() || '…'}`
-  if (t.tipo === 'dinamico') return `Proxy SOCKS en 127.0.0.1:${puerto} de este equipo: lo que salga por él sale desde el servidor.`
-  if (t.tipo === 'local') return `127.0.0.1:${puerto} de este equipo lleva a ${destino}, visto desde el servidor.`
-  return `El puerto ${puerto} del servidor lleva a ${destino}, visto desde este equipo.`
+  if (t.tipo === 'dinamico') return tx.ayudaSocks(puerto)
+  if (t.tipo === 'local') return tx.ayudaLocal(puerto, destino)
+  return tx.ayudaRemoto(puerto, destino)
 }
 
 /** `true` en un campo que falta tras intentar guardar, y `undefined` en el resto (sin `aria-invalid="false"`). */
@@ -35,6 +40,7 @@ function falta(marcar: boolean, malo: boolean): true | undefined {
 
 /** El destino de un túnel local o remoto: host y puerto. */
 function DestinoTunel({ t, n, marcar, cambiar }: { t: TunelBorrador; n: number; marcar: boolean; cambiar: (t: TunelBorrador) => void }): React.JSX.Element {
+  const tx = txFormularioSsh()
   return (
     <>
       <span className="ssh-tunel-flecha" aria-hidden="true">
@@ -42,9 +48,9 @@ function DestinoTunel({ t, n, marcar, cambiar }: { t: TunelBorrador; n: number; 
       </span>
       <input
         className="ssh-tunel-host"
-        aria-label={`Host de destino del túnel ${n}`}
+        aria-label={tx.hostDestinoTunel(n)}
         aria-invalid={falta(marcar, t.destinoHost.trim() === '')}
-        placeholder="host de destino"
+        placeholder={tx.hostDestinoPlaceholder}
         value={t.destinoHost}
         spellCheck={false}
         autoComplete="off"
@@ -52,9 +58,9 @@ function DestinoTunel({ t, n, marcar, cambiar }: { t: TunelBorrador; n: number; 
       />
       <input
         className="ssh-tunel-puerto"
-        aria-label={`Puerto de destino del túnel ${n}`}
+        aria-label={tx.puertoDestinoTunel(n)}
         aria-invalid={falta(marcar, !puertoValido(t.destinoPuerto))}
-        placeholder="puerto"
+        placeholder={tx.puertoPlaceholder}
         inputMode="numeric"
         value={t.destinoPuerto}
         spellCheck={false}
@@ -68,16 +74,17 @@ function DestinoTunel({ t, n, marcar, cambiar }: { t: TunelBorrador; n: number; 
 /** Una fila de túnel: tipo, puerto que escucha, destino y quitar. */
 function FilaTunel({ t, i, marcar, cambiar, quitar }: { t: TunelBorrador; i: number; marcar: boolean; cambiar: (t: TunelBorrador) => void; quitar: () => void }): React.JSX.Element {
   const n = i + 1
+  const tx = txFormularioSsh()
   return (
     <li className="ssh-tunel">
       <div className="ssh-tunel-fila">
         <select
-          aria-label={`Tipo del túnel ${n}`}
+          aria-label={tx.tipoTunel(n)}
           value={t.tipo}
           data-campo={i === 0 ? 'tuneles' : undefined}
           onChange={(e) => cambiar({ ...t, tipo: e.target.value as SshTipoTunel })}
         >
-          {TIPOS.map((o) => (
+          {tiposTunel().map((o) => (
             <option key={o.tipo} value={o.tipo}>
               {o.etiqueta}
             </option>
@@ -85,9 +92,9 @@ function FilaTunel({ t, i, marcar, cambiar, quitar }: { t: TunelBorrador; i: num
         </select>
         <input
           className="ssh-tunel-puerto"
-          aria-label={`Puerto que escucha el túnel ${n}`}
+          aria-label={tx.puertoEscuchaTunel(n)}
           aria-invalid={falta(marcar, !puertoValido(t.puerto))}
-          placeholder="puerto"
+          placeholder={tx.puertoPlaceholder}
           inputMode="numeric"
           value={t.puerto}
           spellCheck={false}
@@ -95,7 +102,7 @@ function FilaTunel({ t, i, marcar, cambiar, quitar }: { t: TunelBorrador; i: num
           onChange={(e) => cambiar({ ...t, puerto: e.target.value })}
         />
         {t.tipo !== 'dinamico' && <DestinoTunel t={t} n={n} marcar={marcar} cambiar={cambiar} />}
-        <button type="button" className="btn btn-icon ssh-tunel-quitar" onClick={quitar} title="Quitar el túnel" aria-label={`Quitar el túnel ${n}`}>
+        <button type="button" className="btn btn-icon ssh-tunel-quitar" onClick={quitar} title={tx.quitarTunel} aria-label={tx.quitarTunelN(n)}>
           ×
         </button>
       </div>
@@ -108,12 +115,13 @@ function FilaTunel({ t, i, marcar, cambiar, quitar }: { t: TunelBorrador; i: num
 function CampoBastionSsh({ borrador, bastiones, editar }: { borrador: BorradorSsh; bastiones: readonly SshConexion[]; editar: Editar }): React.JSX.Element {
   const idAyuda = useId()
   const perdido = borrador.saltoId !== null && !bastiones.some((c) => c.id === borrador.saltoId)
+  const tx = txFormularioSsh()
   return (
     <label className="dbc-campo">
-      <span className="dbc-etiqueta">Saltar por</span>
+      <span className="dbc-etiqueta">{tx.saltarPor}</span>
       <select data-campo="salto" aria-describedby={idAyuda} value={borrador.saltoId ?? ''} onChange={(e) => editar({ saltoId: e.target.value === '' ? null : e.target.value })}>
-        <option value="">Directo (sin bastión)</option>
-        {perdido && <option value={borrador.saltoId ?? ''}>Una conexión que ya no existe</option>}
+        <option value="">{tx.directo}</option>
+        {perdido && <option value={borrador.saltoId ?? ''}>{tx.conexionPerdida}</option>}
         {bastiones.map((c) => (
           <option key={c.id} value={c.id}>
             {c.alias}
@@ -121,9 +129,7 @@ function CampoBastionSsh({ borrador, bastiones, editar }: { borrador: BorradorSs
         ))}
       </select>
       <span id={idAyuda} className="dbc-ayuda">
-        {borrador.saltoId === null
-          ? 'Para un equipo al que solo se llega pasando por otro: elige esa otra conexión.'
-          : 'Se entra primero en el bastión, con su usuario y su clave o contraseña, y desde él en este equipo.'}
+        {borrador.saltoId === null ? tx.ayudaSinBastion : tx.ayudaConBastion}
       </span>
     </label>
   )
@@ -143,17 +149,18 @@ export function SeccionSaltoTunelesSsh({
   editar: Editar
 }): React.JSX.Element {
   const marcar = marcados.includes('tuneles')
+  const tx = txFormularioSsh()
   // Abierta al montar si ya tiene algo; luego, lo que elija el usuario (y siempre si hay un túnel por completar).
   const [abierta, setAbierta] = useState(() => borrador.saltoId !== null || borrador.tuneles.length > 0)
   const cambiar = (i: number, t: TunelBorrador): void => editar({ tuneles: borrador.tuneles.map((x, j) => (j === i ? t : x)) })
   return (
     <details className="ssh-avanzado" open={abierta || marcar} onToggle={(e) => setAbierta(e.currentTarget.open)}>
-      <summary>Bastión y túneles</summary>
+      <summary>{tx.bastionYTuneles}</summary>
       <div className="ssh-avanzado-cuerpo">
         <CampoBastionSsh borrador={borrador} bastiones={bastiones} editar={editar} />
         <div className="dbc-campo">
-          <span className="dbc-etiqueta">Túneles</span>
-          <span className="dbc-ayuda">Se abren con la terminal de esta conexión y se cierran con ella. Los agentes no los usan.</span>
+          <span className="dbc-etiqueta">{tx.tuneles}</span>
+          <span className="dbc-ayuda">{tx.ayudaTuneles}</span>
           {borrador.tuneles.length > 0 && (
             <ul className="ssh-tuneles">
               {borrador.tuneles.map((t, i) => (
@@ -163,7 +170,7 @@ export function SeccionSaltoTunelesSsh({
           )}
           <div>
             <button type="button" className="btn" disabled={borrador.tuneles.length >= SSH_TUNELES_MAX} onClick={() => editar({ tuneles: [...borrador.tuneles, tunelNuevo()] })}>
-              Añadir túnel
+              {tx.anadirTunel}
             </button>
           </div>
         </div>

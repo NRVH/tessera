@@ -2,13 +2,14 @@
 // Piezas por dialecto del filtro guiado: cómo se escribe un número, una fecha, un LIKE o un
 // booleano en cada motor, y el acumulador de parámetros con el marcador de su dialecto.
 // Puro (sin electron ni `process`); lo usa `filtroSql.ts`, que reexporta lo público.
-// Decisiones: docs/decisiones/bd/rejilla-filtro-guiado-sql.md
+// Decisiones: docs/decisiones/bd/filtro-guiado-compilacion.md
 // =============================================================================
 
 import { leerNumero } from '../../../shared/filtroGuiado.ts'
 import { nunca } from '../../../shared/nunca.ts'
 import { marcadorPosicional, type DialectoSql } from '../../../shared/sql/dialectosSql.ts'
 import type { BindEntradaLob, BindValorSqlite } from './protocoloTrabajador.ts'
+import { txFiltro } from './textosRejilla.ts'
 
 /** Un valor del filtro listo para el trabajador. */
 export type ValorFiltroSql = string | number | BindValorSqlite
@@ -77,7 +78,7 @@ function numeroSql(d: DialectoSql, n: NumeroPartido): ValorConExpr | string {
     case 'sqlserver': {
       if (n.int8) return { valor: n.texto, expr: (m) => `CAST(${m} AS BIGINT)` }
       if (n.entera.length + n.fraccion.length > PRECISION_SQLSERVER) {
-        return `Este motor compara números de hasta ${PRECISION_SQLSERVER} cifras.`
+        return txFiltro().cifrasMax(PRECISION_SQLSERVER)
       }
       return { valor: n.texto, expr: (m) => `CAST(${m} AS DECIMAL(${PRECISION_SQLSERVER}, ${n.fraccion.length}))` }
     }
@@ -86,7 +87,7 @@ function numeroSql(d: DialectoSql, n: NumeroPartido): ValorConExpr | string {
     case 'mysql': {
       if (n.int8) return { valor: n.texto, expr: (m) => `CAST(${m} AS SIGNED)` }
       if (n.entera.length + n.fraccion.length > PRECISION_MYSQL || n.fraccion.length > ESCALA_MYSQL) {
-        return `Este motor compara números de hasta ${PRECISION_MYSQL} cifras, ${ESCALA_MYSQL} de ellas decimales.`
+        return txFiltro().cifrasEscalaMax(PRECISION_MYSQL, ESCALA_MYSQL)
       }
       return { valor: n.texto, expr: (m) => `CAST(${m} AS DECIMAL(${PRECISION_MYSQL}, ${n.fraccion.length}))` }
     }
@@ -98,7 +99,7 @@ function numeroSql(d: DialectoSql, n: NumeroPartido): ValorConExpr | string {
 /** El número como expresión con su valor, o el problema. */
 export function numero(d: DialectoSql, valor: string | undefined): ValorConExpr | string {
   const n = partirNumero(valor ?? '')
-  return n === null ? 'No es un número (usa punto decimal: 12.5).' : numeroSql(d, n)
+  return n === null ? txFiltro().noEsNumero : numeroSql(d, n)
 }
 
 // --- Fechas --------------------------------------------------------------------

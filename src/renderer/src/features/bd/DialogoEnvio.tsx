@@ -14,13 +14,14 @@ import { IconoCopiar } from '../../comun/iconosMenu'
 import { MarcaEntorno } from './MarcaEntorno'
 import { notify, notifyError } from '../../comun/notifications'
 import {
-  AVISO_ENVIO_INCIERTO,
+  avisoEnvioIncierto,
   esEnvioIncierto,
   focoEnvio,
   textoCambios,
   type EstadoEnvio,
   type FocoEnvio
 } from './rejilla/cambiosRejilla'
+import { txConsolaBd } from './textosConsolaBd.ts'
 import './rejilla.css'
 
 // El tipo vive con la lógica pura que lo decide; se reexporta para quien abre el diálogo.
@@ -46,12 +47,16 @@ export interface DialogoEnvioProps {
 }
 
 /** Los rótulos de la vista previa según lo que enseña. */
-const ROTULOS = {
-  sql: { cabecera: 'Vista previa del SQL', copiar: 'Copiar el SQL', copiado: 'SQL copiado' },
-  shell: { cabecera: 'Vista previa de las órdenes', copiar: 'Copiar las órdenes', copiado: 'Órdenes copiadas' }
-} as const
+function rotulosDe(lenguaje: 'sql' | 'shell'): Rotulos {
+  const t = txConsolaBd()
+  return lenguaje === 'shell' ? t.envioShell : t.envioSql
+}
 
-type Rotulos = (typeof ROTULOS)[keyof typeof ROTULOS]
+interface Rotulos {
+  readonly cabecera: string
+  readonly copiar: string
+  readonly copiado: string
+}
 
 type RefBoton = React.RefObject<HTMLButtonElement>
 
@@ -110,8 +115,8 @@ function SqlEnvio(props: {
   const copiar = (): void => {
     window.tessera.clipboard
       .write(lineas.join('\n'))
-      .then(() => notify('success', rotulos.copiado, `${textoCambios(lineas.length)} en el portapapeles.`))
-      .catch((err: unknown) => notifyError('No se pudo copiar', err))
+      .then(() => notify('success', rotulos.copiado, txConsolaBd().enElPortapapeles(textoCambios(lineas.length))))
+      .catch((err: unknown) => notifyError(txConsolaBd().noSePudoCopiar, err))
   }
   return (
     <>
@@ -144,8 +149,8 @@ function EstadoDelEnvio({ estado }: { estado: EstadoEnvio }): React.JSX.Element 
       {estado.tipo === 'listo' && esEnvioIncierto(estado) && (
         // Reabierto tras un COMMIT incierto: la duda sigue en pie hasta refrescar.
         <div className="db-envio-error" role="alert">
-          <div className="db-envio-error-titulo">{AVISO_ENVIO_INCIERTO.titulo}</div>
-          <div className="db-envio-error-texto">{AVISO_ENVIO_INCIERTO.texto}</div>
+          <div className="db-envio-error-titulo">{avisoEnvioIncierto().titulo}</div>
+          <div className="db-envio-error-texto">{avisoEnvioIncierto().texto}</div>
         </div>
       )}
       {estado.tipo === 'error' && (
@@ -156,7 +161,7 @@ function EstadoDelEnvio({ estado }: { estado: EstadoEnvio }): React.JSX.Element 
       )}
       {estado.tipo === 'enviando' && (
         <div className="db-envio-estado" role="status">
-          Enviando…
+          {txConsolaBd().enviando}
         </div>
       )}
     </>
@@ -170,16 +175,17 @@ function AccionesEnvio(props: {
   refs: RefsEnvio
 }): React.JSX.Element {
   const { p, produccion, refs } = props
+  const t = txConsolaBd()
   return (
     <div className="modal-actions">
       {p.estado.tipo === 'enviando' ? (
         <button ref={refs.detenerRef} type="button" className="btn btn-ghost" onClick={p.onDetener}>
-          Detener
+          {t.detener}
         </button>
       ) : (
         <>
           <button ref={refs.cancelarRef} type="button" className="btn btn-ghost" onClick={p.onCerrar}>
-            Cancelar
+            {t.cancelar}
           </button>
           {/* En producción el contorno es rojo literal, no el color del perfil de `.btn.danger`. */}
           <button
@@ -188,7 +194,7 @@ function AccionesEnvio(props: {
             className={`btn ${produccion ? 'db-envio-btn-prod' : 'primary'}`}
             onClick={p.onEnviar}
           >
-            {produccion ? 'Ejecutar en producción' : 'Enviar'}
+            {produccion ? t.ejecutarEnProduccion : t.enviar}
           </button>
         </>
       )}
@@ -206,7 +212,8 @@ export function DialogoEnvio(p: DialogoEnvioProps): React.JSX.Element {
   const refs = useFocoEnvio(p, produccion, indiceError)
 
   const n = p.lineas.length
-  const titulo = n === 1 ? 'Enviar 1 cambio' : `Enviar ${n} cambios`
+  const t = txConsolaBd()
+  const titulo = n === 1 ? t.enviarUnCambio : t.enviarCambios(n)
 
   return (
     <div className="modal-overlay" role="presentation" onMouseDown={() => !enviando && p.onCerrar()}>
@@ -229,7 +236,7 @@ export function DialogoEnvio(p: DialogoEnvioProps): React.JSX.Element {
       >
         {produccion && (
           <div className="db-envio-franja" role="note">
-            <span className="db-envio-franja-texto">PRODUCCIÓN</span>
+            <span className="db-envio-franja-texto">{t.produccion}</span>
             <span className="db-envio-franja-alias">· {p.alias}</span>
           </div>
         )}
@@ -244,9 +251,9 @@ export function DialogoEnvio(p: DialogoEnvioProps): React.JSX.Element {
           </div>
           <div className="modal-message db-envio-mensaje" id={`${idBase}-mensaje`}>
             {p.resumen ? `${p.resumen}, ` : ''}
-            {p.mensaje ?? 'en UNA transacción: si uno falla, no se aplica ninguno.'}
+            {p.mensaje ?? t.enUnaTransaccion}
           </div>
-          <SqlEnvio lineas={p.lineas} indiceError={indiceError} preRef={refs.preRef} rotulos={ROTULOS[p.lenguaje ?? 'sql']} />
+          <SqlEnvio lineas={p.lineas} indiceError={indiceError} preRef={refs.preRef} rotulos={rotulosDe(p.lenguaje ?? 'sql')} />
           <EstadoDelEnvio estado={p.estado} />
           <AccionesEnvio p={p} produccion={produccion} refs={refs} />
         </div>

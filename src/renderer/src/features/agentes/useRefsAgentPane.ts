@@ -50,7 +50,6 @@ export interface RefsAgentPane {
   recovering: Ref<boolean>
   /** Montaje vigente: lo lee la apertura sin depender de él (no reabre la sesión). */
   dbMounted: Ref<string[]>
-  showSelector: Ref<boolean>
   onSelectAccount: Ref<(accountId: string | null) => void>
   onVivoChange: Ref<((vivo: boolean) => void) | undefined>
   onApi: Ref<((clave: string, api: ApiAgentePane | null) => void) | undefined>
@@ -106,7 +105,6 @@ function crearRefs(p: PropsAgentPane, appearance: TerminalAppearance): RefsAgent
     hibernated: ref(p.hibernated),
     recovering: ref(false),
     dbMounted: ref(p.dbMounted),
-    showSelector: ref(false),
     onSelectAccount: ref(elegirCuentaDe(p)),
     onVivoChange: ref(avisoVivoDe(p)),
     onApi: ref(p.onApi),

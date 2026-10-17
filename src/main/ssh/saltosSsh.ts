@@ -11,6 +11,7 @@ import type { Plataforma } from '../../shared/plataforma.ts'
 import { SSH_SALTOS_MAX } from '../../shared/ssh-ipc.ts'
 import type { ConexionSshPersistida } from './conservarAlEditarSsh.ts'
 import { citarValorOpcion, opcionesSsh, type ModoLineaSsh } from './lineaSsh.ts'
+import { txSsh } from './textos.ts'
 
 /**
  * Cómo lee el ssh un `ProxyCommand`. 'windows': el del sistema lo lanza tal cual, con las reglas de comillas
@@ -34,10 +35,10 @@ export function cadenaDeSaltos(c: ConexionSshPersistida, conexion: (id: string) 
   while (actual.saltoId !== undefined) {
     const siguiente = conexion(actual.saltoId)
     if (siguiente === undefined || siguiente.profileId !== c.profileId) {
-      throw new Error(`El bastión de «${actual.alias}» ya no existe en este perfil: edita la conexión y elige otro.`)
+      throw new Error(txSsh().saltos.bastionNoExiste(actual.alias))
     }
-    if (vistos.has(siguiente.id)) throw new Error(`Los bastiones de «${c.alias}» forman un círculo: edita la conexión y elige otro.`)
-    if (cadena.length >= SSH_SALTOS_MAX) throw new Error(`«${c.alias}» encadena más de ${SSH_SALTOS_MAX} bastiones.`)
+    if (vistos.has(siguiente.id)) throw new Error(txSsh().saltos.circulo(c.alias))
+    if (cadena.length >= SSH_SALTOS_MAX) throw new Error(txSsh().saltos.demasiados(c.alias, SSH_SALTOS_MAX))
     vistos.add(siguiente.id)
     cadena.push(siguiente)
     actual = siguiente

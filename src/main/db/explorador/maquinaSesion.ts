@@ -16,6 +16,7 @@ import type {
 } from '../../../shared/db-explorador-ipc.ts'
 import type { CapacidadesSesion } from '../../../shared/motores/index.ts'
 import type { ClaseSentencia } from '../../../shared/sql/clasificarSql.ts'
+import { txSesion } from './textosExplorador.ts'
 
 export type { ClaseSentencia }
 
@@ -126,40 +127,38 @@ type Evento<T extends EventoSesion['tipo']> = Extract<EventoSesion, { tipo: T }>
 
 // --- Textos --------------------------------------------------------------------
 
-export const MENSAJES = {
-  perdidaConTx: 'Sesión perdida; el servidor revirtió la transacción',
-  perdidaSinTx: 'Sesión perdida; se reabrirá en la siguiente operación',
-  caidaConTx: 'El proceso de la conexión terminó de forma inesperada; el servidor revirtió la transacción',
-  caidaSinTx: 'El proceso de la conexión terminó de forma inesperada; se reabrirá en la siguiente operación',
+const CLAVES_MENSAJES = [
+  'perdidaConTx',
+  'perdidaSinTx',
+  'caidaConTx',
+  'caidaSinTx',
   // Una pérdida con una confirmación en camino: mandan a comprobar en vez de a repetir, como
   // `mensajeFalloCommit` en «Enviar».
-  perdidaEnCommit:
-    'Sesión perdida con el COMMIT en camino: no se sabe si llegó a aplicarse. Comprueba los datos antes de repetir los cambios',
-  caidaEnCommit:
-    'El proceso de la conexión terminó con el COMMIT en camino: no se sabe si llegó a aplicarse. Comprueba los datos antes de repetir los cambios',
-  perdidaEnAuto:
-    'Sesión perdida con la sentencia en camino, que se confirma sola (Auto, o un DDL de Oracle): no se sabe si llegó a aplicarse. Comprueba los datos antes de repetirla',
-  caidaEnAuto:
-    'El proceso de la conexión terminó con la sentencia en camino, que se confirma sola (Auto, o un DDL de Oracle): no se sabe si llegó a aplicarse. Comprueba los datos antes de repetirla',
+  'perdidaEnCommit',
+  'caidaEnCommit',
+  'perdidaEnAuto',
+  'caidaEnAuto',
   // Un bloque PL/SQL o una rutina de Oracle en Manual, que pueden confirmar POR DENTRO.
-  perdidaPorDentro:
-    'Sesión perdida con un bloque PL/SQL o una rutina en camino, que pueden confirmar por dentro: no se sabe si se aplicó. Comprueba los datos antes de repetir los cambios',
-  caidaPorDentro:
-    'El proceso de la conexión terminó con un bloque PL/SQL o una rutina en camino, que pueden confirmar por dentro: no se sabe si se aplicó. Comprueba los datos antes de repetir los cambios',
-  inactividad:
-    'Sesión cerrada por inactividad; se reabrirá al usarla y se pierden sus ALTER SESSION y SET',
+  'perdidaPorDentro',
+  'caidaPorDentro',
+  'inactividad',
   // El Stop de un motor que no se interrumpe mata el proceso de la consola.
-  detenidaConTx:
-    'Consulta detenida: para pararla se cerró la sesión de la consola, y la transacción que tenía abierta se revirtió',
-  editada: 'La conexión se editó; la sesión se reabrirá con los datos nuevos',
-  expulsada: 'Sesión cerrada para dejar sitio a otra (límite de sesiones vivas)',
-  commitImplicito: 'El DDL confirmó de forma implícita los cambios pendientes',
-  ocupada: 'La sesión está ocupada con otra operación',
-  txPendiente: 'Confirma o revierte primero',
-  txFallida: 'La transacción falló; solo se puede revertir',
-  soloLectura: 'La conexión es de solo lectura',
-  cerrada: 'La sesión no está abierta'
-} as const
+  'detenidaConTx',
+  'editada',
+  'expulsada',
+  'commitImplicito',
+  'ocupada',
+  'txPendiente',
+  'txFallida',
+  'soloLectura',
+  'cerrada'
+] as const
+
+/** Cada acceso lee el texto del idioma activo: los que importan `MENSAJES` no cambian. */
+export const MENSAJES: { readonly [K in (typeof CLAVES_MENSAJES)[number]]: string } = Object.defineProperties(
+  {} as { [K in (typeof CLAVES_MENSAJES)[number]]: string },
+  Object.fromEntries(CLAVES_MENSAJES.map((k) => [k, { get: () => txSesion()[k], enumerable: true }]))
+)
 
 /**
  * Clases que cuentan en `sentenciasEnTx`: las que pueden dejar cambios en la

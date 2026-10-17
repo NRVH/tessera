@@ -15,6 +15,7 @@ import {
   type TerminalDataMessage,
   type TerminalExitMessage
 } from '../shared/terminal-ipc'
+import type { DefinicionAgente } from '../shared/agentesManuales'
 import {
   AGENT_TERMINAL_CHANNELS,
   type AgentOpenRequest,
@@ -81,7 +82,9 @@ export interface AgentTerminalApi {
   reload: (
     sessionId: string,
     dbConnectionIds?: string[],
-    resumeSessionId?: string
+    resumeSessionId?: string,
+    /** Agente manual: su definición de ahora, para que el reinicio aplique lo editado. */
+    manual?: DefinicionAgente
   ) => Promise<AgentOpenResult>
   /** Cierra la sesión y desmonta el configDir (el contenedor sigue vivo). */
   close: (sessionId: string) => Promise<void>
@@ -153,11 +156,12 @@ export const agentTerminal: AgentTerminalApi = {
   write: (msg) => ipcRenderer.send(AGENT_TERMINAL_CHANNELS.WRITE, msg),
   resize: (msg) => ipcRenderer.send(AGENT_TERMINAL_CHANNELS.RESIZE, msg),
   setFlow: (msg) => ipcRenderer.send(AGENT_TERMINAL_CHANNELS.FLOW, msg),
-  reload: (sessionId, dbConnectionIds, resumeSessionId) =>
+  reload: (sessionId, dbConnectionIds, resumeSessionId, manual) =>
     ipcRenderer.invoke(AGENT_TERMINAL_CHANNELS.RELOAD, {
       sessionId,
       dbConnectionIds,
-      resumeSessionId
+      resumeSessionId,
+      manual
     }),
   close: (sessionId) => ipcRenderer.invoke(AGENT_TERMINAL_CHANNELS.CLOSE, { sessionId }),
   saveImage: (sessionId) => ipcRenderer.invoke(AGENT_TERMINAL_CHANNELS.SAVE_IMAGE, { sessionId }),

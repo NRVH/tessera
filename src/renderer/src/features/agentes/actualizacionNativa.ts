@@ -21,6 +21,7 @@ import {
   textoCausa,
   type OpcionesActualizacion
 } from './planActualizacion.ts'
+import { txActualizacion } from './textosActualizacion.ts'
 import type {
   ApiAgentePane,
   DepsActualizacion,
@@ -178,7 +179,7 @@ class EjecucionActualizacion {
           antes: inst.de,
           despues: inst.de,
           motivo: 'fallo',
-          detalle: `No se pudo pedir la instalación: ${mensaje(e)}`,
+          detalle: txActualizacion().orquestador.noSePudoPedir(mensaje(e)),
           detenidas: []
         },
         incierto: true
@@ -207,10 +208,10 @@ class EjecucionActualizacion {
     try {
       estado = await this.deps.comprobar()
     } catch (e) {
-      return this.cerrar(`No se pudieron comprobar las versiones: ${mensaje(e)}`)
+      return this.cerrar(txActualizacion().orquestador.noSeComprobo(mensaje(e)))
     }
     const plan = planificar(estado, this.opts)
-    if (!plan.puedeEjecutar) return this.cerrar(plan.motivoNoEjecutar ?? 'No se puede actualizar ahora')
+    if (!plan.puedeEjecutar) return this.cerrar(plan.motivoNoEjecutar ?? txActualizacion().orquestador.noSePuede)
     for (const s of plan.reiniciar) this.fichas.set(s.sessionId, s)
 
     try {
@@ -283,7 +284,7 @@ class EjecucionActualizacion {
     try {
       this.estado2 = await this.deps.comprobar()
     } catch (e) {
-      this.emitir({ tipo: 'aviso', texto: `No se pudieron volver a comprobar las versiones: ${mensaje(e)}` })
+      this.emitir({ tipo: 'aviso', texto: txActualizacion().orquestador.noSeRecomprobo(mensaje(e)) })
     }
     const foto = this.estado2 ?? estado
     this.sesiones2 = new Map(foto.sesiones.map((s) => [s.sessionId, s] as const))
@@ -362,9 +363,9 @@ class EjecucionActualizacion {
       // Una incierta «ocupada» es una que el main SÍ paró en B: se relanza. En cualquier
       // otra, «ocupada» es otro reinicio en marcha, y ése no es nuestro.
       if (this.inciertas.has(id) && causa === 'ocupada') return null
-      return causa ? textoCausa(causa) : 'no se pudo detener'
+      return causa ? textoCausa(causa) : txActualizacion().motivos.noSePudoDetener
     } catch (e) {
-      return `no se pudo detener: ${mensaje(e)}`
+      return txActualizacion().motivos.noSePudoDetenerCon(mensaje(e))
     }
   }
 
@@ -398,7 +399,7 @@ class EjecucionActualizacion {
     const s2 = this.sesiones2.get(s.sessionId)
     if (this.estado2 === null) return MOTIVO.sinResondeo
     if (!s2) return MOTIVO.cerrada
-    if (inst && !inst.ok) return `no se pudo actualizar ${ETIQUETA_AGENTE[s.agente]}`
+    if (inst && !inst.ok) return txActualizacion().motivos.noSePudoActualizarCli(ETIQUETA_AGENTE[s.agente])
     if (s2.versionLanzada === null) return MOTIVO.versionDesconocida
     return MOTIVO.alDia
   }

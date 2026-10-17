@@ -14,6 +14,7 @@ import type { EnCurso } from './consolaComun'
 import { BotonBase, BotonCandado, BotonIcono, IdentidadBarra } from './piezasBarra'
 import { SelectorBaseDocs } from './SelectorBaseDocs'
 import { useBarraConsola, type DatosBarraConsola } from './useBarraConsola'
+import { txConsolaDocs } from './textosConsolaDocs'
 
 interface PropsBarraConsolaDocs {
   conexion: DbConnection
@@ -35,12 +36,13 @@ interface PropsBarraConsolaDocs {
 }
 
 function BotonesEjecucion({ p, b }: { p: PropsBarraConsolaDocs; b: DatosBarraConsola }): React.JSX.Element {
+  const t = txConsolaDocs()
   return (
     <>
       <BotonIcono
         className="db-consola-run"
-        titulo={`Ejecutar la sentencia del cursor o la selección · ${etiquetaAcorde('ejecutar')}`}
-        etiqueta="Ejecutar"
+        titulo={t.ejecutarSentencia(etiquetaAcorde('ejecutar'))}
+        etiqueta={t.ejecutar}
         habilitado={b.puedeEjecutar}
         motivo={b.motivoEjecutar}
         onClick={p.onEjecutar}
@@ -49,8 +51,8 @@ function BotonesEjecucion({ p, b }: { p: PropsBarraConsolaDocs; b: DatosBarraCon
       </BotonIcono>
       <BotonIcono
         className="db-consola-run-todo"
-        titulo={`Ejecutar todo · ${etiquetasAcorde('ejecutarTodo').join(' o ')}`}
-        etiqueta="Ejecutar todo"
+        titulo={t.ejecutarTodoTitulo(etiquetasAcorde('ejecutarTodo'))}
+        etiqueta={t.ejecutarTodo}
         habilitado={b.puedeEjecutar}
         motivo={b.motivoEjecutar}
         onClick={p.onEjecutarTodo}
@@ -59,10 +61,10 @@ function BotonesEjecucion({ p, b }: { p: PropsBarraConsolaDocs; b: DatosBarraCon
       </BotonIcono>
       <BotonIcono
         className="db-consola-detener"
-        titulo={`Detener · ${etiquetaAcorde('detener')}`}
-        etiqueta="Detener"
+        titulo={t.detenerTitulo(etiquetaAcorde('detener'))}
+        etiqueta={t.detener}
         habilitado={p.detenible}
-        motivo="No hay nada en ejecución"
+        motivo={t.nadaEnEjecucion}
         onClick={p.onDetener}
       >
         <IconoDetener />
@@ -72,8 +74,8 @@ function BotonesEjecucion({ p, b }: { p: PropsBarraConsolaDocs; b: DatosBarraCon
       <button
         type="button"
         className={`btn btn-icon db-consola-historial-btn${p.historialAbierto ? ' activo' : ''}`}
-        title={`Historial de órdenes · ${etiquetaAcorde('historial')}`}
-        aria-label="Historial de órdenes"
+        title={t.historialTitulo(etiquetaAcorde('historial'))}
+        aria-label={t.historial}
         aria-haspopup="dialog"
         aria-expanded={p.historialAbierto}
         onMouseDown={(e) => e.stopPropagation()}
@@ -86,11 +88,8 @@ function BotonesEjecucion({ p, b }: { p: PropsBarraConsolaDocs; b: DatosBarraCon
 }
 
 function AccionesDocs({ p, b }: { p: PropsBarraConsolaDocs; b: DatosBarraConsola }): React.JSX.Element {
-  const tituloBase = b.corriendo
-    ? 'Espera a que termine la ejecución para cambiar la base'
-    : p.base
-      ? `Base: ${p.base}. Pulsa para cambiar`
-      : 'Base de la consola. Pulsa para elegir'
+  const t = txConsolaDocs()
+  const tituloBase = b.corriendo ? t.esperaParaCambiarBase : p.base ? t.baseCambiar(p.base) : t.baseElegir
   return (
     <div className="panel-actions">
       <BotonesEjecucion p={p} b={b} />
@@ -100,7 +99,7 @@ function AccionesDocs({ p, b }: { p: PropsBarraConsolaDocs; b: DatosBarraConsola
           <BotonBase
             corriendo={b.corriendo}
             titulo={tituloBase}
-            etiqueta={p.base ? `Base de la consola: ${p.base}` : 'Base de la consola'}
+            etiqueta={p.base ? t.baseDeLaConsolaN(p.base) : t.baseDeLaConsola}
             abierto={b.ancla !== null}
             botonRef={b.botonBaseRef}
             onAbrir={b.abrirBase}
@@ -115,15 +114,16 @@ function AccionesDocs({ p, b }: { p: PropsBarraConsolaDocs; b: DatosBarraConsola
 /** La barra de la consola de MongoDB, con el selector de base anclado a su botón. */
 export function BarraConsolaDocs(p: PropsBarraConsolaDocs): React.JSX.Element {
   const b = useBarraConsola(p.enCurso, p.cargado, p.textoEstado)
+  const t = txConsolaDocs()
   const produccion = p.conexion.entorno === 'produccion'
   return (
     <div className={`panel-header db-consola-barra${produccion ? ' db-consola-barra-produccion' : ''}`}>
       <IdentidadBarra conexion={p.conexion} estado={b.estado} anunciado={b.anunciado}>
         <span
           className="db-consola-dato db-consola-esquema"
-          title={p.base ? `Base actual: ${p.base}` : 'Sin base elegida: elige una o escribe «use nombre»'}
+          title={p.base ? t.baseActual(p.base) : t.sinBaseTitulo}
         >
-          {p.base ?? 'Sin base'}
+          {p.base ?? t.sinBase}
         </span>
       </IdentidadBarra>
       <AccionesDocs p={p} b={b} />

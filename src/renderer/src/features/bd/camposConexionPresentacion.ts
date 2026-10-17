@@ -1,12 +1,13 @@
 // =============================================================================
 // La PRESENTACIÓN del formulario de conexión por motor: filas, etiquetas, placeholders,
-// anchos y ayudas (`PRESENTACION`), y los textos de los campos opcionales. Las reglas
+// anchos y ayudas (`presentaciones`), y los textos de los campos opcionales. Las reglas
 // (obligatorios, excluyentes, qué se descarta) son del descriptor de `shared/motores/`.
 // Puro, para fijarlo bajo `node` (`test-campos-conexion.mts`).
 // Decisiones: docs/decisiones/bd/ui-conexion-campos.md
 // =============================================================================
 
 import { limpiarDestinoBd } from '../../../../shared/destinoBd.ts'
+import { idiomaActual } from '../../../../shared/i18n.ts'
 import { AUTENTICACIONES, descriptor, etiquetaMotor, usaOpcional } from '../../../../shared/motores/index.ts'
 import {
   descomponerUriMongo,
@@ -18,9 +19,7 @@ import {
 } from '../../../../shared/uriConexion.ts'
 import type { DbAutenticacion, DbMotor, DbTls } from '../../../../shared/db-ipc.ts'
 import type { DefCampo, EsquemaUri, OpcionAutenticacion, PresentacionMotor } from './camposConexionTipos.ts'
-
-const HOST: DefCampo = { campo: 'host', tipo: 'texto', etiqueta: 'Host', placeholder: '10.0.0.1', ancho: 'crece' }
-const PUERTO: DefCampo = { campo: 'port', tipo: 'puerto', etiqueta: 'Puerto', ancho: 'puerto' }
+import { txConexionCampos } from './textosConexionCampos.ts'
 
 /**
  * Lo que dice cada autenticación en el selector. Sin el nombre de un sistema operativo a
@@ -28,27 +27,29 @@ const PUERTO: DefCampo = { campo: 'port', tipo: 'puerto', etiqueta: 'Puerto', an
  * registro (`etiquetaMotor`), como exige `test:motores-sueltos`. `Record`: una
  * autenticación nueva no compila sin su etiqueta.
  */
-export const ETIQUETA_AUTENTICACION: Readonly<Record<DbAutenticacion, string>> = {
-  sql: `Usuario de ${etiquetaMotor('sqlserver')}`,
-  ntlm: 'Cuenta de dominio (NTLM)'
+export function etiquetasAutenticacion(): Readonly<Record<DbAutenticacion, string>> {
+  const t = txConexionCampos()
+  return { sql: t.autenticacionSql(etiquetaMotor('sqlserver')), ntlm: t.autenticacionNtlm }
 }
 
 /** Las opciones del selector de autenticación, en el orden de `AUTENTICACIONES`. */
-export const OPCIONES_AUTENTICACION: readonly OpcionAutenticacion[] = AUTENTICACIONES.map((a) => ({
-  valor: a,
-  etiqueta: ETIQUETA_AUTENTICACION[a]
-}))
-
-/** La ayuda de la instancia: con ella el puerto no se usa. */
-export const AYUDA_INSTANCIA =
-  'Con instancia con nombre, el puerto no se usa: lo resuelve el servicio SQL Browser del servidor (UDP 1434). Sin ella, la instancia por defecto en el puerto.'
+function opcionesAutenticacion(): readonly OpcionAutenticacion[] {
+  const etiquetas = etiquetasAutenticacion()
+  return AUTENTICACIONES.map((a) => ({ valor: a, etiqueta: etiquetas[a] }))
+}
 
 /**
- * La etiqueta de la casilla del certificado. Es también lo que CITA el mensaje del main
- * cuando «Probar» no pudo verificar el certificado (`src/tdb/sqlserverComun.cjs`), y por
- * esa cita la reconoce `proponeConfiarCertificado`: el test lo cruza con el .cjs.
+ * La etiqueta de la casilla del certificado. Es también lo que CITA el mensaje del main cuando
+ * «Probar» no pudo verificar el certificado (`src/tdb/sqlserverComun.cjs`), y por esa cita la
+ * reconoce `proponeConfiarCertificado`: el test lo cruza con el .cjs.
  */
-export const ETIQUETA_CONFIAR_CERTIFICADO = 'Confiar en el certificado del servidor'
+export const etiquetaConfiarCertificado = (): string => txConexionCampos().confiarCertificado
+
+/**
+ * Las citas con que el main puede nombrar la casilla: la etiqueta de cada idioma entre las comillas de
+ * ese idioma, porque el mensaje lo escribe el main en el idioma con el que arrancó.
+ */
+const CITAS_CONFIAR_CERTIFICADO: readonly string[] = ['«Confiar en el certificado del servidor»', '“Trust the server certificate”']
 
 /**
  * ¿Se ofrece «Confiar en el certificado y probar» tras una prueba? Solo si falló por el
@@ -62,199 +63,191 @@ export function proponeConfiarCertificado(
 ): boolean {
   if (r === null || r.ok || !usaOpcional(descriptor(motor), 'tls')) return false
   if (tls?.confiarCertificado === true) return false
-  return r.mensaje.includes(`«${ETIQUETA_CONFIAR_CERTIFICADO}»`)
+  const mensaje = r.mensaje
+  return CITAS_CONFIAR_CERTIFICADO.some((cita) => mensaje.includes(cita))
 }
-
-/** La ayuda del cifrado: qué hace cada casilla. */
-export const AYUDA_CIFRADO =
-  'El certificado se verifica contra las autoridades de confianza de tu equipo. Si el servidor usa uno propio (autofirmado), marca «Confiar en el certificado del servidor»: se cifra igual, pero sin comprobar quién es el servidor.'
-
-/** La ayuda bajo la base de un motor de documentos: qué pasa sin ella y que las credenciales no se exigen. */
-export const AYUDA_BASE_DOCUMENTOS =
-  'Sin base, el árbol enseña todas las que el usuario puede leer. Usuario y contraseña son opcionales: sin ellos se conecta sin autenticar.'
-
-/** La ayuda bajo la base de un motor de claves: es un número, y la contraseña vale sin usuario. */
-export const AYUDA_BASE_CLAVES =
-  'La base con la que se abre la conexión (0 si va vacía); el árbol enseña todas. Usuario y contraseña son opcionales, y la contraseña vale sin usuario.'
-
-/** La ayuda del host de MongoDB: uno, o los miembros de un replica set sin DNS SRV. */
-export const AYUDA_HOST_MONGO =
-  'Un servidor o, sin DNS SRV, los miembros de un replica set separados por comas (h1,h2:27018): el puerto vale para los que no llevan el suyo.'
-
-const HOST_MONGO: DefCampo = { ...HOST, ayuda: AYUDA_HOST_MONGO }
-
-/** La ayuda del SRV: qué es, y que con él el puerto no se usa y se cifra. */
-export const AYUDA_SRV =
-  'Para Atlas y los clústeres que publican sus miembros en DNS: el host es el nombre del clúster, el puerto no se usa y la conexión se cifra salvo que desmarques el cifrado.'
-
-/** La ayuda de las opciones de la URI: qué va y qué no. */
-export const AYUDA_OPCIONES_URI =
-  'Lo que iría detrás del «?» de la URI (clave=valor&clave=valor). El cifrado, las credenciales y la base de autenticación no: van en sus campos.'
-
-/** Bajo «Base de autenticación» de MongoDB. */
-export const AYUDA_AUTH_SOURCE =
-  'Dónde se creó el usuario (authSource). Vacío: la base de datos de arriba, como mongosh. Un usuario de «admin» necesita «admin» aquí si escribes otra base.'
-
-const URI_MONGO: EsquemaUri = {
-  ejemplo: 'mongodb://usuario:clave@host:27017/base?authSource=admin',
-  ayuda: 'Rellena host, puerto, usuario, contraseña, base, SRV, cifrado y opciones. La URI no se guarda: solo sus campos.',
-  descomponer: descomponerUriMongo
-}
-
-const URI_REDIS: EsquemaUri = {
-  ejemplo: 'redis://usuario:clave@host:6379/0',
-  ayuda:
-    'Rellena host, puerto, usuario, contraseña, base y cifrado (rediss:// cifra). La URI no se guarda: solo sus campos; lo de detrás del «?» se deja fuera.',
-  descomponer: descomponerUriRedis
-}
-
-const URI_POSTGRES: EsquemaUri = {
-  ejemplo: 'postgres://usuario:clave@host:5432/base?sslmode=require',
-  ayuda:
-    'Rellena host, puerto, usuario, contraseña, base y cifrado (sslmode: require, prefer y allow cifran sin verificar el certificado; verify-ca y verify-full lo verifican; sin él o disable, sin cifrar). La URI no se guarda: solo sus campos; el resto de opciones se deja fuera.',
-  descomponer: descomponerUriPostgres
-}
-
-const URI_MYSQL: EsquemaUri = {
-  ejemplo: 'mysql://usuario:clave@host:3306/base?ssl-mode=REQUIRED',
-  ayuda:
-    'Rellena host, puerto, usuario, contraseña, base y cifrado (ssl-mode: REQUIRED y PREFERRED cifran sin verificar el certificado; VERIFY_CA y VERIFY_IDENTITY lo verifican; sin él o DISABLED, sin cifrar). Vale también mariadb://. La URI no se guarda: solo sus campos; el resto de opciones se deja fuera.',
-  descomponer: descomponerUriMysql
-}
-
-/** La ayuda bajo la base de MySQL: es opcional y el árbol enseña todas. */
-export const AYUDA_BASE_MYSQL = 'La base en la que abre la sesión. Sin ella, el árbol enseña igual todas las que el usuario puede ver.'
-
-/** La base de un motor de claves EN VIVO: la validación del main sobre el valor que se guarda (limpio). */
-const validarBaseClaves = (valor: string): string | null => validarBaseRedis(limpiarDestinoBd(valor))
 
 /**
  * El placeholder de usuario y contraseña en un alta: «opcional» con un motor que ofrece
  * credenciales sin exigirlas (el usuario en `opcionales`); `undefined` en los demás.
  */
 export function placeholderCredencial(motor: DbMotor): string | undefined {
-  return usaOpcional(descriptor(motor), 'user') ? 'opcional' : undefined
+  return usaOpcional(descriptor(motor), 'user') ? txConexionCampos().opcional : undefined
 }
 
-/** El cifrado tras las credenciales, con la etiqueta de su primera casilla. */
-function filaCifrado(etiqueta: string): DefCampo[] {
-  return [{ campo: 'tls', tipo: 'cifrado', etiqueta, etiquetaConfiar: ETIQUETA_CONFIAR_CERTIFICADO, ancho: 'crece', ayuda: AYUDA_CIFRADO }]
-}
+/** La base de un motor de claves EN VIVO: la validación del main sobre el valor que se guarda (limpio). */
+const validarBaseClaves = (valor: string): string | null => validarBaseRedis(limpiarDestinoBd(valor))
 
-/** La ayuda del cifrado de Oracle: siempre verifica, y no con las 11g. */
-const AYUDA_CIFRADO_ORACLE =
-  'Conecta por TCPS: el puerto suele ser otro (2484, no 1521). El certificado se verifica siempre contra las autoridades de confianza de tu equipo; si el servidor usa uno propio, instala su autoridad en el sistema. No disponible con bases anteriores a 12.1.'
+function construirPresentaciones(): Readonly<Record<DbMotor, PresentacionMotor>> {
+  const t = txConexionCampos()
+  const HOST: DefCampo = { campo: 'host', tipo: 'texto', etiqueta: t.host, placeholder: '10.0.0.1', ancho: 'crece' }
+  const PUERTO: DefCampo = { campo: 'port', tipo: 'puerto', etiqueta: t.puerto, ancho: 'puerto' }
+  const HOST_MONGO: DefCampo = { ...HOST, ayuda: t.ayudaHostMongo }
 
-/** La presentación de cada motor. `Record<DbMotor, …>`: un motor sin ella no compila. */
-export const PRESENTACION: Readonly<Record<DbMotor, PresentacionMotor>> = {
-  oracle: {
-    filas: [
-      [HOST, PUERTO],
-      [
-        { campo: 'database', tipo: 'texto', etiqueta: 'Service Name', placeholder: 'ORCL', ancho: 'crece' },
-        { campo: 'sid', tipo: 'texto', etiqueta: 'SID', ancho: 'medio' }
-      ]
-    ],
-    filasTrasCredenciales: [
-      [{ campo: 'tls', tipo: 'cifrado', etiqueta: 'Cifrar la conexión (TCPS)', etiquetaConfiar: null, ancho: 'crece', ayuda: AYUDA_CIFRADO_ORACLE }]
-    ],
-    ayudasExcluyentes: ['Service Name o SID, no los dos. Las 11g heredadas suelen ir por SID.']
-  },
-  postgres: {
-    filas: [
-      [HOST, PUERTO],
-      [{ campo: 'database', tipo: 'texto', etiqueta: 'Base de datos', placeholder: 'mi_base', ancho: 'crece' }]
-    ],
-    filasTrasCredenciales: [filaCifrado('Cifrar la conexión (SSL)')],
-    ayudasExcluyentes: [],
-    uri: URI_POSTGRES
-  },
-  // Sin filas de texto: el archivo es el selector que el diálogo pinta por `deArchivo`.
-  sqlite: {
-    filas: [],
-    ayudasExcluyentes: []
-  },
-  // La base opcional (sin ella, el árbol tiene un nivel «Bases») con la instancia al lado, y
-  // la autenticación con su dominio (solo con cuenta de dominio: `campoVisible`).
-  sqlserver: {
-    filas: [
-      [HOST, PUERTO],
-      [
-        { campo: 'database', tipo: 'texto', etiqueta: 'Base de datos', placeholder: 'opcional: sin ella, todas', ancho: 'crece' },
-        { campo: 'instancia', tipo: 'texto', etiqueta: 'Instancia', placeholder: 'opcional', ancho: 'medio', ayuda: AYUDA_INSTANCIA }
+  const URI_MONGO: EsquemaUri = { ejemplo: t.uriMongoEjemplo, ayuda: t.uriMongoAyuda, descomponer: descomponerUriMongo }
+  const URI_REDIS: EsquemaUri = { ejemplo: t.uriRedisEjemplo, ayuda: t.uriRedisAyuda, descomponer: descomponerUriRedis }
+  const URI_POSTGRES: EsquemaUri = { ejemplo: t.uriPostgresEjemplo, ayuda: t.uriPostgresAyuda, descomponer: descomponerUriPostgres }
+  const URI_MYSQL: EsquemaUri = { ejemplo: t.uriMysqlEjemplo, ayuda: t.uriMysqlAyuda, descomponer: descomponerUriMysql }
+
+  /** El cifrado tras las credenciales, con la etiqueta de su primera casilla. */
+  const filaCifrado = (etiqueta: string): DefCampo[] => [
+    { campo: 'tls', tipo: 'cifrado', etiqueta, etiquetaConfiar: t.confiarCertificado, ancho: 'crece', ayuda: t.ayudaCifrado }
+  ]
+
+  return {
+    oracle: {
+      filas: [
+        [HOST, PUERTO],
+        [
+          { campo: 'database', tipo: 'texto', etiqueta: 'Service Name', placeholder: 'ORCL', ancho: 'crece' },
+          { campo: 'sid', tipo: 'texto', etiqueta: 'SID', ancho: 'medio' }
+        ]
       ],
+      filasTrasCredenciales: [
+        [{ campo: 'tls', tipo: 'cifrado', etiqueta: t.cifrarTcps, etiquetaConfiar: null, ancho: 'crece', ayuda: t.ayudaCifradoOracle }]
+      ],
+      ayudasExcluyentes: [t.ayudaServiceNameSid]
+    },
+    postgres: {
+      filas: [
+        [HOST, PUERTO],
+        [{ campo: 'database', tipo: 'texto', etiqueta: t.baseDeDatos, placeholder: t.phBaseMiBase, ancho: 'crece' }]
+      ],
+      filasTrasCredenciales: [filaCifrado(t.cifrarSsl)],
+      ayudasExcluyentes: [],
+      uri: URI_POSTGRES
+    },
+    // Sin filas de texto: el archivo es el selector que el diálogo pinta por `deArchivo`.
+    sqlite: {
+      filas: [],
+      ayudasExcluyentes: []
+    },
+    // La base opcional (sin ella, el árbol tiene un nivel «Bases») con la instancia al lado, y
+    // la autenticación con su dominio (solo con cuenta de dominio: `campoVisible`).
+    sqlserver: {
+      filas: [
+        [HOST, PUERTO],
+        [
+          { campo: 'database', tipo: 'texto', etiqueta: t.baseDeDatos, placeholder: t.phBaseOpcionalTodas, ancho: 'crece' },
+          { campo: 'instancia', tipo: 'texto', etiqueta: t.instancia, placeholder: t.opcional, ancho: 'medio', ayuda: t.ayudaInstancia }
+        ],
+        [
+          { campo: 'autenticacion', tipo: 'eleccion', etiqueta: t.autenticacion, ancho: 'crece', opciones: opcionesAutenticacion() },
+          { campo: 'dominio', tipo: 'texto', etiqueta: t.dominio, placeholder: t.phDominio, ancho: 'medio' }
+        ]
+      ],
+      filasTrasCredenciales: [filaCifrado(t.cifrar)],
+      ayudasExcluyentes: []
+    },
+    // La base opcional: en MySQL la base es el esquema, y el árbol enseña todas las visibles.
+    mysql: {
+      filas: [
+        [HOST, PUERTO],
+        [{ campo: 'database', tipo: 'texto', etiqueta: t.baseDeDatos, placeholder: t.opcional, ancho: 'crece', ayuda: t.ayudaBaseMysql }]
+      ],
+      filasTrasCredenciales: [filaCifrado(t.cifrarTls)],
+      ayudasExcluyentes: [],
+      uri: URI_MYSQL
+    },
+    mongodb: presentacionMongo(t, HOST_MONGO, PUERTO, filaCifrado(t.cifrarTls), URI_MONGO),
+    redis: presentacionRedis(t, HOST, PUERTO, filaCifrado(t.cifrarTls), URI_REDIS)
+  }
+}
+
+type TextosCampos = ReturnType<typeof txConexionCampos>
+
+// La base opcional (sin ella, el árbol empieza en las bases que el usuario puede leer) y el
+// SRV bajo host y puerto (apaga el puerto); usuario y contraseña, sin exigirlos.
+function presentacionMongo(
+  t: TextosCampos,
+  host: DefCampo,
+  puerto: DefCampo,
+  cifrado: DefCampo[],
+  uri: EsquemaUri
+): PresentacionMotor {
+  return {
+    filas: [
+      [host, puerto],
+      [{ campo: 'srv', tipo: 'casilla', etiqueta: t.srvEtiqueta, ancho: 'crece', ayuda: t.ayudaSrv }],
       [
-        { campo: 'autenticacion', tipo: 'eleccion', etiqueta: 'Autenticación', ancho: 'crece', opciones: OPCIONES_AUTENTICACION },
-        { campo: 'dominio', tipo: 'texto', etiqueta: 'Dominio', placeholder: 'EMPRESA', ancho: 'medio' }
+        {
+          campo: 'database',
+          tipo: 'texto',
+          etiqueta: t.baseDeDatos,
+          placeholder: t.phBaseOpcionalTodas,
+          ancho: 'crece',
+          ayuda: t.ayudaBaseDocumentos
+        }
       ]
     ],
-    filasTrasCredenciales: [filaCifrado('Cifrar la conexión')],
-    ayudasExcluyentes: []
-  },
-  // La base opcional: en MySQL la base es el esquema, y el árbol enseña todas las visibles.
-  mysql: {
-    filas: [
-      [HOST, PUERTO],
-      [{ campo: 'database', tipo: 'texto', etiqueta: 'Base de datos', placeholder: 'opcional', ancho: 'crece', ayuda: AYUDA_BASE_MYSQL }]
-    ],
-    filasTrasCredenciales: [filaCifrado('Cifrar la conexión (TLS)')],
-    ayudasExcluyentes: [],
-    uri: URI_MYSQL
-  },
-  // La base opcional (sin ella, el árbol empieza en las bases que el usuario puede leer) y el
-  // SRV bajo host y puerto (apaga el puerto); usuario y contraseña, sin exigirlos.
-  mongodb: {
-    filas: [
-      [HOST_MONGO, PUERTO],
-      [{ campo: 'srv', tipo: 'casilla', etiqueta: 'DNS SRV (mongodb+srv)', ancho: 'crece', ayuda: AYUDA_SRV }],
-      [{ campo: 'database', tipo: 'texto', etiqueta: 'Base de datos', placeholder: 'opcional: sin ella, todas', ancho: 'crece', ayuda: AYUDA_BASE_DOCUMENTOS }]
-    ],
     filasTrasCredenciales: [
-      filaCifrado('Cifrar la conexión (TLS)'),
+      cifrado,
       [
         {
           campo: 'authSource',
           tipo: 'texto',
-          etiqueta: 'Base de autenticación',
-          placeholder: 'opcional: admin',
+          etiqueta: t.baseAutenticacion,
+          placeholder: t.phAuthSource,
           ancho: 'crece',
-          ayuda: AYUDA_AUTH_SOURCE
+          ayuda: t.ayudaAuthSource
         }
       ],
       [
         {
           campo: 'opcionesUri',
           tipo: 'texto',
-          etiqueta: 'Opciones de la URI',
-          placeholder: 'opcional: replicaSet=rs0',
+          etiqueta: t.opcionesUri,
+          placeholder: t.phOpcionesUri,
           ancho: 'crece',
-          ayuda: AYUDA_OPCIONES_URI,
+          ayuda: t.ayudaOpcionesUri,
           // La función del main, sin el `authSource`, que tiene campo propio.
           validar: validarOpcionesFormularioMongo
         }
       ]
     ],
     ayudasExcluyentes: [],
-    uri: URI_MONGO
-  },
-  // El NÚMERO de la base va en el `database` de siempre (la forma en disco no cambia); vacío es la 0.
-  redis: {
+    uri
+  }
+}
+
+// El NÚMERO de la base va en el `database` de siempre (la forma en disco no cambia); vacío es la 0.
+function presentacionRedis(
+  t: TextosCampos,
+  host: DefCampo,
+  puerto: DefCampo,
+  cifrado: DefCampo[],
+  uri: EsquemaUri
+): PresentacionMotor {
+  return {
     filas: [
-      [HOST, PUERTO],
+      [host, puerto],
       [
         {
           campo: 'database',
           tipo: 'texto',
-          etiqueta: 'Base (número)',
+          etiqueta: t.baseNumero,
           placeholder: '0',
           ancho: 'medio',
-          ayuda: AYUDA_BASE_CLAVES,
+          ayuda: t.ayudaBaseClaves,
           validar: validarBaseClaves
         }
       ]
     ],
-    filasTrasCredenciales: [filaCifrado('Cifrar la conexión (TLS)')],
+    filasTrasCredenciales: [cifrado],
     ayudasExcluyentes: [],
-    uri: URI_REDIS
+    uri
   }
+}
+
+let memo: { idioma: string; valor: Readonly<Record<DbMotor, PresentacionMotor>> } | null = null
+
+/**
+ * La presentación de cada motor en el idioma activo. `Record<DbMotor, …>`: un motor sin ella no
+ * compila. Se construye al pedirla y se reutiliza mientras el idioma no cambie (identidad estable
+ * de las filas, que el diálogo usa como clave).
+ */
+export function presentaciones(): Readonly<Record<DbMotor, PresentacionMotor>> {
+  const idioma = idiomaActual()
+  if (memo === null || memo.idioma !== idioma) memo = { idioma, valor: construirPresentaciones() }
+  return memo.valor
 }

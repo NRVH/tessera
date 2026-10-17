@@ -8,6 +8,7 @@
 
 import { useState } from 'react'
 import type { ClaveBorrador } from './borradorSsh'
+import { txFormularioSsh } from './textosFormulario.ts'
 
 /** ¿Se arrastran archivos del sistema? Mientras dura el arrastre solo se ven los tipos. */
 function arrastraArchivos(e: React.DragEvent): boolean {
@@ -29,10 +30,11 @@ export interface PropsCampoClaveSsh {
 export function CampoClaveSsh({ clave, invalido, ocupado, error, onElegir, onSoltar }: PropsCampoClaveSsh): React.JSX.Element {
   const [encima, setEncima] = useState(false)
   const titulo = clave === null ? undefined : clave.tipo !== null ? `${clave.nombre} (${clave.tipo})` : clave.nombre
+  const t = txFormularioSsh()
   return (
     <div className="ssh-campo-clave">
       <label className="dbc-campo">
-        <span className="dbc-etiqueta">Archivo de clave</span>
+        <span className="dbc-etiqueta">{t.archivoClave}</span>
         <span
           className={`ssh-clave-archivo${encima ? ' soltando' : ''}`}
           onDragOver={(e) => {
@@ -59,14 +61,14 @@ export function CampoClaveSsh({ clave, invalido, ocupado, error, onElegir, onSol
             readOnly
             aria-invalid={invalido || undefined}
             value={clave?.nombre ?? ''}
-            placeholder="Elige el archivo o suéltalo aquí"
+            placeholder={t.elegirOSoltar}
             title={titulo}
             onClick={() => {
               if (!ocupado) onElegir()
             }}
           />
           <button type="button" className="btn" disabled={ocupado} onClick={onElegir}>
-            {ocupado ? 'Importando…' : 'Elegir…'}
+            {ocupado ? t.importando : t.elegir}
           </button>
         </span>
       </label>

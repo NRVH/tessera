@@ -12,7 +12,8 @@ import type { AnclaPopover } from './DbEsquemasPopover'
 import type { NivelPopover } from './nivelBasesBd'
 import { indicePadre, kindAbreTipo, paneDeFila, type FilaBd, type FilaPlaceholder } from './arbolBd'
 import { cacheMetaBd } from './cacheMetaBd'
-import { ETIQUETA_TIPO_OBJETO, type DbPane } from './dbTabsModel'
+import { etiquetasTipoObjeto, type DbPane } from './dbTabsModel'
+import { txArbolAcciones } from './textosArbolAcciones.ts'
 import { accionDeError, accionTeclaArbol, conexionDeFila, mensajeDeError, type AccionError, type FilaArbol } from './filasArbolBd'
 import { patronDeFiltro } from './arbolClaves'
 import { motorPorNombreDeArchivo } from './camposConexion'
@@ -79,7 +80,7 @@ export async function abrirPane(a: CtxArbol, fila: FilaBd): Promise<void> {
   }
   const r = await cacheMetaBd().cargarResolucion(pane.conexionId, pane.esquema, pane.objeto)
   if (!r.ok) {
-    avisoError(a, `No se pudo resolver el sinónimo ${pane.objeto}: ${r.error.mensaje}`)
+    avisoError(a, txArbolAcciones().noSePudoResolverSinonimo(pane.objeto, r.error.mensaje))
     return
   }
   const destino = r.valor
@@ -96,7 +97,11 @@ export async function abrirPane(a: CtxArbol, fila: FilaBd): Promise<void> {
   } else {
     a.e.setAviso({
       tono: 'info',
-      texto: `El sinónimo ${pane.objeto} apunta a ${ETIQUETA_TIPO_OBJETO[destino.tipo].toLowerCase()} ${destino.esquema}.${destino.nombre}, que no tiene datos que abrir.`
+      texto: txArbolAcciones().sinonimoSinDatos(
+        pane.objeto,
+        etiquetasTipoObjeto()[destino.tipo].toLowerCase(),
+        `${destino.esquema}.${destino.nombre}`
+      )
     })
   }
 }
@@ -137,7 +142,7 @@ export function activarFila(a: CtxArbol, fila: FilaArbol): void {
 export function cargarMasClaves(a: CtxArbol, conexionId: string, indice: number): void {
   void cacheMetaBd()
     .cargarMasClaves(conexionId, indice)
-    .catch((err: unknown) => avisoError(a, `No se pudieron cargar más claves: ${mensajeDeError(err)}`))
+    .catch((err: unknown) => avisoError(a, txArbolAcciones().noSePudieronCargarClaves(mensajeDeError(err))))
 }
 
 /**
@@ -206,7 +211,7 @@ export async function soltarArchivos(a: CtxArbol, archivos: FileList): Promise<v
   if (!archivo || !a.p.perfilId || a.p.avisoFormato !== null) return
   const motor = motorPorNombreDeArchivo(archivo.name)
   if (motor === null) {
-    avisoError(a, `«${archivo.name}» no parece una base de datos de archivo que Tessera sepa abrir.`)
+    avisoError(a, txArbolAcciones().noEsBaseDeArchivo(archivo.name))
     return
   }
   try {
@@ -233,6 +238,6 @@ export function soltarSobre(a: CtxArbol, destinoId: string): void {
   a.e.setOrdenLocal({ base: conexiones, ids: nuevo })
   void window.tessera.db.reorder(perfilId, nuevo).catch((err: unknown) => {
     a.e.setOrdenLocal(null)
-    avisoError(a, `No se pudo guardar el orden: ${mensajeDeError(err)}`)
+    avisoError(a, txArbolAcciones().noSePudoGuardarOrden(mensajeDeError(err)))
   })
 }

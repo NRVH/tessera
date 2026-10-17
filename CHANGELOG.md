@@ -8,6 +8,179 @@ Cada versión agrupa sus cambios en secciones, en este orden y solo las que teng
 Interfaz, Rendimiento y estabilidad, Instalación y actualizaciones, Correcciones y Seguridad. Una
 sección larga se divide en grupos por área.
 
+## [0.81.0] - 2026-10-16
+
+### Novedades
+
+- **Tessera en inglés.** Toda la interfaz, los diálogos del sistema y las órdenes `tdb` y `tssh`
+  hablan español o inglés. De serie, el idioma de tu equipo (inglés si no es ninguno de los dos); lo
+  cambias en Configuración › Apariencia › Idioma, y se aplica al reiniciar Tessera, que puedes hacer
+  desde ahí mismo.
+
+- **Audio y vídeo en el editor.** Abrir un `.mp4`, `.webm`, `.mov`, `.mp3`, `.wav`, `.ogg`, `.flac`
+  y similares lo reproduce en su pestaña, sin instalar nada: por ejemplo, la grabación de una prueba
+  de interfaz. También desde un diff de git o una revisión anterior. Lo que pasa de 50 MiB o usa un
+  formato que no se puede reproducir ofrece abrirlo con la app del sistema, y al cambiar de pestaña
+  se pausa.
+
+- **Agentes definidos a mano.** Además de Claude Code y Codex, cualquier agente de terminal: el
+  selector de agente es ahora una fila de pestañas con un «+» que abre un formulario con su nombre, su
+  comando (tal como lo teclearías) y, si quieres, cómo reanudar la última conversación (por ejemplo
+  `--continue`). En los proyectos nativos lo instalas tú y Tessera te avisa si tu shell no lo
+  encuentra; en los de Docker escribes también sus órdenes de instalación y Tessera las hornea en la
+  imagen de ese perfil, con su progreso, y comprueba que quedó instalado. Cada agente guarda su sesión
+  y su configuración en su propia carpeta del perfil, que sobrevive a recrear el contenedor, sin que
+  tengas que decir dónde. Los nativos los ven todos los perfiles; los de Docker, solo el suyo. Salen
+  en su proyecto y en el mosaico, y como agente de la terminal si lo activas (el contexto de tus
+  servidores y bases le llega por `AGENTS.md`). Si tu agente dice en JSON cuánto contexto lleva, con un
+  comando o en un archivo, le indicas dónde y en qué campos y Tessera lo enseña en el anillo del pie.
+  La definición se copia y se pega como JSON. Un agente definido a mano no tiene historial de
+  conversaciones, uso de la cuenta, aviso de fin de turno ni hibernación automática.
+- **Tus agentes, a tu manera, en cada perfil.** Las pestañas de agente miden lo que su nombre, se
+  reordenan arrastrando y, si no caben, la fila se desplaza con un «›» para las demás. Puedes ocultar
+  cualquier agente, de serie o tuyo, mientras quede uno: con clic derecho en las pestañas (donde
+  también vuelves a mostrarlos) o en la categoría nueva Configuración › Agentes, que reúne el orden,
+  lo oculto, editar y borrar. Si prefieres algo más discreto, el selector puede ser una lista
+  desplegable en vez de pestañas.
+- **Llevar la configuración a otro equipo.** En Configuración › Exportar e importar: los perfiles que
+  elijas con sus conexiones SSH (contraseñas, claves y huellas) y de bases de datos (contraseñas), los
+  agentes definidos a mano y tus preferencias, en un archivo cifrado con una frase (o, si lo marcas y
+  bajo tu responsabilidad, sin ella: entonces contraseñas y claves van legibles, y Tessera lo avisa al
+  exportar y al importar). Vale entre
+  Windows, macOS y Linux. Al importar se añade lo que falta y no se toca lo que ya tenías, y te dice lo
+  que se saltó y lo que conviene revisar (una carpeta o un archivo que no está en el equipo nuevo).
+  Antes de importar eliges qué entra: todo viene marcado (cada perfil con sus conexiones y agentes,
+  y aparte las preferencias) y desmarcas lo que no quieras, de una en una o con la casilla «Todo». Los archivos `.tessera` son de Tessera en tu sistema: un doble clic abre Tessera (o la que ya
+  tienes abierta) directamente en el importar con ese archivo, pidiendo la frase (o, si se exportó sin ella, avisando
+  de que no está cifrado y sin nada marcado de serie). En Windows y macOS
+  lo deja hecho la instalación; en Linux, al activar «Abrir con Tessera» en Configuración ›
+  Integración con el sistema.
+- **El agente de datos y el de la terminal, también en el mosaico.** Si los tienes abiertos, entran
+  como cualquier proyecto: al abrir el mosaico si están trabajando, en el selector «N de M» y en el
+  menú de cada casilla, como «Bases de datos» y «Terminal» de su perfil, detrás de sus proyectos. El
+  botón de ir a su sitio te lleva a la vista de bases de datos o a la terminal a pantalla completa con
+  su agente al lado.
+- **La terminal resalta los logs y las salidas.** Lo que llega sin color se pinta con los colores de
+  siempre: errores en rojo y avisos en amarillo, la línea entera; info en azul y lo que fue bien en
+  verde, solo su etiqueta; fechas atenuadas, IPs y URLs en cian y los códigos HTTP por su clase.
+  Reconoce los formatos habituales de logs (syslog, log4j, journald, Python, Node, Java), compiladores
+  y pruebas, gestores de paquetes y conectividad, también en SSH. Un nivel solo cuenta como etiqueta
+  (`[ERROR]`, `<Info>`, `level=warn`), así que «no error found» no se pinta. No cambia el texto (copiar
+  y buscar dan el original), no toca lo que ya trae color ni las aplicaciones a pantalla completa como
+  `vim`, y se apaga en Configuración › Terminales.
+- **Olvidar la huella de un servidor SSH desde su menú.** Si reinstalas un equipo y su huella
+  cambia, el menú de la conexión ofrece «Olvidar la huella guardada…»: tras confirmarlo, la próxima
+  conexión guarda la nueva. Ya no hace falta abrir la conexión y pulsar «Probar» para llegar a la
+  opción, y la terminal que se niega a conectar por la huella dice dónde está.
+
+### Interfaz
+
+- **La consola de SQL pega el texto a los números de línea**, sin el hueco de cuatro o cinco
+  caracteres que dejaba la columna de plegar bloques.
+- **El clic derecho en el editor abre el menú de Tessera**, en tu idioma y con el mismo aspecto que
+  el resto de la app, en los archivos, las comparaciones y las consolas de base de datos: cortar,
+  copiar, pegar, seleccionar todo, cambiar todas las apariciones y, según el lenguaje, ir a la
+  definición, ver referencias, cambiar el nombre y dar formato.
+- **En el modo minimalista, los perfiles se reordenan arrastrándolos en la lista.** El orden es el
+  mismo que el de las pestañas del modo normal: lo que cambias en uno se ve en el otro.
+- **El pie de cada agente dice dónde vive.** En su esquina derecha, con el icono de su vista: el
+  nombre del proyecto, «Agente de base de datos» o «Agente de la terminal». Así, con la terminal a
+  pantalla completa, no se confunde su agente con el de un proyecto. El botón de reiniciar va a su
+  izquierda.
+- **Los archivos `.tessera` tienen su propio icono.** Una hoja con la marca de Tessera, en Windows,
+  macOS y Linux: ya no se confunden con la app en una carpeta o en el escritorio.
+- **La X de una pestaña de proyecto avisa de que cierra.** Al apuntarla se tiñe de un rojo apagado,
+  como el botón de detener de la consola de bases de datos.
+- **Una terminal nueva con el agente maximizado, en un clic.** Junto al número de terminales tapadas
+  hay un «+» que abre otra y vuelve a enseñar las terminales con la nueva a la vista.
+
+- **Las cargas avisan sin parpadear, y dicen cuándo tardan.** En Git, el explorador y el árbol de
+  bases de datos, «Cargando…» solo aparece si la espera pasa de un cuarto de segundo y, una vez
+  visible, no destella. Si pasa de cinco segundos, dice que está tardando más de lo habitual y, si lo
+  sabe, por qué: cuántos repositorios lleva leídos o que la base aún no responde.
+
+### Correcciones
+
+- **Cada pestaña de Codex corre en su propia terminal en macOS y Linux.** Las versiones recientes de
+  Codex arrancan un servidor compartido por cuenta: las órdenes de todas tus pestañas corrían con el
+  entorno de la primera (sus bases de datos y su PATH) y cerrar una pestaña no paraba su trabajo.
+  Tessera lo arranca ahora sin ese servidor.
+- **El anillo de contexto de Claude Code ya no cae a 0 mientras piensa.** Las versiones recientes de
+  Claude Code guardan en su historial cada petición entera, que puede ocupar más que lo que Tessera leía
+  del final; ahora lee lo que haga falta para encontrar el último turno. Y Haiku 5.5 cuenta con su
+  ventana de un millón de tokens.
+- **Una huella cambiada en otro equipo ya no se achaca a tu conexión SSH.** Si un agente (o tú en la
+  terminal) lanzaba `ssh` desde el servidor hacia otra máquina y esa máquina había cambiado de huella,
+  Tessera decía que la huella cambiada era la del servidor y aconsejaba olvidarla, aunque estaba bien.
+  Ahora solo lo dice cuando la que cambió es la de la conexión o la de su bastión. Y cuando cambia la del
+  bastión, ya no sale «el servidor no responde: ¿falta la VPN?», sino que la huella cambió.
+- **Git · Cambios recuerda qué repos dejaste abiertos o cerrados** al cambiar de perfil o de proyecto
+  y volver; antes, con varios repos, se desplegaban otra vez todos los que tenían cambios.
+- **El punto de un perfil ya no se queda girando** como si despertara mientras trabajas en él: lo
+  dejaba así un agente de otra pestaña que esperaba a que volvieras a mirarlo para arrancar.
+- **Codex vuelve a reanudar la última conversación del proyecto** al abrirlo, al despertar de la
+  hibernación y al volver a un perfil, y su historial vuelve a listarse. Las versiones recientes de
+  Codex guardan los mensajes con otra forma y Tessera las daba por vacías.
+- **«Aplicar» en el color de un perfil cierra el panel.** Antes se quedaba abierto y no quedaba
+  claro si el color se había aplicado. Elegir una muestra sigue tiñendo la pestaña en el acto y deja
+  el panel abierto para probar otra.
+- **Guardar justo al cambiar de proyecto ya no puede pisar un archivo del otro.** Durante el segundo
+  en que Tessera pasa de un proyecto o perfil a otro, un Ctrl+S, un renombrado, un borrado o un
+  «Descartar cambios» de git iba a la misma ruta del proyecto nuevo. Ahora cada operación con
+  archivos o con git va a su proyecto, también en ese instante.
+- **Cerrar Tessera o un agente ya no deja procesos del agente vivos.** En Windows, al cerrar la app
+  o una pestaña de proyecto, el agente podía seguir corriendo sin ventana y retenía la carpeta del
+  proyecto. Ahora se cierra todo lo que lanzó.
+- **Tessera ya no puede quedarse viva sin ventana al cerrarla.** Una terminal cuyo proceso seguía
+  vivo al cerrar podía impedir que Tessera terminara: la ventana desaparecía, pero el proceso
+  quedaba en segundo plano y podía estorbar a la siguiente actualización. Ahora se rematan todas las
+  terminales, también las que se habían reiniciado o cerrado a medias, y si algo aún retuviera la
+  salida, Tessera termina sola a los pocos segundos y lo deja anotado.
+- **La lista de conexiones SSH de cada perfil vuelve tal cual.** Con la terminal a pantalla
+  completa, el filtro, la fila elegida y el desplazamiento del riel son de cada perfil, también si
+  en el otro perfil la terminal no estaba a pantalla completa o tenía la franja cerrada.
+- **Cambiar de vista lateral no pierde lo que dejaste.** Pasar de Archivos a Git o a Bases de datos
+  y volver, en el mismo perfil o en otro que enseñaba otra vista, encuentra el explorador y el árbol
+  de bases como estaban: carpetas abiertas, desplazamiento y un diálogo de conexión a medias.
+- **El explorador vuelve tal cual lo dejaste.** Al regresar a un proyecto o a un perfil, su árbol
+  conserva las carpetas abiertas, el desplazamiento y lo que tenías seleccionado, sin recargarse
+  desde cero.
+- **Volver a un perfil en bases de datos lo encuentra tal cual.** Sus conexiones y consolas se
+  conservan y se refrescan al volver, sin «Cargando…». Su árbol vuelve con lo desplegado, el
+  desplazamiento y la búsqueda, y un diálogo de conexión a medio llenar sigue ahí con lo que
+  escribiste; nada de eso pasa al otro perfil ni le bloquea el teclado.
+- **Git·Log y el estado de los repos salen en cuanto cambias de proyecto.** Ya no esperan a que
+  Tessera termine de pasar al proyecto nuevo, y las letras de git del explorador y de las pestañas
+  no parpadean al volver a uno. Y comparar dos versiones de un archivo comprimido o
+  abrir una clase de Java justo al cambiar de proyecto lee siempre la del suyo.
+- **Cada proyecto recuerda su historial de archivo y su Git·Log.** El historial de un archivo ya no
+  se cierra al cambiar de proyecto ni se ve en otro, y el log de cada repo conserva su filtro de
+  autor y de fecha y las carpetas de ramas que cerraste.
+- **Cada perfil recuerda su agente maximizado u oculto.** Antes era de toda la ventana: maximizar
+  en un perfil lo maximizaba en todos, y abrir un archivo en otro se lo quitaba al volver.
+- **Cambiar de perfil o de proyecto ya no enseña un momento el anterior.** Durante un segundo o dos
+  el explorador, las pestañas del editor, el agente de la columna y la terminal seguían en el perfil
+  del que venías, y al llegar el nuevo el agente se llevaba el teclado. Ahora todo cambia a la vez,
+  al instante.
+- **Reanudar una conversación ya no da un salto en la terminal del agente.** La sesión arrancaba
+  con un tamaño provisional y el bueno llegaba después, así que Claude Code o Codex pintaban la
+  conversación y la repintaban entera; en un proyecto con contenedor, a veces el agente se quedaba
+  con el tamaño provisional. Ahora nace con el tamaño de su terminal. Además, la terminal del agente
+  deja de tener buscador propio: los agentes dibujan su propia pantalla y Ctrl+F (⌘F) les llega a
+  ellos.
+- **Los logs y la configuración se leen con color en la terminal, también por SSH.** Antes solo se
+  pintaban las líneas con nivel (ERROR, WARN), y un registro del sistema o un `cat` de un `.yml`
+  salían casi en blanco. Ahora la hora, el proceso con su PID, las rutas, las IPs (también IPv6) y
+  las claves de `clave=valor`, YAML y JSON van en su color, los comentarios atenuados, y palabras
+  como `failed`, `unreachable` o `timed out` en rojo aunque vayan en minúsculas. Los editores y
+  paginadores a pantalla completa (`nano`, `less`, `vim`) siguen con sus propios colores.
+
+### Seguridad
+
+- **Motor de la app y librerías al día.** Tessera pasa a Electron 43.7.11, con los últimos
+  arreglos de seguridad de su navegador, y se actualiza la librería que limpia los documentos de
+  Word antes de enseñarlos, junto con otros parches menores.
+
 ## [0.80.0] - 2026-10-11
 
 ### Novedades

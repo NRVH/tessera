@@ -5,16 +5,19 @@
 // Decisiones: docs/decisiones/bd/ui-arbol-filas-y-carga.md
 // =============================================================================
 
+import { txFilasArbol } from './textosFilasArbol.ts'
+
 /** Tope de nombres que se enumeran en un diálogo antes de resumir con «y N más». */
 const ENUMERAR_MAX = 5
 
 /** ««a»», ««a» y «b»», ««a», «b» y «c»»; con más de 5, «… y N más». */
 export function listaNatural(nombres: readonly string[]): string {
-  const citados = nombres.slice(0, ENUMERAR_MAX).map((n) => `«${n}»`)
+  const t = txFilasArbol()
+  const citados = nombres.slice(0, ENUMERAR_MAX).map((n) => t.citado(n))
   const resto = nombres.length - citados.length
-  if (resto > 0) citados.push(resto === 1 ? '1 más' : `${resto} más`)
+  if (resto > 0) citados.push(resto === 1 ? t.unoMas : t.masN(resto))
   if (citados.length <= 1) return citados.join('')
-  return `${citados.slice(0, -1).join(', ')} y ${citados[citados.length - 1]}`
+  return `${citados.slice(0, -1).join(', ')} ${t.y} ${citados[citados.length - 1]}`
 }
 
 /**
@@ -22,8 +25,9 @@ export function listaNatural(nombres: readonly string[]): string {
  * no tiene. La comparten la conexión y la ajena: el main las borra igual.
  */
 export function fraseConsolas(consolas: readonly string[]): string | null {
-  if (consolas.length === 1) return `Su consola «${consolas[0]}» irá a la papelera.`
-  if (consolas.length > 1) return `Sus ${consolas.length} consolas irán a la papelera.`
+  const t = txFilasArbol()
+  if (consolas.length === 1) return t.consolaALaPapelera(consolas[0])
+  if (consolas.length > 1) return t.consolasALaPapelera(consolas.length)
   return null
 }
 
@@ -39,16 +43,15 @@ export function textoEliminarConexion(p: {
   conTx: readonly string[]
   sinEnviar?: number
 }): string {
-  const partes = [
-    `Se eliminará «${p.alias}» y su contraseña guardada. No se puede deshacer; la base de datos no se toca.`
-  ]
-  if (p.proyectos === null) partes.push('Se desmontará de todos los proyectos donde la tuvieras.')
-  else if (p.proyectos.length > 0) partes.push(`Se desmontará de ${listaNatural(p.proyectos)}.`)
+  const t = txFilasArbol()
+  const partes = [t.eliminarConexion(p.alias)]
+  if (p.proyectos === null) partes.push(t.desmontarDeTodos)
+  else if (p.proyectos.length > 0) partes.push(t.desmontarDe(listaNatural(p.proyectos)))
   const consolas = fraseConsolas(p.consolas)
   if (consolas !== null) partes.push(consolas)
-  if (p.conTx.length > 0) partes.push(`Se revertirán los cambios sin confirmar de ${listaNatural(p.conTx)}.`)
+  if (p.conTx.length > 0) partes.push(t.revertirSinConfirmar(listaNatural(p.conTx)))
   const n = p.sinEnviar ?? 0
-  if (n === 1) partes.push('Se descartará 1 cambio sin enviar de sus pestañas de datos.')
-  else if (n > 1) partes.push(`Se descartarán ${n} cambios sin enviar de sus pestañas de datos.`)
+  if (n === 1) partes.push(t.descartarUnCambio)
+  else if (n > 1) partes.push(t.descartarCambios(n))
   return partes.join('\n\n')
 }

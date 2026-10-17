@@ -6,7 +6,7 @@
 // id peligroso lanza sin tocar el disco, un perfil vivo con la misma carpeta la protege y los enlaces no
 // arrastran su destino; los vivos se leen antes de cada intento. También los dos dueños y que
 // `ESPACIO_ASEGURAR` no cree carpeta de más.
-// Decisiones: docs/decisiones/agentes/agente-de-la-terminal.md
+// Decisiones: docs/decisiones/workspace/borrar-perfil-con-orden.md
 // =============================================================================
 
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'

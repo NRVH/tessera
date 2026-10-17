@@ -1,7 +1,7 @@
 # Las raíces gestionadas viven en la VM en Windows y bajo `userData` en macOS, una por instancia
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/sandbox/rutasSandbox.ts`, `src/main/sandbox/gestor/nombres.ts`, `gestor/barrido.ts` (macOS: sin verificar aquí)
+- **Ámbito:** `src/main/sandbox/rutasSandbox.ts`, `src/main/sandbox/gestor/nombres.ts`, `gestor/barrido.ts`
 
 ## Contexto
 

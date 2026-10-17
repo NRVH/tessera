@@ -7,6 +7,7 @@
 
 import type { KeyboardEvent } from 'react'
 import { esBorrarPestanaEnfocada } from '../../util/atajos'
+import { txTerminales } from './textos.ts'
 
 /**
  * Ranura que se está renombrando ahora mismo. LLEVA SU CLAVE: los ids son únicos solo DENTRO de un
@@ -50,7 +51,7 @@ export function CampoRenombrar({ texto, nombre, onTexto, onConfirmar, onCancelar
         if (e.key === 'Enter') onConfirmar()
         else if (e.key === 'Escape') onCancelar()
       }}
-      aria-label={`Nombre de ${nombre}`}
+      aria-label={txTerminales().nombreDe(nombre)}
     />
   )
 }

@@ -5,10 +5,9 @@
 
 ## Contexto
 
-En la barra WHERE de texto, `ESTATUS="NOMINA PROCESADA"` dio ORA-00904 en Oracle: las comillas
+En la barra WHERE de texto, `ESTADO="PEDIDO ENVIADO"` da ORA-00904 en Oracle: las comillas
 dobles son un identificador. Escribir el filtro exige saber el dialecto; elegirlo, no. Cómo se
-compila, en [rejilla-filtro-guiado-sql.md](rejilla-filtro-guiado-sql.md) y
-[documentos-filtro-guiado.md](documentos-filtro-guiado.md).
+compila, en [filtro-guiado-compilacion.md](filtro-guiado-compilacion.md).
 
 ## Decisión
 

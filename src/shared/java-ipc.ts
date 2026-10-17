@@ -4,8 +4,12 @@
 // `decompile` nunca rechaza por un fallo del motor: devuelve `estado` y un `mensaje`.
 // La respuesta trae SIEMPRE la versión de bytecode (bytes 4-7 del .class, leídos antes
 // de lanzar nada): es lo mínimo que el pane enseña aunque no haya JVM.
-// Decisiones: docs/decisiones/java/descompilacion-con-motores-externos.md
+// `decompile` se atiende en el proyecto de la petición (`raiz`), no en el anclado.
+// Decisiones: docs/decisiones/java/descompilacion-con-motores-externos.md,
+// docs/decisiones/workspace/peticiones-de-archivos-con-su-proyecto.md
 // =============================================================================
+
+import type { EnProyecto } from './files-ipc'
 
 export const JAVA_CHANNELS = {
   /** invoke: descompila UNA clase. Nunca rechaza por fallo del motor. */
@@ -75,7 +79,7 @@ export interface EstadoJava {
 
 // --- Descompilación ---------------------------------------------------------
 
-export interface DescompilarRequest {
+export interface DescompilarRequest extends EnProyecto {
   /** Ruta VIRTUAL ('lib/x.jar!/com/A.class') o de DISCO ('target/classes/com/A.class'). */
   path: string
   motor: MotorPedido

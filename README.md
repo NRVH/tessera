@@ -191,6 +191,10 @@ actualización si Tessera puede usar sus contraseñas guardadas: pulsa **Permiti
   «Actualizar agentes» reconstruye la imagen del sandbox con las últimas versiones.
 - Pega imágenes y archivos en la terminal del agente; en modo Docker se copian dentro del
   contenedor en vez de pasar una ruta que el agente no podría abrir.
+- **Cualquier otro agente de terminal**, además de Claude Code y Codex: le das un nombre, el
+  comando con que lo arrancarías y, si quieres, cómo reanudar su última conversación. En modo
+  Docker escribes también cómo instalarlo y Tessera lo hornea en la imagen del espacio de
+  trabajo. Las pestañas de agente se reordenan arrastrándolas y cualquiera se puede ocultar.
 
 ### Sandbox o nativo, por proyecto
 
@@ -226,7 +230,8 @@ el que entraste.
   estado y te deja convertirlos.
 - **Markdown** con vista renderizada (diagramas Mermaid incluidos), vista de código, o las
   dos lado a lado con el scroll sincronizado. Los HTML tienen una vista previa aislada.
-- **Visores** de PDF, Word (`.docx`), archivos ZIP e imágenes (con zoom).
+- **Visores** de PDF, Word (`.docx`), archivos ZIP, imágenes (con zoom), y audio y vídeo
+  (`.mp4`, `.webm`, `.mp3`, `.wav` y similares) sin instalar nada.
 - **Archivos de Java**: los `.jar`, `.war`, `.ear` y `.aar` se abren en el explorador como
   carpetas, y los `.class` se descompilan al vuelo. Comparar dos versiones de un archivo
   enseña qué entradas cambiaron y el diff de las clases descompiladas.
@@ -269,6 +274,9 @@ el que entraste.
   macOS y en Linux).
 - Buscar en el historial de la terminal, copiar y pegar como espera cada plataforma, y
   renderizado acelerado por GPU que puedes apagar en Configuración.
+- **Logs con color**: lo que llega sin color se resalta (errores, avisos, fechas, IPs, URLs y
+  códigos HTTP) en los formatos de log habituales, también por SSH, sin cambiar el texto que
+  copias. Se apaga en Configuración.
 - **Pantalla completa**: la terminal ocupa todo el área de trabajo con un botón o con
   Ctrl+Shift+Enter (⇧⌘↩), sin cerrar nada de lo que tapa.
 - **Agente de la terminal**: a pantalla completa, un agente propio del espacio de trabajo a
@@ -347,10 +355,15 @@ el que entraste.
 
 ![Configuración con su riel de categorías y su buscador](assets/capturas/configuracion.png)
 
-Una ventana de configuración con buscador (Ctrl+, / ⌘,): apariencia y zoom, fuentes de las
-terminales, el modo por defecto de los proyectos y la hibernación de los agentes, la imagen
-del sandbox, los valores por defecto de bases de datos, la integración con el sistema, las
-actualizaciones y una página «Acerca de».
+Una ventana de configuración con buscador (Ctrl+, / ⌘,): apariencia, zoom e idioma (español
+o inglés), fuentes de las terminales, el modo por defecto de los proyectos y la hibernación de
+los agentes, la imagen del sandbox, los valores por defecto de bases de datos, la integración
+con el sistema, las actualizaciones y una página «Acerca de».
+
+**Exportar e importar** lleva tu configuración a otro equipo (Windows, macOS o Linux): los
+espacios de trabajo que elijas con sus conexiones SSH y de bases de datos, tus agentes y tus
+preferencias, en un archivo `.tessera` cifrado con una frase. Al importar eliges qué entra, y
+no se toca lo que ya tenías.
 
 ### Actualizaciones automáticas
 

@@ -33,10 +33,11 @@ import {
 } from '../sqlRejilla.ts'
 import { motorExplorador } from '../motores/index.ts'
 import type { Apertura } from './apertura.ts'
-import { AVISO_SIN_ORDEN, ErrorGestor, errorSql, mensajePerdida, ubicarError } from './errores.ts'
+import { avisoSinOrden, ErrorGestor, errorSql, mensajePerdida, ubicarError } from './errores.ts'
 import type { NucleoSesiones } from './NucleoSesiones.ts'
 import type { Procesos } from './procesos.ts'
 import { capacidades, pagina, TIEMPOS_CERO } from './reglas.ts'
+import { txSesiones } from './textosSesiones.ts'
 import type { OrigenLector, PeticionTabla, Proceso, Sesion } from './tipos.ts'
 
 function opcionesDeTabla(soloLectura: boolean, req: PeticionTabla): OpcionesEjecucion {
@@ -85,7 +86,7 @@ export class TablaSesion {
 
   async leerTabla(req: PeticionTabla): Promise<DbRespuesta<DbResultadoFilas | DbResultadoError>> {
     if (!Number.isInteger(req.maxFilas) || req.maxFilas < 1 || req.maxFilas > DB_PAGINA_MAX) {
-      return { ok: false, error: { motivo: 'interno', mensaje: `El tamaño de página tiene que estar entre 1 y ${DB_PAGINA_MAX}.` } }
+      return { ok: false, error: { motivo: 'interno', mensaje: txSesiones().paginaFuera(DB_PAGINA_MAX) } }
     }
     let con: DbConnection
     try {
@@ -155,7 +156,7 @@ export class TablaSesion {
       }
       this.n.terminar(s, { clase: 'consulta', ok: true, tx: r.tx })
       this.n.marcarExpulsados(r)
-      if (r.tipo !== 'filas') throw new ErrorGestor('interno', 'La consulta de la tabla no devolvió filas.')
+      if (r.tipo !== 'filas') throw new ErrorGestor('interno', txSesiones().tablaSinFilas)
       let lector: string | null = null
       if (r.hayMas) {
         lector = this.n.registrarLector(s, {
@@ -172,7 +173,7 @@ export class TablaSesion {
         lector,
         tiempos: { totalMs: Date.now() - t0, ejecucionMs: r.msEjecucion, lecturaMs: r.msLectura }
       }
-      if (consulta.sinOrdenEstable) res.avisos = [AVISO_SIN_ORDEN]
+      if (consulta.sinOrdenEstable) res.avisos = [avisoSinOrden()]
       return res
     } finally {
       if (s.cancelada === req.peticionId) s.cancelada = null
@@ -206,9 +207,7 @@ export class TablaSesion {
     const motor = this.n.deps.conexion(s.conexionId)?.motor
     if (motor !== undefined && motorExplorador(motor).sesion.esBloqueoAlLeer(et.codigo)) {
       error.motivo = 'bloqueo'
-      error.mensaje =
-        'La tabla está bloqueada por una transacción sin confirmar (quizá una consola tuya): Reintentar cuando termine, ' +
-        `o «Leer sin esperar», que enseña también lo que aún no se ha confirmado. (${et.mensaje})`
+      error.mensaje = txSesiones().tablaBloqueada(et.mensaje)
       return { tipo: 'error', error, tiempos }
     }
     ubicarErrorDeTabla(error, et, consulta, motor)

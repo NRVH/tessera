@@ -6,13 +6,14 @@
 // =============================================================================
 
 import { useToasts, dismiss, type Toast, type ToastKind } from './notifications'
+import { txComun } from './textos.ts'
 import './toaster.css'
 
 export function Toaster(): React.JSX.Element | null {
   const toasts = useToasts()
   if (toasts.length === 0) return null
   return (
-    <div className="toaster" aria-label="Notificaciones">
+    <div className="toaster" aria-label={txComun().notificaciones}>
       {toasts.map((t) => (
         <ToastCard key={t.id} toast={t} />
       ))}
@@ -51,8 +52,8 @@ function ToastCard({ toast }: { toast: Toast }): React.JSX.Element {
       <button
         className="toast-close"
         onClick={() => dismiss(toast.id)}
-        aria-label="Descartar notificación"
-        title="Descartar"
+        aria-label={txComun().descartarNotificacion}
+        title={txComun().descartar}
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
           <path d="M6 6l12 12M18 6L6 18" />

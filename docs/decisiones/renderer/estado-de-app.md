@@ -25,7 +25,6 @@ commits produce un cambio: varios efectos leen dos estados y deciden con lo que 
   despacha es otra microtarea y otro commit (`alAbrir`, `elegir` de `loadAccounts`).
 - Los efectos que tenía `App` se registran DESDE `App`, por hooks en un orden fijo. Los
   componentes de layout solo pintan.
-- `fijarAmbito` (caché de blobs) va en el render de App: los panes de diff piden antes que App.
 - El maximizado del agente se pinta coherente (`maximizadoCoherente`); el crudo, en `useLayoutEffect`.
 - `buildSettings` lee de los stores con las mismas claves, formas y esperas de siempre.
 

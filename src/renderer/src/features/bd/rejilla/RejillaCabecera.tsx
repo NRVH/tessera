@@ -13,8 +13,7 @@ import { ANCHO_MAX_MANUAL, MUESTRA_AJUSTE, OPCIONES_ANCHO, acotarAnchoManual } f
 import { medidorDe } from './useRejillaGeometria'
 import { tipoVisible } from './visorValor'
 import type { Rejilla } from './rejillaTipos'
-
-const TEXTO_SIN_ORDEN = 'No se puede ordenar: el servidor no ordena este tipo de columna'
+import { txRejilla } from './textosRejilla.ts'
 
 /** Flecha del orden de la cabecera. */
 function FlechaOrden({ dir }: { dir: 'asc' | 'desc' }): React.JSX.Element {
@@ -38,8 +37,8 @@ function tituloCabecera(
 ): string {
   // El tipo DECLARADO si llegó del catálogo, y si no el del trabajador: el criterio del visor.
   const lineas = [col.nombre, `${tipoVisible(col)}${col.nullable === false ? ' NOT NULL' : ''}`]
-  if (esPk) lineas.push('Clave primaria')
-  if (noEditable) lineas.push(`No editable: ${noEditable}`)
+  if (esPk) lineas.push(txRejilla().clavePrimaria)
+  if (noEditable) lineas.push(txRejilla().noEditable(noEditable))
   if (lineasOrden) lineas.push(...lineasOrden)
   return lineas.join('\n')
 }
@@ -97,7 +96,7 @@ function ariaSort(dir: 'asc' | 'desc' | null): 'ascending' | 'descending' | unde
 /** Las líneas del orden en el `title`: el de la columna, por qué no se ordena, o nada (la consola). */
 function lineasDeOrden(ordena: boolean, sinOrden: boolean, o: Parameters<typeof lineasOrdenCabecera>[0], total: number): string[] | null {
   if (ordena) return [...lineasOrdenCabecera(o, total)]
-  return sinOrden ? [TEXTO_SIN_ORDEN] : null
+  return sinOrden ? [txRejilla().sinOrden] : null
 }
 
 function cabeceraDe(r: Rejilla, c: number): React.JSX.Element {

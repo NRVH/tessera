@@ -95,11 +95,11 @@ export interface FormularioMotor {
   credenciales: CredencialesMotor
   /** Extensiones del diálogo nativo (`conexion.extensionesArchivo`). */
   extensionesArchivo: readonly string[]
-  /** Las filas del destino, en orden (de `PRESENTACION`). */
+  /** Las filas del destino, en orden (de `presentaciones()`). */
   filas: readonly (readonly DefCampo[])[]
-  /** Las que van tras usuario y contraseña (de `PRESENTACION`). */
+  /** Las que van tras usuario y contraseña (de `presentaciones()`). */
   filasTrasCredenciales: readonly (readonly DefCampo[])[]
-  /** Los de `conexion.excluyentes`, cada uno con su ayuda de `PRESENTACION`. */
+  /** Los de `conexion.excluyentes`, cada uno con su ayuda de `presentaciones()`. */
   excluyentes: readonly GrupoExcluyente[]
   /** Los que el main exige por sí solos (`conexion.obligatorios`). */
   obligatorios: readonly CampoConexion[]
@@ -107,7 +107,7 @@ export interface FormularioMotor {
   usaClientes: boolean
   /** Lo que NO viaja al main aunque siga escrito en el borrador (`conexion.descartarAlGuardar`). */
   descartarAlGuardar: readonly CampoTextoDestino[]
-  /** «Pegar URI» (de `PRESENTACION`); null = el motor no lo ofrece. */
+  /** «Pegar URI» (de `presentaciones()`); null = el motor no lo ofrece. */
   uri: EsquemaUri | null
 }
 

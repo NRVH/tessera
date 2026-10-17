@@ -14,6 +14,7 @@ import {
 import { runDocker, runDockerBuild } from '../adaptadores/docker.ts'
 import { argsBuildUsuario, imagenAlDia } from './usuarioImagen.ts'
 import type { FaseImagen, NucleoSandbox } from './NucleoSandbox.ts'
+import { txSandbox } from '../textos.ts'
 
 /** Construcción y consulta de la imagen base. */
 export class ImagenSandbox {
@@ -55,29 +56,26 @@ export class ImagenSandbox {
     ])
     if (inspect.status === 0 && imagenAlDia(inspect.stdout, esperado)) return
 
-    const motivo = inspect.status === 0 ? 'está desactualizada' : 'no existe'
-    this.logImagen(`La imagen del sandbox ${motivo}: preparándola…`, 'inicio')
+    const t = txSandbox().imagen
+    const motivo = inspect.status === 0 ? t.desactualizada : t.noExiste
+    this.logImagen(t.preparando(motivo), 'inicio')
 
     // Build incremental (sin `--no-cache`, que es solo de «Actualizar agentes»).
     if (await this.construirImagen(extras)) {
-      this.logImagen('Imagen del sandbox lista.', 'fin')
+      this.logImagen(t.lista, 'fin')
       return
     }
 
     // Falló CON extras: se degrada a una imagen sin ellos en vez de dejar el perfil sin agente.
     if (extras.apt.length === 0 && !extras.depsNavegador) {
-      throw new Error(`No se pudo construir la imagen "${this.n.imagen}" desde "${this.n.dockerfileDir}".`)
+      throw new Error(t.noSeConstruyo(this.n.imagen, this.n.dockerfileDir))
     }
     this.n.selloExtrasFallido = selloPedido
-    this.logImagen(
-      'No se pudieron instalar los paquetes extra (¿algún nombre no existe en Debian?). ' +
-        'Se construye el sandbox SIN ellos; revísalos en Configuración → Proyectos → Sandbox de Docker.',
-      'error'
-    )
+    this.logImagen(t.extrasFallidos, 'error')
     if (!(await this.construirImagen(EXTRAS_VACIOS))) {
-      throw new Error(`No se pudo construir la imagen "${this.n.imagen}" desde "${this.n.dockerfileDir}".`)
+      throw new Error(t.noSeConstruyo(this.n.imagen, this.n.dockerfileDir))
     }
-    this.logImagen('Imagen del sandbox lista (sin los paquetes extra).', 'fin')
+    this.logImagen(t.listaSinExtras, 'fin')
   }
 
   /** Un `docker build` con unos extras; si sale bien con los vetados, levanta el veto. */
@@ -116,7 +114,7 @@ export class ImagenSandbox {
       { onLog }
     )
     if (code !== 0) {
-      throw new Error(`Falló la reconstrucción de la imagen "${this.n.imagen}" (docker build salió con ${code}).`)
+      throw new Error(txSandbox().imagen.fallaReconstruccion(this.n.imagen, code))
     }
     // Salió bien CON los extras del usuario: se levanta el veto de un fallo anterior.
     this.n.selloExtrasFallido = null

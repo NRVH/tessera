@@ -7,6 +7,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { formatoDuracion } from '../consola/marcasConsola'
 import { TICK_MS, type AnclaSelector, type EnCurso } from './consolaComun'
+import { txConsolaComun } from './textosConsolaComun'
 
 /** Estado derivado de la barra y la mecánica del botón de la base. */
 export interface DatosBarraConsola {
@@ -35,10 +36,11 @@ export function useBarraConsola(enCurso: EnCurso | null, cargado: boolean, texto
   }, [corriendo])
 
   const e = enCurso
-  const anunciado = e ? (e.total > 1 ? `Ejecutando ${e.indice + 1} de ${e.total}` : 'Ejecutando') : (textoEstado ?? '')
+  const t = txConsolaComun()
+  const anunciado = e ? (e.total > 1 ? t.ejecutandoN(e.indice + 1, e.total) : t.ejecutando) : (textoEstado ?? '')
   const tiempo = e ? formatoDuracion(ahora - e.inicio, true) : ''
   const estado = e ? (tiempo ? `${anunciado} · ${tiempo}` : anunciado) : textoEstado
-  const motivoEjecutar = !cargado ? 'La consola todavía se está cargando' : corriendo ? 'Ya hay una ejecución en curso' : undefined
+  const motivoEjecutar = !cargado ? t.consolaCargando : corriendo ? t.yaEjecutando : undefined
 
   const botonBaseRef = useRef<HTMLButtonElement>(null)
   const [ancla, setAncla] = useState<AnclaSelector | null>(null)

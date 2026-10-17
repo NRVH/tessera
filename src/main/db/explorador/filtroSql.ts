@@ -4,7 +4,7 @@
 // su WHERE y en su ORDER BY. Los valores nunca van en el texto: son parámetros. Una condición
 // por línea, con su AND/OR delante desde la segunda; `rangos[i]` es la línea de la condición i.
 // Puro (sin electron ni `process`); las piezas por dialecto viven en `filtroSqlValores.ts`.
-// Decisiones: docs/decisiones/bd/rejilla-filtro-guiado-sql.md
+// Decisiones: docs/decisiones/bd/filtro-guiado-compilacion.md
 // =============================================================================
 
 import {
@@ -34,6 +34,7 @@ import {
   vacioEsNull,
   type ValorFiltroSql
 } from './filtroSqlValores.ts'
+import { txFiltro } from './textosRejilla.ts'
 
 export { escaparLike, partirNumero, type ValorFiltroSql }
 
@@ -74,8 +75,6 @@ export function filtroPorNombre(d: DialectoSql): boolean {
   }
 }
 
-const OPERADOR_NO_VALE = 'Ese operador no vale para esta columna.'
-
 /** Lo que sale de compilar una condición: su SQL o el problema. */
 type CondicionCompilada = { sql: string } | { problema: string }
 
@@ -85,7 +84,7 @@ const problema = (m: string): CondicionCompilada => ({ problema: m })
 /** Un extremo de fecha ya partido, o el problema. */
 function fecha(valor: string | undefined): FechaFiltro | string {
   const f = leerFecha(valor ?? '')
-  return f === null ? 'No es una fecha (AAAA-MM-DD, con hora opcional HH:MM[:SS]).' : f
+  return f === null ? txFiltro().noEsFecha : f
 }
 
 function condicionVacio(d: DialectoSql, col: string, vacio: boolean, esTexto: boolean): CondicionCompilada {
@@ -106,16 +105,16 @@ function condicionTexto(d: DialectoSql, c: DbCondicionFiltro, col: string, p: Pa
     case 'distinto':
       return sql(`(${col} IS NULL OR ${col} <> ${p.ponerTexto(v)})`)
     default:
-      return problema(OPERADOR_NO_VALE)
+      return problema(txFiltro().operadorNoVale)
   }
 }
 
 function condicionBooleano(d: DialectoSql, c: DbCondicionFiltro, col: string, p: Parametros): CondicionCompilada {
   const b = leerBooleano(c.valor ?? '')
-  if (b === null) return problema('Escribe true o false.')
+  if (b === null) return problema(txFiltro().escribeBool)
   if (c.operador === 'igual') return sql(`${col} = ${p.poner(booleanoSql(d, b))}`)
   if (c.operador === 'distinto') return sql(`(${col} IS NULL OR ${col} <> ${p.poner(booleanoSql(d, b))})`)
-  return problema(OPERADOR_NO_VALE)
+  return problema(txFiltro().operadorNoVale)
 }
 
 function condicionNumero(d: DialectoSql, c: DbCondicionFiltro, col: string, p: Parametros): CondicionCompilada {
@@ -137,7 +136,7 @@ function condicionNumero(d: DialectoSql, c: DbCondicionFiltro, col: string, p: P
       return sql(`${col} BETWEEN ${desde} AND ${p.expr(b)}`)
     }
     default:
-      return problema(OPERADOR_NO_VALE)
+      return problema(txFiltro().operadorNoVale)
   }
 }
 
@@ -198,7 +197,7 @@ function condicionFecha(d: DialectoSql, c: DbCondicionFiltro, col: string, p: Pa
     case 'entre':
       return fechaEntre(col, a, c.valor2, en)
     default:
-      return problema(OPERADOR_NO_VALE)
+      return problema(txFiltro().operadorNoVale)
   }
 }
 
@@ -215,7 +214,7 @@ function condicionSql(d: DialectoSql, c: DbCondicionFiltro, p: Parametros, calif
       return condicionTexto(d, c, col, p)
     // Sin «=» ni «≠» (`validarFiltro`): lo que queda compara la columna convertida a texto.
     case 'textoLargo':
-      return op === 'igual' || op === 'distinto' ? problema(OPERADOR_NO_VALE) : condicionTexto(d, c, col, p)
+      return op === 'igual' || op === 'distinto' ? problema(txFiltro().operadorNoVale) : condicionTexto(d, c, col, p)
     case 'booleano':
       return condicionBooleano(d, c, col, p)
     case 'numero':
@@ -223,7 +222,7 @@ function condicionSql(d: DialectoSql, c: DbCondicionFiltro, p: Parametros, calif
     case 'fecha':
       return condicionFecha(d, c, col, p)
     case 'otro':
-      return problema(OPERADOR_NO_VALE)
+      return problema(txFiltro().operadorNoVale)
     default:
       return nunca(c.categoria, 'condicionSql')
   }

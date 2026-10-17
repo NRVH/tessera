@@ -9,6 +9,7 @@
 
 import type { SshCandidataOpenSsh, SshClaveElegida, SshConexionInput, SshLecturaOpenSsh, SshMetodo } from '../../../../shared/ssh-ipc.ts'
 import type { BorradorSsh } from './borradorSsh.ts'
+import { txSsh } from './textos.ts'
 
 /** Lo que el formulario de alta recibe de una lectura con un solo `Host`: sus campos y la nota que lo explica. */
 export interface ImportacionEnFormulario {
@@ -30,11 +31,12 @@ export function prefijoDeCandidata(c: SshCandidataOpenSsh): Partial<BorradorSsh>
 
 /** Lo que falta revisar de un `Host`, en frases cortas. */
 function pendientesDe(c: SshCandidataOpenSsh): string[] {
+  const t = txSsh()
   return [
-    c.existe ? 'ya hay una conexión con ese nombre: cámbialo' : '',
-    c.usuario === '' ? 'el archivo no trae el usuario' : '',
-    c.puerto === null ? 'el puerto no es un número' : '',
-    c.claveNoUsable ? 'su archivo de clave no se pudo usar: entra con las claves del sistema' : ''
+    c.existe ? t.pendExiste : '',
+    c.usuario === '' ? t.pendSinUsuario : '',
+    c.puerto === null ? t.pendPuerto : '',
+    c.claveNoUsable ? t.pendClaveInutil : ''
   ].filter((p) => p !== '')
 }
 
@@ -42,22 +44,21 @@ function pendientesDe(c: SshCandidataOpenSsh): string[] {
 export function importacionEnFormulario(l: SshLecturaOpenSsh): ImportacionEnFormulario {
   const c = l.candidatas[0]
   const pendientes = pendientesDe(c)
-  const base = `Datos de «${c.alias}» leídos de «${l.archivo}». Revisa, elige el grupo y guarda.`
-  return { prefijo: prefijoDeCandidata(c), nota: pendientes.length > 0 ? `${base} Ojo: ${pendientes.join('; ')}.` : base }
+  const t = txSsh()
+  const base = t.datosLeidos(c.alias, l.archivo)
+  return { prefijo: prefijoDeCandidata(c), nota: pendientes.length > 0 ? `${base}${t.ojo(pendientes.join('; '))}` : base }
 }
 
 /** Lo que el archivo trae y no se importa (comodines, `Match`, `Include`), o `null` si nada. */
 export function textoNoSeImporta(l: SshLecturaOpenSsh): string | null {
-  const partes = [
-    l.conPatrones === 1 ? '1 bloque con comodines o Match' : l.conPatrones > 1 ? `${l.conPatrones} bloques con comodines o Match` : '',
-    l.include > 0 ? `${l.include} Include (no se siguen)` : ''
-  ].filter((p) => p !== '')
-  return partes.length > 0 ? `No se importa: ${partes.join(' y ')}.` : null
+  const t = txSsh()
+  const partes = [l.conPatrones > 0 ? t.bloquePatrones(l.conPatrones) : '', l.include > 0 ? t.includeNoSeSigue(l.include) : ''].filter((p) => p !== '')
+  return partes.length > 0 ? t.noSeImporta(partes.join(t.y)) : null
 }
 
 /** Por qué no hay nada que revisar en una lectura sin `Host` concretos. */
 export function motivoSinCandidatas(l: SshLecturaOpenSsh): string {
-  return `«${l.archivo}» no tiene ningún Host concreto que importar.${textoNoSeImporta(l) ? ` ${textoNoSeImporta(l)}` : ''}`
+  return `${txSsh().sinHostConcreto(l.archivo)}${textoNoSeImporta(l) ? ` ${textoNoSeImporta(l)}` : ''}`
 }
 
 /** Una fila de la revisión: el `Host` leído, si se importa y lo que se puede cambiar, credencial incluida. */
@@ -133,13 +134,14 @@ const clave = (alias: string): string => alias.trim().toLowerCase()
  * para no elegir dos con el mismo nombre.
  */
 export function problemaDeFila(f: FilaImportacion, filas: readonly FilaImportacion[], existentes: readonly string[]): string | null {
-  if (f.candidata.puerto === null) return 'El puerto del archivo no es un número.'
-  if (f.alias.trim() === '') return 'Ponle un nombre.'
-  if (f.usuario.trim() === '') return 'Falta el usuario.'
-  if (f.metodo === 'clave' && f.clave === null) return 'Elige el archivo de clave.'
-  if (existentes.some((e) => clave(e) === clave(f.alias))) return 'Ya hay una conexión con ese nombre.'
+  const t = txSsh()
+  if (f.candidata.puerto === null) return t.probPuerto
+  if (f.alias.trim() === '') return t.probNombre
+  if (f.usuario.trim() === '') return t.probUsuario
+  if (f.metodo === 'clave' && f.clave === null) return t.probClave
+  if (existentes.some((e) => clave(e) === clave(f.alias))) return t.probExiste
   const repetidas = filas.filter((x) => x.elegida && clave(x.alias) === clave(f.alias))
-  return repetidas.length > 1 ? 'Hay otra con el mismo nombre.' : null
+  return repetidas.length > 1 ? t.probRepetido : null
 }
 
 /** Cuántas se van a importar y si se puede: alguna elegida y ninguna elegida con problemas. */
@@ -168,12 +170,12 @@ export function pideSecreto(f: FilaImportacion): boolean {
  * «Sin grupo»). Si van a varios, el reparto, del grupo con más al de menos.
  */
 export function tituloImportadas(grupos: readonly (string | null)[]): string {
-  const n = grupos.length
-  const cuantas = n === 1 ? 'Se importó 1 conexión SSH' : `Se importaron ${n} conexiones SSH`
-  const nombre = (g: string | null): string => `«${g ?? 'Sin grupo'}»`
+  const t = txSsh()
+  const cuantas = t.importadas(grupos.length)
+  const nombre = (g: string | null): string => t.entreComillas(g ?? t.sinGrupo)
   const cuenta = new Map<string | null, number>()
   for (const g of grupos) cuenta.set(g, (cuenta.get(g) ?? 0) + 1)
-  if (cuenta.size <= 1) return `${cuantas} en ${nombre(grupos[0] ?? null)}`
-  const partes = [...cuenta].sort((a, b) => b[1] - a[1]).map(([g, k]) => `${k} en ${nombre(g)}`)
-  return `${cuantas}: ${partes.slice(0, -1).join(', ')} y ${partes[partes.length - 1]}`
+  if (cuenta.size <= 1) return t.importadasEn(cuantas, nombre(grupos[0] ?? null))
+  const partes = [...cuenta].sort((a, b) => b[1] - a[1]).map(([g, k]) => t.kEn(k, nombre(g)))
+  return t.importadasReparto(cuantas, partes.slice(0, -1).join(', '), partes[partes.length - 1])
 }

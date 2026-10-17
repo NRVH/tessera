@@ -3,7 +3,7 @@
 // dispone al desmontar; el editor es del pane). Al desmontar se lee el texto
 // pendiente ANTES de disponerlo y se cancela lo que siga en vuelo. También el
 // lenguaje del modelo y su ruta del autocompletado. Pieza de `useConsola`.
-// Decisiones: docs/decisiones/bd/ui-consola-motor.md
+// Decisiones: docs/decisiones/bd/ui-consola-estado.md
 // =============================================================================
 
 import { useEffect } from 'react'

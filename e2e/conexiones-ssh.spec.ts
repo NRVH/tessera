@@ -276,7 +276,7 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
 
     const conmutador = panel().getByRole('button', { name: 'Panel de conexiones' })
     await conmutador.click()
-    await expect(riel, 'plegado a mano').toHaveCount(0)
+    await expect(riel, 'plegado a mano').toBeHidden()
     await enCabecera(win)
     await expect(flecha(), 'con el riel plegado la ▾ vuelve, aunque no haya conexiones ni grupos').toBeVisible()
     await flecha().click()
@@ -828,7 +828,7 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     await expect(popover(), 'y no abre el lanzador').toHaveCount(0)
     const conmutador = panel().getByRole('button', { name: 'Panel de conexiones' })
     await conmutador.click()
-    await expect(riel).toHaveCount(0)
+    await expect(riel).toBeHidden()
     await vacio.getByRole('button', { name: 'Conectar por SSH…' }).click()
     await expect(popover(), 'con el riel plegado vuelve al lanzador').toBeVisible()
     await win.keyboard.press('Escape')
@@ -1031,6 +1031,39 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     expect(readFileSync(knownHosts, 'utf8'), 'el known_hosts se vació: la vieja no está').not.toContain('ssh-rsa')
     await win.keyboard.press('Escape')
     await expect(dialogo, 'sin cambios, Esc cierra el diálogo').toHaveCount(0)
+  })
+
+  test('«Olvidar la huella guardada…» del menú de la conexión vacía su known_hosts tras confirmar, y sin huella la opción no sale', async () => {
+    const win = s.win
+    const conexion = (await win.evaluate(() => window.tessera.ssh.listar())).conexiones.find((x) => x.alias === 'Con contraseña editada')
+    const knownHosts = join(s.datos, 'ssh', 'huellas', conexion?.id ?? 'sin-id')
+    expect(readFileSync(knownHosts, 'utf8'), 'la prueba anterior la dejó guardada').toContain('ssh-ed25519')
+    const fila = (await abrirLista('Sin grupo')).getByRole('treeitem', { name: /^Con contraseña editada,/ })
+    await fila.click({ button: 'right' })
+    await menu('Olvidar la huella guardada…').click()
+    const confirmar = win.getByRole('dialog', { name: 'Olvidar la huella guardada' })
+    await expect(confirmar).toContainText('¿Olvidar la huella guardada de «Con contraseña editada»?')
+    await win.keyboard.press('Escape')
+    await expect(confirmar).toHaveCount(0)
+    expect(readFileSync(knownHosts, 'utf8'), 'cancelar no la olvida').toContain('ssh-ed25519')
+
+    await (await abrirLista('Sin grupo')).getByRole('treeitem', { name: /^Con contraseña editada,/ }).click({ button: 'right' })
+    await menu('Olvidar la huella guardada…').click()
+    await confirmar.getByRole('button', { name: 'Olvidar', exact: true }).click()
+    await expect(win.locator('.toast', { hasText: 'Se olvidó la huella de «Con contraseña editada»' })).toBeVisible({ timeout: 15_000 })
+    expect(readFileSync(knownHosts, 'utf8'), 'el known_hosts se vació').toBe('')
+    // El menú se arma al abrirse: antes, la lista del renderer tiene que haber recogido el cambio.
+    await expect
+      .poll(async () => (await win.evaluate(() => window.tessera.ssh.listar())).conexiones.find((x) => x.alias === 'Con contraseña editada')?.huellaServidor.length)
+      .toBe(0)
+
+    await (await abrirLista('Sin grupo')).getByRole('treeitem', { name: /^Con contraseña editada,/ }).click({ button: 'right' })
+    await expect(menu('Editar…'), 'el menú se abrió').toBeVisible()
+    await expect(menu('Olvidar la huella guardada…'), 'sin huella guardada no hay nada que olvidar').toHaveCount(0)
+    await win.keyboard.press('Escape')
+    await expect(menu('Editar…')).toHaveCount(0)
+    await win.keyboard.press('Escape')
+    await expect(popover()).toHaveCount(0)
   })
 
   test('«Recientes»: las tres últimas conexiones abiertas, la más reciente primero; se recuerdan por perfil y con filtro no salen', async () => {
@@ -1543,7 +1576,7 @@ test.describe.serial('Las recientes del lanzador con un archivo de conexiones qu
 
     // Plegar el riel guarda los ajustes enteros: ahí se vería una poda de las recientes.
     await panel.getByRole('button', { name: 'Panel de conexiones' }).click()
-    await expect(riel).toHaveCount(0)
+    await expect(riel).toBeHidden()
     const guardado = (): { riel: unknown; recientes: unknown } => {
       try {
         const e = JSON.parse(readFileSync(join(s.datos, 'workspace-state.json'), 'utf8')) as {

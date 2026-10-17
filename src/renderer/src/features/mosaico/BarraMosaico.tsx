@@ -12,6 +12,7 @@ import { ContextMenu, type ContextMenuEntry } from '../../comun/ContextMenu'
 import { PuntoMosaico } from './PuntoMosaico'
 import type { PresetMosaico } from './mosaicoLayout'
 import type { OpcionMosaico } from './mosaicoTeselas'
+import { txMosaico } from './textosMosaico.ts'
 
 interface BarraMosaicoProps {
   /** Cuántas hay en el mosaico y cuántas de ellas trabajan ahora. */
@@ -41,28 +42,16 @@ interface BarraMosaicoProps {
 
 // Los nombres dicen lo que se ve («Columnas», «Filas») y no la palabra técnica
 // («horizontal»), que en distintas terminales significa cosas opuestas.
-const PRESETS: { id: PresetMosaico; nombre: string; ayuda: string; icono: () => React.JSX.Element }[] = [
-  {
-    id: 'auto',
-    nombre: 'Automático',
-    ayuda: 'Automático: reparte según cuántas haya y la forma de la ventana',
-    icono: IconoAuto
-  },
-  {
-    id: 'cuadricula',
-    nombre: 'Cuadrícula',
-    ayuda: 'Cuadrícula: filas y columnas equilibradas (4 en 2 × 2, 6 en 3 × 2), aunque Automático prefiera otra forma',
-    icono: IconoCuadricula
-  },
-  { id: 'columnas', nombre: 'Columnas', ayuda: 'Columnas: todas lado a lado', icono: IconoColumnas },
-  { id: 'filas', nombre: 'Filas', ayuda: 'Filas: todas una debajo de otra', icono: IconoFilas },
-  {
-    id: 'principal',
-    nombre: 'Principal y pila',
-    ayuda: 'Principal y pila: la primera grande a la izquierda y las demás apiladas a la derecha',
-    icono: IconoPrincipal
-  }
-]
+function presetsMosaico(): { id: PresetMosaico; nombre: string; ayuda: string; icono: () => React.JSX.Element }[] {
+  const t = txMosaico().presets
+  return [
+    { id: 'auto', ...t.auto, icono: IconoAuto },
+    { id: 'cuadricula', ...t.cuadricula, icono: IconoCuadricula },
+    { id: 'columnas', ...t.columnas, icono: IconoColumnas },
+    { id: 'filas', ...t.filas, icono: IconoFilas },
+    { id: 'principal', ...t.principal, icono: IconoPrincipal }
+  ]
+}
 
 /** Controles del mosaico que ocupan la barra de título mientras está abierto. */
 export function BarraMosaico({
@@ -78,14 +67,15 @@ export function BarraMosaico({
   onElegirFicha
 }: BarraMosaicoProps): React.JSX.Element {
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
-  const nombrePreset = PRESETS.find((p) => p.id === preset)?.nombre ?? ''
+  const t = txMosaico()
+  const nombrePreset = presetsMosaico().find((p) => p.id === preset)?.nombre ?? ''
   const items = itemsDelSelector(opciones, onAlternar)
 
   return (
-    <div className="barra-mosaico" role="toolbar" aria-label="Mosaico de agentes">
+    <div className="barra-mosaico" role="toolbar" aria-label={t.aria}>
       <span className="barra-mosaico-resumen">
-        {casillas === 1 ? '1 agente' : `${casillas} agentes`}
-        {trabajando > 0 && <span className="barra-mosaico-trabajando"> · {trabajando} trabajando</span>}
+        {t.agentes(casillas)}
+        {trabajando > 0 && <span className="barra-mosaico-trabajando">{t.trabajando(trabajando)}</span>}
       </span>
       <PresetsMosaico preset={preset} onPreset={onPreset} />
       {!presetRespetado && <AvisoPreset nombrePreset={nombrePreset} />}
@@ -101,9 +91,9 @@ export function BarraMosaico({
         }}
         aria-haspopup="menu"
         aria-expanded={menu !== null}
-        title="Elegir qué proyectos se ven (como mucho seis). Los que no están en marcha arrancan al añadirlos, y los dormidos levantan antes su contenedor."
+        title={t.selectorTitulo}
       >
-        {casillas} de {opciones.length}
+        {t.casillasDe(casillas, opciones.length)}
         <IconoDesplegar />
       </button>
       {fichas.length > 0 && <FichasMosaico fichas={fichas} visible={visible} onElegirFicha={onElegirFicha} />}
@@ -119,7 +109,7 @@ export function BarraMosaico({
  */
 function itemsDelSelector(opciones: OpcionMosaico[], onAlternar: (key: string) => void): ContextMenuEntry[] {
   return opciones.map((o) => ({
-    label: `${o.perfil} · ${o.proyecto}${o.dormido ? ' (dormido)' : ''}`,
+    label: `${o.perfil} · ${o.proyecto}${o.dormido ? txMosaico().dormido : ''}`,
     checked: o.esCasilla,
     icon: <PuntoMosaico color={o.color} enMarcha={o.enMarcha} trabajando={o.trabajando} sinVer={o.sinVer} esperando={o.esperando} />,
     onClick: () => onAlternar(o.key)
@@ -135,8 +125,8 @@ function PresetsMosaico({
   onPreset: (p: PresetMosaico) => void
 }): React.JSX.Element {
   return (
-    <span className="barra-mosaico-presets" role="radiogroup" aria-label="Distribución">
-      {PRESETS.map((p) => (
+    <span className="barra-mosaico-presets" role="radiogroup" aria-label={txMosaico().distribucion}>
+      {presetsMosaico().map((p) => (
         <button
           key={p.id}
           type="button"
@@ -162,8 +152,8 @@ function AvisoPreset({ nombrePreset }: { nombrePreset: string }): React.JSX.Elem
   return (
     <span
       className="barra-mosaico-aviso"
-      title={`«${nombrePreset}» no cabe en esta ventana: se usa Automático hasta que haya sitio.`}
-      aria-label={`${nombrePreset} no cabe: se usa Automático`}
+      title={txMosaico().avisoTitulo(nombrePreset)}
+      aria-label={txMosaico().avisoAria(nombrePreset)}
       role="img"
     >
       <IconoAviso />
@@ -182,7 +172,7 @@ function FichasMosaico({
   onElegirFicha: (key: string) => void
 }): React.JSX.Element {
   return (
-    <span className="barra-mosaico-fichas" role="tablist" aria-label="Casilla a la vista">
+    <span className="barra-mosaico-fichas" role="tablist" aria-label={txMosaico().casillaAVista}>
       {fichas.map((f) => {
         const nombre = etiquetaFicha(f, fichas)
         return (

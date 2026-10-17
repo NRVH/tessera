@@ -13,8 +13,8 @@ export { DbArbol } from './DbArbol'
 export { IconoMotor, IconoBd, nombreMotor } from './iconosBd'
 export {
   motivoSinConsola,
-  NOTA_MONTAJE_FORMATO_AJENO,
-  TITULO_FORMATO_AJENO,
+  notaMontajeFormatoAjeno,
+  tituloFormatoAjeno,
   vistaPopoverMontaje
 } from './filasArbolBdAvisos'
 export { ajenasMontadasPopover, filaMontajeAjena } from './filasArbolBdAjenas'

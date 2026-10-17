@@ -7,7 +7,8 @@
 // =============================================================================
 
 import { useEffect } from 'react'
-import { C_DIM, C_ERR, C_RST, HOST_ACCOUNT_ID, type PropsAgentPane } from './agentPaneTipos'
+import { C_DIM, C_ERR, C_RST, HOST_ACCOUNT_ID, agenteManualDe, type PropsAgentPane } from './agentPaneTipos'
+import { esAgenteManual } from '../../../../shared/agentesManuales'
 import {
   abrirSesion, handleReload, liberarActualizacion, prepararActualizacion, relanzarSesion, resumeConversation,
   startNewConversation, type CtxBloqueo, type CtxSesion
@@ -65,7 +66,8 @@ function usePublicarApi(p: PropsAgentPane, c: CtxBloqueo): void {
   const { r, setActualizando, setShowHistory, setMenuModo } = c
   useEffect(() => {
     const publicar = r.onApi.current
-    if (!publicar) return
+    // Un agente manual no se actualiza desde Tessera: no publica API para la actualización nativa.
+    if (!publicar || esAgenteManual(agente)) return
     const bloqueo = { r, setActualizando, setShowHistory, setMenuModo }
     const api: ApiAgentePane = {
       clave: key,
@@ -95,8 +97,9 @@ export function useSesionAgente(
 ): AccionesSesion {
   const { profileId, agente, projectHostPath } = p.target
   const { hostMode, selectedAccountId, hibernated, dbReady } = p
+  const manual = agenteManualDe(p.pestanasAgente, agente)
   const ctx: CtxSesion = {
-    r, s, d: { profileId, agente, projectHostPath, hostMode, selectedAccountId, hibernated, dbReady, reloading: s.reloading }
+    r, s, d: { profileId, agente, manual, projectHostPath, hostMode, selectedAccountId, hibernated, dbReady, reloading: s.reloading }
   }
   useCambioDeCuenta(p, r)
   useReconcile(p, ctx, activated)

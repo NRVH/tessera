@@ -1,8 +1,7 @@
 # Modo Docker: un buzón de archivos por perfil, y el `tdb` real corre en el host
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/db/dockerBridge.ts`, `src/tdb/tdb-container.cjs`, `SandboxManager` (macOS: sin verificar aquí)
-
+- **Ámbito:** `src/main/db/dockerBridge.ts`, `src/tdb/tdb-container.cjs`, `SandboxManager`
 ## Contexto
 
 El contenedor no debe conectar a ninguna base: no tiene la VPN ni los Instant Clients del usuario, y habría dos
@@ -27,9 +26,8 @@ caminos de datos. El puente al host recoge peticiones que el contenedor deja en 
   real y el contenedor daría `permission denied`.
 - El contenedor escribe en el buzón, así que el host nunca sigue un enlace de ahí: lo que escribe (clientes,
   lanzadores, centinela, respuestas) lo crea en exclusiva tras quitar lo que hubiera, y una petición que no es un
-  archivo normal no se lee. Antes, un enlace llamado `tdb` hacía que el host pisara el archivo al que apuntaba
-  (medido también en Windows).
-- Otros dominios registran su programa en el mismo buzón (`registrarPrograma`; hoy `tssh`): sus archivos se copian con los
+  archivo normal no se lee. Un enlace llamado `tdb` haría que el host pisara el archivo al que apunta.
+- Otros dominios registran su programa en el mismo buzón (`registrarPrograma`; p. ej. `tssh`): sus archivos se copian con los
   de `tdb`, su lanzador se escribe igual y sus peticiones llevan `prog`. Sin `prog` es de `tdb`, como las de un cliente de
-  antes; un `prog` que no está registrado contesta que se reinicie Tessera. El archivo de una petición pasa de 64 MiB: no se lee.
+  una versión anterior; un `prog` que no está registrado contesta que se reinicie Tessera. El archivo de una petición pasa de 64 MiB: no se lee.
 - Truncar una respuesta en silencio haría creer que se vio todo: por encima de 8 MiB se descarta con un error.

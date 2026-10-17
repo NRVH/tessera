@@ -8,6 +8,7 @@ import { notify } from '../../comun/notifications'
 import { nombresSistema } from '../../../../shared/nombresSistema'
 import type { Plataforma } from '../../../../shared/plataforma'
 import { useStoreAjustes } from './store'
+import { txIntegracion } from './textosSistema.ts'
 
 /** Pregunta la disponibilidad al canal de la plataforma y si ya está encendida. */
 function estadoIntegracion(
@@ -42,13 +43,8 @@ export function useAvisoIntegracion(): void {
         if (!vivo || e.disponibilidad !== 'ok') return
         // Ya encendida: no se avisa y se da por avisado (si no, al apagarla llegaría el estreno).
         if (!e.yaEsta) {
-          notify(
-            'info',
-            `Nuevo: «${esMac ? 'Abrir en' : 'Abrir con'} Tessera» en ${n.gestorArchivos}`,
-            'Actívalo en Configuración › Integración con el sistema para abrir ' +
-              (soloCarpetas ? 'una carpeta' : 'una carpeta o un archivo') +
-              ' desde el botón derecho.'
-          )
+          const t = txIntegracion().aviso
+          notify('info', t.titulo(esMac, n.gestorArchivos), t.cuerpo(soloCarpetas))
         }
         useStoreAjustes.setState({ menuWindowsAvisado: true })
       })

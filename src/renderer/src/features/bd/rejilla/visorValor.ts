@@ -3,11 +3,12 @@
 // el JSON re-sangrado token a token SIN `JSON.stringify` (que cambia los números grandes y
 // `1.10`), el volcado hexadecimal con tope y los textos de cabecera y avisos. Neutral:
 // sin React, DOM ni Monaco; lo prueba `test-visor-valor.mts`.
-// Decisiones: docs/decisiones/bd/ui-rejilla-modelo-visor.md
+// Decisiones: docs/decisiones/bd/ui-rejilla-visor-valor.md
 // =============================================================================
 
 import type { DbCelda, DbColumnaResultado, DbTipoLogico } from '../../../../../shared/db-explorador-ipc.ts'
 import { HEX, TIPO_MOTOR_BINARIO, formatoEntero } from './celdasRejilla.ts'
+import { txEdicionRejilla } from './textosEdicionRejilla.ts'
 
 export type ModoVisor = 'nulo' | 'texto' | 'json' | 'binario'
 
@@ -211,8 +212,9 @@ export function hexAgrupado(valor: string, tope: number = TOPE_HEX_VISOR): HexAg
 /** «1 carácter», «12 345 caracteres», «1 byte», «2 048 bytes». */
 export function describirLongitud(longitud: number, binario: boolean): string {
   const n = Number.isFinite(longitud) && longitud > 0 ? Math.trunc(longitud) : 0
-  if (binario) return `${formatoEntero(n)} ${n === 1 ? 'byte' : 'bytes'}`
-  return `${formatoEntero(n)} ${n === 1 ? 'carácter' : 'caracteres'}`
+  const t = txEdicionRejilla()
+  if (binario) return `${formatoEntero(n)} ${n === 1 ? t.byte : t.bytes}`
+  return `${formatoEntero(n)} ${n === 1 ? t.caracter : t.caracteres}`
 }
 
 /**
@@ -248,8 +250,9 @@ export function metadatosVisor(tipoMotor: string, modo: ModoVisor, longitud: num
 
 /** Aviso de lo que falta: «Se muestran 65 536 de 180 000 caracteres». */
 export function avisoParcial(mostrado: number, total: number, binario: boolean): string {
-  const unidad = binario ? (total === 1 ? 'byte' : 'bytes') : total === 1 ? 'carácter' : 'caracteres'
-  return `Se muestran ${formatoEntero(mostrado)} de ${formatoEntero(total)} ${unidad}`
+  const t = txEdicionRejilla()
+  const unidad = binario ? (total === 1 ? t.byte : t.bytes) : total === 1 ? t.caracter : t.caracteres
+  return t.seMuestran(formatoEntero(mostrado), formatoEntero(total), unidad)
 }
 
 /** Lenguaje de Monaco para el visor (ver la cabecera: el JSON grande va sin colorear). */
@@ -264,8 +267,9 @@ export function lenguajeVisor(modo: ModoVisor, largo: number): 'json' | 'plainte
  * descartaron para esta entrega: llegan con la edición de celdas, que los necesita
  * igual, y un ctid de PG cambia con cada UPDATE (VACUUM FULL, HOT…) sin avisar.
  */
-export const RAZON_SIN_CLAVE_PRIMARIA =
-  'La tabla no tiene clave primaria: no hay forma fiable de volver a encontrar la fila.'
+export function razonSinClavePrimaria(): string {
+  return txEdicionRejilla().sinClavePrimaria
+}
 
 export type ClaveDeFila = { ok: true; valores: DbCelda[] } | { ok: false; error: string }
 
@@ -281,13 +285,14 @@ export function claveDeFila(
   fila: readonly DbCelda[] | undefined,
   recortada: (columna: number) => boolean
 ): ClaveDeFila {
-  if (clavePrimaria.length === 0) return { ok: false, error: RAZON_SIN_CLAVE_PRIMARIA }
-  if (!fila) return { ok: false, error: 'La fila ya no está cargada.' }
+  const t = txEdicionRejilla()
+  if (clavePrimaria.length === 0) return { ok: false, error: razonSinClavePrimaria() }
+  if (!fila) return { ok: false, error: t.filaYaNoCargadaVisor }
   const valores: DbCelda[] = []
   for (const pk of clavePrimaria) {
     const c = nombresColumnas.indexOf(pk)
-    if (c < 0) return { ok: false, error: `La columna ${pk} de la clave primaria no está en el resultado.` }
-    if (recortada(c)) return { ok: false, error: `El valor de ${pk} (clave primaria) llegó recortado.` }
+    if (c < 0) return { ok: false, error: t.columnaPkNoEsta(pk) }
+    if (recortada(c)) return { ok: false, error: t.pkRecortada(pk) }
     valores.push(c < fila.length ? fila[c] : null)
   }
   return { ok: true, valores }

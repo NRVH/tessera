@@ -2,7 +2,7 @@
 // Núcleo de `useConsola`: la bolsa estable de refs, el estado con su `despachar`
 // SÍNCRONO (el bucle del lote lee el estado resultante justo después de cada acción)
 // y los estados de React que comparten las demás piezas del hook.
-// Decisiones: docs/decisiones/bd/ui-consola-motor.md
+// Decisiones: docs/decisiones/bd/ui-consola-estado.md
 // =============================================================================
 
 import { useCallback, useEffect, useState } from 'react'

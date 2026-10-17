@@ -29,6 +29,7 @@ import { VERSION_MOTOR, elegirMotor } from './javaVersion.ts'
 import { argvMotor, envLimpio, pareceFuenteJava } from './decompilerArgs.ts'
 import type { JavaRuntime } from './JavaRuntime.ts'
 import type { JarService } from './JarService.ts'
+import { txJava } from './textos.ts'
 
 /**
  * Las clases HERMANAS de la que se va a descompilar: los `Foo$*.class` que viven
@@ -238,7 +239,7 @@ export class Decompiler {
         ...base,
         estado: 'entrada-no-soportada',
         ms: Date.now() - t0,
-        mensaje: 'Este archivo no es una clase de Java (le falta la firma 0xCAFEBABE).'
+        mensaje: txJava().descompilador.noEsClase
       }
     }
     const minor = bytes.readUInt16BE(4)
@@ -258,7 +259,7 @@ export class Decompiler {
         bytecode,
         estado: 'motor-no-soportado',
         ms: Date.now() - t0,
-        mensaje: vf?.motivo ?? 'Ese motor no se puede usar con las versiones de Java que hay en el equipo.'
+        mensaje: vf?.motivo ?? txJava().descompilador.motorNoUsable
       }
     }
     const jvm = motor === 'vineflower' ? estadoJava.paraVineflower! : estadoJava.paraCfr!
@@ -465,25 +466,21 @@ export class Decompiler {
         return {
           ...comun,
           estado: 'salida-excesiva',
-          mensaje:
-            'El descompilador generó más texto del que Tessera puede mostrar y se detuvo. ' +
-            'Suele pasar con clases generadas automáticamente.'
+          mensaje: txJava().descompilador.salidaExcesiva
         }
       }
       if (salida.timeout) {
         return {
           ...comun,
           estado: 'timeout',
-          mensaje: `El descompilador tardó más de ${DECOMP_TIMEOUT_MS / 1000} s con esta clase y se detuvo.`
+          mensaje: txJava().descompilador.timeout(DECOMP_TIMEOUT_MS / 1000)
         }
       }
       if (salida.code !== 0) {
         return {
           ...comun,
           estado: 'motor-fallo',
-          mensaje:
-            `${motor === 'cfr' ? 'CFR' : 'Vineflower'} no pudo descompilar esta clase ` +
-            `(terminó con código ${salida.code}). Prueba con el otro motor.`
+          mensaje: txJava().descompilador.motorFallo(motor === 'cfr' ? 'CFR' : 'Vineflower', salida.code)
         }
       }
 
@@ -497,16 +494,12 @@ export class Decompiler {
         return {
           ...comun,
           estado: 'motor-vacio',
-          mensaje:
-            `${motor === 'cfr' ? 'CFR' : 'Vineflower'} terminó sin errores pero no produjo código para esta clase. ` +
-            'Prueba con el otro motor.'
+          mensaje: txJava().descompilador.motorVacio(motor === 'cfr' ? 'CFR' : 'Vineflower')
         }
       }
 
       const truncado = Buffer.byteLength(fuente, 'utf8') > MAX_FUENTE_BYTES
-      const aviso = ctx.degradado
-        ? 'Se usó CFR porque no hay ningún JDK 17 o superior instalado para ejecutar Vineflower.'
-        : ''
+      const aviso = ctx.degradado ? txJava().descompilador.usoCfr : ''
       return {
         ...comun,
         estado: 'ok',

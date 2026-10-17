@@ -22,6 +22,7 @@ import { ListaSftp } from './ListaSftp'
 import { itemsMenuSftp } from './menuSftp'
 import { asegurarFila, moverActivo, SELECCION_VACIA, seleccionarConClic, seleccionarTodo } from './seleccionSftp'
 import { accionTecla } from './teclasSftp'
+import { txSftp } from './textos.ts'
 import { TiraOperacionesSftp } from './TiraOperacionesSftp'
 import { useAccionesSftp, type AccionesSftp } from './useAccionesSftp'
 import { useArrastreSftp } from './useArrastreSftp'
@@ -42,12 +43,13 @@ export interface PropsExploradorSftp {
 
 /** El fallo de abrir la sesión o de su caída, con la salida de volver a intentarlo. */
 function EstadoFallo({ fallo, textoMotivo, onReintentar }: { fallo: FalloSftp; textoMotivo: PropsExploradorSftp['textoMotivo']; onReintentar: () => void }): React.JSX.Element {
-  const titulo = fallo.motivo ? textoMotivo(fallo.motivo) : fallo.caida ? 'Se cortó la conexión' : 'No se pudo abrir el explorador SFTP'
+  const t = txSftp()
+  const titulo = fallo.motivo ? textoMotivo(fallo.motivo) : fallo.caida ? t.seCorto : t.noSePudoAbrir
   return (
     <div className="sftp sftp-centrado">
       <AvisoCaja tono="error" titulo={titulo} sugerencia={fallo.error} />
       <button type="button" className="btn" onClick={onReintentar}>
-        {fallo.caida ? 'Reconectar' : 'Reintentar'}
+        {fallo.caida ? t.reconectar : t.reintentar}
       </button>
     </div>
   )
@@ -117,7 +119,7 @@ function ExploradorListo({ p, sesion, listado }: PropsListo): React.JSX.Element 
         cargando={sesion.cargando}
         elegidos={elegidas.length}
         descargables={elegidas.filter(esDescargable).length}
-        atajoBorrar={plataforma === 'mac' ? '⌘⌫' : 'Supr'}
+        atajoBorrar={txSftp().teclaBorrar(plataforma === 'mac')}
         onIr={sesion.navegar}
         onSubirNivel={sesion.subirNivel}
         onActualizar={sesion.actualizar}
@@ -131,7 +133,7 @@ function ExploradorListo({ p, sesion, listado }: PropsListo): React.JSX.Element 
       {sesion.aviso !== null && (
         <div className="sftp-aviso" role="alert">
           <span className="sftp-aviso-texto">{sesion.aviso}</span>
-          <button type="button" className="sftp-operacion-cerrar" aria-label="Cerrar el aviso" title="Cerrar el aviso" onClick={() => sesion.avisar(null)}>
+          <button type="button" className="sftp-operacion-cerrar" aria-label={txSftp().cerrarAviso} title={txSftp().cerrarAviso} onClick={() => sesion.avisar(null)}>
             ×
           </button>
         </div>
@@ -178,7 +180,7 @@ export function ExploradorSftp(p: PropsExploradorSftp): React.JSX.Element {
     return (
       <div className="sftp sftp-centrado">
         <div className="sftp-conectando" role="status">
-          Conectando…
+          {txSftp().conectando}
         </div>
       </div>
     )

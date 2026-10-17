@@ -16,6 +16,7 @@ import { CatalogoAutocompletado, type MemoriaFallos } from './catalogoAutocomple
 import { contextoEnTexto, estrellaEn, palabraEnCursor, type Contexto, type EstrellaSelect, type PalabraCursor } from './contextoSql.ts'
 import { rutaDeModelo, type RutaConsola } from './enrutadorConsolas.ts'
 import { PrecargaFks, type ModeloVigilable } from './precargaFks.ts'
+import { txAutocompletado } from './textosAutocompletado.ts'
 import {
   construirSugerencias,
   listaDeEstrella,
@@ -57,7 +58,9 @@ export function lenguajesConsolaSql(
 export const LENGUAJES_SQL: readonly string[] = lenguajesConsolaSql()
 
 /** Título de la acción de código (y del ítem de completado) sobre un `*`. */
-export const TITULO_EXPANDIR = 'Expandir columnas'
+export function tituloExpandir(): string {
+  return txAutocompletado().expandirColumnas
+}
 
 export const CARACTERES_DISPARO: readonly string[] = ['.']
 
@@ -433,7 +436,7 @@ function accionExpandir(modelo: ModeloAcciones, estrella: EstrellaSelect, versio
   return {
     actions: [
       {
-        title: TITULO_EXPANDIR,
+        title: tituloExpandir(),
         kind: 'refactor.rewrite',
         isPreferred: true,
         edit: {

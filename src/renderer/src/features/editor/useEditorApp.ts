@@ -8,14 +8,13 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useEditorTabs, type UseEditorTabs } from './useEditorTabs'
-import { deriveTabId, editorTargetKey, untitledName } from './editorTabsModel'
+import { deriveTabId, editorTargetKey, perfilDeTarget, untitledName } from './editorTabsModel'
 import { siguienteMotivoCcOculto, type CenterPane, type OpenFile, type UntitledFile } from './centerPane'
 import { textModelKey, textModels } from './textModelRegistry'
 import type { EditorMeta } from './EditorPane'
 import type { DiffTarget } from './diffEditorTipos'
 import { conMarca, podarConjunto, podarMapa, subirTokens, useStoreEditor } from './store'
-import { fijarAmbito } from '../git'
-import { salirDePantallaCompleta, useStoreLayout, type VistasPorPerfil } from '../layout'
+import { fijarColumna, salirDePantallaCompleta, type VistasPorPerfil } from '../layout'
 import type { UseTabs } from '../pestanas'
 
 /** Opciones de apertura de una pestaña del editor. */
@@ -116,11 +115,12 @@ function useAbrirPestana(
   return useCallback(
     (pane: CenterPane, opts?: OpcionesApertura) => {
       // En el mismo handler que `openTab`, no en un efecto: llegan en el mismo commit. Con la
-      // franja a pantalla completa el editor está tapado: abrir una pestaña sale del modo.
-      useStoreLayout.setState((s) => ({
-        ccExpanded: false,
-        ccOculto: siguienteMotivoCcOculto(s.ccOculto, pane, opts?.colapsarAgente === true)
-      }))
+      // franja a pantalla completa el editor está tapado: abrir una pestaña sale del modo. La
+      // columna que cambia es la del perfil de las pestañas, no la de los demás.
+      fijarColumna(
+        (c) => ({ maximizada: false, oculta: siguienteMotivoCcOculto(c.oculta, pane, opts?.colapsarAgente === true) }),
+        perfilDeTarget(activeEditorKey)
+      )
       salirDePantallaCompleta()
       salirDeBd()
       editorTabs.openTab(pane, opts?.efimera === true)
@@ -248,10 +248,12 @@ function usePedirCierre(
 
 /** Target, pestañas y acciones del editor de la ventana. */
 export function useEditorApp(tabs: UseTabs, vistas: Pick<VistasPorPerfil, 'salirDeBd'>): EditorApp {
-  const confirmed = tabs.confirmedTarget
-  const activeEditorKey = confirmed ? editorTargetKey(confirmed.profileId, confirmed.project.projectHostPath) : null
+  // Las pestañas que se ven son las del proyecto que se ve: cada pane pide al main con su proyecto.
+  const visto = tabs.objetivoVisto
+  const activeEditorKey = visto ? editorTargetKey(visto.profileId, visto.project.projectHostPath) : null
+  // Los avisos del vigilante son del proyecto anclado: solo valen cuando es el que se ve.
   const proyectoAsentado =
-    (tabs.activeProject?.projectHostPath ?? null) === (confirmed?.project.projectHostPath ?? null)
+    (visto?.project.projectHostPath ?? null) === (tabs.confirmedTarget?.project.projectHostPath ?? null)
   // Proyectos abiertos (hibernados incluidos) sin la dimensión de agente; memo = identidad estable.
   const validEditorKeys = useMemo(() => {
     const seen = new Set<string>()
@@ -290,8 +292,6 @@ export function useEditorApp(tabs: UseTabs, vistas: Pick<VistasPorPerfil, 'salir
   }, [editorMetaByKey, activeEditorKey, activeId])
   const sinTitulo = useSinTitulo(editorTabs, activeEditorKey, openEditorTab)
   const requestCloseTab = usePedirCierre(editorTabs, activeEditorKey, dirtyTabIds, closeEditorTab)
-  // En el render y no en un efecto: los efectos de los panes de diff corren antes que los de App.
-  fijarAmbito(activeEditorKey ?? '')
   const activeTabPane = editorTabs.activeTab?.pane ?? null
   return {
     activeEditorKey,

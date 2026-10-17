@@ -22,6 +22,7 @@ import {
 import path from 'node:path'
 import type { ClientRequest } from 'electron'
 import { rutaUserData } from '../util/infoApp'
+import { txUpdate } from './textos.ts'
 
 /** Dónde se dejan las descargas: `<userData>/tessera-updater/pending`. */
 export function dirPendienteMac(): string {
@@ -127,15 +128,11 @@ export async function descargarZipMac(o: DescargaZipMac): Promise<void> {
     calculado = await sha512DeArchivo(parcial)
   } catch (err) {
     rmSync(parcial, { force: true })
-    throw new Error(`no se pudo leer la descarga para verificarla: ${String(err)}`, { cause: err })
+    throw new Error(txUpdate().descarga.noSeLeyo(String(err)), { cause: err })
   }
   if (calculado !== o.sha512) {
     rmSync(parcial, { force: true })
-    throw new Error(
-      'la actualización descargada no coincide con la que el servidor anuncia ' +
-        `(sha512 esperado ${o.sha512.slice(0, 12)}…, obtenido ${calculado.slice(0, 12)}…); ` +
-        'se ha descartado el archivo.'
-    )
+    throw new Error(txUpdate().descarga.noCoincide(o.sha512.slice(0, 12), calculado.slice(0, 12)))
   }
 
   // Sólo AHORA existe el nombre bueno. Se pisa lo que hubiera: es la misma versión y
@@ -202,10 +199,7 @@ function bajarA(ruta: string, o: DescargaZipMac): Promise<number> {
       parar()
       vigia = setTimeout(() => {
         fallar(
-          new Error(
-            `la descarga se quedó sin respuesta durante ${Math.round(MS_SIN_DATOS / 1000)} s ` +
-              `(${bytes} bytes recibidos); se ha descartado lo bajado.`
-          )
+          new Error(txUpdate().descarga.sinRespuesta(Math.round(MS_SIN_DATOS / 1000), bytes))
         )
       }, MS_SIN_DATOS)
     }
@@ -223,7 +217,7 @@ function bajarA(ruta: string, o: DescargaZipMac): Promise<number> {
       // que esta respuesta y su `content-length` ya son las del destino final. Si aun así
       // llega un 3xx sin cuerpo útil, o un 404, es un error y no medio zip.
       if (res.statusCode < 200 || res.statusCode >= 300) {
-        fallar(new Error(`el servidor respondió ${res.statusCode} al pedir la actualización`))
+        fallar(new Error(txUpdate().descarga.servidorRespondio(res.statusCode)))
         // Hay que drenar o la petición queda colgada.
         res.on('data', () => {})
         res.on('end', () => {})
@@ -252,7 +246,7 @@ function bajarA(ruta: string, o: DescargaZipMac): Promise<number> {
       res.on('error', fallar)
       // El cuerpo se cortó a media respuesta: la pila de red lo dice así y NO emite
       // `error`. Es el corte que dejaba la promesa colgada.
-      res.on('aborted', () => fallar(new Error('la descarga se interrumpió antes de terminar')))
+      res.on('aborted', () => fallar(new Error(txUpdate().descarga.interrumpida)))
       // NO SE ESCUCHA NINGÚN `close`: el de la petición llega un milisegundo después de
       // `end()` (en un GET el lado de escritura se cierra con la cabecera) y declaraba
       // cortada toda descarga; el de la respuesta no está en el contrato de Electron. Un
@@ -265,7 +259,7 @@ function bajarA(ruta: string, o: DescargaZipMac): Promise<number> {
           try {
             const real = statSync(ruta).size
             if (real !== bytes) {
-              fallar(new Error(`la descarga se escribió incompleta (${real} de ${bytes} bytes)`))
+              fallar(new Error(txUpdate().descarga.incompleta(real, bytes)))
               return
             }
           } catch (err) {

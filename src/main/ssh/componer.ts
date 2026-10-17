@@ -43,6 +43,7 @@ import { registrarIpcSsh } from './ipc'
 import { registrarIpcSftp } from './sftp/ipc'
 import { SesionesSftp } from './sftp/SesionesSftp'
 import { lanzadorAskpassSh, rutaGuionAskpass, rutaProgramaAskpass } from './programaAskpass'
+import { txSsh } from './textos.ts'
 
 /** Lo que la composición de SSH recibe de `index.ts`. */
 export interface DepsSsh {
@@ -160,6 +161,7 @@ function crearPuenteTssh(
     listar: (profileId) => conexiones.listar(profileId),
     conexion: (id) => conexiones.conexion(id),
     rutaHuellas: (id) => conexiones.rutaHuellas(id),
+    carpetaHuellas: conexiones.carpetaHuellas,
     rutaClave: (id) => conexiones.rutaClave(id),
     askpass,
     binarios,
@@ -220,9 +222,9 @@ async function elegirConfigOpenSsh(refs: ReferenciasApp): Promise<string | null>
   const r = await elegirConDialogo(
     'config-ssh',
     {
-      title: 'Elige el archivo de configuración de OpenSSH',
+      title: txSsh().openssh.tituloImportar,
       properties: ['openFile', 'showHiddenFiles'],
-      buttonLabel: 'Importar',
+      buttonLabel: txSsh().openssh.botonImportar,
       ...(existsSync(config) ? { defaultPath: config } : {})
     },
     { ventana: refs.ventana, despues: [dirSsh] }
@@ -239,7 +241,11 @@ async function elegirDestinoOpenSsh(refs: ReferenciasApp): Promise<string | null
   const r = await guardarConDialogo(
     'config-ssh-exportar',
     'config-tessera',
-    { title: 'Exportar las conexiones a OpenSSH', buttonLabel: 'Exportar', properties: ['showHiddenFiles', 'createDirectory', 'showOverwriteConfirmation'] },
+    {
+      title: txSsh().openssh.tituloExportar,
+      buttonLabel: txSsh().openssh.botonExportar,
+      properties: ['showHiddenFiles', 'createDirectory', 'showOverwriteConfirmation']
+    },
     { ventana: refs.ventana, despues: [dirSsh] }
   )
   return r.canceled || !r.filePath ? null : r.filePath
@@ -255,14 +261,26 @@ function crearSesionesSftp(controlador: ControladorSsh, refs: ReferenciasApp): S
     linea: (profileId, conexionId) => controlador.prepararSftp(profileId, conexionId),
     clasificar: (codigo, cola) => controlador.clasificar(codigo, cola),
     elegirCarpetaDescarga: async () => {
-      const opciones: Electron.OpenDialogOptions = { title: 'Elige dónde descargar', properties: ['openDirectory', 'createDirectory'], buttonLabel: 'Descargar aquí' }
+      const opciones: Electron.OpenDialogOptions = {
+        title: txSsh().sftpDialogos.tituloDescarga,
+        properties: ['openDirectory', 'createDirectory'],
+        buttonLabel: txSsh().sftpDialogos.botonDescarga
+      }
       const r = await elegirConDialogo('sftp-descarga', opciones, { ventana: refs.ventana })
       return r.canceled ? null : (r.filePaths[0] ?? null)
     },
     elegirParaSubir: async (carpeta) => {
       const opciones: Electron.OpenDialogOptions = carpeta
-        ? { title: 'Elige la carpeta que subir', properties: ['openDirectory'], buttonLabel: 'Subir' }
-        : { title: 'Elige los archivos que subir', properties: ['openFile', 'multiSelections'], buttonLabel: 'Subir' }
+        ? {
+            title: txSsh().sftpDialogos.tituloSubirCarpeta,
+            properties: ['openDirectory'],
+            buttonLabel: txSsh().sftpDialogos.botonSubir
+          }
+        : {
+            title: txSsh().sftpDialogos.tituloSubirArchivos,
+            properties: ['openFile', 'multiSelections'],
+            buttonLabel: txSsh().sftpDialogos.botonSubir
+          }
       const r = await elegirConDialogo('sftp-subida', opciones, { ventana: refs.ventana })
       return r.canceled ? null : r.filePaths
     },

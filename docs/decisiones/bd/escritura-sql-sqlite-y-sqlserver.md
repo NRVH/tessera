@@ -6,8 +6,7 @@
 ## Contexto
 
 Como PostgreSQL, son cortos porque el cliente de línea (`sqlite3`, `sqlcmd`) lee las comillas: un
-literal es una cadena y cada fila del guion, una sentencia de una línea. Lo de SQL Server está medido
-contra un 2022 con el `sqlcmd` (ODBC) de la imagen oficial.
+literal es una cadena y cada fila del guion, una sentencia de una línea. El de SQL Server está pensado para el `sqlcmd` (ODBC).
 
 ## Decisión
 

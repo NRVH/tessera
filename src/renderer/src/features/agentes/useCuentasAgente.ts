@@ -9,6 +9,13 @@
 import { useEffect, type Dispatch, type SetStateAction } from 'react'
 import type { AgentAccount } from '../../../../shared/agent-accounts-ipc'
 import type { PropsAgentPane } from './agentPaneTipos'
+import type { AgentKind } from '../../../../shared/agent-terminal-ipc'
+import { esAgenteManual } from '../../../../shared/agentesManuales'
+
+/** El agente de un pane con cuentas: solo los de serie las tienen (un manual se salta la carga y sus menús). */
+function agenteConCuentas(p: PropsAgentPane): AgentKind {
+  return p.target.agente as AgentKind
+}
 import type { EstadoSesion } from './useEstadoAgentPane'
 import type { RefsAgentPane } from './useRefsAgentPane'
 
@@ -29,14 +36,17 @@ export function useCuentasAgente(
   activated: boolean,
   setAddingAccount: Dispatch<SetStateAction<boolean>>
 ): AccionesCuenta {
-  const { profileId, agente } = p.target
+  const { profileId } = p.target
+  const agente = agenteConCuentas(p)
+  const manual = esAgenteManual(p.target.agente)
   const { hostMode, visible, selectedAccountId } = p
   const { cuentas, accounts } = s
 
   // Recarga también al hacerse visible: si otra pestaña del perfil crea la cuenta, al
   // volver aquí la auto-selección la adopta.
   useEffect(() => {
-    if (!activated || hostMode) return // modo nativo: sin cuentas, no se cargan
+    // Modo nativo o agente manual: sin cuentas, no se cargan.
+    if (!activated || hostMode || manual) return
     let cancelled = false
     window.tessera.agentAccounts
       .list({ profileId, agente })
@@ -49,7 +59,7 @@ export function useCuentasAgente(
     return () => {
       cancelled = true
     }
-  }, [activated, visible, hostMode, profileId, agente, cuentas])
+  }, [activated, visible, hostMode, manual, profileId, agente, cuentas])
 
   // Si la recordada ya no vale, se adopta LA que haya (0 o 1); sin cuenta -> null.
   useEffect(() => {
@@ -63,7 +73,8 @@ export function useCuentasAgente(
 
 /** `elegir` aplica la selección en el MISMO turno que la lista (undefined = no tocarla). */
 async function loadAccounts(p: PropsAgentPane, r: RefsAgentPane, s: EstadoSesion, elegir?: Elegir): Promise<AgentAccount[]> {
-  const { profileId, agente } = p.target
+  const { profileId } = p.target
+  const agente = agenteConCuentas(p)
   const list = await window.tessera.agentAccounts.list({ profileId, agente })
   s.cuentas.setState({ lista: list })
   const elegida = elegir?.(list)
@@ -72,7 +83,8 @@ async function loadAccounts(p: PropsAgentPane, r: RefsAgentPane, s: EstadoSesion
 }
 
 function accionesCuenta(p: PropsAgentPane, r: RefsAgentPane, s: EstadoSesion, setAddingAccount: Dispatch<SetStateAction<boolean>>): AccionesCuenta {
-  const { profileId, agente } = p.target
+  const { profileId } = p.target
+  const agente = agenteConCuentas(p)
   return {
     // Crea LA cuenta, la selecciona y arranca su login. Si otra pestaña ya la creó,
     // recarga y adopta la existente.

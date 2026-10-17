@@ -1,7 +1,7 @@
 # El SSH del usuario se monta READ-ONLY en todo contenedor y su config se traduce
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/sandbox/sshSetup.ts`, `gestor/montajes.ts`, `src/main/agents/gitInContainer.ts` (macOS: sin verificar aquí)
+- **Ámbito:** `src/main/sandbox/sshSetup.ts`, `gestor/montajes.ts`, `src/main/agents/gitInContainer.ts`
 
 ## Contexto
 

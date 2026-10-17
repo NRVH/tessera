@@ -57,35 +57,34 @@ const NOMBRES = ['Windows', 'macOS', 'PowerShell', 'Explorador', 'Finder', 'DPAP
  */
 const EXCEPCIONES: readonly { archivo: string; motivo: string }[] = [
   {
-    archivo: 'src/renderer/src/features/ajustes/categorias/Integracion.tsx',
+    archivo: 'src/renderer/src/features/ajustes/textosSistema.ts',
     motivo:
-      'sus dos bloques se montan cada uno en UNA plataforma (`AJUSTES_POR_PLATAFORMA`), ' +
-      'así que ahí el nombre es el asunto, no una variable'
+      'los textos de los dos bloques de Integración, que se montan cada uno en UNA plataforma ' +
+      '(`AJUSTES_POR_PLATAFORMA`): ahí el nombre es el asunto, no una variable'
+  },
+  {
+    archivo: 'src/renderer/src/features/ajustes/textosCatalogo.ts',
+    motivo:
+      'los títulos de los grupos «Explorador de Windows» y «Finder», que sólo se montan en su ' +
+      'plataforma, y el nombre de la fila «Explorador» (el panel de archivos DE TESSERA)'
+  },
+  {
+    archivo: 'src/renderer/src/features/ajustes/textos.ts',
+    motivo:
+      '«Explorador» aquí es el panel de archivos DE TESSERA, no el del sistema: la fila de ' +
+      'Apariencia y la ayuda de la vista de bases de datos que hereda su tamaño de letra'
+  },
+  {
+    archivo: 'src/renderer/src/features/explorador/textos.ts',
+    motivo:
+      '«Explorador» aquí es el panel de archivos DE TESSERA, no el de Windows: es su nombre en ' +
+      'la propia app y se llama igual en las dos plataformas. Lo que habla del gestor del ' +
+      'sistema sale de `gestorArchivos`; antes de escribir «Explorador» aquí, comprobar de ' +
+      'cuál de los dos se habla.'
   },
   {
     archivo: 'src/renderer/src/features/ajustes/catalogo.ts',
     motivo: 'el título del grupo «Explorador de Windows», que sólo se monta en Windows'
-  },
-  {
-    archivo: 'src/renderer/src/features/explorador/Sidebar.tsx',
-    motivo:
-      '«Explorador» aquí es el panel de archivos DE TESSERA, no el de Windows: es su ' +
-      'nombre en la propia app y se llama igual en las dos plataformas. OJO: esta ' +
-      'exención tapó durante un tiempo un «Abrir en el explorador» del menú que SÍ ' +
-      'hablaba del gestor del sistema; ahora sale de `gestorArchivos`. Antes de ' +
-      'escribir «Explorador» aquí, comprobar de cuál de los dos se habla.'
-  },
-  {
-    archivo: 'src/renderer/src/features/ajustes/categorias/Apariencia.tsx',
-    motivo: 'la fila «Explorador» es el tamaño de letra del panel de archivos de Tessera'
-  },
-  {
-    archivo: 'src/renderer/src/features/ajustes/categorias/BasesDeDatos.tsx',
-    motivo:
-      'el tamaño de letra de la vista de BD hereda de la fila «Explorador» de Apariencia, ' +
-      'el panel de archivos DE TESSERA, y la ayuda lo nombra por ese nombre. Nada de esta ' +
-      'categoría habla del gestor de archivos del sistema; si algún día lo hace, sale de ' +
-      '`gestorArchivos`'
   }
 ]
 

@@ -1,18 +1,19 @@
 // =============================================================================
 // useAperturasExplorador: el lado del renderer de «Abrir con Tessera». El main resuelve
 // la ruta y la deja en una cola; aquí se recoge (`shellWindows.tomar`) y se ejecuta:
-// abrir o activar el proyecto, y después abrir el archivo o revelarlo en el árbol
-// cuando el backend confirma el proyecto. Depende de los ajustes y las pestañas cargados,
-// del perfil activo y del objetivo confirmado; las decisiones puras están en planAperturas.
+// abrir o activar el proyecto, y después abrir el archivo o revelarlo en el árbol en
+// cuanto el proyecto es el que se ve. Depende de los ajustes y las pestañas cargados, del
+// perfil activo y del objetivo que se ve; las decisiones puras están en planAperturas.
 // Decisiones: docs/decisiones/renderer/abrir-con-tessera.md
 // =============================================================================
 
-import { useCallback, useEffect, useRef, type MutableRefObject } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, type MutableRefObject } from 'react'
 import { notify } from '../../comun/notifications'
 import type { AperturaResuelta, MotivoFalloApertura } from '../../../../shared/shell-windows-ipc'
 import { nombresSistema } from '../../../../shared/nombresSistema'
 import type { Plataforma } from '../../../../shared/plataforma'
 import { peticionTomar, planApertura } from './planAperturas'
+import { txPestanas } from './textos.ts'
 
 /** Una apertura recogida que todavía no se ha podido completar del todo. */
 interface Pendiente {
@@ -38,11 +39,12 @@ const PACIENCIA_MS = 20_000
  * `sin-permiso` nombra a quien deniega, que depende del sistema (`nombresSistema`).
  */
 function textoFallo(plataforma: Plataforma): Record<MotivoFalloApertura, string> {
+  const t = txPestanas().aperturas
   return {
-    'no-existe': 'ya no existe',
-    'sin-permiso': `no se puede leer (${nombresSistema(plataforma).sistema} deniega el acceso)`,
-    'ruta-invalida': 'no se pudo abrir',
-    'fuera-de-la-contenedora': 'quedó fuera de la carpeta del proyecto'
+    'no-existe': t.noExiste,
+    'sin-permiso': t.sinPermiso(nombresSistema(plataforma).sistema),
+    'ruta-invalida': t.rutaInvalida,
+    'fuera-de-la-contenedora': t.fuera
   }
 }
 
@@ -55,8 +57,8 @@ export interface AperturasExploradorArgs {
   activeProfileId: string | null
   /** Proyectos abiertos ahora mismo, de todos los perfiles. */
   abiertos: readonly { profileId: string; projectHostPath: string }[]
-  /** Target confirmado por el backend (perfil + proyecto), o null. */
-  confirmado: { profileId: string; projectHostPath: string } | null
+  /** El perfil y el proyecto que se ven (`objetivoVisto`), o null. */
+  visto: { profileId: string; projectHostPath: string } | null
   /** Abre/activa un proyecto de ruta conocida (la acuñó el main). */
   openKnownProject: (
     profileId: string,
@@ -119,10 +121,8 @@ function avanzarPendiente(p: Pendiente, a: AperturasExploradorArgs, ahora: numbe
       if (!vencida) return p
       notify(
         'warn',
-        `No se pudo abrir «${ap.contenedora.name}»`,
-        a.pestanasCargadas
-          ? 'No hay ningún perfil donde abrirlo. Crea uno y vuelve a intentarlo.'
-          : 'Las pestañas no terminaron de cargar. Vuelve a intentarlo.'
+        txPestanas().aperturas.noSePudoAbrir(ap.contenedora.name),
+        a.pestanasCargadas ? txPestanas().aperturas.sinPerfil : txPestanas().aperturas.sinCargar
       )
       return null
     }
@@ -132,19 +132,19 @@ function avanzarPendiente(p: Pendiente, a: AperturasExploradorArgs, ahora: numbe
   // Una carpeta que ERA la contenedora se abre y punto, sin esperar a ninguna confirmación.
   if (ap.archivo === null && ap.revelar === null) return null
 
-  // Tocar el editor y el árbol exige que el backend haya CONFIRMADO el target;
-  // antes, `openTab` sería un no-op silencioso.
+  // El editor y el árbol son los del proyecto que se ve, y piden al main con su proyecto: basta
+  // con que el destino sea el que se ve. Antes, `openTab` abriría en el anterior.
   const destino = ap.contenedora.projectHostPath
   const listo =
-    a.confirmado !== null &&
-    a.confirmado.profileId === perfil &&
-    a.confirmado.projectHostPath.toLowerCase() === destino.toLowerCase()
+    a.visto !== null &&
+    a.visto.profileId === perfil &&
+    a.visto.projectHostPath.toLowerCase() === destino.toLowerCase()
   if (!listo) {
     if (!vencida) return { ...p, profileId: perfil }
     notify(
       'warn',
-      `«${ap.contenedora.name}» tardó demasiado en abrirse`,
-      'El proyecto se abrió, pero no dio tiempo a mostrar lo que señalaste.'
+      txPestanas().aperturas.tardoDemasiado(ap.contenedora.name),
+      txPestanas().aperturas.tardoDetalle
     )
     return null
   }
@@ -236,8 +236,8 @@ function useRecogerAperturas(
         if (!r.ok) {
           notify(
             'warn',
-            `No se pudo abrir «${r.nombre}»`,
-            `La ruta ${textoFallo(window.tessera.plataforma)[r.motivo]}.`
+            txPestanas().aperturas.noSePudoAbrir(r.nombre),
+            txPestanas().aperturas.laRuta(textoFallo(window.tessera.plataforma)[r.motivo])
           )
           continue
         }
@@ -264,7 +264,7 @@ function useRecogerAperturas(
 export function useAperturasExplorador(args: AperturasExploradorArgs): void {
   // Solo se desestructura lo que gobierna CUÁNDO corren los efectos; lo demás se lee por
   // ref, porque meterlo en las deps volvería a suscribir el canal en cada render.
-  const { ajustesCargados, pestanasCargadas, activeProfileId, confirmado } = args
+  const { ajustesCargados, pestanasCargadas, activeProfileId, visto } = args
   const ref = useRef(args)
   ref.current = args
 
@@ -280,9 +280,10 @@ export function useAperturasExplorador(args: AperturasExploradorArgs): void {
     return window.tessera.shellWindows.onHay(() => void recoger())
   }, [ajustesCargados, recoger])
 
-  // Lo pendiente avanza en cuanto el backend confirma el proyecto, aparece un perfil o
-  // terminan de cargarse las pestañas.
-  useEffect(() => {
+  // Lo pendiente avanza en cuanto el proyecto es el que se ve, aparece un perfil o terminan de
+  // cargarse las pestañas. De LAYOUT: el archivo se abre antes de pintar el commit en que su
+  // proyecto pasa a verse, así no se pinta un fotograma con la columna sin él.
+  useLayoutEffect(() => {
     procesar()
-  }, [confirmado, activeProfileId, pestanasCargadas, procesar])
+  }, [visto, activeProfileId, pestanasCargadas, procesar])
 }

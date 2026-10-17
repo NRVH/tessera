@@ -10,6 +10,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { CapaFlotante } from './comun/capaFlotante'
 import { Toaster } from './comun/Toaster'
 import { TooltipPropio } from './comun/TooltipPropio'
+import { MenuDeEditores } from './comun/MenuDeEditores'
 import { useZonaEnfocada } from './util/zonaEnfocada'
 import { contarRender } from './util/contadorRenders'
 import { AgentAppearanceContext, TerminalAppearanceContext } from './theme/terminalAppearance'
@@ -43,7 +44,8 @@ import {
   useAutoHibernacion,
   useAvisosSandbox,
   useColumnaAgente,
-  useSesionesNativas
+  useSesionesNativas,
+  useAgentesDe
 } from './features/agentes/app'
 import { useStoreAjustes } from './features/ajustes'
 import { useAvisoIntegracion, useDensidad, usePersistenciaAjustes } from './features/ajustes/app'
@@ -54,7 +56,9 @@ import { useAccionesGit, useEstadoGit } from './features/git/app'
 
 /** La primera mitad de los hooks de la ventana (pestañas, vistas, editor, columna y agentes). */
 function usePrimerosDeLaVentana() {
-  const tabs = useTabs()
+  // Las pestañas de agente de cada proyecto dependen de su modo y de los agentes manuales.
+  const agentesDe = useAgentesDe()
+  const tabs = useTabs(agentesDe)
   const vistas = useVistasPorPerfil(tabs)
   useAvisosSandbox()
   const editor = useEditorApp(tabs, vistas)
@@ -70,7 +74,7 @@ function usePrimerosDeLaVentana() {
     hayPestanasEditor: editor.editorTabs.tabs.length > 0,
     conTerminales
   })
-  const actividad = useActividadAgentes(tabs, agentes, columna.ccHidden)
+  const actividad = useActividadAgentes(agentes, columna.ccHidden)
   const tintas = useTintasPerfil(tabs)
   return { tabs, vistas, editor, terminales, conTerminales, columna, densidad, espacios, agenteTerminal, modo, tamanos, agentes, actividad, tintas }
 }
@@ -79,14 +83,7 @@ function usePrimerosDeLaVentana() {
 function useFeaturesDeLaVentana() {
   const primeros = usePrimerosDeLaVentana()
   const { tabs, vistas, editor, espacios, agenteTerminal, modo, agentes, actividad, tintas } = primeros
-  const mosaico = useMosaico(
-    tabs,
-    actividad,
-    agentes.activeTargetKey,
-    modo.decideProjectMode,
-    agentes.openAgentTarget,
-    tintas.tintasPorPerfil
-  )
+  const mosaico = useMosaico(tabs, actividad, agentes, modo.decideProjectMode, tintas.tintasPorPerfil)
   const sesiones = useSesionesNativas(tabs, actividad, mosaico.candidatosMosaico)
   useAperturasApp(tabs, editor.openEditorTab, modo.forzarModoWindows, vistas.salirDeBd)
   useAvisoIntegracion()
@@ -145,13 +142,14 @@ function useMaximizados(conTerminales: boolean, agentes: AgentesApp, tabs: Retur
   return { franjaPantallaCompleta, maximizarAgenteTerminal }
 }
 
-/** Lo que flota sobre todo sin depender del estado de la app: el cierre, los avisos y el tooltip. */
+/** Lo que flota sobre todo sin depender del estado de la app: el cierre, los avisos, el tooltip y el menú de los editores. */
 function CapasDeAviso(): React.JSX.Element {
   return (
     <>
       <ShutdownOverlay />
       <Toaster />
       <TooltipPropio />
+      <MenuDeEditores />
     </>
   )
 }

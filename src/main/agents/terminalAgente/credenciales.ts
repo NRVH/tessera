@@ -5,10 +5,10 @@
 // Decisiones: docs/decisiones/agentes/sesion-del-agente-en-el-main.md
 // =============================================================================
 
-import type { Agente } from '../../profiles/types'
+import type { IdAgente } from '../../../shared/agentesManuales'
 
 /** Clave del refcount de credencial: `${profileId}/${agente}/${accountId}`. */
-export function cfgRefKey(profileId: string, agente: Agente, accountId: string): string {
+export function cfgRefKey(profileId: string, agente: IdAgente, accountId: string): string {
   return `${profileId}/${agente}/${accountId}`
 }
 

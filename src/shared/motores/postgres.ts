@@ -7,6 +7,7 @@
 import type { DescriptorMotor } from './tipos.ts'
 import { definirMotor } from './definir.ts'
 import { destinoDeRed } from './destinoRed.ts'
+import { txMotores } from './textosMotores.ts'
 
 /** Esquemas del sistema que la rejilla no edita (la regla que no pregunta al servidor). */
 const ESQUEMAS_SISTEMA_POSTGRES: readonly string[] = ['pg_catalog', 'information_schema', 'pg_toast']
@@ -22,7 +23,11 @@ export const POSTGRES: DescriptorMotor<'postgres'> = definirMotor({
     tlsPorDefecto: { cifrar: false, confiarCertificado: false },
     tlsSoloCifrando: true,
     excluyentes: [],
-    faltaDestino: { database: 'PostgreSQL necesita el nombre de la base.' },
+    faltaDestino: {
+      get database() {
+        return txMotores().necesitaBase('PostgreSQL')
+      }
+    },
     // El SID que quedó escrito con Oracle elegido no se borra al cambiar de motor
     // (volver a Oracle no debe perderlo): se descarta al guardar (`camposConexion.ts`).
     descartarAlGuardar: ['sid'],

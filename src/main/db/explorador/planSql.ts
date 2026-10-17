@@ -7,6 +7,7 @@
 // =============================================================================
 
 import type { DbNodoPlan } from '../../../shared/db-explorador-ipc.ts'
+import { crearTextos } from '../../../shared/i18n.ts'
 import { MAX_NODOS_PLAN, numero, texto } from './planSqlComun.ts'
 
 export * from './planSqlPg.ts'
@@ -66,9 +67,25 @@ export const SQL_NODOS_ORACLE = [
 /** El texto del plan como lo da SQL*Plus. */
 export const SQL_TEXTO_ORACLE = "SELECT plan_table_output FROM TABLE(DBMS_XPLAN.DISPLAY('PLAN_TABLE', :id, 'TYPICAL'))"
 
-export const AVISO_BINDS_ORACLE =
-  'Oracle no mira el valor de los parámetros al explicar (EXPLAIN PLAN no hace «bind peeking»): el plan de la ejecución real puede ser otro.'
-export const AVISO_PLAN_RECORTADO = `El plan tiene más de ${MAX_NODOS_PLAN} pasos: se enseñan los primeros.`
+const avisosPlanEs = {
+  bindsOracle:
+    'Oracle no mira el valor de los parámetros al explicar (EXPLAIN PLAN no hace «bind peeking»): el plan de la ejecución real puede ser otro.',
+  planRecortado: `El plan tiene más de ${MAX_NODOS_PLAN} pasos: se enseñan los primeros.`
+}
+const txAvisosPlan = crearTextos(
+  avisosPlanEs,
+  {
+    bindsOracle:
+      'Oracle does not look at parameter values when explaining (EXPLAIN PLAN does not do “bind peeking”): the real execution plan may differ.',
+    planRecortado: `The plan has more than ${MAX_NODOS_PLAN} steps: only the first ones are shown.`
+  }
+)
+
+/** Los avisos del plan en el idioma activo; las constantes son el español fijo que comparan las pruebas. */
+export const avisoBindsOracle = (): string => txAvisosPlan().bindsOracle
+export const avisoPlanRecortado = (): string => txAvisosPlan().planRecortado
+export const AVISO_BINDS_ORACLE = avisosPlanEs.bindsOracle
+export const AVISO_PLAN_RECORTADO = avisosPlanEs.planRecortado
 
 /** Filas de `SQL_NODOS_ORACLE` -> nodos. */
 export function nodosOracle(filas: readonly (readonly unknown[])[]): DbNodoPlan[] {

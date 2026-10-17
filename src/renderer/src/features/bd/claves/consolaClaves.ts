@@ -3,13 +3,14 @@
 // línea), elige los que ejecuta Ctrl/⌘+Enter, pinta cada respuesta como la consola de línea
 // de comandos de Redis y lleva el registro que se enseña debajo. Sin React, DOM ni Monaco;
 // lo prueba `test-consola-claves.mts`.
-// Decisiones: docs/decisiones/bd/ui-claves-comandos-y-registro.md
+// Decisiones: docs/decisiones/bd/ui-claves-consola.md
 // =============================================================================
 
 import type { DbKvBytes, DbKvRespuesta } from '../../../../../shared/db-claves-ipc.ts'
 import type { DbErrorSql } from '../../../../../shared/db-explorador-ipc.ts'
 import { formatoDuracion } from '../consola/marcasConsola.ts'
 import { cantidad, horaDe, textoError, type AccionSalida, type IrAPosicion } from '../consola/salidaConsola.ts'
+import { txConsolaClaves } from './textosConsolaClaves.ts'
 
 // --- Partir en comandos ----------------------------------------------------------------
 
@@ -196,7 +197,7 @@ export function baseTrasResultado(actual: number, r: { base: number }): number {
 
 /** La nota del registro cuando la base cambia. */
 export function textoCambioBase(base: number): string {
-  return `Base de la consola: db${base}`
+  return txConsolaClaves().cambioBase(base)
 }
 
 /** Lo que se teclea en el filtro del selector de base (`3`, `db3`) → el número, o null. */
@@ -316,7 +317,8 @@ export function formatearRespuesta(r: DbKvRespuesta, cruda = false): LineaRespue
   if (lineas.length > MAX_LINEAS_RESPUESTA) {
     const fuera = lineas.length - MAX_LINEAS_RESPUESTA
     lineas = lineas.slice(0, MAX_LINEAS_RESPUESTA)
-    lineas.push({ texto: `… ${cantidad(fuera, 'línea más', 'líneas más')} sin mostrar`, tono: 'tenue' })
+    const t = txConsolaClaves()
+    lineas.push({ texto: t.sinMostrar(cantidad(fuera, t.lineaMas, t.lineasMas)), tono: 'tenue' })
   }
   return lineas.map(recortarLinea)
 }
@@ -326,11 +328,12 @@ export function formatearRespuesta(r: DbKvRespuesta, cruda = false): LineaRespue
 const PREFIJO_TESSERA = 'TESSERA-'
 /** El código del error de sintaxis del trabajador (el de documentos, reutilizado). */
 export const CODIGO_SINTAXIS = 'TESSERA-SINTAXIS'
-const YA_DICE_NO_ENVIADO = /no se envi[oó]/i
+const YA_DICE_NO_ENVIADO = /no se envi[oó]|not sent/i
 
 function noEnviado(mensaje: string): string {
-  const m = mensaje.trim() || 'Error desconocido'
-  return YA_DICE_NO_ENVIADO.test(m) ? m : `No se envió: ${m}`
+  const t = txConsolaClaves()
+  const m = mensaje.trim() || t.errorDesconocido
+  return YA_DICE_NO_ENVIADO.test(m) ? m : t.noSeEnvio(m)
 }
 
 /**
@@ -344,10 +347,11 @@ export function lineaDeError(e: Pick<DbErrorSql, 'motivo' | 'codigo' | 'mensaje'
   const mensaje = (e.mensaje ?? '').trim()
   const deTessera = codigo.startsWith(PREFIJO_TESSERA)
   if (e.motivo === 'servidor') {
-    if (codigo === CODIGO_SINTAXIS) return { texto: `(error) ${mensaje || 'Error de sintaxis'}`, tono: 'error' }
+    const t = txConsolaClaves()
+    if (codigo === CODIGO_SINTAXIS) return { texto: `(error) ${mensaje || t.errorSintaxis}`, tono: 'error' }
     if (deTessera) return { texto: noEnviado(mensaje), tono: 'error' }
     const conCodigo = codigo !== '' && mensaje.slice(0, codigo.length).toUpperCase() !== codigo.toUpperCase()
-    return { texto: `(error) ${conCodigo ? `${codigo} ` : ''}${mensaje || 'Error desconocido'}`, tono: 'error' }
+    return { texto: `(error) ${conCodigo ? `${codigo} ` : ''}${mensaje || t.errorDesconocido}`, tono: 'error' }
   }
   if (e.motivo === 'soloLectura' || e.motivo === 'peligroso' || e.motivo === 'produccion' || deTessera) {
     return { texto: noEnviado(mensaje), tono: 'error' }
@@ -368,13 +372,14 @@ export function confirmacionPeligroso(o: {
   mensaje: string
   produccion: boolean
 }): { titulo: string; mensaje: string; confirmar: string } {
-  const verbo = o.verbo || 'el comando'
-  const donde = `Se ejecutará en «${o.alias}»${o.produccion ? ', una conexión de PRODUCCIÓN,' : ''} sobre la base db${o.base}.`
+  const t = txConsolaClaves()
+  const verbo = o.verbo || t.elComando
+  const donde = t.seEjecutaraEn(o.alias, o.produccion, o.base)
   const motivo = o.mensaje.trim()
   return {
-    titulo: `¿Ejecutar ${verbo}?`,
+    titulo: t.ejecutarVerboTitulo(verbo),
     mensaje: motivo ? `${motivo}\n\n${donde}` : donde,
-    confirmar: `Ejecutar ${verbo}`
+    confirmar: t.ejecutarVerbo(verbo)
   }
 }
 

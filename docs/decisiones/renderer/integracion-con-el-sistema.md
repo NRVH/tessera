@@ -32,5 +32,5 @@ ajenas a la app.
 - No mover el valor de fábrica a encendido ni ligar la escritura al guardado de ajustes.
 - El campo libre de extensiones lleva estado local en crudo: con el valor normalizado como `value`
   el cursor salta al añadirse el punto en el mismo render.
-- Los nombres de plataforma que aparecen a pelo en `Integracion.tsx` están exentos en
+- Los nombres de plataforma que aparecen a pelo en los textos de esta categoría (`textosSistema.ts`) están exentos en
   `test-nombres-sistema.mts` por archivo: mover un bloque a otro archivo exige mover su exención.

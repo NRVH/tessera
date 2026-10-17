@@ -1,0 +1,3 @@
+#!/bin/sh
+# Tipos, lint y guardias de texto antes de cada commit (scripts/calidad/antesDelCommit.mjs).
+exec node scripts/calidad/antesDelCommit.mjs

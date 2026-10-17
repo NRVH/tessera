@@ -9,6 +9,7 @@
 import { partesAmbito, partesDetalle } from './arbolBd.ts'
 import { CUENTA_ESCANEO, recorrerClaves } from './arbolClaves.ts'
 import { nunca } from '../../../../shared/nunca.ts'
+import { txArbolNodos } from './textosArbolNodos.ts'
 import type { CargaBd } from './arbolBd.ts'
 import type { DbKvEscanear, DbKvTipo } from '../../../../shared/db-claves-ipc.ts'
 import type {
@@ -177,7 +178,7 @@ export function llamarFamilia(
   patron: () => string,
   tipo: () => DbKvTipo | undefined = () => undefined
 ): Promise<DbRespuesta<unknown>> {
-  if (!f) return Promise.resolve({ ok: false, error: { motivo: 'interno', mensaje: 'Esta ventana no tiene el explorador de este motor.' } })
+  if (!f) return Promise.resolve({ ok: false, error: { motivo: 'interno', mensaje: txArbolNodos().sinExplorador } })
   switch (carga.tipo) {
     case 'docBases':
       return f.docBases({ conexionId: carga.conexionId })

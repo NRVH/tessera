@@ -5,6 +5,7 @@
 // El contador no miente: al alcanzar el tope dice «N+», nunca un total redondo.
 // =============================================================================
 import type { CoincidenciaArchivo, FinBusqueda, LoteResultados } from '../../../../shared/search-ipc'
+import { txBusqueda } from './textos.ts'
 
 export interface EstadoBusqueda {
   /** Id de la búsqueda VIVA. Todo lote con otro id se descarta. */
@@ -111,16 +112,17 @@ export function filaSeleccionada(estado: EstadoBusqueda): CoincidenciaArchivo | 
 export function textoContador(estado: EstadoBusqueda, hayConsulta: boolean): string {
   if (estado.error !== null) return estado.error
   if (!hayConsulta) return ''
+  const t = txBusqueda()
   if (estado.filas.length === 0) {
-    return estado.buscando ? 'Buscando…' : 'Ningún resultado'
+    return estado.buscando ? t.buscando : t.ningunResultado
   }
   const archivos = estado.truncado
     ? new Set(estado.filas.map((f) => f.path)).size
     : Math.max(estado.archivos, new Set(estado.filas.map((f) => f.path)).size)
   const mas = estado.truncado ? '+' : ''
-  const c = `${estado.filas.length}${mas} ${estado.filas.length === 1 && !estado.truncado ? 'coincidencia' : 'coincidencias'}`
-  const a = `${archivos}${mas} ${archivos === 1 && !estado.truncado ? 'archivo' : 'archivos'}`
-  return estado.buscando ? `${c} en ${a} · buscando…` : `${c} en ${a}`
+  const c = `${estado.filas.length}${mas} ${estado.filas.length === 1 && !estado.truncado ? t.coincidencia : t.coincidencias}`
+  const a = `${archivos}${mas} ${archivos === 1 && !estado.truncado ? t.archivo : t.archivos}`
+  return estado.buscando ? t.contadorBuscando(c, a) : t.contador(c, a)
 }
 
 /**

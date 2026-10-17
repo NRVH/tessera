@@ -4,7 +4,8 @@
 // Decisiones: docs/decisiones/git/main-escrituras-y-descartes.md
 // =============================================================================
 
-import { FS, RUTA_NO_VALIDA } from './errores'
+import { FS, rutaNoValida } from './errores'
+import { txGit } from './textos.ts'
 import { claveNombreGit, relDeArchivo, repoPathDeArchivo } from './rutasRepo'
 import type { EntradaRepo, GrupoRepo, RepoCtx } from './tipos'
 
@@ -84,7 +85,7 @@ function sobrantesDelLote(
   for (const sobrante of paths.slice(MAX_RUTAS_LOTE)) {
     invalidas.push({
       path: sobrante,
-      error: `Demasiados archivos en un lote (tope ${MAX_RUTAS_LOTE}).`
+      error: txGit().demasiadosEnLote(MAX_RUTAS_LOTE)
     })
   }
 }
@@ -107,7 +108,7 @@ export async function agruparPorRepo(
   for (const original of paths.slice(0, MAX_RUTAS_LOTE)) {
     const rel = relDeArchivo(original)
     if (rel === null) {
-      invalidas.push({ path: original, error: RUTA_NO_VALIDA })
+      invalidas.push({ path: original, error: rutaNoValida() })
       continue
     }
     if (vistas.has(rel)) continue
@@ -120,12 +121,12 @@ export async function agruparPorRepo(
     if (!ctxPorCarpeta.has(clave)) ctxPorCarpeta.set(clave, await n.ctxForPath(clave))
     const ctx = ctxPorCarpeta.get(clave) ?? null
     if (!ctx) {
-      invalidas.push({ path: original, error: 'No hay repositorio para esta ruta.' })
+      invalidas.push({ path: original, error: txGit().sinRepoRuta })
       continue
     }
     const repoPath = repoPathDeArchivo(rel, ctx)
     if (repoPath === null) {
-      invalidas.push({ path: original, error: RUTA_NO_VALIDA })
+      invalidas.push({ path: original, error: rutaNoValida() })
       continue
     }
     let grupo = grupos.get(ctx.root)

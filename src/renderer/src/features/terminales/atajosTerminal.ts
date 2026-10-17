@@ -12,11 +12,10 @@ import { esAlternarAgente, esModPrincipal } from '../../util/atajos.ts'
 
 /** Lo que los atajos disparan sobre el pane. */
 export interface AccionesAtajos {
-  abrirBuscador: () => void
+  /** Sin él, Mod+F llega al pty: la terminal del agente deja buscar al propio CLI. */
+  abrirBuscador?: () => void
   copiar: () => void
   pegar: () => void
-  /** false = Mod+F llega al pty (el agente, con el selector de cuenta a la vista). */
-  puedeBuscar?: () => boolean
 }
 
 type Resultado = boolean | null
@@ -27,8 +26,7 @@ function esTecla(e: KeyboardEvent, letra: string): boolean {
 
 /** Mod+F abre el buscador y cancela la tecla al pty (Ctrl+F queda sin ^F en Windows; en Mac es Cmd+F). */
 function atajoBuscar(e: KeyboardEvent, mod: boolean, acc: AccionesAtajos): Resultado {
-  if (!(mod && !e.shiftKey && !e.altKey && esTecla(e, 'f'))) return null
-  if (acc.puedeBuscar && !acc.puedeBuscar()) return true
+  if (!acc.abrirBuscador || !(mod && !e.shiftKey && !e.altKey && esTecla(e, 'f'))) return null
   e.preventDefault()
   acc.abrirBuscador()
   return false

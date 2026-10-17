@@ -8,12 +8,15 @@ import { useState } from 'react'
 import type { SyntheticEvent } from 'react'
 import { isSvgPath } from './viewerKind'
 import { abrirExterno, revelarEnCarpeta } from './visorComun'
+import { useRaizDelProyecto } from '../../comun/raizDelProyecto'
 import { useCargaImagen } from './useCargaImagen'
 import { useZoomPanImagen } from './useZoomPanImagen'
 import type { OpenFile } from './centerPane'
+import { txImagen } from './textosVisores.ts'
 
 /** Todo lo que necesita ImageViewerPane para pintarse y reaccionar. */
 export function useImageViewer({ file, visible }: { file: OpenFile; visible: boolean }) {
+  const raiz = useRaizDelProyecto()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   // Ver el código fuente de un SVG (texto) en vez de la imagen renderizada.
@@ -21,28 +24,26 @@ export function useImageViewer({ file, visible }: { file: OpenFile; visible: boo
   const [source, setSource] = useState<string | null>(null)
 
   const zoom = useZoomPanImagen({ visible, loading, error, showSource })
-  const carga = useCargaImagen(file.path, { setLoading, setError, reiniciar: zoom.reiniciar })
+  const carga = useCargaImagen(raiz, file.path, { setLoading, setError, reiniciar: zoom.reiniciar })
   const { setNotice } = carga
 
   function onImgLoad(e: SyntheticEvent<HTMLImageElement>): void {
     setLoading(false)
     // Decodificada pero sin dimensiones útiles (raro): se trata como no mostrable.
-    if (!zoom.alCargar(e)) setError('No se pudieron determinar las dimensiones de la imagen.')
+    if (!zoom.alCargar(e)) setError(txImagen().sinDimensiones)
   }
 
   function onImgError(): void {
     setLoading(false)
-    setError(
-      'Este formato de imagen no se puede mostrar en el visor. Ábrelo con la aplicación del sistema.'
-    )
+    setError(txImagen().formatoNoMostrable)
   }
 
   async function avisar(accion: Promise<string | null>): Promise<void> {
     const aviso = await accion
     if (aviso) setNotice(aviso)
   }
-  const openExternally = (): Promise<void> => avisar(abrirExterno(file.path))
-  const revealInFolder = (): Promise<void> => avisar(revelarEnCarpeta(file.path))
+  const openExternally = (): Promise<void> => avisar(abrirExterno({ raiz, path: file.path }))
+  const revealInFolder = (): Promise<void> => avisar(revelarEnCarpeta({ raiz, path: file.path }))
 
   // El texto del SVG se pide la primera vez que se activa el conmutador.
   async function toggleSource(): Promise<void> {
@@ -50,10 +51,10 @@ export function useImageViewer({ file, visible }: { file: OpenFile; visible: boo
     setShowSource(next)
     if (next && source === null) {
       try {
-        const res = await window.tessera.files.read(file.path)
+        const res = await window.tessera.files.read({ raiz, path: file.path })
         setSource(res.content)
       } catch (e) {
-        setSource(`No se pudo leer el código: ${e instanceof Error ? e.message : String(e)}`)
+        setSource(txImagen().noSePudoLeerCodigo(e instanceof Error ? e.message : String(e)))
       }
     }
     // Al volver a la imagen se re-ajusta: el área estuvo oculta mientras se veía el código.

@@ -8,8 +8,8 @@
 
 Abrir una tabla y «Enviar» leen el catálogo (la clave primaria, la identidad de las filas) antes de
 encolar nada en el gestor. Con la caché invalidada eso son uno o dos viajes por la VPN. Un Stop
-que llegaba en ese tramo no encontraba cola que parar y se perdía en silencio: el envío llegaba
-al COMMIT y la tabla se leía igual.
+que llegue en ese tramo no encuentra cola que parar y se pierde en silencio: el envío llegaría
+al COMMIT y la tabla se leería igual.
 
 ## Decisión
 

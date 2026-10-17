@@ -7,6 +7,7 @@
 import { create } from 'zustand'
 import type { DefaultProjectMode } from '../../../../shared/workspace-state-ipc'
 import type { DbTxModo } from '../../../../shared/db-explorador-ipc'
+import type { PreferenciaIdioma } from '../../../../shared/i18n'
 import {
   DB_FILAS_POR_PAGINA_POR_DEFECTO,
   DB_INACTIVIDAD_CONSOLA_MIN_POR_DEFECTO,
@@ -32,6 +33,10 @@ export interface EstadoAjustes {
   menuWindowsAvisado: boolean
   accionRapidaFinder: boolean
   defaultProjectMode: DefaultProjectMode
+  /** El idioma ELEGIDO; el que habla la ventana es el del arranque (`idiomaActual`). */
+  idioma: PreferenciaIdioma
+  /** El elegido al arrancar: si `idioma` ya no es este, el cambio espera a reiniciar. */
+  idiomaAlArrancar: PreferenciaIdioma
   terminalAppearance: TerminalAppearance
   agentAppearance: TerminalAppearance
   uiFontSize: number
@@ -69,6 +74,8 @@ export const useStoreAjustes = create<EstadoAjustes>()((set) => ({
   menuWindowsAvisado: false,
   accionRapidaFinder: false,
   defaultProjectMode: 'windows',
+  idioma: 'sistema',
+  idiomaAlArrancar: 'sistema',
   terminalAppearance: DEFAULT_TERMINAL_APPEARANCE,
   agentAppearance: DEFAULT_TERMINAL_APPEARANCE,
   uiFontSize: UI_FONT_DEFAULT,

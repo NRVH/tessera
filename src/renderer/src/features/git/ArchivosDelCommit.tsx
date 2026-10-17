@@ -17,6 +17,8 @@ import {
 } from 'react'
 import { FilaArbolArchivo } from './FilaArbolArchivo'
 import { VirtualList } from '../../comun/VirtualList'
+import { EsperaCarga } from '../../comun/IndicadorCarga'
+import { useRaizDelProyecto } from '../../comun/raizDelProyecto'
 import {
   aplanarArbolArchivos,
   construirArbolArchivos,
@@ -24,6 +26,7 @@ import {
 } from './modelo/arbolArchivos'
 import { resolveDiffTarget } from './modelo/resolveDiffTarget'
 import { prefetchDiff } from './modelo/blobCache'
+import { txGit } from './textos.ts'
 import type { Commit, FileChange } from '../../../../shared/git-ipc'
 
 /** Id DOM de una fila; la ruta es única dentro del commit, no hace falta prefijo por tipo. */
@@ -44,22 +47,21 @@ interface DatosArchivos {
  * anterior sobrevive un render y se elevaría al padre bajo el hash nuevo. Un contador
  * descarta las respuestas viejas al barrer el log con las flechas.
  */
-function useDatosArchivos(hash: string, repoHostPath: string | null, anclado: boolean): DatosArchivos {
+function useDatosArchivos(hash: string, repoHostPath: string | null): DatosArchivos {
   const [datos, setDatos] = useState<{ hash: string; lista: FileChange[] } | null>(null)
   const archivos = datos !== null && datos.hash === hash ? datos.lista : null
   const [error, setError] = useState<string | null>(null)
   const [colapsadas, setColapsadas] = useState<ReadonlySet<string>>(() => new Set())
   const peticionRef = useRef(0)
+  const raiz = useRaizDelProyecto()
   useEffect(() => {
-    // Sin anclaje no se pregunta: un vacío de rechazo se leería como «no cambió archivos».
-    if (!anclado) return
     const id = ++peticionRef.current
     setDatos(null)
     setError(null)
     // El colapso se reinicia CON los archivos: son rutas del commit anterior.
     setColapsadas(new Set())
     window.tessera.git
-      .filesForCommit(hash, repoHostPath ?? undefined)
+      .filesForCommit(raiz, hash, repoHostPath ?? undefined)
       .then((result) => {
         if (peticionRef.current === id) setDatos({ hash, lista: result })
       })
@@ -68,7 +70,7 @@ function useDatosArchivos(hash: string, repoHostPath: string | null, anclado: bo
           setError(err instanceof Error ? err.message : String(err))
         }
       })
-  }, [hash, repoHostPath, anclado])
+  }, [raiz, hash, repoHostPath])
   return { archivos, error, colapsadas, setColapsadas }
 }
 
@@ -117,8 +119,6 @@ interface PropsArchivosDelCommit {
   commit: Commit
   /** Repo del commit: viaja con la petición, o una respuesta tardía preguntaría en OTRO repo. */
   repoHostPath: string | null
-  /** ¿El backend está anclado a `repoHostPath`? Sin anclaje se leería un vacío de rechazo. */
-  anclado: boolean
   /** Alto de fila en px (theme/densidad; el mismo que ve el CSS). */
   altoFila: number
   /** Alto de la LISTA en px: lo reparte el divisor de DetalleCommit. */
@@ -189,12 +189,13 @@ function useAlternarCarpeta(
 
 function EstadosArchivos(p: { error: string | null; archivos: FileChange[] | null }): React.JSX.Element {
   const { error, archivos } = p
+  const t = txGit()
   return (
     <>
-      {error && <div className="git-error">No se pudieron leer los archivos: {error}</div>}
-      {!error && archivos === null && <div className="git-state-inline">Cargando archivos…</div>}
+      {error && <div className="git-error">{t.errorArchivos(error)}</div>}
+      {!error && archivos === null && <EsperaCarga texto={t.cargandoArchivos} className="git-state-inline" />}
       {!error && archivos?.length === 0 && (
-        <div className="git-state-inline">Este commit no cambió archivos.</div>
+        <div className="git-state-inline">{t.commitSinArchivos}</div>
       )}
     </>
   )
@@ -202,7 +203,7 @@ function EstadosArchivos(p: { error: string | null; archivos: FileChange[] | nul
 
 export function ArchivosDelCommit(p: PropsArchivosDelCommit): React.JSX.Element {
   const { commit, onFilas, alternarRef } = p
-  const { archivos, error, colapsadas, setColapsadas } = useDatosArchivos(commit.hash, p.repoHostPath, p.anclado)
+  const { archivos, error, colapsadas, setColapsadas } = useDatosArchivos(commit.hash, p.repoHostPath)
 
   const { filas, cambioPorRuta } = useFilasArchivos(archivos, colapsadas)
 
@@ -214,12 +215,13 @@ export function ArchivosDelCommit(p: PropsArchivosDelCommit): React.JSX.Element 
     onFilas?.(commit.hash, filas, cambioPorRuta)
   }, [commit.hash, archivos, filas, cambioPorRuta, onFilas])
 
+  const raiz = useRaizDelProyecto()
   const prefetch = useCallback(
     (change: FileChange): void => {
       const target = resolveDiffTarget(commit.hash, commit.parents[0] ?? null, change)
-      prefetchDiff(target.before, target.after)
+      prefetchDiff(target.before, target.after, raiz)
     },
-    [commit.hash, commit.parents]
+    [commit.hash, commit.parents, raiz]
   )
 
   const alternarCarpeta = useAlternarCarpeta(setColapsadas, alternarRef)
@@ -237,7 +239,7 @@ export function ArchivosDelCommit(p: PropsArchivosDelCommit): React.JSX.Element 
     <VirtualList<FilaArbol>
       className="git-detalle-archivos"
       style={{ flex: `0 0 ${p.altoArchivos}px` }}
-      ariaLabel="Archivos del commit"
+      ariaLabel={txGit().archivosDelCommit}
       items={filas}
       itemHeight={p.altoFila}
       getKey={(fila) => `${fila.nodo.tipo === 'carpeta' ? 'd' : 'f'}:${fila.nodo.ruta}`}

@@ -32,9 +32,10 @@ import {
   sqlTipoDeObjeto
 } from '../catalogoSql.ts'
 import { ErrorGestor } from '../GestorSesiones.ts'
-import { soloMotoresCon } from '../motores/filasCatalogo.ts'
+import { queFalta, soloMotoresCon } from '../motores/filasCatalogo.ts'
 import { motorExplorador } from '../motores/index.ts'
 
+import { txControlador } from './textosControlador.ts'
 import type { ContextoExplorador } from './tipos.ts'
 import {
   claveConBase,
@@ -60,7 +61,7 @@ export class ObjetosExplorador {
       const id = exigir(conexionId, 'conexionId')
       const ref = this.c.refObjeto(objeto, id)
       const pedidas = Array.isArray(partes) ? PARTES_DETALLE.filter((p) => partes.indexOf(p) >= 0) : []
-      if (pedidas.length === 0) return fallo('interno', 'Petición inválida: «partes».')
+      if (pedidas.length === 0) return fallo('interno', txControlador().peticionInvalidaCampo('partes'))
       const detalle: DbDetalle = {}
       for (const parte of pedidas) {
         const clave = claveConBase({ familia: 'detalle' as const, esquema: ref.esquema, resto: [ref.nombre, parte] }, ref.base)
@@ -149,7 +150,7 @@ export class ObjetosExplorador {
           // de hoy es «Solo Oracle tiene sinónimos.», al byte; el literal de antes habría
           // mentido en cuanto entrara SQL Server, que también los tiene.
           if (!descriptorSql(ctx.dialecto.motor).catalogo.tieneSinonimos) {
-            throw new ErrorGestor('interno', soloMotoresCon('sinónimos', (m) => m.catalogo.tieneSinonimos))
+            throw new ErrorGestor('interno', soloMotoresCon(queFalta.sinonimos(), (m) => m.catalogo.tieneSinonimos))
           }
           // El tipo del destino lo lee el catálogo del motor (su mapeador no recibe el motor).
           const catalogo = motorExplorador(ctx.dialecto.motor).catalogo
@@ -163,7 +164,7 @@ export class ObjetosExplorador {
             const d0 = dialectoEn(b)
             const destino = mapearSinonimo(await ctx.consultar(construir(() => sqlResolverSinonimo(d0, e, n))))
             if (!destino) {
-              throw new ErrorGestor('interno', `No se encontró el sinónimo ${e}.${n}, o no tienes acceso a su destino.`)
+              throw new ErrorGestor('interno', txControlador().sinonimoNoEncontrado(e, n))
             }
             if (destino.dblink) {
               return { objeto: { esquema: destino.esquema, nombre: destino.nombre, tipo: 'tabla' }, dblink: destino.dblink }
@@ -174,7 +175,7 @@ export class ObjetosExplorador {
               await ctx.consultar(construir(() => sqlTipoDeObjeto(d1, destino.esquema, destino.nombre)))
             )
             if (!tipo) {
-              throw new ErrorGestor('interno', `El destino ${destino.esquema}.${destino.nombre} no existe o no es visible.`)
+              throw new ErrorGestor('interno', txControlador().destinoNoVisible(destino.esquema, destino.nombre))
             }
             if (tipo !== 'sinonimo') {
               const objeto: DbRefObjeto = { esquema: destino.esquema, nombre: destino.nombre, tipo }
@@ -184,7 +185,7 @@ export class ObjetosExplorador {
             e = destino.esquema
             n = destino.nombre
           }
-          throw new ErrorGestor('interno', 'El sinónimo encadena más de tres saltos.')
+          throw new ErrorGestor('interno', txControlador().sinonimoCadena)
         },
         conBase({ prioridad: 'alta' as const }, base)
       )

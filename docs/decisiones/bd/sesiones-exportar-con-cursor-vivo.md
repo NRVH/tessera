@@ -5,10 +5,10 @@
 
 ## Contexto
 
-Exportar paginando con LIMIT/OFFSET en `datos` tenía tres defectos medidos: coste cuadrático
-(2 M filas: 20 s frente a 2 s del cursor), otra instantánea en cada página (un DELETE o INSERT
-por debajo perdía o duplicaba filas) y, con empates en un ORDER BY del usuario, filas repetidas
-y otras perdidas sin ninguna escritura (200 000 filas, 196 631 distintas).
+Exportar paginando con LIMIT/OFFSET en `datos` tiene tres defectos: coste cuadrático (frente al
+lineal de un cursor), otra instantánea en cada página (un DELETE o INSERT por debajo pierde o duplica
+filas) y, con empates en un ORDER BY del usuario, filas repetidas y otras perdidas sin ninguna
+escritura.
 
 ## Decisión
 

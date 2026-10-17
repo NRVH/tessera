@@ -4,7 +4,7 @@
 // exporta a JSON. Cabecera con tipo, nombre, TTL con cuenta atrás, memoria y codificación;
 // el cuerpo depende del tipo. Cumple el contrato de `DbArea`: no pide nada hasta su primer
 // `visible`, publica sus indicadores y al desmontarse cancela lo que tenga en vuelo.
-// Decisiones: docs/decisiones/bd/ui-claves-pestana.md
+// Decisiones: docs/decisiones/bd/ui-claves-visor.md
 // =============================================================================
 
 import { useMemo, useRef } from 'react'
@@ -17,6 +17,7 @@ import type { AbrirConsolaEn } from '../consola/basesConsola'
 import { bytesDeBase64, bytesDeTexto, pintarBytes } from './bytesClaves'
 import type { AccionClave } from './edicionClaves'
 import { bytesLegibles, comandoConsola, etiquetaTipo, resumenElementos, ttlLegible } from './visorClaves'
+import { txVisorClaves } from './textosVisorClaves'
 import { useLecturaClave, useTtlClave, useVigilanciaClave, type LecturaClave } from './useLecturaClave'
 import { useVisorClave, type VisorClave } from './useVisorClave'
 import { cuerpoClave } from './cuerpoClave'
@@ -59,31 +60,33 @@ function metasClave(valor: DbKvValor | null, contenido: DbKvContenido | null): s
   const resumen = resumenElementos(contenido)
   if (contenido.tipo === 'string') metas.push(bytesLegibles(contenido.bytes))
   if (resumen) metas.push(resumen)
-  if (valor.memoria !== undefined) metas.push(`${bytesLegibles(valor.memoria)} en memoria`)
+  if (valor.memoria !== undefined) metas.push(txVisorClaves().enMemoria(bytesLegibles(valor.memoria)))
   if (valor.codificacion) metas.push(valor.codificacion)
   metas.push(`${valor.ms} ms`)
   return metas
 }
 
 function textoTtl(ttl: number | null): string {
-  return ttl === null ? 'Sin caducidad' : ttl === 0 ? 'Caducada' : `Caduca en ${ttlLegible(ttl)}`
+  const t = txVisorClaves()
+  return ttl === null ? t.sinCaducidad : ttl === 0 ? t.caducada : t.caduca(ttlLegible(ttl))
 }
 
 /** El TTL y las metas de la barra, o «Leyendo…» mientras no hay valor. */
 function metaBarra(l: LecturaClave, contenido: DbKvContenido | null, ttl: number | null): React.ReactNode {
   const { valor, cargando, detenida } = l
-  if (cargando && !valor) return 'Leyendo…'
+  const t = txVisorClaves()
+  if (cargando && !valor) return t.leyendo
   const claseTtl = ttl === null ? '' : ttl === 0 ? ' caducada' : ' caduca'
   const metas = metasClave(valor, contenido)
   return (
     <>
       {valor && contenido?.tipo !== 'noExiste' && (
-        <span className={`db-clave-ttl${claseTtl}`} title={ttl === null ? 'La clave no caduca' : 'Tiempo que le queda (TTL)'}>
+        <span className={`db-clave-ttl${claseTtl}`} title={ttl === null ? t.claveNoCaduca : t.tiempoRestante}>
           {textoTtl(ttl)}
         </span>
       )}
       {metas.length > 0 && ` · ${metas.join(' · ')}`}
-      {!cargando && detenida && valor && <span className="db-barra-aviso"> · detenida</span>}
+      {!cargando && detenida && valor && <span className="db-barra-aviso">{t.detenida}</span>}
     </>
   )
 }
@@ -106,11 +109,12 @@ function identidadClave(p: PropsClave, l: LecturaClave, contenido: DbKvContenido
 }
 
 function BotonExportar({ exportacion, sinClave }: { exportacion: ExportarClave; sinClave: boolean }): React.JSX.Element {
+  const t = txVisorClaves()
   return (
     <BotonBarraBd
-      etiqueta="Exportar a JSON"
-      titulo="Guardar la clave entera (tipo, caducidad y valor) en un archivo JSON"
-      motivo={exportacion.exportando ? 'Exportando…' : sinClave ? 'No hay ninguna clave que exportar' : null}
+      etiqueta={t.exportarJson}
+      titulo={t.exportarJsonTitulo}
+      motivo={exportacion.exportando ? t.exportando : sinClave ? t.nadaQueExportar : null}
       onClick={() => void exportacion.exportar()}
     >
       <IconoExportar />
@@ -127,6 +131,7 @@ function accionesClave(
   exportacion: ExportarClave
 ): React.JSX.Element {
   const { contenido, tabla, panelDetalle, setPanelDetalle } = visor
+  const t = txVisorClaves()
   const sinClave = contenido === null || contenido.tipo === 'noExiste'
   const enCurso = l.cargando || l.cargandoMas
   // Un JSON que no se leyó (`omitidoBytes`) no tiene nada que copiar.
@@ -134,26 +139,26 @@ function accionesClave(
     contenido?.tipo === 'string' ? pintarBytes(contenido.valor) : contenido?.tipo === 'json' && contenido.omitidoBytes === undefined ? contenido.texto : null
   return (
     <div className="panel-actions">
-      <BotonBarraBd etiqueta="Refrescar" titulo="Volver a leer la clave" motivo={l.cargando ? 'Leyendo…' : null} onClick={() => void l.leer()}>
+      <BotonBarraBd etiqueta={t.refrescar} titulo={t.refrescarTitulo} motivo={l.cargando ? t.leyendo : null} onClick={() => void l.leer()}>
         <IconoRefrescar />
       </BotonBarraBd>
-      <BotonBarraBd etiqueta="Detener" titulo="Detener la lectura en curso" motivo={enCurso ? null : 'No hay ninguna lectura en curso'} onClick={l.detener}>
+      <BotonBarraBd etiqueta={t.detener} titulo={t.detenerLectura} motivo={enCurso ? null : t.sinLectura} onClick={l.detener}>
         <IconoDetener />
       </BotonBarraBd>
       <span className="panel-actions-sep" aria-hidden="true" />
-      <BotonBarraBd etiqueta="Copiar nombre" titulo="Copiar el nombre de la clave" onClick={() => copiarTexto(p.nombre, 'Nombre')}>
+      <BotonBarraBd etiqueta={t.copiarNombre} titulo={t.copiarNombreTitulo} onClick={() => copiarTexto(p.nombre, t.nombre)}>
         <IconoCopiar />
       </BotonBarraBd>
       {copiableValor !== null && (
-        <BotonBarraBd etiqueta="Copiar valor" titulo="Copiar el valor (lo que se ve, como texto)" onClick={() => copiarTexto(copiableValor, 'Valor')}>
+        <BotonBarraBd etiqueta={t.copiarValor} titulo={t.copiarValorTitulo} onClick={() => copiarTexto(copiableValor, t.valor)}>
           <IconoCopiar />
         </BotonBarraBd>
       )}
       <BotonExportar exportacion={exportacion} sinClave={sinClave} />
       {tabla && (
         <BotonBarraBd
-          etiqueta={panelDetalle ? 'Ocultar el elemento' : 'Ver el elemento'}
-          titulo={panelDetalle ? 'Ocultar el panel del elemento elegido' : 'Ver entero el elemento elegido'}
+          etiqueta={panelDetalle ? t.ocultarElemento : t.verElemento}
+          titulo={panelDetalle ? t.ocultarElementoTitulo : t.verElementoTitulo}
           onClick={() => setPanelDetalle((v) => !v)}
         >
           <IconoVerValor />
@@ -161,7 +166,7 @@ function accionesClave(
       )}
       {edicion}
       {p.onAbrirConsola && (
-        <BotonBarraBd etiqueta="Abrir consola" titulo="Abrir una consola con el comando que lee esta clave" onClick={abrirConsola}>
+        <BotonBarraBd etiqueta={t.abrirConsola} titulo={t.abrirConsolaTitulo} onClick={abrirConsola}>
           <IconoConsola />
         </BotonBarraBd>
       )}
@@ -213,7 +218,7 @@ export function DbClavePane(p: PropsClave): React.JSX.Element {
   }
 
   return (
-    <section className={`db-clave${visible ? '' : ' hidden'}`} aria-label={`Clave ${nombre}`}>
+    <section className={`db-clave${visible ? '' : ' hidden'}`} aria-label={txVisorClaves().claveAria(nombre)}>
       <header className="panel-header db-barra">
         <MarcaEntorno entorno={conexion.entorno} />
         {identidadClave(p, lectura, contenido, ttl)}

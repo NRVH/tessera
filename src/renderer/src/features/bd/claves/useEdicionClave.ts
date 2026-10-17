@@ -16,6 +16,7 @@ import { errorDeInvoke, textoError } from '../panesBd'
 import { notify } from '../../../comun/notifications'
 import { confirmacionPeligroso, verboComando } from './consolaClaves'
 import { resultadoDeAccion, type AccionClave } from './edicionClaves'
+import { txConsolaClaves } from './textosConsolaClaves'
 
 /** Lo que el main pidió confirmar antes de enviar: el texto del aviso y el botón que lo acepta. */
 export interface AvisoEdicion {
@@ -45,7 +46,7 @@ function avisoDeRechazo(e: DbErrorSql, comando: string, con: DbConnection, base:
     return { aviso: { titulo: t.titulo, mensaje: t.mensaje, confirmar: t.confirmar }, marca: { confirmadoPeligroso: true } }
   }
   if (e.motivo === 'produccion' && !conf.confirmado) {
-    const t = confirmacionLoteProduccion({ alias: con.alias, total: 1, escrituras: [{ indice: 0, verbo: verboComando(comando) || 'Escritura' }] })
+    const t = confirmacionLoteProduccion({ alias: con.alias, total: 1, escrituras: [{ indice: 0, verbo: verboComando(comando) || txConsolaClaves().escritura }] })
     return { aviso: { titulo: t.titulo, mensaje: t.mensaje, confirmar: t.confirmar }, marca: { confirmado: true } }
   }
   return null

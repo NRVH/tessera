@@ -4,7 +4,7 @@
 - **Ámbito:** `src/tssh/`, `src/main/ssh/` (`controlador/puenteTssh.ts`, `catalogoAgentes.ts`, `briefingSsh.ts`,
   `atajosTssh.ts`, `lineaSsh.ts` en modo agente, `adaptadores/registroTssh.ts`, `actividadTssh.ts`, `controlador/buzonTssh.ts`,
   `transferenciaBuzon.ts`), `src/main/agents/briefingCompuesto.ts` y la actividad de `features/ssh/` (`DialogoActividadSsh.tsx`,
-  `actividadSsh.ts`) (macOS: sin verificar)
+  `actividadSsh.ts`)
 
 ## Contexto
 

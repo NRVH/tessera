@@ -2,8 +2,10 @@
 // Rutas REMOTAS (POSIX, del servidor) del explorador SFTP, en lógica pura: normalizar, unir, padre,
 // nombre, migas de la ruta actual y validar el nombre de una carpeta nueva o renombrada. Nunca se
 // mira el sistema del equipo: estas rutas no tienen nada que ver con él. Sin React ni DOM; se fija
-// bajo `node` (`test-sftp.mts`). Sin dependencias.
+// bajo `node` (`test-sftp.mts`). Depende solo de los textos.
 // =============================================================================
+
+import { txSftp } from './textos.ts'
 
 /** Una miga: lo que se ve y la ruta absoluta a la que lleva. */
 export interface Miga {
@@ -58,9 +60,10 @@ export function migasDe(ruta: string): Miga[] {
 /** Por qué un nombre no sirve para una carpeta o un renombrado; `null` si sirve. */
 export function validarNombre(nombre: string): string | null {
   const n = nombre.trim()
-  if (n === '') return 'Escribe un nombre.'
-  if (n === '.' || n === '..') return 'Ese nombre no es válido.'
-  if (n.includes('/')) return 'El nombre no puede llevar «/».'
-  if (n.includes('\0')) return 'El nombre tiene un carácter no válido.'
+  const t = txSftp()
+  if (n === '') return t.escribeNombre
+  if (n === '.' || n === '..') return t.nombreInvalido
+  if (n.includes('/')) return t.nombreConBarra
+  if (n.includes('\0')) return t.nombreCaracter
   return null
 }

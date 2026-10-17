@@ -20,7 +20,7 @@ ACL de lectura (Redis), y Tessera pone su propia guardia (`candadoSoloLectura: '
 - `soloLecturaPorDefecto: true`, como todos.
 - **MongoDB**: la base es opcional (`nivelBases: 'sinBaseFija'`): con ella el árbol empieza en sus
   colecciones; sin ella, en las bases autorizadas (con rol `read` en una sola base `listDatabases`
-  enseña esa y no falla, medido). `srv` y `opcionesUri` (lista blanca) los rellena «Pegar URI»;
+  enseña esa y no falla). `srv` y `opcionesUri` (lista blanca) los rellena «Pegar URI»;
   `directConnection=true` con un solo host lo añade el trabajador. Consola del shell interpretada sin
   evaluar JavaScript; edición por `_id`; «Enviar» todo o nada donde hay transacciones.
 - **Redis**: a un servidor y, con `topologiaRedis`, a Sentinel o a Cluster
@@ -36,4 +36,4 @@ ACL de lectura (Redis), y Tessera pone su propia guardia (`candadoSoloLectura: '
 
 ## Consecuencias
 
-Contratos IPC: [contratos-documentos.md](contratos-documentos.md), [contratos-claves.md](contratos-claves.md).
+Contratos IPC: [documentos-controlador.md](documentos-controlador.md), [claves-controlador.md](claves-controlador.md).

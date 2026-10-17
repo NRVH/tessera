@@ -1,19 +1,31 @@
 // =============================================================================
-// Visibilidad de la columna del agente en la vista normal: el oculto (motivo del
-// store, más la vista dividida del archivo activo y el agente DIFERIDO del proyecto
-// activo, que se derivan en cada render) y el maximizado, que se pinta siempre
-// COHERENTE con el oculto.
+// Visibilidad de la columna del agente en la vista normal, la del PERFIL que se ve: el oculto
+// (su motivo, más la vista dividida del archivo activo y el agente DIFERIDO del proyecto, que se
+// derivan en cada render) y el maximizado, que se pinta siempre COHERENTE con el oculto.
 // Decisiones: docs/decisiones/renderer/estado-de-app.md
 // Decisiones: docs/decisiones/agentes/agente-diferido.md
 // =============================================================================
 import { useCallback, useLayoutEffect, useMemo } from 'react'
-import { useShallow } from 'zustand/react/shallow'
-import { maximizadoCoherente, useStoreLayout } from '../layout'
-import { alternarColumnaAgente, useStoreEditor, type EditorApp } from '../editor'
+import { columnaDe, fijarColumna, maximizadoCoherente, useStoreLayout } from '../layout'
+import { alternarColumnaAgente, editorTargetKey, useStoreEditor, type EditorApp } from '../editor'
 import { useStorePestanas, type UseTabs } from '../pestanas'
-import { resolveSelectedAgent } from './agenteElegido'
 import { useStoreAgentes } from './store'
 import { textosAgenteDiferido, type TextosAgenteDiferido } from './textosAgenteDiferido'
+import { agenteAMostrar, pestanasDelProyecto } from './agentesDelProyecto'
+import { useFuenteAgentes } from './useAgentesDelProyecto'
+
+/** Cómo se llama el agente que arrancaría en el proyecto diferido: el elegido entre SUS pestañas. */
+function useNombreAgenteDiferido(perfil: string | null, ruta: string | null): string | null {
+  const fuente = useFuenteAgentes()
+  const hostMode = useStorePestanas((s) => perfil !== null && ruta !== null && s.windowsModeKeys.has(editorTargetKey(perfil, ruta)))
+  const elegido = useStoreAgentes((s) => (perfil === null ? undefined : s.selectedAgentByProfile[perfil]))
+  return useMemo(() => {
+    if (perfil === null) return null
+    const pestanas = pestanasDelProyecto(fuente, perfil, hostMode)
+    const id = agenteAMostrar(pestanas.map((x) => x.id), elegido)
+    return pestanas.find((x) => x.id === id)?.nombre ?? null
+  }, [fuente, perfil, hostMode, elegido])
+}
 
 /** Estado derivado de la columna del agente. */
 export interface ColumnaAgenteEstado {
@@ -35,60 +47,66 @@ export interface ColumnaAgenteEstado {
   alternarCcMaximizado: () => void
 }
 
-/** Oculto y maximizado de la columna del agente, con la corrección del maximizado rancio. */
-export function useColumnaAgente(
-  editor: Pick<EditorApp, 'activeEditorKey' | 'editorTabs' | 'paneKey'>,
-  tabs: Pick<UseTabs, 'confirmedTarget' | 'quitarAgenteDiferido'>
-): ColumnaAgenteEstado {
-  const { activeEditorKey, editorTabs, paneKey } = editor
-  const { confirmedTarget, quitarAgenteDiferido } = tabs
-  const { ccExpanded, ccOculto } = useStoreLayout(
-    useShallow((s) => ({ ccExpanded: s.ccExpanded, ccOculto: s.ccOculto }))
+/** El proyecto que se ve, si tiene el agente DIFERIDO; se lee del proyecto vivo del modelo de pestañas. */
+function useProyectoDiferido(visto: UseTabs['objetivoVisto']): { perfil: string; ruta: string } | null {
+  const perfil = visto?.profileId ?? null
+  const ruta = visto?.project.projectHostPath ?? null
+  const diferido = useStorePestanas((s) =>
+    perfil === null
+      ? false
+      : (s.tabs.byProfile[perfil]?.openProjects.some((p) => p.projectHostPath === ruta && p.agenteDiferido === true) ?? false)
   )
+  return diferido && perfil !== null && ruta !== null ? { perfil, ruta } : null
+}
+
+/** ¿El archivo activo del editor está en vista dividida? */
+function useVistaDividida(editor: Pick<EditorApp, 'activeEditorKey' | 'editorTabs' | 'paneKey'>): boolean {
+  const { activeEditorKey, editorTabs, paneKey } = editor
   const pkActivo =
     activeEditorKey !== null && editorTabs.activeId !== null ? paneKey(activeEditorKey, editorTabs.activeId) : null
-  const modoActivo = useStoreEditor((s) => (pkActivo === null ? undefined : s.modoVistaPorPane.get(pkActivo)))
-  // Ni la vista dividida ni el agente diferido se guardan como un motivo más del oculto:
-  // el motivo es de la VENTANA, y estos dos son del archivo y del proyecto que se miran.
-  const vistaDividida = modoActivo === 'dividida'
-  // La marca se lee del proyecto VIVO y no de la foto del confirmado: un proyecto cerrado y
-  // vuelto a abrir (ya diferido) mientras el backend re-apunta comparte clave con la foto vieja.
-  const perfilConfirmado = confirmedTarget?.profileId ?? null
-  const rutaConfirmada = confirmedTarget?.project.projectHostPath ?? null
-  const agenteDiferido = useStorePestanas((s) =>
-    perfilConfirmado === null
-      ? false
-      : (s.tabs.byProfile[perfilConfirmado]?.openProjects.some(
-          (p) => p.projectHostPath === rutaConfirmada && p.agenteDiferido === true
-        ) ?? false)
-  )
-  const ccHidden = ccOculto !== 'no' || vistaDividida || agenteDiferido
-  const coherente = maximizadoCoherente({
-    ccExpandido: ccExpanded,
-    ccOculto: ccHidden,
-    hayPestanasEditor: editorTabs.tabs.length > 0
-  })
-  // Se corrige el ESTADO antes de pintar: si no, el maximizado rancio resucitaría al irse la dividida.
+  return useStoreEditor((s) => (pkActivo === null ? undefined : s.modoVistaPorPane.get(pkActivo))) === 'dividida'
+}
+
+/** Oculto y maximizado de la columna del agente del perfil que se ve, con la corrección del maximizado rancio. */
+export function useColumnaAgente(
+  editor: Pick<EditorApp, 'activeEditorKey' | 'editorTabs' | 'paneKey'>,
+  tabs: Pick<UseTabs, 'objetivoVisto' | 'activeProfile' | 'quitarAgenteDiferido'>
+): ColumnaAgenteEstado {
+  const { editorTabs } = editor
+  const { quitarAgenteDiferido } = tabs
+  // La columna es del PERFIL: cada uno vuelve como lo dejó, sin que lo de otro la cambie.
+  const perfil = tabs.objetivoVisto?.profileId ?? tabs.activeProfile?.id ?? ''
+  const columna = useStoreLayout((s) => columnaDe(s.columnaPorPerfil, perfil))
+  // Ni la vista dividida ni el agente diferido se guardan como un motivo más del oculto: son del
+  // archivo y del proyecto que se miran, no de la columna.
+  const vistaDividida = useVistaDividida(editor)
+  const diferido = useProyectoDiferido(tabs.objetivoVisto)
+  const agenteDiferido = diferido !== null
+  const ccHidden = columna.oculta !== 'no' || vistaDividida || agenteDiferido
+  const coherente = maximizadoCoherente({ ccExpandido: columna.maximizada, ccOculto: ccHidden, hayPestanasEditor: editorTabs.tabs.length > 0 })
+  // Se corrige el ESTADO del perfil antes de pintar: si no, el maximizado rancio resucitaría al irse
+  // la dividida. Todo lo que lo vuelve incoherente es de este mismo perfil.
   useLayoutEffect(() => {
-    if (coherente !== useStoreLayout.getState().ccExpanded) useStoreLayout.setState({ ccExpanded: coherente })
+    if (coherente !== columna.maximizada) fijarColumna({ maximizada: coherente }, perfil)
   })
-  const perfilDiferido = agenteDiferido ? perfilConfirmado : null
-  const rutaDiferida = agenteDiferido ? rutaConfirmada : null
+  const perfilDiferido = diferido?.perfil ?? null
+  const rutaDiferida = diferido?.ruta ?? null
   const iniciarAgenteDiferido = useCallback(() => {
     if (perfilDiferido !== null && rutaDiferida !== null) quitarAgenteDiferido(perfilDiferido, rutaDiferida)
   }, [perfilDiferido, rutaDiferida, quitarAgenteDiferido])
   const toggleCcHidden = useCallback(() => {
-    const paso = alternarColumnaAgente(useStoreLayout.getState().ccOculto, perfilDiferido !== null)
+    const paso = alternarColumnaAgente(columnaDe(useStoreLayout.getState().columnaPorPerfil, perfil).oculta, perfilDiferido !== null)
     if (paso.quitarDiferido) iniciarAgenteDiferido()
     // Ocultar y maximizar son excluyentes; al mostrar es un no-op.
-    useStoreLayout.setState({ ccOculto: paso.ccOculto, ccExpanded: false })
-  }, [perfilDiferido, iniciarAgenteDiferido])
-  const alternarCcMaximizado = useCallback(() => useStoreLayout.setState((s) => ({ ccExpanded: !s.ccExpanded })), [])
-  // El agente que arrancaría: el elegido del perfil. La plataforma llega por el preload.
-  const agenteDelPerfil = useStoreAgentes((s) => resolveSelectedAgent(perfilDiferido, s.selectedAgentByProfile))
+    fijarColumna({ oculta: paso.ccOculto, maximizada: false }, perfil)
+  }, [perfil, perfilDiferido, iniciarAgenteDiferido])
+  // Estable: va a la cabecera del pane, y una identidad nueva por perfil lo repintaría.
+  const alternarCcMaximizado = useCallback(() => fijarColumna((c) => ({ maximizada: !c.maximizada })), [])
+  // El agente que arrancaría: el elegido del perfil entre las pestañas del proyecto. La plataforma llega por el preload.
+  const nombreDiferido = useNombreAgenteDiferido(perfilDiferido, rutaDiferida)
   const textosDiferido = useMemo(
-    () => (agenteDelPerfil === null ? null : textosAgenteDiferido(window.tessera.plataforma, agenteDelPerfil)),
-    [agenteDelPerfil]
+    () => (nombreDiferido === null ? null : textosAgenteDiferido(window.tessera.plataforma, nombreDiferido)),
+    [nombreDiferido]
   )
   return {
     ccExpanded: coherente,

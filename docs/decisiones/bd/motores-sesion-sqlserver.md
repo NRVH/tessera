@@ -7,7 +7,7 @@
 
 En SQL Server el esquema por defecto es del usuario, no de la sesión; lo que se cambia con
 `USE` es la base. Tampoco queda un objeto «creado con errores»: un CREATE PROC que no compila
-falla en el acto con su línea (medido).
+falla en el acto con su línea.
 
 ## Decisión
 

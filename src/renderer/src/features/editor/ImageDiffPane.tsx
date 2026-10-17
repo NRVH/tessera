@@ -6,7 +6,9 @@
 // Decisiones: docs/decisiones/editor/visores-de-archivos.md
 // =============================================================================
 
-import { STATUS_LABEL } from './diffEditorAvisos'
+import { etiquetaEstado } from './diffEditorAvisos'
+import { txDiff } from './textos.ts'
+import { txImagen, txVisorComun } from './textosVisores.ts'
 import { etiquetaRevisiones } from '../git'
 import { deltaBytes, formatoBytes } from '../../util/formatoBytes'
 import { AvisoCaja } from '../../comun/AvisoCaja'
@@ -40,11 +42,12 @@ export function ImageDiffPane({
   onClose
 }: ImageDiffPaneProps): React.JSX.Element {
   const d = useImageDiff({ target, targetKey, activeTargetKey, fsTick })
+  const t = txImagen()
 
   return (
     <section
       className={`editor${visible ? '' : ' hidden'}`}
-      aria-label="Diff de imagen"
+      aria-label={t.diffAria}
       aria-hidden={!visible}
     >
       <CabeceraImageDiff target={target} onClose={onClose} />
@@ -52,8 +55,8 @@ export function ImageDiffPane({
       {d.error && (
         <AvisoCaja
           tono="error"
-          titulo="No se pudo leer la imagen."
-          sugerencia="Puede que la revisión ya no exista o que el repositorio esté en un estado raro."
+          titulo={t.noSePudoLeer}
+          sugerencia={t.noSePudoLeerSugerencia}
           detalle={d.error}
         />
       )}
@@ -74,30 +77,31 @@ function LadosImageDiff({
   d: EstadoImageDiff
 }): React.JSX.Element {
   const { antes, despues } = d
+  const t = txImagen()
   const hayAntes = antes.url !== null || antes.truncated
   const hayDespues = despues.url !== null || despues.truncated
   const delta = hayAntes && hayDespues ? deltaBytes(antes.size, despues.size) : ''
   return (
     <div className="image-diff">
       <Lado
-        rotulo="Antes"
+        rotulo={t.antes}
         lado={antes}
         medidas={d.medAntes}
         onMedidas={d.setMedAntes}
         ilegible={d.ilegAntes}
         onIlegible={() => d.setIlegAntes(true)}
         cargando={d.cargando}
-        vacioTexto={target.status === 'A' ? 'No existía: el archivo es nuevo.' : 'No hay versión anterior.'}
+        vacioTexto={target.status === 'A' ? t.nuevo : t.sinVersionAnterior}
       />
       <Lado
-        rotulo="Después"
+        rotulo={t.despues}
         lado={despues}
         medidas={d.medDespues}
         onMedidas={d.setMedDespues}
         ilegible={d.ilegDespues}
         onIlegible={() => d.setIlegDespues(true)}
         cargando={d.cargando}
-        vacioTexto={target.status === 'D' ? 'Se borró en esta revisión.' : 'No hay versión posterior.'}
+        vacioTexto={target.status === 'D' ? t.borradoEnRevision : t.sinVersionPosterior}
         extra={delta}
       />
     </div>
@@ -123,8 +127,8 @@ function PieImageDiff({ d }: { d: EstadoImageDiff }): React.JSX.Element | null {
   return (
     <footer className="image-diff-pie">
       {antes.size === despues.size
-        ? `Mismas dimensiones (${medAntes.w}×${medAntes.h}) y mismo peso.`
-        : `Mismas dimensiones (${medAntes.w}×${medAntes.h}): el cambio está en el contenido.`}
+        ? txImagen().mismasDimensionesYPeso(medAntes.w, medAntes.h)
+        : txImagen().mismasDimensionesOtroContenido(medAntes.w, medAntes.h)}
     </footer>
   )
 }
@@ -146,14 +150,19 @@ function CabeceraImageDiff({
           <span className="accent sola">{`${target.oldPath} → ${target.path}`}</span>
         )}
         <span className={`diff-status-pill status-${target.status}`}>
-          {STATUS_LABEL[target.status]}
+          {etiquetaEstado(target.status)}
         </span>
-        <span className="diff-revisiones" title="Revisiones que se comparan">
+        <span className="diff-revisiones" title={txDiff().revisionesQueSeComparan}>
           {etiquetaRevisiones(target.commitHash)}
         </span>
       </span>
       <div className="panel-actions">
-        <button className="btn btn-icon" onClick={onClose} title="Cerrar diff" aria-label="Cerrar diff">
+        <button
+          className="btn btn-icon"
+          onClick={onClose}
+          title={txImagen().cerrarDiff}
+          aria-label={txImagen().cerrarDiff}
+        >
           <IconoCerrar />
         </button>
       </div>
@@ -186,23 +195,19 @@ function Lado({
   vacioTexto,
   extra
 }: LadoProps): React.JSX.Element {
+  const t = txImagen()
   return (
     <div className="image-diff-lado">
       <div className="image-diff-rotulo">{rotulo}</div>
       <div className="image-diff-lienzo">
         {cargando ? (
-          <span className="image-diff-vacio">Cargando…</span>
+          <span className="image-diff-vacio">{txVisorComun().cargando}</span>
         ) : lado.truncated ? (
-          <span className="image-diff-vacio">
-            Pesa {formatoBytes(lado.size)} y supera el máximo de 50 MiB: no se puede pintar.
-          </span>
+          <span className="image-diff-vacio">{t.pesaDemasiado(formatoBytes(lado.size))}</span>
         ) : ilegible ? (
           // El catálogo de extensiones de imagen es amplio a propósito: las que Chromium no
           // decodifica (y un lado de 0 bytes) caen aquí en vez de dejar un recuadro en blanco.
-          <span className="image-diff-vacio">
-            El navegador no sabe dibujar este formato. Ábrelo desde el explorador con la
-            aplicación del sistema.
-          </span>
+          <span className="image-diff-vacio">{t.navegadorNoDibuja}</span>
         ) : lado.url ? (
           <img
             className="image-diff-img"

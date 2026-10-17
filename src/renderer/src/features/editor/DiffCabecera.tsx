@@ -6,7 +6,8 @@
 // =============================================================================
 import { etiquetaRevisiones, esDiffDeUnLado } from '../git'
 import { CONTEXTO_LINEAS } from './colapsoDiff'
-import { STATUS_LABEL, TITULO_UN_LADO, etiquetaCuenta } from './diffEditorAvisos'
+import { etiquetaEstado, etiquetaCuenta, tituloUnLado } from './diffEditorAvisos'
+import { txDiff } from './textos.ts'
 import { forzarModo } from './diffEditorModo'
 import type { InstanciaDiff } from './diffEditorInstancia'
 import type { DiffEditorPaneProps, DiffProblem, DiffTarget } from './diffEditorTipos'
@@ -22,10 +23,8 @@ import {
 
 /** Por qué NO se puede saltar al fuente, o null si sí. El botón y su tooltip leen de aquí. */
 function motivoSinFuenteDe(target: DiffTarget, onSaltarAlFuente: unknown): string | null {
-  if (target.status === 'D') return 'Este archivo está borrado: no hay fuente al que saltar'
-  if (onSaltarAlFuente === undefined) {
-    return 'Lo que se compara no es un archivo del proyecto, así que no hay fuente al que saltar'
-  }
+  if (target.status === 'D') return txDiff().sinFuenteBorrado
+  if (onSaltarAlFuente === undefined) return txDiff().sinFuenteNoProyecto
   return null
 }
 
@@ -42,6 +41,7 @@ interface BotonFuenteProps {
 
 function BotonSaltarAlFuente({ target, onSaltarAlFuente, inst }: BotonFuenteProps): React.JSX.Element {
   const motivo = motivoSinFuenteDe(target, onSaltarAlFuente)
+  const t = txDiff()
   // El `title` va en el envoltorio: un control deshabilitado no recibe eventos de ratón.
   return (
     <span className="btn-envoltura" title={motivo ?? undefined}>
@@ -49,12 +49,8 @@ function BotonSaltarAlFuente({ target, onSaltarAlFuente, inst }: BotonFuenteProp
         className="btn btn-icon"
         onClick={() => onSaltarAlFuente?.(lineaActual(inst))}
         disabled={motivo !== null}
-        title={
-          motivo === null
-            ? 'Saltar al fuente (abre el archivo en la línea que estás mirando)'
-            : undefined
-        }
-        aria-label="Saltar al fuente"
+        title={motivo === null ? t.saltarAlFuenteTitulo : undefined}
+        aria-label={t.saltarAlFuente}
       >
         <IconoLapiz />
       </button>
@@ -71,6 +67,7 @@ interface BotonColapsarProps {
 function BotonColapsar({ colapsar, hayPlegable, onColapsar }: BotonColapsarProps): React.JSX.Element {
   // Nunca se deshabilita estando encendido: el ajuste es global y persistido, y quedaría
   // un interruptor pulsado que no se puede soltar.
+  const t = txDiff()
   return (
     <button
       className={`btn btn-icon${colapsar ? ' btn-active' : ''}`}
@@ -79,12 +76,12 @@ function BotonColapsar({ colapsar, hayPlegable, onColapsar }: BotonColapsarProps
       aria-pressed={colapsar}
       title={
         colapsar
-          ? 'Mostrar el archivo completo'
+          ? t.mostrarCompleto
           : !hayPlegable
-            ? 'Este diff no tiene fragmentos sin cambios que colapsar'
-            : `Colapsar los fragmentos sin cambios (${CONTEXTO_LINEAS} líneas de contexto)`
+            ? t.sinFragmentos
+            : t.colapsarTitulo(CONTEXTO_LINEAS)
       }
-      aria-label="Colapsar los fragmentos sin cambios"
+      aria-label={t.colapsar}
     >
       <IconoColapsar />
     </button>
@@ -98,6 +95,7 @@ interface AccionesIzqProps {
 
 function AccionesIzquierda({ pane, estado }: AccionesIzqProps): React.JSX.Element {
   const { inst } = estado
+  const t = txDiff()
   const hasChanges = (estado.numCambios ?? 0) > 0
   const irAlCambio = (dir: 'next' | 'previous'): void => inst.diffEditorRef.current?.goToDiff(dir)
   return (
@@ -106,8 +104,8 @@ function AccionesIzquierda({ pane, estado }: AccionesIzqProps): React.JSX.Elemen
         className="btn btn-icon"
         onClick={() => irAlCambio('previous')}
         disabled={!hasChanges}
-        title="Cambio anterior (Shift+F7)"
-        aria-label="Ir al cambio anterior"
+        title={t.cambioAnteriorTitulo}
+        aria-label={t.cambioAnterior}
       >
         <ChevronUpIcon />
       </button>
@@ -115,8 +113,8 @@ function AccionesIzquierda({ pane, estado }: AccionesIzqProps): React.JSX.Elemen
         className="btn btn-icon"
         onClick={() => irAlCambio('next')}
         disabled={!hasChanges}
-        title="Cambio siguiente (F7)"
-        aria-label="Ir al cambio siguiente"
+        title={t.cambioSiguienteTitulo}
+        aria-label={t.cambioSiguiente}
       >
         <ChevronDownIcon />
       </button>
@@ -138,21 +136,22 @@ interface SelectorModoProps {
 
 function SelectorModo({ estado, unLado }: SelectorModoProps): React.JSX.Element {
   const { inst, modoEfectivo } = estado
+  const t = txDiff()
   // El `title` explicativo va en el contenedor, no en los botones deshabilitados.
   return (
     <div
       className="diff-modo-toggle"
       role="group"
-      aria-label="Modo de vista del diff"
-      title={unLado ? TITULO_UN_LADO : undefined}
+      aria-label={t.modoDelDiff}
+      title={unLado ? tituloUnLado() : undefined}
     >
       <button
         className={`btn btn-icon${modoEfectivo === 'lado-a-lado' ? ' btn-active' : ''}`}
         onClick={() => forzarModo(inst, 'lado-a-lado')}
         disabled={unLado}
         aria-pressed={modoEfectivo === 'lado-a-lado'}
-        title={unLado ? undefined : 'Vista lado a lado'}
-        aria-label="Vista lado a lado"
+        title={unLado ? undefined : t.ladoALado}
+        aria-label={t.ladoALado}
       >
         <IconoLadoALado />
       </button>
@@ -161,8 +160,8 @@ function SelectorModo({ estado, unLado }: SelectorModoProps): React.JSX.Element 
         onClick={() => forzarModo(inst, 'unificado')}
         disabled={unLado}
         aria-pressed={modoEfectivo === 'unificado'}
-        title={unLado ? undefined : 'Vista unificada'}
-        aria-label="Vista unificada"
+        title={unLado ? undefined : t.unificada}
+        aria-label={t.unificada}
       >
         <IconoUnificado />
       </button>
@@ -178,6 +177,7 @@ interface AccionesDerProps {
 
 function AccionesDerecha({ pane, estado, avisoVisible }: AccionesDerProps): React.JSX.Element {
   const { saveError, editable, problem, numCambios } = estado
+  const t = txDiff()
   const unLado = pane.contenidoEnMemoria?.unLado ?? esDiffDeUnLado(pane.target)
   const hasChanges = (numCambios ?? 0) > 0
   return (
@@ -190,11 +190,11 @@ function AccionesDerecha({ pane, estado, avisoVisible }: AccionesDerProps): Reac
       )}
       {/* Tras guardar, la pestaña no se cierra sola: cerrarla bajo el cursor es hostil. */}
       {editable && !hasChanges && !problem && (
-        <span className="editor-notice">Sin cambios respecto al índice</span>
+        <span className="editor-notice">{t.sinCambiosIndice}</span>
       )}
       {/* Sin aviso y con la cuenta ya calculada: en otro caso "Sin diferencias" afirmaría lo no resuelto. */}
       {!avisoVisible && numCambios !== null && (
-        <span className="diff-cuenta" title="Diferencias entre las dos revisiones">
+        <span className="diff-cuenta" title={t.diferenciasEntreRevisiones}>
           {etiquetaCuenta(numCambios)}
         </span>
       )}
@@ -206,7 +206,7 @@ function AccionesDerecha({ pane, estado, avisoVisible }: AccionesDerProps): Reac
 function IdentidadDiff({ target }: { target: DiffTarget }): React.JSX.Element {
   return (
     <div className="diff-identidad">
-      <span className="diff-revisiones" title="Revisiones que se comparan">
+      <span className="diff-revisiones" title={txDiff().revisionesQueSeComparan}>
         {etiquetaRevisiones(target.commitHash)}
       </span>
       {/* El `dir="ltr"` hace seguro el truncado por la izquierda (`.diff-ruta-larga`). */}
@@ -218,7 +218,7 @@ function IdentidadDiff({ target }: { target: DiffTarget }): React.JSX.Element {
         </span>
       </span>
       <span className={`diff-status-pill status-${target.status}`}>
-        {STATUS_LABEL[target.status]}
+        {etiquetaEstado(target.status)}
       </span>
     </div>
   )

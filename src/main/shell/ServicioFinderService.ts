@@ -9,6 +9,7 @@
 
 import { homedir } from 'node:os'
 import { logUpdate } from '../update/logUpdate'
+import { txShell } from './textos.ts'
 import type { SistemaShell } from './adaptadores/sistemaElectron'
 import {
   appDelWflow,
@@ -90,11 +91,11 @@ export class ServicioFinderService {
 
   private async aplicarAhora(activo: boolean): Promise<ResultadoServicioFinder> {
     if (this.disponibilidad() !== 'ok') {
-      return { ok: false, fallos: ['La acción rápida del Finder no está disponible aquí.'] }
+      return { ok: false, fallos: [txShell().finder.noDisponible] }
     }
     const rutaApp = this.rutaApp
     if (rutaApp === null) {
-      return { ok: false, fallos: ['No se pudo localizar el paquete de Tessera.'] }
+      return { ok: false, fallos: [txShell().finder.sinPaquete] }
     }
 
     const fallos = activo

@@ -8,6 +8,7 @@
 // =============================================================================
 
 import { fork, type ChildProcess, type ForkOptions } from 'node:child_process'
+import { txProceso } from './textosExplorador.ts'
 import {
   Correlador,
   VERSION_PROTOCOLO,
@@ -165,7 +166,7 @@ export class ProcesoTrabajador {
       this.correlador.fallar(id, {
         clase: 'perdida',
         codigo: 'TESSERA-PROCESO',
-        mensaje: 'El proceso de la conexión no está en marcha.'
+        mensaje: txProceso().noEnMarcha
       })
       return promesa
     }
@@ -178,7 +179,7 @@ export class ProcesoTrabajador {
           this.correlador.fallar(id, {
             clase: 'perdida',
             codigo: 'TESSERA-CANAL',
-            mensaje: `No se pudo hablar con el proceso de la conexión: ${err.message}`
+            mensaje: txProceso().noSePudoHablar(err.message)
           })
         }
       })
@@ -186,7 +187,7 @@ export class ProcesoTrabajador {
       this.correlador.fallar(id, {
         clase: 'perdida',
         codigo: 'TESSERA-CANAL',
-        mensaje: `No se pudo hablar con el proceso de la conexión: ${(err as Error).message}`
+        mensaje: txProceso().noSePudoHablar((err as Error).message)
       })
     }
     return promesa
@@ -274,7 +275,7 @@ export class ProcesoTrabajador {
     const error: ErrorTrabajador = this.motivoMuerte ?? {
       clase: 'perdida',
       codigo: 'TESSERA-PROCESO',
-      mensaje: `El proceso de la conexión terminó (${senal ? `señal ${senal}` : `código ${codigo}`}).`
+      mensaje: txProceso().termino(senal ? txProceso().senal(senal) : txProceso().codigo(String(codigo)))
     }
     const n = this.correlador.rechazarTodo(error)
     this.opciones.log(`salió codigo=${codigo} senal=${senal}${n ? `; ${n} petición(es) rechazada(s)` : ''}`)

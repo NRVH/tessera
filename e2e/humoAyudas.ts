@@ -189,9 +189,9 @@ export async function asentar(win: Page): Promise<void> {
   await win.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
 }
 
-/** La fila del explorador con ese nombre. */
+/** La fila del explorador con ese nombre, en el árbol que se ve (los de otros proyectos siguen montados). */
 export function filaArbol(win: Page, nombre: string) {
-  return win.locator('.sidebar .tree-row', { hasText: nombre }).first()
+  return win.locator('.sidebar .tree-row:visible', { hasText: nombre }).first()
 }
 
 /** Abre un archivo desde el explorador y espera a que su pestaña sea la activa. */

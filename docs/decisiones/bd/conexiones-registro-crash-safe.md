@@ -7,9 +7,9 @@
 ## Contexto
 
 Con un registro de una versión más nueva, la primera escritura rutinaria (`marcarVerificada` al abrir una
-sesión) borraba las conexiones de motores que esta versión no conoce, bajaba `version` y quitaba lo que no
-entendía. Nadie avisaba: desde fuera es indistinguible de una avería. Además, un `db-connections.json` roto a
-mano se tomaba por vacío y la siguiente escritura lo sobrescribía entero.
+sesión) borraría las conexiones de motores que esta versión no conoce, bajaría `version` y quitaría lo que no
+entiende. Nadie avisaría: desde fuera es indistinguible de una avería. Además, un `db-connections.json` roto a
+mano se tomaría por vacío y la siguiente escritura lo sobrescribiría entero.
 
 ## Decisión
 

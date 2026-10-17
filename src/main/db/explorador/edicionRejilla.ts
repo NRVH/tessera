@@ -30,6 +30,7 @@ export {
   MOTIVO_ROWID_TAPADO,
   MOTIVO_SIN_CLAVE_PG,
   MOTIVO_SOLO_LECTURA,
+  motivoSoloLectura,
   MOTIVO_TABLA_INTERNA,
   columnasFueraDelCatalogo,
   conMarcasDeTabla,

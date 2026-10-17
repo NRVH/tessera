@@ -2,7 +2,7 @@
 // Contrato IPC del explorador para motores de DOCUMENTOS (MongoDB): canales, forma de los
 // documentos y motivos de rechazo. Aparte del SQL; reutiliza de él la conexión y `DbRespuesta`.
 // Hoja del grafo: solo `import type`; neutral y ES2020 (lo importan main, preload y renderer).
-// Decisiones: docs/decisiones/bd/contratos-documentos.md
+// Decisiones: docs/decisiones/bd/documentos-controlador.md
 // =============================================================================
 
 import type { DbPlan, DbRespuesta } from './db-explorador-ipc.ts'

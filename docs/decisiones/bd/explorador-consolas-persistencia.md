@@ -17,7 +17,7 @@ también las puede editar, y `writeFileAtomic` usa un `.tmp` de nombre fijo.
   libre), comparando `NFC` y minúsculas; los reservados de Windows solo se rechazan allí (la
   plataforma es un parámetro).
 - **La versión es el contenido** (`<bytes>:<SHA-256>`). La hora y el tamaño no sirven: un cambio
-  del agente del mismo tamaño en el mismo tic del reloj no daba conflicto y el usuario lo pisaba en
+  del agente del mismo tamaño en el mismo tic del reloj no daría conflicto y el usuario lo pisaría en
   silencio. `escribir` no recibe versión base: el store recuerda la última que leyó o escribió y
   devuelve `{conflicto, texto, version}` solo si el disco difiere. La versión de lo escrito sale
   de los bytes mandados, no de releer el disco.
@@ -34,14 +34,6 @@ también las puede editar, y `writeFileAtomic` usa un `.tmp` de nombre fijo.
 
 ## Consecuencias
 
-Comprobar el disco antes de escribir cuesta leerlo entero (de ~2,2 a ~2,8 ms con 4 KiB; ~20 ms en el
-tope de 5 MiB), dentro del debounce del tecleo. El historial de consultas (`HistorialStore`) vive
-fuera del espacio de datos a propósito: es privado de Tessera y el agente no debe leerlo.
-
-Al borrar el perfil, su espacio de datos entero, consolas incluidas, va a la papelera del sistema,
-igual que una consola suelta y nunca en firme: un borrado
-tiene que poder deshacerse. Solo lo dispara la orden de borrar el perfil
-(`workspace/borrar-perfil-con-orden.md`), nunca una lista guardada a la que le falte. Si la papelera
-falla, el espacio se queda en su sitio y se registra. El porqué, las guardas y lo medido, en
-`docs/decisiones/agentes/agente-de-la-terminal.md`. El diálogo de borrar el perfil lo dice, con el
-nombre de la papelera de cada sistema (`shared/nombresSistema.ts`).
+Comprobar el disco antes de escribir cuesta leerlo entero (hasta el tope de 5 MiB), dentro del
+debounce del tecleo. El historial de consultas (`HistorialStore`) vive fuera del espacio de datos a
+propósito: es privado de Tessera y el agente no debe leerlo.

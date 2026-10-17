@@ -20,7 +20,7 @@ export interface TerminalesApp {
   terminalProjects: TerminalProjectTarget[]
   activeTerminalProjectKey: string | null
   hibernatedProjectKeys: Set<string>
-  /** El perfil de la terminal: el del proyecto confirmado o, sin proyecto, el activo; `''` sin perfil. */
+  /** El perfil de la terminal: el activo; `''` sin perfil. */
   perfilTerminal: string
   /** El contexto en que se mira la terminal: el proyecto (`perfil|ruta`) o el perfil solo (`perfil|`). */
   contextoTerminal: string
@@ -64,12 +64,12 @@ function useAliasSsh(): void {
 
 /** Proyectos con terminales; estrena la primera al mirarlas, poda las de proyectos cerrados y lleva las SSH del perfil. */
 export function useTerminalesApp(tabs: UseTabs, terminalVisible: boolean): TerminalesApp {
-  const confirmed = tabs.confirmedTarget
-  const activeTerminalProjectKey = confirmed
-    ? terminalProjectKey(confirmed.profileId, confirmed.project.projectHostPath)
-    : null
-  const perfilTerminal = confirmed?.profileId ?? tabs.activeProfile?.id ?? ''
-  const contextoTerminal = contextoSsh(perfilTerminal, confirmed ? confirmed.project.projectHostPath : null)
+  // Lo que se VE (`objetivoVisto`): la shell arranca en la ruta de su proyecto y no espera al backend.
+  // Sin proyecto, la terminal es del perfil activo.
+  const perfilTerminal = tabs.objetivoVisto?.profileId ?? tabs.activeProfile?.id ?? ''
+  const proyecto = tabs.objetivoVisto?.project ?? null
+  const activeTerminalProjectKey = proyecto ? terminalProjectKey(perfilTerminal, proyecto.projectHostPath) : null
+  const contextoTerminal = contextoSsh(perfilTerminal, proyecto ? proyecto.projectHostPath : null)
   // Una terminal cuelga del PROYECTO: se deduplica la dimensión de agente.
   const terminalProjects = useMemo<TerminalProjectTarget[]>(() => {
     const seen = new Map<string, TerminalProjectTarget>()

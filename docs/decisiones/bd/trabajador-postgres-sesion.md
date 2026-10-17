@@ -1,7 +1,7 @@
 # La sesión PostgreSQL lee con `pg-cursor` y lo cierra en el acto, refija formatos y cancela por CancelRequest
 
 - **Estado:** vigente
-- **Ámbito:** `src/tdb/sesionPostgres.cjs` y `erroresSesionPostgres`, `formatosSesionPostgres`, `clienteSesionPostgres`, `cursorSesionPostgres`, `salidaSesionPostgres`
+- **Ámbito:** `src/tdb/sesionPostgres.cjs`, `src/tdb/postgres.cjs` (`abrir`) y `erroresSesionPostgres`, `formatosSesionPostgres`, `clienteSesionPostgres`, `cursorSesionPostgres`, `salidaSesionPostgres`
 
 ## Contexto
 
@@ -31,10 +31,18 @@ Lo que sigue es lo que, sin embargo, tiene que cumplir el trabajador para que es
 - Stop = CancelRequest del protocolo (sin credenciales ni sesión extra). Un cancel tardío puede caer en la
   sentencia SIGUIENTE: se espera a que el servidor cierre la conexión del cancel y el ROLLBACK se reintenta
   una vez si da 57014.
-- `alError` va al constructor del `Client`: un backend terminado con la sesión ociosa emite 'error' y, sin
-  oyente, tumbaba el proceso. Se convierte en el gancho `alPerder`.
+- **Arranque del cliente** (`abrir` en `src/tdb/postgres.cjs`, al que `sesionPostgres.cjs` pasa
+  `opciones`): `statement_timeout`, `application_name` y `keepAlive` van AL CONSTRUCTOR del `Client`,
+  porque son parámetros de arranque del protocolo y un `SET` posterior costaría un viaje por sesión y
+  dejaría una ventana sin el tope. `alError` se engancha nada más construir el cliente, ANTES de
+  `connect()`: un backend terminado con la sesión ociosa emite 'error' y, sin oyente, Node lo convierte
+  en una excepción que tumba el proceso entero y con él las transacciones de las demás consolas de la
+  conexión. Se convierte en el gancho `alPerder`; reordenarlo después de `connect()` reabre esa ventana.
+  Sin `opciones` (el caso de `tdb`, que abre por invocación) rigen los valores de siempre:
+  `application_name` `Tessera/tdb <usuario>@<alias>` y 60 s de tope por sentencia.
 
 ## Descartes
 
 - Envolver en `SELECT * FROM (…) LIMIT`: cambia la semántica (CTE con DML, SELECT INTO, SHOW) y descoloca la
   posición de los errores. `Client#cancel`: exige el `activeQuery` y avisa por stderr.
+- `SET statement_timeout` tras conectar: un viaje de más y una ventana sin tope.

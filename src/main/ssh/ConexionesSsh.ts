@@ -24,6 +24,7 @@ import type {
 import type { CifradoSecretos } from '../db/adaptadores/cifradoSistema.ts'
 import { remedioSinAlmacen } from '../db/adaptadores/almacenSeguro.ts'
 import { writeFileAtomicSync } from '../util/atomicWrite.ts'
+import { txSsh } from './textos.ts'
 import {
   conservarAlEditarSsh,
   type ClaveSshPersistida,
@@ -54,7 +55,7 @@ import {
   type RegistroSsh
 } from './registroSsh.ts'
 import {
-  MENSAJE_FALTA_CLAVE,
+  mensajeFaltaClave,
   aliasDeCopia,
   camposAGuardarSsh,
   validarEntradaSsh,
@@ -65,6 +66,18 @@ import {
 /** El archivo de clave de una conexión: la copia la deja en `ssh/claves/<id>` quien llama, antes de guardar. */
 export interface ClaveInstalada {
   clave?: ClaveSshPersistida
+}
+
+/** Una conexión en la copia de la configuración: sus datos, su secreto en claro y el texto de su clave y sus huellas. */
+export interface ConexionSshCopia {
+  registro: Omit<ConexionSshPersistida, 'secretEnc'>
+  secreto: string | null
+  /** Tenía un secreto que este equipo no puede descifrar: viaja sin él. */
+  ilegible: boolean
+  /** El archivo de clave importado; null si su copia ya no está. */
+  clave?: string | null
+  /** El `known_hosts` propio de la conexión. */
+  huellas?: string
 }
 
 /** La copia que se aparta (`ssh/claves/<id>.anterior`) mientras se sustituye por una nueva. */
@@ -197,16 +210,21 @@ export class ConexionesSsh {
     return c ? structuredClone(c) : undefined
   }
 
+  /** La carpeta de los `known_hosts` de las conexiones. */
+  get carpetaHuellas(): string {
+    return this.dirHuellas
+  }
+
   /** El `known_hosts` propio de una conexión. */
   rutaHuellas(id: string): string {
-    if (!ID_SEGURO.test(id)) throw new Error('El id de la conexión no es válido.')
+    if (!ID_SEGURO.test(id)) throw new Error(txSsh().registro.idNoValido)
     return join(this.dirHuellas, id)
   }
 
   /** La copia de la clave importada de una conexión. */
   rutaClave(id: string): string {
     const ruta = rutaCopiaClave(this.dirClaves, id)
-    if (ruta === null) throw new Error('El id de la conexión no es válido.')
+    if (ruta === null) throw new Error(txSsh().registro.idNoValido)
     return ruta
   }
 
@@ -256,10 +274,12 @@ export class ConexionesSsh {
   /** El secreto cifrado para guardarlo; sin almacén del sistema se niega: nunca se guarda en claro. */
   private cifrar(plano: string, metodo: SshConexionInput['metodo']): string {
     if (this.cifrado === null || !this.cifrado.disponible()) {
+      const t = txSsh().registro
       throw new Error(
-        `No se puede guardar ${metodo === 'clave' ? 'la frase de la clave' : 'la contraseña'}: ` +
-          `${nombresSistema(plataformaActual()).almacenSecretos} no está disponible. Tessera nunca la guarda en claro.` +
-          remedioSinAlmacen(plataformaActual())
+        t.sinAlmacen(
+          metodo === 'clave' ? t.fraseClave : t.contrasena,
+          nombresSistema(plataformaActual()).almacenSecretos
+        ) + remedioSinAlmacen(plataformaActual())
       )
     }
     return this.cifrado.cifrar(plano).toString('base64')
@@ -292,19 +312,19 @@ export class ConexionesSsh {
    * escritura atómica (con reintentos si un ssh lo tiene abierto) en vez de borrarlo a pelo.
    */
   olvidarHuellas(id: string): void {
-    if (!conexionesConocidas(this.reg).some((c) => c.id === id)) throw new Error('Esa conexión ya no existe.')
+    if (!conexionesConocidas(this.reg).some((c) => c.id === id)) throw new Error(txSsh().registro.noExiste)
     const ruta = this.rutaHuellas(id)
     try {
       if (existsSync(ruta)) writeFileAtomicSync(ruta, '')
       rmSync(`${ruta}.old`, { force: true })
     } catch (e) {
-      throw new Error(`No se pudo olvidar la huella guardada (${codigoDeError(e)}).`, { cause: e })
+      throw new Error(txSsh().registro.huellaNoOlvidada(codigoDeError(e)), { cause: e })
     }
   }
 
   private dtoDe(id: string): SshConexion {
     const e = this.reg.conexiones.find((x): x is Conocida => x.tipo === 'conocida' && x.registro.id === id)
-    if (!e) throw new Error('Esa conexión ya no existe.')
+    if (!e) throw new Error(txSsh().registro.noExiste)
     return this.aDto(e, gruposConocidos(this.reg))
   }
 
@@ -318,10 +338,10 @@ export class ConexionesSsh {
     // Antes de validar: con un registro que no se sabe escribir, no entra nada.
     if (this.reg.formatoAjeno) throw new Error(this.reg.aviso)
     validarEntradaSsh(input, this.contexto())
-    if (input.metodo === 'clave' && instalada.clave === undefined) throw new Error(MENSAJE_FALTA_CLAVE)
+    if (input.metodo === 'clave' && instalada.clave === undefined) throw new Error(mensajeFaltaClave())
     const id = instalada.id ?? randomUUID()
     // El id nombra los archivos de la conexión: uno ya citado se los quedaría.
-    if (!ID_SEGURO.test(id) || idsConArchivos(this.reg).has(id.toLowerCase())) throw new Error('No se pudo dar un id a la conexión: inténtalo otra vez.')
+    if (!ID_SEGURO.test(id) || idsConArchivos(this.reg).has(id.toLowerCase())) throw new Error(txSsh().registro.sinId)
     const registro: ConexionSshPersistida = { id, ...camposAGuardarSsh(input) }
     if (input.metodo === 'clave' && instalada.clave !== undefined) registro.clave = instalada.clave
     if (input.secreto) registro.secretEnc = this.cifrar(input.secreto, input.metodo)
@@ -337,9 +357,9 @@ export class ConexionesSsh {
    */
   editar(id: string, input: SshConexionInput, instalada: ClaveInstalada = {}): SshConexion {
     const idx = this.reg.conexiones.findIndex((e) => e.tipo === 'conocida' && e.registro.id === id)
-    if (idx < 0) throw new Error('Esa conexión ya no existe.')
+    if (idx < 0) throw new Error(txSsh().registro.noExiste)
     const previa = this.reg.conexiones[idx] as Conocida
-    if (input?.profileId !== previa.registro.profileId) throw new Error('Una conexión no puede cambiar de perfil.')
+    if (input?.profileId !== previa.registro.profileId) throw new Error(txSsh().registro.cambiarPerfil)
     validarEntradaSsh(input, this.contexto(), id)
     const nuevo: ConexionSshPersistida = { id, ...camposAGuardarSsh(input, previa.registro) }
     if (input.metodo === 'clave' && instalada.clave !== undefined) nuevo.clave = instalada.clave
@@ -348,8 +368,8 @@ export class ConexionesSsh {
     const grupoConocido = (g: string): boolean => grupos.some((x) => x.id === g && x.profileId === previa.registro.profileId)
     const entrada = separarConexion(conservarAlEditarSsh(crudoDe(previa), nuevo, grupoConocido, input.secreto))
     // No puede pasar (se acaba de validar), pero tragárselo guardaría algo que la siguiente lectura trataría de ajeno.
-    if (!entrada) throw new Error(`La conexión "${nuevo.alias}" no tiene una forma válida.`)
-    if (input.metodo === 'clave' && entrada.registro.clave === undefined) throw new Error(MENSAJE_FALTA_CLAVE)
+    if (!entrada) throw new Error(txSsh().registro.formaInvalida(nuevo.alias))
+    if (input.metodo === 'clave' && entrada.registro.clave === undefined) throw new Error(mensajeFaltaClave())
     this.aplicar((reg) => {
       reg.conexiones[idx] = entrada
     })
@@ -366,9 +386,9 @@ export class ConexionesSsh {
   duplicar(origenId: string, profileId: string, instalada: ClaveInstalada & { id?: string } = {}): SshConexion {
     if (this.reg.formatoAjeno) throw new Error(this.reg.aviso)
     const origen = conexionesConocidas(this.reg).find((c) => c.id === origenId && c.profileId === profileId)
-    if (!origen) throw new Error('Esa conexión ya no existe.')
+    if (!origen) throw new Error(txSsh().registro.noExiste)
     const id = instalada.id ?? randomUUID()
-    if (!ID_SEGURO.test(id) || idsConArchivos(this.reg).has(id.toLowerCase())) throw new Error('No se pudo dar un id a la copia: inténtalo otra vez.')
+    if (!ID_SEGURO.test(id) || idsConArchivos(this.reg).has(id.toLowerCase())) throw new Error(txSsh().registro.sinIdCopia)
     const ctx = this.contexto()
     const ocupados = [
       ...ctx.conexiones.filter((c) => c.profileId === profileId).map((c) => c.alias),
@@ -377,7 +397,7 @@ export class ConexionesSsh {
     const { secretEnc, clave, ...datos } = structuredClone(origen)
     const registro: ConexionSshPersistida = { ...datos, id, alias: aliasDeCopia(origen.alias, ocupados) }
     if (origen.metodo === 'clave') {
-      if (clave === undefined || instalada.clave === undefined) throw new Error(MENSAJE_FALTA_CLAVE)
+      if (clave === undefined || instalada.clave === undefined) throw new Error(mensajeFaltaClave())
       registro.clave = instalada.clave
     }
     if (secretEnc !== undefined) registro.secretEnc = secretEnc
@@ -423,7 +443,7 @@ export class ConexionesSsh {
   mover(ids: readonly string[], profileId: string, grupoId: string | null): SshConexionesMovidas {
     if (this.reg.formatoAjeno) throw new Error(this.reg.aviso)
     if (grupoId !== null && !gruposConocidos(this.reg).some((g) => g.id === grupoId && g.profileId === profileId)) {
-      throw new Error('Ese grupo ya no existe en este perfil.')
+      throw new Error(txSsh().registro.grupoNoExiste)
     }
     const buscadas = new Set(ids)
     const aMover = (c: ConexionSshPersistida): boolean => c.profileId === profileId && buscadas.has(c.id) && (c.grupoId ?? null) !== grupoId
@@ -459,7 +479,7 @@ export class ConexionesSsh {
   /** Cambia el nombre de un grupo del perfil; lo que el grupo traiga y no se conozca se conserva. */
   renombrarGrupo(id: string, profileId: string, nombre: string): SshGrupo {
     const idx = this.indiceGrupo(id, profileId)
-    if (idx < 0) throw new Error('Ese grupo ya no existe.')
+    if (idx < 0) throw new Error(txSsh().registro.grupoNoExisteSolo)
     const limpio = validarNombreGrupo(nombre, profileId, this.contexto(), id)
     const actual = (this.reg.grupos[idx] as EntradaConocida<GrupoSshPersistido>).registro
     if (actual.nombre !== limpio) {
@@ -481,6 +501,71 @@ export class ConexionesSsh {
       for (const c of conexionesConocidas(reg)) if (delGrupo(c)) delete c.grupoId
     })
     return { borrado: true, conexionesMovidas: movidas }
+  }
+
+  // --- Copia de la configuración ----------------------------------------------
+
+  /**
+   * Los grupos y las conexiones conocidas de un perfil para una copia, con el secreto en claro y el texto
+   * de su clave y de sus huellas: solo hacia dentro del main, que lo cifra con la frase.
+   */
+  paraCopia(profileId: string): { grupos: GrupoSshPersistido[]; conexiones: ConexionSshCopia[] } {
+    const grupos = gruposConocidos(this.reg).filter((g) => g.profileId === profileId).map((g) => structuredClone(g))
+    const conexiones = conexionesConocidas(this.reg)
+      .filter((c) => c.profileId === profileId)
+      .map((c): ConexionSshCopia => {
+        const { secretEnc, ...registro } = structuredClone(c)
+        const secreto = typeof secretEnc === 'string' && secretEnc !== '' ? this.descifrado(secretEnc) : null
+        const copia: ConexionSshCopia = { registro, secreto, ilegible: typeof secretEnc === 'string' && secretEnc !== '' && secreto === null }
+        if (c.clave) copia.clave = this.leerTexto(this.rutaClave(c.id))
+        const huellas = this.textoHuellas(c.id)
+        if (huellas) copia.huellas = huellas
+        return copia
+      })
+    return { grupos, conexiones }
+  }
+
+  private leerTexto(ruta: string): string | null {
+    try {
+      return readFileSync(ruta, 'utf-8')
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * El grupo de una copia en este perfil: el que ya se llama igual, o uno nuevo con el id de la copia (si
+   * está libre). Devuelve el id con el que queda, para que sus conexiones lo citen.
+   */
+  importarGrupoDeCopia(raw: unknown): string {
+    if (this.reg.formatoAjeno) throw new Error(this.reg.aviso)
+    const g = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
+    const profileId = typeof g.profileId === 'string' ? g.profileId : ''
+    const nombre = String(g.nombre ?? '').trim()
+    const igual = gruposConocidos(this.reg).find((x) => x.profileId === profileId && x.nombre.toLowerCase() === nombre.toLowerCase())
+    if (igual) return igual.id
+    const limpio = validarNombreGrupo(nombre, profileId, this.contexto())
+    const libre = typeof g.id === 'string' && ID_SEGURO.test(g.id) && !this.reg.grupos.some((e) => e.tipo === 'conocida' && e.registro.id === g.id)
+    const registro: GrupoSshPersistido = { id: libre ? (g.id as string) : randomUUID(), profileId, nombre: limpio }
+    this.aplicar((reg) => {
+      reg.grupos.push({ tipo: 'conocida', registro, resto: {} })
+    })
+    return registro.id
+  }
+
+  /** ¿Hay almacén del sistema donde guardar un secreto? */
+  puedeGuardarSecretos(): boolean {
+    return this.cifrado !== null && this.cifrado.disponible()
+  }
+
+  /** ¿Hay ya una entrada (conocida o ajena) o unos archivos con ese id? Una conexión de una copia no los pisa. */
+  idOcupado(id: string): boolean {
+    return idsConArchivos(this.reg).has(id.toLowerCase()) || conexionesConocidas(this.reg).some((c) => c.id === id)
+  }
+
+  /** Deja las huellas que trae la copia en el `known_hosts` de una conexión recién importada. */
+  escribirHuellas(id: string, texto: string): void {
+    writeFileAtomicSync(this.rutaHuellas(id), texto)
   }
 
   // --- Perfiles --------------------------------------------------------------

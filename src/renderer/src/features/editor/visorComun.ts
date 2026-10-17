@@ -5,21 +5,23 @@
 // =============================================================================
 
 import type { MutableRefObject } from 'react'
+import type { RutaEnProyecto } from '../../../../shared/files-ipc'
+import { txVisorComun } from './textosVisores.ts'
 
 /** Abre el archivo con la app del sistema; devuelve el aviso a mostrar si falla. */
-export async function abrirExterno(path: string): Promise<string | null> {
+export async function abrirExterno(ruta: RutaEnProyecto): Promise<string | null> {
   try {
-    const err = await window.tessera.files.openPath(path)
-    return err ? `No se pudo abrir con una app del sistema: ${err}` : null
+    const err = await window.tessera.files.openPath(ruta)
+    return err ? txVisorComun().noSePudoAbrirConApp(err) : null
   } catch (e) {
     return e instanceof Error ? e.message : String(e)
   }
 }
 
 /** Revela el archivo en el gestor de archivos del sistema; devuelve el aviso si falla. */
-export async function revelarEnCarpeta(path: string): Promise<string | null> {
+export async function revelarEnCarpeta(ruta: RutaEnProyecto): Promise<string | null> {
   try {
-    await window.tessera.files.reveal(path)
+    await window.tessera.files.reveal(ruta)
     return null
   } catch (e) {
     return e instanceof Error ? e.message : String(e)

@@ -21,21 +21,23 @@ import {
   type ErrorRejilla,
   type ValidacionFragmento
 } from './sqlRejillaTipos.ts'
+import { txSqlRejilla } from './textosRejilla.ts'
 
 const ETIQUETA: Record<CampoRejilla, string> = { where: 'WHERE', orderBy: 'ORDER BY' }
 
 function mensajeSinCerrar(t: Token, etiqueta: string): string {
+  const x = txSqlRejilla()
   switch (t.tipo) {
     case 'comentario':
-      return `Comentario sin cerrar en ${etiqueta}.`
+      return x.comentarioSinCerrar(etiqueta)
     case 'identCitado':
-      return `Identificador entre comillas sin cerrar en ${etiqueta}.`
+      return x.identSinCerrar(etiqueta)
     case 'cadena':
       return t.valor.charAt(0) === '$'
-        ? `Cadena con ${t.valor.slice(0, t.valor.indexOf('$', 1) + 1) || '$…$'} sin cerrar en ${etiqueta}.`
-        : `Cadena sin cerrar en ${etiqueta}.`
+        ? x.cadenaDolarSinCerrar(t.valor.slice(0, t.valor.indexOf('$', 1) + 1) || '$…$', etiqueta)
+        : x.cadenaSinCerrar(etiqueta)
     default:
-      return `Texto sin cerrar en ${etiqueta}.`
+      return x.textoSinCerrar(etiqueta)
   }
 }
 
@@ -53,31 +55,23 @@ export function validarFragmento(texto: string, campo: CampoRejilla, d: Dialecto
       case 'comentario':
         continue
       case 'puntoYComa':
-        return fallo(`${etiqueta} no admite «;»: aquí va una sola expresión.`, campo, t.desde)
+        return fallo(txSqlRejilla().sinPuntoYComa(etiqueta), campo, t.desde)
       case 'parenA':
         abiertos.push(t.desde)
         break
       case 'parenC':
         if (abiertos.length === 0) {
-          return fallo(`Sobra un «)» en ${etiqueta}: no tiene su «(».`, campo, t.desde)
+          return fallo(txSqlRejilla().sobraParen(etiqueta), campo, t.desde)
         }
         abiertos.pop()
         break
       case 'bind':
-        return fallo(
-          `${etiqueta} no admite variables de enlace (${t.valor}): escribe el valor.`,
-          campo,
-          t.desde
-        )
+        return fallo(txSqlRejilla().sinVariables(etiqueta, t.valor), campo, t.desde)
       case 'lineaCliente':
-        return fallo(`${etiqueta} no admite comandos de psql.`, campo, t.desde)
+        return fallo(txSqlRejilla().sinPsql(etiqueta), campo, t.desde)
       case 'palabra':
         if (campo === 'orderBy' && abiertos.length === 0 && t.valor === 'FOR') {
-          return fallo(
-            'ORDER BY no admite FOR UPDATE ni FOR SHARE: la rejilla solo lee.',
-            campo,
-            t.desde
-          )
+          return fallo(txSqlRejilla().sinForUpdate, campo, t.desde)
         }
         break
       default:
@@ -86,7 +80,7 @@ export function validarFragmento(texto: string, campo: CampoRejilla, d: Dialecto
     significativos++
   }
   if (abiertos.length > 0) {
-    return fallo(`Falta cerrar un «(» en ${etiqueta}.`, campo, abiertos[abiertos.length - 1])
+    return fallo(txSqlRejilla().faltaCerrarParen(etiqueta), campo, abiertos[abiertos.length - 1])
   }
   return { vacio: significativos === 0 }
 }
@@ -144,7 +138,7 @@ function aplicarFiltro(d: DialectoSql, p: EntradaClausulas, c: Clausulas, califi
     return e
   }
   if (f === null) return null
-  if (conTexto(p.where)) return fallo('El filtro guiado y el WHERE libre no van juntos: se aplica uno u otro.', null, null)
+  if (conTexto(p.where)) return fallo(txSqlRejilla().whereConGuiado, null, null)
   c.where = f.sql
   c.condiciones = f.rangos
   c.valores = f.valores
@@ -158,7 +152,7 @@ function aplicarOrden(p: EntradaClausulas, c: Clausulas, calificador: string): E
   const o = compilarOrden(p.orden, calificador, c.dialecto)
   if (o !== null && typeof o !== 'string') return fallo(o.mensaje, null, null)
   if (o === null) return null
-  if (conTexto(p.orderBy)) return fallo('El orden de la cabecera y el ORDER BY libre no van juntos: se aplica uno u otro.', null, null)
+  if (conTexto(p.orderBy)) return fallo(txSqlRejilla().orderConCabecera, null, null)
   c.orderBy = o
   return null
 }

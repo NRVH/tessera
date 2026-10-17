@@ -13,6 +13,7 @@ import type { DbTab, DbTabsState, IndicadorPestana, TituloPestana } from './dbTa
 import { useArrastrePestanas } from './useArrastrePestanas'
 import { DbTabsPestana } from './DbTabsPestana'
 import { itemsMenuPestana } from './DbTabsMenu'
+import { txArea } from './textosArea.ts'
 
 interface DbTabsProps {
   tabs: readonly DbTab[]
@@ -53,7 +54,7 @@ export function DbTabs(props: DbTabsProps): React.JSX.Element {
     <div
       className="editor-tabs db-tabs"
       role="tablist"
-      aria-label="Pestañas de bases de datos"
+      aria-label={txArea().tiraAria}
       onDragOver={arrastre.alSobrevolarTira}
       onDragLeave={arrastre.alSalirTira}
       onDrop={arrastre.soltar}

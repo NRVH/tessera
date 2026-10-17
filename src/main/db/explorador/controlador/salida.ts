@@ -27,6 +27,7 @@ import {
   RESPUESTA_DESCARTAR_Y_SALIR,
   totalSinEnviar
 } from '../salidaSinEnviar.ts'
+import { txControlador } from './textosControlador.ts'
 
 import type { TablaExplorador } from './tabla.ts'
 import type { ContextoExplorador, OpcionesExplorador } from './tipos.ts'
@@ -112,7 +113,7 @@ export class SalidaExplorador {
     const previo = this.c.conexiones.get(id)
     if (previo && this.casillaSinEfecto(previo, soloCasillaAgentes)) return { ok: true }
     if (!this.c.gestor.hayTxPendiente(id)) return { ok: true }
-    return { ok: false, mensaje: 'Confirma o revierte primero las transacciones pendientes de esta conexión.' }
+    return { ok: false, mensaje: txControlador().txPendientesAlEditar }
   }
 
   /**
@@ -177,7 +178,7 @@ export class SalidaExplorador {
     const nombres = new Map<string, Map<string, string>>()
     const lineas: string[] = []
     for (const it of items) {
-      const alias = this.c.conexiones.get(it.conexionId)?.alias ?? 'conexión'
+      const alias = this.c.conexiones.get(it.conexionId)?.alias ?? txControlador().conexionAlias
       let quien: string = it.ref.rol
       if (it.ref.rol === 'consola') {
         const perfil = it.ref.perfilId
@@ -191,9 +192,9 @@ export class SalidaExplorador {
           }
           nombres.set(perfil, delPerfil)
         }
-        quien = delPerfil.get(it.ref.consolaId) ?? 'consola'
+        quien = delPerfil.get(it.ref.consolaId) ?? txControlador().consolaAlias
       }
-      if (it.tx === 'fallida') quien = `${quien} (fallida: se revertirá)`
+      if (it.tx === 'fallida') quien = txControlador().fallidaSeRevierte(quien)
       lineas.push(it.mensaje ? `${alias} · ${quien}: ${it.mensaje}` : `${alias} · ${quien}`)
     }
     return lineas
@@ -242,18 +243,16 @@ export class SalidaExplorador {
     const lineas = await this.describir(pendientes)
     // Con alguna fallida, se dice qué hace «Confirmar y salir» con ella ANTES de elegir.
     const hayFallidas = pendientes.some((p) => p.tx === 'fallida')
-    const notaFallidas = hayFallidas
-      ? '\n\nLas marcadas como fallidas no se pueden confirmar: se revierten con cualquiera de las dos opciones.'
-      : ''
+    const t = txControlador()
+    const notaFallidas = hayFallidas ? t.notaFallidas : ''
     // Con cambios sin enviar, el MISMO diálogo los nombra; sin ellos, queda exactamente como era.
-    const txFrase = n === 1 ? 'una transacción sin confirmar' : `${n} transacciones sin confirmar`
-    const conCambios = sinEnviar.length > 0 ? ` y ${fraseCambios(totalSinEnviar(sinEnviar))} sin enviar` : ''
+    const conCambios = sinEnviar.length > 0 ? t.ySinEnviar(fraseCambios(totalSinEnviar(sinEnviar))) : ''
     const r = await mostrar(win, {
       type: 'warning',
-      title: 'Transacciones sin confirmar',
-      message: `Hay ${txFrase}${conCambios}.`,
-      detail: `${lineas.join('\n')}\n\nSi sales revirtiendo, se pierden sus cambios.${notaFallidas}${bloqueSinEnviar(sinEnviar)}`,
-      buttons: ['Confirmar y salir', 'Revertir y salir', 'Cancelar'],
+      title: t.salidaTitulo,
+      message: t.salidaMensaje(n, conCambios),
+      detail: t.salidaDetalle(lineas.join('\n'), notaFallidas, bloqueSinEnviar(sinEnviar)),
+      buttons: [...t.salidaBotones],
       defaultId: 2,
       cancelId: 2,
       noLink: true
@@ -280,12 +279,13 @@ export class SalidaExplorador {
     }
     if (res.ok) return 'seguir'
     const fallidas = await this.describir(res.errores)
+    const t = txControlador()
     const r2 = await mostrar(win, {
       type: 'error',
-      title: 'No se pudo confirmar',
-      message: '¿Salir revirtiendo?',
-      detail: `No se pudieron confirmar:\n${fallidas.join('\n')}\n\nSi sales, el servidor revertirá esos cambios.`,
-      buttons: ['Salir revirtiendo', 'Cancelar'],
+      title: t.falloTitulo,
+      message: t.falloMensaje,
+      detail: t.falloDetalle(fallidas.join('\n')),
+      buttons: [...t.falloBotones],
       defaultId: 1,
       cancelId: 1,
       noLink: true

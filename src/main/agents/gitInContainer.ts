@@ -175,6 +175,13 @@ export interface ComposeGitOptions {
    * INTACTO cuando no se pasa.
    */
   sshSetup?: SshSetup | null
+  /**
+   * `HOME` propio (el de un agente manual, en su carpeta persistente del perfil). Las llaves no
+   * cambian de sitio: ssh lee `~/.ssh` del usuario del sistema, no de `$HOME`.
+   */
+  home?: string
+  /** Carpetas que van DELANTE del PATH estándar (las `.local/bin` del agente manual). */
+  pathDelante?: string[]
 }
 
 /**
@@ -184,7 +191,9 @@ export interface ComposeGitOptions {
  */
 export function composeCleanGitCommand(userCommand: string, opts: ComposeGitOptions = {}): string {
   const useConfigSsh = !!opts.sshSetup
-  const assignments = [`PATH=${BASE_PATH}`, `HOME=${NEUTRAL_HOME}`, ...gitAgentAssignments(useConfigSsh)]
+  // Sin citar, como siempre: son rutas del contenedor hechas de ids seguros (slugs), sin espacios.
+  const path = [...(opts.pathDelante ?? []), BASE_PATH].join(':')
+  const assignments = [`PATH=${path}`, `HOME=${opts.home ?? NEUTRAL_HOME}`, ...gitAgentAssignments(useConfigSsh)]
   if (opts.extraAssignments) assignments.push(...opts.extraAssignments)
   if (opts.agente && opts.containerConfigPath) {
     assignments.push(`${AGENT_ENV_VAR[opts.agente]}=${opts.containerConfigPath}`)

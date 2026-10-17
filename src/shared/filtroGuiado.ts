@@ -7,6 +7,7 @@
 
 import type { DbTipoLogico } from './db-explorador-ipc.ts'
 import type { DbDocTipo } from './db-documentos-ipc.ts'
+import { crearTextos } from './i18n.ts'
 
 /**
  * Qué operadores admite una columna. `id` es el `_id`/ObjectId de Mongo (sin «contiene»).
@@ -64,17 +65,70 @@ export const OPERADORES_POR_CATEGORIA: Readonly<Record<DbCategoriaFiltro, readon
   otro: ['vacio', 'noVacio']
 }
 
-/** Lo que pinta el desplegable de operadores. */
-export const ETIQUETA_OPERADOR: Readonly<Record<DbOperadorFiltro, string>> = {
-  contiene: 'contiene',
-  empiezaPor: 'empieza por',
-  igual: '=',
-  distinto: '≠',
-  mayor: '>',
-  menor: '<',
-  entre: 'entre',
-  vacio: 'está vacío',
-  noVacio: 'no está vacío'
+const txFiltroGuiado = crearTextos(
+  {
+    operadores: {
+      contiene: 'contiene',
+      empiezaPor: 'empieza por',
+      igual: '=',
+      distinto: '≠',
+      mayor: '>',
+      menor: '<',
+      entre: 'entre',
+      vacio: 'está vacío',
+      noVacio: 'no está vacío'
+    } as Record<DbOperadorFiltro, string>,
+    escribeValor: 'Escribe un valor (para buscar vacíos, usa «está vacío»).',
+    valorLargo: (max: number) => `El valor pasa de ${max} caracteres.`,
+    noNumero: 'No es un número (usa punto decimal: 12.5).',
+    noFecha: 'No es una fecha (AAAA-MM-DD, con hora opcional HH:MM[:SS]).',
+    noBooleano: 'Escribe true o false.',
+    filtroInvalido: 'Filtro no válido.',
+    unionInvalida: 'Unión del filtro no válida.',
+    condicionesMax: (max: number) => `Un filtro admite hasta ${max} condiciones.`,
+    condicionInvalida: 'Condición no válida.',
+    eligeColumna: 'Elige una columna.',
+    tipoInvalido: 'Tipo de columna no válido.',
+    operadorInvalido: 'Ese operador no vale para esta columna.',
+    sobraValor: 'Sobra un valor en la condición.',
+    ordenInvalido: 'Orden no válido.',
+    ordenMax: (max: number) => `Se ordena por hasta ${max} columnas.`,
+    columnaRepetida: (columna: string) => `La columna ${columna} está dos veces en el orden.`
+  },
+  {
+    operadores: {
+      contiene: 'contains',
+      empiezaPor: 'starts with',
+      igual: '=',
+      distinto: '≠',
+      mayor: '>',
+      menor: '<',
+      entre: 'between',
+      vacio: 'is empty',
+      noVacio: 'is not empty'
+    },
+    escribeValor: 'Enter a value (to look for empty ones, use “is empty”).',
+    valorLargo: (max: number) => `The value is over ${max} characters.`,
+    noNumero: 'Not a number (use a decimal point: 12.5).',
+    noFecha: 'Not a date (YYYY-MM-DD, with an optional time HH:MM[:SS]).',
+    noBooleano: 'Enter true or false.',
+    filtroInvalido: 'Invalid filter.',
+    unionInvalida: 'Invalid filter join.',
+    condicionesMax: (max: number) => `A filter allows up to ${max} conditions.`,
+    condicionInvalida: 'Invalid condition.',
+    eligeColumna: 'Choose a column.',
+    tipoInvalido: 'Invalid column type.',
+    operadorInvalido: 'That operator is not valid for this column.',
+    sobraValor: 'Extra value in the condition.',
+    ordenInvalido: 'Invalid order.',
+    ordenMax: (max: number) => `You can sort by up to ${max} columns.`,
+    columnaRepetida: (columna: string) => `Column ${columna} appears twice in the order.`
+  }
+)
+
+/** Lo que pinta el desplegable de operadores, en el idioma de la interfaz. */
+export function etiquetaOperador(op: DbOperadorFiltro): string {
+  return txFiltroGuiado().operadores[op]
 }
 
 /** Cuántos valores lleva el operador. */
@@ -213,16 +267,16 @@ export function leerBooleano(texto: string): boolean | null {
 /** Por qué un valor no vale para su categoría, o null si vale. En español, para la interfaz. */
 export function problemaDeValor(categoria: DbCategoriaFiltro, valor: string | undefined): string | null {
   if (valor === undefined || valor.trim() === '') {
-    return 'Escribe un valor (para buscar vacíos, usa «está vacío»).'
+    return txFiltroGuiado().escribeValor
   }
-  if (valor.length > MAX_VALOR_FILTRO) return `El valor pasa de ${MAX_VALOR_FILTRO} caracteres.`
+  if (valor.length > MAX_VALOR_FILTRO) return txFiltroGuiado().valorLargo(MAX_VALOR_FILTRO)
   switch (categoria) {
     case 'numero':
-      return leerNumero(valor) === null ? 'No es un número (usa punto decimal: 12.5).' : null
+      return leerNumero(valor) === null ? txFiltroGuiado().noNumero : null
     case 'fecha':
-      return leerFecha(valor) === null ? 'No es una fecha (AAAA-MM-DD, con hora opcional HH:MM[:SS]).' : null
+      return leerFecha(valor) === null ? txFiltroGuiado().noFecha : null
     case 'booleano':
-      return leerBooleano(valor) === null ? 'Escribe true o false.' : null
+      return leerBooleano(valor) === null ? txFiltroGuiado().noBooleano : null
     case 'id':
     case 'texto':
     case 'textoLargo':
@@ -248,12 +302,13 @@ const CATEGORIAS = Object.keys(OPERADORES_POR_CATEGORIA) as DbCategoriaFiltro[]
  * (segunda barrera: lo que llega por IPC no se cree). Devuelve el primer problema o null.
  */
 export function validarFiltro(f: unknown): ProblemaFiltro | null {
-  if (typeof f !== 'object' || f === null) return { indice: -1, mensaje: 'Filtro no válido.' }
+  const t = txFiltroGuiado()
+  if (typeof f !== 'object' || f === null) return { indice: -1, mensaje: t.filtroInvalido }
   const { union, condiciones } = f as Partial<DbFiltroGuiado>
-  if (union !== 'todas' && union !== 'cualquiera') return { indice: -1, mensaje: 'Unión del filtro no válida.' }
-  if (!Array.isArray(condiciones)) return { indice: -1, mensaje: 'Filtro no válido.' }
+  if (union !== 'todas' && union !== 'cualquiera') return { indice: -1, mensaje: t.unionInvalida }
+  if (!Array.isArray(condiciones)) return { indice: -1, mensaje: t.filtroInvalido }
   if (condiciones.length > MAX_CONDICIONES) {
-    return { indice: -1, mensaje: `Un filtro admite hasta ${MAX_CONDICIONES} condiciones.` }
+    return { indice: -1, mensaje: t.condicionesMax(MAX_CONDICIONES) }
   }
   for (let i = 0; i < condiciones.length; i++) {
     const mensaje = problemaDeCondicion(condiciones[i] as Partial<DbCondicionFiltro> | null)
@@ -264,24 +319,25 @@ export function validarFiltro(f: unknown): ProblemaFiltro | null {
 
 /** El primer problema de una condición del filtro, o null si vale. */
 function problemaDeCondicion(c: Partial<DbCondicionFiltro> | null): string | null {
-  if (typeof c !== 'object' || c === null) return 'Condición no válida.'
-  if (typeof c.columna !== 'string' || c.columna === '' || c.columna.length > 1000) return 'Elige una columna.'
+  const t = txFiltroGuiado()
+  if (typeof c !== 'object' || c === null) return t.condicionInvalida
+  if (typeof c.columna !== 'string' || c.columna === '' || c.columna.length > 1000) return t.eligeColumna
   if (typeof c.categoria !== 'string' || CATEGORIAS.indexOf(c.categoria as DbCategoriaFiltro) < 0) {
-    return 'Tipo de columna no válido.'
+    return t.tipoInvalido
   }
   const ops = OPERADORES_POR_CATEGORIA[c.categoria as DbCategoriaFiltro]
   if (typeof c.operador !== 'string' || ops.indexOf(c.operador as DbOperadorFiltro) < 0) {
-    return 'Ese operador no vale para esta columna.'
+    return t.operadorInvalido
   }
   const n = aridad(c.operador as DbOperadorFiltro)
   const vals = [c.valor, c.valor2]
   for (let k = 0; k < 2; k++) {
     const v = vals[k]
     if (k >= n) {
-      if (v !== undefined) return 'Sobra un valor en la condición.'
+      if (v !== undefined) return t.sobraValor
       continue
     }
-    if (typeof v !== 'string') return 'Escribe un valor (para buscar vacíos, usa «está vacío»).'
+    if (typeof v !== 'string') return t.escribeValor
     const p = problemaDeValor(c.categoria as DbCategoriaFiltro, v)
     if (p !== null) return p
   }
@@ -290,14 +346,15 @@ function problemaDeCondicion(c: Partial<DbCondicionFiltro> | null): string | nul
 
 /** Valida el orden de la cabecera. Devuelve el mensaje del problema o null. */
 export function validarOrden(o: unknown): string | null {
-  if (!Array.isArray(o)) return 'Orden no válido.'
-  if (o.length > MAX_COLUMNAS_ORDEN) return `Se ordena por hasta ${MAX_COLUMNAS_ORDEN} columnas.`
+  const t = txFiltroGuiado()
+  if (!Array.isArray(o)) return t.ordenInvalido
+  if (o.length > MAX_COLUMNAS_ORDEN) return t.ordenMax(MAX_COLUMNAS_ORDEN)
   const vistas = new Set<string>()
   for (const x of o as Array<Partial<DbOrdenColumna> | null>) {
-    if (typeof x !== 'object' || x === null) return 'Orden no válido.'
-    if (typeof x.columna !== 'string' || x.columna === '' || x.columna.length > 1000) return 'Orden no válido.'
-    if (x.dir !== 'asc' && x.dir !== 'desc') return 'Orden no válido.'
-    if (vistas.has(x.columna)) return `La columna ${x.columna} está dos veces en el orden.`
+    if (typeof x !== 'object' || x === null) return t.ordenInvalido
+    if (typeof x.columna !== 'string' || x.columna === '' || x.columna.length > 1000) return t.ordenInvalido
+    if (x.dir !== 'asc' && x.dir !== 'desc') return t.ordenInvalido
+    if (vistas.has(x.columna)) return t.columnaRepetida(x.columna)
     vistas.add(x.columna)
   }
   return null

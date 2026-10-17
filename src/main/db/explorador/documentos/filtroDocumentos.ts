@@ -2,7 +2,7 @@
 // Compila el filtro guiado (`shared/filtroGuiado.ts`) y el orden de la cabecera de la pestaña de colección de MongoDB a
 // los textos en notación del shell que ya entiende el trabajador. Pura: sin `electron`, proceso ni driver.
 // La usan `ControladorDocumentos` (valida en la entrada) y `GestorDocumentos` (compila).
-// Decisiones: docs/decisiones/bd/documentos-filtro-guiado.md
+// Decisiones: docs/decisiones/bd/filtro-guiado-compilacion.md
 // =============================================================================
 
 import type { DbErrorSql } from '../../../../shared/db-explorador-ipc.ts'
@@ -19,6 +19,7 @@ import {
   type DbOrdenColumna,
   type FechaFiltro
 } from '../../../../shared/filtroGuiado.ts'
+import { txDocumentos } from './textosDocumentos.ts'
 import { invalida } from './validacionPeticion.ts'
 
 /** Dónde está una condición dentro del texto compilado (UTF-16, `hasta` exclusivo). */
@@ -66,10 +67,11 @@ const q = (s: string): string => JSON.stringify(s)
 
 /** Por qué un nombre de campo no vale como ruta de MongoDB, o null. */
 export function problemaDeCampo(nombre: string): string | null {
-  if (nombre.indexOf('\u0000') >= 0) return 'El nombre del campo lleva un carácter nulo.'
+  const t = txDocumentos()
+  if (nombre.indexOf('\u0000') >= 0) return t.campoNulo
   const partes = nombre.split('.')
-  if (partes.some((p) => p === '')) return `«${nombre}» no es una ruta de campo válida (un punto al principio, al final o dos seguidos).`
-  if (partes.some((p) => p.charAt(0) === '$')) return `El campo «${nombre}» empieza por $: el servidor lo leería como un operador.`
+  if (partes.some((p) => p === '')) return t.rutaNoValida(nombre)
+  if (partes.some((p) => p.charAt(0) === '$')) return t.campoDolar(nombre)
   return null
 }
 
@@ -149,7 +151,7 @@ function expresion(c: DbCondicionFiltro): Compilacion<string> {
   const v = c.valor ?? ''
   const r = expresionDeCategoria(c, v)
   // `validarFiltro` ya descartó el operador que no es de su categoría y el valor ilegible.
-  return r ?? { ok: false, error: { motivo: 'servidor', mensaje: 'Ese operador no vale para esta columna.' } }
+  return r ?? { ok: false, error: { motivo: 'servidor', mensaje: txDocumentos().operadorNoVale } }
 }
 
 function bien(valor: string): { ok: true; valor: string } {
@@ -194,7 +196,7 @@ function expresionNumero(c: DbCondicionFiltro, v: string): Compilacion<string> |
   const a = literalNumero(v)
   const b = op === 'entre' ? literalNumero(c.valor2 ?? '') : ''
   if (a === null || b === null) {
-    return { ok: false, error: { motivo: 'servidor', mensaje: `El número pasa de ${MAX_CIFRAS_DECIMAL} cifras significativas: el servidor no lo guarda exacto.` } }
+    return { ok: false, error: { motivo: 'servidor', mensaje: txDocumentos().numeroLargo(MAX_CIFRAS_DECIMAL) } }
   }
   switch (op) {
     case 'igual':
@@ -299,10 +301,7 @@ export function compilarOrdenDocs(o: unknown): Compilacion<string> {
   const reales = Object.keys(prueba)
   if (reales.some((k, i) => k !== orden[i].columna)) {
     const numericas = orden.filter((x) => /^(0|[1-9]\d*)$/.test(x.columna)).map((x) => `«${x.columna}»`)
-    return errorOrden(
-      `Un campo de nombre numérico (${numericas.join(', ')}) solo puede ordenar el primero (y, si hay varios, de menor a mayor): ` +
-        'Tessera todavía no sabe ponerlo detrás de otro.'
-    )
+    return errorOrden(txDocumentos().ordenNumerico(numericas.join(', ')))
   }
   return { ok: true, valor: `{ ${orden.map((x) => `${q(x.columna)}: ${x.dir === 'asc' ? 1 : -1}`).join(', ')} }` }
 }

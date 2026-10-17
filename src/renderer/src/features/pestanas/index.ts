@@ -6,14 +6,14 @@
 // (docs/decisiones/renderer/barriles-sin-ciclos.md).
 // =============================================================================
 export type { UseTabs, DecideProjectMode } from './useTabs'
-export { agentTargetKey, backendAnclado, type OpenAgentTarget, type OpenProject } from './tabsModel'
+export { agentTargetKey, type OpenAgentTarget, type OpenProject } from './tabsModel'
 export { tintaPerfil, tintaResaltado, hexARgb } from './colorPerfil'
 export { ProfileTabs, ProfileDot } from './ProfileTabs'
 export { SelectorPerfil } from './SelectorPerfil'
 export { ProjectTabs } from './ProjectTabs'
 export { ModeIcon } from './modeIcon'
 export type { ProfileDotState, ProjectDotState } from './profileDotState'
-export { useStorePestanas, asegurarModoNativo } from './store'
+export { useStorePestanas, asegurarModoNativo, leerTabs, despacharTabs } from './store'
 export type { ModoProyecto } from './useModoProyecto'
 export type { usePuntosPerfil } from './usePuntosPerfil'
 export { ProjectModeModal } from './ProjectModeModal'

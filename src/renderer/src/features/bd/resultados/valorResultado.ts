@@ -9,6 +9,7 @@
 import type { DbCelda, DbColumnaInfo, DbPedirValor, DbRefObjeto, DbTxModo } from '../../../../../shared/db-explorador-ipc.ts'
 import type { DialectoSql } from '../../../../../shared/sql/dialectosSql.ts'
 import { nombreCalificado } from '../../../../../shared/sql/identificadoresSql.ts'
+import { txResultados } from './textosResultados.ts'
 
 /** Lo que el clasificador sabe de la tabla única (`RefObjeto` de `clasificarSql`). */
 export interface TablaResultado {
@@ -34,18 +35,17 @@ export type DecisionValorCompleto =
       cargar?: { esquema: string; nombre: string }
     }
 
-export const RAZON_VARIAS_TABLAS =
-  'El resultado no sale de una sola tabla: no se puede volver a buscar la fila para leer el valor entero'
-export const RAZON_DBLINK = 'La tabla está en otra base (@dblink): no se puede volver a buscar la fila'
-export const RAZON_SIN_ESQUEMA = 'No se sabe en qué esquema está la tabla'
-export const RAZON_CARGANDO = 'Leyendo la clave primaria de la tabla…'
-export const RAZON_SIN_PK = 'La tabla no tiene clave primaria: no se puede volver a buscar la fila'
+export const razonVariasTablas = (): string => txResultados().variasTablas
+export const razonDblink = (): string => txResultados().dblink
+export const razonSinEsquema = (): string => txResultados().sinEsquema
+export const razonCargando = (): string => txResultados().cargandoPk
+export const razonSinPk = (): string => txResultados().sinPk
 
 /** `El resultado no trae la columna ID de la clave primaria` / `las columnas A y B`. */
 export function razonFaltanClave(faltan: readonly string[]): string {
-  if (faltan.length === 1) return `El resultado no trae la columna ${faltan[0]} de la clave primaria`
-  const lista = faltan.slice(0, -1).join(', ') + ' y ' + faltan[faltan.length - 1]
-  return `El resultado no trae las columnas ${lista} de la clave primaria`
+  const t = txResultados()
+  if (faltan.length === 1) return t.faltaColumna(faltan[0])
+  return t.faltanColumnas(t.unirFaltan(faltan))
 }
 
 /** Esquema de la tabla: el escrito, o el de la sesión. */
@@ -64,16 +64,16 @@ export function decidirValorCompleto(p: {
   columnasCatalogo: readonly DbColumnaInfo[] | null
 }): DecisionValorCompleto {
   const t = p.tabla
-  if (!t) return { ok: false, razon: RAZON_VARIAS_TABLAS }
-  if (t.dblink) return { ok: false, razon: RAZON_DBLINK }
+  if (!t) return { ok: false, razon: razonVariasTablas() }
+  if (t.dblink) return { ok: false, razon: razonDblink() }
   const esquema = esquemaDeTabla(t, p.esquemaSesion)
-  if (!esquema) return { ok: false, razon: RAZON_SIN_ESQUEMA }
-  if (p.columnasCatalogo === null) return { ok: false, razon: RAZON_CARGANDO, cargar: { esquema, nombre: t.nombre } }
+  if (!esquema) return { ok: false, razon: razonSinEsquema() }
+  if (p.columnasCatalogo === null) return { ok: false, razon: razonCargando(), cargar: { esquema, nombre: t.nombre } }
   const pk = p.columnasCatalogo
     .filter((c) => typeof c.pk === 'number')
     .sort((a, b) => (a.pk as number) - (b.pk as number))
     .map((c) => c.nombre)
-  if (pk.length === 0) return { ok: false, razon: RAZON_SIN_PK }
+  if (pk.length === 0) return { ok: false, razon: razonSinPk() }
   const indices: number[] = []
   const faltan: string[] = []
   for (const col of pk) {

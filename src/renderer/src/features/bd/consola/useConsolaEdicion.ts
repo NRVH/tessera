@@ -17,7 +17,8 @@ import type { DialogosConsola } from './useConsolaDialogos'
 import { errorEnModelo, esquemaAhora, invocarSentencia, modoEnEditor, pintarMarcas } from './useConsolaLote'
 import type { NucleoConsola } from './useConsolaNucleo'
 import { mensajeDe } from '../documentos/consolaComun'
-import { PISTA_YA_FORMATEADO, sentenciaExplicable } from './vivoConsola'
+import { pistaYaFormateado, sentenciaExplicable } from './vivoConsola'
+import { txPane } from './textosPane.ts'
 
 type Piezas = Pick<NucleoConsola, 'r' | 'api' | 'perfilId' | 'consolaId' | 'despachar' | 'setLoteMarcado'>
 
@@ -140,9 +141,9 @@ export function useEdicionConsola(n: NucleoConsola, bindsDelLote: DialogosConsol
     if (!e || !r.cargadoRef.current || r.desmontadoRef.current) return
     try {
       const cambio = await formatearEnEditor(e, r.conexionRef.current.motor)
-      if (!cambio) despachar({ tipo: 'pista', texto: PISTA_YA_FORMATEADO })
+      if (!cambio) despachar({ tipo: 'pista', texto: pistaYaFormateado() })
     } catch (err) {
-      despachar({ tipo: 'pista', texto: `No se pudo formatear: ${mensajeDe(err)}` })
+      despachar({ tipo: 'pista', texto: txPane().noSePudoFormatear(mensajeDe(err)) })
     }
     if (!r.desmontadoRef.current) e.focus()
   }, [despachar, r])

@@ -66,7 +66,7 @@ function montajesEnDisco(datos: string): Record<string, string[]> {
 
 /** Los `data-tipo` de las filas pintadas del árbol, en orden. */
 async function tiposDeFilas(win: Page): Promise<string[]> {
-  return win.locator('.db-arbol .db-fila').evaluateAll((filas) => filas.map((f) => f.getAttribute('data-tipo') ?? ''))
+  return win.locator('.db-arbol:visible .db-fila').evaluateAll((filas) => filas.map((f) => f.getAttribute('data-tipo') ?? ''))
 }
 
 test.describe('explorador de BD: conexiones de un motor que esta versión no conoce', () => {

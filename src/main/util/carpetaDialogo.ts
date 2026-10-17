@@ -34,6 +34,8 @@ export type DialogoCarpeta =
   | 'sftp-descarga'
   /** Lo que subir al servidor desde el explorador SFTP. */
   | 'sftp-subida'
+  /** Dónde guardar, o de dónde abrir, una copia de la configuración de Tessera. */
+  | 'copia-configuracion'
 
 /** ¿Se puede ofrecer `ruta` como carpeta inicial? Se inyecta para que el test no dependa del disco. */
 export type EsCarpeta = (ruta: string) => Promise<boolean>

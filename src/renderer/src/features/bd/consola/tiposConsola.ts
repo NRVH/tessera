@@ -2,7 +2,7 @@
 // Tipos del motor de una consola SQL: su API para el pane, los diálogos que pide,
 // el lote en curso y la bolsa de refs que comparten los hooks de `useConsola`.
 // Solo tipos: lo importan `useConsola.ts` y sus piezas `useConsola*.ts`.
-// Decisiones: docs/decisiones/bd/ui-consola-motor.md
+// Decisiones: docs/decisiones/bd/ui-consola-estado.md
 // =============================================================================
 
 import type { editor } from 'monaco-editor'

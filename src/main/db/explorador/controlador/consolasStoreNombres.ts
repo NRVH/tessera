@@ -7,6 +7,7 @@
 import path from 'node:path'
 import type { Plataforma } from '../../../../shared/plataforma.ts'
 import { ErrorConsolas } from './consolasStoreErrores.ts'
+import { txControlador } from './textosControlador.ts'
 
 /** Extensión por defecto (la de toda consola SQL y la de las entradas sin `extension`). */
 export const EXT = '.sql'
@@ -53,24 +54,25 @@ export function tieneControl(s: string): boolean {
  * usuario. Pura: la plataforma decide los nombres reservados.
  */
 export function validarNombreConsola(bruto: unknown, plataforma: Plataforma): ValidacionNombre {
-  if (typeof bruto !== 'string') return { ok: false, motivo: 'El nombre no es válido.' }
+  const t = txControlador()
+  if (typeof bruto !== 'string') return { ok: false, motivo: t.nombreNoValido }
   const nombre = bruto.normalize('NFC').trim()
-  if (nombre === '') return { ok: false, motivo: 'El nombre no puede estar vacío.' }
+  if (nombre === '') return { ok: false, motivo: t.nombreVacio }
   if (Array.from(nombre).length > NOMBRE_MAX) {
-    return { ok: false, motivo: `El nombre no puede pasar de ${NOMBRE_MAX} caracteres.` }
+    return { ok: false, motivo: t.nombreMaximo(NOMBRE_MAX) }
   }
   if (Buffer.byteLength(nombre + EXT, 'utf8') > NOMBRE_MAX_BYTES) {
-    return { ok: false, motivo: 'El nombre es demasiado largo para el sistema de archivos.' }
+    return { ok: false, motivo: t.fsNombreLargo }
   }
   if (nombre.includes('/') || nombre.includes('\\')) {
-    return { ok: false, motivo: 'El nombre no puede contener «/» ni «\\».' }
+    return { ok: false, motivo: t.nombreBarras }
   }
-  if (nombre.includes('..')) return { ok: false, motivo: 'El nombre no puede contener «..».' }
+  if (nombre.includes('..')) return { ok: false, motivo: t.nombrePuntos }
   if (nombre.startsWith('.')) {
-    return { ok: false, motivo: 'El nombre no puede empezar por un punto (sería un archivo oculto).' }
+    return { ok: false, motivo: t.nombreEmpiezaPunto }
   }
   if (tieneControl(nombre)) {
-    return { ok: false, motivo: 'El nombre no puede contener caracteres de control.' }
+    return { ok: false, motivo: t.nombreControl }
   }
   if (plataforma === 'windows') return validarEnWindows(nombre)
   return { ok: true, nombre }
@@ -79,13 +81,13 @@ export function validarNombreConsola(bruto: unknown, plataforma: Plataforma): Va
 /** Lo que solo se rechaza en Windows: caracteres, punto final y nombres reservados. */
 function validarEnWindows(nombre: string): ValidacionNombre {
   if (/[<>:"|?*]/.test(nombre)) {
-    return { ok: false, motivo: 'El nombre no puede contener ninguno de estos caracteres: < > : " | ? *' }
+    return { ok: false, motivo: txControlador().nombreCaracteres }
   }
   // El sistema quita el punto final en silencio: el archivo acabaría llamándose otra cosa.
-  if (nombre.endsWith('.')) return { ok: false, motivo: 'El nombre no puede terminar en punto.' }
+  if (nombre.endsWith('.')) return { ok: false, motivo: txControlador().nombreTerminaPunto }
   const raiz = nombre.split('.')[0].trim().toUpperCase()
   if (RESERVADOS_WINDOWS.has(raiz)) {
-    return { ok: false, motivo: `«${raiz}» es un nombre reservado del sistema.` }
+    return { ok: false, motivo: txControlador().nombreReservado(raiz) }
   }
   return { ok: true, nombre }
 }
@@ -144,12 +146,12 @@ export function nombreSeguro(nombre: unknown): nombre is string {
 
 /** Ruta de una consola, comprobando que es hija DIRECTA de su carpeta. */
 export function rutaDeConsola(carpeta: string, nombre: string, ext: ExtensionConsola): string {
-  if (!nombreSeguro(nombre)) throw new ErrorConsolas('entrada', 'Nombre de consola no válido.')
-  if (!EXTENSIONES.includes(ext)) throw new ErrorConsolas('entrada', 'Tipo de consola desconocido.')
+  if (!nombreSeguro(nombre)) throw new ErrorConsolas('entrada', txControlador().consolaNombreNoValido)
+  if (!EXTENSIONES.includes(ext)) throw new ErrorConsolas('entrada', txControlador().consolaTipoDesconocido)
   const archivo = nombre + ext
   const abs = path.resolve(carpeta, archivo)
   if (path.dirname(abs) !== carpeta || path.basename(abs) !== archivo) {
-    throw new ErrorConsolas('entrada', 'Nombre de consola fuera de su carpeta.')
+    throw new ErrorConsolas('entrada', txControlador().consolaFueraCarpeta)
   }
   return abs
 }

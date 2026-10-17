@@ -5,14 +5,14 @@
 // Solo depende del tipo `ProfileDotState`.
 // =============================================================================
 import type { ProfileDotState } from './profileDotState'
+import { txPestanas } from './textos.ts'
 
 /** Lo que dice el dot de la actividad (también su clase CSS): esperar gana a trabajar, y trabajar al halo. */
 type ActividadDot = 'esperando' | 'working' | 'attention'
 
-const TITULOS: Record<ActividadDot, string> = {
-  esperando: 'Un agente te está esperando',
-  working: 'Trabajando…',
-  attention: 'Un agente terminó y aún no lo revisas'
+function titulosActividad(): Record<ActividadDot, string> {
+  const t = txPestanas().perfil
+  return { esperando: t.puntoEsperando, working: t.puntoTrabajando, attention: t.puntoAtencion }
 }
 
 function actividadDelDot(working: boolean, attention: boolean, waiting: boolean): ActividadDot | null {
@@ -41,13 +41,14 @@ export function ProfileDot({
   /** Un agente del perfil TE ESPERA: un anillo parpadea alrededor del dot. Gana a los demás: es lo único que no avanza sin ti. */
   waiting?: boolean
 }): React.JSX.Element {
+  const t = txPestanas().perfil
   if (state === 'hibernating' || state === 'waking') {
     return (
       <span
         className="profile-tab-dot spinner"
         style={{ borderTopColor: color }}
-        title={state === 'waking' ? 'Despertando…' : 'Hibernando…'}
-        aria-label={state === 'waking' ? 'despertando' : 'hibernando'}
+        title={state === 'waking' ? t.despertando : t.hibernando}
+        aria-label={state === 'waking' ? t.despertandoAria : t.hibernandoAria}
       />
     )
   }
@@ -58,8 +59,8 @@ export function ProfileDot({
       <span
         className="profile-tab-dot hibernated"
         style={{ boxShadow: `inset 0 0 0 1.5px ${color}` }}
-        title="Hibernado"
-        aria-label="hibernado"
+        title={t.hibernado}
+        aria-label={t.hibernadoAria}
       />
     )
   }
@@ -74,7 +75,7 @@ export function ProfileDot({
         color,
         ...(halo ? { boxShadow: `0 0 6px 1px ${color}` } : {})
       }}
-      title={actividad === null ? undefined : TITULOS[actividad]}
+      title={actividad === null ? undefined : titulosActividad()[actividad]}
     />
   )
 }

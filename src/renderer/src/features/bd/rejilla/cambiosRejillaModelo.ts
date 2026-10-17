@@ -6,6 +6,7 @@
 // =============================================================================
 
 import type { DbCelda, DbIdentidadFila, DbValorEdicion } from '../../../../../shared/db-explorador-ipc.ts'
+import { txEdicionRejilla } from './textosEdicionRejilla.ts'
 
 // --- Tipos -------------------------------------------------------------------------
 
@@ -76,17 +77,19 @@ export function resumenCambios(c: CambiosRejilla): ResumenCambios {
 
 /** «3 cambios», «1 cambio». */
 export function textoCambios(n: number): string {
-  return n === 1 ? '1 cambio' : `${n} cambios`
+  const t = txEdicionRejilla()
+  return n === 1 ? t.unCambio : t.nCambios(n)
 }
 
 /** «1 actualización, 2 inserciones y 1 borrado» (solo lo que hay). */
 export function textoResumen(r: ResumenCambios): string {
   const partes: string[] = []
-  if (r.actualizar > 0) partes.push(r.actualizar === 1 ? '1 actualización' : `${r.actualizar} actualizaciones`)
-  if (r.insertar > 0) partes.push(r.insertar === 1 ? '1 inserción' : `${r.insertar} inserciones`)
-  if (r.borrar > 0) partes.push(r.borrar === 1 ? '1 borrado' : `${r.borrar} borrados`)
+  const t = txEdicionRejilla()
+  if (r.actualizar > 0) partes.push(r.actualizar === 1 ? t.unaActualizacion : t.nActualizaciones(r.actualizar))
+  if (r.insertar > 0) partes.push(r.insertar === 1 ? t.unaInsercion : t.nInserciones(r.insertar))
+  if (r.borrar > 0) partes.push(r.borrar === 1 ? t.unBorrado : t.nBorrados(r.borrar))
   if (partes.length <= 1) return partes.join('')
-  return partes.slice(0, -1).join(', ') + ' y ' + partes[partes.length - 1]
+  return partes.slice(0, -1).join(', ') + t.y + partes[partes.length - 1]
 }
 
 /** ¿Nombran la misma fila? */

@@ -12,12 +12,13 @@ import {
   IconoBd,
   IconoMotor,
   nombreMotor,
-  NOTA_MONTAJE_FORMATO_AJENO,
-  TITULO_FORMATO_AJENO,
+  notaMontajeFormatoAjeno,
+  tituloFormatoAjeno,
   ajenasMontadasPopover,
   filaMontajeAjena
 } from '../bd'
 import { textosMontajeBases } from './textosMontajeBases'
+import { txPane } from './textosPane.ts'
 import type { ModeloAgentPane } from './useAgentPane'
 
 interface PropsLista {
@@ -81,6 +82,7 @@ function FilaAjena({ a, montadas, onChange }: { a: DbConexionAjena } & Pick<Prop
 /** Las conexiones, las ajenas montadas y las notas de cómo se aplica el montaje. */
 function ListaMontaje({ conexiones, ajenas, montadas, onChange, hostMode }: PropsLista): React.JSX.Element {
   const sinProbar = conexiones.filter((c) => !c.verificada && !montadas.includes(c.id))
+  const t = txPane().montaje
   return (
     <>
       {conexiones
@@ -94,23 +96,26 @@ function ListaMontaje({ conexiones, ajenas, montadas, onChange, hostMode }: Prop
       ))}
       {sinProbar.length > 0 && (
         <p className="db-mount-nota">
-          {sinProbar.length}{' '}
-          conexión(es) sin probar. Despliégalas en la vista Bases de datos (o pulsa{' '}
-          <strong>Probar conexión</strong> en su menú) para poder montarlas.
+          {t.sinProbarA(sinProbar.length)}
+          <strong>{t.probarConexion}</strong>
+          {t.sinProbarB}
         </p>
       )}
       {/* `tdb` pregunta en cada invocación: se aplica al momento; el aviso del prompt no. */}
       <p className="db-mount-nota">
-        Se aplica <strong>al momento</strong>, sin reiniciar. El agente puede seguir
-        nombrando la lista con la que arrancó: pídele un <code>tdb ls</code> y la verá.
+        {t.aplicaA}
+        <strong>{t.alMomento}</strong>
+        {t.aplicaB}
+        <code>tdb ls</code>
+        {t.aplicaC}
       </p>
       {/* En contenedor la consulta la ejecuta Tessera en el anfitrión: por eso llega a
           bases detrás de la VPN sin que el contenedor esté en ella. */}
       {!hostMode && (
         <p className="db-mount-nota">
-          Las consultas las ejecuta Tessera en{' '}
-          {nombresSistema(window.tessera.plataforma).tuEquipo}: el contenedor no toca
-          la base ni necesita la VPN.
+          {t.consultasA}
+          {nombresSistema(window.tessera.plataforma).tuEquipo}
+          {t.consultasB}
         </p>
       )}
     </>
@@ -120,14 +125,14 @@ function ListaMontaje({ conexiones, ajenas, montadas, onChange, hostMode }: Prop
 /** Cuerpo del popover según lo que decide `vistaPopoverMontaje`. */
 function CuerpoMontaje({ m }: { m: ModeloAgentPane }): React.JSX.Element {
   const { vistaMontaje, conexionesMontaje, dbAjenas } = m.montaje
-  if (vistaMontaje.tipo === 'cargando') return <div className="db-mount-vacio">Cargando…</div>
+  if (vistaMontaje.tipo === 'cargando') return <div className="db-mount-vacio">{txPane().montaje.cargando}</div>
   if (vistaMontaje.tipo === 'formato') {
     // Sin ofrecer nada: las montadas se conservan (la poda de arranque se salta) y se dice.
     return (
       <div className="db-mount-aviso" role="status">
-        <div className="db-mount-aviso-titulo">{TITULO_FORMATO_AJENO}</div>
+        <div className="db-mount-aviso-titulo">{tituloFormatoAjeno()}</div>
         {vistaMontaje.aviso}
-        <p>{NOTA_MONTAJE_FORMATO_AJENO}</p>
+        <p>{notaMontajeFormatoAjeno()}</p>
       </div>
     )
   }
@@ -159,8 +164,8 @@ export function PopoverMontaje({ m }: { m: ModeloAgentPane }): React.JSX.Element
           type="button"
           className="btn btn-icon"
           onClick={() => montaje.setShowDbMount(false)}
-          aria-label="Cerrar"
-          title="Cerrar"
+          aria-label={txPane().montaje.cerrar}
+          title={txPane().montaje.cerrar}
         >
           ✕
         </button>

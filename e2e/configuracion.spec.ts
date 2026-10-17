@@ -95,8 +95,10 @@ test('la categoría «Integración con el sistema» SÍ aparece en el riel, en l
     'apariencia',
     'terminales',
     'proyectos',
+    'agentes',
     'bases-de-datos',
     'integracion',
+    'copia',
     'actualizaciones',
     'acerca'
   ])

@@ -7,7 +7,10 @@
 
 import type { DbConnection } from '../../../../shared/db-ipc'
 import type { AgentKind } from '../../../../shared/agent-terminal-ipc'
-import type { Agente } from '../../../../main/profiles/types'
+// Con extensión: es un import de VALOR y `test-props-pane-agente.mts` carga este módulo con `node`.
+import { esAgenteManual, type DefinicionAgente, type IdAgente } from '../../../../shared/agentesManuales.ts'
+import { txSesion } from './textosSesion.ts'
+import type { PestanaAgente } from './agentesDelProyecto'
 import type { OpenAgentTarget } from '../pestanas'
 import type { CeldaMosaico, OpcionMosaico } from '../mosaico'
 import type { ApiAgentePane } from './tipos'
@@ -60,7 +63,7 @@ export interface MosaicoPane {
    * casilla (no el agente seleccionado del perfil). Lleva su actividad para que el chip
    * no esconda trabajo en marcha del agente que no se ve.
    */
-  otroAgente: { key: string; agente: Agente; trabajando: boolean; sinVer: boolean; esperando: boolean } | null
+  otroAgente: { key: string; agente: IdAgente; nombre: string; trabajando: boolean; sinVer: boolean; esperando: boolean } | null
   /**
    * Cambia el modo del PROYECTO (contenedor ⇄ nativo) desde el glifo de la cabecera.
    * null = no se puede (el espacio de datos vive siempre en modo nativo). El pane se
@@ -76,6 +79,21 @@ export interface MosaicoPane {
 
 /** Estado de la sesión del agente; se reporta hacia arriba para el punto del perfil. */
 export type AgentPaneStatus = 'booting' | 'live' | 'exited' | 'error'
+
+/**
+ * Lo que el pane reporta al punto del perfil. Sin cuenta no hay nada arrancando. Un pane que
+ * no se mira no abre (el reconcile espera a que se mire): su 'booting' sin apertura en vuelo
+ * ni recuperación es una sesión soltada a la espera, y girar ahí no pararía hasta volver a
+ * ese pane. Una apertura o una recuperación siguen girando oculto, porque avanzan solas.
+ */
+export function estadoParaElPunto(
+  status: AgentPaneStatus,
+  c: { sinCuenta: boolean; seEstaMirando: boolean; abriendo: boolean; recuperando: boolean }
+): AgentPaneStatus {
+  if (c.sinCuenta) return 'exited'
+  if (status === 'booting' && !c.seEstaMirando && !c.abriendo && !c.recuperando) return 'exited'
+  return status
+}
 
 /** Estado de la recuperación ante una muerte anómala del contenedor o de Docker. */
 export type RecoveryState =
@@ -114,10 +132,10 @@ export interface AgentTerminalPaneProps {
   profileName: string | null
   /** Color del perfil (ya en tinta), para el cursor y el popover de montaje. */
   accentColor: string | null
-  /** Agentes configurados del perfil: con más de uno, la cabecera pinta el selector. */
-  agentsInProfile?: Agente[]
-  /** Cambia el agente seleccionado del perfil (clic en otro segmento del selector). */
-  onSelectAgent?: (profileId: string, agente: Agente) => void
+  /** Las pestañas de agente del proyecto (de serie visibles y manuales de su modo), con identidad estable. */
+  pestanasAgente?: readonly PestanaAgente[]
+  /** Cambia el agente seleccionado del perfil (clic en otra pestaña de agente). */
+  onSelectAgent?: (profileId: string, agente: IdAgente) => void
   /**
    * Ids de las conexiones MONTADAS en este proyecto. Se envían al ABRIR la sesión; un
    * cambio posterior va por IPC al puente y no exige reiniciar.
@@ -190,7 +208,7 @@ export interface PropsAgentPane
       'onSelectAgent' | 'onChangeDbMounted' | 'onStatusChange' | 'onVivoChange' | 'onApi' | 'onCerrar' | 'enPantalla' | 'mostrado'
     >
   > {
-  onSelectAgent?: (profileId: string, agente: Agente) => void
+  onSelectAgent?: (profileId: string, agente: IdAgente) => void
   onCerrar?: (profileId: string) => void
   onChangeDbMounted?: (profileId: string, projectHostPath: string, ids: string[]) => void
   onStatusChange?: (key: string, status: AgentPaneStatus) => void
@@ -208,11 +226,13 @@ export interface PropsAgentPane
   seEstaMirando: boolean
 }
 
-function defectosSesion(p: AgentTerminalPaneProps): Pick<PropsAgentPane, 'hostMode' | 'hibernated' | 'agentsInProfile' | 'dbMounted' | 'dbReady' | 'lugar'> {
+const SIN_PESTANAS: readonly PestanaAgente[] = Object.freeze([])
+
+function defectosSesion(p: AgentTerminalPaneProps): Pick<PropsAgentPane, 'hostMode' | 'hibernated' | 'pestanasAgente' | 'dbMounted' | 'dbReady' | 'lugar'> {
   return {
     hostMode: p.hostMode ?? false,
     hibernated: p.hibernated ?? false,
-    agentsInProfile: p.agentsInProfile ?? [],
+    pestanasAgente: p.pestanasAgente ?? SIN_PESTANAS,
     dbMounted: p.dbMounted ?? [],
     dbReady: p.dbReady ?? true,
     lugar: p.lugar ?? 'proyecto'
@@ -226,6 +246,8 @@ export function resolverProps(props: AgentTerminalPaneProps): PropsAgentPane {
   const enMosaico = p.enMosaico ?? false
   return {
     ...p,
+    // Un agente manual no tiene cuentas: su cuenta sintética deja pasar la puerta de «sin cuenta no arranca».
+    selectedAccountId: esAgenteManual(p.target.agente) ? CUENTA_AGENTE_MANUAL : p.selectedAccountId,
     ...defectosSesion(p),
     robaFoco: p.robaFoco ?? true,
     tokenFoco: p.tokenFoco ?? 0,
@@ -269,20 +291,21 @@ export function mismasPropsPane(a: AgentTerminalPaneProps, b: AgentTerminalPaneP
   return true
 }
 
-export const RELOAD_BANNER = `\r\n\x1b[38;2;92;99;112m── agente reiniciado ──\x1b[0m\r\n`
-export const WAKE_BANNER = `\r\n\x1b[38;2;92;99;112m── agente reanudado ──\x1b[0m\r\n`
+/** Banner gris con el que vuelve una sesión que se reinició a mano. */
+export function bannerReinicio(): string {
+  return `\r\n\x1b[38;2;92;99;112m${txSesion().bannerReiniciado}\x1b[0m\r\n`
+}
+
+/** Banner gris con el que vuelve una sesión que estaba hibernada. */
+export function bannerReanudado(): string {
+  return `\r\n\x1b[38;2;92;99;112m${txSesion().bannerReanudado}\x1b[0m\r\n`
+}
 
 /** Reintentos automáticos ante la muerte del contenedor; después se para y se avisa. */
 export const MAX_CONTAINER_RECOVERY_ATTEMPTS = 2
 
 /** Lista vacía estable para el popover de montaje mientras `dbConexiones` es null. */
 export const SIN_CONEXIONES_MONTAJE: readonly DbConnection[] = []
-
-/**
- * Nombre COMPLETO del botón de reinicio, el que se despliega al pasar el ratón. Dice
- * "agente" porque la app tiene varias flechas circulares y ésta es la que tira la sesión.
- */
-export const ETIQUETA_REINICIO = 'Reiniciar agente'
 
 // Colores ANSI (truecolor) para los avisos en la terminal.
 export const C_WARN = '\x1b[38;2;229;192;123m' // ámbar (aviso)
@@ -302,9 +325,24 @@ export const AGENT_LABEL_SHORT: Record<AgentKind, string> = {
   codex: 'Cdx'
 }
 
+/** Cómo se llama un agente ante el usuario: el nombre de su pestaña o, si no la hay, el de serie. */
+export function nombreAgente(pestanas: readonly PestanaAgente[], agente: IdAgente): string {
+  const pestana = pestanas.find((x) => x.id === agente)
+  if (pestana) return pestana.nombre
+  return esAgenteManual(agente) ? agente : AGENT_LABEL[agente]
+}
+
+/** La definición del agente del pane si es manual; null si es de serie. */
+export function agenteManualDe(pestanas: readonly PestanaAgente[], agente: IdAgente): DefinicionAgente | null {
+  return pestanas.find((x) => x.id === agente)?.manual ?? null
+}
+
 /**
  * Cuenta sintética de las sesiones en modo nativo. El valor es un id PERSISTIDO
  * (transcripts y anclas guardados) y COMPARTIDO con el main
  * (`agents/AgentTerminalController.ts`): no se renombra aunque el modo ya no se llame así.
  */
 export const HOST_ACCOUNT_ID = 'windows-personal'
+
+/** La cuenta sintética de un agente manual en Docker; el main la usa igual (`CUENTA_AGENTE_MANUAL`). */
+export const CUENTA_AGENTE_MANUAL = 'manual'

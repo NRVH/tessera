@@ -5,6 +5,7 @@
 // =============================================================================
 import { spawn } from 'node:child_process'
 import { createServer, connect } from 'node:net'
+import { txDb } from '../textosDb.ts'
 import type { LineaTunel, ProcesoTunel } from './GestorTuneles'
 
 /** Lo que se guarda de stderr: basta para la última línea del error. */
@@ -55,7 +56,7 @@ export function puertoLibre(): Promise<number> {
     s.listen(0, '127.0.0.1', () => {
       const dir = s.address()
       const puerto = typeof dir === 'object' && dir !== null ? dir.port : 0
-      s.close(() => (puerto > 0 ? resolve(puerto) : reject(new Error('No se encontró un puerto libre para el túnel.'))))
+      s.close(() => (puerto > 0 ? resolve(puerto) : reject(new Error(txDb().tuneles.sinPuerto))))
     })
   })
 }

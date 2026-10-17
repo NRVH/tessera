@@ -32,6 +32,7 @@ import { copiarComo, type FormatoCopia } from './copiarComo'
 import { mover, rango, type Celda, type Seleccion } from './seleccionRejilla'
 import { desplazarParaMostrar } from './ventanaRejilla'
 import type { Rejilla } from './rejillaTipos'
+import { txRejilla } from './textosRejilla.ts'
 
 type Rango = { f0: number; f1: number; c0: number; c1: number }
 
@@ -63,16 +64,18 @@ export function copiar(r: Rejilla, formato: FormatoCopia): void {
     .write(copia.texto)
     .then(() => {
       if (copia.incompletas > 0) {
+        const t = txRejilla()
         notify(
           'warn',
-          'Copiado con valores recortados',
-          `${formatoEntero(copia.incompletas)} ${
-            copia.incompletas === 1 ? 'celda llegó recortada' : 'celdas llegaron recortadas'
-          } del servidor: lo copiado no es el valor entero.`
+          t.copiadoRecortado,
+          t.recortadoDelServidor(
+            formatoEntero(copia.incompletas),
+            copia.incompletas === 1 ? t.celdaRecortada : t.celdasRecortadas
+          )
         )
       }
     })
-    .catch((err: unknown) => notifyError('No se pudo copiar', err))
+    .catch((err: unknown) => notifyError(txRejilla().noSePudoCopiar, err))
 }
 
 function fueraDeVista(r: Rejilla, celda: Celda): boolean {
@@ -97,14 +100,14 @@ function recortadaEn(r: Rejilla, ref: RefFila, c: number): boolean {
 /** Por qué no se puede editar la celda, o null. */
 export function motivoEn(r: Rejilla, celda: Celda): string | null {
   const ed = r.propsRef.current.edicion
-  if (!ed) return 'Esta rejilla es de solo lectura.'
+  if (!ed) return txRejilla().soloLecturaRejilla
   const ref = refEn(r, celda.f)
-  if (!ref) return 'La fila ya no está.'
+  if (!ref) return txRejilla().filaYaNoEsta
   return motivoCeldaNoEditable(ed.cambios, ref, ed.motivosColumna[celda.c] ?? null, recortadaEn(r, ref, celda.c))
 }
 
 function avisarNoEditable(motivo: string): void {
-  notify('info', 'Esta celda no se puede editar', motivo)
+  notify('info', txRejilla().celdaNoSeEdita, motivo)
 }
 
 function aplicarCambios(r: Rejilla, siguiente: CambiosRejilla): void {
@@ -179,9 +182,10 @@ function avisarSaltadas(rg: Rango, saltadas: number, primerMotivo: string | null
   const total = (rg.f1 - rg.f0 + 1) * (rg.c1 - rg.c0 + 1)
   if (saltadas === total) avisarNoEditable(primerMotivo)
   else {
+    const t = txRejilla()
     notify(
       'info',
-      `${formatoEntero(saltadas)} ${saltadas === 1 ? 'celda se quedó' : 'celdas se quedaron'} como estaban`,
+      t.comoEstaban(formatoEntero(saltadas), saltadas === 1 ? t.celdaSeQuedo : t.celdasSeQuedaron),
       primerMotivo
     )
   }

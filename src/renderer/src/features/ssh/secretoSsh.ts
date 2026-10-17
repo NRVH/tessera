@@ -7,6 +7,7 @@
 // =============================================================================
 
 import { usaSecreto, type BorradorSsh } from './borradorSsh.ts'
+import { txFormularioSsh } from './textosFormulario.ts'
 
 /** El secreto guardado al guardar el borrador: no hay, se conserva, se sustituye, se olvida o se descarta. */
 export type DestinoSecreto = 'ninguno' | 'nuevo' | 'se-conserva' | 'se-olvida' | 'se-descarta'
@@ -31,23 +32,21 @@ export function destinoSecreto(b: BorradorSsh, original: BorradorSsh): DestinoSe
 
 /** El marcador del campo vacío. */
 export function marcadorSecreto(d: DestinoSecreto): string {
-  if (d === 'se-conserva') return '(sin cambios)'
-  return d === 'se-olvida' ? '(se olvidará al guardar)' : ''
+  const t = txFormularioSsh()
+  if (d === 'se-conserva') return t.marcadorSinCambios
+  return d === 'se-olvida' ? t.marcadorSeOlvidara : ''
 }
 
 /** La ayuda bajo el campo, según lo que pasará con lo guardado. */
 export function ayudaSecreto(d: DestinoSecreto, esFrase: boolean): string {
-  if (d === 'se-conserva') return 'Hay una guardada, cifrada: si la dejas vacía, se conserva.'
-  if (d === 'se-olvida') return 'Se olvidará al guardar: la pedirá la terminal.'
-  if (d === 'se-descarta') {
-    return esFrase
-      ? 'Con otra clave, la frase guardada se descarta: escribe la de esta o la pedirá la terminal.'
-      : 'Con otro servidor o usuario, la guardada se descarta: escríbela otra vez o la pedirá la terminal.'
-  }
-  return 'Se guarda cifrada; si la dejas vacía, la pedirá la terminal.'
+  const t = txFormularioSsh()
+  if (d === 'se-conserva') return t.ayudaConserva
+  if (d === 'se-olvida') return t.ayudaOlvida
+  if (d === 'se-descarta') return esFrase ? t.ayudaDescartaFrase : t.ayudaDescartaContrasena
+  return t.ayudaGuarda
 }
 
 /** El aviso de un secreto guardado que este equipo no puede leer (`almacen`: `nombresSistema(…).almacenSecretos`). */
 export function avisoSecretoIlegible(esFrase: boolean, almacen: string): string {
-  return `${esFrase ? 'La frase guardada' : 'La contraseña guardada'} no se puede leer con ${almacen}. Vuelve a escribirla.`
+  return txFormularioSsh().secretoIlegible(esFrase, almacen)
 }

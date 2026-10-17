@@ -27,6 +27,7 @@ import {
   type FilaLista
 } from './listaSsh'
 import { mensajeDeErrorSsh } from './erroresSsh'
+import { txSsh } from './textos.ts'
 import { exportarAOpenSsh } from './exportacionSsh'
 import { itemsMenuConexion, itemsMenuGrupo, itemsMenuVarias, type MenuFilaAbierto } from './menuListaSsh'
 import {
@@ -59,6 +60,8 @@ export interface OpcionesListaSsh {
   onIrASesion: (conexionId: string) => void
   /** Se abrió un diálogo desde la lista: quien la aloje (el popover) se retira. */
   alAbrirDialogo?: () => void
+  /** Es la lista de un perfil que no se ve, viva en el riel (`renderer/vivos-y-ocultos.md`). */
+  oculta?: boolean
 }
 
 /** Qué enseña la lista en lugar de las filas, si algo. */
@@ -150,9 +153,9 @@ function conDialogo(o: OpcionesListaSsh, abrir: () => void): void {
 async function duplicar(c: SshConexion): Promise<void> {
   try {
     const copia = await window.tessera.ssh.duplicar({ id: c.id, profileId: c.profileId })
-    notify('success', `Se duplicó como «${copia.alias}»`)
+    notify('success', txSsh().duplicada(copia.alias))
   } catch (err) {
-    notify('error', 'No se pudo duplicar la conexión', mensajeDeErrorSsh(err))
+    notify('error', txSsh().noSePudoDuplicar, mensajeDeErrorSsh(err))
   }
 }
 
@@ -184,6 +187,7 @@ function itemsDeFila(o: OpcionesListaSsh, datos: DatosPerfilSsh, f: FilaGrupo | 
       // Sin diálogo: el lanzador sigue abierto y la copia aparece en él.
       onDuplicar: () => void duplicar(c),
       onMoverAGrupo: () => conDialogo(o, () => accionesSsh.editarConexion(c, true)),
+      onOlvidarHuella: c.huellaServidor.length > 0 ? () => conDialogo(o, () => accionesSsh.pedirOlvidarHuella(c)) : null,
       onEliminar: () => conDialogo(o, () => accionesSsh.pedirEliminarConexion(c)),
       onVerActividad: () => conDialogo(o, () => accionesSsh.verActividad(o.perfilId, c.alias))
     })
@@ -277,6 +281,9 @@ export function useListaSsh(o: OpcionesListaSsh, filtroRef: RefObject<HTMLInputE
   const e = useEstadoListaSsh(o)
   const idBase = useId()
   const [menu, setMenu] = useState<MenuFilaAbierto | null>(null)
+  // Oculta (la de otro perfil, viva en el riel) cierra su menú: va en la capa flotante y se vería
+  // sobre la lista del perfil que se ve.
+  if (o.oculta === true && menu !== null) setMenu(null)
   const idFila = (f: FilaLista): string => `${idBase}-${f.clave}`
   const arrastre = useArrastreListaSsh({ ...e, perfilId: o.perfilId })
   const abrirMenu = (f: FilaLista, x: number, y: number): void => {

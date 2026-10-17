@@ -11,7 +11,7 @@ import { dividirSentencias } from '../../../../../shared/sql/divisorSql.ts'
 import { REGLAS, type DialectoSql } from '../../../../../shared/sql/dialectosSql.ts'
 import { analisisDe } from '../autocompletado/analisisModelo.ts'
 import { crearLote, detener, iniciar, registrar } from './lote.ts'
-import { ETIQUETA_FORZAR, ETIQUETA_FORZAR_CONSOLA, TEXTO_SIN_RESPUESTA_STOP, TEXTO_STOP_CON_CAMBIOS } from './salidaConsola.ts'
+import { etiquetaForzar, etiquetaForzarConsola, textoSinRespuestaStop, textoStopConCambios } from './salidaConsola.ts'
 import {
   ESPERA_STOP_MATAR_MS,
   ESPERA_STOP_MS,
@@ -33,6 +33,11 @@ import {
   txEnRiesgo,
   type ModeloAvisos
 } from './vivoConsola.ts'
+
+const ETIQUETA_FORZAR = etiquetaForzar()
+const ETIQUETA_FORZAR_CONSOLA = etiquetaForzarConsola()
+const TEXTO_SIN_RESPUESTA_STOP = textoSinRespuestaStop()
+const TEXTO_STOP_CON_CAMBIOS = textoStopConCambios()
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))

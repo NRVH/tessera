@@ -11,6 +11,8 @@ import {
   initialEditorTabsState,
   deriveTabId,
   editorTargetKey,
+  perfilDeTarget,
+  raizDeTarget,
   nextUntitledNumber,
   openTab,
   replaceTab,
@@ -235,6 +237,17 @@ function main(): void {
     '(14c) mismo (perfil, proyecto) -> MISMA clave (estable)',
     editorTargetKey('beta', 'D:\\proj\\1') === kBeta1,
     `${kBeta1}`
+  )
+  const raizPosix = raizDeTarget(editorTargetKey('beta', '/home/x/a|b'))
+  check(
+    '(14d) raizDeTarget devuelve la contenedora intacta, también con «|» en la ruta, y "" sin target',
+    raizDeTarget(kBeta1) === 'D:\\proj\\1' && raizPosix === '/home/x/a|b' && raizDeTarget('suelta') === '',
+    `${raizDeTarget(kBeta1)} | ${raizPosix}`
+  )
+  check(
+    '(14e) perfilDeTarget devuelve el perfil, y "" sin target',
+    perfilDeTarget(kBeta1) === 'beta' && perfilDeTarget(editorTargetKey('beta', '/home/x/a|b')) === 'beta' && perfilDeTarget(null) === '',
+    perfilDeTarget(kBeta1)
   )
 
   // ---------------------------------------------------------------------------

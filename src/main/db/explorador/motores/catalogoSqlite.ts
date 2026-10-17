@@ -17,7 +17,8 @@ import type {
   DbTipoObjeto
 } from '../../../../shared/db-explorador-ipc.ts'
 import type { CatalogoExplorador, LectorDdl } from './catalogo.ts'
-import { aBool, aNumero, AVISO_SIN_FUENTE, clasificarFk, noDisponible, texto, textoOpcional } from './filasCatalogo.ts'
+import { aBool, aNumero, avisoSinFuente, clasificarFk, noDisponible, queFalta, texto, textoOpcional } from './filasCatalogo.ts'
+import { txMotores } from './textosMotores.ts'
 import type { ConsultaCatalogo, DialectoCatalogo, FilaCatalogo } from './tipos.ts'
 
 /** El único esquema que se enseña. */
@@ -182,12 +183,12 @@ function sqlFuente(d: DialectoCatalogo, ref: DbRefObjeto): ConsultaCatalogo {
   if (ref.tipo === 'vista') {
     return sq([`SELECT sql FROM ${TABLA_ESQUEMA} WHERE type = 'view' AND name = ?1`], [ref.nombre])
   }
-  return noDisponible(d.motor, `fuente de ${ref.tipo}`)
+  return noDisponible(d.motor, queFalta.fuenteDe(ref.tipo))
 }
 
 function mapearFuente(_d: DialectoCatalogo, _ref: DbRefObjeto, filas: readonly FilaCatalogo[]): DbFuente {
   const valor = filas.length > 0 ? textoOpcional(filas[0][0]) : undefined
-  if (valor === undefined) return { partes: [], origen: 'sqlite_schema', aviso: AVISO_SIN_FUENTE }
+  if (valor === undefined) return { partes: [], origen: 'sqlite_schema', aviso: avisoSinFuente() }
   return { partes: [{ titulo: 'Definición', texto: valor }], origen: 'sqlite_schema' }
 }
 
@@ -217,7 +218,7 @@ async function leerDdlSqlite(lector: LectorDdl, ref: DbRefObjeto): Promise<DbFue
   )
   const textos = filas.map((f) => texto(f[2]).trim()).filter((t) => t !== '')
   if (textos.length === 0) {
-    return { partes: [], origen: 'sqlite_schema', aviso: 'No hay DDL visible: el objeto no existe en la base.' }
+    return { partes: [], origen: 'sqlite_schema', aviso: txMotores().sinDdlEnBase }
   }
   return { partes: [{ titulo: 'DDL', texto: textos.map((t) => (t.endsWith(';') ? t : t + ';')).join('\n\n') }], origen: 'sqlite_schema' }
 }
@@ -231,7 +232,7 @@ export const CATALOGO_SQLITE: CatalogoExplorador = {
 
   // Una conexión de SQLite es UN archivo: sin nivel «Bases».
   sqlBases(d) {
-    return noDisponible(d.motor, 'nivel «Bases»')
+    return noDisponible(d.motor, queFalta.nivelBases())
   },
 
   /** Filas: `[nombre, sistema]`: solo `main`. */
@@ -366,15 +367,15 @@ export const CATALOGO_SQLITE: CatalogoExplorador = {
   leerDdl: leerDdlSqlite,
 
   sqlResolverSinonimo(d) {
-    return noDisponible(d.motor, 'sinónimos')
+    return noDisponible(d.motor, queFalta.sinonimos())
   },
 
   sqlTipoDeObjeto(d) {
-    return noDisponible(d.motor, 'tipo de objeto por nombre')
+    return noDisponible(d.motor, queFalta.tipoPorNombre())
   },
 
   mapearTipoDeObjeto() {
-    return noDisponible('sqlite', 'tipo de objeto por nombre')
+    return noDisponible('sqlite', queFalta.tipoPorNombre())
   },
 
   /** Filas: `[esquema, nombre, type]` (el `type` de `pragma_table_list` es el código). */

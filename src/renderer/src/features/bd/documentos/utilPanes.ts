@@ -5,6 +5,7 @@
 // =============================================================================
 
 import { notify, notifyError } from '../../../comun/notifications'
+import { txColeccionDocs } from './textosColeccionDocs'
 
 let contadorPeticiones = 0
 
@@ -18,6 +19,6 @@ export function nuevaPeticion(prefijo: string): string {
 export function copiarTexto(texto: string, que: string): void {
   void window.tessera.clipboard
     .write(texto)
-    .then(() => notify('success', `${que} copiado`))
-    .catch((err: unknown) => notifyError('No se pudo copiar', err))
+    .then(() => notify('success', txColeccionDocs().copiado(que)))
+    .catch((err: unknown) => notifyError(txColeccionDocs().noSePudoCopiar, err))
 }

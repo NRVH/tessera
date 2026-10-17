@@ -20,6 +20,8 @@ const LOG_MAX_BYTES = 1024 * 1024
 export const TOPE_VACIAR_CONSOLAS_MS = 5000
 /** Tope de la escritura pendiente de `workspace-state.json`. */
 export const TOPE_WORKSPACE_MS = 5000
+/** Tope de matar los árboles de las terminales y los agentes (`taskkill /T` y su recolección). */
+export const TOPE_PTYS_MS = 3000
 /**
  * Tope SIN AVANZAR de la etapa de Docker (`conTopeSinAvance`). Cada orden ya tiene el suyo (dos
  * minutos), pero con Docker sin responder la etapa encadena varias; con muchos contenedores y
@@ -93,6 +95,20 @@ export function mensajeCorto(e: unknown): string {
 /** La nota de una etapa con tope: nada si llegó, y qué pasó si no. */
 export function notaTope(ms: number): (d: Desenlace) => string | null {
   return (d) => (d === 'tope' ? `TOPE de ${ms} ms: se sigue sin esperar` : null)
+}
+
+/**
+ * Lo que mantiene vivo el bucle de Node al salir (`process.getActiveResourcesInfo()`), contado por
+ * tipo: `PipeWrap×3, Timeout×1`, o `ninguno`. Dice qué esperaba el proceso si no llegó a terminar.
+ */
+export function resumenRecursos(tipos: readonly string[]): string {
+  if (tipos.length === 0) return 'ninguno'
+  const cuenta = new Map<string, number>()
+  for (const t of tipos) cuenta.set(t, (cuenta.get(t) ?? 0) + 1)
+  return [...cuenta.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([t, n]) => `${t}×${n}`)
+    .join(', ')
 }
 
 /** Un aviso de progreso del cierre, tal como lo emite el sandbox (subconjunto). */

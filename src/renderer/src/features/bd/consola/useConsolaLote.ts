@@ -11,7 +11,7 @@ import type { editor } from 'monaco-editor'
 import type { DbBinds, DbErrorSql, DbRespuesta } from '../../../../../shared/db-explorador-ipc'
 import { sentenciasAEjecutar, type Sentencia } from '../../../../../shared/sql/divisorSql'
 import {
-  PISTA_SIN_SENTENCIA,
+  pistaSinSentencia,
   decidirLote,
   ejecutando as hayEjecucion,
   nuevoLoteId,
@@ -22,6 +22,7 @@ import { crearLote, siguiente } from './lote'
 import { marcasCompilacion } from './marcasConsola'
 import type { MarcasLoteMonaco } from './monacoConsola'
 import { textoError } from './salidaConsola'
+import { txPane } from './textosPane.ts'
 import type { InfoLote, OpcionesCorrer, RefsConsola } from './tiposConsola'
 import type { DialogosConsola } from './useConsolaDialogos'
 import type { NucleoConsola } from './useConsolaNucleo'
@@ -297,7 +298,7 @@ export function useLoteConsola(n: NucleoConsola, dialogos: DialogosConsola, hayL
       const d = r.estadoRef.current.dialecto
       const ss = sentenciasAEjecutar(texto, d, todo ? { tipo: 'todo' } : modoEnEditor(r.edRef.current, m))
       if (ss.length === 0) {
-        despachar({ tipo: 'pista', texto: todo ? 'La consola no tiene ninguna sentencia' : PISTA_SIN_SENTENCIA })
+        despachar({ tipo: 'pista', texto: todo ? txPane().consolaSinSentencias : pistaSinSentencia() })
         return
       }
       void correr(ss, texto, true, m.getAlternativeVersionId())

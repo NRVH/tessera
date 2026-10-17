@@ -7,9 +7,10 @@
 // =============================================================================
 
 import type { DbConnection } from '../../../../../shared/db-ipc'
-import { TITULO_SOLO_LECTURA_AGENTES } from '../camposConexion'
+import { tituloSoloLecturaAgentes } from '../camposConexion'
 import { IconoCandado, IconoEsquema } from '../iconosBd'
 import { MarcaEntorno } from '../MarcaEntorno'
+import { txConsolaComun } from './textosConsolaComun'
 
 /** Botón de icono; deshabilitado, su motivo lo lleva una envoltura (Chromium no dispara el tooltip de un control deshabilitado). */
 export function BotonIcono({
@@ -55,13 +56,14 @@ export function BotonIcono({
 
 /** El candado «Solo lectura»: informa de la casilla de los agentes y abre la edición de la conexión. */
 export function BotonCandado({ onEditarConexion }: { onEditarConexion: () => void }): React.JSX.Element {
+  const t = txConsolaComun()
   return (
     <>
       <span className="panel-actions-sep" aria-hidden="true" />
       <BotonIcono
         className="db-consola-candado"
-        titulo={`${TITULO_SOLO_LECTURA_AGENTES} · Editar conexión…`}
-        etiqueta="Editar conexión…"
+        titulo={`${tituloSoloLecturaAgentes()} · ${t.editarConexion}`}
+        etiqueta={t.editarConexion}
         habilitado
         onClick={onEditarConexion}
       >
@@ -90,7 +92,7 @@ export function BotonBase({
   if (corriendo) {
     return (
       <span className="btn-envoltura" title={titulo}>
-        <button type="button" className="btn btn-icon db-consola-esquema-btn" aria-label="Base de la consola" disabled>
+        <button type="button" className="btn btn-icon db-consola-esquema-btn" aria-label={txConsolaComun().baseDeLaConsola} disabled>
           <IconoEsquema />
         </button>
       </span>
@@ -135,8 +137,8 @@ export function IdentidadBarra({
       {children}
       {/* Informa de la casilla de los agentes: no limita esta consola. */}
       {conexion.readonly && (
-        <span className="db-consola-dato" title={TITULO_SOLO_LECTURA_AGENTES}>
-          RO agentes
+        <span className="db-consola-dato" title={tituloSoloLecturaAgentes()}>
+          {txConsolaComun().roAgentes}
         </span>
       )}
       {estado && (
@@ -166,10 +168,12 @@ export function FiltroSelector({
   placeholder: string
   onFiltro: (f: string) => void
 }): React.JSX.Element {
+  const t = txConsolaComun()
   return (
     <>
       <div className="db-pop-cabecera">
-        Base de la consola en <span className="db-pop-alias">{alias}</span>
+        {t.baseDeLaConsolaEn}
+        <span className="db-pop-alias">{alias}</span>
       </div>
       <input
         ref={filtroRef}
@@ -177,7 +181,7 @@ export function FiltroSelector({
         value={filtro}
         placeholder={placeholder}
         spellCheck={false}
-        aria-label="Filtrar bases"
+        aria-label={t.filtrarBases}
         onChange={(e) => onFiltro(e.target.value)}
       />
     </>
@@ -196,20 +200,21 @@ export function EstadoSelector({
   vacio: boolean
   onReintentar: () => void
 }): React.JSX.Element {
+  const t = txConsolaComun()
   return (
     <>
-      {cargando && <div className="db-pop-estado">Cargando bases…</div>}
+      {cargando && <div className="db-pop-estado">{t.cargandoBases}</div>}
       {error && (
         <div className="db-pop-estado error">
           <span className="db-pop-error-texto" title={error}>
             {error}
           </span>
           <button type="button" className="db-fila-accion" onClick={onReintentar}>
-            Reintentar
+            {t.reintentar}
           </button>
         </div>
       )}
-      {vacio && <div className="db-pop-estado">Ninguna base coincide.</div>}
+      {vacio && <div className="db-pop-estado">{t.ningunaBase}</div>}
     </>
   )
 }

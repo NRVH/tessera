@@ -2,52 +2,53 @@
 // ArbolRamas: la primera columna del panel Git·Log. HEAD arriba, luego «Local» y
 // «Remoto» con carpetas por prefijo. Un clic en una rama FILTRA el log; nunca hace
 // checkout. La cabecera lleva un selector de repo cuando hay varios. La agrupación es el
-// módulo puro `modelo/arbolRamas`; aquí solo se pinta y se lleva el estado de expansión.
+// módulo puro `modelo/arbolRamas`; aquí solo se pinta. Lo cerrado a mano es del repo y vive en el
+// store (`modelo/vistaLogPorRepo`): al volver a un repo, su árbol está como se dejó.
 // Decisiones: docs/decisiones/git/log-columnas-y-filas.md
 // =============================================================================
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { ContextMenu } from '../../comun/ContextMenu'
+import { EsperaCarga } from '../../comun/IndicadorCarga'
+import { fijarVistaLog, useStoreGit } from './store'
+import { alternarCerrado, vistaLogDe } from './modelo/vistaLogPorRepo'
 import { IconoDesplegar, IconoRama } from './iconos'
 import { ChevronArbol } from '../../comun/iconosArbol'
 import { construirArbolRamas, type NodoRama } from './modelo/arbolRamas'
+import { txGit } from './textos.ts'
 import type { Branch } from '../../../../shared/git-ipc'
 import type { DetectedRepo } from '../../../../shared/workspace-ipc'
 
-/** Alterna `ruta` en un conjunto inmutable. */
-function alternarEn(prev: Set<string>, ruta: string): Set<string> {
-  const next = new Set(prev)
-  if (next.has(ruta)) next.delete(ruta)
-  else next.add(ruta)
-  return next
-}
-
 interface Plegado {
-  cerradas: Set<string>
-  gruposCerrados: Set<string>
+  cerradas: ReadonlySet<string>
+  gruposCerrados: ReadonlySet<string>
   alternar: (ruta: string) => void
   alternarGrupo: (id: string) => void
 }
 
 /**
- * Carpetas y grupos cerrados A MANO: se guarda lo CERRADO, para que una rama nueva salga a
- * la vista. Cambiar de repo lo invalida: son rutas de OTRO repo.
+ * Carpetas y grupos cerrados A MANO, los de ESTE repo: se guarda lo CERRADO, para que una rama
+ * nueva salga a la vista, y por repo, para que al volver a él esté como se dejó.
  */
 function usePlegado(repoActivo: string | null): Plegado {
-  // Inicializador perezoso: este componente se repinta con cada commit seleccionado.
-  const [cerradas, setCerradas] = useState<Set<string>>(() => new Set())
-  const [gruposCerrados, setGruposCerrados] = useState<Set<string>>(() => new Set())
-  useEffect(() => {
-    setCerradas(new Set())
-    setGruposCerrados(new Set())
-  }, [repoActivo])
-  const alternar = (ruta: string): void => setCerradas((prev) => alternarEn(prev, ruta))
-  const alternarGrupo = (id: string): void => setGruposCerrados((prev) => alternarEn(prev, id))
+  const { cerradas, gruposCerrados } = useStoreGit(
+    useShallow((s) => {
+      const v = vistaLogDe(s.vistaLogPorRepo, repoActivo)
+      return { cerradas: v.cerradas, gruposCerrados: v.gruposCerrados }
+    })
+  )
+  const alternar = (ruta: string): void => {
+    if (repoActivo !== null) fijarVistaLog(repoActivo, (v) => ({ cerradas: alternarCerrado(v.cerradas, ruta) }))
+  }
+  const alternarGrupo = (id: string): void => {
+    if (repoActivo !== null) fijarVistaLog(repoActivo, (v) => ({ gruposCerrados: alternarCerrado(v.gruposCerrados, id) }))
+  }
   return { cerradas, gruposCerrados, alternar, alternarGrupo }
 }
 
 interface ContextoNodos {
-  cerradas: Set<string>
+  cerradas: ReadonlySet<string>
   alternar: (ruta: string) => void
   ramaActiva: string | null
   onSeleccionarRama: (rama: string | null) => void
@@ -67,7 +68,7 @@ function renderNodos(nodos: readonly NodoRama[], nivel: number, c: ContextoNodos
           style={{ paddingLeft: sangria }}
           onClick={() => c.alternar(nodo.ruta)}
           aria-expanded={abierta}
-          title={`${nodo.ruta} (${nodo.total} rama${nodo.total === 1 ? '' : 's'})`}
+          title={txGit().carpetaRamas(nodo.ruta, nodo.total)}
         >
           <ChevronArbol abierto={abierta} />
           <span className="git-rama-nombre">{nodo.nombre}</span>
@@ -85,11 +86,7 @@ function renderNodos(nodos: readonly NodoRama[], nivel: number, c: ContextoNodos
         style={{ paddingLeft: sangria + 14 }}
         onClick={() => c.onSeleccionarRama(activa ? null : nodo.rama.name)}
         aria-pressed={activa}
-        title={
-          activa
-            ? `${nodo.rama.name} — clic para quitar el filtro`
-            : `Filtrar el historial por ${nodo.rama.name}`
-        }
+        title={activa ? txGit().ramaQuitarFiltro(nodo.rama.name) : txGit().ramaFiltrar(nodo.rama.name)}
       >
         <IconoRama />
         <span className="git-rama-nombre">{nodo.nombre}</span>
@@ -158,13 +155,13 @@ function CabeceraRamas(p: {
             const r = e.currentTarget.getBoundingClientRect()
             p.onAbrirMenu(r.left, r.bottom + 4)
           }}
-          title="Repositorio del historial (clic para cambiar)"
+          title={txGit().repoDelHistorial}
         >
           <span className="git-repo-nombre">{p.nombreRepo}</span>
           <IconoDesplegar />
         </button>
       ) : (
-        <span>Ramas</span>
+        <span>{txGit().ramas}</span>
       )}
     </div>
   )
@@ -189,39 +186,39 @@ export function ArbolRamas(p: PropsArbolRamas): React.JSX.Element {
   const [menuRepos, setMenuRepos] = useState<{ x: number; y: number } | null>(null)
   const contexto: ContextoNodos = { cerradas: plegado.cerradas, alternar: plegado.alternar, ramaActiva, onSeleccionarRama }
   const head = arbol.head
+  const t = txGit()
   return (
     <div className="git-log-col git-log-ramas">
       <CabeceraRamas
         multiRepo={repos !== null && repos.length > 1}
-        nombreRepo={(repoActivo && repoLabels.get(repoActivo)) ?? 'Repositorio'}
+        nombreRepo={(repoActivo && repoLabels.get(repoActivo)) ?? t.repositorio}
         onAbrirMenu={(x, y) => setMenuRepos({ x, y })}
       />
       <div className="git-ramas-scroll">
-        {branches === null && <div className="git-state-inline">Cargando ramas…</div>}
-        {branches !== null && branches.length === 0 && (
-          <div className="git-state-inline">Este repositorio no tiene ramas.</div>
-        )}
-        {/* «Todas las ramas» es una fila más: quitar el filtro cuesta lo mismo que ponerlo. */}
-        {branches !== null && branches.length > 0 && (
-          <FilaFija
-            clase={`git-rama-fila${ramaActiva === null ? ' activa' : ''}`}
-            activa={ramaActiva === null}
-            onClick={() => onSeleccionarRama(null)}
-            title="Ver el historial de todas las ramas"
-            texto="Todas las ramas"
-          />
-        )}
-        {head && (
-          <FilaFija
-            clase={`git-rama-fila git-rama-head${ramaActiva === head.name ? ' activa' : ''}`}
-            activa={ramaActiva === head.name}
-            onClick={() => onSeleccionarRama(ramaActiva === head.name ? null : head.name)}
-            title={`${head.name} — rama actual (HEAD)`}
-            texto={head.name}
-          />
-        )}
-        <GrupoRamas id="local" etiqueta="Local" nodos={arbol.locales} plegado={plegado} contexto={contexto} />
-        <GrupoRamas id="remoto" etiqueta="Remoto" nodos={arbol.remotas} plegado={plegado} contexto={contexto} />
+        <EsperaCarga cargando={branches === null} texto={t.cargandoRamas} className="git-state-inline">
+          {branches !== null && branches.length === 0 && <div className="git-state-inline">{t.sinRamas}</div>}
+          {/* «Todas las ramas» es una fila más: quitar el filtro cuesta lo mismo que ponerlo. */}
+          {branches !== null && branches.length > 0 && (
+            <FilaFija
+              clase={`git-rama-fila${ramaActiva === null ? ' activa' : ''}`}
+              activa={ramaActiva === null}
+              onClick={() => onSeleccionarRama(null)}
+              title={t.verTodasRamasTitulo}
+              texto={t.todasLasRamas}
+            />
+          )}
+          {head && (
+            <FilaFija
+              clase={`git-rama-fila git-rama-head${ramaActiva === head.name ? ' activa' : ''}`}
+              activa={ramaActiva === head.name}
+              onClick={() => onSeleccionarRama(ramaActiva === head.name ? null : head.name)}
+              title={t.ramaActualHead(head.name)}
+              texto={head.name}
+            />
+          )}
+          <GrupoRamas id="local" etiqueta={t.local} nodos={arbol.locales} plegado={plegado} contexto={contexto} />
+          <GrupoRamas id="remoto" etiqueta={t.remoto} nodos={arbol.remotas} plegado={plegado} contexto={contexto} />
+        </EsperaCarga>
       </div>
       {menuRepos && repos && (
         <ContextMenu

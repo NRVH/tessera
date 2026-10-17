@@ -7,8 +7,10 @@
 // =============================================================================
 
 import type { DbKvBytes, DbKvContenido, DbKvTipo, DbKvValor } from '../../../../../shared/db-claves-ipc.ts'
+import { localeActual } from '../../../../../shared/i18n.ts'
 import { nunca } from '../../../../../shared/nunca.ts'
 import { citarRedisCli, pintarBytes, tamanoBytes, unaLinea, volcadoHex } from './bytesClaves.ts'
+import { txVisorClaves } from './textosVisorClaves.ts'
 
 /** Elementos por trozo al pedir un hash, list, set, zset o stream. */
 export const ELEMENTOS_POR_PAGINA = 200
@@ -39,30 +41,31 @@ export function etiquetaTipo(tipo: DbKvTipo, tipoServidor?: string): string {
 
 /** Cómo se llaman los elementos de cada tipo (singular, plural). */
 export function nombreElementos(tipo: 'hash' | 'list' | 'set' | 'zset' | 'stream'): readonly [string, string] {
+  const t = txVisorClaves()
   switch (tipo) {
     case 'hash':
-      return ['campo', 'campos']
+      return [t.campo, t.campos]
     case 'list':
-      return ['elemento', 'elementos']
+      return [t.elemento, t.elementos]
     case 'set':
     case 'zset':
-      return ['miembro', 'miembros']
+      return [t.miembro, t.miembros]
     case 'stream':
-      return ['entrada', 'entradas']
+      return [t.entrada, t.entradas]
     default:
       return nunca(tipo, 'nombreElementos')
   }
 }
 
-const NUM = (n: number): string => n.toLocaleString('es-ES')
+const NUM = (n: number): string => n.toLocaleString(localeActual())
 
 /**
  * Un tiempo que queda, legible: «2 d 3 h», «3 h 5 min», «4 min 3 s», «12 s», «850 ms».
  * null = no caduca. Lo que ya no es positivo, «caducada».
  */
 export function ttlLegible(ms: number | null): string {
-  if (ms === null) return 'Sin caducidad'
-  if (ms <= 0) return 'Caducada'
+  if (ms === null) return txVisorClaves().sinCaducidad
+  if (ms <= 0) return txVisorClaves().caducada
   if (ms < 1000) return `${Math.round(ms)} ms`
   const s = Math.floor(ms / 1000)
   const d = Math.floor(s / 86400)
@@ -84,7 +87,7 @@ export function ttlRestante(ttlMs: number | null, leidoEn: number, ahora: number
   return Math.max(0, ttlMs - Math.max(0, ahora - leidoEn))
 }
 
-/** Bytes legibles con la coma española: «512 B», «1,5 KB», «2,3 MB». */
+/** Bytes legibles con el separador decimal del idioma: «512 B», «1,5 KB», «2,3 MB». */
 export function bytesLegibles(n: number): string {
   if (!Number.isFinite(n) || n < 0) return '—'
   if (n < 1024) return `${n} B`
@@ -96,7 +99,7 @@ export function bytesLegibles(n: number): string {
     u++
   }
   const decimales = v < 10 ? 1 : 0
-  return `${v.toLocaleString('es-ES', { minimumFractionDigits: decimales, maximumFractionDigits: decimales })} ${unidades[u]}`
+  return `${v.toLocaleString(localeActual(), { minimumFractionDigits: decimales, maximumFractionDigits: decimales })} ${unidades[u]}`
 }
 
 /** Los elementos cargados de un contenido con elementos (0 en los demás). */
@@ -139,11 +142,10 @@ export function resumenElementos(c: DbKvContenido): string | null {
 
 /** El aviso de un valor de texto que llegó CORTADO, o null. */
 export function avisoTruncado(c: DbKvContenido): string | null {
-  if (c.tipo === 'string' && c.truncado) {
-    return `Se ve el principio: ${bytesLegibles(tamanoBytes(c.valor))} de ${bytesLegibles(c.bytes)}. Para leerlo entero, usa GETRANGE en la consola.`
-  }
-  if (c.tipo === 'json' && c.omitidoBytes !== undefined) return `El documento ocupa ${bytesLegibles(c.omitidoBytes)} en memoria: el visor no lo lee para no bloquear la conexión. Léelo por partes en la consola (JSON.GET clave $.campo).`
-  if (c.tipo === 'json' && c.truncado) return 'El documento es más grande que el tope del visor y se ve cortado.'
+  const t = txVisorClaves()
+  if (c.tipo === 'string' && c.truncado) return t.principioDelValor(bytesLegibles(tamanoBytes(c.valor)), bytesLegibles(c.bytes))
+  if (c.tipo === 'json' && c.omitidoBytes !== undefined) return t.jsonOmitido(bytesLegibles(c.omitidoBytes))
+  if (c.tipo === 'json' && c.truncado) return t.jsonCortado
   return null
 }
 
@@ -151,7 +153,11 @@ export function avisoTruncado(c: DbKvContenido): string | null {
 
 export type ModoVista = 'texto' | 'json' | 'hex'
 
-export const ETIQUETA_MODO: Record<ModoVista, string> = { texto: 'Texto', json: 'JSON', hex: 'Hex' }
+/** El nombre de cada modo en el conmutador. */
+export function etiquetaModo(modo: ModoVista): string {
+  const t = txVisorClaves()
+  return { texto: t.modoTexto, json: t.modoJson, hex: t.modoHex }[modo]
+}
 
 /** El texto sangrado a 2 si es JSON (un objeto o una lista); null si no lo es. */
 export function formatearJson(texto: string): string | null {
@@ -415,33 +421,34 @@ function camposStream(c: Extract<DbKvContenido, { tipo: 'stream' }>): string[] {
 
 /** La tabla de un contenido con elementos; null en los demás (string, json, otro, noExiste). */
 export function tablaDeContenido(c: DbKvContenido): TablaValor | null {
+  const t = txVisorClaves()
   switch (c.tipo) {
     case 'hash':
       return conAnchos(
-        [{ titulo: 'Campo' }, { titulo: 'Valor' }],
+        [{ titulo: t.colCampo }, { titulo: t.colValor }],
         c.pares.map((p) => ({ clave: p.campo.base64, celdas: [celda(p.campo), celda(p.valor)] }))
       )
     case 'list':
       return conAnchos(
-        [{ titulo: 'Índice', numerica: true }, { titulo: 'Elemento' }],
+        [{ titulo: t.colIndice, numerica: true }, { titulo: t.colElemento }],
         c.elementos.map((e, i) => ({ clave: String(i), celdas: [{ texto: String(i) }, celda(e)] }))
       )
     case 'set':
-      return conAnchos([{ titulo: 'Miembro' }], c.miembros.map((m) => ({ clave: m.base64, celdas: [celda(m)] })))
+      return conAnchos([{ titulo: t.colMiembro }], c.miembros.map((m) => ({ clave: m.base64, celdas: [celda(m)] })))
     case 'zset':
       return conAnchos(
-        [{ titulo: 'Miembro' }, { titulo: 'Puntuación', numerica: true }],
+        [{ titulo: t.colMiembro }, { titulo: t.colPuntuacion, numerica: true }],
         c.miembros.map((m) => ({ clave: m.miembro.base64, celdas: [celda(m.miembro), { texto: m.puntuacion }] }))
       )
     case 'stream': {
       const campos = camposStream(c)
       return conAnchos(
-        [{ titulo: 'ID' }, ...campos.map((t) => ({ titulo: t }))],
+        [{ titulo: 'ID' }, ...campos.map((nombre) => ({ titulo: nombre }))],
         c.entradas.map((e) => {
           const porNombre = new Map(e.campos.map((f) => [pintarBytes(f.campo), f.valor]))
           const celdas: CeldaValor[] = [{ texto: e.id }]
-          for (const t of campos) {
-            const v = porNombre.get(t)
+          for (const nombre of campos) {
+            const v = porNombre.get(nombre)
             celdas.push(v === undefined ? { texto: '', ausente: true } : celda(v))
           }
           return { clave: e.id, celdas }
@@ -463,22 +470,23 @@ export type ParteDetalle = { titulo: string; bytes: DbKvBytes } | { titulo: stri
 
 /** Lo que el panel de detalle enseña de la fila `i` de la tabla (o [] si no existe). */
 export function detalleDeFila(c: DbKvContenido, i: number): ParteDetalle[] {
+  const t = txVisorClaves()
   switch (c.tipo) {
     case 'hash': {
       const p = c.pares[i]
-      return p ? [{ titulo: 'Campo', bytes: p.campo }, { titulo: 'Valor', bytes: p.valor }] : []
+      return p ? [{ titulo: t.colCampo, bytes: p.campo }, { titulo: t.colValor, bytes: p.valor }] : []
     }
     case 'list': {
       const e = c.elementos[i]
-      return e ? [{ titulo: `Elemento ${i}`, bytes: e }] : []
+      return e ? [{ titulo: t.elementoN(i), bytes: e }] : []
     }
     case 'set': {
       const m = c.miembros[i]
-      return m ? [{ titulo: 'Miembro', bytes: m }] : []
+      return m ? [{ titulo: t.colMiembro, bytes: m }] : []
     }
     case 'zset': {
       const m = c.miembros[i]
-      return m ? [{ titulo: 'Miembro', bytes: m.miembro }, { titulo: 'Puntuación', texto: m.puntuacion }] : []
+      return m ? [{ titulo: t.colMiembro, bytes: m.miembro }, { titulo: t.colPuntuacion, texto: m.puntuacion }] : []
     }
     case 'stream': {
       const e = c.entradas[i]

@@ -51,6 +51,8 @@ alfabético.
   CSS: salir lo oculta, «Cerrar» lo termina, y hibernar el perfil también duerme a los que no son pestaña.
 - [agentes/agente-diferido.md](agentes/agente-diferido.md) — un proyecto que nace para ver un
   archivo desde el sistema nace con el agente sin arrancar y su columna plegada, hasta que se pide.
+- [agentes/agentes-manuales.md](agentes/agentes-manuales.md) — agentes definidos a mano en pestañas
+  con un «+»: las carpetas las decide Tessera, sin lo que no sabe leer, y en Docker una capa de imagen por perfil.
 - [agentes/boton-agentes-nativos.md](agentes/boton-agentes-nativos.md) — el botón de los agentes
   nativos nunca se deshabilita (se deshabilita la acción de dentro, con su motivo) y su resultado
   es pegajoso.
@@ -71,6 +73,9 @@ alfabético.
 - [agentes/conversaciones-nombres-propios.md](agentes/conversaciones-nombres-propios.md) — los
   nombres propios de las conversaciones viven en un JSON de Tessera, una sola instancia, y nunca
   se escriben en el transcript.
+- [agentes/contratos-con-los-cli.md](agentes/contratos-con-los-cli.md) — lo que se lee de los CLIs
+  se reconoce por su forma, un vigía anota lo que deja de entenderse y una sonda lo comprueba contra
+  los CLIs instalados.
 - [agentes/cuentas-una-por-perfil-y-agente.md](agentes/cuentas-una-por-perfil-y-agente.md) — una
   cuenta de agente por (perfil, agente), privada del perfil, y solo metadatos en el registro.
 - [agentes/hibernacion-por-inactividad.md](agentes/hibernacion-por-inactividad.md) — el agente de
@@ -103,6 +108,9 @@ alfabético.
   textos no cambian.
 - [agentes/turnos-actividad-del-agente.md](agentes/turnos-actividad-del-agente.md) — el turno lo
   abre el Enter, lo cierra el transcript y el pty solo dice «trabajando».
+- [agentes/turnos-estado-informado.md](agentes/turnos-estado-informado.md) — si el agente informa su
+  estado (OSC 7501), manda él desde el primer aviso de la sesión; la deducción queda para el que no
+  informa, y el main contesta la sonda en el mismo trozo.
 - [agentes/turnos-marcas-del-transcript.md](agentes/turnos-marcas-del-transcript.md) — el fin de
   turno se lee del transcript por orden, sin marca no se inventa y los subagentes no cuentan.
 - [agentes/uso-de-cuenta.md](agentes/uso-de-cuenta.md) — el uso de cuenta se cachea con suelo de
@@ -122,7 +130,10 @@ alfabético.
 - [app/atajos-y-menu.md](app/atajos-y-menu.md) — sin menú en Windows, el mínimo en macOS, y los
   atajos de ventana por `before-input-event`.
 - [app/cierre-ordenado.md](app/cierre-ordenado.md) — todo cierre pasa por un único cierre
-  ordenado que pregunta antes, apaga en orden y decide la actualización al final.
+  ordenado que pregunta antes, apaga en orden, decide la actualización al final y no deja el
+  proceso vivo.
+- [app/idioma.md](app/idioma.md) — la interfaz habla español o inglés, con textos tipados junto a su
+  código, y el idioma se fija al arrancar.
 - [app/registro-de-salud.md](app/registro-de-salud.md) — las versiones alpha graban un registro
   local de memoria y procesos; la pública no graba nada.
 - [app/ventana-arranque-y-recuperacion.md](app/ventana-arranque-y-recuperacion.md) — la ventana
@@ -130,14 +141,14 @@ alfabético.
   recupera sola.
 - [app/ventana-barra-de-titulo.md](app/ventana-barra-de-titulo.md) — la barra de título la pinta
   el renderer y los botones los pone el sistema, alineados con el zoom.
+- [app/volcados-de-caida.md](app/volcados-de-caida.md) — en las alpha, con «Experimental» encendido,
+  las caídas nativas dejan un volcado local que el siguiente arranque anota en `crash.log`; nada
+  se sube y, apagado, se borran.
 
 ### bd
 
 - [bd/adaptador-oracle-escalada-y-stop.md](bd/adaptador-oracle-escalada-y-stop.md) — Oracle escala
   de thin a thick por el error del servidor y el Stop en thick va con DISABLE_OOB.
-- [bd/adaptador-postgres-arranque-de-sesion.md](bd/adaptador-postgres-arranque-de-sesion.md) — las
-  opciones de sesión de PostgreSQL van al constructor del cliente y el oyente de error antes de
-  conectar.
 - [bd/adaptador-mysql-conexion-y-celdas.md](bd/adaptador-mysql-conexion-y-celdas.md) — MySQL
   verifica el certificado contra el servidor real también por el túnel y deja cada valor como su
   texto exacto.
@@ -172,32 +183,31 @@ alfabético.
   columna de Oracle no lleva un tamaño de texto que el driver no sabe dar.
 - [bd/celdas-valores-exactos-y-topes.md](bd/celdas-valores-exactos-y-topes.md) — las celdas viajan
   como texto exacto, con topes y las fechas de Oracle desde sus bytes.
-- [bd/claves-controlador.md](bd/claves-controlador.md) — la consola de Redis confirma siempre lo
-  peligroso, la clave viaja en base64 y la lista de comandos vive una vez, compartida con `tdb`.
+- [bd/claves-controlador.md](bd/claves-controlador.md) — Redis explora con SCAN, mueve bytes (la
+  clave viaja en base64), confirma siempre lo peligroso y guarda la lista de comandos una vez,
+  compartida con `tdb`.
 - [bd/conexiones-archivos-de-base-de-datos.md](bd/conexiones-archivos-de-base-de-datos.md) — la
   ruta de una base de archivo no sale del main y solo se acepta de la carpeta anclada, resuelta
   también con `realpath`.
 - [bd/conexiones-campos-opcionales.md](bd/conexiones-campos-opcionales.md) — un motor guarda solo
   los opcionales que declara, y el registro de Oracle y PostgreSQL no cambia ni un byte.
+- [bd/conexiones-cifrado.md](bd/conexiones-cifrado.md) — el cifrado es el mismo par de casillas en
+  todos los motores de red (confiar o verificar, con las CA del sistema), y Oracle solo verifica.
 - [bd/conexiones-edicion-y-ganchos.md](bd/conexiones-edicion-y-ganchos.md) — editar una conexión
   se bloquea antes de tocar el registro si hay una transacción pendiente, y los ganchos no
   deshacen nada.
-- [bd/conexiones-humo-de-solo-lectura.md](bd/conexiones-humo-de-solo-lectura.md) — el humo
-  contra una base real lleva la solo lectura impuesta y un veto de lista blanca por su cuenta.
 - [bd/conexiones-que-sobrevive-al-editar.md](bd/conexiones-que-sobrevive-al-editar.md) — cada
   dato aprendido tiene su regla al editar, y cambiar la dirección no conserva nada no gobernado.
 - [bd/conexiones-registro-crash-safe.md](bd/conexiones-registro-crash-safe.md) — el registro no
   toca lo que no entiende, `version` nunca baja y cada escritura es todo o nada.
 - [bd/conexiones-tdb-como-subproceso.md](bd/conexiones-tdb-como-subproceso.md) — el main nunca
   carga los drivers: «Probar», el agente y las terminales pasan por `tdb` como subproceso.
+- [bd/conexiones-tunel-ssh.md](bd/conexiones-tunel-ssh.md) — el túnel SSH de una base lo abre el main
+  con una conexión SSH del mismo perfil, uno por base, y lo comparten `tdb` y el explorador.
 - [bd/contratos-ajustes-de-bd.md](bd/contratos-ajustes-de-bd.md) — los ajustes de Bases de datos son
   cuatro, con lista cerrada y saneados en un solo módulo.
-- [bd/contratos-claves.md](bd/contratos-claves.md) — el contrato de claves explora con SCAN, mueve
-  bytes y confirma lo peligroso.
 - [bd/contratos-conexiones.md](bd/contratos-conexiones.md) — el contrato de conexiones no lleva
   secretos hacia el renderer y es una hoja sin imports de valor.
-- [bd/contratos-documentos.md](bd/contratos-documentos.md) — el contrato de documentos es aparte del
-  SQL y sus valores cruzan como texto del shell.
 - [bd/contratos-esquemas-visibles.md](bd/contratos-esquemas-visibles.md) — los esquemas visibles se
   cuentan en un módulo compartido, con el esquema por defecto como parámetro.
 - [bd/contratos-explorador-sql.md](bd/contratos-explorador-sql.md) — el contrato del explorador SQL:
@@ -206,10 +216,9 @@ alfabético.
   de estructura: el renderer lo arma y el main lo valida otra vez y lo compila.
 - [bd/contratos-formatos-de-filas.md](bd/contratos-formatos-de-filas.md) — «Copiar como» y exportar
   comparten un solo serializador de filas.
-- [bd/documentos-controlador.md](bd/documentos-controlador.md) — en MongoDB el main valida la forma
-  y decide la política, y el renderer solo ve ids de lector del main.
-- [bd/documentos-filtro-guiado.md](bd/documentos-filtro-guiado.md) — el filtro guiado de MongoDB
-  se compila a texto del shell con los valores escapados, sin campo nuevo en el protocolo.
+- [bd/documentos-controlador.md](bd/documentos-controlador.md) — MongoDB tiene contrato propio con
+  los valores como texto del shell, el main valida la forma y decide la política, y el renderer
+  solo ve ids de lector del main.
 - [bd/drivers-catalogo-y-matriz-oracle.md](bd/drivers-catalogo-y-matriz-oracle.md) — un pack del
   Instant Client puede cubrir más de lo que Oracle soporta y lo dice; el centinela va por
   plataforma.
@@ -239,8 +248,13 @@ alfabético.
   diálogo es nativo, pregunta antes por los cambios sin enviar y nunca espera sin plazo.
 - [bd/explorador-stop-en-preparacion.md](bd/explorador-stop-en-preparacion.md) — abrir una tabla
   y «Enviar» se apuntan mientras el main los prepara, para que un Stop no se pierda.
+- [bd/filtro-guiado-compilacion.md](bd/filtro-guiado-compilacion.md) — el filtro guiado se compila
+  en el main: a SQL con parámetros y una forma distinta por motor, o a texto del shell con los
+  valores escapados.
 - [bd/mongodb-conexion-y-tipos.md](bd/mongodb-conexion-y-tipos.md) — MongoDB: contraseña fuera de la
   URI, tipos numéricos explícitos y cancelar solo donde el driver puede.
+- [bd/mongodb-explain-y-exportar.md](bd/mongodb-explain-y-exportar.md) — el explain de MongoDB va al
+  visor de planes y la exportación vuelve a leer por páginas, sin guardar el resultado en memoria.
 - [bd/mongodb-interprete-del-shell.md](bd/mongodb-interprete-del-shell.md) — la consola de MongoDB
   interpreta el shell con una lista blanca y nunca ejecuta JavaScript.
 - [bd/mongodb-sesion-lectores-y-enviar.md](bd/mongodb-sesion-lectores-y-enviar.md) — la sesión de
@@ -251,8 +265,6 @@ alfabético.
   un registro exhaustivo, lo que falta lanza y los archivos por motor no importan `index.ts`.
 - [bd/motores-explicar.md](bd/motores-explicar.md) — el Explain nunca ejecuta la sentencia y no
   estropea la transacción del usuario.
-- [bd/motores-sesion-mysql.md](bd/motores-sesion-mysql.md) — en MySQL el «esquema» de la consola
-  es la base (`USE`) y la rejilla no edita lo que su texto no escribe.
 - [bd/motores-sesion-sqlite.md](bd/motores-sesion-sqlite.md) — SQLite edita por el alias del
   rowid, conserva la clase de almacenamiento y espera por archivo.
 - [bd/motores-sesion-sqlserver.md](bd/motores-sesion-sqlserver.md) — en SQL Server el «esquema»
@@ -274,7 +286,8 @@ alfabético.
 - [bd/redis-sentinel-y-cluster.md](bd/redis-sentinel-y-cluster.md) — Redis a Sentinel y a Cluster con
   un campo de topología: sin túnel, el SCAN de Cluster con un cursor compuesto y lo que no tiene sentido, dicho.
 - [bd/registro-motores-descriptor.md](bd/registro-motores-descriptor.md) — lo que cambia de un motor
-  a otro es un descriptor de datos, en una unión por familia.
+  a otro es un descriptor de datos, en una unión por familia, y lo que cambia del lenguaje SQL es
+  una tabla de banderas con el dialecto igual al motor.
 - [bd/registro-motores-guardia-de-motores-sueltos.md](bd/registro-motores-guardia-de-motores-sueltos.md) —
   una guardia impide que el código común vuelva a dar por hecho un motor concreto.
 - [bd/registro-motores-mongodb-y-redis.md](bd/registro-motores-mongodb-y-redis.md) — los
@@ -290,12 +303,12 @@ alfabético.
   que identifica con certeza y compara lo que leyó antes de escribir.
 - [bd/rejilla-envio-bloqueos.md](bd/rejilla-envio-bloqueos.md) — «Enviar» espera los bloqueos con
   tope, por lotes y antes de escribir nada, y busca la fila culpable por bisección.
-- [bd/rejilla-filtro-guiado-sql.md](bd/rejilla-filtro-guiado-sql.md) — el filtro guiado se compila
-  a SQL con parámetros y una forma distinta por motor.
 - [bd/rejilla-paginado.md](bd/rejilla-paginado.md) — la rejilla pagina con la forma que admite
   cada motor, sin FETCH en Oracle y con el ROWID sin alias de tabla.
 - [bd/rejilla-sql-fragmentos.md](bd/rejilla-sql-fragmentos.md) — el WHERE y el ORDER BY del
   usuario se validan con el léxico y van en líneas propias.
+- [bd/secretos-sin-llavero-en-linux.md](bd/secretos-sin-llavero-en-linux.md) — en Linux, sin llavero
+  del escritorio, Tessera no guarda contraseñas, y el mensaje dice cómo instalar uno.
 - [bd/sesiones-esquema-de-consola.md](bd/sesiones-esquema-de-consola.md) — el esquema de una
   consola se reaplica al abrir, solo se olvida si no existe y un lector queda atado al suyo.
 - [bd/sesiones-exportar-con-cursor-vivo.md](bd/sesiones-exportar-con-cursor-vivo.md) — exportar
@@ -310,8 +323,6 @@ alfabético.
   obedece la solo lectura que se le impone, no la casilla de la conexión, que es de los agentes.
 - [bd/sql-avisos-lexicos.md](bd/sql-avisos-lexicos.md) — los avisos de la consola son léxicos y no
   bloquean: orientan, y decide el servidor.
-- [bd/sql-dialectos-como-tabla.md](bd/sql-dialectos-como-tabla.md) — lo que cambia de un motor SQL a
-  otro es dato en una tabla de banderas, y un dialecto desconocido lanza con nombre.
 - [bd/sql-dml-rejilla-un-constructor.md](bd/sql-dml-rejilla-un-constructor.md) — «Enviar» construye
   su DML con un solo constructor para los dos lados, con binds y nombres citados.
 - [bd/sql-lexico-y-divisor-compartidos.md](bd/sql-lexico-y-divisor-compartidos.md) — el léxico y el
@@ -329,11 +340,13 @@ alfabético.
 - [bd/trabajador-ciclo-de-vida.md](bd/trabajador-ciclo-de-vida.md) — el proceso de sesión no toca
   stdout, no muere por una promesa huérfana y sale a mano.
 - [bd/trabajador-mysql-sesion.md](bd/trabajador-mysql-sesion.md) — la sesión MySQL sigue la
-  transacción por el estado del servidor y Detener es un KILL QUERY desde otra conexión.
+  transacción por el estado del servidor, Detener es un KILL QUERY desde otra conexión, el
+  «esquema» de la consola es la base y la rejilla no edita lo que su texto no escribe.
 - [bd/trabajador-oracle-sesion.md](bd/trabajador-oracle-sesion.md) — la sesión Oracle fija formato
   por execute, lee con cursor vivo y pone el candado sentencia a sentencia.
-- [bd/trabajador-postgres-sesion.md](bd/trabajador-postgres-sesion.md) — la sesión PostgreSQL lee
-  con `pg-cursor` y lo cierra en el acto, refija formatos y cancela por CancelRequest.
+- [bd/trabajador-postgres-sesion.md](bd/trabajador-postgres-sesion.md) — la sesión PostgreSQL abre
+  el cliente con las opciones de sesión en el constructor y el oyente de error antes de conectar,
+  lee con `pg-cursor` y lo cierra en el acto, refija formatos y cancela por CancelRequest.
 - [bd/trabajador-redis-cancelar.md](bd/trabajador-redis-cancelar.md) — en Redis cancelar es soltar
   el comando bloqueado o abandonar la conexión.
 - [bd/trabajador-sqlite-sesion.md](bd/trabajador-sqlite-sesion.md) — la sesión SQLite es un proceso
@@ -351,22 +364,20 @@ alfabético.
   informa y pide confirmar cada escritura, y sus consolas nacen en Manual.
 - [bd/ui-arbol-cache-meta.md](bd/ui-arbol-cache-meta.md) — la caché de catálogo del renderer es un
   módulo que solo invalida el evento del main, y marca obsoleto en vez de borrar.
-- [bd/ui-arbol-colores-de-marca.md](bd/ui-arbol-colores-de-marca.md) — el color de cada motor lleva
-  el del tema oscuro en el SVG y el del claro en `arbol.css`, con contraste de gráfico medido.
 - [bd/ui-arbol-componente.md](bd/ui-arbol-componente.md) — el lateral de BD solo selecciona al
   clic, busca en lo cargado y llama a sus hooks en un orden fijo de efectos.
 - [bd/ui-arbol-filas-y-carga.md](bd/ui-arbol-filas-y-carga.md) — cada fila sabe su carga y su
   única acción, y las conexiones ajenas se explican con un solo criterio.
 - [bd/ui-arbol-modelo.md](bd/ui-arbol-modelo.md) — el árbol se aplana en puro, pide lo que falta
-  desde un solo sitio y usa claves de tupla unidas por NUL.
-- [bd/ui-arbol-nivel-bases.md](bd/ui-arbol-nivel-bases.md) — el nivel «Bases» comparte el popover
-  del «N de M» y el selector de consola decide por el descriptor.
+  desde un solo sitio, usa claves de tupla unidas por NUL y el nivel «Bases» comparte el popover
+  del «N de M».
 - [bd/ui-area-conexiones-y-sesiones.md](bd/ui-area-conexiones-y-sesiones.md) — conocidas y ajenas
   llegan en una petición y un estado por perfil, y las sesiones como foto más cambios.
 - [bd/ui-area-estado-de-la-vista.md](bd/ui-area-estado-de-la-vista.md) — la vista de BD no se
   persiste y solo se poda con listas que se entienden (nunca con un formato ajeno).
 - [bd/ui-area-iconos.md](bd/ui-area-iconos.md) — los glifos de BD viven en un solo módulo, con
-  glifo propio por motor salvo el logo oficial de PostgreSQL sin tocar.
+  glifo propio por motor salvo el logo oficial de PostgreSQL sin tocar, y el color de cada motor
+  lleva el del tema oscuro en el SVG y el del claro en `arbol.css`.
 - [bd/ui-area-marca-de-entorno.md](bd/ui-area-marca-de-entorno.md) — el entorno se marca con un
   solo componente, chip o franja, con colores de contraste medido en los dos temas.
 - [bd/ui-area-modelo-de-pestanas.md](bd/ui-area-modelo-de-pestanas.md) — las pestañas de BD son un
@@ -389,14 +400,18 @@ alfabético.
   para toda la app, enrutado por la URI del modelo y con el esquema leído al preguntar.
 - [bd/ui-claves-arbol.md](bd/ui-claves-arbol.md) — el árbol de claves acumula el SCAN por base, no
   da por vacía una vuelta sin claves y agrupa por `:` sin cambiar el nombre.
-- [bd/ui-claves-comandos-y-registro.md](bd/ui-claves-comandos-y-registro.md) — la consola de claves
-  ejecuta un comando por línea, con registro propio y un Monarch sin estados.
-- [bd/ui-claves-consola.md](bd/ui-claves-consola.md) — la consola de Redis confirma lo peligroso y
-  la producción de uno en uno y reenvía cada marca tal cual.
-- [bd/ui-claves-pestana.md](bd/ui-claves-pestana.md) — la pestaña de clave lee con una petición
-  cancelable, no se registra para descartar y no reutiliza la tabla de documentos.
-- [bd/ui-claves-visor.md](bd/ui-claves-visor.md) — el visor de una clave es de solo lectura, sangra
-  el JSON sobre el texto y acota lo que pinta.
+- [bd/ui-claves-borrar-por-patron.md](bd/ui-claves-borrar-por-patron.md) — borrar por patrón en Redis
+  enseña lo que borra y borra exactamente eso, con `UNLINK` por la consola y la política del main.
+- [bd/ui-claves-consola.md](bd/ui-claves-consola.md) — la consola de Redis ejecuta un comando por
+  línea, confirma lo peligroso y la producción de uno en uno, lleva registro propio y completa el
+  nombre del comando.
+- [bd/ui-claves-edicion-elementos.md](bd/ui-claves-edicion-elementos.md) — el visor de Redis edita
+  list, set, zset y stream y crea claves, con un comando por acción y sin pisar nada.
+- [bd/ui-claves-exportar-json.md](bd/ui-claves-exportar-json.md) — exportar una clave a JSON lee la
+  clave entera en el renderer y el main solo guarda el texto.
+- [bd/ui-claves-visor.md](bd/ui-claves-visor.md) — el visor de una clave edita por la consola del
+  main enseñando el comando, lee con una petición cancelable, sangra el JSON sobre el texto y acota
+  lo que pinta.
 - [bd/ui-conexion-borrador.md](bd/ui-conexion-borrador.md) — la contraseña es de solo escritura y
   solo viaja lo que el motor declara.
 - [bd/ui-conexion-campos.md](bd/ui-conexion-campos.md) — las reglas de los campos son del
@@ -408,7 +423,8 @@ alfabético.
 - [bd/ui-consola-barra-y-pane.md](bd/ui-consola-barra-y-pane.md) — la barra describe a la izquierda
   y actúa con iconos a la derecha, y popovers y diálogos van por portal.
 - [bd/ui-consola-estado.md](bd/ui-consola-estado.md) — la consola SQL es un reducer puro aplicado
-  de forma síncrona, y la sesión la pinta el main.
+  de forma síncrona por un hook dueño del modelo que orquesta sentencia a sentencia, y la sesión
+  la pinta el main.
 - [bd/ui-consola-formato-y-salida.md](bd/ui-consola-formato-y-salida.md) — el formateo solo cambia
   blancos y caja, con guarda por tokens, y los textos de la Salida son contrato.
 - [bd/ui-consola-historial.md](bd/ui-consola-historial.md) — el historial filtra en el main e
@@ -417,8 +433,6 @@ alfabético.
   una vez antes de enviar nada, y Stop y el cierre alcanzan todo lo que está en vuelo.
 - [bd/ui-consola-monaco.md](bd/ui-consola-monaco.md) — las marcas viven en el modelo, con tres
   dueños de marcadores y lenguajes propios registrados síncronos.
-- [bd/ui-consola-motor.md](bd/ui-consola-motor.md) — `useConsola` es dueño del modelo, aplica un
-  reducer síncrono y llama a sus piezas en un orden fijo.
 - [bd/ui-consola-popovers.md](bd/ui-consola-popovers.md) — los popovers de esquemas se manejan
   desde el filtro, y el de la consola elige uno y cancela con el clic fuera.
 - [bd/ui-datos-pestana.md](bd/ui-datos-pestana.md) — la pestaña de datos es la dueña de la lectura
@@ -445,29 +459,32 @@ alfabético.
   con el descriptor del motor y cada error dice su siguiente paso.
 - [bd/ui-rejilla-modelo-pintado.md](bd/ui-rejilla-modelo-pintado.md) — la rejilla es propia,
   virtual en los dos ejes, y pinta el valor sin reinterpretarlo.
-- [bd/ui-rejilla-modelo-resultados.md](bd/ui-rejilla-modelo-resultados.md) — los resultados de la
-  consola se sustituyen por lote y releen en la sesión de su consola.
+- [bd/ui-rejilla-modelo-resultados.md](bd/ui-rejilla-modelo-resultados.md) — cada resultado de la
+  consola es una pestaña dueña de su rejilla o su plan que sigue montada al ocultarse; los
+  resultados se sustituyen por lote y releen en la sesión de su consola.
 - [bd/ui-rejilla-modelo-teclado.md](bd/ui-rejilla-modelo-teclado.md) — el teclado de la rejilla
   sigue a las hojas de cálculo y fija sus mitades negativas por plataforma.
-- [bd/ui-rejilla-modelo-visor.md](bd/ui-rejilla-modelo-visor.md) — el visor y la copia enseñan y
-  copian el valor tal como se guardó, con un serializador compartido.
 - [bd/ui-rejilla-visor-fuente.md](bd/ui-rejilla-visor-fuente.md) — fuente y DDL se leen en un pane
   con un Monaco de modelo propio, y Refrescar salta la caché de ese objeto.
 - [bd/ui-rejilla-visor-valor.md](bd/ui-rejilla-visor-valor.md) — el visor de valor es un Monaco de
-  solo lectura en un modal por portal que nace cuando su host ya mide.
+  solo lectura en un modal por portal que nace cuando su host ya mide, y el visor y la copia
+  enseñan el valor tal como se guardó.
 - [bd/ui-rejilla-vista.md](bd/ui-rejilla-vista.md) — la rejilla solo pinta, selecciona y copia; los
   datos, el servidor y lo pendiente son de su dueño.
-- [bd/ui-resultados-pestanas.md](bd/ui-resultados-pestanas.md) — cada resultado de la consola es
-  una pestaña dueña de su rejilla o su plan, que sigue montada al ocultarse.
 - [bd/ui-resultados-pildora-de-filas.md](bd/ui-resultados-pildora-de-filas.md) — el recuento de
   filas es una píldora que cuenta bajo demanda y reúne «Traer todas» y la exportación.
 - [bd/uri-mongodb-al-pegar.md](bd/uri-mongodb-al-pegar.md) — «Pegar URI» de MongoDB rechaza lo que
   el driver rechaza y guarda campos, no la URI.
+- [bd/uri-postgres-al-pegar.md](bd/uri-postgres-al-pegar.md) — «Pegar URI» de PostgreSQL traduce
+  `sslmode` a las dos casillas de cifrado y descarta el resto de opciones diciéndolo.
 - [bd/uri-redis-al-pegar.md](bd/uri-redis-al-pegar.md) — «Pegar URI» de Redis lee las credenciales
   como ioredis y descarta las opciones.
 
 ### busqueda
 
+- [busqueda/barrido-en-el-main.md](busqueda/barrido-en-el-main.md) — el barrido corre en un worker
+  del main, primero nombres y texto y después comprimidos por su pool de constantes, sin
+  descompilar, y cancelar es terminar el worker.
 - [busqueda/busqueda-en-archivos.md](busqueda/busqueda-en-archivos.md) — la búsqueda es siempre
   del proyecto activo (elegir otra carpeta lo activa) y cada barrido se cancela en cuanto deja de
   hacer falta.
@@ -492,19 +509,40 @@ alfabético.
   contenedor se resta en el main por CRC32, y al renderer solo cruzan el índice restado y el texto
   de una entrada.
 
+### configuracion
+
+- [configuracion/archivos-tessera-del-sistema.md](configuracion/archivos-tessera-del-sistema.md) — los
+  `.tessera` se asocian a Tessera al instalar, sin casilla, y su doble clic abre el importar con el
+  archivo elegido, con la app cerrada o abierta.
+- [configuracion/exportar-importar.md](configuracion/exportar-importar.md) — la configuración viaja
+  en un archivo cifrado con una frase (o, si se pide y con su aviso, sin ella) y al importarla se
+  fusiona por id; los secretos no cruzan al renderer.
+- [configuracion/modal-con-riel-y-buscador.md](configuracion/modal-con-riel-y-buscador.md) —
+  Configuración es un modal con un riel de categorías sin ninguna vacía, y su buscador atraviesa
+  todas.
+
 ### despliegue
 
+- [despliegue/firma-mac-certificado-propio.md](despliegue/firma-mac-certificado-propio.md) — en
+  macOS la app se firma con un certificado propio de Tessera, el mismo en todas las versiones, para
+  que el sistema no la trate como otra al actualizar.
 - [despliegue/releases-de-github.md](despliegue/releases-de-github.md) — el feed es `generic`
   contra las Releases de GitHub, Actions publica al empujar la etiqueta y la release es borrador
   hasta tener las dos plataformas, y el mínimo de macOS viaja en Darwin.
+- [despliegue/sandbox-de-chromium-en-linux.md](despliegue/sandbox-de-chromium-en-linux.md) — en
+  Linux un lanzador quita el sandbox de Chromium solo donde no puede arrancar.
 
 ### editor
 
+- [editor/archivo-borrado-se-tacha.md](editor/archivo-borrado-se-tacha.md) — un archivo borrado no
+  es un error: la pestaña se queda, se tacha y guardar lo recrea.
 - [editor/columna-del-agente-oculta.md](editor/columna-del-agente-oculta.md) — se guarda el
   motivo de ocultar la columna del agente (`'manual'` o `'diff'`), no un booleano, y restaurar se
   deduce del `kind` de la pestaña.
 - [editor/diff-editable.md](editor/diff-editable.md) — el lado derecho del diff edita el buffer
   compartido del registro y Monaco no se recrea por cada cambio.
+- [editor/diff-por-tipo-y-por-ancho.md](editor/diff-por-tipo-y-por-ancho.md) — un diff se enruta por
+  tipo de archivo y su modo (lado a lado o unificado) lo decide el ancho.
 - [editor/panes-en-keep-alive.md](editor/panes-en-keep-alive.md) — cada pestaña es un pane en
   keep-alive que pide prestado su buffer al registro y nunca crea ni dispone un modelo compartido.
 - [editor/recarga-en-vivo.md](editor/recarga-en-vivo.md) — la recarga en vivo solo relee el
@@ -524,6 +562,8 @@ alfabético.
 - [explorador/arbol-de-archivos.md](explorador/arbol-de-archivos.md) — el árbol es un solo
   componente con el estado en hooks compuestos en el orden de sus efectos y las operaciones en
   funciones planas.
+- [explorador/mover-en-lote-y-arrastre-nativo.md](explorador/mover-en-lote-y-arrastre-nativo.md) —
+  mover en lote es todo o nada, y arrastrar varios archivos fuera de la app usa el arrastre nativo.
 - [explorador/portapapeles-de-archivos.md](explorador/portapapeles-de-archivos.md) — el
   portapapeles del explorador arbitra entre la copia interna y la del sistema con una marca de
   texto, sin sondear.
@@ -587,11 +627,13 @@ alfabético.
   hueco reservado.
 - [layout/estructura-de-la-ventana.md](layout/estructura-de-la-ventana.md) — marco fijo con la
   franja inferior dentro de la columna principal; lo que tiene sesión se oculta, no se desmonta.
+- [layout/franja-inferior-excluyente.md](layout/franja-inferior-excluyente.md) — la franja inferior
+  es una sola: terminal o Git·Log, nunca los dos, con el alto compartido y recordada por perfil.
 - [layout/marco-y-lienzo.md](layout/marco-y-lienzo.md) — el contorno es un gris único y el
   área de trabajo un lienzo hundido; ningún ancestro de una capa fija crea contexto de
   apilamiento ni contención.
-- [layout/oculto-manda-sobre-maximizado.md](layout/oculto-manda-sobre-maximizado.md) — con el
-  agente oculto y maximizado a la vez manda el oculto: ocultar cancela el maximizado en el origen.
+- [layout/oculto-manda-sobre-maximizado.md](layout/oculto-manda-sobre-maximizado.md) — maximizado
+  y oculto de la columna del agente son de cada perfil; con los dos a la vez manda el oculto.
 - [layout/pantalla-completa-de-la-franja.md](layout/pantalla-completa-de-la-franja.md) — la franja
   inferior se maximiza con un solo estado coherente, solo con CSS y sin desmontar; abrir una
   pestaña o elegir una vista lateral sale del modo, y el atajo solo vale con el foco en la franja.
@@ -628,9 +670,17 @@ alfabético.
 - [renderer/barras-de-desplazamiento.md](renderer/barras-de-desplazamiento.md) — una sola pastilla
   de barra en toda la app (nativas y Monaco), oculta fuera de su zona; sin propiedades estándar
   que en Chromium anulen el `::-webkit-scrollbar`.
+- [renderer/barras-de-herramientas.md](renderer/barras-de-herramientas.md) — las barras llevan la
+  identidad a la izquierda y acciones de icono a la derecha, y lo destructivo se distingue por su
+  nombre, no por el color.
 - [renderer/barriles-sin-ciclos.md](renderer/barriles-sin-ciclos.md) — lo que solo compone
   App.tsx sale del `index.ts` a un `app.ts` por feature, y lo que dos features se necesitan va por
   prop: entre barriles no queda ningún ciclo y `test:ciclos` no deja que vuelva.
+- [renderer/boton-dividido-y-capa-flotante.md](renderer/boton-dividido-y-capa-flotante.md) — el
+  botón dividido tiene dos paradas de Tab, y los menús y popovers que no cuelgan de quien los abre
+  van a una capa flotante dentro de `.shell`.
+- [renderer/carga-diferida.md](renderer/carga-diferida.md) — el aviso de carga es de cada panel:
+  sale a los 250 ms, avisa de que tarda a los 5 s y, visible, se queda al menos 300 ms.
 - [renderer/color-de-perfil-cenizo.md](renderer/color-de-perfil-cenizo.md) — el color de un
   perfil se guarda tal cual y se rebaja a una banda cenizo solo al pintar.
 - [renderer/color-del-perfil-como-acento.md](renderer/color-del-perfil-como-acento.md) — el
@@ -641,9 +691,13 @@ alfabético.
 - [renderer/dialogos-foco-y-teclado.md](renderer/dialogos-foco-y-teclado.md) — los diálogos
   comparten un hook de foco y teclado llamado antes que ningún efecto, y el foco vuelve por la
   cadena de ancestros.
+- [renderer/escalera-de-tamanos.md](renderer/escalera-de-tamanos.md) — los tamaños de letra del
+  chrome son cuatro peldaños relativos a `--ui-font`, nunca píxeles fijos.
 - [renderer/estado-de-app.md](renderer/estado-de-app.md) — el estado de la ventana vive en
   stores por dominio (el que cruzan los efectos, en la misma vía, para no partir commits) y todos
   los efectos de App se siguen ejecutando desde App, en orden fijo.
+- [renderer/estados-vacios.md](renderer/estados-vacios.md) — los estados vacíos son un componente,
+  distinguen «aún no sé» de «no hay» y nunca escriben en los archivos del usuario.
 - [renderer/hueco-de-botones-de-ventana.md](renderer/hueco-de-botones-de-ventana.md) — el hueco
   de los botones de la ventana lo mide Chromium con `env()`; el renderer solo marca el lado y si
   hay semáforo.
@@ -657,8 +711,9 @@ alfabético.
 - [renderer/monaco.md](renderer/monaco.md) — Monaco se configura en un solo sitio, con
   validadores apagados, tema solo hex, sin estados de Monarch que queden abiertos y `layout` con
   medidas explícitas en el diff.
-- [renderer/objetivo-de-git-derivado.md](renderer/objetivo-de-git-derivado.md) — lo que se pinta
-  de git sale del modelo de pestañas y lo que se pide espera al backend confirmado.
+- [renderer/objetivo-de-git-derivado.md](renderer/objetivo-de-git-derivado.md) — todo pinta el
+  perfil y el proyecto que se ven (`objetivoVisto`), y solo lo que pide contra la raíz anclada sin
+  decir su proyecto espera al backend confirmado.
 - [renderer/persistencia-de-pestanas.md](renderer/persistencia-de-pestanas.md) — el guardado del
   workspace vive en un temporizador con dueño propio que solo se cancela al desmontar.
 - [renderer/red-del-contenedor.md](renderer/red-del-contenedor.md) — la red del contenedor se
@@ -668,9 +723,15 @@ alfabético.
 - [renderer/reordenar-proyectos-arrastrando.md](renderer/reordenar-proyectos-arrastrando.md) —
   los proyectos de un perfil se reordenan arrastrando su pestaña con la regla de los perfiles;
   arrastrar no activa, y el reductor solo acepta exactamente las rutas abiertas.
+- [renderer/riel-en-dos-grupos.md](renderer/riel-en-dos-grupos.md) — los iconos del riel se reparten
+  en dos grupos que decide el usuario, moverlos no cambia qué abren y ninguno puede quedarse vacío.
 - [renderer/select-con-lista-propia.md](renderer/select-con-lista-propia.md) — la lista de un
   select de modal es la «select personalizable» del motor con la piel de los menús de Tessera, y
   su Esc cierra solo la lista.
+- [renderer/tooltip-propio.md](renderer/tooltip-propio.md) — el `title` lo enseña una caja de la app,
+  igual en las dos plataformas, y el del sistema se retira mientras el ratón está encima.
+- [renderer/vivos-y-ocultos.md](renderer/vivos-y-ocultos.md) — lo que se deja en un perfil o un
+  proyecto (su árbol, su lista SSH) sigue montado y oculto conservando su caja, para volver tal cual.
 
 ### sandbox
 
@@ -694,6 +755,9 @@ alfabético.
   una sonda real; el prevuelo informa y no bloquea.
 - [sandbox/ssh-global.md](sandbox/ssh-global.md) — el SSH del usuario se monta de solo lectura en
   todo contenedor y su config se traduce.
+- [sandbox/usuario-de-la-imagen-en-linux.md](sandbox/usuario-de-la-imagen-en-linux.md) — en Linux la
+  imagen se hornea con el uid del usuario del equipo y un Docker sin root se rechaza con su
+  explicación.
 
 ### shared
 
@@ -744,6 +808,8 @@ alfabético.
 - [ssh/explorador-sftp.md](ssh/explorador-sftp.md) — el explorador SFTP habla el protocolo SFTP v3
   sobre `ssh -s sftp` del sistema (la línea, la huella y el secreto de la pestaña), en una pestaña del
   perfil; nunca deja un archivo a medias encima de uno bueno ni pisa sin confirmar.
+- [ssh/tuneles-y-bastiones.md](ssh/tuneles-y-bastiones.md) — el bastión es otra conexión del mismo
+  perfil, encadenable, y los túneles viven con la terminal de la conexión.
 
 ### terminales
 
@@ -772,6 +838,9 @@ alfabético.
 - [terminales/raton-y-portapapeles-de-la-terminal.md](terminales/raton-y-portapapeles-de-la-terminal.md)
   — el clic derecho es de la aplicación cuando pide el ratón, y el portapapeles va por el IPC de
   Tessera.
+- [terminales/resaltado-de-la-salida.md](terminales/resaltado-de-la-salida.md) — la terminal de
+  shell resalta logs y salidas con colores ANSI en el flujo: error y aviso la línea entera, info y
+  ok solo su etiqueta, y nunca lo que ya trae color ni la pantalla alternativa.
 - [terminales/riel-de-conexiones.md](terminales/riel-de-conexiones.md) — la lista de conexiones SSH es un riel fijo
   solo a pantalla completa, plegable, que se pliega solo si la terminal quedaría por debajo de 420 px sin tocar la
   preferencia del perfil.
@@ -788,11 +857,15 @@ alfabético.
 ### workspace
 
 - [workspace/borrar-perfil-con-orden.md](workspace/borrar-perfil-con-orden.md) — lo de un perfil
-  solo se borra con su orden explícita; guardar la lista nunca borra, y al arrancar solo se terminan
-  los borrados que quedaron a medias.
+  solo se borra con su orden explícita, con sus carpetas a la papelera del sistema; guardar la lista
+  nunca borra, y al arrancar solo se terminan los borrados que quedaron a medias.
 - [workspace/estado-persistido-crash-safe.md](workspace/estado-persistido-crash-safe.md) — los JSON
   de estado se escriben crash-safe desde una copia en memoria con debounce, y una versión más nueva
   se archiva antes de degradarla.
+- [workspace/peticiones-de-archivos-con-su-proyecto.md](workspace/peticiones-de-archivos-con-su-proyecto.md)
+  — cada petición de archivos, de git o del diff de comprimidos lleva la contenedora de su proyecto
+  y el main la atiende en el suyo, no en el anclado: un gesto del proyecto anterior nunca cae en la
+  misma ruta del nuevo, y nada espera al ancla.
 
 ## Plantilla (40 líneas como mucho)
 

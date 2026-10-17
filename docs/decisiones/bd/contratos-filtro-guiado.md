@@ -6,7 +6,7 @@
 ## Contexto
 
 Una barra `WHERE` de texto libre exige saber el dialecto: las comillas dobles son un identificador en Oracle,
-y `ESTATUS="NOMINA PROCESADA"` daba ORA-00904 a algo que para el usuario era un texto. La mayoría de las
+y `ESTADO="PEDIDO ENVIADO"` da ORA-00904 a algo que para el usuario es un texto. La mayoría de las
 veces lo que se quiere es «esta columna, este operador, este valor».
 
 ## Decisión
@@ -27,7 +27,7 @@ veces lo que se quiere es «esta columna, este operador, este valor».
   `image` y los espaciales en SQL Server; `xml`, `json`, sus arrays y los geométricos en PostgreSQL; los LOB,
   `XMLTYPE` y `LONG` en Oracle) no se ofrecen para eso: un texto así es la categoría `textoLargo`, que conserva
   «contiene», «empieza por» y «está vacío» (que comparan la columna convertida a texto), y la cabecera no los
-  ordena. En Oracle el filtro no convierte a texto, así que allí quedan en «está vacío». Ofrecerlos acababa en
+  ordena. En Oracle el filtro no convierte a texto, así que allí quedan en «está vacío». Ofrecerlos acabaría en
   un error del servidor.
 - Sin DOM, sin `process`, sin electron: lo importan renderer, main y pruebas con `node` a secas.
 
@@ -41,5 +41,4 @@ veces lo que se quiere es «esta columna, este operador, este valor».
 
 ## Consecuencias
 
-SQL: [rejilla-filtro-guiado-sql.md](rejilla-filtro-guiado-sql.md); documentos:
-[documentos-filtro-guiado.md](documentos-filtro-guiado.md).
+Compilación a SQL y a documentos: [filtro-guiado-compilacion.md](filtro-guiado-compilacion.md).

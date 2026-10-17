@@ -19,6 +19,7 @@ import {
 import type { LectorDdl } from './catalogo.ts'
 import { columnaDdl, indicesDdl, mapearFuente, restriccionesDdl } from './mapeoSqlserver.ts'
 import { sqlColumnas, sqlFuente, sqlIndices, sqlRestricciones } from './sqlSqlserver.ts'
+import { txMotores } from './textosMotores.ts'
 import type { ConsultaCatalogo, DialectoCatalogo, FilaCatalogo } from './tipos.ts'
 
 /**
@@ -32,7 +33,7 @@ export async function leerDdlSqlServer(lector: LectorDdl, ref: DbRefObjeto): Pro
   const leer = (fn: () => ConsultaCatalogo): Promise<readonly FilaCatalogo[]> => lector.consultar(lector.construir(fn))
   const conDdl = (textoDdl: string | null, origen: string, aviso?: string): DbFuente =>
     textoDdl === null
-      ? { partes: [], origen, aviso: aviso ?? 'No hay DDL visible: el objeto no existe o faltan privilegios para verlo.' }
+      ? { partes: [], origen, aviso: aviso ?? txMotores().sinDdlObjeto }
       : { partes: [{ titulo: 'DDL', texto: textoDdl }], origen }
   switch (ref.tipo) {
     case 'tabla': {

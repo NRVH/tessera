@@ -15,9 +15,9 @@ archivos. El renderer nunca ve ni envía rutas del host.
   no se gasta al usarla: un guardado que falla por un nombre repetido puede repetirse. Es del motor con el que se
   eligió. Una ficha que el main no conoce da un error que pide volver a elegir, nunca un alta sin archivo.
 - Un archivo «del proyecto» solo se acepta de la contenedora que el explorador de archivos tiene anclada
-  (`contenedoraAnclada`). Antes solo se miraba que la ruta relativa quedara dentro de la carpeta que mandaba el
-  renderer, y un renderer con otra carpeta registraba cualquier `.db` del disco como base del perfil, visible
-  para su agente. Además se resuelve dos veces contra el proyecto: la ruta escrita y la real (`realpath`), porque
+  (`contenedoraAnclada`). Mirar solo que la ruta relativa quede dentro de la carpeta que manda el
+  renderer dejaría a un renderer con otra carpeta registrar cualquier `.db` del disco como base del perfil,
+  visible para su agente. Además se resuelve dos veces contra el proyecto: la ruta escrita y la real (`realpath`), porque
   un `.db` que es un enlace a otra base del usuario (el agente, en Docker, puede crear enlaces de verdad) queda
   fuera aunque su nombre esté dentro.
 - Qué motor es un archivo lo decide su cabecera y no la extensión (un `.db` puede ser de H2 o de Access): se

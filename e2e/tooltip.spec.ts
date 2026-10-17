@@ -62,7 +62,8 @@ test.describe.serial('El tooltip de la app', () => {
     await expect(boton, 'y el title vuelve').toHaveAttribute('title', TITULO)
 
     // Un botón desactivado lleva su motivo en el envoltorio.
-    await win.locator('button[aria-label="Refrescar"]').first().hover({ force: true })
+    // El de BD: el explorador, visto antes, sigue montado y oculto con su propio «Refrescar».
+    await win.locator('.db-arbol button[aria-label="Refrescar"]:visible').first().hover({ force: true })
     await expect(tip, 'el motivo del desactivado').toHaveText('Todavía no hay conexiones')
 
     // Teclear con el ratón encima quita la caja, pero el title sigue guardado: si volviera, el sistema

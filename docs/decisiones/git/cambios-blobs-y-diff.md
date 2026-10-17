@@ -14,10 +14,10 @@ contenido del que hay, y el editor puede guardarlo encima del archivo.
 - SOLO se retiene lo inmutable: un blob de commit por su hash real (`c:<hash>:<ruta>`), en un LRU
   de 40. Lo mutable (disco, índice, el ref `HEAD`) no se retiene: se comparte la petición EN
   VUELO y se descarta al resolver, así que el siguiente open relee de git. Un fallo no se cachea.
-- Las claves mutables llevan el ÁMBITO (contenedora y perfil): la ruta relativa se repite entre
-  proyectos, y una petición en vuelo de otro proyecto entregaba su contenido como si fuera el
-  propio. Prefijar la clave lo hace imposible; ampliar el dedupe "si el ámbito coincide" llegaría
-  tarde. El hash real no lleva ámbito: un SHA es único, compartirlo es correcto.
+- Cada petición dice de qué proyecto es (su contenedora, la del pane o la fila que la hace) y las
+  claves mutables la llevan: la ruta relativa se repite entre proyectos, y una petición en vuelo
+  de otro proyecto entregaría su contenido como si fuera el propio. Prefijar la clave lo hace
+  imposible. El hash real no la lleva: un SHA es único, compartirlo es correcto.
 - El prefetch por hover tiene tope de 4 simultáneos y descarta el exceso (el clic lo traerá); el
   lado de disco no se precalienta porque lo presta el registro de modelos, no esta caché.
 - Solo la sección Cambios es editable: su lado derecho es el archivo real. El índice es un objeto

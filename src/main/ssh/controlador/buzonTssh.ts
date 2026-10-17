@@ -189,7 +189,8 @@ export function programaTssh(d: DepsBuzonTssh): ProgramaBuzon {
       'tssh-cliente.cjs': de('tssh-container.cjs'),
       'tsshArgumentos.cjs': de('tsshArgumentos.cjs'),
       'tsshRutas.cjs': de('tsshRutas.cjs'),
-      'tsshSalida.cjs': de('tsshSalida.cjs')
+      'tsshSalida.cjs': de('tsshSalida.cjs'),
+      'textosTssh.cjs': de('textosTssh.cjs')
     },
     cliente: 'tssh-cliente.cjs',
     // 32 MiB de archivos (o 16 de salida) en base64, con holgura.

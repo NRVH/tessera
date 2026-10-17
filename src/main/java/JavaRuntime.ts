@@ -22,6 +22,7 @@ import {
   ordenarJvms,
   primeraLineaVersion
 } from './javaVersion.ts'
+import { txJava } from './textos.ts'
 
 /** Tope de espera de un sondeo. `java -version` está medido en ~100 ms. */
 const SONDEO_TIMEOUT_MS = 5_000
@@ -354,7 +355,7 @@ export class JavaRuntime {
   /** Valida que una ruta sea de verdad un java.exe utilizable. */
   async validarJavaExe(rutaJavaExe: string): Promise<{ ok: boolean; mensaje: string; major: number }> {
     if (!existsSync(rutaJavaExe)) {
-      return { ok: false, mensaje: 'Ese archivo no existe.', major: 0 }
+      return { ok: false, mensaje: txJava().runtime.noExiste, major: 0 }
     }
     const r = await correr(rutaJavaExe, ['-version'], SONDEO_TIMEOUT_MS)
     // STDERR, no stdout: `java -version` escribe ahí en todas las JVM (ver el ADR).
@@ -363,7 +364,7 @@ export class JavaRuntime {
     if (major === 0) {
       return {
         ok: false,
-        mensaje: `Eso no parece un java.exe: al ejecutarlo no devolvió una versión de Java.`,
+        mensaje: txJava().runtime.noEsJava,
         major: 0
       }
     }
@@ -412,8 +413,8 @@ export class JavaRuntime {
       if (!disponible) {
         motivo =
           ordenadas.length === 0
-            ? 'No se encontró ninguna instalación de Java en el equipo.'
-            : `Necesita un JDK ${REQUIERE_MAJOR[motor]} o superior; el más nuevo que se encontró es ${ordenadas[0].major}.`
+            ? txJava().runtime.sinJava
+            : txJava().runtime.necesitaJdk(REQUIERE_MAJOR[motor], ordenadas[0].major)
       }
       return { motor, version: VERSION_MOTOR[motor], requiereMajor: REQUIERE_MAJOR[motor], disponible, motivo }
     })
@@ -425,11 +426,7 @@ export class JavaRuntime {
       detectadas: ordenadas,
       elegidoAMano: this.elegido !== null,
       motores,
-      mensaje:
-        paraCfr !== undefined
-          ? ''
-          : 'No se encontró Java en este equipo. Para ver el código de una clase hace falta una instalación de Java ' +
-            '(cualquiera desde la 6). Si tienes una en una ruta poco habitual, elígela con "Elegir java.exe…".'
+      mensaje: paraCfr !== undefined ? '' : txJava().runtime.sinJavaMensaje
     }
     // Si alguien invalidó mientras se sondeaba, este resultado ya es viejo: se
     // devuelve a quien lo pidió, pero NO se cachea.

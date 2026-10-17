@@ -11,6 +11,7 @@ import { useEffect, useId, useRef } from 'react'
 import type { DbEstadoTx, DbResolverTx } from '../../../../shared/db-explorador-ipc'
 import { textoTxPendiente } from './consola/vivoConsola'
 import { useDialogo } from '../../comun/useDialogo'
+import { txConsolaBd } from './textosConsolaBd.ts'
 
 export interface DialogoTxPendienteProps {
   tx: DbEstadoTx
@@ -40,6 +41,7 @@ export function DialogoTxPendiente({
   }, [])
 
   const mensaje = textoTxPendiente(tx, sentencias) + (contexto ? `\n${contexto}` : '')
+  const t = txConsolaBd()
 
   return (
     <div className="modal-overlay" role="presentation" onMouseDown={onCancelar}>
@@ -53,19 +55,19 @@ export function DialogoTxPendiente({
         onKeyDown={dlg.alPulsarTecla}
       >
         <div className="modal-title" id={idTitulo}>
-          Transacción sin confirmar
+          {t.txSinConfirmar}
         </div>
         <div className="modal-message">{mensaje}</div>
         <div className="modal-actions">
           <button ref={cancelarRef} className="btn btn-ghost" onClick={onCancelar}>
-            Cancelar
+            {t.cancelar}
           </button>
           <button className="btn danger" onClick={() => onResolver('rollback')}>
-            Revertir (Rollback)
+            {t.revertirRollback}
           </button>
           {!soloRevertir && (
             <button className="btn primary" onClick={() => onResolver('commit')}>
-              Confirmar (Commit)
+              {t.confirmarCommit}
             </button>
           )}
         </div>

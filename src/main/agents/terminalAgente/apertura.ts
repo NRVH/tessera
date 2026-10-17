@@ -25,6 +25,8 @@ import { acquireConfigRef, cfgRefKey, releaseConfigRef } from './credenciales'
 import { anclarNuevaSesion, emitExit, makeActivityTracker, sondearTrasLanzar } from './turnos'
 import { marcarEs, medidasDeProcesoNuevo } from './hibernacion'
 import { ACTIVITY_BOOT_GRACE_MS, HOST_ACCOUNT_ID, errMsg, type NucleoAgente, type OpenAgentSession } from './tipos'
+import { abrirManual } from './aperturaManual'
+import { esAgenteManual } from '../../../shared/agentesManuales'
 
 type DatosSesion = Omit<
   OpenAgentSession,
@@ -72,6 +74,7 @@ function resolverCuenta(n: NucleoAgente, profile: Profile, agente: Agente, req: 
 export async function abrir(n: NucleoAgente, req: AgentOpenRequest): Promise<AgentOpenResult> {
   const profile = n.profiles.get(req.profileId)
   if (!profile) throw new Error(`Perfil desconocido: "${req.profileId}".`)
+  if (esAgenteManual(req.agente)) return abrirManual(n, profile, req)
   const agente = req.agente as Agente
   if (!AGENTES_DISPONIBLES.includes(agente)) {
     throw new Error(`Agente desconocido: "${agente}".`)
@@ -140,7 +143,6 @@ async function abrirEnContenedor(
   req: AgentOpenRequest
 ): Promise<AgentOpenResult> {
   const preparado = await prepararContenedor(n, profile, agente, account, req)
-
   // Antes de `launch`: la línea corre bajo `env -i` y tiene que llevar estas variables dentro.
   const extraEnv = n.getContainerEnv(profile.id, req.projectHostPath, req.dbConnectionIds ?? [], n.sandbox.dbBridgeContainerPath)
   const launch = buildAgentLaunchCommand(
@@ -153,11 +155,7 @@ async function abrirEnContenedor(
     // En Docker también hay `tssh` (por el buzón del puente), así que va el de SSH detrás del de bases.
     briefingCompuesto(n.getDbBriefing(profile.id, req.projectHostPath, req.dbConnectionIds ?? []), n.getSshBriefing(profile.id))
   )
-  const session = await n.terminals.createSession(profile, {
-    project: req.projectHostPath,
-    launch,
-    extraEnv
-  })
+  const session = await n.terminals.createSession(profile, { project: req.projectHostPath, launch, extraEnv, tamano: req.tamano })
   n.bindDbSession(extraEnv, claveSesionAgente(session.id))
   // Refcount del contenedor con clave `agent:` para no chocar con la terminal de abajo.
   n.sandbox.retainSession(profile.id, `agent:${session.id}`)
@@ -184,6 +182,7 @@ async function abrirEnContenedor(
       host: false,
       resumeSessionId: req.resumeSessionId,
       claveAncla: clave,
+      manual: null,
       activity,
       unsubData,
       unsubExit
@@ -231,7 +230,8 @@ async function abrirNativo(
     project: req.projectHostPath,
     launch,
     host: true,
-    extraEnv
+    extraEnv,
+    tamano: req.tamano
   })
   n.bindDbSession(extraEnv, claveSesionAgente(session.id))
   n.log(`createSession [NATIVO] OK -> id=${session.id} cwd=${session.workspacePath}`)
@@ -251,6 +251,7 @@ async function abrirNativo(
     host: true,
     resumeSessionId: req.resumeSessionId,
     claveAncla: claveHost,
+    manual: null,
     activity,
     unsubData,
     unsubExit

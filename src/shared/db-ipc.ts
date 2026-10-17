@@ -829,9 +829,11 @@ export const ENV_BUZON = 'TESSERA_DB_BRIDGE'
  *
  * Ninguna contraseña está aquí ni puede estarlo: en modo Docker el entorno son un
  * token y una ruta, y la consulta la ejecuta el host (ver `entornoContenedor`).
- * Tampoco `ENV_ESPACIO`: el porqué, en su declaración.
+ * Tampoco `ENV_ESPACIO`: el porqué, en su declaración. El idioma sí (`VARIABLE_IDIOMA` de
+ * `i18n.ts`, escrita aquí porque este archivo no importa valores): con él hablan los clientes de
+ * `tdb` y `tssh` del contenedor.
  */
-export const ENV_CONTENEDOR = [ENV_MODO, ENV_SESION, ENV_BUZON] as const
+export const ENV_CONTENEDOR = [ENV_MODO, ENV_SESION, ENV_BUZON, 'TESSERA_IDIOMA'] as const
 
 /**
  * Clave con la que el puente indexa la sesión del PANE DEL AGENTE, para no chocar

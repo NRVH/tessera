@@ -7,6 +7,7 @@
 import { esComprimido } from '../../../../shared/comprimidos'
 import { etiquetaRevisiones } from '../git'
 import { BinaryViewerPane } from './BinaryViewerPane'
+import { seLeePorBytes, type KindBinario } from './binaryViewerCarga'
 import { ComprimidoDiffPane } from './ComprimidoDiffPane'
 import { DiffEditorPane } from './DiffEditorPane'
 import type { DiffTarget } from './diffEditorTipos'
@@ -76,15 +77,15 @@ function paneDeDiffBinario(p: Pane, target: DiffTarget, c: ContextoPane, visor: 
       />
     )
   }
-  if (visor === 'pdf' || (visor !== 'monaco' && esDisco)) {
+  if (seLeePorBytes(visor) || (visor !== 'monaco' && esDisco)) {
     return (
       <BinaryViewerPane
         file={archivo}
-        kind={visor as 'pdf' | 'docx' | 'zip'}
+        kind={visor as KindBinario}
         visible={visible}
         buscable={visible && !c.editorAreaOculta}
         revision={esDisco ? undefined : etiquetaRevisiones(target.commitHash)}
-        bytesLado={visor === 'pdf' ? target.after : undefined}
+        bytesLado={seLeePorBytes(visor) ? target.after : undefined}
         onClose={cerrar}
       />
     )

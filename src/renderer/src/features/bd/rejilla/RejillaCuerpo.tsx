@@ -20,6 +20,7 @@ import { itemsMenuRejilla } from './RejillaMenu'
 import { cerrarEditor, confirmarEditor, enviarDesdeEditor, nuloDesdeEditor, refEn } from './rejillaAcciones'
 import { rango, todo, type Celda } from './seleccionRejilla'
 import type { Rejilla } from './rejillaTipos'
+import { txRejilla } from './textosRejilla.ts'
 
 /** Última columna y última fila (exclusivas) de la ventana que existen. */
 function limites(r: Rejilla): { c1: number; fFin: number } {
@@ -113,7 +114,7 @@ function editorRejilla(r: Rejilla): React.JSX.Element | null {
       seleccionar={editor.seleccionar}
       placeholder={editor.placeholder}
       alDerecha={col.tipoLogico === 'numero'}
-      etiqueta={`Editar ${col.nombre}`}
+      etiqueta={txRejilla().editarColumna(col.nombre)}
       onConfirmar={(texto, cambiado, mov, perdioFoco) => confirmarEditor(r, texto, cambiado, mov, perdioFoco)}
       onCancelar={() => {
         cerrarEditor(r)
@@ -133,9 +134,9 @@ function cabeceraRejilla(r: Rejilla): React.JSX.Element | false {
           className="db-rejilla-esquina"
           role="columnheader"
           aria-colindex={1}
-          aria-label="Número de fila"
+          aria-label={txRejilla().numeroDeFila}
           style={{ width: r.anchoFijo }}
-          title="Seleccionar todo lo cargado"
+          title={txRejilla().seleccionarTodo}
           onClick={() => {
             r.setSel(todo({ filas: numFilas, columnas: numCols }))
             r.raizRef.current?.focus({ preventScroll: true })
@@ -165,7 +166,7 @@ export function lienzoRejilla(r: Rejilla): React.JSX.Element {
             className="db-rejilla-cargando"
             style={{ transform: `translateY(${numFilas * altoFila}px)`, height: altoFila, width: anchoLienzo }}
           >
-            <span className="db-rejilla-cargando-texto">Cargando más filas…</span>
+            <span className="db-rejilla-cargando-texto">{txRejilla().cargandoMasFilas}</span>
           </div>
         )}
         {editorRejilla(r)}
@@ -179,7 +180,7 @@ export function vaciaRejilla(r: Rejilla): React.JSX.Element | false {
   return (
     vacia && (
       <div className="db-rejilla-vacia" style={{ top: r.altoCab }}>
-        <EstadoVacio titulo="Sin filas" pista="La consulta no devolvió ninguna fila." />
+        <EstadoVacio titulo={txRejilla().sinFilas} pista={txRejilla().consultaSinFilas} />
       </div>
     )
   )

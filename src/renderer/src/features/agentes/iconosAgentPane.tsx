@@ -5,6 +5,7 @@
 // =============================================================================
 
 import { useEffect } from 'react'
+import { txPane } from './textosPane.ts'
 
 interface AgentContextMenuProps {
   x: number
@@ -30,8 +31,8 @@ export function AgentContextMenu({ x, y, canCopy, onCopy, onPaste, onClose }: Ag
 
   return (
     <div className="ctx-menu" style={{ top: y, left: x }} onMouseDown={(e) => e.stopPropagation()}>
-      <button className="ctx-menu-item" onClick={onCopy} disabled={!canCopy}>Copiar</button>
-      <button className="ctx-menu-item" onClick={onPaste}>Pegar</button>
+      <button className="ctx-menu-item" onClick={onCopy} disabled={!canCopy}>{txPane().menus.copiar}</button>
+      <button className="ctx-menu-item" onClick={onPaste}>{txPane().menus.pegar}</button>
     </div>
   )
 }

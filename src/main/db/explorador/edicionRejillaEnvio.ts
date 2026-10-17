@@ -18,6 +18,7 @@ import { columnasPorNombre } from './edicionRejillaValidacion.ts'
 import type { ClaseErrorTrabajador } from './protocoloTrabajador.ts'
 import { motorExplorador } from './motores/index.ts'
 import { COLUMNA_ROWID } from './sqlRejilla.ts'
+import { txEnvio } from './textosRejilla.ts'
 
 /**
  * Los `originales` de un cambio que el main SABE comparar: solo con la identidad 'rowid',
@@ -98,7 +99,7 @@ function construirSentencias(
     }
     return { s, identidadSola }
   } catch (e) {
-    return e instanceof ErrorDml ? e.message : 'No se pudo construir la sentencia.'
+    return e instanceof ErrorDml ? e.message : txEnvio().noSeConstruyo
   }
 }
 
@@ -147,19 +148,13 @@ export function prepararEnvio(
  * plazo) NO se sabe, y decir «no se aplicó nada» invitaría a repetir un INSERT y duplicar filas.
  */
 export function mensajeFalloCommit(detalle: string, clase: ClaseErrorTrabajador | null): string {
-  if (clase === 'servidor') return `Falló al confirmar (COMMIT): ${detalle}\nNo se aplicó nada.`
-  return (
-    `No se sabe si el COMMIT llegó a aplicarse: ${detalle}\n` +
-    'Vuelve a cargar la tabla y comprueba los datos antes de repetir el envío.'
-  )
+  const t = txEnvio()
+  return clase === 'servidor' ? t.commitServidor(detalle) : t.commitIncierto(detalle)
 }
 
 /** Mensaje de un cambio que no tocó EXACTAMENTE una fila (todo se revirtió). */
 export function mensajeFilas(filas: number, tipo: DbCambioFila['tipo']): string {
-  if (filas === 0) {
-    return tipo === 'insertar'
-      ? 'La fila nueva no se insertó (0 filas). No se aplicó nada.'
-      : 'La fila ya no está o cambió desde que se leyó (el cambio no tocó ninguna). No se aplicó nada: vuelve a cargar la tabla.'
-  }
-  return `El cambio habría tocado ${filas} filas en vez de una (la clave no identifica una sola fila). No se aplicó nada.`
+  const t = txEnvio()
+  if (filas === 0) return tipo === 'insertar' ? t.filaNoInsertada : t.filaCambio
+  return t.tocoVarias(filas)
 }

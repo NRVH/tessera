@@ -16,7 +16,7 @@ import {
   KIND_DE_TIPO,
   LENGUAJES_SQL,
   MAX_TEXTO_AUTOCOMPLETADO,
-  TITULO_EXPANDIR,
+  tituloExpandir,
   accionesEnModelo,
   analisisDe,
   asegurarAutocompletadoSql,
@@ -41,6 +41,8 @@ import type {
 import type { DialectoSql } from '../../../../../shared/sql/dialectosSql.ts'
 import { IDS_MOTORES_SQL, descriptorSql } from '../../../../../shared/motores/index.ts'
 import type { CancellationToken, IPosition, IRange, Uri, editor, languages } from 'monaco-editor'
+
+const TITULO_EXPANDIR = tituloExpandir()
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -307,7 +309,7 @@ const ORA: Catalogo = {
       ['EMP', 'tabla'],
       ['DEPT', 'tabla'],
       ['EMP_S', 'sinonimo'],
-      ['PKG_NOMINA', 'paquete']
+      ['PKG_PEDIDOS', 'paquete']
     ],
     HR: [
       ['EMPLOYEES', 'tabla'],
@@ -719,7 +721,7 @@ async function main(): Promise<void> {
     check('sin públicos en PG aunque estén en caché', pg.publicos().length === 0, j(pg.publicos()))
     {
       // Sinónimo a un paquete: columnas() da [] (no null) para no pedirlo en cada tecla.
-      const f2 = falsa({ ...ORA, objetos: { SCOTT: [['PKG_S', 'sinonimo']] }, sinonimos: { 'SCOTT.PKG_S': { esquema: 'SCOTT', nombre: 'PKG_NOMINA', tipo: 'paquete' } } })
+      const f2 = falsa({ ...ORA, objetos: { SCOTT: [['PKG_S', 'sinonimo']] }, sinonimos: { 'SCOTT.PKG_S': { esquema: 'SCOTT', nombre: 'PKG_PEDIDOS', tipo: 'paquete' } } })
       const c2 = new CacheMetaBd(f2.api)
       const a = new CatalogoAutocompletado(c2, { conexionId: 'cx1', dialecto: 'oracle', esquema: () => 'SCOTT' }, new MemoriaFallos())
       await a.cargarBase()

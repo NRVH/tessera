@@ -52,6 +52,7 @@ import {
   idInsigniaBase
 } from './DbArbolNavegacion'
 import type { CtxArbol } from './DbArbolTipos'
+import { txArbolAcciones } from './textosArbolAcciones.ts'
 
 type FilaDe<K extends FilaBd['kind']> = Extract<FilaBd, { kind: K }>
 
@@ -66,7 +67,7 @@ interface MenuFila {
 
 /** «Nueva consola»; con `base`, nace en la del nodo y no en la de la conexión. */
 function itemNuevaConsola(a: CtxArbol, conexionId: string, base?: BaseConsolaNueva): ContextMenuEntry {
-  return { label: 'Nueva consola', icon: <IconoNuevaConsola />, onClick: () => a.p.onNuevaConsola(conexionId, base) }
+  return { label: txArbolAcciones().nuevaConsola, icon: <IconoNuevaConsola />, onClick: () => a.p.onNuevaConsola(conexionId, base) }
 }
 
 /** La base SQL de una fila (solo las conexiones con nivel «Bases», SQL Server: allí el esquema de la consola ES la base). */
@@ -75,7 +76,7 @@ function baseSql(base: string | undefined): BaseConsolaNueva | undefined {
 }
 
 function itemRefrescar(onClick: () => void): ContextMenuEntry {
-  return { label: 'Refrescar', icon: <IconoRefrescar />, onClick }
+  return { label: txArbolAcciones().refrescar, icon: <IconoRefrescar />, onClick }
 }
 
 /** El menú de una ajena: solo lo que `accionesDeAjena` ofrece (eliminar, con confirmación). */
@@ -92,7 +93,7 @@ function itemsAjena(a: CtxArbol, ajena: DbConexionAjena): ContextMenuEntry[] {
 function itemVisibles(fila: FilaDe<'conexion'>, { a, x, y }: MenuFila): ContextMenuEntry {
   const con = fila.conexion
   return {
-    label: fila.nivelBases ? 'Bases visibles…' : 'Esquemas visibles…',
+    label: fila.nivelBases ? txArbolAcciones().basesVisibles : txArbolAcciones().esquemasVisibles,
     icon: <IconoEsquema />,
     onClick: () =>
       abrirPopover(
@@ -106,6 +107,7 @@ function itemVisibles(fila: FilaDe<'conexion'>, { a, x, y }: MenuFila): ContextM
 
 function menuConexion(fila: FilaDe<'conexion'>, m: MenuFila): ContextMenuEntry[] {
   const { a } = m
+  const t = txArbolAcciones()
   const con = fila.conexion
   // Los esquemas visibles son solo de SQL; la consola, de toda familia que la tenga.
   const sinConsola = motivoSinConsola(con) !== null
@@ -115,19 +117,19 @@ function menuConexion(fila: FilaDe<'conexion'>, m: MenuFila): ContextMenuEntry[]
     itemRefrescar(() => refrescar(a, con.id)),
     SEP,
     ...(sinEsquemas ? [] : [itemVisibles(fila, m)]),
-    { label: 'Editar conexión…', icon: <IconoAjustes />, onClick: () => a.e.setDialogo({ conexionId: con.id }) },
+    { label: t.editarConexion, icon: <IconoAjustes />, onClick: () => a.e.setDialogo({ conexionId: con.id }) },
     {
-      label: a.e.probando === con.id ? 'Probando…' : 'Probar conexión',
+      label: a.e.probando === con.id ? t.probando : t.probarConexion,
       icon: <IconoRed />,
       disabled: a.e.probando !== null,
       onClick: () => void probar(a, con)
     }
   ]
   if (tieneSesiones(a.p.sesiones, con.id)) {
-    items.push({ label: 'Desconectar', icon: <IconoDesconectar />, onClick: () => void desconectar(a, con) })
+    items.push({ label: t.desconectar, icon: <IconoDesconectar />, onClick: () => void desconectar(a, con) })
   }
   items.push(SEP, {
-    label: 'Eliminar conexión…',
+    label: t.eliminarConexion,
     icon: <IconoEliminar />,
     danger: true,
     onClick: () => a.e.setConfirmacion({ tipo: 'conexion', conexion: con })
@@ -141,16 +143,17 @@ function menuCarpetaConsolas(fila: FilaDe<'carpeta-consolas'>, { a, c }: MenuFil
 
 function menuConsola(fila: FilaDe<'consola'>, { a }: MenuFila): ContextMenuEntry[] {
   const k = fila.consola
+  const t = txArbolAcciones()
   return [
-    { label: 'Abrir', icon: <IconoAbrir />, onClick: () => activarFila(a, fila) },
+    { label: t.abrir, icon: <IconoAbrir />, onClick: () => activarFila(a, fila) },
     {
-      label: 'Renombrar…',
+      label: t.renombrar,
       icon: <IconoRenombrar />,
       onClick: () => a.e.setRenombrando({ consola: k, error: null })
     },
     SEP,
     {
-      label: 'Eliminar consola…',
+      label: t.eliminarConsola,
       icon: <IconoEliminar />,
       danger: true,
       onClick: () => a.e.setConfirmacion({ tipo: 'consola', consola: k })
@@ -165,7 +168,7 @@ function menuBase(fila: FilaDe<'base'>, { a, x, y, copiarNombre }: MenuFila): Co
     itemRefrescar(() => refrescar(a, fila.conexionId, undefined, fila.base)),
     SEP,
     {
-      label: 'Esquemas visibles…',
+      label: txArbolAcciones().esquemasVisibles,
       icon: <IconoEsquema />,
       disabled: !fila.accesible,
       onClick: () =>
@@ -196,10 +199,11 @@ function menuCarpeta(fila: FilaDe<'carpeta' | 'carpeta-detalle'>, { a }: MenuFil
 /** «Abrir datos» y, en una vista, «Ver definición». */
 function itemsDatosObjeto(a: CtxArbol, fila: FilaDe<'objeto'>, acorde: string): ContextMenuEntry[] {
   const o = fila.objeto
-  const items: ContextMenuEntry[] = [{ label: `Abrir datos (${acorde})`, icon: <IconoAbrir />, onClick: () => void abrirPane(a, fila) }]
+  const t = txArbolAcciones()
+  const items: ContextMenuEntry[] = [{ label: t.abrirDatos(acorde), icon: <IconoAbrir />, onClick: () => void abrirPane(a, fila) }]
   if (o.tipo === 'vista' || o.tipo === 'vistaMaterializada') {
     items.push({
-      label: 'Ver definición',
+      label: t.verDefinicion,
       icon: <IconoDefinicion />,
       onClick: () =>
         a.p.onAbrir({
@@ -217,8 +221,9 @@ function itemsDatosObjeto(a: CtxArbol, fila: FilaDe<'objeto'>, acorde: string): 
 
 function menuObjeto(fila: FilaDe<'objeto'>, { a, c, copiarNombre }: MenuFila): ContextMenuEntry[] {
   const abre = kindAbreTipo(fila.objeto.tipo)
+  const t = txArbolAcciones()
   const cualificado: ContextMenuEntry = {
-    label: 'Copiar nombre cualificado',
+    label: t.copiarCualificado,
     icon: <IconoRuta />,
     onClick: () => copiar(a, c ? nombreCualificadoDeFila(fila, c.motor) : null)
   }
@@ -226,13 +231,13 @@ function menuObjeto(fila: FilaDe<'objeto'>, { a, c, copiarNombre }: MenuFila): C
   // «Ver DDL» en TODO objeto, justo detrás de lo que abre. Un sinónimo enseña SU DDL (CREATE
   // SYNONYM), no el del objeto al que apunta: para ese está «Abrir datos», que lo resuelve.
   const paneDdl = paneDdlDeFila(fila)
-  const verDdl: ContextMenuEntry[] = paneDdl ? [{ label: 'Ver DDL', icon: <IconoDdl />, onClick: () => a.p.onAbrir(paneDdl) }] : []
+  const verDdl: ContextMenuEntry[] = paneDdl ? [{ label: t.verDdl, icon: <IconoDdl />, onClick: () => a.p.onAbrir(paneDdl) }] : []
   if (abre === 'datos') {
     return [...itemsDatosObjeto(a, fila, acorde), ...verDdl, itemNuevaConsola(a, fila.conexionId, baseSql(fila.base)), SEP, copiarNombre, cualificado]
   }
   if (abre === 'fuente') {
     return [
-      { label: `Abrir fuente (${acorde})`, icon: <IconoDefinicion />, onClick: () => void abrirPane(a, fila) },
+      { label: t.abrirFuente(acorde), icon: <IconoDefinicion />, onClick: () => void abrirPane(a, fila) },
       ...verDdl,
       SEP,
       copiarNombre,
@@ -257,15 +262,16 @@ function menuDocBase(fila: FilaDe<'doc-base'>, { a, copiarNombre }: MenuFila): C
 
 function menuKvBase(fila: FilaDe<'kv-base'>, { a, copiarNombre }: MenuFila): ContextMenuEntry[] {
   const filtro = { conexionId: fila.conexionId, indice: fila.indice, clave: fila.key }
+  const tx = txArbolAcciones()
   return [
     itemNuevaConsola(a, fila.conexionId, { familia: 'claves', indice: fila.indice }),
     itemRefrescar(() => refrescar(a, fila.conexionId)),
     SEP,
-    { label: 'Filtrar claves…', icon: <IconoFiltro />, onClick: () => a.e.setFiltrandoClaves({ ...filtro, actual: fila.patron }) },
-    ...(fila.patron !== '' ? [{ label: 'Quitar el filtro', onClick: () => aplicarFiltroClaves(a, filtro, '') }] : []),
+    { label: tx.filtrarClaves, icon: <IconoFiltro />, onClick: () => a.e.setFiltrandoClaves({ ...filtro, actual: fila.patron }) },
+    ...(fila.patron !== '' ? [{ label: tx.quitarFiltro, onClick: () => aplicarFiltroClaves(a, filtro, '') }] : []),
     ...TIPOS_FILTRABLES.map(
       (t): ContextMenuEntry => ({
-        label: `Solo ${etiquetaTipo(t)}`,
+        label: tx.soloTipo(etiquetaTipo(t)),
         checked: fila.tipo === t,
         onClick: () => aplicarFiltroTipoClaves(a, filtro, fila.tipo === t ? undefined : t)
       })
@@ -273,9 +279,9 @@ function menuKvBase(fila: FilaDe<'kv-base'>, { a, copiarNombre }: MenuFila): Con
     SEP,
     copiarNombre,
     SEP,
-    { label: 'Nueva clave…', icon: <IconoAnadirElemento />, onClick: () => a.e.setAccionClaves({ tipo: 'nueva', conexionId: fila.conexionId, indice: fila.indice }) },
+    { label: tx.nuevaClave, icon: <IconoAnadirElemento />, onClick: () => a.e.setAccionClaves({ tipo: 'nueva', conexionId: fila.conexionId, indice: fila.indice }) },
     {
-      label: 'Borrar claves por patrón…',
+      label: tx.borrarPorPatron,
       icon: <IconoEliminar />,
       danger: true,
       onClick: () => a.e.setAccionClaves({ tipo: 'borrar', conexionId: fila.conexionId, indice: fila.indice, patron: fila.patron, tipoClave: fila.tipo })
@@ -285,16 +291,17 @@ function menuKvBase(fila: FilaDe<'kv-base'>, { a, copiarNombre }: MenuFila): Con
 
 function menuKvCarpeta(fila: FilaDe<'kv-carpeta'>, { a }: MenuFila): ContextMenuEntry[] {
   const filtro = { conexionId: fila.conexionId, indice: fila.indice, clave: claveBd.kvBase(fila.conexionId, fila.indice) }
+  const t = txArbolAcciones()
   return [
     // El prefijo es LITERAL (escapado: `[`, `*`… de un nombre no son comodines) y el `*`
     // de detrás, el comodín; con él el texto ya es un patrón y `patronDeFiltro` no lo toca.
-    { label: `Filtrar por ${fila.prefijo}*`, icon: <IconoFiltro />, onClick: () => aplicarFiltroClaves(a, filtro, `${escaparGlob(fila.prefijo)}*`) },
+    { label: t.filtrarPorPrefijo(fila.prefijo), icon: <IconoFiltro />, onClick: () => aplicarFiltroClaves(a, filtro, `${escaparGlob(fila.prefijo)}*`) },
     itemRefrescar(() => refrescar(a, fila.conexionId)),
     SEP,
-    { label: 'Copiar prefijo', icon: <IconoCopiar />, onClick: () => copiar(a, nombreDeFila(fila)) },
+    { label: t.copiarPrefijo, icon: <IconoCopiar />, onClick: () => copiar(a, nombreDeFila(fila)) },
     SEP,
     {
-      label: `Borrar las claves ${fila.prefijo}*…`,
+      label: t.borrarClavesPrefijo(fila.prefijo),
       icon: <IconoEliminar />,
       danger: true,
       onClick: () => a.e.setAccionClaves({ tipo: 'borrar', conexionId: fila.conexionId, indice: fila.indice, patron: `${escaparGlob(fila.prefijo)}*`, tipoClave: fila.tipo })
@@ -309,7 +316,7 @@ function menuKvMas(fila: FilaDe<'kv-mas'>, { a }: MenuFila): ContextMenuEntry[] 
 /** Una colección o una clave: se abren en su pestaña. */
 function menuAbrible(fila: FilaDe<'coleccion' | 'kv-clave'>, { a, copiarNombre }: MenuFila): ContextMenuEntry[] {
   return [
-    { label: `Abrir (${etiquetaAcorde('abrirNodo', a.plataforma)})`, icon: <IconoAbrir />, onClick: () => activarFila(a, fila) },
+    { label: txArbolAcciones().abrirConAcorde(etiquetaAcorde('abrirNodo', a.plataforma)), icon: <IconoAbrir />, onClick: () => activarFila(a, fila) },
     itemNuevaConsola(
       a,
       fila.conexionId,
@@ -347,7 +354,7 @@ export function itemsDe(a: CtxArbol, fila: FilaArbol, x: number, y: number): Con
   if (fila.kind === 'ajena') return itemsAjena(a, fila.ajena)
   const c = a.d.porId.get(conexionDeFila(fila) ?? '')
   const copiarNombre: ContextMenuEntry = {
-    label: 'Copiar nombre',
+    label: txArbolAcciones().copiarNombre,
     icon: <IconoCopiar />,
     onClick: () => copiar(a, nombreDeFila(fila))
   }
@@ -359,23 +366,24 @@ export function itemsDe(a: CtxArbol, fila: FilaArbol, x: number, y: number): Con
 export function itemsVacio(a: CtxArbol): ContextMenuEntry[] {
   const { conexiones, expandidos, onNuevaConsola, onPlegarTodo } = a.p
   const { motivos, motivoNuevaConsola, conexionSel } = a.d
+  const t = txArbolAcciones()
   return [
     {
-      label: 'Nueva conexión…',
+      label: t.nuevaConexion,
       icon: <IconoNuevaConexion />,
       // Sin perfil, o con un registro de formato ajeno (el main rechazaría el alta).
       disabled: motivos.nuevaConexion !== null,
       onClick: () => a.e.setDialogo({ conexionId: null })
     },
     {
-      label: 'Nueva consola',
+      label: t.nuevaConsola,
       icon: <IconoNuevaConsola />,
       disabled: motivoNuevaConsola !== null || conexiones.length === 0,
       onClick: () => onNuevaConsola(conexionSel)
     },
     SEP,
-    { label: 'Refrescar', icon: <IconoRefrescar />, disabled: conexiones.length === 0, onClick: () => refrescarCabecera(a) },
-    { label: 'Plegar todo', icon: <IconoPlegarTodo />, disabled: expandidos.size === 0, onClick: onPlegarTodo }
+    { label: t.refrescar, icon: <IconoRefrescar />, disabled: conexiones.length === 0, onClick: () => refrescarCabecera(a) },
+    { label: t.plegarTodo, icon: <IconoPlegarTodo />, disabled: expandidos.size === 0, onClick: onPlegarTodo }
   ]
 }
 

@@ -9,6 +9,7 @@
 import { nombresSistema } from '../../../../shared/nombresSistema.ts'
 import type { Plataforma } from '../../../../shared/plataforma.ts'
 import type { SshHuella, SshResultadoPrueba } from '../../../../shared/ssh-ipc.ts'
+import { txFormularioSsh } from './textosFormulario.ts'
 
 /** Lo que pinta el resultado: la línea principal, qué mirar y el detalle de ssh (ya sin rutas). */
 export interface TextoPrueba {
@@ -46,38 +47,29 @@ export function esIpPrivada(host: string): boolean {
 
 /** Qué mirar cuando el servidor no responde: en macOS, hacia la red local, el permiso de red local de la app. */
 function pistaInalcanzable(detalle: string, host: string, plataforma: Plataforma): string {
+  const t = txFormularioSsh()
   if (plataforma === 'mac' && /No route to host/i.test(detalle) && esIpPrivada(host)) {
-    return (
-      `Puede que ${nombresSistema(plataforma).sistema} no deje a Tessera usar la red local: ` +
-      'actívalo en Ajustes del Sistema › Privacidad y seguridad › Red local.'
-    )
+    return t.sinRedLocal(nombresSistema(plataforma).sistema, t.rutaRedLocal)
   }
-  return '¿Falta la VPN? Comprueba también el host y el puerto.'
+  return t.pistaVpn
 }
 
 /** El título y la pista de un fallo, por su motivo. */
 function textoFallo(r: Extract<SshResultadoPrueba, { ok: false }>, host: string, plataforma: Plataforma): Omit<TextoPrueba, 'detalle'> {
+  const t = txFormularioSsh()
   switch (r.motivo) {
     case 'ssh-autenticacion':
-      return {
-        titulo: 'No entró: el servidor no aceptó las credenciales.',
-        pista: r.preguntaSinContestar
-          ? 'El servidor pidió algo más (un código, una confirmación) que Tessera no contesta sola: al conectar te lo preguntará a ti.'
-          : 'Revisa el usuario y la contraseña (o la clave y su frase).'
-      }
+      return { titulo: t.authTitulo, pista: r.preguntaSinContestar ? t.authPreguntaPista : t.authPista }
     case 'ssh-inalcanzable':
-      return { titulo: 'El servidor no responde.', pista: pistaInalcanzable(r.detalle, host, plataforma) }
+      return { titulo: t.inalcanzableTitulo, pista: pistaInalcanzable(r.detalle, host, plataforma) }
     case 'ssh-huella-cambiada':
-      return {
-        titulo: 'La huella del servidor no es la que tienes guardada.',
-        pista: 'Puede que lo hayan reinstalado, o que alguien se esté haciendo pasar por él. Si sabes por qué cambió, olvida la guardada.'
-      }
+      return { titulo: t.huellaTitulo, pista: t.huellaPista }
     case 'ssh-algoritmos':
-      return { titulo: 'El servidor y este cliente SSH no tienen algoritmos en común.', pista: 'Pasa con equipos antiguos.' }
+      return { titulo: t.algoritmosTitulo, pista: t.algoritmosPista }
     case 'tiempo':
-      return { titulo: 'No terminó en 20 segundos.', pista: '¿Falta la VPN? El servidor no contesta a tiempo.' }
+      return { titulo: t.tiempoTitulo, pista: t.tiempoPista }
     default:
-      return { titulo: 'No se pudo probar.', pista: null }
+      return { titulo: t.noSePudoProbar, pista: null }
   }
 }
 
@@ -86,17 +78,19 @@ function textoFallo(r: Extract<SshResultadoPrueba, { ok: false }>, host: string,
  * presenta ahora (para compararla por otra vía antes de olvidar la guardada).
  */
 export function lineasHuella(r: SshResultadoPrueba): string[] {
-  const guardadas = r.huellas.map((h) => `${r.ok ? 'Huella del servidor' : 'Huella guardada'}: ${textoHuella(h)}`)
+  const t = txFormularioSsh()
+  const guardadas = r.huellas.map((h) => `${r.ok ? t.huellaServidor : t.huellaGuardada}: ${textoHuella(h)}`)
   if (r.ok || r.huellaNueva === undefined) return guardadas
-  return [...guardadas, `Presenta ahora: ${textoHuella(r.huellaNueva)}`]
+  return [...guardadas, `${t.presentaAhora}: ${textoHuella(r.huellaNueva)}`]
 }
 
 /** El texto del resultado de «Probar». */
 export function textoResultadoPrueba(r: SshResultadoPrueba, host: string, plataforma: Plataforma): TextoPrueba {
   if (r.ok) {
+    const t = txFormularioSsh()
     return r.soloAlcance
-      ? { titulo: `El servidor responde (${r.ms} ms).`, pista: 'Sin la contraseña (o la frase) guardada no se prueba a entrar: la pedirá la terminal.', detalle: null }
-      : { titulo: `Conectó en ${r.ms} ms.`, pista: null, detalle: null }
+      ? { titulo: t.servidorResponde(r.ms), pista: t.soloAlcancePista, detalle: null }
+      : { titulo: t.conecto(r.ms), pista: null, detalle: null }
   }
   return { ...textoFallo(r, host, plataforma), detalle: r.detalle === '' ? null : r.detalle }
 }

@@ -12,6 +12,7 @@ import type { ModificadoresClicSsh } from './seleccionListaSsh'
 import { destinoSsh, type FilaConexion, type FilaGrupo, type FilaSeccion } from './listaSsh'
 import { IconoArchivoClave, IconoClavesSistema, IconoContrasena, IconoSinAgentes } from './iconosSsh'
 import type { SshMetodo } from '../../../../shared/ssh-ipc'
+import { txSsh } from './textos.ts'
 
 /** Soltar sobre una fila: el grupo al que va lo arrastrado lo decide quien la pinta. */
 export interface SoltarEnFila {
@@ -42,14 +43,7 @@ function IconoMetodo({ metodo }: { metodo: SshMetodo }): React.JSX.Element {
 }
 
 /** El texto con que se anuncia el método. */
-const TEXTO_METODO: Record<SshMetodo, string> = {
-  contrasena: 'Contraseña',
-  clave: 'Archivo de clave',
-  sistema: 'Claves del sistema'
-}
-
-/** Lo que se dice de una conexión que el usuario no dejó disponible para los agentes. */
-const NO_AGENTES = 'No disponible para los agentes'
+const textoMetodo = (m: SshMetodo): string => txSsh().metodos[m]
 
 /** La cabecera de un grupo: plegable, con el recuento de lo que enseña. */
 export function FilaGrupoSsh({ fila, ...p }: PropsFila & { fila: FilaGrupo }): React.JSX.Element {
@@ -60,7 +54,7 @@ export function FilaGrupoSsh({ fila, ...p }: PropsFila & { fila: FilaGrupo }): R
       aria-level={1}
       aria-expanded={fila.abierto}
       aria-selected={p.activa}
-      aria-label={`${fila.nombre}, ${fila.total} ${fila.total === 1 ? 'conexión' : 'conexiones'}`}
+      aria-label={txSsh().grupoEtiqueta(fila.nombre, fila.total)}
       className={`ssh-fila ssh-fila-grupo${p.activa ? ' activa' : ''}${p.enDestino ? ' destino' : ''}`}
       style={{ height: p.alto }}
       // Sin robar el foco al filtro: se sigue tecleando tras pulsar.
@@ -97,7 +91,7 @@ export function FilaSeccionSsh({ fila, alto }: { fila: FilaSeccion; alto: number
 function Abiertas({ n }: { n: number }): React.JSX.Element | null {
   if (n <= 0) return null
   return (
-    <span className="ssh-abiertas" title={`${n} ${n === 1 ? 'pestaña abierta' : 'pestañas abiertas'}`} aria-hidden="true">
+    <span className="ssh-abiertas" title={txSsh().pestanasAbiertas(n)} aria-hidden="true">
       {n}
     </span>
   )
@@ -110,8 +104,8 @@ function BotonMas({ alias, onMenu }: { alias: string; onMenu: (x: number, y: num
       type="button"
       className="ssh-fila-mas"
       tabIndex={-1}
-      aria-label={`Más acciones de ${alias}`}
-      title="Más acciones"
+      aria-label={txSsh().masAccionesDe(alias)}
+      title={txSsh().masAcciones}
       onClick={(e) => {
         e.stopPropagation()
         const r = e.currentTarget.getBoundingClientRect()
@@ -137,9 +131,10 @@ function clasesConexion(nivel: 1 | 2, activa: boolean, enSesion: boolean, marcad
 /** El nombre que se anuncia de una conexión: si es de «Recientes», su destino, su método, sus pestañas y si los agentes no la ven. */
 function etiquetaConexion(fila: FilaConexion, destino: string, abiertas: number): string {
   const c = fila.conexion
-  const sufijo = abiertas > 0 ? `, ${abiertas} ${abiertas === 1 ? 'abierta' : 'abiertas'}` : ''
-  const oculta = c.disponibleAgentes ? '' : `, ${NO_AGENTES.toLowerCase()}`
-  return `${fila.reciente ? 'Reciente, ' : ''}${c.alias}, ${destino}, ${TEXTO_METODO[c.metodo]}${sufijo}${oculta}`
+  const t = txSsh()
+  const sufijo = abiertas > 0 ? t.abiertasSufijo(abiertas) : ''
+  const oculta = c.disponibleAgentes ? '' : t.noAgentesAria
+  return `${fila.reciente ? t.reciente : ''}${c.alias}, ${destino}, ${textoMetodo(c.metodo)}${sufijo}${oculta}`
 }
 
 /**
@@ -179,7 +174,7 @@ export function FilaConexionSsh({
       aria-label={etiquetaConexion(fila, destino, abiertas)}
       className={clasesConexion(fila.nivel, p.activa, enSesion, marcada, p.enDestino === true)}
       style={{ height: p.alto }}
-      title={`${c.alias}\n${destino}\n${TEXTO_METODO[c.metodo]}${oculta ? `\n${NO_AGENTES}` : ''}`}
+      title={`${c.alias}\n${destino}\n${textoMetodo(c.metodo)}${oculta ? `\n${txSsh().noAgentes}` : ''}`}
       draggable={onArrastrar !== undefined}
       onDragStart={onArrastrar?.onDragStart}
       onDragEnd={onArrastrar?.onDragEnd}

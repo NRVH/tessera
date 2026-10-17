@@ -18,8 +18,8 @@ nombre (`archivoVisible`).
 - Un proceso por consola (`procesoPorSesion`): `node:sqlite` no se interrumpe y Detener mata el proceso.
 - `puertoPorDefecto: null` y `credenciales: 'ninguna'`; `obligatorios` lleva `'archivo'` y de ahí salen
   `forma` y `deArchivo`. `extensionesArchivo` solo filtra el diálogo; decide la cabecera del archivo.
-- Paginado `keyset` por rowid o PK en la pestaña de tabla sin `ORDER BY` (1 ms frente a 9 s de un
-  `OFFSET` de 1,5 M, medido) y `limitOffset` con `ORDER BY` y en vistas. Nunca cursores vivos
+- Paginado `keyset` por rowid o PK en la pestaña de tabla sin `ORDER BY` (un `OFFSET` grande
+  recorre todas las filas que salta) y `limitOffset` con `ORDER BY` y en vistas. Nunca cursores vivos
   (`lectorPorId` y `mantenerCursor` a `false`): en modo rollback un cursor abierto bloquea las
   escrituras de la aplicación dueña del archivo. Sin `ORDER BY`, `paginasInestablesSinOrden: true`.
 - `candadoSoloLectura: 'autorizador'`: no hay `SET TRANSACTION READ ONLY`; el autorizador impone el

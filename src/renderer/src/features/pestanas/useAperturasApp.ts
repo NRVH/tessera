@@ -21,12 +21,12 @@ export function useAperturasApp(
   forzarModoWindows: (profileId: string, projectHostPath: string) => void,
   salirDeBd: () => void
 ): void {
-  const confirmed = tabs.confirmedTarget
+  const visto = tabs.objetivoVisto
   const settingsLoaded = useStoreAjustes((s) => s.settingsLoaded)
   const pestanasCargadas = useStorePestanas((s) => s.pestanasCargadas)
-  const confirmadoParaApertura = useMemo(
-    () => (confirmed ? { profileId: confirmed.profileId, projectHostPath: confirmed.project.projectHostPath } : null),
-    [confirmed]
+  const vistoParaApertura = useMemo(
+    () => (visto ? { profileId: visto.profileId, projectHostPath: visto.project.projectHostPath } : null),
+    [visto]
   )
   // `salirMosaico(false)`: el teclado lo decide lo que se abre, no la salida.
   useAperturasExplorador({
@@ -34,7 +34,7 @@ export function useAperturasApp(
     pestanasCargadas,
     activeProfileId: tabs.activeProfile?.id ?? null,
     abiertos: tabs.allOpenProjects,
-    confirmado: confirmadoParaApertura,
+    visto: vistoParaApertura,
     openKnownProject: (...a: Parameters<typeof tabs.openKnownProject>) => {
       salirMosaico(false)
       return tabs.openKnownProject(...a)

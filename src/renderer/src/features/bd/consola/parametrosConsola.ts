@@ -12,6 +12,7 @@ import { reglasDeMotor, type DialectoSql } from '../../../../../shared/sql/diale
 import type { ClaseSentencia } from '../../../../../shared/sql/clasificarSql.ts'
 import { parametrosSql } from '../../../../../shared/sql/parametrosSql.ts'
 import { cantidad } from './salidaConsola.ts'
+import { txParametros } from './textosPane.ts'
 
 /** Lo que hace falta de una sentencia del lote (es un subconjunto de `Sentencia`). */
 export interface TramoSentencia {
@@ -179,7 +180,7 @@ export function etiquetaDeClave(clave: string, dialecto: DialectoSql): string {
       return clave
     // MySQL: todos se escriben `?`; lo que los distingue es su orden.
     case 'interrogacion':
-      return `? n.º ${clave}`
+      return txParametros().nPuntoOrden(clave)
     default:
       return nunca(estilo, 'etiquetaDeClave')
   }
@@ -193,17 +194,17 @@ export function pieDialogoParametros(dialecto: DialectoSql): string {
   const estilo = reglasDeMotor(dialecto).estiloParametros
   switch (estilo) {
     case 'dolarNumero':
-      return 'Por número: $1, $2…'
+      return txParametros().pieDolarNumero
     case 'dosPuntosNombre':
-      return 'Sin comillas, :id y :ID son el mismo'
+      return txParametros().pieDosPuntos
     case 'sqliteMixto':
-      return 'Por nombre (:id, @id y $id son el mismo) o por número: ?, ?1'
+      return txParametros().pieSqlite
     case 'ninguno':
       // SQL Server: sin diálogo de parámetros (`@x` es una variable del lote); no debería llamarse,
       // pero si se llama, dice la verdad.
-      return 'Sin parámetros: @x es una variable del lote (DECLARE)'
+      return txParametros().pieNinguno
     case 'interrogacion':
-      return 'Por orden: cada ? es un valor (@x es una variable de la sesión)'
+      return txParametros().pieInterrogacion
     default:
       return nunca(estilo, 'pieDialogoParametros')
   }
@@ -244,13 +245,14 @@ export type AccionParametros = 'ejecutar' | 'explicar'
  * sentencias del lote»; para el plan, siempre una.
  */
 export function textoDialogoParametros(sentenciasConParametros: number, accion: AccionParametros): string {
+  const t = txParametros()
   const que =
     accion === 'explicar'
-      ? 'Valores para explicar el plan de la sentencia'
+      ? t.valoresExplicar
       : sentenciasConParametros <= 1
-        ? 'Valores para ejecutar la sentencia'
-        : `Valores para ejecutar ${cantidad(sentenciasConParametros, 'sentencia', 'sentencias')} del lote`
-  return `${que}. Se envían como texto y el servidor los convierte al tipo de su sitio.`
+        ? t.valoresEjecutarUna
+        : t.valoresEjecutarN(cantidad(sentenciasConParametros, t.sentencia, t.sentencias))
+  return t.finDialogo(que)
 }
 
 /** Cuántas sentencias del lote tienen algún parámetro. */

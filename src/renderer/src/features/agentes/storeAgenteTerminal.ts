@@ -6,7 +6,7 @@
 // Decisiones: docs/decisiones/agentes/agente-de-la-terminal.md
 // =============================================================================
 import { create } from 'zustand'
-import type { Agente } from '../../../../main/profiles/types'
+import type { IdAgente } from '../../../../shared/agentesManuales'
 import {
   conAgenteTerminalVisible,
   podarMapaPorPerfil,
@@ -22,8 +22,8 @@ export interface EstadoAgenteTerminal {
   abiertos: ReadonlySet<string>
   /** Preferencia persistida: el usuario lo quiere ver a pantalla completa. Sin entrada = oculto. */
   visiblePorPerfil: AgenteTerminalVisiblePorPerfil
-  /** Agente elegido en su cabecera; sin entrada, el primero disponible. No es el del perfil. */
-  agentePorPerfil: Record<string, Agente>
+  /** Agente elegido en su cabecera; sin entrada, o si ya no está, el primero disponible. No es el del perfil. */
+  agentePorPerfil: Record<string, IdAgente>
   /**
    * Durante UN commit: el usuario lo pidió (mostrarlo, cambiar de agente) y su pane se lleva el
    * teclado. Fuera de ese commit nunca lo roba: entrar o salir de pantalla completa no mueve el foco.
@@ -40,8 +40,8 @@ export const useStoreAgenteTerminal = create<EstadoAgenteTerminal>()(() => ({
   focoPedido: false
 }))
 
-/** Elige el agente (CC o Codex) del agente de la terminal de un perfil; el nuevo se lleva el teclado. */
-export function elegirAgenteTerminal(profileId: string, agente: Agente): void {
+/** Elige el agente del agente de la terminal de un perfil; el nuevo se lleva el teclado. */
+export function elegirAgenteTerminal(profileId: string, agente: IdAgente): void {
   useStoreAgenteTerminal.setState((s) =>
     s.agentePorPerfil[profileId] === agente
       ? s

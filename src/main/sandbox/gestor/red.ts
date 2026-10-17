@@ -21,6 +21,7 @@ import {
 } from '../redAnfitrion.ts'
 import { runDocker } from '../adaptadores/docker.ts'
 import { argsEtiquetaInstancia } from './nombres.ts'
+import { txSandbox } from '../textos.ts'
 import type { NucleoSandbox } from './NucleoSandbox.ts'
 
 /**
@@ -266,11 +267,8 @@ export class RedSandbox {
       this.n.avisoRed?.({
         profileId: profile.id,
         motivo: 'sonda-fallida',
-        titulo: `La red del anfitrión no está llegando a ${tuEquipo}`,
-        detalle:
-          `El contenedor de “${profile.nombre}” se creó pidiendo la red del anfitrión, pero una prueba real no llegó a ` +
-          `${tuEquipo}. Suele ser que «Enable host networking» está desactivado en Docker Desktop (Settings › Resources › ` +
-          'Network). Abre «Red del contenedor…» en el menú del perfil para ver el diagnóstico completo.'
+        titulo: txSandbox().red.sondaTitulo(tuEquipo),
+        detalle: txSandbox().red.sondaDetalle(profile.nombre, tuEquipo)
       })
     } catch {
       // Best-effort: un diagnóstico que falla no tumba la apertura de una sesión.

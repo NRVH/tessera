@@ -15,7 +15,7 @@ frente a 1185 ms re-ejecutando.
 - `cursor` (Oracle): el SELECT sin paginar, leído con `resultSet`. `rownum` (respaldo si el
   cursor se expulsó): ROWNUM anidado con el número de fila como última columna,
   `"__TESSERA_RN"`, citada y con prefijo: con `rn__` sin citar, una tabla con una columna
-  `RN__` daba ORA-00918 (medido en 11.2 y 21c).
+  `RN__` da ORA-00918.
 - `limitOffset` (PG), `offsetFetch` (SQL Server: el ORDER BY va siempre, `(SELECT NULL)` con
   la píldora de orden no estable) y `keyset` (SQLite: `WHERE clave > ?` sin OFFSET; la clave
   viaja como columnas ocultas `__TESSERA_CLAVE_i` y con su clase de almacenamiento).

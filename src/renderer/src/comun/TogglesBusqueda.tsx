@@ -7,6 +7,7 @@
 // =============================================================================
 
 import type { OpcionesBusqueda } from '../../../shared/textSearch'
+import { txComun } from './textos.ts'
 
 interface TogglesBusquedaProps {
   opts: OpcionesBusqueda
@@ -14,13 +15,14 @@ interface TogglesBusquedaProps {
 }
 
 export function TogglesBusqueda({ opts, onChange }: TogglesBusquedaProps): React.JSX.Element {
+  const t = txComun()
   return (
     <div className="search-box-toggles">
       <button
         type="button"
         className={`search-box-toggle${opts.caseSensitive ? ' active' : ''}`}
         onClick={() => onChange({ ...opts, caseSensitive: !opts.caseSensitive })}
-        title="Distinguir mayúsculas y minúsculas"
+        title={t.mayusculas}
         aria-pressed={opts.caseSensitive}
       >
         Aa
@@ -29,7 +31,7 @@ export function TogglesBusqueda({ opts, onChange }: TogglesBusquedaProps): React
         type="button"
         className={`search-box-toggle${opts.wholeWord ? ' active' : ''}`}
         onClick={() => onChange({ ...opts, wholeWord: !opts.wholeWord })}
-        title="Palabra completa"
+        title={t.palabraCompleta}
         aria-pressed={opts.wholeWord}
       >
         <span style={{ textDecoration: 'underline' }}>ab</span>
@@ -38,7 +40,7 @@ export function TogglesBusqueda({ opts, onChange }: TogglesBusquedaProps): React
         type="button"
         className={`search-box-toggle${opts.regex ? ' active' : ''}`}
         onClick={() => onChange({ ...opts, regex: !opts.regex })}
-        title="Expresión regular"
+        title={t.expresionRegular}
         aria-pressed={opts.regex}
       >
         .*

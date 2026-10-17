@@ -20,12 +20,13 @@ import {
 import {
   AGENTE_INACTIVIDAD_MIN_POR_DEFECTO,
   AGENTE_INACTIVIDAD_NUNCA,
-  AGENTE_INACTIVIDAD_OPCIONES,
-  AYUDA_INACTIVIDAD_AGENTE,
-  AYUDA_INACTIVIDAD_AGENTE_NUNCA,
+  agenteInactividadOpciones,
+  ayudaInactividadAgente,
+  ayudaInactividadAgenteNunca,
   normalizarInactividadAgenteMin
 } from '../../../../../shared/ajustesAgente'
-import { CampoTexto, Fila, Grupo, Interruptor, Radios, Selector } from '../primitivas'
+import { CampoTexto, Fila, Grupo, Interruptor, Radios, Selector, TextoMarcado } from '../primitivas'
+import { txProyectos } from '../textos.ts'
 import type { PropsCategoria } from '../tipos'
 
 /**
@@ -41,22 +42,15 @@ function modosDe(plataforma: Plataforma): readonly {
   hint: string
 }[] {
   const n = nombresSistema(plataforma)
+  const t = txProyectos()
   return [
     {
       id: 'windows',
-      label: `${n.sistema} (nativo)`,
-      hint: `Abre en ${n.tuEquipo} con tu cuenta personal, sin Docker. La terminal es ${n.shellNativa}.`
+      label: t.nativo(n.sistema),
+      hint: t.nativoAyuda(n.tuEquipo, n.shellNativa)
     },
-    {
-      id: 'docker',
-      label: 'Docker (aislado)',
-      hint: 'Abre en el contenedor del perfil, con su cuenta privada.'
-    },
-    {
-      id: 'ask',
-      label: 'Preguntar siempre',
-      hint: 'Pregunta el modo con un modal cada vez que abres un proyecto.'
-    }
+    { id: 'docker', label: t.docker, hint: t.dockerAyuda },
+    { id: 'ask', label: t.preguntar, hint: t.preguntarAyuda }
   ]
 }
 
@@ -66,8 +60,8 @@ function FilaDocumentos({
 }: Pick<PropsCategoria, 'paquetesSandbox' | 'onChangePaquetesSandbox'>): React.JSX.Element {
   return (
     <Fila
-      etiqueta="Herramientas de documentos"
-      ayuda="LibreOffice y poppler, para convertir y capturar PDF, Word, Excel y PowerPoint. Añade en torno a 1 GB a la imagen."
+      etiqueta={txProyectos().documentos}
+      ayuda={txProyectos().documentosAyuda}
       control={
         <Interruptor
           activo={tieneDocumentos(paquetesSandbox)}
@@ -78,7 +72,7 @@ function FilaDocumentos({
                 : conDocumentos(paquetesSandbox)
             )
           }
-          etiqueta="Hornear las herramientas de documentos"
+          etiqueta={txProyectos().hornearDocumentos}
         />
       }
     />
@@ -95,42 +89,33 @@ function GrupoSandbox({
   onCambiarOtros: (texto: string) => void
 }): React.JSX.Element {
   const { ve, depsNavegadorSandbox, onToggleDepsNavegadorSandbox } = props
+  const t = txProyectos()
   return (
-    <Grupo
-      titulo="Sandbox de Docker"
-      ayuda={
-        <>
-          El agente ya puede instalar lo que quiera dentro del contenedor (tiene <code>sudo</code>),
-          pero eso se pierde al hibernar el perfil o al cerrar Tessera. Lo que se marque aquí se
-          hornea en la imagen y sobrevive. Se aplica al reconstruirla: la próxima vez que se abra un
-          agente, o al pulsar «Actualizar agentes».
-        </>
-      }
-    >
+    <Grupo titulo={t.sandbox} ayuda={<TextoMarcado partes={t.sandboxAyuda} marca="code" />}>
       {ve('sandbox-docs') && <FilaDocumentos {...props} />}
       {ve('sandbox-navegador') && (
         <Fila
-          etiqueta="Navegador de pruebas"
-          ayuda="Las libs de sistema que necesita Chromium (playwright install-deps). No incluye el navegador: ese se instala dentro del proyecto."
+          etiqueta={t.navegador}
+          ayuda={t.navegadorAyuda}
           control={
             <Interruptor
               activo={depsNavegadorSandbox}
               onChange={onToggleDepsNavegadorSandbox}
-              etiqueta="Hornear las libs de sistema de Chromium"
+              etiqueta={t.hornearNavegador}
             />
           }
         />
       )}
       {ve('sandbox-otros') && (
         <Fila
-          etiqueta="Otros paquetes"
-          ayuda="Nombres de paquetes de Debian separados por espacios."
+          etiqueta={t.otros}
+          ayuda={t.otrosAyuda}
           control={
             <CampoTexto
               valor={otrosCrudo}
               onChange={onCambiarOtros}
-              etiqueta="Otros paquetes a hornear en la imagen del sandbox"
-              placeholder="p. ej. jq ripgrep"
+              etiqueta={t.otrosEtiqueta}
+              placeholder={t.otrosPlaceholder}
             />
           }
         />
@@ -139,27 +124,26 @@ function GrupoSandbox({
   )
 }
 
-const OPCIONES_INACTIVIDAD_AGENTE = AGENTE_INACTIVIDAD_OPCIONES.map((o) => ({ label: o.etiqueta, value: String(o.min) }))
-
 /** Tras cuánto tiempo sin actividad se hiberna el agente de un proyecto que no está en pantalla. */
 function FilaInactividadAgente({
   agenteInactividadMin,
   onChangeAgenteInactividadMin
 }: PropsCategoria): React.JSX.Element {
   const minutos = normalizarInactividadAgenteMin(agenteInactividadMin)
+  const opciones = agenteInactividadOpciones().map((o) => ({ label: o.etiqueta, value: String(o.min) }))
   return (
     <Fila
-      etiqueta="Hibernar el agente inactivo tras"
-      ayuda={minutos === AGENTE_INACTIVIDAD_NUNCA ? AYUDA_INACTIVIDAD_AGENTE_NUNCA : AYUDA_INACTIVIDAD_AGENTE}
+      etiqueta={txProyectos().hibernar}
+      ayuda={minutos === AGENTE_INACTIVIDAD_NUNCA ? ayudaInactividadAgenteNunca() : ayudaInactividadAgente()}
       modificado={minutos !== AGENTE_INACTIVIDAD_MIN_POR_DEFECTO}
       onRestablecer={() => onChangeAgenteInactividadMin(AGENTE_INACTIVIDAD_MIN_POR_DEFECTO)}
-      tituloRestablecer="Volver a 5 minutos"
+      tituloRestablecer={txProyectos().volver5}
       control={
         <Selector
           valor={String(minutos)}
-          opciones={OPCIONES_INACTIVIDAD_AGENTE}
+          opciones={opciones}
           onChange={(v) => onChangeAgenteInactividadMin(normalizarInactividadAgenteMin(Number(v)))}
-          etiqueta="Hibernar el agente inactivo tras"
+          etiqueta={txProyectos().hibernar}
         />
       }
     />
@@ -189,13 +173,11 @@ export function Proyectos(props: PropsCategoria): React.JSX.Element | null {
     onChangePaquetesSandbox([...new Set([...base, ...normalizarPaquetes(texto)])].sort())
   }
 
+  const t = txProyectos()
   return (
     <>
       {veModo && (
-        <Grupo
-          titulo="Al abrir un proyecto nuevo"
-          ayuda="Solo decide con qué modo NACE. El de un proyecto ya abierto se cambia desde el menú de su pestaña."
-        >
+        <Grupo titulo={t.grupoNuevo} ayuda={t.grupoNuevoAyuda}>
           <Radios
             nombre="defaultProjectMode"
             valor={defaultProjectMode}
@@ -205,7 +187,7 @@ export function Proyectos(props: PropsCategoria): React.JSX.Element | null {
         </Grupo>
       )}
       {veInactividad && (
-        <Grupo titulo="Agentes en segundo plano">
+        <Grupo titulo={t.grupoSegundoPlano}>
           <FilaInactividadAgente {...props} />
         </Grupo>
       )}

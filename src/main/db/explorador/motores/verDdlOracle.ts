@@ -28,6 +28,7 @@ import { mapearSinonimo } from './filasCatalogo.ts'
 import { mapearFuente, sqlFuente } from './fuenteOracle.ts'
 import { mapearColumnas, mapearIndices, mapearRestricciones } from './mapeoOracle.ts'
 import { sqlColumnas, sqlIndices, sqlResolverSinonimo, sqlRestricciones } from './sqlOracle.ts'
+import { txMotores } from './textosMotores.ts'
 import type { ConsultaCatalogo, FilaCatalogo } from './tipos.ts'
 
 type Leer = (fn: () => ConsultaCatalogo) => Promise<readonly FilaCatalogo[]>
@@ -37,7 +38,7 @@ function sinDdl(origen: string, motivo: string): DbFuente {
   return {
     partes: [],
     origen,
-    aviso: `No hay DDL visible: el objeto no existe o faltan privilegios para verlo (DBMS_METADATA: ${motivo}).`
+    aviso: txMotores().sinDdlOracle(motivo)
   }
 }
 
@@ -53,10 +54,10 @@ export async function leerDdlOracle(lector: LectorDdl, ref: DbRefObjeto): Promis
     const r = await lector.bloqueTexto(b.sql, b.binds, BIND_DDL, TOPE_DDL)
     if (r !== null && r.texto.trim() !== '') {
       const fuente: DbFuente = { partes: [{ titulo: 'DDL', texto: limpiarDdlOracle(r.texto) }], origen: 'DBMS_METADATA' }
-      if (r.recortado) fuente.aviso = `El DDL pasa de ${TOPE_DDL} caracteres: se enseña recortado.`
+      if (r.recortado) fuente.aviso = txMotores().ddlRecortado(TOPE_DDL)
       return fuente
     }
-    motivo = 'devolvió un DDL vacío'
+    motivo = txMotores().ddlVacio
   } catch (e) {
     if (!esFalloTrabajador(e)) throw e
     const m = motivoRepliegueDdl(e.error.codigo, e.error.mensaje)

@@ -34,12 +34,13 @@ import {
   sqlRestricciones,
   sqlTipoDeObjeto
 } from './sqlSqlserver.ts'
+import { txMotores } from './textosMotores.ts'
 import { leerDdlSqlServer } from './verDdlSqlserver.ts'
 
 export { sqlBasesSqlServer }
 
 /** Lo que SQL Server no lee: los tipos que da su trabajador ya son los declarados. */
-const SIN_TIPOS_DECLARADOS = 'Los tipos declarados solo se leen de Oracle: los de SQL Server ya llegan exactos.'
+const sinTiposDeclarados = (): string => txMotores().sinTiposDeclarados('SQL Server')
 
 /** El catálogo de SQL Server. */
 export const CATALOGO_SQLSERVER: CatalogoExplorador = {
@@ -66,11 +67,11 @@ export const CATALOGO_SQLSERVER: CatalogoExplorador = {
   mapearIndices,
 
   sqlTiposColumnas() {
-    throw new Error(SIN_TIPOS_DECLARADOS)
+    throw new Error(sinTiposDeclarados())
   },
 
   mapearTiposColumnas() {
-    throw new Error(SIN_TIPOS_DECLARADOS)
+    throw new Error(sinTiposDeclarados())
   },
 
   sqlFks,

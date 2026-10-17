@@ -181,12 +181,27 @@ export interface ProjectRoot {
   name: string
 }
 
-export interface ListDirRequest {
+/**
+ * Toda petición que nombra rutas dice de qué proyecto son: su contenedora, la misma que se ancla
+ * con `setFilesRoot`. Es lo único del host que el renderer manda, y solo como identidad: el main la
+ * atiende en ese proyecto aunque el ancla ya esté en otro (`FileService.paraRaiz`), así una ruta de
+ * un proyecto nunca se resuelve contra otro.
+ */
+export interface EnProyecto {
+  raiz: string
+}
+
+/** Un archivo o carpeta de un proyecto: su ruta relativa (POSIX, "" = raíz) y su contenedora. */
+export interface RutaEnProyecto extends EnProyecto {
+  path: string
+}
+
+export interface ListDirRequest extends EnProyecto {
   /** Carpeta a listar, relativa a la raíz ("" = raíz del proyecto). POSIX. */
   path: string
 }
 
-export interface ReadFileRequest {
+export interface ReadFileRequest extends EnProyecto {
   /** Archivo a leer, relativo a la raíz. POSIX. */
   path: string
   /**
@@ -267,7 +282,7 @@ export interface ZipListing {
 }
 
 /** Petición de creación: crea `name` (archivo o carpeta) DENTRO de `dir`. */
-export interface CreateEntryRequest {
+export interface CreateEntryRequest extends EnProyecto {
   /** Carpeta contenedora, relativa a la raíz (POSIX, "" = raíz). */
   dir: string
   /** Nombre del nuevo archivo/carpeta (sin separadores de ruta). */
@@ -275,7 +290,7 @@ export interface CreateEntryRequest {
 }
 
 /** Petición de renombrado: cambia el nombre de `path` a `newName` (mismo padre). */
-export interface RenameRequest {
+export interface RenameRequest extends EnProyecto {
   /** Ruta actual del archivo/carpeta, relativa a la raíz (POSIX). */
   path: string
   /** Nuevo nombre (sin separadores de ruta). */
@@ -296,7 +311,7 @@ export interface RenameRequest {
  * ello para ser correcto, pero sin la reducción el segundo movimiento fallaría con
  * un ENOENT en vez de con una colisión honesta.
  */
-export interface MoveRequest {
+export interface MoveRequest extends EnProyecto {
   /** Rutas de los archivos/carpetas a mover, relativas a la raíz (POSIX). */
   srcs: string[]
   /** Carpeta destino, relativa a la raíz (POSIX, "" = raíz). */
@@ -341,7 +356,7 @@ export interface MoveResult {
  * cualquier parte del disco (es el punto: traer archivos de fuera); el DESTINO
  * sigue siendo relativo y validado contra la raíz del proyecto.
  */
-export interface ImportRequest {
+export interface ImportRequest extends EnProyecto {
   /** Rutas ABSOLUTAS del host de los archivos/carpetas soltados. */
   hostPaths: string[]
   /** Carpeta destino, relativa a la raíz (POSIX, "" = raíz). */
@@ -383,7 +398,7 @@ export interface ImportResult {
  * mismo motivo por el que `ImportRequest` acepta rutas de host pero NO deja elegir
  * entre mover y copiar: esa decisión se toma siempre en el main.
  */
-export interface PasteRequest {
+export interface PasteRequest extends EnProyecto {
   /** Carpeta destino, relativa a la raíz (POSIX, "" = raíz). */
   destDir: string
   /** Orígenes: rutas relativas a la raíz (POSIX). Ya minimizadas por el renderer. */
@@ -405,7 +420,7 @@ export interface PasteResult {
 }
 
 /** Petición de arrastre NATIVO con varios archivos (ver `START_DRAG`). */
-export interface StartDragRequest {
+export interface StartDragRequest extends EnProyecto {
   /** Rutas a arrastrar, relativas a la raíz (POSIX). */
   paths: string[]
   /**
@@ -421,12 +436,12 @@ export interface StartDragRequest {
 }
 
 /** Petición sobre VARIAS rutas del proyecto (relativas, POSIX). */
-export interface RutasRequest {
+export interface RutasRequest extends EnProyecto {
   paths: string[]
 }
 
 /** Petición de borrado: elimina `paths` (archivos o carpetas, recursivo). */
-export interface DeleteRequest {
+export interface DeleteRequest extends EnProyecto {
   /** Rutas de los archivos/carpetas a eliminar, relativas a la raíz (POSIX). */
   paths: string[]
 }
@@ -454,7 +469,7 @@ export interface CreatedEntry {
 }
 
 /** Petición de escritura: sobrescribe el archivo en `path` con `content`. */
-export interface WriteFileRequest {
+export interface WriteFileRequest extends EnProyecto {
   /** Archivo a escribir, relativo a la raíz. POSIX. */
   path: string
   /** Contenido completo a persistir (texto Unicode del editor). */

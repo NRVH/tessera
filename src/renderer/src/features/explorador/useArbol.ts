@@ -2,8 +2,8 @@
 // Estado y efectos de `FileTree`: el árbol aplanado, la selección, los diálogos, el
 // menú, el arrastre y la expansión. `useArbol` llama a los hooks parciales en el orden
 // en que se declaraban los efectos del componente y devuelve el `Arbol` que consumen
-// las funciones de operaciones. Todo es estado del MISMO componente: `FileTree` se
-// remonta con `key={projectHostPath}` y ninguna pieza puede sobrevivir a eso por su cuenta.
+// las funciones de operaciones. Todo es estado del MISMO componente, que es de UN proyecto:
+// hay un `FileTree` por proyecto y ninguna pieza se comparte con el de otro.
 // Decisiones: docs/decisiones/explorador/arbol-de-archivos.md
 // =============================================================================
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
@@ -51,6 +51,12 @@ function useEstadoBase(props: PropsFileTree) {
   )
   const [dialog, setDialog] = useState<FileDialog>(null)
   const [dialogError, setDialogError] = useState<string | null>(null)
+  // Un árbol que deja de verse cierra su menú y su diálogo: ocultos seguirían en la pila de
+  // diálogos, y Esc o el foco irían a ellos y no a lo que se ve.
+  if (!props.activo && (menu !== null || dialog !== null)) {
+    setMenu(null)
+    setDialog(null)
+  }
   // Arranca con las carpetas que estaban abiertas la última vez en este proyecto.
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(initialExpanded ?? []))
   useEffect(() => {
@@ -92,10 +98,12 @@ function useAutoLimpiar(valor: string | null, limpiar: Poner<string | null>, ms:
 /**
  * Revelado pedido desde fuera del árbol. El último token atendido se siembra con el que
  * haya al montar: la petición vive en un store que nadie limpia y, sin la semilla, un
- * árbol remontado perseguiría la ruta del proyecto anterior.
+ * árbol recién montado perseguiría la ruta del proyecto anterior. Un árbol oculto da por
+ * atendidas las que llegan sin revelarlas: son del proyecto que se ve, no del suyo.
  */
 function useRevelarDesdeFuera(
   revelarRuta: PropsFileTree['revelarRuta'],
+  activo: boolean,
   setRevealPath: Poner<string | null>
 ): void {
   const revelarToken = revelarRuta?.token
@@ -106,12 +114,12 @@ function useRevelarDesdeFuera(
     if (revelarObjetivo === undefined || revelarObjetivo.length === 0) return
     if (ultimoRevelado.current === revelarToken) return
     ultimoRevelado.current = revelarToken
-    setRevealPath(revelarObjetivo)
-  }, [revelarToken, revelarObjetivo, setRevealPath])
+    if (activo) setRevealPath(revelarObjetivo)
+  }, [revelarToken, revelarObjetivo, activo, setRevealPath])
 }
 
 /** Selección, carpeta actual, refs de interacción, arrastre y avisos efímeros. */
-function useEstadoInteraccion(revelarRuta: PropsFileTree['revelarRuta']) {
+function useEstadoInteraccion(revelarRuta: PropsFileTree['revelarRuta'], activo: boolean) {
   // La selección vive aquí y no en el DOM: las filas se desmontan al scrollear.
   const [selectedDir, setSelectedDir] = useState('')
   const [seleccion, setSeleccion] = useState<EstadoSeleccion>(SELECCION_VACIA)
@@ -122,11 +130,13 @@ function useEstadoInteraccion(revelarRuta: PropsFileTree['revelarRuta']) {
   useLimpiarArrastreGlobal(setArrastrados)
   const [opError, setOpError] = useState<string | null>(null)
   const [importConflict, setImportConflict] = useState<ConflictoImportacion | null>(null)
+  // Su diálogo de conflictos, igual que el menú y los demás diálogos (`useEstadoBase`).
+  if (!activo && importConflict !== null) setImportConflict(null)
   useAutoLimpiar(opError, setOpError, 4000)
   // Ruta a revelar tras crear o mover: se limpia sola a los 2 s para no re-expandir.
   const [revealPath, setRevealPath] = useState<string | null>(null)
   useAutoLimpiar(revealPath, setRevealPath, 2000)
-  useRevelarDesdeFuera(revelarRuta, setRevealPath)
+  useRevelarDesdeFuera(revelarRuta, activo, setRevealPath)
   return {
     selectedDir, setSelectedDir, seleccion, setSeleccion, clicPendienteRef, treeRef, menuGenRef,
     arrastrados, setArrastrados, opError, setOpError, importConflict, setImportConflict,
@@ -134,19 +144,35 @@ function useEstadoInteraccion(revelarRuta: PropsFileTree['revelarRuta']) {
   }
 }
 
-/** Raíz del proyecto: se carga al montar y se recarga ante cada cambio del watcher o del CRUD. */
-function useRaizArbol() {
+/**
+ * Raíz del proyecto `raiz`: se carga al montar y se recarga ante cada cambio del watcher o del CRUD.
+ * Oculto (`activo` false) no escucha: los avisos son del proyecto anclado, y lo que cambie en el
+ * suyo mientras tanto no le llega. Por eso se recarga SIEMPRE al volver a verse.
+ */
+function useRaizArbol(raiz: string, activo: boolean) {
   const [rootEntries, setRootEntries] = useState<FileEntry[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [refreshToken, setRefreshToken] = useState(0)
+  const [activoAntes, setActivoAntes] = useState(activo)
   const bumpRefresh = (): void => setRefreshToken((t) => t + 1)
-  useEffect(() => window.tessera.files.onChanged(() => setRefreshToken((t) => t + 1)), [])
+  useEffect(() => {
+    if (!activo) return
+    return window.tessera.files.onChanged(() => setRefreshToken((t) => t + 1))
+  }, [activo])
+  // Ajuste en el render, sin efecto: el árbol que vuelve a verse ya pide su refresco en este commit.
+  if (activo !== activoAntes) {
+    setActivoAntes(activo)
+    if (activo) setRefreshToken((t) => t + 1)
+  }
   useEffect(() => {
     let cancelled = false
     window.tessera.files
-      .listDir('')
+      .listDir({ raiz, path: '' })
       .then((entries) => {
-        if (!cancelled) setRootEntries(entries)
+        if (cancelled) return
+        setRootEntries(entries)
+        // Un fallo anterior no se queda pintado sobre un listado que ya llegó.
+        setError(null)
       })
       .catch((err: unknown) => {
         if (!cancelled) setError(err instanceof Error ? err.message : String(err))
@@ -154,7 +180,7 @@ function useRaizArbol() {
     return () => {
       cancelled = true
     }
-  }, [refreshToken])
+  }, [raiz, refreshToken])
   return { rootEntries, error, refreshToken, bumpRefresh }
 }
 
@@ -265,16 +291,17 @@ function useExpansion(
  * única señal exacta para apagar `arrastrados` (Esc dentro de la ventana no dispara nada más).
  */
 function useArrastreArbol(
+  raiz: string,
   rows: FlatRow[],
   seleccion: EstadoSeleccion,
-  setOpError: Poner<string | null>,
-  setArrastrados: Poner<string[]>
+  inter: { setOpError: Poner<string | null>; setArrastrados: Poner<string[]> }
 ) {
+  const { setOpError, setArrastrados } = inter
   const arrastrarFuera = useCallback(
     (rutas: readonly string[], icono: string): void => {
       void (async () => {
         try {
-          await window.tessera.files.startDrag([...rutas], icono)
+          await window.tessera.files.startDrag({ raiz, paths: [...rutas], icono })
         } catch (err) {
           setOpError(err instanceof Error ? err.message : String(err))
         } finally {
@@ -282,7 +309,7 @@ function useArrastreArbol(
         }
       })()
     },
-    [setOpError, setArrastrados]
+    [raiz, setOpError, setArrastrados]
   )
   // Lo que el usuario ve seleccionado, en el orden del árbol; no las rutas minimizadas.
   const fantasma = useMemo(() => {
@@ -300,14 +327,14 @@ function useArrastreArbol(
 /** Todo el estado de `FileTree`; los efectos se registran en el orden histórico del componente. */
 export function useArbol(props: PropsFileTree): Arbol {
   const base = useEstadoBase(props)
-  const cad = useEstadoCadenas()
-  const inter = useEstadoInteraccion(props.revelarRuta)
-  const raiz = useRaizArbol()
+  const cad = useEstadoCadenas(props.projectHostPath)
+  const inter = useEstadoInteraccion(props.revelarRuta, props.activo)
+  const raiz = useRaizArbol(props.projectHostPath, props.activo)
   const filas = useFilasArbol(raiz.rootEntries, cad, base.expanded)
   usePodaSeleccion(raiz.rootEntries, filas.clavesNodo, inter.setSeleccion)
   useCargaPerezosa(cad, filas.rows)
   useRefrescoCadenas(cad, filas.rows, raiz.refreshToken)
   const expansion = useExpansion(filas.rows, base.setExpanded, inter.revealPath)
-  const arrastre = useArrastreArbol(filas.rows, inter.seleccion, inter.setOpError, inter.setArrastrados)
+  const arrastre = useArrastreArbol(props.projectHostPath, filas.rows, inter.seleccion, inter)
   return { props, ...base, ...inter, ...raiz, ...filas, ...expansion, ...arrastre }
 }

@@ -10,6 +10,7 @@
 
 const path = require('node:path')
 const { errorDeUso } = require('./tsshSalida.cjs')
+const { textosTssh } = require('./textosTssh.cjs')
 
 /** La plataforma del proceso, en la unión de `shared/plataforma.ts`. */
 function plataformaDelProceso() {
@@ -41,9 +42,7 @@ function rutaDeMsys(texto, cygpath) {
   const unidad = /^\/(?:cygdrive\/)?([A-Za-z])(\/.*)?$/.exec(texto)
   if (unidad) return `${unidad[1].toUpperCase()}:${path.win32.normalize(unidad[2] || '/')}`
   const traducida = typeof cygpath === 'function' ? cygpath(texto) : null
-  if (!traducida) {
-    throw errorDeUso(`No sé a qué carpeta de Windows corresponde «${texto}»: usa una ruta de Windows (C:\\...) o una relativa a la carpeta actual.`)
-  }
+  if (!traducida) throw errorDeUso(textosTssh().rutaMsysDesconocida(texto))
   return traducida
 }
 
@@ -64,8 +63,8 @@ function rutaLocal(texto, { plataforma, cwd, casa, cygpath }) {
 function lados(origen, destino, opciones) {
   const remotoOrigen = ladoRemoto(origen, opciones.plataforma)
   const remotoDestino = ladoRemoto(destino, opciones.plataforma)
-  if (remotoOrigen && remotoDestino) throw errorDeUso('Los dos lados son remotos: copia primero a este equipo y después al otro.')
-  if (!remotoOrigen && !remotoDestino) throw errorDeUso('Ninguno de los dos lados es remoto: uno tiene que ser <alias>:<ruta>.')
+  if (remotoOrigen && remotoDestino) throw errorDeUso(textosTssh().dosLadosRemotos)
+  if (!remotoOrigen && !remotoDestino) throw errorDeUso(textosTssh().ningunLadoRemoto)
   const remoto = remotoOrigen || remotoDestino
   return {
     alias: remoto.alias,

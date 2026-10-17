@@ -9,6 +9,7 @@
 
 import type { SshConexion } from '../../../../shared/ssh-ipc.ts'
 import { ID_SIN_GRUPO, cabeceraDe, type FilaLista } from './listaSsh.ts'
+import { txSsh } from './textos.ts'
 
 /** Las conexiones marcadas (por id) y dónde empieza un rango de Mayús. */
 export interface SeleccionSsh {
@@ -134,7 +135,7 @@ export function grupoIdDeDestino(destino: string): string | null {
 
 /** «1 conexión» / «3 conexiones». */
 export function cuantasConexiones(n: number): string {
-  return n === 1 ? '1 conexión' : `${n} conexiones`
+  return txSsh().cuantasConexiones(n)
 }
 
 /** Tope de nombres que lista la confirmación de borrar varias: más no se leen. */
@@ -142,7 +143,8 @@ const TOPE_NOMBRES = 10
 
 /** El mensaje de la confirmación de borrar varias: cuántas, cuáles (hasta un tope) y qué pasa con sus pestañas. */
 export function mensajeEliminarVarias(alias: readonly string[]): string {
+  const t = txSsh()
   const lista = alias.slice(0, TOPE_NOMBRES).map((a) => `• ${a}`)
-  if (alias.length > TOPE_NOMBRES) lista.push(`… y ${alias.length - TOPE_NOMBRES} más`)
-  return `¿Eliminar ${cuantasConexiones(alias.length)}?\n${lista.join('\n')}\nLas pestañas que tengan abiertas siguen funcionando, pero ya no se podrán reconectar.`
+  if (alias.length > TOPE_NOMBRES) lista.push(t.yMas(alias.length - TOPE_NOMBRES))
+  return `${t.eliminarVarias(cuantasConexiones(alias.length))}\n${lista.join('\n')}\n${t.pestanasSiguen}`
 }

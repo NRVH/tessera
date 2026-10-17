@@ -24,8 +24,8 @@ import {
   anchoColumnaRejilla,
   peticionesEnVuelo,
   accionesDeError,
-  ETIQUETA_ACCION_ERROR,
-  MARCA_SIN_ESPERAR
+  etiquetasAccionError,
+  marcaSinEsperar
 } from './panesBd.ts'
 import { OPCIONES_ANCHO } from './rejilla/anchoColumnas.ts'
 import { SEPARADOR_MILES } from './rejilla/celdasRejilla.ts'
@@ -53,6 +53,9 @@ function check(name: string, pass: boolean, evidence: string): void {
 
 const j = (x: unknown): string => JSON.stringify(x)
 const NB = SEPARADOR_MILES
+// Los textos se leen al usarse; en las pruebas el idioma es el español de siempre.
+const ETIQUETA_ACCION_ERROR = etiquetasAccionError()
+const MARCA_SIN_ESPERAR = marcaSinEsperar()
 
 function main(): void {
   // -------------------------------------------------------------------------

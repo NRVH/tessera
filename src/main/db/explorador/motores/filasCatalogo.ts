@@ -7,7 +7,8 @@
 
 import type { DbMotor } from '../../../../shared/db-ipc.ts'
 import type { DbFk, DbRelacionesFk, DbRestriccionInfo } from '../../../../shared/db-explorador-ipc.ts'
-import { etiquetaMotor, etiquetasSqlDonde, IDS_MOTORES_SQL, MOTORES, type DescriptorSql } from '../../../../shared/motores/index.ts'
+import { etiquetaMotor, IDS_MOTORES_SQL, MOTORES, type DescriptorSql } from '../../../../shared/motores/index.ts'
+import { txMotores } from './textosMotores.ts'
 import type { FilaCatalogo } from './tipos.ts'
 
 export function texto(v: unknown): string {
@@ -92,7 +93,8 @@ export class ErrorPendiente extends Error {}
  * escrita: lanza `ErrorPendiente` con su nombre.
  */
 export function pendiente(motor: DbMotor, parte: 'Catálogo' | 'Sesión', que: string): never {
-  throw new ErrorPendiente(`${parte} de ${etiquetaMotor(motor)}: «${que}» todavía no está implementado.`)
+  const t = txMotores()
+  throw new ErrorPendiente(t.pendiente(parte === 'Catálogo' ? t.parteCatalogo : t.parteSesion, etiquetaMotor(motor), que))
 }
 
 /** ¿Lanza `f` un `ErrorPendiente`? (Para que los tests dejen fuera a un motor en esqueleto.) */
@@ -105,9 +107,19 @@ export function enEsqueleto(f: () => unknown): boolean {
   }
 }
 
+/** Los nombres de lo que un motor no tiene, ya en el idioma activo, para `noDisponible`. */
+export const queFalta = {
+  nivelBases: (): string => txMotores().queNivelBases,
+  sinonimos: (): string => txMotores().queSinonimos,
+  tipoPorNombre: (): string => txMotores().queTipoPorNombre,
+  fuenteDe: (tipo: string): string => txMotores().queFuenteDe(tipo),
+  ddlDe: (tipo: string): string => txMotores().queDdlDe(tipo),
+  uniqueNotNull: (): string => txMotores().queUniqueNotNull
+}
+
 /** Lo que un motor no tiene («sinónimos», «fuente de tabla»…); el nombre sale de su descriptor. */
 export function noDisponible(motor: DbMotor, que: string): never {
-  throw new Error(`Catálogo: «${que}» no existe en ${etiquetaMotor(motor)}`)
+  throw new Error(txMotores().noDisponible(que, etiquetaMotor(motor)))
 }
 
 /**
@@ -116,9 +128,10 @@ export function noDisponible(motor: DbMotor, que: string): never {
  * «Solo Oracle y SQL Server tienen sinónimos.». `tiene` lee la capacidad del descriptor.
  */
 export function soloMotoresCon(que: string, tiene: (d: DescriptorSql) => boolean): string {
-  const cuantos = IDS_MOTORES_SQL.filter((m) => tiene(MOTORES[m])).length
-  if (cuantos === 0) return `Ningún motor tiene ${que}.`
-  return `Solo ${etiquetasSqlDonde(tiene)} ${cuantos === 1 ? 'tiene' : 'tienen'} ${que}.`
+  const t = txMotores()
+  const etiquetas = IDS_MOTORES_SQL.filter((m) => tiene(MOTORES[m])).map((m) => MOTORES[m].etiqueta)
+  if (etiquetas.length === 0) return t.ningunMotor(que)
+  return t.soloMotores(t.unirNombres(etiquetas), etiquetas.length, que)
 }
 
 /** El destino de un sinónimo, leído de su fila de `sqlResolverSinonimo`. */
@@ -166,4 +179,6 @@ export function clasificarFk(fk: DbFk, esquema: string, objeto: string, r: DbRel
 }
 
 /** Aviso de una fuente que no llegó (en todos los motores). */
-export const AVISO_SIN_FUENTE = 'No hay fuente visible: el objeto no existe o faltan privilegios para verlo.'
+export function avisoSinFuente(): string {
+  return txMotores().sinFuente
+}

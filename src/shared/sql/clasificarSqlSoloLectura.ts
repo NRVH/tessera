@@ -11,9 +11,10 @@ import { PARAMETRO_USE } from './clasificarSqlTipos.ts'
 import { esVariableDeUsuario } from './clasificarSqlMysql.ts'
 import type { ClaseSentencia, Clasificacion, PermisoSoloLectura, SesionSentencia } from './clasificarSqlTipos.ts'
 import { nunca } from '../nunca.ts'
+import { txSql } from './textosSql.ts'
 
 /** `conjuncion`: « o » para lo que se permite (uno cualquiera), « y » para lo que se tocó. */
-function listaLegible(ps: readonly string[], r: ReglasDialecto, conjuncion = ' o '): string {
+function listaLegible(ps: readonly string[], r: ReglasDialecto, conjuncion = txSql().ro.o): string {
   // Los parámetros se escriben como los pliega el motor (las listas van en minúsculas).
   const caja = r.cajaSinComillas
   let nombres: string[]
@@ -36,7 +37,7 @@ function listaLegible(ps: readonly string[], r: ReglasDialecto, conjuncion = ' o
   return nombres.slice(0, -1).join(', ') + conjuncion + nombres[nombres.length - 1]
 }
 
-const PREFIJO_RO = 'La conexión es de solo lectura: '
+const prefijoRo = (): string => txSql().ro.prefijo
 
 /** `USE base` pasa en solo lectura donde USE es un verbo del dialecto (SQL Server): cambia de base, no toca datos. */
 function usePermitido(r: ReglasDialecto): boolean {
@@ -58,8 +59,9 @@ function sesionEnLista(ses: SesionSentencia | null, r: ReglasDialecto): boolean 
 
 /** El rechazo de una sentencia de sesión que no está en la lista blanca. */
 function rechazoSesion(r: ReglasDialecto): PermisoSoloLectura {
-  const use = usePermitido(r) ? ' (y USE para cambiar de base)' : ''
-  return { ok: false, motivo: PREFIJO_RO + 'solo se permite ' + r.formaSetSesion + listaLegible(r.sesionSoloLectura, r) + use + '.' }
+  const t = txSql().ro
+  const use = usePermitido(r) ? t.use : ''
+  return { ok: false, motivo: prefijoRo() + t.soloSePermite(r.formaSetSesion, listaLegible(r.sesionSoloLectura, r), use) }
 }
 
 /**
@@ -71,21 +73,22 @@ export const MENSAJE_VACUUM_INTO = 'VACUUM INTO escribe una copia de la base fue
 
 /** El rechazo de las sentencias que ni son consulta ni de sesión, por su clase. */
 function motivoDeClase(clase: Exclude<ClaseSentencia, 'consulta' | 'cliente' | 'sesion'>, verbo: string): string {
+  const t = txSql().ro
   switch (clase) {
     case 'dml':
-      return verbo + ' modifica datos.'
+      return t.dml(verbo)
     case 'ddl':
-      return verbo + ' cambia la estructura de la base de datos.'
+      return t.ddl(verbo)
     case 'plsql':
-      return 'un bloque PL/SQL puede escribir y no se puede comprobar antes de ejecutarlo.'
+      return t.plsql
     case 'rutina':
-      return verbo + ' ejecuta código que puede escribir.'
+      return t.rutina(verbo)
     case 'bloqueo':
-      return verbo + ' bloquea filas para modificarlas.'
+      return t.bloqueo(verbo)
     case 'tx':
-      return 'las transacciones las gestiona Tessera.'
+      return t.tx
     case 'otra':
-      return 'no se puede comprobar que ' + verbo + ' solo lea.'
+      return t.otra(verbo)
   }
 }
 
@@ -95,7 +98,7 @@ function rechazoEspecial(s: Clasificacion, r: ReglasDialecto): PermisoSoloLectur
   if (s.verbo === 'VACUUM INTO') return { ok: false, motivo: MENSAJE_VACUUM_INTO }
   // SQLite: «no se puede comprobar que PRAGMA solo lea» sería verdad, pero no dice qué SÍ se puede.
   if (r.pragmas && s.clase === 'otra' && s.verbo === 'PRAGMA') {
-    return { ok: false, motivo: PREFIJO_RO + 'solo se permiten los PRAGMA que leen (table_info, index_list, user_version…).' }
+    return { ok: false, motivo: prefijoRo() + txSql().ro.pragma }
   }
   return null
 }
@@ -119,37 +122,27 @@ export function permitidaEnSoloLectura(s: Clasificacion, d: DialectoSql): Permis
     case 'sesion':
       return sesionEnLista(s.sesion, r) ? { ok: true } : rechazoSesion(r)
     default:
-      return { ok: false, motivo: PREFIJO_RO + motivoDeClase(s.clase, s.verbo || 'esta sentencia') }
+      return { ok: false, motivo: prefijoRo() + motivoDeClase(s.clase, s.verbo || txSql().ro.estaSentencia) }
   }
 }
 
-/** Inicio común de todo rechazo por formato fijado (lo buscan el main y los tests). */
-export const MENSAJE_FORMATO_FIJADO = 'Tessera fija este formato'
+/** Inicio común de todo rechazo por formato fijado (lo buscan los tests). */
+export function mensajeFormatoFijado(): string {
+  return txSql().formato.inicio
+}
 
 /**
  * Qué hacer EN SU LUGAR, por parámetro; lo que no está aquí es de TO_CHAR. Cada formato fijado
- * tiene su salida: `encode` para `bytea_output`, la cadena E'…' para los escapes con barra.
+ * tiene su salida: `encode` para `bytea_output`, la cadena E'…' para los escapes con barra. En
+ * MySQL, el modo SQL decide cómo se leen las comillas y la barra, y el juego de caracteres, cómo
+ * llegan las celdas; SQL Server no tiene TO_CHAR.
  */
-const REMEDIO_FORMATO: Readonly<Record<string, string>> = {
-  bytea_output: "usa encode(…, 'escape') para verlo de otra forma",
-  standard_conforming_strings: "usa E'…' si necesitas escapes con la barra",
-  // SQL Server no tiene TO_CHAR.
-  dateformat: 'usa CONVERT o FORMAT para verlo con otro formato',
-  language: 'usa FORMAT con su cultura para verlo en otro idioma',
-  textsize: 'usa SUBSTRING para leer un valor largo por partes',
-  implicit_transactions: 'usa el modo Manual de la consola para abrir la transacción',
-  quoted_identifier: 'usa corchetes para los nombres y comillas simples para las cadenas',
-  // MySQL: el modo SQL decide cómo se leen las comillas y la barra; el juego de caracteres, cómo
-  // llegan las celdas.
-  sql_mode: 'usa acentos graves para los nombres; los demás modos se pueden pedir en la propia sentencia (CAST, IGNORE)',
-  names: 'usa CONVERT(… USING juego) para leer un valor en otro juego de caracteres',
-  character: 'usa CONVERT(… USING juego) para leer un valor en otro juego de caracteres',
-  charset: 'usa CONVERT(… USING juego) para leer un valor en otro juego de caracteres',
-  character_set_results: 'usa CONVERT(… USING juego) para leer un valor en otro juego de caracteres',
-  character_set_client: 'usa CONVERT(… USING juego) para leer un valor en otro juego de caracteres',
-  character_set_connection: 'usa CONVERT(… USING juego) para leer un valor en otro juego de caracteres'
+const PARAMETROS_JUEGO = ['names', 'character', 'charset', 'character_set_results', 'character_set_client', 'character_set_connection']
+function remedioFormato(p: string): string {
+  const t = txSql().formato
+  if (PARAMETROS_JUEGO.indexOf(p) >= 0) return t.remedios.juego
+  return t.remedios[p] ?? t.porDefecto
 }
-const REMEDIO_TO_CHAR = 'usa TO_CHAR para verlo con otro formato'
 
 /**
  * Si la sentencia cambia (o restablece) un formato que Tessera fija al abrir la sesión, el motivo
@@ -161,15 +154,15 @@ export function formatoFijadoPorTessera(s: Clasificacion, d: DialectoSql): strin
   const ses = s.sesion
   if (!ses) return null
   if (ses.accion === 'resetTodo') {
-    return MENSAJE_FORMATO_FIJADO + ' (' + s.verbo + ' también lo restablece); usa RESET con el parámetro que necesites.'
+    return txSql().formato.restablece(s.verbo, mensajeFormatoFijado())
   }
   const fijados = reglas.formatosFijados
   const tocados = ses.parametros.filter((p) => fijados.indexOf(p) >= 0)
   if (tocados.length === 0) return null
   const remedios: string[] = []
   for (const p of tocados) {
-    const r = REMEDIO_FORMATO[p] ?? REMEDIO_TO_CHAR
+    const r = remedioFormato(p)
     if (remedios.indexOf(r) < 0) remedios.push(r)
   }
-  return MENSAJE_FORMATO_FIJADO + ' (' + listaLegible(tocados, reglas, ' y ') + '); ' + remedios.join('; ') + '.'
+  return txSql().formato.conRemedios(mensajeFormatoFijado(), listaLegible(tocados, reglas, txSql().ro.y), remedios.join('; '))
 }

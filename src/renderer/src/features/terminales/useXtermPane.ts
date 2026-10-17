@@ -16,6 +16,7 @@ import type { ResultadosBusqueda } from './buscadorXterm'
 import { injectPaths } from './clipboardPaste'
 import { bannerFinSsh, motivoFinSsh } from './finSesionSsh'
 import { alternarWebgl, montarXterm, type OpcionesMontaje } from './montajeXterm'
+import { txTerminales } from './textos.ts'
 import type { OrigenTerminal, RefsTerminal, TerminalStatus } from './terminalPaneTipos'
 import { useAparienciaXterm } from './useAparienciaXterm'
 
@@ -37,8 +38,8 @@ function alSalirShell(term: Terminal, msg: TerminalExitMessage, acc: AccionesXte
   acc.setExitCode(msg.exitCode)
   acc.setStatus('exited')
   term.write(
-    `\r\n\x1b[38;2;224;108;117mel shell terminó (exitCode=${msg.exitCode}). ` +
-      `Usa Reabrir para volver a levantarlo.\x1b[0m\r\n`
+    `\r\n\x1b[38;2;224;108;117m${txTerminales().shellTerminoCodigo(msg.exitCode)}` +
+      `${txTerminales().usaReabrir}\x1b[0m\r\n`
   )
 }
 
@@ -74,6 +75,8 @@ function opcionesShell(refs: RefsTerminal, acc: AccionesXterm, origen: OrigenTer
       if (!esSsh) injectPaths(acc.writeToPty, rutas)
     },
     ajustarConRebote: acc.fitAndSyncDebounced,
+    // La apariencia va por ref: apagar el interruptor vale desde el siguiente trozo de salida.
+    resaltar: () => refs.appearance.current.resaltar !== false,
     cerrarSesion: () => {
       const id = refs.session.current
       refs.session.current = null

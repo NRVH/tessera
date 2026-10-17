@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import { imageMimeForPath } from './viewerKind'
 import { revocarUrl } from './visorComun'
+import { txImagen } from './textosVisores.ts'
 
 interface EntradaCarga {
   setLoading: Dispatch<SetStateAction<boolean>>
@@ -16,8 +17,8 @@ interface EntradaCarga {
   reiniciar: () => void
 }
 
-/** Carga la imagen de `path`; expone su URL, su peso y el aviso del visor. */
-export function useCargaImagen(path: string, { setLoading, setError, reiniciar }: EntradaCarga) {
+/** Carga la imagen de `path` (del proyecto `raiz`); expone su URL, su peso y el aviso del visor. */
+export function useCargaImagen(raiz: string, path: string, { setLoading, setError, reiniciar }: EntradaCarga) {
   const [notice, setNotice] = useState<string | null>(null)
   const [url, setUrl] = useState<string | null>(null)
   const [size, setSize] = useState(0)
@@ -32,10 +33,10 @@ export function useCargaImagen(path: string, { setLoading, setError, reiniciar }
 
     async function load(): Promise<void> {
       try {
-        const res = await window.tessera.files.readBinary(path)
+        const res = await window.tessera.files.readBinary({ raiz, path })
         if (cancelled) return
         if (res.truncated) {
-          setError('La imagen supera el máximo (50 MiB) y no puede mostrarse completa.')
+          setError(txImagen().supera50)
           setLoading(false)
           return
         }
@@ -60,7 +61,7 @@ export function useCargaImagen(path: string, { setLoading, setError, reiniciar }
     return () => {
       cancelled = true
     }
-  }, [path, setLoading, setError, reiniciar])
+  }, [raiz, path, setLoading, setError, reiniciar])
 
   useEffect(() => () => revocarUrl(urlRef), [])
 

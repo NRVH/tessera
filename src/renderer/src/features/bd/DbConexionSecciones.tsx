@@ -15,9 +15,9 @@ import {
   ayudaSoloLectura,
   descriptorDe,
   entornoDeRadio,
-  ETIQUETA_SOLO_LECTURA,
+  etiquetaSoloLectura,
   MOTORES_CONEXION,
-  OPCIONES_ENTORNO,
+  opcionesEntorno,
   proponeConfiarCertificado,
   valorRadioEntorno,
   type EsquemaUri
@@ -26,21 +26,24 @@ import { pegarRecortado } from '../../util/pasteTrim'
 import { IconoMotor } from './iconosBd'
 import { IconoOjo } from '../../comun/iconosFormulario'
 import { uriCerrada, type EstadoUri } from './useConexionDialogoEstado'
+import { txConexionDialogo } from './textosConexionDialogo.ts'
 
 type Editar = (parcial: Partial<BorradorConexion>) => void
 type SetBorrador = React.Dispatch<React.SetStateAction<BorradorConexion>>
 
 /** El título y, en un alta, la frase de para qué sirve el nombre. */
 export function CabeceraConexion({ idTitulo, esEdicion }: { idTitulo: string; esEdicion: boolean }): React.JSX.Element {
+  const t = txConexionDialogo()
   return (
     <div className="dbc-cabecera">
       <div id={idTitulo} className="modal-title">
-        {esEdicion ? 'Editar conexión' : 'Nueva conexión'}
+        {esEdicion ? t.editarConexion : t.nuevaConexion}
       </div>
       {!esEdicion && (
         <p className="dbc-ayuda">
-          Llámala como quieras: el nombre es solo tuyo. El agente podrá explorarla con <code>tdb</code> sin
-          que le dictes credenciales.
+          {t.ayudaNombreAntes}
+          <code>tdb</code>
+          {t.ayudaNombreDespues}
         </p>
       )}
     </div>
@@ -82,11 +85,12 @@ export function FilaNombreMotor({
   editar: Editar
   setBorrador: SetBorrador
 }): React.JSX.Element {
+  const t = txConexionDialogo()
   return (
     <div className="dbc-fila">
       <label className="dbc-campo dbc-crece">
         <span className="dbc-etiqueta">
-          Nombre <span className="dbc-ayuda-inline">(el que uses para referirte a ella)</span>
+          {t.nombre} <span className="dbc-ayuda-inline">{t.nombreAyuda}</span>
         </span>
         <input
           data-campo="alias"
@@ -94,14 +98,14 @@ export function FilaNombreMotor({
           value={borrador.alias}
           autoFocus={!enfocarPassword}
           maxLength={ALIAS_MAX}
-          placeholder="DEV-VENTAS"
+          placeholder={t.phAlias}
           spellCheck={false}
           onChange={(e) => editar({ alias: e.target.value })}
           onPaste={pegarRecortado((v) => editar({ alias: v }))}
         />
       </label>
       <label className="dbc-campo dbc-motor">
-        <span className="dbc-etiqueta">Motor</span>
+        <span className="dbc-etiqueta">{t.motor}</span>
         {/* La marca del motor elegido va DENTRO de la caja del selector, y la de cada motor en
             su opción de la lista (`OpcionMotor`); un conmutador de botones con logo no escala con
             los motores. */}
@@ -130,11 +134,12 @@ interface PropsUri {
 
 /** El campo abierto: al pegar se rellena solo, «Rellenar» (o Intro) sirve para lo tecleado y Esc cierra el campo, no el diálogo. */
 function uriAbierta({ esquema, uri, setUri, aplicarUri }: PropsUri): React.JSX.Element {
+  const t = txConexionDialogo()
   return (
     <>
       <div className="dbc-fila">
         <label className="dbc-campo dbc-crece">
-          <span className="dbc-etiqueta">URI de conexión</span>
+          <span className="dbc-etiqueta">{t.uriEtiqueta}</span>
           <span className="dbc-archivo dbc-uri">
             <input
               autoFocus
@@ -162,10 +167,10 @@ function uriAbierta({ esquema, uri, setUri, aplicarUri }: PropsUri): React.JSX.E
               }}
             />
             <button type="button" className="btn" disabled={uri.texto.trim() === ''} onClick={() => aplicarUri(uri.texto)}>
-              Rellenar
+              {t.rellenar}
             </button>
             <button type="button" className="btn" onClick={() => setUri(uriCerrada())}>
-              Cancelar
+              {t.cancelar}
             </button>
           </span>
         </label>
@@ -191,7 +196,7 @@ function botonUri({ uri, setUri, botonRef }: PropsUri): React.JSX.Element {
           className="btn"
           onClick={() => setUri({ abierta: true, texto: '', error: null, aviso: null })}
         >
-          Pegar URI…
+          {txConexionDialogo().pegarUri}
         </button>
       </div>
       {uri.aviso !== null && <div className="dbc-aviso">{uri.aviso}</div>}
@@ -222,10 +227,11 @@ export function CredencialesConexion({
   setVerPassword: React.Dispatch<React.SetStateAction<boolean>>
   editar: Editar
 }): React.JSX.Element {
+  const t = txConexionDialogo()
   return (
     <div className="dbc-fila">
       <label className="dbc-campo dbc-crece">
-        <span className="dbc-etiqueta">Usuario</span>
+        <span className="dbc-etiqueta">{t.usuario}</span>
         <input
           data-campo="user"
           aria-invalid={userInvalido}
@@ -238,13 +244,13 @@ export function CredencialesConexion({
         />
       </label>
       <label className="dbc-campo dbc-crece">
-        <span className="dbc-etiqueta">Contraseña</span>
+        <span className="dbc-etiqueta">{t.contrasena}</span>
         <span className="dbc-pass">
           <input
             type={verPassword ? 'text' : 'password'}
             autoFocus={enfocarPassword}
             value={borrador.password ?? ''}
-            placeholder={borrador.id !== undefined ? '(sin cambios)' : (pista ?? '')}
+            placeholder={borrador.id !== undefined ? t.sinCambios : (pista ?? '')}
             autoComplete="new-password"
             onChange={(e) => editar({ password: e.target.value })}
             onPaste={pegarRecortado((v) => editar({ password: v }))}
@@ -252,8 +258,8 @@ export function CredencialesConexion({
           <button
             type="button"
             className="dbc-pass-ojo"
-            title={verPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-            aria-label={verPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+            title={verPassword ? t.ocultarContrasena : t.mostrarContrasena}
+            aria-label={verPassword ? t.ocultarContrasena : t.mostrarContrasena}
             aria-pressed={verPassword}
             // tabIndex -1: al tabular por el formulario se salta el ojo y se
             // pasa al siguiente CAMPO, que es lo que se espera al rellenar.
@@ -278,7 +284,7 @@ export function CasillaSoloLectura({ borrador, editar }: { borrador: BorradorCon
           checked={borrador.readonly}
           onChange={(e) => editar({ readonly: e.target.checked })}
         />
-        {ETIQUETA_SOLO_LECTURA}
+        {etiquetaSoloLectura()}
       </label>
       <p className="dbc-ayuda">{ayudaSoloLectura(borrador.motor)}</p>
     </>
@@ -300,9 +306,9 @@ export function SelectorEntorno({
   return (
     <>
       <fieldset className="dbc-entorno" aria-describedby={idAyuda}>
-        <legend className="dbc-etiqueta">Entorno</legend>
+        <legend className="dbc-etiqueta">{txConexionDialogo().entorno}</legend>
         <div className="dbc-entorno-opciones">
-          {OPCIONES_ENTORNO.map((o) => {
+          {opcionesEntorno().map((o) => {
             const valor = valorRadioEntorno(o.valor)
             return (
               <label key={valor || 'ninguno'} className={`dbc-entorno-opcion dbc-entorno-${o.valor ?? 'ninguno'}`}>
@@ -331,11 +337,11 @@ export function SelectorEntorno({
 export function CampoNotas({ borrador, editar }: { borrador: BorradorConexion; editar: Editar }): React.JSX.Element {
   return (
     <label className="dbc-campo">
-      <span className="dbc-etiqueta">Notas</span>
+      <span className="dbc-etiqueta">{txConexionDialogo().notas}</span>
       <textarea
         value={borrador.notas}
         rows={3}
-        placeholder="Para qué es, quién la administra, qué no tocar…"
+        placeholder={txConexionDialogo().phNotas}
         onChange={(e) => editar({ notas: e.target.value })}
       />
     </label>
@@ -356,10 +362,11 @@ export function ResultadoPrueba({
   guardando: boolean
   onConfiar: () => void
 }): React.JSX.Element {
+  const t = txConexionDialogo()
   return (
     <div className={`dbc-prueba${probando ? '' : resultado?.ok ? ' ok' : ' falla'}`} role="status" aria-live="polite">
       {probando || !resultado ? (
-        'Probando…'
+        t.probando
       ) : (
         <>
           <div className="dbc-prueba-linea">
@@ -372,7 +379,7 @@ export function ResultadoPrueba({
           {proponeConfiarCertificado(borrador.motor, resultado, borrador.tls) && (
             <div className="dbc-driver-botones">
               <button type="button" className="btn" disabled={probando || guardando} onClick={onConfiar}>
-                Confiar en el certificado y probar
+                {t.confiarYProbar}
               </button>
             </div>
           )}
@@ -396,17 +403,18 @@ export function PieConexion({
   onProbar: () => void
   onCerrar: () => void
 }): React.JSX.Element {
+  const t = txConexionDialogo()
   return (
     <div className="modal-actions dbc-acciones">
       <button type="button" className="btn" disabled={probando || guardando} onClick={onProbar}>
-        {probando ? 'Probando…' : cambios ? 'Guardar y probar' : 'Probar'}
+        {probando ? t.probando : cambios ? t.guardarYProbar : t.probar}
       </button>
       <span className="dbc-hueco" />
       <button type="button" className="btn btn-ghost" onClick={onCerrar} disabled={guardando}>
-        Cancelar
+        {t.cancelar}
       </button>
       <button type="submit" className="btn primary" disabled={guardando}>
-        {guardando ? 'Guardando…' : 'Guardar'}
+        {guardando ? t.guardando : t.guardar}
       </button>
     </div>
   )

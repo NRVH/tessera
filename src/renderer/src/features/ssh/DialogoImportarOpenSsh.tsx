@@ -16,7 +16,8 @@ import { IconoCarpetaNueva } from '../../comun/iconosMenu'
 import { useDialogo } from '../../comun/useDialogo'
 import type { SshGrupo, SshLecturaOpenSsh } from '../../../../shared/ssh-ipc'
 import { METODOS_OFRECIDOS } from './borradorSsh'
-import { OPCIONES_METODO, ayudaDeMetodo } from './CamposConexionSsh'
+import { opcionesMetodo, ayudaDeMetodo } from './CamposConexionSsh'
+import { txSsh } from './textos.ts'
 import { mensajeDeErrorSsh } from './erroresSsh'
 import { IconoArchivoClave } from './iconosSsh'
 import {
@@ -45,10 +46,11 @@ type CambiarFila = (c: Partial<FilaImportacion>) => void
 
 /** El método de una fila: tres iconos con un clic (su nombre al pasar por encima y para los lectores de pantalla). */
 function MetodoFila({ f, ocupado, onCambiar }: { f: FilaImportacion; ocupado: boolean; onCambiar: CambiarFila }): React.JSX.Element {
+  const opciones = opcionesMetodo()
   return (
-    <div className="ssh-importar-metodos" role="radiogroup" aria-label={`Autenticación de ${f.alias || f.candidata.alias}`}>
+    <div className="ssh-importar-metodos" role="radiogroup" aria-label={txSsh().autenticacionDe(f.alias || f.candidata.alias)}>
       {METODOS_OFRECIDOS.map((m) => {
-        const o = OPCIONES_METODO[m]
+        const o = opciones[m]
         return (
           <button
             key={m}
@@ -72,19 +74,20 @@ function MetodoFila({ f, ocupado, onCambiar }: { f: FilaImportacion; ocupado: bo
 
 /** Lo que pide el método de una fila: la contraseña, el archivo de clave (y su frase si la tiene) o nada. */
 function CredencialFila({ f, perfilId, ocupado, onCambiar }: { f: FilaImportacion; perfilId: string; ocupado: boolean; onCambiar: CambiarFila }): React.JSX.Element {
+  const t = txSsh()
   const secreto = (etiqueta: string): React.JSX.Element => (
     <input
       type="password"
-      aria-label={`${etiqueta} de ${f.alias || f.candidata.alias}`}
+      aria-label={t.secretoDe(etiqueta, f.alias || f.candidata.alias)}
       className="ssh-importar-secreto"
-      placeholder={`${etiqueta} (vacía: la pedirá la terminal)`}
+      placeholder={t.secretoPlaceholder(etiqueta)}
       autoComplete="new-password"
       value={f.secreto}
       disabled={ocupado}
       onChange={(e) => onCambiar({ secreto: e.target.value, error: null })}
     />
   )
-  if (f.metodo === 'contrasena') return secreto('Contraseña')
+  if (f.metodo === 'contrasena') return secreto(t.contrasena)
   if (f.metodo === 'sistema') return <span className="ssh-importar-ayuda">{ayudaDeMetodo('sistema')}</span>
   const elegir = async (): Promise<void> => {
     try {
@@ -96,11 +99,11 @@ function CredencialFila({ f, perfilId, ocupado, onCambiar }: { f: FilaImportacio
   }
   return (
     <>
-      <button type="button" className="btn ssh-importar-archivo" disabled={ocupado} title={f.clave ? 'Elegir otro archivo de clave' : 'Elegir el archivo de clave'} onClick={() => void elegir()}>
+      <button type="button" className="btn ssh-importar-archivo" disabled={ocupado} title={f.clave ? t.elegirOtroArchivo : t.elegirElArchivo} onClick={() => void elegir()}>
         <IconoArchivoClave />
-        <span>{f.clave ? f.clave.nombre : 'Elegir archivo…'}</span>
+        <span>{f.clave ? f.clave.nombre : t.elegirArchivo}</span>
       </button>
-      {f.clave?.cifrada && secreto('Frase')}
+      {f.clave?.cifrada && secreto(t.frase)}
     </>
   )
 }
@@ -142,16 +145,16 @@ function SelectorGrupo({ grupos, valor, etiqueta, disabled, className, onElegir,
       </button>
       {valor === undefined && (
         <option value={OPCION_VARIOS} disabled hidden>
-          Varios grupos
+          {txSsh().variosGrupos}
         </option>
       )}
-      <option value="">Sin grupo</option>
+      <option value="">{txSsh().sinGrupo}</option>
       {grupos.map((g) => (
         <option key={g.id} value={g.id}>
           {g.nombre}
         </option>
       ))}
-      {onNuevo && <option value={OPCION_NUEVO}>Nuevo grupo…</option>}
+      {onNuevo && <option value={OPCION_NUEVO}>{txSsh().nuevoGrupoOpcion}</option>}
     </select>
   )
 }
@@ -176,13 +179,14 @@ function FilaRevision({ f, problema, perfilId, ocupado, grupos, grupoId, onCambi
   const error = f.error ?? (f.elegida ? problema : null)
   // Desmarcada no se importa: solo se puede marcar, para que nada haga creer que se guardará.
   const bloqueada = ocupado || !f.elegida
+  const t = txSsh()
   return (
     <li className={`ssh-importar-fila${f.elegida ? '' : ' descartada'}`}>
-      <input type="checkbox" aria-label={`Importar ${f.alias || f.candidata.alias}`} checked={f.elegida} disabled={ocupado} onChange={(e) => onMarcar(e.target.checked)} />
+      <input type="checkbox" aria-label={t.importarNombre(f.alias || f.candidata.alias)} checked={f.elegida} disabled={ocupado} onChange={(e) => onMarcar(e.target.checked)} />
       <div className="ssh-importar-datos">
         <div className="ssh-importar-campos">
-          <input aria-label="Nombre" className="ssh-importar-nombre" value={f.alias} disabled={bloqueada} aria-invalid={error !== null} onChange={(e) => onCambiar({ alias: e.target.value, error: null })} />
-          <input aria-label="Usuario" className="ssh-importar-usuario" placeholder="usuario" value={f.usuario} disabled={bloqueada} onChange={(e) => onCambiar({ usuario: e.target.value, error: null })} />
+          <input aria-label={t.nombre} className="ssh-importar-nombre" value={f.alias} disabled={bloqueada} aria-invalid={error !== null} onChange={(e) => onCambiar({ alias: e.target.value, error: null })} />
+          <input aria-label={t.usuario} className="ssh-importar-usuario" placeholder={t.usuarioPlaceholder} value={f.usuario} disabled={bloqueada} onChange={(e) => onCambiar({ usuario: e.target.value, error: null })} />
           <span className="ssh-importar-destino" title={destino}>
             @{destino}
           </span>
@@ -193,14 +197,14 @@ function FilaRevision({ f, problema, perfilId, ocupado, grupos, grupoId, onCambi
           <SelectorGrupo
             grupos={grupos}
             valor={grupoId}
-            etiqueta={`Grupo de ${f.alias || f.candidata.alias}`}
+            etiqueta={t.grupoDe(f.alias || f.candidata.alias)}
             className="ssh-importar-grupo"
             disabled={bloqueada}
             onElegir={(id) => onCambiar({ grupoId: id, error: null })}
             onNuevo={onNuevoGrupo}
           />
         </div>
-        {f.candidata.claveNoUsable && f.metodo !== 'clave' && <div className="ssh-importar-ayuda">El archivo de clave que traía el config no se pudo usar.</div>}
+        {f.candidata.claveNoUsable && f.metodo !== 'clave' && <div className="ssh-importar-ayuda">{t.claveInutilAviso}</div>}
         {error !== null && (
           <div className="ssh-importar-error" role="alert">
             {error}
@@ -219,10 +223,10 @@ function CampoGrupoMarcadas({ grupos, valor, desactivado, onElegir, onNuevo }: {
   return (
     <div className="dbc-fila ssh-fila-grupo-campo">
       <label className="dbc-campo dbc-crece">
-        <span className="dbc-etiqueta">Poner las marcadas en el grupo</span>
-        <SelectorGrupo grupos={grupos} valor={valor} etiqueta="Poner las marcadas en el grupo" disabled={desactivado} onElegir={onElegir} />
+        <span className="dbc-etiqueta">{txSsh().ponerMarcadas}</span>
+        <SelectorGrupo grupos={grupos} valor={valor} etiqueta={txSsh().ponerMarcadas} disabled={desactivado} onElegir={onElegir} />
       </label>
-      <button type="button" className="btn btn-icon ssh-grupo-nuevo" onClick={onNuevo} disabled={desactivado} title="Nuevo grupo para las marcadas…" aria-label="Nuevo grupo para las marcadas…">
+      <button type="button" className="btn btn-icon ssh-grupo-nuevo" onClick={onNuevo} disabled={desactivado} title={txSsh().nuevoGrupoMarcadas} aria-label={txSsh().nuevoGrupoMarcadas}>
         <IconoCarpetaNueva />
       </button>
     </div>
@@ -282,9 +286,9 @@ function DialogoGrupoNuevo({ para, error, filas, onCrear, onCancelar }: { para: 
   return (
     <div className="ssh-dialogo-anidado" onMouseDown={(e) => e.stopPropagation()}>
       <PromptDialog
-        title={fila ? `Nuevo grupo para «${fila.alias || fila.candidata.alias}»` : 'Nuevo grupo para las marcadas'}
-        label="Nombre del grupo"
-        confirmLabel="Crear"
+        title={fila ? txSsh().nuevoGrupoPara(fila.alias || fila.candidata.alias) : txSsh().nuevoGrupoParaMarcadas}
+        label={txSsh().nombreGrupo}
+        confirmLabel={txSsh().crear}
         error={error}
         onConfirm={onCrear}
         onCancel={onCancelar}
@@ -322,6 +326,7 @@ export function DialogoImportarOpenSsh({ perfilId, lectura, onCerrar }: PropsDia
   const r = useFilasImportacion(perfilId, lectura, g.grupos)
   const { filas, existentes, elegidas, listo, ocupado } = r
   const dialogo = useDialogo({ onClose: onCerrar, cerrable: !ocupado })
+  const t = txSsh()
   return (
     <div className="modal-overlay" role="presentation">
       <div ref={dialogo.ref} className="modal-card db-conexion-modal ssh-conexion-modal ssh-importar-modal" role="dialog" aria-modal="true" aria-labelledby={idTitulo} onKeyDown={dialogo.alPulsarTecla}>
@@ -335,15 +340,13 @@ export function DialogoImportarOpenSsh({ perfilId, lectura, onCerrar }: PropsDia
         >
           <div className="dbc-cabecera">
             <div id={idTitulo} className="modal-title">
-              Importar desde OpenSSH
+              {t.importarTitulo}
             </div>
-            <p className="dbc-ayuda">
-              {lectura.candidatas.length} conexiones en «{lectura.archivo}». Elige cuáles importar, cómo se llaman y cómo entran: lo que escribas aquí se guarda cifrado y quedan listas para conectar.
-            </p>
+            <p className="dbc-ayuda">{t.importarAyuda(lectura.candidatas.length, lectura.archivo)}</p>
           </div>
           <div className="dbc-cuerpo">
             <CampoGrupoMarcadas grupos={g.grupos} valor={r.comun} desactivado={ocupado || elegidas === 0} onElegir={(id) => r.ponerGrupo('marcadas', id)} onNuevo={() => g.abrirNuevo('marcadas')} />
-            <ul className="ssh-importar-lista" aria-label="Conexiones del archivo">
+            <ul className="ssh-importar-lista" aria-label={t.conexionesDelArchivo}>
               {filas.map((f, i) => (
                 <FilaRevision
                   key={`${f.candidata.alias}-${i}`}
@@ -364,10 +367,10 @@ export function DialogoImportarOpenSsh({ perfilId, lectura, onCerrar }: PropsDia
           <div className="modal-actions dbc-acciones">
             <span className="dbc-hueco" />
             <button type="button" className="btn btn-ghost" onClick={onCerrar} disabled={ocupado}>
-              Cancelar
+              {t.cancelar}
             </button>
             <button type="submit" className="btn primary" disabled={!listo || ocupado}>
-              {ocupado ? 'Importando…' : elegidas === 1 ? 'Importar 1 conexión' : `Importar ${elegidas} conexiones`}
+              {ocupado ? t.importandoPuntos : elegidas === 1 ? t.importarUna : t.importarN(elegidas)}
             </button>
           </div>
         </form>

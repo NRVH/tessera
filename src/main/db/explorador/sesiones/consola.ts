@@ -14,7 +14,7 @@ import {
   type DbErrorSql,
   type DbRespuesta,
   type DbResultadoSentencia,
-  MOTIVO_CARPETA_SIN_ESCRITURA
+  motivoCarpetaSinEscritura
 } from '../../../../shared/db-explorador-ipc.ts'
 import { dialectoDeMotor, type DialectoSql } from '../../../../shared/sql/dialectosSql.ts'
 import { dividirSentencias, type Sentencia } from '../../../../shared/sql/divisorSql.ts'
@@ -39,6 +39,7 @@ import {
   sesionFueraDelCandado
 } from './reglas.ts'
 import type { ResultadoSentencia } from './resultadoSentencia.ts'
+import { txSesiones } from './textosSesiones.ts'
 import type { Proceso, Sesion } from './tipos.ts'
 
 type BindsValidos = Extract<ReturnType<typeof bindsDeSentencia>, { ok: true }>
@@ -99,10 +100,10 @@ export class ConsolaSesion {
    */
   async ejecutarConsola(req: DbEjecutarConsola & { conexionId: string }): Promise<DbRespuesta<DbResultadoSentencia>> {
     if (typeof req.sql !== 'string' || req.sql.length > DB_CONSOLA_MAX_BYTES) {
-      return { ok: false, error: { motivo: 'limite', mensaje: 'La sentencia es demasiado grande.' } }
+      return { ok: false, error: { motivo: 'limite', mensaje: txSesiones().sentenciaGrande } }
     }
     if (!Number.isInteger(req.maxFilas) || req.maxFilas < 1 || req.maxFilas > DB_PAGINA_MAX) {
-      return { ok: false, error: { motivo: 'interno', mensaje: `El tamaño de página tiene que estar entre 1 y ${DB_PAGINA_MAX}.` } }
+      return { ok: false, error: { motivo: 'interno', mensaje: txSesiones().paginaFuera(DB_PAGINA_MAX) } }
     }
     let con: DbConnection
     let s: Sesion
@@ -117,7 +118,7 @@ export class ConsolaSesion {
     if (!v.ok) return v
     const { st, binds } = v
     if (s.operacionUsuario !== null) {
-      return { ok: false, error: { motivo: 'ocupada', mensaje: 'La consola ya está ejecutando otra operación.' } }
+      return { ok: false, error: { motivo: 'ocupada', mensaje: txSesiones().consolaOcupada } }
     }
     s.operacionUsuario = req.ejecucionId
     try {
@@ -165,8 +166,8 @@ export class ConsolaSesion {
           motivo: 'interno',
           mensaje:
             partes.length === 0
-              ? 'No hay ninguna sentencia que ejecutar.'
-              : `El texto contiene ${partes.length} sentencias y se ejecuta una por petición.`
+              ? txSesiones().sinSentenciaEjecutar
+              : txSesiones().variasSentencias(partes.length)
         }
       }
     }
@@ -174,7 +175,7 @@ export class ConsolaSesion {
     if (st.clase === 'cliente') {
       return {
         ok: false,
-        error: { motivo: 'interno', mensaje: `«${st.verbo}» es un comando del cliente: no se envía al servidor.` }
+        error: { motivo: 'interno', mensaje: txSesiones().comandoCliente(st.verbo) }
       }
     }
     const formato = formatoFijadoPorTessera(st, d)
@@ -182,7 +183,7 @@ export class ConsolaSesion {
     if (this.n.ro(con)) {
       const permiso = permitidaEnSoloLectura(st, d)
       if (!permiso.ok) {
-        const mensaje = this.n.porCarpeta(con.id) ? MOTIVO_CARPETA_SIN_ESCRITURA : permiso.motivo
+        const mensaje = this.n.porCarpeta(con.id) ? motivoCarpetaSinEscritura() : permiso.motivo
         return { ok: false, error: { motivo: 'soloLectura', mensaje } }
       }
     }

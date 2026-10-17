@@ -3,7 +3,7 @@
 // exportar (con SU `useExportarBd`, que se cancela al cerrar la pestaña), «Copiar como
 // INSERT», «Traer todas» y el valor completo de una celda recortada. Lo pinta `DbResultados`.
 // Decide con `valorResultado.ts` (tabla única, clave) y lee la clave de `cacheMetaBd`.
-// Decisiones: docs/decisiones/bd/ui-resultados-pestanas.md
+// Decisiones: docs/decisiones/bd/ui-rejilla-modelo-resultados.md
 // =============================================================================
 
 import { useEffect, useMemo, useSyncExternalStore } from 'react'
@@ -24,6 +24,7 @@ import { textoError } from '../consola/salidaConsola'
 import { useExportarBd, type ExportadorBd } from '../rejilla/useExportarBd'
 import { decidirValorCompleto, esquemaDeTabla, peticionValor, tablaInsertDe } from './valorResultado'
 import { DbRejilla } from '../DbRejilla'
+import { txResultados } from './textosResultados.ts'
 
 /** Lo que la consola da a la rejilla de cada resultado. */
 export interface DuenoRejillaResultado {
@@ -100,7 +101,7 @@ function useValorCompletoResultado(r: ResultadoConsola, visible: boolean, p: Due
     return (fila: number, columna: number): Promise<DbRespuesta<DbValor>> => {
       const f = datos.filas[fila]
       const c = r.columnas[columna]
-      if (!f || !c) return Promise.resolve({ ok: false, error: { motivo: 'interno', mensaje: 'La celda ya no está cargada' } })
+      if (!f || !c) return Promise.resolve({ ok: false, error: { motivo: 'interno', mensaje: txResultados().celdaYaNoCargada } })
       // Con SU consola: se relee en esa sesión, que ve la transacción sin confirmar.
       const peticion = peticionValor({ conexionId, perfilId, consolaId, txInicial, objeto, fila: f, indicesClave, columna: c.nombre })
       return window.tessera.dbExplorador
@@ -114,7 +115,7 @@ function useValorCompletoResultado(r: ResultadoConsola, visible: boolean, p: Due
   let razonSinValor: string | undefined
   if (!decision.ok) {
     razonSinValor =
-      errorCatalogo && decision.cargar ? `No se pudo leer la clave primaria de la tabla: ${textoError(errorCatalogo)}` : decision.razon
+      errorCatalogo && decision.cargar ? txResultados().noSePudoLeerPk(textoError(errorCatalogo)) : decision.razon
   }
   return { onValorCompleto, razonSinValor }
 }
@@ -192,7 +193,7 @@ export function RejillaResultado({
       onVolverAEjecutar={r.sinLector ? () => p.onVolverAEjecutar(id) : undefined}
       altoFila={p.altoFila}
       visible={visible}
-      etiquetaAria={`Resultado ${titulo}`}
+      etiquetaAria={txResultados().resultadoAria(titulo)}
       motor={p.motor}
       tablaInsert={tablaInsertDe(r.tabla, dialectoDeMotor(p.motor))}
       onTraerTodas={() => p.onTraerTodas(id)}

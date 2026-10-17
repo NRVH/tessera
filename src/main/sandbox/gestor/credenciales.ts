@@ -4,12 +4,14 @@
 // `…Inner` no, porque el remonteo se llama con el candado ya tomado.
 // Decisiones: docs/decisiones/sandbox/montajes-en-caliente.md
 // =============================================================================
-import type { Agente, Profile } from '../../profiles/types.ts'
+import type { Profile } from '../../profiles/types.ts'
+import type { IdAgente } from '../../../shared/agentesManuales.ts'
 import { citarSh } from '../../../shared/citarShell.ts'
 import { AGENT_CONFIG_ROOT, agentcfgRootFor, normalizeHostPath, toDaemonPath } from './nombres.ts'
 import type { NucleoSandbox } from './NucleoSandbox.ts'
 import type { MontajesSandbox } from './montajes.ts'
 import type { AgentConfigMount } from './tipos.ts'
+import { txSandbox } from '../textos.ts'
 
 /** Montaje y desmontaje de la carpeta de credenciales de cada (agente, cuenta). */
 export class CredencialesSandbox {
@@ -31,7 +33,7 @@ export class CredencialesSandbox {
   }
 
   /** Clave interna del montaje de credencial: `<agente>/<cuenta>`. */
-  private agentCfgKey(agente: Agente, accountId: string): string {
+  private agentCfgKey(agente: IdAgente, accountId: string): string {
     return `${agente}/${accountId}`
   }
 
@@ -41,7 +43,7 @@ export class CredencialesSandbox {
    */
   async mountAgentConfig(
     profile: Profile,
-    agente: Agente,
+    agente: IdAgente,
     accountId: string,
     hostConfigDir: string
   ): Promise<AgentConfigMount> {
@@ -52,7 +54,7 @@ export class CredencialesSandbox {
 
   private async mountAgentConfigInner(
     profile: Profile,
-    agente: Agente,
+    agente: IdAgente,
     accountId: string,
     hostConfigDir: string
   ): Promise<AgentConfigMount> {
@@ -78,8 +80,11 @@ export class CredencialesSandbox {
     const res = await this.montajes.runPrivileged(`mkdir -p ${citarSh(target)} && mount --bind ${citarSh(daemonPath)} ${citarSh(target)}`)
     if (res.status !== 0) {
       throw new Error(
-        `No se pudieron montar las credenciales del agente "${agente}" del perfil "${profile.id}": ` +
-          (res.stderr.trim() || res.stdout.trim() || `nsenter salió con ${res.status}`)
+        txSandbox().montajes.noSeMontaronCredenciales(
+          agente,
+          profile.id,
+          res.stderr.trim() || res.stdout.trim() || txSandbox().montajes.nsenterSalio(res.status)
+        )
       )
     }
 
@@ -98,13 +103,13 @@ export class CredencialesSandbox {
    * Desmonta la carpeta de credenciales de (agente, cuenta); si era la última cuenta del
    * agente, también desaparece `/agent-config/<tipo>`. Idempotente.
    */
-  async unmountAgentConfig(profile: Profile, agente: Agente, accountId: string): Promise<void> {
+  async unmountAgentConfig(profile: Profile, agente: IdAgente, accountId: string): Promise<void> {
     return this.n.profileLock.runExclusive(profile.id, () =>
       this.unmountAgentConfigInner(profile, agente, accountId)
     )
   }
 
-  private async unmountAgentConfigInner(profile: Profile, agente: Agente, accountId: string): Promise<void> {
+  private async unmountAgentConfigInner(profile: Profile, agente: IdAgente, accountId: string): Promise<void> {
     const mounts = this.agentCfgMountsFor(profile.id)
     const key = this.agentCfgKey(agente, accountId)
     if (!mounts.has(key)) return
@@ -117,8 +122,11 @@ export class CredencialesSandbox {
     )
     if (res.status !== 0) {
       throw new Error(
-        `No se pudieron desmontar las credenciales del agente "${agente}" del perfil "${profile.id}": ` +
-          (res.stderr.trim() || res.stdout.trim() || `nsenter salió con ${res.status}`)
+        txSandbox().montajes.noSeDesmontaronCredenciales(
+          agente,
+          profile.id,
+          res.stderr.trim() || res.stdout.trim() || txSandbox().montajes.nsenterSalio(res.status)
+        )
       )
     }
     mounts.delete(key)

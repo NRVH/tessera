@@ -10,6 +10,7 @@ import type { Plataforma } from '../../../../../shared/plataforma.ts'
 import type { DbExportado, DbFormatoFilas, DbProgresoExportacion } from '../../../../../shared/db-explorador-ipc.ts'
 import { nombresSistema } from '../../../../../shared/nombresSistema.ts'
 import { formatoEntero } from './celdasRejilla.ts'
+import { txRejilla } from './textosRejilla.ts'
 
 let contador = 0
 
@@ -28,7 +29,8 @@ const UNIDADES = ['KB', 'MB', 'GB', 'TB']
 export function formatoTamano(bytes: number, plataforma: Plataforma): string {
   const b = Number.isFinite(bytes) && bytes > 0 ? Math.trunc(bytes) : 0
   const base = plataforma === 'mac' ? 1000 : 1024
-  if (b < base) return `${formatoEntero(b)} ${b === 1 ? 'byte' : 'bytes'}`
+  const t = txRejilla()
+  if (b < base) return `${formatoEntero(b)} ${b === 1 ? t.byte : t.bytes}`
   let v = b / base
   let u = 0
   while (v >= base && u < UNIDADES.length - 1) {
@@ -36,7 +38,7 @@ export function formatoTamano(bytes: number, plataforma: Plataforma): string {
     u++
   }
   // Una cifra decimal por debajo de 100 («1,2 MB»); por encima, entera («250 MB»).
-  const texto = v < 100 ? v.toFixed(1).replace(/\.0$/, '').replace('.', ',') : String(Math.round(v))
+  const texto = v < 100 ? v.toFixed(1).replace(/\.0$/, '').replace('.', t.decimal) : String(Math.round(v))
   return `${texto} ${UNIDADES[u]}`
 }
 
@@ -54,37 +56,33 @@ export interface AvisoExportado {
 
 /** El aviso de una exportación terminada. */
 export function avisoExportado(r: DbExportado, plataforma: Plataforma): AvisoExportado {
-  const titulo =
-    r.filas === 1 ? `Exportada 1 fila a ${r.archivo}` : `Exportadas ${formatoEntero(r.filas)} filas a ${r.archivo}`
+  const t = txRejilla()
+  const titulo = r.filas === 1 ? t.exportadaUna(r.archivo) : t.exportadasN(formatoEntero(r.filas), r.archivo)
   const partes = [formatoTamano(r.bytes, plataforma)]
   const recortadas = r.recortadas ?? 0
   if (recortadas > 0) {
-    partes.push(
-      recortadas === 1
-        ? '1 celda pasaba de 16 MiB y se escribió recortada'
-        : `${formatoEntero(recortadas)} celdas pasaban de 16 MiB y se escribieron recortadas`
-    )
+    partes.push(recortadas === 1 ? t.celdaPasaba : t.celdasPasaban(formatoEntero(recortadas)))
   }
   if (r.aviso) partes.push(r.aviso)
   return {
     tipo: recortadas > 0 || r.aviso ? 'warn' : 'success',
     titulo,
     detalle: partes.join(' · '),
-    accion: `Mostrar en ${nombresSistema(plataforma).gestorArchivos}`
+    accion: t.mostrarEn(nombresSistema(plataforma).gestorArchivos)
   }
 }
 
 /** Lo que dice la píldora mientras se escribe el archivo. */
 export function textoExportando(filas: number): string {
-  if (!Number.isFinite(filas) || filas <= 0) return 'Exportando…'
-  return `Exportando: ${formatoEntero(filas)} ${filas === 1 ? 'fila' : 'filas'}`
+  const t = txRejilla()
+  if (!Number.isFinite(filas) || filas <= 0) return t.exportando
+  return t.exportandoN(formatoEntero(filas), filas === 1 ? t.fila : t.filas)
 }
 
 /** Aviso de una exportación detenida (Stop, o la pestaña que la lanzó se cerró). */
 export function avisoDetenida(porCierre: boolean): { titulo: string; detalle?: string } {
-  return porCierre
-    ? { titulo: 'Exportación detenida', detalle: 'Se cerró la pestaña que la lanzó.' }
-    : { titulo: 'Exportación detenida' }
+  const t = txRejilla()
+  return porCierre ? { titulo: t.exportacionDetenida, detalle: t.cerroPestana } : { titulo: t.exportacionDetenida }
 }
 
 /** Recibe las filas escritas de UNA exportación. */

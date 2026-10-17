@@ -7,6 +7,8 @@
 // =============================================================================
 
 import type { DbCelda, DbPagina, DbTipoLogico } from '../../../../../shared/db-explorador-ipc'
+import { txEdicionRejilla } from './textosEdicionRejilla.ts'
+import { txRejilla } from './textosRejilla.ts'
 
 /** Unidades UTF-16 que se pintan como mucho en una celda (luego `…`). */
 export const LARGO_VISIBLE_CELDA = 300
@@ -134,7 +136,7 @@ function textoBinario(v: string, original: number | null): TextoCelda {
   const enHex = Math.floor((v.length - 2) / 2)
   const bytes = original !== null ? original : enHex
   return {
-    texto: `<binario ${formatoEntero(bytes)} ${bytes === 1 ? 'byte' : 'bytes'}>`,
+    texto: txRejilla().binario(formatoEntero(bytes), bytes === 1 ? txRejilla().byte : txRejilla().bytes),
     clase: 'bin',
     truncado: original !== null && bytes > enHex,
     incompleto: original !== null
@@ -154,20 +156,21 @@ export type ResultadoParseo =
  * de verdad significa que alguien perdió precisión por el camino.
  */
 export function parsearPagina(filasJson: string, numColumnas?: number): ResultadoParseo {
+  const t = txEdicionRejilla()
   let crudo: unknown
   try {
     crudo = JSON.parse(filasJson)
   } catch {
-    return { ok: false, error: 'La página de filas no es JSON válido.' }
+    return { ok: false, error: t.paginaNoJson }
   }
-  if (!Array.isArray(crudo)) return { ok: false, error: 'La página de filas no es una lista.' }
+  if (!Array.isArray(crudo)) return { ok: false, error: t.paginaNoLista }
   for (let f = 0; f < crudo.length; f++) {
     const fila: unknown = crudo[f]
-    if (!Array.isArray(fila)) return { ok: false, error: `La fila ${f + 1} no es una lista.` }
+    if (!Array.isArray(fila)) return { ok: false, error: t.filaNoLista(f + 1) }
     if (numColumnas !== undefined && fila.length !== numColumnas) {
       return {
         ok: false,
-        error: `La fila ${f + 1} tiene ${fila.length} celdas y el resultado ${numColumnas} columnas.`
+        error: t.filaCeldas(f + 1, fila.length, numColumnas)
       }
     }
     for (let c = 0; c < fila.length; c++) {
@@ -175,7 +178,7 @@ export function parsearPagina(filasJson: string, numColumnas?: number): Resultad
       if (v !== null && typeof v !== 'string' && typeof v !== 'boolean') {
         return {
           ok: false,
-          error: `La celda (fila ${f + 1}, columna ${c + 1}) llegó como ${typeof v}; se esperaba texto, booleano o NULL.`
+          error: t.celdaTipo(f + 1, c + 1, typeof v)
         }
       }
     }
@@ -256,7 +259,7 @@ export function anexarPagina(
   if (pagina.desde !== cargadas) {
     return {
       ok: false,
-      error: `La página empieza en la fila ${pagina.desde + 1} y había ${cargadas} cargadas.`
+      error: txEdicionRejilla().paginaEmpieza(pagina.desde + 1, cargadas)
     }
   }
   const filas: readonly (readonly DbCelda[])[] = base ? base.filas.concat(p.filas) : p.filas

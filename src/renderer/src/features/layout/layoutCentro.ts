@@ -5,9 +5,11 @@
 // franja inferior (Git·Log o la terminal) a pantalla completa y si ahí la columna y el conmutador
 // de la barra son del agente de la terminal (lo esconde y lo coloca el CSS de `.shell`, sin
 // desmontar nada), y qué hacen ahí las aperturas en el editor que pide Git. Sin JSX, sin DOM y
-// sin imports: lo prueba `test-layout-centro.mts` con `node`.
+// sin más import que sus textos: lo prueba `test-layout-centro.mts` con `node`.
 // Decisiones: docs/decisiones/layout/oculto-manda-sobre-maximizado.md, docs/decisiones/agentes/agente-de-la-terminal.md
 // =============================================================================
+
+import { txLayout } from './textos.ts'
 
 export type VistaCentro = 'files' | 'git' | 'db'
 /** Mismo tipo que `PanelInferior` de ActivityBar (redeclarado para no importar un .tsx). */
@@ -82,6 +84,24 @@ export const RAZON_MOSAICO =
 export const RAZON_SIN_PERFIL_DB = 'Abre un perfil para usar el agente de datos'
 export const RAZON_GITLOG_PANTALLA_COMPLETA =
   'A pantalla completa de Git no hay columna del agente. Pulsa Restaurar en el panel para volver a verla.'
+
+/**
+ * El texto de una razón de bloqueo en el idioma activo. Las constantes de arriba son la CLAVE (la
+ * lógica y sus pruebas las comparan tal cual); lo que se enseña sale de aquí, y una razón sin
+ * traducción se enseña como llegó.
+ */
+export function textoRazon(razon: string | null): string | null {
+  if (razon === null) return null
+  const t = txLayout().razones
+  const traducciones = new Map<string, string>([
+    [RAZON_SIN_ARCHIVO, t.sinArchivo],
+    [RAZON_VISTA_DIVIDIDA, t.vistaDividida],
+    [RAZON_MOSAICO, t.mosaico],
+    [RAZON_SIN_PERFIL_DB, t.sinPerfilDb],
+    [RAZON_GITLOG_PANTALLA_COMPLETA, t.gitLogPantallaCompleta]
+  ])
+  return traducciones.get(razon) ?? razon
+}
 
 /**
  * El valor COHERENTE del maximizado del agente: el que tiene, salvo que la columna

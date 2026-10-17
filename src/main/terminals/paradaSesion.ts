@@ -107,7 +107,8 @@ export async function gestoDeParada(
   }
 
   if (!estado.elegante) {
-    // `closing` solo puede estar puesto aquí por `killAllPtysNow`, que ya mató el pty.
+    // `closing` solo puede estar puesto aquí por el cierre de la app (`matarTodoConArbol`), que
+    // mata el árbol de esta sesión con los demás: un kill de reserva aquí iría en paralelo al suyo.
     if (record.exitCode === null && !record.closing) await matarDeReserva(record)
     estado.recolectado = await esperarSalida(record, REAP_TIMEOUT_MS)
   }

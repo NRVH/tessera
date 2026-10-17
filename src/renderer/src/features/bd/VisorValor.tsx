@@ -36,6 +36,7 @@ import {
   type ModoVisor
 } from './rejilla/visorValor'
 import { retenerSilencioCancelaciones } from './silencioCancelacionesMonaco'
+import { txPanes } from './textosPanes.ts'
 import './rejilla.css'
 
 export interface VisorValorProps {
@@ -57,7 +58,7 @@ let contadorModelos = 0
 
 function mensajeDe(err: unknown): string {
   if (err instanceof Error) return err.message
-  return typeof err === 'string' && err ? err : 'Error inesperado'
+  return typeof err === 'string' && err ? err : txPanes().errorInesperado
 }
 
 interface ValorCompleto {
@@ -220,9 +221,10 @@ function textoVisible(modo: ModoVisor, crudo: string, hex: HexAgrupado | null, f
 }
 
 function tituloCopiar(modo: ModoVisor, vista: VistaJson): string {
-  if (modo === 'binario') return 'Copiar el valor (en hex)'
-  if (modo === 'json' && vista === 'formateado') return 'Copiar el JSON formateado'
-  return 'Copiar el valor'
+  const t = txPanes()
+  if (modo === 'binario') return t.copiarValorHex
+  if (modo === 'json' && vista === 'formateado') return t.copiarJsonFormateado
+  return t.copiarValor
 }
 
 interface DatosAvisos {
@@ -239,24 +241,25 @@ interface DatosAvisos {
 function avisosDelVisor(d: DatosAvisos): Aviso[] {
   const { longitudOriginal, razonSinValorCompleto } = d.props
   const { modo, binario, completo, hex } = d
+  const t = txPanes()
   const avisos: Aviso[] = []
   if (d.cargando && longitudOriginal !== undefined) {
-    avisos.push({ texto: `Cargando el valor completo (${describirLongitud(longitudOriginal, binario)})…`, tono: 'info' })
+    avisos.push({ texto: t.cargandoValorCompleto(describirLongitud(longitudOriginal, binario)), tono: 'info' })
   } else if (!completo && longitudOriginal !== undefined) {
     // Con forma de pedirlo basta decir que es parcial; sin ella, además, por qué no hay más.
     const parcial = avisoParcial(longitudDe(d.props.valor, modo), longitudOriginal, binario)
-    const porQue = d.puedeCompletar ? '' : ` ${razonSinValorCompleto ?? 'El valor llegó recortado del servidor.'}`
+    const porQue = d.puedeCompletar ? '' : ` ${razonSinValorCompleto ?? t.valorRecortado}`
     avisos.push({ texto: `${parcial}.${porQue}`, tono: 'aviso' })
   }
   if (completo?.recortado) {
     avisos.push({
-      texto: `${avisoParcial(longitudDe(completo.valor, modo), completo.longitud, binario)}: es el tope del visor.`,
+      texto: t.esElTope(avisoParcial(longitudDe(completo.valor, modo), completo.longitud, binario)),
       tono: 'aviso'
     })
   }
   if (hex && hex.mostrados < hex.bytes) {
     avisos.push({
-      texto: `Volcado de los primeros ${describirLongitud(hex.mostrados, true)} de ${describirLongitud(hex.bytes, true)}. «Copiar» copia el valor entero.`,
+      texto: t.volcadoCorto(describirLongitud(hex.mostrados, true), describirLongitud(hex.bytes, true)),
       tono: 'info'
     })
   }
@@ -265,16 +268,17 @@ function avisosDelVisor(d: DatosAvisos): Aviso[] {
 
 /** La capa opaca sobre el editor para NULL, la cadena vacía y el binario vacío (el host no se oculta). */
 function capaDelVisor(modo: ModoVisor, crudo: string, hex: HexAgrupado | null): React.JSX.Element | null {
-  if (modo === 'nulo') return <EstadoVacio titulo="NULL" pista="La celda no tiene valor." />
-  if (crudo === '') return <EstadoVacio titulo="Cadena vacía" pista="La celda tiene un valor vacío, que no es NULL." />
-  if (hex && hex.bytes === 0) return <EstadoVacio titulo="Binario vacío" pista="La celda tiene cero bytes, que no es NULL." />
+  const t = txPanes()
+  if (modo === 'nulo') return <EstadoVacio titulo={t.nuloTitulo} pista={t.nuloPista} />
+  if (crudo === '') return <EstadoVacio titulo={t.cadenaVaciaTitulo} pista={t.cadenaVaciaPista} />
+  if (hex && hex.bytes === 0) return <EstadoVacio titulo={t.binarioVacioTitulo} pista={t.binarioVacioPista} />
   return null
 }
 
 /** «Formateado / Crudo»: dice qué se está leyendo (identidad, como las partes de la fuente). */
 function ConmutadorJson(p: { vistaJson: VistaJson; setVistaJson: (v: VistaJson) => void }): React.JSX.Element {
   return (
-    <div className="db-fuente-partes" role="radiogroup" aria-label="Vista del JSON">
+    <div className="db-fuente-partes" role="radiogroup" aria-label={txPanes().vistaJson}>
       {(['formateado', 'crudo'] as const).map((v) => (
         <button
           key={v}
@@ -284,7 +288,7 @@ function ConmutadorJson(p: { vistaJson: VistaJson; setVistaJson: (v: VistaJson) 
           className="db-fuente-parte"
           onClick={() => p.setVistaJson(v)}
         >
-          {v === 'formateado' ? 'Formateado' : 'Crudo'}
+          {v === 'formateado' ? txPanes().formateado : txPanes().crudo}
         </button>
       ))}
     </div>
@@ -304,14 +308,15 @@ function CabeceraVisor(p: {
   onCerrar: () => void
 }): React.JSX.Element {
   const { columna, modo, vistaJson, incompleto } = p
+  const t = txPanes()
   const copiar = (): void => {
     window.tessera.clipboard
       .write(p.aCopiar)
       .then(() => {
-        if (incompleto) notify('warn', 'Copiado el valor recortado', 'Lo copiado no es el valor entero.')
-        else notify('success', 'Copiado')
+        if (incompleto) notify('warn', t.copiadoRecortado, t.copiadoRecortadoDetalle)
+        else notify('success', t.copiado)
       })
-      .catch((err: unknown) => notifyError('No se pudo copiar', err))
+      .catch((err: unknown) => notifyError(t.noSePudoCopiar, err))
   }
   return (
     <header className="db-visor-cab">
@@ -323,20 +328,20 @@ function CabeceraVisor(p: {
       </div>
       {modo === 'json' && <ConmutadorJson vistaJson={vistaJson} setVistaJson={p.setVistaJson} />}
       <div className="panel-actions">
-        <span className="btn-envoltura" title={modo === 'nulo' ? 'NULL no tiene texto que copiar' : undefined}>
+        <span className="btn-envoltura" title={modo === 'nulo' ? t.nuloNoCopia : undefined}>
           <button
             type="button"
             className="btn btn-icon"
             onClick={copiar}
             disabled={modo === 'nulo'}
             title={modo === 'nulo' ? undefined : tituloCopiar(modo, vistaJson)}
-            aria-label="Copiar"
+            aria-label={t.copiar}
           >
             <IconoCopiar />
           </button>
         </span>
         <span className="panel-actions-sep" aria-hidden="true" />
-        <button type="button" className="btn btn-icon" onClick={p.onCerrar} title="Cerrar (Esc)" aria-label="Cerrar">
+        <button type="button" className="btn btn-icon" onClick={p.onCerrar} title={t.cerrarEsc} aria-label={t.cerrar}>
           <IconoCerrar />
         </button>
       </div>
@@ -347,6 +352,7 @@ function CabeceraVisor(p: {
 /** Las líneas de estado y, si falló la carga, el error con «Reintentar». */
 function AvisosVisor(p: { avisos: Aviso[]; error: DbErrorSql | null; reintentar: () => void }): React.JSX.Element | null {
   const { avisos, error } = p
+  const t = txPanes()
   if (avisos.length === 0 && !error) return null
   return (
     <div className="db-visor-avisos">
@@ -358,11 +364,12 @@ function AvisosVisor(p: { avisos: Aviso[]; error: DbErrorSql | null; reintentar:
       {error && (
         <div className="db-visor-aviso tono-error" role="alert">
           <span className="db-visor-aviso-texto">
-            No se pudo cargar el valor completo: {error.codigo ? `[${error.codigo}] ` : ''}
+            {t.noSePudoCargarValor}
+            {error.codigo ? `[${error.codigo}] ` : ''}
             {error.mensaje}
           </span>
           <button type="button" className="db-pildora-btn" onClick={p.reintentar}>
-            Reintentar
+            {t.reintentar}
           </button>
         </div>
       )}

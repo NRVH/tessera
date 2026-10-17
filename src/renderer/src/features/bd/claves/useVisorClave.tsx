@@ -9,6 +9,7 @@ import { useMemo, useState } from 'react'
 import type { DbKvContenido, DbKvValor } from '../../../../../shared/db-claves-ipc'
 import { detalleDeFila, tablaDeContenido, type ModoVista, type ParteDetalle, type TablaValor } from './visorClaves'
 import { textoParte } from './PiezasVisorClave'
+import { txVisorClaves } from './textosVisorClaves'
 import { copiarTexto } from '../documentos/utilPanes'
 import { type ContextMenuEntry } from '../../../comun/ContextMenu'
 import { SEP } from '../../../comun/contextMenuModel'
@@ -52,7 +53,7 @@ export function useVisorClave(valor: DbKvValor | null, extraFila?: (i: number) =
     const items: ContextMenuEntry[] = detalleDeFila(contenido, i)
       .slice(0, 8)
       .map((parte) => ({
-        label: `Copiar ${parte.titulo.length > 30 ? `${parte.titulo.slice(0, 30)}…` : parte.titulo}`,
+        label: txVisorClaves().copiarParte(parte.titulo.length > 30 ? `${parte.titulo.slice(0, 30)}…` : parte.titulo),
         icon: <IconoCopiar />,
         onClick: () => copiarTexto(textoParte(parte), parte.titulo)
       }))

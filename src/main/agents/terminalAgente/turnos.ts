@@ -78,9 +78,9 @@ export function sinChatDesde(n: NucleoAgente, open: OpenAgentSession): number | 
 /** Lanza sin esperarla la sonda de versión de una sesión nativa y la guarda si sigue vigente. */
 export function sondearTrasLanzar(n: NucleoAgente, open: OpenAgentSession): void {
   const sondear = n.sondearVersion
-  if (!sondear || !open.host) return
+  if (!sondear || !open.host || open.manual) return
   const lanzamiento = open.lanzamiento
-  sondear(open.agente).then(
+  sondear(open.agente as Agente).then(
     (version) => {
       if (n.sessions.get(open.sessionId) !== open || open.lanzamiento !== lanzamiento) return
       open.versionLanzada = version

@@ -1,7 +1,8 @@
 // =============================================================================
 // iconosPanel: los glifos de cabecera que comparten varios paneles (maximizar y restaurar: la
 // columna del agente, el historial de git y la terminal de abajo; la columna del agente: la barra
-// de estado y la terminal a pantalla completa), para que ninguno tenga una copia de otro. Molde de
+// de estado y la terminal a pantalla completa), para que ninguno tenga una copia de otro, y los de
+// archivos y terminal del riel, que repite el pie del agente para decir dónde vive. Molde de
 // `iconosMenu` (viewBox 24, `currentColor` y sin tamaño en línea: lo pone el CSS del botón) pero
 // con trazo 1.8, el de los demás botones de cabecera (`IconosTerminales`). Sin dependencias.
 // =============================================================================
@@ -20,6 +21,42 @@ function Svg({ children }: { children: React.ReactNode }): React.JSX.Element {
     >
       {children}
     </svg>
+  )
+}
+
+/** Glifo del riel: su trazo (1.7) es algo más fino que el de los botones de cabecera. */
+function SvgRiel({ children }: { children: React.ReactNode }): React.JSX.Element {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {children}
+    </svg>
+  )
+}
+
+/** Archivos: una carpeta (dos hojas superpuestas se leen como «copiar», una acción). */
+export function IconoArchivos(): React.JSX.Element {
+  return (
+    <SvgRiel>
+      <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z" />
+    </SvgRiel>
+  )
+}
+
+/** Terminal: un marco cuadrado con una sola marca, el cursor. */
+export function IconoTerminal(): React.JSX.Element {
+  return (
+    <SvgRiel>
+      <rect x="3" y="3" width="18" height="18" rx="3" />
+      <path d="M6.4 15.8h6.8" />
+    </SvgRiel>
   )
 }
 

@@ -17,6 +17,7 @@ import {
 } from './clasificarSql.ts'
 import type { Sentencia } from './divisorSql.ts'
 import { conjunto } from './conjuntoSql.ts'
+import { txSql } from './textosSql.ts'
 
 export type TipoAviso =
   | 'faltaPuntoYComa'
@@ -197,9 +198,7 @@ function avisoFaltaPuntoYComa(t: Token, r: ReglasDialecto): AvisoSql {
     desde: t.desde,
     hasta: t.hasta,
     // En SQL Server no es un error del servidor: las EJECUTA juntas (medido).
-    mensaje: r.sinSeparadorSeEjecutanJuntas
-      ? '¿Falta «;» al final de la línea anterior? Sin él, el servidor ejecuta las dos sentencias juntas.'
-      : '¿Falta «;» al final de la línea anterior? Sin él, las dos sentencias se envían juntas.'
+    mensaje: r.sinSeparadorSeEjecutanJuntas ? txSql().avisos.puntoYComaServidor : txSql().avisos.puntoYComaJuntas
   }
 }
 
@@ -215,8 +214,7 @@ function avisosLoteRepetido(texto: string, tokens: readonly Token[], salida: Avi
       tipo: 'loteRepetido',
       desde: t.desde,
       hasta,
-      mensaje:
-        'Tessera no repite lotes: «GO n» no se admite y, tal cual, el servidor lo leería como parte de la sentencia y daría un error. Deja el GO solo (o repite el lote a mano).'
+      mensaje: txSql().avisos.loteRepetido
     })
   }
 }
@@ -311,15 +309,16 @@ function avisoFaltaBarra(t: Token): AvisoSql {
     tipo: 'faltaBarra',
     desde: t.desde,
     hasta: t.hasta,
-    mensaje: '¿Falta «/» tras el bloque PL/SQL? Sin ella, lo que sigue se envía dentro del bloque.'
+    mensaje: txSql().avisos.faltaBarra
   }
 }
 
 function mensajeSinCerrar(t: Token): string {
-  if (t.tipo === 'comentario') return 'Comentario sin cerrar.'
-  if (t.tipo === 'identCitado' || t.tipo === 'bind') return 'Identificador entre comillas sin cerrar.'
-  if (t.valor[0] === '$') return 'Cadena entre dólares sin cerrar.'
-  return 'Cadena sin cerrar.'
+  const a = txSql().avisos
+  if (t.tipo === 'comentario') return a.comentarioSinCerrar
+  if (t.tipo === 'identCitado' || t.tipo === 'bind') return a.identificadorSinCerrar
+  if (t.valor[0] === '$') return a.dolaresSinCerrar
+  return a.cadenaSinCerrar
 }
 
 function avisosSinCerrar(texto: string, tokens: readonly Token[], salida: AvisoSql[]): void {
@@ -337,11 +336,11 @@ function avisosParentesis(sig: readonly Token[], salida: AvisoSql[]): void {
     if (t.tipo === 'parenA') abiertos.push(t)
     else if (t.tipo === 'parenC') {
       if (abiertos.length > 0) abiertos.pop()
-      else salida.push({ tipo: 'parentesis', desde: t.desde, hasta: t.hasta, mensaje: 'Este «)» no cierra ningún paréntesis.' })
+      else salida.push({ tipo: 'parentesis', desde: t.desde, hasta: t.hasta, mensaje: txSql().avisos.parentesisSobra })
     }
   }
   for (const t of abiertos) {
-    salida.push({ tipo: 'parentesis', desde: t.desde, hasta: t.hasta, mensaje: 'Paréntesis sin cerrar.' })
+    salida.push({ tipo: 'parentesis', desde: t.desde, hasta: t.hasta, mensaje: txSql().avisos.parentesisSinCerrar })
   }
 }
 

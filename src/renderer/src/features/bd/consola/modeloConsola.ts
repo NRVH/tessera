@@ -24,12 +24,17 @@ import type { DatosRejilla } from '../rejilla/celdasRejilla.ts'
 import { ID_SALIDA, type AccionPestanaResultado, type EstadoResultados, type ResultadoConLector } from '../resultados/pestanasResultado.ts'
 import type { Lote } from './lote.ts'
 import { agregarSalida, type NuevaEntrada, type SalidaConsola } from './salidaConsola.ts'
+import { txSalida } from './textosSalida.ts'
 
 /** Pista de la barra cuando «Ejecutar» no encuentra sentencia bajo el cursor. */
-export const PISTA_SIN_SENTENCIA = 'Coloca el cursor en una sentencia o selecciona texto'
+export function pistaSinSentencia(): string {
+  return txSalida().pistaSinSentencia
+}
 
 /** Motivo de «Volver a ejecutar» tras soltar filas por el presupuesto de memoria. */
-export const MOTIVO_LIBERADA = 'Se soltaron filas para liberar memoria; vuelve a ejecutar para verlas'
+export function motivoLiberada(): string {
+  return txSalida().motivoLiberada
+}
 
 /** Un conjunto de filas de una sentencia, tal como lo pinta su pestaña. */
 export interface ResultadoConsola extends ResultadoConLector {

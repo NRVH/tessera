@@ -9,9 +9,10 @@
 import type { DbPlan } from '../../../../shared/db-explorador-ipc.ts'
 import type { ColumnaEdicion } from '../edicionRejilla.ts'
 import { TOPE_PLAN_SQLSERVER } from '../limites.ts'
-import { AVISO_PLAN_RECORTADO, planDesdeXmlSqlServer } from '../planSql.ts'
+import { avisoPlanRecortado, planDesdeXmlSqlServer } from '../planSql.ts'
 import { esFalloTrabajador, type BindEntradaLob, type BindValorSqlite, type OpcionesEjecucion, type ResultadoTrabajador } from '../protocoloTrabajador.ts'
 import { aBool, noDisponible, texto } from './filasCatalogo.ts'
+import { txMotores } from './textosMotores.ts'
 import { corchetes, prefijoBase, SQL_TIPO_COLUMNA } from './nombresSqlserver.ts'
 import type { ContextoExplicar, MarcasTablaEdicion, SesionExplorador } from './sesion.ts'
 import type { ConsultaCatalogo, FilaCatalogo } from './tipos.ts'
@@ -38,15 +39,15 @@ const TIPO_BASE_CLR = 'clr'
 function noEditablePorTipo(tipoBase: string): string | null {
   switch (tipoBase) {
     case 'timestamp':
-      return 'rowversion: la escribe SQL Server.'
+      return txMotores().rowversion
     case 'binary':
     case 'varbinary':
     case 'image':
-      return 'Binaria: no se edita como texto.'
+      return txMotores().binaria
     case TIPO_BASE_CLR:
-      return 'Tipo CLR: no se edita como texto.'
+      return txMotores().tipoClr
     case 'sql_variant':
-      return 'sql_variant: un texto cambiaría su tipo guardado.'
+      return txMotores().sqlVariant
     default:
       return null
   }
@@ -61,9 +62,9 @@ function columnaSqlServer(f: FilaCatalogo): ColumnaEdicion {
   const tipo = texto(f[1])
   const base = texto(f[2]).trim().toLowerCase()
   let noEditable: string | null = null
-  if (aBool(f[3])) noEditable = 'Identidad (IDENTITY): la numera SQL Server.'
-  else if (aBool(f[4])) noEditable = 'Columna calculada: la calcula SQL Server.'
-  else if (aBool(f[5])) noEditable = 'Periodo de una tabla temporal: lo escribe SQL Server.'
+  if (aBool(f[3])) noEditable = txMotores().identidadSqlServer
+  else if (aBool(f[4])) noEditable = txMotores().columnaCalculadaSqlServer
+  else if (aBool(f[5])) noEditable = txMotores().periodoTemporal
   else noEditable = noEditablePorTipo(base)
   const binaria = base === 'binary' || base === 'varbinary' || base === 'image' || base === 'timestamp'
   // SQL Server nunca se identifica por 'rowid': los originales no se usan.
@@ -145,7 +146,7 @@ async function explicarSqlServer(ctx: ContextoExplicar): Promise<DbPlan> {
   if (fallo) {
     if (esFalloTrabajador(fallo) && fallo.error.codigo === CODIGO_SIN_SHOWPLAN) {
       ctx.prefijo(null)
-      throw ctx.error('servidor', 'No tienes permiso para ver planes en esta base (SHOWPLAN): pídeselo a quien administre el servidor.')
+      throw ctx.error('servidor', txMotores().sinPermisoShowplan)
     }
     throw fallo
   }
@@ -154,18 +155,18 @@ async function explicarSqlServer(ctx: ContextoExplicar): Promise<DbPlan> {
 
 /** El plan (nodos, texto y tiempos) a partir de lo que devolvió la sentencia con SHOWPLAN. */
 function planDeResultadoSqlServer(ctx: ContextoExplicar, r: ResultadoTrabajador | null): DbPlan {
-  if (!r) throw ctx.error('interno', 'El servidor no devolvió el plan.')
-  if (r.tipo === 'filas' && r.recortes && r.recortes.length > 0) throw ctx.error('limite', 'El plan es demasiado grande para enseñarlo.')
+  if (!r) throw ctx.error('interno', txMotores().planSinFilas)
+  if (r.tipo === 'filas' && r.recortes && r.recortes.length > 0) throw ctx.error('limite', txMotores().planGrande)
   const xmls = celdasDePlan(r)
   let plan: ReturnType<typeof planDesdeXmlSqlServer>
   try {
     plan = planDesdeXmlSqlServer(xmls)
   } catch {
-    throw ctx.error('interno', 'El servidor devolvió un plan que Tessera no entiende.')
+    throw ctx.error('interno', txMotores().planNoEntendido)
   }
   const tiempos = r.tipo === 'filas' ? { ejecucionMs: r.msEjecucion, lecturaMs: r.msLectura } : { ejecucionMs: r.ms, lecturaMs: 0 }
   const valor: DbPlan = { nodos: plan.nodos, texto: plan.texto, tiempos: { totalMs: Date.now() - ctx.t0, ...tiempos } }
-  if (plan.recortado) valor.avisos = [AVISO_PLAN_RECORTADO]
+  if (plan.recortado) valor.avisos = [avisoPlanRecortado()]
   return valor
 }
 
@@ -188,7 +189,7 @@ export const SESION_SQLSERVER: SesionExplorador = {
   },
 
   mensajeEsquemaNoAplicado(esquema: string): string {
-    return `No se puede usar la base ${esquema} en esta conexión: no existe o no tienes acceso a ella.`
+    return txMotores().baseNoAplicadaSqlServer(esquema)
   },
 
   sqlErroresCompilacion(): ConsultaCatalogo | null {

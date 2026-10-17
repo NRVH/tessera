@@ -7,7 +7,7 @@
 // =============================================================================
 
 import type { DbErrorSql, DbPagina, DbRespuesta, DbTablaAbierta } from '../../../../../shared/db-explorador-ipc'
-import { MOTIVO_LIBERADA } from '../consola/estadoConsola'
+import { motivoLiberada } from '../consola/estadoConsola'
 import { camposDeFiltroTabla } from '../filtro/modeloFiltro'
 import { errorDeInvoke, motivoSinLector, peticionesEnVuelo, textoError } from '../panesBd'
 import { notify } from '../../../comun/notifications'
@@ -25,9 +25,12 @@ import {
   soltarLector
 } from './datosBase'
 import type { Filtro, FinPagina, NucleoDatos } from './datosTipos'
+import { txRejilla } from './textosRejilla.ts'
 
 /** Texto de la píldora con el tope de memoria alcanzado al desplazar. */
-export const MOTIVO_TOPE = 'Tope de memoria alcanzado: afina el filtro para ver más'
+export function motivoTope(): string {
+  return txRejilla().topeMemoria
+}
 
 export interface OpcionesConsulta {
   maxFilas?: number
@@ -142,7 +145,7 @@ function trasPaginaFallida(n: NucleoDatos, error: DbErrorSql): FinPagina {
   if (que === 'seguir') return 'detenida'
   n.setSinLector({ motivo: motivoSinLector(error), reejecutable: true })
   if (que === 'detenida') return 'detenida'
-  notify('error', 'No se pudieron leer más filas', textoError(error))
+  notify('error', txRejilla().noSePudieronLeerMas, textoError(error))
   // Tras un fallo que no es una cancelación el main ya no sirve ese lector.
   soltarLector(n)
   return 'fallo'
@@ -166,8 +169,8 @@ async function pedirPagina(n: NucleoDatos, lector: string, maxFilas: number, idM
   if (!base) return 'descartada'
   const an = anexarPagina(base.datos, r.valor, base.columnas.length)
   if (!an.ok) {
-    n.setSinLector({ motivo: 'Una página llegó descuadrada', reejecutable: true })
-    notify('error', 'No se pudieron leer más filas', an.error)
+    n.setSinLector({ motivo: txRejilla().paginaDescuadrada, reejecutable: true })
+    notify('error', txRejilla().noSePudieronLeerMas, an.error)
     soltarLector(n)
     return 'fallo'
   }
@@ -208,7 +211,7 @@ export async function cargarMas(n: NucleoDatos): Promise<void> {
   if (!n.lectorRef.current || !actual || n.cargandoMasRef.current || n.cargandoRef.current) return
   const pagina = n.propsRef.current.filasPorPagina
   if (!registroCeldas.cabe(pagina * actual.columnas.length)) {
-    n.setSinLector({ motivo: MOTIVO_TOPE, reejecutable: false, tope: true })
+    n.setSinLector({ motivo: motivoTope(), reejecutable: false, tope: true })
     return
   }
   await leerPagina(n, pagina, 'desplazar')
@@ -281,7 +284,7 @@ export async function contar(n: NucleoDatos): Promise<void> {
     const base = n.resRef.current
     if (base) ponerRes(n, { ...base, total: r.valor })
   } else if (r.error.motivo !== 'cancelada') {
-    notify('error', 'No se pudieron contar las filas', textoError(r.error))
+    notify('error', txRejilla().noSePudieronContar, textoError(r.error))
   }
 }
 
@@ -319,5 +322,5 @@ export function liberar(n: NucleoDatos): void {
   soltarLector(n)
   // El total (contado, o sabido por haber llegado al final) sigue siendo cierto.
   ponerRes(n, { ...base, datos })
-  n.setSinLector({ motivo: MOTIVO_LIBERADA, reejecutable: true })
+  n.setSinLector({ motivo: motivoLiberada(), reejecutable: true })
 }

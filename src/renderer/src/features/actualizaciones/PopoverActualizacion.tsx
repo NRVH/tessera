@@ -9,6 +9,10 @@
 import type { UpdateState } from '../../../../shared/update-ipc'
 import { PopoverBarra } from '../../comun/PopoverBarra'
 import { textoUltimoChequeo } from './textoUpdate'
+import { txActualizaciones } from './textos.ts'
+
+/** Los textos del popover. */
+const tx = (): ReturnType<typeof txActualizaciones>['popover'] => txActualizaciones().popover
 
 interface PopoverProps {
   state: UpdateState
@@ -59,22 +63,21 @@ function Versiones({
 function BloqueFallo({ state, cerrar }: { state: UpdateState; cerrar: () => void }): React.JSX.Element | null {
   const { avisoFallo, currentVersion, installerPath } = state
   if (!avisoFallo) return null
+  const t = tx()
   return (
     <section className="actualizacion-pop-bloque">
-      <div className="actualizacion-pop-titulo">No se pudo aplicar la versión {avisoFallo.versionEsperada}</div>
+      <div className="actualizacion-pop-titulo">{t.falloTitulo(avisoFallo.versionEsperada)}</div>
       <div className="actualizacion-pop-msg">
         {/* Cuando el fallo lo vimos NOSOTROS (el instalador ni arrancó) hay una causa
             concreta que contar; si se descubre al arrancar, el que falló fue un proceso
             que ya no existe y solo cabe la frase genérica. */}
-        {avisoFallo.mensaje ?? `Sigues en la ${currentVersion}. Tus datos y tu configuración están intactos.`}
-        {avisoFallo.agotado
-          ? ' Se dejó de intentar; publicar una versión superior lo desatasca.'
-          : ' Se volverá a intentar la próxima vez que cierres Tessera.'}
+        {avisoFallo.mensaje ?? t.sigues(currentVersion)}
+        {avisoFallo.agotado ? t.agotado : t.reintento}
       </div>
       {avisoFallo.detalle ? <pre className="actualizacion-pop-detalle">{avisoFallo.detalle}</pre> : null}
       <div className="actualizacion-pop-acciones">
         <BotonPop onClick={() => void window.tessera.update.openLog()}>
-          {installerPath ? 'Abrir instalador' : 'Ver registro'}
+          {installerPath ? t.abrirInstalador : t.verRegistro}
         </BotonPop>
         <BotonPop
           onClick={() => {
@@ -82,7 +85,7 @@ function BloqueFallo({ state, cerrar }: { state: UpdateState; cerrar: () => void
             cerrar()
           }}
         >
-          Descartar
+          {t.descartar}
         </BotonPop>
       </div>
     </section>
@@ -94,12 +97,12 @@ function BloqueAplicada({ state, cerrar }: { state: UpdateState; cerrar: () => v
   if (!avisoAplicada) return null
   return (
     <section className="actualizacion-pop-bloque">
-      <div className="actualizacion-pop-titulo">Tessera se actualizó</div>
+      <div className="actualizacion-pop-titulo">{tx().aplicadaTitulo}</div>
       <Versiones desde={avisoAplicada.desde} hasta={avisoAplicada.hasta} />
       <div className="actualizacion-pop-acciones">
         {/* Solo cierra: el descarte lo hace el cierre, venga de este botón o de un clic
             fuera. Se conserva porque una caja sin salida visible se siente rota. */}
-        <BotonPop onClick={cerrar}>Entendido</BotonPop>
+        <BotonPop onClick={cerrar}>{tx().entendido}</BotonPop>
       </div>
     </section>
   )
@@ -107,28 +110,30 @@ function BloqueAplicada({ state, cerrar }: { state: UpdateState; cerrar: () => v
 
 /** Qué se promete de una versión descargada o bajando, según cómo se aplicará. */
 function mensajePreparada({ status, aplicable, seAplicaAlCerrar }: UpdateState): string {
-  if (status === 'downloading') return 'Se está bajando en segundo plano; puedes seguir trabajando.'
+  const t = tx()
+  if (status === 'downloading') return t.bajando
   // Ni promete que se aplicará sola ni la da por perdida: el chequeo que la confirma
   // llega solo, y "Buscar ahora" lo adelanta.
-  if (!aplicable) return 'Está descargada, pero falta confirmarla con el servidor antes de poder aplicarla.'
-  if (seAplicaAlCerrar) return 'Se aplicará sola cuando cierres Tessera. No se volverá a abrir sola.'
-  return 'Se aplicará cuando pulses “Actualizar ahora”.'
+  if (!aplicable) return t.faltaConfirmar
+  if (seAplicaAlCerrar) return t.seAplicaAlCerrar
+  return t.seAplicaAlPulsar
 }
 
 function BloquePreparada({ state, cerrar }: { state: UpdateState; cerrar: () => void }): React.JSX.Element | null {
   const { status, currentVersion, newVersion, percent, installerPath, preparadaDesdeArranque } = state
   if (status !== 'ready' && status !== 'downloading') return null
+  const t = tx()
   return (
     <section className="actualizacion-pop-bloque">
       <div className="actualizacion-pop-titulo">
-        {status === 'ready' ? 'Actualización preparada' : 'Descargando actualización'}
+        {status === 'ready' ? t.preparadaTitulo : t.descargandoTitulo}
       </div>
       <Versiones desde={currentVersion} hasta={newVersion}>
         {status === 'downloading' ? <span className="actualizacion-pop-pct">{percent} %</span> : null}
       </Versiones>
       <div className="actualizacion-pop-msg">
         {mensajePreparada(state)}
-        {preparadaDesdeArranque ? ' Venía preparada del arranque anterior.' : ''}
+        {preparadaDesdeArranque ? t.venia : ''}
       </div>
       <div className="actualizacion-pop-acciones">
         <BotonPop
@@ -138,10 +143,10 @@ function BloquePreparada({ state, cerrar }: { state: UpdateState; cerrar: () => 
             cerrar()
           }}
         >
-          Actualizar ahora
+          {t.actualizarAhora}
         </BotonPop>
         {installerPath ? (
-          <BotonPop onClick={() => void window.tessera.update.openLog()}>Abrir instalador</BotonPop>
+          <BotonPop onClick={() => void window.tessera.update.openLog()}>{t.abrirInstalador}</BotonPop>
         ) : null}
       </div>
     </section>
@@ -151,15 +156,16 @@ function BloquePreparada({ state, cerrar }: { state: UpdateState; cerrar: () => 
 function BloqueDisponible({ state, cerrar }: { state: UpdateState; cerrar: () => void }): React.JSX.Element | null {
   const { status, currentVersion, newVersion } = state
   if (status !== 'available') return null
+  const t = tx()
   return (
     <section className="actualizacion-pop-bloque">
-      <div className="actualizacion-pop-titulo">Versión nueva disponible</div>
+      <div className="actualizacion-pop-titulo">{t.disponibleTitulo}</div>
       <Versiones desde={currentVersion} hasta={newVersion ?? '—'} />
       <div className="actualizacion-pop-msg">
         {/* Ni "Reiniciar e instalar" ni "Abrir instalador": aquí no hay instalador. Lo
             que hay es un paquete que el usuario baja y arrastra; se dice tal cual para
             que nadie espere que la app se reabra sola con la versión nueva. */}
-        Esta copia no puede instalarse sola: descárgala y sustituye la app.
+        {t.noSePuedeSola}
       </div>
       <div className="actualizacion-pop-acciones">
         <BotonPop
@@ -168,7 +174,7 @@ function BloqueDisponible({ state, cerrar }: { state: UpdateState; cerrar: () =>
             cerrar()
           }}
         >
-          {`Descargar ${newVersion ?? ''}`.trim()}
+          {t.descargar(newVersion ?? '').trim()}
         </BotonPop>
       </div>
     </section>
@@ -183,9 +189,10 @@ function BloqueError({
 }: Omit<PopoverProps, 'ahora'>): React.JSX.Element | null {
   const { status, errorMessage, errorDetail } = state
   if (status !== 'error') return null
+  const t = tx()
   return (
     <section className="actualizacion-pop-bloque">
-      <div className="actualizacion-pop-titulo">No se pudo comprobar</div>
+      <div className="actualizacion-pop-titulo">{t.errorTitulo}</div>
       <div className="actualizacion-pop-msg">{errorMessage}</div>
       {errorDetail ? <pre className="actualizacion-pop-detalle">{errorDetail}</pre> : null}
       <div className="actualizacion-pop-acciones">
@@ -195,7 +202,7 @@ function BloqueError({
             cerrar()
           }}
         >
-          Reintentar
+          {t.reintentar}
         </BotonPop>
         {errorDetail ? (
           <BotonPop
@@ -205,7 +212,7 @@ function BloqueError({
               setTimeout(() => setCopiado(false), 1500)
             }}
           >
-            {copiado ? 'Copiado' : 'Copiar detalles'}
+            {copiado ? t.copiado : t.copiarDetalles}
           </BotonPop>
         ) : null}
         <BotonPop
@@ -214,7 +221,7 @@ function BloqueError({
             cerrar()
           }}
         >
-          Descartar
+          {t.descartar}
         </BotonPop>
       </div>
     </section>
@@ -233,9 +240,7 @@ function comprobarDeshabilitado({ status, aplicable }: UpdateState): boolean {
 
 function tituloComprobar({ status, aplicable }: UpdateState): string | undefined {
   if (status !== 'ready') return undefined
-  return aplicable
-    ? 'Ya hay una versión preparada: no hay nada más que buscar.'
-    : 'Confirma con el servidor la versión que ya está descargada.'
+  return aplicable ? tx().yaPreparada : tx().confirmarConServidor
 }
 
 function PieUpdate({ state, ahora }: { state: UpdateState; ahora: number }): React.JSX.Element {
@@ -252,7 +257,7 @@ function PieUpdate({ state, ahora }: { state: UpdateState; ahora: number }): Rea
         title={tituloComprobar(state)}
         onClick={() => void window.tessera.update.check()}
       >
-        Buscar ahora
+        {tx().buscarAhora}
       </button>
     </footer>
   )
@@ -261,7 +266,7 @@ function PieUpdate({ state, ahora }: { state: UpdateState; ahora: number }): Rea
 /** Popover del botón de actualización. */
 export function Popover({ state, ahora, copiado, setCopiado, cerrar }: PopoverProps): React.JSX.Element {
   return (
-    <PopoverBarra etiqueta="Actualizaciones de Tessera">
+    <PopoverBarra etiqueta={tx().etiqueta}>
       <BloqueFallo state={state} cerrar={cerrar} />
       <BloqueAplicada state={state} cerrar={cerrar} />
       <BloquePreparada state={state} cerrar={cerrar} />

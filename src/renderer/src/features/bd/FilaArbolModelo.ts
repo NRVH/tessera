@@ -7,7 +7,9 @@
 // =============================================================================
 
 import { etiquetaAbrirNodo } from '../../util/atajos.ts'
-import { ETIQUETA_TIPO_OBJETO } from './dbTabsModel.ts'
+import { etiquetasTipoObjeto } from './dbTabsModel.ts'
+import { txArbolFilas } from './textosArbolFilas.ts'
+import { localeActual } from '../../../../shared/i18n.ts'
 import { kindAbreTipo } from './arbolBd.ts'
 import { esContenedorArbol, objetoInterno, textoSubtipo, tooltipAjena, tooltipConexion, type FilaArbol } from './filasArbolBd.ts'
 import { etiquetaBaseClaves } from './arbolClaves.ts'
@@ -25,15 +27,15 @@ interface ArrastreFila {
 /** «Doble clic para abrir» (o el acorde de la plataforma), con mayúscula inicial. */
 export function pistaAbrirDe(plataforma: Plataforma): string {
   const acorde = etiquetaAbrirNodo(plataforma)
-  return `${acorde.charAt(0).toUpperCase()}${acorde.slice(1)} para abrir`
+  return txArbolFilas().paraAbrir(`${acorde.charAt(0).toUpperCase()}${acorde.slice(1)}`)
 }
 
 function tooltipObjeto(fila: FilaDe<'objeto'>, pistaAbrir: string): string {
   const o = fila.objeto
-  const lineas = [`${ETIQUETA_TIPO_OBJETO[o.tipo]} ${fila.esquema}.${o.nombre}${o.firma !== undefined ? `(${o.firma})` : ''}`]
+  const lineas = [`${etiquetasTipoObjeto()[o.tipo]} ${fila.esquema}.${o.nombre}${o.firma !== undefined ? `(${o.firma})` : ''}`]
   const sub = textoSubtipo(o)
   if (sub) lineas.push(sub)
-  if (o.estado === 'invalido') lineas.push('Inválido: no compila')
+  if (o.estado === 'invalido') lineas.push(txArbolFilas().invalidoNoCompila)
   if (o.comentario) lineas.push(o.comentario)
   if (kindAbreTipo(o.tipo) !== null) lineas.push(pistaAbrir)
   return lineas.join('\n')
@@ -41,9 +43,10 @@ function tooltipObjeto(fila: FilaDe<'objeto'>, pistaAbrir: string): string {
 
 function tooltipColumna(fila: FilaDe<'columna'>): string {
   const col = fila.columna
+  const t = txArbolFilas()
   const lineas = [`${col.nombre} ${col.tipo}${col.nullable ? '' : ' NOT NULL'}`]
-  if (col.porDefecto) lineas.push(`Por defecto: ${col.porDefecto}`)
-  if (col.pk !== null) lineas.push(`Clave primaria (${col.pk})`)
+  if (col.porDefecto) lineas.push(t.porDefectoColumna(col.porDefecto))
+  if (col.pk !== null) lineas.push(t.clavePrimaria(String(col.pk)))
   if (col.comentario) lineas.push(col.comentario)
   return lineas.join('\n')
 }
@@ -51,7 +54,8 @@ function tooltipColumna(fila: FilaDe<'columna'>): string {
 /** Una clave: su nombre entero, su tipo y su TTL (el del SCAN: el visor da el de ahora). */
 function tooltipKvClave(fila: FilaDe<'kv-clave'>, pistaAbrir: string): string {
   const k = fila.clave
-  const ttl = k.ttlMs === null ? 'Sin caducidad' : `Caduca en ${ttlLegible(k.ttlMs)}`
+  const t = txArbolFilas()
+  const ttl = k.ttlMs === null ? t.sinCaducidad : t.caduca(ttlLegible(k.ttlMs))
   return `${fila.nombre}\n${etiquetaTipo(k.tipo, k.tipoServidor)} · ${ttl}\n${pistaAbrir}`
 }
 
@@ -64,9 +68,9 @@ const TOOLTIP_POR_TIPO: { [K in FilaArbol['kind']]?: Tooltip<K> } = {
   columna: tooltipColumna,
   consola: (f, pistaAbrir) => `${f.consola.rutaRelativa}\n${pistaAbrir}`,
   'kv-clave': tooltipKvClave,
-  'doc-indice': (f) => `${f.indice.nombre}\n${f.indice.clave}${f.indice.unico ? '\nÚnico' : ''}`,
-  'kv-base': (f) => (f.patron !== '' ? `${etiquetaBaseClaves(f.indice)} · filtrada por ${f.patron}` : undefined),
-  'kv-carpeta': (f) => `${f.prefijo}* · ${f.cuenta.toLocaleString('es-ES')} ${f.cuenta === 1 ? 'clave cargada' : 'claves cargadas'}`,
+  'doc-indice': (f) => `${f.indice.nombre}\n${f.indice.clave}${f.indice.unico ? `\n${txArbolFilas().unicoLinea}` : ''}`,
+  'kv-base': (f) => (f.patron !== '' ? txArbolFilas().filtradaPorTooltip(etiquetaBaseClaves(f.indice), f.patron) : undefined),
+  'kv-carpeta': (f) => txArbolFilas().clavesCargadas(f.prefijo, f.cuenta.toLocaleString(localeActual()), f.cuenta),
   'kv-mas': (f) => f.vista.nota ?? undefined,
   placeholder: (f) => (f.variante === 'error' ? f.mensaje : undefined)
 }

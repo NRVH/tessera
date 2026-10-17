@@ -1,6 +1,6 @@
 // =============================================================================
 // Preload: archivos del proyecto activo, portapapeles, búsqueda, Java y comprimidos.
-// Solo rutas relativas a la contenedora: el renderer nunca ve rutas del host.
+// Rutas relativas a la contenedora, que viaja con ellas solo como identidad del proyecto.
 // Canales y formas: files-ipc, clipboard-ipc, search-ipc, java-ipc y comprimidos-ipc.
 // =============================================================================
 import { ipcRenderer } from 'electron'
@@ -8,17 +8,25 @@ import {
   FILE_CHANNELS,
   type BinaryFileContent,
   type CreatedEntry,
+  type CreateEntryRequest,
+  type DeleteRequest,
   type DeleteResult,
   type DocxHtmlResult,
   type FileContent,
   type FileEntry,
   type FilesChangedEvent,
+  type ImportRequest,
   type ImportResult,
+  type MoveRequest,
   type MoveResult,
   type PasteRequest,
   type PasteResult,
   type ProjectRoot,
+  type RenameRequest,
+  type RutaEnProyecto,
+  type RutasRequest,
   type SaveUntitledResult,
+  type StartDragRequest,
   type WriteFileResult,
   type ZipListing
 } from '../shared/files-ipc'
@@ -44,28 +52,28 @@ import {
   type IniciarBusqueda,
   type LoteResultados
 } from '../shared/search-ipc'
-import { CLIPBOARD_CHANNELS, type ClipboardProbe } from '../shared/clipboard-ipc'
+import { CLIPBOARD_CHANNELS, type ClipboardPasteRequest, type ClipboardProbe } from '../shared/clipboard-ipc'
 
 /**
  * API de archivos expuesta al renderer. Todas las rutas son RELATIVAS al
- * proyecto (POSIX, "" = raíz); el main resuelve contra la ruta host real. El
- * renderer nunca ve ni envía rutas de Windows.
+ * proyecto (POSIX, "" = raíz) y van con la contenedora de su proyecto (`raiz`):
+ * el main las resuelve contra ese proyecto (`EnProyecto` de files-ipc).
  */
 export interface FilesApi {
   /** Metadatos del proyecto activo (nombre neutro). */
   getRoot: () => Promise<ProjectRoot>
   /** Lista una carpeta del proyecto (lazy). "" = raíz. */
-  listDir: (path: string) => Promise<FileEntry[]>
+  listDir: (ruta: RutaEnProyecto) => Promise<FileEntry[]>
   /** Lee un archivo de texto para el editor. */
-  read: (path: string, encoding?: string) => Promise<FileContent>
+  read: (ruta: RutaEnProyecto, encoding?: string) => Promise<FileContent>
   /**
    * ¿Sigue existiendo? Es la pregunta del editor cuando tiene el buffer SUCIO y no
    * puede releer sin destruir las ediciones, pero necesita saber si tachar la
    * pestaña. Una entrada de .jar responde por su contenedor.
    */
-  existe: (path: string) => Promise<boolean>
+  existe: (ruta: RutaEnProyecto) => Promise<boolean>
   /** Escribe (sobrescribe) un archivo de texto. Devuelve bytes escritos. */
-  write: (path: string, content: string, encoding?: string) => Promise<WriteFileResult>
+  write: (ruta: RutaEnProyecto, content: string, encoding?: string) => Promise<WriteFileResult>
   /**
    * Guarda un buffer SIN TÍTULO (Ctrl+N): la primera vez abre el diálogo nativo
    * de Windows para elegir destino; después reescribe en el mismo sitio. `id` es
@@ -75,34 +83,34 @@ export interface FilesApi {
   /** Suelta la ruta recordada de un buffer sin título (al cerrar su pestaña). */
   forgetUntitled: (id: string) => Promise<void>
   /** Lee un archivo como bytes crudos (visor PDF). */
-  readBinary: (path: string) => Promise<BinaryFileContent>
+  readBinary: (ruta: RutaEnProyecto) => Promise<BinaryFileContent>
   /** Convierte un .docx a HTML con formato (mammoth, en el main). */
-  readDocx: (path: string) => Promise<DocxHtmlResult>
+  readDocx: (ruta: RutaEnProyecto) => Promise<DocxHtmlResult>
   /** Lista el contenido de un .zip sin descomprimirlo. */
-  readZip: (path: string) => Promise<ZipListing>
+  readZip: (ruta: RutaEnProyecto) => Promise<ZipListing>
   /** Abre el archivo/carpeta en el explorador del SO, dejándolo seleccionado. */
-  reveal: (path: string) => Promise<void>
+  reveal: (ruta: RutaEnProyecto) => Promise<void>
   /** Abre el archivo con la app por defecto del SO (Word, etc.). Devuelve error o ''. */
-  openPath: (path: string) => Promise<string>
+  openPath: (ruta: RutaEnProyecto) => Promise<string>
   /** Crea un archivo vacío `name` dentro de `dir`. Devuelve su ruta relativa. */
-  createFile: (dir: string, name: string) => Promise<CreatedEntry>
+  createFile: (req: CreateEntryRequest) => Promise<CreatedEntry>
   /** Crea una carpeta `name` dentro de `dir`. Devuelve su ruta relativa. */
-  createDir: (dir: string, name: string) => Promise<CreatedEntry>
+  createDir: (req: CreateEntryRequest) => Promise<CreatedEntry>
   /** Renombra `path` a `newName` (mismo padre). Devuelve la nueva ruta relativa. */
-  rename: (path: string, newName: string) => Promise<CreatedEntry>
+  rename: (req: RenameRequest) => Promise<CreatedEntry>
   /**
    * Mueve `srcs` dentro de la carpeta `destDir` (arrastrar y soltar en el árbol).
    * TODO O NADA: si algún nombre ya existe en el destino no mueve nada y lo devuelve
    * en `conflicts`. A diferencia de `import`, no hay forma de reemplazar: el original
    * de un movimiento interno no queda en ninguna otra parte.
    */
-  move: (srcs: string[], destDir: string) => Promise<MoveResult>
+  move: (req: MoveRequest) => Promise<MoveResult>
   /**
    * Trae dentro de `destDir` archivos/carpetas soltados (rutas de `getPathForFile`):
    * COPIA los de fuera del proyecto, MUEVE los de dentro. Sin `overwrite`, si algún
    * nombre ya existe no toca nada y lo devuelve en `conflicts` para confirmar.
    */
-  import: (hostPaths: string[], destDir: string, overwrite: boolean) => Promise<ImportResult>
+  import: (req: ImportRequest) => Promise<ImportResult>
   /**
    * PEGA en `destDir` lo copiado/cortado (menú contextual y Ctrl+V). A diferencia de
    * `import`, nunca pisa ni pregunta: renombra a "x - copia" si el nombre ya existe.
@@ -112,25 +120,25 @@ export interface FilesApi {
    * URL `file://` de un ARCHIVO del proyecto ('' si es carpeta o no existe). Solo
    * para el `DownloadURL` del arrastre hacia el Explorador de Windows.
    */
-  fileUrl: (path: string) => Promise<string>
+  fileUrl: (ruta: RutaEnProyecto) => Promise<string>
   /**
    * Arranca un arrastre NATIVO con VARIOS archivos, que es la única forma de
    * entregar más de uno al gestor de archivos del sistema. `icono` es el fantasma
    * ya rasterizado (`data:image/png;base64,…`); ver `START_DRAG`.
    */
-  startDrag: (paths: string[], icono: string) => Promise<void>
+  startDrag: (req: StartDragRequest) => Promise<void>
   /**
    * Rutas ABSOLUTAS del host (cada una '' si no es válida), en el mismo orden. Solo
    * para el "Copiar ruta" del menú contextual y la marca del portapapeles interno:
    * es una salida hacia el portapapeles, no una entrada. Plural para que copiar una
    * selección grande sea UN viaje al main y no uno por fichero.
    */
-  absPath: (paths: string[]) => Promise<string[]>
+  absPath: (req: RutasRequest) => Promise<string[]>
   /**
    * Elimina archivos/carpetas (recursivo). Best-effort: lo que no se pudo borrar
    * vuelve en `fallidos` con su nombre, en vez de abortar el resto.
    */
-  delete: (paths: string[]) => Promise<DeleteResult>
+  delete: (req: DeleteRequest) => Promise<DeleteResult>
   /**
    * Se suscribe al evento de cambios del árbol; devuelve la función para desuscribir.
    * El evento dice QUÉ cambió (`paths`), o avisa con `parcial` de que la lista no es
@@ -167,7 +175,7 @@ export interface ClipboardApi {
    * Windows, o un bitmap). El renderer solo dice DÓNDE: quién lee las rutas y si el
    * gesto fue copiar o cortar lo decide el main. CARO (~250 ms): solo al hacer clic.
    */
-  pasteInto: (destDir: string) => Promise<PasteResult>
+  pasteInto: (req: ClipboardPasteRequest) => Promise<PasteResult>
 }
 
 /**
@@ -207,7 +215,7 @@ export interface JavaApi {
   forgetJava: () => Promise<EstadoJava>
 }
 
-/** Diff de archivos comprimidos (.jar/.war/.ear/.zip) entre dos revisiones. */
+/** Diff de archivos comprimidos (.jar/.war/.ear/.zip) entre dos revisiones; cada petición lleva su `raiz`. */
 export interface ComprimidosApi {
   /** Entradas que CAMBIARON entre los dos lados. Nunca rechaza: mira `error`. */
   comparar: (req: CompararRequest) => Promise<CompararResult>
@@ -221,30 +229,29 @@ export interface ComprimidosApi {
 
 export const files: FilesApi = {
   getRoot: () => ipcRenderer.invoke(FILE_CHANNELS.GET_ROOT),
-  listDir: (path) => ipcRenderer.invoke(FILE_CHANNELS.LIST_DIR, { path }),
-  read: (path, encoding) => ipcRenderer.invoke(FILE_CHANNELS.READ_FILE, { path, encoding }),
-  existe: (path) => ipcRenderer.invoke(FILE_CHANNELS.EXISTS, { path }),
-  write: (path, content, encoding) =>
-    ipcRenderer.invoke(FILE_CHANNELS.WRITE_FILE, { path, content, encoding }),
+  listDir: ({ raiz, path }) => ipcRenderer.invoke(FILE_CHANNELS.LIST_DIR, { raiz, path }),
+  read: ({ raiz, path }, encoding) => ipcRenderer.invoke(FILE_CHANNELS.READ_FILE, { raiz, path, encoding }),
+  existe: ({ raiz, path }) => ipcRenderer.invoke(FILE_CHANNELS.EXISTS, { raiz, path }),
+  write: ({ raiz, path }, content, encoding) =>
+    ipcRenderer.invoke(FILE_CHANNELS.WRITE_FILE, { raiz, path, content, encoding }),
   saveUntitled: (id, content, suggestedName) =>
     ipcRenderer.invoke(FILE_CHANNELS.SAVE_UNTITLED, { id, content, suggestedName }),
   forgetUntitled: (id) => ipcRenderer.invoke(FILE_CHANNELS.FORGET_UNTITLED, id),
-  readBinary: (path) => ipcRenderer.invoke(FILE_CHANNELS.READ_BINARY, { path }),
-  readDocx: (path) => ipcRenderer.invoke(FILE_CHANNELS.READ_DOCX, { path }),
-  readZip: (path) => ipcRenderer.invoke(FILE_CHANNELS.READ_ZIP, { path }),
-  reveal: (path) => ipcRenderer.invoke(FILE_CHANNELS.REVEAL_IN_FOLDER, { path }),
-  openPath: (path) => ipcRenderer.invoke(FILE_CHANNELS.OPEN_PATH, { path }),
-  createFile: (dir, name) => ipcRenderer.invoke(FILE_CHANNELS.CREATE_FILE, { dir, name }),
-  createDir: (dir, name) => ipcRenderer.invoke(FILE_CHANNELS.CREATE_DIR, { dir, name }),
-  rename: (path, newName) => ipcRenderer.invoke(FILE_CHANNELS.RENAME, { path, newName }),
-  move: (srcs, destDir) => ipcRenderer.invoke(FILE_CHANNELS.MOVE, { srcs, destDir }),
-  import: (hostPaths, destDir, overwrite) =>
-    ipcRenderer.invoke(FILE_CHANNELS.IMPORT, { hostPaths, destDir, overwrite }),
+  readBinary: ({ raiz, path }) => ipcRenderer.invoke(FILE_CHANNELS.READ_BINARY, { raiz, path }),
+  readDocx: ({ raiz, path }) => ipcRenderer.invoke(FILE_CHANNELS.READ_DOCX, { raiz, path }),
+  readZip: ({ raiz, path }) => ipcRenderer.invoke(FILE_CHANNELS.READ_ZIP, { raiz, path }),
+  reveal: ({ raiz, path }) => ipcRenderer.invoke(FILE_CHANNELS.REVEAL_IN_FOLDER, { raiz, path }),
+  openPath: ({ raiz, path }) => ipcRenderer.invoke(FILE_CHANNELS.OPEN_PATH, { raiz, path }),
+  createFile: (req) => ipcRenderer.invoke(FILE_CHANNELS.CREATE_FILE, req),
+  createDir: (req) => ipcRenderer.invoke(FILE_CHANNELS.CREATE_DIR, req),
+  rename: (req) => ipcRenderer.invoke(FILE_CHANNELS.RENAME, req),
+  move: (req) => ipcRenderer.invoke(FILE_CHANNELS.MOVE, req),
+  import: (req) => ipcRenderer.invoke(FILE_CHANNELS.IMPORT, req),
   paste: (req) => ipcRenderer.invoke(FILE_CHANNELS.PASTE, req),
-  fileUrl: (path) => ipcRenderer.invoke(FILE_CHANNELS.FILE_URL, { path }),
-  startDrag: (paths, icono) => ipcRenderer.invoke(FILE_CHANNELS.START_DRAG, { paths, icono }),
-  absPath: (paths) => ipcRenderer.invoke(FILE_CHANNELS.ABS_PATH, { paths }),
-  delete: (paths) => ipcRenderer.invoke(FILE_CHANNELS.DELETE, { paths }),
+  fileUrl: ({ raiz, path }) => ipcRenderer.invoke(FILE_CHANNELS.FILE_URL, { raiz, path }),
+  startDrag: (req) => ipcRenderer.invoke(FILE_CHANNELS.START_DRAG, req),
+  absPath: (req) => ipcRenderer.invoke(FILE_CHANNELS.ABS_PATH, req),
+  delete: (req) => ipcRenderer.invoke(FILE_CHANNELS.DELETE, req),
   onChanged: (cb) => {
     // El payload puede faltar (un main anterior a este contrato, o un send suelto):
     // se normaliza aquí a la forma completa para que el renderer no tenga que
@@ -267,7 +274,7 @@ export const clipboard: ClipboardApi = {
   write: (text) => ipcRenderer.invoke(CLIPBOARD_CHANNELS.WRITE, { text }),
   saveImage: () => ipcRenderer.invoke(CLIPBOARD_CHANNELS.SAVE_IMAGE),
   probe: () => ipcRenderer.invoke(CLIPBOARD_CHANNELS.PROBE),
-  pasteInto: (destDir) => ipcRenderer.invoke(CLIPBOARD_CHANNELS.PASTE_INTO, { destDir })
+  pasteInto: (req) => ipcRenderer.invoke(CLIPBOARD_CHANNELS.PASTE_INTO, req)
 }
 
 export const java: JavaApi = {

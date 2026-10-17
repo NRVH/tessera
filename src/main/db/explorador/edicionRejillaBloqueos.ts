@@ -13,6 +13,7 @@ import { MAX_ELEMENTOS_LISTA_IN } from './limites.ts'
 import { motorExplorador } from './motores/index.ts'
 import type { EsperaPorFila } from './motores/sesion.ts'
 import type { BindsEnvio, ClaveBloqueo, LoteBloqueo, SentenciaEnvio } from './edicionRejillaTipos.ts'
+import { txEnvio } from './textosRejilla.ts'
 
 /** Segundos que «Enviar» espera a que otra transacción suelte una fila. */
 export const ESPERA_BLOQUEO_ENVIO_S = 10
@@ -76,11 +77,8 @@ export function esOcupadaSinEspera(motor: DbMotor, codigo: string | undefined): 
  * también puede esperar (a que otra transacción confirme o revierta una fila con la misma clave).
  */
 export function mensajeFilaBloqueada(tipo: DbCambioFila['tipo']): string {
-  const que =
-    tipo === 'insertar'
-      ? 'La fila nueva choca con otra que una transacción sin confirmar tiene bloqueada (quizá una consola tuya).'
-      : 'La fila está bloqueada por otra transacción (quizá una consola tuya con cambios sin confirmar).'
-  return `${que} No se aplicó nada: confirma o revierte esa transacción y vuelve a enviar.`
+  const t = txEnvio()
+  return t.bloqueada(tipo === 'insertar' ? t.filaNuevaChoca : t.filaBloqueada)
 }
 
 /**
@@ -89,8 +87,7 @@ export function mensajeFilaBloqueada(tipo: DbCambioFila['tipo']): string {
  * espera de bloqueo (lo típico: la otra transacción la soltó entretanto).
  */
 export function notaSinCulpable(desde: number, hasta: number, espera: boolean): string {
-  const porque = espera ? ': al buscarla, la otra transacción ya la había soltado' : ''
-  return `(No se pudo saber cuál de los cambios ${desde + 1} a ${hasta + 1}${porque}.)`
+  return txEnvio().sinCulpable(desde + 1, hasta + 1, espera)
 }
 
 /**

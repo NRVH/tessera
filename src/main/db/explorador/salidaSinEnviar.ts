@@ -6,6 +6,7 @@
 
 import type { MessageBoxOptions } from 'electron'
 import type { DbPestanaSinEnviar } from '../../../shared/db-explorador-ipc.ts'
+import { txSalida } from './textosExplorador.ts'
 
 /**
  * Cuánto espera el main la respuesta del renderer. Contar los cambios es recorrer un
@@ -24,7 +25,7 @@ export const RESPUESTA_DESCARTAR_Y_SALIR = 0
 
 /** Etiqueta en UNA línea y acotada; sin texto útil, un nombre genérico. */
 function limpiarEtiqueta(v: unknown): string {
-  if (typeof v !== 'string') return 'Pestaña de tabla'
+  if (typeof v !== 'string') return txSalida().etiquetaGenerica
   let una = ''
   // Sin regex de control a propósito: un rango con el NUL dentro es de lo que ya se
   // rompió en este repo al pasar por el shell, y el lint lo rechaza igual.
@@ -33,7 +34,7 @@ function limpiarEtiqueta(v: unknown): string {
     una += c < 0x20 || c === 0x7f ? ' ' : ch
   }
   una = una.replace(/ {2,}/g, ' ').trim()
-  if (una.length === 0) return 'Pestaña de tabla'
+  if (una.length === 0) return txSalida().etiquetaGenerica
   return una.length > MAX_ETIQUETA_SIN_ENVIAR ? `${una.slice(0, MAX_ETIQUETA_SIN_ENVIAR - 1)}…` : una
 }
 
@@ -65,28 +66,29 @@ export function totalSinEnviar(pestanas: readonly DbPestanaSinEnviar[]): number 
 
 /** «un cambio» / «40 cambios»: para componer el mensaje del diálogo. */
 export function fraseCambios(n: number): string {
-  return n === 1 ? 'un cambio' : `${n} cambios`
+  const t = txSalida()
+  return n === 1 ? t.unCambio : t.cambios(n)
 }
 
 /** Una línea por pestaña (`alias · ESQUEMA.TABLA: N cambios`), como mucho `LINEAS_SIN_ENVIAR`. */
 export function lineasSinEnviar(pestanas: readonly DbPestanaSinEnviar[]): string[] {
-  const lineas = pestanas
-    .slice(0, LINEAS_SIN_ENVIAR)
-    .map((p) => `${p.etiqueta}: ${p.cambios === 1 ? '1 cambio' : `${p.cambios} cambios`}`)
+  const t = txSalida()
+  const lineas = pestanas.slice(0, LINEAS_SIN_ENVIAR).map((p) => `${p.etiqueta}: ${t.cambiosLinea(p.cambios)}`)
   const resto = pestanas.length - LINEAS_SIN_ENVIAR
-  if (resto > 0) lineas.push(resto === 1 ? 'y 1 pestaña más' : `y ${resto} pestañas más`)
+  if (resto > 0) lineas.push(t.pestanasMas(resto))
   return lineas
 }
 
 /** El diálogo cuando NO hay transacciones pendientes: Descartar y salir / Cancelar. */
 export function dialogoSoloSinEnviar(pestanas: readonly DbPestanaSinEnviar[]): MessageBoxOptions {
   const n = totalSinEnviar(pestanas)
+  const t = txSalida()
   return {
     type: 'warning',
-    title: 'Cambios sin enviar',
-    message: `Hay ${fraseCambios(n)} sin enviar.`,
-    detail: `${lineasSinEnviar(pestanas).join('\n')}\n\nSi sales, se descartan: no llegaron a la base de datos.`,
-    buttons: ['Descartar y salir', 'Cancelar'],
+    title: t.titulo,
+    message: t.mensaje(n, fraseCambios(n)),
+    detail: t.detalle(lineasSinEnviar(pestanas).join('\n')),
+    buttons: [t.descartarYSalir, t.cancelar],
     // Intro o Esc no tiran el trabajo: el botón por defecto es Cancelar.
     defaultId: 1,
     cancelId: 1,
@@ -100,8 +102,5 @@ export function dialogoSoloSinEnviar(pestanas: readonly DbPestanaSinEnviar[]): M
  */
 export function bloqueSinEnviar(pestanas: readonly DbPestanaSinEnviar[]): string {
   if (pestanas.length === 0) return ''
-  return (
-    '\n\nCambios sin enviar de la rejilla, que se descartan con cualquiera de las dos ' +
-    `opciones («Confirmar y salir» solo confirma las transacciones):\n${lineasSinEnviar(pestanas).join('\n')}`
-  )
+  return txSalida().bloque(lineasSinEnviar(pestanas).join('\n'))
 }

@@ -2,17 +2,20 @@
 // SelectorPerfil: el modo minimalista de perfiles. Una pastilla en la barra de título con el
 // punto y el nombre del perfil activo; al pulsarla, la lista de perfiles con su ⋯ (el mismo
 // menú de la banda) y «Nuevo perfil». El estado es el de la banda (`useBandaPerfiles`), así
-// que color, red, hibernar, eliminar y crear son las mismas piezas (`CapasPerfil`).
+// que color, red, hibernar, eliminar, crear y reordenar arrastrando son las mismas piezas
+// (`CapasPerfil`, `useArrastrePerfiles`) y el orden de la lista es el de las pestañas.
 // Decisiones: docs/decisiones/renderer/banda-de-perfiles.md
 // =============================================================================
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Profile } from '../../../../main/profiles/types'
 import { EnCapaFlotante } from '../../comun/capaFlotante'
 import { pegarRecortado } from '../../util/pasteTrim'
+import { ladoDeSoltar } from '../../util/reorderByDrag'
 import { CapasPerfil } from './CapasPerfil'
 import { tintaPerfil } from './colorPerfil'
 import { ProfileDot } from './ProfileDot'
 import type { ProfileDotState } from './profileDotState'
+import { txPestanas } from './textos.ts'
 import { useBandaPerfiles } from './useBandaPerfiles'
 
 type Banda = ReturnType<typeof useBandaPerfiles>
@@ -78,11 +81,39 @@ function RenombrarEnFila(p: { profile: Profile; banda: Banda; props: SelectorPer
   )
 }
 
-/** Una fila de la lista: el perfil (o su renombrado en curso) y su ⋯, que abre el menú de la banda. */
+/**
+ * Clases de una fila: activa, la que se arrastra y, sobre la que se pasa, de qué lado caerá. El
+ * lado sale de la misma regla que el soltar (`ladoDeSoltar`), así que la raya no puede mentir.
+ */
+function claseDeFila(id: string, activo: boolean, banda: Banda, ids: readonly string[]): string {
+  const { dragId, dragOverId } = banda.arrastre
+  const lado = dragId && dragOverId === id ? ladoDeSoltar(ids, dragId, id) : null
+  return (
+    `selector-perfil-fila${activo ? ' activa' : ''}` +
+    `${dragId === id ? ' arrastrando' : ''}` +
+    `${lado ? ` soltar-${lado}` : ''}`
+  )
+}
+
+/**
+ * Una fila de la lista: el perfil (o su renombrado en curso) y su ⋯, que abre el menú de la banda.
+ * Se arrastra con el mismo estado que las pestañas de la banda: el orden es uno solo.
+ */
 function FilaPerfil(p: { profile: Profile; activo: boolean; banda: Banda; props: SelectorPerfilProps; onElegir: () => void }): React.JSX.Element {
   const renombrando = p.banda.renombrado.renamingId === p.profile.id
+  const { arrastre } = p.banda
+  const id = p.profile.id
   return (
-    <div className={`selector-perfil-fila${p.activo ? ' activa' : ''}`} style={colorDe(p.profile)}>
+    <div
+      className={claseDeFila(id, p.activo, p.banda, p.props.profiles.map((x) => x.id))}
+      style={colorDe(p.profile)}
+      draggable={!renombrando}
+      onDragStart={(e) => arrastre.alEmpezar(id, e)}
+      onDragOver={(e) => arrastre.alPasarSobre(id, e)}
+      onDragLeave={() => arrastre.alSalir(id)}
+      onDrop={(e) => arrastre.alSoltar(id, e)}
+      onDragEnd={arrastre.alTerminar}
+    >
       {renombrando ? (
         <RenombrarEnFila profile={p.profile} banda={p.banda} props={p.props} />
       ) : (
@@ -94,8 +125,8 @@ function FilaPerfil(p: { profile: Profile; activo: boolean; banda: Banda; props:
       <button
         type="button"
         className="selector-perfil-mas"
-        aria-label={`Opciones de ${p.profile.nombre}`}
-        title="Opciones del perfil"
+        aria-label={txPestanas().perfil.opcionesDe(p.profile.nombre)}
+        title={txPestanas().perfil.opciones}
         onClick={(e) => {
           const r = e.currentTarget.getBoundingClientRect()
           p.banda.setMenu({ x: r.left, y: r.bottom + 2, profileId: p.profile.id })
@@ -144,7 +175,7 @@ interface PropsLista {
 function ListaPerfiles({ ancla, lista, banda, props, cerrar }: PropsLista): React.JSX.Element {
   return (
     <EnCapaFlotante>
-      <div ref={lista} className="selector-perfil-lista" role="menu" aria-label="Perfiles" style={{ left: ancla.x, top: ancla.y }}>
+      <div ref={lista} className="selector-perfil-lista" role="menu" aria-label={txPestanas().perfil.perfiles} style={{ left: ancla.x, top: ancla.y }}>
         {props.profiles.map((p) => (
           <FilaPerfil
             key={p.id}
@@ -171,7 +202,7 @@ function ListaPerfiles({ ancla, lista, banda, props, cerrar }: PropsLista): Reac
           <span className="selector-perfil-mas-signo" aria-hidden="true">
             +
           </span>
-          Nuevo perfil
+          {txPestanas().perfil.nuevo}
         </button>
       </div>
     </EnCapaFlotante>
@@ -204,14 +235,14 @@ export function SelectorPerfil(props: SelectorPerfilProps): React.JSX.Element {
         style={activo ? colorDe(activo) : undefined}
         aria-haspopup="menu"
         aria-expanded={ancla !== null}
-        title="Perfiles"
+        title={txPestanas().perfil.perfiles}
         onClick={(e) => {
           const r = e.currentTarget.getBoundingClientRect()
           setAncla(ancla ? null : { x: r.left + r.width / 2, y: r.bottom + 4 })
         }}
       >
         {activo && <PuntoPerfil profile={activo} props={props} />}
-        <span className="selector-perfil-nombre">{activo ? activo.nombre : 'Perfiles'}</span>
+        <span className="selector-perfil-nombre">{activo ? activo.nombre : txPestanas().perfil.perfiles}</span>
         <IconoFlecha />
       </button>
       {ancla && <ListaPerfiles ancla={ancla} lista={lista} banda={banda} props={props} cerrar={cerrar} />}

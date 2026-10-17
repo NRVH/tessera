@@ -7,6 +7,7 @@
 
 import type { DbNodoPlan } from '../../../shared/db-explorador-ipc.ts'
 import { MAX_NODOS_PLAN, numero, texto } from './planSqlComun.ts'
+import { txPlanMysql } from './textosRejilla.ts'
 
 export const PREFIJO_EXPLICAR_PG = 'EXPLAIN (FORMAT JSON)\n'
 
@@ -205,7 +206,7 @@ export function planDesdeJsonPg(json: string): { nodos: DbNodoPlan[]; texto: str
   const doc: unknown = JSON.parse(json)
   const primero = Array.isArray(doc) ? doc[0] : doc
   const raiz = esNodo(primero) ? primero['Plan'] : undefined
-  if (!esNodo(raiz)) throw new Error('El servidor no devolvió un plan.')
+  if (!esNodo(raiz)) throw new Error(txPlanMysql().sinPlan)
   const acc: AcumuladoPg = { nodos: [], lineas: [], recortado: false }
   visitarPg(raiz, null, 0, 0, acc)
   return { nodos: acc.nodos, texto: acc.lineas.join('\n'), recortado: acc.recortado }

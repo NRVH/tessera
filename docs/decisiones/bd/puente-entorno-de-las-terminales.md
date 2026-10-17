@@ -5,8 +5,9 @@
 
 ## Contexto
 
-El entorno del pty es el único canal por el que `tdb` llega al agente y a la terminal. Vivía como una clausura
-en `index.ts` y nunca tuvo prueba: parte de por qué «monto una base y no aplica» sobrevivió tanto.
+El entorno del pty es el único canal por el que `tdb` llega al agente y a la terminal. Por eso su
+construcción es un módulo propio y probable, no una clausura del arranque: un fallo aquí se manifiesta
+como «monto una base y no aplica».
 
 ## Decisión
 

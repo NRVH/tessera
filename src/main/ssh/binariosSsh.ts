@@ -11,6 +11,7 @@ import path from 'node:path'
 import { plataformaActual, type Plataforma } from '../../shared/plataforma.ts'
 import type { SshEntorno } from '../../shared/ssh-ipc.ts'
 import { lanzadaPorElArnes } from '../../shared/arnesE2e.ts'
+import { txSsh } from './textos.ts'
 
 /** La variable de las pruebas de interfaz: `{"exe": "…", "args": […]}` se lanza con `args` delante de los de ssh. */
 export const VAR_SSH_BINARIO = 'TESSERA_SSH_BINARIO'
@@ -144,17 +145,8 @@ export function entornoSsh(b: BinariosSsh): SshEntorno {
 
 /** Sin cliente SSH: el remedio depende del sistema, así que se bifurca la frase entera. */
 export function mensajeSinSsh(plataforma: Plataforma): string {
-  if (plataforma === 'windows') {
-    return (
-      'No se encontró el cliente SSH del sistema (OpenSSH). Instala «Cliente OpenSSH» desde las ' +
-      'características opcionales del sistema y vuelve a intentarlo.'
-    )
-  }
-  if (plataforma === 'linux') {
-    return (
-      'No se encontró el cliente SSH del sistema en /usr/bin/ssh. Instala el paquete del cliente ' +
-      'OpenSSH de tu distribución (openssh-client u openssh-clients) y vuelve a intentarlo.'
-    )
-  }
-  return 'No se encontró el cliente SSH del sistema en /usr/bin/ssh.'
+  const t = txSsh().binarios
+  if (plataforma === 'windows') return t.windows
+  if (plataforma === 'linux') return t.linux
+  return t.otra
 }

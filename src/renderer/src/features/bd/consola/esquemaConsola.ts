@@ -7,6 +7,7 @@
 // =============================================================================
 
 import type { DbEsquema, DbEstadoSesion } from '../../../../../shared/db-explorador-ipc'
+import { txBarraConsola } from './textosBarra.ts'
 
 export interface OpcionEsquemaConsola {
   /** `null` = «Esquema de la conexión» (se manda `null` a `esquemaConsola`). */
@@ -21,7 +22,8 @@ export interface OpcionEsquemaConsola {
 
 /** Etiqueta de la opción que vuelve al esquema de la conexión. */
 export function textoEsquemaConexion(porDefecto: string | null): string {
-  return porDefecto ? `Esquema de la conexión (${porDefecto})` : 'Esquema de la conexión'
+  const t = txBarraConsola()
+  return porDefecto ? t.esquemaConexionDe(porDefecto) : t.esquemaConexion
 }
 
 /**
@@ -40,8 +42,9 @@ export function esquemaEfectivo(
 
 /** `title` del botón de la barra. */
 export function tituloBotonEsquema(actual: string | null, ejecutando: boolean): string {
-  if (ejecutando) return 'Espera a que termine la ejecución para cambiar el esquema'
-  return actual ? `Esquema: ${actual}. Pulsa para cambiar` : 'Esquema de la consola. Pulsa para cambiar'
+  const t = txBarraConsola()
+  if (ejecutando) return t.esquemaEsperar
+  return actual ? t.esquemaActual(actual) : t.esquemaConsola
 }
 
 /**

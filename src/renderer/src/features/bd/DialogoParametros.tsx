@@ -19,6 +19,7 @@ import {
   type ValorCampo
 } from './consola/parametrosConsola'
 import { esDeUnaListaDeSelect, useDialogo } from '../../comun/useDialogo'
+import { txConsolaBd } from './textosConsolaBd.ts'
 
 export interface DialogoParametrosProps {
   campos: CampoParametro[]
@@ -46,12 +47,13 @@ function FilaParametro({ c, i, f }: { c: CampoParametro; i: number; f: FilasPara
   const { primeroNulo, refs, primeroRef, poner } = f
   const idCampo = `${f.idBase}-v${i}`
   const v = f.valores[c.clave] ?? { texto: '', nulo: false }
+  const t = txConsolaBd()
   return (
     <div className="db-param-fila">
       <label
         className="db-param-nombre"
         htmlFor={idCampo}
-        title={c.sentencias > 1 ? `${c.etiqueta}: aparece en ${cantidad(c.sentencias, 'sentencia', 'sentencias')}` : c.etiqueta}
+        title={c.sentencias > 1 ? t.apareceEn(c.etiqueta, cantidad(c.sentencias, t.sentencia, t.sentencias)) : c.etiqueta}
       >
         {c.etiqueta}
       </label>
@@ -71,7 +73,7 @@ function FilaParametro({ c, i, f }: { c: CampoParametro; i: number; f: FilasPara
         autoComplete="off"
         onChange={(e) => poner(c.clave, { texto: e.target.value })}
       />
-      <label className="db-param-nulo" title="Enviar NULL (sin valor)">
+      <label className="db-param-nulo" title={t.enviarNulo}>
         <input
           type="checkbox"
           ref={(el) => {
@@ -141,6 +143,7 @@ export function DialogoParametros(p: DialogoParametrosProps): React.JSX.Element 
     setValores((v) => ({ ...v, [clave]: { ...(v[clave] ?? { texto: '', nulo: false }), ...cambio } }))
   const primeroNulo = campos.length > 0 && valores[campos[0].clave]?.nulo === true
   const f: FilasParametros = { idBase, valores, primeroNulo, refs, primeroRef, poner }
+  const t = txConsolaBd()
 
   return (
     <div className="modal-overlay" role="presentation" onMouseDown={onCancelar}>
@@ -155,7 +158,7 @@ export function DialogoParametros(p: DialogoParametrosProps): React.JSX.Element 
         onKeyDown={(e) => teclaParametros(e, dlg.alPulsarTecla, aceptar)}
       >
         <div className="modal-title" id={`${idBase}-titulo`}>
-          Parámetros <span className="db-param-alias">· {p.alias}</span>
+          {t.parametros} <span className="db-param-alias">· {p.alias}</span>
         </div>
         <div className="modal-message" id={`${idBase}-mensaje`}>
           {p.mensaje}
@@ -166,7 +169,7 @@ export function DialogoParametros(p: DialogoParametrosProps): React.JSX.Element 
             aceptar()
           }}
         >
-          <div className="db-param-lista" role="group" aria-label="Valores de los parámetros">
+          <div className="db-param-lista" role="group" aria-label={t.valoresParametros}>
             {campos.map((c, i) => (
               <FilaParametro key={c.clave} c={c} i={i} f={f} />
             ))}
@@ -174,10 +177,10 @@ export function DialogoParametros(p: DialogoParametrosProps): React.JSX.Element 
           <div className="db-param-pie">{pieDialogoParametros(p.dialecto)}</div>
           <div className="modal-actions">
             <button type="button" className="btn btn-ghost" onClick={onCancelar}>
-              Cancelar
+              {t.cancelar}
             </button>
             <button type="submit" className="btn primary">
-              {p.accion === 'explicar' ? 'Explicar plan' : 'Ejecutar'}
+              {p.accion === 'explicar' ? t.explicarPlan : t.ejecutar}
             </button>
           </div>
         </form>

@@ -16,6 +16,7 @@ import { CampoRenombrar, teclaDePestana, type Renombrando } from './renombradoPe
 import { terminalName, terminalPaneKey, type ShellTerminal } from './shellTerminalsModel'
 import { sshPaneKey, type SshTab } from './sshTabsModel'
 import type { TerminalPaneInfo } from './terminalPaneTipos'
+import { txTerminales } from './textos.ts'
 
 export type { Renombrando } from './renombradoPestana'
 
@@ -58,7 +59,7 @@ function Pestana(p: PestanaProps): React.JSX.Element {
           cerrar: () => p.onClose(projectKey, t.id)
         })
       }
-      title={editando ? undefined : `${nombre}\nDoble clic para renombrar · ${window.tessera.plataforma === 'mac' ? '⌘⌫' : 'Supr'} para cerrar`}
+      title={editando ? undefined : `${nombre}\n${txTerminales().dobleClicRenombrar(txTerminales().teclaCerrar(window.tessera.plataforma === 'mac'))}`}
     >
       {editando ? (
         <CampoRenombrar
@@ -75,7 +76,7 @@ function Pestana(p: PestanaProps): React.JSX.Element {
         <span className="terminal-tab-name">{nombre}</span>
       )}
       {dead && !editando && (
-        <span className="terminal-tab-dead" title="El shell terminó">
+        <span className="terminal-tab-dead" title={txTerminales().shellTermino}>
           ●
         </span>
       )}
@@ -87,8 +88,8 @@ function Pestana(p: PestanaProps): React.JSX.Element {
           p.onClose(projectKey, t.id)
         }}
         tabIndex={-1}
-        title="Cerrar esta terminal (mata lo que esté corriendo dentro)"
-        aria-label={`Cerrar ${nombre}`}
+        title={txTerminales().cerrarTerminal}
+        aria-label={txTerminales().cerrarNombre(nombre)}
       >
         <CloseIcon />
       </button>
@@ -151,9 +152,10 @@ interface ZonaPestanasProps extends AccionesPestanas {
  */
 export function ZonaPestanas(p: ZonaPestanasProps): React.JSX.Element {
   const { ssh, projectKey } = p
+  const t = txTerminales()
   return (
     <div className="terminal-tabs-zona">
-      <div className="terminal-tabs" role="tablist" aria-label="Terminales">
+      <div className="terminal-tabs" role="tablist" aria-label={t.terminales}>
         {ssh.lista.map((t) => (
           <PestanaSsh
             key={t.id}
@@ -191,14 +193,14 @@ export function ZonaPestanas(p: ZonaPestanasProps): React.JSX.Element {
       <BotonDividido
         className="terminal-tabs-add"
         grupoRef={p.nueva.grupoRef}
-        etiquetaPrincipal="Nueva terminal"
-        tituloPrincipal="Nueva terminal (las demás siguen corriendo)"
+        etiquetaPrincipal={t.nuevaTerminal}
+        tituloPrincipal={t.nuevaTerminalTitulo}
         iconoPrincipal={<PlusIcon />}
         onPrincipal={() => projectKey !== null && p.onAdd(projectKey)}
         principalNoDisponible={p.nueva.noDisponible}
         sinFlecha={p.nueva.sinFlecha}
-        etiquetaFlecha="Conexiones SSH"
-        tituloFlecha="Conexiones SSH: conectar, buscar o crear"
+        etiquetaFlecha={t.conexionesSsh}
+        tituloFlecha={t.conexionesSshTitulo}
         flechaDeshabilitada={p.nueva.flechaDeshabilitada}
         flechaAbierta={p.nueva.flechaAbierta}
         flechaControla={p.nueva.flechaControla}

@@ -13,10 +13,11 @@ import { ContextMenu, SEP, type ContextMenuEntry } from '../../comun/ContextMenu
 import { conexionPorId, destinoSsh, IconoServidor, useStoreSsh } from '../ssh'
 import { IconoSftp } from '../sftp'
 import type { SshConexion } from '../../../../shared/ssh-ipc'
-import { MOTIVO_CONEXION_ELIMINADA } from './activoTerminales'
+import { motivoConexionEliminada } from './activoTerminales'
 import { CloseIcon } from './IconosTerminales'
 import { CampoRenombrar, claveRenombradoSsh, teclaDePestana, type Renombrando } from './renombradoPestana'
 import { esPestanaSftp, nombreSsh, type SshTab } from './sshTabsModel'
+import { txTerminales } from './textos.ts'
 import type { TerminalPaneInfo } from './terminalPaneTipos'
 
 export interface PestanaSshProps {
@@ -35,19 +36,21 @@ export interface PestanaSshProps {
 
 /** Cómo está la sesión, para el tooltip. */
 function estadoDe(info: TerminalPaneInfo | undefined): string {
-  if (info?.status === 'exited') return 'Desconectada'
-  if (info?.status === 'error') return 'No se pudo abrir'
-  return info?.status === 'live' ? 'Conectada' : 'Conectando…'
+  const t = txTerminales()
+  if (info?.status === 'exited') return t.desconectada
+  if (info?.status === 'error') return t.noSePudoAbrir
+  return info?.status === 'live' ? t.conectada : t.conectando
 }
 
 /** El tooltip: el nombre, adónde conecta, cómo está y qué se puede hacer con la pestaña. */
 function tituloDe(nombre: string, conexion: SshConexion | undefined, info: TerminalPaneInfo | undefined, sftp: boolean): string {
-  const destino = conexion ? destinoSsh(conexion) : 'la conexión se eliminó'
-  const atajoCerrar = window.tessera.plataforma === 'mac' ? '⌘⌫' : 'Supr'
+  const t = txTerminales()
+  const destino = conexion ? destinoSsh(conexion) : t.conexionEliminadaDestino
+  const atajoCerrar = t.teclaCerrar(window.tessera.plataforma === 'mac')
   // El explorador no lleva pty: su estado (conectando, error) lo cuenta él dentro de su pane.
-  const estado = sftp ? 'Archivos remotos por SFTP' : estadoDe(info)
-  const reconectar = sftp ? '' : ' · Clic derecho para reconectar'
-  return `${nombre}\n${destino}\n${estado}\nDoble clic para renombrar · ${atajoCerrar} para cerrar${reconectar}`
+  const estado = sftp ? t.archivosRemotos : estadoDe(info)
+  const reconectar = sftp ? '' : t.clicDerechoReconectar
+  return `${nombre}\n${destino}\n${estado}\n${t.dobleClicRenombrar(atajoCerrar)}${reconectar}`
 }
 
 /** ¿Ya no hay sesión viva (terminó o no abrió)? */
@@ -57,7 +60,8 @@ function terminoSesion(info: TerminalPaneInfo | undefined): boolean {
 
 /** Lo que lee un lector de pantalla: el nombre, de qué clase es y, si aplica, que está desconectada. */
 function etiquetaDe(nombre: string, sftp: boolean, dead: boolean): string {
-  return `${nombre}, ${sftp ? 'archivos remotos por SFTP' : 'SSH'}${dead ? ', desconectada' : ''}`
+  const t = txTerminales()
+  return `${nombre}, ${sftp ? t.etiquetaSftp : 'SSH'}${dead ? t.etiquetaDesconectada : ''}`
 }
 
 /** La ✕ de la pestaña: cierra la sesión SSH. */
@@ -71,8 +75,8 @@ function BotonCerrar({ nombre, onCerrar }: { nombre: string; onCerrar: () => voi
         onCerrar()
       }}
       tabIndex={-1}
-      title="Cerrar esta pestaña (cierra su conexión)"
-      aria-label={`Cerrar ${nombre}`}
+      title={txTerminales().cerrarPestana}
+      aria-label={txTerminales().cerrarNombre(nombre)}
     >
       <CloseIcon />
     </button>
@@ -84,10 +88,11 @@ function BotonCerrar({ nombre, onCerrar }: { nombre: string; onCerrar: () => voi
  * y cerrar. Cerrar es desconectar: no hay un «Desconectar» aparte.
  */
 function itemsMenu(sftp: boolean, conexionExiste: boolean, acciones: { reconectar: () => void; renombrar: () => void; cerrar: () => void }): ContextMenuEntry[] {
+  const t = txTerminales()
   const reconectar: ContextMenuEntry[] = sftp
     ? []
-    : [{ label: 'Reconectar', onClick: acciones.reconectar, disabled: !conexionExiste, ...(conexionExiste ? {} : { title: MOTIVO_CONEXION_ELIMINADA }) }]
-  return [...reconectar, { label: 'Renombrar', onClick: acciones.renombrar }, SEP, { label: 'Cerrar', onClick: acciones.cerrar }]
+    : [{ label: t.reconectar, onClick: acciones.reconectar, disabled: !conexionExiste, ...(conexionExiste ? {} : { title: motivoConexionEliminada() }) }]
+  return [...reconectar, { label: t.renombrar, onClick: acciones.renombrar }, SEP, { label: t.cerrar, onClick: acciones.cerrar }]
 }
 
 /** Una pestaña SSH. */
@@ -140,7 +145,7 @@ export function PestanaSsh(p: PestanaSshProps): React.JSX.Element {
         <span className="terminal-tab-name">{nombre}</span>
       )}
       {dead && !editando && (
-        <span className="terminal-tab-dead" title="La sesión terminó">
+        <span className="terminal-tab-dead" title={txTerminales().sesionTermino}>
           ●
         </span>
       )}

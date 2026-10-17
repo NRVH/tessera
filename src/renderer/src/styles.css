@@ -439,7 +439,7 @@ body {
    deja su divisor. `overflow: hidden` recorta las esquinas cuadradas del contenido (xterm,
    Monaco, rejillas); no afecta a menús ni diálogos, que son `position: fixed` o van por
    portal. El borde entero manda sobre el filete de un lado de la regla base de cada zona. */
-.shell-main-top > .sidebar,
+.shell-main-top > .panel-lateral,
 .shell-main-top > .editor-area,
 .shell-main-top > .db-area,
 .shell-main-top > .right-panel,
@@ -1101,6 +1101,16 @@ body {
 .selector-perfil-fila.activa {
   background: color-mix(in srgb, var(--profile-color, var(--accent)) 10%, transparent);
 }
+/* Reordenar arrastrando: la fila que se mueve se atenúa y una raya dice dónde caerá. */
+.selector-perfil-fila.arrastrando {
+  opacity: 0.45;
+}
+.selector-perfil-fila.soltar-antes {
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+.selector-perfil-fila.soltar-despues {
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
 .selector-perfil-elegir,
 .selector-perfil-nuevo {
   display: flex;
@@ -1587,9 +1597,11 @@ body {
   opacity: 1;
 }
 
+/* Al apuntarla dice que cierra: el tinte del rojo de acción (como «Detener» en la consola de BD) y
+   el icono en un rojo apagado con el gris del texto, un aviso y no una alarma. */
 .project-tab-close:hover {
-  color: var(--fg);
-  background: rgba(255, 255, 255, 0.08);
+  color: color-mix(in srgb, var(--red) 70%, var(--fg-muted));
+  background: var(--danger-tinte);
 }
 
 .project-tab-close svg {
@@ -1846,14 +1858,31 @@ body {
   min-height: 40px;
 }
 
-/* Sidebar (explorador placeholder). */
-.sidebar {
+/* El panel lateral: la tarjeta con el ancho de la vista que se ve. Dentro, el lateral de esa vista
+   y, ocultos (`.capa-viva.oculta`, en absoluto, con su mismo tamaño), los de las vistas que se
+   conservan (`features/layout/lateralesVivos.ts`). */
+.panel-lateral {
   flex: 0 0 var(--sidebar-width);
   display: flex;
-  flex-direction: column;
-  background: var(--bg-elevated);
-  border-right: 1px solid var(--border);
+  position: relative;
   min-width: 0;
+  min-height: 0;
+  background: var(--bg-elevated);
+}
+.panel-lateral > .error-boundary-pane {
+  flex: 1 1 0;
+}
+
+/* El lateral de una vista: llena la tarjeta, que es la que lleva el borde. */
+.sidebar {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  /* Contiene a los árboles ocultos (`.capa-viva.oculta`), que van en absoluto. */
+  position: relative;
+  background: var(--bg-elevated);
+  min-width: 0;
+  min-height: 0;
   /* CONSUME su propia --ui-font, y sin esto la superficie NO escala: el tamaño
      lo pone `body { font-size: var(--ui-font) }`, y los descendientes heredan el
      valor YA CALCULADO, no la variable. Redefinir --ui-font en la raíz de este
@@ -1862,6 +1891,21 @@ body {
      --ui-row-h— y la letra se quedaba en la de `body`. Un panel con voz propia
      tiene que RE-DECLARAR el font-size para que su subárbol lo herede de él. */
   font-size: var(--ui-font);
+}
+
+/* Una pieza viva aunque no se vea (`comun/useVivosRecientes`): la que se ve no añade caja; la oculta
+   conserva la suya, fuera del flujo e invisible, para que su lista no pierda el desplazamiento (con
+   `display: none` el navegador lo descarta). Su contenedor lleva `position: relative`. */
+.capa-viva:not(.oculta) {
+  display: contents;
+}
+.capa-viva.oculta {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .sidebar-header {
@@ -3419,6 +3463,21 @@ body {
   order: 1;
   flex-basis: 100%;
 }
+/* Sin ninguna pestaña la zona es solo el «+»: no hay nada que tapar, así que se queda en la línea del
+   título, donde va el chip de las tapadas, y la cabecera no crece. */
+.shell.agente-terminal-visible .terminal-panel.sin-terminal > .panel-header:not(:has(.terminal-tab)) {
+  flex-wrap: nowrap;
+  height: 35px;
+}
+.shell.agente-terminal-visible .terminal-panel.sin-terminal > .panel-header:not(:has(.terminal-tab)) .terminal-tabs-zona {
+  order: 0;
+  flex: 0 0 auto;
+}
+/* El dibujo del «+» empieza donde empezaría el chip: el margen descuenta el relleno del botón (ver
+   `.terminales-tapadas-nueva`, que hace la misma cuenta). */
+.shell.agente-terminal-visible .terminal-panel.sin-terminal > .panel-header:not(:has(.terminal-tab)) .terminal-tabs-add {
+  margin-left: -7px;
+}
 /* Con el agente maximizado, las pestañas tapadas se reducen a un chip con su número: pulsarlo las devuelve.
    Sin pestañas la cabecera vuelve a ser de una línea, y lo que cede al estrecharse es el texto (el título
    trunca y la palabra del chip desaparece), nunca los botones. */
@@ -3469,6 +3528,14 @@ body {
 .terminales-tapadas:focus-visible {
   outline: 1px solid var(--sel);
   outline-offset: -1px;
+}
+/* El «+» junto al chip: una terminal nueva sin restaurar antes a mano. Fijo como el chip y sin ceder
+   ancho. El margen negativo descuenta el relleno del botón (24 px para un glifo de 14) para que entre
+   el chip y el DIBUJO del «+» quede el mismo hueco que entre el título y el chip (medido en
+   `agente-terminal.spec.ts`). */
+.terminales-tapadas-nueva {
+  flex: 0 0 auto;
+  margin-left: -7px;
 }
 .shell.agente-terminal-visible .shell-main-top > :not(.right-panel):not(.splitter-agente) {
   position: absolute;
@@ -3868,54 +3935,8 @@ body {
   flex: 0 0 auto;
 }
 
-/* Selector segmentado de agente (Claude Code / Codex) en el header de la columna
-   del agente. Solo aparece cuando el perfil tiene más de un agente. Estilo sobrio
-   coherente con .panel-title: segmentos apagados, el activo con acento. */
-.agent-switch {
-  /* inline-grid con columnas iguales (1fr): los segmentos miden LO MISMO aunque
-     sus etiquetas difieran ("Claude Code" vs "Codex"), como un segmented control
-     de verdad. flex-shrink:0 para que no lo aplaste el nombre del perfil al lado. */
-  display: inline-grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 1fr;
-  align-items: center;
-  gap: 2px;
-  /* Control segmentado CUADRADO: pista hundida (bg-deep + hairline), esquinas casi
-     rectas. El segmento activo es un chip ELEVADO (superficie + shadow-chip), no un
-     subrayado — patrón de segmented control moderno (Linear/Vercel). */
-  padding: 2px;
-  border-radius: 6px;
-  background: var(--bg-deep);
-  box-shadow: inset 0 0 0 1px var(--border);
-  flex: 0 0 auto;
-}
-
-.agent-switch-btn {
-  font-size: 11.5px;
-  font-weight: 500;
-  letter-spacing: 0.01em;
-  text-transform: none;
-  text-align: center;
-  white-space: nowrap;
-  color: var(--fg-muted);
-  background: transparent;
-  border: none;
-  padding: 3px 11px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: color 0.12s ease, background 0.12s ease;
-}
-
-.agent-switch-btn:hover:not(.active) {
-  color: var(--fg);
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.agent-switch-btn.active {
-  color: var(--fg);
-  background: var(--bg-surface);
-  box-shadow: var(--shadow-chip);
-}
+/* El selector de agente de la cabecera (pestañas o lista) tiene sus reglas en
+   `features/agentes/selectorAgentes.css`; aquí solo cede a nombre corto por ancho. */
 
 /* ==========================================================================
    Header del agente en columnas ESTRECHAS. `.panel-title` no se comprime (min-content),
@@ -3944,9 +3965,6 @@ body {
   }
   .agent-switch-short {
     display: inline;
-  }
-  .agent-switch-btn {
-    padding: 3px 8px;
   }
 }
 
@@ -3979,6 +3997,43 @@ body {
 .agent-pane-footer .agent-reload-btn {
   height: 24px;
   flex: 0 0 auto; /* el botón NUNCA se encoge: es la acción, el uso es informativo */
+}
+
+/* Dónde vive el agente (proyecto, datos o terminal), con el icono de su vista en el riel. Va en la
+   esquina, a la derecha del botón: el botón se esconde en reposo y así su caja no deja un hueco al
+   lado del rótulo; al desplegarse «Reiniciar agente» crece hacia el hueco libre de la izquierda y el
+   rótulo no se mueve. Cede ancho antes que el botón y que el uso. */
+.agent-footer-lugar {
+  /* Encoge mucho antes que el uso: entre los dos, el que corta su texto es el rótulo. Su icono no se
+     corta nunca: el mínimo es su ancho. */
+  flex: 0 100 auto;
+  min-width: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--fg-muted);
+  white-space: nowrap;
+}
+.agent-footer-lugar > svg {
+  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
+}
+.agent-footer-lugar-texto {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* En una casilla estrecha queda el icono; la cabecera ya dice perfil y proyecto. */
+@container agentfooter (max-width: 420px) {
+  .agent-footer-lugar-texto {
+    display: none;
+  }
+}
+@container agentfooter (max-width: 240px) {
+  .agent-footer-lugar {
+    display: none;
+  }
 }
 
 /* --------------------------------------------------------------------------
@@ -4019,6 +4074,8 @@ body {
   .agent-footer-stats {
   opacity: 0;
   pointer-events: none;
+  /* Apagado, es el primero en ceder: el botón que crece le quita el sitio a él y no al rótulo. */
+  flex-shrink: 1000;
   /* Se apaga al ritmo al que la etiqueta se abre (280 ms), no antes: si desapareciera
      de golpe se leería como un parpadeo del footer en vez de como una cesión de sitio. */
   transition: opacity 200ms ease;
@@ -6072,6 +6129,8 @@ body {
   min-height: 0;
   display: flex;
   align-items: stretch;
+  /* Contiene al riel SSH cuando está montado y oculto (`.capa-viva.oculta`, en absoluto). */
+  position: relative;
 }
 
 /* PILA de terminales KEEP-ALIVE: TODAS las ranuras de TODOS los proyectos abiertos
@@ -6604,7 +6663,8 @@ body {
     .panel-actions .git-icon-btn:not(.girando):not(.fijo),
     .panel-title-actions .btn,
     .panel-name-btn,
-    .terminal-tabs-add:not(.abierto),
+    /* En la columna plegada el «+» es lo único que hay junto al título: se queda fijo, como el chip. */
+    .terminal-tabs-add:not(.abierto):not(.sin-terminal *),
     .terminal-reload-btn,
     .agent-pane-footer .btn
   ):not(.diff-header *) {
@@ -7561,7 +7621,7 @@ body.is-resizing * {
   margin: 1.4em 0;
 }
 
-/* Visor binario (PDF/Word/zip): la cáscara .editor da el header; el cuerpo llena. */
+/* Visor binario (PDF/Word/zip/audio/vídeo): la cáscara .editor da el header; el cuerpo llena. */
 .binary-viewer-status {
   flex: 1 1 auto;
   display: flex;
@@ -7585,6 +7645,27 @@ body.is-resizing * {
   width: 100%;
   border: none;
   background: #525659; /* gris del visor nativo, evita flash claro al cargar */
+}
+
+/* Audio y vídeo: el reproductor nativo, centrado; el vídeo cabe entero sin deformarse. */
+.visor-media {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.visor-media.es-video {
+  padding: 0;
+  background: #000; /* bandas del vídeo que no llena el pane */
+}
+.visor-media video {
+  max-width: 100%;
+  max-height: 100%;
+}
+.visor-media audio {
+  width: min(520px, 100%);
 }
 
 /* Listado de un .zip. */

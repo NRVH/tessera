@@ -6,6 +6,7 @@
 // =============================================================================
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useRaizDelProyecto } from '../../comun/raizDelProyecto'
 import type { DiffTarget } from '../editor'
 import type { FileRef } from '../../../../shared/git-ipc'
 import { resolveDiffTarget } from './modelo/resolveDiffTarget'
@@ -33,13 +34,14 @@ function mensajeDe(err: unknown): string {
 // Arma el diff de ESTE archivo en un commit (por la ruta actual o por `oldPath` si lo
 // renombró) o devuelve null si no aparece: pasa con renames más antiguos que el nombre pedido.
 async function armarTarget(
+  raiz: string,
   path: string,
   hash: string,
   repo: string | undefined
 ): Promise<DiffTarget | null> {
   const [cambios, padre] = await Promise.all([
-    window.tessera.git.filesForCommit(hash, repo),
-    window.tessera.git.parentOf(hash, repo)
+    window.tessera.git.filesForCommit(raiz, hash, repo),
+    window.tessera.git.parentOf(raiz, hash, repo)
   ])
   const cambio = cambios.find((c) => c.path === path || c.oldPath === path)
   if (!cambio) return null
@@ -72,6 +74,7 @@ export function useHistorialArchivo(path: string): HistorialDeArchivo {
   const pedidoRef = useRef<string | null>(null)
   // Repo dueño del archivo, tal cual lo resolvió `fileHistory`.
   const repoRef = useRef<string | undefined>(undefined)
+  const raiz = useRaizDelProyecto()
 
   // Carga la historia al cambiar de archivo; la bandera evita pintar la respuesta de uno anterior.
   useEffect(() => {
@@ -83,7 +86,7 @@ export function useHistorialArchivo(path: string): HistorialDeArchivo {
     repoRef.current = undefined
     // SIN REPO, A PROPÓSITO: el dueño lo deduce el main por la RUTA (ver el ADR).
     window.tessera.git
-      .fileHistory(path)
+      .fileHistory(raiz, path)
       .then((r) => {
         if (cancelado) return
         repoRef.current = r.repoHostPath === '' ? undefined : r.repoHostPath
@@ -95,11 +98,11 @@ export function useHistorialArchivo(path: string): HistorialDeArchivo {
     return () => {
       cancelado = true
     }
-  }, [path])
+  }, [raiz, path])
 
   const targetDe = useCallback(
-    (hash: string): Promise<DiffTarget | null> => armarTarget(path, hash, repoRef.current),
-    [path]
+    (hash: string): Promise<DiffTarget | null> => armarTarget(raiz, path, hash, repoRef.current),
+    [raiz, path]
   )
 
   // Selección: pinta el diff en la columna derecha, SIN abrir nada en el editor.

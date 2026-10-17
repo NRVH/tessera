@@ -8,6 +8,7 @@ import { TogglesBusqueda } from '../../comun/TogglesBusqueda'
 import { pegarRecortado } from '../../util/pasteTrim'
 import type { CoincidenciaArchivo } from '../../../../shared/search-ipc'
 import type { OpcionesBusqueda } from '../../../../shared/textSearch'
+import { txBusqueda } from './textos.ts'
 
 /** Cabecera del modal: título, proyecto activo y botón de cerrar. */
 export function CabeceraBusqueda({
@@ -17,13 +18,14 @@ export function CabeceraBusqueda({
   projectName: string
   onClose: () => void
 }): React.JSX.Element {
+  const t = txBusqueda()
   return (
     <header className="buscar-header">
       <div className="buscar-header-title">
-        <span>Buscar en archivos</span>
+        <span>{t.buscarEnArchivos}</span>
         {projectName !== '' && <span className="buscar-header-proyecto">{projectName}</span>}
       </div>
-      <button className="btn btn-icon" onClick={onClose} title="Cerrar (Esc)" aria-label="Cerrar">
+      <button className="btn btn-icon" onClick={onClose} title={t.cerrarEsc} aria-label={t.cerrar}>
         ✕
       </button>
     </header>
@@ -52,6 +54,7 @@ export function CampoBusqueda({
   contador,
   children
 }: CampoBusquedaProps): React.JSX.Element {
+  const t = txBusqueda()
   return (
     <div className="buscar-campo-wrap">
       <div className="buscar-campo">
@@ -59,12 +62,12 @@ export function CampoBusqueda({
         <input
           ref={inputRef}
           className="buscar-input"
-          placeholder="Buscar en todo el proyecto…"
+          placeholder={t.placeholder}
           value={query}
           onChange={(e) => onQuery(e.target.value)}
           onPaste={pegarRecortado(onQuery)}
           spellCheck={false}
-          aria-label="Texto a buscar"
+          aria-label={t.textoABuscar}
           autoFocus
         />
         {query !== '' && (
@@ -75,8 +78,8 @@ export function CampoBusqueda({
               onQuery('')
               inputRef.current?.focus()
             }}
-            title="Limpiar"
-            aria-label="Limpiar la búsqueda"
+            title={t.limpiar}
+            aria-label={t.limpiarBusqueda}
           >
             ✕
           </button>
@@ -98,13 +101,12 @@ export function PieBusqueda({
   fila: CoincidenciaArchivo | null
   onAbrir: (c: CoincidenciaArchivo) => void
 }): React.JSX.Element {
+  const t = txBusqueda()
   return (
     <footer className="buscar-footer">
-      <span className="buscar-footer-pista">
-        ↑ ↓ para recorrer · Enter o doble clic para abrir · Esc para cerrar
-      </span>
+      <span className="buscar-footer-pista">{t.pistaTeclas}</span>
       <button className="btn" disabled={fila === null} onClick={() => fila !== null && onAbrir(fila)}>
-        Abrir en el editor
+        {t.abrirEnEditor}
       </button>
     </footer>
   )

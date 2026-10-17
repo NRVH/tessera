@@ -12,7 +12,7 @@ el usuario y el agente no la necesita.
 
 ## Decisión
 
-- En solo lectura, `abrirSqlite` pone el perfil `lectura` del autorizador (lista blanca medida
+- En solo lectura, `abrirSqlite` pone el perfil `lectura` del autorizador (lista blanca
   y columnas exigidas): un `PRAGMA table_info(t)` pasa; `ATTACH`, `VACUUM INTO` y
   `load_extension` no. En escritura, el perfil `base`: todo menos lo cerrado siempre. `tdb.cjs`
   salta su guardia por prefijo para este motor (`guardiaPorPrefijo`).

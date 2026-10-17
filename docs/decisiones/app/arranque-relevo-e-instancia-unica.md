@@ -1,7 +1,7 @@
 # El proceso decide al cargar si es el relevo o Tessera, y solo Tessera toma el cerrojo de instancia única
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/app/proceso.ts`, `src/main/app/instanciaUnica.ts`, `src/main/app/devUserData.ts`, `src/main/index.ts` (macOS: sin verificar aquí)
+- **Ámbito:** `src/main/app/proceso.ts`, `src/main/app/instanciaUnica.ts`, `src/main/app/devUserData.ts`, `src/main/index.ts`
 
 ## Contexto
 
@@ -24,7 +24,8 @@ mismo `userData` se pisan: el atajo `tdb` y los temporales de nombre fijo de la 
   relevo en vuelo, sale (en Windows un proceso lanzado desde la carpeta de instalación impide renombrarla, el
   «error 2»); reclama el cerrojo; encola las rutas; y registra `second-instance` y `open-file`.
 - `second-instance` y `open-file` se registran al cargar, no en `whenReady`: en frío pasan segundos entre el cerrojo
-  y la ventana, y en macOS el `open-file` que abrió la app llega antes de `ready`. Las dos vías van a la MISMA cola.
+  y la ventana, y en macOS el `open-file` que abrió la app llega antes de `ready`. Las dos vías van a la MISMA cola,
+  salvo los `.tessera`, que van a la del importar de la configuración.
 - `open-file` no mira el relevo en vuelo: en macOS la actualización sustituye el `.app` y no hay carpeta bloqueada.
 - Un SEGUNDO oyente de `open-file` (`registrarAperturaMac`), registrado al final del arranque, trae la ventana al
   frente o la crea si no queda ninguna. Va después para no crear dos ventanas en frío; en Windows no se registra.

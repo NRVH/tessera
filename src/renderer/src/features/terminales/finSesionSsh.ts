@@ -9,6 +9,7 @@
 
 import type { Plataforma } from '../../../../shared/plataforma.ts'
 import type { TerminalExitReason } from '../../../../shared/terminal-ipc.ts'
+import { txTerminales } from './textos.ts'
 
 /** El código con el que sale ssh cuando falla él y no lo de dentro. */
 export const CODIGO_FALLO_SSH = 255
@@ -18,14 +19,6 @@ export const CODIGO_FALLO_SSH_WINDOWS = 4294967295
 
 /** Antes de esto, un 255 es «no se pudo conectar»; después, «se cortó» (hubo una sesión). */
 export const UMBRAL_FALLO_AL_CONECTAR_MS = 20_000
-
-/** El motivo que acompaña a «No se pudo conectar». Sin `reason` el main no supo más: no se dice nada. */
-const MOTIVOS: Record<TerminalExitReason, string> = {
-  'ssh-autenticacion': 'el servidor no aceptó las credenciales',
-  'ssh-inalcanzable': 'el servidor no responde: ¿falta la VPN?',
-  'ssh-huella-cambiada': 'la huella del servidor cambió',
-  'ssh-algoritmos': 'el servidor solo ofrece algoritmos antiguos'
-}
 
 /**
  * ¿Salió ssh por un fallo suyo? Si el main clasificó un motivo por lo que ssh escribió (también un
@@ -55,16 +48,18 @@ export function motivoFinSsh(
   reason?: TerminalExitReason,
   plataforma: Plataforma = 'otra'
 ): string {
+  const t = txTerminales()
   if (esFalloDeSsh(exitCode, reason)) {
-    if (duracionMs >= UMBRAL_FALLO_AL_CONECTAR_MS) return 'Se cortó la conexión'
-    return reason === undefined ? 'No se pudo conectar' : `No se pudo conectar: ${MOTIVOS[reason]}`
+    if (duracionMs >= UMBRAL_FALLO_AL_CONECTAR_MS) return t.seCorto
+    // El motivo que acompaña a «No se pudo conectar». Sin `reason` el main no supo más: no se dice nada.
+    return reason === undefined ? t.noSePudoConectar : t.noSePudoConectarMotivo(t.motivos[reason])
   }
-  if (exitCode === 0 || exitCode === null || esSinCodigo(exitCode, plataforma)) return 'La sesión terminó'
-  return `La sesión terminó (código ${exitCode})`
+  if (exitCode === 0 || exitCode === null || esSinCodigo(exitCode, plataforma)) return t.sesionTermino
+  return t.sesionTerminoCodigo(exitCode)
 }
 
 /** El aviso que el xterm escribe al terminar la sesión: lo que pasó y qué pulsar para volver a conectar. */
 export function bannerFinSsh(motivo: string): string {
   const puntoFinal = /[.?!]$/.test(motivo) ? '' : '.'
-  return `${motivo}${puntoFinal} Pulsa Intro para volver a conectar.`
+  return `${motivo}${puntoFinal}${txTerminales().pulsaIntro}`
 }

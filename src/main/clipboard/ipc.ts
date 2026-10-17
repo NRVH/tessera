@@ -17,6 +17,7 @@ import type { PasteResult } from '../../shared/files-ipc'
 import type { FileService } from '../files/FileService'
 import type { PortapapelesSistema } from './adaptadores/portapapelesElectron'
 import { pasteFromClipboard, probeClipboard, saveClipboardImageToTemp } from './clipboardFiles'
+import { txArchivos } from '../files/textos.ts'
 
 type Ipc = Pick<IpcMain, 'handle'>
 
@@ -56,8 +57,9 @@ export function registrarIpcPortapapeles({
     CLIPBOARD_CHANNELS.PASTE_INTO,
     async (_e, req: ClipboardPasteRequest): Promise<PasteResult> => {
       const files = archivos()
-      if (files === null) throw new Error('No hay proyecto activo.')
-      return pasteFromClipboard(portapapeles, req.destDir, (opts) => files.paste(opts))
+      if (files === null) throw new Error(txArchivos().sinProyecto)
+      const proyecto = files.paraRaiz(req?.raiz)
+      return pasteFromClipboard(portapapeles, req.destDir, (opts) => proyecto.paste(opts))
     }
   )
 }

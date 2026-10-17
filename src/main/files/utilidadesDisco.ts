@@ -8,6 +8,7 @@
 import { promises as fs } from 'node:fs'
 import * as path from 'node:path'
 import { plataformaActual, type Plataforma } from '../../shared/plataforma'
+import { txArchivos } from './textos.ts'
 
 /** true si existe algo (archivo o carpeta) en la ruta absoluta dada. */
 export async function exists(abs: string): Promise<boolean> {
@@ -39,11 +40,12 @@ export async function readPrefix(absPath: string, n: number): Promise<Buffer> {
  */
 export function validateName(name: string): string {
   const clean = name.trim()
-  if (!clean) throw new Error('El nombre no puede estar vacío.')
-  if (clean === '.' || clean === '..') throw new Error('Nombre reservado.')
-  if (/[/\\]/.test(clean)) throw new Error('El nombre no puede contener "/" ni "\\".')
+  const t = txArchivos()
+  if (!clean) throw new Error(t.nombreVacio)
+  if (clean === '.' || clean === '..') throw new Error(t.nombreReservado)
+  if (/[/\\]/.test(clean)) throw new Error(t.nombreBarras)
   // Caracteres que Windows prohíbe en nombres de archivo.
-  if (/[<>:"|?*]/.test(clean)) throw new Error('El nombre tiene caracteres inválidos.')
+  if (/[<>:"|?*]/.test(clean)) throw new Error(t.nombreInvalido)
   return clean
 }
 
@@ -70,7 +72,7 @@ export async function uniqueName(dirAbs: string, name: string): Promise<string> 
     const candidate = n === 1 ? `${base} - copia${ext}` : `${base} - copia (${n})${ext}`
     if (!(await exists(path.join(dirAbs, candidate)))) return candidate
   }
-  throw new Error(`Demasiadas copias de "${name}" en la carpeta destino.`)
+  throw new Error(txArchivos().demasiadasCopias(name))
 }
 
 /**

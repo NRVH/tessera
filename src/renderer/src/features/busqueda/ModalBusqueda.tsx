@@ -8,6 +8,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { ErrorBoundary } from '../../comun/ErrorBoundary'
 import { BuscarEnArchivosModal } from './BuscarEnArchivosModal'
 import { useStoreBusqueda } from './store'
+import { txBusqueda } from './textos.ts'
 import type { UseTabs } from '../pestanas'
 import type { EditorApp } from '../editor'
 
@@ -35,7 +36,7 @@ export function ModalBusqueda({ tabs, perfilUI, editor }: Props): React.JSX.Elem
   if (!b.abierto) return null
   const activeProject = tabs.confirmedTarget?.project ?? null
   return (
-    <ErrorBoundary label="la búsqueda en archivos" variant="pane">
+    <ErrorBoundary label={txBusqueda().laBusquedaEnArchivos} variant="pane">
       <BuscarEnArchivosModal
         key={perfilUI}
         projectName={activeProject?.name ?? ''}

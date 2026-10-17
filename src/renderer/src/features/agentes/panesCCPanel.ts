@@ -10,7 +10,8 @@
 
 import type { ComponentProps } from 'react'
 import type { AgentTerminalPane } from './AgentTerminalPane'
-import { AGENTES_DISPONIBLES, type Agente, type Profile } from '../../../../main/profiles/types'
+import type { Profile } from '../../../../main/profiles/types'
+import { pestanasEstables, siguienteAgente, type FuenteAgentes, type PestanaAgente, type SitioAgente } from './agentesDelProyecto'
 import { agentTargetKey, tintaPerfil, type OpenAgentTarget } from '../pestanas'
 import { editorTargetKey } from '../editor'
 import type { DisposicionMosaico, OpcionMosaico } from '../mosaico'
@@ -40,9 +41,11 @@ type PropsAvisos = Pick<PropsPane, 'onStatusChange' | 'onVivoChange' | 'onApi'>
  * Valores que todos los panes comparten, con la MISMA identidad en cada render (el pane
  * va memoizado y una lista nueva lo repintaría). Congelados: un `push` por descuido lanza.
  */
-const AGENTES_DEL_PERFIL = Object.freeze([...AGENTES_DISPONIBLES]) as Agente[]
 const SIN_BASES_MONTADAS = Object.freeze([]) as unknown as string[]
 function sinElegirCuenta(): void {}
+
+/** El de los panes que no se ven: sin botón de maximizar, un manejador estable que no repinta. */
+function sinMaximizar(): void {}
 
 /** Lo que CCPanel calcula en el render y comparten todos los panes. */
 export interface CalculoColumna {
@@ -53,6 +56,8 @@ export interface CalculoColumna {
   coloresPerfil: Record<string, ColorPerfil | undefined>
   opcionesPorPerfil: Map<string, OpcionMosaico[]>
   versionesPorTarget: Map<string, VersionesAgente>
+  /** Agentes manuales y ocultos: de aquí salen las pestañas de cada pane. */
+  fuenteAgentes: FuenteAgentes
 }
 
 interface Casilla {
@@ -116,15 +121,15 @@ function propsVisibilidad(
 }
 
 /**
- * El chip de agente es un ciclo: EL SIGUIENTE de la lista, no «el otro», para que un
- * tercer agente no quede inalcanzable desde el mosaico.
+ * El chip de agente es un ciclo: EL SIGUIENTE de las pestañas del proyecto, no «el otro», para
+ * que ningún agente (los manuales tampoco) quede inalcanzable desde el mosaico.
  */
-function otroAgenteDe(target: OpenAgentTarget, mosaico: MosaicoPanel): NonNullable<PropsPane['mosaico']>['otroAgente'] {
-  const iAgente = AGENTES_DISPONIBLES.indexOf(target.agente)
-  if (iAgente < 0 || AGENTES_DISPONIBLES.length <= 1) return null
-  const agente = AGENTES_DISPONIBLES[(iAgente + 1) % AGENTES_DISPONIBLES.length]
+function otroAgenteDe(target: OpenAgentTarget, mosaico: MosaicoPanel, pestanas: readonly PestanaAgente[]): NonNullable<PropsPane['mosaico']>['otroAgente'] {
+  const agente = siguienteAgente(pestanas.map((x) => x.id), target.agente)
+  if (!agente) return null
   const key = agentTargetKey(target.profileId, target.projectHostPath, agente)
-  return { key, agente, trabajando: mosaico.trabajando.has(key), sinVer: mosaico.sinVer.has(key), esperando: mosaico.esperando.has(key) }
+  const nombre = pestanas.find((x) => x.id === agente)?.nombre ?? agente
+  return { key, agente, nombre, trabajando: mosaico.trabajando.has(key), sinVer: mosaico.sinVer.has(key), esperando: mosaico.esperando.has(key) }
 }
 
 /** Datos y acciones de la casilla; una casilla por proyecto y dentro se elige el agente. */
@@ -132,7 +137,8 @@ function propsMosaicoDe(
   target: OpenAgentTarget,
   profile: Profile | null,
   c: CalculoColumna,
-  casilla: Casilla
+  casilla: Casilla,
+  pestanas: readonly PestanaAgente[]
 ): PropsPane['mosaico'] {
   const mosaico = c.mosaico
   if (!casilla.esCasilla || !mosaico) return null
@@ -153,7 +159,7 @@ function propsMosaicoDe(
     destinos: c.opcionesPorPerfil.get(profileId) ?? [],
     onElegirDestino: (key: string) => mosaico.onElegirDestino(target.key, key),
     onAbrirProyecto: () => mosaico.onAbrirProyecto(target.key, profileId),
-    otroAgente: otroAgenteDe(target, mosaico),
+    otroAgente: otroAgenteDe(target, mosaico, pestanas),
     onCambiarModo: mosaico.modoBloqueado(projectHostPath)
       ? null
       : () => mosaico.onCambiarModo(profileId, projectHostPath),
@@ -161,6 +167,12 @@ function propsMosaicoDe(
     onIrAlProyecto: () => mosaico.onIrAlProyecto(target),
     onEnfocar: () => mosaico.onEnfocar(target.key)
   }
+}
+
+/** Qué pestañas le tocan: las de su proyecto (según el modo), las de la terminal o las del espacio de datos. */
+function sitioDe(lugar: LugarAgente, hostMode: boolean): SitioAgente {
+  if (lugar === 'proyecto') return hostMode ? 'proyecto-nativo' : 'proyecto-docker'
+  return lugar
 }
 
 /** Dónde vive el agente de un target: decide los textos, de quién es su selector y si monta bases. */
@@ -204,20 +216,20 @@ export function propsPaneDeTarget(target: OpenAgentTarget, p: CCPanelProps, c: C
   // El botón de maximizar solo existe en el pane a la vista. Dárselo a todos repintaría
   // todos los panes cada vez que el proyecto activo pasa de tener pestañas a no tenerlas.
   const esActivo = target.key === p.activeTargetKey
+  const pestanas = pestanasEstables(c.fuenteAgentes, target.profileId, sitioDe(lugar, hostMode))
   return {
     target,
     hostMode,
     ...propsVisibilidad(target, p, c, casilla, lugar),
-    mosaico: propsMosaicoDe(target, profile, c, casilla),
+    mosaico: propsMosaicoDe(target, profile, c, casilla, pestanas),
     hibernated: p.hibernatedTargetKeys?.has(target.key) ?? false,
     profileName: profile?.nombre ?? null,
     accentColor: profile?.color ? tintaPerfil(profile.color) : null,
-    // Agentes fijos del producto en TODOS los perfiles: con >1 el pane pinta el selector.
-    agentsInProfile: AGENTES_DEL_PERFIL,
+    pestanasAgente: pestanas,
     ...propsBasesYCuenta(target, p, lugar),
     canExpand: esActivo && p.canExpand,
     expanded: esActivo && p.expanded,
-    onToggleExpand: p.onToggleExpand,
+    onToggleExpand: esActivo ? p.onToggleExpand : sinMaximizar,
     ...propsAvisos(p),
     versionesAgente: hostMode ? (c.versionesPorTarget.get(target.key) ?? null) : null
   }

@@ -6,6 +6,8 @@
 // y un volcado largo abierto aplastaría la terminal. Sin dependencias.
 // =============================================================================
 
+import { txComun } from './textos.ts'
+
 export type TonoAviso = 'info' | 'error'
 
 export interface AvisoCajaProps {
@@ -31,7 +33,7 @@ export function AvisoCaja({
         {sugerencia && <div className="aviso-sugerencia">{sugerencia}</div>}
         {detalle && (
           <details className="aviso-detalle">
-            <summary>Detalle técnico</summary>
+            <summary>{txComun().detalleTecnico}</summary>
             <pre>{detalle}</pre>
           </details>
         )}

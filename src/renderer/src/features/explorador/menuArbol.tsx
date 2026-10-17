@@ -28,9 +28,10 @@ import { abrirDialogoBorrado } from './operacionesArbol'
 import { ofreceDescartar } from './ofertaMenuArbol'
 import { abrirEnGestor, copiarOCortar, copiarRutas, pegarEn, resolverPegable } from './portapapelesArbol'
 import type { Arbol, EstadoMenu, MenuTarget } from './tiposArbol'
+import { txExplorador } from './textos.ts'
 
-// La plataforma no cambia en caliente: constante de módulo y no una llamada por render.
-const { gestorArchivos } = nombresSistema(window.tessera.plataforma)
+// El nombre del gestor depende del idioma activo: se pide al construir el menú, no al cargar el módulo.
+const gestorDelSistema = (): string => nombresSistema(window.tessera.plataforma).gestorArchivos
 
 /**
  * Abre el menú sondeando antes el portapapeles: el menú se construye de forma síncrona
@@ -130,15 +131,16 @@ function contextoDe(a: Arbol, menu: EstadoMenu): ContextoMenu {
 function entradasCrear(c: ContextoMenu): ContextMenuEntry[] {
   if (!c.isDir || c.enJar) return []
   const { path } = c
+  const t = txExplorador()
   return [
     {
       icon: <IconoArchivoNuevo />,
-      label: 'Nuevo archivo',
+      label: t.nuevoArchivo,
       onClick: () => c.a.setDialog({ kind: 'newFile', dir: path })
     },
     {
       icon: <IconoCarpetaNueva />,
-      label: 'Nueva carpeta',
+      label: t.nuevaCarpeta,
       onClick: () => c.a.setDialog({ kind: 'newFolder', dir: path })
     },
     SEP
@@ -148,18 +150,20 @@ function entradasCrear(c: ContextoMenu): ContextMenuEntry[] {
 function entradasAbrir(c: ContextoMenu): ContextMenuEntry[] {
   const { a, path, esRaiz, enJar } = c
   const { basesDeArchivo, onOpenFileHistory } = a.props
+  const t = txExplorador()
+  const gestorArchivos = gestorDelSistema()
   const items: ContextMenuEntry[] = [
     {
       icon: <IconoAbrirFuera />,
       // Dentro de un jar el main colapsa al contenedor: revelar el .jar es lo que ocurre.
-      label: enJar ? `Abrir el .jar en ${gestorArchivos}` : `Abrir en ${gestorArchivos}`,
+      label: enJar ? t.abrirJarEn(gestorArchivos) : t.abrirEn(gestorArchivos),
       onClick: () => void abrirEnGestor(a, esRaiz, path)
     }
   ]
   if (!esRaiz && !c.isDir && !enJar) {
     items.push({
       icon: <IconoHistorial />,
-      label: 'Historial del archivo',
+      label: t.historialArchivo,
       onClick: () => onOpenFileHistory(path)
     })
   }
@@ -170,12 +174,12 @@ function entradasAbrir(c: ContextoMenu): ContextMenuEntry[] {
       id !== null
         ? {
             icon: <IconoBd />,
-            label: 'Desmontar la base de datos',
+            label: t.desmontarBd,
             onClick: () => basesDeArchivo.desmontar(id)
           }
         : {
             icon: <IconoBd />,
-            label: 'Montar como base de datos',
+            label: t.montarBd,
             onClick: () => void basesDeArchivo.montar(path)
           }
     )
@@ -186,16 +190,16 @@ function entradasAbrir(c: ContextoMenu): ContextMenuEntry[] {
 function entradasPortapapeles(c: ContextoMenu): ContextMenuEntry[] {
   const { a, objetivo, n, pegable } = c
   const items: ContextMenuEntry[] = []
-  const cuantos = n > 1 ? ` ${n} elementos` : ''
+  const t = txExplorador()
   if (!c.esRaiz && !c.enJar && n > 0) {
     items.push({
       icon: <IconoCortar />,
-      label: `Cortar${cuantos}`,
+      label: t.cortar(n),
       onClick: () => void copiarOCortar(a, objetivo, 'cortar')
     })
     items.push({
       icon: <IconoCopiar />,
-      label: `Copiar${cuantos}`,
+      label: t.copiar(n),
       onClick: () => void copiarOCortar(a, objetivo, 'copiar')
     })
   }
@@ -203,7 +207,7 @@ function entradasPortapapeles(c: ContextoMenu): ContextMenuEntry[] {
   if (pegable.kind !== 'ninguno' && !c.enJar) {
     items.push({
       icon: <IconoPegar />,
-      label: pegable.kind === 'imagen' ? 'Pegar imagen' : 'Pegar',
+      label: pegable.kind === 'imagen' ? t.pegarImagen : t.pegar,
       onClick: () => void pegarEn(a, destinoPegado(c.path, c.isDir), pegable)
     })
   }
@@ -215,15 +219,16 @@ function entradasRutas(c: ContextoMenu): ContextMenuEntry[] {
   // etiqueta sale de esa misma lista. Sobre la raíz se copia la del proyecto.
   const rutas = c.legibles.length > 0 ? c.legibles : [c.path]
   const nRutas = rutas.length
+  const t = txExplorador()
   return [
     {
       icon: <IconoRuta />,
-      label: nRutas > 1 ? `Copiar ${nRutas} rutas` : 'Copiar ruta',
+      label: t.copiarRutas(nRutas),
       onClick: () => void copiarRutas(c.a, rutas, true)
     },
     {
       icon: <IconoRuta />,
-      label: nRutas > 1 ? `Copiar ${nRutas} rutas relativas` : 'Copiar ruta relativa',
+      label: t.copiarRutasRelativas(nRutas),
       onClick: () => void copiarRutas(c.a, rutas, false)
     }
   ]
@@ -233,11 +238,12 @@ function entradasDestructivas(c: ContextoMenu): ContextMenuEntry[] {
   if (c.esRaiz || c.enJar) return []
   const { a, path, n, objetivo } = c
   const items: ContextMenuEntry[] = []
+  const t = txExplorador()
   // Renombrar y descartar son de fila sola: no significan nada para varios elementos.
   if (n <= 1) {
     items.push(SEP, {
       icon: <IconoRenombrar />,
-      label: 'Renombrar…',
+      label: t.renombrarPuntos,
       onClick: () => a.setDialog({ kind: 'rename', path, name: basename(path) })
     })
   }
@@ -246,7 +252,7 @@ function entradasDestructivas(c: ContextoMenu): ContextMenuEntry[] {
   if (ofreceDescartar(a.props.decorations?.byPath.get(path), n, c.isDir)) {
     items.push({
       icon: <IconoDescartar />,
-      label: 'Descartar cambios…',
+      label: t.descartarCambios,
       onClick: () => a.props.onDiscardChanges(path),
       danger: true
     })
@@ -254,7 +260,7 @@ function entradasDestructivas(c: ContextoMenu): ContextMenuEntry[] {
   if (n > 0) {
     items.push({
       icon: <IconoEliminar />,
-      label: n > 1 ? `Eliminar ${n} elementos…` : c.isDir ? 'Eliminar carpeta…' : 'Eliminar archivo…',
+      label: n > 1 ? t.eliminarElementosPuntos(n) : c.isDir ? t.eliminarCarpetaPuntos : t.eliminarArchivoPuntos,
       // El objetivo congelado al abrir, no la selección de ahora.
       onClick: () => abrirDialogoBorrado(a, objetivo),
       danger: true

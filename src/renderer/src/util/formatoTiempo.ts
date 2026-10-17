@@ -6,6 +6,8 @@
 // un tiempo negativo se dice 'ahora'. Puro y con el "ahora" por parámetro para poder probarlo.
 // =============================================================================
 
+import { txUtil } from './textos.ts'
+
 /** Un minuto y una hora, en ms. Nombrarlos evita releer ceros al revisar el código. */
 const MIN_MS = 60_000
 const HORA_MS = 3_600_000
@@ -20,19 +22,20 @@ const HORA_MS = 3_600_000
  * Redondea hacia abajo en las dos unidades. A partir de un día se pasa a días enteros.
  */
 export function formatoReinicio(ms: number): string {
-  if (ms <= 0) return 'ahora'
-  if (ms < MIN_MS) return 'en menos de 1 min'
+  const t = txUtil()
+  if (ms <= 0) return t.ahora
+  if (ms < MIN_MS) return t.enMenosDeUnMin
   const min = Math.floor(ms / MIN_MS)
-  if (min < 60) return `en ${min} min`
+  if (min < 60) return t.enMin(min)
   const h = Math.floor(min / 60)
   if (h < 24) {
     const resto = min - h * 60
-    return resto === 0 ? `en ${h} h` : `en ${h} h ${resto} min`
+    return resto === 0 ? t.enHoras(h) : t.enHorasMin(h, resto)
   }
   // De 24 a 48 h, solo horas. El corte en 48 (y no en 24) evita un "en 1 días":
   // el mínimo de días que se pinta es 2.
-  if (h < 48) return `en ${h} h`
-  return `en ${Math.floor(h / 24)} días`
+  if (h < 48) return t.enHoras(h)
+  return t.enDias(Math.floor(h / 24))
 }
 
 /**
@@ -41,11 +44,12 @@ export function formatoReinicio(ms: number): string {
  * hacia abajo por el mismo motivo: nunca hacer parecer un dato más viejo de lo que es.
  */
 export function formatoAntiguedad(desde: number, ahora: number): string {
+  const t = txUtil()
   const ms = ahora - desde
-  if (ms < MIN_MS) return 'ahora mismo'
+  if (ms < MIN_MS) return t.ahoraMismo
   const min = Math.floor(ms / MIN_MS)
-  if (min < 60) return `hace ${min} min`
+  if (min < 60) return t.haceMin(min)
   const h = Math.floor(ms / HORA_MS)
-  if (h < 48) return `hace ${h} h`
-  return `hace ${Math.floor(h / 24)} días`
+  if (h < 48) return t.haceHoras(h)
+  return t.haceDias(Math.floor(h / 24))
 }

@@ -328,11 +328,11 @@ async function main(): Promise<void> {
     const H1 = '65a1b2c3d4e5f60718293a4b'
     const H2 = '65a1b2c3d4e5f60718293a4c'
     await admin.db(BASE).collection(TMP_F).insertMany([
-      { _id: 'd1', nombre: 'Árbol 50%_x', estatus: 'NOMINA PROCESADA', edad: 41, saldo: new Double(12.5), grande: Long.fromString('9007199254740993'), exacto: Decimal128.fromString('0.1'), creado: new Date('2026-09-28T23:59:59Z'), activo: true, ref: new ObjectId(H1), dir: { ciudad: 'Lima' } },
+      { _id: 'd1', nombre: 'Árbol 50%_x', estatus: 'PEDIDO ENVIADO', edad: 41, saldo: new Double(12.5), grande: Long.fromString('9007199254740993'), exacto: Decimal128.fromString('0.1'), creado: new Date('2026-09-28T23:59:59Z'), activo: true, ref: new ObjectId(H1), dir: { ciudad: 'Lima' } },
       { _id: 'd2', nombre: 'arbolito', estatus: 'PENDIENTE', edad: 17, saldo: 7, grande: Long.fromString('9007199254740992'), creado: new Date('2026-09-29T00:00:00Z'), activo: false, ref: H1, dir: { ciudad: 'Quito' } },
       { _id: 'd3', nombre: '50 por ciento', estatus: null, edad: 30, creado: new Date('2026-09-27T12:00:00Z'), ref: new ObjectId(H2) },
       { _id: 'd4', nombre: '', edad: new Double(60) },
-      { _id: 'd5', nombre: 'ÁRBOL grande', estatus: 'NOMINA PROCESADA', edad: 50 }
+      { _id: 'd5', nombre: 'ÁRBOL grande', estatus: 'PEDIDO ENVIADO', edad: 50 }
     ])
     type Cond = { columna: string; categoria: string; operador: string; valor?: string; valor2?: string }
     const guiada = (condiciones: Cond[], o: { union?: string; orden?: Array<{ columna: string; dir: string }>; extra?: Record<string, unknown> } = {}): Promise<Resp> =>
@@ -353,7 +353,7 @@ async function main(): Promise<void> {
       ['contiene «50%_»: % y _ son caracteres (no casa «50 por ciento»)', [{ columna: 'nombre', categoria: 'texto', operador: 'contiene', valor: '50%_' }], ['d1']],
       ['contiene «ARBOLITO» sin distinguir mayúsculas', [{ columna: 'nombre', categoria: 'texto', operador: 'contiene', valor: 'ARBOLITO' }], ['d2']],
       ['empieza por «arb»: anclado (no casa «Árbol», que empieza por Á)', [{ columna: 'nombre', categoria: 'texto', operador: 'empiezaPor', valor: 'arb' }], ['d2']],
-      ['≠ «NOMINA PROCESADA» incluye el null y el AUSENTE', [{ columna: 'estatus', categoria: 'texto', operador: 'distinto', valor: 'NOMINA PROCESADA' }], ['d2', 'd3', 'd4']],
+      ['≠ «PEDIDO ENVIADO» incluye el null y el AUSENTE', [{ columna: 'estatus', categoria: 'texto', operador: 'distinto', valor: 'PEDIDO ENVIADO' }], ['d2', 'd3', 'd4']],
       ['estatus vacío: null y ausente', [{ columna: 'estatus', categoria: 'texto', operador: 'vacio' }], ['d3', 'd4']],
       ['nombre vacío: la cadena vacía', [{ columna: 'nombre', categoria: 'texto', operador: 'vacio' }], ['d4']],
       ['estatus no vacío', [{ columna: 'estatus', categoria: 'texto', operador: 'noVacio' }], ['d1', 'd2', 'd5']],
@@ -383,9 +383,9 @@ async function main(): Promise<void> {
         { union: 'cualquiera' }
       ],
       [
-        'todas: estatus NOMINA PROCESADA Y edad > 45',
+        'todas: estatus PEDIDO ENVIADO Y edad > 45',
         [
-          { columna: 'estatus', categoria: 'texto', operador: 'igual', valor: 'NOMINA PROCESADA' },
+          { columna: 'estatus', categoria: 'texto', operador: 'igual', valor: 'PEDIDO ENVIADO' },
           { columna: 'edad', categoria: 'numero', operador: 'mayor', valor: '45' }
         ],
         ['d5']

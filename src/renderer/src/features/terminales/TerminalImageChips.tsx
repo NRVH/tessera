@@ -5,6 +5,7 @@
 // =============================================================================
 
 import { useEffect, useRef } from 'react'
+import { txTerminales } from './textos.ts'
 
 /** Miniatura de una imagen pegada, identificada para poder descartarla. */
 export interface PastedImagePreview {
@@ -42,16 +43,17 @@ function TerminalImageChip({ url, onDismiss }: { url: string; onDismiss: () => v
     const t = setTimeout(() => dismissRef.current(), CHIP_TTL_MS)
     return () => clearTimeout(t)
   }, [])
+  const t = txTerminales()
 
   return (
-    <div className="terminal-image-chip" title="Imagen pegada">
-      <img src={url} alt="Imagen pegada" draggable={false} />
+    <div className="terminal-image-chip" title={t.imagenPegada}>
+      <img src={url} alt={t.imagenPegada} draggable={false} />
       <button
         type="button"
         className="terminal-image-chip-close"
         onClick={() => dismissRef.current()}
-        title="Descartar"
-        aria-label="Descartar miniatura"
+        title={t.descartar}
+        aria-label={t.descartarMiniatura}
       >
         ✕
       </button>

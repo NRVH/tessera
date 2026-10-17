@@ -10,8 +10,8 @@ import { useCallback } from 'react'
 import type { editor } from 'monaco-editor'
 import type { DbRespuesta } from '../../../../../shared/db-explorador-ipc'
 import type { DbDocResultado } from '../../../../../shared/db-documentos-ipc'
-import { PISTA_SIN_SENTENCIA } from '../consola/estadoConsola'
-import { TEXTO_SIN_RESPUESTA_STOP, textoError, type AccionSalida, type IrAPosicion } from '../consola/salidaConsola'
+import { pistaSinSentencia } from '../consola/estadoConsola'
+import { textoSinRespuestaStop, textoError, type AccionSalida, type IrAPosicion } from '../consola/salidaConsola'
 import { ESPERA_STOP_MS } from '../consola/vivoConsola'
 import { baseTrasResultado, sentenciasShellAEjecutar, unirColumnas, type ModoEjecucionShell, type SentenciaShell } from './consolaDocs'
 import { respuestaDeError, uuid } from './consolaComun'
@@ -20,9 +20,7 @@ import { anadirResultadoDocs, irASalidaDocs, resultadoDeRespuesta } from './resu
 import { actualizarResultado, empezarLote, ID_SALIDA, sinLectores } from '../resultados/pestanasResultado'
 import { modoDelCursor } from './useEditorConsola'
 import { cancelarDesde, ejecutarSentencia, type DepsLote } from './loteDocs'
-
-/** Etiqueta de «Forzar» en MongoDB: no hay transacción de consola que revertir. */
-const ETIQUETA_FORZAR_DOCS = 'Forzar (cierra la conexión y sus cursores abiertos)'
+import { txConsolaDocs } from './textosConsolaDocs'
 
 type Enviar = (s: SentenciaShell, peticionId: string, confirmado: boolean) => Promise<DbRespuesta<DbDocResultado>>
 
@@ -75,7 +73,7 @@ function useCorrer(e: EstadoConsolaDocs, enviar: Enviar, aplicarResultado: DepsL
       if (!m || m.isDisposed() || !marcas || !cargadoRef.current || enCursoRef.current || dialogoRef.current) return
       const sentencias = sentenciasShellAEjecutar(m.getValue(), modo)
       if (sentencias.length === 0) {
-        setPista(PISTA_SIN_SENTENCIA)
+        setPista(pistaSinSentencia())
         return
       }
       setPista(null)
@@ -146,7 +144,8 @@ function useDetener(e: EstadoConsolaDocs): () => void {
       stopRef.current = null
       // Sigue la MISMA petición: el servidor no soltó la operación.
       if (enCursoRef.current && enCursoRef.current.peticionId === en.peticionId) {
-        anotar([{ tipo: 'aviso', texto: TEXTO_SIN_RESPUESTA_STOP, accion: { tipo: 'forzar', etiqueta: ETIQUETA_FORZAR_DOCS } }])
+        // Etiqueta de «Forzar» en MongoDB: no hay transacción de consola que revertir.
+        anotar([{ tipo: 'aviso', texto: textoSinRespuestaStop(), accion: { tipo: 'forzar', etiqueta: txConsolaDocs().forzarEtiqueta } }])
       }
     }, ESPERA_STOP_MS)
   }, [api, perfilId, consolaId, anotar, enCursoRef, masRef, detenidoRef, stopRef])
@@ -158,10 +157,11 @@ function useAccionSalida(e: EstadoConsolaDocs): (a: AccionSalida) => Promise<voi
     async (a: AccionSalida): Promise<void> => {
       if (a.tipo !== 'forzar') return
       const c = conexionRef.current
+      const t = txConsolaDocs()
       const ok = await pedirConfirmacion({
-        titulo: '¿Forzar el cierre de la conexión?',
-        mensaje: `Se cerrará la conexión con «${c.alias}»: lo que esté corriendo se corta y los cursores abiertos de sus pestañas y consolas se pierden.`,
-        confirmar: 'Forzar',
+        titulo: t.forzarTitulo,
+        mensaje: t.forzarMensaje(c.alias),
+        confirmar: t.forzar,
         peligro: true
       })
       if (ok) await api.forzar(c.id).catch(() => undefined)
@@ -213,7 +213,7 @@ function useCargarMas(e: EstadoConsolaDocs): () => Promise<void> {
         return
       }
       if (!r.ok) {
-        if (r.error.motivo !== 'cancelada') anotar([{ tipo: 'error', texto: `No se pudieron leer más documentos: ${textoError(r.error)}` }])
+        if (r.error.motivo !== 'cancelada') anotar([{ tipo: 'error', texto: txConsolaDocs().noSePudieronLeerMasDetalle(textoError(r.error)) }])
         return
       }
       const sig = {

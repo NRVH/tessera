@@ -3,7 +3,7 @@
 // (hibernados incluidos), con el agente que se ofrece y su estado. La misma lista
 // alimenta el selector «N de M» de la barra y el menú de destinos de cada casilla.
 // =============================================================================
-import type { Agente } from '../../../../main/profiles/types'
+import type { IdAgente } from '../../../../shared/agentesManuales'
 import { ordenarCandidatos, type CandidatoMosaico, type OpcionMosaico } from './mosaicoTeselas'
 
 /** Entrada del cálculo de opciones. */
@@ -19,8 +19,15 @@ export interface EntradaOpciones {
   sinVer: ReadonlySet<string>
   esperando: ReadonlySet<string>
   /** Qué agente se ofrece de un proyecto (el mismo orden que «abrir otro proyecto»). */
-  agenteDelProyecto: (profileId: string, projectHostPath: string) => Agente
+  agenteDelProyecto: (profileId: string, projectHostPath: string) => IdAgente
   claveProyecto: (profileId: string, projectHostPath: string) => string
+  /** Cómo se llama el agente de un candidato, entero y corto; sin esto, los de serie por su etiqueta. */
+  nombreAgente?: (c: CandidatoMosaico) => { nombre: string; corta: string }
+}
+
+/** El nombre de los de serie: el respaldo cuando no llega `nombreAgente`. */
+function nombreDeSerie(c: CandidatoMosaico): { nombre: string; corta: string } {
+  return c.agente === 'claude-code' ? { nombre: 'Claude Code', corta: 'CC' } : c.agente === 'codex' ? { nombre: 'Codex', corta: 'Cdx' } : { nombre: c.agente, corta: c.agente }
 }
 
 /** Agrupa los candidatos por proyecto, en orden canónico. */
@@ -50,8 +57,8 @@ export function opcionesDelMosaico(e: EntradaOpciones): OpcionMosaico[] {
       agenteId: elegido.agente,
       perfil: e.perfiles.get(elegido.profileId)?.nombre ?? elegido.profileId,
       proyecto: e.nombresProyecto[proyectoKey] ?? elegido.projectHostPath,
-      agente: elegido.agente === 'claude-code' ? 'Claude Code' : 'Codex',
-      agenteCorto: elegido.agente === 'claude-code' ? 'CC' : 'Cdx',
+      agente: (e.nombreAgente ?? nombreDeSerie)(elegido).nombre,
+      agenteCorto: (e.nombreAgente ?? nombreDeSerie)(elegido).corta,
       color: e.tintasPorPerfil[elegido.profileId] ?? null,
       esCasilla: agentes.some((c) => enRejilla.has(c.key)),
       enMarcha: agentes.some((c) => e.vivas.has(c.key)),

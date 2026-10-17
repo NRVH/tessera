@@ -17,14 +17,16 @@ import { SEP, type ContextMenuEntry } from '../../comun/ContextMenu'
 import type { Seccion } from './modelo/estadoRepos'
 import { existeEnDisco } from './modelo/resolveWorkingDiffTarget'
 import { nameOf } from './modelo/rutasArchivo'
+import { txGit } from './textos.ts'
 import type { ManejadoresArchivo, ObjetivoMenu } from './modelo/seccionesCambios'
 
-/** Las entradas del menú para el objetivo ya calculado al abrirlo. */
+/** Las entradas del menú para el objetivo ya calculado al abrirlo, en el proyecto `raiz`. */
 export function entradasMenuCambios(
   { change, seccion, objetivo, nuevos }: ObjetivoMenu,
-  manejadores: ManejadoresArchivo
+  manejadores: ManejadoresArchivo,
+  raiz: string
 ): ContextMenuEntry[] {
-  const items = entradasAbrir(change, manejadores)
+  const items = entradasAbrir(change, manejadores, raiz)
   if (seccion === 'staged') {
     entradaQuitar(items, objetivo, manejadores)
     return items
@@ -39,14 +41,15 @@ export function entradasMenuCambios(
 // borrado no se puede abrir ni revelar: el ítem se ve, apagado.
 function entradasAbrir(
   change: ObjetivoMenu['change'],
-  manejadores: ManejadoresArchivo
+  manejadores: ManejadoresArchivo,
+  raiz: string
 ): ContextMenuEntry[] {
   const path = change?.path ?? null
   const enDisco = change !== null && existeEnDisco(change)
   return [
     {
       icon: <IconoAbrir />,
-      label: 'Abrir archivo',
+      label: txGit().abrirArchivo,
       onClick: () => {
         if (path) manejadores.onOpenFile({ path, name: nameOf(path) })
       },
@@ -54,9 +57,9 @@ function entradasAbrir(
     },
     {
       icon: <IconoAbrirFuera />,
-      label: 'Abrir en el explorador',
+      label: txGit().abrirEnExplorador,
       onClick: () => {
-        if (path) void window.tessera.files.reveal(path)
+        if (path) void window.tessera.files.reveal({ raiz, path })
       },
       disabled: !enDisco
     },
@@ -73,7 +76,7 @@ function entradaQuitar(
   if (!manejadores.onUnstage || !manejadores.onUnstageMany) return
   items.push({
     icon: <IconoDescartar />,
-    label: n > 1 ? `Quitar ${n} de preparados` : 'Quitar de preparados',
+    label: n > 1 ? txGit().quitarNTitulo(n) : txGit().quitarDePreparados,
     onClick: () =>
       n > 1 ? manejadores.onUnstageMany?.(objetivo) : manejadores.onUnstage?.(objetivo[0])
   })
@@ -81,8 +84,9 @@ function entradaQuitar(
 
 // En un conflicto, preparar ES marcarlo resuelto (git add): la etiqueta lo dice.
 function etiquetaPreparar(seccion: Seccion, n: number): string {
-  if (seccion === 'conflict') return n > 1 ? `Marcar ${n} como resueltos` : 'Marcar como resuelto'
-  return n > 1 ? `Preparar ${n} archivos` : 'Preparar'
+  const t = txGit()
+  if (seccion === 'conflict') return n > 1 ? t.marcarResueltosN(n) : t.marcarResuelto
+  return n > 1 ? t.prepararNTitulo(n) : t.preparar
 }
 
 function entradaPreparar(
@@ -110,15 +114,16 @@ function entradasExcluir(
 ): void {
   if (!manejadores.onIgnorar || nuevos.length === 0) return
   const cuantos = nuevos.length
+  const t = txGit()
   items.push(SEP)
   items.push({
     icon: <IconoExcluir />,
-    label: cuantos > 1 ? `Agregar ${cuantos} a .gitignore` : 'Agregar a .gitignore',
+    label: cuantos > 1 ? t.agregarGitignoreN(cuantos) : t.agregarGitignore,
     onClick: () => manejadores.onIgnorar?.(nuevos, false)
   })
   items.push({
     icon: <IconoExcluir />,
-    label: cuantos > 1 ? `Agregar ${cuantos} a exclusión local` : 'Agregar a exclusión local',
+    label: cuantos > 1 ? t.agregarExclusionLocalN(cuantos) : t.agregarExclusionLocal,
     onClick: () => manejadores.onIgnorar?.(nuevos, true)
   })
 }
@@ -136,7 +141,7 @@ function entradaDescartar(
   items.push(SEP)
   items.push({
     icon: <IconoDescartar />,
-    label: n > 1 ? `Descartar ${n} archivos…` : 'Descartar cambios…',
+    label: n > 1 ? txGit().descartarArchivosN(n) : txGit().descartarCambios,
     onClick: () =>
       n > 1 ? manejadores.onDiscardMany?.(objetivo) : manejadores.onDiscardChanges?.(objetivo[0]),
     danger: true

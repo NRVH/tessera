@@ -21,6 +21,7 @@ import { sinTerminador } from '../ddlCatalogoComun.ts'
 import type { LectorDdl } from './catalogo.ts'
 import { mapearColumnas, mapearFuente, mapearIndices, mapearRestricciones } from './mapeoPostgres.ts'
 import { sqlColumnas, sqlFuente, sqlIndices, sqlRestricciones } from './sqlPostgres.ts'
+import { txMotores } from './textosMotores.ts'
 import type { ConsultaCatalogo, FilaCatalogo } from './tipos.ts'
 
 /**
@@ -34,7 +35,7 @@ export async function leerDdlPostgres(lector: LectorDdl, ref: DbRefObjeto): Prom
   const leer = (fn: () => ConsultaCatalogo): Promise<readonly FilaCatalogo[]> => lector.consultar(lector.construir(fn))
   const conDdl = (texto: string | null, origen: string): DbFuente =>
     texto === null
-      ? { partes: [], origen, aviso: 'No hay DDL visible: el objeto no existe o faltan privilegios para verlo.' }
+      ? { partes: [], origen, aviso: txMotores().sinDdlObjeto }
       : { partes: [{ titulo: 'DDL', texto }], origen }
   switch (ref.tipo) {
     case 'tabla':

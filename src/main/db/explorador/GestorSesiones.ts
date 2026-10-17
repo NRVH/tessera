@@ -74,6 +74,7 @@ export {
   ErrorGestor,
   motivoDeClase,
   MENSAJE_SIN_LECTOR,
+  mensajeSinLector,
   MENSAJE_ESQUEMA_CAMBIADO
 } from './sesiones/errores.ts'
 export { versionMayor, esperar } from './sesiones/reglas.ts'

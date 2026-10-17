@@ -10,6 +10,7 @@ import type { DbErrorSql, DbRespuesta } from '../../../../../shared/db-explorado
 import type { DbKvResultado } from '../../../../../shared/db-claves-ipc'
 import { etiquetaPosicion, textoCancelada, type AccionSalida, type IrAPosicion } from '../consola/salidaConsola'
 import { uuid, type EnCurso } from '../documentos/consolaComun'
+import { txConsolaClaves } from './textosConsolaClaves'
 import type { MarcasConsolaDocs } from '../documentos/monacoConsolaDocs'
 import {
   CODIGO_SINTAXIS,
@@ -163,7 +164,7 @@ export async function ejecutarComando(d: DepsLote, lote: LoteClaves, i: number):
   }
   if (d.desmontadoRef.current) return 'salir'
   if (!r.ok && rechazado) {
-    lote.marcas.estado(i, 'cancelada', 'No se envió')
+    lote.marcas.estado(i, 'cancelada', txConsolaClaves().noSeEnvioMarca)
     terminar(d, entrada, { estado: 'cancelada', ms: null, lineas: [lineaNoEnviado(r.error)] })
     cancelarDesde(lote, i + 1)
     return 'para'

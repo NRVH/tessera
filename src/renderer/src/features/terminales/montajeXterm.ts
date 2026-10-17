@@ -21,6 +21,7 @@ import type { ResultadosBusqueda } from './buscadorXterm'
 import { filesToPaths } from './clipboardPaste'
 import { tesseraClipboardProvider } from './clipboardProvider'
 import { conectarSesion, desmontarXterm, type CanalPty, type RefsXterm } from './sesionXterm'
+import { estadoInicial, resaltarSalida } from './resaltadoSalida'
 
 /** Lo que distingue a cada pane en el montaje común. */
 export interface OpcionesMontaje<Salida extends { sessionId: string }> {
@@ -31,7 +32,8 @@ export interface OpcionesMontaje<Salida extends { sessionId: string }> {
   idSesion: () => string | null
   /** Fin de NUESTRA sesión (ya filtrado). */
   alSalir: (term: Terminal, msg: Salida) => void
-  setSearchResults: (r: ResultadosBusqueda | null) => void
+  /** Sin él, el pane no tiene buscador: ni addon ni Mod+F (llega al programa). */
+  setSearchResults?: (r: ResultadosBusqueda | null) => void
   atajos: AccionesAtajos
   /** Pegado por vías que no son el teclado (y Mod+V, que no previene el evento). */
   pegar: (e: ClipboardEvent) => void
@@ -40,10 +42,12 @@ export interface OpcionesMontaje<Salida extends { sessionId: string }> {
   ajustarConRebote: () => void
   /** Olvida la sesión y la cierra en el main: el único camino por el que muere al desmontar. */
   cerrarSesion: () => void
+  /** ¿Se resalta la salida? Se lee en cada trozo, así el interruptor vale sin recrear el xterm. Sin él, nunca. */
+  resaltar?: () => boolean
 }
 
 /** Crea el xterm con sus addons, sin abrirlo. El WebGL lo gestiona `alternarWebgl`. */
-function crearXterm(refs: RefsXterm, tema: ITheme | undefined): { term: Terminal; fit: FitAddon; search: SearchAddon } {
+function crearXterm(refs: RefsXterm, tema: ITheme | undefined): { term: Terminal; fit: FitAddon } {
   const term = new Terminal({
     fontFamily: resolveFontFamily(refs.appearance.current),
     fontSize: resolveFontSize(refs.appearance.current),
@@ -65,9 +69,17 @@ function crearXterm(refs: RefsXterm, tema: ITheme | undefined): { term: Terminal
       void window.tessera.openExternal(uri)
     })
   )
+  return { term, fit }
+}
+
+/** Carga el buscador si el pane lo tiene; devuelve cómo soltar su suscripción. */
+function cargarBuscador(term: Terminal, refs: RefsXterm, setResultados: OpcionesMontaje<{ sessionId: string }>['setSearchResults']): () => void {
+  if (!setResultados) return () => {}
   const search = new SearchAddon()
   term.loadAddon(search)
-  return { term, fit, search }
+  refs.search.current = search
+  const sub = search.onDidChangeResults((r) => setResultados({ index: r.resultIndex, count: r.resultCount }))
+  return () => sub.dispose()
 }
 
 /**
@@ -108,15 +120,24 @@ function instalarPegadoYArrastre<S extends { sessionId: string }>(host: HTMLElem
 
 /** Monta el xterm del pane en `host` (sin abrir la sesión) y devuelve la función que lo desmonta. */
 export function montarXterm<S extends { sessionId: string }>(host: HTMLDivElement, refs: RefsXterm, op: OpcionesMontaje<S>): () => void {
-  const { term, fit, search } = crearXterm(refs, op.tema)
-  refs.search.current = search
-  const searchSub = search.onDidChangeResults((r) => op.setSearchResults({ index: r.resultIndex, count: r.resultCount }))
+  const { term, fit } = crearXterm(refs, op.tema)
+  const soltarBuscador = cargarBuscador(term, refs, op.setSearchResults)
   term.open(host)
   refs.term.current = term
   refs.fit.current = fit
   term.attachCustomKeyEventHandler(crearManejadorAtajos(term, op.atajos))
   const quitarPegado = instalarPegadoYArrastre(host, op)
-  const sesion = conectarSesion(term, refs, op.canal, op.idSesion, (msg) => op.alSalir(term, msg))
+  const resaltar = op.resaltar
+  // El estado se sigue aunque el interruptor esté apagado: al encenderlo, la pantalla alternativa y el
+  // color abierto por el programa tienen que ser los de verdad.
+  const estado = estadoInicial()
+  const transformar = resaltar
+    ? (data: string): string => {
+        const pintada = resaltarSalida(data, estado)
+        return resaltar() ? pintada : data
+      }
+    : undefined
+  const sesion = conectarSesion(term, refs, op.canal, op.idSesion, (msg) => op.alSalir(term, msg), transformar)
   // Refit ante cualquier cambio de tamaño del contenedor (ventana y zoom global).
   const ro = new ResizeObserver(() => op.ajustarConRebote())
   ro.observe(host)
@@ -124,7 +145,7 @@ export function montarXterm<S extends { sessionId: string }>(host: HTMLDivElemen
     ro.disconnect()
     quitarPegado()
     sesion.desconectar()
-    searchSub.dispose()
+    soltarBuscador()
     desmontarXterm(host, term, sesion.flow, refs, op.cerrarSesion)
   }
 }

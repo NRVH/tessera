@@ -16,6 +16,7 @@ import { BloqueProgreso, BloqueResumen } from './ProgresoAgentesNativos'
 import { nombreSesion, ordenar, type InfoSesionesAgentes } from './sesionesPopoverAgentes'
 import type { PlanActualizacion } from './tipos'
 import type { UseActualizacionNativa } from './useActualizacionNativa'
+import { txActualizacion } from './textosActualizacion.ts'
 import { textoAccion } from './vistaBotonAgentes'
 
 interface PopoverProps {
@@ -29,13 +30,14 @@ interface PopoverProps {
 /** El panel que abre el botón de los agentes nativos. */
 export function Popover({ act, info, nombres, ahora, corriendo }: PopoverProps): React.JSX.Element {
   const { estado, plan, planForzado, resumen } = act
+  const t = txActualizacion().popover
 
   const comprobadoEn = estado
     ? Math.max(estado.claude.comprobadoEn ?? 0, estado.codex.comprobadoEn ?? 0) || null
     : null
 
   return (
-    <PopoverBarra etiqueta={`Agentes de ${nombres.tuEquipo}`} clase="agentes-nativos-pop">
+    <PopoverBarra etiqueta={t.etiqueta(nombres.tuEquipo)} clase="agentes-nativos-pop">
       {corriendo ? (
         <BloqueProgreso act={act} info={info} nombres={nombres} />
       ) : (
@@ -45,9 +47,9 @@ export function Popover({ act, info, nombres, ahora, corriendo }: PopoverProps):
             <BloquePreparacion act={act} info={info} nombres={nombres} />
           ) : (
             <section className="actualizacion-pop-bloque">
-              <div className="actualizacion-pop-titulo">Agentes de {nombres.tuEquipo}</div>
+              <div className="actualizacion-pop-titulo">{t.etiqueta(nombres.tuEquipo)}</div>
               <div className="actualizacion-pop-msg">
-                {act.errorComprobar ?? (act.comprobando ? 'Comprobando las versiones…' : 'Aún no hay datos de versiones.')}
+                {act.errorComprobar ?? (act.comprobando ? t.comprobandoVersiones : t.sinDatos)}
               </div>
             </section>
           )}
@@ -55,14 +57,14 @@ export function Popover({ act, info, nombres, ahora, corriendo }: PopoverProps):
       )}
 
       <footer className="actualizacion-pop-pie">
-        <span>{act.comprobando ? 'Comprobando…' : textoUltimoChequeo(comprobadoEn, ahora)}</span>
+        <span>{act.comprobando ? t.comprobando : textoUltimoChequeo(comprobadoEn, ahora)}</span>
         <button
           type="button"
           className="actualizacion-pop-enlace"
           disabled={act.comprobando || corriendo}
           onClick={act.abrir}
         >
-          Comprobar ahora
+          {t.comprobarAhora}
         </button>
       </footer>
     </PopoverBarra>
@@ -81,6 +83,7 @@ function BloquePreparacion({
   nombres: NombresSistema
 }): React.JSX.Element | null {
   const { estado, plan, planForzado } = act
+  const t = txActualizacion().popover
   if (!estado || !plan || !planForzado) return null
 
   // Con un CLI que se instala a mano o bloqueado, el plan también sale sin nada que
@@ -97,11 +100,7 @@ function BloquePreparacion({
   return (
     <section className="actualizacion-pop-bloque">
       <div className="actualizacion-pop-titulo">
-        {alDia
-          ? 'Todo al día'
-          : plan.todoAlDia
-            ? 'Nada que Tessera pueda instalar ahora'
-            : `Agentes de ${nombres.tuEquipo}`}
+        {alDia ? t.todoAlDia : plan.todoAlDia ? t.nadaQueInstalar : t.etiqueta(nombres.tuEquipo)}
       </div>
       {act.errorComprobar ? <div className="agentes-nativos-error">{act.errorComprobar}</div> : null}
 
@@ -119,7 +118,7 @@ function BloquePreparacion({
           disabled={act.comprobando || !planAccion.puedeEjecutar}
           onClick={() => act.ejecutar(planAccion.forzado)}
         >
-          {planAccion.forzado ? `Reiniciar igualmente (${planAccion.reiniciar.length})` : textoAccion(planAccion)}
+          {planAccion.forzado ? t.reiniciarIgualmente(planAccion.reiniciar.length) : textoAccion(planAccion)}
         </button>
         {planAccion.motivoNoEjecutar ? (
           <span className="agentes-nativos-motivo">{planAccion.motivoNoEjecutar}</span>
@@ -140,32 +139,27 @@ function queHaraCli(
   bloqueo: Bloqueo | undefined,
   tuEquipo: string
 ): React.ReactNode {
+  const t = txActualizacion().popover
   const instalacion = plan.instalar.find((i) => i.agente === cli.agente)
   const atrasadas = plan.reiniciar.filter((s) => s.agente === cli.agente && s.atrasada).length
   if (instalacion) {
-    const reparacion = instalacion.reparar ? `No responde: se reinstalará ${instalacion.a}. ` : ''
-    return instalacion.fase === 'B'
-      ? `${reparacion}Se detendrán sus sesiones antes de instalar (su ejecutable en uso bloquea la carpeta) y volverán solas en su conversación.`
-      : `${reparacion}Se instala con sus sesiones abiertas; después se reinician.`
+    const reparacion = instalacion.reparar ? t.reparacion(instalacion.a) : ''
+    return instalacion.fase === 'B' ? `${reparacion}${t.faseB}` : `${reparacion}${t.faseA}`
   }
-  if (cli.binarioPendiente) {
-    return `${cli.ultima ?? 'La versión nueva'} aún no está lista para ${tuEquipo}: el registro todavía no sirve su binario. Vuelve a comprobar en unos minutos.`
-  }
+  if (cli.binarioPendiente) return t.binarioPendiente(cli.ultima, tuEquipo)
   if (manual) {
     return (
       <>
         {manual.motivo}
-        {manual.orden ? '. Orden a mano:' : '.'}
+        {manual.orden ? t.manualConOrden : t.manualSinOrden}
       </>
     )
   }
-  if (bloqueo) return 'No se instalará: otros programas tienen abierta su carpeta. Ciérralos y vuelve a comprobar.'
-  if (cli.instalada === null) return cli.error ?? 'No está instalado o no responde.'
-  if (atrasadas > 0) {
-    return `Ya está instalada; ${atrasadas === 1 ? 'hay 1 sesión' : `hay ${atrasadas} sesiones`} con una versión anterior.`
-  }
-  if (cli.ultima === null) return cli.error ?? 'No se pudo consultar la última versión.'
-  return 'Al día.'
+  if (bloqueo) return t.bloqueado
+  if (cli.instalada === null) return cli.error ?? t.noInstalado
+  if (atrasadas > 0) return t.atrasadas(atrasadas)
+  if (cli.ultima === null) return cli.error ?? t.sinUltima
+  return t.alDia
 }
 
 function VersionesCli({ cli, etq }: { cli: EstadoCli; etq: string }): React.JSX.Element {
@@ -181,7 +175,9 @@ function VersionesCli({ cli, etq }: { cli: EstadoCli; etq: string }): React.JSX.
           <strong>{cli.ultima}</strong>
         </>
       ) : null}
-      {cli.canal && cli.canal !== 'latest' ? <span className="agentes-nativos-canal">canal {cli.canal}</span> : null}
+      {cli.canal && cli.canal !== 'latest' ? (
+        <span className="agentes-nativos-canal">{txActualizacion().popover.canal(cli.canal)}</span>
+      ) : null}
     </div>
   )
 }
@@ -192,7 +188,7 @@ function ProcesosBloqueo({ bloqueo, etq }: { bloqueo: Bloqueo; etq: string }): R
       {bloqueo.procesos.map((p) => (
         <li key={p.pid} title={p.ruta}>
           <span className="agentes-nativos-pid">{p.pid}</span>
-          {p.esDemonio ? `demonio de ${etq} (${p.nombre})` : p.nombre}
+          {p.esDemonio ? txActualizacion().popover.demonio(etq, p.nombre) : p.nombre}
           <span className="agentes-nativos-ruta">{p.ruta}</span>
         </li>
       ))}
@@ -223,7 +219,7 @@ function FilaCli({ cli, plan, nombres }: { cli: EstadoCli; plan: PlanActualizaci
               setTimeout(() => setCopiado(false), 1500)
             }}
           >
-            {copiado ? 'Copiada' : 'Copiar'}
+            {copiado ? txActualizacion().popover.copiada : txActualizacion().popover.copiar}
           </button>
         </div>
       ) : null}
@@ -234,10 +230,11 @@ function FilaCli({ cli, plan, nombres }: { cli: EstadoCli; plan: PlanActualizaci
 
 /** La nota que acompaña a una sesión en la lista, o null si no tiene nada que avisar. */
 function notaSesion(s: SesionNativa, textoSinEnviar: ReadonlySet<string>, sinRevisar: ReadonlySet<string>): string | null {
-  if (s.trabajando) return 'trabajando'
-  if (s.esperandoRespuesta) return 'espera tu respuesta'
-  if (textoSinEnviar.has(s.sessionId)) return 'puede tener texto sin enviar'
-  if (sinRevisar.has(s.sessionId)) return 'terminó sin revisar'
+  const t = txActualizacion().popover
+  if (s.trabajando) return t.notaTrabajando
+  if (s.esperandoRespuesta) return t.notaEspera
+  if (textoSinEnviar.has(s.sessionId)) return t.notaTextoSinEnviar
+  if (sinRevisar.has(s.sessionId)) return t.notaSinRevisar
   return null
 }
 
@@ -253,7 +250,9 @@ function ListaSesiones({ plan, info }: { plan: PlanActualizacion; info: InfoSesi
   return (
     <div className="agentes-nativos-sesiones">
       <div className="agentes-nativos-subtitulo">
-        {plan.reiniciar.length === 1 ? 'Se reiniciará' : `Se reiniciarán ${plan.reiniciar.length}`}
+        {plan.reiniciar.length === 1
+          ? txActualizacion().popover.seReiniciara
+          : txActualizacion().popover.seReiniciaran(plan.reiniciar.length)}
       </div>
       <ul>
         {ordenar(plan.reiniciar, info).map((s: SesionNativa) => {

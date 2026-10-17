@@ -27,6 +27,8 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+  /* Contiene a las listas de los demás perfiles, vivas y ocultas (`.capa-viva.oculta`). */
+  position: relative;
   padding-top: 8px;
 }
 .ssh-riel .ssh-lista[data-modo='fijo'] {
@@ -51,6 +53,12 @@
   flex: 0 0 auto;
   width: var(--ssh-riel-ancho);
   padding: 12px;
+}
+
+/* EL RIEL MONTADO Y OCULTO (`RielConexionesSshVivo`): fuera del flujo de la fila, así que la terminal
+   ocupa todo el cuerpo; en fila, para que el riel conserve el alto del cuerpo y su lista, el desplazamiento. */
+.terminal-body > .capa-viva.oculta {
+  flex-direction: row;
 }
 
 /* El conmutador del riel, el primero de la cabecera de la terminal a pantalla completa: no se encoge.

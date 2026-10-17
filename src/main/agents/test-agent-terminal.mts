@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url'
 import { mkdirSync, writeFileSync, rmSync, chmodSync } from 'node:fs'
 import path from 'node:path'
 import { SandboxManager } from '../sandbox/SandboxManager.ts'
+import { leerContextoDeSesion } from './manuales/contexto.ts'
 import type { Profile } from '../profiles/types.ts'
 
 // Hook de resolución: el código de producción importa sin extensión y Node, con
@@ -124,6 +125,82 @@ function makeProject(dir: string): string {
   mkdirSync(dir, { recursive: true })
   writeFileSync(path.join(dir, 'MARCA.txt'), 'proyecto\n', 'utf8')
   return dir
+}
+
+/**
+ * (f) Un agente MANUAL en el contenedor: su `HOME` es su carpeta del perfil (lo que guarda sobrevive en
+ * el host), sin la variable de cuenta de los de serie y con sus `.local/bin` delante; recargar lo relanza
+ * y cerrar desmonta su carpeta.
+ */
+async function casoAgenteManual(
+  controller: InstanceType<typeof AgentTerminalController>,
+  sandbox: SandboxManager,
+  projA: string
+): Promise<void> {
+  hr('(f) Agente manual: HOME persistente en su carpeta del perfil, sin variable de cuenta; recarga y cierre')
+  const manual = {
+    id: 'm-eco' as const,
+    nombre: 'Eco',
+    comando: `sh -c 'env > /tmp/man-env; echo guardado > "$HOME/.eco-guarda"; echo {\\"ctx\\":{\\"usado\\":250}} > "$HOME/.eco-uso.json"; sleep 600'`,
+    reanudar: '--continuar',
+    contexto: { origen: 'archivo' as const, valor: '~/.eco-uso.json', usado: 'ctx.usado', maximo: '1000' }
+  }
+  const res = await controller.open({ profileId: P_A.id, agente: 'm-eco', projectHostPath: projA, manual, reanudarManual: true })
+  sleep(5000)
+  await casoContextoManual(controller, sandbox, res.sessionId)
+  const env = (await sandbox.exec(P_A, 'cat /tmp/man-env 2>/dev/null')).stdout
+  const enHost = path.join(CREDS_ROOT, '.tessera', 'perfiles', P_A.id, 'm-eco', '.eco-guarda')
+  const persistido = spawnSync(process.execPath, ['-e', `process.stdout.write(require('fs').existsSync(${JSON.stringify(enHost)}) ? 'SI' : 'NO')`], { encoding: 'utf8' }).stdout
+  check(
+    '(f1) HOME en /agent-config/m-eco/manual, lo guardado aparece en el host y sin CLAUDE_CONFIG_DIR ni CODEX_HOME',
+    field(env, 'HOME') === '/agent-config/m-eco/manual' && persistido === 'SI' && !/^(CLAUDE_CONFIG_DIR|CODEX_HOME)=/m.test(env),
+    `HOME=${field(env, 'HOME')} | en_host=${persistido} | res.home=${res.configContainerPath}`
+  )
+  check('(f2) sus .local/bin delante del PATH', field(env, 'PATH').startsWith('/agent-config/m-eco/manual/.local/bin:'), field(env, 'PATH'))
+  await sandbox.exec(P_A, 'rm -f /tmp/man-env')
+  const editada = { ...manual, contexto: { ...manual.contexto, maximo: '500' } }
+  await controller.reload(res.sessionId, undefined, undefined, editada)
+  sleep(5000)
+  const reEnv = (await sandbox.exec(P_A, 'cat /tmp/man-env 2>/dev/null')).stdout
+  check('(f3) recargar lo relanza con su HOME', field(reEnv, 'HOME') === '/agent-config/m-eco/manual', field(reEnv, 'HOME') || '(sin env)')
+  const tras = controller.sesionConContexto(res.sessionId)?.fuente.maximo
+  check('(f3b) reiniciar adopta la definición editada', tras === '500', String(tras))
+  let ajena = ''
+  await controller.reload(res.sessionId, undefined, undefined, { ...manual, id: 'm-otro' }).catch((e: Error) => (ajena = e.message))
+  check('(f3c) NEGATIVO: la definición de otro agente se rechaza', ajena.includes('m-eco'), ajena)
+  await controller.close(res.sessionId)
+  const queda = (await sandbox.exec(P_A, 'test -e /agent-config/m-eco && echo EXISTS || echo GONE')).stdout.trim()
+  check('(f4) cerrar desmonta su carpeta del contenedor', queda === 'GONE', queda)
+}
+
+/** (f-ctx) Su contexto se lee en el contenedor con su HOME: del archivo de su casa y con un comando. */
+async function casoContextoManual(
+  controller: InstanceType<typeof AgentTerminalController>,
+  sandbox: SandboxManager,
+  sessionId: string
+): Promise<void> {
+  const s = controller.sesionConContexto(sessionId)
+  const deps = {
+    plataforma: 'linux' as const,
+    homedir: '/no-se-usa',
+    ejecutarNativo: async () => ({ ok: false, salida: 'no debe llamarse' }),
+    ejecutarEnContenedor: async (_s: unknown, orden: string) => {
+      const r = await sandbox.exec(P_A, orden, { project: s?.projectHostPath })
+      return { ok: r.exitCode === 0, salida: r.exitCode === 0 ? r.stdout : r.stderr }
+    },
+    leerFinal: async () => 'no debe llamarse'
+  }
+  const archivo = s ? await leerContextoDeSesion(s, deps) : null
+  check('(f-ctx1) del archivo «~/…» de su casa: 25 %', archivo?.ok === true && archivo.percent === 25, JSON.stringify(archivo))
+  const conComando = s ? await leerContextoDeSesion({ ...s, fuente: { ...s.fuente, origen: 'comando', valor: 'cat "$HOME/.eco-uso.json"' } }, deps) : null
+  check('(f-ctx2) con un comando que ve el mismo HOME: 25 %', conComando?.ok === true && conComando.percent === 25, JSON.stringify(conComando))
+  const roto = s ? await leerContextoDeSesion({ ...s, fuente: { ...s.fuente, valor: '~/no-existe.json' } }, deps) : null
+  check('(f-ctx3) un archivo que no existe: error, no excepción', roto?.ok === false, JSON.stringify(roto))
+  const t0 = Date.now()
+  const colgado = s ? await leerContextoDeSesion({ ...s, fuente: { ...s.fuente, origen: 'comando', valor: 'sleep 60' } }, deps) : null
+  const tarda = Date.now() - t0
+  const quedan = (await sandbox.exec(P_A, 'pgrep -fx "sleep 60" || true')).stdout.trim()
+  check('(f-ctx4) un comando colgado acaba por su tope y no deja el proceso dentro', colgado?.ok === false && tarda < 20_000 && quedan === '', `${tarda} ms, quedan=[${quedan}]`)
 }
 
 async function main(): Promise<void> {
@@ -250,6 +327,8 @@ async function main(): Promise<void> {
       isoOk,
       `list=${field(iso.stdout, 'LIST')} | codex=${field(iso.stdout, 'CODEX')} | bscan=${field(iso.stdout, 'BSCAN')}`
     )
+
+    await casoAgenteManual(controller, sandbox, projA)
 
     // --- (d) close: desmonta el configDir; sin sesión ni contenedor huérfano ----
     hr('(d) close: desmonta el configDir (/agent-config/claude-code desaparece), pty cerrado')

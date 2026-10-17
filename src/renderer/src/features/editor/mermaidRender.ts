@@ -8,6 +8,7 @@
 
 import DOMPurify from 'dompurify'
 import { ATOM_ONE_DARK } from '../../theme/atomOneDark'
+import { txVistaPrevia } from './textosVisores.ts'
 
 /** Módulo de mermaid ya cargado y configurado. Se resuelve una sola vez. */
 let cargando: Promise<typeof import('mermaid').default> | null = null
@@ -67,14 +68,14 @@ let secuencia = 0
 /** Dibuja un diagrama y devuelve su SVG saneado. Nunca lanza: el error es un valor de retorno. */
 export async function dibujarMermaid(codigo: string): Promise<ResultadoMermaid> {
   const fuente = codigo.trim()
-  if (fuente === '') return { ok: false, error: 'El diagrama está vacío.' }
+  if (fuente === '') return { ok: false, error: txVistaPrevia().diagramaVacio }
 
   try {
     const mermaid = await mermaidListo()
 
     // Se valida antes: `render` con un diagrama inválido deja un SVG de error en el <body>.
     const valido = await mermaid.parse(fuente, { suppressErrors: true })
-    if (!valido) return { ok: false, error: 'El diagrama tiene un error de sintaxis.' }
+    if (!valido) return { ok: false, error: txVistaPrevia().diagramaSintaxis }
 
     secuencia += 1
     const { svg } = await mermaid.render(`tessera-mermaid-${secuencia}`, fuente)

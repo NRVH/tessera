@@ -20,6 +20,7 @@ import {
 } from '../../shared/ssh-ipc.ts'
 import { esObjeto } from '../util/valores.ts'
 import type { ConexionSshPersistida, GrupoSshPersistido } from './conservarAlEditarSsh.ts'
+import { txSsh } from './textos.ts'
 
 /** Lo que la validación necesita del registro en uso. */
 export interface ContextoValidacionSsh {
@@ -30,32 +31,32 @@ export interface ContextoValidacionSsh {
 
 /** Lo que ve un error de host: el texto ya sin espacios en los extremos. */
 export function errorHost(host: string): string | null {
-  if (host === '') return 'Falta el host.'
-  if (/\s/.test(host)) return 'El host no puede llevar espacios.'
-  if (host.startsWith('-')) return 'El host no puede empezar por «-».'
-  if (host.includes('@')) return 'Escribe el host sin el usuario: el usuario va en su propio campo.'
-  if (host.includes('/')) return 'El host no puede llevar «/»: escribe solo el nombre o la dirección.'
-  if (host.includes('${')) return 'El host no puede llevar «${».'
-  if (host.includes('%')) return 'El host no puede llevar «%».'
-  if (host.includes('[') || host.includes(']')) return 'Escribe la dirección IPv6 sin corchetes: el puerto va en su propio campo.'
-  if ((host.match(/:/g) ?? []).length === 1) return 'El puerto va en su propio campo, no detrás del host.'
-  if (host.length > 253) return 'El host es demasiado largo.'
-  if (!/^[A-Za-z0-9._:-]+$/.test(host)) {
-    return 'El host solo puede llevar letras sin tilde, números, puntos, guiones y «:» (en una dirección IPv6).'
-  }
+  const t = txSsh().validacion
+  if (host === '') return t.hostFalta
+  if (/\s/.test(host)) return t.hostEspacios
+  if (host.startsWith('-')) return t.hostGuion
+  if (host.includes('@')) return t.hostArroba
+  if (host.includes('/')) return t.hostBarra
+  if (host.includes('${')) return t.hostDolar
+  if (host.includes('%')) return t.hostPorciento
+  if (host.includes('[') || host.includes(']')) return t.hostCorchetes
+  if ((host.match(/:/g) ?? []).length === 1) return t.hostPuerto
+  if (host.length > 253) return t.hostLargo
+  if (!/^[A-Za-z0-9._:-]+$/.test(host)) return t.hostCaracteres
   return null
 }
 
 /** El usuario ya sin espacios en los extremos. */
 export function errorUsuario(usuario: string): string | null {
-  if (usuario === '') return 'Falta el usuario.'
-  if (/\s/.test(usuario)) return 'El usuario no puede llevar espacios.'
-  if (usuario.startsWith('-')) return 'El usuario no puede empezar por «-».'
-  if (usuario.includes('${')) return 'El usuario no puede llevar «${».'
-  if (usuario.includes('%')) return 'El usuario no puede llevar «%».'
+  const t = txSsh().validacion
+  if (usuario === '') return t.usuarioFalta
+  if (/\s/.test(usuario)) return t.usuarioEspacios
+  if (usuario.startsWith('-')) return t.usuarioGuion
+  if (usuario.includes('${')) return t.usuarioDolar
+  if (usuario.includes('%')) return t.usuarioPorciento
   // eslint-disable-next-line no-control-regex -- buscar caracteres de control es justo su trabajo
-  if (/[\u0000-\u001f\u007f]/.test(usuario)) return 'El usuario no puede llevar caracteres de control.'
-  if (usuario.length > 255) return 'El usuario es demasiado largo.'
+  if (/[\u0000-\u001f\u007f]/.test(usuario)) return t.usuarioControl
+  if (usuario.length > 255) return t.usuarioLargo
   return null
 }
 
@@ -63,7 +64,7 @@ export function errorUsuario(usuario: string): string | null {
 export function errorPuerto(puerto: unknown): string | null {
   return typeof puerto === 'number' && Number.isInteger(puerto) && puerto >= 1 && puerto <= 65535
     ? null
-    : 'El puerto debe ser un entero entre 1 y 65535.'
+    : txSsh().validacion.puerto
 }
 
 /** ¿Choca `nombre` con otro del perfil (sin distinguir mayúsculas)? Devuelve el que choca, tal como está. */
@@ -74,21 +75,24 @@ function choque(nombre: string, otros: ReadonlyArray<{ id: string; nombre: strin
 
 /** Nombre de la conexión: no vacío, con tope, sin «:» y único en el perfil contando las ajenas. */
 function validarAlias(input: SshConexionInput, ctx: ContextoValidacionSsh, idEditada?: string): void {
+  const t = txSsh().validacion
   const alias = String(input.alias ?? '').trim()
-  if (!alias) throw new Error('La conexión necesita un nombre.')
-  if (alias.length > SSH_ALIAS_MAX) throw new Error(`El nombre no puede pasar de ${SSH_ALIAS_MAX} caracteres.`)
+  if (!alias) throw new Error(t.aliasFalta)
+  if (alias.length > SSH_ALIAS_MAX) throw new Error(t.aliasLargo(SSH_ALIAS_MAX))
   // Los agentes nombrarán la conexión delante de una ruta (`nombre:ruta`).
-  if (alias.includes(':')) throw new Error('El nombre de la conexión no puede llevar «:».')
+  if (alias.includes(':')) throw new Error(t.aliasDosPuntos)
   const otros = [
     ...ctx.conexiones.filter((c) => c.profileId === input.profileId).map((c) => ({ id: c.id, nombre: c.alias })),
     ...ctx.ajenas.filter((a) => a.tipo === 'conexion' && a.profileId === input.profileId)
   ]
   const ocupado = choque(alias, otros, idEditada)
-  if (ocupado !== undefined) throw new Error(`Este perfil ya tiene una conexión llamada "${ocupado}".`)
+  if (ocupado !== undefined) throw new Error(t.aliasOcupado(ocupado))
 }
 
 /** Una conexión con el método 'clave' y sin archivo: ni uno recién elegido ni el que ya tenía. */
-export const MENSAJE_FALTA_CLAVE = 'Elige el archivo de la clave privada.'
+export function mensajeFaltaClave(): string {
+  return txSsh().validacion.faltaClave
+}
 
 /**
  * El secreto del formulario (ausente o '' siempre valen): solo con contraseña o clave, con tope en bytes
@@ -96,23 +100,25 @@ export const MENSAJE_FALTA_CLAVE = 'Elige el archivo de la clave privada.'
  */
 export function errorSecreto(secreto: unknown, metodo: SshMetodo): string | null {
   if (secreto === undefined || secreto === '') return null
-  if (typeof secreto !== 'string') return 'La contraseña tiene que ser un texto.'
-  if (metodo !== 'contrasena' && metodo !== 'clave') return 'Con «Claves del sistema» no se guarda ninguna contraseña.'
-  const que = metodo === 'clave' ? 'La frase de la clave' : 'La contraseña'
-  if (/[\n\r]/.test(secreto) || secreto.includes(String.fromCharCode(0))) return `${que} no puede llevar saltos de línea ni el carácter nulo.`
-  if (Buffer.byteLength(secreto, 'utf8') > SSH_SECRETO_MAX_BYTES) return `${que} no puede pasar de ${SSH_SECRETO_MAX_BYTES} bytes.`
+  const t = txSsh().validacion
+  if (typeof secreto !== 'string') return t.secretoTexto
+  if (metodo !== 'contrasena' && metodo !== 'clave') return t.secretoSistema
+  const que = metodo === 'clave' ? t.queClave : t.quePassword
+  if (/[\n\r]/.test(secreto) || secreto.includes(String.fromCharCode(0))) return t.secretoSaltos(que)
+  if (Buffer.byteLength(secreto, 'utf8') > SSH_SECRETO_MAX_BYTES) return t.secretoBytes(que, SSH_SECRETO_MAX_BYTES)
   return null
 }
 
 /** Un túnel: su tipo, puertos enteros y, salvo el dinámico, un destino que valdría como host. */
 export function errorTunel(t: unknown): string | null {
-  if (!esObjeto(t)) return 'Un túnel no tiene la forma esperada.'
-  if (t.tipo !== 'local' && t.tipo !== 'remoto' && t.tipo !== 'dinamico') return `Tipo de túnel desconocido: "${String(t.tipo)}".`
-  if (errorPuerto(t.puerto) !== null) return 'El puerto de un túnel debe ser un entero entre 1 y 65535.'
-  if (t.tipo === 'dinamico') return t.destinoHost === undefined && t.destinoPuerto === undefined ? null : 'Un túnel dinámico (SOCKS) no lleva destino.'
+  const x = txSsh().validacion
+  if (!esObjeto(t)) return x.tunelForma
+  if (t.tipo !== 'local' && t.tipo !== 'remoto' && t.tipo !== 'dinamico') return x.tunelTipo(String(t.tipo))
+  if (errorPuerto(t.puerto) !== null) return x.tunelPuerto
+  if (t.tipo === 'dinamico') return t.destinoHost === undefined && t.destinoPuerto === undefined ? null : x.tunelDinamico
   const host = errorHost(typeof t.destinoHost === 'string' ? t.destinoHost.trim() : '')
-  if (host !== null) return `En el destino de un túnel: ${host}`
-  return errorPuerto(t.destinoPuerto) === null ? null : 'El puerto de destino de un túnel debe ser un entero entre 1 y 65535.'
+  if (host !== null) return x.tunelDestino(host)
+  return errorPuerto(t.destinoPuerto) === null ? null : x.tunelPuertoDestino
 }
 
 /**
@@ -120,8 +126,9 @@ export function errorTunel(t: unknown): string | null {
  * y los dinámicos, en este equipo; los remotos, en el servidor).
  */
 export function errorTuneles(tuneles: unknown): string | null {
-  if (!Array.isArray(tuneles)) return 'Los túneles tienen que ser una lista.'
-  if (tuneles.length > SSH_TUNELES_MAX) return `Una conexión no puede tener más de ${SSH_TUNELES_MAX} túneles.`
+  const x = txSsh().validacion
+  if (!Array.isArray(tuneles)) return x.tunelesLista
+  if (tuneles.length > SSH_TUNELES_MAX) return x.tunelesMax(SSH_TUNELES_MAX)
   const escuchas = new Set<string>()
   for (const t of tuneles) {
     const error = errorTunel(t)
@@ -129,7 +136,7 @@ export function errorTuneles(tuneles: unknown): string | null {
     const tunel = t as SshTunel
     const escucha = `${tunel.tipo === 'remoto' ? 'servidor' : 'equipo'}:${tunel.puerto}`
     if (escuchas.has(escucha)) {
-      return tunel.tipo === 'remoto' ? `Dos túneles remotos usan el puerto ${tunel.puerto} del servidor.` : `Dos túneles usan el puerto ${tunel.puerto} de este equipo.`
+      return tunel.tipo === 'remoto' ? x.tunelRemotoRepetido(tunel.puerto) : x.tunelRepetido(tunel.puerto)
     }
     escuchas.add(escucha)
   }
@@ -143,20 +150,21 @@ export function errorTuneles(tuneles: unknown): string | null {
 function validarSalto(input: SshConexionInput, ctx: ContextoValidacionSsh, idEditada?: string): void {
   const saltoId = input.saltoId
   if (saltoId === undefined || saltoId === null) return
-  if (typeof saltoId !== 'string') throw new Error('El bastión tiene que ser una conexión.')
-  if (saltoId === idEditada) throw new Error('Una conexión no puede saltar por sí misma.')
+  const t = txSsh().validacion
+  if (typeof saltoId !== 'string') throw new Error(t.saltoTipo)
+  if (saltoId === idEditada) throw new Error(t.saltoMismo)
   const delPerfil = (id: string): ContextoValidacionSsh['conexiones'][number] | undefined =>
     ctx.conexiones.find((c) => c.id === id && c.profileId === input.profileId)
   let actual = delPerfil(saltoId)
-  if (actual === undefined) throw new Error('La conexión elegida como bastión ya no existe en este perfil.')
+  if (actual === undefined) throw new Error(t.saltoNoExiste)
   const vistos = new Set<string>(idEditada === undefined ? [] : [idEditada])
   for (let saltos = 1; ; saltos++) {
-    if (saltos > SSH_SALTOS_MAX) throw new Error(`No se puede encadenar más de ${SSH_SALTOS_MAX} bastiones.`)
+    if (saltos > SSH_SALTOS_MAX) throw new Error(t.saltosMax(SSH_SALTOS_MAX))
     vistos.add(actual.id)
     if (actual.saltoId === undefined) return
-    if (vistos.has(actual.saltoId)) throw new Error(`El bastión «${actual.alias}» acaba saltando por esta misma conexión: se formaría un círculo.`)
+    if (vistos.has(actual.saltoId)) throw new Error(t.saltoCirculo(actual.alias))
     const siguiente = delPerfil(actual.saltoId)
-    if (siguiente === undefined) throw new Error(`El bastión «${actual.alias}» salta por una conexión que ya no existe: edítalo primero.`)
+    if (siguiente === undefined) throw new Error(t.saltoHueco(actual.alias))
     actual = siguiente
   }
 }
@@ -166,17 +174,18 @@ function validarSalto(input: SshConexionInput, ctx: ContextoValidacionSsh, idEdi
  * su archivo lo comprueba el registro, que sabe si la conexión ya tenía uno.
  */
 export function validarEntradaSsh(input: SshConexionInput, ctx: ContextoValidacionSsh, idEditada?: string): void {
-  if (typeof input?.profileId !== 'string' || !input.profileId) throw new Error('Una conexión requiere un perfil.')
+  const t = txSsh().validacion
+  if (typeof input?.profileId !== 'string' || !input.profileId) throw new Error(t.sinPerfil)
   validarAlias(input, ctx, idEditada)
   const error = errorHost(String(input.host ?? '').trim()) ?? errorPuerto(input.puerto) ?? errorUsuario(String(input.usuario ?? '').trim())
   if (error !== null) throw new Error(error)
   if (input.metodo !== 'contrasena' && input.metodo !== 'clave' && input.metodo !== 'sistema') {
-    throw new Error(`Método de autenticación desconocido: "${String(input.metodo)}".`)
+    throw new Error(t.metodoDesconocido(String(input.metodo)))
   }
   const secreto = errorSecreto(input.secreto, input.metodo)
   if (secreto !== null) throw new Error(secreto)
   if (input.grupoId !== null && !ctx.grupos.some((g) => g.id === input.grupoId && g.profileId === input.profileId)) {
-    throw new Error('Ese grupo ya no existe en este perfil.')
+    throw new Error(t.grupoNoExiste)
   }
   validarSaltoYTuneles(input, ctx, idEditada)
 }
@@ -247,15 +256,16 @@ export function validarNombreGrupo(
   ctx: ContextoValidacionSsh,
   idEditado?: string
 ): string {
-  if (typeof profileId !== 'string' || !profileId) throw new Error('Un grupo requiere un perfil.')
+  const t = txSsh().validacion
+  if (typeof profileId !== 'string' || !profileId) throw new Error(t.grupoSinPerfil)
   const limpio = String(nombre ?? '').trim()
-  if (!limpio) throw new Error('El grupo necesita un nombre.')
-  if (limpio.length > SSH_GRUPO_MAX) throw new Error(`El nombre del grupo no puede pasar de ${SSH_GRUPO_MAX} caracteres.`)
+  if (!limpio) throw new Error(t.grupoSinNombre)
+  if (limpio.length > SSH_GRUPO_MAX) throw new Error(t.grupoLargo(SSH_GRUPO_MAX))
   const otros = [
     ...ctx.grupos.filter((g) => g.profileId === profileId).map((g) => ({ id: g.id, nombre: g.nombre })),
     ...ctx.ajenas.filter((a) => a.tipo === 'grupo' && a.profileId === profileId)
   ]
   const ocupado = choque(limpio, otros, idEditado)
-  if (ocupado !== undefined) throw new Error(`Este perfil ya tiene un grupo llamado "${ocupado}".`)
+  if (ocupado !== undefined) throw new Error(t.grupoOcupado(ocupado))
   return limpio
 }

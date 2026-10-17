@@ -14,7 +14,10 @@ import type { ConvAgent, ConversationSummary } from '../../shared/conversations-
 import { basenameSuelto, esDelProyecto } from './slugProyecto.ts'
 import { conFechas, rolloutsCodex, transcriptsClaude } from '../transcripts/listadoTranscripts.ts'
 import { leerCabezaJsonl } from '../transcripts/cabezaJsonl.ts'
+import { TAMANO_SOSPECHOSO, avisarContrato, versionDeLinea } from '../transcripts/vigiaContratos.ts'
+import { esRolloutDeSubagente } from '../transcripts/formatoTranscript.ts'
 import { recortarConElipsis } from './recorteTitulo.ts'
+import { txMain } from '../textos.ts'
 
 /** Directorio base de credenciales de una cuenta + su agente, a escanear en busca de transcripts. */
 export interface ConversationBase {
@@ -124,6 +127,11 @@ export class ConversationsReader {
     return deleted
   }
 
+  /** Resumen de un transcript suelto, o null si no tiene mensajes legibles. Lo usa la sonda de contratos. */
+  resumenDe(file: string, agente: ConvAgent): Promise<ConversationSummary | null> {
+    return this.summarizeCached(file, agente)
+  }
+
   private async listClaudeIn(base: string, opts: OpcionesEscaneo = {}): Promise<ConversationSummary[]> {
     // La criba solo mira el nombre de la carpeta; el filtro exacto usa la ruta entera. Si lo
     // cribado no da ningún transcript (el proyecto no tiene historial, o Claude Code cambió
@@ -210,8 +218,8 @@ export class ConversationsReader {
       sessionId: path.basename(file, '.jsonl')
     }
     for (const obj of lines) acumularClaude(acc, obj)
-    if (acc.count === 0) return null
-    const title = clip(acc.aiTitle ?? acc.firstUser ?? '(sin título)')
+    if (acc.count === 0) return sinMensajes('claude-code', lines, st)
+    const title = clip(acc.aiTitle ?? acc.firstUser ?? txMain().sinTitulo)
     return {
       id: acc.sessionId,
       agente: 'claude-code',
@@ -234,13 +242,16 @@ export class ConversationsReader {
   private async summarizeCodex(file: string, st: Stats): Promise<ConversationSummary | null> {
     const lines = await this.readHead(file)
     const acc: AcumuladoCodex = { sessionId: '', cwd: '', firstTs: 0, firstUser: null, count: 0 }
+    // Un subagente no es una conversación del usuario: ni se lista ni se reanuda, aunque
+    // comparta el `cwd` del padre y escriba después que él.
+    if (lines.some((o) => o?.type === 'session_meta' && esRolloutDeSubagente(o.payload ?? {}))) return null
     for (const obj of lines) acumularCodex(acc, obj)
-    if (acc.count === 0) return null
+    if (acc.count === 0) return sinMensajes('codex', lines, st)
     if (!acc.sessionId) acc.sessionId = codexSessionIdFromName(file)
     return {
       id: acc.sessionId,
       agente: 'codex',
-      title: clip(acc.firstUser ?? '(sin título)'),
+      title: clip(acc.firstUser ?? txMain().sinTitulo),
       project: acc.cwd ? path.posix.basename(acc.cwd) : '',
       projectPath: acc.cwd,
       startedAt: acc.firstTs || Math.round(st.mtimeMs),
@@ -291,6 +302,18 @@ interface AcumuladoCodex {
   firstTs: number
   firstUser: string | null
   count: number
+}
+
+/**
+ * Un transcript sin mensajes legibles no se lista. Si además es grande, no es un chat recién
+ * abierto sino uno que el lector ya no entiende: se avisa al vigía.
+ */
+function sinMensajes(agente: ConvAgent, lines: JsonLine[], st: Stats): null {
+  if (st.size >= TAMANO_SOSPECHOSO) {
+    const version = lines.map(versionDeLinea).find((v) => v !== undefined)
+    avisarContrato(agente, 'historial', `transcript de ${Math.round(st.size / 1024)} KiB sin mensajes legibles`, version)
+  }
+  return null
 }
 
 /** Incorpora una línea de Claude Code al acumulado. */
@@ -386,16 +409,37 @@ function claudeMessageText(obj: JsonLine): string {
   return ''
 }
 
-/** Extrae {role,text} de un `event_msg` de Codex (user_message / agent_message); null si no aplica. */
+/**
+ * Extrae {role,text} de un `event_msg` de Codex; null si no aplica. Codex escribe cada mensaje
+ * de una de dos formas según su versión: `user_message`/`agent_message` con el texto en
+ * `message`, o `item_completed` con un `UserMessage`/`AgentMessage` cuyo texto va en bloques.
+ */
 function codexEventMessage(obj: JsonLine): { role: 'user' | 'assistant'; text: string } | null {
   if (obj?.type !== 'event_msg') return null
   const tipo = campo(obj, 'payload', 'type')
+  if (tipo === 'item_completed') return codexItemMessage(campo(obj, 'payload', 'item'))
   const mensaje = campo(obj, 'payload', 'message')
   if (typeof mensaje !== 'string') return null
   if (tipo !== 'user_message' && tipo !== 'agent_message') return null
   const text = mensaje.trim()
   if (!text) return null
   return { role: tipo === 'user_message' ? 'user' : 'assistant', text }
+}
+
+/** Mensaje de un `item_completed` de Codex: solo el texto de sus bloques (las imágenes no). */
+function codexItemMessage(item: unknown): { role: 'user' | 'assistant'; text: string } | null {
+  const tipo = campo(item, 'type')
+  if (tipo !== 'UserMessage' && tipo !== 'AgentMessage') return null
+  const content = campo(item, 'content')
+  if (!Array.isArray(content)) return null
+  const parts: string[] = []
+  for (const block of content) {
+    const text = campo(block, 'text')
+    if (typeof text === 'string') parts.push(text)
+  }
+  const text = parts.join('\n').trim()
+  if (!text) return null
+  return { role: tipo === 'UserMessage' ? 'user' : 'assistant', text }
 }
 
 /** sessionId de Codex desde el nombre `rollout-<ts>-<uuid>.jsonl` (fallback si falta session_meta). */

@@ -11,6 +11,7 @@ import { ejecutando as hayEjecucion } from './estadoConsola'
 import { registrarAccionesConsola } from './monacoConsola'
 import type { AccionSalida, IrAPosicion } from './salidaConsola'
 import type { RefsConsola } from './tiposConsola'
+import { txPane } from './textosPane.ts'
 import type { Correr } from './useConsolaLote'
 import type { NucleoConsola } from './useConsolaNucleo'
 
@@ -21,7 +22,7 @@ function restantes(r: RefsConsola, correr: Correr, avisar: (texto: string) => vo
   if (info.conModelo) {
     const m = r.modeloRef.current
     if (!m || m.isDisposed() || m.getAlternativeVersionId() !== info.version) {
-      avisar('El texto cambió desde ese lote: vuelve a ejecutar')
+      avisar(txPane().textoCambio)
       return
     }
   }

@@ -11,6 +11,7 @@ import type { ResultadoRedPrevuelo } from '../../../../shared/sandbox-red-ipc'
 import { nombresSistema } from '../../../../shared/nombresSistema'
 import { AvisoCaja } from '../../comun/AvisoCaja'
 import { useDialogo } from '../../comun/useDialogo'
+import { txPestanas } from './textos.ts'
 
 interface RedContenedorModalProps {
   profile: Profile
@@ -80,6 +81,7 @@ function ElegirRed({
   tuEquipo: string
   onElegir: (eleccion: Eleccion) => void
 }): React.JSX.Element {
+  const t = txPestanas().red
   return (
     <div className="project-mode-choices">
       <button
@@ -87,18 +89,16 @@ function ElegirRed({
         aria-pressed={eleccion === 'aislada'}
         onClick={() => onElegir('aislada')}
       >
-        <span className="project-mode-choice-label">Aislada</span>
-        <span className="project-mode-choice-hint">Recomendada · red y puertos propios</span>
+        <span className="project-mode-choice-label">{t.aislada}</span>
+        <span className="project-mode-choice-hint">{t.aisladaHint}</span>
       </button>
       <button
         className={`project-mode-choice${eleccion === 'anfitrion' ? ' seleccionada' : ''}`}
         aria-pressed={eleccion === 'anfitrion'}
         onClick={() => onElegir('anfitrion')}
       >
-        <span className="project-mode-choice-label">Del anfitrión</span>
-        <span className="project-mode-choice-hint">
-          --network host · comparte la red de {tuEquipo}
-        </span>
+        <span className="project-mode-choice-label">{t.anfitrion}</span>
+        <span className="project-mode-choice-hint">{t.anfitrionHint(tuEquipo)}</span>
       </button>
     </div>
   )
@@ -106,21 +106,16 @@ function ElegirRed({
 
 /** Qué se pierde al entrar en modo anfitrión: lo que el usuario no puede deducir. */
 function QueCambia({ tuEquipo }: { tuEquipo: string }): React.JSX.Element {
+  const t = txPestanas().red
   return (
     <div className="red-bloque">
-      <div className="red-bloque-titulo">Con la red del anfitrión</div>
+      <div className="red-bloque-titulo">{t.conRedAnfitrion}</div>
       <ul className="red-lista">
-        <li>Los puertos que abra el contenedor quedan en {tuEquipo}, en el mismo número.</li>
-        <li>
-          El contenedor pierde su nombre de equipo propio y comparte el espacio de puertos con los
-          demás perfiles.
-        </li>
-        <li>
-          Sólo lleva TCP y UDP: nada por debajo, y un proceso del contenedor no puede escuchar por
-          debajo del puerto 1024.
-        </li>
-        <li>Es incompatible con «Enhanced Container Isolation» de Docker Desktop.</li>
-        <li>El puente de bases de datos no cambia: no usa puertos.</li>
+        <li>{t.puertos(tuEquipo)}</li>
+        <li>{t.nombreEquipo}</li>
+        <li>{t.soloTcp}</li>
+        <li>{t.incompatible}</li>
+        <li>{t.puenteBd}</li>
       </ul>
     </div>
   )
@@ -133,13 +128,14 @@ function Comprobaciones({
   prevuelo: ResultadoRedPrevuelo | null
   midiendo: boolean
 }): React.JSX.Element {
+  const t = txPestanas().red
   return (
     <div className="red-bloque">
       <div className="red-bloque-titulo">
-        Comprobaciones {midiendo && <span className="red-midiendo">comprobando…</span>}
+        {t.comprobaciones} {midiendo && <span className="red-midiendo">{t.comprobando}</span>}
       </div>
       {prevuelo === null && !midiendo && (
-        <div className="red-lista-vacia">No se pudo completar el diagnóstico.</div>
+        <div className="red-lista-vacia">{t.sinDiagnostico}</div>
       )}
       {prevuelo?.filas.map((f) => (
         <div key={f.id} className={`red-fila red-fila-${f.estado}`}>
@@ -166,6 +162,7 @@ function DetalleAnfitrion({
   midiendo: boolean
   tuEquipo: string
 }): React.JSX.Element {
+  const t = txPestanas().red
   return (
     <>
       <QueCambia tuEquipo={tuEquipo} />
@@ -174,13 +171,13 @@ function DetalleAnfitrion({
       {/* La salida por VPN va como información, nunca como comprobación en rojo: no se
           sabe qué host le importa al usuario, y darlo por caído sin probarlo sería mentir. */}
       {prevuelo?.notaEgress && (
-        <AvisoCaja titulo="Salida a la VPN" sugerencia={prevuelo.notaEgress} tono="info" />
+        <AvisoCaja titulo={t.salidaVpn} sugerencia={prevuelo.notaEgress} tono="info" />
       )}
 
       {prevuelo?.otroPerfilEnAnfitrion && (
         <AvisoCaja
-          titulo="Otro perfil ya usa la red del anfitrión"
-          sugerencia={`En este modo los contenedores comparten el espacio de puertos de ${tuEquipo}, así que el login por navegador de Codex sólo podrá completarse en uno de los dos.`}
+          titulo={t.otroPerfil}
+          sugerencia={t.otroPerfilDetalle(tuEquipo)}
           tono="error"
         />
       )}
@@ -198,6 +195,7 @@ export function RedContenedorModal({
   // estado que impida abandonarlo (el prevuelo se descarta al desmontar), así que siempre `cerrable`.
   const dlg = useDialogo({ onClose: onCancel })
   const n = nombresSistema(window.tessera.plataforma)
+  const t = txPestanas().red
   const actual: Eleccion = profile.sandbox?.redHost === true ? 'anfitrion' : 'aislada'
   const [eleccion, setEleccion] = useState<Eleccion>(actual)
   const { prevuelo, midiendo } = useRedPrevuelo(profile.id, eleccion)
@@ -208,11 +206,8 @@ export function RedContenedorModal({
   return (
     <div className="modal-overlay" onMouseDown={onCancel}>
       <div ref={dlg.ref} className="modal-card red-modal" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-title">Red del contenedor de “{profile.nombre}”</div>
-        <div className="modal-message">
-          Decide por dónde entran y salen las conexiones de este perfil. El cambio se aplica al
-          reiniciar su contenedor.
-        </div>
+        <div className="modal-title">{t.titulo(profile.nombre)}</div>
+        <div className="modal-message">{t.mensaje}</div>
 
         <ElegirRed eleccion={eleccion} tuEquipo={n.tuEquipo} onElegir={setEleccion} />
 
@@ -222,20 +217,20 @@ export function RedContenedorModal({
 
         {prevuelo?.pendiente === true && !cambia && (
           <AvisoCaja
-            titulo="El contenedor sigue con la red anterior"
-            sugerencia="Ya está elegido este modo, pero el contenedor que está corriendo nació con el otro. Reinícialo para aplicarlo."
+            titulo={t.sigueAnterior}
+            sugerencia={t.sigueAnteriorDetalle}
             tono="info"
           />
         )}
 
         <div className="modal-actions">
           <button className="btn btn-ghost" onClick={onCancel}>
-            Cancelar
+            {t.cancelar}
           </button>
           {/* Nunca deshabilitado: la sonda puede dar un falso negativo, y con el mismo modo
               elegido el botón sigue siendo una forma legítima de reiniciar el contenedor. */}
           <button className="btn primary" onClick={() => onAplicar(eleccion === 'anfitrion')}>
-            {conFallas ? 'Aplicar de todas formas y reiniciar' : 'Aplicar y reiniciar el contenedor'}
+            {conFallas ? t.aplicarIgualmente : t.aplicar}
           </button>
         </div>
       </div>

@@ -9,6 +9,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { SshPreguntaAskpass } from '../../../../shared/ssh-ipc'
 import { useDialogo } from '../../comun/useDialogo'
+import { txSsh } from './textos.ts'
 import './conexionesSsh.css'
 
 /** Las preguntas pendientes, en el orden en que llegaron. */
@@ -37,6 +38,7 @@ function DialogoPregunta({ p, contestar }: { p: SshPreguntaAskpass; contestar: (
   const campo = useRef<HTMLInputElement>(null)
   useEffect(() => campo.current?.focus(), [])
   const enviar = (): void => contestar(valor)
+  const t = txSsh()
   return (
     // Un clic fuera NO cancela: cancelar corta la conexión, y volver de otra ventana a por el código no es eso.
     <div className="modal-overlay" role="presentation">
@@ -45,14 +47,14 @@ function DialogoPregunta({ p, contestar }: { p: SshPreguntaAskpass; contestar: (
         className="modal-card pregunta-askpass"
         role="dialog"
         aria-modal="true"
-        aria-label={`Conexión SSH «${p.alias}»`}
+        aria-label={t.askConexion(p.alias)}
         onKeyDown={dlg.alPulsarTecla}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="modal-title">{`Conexión SSH «${p.alias}»`}</div>
-        {p.rechazada && <div className="modal-message">La guardada no sirvió. Escríbela; Tessera no la guardará.</div>}
+        <div className="modal-title">{t.askConexion(p.alias)}</div>
+        {p.rechazada && <div className="modal-message">{t.askRechazada}</div>}
         <label className="modal-label" htmlFor="pregunta-askpass-campo">
-          {p.delServidor ? 'El servidor pregunta:' : p.texto}
+          {p.delServidor ? t.askServidorPregunta : p.texto}
         </label>
         {p.delServidor && <div className="pregunta-askpass-servidor">{p.texto}</div>}
         <input
@@ -70,13 +72,13 @@ function DialogoPregunta({ p, contestar }: { p: SshPreguntaAskpass; contestar: (
           spellCheck={false}
           autoComplete="off"
         />
-        <div className="modal-hint">La respuesta no se guarda. Cancelar corta la conexión.</div>
+        <div className="modal-hint">{t.askNoSeGuarda}</div>
         <div className="modal-actions">
           <button className="btn btn-ghost" onClick={cancelar}>
-            Cancelar
+            {t.cancelar}
           </button>
           <button className="btn primary" onClick={enviar}>
-            Enviar
+            {t.askEnviar}
           </button>
         </div>
       </div>

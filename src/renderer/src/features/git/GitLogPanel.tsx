@@ -18,6 +18,7 @@ import { IconoMaximizar, IconoRestaurar } from '../../comun/iconosPanel'
 import { etiquetaAcorde } from '../../util/atajos'
 import { IconoGitVacio, IconoRecargar } from './iconos'
 import { ColumnaCentro } from './ListaCommits'
+import { txGit } from './textos.ts'
 import { useEstadoLog, type EstadoLog } from './useEstadoLog'
 import type { OrigenApertura } from './useSeleccionLog'
 import type { DiffEditorPane, DiffTarget } from '../editor'
@@ -36,16 +37,14 @@ export interface GitLogPanelProps {
   altoArchivos: number
   minArchivos: number
   onAltoArchivos: (px: number) => void
-  /** Proyecto y repo que se están MOSTRANDO (los del perfil activo); ver `anclado`. */
+  /**
+   * Proyecto y repo que se están MOSTRANDO (los del perfil activo). Cada petición los lleva y el
+   * main la atiende en ese proyecto, así que se pide en cuanto se conocen.
+   */
   activeProject: OpenProject | null
   activeRepo: DetectedRepo | null
   repos: DetectedRepo[] | null
   onSelectRepo: (repoHostPath: string) => void
-  /**
-   * ¿El backend está anclado a ESTE repo? Es el permiso para PEDIR, no para pintar: sin
-   * anclaje el backend contesta vacío y ese vacío no se distingue de un repo nuevo.
-   */
-  anclado: boolean
   /**
    * Sube el diff armado al abrir un archivo de un commit; el colapso lo decide la franja, y
    * con el `origen` también qué se hace a pantalla completa (`aperturaDesdeGit`).
@@ -95,7 +94,8 @@ function CabeceraLog(p: {
   onPantallaCompleta: (valor: boolean) => void
   onClose: () => void
 }): React.JSX.Element {
-  const etiquetaModo = p.pantallaCompleta ? 'Restaurar el panel de git' : 'Maximizar el panel de git'
+  const t = txGit()
+  const etiquetaModo = p.pantallaCompleta ? t.restaurarPanel : t.maximizarPanel
   // `fijo`: a pantalla completa restaurar y cerrar son las dos salidas del modo y no se esconden en reposo.
   const fijo = p.pantallaCompleta ? ' fijo' : ''
   return (
@@ -110,19 +110,15 @@ function CabeceraLog(p: {
           className={`git-icon-btn${p.cargando ? ' girando' : ''}`}
           onClick={p.onRecargar}
           disabled={p.recargarDeshabilitado}
-          title="Recargar el historial y las ramas"
-          aria-label="Recargar el historial y las ramas"
+          title={t.recargarHistorial}
+          aria-label={t.recargarHistorial}
         >
           <IconoRecargar girando={p.cargando} />
         </button>
         <button
           className={`git-icon-btn${fijo}`}
           onClick={() => p.onPantallaCompleta(!p.pantallaCompleta)}
-          title={`${
-            p.pantallaCompleta
-              ? 'Restaurar: git vuelve al panel inferior'
-              : 'Maximizar: git ocupa toda el área de trabajo (sin cerrar nada)'
-          } (${etiquetaAcorde('pantallaCompleta')})`}
+          title={`${p.pantallaCompleta ? t.restaurarTitulo : t.maximizarTitulo} (${etiquetaAcorde('pantallaCompleta')})`}
           aria-label={etiquetaModo}
         >
           {p.pantallaCompleta ? <IconoRestaurar /> : <IconoMaximizar />}
@@ -130,8 +126,8 @@ function CabeceraLog(p: {
         <button
           className={`git-icon-btn${fijo}`}
           onClick={p.onClose}
-          title="Cerrar el panel de git"
-          aria-label="Cerrar el panel de git"
+          title={t.cerrarPanel}
+          aria-label={t.cerrarPanel}
         >
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6">
             <path d="M4 4l8 8M12 4l-8 8" strokeLinecap="round" />
@@ -150,8 +146,9 @@ function PestanasVistas(p: {
   onCerrarHistorial: () => void
 }): React.JSX.Element {
   const { historial, vistaHistorial, setVistaHistorial } = p
+  const t = txGit()
   return (
-    <div className="git-vistas-tabs" role="tablist" aria-label="Vistas de git">
+    <div className="git-vistas-tabs" role="tablist" aria-label={t.vistasGit}>
       <button
         className={`git-vista-tab${vistaHistorial ? '' : ' activa'}`}
         role="tab"
@@ -167,12 +164,12 @@ function PestanasVistas(p: {
         onClick={() => setVistaHistorial(true)}
         title={historial}
       >
-        Historial: {historial.slice(historial.lastIndexOf('/') + 1)}
+        {t.historialDe(historial.slice(historial.lastIndexOf('/') + 1))}
         <span
           className="git-vista-tab-cerrar"
           role="button"
-          aria-label="Cerrar el historial"
-          title="Cerrar el historial"
+          aria-label={t.cerrarHistorial}
+          title={t.cerrarHistorial}
           onClick={(ev) => {
             ev.stopPropagation()
             p.onCerrarHistorial()
@@ -207,7 +204,7 @@ function CuerpoLog({ props, e }: { props: GitLogPanelProps; e: EstadoLog }): Rea
         max={props.colMax}
         direction={1}
         onResize={props.onAnchoRamas}
-        label="Ancho de la columna de ramas"
+        label={txGit().anchoRamas}
       />
       <ColumnaCentro
         e={e}
@@ -224,12 +221,11 @@ function CuerpoLog({ props, e }: { props: GitLogPanelProps; e: EstadoLog }): Rea
         // Arrastrar hacia la IZQUIERDA agranda la columna de detalle, que está a la derecha.
         direction={-1}
         onResize={props.onAnchoDetalle}
-        label="Ancho de la columna de detalle"
+        label={txGit().anchoDetalle}
       />
       <DetalleCommit
         commit={commitSeleccionado}
         repoHostPath={e.id.repoHostPath}
-        anclado={props.anclado}
         altoFila={props.altoFila}
         altoArchivos={props.altoArchivos}
         minArchivos={props.minArchivos}
@@ -289,6 +285,7 @@ function ContenidoLog({ props, e }: { props: GitLogPanelProps; e: EstadoLog }): 
 
 export function GitLogPanel(props: GitLogPanelProps): React.JSX.Element {
   useLayoutEffect(() => asegurarEstilosGit(), [])
+  const t = txGit()
   const e = useEstadoLog(props)
   const { projectHostPath, repoSeleccionado, repoHostPath } = e.id
   const nombreRepo =
@@ -300,11 +297,11 @@ export function GitLogPanel(props: GitLogPanelProps): React.JSX.Element {
   // lo dice el escaneo, y solo cuando terminó (`repos !== null`).
   const sinRepo = repoSeleccionado === null && props.repos !== null
   return (
-    <section className="git-log-panel git-ui" aria-label="Historial de git" style={props.varsDensidad}>
+    <section className="git-log-panel git-ui" aria-label={t.panelHistorial} style={props.varsDensidad}>
       <CabeceraLog
         nombreRepo={nombreRepo}
         cargando={e.datos.cargando}
-        recargarDeshabilitado={e.datos.cargando || projectHostPath === null || !props.anclado}
+        recargarDeshabilitado={e.datos.cargando || projectHostPath === null}
         onRecargar={e.recargar}
         pantallaCompleta={props.pantallaCompleta}
         onPantallaCompleta={props.onPantallaCompleta}
@@ -313,14 +310,14 @@ export function GitLogPanel(props: GitLogPanelProps): React.JSX.Element {
       {projectHostPath === null ? (
         <EstadoVacio
           icono={<IconoCarpetaVacia />}
-          titulo="Sin proyecto abierto"
-          pista="Abre un proyecto para ver su historial de git."
+          titulo={t.sinProyectoTitulo}
+          pista={t.sinProyectoHistorial}
         />
       ) : sinRepo ? (
         <EstadoVacio
           icono={<IconoGitVacio />}
-          titulo="Esto no es un repositorio de git"
-          pista="La carpeta abierta no está versionada, así que no hay historial que enseñar. Abre un proyecto con git para ver sus commits y sus ramas."
+          titulo={t.noEsRepoTitulo}
+          pista={t.noEsRepoHistorial}
         />
       ) : (
         <ContenidoLog props={props} e={e} />

@@ -9,11 +9,11 @@ import type { DbColumnaInfo } from '../../../../../shared/db-explorador-ipc.ts'
 import { dividirSentencias } from '../../../../../shared/sql/divisorSql.ts'
 import type { DialectoSql } from '../../../../../shared/sql/dialectosSql.ts'
 import {
-  RAZON_CARGANDO,
-  RAZON_DBLINK,
-  RAZON_SIN_ESQUEMA,
-  RAZON_SIN_PK,
-  RAZON_VARIAS_TABLAS,
+  razonCargando,
+  razonDblink,
+  razonSinEsquema,
+  razonSinPk,
+  razonVariasTablas,
   claveDeFila,
   decidirValorCompleto,
   peticionValor,
@@ -38,6 +38,12 @@ function check(name: string, pass: boolean, evidence: string): void {
   console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)
 }
 const j = (v: unknown): string => JSON.stringify(v)
+// Los textos se leen al usarse; en las pruebas el idioma es el español de siempre.
+const RAZON_CARGANDO = razonCargando()
+const RAZON_DBLINK = razonDblink()
+const RAZON_SIN_ESQUEMA = razonSinEsquema()
+const RAZON_SIN_PK = razonSinPk()
+const RAZON_VARIAS_TABLAS = razonVariasTablas()
 
 /** La tabla única que el clasificador ve en `sql`. */
 function tablaDe(sql: string, d: DialectoSql): TablaResultado | null {

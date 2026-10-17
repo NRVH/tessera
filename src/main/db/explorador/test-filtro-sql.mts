@@ -4,7 +4,7 @@
 // cuatro dialectos van como parámetro. Fija la forma del SQL y de los parámetros: marcadores,
 // una condición por línea con sus rangos, LIKE con ESCAPE, números y fechas por dialecto,
 // booleanos, unión, filtros inválidos con su índice y el orden de la cabecera.
-// Decisiones: docs/decisiones/bd/rejilla-filtro-guiado-sql.md
+// Decisiones: docs/decisiones/bd/filtro-guiado-compilacion.md
 // =============================================================================
 
 import {

@@ -2,9 +2,11 @@
 // El diff de un .jar/.war/.ear/.zip entre dos revisiones: resta los directorios centrales de los
 // dos lados en el main y sirve al renderer el índice restado y, a demanda, el texto o la fuente
 // descompilada de UNA entrada. Los bytes del contenedor nunca cruzan el IPC. Depende de
-// `GitService` (los blobs), de `zipRandom` y `JarIndexCache`, y del `Decompiler` compartido con
-// el visor de clases. Los canales se registran en `ipc.ts`.
-// Decisiones: docs/decisiones/comprimidos/diff-de-contenedores.md
+// `GitService` (los blobs) y `FileService` (el disco) del proyecto de cada petición, de
+// `zipRandom` y `JarIndexCache`, y del `Decompiler` compartido con el visor de clases. Los
+// canales se registran en `ipc.ts`.
+// Decisiones: docs/decisiones/comprimidos/diff-de-contenedores.md,
+// docs/decisiones/workspace/peticiones-de-archivos-con-su-proyecto.md
 // =============================================================================
 
 import {
@@ -34,6 +36,9 @@ import { MAX_JAR_ANIDADO_BYTES } from '../java/JarService.ts'
 import type { Decompiler, HermanasDeClase } from '../java/Decompiler.ts'
 import type { GitService } from '../git/GitService.ts'
 import { detectEncoding, decodeText, isBinaryBuffer } from '../files/textCodec.ts'
+import { txMain } from '../textos.ts'
+import { comparablePath } from '../files/utilidadesDisco.ts'
+import * as path from 'node:path'
 
 /**
  * Tope de un contenedor que hay que materializar entero en memoria. Es el MISMO
@@ -87,18 +92,26 @@ type FuenteNivel0 =
   | { tipo: 'buffer'; bytes: Buffer; clave: string | null }
   | { tipo: 'error'; mensaje: string }
 
-export interface ComprimidosServiceOptions {
-  git: GitService
-  decompiler: Decompiler
-  /** `FileService.resolveProyecto`: traduce una ruta del renderer a una absoluta. */
+/** Lo que el proyecto de una petición ofrece al diff: sus blobs de git y sus rutas en disco. */
+export interface FuentesProyecto {
+  git: Pick<GitService, 'blobsBytesLote'>
+  /** `FileService.resolveProyecto` de ese proyecto: traduce una ruta del renderer a una absoluta. */
   resolver: (relPosix: string) => string
+}
+
+export interface ComprimidosServiceOptions {
+  /**
+   * Las fuentes del proyecto `raiz` de la petición (`GitService.paraRaiz`, `FileService.paraRaiz`),
+   * nunca las del anclado. Lanza si no lo conoce: la petición responde con su error.
+   */
+  proyecto: (raiz: unknown) => FuentesProyecto
+  decompiler: Decompiler
   log?: (msg: string) => void
 }
 
 export class ComprimidosService {
-  private readonly git: GitService
+  private readonly proyecto: (raiz: unknown) => FuentesProyecto
   private readonly decompiler: Decompiler
-  private readonly resolver: (relPosix: string) => string
   private readonly log: (msg: string) => void
   private readonly cache = new JarIndexCache({
     maxEntradas: CACHE_MAX_ENTRADAS,
@@ -116,9 +129,8 @@ export class ComprimidosService {
   private readonly tokenPorPane = new Map<string, number>()
 
   constructor(o: ComprimidosServiceOptions) {
-    this.git = o.git
+    this.proyecto = o.proyecto
     this.decompiler = o.decompiler
-    this.resolver = o.resolver
     this.log = o.log ?? ((m) => console.log(`[comprimidos] ${m}`))
   }
 
@@ -143,7 +155,7 @@ export class ComprimidosService {
     let antes: Abierto | null = null
     let despues: Abierto | null = null
     try {
-      const [fa, fd] = await this.fuentesNivel0([req.antes, req.despues])
+      const [fa, fd] = await this.fuentesNivel0(req.raiz, [req.antes, req.despues])
       antes = await this.abrir(fa, req.dentro)
       despues = await this.abrir(fd, req.dentro)
       if (antes === null && despues === null) {
@@ -193,7 +205,7 @@ export class ComprimidosService {
     let antes: Abierto | null = null
     let despues: Abierto | null = null
     try {
-      const [fa, fd] = await this.fuentesNivel0([req.antes, req.despues])
+      const [fa, fd] = await this.fuentesNivel0(req.raiz, [req.antes, req.despues])
       antes = await this.abrir(fa, req.dentro)
       despues = await this.abrir(fd, req.dentro)
 
@@ -293,9 +305,12 @@ export class ComprimidosService {
   /**
    * Resuelve los contenedores de PRIMER nivel de varios lados a la vez: los que
    * salen de git se piden en un solo `cat-file --batch` y los del disco no pasan
-   * por git. Los que ya están en caché no se vuelven a pedir.
+   * por git. Los que ya están en caché no se vuelven a pedir. Todo sale del proyecto `raiz`;
+   * si no se conoce, lanza antes de tocar git o el disco.
    */
-  private async fuentesNivel0(lados: readonly LadoComprimido[]): Promise<FuenteNivel0[]> {
+  private async fuentesNivel0(raiz: unknown, lados: readonly LadoComprimido[]): Promise<FuenteNivel0[]> {
+    const proyecto = this.proyecto(raiz)
+    const raizClave = comparablePath(path.resolve(String(raiz)))
     const salida: FuenteNivel0[] = lados.map(() => ({ tipo: 'nada' }))
     const porPedir: { i: number; clave: string }[] = []
 
@@ -305,7 +320,7 @@ export class ComprimidosService {
 
       if (lado.source === 'worktree') {
         try {
-          salida[i] = { tipo: 'archivo', abs: this.resolver(lado.path) }
+          salida[i] = { tipo: 'archivo', abs: proyecto.resolver(lado.path) }
         } catch (err) {
           salida[i] = { tipo: 'error', mensaje: mensajeDeError(err) }
         }
@@ -313,9 +328,10 @@ export class ComprimidosService {
       }
 
       // Sólo los de COMMIT tienen clave estable: su oid no cambia nunca. El índice
-      // es mutable, así que se lee cada vez.
+      // es mutable, así que se lee cada vez. La ruta es relativa a la contenedora, así que
+      // la clave lleva el proyecto (normalizado: la misma carpeta escrita de dos formas es una).
       const clave =
-        lado.source === 'commit' ? `commit:${lado.hash ?? ''}:${lado.path}` : ''
+        lado.source === 'commit' ? `commit:${raizClave}:${lado.hash ?? ''}:${lado.path}` : ''
       const enCache = clave === '' ? undefined : this.cache.get(clave)
       if (enCache?.buffer !== undefined) {
         salida[i] = { tipo: 'buffer', bytes: enCache.buffer, clave }
@@ -325,7 +341,7 @@ export class ComprimidosService {
     }
 
     if (porPedir.length > 0) {
-      const brutos = await this.git.blobsBytesLote(
+      const brutos = await proyecto.git.blobsBytesLote(
         porPedir.map((p) => ({
           source: lados[p.i].source as 'commit' | 'index',
           hash: lados[p.i].hash,
@@ -340,7 +356,7 @@ export class ComprimidosService {
         if (bruto.truncated || bruto.bytes === undefined) {
           salida[i] = {
             tipo: 'error',
-            mensaje: `«${lados[i].path}» ocupa ${Math.round(bruto.size / 1024 / 1024)} MB en esa revisión y supera lo que Tessera puede abrir de una vez.`
+            mensaje: txMain().comprimidos.revisionGrande(lados[i].path, Math.round(bruto.size / 1024 / 1024))
           }
           continue
         }
@@ -360,9 +376,7 @@ export class ComprimidosService {
       // Pasarse no sólo es caro (cada nivel materializa hasta MAX_CONTENEDOR_REVISION
       // en memoria): la ruta que se compone deja de poder parsearse, y el
       // descompilador acaba escribiendo la clase FUERA de su paquete sin avisar.
-      throw new ErrorZip(
-        `Sólo se puede bajar ${MAX_ANIDAMIENTO} niveles dentro de un archivo comprimido.`
-      )
+      throw new ErrorZip(txMain().comprimidos.niveles(MAX_ANIDAMIENTO))
     }
 
     let lector: LectorRango
@@ -465,7 +479,7 @@ export class ComprimidosService {
         bytes: null,
         tamano: entrada.tamano,
         estado: 'demasiado-grande',
-        mensaje: `«${nombre}» ocupa ${Math.round(entrada.tamano / 1024)} KB descomprimida y supera el máximo que se puede comparar.`
+        mensaje: txMain().comprimidos.entradaGrande(nombre, Math.round(entrada.tamano / 1024))
       }
     }
     try {
@@ -480,7 +494,7 @@ export class ComprimidosService {
   private mensajeDeFuentes(a: FuenteNivel0, b: FuenteNivel0): string {
     if (a.tipo === 'error') return a.mensaje
     if (b.tipo === 'error') return b.mensaje
-    return 'Este archivo comprimido no existe en ninguna de las dos revisiones.'
+    return txMain().comprimidos.ningunaRevision
   }
 }
 
@@ -508,7 +522,7 @@ function aTexto(r: {
       tamano: r.tamano,
       estado: 'binario',
       truncado: false,
-      mensaje: 'Esta entrada tiene bytes nulos: no hay diff de texto que mostrar.'
+      mensaje: txMain().comprimidos.binario
     }
   }
   // El MISMO códec que usan el editor y los blobs de git: un archivo latin-1 dentro
@@ -542,7 +556,7 @@ function hermanasDelZip(abierto: Abierto, nombreEntrada: string): HermanasDeClas
     nombres: [...porNombre.keys()],
     leer: async (n) => {
       const e = porNombre.get(n)
-      if (e === undefined) throw new ErrorZip(`«${n}» ya no está en el contenedor.`)
+      if (e === undefined) throw new ErrorZip(txMain().comprimidos.yaNoEsta(n))
       return leerEntrada(abierto.lector, e, { maxBytes: MAX_ENTRADA_BYTES })
     },
     sello: (n) => String(porNombre.get(n)?.crc32 ?? '')

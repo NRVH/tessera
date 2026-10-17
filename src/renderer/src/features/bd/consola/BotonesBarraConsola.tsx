@@ -24,6 +24,7 @@ import { IconoPlan } from '../iconosConsola'
 import type { NivelSelectorConsola, TextosSelectorConsola } from '../nivelBasesBd'
 import type { BarraTx } from './estadoConsola'
 import type { Lote } from './lote'
+import { txBarraConsola } from './textosBarra.ts'
 
 /** Lo que recibe la barra de la consola SQL. */
 export interface BarraConsolaProps {
@@ -76,12 +77,13 @@ export interface EstadoBotonEsquema {
 
 /** Ejecutar, ejecutar todo y detener. */
 function BotonesEjecutar({ p, motivo }: { p: BarraConsolaProps; motivo: string | undefined }): React.JSX.Element {
+  const t = txBarraConsola()
   return (
     <>
       <BotonIcono
         className="db-consola-run"
-        titulo={`Ejecutar la sentencia del cursor o la selección · ${etiquetaAcorde('ejecutar')}`}
-        etiqueta="Ejecutar"
+        titulo={`${t.ejecutarTitulo} · ${etiquetaAcorde('ejecutar')}`}
+        etiqueta={t.ejecutar}
         habilitado={motivo === undefined}
         motivo={motivo}
         onClick={p.onEjecutar}
@@ -90,8 +92,8 @@ function BotonesEjecutar({ p, motivo }: { p: BarraConsolaProps; motivo: string |
       </BotonIcono>
       <BotonIcono
         className="db-consola-run-todo"
-        titulo={`Ejecutar todo · ${etiquetasAcorde('ejecutarTodo').join(' o ')}`}
-        etiqueta="Ejecutar todo"
+        titulo={`${t.ejecutarTodoTitulo} · ${etiquetasAcorde('ejecutarTodo').join(t.o)}`}
+        etiqueta={t.ejecutarTodo}
         habilitado={motivo === undefined}
         motivo={motivo}
         onClick={p.onEjecutarTodo}
@@ -100,10 +102,10 @@ function BotonesEjecutar({ p, motivo }: { p: BarraConsolaProps; motivo: string |
       </BotonIcono>
       <BotonIcono
         className="db-consola-detener"
-        titulo={`Detener · ${etiquetaAcorde('detener')}`}
-        etiqueta="Detener"
+        titulo={`${t.detener} · ${etiquetaAcorde('detener')}`}
+        etiqueta={t.detener}
         habilitado={p.detenible}
-        motivo="No hay nada en ejecución"
+        motivo={t.nadaEnEjecucion}
         onClick={p.onDetener}
       >
         <IconoDetener />
@@ -114,12 +116,13 @@ function BotonesEjecutar({ p, motivo }: { p: BarraConsolaProps; motivo: string |
 
 /** El plan y el historial: son del SQL que se escribe, no de la transacción. */
 function BotonesPlan({ p, motivo }: { p: BarraConsolaProps; motivo: string | undefined }): React.JSX.Element {
+  const t = txBarraConsola()
   return (
     <>
       <BotonIcono
         className="db-consola-explicar"
-        titulo={`Explicar el plan de la sentencia del cursor o de la selección (sin ejecutarla) · ${etiquetaAcorde('explicar')}`}
-        etiqueta="Explicar plan"
+        titulo={`${t.explicarTitulo} · ${etiquetaAcorde('explicar')}`}
+        etiqueta={t.explicar}
         habilitado={motivo === undefined}
         motivo={motivo}
         onClick={p.onExplicar}
@@ -131,8 +134,8 @@ function BotonesPlan({ p, motivo }: { p: BarraConsolaProps; motivo: string | und
       <button
         type="button"
         className={`btn btn-icon db-consola-historial-btn${p.historialAbierto ? ' activo' : ''}`}
-        title={`Historial de consultas · ${etiquetaAcorde('historial')}`}
-        aria-label="Historial de consultas"
+        title={`${t.historial} · ${etiquetaAcorde('historial')}`}
+        aria-label={t.historial}
         aria-haspopup="dialog"
         aria-expanded={p.historialAbierto}
         onMouseDown={(e) => e.stopPropagation()}
@@ -185,28 +188,29 @@ function BotonEsquema({ p, e }: { p: BarraConsolaProps; e: EstadoBotonEsquema })
 
 /** Rollback dice su nombre al pasar el ratón, con las clases del botón de reiniciar. */
 function BotonRollback({ tx, onRollback }: { tx: BarraTx; onRollback: () => void }): React.JSX.Element {
+  const t = txBarraConsola()
   if (tx.puedeRollback) {
     return (
       <button
         type="button"
         className="btn btn-icon boton-reinicio db-consola-rollback"
         title={`${tx.tituloRollback} · ${etiquetaAcorde('rollback')}`}
-        aria-label="Revertir (Rollback)"
+        aria-label={t.revertirRollback}
         onClick={onRollback}
       >
         <IconoRollback />
         <span className="boton-reinicio-etiqueta">
-          <span>Revertir (Rollback)</span>
+          <span>{t.revertirRollback}</span>
         </span>
       </button>
     )
   }
   return (
     <span className="btn-envoltura" title={tx.tituloRollback}>
-      <button type="button" className="btn btn-icon boton-reinicio db-consola-rollback" aria-label="Revertir (Rollback)" disabled>
+      <button type="button" className="btn btn-icon boton-reinicio db-consola-rollback" aria-label={t.revertirRollback} disabled>
         <IconoRollback />
         <span className="boton-reinicio-etiqueta">
-          <span>Revertir (Rollback)</span>
+          <span>{t.revertirRollback}</span>
         </span>
       </button>
     </span>
@@ -216,12 +220,13 @@ function BotonRollback({ tx, onRollback }: { tx: BarraTx; onRollback: () => void
 /** El modo de transacción (⇄), y COMMIT y ROLLBACK tras su filete. */
 function BotonesTx({ p }: { p: BarraConsolaProps }): React.JSX.Element {
   const tx = p.barraTx
+  const t = txBarraConsola()
   return (
     <>
       <BotonIcono
         className="db-consola-tx-modo"
         titulo={tx.tituloModo}
-        etiqueta={`Transacción ${tx.modo === 'auto' ? 'automática' : 'manual'}`}
+        etiqueta={tx.modo === 'auto' ? t.txAutomatica : t.txManual}
         habilitado={tx.puedeCambiarModo}
         motivo={tx.tituloModo}
         pulsado={tx.modoPulsado}
@@ -235,7 +240,7 @@ function BotonesTx({ p }: { p: BarraConsolaProps }): React.JSX.Element {
       <BotonIcono
         className="db-consola-commit"
         titulo={`${tx.tituloCommit} · ${etiquetaAcorde('commit')}`}
-        etiqueta="Confirmar (Commit)"
+        etiqueta={t.confirmarCommit}
         habilitado={tx.puedeCommit}
         motivo={tx.tituloCommit}
         onClick={p.onCommit}

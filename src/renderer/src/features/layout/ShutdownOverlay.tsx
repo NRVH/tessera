@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from 'react'
 import type { ShutdownProgress } from '../../../../shared/shutdown-ipc'
+import { txLayout } from './textos.ts'
 
 /** Overlay de cierre: pinta el progreso de `shutdown:progress` mientras la app sale. */
 export function ShutdownOverlay(): React.JSX.Element | null {
@@ -23,20 +24,18 @@ export function ShutdownOverlay(): React.JSX.Element | null {
   // sabemos el total (fase inicial) o en las fases de desmontaje/verificación.
   const determinate = total > 0 && phase === 'stopping'
   const pct = determinate ? Math.round((done / total) * 100) : phase === 'done' ? 100 : 0
+  const t = txLayout().cierre
 
   return (
-    <div className="shutdown-overlay" role="alertdialog" aria-label="Cerrando Tessera" aria-busy={phase !== 'done'}>
+    <div className="shutdown-overlay" role="alertdialog" aria-label={t.aria} aria-busy={phase !== 'done'}>
       <div className="shutdown-card">
         <div className="shutdown-title">
-          {phase === 'installing' ? 'Actualizando Tessera' : 'Cerrando Tessera'}
+          {phase === 'installing' ? t.actualizando : t.cerrando}
         </div>
         {/* El subtítulo lo manda el main cuando lo sabe: solo él conoce si el
             instalador va a relanzar la app (aplicar-al-cerrar no la relanza). */}
         <div className="shutdown-sub">
-          {sub ??
-            (phase === 'installing'
-              ? 'Tessera volverá a abrirse sola al terminar.'
-              : 'Deteniendo contenedores Docker…')}
+          {sub ?? (phase === 'installing' ? t.reabre : t.deteniendo)}
         </div>
         <div className={`shutdown-bar${determinate || phase === 'done' ? '' : ' indeterminate'}`}>
           <div

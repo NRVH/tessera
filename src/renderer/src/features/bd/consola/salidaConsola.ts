@@ -18,6 +18,7 @@ import { nunca } from '../../../../../shared/nunca.ts'
 import { reglasDeMotor, type DialectoSql } from '../../../../../shared/sql/dialectosSql.ts'
 import { formatoEntero } from '../rejilla/celdasRejilla.ts'
 import { formatoDuracion } from './marcasConsola.ts'
+import { txSalida } from './textosSalida.ts'
 
 /** Entradas que guarda la Salida como mucho (las más viejas se descartan). */
 export const MAX_ENTRADAS_SALIDA = 1000
@@ -227,12 +228,14 @@ function verboExplicar(dialecto: DialectoSql): string {
 
 /** `Plan de ejecución: 4 pasos en 12 ms (la sentencia no se ejecutó)`. */
 export function textoPlan(pasos: number, ms: number): string {
-  return `Plan de ejecución: ${cantidad(pasos, 'paso', 'pasos')} en ${formatoDuracion(ms)} (la sentencia no se ejecutó)`
+  const t = txSalida()
+  return t.planEn(cantidad(pasos, t.paso, t.pasos), formatoDuracion(ms))
 }
 
 /** Tooltip de la marca de un plan que llegó bien. */
 export function detallePlan(pasos: number): string {
-  return `Plan de ejecución (${cantidad(pasos, 'paso', 'pasos')}): la sentencia NO se ejecutó`
+  const t = txSalida()
+  return t.planDetalle(cantidad(pasos, t.paso, t.pasos))
 }
 
 /**
@@ -241,22 +244,24 @@ export function detallePlan(pasos: number): string {
  * con las palabras del main.
  */
 export function textoErrorParametros(error: Pick<DbErrorSql, 'codigo' | 'mensaje'>): string {
-  return `No se envió: ${textoError(error)}`
+  return txSalida().noSeEnvio(textoError(error))
 }
 
 function tiemposDetalle(t: DbTiempos): string {
-  return `${formatoDuracion(t.totalMs)} (ejecución ${formatoDuracion(t.ejecucionMs)}, lectura ${formatoDuracion(t.lecturaMs)})`
+  return txSalida().tiempos(formatoDuracion(t.totalMs), formatoDuracion(t.ejecucionMs), formatoDuracion(t.lecturaMs))
 }
 
 /** `N filas en X (ejecución A, lectura B)`; con `hayMas`, `500 filas (hay más) en …`. */
 export function textoFilas(n: number, hayMas: boolean, t: DbTiempos): string {
-  return `${cantidad(n, 'fila', 'filas')}${hayMas ? ' (hay más)' : ''} en ${tiemposDetalle(t)}`
+  const x = txSalida()
+  return x.filasEn(cantidad(n, x.fila, x.filas), hayMas, tiemposDetalle(t))
 }
 
 /** `N filas afectadas en X`, y `; M devueltas` si hubo RETURNING. */
 export function textoAfectadas(n: number, ms: number, devueltas?: number): string {
-  const base = `${cantidad(n, 'fila afectada', 'filas afectadas')} en ${formatoDuracion(ms)}`
-  return devueltas !== undefined ? `${base}; ${cantidad(devueltas, 'devuelta', 'devueltas')}` : base
+  const x = txSalida()
+  const base = x.afectadasEn(cantidad(n, x.filaAfectada, x.filasAfectadas), formatoDuracion(ms))
+  return devueltas !== undefined ? x.conDevueltas(base, cantidad(devueltas, x.devuelta, x.devueltas)) : base
 }
 
 /**
@@ -265,10 +270,9 @@ export function textoAfectadas(n: number, ms: number, devueltas?: number): strin
  * compilación`.
  */
 export function textoCompletado(ms: number, avisosCompilacion: number = 0): string {
-  const base = `completado en ${formatoDuracion(ms)}`
-  return avisosCompilacion > 0
-    ? `${base}, con ${cantidad(avisosCompilacion, 'aviso', 'avisos')} de compilación`
-    : base
+  const x = txSalida()
+  const base = x.completadoEn(formatoDuracion(ms))
+  return avisosCompilacion > 0 ? x.conAvisosComp(base, cantidad(avisosCompilacion, x.aviso, x.avisos)) : base
 }
 
 // --- Salida del servidor y compilación ---------------------------------------------
@@ -295,7 +299,7 @@ export function entradasServidor(salida: readonly DbLineaSalida[] | undefined): 
   if (resto > 0) {
     out.push({
       tipo: 'info',
-      texto: `… y ${cantidad(resto, 'línea', 'líneas')} más de salida del servidor que no se muestran`,
+      texto: txSalida().lineasMas(cantidad(resto, txSalida().linea, txSalida().lineas)),
       anidada: true
     })
   }
@@ -315,7 +319,7 @@ export function contarCompilacion(lista: readonly DbErrorCompilacion[] | undefin
 
 /** `línea 3, columna 5: PLS-00201: identifier 'X' must be declared` (coordenadas del servidor). */
 export function textoLineaCompilacion(e: Pick<DbErrorCompilacion, 'linea' | 'columna' | 'mensaje'>): string {
-  return `línea ${e.linea}, columna ${e.columna}: ${(e.mensaje || '').trim()}`
+  return txSalida().lineaCompilacion(e.linea, e.columna, (e.mensaje || '').trim())
 }
 
 /** ¿La posición de un error de compilación se puede usar como enlace exacto? */
@@ -364,12 +368,12 @@ export interface ObjetoCompilado {
  * compilación y 1 aviso`. Sin objeto conocido, `Creado con 2 errores de compilación`.
  */
 export function textoCompilacionInvalida(objeto: ObjetoCompilado | null, errores: number, avisos: number): string {
+  const x = txSalida()
   const quien = objeto
-    ? `${objeto.tipo} ${objeto.esquema ? `${objeto.esquema}.` : ''}${objeto.nombre} creado`
-    : 'Creado'
-  const e = errores > 0 ? cantidad(errores, 'error', 'errores') : 'errores'
-  const a = avisos > 0 ? ` y ${cantidad(avisos, 'aviso', 'avisos')}` : ''
-  return `${quien} con ${e} de compilación${a}`
+    ? x.creado(objeto.tipo, `${objeto.esquema ? `${objeto.esquema}.` : ''}${objeto.nombre}`)
+    : x.creadoSolo
+  const e = errores > 0 ? cantidad(errores, x.errorComp, x.erroresComp) : x.erroresSueltos
+  return x.invalida(quien, e, avisos > 0 ? cantidad(avisos, x.aviso, x.avisos) : null)
 }
 
 /**
@@ -393,66 +397,79 @@ export function textoErrorResultado(r: Pick<DbResultadoError, 'error' | 'compila
 export function textoError(error: Pick<DbErrorSql, 'codigo' | 'mensaje' | 'objeto'>): string {
   let m = (error.mensaje || '').trim()
   const c = error.codigo ? error.codigo.trim() : ''
-  const donde = error.objeto ? ` (en ${error.objeto})` : ''
-  if (!c) return (m || 'Error desconocido') + donde
+  const x = txSalida()
+  const donde = error.objeto ? x.enObjeto(error.objeto) : ''
+  if (!c) return (m || x.errorDesconocido) + donde
   if (m.slice(0, c.length).toUpperCase() === c.toUpperCase()) m = m.slice(c.length).replace(/^[\s:.-]+/, '')
   return (m ? `[${c}] ${m}` : `[${c}]`) + donde
 }
 
 /** Etiqueta del enlace a la posición de un error. */
 export function etiquetaPosicion(pos?: { linea: number; columna: number } | null): string {
-  return pos ? `ir a la posición (línea ${pos.linea}, columna ${pos.columna})` : 'ir a la posición'
+  const x = txSalida()
+  return pos ? x.irPosicionDe(pos.linea, pos.columna) : x.irPosicion
 }
 
 /** Etiqueta del enlace a una sentencia sin posición concreta. */
 export function etiquetaSentencia(numero: number): string {
-  return `ir a la sentencia ${numero}`
+  return txSalida().irSentencia(numero)
 }
 
 /** `Lote detenido: 2 de 5` (sentencias que terminaron bien, de las del lote). */
 export function textoLoteDetenido(ejecutadas: number, total: number): string {
-  return `Lote detenido: ${formatoEntero(ejecutadas)} de ${formatoEntero(total)}`
+  return txSalida().loteDetenido(formatoEntero(ejecutadas), formatoEntero(total))
 }
 
 /** `Ejecutar la restante` / `Ejecutar las 3 restantes`. */
 export function etiquetaRestantes(n: number): string {
-  return n === 1 ? 'Ejecutar la restante' : `Ejecutar las ${formatoEntero(n)} restantes`
+  const x = txSalida()
+  return n === 1 ? x.ejecutarRestante : x.ejecutarRestantes(formatoEntero(n))
 }
 
 /** `Cancelada tras 3 s 120 ms`. */
 export function textoCancelada(ms: number): string {
-  return `Cancelada tras ${formatoDuracion(ms)}`
+  return txSalida().cancelada(formatoDuracion(ms))
 }
 
-export const TEXTO_SESION_PERDIDA = 'Sesión perdida; el servidor revirtió la transacción'
+export function textoSesionPerdida(): string {
+  return txSalida().sesionPerdida
+}
 
-export const TEXTO_CLIENTE = 'Comando del cliente: no se envía al servidor'
+export function textoCliente(): string {
+  return txSalida().cliente
+}
 
 /** Línea de la Salida cuando el servidor no atiende el Stop. */
-export const TEXTO_SIN_RESPUESTA_STOP ='El servidor no responde a la cancelación'
+export function textoSinRespuestaStop(): string {
+  return txSalida().sinRespuestaStop
+}
 
-export const ETIQUETA_FORZAR = 'Forzar (cierra la conexión y revierte sus transacciones)'
+export function etiquetaForzar(): string {
+  return txSalida().forzar
+}
 
 /**
  * Motor con un proceso por consola (SQLite): el Stop no llega a matar
  * porque la consola tiene cambios sin confirmar, que no se pierden sin preguntar.
  */
-export const TEXTO_STOP_CON_CAMBIOS =
-  'No se puede parar sin cerrar la sesión de esta consola, y tiene cambios sin confirmar'
+export function textoStopConCambios(): string {
+  return txSalida().stopConCambios
+}
 
-export const ETIQUETA_FORZAR_CONSOLA = 'Forzar (cierra la sesión de esta consola y revierte su transacción)'
+export function etiquetaForzarConsola(): string {
+  return txSalida().forzarConsola
+}
 
 /** `Confirmado (Commit) en X` / `Revertido (Rollback) en X`. */
 export function textoTx(op: 'commit' | 'rollback', ms: number): string {
-  return op === 'commit'
-    ? `Confirmado (Commit) en ${formatoDuracion(ms)}`
-    : `Revertido (Rollback) en ${formatoDuracion(ms)}`
+  const x = txSalida()
+  return op === 'commit' ? x.confirmadoEn(formatoDuracion(ms)) : x.revertidoEn(formatoDuracion(ms))
 }
 
 /** `1, 2 y 5` */
 function listaNumeros(ns: readonly number[]): string {
   if (ns.length <= 1) return ns.join('')
-  return ns.slice(0, -1).join(', ') + ' y ' + ns[ns.length - 1]
+  return ns.slice(0, -1).join(', ') + txSalida().y + ns[ns.length - 1]
 }
 
 /**
@@ -462,13 +479,14 @@ function listaNumeros(ns: readonly number[]): string {
  * numera («la sentencia 1» de una sola sería ruido).
  */
 export function textoNadaEjecutado(numeros: readonly number[], total: number): string {
+  const x = txSalida()
   const quien =
     total === 1
-      ? 'la sentencia escribe'
+      ? x.unaEscribe
       : numeros.length === 1
-        ? `la sentencia ${numeros[0]} escribe`
-        : `las sentencias ${listaNumeros(numeros)} escriben`
-  return `No se ejecutó nada: ${quien} y la conexión es de solo lectura`
+        ? x.unaNumEscribe(numeros[0])
+        : x.variasEscriben(listaNumeros(numeros))
+  return x.nadaEjecutado(quien)
 }
 
 /**
@@ -477,18 +495,19 @@ export function textoNadaEjecutado(numeros: readonly number[], total: number): s
  * si no, el mensaje del main, con un respaldo por tipo si llegara vacío.
  */
 export function textoAvisoSesion(aviso: Pick<DbAvisoSesion, 'tipo' | 'txPerdida' | 'mensaje'>): string {
-  if (aviso.txPerdida && (aviso.tipo === 'perdida' || aviso.tipo === 'caida')) return TEXTO_SESION_PERDIDA
+  const x = txSalida()
+  if (aviso.txPerdida && (aviso.tipo === 'perdida' || aviso.tipo === 'caida')) return x.sesionPerdida
   const m = (aviso.mensaje || '').trim()
   if (m) return m
   switch (aviso.tipo) {
     case 'perdida':
     case 'caida':
-      return 'Sesión perdida; se abrirá otra en la próxima ejecución'
+      return x.avisoPerdida
     case 'inactividad':
-      return 'Sesión cerrada por inactividad; se perdieron los ALTER SESSION y SET de esta consola'
+      return x.avisoInactividad
     case 'editada':
-      return 'La conexión se editó; se abrirá una sesión nueva en la próxima ejecución'
+      return x.avisoEditada
     case 'expulsada':
-      return 'Sesión cerrada para dejar sitio a otra; se abrirá de nuevo en la próxima ejecución'
+      return x.avisoExpulsada
   }
 }

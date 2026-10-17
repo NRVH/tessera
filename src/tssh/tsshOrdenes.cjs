@@ -2,7 +2,7 @@
 // `tssh ls`, `tssh run` y `tssh cp`: piden a Tessera la lista o la línea de ssh/scp de un alias (nunca un
 // secreto), la lanzan y le cuentan cómo acabó, que revoca la ficha del programa de contraseñas, lo apunta y,
 // si ssh falló por algo suyo, dice qué decirle al usuario. Depende de `tsshPuente`, `tsshEjecutar`,
-// `tsshRutas` y `tsshSalida`; lo usan `tssh.cjs` y `tsshDoctor.cjs`.
+// `tsshRutas`, `tsshSalida` y `textosTssh`; lo usan `tssh.cjs` y `tsshDoctor.cjs`.
 // Decisiones: docs/decisiones/ssh/tssh-y-agentes.md
 // =============================================================================
 'use strict'
@@ -13,28 +13,26 @@ const { pedir } = require('./tsshPuente.cjs')
 const { ejecutar, entornoHijo } = require('./tsshEjecutar.cjs')
 const { lados, plataformaDelProceso } = require('./tsshRutas.cjs')
 const { CODIGOS, ErrorTssh, aviso } = require('./tsshSalida.cjs')
+const { textosTssh } = require('./textosTssh.cjs')
 
-/** Cómo se nombra cada método. */
-const METODOS = { contrasena: 'contraseña', clave: 'archivo de clave', sistema: 'claves del sistema' }
+/** Cómo se nombra un método, o el método tal cual si no se conoce. */
+function nombreMetodo(metodo) {
+  return textosTssh().metodos[metodo] || metodo
+}
 
 /** Si una conexión está lista para usarse, y si no, por qué. */
 function estadoDe(f) {
-  if (!f.huellaConfirmada) return 'huella sin confirmar'
-  if (f.secreto === 'falta') return f.metodo === 'clave' ? 'sin la frase guardada' : 'sin contraseña guardada'
-  if (f.secreto === 'ilegible') return 'secreto ilegible aquí'
-  return 'lista'
+  const t = textosTssh()
+  if (!f.huellaConfirmada) return t.huellaSinConfirmar
+  if (f.secreto === 'falta') return f.metodo === 'clave' ? t.sinFraseGuardada : t.sinContrasenaGuardada
+  if (f.secreto === 'ilegible') return t.secretoIlegibleAqui
+  return t.lista
 }
 
 /** Las filas en columnas alineadas. */
 function tabla(filas) {
   const anchos = filas[0].map((_, i) => Math.max(...filas.map((f) => f[i].length)))
   return filas.map((f) => f.map((c, i) => (i === f.length - 1 ? c : c.padEnd(anchos[i]))).join('  ')).join('\n')
-}
-
-/** La línea de las que no están disponibles, sin nombrarlas. */
-function lineaExcluidas(n) {
-  if (n === 1) return '(1 conexión más de este perfil no está disponible para los agentes)'
-  return n > 1 ? `(${n} conexiones más de este perfil no están disponibles para los agentes)` : ''
 }
 
 /** `tssh ls`: las conexiones disponibles para los agentes ahora mismo. */
@@ -44,14 +42,16 @@ async function cmdLs(a) {
     console.log(JSON.stringify({ conexiones: r.conexiones || [], excluidas: r.excluidas || 0, ...(r.aviso ? { aviso: r.aviso } : {}) }))
     return r.aviso ? CODIGOS.noUsable : 0
   }
-  if (r.aviso) throw new ErrorTssh(CODIGOS.noUsable, `Tessera no puede leer ahora las conexiones SSH de este perfil: ${r.aviso}`)
+  const t = textosTssh()
+  if (r.aviso) throw new ErrorTssh(CODIGOS.noUsable, t.noPuedeLeerConexiones(r.aviso))
   const conexiones = r.conexiones || []
-  if (conexiones.length === 0) console.log('Este perfil no tiene ninguna conexión SSH disponible para los agentes.')
+  if (conexiones.length === 0) console.log(t.sinConexiones)
   else {
-    const filas = conexiones.map((f) => [f.alias, f.grupo || 'Sin grupo', `${f.usuario}@${f.host}:${f.puerto}`, METODOS[f.metodo] || f.metodo, estadoDe(f)])
-    console.log(tabla([['ALIAS', 'GRUPO', 'DESTINO', 'MÉTODO', 'ESTADO'], ...filas]))
+    const filas = conexiones.map((f) => [f.alias, f.grupo || t.sinGrupo, `${f.usuario}@${f.host}:${f.puerto}`, nombreMetodo(f.metodo), estadoDe(f)])
+    console.log(tabla([t.columnasLs, ...filas]))
   }
-  const excluidas = lineaExcluidas(r.excluidas || 0)
+  // La línea de las que no están disponibles, sin nombrarlas.
+  const excluidas = t.excluidas(r.excluidas || 0)
   if (excluidas) console.log(excluidas)
   return 0
 }
@@ -59,7 +59,7 @@ async function cmdLs(a) {
 /** La línea de ssh o scp que decide Tessera; un «no» sale con su código y su mensaje. */
 async function preparar(campos) {
   const r = await pedir('ssh.preparar', campos)
-  if (r.ok !== true) throw new ErrorTssh(Number.isInteger(r.codigo) ? r.codigo : CODIGOS.puente, r.error || 'Tessera no pudo preparar la conexión.')
+  if (r.ok !== true) throw new ErrorTssh(Number.isInteger(r.codigo) ? r.codigo : CODIGOS.puente, r.error || textosTssh().noPudoPreparar)
   return r
 }
 
@@ -96,12 +96,13 @@ async function terminar(prep, sub, res, plataforma = plataformaDelProceso()) {
 /** El código con que sale `tssh` tras lanzar ssh o scp, y lo que se avisa. */
 async function concluir(prep, sub, res, topeS) {
   const fin = await terminar(prep, sub, res)
+  const t = textosTssh()
   if (res.agotado) {
-    aviso(`se agotó el tope de ${topeS} s y se cortó la conexión.`)
+    aviso(t.topeAgotado(topeS))
     return CODIGOS.tope
   }
   if (res.codigo === null) {
-    aviso(`no se pudo lanzar ${sub === 'cp' ? 'scp' : 'ssh'}: ${res.error || 'motivo desconocido'}.`)
+    aviso(t.noSePudoLanzar(sub === 'cp' ? 'scp' : 'ssh', res.error || t.motivoDesconocido))
     return CODIGOS.noUsable
   }
   if (fin && fin.pista) aviso(fin.pista)
@@ -126,7 +127,7 @@ async function cmdRun(a) {
     prep = await preparar({ alias: a.alias, uso: 'run', entrada: a.entrada })
   } catch (e) {
     // `tssh run nas casa -- …` sin comillas busca «nas»: el alias con espacios va entre comillas.
-    if (e instanceof ErrorTssh && e.codigo === CODIGOS.alias && a.orden.includes('--')) e.message += ' Si el alias lleva espacios, ponlo entre comillas.'
+    if (e instanceof ErrorTssh && e.codigo === CODIGOS.alias && a.orden.includes('--')) e.message += textosTssh().aliasConEspacios
     throw e
   }
   const res = await ejecutar(prep.exe, [...prep.args, ...a.orden], { env: entornoDe(prep), entrada: a.entrada, topeS: a.tope })
@@ -150,4 +151,4 @@ async function cmdCp(a) {
   return concluir(prep, 'cp', res, null)
 }
 
-module.exports = { cmdLs, cmdRun, cmdCp, preparar, terminar, entornoDe, estadoDe, METODOS }
+module.exports = { cmdLs, cmdRun, cmdCp, preparar, terminar, entornoDe, estadoDe, nombreMetodo }

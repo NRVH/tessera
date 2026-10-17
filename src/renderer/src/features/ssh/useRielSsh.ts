@@ -44,9 +44,11 @@ export interface RielSsh {
   fijarAncho: (px: number) => void
 }
 
-/** Da el foco al filtro del riel, si está montado. Devuelve si lo tenía. */
+/** Da el foco al filtro del riel, si está montado: el de la lista que se ve, no el de otro perfil. Devuelve si lo tenía. */
 export function enfocarRielSsh(): boolean {
-  const filtro = document.getElementById(ID_RIEL_SSH)?.querySelector<HTMLInputElement>('.ssh-filtro')
+  // `:scope >`: el riel entero va en otra capa viva, y `querySelector` también cuenta antepasados de
+  // fuera; sin anclar, la capa del riel haría pasar por visible el filtro de otro perfil.
+  const filtro = document.getElementById(ID_RIEL_SSH)?.querySelector<HTMLInputElement>(':scope > .ssh-riel-cuerpo > .capa-viva:not(.oculta) .ssh-filtro')
   filtro?.focus()
   return filtro !== null && filtro !== undefined && document.activeElement === filtro
 }

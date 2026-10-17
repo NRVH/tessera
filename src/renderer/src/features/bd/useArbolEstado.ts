@@ -90,3 +90,22 @@ export function useArbolArrastre(): [ArrastreArbol | null, Dispatch<SetStateActi
   }, [arrastre])
   return [arrastre, setArrastre]
 }
+
+/**
+ * El árbol de un perfil que no se ve (vivo y oculto en el lateral) cierra lo que flota: el menú y el
+ * popover van por portal y se verían sobre el árbol que se ve, y un arrastre no puede seguir en él.
+ * La búsqueda y los diálogos, con lo que tengan a medias, se quedan: ocultos e `inert` con su capa,
+ * fuera de la pila de diálogos y sin atender teclas (`useCapaVisible`), vuelven tal cual. Se cierra
+ * en el render, para que ningún fotograma enseñe el menú sobre el otro perfil.
+ */
+export function cerrarFlotantesAlOcultar(
+  visible: boolean,
+  ui: EstadoUiArbol,
+  arrastre: ArrastreArbol | null,
+  setArrastre: Dispatch<SetStateAction<ArrastreArbol | null>>
+): void {
+  if (visible) return
+  if (ui.menu !== null) ui.setMenu(null)
+  if (ui.popover !== null) ui.setPopover(null)
+  if (arrastre !== null) setArrastre(null)
+}

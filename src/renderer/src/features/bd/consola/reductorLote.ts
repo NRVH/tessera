@@ -20,7 +20,7 @@ import {
   type ResultadoConsola
 } from './modeloConsola.ts'
 import {
-  TEXTO_CLIENTE,
+  textoCliente,
   detallePlan,
   etiquetaSentencia,
   textoEco,
@@ -159,7 +159,7 @@ function sentenciaLocal(e: EstadoConsola, a: AccionDe<'sentenciaLocal'>): Estado
   let resultados = e.resultados
   if (a.estado === 'cliente') {
     nuevas.push({ tipo: 'eco', texto: textoEco(esquemaDeEco(e, a.esquema), s.texto) })
-    nuevas.push({ tipo: 'info', texto: a.motivo || TEXTO_CLIENTE })
+    nuevas.push({ tipo: 'info', texto: a.motivo || textoCliente() })
   } else {
     nuevas.push({
       tipo: 'error',

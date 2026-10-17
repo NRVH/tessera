@@ -9,6 +9,7 @@ import { createPortal } from 'react-dom'
 import { esDetener, esHistorial } from '../../../util/atajos'
 import { ConfirmDialog } from '../../../comun/ConfirmDialog'
 import type { Dialogo } from './consolaComun'
+import { txConsolaComun } from './textosConsolaComun'
 
 /** La sección de la consola con Detener fuera del editor y su diálogo por portal. */
 export function CarcasaConsola({
@@ -33,7 +34,7 @@ export function CarcasaConsola({
     <section
       ref={colRef}
       className={`db-consola${visible ? '' : ' hidden'}`}
-      aria-label={`Consola ${nombre}`}
+      aria-label={txConsolaComun().consolaAria(nombre)}
       aria-hidden={!visible}
       onKeyDown={(e) => {
         // Detener con el foco FUERA del editor; dentro lo consume su `addAction`.
@@ -75,14 +76,15 @@ export function AvisoConflicto({
   onCargarDelDisco: () => void
   onConservarLaMia: () => void
 }): React.JSX.Element {
+  const t = txConsolaComun()
   return (
     <div className="db-consola-conflicto" role="alert">
-      <span className="db-consola-conflicto-texto">El archivo cambió fuera de Tessera</span>
+      <span className="db-consola-conflicto-texto">{t.archivoCambio}</span>
       <button type="button" className="btn" onClick={onCargarDelDisco}>
-        Cargar la del disco
+        {t.cargarDelDisco}
       </button>
       <button type="button" className="btn" onClick={onConservarLaMia}>
-        Conservar la mía
+        {t.conservarLaMia}
       </button>
     </div>
   )

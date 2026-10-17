@@ -8,6 +8,7 @@ import { notifyError } from '../../comun/notifications'
 import { ocultarAgenteDb, useStoreBd } from './store'
 import { asegurarModoNativo, type UseTabs } from '../pestanas'
 import { editorTargetKey } from '../editor'
+import { txArea } from './textosArea.ts'
 
 /** Espacios de datos conocidos y acciones sobre el agente de datos. */
 export interface EspaciosDatos {
@@ -69,7 +70,7 @@ export function useEspaciosDatos(tabs: UseTabs): EspaciosDatos {
       return true
     } catch (err) {
       console.error('[db] no se pudo preparar el espacio de datos:', err)
-      notifyError('No se pudo preparar el agente de datos', err)
+      notifyError(txArea().noSePudoPrepararAgenteDatos, err)
       return false
     }
   }, [])

@@ -8,6 +8,7 @@
 
 import type { DbNodoPlan, DbPlan } from '../../../../../shared/db-explorador-ipc.ts'
 import { formatoEntero } from '../rejilla/celdasRejilla.ts'
+import { txResultados } from './textosResultados.ts'
 
 /** Título base de la pestaña del plan (el sufijo ` (2)` lo pone el modelo de pestañas). */
 export const TITULO_PLAN = 'Plan'
@@ -112,8 +113,6 @@ export function resumenPlan(plan: Pick<DbPlan, 'nodos'>): { pasos: number; coste
   return { pasos: plan.nodos.length, coste: typeof c === 'number' && Number.isFinite(c) ? c : null }
 }
 
-const COLUMNAS_TSV = ['Operación', 'Objeto', 'Coste', 'Filas', 'Bytes', 'Detalle']
-
 function crudo(v: number | undefined): string {
   return typeof v === 'number' && Number.isFinite(v) ? String(v) : ''
 }
@@ -124,7 +123,7 @@ function limpioTsv(t: string): string {
 
 /** Las filas VISIBLES como TSV con cabecera, la sangría del árbol en la operación. */
 export function planComoTsv(filas: readonly FilaPlan[]): string {
-  const lineas = [COLUMNAS_TSV.join('\t')]
+  const lineas = [txResultados().columnasPlan.join('\t')]
   for (const f of filas) {
     const n = f.nodo
     lineas.push(

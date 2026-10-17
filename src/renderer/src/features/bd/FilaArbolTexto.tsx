@@ -10,19 +10,13 @@ import type { ReactNode } from 'react'
 import { IconoCarpeta } from '../../comun/iconosArbol'
 import { IconoBd, IconoClaveKv, IconoColeccion, IconoColumna, IconoConsola, IconoEsquema, IconoIndice, IconoLlave, IconoLlaveForanea, IconoObjetoBd } from './iconosBd'
 import type { Coincidencia, FilaBd } from './arbolBd'
-import { ETIQUETA_CARPETA, ETIQUETA_PARTE } from './filasArbolBd'
+import { etiquetasCarpeta, etiquetasParte } from './filasArbolBd'
 import { etiquetaBaseClaves, ttlCorto } from './arbolClaves'
 import { etiquetaTipo } from './claves/visorClaves'
+import { localeActual } from '../../../../shared/i18n.ts'
+import { txArbolFilas } from './textosArbolFilas.ts'
 
 type FilaDe<K extends FilaBd['kind']> = Extract<FilaBd, { kind: K }>
-
-const ETIQUETA_RESTRICCION = {
-  pk: 'clave primaria',
-  unica: 'única',
-  fk: 'clave foránea',
-  check: 'check',
-  exclusion: 'exclusión'
-} as const
 
 /** Parte la etiqueta para marcar la coincidencia de la búsqueda. */
 export function marcar(texto: string, c: Coincidencia | undefined): ReactNode {
@@ -71,7 +65,7 @@ export function contenidoCarpetaConsolas(fila: FilaDe<'carpeta-consolas'>, chevr
     <>
       {chevron}
       <IconoCarpeta abierto={fila.expandida} />
-      <span className="tree-label db-fila-nombre">consolas</span>
+      <span className="tree-label db-fila-nombre">{txArbolFilas().consolas}</span>
       <span className="db-fila-cuenta">{fila.cuenta}</span>
     </>
   )
@@ -96,7 +90,7 @@ export function contenidoEsquema(fila: FilaDe<'esquema'>, chevron: ReactNode): R
         <IconoEsquema />
       </span>
       <span className="tree-label db-fila-nombre">{marcar(fila.esquema, fila.coincidencia)}</span>
-      {fila.porDefecto && <span className="db-fila-meta">por defecto</span>}
+      {fila.porDefecto && <span className="db-fila-meta">{txArbolFilas().porDefecto}</span>}
     </>
   )
 }
@@ -106,7 +100,7 @@ export function contenidoCarpeta(fila: FilaDe<'carpeta'>, chevron: ReactNode): R
     <>
       {chevron}
       <IconoCarpeta abierto={fila.expandida} />
-      <span className="tree-label db-fila-nombre">{ETIQUETA_CARPETA[fila.tipo]}</span>
+      <span className="tree-label db-fila-nombre">{etiquetasCarpeta()[fila.tipo]}</span>
       <span className="db-fila-cuenta">{fila.cuenta}</span>
     </>
   )
@@ -114,6 +108,7 @@ export function contenidoCarpeta(fila: FilaDe<'carpeta'>, chevron: ReactNode): R
 
 export function contenidoObjeto(fila: FilaDe<'objeto'>, chevron: ReactNode): ReactNode {
   const o = fila.objeto
+  const t = txArbolFilas()
   return (
     <>
       {chevron}
@@ -122,8 +117,8 @@ export function contenidoObjeto(fila: FilaDe<'objeto'>, chevron: ReactNode): Rea
       </span>
       <span className="tree-label db-fila-nombre">{marcar(o.nombre, fila.coincidencia)}</span>
       {o.firma !== undefined && o.tipo !== 'disparador' && <span className="db-fila-meta">({o.firma})</span>}
-      {o.tabla !== undefined && <span className="db-fila-meta">sobre {o.tabla}</span>}
-      {o.estado === 'invalido' && <span className="db-fila-invalido">inválido</span>}
+      {o.tabla !== undefined && <span className="db-fila-meta">{t.sobre(o.tabla)}</span>}
+      {o.estado === 'invalido' && <span className="db-fila-invalido">{t.invalido}</span>}
     </>
   )
 }
@@ -133,7 +128,7 @@ export function contenidoCarpetaDetalle(fila: FilaDe<'carpeta-detalle'>, chevron
     <>
       {chevron}
       <IconoCarpeta abierto={fila.expandida} />
-      <span className="tree-label db-fila-nombre">{ETIQUETA_PARTE[fila.parte]}</span>
+      <span className="tree-label db-fila-nombre">{etiquetasParte()[fila.parte]}</span>
       <span className="db-fila-cuenta">{fila.cuenta}</span>
     </>
   )
@@ -161,7 +156,7 @@ export function contenidoIndice(fila: FilaDe<'indice'>): ReactNode {
       </span>
       <span className="tree-label db-fila-nombre">{marcar(ind.nombre, fila.coincidencia)}</span>
       <span className="db-fila-meta">
-        ({ind.columnas.join(', ')}){ind.unico ? ' único' : ''}
+        ({ind.columnas.join(', ')}){ind.unico ? txArbolFilas().unico : ''}
       </span>
     </>
   )
@@ -176,7 +171,7 @@ export function contenidoRestriccion(fila: FilaDe<'restriccion'>): ReactNode {
       </span>
       <span className="tree-label db-fila-nombre">{marcar(r.nombre, fila.coincidencia)}</span>
       <span className="db-fila-meta">
-        {ETIQUETA_RESTRICCION[r.tipo]}
+        {txArbolFilas().restriccion[r.tipo]}
         {r.referencia ? ` → ${r.referencia.esquema}.${r.referencia.tabla}` : ''}
       </span>
     </>
@@ -207,7 +202,7 @@ export function contenidoIndiceColeccion(fila: FilaDe<'doc-indice'>): ReactNode 
       <span className="tree-label db-fila-nombre">{marcar(ind.nombre, fila.coincidencia)}</span>
       <span className="db-fila-meta">
         {ind.clave}
-        {ind.unico ? ' único' : ''}
+        {ind.unico ? txArbolFilas().unico : ''}
       </span>
     </>
   )
@@ -229,6 +224,7 @@ export function contenidoColeccion(fila: FilaDe<'coleccion'>, chevron: ReactNode
 
 /** La base numerada con sus claves (si el servidor las dijo) y, con un filtro, su patrón. */
 export function contenidoKvBase(fila: FilaDe<'kv-base'>, chevron: ReactNode): ReactNode {
+  const t = txArbolFilas()
   return (
     <>
       {chevron}
@@ -236,18 +232,18 @@ export function contenidoKvBase(fila: FilaDe<'kv-base'>, chevron: ReactNode): Re
         <IconoBd />
       </span>
       <span className="tree-label db-fila-nombre">{marcar(etiquetaBaseClaves(fila.indice), fila.coincidencia)}</span>
-      {fila.porDefecto && <span className="db-fila-meta">por defecto</span>}
+      {fila.porDefecto && <span className="db-fila-meta">{t.porDefecto}</span>}
       {fila.patron !== '' && (
-        <span className="db-kv-patron" title={`Filtrada por ${fila.patron}`}>
+        <span className="db-kv-patron" title={t.filtradaPor(fila.patron)}>
           {fila.patron}
         </span>
       )}
       {fila.tipo !== undefined && (
-        <span className={`db-kv-tipo tipo-${fila.tipo}`} title={`Solo claves de tipo ${etiquetaTipo(fila.tipo)}`}>
+        <span className={`db-kv-tipo tipo-${fila.tipo}`} title={t.soloClavesDeTipo(etiquetaTipo(fila.tipo))}>
           {etiquetaTipo(fila.tipo)}
         </span>
       )}
-      {fila.claves !== null && <span className="db-fila-cuenta">{fila.claves.toLocaleString('es-ES')}</span>}
+      {fila.claves !== null && <span className="db-fila-cuenta">{fila.claves.toLocaleString(localeActual())}</span>}
     </>
   )
 }
@@ -259,7 +255,7 @@ export function contenidoKvCarpeta(fila: FilaDe<'kv-carpeta'>, chevron: ReactNod
       {chevron}
       <IconoCarpeta abierto={fila.expandida} />
       <span className="tree-label db-fila-nombre">{fila.nombre}</span>
-      <span className="db-fila-cuenta">{fila.cuenta.toLocaleString('es-ES')}</span>
+      <span className="db-fila-cuenta">{fila.cuenta.toLocaleString(localeActual())}</span>
     </>
   )
 }
@@ -273,7 +269,7 @@ export function contenidoKvClave(fila: FilaDe<'kv-clave'>): ReactNode {
       </span>
       <span className="tree-label db-fila-nombre">{marcarConPrefijo(fila.nombre, fila.largoPrefijo, fila.coincidencia)}</span>
       {fila.clave.ttlMs !== null && (
-        <span className="db-kv-ttl" title="Tiempo que le quedaba al listarla (TTL)">
+        <span className="db-kv-ttl" title={txArbolFilas().ttl}>
           {ttlCorto(fila.clave.ttlMs)}
         </span>
       )}

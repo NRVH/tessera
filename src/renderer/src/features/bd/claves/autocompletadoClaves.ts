@@ -3,7 +3,7 @@
 // escribe la primera palabra de una línea, con su sintaxis al lado. Las claves y los argumentos no se
 // sugieren: el servidor puede tener millones de claves y escribirlas es lo que el árbol ya resuelve.
 // Puro, sin Monaco ni DOM; el proveedor es `proveedorClavesMonaco.ts` y la prueba `test-autocompletado-claves.mts`.
-// Decisiones: docs/decisiones/bd/ui-claves-consola-historial-y-completado.md
+// Decisiones: docs/decisiones/bd/ui-claves-consola.md
 // =============================================================================
 
 import { COMANDOS_REDIS } from './comandosRedisCatalogo.ts'

@@ -3,8 +3,11 @@
 // constante y construida a mano (un formato de locale cambia de longitud y la columna
 // temblaría); `absoluteDate` y `relativeDate` van en el detalle. `hashCorto` se deriva aquí
 // y no con `%h`, que depende de `core.abbrev` y haría bailar la columna.
-// Puro: sin React, sin DOM, sin imports.
+// Puro: sin React ni DOM; solo los textos e idioma del área.
 // =============================================================================
+
+import { localeActual } from '../../../../../shared/i18n.ts'
+import { txGit } from '../textos.ts'
 
 /** Dos dígitos con cero a la izquierda (para el formato de ancho fijo). */
 function dosDigitos(n: number): string {
@@ -25,11 +28,14 @@ export function fechaCorta(iso: string): string {
   return `${dia}/${mes}/${anio} ${dosDigitos(d.getHours())}:${dosDigitos(d.getMinutes())}`
 }
 
-/** Fecha ISO -> fecha+hora local legible, para el bloque de detalle del commit. */
+/**
+ * Fecha ISO -> fecha+hora local legible, para el bloque de detalle del commit. En el idioma de la
+ * interfaz y no en el del sistema: lleva el nombre del mes.
+ */
 export function absoluteDate(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
-  return d.toLocaleString([], {
+  return d.toLocaleString(localeActual(), {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -39,7 +45,7 @@ export function absoluteDate(iso: string): string {
 }
 
 /**
- * Fecha ISO -> texto relativo en español ("hace 3 días"), con fallback a fecha
+ * Fecha ISO -> texto relativo en el idioma activo ("hace 3 días"), con fallback a fecha
  * corta local a partir del mes. `ahora` es inyectable para poder probarlo sin
  * depender del reloj.
  */
@@ -52,11 +58,13 @@ export function relativeDate(iso: string, ahora: number = Date.now()): string {
   const diffHours = Math.floor(diffMin / 60)
   const diffDays = Math.floor(diffHours / 24)
 
-  if (diffMs < 0 || diffMin < 1) return 'justo ahora'
-  if (diffMin < 60) return `hace ${diffMin} min`
-  if (diffHours < 24) return `hace ${diffHours} h`
-  if (diffDays < 30) return `hace ${diffDays} día${diffDays === 1 ? '' : 's'}`
+  const t = txGit()
+  if (diffMs < 0 || diffMin < 1) return t.justoAhora
+  if (diffMin < 60) return t.haceMin(diffMin)
+  if (diffHours < 24) return t.haceHoras(diffHours)
+  if (diffDays < 30) return t.haceDias(diffDays)
 
+  // Solo números: el orden día/mes es el regional del sistema, no el del idioma de la interfaz.
   return new Date(iso).toLocaleDateString()
 }
 

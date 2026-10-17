@@ -10,6 +10,7 @@
 
 import { execFile } from 'node:child_process'
 import type { EscrituraRegistro, PlanRegistro } from '../../shared/integracionShell'
+import { txShell } from './textos.ts'
 
 /** La única colmena que Tessera toca. Ver la cabecera. */
 const COLMENA = 'HKCU'
@@ -61,7 +62,7 @@ async function escribir(e: EscrituraRegistro): Promise<FalloRegistro | null> {
     '/f'
   ]
   const r = await reg(args)
-  return r.ok ? null : { operacion: `escribir ${e.clave}`, detalle: r.salida }
+  return r.ok ? null : { operacion: txShell().windows.escribir(e.clave), detalle: r.salida }
 }
 
 /**
@@ -87,14 +88,14 @@ async function existe(args: string[]): Promise<boolean> {
 async function borrarClave(clave: string): Promise<FalloRegistro | null> {
   if (!(await existe([ruta(clave)]))) return null
   const r = await reg(['delete', ruta(clave), '/f'])
-  return r.ok ? null : { operacion: `borrar ${clave}`, detalle: r.salida }
+  return r.ok ? null : { operacion: txShell().windows.borrar(clave), detalle: r.salida }
 }
 
 /** Borra UN valor sin tocar su clave (ver la trampa de `OpenWithProgids`). */
 async function borrarValor(clave: string, nombre: string): Promise<FalloRegistro | null> {
   if (!(await existe([ruta(clave), '/v', nombre]))) return null
   const r = await reg(['delete', ruta(clave), '/v', nombre, '/f'])
-  return r.ok ? null : { operacion: `borrar ${clave}\\${nombre}`, detalle: r.salida }
+  return r.ok ? null : { operacion: txShell().windows.borrar(`${clave}\\${nombre}`), detalle: r.salida }
 }
 
 /**

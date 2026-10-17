@@ -41,10 +41,10 @@ CREATE VIEW public.v_perfiles AS SELECT id, nombre FROM public.profile;
 CREATE FUNCTION public.doble(x int) RETURNS int LANGUAGE sql AS $$ SELECT x * 2 $$;
 CREATE SEQUENCE public.seq_e2e START 100;
 INSERT INTO public.profile VALUES
-  (1, 'Gerente Nomina', 1234.50, NULL),
+  (1, 'Gerente Ventas', 1234.50, NULL),
   (2, 'Analista', NULL, 'sin saldo'),
   (3, 'Auditor', -7.25, NULL);
-INSERT INTO public.module VALUES (1, 1, 'nomina'), (2, 2, 'reportes');
+INSERT INTO public.module VALUES (1, 1, 'ventas'), (2, 2, 'reportes');
 CREATE TABLE public.numeros AS SELECT n FROM generate_series(1, 1234) AS n;
 
 CREATE SCHEMA ventas;

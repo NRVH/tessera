@@ -6,6 +6,7 @@
 // =============================================================================
 
 import type { CenterPane } from './centerPane'
+import { txEditor } from './textos.ts'
 
 /** Una tab abierta en la columna central: id estable + el pane que muestra. */
 export interface EditorTab {
@@ -40,6 +41,19 @@ export function editorTargetKey(profileId: string, projectHostPath: string): str
   return `${profileId}|${projectHostPath}`
 }
 
+/** El perfil de un target (`editorTargetKey`); '' sin target, la clave de «sin perfil». */
+export function perfilDeTarget(targetKey: string | null): string {
+  if (targetKey === null) return ''
+  const i = targetKey.indexOf('|')
+  return i === -1 ? '' : targetKey.slice(0, i)
+}
+
+/** La contenedora del proyecto de un target (la inversa de `editorTargetKey`); '' si no lo es. */
+export function raizDeTarget(targetKey: string): string {
+  const i = targetKey.indexOf('|')
+  return i === -1 ? '' : targetKey.slice(i + 1)
+}
+
 /** Deriva el id estable de una tab: la ruta si es archivo, `diff:commit:ruta` si es diff. */
 export function deriveTabId(pane: CenterPane): string {
   if (pane.kind === 'file') return pane.file.path
@@ -50,7 +64,7 @@ export function deriveTabId(pane: CenterPane): string {
 
 /** Nombre por defecto del n-ésimo archivo sin título. */
 export function untitledName(n: number): string {
-  return `Sin título-${n}`
+  return txEditor().sinTitulo(n)
 }
 
 /** Menor número libre para un sin título nuevo; los ya guardados liberan el suyo. */

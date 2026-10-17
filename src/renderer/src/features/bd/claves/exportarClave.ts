@@ -9,6 +9,7 @@
 import type { DbKvBytes, DbKvContenido, DbKvValor } from '../../../../../shared/db-claves-ipc.ts'
 import type { DbRespuesta } from '../../../../../shared/db-explorador-ipc.ts'
 import { nunca } from '../../../../../shared/nunca.ts'
+import { txVisorClaves } from './textosVisorClaves.ts'
 import { acumularValor, avisoTruncado, cargados, sangrarJson, siguienteDe } from './visorClaves.ts'
 
 /** Elementos, como mucho, de una exportación: más cabe mal en memoria y en un archivo que se abre a mano. */
@@ -23,9 +24,9 @@ export type LecturaEntera = { ok: true; valor: DbKvValor } | { ok: false; mensaj
 export function motivoNoExportable(c: DbKvContenido): string | null {
   switch (c.tipo) {
     case 'noExiste':
-      return 'La clave ya no existe.'
+      return txVisorClaves().claveNoExiste
     case 'otro':
-      return `El tipo ${c.tipoServidor} lo añade un módulo del servidor: el visor no sabe leerlo, así que tampoco exportarlo.`
+      return txVisorClaves().tipoDeModulo(c.tipoServidor)
     case 'string':
     case 'json':
       return avisoTruncado(c)
@@ -57,10 +58,10 @@ export async function leerClaveEntera(
   for (;;) {
     const desde = siguienteDe(acumulado.contenido)
     if (desde === null) return { ok: true, valor: acumulado }
-    if (cancelada()) return { ok: false, mensaje: 'Exportación detenida.' }
+    if (cancelada()) return { ok: false, mensaje: txVisorClaves().exportacionDetenida }
     const n = cargados(acumulado.contenido)
     if (n > TOPE_ELEMENTOS_EXPORTACION) {
-      return { ok: false, mensaje: `La clave tiene más de ${TOPE_ELEMENTOS_EXPORTACION.toLocaleString('es-ES')} elementos: es demasiado grande para exportarla de una vez.` }
+      return { ok: false, mensaje: txVisorClaves().demasiadoGrande(TOPE_ELEMENTOS_EXPORTACION) }
     }
     alProgreso?.(n)
     const siguiente = await pedir(desde)

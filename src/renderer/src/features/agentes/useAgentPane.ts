@@ -51,14 +51,9 @@ export function useAgentPane(props: AgentTerminalPaneProps): ModeloAgentPane {
   const currentAccount = s.accounts?.find((a) => a.id === p.selectedAccountId) ?? null
   // En modo nativo no hay sistema de cuentas: nunca se pide iniciar sesión.
   const showSelector = !p.hostMode && s.accounts !== null && p.selectedAccountId === null
-  r.showSelector.current = showSelector
   const activated = useActivacion(p, r, s, showSelector)
   const cuenta = useCuentasAgente(p, r, s, activated, ui.setAddingAccount)
-  const uiTerm: UiTerminal = {
-    setSearchOpen: ui.setSearchOpen,
-    setSearchResults: ui.setSearchResults,
-    setImagePreviews: ui.setImagePreviews
-  }
+  const uiTerm: UiTerminal = { setImagePreviews: ui.setImagePreviews }
   useMontajeXterm(p, r, { r, s }, uiTerm, activated)
   useAparienciaXterm(r, appearance, p.accentColor, undefined, () => fitAndSyncNow(r))
   useVisibilidadXterm(p, r, activated)

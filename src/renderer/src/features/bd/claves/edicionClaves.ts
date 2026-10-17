@@ -11,6 +11,7 @@
 import type { DbKvBytes, DbKvRespuesta } from '../../../../../shared/db-claves-ipc.ts'
 import { citarRedisCli } from './bytesClaves.ts'
 import { comandoElemento, entradasInicialesElemento, resultadoElemento, textosElemento, type AccionElemento } from './edicionElementos.ts'
+import { txEdicionClaves } from './textosEdicionClaves.ts'
 
 /** Lo que se edita. Un campo `null` es un campo NUEVO del hash, con su nombre en el primer cuadro. */
 export type AccionClave =
@@ -44,21 +45,22 @@ const texto = (s: string): string => citarRedisCli({ texto: s, base64: '' })
 
 /** Los textos del diálogo de cada acción. `peligro` = borra algo. */
 export function textosAccion(a: AccionClave, nombreCampo?: string): TextosAccion {
+  const t = txEdicionClaves()
   switch (a.tipo) {
     case 'valor':
-      return { titulo: 'Editar el valor', etiqueta: 'Valor', etiquetaDos: null, boton: 'Guardar', peligro: false, multilinea: true }
+      return { titulo: t.tituloEditarValor, etiqueta: t.valor, etiquetaDos: null, boton: t.guardar, peligro: false, multilinea: true }
     case 'campo':
       return a.campo === null
-        ? { titulo: 'Añadir un campo', etiqueta: 'Campo', etiquetaDos: 'Valor', boton: 'Añadir', peligro: false, multilinea: false }
-        : { titulo: `Editar el campo «${nombreCampo ?? ''}»`, etiqueta: 'Valor', etiquetaDos: null, boton: 'Guardar', peligro: false, multilinea: true }
+        ? { titulo: t.tituloAnadirCampo, etiqueta: t.campo, etiquetaDos: t.valor, boton: t.anadirBoton, peligro: false, multilinea: false }
+        : { titulo: t.editarElCampo(nombreCampo ?? ''), etiqueta: t.valor, etiquetaDos: null, boton: t.guardar, peligro: false, multilinea: true }
     case 'quitarCampo':
-      return { titulo: `Borrar el campo «${nombreCampo ?? ''}»`, etiqueta: null, etiquetaDos: null, boton: 'Borrar el campo', peligro: true, multilinea: false }
+      return { titulo: t.borrarElCampoTitulo(nombreCampo ?? ''), etiqueta: null, etiquetaDos: null, boton: t.borrarElCampoBoton, peligro: true, multilinea: false }
     case 'ttl':
-      return { titulo: 'Caducidad', etiqueta: 'Segundos hasta caducar (vacío = no caduca)', etiquetaDos: null, boton: 'Guardar', peligro: false, multilinea: false }
+      return { titulo: t.tituloCaducidad, etiqueta: t.segundosHastaCaducar, etiquetaDos: null, boton: t.guardar, peligro: false, multilinea: false }
     case 'renombrar':
-      return { titulo: 'Renombrar la clave', etiqueta: 'Nombre nuevo', etiquetaDos: null, boton: 'Renombrar', peligro: false, multilinea: false }
+      return { titulo: t.tituloRenombrar, etiqueta: t.nombreNuevo, etiquetaDos: null, boton: t.renombrarBoton, peligro: false, multilinea: false }
     case 'borrar':
-      return { titulo: 'Borrar la clave', etiqueta: null, etiquetaDos: null, boton: 'Borrar la clave', peligro: true, multilinea: false }
+      return { titulo: t.tituloBorrarClave, etiqueta: null, etiquetaDos: null, boton: t.borrarClaveBoton, peligro: true, multilinea: false }
     default:
       return textosElemento(a, nombreCampo)
   }
@@ -69,10 +71,11 @@ export function textosAccion(a: AccionClave, nombreCampo?: string): TextosAccion
  * aquí: unos bytes que no son texto se reescribirían como otro texto, y un valor cortado, a medias.
  */
 export function textoEditable(b: DbKvBytes, truncado = false): { ok: true; texto: string } | { ok: false; motivo: string } {
-  if (truncado) return { ok: false, motivo: 'El valor es demasiado grande para editarlo aquí: usa la consola.' }
-  if (b.texto === undefined) return { ok: false, motivo: 'El valor no es texto (son bytes): edítalo desde la consola.' }
+  const t = txEdicionClaves()
+  if (truncado) return { ok: false, motivo: t.valorGrande }
+  if (b.texto === undefined) return { ok: false, motivo: t.valorBytes }
   // Un cuadro de texto convierte cada CR en LF: guardar, aun sin tocar nada, cambiaría los bytes.
-  if (b.texto.includes('\r')) return { ok: false, motivo: 'El valor lleva retornos de carro (CR) que se perderían al editarlo aquí: usa la consola.' }
+  if (b.texto.includes('\r')) return { ok: false, motivo: t.valorConCr }
   return { ok: true, texto: b.texto }
 }
 
@@ -95,7 +98,7 @@ export function comandoDeAccion(clave: DbKvBytes, a: AccionClave, e: EntradasCla
       return { ok: true, texto: `SET ${k} ${texto(e.uno)}${conTtl ? ' KEEPTTL' : ''}` }
     case 'campo': {
       if (a.campo !== null) return { ok: true, texto: `HSET ${k} ${citarRedisCli(a.campo)} ${texto(e.uno)}` }
-      if (e.uno === '') return { ok: false, motivo: 'Escribe el nombre del campo.' }
+      if (e.uno === '') return { ok: false, motivo: txEdicionClaves().escribeCampo }
       return { ok: true, texto: `HSET ${k} ${texto(e.uno)} ${texto(e.dos)}` }
     }
     case 'quitarCampo':
@@ -114,7 +117,7 @@ export function comandoDeAccion(clave: DbKvBytes, a: AccionClave, e: EntradasCla
 /** Vacío = que no caduque (`PERSIST`); si no, segundos enteros mayores que 0 (`EXPIRE`). */
 function comandoTtl(k: string, t: string): ComandoClave {
   if (t === '') return { ok: true, texto: `PERSIST ${k}` }
-  if (!/^\d+$/.test(t) || Number(t) <= 0 || !Number.isSafeInteger(Number(t))) return { ok: false, motivo: 'Escribe un número entero de segundos mayor que 0, o déjalo vacío.' }
+  if (!/^\d+$/.test(t) || Number(t) <= 0 || !Number.isSafeInteger(Number(t))) return { ok: false, motivo: txEdicionClaves().escribeSegundos }
   return { ok: true, texto: `EXPIRE ${k} ${Number(t)}` }
 }
 
@@ -123,13 +126,13 @@ function comandoTtl(k: string, t: string): ComandoClave {
  * UTF-8 se enseña con escapes, y lo escrito se enviaría como esos caracteres, no como sus bytes.
  */
 export function nombreRenombrable(clave: DbKvBytes): { ok: true; texto: string } | { ok: false; motivo: string } {
-  return clave.texto === undefined ? { ok: false, motivo: 'El nombre no es texto (son bytes): renómbrala desde la consola.' } : { ok: true, texto: clave.texto }
+  return clave.texto === undefined ? { ok: false, motivo: txEdicionClaves().nombreBytes } : { ok: true, texto: clave.texto }
 }
 
 /** RENAMENX y no RENAME: si ya hay una clave con ese nombre, no se pisa. */
 function comandoRenombrar(k: string, nuevo: string, actual: string): ComandoClave {
-  if (nuevo === '') return { ok: false, motivo: 'Escribe el nombre nuevo.' }
-  if (nuevo === actual) return { ok: false, motivo: 'Es el mismo nombre.' }
+  if (nuevo === '') return { ok: false, motivo: txEdicionClaves().escribeNombreNuevo }
+  if (nuevo === actual) return { ok: false, motivo: txEdicionClaves().mismoNombre }
   return { ok: true, texto: `RENAMENX ${k} ${texto(nuevo)}` }
 }
 
@@ -137,21 +140,22 @@ function comandoRenombrar(k: string, nuevo: string, actual: string): ComandoClav
 export function resultadoDeAccion(a: AccionClave, comando: string, r: DbKvRespuesta): { ok: true; aviso: string } | { ok: false; mensaje: string } {
   if (r.tipo === 'error') return { ok: false, mensaje: r.texto }
   const cero = r.tipo === 'entero' && r.valor === '0'
+  const t = txEdicionClaves()
   switch (a.tipo) {
     case 'valor':
-      return { ok: true, aviso: 'Valor guardado' }
+      return { ok: true, aviso: t.valorGuardado }
     case 'campo':
-      return { ok: true, aviso: a.campo === null ? 'Campo añadido' : 'Campo guardado' }
+      return { ok: true, aviso: a.campo === null ? t.campoAnadido : t.campoGuardado }
     case 'quitarCampo':
-      return cero ? { ok: false, mensaje: 'El campo ya no existía.' } : { ok: true, aviso: 'Campo borrado' }
+      return cero ? { ok: false, mensaje: t.campoNoExistia } : { ok: true, aviso: t.campoBorrado }
     case 'ttl':
       // PERSIST da 0 si la clave no caducaba: no es un fallo. EXPIRE da 0 si la clave ya no existe.
-      if (comando.startsWith('PERSIST ')) return { ok: true, aviso: 'La clave ya no caduca' }
-      return cero ? { ok: false, mensaje: 'La clave ya no existe.' } : { ok: true, aviso: 'Caducidad guardada' }
+      if (comando.startsWith('PERSIST ')) return { ok: true, aviso: t.yaNoCaduca }
+      return cero ? { ok: false, mensaje: t.claveNoExiste } : { ok: true, aviso: t.caducidadGuardada }
     case 'renombrar':
-      return cero ? { ok: false, mensaje: 'Ya hay una clave con ese nombre: no se ha tocado ninguna.' } : { ok: true, aviso: 'Clave renombrada' }
+      return cero ? { ok: false, mensaje: t.nombreOcupado } : { ok: true, aviso: t.claveRenombrada }
     case 'borrar':
-      return cero ? { ok: false, mensaje: 'La clave ya no existía.' } : { ok: true, aviso: 'Clave borrada' }
+      return cero ? { ok: false, mensaje: t.claveNoExistia } : { ok: true, aviso: t.claveBorrada }
     default:
       return resultadoElemento(a, r)
   }

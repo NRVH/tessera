@@ -11,6 +11,7 @@ import { primeraFilaAbrible } from './modelo/autoAbrir'
 import type { FilaArbol } from './modelo/arbolArchivos'
 import { resolveDiffTarget } from './modelo/resolveDiffTarget'
 import { notifyError } from '../../comun/notifications'
+import { txGit } from './textos.ts'
 import { revelarIndice, type FilasElevadas, type OrigenApertura, type SeleccionLog } from './useSeleccionLog'
 import type { DiffTarget } from '../editor'
 import type { Commit, FileChange } from '../../../../shared/git-ipc'
@@ -222,7 +223,7 @@ export function useCopiaHash(
           copiaTimerRef.current = setTimeout(() => setHashCopiado(null), 1400)
         })
         .catch((err) => {
-          notifyError('No se pudo copiar el hash', err)
+          notifyError(txGit().noSePudoCopiarHash, err)
           if (!montadoRef.current) return
           // Apaga también el acuse anterior: no pueden verse a la vez el check y el aviso.
           if (copiaTimerRef.current) clearTimeout(copiaTimerRef.current)

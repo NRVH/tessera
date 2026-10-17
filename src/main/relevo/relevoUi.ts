@@ -6,6 +6,8 @@
 // preload ni IPC. Lo prueba `shared/test-relevo.mts`.
 // Decisiones: docs/decisiones/actualizacion/relevo-de-windows.md
 // =============================================================================
+import { idiomaActual } from '../../shared/i18n.ts'
+import { txRelevoUi } from './textos.ts'
 
 /** Lo que la ventana sabe pintar. */
 export interface EstadoRelevo {
@@ -39,10 +41,11 @@ export function escaparHtml(s: string): string {
  * es la única pregunta que el usuario se hace mirando esta ventana.
  */
 export function paginaRelevo(versionActual: string, versionNueva: string): string {
+  const t = txRelevoUi()
   return `<!doctype html>
-<html lang="es"><head><meta charset="utf-8">
+<html lang="${idiomaActual()}"><head><meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
-<title>Actualizando Tessera</title>
+<title>${escaparHtml(t.ventana)}</title>
 <style>
   :root {
     --bg: #1b1d23; --bg-elev: #22242b; --fg: #d7dae0; --fg-muted: #8b909a;
@@ -89,17 +92,17 @@ export function paginaRelevo(versionActual: string, versionNueva: string): strin
 </style></head>
 <body>
   <div class="cab">
-    <h1 id="titulo">Preparando la actualización…</h1>
+    <h1 id="titulo">${escaparHtml(t.preparando)}</h1>
     <div class="sub">Tessera ${escaparHtml(versionActual)} → ${escaparHtml(versionNueva)}</div>
   </div>
   <div class="cuerpo">
     <div class="barra" id="barra"><i></i></div>
-    <div class="detalle" id="detalle">No cierres esta ventana.</div>
-    <details id="caja"><summary>Ver registro</summary><pre id="log"></pre></details>
+    <div class="detalle" id="detalle">${escaparHtml(t.noCierres)}</div>
+    <details id="caja"><summary>${escaparHtml(t.verRegistro)}</summary><pre id="log"></pre></details>
   </div>
   <div class="pie">
-    <button id="copiar" hidden>Copiar registro</button>
-    <button id="abrir" class="primario" hidden>Abrir Tessera</button>
+    <button id="copiar" hidden>${escaparHtml(t.copiarRegistro)}</button>
+    <button id="abrir" class="primario" hidden>${escaparHtml(t.abrirTessera)}</button>
   </div>
 <script>
   const $ = (id) => document.getElementById(id)

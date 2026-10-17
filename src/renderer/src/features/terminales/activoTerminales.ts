@@ -6,7 +6,8 @@
 // Decisiones: docs/decisiones/terminales/pestanas-ssh-del-perfil.md
 // =============================================================================
 
-import { botonReinicio, TEXTOS_RECONEXION_SSH, type SalidaBotonReinicio } from './reloadButton.ts'
+import { botonReinicio, textosReconexionSsh, type SalidaBotonReinicio } from './reloadButton.ts'
+import { txTerminales } from './textos.ts'
 import { terminalPaneKey, type ShellTerminal, type ShellTerminalsState } from './shellTerminalsModel.ts'
 import { esPestanaSftp, sshDePerfil, sshPaneKey, type SshTab, type SshTabsState } from './sshTabsModel.ts'
 import type { TerminalPaneInfo, TerminalProjectTarget } from './terminalPaneTipos.ts'
@@ -76,7 +77,7 @@ export interface EntradaActivo {
   projects: readonly TerminalProjectTarget[]
   activeProjectKey: string | null
   terminals: ShellTerminalsState
-  /** El perfil de la terminal: el del proyecto confirmado o, sin proyecto, el activo. */
+  /** El perfil de la terminal: el activo. */
   perfilId: string
   /** El contexto de la terminal (`contextoSsh`). */
   contexto: string
@@ -90,7 +91,9 @@ export interface EntradaActivo {
 }
 
 /** Por qué no se puede reconectar una pestaña cuya conexión se eliminó. */
-export const MOTIVO_CONEXION_ELIMINADA = 'Reconectar no está disponible: la conexión se eliminó'
+export function motivoConexionEliminada(): string {
+  return txTerminales().conexionEliminadaMotivo
+}
 
 /** El botón de una terminal local, el de siempre: sin cuenta que pedir, solo espera a los ajustes en modo nativo. */
 function botonLocal(info: TerminalPaneInfo | undefined, hibernated: boolean, puedeAbrir: boolean): SalidaBotonReinicio {
@@ -100,8 +103,8 @@ function botonLocal(info: TerminalPaneInfo | undefined, hibernated: boolean, pue
     reloading: info?.reloading ?? false,
     hibernated,
     puedeAbrir,
-    etiquetaNormal: 'Reiniciar',
-    etiquetaProgreso: 'Reiniciando…'
+    etiquetaNormal: txTerminales().reiniciar,
+    etiquetaProgreso: txTerminales().reiniciando
   })
 }
 
@@ -113,10 +116,10 @@ function botonSsh(info: TerminalPaneInfo | undefined, existe: boolean): SalidaBo
     reloading: info?.reloading ?? false,
     hibernated: false,
     puedeAbrir: true,
-    etiquetaNormal: 'Reconectar',
-    etiquetaProgreso: 'Reconectando…',
-    textos: TEXTOS_RECONEXION_SSH,
-    ...(existe ? {} : { bloqueo: MOTIVO_CONEXION_ELIMINADA })
+    etiquetaNormal: txTerminales().reconectar,
+    etiquetaProgreso: txTerminales().reconectando,
+    textos: textosReconexionSsh(),
+    ...(existe ? {} : { bloqueo: motivoConexionEliminada() })
   })
 }
 

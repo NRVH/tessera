@@ -6,6 +6,7 @@
 
 import type { CategoriaId } from './catalogo'
 import { ICONOS, IconoBuscarAjuste } from './iconos'
+import { txModal } from './textos.ts'
 
 /** Cabecera del modal: título, buscador y botón de cerrar. */
 export function CabeceraModal({
@@ -21,10 +22,11 @@ export function CabeceraModal({
   alPulsarEnBuscador: (e: React.KeyboardEvent) => void
   onClose: () => void
 }): React.JSX.Element {
+  const t = txModal()
   return (
     <header className="ajustes-modal-header">
       <h2 id="ajustes-titulo" className="ajustes-modal-titulo">
-        Configuración
+        {t.configuracion}
       </h2>
       <div className="ajustes-buscador">
         <IconoBuscarAjuste />
@@ -34,8 +36,8 @@ export function CabeceraModal({
           value={consulta}
           onChange={(e) => onConsulta(e.target.value)}
           onKeyDown={alPulsarEnBuscador}
-          placeholder="Buscar ajuste…"
-          aria-label="Buscar ajuste"
+          placeholder={t.buscarPlaceholder}
+          aria-label={t.buscarAria}
           spellCheck={false}
         />
       </div>
@@ -43,8 +45,8 @@ export function CabeceraModal({
         type="button"
         className="btn btn-icon ajustes-modal-cerrar"
         onClick={onClose}
-        title="Cerrar (Esc)"
-        aria-label="Cerrar"
+        title={t.cerrarTitulo}
+        aria-label={t.cerrar}
       >
         ✕
       </button>
@@ -76,7 +78,7 @@ export function RielCategorias({
       className="ajustes-riel"
       role="tablist"
       aria-orientation="vertical"
-      aria-label="Categorías de configuración"
+      aria-label={txModal().categorias}
       onKeyDown={alPulsarEnRiel}
     >
       {categorias.map((c) => {

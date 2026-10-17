@@ -15,6 +15,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { ConversationsReader } from './ConversationsReader.ts'
 import { compactarBase64, leerCabezaJsonl } from '../transcripts/cabezaJsonl.ts'
+import { fijarDestinoVigia, reiniciarVigia } from '../transcripts/vigiaContratos.ts'
 
 interface CheckResult {
   name: string
@@ -38,6 +39,10 @@ async function writeJsonl(file: string, objs: object[], mtime: Date): Promise<vo
 const UUID_A = '11111111-1111-4111-8111-111111111111'
 const UUID_B = '22222222-2222-4222-8222-222222222222'
 const UUID_BIG = '33333333-3333-4333-8333-333333333333'
+const UUID_C = '3c3c3c3c-3c3c-43c3-83c3-3c3c3c3c3c3c'
+const UUID_SUB = '3d3d3d3d-3d3d-43d3-83d3-3d3d3d3d3d3d'
+const UUID_VIGIA ='a1a1a1a1-a1a1-4a1a-8a1a-a1a1a1a1a1a1'
+const UUID_VIGIA_NUEVO = 'a2a2a2a2-a2a2-4a2a-8a2a-a2a2a2a2a2a2'
 const UUID_T1 = '44444444-4444-4444-8444-444444444444'
 const UUID_T2 = '55555555-5555-4555-8555-555555555555'
 const UUID_OTRA = '66666666-6666-4666-8666-666666666666'
@@ -369,6 +374,41 @@ async function probarCosteConCapturas(root: string): Promise<void> {
   }
 }
 
+/**
+ * (v) Un rollout grande cuyos mensajes ya no se entienden avisa al vigía UNA vez, con la versión
+ * del CLI; uno pequeño sin mensajes (chat recién abierto) no avisa.
+ */
+async function probarVigia(root: string, reader: ConversationsReader): Promise<void> {
+  const avisos: string[] = []
+  reiniciarVigia()
+  fijarDestinoVigia((l) => avisos.push(l))
+  const base = path.join(root, 'codex-vigia')
+  const desconocido = (i: number): object => ({
+    type: 'event_msg',
+    timestamp: '2026-07-11T09:00:01Z',
+    payload: { type: 'formato_futuro', relleno: `${i} ${'x'.repeat(1000)}` }
+  })
+  const meta = { type: 'session_meta', timestamp: '2026-07-11T09:00:00Z', payload: { session_id: UUID_VIGIA, cwd: '/x/v', cli_version: '9.9.9' } }
+  await writeJsonl(
+    path.join(base, 'sessions', '2026', '07', '11', `rollout-2026-07-11-${UUID_VIGIA}.jsonl`),
+    [meta, ...Array.from({ length: 80 }, (_, i) => desconocido(i))],
+    new Date('2026-07-11T09:00:01Z')
+  )
+  await writeJsonl(
+    path.join(base, 'sessions', '2026', '07', '11', `rollout-2026-07-11-${UUID_VIGIA_NUEVO}.jsonl`),
+    [{ ...meta, payload: { ...meta.payload, session_id: UUID_VIGIA_NUEVO } }],
+    new Date('2026-07-11T09:00:02Z')
+  )
+  await reader.listConversations([{ dir: base, agente: 'codex' }])
+  await reader.listConversations([{ dir: base, agente: 'codex' }])
+  fijarDestinoVigia(null)
+  check(
+    '(v) el rollout grande ilegible avisa una sola vez y con su versión; el recién abierto no',
+    avisos.length === 1 && avisos[0].startsWith('codex 9.9.9: historial:'),
+    JSON.stringify(avisos)
+  )
+}
+
 async function main(): Promise<void> {
   const root = await mkdtemp(path.join(tmpdir(), 'tessera-conv-test-'))
   const ccBase = path.join(root, 'claude')
@@ -397,6 +437,26 @@ async function main(): Promise<void> {
     new Date('2026-07-09T09:00:01Z') // mtime ANTERIOR al de CC -> CC debe ir primero
   )
 
+  // (b.3) Codex con los mensajes como `item_completed`, en proyecto "gamma". Sin leerlos, la
+  // conversación cuenta 0 mensajes, no se lista y abrir Codex no la reanuda.
+  const codexItems = path.join(codexBase, 'sessions', '2026', '07', '08', `rollout-2026-07-08-${UUID_C}.jsonl`)
+  const item = (tipo: string, content: object[]): object => ({
+    type: 'event_msg',
+    timestamp: '2026-07-08T09:00:01Z',
+    payload: { type: 'item_completed', item: { type: tipo, content } }
+  })
+  await writeJsonl(
+    codexItems,
+    [
+      { type: 'session_meta', timestamp: '2026-07-08T09:00:00Z', payload: { session_id: UUID_C, cwd: '/x/gamma' } },
+      { type: 'event_msg', timestamp: '2026-07-08T09:00:01Z', payload: { type: 'task_started' } },
+      item('Reasoning', [{ type: 'text', text: 'pensando' }]),
+      item('UserMessage', [{ type: 'local_image', path: '/tmp/a.png' }, { type: 'text', text: 'revisa la imagen' }]),
+      item('AgentMessage', [{ type: 'Text', text: 'hecho' }])
+    ],
+    new Date('2026-07-08T09:00:02Z')
+  )
+
   // (d) CC GRANDE (> HEAD_BYTES): cabecera con contenido + relleno enorme al final.
   const bigFile = path.join(ccBase, 'projects', 'alpha-enc', `${UUID_BIG}.jsonl`)
   const filler = { type: 'assistant', timestamp: '2026-07-09T08:00:00Z', message: { content: 'x'.repeat(2000) } }
@@ -421,6 +481,39 @@ async function main(): Promise<void> {
   const codex = all.find((c) => c.id === UUID_B)
   check('(b) Codex toma el primer user_message como título', codex?.title === 'arregla el bug', `title="${codex?.title}"`)
   check('(b.2) Codex saca el sessionId de session_meta', codex?.id === UUID_B, `id="${codex?.id}"`)
+  const codexNuevo = all.find((c) => c.id === UUID_C)
+  check(
+    '(b.3) Codex con item_completed: cuenta sus dos mensajes y titula con el texto del usuario',
+    codexNuevo?.messageCount === 2 && codexNuevo.title === 'revisa la imagen',
+    `count=${codexNuevo?.messageCount} title="${codexNuevo?.title}"`
+  )
+  const ultimaGamma = await reader.listConversations([{ dir: codexBase, agente: 'codex' }], {
+    rutaProyecto: '/x/gamma',
+    soloUltima: true
+  })
+  check('(b.4) y es la última de su proyecto, la que se reanuda', ultimaGamma[0]?.id === UUID_C, `id="${ultimaGamma[0]?.id}"`)
+
+  // (b.5) Un subagente del mismo proyecto que escribe DESPUÉS que el padre no se lista ni
+  // le quita al padre ser la conversación que se reanuda.
+  await writeJsonl(
+    path.join(codexBase, 'sessions', '2026', '07', '08', `rollout-2026-07-08-${UUID_SUB}.jsonl`),
+    [
+      {
+        type: 'session_meta',
+        timestamp: '2026-07-08T09:10:00Z',
+        payload: { session_id: UUID_SUB, cwd: '/x/gamma', thread_source: 'subagent', parent_thread_id: UUID_C }
+      },
+      item('AgentMessage', [{ type: 'Text', text: 'hecho por el subagente' }])
+    ],
+    new Date('2026-07-08T09:10:01Z')
+  )
+  const conSub = await reader.listConversations([{ dir: codexBase, agente: 'codex' }], { rutaProyecto: '/x/gamma', soloUltima: true })
+  const todasGamma = await reader.listConversations([{ dir: codexBase, agente: 'codex' }])
+  check(
+    '(b.5) el rollout de un subagente ni se lista ni se reanuda',
+    conSub[0]?.id === UUID_C && !todasGamma.some((c) => c.id === UUID_SUB),
+    `última="${conSub[0]?.id}"`
+  )
 
   // (c) Orden por updatedAt (mtime) descendente: CC (10:00) antes que big (08:00);
   // codex (09:00) en medio. Verifica que updatedAt salió del mtime.
@@ -574,6 +667,7 @@ async function main(): Promise<void> {
   await probarRedDeSeguridad(root)
   await probarCosteConCapturas(root)
   await probarTituloConEmoji(root, reader)
+  await probarVigia(root, reader)
 
   console.log('\n' + '='.repeat(78))
   const allPass = results.every((r) => r.pass)

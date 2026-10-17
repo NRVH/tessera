@@ -7,6 +7,7 @@
 
 import { ESPERA_STOP_MS } from '../consola/vivoConsola.ts'
 import type { Dialogo, EnCurso, PeticionDialogo } from './consolaComun.ts'
+import { txConsolaComun } from './textosConsolaComun.ts'
 
 type Ref<T> = React.MutableRefObject<T>
 
@@ -42,9 +43,9 @@ export async function confirmarCierre(e: EstadoCierreConsola, detener: () => voi
   const nombre = e.consolaRef.current.nombre
   if (preguntasDeCierre(e).includes('detener')) {
     const ok = await e.pedirConfirmacion({
-      titulo: '¿Detener y cerrar?',
-      mensaje: `${nombre} está ejecutando. Se detendrá lo que corre y se cerrará la pestaña.`,
-      confirmar: 'Detener y cerrar',
+      titulo: txConsolaComun().detenerYCerrarTitulo,
+      mensaje: txConsolaComun().detenerYCerrarMensaje(nombre),
+      confirmar: txConsolaComun().detenerYCerrar,
       peligro: true
     })
     if (!ok) return false
@@ -55,9 +56,9 @@ export async function confirmarCierre(e: EstadoCierreConsola, detener: () => voi
   }
   if (preguntasDeCierre(e).includes('conflicto')) {
     return e.pedirConfirmacion({
-      titulo: 'El archivo cambió fuera de Tessera',
-      mensaje: `${nombre} tiene cambios sin guardar y el archivo cambió fuera de Tessera. Si la cierras, se queda la versión del disco y se pierden tus cambios.`,
-      confirmar: 'Cerrar sin guardar',
+      titulo: txConsolaComun().archivoCambio,
+      mensaje: txConsolaComun().conflictoMensaje(nombre),
+      confirmar: txConsolaComun().cerrarSinGuardar,
       peligro: true
     })
   }

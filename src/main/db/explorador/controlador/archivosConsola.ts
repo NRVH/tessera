@@ -27,6 +27,7 @@ import { respuestaConsolas } from '../ConsolasStore.ts'
 import { falloTodaviaNo } from '../familias.ts'
 
 import type { ConsolaExplorador } from './consola.ts'
+import { txControlador } from './textosControlador.ts'
 import type { ContextoExplorador } from './tipos.ts'
 import { esObjeto, exigir, fallo, MAX_IDENT, mensajeDe, ok, resolverOpcional } from './validacion.ts'
 
@@ -150,14 +151,14 @@ export class ArchivosConsola {
       const p = exigir(perfilId, 'perfilId')
       const id = exigir(conexionId, 'conexionId')
       if (esquema !== undefined && (typeof esquema !== 'string' || esquema === '' || esquema.length > MAX_IDENT)) {
-        return fallo('interno', 'Petición inválida: «esquema».')
+        return fallo('interno', txControlador().peticionInvalidaCampo('esquema'))
       }
       const con = this.c.conexiones.get(id)
-      if (!con || con.profileId !== p) return fallo('interno', 'La conexión no existe en este perfil.')
+      if (!con || con.profileId !== p) return fallo('interno', txControlador().conexionNoEnPerfil)
       // Una consola SQL es `.sql`; una de MongoDB, `.js` (el lenguaje de
       // mongosh, y así el agente la lee como lo que es); una de Redis, `.redis`
       // (comandos de redis-cli, uno por línea). Un motor sin consola todavía, el «todavía no».
-      if (!esMotor(con.motor)) return fallo('interno', `Motor desconocido: "${String(con.motor)}".`)
+      if (!esMotor(con.motor)) return fallo('interno', txControlador().motorDesconocido(String(con.motor)))
       const extension = extensionConsola(descriptor(con.motor))
       if (extension === null) return falloTodaviaNo(con.motor)
       this.asegurarEspacio(p)
@@ -184,7 +185,7 @@ export class ArchivosConsola {
     return this.c.seguro(async () => {
       const p = exigir(perfilId, 'perfilId')
       const c = exigir(consolaId, 'consolaId')
-      if (typeof texto !== 'string') return fallo('interno', 'Petición inválida: falta «texto».')
+      if (typeof texto !== 'string') return fallo('interno', txControlador().peticionFalta('texto'))
       return respuestaConsolas(() => this.c.consolas.escribir(p, c, texto))
     })
   }

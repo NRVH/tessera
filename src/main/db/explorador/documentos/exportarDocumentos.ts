@@ -15,6 +15,7 @@ import type { ProductorExportacion } from '../exportacion.ts'
 import type { FormatoExportacionDocs, PaginaExportacionDocs } from '../protocoloTrabajador.ts'
 import type { PeticionExportarAbrir, PeticionExportarMas } from './GestorDocumentos.ts'
 import { compilarConsultaDocs } from './filtroDocumentos.ts'
+import { txDocumentos } from './textosDocumentos.ts'
 import { esNombre } from './validacionPeticion.ts'
 
 /** Lo que el exportador usa del gestor de documentos (el test lo sustituye por un falso). */
@@ -113,7 +114,7 @@ export function productorDocumentos(
       if (lector !== null) await gestor.cerrarLector(lector).catch(() => undefined)
     }
     if (omitidos === 0) return
-    return { aviso: `${omitidos} ${omitidos === 1 ? 'documento tenía' : 'documentos tenían'} campos que no están en las columnas del CSV (las de los primeros documentos): esos campos no se escribieron.` }
+    return { aviso: txDocumentos().camposOmitidos(omitidos) }
   }
 }
 

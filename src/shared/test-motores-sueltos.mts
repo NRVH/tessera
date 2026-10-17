@@ -104,35 +104,45 @@ const EXCEPCIONES_NOMBRE: readonly { archivo: string; texto?: string; motivo: st
     motivo: 'el catálogo de packs del Instant Client (`usaClientes` de Oracle): el archivo entero es de los clientes de Oracle'
   },
   {
-    archivo: 'src/main/db/DriverManager.ts',
-    texto: 'Oracle ya no publica ',
-    motivo: 'la descarga de un pack del Instant Client: quien lo publica es Oracle'
+    archivo: 'src/main/db/explorador/motores/textosMotores.ts',
+    motivo:
+      'los textos del explorador que solo existen en un motor (código ofuscado y ORA-31603 de Oracle, rowversion e ' +
+      'identidad de SQL Server, el plan y el esquema de SQLite): cada clave es de un motor por diseño, en los dos idiomas'
   },
+  // Los textos del pack del Instant Client y de su descarga: quien lo publica es Oracle (español e inglés).
+  ...[
+    'Oracle ya no publica ${nombre} para descarga directa',
+    'Oracle ya no publica Oracle Instant Client 12.1 (Basic Light) para descarga directa',
+    'Oracle no longer publishes ${nombre} for direct download',
+    'Oracle no longer publishes Oracle Instant Client 12.1 (Basic Light) for direct download',
+    'Oracle 11.2 y superior',
+    'Oracle 10.2 – 11.1',
+    'fuera del soporte de Oracle',
+    'Oracle 11.2 and later',
+    'outside Oracle support'
+  ].map((texto) => ({
+    archivo: 'src/main/db/textosDb.ts',
+    texto,
+    motivo: 'el catálogo de packs del Instant Client (`usaClientes` de Oracle): sus descripciones y avisos son de Oracle por diseño'
+  })),
+  ...['o un DDL de Oracle', 'or an Oracle DDL'].map((texto) => ({
+    archivo: 'src/main/db/explorador/textosExplorador.ts',
+    texto,
+    motivo:
+      'explica POR QUÉ una sentencia se confirma sola; el caso del DDL es el de Oracle y el texto ' +
+      'es el mismo en todos los motores'
+  })),
   {
     archivo: 'src/tdb/motores.cjs',
     motivo: 'la copia CJS del registro (`etiqueta` de cada motor), cruzada con `shared/motores` por test:motores-tdb'
   },
-  {
-    archivo: 'src/main/db/explorador/planSql.ts',
-    texto: 'Oracle no mira el valor de los parámetros al explicar',
-    motivo: 'AVISO_BINDS_ORACLE: el aviso del EXPLAIN PLAN de Oracle, que solo elige `motores/sesionOracle.ts`'
-  },
-  // En archivos DE UN MOTOR de una zona (`escanearAjenos`): el nombre de OTRO motor, por diseño.
-  {
-    archivo: 'src/main/db/explorador/motores/catalogoPostgres.ts',
-    texto: 'Los tipos declarados solo se leen de Oracle',
-    motivo: 'el rechazo de pedir tipos declarados a un motor que no los necesita: dice cuál sí los tiene'
-  },
-  {
-    archivo: 'src/main/db/explorador/motores/catalogoSqlserver.ts',
-    texto: 'Los tipos declarados solo se leen de Oracle',
-    motivo: 'el rechazo de pedir tipos declarados a un motor que no los necesita: dice cuál sí los tiene'
-  },
-  {
-    archivo: 'src/main/db/explorador/motores/catalogoMysql.ts',
-    texto: 'Los tipos declarados solo se leen de Oracle',
-    motivo: 'el rechazo de pedir tipos declarados a un motor que no los necesita: dice cuál sí los tiene'
-  },
+  ...['Oracle no mira el valor de los parámetros al explicar', 'Oracle does not look at parameter values when explaining'].map(
+    (texto) => ({
+      archivo: 'src/main/db/explorador/planSql.ts',
+      texto,
+      motivo: 'avisoBindsOracle: el aviso del EXPLAIN PLAN de Oracle, que solo elige `motores/sesionOracle.ts`'
+    })
+  ),
   {
     archivo: 'src/main/db/explorador/lecturaSegura.ts',
     texto: 'este smoke es solo de Oracle',
@@ -149,13 +159,6 @@ const EXCEPCIONES_NOMBRE: readonly { archivo: string; texto?: string; motivo: st
     motivo: 'el nombre del lenguaje de Monaco de la consola de SQLite (`tessera-sqlite-sql`)'
   },
   {
-    archivo: 'src/main/db/explorador/maquinaSesion.ts',
-    texto: 'o un DDL de Oracle',
-    motivo:
-      'explica POR QUÉ una sentencia se confirma sola; el caso del DDL es el de Oracle y el texto ' +
-      'es el mismo en todos los motores (cambiarlo cambiaría el de PG)'
-  },
-  {
     archivo: 'src/main/db/agentMemoryBlock.ts',
     texto: 'Oracle responde ORA-01456',
     motivo: 'un EJEMPLO en las instrucciones del agente (qué hace el servidor con una escritura en solo lectura)'
@@ -165,39 +168,34 @@ const EXCEPCIONES_NOMBRE: readonly { archivo: string; texto?: string; motivo: st
     texto: 'un hint de Oracle al principio del SQL',
     motivo: 'un comentario del guion de shell generado: el ejemplo de argumento que MSYS rompería'
   },
-  // Texto de JSX (la guardia también lo mira).
-  {
-    archivo: 'src/renderer/src/features/bd/DriversLista.tsx',
-    texto: 'Oracle ya no lo publica para descarga directa',
-    motivo: 'un pack del Instant Client que no se puede bajar: quien lo publica es Oracle'
-  },
-  {
-    archivo: 'src/renderer/src/features/bd/DriversLista.tsx',
-    texto: 'Solo hacen falta para Oracle anterior a 12.1.',
+  // Textos de interfaz de módulos `textos*.ts` (la guardia también los mira).
+  ...[
+    'Oracle ya no lo publica para descarga directa',
+    'Oracle no longer publishes it for direct download'
+  ].map((texto) => ({
+    archivo: 'src/renderer/src/features/bd/textosConexionDialogo.ts',
+    texto,
+    motivo: 'el aviso de un pack del Instant Client que no se puede bajar: quien lo publica es Oracle'
+  })),
+  ...['Solo hacen falta para Oracle anterior a 12.1.', 'They are only needed for Oracle earlier than 12.1.'].map((texto) => ({
+    archivo: 'src/renderer/src/features/bd/textosConexionDialogo.ts',
+    texto,
     motivo:
       'los clientes de esta lista son los packs del Instant Client, de Oracle por diseño; la frase de los motores ' +
       'que NO los necesitan sale del registro (`ayudaSinClientes`)'
-  },
-  {
-    archivo: 'src/renderer/src/features/bd/DbConexionDialogo.tsx',
-    texto: 'Oracle ya no lo publica para descarga directa',
-    motivo: 'el aviso de un pack del Instant Client que no se puede bajar: quien lo publica es Oracle'
-  },
-  {
-    archivo: 'src/renderer/src/features/ajustes/categorias/Acerca.tsx',
-    texto: 'Postgres, PostgreSQL y el logo del elefante (Slonik) son marcas',
+  })),
+  ...[
+    'Postgres, PostgreSQL y el logo del elefante (Slonik) son marcas',
+    'de la PostgreSQL Community Association of Canada, y se usan con su permiso. Oracle es',
+    'una marca registrada de Oracle y/o sus filiales.',
+    'Postgres, PostgreSQL and the Elephant Logo (Slonik) are trademarks',
+    'of the PostgreSQL Community Association of Canada, and are used with their permission. Oracle is',
+    'a registered trademark of Oracle and/or its affiliates.'
+  ].map((texto) => ({
+    archivo: 'src/renderer/src/features/ajustes/textosSistema.ts',
+    texto,
     motivo: 'la atribución de marcas de «Acerca de»: nombra a cada titular por diseño (el logo del árbol es el de PostgreSQL)'
-  },
-  {
-    archivo: 'src/renderer/src/features/ajustes/categorias/Acerca.tsx',
-    texto: 'de la PostgreSQL Community Association of Canada, y se usan con su permiso. Oracle es',
-    motivo: 'la atribución de marcas de «Acerca de» (sigue)'
-  },
-  {
-    archivo: 'src/renderer/src/features/ajustes/categorias/Acerca.tsx',
-    texto: 'una marca registrada de Oracle y/o sus filiales.',
-    motivo: 'la atribución de marcas de «Acerca de» (sigue)'
-  }
+  }))
 ]
 
 const EXTENSIONES = ['.ts', '.tsx', '.cjs', '.mjs', '.js', '.mts']
@@ -1037,7 +1035,7 @@ function main(): void {
   // Una excepción exime SU texto y nada más: la línea de antes, con la frase exenta de
   // Oracle y «PostgreSQL» escrito a mano detrás, sigue marcada; la de hoy, no.
   excepcionesUsadas.clear()
-  const drivers = 'src/renderer/src/features/bd/DriversLista.tsx'
+  const drivers = 'src/renderer/src/features/bd/textosConexionDialogo.ts'
   const lineaAntes = escanearTexto(drivers, '      <p className="dbc-ayuda">Solo hacen falta para Oracle anterior a 12.1. PostgreSQL no necesita ninguno.</p>')
   const lineaHoy = escanearTexto(drivers, '      <p className="dbc-ayuda">Solo hacen falta para Oracle anterior a 12.1. {ayudaSinClientes()}</p>')
   check(

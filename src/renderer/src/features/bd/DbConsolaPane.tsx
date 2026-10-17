@@ -22,6 +22,7 @@ import { DialogoParametros } from './DialogoParametros'
 import { DialogoTxPendiente } from './DialogoTxPendiente'
 import { HistorialConsultas } from './HistorialConsultas'
 import type { DbConsolaPaneProps } from './propsBd'
+import { txArea } from './textosArea.ts'
 import './consola.css'
 
 type Consola = ReturnType<typeof useEditorDelPane>['c']
@@ -160,7 +161,7 @@ export function DbConsolaPane(props: DbConsolaPaneProps): React.JSX.Element {
     <section
       ref={sec.colRef}
       className={`db-consola${visible ? '' : ' hidden'}`}
-      aria-label={`Consola ${consola.nombre}`}
+      aria-label={txArea().consolaNombre(consola.nombre)}
       aria-hidden={!visible}
       onKeyDown={(e) => atenderAtajo(e, c)}
     >
@@ -179,7 +180,7 @@ export function DbConsolaPane(props: DbConsolaPaneProps): React.JSX.Element {
         max={sec.maxResultados}
         direction={-1}
         onResize={onAltoResultados}
-        label="Reparto entre la consola y los resultados"
+        label={txArea().repartoConsolaResultados}
       />
 
       <DbResultados {...propsDeResultados(props, c, sec.altoEfectivo)} />

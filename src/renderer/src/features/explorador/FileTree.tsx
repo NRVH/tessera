@@ -1,15 +1,18 @@
 // =============================================================================
 // Árbol de archivos de UN proyecto: cabecera, cuerpo virtualizado, menú contextual y
 // diálogos. `FileTree` solo compone; el estado y los efectos viven en `useArbol`, y las
-// operaciones, el menú y el teclado en sus módulos. Se remonta con `key={projectHostPath}`
-// al cambiar de proyecto, así que su estado arranca limpio para el proyecto nuevo.
+// operaciones, el menú y el teclado en sus módulos. Hay uno por proyecto (`Sidebar` mantiene
+// vivos los de los últimos vistos), así que su estado es solo de ese proyecto.
 // Decisiones: docs/decisiones/explorador/arbol-de-archivos.md
 // =============================================================================
+import { EsperaCarga } from '../../comun/IndicadorCarga'
 import { VirtualList } from '../../comun/VirtualList'
+import { RaizDelProyecto } from '../../comun/raizDelProyecto'
 import { DialogosArbol } from './DialogosArbol'
 import { MenuContextualArbol, abrirMenuDeFila } from './menuArbol'
 import { CabeceraArbol, PlaceholderRow } from './piezasArbol'
 import { TreeRow } from './TreeRow'
+import { txExplorador } from './textos.ts'
 import { importarNodos, moverNodos } from './operacionesArbol'
 import {
   alClicarFila,
@@ -59,6 +62,7 @@ function renderFila(a: Arbol, r: FlatRow): React.JSX.Element {
 /** Cuerpo del panel: también es zona de drop y de menú de la raíz. */
 function CuerpoArbol({ arbol }: { arbol: Arbol }): React.JSX.Element {
   const { error, rootEntries, rows, revealIndex } = arbol
+  const t = txExplorador()
   return (
     <div
       className="sidebar-body sidebar-body-tree"
@@ -72,19 +76,24 @@ function CuerpoArbol({ arbol }: { arbol: Arbol }): React.JSX.Element {
       onDragOver={(e) => alSobrevolarVacio(arbol, e)}
       onDrop={(e) => alSoltarEnVacio(arbol, e)}
     >
-      {error && <div className="tree-error">No se pudo leer el proyecto:{'\n'}{error}</div>}
-      {!error && rootEntries === null && <div className="tree-row muted">cargando…</div>}
-      {!error && rootEntries !== null && (
-        // Virtualizada: solo se montan las filas visibles del árbol aplanado.
-        <VirtualList<FlatRow>
-          className="tree-virtual"
-          ariaLabel="Árbol de archivos"
-          items={rows}
-          itemHeight={arbol.props.altoFila}
-          getKey={(r) => r.key}
-          scrollToIndex={revealIndex}
-          renderItem={(r) => renderFila(arbol, r)}
-        />
+      {error ? (
+        // Con error no se pinta el aviso: aunque la carga acabe, cumpliría su mínimo visible.
+        <div className="tree-error">{t.noSePudoLeerProyecto}{'\n'}{error}</div>
+      ) : (
+        <EsperaCarga cargando={rootEntries === null} variante="fila" texto={t.cargando} className="tree-row muted">
+          {rootEntries !== null && (
+            // Virtualizada: solo se montan las filas visibles del árbol aplanado.
+            <VirtualList<FlatRow>
+              className="tree-virtual"
+              ariaLabel={t.arbolArchivos}
+              items={rows}
+              itemHeight={arbol.props.altoFila}
+              getKey={(r) => r.key}
+              scrollToIndex={revealIndex}
+              renderItem={(r) => renderFila(arbol, r)}
+            />
+          )}
+        </EsperaCarga>
       )}
     </div>
   )
@@ -94,12 +103,12 @@ function CuerpoArbol({ arbol }: { arbol: Arbol }): React.JSX.Element {
 export function FileTree(props: PropsFileTree): React.JSX.Element {
   const arbol = useArbol(props)
   return (
-    <>
+    <RaizDelProyecto.Provider value={props.projectHostPath}>
       <CabeceraArbol arbol={arbol} />
       {arbol.opError && <div className="tree-op-error">{arbol.opError}</div>}
       <CuerpoArbol arbol={arbol} />
       <MenuContextualArbol arbol={arbol} />
       <DialogosArbol arbol={arbol} />
-    </>
+    </RaizDelProyecto.Provider>
   )
 }

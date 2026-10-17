@@ -32,8 +32,8 @@ repetir los cambios, y un INSERT repetido duplica filas.
 ## Descartes
 
 - Re-ejecutar tras una pérdida: un UPDATE se aplicaría dos veces si el COMMIT ya había llegado.
-- Aceptar «revirtió» para las rutinas de Oracle en Manual. MEDIDO (11.2 y 21c): un INSERT
-  pendiente, un `CALL` de un procedimiento con COMMIT y Forzar a mitad dejaban la fila
-  CONFIRMADA mientras Tessera decía que se había revertido. Un DML, una consulta o un ALTER
+- Aceptar «revirtió» para las rutinas de Oracle en Manual: un INSERT
+  pendiente, un `CALL` de un procedimiento con COMMIT y Forzar a mitad pueden dejar la fila
+  CONFIRMADA mientras Tessera dice que se revirtió. Un DML, una consulta o un ALTER
   SESSION no pueden confirmar la transacción, así que siguen diciendo «revirtió»; en PG un
   COMMIT dentro de un CALL o un DO falla.

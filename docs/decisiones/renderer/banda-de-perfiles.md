@@ -5,10 +5,10 @@
 
 ## Contexto
 
-La ventana pinta su propia barra de título. Se probó fundir en una sola fila los perfiles (a la
-izquierda) y los botones de ventana (a la derecha): las pestañas se reparten el ancho a partes
-iguales, así que restarles el hueco de los botones dejaba un socavón al final y, plegada, una tira
-de color que moría a dos tercios del ancho.
+La ventana pinta su propia barra de título. Fundir en una sola fila los perfiles (a la izquierda)
+y los botones de ventana (a la derecha) no funciona: las pestañas se reparten el ancho a partes
+iguales, así que restarles el hueco de los botones deja un socavón al final y, plegada, una tira de
+color que muere a dos tercios del ancho.
 
 Con colores puros, cinco pestañas se volvían una guirnalda que competía con el contenido.
 
@@ -25,7 +25,9 @@ Con colores puros, cinco pestañas se volvían una guirnalda que competía con e
   `SelectorPerfil`, una pastilla en `.titlebar` (con `no-drag`, como los demás controles de esa
   barra) con el punto y el nombre del perfil activo; la lista de perfiles sale al pulsarla. Usa el
   mismo estado que la banda (`useBandaPerfiles`) y las mismas capas (`CapasPerfil`): crear,
-  renombrar (en la propia lista), color, red, hibernar y eliminar son las mismas piezas. Sustituye
+  renombrar (en la propia lista), color, red, hibernar, eliminar y reordenar arrastrando
+  (`useArrastrePerfiles`, con una raya arriba o abajo de la fila) son las mismas piezas, y la lista
+  va en el orden de la banda porque el orden es uno solo. Sustituye
   al viejo modo colapsado, que dejaba una tira de color por perfil: mucho color para decir poco.
 - El color se PINTA cenizo con `tintaPerfil` (mismo matiz, menos intensidad): lo que protege de
   operar en el perfil equivocado es el matiz, no el grito. Lo guardado en `profiles.json` es siempre

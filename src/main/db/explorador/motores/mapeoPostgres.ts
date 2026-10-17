@@ -19,7 +19,7 @@ import {
   aBool,
   aLista,
   aNumero,
-  AVISO_SIN_FUENTE,
+  avisoSinFuente,
   clasificarFk,
   texto,
   textoOpcional,
@@ -118,7 +118,7 @@ export function mapearFuente(_d: DialectoCatalogo, ref: DbRefObjeto, filas: read
   const valor = filas.length > 0 ? textoOpcional(filas[0][0]) : undefined
   if (ref.tipo === 'disparador') {
     const origen = 'pg_get_triggerdef'
-    if (valor === undefined) return { partes: [], origen, aviso: AVISO_SIN_FUENTE }
+    if (valor === undefined) return { partes: [], origen, aviso: avisoSinFuente() }
     const partes: DbFuente['partes'] = [{ titulo: 'Definición', texto: valor }]
     const funcion = textoOpcional(filas[0][1])
     if (funcion !== undefined) partes.push({ titulo: 'Cuerpo', texto: funcion })
@@ -133,6 +133,6 @@ export function mapearFuente(_d: DialectoCatalogo, ref: DbRefObjeto, filas: read
     prefijo =
       ref.tipo === 'vista' ? `CREATE OR REPLACE VIEW ${cabecera} AS\n` : `CREATE MATERIALIZED VIEW ${cabecera} AS\n`
   }
-  if (valor === undefined) return { partes: [], origen, aviso: AVISO_SIN_FUENTE }
+  if (valor === undefined) return { partes: [], origen, aviso: avisoSinFuente() }
   return { partes: [{ titulo: 'Definición', texto: prefijo + valor }], origen }
 }

@@ -20,6 +20,7 @@ import { ID_SALIDA, type AccionPestanaResultado, type PestanaResultado } from '.
 import { TiraResultados } from '../resultados/TiraResultados'
 import { metaResultadoDocs, type EstadoResultadosDocs, type ResultadoDocs } from './resultadosConsolaDocs'
 import { TablaDocumentos } from './TablaDocumentos'
+import { txConsolaDocs } from './textosConsolaDocs'
 
 const ESTILO_PRE: React.CSSProperties = {
   margin: 0,
@@ -38,17 +39,18 @@ function tituloPestanaDocs(t: PestanaResultado, r: ResultadoDocs | undefined): s
     const salto = /\r\n|\n|\r/.exec(r.sentencia)
     partes.push((salto ? r.sentencia.slice(0, salto.index) + ' …' : r.sentencia).trim())
   }
-  if (t.fijada) partes.push('Fijada: la próxima ejecución no la sustituye')
+  if (t.fijada) partes.push(txConsolaDocs().fijada)
   return partes.join('\n')
 }
 
 function AccionesResultados({ p }: { p: PropsResultadosDocs }): React.JSX.Element | null {
   const activa = p.resultados.activa
+  const t = txConsolaDocs()
   if (activa === ID_SALIDA) {
     const vacia = p.salida.entradas.length === 0
     return (
-      <span className="btn-envoltura" title={vacia ? 'La salida ya está vacía' : 'Limpiar la salida'}>
-        <button type="button" className="btn btn-icon" aria-label="Limpiar la salida" disabled={vacia} onClick={p.onLimpiarSalida}>
+      <span className="btn-envoltura" title={vacia ? t.salidaVacia : t.limpiarSalida}>
+        <button type="button" className="btn btn-icon" aria-label={t.limpiarSalida} disabled={vacia} onClick={p.onLimpiarSalida}>
           <IconoLimpiar />
         </button>
       </span>
@@ -60,15 +62,15 @@ function AccionesResultados({ p }: { p: PropsResultadosDocs }): React.JSX.Elemen
     <>
       {v.lector && (
         <button type="button" className="btn" disabled={p.cargandoMas} onClick={p.onCargarMas}>
-          {p.cargandoMas ? 'Cargando…' : 'Cargar más'}
+          {p.cargandoMas ? t.cargando : t.cargarMas}
         </button>
       )}
       <BotonExportarDocs
         origen={{ tipo: 'sentencia', conexionId: p.conexion.id, base: v.base, texto: v.sentencia }}
         motor={p.conexion.motor}
-        nombreSugerido={v.coleccion ?? 'Resultado'}
+        nombreSugerido={v.coleccion ?? t.nombreResultado}
         motivo={null}
-        titulo="Exportar el resultado entero a un archivo (se vuelve a ejecutar la consulta)"
+        titulo={t.exportarResultado}
       />
     </>
   )
@@ -77,11 +79,12 @@ function AccionesResultados({ p }: { p: PropsResultadosDocs }): React.JSX.Elemen
 function PanelSalida({ p, enSalida }: { p: PropsResultadosDocs; enSalida: boolean }): React.JSX.Element {
   if (p.salida.entradas.length === 0) {
     // El vacío propio: el de `SalidaConsola` nombra «Explicar plan», que aquí no existe.
+    const t = txConsolaDocs()
     return (
       <EstadoVacio
         className="db-salida-vacia"
-        titulo="Sin salida"
-        pista={`${etiquetaAcorde('ejecutar')} ejecuta la sentencia del cursor; ${etiquetaAcorde('ejecutarTodo')}, todas. Separa las sentencias con «;» o con una línea en blanco.`}
+        titulo={t.sinSalida}
+        pista={t.sinSalidaPista(etiquetaAcorde('ejecutar'), etiquetaAcorde('ejecutarTodo'))}
       />
     )
   }
@@ -105,8 +108,9 @@ interface PropsPanel {
 }
 
 function PanelDocumentos({ id, v, p }: { id: string; v: Extract<ResultadoDocs, { tipo: 'documentos' }>; p: PropsPanel }): React.JSX.Element {
+  const t = txConsolaDocs()
   if (v.documentos.length === 0) {
-    return <EstadoVacio className="db-salida-vacia" titulo="Ningún documento" pista="La consulta no devolvió documentos." />
+    return <EstadoVacio className="db-salida-vacia" titulo={t.ningunDocumento} pista={t.consultaSinDocumentos} />
   }
   const doc = v.seleccionado !== null ? (v.documentos[v.seleccionado] ?? null) : null
   return (
@@ -121,7 +125,7 @@ function PanelDocumentos({ id, v, p }: { id: string; v: Extract<ResultadoDocs, {
         />
       </div>
       <pre
-        aria-label="Documento elegido"
+        aria-label={t.documentoElegido}
         tabIndex={0}
         style={{
           ...ESTILO_PRE,
@@ -131,7 +135,7 @@ function PanelDocumentos({ id, v, p }: { id: string; v: Extract<ResultadoDocs, {
           color: doc ? 'var(--fg)' : 'var(--fg-faint)'
         }}
       >
-        {doc ? doc.texto : 'Elige un documento de la tabla para verlo entero.'}
+        {doc ? doc.texto : t.eligeDocumentoDeLaTabla}
       </pre>
     </div>
   )
@@ -143,9 +147,10 @@ function PanelDocumentos({ id, v, p }: { id: string; v: Extract<ResultadoDocs, {
  */
 const PanelResultado = memo(function PanelResultado({ v, ...p }: PropsPanel & { v: ResultadoDocs }): React.JSX.Element {
   if (v.tipo === 'documentos') return <PanelDocumentos id={p.id} v={v} p={p} />
-  if (v.tipo === 'plan') return <PlanExplain plan={v.plan} titulo="Plan" />
+  const t = txConsolaDocs()
+  if (v.tipo === 'plan') return <PlanExplain plan={v.plan} titulo={t.plan} />
   return (
-    <pre aria-label="Valor devuelto" tabIndex={0} style={{ ...ESTILO_PRE, flex: '1 1 auto' }}>
+    <pre aria-label={t.valorDevuelto} tabIndex={0} style={{ ...ESTILO_PRE, flex: '1 1 auto' }}>
       {v.texto}
     </pre>
   )
@@ -176,9 +181,10 @@ export function ResultadosDocs(p: PropsResultadosDocs): React.JSX.Element {
   const activa = resultados.activa
   const enSalida = activa === ID_SALIDA
   const rActiva = enSalida ? undefined : resultados.resultados[activa]
-  const meta = enSalida ? cantidad(p.salida.entradas.length, 'entrada', 'entradas') : rActiva ? metaResultadoDocs(rActiva) : ''
+  const t = txConsolaDocs()
+  const meta = enSalida ? cantidad(p.salida.entradas.length, t.entrada, t.entradas) : rActiva ? metaResultadoDocs(rActiva) : ''
   return (
-    <section className="db-consola-resultados" style={{ height: p.alto }} aria-label="Resultados de la consola">
+    <section className="db-consola-resultados" style={{ height: p.alto }} aria-label={t.resultadosAria}>
       <TiraResultados resultados={resultados} tituloDe={tituloPestanaDocs} onPestana={p.onPestana} meta={meta} acciones={<AccionesResultados p={p} />} />
       <div className="db-resultados-cuerpo">
         <div className={`db-resultados-panel${enSalida ? '' : ' oculto'}`}>

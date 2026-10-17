@@ -9,6 +9,7 @@ import { AmbitoBusqueda } from './AmbitoBusqueda'
 import { CuerpoResultados } from './CuerpoResultados'
 import { EstadoVacioBusqueda } from './EstadoVacioBusqueda'
 import { ManijasRedimension } from './ManijasRedimension'
+import { txBusqueda } from './textos.ts'
 import { CabeceraBusqueda, CampoBusqueda, PieBusqueda } from './MarcoBusqueda'
 import { useBusquedaEnArchivos, type PropsBuscarEnArchivos } from './useBusquedaEnArchivos'
 
@@ -33,7 +34,7 @@ export function BuscarEnArchivosModal(props: PropsBuscarEnArchivos): React.JSX.E
         className="buscar-modal"
         role="dialog"
         aria-modal="true"
-        aria-label="Buscar en archivos"
+        aria-label={txBusqueda().buscarEnArchivos}
         onKeyDown={b.alPulsar}
         onMouseDown={(e) => e.stopPropagation()}
         style={{ ...b.vars, width: `${m.ancho}px`, height: `${m.alto}px` }}

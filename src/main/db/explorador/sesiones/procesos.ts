@@ -11,6 +11,7 @@ import type { EventoTrabajador } from '../protocoloTrabajador.ts'
 import { ErrorGestor, mensajeDe } from './errores.ts'
 import type { NucleoSesiones } from './NucleoSesiones.ts'
 import { abierta, claveProceso, exigirSql } from './reglas.ts'
+import { txSesiones } from './textosSesiones.ts'
 import type { Proceso, Sesion } from './tipos.ts'
 
 /** Ciclo de vida de los procesos de sesión. */
@@ -45,9 +46,7 @@ export class Procesos {
     if (!victima) {
       throw new ErrorGestor(
         'limite',
-        deConsola
-          ? `Hay ${tope} consolas con proceso propio abiertas a la vez y ninguna se puede cerrar sin perder trabajo. Cierra alguna para abrir otra.`
-          : `Hay ${tope} conexiones abiertas a la vez y ninguna se puede cerrar sin perder trabajo. Desconecta alguna para abrir otra.`
+        deConsola ? txSesiones().limiteProcesosConsola(tope) : txSesiones().limiteProcesosConexion(tope)
       )
     }
     this.n.log(`se retira el proceso de ${victima.conexionId} (límite de ${tope} procesos)`)
@@ -62,7 +61,7 @@ export class Procesos {
       await actual.arranque
       if (!actual.salido && !actual.retirado) return actual
     }
-    if (this.n.estaCerrando()) throw new ErrorGestor('interno', 'Tessera se está cerrando.')
+    if (this.n.estaCerrando()) throw new ErrorGestor('interno', txSesiones().cerrando)
     // El ÚNICO sitio que lanza el trabajador SQL: aunque un camino se
     // saltara `conexionOError`, un MongoDB o un Redis no llega a arrancar un proceso de `tdb`.
     exigirSql(con)
@@ -101,7 +100,7 @@ export class Procesos {
           // ya no está
         }
         this.olvidarProceso(p)
-        throw new ErrorGestor('interno', 'No se pudo lanzar el proceso de la conexión.')
+        throw new ErrorGestor('interno', txSesiones().sinProceso)
       }
     )
     await p.arranque

@@ -12,6 +12,7 @@ import { fechaCorta, hashCorto } from './modelo/formatoFecha'
 import { tramosResaltado } from './modelo/filtrosLog'
 import { ROW_HEIGHT, type GraphRow } from './modelo/graphLayout'
 import type { Chip } from './modelo/refsCommit'
+import { txGit } from './textos.ts'
 import type { Commit } from '../../../../shared/git-ipc'
 
 /** Celda del asunto (con el texto resaltado) y los chips de rama, al borde derecho. */
@@ -55,7 +56,7 @@ function CeldaCopiar(p: { hash: string; copiado: boolean; onCopiarHash: () => vo
     <span
       className={`git-commit-copiar${p.copiado ? ' copiado' : ''}`}
       // Los mismos 10 caracteres que enseña el chip de la ficha.
-      title={p.copiado ? 'Copiado' : `Copiar el hash completo (${hashCorto(p.hash, 10)})`}
+      title={p.copiado ? txGit().copiado : txGit().copiarHashFila(hashCorto(p.hash, 10))}
       aria-hidden="true"
       // El clic no llega a la fila (allí seleccionar pide ABRIR el primer archivo). El
       // stopPropagation tiene que quedarse en `onClick`: en `onMouseDown` mataría el foco.

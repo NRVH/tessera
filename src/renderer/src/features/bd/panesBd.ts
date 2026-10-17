@@ -20,6 +20,7 @@ import { citarSiHaceFalta, nombreCalificado } from '../../../../shared/sql/ident
 import { formatoEntero } from './rejilla/celdasRejilla.ts'
 import { formatoDuracion } from './consola/marcasConsola.ts'
 import { anchoInicial, muestrasColumna, type OpcionesAncho } from './rejilla/anchoColumnas.ts'
+import { txPanes } from './textosPanes.ts'
 
 // --- Orden por la cabecera ----------------------------------------------------
 
@@ -64,13 +65,14 @@ export function ordenEnRejilla(
  * Mayús+clic es el gesto de varias claves de las hojas de cálculo.
  */
 export function lineasOrdenCabecera(o: Pick<OrdenRejilla, 'dir' | 'prioridad'> | null, total: number): string[] {
+  const t = txPanes()
   const lineas: string[] = []
   if (o) {
-    const sentido = o.dir === 'asc' ? 'ascendente' : 'descendente'
-    lineas.push(o.prioridad === null ? `Orden: ${sentido}` : `Orden ${o.prioridad}.º de ${total}: ${sentido}`)
+    const sentido = o.dir === 'asc' ? t.ascendente : t.descendente
+    lineas.push(o.prioridad === null ? t.ordenSimple(sentido) : t.ordenMultiple(o.prioridad, total, sentido))
   }
-  lineas.push('Clic: ordenar por esta columna (ascendente → descendente → sin orden)')
-  lineas.push('Mayús+clic: añadirla al orden de varias columnas')
+  lineas.push(t.clicOrdenar)
+  lineas.push(t.mayusClicOrdenar)
   return lineas
 }
 
@@ -123,7 +125,8 @@ export function consultaParaConsola(objeto: Pick<DbRefObjeto, 'esquema' | 'nombr
 // --- Píldora y metadatos -------------------------------------------------------
 
 function filas(n: number): string {
-  return `${formatoEntero(n)} ${n === 1 ? 'fila' : 'filas'}`
+  const t = txPanes()
+  return `${formatoEntero(n)} ${n === 1 ? t.fila : t.filas}`
 }
 
 export interface EstadoPildora {
@@ -145,33 +148,34 @@ export interface TextoPildora {
 
 /** Lo que dice la píldora de la rejilla, y si se puede pulsar para contar. */
 export function textoPildora(e: EstadoPildora): TextoPildora {
+  const t = txPanes()
   if (e.contando) {
-    return { texto: 'Contando…', contable: false, titulo: 'Contando las filas en el servidor' }
+    return { texto: t.contando, contable: false, titulo: t.contandoTitulo }
   }
   if (e.total !== null && e.hayMas) {
     // Tras contar se siguen cargando páginas: si entretanto alguien insertó filas,
     // las cargadas pueden pasar del total. No se enseña un «600 de 500».
     const total = Math.max(e.total, e.cargadas)
     return {
-      texto: `${formatoEntero(e.cargadas)} de ${formatoEntero(total)}`,
+      texto: t.cargadasDe(formatoEntero(e.cargadas), formatoEntero(total)),
       contable: false,
-      titulo: `${filas(e.cargadas)} cargadas de ${formatoEntero(total)} en el servidor`
+      titulo: t.cargadasDeTitulo(filas(e.cargadas), formatoEntero(total))
     }
   }
   if (e.hayMas) {
     return {
-      texto: `${formatoEntero(e.cargadas)}+ filas`,
+      texto: t.masFilas(formatoEntero(e.cargadas)),
       contable: true,
-      titulo: 'Hay más filas en el servidor. Pulsa para contarlas'
+      titulo: t.hayMasTitulo
     }
   }
-  return { texto: filas(e.cargadas), contable: false, titulo: 'Todas las filas están cargadas' }
+  return { texto: filas(e.cargadas), contable: false, titulo: t.todasCargadas }
 }
 
 /** Metadatos de la barra de la pestaña de datos: «500+ filas cargadas · 671 ms». */
 export function metadatosDatos(cargadas: number, hayMas: boolean, ms: number | null): string {
   const n = `${formatoEntero(cargadas)}${hayMas ? '+' : ''}`
-  const cuantas = cargadas === 1 && !hayMas ? `${n} fila cargada` : `${n} filas cargadas`
+  const cuantas = cargadas === 1 && !hayMas ? txPanes().filaCargada(n) : txPanes().filasCargadas(n)
   return ms === null ? cuantas : `${cuantas} · ${formatoDuracion(ms)}`
 }
 
@@ -211,71 +215,46 @@ export function textoError(e: Pick<DbErrorSql, 'codigo' | 'mensaje'>): string {
  * objeto y no de un canal.
  */
 export function describirError(e: DbErrorSql, que: string): DescripcionError {
+  const t = txPanes()
   const detalle = textoError(e)
-  const fija = Object.prototype.hasOwnProperty.call(DESCRIPCIONES_FIJAS, e.motivo) ? DESCRIPCIONES_FIJAS[e.motivo] : undefined
+  const fijas = descripcionesFijas()
+  const fija = Object.prototype.hasOwnProperty.call(fijas, e.motivo) ? fijas[e.motivo] : undefined
   if (fija) {
     const { titulo, sugerencia, tono } = fija
     return sugerencia === undefined ? { titulo, detalle, tono } : { titulo, sugerencia, detalle, tono }
   }
+  // `que` llega escrito en español por quien llama; si el idioma es otro se traduce, y si ya viene en el
+  // idioma activo (o no es una de las conocidas) se usa tal cual.
+  const accion = Object.prototype.hasOwnProperty.call(t.acciones, que) ? t.acciones[que] : que
   if (e.motivo === 'servidor') {
     return {
-      titulo: `El servidor no pudo ${que}`,
-      sugerencia: e.campo ? 'Revisa el filtro.' : undefined,
+      titulo: t.servidorNoPudo(accion),
+      sugerencia: e.campo ? t.revisaFiltro : undefined,
       detalle,
       tono: 'error'
     }
   }
-  return { titulo: `No se pudo ${que}`, detalle, tono: 'error' }
+  return { titulo: t.noSePudo(accion), detalle, tono: 'error' }
 }
 
 /** Titular, siguiente paso y tono de los motivos que no dependen de lo que se intentaba. */
-const DESCRIPCIONES_FIJAS: Partial<Record<DbErrorSql['motivo'], Omit<DescripcionError, 'detalle'>>> = {
-  cancelada: { titulo: 'Consulta detenida', sugerencia: 'Pulsa Refrescar para volver a pedirla.', tono: 'info' },
-  sinSecreto: {
-    titulo: 'La conexión no tiene la contraseña guardada',
-    sugerencia: 'Edita la conexión y vuelve a escribir la contraseña.',
-    tono: 'error'
-  },
-  driver: {
-    titulo: 'Falta el cliente de base de datos para este servidor',
-    sugerencia: 'Instálalo desde la conexión (Editar conexión…) y vuelve a intentarlo.',
-    tono: 'error'
-  },
-  limite: {
-    titulo: 'Se alcanzó el límite de sesiones o de tamaño',
-    sugerencia: 'Cierra alguna pestaña o consola, o afina la consulta, y vuelve a intentarlo.',
-    tono: 'error'
-  },
-  sesionPerdida: {
-    titulo: 'Se perdió la sesión con el servidor',
-    sugerencia: 'Pulsa Refrescar para volver a conectar.',
-    tono: 'error'
-  },
-  timeout: {
-    titulo: 'El servidor tardó demasiado en responder',
-    sugerencia: 'Afina el filtro o vuelve a intentarlo.',
-    tono: 'error'
-  },
-  ocupada: {
-    titulo: 'La sesión está ocupada con otra consulta',
-    sugerencia: 'Espera a que termine o detenla, y vuelve a intentarlo.',
-    tono: 'info'
-  },
-  noReleible: {
-    titulo: 'Ya no se pueden leer más filas',
-    sugerencia: 'Vuelve a ejecutar la consulta.',
-    tono: 'info'
-  },
-  // La casilla «Solo lectura» de la conexión es de los agentes: este motivo llega de la BASE
-  // (un servidor o una réplica en solo lectura, un archivo protegido), y el detalle dice cuál.
-  soloLectura: { titulo: 'La base no admite escrituras', tono: 'error' },
-  // Venció el tope de espera de un bloqueo (1222 en SQL Server): informa y deja elegir entre
-  // los dos botones de `accionesDeError`.
-  bloqueo: {
-    titulo: 'La tabla está bloqueada por una transacción sin confirmar',
-    sugerencia:
-      'Otra sesión (quizá una consola tuya en Tx Manual) tiene cambios pendientes en ella. Confírmalos o revierte y pulsa «Reintentar», o «Leer sin esperar» para verla ya, incluidos los cambios aún sin confirmar.',
-    tono: 'info'
+function descripcionesFijas(): Partial<Record<DbErrorSql['motivo'], Omit<DescripcionError, 'detalle'>>> {
+  const t = txPanes()
+  return {
+    cancelada: { titulo: t.canceladaTitulo, sugerencia: t.canceladaSugerencia, tono: 'info' },
+    sinSecreto: { titulo: t.sinSecretoTitulo, sugerencia: t.sinSecretoSugerencia, tono: 'error' },
+    driver: { titulo: t.driverTitulo, sugerencia: t.driverSugerencia, tono: 'error' },
+    limite: { titulo: t.limiteTitulo, sugerencia: t.limiteSugerencia, tono: 'error' },
+    sesionPerdida: { titulo: t.sesionPerdidaTitulo, sugerencia: t.sesionPerdidaSugerencia, tono: 'error' },
+    timeout: { titulo: t.timeoutTitulo, sugerencia: t.timeoutSugerencia, tono: 'error' },
+    ocupada: { titulo: t.ocupadaTitulo, sugerencia: t.ocupadaSugerencia, tono: 'info' },
+    noReleible: { titulo: t.noReleibleTitulo, sugerencia: t.noReleibleSugerencia, tono: 'info' },
+    // La casilla «Solo lectura» de la conexión es de los agentes: este motivo llega de la BASE
+    // (un servidor o una réplica en solo lectura, un archivo protegido), y el detalle dice cuál.
+    soloLectura: { titulo: t.soloLecturaTitulo, tono: 'error' },
+    // Venció el tope de espera de un bloqueo (1222 en SQL Server): informa y deja elegir entre
+    // los dos botones de `accionesDeError`.
+    bloqueo: { titulo: t.bloqueoTitulo, sugerencia: t.bloqueoSugerencia, tono: 'info' }
   }
 }
 
@@ -289,9 +268,9 @@ export function accionesDeError(e: Pick<DbErrorSql, 'motivo'> | null): readonly 
 }
 
 /** Lo que dicen los botones de `accionesDeError`. */
-export const ETIQUETA_ACCION_ERROR: Readonly<Record<'reintentar' | 'sinEsperar', string>> = {
-  reintentar: 'Reintentar',
-  sinEsperar: 'Leer sin esperar'
+export function etiquetasAccionError(): Readonly<Record<'reintentar' | 'sinEsperar', string>> {
+  const t = txPanes()
+  return { reintentar: t.reintentar, sinEsperar: t.leerSinEsperar }
 }
 
 /**
@@ -299,19 +278,20 @@ export const ETIQUETA_ACCION_ERROR: Readonly<Record<'reintentar' | 'sinEsperar',
  * que otra transacción aún no confirmó (y que quizá nunca confirme). Se pinta en la barra
  * mientras esos datos están a la vista; el siguiente Refrescar lee normal y la quita.
  */
-export const MARCA_SIN_ESPERAR = 'leída sin esperar: puede incluir cambios sin confirmar'
+export const marcaSinEsperar = (): string => txPanes().marcaSinEsperar
 
 /** Motivo de la píldora cuando ya no se pueden leer más filas. */
 export function motivoSinLector(e: DbErrorSql): string {
+  const t = txPanes()
   switch (e.motivo) {
     case 'cancelada':
-      return 'Lectura detenida'
+      return t.lecturaDetenida
     case 'sesionPerdida':
-      return 'Se perdió la sesión'
+      return t.seperdioSesion
     case 'noReleible':
-      return 'El cursor se cerró'
+      return t.cursorCerrado
     default:
-      return 'No se pudieron leer más filas'
+      return t.noSePudieronLeerMas
   }
 }
 

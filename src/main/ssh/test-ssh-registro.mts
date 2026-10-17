@@ -18,13 +18,17 @@ import { SSH_CHANNELS, SSH_LOTE_MAX, type SshConexionInput, type SshListaConexio
 import { ConexionesSsh } from './ConexionesSsh.ts'
 import { conservarAlEditarSsh, type ConexionSshPersistida } from './conservarAlEditarSsh.ts'
 import { ControladorSsh } from './ControladorSsh.ts'
-import { ClavesImportadas, MENSAJE_FICHA_CLAVE } from './controlador/clavesImportadas.ts'
+import { ClavesImportadas, mensajeFichaClave } from './controlador/clavesImportadas.ts'
 import { resolverBinariosSsh } from './binariosSsh.ts'
 import { reconocerClave, type SalidaCorta } from './formatoClave.ts'
 import { registrarIpcSsh } from './ipc.ts'
-import { MENSAJE_SIN_COPIA_CLAVE, citarRutaOpcion } from './lineaSsh.ts'
+import { mensajeSinCopiaClave, citarRutaOpcion } from './lineaSsh.ts'
 import { MENSAJE_CAMBIADO_FUERA_SSH, MENSAJE_FORMATO_AJENO_SSH, MENSAJE_RESCATADO_CORREGIDO_SSH } from './mensajesRegistroSsh.ts'
-import { MENSAJE_FALTA_CLAVE, errorHost, errorPuerto, errorUsuario } from './validacionSsh.ts'
+import { mensajeFaltaClave, errorHost, errorPuerto, errorUsuario } from './validacionSsh.ts'
+
+const MENSAJE_FICHA_CLAVE = mensajeFichaClave()
+const MENSAJE_SIN_COPIA_CLAVE = mensajeSinCopiaClave()
+const MENSAJE_FALTA_CLAVE = mensajeFaltaClave()
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))

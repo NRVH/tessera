@@ -3,13 +3,14 @@
 // textos del popover del «N de M» (esquemas o bases) y qué elige el selector de la consola
 // (base, esquema o nada), decidido por el descriptor del motor.
 // Puro (sin DOM, React ni `process`); lo fija `test-arbol-bd.mts`.
-// Decisiones: docs/decisiones/bd/ui-arbol-nivel-bases.md
+// Decisiones: docs/decisiones/bd/ui-arbol-modelo.md
 // =============================================================================
 
 import { claveBd, type CargaBd } from './arbolBd.ts'
 import { descriptorSql, tieneNivelBases } from '../../../../shared/motores/index.ts'
 import { nunca } from '../../../../shared/nunca.ts'
 import type { DbMotor } from '../../../../shared/db-ipc.ts'
+import { txNivelBases } from './textosNivelBases.ts'
 
 /** Qué lista elige el popover del «N de M». */
 export type NivelPopover = 'esquemas' | 'bases'
@@ -59,27 +60,9 @@ export interface TextosPopover {
 }
 
 /** Los de 'esquemas' son los de siempre, al byte (ver la cabecera). */
-export const TEXTOS_POPOVER: Readonly<Record<NivelPopover, TextosPopover>> = {
-  esquemas: {
-    cabecera: 'Esquemas de',
-    visibles: 'Esquemas visibles',
-    filtrar: 'Filtrar esquemas',
-    cargando: 'Cargando esquemas…',
-    lista: 'Esquemas',
-    todos: 'Todos los esquemas',
-    ninguno: 'Ningún esquema coincide.',
-    delSistema: 'esquema del sistema'
-  },
-  bases: {
-    cabecera: 'Bases de',
-    visibles: 'Bases visibles',
-    filtrar: 'Filtrar bases',
-    cargando: 'Cargando bases…',
-    lista: 'Bases',
-    todos: 'Todas las bases',
-    ninguno: 'Ninguna base coincide.',
-    delSistema: 'base del sistema'
-  }
+export function textosPopover(nivel: NivelPopover): TextosPopover {
+  const t = txNivelBases()
+  return nivel === 'esquemas' ? t.popoverEsquemas : t.popoverBases
 }
 
 /**
@@ -174,42 +157,35 @@ export interface TextosSelectorConsola {
  * «Base actual: X»).
  */
 export function textosSelectorConsola(nivel: NivelSelectorConsola): TextosSelectorConsola {
+  const t = txNivelBases()
   if (nivel === 'esquema') {
     return {
-      deLaConexion: (p) => (p ? `Esquema de la conexión (${p})` : 'Esquema de la conexión'),
-      cabecera: 'Esquema de la consola en',
-      filtrar: 'Filtrar esquemas',
-      cargando: 'Cargando esquemas…',
-      lista: 'Esquemas',
-      ninguno: 'Ningún esquema coincide.',
-      delSistema: 'esquema del sistema',
+      deLaConexion: t.esquemaDeLaConexion,
+      cabecera: t.esquemaCabecera,
+      filtrar: t.popoverEsquemas.filtrar,
+      cargando: t.popoverEsquemas.cargando,
+      lista: t.popoverEsquemas.lista,
+      ninguno: t.popoverEsquemas.ninguno,
+      delSistema: t.popoverEsquemas.delSistema,
       tituloBoton: (actual, ejecutando) =>
-        ejecutando
-          ? 'Espera a que termine la ejecución para cambiar el esquema'
-          : actual
-            ? `Esquema: ${actual}. Pulsa para cambiar`
-            : 'Esquema de la consola. Pulsa para cambiar',
-      datoActual: (a) => `Esquema actual: ${a}`,
-      cambiando: 'Cambiando el esquema…',
-      etiquetaBoton: (a) => (a ? `Esquema de la consola: ${a}` : 'Esquema de la consola')
+        ejecutando ? t.esquemaEspera : actual ? t.esquemaActualTitulo(actual) : t.esquemaSinActualTitulo,
+      datoActual: t.esquemaDato,
+      cambiando: t.esquemaCambiando,
+      etiquetaBoton: t.esquemaEtiquetaBoton
     }
   }
   return {
-    deLaConexion: (p) => (p ? `Base de la conexión (${p})` : 'Base de la conexión'),
-    cabecera: 'Base de la consola en',
-    filtrar: 'Filtrar bases',
-    cargando: 'Cargando bases…',
-    lista: 'Bases',
-    ninguno: 'Ninguna base coincide.',
-    delSistema: 'base del sistema',
+    deLaConexion: t.baseDeLaConexion,
+    cabecera: t.baseCabecera,
+    filtrar: t.popoverBases.filtrar,
+    cargando: t.popoverBases.cargando,
+    lista: t.popoverBases.lista,
+    ninguno: t.popoverBases.ninguno,
+    delSistema: t.popoverBases.delSistema,
     tituloBoton: (actual, ejecutando) =>
-      ejecutando
-        ? 'Espera a que termine la ejecución para cambiar de base'
-        : actual
-          ? `Base: ${actual}. Pulsa para cambiar (USE)`
-          : 'Base de la consola. Pulsa para cambiar (USE)',
-    datoActual: (a) => `Base actual: ${a}`,
-    cambiando: 'Cambiando de base…',
-    etiquetaBoton: (a) => (a ? `Base de la consola: ${a}` : 'Base de la consola')
+      ejecutando ? t.baseEspera : actual ? t.baseActualTitulo(actual) : t.baseSinActualTitulo,
+    datoActual: t.baseDato,
+    cambiando: t.baseCambiando,
+    etiquetaBoton: t.baseEtiquetaBoton
   }
 }

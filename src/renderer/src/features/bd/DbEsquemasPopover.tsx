@@ -13,13 +13,14 @@ import './arbol.css'
 import type { DbConnection } from '../../../../shared/db-ipc'
 import type { DbEsquema } from '../../../../shared/db-explorador-ipc'
 import { contarVisibles } from '../../../../shared/dbEsquemas'
-import { fuentePopover, TEXTOS_POPOVER, type NivelPopover, type TextosPopover } from './nivelBasesBd'
+import { fuentePopover, textosPopover, type NivelPopover, type TextosPopover } from './nivelBasesBd'
 import { Casilla } from '../git'
 import { VirtualList } from '../../comun/VirtualList'
 import { EstadoCargaPopover } from './consola/EstadoCargaPopover'
 import { FILAS_MAX, HUECO, recolocar, teclaPopover, type AnclaPopover, type PosicionPopover } from '../../comun/popoverFlotante'
 import { useCierreYFoco } from '../../comun/usePopoverFlotante'
 import { useEsquemasPopover, type FilaPop } from './consola/useEsquemasPopover'
+import { txNivelBases } from './textosNivelBases.ts'
 
 export type { AnclaPopover } from '../../comun/popoverFlotante'
 // `BarraConsola` lo importa desde aquí: ver allí el porqué.
@@ -90,7 +91,8 @@ function FilaEsquema({
   t: TextosPopover
 }): React.JSX.Element {
   const f: FilaPop = { tipo: 'esquema', esquema: x }
-  const extra = x.pseudo ? ' (sinónimos públicos)' : x.nombre === v.s.porDefecto ? ' (por defecto)' : ''
+  const tx = txNivelBases()
+  const extra = x.pseudo ? tx.sinonimosPublicos : x.nombre === v.s.porDefecto ? tx.porDefectoExtra : ''
   return (
     <div
       id={`${v.idBase}-e${indice}`}
@@ -103,7 +105,7 @@ function FilaEsquema({
       onMouseDown={(e) => e.preventDefault()}
       onClick={() => pulsar(v, f, indice)}
     >
-      <Casilla estado={v.s.casillaDe(f)} etiqueta={`Mostrar ${x.nombre}`} onAlternar={() => v.s.alternarFila(f)} />
+      <Casilla estado={v.s.casillaDe(f)} etiqueta={tx.mostrar(x.nombre)} onAlternar={() => v.s.alternarFila(f)} />
       <span className="db-pop-nombre">{x.nombre}</span>
       {extra && <span className="db-pop-meta">{extra}</span>}
     </div>
@@ -120,7 +122,7 @@ function ListaEsquemas({ v, t }: { v: VistaFilas; t: TextosPopover }): React.JSX
       {fijas > 0 && (
         <div className="db-pop-fijas">
           <FilaFija v={v} f={{ tipo: 'todos' }} i={0} texto={t.todos} />
-          {fijas > 1 && <FilaFija v={v} f={{ tipo: 'porDefecto' }} i={1} texto={`Por defecto (${s.porDefecto})`} />}
+          {fijas > 1 && <FilaFija v={v} f={{ tipo: 'porDefecto' }} i={1} texto={txNivelBases().porDefectoFila(s.porDefecto)} />}
         </div>
       )}
       {s.visiblesLista.length === 0 ? (
@@ -172,7 +174,7 @@ export function DbEsquemasPopover(props: PropsEsquemasPopover): React.JSX.Elemen
   )
 
   const n = s.resp ? contarVisibles(s.borrador, s.todos.length, s.porDefecto, s.todos) : 0
-  const t = TEXTOS_POPOVER[nivel]
+  const t = textosPopover(nivel)
   const v: VistaFilas = { s, idBase, altoFila }
 
   const contenido = (
@@ -180,7 +182,7 @@ export function DbEsquemasPopover(props: PropsEsquemasPopover): React.JSX.Elemen
       ref={raizRef}
       className="db-esquemas-pop"
       role="dialog"
-      aria-label={`${t.visibles} de ${conexion.alias}`}
+      aria-label={txNivelBases().visiblesDe(t.visibles, conexion.alias)}
       style={{ ...varsDensidad, left: pos.left, top: pos.top, width: ANCHO }}
       onKeyDown={(e) => teclaEsquemas(e, s, onCerrar)}
     >
@@ -215,8 +217,8 @@ export function DbEsquemasPopover(props: PropsEsquemasPopover): React.JSX.Elemen
       )}
 
       <div className="db-pop-pie">
-        <span className="db-pop-cuenta">{s.resp ? `${n} de ${s.todos.length}` : ''}</span>
-        <span className="db-pop-pista">{s.aplicando ? 'Aplicando…' : 'Enter aplica · Esc cancela'}</span>
+        <span className="db-pop-cuenta">{s.resp ? txNivelBases().nDeM(n, s.todos.length) : ''}</span>
+        <span className="db-pop-pista">{s.aplicando ? txNivelBases().aplicando : txNivelBases().pistaTeclas}</span>
       </div>
     </div>
   )

@@ -9,6 +9,7 @@
 
 import type { WorkingChange, WorkingFileStatus, FileStatus } from '../../../../../shared/git-ipc'
 import type { DiffSide, DiffTarget } from '../../editor'
+import { txGit } from '../textos.ts'
 
 /** Los dos CENTINELAS que ocupan `commitHash` en un diff del working-tree; forman parte del id de la pestaña. */
 export const REV_WORKTREE = 'WORKTREE'
@@ -16,8 +17,8 @@ export const REV_STAGED = 'STAGED'
 
 /** Qué se compara, en palabras, para la cabecera del visor: un centinela nunca se pinta crudo. */
 export function etiquetaRevisiones(commitHash: string): string {
-  if (commitHash === REV_WORKTREE) return 'Índice ↔ Disco'
-  if (commitHash === REV_STAGED) return 'HEAD ↔ Índice'
+  if (commitHash === REV_WORKTREE) return txGit().indiceDisco
+  if (commitHash === REV_STAGED) return txGit().headIndice
   return commitHash.slice(0, 7)
 }
 

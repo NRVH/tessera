@@ -17,6 +17,7 @@ import type { EntradasClave } from './edicionClaves'
 import { TIPOS_CREABLES, comandoCrear, cuadrosDeCreacion, type TipoCreable } from './edicionElementos'
 import { Botones, ComandoPrevio, Cuadro, Estado, MarcoDialogo } from './DialogoEdicionClave'
 import { useEdicionClave } from './useEdicionClave'
+import { txEdicionClaves } from './textosEdicionClaves'
 import { etiquetaTipo } from './visorClaves'
 
 export interface PropsDialogoNuevaClave {
@@ -32,7 +33,7 @@ async function motivoOcupada(conexionId: string, base: number, nombre: string): 
   try {
     const r = await window.tessera.dbClaves.valor({ conexionId, base, clave: bytesDeTexto(nombre), cuantos: 1 })
     if (!r.ok) return textoError(r.error)
-    return r.valor.contenido.tipo === 'noExiste' ? null : 'Ya existe una clave con ese nombre.'
+    return r.valor.contenido.tipo === 'noExiste' ? null : txEdicionClaves().yaExisteClave
   } catch (err) {
     return textoError(errorDeInvoke(err))
   }
@@ -57,6 +58,7 @@ export function DialogoNuevaClave(p: PropsDialogoNuevaClave): React.JSX.Element 
     abrir({ tipo: 'crear' })
   }, [abrir])
 
+  const tx = txEdicionClaves()
   const cuadros = cuadrosDeCreacion(tipo)
   const cmd = comandoCrear(nombre, tipo, e)
   const produccion = esProduccion(conexion.entorno)
@@ -72,10 +74,10 @@ export function DialogoNuevaClave(p: PropsDialogoNuevaClave): React.JSX.Element 
   }
 
   return (
-    <MarcoDialogo dlg={dlg} conexion={conexion} titulo="Nueva clave" base={base} onCerrar={p.onCerrar}>
-      <Cuadro id={`${idBase}-nombre`} etiqueta="Nombre" valor={nombre} multilinea={false} foco onCambio={setNombre} onEnter={() => undefined} />
+    <MarcoDialogo dlg={dlg} conexion={conexion} titulo={tx.nuevaClave} base={base} onCerrar={p.onCerrar}>
+      <Cuadro id={`${idBase}-nombre`} etiqueta={tx.nombre} valor={nombre} multilinea={false} foco onCambio={setNombre} onEnter={() => undefined} />
       <label className="modal-label" htmlFor={`${idBase}-tipo`}>
-        Tipo
+        {tx.tipo}
       </label>
       <select id={`${idBase}-tipo`} className="modal-input" value={tipo} onChange={(ev) => setTipo(ev.target.value as TipoCreable)}>
         {TIPOS_CREABLES.map((t) => (
@@ -93,7 +95,7 @@ export function DialogoNuevaClave(p: PropsDialogoNuevaClave): React.JSX.Element 
       <Botones
         edicion={edicion}
         clase={produccion ? 'db-envio-btn-prod' : 'primary'}
-        texto={edicion.aviso ? edicion.aviso.confirmar : produccion ? 'Ejecutar en producción' : 'Crear'}
+        texto={edicion.aviso ? edicion.aviso.confirmar : produccion ? tx.ejecutarEnProduccion : tx.crear}
         listo={cmd.ok && !comprobando}
         focoEnEjecutar={false}
         onEjecutar={ejecutar}

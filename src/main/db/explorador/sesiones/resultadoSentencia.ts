@@ -40,6 +40,7 @@ import { errorSql, mensajeDe, mensajePerdida, textoEnDuda } from './errores.ts'
 import type { NucleoSesiones } from './NucleoSesiones.ts'
 import type { Procesos } from './procesos.ts'
 import { avisoRevertida, pagina } from './reglas.ts'
+import { txSesiones } from './textosSesiones.ts'
 import type { OrigenLector, Proceso, Sesion } from './tipos.ts'
 
 /** Lo que acompaña a cualquier resultado: avisos para la Salida, salida del servidor y conjuntos extra. */
@@ -74,7 +75,7 @@ function resultadoConAdvertencia(
 ): DbResultadoError {
   const error: DbErrorSql = {
     motivo: 'servidor',
-    mensaje: `Creado con errores de compilación: ${advertencia.mensaje}`
+    mensaje: txSesiones().creadoConErrores(advertencia.mensaje)
   }
   if (advertencia.codigo) error.codigo = advertencia.codigo
   // Sin `error.posicion`: las marcas van una por error, en `compilacion`.

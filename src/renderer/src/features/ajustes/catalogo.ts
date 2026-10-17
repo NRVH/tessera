@@ -13,12 +13,13 @@ import type { CategoriaBuscable } from './filtrarAjustes'
 // así que ni siquiera un import de valor arrastraría la app — pero la regla se respeta
 // igual, que es lo que la mantiene viva.
 import type { CapacidadesPlataforma, Plataforma } from '../../../../shared/plataforma'
+import { txCatalogo } from './textosCatalogo.ts'
 
 /**
  * Las categorías del riel, EN ORDEN, y sus ajustes.
  *
  * El orden es por FRECUENCIA DE USO, no por antigüedad: Apariencia (lo que de
- * verdad se toca) · Terminales · Proyectos · Bases de datos · Integración con el
+ * verdad se toca) · Terminales · Proyectos · Agentes · Bases de datos · Integración con el
  * sistema · Actualizaciones · Acerca de. «Bases de datos» sigue a Proyectos porque es la
  * otra forma de trabajar dentro de un perfil. «Integración con el sistema» va detrás de Proyectos
  * porque es su continuación natural —cómo se ABRE un proyecto desde fuera de la app— y
@@ -39,6 +40,17 @@ export const CATEGORIAS = [
     id: 'apariencia',
     titulo: 'Apariencia',
     grupos: [
+      {
+        // Las claves en los dos idiomas: quien no entiende el que está puesto busca en el suyo.
+        titulo: 'Idioma',
+        ajustes: [
+          {
+            id: 'idioma',
+            etiqueta: 'Idioma',
+            claves: ['idioma', 'language', 'inglés', 'english', 'español', 'spanish', 'traducción']
+          }
+        ]
+      },
       {
         // "y escala" no es adorno: mete el zoom en el mismo grupo que los
         // tamaños, que es donde lo busca todo el mundo, sin que el título mienta
@@ -83,7 +95,12 @@ export const CATEGORIAS = [
         titulo: 'Terminal',
         ajustes: [
           { id: 'term-fuente', etiqueta: 'Fuente', claves: ['tipografía', 'letra', 'shell'] },
-          { id: 'term-tamano', etiqueta: 'Tamaño', claves: ['letra', 'fuente', 'shell'] }
+          { id: 'term-tamano', etiqueta: 'Tamaño', claves: ['letra', 'fuente', 'shell'] },
+          {
+            id: 'term-resaltado',
+            etiqueta: 'Resaltar logs y salidas',
+            claves: ['colores', 'color', 'error', 'aviso', 'log', 'logs', 'salida', 'ssh', 'resaltado']
+          }
         ]
       },
       {
@@ -150,6 +167,34 @@ export const CATEGORIAS = [
             id: 'sandbox-otros',
             etiqueta: 'Otros paquetes',
             claves: ['apt', 'instalar', 'paquete', 'imagen', 'sudo', 'debian']
+          }
+        ]
+      }
+    ]
+  },
+  {
+    // Detrás de Proyectos: los agentes son lo que corre dentro de cada proyecto. La lista es del
+    // perfil activo; el selector de la cabecera, de toda la aplicación.
+    id: 'agentes',
+    titulo: 'Agentes',
+    grupos: [
+      {
+        titulo: 'Agentes del perfil',
+        ajustes: [
+          {
+            id: 'agentes-lista',
+            etiqueta: 'Agentes',
+            claves: ['agentes', 'claude', 'codex', 'ocultar', 'mostrar', 'orden', 'ordenar', 'añadir', 'manual', 'pestañas', 'gestionar']
+          }
+        ]
+      },
+      {
+        titulo: 'Cabecera del agente',
+        ajustes: [
+          {
+            id: 'selector-agentes',
+            etiqueta: 'Selector de agentes',
+            claves: ['pestañas', 'lista', 'desplegable', 'selector', 'agentes', 'compacto']
           }
         ]
       }
@@ -288,6 +333,28 @@ export const CATEGORIAS = [
               'aplicaciones',
               'desktop'
             ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    // Antes de Actualizaciones: se toca al estrenar un equipo, más que una actualización a mano.
+    id: 'copia',
+    titulo: 'Exportar e importar',
+    grupos: [
+      {
+        titulo: 'Configuración de Tessera',
+        ajustes: [
+          {
+            id: 'copia-exportar',
+            etiqueta: 'Exportar',
+            claves: ['copia', 'copia de seguridad', 'respaldo', 'backup', 'llevar', 'otro equipo', 'migrar', 'perfiles', 'conexiones', 'guardar']
+          },
+          {
+            id: 'copia-importar',
+            etiqueta: 'Importar',
+            claves: ['copia', 'restaurar', 'recuperar', 'traer', 'otro equipo', 'migrar', 'perfiles', 'conexiones', 'abrir']
           }
         ]
       }
@@ -541,6 +608,10 @@ export function categoriasVisibles(
     capacidad === undefined || capacidades[capacidad]
   const esDeAqui = (soloEn: Plataforma | undefined): boolean =>
     soloEn === undefined || soloEn === plataforma
+  const t = txCatalogo()
+  // Los títulos y etiquetas del catálogo son los españoles; en cada idioma se resuelven por id (o por
+  // el título en español, en los grupos). Lo que no tiene texto propio, como un catálogo sintético, se queda.
+  const tituloCategoria = (id: string, es: string): string => (t.categorias as Record<string, string>)[id] ?? es
   const out: CategoriaVisible[] = []
   for (const c of catalogo) {
     // Los ids del catálogo sintético del test no son `CategoriaId`/`AjusteId`; el
@@ -549,16 +620,22 @@ export function categoriasVisibles(
     if (!puede(CATEGORIAS_POR_CAPACIDAD[c.id as CategoriaId])) continue
     const grupos = c.grupos
       .map((g) => ({
-        titulo: g.titulo,
-        ajustes: g.ajustes.filter(
-          (a) =>
-            puede(AJUSTES_POR_CAPACIDAD[a.id as AjusteId]) &&
-            esDeAqui(AJUSTES_POR_PLATAFORMA[a.id as AjusteId]) &&
-            (esAlpha || !AJUSTES_SOLO_ALPHA.has(a.id as AjusteId))
-        )
+        titulo: t.grupos[g.titulo] ?? g.titulo,
+        ajustes: g.ajustes
+          .filter(
+            (a) =>
+              puede(AJUSTES_POR_CAPACIDAD[a.id as AjusteId]) &&
+              esDeAqui(AJUSTES_POR_PLATAFORMA[a.id as AjusteId]) &&
+              (esAlpha || !AJUSTES_SOLO_ALPHA.has(a.id as AjusteId))
+          )
+          .map((a) => ({
+            id: a.id,
+            etiqueta: (t.etiquetas as Record<string, string>)[a.id] ?? a.etiqueta,
+            claves: [...(a.claves ?? []), ...t.clavesExtra(a.id)]
+          }))
       }))
       .filter((g) => g.ajustes.length > 0)
-    if (grupos.length > 0) out.push({ id: c.id as CategoriaId, titulo: c.titulo, grupos })
+    if (grupos.length > 0) out.push({ id: c.id as CategoriaId, titulo: tituloCategoria(c.id, c.titulo), grupos })
   }
   return out
 }

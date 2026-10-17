@@ -11,7 +11,7 @@ import { spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { buildHostAgentLaunchCommand } from './lineaArranqueAgente.ts'
+import { buildAgentLaunchCommand, buildHostAgentLaunchCommand, buildManualAgentLaunchCommand } from './lineaArranqueAgente.ts'
 import { citarSh } from '../../shared/citarShell.ts'
 import { plataformaActual, type Plataforma } from '../../shared/plataforma.ts'
 
@@ -88,6 +88,20 @@ function argvRecibido(shell: string, linea: string): { argv: string[]; salida: s
     .filter((l) => l.startsWith('ARG:'))
     .map((l) => l.slice('ARG:'.length))
   return { argv, salida }
+}
+
+/** La línea del contenedor de un agente manual: su HOME, su PATH y su comando intacto, sin nada de los de serie. */
+function casosAgenteManual(): void {
+  hr('(M) Agente manual en el contenedor')
+  const home = '/agent-config/m-lince/manual'
+  const linea = buildManualAgentLaunchCommand('npx lince --modo "rápido" && echo fin', home, null, { TESSERA_DB_MODE: 'docker' })
+  check('(M1) HOME en su carpeta persistente', linea.includes(`HOME=${home} `), linea.slice(0, 160))
+  check('(M2) sus .local/bin delante del PATH estándar', linea.includes(`PATH=${home}/.local/bin:/home/agente/.local/bin:/usr/local/sbin`), linea.slice(0, 200))
+  check('(M3) NEGATIVO: ni la variable de cuenta de los de serie ni su aviso de arranque',
+    !/CLAUDE_CONFIG_DIR|CODEX_HOME|append-system-prompt|developer_instructions/.test(linea), '')
+  check('(M4) el comando del usuario llega entero (sintaxis de shell incluida), sin exec delante',
+    linea.includes(citarSh('npx lince --modo "rápido" && echo fin').slice(1, -1)) && !linea.includes('exec npx'), linea.slice(-120))
+  check('(M5) bajo env -i, con TERM y las variables de bases', linea.startsWith('env -i ') && linea.includes('TERM=xterm-256color') && linea.includes(`TESSERA_DB_MODE='docker'`), '')
 }
 
 function main(): void {
@@ -251,7 +265,14 @@ function main(): void {
       codexResume.slice(0, 80) + '…'
     )
     const codexSin = buildHostAgentLaunchCommand('codex', 'codex', undefined, null, p)
-    check(`(4e) [${p}] Codex sin briefing: la línea pelada`, codexSin === 'codex', codexSin)
+    check(`(4e) [${p}] Codex sin briefing: solo sin su servidor compartido`, codexSin === 'codex -c features.daemon_auto_start=false', codexSin)
+    check(`(4f) [${p}] Codex con briefing tampoco arranca su servidor compartido`, codex.includes(' -c features.daemon_auto_start=false ') && codexResume.includes(' -c features.daemon_auto_start=false '), codex.slice(0, 80))
+    const claudeSin = buildHostAgentLaunchCommand('claude', 'claude-code', undefined, null, p)
+    check(`(4g) [${p}] Claude Code no lleva la opción de Codex`, claudeSin === 'claude', claudeSin)
+  }
+  {
+    const contenedor = buildAgentLaunchCommand('codex', 'codex', '/home/agente/.codex')
+    check('(4h) en el contenedor, Codex tampoco arranca su servidor compartido', contenedor.includes('exec codex -c features.daemon_auto_start=false'), contenedor.slice(-120))
   }
 
   // ---------------------------------------------------------------------------
@@ -283,6 +304,8 @@ function main(): void {
       crlf
     )
   }
+
+  casosAgenteManual()
 
   // ---------------------------------------------------------------------------
   // Reporte final

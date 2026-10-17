@@ -3,7 +3,7 @@
 // y `DockerInspectState` es interno de las operaciones de `gestor/`.
 // Sin dependencias salvo los extras de `shared/` y el agente del perfil.
 // =============================================================================
-import type { Agente } from '../../profiles/types.ts'
+import type { IdAgente } from '../../../shared/agentesManuales.ts'
 import type { SandboxExtras } from '../../../shared/sandboxExtras.ts'
 
 /** Si el daemon de Docker responde, y su versión o el detalle del fallo. */
@@ -57,7 +57,7 @@ export interface ProjectMount {
 /** La carpeta de credenciales de un agente montada en caliente en `/agent-config/<tipo>`. */
 export interface AgentConfigMount {
   profileId: string
-  agente: Agente
+  agente: IdAgente
   /** Cuenta (login) cuya carpeta se montó; distingue varias credenciales del mismo agente. */
   accountId: string
   /** Ruta host (normalizada) de la carpeta de credenciales de Tessera. */

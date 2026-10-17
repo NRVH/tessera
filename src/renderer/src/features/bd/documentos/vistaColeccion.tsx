@@ -21,12 +21,16 @@ import { IconoAnadirFila, IconoBorrarFilas, IconoEnviar, IconoRevertir } from '.
 import { TablaDocumentos } from './TablaDocumentos'
 import type { EstadoConsulta } from './useConsultaColeccion'
 import type { EstadoEdicion } from './useEdicionColeccion'
+import { txColeccionDocs } from './textosColeccionDocs'
 
-const ETIQUETA_CAMPO: Record<CampoBarra, string> = { filtro: 'Filtro', proyeccion: 'Proyección', orden: 'Orden' }
-const PISTA_CAMPO: Record<CampoBarra, string> = {
-  filtro: '{ campo: valor }  (Intro aplica)',
-  proyeccion: '{ campo: 1 }',
-  orden: '{ campo: -1 }'
+function etiquetaCampo(c: CampoBarra): string {
+  const t = txColeccionDocs()
+  return { filtro: t.campoFiltro, proyeccion: t.campoProyeccion, orden: t.campoOrden }[c]
+}
+
+function pistaCampo(c: CampoBarra): string {
+  const t = txColeccionDocs()
+  return { filtro: t.pistaFiltro, proyeccion: t.pistaProyeccion, orden: t.pistaOrden }[c]
 }
 
 /** Lo que la vista dispara: las acciones ya atadas al estado de este pintado. */
@@ -60,22 +64,23 @@ interface DatosVista {
 }
 
 function textoMeta(e: EstadoConsulta): string {
-  if (e.cargando) return 'Cargando…'
+  const t = txColeccionDocs()
+  if (e.cargando) return t.cargando
   if (!e.pagina) return ''
-  const n = e.pagina.documentos.length
-  return `${n.toLocaleString('es-ES')}${e.hayMas ? '+' : ''} documento${n === 1 ? '' : 's'} · ${e.pagina.ms} ms`
+  return t.meta(e.pagina.documentos.length, e.hayMas, e.pagina.ms)
 }
 
 function botonesGenerales(e: EstadoConsulta, acc: AccionesVista): React.JSX.Element {
+  const t = txColeccionDocs()
   return (
     <>
-      <BotonBarraBd etiqueta="Refrescar" titulo="Refrescar (con el filtro escrito; lo pendiente se conserva)" onClick={acc.aplicar}>
+      <BotonBarraBd etiqueta={t.refrescar} titulo={t.refrescarTitulo} onClick={acc.aplicar}>
         <IconoRefrescar />
       </BotonBarraBd>
       <BotonBarraBd
-        etiqueta="Detener"
-        titulo="Detener la consulta en curso"
-        motivo={e.cargando || e.cargandoMas ? null : 'No hay ninguna consulta en curso'}
+        etiqueta={t.detener}
+        titulo={t.detenerConsulta}
+        motivo={e.cargando || e.cargandoMas ? null : t.sinConsulta}
         onClick={acc.detener}
       >
         <IconoDetener />
@@ -86,36 +91,37 @@ function botonesGenerales(e: EstadoConsulta, acc: AccionesVista): React.JSX.Elem
 
 function botonesEdicion(e: EstadoConsulta, ed: EstadoEdicion, acc: AccionesVista): React.JSX.Element {
   const { enviando, pendientes, filaSel } = ed
+  const t = txColeccionDocs()
   return (
     <>
       <BotonBarraBd
-        etiqueta="Añadir documento"
-        titulo="Añadir un documento (se inserta al Enviar)"
-        motivo={enviando ? 'Enviando…' : !e.pagina ? 'Cargando…' : null}
+        etiqueta={t.anadirDocumento}
+        titulo={t.anadirDocumentoTitulo}
+        motivo={enviando ? t.enviando : !e.pagina ? t.cargando : null}
         onClick={acc.anadir}
       >
         <IconoAnadirFila />
       </BotonBarraBd>
       <BotonBarraBd
-        etiqueta="Borrar documento"
-        titulo={filaSel?.estado === 'borrado' ? 'Deshacer el borrado del documento' : 'Borrar el documento seleccionado'}
-        motivo={enviando ? 'Enviando…' : filaSel ? null : 'Selecciona el documento que quieres borrar'}
+        etiqueta={t.borrarDocumento}
+        titulo={filaSel?.estado === 'borrado' ? t.deshacerBorradoTitulo : t.borrarSeleccionado}
+        motivo={enviando ? t.enviando : filaSel ? null : t.seleccionaParaBorrar}
         onClick={acc.borrarSeleccionado}
       >
         <IconoBorrarFilas />
       </BotonBarraBd>
       <BotonBarraBd
-        etiqueta="Revertir cambios"
-        titulo={`Descartar ${textoCambiosDocs(pendientes)} sin enviar`}
-        motivo={pendientes === 0 ? 'No hay cambios que revertir' : enviando ? 'Enviando…' : null}
+        etiqueta={t.revertirCambios}
+        titulo={t.descartarSinEnviar(textoCambiosDocs(pendientes))}
+        motivo={pendientes === 0 ? t.nadaQueRevertir : enviando ? t.enviando : null}
         onClick={acc.revertir}
       >
         <IconoRevertir />
       </BotonBarraBd>
       <BotonBarraBd
-        etiqueta="Enviar cambios"
-        titulo={`Enviar ${textoCambiosDocs(pendientes)}`}
-        motivo={pendientes === 0 ? 'No hay cambios que enviar' : enviando ? 'Enviando…' : null}
+        etiqueta={t.enviarCambios}
+        titulo={t.enviar(textoCambiosDocs(pendientes))}
+        motivo={pendientes === 0 ? t.nadaQueEnviar : enviando ? t.enviando : null}
         onClick={acc.enviar}
       >
         <span className="db-envio-icono">
@@ -134,13 +140,14 @@ function botonesEdicion(e: EstadoConsulta, ed: EstadoEdicion, acc: AccionesVista
 /** La cabecera: entorno, meta (con lo pendiente) y los botones. */
 export function cabeceraColeccion(d: DatosVista): React.JSX.Element {
   const { conexion, base, coleccion, e, ed, acc } = d
+  const t = txColeccionDocs()
   return (
     <header className="panel-header db-barra">
       <MarcaEntorno entorno={conexion.entorno} />
       <span className="db-barra-meta" title={`${base}.${coleccion}`}>
         {textoMeta(e)}
-        {!e.cargando && e.detenida && <span className="db-barra-aviso"> · detenida</span>}
-        {ed.pendientes > 0 && <span className="db-barra-pendientes"> · {textoCambiosDocs(ed.pendientes)} sin enviar</span>}
+        {!e.cargando && e.detenida && <span className="db-barra-aviso">{t.detenida}</span>}
+        {ed.pendientes > 0 && <span className="db-barra-pendientes">{t.sinEnviar(textoCambiosDocs(ed.pendientes))}</span>}
       </span>
       <div className="panel-actions">
         {botonesGenerales(e, acc)}
@@ -151,18 +158,18 @@ export function cabeceraColeccion(d: DatosVista): React.JSX.Element {
           origen={{ tipo: 'coleccion', conexionId: conexion.id, base, coleccion, ...camposDeConsulta(e.aplicado) }}
           motor={conexion.motor}
           nombreSugerido={`${base}.${coleccion}`}
-          motivo={e.pagina ? null : 'Cargando…'}
-          titulo="Exportar la colección entera, con el filtro aplicado, a un archivo"
+          motivo={e.pagina ? null : t.cargando}
+          titulo={t.exportarColeccion}
         />
         <BotonBarraBd
-          etiqueta={ed.panelJson ? 'Ocultar el documento' : 'Ver el documento'}
-          titulo={ed.panelJson ? 'Ocultar el panel JSON del documento' : 'Ver el documento elegido en JSON'}
+          etiqueta={ed.panelJson ? t.ocultarDocumento : t.verDocumento}
+          titulo={ed.panelJson ? t.ocultarPanelJson : t.verDocumentoJson}
           onClick={acc.alternarPanel}
         >
           <IconoVerValor />
         </BotonBarraBd>
         {acc.abrirConsola && (
-          <BotonBarraBd etiqueta="Abrir consola" titulo="Abrir una consola con el find de esta colección" onClick={acc.abrirConsola}>
+          <BotonBarraBd etiqueta={t.abrirConsola} titulo={t.abrirConsolaTitulo} onClick={acc.abrirConsola}>
             <IconoConsola />
           </BotonBarraBd>
         )}
@@ -173,11 +180,12 @@ export function cabeceraColeccion(d: DatosVista): React.JSX.Element {
 
 function barraJson(e: EstadoConsulta, acc: AccionesVista): React.JSX.Element {
   const { escrito, errorCampo } = e
+  const t = txColeccionDocs()
   return (
     <div className="db-filtro db-docs-filtro">
       {(['filtro', 'proyeccion', 'orden'] as const).map((c) => (
         <label key={c} className="db-filtro-campo">
-          <span className="db-filtro-etiqueta">{ETIQUETA_CAMPO[c]}</span>
+          <span className="db-filtro-etiqueta">{etiquetaCampo(c)}</span>
           <input
             ref={e.inputs[c]}
             className="db-filtro-input"
@@ -187,7 +195,7 @@ function barraJson(e: EstadoConsulta, acc: AccionesVista): React.JSX.Element {
               e.setEscrito((prev) => ({ ...prev, [c]: v }))
             }}
             onKeyDown={acc.teclaCampo}
-            placeholder={PISTA_CAMPO[c]}
+            placeholder={pistaCampo(c)}
             aria-invalid={errorCampo?.campo === c}
             spellCheck={false}
             autoComplete="off"
@@ -199,10 +207,10 @@ function barraJson(e: EstadoConsulta, acc: AccionesVista): React.JSX.Element {
       <button
         type="button"
         className="btn btn-ghost db-docs-filtro-modo"
-        title="Volver al filtro guiado (campo · operador · valor)"
+        title={t.volverGuiado}
         onClick={() => acc.cambiarModo('guiado')}
       >
-        Guiado
+        {t.guiado}
       </button>
       {errorCampo && esCampoBarra(errorCampo.campo) && (
         <div className={`db-filtro-error campo-${errorCampo.campo}`} role="alert">
@@ -231,7 +239,7 @@ export function barraFiltro(e: EstadoConsulta, columnasGuiadas: readonly Columna
       error={e.errorGuiado}
       avanzado={{
         etiqueta: 'JSON',
-        titulo: 'Escribir el filtro, la proyección y el orden en JSON (notación del shell)',
+        titulo: txColeccionDocs().escribirJson,
         onClick: () => acc.cambiarModo('json')
       }}
     />
@@ -241,6 +249,7 @@ export function barraFiltro(e: EstadoConsulta, columnasGuiadas: readonly Columna
 function tablaColeccion(d: DatosVista, altoFila: number): React.JSX.Element {
   const { base, coleccion, e, ed, acc } = d
   const { filas, editando, indiceSel } = ed
+  const t = txColeccionDocs()
   const indiceError = ed.filaError === null ? null : filas.findIndex((f) => f.clave === ed.filaError)
   const filaEditada = editando ? filas.findIndex((f) => f.clave === editando.clave) : -1
   return (
@@ -263,8 +272,8 @@ function tablaColeccion(d: DatosVista, altoFila: number): React.JSX.Element {
       onCancelarEdicion={() => ed.setEditando(null)}
       onMenu={acc.menu}
       onFinAlcanzado={e.hayMas ? acc.cargarMas : undefined}
-      pie={e.hayMas ? <span className="db-docs-pie-texto">{e.cargandoMas ? 'Cargando más…' : 'Desplázate para cargar más'}</span> : null}
-      etiquetaAria={`Documentos de ${base}.${coleccion}`}
+      pie={e.hayMas ? <span className="db-docs-pie-texto">{e.cargandoMas ? t.cargandoMas : t.desplazaParaMas}</span> : null}
+      etiquetaAria={t.documentosDe(`${base}.${coleccion}`)}
       orden={e.aplicado.orden}
       onOrdenar={acc.ordenar}
       motivoNoOrdenar={motivoNoGuiarCampo}
@@ -279,13 +288,14 @@ export function zonaTabla(d: DatosVista, altoFila: number): React.JSX.Element {
   if (descripcion) {
     return <AvisoCaja tono={descripcion.tono} titulo={descripcion.titulo} sugerencia={descripcion.sugerencia} detalle={descripcion.detalle} />
   }
-  if (!e.pagina && e.detenida) return <AvisoCaja tono="info" titulo="Consulta detenida" sugerencia="Pulsa Refrescar para volver a pedirla." />
+  const t = txColeccionDocs()
+  if (!e.pagina && e.detenida) return <AvisoCaja tono="info" titulo={t.consultaDetenida} sugerencia={t.consultaDetenidaPista} />
   if (e.pagina && ed.filas.length === 0 && !e.cargando) {
     return (
       <EstadoVacio
         icono={<IconoColeccion />}
-        titulo="Ningún documento"
-        pista={consultaFiltra(e.aplicado) ? 'Ningún documento cumple el filtro.' : 'La colección está vacía.'}
+        titulo={t.ningunDocumento}
+        pista={consultaFiltra(e.aplicado) ? t.ningunoCumple : t.coleccionVacia}
       />
     )
   }

@@ -22,6 +22,7 @@ import {
 import { textoResultadoDocs, verboSentencia, type SentenciaShell } from './consolaDocs'
 import type { MarcasConsolaDocs } from './monacoConsolaDocs'
 import { uuid, type EnCurso, type PeticionDialogo } from './consolaComun'
+import { txConsolaDocs } from './textosConsolaDocs'
 
 /** Cómo termina un paso: seguir con la siguiente, parar (con o sin fallo) o salir sin tocar nada. */
 export type ResultadoPaso = 'sigue' | 'para' | 'fallo' | 'salir'
@@ -117,7 +118,7 @@ export async function ejecutarSentencia(d: DepsLote, lote: LoteDocs, i: number):
   let r = await d.enviar(s, peticionId, false)
   if (!r.ok && r.error.motivo === 'produccion' && !d.desmontadoRef.current) {
     if (!(await confirmarProduccion(d, s))) {
-      lote.marcas.estado(i, 'cancelada', 'No se envió')
+      lote.marcas.estado(i, 'cancelada', txConsolaDocs().noSeEnvio)
       d.anotar([{ tipo: 'info', texto: textoRechazoProduccion(r.error) }])
       cancelarDesde(lote, i + 1)
       return 'para'

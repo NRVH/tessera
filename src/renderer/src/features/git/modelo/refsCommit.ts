@@ -6,6 +6,7 @@
 // =============================================================================
 
 import type { Branch } from '../../../../../shared/git-ipc'
+import { txGit } from '../textos.ts'
 
 /** Qué es una ref: decide el color del chip (la forma del icono es la misma). */
 export type ClaseRef = 'head' | 'local' | 'remota' | 'etiqueta'
@@ -39,6 +40,7 @@ export function chipsDeRefs(refs: readonly string[], ramas: readonly Branch[]): 
   const locales = new Set<string>()
   for (const b of ramas) (b.remote ? remotas : locales).add(b.name)
 
+  const t = txGit()
   const chips: Chip[] = []
   for (const bruto of refs) {
     const token = bruto.trim()
@@ -46,28 +48,28 @@ export function chipsDeRefs(refs: readonly string[], ramas: readonly Branch[]): 
 
     if (token.startsWith(PREFIJO_TAG)) {
       const nombre = token.slice(PREFIJO_TAG.length)
-      chips.push({ clase: 'etiqueta', nombre, titulo: `Etiqueta ${nombre}` })
+      chips.push({ clase: 'etiqueta', nombre, titulo: t.chipEtiqueta(nombre) })
       continue
     }
 
     if (token.startsWith(PREFIJO_HEAD)) {
       // La rama a la que apunta HEAD: es la que estás mirando.
       const nombre = token.slice(PREFIJO_HEAD.length)
-      chips.push({ clase: 'head', nombre, titulo: `${nombre} (rama actual)` })
+      chips.push({ clase: 'head', nombre, titulo: t.chipRamaActual(nombre) })
       continue
     }
 
     if (token === 'HEAD') {
       // Detached: HEAD apunta al commit directamente, sin rama de por medio.
-      chips.push({ clase: 'head', nombre: 'HEAD', titulo: 'HEAD (sin rama, detached)' })
+      chips.push({ clase: 'head', nombre: 'HEAD', titulo: t.chipHeadSinRama })
       continue
     }
 
     // Una rama normal. Se decide por PERTENENCIA a la lista real, no por prefijo.
     if (remotas.has(token) && !locales.has(token)) {
-      chips.push({ clase: 'remota', nombre: token, titulo: `Rama remota ${token}` })
+      chips.push({ clase: 'remota', nombre: token, titulo: t.chipRamaRemota(token) })
     } else {
-      chips.push({ clase: 'local', nombre: token, titulo: `Rama ${token}` })
+      chips.push({ clase: 'local', nombre: token, titulo: t.chipRama(token) })
     }
   }
 

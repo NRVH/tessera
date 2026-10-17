@@ -293,6 +293,97 @@ test.describe.serial('El agente de la terminal', () => {
     await expect(panel.locator('.terminal-tab.active')).toHaveCount(1)
     await expect(pila).toBeVisible()
     await expect(pane.getByRole('button', { name: 'Maximizar Claude Code' })).toHaveCount(1)
+
+    // El «+» junto al chip abre una terminal nueva en un solo gesto, y a la vista: no debajo del agente.
+    const antes = await panel.locator('.terminal-tab').count()
+    await pane.locator('.panel-header').hover()
+    await pane.getByRole('button', { name: 'Maximizar Claude Code' }).click()
+    await expect(panel).toHaveClass(/\bsin-terminal\b/)
+    await panel.locator('> .panel-header').hover()
+    await panel.locator('.terminales-tapadas-nueva').click()
+    await expect(panel, 'las terminales vuelven a verse').not.toHaveClass(/\bsin-terminal\b/)
+    await expect(panel.locator('.terminal-tab'), 'con una más').toHaveCount(antes + 1)
+    await expect(panel.locator('.terminal-tab.active'), 'y la nueva es la activa').toHaveCount(1)
+    await expect(panel.locator('.terminal-tab').last()).toHaveClass(/\bactive\b/)
+    await expect(pila).toBeVisible()
+  })
+
+  // El «+» de la columna plegada: sin terminales va donde iría el chip; con el chip, a su lado y a la misma
+  // distancia que el chip del título. Se mide el GLIFO (el svg), no el botón: el botón lleva relleno a los
+  // lados y lo que el ojo compara son los dibujos.
+  test('la columna plegada lleva el «+» en la línea del título: sin terminales donde iría el chip, y junto al chip con su mismo hueco', async () => {
+    const info = test.info()
+    const win = s.win
+    const panel = win.locator('section.terminal-panel')
+    const pane = win.locator('.right-panel .agent-pane:not(.hidden)')
+    const cabecera = panel.locator('> .panel-header')
+    type Caja = { l: number; r: number; cy: number }
+    const medir = (): Promise<{ alto: number; titulo: Caja; chip: Caja | null; mas: Caja | null }> =>
+      cabecera.evaluate((h) => {
+        const caja = (r: DOMRect): Caja => ({ l: r.left, r: r.right, cy: (r.top + r.bottom) / 2 })
+        const rango = document.createRange()
+        rango.selectNodeContents(h.querySelector('.panel-title')!)
+        const chip = h.querySelector('.terminales-tapadas')
+        const mas = h.querySelector('.terminales-tapadas-nueva svg') ?? h.querySelector('.terminal-tabs-add svg')
+        return {
+          alto: h.getBoundingClientRect().height,
+          titulo: caja(rango.getBoundingClientRect()),
+          chip: chip ? caja(chip.getBoundingClientRect()) : null,
+          mas: mas ? caja(mas.getBoundingClientRect()) : null
+        }
+      })
+    const cerrarTodas = async (): Promise<void> => {
+      for (let n = await panel.locator('.terminal-tab').count(); n > 0; n = await panel.locator('.terminal-tab').count()) {
+        await panel.locator('.terminal-tab').first().hover()
+        await panel.locator('.terminal-tab-kill').first().click()
+        await expect(panel.locator('.terminal-tab')).toHaveCount(n - 1)
+      }
+    }
+
+    for (const [ancho, alto] of [[1024, 700], [1366, 768], [1920, 1080]]) {
+      await s.app.evaluate(({ BrowserWindow }, t) => BrowserWindow.getAllWindows()[0].setSize(t.ancho, t.alto), { ancho, alto })
+      // Con el chip: el agente maximizado tapa las terminales.
+      await pane.locator('.panel-header').hover()
+      await pane.getByRole('button', { name: 'Maximizar Claude Code' }).click()
+      await expect(panel).toHaveClass(/\bsin-terminal\b/)
+      // Fijo como el chip: se ve con el ratón fuera del panel.
+      await win.mouse.move(1, 1)
+      await expect(panel.locator('.terminales-tapadas-nueva'), `el «+» junto al chip no se esconde — ${ancho}px`).toBeVisible()
+      await asentar(win)
+      const conChip = await medir()
+      await cabecera.screenshot({ path: info.outputPath(`chip-${ancho}.png`) })
+      await panel.getByRole('button', { name: /^Restaurar terminales/ }).click()
+      await expect(panel).not.toHaveClass(/\bsin-terminal\b/)
+      // Sin terminales: la columna se pliega igual, sin chip.
+      await cerrarTodas()
+      await expect(panel).toHaveClass(/\bsin-terminal\b/)
+      await win.mouse.move(1, 1)
+      await expect(panel.locator('.terminal-tabs-add button').first(), `sin terminales, el «+» tampoco se esconde — ${ancho}px`).toBeVisible()
+      await asentar(win)
+      const sinChip = await medir()
+      await cabecera.screenshot({ path: info.outputPath(`sin-chip-${ancho}.png`) })
+      const det = `${ancho}px: ${JSON.stringify({ conChip, sinChip })}`
+      console.log(`[cabecera plegada] ${det}`)
+
+      expect(conChip.alto, `con el chip, una sola línea — ${det}`).toBeLessThanOrEqual(36)
+      expect(sinChip.alto, `sin terminales, una sola línea — ${det}`).toBeLessThanOrEqual(36)
+      const chip = conChip.chip!
+      const masConChip = conChip.mas!
+      const masSolo = sinChip.mas!
+      for (const [que, c] of [['chip', chip], ['«+» con chip', masConChip], ['«+» solo', masSolo]] as const) {
+        expect(Math.abs(c.cy - conChip.titulo.cy), `${que} centrado con el título — ${det}`).toBeLessThanOrEqual(1)
+      }
+      const huecoTitulo = chip.l - conChip.titulo.r
+      expect(Math.abs(masConChip.l - chip.r - huecoTitulo), `del chip al «+», el mismo hueco que del título al chip — ${det}`).toBeLessThanOrEqual(1)
+      expect(Math.abs(masSolo.l - chip.l), `sin terminales, el «+» empieza donde empezaría el chip — ${det}`).toBeLessThanOrEqual(1)
+
+      // Y el «+» de esa cabecera abre una: la columna vuelve a enseñarla.
+      await cabecera.hover()
+      await panel.locator('.terminal-tabs-add button').first().click()
+      await expect(panel).not.toHaveClass(/\bsin-terminal\b/)
+      await expect(panel.locator('.terminal-tab')).toHaveCount(1)
+    }
+    await s.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1500, 950))
   })
 
   test('con el agente maximizado, la cabecera de la terminal va en una línea y sin encimarse a 1024, 1366 y 1920 px, con el riel al mínimo, al máximo y oculto', async () => {
@@ -355,10 +446,10 @@ test.describe.serial('El agente de la terminal', () => {
       await arrastrarRiel(600)
       await comprobar(`${ancho}-riel-max`)
       await botonRiel.click()
-      await expect(win.locator('.ssh-riel')).toHaveCount(0)
+      await expect(win.locator('.ssh-riel')).toBeHidden()
       await comprobar(`${ancho}-riel-oculto`)
       await botonRiel.click()
-      await expect(win.locator('.ssh-riel')).toHaveCount(1)
+      await expect(win.locator('.ssh-riel')).toBeVisible()
     }
 
     await s.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1500, 950))

@@ -6,6 +6,7 @@
 // =============================================================================
 import { esDescendiente } from '../../../../shared/jarPath'
 import { basename } from './posixPath'
+import { txExplorador } from './textos.ts'
 import {
   getPortapapelesInterno,
   setPortapapelesInterno
@@ -51,12 +52,13 @@ function olvidarObjetivos(a: Arbol, paths: readonly string[]): void {
 /** Crea archivo o carpeta y, si es archivo, lo abre en el editor. */
 export async function crearNodo(a: Arbol, dir: string, name: string, isFolder: boolean): Promise<void> {
   try {
+    const req = { raiz: a.props.projectHostPath, dir, name }
     if (isFolder) {
-      const res = await window.tessera.files.createDir(dir, name)
+      const res = await window.tessera.files.createDir(req)
       a.setSelectedDir(res.path)
       a.setRevealPath(res.path)
     } else {
-      const res = await window.tessera.files.createFile(dir, name)
+      const res = await window.tessera.files.createFile(req)
       a.props.onOpenFile({ path: res.path, name })
       a.setRevealPath(res.path)
     }
@@ -70,7 +72,7 @@ export async function crearNodo(a: Arbol, dir: string, name: string, isFolder: b
 /** Renombra un nodo; un error de validación del main se muestra en el diálogo. */
 export async function renombrarNodo(a: Arbol, path: string, newName: string): Promise<void> {
   try {
-    await window.tessera.files.rename(path, newName)
+    await window.tessera.files.rename({ raiz: a.props.projectHostPath, path, newName })
     olvidarObjetivos(a, [path])
     cerrarDialogo(a)
     a.bumpRefresh()
@@ -86,10 +88,10 @@ export async function renombrarNodo(a: Arbol, path: string, newName: string): Pr
  */
 export async function eliminarNodos(a: Arbol, paths: readonly string[]): Promise<void> {
   try {
-    const res = await window.tessera.files.delete([...paths])
+    const res = await window.tessera.files.delete({ raiz: a.props.projectHostPath, paths: [...paths] })
     olvidarObjetivos(a, res.deleted)
     if (res.fallidos.length > 0) {
-      a.setOpError(`No se pudo eliminar: ${res.fallidos.join(', ')}.`)
+      a.setOpError(txExplorador().noSePudoEliminar(res.fallidos.join(', ')))
     }
   } catch (err) {
     a.setOpError(mensajeDe(err))
@@ -109,12 +111,10 @@ export async function moverNodos(a: Arbol, srcs: readonly string[], destDir: str
   const aMover = origenesAMover(srcs, destDir)
   if (aMover.length === 0) return
   try {
-    const res = await window.tessera.files.move(aMover, destDir)
+    const res = await window.tessera.files.move({ raiz: a.props.projectHostPath, srcs: aMover, destDir })
     if (res.conflicts.length > 0) {
       const nombres = res.conflicts.map((n) => `"${n}"`).join(', ')
-      a.setOpError(
-        `No se movió nada: ya ${res.conflicts.length > 1 ? 'existen' : 'existe'} ${nombres} en la carpeta destino.`
-      )
+      a.setOpError(txExplorador().noSeMovio(res.conflicts.length > 1, nombres))
       return
     }
     a.bumpRefresh()
@@ -139,11 +139,11 @@ export async function importarNodos(
   overwrite = false
 ): Promise<void> {
   if (hostPaths.length === 0) {
-    a.setOpError('No se pudo leer la ubicación de lo que soltaste.')
+    a.setOpError(txExplorador().noSePudoLeerUbicacion)
     return
   }
   try {
-    const res = await window.tessera.files.import(hostPaths, destDir, overwrite)
+    const res = await window.tessera.files.import({ raiz: a.props.projectHostPath, hostPaths, destDir, overwrite })
     if (res.conflicts.length > 0) {
       a.setImportConflict({ hostPaths, destDir, conflicts: res.conflicts })
       return

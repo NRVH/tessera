@@ -9,6 +9,7 @@
 import type { Plataforma } from '../../shared/plataforma'
 // El tipo de las filas vive en el contrato IPC: lo consumen también el preload y el renderer.
 import type { FilaPrevuelo } from '../../shared/sandbox-red-ipc'
+import { txSandbox } from './textos.ts'
 
 /** Versión de Docker Desktop a partir de la cual existe la red del anfitrión. */
 export const VERSION_MINIMA = { mayor: 4, menor: 34 } as const
@@ -136,114 +137,74 @@ export function evaluarPrevuelo(
 
 /** 1) El motor, y de qué tipo son sus contenedores. */
 function filaMotor(e: EntradasPrevuelo): FilaPrevuelo {
+  const t = txSandbox().prevuelo
   if (!e.motorVivo) {
-    return {
-      id: 'motor',
-      estado: 'falla',
-      titulo: 'Docker responde',
-      remedio: 'Abre Docker Desktop y espera a que el motor esté en marcha.'
-    }
+    return { id: 'motor', estado: 'falla', titulo: t.motorTitulo, remedio: t.motorRemedio }
   } else if (e.tipoContenedores === 'windows') {
-    return {
-      id: 'motor',
-      estado: 'falla',
-      titulo: 'Docker ejecuta contenedores Linux',
-      remedio:
-        'Docker está en modo de contenedores Windows, y la red del anfitrión sólo existe para contenedores Linux. Cámbialo desde el icono de Docker en la bandeja del sistema.'
-    }
+    return { id: 'motor', estado: 'falla', titulo: t.linuxTitulo, remedio: t.linuxRemedio }
   } else {
-    return { id: 'motor', estado: 'ok', titulo: 'Docker responde y ejecuta contenedores Linux' }
+    return { id: 'motor', estado: 'ok', titulo: t.motorOk }
   }
 }
 
 /** 2) Versión: solo se afirma cuando se reconoce Docker Desktop. */
 function filaVersion(e: EntradasPrevuelo): FilaPrevuelo {
+  const t = txSandbox().prevuelo
   const v = versionDockerDesktop(e.nombrePlataformaDocker)
+  const titulo = t.versionTitulo(VERSION_MINIMA.mayor, VERSION_MINIMA.menor)
   if (v === null) {
-    return {
-      id: 'version',
-      estado: 'desconocido',
-      titulo: `Docker Desktop ${VERSION_MINIMA.mayor}.${VERSION_MINIMA.menor} o posterior`,
-      remedio:
-        'No se reconoció Docker Desktop (puede ser Docker Engine u otra distribución). Lo que decide es la comprobación del tráfico, más abajo.'
-    }
+    return { id: 'version', estado: 'desconocido', titulo, remedio: t.versionDesconocida }
   } else if (v.mayor < VERSION_MINIMA.mayor || (v.mayor === VERSION_MINIMA.mayor && v.menor < VERSION_MINIMA.menor)) {
     return {
       id: 'version',
       estado: 'falla',
-      titulo: `Docker Desktop ${VERSION_MINIMA.mayor}.${VERSION_MINIMA.menor} o posterior`,
-      remedio: `Tienes la ${v.mayor}.${v.menor}. La red del anfitrión llegó a Docker Desktop en la ${VERSION_MINIMA.mayor}.${VERSION_MINIMA.menor}; actualiza Docker Desktop.`
+      titulo,
+      remedio: t.versionVieja(v.mayor, v.menor, VERSION_MINIMA.mayor, VERSION_MINIMA.menor)
     }
   } else {
-    return { id: 'version', estado: 'ok', titulo: `Docker Desktop ${v.mayor}.${v.menor}` }
+    return { id: 'version', estado: 'ok', titulo: t.versionOk(v.mayor, v.menor) }
   }
 }
 
 /** 3) La casilla: PISTA, nunca veredicto. */
 function filaAjuste(e: EntradasPrevuelo): FilaPrevuelo {
+  const t = txSandbox().prevuelo
   if (e.hostNetworking === null) {
-    return {
-      id: 'ajuste',
-      estado: 'desconocido',
-      titulo: '«Enable host networking» en Docker Desktop',
-      remedio:
-        'No se pudo leer la configuración de Docker Desktop. Lo que decide es la comprobación del tráfico, más abajo.'
-    }
+    return { id: 'ajuste', estado: 'desconocido', titulo: t.ajusteTitulo, remedio: t.ajusteDesconocido }
   } else if (!e.hostNetworking) {
-    return {
-      id: 'ajuste',
-      estado: 'falla',
-      titulo: '«Enable host networking» en Docker Desktop',
-      remedio:
-        'Está desactivado, y viene así de fábrica. Actívalo en Docker Desktop › Settings › Resources › Network y pulsa «Apply and restart».'
-    }
+    return { id: 'ajuste', estado: 'falla', titulo: t.ajusteTitulo, remedio: t.ajusteApagado }
   } else {
-    return { id: 'ajuste', estado: 'ok', titulo: '«Enable host networking» activado' }
+    return { id: 'ajuste', estado: 'ok', titulo: t.ajusteOk }
   }
 }
 
 /** 4) Enhanced Container Isolation: anula la función aunque la casilla esté marcada. */
 function filaAislamiento(e: EntradasPrevuelo, tuEquipo: string): FilaPrevuelo {
+  const t = txSandbox().prevuelo
   if (e.aislamientoReforzado === null) {
-    return {
-      id: 'aislamiento',
-      estado: 'desconocido',
-      titulo: '«Enhanced Container Isolation» desactivado',
-      remedio: 'No se pudo leer la configuración de Docker Desktop.'
-    }
+    return { id: 'aislamiento', estado: 'desconocido', titulo: t.aislamientoTitulo, remedio: t.aislamientoDesconocido }
   } else if (e.aislamientoReforzado) {
-    return {
-      id: 'aislamiento',
-      estado: 'falla',
-      titulo: '«Enhanced Container Isolation» desactivado',
-      remedio: `Está activado. Aislar el contenedor de ${tuEquipo} y darle su red son lo contrario, y Docker no deja hacer las dos cosas a la vez: desmárcalo en Docker Desktop › Settings › General. Si tu organización lo impone por política, este modo no está disponible aquí.`
-    }
+    return { id: 'aislamiento', estado: 'falla', titulo: t.aislamientoTitulo, remedio: t.aislamientoActivo(tuEquipo) }
   } else {
-    return { id: 'aislamiento', estado: 'ok', titulo: '«Enhanced Container Isolation» desactivado' }
+    return { id: 'aislamiento', estado: 'ok', titulo: t.aislamientoTitulo }
   }
 }
 
 /** 5) LA FILA QUE DECIDE: las cuatro anteriores explican; ésta mide. */
 function filaTrafico(e: EntradasPrevuelo, plataforma: Plataforma, tuEquipo: string): FilaPrevuelo {
+  const t = txSandbox().prevuelo
+  const titulo = t.traficoTitulo(tuEquipo)
   if (e.traficoLlega === null) {
-    return {
-      id: 'trafico',
-      estado: 'desconocido',
-      titulo: `El tráfico llega de verdad a ${tuEquipo}`,
-      remedio: 'No se pudo completar la comprobación.'
-    }
+    return { id: 'trafico', estado: 'desconocido', titulo, remedio: t.traficoDesconocido }
   } else if (!e.traficoLlega) {
     return {
       id: 'trafico',
       estado: 'falla',
-      titulo: `El tráfico llega de verdad a ${tuEquipo}`,
-      remedio:
-        plataforma === 'windows'
-          ? `El puerto de prueba no llegó a ${tuEquipo}. Si actualizaste WSL hace poco, Docker documenta una incompatibilidad de esta función con los kernels recientes de WSL 2: prueba «wsl --update --rollback» y reinicia Docker Desktop.`
-          : `El puerto de prueba no llegó a ${tuEquipo}. Reinicia Docker Desktop después de aplicar el ajuste de red; si sigue igual, este modo no está operativo en esta máquina y el perfil funcionará mejor en red aislada.`
+      titulo,
+      remedio: plataforma === 'windows' ? t.traficoWindows(tuEquipo) : t.traficoOtra(tuEquipo)
     }
   } else {
-    return { id: 'trafico', estado: 'ok', titulo: `El tráfico llega de verdad a ${tuEquipo}` }
+    return { id: 'trafico', estado: 'ok', titulo }
   }
 }
 
@@ -258,11 +219,7 @@ function filaTrafico(e: EntradasPrevuelo, plataforma: Plataforma, tuEquipo: stri
  */
 export function notaEgress(plataforma: Plataforma, modo: 'nat' | 'mirrored' | null): string | null {
   if (plataforma !== 'windows') return null
-  if (modo === 'mirrored') {
-    return 'WSL está en modo espejo, así que los contenedores de todos los perfiles salen por la VPN que tengas activa. No depende de esta opción.'
-  }
-  if (modo === 'nat') {
-    return 'WSL está en modo NAT: los contenedores NO siguen a la VPN que tengas activa. Eso es independiente de esta opción y se arregla en %USERPROFILE%\\.wslconfig con networkingMode=mirrored (y luego «wsl --shutdown»).'
-  }
+  if (modo === 'mirrored') return txSandbox().prevuelo.egressEspejo
+  if (modo === 'nat') return txSandbox().prevuelo.egressNat
   return null
 }

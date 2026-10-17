@@ -7,20 +7,22 @@
 // Decisiones: docs/decisiones/bd/ui-arbol-filas-y-carga.md
 // =============================================================================
 
-import { ALIAS_MAX, NOMBRE_ENTORNO, esEntorno } from '../../../../shared/db-ipc.ts'
+import { ALIAS_MAX, esEntorno } from '../../../../shared/db-ipc.ts'
+import { nombreEntorno } from './textosEntorno.ts'
 import { descriptor, destinoLegible, etiquetaMotor, pideUsuarioYClave, usaOpcional } from '../../../../shared/motores/index.ts'
 import { dialectoDeMotor } from '../../../../shared/sql/dialectosSql.ts'
 import { citarSiHaceFalta, nombreCalificado } from '../../../../shared/sql/identificadoresSql.ts'
 import { etiquetaBaseClaves } from './arbolClaves.ts'
 import { cargaDeConexion, claveBd, conexionDeClave, partesDetalle } from './arbolBd.ts'
 import { ordenarEsquemas } from './arbolBdReglas.ts'
+import { txFilasArbol } from './textosFilasArbol.ts'
 import type { CargaBd, FilaBd, FilaObjeto, FilaPlaceholder } from './arbolBd.ts'
 import type { FilaArbol } from './filasArbolBdAjenas.ts'
 import type { DbEsquema, DbObjeto, DbParteDetalle, DbRefObjeto, DbTipoObjeto } from '../../../../shared/db-explorador-ipc.ts'
 import type { DbConnection, DbEsquemasVisibles, DriverRequerido } from '../../../../shared/db-ipc.ts'
 
 export {
-  MOTIVO_DESCONECTAR_SIN_SELECCION,
+  motivoDesconectarSinSeleccion,
   accionDesconectarCabecera,
   avisoRevertidas,
   estadoSesionConexion,
@@ -35,8 +37,8 @@ export {
 } from './filasArbolBdSesiones.ts'
 export { listaNatural, textoEliminarConexion } from './filasArbolBdTextos.ts'
 export {
-  TEXTO_AJENA,
-  TEXTO_AJENA_FORMA,
+  textoAjenaMotor,
+  textoAjenaForma,
   accionTeclaArbol,
   accionesDeAjena,
   ajenasMontadasPopover,
@@ -55,12 +57,12 @@ export {
   type FilaArbol
 } from './filasArbolBdAjenas.ts'
 export {
-  MOTIVO_FORMATO_AJENO,
-  NOTA_FORMATO_AJENO,
-  NOTA_MONTAJE_FORMATO_AJENO,
-  PISTA_SOLO_AJENAS,
-  TITULO_FORMATO_AJENO,
-  TITULO_SOLO_AJENAS,
+  motivoFormatoAjeno,
+  notaFormatoAjeno,
+  notaMontajeFormatoAjeno,
+  pistaSoloAjenas,
+  tituloFormatoAjeno,
+  tituloSoloAjenas,
   motivoSinConsola,
   motivosCabeceraArbol,
   textoVacioMontaje,
@@ -82,29 +84,10 @@ export function mensajeDeError(err: unknown): string {
 // --- Etiquetas --------------------------------------------------------------------
 
 /** Nombre de la carpeta de cada tipo, en minúsculas y plural. */
-export const ETIQUETA_CARPETA: Record<DbTipoObjeto, string> = {
-  tabla: 'tablas',
-  vista: 'vistas',
-  vistaMaterializada: 'vistas materializadas',
-  tablaForanea: 'tablas foráneas',
-  tablaVirtual: 'tablas virtuales',
-  rutina: 'rutinas',
-  paquete: 'paquetes',
-  secuencia: 'secuencias',
-  sinonimo: 'sinónimos',
-  tipoObjeto: 'tipos de objeto',
-  tipoColeccion: 'tipos colección',
-  tipo: 'tipos',
-  disparador: 'disparadores',
-  evento: 'eventos'
-}
+export const etiquetasCarpeta = (): Record<DbTipoObjeto, string> => txFilasArbol().carpeta
 
 /** Nombre de cada carpeta de detalle de una tabla. */
-export const ETIQUETA_PARTE: Record<DbParteDetalle, string> = {
-  columnas: 'columnas',
-  indices: 'índices',
-  restricciones: 'restricciones'
-}
+export const etiquetasParte = (): Record<DbParteDetalle, string> => txFilasArbol().parte
 
 // --- Conexión -----------------------------------------------------------------------
 
@@ -121,10 +104,11 @@ const NOTAS_TOOLTIP_MAX = 600
  * El entorno va con PALABRAS: la franja y el chip son color, y el color solo no es accesible.
  */
 export function tooltipConexion(c: DbConnection): string {
+  const t = txFilasArbol()
   const lineas = [c.alias.slice(0, ALIAS_MAX), `${etiquetaMotor(c.motor)} · ${destinoConexion(c)}`]
-  if (esEntorno(c.entorno)) lineas.push(`Entorno: ${NOMBRE_ENTORNO[c.entorno]}`)
+  if (esEntorno(c.entorno)) lineas.push(`${t.entorno}${nombreEntorno(c.entorno)}`)
   // La casilla es de los AGENTES: lo dice, para que nadie la lea como un candado suyo.
-  if (c.readonly) lineas.push('Solo lectura para los agentes')
+  if (c.readonly) lineas.push(t.soloLecturaAgentes)
   const notas = (c.notas ?? '').trim()
   if (notas !== '') {
     lineas.push('')
@@ -139,7 +123,7 @@ export function tooltipConexion(c: DbConnection): string {
  * entornos no se nombran.
  */
 export function aliasParaConfirmar(c: Pick<DbConnection, 'alias' | 'entorno'>): string {
-  return c.entorno === 'produccion' ? `${c.alias} (producción)` : c.alias
+  return c.entorno === 'produccion' ? `${c.alias} (${txFilasArbol().produccionEntreParentesis})` : c.alias
 }
 
 /**
@@ -150,15 +134,10 @@ export function aliasParaConfirmar(c: Pick<DbConnection, 'alias' | 'entorno'>): 
 export function avisoSecreto(c: DbConnection, almacen: string): string | null {
   // Un motor sin credenciales (SQLite) no guarda contraseña: no hay nada que avisar.
   if (!pideUsuarioYClave(descriptor(c.motor))) return null
-  if (c.secretoIlegible) {
-    return (
-      'La contraseña guardada no se puede descifrar en este equipo. Se cifró con ' +
-      `${almacen}, que la ata al usuario y a la máquina donde se guardó: vuelve a escribirla.`
-    )
-  }
+  if (c.secretoIlegible) return txFilasArbol().secretoIlegible(almacen)
   // Con el usuario OPCIONAL (MongoDB, Redis) la contraseña también lo es: un servidor sin
   // autenticación es una conexión bien dada de alta. Misma regla que `secretoOpcional` de `tdb`.
-  if (!c.tieneSecreto) return usaOpcional(descriptor(c.motor), 'user') ? null : 'Sin contraseña guardada.'
+  if (!c.tieneSecreto) return usaOpcional(descriptor(c.motor), 'user') ? null : txFilasArbol().sinContrasena
   return null
 }
 
@@ -166,26 +145,24 @@ export function avisoSecreto(c: DbConnection, almacen: string): string | null {
  * Subtipos que el catálogo da para marcar objetos INTERNOS del motor (las tablas de sombra de
  * una virtual y las `sqlite_*`): se atenúan como un esquema del sistema y el tooltip dice por qué.
  */
-const SUBTIPO_INTERNO: Readonly<Record<string, string>> = {
-  sombra: 'Tabla interna de una tabla virtual: la mantiene el motor, no se edita.',
-  sistema: 'Tabla interna del motor.'
-}
+const SUBTIPOS_INTERNOS: readonly string[] = ['sombra', 'sistema']
 
 /** Subtipos con una explicación legible (el resto se enseña tal cual). */
-const SUBTIPO_LEGIBLE: Readonly<Record<string, string>> = {
-  ...SUBTIPO_INTERNO,
-  sinRowid: 'WITHOUT ROWID: se identifica por su clave primaria.'
+function subtiposLegibles(): Readonly<Record<string, string>> {
+  const t = txFilasArbol()
+  return { sombra: t.subtipoSombra, sistema: t.subtipoSistema, sinRowid: t.subtipoSinRowid }
 }
 
 /** ¿Es un objeto interno del motor (se pinta atenuado)? */
 export function objetoInterno(o: Pick<DbObjeto, 'subtipo'>): boolean {
-  return o.subtipo !== undefined && Object.prototype.hasOwnProperty.call(SUBTIPO_INTERNO, o.subtipo)
+  return o.subtipo !== undefined && SUBTIPOS_INTERNOS.includes(o.subtipo)
 }
 
 /** La línea del subtipo en el tooltip de un objeto, o null si no tiene. */
 export function textoSubtipo(o: Pick<DbObjeto, 'subtipo'>): string | null {
   if (!o.subtipo) return null
-  return Object.prototype.hasOwnProperty.call(SUBTIPO_LEGIBLE, o.subtipo) ? SUBTIPO_LEGIBLE[o.subtipo] : o.subtipo
+  const legibles = subtiposLegibles()
+  return Object.prototype.hasOwnProperty.call(legibles, o.subtipo) ? legibles[o.subtipo] : o.subtipo
 }
 
 /**
@@ -269,14 +246,15 @@ export type AccionError =
  */
 export function accionDeError(fila: FilaPlaceholder, conexion: DbConnection | undefined): AccionError | null {
   if (fila.variante !== 'error') return null
+  const t = txFilasArbol()
   const conexionId = conexion ? conexion.id : null
   if (fila.requiereDriver) {
-    return { tipo: 'instalarCliente', etiqueta: 'Instalar cliente…', conexionId, requiereDriver: fila.requiereDriver }
+    return { tipo: 'instalarCliente', etiqueta: t.instalarCliente, conexionId, requiereDriver: fila.requiereDriver }
   }
   if (conexion && (fila.motivo === 'sinSecreto' || conexion.secretoIlegible === true)) {
-    return { tipo: 'editarConexion', etiqueta: 'Vuelve a escribir la contraseña', conexionId: conexion.id }
+    return { tipo: 'editarConexion', etiqueta: t.reescribirContrasena, conexionId: conexion.id }
   }
-  if (fila.reintentar) return { tipo: 'reintentar', etiqueta: 'Reintentar', carga: fila.reintentar }
+  if (fila.reintentar) return { tipo: 'reintentar', etiqueta: t.reintentar, carga: fila.reintentar }
   return null
 }
 

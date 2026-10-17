@@ -3,15 +3,16 @@
 // esquema), las columnas de `information_schema` para editar la rejilla, la UNIQUE NOT NULL de una
 // tabla sin PK, `innodb_lock_wait_timeout` de «Enviar», `UNHEX` de una clave binaria y el EXPLAIN
 // FORMAT=JSON. No es el trabajador (`src/tdb/sesionMysql.cjs`). No importa `./index.ts`.
-// Decisiones: docs/decisiones/bd/motores-sesion-mysql.md
+// Decisiones: docs/decisiones/bd/trabajador-mysql-sesion.md
 // =============================================================================
 
 import type { DbPlan } from '../../../../shared/db-explorador-ipc.ts'
 import type { ColumnaEdicion } from '../edicionRejilla.ts'
 import { TOPE_PLAN_PG } from '../limites.ts'
-import { AVISO_PLAN_RECORTADO, planDesdeJsonMysql, PREFIJO_EXPLICAR_MYSQL, sqlExplicarMysql } from '../planSql.ts'
+import { avisoPlanRecortado, planDesdeJsonMysql, PREFIJO_EXPLICAR_MYSQL, sqlExplicarMysql } from '../planSql.ts'
 import type { BindEntradaLob, ResultadoTrabajador } from '../protocoloTrabajador.ts'
 import { noDisponible, texto } from './filasCatalogo.ts'
+import { txMotores } from './textosMotores.ts'
 import { citarMysql } from './mapeoMysql.ts'
 import type { ContextoExplicar, MarcasTablaEdicion, SesionExplorador } from './sesion.ts'
 import { my } from './sqlMysql.ts'
@@ -34,10 +35,11 @@ function columnaMysql(f: FilaCatalogo): ColumnaEdicion {
   const generada = texto(f[4]).trim() !== '' || /\bGENERATED\b|\bVIRTUAL\b|\bPERSISTENT\b|\bSTORED\b/i.test(texto(f[3]))
   const binaria = BINARIOS.has(base)
   let noEditable: string | null = null
-  if (generada) noEditable = 'Columna generada: la calcula el servidor.'
-  else if (binaria) noEditable = 'Binaria: no se edita como texto.'
-  else if (base === 'bit') noEditable = "BIT: se edita desde la consola (b'0101')."
-  else if (ESPACIALES.has(base)) noEditable = 'Espacial: se edita desde la consola (ST_GeomFromText).'
+  const t = txMotores()
+  if (generada) noEditable = t.columnaGeneradaServidor
+  else if (binaria) noEditable = t.binaria
+  else if (base === 'bit') noEditable = t.bitConsola
+  else if (ESPACIALES.has(base)) noEditable = t.espacial
   return { nombre, tipo, noEditable, binaria, lob: null, nacional: false, comparable: null }
 }
 
@@ -65,21 +67,21 @@ async function explicarMysql(ctx: ContextoExplicar): Promise<DbPlan> {
 
 /** El plan (nodos, texto y tiempos) a partir de lo que devolvió el EXPLAIN. */
 function planDeResultado(ctx: ContextoExplicar, r: ResultadoTrabajador): DbPlan {
-  if (r.tipo !== 'filas') throw ctx.error('interno', 'El servidor no devolvió el plan.')
-  if (r.recortes && r.recortes.length > 0) throw ctx.error('limite', 'El plan es demasiado grande para enseñarlo.')
+  if (r.tipo !== 'filas') throw ctx.error('interno', txMotores().planSinFilas)
+  if (r.recortes && r.recortes.length > 0) throw ctx.error('limite', txMotores().planGrande)
   const celda = (JSON.parse(r.filasJson) as unknown[][])[0]?.[0]
   let plan: ReturnType<typeof planDesdeJsonMysql>
   try {
     plan = planDesdeJsonMysql(typeof celda === 'string' ? celda : JSON.stringify(celda))
   } catch {
-    throw ctx.error('interno', 'El servidor devolvió un plan que Tessera no entiende.')
+    throw ctx.error('interno', txMotores().planNoEntendido)
   }
   const valor: DbPlan = {
     nodos: plan.nodos,
     texto: plan.texto,
     tiempos: { totalMs: Date.now() - ctx.t0, ejecucionMs: r.msEjecucion, lecturaMs: r.msLectura }
   }
-  if (plan.recortado) valor.avisos = [AVISO_PLAN_RECORTADO]
+  if (plan.recortado) valor.avisos = [avisoPlanRecortado()]
   return valor
 }
 
@@ -103,7 +105,7 @@ export const SESION_MYSQL: SesionExplorador = {
   },
 
   mensajeEsquemaNoAplicado(esquema: string): string {
-    return `No se puede usar la base ${esquema} en esta conexión: no existe o no tienes permiso sobre ella.`
+    return txMotores().baseNoAplicadaMysql(esquema)
   },
 
   // MySQL no guarda errores de compilación: un CREATE con errores falla en el acto.

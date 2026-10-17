@@ -29,17 +29,20 @@ import { CampoSecretoSsh } from './CampoSecretoSsh'
 import { SeccionSaltoTunelesSsh } from './CamposSaltoTunelesSsh'
 import { leerOpenSsh, seguirLectura } from './importacionSsh'
 import { ResultadoPruebaSsh } from './ResultadoPruebaSsh'
+import { txSsh } from './textos.ts'
+import { txFormularioSsh } from './textosFormulario.ts'
 import { useDialogoConexionSsh, type OpcionesDialogoConexionSsh, type VistaDialogoConexionSsh } from './useDialogoConexionSsh'
 
 /** El diálogo anidado «Nuevo grupo…»: el error del main se enseña dentro de él, tal cual. */
 function DialogoGrupoNuevo({ v }: { v: VistaDialogoConexionSsh }): React.JSX.Element {
+  const t = txFormularioSsh()
   return (
     // El velo y la tarjeta de este diálogo son del anidado: su `mousedown` no sube al velo del de la conexión.
     <div className="ssh-dialogo-anidado" onMouseDown={(e) => e.stopPropagation()}>
       <PromptDialog
-        title="Nuevo grupo"
-        label="Nombre del grupo"
-        confirmLabel="Crear"
+        title={txSsh().nuevoGrupo}
+        label={t.nombreGrupo}
+        confirmLabel={t.crear}
         error={v.grupoNuevo.error}
         onConfirm={(nombre) => void v.crearGrupo(nombre)}
         onCancel={v.cerrarGrupoNuevo}
@@ -50,16 +53,14 @@ function DialogoGrupoNuevo({ v }: { v: VistaDialogoConexionSsh }): React.JSX.Ele
 
 /** La confirmación anidada de «Olvidar la huella guardada…»: acepta la que presente el servidor y vuelve a probar. */
 function ConfirmarOlvidoHuella({ v }: { v: VistaDialogoConexionSsh }): React.JSX.Element {
+  const t = txFormularioSsh()
   return (
     <div className="ssh-dialogo-anidado" onMouseDown={(e) => e.stopPropagation()}>
       <ConfirmDialog
         danger
-        title="Olvidar la huella guardada"
-        message={
-          'La próxima conexión aceptará la huella que presente el servidor, sea la que sea.\n' +
-          'Hazlo solo si sabes por qué cambió (lo reinstalaron, cambió de equipo…) o si la has comprobado por otra vía.'
-        }
-        confirmLabel="Olvidar y volver a probar"
+        title={t.olvidarHuellaTitulo}
+        message={`${t.olvidarHuellaMensaje1}\n${t.olvidarHuellaMensaje2}`}
+        confirmLabel={t.olvidarYProbar}
         onConfirm={() => void v.olvidarHuellaYProbar()}
         onCancel={v.cancelarOlvidoHuella}
       />
@@ -117,7 +118,7 @@ function useImportarEnFormulario(o: OpcionesDialogoConexionSsh, editar: VistaDia
     setLeyendo(false)
     if (l === null) return
     if (cambiosAhora.current) {
-      setNota('No se rellenó: escribiste en el formulario mientras se leía el archivo. Vacíalo y vuelve a importar.')
+      setNota(txFormularioSsh().noSeRelleno)
       return
     }
     seguirLectura(o.perfilId, l, (i) => {

@@ -18,8 +18,12 @@ export function registrarIpcFallos(deps: { ipc: Pick<IpcMain, 'on'> }): void {
   })
 }
 
-/** `APP_INFO.GET`: versión y motores; con `sandbox` el renderer no tiene `process.versions`. */
-export function registrarIpcAcercaDe(deps: { ipc: Pick<IpcMain, 'handle'> }): void {
+/**
+ * `APP_INFO.GET`: versión y motores; con `sandbox` el renderer no tiene `process.versions`.
+ * `APP_INFO.REINICIAR`: el cierre ordenado de siempre, que vuelve a abrir Tessera al salir.
+ */
+export function registrarIpcAcercaDe(deps: { ipc: Pick<IpcMain, 'handle'>; reiniciar: () => void }): void {
+  deps.ipc.handle(APP_INFO_CHANNELS.REINICIAR, () => deps.reiniciar())
   deps.ipc.handle(
     APP_INFO_CHANNELS.GET,
     (): AppInfo => ({

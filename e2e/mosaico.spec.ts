@@ -743,4 +743,34 @@ test.describe('mosaico de agentes', () => {
     await win.keyboard.press(`${MOD}+Shift+KeyM`)
     await expect(win.locator('.shell.modo-mosaico')).toHaveCount(0)
   })
+
+  // El agente de datos no es una pestaña: vive en una carpeta propia del perfil y se abre desde la
+  // vista de bases de datos. En el mosaico es un proyecto más, con el nombre de esa vista, y meterlo
+  // en una casilla no abre otra sesión: es el MISMO pane.
+  test('el agente de datos entra en el mosaico como «Bases de datos» e «Ir a» vuelve a esa vista', async () => {
+    const win = s.win
+    const rielDatos = win.locator('.activity-item[title="Conexiones a bases de datos"]')
+    await rielDatos.click()
+    const antes = arranques(m.log).length
+    await win.locator('.status-bar-btn[title^="Mostrar el agente de datos"]').click()
+    await expect.poll(() => arranques(m.log).length, { timeout: 60_000 }).toBe(antes + 1)
+    const pane = win.locator('.right-panel > .agent-pane:not(.hidden)')
+    await expect(pane).toHaveCount(1)
+    await pane.evaluate((el) => el.setAttribute('data-e2e-datos', '1'))
+
+    await win.keyboard.press(`${MOD}+Shift+KeyM`)
+    await expect(win.locator('.shell.modo-mosaico')).toHaveCount(1)
+    await ponerCasilla(win, 'Bases de datos')
+    const casilla = win.locator('.right-panel.cc-mosaico > .agent-pane[data-e2e-datos]')
+    await expect(casilla, 'su casilla es el pane que ya estaba abierto').not.toHaveClass(/\bhidden\b/)
+    await expect(casilla).toHaveAttribute('aria-label', / · Bases de datos · /)
+    expect(arranques(m.log).length, 'meterlo en el mosaico no abre otra sesión').toBe(antes + 1)
+
+    await casilla.hover()
+    await casilla.locator('button[aria-label="Ir a bases de datos"]').click()
+    await expect(win.locator('.shell.modo-mosaico')).toHaveCount(0)
+    await expect(rielDatos).toHaveClass(/\bactive\b/)
+    await expect(win.locator('.agent-pane[data-e2e-datos]')).not.toHaveClass(/\bhidden\b/)
+    await win.locator('.activity-item[title="Archivos"]').click()
+  })
 })

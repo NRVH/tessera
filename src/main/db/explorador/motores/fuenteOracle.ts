@@ -6,7 +6,8 @@
 
 import type { DbFuente, DbRefObjeto, DbTipoObjeto } from '../../../../shared/db-explorador-ipc.ts'
 import { citar } from '../../../../shared/sql/identificadoresSql.ts'
-import { AVISO_SIN_FUENTE, noDisponible, texto, textoOpcional } from './filasCatalogo.ts'
+import { avisoSinFuente, noDisponible, queFalta, texto, textoOpcional } from './filasCatalogo.ts'
+import { txMotores } from './textosMotores.ts'
 import { ora } from './sqlOracle.ts'
 import type { ConsultaCatalogo, DialectoCatalogo, FilaCatalogo } from './tipos.ts'
 
@@ -19,10 +20,6 @@ const TIPOS_FUENTE_ORACLE: Partial<Record<DbTipoObjeto, [string, string]>> = {
   rutina: ['PROCEDURE', 'FUNCTION'],
   disparador: ['TRIGGER', 'TRIGGER']
 }
-
-const AVISO_SIN_CUERPO =
-  'No se ve el cuerpo: o el paquete no tiene, o ALL_SOURCE solo lo enseña a su dueño y a quien tenga privilegios de depuración.'
-const AVISO_WRAPPED = 'Código ofuscado (wrapped): Oracle no guarda el fuente legible.'
 
 function primeraLinea(t: string): string {
   const i = t.indexOf('\n')
@@ -55,7 +52,7 @@ export function sqlFuente(d: DialectoCatalogo, ref: DbRefObjeto): ConsultaCatalo
       obj: ref.nombre
     })
   }
-  return noDisponible(d.motor, `fuente de ${ref.tipo}`)
+  return noDisponible(d.motor, queFalta.fuenteDe(ref.tipo))
 }
 
 /** Las líneas de ALL_SOURCE agrupadas por `type`, y los tipos en el orden en que aparecen. */
@@ -84,13 +81,14 @@ function mapearFuentePlsql(ref: DbRefObjeto, filas: readonly FilaCatalogo[]): Db
   const { orden, lineas } = lineasPorTipo(filas)
   const avisos: string[] = []
   const partes: DbFuente['partes'] = []
+  const ofuscado = txMotores().codigoOfuscado
   for (const tipo of orden) {
     const cuerpo = (lineas.get(tipo) ?? []).join('').replace(/^\s+/, '')
-    if (/\swrapped\b/i.test(primeraLinea(cuerpo)) && avisos.indexOf(AVISO_WRAPPED) < 0) avisos.push(AVISO_WRAPPED)
+    if (/\swrapped\b/i.test(primeraLinea(cuerpo)) && avisos.indexOf(ofuscado) < 0) avisos.push(ofuscado)
     partes.push({ titulo: tituloDeParte(tipo), texto: 'CREATE OR REPLACE ' + cuerpo })
   }
-  if (partes.length === 0) avisos.push(AVISO_SIN_FUENTE)
-  else if (ref.tipo === 'paquete' && !lineas.has('PACKAGE BODY')) avisos.push(AVISO_SIN_CUERPO)
+  if (partes.length === 0) avisos.push(avisoSinFuente())
+  else if (ref.tipo === 'paquete' && !lineas.has('PACKAGE BODY')) avisos.push(txMotores().sinCuerpo)
   const fuente: DbFuente = { partes, origen: 'ALL_SOURCE' }
   if (avisos.length > 0) fuente.aviso = avisos.join(' ')
   return fuente
@@ -102,7 +100,7 @@ function mapearFuenteVista(ref: DbRefObjeto, filas: readonly FilaCatalogo[]): Db
   const origen = ref.tipo === 'vista' ? 'ALL_VIEWS' : 'ALL_MVIEWS'
   const prefijo =
     ref.tipo === 'vista' ? `CREATE OR REPLACE VIEW ${cabecera} AS\n` : `CREATE MATERIALIZED VIEW ${cabecera} AS\n`
-  if (valor === undefined) return { partes: [], origen, aviso: AVISO_SIN_FUENTE }
+  if (valor === undefined) return { partes: [], origen, aviso: avisoSinFuente() }
   return { partes: [{ titulo: 'Definición', texto: prefijo + valor }], origen }
 }
 

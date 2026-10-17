@@ -10,8 +10,10 @@
 import type { editor, IDisposable, IMarkdownString, MarkerSeverity } from 'monaco-editor'
 import type { Plataforma } from '../../../../../shared/plataforma.ts'
 import { ensureMonaco } from '../../../comun/monacoSetup.ts'
+import { agregarAccionesConMenu } from '../../../comun/menuEditor.ts'
 import { marcaDe, type Lote } from './lote.ts'
 import type { MarcaCompilacion } from './marcasConsola.ts'
+import { txPane } from './textosPane.ts'
 import { cambioTocaRango } from './vivoConsola.ts'
 
 export { ValidadorAvisos } from './validadorAvisos.ts'
@@ -294,7 +296,7 @@ export class MarcasLoteMonaco {
             c.mensaje,
             // El `code` del marcador lleva la línea y la columna DEL SERVIDOR: es lo
             // que el usuario verá en la Salida junto a ese mismo mensaje.
-            `línea ${c.linea}, col. ${c.columna}`,
+            txPane().marcadorLinea(c.linea, c.columna),
             c.severidad === 'aviso' ? monaco.MarkerSeverity.Warning : monaco.MarkerSeverity.Error
           )
         )
@@ -371,31 +373,32 @@ export function registrarAccionesConsola(
 ): IDisposable[] {
   const { KeyMod, KeyCode } = ensureMonaco()
   const mod = KeyMod.CtrlCmd
+  const t = txPane()
   const acciones: editor.IActionDescriptor[] = [
-    { id: 'tessera.consola.ejecutar', label: 'Ejecutar sentencia o selección', keybindings: [mod | KeyCode.Enter], ...enMenu(1), run: () => h.ejecutar() },
+    { id: 'tessera.consola.ejecutar', label: t.accionEjecutar, keybindings: [mod | KeyCode.Enter], ...enMenu(1), run: () => h.ejecutar() },
     {
       id: 'tessera.consola.ejecutarTodo',
-      label: 'Ejecutar todo',
+      label: t.accionEjecutarTodo,
       keybindings: [KeyMod.Alt | KeyCode.KeyX, mod | KeyMod.Shift | KeyCode.Enter],
       ...enMenu(2),
       run: () => h.ejecutarTodo()
     },
     {
       id: 'tessera.consola.detener',
-      label: 'Detener',
+      label: t.accionDetener,
       keybindings: [plataforma === 'mac' ? mod | KeyCode.Period : mod | KeyCode.F2],
       ...enMenu(3),
       run: () => h.detener()
     },
-    { id: 'tessera.consola.commit', label: 'Confirmar (Commit)', keybindings: [mod | KeyMod.Alt | KeyMod.Shift | KeyCode.KeyK], run: () => h.commit() },
-    { id: 'tessera.consola.rollback', label: 'Revertir (Rollback)', keybindings: [mod | KeyMod.Alt | KeyMod.Shift | KeyCode.KeyR], run: () => h.rollback() },
+    { id: 'tessera.consola.commit', label: t.accionCommit, keybindings: [mod | KeyMod.Alt | KeyMod.Shift | KeyCode.KeyK], run: () => h.commit() },
+    { id: 'tessera.consola.rollback', label: t.accionRollback, keybindings: [mod | KeyMod.Alt | KeyMod.Shift | KeyCode.KeyR], run: () => h.rollback() },
     // `explicar`, `historial` y `formatear`: su porqué, y lo que no pisan, junto a
     // `esExplicar` en `util/atajos.ts`.
-    { id: 'tessera.consola.explicar', label: 'Explicar plan', keybindings: [mod | KeyMod.Shift | KeyCode.KeyE], ...enMenu(4), run: () => h.explicar() },
-    { id: 'tessera.consola.historial', label: 'Historial de consultas…', keybindings: [mod | KeyMod.Shift | KeyCode.KeyH], ...enMenu(5), run: () => h.historial() },
+    { id: 'tessera.consola.explicar', label: t.accionExplicar, keybindings: [mod | KeyMod.Shift | KeyCode.KeyE], ...enMenu(4), run: () => h.explicar() },
+    { id: 'tessera.consola.historial', label: t.accionHistorial, keybindings: [mod | KeyMod.Shift | KeyCode.KeyH], ...enMenu(5), run: () => h.historial() },
     {
       id: 'tessera.consola.formatear',
-      label: 'Formatear SQL',
+      label: t.accionFormatear,
       keybindings: [mod | KeyMod.Alt | KeyCode.KeyL],
       // En Mac, ⌥⌘L es también «Buscar en la selección» del buscador, pero solo con el
       // buscador ABIERTO: ahí se le deja. En Windows su acorde es Alt+L, sin Ctrl.
@@ -405,5 +408,5 @@ export function registrarAccionesConsola(
       run: () => h.formatear()
     }
   ]
-  return acciones.map((a) => ed.addAction(a))
+  return agregarAccionesConMenu(ed, acciones)
 }

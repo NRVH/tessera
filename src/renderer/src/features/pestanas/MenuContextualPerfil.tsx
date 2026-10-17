@@ -7,6 +7,7 @@
 import { IconoAjustes, IconoDescartar, IconoEliminar, IconoRed, IconoRenombrar } from '../../comun/iconosMenu'
 import { ContextMenu, SEP } from '../../comun/ContextMenu'
 import type { Profile } from '../../../../main/profiles/types'
+import { txPestanas } from './textos.ts'
 
 interface MenuContextualPerfilProps {
   x: number
@@ -38,21 +39,22 @@ export function MenuContextualPerfil({
   onHibernate,
   onDelete
 }: MenuContextualPerfilProps): React.JSX.Element {
+  const t = txPestanas().menu
   return (
     <ContextMenu
       x={x}
       y={y}
       onClose={onClose}
       items={[
-        { icon: <IconoRenombrar />, label: 'Renombrar', onClick: () => onRename(profile) },
-        { icon: <IconoAjustes />, label: 'Cambiar color', onClick: () => onColor(profile) },
+        { icon: <IconoRenombrar />, label: t.renombrar, onClick: () => onRename(profile) },
+        { icon: <IconoAjustes />, label: t.cambiarColor, onClick: () => onColor(profile) },
         SEP,
         {
           // Abre un diálogo (los puntos suspensivos lo indican) y el rótulo nombra el modo
           // ACTUAL, que es cierto en las dos plataformas; dónde acaban los puertos lo dice
           // el diálogo, con el nombre del sistema de quien mira.
           icon: <IconoRed />,
-          label: `Red del contenedor: ${profile.sandbox?.redHost === true ? 'anfitrión' : 'aislada'}…`,
+          label: t.red(profile.sandbox?.redHost === true),
           onClick: () => onRed(profile.id)
         },
         SEP,
@@ -60,13 +62,13 @@ export function MenuContextualPerfil({
           // Hibernar libera RAM sin cerrar la app. Solo lleva "…" si hay un agente trabajando,
           // porque entonces abre una confirmación (se pierde su turno).
           icon: <IconoDescartar />,
-          label: working ? 'Hibernar perfil…' : 'Hibernar perfil',
+          label: working ? t.hibernarConfirma : t.hibernar,
           onClick: () => onHibernate(profile, working)
         },
         SEP,
         {
           icon: <IconoEliminar />,
-          label: 'Eliminar perfil…',
+          label: t.eliminar,
           onClick: () => onDelete(profile),
           danger: true,
           // No dejar la app sin perfiles: con uno solo, no se puede eliminar.

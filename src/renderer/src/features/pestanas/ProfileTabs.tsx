@@ -10,6 +10,7 @@ import type { ProfileDotState } from './profileDotState'
 import { CapasPerfil } from './CapasPerfil'
 import { PestanaPerfil } from './PestanaPerfil'
 import { ProfileDot } from './ProfileDot'
+import { txPestanas } from './textos.ts'
 import { useBandaPerfiles } from './useBandaPerfiles'
 
 export { ProfileDot }
@@ -42,7 +43,7 @@ export function ProfileTabs(props: ProfileTabsProps): React.JSX.Element {
   const { profiles, activeProfileId, onSelectProfile, dotStates, attention, working, waiting } = props
   const banda = useBandaPerfiles(props)
   return (
-    <div className="tabs-profiles" role="tablist" aria-label="Perfiles">
+    <div className="tabs-profiles" role="tablist" aria-label={txPestanas().perfil.perfiles}>
       {profiles.map((profile) => (
         <PestanaPerfil
           key={profile.id}
@@ -62,8 +63,8 @@ export function ProfileTabs(props: ProfileTabsProps): React.JSX.Element {
       <button
         ref={banda.crear.addBtnRef}
         className="profile-add-btn"
-        title="Agregar perfil"
-        aria-label="Agregar perfil"
+        title={txPestanas().perfil.agregar}
+        aria-label={txPestanas().perfil.agregar}
         onClick={banda.crear.openCreate}
       >
         +

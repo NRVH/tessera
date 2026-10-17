@@ -20,6 +20,7 @@ import { llevaSobre, secretoAGuardar } from '../../shared/topologiaRedis'
 import { writeFileAtomicSync } from '../util/atomicWrite'
 import type { CifradoSecretos } from './adaptadores/cifradoSistema'
 import { remedioSinAlmacen } from './adaptadores/almacenSeguro'
+import { txDb } from './textosDb.ts'
 import { huellaDestinoProbado, type ConexionPersistida } from './conservarAlEditar'
 import { codigoDe, conservarAparte, leerBytesSiExiste } from './controlador/copiaIlegible'
 import {
@@ -50,6 +51,8 @@ import {
   type TipoEntrada
 } from './registroConexiones'
 import { mismoArchivo, nombreArchivoDeRuta } from './rutaArchivoBd'
+import { entradaDesdeCopia, registroParaCopia, type ConexionBdCopia } from './copiaConexiones'
+import { esObjeto } from '../util/valores'
 
 export type { EntradaConexion } from './controlador/validacionConexion'
 
@@ -67,7 +70,7 @@ function copiarEsquemas(v: DbEsquemasVisibles): DbEsquemasVisibles {
  */
 function conocidaEn(reg: Registro, id: string): PersistedConnection {
   const c = conocidas(reg).find((x) => x.id === id)
-  if (!c) throw new Error(`Conexión desconocida: "${id}".`)
+  if (!c) throw new Error(txDb().conexion.desconocida(id))
   return c
 }
 
@@ -219,11 +222,7 @@ export class ConnectionStore {
   private encrypt(plain: string): string {
     if (!this.cifrado.disponible()) {
       // La frase no empieza por el nombre del almacén: sus valores llevan artículo en minúscula.
-      throw new Error(
-        'No se puede guardar la contraseña: ' +
-          `${nombresSistema(plataformaActual()).almacenSecretos} no está disponible. ` +
-          `Tessera nunca la guarda en claro.${remedioSinAlmacen(plataformaActual())}`
-      )
+      throw new Error(txDb().conexion.sinAlmacen(nombresSistema(plataformaActual()).almacenSecretos, remedioSinAlmacen(plataformaActual())))
     }
     return this.cifrado.cifrar(plain).toString('base64')
   }
@@ -367,6 +366,54 @@ export class ConnectionStore {
     return out
   }
 
+  /**
+   * Las conocidas de un perfil para una copia de la configuración, con su contraseña en claro: solo
+   * hacia dentro del main, que las cifra con la frase. `ilegible`: tenía una que aquí no se descifra.
+   */
+  paraCopia(profileId: string): Array<ConexionBdCopia & { ilegible: boolean }> {
+    return this.connections
+      .filter((c) => c.profileId === profileId)
+      .map((c) => {
+        const secreto = this.decrypt(c.secretEnc)
+        return { registro: registroParaCopia(c), secreto, ilegible: !!c.secretEnc && secreto === null }
+      })
+  }
+
+  /** ¿Hay almacén del sistema donde guardar una contraseña? */
+  puedeGuardarSecretos(): boolean {
+    return this.cifrado.disponible()
+  }
+
+  /** ¿Hay en el registro una entrada con ese id, conocida o de un formato que no se entiende? */
+  idOcupado(id: string): boolean {
+    const idDe = (e: (typeof this.reg.entradas)[number]): unknown => (e.tipo === 'conocida' ? e.registro.id : esObjeto(e.crudo) ? e.crudo.id : undefined)
+    return this.reg.entradas.some((e) => idDe(e) === id)
+  }
+
+  /**
+   * Alta de una conexión de una copia con su id, por la misma validación que una a mano; con el id ya
+   * en el registro no se toca nada. Devuelve null si entró, o el motivo si no.
+   */
+  importarDeCopia(raw: unknown, secreto: unknown): string | null {
+    if (this.reg.formatoAjeno) return this.reg.aviso
+    try {
+      const { id, entrada, esquemas, bases } = entradaDesdeCopia(raw)
+      if (this.idOcupado(id)) return 'ya está en este equipo'
+      validarEntrada(entrada, this.guardadas)
+      const record: PersistedConnection = { id, ...camposAGuardar(entrada, this.connections), orden: siguienteOrden(this.reg, entrada.profileId) }
+      if (esquemas) record.esquemas = esquemas
+      if (bases) record.bases = bases
+      // Sin almacén donde guardarla, la conexión entra sin contraseña (quien llama lo avisa).
+      if (typeof secreto === 'string' && secreto !== '' && this.puedeGuardarSecretos()) record.secretEnc = this.encrypt(secreto)
+      this.aplicar((reg) => {
+        reg.entradas.push({ tipo: 'conocida', registro: record, resto: {} })
+      })
+      return null
+    } catch (e) {
+      return e instanceof Error ? e.message : String(e)
+    }
+  }
+
   // --- Mutaciones ------------------------------------------------------------
 
   /** Alta de una conexión, al final de su perfil. Lanza con un mensaje para el usuario si no valida. */
@@ -397,7 +444,7 @@ export class ConnectionStore {
   update(id: string, input: EntradaConexion): DbConnection {
     // Solo una conocida: el id de una ajena da «desconocida» y la ajena no se toca.
     const idx = this.reg.entradas.findIndex((e) => e.tipo === 'conocida' && e.registro.id === id)
-    if (idx < 0) throw new Error(`Conexión desconocida: "${id}".`)
+    if (idx < 0) throw new Error(txDb().conexion.desconocida(id))
     validarEntrada(input, this.guardadas, id)
     const previa = this.reg.entradas[idx] as EntradaConocida
     const nuevo: PersistedConnection = { id, ...camposAGuardar(input, this.connections, id) }
@@ -535,9 +582,9 @@ export class ConnectionStore {
    */
   setEsquemasVisibles(id: string, v: DbEsquemasVisibles): DbConnection {
     const found = this.connections.find((c) => c.id === id)
-    if (!found) throw new Error(`Conexión desconocida: "${id}".`)
+    if (!found) throw new Error(txDb().conexion.desconocida(id))
     const normal = normalizarEsquemasVisibles(v)
-    if (normal === undefined) throw new Error('La selección de esquemas no es válida.')
+    if (normal === undefined) throw new Error(txDb().conexion.seleccionEsquemas)
     if (JSON.stringify(found.esquemas) === JSON.stringify(normal)) return this.toDto(found)
     this.aplicar((reg) => {
       conocidaEn(reg, id).esquemas = normal
@@ -549,9 +596,9 @@ export class ConnectionStore {
   /** Como `setEsquemasVisibles`, para las bases que enseña el nivel «Bases» del árbol. */
   setBasesVisibles(id: string, v: DbEsquemasVisibles): DbConnection {
     const found = this.connections.find((c) => c.id === id)
-    if (!found) throw new Error(`Conexión desconocida: "${id}".`)
+    if (!found) throw new Error(txDb().conexion.desconocida(id))
     const normal = normalizarEsquemasVisibles(v)
-    if (normal === undefined) throw new Error('La selección de bases no es válida.')
+    if (normal === undefined) throw new Error(txDb().conexion.seleccionBases)
     if (JSON.stringify(found.bases) === JSON.stringify(normal)) return this.toDto(found)
     this.aplicar((reg) => {
       conocidaEn(reg, id).bases = normal

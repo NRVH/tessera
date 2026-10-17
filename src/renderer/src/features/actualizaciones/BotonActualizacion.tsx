@@ -13,19 +13,19 @@ import { useAhora } from '../../comun/useAhora'
 import { useCerrarFueraOEscape } from '../../comun/usePopoverBarra'
 import { glifo } from './iconosUpdate'
 import { Popover } from './PopoverActualizacion'
+import { txActualizaciones } from './textos.ts'
 import { TICK_ULTIMO_CHEQUEO_MS } from './textoUpdate'
 import { useCerrarSinContenido, useDescartarAlCerrar, useEstadoUpdate } from './useBotonActualizacion'
 import { decidirVistaUpdate, tieneContenido, type VistaUpdate } from './vistaUpdate'
 
 /** Las noticias que el usuario debe llegar a leer se anuncian también por voz; el resto es ruido. */
 function AnunciosUpdate({ state }: { state: UpdateState }): React.JSX.Element {
+  const t = txActualizaciones().anuncios
   return (
     <span className="solo-lectores" aria-live="polite">
-      {state.avisoAplicada ? `Tessera se actualizó a ${state.avisoAplicada.hasta}.` : ''}
-      {state.status === 'ready' ? `La versión ${state.newVersion} está preparada.` : ''}
-      {state.status === 'available'
-        ? `La versión ${state.newVersion ?? 'nueva'} está disponible para descargar.`
-        : ''}
+      {state.avisoAplicada ? t.actualizada(state.avisoAplicada.hasta) : ''}
+      {state.status === 'ready' ? t.preparada(state.newVersion) : ''}
+      {state.status === 'available' ? t.disponible(state.newVersion ?? t.nueva) : ''}
     </span>
   )
 }

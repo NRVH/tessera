@@ -13,10 +13,11 @@ import type {
   DbRespuesta
 } from '../../../../shared/db-explorador-ipc.ts'
 import { MENSAJES, tieneTxPendiente } from '../maquinaSesion.ts'
-import { CODIGO_DETENIDA, MENSAJE_DETENIDA } from './errores.ts'
+import { CODIGO_DETENIDA, mensajeDetenida } from './errores.ts'
 import type { NucleoSesiones } from './NucleoSesiones.ts'
 import type { Procesos } from './procesos.ts'
 import { procesoPorSesion } from './reglas.ts'
+import { txSesiones } from './textosSesiones.ts'
 import type { Proceso, Sesion } from './tipos.ts'
 import type { Transacciones } from './transacciones.ts'
 
@@ -114,7 +115,7 @@ export class ConexionSesiones {
     p.detenido = true
     this.n.retirarProceso(p)
     try {
-      p.trabajador.matar({ clase: 'cancelada', codigo: CODIGO_DETENIDA, mensaje: MENSAJE_DETENIDA })
+      p.trabajador.matar({ clase: 'cancelada', codigo: CODIGO_DETENIDA, mensaje: mensajeDetenida() })
     } catch {
       // ya no está
     }
@@ -168,7 +169,7 @@ export class ConexionSesiones {
   /** Cierra todas las sesiones y el proceso de una conexión. */
   async desconectar(conexionId: string, resolver?: DbResolverTx): Promise<DbRespuesta<DbResolucionBloque>> {
     if (resolver !== undefined && resolver !== 'commit' && resolver !== 'rollback') {
-      return { ok: false, error: { motivo: 'interno', mensaje: 'Resolución de transacción desconocida.' } }
+      return { ok: false, error: { motivo: 'interno', mensaje: txSesiones().resolucionDesconocida } }
     }
     const sesiones = this.n.sesionesDeConexion(conexionId)
     const conTx = sesiones.filter((s) => tieneTxPendiente(s.estado))

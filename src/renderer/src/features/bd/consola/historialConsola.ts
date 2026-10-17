@@ -16,9 +16,13 @@ import { tokenizar } from '../../../../../shared/sql/lexicoSql.ts'
 import { esAtajoBorrado, type TeclaBorrado } from '../../../util/atajos.ts'
 import { formatoDuracion } from './marcasConsola.ts'
 import { cantidad } from './salidaConsola.ts'
+import { txHistorialConsola } from './textosPane.ts'
+import { txSalida } from './textosSalida.ts'
 
 /** Lo que se enseña en lugar del alias de una conexión que ya no existe. */
-export const TEXTO_CONEXION_BORRADA = '(conexión borrada)'
+export function textoConexionBorrada(): string {
+  return txHistorialConsola().conexionBorrada
+}
 
 /** Entradas que se piden al main: bastantes para buscar de reojo, pocas para pintar sin lista virtual. */
 export const LIMITE_HISTORIAL = 500
@@ -54,18 +58,19 @@ export function primeraLineaSql(sql: string, max: number = MAX_PRIMERA_LINEA): s
 
 /** El alias de la conexión de una entrada, o «(conexión borrada)». */
 export function aliasHistorial(conexionId: string, aliasPorId: ReadonlyMap<string, string>): string {
-  return aliasPorId.get(conexionId) ?? TEXTO_CONEXION_BORRADA
+  return aliasPorId.get(conexionId) ?? textoConexionBorrada()
 }
 
 /** El glifo del resultado: el mismo vocabulario que el margen del editor. */
 export function glifoHistorial(r: DbEntradaHistorial['resultado']): { simbolo: string; clase: string; etiqueta: string } {
+  const t = txHistorialConsola()
   switch (r) {
     case 'ok':
-      return { simbolo: '✓', clase: 'ok', etiqueta: 'Correcta' }
+      return { simbolo: '✓', clase: 'ok', etiqueta: t.correcta }
     case 'error':
-      return { simbolo: '✗', clase: 'error', etiqueta: 'Con error' }
+      return { simbolo: '✗', clase: 'error', etiqueta: t.conError }
     case 'cancelada':
-      return { simbolo: '⊘', clase: 'cancelada', etiqueta: 'Cancelada' }
+      return { simbolo: '⊘', clase: 'cancelada', etiqueta: t.cancelada }
   }
 }
 
@@ -73,7 +78,9 @@ export function glifoHistorial(r: DbEntradaHistorial['resultado']): { simbolo: s
 export function detalleHistorial(e: DbEntradaHistorial, alias: string): string {
   const partes = [glifoHistorial(e.resultado).etiqueta, formatoDuracion(e.ms)]
   if (typeof e.filas === 'number') {
-    partes.push(e.lenguaje === 'mongosh' ? cantidad(e.filas, 'documento', 'documentos') : cantidad(e.filas, 'fila', 'filas'))
+    const t = txHistorialConsola()
+    const f = txSalida()
+    partes.push(e.lenguaje === 'mongosh' ? cantidad(e.filas, t.documento, t.documentos) : cantidad(e.filas, f.fila, f.filas))
   }
   partes.push(e.esquema ? `${alias} · ${e.esquema}` : alias)
   return `${e.sql}\n\n${partes.join(' · ')}`
@@ -206,35 +213,42 @@ export function esBorrarEntrada(e: TeclaBorrarEntrada, filtroVacio: boolean, pla
 
 /** Los textos del popover que nombran lo que guarda: consultas SQL u órdenes del shell. */
 export function textosHistorial(lenguaje: DbLenguajeHistorial): { una: string; varias: string; filtro: string; ninguna: string; vacio: string } {
+  const t = txHistorialConsola()
   if (lenguaje === 'comandos') {
     return {
-      una: 'comando',
-      varias: 'comandos',
-      filtro: 'Filtrar por texto del comando',
-      ninguna: 'Ningún comando coincide.',
-      vacio: 'Todavía no hay comandos en el historial.'
+      una: t.comandoUna,
+      varias: t.comandoVarias,
+      filtro: t.comandoFiltro,
+      ninguna: t.comandoNinguna,
+      vacio: t.comandoVacio
     }
   }
   if (lenguaje === 'mongosh') {
     return {
-      una: 'orden',
-      varias: 'órdenes',
-      filtro: 'Filtrar por texto de la orden',
-      ninguna: 'Ninguna orden coincide.',
-      vacio: 'Todavía no hay órdenes en el historial.'
+      una: t.ordenUna,
+      varias: t.ordenVarias,
+      filtro: t.ordenFiltro,
+      ninguna: t.ordenNinguna,
+      vacio: t.ordenVacio
     }
   }
   return {
-    una: 'consulta',
-    varias: 'consultas',
-    filtro: 'Filtrar por texto del SQL',
-    ninguna: 'Ninguna consulta coincide.',
-    vacio: 'Todavía no hay consultas en el historial.'
+    una: t.consultaUna,
+    varias: t.consultaVarias,
+    filtro: t.consultaFiltro,
+    ninguna: t.consultaNinguna,
+    vacio: t.consultaVacio
   }
 }
 
 /** La pregunta de «Borrar todo»: solo el historial del lenguaje de la consola que lo pide. */
 export function textoBorrarTodo(lenguaje: DbLenguajeHistorial): string {
-  const que = lenguaje === 'comandos' ? `comandos de ${etiquetaMotor('redis')}` : lenguaje === 'mongosh' ? `órdenes de ${etiquetaMotor('mongodb')}` : 'consultas SQL'
-  return `¿Borrar TODO el historial de ${que} de este perfil? Incluye el de todas sus conexiones y no se puede deshacer.`
+  const t = txHistorialConsola()
+  const que =
+    lenguaje === 'comandos'
+      ? t.quePreguntaComandos(etiquetaMotor('redis'))
+      : lenguaje === 'mongosh'
+        ? t.quePreguntaOrdenes(etiquetaMotor('mongodb'))
+        : t.quePreguntaSql
+  return t.borrarTodo(que)
 }

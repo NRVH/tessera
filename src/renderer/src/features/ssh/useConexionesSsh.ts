@@ -9,6 +9,7 @@
 import { useEffect } from 'react'
 import { notify } from '../../comun/notifications'
 import { accionesSsh } from './store'
+import { txSsh } from './textos.ts'
 
 /** Mantiene el store de las conexiones SSH al día y avisa de las pestañas que no usarán su contraseña guardada. */
 export function useConexionesSsh(): void {
@@ -26,7 +27,7 @@ export function useConexionesSsh(): void {
     }
     cargar()
     const baja = window.tessera.ssh.onCambio(cargar)
-    const bajaAviso = window.tessera.ssh.onAviso((aviso) => notify('warn', `Conexión SSH «${aviso.alias}»`, aviso.texto))
+    const bajaAviso = window.tessera.ssh.onAviso((aviso) => notify('warn', txSsh().askConexion(aviso.alias), aviso.texto))
     return () => {
       vivo = false
       baja()

@@ -14,33 +14,31 @@ import {
 } from '../../../../../shared/extensionesShell'
 import type { DisponibilidadShell } from '../../../../../shared/shell-windows-ipc'
 import type { DisponibilidadFinder } from '../../../../../shared/servicio-finder-ipc'
-import { Casillas, CampoTexto, Fila, Grupo, Interruptor } from '../primitivas'
+import { Casillas, CampoTexto, Fila, Grupo, Interruptor, TextoMarcado } from '../primitivas'
+import { txIntegracion } from '../textosSistema.ts'
 import type { PropsCategoria } from '../tipos'
 import { AbrirConLinux } from './IntegracionLinux'
 
 /** Qué se le dice al usuario cuando esto no se puede hacer aquí (Windows). */
-const MOTIVO: Record<Exclude<DisponibilidadShell, 'ok'>, string> = {
-  'otro-sistema': 'Esta integración solo existe en Windows.',
-  desarrollo:
-    'No disponible en modo desarrollo: el ejecutable es el Electron de node_modules, ' +
-    'así que la entrada del menú abriría un Electron vacío en vez de Tessera. Prueba ' +
-    'esto en la Tessera instalada.',
-  portable:
-    'No disponible en la versión portable: su ejecutable corre desde una carpeta ' +
-    'temporal que se borra al cerrar, así que la entrada del menú dejaría de funcionar ' +
-    'en cuanto salieras.'
+function motivoWindows(d: Exclude<DisponibilidadShell, 'ok'>): string {
+  const t = txIntegracion().windows
+  const motivos: Record<Exclude<DisponibilidadShell, 'ok'>, string> = {
+    'otro-sistema': t.soloWindows,
+    desarrollo: t.desarrollo,
+    portable: t.portable
+  }
+  return motivos[d]
 }
 
 /** Lo mismo para el Finder. Sin `portable`: en macOS ese formato no existe. */
-const MOTIVO_FINDER: Record<Exclude<DisponibilidadFinder, 'ok'>, string> = {
-  'otro-sistema': 'Esta integración solo existe en macOS.',
-  desarrollo:
-    'No disponible en modo desarrollo: el ejecutable es el Electron de node_modules, ' +
-    'así que la acción rápida abriría un Electron vacío en vez de Tessera. Prueba esto ' +
-    'en la Tessera instalada.',
-  'sin-bundle':
-    'No se ha podido localizar el paquete de Tessera (el .app), así que la acción ' +
-    'rápida no sabría qué abrir.'
+function motivoFinder(d: Exclude<DisponibilidadFinder, 'ok'>): string {
+  const t = txIntegracion().finder
+  const motivos: Record<Exclude<DisponibilidadFinder, 'ok'>, string> = {
+    'otro-sistema': t.soloMac,
+    desarrollo: t.desarrollo,
+    'sin-bundle': t.sinBundle
+  }
+  return motivos[d]
 }
 
 export function Integracion(props: PropsCategoria): React.JSX.Element | null {
@@ -125,7 +123,7 @@ function useAplicarMenu({
         // interruptor tiene que volver a su sitio en vez de mentir.
         onChangeMenuWindows(estado)
       } else {
-        setError(r.fallos[0] ?? 'Windows rechazó el cambio.')
+        setError(r.fallos[0] ?? txIntegracion().windows.rechazo)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -150,35 +148,33 @@ function GrupoMenuContextual({
   aplicar: (cambio: CambioMenu) => Promise<void>
 }): React.JSX.Element {
   const { menuWindowsCarpetas, menuWindowsArchivos } = props
+  const t = txIntegracion().windows
   return (
-    <Grupo
-      titulo="Menú contextual del Explorador"
-      ayuda="Añade «Abrir con Tessera» al menú del botón derecho. Se aplica al instante y se puede quitar igual de rápido: no hace falta reinstalar ni permisos de administrador. En Windows 11 aparece dentro de «Mostrar más opciones»."
-    >
+    <Grupo titulo={t.grupoMenu} ayuda={t.grupoMenuAyuda}>
       {veCarpetas && (
         <Fila
-          etiqueta="Carpetas y unidades"
-          ayuda="Al hacer clic derecho sobre una carpeta, sobre el fondo de una carpeta abierta o sobre una unidad. Abre esa carpeta como proyecto."
+          etiqueta={t.carpetas}
+          ayuda={t.carpetasAyuda}
           control={
             <Interruptor
               activo={menuWindowsCarpetas}
               deshabilitado={deshabilitado}
               onChange={() => void aplicar({ carpetas: !menuWindowsCarpetas })}
-              etiqueta="Abrir con Tessera en carpetas y unidades"
+              etiqueta={t.carpetasEtiqueta}
             />
           }
         />
       )}
       {veArchivos && (
         <Fila
-          etiqueta="Cualquier archivo"
-          ayuda="Al hacer clic derecho sobre un archivo, sea del tipo que sea. Abre su carpeta como proyecto y el archivo en el editor."
+          etiqueta={t.archivos}
+          ayuda={t.archivosAyuda}
           control={
             <Interruptor
               activo={menuWindowsArchivos}
               deshabilitado={deshabilitado}
               onChange={() => void aplicar({ archivos: !menuWindowsArchivos })}
-              etiqueta="Abrir con Tessera en cualquier archivo"
+              etiqueta={t.archivosEtiqueta}
             />
           }
         />
@@ -204,34 +200,25 @@ function GrupoAbrirCon({
   onToggleExtension: (ext: string) => void
   onConfirmarPropias: (texto: string) => void
 }): React.JSX.Element {
+  const t = txIntegracion().windows
   return (
-    <Grupo
-      titulo="Abrir con Tessera"
-      ayuda={
-        <>
-          Las extensiones marcadas ofrecen Tessera en el «Abrir con» de Windows.{' '}
-          <strong>No</strong> la convierten en la aplicación predeterminada: esa elección la
-          firma Windows y solo puedes hacerla tú, desde su panel de aplicaciones
-          predeterminadas.
-        </>
-      }
-    >
+    <Grupo titulo={t.grupoAbrirCon} ayuda={<TextoMarcado partes={t.abrirConAyuda} />}>
       <Fila
-        etiqueta="Extensiones sugeridas"
-        ayuda="Las que se editan a diario. Marca las que quieras poder abrir con Tessera."
+        etiqueta={t.sugeridas}
+        ayuda={t.sugeridasAyuda}
         control={
           <Casillas
             opciones={EXTENSIONES_SUGERIDAS}
             marcadas={new Set(extensiones)}
             deshabilitado={deshabilitado}
             onToggle={onToggleExtension}
-            etiqueta="Extensiones asociadas a Tessera"
+            etiqueta={t.sugeridasEtiqueta}
           />
         }
       />
       <Fila
-        etiqueta="Otras extensiones"
-        ayuda="Separadas por espacios o comas. El punto se pone solo."
+        etiqueta={t.otrasExtensiones}
+        ayuda={t.otrasAyuda}
         control={
           <CampoTexto
             valor={propiasCrudo}
@@ -240,8 +227,8 @@ function GrupoAbrirCon({
             // basura para cada prefijo a medio teclear.
             onChange={onPropiasCrudo}
             onConfirmar={onConfirmarPropias}
-            etiqueta="Otras extensiones asociadas a Tessera"
-            placeholder="p. ej. .bat .ini (Intro para aplicar)"
+            etiqueta={t.otrasEtiqueta}
+            placeholder={t.otrasPlaceholder}
           />
         }
       />
@@ -251,10 +238,11 @@ function GrupoAbrirCon({
 }
 
 function FilaAppPredeterminada({ bloqueado }: { bloqueado: boolean }): React.JSX.Element {
+  const t = txIntegracion().windows
   return (
     <Fila
-      etiqueta="Aplicación predeterminada"
-      ayuda="Para que un doble clic abra Tessera directamente, elígela en el panel de Windows."
+      etiqueta={t.appPredeterminada}
+      ayuda={t.appPredeterminadaAyuda}
       control={
         <button
           type="button"
@@ -262,7 +250,7 @@ function FilaAppPredeterminada({ bloqueado }: { bloqueado: boolean }): React.JSX
           disabled={bloqueado}
           onClick={() => void window.tessera.shellWindows.abrirAppsPredeterminadas()}
         >
-          Abrir ajustes de Windows
+          {t.abrirAjustesWindows}
         </button>
       }
     />
@@ -315,7 +303,7 @@ function MenuExplorador(props: PropsCategoria): React.JSX.Element | null {
 
   return (
     <>
-      <AvisoBloqueo texto={bloqueado ? MOTIVO[disponibilidad] : null} />
+      <AvisoBloqueo texto={bloqueado ? motivoWindows(disponibilidad) : null} />
 
       {(veCarpetas || veArchivos) && (
         <GrupoMenuContextual
@@ -341,7 +329,7 @@ function MenuExplorador(props: PropsCategoria): React.JSX.Element | null {
 
       {error !== null && (
         <p className="ajustes-error" role="alert">
-          No se pudo cambiar el registro de Windows: {error}
+          {txIntegracion().windows.errorRegistro(error)}
         </p>
       )}
     </>
@@ -399,7 +387,7 @@ function useServicioFinder({
         setInstalado(activo)
         onChangeAccionRapidaFinder(activo)
       } else {
-        setError(r.fallos[0] ?? 'macOS rechazó el cambio.')
+        setError(r.fallos[0] ?? txIntegracion().finder.rechazo)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -414,31 +402,22 @@ function useServicioFinder({
 function AccionRapidaFinder(props: PropsCategoria): React.JSX.Element {
   const { disponibilidad, instalado, error, ocupado, aplicar } = useServicioFinder(props)
   const bloqueado = disponibilidad !== null && disponibilidad !== 'ok'
+  const t = txIntegracion().finder
 
   return (
     <>
-      <AvisoBloqueo texto={bloqueado ? MOTIVO_FINDER[disponibilidad] : null} />
+      <AvisoBloqueo texto={bloqueado ? motivoFinder(disponibilidad) : null} />
 
-      <Grupo
-        titulo="Menú contextual del Finder"
-        ayuda={
-          <>
-            «Abrir con › Tessera» sobre un <strong>archivo</strong> ya funciona siempre: lo
-            declara el propio paquete de la app y no hay nada que activar. Lo que se enciende
-            aquí es la <strong>acción rápida</strong> para <strong>carpetas</strong>, que macOS
-            no ofrece por su cuenta.
-          </>
-        }
-      >
+      <Grupo titulo={t.grupo} ayuda={<TextoMarcado partes={t.ayuda} />}>
         <Fila
-          etiqueta="Acción rápida «Abrir en Tessera»"
-          ayuda="Añade «Abrir en Tessera» al menú del botón derecho sobre una carpeta, dentro de «Servicios» / «Acciones rápidas». Abre esa carpeta como proyecto. Se aplica al instante y se quita igual: se instala en tu carpeta personal, sin permisos de administrador."
+          etiqueta={t.accion}
+          ayuda={t.accionAyuda}
           control={
             <Interruptor
               activo={instalado}
               deshabilitado={bloqueado || ocupado}
               onChange={() => void aplicar(!instalado)}
-              etiqueta="Acción rápida «Abrir en Tessera» en el Finder"
+              etiqueta={t.accionEtiqueta}
             />
           }
         />
@@ -446,7 +425,7 @@ function AccionRapidaFinder(props: PropsCategoria): React.JSX.Element {
 
       {error !== null && (
         <p className="ajustes-error" role="alert">
-          No se pudo cambiar la acción rápida del Finder: {error}
+          {t.errorAccion(error)}
         </p>
       )}
     </>

@@ -1,0 +1,10 @@
+#!/bin/sh
+# Tras cada commit, el filtro de lo que se publica (solo donde está el publicador, el repo privado):
+# un dato privado o una nota de proceso se ve al entrar, no el día de publicar. No bloquea nada.
+[ -f scripts/publicar-version.mjs ] || exit 0
+salida=$(npm run -s publicar -- --seco 2>&1)
+case "$salida" in
+  *" 0 hallazgo(s)"*) exit 0 ;;
+esac
+printf '%s\n' "$salida" >&2
+echo "AVISO: el filtro de publicación encuentra algo en este commit (arriba)." >&2

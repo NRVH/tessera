@@ -5,6 +5,7 @@
 // =============================================================================
 
 import type { DbRespuesta } from '../../../../shared/db-explorador-ipc.ts'
+import { txControlador } from './textosControlador.ts'
 
 export type CodigoErrorConsolas = 'perfil' | 'noExiste' | 'nombre' | 'tamano' | 'papelera' | 'entrada' | 'fs'
 
@@ -27,25 +28,26 @@ export function codigoFs(err: unknown): string | undefined {
 /** Mensaje de un error de fs SIN la ruta absoluta que Node mete en `message`. */
 export function mensajeFs(err: unknown): string {
   const code = codigoFs(err)
+  const t = txControlador()
   switch (code) {
     case 'ENOENT':
-      return 'No se encontró el archivo de la consola.'
+      return t.fsNoEncontrado
     case 'EEXIST':
-      return 'Ya existe un archivo con ese nombre.'
+      return t.fsYaExiste
     case 'EACCES':
     case 'EPERM':
-      return 'Sin permiso para acceder a la carpeta de consolas.'
+      return t.fsSinPermiso
     case 'EBUSY':
-      return 'El archivo de la consola está en uso por otro programa.'
+      return t.fsEnUso
     case 'ENOSPC':
-      return 'No queda espacio en el disco.'
+      return t.fsSinEspacio
     case 'ENOTDIR':
     case 'EISDIR':
-      return 'La carpeta de consolas no tiene la forma esperada.'
+      return t.fsCarpetaRara
     case 'ENAMETOOLONG':
-      return 'El nombre es demasiado largo para el sistema de archivos.'
+      return t.fsNombreLargo
     default:
-      return code ? `Error de disco en las consolas (${code}).` : 'Error inesperado en las consolas.'
+      return code ? t.fsErrorDisco(code) : t.consolasInesperado
   }
 }
 
@@ -68,7 +70,7 @@ export async function respuestaConsolas<T>(op: () => Promise<T>): Promise<DbResp
     return {
       ok: false,
       error: {
-        mensaje: propio ? err.message : 'Error inesperado en las consolas.',
+        mensaje: propio ? err.message : txControlador().consolasInesperado,
         motivo: propio && err.codigo === 'tamano' ? 'limite' : 'interno'
       }
     }

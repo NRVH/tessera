@@ -1,7 +1,7 @@
 // =============================================================================
 // Setup de Monaco para el renderer: cableado de los workers con el import `?worker` de Vite
 // (chunks servidos desde el propio origen; la CSP permite `worker-src 'self' blob:`), tema
-// `atom-one-dark`, lenguajes propios y apagado de los validadores. El zoom global no se toca
+// `atom-one-dark`, lenguajes propios, el menú contextual de Tessera y apagado de los validadores. El zoom global no se toca
 // aquí: escala todo el renderer y cada editor re-mide con su `ResizeObserver`.
 // Depende de `monacoTema.ts` y `monacoLenguajes.ts`; lo usan los paneles de editor y de BD.
 // Decisiones: docs/decisiones/renderer/monaco.md
@@ -20,6 +20,7 @@ import {
   registerPropertiesLanguage
 } from './monacoLenguajes'
 import { buildAtomOneDarkTheme } from './monacoTema'
+import { instalarMenuEditor } from './menuEditor'
 
 /** Id del tema de Monaco alineado con Atom One Dark. */
 export const MONACO_THEME = 'atom-one-dark'
@@ -92,6 +93,7 @@ export function ensureMonaco(): typeof monaco {
   }
 
   monaco.editor.defineTheme(MONACO_THEME, buildAtomOneDarkTheme())
+  instalarMenuEditor(monaco)
   apagarDiagnosticos()
   registerPropertiesLanguage()
   registerGroovyLanguage()

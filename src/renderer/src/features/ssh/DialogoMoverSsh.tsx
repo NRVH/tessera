@@ -12,7 +12,8 @@ import { notify } from '../../comun/notifications'
 import { alClicEnVelo, useDialogo } from '../../comun/useDialogo'
 import type { SshConexion, SshGrupo } from '../../../../shared/ssh-ipc'
 import { mensajeDeErrorSsh } from './erroresSsh'
-import { ID_SIN_GRUPO, NOMBRE_SIN_GRUPO, compararNombres } from './listaSsh'
+import { ID_SIN_GRUPO, nombreSinGrupo, compararNombres } from './listaSsh'
+import { txSsh } from './textos.ts'
 import { cuantasConexiones, grupoIdDeDestino, idsQueCambian } from './seleccionListaSsh'
 import { accionesSsh, datosDePerfil, useStoreSsh } from './store'
 
@@ -30,17 +31,18 @@ interface PropsCampoDestino {
 
 /** El grupo al que van: «Sin grupo», los del perfil y «Nuevo grupo…». */
 function CampoDestino({ grupos, destino, ocupado, onElegir, onNuevo }: PropsCampoDestino): React.JSX.Element {
+  const t = txSsh()
   return (
     <label className="dbc-campo">
-      <span className="dbc-etiqueta">Al grupo</span>
+      <span className="dbc-etiqueta">{t.alGrupo}</span>
       <select autoFocus value={destino} disabled={ocupado} onChange={(e) => (e.target.value === OPCION_NUEVO ? onNuevo() : onElegir(e.target.value))}>
-        <option value={ID_SIN_GRUPO}>{NOMBRE_SIN_GRUPO}</option>
+        <option value={ID_SIN_GRUPO}>{nombreSinGrupo()}</option>
         {grupos.map((g) => (
           <option key={g.id} value={g.id}>
             {g.nombre}
           </option>
         ))}
-        <option value={OPCION_NUEVO}>Nuevo grupo…</option>
+        <option value={OPCION_NUEVO}>{t.nuevoGrupoOpcion}</option>
       </select>
     </label>
   )
@@ -61,7 +63,7 @@ function useMoverConexiones(perfilId: string, conexiones: readonly SshConexion[]
       await window.tessera.ssh.mover({ ids: cambian, profileId: perfilId, grupoId: grupoIdDeDestino(destino) })
       accionesSsh.cerrarDialogo()
     } catch (err) {
-      notify('error', 'No se pudieron mover las conexiones', mensajeDeErrorSsh(err))
+      notify('error', txSsh().noSePudieronMover, mensajeDeErrorSsh(err))
       setOcupado(false)
     }
   }
@@ -72,6 +74,7 @@ export function DialogoMoverSsh({ perfilId, conexiones }: { perfilId: string; co
   const idTitulo = useId()
   const { grupos, destino, setDestino, ocupado, ids, cambian, mover } = useMoverConexiones(perfilId, conexiones)
   const dialogo = useDialogo({ onClose: accionesSsh.cerrarDialogo, cerrable: !ocupado })
+  const t = txSsh()
   return (
     <div className="modal-overlay" role="presentation" onMouseDown={alClicEnVelo(accionesSsh.cerrarDialogo)}>
       <div
@@ -93,20 +96,20 @@ export function DialogoMoverSsh({ perfilId, conexiones }: { perfilId: string; co
         >
           <div className="dbc-cabecera">
             <div id={idTitulo} className="modal-title">
-              Mover {cuantasConexiones(conexiones.length)}
+              {t.moverTitulo(cuantasConexiones(conexiones.length))}
             </div>
           </div>
           <div className="dbc-cuerpo">
             <CampoDestino grupos={grupos} destino={destino} ocupado={ocupado} onElegir={setDestino} onNuevo={() => accionesSsh.nuevoGrupoCon(perfilId, ids)} />
-            {cambian.length === 0 && <p className="dbc-ayuda">Ya están todas en ese grupo.</p>}
+            {cambian.length === 0 && <p className="dbc-ayuda">{t.yaEstanTodas}</p>}
           </div>
           <div className="modal-actions dbc-acciones">
             <span className="dbc-hueco" />
             <button type="button" className="btn btn-ghost" onClick={accionesSsh.cerrarDialogo} disabled={ocupado}>
-              Cancelar
+              {t.cancelar}
             </button>
             <button type="submit" className="btn primary" disabled={ocupado || cambian.length === 0}>
-              {ocupado ? 'Moviendo…' : 'Mover'}
+              {ocupado ? t.moviendo : t.mover}
             </button>
           </div>
         </form>

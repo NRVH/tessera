@@ -3101,7 +3101,8 @@ hr('(27) «Probar» en vuelo y «Guardar» a la vez: el resultado solo se apunta
   // La prueba tarda (un servidor por VPN) y, mientras dice «Probando…», el usuario cambia el
   // destino y guarda. Al volver, el resultado es del destino de ANTES: apuntarlo dejaría verificada
   // (y montable para el agente) una conexión que nunca respondió, con el driver de la otra.
-  const { probarConexion, MENSAJE_CAMBIO_EN_VUELO } = await import('./controlador/probarConexion.ts')
+  const { probarConexion, mensajeCambioEnVuelo } = await import('./controlador/probarConexion.ts')
+  const MENSAJE_CAMBIO_EN_VUELO = mensajeCambioEnVuelo()
   const ruta = archivo({ version: 1, connections: [] })
   const store = new ConnectionStore({ storePath: ruta })
   const bueno = { ok: true, ms: 8421, modo: 'thick', servidor: 'Oracle 11.2', driverId: 'instantclient-19-win' }

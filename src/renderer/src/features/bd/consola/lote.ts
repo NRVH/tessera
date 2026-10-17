@@ -10,6 +10,7 @@
 import type { DbResultadoSentencia } from '../../../../../shared/db-explorador-ipc.ts'
 import type { Sentencia } from '../../../../../shared/sql/divisorSql.ts'
 import { descriptorMarca, type DescriptorMarca, type EstadoMarca } from './marcasConsola.ts'
+import { txSalida } from './textosSalida.ts'
 import {
   cantidad,
   contarCompilacion,
@@ -134,12 +135,12 @@ export function detalleResultado(r: DbResultadoSentencia): string {
   switch (r.tipo) {
     case 'filas': {
       const n = filasDePagina(r.pagina.filasJson)
-      return cantidad(n, 'fila', 'filas') + (r.pagina.hayMas ? ' (hay más)' : '')
+      return cantidad(n, txSalida().fila, txSalida().filas) + (r.pagina.hayMas ? txSalida().hayMas : '')
     }
     case 'afectadas':
-      return cantidad(r.filas, 'fila afectada', 'filas afectadas')
+      return cantidad(r.filas, txSalida().filaAfectada, txSalida().filasAfectadas)
     case 'hecho':
-      return r.comando ? r.comando : 'Completado'
+      return r.comando ? r.comando : txSalida().completado
     case 'error':
       return textoError(r.error)
   }
@@ -202,7 +203,7 @@ export function registrar(l: Lote, i: number, r: DbResultadoSentencia): Lote {
   }
   // Solo un «hecho» trae compilación con la unidad válida (avisos): ✓ ámbar.
   const avisos = r.tipo === 'hecho' ? contarCompilacion(r.compilacion).avisos : 0
-  const detalle = avisos > 0 ? `Compilado con ${cantidad(avisos, 'aviso', 'avisos')}` : detalleResultado(r)
+  const detalle = avisos > 0 ? txSalida().compiladoConN(cantidad(avisos, txSalida().aviso, txSalida().avisos)) : detalleResultado(r)
   const ss = conItem(l, i, { estado: 'ok', ms, detalle, codigo: null, posicion: null, avisos })
   return { ...l, sentencias: ss, estado: estadoTrasAvance(l.estado, ss) }
 }

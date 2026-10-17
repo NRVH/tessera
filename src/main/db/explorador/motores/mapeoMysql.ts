@@ -16,7 +16,7 @@ import type {
   DbTipoObjeto
 } from '../../../../shared/db-explorador-ipc.ts'
 import { citar } from '../../../../shared/sql/identificadoresSql.ts'
-import { aBool, aNumero, AVISO_SIN_FUENTE, clasificarFk, texto, textoOpcional, TIPO_RESTRICCION } from './filasCatalogo.ts'
+import { aBool, aNumero, avisoSinFuente, clasificarFk, texto, textoOpcional, TIPO_RESTRICCION } from './filasCatalogo.ts'
 import type { DialectoCatalogo, FilaCatalogo } from './tipos.ts'
 
 /** Código de `sqlNombres` -> tipo de objeto. */
@@ -128,7 +128,7 @@ function programacionDe(f: FilaCatalogo): string {
 
 /** El cuerpo de una fila de fuente, o la fuente vacía con su aviso. */
 function sinCuerpo(origen: string): DbFuente {
-  return { partes: [], origen, aviso: AVISO_SIN_FUENTE }
+  return { partes: [], origen, aviso: avisoSinFuente() }
 }
 
 /**

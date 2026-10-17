@@ -19,6 +19,7 @@ import {
 import { etiquetaAcorde } from '../../util/atajos'
 import { EstadoVacio } from '../../comun/EstadoVacio'
 import { IconoConsola } from './iconosBd'
+import { txConsolaBd } from './textosConsolaBd.ts'
 
 export interface SalidaConsolaProps {
   salida: DatosSalida
@@ -100,8 +101,8 @@ export function SalidaConsola({
       <EstadoVacio
         className="db-salida-vacia"
         icono={<IconoConsola />}
-        titulo="Sin salida"
-        pista={`${etiquetaAcorde('ejecutar')} ejecuta la sentencia del cursor; ${etiquetaAcorde('ejecutarTodo')}, todas; ${etiquetaAcorde('explicar')}, su plan sin ejecutarla.`}
+        titulo={txConsolaBd().sinSalida}
+        pista={txConsolaBd().pistaSalida(etiquetaAcorde('ejecutar'), etiquetaAcorde('ejecutarTodo'), etiquetaAcorde('explicar'))}
       />
     )
   }
@@ -113,7 +114,7 @@ export function SalidaConsola({
       className="db-salida"
       role="log"
       aria-live="polite"
-      aria-label="Salida de la consola"
+      aria-label={txConsolaBd().salidaAria}
       tabIndex={0}
       onScroll={(e) => {
         pegadoRef.current = pegadoAlFondo(e.currentTarget)

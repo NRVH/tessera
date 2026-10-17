@@ -11,11 +11,12 @@ import { useStoreAjustes } from '../ajustes'
 import type { BasesDeArchivoSidebar } from '../explorador'
 import type { UseTabs } from '../pestanas'
 import { editorTargetKey } from '../editor'
+import { txArea } from './textosArea.ts'
 
 /** Montajes de bases de datos por proyecto. */
 export interface MontajesBd {
   setDbMountedForProject: (profileId: string, projectHostPath: string, ids: string[]) => void
-  /** Acciones de «Montar como base de datos» del explorador, del proyecto CONFIRMADO. */
+  /** Acciones de «Montar como base de datos» del explorador, del proyecto que se ve (el del árbol). */
   basesDeArchivo: BasesDeArchivoSidebar | undefined
   /** Quita una conexión borrada de los proyectos de SU perfil y lo propaga a las sesiones. */
   olvidarConexionMontada: (connectionId: string, profileId: string) => void
@@ -59,7 +60,8 @@ function usePodaMontajes(profileIdsKey: string): void {
 
 /** Bases montadas por proyecto y sus acciones. */
 export function useMontajesBd(tabs: UseTabs): MontajesBd {
-  const confirmed = tabs.confirmedTarget
+  // El del árbol que se pinta; el main rechaza montar si aún no lo tiene anclado.
+  const visto = tabs.objetivoVisto
   const setDbMountedForProject = useCallback(
     (profileId: string, projectHostPath: string, ids: string[]) => {
       const clave = editorTargetKey(profileId, projectHostPath)
@@ -76,9 +78,9 @@ export function useMontajesBd(tabs: UseTabs): MontajesBd {
     []
   )
   const basesDeArchivo = useMemo<BasesDeArchivoSidebar | undefined>(() => {
-    if (!confirmed) return undefined
-    const profileId = confirmed.profileId
-    const projectHostPath = confirmed.project.projectHostPath
+    if (!visto) return undefined
+    const profileId = visto.profileId
+    const projectHostPath = visto.project.projectHostPath
     const montadas = (): string[] => useStoreBd.getState().dbMounts[editorTargetKey(profileId, projectHostPath)] ?? []
     return {
       montadaDe: async (relPath) => {
@@ -90,22 +92,21 @@ export function useMontajesBd(tabs: UseTabs): MontajesBd {
           const { conexion, reutilizada } = await window.tessera.db.montarArchivo({ profileId, projectHostPath, relPath })
           const ids = montadas()
           if (!ids.includes(conexion.id)) setDbMountedForProject(profileId, projectHostPath, [...ids, conexion.id])
+          const t = txArea()
           notify(
             'success',
-            `«${conexion.alias}» montada en el proyecto`,
-            (reutilizada ? 'Ya estaba en Conexiones. ' : 'Se añadió a Conexiones. ') +
-              (conexion.readonly
-                ? 'El agente puede consultarla con tdb, solo para leer.'
-                : 'El agente puede consultarla con tdb.')
+            t.montadaEnProyecto(conexion.alias),
+            (reutilizada ? t.yaEstabaEnConexiones : t.seAnadioAConexiones) +
+              (conexion.readonly ? t.agenteConsultaSoloLeer : t.agenteConsulta)
           )
         } catch (err) {
-          notifyError('No se pudo montar la base de datos', err)
+          notifyError(txArea().noSePudoMontar, err)
         }
       },
       desmontar: (conexionId) =>
         setDbMountedForProject(profileId, projectHostPath, montadas().filter((id) => id !== conexionId))
     }
-  }, [confirmed, setDbMountedForProject])
+  }, [visto, setDbMountedForProject])
   // Solo en el perfil de la borrada: una copia pegada en otro perfil comparte el id.
   const olvidarConexionMontada = useCallback((connectionId: string, profileId: string) => {
     useStoreBd.setState((s) => {

@@ -19,7 +19,8 @@ import {
   usaOpcional
 } from '../../../../shared/motores/index.ts'
 import { validarTopologiaRedis } from '../../../../shared/topologiaRedis.ts'
-import { PRESENTACION } from './camposConexionPresentacion.ts'
+import { presentaciones } from './camposConexionPresentacion.ts'
+import { idiomaActual } from '../../../../shared/i18n.ts'
 import type { DbMotor } from '../../../../shared/db-ipc.ts'
 import type { CampoConexion, CampoTextoDestino } from '../../../../shared/motores/index.ts'
 import type { CampoFormulario, DefCampo, FormularioMotor, ValoresConexion } from './camposConexionTipos.ts'
@@ -34,15 +35,15 @@ export type {
   ValoresConexion
 } from './camposConexionTipos.ts'
 export {
-  ETIQUETA_CONFIAR_CERTIFICADO,
-  PRESENTACION,
+  etiquetaConfiarCertificado,
+  presentaciones,
   placeholderCredencial,
   proponeConfiarCertificado
 } from './camposConexionPresentacion.ts'
 export {
-  ETIQUETA_SOLO_LECTURA,
-  OPCIONES_ENTORNO,
-  TITULO_SOLO_LECTURA_AGENTES,
+  etiquetaSoloLectura,
+  opcionesEntorno,
+  tituloSoloLecturaAgentes,
   ayudaEntorno,
   ayudaSoloLectura,
   entornoDeRadio,
@@ -61,30 +62,43 @@ export {
 /**
  * Lo que el diálogo sabe de cada motor: las reglas del descriptor compartido y la
  * presentación. Una ayuda que falte sale vacía (y el test lo señala) en vez de tirar el
- * diálogo entero al cargar el módulo.
+ * diálogo entero al construirlo.
  */
-export const DESCRIPTORES: Readonly<Record<DbMotor, FormularioMotor>> = porMotor((d) => {
-  const p = PRESENTACION[d.id]
-  return {
-    motor: d.id,
-    etiqueta: d.etiqueta,
-    puertoPorDefecto: d.conexion.puertoPorDefecto,
-    deArchivo: d.conexion.deArchivo,
-    credenciales: d.conexion.credenciales,
-    extensionesArchivo: d.conexion.extensionesArchivo,
-    filas: p.filas,
-    filasTrasCredenciales: p.filasTrasCredenciales ?? [],
-    excluyentes: d.conexion.excluyentes.map((g, i) => ({
-      campos: g.campos,
-      alMenosUno: g.alMenosUno,
-      ayuda: p.ayudasExcluyentes[i] ?? ''
-    })),
-    obligatorios: d.conexion.obligatorios,
-    usaClientes: d.conexion.usaClientes,
-    descartarAlGuardar: d.conexion.descartarAlGuardar,
-    uri: p.uri ?? null
+function construirDescriptores(): Readonly<Record<DbMotor, FormularioMotor>> {
+  return porMotor((d) => {
+    const p = presentaciones()[d.id]
+    return {
+      motor: d.id,
+      etiqueta: d.etiqueta,
+      puertoPorDefecto: d.conexion.puertoPorDefecto,
+      deArchivo: d.conexion.deArchivo,
+      credenciales: d.conexion.credenciales,
+      extensionesArchivo: d.conexion.extensionesArchivo,
+      filas: p.filas,
+      filasTrasCredenciales: p.filasTrasCredenciales ?? [],
+      excluyentes: d.conexion.excluyentes.map((g, i) => ({
+        campos: g.campos,
+        alMenosUno: g.alMenosUno,
+        ayuda: p.ayudasExcluyentes[i] ?? ''
+      })),
+      obligatorios: d.conexion.obligatorios,
+      usaClientes: d.conexion.usaClientes,
+      descartarAlGuardar: d.conexion.descartarAlGuardar,
+      uri: p.uri ?? null
+    }
+  })
+}
+
+let memoDescriptores: { idioma: string; valor: Readonly<Record<DbMotor, FormularioMotor>> } | null = null
+
+/** Lo que el diálogo sabe de cada motor en el idioma activo; se reutiliza mientras el idioma no cambie. */
+export function descriptores(): Readonly<Record<DbMotor, FormularioMotor>> {
+  const idioma = idiomaActual()
+  if (memoDescriptores === null || memoDescriptores.idioma !== idioma) {
+    memoDescriptores = { idioma, valor: construirDescriptores() }
   }
-})
+  return memoDescriptores.valor
+}
 
 /** Los motores del selector, en el orden en que se ofrecen (el del registro `MOTORES`). */
 export const MOTORES_CONEXION: readonly DbMotor[] = IDS_MOTORES
@@ -94,7 +108,7 @@ export const MOTORES_CONEXION: readonly DbMotor[] = IDS_MOTORES
  * un motor fuera del registro el error es «Motor desconocido», no un TypeError al leer `.filas`.
  */
 export function descriptorDe(motor: DbMotor): FormularioMotor {
-  return DESCRIPTORES[descriptor(motor).id]
+  return descriptores()[descriptor(motor).id]
 }
 
 /**

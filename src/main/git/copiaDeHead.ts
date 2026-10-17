@@ -9,6 +9,7 @@
 import { promises as fs } from 'node:fs'
 import { leerBlobFiltrado, leerLoteCatFile } from './adaptadores/procesoCatFile'
 import { errorDeGit } from './errores'
+import { txGit } from './textos.ts'
 import type { RepoCtx } from './tipos'
 
 /** Por encima, no se compara (se rechaza): leer la copia y el blob enteros costaría memoria. */
@@ -133,7 +134,7 @@ async function igualAlDisco(c: CopiaAComparar, esperado: Buffer): Promise<boolea
     const disco = c.enlaceEnDisco ? await fs.readlink(c.abs, { encoding: 'buffer' }) : await fs.readFile(c.abs)
     return disco.equals(esperado)
   } catch (err) {
-    return { error: `No se pudo leer la copia del disco: ${(err as { code?: string }).code ?? String(err)}` }
+    return { error: txGit().copiaNoLeida((err as { code?: string }).code ?? String(err)) }
   }
 }
 

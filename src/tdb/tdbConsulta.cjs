@@ -2,13 +2,14 @@
 // `tdb test` y la ejecución de `tdb query`: abre la sesión, pide el resultado al adaptador y
 // lo pinta (tabla, conjuntos, bloques de documentos o de valor) o lo emite en `--json`.
 // La guardia de solo lectura se decide ANTES de conectar, en `tdb.cjs`.
-// Depende de `tdbConectar`, `tdbConexiones` y `tdbSalida`; lo usa `tdb.cjs`.
+// Depende de `tdbConectar`, `tdbConexiones`, `tdbSalida` y `textosTdb`; lo usa `tdb.cjs`.
 // =============================================================================
 'use strict'
 
 const { conectar } = require('./tdbConectar.cjs')
 const { adaptador, buscarConexion } = require('./tdbConexiones.cjs')
 const { pintarTabla } = require('./tdbSalida.cjs')
+const { textosTdb } = require('./textosTdb.cjs')
 
 async function cmdTest(ctx, alias) {
   const con = buscarConexion(ctx, alias)
@@ -32,9 +33,10 @@ async function cmdTest(ctx, alias) {
         })
       )
     } else {
-      console.log(`\n  ✓ ${alias} responde en ${ms} ms (${sesion.modo})`)
+      const t = textosTdb()
+      console.log(t.responde(alias, ms, sesion.modo))
       console.log(`    ${info}\n`)
-      if (aviso) console.log(`    Aviso: ${aviso}\n`)
+      if (aviso) console.log(t.avisoTest(aviso))
     }
   } finally {
     await sesion.cerrar()
@@ -89,42 +91,35 @@ function pintarAvisos(c) {
 
 /** Un documento por bloque, en vez de la tabla: una celda de 40 caracteres cortaría el subdocumento. */
 function pintarDocumentos(c) {
-  if (c.documentos.length === 0) console.log('  (sin documentos)')
+  const t = textosTdb()
+  if (c.documentos.length === 0) console.log(t.sinDocumentos)
   c.documentos.forEach((d, i) => {
     console.log(`  [${i + 1}]`)
     for (const linea of String(d).split('\n')) console.log(`  ${linea}`)
     console.log('')
   })
   // El recorte se dice siempre, como con las filas: callarlo haría creer que se vio todo.
-  console.log(
-    c.hayMas === true
-      ? `  ${c.documentos.length} documento(s) (TOPE alcanzado: hay más; usa --limit N para más)\n`
-      : `  ${c.documentos.length} documento(s)\n`
-  )
+  console.log(t.documentos(c.documentos.length, c.hayMas === true))
 }
 
 function pintarConjunto(cols, fs, limite) {
   pintarTabla(cols, fs)
   // Avisar del recorte es obligatorio: callarlo haría creer que se vio todo.
-  console.log(
-    fs.length >= limite
-      ? `\n  ${fs.length} filas (TOPE alcanzado; usa --limit N para más)\n`
-      : `\n  ${fs.length} fila(s)\n`
-  )
+  console.log(textosTdb().filas(fs.length, fs.length >= limite))
 }
 
 function pintarFilas(r, c, limite) {
   console.log('')
   if (c.hayConjuntos) {
     c.conjuntos.forEach((x, i) => {
-      console.log(`  Conjunto ${i + 1} de ${c.conjuntos.length}:\n`)
+      console.log(textosTdb().conjunto(i + 1, c.conjuntos.length))
       pintarConjunto(x.columnas, x.filas, limite)
     })
   } else {
     pintarConjunto(r.columnas, r.filas, limite)
   }
   if (c.haySalida) {
-    console.log('  Salida del servidor:')
+    console.log(textosTdb().salidaServidor)
     for (const linea of c.salida) console.log(`    ${linea}`)
     console.log('')
   }

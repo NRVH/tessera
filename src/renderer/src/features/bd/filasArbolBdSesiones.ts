@@ -5,6 +5,7 @@
 // Decisiones: docs/decisiones/bd/ui-arbol-filas-y-carga.md
 // =============================================================================
 
+import { txFilasArbol } from './textosFilasArbol.ts'
 import type { DbConsolaInfo, DbEstadoSesion, DbRefSesion } from '../../../../shared/db-explorador-ipc.ts'
 import type { DbConnection } from '../../../../shared/db-ipc.ts'
 
@@ -47,14 +48,15 @@ export function sesionesConCambios(sesiones: readonly DbEstadoSesion[], conexion
  * ("consola_2"), y para las sesiones internas, qué son. Sin repetidos.
  */
 export function nombresDeRefs(refs: readonly DbRefSesion[], consolas: readonly DbConsolaInfo[]): string[] {
+  const t = txFilasArbol()
   const out: string[] = []
   for (const r of refs) {
     let nombre: string
     if (r.rol === 'consola') {
       const k = consolas.find((c) => c.id === r.consolaId)
-      nombre = k ? k.nombre : 'una consola'
+      nombre = k ? k.nombre : t.unaConsola
     } else {
-      nombre = r.rol === 'datos' ? 'las pestañas de datos' : 'el árbol'
+      nombre = r.rol === 'datos' ? t.pestanasDatos : t.elArbol
     }
     if (out.indexOf(nombre) === -1) out.push(nombre)
   }
@@ -105,20 +107,18 @@ export function opcionesTxArbol(
   sesiones: readonly DbEstadoSesion[],
   varias: boolean
 ): OpcionesTxArbol {
+  const t = txFilasArbol()
   const plural = refs.length === 0 ? varias : refs.length > 1
-  const revertir = plural ? 'Revertir todas' : 'Revertir'
+  const revertir = plural ? t.revertirTodas : t.revertir
   if (soloSePuedeRevertir(refs, sesiones)) {
     return { confirmar: null, revertir, nota: motivoSoloRevertir(refs.length) }
   }
   const fallidas = refs.filter((r) => esFallida(r, sesiones)).length
-  if (fallidas === 0) return { confirmar: plural ? 'Confirmar todas' : 'Confirmar', revertir, nota: null }
+  if (fallidas === 0) return { confirmar: plural ? t.confirmarTodas : t.confirmar, revertir, nota: null }
   return {
-    confirmar: fallidas === 1 ? 'Confirmar (la fallida se revierte)' : 'Confirmar (las fallidas se revierten)',
+    confirmar: fallidas === 1 ? t.confirmarFallidaUna : t.confirmarFallidasVarias,
     revertir,
-    nota:
-      fallidas === 1
-        ? `1 de las ${refs.length} transacciones falló y se revertirá aunque confirmes: una transacción fallida solo se puede revertir.`
-        : `${fallidas} de las ${refs.length} transacciones fallaron y se revertirán aunque confirmes: una transacción fallida solo se puede revertir.`
+    nota: fallidas === 1 ? t.notaUnaFallo(refs.length) : t.notaVariasFallan(fallidas, refs.length)
   }
 }
 
@@ -135,9 +135,8 @@ export function avisoRevertidas(
   // Sin comillas: `nombresDeRefs` también devuelve «el árbol» o «las pestañas de datos».
   const nombres = nombresDeRefs(revertidas, consolas)
   const quien = nombres.length > 0 ? ` (${nombres.join(', ')})` : ''
-  return revertidas.length === 1
-    ? `${alias}: se confirmó lo pendiente y se revirtió la transacción fallida${quien}.`
-    : `${alias}: se confirmó lo pendiente y se revirtieron las ${revertidas.length} transacciones fallidas${quien}.`
+  const t = txFilasArbol()
+  return revertidas.length === 1 ? t.revertidaUna(alias, quien) : t.revertidasVarias(alias, revertidas.length, quien)
 }
 
 /**
@@ -145,13 +144,12 @@ export function avisoRevertidas(
  * y no por el plural de los botones: con una sola fallida no se dice «todas».
  */
 export function motivoSoloRevertir(sesiones: number): string {
-  return sesiones > 1
-    ? `Las ${sesiones} transacciones fallaron, y una transacción fallida solo se puede revertir.`
-    : 'La transacción falló: solo se puede revertir.'
+  const t = txFilasArbol()
+  return sesiones > 1 ? t.soloRevertirVarias(sesiones) : t.soloRevertirUna
 }
 
 /** El porqué de «Desconectar» apagado sin nada de una conexión seleccionado. */
-export const MOTIVO_DESCONECTAR_SIN_SELECCION = 'Elige una conexión (o algo dentro de ella) para desconectarla'
+export const motivoDesconectarSinSeleccion = (): string => txFilasArbol().desconectarSinSeleccion
 
 /**
  * «Desconectar» de la cabecera del árbol: su título y el porqué de apagarse (null = vivo). La
@@ -162,9 +160,10 @@ export function accionDesconectarCabecera(
   conexion: Pick<DbConnection, 'id' | 'alias'> | null | undefined,
   sesiones: readonly DbEstadoSesion[]
 ): { titulo: string; motivo: string | null } {
-  if (!conexion) return { titulo: 'Desconectar', motivo: MOTIVO_DESCONECTAR_SIN_SELECCION }
+  const t = txFilasArbol()
+  if (!conexion) return { titulo: t.desconectar, motivo: t.desconectarSinSeleccion }
   return {
-    titulo: `Desconectar ${conexion.alias}`,
-    motivo: tieneSesiones(sesiones, conexion.id) ? null : `${conexion.alias} no está conectada`
+    titulo: t.desconectarAlias(conexion.alias),
+    motivo: tieneSesiones(sesiones, conexion.id) ? null : t.noConectada(conexion.alias)
   }
 }

@@ -167,7 +167,7 @@ try {
       const lineaCodex = buildHostAgentLaunchCommand(`& '${process.execPath}' '${eco}'`, 'codex', undefined, compuesto, 'windows')
       const rc = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', lineaCodex], { env: { ...process.env, ECO_SALIDA: salida }, encoding: 'utf8', windowsHide: true, timeout: 60_000 })
       const argvC = leer()
-      check('(e2b) PowerShell 5.1, Codex: `-c` y un solo valor con el bloque SSH intacto', rc.status === 0 && argvC.length === 2 && argvC[0] === '-c' && (argvC[1] ?? '').startsWith('developer_instructions=Avisos de Tessera: ') && (argvC[1] ?? '').includes(` ${sshPlano} `), `status=${rc.status} argv=${argvC.length}`)
+      check('(e2b) PowerShell 5.1, Codex: `-c` y un solo valor con el bloque SSH intacto', rc.status === 0 && argvC.length === 4 && argvC[0] === '-c' && argvC[1] === 'features.daemon_auto_start=false' && argvC[2] === '-c' && (argvC[3] ?? '').startsWith('developer_instructions=Avisos de Tessera: ') && (argvC[3] ?? '').includes(` ${sshPlano} `), `status=${rc.status} argv=${argvC.length}`)
     } else {
       console.log('  (no es Windows: PowerShell 5.1 no aplica)')
     }
@@ -182,7 +182,7 @@ try {
       const lineaCodex = buildHostAgentLaunchCommand(`'${process.execPath.replace(/\\/g, '/')}' '${eco.replace(/\\/g, '/')}'`, 'codex', undefined, compuesto, 'mac')
       const rc = spawnSync('sh', ['-c', lineaCodex], { env: { ...process.env, ECO_SALIDA: salida }, encoding: 'utf8', windowsHide: true, timeout: 60_000 })
       const argvC = leer()
-      check('(e3b) sh, Codex: `-c` y el aviso entero en un solo valor', rc.status === 0 && argvC.length === 2 && argvC[0] === '-c' && (argvC[1] ?? '').startsWith(`developer_instructions=Avisos de Tessera: ${esperado} `), `status=${rc.status} argv=${argvC.length}`)
+      check('(e3b) sh, Codex: `-c` y el aviso entero en un solo valor', rc.status === 0 && argvC.length === 4 && argvC[1] === 'features.daemon_auto_start=false' && argvC[2] === '-c' && (argvC[3] ?? '').startsWith(`developer_instructions=Avisos de Tessera: ${esperado} `), `status=${rc.status} argv=${argvC.length}`)
     } else {
       console.log('  (sin sh: el caso POSIX se salta)')
     }

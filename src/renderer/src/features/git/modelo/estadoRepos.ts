@@ -72,13 +72,38 @@ export interface EstadoRepos {
   mapa: ReadonlyMap<string, RepoStatus>
   /** Repos ya pedidos en esta generación (para no volver a pedirlos al hacer scroll). */
   pedidos: ReadonlySet<string>
+  /**
+   * ¿Ha contestado alguien en esta generación? Distingue un mapa vacío porque no hay cambios
+   * (ya respondido) de uno vacío porque aún no ha llegado nada: en el segundo se siguen
+   * enseñando las decoraciones recordadas.
+   */
+  respondido: boolean
+  /** Peticiones fallidas seguidas en esta generación: gradúan la pausa del reintento. */
+  fallos: number
 }
 
 export const ESTADO_REPOS_VACIO: EstadoRepos = {
   gen: 0,
   clave: '',
   mapa: new Map(),
-  pedidos: new Set()
+  pedidos: new Set(),
+  respondido: false,
+  fallos: 0
+}
+
+/** Pausa base (ms) antes de reintentar una petición de estado fallida; se duplica con cada fallo seguido. */
+export const PAUSA_REINTENTO_BASE_MS = 3000
+/** Tope (ms) de esa pausa: un fallo persistente no puede acabar en una petición cada pocos segundos. */
+export const PAUSA_REINTENTO_MAX_MS = 60_000
+
+/** Pausa antes del reintento tras `fallos` fallos seguidos (el primero espera la base). */
+export function pausaReintento(fallos: number): number {
+  return Math.min(PAUSA_REINTENTO_BASE_MS * 2 ** Math.max(0, fallos), PAUSA_REINTENTO_MAX_MS)
+}
+
+/** Anota un fallo de petición en la generación `gen`; uno de otra generación se ignora. */
+export function registrarFallo(prev: EstadoRepos, gen: number): EstadoRepos {
+  return prev.gen === gen ? { ...prev, fallos: prev.fallos + 1 } : prev
 }
 
 /**
@@ -97,7 +122,9 @@ export function nuevaGeneracion(
     gen: prev.gen + 1,
     clave,
     mapa: semilla === undefined ? new Map() : new Map(semilla),
-    pedidos: new Set()
+    pedidos: new Set(),
+    respondido: false,
+    fallos: 0
   }
 }
 
@@ -144,10 +171,12 @@ export function aplicarParcial(prev: EstadoRepos, gen: number, status: RepoStatu
   if (gen !== prev.gen) return prev
   const anterior = prev.mapa.get(status.repo)
   // Idéntico a lo que ya había: se devuelve `prev` para no disparar un render.
-  if (anterior !== undefined && mismoEstado(anterior, status)) return prev
+  if (anterior !== undefined && mismoEstado(anterior, status)) {
+    return prev.respondido ? prev : { ...prev, respondido: true }
+  }
   const mapa = new Map(prev.mapa)
   mapa.set(status.repo, status)
-  return { ...prev, mapa }
+  return { ...prev, mapa, respondido: true }
 }
 
 /** Acumula una tanda entera (la respuesta final de `multiStatus`). */
@@ -166,7 +195,8 @@ export function aplicarTanda(
       cambio = true
     }
   }
-  return cambio ? { ...prev, mapa } : prev
+  if (!cambio && prev.respondido && prev.fallos === 0) return prev
+  return { ...prev, mapa: cambio ? mapa : prev.mapa, respondido: true, fallos: 0 }
 }
 
 /** ¿Dos estados del mismo repo dicen lo mismo? Por contenido: cada respuesta trae objetos nuevos. */

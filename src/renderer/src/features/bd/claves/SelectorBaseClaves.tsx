@@ -19,6 +19,7 @@ import { EstadoSelector, FiltroSelector } from '../documentos/piezasBarra'
 import { teclaSelector, useCierreFuera } from '../documentos/useSelectorBase'
 import { useFocoDelFiltro } from '../../../comun/usePopoverFlotante'
 import { baseDeFiltro } from './consolaClaves'
+import { txConsolaClaves } from './textosConsolaClaves'
 
 const ANCHO_SELECTOR = 240
 
@@ -122,7 +123,7 @@ function ListaBases({
   onElegir: (i: number) => void
 }): React.JSX.Element {
   return (
-    <div className="db-pop-lista" role="listbox" aria-label="Bases" style={{ maxHeight: FILAS_MAX * altoFila, overflowY: 'auto' }}>
+    <div className="db-pop-lista" role="listbox" aria-label={txConsolaClaves().bases} style={{ maxHeight: FILAS_MAX * altoFila, overflowY: 'auto' }}>
       {opciones.map((b, i) => (
         <div
           key={b.indice}
@@ -139,7 +140,7 @@ function ListaBases({
             {b.indice === actual ? <IconoCommit /> : null}
           </span>
           <span className="db-pop-nombre">{etiquetaBaseClaves(b.indice)}</span>
-          {b.claves !== null && b.claves > 0 && <span className="kv-pop-conteo">{b.claves === 1 ? '1 clave' : `${b.claves} claves`}</span>}
+          {b.claves !== null && b.claves > 0 && <span className="kv-pop-conteo">{txConsolaClaves().conteoClaves(b.claves)}</span>}
         </div>
       ))}
     </div>
@@ -173,17 +174,18 @@ export function SelectorBaseClaves(p: {
     cerrarRef.current()
   }
   const mover = (dir: number): void => setActivo((a) => Math.max(0, Math.min(opciones.length - 1, a + dir)))
+  const t = txConsolaClaves()
 
   return createPortal(
     <div
       ref={raizRef}
       className="db-esquemas-pop db-esquema-consola-pop"
       role="dialog"
-      aria-label={`Base de la consola en ${p.conexion.alias}`}
+      aria-label={t.baseDeLaConsolaEn(p.conexion.alias)}
       style={{ left: pos.left, top: pos.top, width: ANCHO_SELECTOR }}
       onKeyDown={(e) => teclaSelector(e, { cerrar: () => cerrarRef.current(), elegir: () => elegir(activo), mover })}
     >
-      <FiltroSelector alias={p.conexion.alias} filtroRef={filtroRef} filtro={filtro} placeholder="Filtrar bases (3 o db3)" onFiltro={setFiltro} />
+      <FiltroSelector alias={p.conexion.alias} filtroRef={filtroRef} filtro={filtro} placeholder={t.filtrarBases} onFiltro={setFiltro} />
       <EstadoSelector
         cargando={cargando && !error}
         error={error}
@@ -203,7 +205,7 @@ export function SelectorBaseClaves(p: {
         />
       )}
       <div className="db-pop-pie">
-        <span className="db-pop-pista">Enter elige · Esc cancela · también «SELECT n»</span>
+        <span className="db-pop-pista">{t.pistaSelector}</span>
       </div>
     </div>,
     document.body

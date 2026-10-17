@@ -44,6 +44,8 @@ import { confirmarDescarteNativo, confirmarDescarteLoteNativo } from './git/adap
 import { WorkspaceService } from './workspace/WorkspaceService'
 import { registrarIpcEstadoWorkspace, registrarIpcWorkspace } from './workspace/ipc'
 import { registrarIpcPerfiles } from './profiles/ipc'
+import { registrarIpcCopiaConfiguracion } from './configuracion/ipc'
+import { plataformaActual } from '../shared/plataforma'
 import { registrarIpcShell } from './shell/ipc'
 import { sistemaShellElectron } from './shell/adaptadores/sistemaElectron'
 import { IntegracionShellService } from './shell/IntegracionShellService'
@@ -60,6 +62,7 @@ import { depsSaludElectron } from './salud/adaptadores/saludElectron'
 import { LlamadasIpc } from './salud/llamadasIpc'
 import { instrumentarIpc, registrarIpcSalud } from './salud/ipc'
 import { instalarTemaYMenu, logNativeAbi, prepararArranque } from './app/arranque'
+import { fijarIdiomaDeArranque } from './app/idioma'
 import { registrarActivacion, registrarAperturaMac, registrarEventosDeApp } from './app/eventosApp'
 import { esArranqueTrasActualizar } from './app/instanciaUnica'
 import { MODO_CAPTURA, runShotMode } from './app/modoCaptura'
@@ -170,7 +173,10 @@ function componerArchivos(): void {
   files.setJarService(jar)
   const java = new JavaService({
     jar,
-    resolver: (rel) => files.resolveProyecto(rel),
+    proyecto: (raiz) => {
+      const disco = files.paraRaiz(raiz)
+      return { resolver: (rel) => disco.resolveProyecto(rel) }
+    },
     rutaDatos: app.getPath('userData'),
     dirMotores: join(app.getAppPath(), 'vendor', 'java')
   })
@@ -192,11 +198,14 @@ function componerArchivos(): void {
     confirmDiscardMany: confirmarDescarteLoteNativo
   })
   registrarIpcGit({ ipc: ipcMain, git })
-  // Necesita a git (los bytes de cada revisión) y al descompilador del visor de clases.
+  // Necesita a git (los bytes de cada revisión) y al disco del proyecto de cada petición, y al
+  // descompilador del visor de clases.
   const comprimidos = new ComprimidosService({
-    git,
-    decompiler: java.descompilador,
-    resolver: (rel) => files.resolveProyecto(rel)
+    proyecto: (raiz) => {
+      const disco = files.paraRaiz(raiz)
+      return { git: git.paraRaiz(raiz), resolver: (rel) => disco.resolveProyecto(rel) }
+    },
+    decompiler: java.descompilador
   })
   refs.comprimidos = comprimidos
   registrarIpcComprimidos({ ipc: ipcMain, comprimidos })
@@ -230,6 +239,7 @@ async function arrancar(): Promise<void> {
   // durante un bloqueo. Solo canal y tiempo; cuesta dos lecturas del reloj por petición.
   instrumentarIpc(ipcMain, llamadasIpc, () => performance.now())
   registrarIpcFallos({ ipc: ipcMain })
+  fijarIdiomaDeArranque()
   instalarTemaYMenu()
   const perfiles: PerfilesVivos = { lista: loadProfilesMutable() }
   console.log(`[tessera] ${perfiles.lista.length} perfiles cargados: ${perfiles.lista.map((p) => p.nombre).join(', ')}`)
@@ -250,7 +260,17 @@ async function arrancar(): Promise<void> {
   limpiarMemoriaGlobal((m) => dbLog('migracion', m))
   logNativeAbi()
   registrarIpcPerfiles({ ipc: ipcMain, perfiles: () => perfiles.lista })
-  registrarIpcAcercaDe({ ipc: ipcMain })
+  registrarIpcCopiaConfiguracion({
+    ipc: ipcMain,
+    ventana: () => refs.ventana,
+    plataforma: plataformaActual(),
+    version: app.getVersion(),
+    fuentes: { ssh: (id) => ssh.controlador.paraCopia(id), bd: (id) => dbController.paraCopia(id) },
+    importarSsh: (copia, ids) => ssh.controlador.importarDeCopia(copia, ids),
+    importarBd: (copia, ids) => dbController.importarDeCopia(copia, ids),
+    yaEsta: { ssh: (id) => ssh.controlador.idOcupado(id), bd: (id) => dbController.idOcupado(id) }
+  })
+  registrarIpcAcercaDe({ ipc: ipcMain, reiniciar: () => void iniciarCierre(refs, { reabrir: true }) })
   registrarIpcPortapapeles({
     ipc: ipcMain,
     portapapeles: portapapelesElectron(),

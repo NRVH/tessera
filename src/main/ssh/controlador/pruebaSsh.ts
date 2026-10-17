@@ -10,6 +10,7 @@ import { plataformaActual, type Plataforma } from '../../../shared/plataforma.ts
 import type { SshHuella, SshMotivoPrueba, SshResultadoPrueba } from '../../../shared/ssh-ipc.ts'
 import { clasificarSalidaSsh, esSalidaDeFalloSsh } from '../clasificacionSalida.ts'
 import type { SalidaCorta } from '../formatoClave.ts'
+import { txSsh } from '../textos.ts'
 
 /** Lo que espera «Probar» como mucho; ssh ya corta la conexión a los 10 s (`ConnectTimeout`). */
 export const TOPE_PRUEBA_MS = 20_000
@@ -53,7 +54,7 @@ export function detalleSinRutas(errores: string, codigo: number | null): string 
     .filter((l) => l !== '' && !AVISO_HUELLA_ANADIDA.test(l))
   const ultima = (lineas[lineas.length - 1] ?? '').replace(/"[^"]*"|'[^']*'/g, '«…»')
   if (ultima !== '' && !PARECE_RUTA.test(ultima)) return ultima.slice(0, 200)
-  return codigo === null ? 'No se pudo lanzar ssh.' : `ssh salió con el código ${codigo}.`
+  return codigo === null ? txSsh().prueba.noSeLanzo : txSsh().prueba.salio(codigo)
 }
 
 /** La huella que presenta el servidor cuando cambió, si ssh la dijo. */

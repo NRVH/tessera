@@ -8,6 +8,7 @@ import './sshTerminal.css'
 import { useEffect } from 'react'
 import { SearchBox } from '../../comun/SearchBox'
 import { TerminalImageChips } from './TerminalImageChips'
+import { txTerminales } from './textos.ts'
 import type { InterfazTerminal } from './useInterfazTerminal'
 
 interface TerminalContextMenuProps {
@@ -46,13 +47,14 @@ function TerminalContextMenu({
     }
   }, [onClose])
 
+  const t = txTerminales()
   return (
     <div className="ctx-menu" style={{ top: y, left: x }} onMouseDown={(e) => e.stopPropagation()}>
       <button className="ctx-menu-item" onClick={onCopy} disabled={!canCopy}>
-        Copiar
+        {t.copiar}
       </button>
       <button className="ctx-menu-item" onClick={onPaste}>
-        Pegar
+        {t.pegar}
       </button>
     </div>
   )
@@ -68,15 +70,16 @@ export interface CapasSsh {
 
 /** La franja de una sesión SSH terminada: qué pasó y «Reconectar», que también hace Intro. */
 function FranjaFinSsh({ fin }: { fin: NonNullable<CapasSsh['fin']> }): React.JSX.Element {
+  const t = txTerminales()
   return (
     <div className="terminal-fin-ssh" role="status">
       <span className="terminal-fin-ssh-motivo">{fin.motivo}</span>
       {fin.onReconectar ? (
-        <button className="btn terminal-fin-ssh-boton" onClick={fin.onReconectar} disabled={fin.enVuelo} title="Reconectar (Intro)">
-          {fin.enVuelo ? 'Reconectando…' : 'Reconectar'}
+        <button className="btn terminal-fin-ssh-boton" onClick={fin.onReconectar} disabled={fin.enVuelo} title={t.reconectarIntro}>
+          {fin.enVuelo ? t.reconectando : t.reconectar}
         </button>
       ) : (
-        <span className="terminal-fin-ssh-nota">La conexión se eliminó</span>
+        <span className="terminal-fin-ssh-nota">{t.conexionEliminada}</span>
       )}
     </div>
   )
@@ -99,7 +102,7 @@ export function CapasTerminal({ ui, ssh = SIN_SSH }: { ui: InterfazTerminal; ssh
           <span className="terminal-conectando-texto">{conectando.texto}</span>
           {conectando.onCancelar && (
             <button className="terminal-conectando-cancelar" onClick={conectando.onCancelar}>
-              Cancelar
+              {txTerminales().cancelar}
             </button>
           )}
         </div>

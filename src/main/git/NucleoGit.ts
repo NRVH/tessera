@@ -80,10 +80,16 @@ export class NucleoGit {
    * Serializa las ESCRITURAS de git (`.git/index.lock`); las lecturas no pasan por aquí. La
    * clave es la raíz del repo que se toca: dos repos no se bloquean entre sí.
    */
-  readonly writeLock = new KeyedMutex()
+  readonly writeLock: KeyedMutex
+  /** Vista de un proyecto que no es el anclado (ver `GitServiceOptions.vista`). */
+  private readonly vista: boolean
 
   constructor(opts: GitServiceOptions) {
     this.projectRoot = opts.projectRoot != null ? path.resolve(opts.projectRoot) : null
+    this.containerPath = opts.containerPath != null ? path.resolve(opts.containerPath) : null
+    // Las vistas de otros proyectos comparten el candado: dos pueden tocar el mismo repo.
+    this.writeLock = opts.writeLock ?? new KeyedMutex()
+    this.vista = opts.vista === true
     this.log = opts.log ?? ((m) => console.log(`[git] ${m}`))
     // Sin quien confirme, no se borra nada.
     this.confirmDiscard = opts.confirmDiscard ?? (async () => false)
@@ -91,9 +97,14 @@ export class NucleoGit {
     this.eventos = opts.eventos ?? null
   }
 
-  /** Ámbito cancelable del abanico de `multiStatus`: la contenedora vigente. */
+  /** Ámbito cancelable del abanico de `multiStatus`: la contenedora vigente (aparte, si es una vista). */
   ambitoAbanico(): string {
-    return `abanico:${this.containerPath ?? this.projectRoot ?? ''}`
+    return `${this.vista ? 'abanico-vista' : 'abanico'}:${this.contenedora() ?? ''}`
+  }
+
+  /** La contenedora a la que se resuelven las rutas del renderer, o `null` sin proyecto. */
+  contenedora(): string | null {
+    return this.containerPath ?? this.projectRoot
   }
 
   /** Manda un aviso al renderer. No-op sin emisor o sin ventana viva. */
@@ -139,9 +150,13 @@ export class NucleoGit {
   private async resolveActiveCtx(): Promise<RepoCtx | null> {
     // Sin proyecto no hay dónde resolver: con cwd indefinido git correría en el repo de la PROPIA app.
     if (this.projectRoot === null) return null
+    // La contenedora se toma ANTES del await: si el ancla cambia mientras git responde, este repo
+    // se traduce con la suya y no con la del proyecto nuevo.
+    const contenedora = this.contenedora()
     try {
       const { stdout } = await gitSinCola(['rev-parse', '--show-toplevel'], this.projectRoot)
-      return this.ctxFor(path.resolve(stdout.trim()))
+      const root = path.resolve(stdout.trim())
+      return { root, ...derivePrefixes(contenedora, root) }
     } catch (err) {
       this.log(`sin repo git en la raíz del proyecto; los handlers devolverán vacío (${errMessage(err)})`)
       return null

@@ -5,7 +5,7 @@
 
 ## Contexto
 
-tedious 20 (medido contra SQL Server 2022 CU27) pierde precisión: `decimal(38,12)` sale como
+tedious 20 pierde precisión: `decimal(38,12)` sale como
 `1.2345678901234568e+25`, el `money` máximo como `922337203685477.6`, `datetime2(7)` como un `Date`,
 `datetimeoffset` en UTC sin desplazamiento. Su `requestTimeout` de fábrica (15 s) mata una consulta
 larga, y con XACT_ABORT un Stop revierte la transacción entera.

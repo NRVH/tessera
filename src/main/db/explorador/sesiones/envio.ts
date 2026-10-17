@@ -12,7 +12,7 @@ import {
   type DbRespuesta,
   type DbResultadoEnvio,
   type DbTiempos,
-  MOTIVO_CARPETA_SIN_ESCRITURA
+  motivoCarpetaSinEscritura
 } from '../../../../shared/db-explorador-ipc.ts'
 import { dialectoDeMotor, type DialectoSql } from '../../../../shared/sql/dialectosSql.ts'
 import {
@@ -25,7 +25,7 @@ import {
   mensajeFalloCommit,
   mensajeFilaBloqueada,
   mensajeFilas,
-  MOTIVO_SOLO_LECTURA,
+  motivoSoloLectura,
   notaSinCulpable,
   primerCulpable,
   type SentenciaEnvio,
@@ -39,6 +39,7 @@ import type { Apertura } from './apertura.ts'
 import { ErrorGestor, errorSql } from './errores.ts'
 import type { NucleoSesiones } from './NucleoSesiones.ts'
 import { esperaPorArchivo, leerCabeceraArchivo } from './reglas.ts'
+import { txSesiones } from './textosSesiones.ts'
 import type { PeticionEnvio, Proceso, Sesion } from './tipos.ts'
 
 /** Lo que comparten las fases de un envío: su sesión, su proceso y cómo revertir o fallar. */
@@ -104,14 +105,14 @@ export class EnvioRejilla {
     }
     if (this.n.ro(con)) {
       // El MISMO texto que el controlador y que la identidad 'ninguna' (uno solo).
-      const mensaje = this.n.porCarpeta(con.id) ? MOTIVO_CARPETA_SIN_ESCRITURA : MOTIVO_SOLO_LECTURA
+      const mensaje = this.n.porCarpeta(con.id) ? motivoCarpetaSinEscritura() : motivoSoloLectura()
       return { ok: false, error: { motivo: 'soloLectura', mensaje } }
     }
     if (exigeConfirmacion(con, this.n.ro(con), req.confirmado)) {
       return { ok: false, error: { motivo: 'produccion', mensaje: mensajeProduccion(con.alias, 'enviar') } }
     }
     if (!Array.isArray(req.sentencias) || req.sentencias.length === 0) {
-      return { ok: false, error: { motivo: 'interno', mensaje: 'No hay cambios que enviar.' } }
+      return { ok: false, error: { motivo: 'interno', mensaje: txSesiones().sinCambiosEnviar } }
     }
     // Síncrono a propósito: el envío se encola en el MISMO turno en que llega (un Stop de la
     // preparación lo encuentra en la cola). Solo se espera —el nombre de la consola— cuando
@@ -195,9 +196,7 @@ export class EnvioRejilla {
     } catch {
       nombre = null
     }
-    const quien = nombre ? `La consola «${nombre}» (${b.otra.alias})` : `Una consola de «${b.otra.alias}»`
-    const que = tieneTxPendiente(b.s.estado) ? 'tiene cambios sin confirmar' : 'tiene una transacción abierta'
-    return `${quien} ${que} en este mismo archivo, y mientras tanto el archivo entero queda bloqueado para escribir. Confírmala o revírtela en esa consola y vuelve a enviar.`
+    return txSesiones().bloqueoArchivo(nombre, b.otra.alias, tieneTxPendiente(b.s.estado))
   }
 
   /**
@@ -332,7 +331,7 @@ export class EnvioRejilla {
       let error: DbErrorSql
       if (!et) error = this.ap.aErrorGestor(e).error
       else if (et.clase === 'perdida') {
-        error = { motivo: 'sesionPerdida', mensaje: `${MENSAJES.perdidaConTx}: no se aplicó nada.`, ...(et.codigo ? { codigo: et.codigo } : {}) }
+        error = { motivo: 'sesionPerdida', mensaje: txSesiones().nadaAplicado(MENSAJES.perdidaConTx), ...(et.codigo ? { codigo: et.codigo } : {}) }
       } else if (esEsperaDeBloqueo(d, et.codigo)) {
         // Venció la espera de la fila (`FOR UPDATE WAIT` / `lock_timeout`).
         error = { motivo: 'servidor', mensaje: mensajeFilaBloqueada(tipo), ...(et.codigo ? { codigo: et.codigo } : {}) }
@@ -342,7 +341,7 @@ export class EnvioRejilla {
     }
     const detenido = async (i: number): Promise<DbResultadoEnvio> => {
       await revertir()
-      return { tipo: 'error', indice: i, error: { motivo: 'cancelada', mensaje: 'Envío detenido: no se aplicó nada.' }, tiempos: tiempos() }
+      return { tipo: 'error', indice: i, error: { motivo: 'cancelada', mensaje: txSesiones().envioDetenidoNada }, tiempos: tiempos() }
     }
     return { s, p, d, req, clave, tiempos, revertir, enviarSql, fallo, detenido }
   }
@@ -365,7 +364,7 @@ export class EnvioRejilla {
     try {
       culpable = await primerCulpable(lote.indices, async (sub) => {
         // Un Stop durante la búsqueda la corta: el envío ya no va a salir.
-        if (s.cancelada === clave) throw new ErrorGestor('cancelada', 'Envío detenido.')
+        if (s.cancelada === clave) throw new ErrorGestor('cancelada', txSesiones().envioDetenido)
         const sonda = loteDeBloqueo(d, req.sentencias, sub, 'nowait')
         try {
           await pe.enviarSql(sonda.sql, sonda.binds, false)

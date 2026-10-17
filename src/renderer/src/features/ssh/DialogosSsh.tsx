@@ -1,7 +1,7 @@
 // =============================================================================
 // Los diálogos de las conexiones SSH que abre el store: el formulario de una conexión, la revisión de
 // una importación de OpenSSH, el nombre de un grupo (crearlo, también con conexiones dentro, o renombrarlo),
-// las confirmaciones de eliminar (una conexión, varias o un grupo), mover varias y la actividad de los agentes. Se montan una sola vez en la capa de modales de la ventana. El error del main se enseña tal cual.
+// las confirmaciones de eliminar (una conexión, varias o un grupo) y de olvidar la huella guardada, mover varias y la actividad de los agentes. Se montan una sola vez en la capa de modales de la ventana. El error del main se enseña tal cual.
 // Decisiones: docs/decisiones/terminales/pestanas-ssh-del-perfil.md
 // =============================================================================
 
@@ -17,20 +17,23 @@ import { DialogoMoverSsh } from './DialogoMoverSsh'
 import { mensajeDeErrorSsh } from './erroresSsh'
 import { cuantasConexiones, mensajeEliminarVarias } from './seleccionListaSsh'
 import { accionesSsh, useStoreSsh } from './store'
+import { txSsh } from './textos.ts'
+import { txFormularioSsh } from './textosFormulario.ts'
 
 /** Pasa al grupo recién creado las conexiones que se soltaron en «Nuevo grupo…»; si no puede, lo dice (el grupo queda). */
 async function moverAlNuevo(perfilId: string, grupoId: string, ids: readonly string[]): Promise<void> {
   try {
     await window.tessera.ssh.mover({ ids: [...ids], profileId: perfilId, grupoId })
   } catch (err) {
-    notify('error', 'Se creó el grupo, pero no se pudieron mover las conexiones', mensajeDeErrorSsh(err))
+    notify('error', txSsh().grupoCreadoSinMover, mensajeDeErrorSsh(err))
   }
 }
 
 /** El título del cuadro del grupo: renombrar, crear, o crear con conexiones dentro. */
 function tituloGrupo(grupo: SshGrupo | null, mover: readonly string[]): string {
-  if (grupo !== null) return 'Renombrar grupo'
-  return mover.length > 0 ? `Nuevo grupo con ${cuantasConexiones(mover.length)}` : 'Nuevo grupo'
+  const t = txSsh()
+  if (grupo !== null) return t.renombrarGrupo
+  return mover.length > 0 ? t.nuevoGrupoCon(cuantasConexiones(mover.length)) : t.nuevoGrupo
 }
 
 /** Crear un grupo (con `mover`, y pasar esas conexiones a él) o renombrar uno: el nombre en un cuadro, con el error del main dentro. */
@@ -55,9 +58,9 @@ function DialogoGrupoSsh({ perfilId, grupo, mover = [] }: { perfilId: string; gr
   return (
     <PromptDialog
       title={tituloGrupo(grupo, mover)}
-      label="Nombre del grupo"
+      label={txSsh().nombreGrupo}
       initialValue={grupo?.nombre ?? ''}
-      confirmLabel={grupo === null ? 'Crear' : 'Guardar'}
+      confirmLabel={grupo === null ? txSsh().crear : txSsh().guardar}
       error={error}
       onConfirm={(nombre) => void confirmar(nombre)}
       onCancel={accionesSsh.cerrarDialogo}
@@ -72,16 +75,41 @@ function ConfirmarEliminarConexion({ conexion }: { conexion: SshConexion }): Rea
     try {
       await window.tessera.ssh.borrar({ id: conexion.id, profileId: conexion.profileId })
     } catch (err) {
-      notify('error', 'No se pudo eliminar la conexión', mensajeDeErrorSsh(err))
+      notify('error', txSsh().noSePudoEliminarConexion, mensajeDeErrorSsh(err))
     }
   }
+  const t = txSsh()
   return (
     <ConfirmDialog
       danger
-      title="Eliminar conexión"
-      message={`¿Eliminar la conexión «${conexion.alias}»?\nLas pestañas que tenga abiertas siguen funcionando, pero ya no se podrán reconectar.`}
-      confirmLabel="Eliminar"
+      title={t.eliminarConexionTitulo}
+      message={`${t.eliminarConexionMensaje(conexion.alias)}\n${t.pestanasSiguen}`}
+      confirmLabel={t.eliminarBoton}
       onConfirm={() => void eliminar()}
+      onCancel={accionesSsh.cerrarDialogo}
+    />
+  )
+}
+
+/** Confirmar que se olvida la huella guardada: la próxima conexión acepta y guarda la que presente el servidor. */
+function ConfirmarOlvidarHuella({ conexion }: { conexion: SshConexion }): React.JSX.Element {
+  const olvidar = async (): Promise<void> => {
+    accionesSsh.cerrarDialogo()
+    try {
+      await window.tessera.ssh.olvidarHuella({ id: conexion.id })
+      notify('success', txSsh().huellaOlvidada(conexion.alias))
+    } catch (err) {
+      notify('error', txSsh().noSePudoOlvidarHuella, mensajeDeErrorSsh(err))
+    }
+  }
+  const t = txFormularioSsh()
+  return (
+    <ConfirmDialog
+      danger
+      title={t.olvidarHuellaTitulo}
+      message={`${txSsh().olvidarHuellaPregunta(conexion.alias)}\n${t.olvidarHuellaMensaje1}\n${t.olvidarHuellaMensaje2}`}
+      confirmLabel={txSsh().olvidarBoton}
+      onConfirm={() => void olvidar()}
       onCancel={accionesSsh.cerrarDialogo}
     />
   )
@@ -94,15 +122,15 @@ function ConfirmarEliminarConexiones({ perfilId, conexiones }: { perfilId: strin
     try {
       await window.tessera.ssh.borrarVarias({ ids: conexiones.map((c) => c.id), profileId: perfilId })
     } catch (err) {
-      notify('error', 'No se pudieron eliminar las conexiones', mensajeDeErrorSsh(err))
+      notify('error', txSsh().noSePudieronEliminar, mensajeDeErrorSsh(err))
     }
   }
   return (
     <ConfirmDialog
       danger
-      title={`Eliminar ${cuantasConexiones(conexiones.length)}`}
+      title={txSsh().eliminarVariasTitulo(cuantasConexiones(conexiones.length))}
       message={mensajeEliminarVarias(conexiones.map((c) => c.alias))}
-      confirmLabel="Eliminar"
+      confirmLabel={txSsh().eliminarBoton}
       onConfirm={() => void eliminar()}
       onCancel={accionesSsh.cerrarDialogo}
     />
@@ -111,8 +139,9 @@ function ConfirmarEliminarConexiones({ perfilId, conexiones }: { perfilId: strin
 
 /** Lo que pasa con las conexiones de un grupo que se elimina. */
 function textoConexionesDelGrupo(n: number): string {
-  if (n === 0) return 'No tiene conexiones.'
-  return n === 1 ? 'Su conexión pasa a "Sin grupo".' : `Sus ${n} conexiones pasan a "Sin grupo".`
+  const t = txSsh()
+  if (n === 0) return t.grupoSinConexiones
+  return n === 1 ? t.grupoUnaConexion : t.grupoVariasConexiones(n)
 }
 
 /** Confirmar el borrado de un grupo: sus conexiones no se borran, pasan a «Sin grupo». */
@@ -122,15 +151,16 @@ function ConfirmarEliminarGrupo({ grupo, conexiones }: { grupo: SshGrupo; conexi
     try {
       await window.tessera.ssh.borrarGrupo({ id: grupo.id, profileId: grupo.profileId })
     } catch (err) {
-      notify('error', 'No se pudo eliminar el grupo', mensajeDeErrorSsh(err))
+      notify('error', txSsh().noSePudoEliminarGrupo, mensajeDeErrorSsh(err))
     }
   }
+  const t = txSsh()
   return (
     <ConfirmDialog
       danger
-      title="Eliminar grupo"
-      message={`¿Eliminar el grupo «${grupo.nombre}»?\n${textoConexionesDelGrupo(conexiones)}`}
-      confirmLabel="Eliminar"
+      title={t.eliminarGrupoTitulo}
+      message={`${t.eliminarGrupoMensaje(grupo.nombre)}\n${textoConexionesDelGrupo(conexiones)}`}
+      confirmLabel={t.eliminarBoton}
       onConfirm={() => void eliminar()}
       onCancel={accionesSsh.cerrarDialogo}
     />
@@ -158,6 +188,7 @@ export function DialogosSsh(): React.JSX.Element | null {
   if (dialogo.tipo === 'importarOpenSsh') return <DialogoImportarOpenSsh perfilId={dialogo.perfilId} lectura={dialogo.lectura} onCerrar={accionesSsh.cerrarDialogo} />
   if (dialogo.tipo === 'grupo') return <DialogoGrupoSsh key={dialogo.grupo?.id ?? 'nuevo'} perfilId={dialogo.perfilId} grupo={dialogo.grupo} mover={dialogo.mover} />
   if (dialogo.tipo === 'eliminarConexion') return <ConfirmarEliminarConexion conexion={dialogo.conexion} />
+  if (dialogo.tipo === 'olvidarHuella') return <ConfirmarOlvidarHuella conexion={dialogo.conexion} />
   if (dialogo.tipo === 'eliminarConexiones') return <ConfirmarEliminarConexiones perfilId={dialogo.perfilId} conexiones={dialogo.conexiones} />
   if (dialogo.tipo === 'moverConexiones') return <DialogoMoverSsh perfilId={dialogo.perfilId} conexiones={dialogo.conexiones} />
   if (dialogo.tipo === 'actividad') return <DialogoActividadSsh perfilId={dialogo.perfilId} alias={dialogo.alias} />

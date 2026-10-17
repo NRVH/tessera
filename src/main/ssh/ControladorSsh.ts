@@ -58,12 +58,14 @@ import type { ConexionesSsh } from './ConexionesSsh.ts'
 import type { ConexionSshPersistida } from './conservarAlEditarSsh.ts'
 import { SIN_SECRETO, type AskpassSsh, type EntornoSecreto } from './controlador/askpassSsh.ts'
 import { ErrorClave, type ClavesImportadas, type InstalacionClave } from './controlador/clavesImportadas.ts'
+import { importarSshDeCopia, type ResultadoCopiaSsh } from './controlador/copiaSsh.ts'
 import { exportarOpenSsh, leerConfigOpenSsh, usuarioLocal, type DepsExportacionOpenSsh } from './controlador/archivosOpenSsh.ts'
 import { citaDe, proxyDeSaltos, type DepsLineaSaltos } from './controlador/lineaSaltos.ts'
 import { TOPE_PRUEBA_MS, resultadoPrueba, type EjecutarSsh } from './controlador/pruebaSsh.ts'
 import { FICHA_PESTANA, FICHA_PRUEBA, FICHA_TUNEL } from './fichasAskpass.ts'
 import { huellasDeKnownHosts } from './huellasSsh.ts'
-import { MENSAJE_SIN_COPIA_CLAVE, argumentosSsh } from './lineaSsh.ts'
+import { mensajeSinCopiaClave, argumentosSsh } from './lineaSsh.ts'
+import { txSsh } from './textos.ts'
 import { QUITAR_ENV_SSH } from './programaAskpass.ts'
 import { mensajeDeFalloSsh } from './registroSsh.ts'
 import { cadenaDeSaltos, type CitaProxy } from './saltosSsh.ts'
@@ -167,7 +169,7 @@ export class ControladorSsh implements LanzadorSshTerminal {
 
   /** Las claves importadas, o un error claro si este controlador no las tiene. */
   private clavesImportadas(): ClavesImportadas {
-    if (this.claves === null) throw new ErrorClave('Esta ventana de Tessera no puede importar archivos de clave.')
+    if (this.claves === null) throw new ErrorClave(txSsh().registro.sinClaves)
     return this.claves
   }
 
@@ -210,7 +212,7 @@ export class ControladorSsh implements LanzadorSshTerminal {
    * cuando la persona lo revisa. `null` si se cancela.
    */
   async leerOpenSsh(req: SshImportarOpenSsh): Promise<SshLecturaOpenSsh | null> {
-    if (this.elegirConfigOpenSsh === null) throw new Error('Esta ventana de Tessera no puede importar conexiones de OpenSSH.')
+    if (this.elegirConfigOpenSsh === null) throw new Error(txSsh().registro.sinImportar)
     // Con un registro que no se sabe escribir no entra nada: ni se abre el diálogo.
     const previa = this.conexiones.listar()
     if (previa.formatoAjeno) throw new Error(previa.aviso)
@@ -233,7 +235,7 @@ export class ControladorSsh implements LanzadorSshTerminal {
    * las copias de sus claves en una carpeta junto a él (ver `controlador/archivosOpenSsh.ts`). `null` si se cancela.
    */
   async exportarOpenSsh(req: SshExportarOpenSsh): Promise<SshExportacionOpenSsh | null> {
-    if (this.exportacion === null) throw new Error('Esta ventana de Tessera no puede exportar conexiones a OpenSSH.')
+    if (this.exportacion === null) throw new Error(txSsh().registro.sinExportar)
     const l = this.conexiones.listar(req.profileId)
     if (l.formatoAjeno) throw new Error(l.aviso)
     return exportarOpenSsh(l, req.ids, {
@@ -251,13 +253,41 @@ export class ControladorSsh implements LanzadorSshTerminal {
       if (token === null) return this.conexiones.editar(req.id, req.input)
       // Antes de mover ningún archivo: que la conexión exista y sea de ese perfil.
       const previa = this.conexiones.conexion(req.id)
-      if (!previa) throw new Error('Esa conexión ya no existe.')
-      if (previa.profileId !== req.input.profileId) throw new Error('Una conexión no puede cambiar de perfil.')
+      if (!previa) throw new Error(txSsh().registro.noExiste)
+      if (previa.profileId !== req.input.profileId) throw new Error(txSsh().registro.cambiarPerfil)
       return this.conClave(token, req.id, previa.profileId, (i) => this.conexiones.editar(req.id, req.input, { clave: i.clave }))
     })
     this.askpass?.alCambiarConexion(req.id)
     this.avisarCambioConexion()
     return editada
+  }
+
+  /** Grupos y conexiones de un perfil con sus secretos, claves y huellas, para una copia de la configuración. */
+  paraCopia(profileId: string): ReturnType<ConexionesSsh['paraCopia']> {
+    return this.conexiones.paraCopia(profileId)
+  }
+
+  /** ¿Hay ya una conexión con ese id? Para la vista previa de una copia de la configuración. */
+  idOcupado(id: string): boolean {
+    return this.conexiones.idOcupado(id)
+  }
+
+  /** Las conexiones de una copia de la configuración (`controlador/copiaSsh.ts`), con un solo aviso al final. */
+  async importarDeCopia(copia: unknown, perfiles: ReadonlySet<string>): Promise<ResultadoCopiaSsh> {
+    const r = await importarSshDeCopia(copia, perfiles, {
+      conexiones: this.conexiones,
+      deCopia: (texto, clave, profileId) => this.clavesImportadas().deCopia(texto, clave, profileId),
+      crear: (input, id) => {
+        const token = fichaDe(input)
+        if (token === null) this.conexiones.crear(input, { id })
+        else this.conClave(token, id, input.profileId, (i) => this.conexiones.crear(input, { id, clave: i.clave }))
+      }
+    })
+    if (r.anadidas > 0) {
+      this.eventos.emitir(SSH_CHANNELS.CAMBIO)
+      this.avisarCambioConexion()
+    }
+    return r
   }
 
   /** Quien abre túneles por estas conexiones (las bases de datos) se entera de cada cambio. */
@@ -275,7 +305,7 @@ export class ControladorSsh implements LanzadorSshTerminal {
    */
   async duplicar(req: SshDuplicarConexion): Promise<SshConexion> {
     const origen = this.conexiones.conexion(req.id)
-    if (!origen || origen.profileId !== req.profileId) throw new Error('Esa conexión ya no existe.')
+    if (!origen || origen.profileId !== req.profileId) throw new Error(txSsh().registro.noExiste)
     if (origen.metodo !== 'clave' || origen.clave === undefined) {
       return this.cambiar(SSH_CHANNELS.DUPLICAR, () => this.conexiones.duplicar(req.id, req.profileId))
     }
@@ -353,18 +383,18 @@ export class ControladorSsh implements LanzadorSshTerminal {
   /** La copia de la clave de una conexión con archivo de clave; lanza si no está. */
   private rutaClaveDe(id: string, conClave: boolean): string {
     const ruta = this.conexiones.rutaClave(id)
-    if (!conClave || !this.existe(ruta)) throw new Error(MENSAJE_SIN_COPIA_CLAVE)
+    if (!conClave || !this.existe(ruta)) throw new Error(mensajeSinCopiaClave())
     return ruta
   }
 
   /** La conexión vigente (de ese perfil, si se dice), con sus datos comprobados; lanza con un mensaje para el usuario. */
   private destino(conexionId: string, profileId?: string): DestinoSsh {
     const c = this.conexiones.conexion(conexionId)
-    if (!c) throw new Error('Esa conexión SSH ya no existe.')
-    if (profileId !== undefined && c.profileId !== profileId) throw new Error('Esa conexión SSH no es de este perfil.')
+    if (!c) throw new Error(txSsh().registro.noExisteSsh)
+    if (profileId !== undefined && c.profileId !== profileId) throw new Error(txSsh().registro.noEsDelPerfil)
     // Se validó al guardar, pero el archivo se puede editar a mano y esto acaba en la línea de ssh.
     const error = errorHost(c.host) ?? errorPuerto(c.puerto) ?? errorUsuario(c.usuario)
-    if (error !== null) throw new Error(`La conexión "${c.alias}" tiene un dato que no vale: ${error} Edítala para corregirlo.`)
+    if (error !== null) throw new Error(txSsh().registro.datoMalo(c.alias, error))
     const rutaClave = c.metodo === 'clave' ? this.rutaClaveDe(c.id, c.clave !== undefined) : undefined
     const cadena = cadenaDeSaltos(c, (id) => this.conexiones.conexion(id))
     const b = this.binarios()
@@ -380,7 +410,7 @@ export class ControladorSsh implements LanzadorSshTerminal {
   private saltar(d: DestinoSsh, secreto: EntornoSecreto): string | undefined {
     if (d.cadena.length === 0) return undefined
     try {
-      if (this.configSaltos === null) throw new Error('Esta ventana de Tessera no puede saltar por un bastión.')
+      if (this.configSaltos === null) throw new Error(txSsh().registro.sinBastion)
       const deps = { rutaHuellas: (id: string) => this.conexiones.rutaHuellas(id), rutaClave: (id: string) => this.conexiones.rutaClave(id), existe: this.existe, config: this.configSaltos, plataforma: this.plataforma }
       return proxyDeSaltos(d.cadena, { modo: 'humano', conAskpass: secreto.conAskpass, conDialogo: secreto.conDialogo, ssh: d.ssh, cita: d.cita }, deps)
     } catch (e) {
@@ -409,7 +439,7 @@ export class ControladorSsh implements LanzadorSshTerminal {
     const d = this.destino(conexionId, profileId)
     const { c, rutaClave, ssh } = d
     const tuneles = errorTuneles(c.tuneles ?? [])
-    if (tuneles !== null) throw new Error(`La conexión "${c.alias}" tiene un túnel que no vale: ${tuneles} Edítala para corregirlo.`)
+    if (tuneles !== null) throw new Error(txSsh().registro.tunelMalo(c.alias, tuneles))
     const secreto = this.askpass?.entorno(c, FICHA_PESTANA, true, d.cadena) ?? SIN_SECRETO
     if (secreto.aviso !== undefined) this.avisar(c, secreto.aviso)
     const proxyCommand = this.saltar(d, secreto)
@@ -488,10 +518,7 @@ export class ControladorSsh implements LanzadorSshTerminal {
     const { c, rutaClave, ssh } = d
     const sinHuella = [c, ...d.cadena].find((x) => (this.conexiones.textoHuellas(x.id) ?? '').trim() === '')
     if (sinHuella !== undefined) {
-      throw new Error(
-        `La huella del servidor SSH de «${sinHuella.alias}» no está confirmada: pulsa «Probar» en esa conexión SSH ` +
-          '(o conéctate una vez desde la terminal) y vuelve a intentarlo.'
-      )
+      throw new Error(txSsh().registro.sinHuella(sinHuella.alias))
     }
     const secreto = this.askpass?.entorno(c, FICHA_TUNEL, false, d.cadena) ?? SIN_SECRETO
     if (secreto.aviso !== undefined) this.log(`tunel conexion=${c.id}: ${secreto.aviso}`)
@@ -532,7 +559,7 @@ export class ControladorSsh implements LanzadorSshTerminal {
   }
 
   clasificar(exitCode: number | null, cola: string): TerminalExitReason | undefined {
-    return clasificarSalidaSsh(exitCode, cola, this.plataforma)
+    return clasificarSalidaSsh(exitCode, cola, this.plataforma, this.conexiones.carpetaHuellas)
   }
 
   /**
@@ -540,7 +567,7 @@ export class ControladorSsh implements LanzadorSshTerminal {
    * que el método pide, solo se comprueba que se llega (y se guarda la huella).
    */
   async probar(req: SshProbar): Promise<SshResultadoPrueba> {
-    if (this.ejecutar === null) throw new Error('Esta ventana de Tessera no puede probar conexiones SSH.')
+    if (this.ejecutar === null) throw new Error(txSsh().registro.sinProbar)
     const d = this.destino(req.id)
     const { c, rutaClave, ssh } = d
     const secreto = this.askpass?.entorno(c, FICHA_PRUEBA, false, d.cadena) ?? SIN_SECRETO

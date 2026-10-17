@@ -10,6 +10,8 @@ import type { editor } from 'monaco-editor'
 import { BARRAS_MONACO, MONACO_THEME, OPCIONES_BASE_MONACO, ensureMonaco } from '../../comun/monacoSetup'
 import { languageForFilename } from '../../../../shared/files-ipc'
 import type { CoincidenciaArchivo } from '../../../../shared/search-ipc'
+import { txBusqueda } from './textos.ts'
+import { raizDeTarget } from '../editor'
 import {
   MAX_COINCIDENCIAS,
   coincidenciasCon,
@@ -50,7 +52,8 @@ function esClaseCompilada(fila: CoincidenciaArchivo): boolean {
 
 /** Qué se dice mientras carga: una clase es una JVM arrancando (300-700 ms), no un «cargando». */
 export function mensajeCargando(fila: CoincidenciaArchivo): string {
-  return esClaseCompilada(fila) ? 'Descompilando la clase…' : 'Cargando…'
+  const t = txBusqueda()
+  return esClaseCompilada(fila) ? t.descompilando : t.cargando
 }
 
 /** Crea el editor de solo lectura una sola vez y lo libera al desmontar. */
@@ -109,7 +112,7 @@ function leerFila(
 ): Promise<void> {
   if (esClaseCompilada(fila)) {
     return window.tessera.java
-      .decompile({ path: fila.path, motor: 'auto', targetKey: pedidoPara, token: 0 })
+      .decompile({ raiz: raizDeTarget(pedidoPara), path: fila.path, motor: 'auto', targetKey: pedidoPara, token: 0 })
       .then((r) => {
         const ok = r.estado === 'ok' || r.estado === 'cache'
         aplicar({
@@ -121,13 +124,13 @@ function leerFila(
         })
       })
   }
-  return window.tessera.files.read(fila.path).then((r) => {
+  return window.tessera.files.read({ raiz: raizDeTarget(pedidoPara), path: fila.path }).then((r) => {
     aplicar({
       path: fila.path,
       projectKey: pedidoPara,
       contenido: r.content,
       language: r.language,
-      aviso: r.binary ? 'Archivo binario: no se muestra.' : null
+      aviso: r.binary ? txBusqueda().archivoBinario : null
     })
   })
 }

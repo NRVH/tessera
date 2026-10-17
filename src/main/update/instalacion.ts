@@ -23,6 +23,7 @@ import { decidirComoInstalar } from './decisionInstalar'
 import { bundleDeLaApp, lanzarRelevoMac, sePuedeEscribirEnElBundle } from './relevoMac'
 import { procesoVivo } from '../relevo/supervisor'
 import { logUpdate as log } from './logUpdate'
+import { txUpdate } from './textos.ts'
 import {
   MAX_INTENTOS_UPDATE,
   decidirPlanDeCierre,
@@ -200,7 +201,7 @@ export async function runInstaller(opts: RunInstallerOptions): Promise<false> {
   // PRE-CHEQUEO compartido por las dos plataformas: ¿hay algo verificado que aplicar? Va
   // antes de liberar la carpeta y MUY antes del sello: abortar aquí no ha cedido ni
   // quemado nada.
-  paso('Comprobando el instalador descargado…')
+  paso(txUpdate().pasos.comprobandoInstalador)
   const decision = decisionActual()
   if (decision.via === 'abortar') {
     log(`no se puede aplicar la actualización: ${decision.motivo}.`)
@@ -229,12 +230,12 @@ export async function runInstaller(opts: RunInstallerOptions): Promise<false> {
   // Liberar la carpeta: matar por RUTA lo que corra desde ella y sondear. Best-effort. Las
   // etiquetas del overlay las pone ESTE código, no el `Log` de installDirLock: clasificar
   // su texto por subcadena es el error que documenta updateErrors.ts.
-  paso('Liberando la carpeta de instalación…')
+  paso(txUpdate().pasos.liberando)
   try {
     const res = await freeInstallDirForUpdate((m) => log(m))
     if (!res.free) {
       log(`la carpeta de instalación no quedó del todo libre; se intenta instalar igual.`)
-      paso('La carpeta sigue ocupada; se intenta igual…')
+      paso(txUpdate().pasos.carpetaOcupada)
     }
   } catch (err) {
     log(`liberar la carpeta de instalación lanzó (se sigue): ${rawDetail(err)}`)
@@ -242,7 +243,7 @@ export async function runInstaller(opts: RunInstallerOptions): Promise<false> {
 
   // Pre-vuelo de rutas: el «…: 2» del instalador suele ser una ruta que al renombrarse se
   // pasa de MAX_PATH, no un archivo bloqueado. Si queda alguna, se ABORTA diciendo cuál.
-  paso('Revisando la carpeta de la aplicación…')
+  paso(txUpdate().pasos.revisando)
   try {
     const paths = preflightInstallDirPaths((m) => log(m))
     if (paths.tooLong.length) {
@@ -254,7 +255,7 @@ export async function runInstaller(opts: RunInstallerOptions): Promise<false> {
   }
 
   if (relevoEnMarcha(opts)) {
-    paso('Entregando a la ventana de actualización…')
+    paso(txUpdate().pasos.entregandoVentana)
     // Se sella ANTES de morir: después de `app.exit` no hay `finally`, y el arranque
     // siguiente necesita saber que se intentó.
     sellarIntento(opts)
@@ -270,7 +271,7 @@ export async function runInstaller(opts: RunInstallerOptions): Promise<false> {
   cancelarRelevoAnticipado()
 
   return new Promise((resolve) => {
-    paso('Aplicando la actualización…')
+    paso(txUpdate().pasos.aplicando)
     log(`lanzando el instalador (silencioso, relanzar=${opts.relanzar}, origen=${opts.origen})…`)
 
     // SELLAR EL INTENTO en la última línea antes de ceder el control: después de
@@ -315,7 +316,7 @@ export async function runInstaller(opts: RunInstallerOptions): Promise<false> {
  * `.app` se puede haber movido a un volumen de sólo lectura.
  */
 function instalarEnMac(opts: RunInstallerOptions, paso: (label: string) => void): Promise<false> {
-  paso('Comprobando dónde vive la aplicación…')
+  paso(txUpdate().pasos.comprobandoDonde)
   const bundle = bundleDeLaApp()
   if (bundle === null) {
     // Determinista: si no colgamos de un `.app` tampoco lo haremos en el siguiente cierre.
@@ -333,7 +334,7 @@ function instalarEnMac(opts: RunInstallerOptions, paso: (label: string) => void)
     // su sitio sin que la versión cambie, así que un bloqueo por versión no se levantaría.
     fallarInstalacion(
       updateNotApplicableError(
-        `no hay permiso para escribir en ${dirname(bundle)}, así que no se puede sustituir la aplicación`
+        txUpdate().motivos.sinPermiso(dirname(bundle))
       ),
       'runInstaller/mac',
       opts
@@ -344,7 +345,7 @@ function instalarEnMac(opts: RunInstallerOptions, paso: (label: string) => void)
   const zip = ciclo.state.installerPath
   if (zip === null) {
     fallarInstalacion(
-      updateNotApplicableError('no consta la ruta del paquete descargado'),
+      updateNotApplicableError(txUpdate().motivos.sinRutaPaquete),
       'runInstaller/mac',
       opts,
       true
@@ -352,7 +353,7 @@ function instalarEnMac(opts: RunInstallerOptions, paso: (label: string) => void)
     return Promise.resolve(false)
   }
 
-  paso('Entregando a la actualización…')
+  paso(txUpdate().pasos.entregando)
   if (!lanzarRelevoMac({ zip, destino: bundle, relanzar: opts.relanzar, log: (m) => log(m) })) {
     // NO se bloquea: no poder escribir o lanzar un guion es transitorio (disco lleno, un
     // antivirus), y bloquear mataría una actualización perfectamente buena.

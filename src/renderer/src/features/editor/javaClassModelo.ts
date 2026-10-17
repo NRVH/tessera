@@ -13,10 +13,6 @@ import type { DescompilarResult, MotorDescompilador, MotorPedido } from '../../.
 /** Etiqueta corta de cada motor para la barra. */
 export const NOMBRE_MOTOR: Record<string, string> = { cfr: 'CFR', vineflower: 'Vineflower' }
 
-/** Respaldo cuando el fallo llega sin una sola palabra que enseñar. */
-export const FALLO_SIN_DETALLE =
-  'La clase no se pudo descompilar y el motor no dio ninguna explicación.'
-
 /** ¿El resultado trae fuente que enseñar? */
 export function hayFuente(r: DescompilarResult | null): boolean {
   return r !== null && (r.estado === 'ok' || r.estado === 'cache')
@@ -64,7 +60,7 @@ function resultadoRechazado(
  * puede; sin convertirlo en resultado el pane se quedaría en «Descompilando…» para siempre.
  */
 export async function pedirDescompilacion(
-  pedido: { path: string; motor: MotorPedido; targetKey: string; token: number; ignorarCache: boolean }
+  pedido: { raiz: string; path: string; motor: MotorPedido; targetKey: string; token: number; ignorarCache: boolean }
 ): Promise<{ r: DescompilarResult; rechazada: boolean }> {
   try {
     return { r: await window.tessera.java.decompile(pedido), rechazada: false }

@@ -9,6 +9,8 @@ import type { editor, IDisposable, IMarkdownString } from 'monaco-editor'
 import { conf as CONF_JS, language as LENGUAJE_JS } from 'monaco-editor/esm/vs/basic-languages/javascript/javascript.js'
 import type { Plataforma } from '../../../../../shared/plataforma'
 import { ensureMonaco } from '../../../comun/monacoSetup'
+import { agregarAccionesConMenu } from '../../../comun/menuEditor'
+import { txConsolaDocs } from './textosConsolaDocs'
 
 /** Id de Monaco del lenguaje de las consolas de MongoDB (solo coloreado, sin servicio de TS). */
 export const LENGUAJE_CONSOLA_DOCS = 'tessera-mongosh'
@@ -56,51 +58,56 @@ export function registrarAccionesConsolaDocs(
 ): IDisposable[] {
   const { KeyMod, KeyCode } = ensureMonaco()
   const grupo = '1_consola'
-  return [
-    ed.addAction({
+  const t = txConsolaDocs()
+  return agregarAccionesConMenu(ed, [
+    {
       id: 'tessera.consolaDocs.ejecutar',
-      label: 'Ejecutar sentencia o selección',
+      label: t.accionEjecutar,
       keybindings: [KeyMod.CtrlCmd | KeyCode.Enter],
       contextMenuGroupId: grupo,
       contextMenuOrder: 1,
       run: () => h.ejecutar()
-    }),
-    ed.addAction({
+    },
+    {
       id: 'tessera.consolaDocs.ejecutarTodo',
-      label: 'Ejecutar todo',
+      label: t.accionEjecutarTodo,
       keybindings: [KeyMod.Alt | KeyCode.KeyX, KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.Enter],
       contextMenuGroupId: grupo,
       contextMenuOrder: 2,
       run: () => h.ejecutarTodo()
-    }),
-    ed.addAction({
+    },
+    {
       id: 'tessera.consolaDocs.detener',
-      label: 'Detener',
+      label: t.accionDetener,
       keybindings: [plataforma === 'mac' ? KeyMod.CtrlCmd | KeyCode.Period : KeyMod.CtrlCmd | KeyCode.F2],
       contextMenuGroupId: grupo,
       contextMenuOrder: 3,
       run: () => h.detener()
-    }),
-    ed.addAction({
+    },
+    {
       id: 'tessera.consolaDocs.historial',
-      label: 'Historial de órdenes…',
+      label: t.accionHistorial,
       keybindings: [KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.KeyH],
       contextMenuGroupId: grupo,
       contextMenuOrder: 4,
       run: () => h.historial()
-    })
-  ]
+    }
+  ])
 }
 
 /** Estado de la marca de una sentencia (las clases `db-glifo-*` de `consola.css`). */
 export type EstadoMarcaDocs = 'pendiente' | 'corriendo' | 'ok' | 'error' | 'cancelada'
 
-const HOVER: Readonly<Record<EstadoMarcaDocs, string>> = {
-  pendiente: 'En cola',
-  corriendo: 'Ejecutando…',
-  ok: 'Ejecutada',
-  error: 'Error',
-  cancelada: 'Detenida'
+function textoHover(estado: EstadoMarcaDocs): string {
+  const t = txConsolaDocs()
+  const hover: Readonly<Record<EstadoMarcaDocs, string>> = {
+    pendiente: t.marcaEnCola,
+    corriendo: t.marcaEjecutando,
+    ok: t.marcaEjecutada,
+    error: t.marcaError,
+    cancelada: t.marcaDetenida
+  }
+  return hover[estado]
 }
 
 /** Texto de un hover, escapado: los mensajes del servidor traen `$`, `*`, `_` y llaves. */
@@ -207,7 +214,7 @@ export class MarcasConsolaDocs {
     const inicio = this.modelo.getPositionAt(desde)
     const fin = this.modelo.getPositionAt(Math.max(desde, hasta))
     const nunca = monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges
-    const hover = detalle ? `${HOVER[estado]}: ${detalle}` : HOVER[estado]
+    const hover = detalle ? `${textoHover(estado)}: ${detalle}` : textoHover(estado)
     return [
       // La PRIMERA es siempre el rango vivo de la sentencia (lo lee `rangoVivo`).
       {

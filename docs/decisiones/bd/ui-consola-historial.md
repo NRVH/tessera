@@ -2,7 +2,9 @@
 
 - **Estado:** vigente
 - **Ámbito:** `src/renderer/src/features/bd/HistorialConsultas.tsx`, `consola/useHistorialConsultas.ts`, `consola/historialConsola.ts`,
-  `consola/useAnclaHistorial.ts`, `documentos/useHistorialConsolaDocs.ts`, `shared/secretosMongo.ts`
+  `consola/useAnclaHistorial.ts`, `documentos/useHistorialConsolaDocs.ts`, `shared/secretosMongo.ts`, `HistorialStore.ts`,
+  `claves/ControladorClaves.ts`, `shared/secretosRedis.ts`, `claves/historialClaves.ts`,
+  `claves/useHistorialConsolaClaves.ts`
 
 ## Contexto
 
@@ -28,15 +30,34 @@ portal hasta la sección de la consola, que tiene sus propios atajos.
   teclado dejaría de responder.
 - Borrar una: la papelera de la fila, o Supr / ⌘⌫ solo con el filtro vacío.
 - Sin lista virtual: como mucho `LIMITE_HISTORIAL` (500) filas de texto.
-- **Un historial por lenguaje**: el popover es el mismo en la consola SQL y en la de MongoDB, y
+- **Un historial por lenguaje**: el popover es el mismo en la consola SQL, en la de MongoDB y en la de Redis, y
   cada una pide y borra solo el suyo (`lenguaje`, `sql` o `mongosh`; las entradas sin marca son
   SQL). Una orden del shell insertada en SQL, o al revés, solo daría un error, y «Borrar todo»
   desde una consola se llevaría el historial de la otra. En MongoDB se termina con `;` salvo una
   orden de línea (`use x`, `show dbs`), y antes de guardar se tapan `pwd`, `password`, el segundo
   argumento de `changeUserPassword` y de `db.auth` y la clave de una URI.
+- **Redis es un tercer lenguaje del almacén** (`comandos`: un comando por línea; no se llama `redis`
+  para no confundir el lenguaje con el motor), con topes propios: llenar el historial de Redis no
+  empuja fuera el de SQL ni el de MongoDB. Elegir un comando lo INSERTA en el cursor, sin terminador,
+  en línea nueva si hay texto a los lados.
+  - **Qué se anota**: lo que llegó al servidor, ok o error (también una respuesta de error de Redis
+    como `WRONGTYPE`, que sí viajó), y lo cancelado. No se anotan las barreras de Tessera (no admitido,
+    peligroso o producción sin confirmar, solo lectura: los códigos `TESSERA-…`) ni lo que no pudo
+    enviarse. La base en la que corrió (la que dice el resultado, que un `SELECT` cambia) se guarda
+    como «esquema» (`db3`).
+  - **Las sesiones del explorador no son consolas.** Editar una clave o borrar por patrón envía por
+    la misma consola del main con un `consolaId` que empieza por `visor-` (`PREFIJO_CONSOLA_VISOR`):
+    no se anotan.
+  - **Contraseñas**: antes de guardar se tapan (`taparSecretosRedis`) `AUTH`, `HELLO … AUTH`,
+    `MIGRATE … AUTH/AUTH2`, el valor de `CONFIG SET requirepass/masterauth` y las contraseñas de
+    `ACL SETUSER` (`>`, `<` y `#`).
 
 ## Descartes
 
 - Un modal para confirmar «Borrar todo»: el clic en él contaría como clic fuera y cerraría el
   popover que se estaba confirmando.
 - Normalizar a LF al guardar en el historial: cambiaba «lo que se envió».
+- Un historial solo del renderer para Redis: se perdería al cerrar y el agente podría leerlo si
+  viviera en el espacio de datos; el almacén del main ya resuelve las dos cosas.
+- Anotar también las acciones del visor de claves: llenaría el historial de `HSET`/`UNLINK` que el
+  usuario no escribió.

@@ -59,7 +59,7 @@ async function seleccionadas(win: Page): Promise<string[]> {
 
 /** La fila cuyo nombre es `nombre`. Se usa como objetivo de clic. */
 function fila(win: Page, nombre: string) {
-  return win.locator('.sidebar .tree-row', { hasText: nombre }).first()
+  return win.locator('.sidebar .tree-row:visible', { hasText: nombre }).first()
 }
 
 /** Corre un AppleScript; `null` si `osascript` falla (sin permiso). */

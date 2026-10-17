@@ -7,23 +7,31 @@
 // Decisiones: docs/decisiones/terminales/pestanas-ssh-del-perfil.md, docs/decisiones/terminales/lanzador-de-conexiones.md
 // =============================================================================
 
+import { localeActual } from '../../../../shared/i18n.ts'
 import type { Plataforma } from '../../../../shared/plataforma.ts'
 import type { SshConexion, SshGrupo } from '../../../../shared/ssh-ipc.ts'
 import { SSH_PLEGADO_SIN_GRUPO, SSH_RECIENTES_MAX } from '../../../../shared/ajustesTerminal.ts'
 import { esBorrarPestanaEnfocada, type TeclaBorrado } from '../../util/atajos.ts'
+import { txSsh } from './textos.ts'
 
 /** El id con el que los plegados nombran a «Sin grupo». */
 export const ID_SIN_GRUPO = SSH_PLEGADO_SIN_GRUPO
 
 /** El nombre visible de «Sin grupo». */
-export const NOMBRE_SIN_GRUPO = 'Sin grupo'
+export function nombreSinGrupo(): string {
+  return txSsh().sinGrupo
+}
 
 /** Cuántas conexiones recientes enseña el lanzador. */
 export const RECIENTES_MAX = SSH_RECIENTES_MAX
 
 /** Los rótulos del lanzador: sus recientes y, en una lista sin grupos, el resto de las conexiones que vienen tras ellas. */
-export const NOMBRE_RECIENTES = 'Recientes'
-export const NOMBRE_CONEXIONES = 'Conexiones'
+export function nombreRecientes(): string {
+  return txSsh().recientes
+}
+export function nombreConexiones(): string {
+  return txSsh().conexiones
+}
 
 /** El puerto que no se escribe en el destino. */
 const PUERTO_POR_DEFECTO = 22
@@ -87,7 +95,7 @@ export function normalizarBusqueda(texto: string): string {
 
 /** Orden de nombres: sin mayúsculas ni tildes, con los números por su valor; el empate lo desata el texto crudo. */
 export function compararNombres(a: string, b: string): number {
-  const c = a.localeCompare(b, 'es', { sensitivity: 'base', numeric: true })
+  const c = a.localeCompare(b, localeActual(), { sensitivity: 'base', numeric: true })
   return c !== 0 ? c : a < b ? -1 : a > b ? 1 : 0
 }
 
@@ -169,7 +177,7 @@ function filasDelArbol(e: EntradaLista, palabras: readonly string[]): FilaLista[
   const filas: FilaLista[] = []
   const sueltas = reparto.get(ID_SIN_GRUPO) ?? []
   if (sueltas.length > 0 || e.mostrarSinGrupo === true) {
-    filas.push(...bloqueDeGrupo({ id: ID_SIN_GRUPO, nombre: NOMBRE_SIN_GRUPO, real: false }, sueltas, abierto(ID_SIN_GRUPO)))
+    filas.push(...bloqueDeGrupo({ id: ID_SIN_GRUPO, nombre: nombreSinGrupo(), real: false }, sueltas, abierto(ID_SIN_GRUPO)))
   }
   for (const g of [...e.grupos].sort((a, b) => compararNombres(a.nombre, b.nombre))) {
     const suyas = reparto.get(g.id) ?? []
@@ -193,8 +201,8 @@ export function construirFilas(e: EntradaLista): FilaLista[] {
   const arbol = filasDelArbol(e, palabras)
   const recientes = palabras.length === 0 ? (e.recientes ?? []) : []
   if (recientes.length === 0) return arbol
-  const resto = e.grupos.length === 0 ? [filaSeccion('conexiones', NOMBRE_CONEXIONES)] : []
-  return [filaSeccion('recientes', NOMBRE_RECIENTES), ...recientes.map((c) => filaConexion(c, 1, true)), ...resto, ...arbol]
+  const resto = e.grupos.length === 0 ? [filaSeccion('conexiones', nombreConexiones())] : []
+  return [filaSeccion('recientes', nombreRecientes()), ...recientes.map((c) => filaConexion(c, 1, true)), ...resto, ...arbol]
 }
 
 // ---------------------------------------------------------------------------
@@ -250,7 +258,7 @@ export function cabeceraDe(filas: readonly FilaLista[], indice: number): number 
 
 /** El texto del estado «el filtro no casa con nada». */
 export function textoSinCoincidencias(filtro: string): string {
-  return `Ninguna conexión coincide con "${filtro.trim()}"`
+  return txSsh().sinCoincidencias(filtro.trim())
 }
 
 // ---------------------------------------------------------------------------

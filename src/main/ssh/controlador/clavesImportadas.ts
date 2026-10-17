@@ -30,6 +30,7 @@ import {
   type VeredictoKeygen
 } from '../formatoClave.ts'
 import { codigoDeError, rutaCopiaClave } from '../registroSsh.ts'
+import { txSsh } from '../textos.ts'
 
 /** Las copias provisionales: `ssh/claves/.import-<aleatorio>`. Al arrancar solo se barren estas. */
 export const PREFIJO_PROVISIONAL = '.import-'
@@ -37,11 +38,9 @@ const TOPE_KEYGEN_MS = 5000
 /** Un shell de Git exporta su propio programa de frases: `ssh-keygen` no debe preguntar nada. */
 const QUITAR_ENV_KEYGEN = ['SSH_ASKPASS', 'SSH_ASKPASS_REQUIRE', 'DISPLAY']
 
-export const MENSAJE_FICHA_CLAVE =
-  'Ese archivo de clave ya no está elegido (pasó demasiado tiempo o se reinició Tessera). Vuelve a elegirlo.'
-const MENSAJE_OTRO_PERFIL = 'Ese archivo de clave se eligió para otro perfil: vuelve a elegirlo.'
-const MENSAJE_SIN_PROTEGER = 'No se pudo guardar una copia protegida de la clave: inténtalo otra vez.'
-const MENSAJE_SIN_INSTALAR = 'No se pudo guardar la copia de la clave: inténtalo otra vez.'
+export function mensajeFichaClave(): string {
+  return txSsh().claves.fichaCaducada
+}
 
 /** Un error con el mensaje ya escrito para el usuario y sin rutas. */
 export class ErrorClave extends Error {}
@@ -106,7 +105,11 @@ export class ClavesImportadas {
   /** Diálogo nativo para elegir la clave (abre en lo último elegido o en `~/.ssh`); `null` si se cancela. */
   async elegir(profileId: string): Promise<SshClaveElegida | null> {
     const r = await this.d.elegirArchivo(
-      { title: 'Elige el archivo de la clave privada', properties: ['openFile', 'showHiddenFiles'], buttonLabel: 'Elegir' },
+      {
+        title: txSsh().claves.tituloElegir,
+        properties: ['openFile', 'showHiddenFiles'],
+        buttonLabel: txSsh().claves.botonElegir
+      },
       { despues: [path.join(this.d.home ?? homedir(), '.ssh')] }
     )
     if (r.canceled || r.filePaths.length === 0) return null
@@ -115,7 +118,7 @@ export class ClavesImportadas {
 
   /** Un archivo soltado sobre el campo (la ruta la sacó el preload), tratado como uno elegido para `profileId`. */
   async soltada(ruta: string, profileId: string): Promise<SshClaveElegida> {
-    if (typeof ruta !== 'string' || ruta === '') throw new ErrorClave('Ese elemento no es un archivo del equipo.')
+    if (typeof ruta !== 'string' || ruta === '') throw new ErrorClave(txSsh().claves.noEsArchivo)
     return this.importar(ruta, profileId)
   }
 
@@ -129,7 +132,7 @@ export class ClavesImportadas {
     try {
       texto = await readFile(this.rutaDe(origenId), 'utf8')
     } catch (e) {
-      throw new ErrorClave(`No se encuentra la copia de la clave «${clave.nombre}»: edita la conexión y vuelve a elegir el archivo.`, { cause: e })
+      throw new ErrorClave(txSsh().claves.copiaPerdida(clave.nombre), { cause: e })
     }
     const provisional = await this.copiaProtegida(texto)
     const tipo = clave.tipo === '' ? null : clave.tipo
@@ -137,10 +140,24 @@ export class ClavesImportadas {
     return { token, nombre: clave.nombre, tipo, cifrada: clave.cifrada }
   }
 
+  /**
+   * La clave que trae una copia de la configuración: se reconoce por su contenido (el archivo pudo
+   * tocarse) y queda como copia provisional protegida con su ficha, como una elegida a mano.
+   */
+  async deCopia(texto: string, clave: { nombre: string; tipo: string; cifrada: boolean }, profileId: string): Promise<SshClaveElegida> {
+    const nombre = nombreDeClave(clave.nombre)
+    const reconocida = reconocerClave(Buffer.from(texto, 'utf8'), nombre)
+    if (!reconocida.ok) throw new ErrorClave(reconocida.error)
+    const provisional = await this.copiaProtegida(reconocida.clave.texto)
+    const tipo = clave.tipo === '' ? null : clave.tipo
+    const token = this.fichas.emitir({ ruta: provisional, nombre, tipo, cifrada: clave.cifrada === true, profileId })
+    return { token, nombre, tipo, cifrada: clave.cifrada === true }
+  }
+
   /** La copia de la clave de una conexión. */
   rutaDe(id: string): string {
     const ruta = rutaCopiaClave(this.d.dir, id)
-    if (ruta === null) throw new ErrorClave('El id de la conexión no es válido.')
+    if (ruta === null) throw new ErrorClave(txSsh().registro.idNoValido)
     return ruta
   }
 
@@ -150,8 +167,8 @@ export class ClavesImportadas {
    */
   instalar(token: unknown, id: string, profileId: string): InstalacionClave {
     const p = this.fichas.ver(token)
-    if (p === undefined) throw new ErrorClave(MENSAJE_FICHA_CLAVE)
-    if (p.profileId !== profileId) throw new ErrorClave(MENSAJE_OTRO_PERFIL)
+    if (p === undefined) throw new ErrorClave(mensajeFichaClave())
+    if (p.profileId !== profileId) throw new ErrorClave(txSsh().claves.otroPerfil)
     const destino = this.rutaDe(id)
     const anterior = `${destino}${SUFIJO_CLAVE_ANTERIOR}`
     const apartada = existsSync(destino)
@@ -163,7 +180,7 @@ export class ClavesImportadas {
     } catch (e) {
       if (apartada && !existsSync(destino)) this.renombrarSinRuido(anterior, destino)
       this.log(`no se pudo poner en su sitio la clave de ${id}: ${codigoDeError(e)}`)
-      throw new ErrorClave(MENSAJE_SIN_INSTALAR, { cause: e })
+      throw new ErrorClave(txSsh().claves.sinInstalar, { cause: e })
     }
     return {
       clave: { nombre: p.nombre, tipo: p.tipo ?? '', cifrada: p.cifrada },
@@ -233,7 +250,7 @@ export class ClavesImportadas {
     } catch (e) {
       if (e instanceof ErrorClave) throw e
       this.log(`no se pudo importar una clave: ${String(e)}`)
-      throw new ErrorClave(`No se pudo importar «${nombre}» (${codigoDeError(e, 'error inesperado')}).`, { cause: e })
+      throw new ErrorClave(txSsh().claves.noSeImporto(nombre, codigoDeError(e, txSsh().claves.errorInesperado)), { cause: e })
     }
   }
 
@@ -265,7 +282,7 @@ export class ClavesImportadas {
       await this.d.permisos.escribirProtegida(ruta, texto)
     } catch (e) {
       this.log(`no se pudo proteger la copia de una clave: ${String(e)}`)
-      throw new ErrorClave(MENSAJE_SIN_PROTEGER, { cause: e })
+      throw new ErrorClave(txSsh().claves.sinProteger, { cause: e })
     }
     return ruta
   }

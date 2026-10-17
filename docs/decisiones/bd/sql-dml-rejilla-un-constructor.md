@@ -6,8 +6,7 @@
 ## Contexto
 
 El renderer enseña una vista previa y el main ejecuta. Si cada uno escribiera su SQL, lo que el
-usuario aprueba y lo que corre diferirían en el primer caso raro. La regla de qué original se puede
-comparar estuvo escrita dos veces y se separó dos veces.
+usuario aprueba y lo que corre diferirían en el primer caso raro.
 
 ## Decisión
 
@@ -15,13 +14,12 @@ comparar estuvo escrita dos veces y se separó dos veces.
   sentencia con literales para la vista previa, que nunca se ejecuta. `columnas` dice qué columna recibe
   cada bind (`null` = el ROWID).
 - Nombres SIEMPRE citados con la forma de su motor; el ROWID y el `''` que es NULL se leen del descriptor.
-- Oracle: un nombre con carácter de control o `&` rompe SQL*Plus (medido en 11.2 y 21c), así que su
+- Oracle: un nombre con carácter de control o `&` rompe SQL*Plus, así que su
   vista va en un bloque con EXECUTE IMMEDIATE terminado en `/`; lo que se ejecuta no cambia.
 - Concurrencia optimista: con el ROWID, que es una DIRECCIÓN reutilizable, los valores leídos van al
   WHERE con `"COL" = :n` y `"COL" IS NULL` por cada NULL; en Oracle `''` va como `IS NULL`.
-- `originalesSql.ts` decide qué columnas y valores entran, por motor y con una lista blanca de tipos:
-  comparar de más da un «la fila cambió» falso en cada envío. Un texto con U+FFFD no se compara (se leyó
-  con pérdida y no casa nunca consigo mismo). Descartar solo quita una comprobación.
+- `originalesSql.ts` decide qué columnas y valores entran, por motor y con una lista blanca de tipos;
+  la regla de qué original es comparable está en [rejilla-edicion-identidad.md](rejilla-edicion-identidad.md).
 
 ## Consecuencias
 

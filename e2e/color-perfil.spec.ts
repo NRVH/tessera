@@ -53,6 +53,15 @@ test('cambiar el color de un perfil: popover bajo la pestaña, muestra, fijar y 
     await win.keyboard.press('Escape')
     await expect(selector, 'Esc cierra').toHaveCount(0)
     await expect.poll(colorDe, 'y deshace lo elegido desde que se abrió').toBe(original)
+
+    // «Aplicar» confirma: cierra el popover y el color se queda.
+    await pestana.click({ button: 'right' })
+    await win.getByRole('menuitem', { name: 'Cambiar color' }).click()
+    await expect(selector).toBeVisible()
+    await hex.fill('#3366aa')
+    await selector.getByRole('button', { name: 'Aplicar' }).click()
+    await expect(selector, 'Aplicar cierra el popover').toHaveCount(0)
+    await expect.poll(colorDe, 'y el color aplicado se queda').not.toBe(original)
   } finally {
     await s?.cerrar()
   }

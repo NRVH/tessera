@@ -30,6 +30,7 @@ import {
   SelectorEntorno
 } from './DbConexionSecciones'
 import { useConexionDialogo, type VistaConexion } from './useConexionDialogo'
+import { txConexionDialogo } from './textosConexionDialogo.ts'
 
 export interface DbConexionDialogoProps {
   perfilId: string
@@ -167,7 +168,7 @@ function PieDelCuerpo({ v }: { v: VistaConexion }): React.JSX.Element {
           open={d.clientesAbierto}
           onToggle={(ev) => d.setClientesAbierto(ev.currentTarget.open)}
         >
-          <summary>Clientes de base de datos</summary>
+          <summary>{txConexionDialogo().clientesBd}</summary>
           <DriversLista
             drivers={driversDelMotor(e.borrador.motor, d.drivers)}
             instalando={d.instalando}
@@ -190,14 +191,14 @@ function PieDelCuerpo({ v }: { v: VistaConexion }): React.JSX.Element {
 /** «Falta este driver»: descargarlo si se puede (si no, la nota de por qué) o señalar su carpeta. */
 function AvisoDriver({ v, requiere }: { v: VistaConexion; requiere: DriverRequerido }): React.JSX.Element {
   const { d, a, packRequerido } = v
+  const t = txConexionDialogo()
   return (
     <div className="dbc-driver-aviso" role="status">
       <div>{requiere.motivo}</div>
       <div className="dbc-driver-botones">
         {packRequerido?.descargable === false ? (
           <span className="dbc-driver-nota">
-            {packRequerido.noDisponible ??
-              'Oracle ya no lo publica para descarga directa: bájalo a mano desde su web y señala la carpeta.'}
+            {packRequerido.noDisponible ?? t.oracleNoPublica}
           </span>
         ) : (
           <button
@@ -206,17 +207,17 @@ function AvisoDriver({ v, requiere }: { v: VistaConexion; requiere: DriverRequer
             disabled={d.instalando !== null}
             onClick={() => void a.instalarDriver(requiere.packId)}
           >
-            {d.instalando === requiere.packId ? textoProgresoDriver(d.progreso) : 'Descargar e instalar'}
+            {d.instalando === requiere.packId ? textoProgresoDriver(d.progreso) : t.descargarEInstalar}
           </button>
         )}
         <button
           type="button"
           className="btn"
           disabled={d.instalando !== null}
-          title="Registrar un cliente que ya tengas descomprimido en este equipo"
+          title={t.registrarClienteTitulo}
           onClick={() => void a.usarDriverExistente(requiere.packId)}
         >
-          Seleccionar carpeta…
+          {t.seleccionarCarpeta}
         </button>
       </div>
     </div>

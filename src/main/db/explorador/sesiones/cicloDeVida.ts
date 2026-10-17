@@ -13,6 +13,7 @@ import { mensajeDe } from './errores.ts'
 import type { NucleoSesiones } from './NucleoSesiones.ts'
 import type { Procesos } from './procesos.ts'
 import { abierta, esperar } from './reglas.ts'
+import { txSesiones } from './textosSesiones.ts'
 import type { ErrorResolucion, ResolucionEnBloque, ResolucionTodas, Sesion, SesionResuelta } from './tipos.ts'
 import type { Transacciones } from './transacciones.ts'
 
@@ -118,7 +119,7 @@ export class CicloDeVida {
                 trabajo,
                 esperar(plazoMs).then(
                   (): ResolucionEnBloque => ({
-                    error: { motivo: 'timeout', mensaje: 'El servidor no respondió a tiempo.' },
+                    error: { motivo: 'timeout', mensaje: txSesiones().servidorTimeout },
                     revertidaPorFallida: false
                   })
                 )
@@ -248,9 +249,7 @@ export class CicloDeVida {
     const afectados = [...this.n.procesos()].filter((p) => !p.salido && p.driverId === packId)
     const conTx = afectados.flatMap((p) => this.n.sesionesDe(p)).filter((s) => tieneTxPendiente(s.estado))
     if (conTx.length > 0) {
-      throw new Error(
-        `Hay ${conTx.length === 1 ? 'una consola' : `${conTx.length} consolas`} con transacciones pendientes que usan este cliente: confírmalas o revierte antes de cambiarlo.`
-      )
+      throw new Error(txSesiones().txPendientesDriver(conTx.length))
     }
     await Promise.all(afectados.map((p) => this.proc.retirar(p, 'usuario')))
   }

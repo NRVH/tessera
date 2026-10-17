@@ -11,6 +11,7 @@ import type { Profile } from '../../../../main/profiles/types'
 import { tintaPerfil } from './colorPerfil'
 import { PALETTE_PERFILES } from './paletaPerfiles'
 import { useStorePestanas } from './store'
+import { txPestanas } from './textos.ts'
 import { colorDeTonoYLuz, fijarColor, leerHex, quitarFijado, tonoYLuzDe } from './colorPersonalizado'
 
 /** Una muestra: botón redondo con la tinta del color; la elegida lleva anillo. */
@@ -21,8 +22,8 @@ function Muestra(p: { color: string; elegida: boolean; onElegir: () => void; onQ
       type="button"
       className={`selector-color-muestra${p.elegida ? ' elegida' : ''}`}
       style={{ background: tinta }}
-      title={p.onQuitar ? `${tinta} · clic derecho para quitarlo` : tinta}
-      aria-label={`Color ${tinta}`}
+      title={p.onQuitar ? txPestanas().color.quitar(tinta) : tinta}
+      aria-label={txPestanas().color.muestraAria(tinta)}
       aria-pressed={p.elegida}
       onClick={p.onElegir}
       onContextMenu={(e) => {
@@ -59,7 +60,7 @@ function Personalizado(p: { color: string; onAplicar: (c: string) => void; onFij
       <input
         type="range"
         className="selector-color-tono"
-        aria-label="Tono"
+        aria-label={txPestanas().color.tono}
         min={0}
         max={359}
         value={tl.tono}
@@ -68,7 +69,7 @@ function Personalizado(p: { color: string; onAplicar: (c: string) => void; onFij
       <input
         type="range"
         className="selector-color-luz"
-        aria-label="Luz"
+        aria-label={txPestanas().color.luz}
         min={0}
         max={100}
         value={Math.round(tl.luz * 100)}
@@ -79,7 +80,7 @@ function Personalizado(p: { color: string; onAplicar: (c: string) => void; onFij
         <span className="selector-color-vista" style={{ background: actual ? tintaPerfil(actual) : 'transparent' }} aria-hidden="true" />
         <input
           className="selector-color-hex"
-          aria-label="Color en hexadecimal"
+          aria-label={txPestanas().color.hex}
           spellCheck={false}
           value={hex}
           onChange={(e) => {
@@ -92,30 +93,42 @@ function Personalizado(p: { color: string; onAplicar: (c: string) => void; onFij
           }}
         />
         <button type="button" className="btn btn-ghost" disabled={!actual} onClick={() => actual && p.onFijar(actual)}>
-          Fijar
+          {txPestanas().color.fijar}
         </button>
         <button type="button" className="btn primary" disabled={!actual} onClick={() => actual && p.onAplicar(actual)}>
-          Aplicar
+          {txPestanas().color.aplicar}
         </button>
       </div>
     </div>
   )
 }
 
-/** El cuerpo del selector: base, fijados y personalizado. Fijar se guarda con los ajustes. */
-export function PaletaColorPerfil({ color, onElegir }: { color: string; onElegir: (c: string) => void }): React.JSX.Element {
+/**
+ * El cuerpo del selector: base, fijados y personalizado. Fijar se guarda con los ajustes.
+ * `onConfirmar` corre tras «Aplicar» (o Intro en el hex): el popover se cierra con él.
+ */
+export function PaletaColorPerfil({
+  color,
+  onElegir,
+  onConfirmar
+}: {
+  color: string
+  onElegir: (c: string) => void
+  onConfirmar?: () => void
+}): React.JSX.Element {
   const fijados = useStorePestanas((s) => s.coloresFijados)
   const guardar = (lista: string[]): void => useStorePestanas.setState({ coloresFijados: lista })
   const esElegido = (c: string): boolean => c.toLowerCase() === color.toLowerCase()
+  const t = txPestanas().color
   return (
     <div className="selector-color-cuerpo">
-      <div className="selector-color-rotulo">Colores</div>
+      <div className="selector-color-rotulo">{t.colores}</div>
       <div className="selector-color-rejilla">
         {PALETTE_PERFILES.map((c) => (
           <Muestra key={c} color={c} elegida={esElegido(c)} onElegir={() => onElegir(c)} />
         ))}
       </div>
-      <div className="selector-color-rotulo">Fijados</div>
+      <div className="selector-color-rotulo">{t.fijados}</div>
       {fijados.length > 0 ? (
         <div className="selector-color-rejilla">
           {fijados.map((c) => (
@@ -123,12 +136,15 @@ export function PaletaColorPerfil({ color, onElegir }: { color: string; onElegir
           ))}
         </div>
       ) : (
-        <div className="selector-color-vacio">Fija un color personalizado para volver a usarlo.</div>
+        <div className="selector-color-vacio">{t.sinFijados}</div>
       )}
-      <div className="selector-color-rotulo">Personalizado</div>
+      <div className="selector-color-rotulo">{t.personalizado}</div>
       <Personalizado
         color={color}
-        onAplicar={onElegir}
+        onAplicar={(c) => {
+          onElegir(c)
+          onConfirmar?.()
+        }}
         onFijar={(c) => {
           guardar(fijarColor(fijados, c, MAX_COLORES_FIJADOS))
           onElegir(c)
@@ -139,8 +155,9 @@ export function PaletaColorPerfil({ color, onElegir }: { color: string; onElegir
 }
 
 /**
- * El popover bajo la pestaña del perfil. Elegir aplica en el acto (la pestaña se tiñe ya); Esc
- * deshace lo elegido desde que se abrió y cierra; un clic fuera cierra conservándolo.
+ * El popover bajo la pestaña del perfil. Elegir aplica en el acto (la pestaña se tiñe ya) y deja
+ * el popover abierto para probar otro; «Aplicar» confirma y cierra; Esc deshace lo elegido desde
+ * que se abrió y cierra; un clic fuera cierra conservándolo.
  */
 export function SelectorColorPerfil(p: {
   profile: Profile
@@ -170,9 +187,9 @@ export function SelectorColorPerfil(p: {
     }
   }, [profile.id, profile.color, onElegir, onCerrar])
   return (
-    <div ref={ref} className="selector-color" role="dialog" aria-label={`Color de ${profile.nombre}`} style={{ left: p.x, top: p.y }}>
-      <div className="selector-color-titulo">Color de «{profile.nombre}»</div>
-      <PaletaColorPerfil color={profile.color} onElegir={(c) => onElegir(profile.id, c)} />
+    <div ref={ref} className="selector-color" role="dialog" aria-label={txPestanas().color.aria(profile.nombre)} style={{ left: p.x, top: p.y }}>
+      <div className="selector-color-titulo">{txPestanas().color.titulo(profile.nombre)}</div>
+      <PaletaColorPerfil color={profile.color} onElegir={(c) => onElegir(profile.id, c)} onConfirmar={onCerrar} />
     </div>
   )
 }

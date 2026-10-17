@@ -5,6 +5,7 @@
 // Decisiones: docs/decisiones/explorador/portapapeles-de-archivos.md
 // =============================================================================
 import { esRutaVirtual } from '../../../../shared/jarPath'
+import { txExplorador } from './textos.ts'
 import {
   decidirFuentePegado,
   getPortapapelesInterno,
@@ -44,7 +45,7 @@ export async function copiarOCortar(
   const limpias = paths.filter((p) => p !== '' && !esRutaVirtual(p))
   if (limpias.length === 0) return
   // Una sola llamada: una por ruta inundaba el IPC con una selección grande.
-  const absolutas = await window.tessera.files.absPath(limpias)
+  const absolutas = await window.tessera.files.absPath({ raiz: a.props.projectHostPath, paths: limpias })
   // Sin ruta absoluta, la relativa hace de marca (mejor eso que un interno indetectable).
   const texto = absolutas.map((abs, i) => abs || limpias[i]).join('\n')
   await window.tessera.clipboard.write(texto)
@@ -57,15 +58,17 @@ export async function copiarOCortar(
  * siendo un pegado: se revela lo que entró y además se avisa.
  */
 export async function pegarEn(a: Arbol, destDir: string, fuente: FuentePegado): Promise<void> {
+  const raiz = a.props.projectHostPath
   try {
     const res =
       fuente.kind === 'interno'
         ? await window.tessera.files.paste({
+            raiz,
             destDir,
             srcs: fuente.entrada.paths,
             op: fuente.entrada.op
           })
-        : await window.tessera.clipboard.pasteInto(destDir)
+        : await window.tessera.clipboard.pasteInto({ raiz, destDir })
     // Cortar se consume: pegarlo dos veces movería algo que ya no está ahí.
     if (fuente.kind === 'interno' && fuente.entrada.op === 'cortar') {
       setPortapapelesInterno(null)
@@ -73,7 +76,7 @@ export async function pegarEn(a: Arbol, destDir: string, fuente: FuentePegado): 
     a.bumpRefresh()
     if (res.paths[0]) a.setRevealPath(res.paths[0])
     if (res.fallidos.length > 0) {
-      a.setOpError(`No se pudo pegar: ${res.fallidos.join(', ')}. El resto sí se pegó.`)
+      a.setOpError(txExplorador().noSePudoPegar(res.fallidos.join(', ')))
     }
   } catch (err) {
     a.setOpError(mensajeDe(err))
@@ -86,11 +89,12 @@ export async function pegarEn(a: Arbol, destDir: string, fuente: FuentePegado): 
  * que enseñarlo: sin él, el usuario repite el gesto sin entender por qué no pasa nada.
  */
 export async function abrirEnGestor(a: Arbol, esRaiz: boolean, path: string): Promise<void> {
+  const raiz = a.props.projectHostPath
   if (!esRaiz) {
-    await window.tessera.files.reveal(path)
+    await window.tessera.files.reveal({ raiz, path })
     return
   }
-  const err = await window.tessera.files.openPath('')
+  const err = await window.tessera.files.openPath({ raiz, path: '' })
   if (err) a.setOpError(err)
 }
 
@@ -102,11 +106,11 @@ export async function abrirEnGestor(a: Arbol, esRaiz: boolean, path: string): Pr
  */
 export async function copiarRutas(a: Arbol, paths: readonly string[], absoluta: boolean): Promise<void> {
   const lineas = absoluta
-    ? await window.tessera.files.absPath([...paths])
+    ? await window.tessera.files.absPath({ raiz: a.props.projectHostPath, paths: [...paths] })
     : paths.map((path) => (path ? `${a.props.projectName}/${path}` : a.props.projectName))
   const texto = lineas.filter((l) => l !== '').join('\n')
   if (!texto) {
-    a.setOpError('No se pudo obtener la ruta.')
+    a.setOpError(txExplorador().noSePudoObtenerRuta)
     return
   }
   await window.tessera.clipboard.write(texto)

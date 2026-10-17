@@ -1,7 +1,7 @@
 # La barra de título la pinta el renderer y los botones los pone el sistema, alineados con el zoom
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/app/ventana.ts`, `src/renderer/src/styles.css` (`--titlebar-h`), `src/renderer/src/theme/` (macOS: sin verificar aquí)
+- **Ámbito:** `src/main/app/ventana.ts`, `src/renderer/src/styles.css` (`--titlebar-h`), `src/renderer/src/theme/`
 
 ## Contexto
 
@@ -21,9 +21,9 @@ enteran.
   semáforo. Visualmente no cambia nada (capturas a zoom 0, +2 y −2 idénticas).
 - Al cambiar el zoom: Windows re-envía el overlay ENTERO (`setTitleBarOverlay` reemplaza, no fusiona); macOS mueve el
   semáforo con `setWindowButtonPosition`, centrado en la banda escalada y nunca con `y` negativa.
-- `setTitleBarOverlay` no existe en macOS y lanzaba desde `ready-to-show`: nunca se llama allí.
-- La alineación va DESPUÉS de `show()`: antes, el contenido web se quedaba clavado al tamaño de creación dentro de la
-  ventana maximizada. Tras guardar los ajustes va en `try/catch`, para que un overlay fallido no haga mentir al guardado.
+- `setTitleBarOverlay` no existe en macOS y lanza desde `ready-to-show`: nunca se llama allí.
+- La alineación va DESPUÉS de `show()`: hecha antes, el contenido web se queda clavado al tamaño de creación dentro de
+  la ventana maximizada. Tras guardar los ajustes va en `try/catch`, para que un overlay fallido no haga mentir al guardado.
 
 ## Consecuencias
 

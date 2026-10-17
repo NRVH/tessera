@@ -15,22 +15,24 @@ import { pintarBytes } from './bytesClaves'
 import { nombreRenombrable, textoEditable } from './edicionClaves'
 import type { TipoConElementos } from './edicionElementos'
 import { nombreElementos } from './visorClaves'
+import { txEdicionClaves } from './textosEdicionClaves'
 import type { EdicionClave } from './useEdicionClave'
 
 /** Las acciones sobre la clave entera, para el menú de «Más acciones». */
 function itemsClave(edicion: EdicionClave, clave: DbKvBytes, ttlMs: number | null): ContextMenuEntry[] {
+  const t = txEdicionClaves()
   const segundos = ttlMs === null ? null : Math.max(1, Math.ceil(ttlMs / 1000))
   const nombre = nombreRenombrable(clave)
   return [
-    { label: 'Caducidad…', icon: <IconoHistorial />, onClick: () => edicion.abrir({ tipo: 'ttl', segundos }) },
+    { label: t.caducidad, icon: <IconoHistorial />, onClick: () => edicion.abrir({ tipo: 'ttl', segundos }) },
     {
-      label: 'Renombrar…',
+      label: t.renombrar,
       icon: <IconoRenombrar />,
       disabled: !nombre.ok,
       title: nombre.ok ? undefined : nombre.motivo,
       onClick: () => nombre.ok && edicion.abrir({ tipo: 'renombrar', actual: nombre.texto })
     },
-    { label: 'Borrar la clave…', icon: <IconoEliminar />, danger: true, onClick: () => edicion.abrir({ tipo: 'borrar' }) }
+    { label: t.borrarClave, icon: <IconoEliminar />, danger: true, onClick: () => edicion.abrir({ tipo: 'borrar' }) }
   ]
 }
 
@@ -44,14 +46,15 @@ export function botonesEdicion(o: {
 }): React.JSX.Element | null {
   const { contenido, edicion } = o
   if (!contenido || contenido.tipo === 'noExiste') return null
+  const t = txEdicionClaves()
   const editable = contenido.tipo === 'string' ? textoEditable(contenido.valor, contenido.truncado) : null
   return (
     <>
       <span className="panel-actions-sep" aria-hidden="true" />
       {editable && (
         <BotonBarraBd
-          etiqueta="Editar valor"
-          titulo="Editar el valor de la clave"
+          etiqueta={t.editarValor}
+          titulo={t.editarValorTitulo}
           motivo={editable.ok ? null : editable.motivo}
           onClick={() => editable.ok && edicion.abrir({ tipo: 'valor', actual: editable.texto })}
         >
@@ -59,22 +62,22 @@ export function botonesEdicion(o: {
         </BotonBarraBd>
       )}
       {contenido.tipo === 'hash' && (
-        <BotonBarraBd etiqueta="Añadir campo" titulo="Añadir un campo al hash" onClick={() => edicion.abrir({ tipo: 'campo', campo: null, actual: '' })}>
+        <BotonBarraBd etiqueta={t.anadirCampo} titulo={t.anadirCampoTitulo} onClick={() => edicion.abrir({ tipo: 'campo', campo: null, actual: '' })}>
           <IconoAnadirElemento />
         </BotonBarraBd>
       )}
       {esConElementos(contenido.tipo) && (
         <BotonBarraBd
-          etiqueta={`Añadir ${nombreElementos(contenido.tipo)[0]}`}
-          titulo={`Añadir ${nombreElementos(contenido.tipo)[0]} a la clave`}
+          etiqueta={t.anadir(nombreElementos(contenido.tipo)[0])}
+          titulo={t.anadirALaClave(nombreElementos(contenido.tipo)[0])}
           onClick={() => edicion.abrir({ tipo: 'anadir', de: contenido.tipo as TipoConElementos })}
         >
           <IconoAnadirElemento />
         </BotonBarraBd>
       )}
       <BotonBarraBd
-        etiqueta="Más acciones"
-        titulo="Caducidad, renombrar y borrar la clave"
+        etiqueta={t.masAcciones}
+        titulo={t.masAccionesTitulo}
         onClick={(ev) => {
           const r = ev.currentTarget.getBoundingClientRect()
           o.abrirMenu(r.left, r.bottom + 2, itemsClave(edicion, o.clave, o.ttlMs))
@@ -95,9 +98,10 @@ function itemsHash(contenido: Extract<DbKvContenido, { tipo: 'hash' }>, i: numbe
   const par = contenido.pares[i]
   if (!par) return []
   const editable = textoEditable(par.valor)
+  const t = txEdicionClaves()
   return [
-    itemEditar('Editar el valor…', editable, (texto) => edicion.abrir({ tipo: 'campo', campo: par.campo, actual: texto })),
-    itemBorrar('Borrar el campo…', () => edicion.abrir({ tipo: 'quitarCampo', campo: par.campo }))
+    itemEditar(t.editarElValor, editable, (texto) => edicion.abrir({ tipo: 'campo', campo: par.campo, actual: texto })),
+    itemBorrar(t.borrarElCampo, () => edicion.abrir({ tipo: 'quitarCampo', campo: par.campo }))
   ]
 }
 
@@ -123,14 +127,16 @@ function itemsLista(contenido: Extract<DbKvContenido, { tipo: 'list' }>, i: numb
   const el = contenido.elementos[i]
   if (!el) return []
   const repetido = contenido.elementos.findIndex((x) => x.base64 === el.base64) < i
+  const t = txEdicionClaves()
   return [
-    itemEditar('Editar el valor…', textoEditable(el), (texto) => edicion.abrir({ tipo: 'elemento', indice: i, actual: texto })),
-    itemBorrar('Borrar el elemento…', () => edicion.abrir({ tipo: 'quitar', de: 'list', elemento: el }), repetido ? 'Hay otro elemento igual antes: bórralo desde la consola (LREM).' : undefined)
+    itemEditar(t.editarElValor, textoEditable(el), (texto) => edicion.abrir({ tipo: 'elemento', indice: i, actual: texto })),
+    itemBorrar(t.borrarElElemento, () => edicion.abrir({ tipo: 'quitar', de: 'list', elemento: el }), repetido ? t.elementoRepetido : undefined)
   ]
 }
 
 /** Las entradas de edición del menú de la fila `i`; ninguna en un string, un JSON ni un tipo desconocido. */
 export function itemsFilaEdicion(contenido: DbKvContenido | null, i: number, edicion: EdicionClave): ContextMenuEntry[] {
+  const t = txEdicionClaves()
   switch (contenido?.tipo) {
     case 'hash':
       return itemsHash(contenido, i, edicion)
@@ -138,19 +144,19 @@ export function itemsFilaEdicion(contenido: DbKvContenido | null, i: number, edi
       return itemsLista(contenido, i, edicion)
     case 'set': {
       const m = contenido.miembros[i]
-      return m ? [itemBorrar('Borrar el miembro…', () => edicion.abrir({ tipo: 'quitar', de: 'set', elemento: m }))] : []
+      return m ? [itemBorrar(t.borrarElMiembro, () => edicion.abrir({ tipo: 'quitar', de: 'set', elemento: m }))] : []
     }
     case 'zset': {
       const m = contenido.miembros[i]
       if (!m) return []
       return [
-        { label: 'Editar la puntuación…', icon: <IconoEditarValor />, onClick: () => edicion.abrir({ tipo: 'puntuacion', miembro: m.miembro, actual: m.puntuacion }) },
-        itemBorrar('Borrar el miembro…', () => edicion.abrir({ tipo: 'quitar', de: 'zset', elemento: m.miembro }))
+        { label: t.editarPuntuacion, icon: <IconoEditarValor />, onClick: () => edicion.abrir({ tipo: 'puntuacion', miembro: m.miembro, actual: m.puntuacion }) },
+        itemBorrar(t.borrarElMiembro, () => edicion.abrir({ tipo: 'quitar', de: 'zset', elemento: m.miembro }))
       ]
     }
     case 'stream': {
       const e = contenido.entradas[i]
-      return e ? [itemBorrar('Borrar la entrada…', () => edicion.abrir({ tipo: 'quitarEntrada', id: e.id }))] : []
+      return e ? [itemBorrar(t.borrarLaEntrada, () => edicion.abrir({ tipo: 'quitarEntrada', id: e.id }))] : []
     }
     default:
       return []

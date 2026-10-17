@@ -7,6 +7,30 @@
 // `Radios` (una unidad que se elige entera) y en los bloques de actualización (que actúan).
 // =============================================================================
 
+import { Fragment } from 'react'
+import { txModal } from './textos.ts'
+
+/**
+ * Un texto con trozos resaltados: los de posición impar van en `<strong>` o `<code>` y el resto
+ * como texto. Existe porque los textos traducidos no pueden llevar marcado dentro.
+ */
+export function TextoMarcado({
+  partes,
+  marca = 'strong'
+}: {
+  partes: readonly string[]
+  marca?: 'strong' | 'code'
+}): React.JSX.Element {
+  const Marca = marca
+  return (
+    <>
+      {partes.map((p, i) => (
+        <Fragment key={i}>{i % 2 === 1 ? <Marca>{p}</Marca> : p}</Fragment>
+      ))}
+    </>
+  )
+}
+
 /** Cabecera de grupo + sus filas. El grupo es lo que da jerarquía, no las cajas. */
 export function Grupo({
   titulo,
@@ -45,7 +69,7 @@ export function Fila({
   sangrada = false,
   modificado = false,
   onRestablecer,
-  tituloRestablecer = 'Volver al valor heredado'
+  tituloRestablecer
 }: {
   etiqueta: string
   ayuda?: React.ReactNode
@@ -63,6 +87,7 @@ export function Fila({
    */
   tituloRestablecer?: string
 }): React.JSX.Element {
+  const t = txModal()
   return (
     <div className={`ajustes-fila${sangrada ? ' sangrada' : ''}`}>
       <div className="ajustes-fila-texto">
@@ -81,8 +106,8 @@ export function Fila({
             onClick={onRestablecer}
             tabIndex={modificado ? 0 : -1}
             aria-hidden={!modificado}
-            title={tituloRestablecer}
-            aria-label={`Restablecer ${etiqueta}`}
+            title={tituloRestablecer ?? t.restablecerHeredado}
+            aria-label={t.restablecer(etiqueta)}
           >
             <IconoRestablecer />
           </button>
@@ -120,6 +145,7 @@ export function Stepper({
   formato?: (v: number) => string
 }): React.JSX.Element {
   const acotar = (v: number): number => Math.max(min, Math.min(max, v))
+  const t = txModal()
   return (
     <div className="ajustes-stepper">
       <button
@@ -127,7 +153,7 @@ export function Stepper({
         className="ajustes-stepper-btn"
         onClick={() => onChange(acotar(valor - 1))}
         disabled={valor <= min}
-        aria-label={`Reducir ${etiqueta}`}
+        aria-label={t.reducir(etiqueta)}
       >
         −
       </button>
@@ -137,7 +163,7 @@ export function Stepper({
         className="ajustes-stepper-btn"
         onClick={() => onChange(acotar(valor + 1))}
         disabled={valor >= max}
-        aria-label={`Aumentar ${etiqueta}`}
+        aria-label={t.aumentar(etiqueta)}
       >
         +
       </button>

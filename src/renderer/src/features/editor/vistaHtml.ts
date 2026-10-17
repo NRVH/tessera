@@ -5,6 +5,8 @@
 // Puro: lo carga `node` a secas.
 // =============================================================================
 
+import { txVistaPrevia } from './textosVisores.ts'
+
 /** Un recurso que la vista no va a poder cargar, y por qué. */
 export interface RecursoBloqueado {
   /** La URL tal cual aparece en el archivo. */
@@ -55,12 +57,9 @@ export function avisoVistaHtml(html: string): string | null {
   const relativos = bloqueados.filter((r) => r.motivo === 'relativo').map((r) => r.url)
   const red = bloqueados.filter((r) => r.motivo === 'red').map((r) => r.url)
 
+  const t = txVistaPrevia()
   const partes: string[] = []
-  if (relativos.length > 0) {
-    partes.push(`la página se carga sin su carpeta, así que no resuelven: ${relativos.join(', ')}`)
-  }
-  if (red.length > 0) {
-    partes.push(`esta vista no sale a la red, así que no se descargan: ${red.join(', ')}`)
-  }
-  return `Faltan recursos y por eso la página puede verse sin formato — ${partes.join('; y ')}. Tampoco se ejecuta JavaScript.`
+  if (relativos.length > 0) partes.push(t.sinCarpeta(relativos.join(', ')))
+  if (red.length > 0) partes.push(t.sinRed(red.join(', ')))
+  return t.faltanRecursos(partes.join(t.unirPartes))
 }

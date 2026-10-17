@@ -62,6 +62,7 @@ export type {
   RegistroExplorador
 } from './controlador/tipos.ts'
 export { fusionarIndices } from './controlador/validacion.ts'
+import { txFamilia } from './textosExplorador.ts'
 
 /** Controlador del explorador: cada método público es una operación de un canal `DBX_CHANNELS`. */
 export class ExploradorController implements ContextoExplorador {
@@ -198,7 +199,7 @@ export class ExploradorController implements ContextoExplorador {
     if (e instanceof ErrorGestor) return { ok: false, error: e.error }
     if (e instanceof ErrorConsolas) return fallo(e.codigo === 'tamano' ? 'limite' : 'interno', e.message)
     this.log(`error inesperado: ${mensajeDe(e).slice(0, 200)}`)
-    return fallo('interno', 'Error interno del explorador de bases de datos.')
+    return fallo('interno', txFamilia().errorInterno)
   }
 
   /** Ejecuta `fn` y convierte lo que lance en una respuesta de error. */
@@ -213,7 +214,7 @@ export class ExploradorController implements ContextoExplorador {
   /** La conexión SQL con ese id; lanza si no existe o es de otra familia de motor. */
   conexionOError(id: string): DbConnection {
     const con = this.conexiones.get(id)
-    if (!con) throw new ErrorGestor('interno', 'La conexión ya no existe.')
+    if (!con) throw new ErrorGestor('interno', txFamilia().conexionNoExiste)
     // Todo lo que resuelve la conexión por aquí es SQL: MongoDB o Redis se rechazan con su motivo.
     if (!esMotorSql(con.motor)) throw new ErrorGestor('driver', mensajeTodaviaNo(con.motor))
     return con
@@ -254,7 +255,7 @@ export class ExploradorController implements ContextoExplorador {
     const base = opcional(v, 'base', MAX_IDENT)
     if (base === undefined || base === '') return undefined
     if (!tieneNivelBases(descriptorSql(con.motor), con)) {
-      throw new ErrorGestor('interno', 'Esta conexión no tiene nivel «Bases»: la petición no puede llevar una base.')
+      throw new ErrorGestor('interno', txFamilia().sinNivelBases)
     }
     return base
   }

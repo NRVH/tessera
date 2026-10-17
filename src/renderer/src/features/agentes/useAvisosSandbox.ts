@@ -5,15 +5,17 @@
 // =============================================================================
 import { useEffect } from 'react'
 import { notify } from '../../comun/notifications'
+import { txSesion } from './textosSesion.ts'
 
 /** Suscribe los avisos del sandbox a los toasts mientras la app está montada. */
 export function useAvisosSandbox(): void {
   useEffect(
     () =>
       window.tessera.agentsUpdate.onProgress((p) => {
-        if (p.fase === 'inicio') notify('info', 'Preparando la imagen del sandbox…', p.line)
-        else if (p.fase === 'fin') notify('success', 'Sandbox listo', p.line)
-        else if (p.fase === 'error') notify('warn', 'Paquetes extra del sandbox', p.line)
+        const t = txSesion()
+        if (p.fase === 'inicio') notify('info', t.sandboxPreparando, p.line)
+        else if (p.fase === 'fin') notify('success', t.sandboxListo, p.line)
+        else if (p.fase === 'error') notify('warn', t.sandboxPaquetes, p.line)
       }),
     []
   )

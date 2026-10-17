@@ -6,6 +6,7 @@
 // no quema intento), con un motivo distinto según haya habido chequeo o no.
 // Decisiones: docs/decisiones/actualizacion/marcador-y-prevuelos.md
 // =============================================================================
+import { txUpdate } from './textos.ts'
 
 export interface EntradaInstalar {
   /** electron-updater tiene la descarga registrada: hubo `update-downloaded` EN ESTA SESIÓN. */
@@ -38,7 +39,7 @@ export function decidirComoInstalar(e: EntradaInstalar): DecisionInstalar {
   if (!e.instaladorEnDisco) {
     return {
       via: 'abortar',
-      motivo: 'el instalador descargado ya no está en disco',
+      motivo: txUpdate().motivos.instaladorAusente,
       bloquear: true
     }
   }
@@ -54,13 +55,13 @@ export function decidirComoInstalar(e: EntradaInstalar): DecisionInstalar {
   if (!e.chequeoConcluido) {
     return {
       via: 'abortar',
-      motivo: 'la actualización venía del marcador y aún no se ha revalidado contra el feed',
+      motivo: txUpdate().motivos.sinRevalidar,
       bloquear: false
     }
   }
   return {
     via: 'abortar',
-    motivo: 'el feed no confirmó la descarga cacheada (servidor caído o versión retirada)',
+    motivo: txUpdate().motivos.feedNoConfirma,
     bloquear: false
   }
 }

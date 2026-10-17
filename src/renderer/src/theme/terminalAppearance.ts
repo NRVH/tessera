@@ -13,6 +13,8 @@ export interface TerminalAppearance {
   fontFamily: string
   /** Tamaño en px. 0 = el predeterminado. */
   fontSize: number
+  /** Solo la de shell: ¿resalta logs y salidas (`resaltadoSalida.ts`)? Sin el campo, sí. */
+  resaltar?: boolean
 }
 
 /**

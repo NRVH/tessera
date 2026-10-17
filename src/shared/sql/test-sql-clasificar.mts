@@ -10,7 +10,9 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dividirSentencias, type Sentencia } from './divisorSql.ts'
-import { permitidaEnSoloLectura, formatoFijadoPorTessera, MENSAJE_FORMATO_FIJADO } from './clasificarSql.ts'
+import { permitidaEnSoloLectura, formatoFijadoPorTessera, mensajeFormatoFijado } from './clasificarSql.ts'
+
+const MENSAJE_FORMATO_FIJADO = mensajeFormatoFijado()
 import { citar, citarSiHaceFalta, nombreCalificado, normalizarIdent } from './identificadoresSql.ts'
 import { COMANDOS_SQLPLUS, OPCIONES_SET_SQLPLUS, PALABRAS_CLAVE } from './palabrasSql.ts'
 import { REGLAS, dialectoDeMotor, type DialectoSql } from './dialectosSql.ts'

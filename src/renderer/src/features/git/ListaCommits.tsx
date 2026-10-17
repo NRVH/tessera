@@ -6,12 +6,16 @@
 // Decisiones: docs/decisiones/git/log-apertura-y-teclado.md
 // =============================================================================
 
+import { cargaOcupa, type FaseCarga } from '../../comun/cargaDiferida'
 import { EstadoVacio } from '../../comun/EstadoVacio'
+import { IndicadorCarga } from '../../comun/IndicadorCarga'
+import { useCargaDiferida } from '../../comun/useCargaDiferida'
 import { VirtualList } from '../../comun/VirtualList'
 import { BarraFiltros } from './BarraFiltros'
 import { SIN_COMMITS } from './constantesLog'
 import { FilaCommit } from './FilaCommit'
 import { IconoGitVacio } from './iconos'
+import { txGit } from './textos.ts'
 import { esFiltroVacio } from './modelo/filtrosLog'
 import type { EstadoLog } from './useEstadoLog'
 import type { Commit } from '../../../../shared/git-ipc'
@@ -30,26 +34,26 @@ function AvisoOculto({ e }: { e: EstadoLog }): React.JSX.Element | null {
     return null
   }
   return (
-    <div className="git-state-inline">
-      {lista.length} de {commits.length} commits
-      {hayMas ? ' cargados (el filtro solo mira dentro de estos)' : ''}
-    </div>
+    <div className="git-state-inline">{txGit().avisoOculto(lista.length, commits.length, hayMas)}</div>
   )
 }
 
-/** Estados de arriba de la lista: error, cargando, sin coincidencias y lo que se esconde. */
-function EncabezadoLista({ e }: { e: EstadoLog }): React.JSX.Element {
+/**
+ * Estados de arriba de la lista: error, cargando, sin coincidencias y lo que se esconde.
+ * `carga` es la fase del aviso mientras ocupa el sitio de la lista (null = ya no).
+ */
+function EncabezadoLista({ e, carga }: { e: EstadoLog; carga: FaseCarga | null }): React.JSX.Element {
   const { error, commits } = e.datos
   const lista = e.vista.visibles ?? SIN_COMMITS
+  const t = txGit()
   return (
     <>
-      {error && <div className="git-error">No se pudo leer la historia de git:{'\n'}{error}</div>}
-      {/* «Cargando» va como línea y no centrado: centrarlo haría saltar el layout. */}
-      {!error && commits === null && <div className="git-state">Cargando historial…</div>}
-      {!error && commits !== null && commits.length > 0 && lista.length === 0 && (
-        <div className="git-state">Ningún commit coincide con los filtros.</div>
+      {error && <div className="git-error">{t.errorHistoria}{'\n'}{error}</div>}
+      {carga !== null && <IndicadorCarga fase={carga} texto={t.cargandoHistorial} className="git-state" />}
+      {carga === null && !error && commits !== null && commits.length > 0 && lista.length === 0 && (
+        <div className="git-state">{t.ningunCommitCoincide}</div>
       )}
-      <AvisoOculto e={e} />
+      {carga === null && <AvisoOculto e={e} />}
     </>
   )
 }
@@ -58,14 +62,15 @@ function EncabezadoLista({ e }: { e: EstadoLog }): React.JSX.Element {
 function pieLista(e: EstadoLog): React.JSX.Element | null {
   const { hayMas, error, commits, cargando } = e.datos
   if (!(hayMas && !error && commits !== null && commits.length > 0)) return null
+  const t = txGit()
   return (
     <div className="git-cargar-todo">
       <button
         onClick={() => void e.cargadores.cargarCommits(e.filtros.rama, undefined, { completo: true })}
-        disabled={cargando || !e.anclado}
-        title={`Mostrando los últimos ${commits.length} commits; cargar el historial completo del repositorio`}
+        disabled={cargando}
+        title={t.cargarCompletoTitulo(commits.length)}
       >
-        {cargando ? 'Cargando…' : `Cargar el historial completo (más de ${commits.length})`}
+        {cargando ? t.cargando : t.cargarCompleto(commits.length)}
       </button>
     </div>
   )
@@ -74,25 +79,32 @@ function pieLista(e: EstadoLog): React.JSX.Element | null {
 function ListaCommits({ e, altoFila }: { e: EstadoLog; altoFila: number }): React.JSX.Element {
   const { hashSeleccionado, revelar } = e.sel
   const { layout, chipsPorHash, busqueda } = e.vista
+  const cargando = !e.datos.error && e.datos.commits === null
+  const fase = useCargaDiferida(cargando)
+  // Mientras el aviso cumple su mínimo visible, los commits que ya llegaron esperan detrás.
+  // Con error no ocupa: el aviso y el error no se ven a la vez.
+  const ocupa = !e.datos.error && cargaOcupa(cargando, fase)
   return (
     <VirtualList<Commit>
       className="git-historial"
-      ariaLabel="Historial de commits"
+      ariaLabel={txGit().historialDeCommits}
       role="listbox"
       aria-activedescendant={hashSeleccionado === null ? undefined : idFilaCommit(hashSeleccionado)}
       // Una sola parada de tabulador para toda la lista (las filas están a -1).
       tabIndex={0}
-      onKeyDown={e.teclas.teclasCommits}
+      // Mientras el aviso ocupa la lista no hay filas sobre las que actuar.
+      onKeyDown={ocupa ? undefined : e.teclas.teclasCommits}
       // `onMouseDown` y no `onClick`: el foco tiene que llegar ANTES que el handler de la fila.
       onMouseDown={(ev) => ev.currentTarget.focus()}
-      items={e.vista.visibles ?? SIN_COMMITS}
+      items={ocupa ? SIN_COMMITS : (e.vista.visibles ?? SIN_COMMITS)}
       // El MISMO número que recibe FilaCommit: si difirieran, el scroll iría descuadrado.
       itemHeight={altoFila}
       getKey={(commit) => commit.hash}
-      scrollToIndex={revelar?.indice ?? null}
+      // Sin lista no hay a dónde saltar: el revelado se pide al soltarla, o se perdería.
+      scrollToIndex={ocupa ? null : (revelar?.indice ?? null)}
       scrollToken={revelar?.token}
-      header={<EncabezadoLista e={e} />}
-      footer={pieLista(e)}
+      header={<EncabezadoLista e={e} carga={ocupa ? fase : null} />}
+      footer={ocupa ? null : pieLista(e)}
       renderItem={(commit, i) => (
         <FilaCommit
           commit={commit}
@@ -151,8 +163,8 @@ export function ColumnaCentro(p: {
       {!e.datos.error && e.datos.commits?.length === 0 ? (
         <EstadoVacio
           icono={<IconoGitVacio />}
-          titulo="Aún no hay commits"
-          pista="Este repositorio está recién creado. En cuanto confirmes el primer commit, su historial aparecerá aquí."
+          titulo={txGit().sinCommitsTitulo}
+          pista={txGit().sinCommitsPista}
         />
       ) : (
         <ListaCommits e={e} altoFila={altoFila} />

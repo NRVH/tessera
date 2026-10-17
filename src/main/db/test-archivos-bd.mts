@@ -37,7 +37,7 @@ if (!process.versions.electron) {
 
 const {
   FichasArchivo,
-  MENSAJE_FICHA_DESCONOCIDA,
+  mensajeFichaDesconocida,
   VIDA_FICHA_MS,
   adaptadorArchivo,
   aliasLibre,
@@ -46,6 +46,7 @@ const {
   motoresDeArchivo,
   rutaDeArchivoDelProyecto
 } = await import('./archivosBd.ts')
+const MENSAJE_FICHA_DESCONOCIDA = mensajeFichaDesconocida()
 type ComunSqlite = import('./archivosBd.ts').ComunSqlite
 const { plataformaActual } = await import('../../shared/plataforma.ts')
 

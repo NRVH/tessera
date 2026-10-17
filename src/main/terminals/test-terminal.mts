@@ -267,6 +267,20 @@ async function main(): Promise<void> {
         `exitCode=${closedExitCode} ; contenedor_vivo=${containerAlive}`
     )
 
+    // (f) el pty nace con el tamaño pedido, también dentro del contenedor ------
+    hr('PASO 7b (f) - createSession con tamano: el proceso del contenedor lo ve al arrancar')
+    const s3 = await term.createSession(PERFIL_QA, { project: PROJECT_HOST, tamano: { cols: 137, rows: 41 } })
+    const a3 = attach(term, s3.id)
+    await sleep(900)
+    const tam = await a3.run('stty size')
+    a3.dispose()
+    await term.closeSession(s3.id)
+    check('(f) el pty nace con el tamaño pedido, sin esperar a un resize', tam === '41 137', `stty size="${tam}" esperado="41 137"`)
+    const s4 = await term.createSession(PERFIL_QA, { project: PROJECT_HOST, tamano: { cols: 0, rows: 99999 } })
+    const tam4 = `${s4.pty.cols}x${s4.pty.rows}`
+    await term.closeSession(s4.id)
+    check('(f2) un tamaño fuera de rango cae al de siempre', tam4 === '80x24', `pty=${tam4}`)
+
     a1.dispose()
   } finally {
     // --- Limpieza: cerrar sesiones vivas + stopContainer ---------------------

@@ -7,6 +7,7 @@
 
 import type { DbTls } from './db-ipc.ts'
 import { descriptor, tlsDeConexion } from './motores/index.ts'
+import { txUri } from './textosUri.ts'
 
 /** Las claves de `opcionesUri` que se aceptan (lo demás se rechaza al guardar). */
 export const OPCIONES_URI_MONGO: readonly string[] = [
@@ -118,9 +119,9 @@ function partirOpciones(texto: string, r: ReglasOpciones): { ok: true; opciones:
     const igual = trozo.indexOf('=')
     const clave = igual < 0 ? trozo : trozo.slice(0, igual)
     const valor = igual < 0 ? '' : trozo.slice(igual + 1)
-    if (clave === '') return { ok: false, error: `Falta la clave en «${trozo}» (clave=valor).` }
+    if (clave === '') return { ok: false, error: txUri().opciones.faltaClave(trozo) }
     if (igual < 0 || (valor === '' && !vacias.includes(clave.toLowerCase()))) {
-      return { ok: false, error: `La opción «${clave}» no lleva valor (clave=valor).` }
+      return { ok: false, error: txUri().opciones.sinValor(clave) }
     }
     opciones.push({ clave, valor })
   }
@@ -134,17 +135,18 @@ function validarPartidas(opciones: readonly Opcion[], r: ReglasOpciones): string
   const enteras = minus(r.enteras)
   const repetibles = minus(r.repetibles)
   const vistas = new Set<string>()
+  const t = txUri().opciones
   for (const { clave, valor } of opciones) {
     const k = clave.toLowerCase()
-    if (r.esTls(k)) return `El cifrado no va en las opciones («${clave}»): usa las casillas de TLS de la conexión.`
-    if (CLAVES_CREDENCIALES.includes(k)) return `Usuario y contraseña van en sus campos, no en las opciones («${clave}»).`
-    if (!admitidas.includes(k)) return `«${clave}» no es una opción admitida. Se admiten: ${r.admitidas.join(', ')}.`
-    if (vistas.has(k) && !repetibles.includes(k)) return `La opción «${clave}» está repetida.`
+    if (r.esTls(k)) return t.cifrado(clave)
+    if (CLAVES_CREDENCIALES.includes(k)) return t.credenciales(clave)
+    if (!admitidas.includes(k)) return t.noAdmitida(clave, r.admitidas.join(', '))
+    if (vistas.has(k) && !repetibles.includes(k)) return t.repetida(clave)
     vistas.add(k)
     const decodificado = decodificar(valor)
-    if (decodificado === null) return `El valor de «${clave}» lleva un % que no es de un carácter codificado: escríbelo como %25.`
-    if (booleanas.includes(k) && !/^(true|false)$/i.test(decodificado)) return `«${clave}» vale true o false.`
-    if (enteras.includes(k) && !/^\d+$/.test(decodificado)) return `«${clave}» es un número entero.`
+    if (decodificado === null) return t.porcientoValor(clave)
+    if (booleanas.includes(k) && !/^(true|false)$/i.test(decodificado)) return t.booleana(clave)
+    if (enteras.includes(k) && !/^\d+$/.test(decodificado)) return t.entera(clave)
   }
   return null
 }
@@ -153,8 +155,8 @@ function validarPartidas(opciones: readonly Opcion[], r: ReglasOpciones): string
 function validarOpciones(texto: string, r: ReglasOpciones): string | null {
   const t = texto.trim()
   if (t === '') return null
-  if (t.startsWith('?')) return 'Sin el «?» del principio: solo clave=valor&clave=valor.'
-  if (/[\s#]/.test(t)) return 'Las opciones no llevan espacios ni «#».'
+  if (t.startsWith('?')) return txUri().opciones.sinInterrogacion
+  if (/[\s#]/.test(t)) return txUri().opciones.sinEspacios
   const p = partirOpciones(t, r)
   if (!p.ok) return p.error
   return validarPartidas(p.opciones, r)
@@ -225,7 +227,7 @@ export function validarOpcionesFormularioMongo(texto: string): string | null {
   // Solo uno que se podría SACAR a su campo (uno y legible): repetido o con un `%` suelto, lo
   // que vale es el error de verdad del main («va en su campo» lo tapaba).
   if (separarAuthSource(texto).origen !== null) {
-    return 'La base de autenticación (authSource) va en su campo, no en las opciones.'
+    return txUri().opciones.authSource
   }
   return validarOpcionesUriMongo(texto)
 }
@@ -269,18 +271,18 @@ function partirAutoridad(resto: string): ResultadoUri<AutoridadUri> {
   const dosPuntos = info.indexOf(':')
   const user = decodificar(dosPuntos < 0 ? info : info.slice(0, dosPuntos))
   const password = decodificar(dosPuntos < 0 ? '' : info.slice(dosPuntos + 1))
-  if (user === null) return { ok: false, error: 'El usuario lleva un % que no es de un carácter codificado: escríbelo como %25.' }
-  if (password === null) return { ok: false, error: 'La contraseña lleva un % que no es de un carácter codificado: escríbelo como %25.' }
-  if (listaHosts === '') return { ok: false, error: 'Falta el host de la URI.' }
+  if (user === null) return { ok: false, error: txUri().uri.porcientoUsuario }
+  if (password === null) return { ok: false, error: txUri().uri.porcientoPassword }
+  if (listaHosts === '') return { ok: false, error: txUri().uri.faltaHost }
   return { ok: true, campos: { user, password, listaHosts, tras } }
 }
 
 function partirUri(uri: string, esquemas: readonly string[]): ResultadoUri<UriPartida> {
   const t = uri.trim()
-  const esperados = esquemas.map((e) => `${e}://`).join(' o ')
+  const esperados = esquemas.map((e) => `${e}://`).join(txUri().uri.oSeparador)
   const sep = t.indexOf('://')
   const esquema = sep < 0 ? '' : t.slice(0, sep).toLowerCase()
-  if (sep < 0 || !esquemas.includes(esquema)) return { ok: false, error: `La URI tiene que empezar por ${esperados}.` }
+  if (sep < 0 || !esquemas.includes(esquema)) return { ok: false, error: txUri().uri.empezarPor(esperados) }
   // Lo de detrás de `#` no es de la URI (un fragmento): fuera.
   let resto = t.slice(sep + 3)
   const almohadilla = resto.indexOf('#')
@@ -291,7 +293,7 @@ function partirUri(uri: string, esquemas: readonly string[]): ResultadoUri<UriPa
   const interrogacion = tras.indexOf('?')
   const rutaCruda = (interrogacion < 0 ? tras : tras.slice(0, interrogacion)).replace(/^\//, '')
   const ruta = decodificar(rutaCruda)
-  if (ruta === null) return { ok: false, error: 'La base lleva un % que no es de un carácter codificado.' }
+  if (ruta === null) return { ok: false, error: txUri().uri.porcientoBase }
   return {
     ok: true,
     campos: {
@@ -311,11 +313,11 @@ function partirHost(crudo: string): { ok: true; host: string; puerto: number | n
   let puerto: string | null = null
   if (crudo.startsWith('[')) {
     const cierra = crudo.indexOf(']')
-    if (cierra < 0) return { ok: false, error: `Falta el «]» de la dirección IPv6 «${crudo}».` }
+    if (cierra < 0) return { ok: false, error: txUri().uri.faltaCorchete(crudo) }
     host = crudo.slice(1, cierra)
     const tras = crudo.slice(cierra + 1)
     if (tras !== '') {
-      if (!tras.startsWith(':')) return { ok: false, error: `Sobra «${tras}» detrás de la dirección IPv6.` }
+      if (!tras.startsWith(':')) return { ok: false, error: txUri().uri.sobra(tras) }
       puerto = tras.slice(1)
     }
   } else {
@@ -324,11 +326,11 @@ function partirHost(crudo: string): { ok: true; host: string; puerto: number | n
     if (dos >= 0) puerto = crudo.slice(dos + 1)
   }
   const decodificado = decodificar(host)
-  if (decodificado === null || decodificado === '') return { ok: false, error: `El host «${crudo}» no es válido.` }
-  if (decodificado.includes('/')) return { ok: false, error: 'Tessera no se conecta por un socket local: pon un host y un puerto.' }
+  if (decodificado === null || decodificado === '') return { ok: false, error: txUri().uri.hostInvalido(crudo) }
+  if (decodificado.includes('/')) return { ok: false, error: txUri().uri.socketLocal }
   if (puerto === null) return { ok: true, host: decodificado, puerto: null }
   const n = /^\d+$/.test(puerto) ? Number(puerto) : NaN
-  if (!Number.isInteger(n) || n < 1 || n > 65535) return { ok: false, error: `El puerto «${puerto}» no es válido (1-65535).` }
+  if (!Number.isInteger(n) || n < 1 || n > 65535) return { ok: false, error: txUri().uri.puertoInvalido(puerto) }
   return { ok: true, host: decodificado, puerto: n }
 }
 
@@ -348,16 +350,16 @@ function miembroGuardado(host: string, puerto: number | null): string {
  * lista (`h1:27017,h2:27018`), cada uno con su puerto, y `port` queda el de por defecto.
  */
 function hostDeUriMongo(u: UriPartida, srv: boolean, puertoPorDefecto: number | null): ResultadoUri<{ host: string; port: number | null }> {
-  if (srv && u.hosts.length > 1) return { ok: false, error: 'Una URI mongodb+srv lleva un solo nombre de host.' }
+  if (srv && u.hosts.length > 1) return { ok: false, error: txUri().uri.srvUnHost }
   const miembros: { host: string; puerto: number | null }[] = []
   for (const crudo of u.hosts) {
     const h = partirHost(crudo)
     if (!h.ok) return h
     // Decodificado, un `%2C` sería una coma más en la lista guardada: otro servidor que la URI no nombra.
-    if (/[,\s@]/.test(h.host)) return { ok: false, error: `El host «${h.host}» no es válido.` }
+    if (/[,\s@]/.test(h.host)) return { ok: false, error: txUri().uri.hostInvalido(h.host) }
     miembros.push(h)
   }
-  if (srv && miembros[0].puerto !== null) return { ok: false, error: 'Una URI mongodb+srv no lleva puerto: lo dan los registros DNS del host.' }
+  if (srv && miembros[0].puerto !== null) return { ok: false, error: txUri().uri.srvSinPuerto }
   if (miembros.length === 1) {
     const h = miembros[0]
     return { ok: true, campos: { host: h.host, port: srv ? null : (h.puerto ?? puertoPorDefecto) } }
@@ -376,9 +378,9 @@ interface OpcionesMongoClasificadas {
 /** Aplica una opción de TLS (`tls`, `ssl`, `tlsAllowInvalidCertificates`, `tlsInsecure`) a las casillas; devuelve el error, si lo hay. */
 function aplicarOpcionTls(c: OpcionesMongoClasificadas, o: Opcion, k: string): string | null {
   const b = esBooleano(decodificar(o.valor) ?? o.valor)
-  if (b === null) return `«${o.clave}» vale true o false.`
+  if (b === null) return txUri().opciones.booleana(o.clave)
   if (k === 'tls' || k === 'ssl') {
-    if (c.cifrar !== null && c.cifrar !== b) return 'tls y ssl dicen cosas distintas en la URI.'
+    if (c.cifrar !== null && c.cifrar !== b) return txUri().opciones.tlsContradice
     c.cifrar = b
   } else {
     c.confiar = c.confiar || b
@@ -428,11 +430,11 @@ export function descomponerUriMongo(uri: string): ResultadoUri<CamposUriMongo> {
   if (!c.ok) return c
   const { cifrar, confiar, quedan, descartadas } = c.campos
   if (srv && quedan.some((o) => o.clave === 'directConnection' && esBooleano(o.valor) === true)) {
-    return { ok: false, error: 'Una URI mongodb+srv no admite directConnection=true.' }
+    return { ok: false, error: txUri().opciones.srvDirecta }
   }
   const unoSolo = ['directConnection', 'loadBalanced']
   if (u.hosts.length > 1 && quedan.some((o) => unoSolo.includes(o.clave) && esBooleano(o.valor) === true)) {
-    return { ok: false, error: 'Con varios hosts no valen directConnection=true ni loadBalanced=true: quítalas o deja un solo host.' }
+    return { ok: false, error: txUri().opciones.variosHosts }
   }
   anadirAuthSourceImplicito(u, srv, quedan)
   const opcionesUri = quedan.map((o) => `${o.clave}=${o.valor}`).join('&')
@@ -472,7 +474,7 @@ export function validarBaseRedis(valor: string): string | null {
   // Hasta 4 cifras: es la regla del trabajador y de `tdb`
   // (`^\d{1,4}$`); con `^\d+$`, «00007» se guardaba y cada sesión fallaba al abrir.
   if (!/^\d{1,4}$/.test(v) || Number(v) > BASE_REDIS_MAX) {
-    return `La base es un número entero de 0 a ${BASE_REDIS_MAX} (vacía, la 0): «${v}» no lo es.`
+    return txUri().redis.base(BASE_REDIS_MAX, v)
   }
   return null
 }
@@ -484,18 +486,14 @@ export function descomponerUriRedis(uri: string): ResultadoUri<CamposUriRedis> {
   const d = descriptor('redis')
 
   if (u.hosts.length > 1) {
-    return {
-      ok: false,
-      error:
-        'La URI lleva varios hosts y esta URI va a un servidor solo: para Sentinel o Cluster, elige el modo en «Conexión a» y escribe los servidores en Host, separados por comas.'
-    }
+    return { ok: false, error: txUri().uri.variosHostsRedis }
   }
   const h = partirHost(u.hosts[0])
   if (!h.ok) return h
 
   // La base: el número de la ruta, normalizado.
   const invalida = validarBaseRedis(u.ruta)
-  if (invalida !== null) return { ok: false, error: `En la ruta de la URI va el número de la base (/0, /1…). ${invalida}` }
+  if (invalida !== null) return { ok: false, error: txUri().uri.rutaBaseRedis(invalida) }
   const database = u.ruta.trim() === '' ? '' : String(Number(u.ruta.trim()))
 
   // Las opciones no se guardan: solo sus claves, sin repetir, para decirlo.
@@ -563,14 +561,21 @@ function tlsDeOpcionMysql(clave: string, valor: string): DbTls | null | { error:
   const v = valor.toLowerCase()
   if (CLAVES_SSL_MODE_MYSQL.includes(c)) {
     if (!Object.hasOwn(TLS_POR_SSL_MODE_MYSQL, v)) {
-      return { error: `ssl-mode «${valor}» no es válido. Se admiten: ${Object.keys(TLS_POR_SSL_MODE_MYSQL).map((x) => x.toUpperCase()).join(', ')}.` }
+      return {
+        error: txUri().opciones.sslModeMysql(
+          valor,
+          Object.keys(TLS_POR_SSL_MODE_MYSQL)
+            .map((x) => x.toUpperCase())
+            .join(', ')
+        )
+      }
     }
     return TLS_POR_SSL_MODE_MYSQL[v]
   }
   if (CLAVES_SSL_BOOLEANO_MYSQL.includes(c)) {
     if (v === 'true' || v === '1') return { cifrar: true, confiarCertificado: false }
     if (v === 'false' || v === '0') return { cifrar: false, confiarCertificado: false }
-    return { error: `${clave} tiene que ser true o false.` }
+    return { error: txUri().opciones.boolMysql(clave) }
   }
   return null
 }
@@ -585,7 +590,7 @@ export function descomponerUriMysql(uri: string): ResultadoUri<CamposUri & { por
   const u = partida.campos
   const d = descriptor('mysql')
   if (u.hosts.length > 1) {
-    return { ok: false, error: 'La URI lleva varios hosts y la conexión va a un servidor solo: pon el del servidor.' }
+    return { ok: false, error: txUri().uri.variosHostsServidor }
   }
   const h = partirHost(u.hosts[0])
   if (!h.ok) return h
@@ -617,7 +622,7 @@ export function descomponerUriPostgres(uri: string): ResultadoUri<CamposUri & { 
   const u = partida.campos
   const d = descriptor('postgres')
   if (u.hosts.length > 1) {
-    return { ok: false, error: 'La URI lleva varios hosts y la conexión va a un servidor solo: pon el del servidor.' }
+    return { ok: false, error: txUri().uri.variosHostsServidor }
   }
   const h = partirHost(u.hosts[0])
   if (!h.ok) return h
@@ -635,7 +640,7 @@ export function descomponerUriPostgres(uri: string): ResultadoUri<CamposUri & { 
     }
     const modo = (decodificar(igual < 0 ? '' : trozo.slice(igual + 1)) ?? '').toLowerCase()
     if (!Object.hasOwn(TLS_POR_SSLMODE, modo)) {
-      return { ok: false, error: `sslmode «${modo}» no es válido. Se admiten: ${Object.keys(TLS_POR_SSLMODE).join(', ')}.` }
+      return { ok: false, error: txUri().opciones.sslModePostgres(modo, Object.keys(TLS_POR_SSLMODE).join(', ')) }
     }
     tls = TLS_POR_SSLMODE[modo]
   }

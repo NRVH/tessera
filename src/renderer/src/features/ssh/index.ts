@@ -10,7 +10,7 @@ export { useStoreSsh, accionesSsh, datosDePerfil, conexionPorId, SIN_DATOS_SSH }
 export type { EstadoSsh, DialogoSsh, DatosPerfilSsh } from './store'
 export { LanzadorSsh, type PropsLanzadorSsh } from './LanzadorSsh'
 export { BotonRielSsh } from './BotonRielSsh'
-export { RielConexionesSsh, type PropsRielConexionesSsh } from './RielConexionesSsh'
+export { RielConexionesSshVivo, type PropsRielConexionesSsh } from './RielConexionesSsh'
 export { useRielSsh, enfocarRielSsh, type RielSsh } from './useRielSsh'
 export { ID_LANZADOR_SSH } from './rielSsh'
 export type { DatosListaConexionesSsh } from './ListaConexionesSsh'

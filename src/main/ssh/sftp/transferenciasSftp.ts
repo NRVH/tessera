@@ -11,6 +11,7 @@ import { lstat, mkdir, open, readdir, rename, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
 import type { Plataforma } from '../../../shared/plataforma.ts'
 import { nombreValido } from '../transferenciaBuzon.ts'
+import { txSsh } from '../textos.ts'
 import { ErrorSftp, type ClienteSftp } from './ClienteSftp.ts'
 import { ESTADO, tipoDeModo } from './protocoloSftp.ts'
 
@@ -192,8 +193,8 @@ async function bajarArchivo(c: ClienteSftp, remoto: string, local: string, taman
  */
 async function subirArchivo(c: ClienteSftp, local: string, remoto: string, reemplazar: boolean, a: Avance): Promise<void> {
   const previo = await c.lstatSiExiste(remoto)
-  if (previo && !reemplazar) throw new ErrorSftp(ESTADO.FALLO, `«${baseRemota(remoto)}» ya existe en el servidor.`)
-  if (previo && tipoDeModo(previo.permisos) === 'carpeta') throw new ErrorSftp(ESTADO.FALLO, `«${baseRemota(remoto)}» es una carpeta en el servidor.`)
+  if (previo && !reemplazar) throw new ErrorSftp(ESTADO.FALLO, txSsh().sftp.existeServidor(baseRemota(remoto)))
+  if (previo && tipoDeModo(previo.permisos) === 'carpeta') throw new ErrorSftp(ESTADO.FALLO, txSsh().sftp.carpetaServidor(baseRemota(remoto)))
   const temporal = unirRemota(carpetaRemota(remoto), `.${baseRemota(remoto)}.tessera-${randomBytes(4).toString('hex')}`)
   const fd = await open(local, fsc.O_RDONLY)
   let handle: Buffer | null = await c.abrir(temporal, 'crear', 0o644)
@@ -233,7 +234,7 @@ async function subirArchivo(c: ClienteSftp, local: string, remoto: string, reemp
 export async function bajar(c: ClienteSftp, remoto: string, local: string, plataforma: Plataforma, a: Avance): Promise<void> {
   const elementos = await recorrerRemoto(c, remoto, a)
   const malo = elementos.find((e) => e.rel !== '' && !e.rel.split('/').every((t) => nombreValido(t, plataforma)))
-  if (malo) throw new ErrorSftp(ESTADO.FALLO, `«${malo.rel}» no se puede guardar en este equipo con ese nombre.`)
+  if (malo) throw new ErrorSftp(ESTADO.FALLO, txSsh().sftp.nombreLocal(malo.rel))
   for (const e of elementos) {
     vigilar(a)
     const destino = e.rel ? path.join(local, ...e.rel.split('/')) : local
@@ -253,7 +254,7 @@ export async function subir(c: ClienteSftp, local: string, remoto: string, reemp
     if (e.carpeta) {
       const hay = await c.lstatSiExiste(destino)
       if (!hay) await c.mkdir(destino)
-      else if (tipoDeModo(hay.permisos) !== 'carpeta') throw new ErrorSftp(ESTADO.FALLO, `«${e.rel || baseRemota(remoto)}» existe en el servidor y no es una carpeta.`)
+      else if (tipoDeModo(hay.permisos) !== 'carpeta') throw new ErrorSftp(ESTADO.FALLO, txSsh().sftp.noEsCarpeta(e.rel || baseRemota(remoto)))
     } else {
       a.actual(e.rel || path.basename(local))
       await subirArchivo(c, e.rel ? path.join(local, ...e.rel.split('/')) : local, destino, reemplazar, a)

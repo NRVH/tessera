@@ -8,6 +8,7 @@
 import type { DbResultadoEnvio } from '../../../../../shared/db-explorador-ipc.ts'
 import { mensajeFallo } from './cambiosRejillaEnvio.ts'
 import { numCambios, type CambiosRejilla } from './cambiosRejillaModelo.ts'
+import { txEdicionRejilla } from './textosEdicionRejilla.ts'
 
 /** El estado del diálogo de «Enviar». */
 export type EstadoEnvio =
@@ -38,10 +39,11 @@ export type FalloEnvio = Extract<DbResultadoEnvio, { tipo: 'error' }>
 
 /** El título del diálogo tras un fallo, según su clase. */
 function tituloFallo(incierto: boolean, detenido: boolean, enCommit: boolean, indice: number, n: number): string {
-  if (incierto) return 'No se sabe si se aplicó: refresca la tabla antes de reenviar'
-  if (detenido) return 'Envío detenido: se revirtió todo'
-  if (enCommit) return 'Falló al confirmar: no se aplicó ninguno'
-  return `Falló el cambio ${indice + 1} de ${n}: no se aplicó ninguno`
+  const t = txEdicionRejilla()
+  if (incierto) return t.tituloIncierto
+  if (detenido) return t.tituloDetenido
+  if (enCommit) return t.tituloEnCommit
+  return t.tituloFallo(indice + 1, n)
 }
 
 /**
@@ -106,11 +108,10 @@ export function esEnvioIncierto(estado: EstadoEnvio): boolean {
 // dentro de lo pendiente y puede estar ya aplicado.
 
 /** Lo que dice el diálogo reabierto con la marca puesta. */
-export const AVISO_ENVIO_INCIERTO = {
-  titulo: 'El último envío quedó sin saber si se aplicó',
-  texto:
-    'Se cortó la conexión con el COMMIT en camino. Refresca la tabla para comprobarlo antes de reenviar: si se aplicó, reenviar duplicaría las inserciones.'
-} as const
+export function avisoEnvioIncierto(): { readonly titulo: string; readonly texto: string } {
+  const t = txEdicionRejilla()
+  return { titulo: t.inciertoTitulo, texto: t.inciertoTexto }
+}
 
 /** ¿Sigue la marca tras cambiar lo pendiente a `c`? Solo mientras quede algo que reenviar. */
 export function sigueIncierto(incierto: boolean, c: CambiosRejilla): boolean {

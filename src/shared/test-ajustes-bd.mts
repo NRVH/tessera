@@ -8,11 +8,11 @@
 
 import {
   AJUSTES_SESIONES_POR_DEFECTO,
-  AYUDA_TX_INICIAL,
+  ayudaTxInicial,
   DB_FILAS_POR_PAGINA_OPCIONES,
   DB_FILAS_POR_PAGINA_POR_DEFECTO,
   DB_INACTIVIDAD_CONSOLA_MIN_POR_DEFECTO,
-  DB_INACTIVIDAD_CONSOLA_OPCIONES,
+  dbInactividadConsolaOpciones,
   DB_INACTIVIDAD_NUNCA,
   DB_TX_INICIAL_POR_DEFECTO,
   ajustesSesionesDe,
@@ -27,6 +27,9 @@ import { DB_PAGINA_MAX, DB_PAGINA_POR_DEFECTO } from './db-explorador-ipc.ts'
 import { modoTxInicial } from './sql/produccionSql.ts'
 import { INACTIVIDAD_CONSOLA_MS, umbralInactividadMs } from '../main/db/explorador/limites.ts'
 import { estadoInicial, transicion } from '../main/db/explorador/maquinaSesion.ts'
+
+const AYUDA_TX_INICIAL = ayudaTxInicial()
+const DB_INACTIVIDAD_CONSOLA_OPCIONES = dbInactividadConsolaOpciones()
 
 // ---------------------------------------------------------------------------
 // Reporte PASS/FAIL (mismo patrón que los otros test-*.mts)

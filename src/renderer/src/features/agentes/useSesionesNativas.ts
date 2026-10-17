@@ -7,6 +7,7 @@
 import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import type { InfoSesionesAgentes } from './sesionesPopoverAgentes'
+import { txSesion } from './textosSesion.ts'
 import { useStoreAgenteTerminal } from './storeAgenteTerminal'
 import { useActualizacionNativa, type UseActualizacionNativa } from './useActualizacionNativa'
 import type { ActividadAgentes } from './useActividadAgentes'
@@ -58,8 +59,8 @@ export function useSesionesNativas(
     const nombres: Record<string, string> = {}
     for (const p of tabs.allOpenProjects) nombres[editorTargetKey(p.profileId, p.projectHostPath)] = p.name
     // El agente del espacio de datos y el de la terminal se nombran por la vista donde viven.
-    for (const [profileId, ruta] of Object.entries(dbWorkspacePaths)) nombres[editorTargetKey(profileId, ruta)] = 'Bases de datos'
-    for (const [profileId, ruta] of Object.entries(terminal.rutas)) nombres[editorTargetKey(profileId, ruta)] = 'Terminal'
+    for (const [profileId, ruta] of Object.entries(dbWorkspacePaths)) nombres[editorTargetKey(profileId, ruta)] = txSesion().basesDeDatos
+    for (const [profileId, ruta] of Object.entries(terminal.rutas)) nombres[editorTargetKey(profileId, ruta)] = txSesion().terminal
     const orden = new Map(ordenarCandidatos(candidatosMosaico).map((c, i) => [c.key, i]))
     const posicion: InfoSesionesAgentes['posicion'] = (s) => orden.get(agentTargetKey(s.profileId, s.projectHostPath, s.agente))
     return { perfiles, nombresProyecto: nombres, posicion }

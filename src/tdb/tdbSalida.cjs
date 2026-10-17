@@ -2,9 +2,11 @@
 // Salida de `tdb`: `fallar`, la tabla de texto y el ajuste de líneas. El modo `--json` NO es
 // estado de módulo: viaja en `ctx.json` (lo fija `contexto()` desde los argumentos) y `fallar`
 // lo recibe con el `ctx`.
-// No depende de ningún otro módulo local; lo usan el resto de `tdb*.cjs`.
+// Solo depende de `textosTdb.cjs`; lo usan el resto de `tdb*.cjs`.
 // =============================================================================
 'use strict'
+
+const { textosTdb } = require('./textosTdb.cjs')
 
 /** Ancho máximo de una celda al pintar en texto (el valor completo sale con --json). */
 const ANCHO_CELDA = 40
@@ -26,7 +28,7 @@ function fallar(salida, mensaje, extra) {
 function celda(v) {
   if (v === null || v === undefined) return ''
   if (v instanceof Date) return v.toISOString().replace('T', ' ').slice(0, 19)
-  if (Buffer.isBuffer(v)) return `<binario ${v.length} bytes>`
+  if (Buffer.isBuffer(v)) return textosTdb().binario(v.length)
   if (typeof v === 'object') return JSON.stringify(v)
   return String(v)
 }
@@ -34,7 +36,7 @@ function celda(v) {
 /** Tabla de texto alineada. Pensada para que un LLM la lea sin ambigüedad. */
 function pintarTabla(columnas, filas) {
   if (filas.length === 0) {
-    console.log('  (sin filas)')
+    console.log(textosTdb().sinFilas)
     return
   }
   const datos = filas.map((f) =>

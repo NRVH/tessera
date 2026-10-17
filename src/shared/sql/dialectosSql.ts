@@ -3,7 +3,7 @@
 // y avisos son uno solo y consultan la fila del dialecto, nunca su nombre. Sumar un motor: su id en
 // `DialectoSql`, su fila aquí y en `RESERVADAS` y `PALABRAS_CLAVE`. Lo que depende del motor y no del
 // lenguaje vive en su descriptor (`shared/motores/`). Neutral, sin DOM ni `process`, ES2020.
-// Decisiones: docs/decisiones/bd/sql-dialectos-como-tabla.md
+// Decisiones: docs/decisiones/bd/registro-motores-descriptor.md
 // =============================================================================
 
 import type { DbMotor } from '../db-ipc.ts'

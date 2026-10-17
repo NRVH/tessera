@@ -10,6 +10,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
 import { pegarRecortado } from '../util/pasteTrim'
 import { esRegexValida, type OpcionesBusqueda } from '../../../shared/textSearch'
+import { txComun } from './textos.ts'
 import { TogglesBusqueda } from './TogglesBusqueda'
 
 /** Alternadores de la caja. Mismo contrato que el motor de búsqueda de documento. */
@@ -40,10 +41,11 @@ interface SearchBoxProps {
 
 /** Texto del contador según el estado de la búsqueda. */
 function etiquetaContador(regexInvalid: boolean, query: string, results: Resultados): string {
-  if (regexInvalid) return 'Regex inválido'
+  const t = txComun()
+  if (regexInvalid) return t.regexInvalido
   if (!query) return ''
-  if (!results || results.count === 0) return 'Sin resultados'
-  if (results.index < 0) return `${results.count} coincidencias`
+  if (!results || results.count === 0) return t.sinResultados
+  if (results.index < 0) return t.coincidencias(results.count)
   return `${results.index + 1} / ${results.count}`
 }
 
@@ -97,15 +99,16 @@ function BotonesNav({
   onNext: () => void
   onClose: () => void
 }): React.JSX.Element {
+  const t = txComun()
   return (
     <>
-      <BotonNav onClick={onPrev} title="Anterior (Shift+Enter)" ariaLabel="Coincidencia anterior">
+      <BotonNav onClick={onPrev} title={t.anterior} ariaLabel={t.coincidenciaAnterior}>
         <ArrowUp />
       </BotonNav>
-      <BotonNav onClick={onNext} title="Siguiente (Enter)" ariaLabel="Coincidencia siguiente">
+      <BotonNav onClick={onNext} title={t.siguiente} ariaLabel={t.coincidenciaSiguiente}>
         <ArrowDown />
       </BotonNav>
-      <BotonNav onClick={onClose} title="Cerrar (Esc)" ariaLabel="Cerrar buscador">
+      <BotonNav onClick={onClose} title={t.cerrarEsc} ariaLabel={t.cerrarBuscador}>
         <CloseX />
       </BotonNav>
     </>
@@ -121,10 +124,11 @@ export function SearchBox({
   onNavigate,
   results,
   onClose,
-  ariaLabel = 'Buscar en la terminal',
+  ariaLabel,
   className = '',
   focusToken = 0
 }: SearchBoxProps): React.JSX.Element {
+  const t = txComun()
   const [query, setQuery] = useState('')
   const [opts, setOpts] = useState<SearchOptions>(opcionesIniciales)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -161,9 +165,9 @@ export function SearchBox({
         onChange={(e) => setQuery(e.target.value)}
         onPaste={pegarRecortado(setQuery)}
         onKeyDown={handleKeyDown}
-        placeholder="Buscar"
+        placeholder={t.buscar}
         spellCheck={false}
-        aria-label={ariaLabel}
+        aria-label={ariaLabel ?? t.buscarEnTerminal}
       />
       <span className="search-box-count">{etiquetaContador(regexInvalid, query, results)}</span>
       <TogglesBusqueda opts={opts} onChange={setOpts} />

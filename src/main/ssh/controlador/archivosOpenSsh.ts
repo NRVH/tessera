@@ -13,6 +13,7 @@ import type { Plataforma } from '../../../shared/plataforma.ts'
 import type { SshConexion, SshExportacionOpenSsh, SshGrupo } from '../../../shared/ssh-ipc.ts'
 import { identidadOpenSsh, planOpenSsh, seleccionExportar } from '../exportarOpenSsh.ts'
 import { errorHost, errorPuerto, errorTuneles, errorUsuario } from '../validacionSsh.ts'
+import { txSsh } from '../textos.ts'
 
 /** Tope del archivo `config` de OpenSSH: uno de verdad no pasa de unos KiB. */
 const TOPE_CONFIG_OPENSSH_BYTES = 1024 * 1024
@@ -23,7 +24,7 @@ export async function leerConfigOpenSsh(ruta: string): Promise<string> {
     if ((await stat(ruta)).size > TOPE_CONFIG_OPENSSH_BYTES) throw new Error('grande')
     return await readFile(ruta, 'utf8')
   } catch (e) {
-    throw new Error('No se pudo leer ese archivo como configuración de OpenSSH.', { cause: e })
+    throw new Error(txSsh().openssh.noSeLeyo, { cause: e })
   }
 }
 
@@ -108,11 +109,11 @@ export async function exportarOpenSsh(
   d: DepsExportacionOpenSsh
 ): Promise<SshExportacionOpenSsh | null> {
   const { elegidas, bastiones } = seleccionExportar(lista.conexiones, ids)
-  if (elegidas.length === 0) throw new Error('No hay conexiones que exportar.')
+  if (elegidas.length === 0) throw new Error(txSsh().openssh.sinConexiones)
   // Se validó al guardar, pero el registro se edita a mano y esto acaba en un config que ssh ejecuta.
   for (const c of elegidas) {
     const error = errorHost(c.host) ?? errorPuerto(c.puerto) ?? errorUsuario(c.usuario) ?? errorTuneles(c.tuneles)
-    if (error !== null) throw new Error(`La conexión "${c.alias}" tiene un dato que no vale: ${error} Edítala para corregirlo.`)
+    if (error !== null) throw new Error(txSsh().registro.datoMalo(c.alias, error))
   }
   const destino = await d.elegirDestino()
   if (destino === null) return null
@@ -148,6 +149,6 @@ export async function exportarOpenSsh(
   } catch (e) {
     if (carpeta !== null) await rm(carpeta, { recursive: true, force: true }).catch(() => undefined)
     d.log(`exportar a OpenSSH falló: ${String(e)}`)
-    throw new Error('No se pudo escribir la exportación en esa carpeta.', { cause: e })
+    throw new Error(txSsh().openssh.noSeEscribio, { cause: e })
   }
 }

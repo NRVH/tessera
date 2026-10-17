@@ -30,8 +30,10 @@ versiones. El teclado, el menú de aplicación y el semáforo son globales del s
   8 s de fábrica fallaba (el paquete de `pack:dir` no lleva `app-update.yml`) y cambiaba el icono de
   la barra a mitad de un spec. `actualizacion.spec.ts` lanza la app con su propio entorno.
 - El cierre de cada prueba tiene tope (90 s, por debajo del plazo del hook): si vence, se imprime el
-  `cierre.log`, se mata el árbol de la app y el hook queda en rojo (`expect.soft`, para que el resto
-  de su limpieza siga).
+  `cierre.log` con el árbol de procesos que sigue vivo, se mata ese árbol y el hook queda en rojo
+  (`expect.soft`, para que el resto de su limpieza siga). En Windows Playwright lanza la app a través
+  de `cmd.exe /c`: el pid que da es el de `cmd`, y Tessera cuelga de él. También queda en rojo un
+  cierre que terminó el guardián de salida de la app (su línea en `cierre.log`).
 - `workers: 1`, `fullyParallel: false` y `retries: 0`. Lo que solo vale en una plataforma se
   salta con `test.skip(PLATAFORMA !== …)` y su motivo: `grep PLATAFORMA e2e/` lista lo bifurcado.
 

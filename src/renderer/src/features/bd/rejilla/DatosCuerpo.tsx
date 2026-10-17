@@ -15,7 +15,7 @@ import { ConfirmDialog } from '../../../comun/ConfirmDialog'
 import { ContextMenu, type ContextMenuEntry } from '../../../comun/ContextMenu'
 import { DbRejilla, type DbRejillaEdicionProps } from '../DbRejilla'
 import { DialogoEnvio } from '../DialogoEnvio'
-import { accionesDeError, describirError, ETIQUETA_ACCION_ERROR, sinOrdenEstable } from '../panesBd'
+import { accionesDeError, describirError, etiquetasAccionError, sinOrdenEstable } from '../panesBd'
 import { formatoEntero } from './celdasRejilla'
 import { exportar, ordenar, volverAEjecutar } from './datosAcciones'
 import { ejecutarEnvio, detenerEnvio, responderDescarte } from './datosEnvio'
@@ -23,7 +23,8 @@ import { detenerTraerTodas } from './datosLectura'
 import { objetoReal } from './DatosBarra'
 import { FORMATOS_EXPORTAR } from './exportarBd'
 import { IconoFormato } from './IconoFormato'
-import { RAZON_SIN_CLAVE_PRIMARIA } from './visorValor'
+import { razonSinClavePrimaria } from './visorValor'
+import { txRejilla } from './textosRejilla.ts'
 import type { VistaDatos } from './datosTipos'
 
 /** «Esquema.tabla» de la pestaña, en el dialecto de su motor. */
@@ -57,7 +58,7 @@ function avisoError(v: VistaDatos): React.JSX.Element | null {
                 void v.a.consultar(i.filtro, { maxFilas: i.maxFilas, sinEsperar: a === 'sinEsperar' })
               }}
             >
-              {ETIQUETA_ACCION_ERROR[a]}
+              {etiquetasAccionError()[a]}
             </button>
           ))}
         </div>
@@ -100,7 +101,7 @@ function rejillaDatos(v: VistaDatos): React.JSX.Element {
       onOrdenar={(columna, multiple) => ordenar(v, columna, multiple)}
       altoFila={props.altoFila}
       visible={props.visible}
-      etiquetaAria={`Filas de ${nombreTabla(v)}`}
+      etiquetaAria={txRejilla().filasDe(nombreTabla(v))}
       motor={conexion.motor}
       tablaInsert={nombreCalificado(real.esquema, real.nombre, dialectoDeMotor(conexion.motor))}
       onTraerTodas={() => void a.traerTodas()}
@@ -110,7 +111,7 @@ function rejillaDatos(v: VistaDatos): React.JSX.Element {
       exportando={exportador.enCurso ? { filas: exportador.enCurso.filas } : null}
       onCancelarExportacion={exportador.cancelar}
       onValorCompleto={conClave ? a.valorCompleto : undefined}
-      razonSinValorCompleto={res && !conClave ? RAZON_SIN_CLAVE_PRIMARIA : undefined}
+      razonSinValorCompleto={res && !conClave ? razonSinClavePrimaria() : undefined}
       edicion={d.edicion}
       acciones={v.n.accionesRef}
       conservarPosicionDe={e.conservarPara}
@@ -123,7 +124,7 @@ export function contenidoDatos(v: VistaDatos): React.JSX.Element {
   const aviso = avisoError(v)
   if (aviso) return aviso
   if (!v.e.res && v.e.detenida) {
-    return <AvisoCaja tono="info" titulo="Consulta detenida" sugerencia="Pulsa Refrescar para volver a pedirla." />
+    return <AvisoCaja tono="info" titulo={txRejilla().consultaDetenida} sugerencia={txRejilla().sugerenciaRefrescar} />
   }
   return rejillaDatos(v)
 }
@@ -165,11 +166,12 @@ export function dialogoEnvioDatos(v: VistaDatos): React.ReactPortal | null {
 export function descarteDatos(v: VistaDatos): React.ReactPortal | null {
   const { descarte } = v.e
   if (!descarte) return null
+  const t = txRejilla()
   return createPortal(
     <ConfirmDialog
-      title={descarte.n === 1 ? 'Descartar 1 cambio' : `Descartar ${formatoEntero(descarte.n)} cambios`}
-      message={`Los cambios sin enviar de ${nombreTabla(v)} se perderán.`}
-      confirmLabel="Descartar"
+      title={descarte.n === 1 ? t.descartarUno : t.descartarN(formatoEntero(descarte.n))}
+      message={t.descartarMensaje(nombreTabla(v))}
+      confirmLabel={t.descartar}
       danger
       onConfirm={() => responderDescarte(v.n, true)}
       onCancel={() => responderDescarte(v.n, false)}

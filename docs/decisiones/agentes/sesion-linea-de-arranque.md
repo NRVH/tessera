@@ -24,6 +24,13 @@ entrecomillar, con `$` y backticks expandidos. Sin error visible.
   Codex lleva el prefijo fijo «Avisos de Tessera:» (`-c` toma el valor como TOML si se puede, y una
   palabra no lo es) y una frase más: su sandbox suele ir sin red, así que pida salir de él para
   `tdb` y `tssh`. Abrirle la red desde Tessera no: el sandbox es configuración del usuario.
+- Codex arranca siempre con `-c features.daemon_auto_start=false`: si no, en macOS y en Linux (y en
+  el contenedor) arranca un servidor compartido por cuenta, fuera de la terminal, que corre las órdenes
+  de todas sus sesiones con el entorno de la primera y no se para al cerrar la pestaña. En Windows ya
+  no llega a arrancarlo desde la terminal de Tessera. Una clave de `features` desconocida solo deja un
+  aviso en su registro, así que vale con cualquier versión; `--no-daemon` haría fallar a las viejas.
+  Un agente manual cuyo comando sea `codex` no la lleva: la línea de un manual es la del usuario, sin
+  opciones añadidas, y puede ponerla él.
 - El id de reanudación solo si tiene forma de UUID: acaba dentro de un `sh -c`.
 
 ## Descartes

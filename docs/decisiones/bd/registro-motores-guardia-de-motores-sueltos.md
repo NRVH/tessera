@@ -5,8 +5,7 @@
 
 ## Contexto
 
-Antes del registro de motores, unos 150 sitios daban por hecho que solo hay Oracle y PostgreSQL con
-un `motor === 'oracle' ? A : B`. Al sumar un motor, esos sitios caen en silencio en la rama de
+Un `motor === 'oracle' ? A : B` da por hecho que solo hay Oracle y PostgreSQL. Al sumar un motor, esos sitios caen en silencio en la rama de
 PostgreSQL: compilan y pasan las pruebas que solo recorren dos motores. El compilador vigila los
 `Record<DbMotor, …>` y los `switch` con `nunca(x)`; no ve un `=== 'oracle'` suelto nuevo.
 

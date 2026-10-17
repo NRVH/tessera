@@ -5,8 +5,9 @@
 // Decisiones: docs/decisiones/bd/ui-conexion-clientes.md
 // =============================================================================
 
-import { IDS_MOTORES, descriptor, listaLegible } from '../../../../shared/motores/index.ts'
+import { IDS_MOTORES, descriptor } from '../../../../shared/motores/index.ts'
 import type { DbMotor } from '../../../../shared/db-ipc.ts'
+import { txConexionCampos } from './textosConexionCampos.ts'
 
 /** ¿Necesita el motor clientes de base de datos? (`conexion.usaClientes` de su descriptor.) */
 export function usaClientes(motor: DbMotor): boolean {
@@ -58,7 +59,8 @@ export function mostrarClientes(motor: DbMotor, m: MotivosClientes): boolean {
 /** «X no necesita ninguno.» / «X e Y no necesitan ninguno.» para unas etiquetas de motor; '' sin ninguna. */
 export function fraseSinClientes(etiquetas: readonly string[]): string {
   if (etiquetas.length === 0) return ''
-  return `${listaLegible(etiquetas)} ${etiquetas.length === 1 ? 'no necesita' : 'no necesitan'} ninguno.`
+  const t = txConexionCampos()
+  return `${t.unirNombres(etiquetas)} ${etiquetas.length === 1 ? t.noNecesita : t.noNecesitan} ${t.ninguno}`
 }
 
 /** La segunda frase de la ayuda de «Clientes de base de datos»: los motores del registro que no los usan. */

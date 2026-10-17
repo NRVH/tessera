@@ -14,6 +14,7 @@ import type { ModoDiff } from './modoDiff'
 import { describeDiffError } from './diffEditorAvisos'
 import { montarDiffEditor } from './diffEditorMontaje'
 import { cargarDiff } from './diffEditorCarga'
+import { useRaizDelProyecto } from '../../comun/raizDelProyecto'
 import { crearInstancia, vivoDeProps, type InstanciaDiff } from './diffEditorInstancia'
 import type { DiffEditorPaneProps, DiffProblem, LensPreview } from './diffEditorTipos'
 
@@ -89,11 +90,12 @@ export function useDiffEditor(props: DiffEditorPaneProps): EstadoDiffEditor {
   const { target, visible, modelKey, reloadToken, colapsarSinCambios = false, contenidoEnMemoria } = props
   const estado = useEstadoDiff(props)
   const { inst } = estado
+  const raiz = useRaizDelProyecto()
   useEffect(() => montarDiffEditor(inst), [inst])
   useEffect(
-    () => cargarDiff(inst, target, modelKey),
+    () => cargarDiff(inst, target, modelKey, raiz),
     // La clave del contenido en memoria es una cadena: comparar los textos serían megas por render.
-    [inst, target, modelKey, contenidoEnMemoria?.clave]
+    [inst, target, modelKey, raiz, contenidoEnMemoria?.clave]
   )
   useRecargaDiff(inst, reloadToken, modelKey)
   useFocoDiff(inst, visible, estado.editable)

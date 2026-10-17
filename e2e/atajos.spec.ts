@@ -185,7 +185,7 @@ test.describe('⌘+F en la vista renderizada de un Markdown', () => {
       })
     }, proyecto)
     await s.win.locator('.project-tabs-empty-link').click()
-    await s.win.locator('.tree-row').filter({ hasText: NOMBRE_MD }).first().click()
+    await s.win.locator('.tree-row:visible').filter({ hasText: NOMBRE_MD }).first().click()
     // Un .md abre en vista renderizada, que es donde `useDomSearch` se arma; en
     // «Código» manda el buscador de Monaco, que es otra superficie.
     await expect(s.win.locator('.markdown-preview')).toHaveCount(1)

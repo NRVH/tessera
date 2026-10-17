@@ -10,6 +10,7 @@ import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, rmSync, unlinkSync } from 'node:fs'
 import path from 'node:path'
 import { writeFileAtomicSync } from '../util/atomicWrite'
+import { txAgentes } from './textos.ts'
 import {
   AGENT_CONFIG_SUBDIR,
   AGENTES_DISPONIBLES,
@@ -18,6 +19,7 @@ import {
   type Profile
 } from '../profiles/types'
 import type { AgentAccount, CreateAccountRequest } from '../../shared/agent-accounts-ipc'
+import type { IdAgenteManual } from '../../shared/agentesManuales'
 
 /** Archivos de credencial por agente (para "cerrar sesión" sin tocar el resto). */
 const CREDENTIAL_FILES: Record<Agente, string[]> = {
@@ -207,6 +209,17 @@ export class AccountStore {
     return abs
   }
 
+  /**
+   * Carpeta del host de un agente MANUAL en un perfil, junto a las de Claude Code y Codex. No
+   * pasa por el registro: un agente manual no tiene cuentas, solo esta carpeta, que en el
+   * contenedor es su `HOME`.
+   */
+  carpetaAgenteManual(profileId: string, agente: IdAgenteManual): string {
+    const abs = path.resolve(this.dataRoot, `./.tessera/perfiles/${profileId}/${agente}`)
+    mkdirSync(abs, { recursive: true })
+    return abs
+  }
+
   // --- Mutaciones ------------------------------------------------------------
 
   /**
@@ -219,15 +232,15 @@ export class AccountStore {
     // malformado debe dar un error claro, no un TypeError por `.trim()` sobre no-string
     // ni escribir basura en el registro persistido.
     const nombre = typeof req?.nombre === 'string' ? req.nombre.trim() : ''
-    if (!nombre) throw new Error('El nombre de la cuenta no puede estar vacío.')
+    if (!nombre) throw new Error(txAgentes().cuentas.sinNombre)
     if (!AGENTES_DISPONIBLES.includes(req.agente as Agente)) {
       throw new Error(`Agente desconocido: "${req.agente}".`)
     }
     if (typeof req.profileId !== 'string' || !req.profileId) {
-      throw new Error('Una cuenta requiere un perfil.')
+      throw new Error(txAgentes().cuentas.sinPerfil)
     }
     if (this.list(req.profileId, req.agente as Agente).length > 0) {
-      throw new Error('Este perfil ya tiene una cuenta para este agente.')
+      throw new Error(txAgentes().cuentas.yaTiene)
     }
     const account: AgentAccount = {
       id: randomUUID(),

@@ -12,6 +12,7 @@ import { usageKey, type UsageRunMode } from '../../../../shared/usage-ipc'
 import type { ConvAgent } from '../../../../shared/conversations-ipc'
 import { formatoAntiguedad } from '../../util/formatoTiempo'
 import { formatoPorcentaje, varNivelUso } from './formatoUso'
+import { txContexto } from './textosContexto.ts'
 
 interface ContextRingProps {
   agente: ConvAgent
@@ -177,7 +178,7 @@ export function ContextRing(props: ContextRingProps): React.JSX.Element | null {
       ref={rootRef}
       onMouseEnter={showPopover}
       onMouseLeave={() => setOpen(false)}
-      aria-label="Contexto de la conversación"
+      aria-label={txContexto().contexto.ariaChat}
     >
       {/* El área pulsable abarca anillo + %: un blanco de 16 px sería un ejercicio de puntería. */}
       <button
@@ -216,12 +217,14 @@ function porcentajeDe(snap: ContextSnapshot | null): number | null {
 }
 
 function etiquetaBoton(sent: boolean, canCompact: boolean, percent: number | null): string {
-  if (sent) return 'Compactando la conversación'
-  const contexto = `Contexto ${percent === null ? 'sin datos' : formatoPorcentaje(percent)}`
-  return canCompact ? `${contexto}. Compactar la conversación` : contexto
+  const t = txContexto().contexto
+  if (sent) return t.compactando
+  const contexto = t.etiqueta(percent === null ? null : formatoPorcentaje(percent))
+  return canCompact ? t.etiquetaCompactable(contexto) : contexto
 }
 
-function AnilloContexto({ percent }: { percent: number | null }): React.JSX.Element {
+/** El anillo del porcentaje de contexto; lo comparte el de un agente manual (`ContextoManual`). */
+export function AnilloContexto({ percent }: { percent: number | null }): React.JSX.Element {
   return (
     <svg className="agent-context-ring" viewBox={`0 0 ${RING_VIEWBOX} ${RING_VIEWBOX}`} aria-hidden="true">
       <circle className="agent-context-track" cx={RING_VIEWBOX / 2} cy={RING_VIEWBOX / 2} r={RING_R} />
@@ -262,7 +265,7 @@ function PopoverContexto(p: PopoverContextoProps): React.JSX.Element {
       role="tooltip"
     >
       <div className="agent-usage-pop-title">
-        Contexto del chat
+        {txContexto().contexto.titulo}
         <span className="agent-usage-pop-agent">{nombreAgente(agente)}</span>
       </div>
 
@@ -292,11 +295,12 @@ interface DetalleContextoProps {
 function DetalleContexto({ agente, snap, percent }: DetalleContextoProps): React.JSX.Element {
   /** Snapshot con turno detrás: el único que tiene tokens, modelo y hora que enseñar. */
   const medido = snap && !snap.unavailable ? snap : null
+  const t = txContexto().contexto
   return (
     <>
       <div className="agent-usage-row">
         <div className="agent-usage-row-head">
-          <span>Ventana ocupada</span>
+          <span>{t.ventanaOcupada}</span>
           <span className="agent-usage-pct">{formatoPorcentaje(percent)}</span>
         </div>
         <div className="agent-usage-track">
@@ -304,29 +308,29 @@ function DetalleContexto({ agente, snap, percent }: DetalleContextoProps): React
         </div>
         {medido && (
           <div className="agent-usage-reset">
-            {formatTokens(medido.usedTokens)} de {formatTokens(medido.windowTokens)} tokens
+            {formatTokens(medido.usedTokens)}
+            {t.de}
+            {formatTokens(medido.windowTokens)}
+            {t.tokens}
             {medido.model ? ` · ${medido.model}` : ''}
           </div>
         )}
       </div>
       {/* En claude-code el tamaño de ventana sale de una tabla por modelo, no del transcript. */}
       {medido?.windowEstimated && (
-        <div className="agent-usage-foot">Tamaño de ventana estimado por el modelo.</div>
+        <div className="agent-usage-foot">{t.ventanaEstimada}</div>
       )}
       {/* 'heuristica' sale sin sesión y también con ella tras un `/clear` o `/resume` en el
           TUI o si el chat anclado ya no existe: lo único cierto es que no se sabe CUÁL es. */}
       {snap?.anclaje === 'heuristica' && (
-        <div className="agent-usage-foot">
-          Sin confirmar en qué conversación estás: se mide la más reciente de este
-          proyecto.
-        </div>
+        <div className="agent-usage-foot">{t.sinConfirmar}</div>
       )}
       <div className="agent-usage-foot">
         {!medido
           ? unavailableText(snap, agente)
           : medido.compacted
-            ? `Compactada ${formatoAntiguedad(medido.observedAt, Date.now())}; subirá en el próximo turno.`
-            : `Último turno ${formatoAntiguedad(medido.observedAt, Date.now())}.`}
+            ? t.compactada(formatoAntiguedad(medido.observedAt, Date.now()))
+            : t.ultimoTurno(formatoAntiguedad(medido.observedAt, Date.now()))}
       </div>
     </>
   )
@@ -337,16 +341,13 @@ function nombreAgente(agente: ConvAgent): string {
 }
 
 function textoAccion(sent: boolean, canCompact: boolean, agente: ConvAgent): string {
-  if (sent) {
-    return `Comando /compact enviado a ${nombreAgente(agente)}. Verás el resumen en la terminal.`
-  }
-  return canCompact
-    ? 'Haz clic para compactar: el agente resume la conversación en un extracto y libera la ventana. Se conserva el hilo, se pierde el detalle literal.'
-    : 'Para compactar hace falta una sesión activa; abre o reinicia el agente.'
+  const t = txContexto().contexto
+  if (sent) return t.comandoEnviado(nombreAgente(agente))
+  return canCompact ? t.clicCompactar : t.hazFaltaSesion
 }
 
 /** 623 650 -> "624k"; 1 000 000 -> "1M". El número exacto no aporta al leerlo de reojo. */
-function formatTokens(n: number): string {
+export function formatTokens(n: number): string {
   if (n >= 1_000_000) {
     const m = n / 1_000_000
     return `${m >= 10 ? Math.round(m) : m.toFixed(1).replace(/\.0$/, '')}M`
@@ -356,18 +357,17 @@ function formatTokens(n: number): string {
 }
 
 function unavailableText(snap: ContextSnapshot | null, agente: ConvAgent): string {
-  if (!snap) return 'Consultando…'
+  const t = txContexto().contexto
+  if (!snap) return t.consultando
   switch (snap.unavailable) {
     case 'no-session':
-      return 'Este proyecto aún no tiene ninguna conversación con este agente.'
+      return t.sinConversacion
     // El caso corriente es un chat recién vaciado con `/clear`: nombrarlo evita leer avería.
     case 'no-data':
-      return agente === 'codex'
-        ? 'Conversación vacía (nueva o recién limpiada): aún no ha hecho ninguna petición.'
-        : 'Conversación vacía (nueva o recién limpiada con /clear): aún no hay ningún turno que medir.'
+      return agente === 'codex' ? t.vaciaCodex : t.vaciaClaude
     case 'error':
-      return `No se pudo leer el contexto${snap.detail ? `: ${snap.detail}` : '.'}`
+      return t.errorLeer(snap.detail)
     default:
-      return 'Sin datos de contexto.'
+      return t.sinDatos
   }
 }

@@ -9,10 +9,10 @@
 
 import {
   COLUMNA_ROWID,
-  MOTIVO_BINARIA,
-  MOTIVO_BORRADA,
-  MOTIVO_RECORTADA,
-  MOTIVO_ROWID,
+  motivoBinaria,
+  motivoBorrada,
+  motivoRecortada,
+  motivoRowid,
   SIN_CAMBIOS,
   aCambiosFila,
   anadirFila,
@@ -34,7 +34,7 @@ import {
   esEnvioIncierto,
   estadoAlAbrirEnvio,
   sigueIncierto,
-  AVISO_ENVIO_INCIERTO,
+  avisoEnvioIncierto,
   mensajeFallo,
   mismaFormaVista,
   mismoValor,
@@ -85,6 +85,12 @@ import {
   solicitarCierreDatos
 } from './registroEdicion.ts'
 import type { DbCelda, DbColumnaResultado, DbIdentidadFila } from '../../../../../shared/db-explorador-ipc.ts'
+
+const MOTIVO_BINARIA = motivoBinaria()
+const MOTIVO_BORRADA = motivoBorrada()
+const MOTIVO_RECORTADA = motivoRecortada()
+const MOTIVO_ROWID = motivoRowid()
+const AVISO_ENVIO_INCIERTO = avisoEnvioIncierto()
 
 // ---------------------------------------------------------------------------
 // Reporte PASS/FAIL (mismo patrón que los otros test-*.mts)

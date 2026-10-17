@@ -8,7 +8,8 @@
 import type { DbColumnaInfo, DbFuente, DbIndiceInfo, DbRefObjeto, DbRestriccionInfo, DbTipoObjeto } from '../../../../shared/db-explorador-ipc.ts'
 import { citar } from '../../../../shared/sql/identificadoresSql.ts'
 import { literalCadena, sinTerminador } from '../ddlCatalogoComun.ts'
-import { noDisponible, texto, textoOpcional } from './filasCatalogo.ts'
+import { noDisponible, queFalta, texto, textoOpcional } from './filasCatalogo.ts'
+import { txMotores } from './textosMotores.ts'
 import type { ConsultaCatalogo, FilaCatalogo } from './tipos.ts'
 
 /** Tope del DDL que se trae (unidades UTF-16): un paquete de 100 000 líneas cabe. */
@@ -87,7 +88,7 @@ export interface BloqueDdlOracle {
 /** El bloque de DBMS_METADATA para un objeto (el llamador añade el bind de salida `ddl`). */
 export function sqlDdlOracle(ref: DbRefObjeto): BloqueDdlOracle {
   const tipo = ref.tipo === 'rutina' ? null : (TIPO_METADATA_ORACLE[ref.tipo] ?? null)
-  if (tipo === null && ref.tipo !== 'rutina') noDisponible('oracle', `DDL de ${ref.tipo}`)
+  if (tipo === null && ref.tipo !== 'rutina') noDisponible('oracle', queFalta.ddlDe(ref.tipo))
   return { sql: BLOQUE_DDL_ORACLE, binds: { tipo, esq: ref.esquema, obj: ref.nombre } }
 }
 
@@ -290,25 +291,18 @@ export function ddlSinonimoOracle(
  */
 export function motivoRepliegueDdl(codigo: string | undefined, mensaje: string): string | null {
   const c = codigo ?? ''
-  if (c === 'ORA-31603' || /ORA-31603/.test(mensaje)) {
-    return 'ORA-31603: sin SELECT_CATALOG_ROLE no enseña objetos de otro esquema, y nunca los que mantiene Oracle'
-  }
-  if (c === 'ORA-39212' || c === 'ORA-31605' || /ORA-39212|ORA-31605|LPX-\d/.test(mensaje)) {
-    return 'DBMS_METADATA no funciona en este servidor (su instalación no tiene el XDK)'
-  }
-  if (c === 'ORA-01031' || /ORA-01031/.test(mensaje)) return 'ORA-01031: privilegios insuficientes'
-  if (c === 'ORA-06550' && /PLS-00(201|904)/.test(mensaje)) return 'DBMS_METADATA no es accesible para este usuario'
-  if (c === 'ORA-01403') return 'el objeto no aparece en ALL_OBJECTS'
+  const t = txMotores()
+  if (c === 'ORA-31603' || /ORA-31603/.test(mensaje)) return t.motivoOra31603
+  if (c === 'ORA-39212' || c === 'ORA-31605' || /ORA-39212|ORA-31605|LPX-\d/.test(mensaje)) return t.motivoSinXdk
+  if (c === 'ORA-01031' || /ORA-01031/.test(mensaje)) return t.motivoOra01031
+  if (c === 'ORA-06550' && /PLS-00(201|904)/.test(mensaje)) return t.motivoSinAcceso
+  if (c === 'ORA-01403') return t.motivoNoEnAllObjects
   return null
 }
 
 /** El `aviso` de un DDL reconstruido: por qué, y qué falta en cada forma. */
 export function avisoRepliegue(motivo: string, forma: 'tabla' | 'fuente' | 'catalogo'): string {
-  const que =
-    forma === 'tabla'
-      ? 'DDL reconstruido desde el catálogo, sin restricciones CHECK, sin ON DELETE ni almacenamiento'
-      : forma === 'fuente'
-        ? 'DDL reconstruido desde su fuente'
-        : 'DDL reconstruido desde el catálogo'
-  return `DBMS_METADATA no devolvió el DDL (${motivo}): ${que}.`
+  const t = txMotores()
+  const que = forma === 'tabla' ? t.repliegueTabla : forma === 'fuente' ? t.repliegueFuente : t.repliegueCatalogo
+  return t.repliegue(motivo, que)
 }

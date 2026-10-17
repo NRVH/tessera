@@ -17,6 +17,7 @@ import {
 import type { ConvAgent } from '../../../../shared/conversations-ipc'
 import { formatoAntiguedad, formatoReinicio } from '../../util/formatoTiempo'
 import { etiquetaCortaUso, etiquetaLargaUso, formatoPorcentaje, tramoVentanas, varNivelUso } from './formatoUso'
+import { txContexto } from './textosContexto.ts'
 
 interface UsageBarsProps {
   agente: ConvAgent
@@ -173,7 +174,7 @@ export function UsageBars(props: UsageBarsProps): React.JSX.Element | null {
       ref={rootRef}
       onMouseEnter={showPopover}
       onMouseLeave={() => setOpen(false)}
-      aria-label="Uso de la cuenta"
+      aria-label={txContexto().uso.aria}
       data-ventanas={tramoVentanas(windows.length)}
     >
       {windows.length ? (
@@ -189,7 +190,7 @@ export function UsageBars(props: UsageBarsProps): React.JSX.Element | null {
           </span>
         ))
       ) : (
-        <span className="agent-usage-empty">uso —</span>
+        <span className="agent-usage-empty">{txContexto().uso.sinDatos}</span>
       )}
 
       {open && anchor && (
@@ -208,6 +209,7 @@ interface PopoverUsoProps {
 }
 
 function PopoverUso({ agente, snap, windows, anchor, ahora }: PopoverUsoProps): React.JSX.Element {
+  const t = txContexto().uso
   return (
     <div
       className="agent-usage-pop"
@@ -215,7 +217,7 @@ function PopoverUso({ agente, snap, windows, anchor, ahora }: PopoverUsoProps): 
       role="tooltip"
     >
       <div className="agent-usage-pop-title">
-        Uso de la cuenta
+        {t.titulo}
         <span className="agent-usage-pop-agent">{agente === 'codex' ? 'Codex' : 'Claude Code'}</span>
       </div>
 
@@ -228,14 +230,15 @@ function PopoverUso({ agente, snap, windows, anchor, ahora }: PopoverUsoProps): 
               en vivo, y decirlo evita leer un 3 % de hace dos horas como de ahora. */}
           {snap?.observedAt && (
             <div className="agent-usage-foot">
-              Último dato: {formatoAntiguedad(snap.observedAt, ahora)}
+              {t.ultimoDato}
+              {formatoAntiguedad(snap.observedAt, ahora)}
             </div>
           )}
           {/* La última consulta falló y estas barras son las de antes: se dice. */}
           {snap?.stale && (
             <div className="agent-usage-foot">
-              No se pudo actualizar ahora{snap.detail ? ` (${snap.detail})` : ''}; el dato es
-              de {formatoAntiguedad(snap.fetchedAt, ahora)}.
+              {t.noSePudoActualizar(snap.detail)}
+              {formatoAntiguedad(snap.fetchedAt, ahora)}.
             </div>
           )}
         </>
@@ -247,6 +250,7 @@ function PopoverUso({ agente, snap, windows, anchor, ahora }: PopoverUsoProps): 
 }
 
 function FilaUso({ w, ahora }: { w: UsageWindow; ahora: number }): React.JSX.Element {
+  const t = txContexto().uso
   return (
     <div className="agent-usage-row">
       <div className="agent-usage-row-head">
@@ -258,33 +262,32 @@ function FilaUso({ w, ahora }: { w: UsageWindow; ahora: number }): React.JSX.Ele
       </div>
       <div className="agent-usage-reset">
         {w.reiniciada
-          ? 'Ventana reiniciada; se actualizará en tu próxima petición'
+          ? t.ventanaReiniciada
           : w.resetsAt
-            ? `Se reinicia ${formatoReinicio(w.resetsAt - ahora)}`
-            : 'Sin fecha de reinicio'}
+            ? t.seReinicia(formatoReinicio(w.resetsAt - ahora))
+            : t.sinReinicio}
       </div>
     </div>
   )
 }
 
 function unavailableText(snap: UsageSnapshot | null, agente: ConvAgent): string {
-  if (!snap) return 'Consultando…'
+  const t = txContexto().uso
+  if (!snap) return t.consultando
   switch (snap.unavailable) {
     case 'no-credentials':
-      return 'Esta cuenta aún no ha iniciado sesión.'
+      return t.sinCredenciales
     case 'no-data':
-      return agente === 'codex'
-        ? 'Codex aún no ha reportado límites: escribe un primer mensaje y aparecerán.'
-        : 'El agente aún no reporta límites de uso.'
+      return agente === 'codex' ? t.sinDatosCodex : t.sinDatosAgente
     case 'auth-expired':
-      return 'Credencial caducada; se renovará sola al usar el agente.'
+      return t.credencialCaducada
     case 'not-subscription':
-      return 'Cuenta por API key: no tiene límites de suscripción que mostrar.'
+      return t.cuentaApi
     case 'rate-limited':
-      return 'Demasiadas consultas seguidas; se reintenta en un momento.'
+      return t.demasiadasConsultas
     case 'error':
-      return `No se pudo leer el uso${snap.detail ? `: ${snap.detail}` : '.'}`
+      return t.errorLeer(snap.detail)
     default:
-      return 'Sin datos de uso.'
+      return t.sinDatosUso
   }
 }

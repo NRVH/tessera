@@ -9,7 +9,7 @@
 import { useEffect, useId, useLayoutEffect, useRef } from 'react'
 import {
   aridad,
-  ETIQUETA_OPERADOR,
+  etiquetaOperador,
   OPERADORES_POR_CATEGORIA,
   type DbCategoriaFiltro,
   type DbCondicionFiltro,
@@ -26,6 +26,7 @@ import {
   type ColumnaFiltrable
 } from './modeloFiltro.ts'
 import { esDeUnaListaDeSelect } from '../../../comun/useDialogo'
+import { txFiltro } from './textosFiltro.ts'
 import './filtro.css'
 
 export interface BarraFiltroGuiadoProps {
@@ -47,17 +48,6 @@ export interface BarraFiltroGuiadoProps {
    * a la derecha y avisa al padre, que cambia de barra.
    */
   avanzado: { etiqueta: string; titulo: string; onClick: () => void }
-}
-
-/** La pista de cada categoría en el campo de valor. */
-const PISTA: Readonly<Record<DbCategoriaFiltro, string>> = {
-  texto: 'texto',
-  textoLargo: 'texto',
-  numero: 'número (12.5)',
-  fecha: 'AAAA-MM-DD [HH:MM]',
-  booleano: '',
-  id: 'ObjectId o texto',
-  otro: ''
 }
 
 /** A dónde va el foco tras el próximo pintado (añadir o quitar una fila). */
@@ -121,7 +111,7 @@ function SelectColumna({ i, c, columnas, mensajeError, deshabilitado, cambiar }:
     <select
       data-parte="columna"
       className="filtro-guiado-control filtro-guiado-columna"
-      aria-label="Columna"
+      aria-label={txFiltro().columna}
       title={c.columna}
       value={c.columna}
       disabled={deshabilitado}
@@ -136,7 +126,7 @@ function SelectColumna({ i, c, columnas, mensajeError, deshabilitado, cambiar }:
           {col.nombre}
         </option>
       ))}
-      {!conocida && <option value={c.columna}>{c.columna} (no está)</option>}
+      {!conocida && <option value={c.columna}>{txFiltro().noEsta(c.columna)}</option>}
     </select>
   )
 }
@@ -147,14 +137,14 @@ function SelectOperador({ i, c, deshabilitado, cambiar }: FilaCondicionProps): R
     <select
       data-parte="operador"
       className="filtro-guiado-control filtro-guiado-operador"
-      aria-label="Operador"
+      aria-label={txFiltro().operador}
       value={c.operador}
       disabled={deshabilitado}
       onChange={(e) => cambiar(i, cambiarOperador(c, e.target.value as DbOperadorFiltro))}
     >
       {OPERADORES_POR_CATEGORIA[c.categoria].map((op) => (
         <option key={op} value={op}>
-          {ETIQUETA_OPERADOR[op]}
+          {etiquetaOperador(op)}
         </option>
       ))}
     </select>
@@ -166,6 +156,7 @@ function FilaCondicion(p: FilaCondicionProps): React.JSX.Element {
   const { i, c, mensajeError, idError, deshabilitado, cambiar } = p
   const conError = mensajeError !== null
   const valores = aridad(c.operador)
+  const t = txFiltro()
   const campoValor = (cual: 'valor' | 'valor2', etiqueta: string): React.JSX.Element => (
     <CampoValor
       categoria={c.categoria}
@@ -179,27 +170,27 @@ function FilaCondicion(p: FilaCondicionProps): React.JSX.Element {
   )
   return (
     <div className="filtro-guiado-bloque">
-      <div className={`filtro-guiado-fila${conError ? ' con-error' : ''}`} role="group" aria-label={`Condición ${i + 1}`} data-fila={i}>
+      <div className={`filtro-guiado-fila${conError ? ' con-error' : ''}`} role="group" aria-label={t.condicionN(i + 1)} data-fila={i}>
         <span className="filtro-guiado-conector" aria-hidden="true">
-          {conectorCondicion(p.union, i)}
+          {t.conector[conectorCondicion(p.union, i)]}
         </span>
         <SelectColumna {...p} />
         <SelectOperador {...p} />
-        {valores >= 1 && campoValor('valor', valores === 2 ? 'Desde' : 'Valor')}
+        {valores >= 1 && campoValor('valor', valores === 2 ? t.desde : t.valor)}
         {valores === 2 && (
           <>
             <span className="filtro-guiado-y" aria-hidden="true">
-              y
+              {t.y}
             </span>
-            {campoValor('valor2', 'Hasta')}
+            {campoValor('valor2', t.hasta)}
           </>
         )}
         <button
           type="button"
           data-parte="quitar"
           className="btn btn-icon filtro-guiado-quitar"
-          aria-label={`Quitar la condición ${i + 1}`}
-          title="Quitar la condición"
+          aria-label={t.quitarN(i + 1)}
+          title={t.quitar}
           disabled={deshabilitado}
           onClick={() => p.quitar(i)}
         >
@@ -227,25 +218,26 @@ function PieFiltro(props: {
   const deshabilitado = props.p.deshabilitado ?? false
   const n = filtro.condiciones.length
   const sinColumnas = columnas.length === 0
+  const t = txFiltro()
   return (
     <div className={`filtro-guiado-pie${n > 0 ? ' con-condiciones' : ''}`}>
       <button
         ref={props.anadirRef}
         type="button"
         className="btn btn-ghost filtro-guiado-anadir"
-        title={sinColumnas ? 'Todavía no hay columnas que elegir' : 'Añadir una condición'}
+        title={sinColumnas ? t.sinColumnas : t.anadir}
         disabled={deshabilitado || sinColumnas}
         onClick={props.anadir}
       >
-        + Condición
+        {t.masCondicion}
       </button>
-      {n === 0 && <span className="filtro-guiado-vacio">Sin filtro</span>}
+      {n === 0 && <span className="filtro-guiado-vacio">{t.sinFiltro}</span>}
       {n >= 2 && (
         <span
           className="filtro-guiado-union"
           role="group"
-          aria-label="Cómo se unen las condiciones"
-          title="Filas que cumplan TODAS las condiciones (Y) o CUALQUIERA de ellas (O)"
+          aria-label={t.comoSeUnen}
+          title={t.tituloUnion}
         >
           {(['todas', 'cualquiera'] as const).map((u) => (
             <button
@@ -258,14 +250,14 @@ function PieFiltro(props: {
                 if (filtro.union !== u) onCambiar({ ...filtro, union: u })
               }}
             >
-              {u}
+              {t.union[u]}
             </button>
           ))}
         </span>
       )}
       <span className="filtro-guiado-acciones">
-        <button type="button" className="btn filtro-guiado-aplicar" title="Aplicar el filtro (Intro)" disabled={deshabilitado} onClick={onAplicar}>
-          Aplicar
+        <button type="button" className="btn filtro-guiado-aplicar" title={t.aplicarTitulo} disabled={deshabilitado} onClick={onAplicar}>
+          {t.aplicar}
         </button>
         <button type="button" className="btn filtro-guiado-avanzado" title={avanzado.titulo} onClick={avanzado.onClick}>
           {avanzado.etiqueta}
@@ -318,7 +310,7 @@ export function BarraFiltroGuiado(p: BarraFiltroGuiadoProps): React.JSX.Element 
   const errorDeBarra = error !== null && (error.condicion === null || error.condicion >= n) ? error.mensaje : null
 
   return (
-    <div className="filtro-guiado" role="group" aria-label="Filtro" ref={raizRef} onKeyDown={tecla}>
+    <div className="filtro-guiado" role="group" aria-label={txFiltro().filtro} ref={raizRef} onKeyDown={tecla}>
       {filtro.condiciones.map((c, i) => (
         <FilaCondicion
           key={i}
@@ -369,11 +361,11 @@ function SelectBooleano({ valor, etiqueta, invalido, idError, deshabilitado, onV
     >
       {valor === '' && (
         <option value="" disabled>
-          elige…
+          {txFiltro().elige}
         </option>
       )}
-      <option value="true">verdadero</option>
-      <option value="false">falso</option>
+      <option value="true">{txFiltro().verdadero}</option>
+      <option value="false">{txFiltro().falso}</option>
       {!conocido && <option value={valor}>{valor}</option>}
     </select>
   )
@@ -392,7 +384,7 @@ function CampoValor(props: CampoValorProps): React.JSX.Element {
       aria-invalid={invalido}
       aria-describedby={idError}
       value={valor}
-      placeholder={PISTA[categoria]}
+      placeholder={txFiltro().pista[categoria]}
       inputMode={categoria === 'numero' ? 'decimal' : undefined}
       disabled={deshabilitado}
       spellCheck={false}

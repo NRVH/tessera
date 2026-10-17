@@ -6,6 +6,8 @@
 // Decisiones: docs/decisiones/agentes/textos-espacio-de-datos.md
 // =============================================================================
 
+import { crearTextos } from '../../../../shared/i18n.ts'
+
 /**
  * Dónde vive el agente de un pane: un proyecto, el espacio de datos (vista Bases de datos)
  * o la carpeta del agente de la terminal (a pantalla completa de la terminal).
@@ -20,32 +22,62 @@ export interface TextosMontajeBases {
   rotuloBoton: string
 }
 
-/** Complemento de lugar («en …») de cada sitio; el de proyecto es el texto de siempre. */
-const EN: Record<LugarAgente, string> = {
-  proyecto: 'en este proyecto',
-  datos: 'en el agente de datos',
-  terminal: 'en el agente de la terminal'
+/** Un complemento por sitio; el de proyecto es el texto de siempre. */
+interface Lugares {
+  proyecto: string
+  datos: string
+  terminal: string
 }
 
-/** Complemento de pertenencia («de …») de cada sitio; el de proyecto es el texto de siempre. */
-const DE: Record<LugarAgente, string> = {
-  proyecto: 'de este proyecto',
-  datos: 'del agente de datos',
-  terminal: 'del agente de la terminal'
-}
-
-/** Rótulo de la cabecera del modal en los agentes que no son de un proyecto. */
-const CABECERA: Record<Exclude<LugarAgente, 'proyecto'>, string> = {
-  datos: 'agente de datos',
-  terminal: 'agente de la terminal'
-}
+const tx = crearTextos(
+  {
+    /** Complemento de lugar («en …») de cada sitio. */
+    en: {
+      proyecto: 'en este proyecto',
+      datos: 'en el agente de datos',
+      terminal: 'en el agente de la terminal'
+    } as Lugares,
+    /** Complemento de pertenencia («de …») de cada sitio. */
+    de: {
+      proyecto: 'de este proyecto',
+      datos: 'del agente de datos',
+      terminal: 'del agente de la terminal'
+    } as Lugares,
+    /** Rótulo de la cabecera del modal en los agentes que no son de un proyecto. */
+    cabecera: { datos: 'agente de datos', terminal: 'agente de la terminal' },
+    tituloBases: (donde: string) => `Bases montadas ${donde}`,
+    rotuloMontadas: (n: number, donde: string) => `${n} base(s) montada(s) ${donde}`,
+    rotuloMontar: (donde: string) => `Montar bases de datos ${donde}`,
+    historial: (de: string) => `Historial de conversaciones ${de}`,
+    enCarpeta: (carpeta: string) => `en ${carpeta || 'este proyecto'}`
+  },
+  {
+    en: {
+      proyecto: 'in this project',
+      datos: 'in the data agent',
+      terminal: 'in the terminal agent'
+    },
+    de: {
+      proyecto: 'of this project',
+      datos: 'of the data agent',
+      terminal: 'of the terminal agent'
+    },
+    cabecera: { datos: 'data agent', terminal: 'terminal agent' },
+    tituloBases: (donde: string) => `Databases mounted ${donde}`,
+    rotuloMontadas: (n: number, donde: string) => `${n} database${n === 1 ? '' : 's'} mounted ${donde}`,
+    rotuloMontar: (donde: string) => `Mount databases ${donde}`,
+    historial: (de: string) => `Conversation history ${de}`,
+    enCarpeta: (carpeta: string) => `in ${carpeta || 'this project'}`
+  }
+)
 
 /** Textos del selector según dónde vive el pane y cuántas bases tiene montadas ahora. */
 export function textosMontajeBases(lugar: LugarAgente, montadas: number): TextosMontajeBases {
-  const donde = EN[lugar]
+  const t = tx()
+  const donde = t.en[lugar]
   return {
-    titulo: `Bases montadas ${donde}`,
-    rotuloBoton: montadas > 0 ? `${montadas} base(s) montada(s) ${donde}` : `Montar bases de datos ${donde}`
+    titulo: t.tituloBases(donde),
+    rotuloBoton: montadas > 0 ? t.rotuloMontadas(montadas, donde) : t.rotuloMontar(donde)
   }
 }
 
@@ -55,7 +87,8 @@ export function textosMontajeBases(lugar: LugarAgente, montadas: number): Textos
  * espacio de datos son las conversaciones del agente de datos, no las de un proyecto.
  */
 export function rotuloHistorialConversaciones(lugar: LugarAgente): string {
-  return `Historial de conversaciones ${DE[lugar]}`
+  const t = tx()
+  return t.historial(t.de[lugar])
 }
 
 /** Dónde dice el modal de historial que están las conversaciones. */
@@ -73,7 +106,8 @@ export interface LugarHistorial {
  * es el ID del perfil, que no le dice nada al usuario, así que se nombran como en su vista.
  */
 export function lugarHistorial(lugar: LugarAgente, projectHostPath: string): LugarHistorial {
-  if (lugar !== 'proyecto') return { cabecera: CABECERA[lugar], enVacio: EN[lugar] }
+  const t = tx()
+  if (lugar !== 'proyecto') return { cabecera: t.cabecera[lugar], enVacio: t.en[lugar] }
   const carpeta = projectHostPath.split(/[\\/]+/).filter(Boolean).pop() ?? ''
-  return { cabecera: carpeta, enVacio: `en ${carpeta || 'este proyecto'}` }
+  return { cabecera: carpeta, enVacio: t.enCarpeta(carpeta) }
 }

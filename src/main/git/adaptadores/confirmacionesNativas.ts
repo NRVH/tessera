@@ -5,18 +5,19 @@
 // =============================================================================
 
 import { dialog } from 'electron'
+import { txConfirmaciones } from './textos.ts'
 
 /** Diálogo de un borrado irrecuperable (sin seguimiento, o añadido sin commit). */
 export async function confirmarDescarteNativo(fileName: string): Promise<boolean> {
+  const t = txConfirmaciones()
   const { response } = await dialog.showMessageBox({
     type: 'warning',
-    buttons: ['Cancelar', 'Descartar'],
+    buttons: [t.cancelar, t.descartar],
     defaultId: 0,
     cancelId: 0,
-    title: 'Descartar cambios',
-    message: `¿Descartar "${fileName}"?`,
-    detail:
-      'Este archivo no tiene una versión en git a la que volver. Descartar sus cambios lo ELIMINARÁ del disco. Esta acción no se puede deshacer.'
+    title: t.titulo,
+    message: t.unoPregunta(fileName),
+    detail: t.unoDetalle
   })
   return response === 1
 }
@@ -26,20 +27,16 @@ export async function confirmarDescarteLoteNativo(fileNames: string[]): Promise<
   const MAX = 10
   const mostrados = fileNames.slice(0, MAX)
   const resto = fileNames.length - mostrados.length
-  const lista = mostrados.map((n) => `• ${n}`).join('\n') + (resto > 0 ? `\n…y ${resto} más` : '')
+  const t = txConfirmaciones()
+  const lista = mostrados.map((n) => `• ${n}`).join('\n') + (resto > 0 ? t.resto(resto) : '')
   const { response } = await dialog.showMessageBox({
     type: 'warning',
-    buttons: ['Cancelar', 'Descartar'],
+    buttons: [t.cancelar, t.descartar],
     defaultId: 0,
     cancelId: 0,
-    title: 'Descartar cambios',
-    message:
-      fileNames.length === 1
-        ? `¿Descartar "${fileNames[0]}"?`
-        : `¿Descartar ${fileNames.length} archivos?`,
-    detail:
-      `Estos archivos no tienen una versión en git a la que volver, así que se ELIMINARÁN del disco. Esta acción no se puede deshacer.\n\n${lista}` +
-      '\n\nSi cancelas, el resto de archivos seleccionados SÍ se revertirá a su versión de git (es recuperable).'
+    title: t.titulo,
+    message: fileNames.length === 1 ? t.unoPregunta(fileNames[0]) : t.variosPregunta(fileNames.length),
+    detail: t.variosDetalle(lista)
   })
   return response === 1
 }

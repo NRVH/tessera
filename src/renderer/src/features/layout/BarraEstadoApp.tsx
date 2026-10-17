@@ -6,7 +6,8 @@
 // =============================================================================
 import { etiquetaAcorde } from '../../util/atajos'
 import { StatusBar } from './StatusBar'
-import type { SalidaLayoutCentro } from './layoutCentro'
+import { textoRazon, type SalidaLayoutCentro } from './layoutCentro'
+import { txLayout } from './textos.ts'
 import type { EditorApp } from '../editor'
 
 interface Props {
@@ -26,14 +27,16 @@ interface Props {
 /** Rótulo y acción del conmutador según de quién sea la columna. */
 function conmutador(p: Props): { titulo: string | undefined; alternar: () => void } {
   const acorde = etiquetaAcorde('alternarAgente')
+  const t = txLayout().estado
   switch (p.lay.barraEstado.accion) {
     case 'agente-db':
-      return { titulo: `${p.agenteDbVisible ? 'Ocultar' : 'Mostrar'} el agente de datos (${acorde})`, alternar: p.alternarAgenteDb }
+      return {
+        titulo: p.agenteDbVisible ? t.ocultarAgenteDatos(acorde) : t.mostrarAgenteDatos(acorde),
+        alternar: p.alternarAgenteDb
+      }
     case 'agente-terminal':
       return {
-        titulo: p.lay.barraEstado.ccVisible
-          ? `Ocultar el agente de la terminal, que sigue corriendo (${acorde})`
-          : `Mostrar el agente de la terminal (${acorde})`,
+        titulo: p.lay.barraEstado.ccVisible ? t.ocultarAgenteTerminal(acorde) : t.mostrarAgenteTerminal(acorde),
         alternar: p.alternarAgenteTerminal
       }
     default:
@@ -49,7 +52,7 @@ export function BarraEstadoApp(p: Props): React.JSX.Element {
   return (
     <StatusBar
       ccVisible={lay.barraEstado.ccVisible}
-      razonBloqueoCc={lay.barraEstado.razonBloqueo}
+      razonBloqueoCc={textoRazon(lay.barraEstado.razonBloqueo)}
       onToggleCc={alternar}
       tituloCc={titulo}
       branch={p.activeBranch}

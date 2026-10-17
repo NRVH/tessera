@@ -9,6 +9,7 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import type { AgentsUpdateResult } from '../../../../shared/agents-update-ipc'
 import { useDialogo } from '../../comun/useDialogo'
+import { txActualizacion } from './textosActualizacion.ts'
 
 interface AgentsUpdateModalProps {
   onClose: () => void
@@ -29,14 +30,15 @@ function anadirConTope(prev: string[], line: string): string[] {
 }
 
 function Cabecera({ phase, onClose }: { phase: Phase; onClose: () => void }): React.JSX.Element {
+  const t = txActualizacion().modal
   return (
     <header className="conv-header">
       <div className="conv-header-title">
-        <span>Actualizar agentes</span>
+        <span>{t.titulo}</span>
         <span className="conv-header-profile">Codex · Claude Code</span>
       </div>
       {phase !== 'running' && (
-        <button className="btn btn-icon conv-close" onClick={onClose} title="Cerrar" aria-label="Cerrar">
+        <button className="btn btn-icon conv-close" onClick={onClose} title={t.cerrar} aria-label={t.cerrar}>
           ✕
         </button>
       )}
@@ -52,13 +54,16 @@ interface CuerpoProps {
 }
 
 function Cuerpo({ phase, log, result, logRef }: CuerpoProps): React.JSX.Element {
+  const t = txActualizacion().modal
   return (
     <div className="agents-update-body">
       {phase === 'confirm' && (
         <p className="agents-update-intro">
-          Descarga e instala la última versión de <strong>Codex</strong> y <strong>Claude Code</strong>{' '}
-          reconstruyendo la imagen base (unos minutos) y reiniciando los contenedores. Los agentes que
-          tengas abiertos se reiniciarán solos sobre la versión nueva.
+          {t.introA}
+          <strong>Codex</strong>
+          {t.introY}
+          <strong>Claude Code</strong>
+          {t.introB}
         </p>
       )}
 
@@ -74,9 +79,18 @@ function Cuerpo({ phase, log, result, logRef }: CuerpoProps): React.JSX.Element 
       {phase === 'done' && result && (
         <div className={`agents-update-result ${result.ok ? 'ok' : 'err'}`}>
           {result.ok ? (
-            <>✓ Agentes actualizados. Ahora: <strong>{result.codex}</strong> · <strong>{result.claude}</strong>.</>
+            <>
+              {t.okAntes}
+              <strong>{result.codex}</strong>
+              {t.okSep}
+              <strong>{result.claude}</strong>
+              {t.okDespues}
+            </>
           ) : (
-            <>✕ No se pudo actualizar: {result.error}</>
+            <>
+              {t.fallo}
+              {result.error}
+            </>
           )}
         </div>
       )}
@@ -85,17 +99,18 @@ function Cuerpo({ phase, log, result, logRef }: CuerpoProps): React.JSX.Element 
 }
 
 function Pie({ phase, onClose, onRun }: { phase: Phase; onClose: () => void; onRun: () => void }): React.JSX.Element {
+  const t = txActualizacion().modal
   return (
     <footer className="agents-update-footer">
       {phase === 'confirm' && (
         <>
-          <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
-          <button className="btn primary" onClick={onRun}>Actualizar</button>
+          <button className="btn btn-ghost" onClick={onClose}>{t.cancelar}</button>
+          <button className="btn primary" onClick={onRun}>{t.actualizar}</button>
         </>
       )}
-      {phase === 'running' && <span className="agents-update-working">Actualizando… no cierres la app.</span>}
+      {phase === 'running' && <span className="agents-update-working">{t.trabajando}</span>}
       {phase === 'done' && (
-        <button className="btn primary" onClick={onClose}>Cerrar</button>
+        <button className="btn primary" onClick={onClose}>{t.cerrar}</button>
       )}
     </footer>
   )
@@ -103,6 +118,7 @@ function Pie({ phase, onClose, onRun }: { phase: Phase; onClose: () => void; onR
 
 /** Modal que actualiza los agentes de Docker rehorneando la imagen base. */
 export function AgentsUpdateModal({ onClose }: AgentsUpdateModalProps): React.JSX.Element {
+  const t = txActualizacion().modal
   const [phase, setPhase] = useState<Phase>('confirm')
   // Esc y devolución del foco: no se cierra mientras corre (no dejar el build a medias sin querer).
   const dlg = useDialogo({ onClose, cerrable: phase !== 'running' })
@@ -150,7 +166,7 @@ export function AgentsUpdateModal({ onClose }: AgentsUpdateModalProps): React.JS
         if (phase !== 'running') onClose()
       }}
     >
-      <div ref={dlg.ref} className="agents-update-modal" role="dialog" aria-modal="true" aria-label="Actualizar agentes" onMouseDown={(e) => e.stopPropagation()}>
+      <div ref={dlg.ref} className="agents-update-modal" role="dialog" aria-modal="true" aria-label={t.titulo} onMouseDown={(e) => e.stopPropagation()}>
         <Cabecera phase={phase} onClose={onClose} />
         <Cuerpo phase={phase} log={log} result={result} logRef={logRef} />
         <Pie phase={phase} onClose={onClose} onRun={() => void run()} />

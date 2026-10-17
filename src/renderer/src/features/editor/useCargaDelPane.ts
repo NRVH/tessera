@@ -8,9 +8,11 @@ import { useEffect } from 'react'
 import { ensureMonaco } from '../../comun/monacoSetup'
 import { languageForFilename } from '../../../../shared/files-ipc'
 import { textModels } from './textModelRegistry'
+import { useRaizDelProyecto } from '../../comun/raizDelProyecto'
 import { modoInicialPara, vistaPreviaDe } from './modoVista'
 import { cargarVista, type EscritoresVista } from './useVistaDelPane'
 import type { EscritoresAviso, RefsPane } from './editorPaneRefs'
+import { txEditor } from './textos.ts'
 
 type Compartido = Awaited<ReturnType<typeof textModels.acquire>>
 
@@ -81,7 +83,7 @@ function alAdquirir(c: Carga, key: string, shared: Compartido): void {
   const ed = refs.editor.current
   if (!ed) return
   if (shared.binary || shared.model === null) {
-    set.setNotice('Archivo binario: no se muestra en el editor.')
+    set.setNotice(txEditor().archivoBinarioNoSeMuestra)
     c.applyDirty(false)
     c.escritores.setModo('codigo')
     // El registro no crea modelo para un binario: basta con soltarlo del editor.
@@ -99,7 +101,7 @@ function alAdquirir(c: Carga, key: string, shared: Compartido): void {
   c.reportMeta()
   suscribirRegistro(c, key)
   if (shared.truncated) {
-    set.setNotice('Archivo grande: se muestra solo el inicio (truncado a 2 MiB).')
+    set.setNotice(txEditor().archivoGrandeTruncado)
   }
   // Se repone en cada carga: el pane puede venir de otro archivo.
   c.escritores.setModo(modoInicialPara(c.path))
@@ -110,6 +112,7 @@ function alAdquirir(c: Carga, key: string, shared: Compartido): void {
 export function useCargaDelPane(p: ParamsCarga): void {
   const { refs, set, applyDirty, reportMeta, aplicarRevelado, escritores } = p
   const { path, name, untitledId, modelKey } = p
+  const raiz = useRaizDelProyecto()
   useEffect(() => {
     const c: Carga = { refs, set, applyDirty, reportMeta, aplicarRevelado, escritores, path, name }
     let cancelled = false
@@ -123,7 +126,7 @@ export function useCargaDelPane(p: ParamsCarga): void {
     const key = modelKey
     if (!key) return
     textModels
-      .acquire(key, path)
+      .acquire(key, { raiz, path })
       .then((shared) => {
         if (!cancelled) alAdquirir(c, key, shared)
       })
@@ -141,5 +144,5 @@ export function useCargaDelPane(p: ParamsCarga): void {
       refs.borradoSub.current = null
       textModels.release(key)
     }
-  }, [path, name, untitledId, modelKey, applyDirty, reportMeta, aplicarRevelado, refs, set, escritores])
+  }, [raiz, path, name, untitledId, modelKey, applyDirty, reportMeta, aplicarRevelado, refs, set, escritores])
 }

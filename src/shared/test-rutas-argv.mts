@@ -5,7 +5,8 @@
 // propio exe) NUNCA cuenta, que ni las banderas propias ni las de Chromium (también
 // con una ruta pegada con `=`) pasan por rutas, las formas aceptadas (unidad, raíz,
 // UNC) y rechazadas (relativa, `D:algo`, vacía, `%1` sin expandir, caracteres
-// imposibles), el orden y la deduplicación, y esArranqueTrasActualizarArgv.
+// imposibles), el orden y la deduplicación, esArranqueTrasActualizarArgv, y que un `.tessera`
+// se reparte como copia que importar y no como apertura, en las tres plataformas.
 // =============================================================================
 
 import {
@@ -13,7 +14,10 @@ import {
   esRutaPosixAbsoluta,
   esArranqueTrasActualizarArgv,
   rutasDesdeArgv,
-  FLAG_ACTUALIZADO
+  FLAG_ACTUALIZADO,
+  clasificarArgv,
+  esArchivoCopia,
+  separarCopias
 } from './rutasDesdeArgv.ts'
 import { FLAG_RELEVO } from './relevo.ts'
 
@@ -294,6 +298,49 @@ function main(): void {
   )
   check('(11e) esRutaPosixAbsoluta directo', esRutaPosixAbsoluta('/Users/ana'), 'true')
   check('(11f) esRutaPosixAbsoluta rechaza la relativa', !esRutaPosixAbsoluta('Users/ana'), 'false')
+
+  // ---------------------------------------------------------------------------
+  hr('(12) Un .tessera es una copia que IMPORTAR, no una apertura (las tres plataformas)')
+  // ---------------------------------------------------------------------------
+  // Windows con su NSIS (`"Tessera.exe" "%1"`), macOS lanzado a mano y Linux con el `Exec=… %F`
+  // del `.desktop`: la familia POSIX cubre a los dos últimos.
+  const copiaWin = 'C:\\Users\\ana\\Descargas\\tessera-configuracion-2026-01-02.tessera'
+  const cw = clasificarArgv([EXE, '--updated', copiaWin, 'D:\\proyecto'], 'win')
+  check(
+    '(12a) Windows: la copia va aparte y la carpeta sigue siendo una apertura',
+    JSON.stringify(cw) === JSON.stringify({ aperturas: ['D:\\proyecto'], copias: [copiaWin] }),
+    JSON.stringify(cw)
+  )
+  const copiaMac = '/Users/ana/Downloads/Copia de Ana.TESSERA'
+  const cm = clasificarArgv([EXE_MAC, copiaMac, '/Users/ana/proyecto'], 'posix')
+  check(
+    '(12b) macOS y Linux: igual, y la extensión no distingue mayúsculas',
+    JSON.stringify(cm) === JSON.stringify({ aperturas: ['/Users/ana/proyecto'], copias: [copiaMac] }),
+    JSON.stringify(cm)
+  )
+  const cl = clasificarArgv(['/home/ana/Tessera.AppImage', '--no-sandbox', '/home/ana/copia.tessera'], 'posix')
+  check('(12c) Linux: la del `.desktop` llega como copia', cl.copias.length === 1 && cl.aperturas.length === 0, JSON.stringify(cl))
+  check(
+    '(12d) NEGATIVO: la carpeta `.tessera` (solo la extensión) es una apertura',
+    !esArchivoCopia('C:\\Users\\ana\\.tessera') && !esArchivoCopia('/home/ana/.tessera') && !esArchivoCopia('.tessera'),
+    ''
+  )
+  check(
+    '(12e) NEGATIVO: lo que solo se parece no es una copia',
+    !esArchivoCopia('/home/ana/copia.tessera.bak') && !esArchivoCopia('/home/ana/tessera') && !esArchivoCopia('D:\\x\\copia.tessera\\nota.txt'),
+    ''
+  )
+  check('(12f) un nombre de un carácter y la extensión sí lo es', esArchivoCopia('/a/x.tessera') && esArchivoCopia('D:\\x.tessera'), '')
+  check(
+    '(12g) separarCopias conserva el orden de cada lista',
+    JSON.stringify(separarCopias(['/a', '/b.tessera', '/c', '/d.tessera'])) === JSON.stringify({ aperturas: ['/a', '/c'], copias: ['/b.tessera', '/d.tessera'] }),
+    ''
+  )
+  check(
+    '(12h) NEGATIVO: una copia con forma de bandera no se cuela (sigue el filtro de rutas)',
+    clasificarArgv([EXE, '--abrir=C:\\x.tessera', 'x.tessera'], 'win').copias.length === 0,
+    ''
+  )
 
   // ---------------------------------------------------------------------------
   // Reporte final

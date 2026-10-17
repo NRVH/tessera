@@ -2,7 +2,7 @@
 // El proveedor de autocompletado de la consola de Redis en Monaco: sugiere el comando de cada línea con su
 // sintaxis (`autocompletadoClaves.ts`) y enciende las sugerencias al escribir. Un proveedor para el
 // lenguaje `tessera-redis`, registrado una vez.
-// Decisiones: docs/decisiones/bd/ui-claves-consola-historial-y-completado.md
+// Decisiones: docs/decisiones/bd/ui-claves-consola.md
 // =============================================================================
 
 import { useEffect } from 'react'

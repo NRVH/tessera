@@ -1,13 +1,14 @@
 // =============================================================================
-// Contrato IPC del diff de comprimidos: comparar dos revisiones de un .jar/.zip y traer
-// el contenido de UNA entrada. Va aparte de `files:*` porque «compara estas dos
-// revisiones» no nombra ninguna ruta del proyecto.
-// Ningún canal rechaza por un fallo de contenido (corrupto, cifrado, enorme): es lo
-// normal y se responde con su explicación. Clasifica la entrada el renderer, con
-// `viewerKindForPath`; la clasificación no viaja por IPC.
-// Decisiones: docs/decisiones/comprimidos/diff-de-contenedores.md
+// Contrato IPC del diff de comprimidos: comparar dos revisiones de un .jar/.zip y traer el
+// contenido de UNA entrada, en el proyecto de la petición (`raiz`), no en el anclado. Va aparte
+// de `files:*` porque «compara estas dos revisiones» no nombra ninguna ruta del proyecto.
+// Ningún canal rechaza por un fallo de contenido (corrupto, cifrado, enorme): es lo normal y se
+// responde con su explicación. Clasifica la entrada el renderer, con `viewerKindForPath`.
+// Decisiones: docs/decisiones/comprimidos/diff-de-contenedores.md,
+// docs/decisiones/workspace/peticiones-de-archivos-con-su-proyecto.md
 // =============================================================================
 
+import type { EnProyecto } from './files-ipc'
 import type { EstadoDescompilacion, MotorDescompilador } from './java-ipc'
 
 export const COMPRIMIDOS_CHANNELS = {
@@ -37,7 +38,7 @@ export interface LadoComprimido {
  * dentro del .ear. Es la misma gramática que `jarPath.componerRutaArchivo`, y su
  * `MAX_ANIDAMIENTO` es el tope.
  */
-export interface CompararRequest {
+export interface CompararRequest extends EnProyecto {
   antes: LadoComprimido
   despues: LadoComprimido
   dentro: string[]
@@ -74,7 +75,7 @@ export interface CompararResult {
 /** Cómo hay que preparar la entrada para poder enseñarla. */
 export type ComoEntrada = 'texto' | 'java'
 
-export interface EntradaRequest {
+export interface EntradaRequest extends EnProyecto {
   antes: LadoComprimido
   despues: LadoComprimido
   dentro: string[]

@@ -6,7 +6,9 @@
 // =============================================================================
 
 import type { DbDocResultado } from '../../../../../shared/db-documentos-ipc.ts'
+import { idiomaActual } from '../../../../../shared/i18n.ts'
 import { cantidad } from '../consola/salidaConsola.ts'
+import { txConsolaDocs } from './textosConsolaDocs.ts'
 import { insercionConTerminador, type ContextoCursor, type Insercion } from '../consola/historialConsola.ts'
 
 /** Qué cerró la sentencia. */
@@ -427,7 +429,7 @@ export function verboSentencia(texto: string): string {
   if (coleccion) return coleccion[1]
   const deBase = /^\s*db\s*\.\s*([A-Za-z_$][\w$]*)\s*\(/.exec(texto)
   if (deBase) return deBase[1]
-  return 'Escritura'
+  return txConsolaDocs().verboEscritura
 }
 
 type ResultadoEscritura = Extract<DbDocResultado, { tipo: 'escritura' }>
@@ -439,37 +441,40 @@ type ResultadoEscritura = Extract<DbDocResultado, { tipo: 'escritura' }>
  * justo el dato que sorprende y que el usuario busca.
  */
 export function resumenEscritura(r: Pick<ResultadoEscritura, 'casados' | 'modificados' | 'insertados' | 'borrados'>): string {
+  const t = txConsolaDocs()
   const partes: string[] = []
-  if (r.insertados > 0) partes.push(cantidad(r.insertados, 'insertado', 'insertados'))
-  if (r.casados > 0) partes.push(cantidad(r.casados, 'coincidente', 'coincidentes'))
-  if (r.modificados > 0 || r.casados > 0) partes.push(cantidad(r.modificados, 'modificado', 'modificados'))
-  if (r.borrados > 0) partes.push(cantidad(r.borrados, 'borrado', 'borrados'))
-  return partes.length === 0 ? 'Ningún documento cambió' : partes.join(', ')
+  if (r.insertados > 0) partes.push(cantidad(r.insertados, t.insertado, t.insertados))
+  if (r.casados > 0) partes.push(cantidad(r.casados, t.coincidente, t.coincidentes))
+  if (r.modificados > 0 || r.casados > 0) partes.push(cantidad(r.modificados, t.modificado, t.modificados))
+  if (r.borrados > 0) partes.push(cantidad(r.borrados, t.borrado, t.borrados))
+  return partes.length === 0 ? t.ningunCambio : partes.join(', ')
 }
 
 /** La línea de la Salida de un resultado (sin el eco, que va antes). */
 export function textoResultadoDocs(r: DbDocResultado): string {
+  const t = txConsolaDocs()
   switch (r.tipo) {
     case 'documentos': {
       const n = r.pagina.documentos.length
-      const docs = n === 0 ? 'Ningún documento' : cantidad(n, 'documento', 'documentos')
-      const mas = r.pagina.lector !== null ? ' (hay más)' : ''
-      return `${docs}${mas} en ${formatoMs(r.pagina.ms)}`
+      const docs = n === 0 ? t.ningunDocumento : cantidad(n, t.documento, t.documentos)
+      const mas = r.pagina.lector !== null ? t.haMas : ''
+      return t.documentosEn(docs, mas, formatoMs(r.pagina.ms))
     }
     case 'valor':
-      return 'Valor devuelto'
+      return t.valorDevuelto
     case 'plan':
-      return 'Plan de ejecución'
+      return t.planDeEjecucion
     case 'escritura':
       return resumenEscritura(r)
     case 'base':
-      return `Base de la consola: ${r.base}`
+      return t.cambioBase(r.base)
   }
 }
 
 function formatoMs(ms: number): string {
   if (ms < 1000) return `${Math.max(0, Math.round(ms))} ms`
-  return `${(ms / 1000).toFixed(ms < 10000 ? 2 : 1).replace('.', ',')} s`
+  const s = (ms / 1000).toFixed(ms < 10000 ? 2 : 1)
+  return `${idiomaActual() === 'es' ? s.replace('.', ',') : s} s`
 }
 
 /**

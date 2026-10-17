@@ -7,6 +7,7 @@ import { ConfirmDialog } from '../../comun/ConfirmDialog'
 import { PromptDialog } from '../../comun/PromptDialog'
 import { cerrarDialogo, crearNodo, eliminarNodos, importarNodos, renombrarNodo } from './operacionesArbol'
 import type { Arbol, FileDialog } from './tiposArbol'
+import { txExplorador } from './textos.ts'
 
 type DialogoBorrado = Extract<NonNullable<FileDialog>, { kind: 'delete' }>
 
@@ -15,16 +16,13 @@ const TOPE_LISTADO = 10
 
 /** Título y mensaje del borrado; con un solo elemento se conserva el texto de siempre. */
 function textosBorrado(d: DialogoBorrado): { title: string; message: string } {
+  const t = txExplorador()
   const varios = d.paths.length > 1
-  const aviso = d.hayCarpeta
-    ? varios
-      ? '\nSe eliminará también todo el contenido de las carpetas.'
-      : '\nSe eliminará también todo su contenido.'
-    : ''
+  const aviso = d.hayCarpeta ? (varios ? t.avisoContenidoCarpetas : t.avisoContenido) : ''
   if (!varios) {
     return {
-      title: d.hayCarpeta ? 'Eliminar carpeta' : 'Eliminar archivo',
-      message: `¿Seguro que quieres eliminar "${d.nombres[0]}"?${aviso}`
+      title: d.hayCarpeta ? t.eliminarCarpeta : t.eliminarArchivo,
+      message: t.seguroEliminar(d.nombres[0], aviso)
     }
   }
   const listado = d.nombres
@@ -33,23 +31,22 @@ function textosBorrado(d: DialogoBorrado): { title: string; message: string } {
     .join('\n')
   const resto = d.nombres.length - TOPE_LISTADO
   return {
-    title: `Eliminar ${d.paths.length} elementos`,
-    message: `¿Seguro que quieres eliminar estos ${d.paths.length} elementos?\n${listado}${
-      resto > 0 ? `\n…y ${resto} más` : ''
-    }${aviso}`
+    title: t.eliminarElementos(d.paths.length),
+    message: t.seguroEliminarVarios(d.paths.length, listado, resto, aviso)
   }
 }
 
 /** Los diálogos del árbol; solo uno está montado a la vez. */
 export function DialogosArbol({ arbol }: { arbol: Arbol }): React.JSX.Element {
   const { dialog, dialogError, importConflict, setImportConflict } = arbol
+  const t = txExplorador()
   return (
     <>
       {(dialog?.kind === 'newFile' || dialog?.kind === 'newFolder') && (
         <PromptDialog
-          title={dialog.kind === 'newFile' ? 'Nuevo archivo' : 'Nueva carpeta'}
-          label={dialog.kind === 'newFile' ? 'Nombre del archivo' : 'Nombre de la carpeta'}
-          confirmLabel="Crear"
+          title={dialog.kind === 'newFile' ? t.nuevoArchivo : t.nuevaCarpeta}
+          label={dialog.kind === 'newFile' ? t.nombreArchivo : t.nombreCarpeta}
+          confirmLabel={t.crear}
           error={dialogError}
           onConfirm={(nm) => void crearNodo(arbol, dialog.dir, nm, dialog.kind === 'newFolder')}
           onCancel={() => cerrarDialogo(arbol)}
@@ -57,9 +54,9 @@ export function DialogosArbol({ arbol }: { arbol: Arbol }): React.JSX.Element {
       )}
       {dialog?.kind === 'rename' && (
         <PromptDialog
-          title="Renombrar"
-          label="Nuevo nombre"
-          confirmLabel="Renombrar"
+          title={t.renombrar}
+          label={t.nuevoNombre}
+          confirmLabel={t.renombrar}
           initialValue={dialog.name}
           selectBasename
           error={dialogError}
@@ -70,11 +67,12 @@ export function DialogosArbol({ arbol }: { arbol: Arbol }): React.JSX.Element {
       {importConflict && (
         <ConfirmDialog
           danger
-          title={importConflict.conflicts.length > 1 ? 'Reemplazar archivos' : 'Reemplazar archivo'}
-          message={`Ya existe${importConflict.conflicts.length > 1 ? 'n' : ''} en la carpeta destino:\n${importConflict.conflicts
-            .map((n) => `• ${n}`)
-            .join('\n')}\n\n¿Reemplazar con lo que soltaste?`}
-          confirmLabel="Reemplazar"
+          title={importConflict.conflicts.length > 1 ? t.reemplazarArchivos : t.reemplazarArchivo}
+          message={t.yaExiste(
+            importConflict.conflicts.length > 1,
+            importConflict.conflicts.map((n) => `• ${n}`).join('\n')
+          )}
+          confirmLabel={t.reemplazar}
           onConfirm={() =>
             void importarNodos(arbol, importConflict.hostPaths, importConflict.destDir, true)
           }
@@ -85,7 +83,7 @@ export function DialogosArbol({ arbol }: { arbol: Arbol }): React.JSX.Element {
         <ConfirmDialog
           danger
           {...textosBorrado(dialog)}
-          confirmLabel="Eliminar"
+          confirmLabel={t.eliminar}
           onConfirm={() => void eliminarNodos(arbol, dialog.paths)}
           onCancel={() => cerrarDialogo(arbol)}
         />

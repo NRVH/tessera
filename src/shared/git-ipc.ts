@@ -2,9 +2,19 @@
 // Contrato IPC de git (main <-> preload <-> UI): historia, diff, estado del working-tree y
 // escrituras (preparar, descartar, commit, ignorar). Todo es invoke (renderer -> main) salvo
 // `STATUS_PARCIAL`. Las rutas son POSIX relativas a la contenedora: el renderer nunca ve rutas
-// del host. `COMMIT` no tiene consumidor en la UI y se conserva porque `test:git-stage` lo usa.
-// Decisiones: docs/decisiones/git/main-escrituras-y-descartes.md
+// del host. Cada invoke lleva además la contenedora de su proyecto (`PeticionGit`). `COMMIT` no
+// tiene consumidor en la UI y se conserva porque `test:git-stage` lo usa.
+// Decisiones: docs/decisiones/git/main-escrituras-y-descartes.md,
+// docs/decisiones/workspace/peticiones-de-archivos-con-su-proyecto.md
 // =============================================================================
+import type { EnProyecto } from './files-ipc'
+
+/**
+ * Lo que viaja en cada invoke de git: la petición del canal y la contenedora del proyecto al que
+ * pertenece. El main la atiende en la vista de ese proyecto (`GitService.paraRaiz`), nunca en el
+ * anclado, para que un gesto de un proyecto no corra en los repos de otro.
+ */
+export type PeticionGit<R = object> = R & EnProyecto
 
 export const GIT_CHANNELS = {
   /**

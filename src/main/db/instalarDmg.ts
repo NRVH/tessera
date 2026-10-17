@@ -7,6 +7,7 @@
 // =============================================================================
 import path from 'node:path'
 import { mensajeDe } from '../util/valores.ts'
+import { txDb } from './textosDb.ts'
 
 /** Una orden externa: binario por ruta absoluta y argumentos sueltos (sin shell). */
 export interface OrdenExterna {
@@ -296,7 +297,7 @@ function quitarMontajeVacio(deps: DepsInstalarDmg, rutas: RutasDmg): void {
 /** Las entradas visibles de la imagen montada; lanza si no hay ninguna. */
 function entradasDeLaImagen(deps: DepsInstalarDmg, rutas: RutasDmg): string[] {
   const entradas = entradasACopiar(deps.listar(rutas.montaje))
-  if (entradas.length === 0) throw new Error('la imagen de disco está vacía.')
+  if (entradas.length === 0) throw new Error(txDb().drivers.imagenVacia)
   return entradas
 }
 
@@ -306,14 +307,14 @@ function depurarCopia(deps: DepsInstalarDmg, rutas: RutasDmg, pack: PackDmg): vo
     deps.borrar(path.join(rutas.destinoTmp, sobrante))
   }
   if (!deps.existe(path.join(rutas.destinoTmp, pack.centinela))) {
-    throw new Error(`La imagen de disco no contiene "${pack.centinela}".`)
+    throw new Error(txDb().drivers.imagenSinArchivo(pack.centinela))
   }
 }
 
 /** La ruta real de un binario de la copia cuya firma hay que verificar; lanza si no está. */
 function binarioAFirmar(deps: DepsInstalarDmg, rutas: RutasDmg, archivo: string): string {
   const ruta = path.join(rutas.destinoTmp, archivo)
-  if (!deps.existe(ruta)) throw new Error(`La imagen de disco no contiene "${archivo}".`)
+  if (!deps.existe(ruta)) throw new Error(txDb().drivers.imagenSinArchivo(archivo))
   return deps.rutaReal(ruta)
 }
 
@@ -336,13 +337,13 @@ export async function instalarDesdeDmg(
       await deps.ejecutar(ordenMontar(rutas.dmg, rutas.montaje))
     } catch (err) {
       quitarMontajeVacio(deps, rutas)
-      throw new Error(`No se pudo montar la imagen de disco: ${mensajeDe(err)}`, { cause: err })
+      throw new Error(txDb().drivers.noSeMonto(mensajeDe(err)), { cause: err })
     }
     // Copia sus entradas visibles a `destinoTmp` y desmonta siempre, salga como salga.
     try {
       await deps.ejecutar(ordenCopiar(rutas.montaje, entradasDeLaImagen(deps, rutas), rutas.destinoTmp))
     } catch (err) {
-      throw new Error(`No se pudo copiar el cliente desde la imagen de disco: ${mensajeDe(err)}`, { cause: err })
+      throw new Error(txDb().drivers.noSeCopio(mensajeDe(err)), { cause: err })
     } finally {
       if (await desmontar(deps, rutas.montaje)) quitarMontajeVacio(deps, rutas)
     }
@@ -354,7 +355,7 @@ export async function instalarDesdeDmg(
       try {
         await deps.ejecutar(ordenVerificarFirma(real, teamId))
       } catch (err) {
-        throw new Error(`"${path.basename(real)}" no lleva la firma esperada del fabricante (Team ID ${teamId}): ${mensajeDe(err)}`, { cause: err })
+        throw new Error(txDb().drivers.firmaIncorrecta(path.basename(real), teamId, mensajeDe(err)), { cause: err })
       }
     }
     deps.borrar(rutas.destino)

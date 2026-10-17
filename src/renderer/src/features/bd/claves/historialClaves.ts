@@ -3,7 +3,7 @@
 // línea, sin terminador: va en su propia línea si el cursor tiene texto a los lados. Puro, sin React ni
 // DOM; el popover y la inserción en el editor son los de la consola de MongoDB (`useHistorialConsolaDocs`)
 // con esta composición; la prueba es `test-historial-claves.mts`.
-// Decisiones: docs/decisiones/bd/ui-claves-consola-historial-y-completado.md
+// Decisiones: docs/decisiones/bd/ui-consola-historial.md
 // =============================================================================
 
 import { insercionConTerminador, type ContextoCursor, type Insercion } from '../consola/historialConsola.ts'

@@ -17,6 +17,7 @@ import { BotonBarraBd } from '../rejilla/DatosBotonBarra'
 import { textoExportando } from '../rejilla/exportarBd'
 import { IconoFormato } from '../rejilla/IconoFormato'
 import { useExportarBd } from '../rejilla/useExportarBd'
+import { txColeccionDocs } from './textosColeccionDocs'
 
 /** Los orígenes de documentos de `DbOrigenExportacion`. */
 export type OrigenExportacionDocs = Extract<DbOrigenExportacion, { tipo: 'coleccion' | 'sentencia' }>
@@ -40,9 +41,10 @@ export function BotonExportarDocs({
 }): React.JSX.Element {
   const exportador = useExportarBd()
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
+  const t = txColeccionDocs()
   if (exportador.enCurso) {
     return (
-      <BotonBarraBd etiqueta="Detener la exportación" titulo={`${textoExportando(exportador.enCurso.filas)} · Pulsa para detenerla`} onClick={exportador.cancelar}>
+      <BotonBarraBd etiqueta={t.detenerExportacion} titulo={t.pulsaParaDetenerla(textoExportando(exportador.enCurso.filas))} onClick={exportador.cancelar}>
         <IconoDetener />
       </BotonBarraBd>
     )
@@ -50,7 +52,7 @@ export function BotonExportarDocs({
   return (
     <>
       <BotonBarraBd
-        etiqueta="Exportar a archivo"
+        etiqueta={t.exportarArchivo}
         titulo={titulo}
         motivo={motivo}
         onClick={(e) => {

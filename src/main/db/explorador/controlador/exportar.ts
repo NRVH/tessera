@@ -28,13 +28,15 @@ import { dialectoDeMotor } from '../../../../shared/sql/dialectosSql.ts'
 import { escritorJsonDocumentos, origenDocumentos, productorDocumentos } from '../documentos/exportarDocumentos.ts'
 import { filasDePagina, type OpcionesDialogoGuardar, type ProductorExportacion } from '../exportacion.ts'
 import type { FormatoExportacionDocs } from '../protocoloTrabajador.ts'
-import { ErrorGestor, MENSAJE_FILA_DESAPARECIDA, type RefConsola } from '../GestorSesiones.ts'
+import { ErrorGestor, type RefConsola } from '../GestorSesiones.ts'
+import { mensajeFilaDesaparecida } from '../sesiones/errores.ts'
 import { construirConsultaTabla, detalleDeErrorRejilla, esErrorRejilla } from '../sqlRejilla.ts'
 import { columnasClave, construirConsultaValor, esErrorValor, valorDeLectura } from '../valorCelda.ts'
 
 import type { ConsolaExplorador } from './consola.ts'
 import type { ObjetosExplorador } from './objetos.ts'
 import type { TablaExplorador } from './tabla.ts'
+import { txControlador } from './textosControlador.ts'
 import type { ContextoExplorador } from './tipos.ts'
 import {
   columnasExportables,
@@ -74,7 +76,7 @@ function consultaDeValor(
   clave: DbCelda[]
 ): { sql: string; binds: string[] } | { ok: false; error: DbErrorSql } {
   if (!columnas.some((c) => c.nombre === columna)) {
-    return fallo('interno', `La columna ${columna} no existe en ${destino.esquema}.${destino.nombre}.`)
+    return fallo('interno', txControlador().columnaNoExiste(columna, destino.esquema, destino.nombre))
   }
   const d = dialectoDeMotor(motor)
   const c = construirConsultaValor({
@@ -119,25 +121,25 @@ export class ExportarExplorador {
       // De un resultado de CONSOLA se relee en SU sesión, que ve su transacción sin confirmar;
       // atada a ESTA conexión: el renderer no puede usar una consola para leer por otra.
       if (consola && (await this.sesionConsola.conexionDeConsola(consola.perfilId, consola.consolaId)) !== id) {
-        return fallo('interno', 'Esa consola no es de esta conexión.')
+        return fallo('interno', txControlador().consolaOtraConexion)
       }
       const con = this.c.conexionOError(id)
       let destino: DbRefObjeto = objeto
       if (objeto.tipo === 'sinonimo') {
         const r = await this.catalogo.resolverSinonimo(id, objeto.esquema, objeto.nombre, objeto.base)
-        if (r.dblink) return fallo('noReleible', 'Un objeto remoto (@dblink) no tiene una clave primaria que Tessera pueda leer.')
+        if (r.dblink) return fallo('noReleible', txControlador().remotoSinClave)
         destino = r.objeto
       }
       const pk = await this.catalogo.clavePrimaria(id, destino)
       if (pk.length === 0) {
-        return fallo('noReleible', 'La tabla no tiene clave primaria: no hay forma fiable de volver a encontrar la fila.')
+        return fallo('noReleible', txControlador().tablaSinClave)
       }
       const c = consultaDeValor(con.motor, destino, columna, await this.catalogo.columnasDe(id, destino), pk, clave)
       if ('ok' in c) return c
       const r = await this.c.gestor.leerValor({ conexionId: id, sql: c.sql, binds: c.binds, topes: TOPES_VALOR, ...(consola ? { consola } : {}) })
       if (!r.ok) return r
       const v = valorDeLectura(r.valor)
-      return v === null ? fallo('noReleible', MENSAJE_FILA_DESAPARECIDA) : ok(v)
+      return v === null ? fallo('noReleible', mensajeFilaDesaparecida()) : ok(v)
     })
   }
 
@@ -146,18 +148,18 @@ export class ExportarExplorador {
    * consola, si la hay, sin comprobar aún que es de esta conexión: eso espera al registro.
    */
   private pedidoDeValor(req: unknown): PedidoValor | { ok: false; error: DbErrorSql } {
-    if (!esObjeto(req)) return fallo('interno', 'Petición inválida.')
+    if (!esObjeto(req)) return fallo('interno', txControlador().peticionInvalida)
     const id = exigir(req.conexionId, 'conexionId')
     const objeto = this.c.refObjeto(req.objeto, id)
     const columna = exigir(req.columna, 'columna')
     const clave = req.clave
     if (!Array.isArray(clave) || clave.length > 64 || !clave.every(esCelda)) {
-      return fallo('interno', 'Petición inválida: «clave».')
+      return fallo('interno', txControlador().peticionInvalidaCampo('clave'))
     }
-    if (TIPOS_CON_DATOS.indexOf(objeto.tipo) < 0) return fallo('interno', 'Ese objeto no tiene datos que enseñar.')
+    if (TIPOS_CON_DATOS.indexOf(objeto.tipo) < 0) return fallo('interno', txControlador().objetoSinDatosVer)
     if (req.consola === undefined) return { id, objeto, columna, clave: clave as DbCelda[] }
     const dato = req.consola
-    if (!esObjeto(dato)) return fallo('interno', 'Petición inválida: «consola».')
+    if (!esObjeto(dato)) return fallo('interno', txControlador().peticionInvalidaCampo('consola'))
     const perfilId = exigir(dato.perfilId, 'perfilId')
     const consolaId = exigir(dato.consolaId, 'consolaId')
     // `txInicial`: por si la lectura crea la sesión (`RefConsola.txInicial`).
@@ -173,18 +175,18 @@ export class ExportarExplorador {
    */
   async exportar(req: unknown, ventana: BrowserWindow | null = null): Promise<DbRespuesta<DbExportado | null>> {
     return this.c.seguro(async () => {
-      if (!esObjeto(req)) return fallo('interno', 'Petición inválida.')
+      if (!esObjeto(req)) return fallo('interno', txControlador().peticionInvalida)
       const peticionId = exigir(req.peticionId, 'peticionId', 200)
       const formato = req.formato as DbFormatoFilas
-      if (FORMATOS.indexOf(formato) < 0) return fallo('interno', 'Petición inválida: «formato».')
-      if (!esMotor(req.motor)) return fallo('interno', 'Petición inválida: «motor».')
+      if (FORMATOS.indexOf(formato) < 0) return fallo('interno', txControlador().peticionInvalidaCampo('formato'))
+      if (!esMotor(req.motor)) return fallo('interno', txControlador().peticionInvalidaCampo('motor'))
       const nombreSugerido = typeof req.nombreSugerido === 'string' ? req.nombreSugerido.slice(0, MAX_IDENT) : ''
       const tablaInsert = opcional(req.tablaInsert, 'tablaInsert', MAX_IDENT * 3)
-      if (!esObjeto(req.origen)) return fallo('interno', 'Petición inválida: falta «origen».')
-      if (this.c.exportador.enMarcha(peticionId)) return fallo('ocupada', 'Esa exportación ya está en curso.')
+      if (!esObjeto(req.origen)) return fallo('interno', txControlador().peticionFalta('origen'))
+      if (this.c.exportador.enMarcha(peticionId)) return fallo('ocupada', txControlador().exportacionEnCurso)
       const origen = req.origen
       const deDocumentos = origen.tipo === 'coleccion' || origen.tipo === 'sentencia'
-      if (deDocumentos && formato !== 'json' && formato !== 'csv') return fallo('interno', 'Petición inválida: los documentos se exportan en JSON o CSV.')
+      if (deDocumentos && formato !== 'json' && formato !== 'csv') return fallo('interno', txControlador().peticionDocumentos)
       // El productor se arma DENTRO de la exportación ya apuntada (`preparar`): lee el
       // catálogo (la PK, el sinónimo) y un Stop en ese tramo tiene que valer, o el
       // diálogo de guardar se abriría sobre una pestaña ya cerrada. `exportar` apunta la
@@ -211,24 +213,24 @@ export class ExportarExplorador {
     if ((o.tipo === 'coleccion' || o.tipo === 'sentencia') && (formato === 'json' || formato === 'csv')) {
       return this.productorDocumentos(o, formato, peticionId)
     }
-    throw new ErrorGestor('interno', 'Petición inválida: origen desconocido.')
+    throw new ErrorGestor('interno', txControlador().peticionOrigen)
   }
 
   /** Origen `coleccion` o `sentencia` (MongoDB): se vuelve a leer por páginas del trabajador. */
   private productorDocumentos(o: Record<string, unknown>, formato: FormatoExportacionDocs, peticionId: string): ProductorExportacion {
     const gestor = this.c.opciones.exportarDocumentos
-    if (!gestor) throw new ErrorGestor('interno', 'Este motor no se puede exportar desde aquí.')
+    if (!gestor) throw new ErrorGestor('interno', txControlador().motorNoExportable)
     const origen = origenDocumentos(o, formato)
     const motor = this.c.conexionOError(origen.conexionId).motor
-    if (!esMotor(motor) || !esDeDocumentos(descriptor(motor))) throw new ErrorGestor('interno', 'Esa conexión no es de documentos.')
+    if (!esMotor(motor) || !esDeDocumentos(descriptor(motor))) throw new ErrorGestor('interno', txControlador().conexionNoDocumentos)
     return productorDocumentos(gestor, origen, formato, peticionId)
   }
 
   /** Origen `filas`: las que el renderer ya tiene, validadas. */
   private productorFilas(o: Record<string, unknown>): ProductorExportacion {
     const columnas = columnasExportables(o.columnas)
-    if (!columnas) throw new ErrorGestor('interno', 'Petición inválida: «columnas».')
-    if (typeof o.filasJson !== 'string') throw new ErrorGestor('interno', 'Petición inválida: falta «filasJson».')
+    if (!columnas) throw new ErrorGestor('interno', txControlador().peticionInvalidaCampo('columnas'))
+    if (typeof o.filasJson !== 'string') throw new ErrorGestor('interno', txControlador().peticionFalta('filasJson'))
     const filasJson = o.filasJson
     filasDePagina(filasJson)
     return async (consumir) => {
@@ -241,12 +243,12 @@ export class ExportarExplorador {
     const perfilId = exigir(o.perfilId, 'perfilId')
     const consolaId = exigir(o.consolaId, 'consolaId')
     if (typeof o.sql !== 'string' || o.sql.length > DB_CONSOLA_MAX_BYTES) {
-      throw new ErrorGestor('interno', 'Petición inválida: «sql».')
+      throw new ErrorGestor('interno', txControlador().peticionInvalidaCampo('sql'))
     }
     const sql = o.sql
     // El esquema en que se ejecutó (opcional): en otro, la consulta leería otra tabla.
     if (o.esquema !== undefined && o.esquema !== null && (typeof o.esquema !== 'string' || o.esquema.length > MAX_IDENT)) {
-      throw new ErrorGestor('interno', 'Petición inválida: «esquema».')
+      throw new ErrorGestor('interno', txControlador().peticionInvalidaCampo('esquema'))
     }
     const esquema = typeof o.esquema === 'string' ? o.esquema : null
     // Los parámetros con los que se ejecutó; el gestor valida su forma y exige los que falten.
@@ -277,7 +279,7 @@ export class ExportarExplorador {
   private async productorTabla(o: Record<string, unknown>, peticionId: string): Promise<ProductorExportacion> {
     const id = exigir(o.conexionId, 'conexionId')
     const objeto = this.c.refObjeto(o.objeto, id)
-    if (TIPOS_CON_DATOS.indexOf(objeto.tipo) < 0) throw new ErrorGestor('interno', 'Ese objeto no tiene datos que exportar.')
+    if (TIPOS_CON_DATOS.indexOf(objeto.tipo) < 0) throw new ErrorGestor('interno', txControlador().objetoSinDatosExportar)
     const where = opcional(o.where, 'where', MAX_FRAGMENTO) ?? null
     const orderBy = opcional(o.orderBy, 'orderBy', MAX_FRAGMENTO) ?? null
     // El mismo filtro guiado y orden que la pestaña, validados igual.
@@ -337,7 +339,7 @@ export class ExportarExplorador {
 
   async dialogoGuardar(op: OpcionesDialogoGuardar, win: BrowserWindow | null): Promise<string | null> {
     const guardar = this.c.opciones.guardarArchivo
-    if (!guardar) throw new ErrorGestor('interno', 'No hay diálogo de guardar en este entorno.')
+    if (!guardar) throw new ErrorGestor('interno', txControlador().sinDialogoGuardar)
     const valida = win && !win.isDestroyed() ? win : null
     const r = await guardar(valida, {
       title: op.titulo,

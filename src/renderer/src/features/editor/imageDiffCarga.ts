@@ -40,20 +40,22 @@ export function revocarUrls(urls: MutableRefObject<string[]>): void {
 /** Lee los dos lados en paralelo: encadenarlos solo sumaría latencias. */
 export function leerLados(
   target: DiffTarget,
+  raiz: string,
   urls: MutableRefObject<string[]>
 ): Promise<[LadoCargado, LadoCargado]> {
   const mime = imageMimeForPath(target.path)
-  return Promise.all([pedirLado(target.before, mime, urls), pedirLado(target.after, mime, urls)])
+  return Promise.all([pedirLado(target.before, raiz, mime, urls), pedirLado(target.after, raiz, mime, urls)])
 }
 
-/** Pide los bytes de un lado y los convierte en object-URL, que anota en `urls.current`. */
+/** Pide los bytes de un lado del proyecto `raiz` y los convierte en object-URL, que anota en `urls.current`. */
 async function pedirLado(
   lado: DiffSide,
+  raiz: string,
   mime: string | undefined,
   urls: MutableRefObject<string[]>
 ): Promise<LadoCargado> {
   if (lado.source === 'empty') return VACIO
-  const res = await window.tessera.git.blobBytes({
+  const res = await window.tessera.git.blobBytes(raiz, {
     source: lado.source,
     hash: lado.hash,
     path: lado.path

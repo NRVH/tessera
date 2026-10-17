@@ -115,7 +115,7 @@ test.describe('Git·Log a pantalla completa', () => {
   test('maximizar tapa el área de trabajo sin desmontar nada; restaurar y la X devuelven el layout', async () => {
     const win = s.win
     const shell = win.locator('.shell')
-    const lateral = win.locator('.sidebar').first()
+    const lateral = win.locator('.panel-lateral')
     const editor = win.locator('.editor-area')
     const agente = win.locator('.right-panel.cc-panel')
     const panel = win.locator('.git-log-panel')
@@ -125,7 +125,7 @@ test.describe('Git·Log a pantalla completa', () => {
     const recargar = panel.getByRole('button', { name: 'Recargar el historial y las ramas' })
 
     // --- Preparación: un archivo abierto (editor a la vista) y Git·Log en la franja ---
-    await win.locator('.sidebar .tree-row', { hasText: 'LEEME.txt' }).first().click({ timeout: 30_000 })
+    await win.locator('.sidebar .tree-row:visible', { hasText: 'LEEME.txt' }).first().click({ timeout: 30_000 })
     await expect(win.locator('.editor-tab.active', { hasText: 'LEEME.txt' })).toHaveCount(1)
     await win.getByRole('button', { name: 'Git · Log' }).click()
     await expect(panel).toBeVisible()
@@ -270,7 +270,7 @@ test.describe('Git·Log a pantalla completa', () => {
     await expect(diffVisible).toContainText('adiós')
 
     // --- (c) Historial de un archivo: doble clic en una versión y «Saltar al fuente» salen del modo ---
-    await win.locator('.sidebar .tree-row', { hasText: 'LEEME.txt' }).first().click({ button: 'right' })
+    await win.locator('.sidebar .tree-row:visible', { hasText: 'LEEME.txt' }).first().click({ button: 'right' })
     await win.locator('.ctx-menu').getByRole('menuitem', { name: 'Historial del archivo' }).click()
     const versiones = panel.locator('.git-hist-fila')
     await expect(versiones).toHaveCount(2, { timeout: 30_000 })
@@ -302,7 +302,7 @@ test.describe('Git·Log a pantalla completa', () => {
   test('a pantalla completa, abrir una pestaña desde fuera de Git (Mod+N) sale del modo y la pestaña se ve', async () => {
     const win = s.win
     const shell = win.locator('.shell')
-    const lateral = win.locator('.sidebar').first()
+    const lateral = win.locator('.panel-lateral')
     const editor = win.locator('.editor-area')
     const panel = win.locator('.git-log-panel')
     const maximizar = panel.getByRole('button', { name: 'Maximizar el panel de git' })

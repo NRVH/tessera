@@ -46,6 +46,7 @@ import {
   type ValidacionFragmento,
   type ValorClave
 } from './sqlRejillaTipos.ts'
+import { txSqlRejilla } from './textosRejilla.ts'
 
 export type { FormaPaginado }
 export { COLUMNA_ROWID, PREFIJO_COLUMNA_CLAVE, campoDeColumnaInexistente, campoDeError, campoDeErrorEnLinea, campoDeErrorEnPuntosDeCodigo }
@@ -86,7 +87,8 @@ function leeRowid(d: DescriptorSql): boolean {
 /** Por qué no se lee por ROWID: nombra los motores del registro que SÍ, no uno escrito a mano. */
 function mensajeSinRowid(): string {
   const donde = etiquetasSqlDonde(leeRowid)
-  return donde === '' ? 'Ningún motor lee las filas por su ROWID.' : `ROWID solo existe en ${donde}.`
+  const t = txSqlRejilla()
+  return donde === '' ? t.ningunMotorRowid : t.rowidSoloEn(donde)
 }
 
 /** El nombre de tres partes, solo en un motor con nivel «Bases»; el error si el objeto no puede llevar base. */
@@ -94,9 +96,9 @@ function conBase(d: DialectoSql, objeto: ObjetoRejilla, esquema: string, fuente:
   const nivel = descriptorSql(d).catalogo.nivelBases
   switch (nivel) {
     case 'ninguno':
-      return fallo(`${descriptorSql(d).etiqueta} no tiene bases dentro de una conexión: el objeto no puede llevar base.`, null, null)
+      return fallo(txSqlRejilla().sinBases(descriptorSql(d).etiqueta), null, null)
     case 'sinBaseFija':
-      if (!esquema) return fallo('Falta el esquema del objeto.', null, null)
+      if (!esquema) return fallo(txSqlRejilla().faltaEsquema, null, null)
       return citar(objeto.base as string) + '.' + fuente
     default:
       return nunca(nivel, 'fuenteDe')
@@ -112,11 +114,11 @@ function fuenteDe(d: DialectoSql, objeto: ObjetoRejilla): string | ErrorRejilla 
   }
   // Un sinónimo remoto creado sin esquema resuelve con `TABLE_OWNER` nulo: el nombre va sin calificar.
   if (!nombre || (!esquema && !dblink)) {
-    return fallo('Falta el esquema o el nombre del objeto.', null, null)
+    return fallo(txSqlRejilla().faltaEsquemaONombre, null, null)
   }
   const publico = catalogo.pseudoEsquemaPublico
   if (publico !== null && esquema === publico) {
-    return fallo(`${publico} no es un esquema: hay que resolver el sinónimo antes de consultarlo.`, null, null)
+    return fallo(txSqlRejilla().noEsEsquema(publico), null, null)
   }
   const c = (n: string): string => citarGenerado(n, d)
   let fuente = esquema ? c(esquema) + '.' + c(nombre) : c(nombre)
@@ -144,7 +146,7 @@ function estrellaDe(forma: FormaPaginado, fuente: string): string {
 
 // --- Consulta de la pestaña ---------------------------------------------------------
 
-const MENSAJE_BINDS_NO_CASAN = 'Los parámetros del filtro de este motor no casan con su forma de paginado.'
+const mensajeBindsNoCasan = (): string => txSqlRejilla().bindsNoCasan
 
 function enteroNoNegativo(v: number | undefined): v is number {
   return typeof v === 'number' && Number.isSafeInteger(v) && v >= 0
@@ -166,7 +168,7 @@ function cabeceraDe(
   const sinRowid = !leeRowid(motor)
   if (p.rowid === true && (sinRowid || p.objeto.dblink)) {
     return fallo(
-      sinRowid ? mensajeSinRowid() : 'Un objeto remoto (@dblink) no se lee con su ROWID.',
+      sinRowid ? mensajeSinRowid() : txSqlRejilla().remotoSinRowid,
       null,
       null
     )
@@ -190,7 +192,7 @@ export function construirConsultaTabla(p: PeticionConsultaTabla): ResultadoRejil
   const d = p.dialecto
   const motor = descriptorSql(d)
   if (motor.sesion.paginado.admitidas.indexOf(p.forma) < 0) {
-    return fallo(`La forma de paginado «${p.forma}» no vale para ${d}.`, null, null)
+    return fallo(txSqlRejilla().formaNoVale(p.forma, d), null, null)
   }
   const fuente = fuenteDe(d, p.objeto)
   if (typeof fuente !== 'string') return fuente
@@ -215,7 +217,7 @@ export function construirConsultaTabla(p: PeticionConsultaTabla): ResultadoRejil
       // Con ORDER BY del usuario, o sin clave (una vista, una virtual): LIMIT/OFFSET.
       if (c.orderBy !== null || !p.clave) {
         if (motor.sesion.paginado.admitidas.indexOf('limitOffset') < 0) {
-          return fallo('Sin clave ni ORDER BY, esta tabla no se puede paginar.', null, null)
+          return fallo(txSqlRejilla().sinClave, null, null)
         }
         return consultaPaginada('limitOffset', p, cab.cabecera, c)
       }
@@ -229,11 +231,11 @@ export function construirConsultaTabla(p: PeticionConsultaTabla): ResultadoRejil
 function expresionesDeClave(clave: ClaveKeyset): string[] | ErrorRejilla {
   switch (clave.tipo) {
     case 'rowid':
-      if (!/^(rowid|_rowid_|oid)$/i.test(clave.alias)) return fallo('Alias de rowid no válido.', null, null)
+      if (!/^(rowid|_rowid_|oid)$/i.test(clave.alias)) return fallo(txSqlRejilla().aliasRowid, null, null)
       return [clave.alias]
     case 'pk':
       if (clave.columnas.length === 0 || clave.columnas.some((x) => x === '')) {
-        return fallo('La clave del paginado no tiene columnas.', null, null)
+        return fallo(txSqlRejilla().claveSinColumnas, null, null)
       }
       return clave.columnas.map((x) => citar(x))
     default:
@@ -263,15 +265,15 @@ function consultaPorClave(
 ): ResultadoRejilla {
   const n = p.n
   if (!enteroNoNegativo(n) || n < 1) {
-    return fallo('Paginado inválido: `n` debe ser un entero ≥ 1.', null, null)
+    return fallo(txSqlRejilla().paginadoN, null, null)
   }
-  if (c.nombrados !== null) return fallo(MENSAJE_BINDS_NO_CASAN, null, null)
+  if (c.nombrados !== null) return fallo(mensajeBindsNoCasan(), null, null)
   // Sin calificar: hay UNA tabla en el FROM y SQLite no admite todas las formas calificadas.
   const expresiones = expresionesDeClave(clave)
   if ('error' in expresiones) return expresiones
   const despues = p.despues ?? null
   if (despues !== null && despues.length !== expresiones.length) {
-    return fallo('La clave de la última fila no cuadra con la del paginado.', null, null)
+    return fallo(txSqlRejilla().claveUltimaFila, null, null)
   }
   const ocultas = expresiones.map((e, i) => `${e} AS ${citar(PREFIJO_COLUMNA_CLAVE + (i + 1))}`).join(', ')
   const rowid = columnaRowid !== null ? `, ${columnaRowid} AS ${citar(COLUMNA_ROWID)}` : ''
@@ -346,10 +348,10 @@ function consultaPaginada(
   const n = p.n
   const desde = p.desde ?? 0
   if (!enteroNoNegativo(n) || n < 1 || !enteroNoNegativo(desde) || !Number.isSafeInteger(desde + n)) {
-    return fallo('Paginado inválido: `n` debe ser un entero ≥ 1 y `desde` un entero ≥ 0.', null, null)
+    return fallo(txSqlRejilla().paginadoNDesde, null, null)
   }
   // ROWNUM enlaza por nombre; las otras dos, por posición.
-  if (forma === 'rownum' ? c.valores.length > 0 : c.nombrados !== null) return fallo(MENSAJE_BINDS_NO_CASAN, null, null)
+  if (forma === 'rownum' ? c.valores.length > 0 : c.nombrados !== null) return fallo(mensajeBindsNoCasan(), null, null)
   switch (forma) {
     case 'rownum':
       return paginaRownum(cabecera, c, n, desde)

@@ -48,12 +48,8 @@ export interface EstadoSesion {
   accounts: AgentAccount[] | null
 }
 
-/** Estado de la interfaz del pane: buscador, miniaturas, menús y diálogos. */
+/** Estado de la interfaz del pane: miniaturas, menús y diálogos. */
 export interface EstadoUi {
-  searchOpen: boolean
-  setSearchOpen: Set<boolean>
-  searchResults: { index: number; count: number } | null
-  setSearchResults: Set<{ index: number; count: number } | null>
   imagePreviews: PastedImagePreview[]
   setImagePreviews: Set<PastedImagePreview[]>
   ctxMenu: { x: number; y: number; hasSelection: boolean } | null
@@ -93,8 +89,6 @@ export function useEstadoSesion(): EstadoSesion {
 
 /** Estado de la interfaz del pane. */
 export function useEstadoUi(): EstadoUi {
-  const [searchOpen, setSearchOpen] = useState(false)
-  const [searchResults, setSearchResults] = useState<{ index: number; count: number } | null>(null)
   const [imagePreviews, setImagePreviews] = useState<PastedImagePreview[]>([])
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; hasSelection: boolean } | null>(null)
   const [accountMenu, setAccountMenu] = useState<{ x: number; y: number } | null>(null)
@@ -103,7 +97,7 @@ export function useEstadoUi(): EstadoUi {
   const [showHistory, setShowHistory] = useState(false)
   const [showAgentsUpdate, setShowAgentsUpdate] = useState(false)
   return {
-    searchOpen, setSearchOpen, searchResults, setSearchResults, imagePreviews, setImagePreviews,
+    imagePreviews, setImagePreviews,
     ctxMenu, setCtxMenu, accountMenu, setAccountMenu, addingAccount, setAddingAccount,
     confirm, setConfirm, showHistory, setShowHistory, showAgentsUpdate, setShowAgentsUpdate
   }

@@ -5,6 +5,7 @@
 // Decisiones: docs/decisiones/bd/secretos-sin-llavero-en-linux.md
 // =============================================================================
 import type { Plataforma } from '../../../shared/plataforma.ts'
+import { txAdaptadores } from './textosAdaptadores.ts'
 
 /**
  * Los backends de `safeStorage.getSelectedStorageBackend()` que NO protegen: `basic_text`
@@ -30,8 +31,5 @@ export function cifradoProtege(plataforma: Plataforma, disponible: boolean, back
  */
 export function remedioSinAlmacen(plataforma: Plataforma): string {
   if (plataforma !== 'linux') return ''
-  return (
-    ' Instala y desbloquea GNOME Keyring o KWallet y vuelve a abrir Tessera; si tu escritorio no ' +
-    'es GNOME ni KDE, ábrela con --password-store=gnome-libsecret.'
-  )
+  return txAdaptadores().remedioSinAlmacen
 }

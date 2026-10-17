@@ -13,6 +13,7 @@ import { idDbPane, paneKeyDb } from './dbTabsModel'
 import { aliasParaConfirmar, avisoRevertidas, mensajeDeError, nombresDeRefs, opcionesTxArbol } from './filasArbolBd'
 import { solicitarCierreConsola } from './registroConsolas'
 import type { CtxArbol } from './DbArbolTipos'
+import { txArbolAcciones } from './textosArbolAcciones.ts'
 
 /**
  * La respuesta de un invoke que lanzó, con la forma de un fallo del canal. `never`
@@ -28,13 +29,13 @@ export function avisoError(a: CtxArbol, texto: string): void {
 
 export function copiar(a: CtxArbol, texto: string | null): void {
   if (!texto) return
-  void window.tessera.clipboard.write(texto).catch((err: unknown) => avisoError(a, `No se pudo copiar: ${mensajeDeError(err)}`))
+  void window.tessera.clipboard.write(texto).catch((err: unknown) => avisoError(a, txArbolAcciones().noSePudoCopiar(mensajeDeError(err))))
 }
 
 export function refrescar(a: CtxArbol, conexionId: string, esquema?: string, base?: string): void {
   // La base solo viaja si la hay: sin ella, la llamada de siempre.
   void (base === undefined ? a.dbx.refrescar(conexionId, esquema) : a.dbx.refrescar(conexionId, esquema, base))
-    .catch((err: unknown) => avisoError(a, `No se pudo refrescar: ${mensajeDeError(err)}`))
+    .catch((err: unknown) => avisoError(a, txArbolAcciones().noSePudoRefrescar(mensajeDeError(err))))
 }
 
 export function refrescarCabecera(a: CtxArbol): void {
@@ -47,8 +48,9 @@ export function refrescarCabecera(a: CtxArbol): void {
 export async function probar(a: CtxArbol, c: DbConnection): Promise<void> {
   const { setProbando, setAviso, setDialogo } = a.e
   if (a.e.probando) return
+  const t = txArbolAcciones()
   setProbando(c.id)
-  setAviso({ tono: 'info', texto: `Probando ${c.alias}…` })
+  setAviso({ tono: 'info', texto: t.probandoAlias(c.alias) })
   try {
     const r = await window.tessera.db.test(c.id)
     const detalle = [r.servidor, r.ms !== undefined ? `${r.ms} ms` : null].filter(Boolean).join(' · ')
@@ -59,7 +61,7 @@ export async function probar(a: CtxArbol, c: DbConnection): Promise<void> {
       detalle: detalle || undefined,
       accion: requiere
         ? {
-            etiqueta: 'Instalar cliente…',
+            etiqueta: t.instalarCliente,
             hacer: () => setDialogo({ conexionId: c.id, abrirClientes: true, requiereDriver: requiere })
           }
         : undefined
@@ -73,13 +75,14 @@ export async function probar(a: CtxArbol, c: DbConnection): Promise<void> {
 
 export async function desconectar(a: CtxArbol, c: DbConnection, resolver?: DbResolverTx): Promise<void> {
   const { consolas, sesiones } = a.p
+  const t = txArbolAcciones()
   const r = await a.dbx.desconectar(c.id, resolver).catch(respuestaDeError)
   if (r.ok) {
     // En bloque, «Confirmar» revierte las fallidas: se dice cuáles, para que nadie
     // las dé por confirmadas. Con `rollback` el main no lista nada (era lo pedido).
     // El `?.` es a propósito: un main anterior respondía `void`.
     const aviso = avisoRevertidas(c.alias, r.valor?.revertidasFallidas ?? [], consolas)
-    if (aviso) notify('info', 'Transacciones fallidas revertidas', aviso)
+    if (aviso) notify('info', t.txFallidasRevertidas, aviso)
     return
   }
   if (r.error.motivo === 'txPendiente' && resolver === undefined) {
@@ -87,20 +90,15 @@ export async function desconectar(a: CtxArbol, c: DbConnection, resolver?: DbRes
     const nombres = nombresDeRefs(refs, consolas)
     const opciones = opcionesTxArbol(refs, sesiones, true)
     a.e.setPeticionTx({
-      titulo: 'Transacciones sin confirmar',
-      mensaje:
-        // En producción el alias lo dice: aquí «Confirmar» es un COMMIT.
-        `${aliasParaConfirmar(c)} tiene cambios sin confirmar` +
-        (nombres.length > 0 ? ` en ${nombres.join(', ')}` : '') +
-        (opciones.confirmar === null
-          ? '. Para desconectar hay que revertirlos.'
-          : '. Para desconectar hay que confirmarlos o revertirlos.'),
+      titulo: t.txSinConfirmar,
+      // En producción el alias lo dice: aquí «Confirmar» es un COMMIT.
+      mensaje: t.desconectarConCambios(aliasParaConfirmar(c), nombres, opciones.confirmar === null),
       opciones,
       onResolver: (res) => void desconectar(a, c, res)
     })
     return
   }
-  avisoError(a, `No se pudo desconectar ${c.alias}: ${r.error.mensaje}`)
+  avisoError(a, t.noSePudoDesconectar(c.alias, r.error.mensaje))
 }
 
 /**
@@ -120,7 +118,7 @@ export async function eliminarPorId(
     if (olvidarEnPerfilTrasBorrar(r)) a.p.onConexionEliminada(c.id, c.profileId)
     a.p.onConsolasCambiaron()
   } catch (err) {
-    avisoError(a, `No se pudo eliminar ${c.alias}: ${mensajeDeError(err)}`)
+    avisoError(a, txArbolAcciones().noSePudoEliminarAlias(c.alias, mensajeDeError(err)))
   }
 }
 
@@ -143,14 +141,14 @@ export async function eliminarConsola(a: CtxArbol, k: DbConsolaInfo, resolver?: 
     // (la rechaza), así que aquí solo caben dos mitades, con o sin Confirmar.
     const refs = r.error.txPendientes ?? [{ rol: 'consola' as const, perfilId, consolaId: k.id }]
     a.e.setPeticionTx({
-      titulo: 'Transacción sin confirmar',
-      mensaje: `«${k.nombre}» tiene cambios sin confirmar. Elige qué hacer con ellos antes de eliminarla.`,
+      titulo: txArbolAcciones().txConsolaSinConfirmar,
+      mensaje: txArbolAcciones().consolaConCambios(k.nombre),
       opciones: opcionesTxArbol(refs, a.p.sesiones, false),
       onResolver: (res) => void eliminarConsola(a, k, res)
     })
     return
   }
-  avisoError(a, `No se pudo eliminar «${k.nombre}»: ${r.error.mensaje}`)
+  avisoError(a, txArbolAcciones().noSePudoEliminarConsola(k.nombre, r.error.mensaje))
 }
 
 export async function renombrarConsola(a: CtxArbol, k: DbConsolaInfo, nombre: string): Promise<void> {

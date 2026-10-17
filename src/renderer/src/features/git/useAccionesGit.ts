@@ -2,14 +2,17 @@
 // Acciones de git sobre archivos desde la ventana: descartar, preparar, quitar de
 // preparados e ignorar, sueltas y en lote. Un éxito sube los ticks; descartar
 // además cierra o recarga las pestañas afectadas. Un lote: un tick y un aviso.
+// Cada juego de acciones es de UN proyecto (`raiz`): el main las corre en sus repos aunque el
+// ancla ya esté en otro (`GitService.paraRaiz`).
 // =============================================================================
 import { useCallback } from 'react'
 import { notifyError } from '../../comun/notifications'
 import { isDiffEditable } from './modelo/diffEditability'
 import { bumpWorktree } from './store'
+import { txGit } from './textos.ts'
 import { subirTokens, useStoreEditor, type EditorApp } from '../editor'
 
-/** Acciones de git que pasan a GitPanel y al explorador. */
+/** Acciones de git de un proyecto que pasan a GitPanel y al explorador. */
 export interface AccionesGit {
   discardChangesForPath: (path: string) => Promise<void>
   stageForPath: (path: string) => Promise<void>
@@ -20,6 +23,9 @@ export interface AccionesGit {
   ignorarPaths: (paths: string[], local: boolean) => Promise<void>
 }
 
+/** Las acciones de git del proyecto `raiz`; quien las use las memoriza por su raíz. */
+export type AccionesGitDe = (raiz: string) => AccionesGit
+
 type Editor = Pick<EditorApp, 'editorTabs' | 'activeEditorKey' | 'paneKey' | 'closeEditorTab'>
 
 /** Aviso ÚNICO para los fallos de un lote («No se pudieron preparar 2 de 10»). */
@@ -29,8 +35,9 @@ function avisarFallos(titulo: string, fallos: readonly { path: string; error?: s
     .slice(0, 5)
     .map((f) => `${f.path}${f.error ? `: ${f.error}` : ''}`)
     .join('\n')
-  const resto = fallos.length > 5 ? `\n…y ${fallos.length - 5} más` : ''
-  notifyError(`${titulo} (${fallos.length} de ${total})`, `${detalle}${resto}`)
+  const t = txGit()
+  const resto = fallos.length > 5 ? `\n${t.masFallos(fallos.length - 5)}` : ''
+  notifyError(t.fallosLote(titulo, fallos.length, total), `${detalle}${resto}`)
 }
 
 /** Recarga en UNA actualización las pestañas (archivo y diff editable) de las rutas dadas. */
@@ -54,142 +61,132 @@ function useRecargarPestanas(editor: Editor): (rutas: ReadonlySet<string>) => vo
   )
 }
 
-/** Acciones de un archivo suelto: descartar, preparar y quitar de preparados. */
-function useAccionesSueltas(
-  editor: Editor,
+/** Lo que necesitan las acciones de fuera: cerrar pestañas y recargar las afectadas. */
+interface Efectos {
+  cerrar: (id: string) => void
   recargar: (rutas: ReadonlySet<string>) => void
-): Pick<AccionesGit, 'discardChangesForPath' | 'stageForPath' | 'unstageForPath'> {
-  const { closeEditorTab } = editor
-  const discardChangesForPath = useCallback(
-    async (path: string): Promise<void> => {
-      try {
-        const result = await window.tessera.git.discardChanges(path)
-        if (!result.ok) {
-          // Sin `error` es que el usuario canceló la confirmación: no hay nada que avisar.
-          if (result.error) {
-            console.error('[app] discard falló:', result.error)
-            notifyError('No se pudieron descartar los cambios', result.error)
-          }
-          return
-        }
-        bumpWorktree()
-        // Borrado del disco: fuera su pestaña y la de su diff del árbol de trabajo.
-        if (result.wasUntracked) {
-          closeEditorTab(path)
-          closeEditorTab(`diff:WORKTREE:${path}`)
-          return
-        }
-        recargar(new Set([path]))
-      } catch (err) {
-        console.error('[app] discard falló:', err)
-        notifyError('No se pudieron descartar los cambios', err)
+}
+
+/** Descarta un archivo; lo irrecuperable lo confirma el main. */
+async function descartar(raiz: string, path: string, ef: Efectos): Promise<void> {
+  try {
+    const result = await window.tessera.git.discardChanges(raiz, path)
+    if (!result.ok) {
+      // Sin `error` es que el usuario canceló la confirmación: no hay nada que avisar.
+      if (result.error) {
+        console.error('[app] discard falló:', result.error)
+        notifyError(txGit().noSePudieronDescartar, result.error)
       }
-    },
-    [closeEditorTab, recargar]
-  )
-  const stageForPath = useCallback(async (path: string): Promise<void> => {
-    try {
-      const result = await window.tessera.git.stageFile(path)
-      if (!result.ok) {
-        console.error('[app] stage falló:', result.error)
-        notifyError('No se pudo preparar el archivo (git add)', result.error)
-        return
-      }
-      bumpWorktree()
-    } catch (err) {
-      console.error('[app] stage falló:', err)
-      notifyError('No se pudo preparar el archivo (git add)', err)
+      return
     }
-  }, [])
-  const unstageForPath = useCallback(async (path: string): Promise<void> => {
-    try {
-      const result = await window.tessera.git.unstageFile(path)
-      if (!result.ok) {
-        console.error('[app] unstage falló:', result.error)
-        notifyError('No se pudo quitar del área de preparación (git reset)', result.error)
-        return
-      }
-      bumpWorktree()
-    } catch (err) {
-      console.error('[app] unstage falló:', err)
-      notifyError('No se pudo quitar del área de preparación (git reset)', err)
+    bumpWorktree()
+    // Borrado del disco: fuera su pestaña y la de su diff del árbol de trabajo.
+    if (result.wasUntracked) {
+      ef.cerrar(path)
+      ef.cerrar(`diff:WORKTREE:${path}`)
+      return
     }
-  }, [])
-  return { discardChangesForPath, stageForPath, unstageForPath }
+    ef.recargar(new Set([path]))
+  } catch (err) {
+    console.error('[app] discard falló:', err)
+    notifyError(txGit().noSePudieronDescartar, err)
+  }
+}
+
+/** Prepara o quita de preparados un archivo. */
+async function prepararUno(raiz: string, path: string, preparar: boolean): Promise<void> {
+  const t = txGit()
+  const titulo = preparar ? t.noSePudoPreparar : t.noSePudoQuitar
+  try {
+    const result = preparar ? await window.tessera.git.stageFile(raiz, path) : await window.tessera.git.unstageFile(raiz, path)
+    if (!result.ok) {
+      console.error(preparar ? '[app] stage falló:' : '[app] unstage falló:', result.error)
+      notifyError(titulo, result.error)
+      return
+    }
+    bumpWorktree()
+  } catch (err) {
+    console.error(preparar ? '[app] stage falló:' : '[app] unstage falló:', err)
+    notifyError(titulo, err)
+  }
 }
 
 /** Preparar y quitar de preparados en lote. */
-async function prepararLote(paths: string[], preparar: boolean): Promise<void> {
+async function prepararLote(raiz: string, paths: string[], preparar: boolean): Promise<void> {
   if (paths.length === 0) return
+  const t = txGit()
   try {
-    const res = preparar ? await window.tessera.git.stageFiles(paths) : await window.tessera.git.unstageFiles(paths)
+    const res = preparar ? await window.tessera.git.stageFiles(raiz, paths) : await window.tessera.git.unstageFiles(raiz, paths)
     avisarFallos(
-      preparar ? 'No se pudieron preparar algunos archivos' : 'No se pudieron quitar de preparados algunos archivos',
+      preparar ? t.algunosNoPreparados : t.algunosNoQuitados,
       res.filter((r) => !r.ok),
       paths.length
     )
     bumpWorktree()
   } catch (err) {
     console.error(preparar ? '[app] stage en lote falló:' : '[app] unstage en lote falló:', err)
-    notifyError(
-      preparar ? 'No se pudieron preparar los archivos (git add)' : 'No se pudieron quitar del área de preparación',
-      err
-    )
+    notifyError(preparar ? t.noSePudieronPreparar : t.noSePudieronQuitar, err)
+  }
+}
+
+/** Descarta varios archivos con UNA confirmación. */
+async function descartarLote(raiz: string, paths: string[], ef: Efectos): Promise<void> {
+  if (paths.length === 0) return
+  try {
+    const res = await window.tessera.git.discardChangesMany(raiz, paths)
+    // Cierres agrupados antes de tocar los tokens.
+    for (const r of res) {
+      if (r.estado !== 'borrado') continue
+      ef.cerrar(r.path)
+      ef.cerrar(`diff:WORKTREE:${r.path}`)
+    }
+    ef.recargar(new Set(res.filter((r) => r.estado === 'revertido').map((r) => r.path)))
+    // 'cancelado' no es un error: el usuario dijo que no.
+    avisarFallos(txGit().algunosNoDescartados, res.filter((r) => r.estado === 'error'), paths.length)
+    bumpWorktree()
+  } catch (err) {
+    console.error('[app] descarte en lote falló:', err)
+    notifyError(txGit().noSePudieronDescartar, err)
   }
 }
 
 /** Excluir de git: `.gitignore` (se commitea) o `.git/info/exclude` (local); la carpeta la decide el main. */
-async function ignorarPaths(paths: string[], local: boolean): Promise<void> {
+async function ignorar(raiz: string, paths: string[], local: boolean): Promise<void> {
   if (paths.length === 0) return
+  const t = txGit()
   try {
     const res = local
-      ? await window.tessera.git.ignorarEnExcludeLocal(paths)
-      : await window.tessera.git.ignorarEnGitignore(paths)
+      ? await window.tessera.git.ignorarEnExcludeLocal(raiz, paths)
+      : await window.tessera.git.ignorarEnGitignore(raiz, paths)
     if (res.error) {
-      notifyError('No se pudo escribir el archivo de exclusiones', res.error)
+      notifyError(t.noSePudoEscribirExclusiones, res.error)
     } else if (res.omitidos.length > 0) {
-      notifyError(
-        'Algunos archivos no se pudieron ignorar',
-        `${res.ignorados.length} ignorados · ${res.omitidos.length} omitidos, git ya los rastrea.\n` +
-          'Para dejar de seguirlos habría que sacarlos del repositorio, y eso el resto del equipo lo vería como un borrado.'
-      )
+      notifyError(t.algunosNoIgnorados, t.resumenIgnorados(res.ignorados.length, res.omitidos.length))
     }
     bumpWorktree()
   } catch (err) {
     console.error('[app] ignorar falló:', err)
-    notifyError('No se pudo escribir el archivo de exclusiones', err)
+    notifyError(t.noSePudoEscribirExclusiones, err)
   }
 }
 
-const stageManyPaths = (paths: string[]): Promise<void> => prepararLote(paths, true)
-const unstageManyPaths = (paths: string[]): Promise<void> => prepararLote(paths, false)
-
-/** Acciones de git de la ventana. */
-export function useAccionesGit(editor: Editor): AccionesGit {
-  const recargarPestanasDe = useRecargarPestanas(editor)
-  const sueltas = useAccionesSueltas(editor, recargarPestanasDe)
-  const { closeEditorTab } = editor
-  const discardManyPaths = useCallback(
-    async (paths: string[]): Promise<void> => {
-      if (paths.length === 0) return
-      try {
-        const res = await window.tessera.git.discardChangesMany(paths)
-        // Cierres agrupados antes de tocar los tokens.
-        for (const r of res) {
-          if (r.estado !== 'borrado') continue
-          closeEditorTab(r.path)
-          closeEditorTab(`diff:WORKTREE:${r.path}`)
-        }
-        recargarPestanasDe(new Set(res.filter((r) => r.estado === 'revertido').map((r) => r.path)))
-        // 'cancelado' no es un error: el usuario dijo que no.
-        avisarFallos('No se pudieron descartar algunos archivos', res.filter((r) => r.estado === 'error'), paths.length)
-        bumpWorktree()
-      } catch (err) {
-        console.error('[app] descarte en lote falló:', err)
-        notifyError('No se pudieron descartar los cambios', err)
+/** Las acciones de git de la ventana, por proyecto. */
+export function useAccionesGit(editor: Editor): AccionesGitDe {
+  const recargar = useRecargarPestanas(editor)
+  const { closeEditorTab: cerrar } = editor
+  return useCallback(
+    (raiz: string): AccionesGit => {
+      const ef: Efectos = { cerrar, recargar }
+      return {
+        discardChangesForPath: (path) => descartar(raiz, path, ef),
+        stageForPath: (path) => prepararUno(raiz, path, true),
+        unstageForPath: (path) => prepararUno(raiz, path, false),
+        stageManyPaths: (paths) => prepararLote(raiz, paths, true),
+        unstageManyPaths: (paths) => prepararLote(raiz, paths, false),
+        discardManyPaths: (paths) => descartarLote(raiz, paths, ef),
+        ignorarPaths: (paths, local) => ignorar(raiz, paths, local)
       }
     },
-    [closeEditorTab, recargarPestanasDe]
+    [cerrar, recargar]
   )
-  return { ...sueltas, stageManyPaths, unstageManyPaths, discardManyPaths, ignorarPaths }
 }

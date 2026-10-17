@@ -2,7 +2,8 @@
 // «Abrir con Tessera» en Linux, parte PURA: el contenido del `tessera.desktop` (con la ruta del
 // ejecutable escapada según la especificación Desktop Entry), dónde vive según `XDG_DATA_HOME`,
 // la disponibilidad con la plataforma como parámetro, instalar, borrar, leer a qué ejecutable
-// apunta y refrescar la caché con `update-desktop-database`. No importa `electron`: lo que sabe
+// apunta y refrescar las cachés; con la entrada va el tipo `application/x-tessera` de las copias de
+// la configuración (su XML en `mime/packages/`). No importa `electron`: lo que sabe
 // Electron entra desde `EscritorioLinuxService`, y `test-escritorio-linux.mts` lo fija.
 // Decisiones: docs/decisiones/sistema/abrir-con-en-linux.md
 // =============================================================================
@@ -11,6 +12,7 @@ import { copyFile, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promis
 import { execFile } from 'node:child_process'
 import { plataformaActual, type Plataforma } from '../../shared/plataforma'
 import type { DisponibilidadEscritorioLinux } from '../../shared/escritorio-linux-ipc'
+import { txShell } from './textos.ts'
 
 /** El nombre del archivo; coincide con el `app.setDesktopName` del arranque (ver el ADR). */
 export const ARCHIVO_DESKTOP = 'tessera.desktop'
@@ -26,6 +28,12 @@ export const CLASE_VENTANA = 'Tessera'
 
 /** El programa que refresca la caché de tipos MIME de las aplicaciones. */
 export const ACTUALIZAR_BASE = 'update-desktop-database'
+
+/** El programa que recompila la base de tipos MIME del usuario a partir de `mime/packages/`. */
+export const ACTUALIZAR_MIME = 'update-mime-database'
+
+/** El tipo de las copias de la configuración (`.tessera`). Solo lo declara Tessera. */
+export const MIME_COPIA = 'application/x-tessera'
 
 /** Lo que el entorno dice de dónde viven los datos del usuario. */
 export interface EntornoDatos {
@@ -51,6 +59,48 @@ export function rutaDesktop(datos: string): string {
 
 export function rutaIcono(datos: string): string {
   return `${datos}/icons/hicolor/512x512/apps/tessera.png`
+}
+
+/** Nombre del icono del tipo: el que se deriva de `application/x-tessera` por convención. */
+export const ICONO_DOCUMENTO = 'application-x-tessera'
+
+/** El icono de los `.tessera` (una hoja con la marca), por el nombre que el tipo declara. */
+export function rutaIconoDocumento(datos: string): string {
+  return `${datos}/icons/hicolor/512x512/mimetypes/${ICONO_DOCUMENTO}.png`
+}
+
+/** El PNG del documento viaja en los recursos junto al de la marca. */
+export function origenIconoDocumento(iconoOrigen: string): string {
+  return `${iconoOrigen.slice(0, Math.max(iconoOrigen.lastIndexOf('/'), iconoOrigen.lastIndexOf('\\')) + 1)}tessera-documento.png`
+}
+
+export function carpetaMime(datos: string): string {
+  return `${datos}/mime`
+}
+
+/** La definición del tipo `.tessera`; el nombre del archivo es nuestro, como el del `.desktop`. */
+export function rutaPaqueteMime(datos: string): string {
+  return `${carpetaMime(datos)}/packages/tessera.xml`
+}
+
+/**
+ * La definición del tipo de las copias, por su extensión. Su icono es el de documento (una hoja con
+ * la marca), que se copia con el `.desktop`; si falta, el escritorio pone uno genérico. No hereda de
+ * JSON a propósito: el archivo va cifrado y ofrecerlo a un editor de texto no sirve de nada.
+ */
+export function contenidoMime(): string {
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">',
+    `  <mime-type type="${MIME_COPIA}">`,
+    '    <comment>Tessera configuration</comment>',
+    '    <comment xml:lang="es">Configuración de Tessera</comment>',
+    `    <icon name="${ICONO_DOCUMENTO}"/>`,
+    '    <glob pattern="*.tessera"/>',
+    '  </mime-type>',
+    '</mime-info>',
+    ''
+  ].join('\n')
 }
 
 /**
@@ -124,7 +174,7 @@ export function contenidoDesktop(ejecutable: string, icono: string, fijada: stri
     `Icon=${escaparValor(icono)}`,
     'Terminal=false',
     'Categories=Development;IDE;',
-    'MimeType=inode/directory;',
+    `MimeType=inode/directory;${MIME_COPIA};`,
     `StartupWMClass=${CLASE_VENTANA}`,
     `${CLAVE_PROPIA}=true`,
     ...(fijada !== null ? [`${CLAVE_FIJADA}=${fijada}`] : []),
@@ -185,27 +235,34 @@ export async function instalarDesktop(
   ejecutable: string,
   iconoOrigen: string,
   fijada: string | null = null
-): Promise<{ fallos: FalloEscritorio[]; iconoCopiado: boolean }> {
+): Promise<{ fallos: FalloEscritorio[]; iconoCopiado: boolean; mimeEscrito: boolean }> {
   const previo = await leerDesktopInstalado(datos)
   if (previo !== null && !esDesktopPropio(previo)) {
     return {
       fallos: [
         {
-          operacion: 'escribir la entrada',
-          detalle: `ya existe ${rutaDesktop(datos)} y no lo creó Tessera; no se sustituye`
+          operacion: txShell().linux.escribirEntrada,
+          detalle: txShell().linux.yaExiste(rutaDesktop(datos))
         }
       ],
-      iconoCopiado: false
+      iconoCopiado: false,
+      mimeEscrito: false
     }
   }
   const icono = rutaIcono(datos)
   const contenido = contenidoDesktop(ejecutable, icono, fijada)
   if (contenido === null) {
     return {
-      fallos: [{ operacion: 'escribir la entrada', detalle: 'la ruta de Tessera no se puede citar' }],
-      iconoCopiado: false
+      fallos: [{ operacion: txShell().linux.escribirEntrada, detalle: txShell().linux.noSeCita }],
+      iconoCopiado: false,
+      mimeEscrito: false
     }
   }
+  // El tipo `.tessera`, como el icono, no es la operación: sin él las carpetas se abren igual.
+  const mimeEscrito = await escribirAparte(rutaPaqueteMime(datos), contenidoMime()).then(
+    () => true,
+    () => false
+  )
   let iconoCopiado = true
   try {
     await mkdir(icono.slice(0, icono.lastIndexOf('/')), { recursive: true })
@@ -213,17 +270,35 @@ export async function instalarDesktop(
   } catch {
     iconoCopiado = false
   }
+  // El del documento es del tipo, no de la entrada: sin él los `.tessera` llevan un icono genérico.
+  const documento = rutaIconoDocumento(datos)
+  await mkdir(documento.slice(0, documento.lastIndexOf('/')), { recursive: true })
+    .then(() => copyFile(origenIconoDocumento(iconoOrigen), documento))
+    .catch(() => undefined)
   const fallos: FalloEscritorio[] = []
   try {
-    await mkdir(carpetaAplicaciones(datos), { recursive: true })
-    // Escribir aparte y renombrar: el lanzador vigila la carpeta y leería uno a medias.
-    const tmp = `${rutaDesktop(datos)}.tmp`
-    await writeFile(tmp, contenido, { encoding: 'utf8', mode: 0o644 })
-    await rename(tmp, rutaDesktop(datos))
+    await escribirAparte(rutaDesktop(datos), contenido)
   } catch (e) {
-    fallos.push({ operacion: 'escribir la entrada', detalle: detalleDe(e) })
+    fallos.push({ operacion: txShell().linux.escribirEntrada, detalle: detalleDe(e) })
   }
-  return { fallos, iconoCopiado }
+  return { fallos, iconoCopiado, mimeEscrito }
+}
+
+/** Escribe aparte y renombra: el lanzador vigila la carpeta y leería un archivo a medias. */
+async function escribirAparte(ruta: string, contenido: string): Promise<void> {
+  await mkdir(ruta.slice(0, ruta.lastIndexOf('/')), { recursive: true })
+  const tmp = `${ruta}.tmp`
+  await writeFile(tmp, contenido, { encoding: 'utf8', mode: 0o644 })
+  await rename(tmp, ruta)
+}
+
+/** ¿Está instalada la definición del tipo `.tessera` tal como la escribe esta versión? */
+export async function mimeAlDia(datos: string): Promise<boolean> {
+  try {
+    return (await readFile(rutaPaqueteMime(datos), 'utf8')) === contenidoMime()
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -237,20 +312,25 @@ export async function desinstalarDesktop(datos: string): Promise<FalloEscritorio
   try {
     await rm(rutaDesktop(datos), { force: true })
   } catch (e) {
-    fallos.push({ operacion: 'borrar la entrada', detalle: detalleDe(e) })
+    fallos.push({ operacion: txShell().linux.borrarEntrada, detalle: detalleDe(e) })
     return fallos
   }
   await rm(rutaIcono(datos), { force: true }).catch(() => undefined)
+  await rm(rutaIconoDocumento(datos), { force: true }).catch(() => undefined)
+  await rm(rutaPaqueteMime(datos), { force: true }).catch(() => undefined)
   return fallos
 }
 
 /**
- * Refresca la caché de `mimeinfo.cache` para que el «Abrir con» de carpetas vea el cambio ya.
- * Si el programa no está, o falla, no se propaga: la entrada ya está escrita (o borrada) y los
- * escritorios que no usan la caché leen la carpeta directamente.
+ * Refresca la caché de `mimeinfo.cache` para que el «Abrir con» vea el cambio ya, y recompila la
+ * base de tipos del usuario para que el sistema reconozca los `.tessera`. Si un programa no está, o
+ * falla, no se propaga: lo escrito ya está, y sin la caché algunos escritorios lo leen directamente.
  */
 export async function refrescarBaseEscritorio(datos: string): Promise<void> {
-  await new Promise<void>((resolve) => {
-    execFile(ACTUALIZAR_BASE, [carpetaAplicaciones(datos)], { timeout: 10_000 }, () => resolve())
-  })
+  const correr = (programa: string, carpeta: string): Promise<void> =>
+    new Promise<void>((resolve) => {
+      execFile(programa, [carpeta], { timeout: 10_000 }, () => resolve())
+    })
+  await correr(ACTUALIZAR_MIME, carpetaMime(datos))
+  await correr(ACTUALIZAR_BASE, carpetaAplicaciones(datos))
 }

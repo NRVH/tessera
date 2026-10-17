@@ -16,6 +16,7 @@ import {
 import { join } from 'node:path'
 import { esMac } from '../../shared/plataforma'
 import { ARGUMENTO_ALPHA, esVersionAlpha } from '../../shared/salud'
+import { ARGUMENTO_IDIOMA, idiomaActual } from '../../shared/i18n'
 import { loadWorkspaceSettings } from '../workspace/workspaceStateStore'
 import { logUpdate } from '../update/logUpdate'
 import { atenderSegundaInstanciaPendiente, esArranqueTrasActualizar, traerAlFrente } from './instanciaUnica'
@@ -118,8 +119,11 @@ function opcionesDeVentana(inicio: Rectangle): BrowserWindowConstructorOptions {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
-      // El renderer no tiene `process`: la versión alpha le llega por el preload.
-      additionalArguments: esVersionAlpha(app.getVersion()) ? [ARGUMENTO_ALPHA] : []
+      // El renderer no tiene `process`: la versión alpha y el idioma le llegan por el preload.
+      additionalArguments: [
+        `${ARGUMENTO_IDIOMA}${idiomaActual()}`,
+        ...(esVersionAlpha(app.getVersion()) ? [ARGUMENTO_ALPHA] : [])
+      ]
     }
   }
 }

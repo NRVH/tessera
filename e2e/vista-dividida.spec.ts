@@ -73,7 +73,7 @@ test.describe('vista dividida de un Markdown', () => {
       w.setSize(1500, 950)
     })
     const win = s.win
-    await win.locator('.sidebar .tree-row', { hasText: 'GUIA.md' }).first().click({ timeout: 30_000 })
+    await win.locator('.sidebar .tree-row:visible', { hasText: 'GUIA.md' }).first().click({ timeout: 30_000 })
     await expect(win.locator('.editor-tab.active', { hasText: 'GUIA.md' })).toHaveCount(1)
     await win.getByRole('radio', { name: 'Editor y vista previa' }).click()
     await expect(win.locator('.editor-cuerpo.dividida > .markdown-preview')).toBeVisible()

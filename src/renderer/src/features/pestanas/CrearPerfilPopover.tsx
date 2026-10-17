@@ -7,6 +7,7 @@
 import { useEffect } from 'react'
 import { pegarRecortado } from '../../util/pasteTrim'
 import { PaletaColorPerfil } from './SelectorColorPerfil'
+import { txPestanas } from './textos.ts'
 
 /** Cierra el popover con Escape o con cualquier mousedown (el propio popover lo detiene). */
 function useCierrePopover(onCancel: () => void): void {
@@ -47,6 +48,7 @@ export function CrearPerfilPopover({
   onCancel: () => void
 }): React.JSX.Element {
   useCierrePopover(onCancel)
+  const t = txPestanas().perfil
 
   return (
     <div
@@ -54,11 +56,11 @@ export function CrearPerfilPopover({
       style={{ top: y, left: x }}
       onMouseDown={(e) => e.stopPropagation()}
     >
-      <div className="profile-create-title">Nuevo perfil</div>
+      <div className="profile-create-title">{t.nuevo}</div>
       <input
         className="profile-create-name"
         autoFocus
-        placeholder="Nombre del perfil"
+        placeholder={t.nombrePlaceholder}
         value={name}
         onChange={(e) => onName(e.target.value)}
         onPaste={pegarRecortado(onName)}
@@ -69,10 +71,10 @@ export function CrearPerfilPopover({
       <PaletaColorPerfil color={color} onElegir={onColor} />
       <div className="profile-create-actions">
         <button className="btn" onClick={onCancel}>
-          Cancelar
+          {t.cancelar}
         </button>
         <button className="btn primary" onClick={onSubmit} disabled={name.trim() === ''}>
-          Crear
+          {t.crear}
         </button>
       </div>
     </div>

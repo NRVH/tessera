@@ -8,9 +8,11 @@
 
 import type { ReactNode } from 'react'
 import { ChevronArbol } from '../../comun/iconosArbol'
+import { EsperaCarga } from '../../comun/IndicadorCarga'
 import { IconoBd, IconoMotor } from './iconosBd'
 import { MarcaEntorno } from './MarcaEntorno'
-import { TITULO_SOLO_LECTURA_AGENTES } from './camposConexion'
+import { tituloSoloLecturaAgentes } from './camposConexion'
+import { txArbolFilas } from './textosArbolFilas.ts'
 import type { InsigniaEsquemas } from './arbolBd'
 import { avisoSecreto, esContenedorArbol, estadoSesionConexion, motorAjeno, textoAjena, type FilaArbol } from './filasArbolBd'
 import { abrirPopover, accionDeFilaError, anclaDe, cargarMasClaves, ejecutarAccionError, idInsignia, idInsigniaBase } from './DbArbolNavegacion'
@@ -65,8 +67,8 @@ function insigniaConexion(fila: FilaDe<'conexion'>, ins: InsigniaEsquemas, a: Ct
       className="db-insignia-esquemas"
       tabIndex={-1}
       // Con nivel «Bases», la insignia cuenta BASES.
-      title={`${fila.nivelBases ? 'Bases' : 'Esquemas'} visibles: ${ins.n} de ${ins.m}. Pulsa para elegirl${fila.nivelBases ? 'as' : 'os'}.`}
-      aria-label={`${fila.nivelBases ? 'Bases' : 'Esquemas'} visibles: ${ins.n} de ${ins.m}`}
+      title={txArbolFilas().insigniaTitulo(fila.nivelBases === true, ins.n, ins.m)}
+      aria-label={txArbolFilas().insigniaAria(fila.nivelBases === true, ins.n, ins.m)}
       // El foco se queda en la LISTA (la enfoca su propio mousedown): si se lo
       // quedara el botón, al cerrar el popover volvería a él y no al árbol.
       onMouseDown={(e) => e.preventDefault()}
@@ -77,7 +79,7 @@ function insigniaConexion(fila: FilaDe<'conexion'>, ins: InsigniaEsquemas, a: Ct
       }}
       onDoubleClick={(e) => e.stopPropagation()}
     >
-      {ins.n} de {ins.m}
+      {txArbolFilas().nDeM(ins.n, ins.m)}
     </button>
   )
 }
@@ -87,6 +89,7 @@ function contenidoConexion(fila: FilaDe<'conexion'>, chevron: ReactNode, a: CtxA
   const estado = estadoSesionConexion(a.p.sesiones, c.id)
   const avisoPass = avisoSecreto(c, a.almacen)
   const ins = fila.insignia
+  const t = txArbolFilas()
   return (
     <>
       {/* La franja del ENTORNO, pegada al borde izquierdo de la fila (su sitio lo pone
@@ -98,18 +101,18 @@ function contenidoConexion(fila: FilaDe<'conexion'>, chevron: ReactNode, a: CtxA
         {estado && (
           <span
             className={`db-sesion-punto ${estado}`}
-            title={estado === 'conectada' ? 'Conectada' : estado === 'conectando' ? 'Conectando…' : 'Sesión perdida'}
+            title={estado === 'conectada' ? t.conectada : estado === 'conectando' ? t.conectando : t.sesionPerdida}
           />
         )}
       </span>
       <span className="tree-label db-fila-nombre db-conexion-alias">{marcar(c.alias, fila.coincidencia)}</span>
       {estado && (
         <span className="solo-lectores">
-          {estado === 'conectada' ? ', conectada' : estado === 'conectando' ? ', conectando' : ', sesión perdida'}
+          {estado === 'conectada' ? t.srConectada : estado === 'conectando' ? t.srConectando : t.srSesionPerdida}
         </span>
       )}
       {c.readonly && (
-        <span className="db-chip-ro" title={TITULO_SOLO_LECTURA_AGENTES}>
+        <span className="db-chip-ro" title={tituloSoloLecturaAgentes()}>
           RO
         </span>
       )}
@@ -144,6 +147,7 @@ function contenidoAjena(fila: FilaDe<'ajena'>): ReactNode {
 /** Una base del nivel «Bases»: el cilindro, su nombre y el «N de M» de sus esquemas. */
 function contenidoBase(fila: FilaDe<'base'>, chevron: ReactNode, a: CtxArbol): ReactNode {
   const insB = fila.insignia
+  const t = txArbolFilas()
   return (
     <>
       {chevron}
@@ -151,16 +155,16 @@ function contenidoBase(fila: FilaDe<'base'>, chevron: ReactNode, a: CtxArbol): R
         <IconoBd />
       </span>
       <span className="tree-label db-fila-nombre">{marcar(fila.base, fila.coincidencia)}</span>
-      {fila.porDefecto && <span className="db-fila-meta">por defecto</span>}
-      {!fila.accesible && <span className="db-fila-meta">sin acceso</span>}
+      {fila.porDefecto && <span className="db-fila-meta">{t.porDefecto}</span>}
+      {!fila.accesible && <span className="db-fila-meta">{t.sinAcceso}</span>}
       {insB && insB.m > 0 && (
         <button
           type="button"
           id={idInsigniaBase(a, fila.conexionId, fila.base)}
           className="db-insignia-esquemas"
           tabIndex={-1}
-          title={`Esquemas visibles: ${insB.n} de ${insB.m}. Pulsa para elegirlos.`}
-          aria-label={`Esquemas visibles de ${fila.base}: ${insB.n} de ${insB.m}`}
+          title={t.insigniaBaseTitulo(insB.n, insB.m)}
+          aria-label={t.insigniaBaseAria(fila.base, insB.n, insB.m)}
           onMouseDown={(e) => e.preventDefault()}
           onClick={(e) => {
             e.stopPropagation()
@@ -169,7 +173,7 @@ function contenidoBase(fila: FilaDe<'base'>, chevron: ReactNode, a: CtxArbol): R
           }}
           onDoubleClick={(e) => e.stopPropagation()}
         >
-          {insB.n} de {insB.m}
+          {t.nDeM(insB.n, insB.m)}
         </button>
       )}
     </>
@@ -177,11 +181,23 @@ function contenidoBase(fila: FilaDe<'base'>, chevron: ReactNode, a: CtxArbol): R
 }
 
 function contenidoPlaceholder(fila: FilaDe<'placeholder'>, _chevron: ReactNode, a: CtxArbol): ReactNode {
+  if (fila.variante === 'loading') {
+    // Con la red o la VPN caídas, conectar se queda aquí 15-30 s: el aviso de que tarda lo dice.
+    return (
+      <EsperaCarga
+        sinAnuncio
+        variante="fila"
+        texto={fila.mensaje ?? ''}
+        motivo={txArbolFilas().motivoEspera}
+        className="tree-label"
+      />
+    )
+  }
   if (fila.variante !== 'error') return <span className="tree-label">{fila.mensaje ?? ''}</span>
   const acc = accionDeFilaError(a, fila)
   return (
     <>
-      <span className="tree-label db-fila-error-texto">{fila.mensaje ?? 'Error'}</span>
+      <span className="tree-label db-fila-error-texto">{fila.mensaje ?? txArbolFilas().error}</span>
       {acc && (
         <button
           type="button"

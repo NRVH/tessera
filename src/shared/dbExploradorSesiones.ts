@@ -7,6 +7,7 @@
 // =============================================================================
 
 import type { DbRefSesion } from './dbExploradorResultados.ts'
+import { crearTextos } from './i18n.ts'
 
 // --- Sesiones -----------------------------------------------------------------
 
@@ -50,8 +51,20 @@ export interface DbEstadoSesion {
 }
 
 /** Por qué una base de archivo no se puede editar: la MISMA frase en la barra de la consola y en la rejilla. */
-export const MOTIVO_CARPETA_SIN_ESCRITURA =
-  'La carpeta de la base no admite escritura, así que se abrió en solo lectura. Para editarla, cópiala a una carpeta donde se pueda escribir.'
+export function motivoCarpetaSinEscritura(): string {
+  return txSesiones().carpetaSinEscritura
+}
+
+const txSesiones = crearTextos(
+  {
+    carpetaSinEscritura:
+      'La carpeta de la base no admite escritura, así que se abrió en solo lectura. Para editarla, cópiala a una carpeta donde se pueda escribir.'
+  },
+  {
+    carpetaSinEscritura:
+      'The database folder is not writable, so it was opened read-only. To edit it, copy it to a folder where you can write.'
+  }
+)
 
 export interface DbEventoCatalogo {
   conexionId: string

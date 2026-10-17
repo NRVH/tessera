@@ -15,12 +15,10 @@ sentencia por línea.
 
 - Un contrato (`EscrituraSqlMotor`, en `tipos.ts`), un archivo por motor y un registro `ESCRITURA_SQL`
   que es un `Record<DbMotor, …>`: un motor nuevo no compila hasta traer los suyos.
-- Antes vivían en `formatosFilas.ts` tras un `switch (motor)` con `nunca`, y la vista previa de «Enviar»
-  colgaba de `barraTermina`, una bandera léxica («la `/` termina una sentencia») que decidía si se
-  enseñaba un `EXECUTE IMMEDIATE`. El `switch` avisaba, pero sumar un motor seguía siendo editar dos
-  módulos comunes; la bandera no avisaba de nada y un motor con esa `/` habría recibido la vista de otro.
-- `escrituraSql()` lanza con un motor que no está en el registro, con el mismo mensaje del `nunca` de
-  antes en cada sitio: nunca sigue con los literales de otro.
+- La vista previa de «Enviar» no cuelga de una bandera léxica («la `/` termina una sentencia»): esa
+  bandera no avisa de nada, y un motor con esa `/` recibiría la vista de otro. Tampoco hay un `switch
+  (motor)` en módulos comunes: sumar un motor sería editar dos de ellos.
+- `escrituraSql()` lanza con un motor que no está en el registro: nunca sigue con los literales de otro.
 - Ciclos: los archivos de cada motor no importan `index.ts`; lo que comparten con `formatosFilas.ts`
   está en la hoja `comun.ts` (solo `import type`). Si viviera en `formatosFilas.ts`, el de Oracle lo
   importaría de vuelta y cerraría un ciclo que compila y revienta al cargar.
@@ -30,6 +28,5 @@ sentencia por línea.
 
 ## Consecuencias
 
-Todo se mudó sin cambiar un byte de lo que produce, comprobado con un diferencial contra la versión
-anterior. Oracle: [escritura-sql-oracle-sqlplus.md](escritura-sql-oracle-sqlplus.md) y
+Oracle: [escritura-sql-oracle-sqlplus.md](escritura-sql-oracle-sqlplus.md) y
 [escritura-sql-oracle-binario-grande.md](escritura-sql-oracle-binario-grande.md).

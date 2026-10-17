@@ -7,6 +7,28 @@
 // =============================================================================
 
 import { DB_PAGINA_MAX, DB_PAGINA_POR_DEFECTO, type DbTxModo } from './db-explorador-ipc.ts'
+import { crearTextos } from './i18n.ts'
+
+const txAjustesBd = crearTextos(
+  {
+    ayudaTx:
+      'Con qué modo empieza la sesión de una consola. Vale también para las pestañas abiertas que aún no han ejecutado nada; ' +
+      'las que ya tienen sesión conservan su modo. En producción empiezan siempre en Manual.',
+    minutos: (n: number) => `${n} minutos`,
+    hora: (n: number) => `${n} hora`,
+    horas: (n: number) => `${n} horas`,
+    nunca: 'Nunca'
+  },
+  {
+    ayudaTx:
+      'The mode a console session starts with. It also applies to open tabs that have not run anything yet; ' +
+      'those that already have a session keep their mode. In production they always start in Manual.',
+    minutos: (n: number) => `${n} minutes`,
+    hora: (n: number) => `${n} hour`,
+    horas: (n: number) => `${n} hours`,
+    nunca: 'Never'
+  }
+)
 
 // --- Filas por página ------------------------------------------------------------
 
@@ -31,9 +53,9 @@ export function normalizarFilasPorPagina(v: unknown): number {
 export const DB_TX_INICIAL_POR_DEFECTO: DbTxModo = 'auto'
 
 /** La ayuda de la fila «Transacción al abrir»: dice a quién afecta un cambio. */
-export const AYUDA_TX_INICIAL =
-  'Con qué modo empieza la sesión de una consola. Vale también para las pestañas abiertas que aún no han ejecutado nada; ' +
-  'las que ya tienen sesión conservan su modo. En producción empiezan siempre en Manual.'
+export function ayudaTxInicial(): string {
+  return txAjustesBd().ayudaTx
+}
 
 /**
  * La preferencia de Tx que trae una PETICIÓN (`txInicial` de ejecutar, explicar, tx,
@@ -58,19 +80,26 @@ export const DB_INACTIVIDAD_NUNCA = 0
 /** Por defecto: 30 minutos. */
 export const DB_INACTIVIDAD_CONSOLA_MIN_POR_DEFECTO = 30
 
+/** Los minutos que ofrece el selector, en orden; «Nunca» al final. */
+const DB_INACTIVIDAD_CONSOLA_MINUTOS: readonly number[] = [15, 30, 60, 120, 240, DB_INACTIVIDAD_NUNCA]
+
 /** Lo que ofrece el selector, en minutos y en orden; «Nunca» al final. */
-export const DB_INACTIVIDAD_CONSOLA_OPCIONES: readonly { min: number; etiqueta: string }[] = [
-  { min: 15, etiqueta: '15 minutos' },
-  { min: 30, etiqueta: '30 minutos' },
-  { min: 60, etiqueta: '1 hora' },
-  { min: 120, etiqueta: '2 horas' },
-  { min: 240, etiqueta: '4 horas' },
-  { min: DB_INACTIVIDAD_NUNCA, etiqueta: 'Nunca' }
-]
+export function dbInactividadConsolaOpciones(): readonly { min: number; etiqueta: string }[] {
+  const t = txAjustesBd()
+  const etiquetas: Record<number, string> = {
+    15: t.minutos(15),
+    30: t.minutos(30),
+    60: t.hora(1),
+    120: t.horas(2),
+    240: t.horas(4),
+    [DB_INACTIVIDAD_NUNCA]: t.nunca
+  }
+  return DB_INACTIVIDAD_CONSOLA_MINUTOS.map((min) => ({ min, etiqueta: etiquetas[min] }))
+}
 
 /** Minutos SANEADOS: solo un valor de la lista (0 = Nunca); lo demás, 30. */
 export function normalizarInactividadConsolaMin(v: unknown): number {
-  return typeof v === 'number' && DB_INACTIVIDAD_CONSOLA_OPCIONES.some((o) => o.min === v)
+  return typeof v === 'number' && DB_INACTIVIDAD_CONSOLA_MINUTOS.includes(v)
     ? v
     : DB_INACTIVIDAD_CONSOLA_MIN_POR_DEFECTO
 }

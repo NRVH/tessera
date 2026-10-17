@@ -62,7 +62,7 @@ export function botonVista(win: Page, titulo: 'Archivos' | 'Conexiones a bases d
 /** Una fila del árbol por su tipo y su nombre EXACTO. */
 export function fila(win: Page, tipo: string, nombre: string): Locator {
   return win
-    .locator(`.db-arbol .db-fila-${tipo}`)
+    .locator(`.db-arbol:visible .db-fila-${tipo}`)
     .filter({ has: win.locator('.db-fila-nombre', { hasText: new RegExp(`^${nombre}$`) }) })
 }
 
@@ -76,7 +76,8 @@ export async function filaTras(win: Page, ancla: Locator, tipo: string, marca: s
       () =>
         ancla.first().evaluate(
           (el, a) => {
-            const filas = Array.from(document.querySelectorAll('.db-arbol .db-fila'))
+            // Las del árbol del ancla: los de otros perfiles siguen en el DOM, ocultos.
+            const filas = Array.from((el.closest('.db-arbol') ?? document).querySelectorAll('.db-fila'))
             const desde = filas.indexOf(el)
             if (desde < 0) return false
             const tipoAncla = el.getAttribute('data-tipo')

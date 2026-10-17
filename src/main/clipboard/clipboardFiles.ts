@@ -24,6 +24,7 @@ import {
 } from './portapapelesLinux'
 import { MAX_TEXTO_SONDEO, type ClipboardProbe } from '../../shared/clipboard-ipc'
 import type { PasteResult } from '../../shared/files-ipc'
+import { txMain } from '../textos.ts'
 
 const execFileAsync = promisify(execFile)
 
@@ -534,7 +535,7 @@ export async function pasteFromClipboard(
 
   if (probe.kind === 'files') {
     const { paths, effect } = await readClipboardFiles(pp)
-    if (paths.length === 0) throw new Error('No se pudo leer lo que hay en el portapapeles.')
+    if (paths.length === 0) throw new Error(txMain().portapapeles.noSeLeyo)
     const op = effect === 'cut' ? 'cortar' : 'copiar'
     const res = await pegar({ destDir, hostPaths: paths, op })
     // Tras un CORTAR, Windows espera que el destino avise al origen por OLE
@@ -549,9 +550,9 @@ export async function pasteFromClipboard(
 
   if (probe.kind === 'image') {
     const tmp = await saveClipboardImageToTemp(pp, 'tessera_pegar')
-    if (tmp === null) throw new Error('No se pudo leer la imagen del portapapeles.')
+    if (tmp === null) throw new Error(txMain().portapapeles.noSeLeyoImagen)
     return pegar({ destDir, hostPaths: [tmp], op: 'copiar', nombre: 'imagen.png' })
   }
 
-  throw new Error('No hay archivos ni imágenes en el portapapeles.')
+  throw new Error(txMain().portapapeles.vacio)
 }

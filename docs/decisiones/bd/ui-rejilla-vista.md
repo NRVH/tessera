@@ -14,7 +14,7 @@ El modelo (ventana, anchos, texto) está en [ui-rejilla-modelo-pintado.md](ui-re
 - El DUEÑO pide páginas, cuenta, reordena y hace lo que necesita al servidor (exportar, traer todas,
   valor completo); sin su función, la entrada no aparece. La rejilla avisa (`onCargarMas`, `onOrdenar`).
 - Capas: raíz `role=grid` con UN punto de tabulación (`aria-activedescendant`), un solo scroll en X e
-  Y, cabecera `sticky` y filas con `translateY` con el número `sticky` DENTRO (medido: un `transform`
+  Y, cabecera `sticky` y filas con `translateY` con el número `sticky` DENTRO (un `transform`
   rompe el `fixed` de los descendientes, no el `sticky`). Menú y visor van por PORTAL sobre `<body>`:
   ni `transform`, `filter`, `contain` ni `container-type` en la raíz o sus ancestros.
 - React repinta solo si cambia el rango visible (el scroll se lee en un rAF) y las filas son `memo`.

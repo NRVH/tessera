@@ -2,7 +2,7 @@
 // Los hooks de lectura de la pestaña de clave: pedir la clave y sus páginas con un
 // `peticionId` que Stop puede cancelar, vigilar el ciclo de vida (indicadores, cancelar al
 // cerrar, «Detener» en el cuerpo si tarda) y la cuenta atrás del TTL. Los usa `DbClavePane`.
-// Decisiones: docs/decisiones/bd/ui-claves-pestana.md
+// Decisiones: docs/decisiones/bd/ui-claves-visor.md
 // =============================================================================
 
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -12,6 +12,7 @@ import type { IndicadorPestana } from '../dbTabsModel'
 import { describirError, errorDeInvoke } from '../panesBd'
 import { notify } from '../../../comun/notifications'
 import { nuevaPeticion } from '../documentos/utilPanes'
+import { txVisorClaves } from './textosVisorClaves'
 import { ELEMENTOS_POR_PAGINA, acumularValor, siguienteDe, ttlRestante } from './visorClaves'
 
 /** Tras cuánto se ofrece «Detener» también en el cuerpo (en la barra está siempre). */
@@ -105,7 +106,7 @@ export function useLecturaClave(conexionId: string, base: number, bytesClave: Db
     masRef.current = null
     setCargandoMas(false)
     if (!r.ok) {
-      if (r.error.motivo !== 'cancelada') notify('error', 'No se pudieron leer más elementos', describirError(r.error, 'leer la clave').detalle)
+      if (r.error.motivo !== 'cancelada') notify('error', txVisorClaves().noSePudieronLeerMas,describirError(r.error, 'leer la clave').detalle)
       return
     }
     setValor((prev) => (prev ? acumularValor(prev, r.valor) : r.valor))

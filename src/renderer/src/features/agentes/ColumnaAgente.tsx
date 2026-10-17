@@ -22,6 +22,7 @@ import { useStoreBd, type EspaciosDatos, type MontajesBd } from '../bd'
 import { useStoreAjustes } from '../ajustes'
 import { ampliarCasilla, enfocarCasilla, setDisposicionMosaico, useStoreMosaico, type MosaicoApp } from '../mosaico'
 import type { ActividadAgentes } from './useActividadAgentes'
+import { txPane } from './textosPane.ts'
 
 interface Props {
   tabs: UseTabs
@@ -40,7 +41,7 @@ interface Props {
 }
 
 /** Lo que el mosaico pinta en la columna; null fuera del mosaico. */
-function usePanelMosaico(p: Pick<Props, 'mosaico' | 'actividad' | 'modo' | 'espacios'>): MosaicoPanel | null {
+function usePanelMosaico(p: Pick<Props, 'mosaico' | 'actividad' | 'modo' | 'agentes'>): MosaicoPanel | null {
   const m = useStoreMosaico(
     useShallow((s) => ({
       activo: s.mosaicoActivo,
@@ -65,7 +66,8 @@ function usePanelMosaico(p: Pick<Props, 'mosaico' | 'actividad' | 'modo' | 'espa
     onElegirDestino: p.mosaico.elegirDestinoCasilla,
     onAbrirProyecto: p.mosaico.abrirProyectoEnCasilla,
     onCambiarModo: p.modo.toggleWindowsMode,
-    modoBloqueado: p.espacios.esEspacioDeDatos,
+    // Ni el espacio de datos ni el agente de la terminal cambian de modo: viven en nativo.
+    modoBloqueado: (ruta) => p.agentes.propios.lugarDe(ruta) !== 'proyecto',
     onEnfocar: enfocarCasilla,
     onAmpliar: ampliarCasilla,
     onIrAlProyecto: p.mosaico.irAlProyectoDesdeMosaico,
@@ -83,14 +85,15 @@ function DivisorAgente({
 }): React.JSX.Element | null {
   const ccWidth = useStoreLayout((s) => s.ccWidth)
   if (divisor === null) return null
+  const t = txPane().columna
   const porDivisor = {
-    editor: { size: ccWidth, max: tamanos.ccMax, onResize: fijadoresLayout.ccWidth, label: 'Redimensionar Claude Code' },
-    db: { size: tamanos.dbAgenteWidthVisible, max: tamanos.ccMaxDb, onResize: fijadoresLayout.dbAgenteWidth, label: 'Redimensionar el agente' },
+    editor: { size: ccWidth, max: tamanos.ccMax, onResize: fijadoresLayout.ccWidth, label: t.redimensionarCc },
+    db: { size: tamanos.dbAgenteWidthVisible, max: tamanos.ccMaxDb, onResize: fijadoresLayout.dbAgenteWidth, label: t.redimensionarAgente },
     terminal: {
       size: tamanos.agenteTerminalAnchoVisible,
       max: tamanos.ccMaxTerminal,
       onResize: fijadoresLayout.agenteTerminalAncho,
-      label: 'Redimensionar el agente de la terminal'
+      label: t.redimensionarTerminal
     }
   }[divisor]
   // `splitter-agente`: el CSS del agente de la terminal lo deja a la vista y aparta a sus hermanos.

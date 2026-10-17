@@ -14,6 +14,8 @@ import { nombresSistema } from '../../../../shared/nombresSistema'
 import { SSH_ALIAS_MAX, type SshGrupo, type SshMetodo } from '../../../../shared/ssh-ipc'
 import { METODOS_OFRECIDOS, type BorradorSsh, type CampoSsh } from './borradorSsh'
 import { IconoArchivoClave, IconoClavesSistema, IconoContrasena, IconoImportar } from './iconosSsh'
+import { txSsh } from './textos.ts'
+import { txFormularioSsh } from './textosFormulario.ts'
 
 type Editar = (parcial: Partial<BorradorSsh>) => void
 
@@ -33,43 +35,45 @@ export function CabeceraConexionSsh({
   /** Solo en un alta: «Importar desde OpenSSH…», que cierra el formulario. Con algo escrito no se ofrece: se perdería. */
   importar?: { onImportar: () => void; conCambios: boolean; ocupado: boolean; leyendo: boolean }
 }): React.JSX.Element {
+  const t = txFormularioSsh()
   return (
     <div className="dbc-cabecera">
       <div className="ssh-cabecera-titulo">
         <div id={idTitulo} className="modal-title">
-          {esEdicion ? 'Editar conexión SSH' : 'Nueva conexión SSH'}
+          {esEdicion ? t.editarConexion : t.nuevaConexion}
         </div>
         {!esEdicion && importar && (
           <button
             type="button"
             className="btn ssh-importar-boton"
             disabled={importar.ocupado || importar.conCambios}
-            title={importar.conCambios ? 'Vacía el formulario para importar: lo escrito se perdería' : 'Importa las conexiones de un archivo de configuración de OpenSSH'}
+            title={importar.conCambios ? t.importarConCambios : t.importarSinCambios}
             onClick={importar.onImportar}
           >
             <IconoImportar />
-            {importar.leyendo ? 'Leyendo…' : 'Importar desde OpenSSH…'}
+            {importar.leyendo ? t.leyendo : t.importarBoton}
           </button>
         )}
       </div>
-      {!esEdicion && <p className="dbc-ayuda">Se guarda en este perfil y se abre en una pestaña de la terminal.</p>}
+      {!esEdicion && <p className="dbc-ayuda">{t.ayudaAlta}</p>}
     </div>
   )
 }
 
 /** El nombre de la conexión: es solo del usuario y da nombre a la pestaña. */
 export function CampoNombreSsh({ borrador, marcados, editar }: { borrador: BorradorSsh; marcados: readonly CampoSsh[]; editar: Editar }): React.JSX.Element {
+  const t = txFormularioSsh()
   return (
     <label className="dbc-campo">
       <span className="dbc-etiqueta">
-        Nombre <span className="dbc-ayuda-inline">(el de la pestaña)</span>
+        {t.nombre} <span className="dbc-ayuda-inline">{t.nombrePestana}</span>
       </span>
       <input
         data-campo="alias"
         aria-invalid={invalido(marcados, 'alias')}
         value={borrador.alias}
         maxLength={SSH_ALIAS_MAX}
-        placeholder="Cómo quieres llamarla"
+        placeholder={t.nombrePlaceholder}
         spellCheck={false}
         autoComplete="off"
         onChange={(e) => editar({ alias: e.target.value })}
@@ -91,12 +95,13 @@ export function CampoGrupoSsh({
   editar: Editar
   onNuevoGrupo: () => void
 }): React.JSX.Element {
+  const t = txFormularioSsh()
   return (
     <div className="dbc-fila ssh-fila-grupo-campo">
       <label className="dbc-campo dbc-crece">
-        <span className="dbc-etiqueta">Grupo</span>
+        <span className="dbc-etiqueta">{t.grupo}</span>
         <select data-campo="grupo" value={borrador.grupoId ?? ''} onChange={(e) => editar({ grupoId: e.target.value === '' ? null : e.target.value })}>
-          <option value="">Sin grupo</option>
+          <option value="">{txSsh().sinGrupo}</option>
           {grupos.map((g) => (
             <option key={g.id} value={g.id}>
               {g.nombre}
@@ -104,7 +109,7 @@ export function CampoGrupoSsh({
           ))}
         </select>
       </label>
-      <button type="button" className="btn btn-icon ssh-grupo-nuevo" onClick={onNuevoGrupo} title="Nuevo grupo…" aria-label="Nuevo grupo…">
+      <button type="button" className="btn btn-icon ssh-grupo-nuevo" onClick={onNuevoGrupo} title={t.nuevoGrupo} aria-label={t.nuevoGrupo}>
         <IconoCarpetaNueva />
       </button>
     </div>
@@ -113,15 +118,16 @@ export function CampoGrupoSsh({
 
 /** Host y puerto, en una fila (el puerto, estrecho). */
 export function FilaHostPuertoSsh({ borrador, marcados, editar }: { borrador: BorradorSsh; marcados: readonly CampoSsh[]; editar: Editar }): React.JSX.Element {
+  const t = txFormularioSsh()
   return (
     <div className="dbc-fila">
       <label className="dbc-campo dbc-crece">
-        <span className="dbc-etiqueta">Host</span>
+        <span className="dbc-etiqueta">{t.host}</span>
         <input
           data-campo="host"
           aria-invalid={invalido(marcados, 'host')}
           value={borrador.host}
-          placeholder="nombre del equipo o IP"
+          placeholder={t.hostPlaceholder}
           spellCheck={false}
           autoComplete="off"
           onChange={(e) => editar({ host: e.target.value })}
@@ -129,7 +135,7 @@ export function FilaHostPuertoSsh({ borrador, marcados, editar }: { borrador: Bo
         />
       </label>
       <label className="dbc-campo dbc-puerto">
-        <span className="dbc-etiqueta">Puerto</span>
+        <span className="dbc-etiqueta">{t.puerto}</span>
         <input
           data-campo="puerto"
           aria-invalid={invalido(marcados, 'puerto')}
@@ -149,7 +155,7 @@ export function FilaHostPuertoSsh({ borrador, marcados, editar }: { borrador: Bo
 export function CampoUsuarioSsh({ borrador, marcados, editar }: { borrador: BorradorSsh; marcados: readonly CampoSsh[]; editar: Editar }): React.JSX.Element {
   return (
     <label className="dbc-campo">
-      <span className="dbc-etiqueta">Usuario</span>
+      <span className="dbc-etiqueta">{txFormularioSsh().usuario}</span>
       <input
         data-campo="usuario"
         aria-invalid={invalido(marcados, 'usuario')}
@@ -164,17 +170,21 @@ export function CampoUsuarioSsh({ borrador, marcados, editar }: { borrador: Borr
 }
 
 /** Las opciones del conmutador; el orden lo da `METODOS_OFRECIDOS`. */
-export const OPCIONES_METODO: Record<SshMetodo, { etiqueta: string; icono: () => React.JSX.Element }> = {
-  contrasena: { etiqueta: 'Contraseña', icono: IconoContrasena },
-  clave: { etiqueta: 'Archivo de clave', icono: IconoArchivoClave },
-  sistema: { etiqueta: 'Claves del sistema', icono: IconoClavesSistema }
+export function opcionesMetodo(): Record<SshMetodo, { etiqueta: string; icono: () => React.JSX.Element }> {
+  const metodos = txSsh().metodos
+  return {
+    contrasena: { etiqueta: metodos.contrasena, icono: IconoContrasena },
+    clave: { etiqueta: metodos.clave, icono: IconoArchivoClave },
+    sistema: { etiqueta: metodos.sistema, icono: IconoClavesSistema }
+  }
 }
 
 /** La ayuda de cada método; la de las claves nombra lo que hay detrás en el sistema de quien la lee. */
 export function ayudaDeMetodo(metodo: SshMetodo): string {
-  if (metodo === 'contrasena') return 'Tessera puede guardarla cifrada y darla sola al conectar.'
-  if (metodo === 'sistema') return `Usa ${nombresSistema(window.tessera.plataforma).agenteClavesSsh} y las claves de tu carpeta .ssh`
-  return 'Tessera guarda una copia protegida de la clave; el archivo original no se toca.'
+  const t = txFormularioSsh()
+  if (metodo === 'contrasena') return t.ayudaContrasena
+  if (metodo === 'sistema') return t.ayudaSistema(nombresSistema(window.tessera.plataforma).agenteClavesSsh)
+  return t.ayudaClave
 }
 
 /** La autenticación: radios nativos con aspecto de conmutador, y la ayuda de lo elegido. */
@@ -191,13 +201,14 @@ export function SelectorMetodoSsh({
   idAyuda: string
   editar: Editar
 }): React.JSX.Element {
+  const opciones = opcionesMetodo()
   return (
     <>
       <fieldset className={`dbc-entorno ssh-autenticacion${invalido(marcados, 'metodo') ? ' invalido' : ''}`} aria-describedby={idAyuda}>
-        <legend className="dbc-etiqueta">Autenticación</legend>
+        <legend className="dbc-etiqueta">{txFormularioSsh().autenticacion}</legend>
         <div className="dbc-entorno-opciones">
           {METODOS_OFRECIDOS.map((m, i) => {
-            const o = OPCIONES_METODO[m]
+            const o = opciones[m]
             return (
               <label key={m} className="dbc-entorno-opcion">
                 <input
@@ -229,6 +240,7 @@ export function SelectorMetodoSsh({
  * (un contrato que cumple `tssh`, no un cerrojo: ver el ADR de `tssh`).
  */
 export function CasillaAgentesSsh({ borrador, idAyuda, editar }: { borrador: BorradorSsh; idAyuda: string; editar: Editar }): React.JSX.Element {
+  const t = txFormularioSsh()
   return (
     <div className="ssh-agentes">
       <label className="ssh-casilla">
@@ -239,12 +251,10 @@ export function CasillaAgentesSsh({ borrador, idAyuda, editar }: { borrador: Bor
           aria-describedby={idAyuda}
           onChange={(e) => editar({ disponibleAgentes: e.target.checked })}
         />
-        Disponible para los agentes
+        {t.disponibleAgentes}
       </label>
       <p id={idAyuda} className="dbc-ayuda">
-        {borrador.disponibleAgentes
-          ? 'Los agentes del perfil pueden usarla con tssh, sin ver la contraseña.'
-          : 'Los agentes no la ven: tssh no la lista ni conecta con ella.'}
+        {borrador.disponibleAgentes ? t.agentesSi : t.agentesNo}
       </p>
     </div>
   )
@@ -267,17 +277,18 @@ export function PieConexionSsh({
   onProbar: () => void
   onCerrar: () => void
 }): React.JSX.Element {
+  const t = txFormularioSsh()
   return (
     <div className="modal-actions dbc-acciones">
       <button type="button" className="btn" disabled={guardando || probando} onClick={onProbar}>
-        {probando ? 'Probando…' : etiquetaProbar}
+        {probando ? t.probando : etiquetaProbar}
       </button>
       <span className="dbc-hueco" />
       <button type="button" className="btn btn-ghost" onClick={onCerrar} disabled={guardando}>
-        Cancelar
+        {t.cancelar}
       </button>
       <button type="submit" className="btn primary" disabled={guardando}>
-        {guardando ? 'Guardando…' : 'Guardar'}
+        {guardando ? t.guardando : t.guardar}
       </button>
     </div>
   )

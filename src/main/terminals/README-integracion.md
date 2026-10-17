@@ -81,7 +81,10 @@ la instancia del pty por debajo.
 de dentro, desmonta y verifica). No se usa el cierre "elegante" de
 `TerminalController.disposeAll()` (Ctrl-C/exit por sesión, lento y frágil): `rm -f` es completo
 y rápido. `disposeAll()` sigue disponible para la hibernación por perfil. Antes de Docker, en
-todo cierre, `forceKillPtys()` cierra los ptys nativos con el proceso aún entero (etapa
-`cerrar-ptys` de `app/cierre.ts`).
+todo cierre, `matarPtysConArbol()` mata el árbol de cada pty nativo y después el pty, con tope y
+con el proceso aún entero (etapa `cerrar-ptys` de `app/cierre.ts`); después, `ptys-sueltos`
+remata todo pty del registro de `adaptadores/pty.ts` cuya raíz siga viva, también los que ya no
+tenía ninguna sesión.
 
-Se prueba con `test:terminal` y `test:onexit`; las sesiones SSH, con `test:sesion-ssh`.
+Se prueba con `test:terminal` y `test:onexit`; las sesiones SSH, con `test:sesion-ssh`; el registro
+de ptys y su remate, con `test:registro-ptys`.

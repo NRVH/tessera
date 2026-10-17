@@ -32,6 +32,7 @@ import { zonaEn } from './rejillaEventos'
 import { contiene, filaCompleta, rango } from './seleccionRejilla'
 import { motivoSinTraerTodas } from './traerTodas'
 import type { Rejilla } from './rejillaTipos'
+import { txRejilla } from './textosRejilla.ts'
 
 /** Dónde sale el menú abierto con teclado: junto a la celda activa, dentro de la caja. */
 function puntoDeTeclado(r: Rejilla, el: HTMLDivElement): { x: number; y: number } {
@@ -99,7 +100,7 @@ export function useCerrarMenu(r: Rejilla): () => void {
 function itemsCopiarComo(r: Rejilla, sinSeleccion: boolean): ContextMenuEntry[] {
   return [
     // Título del paso: fila apagada (no enfocable).
-    { label: 'Copiar como', onClick: () => undefined, disabled: true },
+    { label: txRejilla().copiarComo, onClick: () => undefined, disabled: true },
     ...FORMATOS_COPIAR_COMO.map(
       (f): ContextMenuEntry => ({ label: NOMBRE_FORMATO[f], icon: <IconoFormato formato={f} />, onClick: () => copiar(r, f), disabled: sinSeleccion })
     )
@@ -109,7 +110,7 @@ function itemsCopiarComo(r: Rejilla, sinSeleccion: boolean): ContextMenuEntry[] 
 function itemsExportar(r: Rejilla): ContextMenuEntry[] {
   const { onExportar, exportando = null } = r.props
   return [
-    { label: 'Exportar a archivo', onClick: () => undefined, disabled: true },
+    { label: txRejilla().exportarArchivoMenu, onClick: () => undefined, disabled: true },
     ...FORMATOS_EXPORTAR.map(
       (f: DbFormatoFilas): ContextMenuEntry => ({
         label: `${NOMBRE_FORMATO[f]}…`,
@@ -122,9 +123,10 @@ function itemsExportar(r: Rejilla): ContextMenuEntry[] {
 }
 
 function itemsVerYCopiar(r: Rejilla, sinSeleccion: boolean): ContextMenuEntry[] {
+  const t = txRejilla()
   return [
     {
-      label: 'Ver valor',
+      label: t.verValor,
       icon: <IconoVerValor />,
       onClick: () => {
         if (r.sel) abrirVisor(r, r.sel.foco)
@@ -132,10 +134,10 @@ function itemsVerYCopiar(r: Rejilla, sinSeleccion: boolean): ContextMenuEntry[] 
       disabled: sinSeleccion
     },
     SEP,
-    { label: 'Copiar', icon: <IconoCopiar />, onClick: () => copiar(r, 'tsv'), disabled: sinSeleccion },
-    { label: 'Copiar con cabeceras', icon: <IconoCopiar />, onClick: () => copiar(r, 'tsvCabecera'), disabled: sinSeleccion },
+    { label: t.copiar, icon: <IconoCopiar />, onClick: () => copiar(r, 'tsv'), disabled: sinSeleccion },
+    { label: t.copiarConCabeceras, icon: <IconoCopiar />, onClick: () => copiar(r, 'tsvCabecera'), disabled: sinSeleccion },
     {
-      label: 'Copiar como…',
+      label: t.copiarComoEtc,
       icon: <IconoCopiar />,
       onClick: () => {
         r.pasoPendienteRef.current = 'copiarComo'
@@ -151,7 +153,7 @@ function itemsServidor(r: Rejilla): ContextMenuEntry[] {
   if (onExportar || onTraerTodas) items.push(SEP)
   if (onExportar) {
     items.push({
-      label: 'Exportar a archivo…',
+      label: txRejilla().exportarArchivoEtc,
       icon: <IconoExportar />,
       onClick: () => {
         r.pasoPendienteRef.current = 'exportar'
@@ -167,7 +169,7 @@ function itemsServidor(r: Rejilla): ContextMenuEntry[] {
       trayendo: trayendoTodas,
       sinLector: sinLector ?? null
     })
-    items.push({ label: 'Traer todas las filas', icon: <IconoTraerTodas />, onClick: onTraerTodas, disabled: motivoTraer !== null })
+    items.push({ label: txRejilla().traerTodasFilas, icon: <IconoTraerTodas />, onClick: onTraerTodas, disabled: motivoTraer !== null })
   }
   return items
 }
@@ -177,12 +179,13 @@ function itemsEdicion(r: Rejilla, sinSeleccion: boolean): ContextMenuEntry[] {
   const { sel } = r
   const rg = rango(sel)
   const refs = rg ? refsDelRango(r, rg) : []
-  const motivoFoco = sel ? motivoEn(r, sel.foco) : 'Selecciona una celda'
+  const t = txRejilla()
+  const motivoFoco = sel ? motivoEn(r, sel.foco) : t.seleccionaCelda
   const nFilas = refs.length
   return [
     SEP,
     {
-      label: 'Editar celda',
+      label: t.editarCelda,
       icon: <IconoEditar />,
       onClick: () => {
         if (!sel) return
@@ -192,7 +195,7 @@ function itemsEdicion(r: Rejilla, sinSeleccion: boolean): ContextMenuEntry[] {
       disabled: sinSeleccion || motivoFoco !== null
     },
     {
-      label: 'Poner NULL',
+      label: t.ponerNull,
       icon: <IconoNulo />,
       onClick: () => {
         if (rg) ponerNulo(r, rg)
@@ -200,15 +203,15 @@ function itemsEdicion(r: Rejilla, sinSeleccion: boolean): ContextMenuEntry[] {
       disabled: sinSeleccion
     },
     {
-      label: 'Revertir selección',
+      label: t.revertirSeleccion,
       icon: <IconoRevertir />,
       onClick: () => revertirSeleccion(r),
       disabled: !rg || !hayCambiosEnRango(r.cambios, refs, rg.c0, rg.c1, r.numCols)
     },
     SEP,
-    { label: 'Añadir fila', icon: <IconoAnadirFila />, onClick: () => anadir(r) },
+    { label: t.anadirFila, icon: <IconoAnadirFila />, onClick: () => anadir(r) },
     {
-      label: nFilas > 1 ? `Borrar ${formatoEntero(nFilas)} filas` : 'Borrar fila',
+      label: nFilas > 1 ? t.borrarNFilasMenu(formatoEntero(nFilas)) : t.borrarFila,
       icon: <IconoBorrarFilas />,
       onClick: () => borrarSeleccion(r),
       disabled: nFilas === 0

@@ -12,14 +12,14 @@ import { useDialogo } from '../../comun/useDialogo'
 import { filtrarActividad, resultadoActividad, textoDuracion, textoUso } from './actividadSsh'
 import { mensajeDeErrorSsh } from './erroresSsh'
 import { accionesSsh } from './store'
+import { txSsh } from './textos.ts'
+import { localeActual } from '../../../../shared/i18n.ts'
 import './conexionesSsh.css'
-
-const FECHA = new Intl.DateTimeFormat('es-ES', { dateStyle: 'short', timeStyle: 'medium' })
 
 /** La fecha ISO del registro, en la hora local; tal cual si no se puede leer. */
 function textoFecha(iso: string): string {
   const d = new Date(iso)
-  return Number.isNaN(d.getTime()) ? iso : FECHA.format(d)
+  return Number.isNaN(d.getTime()) ? iso : new Intl.DateTimeFormat(localeActual(), { dateStyle: 'short', timeStyle: 'medium' }).format(d)
 }
 
 type Carga = { estado: 'cargando' } | { estado: 'lista'; datos: SshActividadPerfil } | { estado: 'error'; mensaje: string }
@@ -39,21 +39,22 @@ function useActividad(perfilId: string): { carga: Carga; actualizar: () => void 
 
 /** La tabla, o por qué no hay filas. */
 function TablaActividad({ carga, filtro, exacto }: { carga: Carga; filtro: string; exacto: boolean }): React.JSX.Element {
-  if (carga.estado === 'cargando') return <p className="dbc-ayuda">Cargando…</p>
+  const t = txSsh()
+  if (carga.estado === 'cargando') return <p className="dbc-ayuda">{t.actividadCargando}</p>
   if (carga.estado === 'error') return <p className="ssh-actividad-vacia" role="alert">{carga.mensaje}</p>
   const filas = filtrarActividad(carga.datos.entradas, filtro, exacto)
-  if (carga.datos.entradas.length === 0) return <p className="ssh-actividad-vacia">Los agentes de este perfil aún no han usado ninguna conexión.</p>
-  if (filas.length === 0) return <p className="ssh-actividad-vacia">Ninguna conexión coincide con «{filtro}».</p>
+  if (carga.datos.entradas.length === 0) return <p className="ssh-actividad-vacia">{t.actividadVacia}</p>
+  if (filas.length === 0) return <p className="ssh-actividad-vacia">{t.actividadSinCoincidencias(filtro)}</p>
   return (
     <div className="ssh-actividad-tabla-caja">
       <table className="ssh-actividad-tabla">
         <thead>
           <tr>
-            <th scope="col">Cuándo</th>
-            <th scope="col">Conexión</th>
-            <th scope="col">Qué</th>
-            <th scope="col">Resultado</th>
-            <th scope="col" className="ssh-actividad-num">Duración</th>
+            <th scope="col">{t.colCuando}</th>
+            <th scope="col">{t.colConexion}</th>
+            <th scope="col">{t.colQue}</th>
+            <th scope="col">{t.colResultado}</th>
+            <th scope="col" className="ssh-actividad-num">{t.colDuracion}</th>
           </tr>
         </thead>
         <tbody>
@@ -73,7 +74,7 @@ function TablaActividad({ carga, filtro, exacto }: { carga: Carga; filtro: strin
           })}
         </tbody>
       </table>
-      {carga.datos.mas && <p className="dbc-ayuda">Se enseñan las {carga.datos.entradas.length} más recientes.</p>}
+      {carga.datos.mas && <p className="dbc-ayuda">{t.seEnsenanRecientes(carga.datos.entradas.length)}</p>}
     </div>
   )
 }
@@ -84,22 +85,23 @@ export function DialogoActividadSsh({ perfilId, alias }: { perfilId: string; ali
   const idTitulo = useId()
   const [filtro, setFiltro] = useState(alias)
   const { carga, actualizar } = useActividad(perfilId)
+  const t = txSsh()
   return (
     <div className="modal-overlay" role="presentation">
       <div ref={dialogo.ref} className="modal-card db-conexion-modal ssh-actividad-modal" role="dialog" aria-modal="true" aria-labelledby={idTitulo} onKeyDown={dialogo.alPulsarTecla}>
         <div className="dbc-form">
           <div className="dbc-cabecera">
             <div id={idTitulo} className="modal-title">
-              Actividad de los agentes por SSH
+              {t.actividadTitulo}
             </div>
-            <p className="dbc-ayuda">Lo que los agentes de este perfil hicieron con tssh, lo más reciente primero. No se guarda la orden ni las rutas.</p>
+            <p className="dbc-ayuda">{t.actividadAyuda}</p>
           </div>
           <div className="dbc-cuerpo">
             <input
               className="modal-input ssh-actividad-filtro"
               value={filtro}
-              placeholder="Filtrar por conexión…"
-              aria-label="Filtrar por conexión"
+              placeholder={t.filtrarPorConexion}
+              aria-label={t.filtrarPorConexionEtiqueta}
               spellCheck={false}
               autoComplete="off"
               onChange={(e) => setFiltro(e.target.value)}
@@ -109,10 +111,10 @@ export function DialogoActividadSsh({ perfilId, alias }: { perfilId: string; ali
           </div>
           <div className="modal-actions dbc-acciones">
             <button type="button" className="btn btn-ghost" onClick={actualizar}>
-              Actualizar
+              {t.actualizar}
             </button>
             <button type="button" className="btn primary" onClick={accionesSsh.cerrarDialogo}>
-              Cerrar
+              {t.cerrar}
             </button>
           </div>
         </div>

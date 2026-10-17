@@ -34,6 +34,7 @@ import type { ConexionTrabajador, OpcionesEjecucion } from '../protocoloTrabajad
 import { motorExplorador } from '../motores/index.ts'
 import type { EsperaPorArchivo } from '../motores/sesion.ts'
 import { ErrorGestor } from './errores.ts'
+import { txSesiones } from './textosSesiones.ts'
 import type { PaginaExportada, Sesion } from './tipos.ts'
 
 export const TIEMPOS_CERO: DbTiempos = { totalMs: 0, ejecucionMs: 0, lecturaMs: 0 }
@@ -114,7 +115,7 @@ export function sesionFueraDelCandado(candado: CandadoSoloLectura): boolean {
     // La lista blanca es de MongoDB y Redis, que no tienen sesión SQL: aquí
     // no llega (`exigirSql`). Si llegara, se dice en voz alta en vez de elegir un lado.
     case 'listaBlanca':
-      throw new ErrorGestor('interno', 'La lista blanca de solo lectura no es de una sesión SQL.')
+      throw new ErrorGestor('interno', txSesiones().listaBlancaNoSql)
     default:
       return nunca(candado, 'sesionFueraDelCandado')
   }
@@ -225,7 +226,7 @@ export function opcionesDeLecturaEnFlujo(
  * Server: un error de conversión, un interbloqueo, XACT_ABORT; `revertidaPorServidor`).
  */
 export function avisoRevertida(d: DialectoSql, r: { codigo?: string }): string {
-  return `${descriptor(d).etiqueta} revirtió la transacción${r.codigo ? ` (error ${r.codigo})` : ''}: los cambios sin confirmar se perdieron.`
+  return txSesiones().revirtioServidor(descriptor(d).etiqueta, r.codigo)
 }
 
 /**

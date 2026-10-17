@@ -2,7 +2,7 @@
 // El archivo de la consola SQL sobre el protocolo común (`useArchivoConsola`): sus avisos van
 // a la Salida, «ejecutando» es el lote, y el validador de avisos corre al cargar, al teclear
 // y cuando cambia el solo lectura de la conexión. Pieza de `useConsola`.
-// Decisiones: docs/decisiones/bd/ui-consola-motor.md
+// Decisiones: docs/decisiones/bd/ui-consola-estado.md
 // =============================================================================
 
 import { useCallback, useEffect } from 'react'

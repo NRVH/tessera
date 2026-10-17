@@ -1,7 +1,7 @@
 // =============================================================================
 // `tdb driver ls | install <id>`: los clientes de base de datos del catálogo y la descarga
 // de su ZIP a la carpeta de drivers. El Instant Client de Mac (un `.dmg`) lo instala Tessera.
-// Depende de `tdbContexto` (solo `ENV_DRIVERS`), `tdbSalida` y `zipPlano`; lo usa `tdb.cjs`.
+// Depende de `tdbContexto` (solo `ENV_DRIVERS`), `tdbSalida`, `zipPlano` y `textosTdb`; lo usa `tdb.cjs`.
 // =============================================================================
 'use strict'
 
@@ -10,6 +10,7 @@ const { existsSync, rmSync } = require('node:fs')
 const { ENV_DRIVERS } = require('./tdbContexto.cjs')
 const { fallar, pintarTabla } = require('./tdbSalida.cjs')
 const { enlacesDelZip, escribirPlano } = require('./zipPlano.cjs')
+const { textosTdb } = require('./textosTdb.cjs')
 
 /** La carpeta donde está instalado el pack (la externa registrada o la de Tessera), o `null`. */
 function rutaDePack(ctx, pack) {
@@ -17,6 +18,7 @@ function rutaDePack(ctx, pack) {
   return candidatas.find((r) => r && existsSync(path.join(r, pack.centinela))) || null
 }
 
+/** El `--json` lleva el estado fijo ('instalado' / 'no instalado'); el texto, en el idioma de la invocación. */
 function listarDrivers(ctx) {
   const filas = ctx.packs.map((p) => ({
     ID: p.id,
@@ -29,20 +31,25 @@ function listarDrivers(ctx) {
     console.log(JSON.stringify({ ok: true, drivers: filas }))
     return
   }
+  const t = textosTdb()
   console.log('')
-  pintarTabla(['ID', 'NOMBRE', 'MB', 'CUBRE', 'ESTADO'], filas)
+  pintarTabla(
+    t.columnasDrivers,
+    filas.map((f) => [f.ID, f.NOMBRE, f.MB, f.CUBRE, f.ESTADO === 'instalado' ? t.instalado : t.noInstalado])
+  )
   console.log('')
 }
 
 /** Baja el ZIP del pack y extrae sus archivos planos en `destino`; lanza si no llega el centinela. */
 async function bajarYDescomprimir(pack, destino) {
+  const t = textosTdb()
   const res = await fetch(pack.url, { redirect: 'follow' })
-  if (!res.ok) throw new Error(`el servidor respondió ${res.status} ${res.statusText}`)
+  if (!res.ok) throw new Error(t.servidorRespondio(res.status, res.statusText))
   const zip = new Uint8Array(await res.arrayBuffer())
   if (zip.length < 4 || zip[0] !== 0x50 || zip[1] !== 0x4b) {
-    throw new Error('lo descargado no es un ZIP')
+    throw new Error(t.noEsZip)
   }
-  console.log('  Descomprimiendo…')
+  console.log(t.descomprimiendo)
   const { unzip } = require('fflate')
   const archivos = await new Promise((resolve, reject) =>
     unzip(zip, (err, data) => (err ? reject(err) : resolve(data)))
@@ -50,45 +57,35 @@ async function bajarYDescomprimir(pack, destino) {
   // Solo Linux crea los enlaces: el ZIP de Windows no los trae y allí crearlos pide permisos.
   escribirPlano(destino, archivos, enlacesDelZip(zip), process.platform === 'linux')
   if (!existsSync(path.join(destino, pack.centinela))) {
-    throw new Error(`el paquete no contiene ${pack.centinela}`)
+    throw new Error(t.paqueteSinCentinela(pack.centinela))
   }
 }
 
 async function instalarDriver(ctx, packId) {
+  const t = textosTdb()
   const pack = ctx.packs.find((p) => p.id === packId)
-  if (!pack) fallar(ctx, `Driver desconocido: "${packId}". Mira los disponibles con: tdb driver ls`)
+  if (!pack) fallar(ctx, t.driverDesconocido(packId))
   if (rutaDePack(ctx, pack)) {
-    console.log(`\n  ${pack.nombre} ya está instalado.\n`)
+    console.log(t.yaInstalado(pack.nombre))
     return
   }
-  if (!ctx.driversDir) fallar(ctx, 'No sé dónde instalar drivers (falta ' + ENV_DRIVERS + ').')
+  if (!ctx.driversDir) fallar(ctx, t.sinCarpetaDrivers(ENV_DRIVERS))
   // Montar el `.dmg`, copiarlo conservando sus enlaces simbólicos y verificar la firma lo
   // hace Tessera (`instalarDmg.ts`): se remite allí en vez de duplicar ese instalador aquí.
-  if (pack.formato === 'dmg') {
-    fallar(
-      ctx,
-      `${pack.nombre} se publica como imagen de disco y lo instala Tessera:\n` +
-        `    "Descargar" en "Clientes de base de datos", en el diálogo de la conexión (vista Bases de datos).`
-    )
-  }
+  if (pack.formato === 'dmg') fallar(ctx, t.dmgLoInstalaTessera(pack.nombre))
 
   const destino = path.join(ctx.driversDir, pack.motor, pack.id)
-  console.log(`\n  Descargando ${pack.nombre} (${pack.sizeMB} MB)…`)
+  console.log(t.descargando(pack.nombre, pack.sizeMB))
   try {
     await bajarYDescomprimir(pack, destino)
-    console.log(`\n  ✓ ${pack.nombre} instalado en ${destino}\n`)
+    console.log(t.instaladoEn(pack.nombre, destino))
   } catch (err) {
     try {
       rmSync(destino, { recursive: true, force: true })
     } catch {
       // El centinela ausente ya impide darlo por instalado.
     }
-    fallar(
-      ctx,
-      `No se pudo instalar ${pack.nombre}: ${err.message}\n` +
-        `    Alternativa: descárgalo a mano y regístralo con "Seleccionar carpeta…" en\n` +
-        `    "Clientes de base de datos", en el diálogo de la conexión (vista Bases de datos).`
-    )
+    fallar(ctx, t.noSeInstalo(pack.nombre, err.message))
   }
 }
 
@@ -97,7 +94,7 @@ async function cmdDriver(ctx, sub, packId) {
     listarDrivers(ctx)
     return
   }
-  if (sub !== 'install') fallar(ctx, `Subcomando de driver desconocido: "${sub}". Usa ls | install.`)
+  if (sub !== 'install') fallar(ctx, textosTdb().subcomandoDriver(sub))
   await instalarDriver(ctx, packId)
 }
 

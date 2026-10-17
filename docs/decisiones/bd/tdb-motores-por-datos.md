@@ -5,8 +5,8 @@
 
 ## Contexto
 
-Antes había un mapa de adaptadores en `tdb.cjs`, otro en `sesion.cjs` y una lista más en el main: sumar
-un motor era acordarse de los tres, y lo que se olvidaba no lo decía nadie. La fuente de verdad es el
+Un mapa de adaptadores en `tdb.cjs`, otro en `sesion.cjs` y una lista más en el main obligarían, al sumar
+un motor, a acordarse de los tres, y lo que se olvidara no lo diría nadie. La fuente de verdad es el
 registro de descriptores de shared, pero `tdb` y el trabajador son CJS sin compilar y no pueden importarlo.
 
 ## Decisión

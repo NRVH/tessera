@@ -6,6 +6,7 @@
 // Decisiones: docs/decisiones/explorador/arbol-de-archivos.md
 // =============================================================================
 import { useRef, useState, type MutableRefObject } from 'react'
+import { useRaizDelProyecto } from '../../comun/raizDelProyecto'
 import { droppedHostPaths, hasExternalFiles, pintarFantasma } from './arrastreArbol'
 import { efectoDeDragOver } from './seleccionArbol'
 import type { TreeRowProps } from './tiposArbol'
@@ -18,12 +19,12 @@ type Arrastre = React.DragEvent<HTMLDivElement>
  * arrastre. Si no llega, el arrastre interno funciona igual. Lo de dentro de un .jar no
  * se pide: no hay URL posible y cruzaría el IPC en cada pulsación.
  */
-function precargarUrl(p: TreeRowProps, ref: MutableRefObject<string>): void {
+function precargarUrl(p: TreeRowProps, raiz: string, ref: MutableRefObject<string>): void {
   const { isDir, esVirtual, entry } = p.row
   if (isDir || esVirtual) return
   ref.current = ''
   void window.tessera.files
-    .fileUrl(entry.path)
+    .fileUrl({ raiz, path: entry.path })
     .then((url) => {
       ref.current = url
     })
@@ -115,8 +116,9 @@ export function useArrastreFila(p: TreeRowProps, destino: string) {
   // true mientras se arrastra algo válido sobre esta carpeta (resalta el destino).
   const [dropOver, setDropOver] = useState(false)
   const fileUrlRef = useRef<string>('')
+  const raiz = useRaizDelProyecto()
   const eventos = {
-    onPointerDown: () => precargarUrl(p, fileUrlRef),
+    onPointerDown: () => precargarUrl(p, raiz, fileUrlRef),
     onDragStart: (e: Arrastre) => iniciarArrastreFila(e, p, fileUrlRef.current),
     onDragEnd: () => p.onDragEndNode(),
     onDragOver: (e: Arrastre) => sobrevolarFila(e, p, destino, dropOver, setDropOver),

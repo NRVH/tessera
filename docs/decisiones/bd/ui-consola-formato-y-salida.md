@@ -11,7 +11,7 @@ Un formateador es código ajeno que reescribe SQL del usuario; la Salida se lee 
 
 - **Formatear por sentencia** (`[desde, hastaContenido)`), dejando byte a byte terminadores,
   comentarios, líneas en blanco y SQL*Plus. Solo consultas, DML, SELECT…FOR UPDATE y CREATE
-  TABLE/VIEW: PL/SQL, GRANT, ALTER SESSION o `$$…$$` salían peor (medido).
+  TABLE/VIEW: PL/SQL, GRANT, ALTER SESSION o `$$…$$` salen peor formateados.
 - **La guarda**: el resultado tiene que dar los MISMOS tokens en nuestro léxico (caja aparte,
   comentarios por palabras), seguir siendo una sentencia de la misma clase y no juntar en una
   línea dos cadenas de PG que la continuación unía. Si no, esa sentencia se deja como estaba.

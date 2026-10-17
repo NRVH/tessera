@@ -19,6 +19,14 @@ import { composeCleanGitCommand, dbAgentAssignments } from './gitInContainer.ts'
  */
 const ID_CONVERSACION = /^[0-9a-fA-F-]{8,64}$/
 
+/**
+ * Codex, sin su servidor compartido en segundo plano: con él, todas las sesiones de una cuenta
+ * correrían en un proceso fuera de la terminal, con el entorno de la primera (bases, `tdb`, PATH),
+ * y cerrar o hibernar la pestaña no pararía su turno. Una clave de `features` desconocida solo deja
+ * un aviso en el registro de Codex, así que vale también con las versiones que no la tienen.
+ */
+const SIN_SERVIDOR_CODEX = '-c features.daemon_auto_start=false'
+
 /** Argumento de reanudación de cada CLI: CC usa un flag, Codex un subcomando. */
 function argumentoReanudar(agente: Agente, resumeSessionId?: string): string | null {
   if (!resumeSessionId || !ID_CONVERSACION.test(resumeSessionId)) return null
@@ -71,6 +79,7 @@ export function buildAgentLaunchCommand(
   const reanudar = argumentoReanudar(agente, resumeSessionId)
   if (reanudar) args.push(reanudar)
 
+  if (agente === 'codex') args.push(SIN_SERVIDOR_CODEX)
   // POSIX siempre: esta línea acaba en el `bash -c` del contenedor sea cual sea el host.
   const aviso = argumentoBriefing(briefing, agente, citarSh)
   if (aviso) args.push(aviso)
@@ -79,6 +88,26 @@ export function buildAgentLaunchCommand(
   return composeCleanGitCommand(invocation, {
     agente,
     containerConfigPath,
+    extraAssignments: ['TERM=xterm-256color', ...dbAgentAssignments(dbEnv)],
+    sshSetup
+  })
+}
+
+/**
+ * Línea del contenedor de un agente MANUAL: `HOME` en su carpeta persistente del perfil, sus
+ * `.local/bin` delante del PATH, git y bases como los de serie, y ni variable de cuenta ni aviso
+ * por opción de arranque (cada CLI tiene la suya y una desconocida podría impedir que arranque).
+ * Sin `exec`: el comando es el del usuario y puede llevar sintaxis de shell.
+ */
+export function buildManualAgentLaunchCommand(
+  invocacion: string,
+  home: string,
+  sshSetup: SshSetup | null = null,
+  dbEnv?: Record<string, string>
+): string {
+  return composeCleanGitCommand(invocacion, {
+    home,
+    pathDelante: [`${home}/.local/bin`, '/home/agente/.local/bin'],
     extraAssignments: ['TERM=xterm-256color', ...dbAgentAssignments(dbEnv)],
     sshSetup
   })
@@ -99,6 +128,7 @@ export function buildHostAgentLaunchCommand(
   const args: string[] = []
   const reanudar = argumentoReanudar(agente, resumeSessionId)
   if (reanudar) args.push(reanudar)
+  if (agente === 'codex') args.push(SIN_SERVIDOR_CODEX)
   const citar = plataforma === 'windows' ? citarPowerShell : citarSh
   const aviso = argumentoBriefing(briefing, agente, citar)
   if (aviso) args.push(aviso)

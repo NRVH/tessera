@@ -8,7 +8,7 @@ import type { IpcMain } from 'electron'
 import { DOCS_CHANNELS } from '../../../../shared/db-documentos-ipc.ts'
 import type { DbRespuesta } from '../../../../shared/db-explorador-ipc.ts'
 import type { ControladorDocumentos } from './ControladorDocumentos.ts'
-import { INTERNO } from './validacionPeticion.ts'
+import { respuestaInterna } from './validacionPeticion.ts'
 
 /** Lo que necesita `registrarIpcDocumentos`: el `ipcMain` (solo `handle`) y el controlador. */
 export interface DependenciasIpcDocumentos {
@@ -30,7 +30,7 @@ export function registrarIpcDocumentos({ ipc, controlador }: DependenciasIpcDocu
       }
     })
   }
-  const interno = (): DbRespuesta<never> => INTERNO
+  const interno = (): DbRespuesta<never> => respuestaInterna()
   const nada = (): undefined => undefined
 
   h(D.BASES, (r) => controlador.atender('BASES', r), interno)

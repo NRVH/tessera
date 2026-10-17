@@ -20,6 +20,7 @@ import {
   prevueloProduccion,
   type TextosConfirmacion
 } from './produccionConsola.ts'
+import { txLote } from './textosLote.ts'
 
 /**
  * Todo o nada de solo lectura: si la conexión es de solo lectura y ALGUNA sentencia
@@ -51,13 +52,14 @@ function extracto(texto: string): string {
 }
 
 function motivoPeligro(tipo: PeligroSentencia, verbo: string): string {
+  const t = txLote()
   switch (tipo) {
     case 'dmlSinWhere':
-      return `${verbo} sin WHERE: afecta a todas las filas de la tabla`
+      return t.sinWhere(verbo)
     case 'truncate':
-      return `${verbo}: vacía la tabla entera`
+      return t.truncate(verbo)
     case 'dropObjeto':
-      return `${verbo}: borra el objeto`
+      return t.dropObjeto(verbo)
   }
 }
 
@@ -72,7 +74,7 @@ export function peligros(
   const out: Peligro[] = []
   sentencias.forEach((s, indice) => {
     if (s.peligro && tipos.indexOf(s.peligro) >= 0) {
-      const verbo = s.verbo || 'La sentencia'
+      const verbo = s.verbo || txLote().laSentencia
       out.push({ indice, tipo: s.peligro, verbo, motivo: motivoPeligro(s.peligro, verbo), extracto: extracto(s.texto) })
     }
   })
@@ -95,10 +97,11 @@ export type DecisionLote =
 /** Los textos del diálogo de los peligros FUERA de producción. */
 export function textosPeligros(lista: readonly Peligro[], alias: string): TextosConfirmacion {
   const cuerpo = lista.map((p) => `· ${p.motivo}\n   ${p.extracto}`).join('\n')
+  const t = txLote()
   return {
-    titulo: lista.length === 1 ? `¿Ejecutar ${lista[0].verbo} sin WHERE?` : '¿Ejecutar sentencias sin WHERE?',
-    mensaje: `En ${alias}:\n\n${cuerpo}`,
-    confirmar: 'Ejecutar de todos modos'
+    titulo: lista.length === 1 ? t.tituloPeligro(lista[0].verbo) : t.tituloPeligros,
+    mensaje: t.mensajePeligros(alias, cuerpo),
+    confirmar: t.ejecutarDeTodosModos
   }
 }
 

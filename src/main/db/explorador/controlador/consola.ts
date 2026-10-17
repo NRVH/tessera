@@ -22,6 +22,7 @@ import { mensajeTodaviaNo } from '../familias.ts'
 import { ErrorGestor } from '../GestorSesiones.ts'
 
 import type { EsquemasExplorador } from './esquemas.ts'
+import { txControlador } from './textosControlador.ts'
 import type { BaseEsquemas, ContextoExplorador } from './tipos.ts'
 import {
   esObjeto,
@@ -62,9 +63,9 @@ export class ConsolaExplorador {
       for (const i of lista) this.recordarConsola(i)
       c = this.c.estado.conexionDeConsola(perfilId, consolaId)
     }
-    if (c === undefined) throw new ErrorGestor('interno', 'La consola ya no existe.')
+    if (c === undefined) throw new ErrorGestor('interno', txControlador().consolaNoExiste)
     const con = this.c.conexiones.get(c)
-    if (con && con.profileId !== perfilId) throw new ErrorGestor('interno', 'La consola no pertenece a este perfil.')
+    if (con && con.profileId !== perfilId) throw new ErrorGestor('interno', txControlador().consolaOtroPerfil)
     // Quien pide la conexión de una consola por aquí va a ejecutar SQL: una
     // consola de MongoDB o Redis (sus archivos son comunes) se rechaza con su motivo.
     if (con && !esMotorSql(con.motor)) throw new ErrorGestor('driver', mensajeTodaviaNo(con.motor))
@@ -101,17 +102,17 @@ export class ConsolaExplorador {
       const p = exigir(perfilId, 'perfilId')
       const c = exigir(consolaId, 'consolaId')
       if (esquema !== null && (typeof esquema !== 'string' || esquema === '' || esquema.length > MAX_IDENT)) {
-        return fallo('interno', 'Petición inválida: «esquema».')
+        return fallo('interno', txControlador().peticionInvalidaCampo('esquema'))
       }
       // Uno a la vez por consola: un segundo borraría la marca del primero o restauraría
       // un `antes` aún sin confirmar. El gestor ya respondía `ocupada` en ese caso.
       // Desde YA, y no solo desde que se toca el mapa: un `listar` que empiece durante
       // `esquemaExiste` y resuelva después también leyó el índice viejo.
-      if (!this.c.estado.empezarCambioDeEsquema(p, c)) return fallo('ocupada', 'Ya se está cambiando el esquema de esta consola.')
+      if (!this.c.estado.empezarCambioDeEsquema(p, c)) return fallo('ocupada', txControlador().cambiandoEsquema)
       try {
         const conexionId = await this.conexionDeConsola(p, c)
         if (esquema !== null && !(await this.esquemaExiste(conexionId, esquema))) {
-          return fallo('interno', `El esquema ${esquema} no existe en esta conexión.`)
+          return fallo('interno', txControlador().esquemaNoExiste(esquema))
         }
         const antes = this.c.estado.esquemaDeConsola(p, c)
         this.c.estado.fijarEsquemaDeConsola(p, c, esquema)
@@ -142,11 +143,11 @@ export class ConsolaExplorador {
 
   async ejecutar(req: unknown): Promise<DbRespuesta<DbResultadoSentencia>> {
     return this.c.seguro(async () => {
-      if (!esObjeto(req)) return fallo('interno', 'Petición inválida.')
+      if (!esObjeto(req)) return fallo('interno', txControlador().peticionInvalida)
       const perfilId = exigir(req.perfilId, 'perfilId')
       const consolaId = exigir(req.consolaId, 'consolaId')
       const ejecucionId = exigir(req.ejecucionId, 'ejecucionId', 200)
-      if (typeof req.sql !== 'string') return fallo('interno', 'Petición inválida: falta «sql».')
+      if (typeof req.sql !== 'string') return fallo('interno', txControlador().peticionFalta('sql'))
       const maxFilas = typeof req.maxFilas === 'number' ? req.maxFilas : NaN
       const conexionId = await this.conexionDeConsola(perfilId, consolaId)
       // `binds` tal cual: el gestor valida su forma y es la autoridad de qué parámetros hay.
@@ -170,11 +171,11 @@ export class ConsolaExplorador {
   /** CONSOLA_EXPLAIN: el plan sin ejecutar la sentencia (ver `GestorSesiones.explicar`). */
   async explicar(req: unknown): Promise<DbRespuesta<DbPlan>> {
     return this.c.seguro(async () => {
-      if (!esObjeto(req)) return fallo('interno', 'Petición inválida.')
+      if (!esObjeto(req)) return fallo('interno', txControlador().peticionInvalida)
       const perfilId = exigir(req.perfilId, 'perfilId')
       const consolaId = exigir(req.consolaId, 'consolaId')
       const ejecucionId = exigir(req.ejecucionId, 'ejecucionId', 200)
-      if (typeof req.sql !== 'string') return fallo('interno', 'Petición inválida: falta «sql».')
+      if (typeof req.sql !== 'string') return fallo('interno', txControlador().peticionFalta('sql'))
       const conexionId = await this.conexionDeConsola(perfilId, consolaId)
       return this.c.gestor.explicar({
         perfilId,
@@ -191,7 +192,7 @@ export class ConsolaExplorador {
   /** HISTORIAL_LISTAR. Privado de Tessera: nunca toca el espacio de datos. */
   async historialListar(filtro: unknown): Promise<DbRespuesta<DbEntradaHistorial[]>> {
     return this.c.seguro(async () => {
-      if (!esObjeto(filtro)) return fallo('interno', 'Petición inválida.')
+      if (!esObjeto(filtro)) return fallo('interno', txControlador().peticionInvalida)
       const perfilId = exigir(filtro.perfilId, 'perfilId')
       const conexionId = opcional(filtro.conexionId, 'conexionId', MAX_IDENT)
       const texto = opcional(filtro.texto, 'texto', MAX_FRAGMENTO)
@@ -222,7 +223,7 @@ export class ConsolaExplorador {
       if (ids === null) lista = null
       else if (Array.isArray(ids) && ids.length <= 100_000 && ids.every((x) => typeof x === 'string' && x.length > 0 && x.length <= 200)) {
         lista = ids as string[]
-      } else return fallo('interno', 'Petición inválida: «ids».')
+      } else return fallo('interno', txControlador().peticionInvalidaCampo('ids'))
       const deLenguaje = LENGUAJES_HISTORIAL.includes(lenguaje as DbLenguajeHistorial) ? (lenguaje as DbLenguajeHistorial) : undefined
       if (this.c.historial) await this.c.historial.borrar(p, lista, deLenguaje)
       return ok(undefined)
@@ -239,7 +240,7 @@ export class ConsolaExplorador {
     return this.c.seguro(async () => {
       const p = exigir(perfilId, 'perfilId')
       const c = exigir(consolaId, 'consolaId')
-      if (accion !== 'commit' && accion !== 'rollback') return fallo('interno', 'Petición inválida: «accion».')
+      if (accion !== 'commit' && accion !== 'rollback') return fallo('interno', txControlador().peticionInvalidaCampo('accion'))
       const conexionId = await this.conexionDeConsola(p, c)
       // `confirmado`: solo `true` cuenta; en producción, el COMMIT lo exige.
       // `txInicial`: por si la petición crea la sesión (`RefConsola.txInicial`).
@@ -261,7 +262,7 @@ export class ConsolaExplorador {
     return this.c.seguro(async () => {
       const p = exigir(perfilId, 'perfilId')
       const c = exigir(consolaId, 'consolaId')
-      if (modo !== 'auto' && modo !== 'manual') return fallo('interno', 'Petición inválida: «modo».')
+      if (modo !== 'auto' && modo !== 'manual') return fallo('interno', txControlador().peticionInvalidaCampo('modo'))
       const conexionId = await this.conexionDeConsola(p, c)
       return this.c.gestor.modoTx(
         { perfilId: p, consolaId: c, conexionId, txInicial: txInicial as DbTxModo | undefined },

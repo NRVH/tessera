@@ -8,6 +8,7 @@
 
 import type { DbRespuesta } from '../../../../../shared/db-explorador-ipc'
 import { DB_RESULTADOS_ALTO_MIN } from '../../../../../shared/workspace-state-ipc.ts'
+import { txConsolaComun } from './textosConsolaComun.ts'
 
 /**
  * Lo mínimo que se le deja al bloque de resultados. Es el MISMO suelo con el que el
@@ -63,7 +64,7 @@ export interface AnclaSelector {
 /** El mensaje de un error de IPC sin el prefijo de Electron. */
 export function mensajeDe(err: unknown): string {
   const bruto = err instanceof Error ? err.message : String(err ?? '')
-  return bruto.replace(/^Error invoking remote method '[^']*':\s*/, '').replace(/^Error:\s*/, '') || 'Error desconocido'
+  return bruto.replace(/^Error invoking remote method '[^']*':\s*/, '').replace(/^Error:\s*/, '') || txConsolaComun().errorDesconocido
 }
 
 /** Un error lanzado por el IPC, con la forma de una respuesta fallida del main. */

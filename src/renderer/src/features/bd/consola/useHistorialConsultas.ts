@@ -20,6 +20,7 @@ import {
 } from './historialConsola'
 import type { AnclaDerecha } from '../../../comun/popoverFlotante'
 import { textoError } from './salidaConsola'
+import { txPane } from './textosPane.ts'
 
 /** Lo que recibe el popover del historial de consultas. */
 export interface HistorialConsultasProps {
@@ -152,7 +153,7 @@ export function useHistorialConsultas(p: HistorialConsultasProps, filtroRef: Ref
       .catch((err: unknown) => fallo<void>(err))
       .then((r) => {
         if (!r.ok) {
-          setError(`No se pudo borrar: ${textoError(r.error)}`)
+          setError(txPane().noSePudoBorrar(textoError(r.error)))
           return
         }
         setEntradas((ls) => (ls ? ls.filter((x) => x.id !== e.id) : ls))
@@ -173,7 +174,7 @@ export function useHistorialConsultas(p: HistorialConsultasProps, filtroRef: Ref
       .borrarHistorial(perfilId, null, p.lenguaje)
       .catch((err: unknown) => fallo<void>(err))
       .then((r) => {
-        if (!r.ok) setError(`No se pudo borrar: ${textoError(r.error)}`)
+        if (!r.ok) setError(txPane().noSePudoBorrar(textoError(r.error)))
         else setEntradas([])
       })
   }

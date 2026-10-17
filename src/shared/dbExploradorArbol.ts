@@ -7,6 +7,7 @@
 // =============================================================================
 
 import type { DbEsquemasVisibles } from './db-ipc.ts'
+import { crearTextos } from './i18n.ts'
 
 // --- Árbol --------------------------------------------------------------------
 
@@ -168,8 +169,25 @@ export interface DbDetalle {
   comentario?: string
 }
 
+/** Los títulos de las partes de una fuente: son identificadores que viajan por IPC, no texto. */
+export type DbTituloParteFuente = 'Especificación' | 'Cuerpo' | 'Definición' | 'DDL'
+
+const txPartesFuente = crearTextos(
+  {
+    partes: { Especificación: 'Especificación', Cuerpo: 'Cuerpo', Definición: 'Definición', DDL: 'DDL' }
+  },
+  {
+    partes: { Especificación: 'Specification', Cuerpo: 'Body', Definición: 'Definition', DDL: 'DDL' }
+  }
+)
+
+/** Lo que se enseña como título de una parte de la fuente, en el idioma de la interfaz. */
+export function tituloParteFuente(titulo: DbTituloParteFuente): string {
+  return txPartesFuente().partes[titulo]
+}
+
 export interface DbFuente {
-  partes: { titulo: 'Especificación' | 'Cuerpo' | 'Definición' | 'DDL'; texto: string }[]
+  partes: { titulo: DbTituloParteFuente; texto: string }[]
   /** De dónde salió (ALL_SOURCE, pg_get_functiondef…): va al tooltip. */
   origen: string
   /** Cuerpo vacío por privilegios, código ofuscado (`wrapped`)… */

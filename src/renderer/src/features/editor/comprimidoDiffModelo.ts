@@ -8,6 +8,7 @@
 import { languageForFilename } from '../../../../shared/files-ipc'
 import { formatoBytes } from '../../util/formatoBytes'
 import { viewerKindForPath } from './viewerKind'
+import { txComprimido } from './textosVisores.ts'
 import type { DiffProblem, DiffTarget } from './diffEditorTipos'
 import type { ContenidoEnMemoria } from '../git'
 import type {
@@ -59,27 +60,26 @@ function utilizable(lado: LadoEntrada): boolean {
   return (lado.estado === 'ok' || lado.estado === 'no-existe') && !lado.truncado
 }
 
-const elegirEntrada = (): DiffProblem => ({ title: 'Elige una entrada para ver sus diferencias' })
+const elegirEntrada = (): DiffProblem => ({ title: txComprimido().elegirEntrada })
 
 function avisoDeComparacion(c: CompararResult | null): DiffProblem | null {
-  if (c !== null && c.error !== '') return { title: 'No se pudo comparar el archivo', hint: c.error }
+  const t = txComprimido()
+  if (c !== null && c.error !== '') return { title: t.noSePudoComparar, hint: c.error }
   if (c !== null && c.entradas.length === 0) {
-    return {
-      title: 'Sin diferencias dentro del archivo',
-      hint: 'Las dos versiones del comprimido tienen el mismo contenido. Pueden diferir en fechas o en el orden de las entradas, que no cambian lo que hay dentro.'
-    }
+    return { title: t.sinDiferencias, hint: t.sinDiferenciasHint }
   }
   return null
 }
 
 function avisoBinario(fila: EntradaComparada): DiffProblem {
+  const t = txComprimido()
   const hint =
     fila.estado === 'A'
-      ? `Nueva, ${formatoBytes(fila.tamanoDespues)}.`
+      ? t.nueva(formatoBytes(fila.tamanoDespues))
       : fila.estado === 'D'
-        ? `Borrada; ocupaba ${formatoBytes(fila.tamanoAntes)}.`
-        : `Cambió de ${formatoBytes(fila.tamanoAntes)} a ${formatoBytes(fila.tamanoDespues)}.`
-  return { title: 'Entrada binaria: no hay diff de texto que mostrar.', hint }
+        ? t.borrada(formatoBytes(fila.tamanoAntes))
+        : t.cambio(formatoBytes(fila.tamanoAntes), formatoBytes(fila.tamanoDespues))
+  return { title: t.entradaBinaria, hint }
 }
 
 /** Detalle plegable con lo que dijo el descompilador, si es que se llegó a lanzar. */
@@ -92,21 +92,19 @@ function procedenciaDetalle(
 }
 
 function avisoDeLado(malo: LadoEntrada, contenido: EntradaResult): DiffProblem {
+  const t = txComprimido()
   if (malo.truncado) {
-    return {
-      title: 'La entrada es demasiado grande para compararla entera.',
-      hint: 'Sólo se pudo leer el principio, y un diff a medias se leería como un borrado gigante.'
-    }
+    return { title: t.grandeEnteraTitulo, hint: t.grandeEnteraHint }
   }
   if (malo.estado === 'binario') {
-    return { title: 'Entrada binaria: no hay diff de texto que mostrar.', hint: malo.mensaje }
+    return { title: t.entradaBinaria, hint: malo.mensaje }
   }
   // Estado propio para no caer en «no se pudo leer», que suena a entrada corrupta.
   if (malo.estado === 'demasiado-grande') {
-    return { title: 'La entrada es demasiado grande para compararla aquí.', hint: malo.mensaje }
+    return { title: t.grandeAquiTitulo, hint: malo.mensaje }
   }
   return {
-    title: 'No se pudo leer esta entrada',
+    title: t.noSePudoLeerEntrada,
     hint: malo.mensaje,
     detail: procedenciaDetalle(contenido.java)
   }
@@ -123,7 +121,7 @@ interface EntradaAviso {
 
 /** El aviso que sustituye al diff cuando no hay diff que enseñar. */
 export function calcularAviso(x: EntradaAviso): DiffProblem | null {
-  if (x.cargando) return { title: 'Comparando el archivo…' }
+  if (x.cargando) return { title: txComprimido().comparandoArchivo }
   const deComparacion = avisoDeComparacion(x.comparacion)
   if (deComparacion !== null) return deComparacion
   const fila = x.seleccionada === null ? undefined : x.porNombre.get(x.seleccionada)
@@ -131,7 +129,7 @@ export function calcularAviso(x: EntradaAviso): DiffProblem | null {
   if (comoPedir(x.seleccionada) === null) return avisoBinario(fila)
   if (x.contenido === null || x.contenido.nombre !== x.seleccionada) {
     // Mientras llega lo nuevo no se enseña lo viejo: quien no puede enseñar lo pedido no enseña otra cosa.
-    return x.pidiendo ? { title: 'Leyendo la entrada…' } : elegirEntrada()
+    return x.pidiendo ? { title: txComprimido().leyendoEntrada } : elegirEntrada()
   }
   const a = x.contenido.antes
   const d = x.contenido.despues
@@ -185,9 +183,10 @@ export function migas(
 
 /** Tooltip de una entrada: qué le pasó y cuánto ocupa a cada lado. */
 export function tituloEntrada(e: EntradaComparada): string {
-  if (e.estado === 'A') return `${e.nombre}\nNueva · ${formatoBytes(e.tamanoDespues)}`
-  if (e.estado === 'D') return `${e.nombre}\nBorrada · ocupaba ${formatoBytes(e.tamanoAntes)}`
-  return `${e.nombre}\nModificada · ${formatoBytes(e.tamanoAntes)} → ${formatoBytes(e.tamanoDespues)}`
+  const t = txComprimido()
+  if (e.estado === 'A') return t.tituloNueva(e.nombre, formatoBytes(e.tamanoDespues))
+  if (e.estado === 'D') return t.tituloBorrada(e.nombre, formatoBytes(e.tamanoAntes))
+  return t.tituloModificada(e.nombre, formatoBytes(e.tamanoAntes), formatoBytes(e.tamanoDespues))
 }
 
 /** Techo del divisor: lo que hay, menos lo que el editor no puede perder. */

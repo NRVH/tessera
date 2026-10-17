@@ -11,7 +11,8 @@ import { conexionDeClave } from './arbolBd'
 import { esquemaAlCrear, sembrarBaseConsola, type BaseConsolaNueva } from './consola/basesConsola'
 import { pestanaActiva } from './dbTabsModel'
 import { vivasParaPodarPestanas } from './dbMounts'
-import { TITULO_FORMATO_AJENO, motivoSinConsola } from './filasArbolBd'
+import { tituloFormatoAjeno, motivoSinConsola } from './filasArbolBd'
+import { txArea } from './textosArea.ts'
 import { vaciarTodasLasConsolas } from './registroConsolas'
 import { pestanasSinEnviar } from './rejilla/registroEdicion'
 import { olvidarPeticionesArbol, pedirAltaConexion, useStoreBd } from './store'
@@ -45,19 +46,19 @@ function useCrearConsola(consolasBd: ConsolasBd, vistaDb: DbVistaApi): BdApp['cr
       try {
         const r = await window.tessera.dbExplorador.crearConsola(perfilId, conexionId, esquemaAlCrear(base))
         if (!r.ok) {
-          notifyError('No se pudo crear la consola', r.error.mensaje)
+          notifyError(txArea().noSePudoCrearConsola, r.error.mensaje)
           return
         }
         sembrarBaseConsola(perfilId, r.valor.id, base)
         if (textoInicial !== undefined && textoInicial !== '') {
           const w = await window.tessera.dbExplorador.escribirConsola(perfilId, r.valor.id, textoInicial)
-          if (!w.ok) notifyError('No se pudo escribir el texto inicial de la consola', w.error.mensaje)
+          if (!w.ok) notifyError(txArea().noSePudoEscribirTextoInicial, w.error.mensaje)
         }
         // Primero la lista y luego la pestaña: el pane necesita su info para montarse.
         anadirConsolaBd(perfilId, r.valor)
         abrirPestanaBd(perfilId, { kind: 'consola', conexionId, consolaId: r.valor.id })
       } catch (err) {
-        notifyError('No se pudo crear la consola', err)
+        notifyError(txArea().noSePudoCrearConsola, err)
       }
     },
     [anadirConsolaBd, abrirPestanaBd]
@@ -77,13 +78,13 @@ function conexionElegida(v: ReturnType<DbVistaApi['vistaDe']>, conexiones: reado
 function resolverSinElegida(perfilId: string, conexiones: readonly DbConnection[], aviso: string | undefined): void {
   if (conexiones.length === 0) {
     // Con un registro de formato ajeno el alta la rechazaría el main: se dice por qué.
-    if (aviso !== undefined) notify('warn', TITULO_FORMATO_AJENO, aviso)
+    if (aviso !== undefined) notify('warn', tituloFormatoAjeno(), aviso)
     else pedirAltaConexion()
     return
   }
   const sinConsola = conexiones.every((c) => motivoSinConsola(c) !== null) ? motivoSinConsola(conexiones[0]) : null
   if (sinConsola !== null) {
-    notify('info', 'Nueva consola', sinConsola)
+    notify('info', txArea().nuevaConsola, sinConsola)
     return
   }
   useStoreBd.setState({ menuConexiones: { ...anclaDelFoco(), perfilId } })
@@ -110,7 +111,7 @@ function useConsolaEnContexto(
       return
     }
     const sinConsola = motivoSinConsola(conexiones.find((c) => c.id === elegida))
-    if (sinConsola !== null) notify('info', 'Nueva consola', sinConsola)
+    if (sinConsola !== null) notify('info', txArea().nuevaConsola, sinConsola)
     else void crearConsolaEn(perfil.id, elegida)
   }, [conexionesBd, vistaDb, crearConsolaEn])
 }
@@ -142,9 +143,10 @@ export function useBdApp(tabs: UseTabs, enConexiones: boolean, montajes: Montaje
     () => (perfilActivoId !== null ? [perfilActivoId, ...vistaDb.perfilesConPestanas] : [...vistaDb.perfilesConPestanas]),
     [perfilActivoId, vistaDb.perfilesConPestanas]
   )
-  const conexionesBd = useConexionesBd(perfilesInteresBd)
+  const perfilesVivos = useMemo(() => tabs.profiles.map((p) => p.id), [tabs.profiles])
+  const conexionesBd = useConexionesBd(perfilesInteresBd, perfilesVivos)
   // Tras cada listado bueno, fuera las pestañas de consolas que ya no existen.
-  const consolasBd = useConsolasBd(perfilesInteresBd, podarConsolasBd)
+  const consolasBd = useConsolasBd(perfilesInteresBd, perfilesVivos, podarConsolasBd)
   const { recargar: recargarConsolasBd } = consolasBd
   const sesionesBd = useSesionesBd()
   const { porPerfil, ajenasPorPerfil, avisoFormatoPorPerfil } = conexionesBd

@@ -9,6 +9,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { aplanarArbolArchivos, asegurarEstilosGit, construirArbolArchivos } from '../git'
 import { MAX_ANIDAMIENTO } from '../../../../shared/jarPath'
 import { iniciarComparacion, pedirContenidoEntrada } from './comprimidoDiffCarga'
+import { useRaizDelProyecto } from '../../comun/raizDelProyecto'
 import {
   ALTO_CROMO_LISTA,
   MAX_LISTA_AUTO,
@@ -44,6 +45,7 @@ function useComparacionComprimido({ target, targetKey, activeTargetKey, fsTick }
   seleccionadaRef.current = seleccionada
   const nivelMostradoRef = useRef<string | null>(null)
   const peticionRef = useRef(0)
+  const raiz = useRaizDelProyecto()
 
   const lados = useMemo(
     () => ({ antes: aLado(target, 'before'), despues: aLado(target, 'after') }),
@@ -56,10 +58,10 @@ function useComparacionComprimido({ target, targetKey, activeTargetKey, fsTick }
     // Solo compara el pane del proyecto activo; al volver a serlo, este efecto se re-ejecuta.
     if (targetKey !== activeTargetKey) return
     return iniciarComparacion({
-      lados, dentro, peticionRef, nivelMostradoRef, seleccionadaRef,
+      raiz, lados, dentro, peticionRef, nivelMostradoRef, seleccionadaRef,
       setCargando, setComparacion, setSeleccionada
     })
-  }, [lados, dentro, tickEfectivo, targetKey, activeTargetKey])
+  }, [raiz, lados, dentro, tickEfectivo, targetKey, activeTargetKey])
 
   // Al cambiar de contenedor la lista de antes ya no vale: sería enseñar otra cosa que lo pedido.
   useEffect(() => {
@@ -85,10 +87,11 @@ function useComparacionComprimido({ target, targetKey, activeTargetKey, fsTick }
     [porNombre]
   )
 
-  return { dentro, setDentro, comparacion, cargando, seleccionada, lados, porNombre, elegir }
+  return { raiz, dentro, setDentro, comparacion, cargando, seleccionada, lados, porNombre, elegir }
 }
 
 interface EntradaContenidoHook {
+  raiz: string
   seleccionada: string | null
   comparacion: CompararResult | null
   lados: ReturnType<typeof useComparacionComprimido>['lados']
@@ -99,7 +102,7 @@ interface EntradaContenidoHook {
 
 /** Pide el contenido de la entrada elegida, con antirrebote y solo con el pane visible. */
 function useContenidoEntrada(e: EntradaContenidoHook) {
-  const { seleccionada, comparacion, lados, dentro, paneKey, visible } = e
+  const { raiz, seleccionada, comparacion, lados, dentro, paneKey, visible } = e
   const [contenido, setContenido] = useState<EntradaResult | null>(null)
   const [pidiendo, setPidiendo] = useState(false)
   const tokenRef = useRef(0)
@@ -121,10 +124,10 @@ function useContenidoEntrada(e: EntradaContenidoHook) {
     const fila = comparacion?.entradas.find((x) => x.nombre === seleccionada)
     if (fila === undefined || fila.contenedor) return
     return pedirContenidoEntrada({
-      lados, dentro, nombre: seleccionada, paneKey, temporizadorRef, tokenRef,
+      raiz, lados, dentro, nombre: seleccionada, paneKey, temporizadorRef, tokenRef,
       setContenido, setPidiendo, cancelar: cancelarPeticion
     })
-  }, [seleccionada, comparacion, lados, dentro, paneKey, visible, cancelarPeticion])
+  }, [raiz, seleccionada, comparacion, lados, dentro, paneKey, visible, cancelarPeticion])
 
   useEffect(() => {
     setContenido(null)

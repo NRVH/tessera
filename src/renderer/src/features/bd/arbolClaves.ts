@@ -12,6 +12,8 @@ import type { DbKvBases, DbKvBytes, DbKvClave, DbKvPaginaClaves, DbKvTipo } from
 import type { DbErrorSql, DbRespuesta } from '../../../../shared/db-explorador-ipc.ts'
 import type { DescriptorClaves } from '../../../../shared/motores/index.ts'
 import { pintarBytes } from './claves/bytesClaves.ts'
+import { localeActual } from '../../../../shared/i18n.ts'
+import { txArbolNodos } from './textosArbolNodos.ts'
 
 /** El COUNT de cada vuelta de SCAN (una pista para el servidor, no un tope exacto). */
 export const CUENTA_ESCANEO = 500
@@ -23,18 +25,13 @@ export const VUELTAS_POR_CLIC = 10
 export const SEPARADOR_CARPETAS = ':'
 
 /** Los textos del árbol de claves que no dependen de los datos. */
-export const TEXTOS_CLAVES = {
-  sinClaves: 'Sin claves',
-  cargarMas: 'Cargar más claves',
-  seguirBuscando: 'Seguir buscando',
-  cargando: 'Cargando más claves…',
-  reintentar: 'Reintentar'
-} as const
+export const textosClaves = () => txArbolNodos().claves
 
 /** Lo que dice una base sin ninguna clave que case con su patrón y su tipo (cualquiera de los dos puede faltar). */
 export function textoSinCoincidencias(patron: string, tipo?: DbKvTipo): string {
-  if (tipo === undefined) return `Ninguna clave casa con ${patron}`
-  return patron === '' ? `Ninguna clave de tipo ${tipo.toUpperCase()}` : `Ninguna clave de tipo ${tipo.toUpperCase()} casa con ${patron}`
+  const t = txArbolNodos()
+  if (tipo === undefined) return t.ningunaClaveCasa(patron)
+  return patron === '' ? t.ningunaClaveDeTipo(tipo.toUpperCase()) : t.ningunaClaveDeTipoCasa(tipo.toUpperCase(), patron)
 }
 
 /** Los tipos por los que se filtra el árbol (los que el servidor admite en `SCAN … TYPE`). */
@@ -234,8 +231,6 @@ export interface CarpetaClaves {
   total: number
 }
 
-const COLADOR = new Intl.Collator('es', { numeric: true })
-
 interface CarpetaEnObra {
   nombre: string
   prefijo: string
@@ -243,9 +238,9 @@ interface CarpetaEnObra {
   claves: ClaveVista[]
 }
 
-function cerrarCarpeta(c: CarpetaEnObra): CarpetaClaves {
-  const carpetas = [...c.hijas.values()].map(cerrarCarpeta).sort((a, b) => COLADOR.compare(a.nombre, b.nombre))
-  const claves = [...c.claves].sort((a, b) => COLADOR.compare(a.nombre, b.nombre))
+function cerrarCarpeta(c: CarpetaEnObra, colador: Intl.Collator): CarpetaClaves {
+  const carpetas = [...c.hijas.values()].map((h) => cerrarCarpeta(h, colador)).sort((a, b) => colador.compare(a.nombre, b.nombre))
+  const claves = [...c.claves].sort((a, b) => colador.compare(a.nombre, b.nombre))
   let total = claves.length
   for (const h of carpetas) total += h.total
   return { nombre: c.nombre, prefijo: c.prefijo, carpetas, claves, total }
@@ -267,7 +262,7 @@ export function agruparClaves(claves: readonly ClaveVista[], separador: string =
     }
     actual.claves.push(k)
   }
-  return cerrarCarpeta(raiz)
+  return cerrarCarpeta(raiz, new Intl.Collator(localeActual(), { numeric: true }))
 }
 
 const MEMO_CARPETAS = new WeakMap<RecorridoClaves, CarpetaClaves>()
@@ -317,18 +312,14 @@ export interface VistaCargarMas {
 
 /** El texto de la fila de «Cargar más» según el recorrido (ver el ADR). */
 export function vistaCargarMas(r: RecorridoClaves, cargando: boolean): VistaCargarMas {
-  if (cargando) return { accion: TEXTOS_CLAVES.cargando, nota: null, error: false }
+  const t = txArbolNodos()
+  if (cargando) return { accion: t.claves.cargando, nota: null, error: false }
   if (r.errorMas !== undefined) {
-    return { accion: TEXTOS_CLAVES.reintentar, nota: `No se pudieron cargar más: ${r.errorMas.mensaje}`, error: true }
+    return { accion: t.claves.reintentar, nota: t.noSePudieronCargarMas(r.errorMas.mensaje), error: true }
   }
   const n = r.claves.length
   if (n === 0) {
-    const v = r.vueltasVacias ?? 0
-    return {
-      accion: TEXTOS_CLAVES.seguirBuscando,
-      nota: `Ninguna todavía${v > 0 ? ` tras ${v} ${v === 1 ? 'vuelta' : 'vueltas'}` : ''}`,
-      error: false
-    }
+    return { accion: t.claves.seguirBuscando, nota: t.ningunaTodavia(r.vueltasVacias ?? 0), error: false }
   }
-  return { accion: TEXTOS_CLAVES.cargarMas, nota: `${n.toLocaleString('es-ES')} cargadas`, error: false }
+  return { accion: t.claves.cargarMas, nota: t.cargadas(n.toLocaleString(localeActual())), error: false }
 }

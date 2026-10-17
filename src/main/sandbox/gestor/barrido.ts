@@ -14,6 +14,7 @@ import { SANDBOX_IMAGE, agentcfgRootFor, errText, managedRootFor, raicesGestiona
 import type { NucleoSandbox } from './NucleoSandbox.ts'
 import type { MontajesSandbox } from './montajes.ts'
 import type { ShutdownProgressLite } from './tipos.ts'
+import { txSandbox } from '../textos.ts'
 
 /** Limpieza de raíces, pizarra limpia por perfil y cierre total. */
 export class BarridoSandbox {
@@ -85,7 +86,8 @@ export class BarridoSandbox {
     const filtro = { sello: selloInstancia(), heredados }
     const names = await this.listarPropios(filtro)
     const total = names.length
-    onProgress?.({ phase: 'stopping', done: 0, total, label: total ? 'Deteniendo contenedores…' : 'Sin contenedores activos' })
+    const t = txSandbox().progreso
+    onProgress?.({ phase: 'stopping', done: 0, total, label: total ? t.deteniendo : t.sinContenedores })
     let done = 0
     for (const name of names) {
       try {
@@ -94,15 +96,15 @@ export class BarridoSandbox {
         console.warn(`[sandbox] stopAllContainers: no se pudo eliminar "${name}":`, errText(err))
       }
       done++
-      onProgress?.({ phase: 'stopping', done, total, label: `Contenedor detenido: ${name}` })
+      onProgress?.({ phase: 'stopping', done, total, label: t.detenido(name) })
     }
-    onProgress?.({ phase: 'unmounting', done, total, label: 'Liberando montajes…' })
+    onProgress?.({ phase: 'unmounting', done, total, label: t.liberando })
     try {
       await this.unmountManagedBases(heredados)
     } catch (err) {
       console.warn('[sandbox] stopAllContainers: no se pudieron liberar los montajes base:', errText(err))
     }
-    onProgress?.({ phase: 'verifying', done, total, label: 'Verificando…' })
+    onProgress?.({ phase: 'verifying', done, total, label: t.verificando })
     try {
       const left = (await listarContenedoresDeTessera((args) => runDocker(args), SANDBOX_IMAGE, filtro)) ?? []
       if (left.length > 0) await runDocker(['rm', '-f', ...left])
@@ -114,7 +116,7 @@ export class BarridoSandbox {
     this.n.projectMounts.clear()
     this.n.agentConfigMounts.clear()
     this.n.liveSessions.clear()
-    onProgress?.({ phase: 'done', done: total, total, label: 'Listo' })
+    onProgress?.({ phase: 'done', done: total, total, label: t.listo })
     return total
   }
 

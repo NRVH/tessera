@@ -10,7 +10,8 @@ import { useState } from 'react'
 import { ContextMenu, SEP, type ContextMenuEntry } from '../../comun/ContextMenu'
 import { IconoBuscar, IconoDesplegar } from './iconos'
 import { pegarRecortado } from '../../util/pasteTrim'
-import { PRESETS_FECHA, type Busqueda, type FiltrosLog, type PresetFecha } from './modelo/filtrosLog'
+import { PRESETS_FECHA, type Busqueda, type FiltrosLog } from './modelo/filtrosLog'
+import { txGit } from './textos.ts'
 import type { AutorConteo } from './modelo/filtrosLog'
 import type { Branch } from '../../../../shared/git-ipc'
 
@@ -26,9 +27,10 @@ function entradasRama(
 ): ContextMenuEntry[] {
   const locales = (branches ?? []).filter((b) => !b.remote)
   const remotas = (branches ?? []).filter((b) => b.remote)
+  const t = txGit()
   const entradas: ContextMenuEntry[] = [
     {
-      label: 'Todas las ramas',
+      label: t.todasLasRamas,
       checked: filtros.rama === null,
       onClick: () => onFiltros({ ...filtros, rama: null })
     }
@@ -40,7 +42,7 @@ function entradasRama(
   })
   if (locales.length > 0) {
     entradas.push(SEP)
-    for (const b of locales) entradas.push(entradaDe(b, b.current ? `${b.name}  (actual)` : b.name))
+    for (const b of locales) entradas.push(entradaDe(b, b.current ? `${b.name}  (${t.actual})` : b.name))
   }
   if (remotas.length > 0) {
     entradas.push(SEP)
@@ -56,7 +58,7 @@ function entradasAutor(
 ): ContextMenuEntry[] {
   const entradas: ContextMenuEntry[] = [
     {
-      label: 'Cualquier usuario',
+      label: txGit().cualquierUsuario,
       checked: filtros.autor === null,
       onClick: () => onFiltros({ ...filtros, autor: null })
     }
@@ -73,10 +75,11 @@ function entradasAutor(
 }
 
 function entradasFecha(filtros: FiltrosLog, onFiltros: (f: FiltrosLog) => void): ContextMenuEntry[] {
-  return PRESETS_FECHA.map((p) => ({
-    label: p.etiqueta,
-    checked: filtros.fecha === p.id,
-    onClick: () => onFiltros({ ...filtros, fecha: p.id as PresetFecha })
+  const etiquetas = txGit().fechas
+  return PRESETS_FECHA.map((id) => ({
+    label: etiquetas[id],
+    checked: filtros.fecha === id,
+    onClick: () => onFiltros({ ...filtros, fecha: id })
   }))
 }
 
@@ -87,17 +90,18 @@ function ControlesCoincidencia(p: {
   onSaltar: (delta: 1 | -1) => void
 }): React.JSX.Element {
   const { coincidencias, onSaltar } = p
+  const t = txGit()
   return (
     <>
       <span className="git-buscador-conteo">
-        {coincidencias === 0 ? 'sin resultados' : `${p.indice}/${coincidencias}`}
+        {coincidencias === 0 ? t.sinResultados : `${p.indice}/${coincidencias}`}
       </span>
       <button
         className="git-icon-btn"
         onClick={() => onSaltar(-1)}
         disabled={coincidencias === 0}
-        title="Coincidencia anterior (Mayús+Enter)"
-        aria-label="Coincidencia anterior"
+        title={t.coincidenciaAnteriorTitulo}
+        aria-label={t.coincidenciaAnterior}
       >
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6">
           <path d="M4 10l4-4 4 4" strokeLinecap="round" strokeLinejoin="round" />
@@ -107,8 +111,8 @@ function ControlesCoincidencia(p: {
         className="git-icon-btn"
         onClick={() => onSaltar(1)}
         disabled={coincidencias === 0}
-        title="Coincidencia siguiente (Enter)"
-        aria-label="Coincidencia siguiente"
+        title={t.coincidenciaSiguienteTitulo}
+        aria-label={t.coincidenciaSiguiente}
       >
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6">
           <path d="M4 6l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
@@ -127,6 +131,7 @@ function Buscador(p: {
   onSaltarCoincidencia: (delta: 1 | -1) => void
 }): React.JSX.Element {
   const { consulta, onConsulta, coincidencias, onSaltarCoincidencia } = p
+  const t = txGit()
   return (
     <div className="git-buscador">
       <IconoBuscar />
@@ -145,9 +150,9 @@ function Buscador(p: {
             onConsulta('')
           }
         }}
-        placeholder="Texto o hash"
+        placeholder={t.textoOHash}
         spellCheck={false}
-        aria-label="Buscar en el historial de commits"
+        aria-label={t.buscarEnHistorial}
       />
       {p.modoTexto && (
         <ControlesCoincidencia
@@ -160,8 +165,8 @@ function Buscador(p: {
         <button
           className="git-icon-btn"
           onClick={() => onConsulta('')}
-          title="Limpiar la búsqueda"
-          aria-label="Limpiar la búsqueda"
+          title={t.limpiarBusqueda}
+          aria-label={t.limpiarBusqueda}
         >
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6">
             <path d="M4 4l8 8M12 4l-8 8" strokeLinecap="round" />
@@ -212,7 +217,8 @@ export function BarraFiltros(p: PropsBarraFiltros): React.JSX.Element {
     setMenu({ cual, x: r.left, y: r.bottom + 4 })
   }
 
-  const etiquetaFecha = PRESETS_FECHA.find((x) => x.id === filtros.fecha)?.etiqueta ?? 'Fecha'
+  const t = txGit()
+  const etiquetaFecha = t.fechas[filtros.fecha]
   const itemsMenu = (): ContextMenuEntry[] => {
     if (menu?.cual === 'rama') return entradasRama(p.branches, filtros, onFiltros)
     if (menu?.cual === 'autor') return entradasAutor(p.autores, filtros, onFiltros)
@@ -231,20 +237,20 @@ export function BarraFiltros(p: PropsBarraFiltros): React.JSX.Element {
       />
       <BotonFiltro
         activo={filtros.rama !== null}
-        title="Filtrar por rama"
-        valor={filtros.rama ?? 'Rama'}
+        title={t.filtrarRama}
+        valor={filtros.rama ?? t.rama}
         onAbrir={(e) => abrir('rama', e)}
       />
       <BotonFiltro
         activo={filtros.autor !== null}
-        title="Filtrar por usuario"
-        valor={filtros.autor ?? 'Usuario'}
+        title={t.filtrarUsuario}
+        valor={filtros.autor ?? t.usuario}
         onAbrir={(e) => abrir('autor', e)}
       />
       <BotonFiltro
         activo={filtros.fecha !== 'cualquiera'}
-        title="Filtrar por fecha"
-        valor={filtros.fecha === 'cualquiera' ? 'Fecha' : etiquetaFecha}
+        title={t.filtrarFecha}
+        valor={filtros.fecha === 'cualquiera' ? t.fecha : etiquetaFecha}
         onAbrir={(e) => abrir('fecha', e)}
       />
       {menu && (

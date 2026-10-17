@@ -28,6 +28,7 @@ import { politicaDe } from '../documentos/ControladorDocumentos.ts'
 import { conValidado, esEnteroEn, esNombre, invalida, peticionIdDe, type Validado } from '../documentos/validacionPeticion.ts'
 import { sinSoloLecturaImpuesta, type SoloLecturaImpuesta } from '../soloLecturaImpuesta.ts'
 import type { GestorClaves } from './GestorClaves.ts'
+import { txClaves } from './textosClaves.ts'
 
 /** Las operaciones del contrato de claves (las claves de `KV_CHANNELS`). */
 export type OperacionClaves = keyof typeof KV_CHANNELS
@@ -177,7 +178,7 @@ export class ControladorClaves {
       return { ok: true, valor: archivo === null ? null : { archivo } }
     } catch (err) {
       this.log(`guardar texto: ${err instanceof Error ? err.name : 'error'}`)
-      return { ok: false, error: { motivo: 'interno', mensaje: 'No se pudo guardar el archivo (sin permiso o el destino está en uso).' } }
+      return { ok: false, error: { motivo: 'interno', mensaje: txClaves().noSeGuardo } }
     }
   }
 

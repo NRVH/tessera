@@ -7,9 +7,8 @@
 
 Las sugerencias necesitan el catálogo (índice de nombres, columnas, FKs), que viaja al main y, por
 una VPN, tarda. Y partir la consola entera en sentencias es lo caro: `dividirSentencias` pasa el
-léxico por TODO el texto. Medido bajo `node` con una consola Oracle mixta: unos 10 ms a 0,25 MiB,
-35 ms a 1 MiB y 60-80 ms a 2 MiB, en el hilo del renderer; buscar la sentencia del cursor en lo ya
-partido es 0,1 ms. Monaco pregunta varias veces por la misma versión (al abrir, con `.`, con
+léxico por TODO el texto. Su coste crece con el tamaño de la consola (decenas de ms a partir de 1 MiB),
+en el hilo del renderer; buscar la sentencia del cursor en lo ya partido es casi gratis. Monaco pregunta varias veces por la misma versión (al abrir, con `.`, con
 Ctrl+Espacio).
 
 ## Decisión

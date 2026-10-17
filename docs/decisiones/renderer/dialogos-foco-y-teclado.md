@@ -1,7 +1,7 @@
 # Los diálogos comparten un hook de foco y teclado, y el de confirmar resuelve Enter y foco sin destruir por reflejo
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/comun/`: `useDialogo.ts`, `pilaDialogos.ts`, `ConfirmDialog.tsx`, `PromptDialog.tsx`
+- **Ámbito:** `src/renderer/src/comun/`: `useDialogo.ts`, `pilaDialogos.ts`, `ConfirmDialog.tsx`, `PromptDialog.tsx`, `capaVisible.ts`
 
 ## Contexto
 
@@ -23,6 +23,9 @@ componente `<Modal>` común acabaría con una variante y varios slots para parec
 - `ConfirmDialog` pasa `onConfirm`/`onCancel` por ref y no por dependencias: los llamadores los crean en
   línea, y con ellos como dependencias cualquier repintado del padre relanzaba el foco inicial y lo
   devolvía a «Cancelar» aunque el usuario ya estuviera en «Eliminar».
+- Un diálogo dentro de una capa viva oculta (`renderer/vivos-y-ocultos.md`) sigue montado pero no
+  tapa nada: fuera de la pila, sin Esc ni Enter en `window`, y al volver a verse recupera el foco
+  donde lo tenía dentro de la card.
 - Enter sobre un botón del diálogo lo resuelve el propio botón. Fuera de ellos solo confirma lo que no
   destruye: un diálogo `danger` no tiene «Enter por defecto» y su foco inicial va a «Cancelar».
 

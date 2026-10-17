@@ -197,7 +197,7 @@ test.describe.serial('El riel de conexiones SSH a pantalla completa', () => {
     await expect(panel().locator('.terminal-tab')).toHaveCount(1)
 
     // Fuera de pantalla completa no hay riel ni conmutador: la ▾ es la única entrada a las conexiones.
-    await expect(riel(), 'en la franja no hay riel').toHaveCount(0)
+    await expect(riel(), 'en la franja no hay riel').toBeHidden()
     await enCabecera(win)
     await expect(conmutador(), 'ni su conmutador').toHaveCount(0)
     await expect(flecha()).toHaveAttribute('aria-haspopup', 'dialog')
@@ -252,7 +252,7 @@ test.describe.serial('El riel de conexiones SSH a pantalla completa', () => {
     await capturar(win, 'riel-ssh-vacio')
 
     await salirDePantallaCompleta()
-    await expect(riel(), 'al restaurar, el riel se va').toHaveCount(0)
+    await expect(riel(), 'al restaurar, el riel se va').toBeHidden()
     await expect(conmutador(), 'y su conmutador con él').toHaveCount(0)
   })
 
@@ -317,6 +317,8 @@ test.describe.serial('El riel de conexiones SSH a pantalla completa', () => {
     await pestana.click()
     await expect(fila('Router'), 'elegir otra pestaña mueve la marca').toHaveAttribute('aria-current', 'true')
     await expect(fila('Switch')).not.toHaveAttribute('aria-current', 'true')
+    // El foco llega a la xterm un fotograma después: hasta entonces, lo tecleado en el filtro se lo llevaría ella.
+    await expect.poll(() => focoEnLaXterm(win), { message: 'elegir la pestaña lleva el foco a su xterm', timeout: 30_000 }).toBe(true)
 
     // Intro en el filtro conecta con la fila activa: segunda pestaña de la misma conexión.
     const filtro = riel().getByRole('combobox', { name: 'Buscar conexión' })
@@ -336,7 +338,7 @@ test.describe.serial('El riel de conexiones SSH a pantalla completa', () => {
     const lienzoConRiel = await anchoDe(lienzo())
 
     await riel().getByRole('button', { name: 'Ocultar la lista' }).click()
-    await expect(riel(), 'el riel se pliega').toHaveCount(0)
+    await expect(riel(), 'el riel se pliega').toBeHidden()
     await expect(divisor(), 'y su divisor con él').toHaveCount(0)
     await expect
       .poll(async () => (await anchoDe(hueco())) - huecoConRiel, { message: 'el hueco de la terminal gana el ancho del riel y su divisor' })
@@ -390,7 +392,7 @@ test.describe.serial('El riel de conexiones SSH a pantalla completa', () => {
 
     // Plegado el riel, la ▾ vuelve (22×24, a 2 px del «+», que ni se mueve ni cambia de tamaño) y es la siguiente parada de Tab.
     await conmutador().click()
-    await expect(riel()).toHaveCount(0)
+    await expect(riel()).toBeHidden()
     await enCabecera(win)
     await expect(flecha(), 'plegado el riel la ▾ vuelve').toBeVisible()
     await expect(flecha()).toHaveAttribute('aria-haspopup', 'dialog')
@@ -427,13 +429,13 @@ test.describe.serial('El riel de conexiones SSH a pantalla completa', () => {
 
   test('la preferencia es del perfil y se recuerda al salir de pantalla completa y volver', async () => {
     await conmutador().click()
-    await expect(riel()).toHaveCount(0)
+    await expect(riel()).toBeHidden()
     await expect.poll(() => guardado(s.datos).visible, { message: 'el perfil queda con el riel oculto' }).toEqual({ personal: false })
 
     await salirDePantallaCompleta()
-    await expect(riel()).toHaveCount(0)
+    await expect(riel()).toBeHidden()
     await irAPantallaCompleta()
-    await expect(riel(), 'al volver, el riel sigue oculto: es la preferencia, no un estado de la sesión').toHaveCount(0)
+    await expect(riel(), 'al volver, el riel sigue oculto: es la preferencia, no un estado de la sesión').toBeHidden()
     await expect(conmutador()).toHaveAttribute('aria-pressed', 'false')
 
     await conmutador().click()
@@ -464,7 +466,7 @@ test.describe.serial('El riel de conexiones SSH a pantalla completa', () => {
 
     // Más estrecha, la terminal quedaría por debajo de 420 px: el riel se pliega, su conmutador se apaga con su porqué y la ▾ deja la lista a mano.
     await dimensionar(900)
-    await expect(riel(), 'sin sitio el riel se pliega solo').toHaveCount(0)
+    await expect(riel(), 'sin sitio el riel se pliega solo').toBeHidden()
     expect((await anchoDe(win.locator('.terminal-body'))) - 480 - 6, 'es porque la terminal quedaría por debajo de 420 px').toBeLessThan(420)
     const desbordeMinimo = await desbordes(win)
     expect(desbordeMinimo.documento, 'sin desbordes a la ventana mínima').toBeLessThanOrEqual(1)
@@ -525,7 +527,7 @@ test.describe.serial('El riel de conexiones SSH a pantalla completa', () => {
     // A pantalla completa y con el riel plegado, que el riel pase a verse quita la ▾ y cierra el lanzador con ella (sin un clic fuera).
     await irAPantallaCompleta()
     await conmutador().click()
-    await expect(riel()).toHaveCount(0)
+    await expect(riel()).toBeHidden()
     await enCabecera(win)
     await flecha().click()
     await expect(popover()).toBeVisible()
@@ -536,7 +538,7 @@ test.describe.serial('El riel de conexiones SSH a pantalla completa', () => {
 
     // Cerrado de verdad: al plegar el riel y volver la ▾, el lanzador no se reabre solo.
     await conmutador().click()
-    await expect(riel()).toHaveCount(0)
+    await expect(riel()).toBeHidden()
     await enCabecera(win)
     await expect(flecha()).toHaveAttribute('aria-expanded', 'false')
     await expect(popover(), 'el lanzador no se reabre solo').toHaveCount(0)
@@ -578,7 +580,7 @@ test.describe.serial('El riel de conexiones SSH a pantalla completa', () => {
     // El lanzador es otra cosa y no convive con el riel (mientras este se ve no hay ▾): se abre con el riel plegado,
     // entra con todo plegado y deja abierto solo un grupo a la vez.
     await conmutador().click()
-    await expect(riel()).toHaveCount(0)
+    await expect(riel()).toBeHidden()
     await enCabecera(win)
     await flecha().click()
     await expect(popover()).toBeVisible()
@@ -606,7 +608,7 @@ test.describe.serial('El riel de conexiones SSH a pantalla completa', () => {
 
     // Reabierto no recuerda el último grupo que quedó abierto: vuelve a entrar todo plegado.
     await conmutador().click()
-    await expect(riel()).toHaveCount(0)
+    await expect(riel()).toBeHidden()
     await enCabecera(win)
     await flecha().click()
     for (const nombre of ['Sin grupo', 'Alfa', 'Beta']) {
@@ -621,7 +623,7 @@ test.describe.serial('El riel de conexiones SSH a pantalla completa', () => {
     await riel().getByRole('treeitem', { name: /^Alfa 1,/ }).dblclick()
     await expect(panel().getByRole('tab', { name: 'Alfa 1, SSH' })).toBeVisible({ timeout: 30_000 })
     await conmutador().click()
-    await expect(riel()).toHaveCount(0)
+    await expect(riel()).toBeHidden()
     await enCabecera(win)
     await flecha().click()
     await expect(grupoLanzador('Alfa'), 'se mira «Alfa 1», pero su grupo no se abre solo').toHaveAttribute('aria-expanded', 'false')
@@ -633,7 +635,7 @@ test.describe.serial('El riel de conexiones SSH a pantalla completa', () => {
   test('varias a la vez en el riel: Ctrl/⌘ y Mayús marcan, se arrastran a otro grupo o a «Nuevo grupo…», «Mover…» y Supr con una sola confirmación', async () => {
     const win = s.win
     // Viene de la anterior: Router y Switch sueltas, «Alfa» y «Beta» con dos cada uno, y el riel plegado.
-    if ((await riel().count()) === 0) await conmutador().click()
+    if (!(await riel().isVisible())) await conmutador().click()
     await expect(riel()).toBeVisible()
     const arbol = riel().getByRole('tree', { name: 'Conexiones SSH' })
     await expect(arbol, 'el árbol del riel deja marcar varias').toHaveAttribute('aria-multiselectable', 'true')
@@ -843,7 +845,7 @@ test.describe.serial('El riel de conexiones SSH con dos perfiles, a ventana estr
     await expect(riel(), 'Personal: el riel se ve por defecto').toBeVisible()
     await expect(riel().getByRole('treeitem', { name: /^Router,/ })).toBeVisible()
     await riel().getByRole('button', { name: 'Ocultar la lista' }).click()
-    await expect(riel()).toHaveCount(0)
+    await expect(riel()).toBeHidden()
     await salirDePantallaCompleta()
 
     await irAPerfil('Trabajo')
@@ -856,8 +858,35 @@ test.describe.serial('El riel de conexiones SSH con dos perfiles, a ventana estr
 
     await irAPerfil('Personal')
     await irAPantallaCompleta()
-    await expect(riel(), 'al volver a Personal sigue oculto: la preferencia es suya').toHaveCount(0)
+    await expect(riel(), 'al volver a Personal sigue oculto: la preferencia es suya').toBeHidden()
     await expect(conmutador()).toHaveAttribute('aria-pressed', 'false')
+    await salirDePantallaCompleta()
+  })
+
+  test('el filtro del riel es de cada perfil: el de uno sigue ahí al volver de otro', async () => {
+    const enPantallaCompleta = async (): Promise<void> => {
+      if (!(await s.win.locator('.shell').getAttribute('class'))?.includes('franja-pantalla-completa')) await irAPantallaCompleta()
+    }
+    await irAPerfil('Personal')
+    await enPantallaCompleta()
+    // Se deja la preferencia de Personal como estaba: las pruebas de después cuentan con ella.
+    const estabaOculto = (await conmutador().getAttribute('aria-pressed')) !== 'true'
+    if (estabaOculto) await conmutador().click()
+    await expect(riel()).toBeVisible()
+    await irAPerfil('Trabajo')
+    await enPantallaCompleta()
+    await filtroRiel().fill('bas')
+    await expect(riel().getByRole('treeitem', { name: /^Bastion,/ })).toBeVisible()
+
+    await irAPerfil('Personal')
+    await expect(filtroRiel(), 'Personal tiene su propio filtro, vacío').toHaveValue('')
+    await irAPerfil('Trabajo')
+    await expect(filtroRiel(), 'al volver a Trabajo, su filtro sigue ahí').toHaveValue('bas')
+
+    await filtroRiel().fill('')
+    await salirDePantallaCompleta()
+    await irAPerfil('Personal')
+    if (estabaOculto) await conmutador().click()
     await salirDePantallaCompleta()
   })
 
@@ -873,11 +902,11 @@ test.describe.serial('El riel de conexiones SSH con dos perfiles, a ventana estr
     await expect(popover(), 'y no se abre el lanzador').toHaveCount(0)
 
     await conmutador().click()
-    await expect(riel()).toHaveCount(0)
+    await expect(riel()).toBeHidden()
     await vacio.getByRole('button', { name: 'Conectar por SSH…' }).click()
     await expect(popover(), 'con el riel plegado abre el lanzador').toBeVisible()
     await expect(conmutador(), 'sin tocar la preferencia: el riel sigue plegado').toHaveAttribute('aria-pressed', 'false')
-    await expect(riel()).toHaveCount(0)
+    await expect(riel()).toBeHidden()
     await win.keyboard.press('Escape')
     await expect(popover()).toHaveCount(0)
 
@@ -886,7 +915,7 @@ test.describe.serial('El riel de conexiones SSH con dos perfiles, a ventana estr
     await salirDePantallaCompleta()
   })
 
-  test('volver a pantalla completa con la ventana estrecha no monta el riel ni un instante (useAnchoDe); el aviso de error del riel respeta su ancho', async () => {
+  test('volver a pantalla completa con la ventana estrecha no enseña el riel ni un instante (useAnchoDe); el aviso de error del riel respeta su ancho', async () => {
     const win = s.win
     await irAPerfil('Personal')
     await irAPantallaCompleta()
@@ -898,22 +927,27 @@ test.describe.serial('El riel de conexiones SSH con dos perfiles, a ventana estr
     await expect(s.win.getByRole('separator', { name: 'Redimensionar la lista de conexiones SSH' })).toHaveAttribute('aria-valuenow', '480')
     await salirDePantallaCompleta()
     await dimensionar(900)
-    // Un observador que anota si el riel llegó a montarse, aunque fuera un fotograma.
+    // Un observador que anota si el riel llegó a enseñarse, aunque fuera un fotograma: visto una vez, se
+    // queda montado y oculto (`.capa-viva.oculta`), así que cuenta tanto montarse fuera de una capa oculta
+    // como que su capa deje de estarlo.
     await win.evaluate(() => {
-      const w = window as unknown as { __rielMontado?: boolean }
-      w.__rielMontado = false
-      new MutationObserver((cambios) => {
-        for (const c of cambios) {
-          for (const n of Array.from(c.addedNodes)) {
-            if (n instanceof HTMLElement && (n.matches('aside.ssh-riel') || n.querySelector('aside.ssh-riel'))) w.__rielMontado = true
-          }
-        }
-      }).observe(document.body, { childList: true, subtree: true })
+      const w = window as unknown as { __rielEnsenado?: boolean; __observadorRiel?: MutationObserver }
+      w.__rielEnsenado = false
+      const seEnsena = (): boolean => Array.from(document.querySelectorAll('aside.ssh-riel')).some((e) => !e.closest('.capa-viva.oculta'))
+      w.__observadorRiel = new MutationObserver(() => {
+        if (seEnsena()) w.__rielEnsenado = true
+      })
+      w.__observadorRiel.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] })
     })
     await irAPantallaCompleta()
-    await expect(riel(), 'a esta anchura no hay sitio para el riel').toHaveCount(0)
+    await expect(riel(), 'a esta anchura no hay sitio para el riel').toBeHidden()
     await expect(conmutador(), 'y su conmutador está apagado').toBeDisabled()
-    expect(await win.evaluate(() => (window as unknown as { __rielMontado?: boolean }).__rielMontado), 'ni se montó un instante').toBe(false)
+    const ensenado = await win.evaluate(() => {
+      const w = window as unknown as { __rielEnsenado?: boolean; __observadorRiel?: MutationObserver }
+      w.__observadorRiel?.disconnect()
+      return w.__rielEnsenado
+    })
+    expect(ensenado, 'ni se enseñó un instante').toBe(false)
     const d = await desbordes(win)
     expect(d.documento, 'nada se desborda').toBeLessThanOrEqual(1)
     expect(d.cuerpo).toBeLessThanOrEqual(1)
@@ -939,6 +973,70 @@ test.describe.serial('El riel de conexiones SSH con dos perfiles, a ventana estr
     expect(medidas, 'el límite de error existe').not.toBeNull()
     expect(medidas?.aviso, 'el aviso mide lo que el riel y no se reparte la fila con la terminal').toBe(ancho)
     expect(medidas?.pila ?? 0, 'la terminal conserva el resto').toBeGreaterThanOrEqual(420)
+    await salirDePantallaCompleta()
+  })
+
+  test('el riel vuelve tal cual de un perfil que no lo enseña: filtro, fila elegida y desplazamiento', async () => {
+    const win = s.win
+    // Bastantes conexiones en Personal para que su lista se desplace.
+    await win.evaluate(async () => {
+      for (let i = 0; i < 60; i++) {
+        const n = String(i).padStart(2, '0')
+        await window.tessera.ssh.crear({ profileId: 'personal', alias: `Nodo ${n}`, grupoId: null, host: `192.0.2.${100 + i}`, puerto: 22, usuario: 'pruebas', metodo: 'contrasena', disponibleAgentes: true })
+      }
+    })
+    await irAPerfil('Personal')
+    await irAPantallaCompleta()
+    if ((await conmutador().getAttribute('aria-pressed')) !== 'true') await conmutador().click()
+    await expect(riel()).toBeVisible()
+    const arbol = riel().getByRole('tree')
+    await filtroRiel().fill('Nodo')
+    await expect(arbol.getByRole('treeitem', { name: /^Nodo 00,/ })).toBeVisible()
+
+    // A media lista, se elige con un clic (en el riel un clic solo elige) una fila que se ve.
+    await arbol.evaluate((e) => {
+      e.scrollTop = Math.round(e.scrollHeight / 2)
+    })
+    const alias = await arbol.evaluate((e) => {
+      const caja = e.getBoundingClientRect()
+      const filas = Array.from(e.querySelectorAll<HTMLElement>('[role="treeitem"]')).filter((f) => {
+        const r = f.getBoundingClientRect()
+        return r.top >= caja.top && r.bottom <= caja.bottom
+      })
+      return filas[Math.floor(filas.length / 2)]?.getAttribute('aria-label')?.split(',')[0] ?? ''
+    })
+    expect(alias, 'hay una fila a la vista a media lista').toMatch(/^Nodo \d+$/)
+    const elegida = arbol.getByRole('treeitem', { name: new RegExp(`^${alias},`) })
+    await elegida.click()
+    await expect(elegida).toHaveAttribute('aria-selected', 'true')
+    const antes = await arbol.evaluate((e) => e.scrollTop)
+    expect(antes, 'la lista se desplazó').toBeGreaterThan(100)
+
+    // Trabajo, sin pantalla completa: el riel no se enseña.
+    await irAPerfil('Trabajo')
+    await expect(s.win.locator('.shell')).not.toHaveClass(/\bfranja-pantalla-completa\b/)
+    await expect(riel(), 'en Trabajo, sin pantalla completa, el riel no se ve').toBeHidden()
+
+    // De vuelta a Personal, que sigue a pantalla completa: el riel tal cual.
+    const comprobarAlVolver = async (caso: string): Promise<void> => {
+      await irAPerfil('Personal')
+      await expect(s.win.locator('.shell')).toHaveClass(MODO_PANTALLA_COMPLETA)
+      await expect(riel()).toBeVisible()
+      await expect(filtroRiel(), `con su filtro — ${caso}`).toHaveValue('Nodo')
+      await expect(elegida, `con su fila elegida — ${caso}`).toHaveAttribute('aria-selected', 'true')
+      await expect(elegida, `que se ve — ${caso}`).toBeVisible()
+      expect(await arbol.evaluate((e) => e.scrollTop), `y con su desplazamiento — ${caso}`).toBe(antes)
+    }
+    await comprobarAlVolver('Trabajo sin pantalla completa')
+
+    // Trabajo con la franja cerrada: el panel de la terminal sale del layout (`display: none`) y el riel
+    // con él; su lista vuelve igualmente a donde estaba.
+    await perfil('Trabajo').click()
+    if (await panel().isVisible()) await s.win.getByRole('button', { name: 'Terminal', exact: true }).click()
+    await expect(panel(), 'en Trabajo la franja está cerrada').toBeHidden()
+    await comprobarAlVolver('Trabajo con la franja cerrada')
+
+    await filtroRiel().fill('')
     await salirDePantallaCompleta()
   })
 })

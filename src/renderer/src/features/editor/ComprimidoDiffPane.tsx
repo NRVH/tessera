@@ -16,6 +16,8 @@ import { FilaArbolArchivo, etiquetaRevisiones, type FilaArbol } from '../git'
 import { MIN_LISTA, maxLista, migas, tituloEntrada } from './comprimidoDiffModelo'
 import { useComprimidoDiff } from './useComprimidoDiff'
 import type { EntradaComparada, ProcedenciaJava } from '../../../../shared/comprimidos-ipc'
+import { txDiff } from './textos.ts'
+import { txComprimido } from './textosVisores.ts'
 
 export interface ComprimidoDiffPaneProps {
   target: DiffTarget
@@ -74,7 +76,7 @@ function IdentidadComprimido({ target, c }: { target: DiffTarget; c: EstadoCompr
   const { dentro, setDentro, seleccionada, procedencia } = c
   return (
     <div className="diff-identidad">
-      <span className="diff-revisiones" title="Revisiones que se comparan">
+      <span className="diff-revisiones" title={txDiff().revisionesQueSeComparan}>
         {etiquetaRevisiones(target.commitHash)}
       </span>
       <span className="diff-ruta comprimido-miga">
@@ -88,7 +90,7 @@ function IdentidadComprimido({ target, c }: { target: DiffTarget; c: EstadoCompr
                 type="button"
                 className="comprimido-miga-btn"
                 onClick={() => setDentro((prev) => prev.slice(0, m.nivel as number))}
-                title={`Volver a ${m.nombre}`}
+                title={txComprimido().volverA(m.nombre)}
               >
                 {m.nombre}
               </button>
@@ -108,10 +110,11 @@ function IdentidadComprimido({ target, c }: { target: DiffTarget; c: EstadoCompr
 }
 
 function ChipProcedencia({ p }: { p: ProcedenciaJava }): React.JSX.Element {
+  const t = txComprimido()
   const titulo =
-    `Descompilado con ${p.motor} ${p.motorVersion} sobre JVM ${p.javaMajor}` +
-    (p.bytecode ? ` · bytecode ${p.bytecode.major}.${p.bytecode.minor} (${p.bytecode.plataforma})` : '') +
-    (p.sinNombresLocales ? ' · sin nombres de variables (la clase no trae LocalVariableTable)' : '')
+    t.descompiladoCon(p.motor, p.motorVersion, p.javaMajor) +
+    (p.bytecode ? t.bytecode(p.bytecode.major, p.bytecode.minor, p.bytecode.plataforma) : '') +
+    (p.sinNombresLocales ? t.sinNombresLocales : '')
   return (
     <span className="comprimido-procedencia" title={titulo}>
       {p.motor} · {p.ms} ms
@@ -129,6 +132,7 @@ interface ListaEntradasProps {
 /** Lista de entradas cambiadas y el divisor con el diff de abajo. */
 function ListaEntradas({ c, zonaRef, altoFila, varsDensidad }: ListaEntradasProps): React.JSX.Element {
   const { comparacion, cargando, altoLista, seleccionada } = c
+  const t = txComprimido()
   return (
     <>
       <div
@@ -138,13 +142,13 @@ function ListaEntradas({ c, zonaRef, altoFila, varsDensidad }: ListaEntradasProp
       >
         <VirtualList<FilaArbol>
           className="comprimido-lista-scroll"
-          ariaLabel="Entradas que cambiaron"
+          ariaLabel={t.entradasQueCambiaron}
           items={c.filas}
           itemHeight={altoFila}
           getKey={(fila) => `${fila.nodo.tipo === 'carpeta' ? 'd' : 'f'}:${fila.nodo.ruta}`}
           header={
             <>
-              {cargando && <div className="git-state-inline">Comparando…</div>}
+              {cargando && <div className="git-state-inline">{t.comparando}</div>}
               {comparacion !== null && comparacion.error !== '' && (
                 <div className="git-error">{comparacion.error}</div>
               )}
@@ -179,7 +183,7 @@ function ListaEntradas({ c, zonaRef, altoFila, varsDensidad }: ListaEntradasProp
           c.repartidoAManoRef.current = true
           c.setAltoLista(Math.min(px, maxLista(zonaRef.current)))
         }}
-        label="Reparto entre las entradas y el diff"
+        label={t.repartoEntradasDiff}
       />
     </>
   )
@@ -189,13 +193,12 @@ function PieLista({ c }: { c: EstadoComprimido }): React.JSX.Element | null {
   const { comparacion } = c
   if (comparacion === null) return null
   const n = comparacion.entradas.length
+  const t = txComprimido()
   return (
     <div className="comprimido-pie">
-      {n === 0
-        ? 'Sin diferencias dentro del archivo'
-        : `${n} ${n === 1 ? 'entrada cambiada' : 'entradas cambiadas'}`}
-      {comparacion.iguales > 0 && ` · ${comparacion.iguales} idénticas`}
-      {comparacion.truncado && ' · lista recortada'}
+      {n === 0 ? t.sinDiferencias : t.entradasCambiadas(n)}
+      {comparacion.iguales > 0 && t.identicas(comparacion.iguales)}
+      {comparacion.truncado && t.listaRecortada}
     </div>
   )
 }

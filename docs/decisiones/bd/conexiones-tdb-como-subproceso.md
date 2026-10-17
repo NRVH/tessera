@@ -7,8 +7,8 @@
 
 `initOracleClient` solo admite una llamada por proceso (`NJS-090` a la segunda con otra ruta): si el main
 cargara el Instant Client quedaría casado con esa versión hasta reiniciar la app, y el día que convivan una
-base 11.2 y una 9.2 se rompería. Además, un addon nativo que se cuelga se lleva por delante un proceso de
-unos 400 ms, no Tessera entera.
+base 11.2 y una 9.2 se rompería. Además, un addon nativo que se cuelga se lleva por delante un proceso corto,
+no Tessera entera.
 
 ## Decisión
 

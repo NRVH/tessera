@@ -5,7 +5,8 @@
 // restan sus directorios centrales y se saca el contenido de UNA entrada, todo por los CANALES
 // REGISTRADOS con `registrarIpcComprimidos`. Cubre A/M/D, el jar recompilado, el alta del
 // contenedor, el lado del disco por rangos, anidados, texto en latin-1, `no-existe`, `binario`,
-// el token que descarta una petición superada y el contenedor inexistente. Fixture temporal.
+// el token que descarta una petición superada, el contenedor inexistente y que cada petición se
+// atiende en su proyecto con el ancla en otro. Fixture temporal.
 // =============================================================================
 
 import { execFileSync } from 'node:child_process'
@@ -167,14 +168,22 @@ async function main(): Promise<void> {
   const fx = buildFixture()
   console.log('repo:', fx.repo)
 
+  // El ancla está en OTRO proyecto (una carpeta sin repo): cada petición tiene que leer del
+  // suyo por su `raiz`, como al cambiar de proyecto con un diff de comprimido abierto.
+  const otro = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'tessera-comprimidos-otro-')))
   try {
     const silent = (): void => {}
-    const git = new GitService({ projectRoot: fx.repo, log: silent })
-    git.setProjectRoot(fx.repo)
+    const git = new GitService({ projectRoot: otro, log: silent })
+    git.setProjectRoot(otro)
+    git.conocerContenedora(fx.repo)
+    const proyecto = (raiz: unknown): { git: ReturnType<typeof git.paraRaiz>; resolver: (rel: string) => string } => ({
+      git: git.paraRaiz(raiz),
+      resolver: (rel: string) => path.join(String(raiz), rel)
+    })
 
     const ipc = ipcFalso()
     const servicio = new ComprimidosService({
-      git,
+      proyecto,
       // El descompilador no se toca en este test: todas las entradas se piden como
       // texto. Va un doble que grita si alguien lo llama sin querer.
       decompiler: {
@@ -182,15 +191,14 @@ async function main(): Promise<void> {
           throw new Error('no se esperaba descompilar en este test')
         }
       } as never,
-      resolver: (rel: string) => path.join(fx.repo, rel),
       log: silent
     })
     registrarIpcComprimidos({ ipc: ipc as never, comprimidos: servicio })
 
-    const comparar = (req: CompararRequest): Promise<CompararResult> =>
-      ipc.llamar<CompararResult>(COMPRIMIDOS_CHANNELS.COMPARAR, req)
-    const entrada = (req: EntradaRequest): Promise<EntradaResult> =>
-      ipc.llamar<EntradaResult>(COMPRIMIDOS_CHANNELS.ENTRADA, req)
+    const comparar = (req: Omit<CompararRequest, 'raiz'>, raiz = fx.repo): Promise<CompararResult> =>
+      ipc.llamar<CompararResult>(COMPRIMIDOS_CHANNELS.COMPARAR, { raiz, ...req })
+    const entrada = (req: Omit<EntradaRequest, 'raiz'>, raiz = fx.repo): Promise<EntradaResult> =>
+      ipc.llamar<EntradaResult>(COMPRIMIDOS_CHANNELS.ENTRADA, { raiz, ...req })
 
     const enCommit = (hash: string, p = 'cliente.jar'): CompararRequest['antes'] => ({
       source: 'commit',
@@ -361,19 +369,19 @@ async function main(): Promise<void> {
     // antes de arrancar nada. Sólo se comprueba con 'java', que es el camino que
     // mira el token (el de texto no arranca procesos y no hace falta cortarlo).
     const servicioToken = new ComprimidosService({
-      git,
+      proyecto,
       decompiler: {
         descompilar: async () => {
           throw new Error('no debería llegar a descompilar: la petición estaba superada')
         }
       } as never,
-      resolver: (rel: string) => path.join(fx.repo, rel),
       log: silent
     })
     const ipc2 = ipcFalso()
     registrarIpcComprimidos({ ipc: ipc2 as never, comprimidos: servicioToken })
     const pedir = (token: number): Promise<EntradaResult> =>
       ipc2.llamar<EntradaResult>(COMPRIMIDOS_CHANNELS.ENTRADA, {
+        raiz: fx.repo,
         antes: enCommit(fx.commit1),
         despues: enCommit(fx.commit2),
         dentro: [],
@@ -435,7 +443,39 @@ async function main(): Promise<void> {
       r10.error !== '' && r10.entradas.length === 0,
       JSON.stringify(r10.error)
     )
+
+    // -----------------------------------------------------------------------
+    hr('(11) Cada petición se atiende en SU proyecto, nunca en el anclado')
+    // Todo lo anterior ya corre con el ancla en otra carpeta sin repo: sin `raiz`, git
+    // habría preguntado allí y no habría ningún lado.
+    const r11 = await comparar(
+      { antes: enCommit(fx.commit1), despues: enCommit(fx.commit2), dentro: [] },
+      path.join(otro, 'nunca-anclada')
+    )
+    check(
+      '(11a) una contenedora nunca anclada responde con error, sin tocar git ni el disco',
+      r11.error !== '' && r11.entradas.length === 0,
+      JSON.stringify(r11.error)
+    )
+    const e11 = await entrada(
+      {
+        antes: enCommit(fx.commit1),
+        despues: enCommit(fx.commit2),
+        dentro: [],
+        nombre: 'recursos/mensajes.properties',
+        como: 'texto',
+        paneKey: 'p11',
+        token: 1
+      },
+      ''
+    )
+    check(
+      '(11b) una entrada sin `raiz` no se lee: los dos lados vuelven ilegibles',
+      e11.antes.estado === 'no-legible' && e11.despues.estado === 'no-legible',
+      `${e11.antes.estado}/${e11.despues.estado}`
+    )
   } finally {
+    rmSync(otro, { recursive: true, force: true })
     // En Windows, el `git cat-file` recién matado conserva el repo como cwd unos
     // milisegundos y el borrado sale EBUSY. Se reintenta con espera, y si aun así
     // no se puede, se avisa y se sigue: dejar un temporal del SO sin borrar no

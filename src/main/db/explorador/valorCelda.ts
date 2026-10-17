@@ -16,6 +16,7 @@ import type {
 import { marcadorPosicional, type DialectoSql } from '../../../shared/sql/dialectosSql.ts'
 import { citarGenerado } from '../../../shared/sql/identificadoresSql.ts'
 import { motorExplorador } from './motores/index.ts'
+import { txValorCelda } from './textosRejilla.ts'
 
 export interface ColumnaClave {
   nombre: string
@@ -67,26 +68,26 @@ export function columnasClave(
  */
 export function construirConsultaValor(p: PeticionConsultaValor): ConsultaValor {
   if (p.pk.length === 0) {
-    return { error: 'La tabla no tiene clave primaria: no hay forma fiable de volver a encontrar la fila.' }
+    return { error: txValorCelda().sinPk }
   }
   if (p.clave.length !== p.pk.length) {
-    return { error: 'La clave de la fila no cuadra con la clave primaria de la tabla: vuelve a abrirla.' }
+    return { error: txValorCelda().claveNoCuadra }
   }
-  if (!p.esquema || !p.nombre || !p.columna) return { error: 'Falta el objeto o la columna.' }
+  if (!p.esquema || !p.nombre || !p.columna) return { error: txValorCelda().faltaObjeto }
   const binds: string[] = []
   const condiciones: string[] = []
   const sesion = motorExplorador(p.dialecto).sesion
   const citar = (n: string): string => citarGenerado(n, p.dialecto)
   for (let i = 0; i < p.pk.length; i++) {
     const v = p.clave[i]
-    if (v === null || v === undefined) return { error: 'La clave de la fila tiene un valor nulo.' }
+    if (v === null || v === undefined) return { error: txValorCelda().claveNula }
     let bind: string
     if (typeof v === 'boolean') bind = sesion.bindBooleano(v)
     else bind = v
     const marca = marcadorPosicional(p.dialecto, i + 1)
     let lado = marca
     if (p.pk[i].binario) {
-      if (!HEX.test(bind)) return { error: 'La clave binaria no llegó como hexadecimal.' }
+      if (!HEX.test(bind)) return { error: txValorCelda().claveBinaria }
       bind = bind.slice(2)
       lado = sesion.ladoClaveBinaria(marca)
     }

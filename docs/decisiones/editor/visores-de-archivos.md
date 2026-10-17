@@ -25,6 +25,10 @@ tick del watcher pintaría la imagen, el jar o la clase de OTRO proyecto con el 
   desde la creación, y no lo rehace si el texto es idéntico (perdería scroll y plegado).
 - Su host nace oculto: hacen falta el `ResizeObserver` y `useVisibleLayout`, o la pestaña sale negra.
 - Un fallo puede llegar sin texto: se enseña uno de respaldo y los botones de recuperación.
+- El audio y el vídeo los decodifica el Chromium de la app, como el PDF: bytes por IPC, Blob y
+  `<audio>`/`<video>` (la CSP abre `media-src blob:`). Mismo tope de 50 MiB que el resto de
+  binarios; lo que pasa de ahí o no se decodifica cae a «Abrir externamente». Al ocultarse la
+  pestaña o el área del editor se pausa, porque sigue montada.
 
 ## Consecuencias
 
@@ -37,3 +41,7 @@ que un hook recibe por parámetro figuran en sus dependencias solo por el linter
 - Comparar `r.targetKey !== targetKey` al recibir la respuesta: el main hace eco del que
   recibió, así que nunca falla y aparenta una protección que no existe.
 - Un efecto de rAF sobre `conFuente` en el pane Java: redundante con el observer.
+- Decodificar audio o vídeo con un decodificador externo instalado en el equipo: haría depender el visor de
+  cada máquina y añadiría procesos que gestionar para los pocos formatos que Chromium no abre.
+- Servir el audio y el vídeo en streaming por un protocolo propio: abre una vía nueva de lectura
+  de archivos para cubrir solo lo que pasa de 50 MiB.

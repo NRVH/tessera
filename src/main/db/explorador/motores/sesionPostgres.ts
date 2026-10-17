@@ -11,7 +11,7 @@ import { citar } from '../../../../shared/sql/identificadoresSql.ts'
 import type { ColumnaEdicion } from '../edicionRejilla.ts'
 import { TOPE_PLAN_PG } from '../limites.ts'
 import {
-  AVISO_PLAN_RECORTADO,
+  avisoPlanRecortado,
   planDesdeJsonPg,
   PREFIJO_EXPLICAR_PG,
   SQL_PUNTO_PG,
@@ -21,6 +21,7 @@ import {
 } from '../planSql.ts'
 import { esFalloTrabajador, type BindEntradaLob, type OpcionesEjecucion, type ResultadoTrabajador } from '../protocoloTrabajador.ts'
 import { noDisponible, texto } from './filasCatalogo.ts'
+import { txMotores } from './textosMotores.ts'
 import type { ContextoExplicar, MarcasTablaEdicion, SesionExplorador } from './sesion.ts'
 import type { ConsultaCatalogo, FilaCatalogo } from './tipos.ts'
 
@@ -46,9 +47,10 @@ function columnaPg(f: FilaCatalogo): ColumnaEdicion {
   const identidad = texto(f[4]).trim()
   const binaria = base === 'bytea'
   let noEditable: string | null = null
-  if (generada !== '') noEditable = 'Columna generada: la calcula PostgreSQL.'
-  else if (identidad === 'a') noEditable = 'Identidad GENERATED ALWAYS: la numera PostgreSQL.'
-  else if (binaria) noEditable = 'Binaria: no se edita como texto.'
+  const t = txMotores()
+  if (generada !== '') noEditable = t.columnaGenerada('PostgreSQL')
+  else if (identidad === 'a') noEditable = t.identidadAlways('PostgreSQL')
+  else if (binaria) noEditable = t.binaria
   // PG nunca se identifica por 'rowid' (la PK o la UNIQUE NOT NULL encuentran la fila por
   // su valor), así que sus originales no se usan: nada que decidir aquí.
   return { nombre, tipo, noEditable, binaria, lob: null, nacional: false, comparable: null }
@@ -163,21 +165,21 @@ function opcionesExplicarPg(ctx: ContextoExplicar, punto: boolean): OpcionesEjec
 
 /** El plan (nodos, texto y tiempos) a partir de lo que devolvió el EXPLAIN. */
 function planDeResultadoPg(ctx: ContextoExplicar, r: ResultadoTrabajador): DbPlan {
-  if (r.tipo !== 'filas') throw ctx.error('interno', 'El servidor no devolvió el plan.')
-  if (r.recortes && r.recortes.length > 0) throw ctx.error('limite', 'El plan es demasiado grande para enseñarlo.')
+  if (r.tipo !== 'filas') throw ctx.error('interno', txMotores().planSinFilas)
+  if (r.recortes && r.recortes.length > 0) throw ctx.error('limite', txMotores().planGrande)
   const celda = (JSON.parse(r.filasJson) as unknown[][])[0]?.[0]
   let plan: ReturnType<typeof planDesdeJsonPg>
   try {
     plan = planDesdeJsonPg(typeof celda === 'string' ? celda : JSON.stringify(celda))
   } catch {
-    throw ctx.error('interno', 'El servidor devolvió un plan que Tessera no entiende.')
+    throw ctx.error('interno', txMotores().planNoEntendido)
   }
   const valor: DbPlan = {
     nodos: plan.nodos,
     texto: plan.texto,
     tiempos: { totalMs: Date.now() - ctx.t0, ejecucionMs: r.msEjecucion, lecturaMs: r.msLectura }
   }
-  if (plan.recortado) valor.avisos = [AVISO_PLAN_RECORTADO]
+  if (plan.recortado) valor.avisos = [avisoPlanRecortado()]
   return valor
 }
 
@@ -205,7 +207,7 @@ export const SESION_POSTGRES: SesionExplorador = {
   // PG salta del `search_path` un esquema que no existe, pero también uno sin USAGE (el
   // catálogo los lista igual): el mensaje no afirma que no exista.
   mensajeEsquemaNoAplicado(esquema: string): string {
-    return `No se puede usar el esquema ${esquema} en esta conexión: no existe o no tienes permiso de uso (USAGE) sobre él.`
+    return txMotores().esquemaNoAplicadoPostgres(esquema)
   },
 
   // PG no deja una unidad «creada con errores»: lo que ve su validador (la sintaxis del

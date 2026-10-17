@@ -12,8 +12,9 @@ import type {
   DiscardChangesResult,
   ResultadoDescarte
 } from '../../shared/git-ipc'
-import { FUERA_DEL_REPO, clasificarDescartes } from './clasificarDescartes'
-import { GIT_NO_RESPONDE, RUTA_NO_VALIDA, errMessage, errorDeGit, isEnoent } from './errores'
+import { fueraDelRepo, clasificarDescartes } from './clasificarDescartes'
+import { gitNoResponde, rutaNoValida, errMessage, errorDeGit, isEnoent } from './errores'
+import { txGit } from './textos.ts'
 import { agruparPorRepo, pathspecDe, pathspecLiteral, trocearPathspecs } from './lotes'
 import type { NucleoGit } from './NucleoGit'
 import { relDeArchivo, repoPathDeArchivo, resolveInsideRepo } from './rutasRepo'
@@ -35,12 +36,12 @@ export class Descartes {
    */
   async discardChanges(relPosix: string): Promise<DiscardChangesResult> {
     const rel = relDeArchivo(relPosix)
-    if (rel === null) return { ok: false, wasUntracked: false, error: RUTA_NO_VALIDA }
+    if (rel === null) return { ok: false, wasUntracked: false, error: rutaNoValida() }
     const ctx = await this.n.ctxForPath(rel)
-    if (!ctx) return { ok: false, wasUntracked: false, error: 'No hay repositorio activo.' }
+    if (!ctx) return { ok: false, wasUntracked: false, error: txGit().sinRepo }
     // `''` traducido (la ruta igual al prefijo del repo) revertiría el repo ENTERO sin confirmar.
     const repoPath = repoPathDeArchivo(rel, ctx)
-    if (repoPath === null) return { ok: false, wasUntracked: false, error: RUTA_NO_VALIDA }
+    if (repoPath === null) return { ok: false, wasUntracked: false, error: rutaNoValida() }
     return this.n.writeLock.runExclusive(ctx.root, () => this.discardChangesInner({ rel, repoPath }, ctx))
   }
 
@@ -61,7 +62,7 @@ export class Descartes {
         return { ok: true, wasUntracked: false }
       }
       const abs = resolveInsideRepo(entrada.repoPath, ctx)
-      if (abs === null) return { ok: false, wasUntracked, error: FUERA_DEL_REPO }
+      if (abs === null) return { ok: false, wasUntracked, error: fueraDelRepo() }
       if (!(await this.n.confirmDiscard(path.basename(entrada.rel)))) return { ok: false, wasUntracked }
       if (clase === 'borrar-indexado') {
         await this.n.git(['rm', '--cached', '--', pathspecLiteral(entrada.repoPath)], ctx)
@@ -159,13 +160,13 @@ export class Descartes {
         salida.push(
           typeof clase === 'object'
             ? errorDe(e, clase.rechazo)
-            : { path: e.rel, estado: 'cancelado', error: 'El archivo cambió de estado durante la confirmación.' }
+            : { path: e.rel, estado: 'cancelado', error: txGit().cambioDeEstado }
         )
         continue
       }
       const abs = resolveInsideRepo(e.repoPath, grupo.ctx)
       if (abs === null) {
-        salida.push(errorDe(e, FUERA_DEL_REPO))
+        salida.push(errorDe(e, fueraDelRepo()))
         continue
       }
       try {
@@ -193,7 +194,7 @@ export class Descartes {
 
 /** La clase de una entrada; la clasificación las trae todas, y si faltara una no se toca. */
 function claseDe(clases: Map<string, Clasificacion>, e: EntradaRepo): Clasificacion {
-  return clases.get(e.repoPath) ?? { rechazo: GIT_NO_RESPONDE }
+  return clases.get(e.repoPath) ?? { rechazo: gitNoResponde() }
 }
 
 /** ¿La clasificación lleva a BORRAR del disco? */

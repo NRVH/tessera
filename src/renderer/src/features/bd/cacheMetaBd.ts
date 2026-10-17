@@ -9,6 +9,7 @@
 
 import { ambitoEsquema, claveBd, partesDetalle } from './arbolBd.ts'
 import { mensajeDeError } from './filasArbolBd.ts'
+import { txArbolNodos } from './textosArbolNodos.ts'
 import { recorrerClaves, type RecorridoClaves } from './arbolClaves.ts'
 import {
   ERROR_NOMBRES_MS,
@@ -121,7 +122,7 @@ export class CacheMetaBd {
         const bruto: unknown = await llamar()
         r = esRespuesta(bruto)
           ? (bruto as DbRespuesta<T>)
-          : { ok: false, error: { motivo: 'interno', mensaje: 'Respuesta inesperada del proceso principal.' } }
+          : { ok: false, error: { motivo: 'interno', mensaje: txArbolNodos().respuestaInesperada } }
       } catch (err) {
         r = { ok: false, error: { motivo: 'interno', mensaje: mensajeDeError(err) } }
       }

@@ -12,6 +12,7 @@ import { esTopologiaRedis } from '../../shared/topologiaRedis.ts'
 import { esObjeto } from '../util/valores.ts'
 import { IDS_MOTORES, tieneFormaDelMotor } from '../../shared/motores/index.ts'
 import { conservarAlEditar, esClaveGobernada, type ConexionPersistida } from './conservarAlEditar.ts'
+import { txDb } from './textosDb.ts'
 import {
   MENSAJE_FORMATO_AJENO,
   mensajeEscrituraRegistroFallida,
@@ -823,7 +824,7 @@ export function editarConocida(previa: EntradaConocida, nuevo: ConexionPersistid
   const separada = separarConocida(editado as unknown as Record<string, unknown>)
   // No puede pasar (el formulario se validó antes y da la forma conocida), pero si
   // pasara, tragárselo guardaría una conexión que la siguiente lectura trataría de ajena.
-  if (!separada) throw new Error(`La conexión "${nuevo.alias}" no tiene una forma válida.`)
+  if (!separada) throw new Error(txDb().conexion.formaInvalidaDe(nuevo.alias))
   return separada
 }
 

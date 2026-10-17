@@ -16,6 +16,7 @@ import type { EsquemaConsola } from './esquemaConsola.ts'
 import type { NucleoSesiones } from './NucleoSesiones.ts'
 import type { Procesos } from './procesos.ts'
 import { abierta, aConexionTrabajador, listaConProcesoVivo, rechazoDe } from './reglas.ts'
+import { txSesiones } from './textosSesiones.ts'
 import type { Proceso, Sesion } from './tipos.ts'
 
 /** Abre sesiones y arranca operaciones dentro de su tarea de cola. */
@@ -41,10 +42,7 @@ export class Apertura {
       )
       .sort((a, b) => a.estado.ultimoUso - b.estado.ultimoUso)[0]
     if (!victima) {
-      throw new ErrorGestor(
-        'limite',
-        `Hay ${MAX_CONSOLAS_VIVAS_POR_CONEXION} consolas con sesión abierta en esta conexión y todas están ocupadas o con transacciones pendientes.`
-      )
+      throw new ErrorGestor('limite', txSesiones().consolasOcupadas(MAX_CONSOLAS_VIVAS_POR_CONEXION))
     }
     const ef = this.n.aplicar(victima, { tipo: 'cierre', ahora: this.n.ahora(), motivo: 'expulsada' })
     this.n.efectosSincronos(victima, ef)
@@ -55,7 +53,7 @@ export class Apertura {
     if (listaConProcesoVivo(s)) return
     // `lista` sin proceso vivo: el proceso se fue sin que lo viéramos. Es una pérdida.
     if (s.estado.fase === 'lista') this.n.perder(s, true)
-    if (this.n.estaCerrando()) throw new ErrorGestor('interno', 'Tessera se está cerrando.')
+    if (this.n.estaCerrando()) throw new ErrorGestor('interno', txSesiones().cerrando)
     const con = this.n.conexionOError(s.conexionId)
     const secreto = this.n.secretoDe(con)
     const archivo = this.n.archivoDe(con)
@@ -103,7 +101,7 @@ export class Apertura {
       // Se cerró (o se perdió) mientras abría: la sesión recién abierta es huérfana.
       this.n.enviarCerrarEn(p, s.idTrabajador)
       if (s.proceso === p) s.proceso = null
-      throw new ErrorGestor('interno', 'La sesión se cerró mientras se abría.')
+      throw new ErrorGestor('interno', txSesiones().sesionCerradaAbriendo)
     }
     this.avisarAlAbrir(con.id, respuesta.driverId)
   }
@@ -172,7 +170,7 @@ export class Apertura {
   async empezar(s: Sesion, clave: string | null): Promise<Proceso> {
     for (let intento = 0; ; intento++) {
       await this.asegurarAbierta(s)
-      if (clave !== null && s.cancelada === clave) throw new ErrorGestor('cancelada', 'Operación cancelada.')
+      if (clave !== null && s.cancelada === clave) throw new ErrorGestor('cancelada', txSesiones().operacionCancelada)
       const ef = this.n.aplicar(s, { tipo: 'ejecutar', ahora: this.n.ahora() })
       const r = rechazoDe(ef)
       if (r) {
@@ -215,7 +213,7 @@ export class Apertura {
     }
     // Recortado: un fallo de JSON.parse, por ejemplo, cita un trozo de las filas.
     this.n.log(`error interno: ${mensajeDe(e).slice(0, 200)}`)
-    return new ErrorGestor('interno', 'Error interno del explorador de bases de datos.')
+    return new ErrorGestor('interno', txSesiones().errorInterno)
   }
 
   respuestaDeFallo(e: unknown): { ok: false; error: DbErrorSql } {

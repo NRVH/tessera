@@ -22,8 +22,8 @@ terminal». Decirle «en este proyecto» lo mandaba a buscar un proyecto que no 
   del espacio («consola de datos»).
 - En el espacio de datos y en el agente de la terminal el modal de historial no enseña su carpeta:
   es el ID del perfil.
-- Los `aria-label` no dicen dónde y no pasan por aquí; tampoco las casillas del mosaico, que
-  sólo enseñan targets de proyecto.
+- Los `aria-label` no dicen dónde y no pasan por aquí. En el mosaico, sus casillas se titulan
+  «Bases de datos» y «Terminal», como la vista donde vive cada uno.
 
 ## Consecuencias
 

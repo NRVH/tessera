@@ -6,14 +6,24 @@
 // que no cambia nada devuelve el mismo estado: con `{}` se avisaría a todos los oyentes.
 // =============================================================================
 import { create } from 'zustand'
-import type { Agente } from '../../../../main/profiles/types'
+import type { DefinicionAgente, IdAgente, SelectorAgentes } from '../../../../shared/agentesManuales'
 import type { AgentPaneStatus } from './agentPaneTipos'
 import { emptyActivityState, type ActivityState } from './agentActivity.ts'
 
 /** Estado de los agentes de todos los perfiles. */
 export interface EstadoAgentes {
-  /** Agente elegido por perfil; sin entrada, el primero disponible. */
-  selectedAgentByProfile: Record<string, Agente>
+  /** Agente elegido por perfil; sin entrada, o si ya no es de ese proyecto, el primero disponible. */
+  selectedAgentByProfile: Record<string, IdAgente>
+  /** Agentes manuales de los proyectos nativos (de todo el equipo); se persisten. */
+  agentesNativos: DefinicionAgente[]
+  /** Agentes manuales de los proyectos Docker, por perfil; se persisten. */
+  agentesDockerPorPerfil: Record<string, DefinicionAgente[]>
+  /** Agentes ocultos (de serie o manuales), por perfil; se persisten. */
+  agentesOcultosPorPerfil: Record<string, IdAgente[]>
+  /** Orden de los agentes elegido por el usuario, por perfil; se persiste. */
+  ordenAgentesPorPerfil: Record<string, IdAgente[]>
+  /** Pestañas o desplegable en la cabecera del agente (ajuste global); se persiste. */
+  selectorAgentes: SelectorAgentes
   /** Cuenta elegida por target de agente; se persiste. */
   accountByTarget: Record<string, string | null>
   agentStatus: Record<string, AgentPaneStatus>
@@ -32,6 +42,11 @@ export interface EstadoAgentes {
 /** Estado de los agentes. */
 export const useStoreAgentes = create<EstadoAgentes>()(() => ({
   selectedAgentByProfile: {},
+  agentesNativos: [],
+  agentesDockerPorPerfil: {},
+  agentesOcultosPorPerfil: {},
+  ordenAgentesPorPerfil: {},
+  selectorAgentes: 'pestanas',
   accountByTarget: {},
   agentStatus: {},
   activity: emptyActivityState,
@@ -41,12 +56,65 @@ export const useStoreAgentes = create<EstadoAgentes>()(() => ({
 }))
 
 /** Elige el agente de un perfil. */
-export function selectAgent(profileId: string, agente: Agente): void {
+export function selectAgent(profileId: string, agente: IdAgente): void {
   useStoreAgentes.setState((s) =>
     s.selectedAgentByProfile[profileId] === agente
       ? s
       : { selectedAgentByProfile: { ...s.selectedAgentByProfile, [profileId]: agente } }
   )
+}
+
+/** Dónde vive un agente manual: la lista nativa (de todo el equipo) o la Docker de un perfil. */
+export type DestinoAgenteManual = { nativo: true } | { nativo: false; profileId: string }
+
+function conLista(s: EstadoAgentes, destino: DestinoAgenteManual, f: (l: DefinicionAgente[]) => DefinicionAgente[]): Partial<EstadoAgentes> {
+  if (destino.nativo) return { agentesNativos: f(s.agentesNativos) }
+  const actual = s.agentesDockerPorPerfil[destino.profileId] ?? []
+  return { agentesDockerPorPerfil: { ...s.agentesDockerPorPerfil, [destino.profileId]: f(actual) } }
+}
+
+/** Añade un agente manual o sustituye el que tenga su id (editar). */
+export function guardarAgenteManual(destino: DestinoAgenteManual, def: DefinicionAgente): void {
+  useStoreAgentes.setState((s) =>
+    conLista(s, destino, (l) => (l.some((d) => d.id === def.id) ? l.map((d) => (d.id === def.id ? def : d)) : [...l, def]))
+  )
+}
+
+/**
+ * Quita un agente manual de su lista, y de los ocultos y el orden de los perfiles donde ya no existe:
+ * uno nuevo con el mismo nombre (y el mismo id) no debe nacer oculto ni en el sitio del viejo.
+ */
+export function eliminarAgenteManual(destino: DestinoAgenteManual, id: IdAgente): void {
+  useStoreAgentes.setState((s) => {
+    const listas = conLista(s, destino, (l) => l.filter((d) => d.id !== id))
+    const sinElId = (porPerfil: Record<string, IdAgente[]>): Record<string, IdAgente[]> => {
+      const copia = { ...porPerfil }
+      const perfiles = destino.nativo ? Object.keys(copia) : [destino.profileId]
+      for (const p of perfiles) if (copia[p]?.includes(id)) copia[p] = copia[p].filter((x) => x !== id)
+      return copia
+    }
+    return { ...listas, agentesOcultosPorPerfil: sinElId(s.agentesOcultosPorPerfil), ordenAgentesPorPerfil: sinElId(s.ordenAgentesPorPerfil) }
+  })
+}
+
+/** Oculta o vuelve a mostrar un agente (de serie o manual) en un perfil. */
+export function ocultarAgente(profileId: string, agente: IdAgente, ocultar: boolean): void {
+  useStoreAgentes.setState((s) => {
+    const actual = s.agentesOcultosPorPerfil[profileId] ?? []
+    if (actual.includes(agente) === ocultar) return s
+    const siguiente = ocultar ? [...actual, agente] : actual.filter((a) => a !== agente)
+    return { agentesOcultosPorPerfil: { ...s.agentesOcultosPorPerfil, [profileId]: siguiente } }
+  })
+}
+
+/** Fija el orden de los agentes de un perfil (la lista completa del perfil). */
+export function fijarOrdenAgentes(profileId: string, orden: IdAgente[]): void {
+  useStoreAgentes.setState((s) => ({ ordenAgentesPorPerfil: { ...s.ordenAgentesPorPerfil, [profileId]: orden } }))
+}
+
+/** Pestañas o desplegable en la cabecera del agente. */
+export function fijarSelectorAgentes(selector: SelectorAgentes): void {
+  useStoreAgentes.setState((s) => (s.selectorAgentes === selector ? s : { selectorAgentes: selector }))
 }
 
 /** Elige la cuenta de un target de agente. */

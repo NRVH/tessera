@@ -40,12 +40,8 @@ el nombre del privilegio para ver rutinas) son de versión del servidor, no de f
 - **Los nombres van entre acentos graves**: `citar(n, 'mysql')`, y el SQL que genera Tessera para la
   rejilla, el filtro y el valor de una celda cita con `citarGenerado`, que deja intactos los demás
   motores.
-- **Solo lectura del servidor** (`candadoSoloLectura: 'envoltorioRollback'`): la sesión entera en
-  `READ ONLY` y cada sentencia en `START TRANSACTION READ ONLY … ROLLBACK`. Un DDL confirma y cierra
-  la transacción antes de ejecutarse (`ddlConfirmaImplicito`), y es la característica de la sesión
-  la que lo sigue rechazando; por eso cambiarla (`SET SESSION TRANSACTION`, `transaction_read_only`)
-  no pasa nunca en solo lectura, ni un CALL (`rutinasConfirmanPorDentro`: un procedimiento puede
-  confirmar por dentro), ni un comentario ejecutable, ni `INTO OUTFILE`.
+- **Solo lectura del servidor** (`candadoSoloLectura: 'envoltorioRollback'`): ver
+  [adaptador-mysql-solo-lectura.md](adaptador-mysql-solo-lectura.md).
 - Paginado `limitOffset` sin cursores vivos; Detener es `KILL QUERY` desde otra conexión; identidad
   sin PK por un índice único con todas sus columnas NOT NULL; carpetas Tablas, Vistas, Rutinas,
   Disparadores y Eventos (un tipo de objeto nuevo, `evento`).
@@ -60,4 +56,4 @@ el nombre del privilegio para ver rutinas) son de versión del servidor, no de f
   así la guardia. Quien necesita otro modo para una carga lo pide en la sentencia (CAST, IGNORE).
 - Las secuencias de MariaDB como carpeta: MySQL no las tiene y no se enseña una carpeta siempre vacía.
 - Autenticaciones fuera de usuario y contraseña (LDAP, Kerberos, IAM, X.509), formularios para crear
-  objetos, diagramas, comparar esquemas y paneles de monitorización: fuera del alcance acordado.
+  objetos, diagramas, comparar esquemas y paneles de monitorización: fuera del alcance del motor.

@@ -6,9 +6,9 @@
 // Decisiones: docs/decisiones/bd/ui-arbol-modelo.md
 // =============================================================================
 
-import { TEXTOS_DOCUMENTOS, metaColeccion, ordenarBasesDocumentos, ordenarColecciones, raizDocumentos } from './arbolDocumentos.ts'
+import { textosDocumentos, metaColeccion, ordenarBasesDocumentos, ordenarColecciones, raizDocumentos } from './arbolDocumentos.ts'
 import {
-  TEXTOS_CLAVES,
+  textosClaves,
   basesDeClaves,
   carpetasDeRecorrido,
   etiquetaBaseClaves,
@@ -59,13 +59,13 @@ export function nodoConexionDocumentos(ctx: ContextoArbol, c: DbConnection, d: D
         const lista = ctx.e.docBases?.get(carga.clave)
         if (lista) {
           for (const b of ordenarBasesDocumentos(lista)) nodos.push(nodoDocBase(ctx, c.id, b))
-          return cargados(nodos, lista.length === 0, TEXTOS_DOCUMENTOS.sinBases)
+          return cargados(nodos, lista.length === 0, textosDocumentos().sinBases)
         }
       } else {
         const cols = ctx.e.colecciones?.get(carga.clave)
         if (cols) {
           for (const x of ordenarColecciones(cols)) nodos.push(nodoColeccion(c.id, raiz.base, x, 1))
-          return cargados(nodos, cols.length === 0, TEXTOS_DOCUMENTOS.sinColecciones)
+          return cargados(nodos, cols.length === 0, textosDocumentos().sinColecciones)
         }
       }
       return pendiente(ctx, carga, nodos)
@@ -84,7 +84,7 @@ function nodoDocBase(ctx: ContextoArbol, conexionId: string, b: DbDocBase): Nodo
       const cols = ctx.e.colecciones?.get(clave)
       if (cols) {
         const nodos = ordenarColecciones(cols).map((x) => nodoColeccion(conexionId, b.nombre, x, 2))
-        return cargados(nodos, nodos.length === 0, TEXTOS_DOCUMENTOS.sinColecciones)
+        return cargados(nodos, nodos.length === 0, textosDocumentos().sinColecciones)
       }
       return pendiente(ctx, { tipo: 'colecciones', clave, conexionId, base: b.nombre })
     }
@@ -158,7 +158,7 @@ function hijosRecorrido(ctx: ContextoArbol, conexionId: string, b: BaseClaves, r
   if (rec.cursor !== '0') nodos.push(nodoKvMas(conexionId, b.indice, rec, ctx.e.kvCargandoMas?.has(clave) === true))
   if (nodos.length === 0) {
     const sinFiltro = patron === '' && tipo === undefined
-    return { nodos, estado: { variante: 'empty', mensaje: sinFiltro ? TEXTOS_CLAVES.sinClaves : textoSinCoincidencias(patron, tipo) } }
+    return { nodos, estado: { variante: 'empty', mensaje: sinFiltro ? textosClaves().sinClaves : textoSinCoincidencias(patron, tipo) } }
   }
   return { nodos, estado: null }
 }
@@ -186,7 +186,7 @@ function nodoKvBase(ctx: ContextoArbol, conexionId: string, b: BaseClaves): Nodo
     hijos: () => {
       // Vacía según el servidor: un SCAN sería un viaje de balde. Con los conteos
       // desconocidos (`claves` null) se recorre siempre.
-      if (b.claves === 0) return { nodos: [], estado: { variante: 'empty', mensaje: TEXTOS_CLAVES.sinClaves } }
+      if (b.claves === 0) return { nodos: [], estado: { variante: 'empty', mensaje: textosClaves().sinClaves } }
       const rec = ctx.e.kvClaves?.get(clave)
       if (rec) return hijosRecorrido(ctx, conexionId, b, rec, patron, tipo)
       return pendiente(ctx, { tipo: 'kvClaves', clave, conexionId, base: b.indice })

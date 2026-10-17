@@ -26,7 +26,7 @@ construye después, así que se le habla por ganchos opcionales.
 
 ## Consecuencias
 
-- Quien conecte solo `onConexionBorrada` y no `onConexionOlvidadaEnPerfil` no limpia nada en el caso `delPerfil`
-  (como antes), nunca la limpieza entera de la conocida del otro perfil.
+- Quien conecte solo `onConexionBorrada` y no `onConexionOlvidadaEnPerfil` no limpia nada en el caso `delPerfil`,
+  nunca la limpieza entera de la conocida del otro perfil.
 - Instalar u olvidar un cliente espera antes al explorador (`antesDeCambiarDriver`): en Windows sobrescribir
   DLL cargadas da EBUSY, y en los dos sistemas un proceso seguiría con el cliente viejo.

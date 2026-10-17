@@ -14,7 +14,7 @@ import {
   derivarActivo,
   derivarPaneActivo,
   hayTerminalQueEnsenar,
-  MOTIVO_CONEXION_ELIMINADA,
+  motivoConexionEliminada,
   type EntradaActivo
 } from './activoTerminales.ts'
 import { bannerFinSsh, motivoFinSsh } from './finSesionSsh.ts'
@@ -273,7 +273,7 @@ hr('(10) El botón de reinicio del pane que se ve: «Reconectar» en SSH, el de 
   const muerta = derivarActivo(entrada({ ssh: elegirSsh(s, 'alfa', CTX_A, 's2'), infoByPane: { 'ssh|alfa|s2': { ...vivo, status: 'exited' } } }))
   check('una SSH terminada: «Reconectar» con etiqueta (no «Reabrir»)', muerta.boton?.etiqueta === 'Reconectar' && !muerta.boton.soloIcono && muerta.boton.habilitado, j(muerta.boton))
   const borrada = derivarActivo(entrada({ ssh: elegirSsh(s, 'alfa', CTX_A, 's2'), infoByPane: { 'ssh|alfa|s2': vivo }, conexionesVivas: new Set(['c1', 'c3']) }))
-  check('una SSH cuya conexión se eliminó: botón deshabilitado y su motivo', borrada.boton?.habilitado === false && borrada.boton.accion === 'nada' && borrada.boton.titulo === MOTIVO_CONEXION_ELIMINADA, j(borrada.boton))
+  check('una SSH cuya conexión se eliminó: botón deshabilitado y su motivo', borrada.boton?.habilitado === false && borrada.boton.accion === 'nada' && borrada.boton.titulo === motivoConexionEliminada(), j(borrada.boton))
   check('MITAD NEGATIVA: una local nunca se bloquea por conexiones; una SSH hibernada no existe (no se bloquea por hibernar)', local.boton?.habilitado === true && derivarActivo(entrada({ ssh: elegirSsh(s, 'alfa', CTX_A, 's2'), infoByPane: { 'ssh|alfa|s2': vivo }, hibernatedProjectKeys: new Set([KEY_A]) })).boton?.habilitado === true, 'habilitados')
   const hibernada = derivarActivo(entrada({ ssh: s, infoByPane: { [`${KEY_A}|t1`]: vivo }, hibernatedProjectKeys: new Set([KEY_A]) }))
   check('MITAD NEGATIVA: una local de un proyecto hibernado sí se bloquea (lo de siempre)', hibernada.boton?.habilitado === false, j(hibernada.boton))
@@ -290,7 +290,11 @@ hr('(11) Qué se dice al terminar una sesión SSH')
   check('255 en menos de 20 s sin motivo: «No se pudo conectar»', m(255, 400) === 'No se pudo conectar', m(255, 400))
   check('con el motivo de autenticación', m(255, 400, 'ssh-autenticacion') === 'No se pudo conectar: el servidor no aceptó las credenciales', m(255, 400, 'ssh-autenticacion'))
   check('con el de red inalcanzable (la VPN)', m(255, 400, 'ssh-inalcanzable') === 'No se pudo conectar: el servidor no responde: ¿falta la VPN?', m(255, 400, 'ssh-inalcanzable'))
-  check('con el de la huella cambiada', m(255, 400, 'ssh-huella-cambiada') === 'No se pudo conectar: la huella del servidor cambió', m(255, 400, 'ssh-huella-cambiada'))
+  check(
+    'con el de la huella cambiada, que dice dónde olvidarla',
+    m(255, 400, 'ssh-huella-cambiada').startsWith('No se pudo conectar: la huella del servidor cambió;') && m(255, 400, 'ssh-huella-cambiada').includes('«Olvidar la huella guardada…»'),
+    m(255, 400, 'ssh-huella-cambiada')
+  )
   check('con el de algoritmos antiguos', m(255, 400, 'ssh-algoritmos') === 'No se pudo conectar: el servidor solo ofrece algoritmos antiguos', m(255, 400, 'ssh-algoritmos'))
   check('sin motivo (ssh no dejó escrito por qué) no se inventa ninguno: solo «No se pudo conectar»', m(255, 400, undefined) === 'No se pudo conectar' && !m(255, 400).includes(':'), m(255, 400))
   check('el borde son 20 s: a 19,999 no se pudo conectar; a 20 s ya se cortó', m(255, 19_999) === 'No se pudo conectar' && m(255, 20_000) === 'Se cortó la conexión', `${m(255, 19_999)} · ${m(255, 20_000)}`)

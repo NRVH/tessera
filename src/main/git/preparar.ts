@@ -6,14 +6,15 @@
 // =============================================================================
 
 import type { CommitResult, ResultadoArchivo, WriteResult } from '../../shared/git-ipc'
-import { FS, RUTA_NO_VALIDA, errMessage, errStderr, errorDeGit } from './errores'
+import { FS, rutaNoValida, errMessage, errStderr, errorDeGit } from './errores'
+import { txGit } from './textos.ts'
 import { agruparPorRepo, carpetasDeSalida, pathspecDe, pathspecLiteral, trocearPathspecs } from './lotes'
 import type { NucleoGit } from './NucleoGit'
 import { claveNombreGit, mismoNombreGit, relDeArchivo, repoPathDeArchivo } from './rutasRepo'
 import type { EntradaRepo, GrupoRepo, RepoCtx } from './tipos'
 
-const CARPETA_AL_PREPARAR = 'Es una carpeta: prepara sus archivos uno a uno.'
-const CARPETA_AL_QUITAR = 'Es una carpeta: quita sus archivos de preparados uno a uno.'
+const carpetaAlPreparar = (): string => txGit().carpetaAlPreparar
+const carpetaAlQuitar = (): string => txGit().carpetaAlQuitar
 
 /** Corre git sobre un trozo de pathspecs de un repo. */
 type EjecutorLote = (ctx: RepoCtx, pathspecs: string[]) => Promise<unknown>
@@ -42,7 +43,7 @@ export class Preparar {
 
   /** Prepara un archivo (`git add -A`: alta, cambio y borrado). No toca disco, sin confirmación. */
   async stageFile(relPosix: string): Promise<WriteResult> {
-    return this.unArchivo(relPosix, CARPETA_AL_PREPARAR, async (repoPath, ctx) => {
+    return this.unArchivo(relPosix, carpetaAlPreparar(), async (repoPath, ctx) => {
       try {
         await this.n.git(['add', '-A', '--', pathspecLiteral(repoPath)], ctx)
         return { ok: true }
@@ -57,7 +58,7 @@ export class Preparar {
    * HEAD cae a `rm --cached`.
    */
   async unstageFile(relPosix: string): Promise<WriteResult> {
-    return this.unArchivo(relPosix, CARPETA_AL_QUITAR, async (repoPath, ctx) => {
+    return this.unArchivo(relPosix, carpetaAlQuitar(), async (repoPath, ctx) => {
       try {
         await this.n.git(['restore', '--staged', '--', pathspecLiteral(repoPath)], ctx)
         return { ok: true }
@@ -84,12 +85,12 @@ export class Preparar {
     operar: (repoPath: string, ctx: RepoCtx) => Promise<WriteResult>
   ): Promise<WriteResult> {
     const rel = relDeArchivo(relPosix)
-    if (rel === null) return { ok: false, error: RUTA_NO_VALIDA }
+    if (rel === null) return { ok: false, error: rutaNoValida() }
     const ctx = await this.n.ctxForPath(rel)
-    if (!ctx) return { ok: false, error: 'No hay repositorio activo.' }
+    if (!ctx) return { ok: false, error: txGit().sinRepo }
     // `''` traducido (la ruta igual al prefijo del repo) sería el repo ENTERO.
     const repoPath = repoPathDeArchivo(rel, ctx)
-    if (repoPath === null) return { ok: false, error: RUTA_NO_VALIDA }
+    if (repoPath === null) return { ok: false, error: rutaNoValida() }
     return this.n.writeLock.runExclusive(ctx.root, async () => {
       try {
         if (await nombraCarpeta(this.n, repoPath, ctx)) return { ok: false, error: errorCarpeta }
@@ -102,7 +103,7 @@ export class Preparar {
 
   /** Prepara varios archivos con un proceso de git por repo y trozo. */
   async stageFiles(paths: readonly string[]): Promise<ResultadoArchivo[]> {
-    return this.correrLote(paths, CARPETA_AL_PREPARAR, (ctx, pathspecs) =>
+    return this.correrLote(paths, carpetaAlPreparar(), (ctx, pathspecs) =>
       this.n.git(['add', '-A', '--', ...pathspecs], ctx)
     )
   }
@@ -114,7 +115,7 @@ export class Preparar {
   async unstageFiles(paths: readonly string[]): Promise<ResultadoArchivo[]> {
     return this.correrLote(
       paths,
-      CARPETA_AL_QUITAR,
+      carpetaAlQuitar(),
       (ctx, pathspecs) => this.n.git(['restore', '--staged', '--', ...pathspecs], ctx),
       (ctx, pathspecs) => this.n.git(['rm', '--cached', '--', ...pathspecs], ctx)
     )
@@ -126,9 +127,9 @@ export class Preparar {
    */
   async commit(message: string, repo?: string): Promise<CommitResult> {
     const ctx = await this.n.ctxForRepo(repo)
-    if (!ctx) return { ok: false, error: 'No hay repositorio activo.' }
+    if (!ctx) return { ok: false, error: txGit().sinRepo }
     return this.n.writeLock.runExclusive(ctx.root, async () => {
-      if (!message.trim()) return { ok: false, error: 'El mensaje de commit está vacío.' }
+      if (!message.trim()) return { ok: false, error: txGit().mensajeVacio }
       try {
         await this.n.git(['commit', '-m', message], ctx)
       } catch (err) {

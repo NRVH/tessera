@@ -6,16 +6,18 @@
 // Cada uno se puede maximizar al área de trabajo (solo CSS, ver `usePantallaCompletaFranja.ts`).
 // Decisiones: docs/decisiones/layout/pantalla-completa-de-la-franja.md
 // =============================================================================
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { GIT_LOG_ARCHIVOS_MIN, GIT_LOG_COL_MIN, TERMINAL_HEIGHT_MAX } from '../../../../shared/workspace-state-ipc'
 import { ErrorBoundary } from '../../comun/ErrorBoundary'
+import { RaizDelProyecto } from '../../comun/raizDelProyecto'
 import { Splitter } from '../../comun/Splitter'
 import { aperturaDesdeGit, type PanelInferiorCentro, type SalidaLayoutCentro } from './layoutCentro'
 import { fijadoresLayout, fijarMaximizado, useStoreLayout } from './store'
+import { txLayout } from './textos.ts'
 import type { Tamanos } from './useTamanos'
 import type { VistasPorPerfil } from './useVistasPorPerfil'
-import { GitLogPanel, cerrarHistorial, useStoreGit, type EstadoGitApp } from '../git'
+import { GitLogPanel, cerrarHistorial, claveHistorial, useStoreGit, type EstadoGitApp } from '../git'
 import { TerminalsPanel, accionesTerminales, useStoreTerminales, type TerminalesApp } from '../terminales'
 import { fijarAjuste, useStoreAjustes, type Densidad } from '../ajustes'
 import { useStorePestanas, type UseTabs } from '../pestanas'
@@ -79,7 +81,7 @@ interface Props {
 }
 
 /** Lo que el panel de Log lee de los stores: anchos de layout, historial y consulta del perfil. */
-function useStoresPanelLog(perfilUI: string) {
+function useStoresPanelLog(perfilUI: string, claveProyecto: string | null) {
   const l = useStoreLayout(
     useShallow((s) => ({
       gitLogArchivosH: s.gitLogArchivosH,
@@ -90,7 +92,7 @@ function useStoresPanelLog(perfilUI: string) {
   )
   const g = useStoreGit(
     useShallow((s) => ({
-      historial: s.fileHistoryPath,
+      historial: claveProyecto === null ? null : (s.historialPorProyecto[claveProyecto] ?? null),
       historialToken: s.fileHistoryToken,
       consulta: s.busquedaLogPorPerfil[perfilUI] ?? '',
       commitTick: s.commitTick
@@ -103,10 +105,16 @@ function useStoresPanelLog(perfilUI: string) {
 /** Panel de Git·Log de la franja, con el historial de un archivo como pestaña. */
 function PanelLog(p: Omit<Props, 'lay' | 'terminales' | 'tintasPorPerfil' | 'agenteTerminalVisible'>): React.JSX.Element {
   const { tabs, vistas, tamanos, densidad, git, editor } = p
-  const { l, g, diffColapsar } = useStoresPanelLog(vistas.perfilUI)
   const proyectoGit = git.objetivoGit?.project ?? null
   const perfilUI = vistas.perfilUI
+  // El historial es del proyecto que se ve: cada uno vuelve con el suyo.
+  const claveProyecto = proyectoGit ? claveHistorial(perfilUI, proyectoGit.projectHostPath) : null
+  const { l, g, diffColapsar } = useStoresPanelLog(perfilUI, claveProyecto)
+  const cerrarHistorialDelProyecto = useCallback(() => {
+    if (claveProyecto !== null) cerrarHistorial(claveProyecto)
+  }, [claveProyecto])
   return (
+    <RaizDelProyecto.Provider value={proyectoGit?.projectHostPath ?? ''}>
     <GitLogPanel
       altoFila={densidad.altoFilaGit}
       varsDensidad={densidad.varsGit}
@@ -114,7 +122,7 @@ function PanelLog(p: Omit<Props, 'lay' | 'terminales' | 'tintasPorPerfil' | 'age
       onAltoArchivos={fijadoresLayout.gitLogArchivosH}
       historial={g.historial}
       historialToken={g.historialToken}
-      onCerrarHistorial={cerrarHistorial}
+      onCerrarHistorial={cerrarHistorialDelProyecto}
       anchoHistorial={l.gitHistorialWidth}
       onAnchoHistorial={fijadoresLayout.gitHistorialWidth}
       onSaltarAlFuente={(target, linea) => {
@@ -126,7 +134,6 @@ function PanelLog(p: Omit<Props, 'lay' | 'terminales' | 'tintasPorPerfil' | 'age
       minArchivos={GIT_LOG_ARCHIVOS_MIN}
       activeProject={proyectoGit}
       activeRepo={git.objetivoGit?.repo ?? null}
-      anclado={git.ancladoGit}
       // La consulta del buscador es del PERFIL.
       consulta={g.consulta}
       onConsulta={(q) => useStoreGit.setState((s) => ({ busquedaLogPorPerfil: { ...s.busquedaLogPorPerfil, [perfilUI]: q } }))}
@@ -137,7 +144,7 @@ function PanelLog(p: Omit<Props, 'lay' | 'terminales' | 'tintasPorPerfil' | 'age
       // Efímera siempre y colapsando el agente, venga del doble clic o de la selección; a
       // pantalla completa, la selección no abre nada y el gesto explícito sale del modo.
       onOpenDiff={(target, origen) => {
-        if (!git.ancladoGit || !pedirAperturaDesdeGit(origen)) return
+        if (!pedirAperturaDesdeGit(origen)) return
         editor.openEditorTab({ kind: 'diff', target }, { colapsarAgente: true, efimera: true })
       }}
       onClose={() => vistas.cerrarPanelInferior()}
@@ -152,6 +159,7 @@ function PanelLog(p: Omit<Props, 'lay' | 'terminales' | 'tintasPorPerfil' | 'age
       colMax={tamanos.gitLogColMax}
       commitTick={g.commitTick}
     />
+    </RaizDelProyecto.Provider>
   )
 }
 
@@ -251,15 +259,15 @@ export function FranjaInferior(props: Props): React.JSX.Element {
           max={TERMINAL_HEIGHT_MAX}
           direction={-1}
           onResize={fijadoresLayout.altoPanelInferior}
-          label="Redimensionar el panel inferior"
+          label={txLayout().franja.redimensionarInferior}
         />
       )}
       {lay.franja.gitlog && (
-        <ErrorBoundary label="el panel de Git" variant="pane">
+        <ErrorBoundary label={txLayout().franja.panelGit} variant="pane">
           <PanelLog {...props} />
         </ErrorBoundary>
       )}
-      <ErrorBoundary label="la terminal" variant="pane">
+      <ErrorBoundary label={txLayout().franja.terminal} variant="pane">
         <PanelTerminales {...props} />
       </ErrorBoundary>
     </>

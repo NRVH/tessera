@@ -17,7 +17,11 @@ en el servidor (`INTO OUTFILE`) o lo que vaya dentro de un comentario ejecutable
   (2) el adaptador rechaza un comentario ejecutable o `INTO OUTFILE|DUMPFILE` en cualquier parte del
   texto (un falso positivo se arregla reescribiendo la consulta); (3) la sesión entera en `READ
   ONLY`, que es la que rechaza el DDL tras su confirmación implícita; (4) cada consulta dentro de
-  `START TRANSACTION READ ONLY … ROLLBACK`.
+  `START TRANSACTION READ ONLY … ROLLBACK` (`candadoSoloLectura: 'envoltorioRollback'`).
+- Un DDL confirma y cierra la transacción antes de ejecutarse (`ddlConfirmaImplicito`), y es la
+  característica de la sesión la que lo sigue rechazando; por eso cambiarla (`SET SESSION
+  TRANSACTION`, `transaction_read_only`) no pasa nunca en solo lectura, ni un CALL
+  (`rutinasConfirmanPorDentro`: un procedimiento puede confirmar por dentro).
 - Una sentencia por orden (`multipleStatements: false`): `SELECT 1; DELETE …` falla en el servidor.
 - El tope de filas: en solo lectura se CORTA la conexión al pasarlo (no hay nada que perder); con
   escritura se leen y descartan las que sobran, para que la sentencia termine entera. Se dice.

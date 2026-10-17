@@ -8,48 +8,122 @@
 // de pasada pondría cara de «Docker apagado» a otra cosa.
 // =============================================================================
 import type { AgentExitReason } from './agent-terminal-ipc.ts'
+import { crearTextos } from './i18n.ts'
 import { plataformaActual, type Plataforma } from './plataforma.ts'
 
 /** Prefijo EXACTO con el que el main marca "el daemon no responde". */
 export const PREFIJO_DOCKER_NO_DISPONIBLE = 'Docker no disponible:'
 
-/** Los pasos de Windows: Docker Desktop corre sobre WSL2, y lo primero es que WSL2 exista. */
-const PASOS_WINDOWS: readonly string[] = [
-  '  1. WSL2 activo:  wsl --status   /   wsl -l -v  (debe haber una distro en VERSION 2)',
-  '  2. Docker Desktop abierto y con el motor en estado "Running".',
-  '  3. Reintentar:   docker info'
-]
-
 /**
- * Los pasos de macOS. Sin WSL2 (no existe allí), y con el paso que en Mac SÍ falla:
- * Docker Desktop no toca el PATH del sistema, deja un enlace en `/usr/local/bin/docker`,
- * y una app lanzada desde el Finder no hereda el PATH del shell (ver
- * `main/util/pathDeLogin.ts`), así que "Docker funciona en mi Terminal" y "Tessera no
- * lo encuentra" pueden ser ciertos a la vez.
+ * Los textos de este módulo en los dos idiomas. Los pasos de cada plataforma son listas:
+ * Windows (Docker Desktop corre sobre WSL2, y lo primero es que WSL2 exista); macOS (sin WSL2, y
+ * con el paso que allí SÍ falla: Docker Desktop no toca el PATH del sistema, deja un enlace en
+ * `/usr/local/bin/docker`, y una app lanzada desde el Finder no hereda el PATH del shell, ver
+ * `main/util/pathDeLogin.ts`); Linux (el servicio, y el usuario fuera del grupo `docker`, que da
+ * «permission denied» sobre el socket aunque el servicio esté en marcha); y BSD (lo genérico).
  */
-const PASOS_MAC: readonly string[] = [
-  '  1. Docker Desktop instalado y abierto, con el motor en "Running".',
-  '  2. `docker` visible desde la app: Docker Desktop lo deja en `/usr/local/bin/docker`; en Terminal, `which docker`.',
-  '  3. Reintentar:   docker info'
-]
-
-/**
- * Los pasos de Linux: Docker Engine como servicio del sistema (o Docker Desktop, que también
- * lo hay), y lo que allí falla de verdad: el usuario fuera del grupo `docker`, que da
- * «permission denied» sobre el socket aunque el servicio esté en marcha.
- */
-const PASOS_LINUX: readonly string[] = [
-  '  1. El servicio en marcha:  systemctl status docker  (o Docker Desktop abierto).',
-  '  2. Tu usuario en el grupo docker:  groups  (si no sale, sudo usermod -aG docker $USER y vuelve a entrar en la sesión).',
-  '  3. Reintentar:   docker info'
-]
-
-/** BSD: sin Docker Desktop garantizado ni WSL2; lo genérico que sigue siendo cierto. */
-const PASOS_OTRA: readonly string[] = [
-  '  1. El daemon de Docker en marcha (Docker Desktop abierto, o el servicio `docker` activo).',
-  '  2. `docker` visible desde la app: en una terminal, `which docker`.',
-  '  3. Reintentar:   docker info'
-]
+const txDocker = crearTextos(
+  {
+    pasosWindows: [
+      '  1. WSL2 activo:  wsl --status   /   wsl -l -v  (debe haber una distro en VERSION 2)',
+      '  2. Docker Desktop abierto y con el motor en estado "Running".',
+      '  3. Reintentar:   docker info'
+    ] as readonly string[],
+    pasosMac: [
+      '  1. Docker Desktop instalado y abierto, con el motor en "Running".',
+      '  2. `docker` visible desde la app: Docker Desktop lo deja en `/usr/local/bin/docker`; en Terminal, `which docker`.',
+      '  3. Reintentar:   docker info'
+    ] as readonly string[],
+    pasosLinux: [
+      '  1. El servicio en marcha:  systemctl status docker  (o Docker Desktop abierto).',
+      '  2. Tu usuario en el grupo docker:  groups  (si no sale, sudo usermod -aG docker $USER y vuelve a entrar en la sesión).',
+      '  3. Reintentar:   docker info'
+    ] as readonly string[],
+    pasosOtra: [
+      '  1. El daemon de Docker en marcha (Docker Desktop abierto, o el servicio `docker` activo).',
+      '  2. `docker` visible desde la app: en una terminal, `which docker`.',
+      '  3. Reintentar:   docker info'
+    ] as readonly string[],
+    rootless: [
+      'Docker funciona en modo sin root (rootless), y el sandbox de Tessera no puede montar los proyectos en él.',
+      '',
+      'Qué hacer:',
+      '  1. Abre este proyecto en modo nativo (Configuración → Proyectos), sin contenedor, o',
+      '  2. usa el Docker del sistema: sudo systemctl enable --now docker y añade tu usuario al grupo docker.'
+    ].join('\n'),
+    salida: {
+      ok: {
+        titulo: 'El agente terminó',
+        sugerencia: 'La sesión salió con normalidad. Pulsa "Reabrir" para volver a lanzarlo en este panel.'
+      },
+      'container-down': {
+        titulo: 'El contenedor del perfil se cayó',
+        sugerencia:
+          'Docker sigue vivo, así que Tessera puede recrearlo limpio y recuperar tus credenciales. Si no lo logra, pulsa "Reintentar".'
+      },
+      'daemon-down': {
+        titulo: 'Docker no está disponible',
+        sugerencia:
+          'Tessera no puede arrancar Docker por ti. Abre Docker Desktop, espera a que el motor esté en "Running" y pulsa "Reintentar" aquí abajo.'
+      },
+      unknown: {
+        titulo: 'No se pudo determinar la causa',
+        sugerencia:
+          'El diagnóstico de Docker falló, así que Tessera no sabe si fue una salida normal o una caída. Revisa Docker Desktop y pulsa "Reintentar".'
+      }
+    } as Record<AgentExitReason, TextoSalida>
+  },
+  {
+    pasosWindows: [
+      '  1. WSL2 running:  wsl --status   /   wsl -l -v  (there must be a distro on VERSION 2)',
+      '  2. Docker Desktop open, with the engine in the "Running" state.',
+      '  3. Try again:   docker info'
+    ],
+    pasosMac: [
+      '  1. Docker Desktop installed and open, with the engine "Running".',
+      '  2. `docker` visible to the app: Docker Desktop puts it at `/usr/local/bin/docker`; in Terminal, `which docker`.',
+      '  3. Try again:   docker info'
+    ],
+    pasosLinux: [
+      '  1. The service running:  systemctl status docker  (or Docker Desktop open).',
+      '  2. Your user in the docker group:  groups  (if it is not listed, sudo usermod -aG docker $USER and sign in again).',
+      '  3. Try again:   docker info'
+    ],
+    pasosOtra: [
+      '  1. The Docker daemon running (Docker Desktop open, or the `docker` service active).',
+      '  2. `docker` visible to the app: in a terminal, `which docker`.',
+      '  3. Try again:   docker info'
+    ],
+    rootless: [
+      'Docker is running in rootless mode, and the Tessera sandbox cannot mount projects in it.',
+      '',
+      'What to do:',
+      '  1. Open this project in native mode (Settings → Projects), without a container, or',
+      '  2. use the system Docker: sudo systemctl enable --now docker and add your user to the docker group.'
+    ].join('\n'),
+    salida: {
+      ok: {
+        titulo: 'The agent finished',
+        sugerencia: 'The session ended normally. Click "Reopen" to launch it again in this pane.'
+      },
+      'container-down': {
+        titulo: 'The profile container went down',
+        sugerencia:
+          'Docker is still running, so Tessera can recreate it clean and recover your credentials. If that fails, click "Retry".'
+      },
+      'daemon-down': {
+        titulo: 'Docker is not available',
+        sugerencia:
+          'Tessera cannot start Docker for you. Open Docker Desktop, wait for the engine to be "Running" and click "Retry" below.'
+      },
+      unknown: {
+        titulo: 'The cause could not be determined',
+        sugerencia:
+          'The Docker diagnosis failed, so Tessera does not know whether it was a normal exit or a crash. Check Docker Desktop and click "Retry".'
+      }
+    }
+  }
+)
 
 /**
  * Pasos a verificar cuando el daemon no responde. Viven aquí, y no incrustados en
@@ -73,10 +147,11 @@ const PASOS_OTRA: readonly string[] = [
  * plataforma por `window.tessera.plataforma`.
  */
 export function pasosDocker(plataforma: Plataforma = plataformaActual()): readonly string[] {
-  if (plataforma === 'windows') return PASOS_WINDOWS
-  if (plataforma === 'mac') return PASOS_MAC
-  if (plataforma === 'linux') return PASOS_LINUX
-  return PASOS_OTRA
+  const t = txDocker()
+  if (plataforma === 'windows') return t.pasosWindows
+  if (plataforma === 'mac') return t.pasosMac
+  if (plataforma === 'linux') return t.pasosLinux
+  return t.pasosOtra
 }
 
 /**
@@ -89,13 +164,9 @@ export function esDockerRootless(opcionesSeguridad: string): boolean {
 }
 
 /** Lo que se le dice al usuario cuando el daemon no tiene root. */
-export const DETALLE_DOCKER_ROOTLESS = [
-  'Docker funciona en modo sin root (rootless), y el sandbox de Tessera no puede montar los proyectos en él.',
-  '',
-  'Qué hacer:',
-  '  1. Abre este proyecto en modo nativo (Configuración → Proyectos), sin contenedor, o',
-  '  2. usa el Docker del sistema: sudo systemctl enable --now docker y añade tu usuario al grupo docker.'
-].join('\n')
+export function detalleDockerRootless(): string {
+  return txDocker().rootless
+}
 
 /** Todas las causas, como VALOR, para que el test pueda recorrerlas. */
 export const RAZONES_SALIDA: readonly AgentExitReason[] = [
@@ -116,26 +187,8 @@ export interface TextoSalida {
  * Texto por causa. El tipo `Record<AgentExitReason, …>` es la red: añadir una quinta
  * causa a `AgentExitReason` rompe la compilación aquí hasta que se le escriba texto.
  */
-export const TEXTOS_SALIDA: Record<AgentExitReason, TextoSalida> = {
-  ok: {
-    titulo: 'El agente terminó',
-    sugerencia: 'La sesión salió con normalidad. Pulsa "Reabrir" para volver a lanzarlo en este panel.'
-  },
-  'container-down': {
-    titulo: 'El contenedor del perfil se cayó',
-    sugerencia:
-      'Docker sigue vivo, así que Tessera puede recrearlo limpio y recuperar tus credenciales. Si no lo logra, pulsa "Reintentar".'
-  },
-  'daemon-down': {
-    titulo: 'Docker no está disponible',
-    sugerencia:
-      'Tessera no puede arrancar Docker por ti. Abre Docker Desktop, espera a que el motor esté en "Running" y pulsa "Reintentar" aquí abajo.'
-  },
-  unknown: {
-    titulo: 'No se pudo determinar la causa',
-    sugerencia:
-      'El diagnóstico de Docker falló, así que Tessera no sabe si fue una salida normal o una caída. Revisa Docker Desktop y pulsa "Reintentar".'
-  }
+export function textosSalida(): Record<AgentExitReason, TextoSalida> {
+  return txDocker().salida
 }
 
 /**
@@ -174,9 +227,10 @@ export function clasificarErrorArranque(bruto: string, tituloGenerico: string): 
   const limpio = normalizarErrorIpc(bruto)
   if (limpio.startsWith(PREFIJO_DOCKER_NO_DISPONIBLE)) {
     const detalle = limpio.slice(PREFIJO_DOCKER_NO_DISPONIBLE.length).trim()
+    const caido = textosSalida()['daemon-down']
     return {
-      titulo: TEXTOS_SALIDA['daemon-down'].titulo,
-      sugerencia: TEXTOS_SALIDA['daemon-down'].sugerencia,
+      titulo: caido.titulo,
+      sugerencia: caido.sugerencia,
       detalle: detalle || undefined
     }
   }

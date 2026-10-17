@@ -11,7 +11,7 @@ import { dividirSentencias } from '../../../../../shared/sql/divisorSql.ts'
 import { ID_SALIDA } from '../resultados/pestanasResultado.ts'
 import { crearLote, marcaDe } from './lote.ts'
 import {
-  PISTA_SIN_SENTENCIA,
+  pistaSinSentencia,
   estadoInicialConsola,
   explicarPideValores,
   nuevoLoteId,
@@ -20,8 +20,11 @@ import {
   type EstadoConsola
 } from './estadoConsola.ts'
 import { textoEntrada } from './salidaConsola.ts'
-import { PISTA_VARIAS_PLAN, atajoDeSeccion, sentenciaExplicable, textoProgreso } from './vivoConsola.ts'
+import { pistaVariasPlan, atajoDeSeccion, sentenciaExplicable, textoProgreso } from './vivoConsola.ts'
 import type { TeclaAcorde } from '../../../util/atajos.ts'
+
+const PISTA_SIN_SENTENCIA = pistaSinSentencia()
+const PISTA_VARIAS_PLAN = pistaVariasPlan()
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))

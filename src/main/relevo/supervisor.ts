@@ -12,6 +12,7 @@ import { appendFileSync, existsSync, mkdirSync, renameSync } from 'node:fs'
 import path from 'node:path'
 import { leerSalidaInstalador, type EncargoRelevo, type VeredictoInstalador } from '../../shared/relevo'
 import { esperar } from '../util/esperas'
+import { txRelevoUi } from './textos.ts'
 
 /**
  * Con qué se llama al instalador NSIS. `/S`: silencioso, la ventana que informa es la
@@ -133,7 +134,7 @@ export async function ejecutarRelevo(
 ): Promise<VeredictoInstalador> {
   try {
     // --- 1. El padre ---------------------------------------------------------
-    avisar('Cerrando Tessera…', 'Esperando a que la aplicación termine de cerrarse.')
+    avisar(txRelevoUi().cerrandoTitulo, txRelevoUi().cerrandoDetalle)
     log(`esperando al pid ${encargo.pidPadre}`)
     const finEspera = Date.now() + ESPERA_PADRE_MS
     while (procesoVivo(encargo.pidPadre) && Date.now() < finEspera) {
@@ -143,7 +144,7 @@ export async function ejecutarRelevo(
     log(`padre ${seguiaVivo ? 'SIGUE VIVO tras la espera' : 'terminado'}`)
 
     // --- 2. La carpeta -------------------------------------------------------
-    avisar('Preparando la carpeta…', 'Comprobando que la aplicación esté liberada.')
+    avisar(txRelevoUi().carpetaTitulo, txRelevoUi().carpetaDetalle)
     const finCarpeta = Date.now() + ESPERA_CARPETA_MS
     let estado: EstadoCarpeta = 'ocupada'
     while (Date.now() < finCarpeta) {
@@ -161,13 +162,8 @@ export async function ejecutarRelevo(
       log(`ABORTADO: la carpeta quedó como ${tmp} y no se pudo devolver a su nombre`)
       return {
         ok: false,
-        titulo: 'La actualización se detuvo por seguridad',
-        detalle:
-          'No se pudo dejar la carpeta de la aplicación en su sitio, así que no se ' +
-          'instaló nada para no empeorarlo.\n\n' +
-          `La versión anterior sigue completa en:\n${tmp}\n\n` +
-          `Renómbrala a:\n${encargo.raizInstalacion}\n\n` +
-          'y Tessera volverá a funcionar como antes.'
+        titulo: txRelevoUi().detenidaTitulo,
+        detalle: txRelevoUi().detenidaDetalle(tmp, encargo.raizInstalacion)
       }
     }
     if (estado === 'ocupada') {
@@ -182,7 +178,7 @@ export async function ejecutarRelevo(
       log(`el instalador NO existe en ${encargo.instalador}`)
       return leerSalidaInstalador(null)
     }
-    avisar('Instalando la actualización…', 'Esto tarda unos segundos.')
+    avisar(txRelevoUi().instalandoTitulo, txRelevoUi().instalandoDetalle)
     log(`lanzando ${encargo.instalador} ${ARGS_INSTALADOR.join(' ')}`)
     const code = await new Promise<number | null>((resolve) => {
       const hijo = spawn(encargo.instalador, [...ARGS_INSTALADOR], {
@@ -202,8 +198,8 @@ export async function ejecutarRelevo(
     log(`el relevo lanzó: ${String(err)}`)
     return {
       ok: false,
-      titulo: 'La actualización no se pudo completar',
-      detalle: `${String(err)}\n\nTessera sigue instalada en la versión anterior.`
+      titulo: txRelevoUi().noCompletoTitulo,
+      detalle: txRelevoUi().noCompletoDetalle(String(err))
     }
   }
 }

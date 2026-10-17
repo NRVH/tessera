@@ -18,6 +18,12 @@ Un pane por target abierto, dueño de un pty; abrir cuesta y el mosaico enseña 
   se filtra estrictamente por NUESTRA sesión (el canal es un broadcast).
 - El reconcile no abre sin los ajustes cargados, en los DOS modos: en contenedor, abrir con el
   montaje vacío fija el ámbito de `tdb` de TODO el proyecto a nada.
+- La sesión nace con las columnas y filas del xterm ya ajustado (`tamano` del `open`), no con
+  80x24 corregido después: el CLI pintaría la conversación reanudada a otro ancho y la repintaría
+  entera, y `docker exec` puede perder un cambio de tamaño que llega mientras arranca (el proceso
+  se queda en 80x24). El tamaño de nacimiento cuenta como ya enviado.
+- Sin buscador propio: los CLI de los agentes pintan su propia pantalla (pantalla alternativa, sin
+  historial en xterm) y Mod+F les llega a ellos.
 - Reanudar y «nueva conversación» llaman a `abrirSesion` a mano: el reconcile no los ve. Si un
   `open` falla, lo pedido vuelve a la sesión: si no, el reintento reanudaría otra conversación.
 - El estado de la sesión es SOLO de `SesionAgente`; soltarla sigue `PLAN_SOLTAR`: solo cierra en

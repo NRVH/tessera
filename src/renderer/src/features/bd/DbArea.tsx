@@ -20,6 +20,7 @@ import { useAreaTira } from './useAreaTira'
 import { useAreaCierre } from './useAreaCierre'
 import { useAreaRenombrar } from './useAreaRenombrar'
 import type { BaseConsolaNueva } from './consola/basesConsola'
+import { txArea } from './textosArea.ts'
 
 export interface DbAreaProps {
   /** Oculta entera (fuera de la vista 'db' o en el mosaico); nunca se desmonta por eso. */
@@ -110,10 +111,10 @@ export function DbArea(props: DbAreaProps): React.JSX.Element {
       </div>
       {renombrar && (
         <PromptDialog
-          title="Renombrar consola"
-          label="Nombre de la consola"
+          title={txArea().renombrarConsola}
+          label={txArea().nombreDeLaConsola}
           initialValue={renombrar.nombre}
-          confirmLabel="Renombrar"
+          confirmLabel={txArea().renombrar}
           error={renombrar.error}
           onConfirm={(v) => void confirmarRenombrar(v)}
           onCancel={() => setRenombrar(null)}

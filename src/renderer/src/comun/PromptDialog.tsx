@@ -9,6 +9,7 @@
 
 import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react'
 import { pegarRecortado } from '../util/pasteTrim'
+import { txComun } from './textos.ts'
 import { alClicEnVelo, useDialogo } from './useDialogo'
 
 /** Enfoca el campo al montar y selecciona todo, o solo el nombre sin extensión si `selectBasename`. */
@@ -67,7 +68,7 @@ export function PromptDialog({
   title,
   label,
   initialValue = '',
-  confirmLabel = 'Crear',
+  confirmLabel,
   selectBasename = false,
   error = null,
   allowEmpty = false,
@@ -118,10 +119,10 @@ export function PromptDialog({
         {error && <div className="modal-error">{error}</div>}
         <div className="modal-actions">
           <button className="btn btn-ghost" onClick={onCancel}>
-            Cancelar
+            {txComun().cancelar}
           </button>
           <button className="btn primary" onClick={submit} disabled={!allowEmpty && !value.trim()}>
-            {confirmLabel}
+            {confirmLabel ?? txComun().crear}
           </button>
         </div>
       </div>

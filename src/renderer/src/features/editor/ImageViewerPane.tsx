@@ -21,6 +21,7 @@ import {
   RotateIcon
 } from './iconosVisor'
 import type { OpenFile } from './centerPane'
+import { txImagen, txVisorComun } from './textosVisores.ts'
 
 interface ImageViewerPaneProps {
   file: OpenFile
@@ -33,18 +34,20 @@ type EstadoVisor = ReturnType<typeof useImageViewer>
 
 export function ImageViewerPane({ file, visible, onClose }: ImageViewerPaneProps): React.JSX.Element {
   const v = useImageViewer({ file, visible })
+  const t = txImagen()
+  const comun = txVisorComun()
 
   return (
     <section
       className={`editor image-viewer${visible ? '' : ' hidden'}`}
-      aria-label="Imagen"
+      aria-label={t.aria}
       aria-hidden={!visible}
     >
       <CabeceraImagen v={v} onClose={onClose} />
 
       {v.showSource ? (
         <div className="binary-viewer-body">
-          <pre className="image-source">{v.source ?? 'Cargando…'}</pre>
+          <pre className="image-source">{v.source ?? comun.cargando}</pre>
         </div>
       ) : v.error ? (
         <FalloImagen error={v.error} v={v} />
@@ -57,6 +60,8 @@ export function ImageViewerPane({ file, visible, onClose }: ImageViewerPaneProps
 
 function CabeceraImagen({ v, onClose }: { v: EstadoVisor; onClose: () => void }): React.JSX.Element {
   const { notice, loading, error, nat, size, isSvg, showSource } = v
+  const t = txImagen()
+  const comun = txVisorComun()
   return (
     <header className="panel-header editor-header">
       {/* Sin identidad a la izquierda (la pestaña ya dice nombre e icono): la barra existe
@@ -73,12 +78,8 @@ function CabeceraImagen({ v, onClose }: { v: EstadoVisor; onClose: () => void })
           <button
             className={`btn btn-icon${!showSource ? ' btn-active' : ''}`}
             onClick={() => void v.toggleSource()}
-            title={
-              showSource
-                ? 'Código SVG — clic para ver la imagen'
-                : 'Imagen — clic para ver el código SVG'
-            }
-            aria-label={showSource ? 'Código SVG (cambiar a imagen)' : 'Imagen (cambiar a código SVG)'}
+            title={showSource ? t.codigoSvgClic : t.imagenClic}
+            aria-label={showSource ? t.codigoSvgAria : t.imagenAria}
             aria-pressed={!showSource}
           >
             {showSource ? <CodeIcon /> : <PictureIcon />}
@@ -87,20 +88,20 @@ function CabeceraImagen({ v, onClose }: { v: EstadoVisor; onClose: () => void })
         <button
           className="btn"
           onClick={() => void v.openExternally()}
-          title="Abrir externamente: abre la imagen con su aplicación del sistema"
+          title={t.abrirExternamenteTitulo}
         >
           <ExternalIcon />
-          Abrir externamente
+          {comun.abrirExternamente}
         </button>
         <button
           className="btn btn-icon"
           onClick={() => void v.revealInFolder()}
-          title="Mostrar en el explorador de archivos"
-          aria-label="Mostrar en el explorador de archivos"
+          title={comun.mostrarEnExplorador}
+          aria-label={comun.mostrarEnExplorador}
         >
           <FolderIcon />
         </button>
-        <button className="btn btn-icon" onClick={onClose} title="Cerrar archivo" aria-label="Cerrar archivo">
+        <button className="btn btn-icon" onClick={onClose} title={comun.cerrarArchivo} aria-label={comun.cerrarArchivo}>
           <CloseIcon />
         </button>
       </div>
@@ -109,17 +110,18 @@ function CabeceraImagen({ v, onClose }: { v: EstadoVisor; onClose: () => void })
 }
 
 function FalloImagen({ error, v }: { error: string; v: EstadoVisor }): React.JSX.Element {
+  const t = txImagen()
   return (
     <div className="image-fallback">
       <div className="image-fallback-msg">{error}</div>
       <div className="image-fallback-actions">
         <button className="btn btn-primary" onClick={() => void v.openExternally()}>
           <ExternalIcon />
-          Abrir externamente
+          {txVisorComun().abrirExternamente}
         </button>
         <button className="btn" onClick={() => void v.revealInFolder()}>
           <FolderIcon />
-          Mostrar en la carpeta
+          {t.mostrarEnCarpeta}
         </button>
       </div>
     </div>
@@ -137,7 +139,7 @@ function EscenarioImagen({ file, v }: { file: OpenFile; v: EstadoVisor }): React
       onPointerDown={v.onPointerDown}
       onDoubleClick={v.onDoubleClick}
     >
-      {loading && <div className="binary-viewer-status">Cargando…</div>}
+      {loading && <div className="binary-viewer-status">{txVisorComun().cargando}</div>}
       {url && (
         <img
           className="image-canvas"
@@ -162,22 +164,23 @@ function EscenarioImagen({ file, v }: { file: OpenFile; v: EstadoVisor }): React
 
 function BarraZoom({ v }: { v: EstadoVisor }): React.JSX.Element {
   const zoomPct = Math.round(v.view.scale * 100)
+  const t = txImagen()
   return (
-    <div className="image-toolbar" role="toolbar" aria-label="Controles de zoom">
-      <button className="image-tool-btn" onClick={() => v.zoomBy(1 / ZOOM_STEP)} title="Alejar" aria-label="Alejar">
+    <div className="image-toolbar" role="toolbar" aria-label={t.controlesZoom}>
+      <button className="image-tool-btn" onClick={() => v.zoomBy(1 / ZOOM_STEP)} title={t.alejar} aria-label={t.alejar}>
         <MinusIcon />
       </button>
-      <button className="image-tool-level" onClick={v.actualSize} title="Tamaño real (100 %)">
+      <button className="image-tool-level" onClick={v.actualSize} title={t.tamanoReal}>
         {zoomPct}%
       </button>
-      <button className="image-tool-btn" onClick={() => v.zoomBy(ZOOM_STEP)} title="Acercar" aria-label="Acercar">
+      <button className="image-tool-btn" onClick={() => v.zoomBy(ZOOM_STEP)} title={t.acercar} aria-label={t.acercar}>
         <PlusIcon />
       </button>
       <span className="image-tool-sep" />
-      <button className="image-tool-btn" onClick={v.applyFit} title="Ajustar a la ventana" aria-label="Ajustar">
+      <button className="image-tool-btn" onClick={v.applyFit} title={t.ajustarTitulo} aria-label={t.ajustar}>
         <FitIcon />
       </button>
-      <button className="image-tool-btn" onClick={v.rotate} title="Rotar 90°" aria-label="Rotar 90 grados">
+      <button className="image-tool-btn" onClick={v.rotate} title={t.rotarTitulo} aria-label={t.rotarAria}>
         <RotateIcon />
       </button>
     </div>

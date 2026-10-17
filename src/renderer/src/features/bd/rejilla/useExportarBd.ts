@@ -21,6 +21,7 @@ import {
   nuevoIdExportacion,
   type RepartidorProgreso
 } from './exportarBd'
+import { txRejilla } from './textosRejilla.ts'
 
 /**
  * El repartidor de la ventana, creado con la primera exportación: al importar el
@@ -61,7 +62,7 @@ export interface ExportadorBd {
 /** El `unknown` de un invoke que lanzó (no debería: el contrato no lanza) como texto. */
 function mensajeDe(err: unknown): string {
   if (err instanceof Error) return err.message
-  return typeof err === 'string' && err ? err : 'Error inesperado al exportar'
+  return typeof err === 'string' && err ? err : txRejilla().errorExportar
 }
 
 export function useExportarBd(): ExportadorBd {
@@ -162,7 +163,7 @@ function avisarFinal(r: DbRespuesta<DbExportado | null>, vivo: boolean): void {
       return
     }
     const detalle = r.error.codigo ? `[${r.error.codigo}] ${r.error.mensaje}` : r.error.mensaje
-    notifyError('No se pudo exportar', detalle)
+    notifyError(txRejilla().noSePudoExportar, detalle)
     return
   }
   // El usuario canceló el diálogo de guardar: lo está viendo, no hay nada que decir.
@@ -176,7 +177,7 @@ function avisarFinal(r: DbRespuesta<DbExportado | null>, vivo: boolean): void {
       onClick: () => {
         void window.tessera.dbExplorador
           .revelarExportacion(hecho.token)
-          .catch((err: unknown) => notifyError('No se pudo mostrar el archivo', err))
+          .catch((err: unknown) => notifyError(txRejilla().noSePudoMostrar, err))
       }
     }
   })

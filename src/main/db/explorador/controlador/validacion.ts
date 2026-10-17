@@ -29,6 +29,7 @@ import { TOPE_RESPUESTA_EXPORTACION } from '../limites.ts'
 import type { LectorDdl } from '../motores/catalogo.ts'
 import { esObjeto, mensajeDe } from '../../../util/valores.ts'
 import { esCelda } from '../edicionRejillaValidacion.ts'
+import { txControlador } from './textosControlador.ts'
 
 export const TIPOS_OBJETO: readonly DbTipoObjeto[] = [
   'tabla',
@@ -91,14 +92,14 @@ export { esObjeto, mensajeDe }
 /** Texto no vacío y acotado, o lanza un error de petición. */
 export function exigir(v: unknown, nombre: string, max = MAX_IDENT): string {
   if (typeof v !== 'string' || v.length === 0 || v.length > max) {
-    throw new ErrorGestor('interno', `Petición inválida: falta «${nombre}».`)
+    throw new ErrorGestor('interno', txControlador().peticionFalta(nombre))
   }
   return v
 }
 
 export function opcional(v: unknown, nombre: string, max: number): string | undefined {
   if (v === undefined || v === null) return undefined
-  if (typeof v !== 'string' || v.length > max) throw new ErrorGestor('interno', `Petición inválida: «${nombre}».`)
+  if (typeof v !== 'string' || v.length > max) throw new ErrorGestor('interno', txControlador().peticionInvalidaCampo(nombre))
   return v
 }
 
@@ -142,7 +143,7 @@ export function columnasExportables(v: unknown): DbColumnaResultado[] | null {
 export function resolverOpcional(v: unknown): DbResolverTx | undefined {
   if (v === undefined || v === null) return undefined
   if (v === 'commit' || v === 'rollback') return v
-  throw new ErrorGestor('interno', 'Petición inválida: «resolver».')
+  throw new ErrorGestor('interno', txControlador().peticionInvalidaCampo('resolver'))
 }
 
 /**

@@ -9,11 +9,12 @@
 import { normalizarErrorIpc } from '../../../../shared/dockerErrors'
 import type { OpenTerminalResult } from '../../../../shared/terminal-ipc'
 import { bannerFinSsh } from './finSesionSsh'
+import { txTerminales } from './textos.ts'
 import type { EstadoSesion } from './useEstadoTerminalPane'
 import type { OrigenTerminal, RefsTerminal } from './terminalPaneTipos'
 
 /** Aviso al despertar de una hibernación (la sesión anterior murió con el contenedor). */
-const WAKE_BANNER = `\r\n\x1b[38;2;92;99;112m── sesión relanzada (el proyecto estaba hibernado) ──\x1b[0m\r\n`
+const wakeBanner = (): string => `\r\n\x1b[38;2;92;99;112m${txTerminales().sesionRelanzada}\x1b[0m\r\n`
 
 /** Lo que abrir o relanzar necesita del pane: identidad de la ranura, refs, estado y fit. */
 export interface ContextoSesion {
@@ -45,7 +46,7 @@ export async function abrirSesion(c: ContextoSesion): Promise<void> {
   const term = refs.term.current
   if (!term || refs.opening.current || refs.session.current !== null) return
   refs.opening.current = true
-  if (refs.hasOpenedOnce.current && c.origen.tipo === 'local') term.write(WAKE_BANNER)
+  if (refs.hasOpenedOnce.current && c.origen.tipo === 'local') term.write(wakeBanner())
   estado.setStatus('booting')
   estado.setSessionId(null)
   estado.setExitCode(null)
@@ -135,14 +136,16 @@ async function relanzar(c: ContextoSesion, id: string): Promise<void> {
     const motivo = err instanceof Error ? err.message : String(err)
     // Lo que dijo el main, sin el envoltorio del IPC («Error invoking remote method…»), en local y en SSH.
     const texto = normalizarErrorIpc(motivo)
-    term.write(`\r\n\x1b[38;2;224;108;117mfalló el reload: ${texto}\x1b[0m\r\n`)
+    term.write(`\r\n\x1b[38;2;224;108;117m${txTerminales().fallo(texto)}\x1b[0m\r\n`)
   } finally {
     estado.setReloading(false)
   }
 }
 
 /** Lo que se dice al cancelar una conexión SSH que aún no ha dicho nada. */
-export const MOTIVO_CANCELADA = 'Conexión cancelada'
+export function motivoCancelada(): string {
+  return txTerminales().conexionCancelada
+}
 
 /**
  * Cancela una conexión SSH que aún no ha dicho nada: cierra su sesión en el main y deja el pane como una
@@ -159,8 +162,9 @@ export function cancelarConexion(c: ContextoSesion): void {
   void window.tessera.terminal.close(id)
   estado.setSessionId(null)
   estado.setStatus('error')
-  estado.setFinSsh(MOTIVO_CANCELADA)
-  term.write(`\r\n\x1b[38;2;224;108;117m${bannerFinSsh(MOTIVO_CANCELADA)}\x1b[0m\r\n`)
+  const motivo = motivoCancelada()
+  estado.setFinSsh(motivo)
+  term.write(`\r\n\x1b[38;2;224;108;117m${bannerFinSsh(motivo)}\x1b[0m\r\n`)
   // El botón pulsado desaparece y se lleva el foco: sin devolverlo, el Intro que anuncia el aviso no llega.
   term.focus()
 }

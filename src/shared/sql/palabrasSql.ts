@@ -2,7 +2,7 @@
 // Vocabulario SQL por motor, solo datos y en MAYÚSCULAS: RESERVADAS (¿hay que citar?), PALABRAS_CLAVE
 // (autocompletado), VERBOS_AVISO (inicio de sentencia nueva, lista corta a propósito) y los comandos de
 // SQL*Plus. Son listas distintas y no se mezclan: responden a preguntas distintas. Neutral y ES2020.
-// Decisiones: docs/decisiones/bd/sql-dialectos-como-tabla.md
+// Decisiones: docs/decisiones/bd/registro-motores-descriptor.md
 // =============================================================================
 
 import { deDialecto, type DialectoSql } from './dialectosSql.ts'

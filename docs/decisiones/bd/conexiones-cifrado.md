@@ -6,13 +6,13 @@
 
 ## Contexto
 
-SQL Server, MongoDB y Redis cifraban con dos casillas (`DbTls`: cifrar, y confiar en el certificado sin verificarlo);
-PostgreSQL y Oracle no cifraban nada. Sin SSL no se conecta a ningún PostgreSQL en la nube, que lo exigen todos.
+El cifrado se expresa con dos casillas (`DbTls`: cifrar, y confiar en el certificado sin verificarlo), las mismas en
+todos los motores de red. Sin SSL no se conecta a ningún PostgreSQL en la nube, que lo exigen todos.
 
 ## Decisión
 
-- PostgreSQL y Oracle declaran `tls` como los demás. Nacen SIN cifrar (`tlsPorDefecto`): una conexión guardada antes
-  no cambia de comportamiento, y un servidor local no suele cifrar.
+- PostgreSQL y Oracle declaran `tls` como los demás. Nacen SIN cifrar (`tlsPorDefecto`): una conexión guardada sin
+  la casilla no cambia de comportamiento, y un servidor local no suele cifrar.
 - Verificar es comprobar el certificado y el NOMBRE del servidor (el `verify-full` de libpq) contra las CA del paquete
   de Node y las del SISTEMA (almacén de Windows, llavero de macOS): una CA de empresa instalada en el equipo vale sin
   configurar nada en Tessera. Confiar es cifrar sin comprobar (el `require` de libpq). No hay un tercer modo
@@ -33,11 +33,8 @@ PostgreSQL y Oracle no cifraban nada. Sin SSL no se conecta a ningún PostgreSQL
 Un PostgreSQL gestionado conecta marcando una casilla. Un Oracle con certificado autofirmado solo conecta si su CA está
 instalada en el sistema. Oracle 11g no cifra.
 
-Contra servidores reales (`scripts/pruebas/oracle.sh tcps 11` y `… tcps 21`): la 21 se prueba entera por TCPS; la 11.2
-solo en lo que no necesita su listener TCPS (cifrar contra su puerto TCP y el proceso ya en thick). A la 11.2 XE de las
-pruebas no se le puede poner TCPS: su auto-login (`cwallet.sso`) tiene un formato que los `orapki` publicados ya no
-escriben (ORA-29106), y la imagen no trae el suyo. Queda sin probar en real el caso «11g con TCPS y la CA instalada»
-(el saludo TLS pasa y thin rechaza la versión): lo cubre la misma rama que el proceso en thick.
+En una 11g con TCPS y la CA instalada, el saludo TLS pasa y thin rechaza la versión: lo cubre la misma rama que
+el proceso en thick.
 
 ## Descartes
 

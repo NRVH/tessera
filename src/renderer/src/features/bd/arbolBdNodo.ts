@@ -7,6 +7,7 @@
 // =============================================================================
 
 import { claveBd } from './arbolBdClaves.ts'
+import { localeActual } from '../../../../shared/i18n.ts'
 import type { DbConsolaInfo, DbErrorSql } from '../../../../shared/db-explorador-ipc.ts'
 import type { CargaBd, EntradaArbolBd, FilaBd, FilaCarpetaConsolas, FilaConsola } from './arbolBdTipos.ts'
 
@@ -88,7 +89,7 @@ function nodoCarpetaConsolas(conexionId: string, consolas: readonly DbConsolaInf
     etiqueta: null,
     hijos: () => ({
       nodos: [...consolas]
-        .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { numeric: true }))
+        .sort((a, b) => a.nombre.localeCompare(b.nombre, localeActual(), { numeric: true }))
         .map((k) => {
           const fila: FilaConsola = {
             kind: 'consola',

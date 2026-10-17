@@ -5,17 +5,16 @@
 // =============================================================================
 import type { FileStatus } from '../../../../shared/git-ipc'
 import type { DiffProblem } from './diffEditorTipos'
+import { txDiff } from './textos.ts'
 
 /** Por qué el selector de vista está apagado en un diff de un solo lado. */
-export const TITULO_UN_LADO =
-  'Este archivo solo existe en un lado (alta o borrado): no hay dos revisiones que poner una junto a otra.'
+export function tituloUnLado(): string {
+  return txDiff().unLado
+}
 
 /** Rótulo de cada estado; compartido con el diff de imagen para no divergir. */
-export const STATUS_LABEL: Record<FileStatus, string> = {
-  A: 'Alta',
-  M: 'Modificado',
-  D: 'Borrado',
-  R: 'Rename'
+export function etiquetaEstado(status: FileStatus): string {
+  return txDiff().estado[status]
 }
 
 /** Error esperado del visor: su mensaje ya es para el usuario y se muestra sin detalle técnico. */
@@ -36,55 +35,30 @@ export function blobContent(blob: {
   isDirectory?: boolean
   binary?: boolean
 }): string {
+  const t = txDiff()
   if (blob.isDirectory) {
-    throw new DiffNoticeError(
-      'Esto es una carpeta, no un archivo.',
-      'Las carpetas no tienen diff. Abre uno de los archivos de dentro para ver sus cambios.'
-    )
+    throw new DiffNoticeError(t.carpetaTitulo, t.carpetaHint)
   }
   if (blob.binary) {
     // Aquí solo llegan un borrado y una extensión de texto con bytes nulos: no hay visor.
-    throw new DiffNoticeError(
-      'Archivo binario: no hay diff de texto que mostrar.',
-      'Se detectaron bytes nulos. Si el archivo sigue en el proyecto, ábrelo desde el explorador con la aplicación del sistema.'
-    )
+    throw new DiffNoticeError(t.binarioTitulo, t.binarioHintBlob)
   }
   if (blob.truncated) {
-    throw new DiffNoticeError(
-      'El archivo es demasiado grande para mostrar el diff.',
-      'Supera el tope de 2 MiB. Puedes abrirlo desde el explorador si necesitas verlo.'
-    )
+    throw new DiffNoticeError(t.grandeVerTitulo, t.grandeVerHint)
   }
   return blob.exists ? blob.content : ''
 }
 
-const CARPETA: DiffProblem = {
-  title: 'Esto es una carpeta, no un archivo.',
-  hint: 'Las carpetas no tienen diff. Abre uno de los archivos de dentro para ver sus cambios.'
-}
-
 /** Reconoce el error de Node más habitual en `texto`, o null si no es ninguno. */
 function problemaConocido(texto: string): DiffProblem | null {
+  const t = txDiff()
   // EISDIR lo lanza `git.workingBlob`; el mensaje en castellano, `files.read`.
-  if (/\bEISDIR\b/.test(texto) || /^No es un archivo:/.test(texto)) return CARPETA
-  if (/\bENOENT\b/.test(texto)) {
-    return {
-      title: 'El archivo ya no está en el disco.',
-      hint: 'Se movió o se borró después de abrir esta vista. Recarga los cambios para actualizar la lista.'
-    }
+  if (/\bEISDIR\b/.test(texto) || /^No es un archivo:/.test(texto)) {
+    return { title: t.carpetaTitulo, hint: t.carpetaHint }
   }
-  if (/\b(EACCES|EPERM)\b/.test(texto)) {
-    return {
-      title: 'No hay permisos para leer este archivo.',
-      hint: 'Comprueba los permisos del archivo, o si otro programa lo tiene bloqueado.'
-    }
-  }
-  if (/\bEBUSY\b/.test(texto)) {
-    return {
-      title: 'El archivo está en uso por otro programa.',
-      hint: 'Ciérralo y vuelve a abrir el diff.'
-    }
-  }
+  if (/\bENOENT\b/.test(texto)) return { title: t.yaNoEstaTitulo, hint: t.yaNoEstaHint }
+  if (/\b(EACCES|EPERM)\b/.test(texto)) return { title: t.sinPermisosTitulo, hint: t.sinPermisosHint }
+  if (/\bEBUSY\b/.test(texto)) return { title: t.enUsoTitulo, hint: t.enUsoHint }
   return null
 }
 
@@ -101,8 +75,8 @@ export function describeDiffError(err: unknown): DiffProblem {
 
   return (
     problemaConocido(clean) ?? {
-      title: 'No se pudo mostrar este diff.',
-      hint: 'Prueba a recargar los cambios. Si vuelve a pasar, el detalle de abajo ayuda a diagnosticarlo.',
+      title: txDiff().noSePudoMostrarTitulo,
+      hint: txDiff().noSePudoMostrarHint,
       detail: clean || raw
     }
   )
@@ -110,6 +84,7 @@ export function describeDiffError(err: unknown): DiffProblem {
 
 /** Cuántas diferencias, en palabras: el cero y el singular son casos distintos. */
 export function etiquetaCuenta(n: number): string {
-  if (n === 0) return 'Sin diferencias'
-  return n === 1 ? '1 diferencia' : `${n} diferencias`
+  const t = txDiff()
+  if (n === 0) return t.sinDiferencias
+  return n === 1 ? t.unaDiferencia : t.diferencias(n)
 }

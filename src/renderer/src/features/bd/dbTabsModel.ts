@@ -7,8 +7,10 @@
 // =============================================================================
 
 import type { DbTipoObjeto } from '../../../../shared/db-explorador-ipc.ts'
-import { NOMBRE_ENTORNO, esEntorno } from '../../../../shared/db-ipc.ts'
+import { esEntorno } from '../../../../shared/db-ipc.ts'
+import { nombreEntorno } from './textosEntorno.ts'
 import type { DbEntorno } from '../../../../shared/db-ipc.ts'
+import { txTabsBd } from './textosTabsBd.ts'
 
 export type DbPane =
   | {
@@ -79,23 +81,8 @@ export const PRIORIDAD_INDICADORES: readonly IndicadorPestana[] = [
   'error'
 ]
 
-/** Etiqueta en español de cada tipo de objeto (tooltips, menús). */
-export const ETIQUETA_TIPO_OBJETO: Record<DbTipoObjeto, string> = {
-  tabla: 'Tabla',
-  vista: 'Vista',
-  vistaMaterializada: 'Vista materializada',
-  tablaForanea: 'Tabla foránea',
-  tablaVirtual: 'Tabla virtual',
-  rutina: 'Rutina',
-  paquete: 'Paquete',
-  secuencia: 'Secuencia',
-  sinonimo: 'Sinónimo',
-  tipoObjeto: 'Tipo de objeto',
-  tipoColeccion: 'Tipo colección',
-  tipo: 'Tipo',
-  disparador: 'Disparador',
-  evento: 'Evento'
-}
+/** Etiqueta de cada tipo de objeto en el idioma activo (tooltips, menús). */
+export const etiquetasTipoObjeto = (): Record<DbTipoObjeto, string> => txTabsBd().tipoObjeto
 
 // --- Identidad --------------------------------------------------------------------
 
@@ -383,7 +370,7 @@ function tituloColeccion(
   a: Ambiguedades
 ): TituloSinEntorno {
   const nombre = variasEn(a.basesPorColeccion, [p.conexionId, p.coleccion]) ? `${p.base}.${p.coleccion}` : p.coleccion
-  return { nombre, conexion: alias, tooltip: `Colección ${p.base}.${p.coleccion}${sufijoAlias}` }
+  return { nombre, conexion: alias, tooltip: `${txTabsBd().coleccion} ${p.base}.${p.coleccion}${sufijoAlias}` }
 }
 
 function tituloClave(
@@ -394,7 +381,7 @@ function tituloClave(
 ): TituloSinEntorno {
   const conBaseClave = `db${p.base} › ${p.nombre}`
   const nombre = variasEn(a.basesPorClave, [p.conexionId, p.nombre]) ? conBaseClave : p.nombre
-  return { nombre, conexion: alias, tooltip: `Clave ${conBaseClave}${sufijoAlias}` }
+  return { nombre, conexion: alias, tooltip: `${txTabsBd().clave} ${conBaseClave}${sufijoAlias}` }
 }
 
 function tituloObjeto(p: DbPaneObjeto, alias: string, sufijoAlias: string, a: Ambiguedades): TituloSinEntorno {
@@ -410,8 +397,8 @@ function tituloObjeto(p: DbPaneObjeto, alias: string, sufijoAlias: string, a: Am
   const firmaCompleta = firma !== undefined ? `(${firma})` : ''
   const esDefinicion = p.kind === 'fuente' && !esDdl && (p.tipo === 'vista' || p.tipo === 'vistaMaterializada')
   const tooltip =
-    `${ETIQUETA_TIPO_OBJETO[p.tipo]} ${prefijoPane(p)}.${p.objeto}${firmaCompleta}` +
-    `${esDefinicion ? ' (definición)' : ''}${esDdl ? SUFIJO_DDL : ''}${sufijoAlias}`
+    `${etiquetasTipoObjeto()[p.tipo]} ${prefijoPane(p)}.${p.objeto}${firmaCompleta}` +
+    `${esDefinicion ? txTabsBd().definicion : ''}${esDdl ? SUFIJO_DDL : ''}${sufijoAlias}`
   return { nombre, conexion: alias, tooltip }
 }
 
@@ -423,8 +410,8 @@ function tituloSinEntorno(
   nombreConsolaDe: (consolaId: string) => string | undefined
 ): TituloSinEntorno {
   if (p.kind === 'consola') {
-    const nombre = nombreConsolaDe(p.consolaId) ?? 'Consola'
-    return { nombre, conexion: alias, tooltip: `Consola ${nombre}${sufijoAlias}` }
+    const nombre = nombreConsolaDe(p.consolaId) ?? txTabsBd().consola
+    return { nombre, conexion: alias, tooltip: `${txTabsBd().consola} ${nombre}${sufijoAlias}` }
   }
   if (p.kind === 'coleccion') return tituloColeccion(p, alias, sufijoAlias, a)
   if (p.kind === 'clave') return tituloClave(p, alias, sufijoAlias, a)
@@ -453,7 +440,7 @@ export function titulosPestanas(
     // Sin conexión (alias '') no hay entorno que afirmar.
     const e = alias === '' || !entornoDe ? undefined : entornoDe(p.conexionId)
     const entorno = esEntorno(e) ? e : undefined
-    const sufijoAlias = (alias === '' ? '' : ` · ${alias}`) + (entorno ? ` · ${NOMBRE_ENTORNO[entorno]}` : '')
+    const sufijoAlias = (alias === '' ? '' : ` · ${alias}`) + (entorno ? ` · ${nombreEntorno(entorno)}` : '')
     const titulo = tituloSinEntorno(p, alias, sufijoAlias, a, nombreConsolaDe)
     out.set(t.id, entorno ? { ...titulo, entorno } : titulo)
   }

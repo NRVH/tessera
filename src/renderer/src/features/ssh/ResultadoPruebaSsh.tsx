@@ -8,6 +8,7 @@
 
 import type { SshResultadoPrueba } from '../../../../shared/ssh-ipc'
 import { lineasHuella, textoResultadoPrueba } from './pistasPruebaSsh'
+import { txFormularioSsh } from './textosFormulario.ts'
 
 /** Lo que recibe el resultado. */
 export interface PropsResultadoPruebaSsh {
@@ -24,7 +25,7 @@ export function ResultadoPruebaSsh({ probando, resultado, host, onOlvidarHuella 
   if (probando || resultado === null) {
     return (
       <div className="dbc-prueba ssh-prueba" role="status" aria-live="polite">
-        Probando…
+        {txFormularioSsh().probando}
       </div>
     )
   }
@@ -47,7 +48,7 @@ export function ResultadoPruebaSsh({ probando, resultado, host, onOlvidarHuella 
       {huellaCambiada && (
         <div className="ssh-prueba-botones">
           <button type="button" className="btn danger" onClick={onOlvidarHuella}>
-            Olvidar la huella guardada…
+            {txFormularioSsh().olvidarHuellaBoton}
           </button>
         </div>
       )}

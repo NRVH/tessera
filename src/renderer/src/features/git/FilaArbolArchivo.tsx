@@ -15,6 +15,7 @@ import type { EstadoMarca, FilaArbol, NodoArchivo } from './modelo/arbolArchivos
 import { ANCHO_CHEVRON, ChevronArbol, IconoCarpeta } from '../../comun/iconosArbol'
 import { FileTypeIcon } from '../../comun/fileIcons'
 import { Casilla } from './Casilla'
+import { txGit } from './textos.ts'
 
 const SANGRIA_BASE = 8
 const SANGRIA_NIVEL = 12
@@ -135,7 +136,7 @@ function casillaDeFila(
 ): React.JSX.Element | null {
   if (marca === undefined || !onAlternarMarca) return null
   const nombre = nodo.tipo === 'carpeta' ? nodo.segmentos.join('/') : nodo.nombre
-  return <Casilla estado={marca} etiqueta={`Marcar ${nombre}`} onAlternar={onAlternarMarca} />
+  return <Casilla estado={marca} etiqueta={txGit().marcar(nombre)} onAlternar={onAlternarMarca} />
 }
 
 // La carpeta del archivo, en gris y detrás del nombre: devuelve lo que la lista plana quita del árbol.
@@ -238,8 +239,9 @@ function etiquetaDeNodo(nodo: NodoArchivo): React.JSX.Element {
 /** Tooltip de la fila: la ruta completa y, en archivos, la letra y qué hace el doble clic. */
 function tooltip(fila: FilaArbol): string {
   const { nodo } = fila
+  const t = txGit()
   if (nodo.tipo === 'carpeta') {
-    return `${nodo.ruta}\n${nodo.archivos} ${nodo.archivos === 1 ? 'archivo' : 'archivos'}`
+    return `${nodo.ruta}\n${t.archivosDeCarpeta(nodo.archivos)}`
   }
   const { entrada } = nodo
   const cabecera =
@@ -247,27 +249,11 @@ function tooltip(fila: FilaArbol): string {
       ? `${entrada.oldPath} → ${entrada.path}`
       : entrada.path
   const estado = entrada.letra === '' ? '' : `\n${descripcion(entrada.letra)}`
-  return `${cabecera}${estado}\nDoble clic para ver las diferencias`
+  return `${cabecera}${estado}\n${t.dobleClicDiferencias}`
 }
 
 /** Lo que significa cada letra de git, para el tooltip (la fila no la pinta). */
 function descripcion(letra: string): string {
-  switch (letra) {
-    case 'A':
-      return 'Añadido'
-    case 'M':
-      return 'Modificado'
-    case 'D':
-      return 'Eliminado'
-    case 'R':
-      return 'Renombrado'
-    case 'C':
-      return 'Copiado'
-    case 'U':
-      return 'En conflicto'
-    case 'T':
-      return 'Cambió de tipo'
-    default:
-      return letra
-  }
+  const letras: Readonly<Record<string, string>> = txGit().letras
+  return letras[letra] ?? letra
 }

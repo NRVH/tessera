@@ -1,12 +1,11 @@
 # El puente local: `tdb` pregunta en cada invocación, y el punto de escucha cambia según el sistema
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/db/dbBridge.ts`, `puntoEscucha.ts` y las operaciones `ssh.*` que se registran en él (macOS: sin verificar aquí)
-
+- **Ámbito:** `src/main/db/dbBridge.ts`, `puntoEscucha.ts` y las operaciones `ssh.*` que se registran en él
 ## Contexto
 
-El ámbito y las contraseñas viajaban como variables del pty, congeladas en el `spawn`: marcar una casilla no
-hacía nada hasta reiniciar la sesión del agente. Con el puente, `tdb` pregunta a Tessera en cada invocación y
+El ámbito y las contraseñas como variables del pty quedarían congeladas en el `spawn`: marcar una casilla no
+haría nada hasta reiniciar la sesión del agente. Con el puente, `tdb` pregunta a Tessera en cada invocación y
 montar o desmontar aplica al momento, sin perder la conversación.
 
 ## Decisión
@@ -20,7 +19,7 @@ montar o desmontar aplica al momento, sin perder la conversación.
   La respuesta sigue llevando `consola: false`, que `tdb.cjs` lee.
 - Windows: named pipe, objeto del kernel con la ACL por defecto (usuario, SYSTEM, Administradores). POSIX: un
   socket dentro de una carpeta 0700 propia, creada antes: con un socket suelto hay una ventana entre `bind` y
-  `chmod`. Se mide la ruta contra `sun_path` (104 bytes en macOS, medido: 104 escucha, 105 da `EINVAL`), con
+  `chmod`. Se mide la ruta contra `sun_path` (104 bytes en macOS: una ruta de 105 da `EINVAL`), con
   límite propio de 100 y nombre de 16 hex; el temporal del usuario primero y `/tmp` de respaldo, nunca
   `userData` (con el nombre de usuario dentro roza el tope). Un `EINVAL` aquí deja el puente sin levantar y la app
   cae al contrato antiguo (contraseñas en el entorno) con una sola línea de rastro.

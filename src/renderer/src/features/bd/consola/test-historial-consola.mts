@@ -7,7 +7,7 @@
 
 import type { DbEntradaHistorial } from '../../../../../shared/db-explorador-ipc.ts'
 import {
-  TEXTO_CONEXION_BORRADA,
+  textoConexionBorrada,
   aliasHistorial,
   consultaHistorial,
   detalleHistorial,
@@ -19,6 +19,8 @@ import {
   moverEnHistorial,
   primeraLineaSql
 } from './historialConsola.ts'
+
+const TEXTO_CONEXION_BORRADA = textoConexionBorrada()
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))

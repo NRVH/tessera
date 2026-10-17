@@ -21,6 +21,7 @@ import {
 } from './anclaConversacion.ts'
 import { basenameSuelto, esDelProyecto } from '../conversations/slugProyecto.ts'
 import { conFechas, rolloutsCodex, transcriptsClaude } from '../transcripts/listadoTranscripts.ts'
+import { avisarContrato, versionDeLinea } from '../transcripts/vigiaContratos.ts'
 
 /** Cola que se lee de cada transcript buscando el último turno con cuentas. */
 const TAIL_BYTES = 256 * 1024
@@ -56,7 +57,8 @@ const CLAUDE_WINDOW_TIERS = [200_000, 500_000, 1_000_000]
 const CLAUDE_WINDOW_BY_MODEL: Array<{ re: RegExp; tokens: number }> = [
   { re: /opus-5/, tokens: 1_000_000 },
   { re: /sonnet-5/, tokens: 1_000_000 },
-  { re: /fable-5/, tokens: 1_000_000 }
+  { re: /fable-5/, tokens: 1_000_000 },
+  { re: /haiku-5/, tokens: 1_000_000 }
 ]
 const CLAUDE_WINDOW_DEFAULT = 200_000
 
@@ -363,8 +365,8 @@ function snapshotDeMedida(
  * compactación (`compact_boundary`, con `postTokens`), que gana si es posterior al último turno.
  * Se saltan las líneas `isSidechain`: los subagentes tienen otra ventana.
  */
-async function measureClaude(file: string, size: number): Promise<Measure | null> {
-  const lines = await leerLineasJsonl(file, size, TAIL_BYTES, 'tail')
+export async function measureClaude(file: string, size: number): Promise<Measure | null> {
+  const lines = await leerLineasJsonl(file, size, TAIL_BYTES, 'tail', mideContexto)
   const est: EstadoClaude = {
     lastEventAt: 0,
     turnIdx: -1,
@@ -374,9 +376,14 @@ async function measureClaude(file: string, size: number): Promise<Measure | null
     boundaryIdx: -1,
     boundaryUsed: 0,
     boundaryAt: 0,
-    model: undefined
+    model: undefined,
+    vioAsistente: false
   }
   for (let i = lines.length - 1; i >= 0; i--) leerLineaClaude(est, lines[i], i)
+  if (est.vioAsistente && est.turnIdx < 0 && est.boundaryIdx < 0) {
+    const version = lines.map(versionDeLinea).find((v) => v !== undefined)
+    avisarContrato('claude-code', 'contexto', 'turnos del asistente sin uso de tokens legible', version)
+  }
 
   const compacted = est.boundaryIdx > est.turnIdx
   return {
@@ -391,6 +398,32 @@ async function measureClaude(file: string, size: number): Promise<Measure | null
   }
 }
 
+/**
+ * ¿Basta esta línea para medir? Un turno del asistente con uso o una compactación. Mientras el modelo
+ * piensa, la última línea es la petición entera a la API, que puede ocupar más que la cola: sin esto el
+ * anillo caería a 0 hasta la respuesta.
+ */
+function mideContexto(obj: LineaJsonl): boolean {
+  if (obj.type === 'system' && obj.subtype === 'compact_boundary') return tokensTrasCompactar(obj) !== null
+  return obj.type === 'assistant' && obj.isSidechain !== true && tokensDelTurno(obj) > 0
+}
+
+/** Los tokens tras una compactación, o null si su línea no los trae (CLI viejo). */
+function tokensTrasCompactar(obj: LineaJsonl): number | null {
+  const meta = obj.compactMetadata as Record<string, unknown> | undefined
+  return typeof meta?.postTokens === 'number' && Number.isFinite(meta.postTokens) ? meta.postTokens : null
+}
+
+/**
+ * El contexto que ocupa un turno del asistente; 0 sin uso legible o con todo a 0 (los mensajes
+ * sintéticos de error de Claude Code lo traen así).
+ */
+function tokensDelTurno(obj: LineaJsonl): number {
+  const usage = (obj.message as Record<string, unknown> | undefined)?.usage as Record<string, unknown> | undefined
+  if (!usage) return 0
+  return num(usage.input_tokens) + num(usage.cache_creation_input_tokens) + num(usage.cache_read_input_tokens) + num(usage.output_tokens)
+}
+
 /** Lo que `measureClaude` va recogiendo al recorrer el transcript de la última línea a la primera. */
 interface EstadoClaude {
   lastEventAt: number
@@ -403,6 +436,8 @@ interface EstadoClaude {
   boundaryAt: number
   /** Se busca aunque gane la compactación: su línea no lo dice y la ventana saldría inflada. */
   model: string | undefined
+  /** Hubo algún turno del asistente: si ninguno trae uso legible, el formato cambió. */
+  vioAsistente: boolean
 }
 
 /** Incorpora una línea (recorrida de fin a inicio) al estado: fecha, frontera de compactación o turno. */
@@ -415,17 +450,17 @@ function leerLineaClaude(est: EstadoClaude, obj: LineaJsonl, i: number): void {
     return
   }
   if (obj.type !== 'assistant' || obj.isSidechain === true) return
+  est.vioAsistente = true
   registrarTurnoAsistente(est, obj, i, at)
 }
 
 /** Registra una compactación; sin `postTokens` (CLI viejo) no hay nada que leer y manda el turno. */
 function registrarFrontera(est: EstadoClaude, obj: LineaJsonl, i: number, at: number): void {
-  const meta = obj.compactMetadata as Record<string, unknown> | undefined
-  if (typeof meta?.postTokens === 'number' && Number.isFinite(meta.postTokens)) {
-    est.boundaryIdx = i
-    est.boundaryUsed = meta.postTokens
-    est.boundaryAt = at
-  }
+  const tras = tokensTrasCompactar(obj)
+  if (tras === null) return
+  est.boundaryIdx = i
+  est.boundaryUsed = tras
+  est.boundaryAt = at
 }
 
 /** Registra el modelo y, si aún no hay turno, el primer turno del asistente con tokens. */
@@ -435,11 +470,7 @@ function registrarTurnoAsistente(est: EstadoClaude, obj: LineaJsonl, i: number, 
   if (!usage) return
   if (!est.model && typeof message?.model === 'string') est.model = message.model
   if (est.turnIdx >= 0) return // el turno ya está: se sigue solo por el modelo
-  const used =
-    num(usage.input_tokens) +
-    num(usage.cache_creation_input_tokens) +
-    num(usage.cache_read_input_tokens) +
-    num(usage.output_tokens)
+  const used = tokensDelTurno(obj)
   if (used <= 0) return
   est.turnIdx = i
   est.turnUsed = used
@@ -472,10 +503,12 @@ export function estimateClaudeWindow(model: string | undefined, usedTokens: numb
  * es su tamaño. OJO con `total_token_usage`: es el ACUMULADO de toda la sesión
  * (decenas de millones en un chat largo) y no tiene nada que ver con el contexto.
  */
-async function measureCodex(file: string, size: number): Promise<Measure | null> {
+export async function measureCodex(file: string, size: number): Promise<Measure | null> {
   const lines = await leerLineasJsonl(file, size, TAIL_BYTES, 'tail')
   let lastEventAt = 0
   let found: Measure | null = null
+  // Un `token_count` con `info` es un turno medido; sin `info` solo trae límites de uso.
+  let conInfo = false
 
   for (let i = lines.length - 1; i >= 0; i--) {
     const obj = lines[i]
@@ -487,6 +520,7 @@ async function measureCodex(file: string, size: number): Promise<Measure | null>
     if (payload?.type !== 'token_count') continue
     const info = payload.info as Record<string, unknown> | null | undefined
     if (!info || typeof info !== 'object') continue
+    conInfo = true
     const last = info.last_token_usage as Record<string, unknown> | undefined
     if (!last) continue
     const used = num(last.total_tokens) || num(last.input_tokens) + num(last.output_tokens)
@@ -500,6 +534,7 @@ async function measureCodex(file: string, size: number): Promise<Measure | null>
       turnAt: at
     }
   }
+  if (conInfo && !found) avisarContrato('codex', 'contexto', '`token_count` con `info` pero sin tokens legibles')
   // Aunque no haya ni un `token_count` se devuelve la medida: un rollout recién
   // abierto (un `/new`) no tiene turnos pero SÍ es el chat vivo, y hay que poder
   // fecharlo para que gane al anterior en vez de que el anterior siga mandando.

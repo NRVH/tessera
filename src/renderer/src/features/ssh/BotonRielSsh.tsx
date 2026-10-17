@@ -8,12 +8,13 @@
 
 import { IconoRielConexiones } from './iconosRielSsh'
 import { ID_RIEL_SSH } from './rielSsh'
+import { txSsh } from './textos.ts'
 import type { RielSsh } from './useRielSsh'
 
 /** Por qué el conmutador está apagado, o `null` si funciona. */
 function motivoApagado(riel: RielSsh): string | null {
   if (riel.enRiel) return null
-  return riel.conPerfil ? 'No cabe a este ancho: ensancha la ventana para ver las conexiones' : 'Elige un perfil para ver sus conexiones'
+  return riel.conPerfil ? txSsh().noCabe : txSsh().eligePerfil
 }
 
 /** El conmutador del riel; fuera de la pantalla completa no hay riel y no se pinta. */
@@ -26,8 +27,8 @@ export function BotonRielSsh({ riel }: { riel: RielSsh }): React.JSX.Element | n
       className={`btn btn-icon ssh-riel-conmutador${riel.visible ? ' btn-active' : ''}`}
       aria-pressed={riel.visible}
       aria-controls={riel.visible ? ID_RIEL_SSH : undefined}
-      aria-label="Panel de conexiones"
-      title={motivo === null ? (riel.visible ? 'Ocultar las conexiones' : 'Mostrar las conexiones') : undefined}
+      aria-label={txSsh().panelConexiones}
+      title={motivo === null ? (riel.visible ? txSsh().ocultarConexiones : txSsh().mostrarConexiones) : undefined}
       disabled={motivo !== null}
       onClick={riel.alternar}
     >

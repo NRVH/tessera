@@ -9,6 +9,7 @@
 import type { EstadoAgentesNativos, EstadoCli } from '../../../../shared/agentes-nativos-ipc.ts'
 import type { NombresSistema } from '../../../../shared/nombresSistema.ts'
 import { ETIQUETA_AGENTE } from './actualizacionNativa.ts'
+import { txActualizacion } from './textosActualizacion.ts'
 import type { FaseActualizacion, PlanActualizacion, ResumenActualizacion } from './tipos.ts'
 
 export interface EntradaVistaBotonAgentes {
@@ -42,24 +43,14 @@ export interface VistaBotonAgentes {
   titulo: string
 }
 
-/** Qué se está haciendo, para el título mientras corre. */
-const TEXTO_FASE: Readonly<Record<FaseActualizacion, string>> = {
-  comprobando: 'comprobando versiones',
-  instalando: 'instalando la versión nueva',
-  deteniendo: 'deteniendo las sesiones',
-  relanzando: 'reiniciando las sesiones',
-  terminado: 'terminando'
-}
-
 /** «1 sesión» / «5 sesiones». Exportada: el resumen del popover cuenta igual. */
 export function sesiones(n: number): string {
-  return n === 1 ? '1 sesión' : `${n} sesiones`
+  return txActualizacion().boton.sesiones(n)
 }
 
 /** «A», «A y B», «A, B y C». */
 function listaY(partes: string[]): string {
-  if (partes.length <= 1) return partes.join('')
-  return `${partes.slice(0, -1).join(', ')} y ${partes[partes.length - 1]}`
+  return txActualizacion().boton.lista(partes)
 }
 
 /**
@@ -69,16 +60,17 @@ function listaY(partes: string[]): string {
  * («Reiniciar igualmente») lo rotula el componente aparte.
  */
 export function textoAccion(plan: PlanActualizacion): string {
+  const t = txActualizacion().boton
   const etiquetas = (reparar: boolean): string[] =>
     plan.instalar.filter((i) => i.reparar === reparar).map((i) => ETIQUETA_AGENTE[i.agente])
   const actualizar = etiquetas(false)
   const reparar = etiquetas(true)
   const n = plan.reiniciar.length
   const partes: string[] = []
-  if (actualizar.length > 0) partes.push(`actualizar ${listaY(actualizar)}`)
-  if (reparar.length > 0) partes.push(`reparar ${listaY(reparar)}`)
-  if (n > 0) partes.push(`reiniciar ${sesiones(n)}`)
-  if (partes.length === 0) return 'Actualizar y reiniciar'
+  if (actualizar.length > 0) partes.push(t.actualizar(listaY(actualizar)))
+  if (reparar.length > 0) partes.push(t.reparar(listaY(reparar)))
+  if (n > 0) partes.push(t.reiniciar(sesiones(n)))
+  if (partes.length === 0) return t.accionPorDefecto
   const frase = listaY(partes)
   return frase.charAt(0).toUpperCase() + frase.slice(1)
 }
@@ -90,7 +82,7 @@ function clis(estado: EstadoAgentesNativos): EstadoCli[] {
 /** «Codex 0.156.0 → 0.156.1» (o sólo la nueva si la instalada no se conoce, o la reparación). */
 function salto(cli: EstadoCli): string {
   const etq = ETIQUETA_AGENTE[cli.agente]
-  if (cli.reparar) return `${etq} no responde: se puede reparar con ${cli.ultima}`
+  if (cli.reparar) return txActualizacion().boton.saltoRepara(etq, cli.ultima)
   return cli.instalada ? `${etq} ${cli.instalada} → ${cli.ultima}` : `${etq} ${cli.ultima}`
 }
 
@@ -102,21 +94,22 @@ export function hayNovedades(estado: EstadoAgentesNativos | null): boolean {
 
 /** Vista con el punto de un resultado o de un aviso: siempre visible, sin anillo. */
 function conPunto(punto: PuntoBotonAgentes, nombres: NombresSistema, titulo: string): VistaBotonAgentes {
-  return { visible: true, punto, anillo: false, etiqueta: `Actualizar los agentes de ${nombres.tuEquipo}`, titulo }
+  return { visible: true, punto, anillo: false, etiqueta: txActualizacion().boton.etiqueta(nombres.tuEquipo), titulo }
 }
 
 function vistaError(r: ResumenActualizacion, nombres: NombresSistema): VistaBotonAgentes {
+  const t = txActualizacion().boton
   const partes: string[] = []
   const instFallidas = r.instalaciones.filter((i) => !i.ok)
   if (instFallidas.length > 0) {
-    partes.push(`no se pudo actualizar ${instFallidas.map((i) => ETIQUETA_AGENTE[i.agente]).join(' ni ')}`)
+    partes.push(t.noSePudo(instFallidas.map((i) => ETIQUETA_AGENTE[i.agente]).join(t.ni)))
   }
   const sesFallidas = r.sesiones.filter((s) => s.resultado === 'fallo').length
   if (sesFallidas > 0) {
-    partes.push(`${sesiones(sesFallidas)} no ${sesFallidas === 1 ? 'volvió' : 'volvieron'} a arrancar`)
+    partes.push(t.noVolvio(sesiones(sesFallidas), sesFallidas))
   }
   const detalle = partes.length > 0 ? `: ${partes.join('; ')}` : ''
-  return conPunto('error', nombres, `La actualización de los agentes tuvo problemas${detalle}. Pulsa para ver qué pasó.`)
+  return conPunto('error', nombres, t.errorTitulo(detalle))
 }
 
 function vistaOk(r: ResumenActualizacion, nombres: NombresSistema): VistaBotonAgentes {
@@ -125,9 +118,9 @@ function vistaOk(r: ResumenActualizacion, nombres: NombresSistema): VistaBotonAg
     .filter((i) => i.ok && i.despues !== null && i.despues !== i.antes)
     .map((i) => (i.antes ? `${ETIQUETA_AGENTE[i.agente]} ${i.antes} → ${i.despues}` : `${ETIQUETA_AGENTE[i.agente]} ${i.despues}`))
   const partes = [...cambios]
-  if (relanzadas > 0) partes.push(`${sesiones(relanzadas)} ${relanzadas === 1 ? 'reiniciada' : 'reiniciadas'}`)
+  if (relanzadas > 0) partes.push(txActualizacion().boton.reiniciadas(sesiones(relanzadas), relanzadas))
   const detalle = partes.length > 0 ? `: ${partes.join(' · ')}` : ''
-  return conPunto('ok', nombres, `Agentes actualizados${detalle}. Pulsa para ver el resumen.`)
+  return conPunto('ok', nombres, txActualizacion().boton.okTitulo(detalle))
 }
 
 function vistaAviso(estado: EstadoAgentesNativos, plan: PlanActualizacion | null, nombres: NombresSistema): VistaBotonAgentes {
@@ -136,26 +129,23 @@ function vistaAviso(estado: EstadoAgentesNativos, plan: PlanActualizacion | null
     .map(salto)
   const atrasadas = estado.sesiones.filter((s) => s.atrasada).length
   if (atrasadas > 0) {
-    partes.push(`${sesiones(atrasadas)} ${atrasadas === 1 ? 'corre' : 'corren'} una versión anterior`)
+    partes.push(txActualizacion().boton.corre(sesiones(atrasadas), atrasadas))
   }
   const espera = plan !== null && plan.bloqueantes.length > 0 && plan.motivoNoEjecutar ? ` ${plan.motivoNoEjecutar}.` : ''
-  return conPunto(
-    'aviso',
-    nombres,
-    `Hay novedades en los agentes de ${nombres.tuEquipo}: ${partes.join(' · ')}.${espera} Pulsa para verlas.`
-  )
+  return conPunto('aviso', nombres, txActualizacion().boton.avisoTitulo(nombres.tuEquipo, partes.join(' · '), espera))
 }
 
 /** Reposo: un CLI nuevo que sólo se instala a mano se menciona, sin punto. */
 function vistaReposo(estado: EstadoAgentesNativos | null, hayProyectoNativo: boolean, nombres: NombresSistema): VistaBotonAgentes {
   const manuales = estado === null ? [] : clis(estado).filter((c) => c.hayNueva && !c.instalable && c.ultima !== null)
+  const t = txActualizacion().boton
   let titulo: string
   if (estado === null) {
-    titulo = `Comprobar las versiones de Claude Code y Codex en ${nombres.tuEquipo}.`
+    titulo = t.reposoSinEstado(nombres.tuEquipo)
   } else if (manuales.length > 0) {
-    titulo = `Hay una versión nueva que se instala a mano: ${manuales.map(salto).join(' · ')}. Pulsa para ver cómo.`
+    titulo = t.reposoManual(manuales.map(salto).join(' · '))
   } else {
-    titulo = `Los agentes de ${nombres.tuEquipo} están al día. Pulsa para comprobarlo o reiniciarlos.`
+    titulo = t.reposoAlDia(nombres.tuEquipo)
   }
   // Aquí un resumen, si queda, es un «ok» ya visto: ya no sostiene el botón.
   return { ...conPunto(null, nombres, titulo), visible: hayProyectoNativo }
@@ -169,8 +159,8 @@ export function decidirVistaBotonAgentes(e: EntradaVistaBotonAgentes): VistaBoto
       visible: true,
       punto: null,
       anillo: true,
-      etiqueta: 'Actualizando…',
-      titulo: `Actualizando los agentes de ${nombres.tuEquipo}: ${TEXTO_FASE[enCurso]}. Pulsa para ver el progreso.`
+      etiqueta: txActualizacion().boton.actualizando,
+      titulo: txActualizacion().boton.tituloEnCurso(nombres.tuEquipo, txActualizacion().boton.fases[enCurso])
     }
   }
   // Un resumen abortado no es pendiente: la compuerta paró antes de tocar nada.

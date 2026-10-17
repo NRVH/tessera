@@ -34,6 +34,7 @@ import {
   type ResultadoConsola
 } from './modeloConsola.ts'
 import { textoRechazoProduccion } from './produccionConsola.ts'
+import { txSalida } from './textosSalida.ts'
 import {
   contarCompilacion,
   entradasCompilacion,
@@ -132,7 +133,7 @@ export function conjuntosExtra(r: DbResultadoSentencia): readonly DbConjuntoSigu
 
 /** El título de la subpestaña `j` de la sentencia `k`: «Resultado k.j». */
 export function tituloConjunto(k: number, j: number): string {
-  return `Resultado ${k}.${j}`
+  return txSalida().resultado(k, j)
 }
 
 /**
@@ -161,7 +162,7 @@ function pestanasDeConjuntos(
     }
     const f = resultadoDeFilas({ ...c, lector: null }, loteId, indice, s, esquemaSesion, binds)
     entradas.push({ tipo: 'filas', texto: textoFilas(f.filas, c.pagina.hayMas, c.tiempos) })
-    if (f.error) entradas.push({ tipo: 'error', texto: `No se pudieron leer las filas: ${f.error}` })
+    if (f.error) entradas.push({ tipo: 'error', texto: txSalida().noSePudieronLeer(f.error) })
     if (c.columnas.length > 0) {
       // Sin tabla: el título de la tabla única es el del PRIMER conjunto de la sentencia.
       nuevos.push({ titulo: tituloConjunto(indice + 1, j++), resultado: { ...f.resultado, noReleible: true, tabla: null } })
@@ -182,7 +183,7 @@ function anotarFilas(acc: Acumulado, motor: DbMotor, loteId: number, a: Terminad
       ? { tipo: 'afectadas', texto: textoAfectadas(r.afectadas, r.tiempos.totalMs, f.filas) }
       : { tipo: 'filas', texto: textoFilas(f.filas, r.pagina.hayMas, r.tiempos) }
   )
-  if (f.error) acc.nuevas.push({ tipo: 'error', texto: `No se pudieron leer las filas: ${f.error}` })
+  if (f.error) acc.nuevas.push({ tipo: 'error', texto: txSalida().noSePudieronLeer(f.error) })
   if (r.columnas.length > 0) {
     const titulo = tituloDe(s.tablaUnica, a.esquema, motor, a.indice + 1)
     const cambio = aplicarLote(acc.resultados, [{ titulo, resultado: f.resultado }], { lote: loteId })

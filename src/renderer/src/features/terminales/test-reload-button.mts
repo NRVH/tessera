@@ -8,7 +8,7 @@
 // Decisiones: docs/decisiones/terminales/boton-de-reinicio-una-sola-verdad.md
 // =============================================================================
 
-import { TEXTOS_RECONEXION_SSH, TEXTOS_REINICIO, botonReinicio, type EntradaBotonReinicio } from './reloadButton.ts'
+import { textosReconexionSsh, textosReinicio, botonReinicio, type EntradaBotonReinicio } from './reloadButton.ts'
 
 // ---------------------------------------------------------------------------
 // Reporte PASS/FAIL (mismo patrón que los otros test-*.mts)
@@ -65,7 +65,7 @@ function ssh(extra: Partial<EntradaBotonReinicio> = {}): EntradaBotonReinicio {
     puedeAbrir: true,
     etiquetaNormal: 'Reconectar',
     etiquetaProgreso: 'Reconectando…',
-    textos: TEXTOS_RECONEXION_SSH,
+    textos: textosReconexionSsh(),
     ...extra
   }
 }
@@ -292,8 +292,8 @@ function main(): void {
     )
     check(
       '(23) pasar los textos por defecto a mano no cambia nada (el de siempre ES el parámetro por defecto)',
-      JSON.stringify(botonReinicio(shell({ status: 'exited', textos: TEXTOS_REINICIO }))) === JSON.stringify(muerta) &&
-        JSON.stringify(botonReinicio(shell({ textos: TEXTOS_REINICIO }))) === JSON.stringify(vivo),
+      JSON.stringify(botonReinicio(shell({ status: 'exited', textos: textosReinicio() }))) === JSON.stringify(muerta) &&
+        JSON.stringify(botonReinicio(shell({ textos: textosReinicio() }))) === JSON.stringify(vivo),
       'misma salida'
     )
     check(

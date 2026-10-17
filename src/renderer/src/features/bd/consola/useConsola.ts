@@ -3,7 +3,7 @@
 // orden FIJO (el de sus efectos y limpiezas): núcleo con `despachar` síncrono,
 // diálogos, modelo de Monaco, disco, sesión, lote, Stop, transacciones, resultados,
 // Salida, atajos y cierre. Lo usa `DbConsolaPane`.
-// Decisiones: docs/decisiones/bd/ui-consola-motor.md
+// Decisiones: docs/decisiones/bd/ui-consola-estado.md
 // =============================================================================
 
 import { useMemo } from 'react'
@@ -13,6 +13,7 @@ import { descriptor } from '../../../../../shared/motores/index'
 import { ejecutando as hayEjecucion, estadoBarraTx, type BarraTx } from './estadoConsola'
 import { modoTxPorDefecto } from './produccionConsola'
 import type { ApiConsola, OpcionesConsola } from './tiposConsola'
+import { txPane } from './textosPane.ts'
 import { useCierreConsola } from './useConsolaCierre'
 import { useDialogosConsola } from './useConsolaDialogos'
 import { useDiscoConsola } from './useConsolaDisco'
@@ -67,7 +68,7 @@ interface Partes {
 
 function textoEstadoDe(n: NucleoConsola): string | null {
   if (n.cargado) return n.estado.pista
-  return n.errorCarga !== null ? `No se pudo leer la consola: ${n.errorCarga}` : 'Cargando…'
+  return n.errorCarga !== null ? txPane().noSePudoLeer(n.errorCarga) : txPane().cargando
 }
 
 function componerApi(n: NucleoConsola, p: Partes): ApiConsola {

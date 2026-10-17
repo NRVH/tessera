@@ -1,0 +1,30 @@
+/* =============================================================================
+   El aviso de carga común (`IndicadorCarga.tsx`): el sitio pone margen y alto con sus clases;
+   aquí solo el tono, igual en todos, y la línea de «tarda», un punto más legible que el aviso.
+   ============================================================================= */
+
+.carga-diferida {
+  color: var(--fg-faint);
+}
+
+/* En un sitio flex (`db-pop-estado`), «tarda» va debajo y no al lado. */
+.carga-diferida.carga-diferida-linea {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* El contenedor de una fila de árbol es flex: la elipsis va en el texto, que puede encogerse. */
+.carga-diferida-texto {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.carga-diferida-tardando {
+  display: block;
+  margin-top: 2px;
+  color: var(--fg-muted);
+  font-style: normal;
+}

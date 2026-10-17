@@ -16,16 +16,18 @@ import { motivoNoExplicable } from '../../../../../shared/sql/explicarSql.ts'
 import { esDetener, esExplicar, esFormatear, esHistorial, type TeclaAcorde } from '../../../util/atajos.ts'
 import { analisisDe, type ModeloAnalizable } from '../autocompletado/analisisModelo.ts'
 import type { IndicadorPestana } from '../dbTabsModel.ts'
-import { PISTA_SIN_SENTENCIA } from './estadoConsola.ts'
+import { pistaSinSentencia } from './estadoConsola.ts'
 import { enCurso, msDe, type Lote } from './lote.ts'
 import { formatoDuracion } from './marcasConsola.ts'
 import {
   cantidad,
-  ETIQUETA_FORZAR,
-  ETIQUETA_FORZAR_CONSOLA,
-  TEXTO_SIN_RESPUESTA_STOP,
-  TEXTO_STOP_CON_CAMBIOS
+  etiquetaForzar,
+  etiquetaForzarConsola,
+  textoSinRespuestaStop,
+  textoStopConCambios
 } from './salidaConsola.ts'
+import { txLote } from './textosLote.ts'
+import { txSalida } from './textosSalida.ts'
 import { nunca } from '../../../../../shared/nunca.ts'
 
 /** Sin respuesta al Stop durante este tiempo, la Salida ofrece «Forzar». */
@@ -140,13 +142,17 @@ export function avisosVivos(
 // --- Explicar plan -------------------------------------------------------------------
 
 /** Pista si la selección tiene más de una sentencia. */
-export const PISTA_VARIAS_PLAN = 'Explicar el plan es de UNA sentencia: deja el cursor en una o selecciona solo una'
+export function pistaVariasPlan(): string {
+  return txLote().pistaVariasPlan
+}
 /**
  * Pista de «Formatear» cuando no cambió nada. No dice «ya estaba formateado» a secas:
  * `formatearEnEditor` también deja intactos a propósito los bloques PL/SQL, los
  * comandos del cliente y lo que no entiende, y esa frase mentiría sobre ellos.
  */
-export const PISTA_YA_FORMATEADO = 'Nada que cambiar: ya estaba formateado, o es algo que el formateador deja como está (PL/SQL, comandos…)'
+export function pistaYaFormateado(): string {
+  return txLote().pistaYaFormateado
+}
 
 /**
  * ¿Qué sentencia se explica? Tiene que ser UNA (el contrato de `explicar`) y
@@ -162,9 +168,9 @@ export function sentenciaExplicable<S extends Pick<Clasificacion, 'clase' | 'ver
 ): { ok: true; sentencia: S } | { ok: false; pista: string } {
   const utiles = ss.filter((s) => s.clase !== 'cliente')
   if (utiles.length === 0) {
-    return { ok: false, pista: ss.length > 0 ? (motivoNoExplicable(ss[0]) ?? PISTA_SIN_SENTENCIA) : PISTA_SIN_SENTENCIA }
+    return { ok: false, pista: ss.length > 0 ? (motivoNoExplicable(ss[0]) ?? pistaSinSentencia()) : pistaSinSentencia() }
   }
-  if (utiles.length > 1) return { ok: false, pista: PISTA_VARIAS_PLAN }
+  if (utiles.length > 1) return { ok: false, pista: pistaVariasPlan() }
   const s = utiles[0]
   const motivo = motivoNoExplicable(s)
   if (motivo !== null) return { ok: false, pista: motivo }
@@ -232,15 +238,12 @@ export function textoProgreso(l: Lote | null, ahora: number): string | null {
   if (!l || !enCurso(l)) return null
   const total = l.sentencias.length
   const i = l.sentencias.findIndex((x) => x.estado === 'corriendo')
-  if (l.estado === 'cancelado') return 'Deteniendo…'
+  const t = txLote()
+  if (l.estado === 'cancelado') return t.deteniendo
   const numero = i >= 0 ? i + 1 : l.sentencias.filter((x) => x.estado !== 'pendiente').length + 1
   // Un «Explicar plan» no ejecuta: la barra no puede decir «Ejecutando».
   const base =
-    l.plan === true
-      ? 'Obteniendo el plan'
-      : total > 1
-        ? `Ejecutando ${Math.min(numero, total)} de ${total}`
-        : 'Ejecutando'
+    l.plan === true ? t.obteniendoPlan : total > 1 ? t.ejecutandoDe(Math.min(numero, total), total) : t.ejecutando
   if (i < 0) return base
   const ms = msDe(l.sentencias[i], ahora)
   const vivo = ms !== null ? formatoDuracion(ms, true) : ''
@@ -342,10 +345,11 @@ export function cierreFallidoRetiene(motivo: DbMotivoError, resolvioTx: boolean)
 
 /** Mensaje de `DialogoTxPendiente`. */
 export function textoTxPendiente(tx: DbEstadoTx, sentencias: number): string {
-  if (tx === 'fallida') return 'La transacción de la consola falló: solo se puede revertir.'
+  const t = txLote()
+  if (tx === 'fallida') return t.txFallida
   return sentencias > 0
-    ? `La consola tiene una transacción sin confirmar (${cantidad(sentencias, 'sentencia', 'sentencias')}).`
-    : 'La consola tiene una transacción sin confirmar.'
+    ? t.txSinConfirmarN(cantidad(sentencias, txSalida().sentencia, txSalida().sentencias))
+    : t.txSinConfirmar
 }
 
 /** Una transacción que se pierde si se mata el proceso de la conexión. */
@@ -377,7 +381,7 @@ export function txEnRiesgo(
       continue
     }
     const nombre =
-      s.ref.rol === 'consola' ? (nombres.get(s.ref.consolaId) ?? 'una consola de otro perfil') : 'la sesión de datos'
+      s.ref.rol === 'consola' ? (nombres.get(s.ref.consolaId) ?? txLote().otraConsola) : txLote().sesionDatos
     out.push({ nombre, tx: s.tx, sentencias: s.sentenciasEnTx })
   }
   return out
@@ -406,9 +410,9 @@ export function alcanceForzar(procesoPorSesion: boolean): AlcanceForzar {
 export function avisoStopSinRespuesta(alcance: AlcanceForzar): { texto: string; etiqueta: string; esperaMs: number } {
   switch (alcance) {
     case 'conexion':
-      return { texto: TEXTO_SIN_RESPUESTA_STOP, etiqueta: ETIQUETA_FORZAR, esperaMs: ESPERA_STOP_MS }
+      return { texto: textoSinRespuestaStop(), etiqueta: etiquetaForzar(), esperaMs: ESPERA_STOP_MS }
     case 'consola':
-      return { texto: TEXTO_STOP_CON_CAMBIOS, etiqueta: ETIQUETA_FORZAR_CONSOLA, esperaMs: ESPERA_STOP_MATAR_MS }
+      return { texto: textoStopConCambios(), etiqueta: etiquetaForzarConsola(), esperaMs: ESPERA_STOP_MATAR_MS }
     default:
       return nunca(alcance, 'avisoStopSinRespuesta')
   }
@@ -416,16 +420,17 @@ export function avisoStopSinRespuesta(alcance: AlcanceForzar): { texto: string; 
 
 /** Cuerpo del diálogo de «Forzar»: qué se cierra y qué transacciones se revierten. */
 export function mensajeForzar(alias: string, enRiesgo: readonly TxEnRiesgo[], alcance: AlcanceForzar = 'conexion'): string {
+  const x = txLote()
   let cabeza: string
   let vacio: string
   switch (alcance) {
     case 'conexion':
-      cabeza = `Se cerrará la conexión con ${alias} (todas sus sesiones) y el servidor revertirá lo que no esté confirmado.`
-      vacio = 'No hay transacciones sin confirmar en esta conexión.'
+      cabeza = x.cabezaConexion(alias)
+      vacio = x.vacioConexion
       break
     case 'consola':
-      cabeza = `Se cerrará la sesión de esta consola con ${alias} y se revertirá lo que no esté confirmado en ella. Las demás consolas y pestañas de la conexión siguen como están.`
-      vacio = 'Esta consola no tiene transacciones sin confirmar.'
+      cabeza = x.cabezaConsola(alias)
+      vacio = x.vacioConsola
       break
     default:
       return nunca(alcance, 'mensajeForzar')
@@ -433,11 +438,11 @@ export function mensajeForzar(alias: string, enRiesgo: readonly TxEnRiesgo[], al
   if (enRiesgo.length === 0) return `${cabeza}\n\n${vacio}`
   const lineas = enRiesgo.map((t) => {
     if (t.tx === 'pendiente' && t.sentencias > 0) {
-      return `· ${t.nombre}: ${cantidad(t.sentencias, 'sentencia', 'sentencias')} sin confirmar`
+      return x.lineaSinConfirmarN(t.nombre, cantidad(t.sentencias, txSalida().sentencia, txSalida().sentencias))
     }
-    if (t.tx === 'fallida') return `· ${t.nombre}: transacción fallida`
-    if (t.tx === 'abierta') return `· ${t.nombre}: transacción abierta (solo lecturas)`
-    return `· ${t.nombre}: transacción sin confirmar`
+    if (t.tx === 'fallida') return x.lineaFallida(t.nombre)
+    if (t.tx === 'abierta') return x.lineaAbierta(t.nombre)
+    return x.lineaSinConfirmar(t.nombre)
   })
-  return `${cabeza}\n\nSe perderán:\n${lineas.join('\n')}`
+  return `${cabeza}\n\n${x.sePerderan}\n${lineas.join('\n')}`
 }

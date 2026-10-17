@@ -76,6 +76,8 @@ export interface DepsPuenteTssh {
   /** La conexión guardada (con su secreto cifrado: nunca sale de aquí). */
   conexion: (id: string) => ConexionSshPersistida | undefined
   rutaHuellas: (id: string) => string
+  /** La carpeta de los `known_hosts`: una huella cambiada que no la nombra es de un ssh lanzado en el equipo remoto. */
+  carpetaHuellas: string
   rutaClave: (id: string) => string
   /** El programa de contraseñas; sin él, una conexión que pide secreto no se puede usar desde un agente. */
   askpass: {
@@ -352,7 +354,7 @@ export class PuenteTssh {
     const sinContestar = ficha !== '' && this.d.askpass !== null ? this.d.askpass.soltar(ficha) : false
     const codigo = typeof p.codigo === 'number' && Number.isInteger(p.codigo) ? p.codigo : null
     const ms = typeof p.ms === 'number' && Number.isFinite(p.ms) && p.ms >= 0 ? Math.round(p.ms) : null
-    const motivo = clasificarSalidaSsh(codigo, texto(p.cola).slice(-MAX_COLA), this.d.plataforma)
+    const motivo = clasificarSalidaSsh(codigo, texto(p.cola).slice(-MAX_COLA), this.d.plataforma, this.d.carpetaHuellas)
     const tope = p.tope === true ? ' tope' : ''
     this.auditar(s, usoDe(p.uso) ?? 'run', texto(p.alias), `codigo=${codigo ?? '-'} ms=${ms ?? '-'}${tope}${motivo ? ` motivo=${motivo}` : ''}`)
     if (motivo === undefined) return { ok: true }

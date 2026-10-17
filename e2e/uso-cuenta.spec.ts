@@ -66,11 +66,15 @@ async function medirPie(win: Page, ancho: number): Promise<{ visibles: number; c
     const barra = uso?.querySelector<HTMLElement>('.agent-usage-mini')
     const stats = pie.querySelector<HTMLElement>('.agent-footer-stats')!.getBoundingClientRect()
     const boton = pie.querySelector<HTMLElement>('.agent-reload-btn')!.getBoundingClientRect()
+    // El rótulo de dónde vive el agente va entre los dos: tampoco puede pisar a ninguno.
+    const lugar = pie.querySelector<HTMLElement>('.agent-footer-lugar')!.getBoundingClientRect()
+    const conLugar = lugar.width > 0
     return {
       visibles,
       cortadas,
       barras: !!barra && barra.getBoundingClientRect().width > 0,
-      encimado: stats.width > 0 && stats.right > boton.left + 0.5
+      encimado:
+        (stats.width > 0 && stats.right > boton.left + 0.5) || (conLugar && boton.right > lugar.left + 0.5)
     }
   }, ancho)
 }
@@ -177,6 +181,62 @@ test.describe('uso de la cuenta en el pie del agente', () => {
     })
     expect(fallos, 'anchos en los que algo se corta o se encima').toEqual([])
     expect(vistasEnEstrecho, 'en el ancho mínimo de la columna (330 px) se ven las tres').toBe(3)
+  })
+
+  test('el pie dice dónde vive el agente en su esquina, y «Reiniciar agente» crece a su izquierda sin moverlo', async () => {
+    const win = s.win
+    const pie = win.locator('.agent-pane:not(.hidden) .agent-pane-footer')
+    const lugar = pie.locator('.agent-footer-lugar')
+    await expect(lugar).toBeVisible()
+    await expect(lugar).toHaveAttribute('title', /^Agente del proyecto /)
+    const boton = pie.locator('.agent-reload-btn')
+    // En la esquina: lo último del pie, pegado a su relleno derecho, con el botón (escondido en reposo) a su izquierda.
+    const [l0, b0, p0] = [await lugar.boundingBox(), await boton.boundingBox(), await pie.boundingBox()]
+    expect(b0!.x + b0!.width, 'el botón va a la izquierda del rótulo').toBeLessThanOrEqual(l0!.x + 0.5)
+    expect(p0!.x + p0!.width - (l0!.x + l0!.width), 'el rótulo cierra el pie por la derecha').toBeLessThanOrEqual(10.5)
+    await boton.hover()
+    // La etiqueta se despliega en 280 ms: se espera a que el botón termine de crecer.
+    await expect
+      .poll(async () => {
+        const [l, b] = [await lugar.boundingBox(), await boton.boundingBox()]
+        return l && b ? { creció: b.width > b0!.width + 40, quieto: Math.abs(l.x - l0!.x) < 0.5, libre: b.x + b.width <= l.x + 0.5 } : null
+      })
+      .toEqual({ creció: true, quieto: true, libre: true })
+    await win.mouse.move(0, 0)
+  })
+
+  // En un pie estrecho el rótulo es solo su icono, y al desplegarse «Reiniciar agente» el sitio lo cede el
+  // uso (que se apaga), no el icono: se ve entero, dentro del pie y sin que el botón lo pise.
+  test('en un pie estrecho, desplegar «Reiniciar agente» deja entero el icono del rótulo', async () => {
+    const win = s.win
+    const pie = win.locator('.agent-pane:not(.hidden) .agent-pane-footer')
+    const boton = pie.locator('.agent-reload-btn')
+    const fallos: string[] = []
+    // Hasta 280: por debajo de 240 px de contenido el rótulo se retira entero (`@container agentfooter`).
+    for (const ancho of [420, 380, 340, 300, 280]) {
+      await pie.evaluate((el, px) => {
+        el.style.width = `${px}px`
+        el.style.flex = '0 0 auto'
+      }, ancho)
+      await boton.hover()
+      await expect.poll(async () => (await boton.boundingBox())?.width ?? 0).toBeGreaterThan(80)
+      // Lo que tarda la etiqueta en abrirse del todo (280 ms).
+      await win.waitForTimeout(400)
+      const m = await pie.evaluate((el) => {
+        const p = el.getBoundingClientRect()
+        const relleno = parseFloat(getComputedStyle(el).paddingRight)
+        const icono = el.querySelector('.agent-footer-lugar > svg')!.getBoundingClientRect()
+        const b = el.querySelector('.agent-reload-btn')!.getBoundingClientRect()
+        return { icono: icono.width, sale: icono.right - (p.right - relleno), pisa: b.right - icono.left }
+      })
+      if (m.icono < 12.5 || m.sale > 0.5 || m.pisa > 0.5) fallos.push(`${ancho}px: ${JSON.stringify(m)}`)
+      await win.mouse.move(0, 0)
+    }
+    await pie.evaluate((el) => {
+      el.style.width = ''
+      el.style.flex = ''
+    })
+    expect(fallos, 'anchos en los que el icono se corta, se sale o lo pisa el botón').toEqual([])
   })
 
   test('si la cuenta deja de traer la semanal del modelo, el pie deja de enseñarla', async () => {

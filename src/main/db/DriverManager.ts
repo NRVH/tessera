@@ -35,6 +35,7 @@ import {
 } from './driverPacks.ts'
 import { descargarConHuella } from './descarga.ts'
 import { destinoDeEnlace, enlacesDelZip } from './zipConEnlaces.ts'
+import { txDb } from './textosDb.ts'
 import {
   barrerArranque,
   huellaCoincide,
@@ -197,9 +198,9 @@ export class DriverManager {
     const pack = packById(packId, this.plataforma)
     if (pack) return pack
     if (DRIVER_PACKS.some((p) => p.id === packId)) {
-      throw new Error(`El driver "${packId}" no está disponible en este sistema.`)
+      throw new Error(txDb().drivers.noDisponible(packId))
     }
-    throw new Error(`Driver desconocido: "${packId}".`)
+    throw new Error(txDb().drivers.desconocido(packId))
   }
 
   private readRegistry(): Record<string, string> {
@@ -242,10 +243,10 @@ export class DriverManager {
         motor: p.motor,
         nombre: p.nombre,
         sizeMB: p.sizeMB,
-        cubre: p.cubre,
+        cubre: txDb().drivers.cubre[p.id] ?? p.cubre,
         descargable: p.url !== null && disponible.ok,
         // Solo si los hay: un pack sin aviso y descargable publica el mismo objeto que antes.
-        ...(p.aviso ? { aviso: p.aviso } : {}),
+        ...(p.aviso ? { aviso: txDb().drivers.avisoSoporte[p.id] ?? p.aviso } : {}),
         ...(disponible.ok ? {} : { noDisponible: disponible.motivo }),
         instalado: ruta !== null,
         ruta: ruta ?? undefined,
@@ -268,9 +269,7 @@ export class DriverManager {
     const candidatos = [rutaElegida, path.join(rutaElegida, pack.carpetaInterna)]
     const valida = candidatos.find((c) => existsSync(path.join(c, pack.centinela)))
     if (!valida) {
-      throw new Error(
-        `No encontré "${pack.centinela}" en "${rutaElegida}". Elige la carpeta del Instant Client (la que contiene ${pack.centinela}).`
-      )
+      throw new Error(txDb().drivers.noEncontrado(pack.centinela, rutaElegida))
     }
     this.externos[packId] = valida
     this.persistRegistry()
@@ -309,11 +308,7 @@ export class DriverManager {
    */
   private exigirDescargable(pack: DriverPackResuelto): void {
     if (pack.url === null) {
-      const motivo =
-        pack.sinDescarga ??
-        `Oracle ya no publica ${pack.nombre} para descarga directa: solo queda en su ` +
-          'archivo histórico, que exige iniciar sesión y aceptar la licencia en el ' +
-          'navegador. Descárgalo a mano y usa "Seleccionar carpeta…".'
+      const motivo = txDb().drivers.sinDescarga[pack.id] ?? pack.sinDescarga ?? txDb().drivers.oracleSinDescarga(pack.nombre)
       this.log(`${pack.id}: sin descarga automática`)
       this.onProgress({ packId: pack.id, porcentaje: null, fase: 'error', mensaje: motivo })
       throw new Error(motivo)
@@ -369,7 +364,7 @@ export class DriverManager {
       this.log(`${pack.id}: ${escritos} archivos en ${destino}`)
 
       if (!existsSync(path.join(destino, pack.centinela))) {
-        throw new Error(`El paquete descargado no contiene "${pack.centinela}".`)
+        throw new Error(txDb().drivers.sinContenido(pack.centinela))
       }
       this.onProgress({ packId: pack.id, porcentaje: 100, fase: 'listo' })
       return this.status().find((s) => s.id === pack.id)!
@@ -382,11 +377,7 @@ export class DriverManager {
       }
       const mensaje = err instanceof Error ? err.message : String(err)
       this.onProgress({ packId: pack.id, porcentaje: null, fase: 'error', mensaje })
-      throw new Error(
-        `No se pudo instalar ${pack.nombre}: ${mensaje}\n` +
-          `Alternativa: descárgalo a mano y usa "Seleccionar carpeta…".`,
-        { cause: err }
-      )
+      throw new Error(txDb().drivers.noSePudoInstalar(pack.nombre, mensaje), { cause: err })
     }
   }
 
@@ -398,7 +389,7 @@ export class DriverManager {
     const rutas = rutasInstalacionDmg(this.root, pack)
     try {
       if (rutas.destino !== destino) throw new Error('rutas de instalación incoherentes')
-      if (pack.url === null) throw new Error('Este cliente no tiene descarga automática.')
+      if (pack.url === null) throw new Error(txDb().drivers.sinDescargaAutomatica)
       // Sin huella no se monta nada: sería darle al parser de imágenes bytes sin verificar.
       if (!pack.sha256) throw new Error('el paquete no declara su huella SHA-256 y no se monta sin verificarla.')
       await this.barrido
@@ -430,11 +421,7 @@ export class DriverManager {
       }
       if (!huellaCoincide(huella.sha256, pack.sha256)) {
         rmSync(rutas.dmg, { force: true })
-        throw new Error(
-          `lo descargado (${huella.bytes} bytes) no coincide con la huella SHA-256 publicada ` +
-            'del paquete. Puede ser una descarga cortada o un proxy que devolvió otra cosa; si ' +
-            'se repite, el paquete publicado cambió y Tessera tiene que actualizar su ficha.'
-        )
+        throw new Error(txDb().drivers.huellaNoCoincide(huella.bytes))
       }
 
       this.onProgress({ packId: pack.id, porcentaje: 100, fase: 'instalando' })
@@ -448,18 +435,14 @@ export class DriverManager {
       const crudo = err instanceof Error ? err.message : String(err)
       const mensaje = crudo.split(this.root).join('<drivers>')
       this.onProgress({ packId: pack.id, porcentaje: null, fase: 'error', mensaje })
-      throw new Error(
-        `No se pudo instalar ${pack.nombre}: ${mensaje}\n` +
-          `Alternativa: descárgalo a mano y usa "Seleccionar carpeta…".`,
-        { cause: err }
-      )
+      throw new Error(txDb().drivers.noSePudoInstalar(pack.nombre, mensaje), { cause: err })
     }
   }
 
   /** Descarga el zip a memoria informando del progreso. */
   private async download(pack: DriverPackResuelto): Promise<Uint8Array> {
     // `doInstall` ya cortó el caso sin URL; esto es solo para el compilador.
-    if (pack.url === null) throw new Error('Este cliente no tiene descarga automática.')
+    if (pack.url === null) throw new Error(txDb().drivers.sinDescargaAutomatica)
     // La descarga de siempre (`descarga.ts`), a memoria: el zip se descomprime con
     // fflate sin pasar por disco. La huella no se usa (el zip no la publica).
     const trozos: Uint8Array[] = []
@@ -484,7 +467,7 @@ export class DriverManager {
     }
     // Firma PK\x03\x04: si Oracle devolvió una página de error con 200, se detecta aquí.
     if (zip.length < 4 || zip[0] !== 0x50 || zip[1] !== 0x4b) {
-      throw new Error('Lo descargado no es un ZIP (¿la red devolvió una página de error?).')
+      throw new Error(txDb().drivers.noEsZip)
     }
     return zip
   }

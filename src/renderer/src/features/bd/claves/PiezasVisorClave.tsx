@@ -9,8 +9,8 @@ import type { DbKvBytes } from '../../../../../shared/db-claves-ipc'
 import { pintarBytes, tamanoBytes } from './bytesClaves'
 import {
   COLOREAR_JSON_MAX,
-  ETIQUETA_MODO,
   bytesLegibles,
+  etiquetaModo,
   modoInicial,
   modosDe,
   textoEnModo,
@@ -18,6 +18,7 @@ import {
   type ModoVista,
   type ParteDetalle
 } from './visorClaves'
+import { txVisorClaves } from './textosVisorClaves'
 import { BotonBarraBd } from '../rejilla/DatosBotonBarra'
 import { IconoCopiar } from '../../../comun/iconosMenu'
 
@@ -29,10 +30,10 @@ export function textoParte(x: ParteDetalle): string {
 /** El conmutador de modo (Texto / JSON / Hex) de unos bytes. */
 function Modos({ modos, actual, onModo }: { modos: readonly ModoVista[]; actual: ModoVista; onModo: (m: ModoVista) => void }): React.JSX.Element {
   return (
-    <span className="db-clave-modos" role="group" aria-label="Ver como">
+    <span className="db-clave-modos" role="group" aria-label={txVisorClaves().verComo}>
       {modos.map((m) => (
         <button key={m} type="button" className={`btn${m === actual ? ' btn-active' : ''}`} aria-pressed={m === actual} onClick={() => onModo(m)}>
-          {ETIQUETA_MODO[m]}
+          {etiquetaModo(m)}
         </button>
       ))}
     </span>
@@ -87,17 +88,18 @@ export function VistaBytes({
   const modo = modoElegido !== null && modos.includes(modoElegido) ? modoElegido : modoInicial(bytes)
   const recortado = useMemo(() => modo === 'hex' && textoEnModo(bytes, 'hex').recortado, [bytes, modo])
   const tamano = soloTexto ? null : tamanoBytes(bytes)
+  const t = txVisorClaves()
   return (
     <>
       <div className="db-clave-sub">
         <Modos modos={modos} actual={modo} onModo={onModo} />
         <span className="db-clave-sub-texto">
-          {soloTexto ? 'Documento JSON' : bytes.texto === undefined ? 'No es texto UTF-8' : 'Texto UTF-8'}
-          {tamano !== null && ` · ${bytesLegibles(tamano)}${aviso ? ' leídos' : ''}`}
+          {soloTexto ? t.documentoJson : bytes.texto === undefined ? t.noEsUtf8 : t.textoUtf8}
+          {tamano !== null && ` · ${bytesLegibles(tamano)}${aviso ? t.leidos : ''}`}
         </span>
       </div>
       {aviso && <div className="db-clave-aviso">{aviso}</div>}
-      {recortado && <div className="db-clave-aviso">El volcado hex enseña solo el principio del valor.</div>}
+      {recortado && <div className="db-clave-aviso">{t.hexRecortado}</div>}
       <TextoEnModo bytes={bytes} modo={modo} />
     </>
   )
@@ -117,7 +119,7 @@ export function ParteVista({ parte, onCopiar }: { parte: ParteDetalle; onCopiar:
         </span>
         {bytes && <span className="db-clave-parte-tamano">{bytesLegibles(tamanoBytes(bytes))}</span>}
         {bytes && modos.length > 1 && <Modos modos={modos} actual={modo} onModo={setModoElegido} />}
-        <BotonBarraBd etiqueta={`Copiar ${parte.titulo}`} titulo={`Copiar ${parte.titulo}`} onClick={onCopiar}>
+        <BotonBarraBd etiqueta={txVisorClaves().copiarParte(parte.titulo)} titulo={txVisorClaves().copiarParte(parte.titulo)} onClick={onCopiar}>
           <IconoCopiar />
         </BotonBarraBd>
       </div>

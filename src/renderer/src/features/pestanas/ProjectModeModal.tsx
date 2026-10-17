@@ -7,6 +7,7 @@
 // =============================================================================
 import { ModeIcon } from './modeIcon'
 import { nombresSistema } from '../../../../shared/nombresSistema'
+import { txPestanas } from './textos.ts'
 
 interface ProjectModeModalProps {
   /** Nombre del proyecto elegido (para el título). */
@@ -21,28 +22,27 @@ export function ProjectModeModal({
   onCancel
 }: ProjectModeModalProps): React.JSX.Element {
   const n = nombresSistema(window.tessera.plataforma)
+  const t = txPestanas().modo
   return (
     <div className="modal-overlay" onMouseDown={onCancel}>
       <div className="modal-card" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-title">¿Cómo abrir “{name}”?</div>
-        <div className="modal-message">
-          Elige el modo de este proyecto. Podrás cambiarlo después desde el menú de su pestaña.
-        </div>
+        <div className="modal-title">{t.titulo(name)}</div>
+        <div className="modal-message">{t.mensaje}</div>
         <div className="project-mode-choices">
           <button className="project-mode-choice" onClick={() => onPick('windows')}>
             <ModeIcon windows color="var(--mode-windows)" size={26} />
             <span className="project-mode-choice-label">{n.sistema}</span>
-            <span className="project-mode-choice-hint">Nativo · tu cuenta personal</span>
+            <span className="project-mode-choice-hint">{t.nativoHint}</span>
           </button>
           <button className="project-mode-choice" onClick={() => onPick('docker')}>
             <ModeIcon windows={false} color="var(--accent)" size={26} />
             <span className="project-mode-choice-label">Docker</span>
-            <span className="project-mode-choice-hint">Aislado · cuenta del perfil</span>
+            <span className="project-mode-choice-hint">{t.dockerHint}</span>
           </button>
         </div>
         <div className="modal-actions">
           <button className="btn btn-ghost" onClick={onCancel}>
-            Cancelar
+            {t.cancelar}
           </button>
         </div>
       </div>

@@ -17,6 +17,7 @@ import { FICHA_PESTANA, FichasAskpass, type UsoFicha } from '../fichasAskpass.ts
 import { decidirPreguntaAskpass, type DecisionAskpass } from '../preguntasAskpass.ts'
 import { entornoAskpass } from '../programaAskpass.ts'
 import { textoPregunta, type PreguntaUsuario } from './dialogoAskpass.ts'
+import { txSsh } from '../textos.ts'
 
 /** La operación del puente que contesta el programa de contraseñas. */
 export const OP_ASKPASS = 'ssh.askpass'
@@ -74,7 +75,7 @@ export const SIN_SECRETO: EntornoSecreto = Object.freeze({
 
 /** El secreto de una conexión, nombrado para una frase («La contraseña guardada…»). */
 function nombreSecreto(c: ConexionSshPersistida): string {
-  return c.metodo === 'clave' ? 'La frase guardada de la clave' : 'La contraseña guardada'
+  return c.metodo === 'clave' ? txSsh().askpass.fraseGuardada : txSsh().askpass.passwordGuardada
 }
 
 /** ¿Tiene la conexión un secreto guardado que su método usa? */
@@ -89,7 +90,7 @@ function tieneSecreto(c: ConexionSshPersistida): boolean {
  */
 function preguntaParaUsuario(c: ConexionSshPersistida, prompt: string, decision: DecisionAskpass, rechazada: boolean): PreguntaUsuario {
   if (!decision.contesta) return { alias: c.alias, texto: textoPregunta(prompt), delServidor: /^\([^)]*\) /.test(prompt), rechazada: false }
-  const texto = decision.que === 'frase' ? 'Frase de la clave' : `Contraseña de ${c.usuario}@${c.host}`
+  const texto = decision.que === 'frase' ? txSsh().askpass.preguntaFrase : txSsh().askpass.preguntaPassword(c.usuario, c.host)
   return { alias: c.alias, texto: textoPregunta(texto), delServidor: false, rechazada }
 }
 
@@ -123,14 +124,15 @@ export class AskpassSsh {
     const conSecreto = [c, ...saltos].filter(tieneSecreto)
     if (conSecreto.length === 0) return SIN_SECRETO
     const ilegible = conSecreto.find((x) => this.d.secretoDe(x.id) === null)
-    const nombre = nombreSecreto(ilegible ?? conSecreto[0]) + (ilegible !== undefined && ilegible !== c ? ` del bastión «${ilegible.alias}»` : '')
-    const sin = (porque: string): EntornoSecreto => ({ ...SIN_SECRETO, aviso: `${nombre} no se usa: ${porque}` })
+    const t = txSsh().askpass
+    const nombre = nombreSecreto(ilegible ?? conSecreto[0]) + (ilegible !== undefined && ilegible !== c ? t.delBastion(ilegible.alias) : '')
+    const sin = (porque: string): EntornoSecreto => ({ ...SIN_SECRETO, aviso: t.noSeUsa(nombre, porque) })
     if (ilegible !== undefined) {
-      return sin(`no se puede leer con ${nombresSistema(this.d.plataforma).almacenSecretos}. Escríbela cuando la pida y vuelve a guardarla editando la conexión.`)
+      return sin(t.noLegible(nombresSistema(this.d.plataforma).almacenSecretos))
     }
-    if (pestana && this.aTeclear.has(c.id)) return sin('el servidor pidió algo que Tessera no contesta. Escribe tú las respuestas en la terminal.')
+    if (pestana && this.aTeclear.has(c.id)) return sin(t.noContesta)
     const motivo = this.sinPrograma()
-    if (motivo !== null) return sin(`${motivo} Escríbela cuando la pida.`)
+    if (motivo !== null) return sin(t.escribela(motivo))
     return this.conPrograma(c, uso, saltos)
   }
 
@@ -172,8 +174,8 @@ export class AskpassSsh {
   /** Por qué no se puede usar el programa de contraseñas, o `null` si se puede. */
   private sinPrograma(): string | null {
     const puerta = this.d.puerta
-    if (puerta === null || !puerta.listo || puerta.pipe === '') return 'el puente local de Tessera no está disponible.'
-    if (!this.d.existe(this.d.programa)) return 'falta el programa con que Tessera la da.'
+    if (puerta === null || !puerta.listo || puerta.pipe === '') return txSsh().askpass.sinPuente
+    if (!this.d.existe(this.d.programa)) return txSsh().askpass.sinPrograma
     return null
   }
 

@@ -7,8 +7,8 @@
 
 Las bases heredadas que se leen por VPN son Oracle 11.2: sin `FETCH FIRST` ni `OFFSET` y sin
 `oracle_maintained` en `all_users` (llega en la 12.1). Allí la consulta única de FKs (las de la
-tabla OR las que apuntan a su PK/UNIQUE) tardaba 2,6-2,9 s; con un diccionario grande en Docker
-(142 000 restricciones, 19 000 FK) 44-45 s, y más de 5 min con estadísticas de los X$.
+tabla OR las que apuntan a su PK/UNIQUE) tarda segundos, y minutos con un diccionario grande o con
+estadísticas de los X$.
 
 ## Decisión
 
@@ -29,7 +29,7 @@ tabla OR las que apuntan a su PK/UNIQUE) tardaba 2,6-2,9 s; con un diccionario g
 
 ## Consecuencias
 
-El hint va por versión y por consulta porque es lo que se midió: quitarlo o moverlo, plan lento.
+El hint va por versión y por consulta porque el optimizador elige otro plan sin él: quitarlo o moverlo, plan lento.
 
 ## Descartes
 

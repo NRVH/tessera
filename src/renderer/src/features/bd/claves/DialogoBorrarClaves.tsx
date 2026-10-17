@@ -17,6 +17,7 @@ import { patronDeFiltro } from '../arbolClaves'
 import { errorDeInvoke, textoError } from '../panesBd'
 import { pintarBytes } from './bytesClaves'
 import { etiquetaTipo } from './visorClaves'
+import { txEdicionClaves } from './textosEdicionClaves'
 import {
   CUENTA_BORRADO,
   MUESTRA_VISTA_PREVIA,
@@ -52,18 +53,19 @@ type Fase =
 function VistaPrevia({ r, patron, base }: { r: Recogida; patron: string; base: number }): React.JSX.Element {
   const muestra = r.claves.slice(0, MUESTRA_VISTA_PREVIA)
   const resto = r.claves.length - muestra.length
+  const t = txEdicionClaves()
   return (
     <>
       <div className="modal-message">{resumenVistaPrevia(r)}</div>
-      {casaConTodas(patron) && r.claves.length > 0 && <div className="modal-hint">El patrón casa con TODAS las claves de db{base}.</div>}
+      {casaConTodas(patron) && r.claves.length > 0 && <div className="modal-hint">{t.patronCasaConTodas(base)}</div>}
       {muestra.length > 0 && (
-        <pre className="db-envio-sql" tabIndex={0} aria-label="Primeras claves que se borrarán">
+        <pre className="db-envio-sql" tabIndex={0} aria-label={t.primerasClaves}>
           {muestra.map((k) => (
             <div key={k.base64} className="db-envio-linea">
               {pintarBytes(k)}
             </div>
           ))}
-          {resto > 0 && <div className="db-envio-linea">…y {textoClaves(resto)} más</div>}
+          {resto > 0 && <div className="db-envio-linea">{t.yMas(textoClaves(resto))}</div>}
         </pre>
       )}
     </>
@@ -198,7 +200,7 @@ export function DialogoBorrarClaves(p: PropsDialogoBorrarClaves): React.JSX.Elem
   const dlg = useDialogo({ onClose: b.cerrar, cerrable: b.cerrable })
   const produccion = esProduccion(p.conexion.entorno)
   return (
-    <MarcoDialogo dlg={dlg} conexion={p.conexion} titulo="Borrar claves por patrón" base={p.base} onCerrar={b.cerrar}>
+    <MarcoDialogo dlg={dlg} conexion={p.conexion} titulo={txEdicionClaves().tituloBorrarPatron} base={p.base} onCerrar={b.cerrar}>
       <CuerpoFase fase={b.fase} idBase={idBase} escrito={b.escrito} base={p.base} tipo={p.tipo} onEscrito={b.setEscrito} onBuscar={b.buscar} />
       <BotonesFase
         fase={b.fase}
@@ -224,28 +226,30 @@ function CuerpoFase(p: {
   onBuscar: () => void
 }): React.JSX.Element {
   const { fase } = p
-  const soloTipo = p.tipo !== undefined ? ` Solo las de tipo ${etiquetaTipo(p.tipo)}, el filtro de la base.` : ''
+  const t = txEdicionClaves()
+  const soloTipo = p.tipo !== undefined ? t.soloTipo(etiquetaTipo(p.tipo)) : ''
   switch (fase.f) {
     case 'editando':
       return (
         <>
-          <Cuadro id={`${p.idBase}-patron`} etiqueta="Patrón o texto" valor={p.escrito} multilinea={false} foco onCambio={p.onEscrito} onEnter={p.onBuscar} />
+          <Cuadro id={`${p.idBase}-patron`} etiqueta={t.patronOTexto} valor={p.escrito} multilinea={false} foco onCambio={p.onEscrito} onEnter={p.onBuscar} />
           <div className="modal-hint">
-            Con * ? [ ] es un patrón (cache:*). Sin comodines se buscan las claves que contienen el texto. Antes de borrar se enseña lo que casa.{soloTipo}
+            {t.ayudaPatron}
+            {soloTipo}
           </div>
         </>
       )
     case 'buscando':
       return (
         <div className="db-envio-estado" role="status">
-          Buscando… {textoClaves(fase.n)} hasta ahora
+          {t.buscando(textoClaves(fase.n))}
         </div>
       )
     case 'previa':
       return (
         <>
           <div className="modal-hint">
-            Patrón: {fase.patron}
+            {t.patron(fase.patron)}
             {soloTipo}
           </div>
           <VistaPrevia r={fase.r} patron={fase.patron} base={p.base} />
@@ -254,7 +258,7 @@ function CuerpoFase(p: {
     case 'borrando':
       return (
         <div className="db-envio-estado" role="status">
-          Borrando… {fase.enviados} de {fase.lotes} lotes
+          {t.borrando(fase.enviados, fase.lotes)}
         </div>
       )
     case 'fin':
@@ -262,13 +266,13 @@ function CuerpoFase(p: {
         <>
           {fase.error !== null && (
             <div className="db-envio-error" role="alert">
-              <div className="db-envio-error-titulo">No se pudo</div>
+              <div className="db-envio-error-titulo">{t.noSePudo}</div>
               <div className="db-envio-error-texto">{fase.error}</div>
             </div>
           )}
           <div className="modal-message">
-            {fase.detenido ? 'Detenido. ' : ''}
-            {fase.borradas > 0 ? `Se borraron ${textoClaves(fase.borradas)}.` : 'No se borró ninguna clave.'}
+            {fase.detenido ? t.detenido : ''}
+            {fase.borradas > 0 ? t.seBorraron(textoClaves(fase.borradas)) : t.ningunaBorrada}
           </div>
         </>
       )
@@ -286,9 +290,10 @@ function BotonesFase(p: {
   onVolver: () => void
 }): React.JSX.Element {
   const { fase } = p
+  const t = txEdicionClaves()
   const cancelar = (
     <button type="button" className="btn btn-ghost" onClick={p.onCerrar}>
-      {fase.f === 'fin' ? 'Cerrar' : 'Cancelar'}
+      {fase.f === 'fin' ? t.cerrar : t.cancelar}
     </button>
   )
   switch (fase.f) {
@@ -297,7 +302,7 @@ function BotonesFase(p: {
         <div className="modal-actions">
           {cancelar}
           <button type="button" className="btn primary" disabled={!p.hayPatron} onClick={p.onBuscar}>
-            Buscar
+            {t.buscar}
           </button>
         </div>
       )
@@ -306,7 +311,7 @@ function BotonesFase(p: {
         <div className="modal-actions">
           {cancelar}
           <button type="button" className="btn" onClick={p.onDetener}>
-            Detener
+            {t.detener}
           </button>
         </div>
       )
@@ -315,10 +320,10 @@ function BotonesFase(p: {
         <div className="modal-actions">
           {cancelar}
           <button type="button" className="btn" onClick={p.onVolver}>
-            Cambiar el patrón
+            {t.cambiarPatron}
           </button>
           <button type="button" className={`btn ${p.produccion ? 'db-envio-btn-prod' : 'danger'}`} disabled={fase.r.claves.length === 0} onClick={() => p.onBorrar(fase.r)}>
-            {p.produccion ? 'Borrar en producción' : `Borrar ${textoClaves(fase.r.claves.length)}`}
+            {p.produccion ? t.borrarEnProduccion : t.borrarN(textoClaves(fase.r.claves.length))}
           </button>
         </div>
       )
@@ -326,7 +331,7 @@ function BotonesFase(p: {
       return (
         <div className="modal-actions">
           <button type="button" className="btn" onClick={p.onDetener}>
-            Detener
+            {t.detener}
           </button>
         </div>
       )

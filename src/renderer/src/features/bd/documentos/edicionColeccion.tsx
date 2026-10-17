@@ -38,6 +38,7 @@ import type { EstadoEdicion } from './useEdicionColeccion'
 import { lineaDeCambioDocs, resumenCambiosDocs, textoIdDe } from './envioDocs'
 import { errorDeInvoke, textoError } from '../panesBd'
 import { copiarTexto } from './utilPanes'
+import { txColeccionDocs } from './textosColeccionDocs'
 import { notify } from '../../../comun/notifications'
 import { SEP, type ContextMenuEntry } from '../../../comun/ContextMenu'
 import { IconoCopiar } from '../../../comun/iconosMenu'
@@ -49,7 +50,8 @@ export function sinIdentidad(f: FilaDocs): boolean {
 }
 
 function avisarSinIdentidad(): void {
-  notify('info', 'Documento sin _id', 'Sin su _id no se sabe a qué documento van los cambios: quita la proyección que lo oculta.')
+  const t = txColeccionDocs()
+  notify('info', t.sinIdTitulo, t.sinIdMensaje)
 }
 
 /** Empieza a editar una celda con doble clic: pide su valor en notación del shell, o avisa de por qué no. */
@@ -60,13 +62,13 @@ export function editarCelda(ed: EstadoEdicion, i: number, campo: string): void {
   if (sinIdentidad(f)) return avisarSinIdentidad()
   const motivo = motivoNoEditarCampo(campo)
   if (motivo) {
-    notify('info', 'Campo no editable', motivo)
+    notify('info', txColeccionDocs().campoNoEditable, motivo)
     return
   }
   const existe = campo in f.documento.celdas
   const valor = valorDeCampo(f.documento.texto, campo)
   if (existe && valor === null) {
-    notify('info', 'Edita el documento en el panel JSON', 'Este documento no se puede editar por celdas.')
+    notify('info', txColeccionDocs().editaEnPanel, txColeccionDocs().noEditablePorCeldas)
     return
   }
   ed.setEditando({ clave: f.clave, campo, valor: valor ?? '' })
@@ -131,38 +133,40 @@ export function aplicarJson(ed: EstadoEdicion, documentoParcial: boolean): void 
 type Cambio = ReturnType<typeof cambioDeDoc>
 
 function itemsDeCampo(ed: EstadoEdicion, i: number, f: FilaDocs, campo: string, cambio: Cambio): ContextMenuEntry[] {
+  const t = txColeccionDocs()
   const items: ContextMenuEntry[] = []
   const existe = campo in f.documento.celdas
   const noEditable = motivoNoEditarCampo(campo) !== null
   const id = f.documento.idEjson
   if (!ed.enviando && f.estado !== 'borrado' && !sinIdentidad(f)) {
-    items.push({ label: 'Editar valor', icon: <IconoEditar />, disabled: noEditable, onClick: () => editarCelda(ed, i, campo) })
+    items.push({ label: t.editarValor, icon: <IconoEditar />, disabled: noEditable, onClick: () => editarCelda(ed, i, campo) })
     if (existe && f.estado !== 'nuevo') {
-      items.push({ label: 'Quitar campo', disabled: noEditable, onClick: () => ed.ponerEdicion(quitarCampo(ed.edicionRef.current, id, campo)) })
+      items.push({ label: t.quitarCampo, disabled: noEditable, onClick: () => ed.ponerEdicion(quitarCampo(ed.edicionRef.current, id, campo)) })
     }
     if (cambio?.tipo === 'actualizar' && f.cambiados.has(campo)) {
-      items.push({ label: 'Restaurar campo', icon: <IconoRevertir />, onClick: () => ed.ponerEdicion(restaurarCampo(ed.edicionRef.current, id, campo)) })
+      items.push({ label: t.restaurarCampo, icon: <IconoRevertir />, onClick: () => ed.ponerEdicion(restaurarCampo(ed.edicionRef.current, id, campo)) })
     }
   }
   if (existe) {
-    items.push({ label: 'Copiar valor', icon: <IconoCopiar />, onClick: () => copiarTexto(valorDeCampo(f.documento.texto, campo) ?? f.documento.celdas[campo].vista, 'Valor') })
+    items.push({ label: t.copiarValor, icon: <IconoCopiar />, onClick: () => copiarTexto(valorDeCampo(f.documento.texto, campo) ?? f.documento.celdas[campo].vista, t.valor) })
   }
   return items
 }
 
 function itemsDeDocumento(ed: EstadoEdicion, f: FilaDocs, cambio: Cambio): ContextMenuEntry[] {
+  const t = txColeccionDocs()
   const items: ContextMenuEntry[] = [
-    { label: 'Copiar documento', icon: <IconoCopiar />, onClick: () => copiarTexto(formatearDocumento(f.documento.texto), 'Documento') }
+    { label: t.copiarDocumento, icon: <IconoCopiar />, onClick: () => copiarTexto(formatearDocumento(f.documento.texto), t.documento) }
   ]
   if (ed.enviando) return items
   items.push(SEP, {
-    label: f.estado === 'borrado' ? 'Deshacer borrado' : 'Borrar documento',
+    label: f.estado === 'borrado' ? t.deshacerBorrado : t.borrarDocumento,
     icon: <IconoBorrarFilas />,
     danger: f.estado !== 'borrado',
     onClick: () => alternarBorradoFila(ed, f)
   })
   if (cambio && cambio.tipo !== 'borrar') {
-    items.push({ label: 'Descartar cambios del documento', icon: <IconoRevertir />, onClick: () => ed.ponerEdicion(descartarDoc(ed.edicionRef.current, f.documento.idEjson)) })
+    items.push({ label: t.descartarCambiosDoc, icon: <IconoRevertir />, onClick: () => ed.ponerEdicion(descartarDoc(ed.edicionRef.current, f.documento.idEjson)) })
   }
   return items
 }
@@ -206,7 +210,7 @@ function avisarFalloEnvio(ed: EstadoEdicion, error: DbErrorSql, conf: Confirmaci
   } else if (error.motivo === 'sinTransaccion') {
     ed.setConfirmacion({ tipo: 'sinTransaccion', confirmado: conf.confirmado === true })
   } else {
-    notify('error', 'No se enviaron los cambios', textoError(error))
+    notify('error', txColeccionDocs().noSeEnviaron, textoError(error))
   }
 }
 

@@ -25,14 +25,16 @@ import {
   enfocarRielSsh,
   ID_LANZADOR_SSH,
   LanzadorSsh,
-  RielConexionesSsh,
+  RielConexionesSshVivo,
   useRielSsh,
   useStoreSsh,
   type DatosListaConexionesSsh
 } from '../ssh'
-import { AccionesPanel, REINICIO_LOCAL, type ReinicioPanel } from './AccionesPanelTerminal'
+import { AccionesPanel, reinicioLocal, type ReinicioPanel } from './AccionesPanelTerminal'
+import { txTerminales } from './textos.ts'
 import { conexionDelPane, derivarActivo, type ActivoTerminales } from './activoTerminales'
 import { PilaTerminales } from './PilaTerminales'
+import { PlusIcon } from './IconosTerminales'
 import { ZonaPestanas, type PropsNuevaTerminal, type Renombrando } from './PestanasTerminales'
 import { abiertasPorConexion, esPestanaSftp, sshPaneKey, type SshTabsState } from './sshTabsModel'
 import type { ShellTerminalsState } from './shellTerminalsModel'
@@ -44,7 +46,7 @@ export type { ActivoTerminales }
 
 /** Lo que el panel necesita de las pestañas SSH del perfil y de sus conexiones. */
 export interface PropsSshPanel {
-  /** El perfil de la terminal: el del proyecto confirmado o, sin proyecto, el activo; `''` sin perfil. */
+  /** El perfil de la terminal: el activo; `''` sin perfil. */
   perfilId: string
   /** El contexto en que se mira la terminal (`contextoSsh`): ahí se recuerda qué pestaña SSH se ve. */
   contexto: string
@@ -137,14 +139,15 @@ function useRielDelPanel(
  * terminales hay detrás y las devuelve al pulsarlo.
  */
 function ChipTerminalesTapadas({ total, onRestaurar }: { total: number; onRestaurar: () => void }): React.JSX.Element {
-  const palabra = total === 1 ? 'terminal' : 'terminales'
+  const t = txTerminales()
+  const palabra = t.palabraTerminales(total)
   return (
     <button
       type="button"
       className="terminales-tapadas"
       onClick={onRestaurar}
-      title="Restaurar: vuelve a mostrar las terminales abiertas"
-      aria-label={`Restaurar terminales (${total} ${palabra})`}
+      title={t.restaurarTapadas}
+      aria-label={t.restaurarTapadasEtiqueta(total, palabra)}
     >
       {/* En una cabecera estrecha la palabra cede y queda el número. */}
       <span className="terminales-tapadas-n">{total}</span>
@@ -225,7 +228,28 @@ function ZonaCabecera(z: ZonaCabeceraProps): React.JSX.Element {
       props.onRestaurarTerminales?.()
       z.enfocarTerminal()
     }
-    return <ChipTerminalesTapadas total={activo.activeList.length + activo.sshLista.length} onRestaurar={restaurar} />
+    // La nueva se abre a la vista: crearla debajo del agente obligaría a restaurar después.
+    const projectKey = activo.activeProject?.key ?? null
+    const agregar = (): void => {
+      if (projectKey === null) return
+      props.onRestaurarTerminales?.()
+      props.onAdd(projectKey)
+    }
+    return (
+      <>
+        <ChipTerminalesTapadas total={activo.activeList.length + activo.sshLista.length} onRestaurar={restaurar} />
+        <button
+          type="button"
+          className="btn btn-icon terminales-tapadas-nueva"
+          onClick={agregar}
+          disabled={projectKey === null}
+          title={nueva.noDisponible ?? txTerminales().nuevaTerminalTapadas}
+          aria-label={txTerminales().nuevaTerminal}
+        >
+          <PlusIcon />
+        </button>
+      </>
+    )
   }
   return (
     <ZonaPestanas
@@ -267,7 +291,7 @@ function useNuevaTerminal(
 ): PropsNuevaTerminal {
   const flechaAbierta = useStoreSsh((s) => s.listaAbierta)
   return {
-    noDisponible: activo.activeProject === null ? 'Abre un proyecto para tener una terminal local' : undefined,
+    noDisponible: activo.activeProject === null ? txTerminales().abreProyectoLocal : undefined,
     sinFlecha: !flechaVisible,
     flechaDeshabilitada: props.ssh.perfilId === '',
     flechaAbierta,
@@ -291,7 +315,7 @@ function reinicioDe(activo: ActivoTerminales, apisRef: MutableRefObject<Record<s
   if (!boton || activo.pane?.tipo !== 'local') return null
   return {
     boton,
-    alcance: REINICIO_LOCAL,
+    alcance: reinicioLocal(),
     onReload: () => {
       if (activePaneKey) void apisRef.current[activePaneKey]?.reload(boton.accion)
     }
@@ -346,12 +370,12 @@ export function TerminalsPanel(props: TerminalsPanelProps): React.JSX.Element {
   }
 
   return (
-    <section ref={panelRef} {...atributosPanel(props.visible, sinTerminal, riel.columnaPlegadaMin)} aria-label="Terminal">
+    <section ref={panelRef} {...atributosPanel(props.visible, sinTerminal, riel.columnaPlegadaMin)} aria-label={txTerminales().panel}>
       <header className="panel-header">
         {/* Solo a pantalla completa y antes que el título: gobierna el riel, que queda justo debajo. */}
         <BotonRielSsh riel={riel} />
         {/* Solo «Terminal»: la ruta del workspace ya la escribe el prompt del shell, dos píxeles más abajo. */}
-        <span className="panel-title">Terminal</span>
+        <span className="panel-title">{txTerminales().panel}</span>
         <ZonaCabecera {...{ props, activo, infoByPane, renombrando, setRenombrando, nueva, tapadas }} enfocarTerminal={enfocarTerminal} reconectarSsh={reconectarSsh} />
         {/* Tapadas, la columna es el resto plegado del panel y no lleva sus botones: el único restaurar a la
             vista es el del agente, que baja un nivel; con las terminales de vuelta, el de aquí baja el siguiente. */}
@@ -368,9 +392,8 @@ export function TerminalsPanel(props: TerminalsPanelProps): React.JSX.Element {
 
       {/* El error NO se pinta aquí: lo pinta el propio TerminalPane, dentro de su hueco. */}
       <div className="terminal-body" ref={cuerpoRef}>
-        {riel.visible && (
-          <RielConexionesSsh {...lista} ancho={riel.ancho} anchoMax={riel.anchoMax} onAncho={riel.fijarAncho} onOcultar={ocultarRiel} />
-        )}
+        {/* Enseñado una vez, se queda montado y oculto cuando no se enseña: vuelve con su filtro y su fila. */}
+        <RielConexionesSshVivo {...lista} visible={riel.visible} ancho={riel.ancho} anchoMax={riel.anchoMax} onAncho={riel.fijarAncho} onOcultar={ocultarRiel} />
         {/* Tapadas por el agente no están a la vista: sueltan su contexto gráfico como las de fondo. */}
         <PilaTerminales panel={sinTerminal ? { ...props, visible: false } : props} activo={activo} onInfo={handleInfo} onApi={handleApi} onConectarPorSsh={riel.pedirLista} />
       </div>

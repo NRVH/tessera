@@ -6,10 +6,10 @@
 
 ## Contexto
 
-El visor ya editaba un string y un hash con el molde de [ui-claves-visor.md](ui-claves-visor.md): cada acción
+El visor edita un string y un hash con el molde de [ui-claves-visor.md](ui-claves-visor.md): cada acción
 produce UN comando de la consola de Redis, el diálogo enseña ese comando exacto y el main decide la política
-(producción, peligrosos, solo lectura impuesta). Faltaban los otros cuatro tipos con elementos y poder crear
-una clave desde el árbol.
+(producción, peligrosos, solo lectura impuesta). Los otros cuatro tipos con elementos y la creación de una
+clave desde el árbol siguen el mismo molde.
 
 ## Decisión
 

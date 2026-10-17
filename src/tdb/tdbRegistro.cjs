@@ -2,13 +2,14 @@
 // Lectura del registro de conexiones (`db-connections.json`) por `tdb`, con la misma
 // regla que el main: el `.bak` si el principal no es JSON, formato ajeno e ilegible.
 // Es una copia de esa regla, no un `require`: este archivo corre suelto, sin el main.
-// Depende de `tdbSalida.cjs`; lo usan `tdbContexto.cjs` y las pruebas por `tdb`.
+// Depende de `tdbSalida.cjs` y `textosTdb.cjs`; lo usan `tdbContexto.cjs` y las pruebas por `tdb`.
 // Decisiones: docs/decisiones/bd/tdb-registro-como-el-main.md
 // =============================================================================
 'use strict'
 
 const { readFileSync } = require('node:fs')
 const { envolver } = require('./tdbSalida.cjs')
+const { textosTdb } = require('./textosTdb.cjs')
 
 /** Punto de código del BOM (U+FEFF). Como constante y no literal en una regex:
  *  el carácter es INVISIBLE en un editor, y eso es justo el fallo que evita. */
@@ -77,7 +78,7 @@ function leerRegistroConexiones(ruta) {
   const origen = respaldo === null ? 'principal' : 'respaldo'
   if (legible.tipo === 'registro') {
     return formatoRegistroAjeno(legible.doc)
-      ? { doc: { connections: [] }, aviso: MENSAJE_FORMATO_AJENO, origen }
+      ? { doc: { connections: [] }, aviso: textosTdb().formatoAjeno, origen }
       : { doc: legible.doc, aviso: null, origen }
   }
   if (principal.tipo === 'roto') {
@@ -104,14 +105,6 @@ function formatoRegistroAjeno(doc) {
   return lista !== undefined && lista !== null && !Array.isArray(lista)
 }
 
-/**
- * Lo que se dice cuando el registro tiene un formato que no se reconoce: sin conexiones
- * que listar y sin mandar a añadir, montar ni editar, que es lo que la app no deja hacer.
- */
-const MENSAJE_FORMATO_AJENO =
-  'Este tdb no reconoce el formato del registro de conexiones (db-connections.json),\n' +
-  '    así que no ve ninguna. Puede venir de una versión más nueva de Tessera (actualiza\n' +
-  '    para usarlas) o de una edición a mano del archivo; Tessera no lo toca.'
 
 /**
  * Lo que se dice cuando el registro NO SE PUEDE LEER y no hay `.bak` que lo supla. Sin los
@@ -122,23 +115,11 @@ const MENSAJE_FORMATO_AJENO =
  * @param respaldo `'ausente'`, `'inservible'` o `'legible'`.
  */
 function mensajeRegistroIlegible(causa, respaldo) {
-  const que = causa.tipo === 'roto' ? 'no es JSON válido' : `no se pudo abrir (${causa.codigo})`
-  const copia =
-    respaldo === 'inservible'
-      ? ', y su copia de respaldo (db-connections.json.bak) tampoco sirve'
-      : respaldo === 'legible'
-        ? ', y su copia de respaldo (db-connections.json.bak), aunque se lee, no se usa: la próxima ' +
-          'escritura sustituiría el registro sin haber podido guardarlo aparte'
-        : ''
-  const remedio =
-    causa.tipo === 'roto'
-      ? 'corrígelo (suele ser una edición a mano: una coma de más, una comilla sin cerrar)'
-      : 'revisa sus permisos, o si otro programa lo tiene abierto en exclusiva,'
-  return envolver(
-    `Este tdb no puede leer el registro de conexiones (db-connections.json): ${que}${copia}, ` +
-      'así que no ve ninguna. Tessera no lo toca para no perder lo que tiene dentro: ' +
-      `${remedio} y reinicia Tessera, que lo lee al arrancar.`
-  )
+  const t = textosTdb()
+  const que = causa.tipo === 'roto' ? t.ilegibleNoJson : t.ilegibleNoAbre(causa.codigo)
+  const copia = respaldo === 'inservible' ? t.respaldoInservible : respaldo === 'legible' ? t.respaldoLegible : ''
+  const remedio = causa.tipo === 'roto' ? t.remedioRoto : t.remedioInaccesible
+  return envolver(t.registroIlegible(que, copia, remedio))
 }
 
 module.exports = { leerJson, leerRegistroConexiones }

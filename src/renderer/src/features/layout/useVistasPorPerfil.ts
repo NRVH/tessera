@@ -8,10 +8,10 @@ import { useCallback, useEffect, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { esVistaLateral, type ActivityView, type PanelInferior } from './ActivityBar'
 import { cambiarVistaSi, useStoreLayout } from './store'
-import type { UseTabs } from '../pestanas'
+import { useStorePestanas, type UseTabs } from '../pestanas'
 import { useStoreBd } from '../bd'
 import { useStoreBusqueda } from '../busqueda'
-import { useStoreGit } from '../git'
+import { abrirHistorial, claveHistorial, useStoreGit } from '../git'
 import { accionesSsh } from '../ssh'
 
 /** Vista y franja del perfil activo, con sus acciones estables. */
@@ -45,17 +45,29 @@ function usePodaPorPerfil(tabs: UseTabs): void {
     const vivos = new Set(idsPerfiles.split(','))
     useStoreLayout.setState((s) => ({
       vistaPorPerfil: podarPorPerfil(s.vistaPorPerfil, vivos),
-      panelPorPerfil: podarPorPerfil(s.panelPorPerfil, vivos)
+      panelPorPerfil: podarPorPerfil(s.panelPorPerfil, vivos),
+      columnaPorPerfil: podarPorPerfil(s.columnaPorPerfil, vivos)
     }))
     useStoreBd.setState((s) => ({ dbAgenteVisiblePorPerfil: podarPorPerfil(s.dbAgenteVisiblePorPerfil, vivos) }))
     useStoreBusqueda.setState((s) => ({ buscarQueryPorPerfil: podarPorPerfil(s.buscarQueryPorPerfil, vivos) }))
     useStoreGit.setState((s) => ({ busquedaLogPorPerfil: podarPorPerfil(s.busquedaLogPorPerfil, vivos) }))
     accionesSsh.podarPerfiles([...vivos])
   }, [idsPerfiles])
+  // El historial de archivo es de un proyecto: se olvida al cerrarlo, o reabrirlo traería uno viejo.
+  const abiertos = tabs.allOpenProjects.map((p) => `${p.profileId}|${p.projectHostPath}`).join('\u0000')
+  const cargadas = useStorePestanas((s) => s.pestanasCargadas)
+  useEffect(() => {
+    if (!cargadas) return
+    const vivos = new Set(abiertos ? abiertos.split('\u0000') : [])
+    useStoreGit.setState((s) => {
+      const historialPorProyecto = podarPorPerfil(s.historialPorProyecto, vivos)
+      return historialPorProyecto === s.historialPorProyecto ? s : { historialPorProyecto }
+    })
+  }, [abiertos, cargadas])
 }
 
 /** Acciones estables sobre la vista y la franja; leen el perfil activo por ref. */
-function useAccionesVista(perfilUIRef: { current: string }): Omit<
+function useAccionesVista(perfilUIRef: { current: string }, proyectoRef: { current: string | null }): Omit<
   VistasPorPerfil,
   'perfilUI' | 'activeView' | 'panelInferior' | 'terminalVisible' | 'enConexiones'
 > {
@@ -89,13 +101,15 @@ function useAccionesVista(perfilUIRef: { current: string }): Omit<
     () => fijar((s) => ({ franjaLibre: true, panelPorPerfil: { ...s.panelPorPerfil, [perfilUIRef.current]: '' } })),
     [fijar, perfilUIRef]
   )
-  // El historial vive dentro de la franja de git: pedirlo también la abre.
+  // El historial vive dentro de la franja de git: pedirlo también la abre. Es del proyecto que se ve.
   const abrirHistorialArchivo = useCallback(
     (path: string) => {
-      useStoreGit.setState((s) => ({ fileHistoryPath: path, fileHistoryToken: s.fileHistoryToken + 1 }))
+      const proyecto = proyectoRef.current
+      if (proyecto === null) return
+      abrirHistorial(claveHistorial(perfilUIRef.current, proyecto), path)
       fijar((s) => ({ franjaLibre: true, panelPorPerfil: { ...s.panelPorPerfil, [perfilUIRef.current]: 'gitlog' } }))
     },
-    [fijar, perfilUIRef]
+    [fijar, perfilUIRef, proyectoRef]
   )
   const salirDeBd = useCallback(() => cambiarVistaSi(perfilUIRef.current, 'db', 'files'), [perfilUIRef])
   return { setActiveView, alternarPanelInferior, abrirPanelInferior, cerrarPanelInferior, abrirHistorialArchivo, salirDeBd }
@@ -103,11 +117,12 @@ function useAccionesVista(perfilUIRef: { current: string }): Omit<
 
 /** Vista lateral y franja inferior del perfil activo; poda y latch de restauración de Git·Log. */
 export function useVistasPorPerfil(tabs: UseTabs): VistasPorPerfil {
-  const confirmed = tabs.confirmedTarget
   const perfilUI = tabs.activeProfile?.id ?? ''
   // Por ref y no por dependencia: las acciones las captura el listener global de teclado.
   const perfilUIRef = useRef(perfilUI)
   perfilUIRef.current = perfilUI
+  const proyectoRef = useRef<string | null>(null)
+  proyectoRef.current = tabs.objetivoVisto?.project.projectHostPath ?? null
   usePodaPorPerfil(tabs)
   const { vistaGuardada, panelGuardado, franjaLibre } = useStoreLayout(
     useShallow((s) => ({
@@ -118,17 +133,13 @@ export function useVistasPorPerfil(tabs: UseTabs): VistasPorPerfil {
   )
   // Con guarda: lo recordado viene de un archivo y un id retirado pintaría el panel equivocado.
   const activeView: ActivityView = esVistaLateral(vistaGuardada) ? vistaGuardada : 'files'
-  // Restaurar Git·Log espera a un objetivo confirmado; la terminal se restaura en el acto.
+  // Restaurar Git·Log espera a que haya un proyecto que mirar; la terminal se restaura en el acto.
+  const hayProyecto = tabs.objetivoVisto !== null
   useEffect(() => {
-    if (confirmed) useStoreLayout.setState({ franjaLibre: true })
-  }, [confirmed])
+    if (hayProyecto) useStoreLayout.setState({ franjaLibre: true })
+  }, [hayProyecto])
   const panelInferior: PanelInferior | null = panelGuardado === 'gitlog' && !franjaLibre ? null : panelGuardado
-  const acciones = useAccionesVista(perfilUIRef)
-  // El historial es relativo a UN proyecto: se cierra al cambiar de proyecto.
-  const proyectoActivo = confirmed?.project.projectHostPath
-  useEffect(() => {
-    useStoreGit.setState({ fileHistoryPath: null })
-  }, [proyectoActivo])
+  const acciones = useAccionesVista(perfilUIRef, proyectoRef)
   return {
     perfilUI,
     activeView,

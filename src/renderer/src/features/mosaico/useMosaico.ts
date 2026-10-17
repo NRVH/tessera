@@ -6,13 +6,14 @@
 // =============================================================================
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { AGENTES_DISPONIBLES, type Agente } from '../../../../main/profiles/types'
 import { notify } from '../../comun/notifications'
+import { txMosaico } from './textosMosaico.ts'
 import { hayModalAbierto } from '../../util/modalAbierto'
 import { accionMosaico } from '../../util/atajos'
 import {
   accionPeticion,
   alternarTesela,
+  candidatosDelMosaico,
   reconciliarTeselas,
   reemplazarTesela,
   seleccionInicial,
@@ -30,10 +31,17 @@ import {
 } from './store'
 import { agentTargetKey, type DecideProjectMode, type OpenAgentTarget, type UseTabs } from '../pestanas'
 import { editorTargetKey } from '../editor'
-import { resolveSelectedAgent, useStoreAgentes, type ActividadAgentes } from '../agentes'
+import { useNombresAgente, useStoreAgentes, type ActividadAgentes, type AgentesApp } from '../agentes'
+import type { IdAgente } from '../../../../shared/agentesManuales'
 
 /** Qué agente se enseña de un proyecto (casilla, trabajando, sin ver, vivo, elegido). */
-type AgenteDelProyecto = (profileId: string, projectHostPath: string) => Agente
+type AgenteDelProyecto = (profileId: string, projectHostPath: string) => IdAgente
+
+/** Lo que el mosaico usa de los agentes de la ventana: todos los targets, también los que no son pestaña. */
+type AgentesMosaico = Pick<
+  AgentesApp,
+  'activeTargetKey' | 'activeTargetKeyEfectivo' | 'targetsAgente' | 'hibernatedTargetKeys' | 'propios'
+>
 
 /** Lo que el mosaico expone a la barra de título y a la columna. */
 export interface MosaicoApp {
@@ -54,6 +62,7 @@ export interface MosaicoApp {
 /** Nombres y opciones del mosaico; las opciones solo se calculan con el mosaico abierto. */
 function useOpciones(
   tabs: UseTabs,
+  agentes: AgentesMosaico,
   actividad: ActividadAgentes,
   candidatos: CandidatoMosaico[],
   candidatosVivos: CandidatoMosaico[],
@@ -63,8 +72,15 @@ function useOpciones(
   const { mosaicoActivo, teselas } = useStoreMosaico(
     useShallow((s) => ({ mosaicoActivo: s.mosaicoActivo, teselas: s.teselas }))
   )
+  const nombresAgente = useNombresAgente()
+  const { propios } = agentes
   const nombresProyecto: Record<string, string> = {}
   for (const p of tabs.allOpenProjects) nombresProyecto[editorTargetKey(p.profileId, p.projectHostPath)] = p.name
+  // El agente de datos y el de la terminal se llaman por la vista donde viven.
+  for (const c of candidatos) {
+    const lugar = propios.lugarDe(c.projectHostPath)
+    if (lugar !== 'proyecto') nombresProyecto[editorTargetKey(c.profileId, c.projectHostPath)] = propios.nombreDe(lugar)
+  }
   const opcionesMosaico = mosaicoActivo
     ? opcionesDelMosaico({
         candidatos,
@@ -73,12 +89,13 @@ function useOpciones(
         perfiles: new Map(tabs.profiles.map((p) => [p.id, p])),
         nombresProyecto,
         tintasPorPerfil,
-        hibernados: tabs.hibernatedTargetKeys,
+        hibernados: agentes.hibernatedTargetKeys,
         trabajando: actividad.trabajandoSet,
         sinVer: actividad.activity.unseen,
         esperando: actividad.esperandoSet,
         agenteDelProyecto,
-        claveProyecto: editorTargetKey
+        claveProyecto: editorTargetKey,
+        nombreAgente: (c) => nombresAgente(c.profileId, c.projectHostPath, c.agente)
       })
     : []
   return { nombresProyecto, opcionesMosaico }
@@ -86,65 +103,61 @@ function useOpciones(
 
 type AccionMosaico = Exclude<NonNullable<ReturnType<typeof accionMosaico>>, { tipo: 'ignorar' }>
 
-/** Candidatos: cada target de proyecto abierto, ordenado como se leen las pestañas. */
-function useCandidatos(tabs: UseTabs): CandidatoMosaico[] {
-  return useMemo((): CandidatoMosaico[] => {
-    const ordenPerfil = new Map(tabs.profiles.map((p, i) => [p.id, i]))
-    const ordenProyecto = new Map<string, number>()
-    const porPerfil = new Map<string, number>()
-    for (const p of tabs.allOpenProjects) {
-      const n = porPerfil.get(p.profileId) ?? 0
-      ordenProyecto.set(editorTargetKey(p.profileId, p.projectHostPath), n)
-      porPerfil.set(p.profileId, n + 1)
-    }
-    return tabs.allOpenTargets.map((t) => ({
-      key: t.key,
-      profileId: t.profileId,
-      projectHostPath: t.projectHostPath,
-      agente: t.agente,
-      ordenPerfil: ordenPerfil.get(t.profileId) ?? Number.MAX_SAFE_INTEGER,
-      ordenProyecto: ordenProyecto.get(editorTargetKey(t.profileId, t.projectHostPath)) ?? Number.MAX_SAFE_INTEGER
-    }))
-  }, [tabs.profiles, tabs.allOpenProjects, tabs.allOpenTargets])
+/**
+ * Candidatos: cada target abierto, ordenado como se leen las pestañas; el agente de datos y el de la
+ * terminal, detrás de los proyectos de su perfil.
+ */
+function useCandidatos(tabs: UseTabs, agentes: AgentesMosaico): CandidatoMosaico[] {
+  const { targetsAgente, propios } = agentes
+  return useMemo(
+    () =>
+      candidatosDelMosaico({
+        perfiles: tabs.profiles.map((p) => p.id),
+        proyectos: tabs.allOpenProjects,
+        targets: targetsAgente,
+        lugarDe: propios.lugarDe
+      }),
+    [tabs.profiles, tabs.allOpenProjects, targetsAgente, propios.lugarDe]
+  )
 }
 
 /** Qué agente se enseña de un proyecto: casilla, trabajando, sin ver, vivo, elegido. */
-function useAgenteDelProyecto(tabs: UseTabs, actividad: ActividadAgentes): AgenteDelProyecto {
+function useAgenteDelProyecto(agentes: AgentesMosaico, actividad: ActividadAgentes): AgenteDelProyecto {
   const teselas = useStoreMosaico((s) => s.teselas)
-  const { vivos, selectedAgentByProfile } = useStoreAgentes(
-    useShallow((s) => ({ vivos: s.vivos, selectedAgentByProfile: s.selectedAgentByProfile }))
-  )
+  const vivos = useStoreAgentes((s) => s.vivos)
   const { trabajandoSet, activity } = actividad
   const unseen = activity.unseen
+  const { hibernatedTargetKeys, propios } = agentes
   return useCallback(
-    (profileId: string, projectHostPath: string): Agente => {
+    (profileId: string, projectHostPath: string): IdAgente => {
       const enRejilla = new Set(teselas)
-      const cands = AGENTES_DISPONIBLES.map((a) => ({ a, key: agentTargetKey(profileId, projectHostPath, a) }))
+      const disponibles = propios.agentesDe(profileId, projectHostPath)
+      const cands = disponibles.map((a) => ({ a, key: agentTargetKey(profileId, projectHostPath, a) }))
       return (
         cands.find((c) => enRejilla.has(c.key))?.a ??
         cands.find((c) => trabajandoSet.has(c.key))?.a ??
         cands.find((c) => unseen.has(c.key))?.a ??
-        cands.find((c) => vivos.has(c.key) && !tabs.hibernatedTargetKeys.has(c.key))?.a ??
-        resolveSelectedAgent(profileId, selectedAgentByProfile) ??
-        AGENTES_DISPONIBLES[0]
+        cands.find((c) => vivos.has(c.key) && !hibernatedTargetKeys.has(c.key))?.a ??
+        propios.elegidoDe(profileId, projectHostPath)
       )
     },
-    [teselas, trabajandoSet, unseen, vivos, tabs.hibernatedTargetKeys, selectedAgentByProfile]
+    [teselas, trabajandoSet, unseen, vivos, hibernatedTargetKeys, propios]
   )
 }
 
 /** Mientras está abierto: sale la casilla cuyo proyecto se cierra o hiberna; nada entra solo. */
-function useReconciliar(tabs: UseTabs, candidatosVivos: CandidatoMosaico[], candidatos: CandidatoMosaico[]): void {
+function useReconciliar(agentes: AgentesMosaico, candidatosVivos: CandidatoMosaico[], candidatos: CandidatoMosaico[]): void {
   const { mosaicoActivo, teselas, enfocada, ampliada } = useStoreMosaico(
     useShallow((s) => ({ mosaicoActivo: s.mosaicoActivo, teselas: s.teselas, enfocada: s.enfocada, ampliada: s.ampliada }))
   )
+  const { targetsAgente, hibernatedTargetKeys } = agentes
   useEffect(() => {
     if (!mosaicoActivo) return
-    const existentes = new Set(tabs.allOpenTargets.filter((t) => !tabs.hibernatedTargetKeys.has(t.key)).map((t) => t.key))
+    const existentes = new Set(targetsAgente.filter((t) => !hibernatedTargetKeys.has(t.key)).map((t) => t.key))
     useStoreMosaico.setState((s) => ({
       teselas: reconciliarTeselas(s.teselas, { vivos: candidatosVivos, orden: candidatos, existentes })
     }))
-  }, [mosaicoActivo, candidatosVivos, candidatos, tabs.allOpenTargets, tabs.hibernatedTargetKeys])
+  }, [mosaicoActivo, candidatosVivos, candidatos, targetsAgente, hibernatedTargetKeys])
   // Foco y ampliada siempre en una casilla que existe.
   useEffect(() => {
     if (!mosaicoActivo) return
@@ -200,6 +213,7 @@ function ejecutarAccion(a: AccionMosaico, entrarMosaico: () => void): void {
 /** Resuelve el destino que esperaba a que su target existiera, despierto o abierto. */
 function useDestinoPendiente(
   tabs: UseTabs,
+  hibernados: ReadonlySet<string>,
   candidatos: CandidatoMosaico[],
   alternarCasilla: (key: string) => void,
   elegirDestinoCasilla: (casilla: string, destino: string) => void
@@ -222,7 +236,7 @@ function useDestinoPendiente(
       mosaico: mosaicoActivo,
       teselas,
       existe: candidatos.some((c) => c.key === destinoPendiente.key),
-      hibernado: tabs.hibernatedTargetKeys.has(destinoPendiente.key),
+      hibernado: hibernados.has(destinoPendiente.key),
       proyectoAbierto: proyectosAbiertos.has(destinoPendiente.proyecto)
     })
     if (accion === 'esperar') return
@@ -231,7 +245,7 @@ function useDestinoPendiente(
       elegirRef.current(destinoPendiente.casilla, destinoPendiente.key)
     }
     useStoreMosaico.setState({ destinoPendiente: null })
-  }, [destinoPendiente, mosaicoActivo, teselas, candidatos, tabs.hibernatedTargetKeys, proyectosAbiertos])
+  }, [destinoPendiente, mosaicoActivo, teselas, candidatos, hibernados, proyectosAbiertos])
 }
 
 /** Proyecto (`editorTargetKey`) de cada target candidato. */
@@ -245,15 +259,21 @@ function useProyectoPorClave(candidatos: CandidatoMosaico[]): Map<string, string
 /** Casillas por destino: meter o sacar, cambiar de destino y despertar lo hibernado. */
 function useDestinos(
   tabs: UseTabs,
+  agentes: AgentesMosaico,
   candidatos: CandidatoMosaico[],
   proyectoPorClave: Map<string, string>
 ): Pick<MosaicoApp, 'alternarCasilla' | 'elegirDestinoCasilla'> {
   const { teselas, recientes } = useStoreMosaico(useShallow((s) => ({ teselas: s.teselas, recientes: s.recientes })))
-  // Despierta con `wakeProject` (no mueve el proyecto activo) y deja el destino pendiente.
+  const { hibernatedTargetKeys: hibernados, propios } = agentes
+  /**
+   * Un proyecto se despierta con `wakeProject` (no mueve el proyecto activo) y deja el destino
+   * pendiente. El agente de datos o el de la terminal sigue abierto: se despierta y entra ya.
+   */
   const despertarSiHaceFalta = (casilla: string | null, destino: string): boolean => {
-    if (!tabs.hibernatedTargetKeys.has(destino)) return false
+    if (!hibernados.has(destino)) return false
     const c = candidatos.find((x) => x.key === destino)
     if (c === undefined) return false
+    if (propios.lugarDe(c.projectHostPath) !== 'proyecto') return !propios.despertar(c)
     tabs.wakeProject(c.profileId, c.projectHostPath)
     useStoreMosaico.setState({
       destinoPendiente: { casilla, key: destino, proyecto: editorTargetKey(c.profileId, c.projectHostPath) }
@@ -283,7 +303,7 @@ function useDestinos(
     useStoreMosaico.setState({ teselas: next })
     verCasilla(destino)
   }
-  useDestinoPendiente(tabs, candidatos, alternarCasilla, elegirDestinoCasilla)
+  useDestinoPendiente(tabs, hibernados, candidatos, alternarCasilla, elegirDestinoCasilla)
   return { alternarCasilla, elegirDestinoCasilla }
 }
 
@@ -310,7 +330,7 @@ function useAbrirProyectoEnCasilla(
         .getState()
         .teselas.find((k) => k !== casilla && (proyectoPorClaveRef.current.get(k) ?? k) === proyecto)
       if (otra !== undefined) {
-        notify('info', 'Ese proyecto ya tiene terminal', `«${abierto.name}» se está viendo en otra casilla; te llevo a ella.`)
+        notify('info', txMosaico().yaTieneTerminal, txMosaico().yaTieneTerminalDetalle(abierto.name))
         verCasilla(otra)
         return
       }
@@ -346,9 +366,8 @@ function useEntrarMosaico(
 export function useMosaico(
   tabs: UseTabs,
   actividad: ActividadAgentes,
-  activeTargetKey: string | null,
+  agentes: AgentesMosaico,
   decideProjectMode: DecideProjectMode,
-  openAgentTarget: (profileId: string, projectHostPath: string, agente: Agente) => void,
   tintasPorPerfil: Record<string, string>
 ): MosaicoApp {
   const salidaSinFoco = useStoreMosaico((s) => s.salidaSinFoco)
@@ -356,36 +375,33 @@ export function useMosaico(
   useEffect(() => {
     if (salidaSinFoco) useStoreMosaico.setState({ salidaSinFoco: false })
   }, [salidaSinFoco])
-  const candidatosMosaico = useCandidatos(tabs)
+  const candidatosMosaico = useCandidatos(tabs, agentes)
   const vivos = useStoreAgentes((s) => s.vivos)
+  const { hibernatedTargetKeys, propios } = agentes
   const candidatosVivos = useMemo(
-    () => candidatosMosaico.filter((c) => vivos.has(c.key) && !tabs.hibernatedTargetKeys.has(c.key)),
-    [candidatosMosaico, vivos, tabs.hibernatedTargetKeys]
+    () => candidatosMosaico.filter((c) => vivos.has(c.key) && !hibernatedTargetKeys.has(c.key)),
+    [candidatosMosaico, vivos, hibernatedTargetKeys]
   )
-  const agenteDelProyecto = useAgenteDelProyecto(tabs, actividad)
-  const entrarMosaico = useEntrarMosaico(candidatosVivos, activeTargetKey, actividad)
-  useReconciliar(tabs, candidatosVivos, candidatosMosaico)
-  const confirmedRef = useRef(tabs.confirmedTarget)
-  confirmedRef.current = tabs.confirmedTarget
-  // Hacia otro proyecto se sale SIN foco: el de antes se llevaría lo que tecleas hasta la confirmación.
+  const agenteDelProyecto = useAgenteDelProyecto(agentes, actividad)
+  // El que se ve: en bases de datos o junto a la terminal, su agente, no el del proyecto.
+  const entrarMosaico = useEntrarMosaico(candidatosVivos, agentes.activeTargetKeyEfectivo ?? agentes.activeTargetKey, actividad)
+  useReconciliar(agentes, candidatosVivos, candidatosMosaico)
+  // Salir e ir al destino caen en el mismo commit, y la columna enseña ya su agente: el foco es suyo.
   const irAlProyectoDesdeMosaico = useCallback(
     (target: OpenAgentTarget) => {
-      const c = confirmedRef.current
-      const mismoProyecto =
-        c !== null && c.profileId === target.profileId && c.project.projectHostPath === target.projectHostPath
-      salirMosaico(mismoProyecto)
-      openAgentTarget(target.profileId, target.projectHostPath, target.agente)
+      salirMosaico()
+      propios.irA(target)
     },
-    [openAgentTarget]
+    [propios]
   )
   const proyectoPorClave = useProyectoPorClave(candidatosMosaico)
-  const destinos = useDestinos(tabs, candidatosMosaico, proyectoPorClave)
+  const destinos = useDestinos(tabs, agentes, candidatosMosaico, proyectoPorClave)
   const abrirProyectoEnCasilla = useAbrirProyectoEnCasilla(tabs, proyectoPorClave, decideProjectMode, agenteDelProyecto)
   const ejecutarRef = useRef<(a: AccionMosaico) => void>(() => {})
   ejecutarRef.current = (a) => ejecutarAccion(a, entrarMosaico)
   useAtajosMosaico(ejecutarRef)
   const alternarMosaico = (): void => (useStoreMosaico.getState().mosaicoActivo ? salirMosaico() : entrarMosaico())
-  const opciones = useOpciones(tabs, actividad, candidatosMosaico, candidatosVivos, agenteDelProyecto, tintasPorPerfil)
+  const opciones = useOpciones(tabs, agentes, actividad, candidatosMosaico, candidatosVivos, agenteDelProyecto, tintasPorPerfil)
   return {
     ...opciones,
     candidatosMosaico,

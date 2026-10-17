@@ -10,11 +10,13 @@ import { type ConfirmacionEnVuelo, MENSAJES, type MotivoRechazo } from '../maqui
 import type { ClaseErrorTrabajador, ErrorTrabajador } from '../protocoloTrabajador.ts'
 import type { UbicacionErrorRejilla } from '../sqlRejilla.ts'
 
-export const MENSAJE_EXPORTAR_NO_RELEIBLE =
-  'Solo se puede volver a ejecutar para exportar una consulta sin efectos (un SELECT sin nextval ni FOR UPDATE): exporta lo que ya está cargado.'
+import { textosSesionesEs, txSesiones } from './textosSesiones.ts'
 
-export const MENSAJE_FILA_DESAPARECIDA =
-  'La fila ya no existe (se borró o cambió su clave): vuelve a ejecutar la consulta.'
+export const mensajeExportarNoReleible = (): string => txSesiones().exportarNoReleible
+
+export const mensajeFilaDesaparecida = (): string => txSesiones().filaDesaparecida
+/** El texto en español (idioma por defecto): lo comparan las pruebas; la interfaz usa la función. */
+export const MENSAJE_FILA_DESAPARECIDA = textosSesionesEs.filaDesaparecida
 
 /**
  * El Stop de un motor que no se interrumpe (`detenerMatando`): lo que estaba en vuelo
@@ -26,11 +28,11 @@ export const CODIGO_DETENIDA = 'TESSERA-DETENIDA'
  * Exportar por páginas SIN clave (LIMIT/OFFSET: una vista, o un ORDER BY del usuario) en un
  * motor sin cursor vivo (`exportarTablaPorPaginas`, `correrExportacionConsulta`).
  */
-export const AVISO_EXPORTAR_POR_PAGINAS =
-  'Se exportó por páginas, volviendo a ejecutar la consulta: si alguien escribió en la base mientras tanto, puede faltar o repetirse alguna fila.'
+export const avisoExportarPorPaginas = (): string => txSesiones().exportarPorPaginas
 
-export const MENSAJE_DETENIDA =
-  'Detenida: para pararla se cerró la sesión de la consola, que se vuelve a abrir sola en la siguiente operación.'
+export const mensajeDetenida = (): string => txSesiones().detenida
+/** El texto en español (idioma por defecto): lo comparan las pruebas; la interfaz usa la función. */
+export const MENSAJE_DETENIDA = textosSesionesEs.detenida
 
 /** Error que el controlador devuelve como `{ ok: false, error }`. Su mensaje es seguro. */
 export class ErrorGestor extends Error {
@@ -105,7 +107,7 @@ export function motivoDeRechazo(m: MotivoRechazo): DbMotivoError {
 export function textoError(et: ErrorTrabajador): string {
   let t = et.mensaje
   if (et.detalle) t += '\n' + et.detalle
-  if (et.pista) t += '\nPista: ' + et.pista
+  if (et.pista) t += '\n' + txSesiones().pista + et.pista
   return t
 }
 
@@ -135,13 +137,14 @@ export function textoEnDuda(enDuda: ConfirmacionEnVuelo, caida: boolean): string
 
 export { mensajeDe } from '../../../util/valores.ts'
 
-export const MENSAJE_SIN_LECTOR = 'El resultado ya no está disponible: vuelve a ejecutar la consulta.'
+export const mensajeSinLector = (): string => txSesiones().sinLector
+/** El texto en español (idioma por defecto): lo comparan las pruebas; la interfaz usa la función. */
+export const MENSAJE_SIN_LECTOR = textosSesionesEs.sinLector
 
-export const MENSAJE_NO_RELEIBLE =
-  'Para leer más filas habría que volver a ejecutar una sentencia que modifica datos: vuelve a ejecutarla tú si quieres verlas.'
+export const mensajeNoReleible = (): string => txSesiones().noReleible
 
-export const MENSAJE_ESQUEMA_CAMBIADO =
-  'El esquema de la consola cambió desde que se ejecutó esta consulta: volver a ejecutarla ahora leería otras tablas. Vuelve a ejecutarla tú.'
+export const mensajeEsquemaCambiado = (): string => txSesiones().esquemaCambiado
+/** El texto en español (idioma por defecto): lo comparan las pruebas; la interfaz usa la función. */
+export const MENSAJE_ESQUEMA_CAMBIADO = textosSesionesEs.esquemaCambiado
 
-export const AVISO_SIN_ORDEN =
-  'Sin orden estable: la tabla no tiene clave primaria y no hay ORDER BY, así que las páginas pueden repetir o saltarse filas.'
+export const avisoSinOrden = (): string => txSesiones().sinOrden

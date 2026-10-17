@@ -34,4 +34,5 @@ transacción o un Stop no pueden dejar la mitad escrita ni esperar sin plazo.
 
 ## Descartes
 
-- Un SAVEPOINT por cambio para aplicar «los que se puedan»: decidido con el usuario, todo o nada.
+- Un SAVEPOINT por cambio para aplicar «los que se puedan»: un envío a medias deja datos que nadie sabe
+  reconstruir; el contrato es todo o nada.

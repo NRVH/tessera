@@ -26,6 +26,7 @@ import {
   versionCaskBrew
 } from './urls.ts'
 import { errMsg, type NucleoNativos } from './tipos.ts'
+import { txAgentes } from '../textos.ts'
 
 /** Última de Codex y si su binario de esta plataforma ya está publicado. */
 export type UltimaCodex = { ultima: string | null; binarioPublicado: boolean; error: string | null }
@@ -42,7 +43,7 @@ function registroNpm(e: NucleoNativos): string {
 
 async function distTags(e: NucleoNativos, paquete: string): Promise<Record<string, string>> {
   const tags = parsearDistTags(await pedirTexto(e, urlDistTags(registroNpm(e), paquete)))
-  if (tags === null) throw new Error('el registro de npm no devolvió dist-tags legibles')
+  if (tags === null) throw new Error(txAgentes().ultimas.sinDistTags)
   return tags
 }
 
@@ -70,14 +71,14 @@ export async function ultimaCodex(e: NucleoNativos): Promise<UltimaCodex> {
     const tags = await distTags(e, PAQUETE_CODEX)
     const latest = tags.latest
     if (!esVersionExacta(latest)) {
-      return { ultima: null, binarioPublicado: false, error: 'El registro de npm no da una versión exacta de Codex.' }
+      return { ultima: null, binarioPublicado: false, error: txAgentes().ultimas.codexNpmSinVersion }
     }
     return { ultima: latest, binarioPublicado: await binarioCodexServido(e, tags, latest), error: null }
   } catch (err) {
     return {
       ultima: null,
       binarioPublicado: false,
-      error: `No se pudo consultar la última versión de Codex: ${errMsg(err)}.`
+      error: txAgentes().ultimas.codexNpmError(errMsg(err))
     }
   }
 }
@@ -93,16 +94,14 @@ export async function ultimaCodexBrew(e: NucleoNativos, raiz: string | null): Pr
     return {
       ultima: null,
       binarioPublicado: false,
-      error:
-        'Codex está instalado con una fórmula de Homebrew que no es la oficial: no se puede saber cuál es ' +
-        'su última versión. Actualízalo con «brew upgrade codex».'
+      error: txAgentes().ultimas.codexFormula
     }
   }
   try {
     const base = baseUrl(e.deps.env.TESSERA_API_BREW, API_BREW_POR_DEFECTO)
     const v = versionCaskBrew(await pedirTexto(e, `${base}/cask/codex.json`))
     if (v === null) {
-      return { ultima: null, binarioPublicado: false, error: 'Homebrew no da una versión exacta de Codex.' }
+      return { ultima: null, binarioPublicado: false, error: txAgentes().ultimas.codexBrewSinVersion }
     }
     // El cask apunta a un binario ya publicado: no hay la ventana de npm.
     return { ultima: v, binarioPublicado: true, error: null }
@@ -110,7 +109,7 @@ export async function ultimaCodexBrew(e: NucleoNativos, raiz: string | null): Pr
     return {
       ultima: null,
       binarioPublicado: false,
-      error: `No se pudo consultar la última versión de Codex en Homebrew: ${errMsg(err)}.`
+      error: txAgentes().ultimas.codexBrewError(errMsg(err))
     }
   }
 }
@@ -125,17 +124,17 @@ export async function ultimaClaude(
     if (metodo === 'npm') {
       const v = (await distTags(e, PAQUETE_CLAUDE))[canal]
       if (!esVersionExacta(v)) {
-        return { ultima: null, error: `El registro de npm no da una versión exacta de Claude Code (${canal}).` }
+        return { ultima: null, error: txAgentes().ultimas.claudeNpmSinVersion(canal) }
       }
       return { ultima: v, error: null }
     }
     const base = baseUrl(e.deps.env.TESSERA_RELEASES_CLAUDE, RELEASES_CLAUDE_POR_DEFECTO)
     const v = (await pedirTexto(e, `${base}/${canal}`)).trim()
     if (!esVersionExacta(v)) {
-      return { ultima: null, error: 'El servidor de versiones de Claude Code no dio una versión exacta.' }
+      return { ultima: null, error: txAgentes().ultimas.claudeServidorSinVersion }
     }
     return { ultima: v, error: null }
   } catch (err) {
-    return { ultima: null, error: `No se pudo consultar la última versión de Claude Code: ${errMsg(err)}.` }
+    return { ultima: null, error: txAgentes().ultimas.claudeError(errMsg(err)) }
   }
 }

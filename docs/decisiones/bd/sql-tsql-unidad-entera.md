@@ -6,8 +6,8 @@
 ## Contexto
 
 En Oracle y PG, dos sentencias pegadas sin `;` son una sentencia mal escrita que el servidor
-rechaza. En SQL Server no: las ejecuta juntas (`sinSeparadorSeEjecutanJuntas`). Medido:
-`SELECT 1⏎DELETE FROM t WHERE id=1` borró la fila. Mirar la primera palabra deja pasar la escritura.
+rechaza. En SQL Server no: las ejecuta juntas (`sinSeparadorSeEjecutanJuntas`). Por ejemplo,
+`SELECT 1⏎DELETE FROM t WHERE id=1` borra la fila. Mirar la primera palabra deja pasar la escritura.
 
 ## Decisión
 

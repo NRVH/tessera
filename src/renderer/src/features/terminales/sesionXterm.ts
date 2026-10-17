@@ -55,7 +55,9 @@ export function conectarSesion<Salida extends { sessionId: string }>(
   refs: Pick<RefsXterm, 'flow'>,
   canal: CanalPty<Salida>,
   idSesion: () => string | null,
-  alSalir: (msg: Salida) => void
+  alSalir: (msg: Salida) => void,
+  /** Lo que se hace con la salida antes de escribirla (el resaltado de la de shell); sin él, nada. */
+  transformar?: (data: string) => string
 ): { flow: FlowWriter; desconectar: () => void } {
   const flow = createFlowWriter(term, (paused) => {
     const id = idSesion()
@@ -64,7 +66,7 @@ export function conectarSesion<Salida extends { sessionId: string }>(
   refs.flow.current = flow
   const unsubData = canal.onData((msg) => {
     const id = idSesion()
-    if (id && msg.sessionId === id) flow.write(msg.data)
+    if (id && msg.sessionId === id) flow.write(transformar ? transformar(msg.data) : msg.data)
   })
   const inputSub = term.onData((data) => {
     const id = idSesion()

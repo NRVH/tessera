@@ -8,7 +8,8 @@
 
 import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react'
 import { purgarRepo } from './modelo/cacheGit'
-import { FILTROS_VACIOS, type FiltrosLog } from './modelo/filtrosLog'
+import type { FiltrosLog } from './modelo/filtrosLog'
+import { useFiltrosDelRepo } from './useFiltrosDelRepo'
 import { computeRepoLabels } from './modelo/rutasArchivo'
 import {
   useCargaLog,
@@ -35,18 +36,19 @@ function useVistaHistorial(
   historialToken: number
 ): { vistaHistorial: boolean; setVistaHistorial: Dispatch<SetStateAction<boolean>> } {
   const [vistaHistorial, setVistaHistorial] = useState(false)
-  // Abrir un historial LLEVA a él; el token hace que pedir dos veces el mismo también.
+  // Solo el gesto de abrir un historial (su token) LLEVA a él, también si se pide dos veces el mismo.
+  // Que el proyecto que se ve traiga el suyo al volver no cambia la pestaña que se dejó.
   useEffect(() => {
-    if (historial !== null) setVistaHistorial(true)
-  }, [historial, historialToken])
-  return { vistaHistorial, setVistaHistorial }
+    if (historialToken > 0) setVistaHistorial(true)
+  }, [historialToken])
+  return { vistaHistorial: vistaHistorial && historial !== null, setVistaHistorial }
 }
 
 /** Cambio de filtros y recarga: el único punto que escribe `filtros.rama`. */
 function useAccionesFiltros(p: {
   id: IdentidadLog
   filtros: FiltrosLog
-  setFiltros: Dispatch<SetStateAction<FiltrosLog>>
+  setFiltros: (f: FiltrosLog) => void
   cargadores: CargadoresLog
   limpiarSeleccion: () => void
 }): {
@@ -55,14 +57,11 @@ function useAccionesFiltros(p: {
   recargar: () => void
 } {
   const { id, filtros, setFiltros, cargadores, limpiarSeleccion } = p
-  const { repoHostPath, ancladoRef } = id
+  const { repoHostPath } = id
   const { cargarCommits, cargarRamas } = cargadores
   const aplicarFiltrosNuevos = useCallback(
     (f: FiltrosLog): void => {
       const cambiaRama = f.rama !== filtros.rama
-      // La rama es el único eje que resuelve el backend: sin poder recargar no se fija,
-      // o el chip diría `feature/x` sobre la lista de `--all`.
-      if (cambiaRama && !ancladoRef.current) return
       setFiltros(f)
       if (cambiaRama) {
         limpiarSeleccion()
@@ -70,20 +69,18 @@ function useAccionesFiltros(p: {
         void cargarCommits(f.rama)
       }
     },
-    [filtros.rama, cargarCommits, limpiarSeleccion, ancladoRef, setFiltros]
+    [filtros.rama, cargarCommits, limpiarSeleccion, setFiltros]
   )
   const seleccionarRama = useCallback(
     (rama: string | null): void => aplicarFiltrosNuevos({ ...filtros, rama }),
     [filtros, aplicarFiltrosNuevos]
   )
   const recargar = useCallback((): void => {
-    // Sin anclaje no se purga: los cargadores se niegan solos, `purgarRepo` no, y el
-    // botón destruiría la caché sin traer nada.
-    if (!ancladoRef.current || !repoHostPath) return
+    if (!repoHostPath) return
     purgarRepo(repoHostPath)
     void cargarCommits(filtros.rama)
     void cargarRamas()
-  }, [repoHostPath, cargarCommits, cargarRamas, filtros.rama, ancladoRef])
+  }, [repoHostPath, cargarCommits, cargarRamas, filtros.rama])
   return { aplicarFiltrosNuevos, seleccionarRama, recargar }
 }
 
@@ -92,7 +89,7 @@ interface Compuesto {
   datos: DatosLog
   cargadores: CargadoresLog
   filtros: FiltrosLog
-  setFiltros: Dispatch<SetStateAction<FiltrosLog>>
+  setFiltros: (f: FiltrosLog) => void
   sel: SeleccionLog
 }
 
@@ -151,15 +148,14 @@ function useGestosDelLog(
 
 /** Todo el estado y las acciones que necesita el árbol de componentes del panel. */
 export function useEstadoLog(props: GitLogPanelProps) {
-  const id = useIdentidadLog(props.activeProject, props.activeRepo, props.anclado)
-  const [filtros, setFiltros] = useState<FiltrosLog>(FILTROS_VACIOS)
+  const id = useIdentidadLog(props.activeProject, props.activeRepo)
+  const { filtros, setFiltros, olvidarRama } = useFiltrosDelRepo(id.repoHostPath)
   const sel = useSeleccionLog()
   const { datos, cargadores } = useCargaLog({
     id,
-    anclado: props.anclado,
     commitTick: props.commitTick,
     filtros,
-    setFiltros,
+    olvidarRama,
     sel
   })
   const repoLabels = useMemo(
@@ -176,7 +172,7 @@ export function useEstadoLog(props: GitLogPanelProps) {
     cargadores,
     limpiarSeleccion: sel.limpiarSeleccion
   })
-  return { ...c, anclado: props.anclado, repoLabels, ...v, ...gestos, ...acciones }
+  return { ...c, repoLabels, ...v, ...gestos, ...acciones }
 }
 
 export type EstadoLog = ReturnType<typeof useEstadoLog>

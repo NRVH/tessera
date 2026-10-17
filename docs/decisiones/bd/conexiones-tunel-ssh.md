@@ -9,8 +9,8 @@
 
 ## Contexto
 
-Muchas bases solo se alcanzan a través de un servidor SSH (un bastión en la red del servidor). Tessera ya tenía
-conexiones SSH por perfil, con bastiones, huellas y secretos guardados; las bases no podían usarlas.
+Muchas bases solo se alcanzan a través de un servidor SSH (un bastión en la red del servidor). Las
+conexiones SSH por perfil ya tienen bastiones, huellas y secretos guardados; las bases los reutilizan.
 
 ## Decisión
 
@@ -46,7 +46,7 @@ conexiones SSH por perfil, con bastiones, huellas y secretos guardados; las base
 
 Una base tras un bastión se configura eligiendo la conexión SSH en el formulario. La primera consulta tarda lo que
 tarda el ssh en autenticarse; las siguientes van por el túnel ya abierto. Una conexión SSH con segundo factor o sin
-secreto guardado no sirve para un túnel. Una versión anterior de Tessera abriría la misma entrada directa, sin túnel.
+secreto guardado no sirve para un túnel. Una versión de Tessera sin túneles abriría la misma entrada directa, sin túnel.
 
 El extremo local escucha en 127.0.0.1, como cualquier `ssh -L`: mientras está abierto, cualquier proceso del equipo
 llega a la base por él, también uno al que el ámbito de `tdb` no se la da. Con una base que pide contraseña eso no

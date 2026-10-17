@@ -18,6 +18,7 @@ import { indiceInicialEsquema, opcionesEsquemaConsola, type OpcionEsquemaConsola
 import { FILAS_MAX, HUECO, MARGEN, recolocar, teclaPopover, type AnclaDerecha, type PosicionPopover } from '../../../comun/popoverFlotante'
 import { useCierreYFoco } from '../../../comun/usePopoverFlotante'
 import { useListaCatalogo } from './useListaCatalogo'
+import { txPane } from './textosPane.ts'
 
 /** Ancho del selector de esquema de la consola. */
 const ANCHO_SELECTOR = 280
@@ -205,7 +206,7 @@ export function SelectorEsquemaConsola(props: PropsSelectorEsquema): React.JSX.E
       />
       <ListaSelector s={s} idBase={idBase} altoFila={altoFila} />
       <div className="db-pop-pie">
-        <span className="db-pop-pista">Enter elige · Esc cancela</span>
+        <span className="db-pop-pista">{txPane().enterElige}</span>
       </div>
     </div>
   )

@@ -12,7 +12,7 @@ import type { editor } from 'monaco-editor'
 import type { DbErrorSql, DbRespuesta } from '../../../../../shared/db-explorador-ipc'
 import type { DbKvResultado } from '../../../../../shared/db-claves-ipc'
 import { confirmacionLoteProduccion, esProduccion } from '../consola/produccionConsola'
-import { TEXTO_SIN_RESPUESTA_STOP, type AccionSalida, type IrAPosicion } from '../consola/salidaConsola'
+import { textoSinRespuestaStop, type AccionSalida, type IrAPosicion } from '../consola/salidaConsola'
 import { ESPERA_STOP_MS } from '../consola/vivoConsola'
 import { respuestaDeError } from '../documentos/consolaComun'
 import { modoDelCursor } from '../documentos/useEditorConsola'
@@ -25,11 +25,7 @@ import {
 } from './consolaClaves'
 import type { Confirmaciones, EstadoConsolaClaves } from './useEstadoConsolaClaves'
 import { cancelarDesde, ejecutarComando, type DepsLote } from './loteClaves'
-
-/** Etiqueta de «Forzar» en Redis: no hay transacción de consola que revertir (un MULTI abierto se pierde). */
-const ETIQUETA_FORZAR_CLAVES = 'Forzar (cierra la conexión con el servidor)'
-/** La pista cuando no hay nada que ejecutar donde está el cursor. */
-const PISTA_SIN_COMANDO = 'Coloca el cursor en un comando o selecciona líneas'
+import { txConsolaClaves } from './textosConsolaClaves'
 
 type Enviar = (c: ComandoConsola, peticionId: string, conf: Confirmaciones) => Promise<DbRespuesta<DbKvResultado>>
 type ConfirmarRechazo = (c: ComandoConsola, error: DbErrorSql, conf: Confirmaciones) => Promise<boolean | null>
@@ -83,7 +79,7 @@ function useConfirmarRechazo(e: EstadoConsolaClaves): ConfirmarRechazo {
       }
       if (error.motivo === 'produccion' && !conf.confirmado) {
         // La MISMA confirmación que las otras consolas; el main es la 2.ª barrera.
-        const t = confirmacionLoteProduccion({ alias: con.alias, total: 1, escrituras: [{ indice: 0, verbo: verbo || 'Escritura' }] })
+        const t = confirmacionLoteProduccion({ alias: con.alias, total: 1, escrituras: [{ indice: 0, verbo: verbo || txConsolaClaves().escritura }] })
         const ok = await pedirConfirmacion({ ...t, peligro: true })
         if (ok) conf.confirmado = true
         return ok
@@ -105,7 +101,7 @@ function useCorrer(e: EstadoConsolaClaves, enviar: Enviar, confirmarRechazo: Con
       if (!m || m.isDisposed() || !marcas || !cargadoRef.current || enCursoRef.current || dialogoRef.current) return
       const comandos = comandosAEjecutar(m.getValue(), modo)
       if (comandos.length === 0) {
-        setPista(PISTA_SIN_COMANDO)
+        setPista(txConsolaClaves().pistaSinComando)
         return
       }
       setPista(null)
@@ -160,7 +156,8 @@ function useDetener(e: EstadoConsolaClaves): () => void {
       stopRef.current = null
       // Sigue la MISMA petición: el trabajador no soltó el comando.
       if (enCursoRef.current && enCursoRef.current.peticionId === en.peticionId) {
-        anotar({ tono: 'aviso', texto: TEXTO_SIN_RESPUESTA_STOP, accion: { tipo: 'forzar', etiqueta: ETIQUETA_FORZAR_CLAVES } })
+        // Etiqueta de «Forzar» en Redis: no hay transacción de consola que revertir (un MULTI abierto se pierde).
+        anotar({ tono: 'aviso', texto: textoSinRespuestaStop(), accion: { tipo: 'forzar', etiqueta: txConsolaClaves().forzarEtiqueta } })
       }
     }, ESPERA_STOP_MS)
   }, [api, perfilId, consolaId, anotar, enCursoRef, detenidoRef, stopRef])
@@ -172,10 +169,11 @@ function useAccionRegistro(e: EstadoConsolaClaves): (a: AccionSalida) => Promise
     async (a: AccionSalida): Promise<void> => {
       if (a.tipo !== 'forzar') return
       const c = conexionRef.current
+      const t = txConsolaClaves()
       const ok = await pedirConfirmacion({
-        titulo: '¿Forzar el cierre de la conexión?',
-        mensaje: `Se cerrará la conexión con «${c.alias}»: lo que esté corriendo se corta, y un MULTI abierto en sus consolas se descarta.`,
-        confirmar: 'Forzar',
+        titulo: t.forzarTitulo,
+        mensaje: t.forzarMensaje(c.alias),
+        confirmar: t.forzar,
         peligro: true
       })
       if (ok) await api.forzar(c.id).catch(() => undefined)

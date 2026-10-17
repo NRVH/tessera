@@ -1,12 +1,11 @@
 #!/usr/bin/env node
 // =============================================================================
-// Prueba del cierre por árbol de una sesión de agente nativo
-// (`TerminalService.cerrarConArbol`, npm run test:cerrar-arbol), con procesos reales y sin
-// Docker. El agente es `agenteFalsoDetener.mjs` en modo N: ignora los `^C` y lanza dos nietos.
-// Cubre que mueren el agente y sus nietos SIN teclear nada, que un cierre o un reinicio
-// simultáneos esperan y tampoco teclean, que las muertes van de una en una con las paradas,
-// que una sesión ya muerta no dispara ningún kill y los rechazos.
-// Escrito para las dos plataformas.
+// Prueba del cierre por árbol de una sesión de agente nativo (`TerminalService.cerrarConArbol`,
+// npm run test:cerrar-arbol), con procesos reales, sin Docker y para las dos plataformas. El agente
+// es `agenteFalsoDetener.mjs` en modo N: ignora los `^C` y lanza dos nietos. Cubre que mueren el
+// agente y sus nietos SIN teclear nada, que un cierre o un reinicio simultáneos esperan y tampoco
+// teclean, que las muertes van de una en una, que una sesión ya muerta no dispara ningún kill, los
+// rechazos, y que cerrar un agente o la app (`matarTodoConArbol`) no deja ningún proceso huérfano.
 // Decisiones: docs/decisiones/agentes/hibernacion-por-inactividad.md
 // =============================================================================
 
@@ -271,6 +270,23 @@ async function main(): Promise<void> {
     check('(f3) una sesión PARADA (a la espera de relanzarse) sí se puede cerrar, sin kill', yaParada === null && term.pidDe(f.id) === null && !term.estaOcupada(f.id), `error=${yaParada}`)
     const desconocida = await lanza(() => term.cerrarConArbol('no-existe'))
     check('(f4) un id desconocido no hace nada ni lanza', desconocida === null, `error=${desconocida}`)
+
+    // -------------------------------------------------------------------------
+    hr('PASO 7 - Cerrar un agente y cerrar la app no dejan huérfanos')
+    const g = await lanzar('N')
+    await term.closeSession(g.id)
+    check('(g1) cerrar un agente que no sale con `exit` mata también sus nietos', await muertos(g), `vivos=${JSON.stringify(g.procesos().filter(vivo))}`)
+    const h1 = await lanzar('N')
+    const h2 = await lanzar('N')
+    const habia = await term.matarTodoConArbol(3000)
+    const vivosH = [...h1.procesos(), ...h2.procesos()]
+    check(
+      '(g2) el cierre de la app mata el árbol de cada sesión, nietos incluidos',
+      habia === 2 && (await esperarHasta(() => vivosH.every((p) => !vivo(p)), 5000)) && term.listSessions().length === 0,
+      `había=${habia} vivos=${JSON.stringify(vivosH.filter(vivo))}`
+    )
+    const tarde = await lanza(() => term.createSession(PERFIL, { project: tmp, host: true }))
+    check('(g3) con el cierre empezado no nace ninguna sesión', tarde !== null && term.listSessions().length === 0, `error=${JSON.stringify(tarde)}`)
   } finally {
     for (const s of term.listSessions()) await term.closeSession(s.id)
     // Red de seguridad: ningún agente falso ni ningún nieto debe sobrevivir a la prueba.

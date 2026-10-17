@@ -11,6 +11,7 @@ import { nombresSistema, type NombresSistema } from '../../../../../../shared/no
 import { useAhora } from '../../../../comun/useAhora'
 import { TICK_ULTIMO_CHEQUEO_MS } from '../../../actualizaciones'
 import type { UseActualizacionNativa } from '../../../agentes'
+import { txBloquesUpdate } from '../../textosSistema.ts'
 import { lineaEstadoAgentes, resumirAgentes, textoCli, type ResumenAgentes } from './textosAgentes'
 
 function InfoAgentes({
@@ -26,6 +27,7 @@ function InfoAgentes({
 }): React.JSX.Element {
   const { estado, comprobando, errorComprobar } = act
   const esError = r.resultado === 'error' || (!r.corriendo && !r.resultado && errorComprobar !== null)
+  const t = txBloquesUpdate().agentes
   return (
     <div className="settings-update-info">
       {estado ? (
@@ -35,15 +37,13 @@ function InfoAgentes({
           </span>
         ))
       ) : (
-        <span className="settings-update-version">Todavía no se han comprobado los agentes.</span>
+        <span className="settings-update-version">{t.sinComprobar}</span>
       )}
       <span className={`settings-update-status${esError ? ' error' : ''}`}>
         {comprobando || r.corriendo ? <span className="settings-update-spinner" aria-hidden="true" /> : null}
         {lineaEstadoAgentes(r, act, ahora)}
       </span>
-      <span className="settings-update-status">
-        {`Sólo los agentes que corren en ${nombres.tuEquipo}; los de Docker se actualizan con el botón de su panel.`}
-      </span>
+      <span className="settings-update-status">{t.soloNativos(nombres.tuEquipo)}</span>
     </div>
   )
 }
@@ -58,27 +58,24 @@ function AccionesAgentes({
   onAbrir: () => void
 }): React.JSX.Element {
   const { comprobando } = act
+  const t = txBloquesUpdate().agentes
   return (
     <div className="settings-update-actions">
       {/* Con un resultado pendiente, el panel es donde se lee y se descarta. */}
       {r.resultado && !r.corriendo ? (
-        <button className="btn btn-ghost" onClick={onAbrir} title="Abre el panel con el detalle de la última actualización.">
-          Ver detalle
+        <button className="btn btn-ghost" onClick={onAbrir} title={t.verDetalleTitulo}>
+          {t.verDetalle}
         </button>
       ) : null}
       {r.hayAlgo && !r.corriendo ? (
-        <button
-          className="btn primary"
-          onClick={onAbrir}
-          title="Abre el panel del botón de la barra de título: ahí se ve qué sesiones se reiniciarán y se confirma."
-        >
-          Actualizar…
+        <button className="btn primary" onClick={onAbrir} title={t.actualizarTitulo}>
+          {t.actualizar}
         </button>
       ) : null}
       {/* `comprobar` y no `abrir`: `abrir` es la del panel y da su resumen por visto, y
           aquí ese resumen no se enseña, así que no puede retirarle el punto. */}
       <button className="btn btn-ghost" onClick={act.comprobar} disabled={comprobando || r.corriendo}>
-        Buscar actualizaciones
+        {t.buscar}
       </button>
     </div>
   )

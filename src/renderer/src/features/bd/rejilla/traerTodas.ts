@@ -8,6 +8,7 @@
 
 import { DB_PAGINA_MAX, type DbErrorSql } from '../../../../../shared/db-explorador-ipc.ts'
 import { formatoEntero } from './celdasRejilla.ts'
+import { txRejilla } from './textosRejilla.ts'
 
 /** Lo que se le pregunta al presupuesto de celdas (lo cumple `RegistroCeldas`). */
 export interface MedidorCeldas {
@@ -94,12 +95,13 @@ export function trasFalloPagina(e: Pick<DbErrorSql, 'motivo'>, origen: OrigenPag
 /** Motivo de la píldora al llegar al tope de memoria (ver la cabecera). */
 export function motivoTopeTraerTodas(cargadas: number): string {
   const n = formatoEntero(cargadas)
-  return `Se trajeron ${n} ${cargadas === 1 ? 'fila' : 'filas'}; el resto no cabe en memoria: expórtalo a archivo`
+  const t = txRejilla()
+  return t.topeTraerTodas(n, cargadas === 1 ? t.fila : t.filas)
 }
 
 /** Lo que dice la píldora mientras trae: cuántas van. */
 export function textoTrayendo(cargadas: number): string {
-  return `Trayendo filas… ${formatoEntero(cargadas)}`
+  return txRejilla().trayendo(formatoEntero(cargadas))
 }
 
 /**
@@ -114,9 +116,10 @@ export function motivoSinTraerTodas(e: {
   /** Motivo por el que ya no se leen más filas (el de la píldora), o null. */
   sinLector: string | null
 }): string | null {
-  if (!e.hayDatos) return 'Todavía no hay datos'
-  if (e.trayendo) return 'Ya se están trayendo todas las filas'
-  if (!e.hayMas) return 'Ya están todas las filas cargadas'
+  const t = txRejilla()
+  if (!e.hayDatos) return t.sinDatos
+  if (e.trayendo) return t.yaTrayendo
+  if (!e.hayMas) return t.todasCargadas
   if (e.sinLector) return e.sinLector
   return null
 }

@@ -10,6 +10,7 @@ import { useEffect, useRef } from 'react'
 import { IconoCarpetaNueva, IconoEliminar, IconoRenombrar } from '../../comun/iconosMenu'
 import { IconoActualizar, IconoDescargar, IconoSubirArchivos, IconoSubirCarpeta, IconoSubirNivel } from './iconosSftp'
 import { migasDe } from './rutasSftp'
+import { txSftp } from './textos.ts'
 
 export interface PropsBarraSftp {
   ruta: string
@@ -55,7 +56,7 @@ function Migas({ ruta, onIr }: { ruta: string; onIr: (ruta: string) => void }): 
     if (el) el.scrollLeft = el.scrollWidth
   }, [ruta])
   return (
-    <nav className="sftp-migas" aria-label="Ruta de la carpeta" ref={contenedor} title={ruta}>
+    <nav className="sftp-migas" aria-label={txSftp().rutaCarpeta} ref={contenedor} title={ruta}>
       {migas.map((m, i) => (
         <span key={m.ruta} className="sftp-miga-grupo">
           {i > 1 && (
@@ -80,32 +81,33 @@ function Migas({ ruta, onIr }: { ruta: string; onIr: (ruta: string) => void }): 
 
 export function BarraSftp(p: PropsBarraSftp): React.JSX.Element {
   const hay = p.elegidos > 0
+  const t = txSftp()
   return (
-    <div className="sftp-barra" role="toolbar" aria-label="Archivos remotos por SFTP">
-      <Boton etiqueta="Subir un nivel" titulo="Subir un nivel (Retroceso)" deshabilitado={p.ruta === '/'} onClick={p.onSubirNivel}>
+    <div className="sftp-barra" role="toolbar" aria-label={t.archivosRemotos}>
+      <Boton etiqueta={t.subirNivel} titulo={t.subirNivelTitulo} deshabilitado={p.ruta === '/'} onClick={p.onSubirNivel}>
         <IconoSubirNivel />
       </Boton>
-      <Boton etiqueta="Actualizar" titulo="Actualizar (F5)" deshabilitado={p.cargando} onClick={p.onActualizar}>
+      <Boton etiqueta={t.actualizar} titulo={t.actualizarTitulo} deshabilitado={p.cargando} onClick={p.onActualizar}>
         <IconoActualizar />
       </Boton>
       <Migas ruta={p.ruta} onIr={p.onIr} />
-      <Boton etiqueta="Nueva carpeta" onClick={p.onNuevaCarpeta}>
+      <Boton etiqueta={t.nuevaCarpeta} onClick={p.onNuevaCarpeta}>
         <IconoCarpetaNueva />
       </Boton>
-      <Boton etiqueta="Subir archivos…" onClick={p.onSubirArchivos}>
+      <Boton etiqueta={t.subirArchivos} onClick={p.onSubirArchivos}>
         <IconoSubirArchivos />
       </Boton>
-      <Boton etiqueta="Subir carpeta…" onClick={p.onSubirCarpeta}>
+      <Boton etiqueta={t.subirCarpeta} onClick={p.onSubirCarpeta}>
         <IconoSubirCarpeta />
       </Boton>
       <span className="sftp-barra-sep" aria-hidden="true" />
-      <Boton etiqueta="Descargar" titulo="Descargar la selección…" deshabilitado={p.descargables === 0} onClick={p.onDescargar}>
+      <Boton etiqueta={t.descargar} titulo={t.descargarTitulo} deshabilitado={p.descargables === 0} onClick={p.onDescargar}>
         <IconoDescargar />
       </Boton>
-      <Boton etiqueta="Renombrar" titulo="Renombrar (F2)" deshabilitado={p.elegidos !== 1} onClick={p.onRenombrar}>
+      <Boton etiqueta={t.renombrar} titulo={t.renombrarTitulo} deshabilitado={p.elegidos !== 1} onClick={p.onRenombrar}>
         <IconoRenombrar />
       </Boton>
-      <Boton etiqueta="Eliminar" titulo={`Eliminar la selección (${p.atajoBorrar})`} deshabilitado={!hay} onClick={p.onEliminar}>
+      <Boton etiqueta={t.eliminar} titulo={t.eliminarTitulo(p.atajoBorrar)} deshabilitado={!hay} onClick={p.onEliminar}>
         <IconoEliminar />
       </Boton>
     </div>

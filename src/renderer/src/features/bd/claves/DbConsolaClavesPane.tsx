@@ -23,13 +23,15 @@ import { useEjecucionClaves } from './useEjecucionClaves'
 import { useHistorialConsolaClaves, type HistorialConsolaClaves } from './useHistorialConsolaClaves'
 import { useAutocompletadoClaves } from './proveedorClavesMonaco'
 import { HistorialConsultas } from '../HistorialConsultas'
+import { txConsolaClaves } from './textosConsolaClaves'
 import '../consola.css'
 import './consolaClaves.css'
 
 
 function textoEstado(e: EstadoConsolaClaves): string | null {
   if (e.cargado) return e.pista
-  return e.errorCarga !== null ? `No se pudo leer la consola: ${e.errorCarga}` : 'Cargando…'
+  const t = txConsolaClaves()
+  return e.errorCarga !== null ? t.noSePudoLeer(e.errorCarga) : t.cargando
 }
 
 function useAccionesBarra(p: PropsConsolaClaves, e: EstadoConsolaClaves): { editarConexion: () => void; elegirBase: (b: number) => void } {
@@ -64,7 +66,7 @@ function DivisorResultados(p: { alto: number; max: number; onResize: (alto: numb
       max={p.max}
       direction={-1}
       onResize={p.onResize}
-      label="Reparto entre la consola y los resultados"
+      label={txConsolaClaves().repartoAria}
     />
   )
 }

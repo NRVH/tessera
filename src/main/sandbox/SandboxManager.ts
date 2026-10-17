@@ -7,7 +7,8 @@
 // =============================================================================
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import type { Agente, Profile } from '../profiles/types.ts'
+import type { Profile } from '../profiles/types.ts'
+import type { IdAgente } from '../../shared/agentesManuales.ts'
 import type { SshSetup } from './sshSetup.ts'
 import type { SandboxExtras } from '../../shared/sandboxExtras.ts'
 import type { AvisoRed, ResultadoRedPrevuelo } from '../../shared/sandbox-red-ipc.ts'
@@ -20,6 +21,8 @@ import { CredencialesSandbox } from './gestor/credenciales.ts'
 import { RedSandbox } from './gestor/red.ts'
 import { BarridoSandbox } from './gestor/barrido.ts'
 import { ContenedoresSandbox } from './gestor/contenedores.ts'
+import { CapaPerfilSandbox, type ResultadoCapa } from './gestor/capaPerfil.ts'
+import type { InstalacionAgente } from '../../shared/capaPerfil.ts'
 import type {
   AgentConfigMount,
   CapacidadesSandbox,
@@ -59,6 +62,7 @@ export class SandboxManager {
   private readonly red: RedSandbox
   private readonly barrido: BarridoSandbox
   private readonly contenedores: ContenedoresSandbox
+  private readonly capa: CapaPerfilSandbox
 
   constructor(dockerfileDir: string = DEFAULT_DOCKERFILE_DIR, sshSetup: SshSetup | null = null) {
     this.n = new NucleoSandbox(dockerfileDir, sshSetup)
@@ -68,13 +72,35 @@ export class SandboxManager {
     this.credenciales = new CredencialesSandbox(this.n, this.montajes)
     this.red = new RedSandbox(this.n)
     this.barrido = new BarridoSandbox(this.n, this.montajes)
+    this.capa = new CapaPerfilSandbox(this.n, this.imagen)
     this.contenedores = new ContenedoresSandbox(this.n, {
       diag: this.diag,
       imagen: this.imagen,
       montajes: this.montajes,
       red: this.red,
-      barrido: this.barrido
+      barrido: this.barrido,
+      capa: this.capa
     })
+  }
+
+  /** Dónde se guardan las capas de imagen de los perfiles (lo que instalan sus agentes manuales). */
+  usarRegistroCapas(ruta: string): void {
+    this.capa.usarRegistro(ruta)
+  }
+
+  /**
+   * Aplica la capa de un perfil (construir y comprobar) y, si salió, para su contenedor: los
+   * agentes vivos se recuperan solos sobre la imagen nueva, como tras «Actualizar agentes».
+   */
+  async aplicarCapa(profile: Profile, inst: InstalacionAgente[], onLog: (linea: string) => void): Promise<ResultadoCapa> {
+    const r = await this.capa.aplicar(profile.id, inst, onLog)
+    if (r.ok) await this.stopContainer(profile)
+    return r
+  }
+
+  /** Olvida la capa de un perfil que se borra. */
+  olvidarCapa(profileId: string): void {
+    this.capa.olvidar(profileId)
   }
 
   /** Cablea el puente de BD: `preparar` en cada `ensureContainer`, `olvidar` en cada `stopContainer`. */
@@ -192,7 +218,7 @@ export class SandboxManager {
   /** Monta en caliente las credenciales de (agente, cuenta) del perfil. */
   mountAgentConfig(
     profile: Profile,
-    agente: Agente,
+    agente: IdAgente,
     accountId: string,
     hostConfigDir: string
   ): Promise<AgentConfigMount> {
@@ -200,7 +226,7 @@ export class SandboxManager {
   }
 
   /** Desmonta las credenciales de (agente, cuenta) del perfil. */
-  unmountAgentConfig(profile: Profile, agente: Agente, accountId: string): Promise<void> {
+  unmountAgentConfig(profile: Profile, agente: IdAgente, accountId: string): Promise<void> {
     return this.credenciales.unmountAgentConfig(profile, agente, accountId)
   }
 

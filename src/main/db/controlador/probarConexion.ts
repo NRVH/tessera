@@ -9,9 +9,12 @@ import { nombresSistema } from '../../../shared/nombresSistema.ts'
 import { plataformaActual } from '../../../shared/plataforma.ts'
 import type { ConnectionStore } from '../ConnectionStore.ts'
 import { mensajeTodaviaNo } from '../explorador/familias.ts'
+import { txDb } from '../textosDb.ts'
 
 /** Lo que responde «Probar» si la conexión se guardó con otro destino mientras se probaba. */
-export const MENSAJE_CAMBIO_EN_VUELO = 'La conexión cambió mientras se probaba. Vuelve a probarla.'
+export function mensajeCambioEnVuelo(): string {
+  return txDb().probar.cambioEnVuelo
+}
 
 /** Lo que «Probar» necesita del resto del subsistema. */
 export interface DependenciasPrueba {
@@ -29,7 +32,7 @@ function rechazoPrevio(con: DbConnection): DbTestResult | null {
   if (!esMotorSql(con.motor) && !esDeDocumentos(d) && !esDeClaves(d)) return { ok: false, mensaje: mensajeTodaviaNo(con.motor) }
   // Sin credenciales (SQLite) o con usuario opcional (MongoDB, Redis) no se exige contraseña.
   if (pideUsuarioYClave(d) && !usaOpcional(d, 'user') && !con.tieneSecreto) {
-    return { ok: false, mensaje: 'Esta conexión no tiene contraseña guardada.' }
+    return { ok: false, mensaje: txDb().probar.sinContrasenaGuardada }
   }
   // Antes de gastar un subproceso: si el secreto no se descifra aquí, `tdb` diría «no hay contraseña».
   if (con.secretoIlegible) {
@@ -37,11 +40,7 @@ function rechazoPrevio(con: DbConnection): DbTestResult | null {
       ok: false,
       // El nombre del almacén sale de `nombresSistema` y cae detrás de un verbo: sus valores
       // traen artículo («el Llavero de macOS») y «atado a …» daría «atado a el Llavero».
-      mensaje:
-        'La contraseña guardada no se puede descifrar en este equipo.\n' +
-        `La guarda ${nombresSistema(plataformaActual()).almacenSecretos}, que la ata a tu ` +
-        'usuario y a esta máquina, así que un perfil copiado de otro equipo (o un ' +
-        'cambio de cuenta) la deja ilegible. Edita la conexión y vuelve a escribirla.'
+      mensaje: txDb().probar.contrasenaIlegible(nombresSistema(plataformaActual()).almacenSecretos)
     }
   }
   return null
@@ -55,7 +54,7 @@ function resultadoDeTdb(res: Record<string, unknown>, id: string, connections: D
     const aviso = typeof res.aviso === 'string' && res.aviso ? `\n${res.aviso}` : ''
     return {
       ok: true,
-      mensaje: `Conectado en ${typeof res.ms === 'number' ? res.ms : '?'} ms (${String(res.modo ?? '')}).${aviso}`,
+      mensaje: txDb().probar.conectado(typeof res.ms === 'number' ? String(res.ms) : '?', String(res.modo ?? ''), aviso),
       servidor: typeof res.servidor === 'string' ? res.servidor : undefined,
       ms: typeof res.ms === 'number' ? res.ms : undefined
     }
@@ -64,7 +63,7 @@ function resultadoDeTdb(res: Record<string, unknown>, id: string, connections: D
   return {
     ok: false,
     // Error crudo a propósito: sirve para depurar una VPN caída o un ORA-12154.
-    mensaje: typeof res.error === 'string' ? res.error : 'Fallo desconocido.',
+    mensaje: typeof res.error === 'string' ? res.error : txDb().probar.falloDesconocido,
     requiereDriver: requiere
   }
 }
@@ -72,14 +71,14 @@ function resultadoDeTdb(res: Record<string, unknown>, id: string, connections: D
 /** Abre de verdad contra el servidor; si falta el driver, el resultado lo dice de forma estructurada. */
 export async function probarConexion(deps: DependenciasPrueba, id: string): Promise<DbTestResult> {
   const con = deps.connections.get(id)
-  if (!con) return { ok: false, mensaje: `Conexión desconocida: "${id}".` }
+  if (!con) return { ok: false, mensaje: txDb().conexion.desconocida(id) }
   const rechazo = rechazoPrevio(con)
   if (rechazo) return rechazo
   const huella = deps.connections.huellaPrueba(id)
   const res = await deps.ejecutar(con, ['test', con.alias])
   // Guardada con otro destino o contraseña (o borrada) con la prueba en vuelo: el resultado es de la
   // conexión de antes, y apuntarlo dejaría verificada y montable una que nunca respondió.
-  if (deps.connections.huellaPrueba(id) !== huella) return { ok: false, mensaje: MENSAJE_CAMBIO_EN_VUELO }
+  if (deps.connections.huellaPrueba(id) !== huella) return { ok: false, mensaje: mensajeCambioEnVuelo() }
   deps.connections.setVerificada(id, res.ok === true)
   deps.avisarCambio()
   return resultadoDeTdb(res, id, deps.connections)

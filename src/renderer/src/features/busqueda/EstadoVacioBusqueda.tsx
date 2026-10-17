@@ -8,6 +8,7 @@ import type { ProyectoBuscable } from '../../../../shared/search-ipc'
 import type { OpcionesBusqueda } from '../../../../shared/textSearch'
 import type { SeleccionCarpeta } from './AmbitoBusqueda'
 import type { EstadoBusqueda } from './filasResultado'
+import { txBusqueda } from './textos.ts'
 
 interface EstadoVacioBusquedaProps {
   estado: EstadoBusqueda
@@ -34,14 +35,13 @@ function nombreDelAmbito(
     carpeta !== null
       ? (proyectos.find((p) => p.raiz === carpeta.raiz)?.nombre ?? projectName)
       : projectName
-  return proyecto || 'el proyecto abierto'
+  return proyecto || txBusqueda().elProyectoAbierto
 }
 
 /** La pista de «Ningún resultado» según qué opciones estrechan la búsqueda. */
 function pistaSinResultados(opts: OpcionesBusqueda): string {
-  return opts.wholeWord || opts.regex
-    ? 'Prueba con menos texto, o desactiva «palabra completa» y «expresión regular».'
-    : 'Prueba con menos texto, o activa «Aa» si buscabas distinguiendo mayúsculas.'
+  const t = txBusqueda()
+  return opts.wholeWord || opts.regex ? t.pistaSinResultadosOpciones : t.pistaSinResultadosMayus
 }
 
 /** El estado vacío que corresponde al momento de la búsqueda. */
@@ -55,11 +55,12 @@ export function EstadoVacioBusqueda({
   opts
 }: EstadoVacioBusquedaProps): React.JSX.Element {
   const enCarpeta = modoAmbito === 'carpeta' && carpeta !== null && carpeta.carpeta !== ''
+  const t = txBusqueda()
   if (estado.error !== null) {
     return (
       <EstadoVacio
         icono={<IconoLupaSinResultados />}
-        titulo="No se pudo buscar"
+        titulo={t.noSePudoBuscar}
         pista={estado.error}
         className="buscar-vacio"
       />
@@ -70,8 +71,8 @@ export function EstadoVacioBusqueda({
     return (
       <EstadoVacio
         icono={<IconoLupa />}
-        titulo="Elige una carpeta"
-        pista="Arriba, en el desplegable. La lista trae las carpetas de todos los proyectos abiertos, agrupadas por proyecto."
+        titulo={t.eligeUnaCarpeta}
+        pista={t.pistaEligeCarpeta}
         className="buscar-vacio"
       />
     )
@@ -80,23 +81,23 @@ export function EstadoVacioBusqueda({
     return (
       <EstadoVacio
         icono={<IconoLupa />}
-        titulo={enCarpeta ? 'Busca en esa carpeta' : 'Busca en todo el proyecto'}
+        titulo={enCarpeta ? t.buscaEnEsaCarpeta : t.buscaEnTodoElProyecto}
         pista={
           <>
-            Escribe arriba para buscar en todas las carpetas y subcarpetas de{' '}
-            <strong>{nombreDelAmbito(enCarpeta, carpeta, proyectos, projectName)}</strong>, incluido
-            el contenido de los <code>.jar</code> y las clases compiladas.
+            {t.escribeArriba}{' '}
+            <strong>{nombreDelAmbito(enCarpeta, carpeta, proyectos, projectName)}</strong>
+            {t.incluidoElContenido} <code>.jar</code> {t.yLasClases}
           </>
         }
         className="buscar-vacio"
       />
     )
   }
-  if (estado.buscando) return <div className="buscar-buscando">Buscando…</div>
+  if (estado.buscando) return <div className="buscar-buscando">{t.buscando}</div>
   return (
     <EstadoVacio
       icono={<IconoLupaSinResultados />}
-      titulo="Ningún resultado"
+      titulo={t.ningunResultado}
       pista={pistaSinResultados(opts)}
       className="buscar-vacio"
     />

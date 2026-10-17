@@ -9,7 +9,7 @@
 import { anexarPagina, SIN_RECORTES, type MapaRecortes } from '../rejilla/celdasRejilla.ts'
 import { actualizarResultado, aplicarAccionPestana } from '../resultados/pestanasResultado.ts'
 import {
-  MOTIVO_LIBERADA,
+  motivoLiberada,
   conLectores,
   conSalida,
   type AccionDe,
@@ -80,7 +80,7 @@ function liberar(e: EstadoConsola, a: AccionDe<'liberar'>): EstadoConsola {
         ...r,
         datos: { filas: r.datos.filas.slice(0, n), recortes: recortesHasta(r.datos.recortes, n), hayMas: true },
         lector: null,
-        sinLector: MOTIVO_LIBERADA
+        sinLector: motivoLiberada()
       }
     },
     (r) => (r.lector ? [r.lector] : [])

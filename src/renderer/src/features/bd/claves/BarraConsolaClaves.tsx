@@ -14,6 +14,7 @@ import type { EnCurso } from '../documentos/consolaComun'
 import { BotonBase, BotonCandado, BotonIcono, IdentidadBarra } from '../documentos/piezasBarra'
 import { useBarraConsola, type DatosBarraConsola } from '../documentos/useBarraConsola'
 import { SelectorBaseClaves } from './SelectorBaseClaves'
+import { txConsolaClaves } from './textosConsolaClaves'
 
 /** ¿Es una conexión de Redis Cluster? (Solo la base 0.) */
 function esCluster(c: DbConnection): boolean {
@@ -38,12 +39,13 @@ interface PropsBarraConsolaClaves {
 }
 
 function BotonesEjecucion({ p, b }: { p: PropsBarraConsolaClaves; b: DatosBarraConsola }): React.JSX.Element {
+  const t = txConsolaClaves()
   return (
     <>
       <BotonIcono
         className="db-consola-run"
-        titulo={`Ejecutar el comando del cursor o las líneas seleccionadas · ${etiquetaAcorde('ejecutar')}`}
-        etiqueta="Ejecutar"
+        titulo={t.ejecutarCursor(etiquetaAcorde('ejecutar'))}
+        etiqueta={t.ejecutar}
         habilitado={b.puedeEjecutar}
         motivo={b.motivoEjecutar}
         onClick={p.onEjecutar}
@@ -52,8 +54,8 @@ function BotonesEjecucion({ p, b }: { p: PropsBarraConsolaClaves; b: DatosBarraC
       </BotonIcono>
       <BotonIcono
         className="db-consola-run-todo"
-        titulo={`Ejecutar todos los comandos · ${etiquetasAcorde('ejecutarTodo').join(' o ')}`}
-        etiqueta="Ejecutar todo"
+        titulo={t.ejecutarTodoTitulo(etiquetasAcorde('ejecutarTodo'))}
+        etiqueta={t.ejecutarTodo}
         habilitado={b.puedeEjecutar}
         motivo={b.motivoEjecutar}
         onClick={p.onEjecutarTodo}
@@ -62,10 +64,10 @@ function BotonesEjecucion({ p, b }: { p: PropsBarraConsolaClaves; b: DatosBarraC
       </BotonIcono>
       <BotonIcono
         className="db-consola-detener"
-        titulo={`Detener · ${etiquetaAcorde('detener')}`}
-        etiqueta="Detener"
+        titulo={t.detenerTitulo(etiquetaAcorde('detener'))}
+        etiqueta={t.detener}
         habilitado={b.corriendo}
-        motivo="No hay nada en ejecución"
+        motivo={t.nadaEnEjecucion}
         onClick={p.onDetener}
       >
         <IconoDetener />
@@ -75,8 +77,8 @@ function BotonesEjecucion({ p, b }: { p: PropsBarraConsolaClaves; b: DatosBarraC
       <button
         type="button"
         className={`btn btn-icon db-consola-historial-btn${p.historialAbierto ? ' activo' : ''}`}
-        title={`Historial de comandos · ${etiquetaAcorde('historial')}`}
-        aria-label="Historial de comandos"
+        title={t.historialTitulo(etiquetaAcorde('historial'))}
+        aria-label={t.historial}
         aria-haspopup="dialog"
         aria-expanded={p.historialAbierto}
         onMouseDown={(e) => e.stopPropagation()}
@@ -89,8 +91,9 @@ function BotonesEjecucion({ p, b }: { p: PropsBarraConsolaClaves; b: DatosBarraC
 }
 
 function AccionesClaves({ p, b }: { p: PropsBarraConsolaClaves; b: DatosBarraConsola }): React.JSX.Element {
+  const t = txConsolaClaves()
   const nombreBase = etiquetaBaseClaves(p.base)
-  const tituloBase = b.corriendo ? 'Espera a que termine la ejecución para cambiar la base' : `Base: ${nombreBase}. Pulsa para cambiar`
+  const tituloBase = b.corriendo ? t.esperaParaCambiarBase : t.baseCambiar(nombreBase)
   return (
     <div className="panel-actions">
       <BotonesEjecucion p={p} b={b} />
@@ -100,7 +103,7 @@ function AccionesClaves({ p, b }: { p: PropsBarraConsolaClaves; b: DatosBarraCon
         <BotonBase
           corriendo={b.corriendo}
           titulo={tituloBase}
-          etiqueta={`Base de la consola: ${nombreBase}`}
+          etiqueta={t.baseDeLaConsola(nombreBase)}
           abierto={b.ancla !== null}
           botonRef={b.botonBaseRef}
           onAbrir={b.abrirBase}
@@ -114,6 +117,7 @@ function AccionesClaves({ p, b }: { p: PropsBarraConsolaClaves; b: DatosBarraCon
 /** La barra de la consola de Redis, con el selector de base anclado a su botón. */
 export function BarraConsolaClaves(p: PropsBarraConsolaClaves): React.JSX.Element {
   const b = useBarraConsola(p.enCurso, p.cargado, p.textoEstado)
+  const t = txConsolaClaves()
   const nombreBase = etiquetaBaseClaves(p.base)
   const produccion = p.conexion.entorno === 'produccion'
   return (
@@ -121,7 +125,7 @@ export function BarraConsolaClaves(p: PropsBarraConsolaClaves): React.JSX.Elemen
       <IdentidadBarra conexion={p.conexion} estado={b.estado} anunciado={b.anunciado}>
         <span
           className="db-consola-dato db-consola-esquema"
-          title={esCluster(p.conexion) ? 'Cluster: solo existe la base 0' : `Base actual: ${nombreBase} (también la cambia «SELECT n»)`}
+          title={esCluster(p.conexion) ? t.soloBase0 : t.baseActual(nombreBase)}
         >
           {nombreBase}
         </span>

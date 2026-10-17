@@ -4,12 +4,12 @@
 // encendido es el modo actual. Lo pinta EditorPane en la tira de pestañas.
 // =============================================================================
 import { MODOS_VISTA, type ModoVista } from './modoVista'
+import { txEditor } from './textos.ts'
 
 /** Rótulo de cada posición: describe el estado al que lleva, no la acción. */
-const TITULO_MODO: Record<ModoVista, string> = {
-  codigo: 'Solo editor',
-  dividida: 'Editor y vista previa',
-  vista: 'Solo vista previa'
+function tituloModo(modo: ModoVista): string {
+  const t = txEditor()
+  return { codigo: t.modoSoloEditor, dividida: t.modoDividida, vista: t.modoSoloVista }[modo]
 }
 
 /** Glifo de cada modo: dibuja cómo se reparte el pane, no el tipo de contenido. */
@@ -48,14 +48,14 @@ export function ControlModoVista({
 }): React.JSX.Element {
   return (
     // `radiogroup`: los tres son excluyentes, un lector de pantalla los lee como una elección.
-    <div className="vista-modo-toggle" role="radiogroup" aria-label="Modo de vista">
+    <div className="vista-modo-toggle" role="radiogroup" aria-label={txEditor().modoVista}>
       {MODOS_VISTA.map((m) => (
         <button
           key={m}
           className={`btn btn-icon${modoEfectivo === m ? ' btn-active' : ''}`}
           onClick={() => onModo(m)}
-          title={TITULO_MODO[m]}
-          aria-label={TITULO_MODO[m]}
+          title={tituloModo(m)}
+          aria-label={tituloModo(m)}
           role="radio"
           aria-checked={modoEfectivo === m}
         >

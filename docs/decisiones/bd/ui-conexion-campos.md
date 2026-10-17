@@ -12,7 +12,7 @@ nuevo olvidaría algún sitio (el del guardado no se ve).
 ## Decisión
 
 - Las REGLAS son del descriptor de `shared/motores/` (`conexion.*`: obligatorios, excluyentes, opcionales, qué
-  se descarta, usa clientes). El renderer añade solo la PRESENTACIÓN (`PRESENTACION`: filas, etiquetas,
+  se descarta, usa clientes). El renderer añade solo la PRESENTACIÓN (`presentaciones()`, en el idioma activo: filas, etiquetas,
   placeholders, `ancho` como palabra y no como clase, la ayuda de cada grupo excluyente por POSICIÓN).
 - El main es la autoridad: `faltantes` y `enConflicto` aplican sus reglas sobre lo que VA A GUARDAR
   (`limpiarDestinoBd`) solo para marcar. «Falta» incluye las cotas del puerto y del nombre. El nombre

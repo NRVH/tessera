@@ -12,6 +12,7 @@ import { IconoMaximizar, IconoRestaurar } from '../../comun/iconosPanel'
 import { etiquetaAcorde } from '../../util/atajos'
 import { HideIcon, ReloadIcon } from './IconosTerminales'
 import type { SalidaBotonReinicio } from './reloadButton'
+import { txTerminales } from './textos.ts'
 
 /** Cómo se llama el reinicio del pane que se ve y a qué alcanza. */
 export interface AlcanceReinicio {
@@ -22,7 +23,10 @@ export interface AlcanceReinicio {
 }
 
 /** El reinicio de una terminal local, el de siempre. */
-export const REINICIO_LOCAL: AlcanceReinicio = { etiqueta: 'Reiniciar terminal', alcance: 'solo esta terminal' }
+export function reinicioLocal(): AlcanceReinicio {
+  const t = txTerminales()
+  return { etiqueta: t.reiniciarTerminal, alcance: t.soloEstaTerminal }
+}
 
 /** El reinicio del pane que se ve: su estado, a qué alcanza y qué hace. */
 export interface ReinicioPanel {
@@ -70,7 +74,8 @@ export function AccionesPanel({
   pantallaCompleta: boolean
   onPantallaCompleta: (pedir: boolean) => void
 }): React.JSX.Element {
-  const etiquetaModo = pantallaCompleta ? 'Restaurar el panel de terminal' : 'Maximizar el panel de terminal'
+  const t = txTerminales()
+  const etiquetaModo = pantallaCompleta ? t.restaurarPanel : t.maximizarPanel
   // `fijo`: a pantalla completa restaurar y ocultar son las dos salidas del modo y no se esconden en reposo.
   const fijo = pantallaCompleta ? ' fijo' : ''
   return (
@@ -94,8 +99,8 @@ export function AccionesPanel({
       <button
         className={`btn btn-icon${fijo}`}
         onClick={onClosePanel}
-        title="Ocultar el panel (las terminales siguen corriendo)"
-        aria-label="Ocultar el panel de terminal"
+        title={t.ocultarPanelTitulo}
+        aria-label={t.ocultarPanelEtiqueta}
       >
         <HideIcon />
       </button>

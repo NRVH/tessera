@@ -22,10 +22,12 @@ pierde en silencio, que es el peor desenlace para un clic del usuario.
   para ver un archivo, con el agente diferido (`agentes/agente-diferido.md`).
 - Abrir el proyecto se hace en `procesar`, no en `recoger`: dentro de un `if (perfil !== null)` de
   `recoger`, una apertura que llegaba antes de haber perfil no abría nada y nunca se confirmaba.
-- El archivo o el árbol se tocan solo cuando `confirmado` es el objetivo esperado: las pestañas de
-  editor cuelgan del target confirmado y `openTab` es un no-op silencioso si aún es el anterior.
+- El archivo o el árbol se tocan en cuanto el destino es el proyecto que se ve (`objetivoVisto`):
+  el editor y el árbol piden con su proyecto y no esperan al backend. Se hace en un efecto de
+  layout, antes de pintar ese commit: así la columna del agente diferido no llega a verse sin el
+  archivo delante.
 - Si el proyecto ya estaba abierto en OTRO perfil, se cambia también el perfil activo:
-  `confirmedTarget` sigue al perfil activo y, sin cambiarlo, el proyecto se activaba en la sombra.
+  lo que se ve sigue al perfil activo y, sin cambiarlo, el proyecto se activaría en la sombra.
 - La cola del main se vacía de una vez (una recarga no repite aperturas) y una recogida en vuelo no
   se solapa: un aviso intermedio se anota y se repite al terminar.
 - El temporizador de respaldo (20 s) se arma en `procesar`, no en un efecto: lo que añade pendientes

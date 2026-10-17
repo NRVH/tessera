@@ -19,13 +19,14 @@ import { leerCabezaParseada } from '../transcripts/cabezaJsonl.ts'
 import { ultimaMarca, type AgenteTranscript, type MarcaTurno } from '../transcripts/marcasTurno.ts'
 import { cambiosSegundoPlano, type CambioSegundoPlano } from '../transcripts/tareasSegundoPlano.ts'
 import { basenameSuelto } from '../conversations/slugProyecto.ts'
+import { avisarContrato, versionDeLinea } from '../transcripts/vigiaContratos.ts'
 
 /** Silencio tras la última escritura antes de mirar el fichero. Ver cabecera. */
 const QUIET_TURNO_MS = 250
 
 /** Cola que se lee buscando la marca. La marca va al final; 64 KiB cubre de sobra un
  *  `last_agent_message` largo, y es la cuarta parte de lo que lee el anillo. */
-const COLA_TURNO_BYTES = 64 * 1024
+export const COLA_TURNO_BYTES = 64 * 1024
 
 /** Cabeza que se lee para saber de qué proyecto es el transcript. */
 const CABEZA_TURNO_BYTES = 32 * 1024
@@ -36,6 +37,13 @@ const CABEZA_TURNO_LECTURA_MAX = 32 * 1024 * 1024
 
 /** Trozo de lectura: menor que el presupuesto, o `leerCabezaJsonl` pararía tras el primero. */
 const CABEZA_TURNO_TROZO = 8 * 1024
+
+/** Cómo se lee la cabeza; la sonda de contratos lee con lo mismo. */
+export const CABEZA_TURNO = {
+  presupuesto: CABEZA_TURNO_BYTES,
+  lecturaMax: CABEZA_TURNO_LECTURA_MAX,
+  trozo: CABEZA_TURNO_TROZO
+} as const
 
 /** Tope de la caché de metadatos: no se invalida (no cambian), así que necesita techo. */
 const MAX_METAS = 2000
@@ -120,6 +128,8 @@ export class TurnWatcher {
         if (!filename) return
         const rel = filename.toString()
         if (!rel.endsWith('.jsonl')) return
+        // Los hilos de subagente y los diarios de sus flujos no marcan el turno del padre.
+        if (rel.split(/[\\/]/).includes('subagents')) return
         entrada.tocados.add(path.join(raiz, rel))
         if (entrada.timer) clearTimeout(entrada.timer)
         entrada.timer = setTimeout(() => {
@@ -235,12 +245,14 @@ export class TurnWatcher {
   ): Promise<{ proyecto: string | null; subagente: boolean }> {
     const hit = this.metas.get(file)
     if (hit) return hit
-    const lineas = await leerCabezaParseada(file, {
-      presupuesto: CABEZA_TURNO_BYTES,
-      lecturaMax: CABEZA_TURNO_LECTURA_MAX,
-      trozo: CABEZA_TURNO_TROZO
-    })
+    const lineas = await leerCabezaParseada(file, CABEZA_TURNO)
     const meta = metaDeCabecera(agente, lineas)
+    // Varias líneas leídas y ningún `cwd`: no es un transcript a medio escribir sino una
+    // cabecera que ya no se entiende (o que no cabe en el presupuesto).
+    if (meta.cwd === null && lineas.length >= 3) {
+      const version = lineas.map(versionDeLinea).find((v) => v !== undefined)
+      avisarContrato(agente, 'cabecera', 'cabecera sin `cwd`: sus turnos no llegan a ninguna sesión', version)
+    }
     const resuelto = {
       proyecto: meta.cwd === null ? null : basenameSuelto(meta.cwd),
       subagente: meta.subagente

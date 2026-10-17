@@ -3,7 +3,7 @@
 - **Estado:** vigente
 - **Ámbito:** `src/main/ssh/sftp/` (`protocoloSftp.ts`, `ClienteSftp.ts`, `transferenciasSftp.ts`, `SesionesSftp.ts`, `ipc.ts`),
   `ControladorSsh.prepararSftp`, `lineaSsh.ts` (`subsistemaSftp`), `src/shared/sftp-ipc.ts`, `src/preload/sftp.ts` y
-  `src/renderer/src/features/sftp/` (macOS: sin verificar)
+  `src/renderer/src/features/sftp/`
 
 ## Contexto
 

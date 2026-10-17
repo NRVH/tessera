@@ -17,10 +17,10 @@ import {
   fraseSinClientes,
   camposAMarcar,
   entornoDeRadio,
-  OPCIONES_ENTORNO,
+  opcionesEntorno,
   valorRadioEntorno,
   camposVisibles,
-  DESCRIPTORES,
+  descriptores,
   descriptorDe,
   driversDelMotor,
   enConflicto,
@@ -30,7 +30,7 @@ import {
   mostrarClientes,
   MOTORES_CONEXION,
   ordenFormulario,
-  PRESENTACION,
+  presentaciones,
   requiereAplica,
   usaClientes,
   type CampoConexion,
@@ -44,9 +44,9 @@ import {
   ayudasTrasFilaCredenciales,
   campoDeshabilitado,
   campoVisible,
-  ETIQUETA_CONFIAR_CERTIFICADO,
-  ETIQUETA_SOLO_LECTURA,
-  TITULO_SOLO_LECTURA_AGENTES,
+  etiquetaConfiarCertificado,
+  etiquetaSoloLectura,
+  tituloSoloLecturaAgentes,
   placeholderCredencial,
   proponeConfiarCertificado
 } from './camposConexion.ts'
@@ -75,6 +75,14 @@ function check(name: string, pass: boolean, evidence: string): void {
   console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)
 }
 const j = (v: unknown): string => JSON.stringify(v)
+
+// Los textos se leen al usarse; en las pruebas el idioma es el español de siempre.
+const DESCRIPTORES = descriptores()
+const PRESENTACION = presentaciones()
+const OPCIONES_ENTORNO = opcionesEntorno()
+const ETIQUETA_CONFIAR_CERTIFICADO = etiquetaConfiarCertificado()
+const ETIQUETA_SOLO_LECTURA = etiquetaSoloLectura()
+const TITULO_SOLO_LECTURA_AGENTES = tituloSoloLecturaAgentes()
 
 /** Un borrador de ese motor con todo lo obligatorio relleno. */
 function valido(motor: DbMotor, parcial: Partial<ValoresConexion> = {}): ValoresConexion {

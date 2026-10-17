@@ -14,8 +14,7 @@ nombres y no pueden importarse entre sí (regla de los ciclos).
 
 - Los nombres de objeto van por bind (`@p1`; `sp_executesql` como nvarchar). La base no puede
   (no es un valor): va citada como prefijo de tres partes (`[base].sys.objects`) cuando
-  `DialectoCatalogo.base` existe. Medido: 16 ms desde master contra otra base, sin `USE` (que
-  dejaría la sesión en otra base).
+  `DialectoCatalogo.base` existe, sin `USE` (que dejaría la sesión en otra base).
 - Los nombres se citan con corchetes y `]` se dobla (`[a]]b]`): con QUOTED_IDENTIFIER ON valdrían
   comillas, pero un DDL copiado a otro cliente debe leerse igual. Vive en la hoja
   `nombresSqlserver.ts`, que no importa nada del explorador.
@@ -24,6 +23,10 @@ nombres y no pueden importarse entre sí (regla de los ciclos).
 - Sin `STRING_AGG` (es de 2017; el mínimo es 2012): una fila por columna, agrupadas en el mapeo.
 - Las bases son las de `sys.databases` con `HAS_DBACCESS` y ONLINE (una sin acceso da el 916).
 - La fuente sale de `sys.sql_modules` (NULL sin VIEW DEFINITION o WITH ENCRYPTION: `aviso`).
+- **Disparadores:** hay carpeta `disparador` (como en Oracle): cada uno cuelga del esquema de su
+  tabla y enseña «sobre <tabla>» y su estado, se abre en la pestaña de fuente y tiene «Ver DDL». El
+  nombre es único en el esquema, sin `firma`. Solo entran los de tabla (`parent_object_id <> 0`): los
+  de DDL no cuelgan de una tabla. No entran en el índice de nombres del autocompletado.
 
 ## Consecuencias
 
@@ -31,3 +34,9 @@ nombres y no pueden importarse entre sí (regla de los ciclos).
   una obliga a cambiar la otra.
 - Un usuario con solo `db_datareader` no ve procedimientos ni funciones escalares: el árbol vacío
   no es un error.
+
+## Descartes
+
+- Parámetros de consola en SQL Server: en T-SQL `@x` es una variable del lote y no se puede saber
+  cuál es un parámetro del usuario y cuál una variable declarada; el dialecto sigue sin pedirlos. La
+  salida de `PRINT` y `RAISERROR` (clase ≤ 10) ya llega a la consola como la de `NOTICE`.

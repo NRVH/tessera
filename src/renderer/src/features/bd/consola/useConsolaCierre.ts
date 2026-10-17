@@ -18,10 +18,10 @@ import { cancelarEnVuelo } from './useConsolaStop'
 import { respuestaDeError } from '../documentos/consolaComun'
 import { ESPERA_STOP_MS, cierreFallidoRetiene, hayTxQueResolver } from './vivoConsola'
 import { vaciaEnDisco } from './archivoConsola'
+import { txPane } from './textosPane.ts'
 
 type Piezas = Pick<NucleoConsola, 'r' | 'api' | 'perfilId' | 'consolaId' | 'salida'>
 
-const CONTEXTO_CIERRE = 'Para cerrar la consola hay que confirmarla o revertirla antes.'
 
 function esperarFinEjecucion(r: RefsConsola, maxMs: number): Promise<void> {
   return new Promise<void>((resolve) => {
@@ -36,9 +36,9 @@ function esperarFinEjecucion(r: RefsConsola, maxMs: number): Promise<void> {
 
 function preguntaDetener(nombre: string): PreguntaConsola {
   return {
-    titulo: '¿Detener y cerrar?',
-    mensaje: `${nombre} está ejecutando. Se detendrá lo que corre y se cerrará la pestaña.`,
-    confirmar: 'Detener y cerrar',
+    titulo: txPane().detenerTitulo,
+    mensaje: txPane().detenerMensaje(nombre),
+    confirmar: txPane().detenerConfirmar,
     peligro: true
   }
 }
@@ -46,9 +46,9 @@ function preguntaDetener(nombre: string): PreguntaConsola {
 /** Con un conflicto, si acepta se queda la del disco (no se escribe). */
 function preguntaConflicto(nombre: string): PreguntaConsola {
   return {
-    titulo: 'El archivo cambió fuera de Tessera',
-    mensaje: `${nombre} tiene cambios sin guardar y el archivo cambió fuera de Tessera. Si la cierras, se queda la versión del disco y se pierden tus cambios.`,
-    confirmar: 'Cerrar sin guardar',
+    titulo: txPane().conflictoTitulo,
+    mensaje: txPane().conflictoMensaje(nombre),
+    confirmar: txPane().conflictoConfirmar,
     peligro: true
   }
 }
@@ -65,7 +65,7 @@ function faltaResolver(cierre: DbRespuesta<void>, resolver: DbResolverTx | undef
 /** Un cierre fallido se cuenta en la Salida; true = la pestaña se queda (`cierreFallidoRetiene`). */
 function cierreRetiene(p: Piezas, cierre: DbRespuesta<void>, resolver: DbResolverTx | undefined): boolean {
   if (cierre.ok) return false
-  p.salida('error', `No se pudo cerrar la sesión: ${textoError(cierre.error)}`)
+  p.salida('error', txPane().noSePudoCerrar(textoError(cierre.error)))
   return cierreFallidoRetiene(cierre.error.motivo, resolver !== undefined)
 }
 
@@ -89,7 +89,7 @@ async function solicitarCierreDe(
   if (r.conflictoRef.current && !(await d.pedirConfirmacion(preguntaConflicto(nombre)))) return false
   let resolver: DbResolverTx | undefined
   if (hayTxQueResolver(r.estadoRef.current.sesion)) {
-    const res = await d.pedirResolucionTx(r.estadoRef.current.sesion, CONTEXTO_CIERRE)
+    const res = await d.pedirResolucionTx(r.estadoRef.current.sesion, txPane().contextoCierre)
     if (!res) return false
     resolver = res
   }
@@ -97,7 +97,7 @@ async function solicitarCierreDe(
   cancelarEnVuelo(p, null)
   let cierre = await cerrarEnMain(p, resolver)
   if (faltaResolver(cierre, resolver)) {
-    const res = await d.pedirResolucionTx(r.estadoRef.current.sesion, CONTEXTO_CIERRE)
+    const res = await d.pedirResolucionTx(r.estadoRef.current.sesion, txPane().contextoCierre)
     if (!res) return false
     resolver = res
     cierre = await cerrarEnMain(p, res)

@@ -309,12 +309,13 @@ function main(): void {
     // rompe el test en vez de desaparecer de la pantalla en silencio.
     const ESPERADOS = [
       'abrir-con-linux', 'accion-rapida-finder',
-      'acerca', 'agente-fuente', 'agente-inactividad', 'agente-tamano', 'banda',
+      'acerca', 'agente-fuente', 'agente-inactividad', 'agente-tamano', 'agentes-lista', 'banda',
+      'copia-exportar', 'copia-importar',
       'db-filas-pagina', 'db-font', 'db-inactividad-consola', 'db-tx-inicial',
-      'explorer-font', 'git-font',
+      'explorer-font', 'git-font', 'idioma',
       'menu-windows-archivos', 'menu-windows-carpetas', 'menu-windows-extensiones',
-      'modo-proyecto', 'registro-salud', 'sandbox-docs', 'sandbox-navegador', 'sandbox-otros',
-      'term-fuente', 'term-render', 'term-tamano', 'ui-font',
+      'modo-proyecto', 'registro-salud', 'sandbox-docs', 'sandbox-navegador', 'sandbox-otros', 'selector-agentes',
+      'term-fuente', 'term-render', 'term-resaltado', 'term-tamano', 'ui-font',
       'update', 'update-agentes', 'update-al-cerrar', 'volcados-caida', 'zoom'
     ]
     const presentes = [...filtrarAjustes(gruposDe(CATEGORIAS), '')].sort()
@@ -373,7 +374,7 @@ function main(): void {
     )
     check(
       'la categoría va entre Proyectos e Integración con el sistema',
-      CATEGORIAS.map((c) => c.id).join(',') === 'apariencia,terminales,proyectos,bases-de-datos,integracion,actualizaciones,experimental,acerca',
+      CATEGORIAS.map((c) => c.id).join(',') === 'apariencia,terminales,proyectos,agentes,bases-de-datos,integracion,copia,actualizaciones,experimental,acerca',
       CATEGORIAS.map((c) => c.id).join(',')
     )
     check(

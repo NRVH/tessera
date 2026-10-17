@@ -9,7 +9,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { editor } from 'monaco-editor'
-import type { DbErrorSql, DbFuente, DbRespuesta } from '../../../../shared/db-explorador-ipc'
+import { tituloParteFuente, type DbErrorSql, type DbFuente, type DbRespuesta } from '../../../../shared/db-explorador-ipc'
 import { dialectoDeMotor } from '../../../../shared/sql/dialectosSql'
 import { nombreCalificado } from '../../../../shared/sql/identificadoresSql'
 import type { DbFuentePaneProps } from './propsBd'
@@ -23,6 +23,7 @@ import { BotonBarraBd } from './rejilla/DatosBotonBarra'
 import { notify, notifyError } from '../../comun/notifications'
 import { describirError, errorDeInvoke, lenguajeFuente, rutaModeloFuente } from './panesBd'
 import { retenerSilencioCancelaciones } from './silencioCancelacionesMonaco'
+import { txPanes } from './textosPanes.ts'
 import './rejilla.css'
 
 type Parte = DbFuente['partes'][number]
@@ -221,17 +222,19 @@ function capaFuente(error: DbErrorSql | null, esDdl: boolean, fuente: DbFuente |
   }
   const sinTexto = fuente !== null && fuente.partes.every((p) => p.texto.trim() === '')
   if (!sinTexto || fuente.aviso) return null
+  const t = txPanes()
   return (
     <EstadoVacio
-      titulo={esDdl ? 'Sin DDL' : 'Sin fuente'}
-      pista={esDdl ? 'El servidor no devolvió DDL para este objeto.' : 'El servidor no devolvió texto para este objeto.'}
+      titulo={esDdl ? t.sinDdl : t.sinFuente}
+      pista={esDdl ? t.servidorSinDdl : t.servidorSinTexto}
     />
   )
 }
 
 function tituloCopiarFuente(partes: readonly Parte[], parteActual: Parte | null, esDdl: boolean): string {
-  if (partes.length > 1 && parteActual) return `Copiar ${parteActual.titulo.toLowerCase()}`
-  return esDdl ? 'Copiar el DDL' : 'Copiar la fuente'
+  const t = txPanes()
+  if (partes.length > 1 && parteActual) return t.copiarParte(tituloParteFuente(parteActual.titulo).toLowerCase())
+  return esDdl ? t.copiarDdl : t.copiarFuente
 }
 
 interface BarraFuenteProps {
@@ -249,13 +252,14 @@ interface BarraFuenteProps {
 function BarraFuente(p: BarraFuenteProps): React.JSX.Element {
   const { esDdl, fuente, parteActual } = p
   const partes = fuente?.partes ?? []
-  const motivoSinTexto = !parteActual || parteActual.texto.trim() === '' ? 'No hay texto que usar' : null
+  const t = txPanes()
+  const motivoSinTexto = !parteActual || parteActual.texto.trim() === '' ? t.sinTextoQueUsar : null
   const copiar = (): void => {
     if (!parteActual) return
     window.tessera.clipboard
       .write(parteActual.texto)
-      .then(() => notify('success', 'Copiado', partes.length > 1 ? parteActual.titulo : undefined))
-      .catch((err: unknown) => notifyError('No se pudo copiar', err))
+      .then(() => notify('success', t.copiado, partes.length > 1 ? tituloParteFuente(parteActual.titulo) : undefined))
+      .catch((err: unknown) => notifyError(t.noSePudoCopiar, err))
   }
   const abrirEnConsola = (): void => {
     if (!parteActual) return
@@ -264,7 +268,7 @@ function BarraFuente(p: BarraFuenteProps): React.JSX.Element {
   return (
     <header className="panel-header db-barra">
       {partes.length > 1 && (
-        <div className="db-fuente-partes" role="radiogroup" aria-label="Parte de la fuente">
+        <div className="db-fuente-partes" role="radiogroup" aria-label={t.parteDeLaFuente}>
           {partes.map((pt, i) => (
             <button
               key={pt.titulo}
@@ -274,29 +278,29 @@ function BarraFuente(p: BarraFuenteProps): React.JSX.Element {
               className="db-fuente-parte"
               onClick={() => p.elegirParte(i)}
             >
-              {pt.titulo}
+              {tituloParteFuente(pt.titulo)}
             </button>
           ))}
         </div>
       )}
-      <span className="db-barra-meta" title={fuente ? `Origen: ${fuente.origen}` : undefined}>
-        {p.cargando ? 'Cargando…' : partes.length === 1 ? partes[0].titulo : ''}
+      <span className="db-barra-meta" title={fuente ? t.origen(fuente.origen) : undefined}>
+        {p.cargando ? t.cargando : partes.length === 1 ? tituloParteFuente(partes[0].titulo) : ''}
       </span>
       <div className="panel-actions">
         <BotonBarraBd
-          etiqueta="Refrescar"
-          titulo={esDdl ? 'Volver a pedir el DDL al servidor' : 'Volver a leer la fuente del servidor'}
+          etiqueta={t.refrescar}
+          titulo={esDdl ? t.pedirDdl : t.leerFuente}
           onClick={p.refrescar}
         >
           <IconoRefrescar />
         </BotonBarraBd>
         <span className="panel-actions-sep" aria-hidden="true" />
-        <BotonBarraBd etiqueta="Copiar" titulo={tituloCopiarFuente(partes, parteActual, esDdl)} motivo={motivoSinTexto} onClick={copiar}>
+        <BotonBarraBd etiqueta={t.copiar} titulo={tituloCopiarFuente(partes, parteActual, esDdl)} motivo={motivoSinTexto} onClick={copiar}>
           <IconoCopiar />
         </BotonBarraBd>
         <BotonBarraBd
-          etiqueta="Abrir en consola"
-          titulo="Abrir este texto en una consola nueva"
+          etiqueta={t.abrirEnConsola}
+          titulo={t.abrirTextoEnConsola}
           motivo={motivoSinTexto}
           onClick={abrirEnConsola}
         >
@@ -346,7 +350,7 @@ export function DbFuentePane(props: DbFuentePaneProps): React.JSX.Element {
   return (
     <section
       className={`db-fuente${esDdl ? ' db-fuente-ddl' : ''}${visible ? '' : ' hidden'}`}
-      aria-label={`${esDdl ? 'DDL' : 'Fuente'} de ${nombre}`}
+      aria-label={txPanes().fuenteAria(esDdl ? txPanes().ddl : txPanes().fuente, nombre)}
     >
       <BarraFuente
         esDdl={esDdl}

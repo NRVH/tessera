@@ -24,6 +24,7 @@ import {
 } from '../../../shared/sftp-ipc.ts'
 import type { TerminalExitReason } from '../../../shared/terminal-ipc.ts'
 import { nombreValido } from '../transferenciaBuzon.ts'
+import { txSsh } from '../textos.ts'
 import { ClienteSftp, ErrorSftp } from './ClienteSftp.ts'
 import { textoPermisos, tipoDeModo } from './protocoloSftp.ts'
 import { Cancelada, baseRemota, bajar, borrar, carpetaRemota, pesoDe, recorrerLocal, recorrerRemoto, rutaRemotaValida, subir, unirRemota, type Avance } from './transferenciasSftp.ts'
@@ -96,20 +97,22 @@ interface Plan {
 function textoDe(e: unknown): string {
   if (e instanceof ErrorSftp) return e.message
   const codigo = (e as { code?: unknown })?.code
-  if (codigo === 'EACCES' || codigo === 'EPERM') return 'Este equipo no deja escribir o leer ahí.'
-  if (codigo === 'ENOENT') return 'Ya no existe lo que se iba a copiar en este equipo.'
-  if (codigo === 'ENOSPC') return 'No queda espacio en el disco de este equipo.'
-  return 'Falló la operación.'
+  const t = txSsh().sftp
+  if (codigo === 'EACCES' || codigo === 'EPERM') return t.sinPermisoLocal
+  if (codigo === 'ENOENT') return t.yaNoExisteLocal
+  if (codigo === 'ENOSPC') return t.sinEspacio
+  return t.fallo
 }
 
 /** Lo que dice el renderer de un fallo al abrir, según por qué salió ssh. */
 function textoDeCaida(motivo: TerminalExitReason | undefined, errores: string): string {
-  if (motivo === 'ssh-huella-cambiada') return 'La huella del servidor no es la que se confirmó: puede que alguien se haga pasar por él. Revísalo antes de seguir.'
-  if (motivo === 'ssh-autenticacion') return 'El servidor rechazó la autenticación (o se canceló la pregunta). Vuelve a abrir el explorador y escribe la contraseña, o guárdala en la conexión.'
-  if (motivo === 'ssh-inalcanzable') return 'No se pudo llegar al servidor (¿VPN, red o puerto?).'
-  if (motivo === 'ssh-algoritmos') return 'El servidor no admite los algoritmos de este cliente SSH.'
-  if (/subsystem request failed/i.test(errores)) return 'El servidor no tiene SFTP activado.'
-  return 'No se pudo abrir la sesión SFTP.'
+  const t = txSsh().sftp
+  if (motivo === 'ssh-huella-cambiada') return t.huellaCambiada
+  if (motivo === 'ssh-autenticacion') return t.autenticacion
+  if (motivo === 'ssh-inalcanzable') return t.inalcanzable
+  if (motivo === 'ssh-algoritmos') return t.algoritmos
+  if (/subsystem request failed/i.test(errores)) return t.sinSftp
+  return t.noSeAbrio
 }
 
 export class SesionesSftp {
@@ -168,11 +171,11 @@ export class SesionesSftp {
 
   /** ssh salió: si la sesión seguía siendo la de la pestaña, se avisa de la caída. */
   private alSalir(sesionId: string, sesion: Sesion, codigo: number | null): void {
-    sesion.cliente.cortar('Se perdió la conexión con el servidor.')
+    sesion.cliente.cortar(txSsh().sftp.conexionPerdida)
     if (this.sesiones.get(sesionId) !== sesion || !sesion.abierta) return
     this.sesiones.delete(sesionId)
     const motivo = this.d.clasificar(codigo ?? 255, sesion.errores)
-    const caida: SftpCaida = { sesionId, error: motivo ? textoDeCaida(motivo, sesion.errores) : 'Se perdió la conexión con el servidor.', ...(motivo ? { motivo } : {}) }
+    const caida: SftpCaida = { sesionId, error: motivo ? textoDeCaida(motivo, sesion.errores) : txSsh().sftp.conexionPerdida, ...(motivo ? { motivo } : {}) }
     this.d.emitir(SFTP_CHANNELS.EV_CAIDA, caida)
   }
 
@@ -182,7 +185,7 @@ export class SesionesSftp {
     if (!s) return
     this.sesiones.delete(sesionId)
     for (const id of s.ops) this.cancelar(id)
-    s.cliente.cortar('Se cerró el explorador.')
+    s.cliente.cortar(txSsh().sftp.explorador)
     s.proceso.stdin?.end()
     s.proceso.kill()
   }
@@ -193,7 +196,7 @@ export class SesionesSftp {
 
   private cliente(sesionId: string): ClienteSftp {
     const s = this.sesiones.get(sesionId)
-    if (!s || s.cliente.cortada) throw new ErrorSftp(6, 'La sesión SFTP no está abierta: reconéctala.')
+    if (!s || s.cliente.cortada) throw new ErrorSftp(6, txSsh().sftp.sesionCerrada)
     return s.cliente
   }
 
@@ -233,7 +236,7 @@ export class SesionesSftp {
 
   crearCarpeta(sesionId: string, ruta: string): Promise<SftpResultado<null>> {
     return this.intentar(async () => {
-      if (!rutaRemotaValida(ruta)) throw new ErrorSftp(4, 'Ese nombre de carpeta no vale.')
+      if (!rutaRemotaValida(ruta)) throw new ErrorSftp(4, txSsh().sftp.carpetaNoVale)
       await this.cliente(sesionId).mkdir(ruta)
       return null
     })
@@ -241,9 +244,9 @@ export class SesionesSftp {
 
   renombrar(sesionId: string, desde: string, a: string): Promise<SftpResultado<null>> {
     return this.intentar(async () => {
-      if (!rutaRemotaValida(desde) || !rutaRemotaValida(a)) throw new ErrorSftp(4, 'Ese nombre no vale.')
+      if (!rutaRemotaValida(desde) || !rutaRemotaValida(a)) throw new ErrorSftp(4, txSsh().sftp.nombreNoVale)
       const c = this.cliente(sesionId)
-      if (await c.lstatSiExiste(a)) throw new ErrorSftp(4, `Ya existe «${baseRemota(a)}».`)
+      if (await c.lstatSiExiste(a)) throw new ErrorSftp(4, txSsh().sftp.yaExiste(baseRemota(a)))
       await c.rename(desde, a)
       return null
     })
@@ -309,7 +312,7 @@ export class SesionesSftp {
   }
 
   borrar(sesionId: string, rutas: unknown): SftpResultado<SftpOperacion> {
-    if (!Array.isArray(rutas) || rutas.length === 0 || !rutas.every(rutaRemotaValida)) return { ok: false, error: 'Nada que borrar.' }
+    if (!Array.isArray(rutas) || rutas.length === 0 || !rutas.every(rutaRemotaValida)) return { ok: false, error: txSsh().sftp.nadaQueBorrar }
     try {
       const c = this.cliente(sesionId)
       // Sin total: lo que hay dentro de una carpeta se sabe al irlo borrando.
@@ -325,13 +328,13 @@ export class SesionesSftp {
 
   /** Bajar: diálogo de la carpeta, conflictos (lo que ya existe allí) y, si no hay, en marcha. */
   async descargar(sesionId: string, rutas: unknown): Promise<SftpResultado<SftpInicioTransferencia | null>> {
-    if (!Array.isArray(rutas) || rutas.length === 0 || !rutas.every(rutaRemotaValida)) return { ok: false, error: 'Nada que descargar.' }
+    if (!Array.isArray(rutas) || rutas.length === 0 || !rutas.every(rutaRemotaValida)) return { ok: false, error: txSsh().sftp.nadaQueDescargar }
     try {
       this.cliente(sesionId)
       const carpeta = await this.d.elegirCarpetaDescarga()
       if (carpeta === null) return { ok: true, valor: null }
       const malo = rutas.find((r) => !nombreValido(baseRemota(r), this.d.plataforma))
-      if (malo) return { ok: false, error: `«${baseRemota(malo)}» no se puede guardar en este equipo con ese nombre.` }
+      if (malo) return { ok: false, error: txSsh().sftp.nombreLocal(baseRemota(malo)) }
       const pares = rutas.map((r) => ({ origen: r, destino: path.join(carpeta, baseRemota(r)) }))
       const conflictos = pares.filter((p) => existsSync(p.destino)).map((p) => baseRemota(p.origen))
       return { ok: true, valor: this.planOOperacion({ sesionId, tipo: 'descarga', pares, carpetaRemota: carpetaRemota(rutas[0]), caduca: Date.now() + PLAN_MS }, conflictos) }
@@ -342,7 +345,7 @@ export class SesionesSftp {
 
   /** Subir lo elegido en el diálogo nativo. */
   async subirElegidos(sesionId: string, destino: string, carpeta: boolean): Promise<SftpResultado<SftpInicioTransferencia | null>> {
-    if (!rutaRemotaValida(destino) && destino !== '/') return { ok: false, error: 'La carpeta de destino no vale.' }
+    if (!rutaRemotaValida(destino) && destino !== '/') return { ok: false, error: txSsh().sftp.destinoNoVale }
     try {
       this.cliente(sesionId)
       const locales = await this.d.elegirParaSubir(carpeta)
@@ -355,9 +358,9 @@ export class SesionesSftp {
 
   /** Subir lo soltado (rutas del preload): solo las que existen en el equipo. */
   async subirSoltados(sesionId: string, destino: string, rutasLocales: unknown): Promise<SftpResultado<SftpInicioTransferencia>> {
-    if (!rutaRemotaValida(destino) && destino !== '/') return { ok: false, error: 'La carpeta de destino no vale.' }
+    if (!rutaRemotaValida(destino) && destino !== '/') return { ok: false, error: txSsh().sftp.destinoNoVale }
     const locales = Array.isArray(rutasLocales) ? rutasLocales.filter((r): r is string => typeof r === 'string' && path.isAbsolute(r) && existsSync(r)) : []
-    if (locales.length === 0) return { ok: false, error: 'Lo soltado no son archivos ni carpetas de este equipo.' }
+    if (locales.length === 0) return { ok: false, error: txSsh().sftp.soltadoNoVale }
     try {
       this.cliente(sesionId)
       return { ok: true, valor: await this.planSubida(sesionId, destino, locales) }
@@ -387,7 +390,7 @@ export class SesionesSftp {
     const plan = this.planes.get(planId)
     this.planes.delete(planId)
     if (!reemplazar) return { ok: true, valor: null }
-    if (!plan || plan.caduca < Date.now()) return { ok: false, error: 'Esa copia ya no está pendiente: vuelve a empezarla.' }
+    if (!plan || plan.caduca < Date.now()) return { ok: false, error: txSsh().sftp.copiaCaducada }
     try {
       return { ok: true, valor: this.ejecutarPlan(plan, true) }
     } catch (e) {

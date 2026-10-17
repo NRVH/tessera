@@ -21,7 +21,8 @@ import {
   type IndiceDdlSqlServer,
   type RestriccionDdlSqlServer
 } from '../ddlCatalogo.ts'
-import { aBool, aNumero, AVISO_SIN_FUENTE, clasificarFk, texto, textoOpcional } from './filasCatalogo.ts'
+import { aBool, aNumero, avisoSinFuente, clasificarFk, texto, textoOpcional } from './filasCatalogo.ts'
+import { txMotores } from './textosMotores.ts'
 import { CARPETA_DE_TIPO } from './sqlSqlserver.ts'
 import type { DialectoCatalogo, FilaCatalogo } from './tipos.ts'
 
@@ -184,15 +185,14 @@ export function mapearFks(esquema: string, objeto: string, filas: readonly FilaC
 }
 
 /** Aviso de una definición que el servidor no enseña aunque el objeto existe. */
-const AVISO_SIN_DEFINICION =
-  'SQL Server no enseña la definición: el objeto está cifrado (WITH ENCRYPTION) o te falta el permiso VIEW DEFINITION.'
+const avisoSinDefinicion = (): string => txMotores().sinDefinicionSqlServer
 
 /** Filas de `sqlFuente` -> la definición de la vista o la rutina, con su aviso si no se ve. */
 export function mapearFuente(_d: DialectoCatalogo, _ref: DbRefObjeto, filas: readonly FilaCatalogo[]): DbFuente {
   const origen = 'sys.sql_modules'
-  if (filas.length === 0) return { partes: [], origen, aviso: AVISO_SIN_FUENTE }
+  if (filas.length === 0) return { partes: [], origen, aviso: avisoSinFuente() }
   const valor = textoOpcional(filas[0][0])
-  if (valor === undefined) return { partes: [], origen, aviso: AVISO_SIN_DEFINICION }
+  if (valor === undefined) return { partes: [], origen, aviso: avisoSinDefinicion() }
   return { partes: [{ titulo: 'Definición', texto: valor }], origen }
 }
 

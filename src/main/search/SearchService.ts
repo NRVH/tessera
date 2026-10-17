@@ -21,6 +21,7 @@ import {
 } from '../../shared/search-ipc'
 import { listarCarpetas } from './carpetas'
 import type { MensajeWorkerBusqueda, PeticionBarrido } from './protocolo'
+import { txMain } from '../textos.ts'
 
 export interface SearchServiceOptions {
   getWindow: () => BrowserWindow | null
@@ -143,7 +144,7 @@ export class SearchService {
         archivos,
         truncado,
         cancelado: false,
-        error: 'La búsqueda falló: ' + err.message
+        error: txMain().busqueda.fallo(err.message)
       })
     })
 
@@ -173,7 +174,7 @@ export class SearchService {
     for (const p of req.proyectos ?? []) {
       const base = { nombre: p.nombre, raiz: p.raiz }
       if (typeof p.raiz !== 'string' || !path.isAbsolute(p.raiz)) {
-        proyectos.push({ ...base, carpetas: [], truncado: false, error: 'Ruta de proyecto inválida.' })
+        proyectos.push({ ...base, carpetas: [], truncado: false, error: txMain().busqueda.rutaInvalida })
         continue
       }
       try {

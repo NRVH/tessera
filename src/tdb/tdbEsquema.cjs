@@ -2,7 +2,7 @@
 // `tdb schema`, `tdb describe` y `tdb sessions`: el catálogo de la conexión, en texto o en
 // `--json`, con la redacción de cada familia (tablas, colecciones, claves).
 // Todo el trabajo va en UNA conexión: el proceso corto paga un solo handshake.
-// Depende de `motores.cjs`, `tdbConectar`, `tdbConexiones` y `tdbSalida`; lo usa `tdb.cjs`.
+// Depende de `motores.cjs`, `tdbConectar`, `tdbConexiones`, `tdbSalida` y `textosTdb`; lo usa `tdb.cjs`.
 // =============================================================================
 'use strict'
 
@@ -10,19 +10,21 @@ const motoresTdb = require('./motores.cjs')
 const { conectar } = require('./tdbConectar.cjs')
 const { adaptador, buscarConexion, esFamiliaClaves } = require('./tdbConexiones.cjs')
 const { fallar, pintarTabla } = require('./tdbSalida.cjs')
+const { textosTdb } = require('./textosTdb.cjs')
 
 /** Las bases de un SCAN acotado de un motor de claves: cuáles tienen claves y cuál es la actual. */
 function pintarBasesConClaves(r) {
+  const t = textosTdb()
   if (r.bases.conteosDesconocidos) {
-    console.log('\n  No se pueden leer las claves por base (sin permiso para INFO).')
+    console.log(t.clavesSinInfo)
   } else if (Array.isArray(r.bases.conClaves) && r.bases.conClaves.length > 0) {
-    console.log('\n  Bases con claves:\n')
+    console.log(t.basesConClaves)
     pintarTabla(
       ['BASE', 'CLAVES', 'CADUCAN', 'ACTUAL'],
-      r.bases.conClaves.map((b) => ({ BASE: b.indice, CLAVES: b.claves, CADUCAN: b.caducan, ACTUAL: b.indice === r.base ? '◄ actual' : '' }))
+      r.bases.conClaves.map((b) => ({ BASE: b.indice, CLAVES: b.claves, CADUCAN: b.caducan, ACTUAL: b.indice === r.base ? t.marcaActual : '' }))
     )
   }
-  console.log('\n  Para otra base, «SELECT <n>» en la primera línea del query.')
+  console.log(t.otraBaseClaves)
 }
 
 /**
@@ -36,59 +38,56 @@ async function schemaClaves(ctx, alias, api, conexion, patron, tope, etiqueta) {
     console.log(JSON.stringify({ ok: true, tablas: r.claves, foraneas: [], base: r.base, patron: r.patron, hayMas: r.hayMas, ...(r.bases ? { bases: r.bases } : {}) }))
     return
   }
-  const filtro = r.patron === '*' ? '' : `, patrón ${r.patron}`
-  console.log(`\n  Claves de ${alias} (base ${r.base}${filtro}) — ${r.claves.length}${r.hayMas ? ' (hay más)' : ''}\n`)
-  if (r.claves.length === 0) console.log(r.hayMas ? '  (ninguna en lo recorrido; hay más por recorrer)' : '  (ninguna)')
+  const t = textosTdb()
+  const filtro = r.patron === '*' ? '' : t.filtroPatron(r.patron)
+  console.log(t.clavesDe(alias, r.base, filtro, r.claves.length, r.hayMas))
+  if (r.claves.length === 0) console.log(t.ningunaClave(r.hayMas))
   else pintarTabla(['CLAVE', 'TIPO', 'TTL'], r.claves)
-  if (r.hayMas) {
-    console.log(`\n  TOPE: el SCAN no se recorrió entero. Acota con un patrón (tdb schema ${alias} "usuario:*")`)
-    console.log('  o usa --limit N para más.')
-  }
+  if (r.hayMas) for (const linea of t.topeScan(alias)) console.log(linea)
   if (r.bases) pintarBasesConClaves(r)
-  console.log(`\n  ${etiqueta} no tiene tablas ni claves foráneas. Para mirar una clave:  tdb query ${alias} "TYPE <clave>"\n`)
+  console.log(t.sinTablasClaves(etiqueta, alias))
 }
 
 /** `schema` de un motor de documentos: colecciones, sin claves foráneas. */
 function schemaDocumentos(con, alias, listaTablas, deBases) {
+  const t = textosTdb()
   const base = deBases ? deBases.actual : con.database
-  console.log(`\n  Colecciones de ${alias}${base ? ` (base ${base})` : ''} — ${listaTablas.length}\n`)
+  console.log(t.coleccionesDe(alias, base, listaTablas.length))
   pintarTabla(
     ['COLECCION', 'COMENTARIO'],
-    listaTablas.map((t) => ({ COLECCION: t.TABLE_NAME, COMENTARIO: t.COMENTARIO || '' }))
+    listaTablas.map((x) => ({ COLECCION: x.TABLE_NAME, COMENTARIO: x.COMENTARIO || '' }))
   )
   if (deBases) {
-    console.log(`\n  "${alias}" no fija base: lo de arriba es de "${deBases.actual}". Bases a las que llegas:\n`)
+    console.log(t.noFijaBase(alias, deBases.actual))
     pintarTabla(['BASE', 'ACTUAL'], deBases.bases)
-    console.log('\n  Para consultar otra base, «use <BASE>» en la primera línea de la sentencia; y aquí:')
-    console.log(`    tdb describe ${alias} <BASE>.<COLECCION>`)
+    for (const linea of t.otraBaseDocumentos(alias)) console.log(linea)
   }
-  console.log(`\n  ${motoresTdb.MOTORES[con.motor].etiqueta} no tiene claves foráneas: las referencias entre colecciones`)
-  console.log('  son una convención de la aplicación ($lookup).')
-  console.log(`\n  Campos e índices de una colección:  tdb describe ${alias} <COLECCION>\n`)
+  for (const linea of t.sinForaneasDocumentos(motoresTdb.MOTORES[con.motor].etiqueta)) console.log(linea)
+  console.log(t.camposDeColeccion(alias))
 }
 
 /** `schema` de un motor SQL: tablas, claves foráneas y, sin base fija, las bases a las que llega. */
 function schemaSql(alias, listaTablas, fks, deBases) {
-  console.log(`\n  Esquema de ${alias} — ${listaTablas.length} tabla(s)\n`)
+  const t = textosTdb()
+  console.log(t.esquemaDe(alias, listaTablas.length))
   pintarTabla(
     ['TABLA', 'COLUMNAS', 'COMENTARIO'],
-    listaTablas.map((t) => ({
-      TABLA: t.TABLE_NAME,
-      COLUMNAS: t.COLUMNAS,
-      COMENTARIO: t.COMENTARIO || ''
+    listaTablas.map((x) => ({
+      TABLA: x.TABLE_NAME,
+      COLUMNAS: x.COLUMNAS,
+      COMENTARIO: x.COMENTARIO || ''
     }))
   )
   if (fks.length) {
-    console.log(`\n  Claves foráneas (${fks.length}):\n`)
+    console.log(t.foraneas(fks.length))
     pintarTabla(['ORIGEN', 'COL_ORIGEN', 'DESTINO', 'COL_DESTINO'], fks)
   }
   if (deBases) {
-    console.log(`\n  "${alias}" no fija base: lo de arriba es de "${deBases.actual}". Bases a las que llegas:\n`)
+    console.log(t.noFijaBase(alias, deBases.actual))
     pintarTabla(['BASE', 'ESTADO', 'ACTUAL'], deBases.bases)
-    console.log('\n  Las tablas de otra base se nombran base.esquema.tabla, también aquí:')
-    console.log(`    tdb describe ${alias} <BASE>.<ESQUEMA>.<TABLA>`)
+    for (const linea of t.otraBaseSql(alias)) console.log(linea)
   }
-  console.log(`\n  Detalle de una tabla:  tdb describe ${alias} <TABLA>\n`)
+  console.log(t.detalleTabla(alias))
 }
 
 async function cmdSchema(ctx, alias, patron, tope) {
@@ -133,10 +132,9 @@ function tipoLegible(c) {
 
 /** El error de un `describe` sin columnas. «visible para <usuario>» solo tiene sentido con usuario. */
 function mensajeSinColumnas(con, alias, tabla, esSql) {
-  if (!esSql) return `La colección "${tabla}" no existe en "${alias}"${con.user ? ` o no es visible para ${con.user}` : ''}.`
-  return motoresTdb.pideSecreto(con.motor)
-    ? `La tabla "${tabla}" no existe o no es visible para ${con.user}.`
-    : `La tabla "${tabla}" no existe en "${alias}".`
+  const t = textosTdb()
+  if (!esSql) return t.coleccionNoExiste(tabla, alias, con.user)
+  return motoresTdb.pideSecreto(con.motor) ? t.tablaNoVisible(tabla, con.user) : t.tablaNoExiste(tabla, alias)
 }
 
 /** Los campos salen de una MUESTRA de documentos, no de un catálogo; se dice, porque un campo raro puede no salir. */
@@ -145,32 +143,34 @@ function describeDocumentos(cols, idx) {
     ['CAMPO', 'TIPO', 'PRESENCIA', 'COMENTARIO'],
     cols.map((c) => ({ CAMPO: c.COLUMN_NAME, TIPO: c.DATA_TYPE || '', PRESENCIA: c.PRESENCIA || '', COMENTARIO: c.COMENTARIO || '' }))
   )
-  console.log('\n  Campos de primer nivel de una MUESTRA de documentos: un campo raro puede no salir.')
+  const t = textosTdb()
+  console.log(t.muestraDocumentos)
   if (idx && idx.length) {
-    console.log('\n  Índices:\n')
+    console.log(t.indices)
     pintarTabla(['INDICE', 'COLUMNAS', 'UNICO', 'PARCIAL'], idx)
   }
   console.log('')
 }
 
 function describeSql(cols, fks, idx) {
+  const t = textosTdb()
   pintarTabla(
     ['COLUMNA', 'TIPO', 'NULL', 'PK', 'DEFECTO', 'COMENTARIO'],
     cols.map((c) => ({
       COLUMNA: c.COLUMN_NAME,
       TIPO: tipoLegible(c),
-      NULL: c.NULLABLE === 'Y' ? 'sí' : 'no',
+      NULL: c.NULLABLE === 'Y' ? t.si : t.no,
       PK: c.ES_PK === 'Y' ? '►' : '',
       DEFECTO: c.DATA_DEFAULT || '',
       COMENTARIO: c.COMENTARIO || ''
     }))
   )
   if (fks.length) {
-    console.log('\n  Referencias:\n')
+    console.log(t.referencias)
     pintarTabla(['COL_ORIGEN', 'DESTINO', 'COL_DESTINO'], fks)
   }
   if (idx && idx.length) {
-    console.log('\n  Índices:\n')
+    console.log(t.indices)
     pintarTabla(['INDICE', 'COLUMNAS', 'UNICO', 'ORIGEN', 'PARCIAL'], idx)
   }
   console.log('')
@@ -203,9 +203,10 @@ async function cmdDescribe(ctx, alias, tabla) {
 
 /** El encabezado de `sessions`: sesiones (SQL), conexiones (claves) u operaciones en curso (documentos). */
 function encabezadoSesiones(con, alias) {
-  if (motoresTdb.esFamiliaSql(con.motor)) return `\n  Sesiones abiertas de ${con.user} en ${alias}:\n`
-  if (esFamiliaClaves(con.motor)) return `\n  Conexiones de ${con.user ? con.user : 'default'} en ${alias}:\n`
-  return `\n  Operaciones en curso de ${con.user ? con.user : 'esta conexión (sin usuario)'} en ${alias}:\n`
+  const t = textosTdb()
+  if (motoresTdb.esFamiliaSql(con.motor)) return t.sesionesSql(con.user, alias)
+  if (esFamiliaClaves(con.motor)) return t.conexionesClaves(con.user, alias)
+  return t.operacionesDocumentos(con.user, alias)
 }
 
 async function cmdSessions(ctx, alias) {
@@ -220,10 +221,7 @@ async function cmdSessions(ctx, alias) {
     }
     console.log(encabezadoSesiones(con, alias))
     pintarTabla(Object.keys(filas[0] || { SID: '' }), filas)
-    console.log(
-      `\n  La de abajo es ESTA consulta y morirá al terminar el comando.\n` +
-        `  Tessera no mantiene conexiones abiertas entre invocaciones.\n`
-    )
+    console.log(textosTdb().notaSesiones)
   } finally {
     await sesion.cerrar()
   }

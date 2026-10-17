@@ -13,21 +13,19 @@ import { anotarAncestros, pathspecDe, trocearPathspecs } from './lotes'
 import type { NucleoGit } from './NucleoGit'
 import { claveNombreGit, resolveInsideRepo } from './rutasRepo'
 import type { Clasificacion, EntradaRepo, RepoCtx } from './tipos'
+import { txGit } from './textos.ts'
 
 /** Rechazo de una carpeta: su pathspec casaría todo lo de debajo, y el gesto es de un archivo. */
-export const ES_CARPETA = 'Es una carpeta: descarta sus archivos uno a uno.'
+const esCarpeta = (): string => txGit().descarte.esCarpeta
 /** Rechazo de una ruta que, traducida, cae fuera del repo (anti-traversal). */
-export const FUERA_DEL_REPO = 'Ruta fuera del repositorio.'
-const EN_CONFLICTO = 'Está en conflicto: resuélvelo (o aborta la fusión) antes de descartar.'
-const CARPETA_SOBRE_ARCHIVO = 'Hay una carpeta donde estaba el archivo: muévela antes de descartar.'
-const ARCHIVO_SOBRE_CARPETA = 'Hay un archivo donde estaba una de sus carpetas: muévelo antes de descartar.'
-const BORRADO_CON_CAMBIOS =
-  'Su borrado ya está preparado y la copia del disco tiene cambios: quítalo de preparados antes de descartar.'
-const BORRADO_GRANDE =
-  'Su borrado ya está preparado y la copia del disco es demasiado grande para comprobarla: quítalo de preparados antes de descartar.'
-const FUERA_DEL_ARBOL =
-  'Está marcado para no tocarse en el árbol de trabajo (skip-worktree): quita la marca antes de descartar.'
-const RAMA_ROTA = 'La rama actual no apunta a un commit válido (su referencia está dañada): no se descarta nada.'
+export const fueraDelRepo = (): string => txGit().descarte.fueraDelRepo
+const enConflicto = (): string => txGit().descarte.enConflicto
+const carpetaSobreArchivo = (): string => txGit().descarte.carpetaSobreArchivo
+const archivoSobreCarpeta = (): string => txGit().descarte.archivoSobreCarpeta
+const borradoConCambios = (): string => txGit().descarte.borradoConCambios
+const borradoGrande = (): string => txGit().descarte.borradoGrande
+const fueraDelArbol = (): string => txGit().descarte.fueraDelArbol
+const ramaRota = (): string => txGit().descarte.ramaRota
 
 /** Un submódulo: en disco es una carpeta, y `checkout` no entra en ella. */
 const MODO_SUBMODULO = '160000'
@@ -158,9 +156,9 @@ async function resolverCopias(
       v === 'igual'
         ? 'revertir'
         : v === 'grande'
-          ? { rechazo: BORRADO_GRANDE }
+          ? { rechazo: borradoGrande() }
           : v === 'distinta'
-            ? { rechazo: BORRADO_CON_CAMBIOS }
+            ? { rechazo: borradoConCambios() }
             : { rechazo: v.error }
     clases.set(c.repoPath, clase)
   }
@@ -180,23 +178,23 @@ async function clasificarUna(
   caminos: Map<string, boolean>
 ): Promise<Clasificacion | CopiaAComparar> {
   const clave = claveNombreGit(e.repoPath)
-  if (l.carpetas.has(clave)) return { rechazo: ES_CARPETA }
-  if (l.conflicto.has(clave)) return { rechazo: EN_CONFLICTO }
+  if (l.carpetas.has(clave)) return { rechazo: esCarpeta() }
+  if (l.conflicto.has(clave)) return { rechazo: enConflicto() }
   const abs = resolveInsideRepo(e.repoPath, ctx)
-  if (abs === null) return { rechazo: FUERA_DEL_REPO }
+  if (abs === null) return { rechazo: fueraDelRepo() }
   const disco = await mirarDisco(abs)
   const enHead = l.head.get(clave)
   if (!enHead) {
     // Una carpeta sin seguimiento no la lista git: la delata el disco, y `unlink` no la borraría.
-    if (disco.tipo === 'carpeta') return { rechazo: ES_CARPETA }
+    if (disco.tipo === 'carpeta') return { rechazo: esCarpeta() }
     return l.indice.has(clave) ? 'borrar-indexado' : 'borrar'
   }
-  if (l.fueraDelArbol.has(clave)) return { rechazo: FUERA_DEL_ARBOL }
-  if (disco.tipo === 'carpeta' && enHead.modo !== MODO_SUBMODULO) return { rechazo: CARPETA_SOBRE_ARCHIVO }
-  if (await archivoEnElCamino(ctx.root, abs, caminos)) return { rechazo: ARCHIVO_SOBRE_CARPETA }
+  if (l.fueraDelArbol.has(clave)) return { rechazo: fueraDelArbol() }
+  if (disco.tipo === 'carpeta' && enHead.modo !== MODO_SUBMODULO) return { rechazo: carpetaSobreArchivo() }
+  if (await archivoEnElCamino(ctx.root, abs, caminos)) return { rechazo: archivoSobreCarpeta() }
   // En HEAD y fuera del índice: un borrado ya preparado. Revertir lo restaura, y pisaría el disco.
   if (!l.indice.has(clave) && disco.tipo !== 'nada') {
-    return copiaAComparar(e.repoPath, abs, disco, enHead) ?? { rechazo: BORRADO_CON_CAMBIOS }
+    return copiaAComparar(e.repoPath, abs, disco, enHead) ?? { rechazo: borradoConCambios() }
   }
   return 'revertir'
 }
@@ -248,7 +246,7 @@ async function motivoSinHead(n: NucleoGit, ctx: RepoCtx, errLsTree: unknown): Pr
   } catch (err) {
     if (!salioConUno(err)) return errorDeGit(err)
   }
-  return (await ramaSinNacer(n, ctx)) ? null : RAMA_ROTA
+  return (await ramaSinNacer(n, ctx)) ? null : ramaRota()
 }
 
 /**

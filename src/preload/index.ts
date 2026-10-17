@@ -13,6 +13,7 @@ import {
   type Plataforma
 } from '../shared/plataforma'
 import { ARGUMENTO_ALPHA, type ResumenRenderer } from '../shared/salud'
+import { idiomaDeArgumentos, type Idioma } from '../shared/i18n'
 import { SALUD_CHANNELS } from '../shared/salud-ipc'
 import type { Profile } from '../main/profiles/types'
 import { type TerminalApi, type AgentTerminalApi, terminal, agentTerminal } from './terminales'
@@ -22,6 +23,7 @@ import {
   type ConversationsApi,
   type AgentsUpdateApi,
   type AgentesNativosApi,
+  type AgentesManualesApi,
   type RedContenedorApi,
   type UsageApi,
   type ContextApi,
@@ -30,6 +32,7 @@ import {
   conversations,
   agentsUpdate,
   agentesNativos,
+  agentesManuales,
   redContenedor,
   usage,
   context
@@ -44,6 +47,7 @@ import {
 } from './bd'
 import { type DbExploradorApi, dbExplorador } from './bdExplorador'
 import { type SshApi, ssh } from './ssh'
+import { type CopiaConfiguracionApi, copiaConfiguracion } from './copiaConfiguracion'
 import { type SftpApi, sftp } from './sftp'
 import {
   type FilesApi,
@@ -119,6 +123,11 @@ export interface TesseraApi {
    * qué filas de Configuración se montan (el registro de salud no existe en la pública).
    */
   esAlpha: boolean
+  /**
+   * El idioma de la interfaz, ya resuelto por el main (`ARGUMENTO_IDIOMA`). Síncrono por lo mismo
+   * que `plataforma`: lo fija `util/idiomaArranque` antes de que ningún módulo lea un texto.
+   */
+  idioma: Idioma
   /** Registro de salud (solo alpha): lo que la ventana cuenta de sí misma. El main sanea y decide si anota. */
   salud: {
     informarLento: (resumen: ResumenRenderer) => void
@@ -148,12 +157,14 @@ export interface TesseraApi {
   conversations: ConversationsApi
   agentsUpdate: AgentsUpdateApi
   agentesNativos: AgentesNativosApi
+  agentesManuales: AgentesManualesApi
   redContenedor: RedContenedorApi
   usage: UsageApi
   context: ContextApi
   java: JavaApi
   comprimidos: ComprimidosApi
   search: SearchApi
+  copiaConfiguracion: CopiaConfiguracionApi
 }
 
 const api: TesseraApi = {
@@ -170,6 +181,7 @@ const api: TesseraApi = {
   plataforma: plataformaActual(),
   capacidades: capacidadesDelSistema(),
   esAlpha: process.argv.includes(ARGUMENTO_ALPHA),
+  idioma: idiomaDeArgumentos(process.argv),
   salud: {
     informarLento: (resumen) => ipcRenderer.send(SALUD_CHANNELS.RENDERER, resumen),
     informarVisibilidad: (evento) => ipcRenderer.send(SALUD_CHANNELS.VISIBILIDAD, evento)
@@ -198,12 +210,14 @@ const api: TesseraApi = {
   conversations,
   agentsUpdate,
   agentesNativos,
+  agentesManuales,
   redContenedor,
   usage,
   context,
   java,
   comprimidos,
-  search
+  search,
+  copiaConfiguracion
 }
 
 if (!process.contextIsolated) {

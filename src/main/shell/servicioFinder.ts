@@ -12,6 +12,7 @@ import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { execFile } from 'node:child_process'
 import { plataformaActual, type Plataforma } from '../../shared/plataforma'
 import type { DisponibilidadFinder } from '../../shared/servicio-finder-ipc'
+import { txShell } from './textos.ts'
 
 /**
  * Cómo se lee la entrada en el menú del Finder, y también cómo se llama la carpeta.
@@ -363,7 +364,7 @@ export async function instalarServicioFinder(
     await writeFile(`${raiz}/Contents/Info.plist`, contenidoInfoPlist(), 'utf8')
     await writeFile(`${raiz}/Contents/document.wflow`, contenidoWflow(rutaApp), 'utf8')
   } catch (e) {
-    fallos.push({ operacion: 'escribir la acción rápida', detalle: detalleDe(e) })
+    fallos.push({ operacion: txShell().finder.escribir, detalle: detalleDe(e) })
   }
   return fallos
 }
@@ -378,7 +379,7 @@ export async function desinstalarServicioFinder(home: string): Promise<FalloFind
   try {
     await rm(rutaServicioFinder(home), { recursive: true, force: true })
   } catch (e) {
-    fallos.push({ operacion: 'borrar la acción rápida', detalle: detalleDe(e) })
+    fallos.push({ operacion: txShell().finder.borrar, detalle: detalleDe(e) })
   }
   return fallos
 }

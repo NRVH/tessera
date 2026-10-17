@@ -4,6 +4,7 @@
 // Clic simple selecciona y actualiza la previa; doble clic abre.
 // =============================================================================
 import type { CoincidenciaArchivo } from '../../../../shared/search-ipc'
+import { txBusqueda } from './textos.ts'
 
 interface FilaResultadoProps {
   coincidencia: CoincidenciaArchivo
@@ -50,19 +51,17 @@ export function FilaResultado({
 /** La línea, o una marca cuando no la hay: no se finge un número que no existe. */
 function EtiquetaLinea({ c }: { c: CoincidenciaArchivo }): React.JSX.Element {
   if (c.linea > 0) return <span className="buscar-fila-linea">{c.linea}</span>
+  const t = txBusqueda()
   if (c.origen === 'archivo') {
     return (
-      <span className="buscar-fila-chip" title="El nombre del archivo coincide">
-        archivo
+      <span className="buscar-fila-chip" title={t.nombreCoincide}>
+        {t.chipArchivo}
       </span>
     )
   }
   return (
-    <span
-      className="buscar-fila-chip"
-      title="Coincide en el nombre o en una constante de la clase compilada"
-    >
-      clase
+    <span className="buscar-fila-chip" title={t.coincideEnClase}>
+      {t.chipClase}
     </span>
   )
 }

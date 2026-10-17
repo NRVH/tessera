@@ -47,6 +47,8 @@ export const CLIPBOARD_CHANNELS = {
 
 /** Petición de pegado desde el portapapeles del sistema: solo el destino. */
 export interface ClipboardPasteRequest {
+  /** Contenedora del proyecto del destino (`EnProyecto` de files-ipc). */
+  raiz: string
   /** Carpeta destino, relativa a la raíz del proyecto (POSIX, "" = raíz). */
   destDir: string
 }

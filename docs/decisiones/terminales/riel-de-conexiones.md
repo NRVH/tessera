@@ -11,8 +11,9 @@ descarte de la lista lateral en `terminales-keep-alive-y-reinicio-limpio.md`).
 
 ## Decisión
 
-- La MISMA `ListaConexionesSsh` en modo `fijo`, a la izquierda de la terminal y solo a pantalla completa; se monta al
-  mostrarse. Fuera del modo queda el lanzador. Varios grupos abiertos a la vez: el acordeón es solo del lanzador.
+- La MISMA `ListaConexionesSsh` en modo `fijo`, a la izquierda de la terminal y solo a pantalla completa; se monta la
+  primera vez que se enseña y desde entonces se queda montado, oculto cuando no se enseña, para volver con su filtro, su
+  fila y su desplazamiento (`renderer/vivos-y-ocultos.md`). Fuera del modo queda el lanzador. Varios grupos abiertos a la vez: el acordeón es solo del lanzador.
 - Ancho GLOBAL (`sshRielAncho`: 260 px, de 180 a 480, como el lateral) con un divisor, y visibilidad por PERFIL
   (`sshRielVisiblePorPerfil`, sin entrada = visible). Se sanean en `shared/ajustesTerminal.ts` y se podan por perfil.
 - Se pliega con «Ocultar la lista» o con su conmutador: un icono propio al EXTREMO IZQUIERDO de la cabecera, solo a pantalla

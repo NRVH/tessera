@@ -18,6 +18,7 @@ import * as edicion from './edicionColeccion'
 import { barraFiltro, cabeceraColeccion, zonaTabla, type AccionesVista } from './vistaColeccion'
 import { panelDocumento } from './PanelDocumento'
 import { dialogosColeccion } from './DialogosColeccion'
+import { txColeccionDocs } from './textosColeccionDocs'
 import type { AbrirConsolaEn } from '../consola/basesConsola'
 import './documentos.css'
 
@@ -81,7 +82,7 @@ export function DbColeccionPane(p: PropsColeccion): React.JSX.Element {
   const datos = { conexion, base, coleccion, e, ed, acc }
 
   return (
-    <section className={`db-coleccion${visible ? '' : ' hidden'}`} aria-label={`Colección ${base}.${coleccion}`}>
+    <section className={`db-coleccion${visible ? '' : ' hidden'}`} aria-label={txColeccionDocs().coleccionAria(`${base}.${coleccion}`)}>
       {cabeceraColeccion(datos)}
       {barraFiltro(e, columnasGuiadas, acc)}
       <div className="db-docs-cuerpo-pestana">

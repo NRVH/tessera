@@ -1,0 +1,177 @@
+/* =============================================================================
+   Selector de agentes de la cabecera del agente: pestañas con contorno que miden lo que su
+   nombre (con tope), una fila que se desplaza en horizontal con «›» para las que no caben, el
+   «+» fuera de la fila, el desplegable del modo lista y la lista de Configuración › Agentes.
+   Colores del tema, sin hex sueltos.
+   ============================================================================= */
+
+.agent-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  /* Cede ancho antes que las acciones de la cabecera: la fila se desplaza dentro. */
+  flex: 0 1 auto;
+}
+
+.agent-switch-fila {
+  /* Referencia de `offsetLeft` para llevar la pestaña activa a la vista. */
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.agent-switch-fila::-webkit-scrollbar {
+  display: none;
+}
+
+.agent-switch-btn {
+  flex: 0 0 auto;
+  max-width: 140px;
+  height: 22px;
+  padding: 0 9px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  color: var(--fg-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  cursor: pointer;
+  transition: color 0.12s ease, border-color 0.12s ease;
+}
+.agent-switch-btn > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.agent-switch-btn:hover:not(.active) {
+  color: var(--fg);
+  border-color: var(--fg-faint);
+}
+.agent-switch-btn.active {
+  color: var(--fg);
+  background: var(--bg-deep);
+  border-color: var(--fg-muted);
+}
+@container agentheader (max-width: 430px) {
+  .agent-switch-btn {
+    padding: 0 7px;
+  }
+}
+.agent-switch-btn.arrastrando {
+  opacity: 0.45;
+}
+.agent-switch-btn.destino {
+  border-color: var(--accent);
+}
+
+.agent-switch-icono {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--fg-muted);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+.agent-switch-icono:hover {
+  background: var(--hover-suave);
+  color: var(--fg);
+}
+
+/* Configuración › Agentes: la lista del perfil. Sus menús y modales van por encima del modal. */
+.sobre-ajustes {
+  position: relative;
+  z-index: 2100;
+}
+.gestion-agentes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px 0;
+}
+.gestion-agentes-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+}
+.gestion-agente {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: calc(var(--ui-row-h) + 8px);
+  padding: 2px 6px;
+  border-top: 1px solid var(--border);
+}
+.gestion-agente:first-child {
+  border-top: none;
+}
+.gestion-agente.oculto .gestion-agente-nombre {
+  color: var(--fg-faint);
+}
+.gestion-agente.arrastrando {
+  opacity: 0.45;
+}
+.gestion-agente.destino {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.gestion-agente-asa {
+  display: inline-flex;
+  color: var(--fg-faint);
+  cursor: grab;
+}
+.gestion-agente-nombre {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg);
+  font-size: var(--ui-font);
+}
+.gestion-agente-modo {
+  color: var(--fg-faint);
+  font-size: calc(var(--ui-font) - 1px);
+}
+
+/* Modo lista: el agente actual y un caret, del mismo alto que una pestaña. */
+.agent-lista-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 180px;
+  height: 22px;
+  padding: 0 8px;
+  font-size: 11.5px;
+  font-weight: 500;
+  text-transform: none;
+  color: var(--fg);
+  background: var(--bg-deep);
+  border: 1px solid var(--border-soft);
+  border-radius: 5px;
+  cursor: pointer;
+}
+.agent-lista-btn:hover {
+  border-color: var(--fg-faint);
+}
+.agent-lista-nombre {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

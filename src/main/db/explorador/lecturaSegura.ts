@@ -3,7 +3,7 @@
 // conexión en el registro, forzarla a solo lectura, sacar su contraseña del puente, taparla en la salida
 // y vetar cualquier petición al trabajador que pudiera escribir o bloquear. Vive aparte porque el humo
 // solo corre donde esa base es alcanzable; lo que decide sin red lo fija `test-lectura-segura.mts`.
-// Decisiones: docs/decisiones/bd/conexiones-humo-de-solo-lectura.md
+// Decisiones: docs/decisiones/bd/sesiones-solo-lectura-impuesta.md
 // =============================================================================
 
 import { envVarDestino, envVarSecreto, type DbConnection } from '../../../shared/db-ipc.ts'

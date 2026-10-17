@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { DbConexionAjena, DbConnection } from '../../../../shared/db-ipc'
 import { notify, notifyError } from '../../comun/notifications'
+import { txArea } from './textosArea.ts'
 
 /**
  * ¿Ya se avisó en esta sesión de que el registro se recuperó del `.bak`? De MÓDULO y no un
@@ -95,6 +96,22 @@ function soloInteres<T>(mapa: ReadonlyMap<string, T>, interes: ReadonlySet<strin
 }
 
 /**
+ * Invalida las lecturas en vuelo de los perfiles que no están en `perfiles`: al soltar su lista, una
+ * respuesta que ya venía de camino la volvería a poner, vieja.
+ */
+function invalidarFuera(generaciones: Map<string, number>, perfiles: ReadonlySet<string>): void {
+  for (const [perfilId, gen] of generaciones) if (!perfiles.has(perfilId)) generaciones.set(perfilId, gen + 1)
+}
+
+/** El registro con solo los perfiles de `perfiles`; el MISMO si no sobraba ninguno. */
+function registroDe(prev: Registro, perfiles: ReadonlySet<string>): Registro {
+  const conexiones = soloInteres(prev.conexiones, perfiles)
+  const ajenas = soloInteres(prev.ajenas, perfiles)
+  const avisos = soloInteres(prev.avisos, perfiles)
+  return conexiones === prev.conexiones && ajenas === prev.ajenas && avisos === prev.avisos ? prev : { conexiones, ajenas, avisos }
+}
+
+/**
  * Clave estable de una lista de perfiles: sin duplicados y en orden. La comparte
  * `useConsolasBd`, que decide con ella lo mismo (cuándo cambió el interés).
  */
@@ -132,7 +149,7 @@ function cargarPerfil(
       avisados.delete(perfilId)
       if (!lista.formatoAjeno && lista.recuperado !== undefined && !recuperacionAvisada) {
         recuperacionAvisada = true
-        notify('warn', 'Conexiones recuperadas de la copia de respaldo', lista.recuperado)
+        notify('warn', txArea().conexionesRecuperadas, lista.recuperado)
       }
       aplicar(() => ({
         conexiones: lista.conexiones,
@@ -144,7 +161,7 @@ function cargarPerfil(
       console.error('[db] no se pudieron leer las conexiones:', err)
       if (!avisados.has(perfilId)) {
         avisados.add(perfilId)
-        notifyError('No se pudieron leer las conexiones', err)
+        notifyError(txArea().noSePudieronLeerConexiones, err)
       }
       // Las dos listas por igual, porque vienen de una lectura y fallan juntas; y el
       // aviso también: un fallo de lectura no dice que el formato se arreglara.
@@ -157,9 +174,14 @@ function cargarPerfil(
   )
 }
 
-/** Conexiones conocidas y ajenas de los perfiles de interés, recargadas con `db.onChanged`. */
-export function useConexionesBd(perfilesInteres: readonly string[]): ConexionesBd {
+/**
+ * Conexiones conocidas y ajenas de los perfiles de interés, recargadas con `db.onChanged`. Las de un
+ * perfil que deja de interesar se CONSERVAN y se refrescan al volver, sin vaciarse: así su árbol
+ * vuelve al instante. Solo se sueltan las de los perfiles que ya no existen (`perfilesVivos`).
+ */
+export function useConexionesBd(perfilesInteres: readonly string[], perfilesVivos: readonly string[]): ConexionesBd {
   const clave = claveDe(perfilesInteres)
+  const claveVivos = claveDe(perfilesVivos)
   const [registro, setRegistro] = useState<Registro>(() => ({ conexiones: new Map(), ajenas: new Map(), avisos: new Map() }))
   /** Generación en vuelo por perfil: solo cuenta la respuesta de la última petición. */
   const generacionRef = useRef(new Map<string, number>())
@@ -174,26 +196,29 @@ export function useConexionesBd(perfilesInteres: readonly string[]): ConexionesB
     []
   )
 
-  // Al cambiar el conjunto de interés: se leen los nuevos y se sueltan los que sobran.
+  // Al cambiar el conjunto de interés: se leen (o se refrescan) los que interesan.
   useEffect(() => {
-    const interes = clave ? clave.split(',') : []
-    const set = new Set(interes)
-    setRegistro((prev) => {
-      const conexiones = soloInteres(prev.conexiones, set)
-      const ajenas = soloInteres(prev.ajenas, set)
-      const avisos = soloInteres(prev.avisos, set)
-      if (conexiones === prev.conexiones && ajenas === prev.ajenas && avisos === prev.avisos) return prev
-      return { conexiones, ajenas, avisos }
-    })
-    for (const perfilId of interes) cargar(perfilId)
+    for (const perfilId of clave ? clave.split(',') : []) cargar(perfilId)
   }, [clave, cargar])
 
-  // El registro cambió (alta, edición, baja, prueba, reorden, una ajena borrada): se
-  // relee todo lo de interés. Registrado UNA vez; lee la lista por ref.
+  // Se sueltan solo los perfiles borrados; sin lista de vivos aún no se sabe cuáles sobran.
+  useEffect(() => {
+    if (!claveVivos) return
+    const set = new Set(claveVivos.split(','))
+    invalidarFuera(generacionRef.current, set)
+    setRegistro((prev) => registroDe(prev, set))
+  }, [claveVivos])
+
+  // El registro cambió (alta, edición, baja, prueba, reorden, una ajena borrada): se relee todo lo
+  // de interés, y lo conservado de los demás perfiles se suelta (ya no es fiable: se leerá de nuevo
+  // al volver). Registrado UNA vez; lee la lista por ref.
   useEffect(
     () =>
       window.tessera.db.onChanged(() => {
-        for (const perfilId of interesRef.current) cargar(perfilId)
+        const interes = new Set(interesRef.current)
+        invalidarFuera(generacionRef.current, interes)
+        setRegistro((prev) => registroDe(prev, interes))
+        for (const perfilId of interes) cargar(perfilId)
       }),
     [cargar]
   )

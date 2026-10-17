@@ -9,13 +9,14 @@ import type { DbCancelar, DbErrorSql, DbEstadoSesion, DbFaseSesion, DbRefSesion,
 import type { DbConnection } from '../../../shared/db-ipc.ts'
 import { descriptor, familiaDe } from '../../../shared/motores/index.ts'
 import { esErrorCola } from './colaSesion.ts'
-import { avisoDePerdida, errorTrabajadorDe, estadoDeSesion, mensajeDe, MENSAJE_CERRANDO, MENSAJE_FORZADA, MENSAJE_SIN_LANZAR, procesoOciosoMasViejo, sesionNueva } from './controlador/gestorFamiliaTipos.ts'
+import { avisoDePerdida, errorTrabajadorDe, estadoDeSesion, mensajeDe, mensajeCerrando, mensajeForzada, mensajeSinLanzar, procesoOciosoMasViejo, sesionNueva } from './controlador/gestorFamiliaTipos.ts'
 import type { ConfigFamilia, DependenciasGestorFamilia, OpcionesOperar, OpFamilia, ProcesoFamilia, SesionFamilia } from './controlador/gestorFamiliaTipos.ts'
 import { ErrorGestor } from './GestorSesiones.ts'
 import { CIERRE_TRABAJADORES_MS, INACTIVIDAD_CONSOLA_MS, MAX_CONSOLAS_VIVAS_POR_CONEXION, MAX_PROCESOS, PROCESO_SIN_SESIONES_MS, TIMEOUT_SQL_META_MS, umbralInactividadMs } from './limites.ts'
 import { conTunel, PLAZOS_TRABAJADOR_MS, type ErrorTrabajador, type EventoTrabajador, type PeticionSinIdDe } from './protocoloTrabajador.ts'
 import { destinoPorTunel } from './sesiones/errores.ts'
 import { sinSoloLecturaImpuesta } from './soloLecturaImpuesta.ts'
+import { txFamilia } from './textosExplorador.ts'
 
 export { conexionTrabajadorFamilia, errorTrabajadorDe, mensajeDe } from './controlador/gestorFamiliaTipos.ts'
 export type { ConfigFamilia, DependenciasGestorFamilia, OpcionesOperar, OpFamilia, ProcesoFamilia, SesionFamilia } from './controlador/gestorFamiliaTipos.ts'
@@ -95,7 +96,7 @@ export class GestorFamilia<C, P extends { operacion: string }, R extends { [K in
     this.procesos.delete(conexionId)
     this.log(`forzar: proceso #${p.id} de ${conexionId}`)
     try {
-      p.trabajador.matar({ clase: 'cancelada', mensaje: MENSAJE_FORZADA })
+      p.trabajador.matar({ clase: 'cancelada', mensaje: mensajeForzada() })
     } catch {
       // ya no está
     }
@@ -177,10 +178,10 @@ export class GestorFamilia<C, P extends { operacion: string }, R extends { [K in
     if (et) return this.cfg.error(et, ctx)
     if (esErrorCola(e)) {
       return e.motivo === 'vaciada'
-        ? { motivo: 'interno', mensaje: 'La sesión se cerró antes de ejecutar la operación.' }
+        ? { motivo: 'interno', mensaje: txFamilia().sesionCerradaAntes }
         : { motivo: 'cancelada', mensaje: e.message }
     }
-    return { motivo: 'interno', mensaje: 'Error interno del explorador de bases de datos.' }
+    return { motivo: 'interno', mensaje: txFamilia().errorInterno }
   }
 
   protected async respuesta<T>(fn: () => Promise<T>, ctx?: C): Promise<DbRespuesta<T>> {
@@ -270,9 +271,9 @@ export class GestorFamilia<C, P extends { operacion: string }, R extends { [K in
   private async asegurarAbierta(s: SesionFamilia): Promise<ProcesoFamilia> {
     if (s.abierta && s.proceso && !s.proceso.salido && !s.proceso.retirado) return s.proceso
     const con = this.deps.conexion(s.conexionId)
-    if (!con) throw new ErrorGestor('interno', 'La conexión ya no existe.')
+    if (!con) throw new ErrorGestor('interno', txFamilia().conexionNoExiste)
     if (familiaDe(con.motor) !== this.cfg.familia) {
-      throw new ErrorGestor('interno', `${descriptor(con.motor).etiqueta} no es un motor de ${this.cfg.etiqueta}.`)
+      throw new ErrorGestor('interno', txFamilia().motorNoEsDeFamilia(descriptor(con.motor).etiqueta, this.cfg.etiqueta))
     }
     // El secreto ANTES de lanzar nada: sin él no hay nada que abrir.
     const secreto = this.secretoDe(con)
@@ -316,10 +317,7 @@ export class GestorFamilia<C, P extends { operacion: string }, R extends { [K in
     if (!con.tieneSecreto) return ''
     const secreto = this.deps.secreto(con.id)
     if (secreto !== null) return secreto
-    throw new ErrorGestor(
-      'sinSecreto',
-      'La contraseña guardada no se puede descifrar en este equipo. Edita la conexión y vuelve a escribirla.'
-    )
+    throw new ErrorGestor('sinSecreto', txFamilia().sinSecreto)
   }
 
   private async procesoPara(con: DbConnection): Promise<ProcesoFamilia> {
@@ -328,7 +326,7 @@ export class GestorFamilia<C, P extends { operacion: string }, R extends { [K in
       await actual.arranque
       if (!actual.salido && !actual.retirado) return actual
     }
-    if (this.cerrando) throw new ErrorGestor('interno', MENSAJE_CERRANDO)
+    if (this.cerrando) throw new ErrorGestor('interno', mensajeCerrando())
     this.hacerSitioProceso()
     const trabajador = this.deps.lanzar(con)
     const p: ProcesoFamilia = {
@@ -355,7 +353,7 @@ export class GestorFamilia<C, P extends { operacion: string }, R extends { [K in
           // ya no está
         }
         this.olvidarProceso(p)
-        throw new ErrorGestor('interno', MENSAJE_SIN_LANZAR)
+        throw new ErrorGestor('interno', mensajeSinLanzar())
       }
     )
     await p.arranque
@@ -384,10 +382,7 @@ export class GestorFamilia<C, P extends { operacion: string }, R extends { [K in
     if (consolas.length < MAX_CONSOLAS_VIVAS_POR_CONEXION) return
     const victima = consolas.filter((s) => s.cola.vacia()).sort((a, b) => a.ultimoUso - b.ultimoUso)[0]
     if (!victima) {
-      throw new ErrorGestor(
-        'limite',
-        `Esta conexión ya tiene ${MAX_CONSOLAS_VIVAS_POR_CONEXION} consolas trabajando a la vez. Espera a que termine alguna.`
-      )
+      throw new ErrorGestor('limite', txFamilia().limiteConsolas(MAX_CONSOLAS_VIVAS_POR_CONEXION))
     }
     void this.cerrarSesion(victima, true)
   }
@@ -410,7 +405,7 @@ export class GestorFamilia<C, P extends { operacion: string }, R extends { [K in
     for (const s of this.sesionesPorClave.values()) {
       if (s.proceso !== p) continue
       if (caida && s.abierta) {
-        this.perderSesion(s, { clase: 'perdida', mensaje: 'El proceso de la conexión terminó inesperadamente.' }, 'caida')
+        this.perderSesion(s, { clase: 'perdida', mensaje: txFamilia().procesoTerminoInesperado }, 'caida')
       } else {
         this.soltar(s, 'cerrada')
       }
@@ -464,7 +459,7 @@ export class GestorFamilia<C, P extends { operacion: string }, R extends { [K in
         this.log(`cerrar la sesión ${s.id} falló: ${mensajeDe(e)}`)
       }
     }
-    if (aviso) s.aviso = { tipo: aviso, txPerdida: false, mensaje: 'La sesión se cerró por inactividad; se reabre al usarla.', en: this.ahora() }
+    if (aviso) s.aviso = { tipo: aviso, txPerdida: false, mensaje: txFamilia().cerradaPorInactividad, en: this.ahora() }
     this.soltar(s, 'cerrada')
   }
 

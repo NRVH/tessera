@@ -5,22 +5,19 @@
 // Decisiones: docs/decisiones/bd/ui-conexion-campos.md
 // =============================================================================
 
-import { ENTORNOS, NOMBRE_ENTORNO, esEntorno } from '../../../../shared/db-ipc.ts'
+import { ENTORNOS, esEntorno } from '../../../../shared/db-ipc.ts'
+import { nombreEntorno } from './textosEntorno.ts'
 import { nunca } from '../../../../shared/nunca.ts'
 import { candadoSoloLecturaDe, descriptor } from '../../../../shared/motores/index.ts'
 import type { DbEntorno, DbMotor } from '../../../../shared/db-ipc.ts'
 import type { DescriptorMotor } from '../../../../shared/motores/index.ts'
+import { txConexionCampos } from './textosConexionCampos.ts'
 
 /** La etiqueta de la casilla: limita a los agentes, no al usuario. */
-export const ETIQUETA_SOLO_LECTURA = 'Solo lectura para los agentes (recomendado)'
+export const etiquetaSoloLectura = (): string => txConexionCampos().etiquetaSoloLectura
 
 /** El `title` de la marca «RO» (árbol, barras de las consolas): informa de la casilla, que no limita al usuario. */
-export const TITULO_SOLO_LECTURA_AGENTES = 'Solo lectura para los agentes: tdb no escribe en esta conexión (tú sí puedes)'
-
-/** El principio de la ayuda de la casilla: a quién limita y a quién no. */
-const AYUDA_SOLO_LECTURA_QUIEN =
-  'Los agentes (Claude Code, Codex), que consultan por tdb, solo pueden leer esta conexión; tú no quedas ' +
-  'limitado: desde el explorador editas, insertas, borras y confirmas como siempre. '
+export const tituloSoloLecturaAgentes = (): string => txConexionCampos().tituloSoloLecturaAgentes
 
 /**
  * La ayuda bajo «Solo lectura para los agentes»: a quién limita y, por motor, cómo lo
@@ -28,21 +25,15 @@ const AYUDA_SOLO_LECTURA_QUIEN =
  * Tessera y no el servidor, no promete lo del servidor.
  */
 export function ayudaSoloLectura(motor: DbMotor): string {
+  const t = txConexionCampos()
   const d = descriptor(motor)
   const candado = candadoSoloLecturaDe(d)
   switch (candado) {
     case 'clasificadorYEnvoltorio':
-      return (
-        AYUDA_SOLO_LECTURA_QUIEN +
-        'tdb rechaza sus escrituras y deshace lo que se cuele: aquí el solo lectura lo impone Tessera; para ' +
-        'garantía, un usuario con db_datareader.'
-      )
+      return t.ayudaQuien + t.ayudaClasificador
     case 'listaBlanca':
       // Sin transacción que envuelva: `tdb` deja pasar solo las operaciones de lectura.
-      return (
-        AYUDA_SOLO_LECTURA_QUIEN +
-        `tdb solo les deja pasar las operaciones de lectura: aquí el solo lectura lo impone Tessera; para garantía, ${garantiaSoloLectura(d)}.`
-      )
+      return t.ayudaQuien + t.ayudaListaBlanca(garantiaSoloLectura(d))
     case 'transaccionSoloLectura':
     case 'envoltorioRollback':
     case 'autorizador':
@@ -53,19 +44,11 @@ export function ayudaSoloLectura(motor: DbMotor): string {
   const c = d.conexion.credenciales
   switch (c) {
     case 'usuarioClave':
-      return (
-        AYUDA_SOLO_LECTURA_QUIEN +
-        'tdb rechaza sus escrituras y el servidor abre sus transacciones en solo lectura. La garantía de ' +
-        'verdad sigue siendo darles un usuario de base de datos con permisos de lectura.'
-      )
+      return t.ayudaQuien + t.ayudaUsuarioClave
     case 'ninguna':
       // Sin servidor que reparta el archivo, una transacción abierta lo bloquea para las demás aplicaciones
       // (en WAL solo si escribe: de ahí el «pueden», como en `TITULO_TX_ARCHIVO`).
-      return (
-        AYUDA_SOLO_LECTURA_QUIEN +
-        'tdb abre el archivo en solo lectura y rechaza sus escrituras. Mientras una transacción esté abierta, ' +
-        'las demás aplicaciones que usan el archivo pueden no poder escribir en él.'
-      )
+      return t.ayudaQuien + t.ayudaArchivo
     default:
       return nunca(c, 'ayudaSoloLectura')
   }
@@ -73,13 +56,14 @@ export function ayudaSoloLectura(motor: DbMotor): string {
 
 /** El usuario de solo lectura que garantiza de verdad el candado 'listaBlanca', por FAMILIA. */
 function garantiaSoloLectura(d: DescriptorMotor): string {
+  const t = txConexionCampos()
   switch (d.familia) {
     case 'documentos':
-      return 'un usuario con el rol read'
+      return t.garantiaDocumentos
     case 'claves':
-      return 'un usuario ACL que solo pueda leer (+@read)'
+      return t.garantiaClaves
     case 'sql':
-      return 'un usuario con permisos de lectura'
+      return t.garantiaSql
     default:
       return nunca(d, 'garantiaSoloLectura')
   }
@@ -93,12 +77,14 @@ export interface OpcionEntorno {
 
 /**
  * Las opciones en el orden en que se ofrecen: «Sin entorno» primero y luego los de
- * `ENTORNOS`, de menos a más peligro, con las etiquetas de `NOMBRE_ENTORNO` (las de la marca).
+ * `ENTORNOS`, de menos a más peligro, con las de `nombreEntorno` (las de la marca).
  */
-export const OPCIONES_ENTORNO: readonly OpcionEntorno[] = [
-  { valor: null, etiqueta: 'Sin entorno' },
-  ...ENTORNOS.map((e) => ({ valor: e, etiqueta: NOMBRE_ENTORNO[e] }))
-]
+export function opcionesEntorno(): readonly OpcionEntorno[] {
+  return [
+    { valor: null, etiqueta: txConexionCampos().sinEntorno },
+    ...ENTORNOS.map((e) => ({ valor: e, etiqueta: nombreEntorno(e) }))
+  ]
+}
 
 /** El `value` de un radio del selector: el entorno, o '' para «Sin entorno» (un radio no admite null). */
 export function valorRadioEntorno(entorno: DbEntorno | null): string {
@@ -112,14 +98,15 @@ export function entornoDeRadio(valor: string): DbEntorno | null {
 
 /** La ayuda bajo el selector: qué CAMBIA con lo elegido. No depende de la casilla de los agentes. */
 export function ayudaEntorno(entorno: DbEntorno | null): string {
+  const t = txConexionCampos()
   switch (entorno) {
     case null:
-      return 'Sin marcas ni confirmaciones.'
+      return t.ayudaEntornoNinguno
     case 'desarrollo':
-      return 'Marca verde en el árbol, en las pestañas de esta conexión y en la barra de sus consolas.'
+      return t.ayudaEntornoDesarrollo
     case 'pruebas':
-      return 'Marca ámbar en el árbol, en las pestañas de esta conexión y en la barra de sus consolas.'
+      return t.ayudaEntornoPruebas
     case 'produccion':
-      return 'Marca roja, y Tessera pide confirmación antes de cada escritura (DML, DDL, PL/SQL y COMMIT, y al enviar los cambios de la rejilla). Sus consolas nuevas arrancan en Tx Manual.'
+      return t.ayudaEntornoProduccion
   }
 }

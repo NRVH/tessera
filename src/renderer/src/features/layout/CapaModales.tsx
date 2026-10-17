@@ -1,5 +1,6 @@
 // =============================================================================
-// Capa de modales de la raíz, en su orden: Configuración, buscar en archivos, el
+// Capa de modales de la raíz, en su orden: Configuración, importar un `.tessera` abierto desde el
+// sistema, buscar en archivos, el
 // modo de un proyecto nuevo, cerrar sin guardar, el menú de elegir conexión y los diálogos de las
 // conexiones SSH.
 // En la raíz porque un `position: fixed` se resuelve contra cualquier ancestro con
@@ -7,13 +8,14 @@
 // =============================================================================
 import { ConfirmDialog } from '../../comun/ConfirmDialog'
 import { ContextMenu } from '../../comun/ContextMenu'
-import { ModalAjustes } from '../ajustes'
+import { ImportarDesdeSistema, ModalAjustes } from '../ajustes'
 import { ModalBusqueda } from '../busqueda'
 import { ProjectModeModal, useStorePestanas, type UseTabs } from '../pestanas'
 import { useStoreEditor, type EditorApp } from '../editor'
 import { IconoMotor, motivoSinConsola, useStoreBd, type BdApp } from '../bd'
 import { DialogosSsh, PreguntaAskpassSsh } from '../ssh'
 import type { SesionesNativas } from '../agentes'
+import { txLayout } from './textos.ts'
 
 interface Props {
   tabs: UseTabs
@@ -39,16 +41,13 @@ function PreguntaModo(): React.JSX.Element | null {
 function CerrarSinGuardar({ editor }: Pick<Props, 'editor'>): React.JSX.Element | null {
   const pendingClose = useStoreEditor((s) => s.pendingClose)
   if (!pendingClose) return null
+  const t = txLayout().cerrarSinGuardar
   return (
     <ConfirmDialog
-      title="Cerrar sin guardar"
-      message={
-        pendingClose.kind === 'diff'
-          ? `"${pendingClose.name}" tiene cambios sin guardar.\nSi cierras el diff, se pierden: no se han escrito a disco.`
-          : `"${pendingClose.name}" tiene cambios sin guardar.\nSi lo cierras, se pierden.`
-      }
-      confirmLabel="Cerrar sin guardar"
-      cancelLabel="Cancelar"
+      title={t.titulo}
+      message={pendingClose.kind === 'diff' ? t.mensajeDiff(pendingClose.name) : t.mensajeArchivo(pendingClose.name)}
+      confirmLabel={t.titulo}
+      cancelLabel={t.cancelar}
       danger
       onConfirm={() => {
         editor.closeEditorTab(pendingClose.id)
@@ -85,6 +84,7 @@ export function CapaModales({ tabs, perfilUI, editor, bd, sesiones, cambiarZoom 
   return (
     <>
       <ModalAjustes sesiones={sesiones} cambiarZoom={cambiarZoom} />
+      <ImportarDesdeSistema />
       <ModalBusqueda tabs={tabs} perfilUI={perfilUI} editor={editor} />
       <PreguntaModo />
       <CerrarSinGuardar editor={editor} />

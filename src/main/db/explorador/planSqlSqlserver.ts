@@ -8,6 +8,7 @@
 
 import type { DbNodoPlan } from '../../../shared/db-explorador-ipc.ts'
 import { MAX_NODOS_PLAN } from './planSqlComun.ts'
+import { txPlanMysql } from './textosRejilla.ts'
 
 /** Entidades de un atributo de XML. */
 function desescaparXml(s: string): string {
@@ -174,7 +175,7 @@ function recorrerXml(xml: string, acc: AcumuladoXml): void {
 export function planDesdeXmlSqlServer(xmls: readonly string[]): { nodos: DbNodoPlan[]; texto: string; recortado: boolean } {
   const acc: AcumuladoXml = { nodos: [], lineas: [], recortado: false, sentencias: 0 }
   for (const xml of xmls) recorrerXml(xml, acc)
-  if (acc.nodos.length === 0 && acc.sentencias === 0) throw new Error('El servidor no devolvió un plan de SHOWPLAN_XML.')
+  if (acc.nodos.length === 0 && acc.sentencias === 0) throw new Error(txPlanMysql().sinPlanSqlServer)
   return { nodos: acc.nodos, texto: textoPlanSqlServer(acc.nodos, acc.lineas), recortado: acc.recortado }
 }
 

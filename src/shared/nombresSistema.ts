@@ -4,10 +4,11 @@
 // de la interfaz que los nombre los pide aquí en vez de escribir «Windows» a mano.
 // La plataforma es OBLIGATORIA, sin valor por defecto: lo importan el main
 // (`plataformaActual()`) y el renderer (`window.tessera.plataforma`, donde no hay `process`).
-// Puro: sin `process`, Electron ni `fs`; solo importa un tipo.
+// Puro: sin `process`, Electron ni `fs`. Habla el idioma activo (`i18n.ts`).
 // Decisiones: docs/decisiones/shared/plataforma-y-nombres-del-sistema.md
 // =============================================================================
 
+import { idiomaActual } from './i18n.ts'
 import type { Plataforma } from './plataforma'
 
 export interface NombresSistema {
@@ -98,7 +99,47 @@ const TABLA: Record<Plataforma, NombresSistema> = {
   }
 }
 
-/** Los nombres de ESTA plataforma. Ver la cabecera: la plataforma no tiene defecto. */
+/** La misma tabla en inglés: el artículo va en minúscula porque abre frases a media línea. */
+const TABLA_EN: Record<Plataforma, NombresSistema> = {
+  windows: {
+    sistema: 'Windows',
+    tuEquipo: 'your Windows PC',
+    gestorArchivos: 'File Explorer',
+    shellNativa: 'PowerShell',
+    almacenSecretos: 'Windows encryption (DPAPI)',
+    agenteClavesSsh: 'the Windows SSH agent',
+    papelera: 'the Recycle Bin'
+  },
+  mac: {
+    sistema: 'macOS',
+    tuEquipo: 'your Mac',
+    gestorArchivos: 'the Finder',
+    shellNativa: 'your login shell',
+    almacenSecretos: 'the macOS Keychain',
+    agenteClavesSsh: 'the keychain and the SSH agent',
+    papelera: 'the Trash'
+  },
+  linux: {
+    sistema: 'Linux',
+    tuEquipo: 'your computer',
+    gestorArchivos: 'the file manager',
+    shellNativa: 'your login shell',
+    almacenSecretos: 'the desktop keyring (GNOME Keyring or KWallet)',
+    agenteClavesSsh: 'your session’s SSH agent',
+    papelera: 'the Trash'
+  },
+  otra: {
+    sistema: 'the system',
+    tuEquipo: 'your computer',
+    gestorArchivos: 'the file manager',
+    shellNativa: 'your login shell',
+    almacenSecretos: 'the desktop keyring',
+    agenteClavesSsh: 'the system SSH agent',
+    papelera: 'the trash'
+  }
+}
+
+/** Los nombres de ESTA plataforma en el idioma activo. Ver la cabecera: la plataforma no tiene defecto. */
 export function nombresSistema(plataforma: Plataforma): NombresSistema {
-  return TABLA[plataforma]
+  return (idiomaActual() === 'en' ? TABLA_EN : TABLA)[plataforma]
 }

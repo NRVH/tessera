@@ -65,6 +65,11 @@ export interface ConflictoImportacion {
 export interface PropsFileTree {
   projectHostPath: string
   projectName: string
+  /**
+   * ¿Es el árbol que se ve? Los demás siguen montados (`comun/useVivosRecientes`) pero no relistan con los
+   * avisos del vigilante, que son del proyecto anclado: se refrescan una vez al volver a verse.
+   */
+  activo: boolean
   /** Alto de fila en px (lo decide el tamaño de letra de la interfaz). */
   altoFila: number
   /** Carpetas abiertas recordadas de una visita anterior a este proyecto. */

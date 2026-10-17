@@ -6,6 +6,7 @@
 // =============================================================================
 
 import { useEffect, useRef, useState } from 'react'
+import { useRaizDelProyecto } from '../../comun/raizDelProyecto'
 import { VACIO, ladoMutable, leerLados, revocarUrls } from './imageDiffCarga'
 import type { LadoCargado, Medidas } from './imageDiffCarga'
 import type { DiffTarget } from './diffEditorTipos'
@@ -32,6 +33,7 @@ export function useImageDiff({ target, targetKey, activeTargetKey, fsTick }: Ent
 
   // Espejo en ref: el cleanup no debe capturar el estado, o revocaría la URL de otra carga.
   const urlsRef = useRef<string[]>([])
+  const raiz = useRaizDelProyecto()
 
   useEffect(() => {
     // Los panes de otro proyecto no piden: se despiertan al volver a ser el activo.
@@ -46,7 +48,7 @@ export function useImageDiff({ target, targetKey, activeTargetKey, fsTick }: Ent
 
     async function cargar(): Promise<void> {
       try {
-        const [a, d] = await leerLados(target, urlsRef)
+        const [a, d] = await leerLados(target, raiz, urlsRef)
         if (cancelado) {
           for (const u of [a.url, d.url]) if (u) URL.revokeObjectURL(u)
           return
@@ -76,6 +78,7 @@ export function useImageDiff({ target, targetKey, activeTargetKey, fsTick }: Ent
     target.after.source,
     target.after.hash,
     target.after.path,
+    raiz,
     tick,
     // Despiertan al pane dormido cuando su proyecto vuelve a ser el activo.
     targetKey,

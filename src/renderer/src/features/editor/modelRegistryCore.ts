@@ -22,6 +22,7 @@ export {
   type LoadedText,
   type ModelRegistry,
   type RegistryDeps,
+  type RutaArchivo,
   type SharedTextModel,
   type WriteOutcome
 } from './modelRegistryTipos.ts'
@@ -32,7 +33,7 @@ export function createRegistry<M>(deps: RegistryDeps<M>): ModelRegistry<M> {
   const { entries } = ctx
 
   return {
-    acquire: (key, path, opts) => adquirir(ctx, key, path, opts),
+    acquire: (key, ruta, opts) => adquirir(ctx, key, ruta, opts),
     release: (key) => liberar(ctx, key),
     peek: (key) => entries.get(key)?.shared ?? null,
     refCount: (key) => entries.get(key)?.refs ?? 0,

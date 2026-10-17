@@ -6,6 +6,7 @@
 // Puro, sin Docker: se prueba con `node`.
 // Decisiones: docs/decisiones/sandbox/contenedores-propios.md
 // =============================================================================
+import { txSandbox } from './textos.ts'
 
 /** Prefijo del nombre de todo contenedor que crea Tessera. */
 export const PREFIJO_CONTENEDOR = 'tessera-'
@@ -121,9 +122,5 @@ export async function listarContenedoresDeTessera(
  * contenedor que no es de Tessera: no se toca, y el usuario sabe por qué y qué hacer.
  */
 export function mensajeContenedorAjeno(nombre: string): string {
-  return (
-    `Ya existe un contenedor «${nombre}» que no creó Tessera, y Tessera no borra ni para ` +
-    'contenedores ajenos. Cámbiale el nombre (docker rename) para poder usar el ' +
-    'aislamiento de este perfil.'
-  )
+  return txSandbox().contenedorAjeno(nombre)
 }

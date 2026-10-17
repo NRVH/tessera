@@ -10,22 +10,6 @@
 import type { BlobResult } from '../../../../../shared/git-ipc'
 import type { DiffSide } from '../../editor'
 
-// Las claves mutables llevan este ámbito (contenedora + perfil): la misma ruta relativa
-// existe en varios proyectos y una petición en vuelo de otro no puede servirse aquí.
-/** Ámbito actual: identifica la contenedora (y con ella el perfil) en las claves. */
-let ambito = ''
-
-/**
- * Fija el ámbito de la caché. Al CAMBIAR, tira las peticiones en vuelo: sus claves
- * ya no se pueden alcanzar, y dejarlas solo retendría memoria hasta que resuelvan.
- * Idempotente: llamarla con el mismo valor no hace nada.
- */
-export function fijarAmbito(clave: string): void {
-  if (clave === ambito) return
-  ambito = clave
-  inflight.clear()
-}
-
 /** Tope de entradas del LRU de blobs de commit (inmutables). */
 const MAX_ENTRIES = 40
 
@@ -53,30 +37,34 @@ function isRealCommitHash(hash: string | undefined): boolean {
   return !!hash && /^[0-9a-f]{7,64}$/i.test(hash)
 }
 
-/** Clasifica un lado. Devuelve null para 'empty' (no hay git detrás). */
-function classify(side: DiffSide): Classified | null {
+/**
+ * Clasifica un lado de un diff del proyecto `raiz`. Devuelve null para 'empty' (no hay git
+ * detrás). Las claves mutables llevan la contenedora: la misma ruta relativa existe en varios
+ * proyectos y una petición en vuelo de otro no puede servirse aquí.
+ */
+function classify(side: DiffSide, raiz: string): Classified | null {
   switch (side.source) {
     case 'empty':
       return null
     case 'commit':
-      // Un SHA es único: se comparte entre proyectos y no lleva ámbito. `HEAD` (u otro
-      // ref simbólico) se resuelve distinto en cada repo: mutable y con ámbito.
+      // Un SHA es único: se comparte entre proyectos y no lleva contenedora. `HEAD` (u otro
+      // ref simbólico) se resuelve distinto en cada repo: mutable y con contenedora.
       return isRealCommitHash(side.hash)
         ? { key: `c:${side.hash}:${side.path}`, immutable: true }
-        : { key: `${ambito}|h:${side.hash}:${side.path}`, immutable: false }
+        : { key: `${raiz}|h:${side.hash}:${side.path}`, immutable: false }
     case 'index':
-      return { key: `${ambito}|i:${side.path}`, immutable: false }
+      return { key: `${raiz}|i:${side.path}`, immutable: false }
     case 'worktree':
-      return { key: `${ambito}|w:${side.path}`, immutable: false }
+      return { key: `${raiz}|w:${side.path}`, immutable: false }
   }
 }
 
 /** Lanza la petición IPC cruda que corresponde al `source` del lado. */
-function rawFetch(side: DiffSide): Promise<BlobResult> {
-  if (side.source === 'worktree') return window.tessera.git.workingBlob(side.path)
-  if (side.source === 'index') return window.tessera.git.indexBlob(side.path)
+function rawFetch(side: DiffSide, raiz: string): Promise<BlobResult> {
+  if (side.source === 'worktree') return window.tessera.git.workingBlob(raiz, side.path)
+  if (side.source === 'index') return window.tessera.git.indexBlob(raiz, side.path)
   // 'commit' (a 'empty' no se llega: se corta antes en fetchBlob)
-  return window.tessera.git.blobAtCommit(side.hash as string, side.path)
+  return window.tessera.git.blobAtCommit(raiz, side.hash as string, side.path)
 }
 
 function evictIfNeeded(): void {
@@ -87,9 +75,9 @@ function evictIfNeeded(): void {
   }
 }
 
-/** Devuelve el blob de un lado: del LRU si es inmutable, o la petición en vuelo si es mutable. */
-export function fetchBlob(side: DiffSide): Promise<BlobResult> {
-  const c = classify(side)
+/** Devuelve el blob de un lado del proyecto `raiz`: del LRU si es inmutable, o la petición en vuelo si es mutable. */
+export function fetchBlob(side: DiffSide, raiz: string): Promise<BlobResult> {
+  const c = classify(side, raiz)
   if (c === null) return Promise.resolve(EMPTY)
 
   if (c.immutable) {
@@ -99,7 +87,7 @@ export function fetchBlob(side: DiffSide): Promise<BlobResult> {
       cache.set(c.key, hit) // pasa a ser el más reciente
       return hit
     }
-    const p = rawFetch(side).catch((err: unknown) => {
+    const p = rawFetch(side, raiz).catch((err: unknown) => {
       cache.delete(c.key) // un fallo no se cachea
       throw err
     })
@@ -111,7 +99,7 @@ export function fetchBlob(side: DiffSide): Promise<BlobResult> {
   // Mutable: dedupe SOLO en vuelo; al asentarse se elimina y el siguiente open relee.
   const pending = inflight.get(c.key)
   if (pending) return pending
-  const p = rawFetch(side).finally(() => {
+  const p = rawFetch(side, raiz).finally(() => {
     inflight.delete(c.key)
   })
   inflight.set(c.key, p)
@@ -119,29 +107,29 @@ export function fetchBlob(side: DiffSide): Promise<BlobResult> {
 }
 
 let activePrefetch = 0
-function prefetchOne(side: DiffSide): void {
+function prefetchOne(side: DiffSide, raiz: string): void {
   // El lado de disco lo presta el registro de modelos (files.read), no esta caché, y
   // leer un archivo no paga el arranque de git: precalentarlo sería una lectura que
   // nadie consume.
   if (side.source === 'worktree') return
-  const c = classify(side)
+  const c = classify(side, raiz)
   if (c === null) return
   // Ya listo o ya en camino: engancha gratis, sin ocupar cupo de concurrencia.
   if ((c.immutable && cache.has(c.key)) || inflight.has(c.key)) {
-    void fetchBlob(side).catch(() => {})
+    void fetchBlob(side, raiz).catch(() => {})
     return
   }
   if (activePrefetch >= MAX_CONCURRENT_PREFETCH) return // best-effort: el clic lo traerá
   activePrefetch++
-  void fetchBlob(side)
+  void fetchBlob(side, raiz)
     .catch(() => {})
     .finally(() => {
       activePrefetch--
     })
 }
 
-/** Precalienta AMBOS lados de un diff en background (best-effort: los errores se tragan). */
-export function prefetchDiff(before: DiffSide, after: DiffSide): void {
-  prefetchOne(before)
-  prefetchOne(after)
+/** Precalienta AMBOS lados de un diff del proyecto `raiz` en background (best-effort: los errores se tragan). */
+export function prefetchDiff(before: DiffSide, after: DiffSide, raiz: string): void {
+  prefetchOne(before, raiz)
+  prefetchOne(after, raiz)
 }

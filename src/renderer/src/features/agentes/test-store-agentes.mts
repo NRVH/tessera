@@ -6,7 +6,7 @@
 // Decisiones: docs/decisiones/agentes/pane-del-agente-sin-re-render.md
 // =============================================================================
 
-import { handleTargetStatus, handleTargetVivo, selectAccount, selectAgent, useStoreAgentes } from './store.ts'
+import { eliminarAgenteManual, handleTargetStatus, handleTargetVivo, selectAccount, selectAgent, useStoreAgentes } from './store.ts'
 
 const results: { name: string; pass: boolean; evidence: string }[] = []
 function hr(title: string): void {
@@ -59,6 +59,28 @@ hr('(2) Lo que queda en el estado')
   const n = avisos
   handleTargetVivo('nunca-vivo', false)
   check('apagar uno que no estaba vivo no avisa', avisos === n, `avisos ${n} -> ${avisos}`)
+}
+
+hr('(3) Eliminar un manual lo quita también de los ocultos y del orden')
+{
+  const orca = { id: 'm-orca' as const, nombre: 'Orca', comando: 'orca' }
+  const nutria = { id: 'm-nutria' as const, nombre: 'Nutria', comando: 'nutria' }
+  useStoreAgentes.setState({
+    agentesNativos: [nutria],
+    agentesDockerPorPerfil: { alfa: [orca] },
+    agentesOcultosPorPerfil: { alfa: ['m-orca', 'codex'], beta: ['m-nutria'] },
+    ordenAgentesPorPerfil: { alfa: ['m-orca', 'codex', 'm-nutria'], beta: ['m-nutria', 'claude-code'] }
+  })
+  eliminarAgenteManual({ nativo: false, profileId: 'alfa' }, 'm-orca')
+  let s = useStoreAgentes.getState()
+  check('Docker: sale de la lista, los ocultos y el orden de su perfil',
+    (s.agentesDockerPorPerfil.alfa ?? []).length === 0 && JSON.stringify(s.agentesOcultosPorPerfil.alfa) === '["codex"]' && JSON.stringify(s.ordenAgentesPorPerfil.alfa) === '["codex","m-nutria"]',
+    JSON.stringify({ o: s.agentesOcultosPorPerfil, r: s.ordenAgentesPorPerfil }))
+  eliminarAgenteManual({ nativo: true }, 'm-nutria')
+  s = useStoreAgentes.getState()
+  check('nativo: sale de los ocultos y el orden de TODOS los perfiles',
+    JSON.stringify(s.ordenAgentesPorPerfil) === '{"alfa":["codex"],"beta":["claude-code"]}' && JSON.stringify(s.agentesOcultosPorPerfil.beta) === '[]',
+    JSON.stringify({ o: s.agentesOcultosPorPerfil, r: s.ordenAgentesPorPerfil }))
 }
 
 const passed = results.filter((r) => r.pass).length

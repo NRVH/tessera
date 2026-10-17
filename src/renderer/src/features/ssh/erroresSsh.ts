@@ -5,9 +5,10 @@
 // =============================================================================
 
 import { normalizarErrorIpc } from '../../../../shared/dockerErrors'
+import { txSsh } from './textos.ts'
 
 /** El texto del error, sin «Error invoking remote method…» ni «Error:» delante. */
 export function mensajeDeErrorSsh(err: unknown): string {
   const texto = normalizarErrorIpc(err instanceof Error ? err.message : String(err))
-  return texto === '' ? 'Error desconocido' : texto
+  return texto === '' ? txSsh().errorDesconocido : texto
 }

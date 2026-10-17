@@ -11,6 +11,7 @@ import { autenticacionDe, esAutenticacion, esDeClaves, pideDominio, tlsDeConexio
 import { nunca } from '../../shared/nunca.ts'
 import { esTopologiaRedis, topologiaAGuardar, validarTopologiaRedis } from '../../shared/topologiaRedis.ts'
 import { BASE_REDIS_MAX, validarBaseRedis, validarOpcionesUriMongo } from '../../shared/uriConexion.ts'
+import { txDb } from './textosDb.ts'
 
 /** Lo que se mira de la entrada (un `DbConnectionInput` o lo que llega por IPC sin validar). */
 export type OpcionalesEntrada = Pick<
@@ -44,16 +45,17 @@ export function esTunelSsh(x: unknown): x is DbTunelSsh {
  * por UDP a SQL Browser (SQL Server con instancia). null si cabe.
  */
 function rechazoPorTunel(input: OpcionalesEntrada): string | null {
-  if (input.srv === true) return 'Una dirección SRV (mongodb+srv) no puede ir por un túnel SSH: pon el servidor y el puerto.'
+  const t = txDb().opcionales
+  if (input.srv === true) return t.srvPorTunel
   if (input.topologiaRedis !== undefined && input.topologiaRedis !== null) {
-    return 'Sentinel y Cluster no van por túnel SSH: el cliente se conecta a servidores que el túnel no lleva. Quita el túnel o elige «Un servidor».'
+    return t.redisPorTunel
   }
-  if (typeof input.host === 'string' && input.host.includes(',')) return 'Con túnel SSH, la conexión admite un solo servidor.'
+  if (typeof input.host === 'string' && input.host.includes(',')) return t.variosServidoresPorTunel
   if (typeof input.opcionesUri === 'string' && /(^|&)(replicaSet=|directConnection=false)/i.test(input.opcionesUri)) {
-    return 'Con túnel SSH, la conexión va directa a un servidor: quita replicaSet y directConnection=false de las opciones.'
+    return t.replicaSetPorTunel
   }
   if (typeof input.instancia === 'string' && input.instancia.trim() !== '') {
-    return 'Con túnel SSH, la conexión necesita el puerto y no la instancia: el túnel no lleva la consulta que la resuelve.'
+    return t.instanciaPorTunel
   }
   return null
 }
@@ -102,47 +104,47 @@ const REGLAS_OPCIONALES: Record<CampoOpcional, (input: OpcionalesEntrada) => str
   instancia: (input) => {
     const v = input.instancia
     if (v === undefined || v === null) return null
-    if (typeof v !== 'string') return 'La instancia no es válida.'
-    if (/[\\/:]/.test(v)) return 'En la instancia va solo su nombre (p. ej. SQLEXPRESS), sin el servidor ni el puerto.'
+    if (typeof v !== 'string') return txDb().opcionales.instanciaInvalida
+    if (/[\\/:]/.test(v)) return txDb().opcionales.instanciaSoloNombre
     return null
   },
   autenticacion: (input) => {
     const v = input.autenticacion
     if (v === undefined || v === null) return null
-    return esAutenticacion(v) ? null : `Autenticación desconocida: "${String(v)}".`
+    return esAutenticacion(v) ? null : txDb().opcionales.autenticacionDesconocida(String(v))
   },
   dominio: (input) => {
     const v = input.dominio
-    if (v !== undefined && v !== null && typeof v !== 'string') return 'El dominio no es válido.'
+    if (v !== undefined && v !== null && typeof v !== 'string') return txDb().opcionales.dominioInvalido
     if (!pideDominio(autenticacionEntrada(input))) return null
-    return typeof v === 'string' && v.trim() !== '' ? null : 'Falta el dominio de la cuenta.'
+    return typeof v === 'string' && v.trim() !== '' ? null : txDb().opcionales.faltaDominio
   },
   tls: (input) => {
     const v = input.tls
     if (v === undefined || v === null) return null
-    return esTls(v) ? null : 'El cifrado de la conexión no es válido.'
+    return esTls(v) ? null : txDb().opcionales.cifradoInvalido
   },
   // MongoDB y Redis: el usuario puede ir vacío, pero si llega tiene que ser texto.
   user: (input) => {
     const v = input.user
     if (v === undefined || v === null) return null
-    return typeof v === 'string' ? null : 'El usuario no es válido.'
+    return typeof v === 'string' ? null : txDb().opcionales.usuarioInvalido
   },
   srv: (input) => {
     const v = input.srv
     if (v === undefined || v === null) return null
-    return typeof v === 'boolean' ? null : 'El tipo de dirección (SRV) no es válido.'
+    return typeof v === 'boolean' ? null : txDb().opcionales.srvInvalido
   },
   opcionesUri: (input) => {
     const v = input.opcionesUri
     if (v === undefined || v === null) return null
-    if (typeof v !== 'string') return 'Las opciones de la URI no son válidas.'
+    if (typeof v !== 'string') return txDb().opcionales.opcionesUriInvalidas
     return validarOpcionesUriMongo(v)
   },
   tunelSsh: (input) => {
     const v = input.tunelSsh
     if (v === undefined || v === null) return null
-    return esTunelSsh(v) ? rechazoPorTunel(input) : 'El túnel SSH de la conexión no es válido.'
+    return esTunelSsh(v) ? rechazoPorTunel(input) : txDb().opcionales.tunelInvalido
   },
   // Corre también sin topología: una lista de servidores sin Sentinel ni Cluster se rechaza.
   topologiaRedis: (input) =>

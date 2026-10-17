@@ -1,9 +1,9 @@
 // =============================================================================
 // Canales IPC del explorador de archivos (`FILE_CHANNELS`): el único sitio del área con
-// `ipcMain`. Cada handler pasa la petición a UN método de `FileService` y no decide nada. Los
-// canales que mueven o borran reconstruyen el payload campo a campo: así un `hostPaths` colado
-// nunca llega al servicio y un `srcs` que no sea una lista de cadenas se queda vacío. El orden
-// de registro es el de siempre. Lo registra `src/main/index.ts`.
+// `ipcMain`. Cada handler con rutas pasa la petición a UN método de la vista de SU proyecto
+// (`FileService.paraRaiz`), sin decidir nada más. Los canales que mueven o borran reconstruyen el
+// payload campo a campo: así un `hostPaths` colado nunca llega al servicio y un `srcs` que no sea
+// una lista de cadenas se queda vacío. Lo registra `src/main/index.ts`.
 // =============================================================================
 
 import type { IpcMain, IpcMainInvokeEvent } from 'electron'
@@ -11,6 +11,7 @@ import {
   FILE_CHANNELS,
   type CreateEntryRequest,
   type DeleteRequest,
+  type EnProyecto,
   type ImportRequest,
   type ListDirRequest,
   type MoveRequest,
@@ -27,79 +28,54 @@ import type { FileService } from './FileService'
 type Ipc = Pick<IpcMain, 'handle'>
 
 export function registrarIpcArchivos({ ipc, files }: { ipc: Ipc; files: FileService }): void {
+  /** Registra un canal cuyas rutas son de un proyecto: se atiende en la vista del suyo, nunca del anclado. */
+  const enProyecto = <R extends EnProyecto, T>(
+    canal: string,
+    fn: (svc: FileService, req: R, e: IpcMainInvokeEvent) => T
+  ): void => {
+    ipc.handle(canal, (e: IpcMainInvokeEvent, req: R) => fn(files.paraRaiz(req?.raiz), req, e))
+  }
+
   ipc.handle(FILE_CHANNELS.GET_ROOT, () => files.getRoot())
-  ipc.handle(FILE_CHANNELS.LIST_DIR, (_e: IpcMainInvokeEvent, req: ListDirRequest) =>
-    files.listDir(req.path)
-  )
-  ipc.handle(FILE_CHANNELS.READ_FILE, (_e: IpcMainInvokeEvent, req: ReadFileRequest) =>
-    files.readFile(req.path, req.encoding)
-  )
-  ipc.handle(FILE_CHANNELS.EXISTS, (_e: IpcMainInvokeEvent, req: ReadFileRequest) =>
-    files.existeRuta(req.path)
-  )
-  ipc.handle(FILE_CHANNELS.WRITE_FILE, (_e: IpcMainInvokeEvent, req: WriteFileRequest) =>
-    files.writeFile(req.path, req.content, req.encoding)
-  )
+  enProyecto(FILE_CHANNELS.LIST_DIR, (svc, req: ListDirRequest) => svc.listDir(req.path))
+  enProyecto(FILE_CHANNELS.READ_FILE, (svc, req: ReadFileRequest) => svc.readFile(req.path, req.encoding))
+  enProyecto(FILE_CHANNELS.EXISTS, (svc, req: ReadFileRequest) => svc.existeRuta(req.path))
+  enProyecto(FILE_CHANNELS.WRITE_FILE, (svc, req: WriteFileRequest) => svc.writeFile(req.path, req.content, req.encoding))
+  // Sin título no es de ningún proyecto: su ruta la eligió el usuario en el diálogo nativo.
   ipc.handle(FILE_CHANNELS.SAVE_UNTITLED, (_e: IpcMainInvokeEvent, req: SaveUntitledRequest) =>
     files.saveUntitled(req)
   )
   ipc.handle(FILE_CHANNELS.FORGET_UNTITLED, (_e: IpcMainInvokeEvent, id: string) => {
     files.olvidarSinTitulo(id)
   })
-  ipc.handle(FILE_CHANNELS.READ_BINARY, (_e: IpcMainInvokeEvent, req: ReadFileRequest) =>
-    files.readBinary(req.path)
-  )
-  ipc.handle(FILE_CHANNELS.READ_DOCX, (_e: IpcMainInvokeEvent, req: ReadFileRequest) =>
-    files.readDocx(req.path)
-  )
-  ipc.handle(FILE_CHANNELS.READ_ZIP, (_e: IpcMainInvokeEvent, req: ReadFileRequest) =>
-    files.readZip(req.path)
-  )
-  ipc.handle(FILE_CHANNELS.REVEAL_IN_FOLDER, (_e: IpcMainInvokeEvent, req: ReadFileRequest) =>
-    files.reveal(req.path)
-  )
-  ipc.handle(FILE_CHANNELS.OPEN_PATH, (_e: IpcMainInvokeEvent, req: ReadFileRequest) =>
-    files.openPath(req.path)
-  )
-  ipc.handle(FILE_CHANNELS.CREATE_FILE, (_e: IpcMainInvokeEvent, req: CreateEntryRequest) =>
-    files.createEntry(req.dir, req.name, 'file')
-  )
-  ipc.handle(FILE_CHANNELS.CREATE_DIR, (_e: IpcMainInvokeEvent, req: CreateEntryRequest) =>
-    files.createEntry(req.dir, req.name, 'dir')
-  )
-  ipc.handle(FILE_CHANNELS.RENAME, (_e: IpcMainInvokeEvent, req: RenameRequest) =>
-    files.rename(req.path, req.newName)
-  )
+  enProyecto(FILE_CHANNELS.READ_BINARY, (svc, req: ReadFileRequest) => svc.readBinary(req.path))
+  enProyecto(FILE_CHANNELS.READ_DOCX, (svc, req: ReadFileRequest) => svc.readDocx(req.path))
+  enProyecto(FILE_CHANNELS.READ_ZIP, (svc, req: ReadFileRequest) => svc.readZip(req.path))
+  enProyecto(FILE_CHANNELS.REVEAL_IN_FOLDER, (svc, req: ReadFileRequest) => svc.reveal(req.path))
+  enProyecto(FILE_CHANNELS.OPEN_PATH, (svc, req: ReadFileRequest) => svc.openPath(req.path))
+  enProyecto(FILE_CHANNELS.CREATE_FILE, (svc, req: CreateEntryRequest) => svc.createEntry(req.dir, req.name, 'file'))
+  enProyecto(FILE_CHANNELS.CREATE_DIR, (svc, req: CreateEntryRequest) => svc.createEntry(req.dir, req.name, 'dir'))
+  enProyecto(FILE_CHANNELS.RENAME, (svc, req: RenameRequest) => svc.rename(req.path, req.newName))
   // Los tipos de TS no existen en runtime, y estos son los canales capaces de borrar.
-  ipc.handle(FILE_CHANNELS.MOVE, (_e: IpcMainInvokeEvent, req: MoveRequest) =>
-    files.moveMany(comoRutas(req?.srcs), typeof req?.destDir === 'string' ? req.destDir : '')
+  enProyecto(FILE_CHANNELS.MOVE, (svc, req: MoveRequest) =>
+    svc.moveMany(comoRutas(req?.srcs), typeof req?.destDir === 'string' ? req.destDir : '')
   )
-  ipc.handle(FILE_CHANNELS.IMPORT, (_e: IpcMainInvokeEvent, req: ImportRequest) =>
-    files.importFromHost(
-      comoRutas(req?.hostPaths),
-      typeof req?.destDir === 'string' ? req.destDir : '',
-      req?.overwrite === true
-    )
+  enProyecto(FILE_CHANNELS.IMPORT, (svc, req: ImportRequest) =>
+    svc.importFromHost(comoRutas(req?.hostPaths), typeof req?.destDir === 'string' ? req.destDir : '', req?.overwrite === true)
   )
-  ipc.handle(FILE_CHANNELS.PASTE, (_e: IpcMainInvokeEvent, req: PasteRequest) =>
-    files.paste({
+  enProyecto(FILE_CHANNELS.PASTE, (svc, req: PasteRequest) =>
+    svc.paste({
       destDir: typeof req?.destDir === 'string' ? req.destDir : '',
       srcs: comoRutas(req?.srcs),
       op: req?.op === 'cortar' ? 'cortar' : 'copiar'
     })
   )
-  ipc.handle(FILE_CHANNELS.ABS_PATH, (_e: IpcMainInvokeEvent, req: RutasRequest) =>
-    Promise.all(comoRutas(req?.paths).map((p) => files.absPath(p)))
-  )
-  ipc.handle(FILE_CHANNELS.FILE_URL, (_e: IpcMainInvokeEvent, req: ReadFileRequest) =>
-    files.fileUrl(req.path)
-  )
-  ipc.handle(FILE_CHANNELS.DELETE, (_e: IpcMainInvokeEvent, req: DeleteRequest) =>
-    files.deleteMany(comoRutas(req?.paths))
-  )
+  enProyecto(FILE_CHANNELS.ABS_PATH, (svc, req: RutasRequest) => Promise.all(comoRutas(req?.paths).map((p) => svc.absPath(p))))
+  enProyecto(FILE_CHANNELS.FILE_URL, (svc, req: ReadFileRequest) => svc.fileUrl(req.path))
+  enProyecto(FILE_CHANNELS.DELETE, (svc, req: DeleteRequest) => svc.deleteMany(comoRutas(req?.paths)))
   // El arrastre arranca en el `webContents` que vive el gesto del ratón, no en la ventana guardada.
-  ipc.handle(FILE_CHANNELS.START_DRAG, (e: IpcMainInvokeEvent, req: StartDragRequest) =>
-    files.startDrag(e.sender, comoRutas(req?.paths), typeof req?.icono === 'string' ? req.icono : '')
+  enProyecto(FILE_CHANNELS.START_DRAG, (svc, req: StartDragRequest, e) =>
+    svc.startDrag(e.sender, comoRutas(req?.paths), typeof req?.icono === 'string' ? req.icono : '')
   )
   // Deja escrito con qué raíz arranca el explorador.
   const { name } = files.getRoot()

@@ -7,7 +7,7 @@
 
 SQLite no tiene `information_schema`. Las funciones PRAGMA como tablas (`pragma_table_list`,
 `pragma_table_xinfo`, `pragma_index_list`, `pragma_foreign_key_list`) y `sqlite_schema` son
-lecturas para el autorizador (medido), así que corren con el perfil de lectura también en una
+lecturas para el autorizador, así que corren con el perfil de lectura también en una
 conexión de escritura y el catálogo no puede tocar la base.
 
 ## Decisión

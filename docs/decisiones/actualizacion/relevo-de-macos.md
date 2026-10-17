@@ -1,7 +1,7 @@
 # En macOS la actualización la aplica un guion `sh` propio, porque Squirrel.Mac no puede con una firma ad-hoc, y el zip se baja y se verifica aquí
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/update/relevoMac.ts`, `relevoMacPuro.ts`, `descargaMac.ts`, `descargaManual.ts`, `preparacionMac.ts` (macOS: sin verificar en Windows)
+- **Ámbito:** `src/main/update/relevoMac.ts`, `relevoMacPuro.ts`, `descargaMac.ts`, `descargaManual.ts`, `preparacionMac.ts`
 
 ## Contexto
 

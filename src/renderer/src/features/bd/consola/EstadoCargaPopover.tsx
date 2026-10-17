@@ -5,6 +5,9 @@
 // =============================================================================
 
 import type { DbErrorSql } from '../../../../../shared/db-explorador-ipc'
+import { EsperaCarga } from '../../../comun/IndicadorCarga'
+import { txArbolFilas } from '../textosArbolFilas.ts'
+import { txPane } from './textosPane.ts'
 
 /** «Cargando…» o el error de carga con «Reintentar», solo mientras no hay lista. */
 export function EstadoCargaPopover({
@@ -20,14 +23,16 @@ export function EstadoCargaPopover({
 }): React.JSX.Element {
   return (
     <>
-      {!hayLista && !errorCarga && <div className="db-pop-estado">{cargando}</div>}
+      {!hayLista && !errorCarga && (
+        <EsperaCarga texto={cargando} motivo={txArbolFilas().motivoEspera} className="db-pop-estado" />
+      )}
       {!hayLista && errorCarga && (
         <div className="db-pop-estado error">
           <span className="db-pop-error-texto" title={errorCarga.mensaje}>
             {errorCarga.mensaje}
           </span>
           <button type="button" className="db-fila-accion" onClick={onReintentar}>
-            Reintentar
+            {txPane().reintentar}
           </button>
         </div>
       )}

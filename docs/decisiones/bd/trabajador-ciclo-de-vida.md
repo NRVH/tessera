@@ -17,7 +17,7 @@ cuándo el proceso vive y muere.
   del main (truncado y sin SQL).
 - `disconnect` (el main murió o cerró el canal): rollback y close de todo y `process.exit` A MANO
   (plazo `PLAZO_SALIDA_MS`, el main espera 3 s y luego mata). El cliente Oracle deja hilos vivos y el
-  proceso tardaba ~30 s en morir solo. `salir` responde ANTES de cerrar: el main espera el `exit`.
+  proceso tarda decenas de segundos en morir solo. `salir` responde ANTES de cerrar: el main espera el `exit`.
 - `uncaughtException`: evento `fatal` y exit 70, porque el estado ya no es fiable. Sin canal IPC, exit 64.
 - `unhandledRejection`: se REGISTRA y se sigue. Node mataría el proceso y con él las transacciones
   pendientes de todas las consolas, por una promesa huérfana de un driver que no afecta a ninguna sesión.

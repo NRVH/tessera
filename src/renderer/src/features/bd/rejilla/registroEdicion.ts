@@ -7,6 +7,7 @@
 // =============================================================================
 
 import type { DbPestanaSinEnviar } from '../../../../../shared/db-explorador-ipc'
+import { txRejilla } from './textosRejilla.ts'
 
 export interface ApiDatosRegistrada {
   /** Conexión de la pestaña: la usa el aviso de «Eliminar conexión». */
@@ -98,7 +99,7 @@ export function pestanasSinEnviar(): DbPestanaSinEnviar[] {
       continue
     }
     if (!(n > 0)) continue
-    out.push({ etiqueta: etiquetas.get(paneKey)?.texto ?? 'Pestaña de tabla', cambios: n })
+    out.push({ etiqueta: etiquetas.get(paneKey)?.texto ?? txRejilla().tabla, cambios: n })
   }
   return out
 }

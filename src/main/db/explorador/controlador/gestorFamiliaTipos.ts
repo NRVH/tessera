@@ -12,6 +12,7 @@ import { ColaSesion, type PrioridadCola } from '../colaSesion.ts'
 import type { TrabajadorGestor } from '../GestorSesiones.ts'
 import { esFalloTrabajador, type ConexionTrabajador, type CtxDrivers, type ErrorTrabajador } from '../protocoloTrabajador.ts'
 import type { SoloLecturaImpuesta } from '../soloLecturaImpuesta.ts'
+import { txControlador } from './textosControlador.ts'
 
 /** Lo que necesita un gestor de familia; el gestor lee cada dependencia al usarla. */
 export interface DependenciasGestorFamilia {
@@ -100,6 +101,10 @@ export interface SesionFamilia {
   aviso?: DbEstadoSesion['aviso']
 }
 
+export const mensajeCerrando = (): string => txControlador().cerrando
+export const mensajeSinLanzar = (): string => txControlador().sinProceso
+export const mensajeForzada = (): string => txControlador().cierreForzado
+/** Los mismos textos en español (idioma por defecto), para quien los importa como valor fijo. */
 export const MENSAJE_CERRANDO = 'Tessera se está cerrando.'
 export const MENSAJE_SIN_LANZAR = 'No se pudo lanzar el proceso de la conexión.'
 export const MENSAJE_FORZADA = 'Se forzó el cierre de la conexión.'
@@ -135,9 +140,8 @@ export { mensajeDe } from '../../../util/valores.ts'
 
 /** El aviso de una sesión perdida, con el motivo si el trabajador lo dio. */
 export function avisoDePerdida(et: ErrorTrabajador | null, tipo: 'perdida' | 'caida', en: number): NonNullable<DbEstadoSesion['aviso']> {
-  const mensaje = et?.mensaje
-    ? `Se perdió la sesión con el servidor (${et.mensaje}). Se reabre al usarla.`
-    : 'Se perdió la sesión con el servidor. Se reabre al usarla.'
+  const t = txControlador()
+  const mensaje = et?.mensaje ? t.sesionPerdidaMotivo(et.mensaje) : t.sesionPerdida
   return { tipo, txPerdida: false, mensaje, en }
 }
 

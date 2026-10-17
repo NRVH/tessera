@@ -25,7 +25,9 @@ import type { ImagenSandbox } from './imagen.ts'
 import type { MontajesSandbox } from './montajes.ts'
 import { isPortConflictError, type RedSandbox } from './red.ts'
 import type { BarridoSandbox } from './barrido.ts'
+import type { CapaPerfilSandbox } from './capaPerfil.ts'
 import type { ContainerHandle, ExecOptions, ExecResult } from './tipos.ts'
+import { txSandbox } from '../textos.ts'
 
 /** Puerto del callback de login OAuth de Codex (publicado solo en `bridge`). */
 const CODEX_CALLBACK_PORT = 1455
@@ -38,6 +40,7 @@ export class ContenedoresSandbox {
   private readonly montajes: MontajesSandbox
   private readonly red: RedSandbox
   private readonly barrido: BarridoSandbox
+  private readonly capa: CapaPerfilSandbox
 
   constructor(
     n: NucleoSandbox,
@@ -47,6 +50,7 @@ export class ContenedoresSandbox {
       montajes: MontajesSandbox
       red: RedSandbox
       barrido: BarridoSandbox
+      capa: CapaPerfilSandbox
     }
   ) {
     this.n = n
@@ -55,6 +59,7 @@ export class ContenedoresSandbox {
     this.montajes = ops.montajes
     this.red = ops.red
     this.barrido = ops.barrido
+    this.capa = ops.capa
   }
 
   /**
@@ -101,9 +106,11 @@ export class ContenedoresSandbox {
     await this.montajes.ensureManagedRoot(profile)
     await this.montajes.ensureAgentcfgRoot(profile)
     await this.imagen.ensureImage()
+    // La capa de los agentes manuales del perfil, al día (también si cambió la base); sin capa, la base.
+    const imagen = await this.capa.imagenPara(profile.id, (linea) => this.n.onImageBuildLog?.(linea))
 
     const redHost = profile.sandbox?.redHost === true
-    const run = await this.crearContenedor(profile, containerName, redHost)
+    const run = await this.crearContenedor(profile, containerName, redHost, imagen)
 
     // `docker run -d` imprime el Id: distingue en el próximo `ensureContainer` si sigue siendo ESTE.
     const containerId = run.stdout.trim()
@@ -127,8 +134,8 @@ export class ContenedoresSandbox {
    * `docker run` del contenedor. Si el 1455 ya lo tiene otro contenedor, se avisa, se
    * limpia el contenedor a medias y se reintenta SIN publicarlo; otro fallo se propaga.
    */
-  private async crearContenedor(profile: Profile, containerName: string, redHost: boolean): Promise<CommandResult> {
-    let run = await runDocker(this.argsDockerRun(profile, containerName, redHost, true))
+  private async crearContenedor(profile: Profile, containerName: string, redHost: boolean, imagen: string): Promise<CommandResult> {
+    let run = await runDocker(this.argsDockerRun(profile, containerName, redHost, true, imagen))
     if (!redHost && run.status !== 0 && isPortConflictError(run.stderr)) {
       console.log(
         `[sandbox] puerto ${CODEX_CALLBACK_PORT} ocupado por otro contenedor; ` +
@@ -137,22 +144,20 @@ export class ContenedoresSandbox {
       this.n.avisoRed?.({
         profileId: profile.id,
         motivo: 'choque-1455',
-        titulo: 'El login de Codex no está disponible en este perfil',
-        detalle:
-          `Otro perfil ya tiene tomado el puerto ${CODEX_CALLBACK_PORT}, que es el que Codex usa para terminar el ` +
-          'login por navegador. Todo lo demás funciona. Para poder iniciar sesión aquí, hiberna el otro perfil y vuelve a entrar a éste.'
+        titulo: txSandbox().contenedores.loginCodexTitulo,
+        detalle: txSandbox().contenedores.loginCodexDetalle(CODEX_CALLBACK_PORT)
       })
       await runDocker(['rm', '-f', containerName]) // limpia el contenedor "Created" que dejó el fallo de bind
-      run = await runDocker(this.argsDockerRun(profile, containerName, redHost, false))
+      run = await runDocker(this.argsDockerRun(profile, containerName, redHost, false, imagen))
     }
     if (run.status !== 0) {
-      throw new Error(`No se pudo crear el contenedor "${containerName}": ${run.stderr.trim()}`)
+      throw new Error(txSandbox().contenedores.noSeCreo(containerName, run.stderr.trim()))
     }
     return run
   }
 
   /** Argumentos del `docker run` del contenedor del perfil (red, 1455, montajes). */
-  private argsDockerRun(profile: Profile, containerName: string, redHost: boolean, includePort: boolean): string[] {
+  private argsDockerRun(profile: Profile, containerName: string, redHost: boolean, includePort: boolean, imagen: string): string[] {
     return [
       'run',
       '-d',
@@ -180,7 +185,7 @@ export class ContenedoresSandbox {
       ...argsEtiquetaInstancia(),
       '-w',
       WORKSPACE_ROOT,
-      this.n.imagen,
+      imagen,
       ...KEEPALIVE_CMD
     ]
   }
@@ -292,7 +297,7 @@ export class ContenedoresSandbox {
       const stop = await runDocker(['stop', containerName])
       if (stop.status !== 0 && !/no such container/i.test(stop.stderr)) {
         // Sin olvidar el buzón: si el `stop` falló, el contenedor puede seguir vivo.
-        throw new Error(`No se pudo detener el contenedor "${containerName}": ${stop.stderr.trim()}`)
+        throw new Error(txSandbox().contenedores.noSeDetuvo(containerName, stop.stderr.trim()))
       }
 
       // Parado: se olvida el buzón AQUÍ, antes de lo que puede lanzar, o el puente lo
@@ -301,7 +306,7 @@ export class ContenedoresSandbox {
 
       const rm = await runDocker(['rm', containerName])
       if (rm.status !== 0 && !/no such container/i.test(rm.stderr)) {
-        throw new Error(`No se pudo eliminar el contenedor "${containerName}": ${rm.stderr.trim()}`)
+        throw new Error(txSandbox().contenedores.noSeElimino(containerName, rm.stderr.trim()))
       }
 
       await this.barrido.cleanProfileRoots(profile)

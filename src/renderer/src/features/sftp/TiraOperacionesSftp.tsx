@@ -6,6 +6,7 @@
 // =============================================================================
 
 import { esFinal, porcentaje, textoAvance, verboOperacion, type OperacionSftp } from './operacionesSftp'
+import { txSftp } from './textos.ts'
 
 export interface PropsTiraOperaciones {
   operaciones: readonly OperacionSftp[]
@@ -35,6 +36,7 @@ function Barra({ o }: { o: OperacionSftp }): React.JSX.Element {
 function Fila({ o, p }: { o: OperacionSftp; p: PropsTiraOperaciones }): React.JSX.Element {
   const final = esFinal(o.fase)
   const avance = o.fase === 'en-curso' ? textoAvance(o) : ''
+  const t = txSftp()
   return (
     <div className={`sftp-operacion ${o.fase}`} role="status">
       <span className="sftp-operacion-verbo">{verboOperacion(o)}</span>
@@ -45,16 +47,16 @@ function Fila({ o, p }: { o: OperacionSftp; p: PropsTiraOperaciones }): React.JS
       {o.fase === 'en-curso' && <Barra o={o} />}
       {o.fase === 'en-curso' && (
         <button type="button" className="btn sftp-operacion-boton" onClick={() => p.onCancelar(o.opId)}>
-          Cancelar
+          {t.cancelar}
         </button>
       )}
       {o.fase === 'hecha' && o.tipo === 'descarga' && (
-        <button type="button" className="btn sftp-operacion-boton" title={`Mostrar en ${p.gestorArchivos}`} onClick={() => p.onMostrar(o.opId)}>
-          Mostrar
+        <button type="button" className="btn sftp-operacion-boton" title={t.mostrarEn(p.gestorArchivos)} onClick={() => p.onMostrar(o.opId)}>
+          {t.mostrar}
         </button>
       )}
       {final && (
-        <button type="button" className="sftp-operacion-cerrar" aria-label="Quitar de la lista" title="Quitar de la lista" onClick={() => p.onCerrar(o.opId)}>
+        <button type="button" className="sftp-operacion-cerrar" aria-label={t.quitarDeLista} title={t.quitarDeLista} onClick={() => p.onCerrar(o.opId)}>
           ×
         </button>
       )}
@@ -65,7 +67,7 @@ function Fila({ o, p }: { o: OperacionSftp; p: PropsTiraOperaciones }): React.JS
 export function TiraOperacionesSftp(p: PropsTiraOperaciones): React.JSX.Element | null {
   if (p.operaciones.length === 0) return null
   return (
-    <div className="sftp-operaciones" aria-label="Operaciones en curso">
+    <div className="sftp-operaciones" aria-label={txSftp().operaciones}>
       {p.operaciones.map((o) => (
         <Fila key={o.opId} o={o} p={p} />
       ))}

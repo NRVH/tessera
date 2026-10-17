@@ -3,7 +3,7 @@
 // (chincheta si está fijada, ✕, clic central y menú contextual), con los metadatos del activo
 // y las acciones a la derecha. Genérica en el resultado: la usan la consola SQL y la de
 // documentos. Qué pestaña se sustituye lo decide `pestanasResultado.ts`.
-// Decisiones: docs/decisiones/bd/ui-resultados-pestanas.md
+// Decisiones: docs/decisiones/bd/ui-rejilla-modelo-resultados.md
 // =============================================================================
 
 import { useState } from 'react'
@@ -20,6 +20,7 @@ import {
   type PestanaResultado as Pestana,
   type ResultadoConLector
 } from './pestanasResultado'
+import { txResultados } from './textosResultados.ts'
 
 type OnPestana = (accion: AccionPestanaResultado, id: string) => void
 
@@ -31,20 +32,21 @@ function itemsMenuPestana<R extends ResultadoConLector>(
 ): ContextMenuEntry[] {
   const pestana = resultados.pestanas.find((x) => x.id === id)
   if (!pestana) return []
+  const t = txResultados()
   return [
     pestana.fijada
-      ? { label: 'Desfijar', icon: <IconoFijar />, onClick: () => onPestana('desfijar', id) }
+      ? { label: t.desfijar, icon: <IconoFijar />, onClick: () => onPestana('desfijar', id) }
       : {
-          label: 'Fijar',
+          label: t.fijar,
           icon: <IconoFijar />,
           disabled: !puedeFijar(resultados),
           onClick: () => onPestana('fijar', id)
         },
     SEP,
-    { label: 'Cerrar', icon: <IconoCerrar />, onClick: () => onPestana('cerrar', id) },
-    { label: 'Cerrar las demás sin fijar', onClick: () => onPestana('cerrarOtras', id) },
+    { label: t.cerrar, icon: <IconoCerrar />, onClick: () => onPestana('cerrar', id) },
+    { label: t.cerrarLasDemas, onClick: () => onPestana('cerrarOtras', id) },
     SEP,
-    { label: 'Cerrar todos los resultados', onClick: () => onPestana('cerrarTodas', id) }
+    { label: t.cerrarTodos, onClick: () => onPestana('cerrarTodas', id) }
   ]
 }
 
@@ -69,6 +71,7 @@ function PestanaResultado(p: {
   abrirMenu: (x: number, y: number) => void
 }): React.JSX.Element {
   const { t, esActiva, onPestana } = p
+  const tx = txResultados()
   return (
     <div
       className={`terminal-tab db-resultado-tab${esActiva ? ' active' : ''}${t.fijada ? ' fijada' : ''}`}
@@ -93,7 +96,7 @@ function PestanaResultado(p: {
       title={p.titulo}
     >
       {t.fijada && (
-        <span className="db-resultado-chincheta" aria-label="Fijada">
+        <span className="db-resultado-chincheta" aria-label={tx.fijada}>
           <IconoFijar />
         </span>
       )}
@@ -102,8 +105,8 @@ function PestanaResultado(p: {
         type="button"
         className="terminal-tab-kill"
         tabIndex={-1}
-        title="Cerrar este resultado"
-        aria-label={`Cerrar ${t.titulo}`}
+        title={tx.cerrarEsteResultado}
+        aria-label={tx.cerrarNombre(t.titulo)}
         onClick={(e) => {
           e.stopPropagation()
           onPestana('cerrar', t.id)
@@ -134,7 +137,7 @@ export function TiraResultados<R extends ResultadoConLector>(p: PropsTiraResulta
   const enSalida = activa === ID_SALIDA
   return (
     <div className="db-resultados-cabecera">
-      <div className="db-resultados-tabs" role="tablist" aria-label="Salida y resultados">
+      <div className="db-resultados-tabs" role="tablist" aria-label={txResultados().tiraAria}>
         <div
           className={`terminal-tab db-resultado-tab${enSalida ? ' active' : ''}`}
           role="tab"
@@ -142,9 +145,9 @@ export function TiraResultados<R extends ResultadoConLector>(p: PropsTiraResulta
           tabIndex={0}
           onClick={() => onPestana('activar', ID_SALIDA)}
           onKeyDown={(e) => teclaPestana(e, ID_SALIDA, onPestana)}
-          title="Salida: lo que pasó en cada ejecución"
+          title={txResultados().salidaTitulo}
         >
-          <span className="terminal-tab-name">Salida</span>
+          <span className="terminal-tab-name">{txResultados().salida}</span>
         </div>
         {resultados.pestanas.map((t) => (
           <PestanaResultado

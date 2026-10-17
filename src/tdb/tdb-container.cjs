@@ -36,6 +36,43 @@ const SONDEO_LENTO_MS = 200
  */
 const MAX_ENTRADA = 8 * 1024 * 1024
 
+/**
+ * Los textos de este cliente, aquí mismo y no en `textosTdb.cjs`: al buzón solo se copia este
+ * archivo. Inglés con `TESSERA_IDIOMA=en`, que Tessera pasa al abrir la terminal; si no, español.
+ */
+const TEXTOS = {
+  es: {
+    faltaRutaFile: 'Falta la ruta después de --file.',
+    noExisteArchivo: (ruta) => `No existe el archivo "${ruta}".`,
+    archivoVacio: (ruta) => `El archivo "${ruta}" está vacío.`,
+    sqlGrande: (mib) => `El SQL supera los ${mib} MiB que admite el puente al host.`,
+    sinContexto:
+      'Esta terminal no lleva el contexto de bases de datos de Tessera.\n' +
+      '    Recarga la terminal (o reinicia el agente) después de montar la base.',
+    sinBuzon: (buzon) => `El puente al host no está montado (${buzon} no existe).\n` + '    Recarga la terminal para que Tessera lo vuelva a montar.',
+    sinSenales: 'El puente al host está montado pero Tessera no da señales.\n' + '    Recarga la terminal; si sigue, reinicia Tessera.',
+    sinCentinela: 'El puente al host no responde (falta el centinela).\n' + '    Suele pasar tras recrearse el contenedor: recarga la terminal.',
+    sinRespuesta: (s) => `El puente no respondió en ${s} s.\n` + '    Comprueba que Tessera sigue abierta y recarga la terminal.'
+  },
+  en: {
+    faltaRutaFile: 'Missing the path after --file.',
+    noExisteArchivo: (ruta) => `The file "${ruta}" does not exist.`,
+    archivoVacio: (ruta) => `The file "${ruta}" is empty.`,
+    sqlGrande: (mib) => `The SQL exceeds the ${mib} MiB the bridge to the host accepts.`,
+    sinContexto:
+      'This terminal does not carry the Tessera database context.\n' +
+      '    Reload the terminal (or restart the agent) after mounting the database.',
+    sinBuzon: (buzon) => `The bridge to the host is not mounted (${buzon} does not exist).\n` + '    Reload the terminal so Tessera mounts it again.',
+    sinSenales: 'The bridge to the host is mounted but Tessera gives no sign of life.\n' + '    Reload the terminal; if it persists, restart Tessera.',
+    sinCentinela: 'The bridge to the host is not responding (the sentinel is missing).\n' + '    It usually happens after the container is recreated: reload the terminal.',
+    sinRespuesta: (s) => `The bridge did not respond within ${s} s.\n` + '    Check that Tessera is still open and reload the terminal.'
+  }
+}
+
+function textos() {
+  return process.env.TESSERA_IDIOMA === 'en' ? TEXTOS.en : TEXTOS.es
+}
+
 function fallar(mensaje) {
   process.stderr.write(`\n  ✗ ${mensaje}\n\n`)
   process.exit(2)
@@ -96,50 +133,33 @@ function prepararEnvio(argv) {
     }
   } else {
     const ruta = argv[iFile + 1]
-    if (!ruta) fallar('Falta la ruta después de --file.')
+    if (!ruta) fallar(textos().faltaRutaFile)
     let texto
     try {
       texto = fs.readFileSync(path.resolve(process.cwd(), ruta), 'utf-8')
     } catch {
-      fallar(`No existe el archivo "${ruta}".`)
+      fallar(textos().noExisteArchivo(ruta))
     }
-    if (!texto.trim()) fallar(`El archivo "${ruta}" está vacío.`)
+    if (!texto.trim()) fallar(textos().archivoVacio(ruta))
     entrada = texto
     sinFile.push('--stdin')
   }
   if (Buffer.byteLength(entrada, 'utf-8') > MAX_ENTRADA) {
-    fallar(`El SQL supera los ${Math.round(MAX_ENTRADA / (1024 * 1024))} MiB que admite el puente al host.`)
+    fallar(textos().sqlGrande(Math.round(MAX_ENTRADA / (1024 * 1024))))
   }
   return { argv: sinFile, entrada }
 }
 
 /** Falla en el acto, con la frase útil, si el buzón no está montado o Tessera no da señales. */
 function comprobarBuzon() {
-  if (!TOKEN) {
-    fallar(
-      'Esta terminal no lleva el contexto de bases de datos de Tessera.\n' +
-        '    Recarga la terminal (o reinicia el agente) después de montar la base.'
-    )
-  }
-  if (!fs.existsSync(BUZON)) {
-    fallar(
-      `El puente al host no está montado (${BUZON} no existe).\n` +
-        '    Recarga la terminal para que Tessera lo vuelva a montar.'
-    )
-  }
+  const t = textos()
+  if (!TOKEN) fallar(t.sinContexto)
+  if (!fs.existsSync(BUZON)) fallar(t.sinBuzon(BUZON))
   try {
     const edad = Date.now() - fs.statSync(CENTINELA).mtimeMs
-    if (edad > CENTINELA_MAX_EDAD_MS) {
-      fallar(
-        'El puente al host está montado pero Tessera no da señales.\n' +
-          '    Recarga la terminal; si sigue, reinicia Tessera.'
-      )
-    }
+    if (edad > CENTINELA_MAX_EDAD_MS) fallar(t.sinSenales)
   } catch {
-    fallar(
-      'El puente al host no responde (falta el centinela).\n' +
-        '    Suele pasar tras recrearse el contenedor: recarga la terminal.'
-    )
+    fallar(t.sinCentinela)
   }
 }
 
@@ -178,10 +198,7 @@ async function esperarRespuesta(peticion, respuesta) {
       } catch {
         // El barrido del host la recogerá.
       }
-      fallar(
-        `El puente no respondió en ${Math.round(TIMEOUT_MS / 1000)} s.\n` +
-          '    Comprueba que Tessera sigue abierta y recarga la terminal.'
-      )
+      fallar(textos().sinRespuesta(Math.round(TIMEOUT_MS / 1000)))
     }
     await dormir(transcurrido < SONDEO_RAPIDO_HASTA_MS ? SONDEO_RAPIDO_MS : SONDEO_LENTO_MS)
   }

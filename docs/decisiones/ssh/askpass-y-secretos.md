@@ -3,7 +3,7 @@
 - **Estado:** vigente
 - **Ámbito:** `src/main/ssh/` (`preguntasAskpass.ts`, `fichasAskpass.ts`, `programaAskpass.ts`, `controlador/askpassSsh.ts`,
   `controlador/dialogoAskpass.ts`, `controlador/pruebaSsh.ts`, `ConexionesSsh.ts`), las operaciones tardías de `db/dbBridge.ts`,
-  `src/askpass/`, `scripts/compilarAskpass.mjs` y los diálogos de `features/ssh/` (`PreguntaAskpassSsh.tsx`) (macOS: sin verificar)
+  `src/askpass/`, `scripts/compilarAskpass.mjs` y los diálogos de `features/ssh/` (`PreguntaAskpassSsh.tsx`)
 
 ## Contexto
 
@@ -36,7 +36,9 @@ keyboard-interactive y frase, en ConPTY y sin consola (~150 ms). Con `NumberOfPa
 - Sin puente, sin programa o con el secreto ilegible, la pestaña se abre sin él (se teclea) con un aviso: NUNCA el secreto en el entorno.
   El registro apunta la conexión y la decisión, nunca la pregunta ni el secreto.
 - «Probar»: la línea de la pestaña sin terminal, con `exit 0` y 20 s de tope; `accept-new` guarda la huella (el agente, en estricto, solo
-  usa hosts que confirmó una persona). Sin el secreto que el método pide, solo saluda (`none`). «Olvidar la huella» vacía su `known_hosts`.
+  usa hosts que confirmó una persona). Sin el secreto que el método pide, solo saluda (`none`). «Olvidar la huella» vacía su `known_hosts`;
+  sale en el resultado de «Probar» con la huella cambiada y, con confirmación, en el menú de la conexión si tiene alguna guardada (la
+  terminal que se niega por huella cambiada dice dónde está).
   Solo el 255 es un fallo de ssh: cualquier otro código lo dio el otro lado, así que entró (ForceCommand, git-shell, equipos de red que no
   aceptan `exit 0`).
 

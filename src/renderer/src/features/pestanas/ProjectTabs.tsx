@@ -13,6 +13,7 @@ import type { ProjectDotState } from './profileDotState'
 import { ContextMenu, SEP } from '../../comun/ContextMenu'
 import { ConfirmDialog } from '../../comun/ConfirmDialog'
 import { ModeIcon } from './modeIcon'
+import { txPestanas } from './textos.ts'
 
 interface ProjectTabsProps {
   projects: OpenProject[]
@@ -102,7 +103,7 @@ function ModeGlyph({
   state: ProjectDotState
 }): React.JSX.Element {
   if (state === 'waking') {
-    return <span className="project-dot spinner" title="Despertando…" aria-label="despertando" />
+    return <span className="project-dot spinner" title={txPestanas().proyectos.despertando} aria-label={txPestanas().proyectos.despertandoAria} />
   }
   // `--azul` y no `--accent`: el acento sigue al perfil y con uno ámbar el glifo de Docker
   // y el del modo nativo se verían del mismo color a 13 px.
@@ -113,9 +114,10 @@ function ModeGlyph({
 
 function tituloDePestana(project: OpenProject, windowsMode: boolean): string {
   // El agente cerrado por inactividad se dice también en modo nativo, que es donde ocurre.
-  const dormido = project.estado === 'agente-hibernado' ? ' · agente hibernado por inactividad' : ''
-  if (windowsMode) return `${project.name} — modo nativo (fuera del contenedor, cuenta personal)${dormido}`
-  return project.estado === 'hibernated' ? `${project.name} (hibernado)` : `${project.name}${dormido}`
+  const t = txPestanas().proyectos
+  const dormido = project.estado === 'agente-hibernado' ? t.agenteHibernado : ''
+  if (windowsMode) return t.modoNativo(project.name, dormido)
+  return project.estado === 'hibernated' ? t.hibernado(project.name) : `${project.name}${dormido}`
 }
 
 interface PestanaProyectoProps {
@@ -179,8 +181,8 @@ function PestanaProyecto({
       <TabName name={project.name} />
       <button
         className="project-tab-close"
-        aria-label={`Cerrar ${project.name}`}
-        title="Cerrar"
+        aria-label={txPestanas().proyectos.cerrarAria(project.name)}
+        title={txPestanas().proyectos.cerrar}
         // La x PIDE confirmación: ni selecciona la pestaña ni cierra de una (doble
         // validación contra el cierre accidental que provocaba el ancho variable).
         onClick={(e) => {
@@ -204,14 +206,14 @@ function SinProyectos({
 }): React.JSX.Element {
   return (
     <span className="project-tabs-empty">
-      Sin proyectos abiertos
+      {txPestanas().proyectos.sinProyectos}
       <span className="project-tabs-empty-sep">·</span>
       <button
         className="project-tabs-empty-link"
         onClick={onOpenProject}
         disabled={!hasActiveProfile}
       >
-        Abrir…
+        {txPestanas().proyectos.abrirEnlace}
       </button>
     </span>
   )
@@ -227,8 +229,8 @@ function BotonAbrirProyecto({
   return (
     <button
       className="project-tab-add"
-      aria-label="Abrir proyecto"
-      title="Abrir proyecto"
+      aria-label={txPestanas().proyectos.abrir}
+      title={txPestanas().proyectos.abrir}
       onClick={onOpenProject}
       disabled={!hasActiveProfile}
     >
@@ -246,14 +248,15 @@ function ConfirmarCierre({
   onConfirm: () => void
   onCancel: () => void
 }): React.JSX.Element {
+  const t = txPestanas().proyectos
   return (
     <ConfirmDialog
       // danger: enfoca "Cancelar", así un Enter reflejo no confirma el cierre.
       danger
-      title="Cerrar proyecto"
-      message={`¿Seguro que quieres cerrar «${project.name}»?\nSe cerrarán sus pestañas y la sesión del agente de este proyecto.`}
-      confirmLabel="Cerrar"
-      cancelLabel="Cancelar"
+      title={t.cerrarTitulo}
+      message={t.cerrarMensaje(project.name)}
+      confirmLabel={t.cerrar}
+      cancelLabel={t.cancelar}
       onConfirm={onConfirm}
       onCancel={onCancel}
     />
@@ -282,6 +285,7 @@ function MenuProyecto({
   onReplaceProject,
   onCloseRequest
 }: MenuProyectoProps): React.JSX.Element {
+  const t = txPestanas().proyectos
   return (
     <ContextMenu
       x={x}
@@ -294,18 +298,16 @@ function MenuProyecto({
           // «Windows» porque el modo existe en las dos plataformas; el identificador interno
           // `windowsMode` se conserva porque está persistido y viaja por el IPC.
           icon: <IconoAjustes />,
-          label: windowsMode
-            ? 'Volver a modo Docker (aislado)'
-            : 'Trabajar en modo nativo (fuera del contenedor, cuenta personal)',
+          label: windowsMode ? t.volverDocker : t.irNativo,
           onClick: () => onToggleWindowsMode(project.projectHostPath)
         },
         SEP,
         {
           icon: <IconoAbrir />,
-          label: 'Abrir otro proyecto aquí…',
+          label: t.abrirAqui,
           onClick: () => onReplaceProject(project.projectHostPath)
         },
-        { icon: <IconoCerrar />, label: 'Cerrar', onClick: () => onCloseRequest(project) }
+        { icon: <IconoCerrar />, label: t.cerrar, onClick: () => onCloseRequest(project) }
       ]}
     />
   )
@@ -322,7 +324,7 @@ export function ProjectTabs(props: ProjectTabsProps): React.JSX.Element {
   // en vez de cerrar de una.
   const [closing, setClosing] = useState<OpenProject | null>(null)
   return (
-    <div className="tabs-projects" role="tablist" aria-label="Proyectos abiertos">
+    <div className="tabs-projects" role="tablist" aria-label={txPestanas().proyectos.aria}>
       {projects.length === 0 ? (
         <SinProyectos hasActiveProfile={hasActiveProfile} onOpenProject={onOpenProject} />
       ) : (

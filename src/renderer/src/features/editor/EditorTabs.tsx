@@ -21,6 +21,8 @@ import { esRutaVirtual } from '../../../../shared/jarPath'
 import { statusClass } from '../git'
 import { FileTypeIcon } from '../../comun/fileIcons'
 import { ContextMenu, SEP } from '../../comun/ContextMenu'
+import { txPestanas } from './textos.ts'
+import { useRaizDelProyecto } from '../../comun/raizDelProyecto'
 
 interface EditorTabsProps {
   tabs: EditorTab[]
@@ -42,7 +44,7 @@ interface EditorTabsProps {
 /** Las dos flechas de comparar, en el sitio del icono de tipo. `aria-label` dice que es un diff. */
 function IconoDiff(): React.JSX.Element {
   return (
-    <span className="editor-tab-icon editor-tab-kind" role="img" aria-label="Diferencias">
+    <span className="editor-tab-icon editor-tab-kind" role="img" aria-label={txPestanas().diferencias}>
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
         <path d="M1.5 4.5h11M10 2l2.5 2.5L10 7" />
         <path d="M14.5 11.5h-11M6 9l-2.5 2.5L6 14" />
@@ -81,12 +83,11 @@ function tabIconName(pane: CenterPane): string {
 /** Tooltip completo: la ruta; para diff se marca explícitamente como tal. */
 function tabTooltip(pane: CenterPane): string {
   if (pane.kind === 'file') return pane.file.path
+  const t = txPestanas()
   if (pane.kind === 'untitled') {
-    return pane.untitled.saved
-      ? `${pane.untitled.name} (fuera del proyecto)`
-      : `${pane.untitled.name} (sin guardar)`
+    return pane.untitled.saved ? t.fueraDelProyecto(pane.untitled.name) : t.sinGuardar(pane.untitled.name)
   }
-  return `${pane.target.path} (diff)`
+  return t.diffDe(pane.target.path)
 }
 
 interface PestanaProps {
@@ -114,6 +115,7 @@ function Pestana({
   const label = tabLabel(tab.pane)
   // Contenido de dentro de un .jar: se tinta igual que sus filas en el árbol (misma regla).
   const enArchivo = tab.pane.kind === 'file' && esRutaVirtual(tab.pane.file.path)
+  const t = txPestanas()
   return (
     <div
       role="tab"
@@ -123,7 +125,7 @@ function Pestana({
         borrado ? ' borrado' : ''
       }${enArchivo ? ' in-archive' : ''}${tab.efimera ? ' efimera' : ''}`}
       // Los sufijos van aquí y no en `tabTooltip`, que solo ve el pane y no el flag ni el borrado.
-      title={`${tabTooltip(tab.pane)}${borrado ? ' · el archivo ya no existe en disco; Ctrl+S vuelve a crearlo' : ''}${tab.efimera ? ' · vista previa (se reemplaza al abrir otro diff del historial)' : ''}`}
+      title={`${tabTooltip(tab.pane)}${borrado ? t.sufijoBorrado : ''}${tab.efimera ? t.sufijoEfimera : ''}`}
       onClick={onSelect}
       onContextMenu={onMenu}
     >
@@ -139,8 +141,8 @@ function Pestana({
         {(dirty || borrado) && <span className="editor-tab-dot" aria-hidden="true" />}
         <button
           className="editor-tab-close"
-          aria-label={`Cerrar ${label}`}
-          title="Cerrar"
+          aria-label={t.cerrarArchivo(label)}
+          title={t.cerrar}
           // stopPropagation: la x cierra, NO selecciona la pestaña.
           onClick={(e) => {
             e.stopPropagation()
@@ -154,14 +156,14 @@ function Pestana({
   )
 }
 
-/** Ítems del menú contextual de la pestaña `index`; `closeIds` cierra por lotes. */
+/** Ítems del menú contextual de la pestaña `index` del proyecto `raiz`; `closeIds` cierra por lotes. */
 function itemsMenuPestana(
-  tabs: EditorTab[],
-  index: number,
+  { tabs, index, raiz }: { tabs: EditorTab[]; index: number; raiz: string },
   closeIds: (ids: string[]) => void,
   onSaveTab: (id: string) => void
 ): React.ComponentProps<typeof ContextMenu>['items'] {
   const kind = tabs[index]?.pane.kind
+  const t = txPestanas()
   return [
     // Solo en archivos: un sin título aún no existe en disco y un diff puede comparar
     // revisiones que no están, así que el explorador no tendría qué seleccionar.
@@ -169,13 +171,13 @@ function itemsMenuPestana(
       ? [
           {
             icon: <IconoAbrirFuera />,
-            label: 'Abrir en el explorador',
+            label: t.abrirEnExplorador,
             onClick: () => {
               const pane = tabs[index]?.pane
               if (pane?.kind !== 'file') return
               void window.tessera.files
-                .reveal(pane.file.path)
-                .catch((err: unknown) => notifyError('No se pudo abrir el explorador', err))
+                .reveal({ raiz, path: pane.file.path })
+                .catch((err: unknown) => notifyError(t.noSePudoAbrirExplorador, err))
             }
           },
           SEP
@@ -186,7 +188,7 @@ function itemsMenuPestana(
       ? [
           {
             icon: <IconoGuardar />,
-            label: 'Guardar como…',
+            label: t.guardarComo,
             onClick: () => onSaveTab(tabs[index].id)
           },
           SEP
@@ -194,14 +196,14 @@ function itemsMenuPestana(
       : []),
     {
       icon: <IconoCerrarDerecha />,
-      label: 'Cerrar los de la derecha',
+      label: t.cerrarDerecha,
       // Habilitada solo si hay pestañas DESPUÉS de la clicada.
       disabled: index >= tabs.length - 1,
       onClick: () => closeIds(tabs.slice(index + 1).map((t) => t.id))
     },
     {
       icon: <IconoCerrarIzquierda />,
-      label: 'Cerrar los de la izquierda',
+      label: t.cerrarIzquierda,
       // Habilitada solo si hay pestañas ANTES de la clicada.
       disabled: index <= 0,
       onClick: () => closeIds(tabs.slice(0, index).map((t) => t.id))
@@ -210,7 +212,7 @@ function itemsMenuPestana(
     SEP,
     {
       icon: <IconoCerrarTodo />,
-      label: 'Cerrar todo',
+      label: t.cerrarTodo,
       // Con una sola pestaña, las tres quedan inertes.
       disabled: tabs.length <= 1,
       onClick: () => closeIds(tabs.map((t) => t.id))
@@ -300,20 +302,39 @@ function itemsDesborde(ocultas: EditorTab[], onSelectTab: (id: string) => void):
   }))
 }
 
+/** Dónde se abrió el menú contextual y sobre qué pestaña. */
+interface MenuDePestana {
+  x: number
+  y: number
+  index: number
+}
+
+/** Menú contextual de una pestaña, contra el proyecto de la tira. */
+function MenuPestana(p: {
+  menu: MenuDePestana
+  tabs: EditorTab[]
+  onCloseTab: (id: string) => void
+  onSaveTab: (id: string) => void
+  onClose: () => void
+}): React.JSX.Element {
+  const raiz = useRaizDelProyecto()
+  // Cierre por lotes: cada onCloseTab compone su updater funcional.
+  const closeIds = (ids: string[]): void => {
+    for (const id of ids) p.onCloseTab(id)
+  }
+  const items = itemsMenuPestana({ tabs: p.tabs, index: p.menu.index, raiz }, closeIds, p.onSaveTab)
+  return <ContextMenu x={p.menu.x} y={p.menu.y} items={items} onClose={p.onClose} />
+}
+
 /** Tira de pestañas del editor con su menú contextual, la flecha de desborde y el hueco de acciones. */
 export function EditorTabs(props: EditorTabsProps): React.JSX.Element {
   const { tabs, activeId, onSelectTab, onCloseTab, onSaveTab } = props
   // Menú contextual: posición + índice de la pestaña sobre la que se abrió.
-  const [menu, setMenu] = useState<{ x: number; y: number; index: number } | null>(null)
+  const [menu, setMenu] = useState<MenuDePestana | null>(null)
   const [desborde, setDesborde] = useMenuDesborde(tabs)
   const listaRef = useRef<HTMLDivElement>(null)
   const desborda = useDesborde(listaRef)
   useActivaALaVista(listaRef, activeId, tabs)
-
-  /** Cierra una lista de ids (batch): cada onCloseTab compone su updater funcional. */
-  function closeIds(ids: string[]): void {
-    for (const id of ids) onCloseTab(id)
-  }
 
   function abrirDesborde(e: React.MouseEvent<HTMLButtonElement>): void {
     const lista = listaRef.current
@@ -329,7 +350,7 @@ export function EditorTabs(props: EditorTabsProps): React.JSX.Element {
         ref={listaRef}
         className="editor-tabs-lista"
         role="tablist"
-        aria-label="Archivos abiertos"
+        aria-label={txPestanas().archivosAbiertos}
         // Sin barra visible: la rueda vertical desplaza la tira en horizontal.
         onWheel={(e) => {
           if (e.deltaX === 0 && listaRef.current) listaRef.current.scrollLeft += e.deltaY
@@ -355,13 +376,13 @@ export function EditorTabs(props: EditorTabsProps): React.JSX.Element {
       </div>
       <div className="editor-tabs-acciones">
         {desborda && (
-          <button type="button" className="btn btn-icon editor-tabs-desborde" title="Pestañas que no se ven" aria-label="Pestañas que no se ven" onClick={abrirDesborde}>
+          <button type="button" className="btn btn-icon editor-tabs-desborde" title={txPestanas().pestanasOcultas} aria-label={txPestanas().pestanasOcultas} onClick={abrirDesborde}>
             <ChevronIcon />
           </button>
         )}
         <div ref={props.slotAccionesRef} className="editor-tabs-slot" />
       </div>
-      {menu && <ContextMenu x={menu.x} y={menu.y} items={itemsMenuPestana(tabs, menu.index, closeIds, onSaveTab)} onClose={() => setMenu(null)} />}
+      {menu && <MenuPestana menu={menu} tabs={tabs} onCloseTab={onCloseTab} onSaveTab={onSaveTab} onClose={() => setMenu(null)} />}
       {desborde && (
         <ContextMenu x={desborde.x} y={desborde.y} items={itemsDesborde(desborde.ocultas, onSelectTab)} onClose={() => setDesborde(null)} />
       )}

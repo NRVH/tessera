@@ -14,8 +14,10 @@ using System.Threading;
 
 static class AskpassTessera
 {
-    // Fija y sin el texto del servidor: lo que este escriba no llega a la terminal por aquí.
+    // Fija y sin el texto del servidor: lo que este escriba no llega a la terminal por aquí. En inglés con
+    // TESSERA_IDIOMA=en, que ssh hereda de la terminal de Tessera.
     const string MensajeNo = "Tessera no contestó esa pregunta del servidor";
+    const string MensajeNoEn = "Tessera did not answer that question from the server";
     const string PrefijoPipe = @"\\.\pipe\";
     const int TopeConexionMs = 5000;
     // Por si Tessera se queda colgada a mitad de respuesta: ssh espera a este proceso. Holgado porque la
@@ -51,7 +53,8 @@ static class AskpassTessera
     {
         try
         {
-            Escribir(Console.OpenStandardError(), MensajeNo + "\n");
+            string mensaje = Environment.GetEnvironmentVariable("TESSERA_IDIOMA") == "en" ? MensajeNoEn : MensajeNo;
+            Escribir(Console.OpenStandardError(), mensaje + "\n");
         }
         catch (Exception)
         {

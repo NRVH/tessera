@@ -15,6 +15,8 @@ import path from 'node:path'
 import { encargoValido, rutaEncargoDesdeArgv, type EncargoRelevo } from '../../shared/relevo'
 import { MARCA_ABRIR, MARCA_COPIAR, paginaRelevo, type EstadoRelevo } from './relevoUi'
 import { crearLog, ejecutarRelevo } from './supervisor'
+import { fijarIdiomaHeredado } from '../app/idioma'
+import { txRelevoUi } from './textos.ts'
 
 /** ¿Nos han arrancado como relevo? Devuelve la ruta del encargo, o null. */
 export function rutaEncargoRelevo(): string | null {
@@ -63,6 +65,8 @@ export async function arrancarRelevo(rutaEncargo: string): Promise<void> {
   }
 
   await app.whenReady()
+  // El relevo no pasa por el arranque normal: el idioma se fija aquí para su ventana.
+  fijarIdiomaHeredado()
   const win = new BrowserWindow({
     width: 520,
     // Alto pensado para el caso PEOR (fallo: título + explicación de tres líneas +
@@ -76,7 +80,7 @@ export async function arrancarRelevo(rutaEncargo: string): Promise<void> {
     autoHideMenuBar: true,
     backgroundColor: '#1b1d23',
     show: false,
-    title: 'Actualizando Tessera',
+    title: txRelevoUi().ventana,
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true }
   })
   win.setMenu(null)
@@ -113,8 +117,8 @@ export async function arrancarRelevo(rutaEncargo: string): Promise<void> {
     lineas.push(m)
     if (!win.isDestroyed()) pintar({ fase: 'instalando', titulo: tituloActual, detalle: detalleActual, log: lineas })
   }
-  let tituloActual = 'Cerrando Tessera…'
-  let detalleActual = 'Esperando a que la aplicación termine de cerrarse.'
+  let tituloActual = txRelevoUi().cerrandoTitulo
+  let detalleActual = txRelevoUi().cerrandoDetalle
   const avisarYRecordar = (t: string, d: string): void => {
     tituloActual = t
     detalleActual = d
@@ -149,8 +153,8 @@ export async function arrancarRelevo(rutaEncargo: string): Promise<void> {
       lineas.push(`no se pudo abrir Tessera automáticamente: ${String(err)}`)
       pintar({
         fase: 'error',
-        titulo: 'No se pudo abrir Tessera',
-        detalle: 'Ábrela desde el icono del escritorio o el menú de inicio.',
+        titulo: txRelevoUi().noAbrioTitulo,
+        detalle: txRelevoUi().noAbrioDetalle,
         log: lineas
       })
       return
@@ -178,7 +182,7 @@ export async function arrancarRelevo(rutaEncargo: string): Promise<void> {
   pintar({
     fase: veredicto.ok ? 'ok' : 'error',
     titulo: veredicto.titulo,
-    detalle: veredicto.detalle || 'Ya puedes abrir Tessera.',
+    detalle: veredicto.detalle || txRelevoUi().yaPuedes,
     log: lineas
   })
   // A partir de aquí manda el usuario: el proceso vive hasta que pulse Abrir o

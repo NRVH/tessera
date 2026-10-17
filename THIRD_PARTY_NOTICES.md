@@ -3,7 +3,7 @@
 Tessera se publica bajo la [licencia MIT](./LICENSE). Está construida sobre software escrito
 por otros, y lo distribuye, cada uno con su propia licencia. Este archivo enumera esos
 componentes, la licencia con la que Tessera usa cada uno y lo que sus licencias piden que se
-diga. Describe Tessera 0.80.0.
+diga. Describe Tessera 0.81.0.
 
 ## Cómo viaja el código de terceros con Tessera
 
@@ -77,7 +77,7 @@ de un archivo. Copyright António Afonso and contributors.
   carpeta de la biblioteca y está disponible en
   <https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html>.
 
-### JSZip 3.10.1 (MIT, elegida entre MIT OR GPL-3.0-or-later)
+### JSZip 3.10.2 (MIT, elegida entre MIT OR GPL-3.0-or-later)
 
 Lectura de ZIP, una dependencia de `mammoth` (el visor de Word). JSZip tiene licencia dual;
 Tessera lo usa bajo la **licencia MIT**.
@@ -86,7 +86,7 @@ Copyright (c) 2009-2016 Stuart Knightley, David Duponchel, Franz Buchinger, Ant�
 JSZip depende de **pako** 1.0.11 (MIT AND Zlib), Copyright (C) 2014-2017 by Vitaly Puzrin
 and Andrei Tuputcyn.
 
-### DOMPurify 3.4.11 (Apache-2.0, elegida entre MPL-2.0 OR Apache-2.0)
+### DOMPurify 3.4.17 (Apache-2.0, elegida entre MPL-2.0 OR Apache-2.0)
 
 Saneador de HTML, integrado en la interfaz. DOMPurify tiene licencia dual; Tessera lo usa
 bajo la **Apache License 2.0** (texto [más abajo](#apache-license-20)).
@@ -175,7 +175,7 @@ Apache-2.0, salvo estas:
 | Paquete | Versión | Licencia | Lo trae |
 | --- | --- | --- | --- |
 | argparse | 2.0.1 | Python-2.0 (PSF License) | `js-yaml`, una dependencia de `electron-updater` |
-| sax | 1.6.0 | BlueOak-1.0.0 | `builder-util-runtime`, una dependencia de `electron-updater` |
+| sax | 1.6.1 | BlueOak-1.0.0 | `builder-util-runtime`, una dependencia de `electron-updater` |
 | tslib | 2.8.1 | 0BSD | varios paquetes |
 | pako | 1.0.11 | MIT AND Zlib | `jszip` |
 | duck | 0.1.12 | BSD (texto de 2 cláusulas) | `mammoth` |
@@ -195,13 +195,13 @@ Sus textos de licencia viajan en la carpeta de cada paquete.
 | ioredis | 6.0.0 | MIT |
 | jschardet | 3.1.4 | LGPL-2.1-or-later |
 | libpg-query | 18.1.5 | MIT |
-| mammoth | 1.12.0 | BSD-2-Clause |
+| mammoth | 1.13.0 | BSD-2-Clause |
 | mongodb | 7.7.0 | Apache-2.0 |
 | mysql2 | 3.24.4 | MIT |
 | node-pty | 1.1.0 | MIT |
 | oracledb | 6.10.0 | Apache-2.0 OR UPL-1.0 (elegida Apache-2.0) |
-| pg | 8.22.0 | MIT |
-| pg-cursor | 2.22.0 | MIT |
+| pg | 8.23.1 | MIT |
+| pg-cursor | 2.22.1 | MIT |
 | tedious | 20.3.3 | MIT |
 
 ## Bibliotecas integradas en la interfaz
@@ -230,7 +230,7 @@ que se enumeran aquí con sus licencias.
 | d3-sankey | 0.12.3 | BSD-3-Clause |
 | dagre-d3-es | 7.0.14 | MIT |
 | dayjs | 1.11.23 | MIT |
-| dompurify | 3.4.11 | MPL-2.0 OR Apache-2.0 (elegida Apache-2.0) |
+| dompurify | 3.4.17 | MPL-2.0 OR Apache-2.0 (elegida Apache-2.0) |
 | es-toolkit | 1.52.0 | MIT |
 | fastdom | 1.0.12 | MIT |
 | internmap | 2.0.3 | ISC |
@@ -238,7 +238,7 @@ que se enumeran aquí con sus licencias.
 | khroma | 2.1.0 | MIT |
 | layout-base | 1.0.2 | MIT |
 | lodash-es | 4.18.1 | MIT |
-| marked | 18.0.5 | MIT |
+| marked | 18.1.1 | MIT |
 | mermaid | 11.17.2 | MIT |
 | monaco-editor | 0.52.2 | MIT |
 | nearley | 2.20.1 | MIT |
@@ -249,7 +249,7 @@ que se enumeran aquí con sus licencias.
 | sql-formatter | 15.9.0 | MIT |
 | stylis | 4.4.0 | MIT |
 | ts-dedent | 2.3.0 | MIT |
-| uuid | 14.0.2 | MIT |
+| uuid | 14.0.3 | MIT |
 | vscode-material-icons | 0.1.1 | MIT |
 | zustand | 5.0.15 | MIT |
 

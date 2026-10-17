@@ -3,11 +3,12 @@
 // enseñan al usuario. El modificador principal es Ctrl en Windows y Linux y ⌘ en macOS, y hay
 // gestos cuya tecla, no solo el modificador, cambia entre plataformas (borrar, detener, abrir nodo).
 // Cada función recibe la plataforma como último parámetro, con `window.tessera.plataforma` por defecto.
-// Sin React ni DOM: `test-atajos.mts` lo carga con `node` a secas; su único import es de tipo.
+// Sin React ni DOM: `test-atajos.mts` lo carga con `node` a secas; importa el tipo de plataforma y los textos.
 // Decisiones: docs/decisiones/renderer/atajos-por-plataforma.md
 // =============================================================================
 
 import type { Plataforma } from '../../../shared/plataforma'
+import { txUtil } from './textos.ts'
 
 /**
  * Lo mínimo de un evento de teclado/rueda que hace falta para decidir.
@@ -635,6 +636,6 @@ export function etiquetaAcorde(
  * enseñar una F4 sin su ⌘↓, que es la que se pulsa sin fn.
  */
 export function etiquetaAbrirNodo(plataforma: Plataforma = window.tessera.plataforma): string {
-  const partes = ['doble clic', ...etiquetasAcorde('abrirNodo', plataforma)]
-  return partes.slice(0, -1).join(', ') + ' o ' + partes[partes.length - 1]
+  const t = txUtil()
+  return t.unirOpciones([t.dobleClic, ...etiquetasAcorde('abrirNodo', plataforma)])
 }

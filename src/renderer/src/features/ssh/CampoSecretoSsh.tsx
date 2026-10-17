@@ -11,6 +11,7 @@ import { IconoOjo } from '../../comun/iconosFormulario'
 import { pegarRecortado } from '../../util/pasteTrim'
 import { nombresSistema } from '../../../../shared/nombresSistema'
 import type { BorradorSsh, CampoSsh } from './borradorSsh'
+import { txFormularioSsh } from './textosFormulario.ts'
 import { avisoSecretoIlegible, ayudaSecreto, marcadorSecreto, type DestinoSecreto } from './secretoSsh'
 
 /** Lo que recibe el campo. */
@@ -25,13 +26,14 @@ export interface PropsCampoSecretoSsh {
 export function CampoSecretoSsh({ borrador, destino, marcados, editar }: PropsCampoSecretoSsh): React.JSX.Element {
   const [ver, setVer] = useState(false)
   const esFrase = borrador.metodo === 'clave'
-  const etiqueta = esFrase ? 'Frase de la clave' : 'Contraseña'
+  const t = txFormularioSsh()
+  const etiqueta = esFrase ? t.fraseClave : t.contrasena
   const olvidable = destino === 'se-conserva' || destino === 'se-olvida'
   return (
     <div className="ssh-campo-secreto">
       <label className="dbc-campo">
         <span className="dbc-etiqueta">
-          {etiqueta} {esFrase && <span className="dbc-ayuda-inline">(opcional)</span>}
+          {etiqueta} {esFrase && <span className="dbc-ayuda-inline">{t.opcional}</span>}
         </span>
         <span className="dbc-pass">
           <input
@@ -49,8 +51,8 @@ export function CampoSecretoSsh({ borrador, destino, marcados, editar }: PropsCa
           <button
             type="button"
             className="dbc-pass-ojo"
-            title={ver ? `Ocultar ${etiqueta.toLowerCase()}` : `Mostrar ${etiqueta.toLowerCase()}`}
-            aria-label={ver ? `Ocultar ${etiqueta.toLowerCase()}` : `Mostrar ${etiqueta.toLowerCase()}`}
+            title={ver ? t.ocultar(etiqueta) : t.mostrar(etiqueta)}
+            aria-label={ver ? t.ocultar(etiqueta) : t.mostrar(etiqueta)}
             aria-pressed={ver}
             // Al tabular por el formulario se salta el ojo y se pasa al siguiente CAMPO.
             tabIndex={-1}
@@ -69,7 +71,7 @@ export function CampoSecretoSsh({ borrador, destino, marcados, editar }: PropsCa
         <p className="dbc-ayuda">{ayudaSecreto(destino, esFrase)}</p>
         {olvidable && (
           <button type="button" className="btn btn-ghost ssh-secreto-olvidar" onClick={() => editar({ olvidarSecreto: !borrador.olvidarSecreto, secreto: '' })}>
-            {borrador.olvidarSecreto ? 'No olvidarla' : `Olvidar la ${esFrase ? 'frase' : 'contraseña'} guardada`}
+            {borrador.olvidarSecreto ? t.noOlvidarla : t.olvidarGuardada(esFrase)}
           </button>
         )}
       </div>

@@ -9,6 +9,7 @@
 import type { DbMotor } from '../../../../../shared/db-ipc.ts'
 import { dialectoDeMotor } from '../../../../../shared/sql/dialectosSql.ts'
 import { plegarSinComillas } from '../../../../../shared/sql/identificadoresSql.ts'
+import { txResultados } from './textosResultados.ts'
 
 /** Id reservado de la pestaña «Salida». Ninguna pestaña de resultado lo usa. */
 export const ID_SALIDA = 'salida'
@@ -103,7 +104,7 @@ export function tituloResultado(
   dialecto: DbMotor,
   k: number
 ): string {
-  if (!tablaUnica || tablaUnica.nombre.trim() === '') return `Resultado ${k}`
+  if (!tablaUnica || tablaUnica.nombre.trim() === '') return txResultados().resultadoN(k)
   const nombre = identificadorVisible(tablaUnica.nombre, dialecto)
   const esquema =
     tablaUnica.esquema !== null && tablaUnica.esquema.trim() !== ''

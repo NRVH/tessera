@@ -1,7 +1,7 @@
 # El diff de un contenedor se resta en el main por CRC32, y al renderer solo cruzan el índice restado y el texto de una entrada
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/comprimidos/ComprimidosService.ts`, `compararIndices.ts`
+- **Ámbito:** `src/main/comprimidos/ComprimidosService.ts`, `compararIndices.ts`, `src/shared/comprimidos-ipc.ts`
 
 ## Contexto
 
@@ -20,8 +20,11 @@ de un ZIP ya trae, por entrada, su CRC32 y su tamaño, y se lee en milisegundos 
 - El lado de disco se lee por rangos; el de un commit o del índice es el blob entero (un ZIP se lee
   desde el final y `git cat-file` es un flujo), y los dos lados se piden en UNA llamada a git. Un
   lado `empty` no es un error: todas sus entradas son nuevas.
-- La caché es `JarIndexCache` con clave `commit:<oid>:<ruta>`, inmutable por construcción; el disco y
-  el índice no se cachean porque cambian sin avisar. El presupuesto es el de dos contenedores del
+- Cada petición lleva la contenedora de su proyecto (`raiz`) y sus dos lados salen de ese proyecto,
+  de git y del disco (`workspace/peticiones-de-archivos-con-su-proyecto.md`), nunca del anclado.
+- La caché es `JarIndexCache` con clave `commit:<contenedora>:<oid>:<ruta>`, inmutable por
+  construcción: la ruta es relativa a la contenedora y en otro proyecto puede caer en otro repo. El
+  disco y el índice no se cachean porque cambian sin avisar. El presupuesto es el de dos contenedores del
   tope: con menos, guardar el segundo lado desaloja el primero y cada clic relanza `git cat-file`.
 - Una descompilación viva por pane: cada petición trae `(paneKey, token)` y antes de lanzar un motor
   se comprueba que el token siga vigente; si no, se responde `descartado`. Así barrer entradas con la

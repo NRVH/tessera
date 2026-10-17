@@ -1,7 +1,7 @@
 # Las teselas del mosaico son claves en orden canónico, una por proyecto y estables mientras está abierto
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/features/mosaico/mosaicoTeselas.ts` y su prueba
+- **Ámbito:** `src/renderer/src/features/mosaico/mosaicoTeselas.ts` y su prueba, `useMosaico.ts`, `features/agentes/useAgentesPropios.ts`
 
 ## Contexto
 
@@ -14,6 +14,11 @@ cambio de pertenencia reparte la rejilla y redimensiona las terminales de todos 
   cambia dentro de la casilla. Lo defienden `seleccionInicial`, `alternar` y `reemplazar`.
 - **El estado son claves** (`string[]`); los candidatos se derivan en cada render de las pestañas,
   y si `orden` y `vivos` discrepan manda `orden`.
+- **Candidatos: todos los targets abiertos**, también el agente de datos y el de la terminal
+  (`candidatosDelMosaico`). Cada uno cuenta como un proyecto más de su perfil, detrás de sus pestañas:
+  primero el de datos y luego el de la terminal. Su casilla se llama por la vista donde vive, no cambia
+  de modo, se despierta quitando su marca de hibernado (sin `wakeProject`, porque no es pestaña) e «Ir
+  a» lleva a esa vista (`useAgentesPropios.ts`).
 - **Orden canónico, nunca de selección:** perfil, pestaña del proyecto, agente y la clave como
   desempate. La clave se compara con `<`, no con `localeCompare`, para ordenar igual en las dos
   plataformas; un índice NaN va al final de su nivel para no romper la transitividad de `sort`.

@@ -2,7 +2,7 @@
 // El historial de la consola de Redis: el popover abierto o no, dónde cuelga y qué hace elegir un comando
 // (lo INSERTA en el cursor, sin terminador). Es el de la consola de MongoDB (`useHistorialConsolaDocs`)
 // con la composición de `historialClaves.ts`.
-// Decisiones: docs/decisiones/bd/ui-claves-consola-historial-y-completado.md
+// Decisiones: docs/decisiones/bd/ui-consola-historial.md
 // =============================================================================
 
 import type { editor } from 'monaco-editor'

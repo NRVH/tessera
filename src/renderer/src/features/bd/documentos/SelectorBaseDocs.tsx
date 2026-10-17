@@ -15,6 +15,7 @@ import { FILAS_MAX, HUECO, MARGEN, mensajeDe, posicionSelector, type AnclaSelect
 import { EstadoSelector, FiltroSelector } from './piezasBarra'
 import { teclaSelector, useCierreFuera } from './useSelectorBase'
 import { useFocoDelFiltro } from '../../../comun/usePopoverFlotante'
+import { txConsolaDocs } from './textosConsolaDocs'
 
 const ANCHO_SELECTOR = 280
 
@@ -100,7 +101,7 @@ function ListaBases({
   onElegir: (i: number) => void
 }): React.JSX.Element {
   return (
-    <div className="db-pop-lista" role="listbox" aria-label="Bases" style={{ maxHeight: FILAS_MAX * altoFila, overflowY: 'auto' }}>
+    <div className="db-pop-lista" role="listbox" aria-label={txConsolaDocs().bases} style={{ maxHeight: FILAS_MAX * altoFila, overflowY: 'auto' }}>
       {opciones.map((n, i) => (
         <div
           key={n}
@@ -149,17 +150,18 @@ export function SelectorBaseDocs(p: {
     cerrarRef.current()
   }
   const mover = (dir: number): void => setActivo((a) => Math.max(0, Math.min(opciones.length - 1, a + dir)))
+  const t = txConsolaDocs()
 
   return createPortal(
     <div
       ref={raizRef}
       className="db-esquemas-pop db-esquema-consola-pop"
       role="dialog"
-      aria-label={`Base de la consola en ${p.conexion.alias}`}
+      aria-label={t.baseDeLaConsolaEn(p.conexion.alias)}
       style={{ left: pos.left, top: pos.top, width: ANCHO_SELECTOR }}
       onKeyDown={(e) => teclaSelector(e, { cerrar: () => cerrarRef.current(), elegir: () => elegir(activo), mover })}
     >
-      <FiltroSelector alias={p.conexion.alias} filtroRef={filtroRef} filtro={filtro} placeholder="Filtrar bases" onFiltro={setFiltro} />
+      <FiltroSelector alias={p.conexion.alias} filtroRef={filtroRef} filtro={filtro} placeholder={t.filtrarBases} onFiltro={setFiltro} />
       <EstadoSelector cargando={!bases && !error} error={error} vacio={bases !== null && opciones.length === 0} onReintentar={reintentar} />
       {opciones.length > 0 && (
         <ListaBases
@@ -174,7 +176,7 @@ export function SelectorBaseDocs(p: {
         />
       )}
       <div className="db-pop-pie">
-        <span className="db-pop-pista">Enter elige · Esc cancela · también «use nombre»</span>
+        <span className="db-pop-pista">{t.pistaSelector}</span>
       </div>
     </div>,
     document.body

@@ -1,7 +1,8 @@
 // =============================================================================
 // Lo que el proceso hace al CARGAR `index.ts`, antes de `whenReady`: decidir si es el
 // relevo de una actualización o Tessera, aislar el `userData` de desarrollo, tomar el
-// cerrojo de instancia única y escuchar las aperturas del sistema. Y el blindaje contra
+// cerrojo de instancia única y escuchar las aperturas del sistema (un `.tessera` va al importar
+// de la configuración y no a «Abrir con Tessera»). Y el blindaje contra
 // excepciones no capturadas.
 // Decisiones: docs/decisiones/app/arranque-relevo-e-instancia-unica.md
 // =============================================================================
@@ -11,8 +12,9 @@ import { aislarUserDataEnDesarrollo } from './devUserData'
 import { atenderSegundaInstancia, reclamarInstanciaUnica } from './instanciaUnica'
 import { logCrash } from './crashLog'
 import { logUpdate } from '../update/logUpdate'
-import { rutasDesdeArgv } from '../../shared/rutasDesdeArgv'
+import { rutasDesdeArgv, separarCopias } from '../../shared/rutasDesdeArgv'
 import { encolarAperturas, hayRelevoEnMarcha } from '../shell/aperturasPendientes'
+import { encolarCopias } from '../configuracion/copiasPendientes'
 import { ARCHIVO_DESKTOP } from '../shell/escritorioLinux'
 import { esLinux } from '../../shared/plataforma'
 
@@ -50,14 +52,21 @@ function prepararTessera(ventana: () => BrowserWindow | null): void {
   }
   // Si ya hay una Tessera viva, este proceso muere aquí y la viva se trae al frente.
   reclamarInstanciaUnica()
-  if (rutasDelExplorador.length > 0) encolarAperturas(rutasDelExplorador)
+  repartirRutas(rutasDelExplorador)
   // Al cargar y no en `whenReady`: el usuario vuelve a pulsar el icono justo en el arranque en frío.
-  atenderSegundaInstancia(ventana, encolarAperturas)
+  atenderSegundaInstancia(ventana, repartirRutas)
   // macOS entrega las aperturas por Apple Event, y la del arranque en frío llega antes de `ready`.
   app.on('open-file', (event, ruta) => {
     event.preventDefault()
-    encolarAperturas([ruta])
+    repartirRutas([ruta])
   })
+}
+
+/** Un `.tessera` va al importar de la configuración; lo demás, a «Abrir con Tessera». */
+function repartirRutas(rutas: readonly string[]): void {
+  const { aperturas, copias } = separarCopias(rutas)
+  if (aperturas.length > 0) encolarAperturas(aperturas)
+  if (copias.length > 0) encolarCopias(copias)
 }
 
 /**

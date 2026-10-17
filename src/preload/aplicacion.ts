@@ -137,6 +137,8 @@ export interface UpdateApi {
  */
 export interface AppInfoApi {
   get: () => Promise<AppInfo>
+  /** Cierra Tessera por el cierre ordenado y la vuelve a abrir (cambiar de idioma lo pide). */
+  reiniciar: () => Promise<void>
 }
 
 /**
@@ -255,7 +257,8 @@ export const update: UpdateApi = {
 }
 
 export const appInfo: AppInfoApi = {
-  get: () => ipcRenderer.invoke(APP_INFO_CHANNELS.GET)
+  get: () => ipcRenderer.invoke(APP_INFO_CHANNELS.GET),
+  reiniciar: () => ipcRenderer.invoke(APP_INFO_CHANNELS.REINICIAR)
 }
 
 export const shellWindows: ShellWindowsApi = {

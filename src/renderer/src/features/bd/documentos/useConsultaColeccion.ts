@@ -25,6 +25,7 @@ import {
 import type { IndicadorPestana } from '../dbTabsModel'
 import { errorDeInvoke, textoError } from '../panesBd'
 import { nuevaPeticion } from './utilPanes'
+import { txColeccionDocs } from './textosColeccionDocs'
 import { notify } from '../../../comun/notifications'
 
 export interface Pagina {
@@ -217,7 +218,7 @@ export function useCargarMas(e: EstadoConsulta, propsRef: React.MutableRefObject
     setCargandoMas(false)
     if (!r.ok) {
       // Se deja de pedir más (si no, el final a la vista lo reintentaría en cada pintado).
-      if (r.error.motivo !== 'cancelada') notify('error', 'No se pudieron leer más documentos', textoError(r.error))
+      if (r.error.motivo !== 'cancelada') notify('error', txColeccionDocs().noSePudieronLeerMas, textoError(r.error))
       setHayMas(false)
       const l = lectorRef.current
       lectorRef.current = null

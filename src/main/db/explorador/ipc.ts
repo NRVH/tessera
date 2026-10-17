@@ -9,6 +9,7 @@ import type { IpcMain, IpcMainInvokeEvent } from 'electron'
 import { DBX_CHANNELS, type DbErrorSql, type DbEstadoSesion, type DbRespuesta } from '../../../shared/db-explorador-ipc.ts'
 import { esObjeto, fallo, mensajeDe } from './controlador/validacion.ts'
 import type { ExploradorController } from './ExploradorController.ts'
+import { txFamilia } from './textosExplorador.ts'
 
 /** Lo que necesita `registrarIpcExplorador`: el `ipcMain` (solo `handle` y `on`) y el controlador. */
 export interface DependenciasIpcExplorador {
@@ -25,7 +26,7 @@ interface Envoltorios {
 }
 
 const C = DBX_CHANNELS
-const interno = (): DbRespuesta<never> => fallo('interno', 'Error interno del explorador de bases de datos.')
+const interno = (): DbRespuesta<never> => fallo('interno', txFamilia().errorInterno)
 const nada = (): undefined => undefined
 
 /** Registra los canales del explorador, en el mismo orden de siempre. */

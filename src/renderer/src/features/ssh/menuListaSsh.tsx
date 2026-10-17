@@ -1,6 +1,6 @@
 // =============================================================================
 // Los menús de la lista de conexiones SSH: el de una conexión (Conectar, Ir a la sesión abierta,
-// Actividad de los agentes, Editar, Duplicar, Mover a grupo, Eliminar), el de varias marcadas en el riel (Mover a un grupo,
+// Actividad de los agentes, Editar, Duplicar, Mover a grupo, Olvidar la huella guardada, Eliminar), el de varias marcadas en el riel (Mover a un grupo,
 // Exportar a OpenSSH, Eliminar) y el de un grupo real (Nueva conexión aquí, Renombrar, Eliminar grupo; «Sin grupo» no tiene), más el componente que los pinta en la capa flotante: la lista flotante tiene su propio
 // recorte y el menú no puede colgar de ella. Depende de `ContextMenu` y `capaFlotante`.
 // Decisiones: docs/decisiones/terminales/pestanas-ssh-del-perfil.md
@@ -12,6 +12,7 @@ import { ContextMenu, SEP, type ContextMenuEntry } from '../../comun/ContextMenu
 import { IconoCarpetaNueva, IconoEliminar, IconoRenombrar } from '../../comun/iconosMenu'
 import { IconoSftp } from '../sftp'
 import { IconoExportar, IconoServidor, IconoServidorNuevo } from './iconosSsh'
+import { txSsh } from './textos.ts'
 
 /** Lo que hace cada opción del menú de una conexión. */
 export interface AccionesMenuConexion {
@@ -25,6 +26,8 @@ export interface AccionesMenuConexion {
   onDuplicar: () => void
   /** Abre «Editar» con el foco en el selector de grupo. */
   onMoverAGrupo: () => void
+  /** Olvida la huella del servidor ya aceptada; `null` si no hay ninguna guardada (la opción no sale). */
+  onOlvidarHuella: (() => void) | null
   onEliminar: () => void
   /** Lo que hicieron los agentes con esta conexión. */
   onVerActividad: () => void
@@ -32,21 +35,23 @@ export interface AccionesMenuConexion {
 
 /**
  * Conectar · Abrir explorador SFTP · Ir a la sesión abierta (si hay) · — · Actividad de los agentes… · — ·
- * Editar… · Duplicar · Mover a grupo… · — · Eliminar…
+ * Editar… · Duplicar · Mover a grupo… · — · Olvidar la huella guardada… (si hay) · Eliminar…
  */
 export function itemsMenuConexion(a: AccionesMenuConexion): ContextMenuEntry[] {
+  const t = txSsh()
   return [
-    { label: 'Conectar', icon: <IconoServidor />, onClick: a.onConectar },
-    { label: 'Abrir explorador SFTP', icon: <IconoSftp />, onClick: a.onAbrirSftp },
-    ...(a.onIrASesion ? [{ label: 'Ir a la sesión abierta', onClick: a.onIrASesion }] : []),
+    { label: t.conectar, icon: <IconoServidor />, onClick: a.onConectar },
+    { label: t.abrirSftp, icon: <IconoSftp />, onClick: a.onAbrirSftp },
+    ...(a.onIrASesion ? [{ label: t.irASesion, onClick: a.onIrASesion }] : []),
     SEP,
-    { label: 'Actividad de los agentes…', onClick: a.onVerActividad },
+    { label: t.actividadAgentes, onClick: a.onVerActividad },
     SEP,
-    { label: 'Editar…', icon: <IconoRenombrar />, onClick: a.onEditar },
-    { label: 'Duplicar', onClick: a.onDuplicar },
-    { label: 'Mover a grupo…', icon: <IconoCarpetaNueva />, onClick: a.onMoverAGrupo },
+    { label: t.editar, icon: <IconoRenombrar />, onClick: a.onEditar },
+    { label: t.duplicar, onClick: a.onDuplicar },
+    { label: t.moverAGrupo, icon: <IconoCarpetaNueva />, onClick: a.onMoverAGrupo },
     SEP,
-    { label: 'Eliminar…', icon: <IconoEliminar />, danger: true, onClick: a.onEliminar }
+    ...(a.onOlvidarHuella ? [{ label: t.olvidarHuellaMenu, danger: true, onClick: a.onOlvidarHuella }] : []),
+    { label: t.eliminar, icon: <IconoEliminar />, danger: true, onClick: a.onEliminar }
   ]
 }
 
@@ -61,11 +66,12 @@ export interface AccionesMenuVarias {
 
 /** Mover N conexiones a un grupo… · Exportar N conexiones a OpenSSH… · — · Eliminar N conexiones… */
 export function itemsMenuVarias(a: AccionesMenuVarias): ContextMenuEntry[] {
+  const t = txSsh()
   return [
-    { label: `Mover ${a.n} conexiones a un grupo…`, icon: <IconoCarpetaNueva />, onClick: a.onMoverAGrupo },
-    { label: `Exportar ${a.n} conexiones a OpenSSH…`, icon: <IconoExportar />, onClick: a.onExportar },
+    { label: t.moverVarias(a.n), icon: <IconoCarpetaNueva />, onClick: a.onMoverAGrupo },
+    { label: t.exportarVarias(a.n), icon: <IconoExportar />, onClick: a.onExportar },
     SEP,
-    { label: `Eliminar ${a.n} conexiones…`, icon: <IconoEliminar />, danger: true, onClick: a.onEliminar }
+    { label: t.eliminarVariasMenu(a.n), icon: <IconoEliminar />, danger: true, onClick: a.onEliminar }
   ]
 }
 
@@ -83,12 +89,13 @@ export interface AccionesMenuGrupo {
  */
 export function itemsMenuGrupo(a: AccionesMenuGrupo): ContextMenuEntry[] {
   if (!a.real) return []
+  const t = txSsh()
   return [
-    { label: 'Nueva conexión en este grupo…', icon: <IconoServidorNuevo />, onClick: a.onNuevaConexion },
+    { label: t.nuevaConexionAqui, icon: <IconoServidorNuevo />, onClick: a.onNuevaConexion },
     SEP,
-    { label: 'Renombrar…', icon: <IconoRenombrar />, onClick: a.onRenombrar },
+    { label: t.renombrar, icon: <IconoRenombrar />, onClick: a.onRenombrar },
     SEP,
-    { label: 'Eliminar grupo…', icon: <IconoEliminar />, danger: true, onClick: a.onEliminar }
+    { label: t.eliminarGrupoMenu, icon: <IconoEliminar />, danger: true, onClick: a.onEliminar }
   ]
 }
 

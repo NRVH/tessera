@@ -7,7 +7,10 @@
 // =============================================================================
 import { useCallback, useEffect, useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { AGENTES_DISPONIBLES, type Agente } from '../../../../main/profiles/types'
+import { AGENTES_DISPONIBLES } from '../../../../main/profiles/types'
+import type { IdAgente } from '../../../../shared/agentesManuales'
+import { agenteAMostrar, pestanasDeLaTerminal } from './agentesDelProyecto'
+import { useAgentesDe, useFuenteAgentes } from './useAgentesDelProyecto'
 import type { AgentPaneStatus } from './agentPaneTipos'
 import { resolveSelectedAgent } from './agenteElegido'
 import { selectAgent, useStoreAgentes } from './store'
@@ -15,10 +18,12 @@ import { useStoreAgenteTerminal } from './storeAgenteTerminal'
 import type { ColumnaAgenteEstado } from './useColumnaAgente'
 import { useRestaurarAgenteTerminal, type AgenteTerminalApp } from './useAgenteTerminal'
 import { useHibernacionFueraDePestanas } from './useHibernacionFueraDePestanas'
+import { useAgentesPropios, type AgentesPropios } from './useAgentesPropios'
 import { agentTargetKey, useStorePestanas, type OpenAgentTarget, type UseTabs } from '../pestanas'
 import {
   cambiarVistaSi,
   derivarLayoutCentro,
+  fijarColumna,
   pantallaCompletaCoherente,
   pantallaCompletaPedidaDe,
   useStoreLayout,
@@ -41,34 +46,49 @@ export interface AgentesApp {
   activeTargetKeyEfectivo: string | null
   /** Los hibernados que ve la columna: los de las pestañas y los que no son pestaña de un perfil hibernado. */
   hibernatedTargetKeys: Set<string>
-  openAgentTarget: (profileId: string, projectHostPath: string, agente: Agente) => void
+  openAgentTarget: (profileId: string, projectHostPath: string, agente: IdAgente) => void
+  /** Lugar, agentes y navegación de cualquier target, también de los que no son pestaña. */
+  propios: AgentesPropios
 }
 
-/** Un target por agente para cada perfil abierto con su carpeta conocida (espacio de datos o agente de la terminal). */
-function targetsDeCarpetas(abiertos: ReadonlySet<string>, rutas: Record<string, string>): OpenAgentTarget[] {
+/**
+ * Un target por agente para cada perfil abierto con su carpeta conocida (espacio de datos o agente de
+ * la terminal). `agentesDe` da los agentes de cada perfil en ese sitio.
+ */
+function targetsDeCarpetas(
+  abiertos: ReadonlySet<string>,
+  rutas: Record<string, string>,
+  agentesDe: (profileId: string) => readonly IdAgente[]
+): OpenAgentTarget[] {
   const out: OpenAgentTarget[] = []
   for (const profileId of abiertos) {
     const ruta = rutas[profileId]
     if (!ruta) continue
-    for (const agente of AGENTES_DISPONIBLES) {
+    for (const agente of agentesDe(profileId)) {
       out.push({ profileId, projectHostPath: ruta, agente, key: agentTargetKey(profileId, ruta, agente) })
     }
   }
   return out
 }
 
-/** Targets sintéticos de los espacios de datos abiertos (uno por agente). */
+const agentesDeSerie = (): readonly IdAgente[] => AGENTES_DISPONIBLES
+
+/** Targets sintéticos de los espacios de datos abiertos (uno por agente de serie). */
 function useTargetsEspacio(): OpenAgentTarget[] {
   const { espaciosAbiertos, dbWorkspacePaths } = useStoreBd(
     useShallow((s) => ({ espaciosAbiertos: s.espaciosAbiertos, dbWorkspacePaths: s.dbWorkspacePaths }))
   )
-  return useMemo(() => targetsDeCarpetas(espaciosAbiertos, dbWorkspacePaths), [espaciosAbiertos, dbWorkspacePaths])
+  return useMemo(() => targetsDeCarpetas(espaciosAbiertos, dbWorkspacePaths, agentesDeSerie), [espaciosAbiertos, dbWorkspacePaths])
 }
 
-/** Targets sintéticos del agente de la terminal de los perfiles que lo tienen abierto (uno por agente). */
+/** Targets sintéticos del agente de la terminal de los perfiles que lo tienen abierto (uno por agente suyo). */
 function useTargetsTerminal(): OpenAgentTarget[] {
   const { abiertos, rutas } = useStoreAgenteTerminal(useShallow((s) => ({ abiertos: s.abiertos, rutas: s.rutas })))
-  return useMemo(() => targetsDeCarpetas(abiertos, rutas), [abiertos, rutas])
+  const fuente = useFuenteAgentes()
+  return useMemo(
+    () => targetsDeCarpetas(abiertos, rutas, (perfil) => pestanasDeLaTerminal(fuente, perfil).map((x) => x.id)),
+    [abiertos, rutas, fuente]
+  )
 }
 
 /** Al entrar en BD con la preferencia puesta, prepara el espacio; si falla, retira la preferencia. */
@@ -176,6 +196,7 @@ function useClaveEfectiva(
 ): string | null {
   const perfil = tabs.activeProfile
   const selectedAgentByProfile = useStoreAgentes((s) => s.selectedAgentByProfile)
+  const fuente = useFuenteAgentes()
   const { rutaTerminal, agenteTerminal } = useStoreAgenteTerminal(
     useShallow((s) => ({
       rutaTerminal: perfil ? s.rutas[perfil.id] : undefined,
@@ -183,7 +204,8 @@ function useClaveEfectiva(
     }))
   )
   if (lay.agente === 'terminal' && perfil && rutaTerminal) {
-    return agentTargetKey(perfil.id, rutaTerminal, agenteTerminal ?? AGENTES_DISPONIBLES[0])
+    const deLaTerminal = pestanasDeLaTerminal(fuente, perfil.id).map((x) => x.id)
+    return agentTargetKey(perfil.id, rutaTerminal, agenteAMostrar(deLaTerminal, agenteTerminal) ?? AGENTES_DISPONIBLES[0])
   }
   if (lay.agente === 'espacio' && perfil && espacioActivoPath) {
     return agentTargetKey(perfil.id, espacioActivoPath, resolveSelectedAgent(perfil.id, selectedAgentByProfile) ?? AGENTES_DISPONIBLES[0])
@@ -194,9 +216,9 @@ function useClaveEfectiva(
 /** Lleva a un (perfil, proyecto, agente): restaura la columna y sale de BD en el perfil de destino. */
 function useAbrirTargetAgente(tabs: UseTabs): AgentesApp['openAgentTarget'] {
   return useCallback(
-    (profileId: string, projectHostPath: string, agente: Agente) => {
+    (profileId: string, projectHostPath: string, agente: IdAgente) => {
       selectAgent(profileId, agente)
-      useStoreLayout.setState({ ccOculto: 'no' })
+      fijarColumna({ oculta: 'no' }, profileId)
       cambiarVistaSi(profileId, 'db', 'files')
       // Quien pide ir a ESE agente lo quiere en marcha: deja de estar diferido.
       tabs.quitarAgenteDiferido(profileId, projectHostPath)
@@ -243,11 +265,16 @@ export function useAgentesApp(
   agenteTerminal: AgenteTerminalApp,
   contenido: ContenidoCentro
 ): AgentesApp {
-  const confirmed = tabs.confirmedTarget
+  // El agente que se ve es el del proyecto que se ve: su sesión ya vive, no espera al backend.
+  const visto = tabs.objetivoVisto
   const selectedAgentByProfile = useStoreAgentes((s) => s.selectedAgentByProfile)
-  const activeAgent = resolveSelectedAgent(confirmed?.profileId ?? null, selectedAgentByProfile)
+  const agentesDe = useAgentesDe()
+  // El elegido del perfil si es una pestaña de ESTE proyecto (su modo y los manuales); si no, la primera.
+  const activeAgent = visto
+    ? resolveSelectedAgent(visto.profileId, selectedAgentByProfile, agentesDe(visto.profileId, visto.project.projectHostPath))
+    : null
   const activeTargetKey =
-    confirmed && activeAgent ? agentTargetKey(confirmed.profileId, confirmed.project.projectHostPath, activeAgent) : null
+    visto && activeAgent ? agentTargetKey(visto.profileId, visto.project.projectHostPath, activeAgent) : null
   const espacioTargets = useTargetsEspacio()
   const terminalTargets = useTargetsTerminal()
   const fueraDePestanas = useMemo(() => [...espacioTargets, ...terminalTargets], [espacioTargets, terminalTargets])
@@ -267,5 +294,16 @@ export function useAgentesApp(
   useRestaurarAgenteTerminal(tabs.activeProfile, pantallaCompleta === 'terminal', agenteTerminal)
   usePodaEstadoSesion(targetsAgente)
   const openAgentTarget = useAbrirTargetAgente(tabs)
-  return { activeTargetKey, targetsAgente, agenteDbVisible, lay, pantallaCompleta, activeTargetKeyEfectivo, hibernatedTargetKeys, openAgentTarget }
+  const propios = useAgentesPropios(tabs, espacios.esEspacioDeDatos, agenteTerminal.esCarpetaAgenteTerminal, openAgentTarget)
+  return {
+    activeTargetKey,
+    targetsAgente,
+    agenteDbVisible,
+    lay,
+    pantallaCompleta,
+    activeTargetKeyEfectivo,
+    hibernatedTargetKeys,
+    openAgentTarget,
+    propios
+  }
 }

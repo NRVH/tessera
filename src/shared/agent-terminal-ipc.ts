@@ -7,6 +7,8 @@
 // (main -> renderer): DATA, EXIT, ACTIVITY. Lo sirve `src/main/agents/ipc.ts`.
 // =============================================================================
 
+import type { DefinicionAgente, IdAgente } from './agentesManuales.ts'
+
 /** Tipos de agente admitidos (espejo de Agente en main/profiles/types, inline para no acoplar shared). */
 export type AgentKind = 'claude-code' | 'codex'
 
@@ -101,8 +103,12 @@ export const AGENT_TERMINAL_CHANNELS = {
 export interface AgentOpenRequest {
   /** Id de perfil (debe existir en config/profiles.json). */
   profileId: string
-  /** Agente a lanzar; debe estar declarado en `agentes[]` del perfil. */
-  agente: AgentKind
+  /** Agente a lanzar: uno de serie o uno manual (`m-…`), que lleva su definición en `manual`. */
+  agente: IdAgente
+  /** La definición de un agente manual; el main la vuelve a validar antes de lanzar nada. */
+  manual?: DefinicionAgente
+  /** Agente manual: añadir sus argumentos de reanudar (abrir) o no («Nueva conversación»). */
+  reanudarManual?: boolean
   /** Ruta host (Windows) del proyecto a montar/anclar como cwd. */
   projectHostPath: string
   /**
@@ -133,6 +139,12 @@ export interface AgentOpenRequest {
    * reiniciarlo, porque los secretos viven en el entorno del proceso.
    */
   dbConnectionIds?: string[]
+  /**
+   * Columnas y filas del xterm al abrir: el pty nace con ellas. Si el tamaño bueno llegara
+   * después, el CLI pintaría primero a otro ancho y se repintaría entero; y `docker exec`
+   * puede perder un cambio de tamaño que llega mientras arranca.
+   */
+  tamano?: { cols: number; rows: number }
 }
 
 /** Respuesta al abrir: identidad de la sesión + rutas neutras dentro del contenedor. */
@@ -140,7 +152,7 @@ export interface AgentOpenResult {
   /** Id estable de la sesión; se conserva a través de reload. */
   sessionId: string
   profileId: string
-  agente: AgentKind
+  agente: IdAgente
   /** Cuenta (login) con la que se abrió la sesión. */
   accountId: string
   /** Ruta host tal como se pidió. */
@@ -184,6 +196,8 @@ export interface AgentReloadRequest {
    * de un análisis.
    */
   resumeSessionId?: string
+  /** Agente manual: su definición de ahora, para que reiniciar aplique lo editado. El main la valida. */
+  manual?: DefinicionAgente
 }
 
 export interface AgentCloseRequest {
@@ -323,7 +337,7 @@ export interface AgentActivityMessage {
   sessionId: string
   profileId: string
   projectHostPath: string
-  agente: AgentKind
+  agente: IdAgente
   state: AgentActivityState
   /** Con 'blocked': qué espera, o `null` si el agente no lo dice. */
   motivo?: AgentMotivoEspera | null

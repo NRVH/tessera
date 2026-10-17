@@ -11,6 +11,7 @@ import { closeSync, fchmodSync, lstatSync, mkdirSync, openSync, readdirSync, rea
 import { readdir } from 'node:fs/promises'
 import { execFile } from 'node:child_process'
 import path from 'node:path'
+import { txDb } from './textosDb.ts'
 
 /** Tope de la respuesta. 8 MiB de JSON por 9p ya es lento y no aporta: el CLI
  *  limita a 50 filas por defecto, y para volcados grandes está `--limit`. */
@@ -122,11 +123,7 @@ function peticionTdb(p: Record<string, unknown>): { token: string; argv: string[
  */
 export function motivoRechazoArgv(argv: readonly string[]): string | null {
   if (argv.includes('--file')) {
-    return (
-      '\n  ✗ --file no llega por el puente: la ruta sería del equipo anfitrión, no de tu carpeta.\n' +
-      '    El tdb del contenedor lee el archivo y manda su SQL; recarga la terminal para\n' +
-      "    usarlo, o pásalo por la entrada estándar:  tdb query <base> --stdin <<'SQL'\n\n"
-    )
+    return txDb().puente.fileNoLlega
   }
   return null
 }
@@ -166,7 +163,7 @@ export function ejecutarTdb(o: {
         const code = e && typeof e.code === 'number' ? e.code : e ? 1 : 0
         let errTexto = String(stderr ?? '')
         if (e && e.killed) {
-          errTexto += `\n  ✗ tdb no terminó en ${Math.round(o.timeoutMs / 1000)} s y se cortó.\n\n`
+          errTexto += txDb().puente.tdbCortado(Math.round(o.timeoutMs / 1000))
         }
         resolve({ exitCode: code, stdout: String(stdout ?? ''), stderr: errTexto })
       }
@@ -453,7 +450,7 @@ export class DockerBridge implements PuertaBuzon {
     const programa = typeof cruda.prog === 'string' ? this.programas.get(cruda.prog) : undefined
     if (!programa || cruda.v !== 1 || typeof cruda.token !== 'string') {
       const que = typeof cruda.prog === 'string' ? cruda.prog.slice(0, 32) : '?'
-      this.escribirRespuesta(dir, id, { exitCode: 2, stderr: `\n  ✗ Esta Tessera no sabe atender «${que}» por el buzón: reiníciala o actualízala.\n\n` })
+      this.escribirRespuesta(dir, id, { exitCode: 2, stderr: txDb().puente.programaDesconocido(que) })
       return
     }
     const r = await programa.atender(cruda)
@@ -464,7 +461,7 @@ export class DockerBridge implements PuertaBuzon {
     }
     // Truncar en silencio haría creer que se vio todo, que es peor que un error.
     const mib = Math.round(programa.maxRespuesta / (1024 * 1024))
-    this.escribirRespuesta(dir, id, { exitCode: 1, stderr: `\n  ✗ La respuesta superó los ${mib} MiB que admite el puente al host y se descartó.\n\n` })
+    this.escribirRespuesta(dir, id, { exitCode: 1, stderr: txDb().puente.respuestaGrande(mib) })
   }
 
   /** El JSON de una petición (de cualquier programa), o null si no se puede leer o pasa del tope. */
@@ -496,9 +493,7 @@ export class DockerBridge implements PuertaBuzon {
     if (stdout.length > MAX_RESPUESTA) {
       // Truncar en silencio haría creer que se vio todo, que es peor que un error.
       stdout = ''
-      stderr =
-        `La respuesta superó los ${Math.round(MAX_RESPUESTA / (1024 * 1024))} MiB y se descartó.\n` +
-        `Acota la consulta (por ejemplo con --limit).\n`
+      stderr = txDb().puente.respuestaDescartada(Math.round(MAX_RESPUESTA / (1024 * 1024)))
       r = { ...r, exitCode: 1 }
     }
     this.escribirRespuesta(dir, id, JSON.stringify({ v: 1, exitCode: r.exitCode, stdout, stderr }))

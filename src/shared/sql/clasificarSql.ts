@@ -26,7 +26,7 @@ export type {
 export { PARAMETRO_USE } from './clasificarSqlTipos.ts'
 export { esInicioBloquePlsql } from './clasificarSqlPlsql.ts'
 export { esAlcanceDeLote } from './clasificarSqlTramos.ts'
-export { MENSAJE_FORMATO_FIJADO, MENSAJE_VACUUM_INTO, formatoFijadoPorTessera, permitidaEnSoloLectura } from './clasificarSqlSoloLectura.ts'
+export { mensajeFormatoFijado, MENSAJE_VACUUM_INTO, formatoFijadoPorTessera, permitidaEnSoloLectura } from './clasificarSqlSoloLectura.ts'
 
 /**
  * Clasifica UNA sentencia a partir de sus tokens (los comentarios se ignoran;

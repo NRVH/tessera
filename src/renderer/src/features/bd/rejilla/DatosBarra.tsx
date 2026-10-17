@@ -21,13 +21,14 @@ import {
 } from '../iconosBd'
 import { IconoAnadirFila, IconoBorrarFilas, IconoEnviar, IconoRevertir } from '../iconosEdicion'
 import { MarcaEntorno } from '../MarcaEntorno'
-import { MARCA_SIN_ESPERAR, metadatosDatos } from '../panesBd'
+import { marcaSinEsperar, metadatosDatos } from '../panesBd'
 import { numCambios, textoCambios } from './cambiosRejilla'
 import { formatoEntero } from './celdasRejilla'
 import { abrirConsola, abrirMenuExportar, aplicarEscrito, copiarTodo } from './datosAcciones'
 import { detener } from './datosLectura'
 import { BotonBarraBd } from './DatosBotonBarra'
 import type { VistaDatos } from './datosTipos'
+import { txRejilla } from './textosRejilla.ts'
 
 /** El acorde de «Enviar» dentro de la rejilla. */
 const ACORDE_ENVIAR = {
@@ -51,9 +52,9 @@ export function objetoReal(v: VistaDatos): { real: VistaDatos['props']['objeto']
 
 function textoMeta(v: VistaDatos): string {
   const { cargando, res, detenida } = v.e
-  if (cargando) return 'Cargando…'
+  if (cargando) return txRejilla().cargando
   if (res) return metadatosDatos(res.datos.filas.length, res.datos.hayMas, res.ms)
-  return detenida ? 'Consulta detenida' : ''
+  return detenida ? txRejilla().consultaDetenida : ''
 }
 
 /** «sinónimo de X» si lo consultado no es el objeto de la pestaña. */
@@ -71,25 +72,30 @@ function metaDatos(v: VistaDatos): React.JSX.Element {
   const { editable, motivoNoEditable } = v.d
   const pendientes = numCambios(v.e.cambios)
   const destino = destinoSinonimo(v)
-  const tituloMeta = [destino ? `Sinónimo de ${destino}` : null, motivoNoEditable ? `No editable: ${motivoNoEditable}` : null]
+  const t = txRejilla()
+  const tituloMeta = [destino ? t.sinonimoDe(destino) : null, motivoNoEditable ? t.noEditable(motivoNoEditable) : null]
     .filter((x): x is string => x !== null)
     .join('\n')
   const quieta = !cargando && res
   return (
     <span className="db-barra-meta" title={tituloMeta || undefined}>
       {textoMeta(v)}
-      {quieta && detenida && <span className="db-barra-aviso"> · detenida</span>}
-      {quieta && sinEsperar && <span className="db-barra-aviso"> · {MARCA_SIN_ESPERAR}</span>}
-      {destino && !cargando && ` · sinónimo de ${destino}`}
-      {editable && pendientes > 0 && <span className="db-barra-pendientes"> · {textoCambios(pendientes)} sin enviar</span>}
-      {!cargando && motivoNoEditable && <span className="db-barra-no-editable"> · No editable: {motivoNoEditable}</span>}
+      {quieta && detenida && <span className="db-barra-aviso"> · {t.detenida}</span>}
+      {quieta && sinEsperar && <span className="db-barra-aviso"> · {marcaSinEsperar()}</span>}
+      {destino && !cargando && ` · ${t.sinonimoDeMin(destino)}`}
+      {editable && pendientes > 0 && (
+        <span className="db-barra-pendientes"> · {t.cambiosSinEnviar(textoCambios(pendientes))}</span>
+      )}
+      {!cargando && motivoNoEditable && (
+        <span className="db-barra-no-editable"> · {t.noEditable(motivoNoEditable)}</span>
+      )}
     </span>
   )
 }
 
 function motivoBorrar(edicionViva: boolean, filasSel: number): string | null {
-  if (!edicionViva) return 'Cargando…'
-  return filasSel === 0 ? 'Selecciona las filas que quieres borrar' : null
+  if (!edicionViva) return txRejilla().cargando
+  return filasSel === 0 ? txRejilla().seleccionaFilasBorrar : null
 }
 
 function botonesEdicion(v: VistaDatos): React.JSX.Element {
@@ -99,41 +105,38 @@ function botonesEdicion(v: VistaDatos): React.JSX.Element {
   const plataforma = window.tessera.plataforma
   const acordeBorrar = etiquetaAcorde(ACORDE_BORRAR, plataforma)
   const { accionesRef } = v.n
+  const t = txRejilla()
   return (
     <>
       <span className="panel-actions-sep" aria-hidden="true" />
       <BotonBarraBd
-        etiqueta="Añadir fila"
-        titulo="Añadir una fila (se inserta al Enviar)"
-        motivo={edicionViva ? null : 'Cargando…'}
+        etiqueta={t.anadirFila}
+        titulo={t.anadirFilaTitulo}
+        motivo={edicionViva ? null : t.cargando}
         onClick={() => accionesRef.current?.anadirFila()}
       >
         <IconoAnadirFila />
       </BotonBarraBd>
       <BotonBarraBd
-        etiqueta="Borrar filas"
-        titulo={
-          filasSel > 1
-            ? `Borrar las ${formatoEntero(filasSel)} filas seleccionadas (${acordeBorrar})`
-            : `Borrar la fila seleccionada (${acordeBorrar})`
-        }
+        etiqueta={t.borrarFilas}
+        titulo={filasSel > 1 ? t.borrarNFilas(formatoEntero(filasSel), acordeBorrar) : t.borrarUnaFila(acordeBorrar)}
         motivo={motivoBorrar(edicionViva, filasSel)}
         onClick={() => accionesRef.current?.borrarSeleccion()}
       >
         <IconoBorrarFilas />
       </BotonBarraBd>
       <BotonBarraBd
-        etiqueta="Revertir cambios"
-        titulo={`Descartar ${textoCambios(pendientes)} sin enviar`}
-        motivo={pendientes === 0 ? 'No hay cambios que revertir' : null}
+        etiqueta={t.revertirCambios}
+        titulo={t.descartarSinEnviar(textoCambios(pendientes))}
+        motivo={pendientes === 0 ? t.nadaQueRevertir : null}
         onClick={() => void v.a.pedirDescarte()}
       >
         <IconoRevertir />
       </BotonBarraBd>
       <BotonBarraBd
-        etiqueta="Enviar cambios"
-        titulo={`Enviar ${textoCambios(pendientes)} (${etiquetaAcorde(ACORDE_ENVIAR, plataforma)}): vista previa y, al aceptar, todo o nada`}
-        motivo={pendientes === 0 ? 'No hay cambios que enviar' : null}
+        etiqueta={t.enviarCambios}
+        titulo={t.enviarTitulo(textoCambios(pendientes), etiquetaAcorde(ACORDE_ENVIAR, plataforma))}
+        motivo={pendientes === 0 ? t.nadaQueEnviar : null}
         onClick={v.a.abrirEnvio}
       >
         <span className="db-envio-icono">
@@ -152,41 +155,44 @@ function botonesEdicion(v: VistaDatos): React.JSX.Element {
 /** Contar corre en la sesión del LECTOR: mientras siga vivo se puede (también en el tope). */
 function motivoContar(v: VistaDatos): string | null {
   const { contando, res, hayLector, sinLector } = v.e
-  if (contando) return 'Ya se está contando'
-  if (!res) return 'Todavía no hay datos'
+  const t = txRejilla()
+  if (contando) return t.yaContando
+  if (!res) return t.sinDatos
   if (hayLector) return null
-  return sinLector ? sinLector.motivo : 'Ya están todas las filas cargadas'
+  return sinLector ? sinLector.motivo : t.todasCargadas
 }
 
 function motivoExportar(v: VistaDatos): string | null {
-  if (v.exportador.enCurso !== null) return 'Ya hay una exportación en curso'
-  return v.e.res ? null : 'Todavía no hay datos'
+  const t = txRejilla()
+  if (v.exportador.enCurso !== null) return t.exportacionEnCurso
+  return v.e.res ? null : t.sinDatos
 }
 
 function grupoFilas(v: VistaDatos): React.JSX.Element {
   const cargadas = v.e.res?.datos.filas.length ?? 0
+  const t = txRejilla()
   return (
     <span className="db-barra-grupo grupo-filas">
       <span className="panel-actions-sep" aria-hidden="true" />
       <BotonBarraBd
-        etiqueta="Contar filas"
-        titulo="Contar todas las filas en el servidor"
+        etiqueta={t.contarFilas}
+        titulo={t.contarTitulo}
         motivo={motivoContar(v)}
         onClick={() => void v.a.contar()}
       >
         <IconoContar />
       </BotonBarraBd>
       <BotonBarraBd
-        etiqueta="Copiar todo"
-        titulo="Copiar lo cargado como TSV, con cabeceras"
-        motivo={cargadas > 0 ? null : 'No hay filas cargadas'}
+        etiqueta={t.copiarTodo}
+        titulo={t.copiarTodoTitulo}
+        motivo={cargadas > 0 ? null : t.sinFilasCargadas}
         onClick={() => copiarTodo(v)}
       >
         <IconoCopiar />
       </BotonBarraBd>
       <BotonBarraBd
-        etiqueta="Exportar a archivo"
-        titulo="Exportar la tabla entera, con el filtro aplicado, a un archivo"
+        etiqueta={t.exportarArchivo}
+        titulo={t.exportarTitulo}
         motivo={motivoExportar(v)}
         onClick={(e) => abrirMenuExportar(v.n, e)}
       >
@@ -201,16 +207,17 @@ function grupoVistas(v: VistaDatos): React.JSX.Element {
   const { conexion, objeto, onAbrir } = v.props
   const { real, conBase } = objetoReal(v)
   const destino = { kind: 'fuente' as const, conexionId: conexion.id, esquema: real.esquema, objeto: real.nombre, tipo: real.tipo }
-  const motivoDdl = objeto.tipo === 'sinonimo' && !v.e.res ? 'Resolviendo el sinónimo…' : null
+  const t = txRejilla()
+  const motivoDdl = objeto.tipo === 'sinonimo' && !v.e.res ? t.resolviendoSinonimo : null
   return (
     <span className="db-barra-grupo grupo-vistas">
       <span className="panel-actions-sep" aria-hidden="true" />
-      <BotonBarraBd etiqueta="Abrir consola" titulo="Abrir una consola con el SELECT de esta tabla" onClick={() => abrirConsola(v)}>
+      <BotonBarraBd etiqueta={t.abrirConsola} titulo={t.abrirConsolaTitulo} onClick={() => abrirConsola(v)}>
         <IconoConsola />
       </BotonBarraBd>
       <BotonBarraBd
-        etiqueta="Ver DDL"
-        titulo="Ver el DDL (el CREATE) del objeto"
+        etiqueta={t.verDdl}
+        titulo={t.verDdlTitulo}
         motivo={motivoDdl}
         onClick={() => onAbrir({ ...destino, modo: 'ddl', ...conBase })}
       >
@@ -218,8 +225,8 @@ function grupoVistas(v: VistaDatos): React.JSX.Element {
       </BotonBarraBd>
       {TIPOS_CON_DEFINICION.has(real.tipo) && (
         <BotonBarraBd
-          etiqueta="Ver definición"
-          titulo="Ver la definición de la vista"
+          etiqueta={t.verDefinicion}
+          titulo={t.verDefinicionTitulo}
           onClick={() => onAbrir({ ...destino, ...conBase })}
         >
           <IconoDefinicion />
@@ -233,18 +240,19 @@ function grupoVistas(v: VistaDatos): React.JSX.Element {
 export function barraDatos(v: VistaDatos): React.JSX.Element {
   const { cargando, cargandoMas, contando, trayendo } = v.e
   const enCurso = cargando || cargandoMas || contando || trayendo
+  const t = txRejilla()
   return (
     <header className="panel-header db-barra">
       <MarcaEntorno entorno={v.props.conexion.entorno} />
       {metaDatos(v)}
       <div className="panel-actions">
-        <BotonBarraBd etiqueta="Refrescar" titulo="Refrescar (con el filtro escrito)" onClick={() => aplicarEscrito(v)}>
+        <BotonBarraBd etiqueta={t.refrescar} titulo={t.refrescarTitulo} onClick={() => aplicarEscrito(v)}>
           <IconoRefrescar />
         </BotonBarraBd>
         <BotonBarraBd
-          etiqueta="Detener"
-          titulo="Detener la consulta en curso"
-          motivo={enCurso ? null : 'No hay ninguna consulta en curso'}
+          etiqueta={t.detener}
+          titulo={t.detenerTitulo}
+          motivo={enCurso ? null : t.nadaEnCurso}
           onClick={() => detener(v.n)}
         >
           <IconoDetener />

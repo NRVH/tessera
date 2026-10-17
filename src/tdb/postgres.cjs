@@ -4,7 +4,7 @@
 // El 4.º parámetro de `abrir` (`opciones`) solo lo pasa `sesionPostgres.cjs`: van al
 // constructor del `Client` y `alError` se engancha antes de conectar.
 // Lo cargan `tdb.cjs` y `sesionPostgres.cjs` por `MOTORES.postgres` (`motores.cjs`).
-// Decisiones: docs/decisiones/bd/adaptador-postgres-arranque-de-sesion.md
+// Decisiones: docs/decisiones/bd/trabajador-postgres-sesion.md
 // =============================================================================
 
 'use strict'

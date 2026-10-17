@@ -15,34 +15,26 @@ import {
   ponerCommits,
   DEFAULT_FETCH_LIMIT
 } from './modelo/cacheGit'
-import { FILTROS_VACIOS, claveCommits, type FiltrosLog } from './modelo/filtrosLog'
+import { claveCommits, type FiltrosLog } from './modelo/filtrosLog'
 import { repoDePeticion } from './modelo/repoDePeticion'
 import type { SeleccionLog } from './useSeleccionLog'
 import type { Branch, Commit } from '../../../../shared/git-ipc'
 import type { DetectedRepo } from '../../../../shared/workspace-ipc'
 import type { OpenProject } from '../pestanas'
 
-/** Repo que viaja en cada petición y si el backend ya está anclado a él. */
+/** Proyecto (la `raiz` de cada petición) y repo que viajan en cada petición del panel. */
 export interface IdentidadLog {
   projectHostPath: string | null
   repoSeleccionado: string | null
   repoHostPath: string | null
-  /** Espejo en ref de `anclado` para los cargadores (ver el ADR). */
-  ancladoRef: { current: boolean }
 }
 
 /** Identidad de las peticiones del panel: nunca `undefined` habiendo proyecto. */
-export function useIdentidadLog(
-  activeProject: OpenProject | null,
-  activeRepo: DetectedRepo | null,
-  anclado: boolean
-): IdentidadLog {
+export function useIdentidadLog(activeProject: OpenProject | null, activeRepo: DetectedRepo | null): IdentidadLog {
   const projectHostPath = activeProject?.projectHostPath ?? null
   const repoSeleccionado = activeRepo?.repoHostPath ?? null
   const repoHostPath = repoDePeticion(repoSeleccionado, projectHostPath)
-  const ancladoRef = useRef(anclado)
-  ancladoRef.current = anclado
-  return { projectHostPath, repoSeleccionado, repoHostPath, ancladoRef }
+  return { projectHostPath, repoSeleccionado, repoHostPath }
 }
 
 export interface DatosLog {
@@ -140,7 +132,7 @@ interface CargaCommits {
 }
 
 function useCargarCommits(ident: IdentidadLog, datos: DatosLog): CargaCommits {
-  const { repoHostPath, ancladoRef } = ident
+  const { projectHostPath: raiz, repoHostPath } = ident
   const { aplicarCommits, setError, setCargando, setHayMas, historialCompletoRef } = datos
   const peticionCommitsRef = useRef(0)
   const repoEnVueloRef = useRef<string | null>(null)
@@ -151,10 +143,7 @@ function useCargarCommits(ident: IdentidadLog, datos: DatosLog): CargaCommits {
       sigueVivo?: () => boolean,
       opts?: { completo?: boolean }
     ): Promise<void> => {
-      // Sin identidad o sin anclaje no se pregunta: el backend rechazaría el repo y su
-      // lista vacía se pintaría y se cachearía como «aún no hay commits».
-      if (repoHostPath === null) return Promise.resolve()
-      if (!ancladoRef.current) return Promise.resolve()
+      if (raiz === null || repoHostPath === null) return Promise.resolve()
       const vivoExterno = sigueVivo ?? ((): boolean => true)
       const id = ++peticionCommitsRef.current
       repoEnVueloRef.current = repoHostPath
@@ -164,17 +153,13 @@ function useCargarCommits(ident: IdentidadLog, datos: DatosLog): CargaCommits {
       const limite = completo ? undefined : DEFAULT_FETCH_LIMIT
       setCargando(true)
       return window.tessera.git
-        .listCommits(rama ?? undefined, limite, repoHostPath)
+        .listCommits(raiz, rama ?? undefined, limite, repoHostPath)
         .then((result) => {
           const mas = !completo && limite !== undefined && result.length >= limite
-          // Se cachea aunque la petición ya no sea vigente, pero no si se perdió el
-          // anclaje por el camino: ese vacío de rechazo quedaría como caché caliente.
-          if (repoHostPath && ancladoRef.current) {
-            ponerCommits(claveCommits(repoHostPath, rama), { commits: result, full: completo })
-          }
-          // Tampoco se aplica: emparejarlo cortaría la reconciliación. Sin aplicar, se
-          // reintenta al anclar.
-          if (!vigente() || !ancladoRef.current) return
+          // Se cachea aunque la petición ya no sea vigente: la respuesta es de su repo, que
+          // viajó con ella.
+          ponerCommits(claveCommits(repoHostPath, rama), { commits: result, full: completo })
+          if (!vigente()) return
           aplicarCommits(result, repoHostPath)
           setHayMas(mas)
           setError(null)
@@ -193,7 +178,7 @@ function useCargarCommits(ident: IdentidadLog, datos: DatosLog): CargaCommits {
           if (peticionCommitsRef.current === id) setCargando(false)
         })
     },
-    [repoHostPath, ancladoRef, aplicarCommits, setCargando, setHayMas, setError, historialCompletoRef]
+    [raiz, repoHostPath, aplicarCommits, setCargando, setHayMas, setError, historialCompletoRef]
   )
   return { cargarCommits, repoEnVueloRef, repoFallidoRef }
 }
@@ -202,18 +187,17 @@ function useCargarRamaActual(
   ident: IdentidadLog,
   setEnRamaActual: DatosLog['setEnRamaActual']
 ): CargadoresLog['cargarRamaActual'] {
-  const { repoHostPath, ancladoRef } = ident
+  const { projectHostPath: raiz, repoHostPath } = ident
   const peticionRamaRef = useRef(0)
   return useCallback(
     (deEstos: readonly string[], sigueVivo?: () => boolean): Promise<void> => {
-      if (repoHostPath === null) return Promise.resolve()
-      if (!ancladoRef.current) return Promise.resolve()
+      if (raiz === null || repoHostPath === null) return Promise.resolve()
       const vivoExterno = sigueVivo ?? ((): boolean => true)
       const id = ++peticionRamaRef.current
       const vigente = (): boolean => vivoExterno() && peticionRamaRef.current === id
       // Se pregunta solo por los commits cargados: la respuesta es su subconjunto teñible.
       return window.tessera.git
-        .commitsRamaActual(repoHostPath, deEstos)
+        .commitsRamaActual(raiz, repoHostPath, deEstos)
         .then((r) => {
           if (vigente()) setEnRamaActual(r.hashes.length > 0 ? new Set(r.hashes) : SIN_HASHES)
         })
@@ -221,7 +205,7 @@ function useCargarRamaActual(
           if (vigente()) setEnRamaActual(SIN_HASHES)
         })
     },
-    [repoHostPath, ancladoRef, setEnRamaActual]
+    [raiz, repoHostPath, setEnRamaActual]
   )
 }
 
@@ -229,20 +213,18 @@ function useCargarRamas(
   ident: IdentidadLog,
   datos: DatosLog
 ): Pick<CargadoresLog, 'cargarRamas' | 'repoRamasEnVueloRef'> {
-  const { repoHostPath, ancladoRef } = ident
+  const { projectHostPath: raiz, repoHostPath } = ident
   const { setBranches } = datos
   const repoRamasEnVueloRef = useRef<string | null>(null)
   const cargarRamas = useCallback(
     (sigueVivo?: () => boolean): Promise<void> => {
-      if (repoHostPath === null) return Promise.resolve()
-      if (!ancladoRef.current) return Promise.resolve()
+      if (raiz === null || repoHostPath === null) return Promise.resolve()
       const vivo = sigueVivo ?? ((): boolean => true)
       repoRamasEnVueloRef.current = repoHostPath
       return window.tessera.git
-        .listBranches(repoHostPath)
+        .listBranches(raiz, repoHostPath)
         .then((result) => {
-          // Solo se cachea si el anclaje sigue siendo de este repo al responder.
-          if (ancladoRef.current) cachePut(branchesCache, repoHostPath, result)
+          cachePut(branchesCache, repoHostPath, result)
           if (vivo()) setBranches(result, repoHostPath)
         })
         .catch(() => {
@@ -253,7 +235,7 @@ function useCargarRamas(
           if (repoRamasEnVueloRef.current === repoHostPath) repoRamasEnVueloRef.current = null
         })
     },
-    [repoHostPath, ancladoRef, setBranches]
+    [raiz, repoHostPath, setBranches]
   )
   return { cargarRamas, repoRamasEnVueloRef }
 }
@@ -299,7 +281,7 @@ function useAjusteRepoEnRender(
   id: IdentidadLog,
   datos: DatosLog,
   sel: SeleccionLog,
-  setFiltros: Dispatch<SetStateAction<FiltrosLog>>,
+  olvidarRama: () => void,
   repoFallidoRef: { current: string | null }
 ): void {
   const { projectHostPath, repoHostPath } = id
@@ -310,8 +292,9 @@ function useAjusteRepoEnRender(
     datos.setError(null)
     // Con otro repo delante vuelve a tener sentido reintentar lo que falló.
     repoFallidoRef.current = null
-    // Una rama del repo A no significa nada en el B; el tinte tampoco.
-    setFiltros(FILTROS_VACIOS)
+    // Una rama del repo A no significa nada en el B; el tinte tampoco. Autor y fecha son del
+    // repo y vuelven solos (`useFiltrosDelRepo`).
+    olvidarRama()
     datos.setEnRamaActual(SIN_HASHES)
     adoptarCachesDelRepo(repoHostPath, datos)
     // La selección se olvida aquí, no en un efecto: en el commit intermedio la memoria
@@ -326,16 +309,15 @@ function useAjusteRepoEnRender(
 /** Carga completa del log: datos, cargadores, ajuste al cambiar de repo y sincronización. */
 export function useCargaLog(p: {
   id: IdentidadLog
-  anclado: boolean
   commitTick: number | undefined
   filtros: FiltrosLog
-  setFiltros: Dispatch<SetStateAction<FiltrosLog>>
+  olvidarRama: () => void
   sel: SeleccionLog
 }): { datos: DatosLog; cargadores: CargadoresLog } {
-  const { id, anclado, commitTick, filtros, setFiltros, sel } = p
+  const { id, commitTick, filtros, olvidarRama, sel } = p
   const datos = useDatosLog(id.repoHostPath)
   const cargadores = useCargadoresLog(id, datos)
-  useAjusteRepoEnRender(id, datos, sel, setFiltros, cargadores.repoFallidoRef)
-  useSincronizacionLog({ id, anclado, commitTick, filtros, datos, cargadores })
+  useAjusteRepoEnRender(id, datos, sel, olvidarRama, cargadores.repoFallidoRef)
+  useSincronizacionLog({ id, commitTick, filtros, datos, cargadores })
   return { datos, cargadores }
 }

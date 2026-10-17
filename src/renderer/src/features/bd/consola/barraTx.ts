@@ -9,8 +9,9 @@ import {
   type DbEstadoSesion,
   type DbEstadoTx,
   type DbTxModo,
-  MOTIVO_CARPETA_SIN_ESCRITURA
+  motivoCarpetaSinEscritura
 } from '../../../../../shared/db-explorador-ipc.ts'
+import { txBarraConsola } from './textosBarra.ts'
 
 /** Lo que pinta la barra de la consola sobre la transacción. */
 export interface BarraTx {
@@ -38,26 +39,29 @@ export interface BarraTx {
   tituloRollback: string
 }
 
-export const TITULO_SOLO_LECTURA = 'La conexión es de solo lectura'
+export function tituloSoloLectura(): string {
+  return txBarraConsola().soloLectura
+}
 
 /**
  * Base de archivo con una transacción abierta. En modo rollback una lectura dentro de la
  * tx ya impide a otra aplicación CONFIRMAR sus escrituras; en WAL, solo la escritura
  * bloquea. De ahí el «puede»: la frase es cierta en los dos modos.
  */
-export const TITULO_TX_ARCHIVO =
-  'Mientras esta transacción siga abierta, el archivo queda bloqueado: otras aplicaciones pueden no poder escribir en él. Confirma o revierte cuando acabes.'
-
-const ESPERAR = 'Espera a que termine la ejecución'
+export function tituloTxArchivo(): string {
+  return txBarraConsola().txArchivo
+}
 
 function textoModoDe(modo: DbTxModo): string {
-  return `Tx: ${modo === 'auto' ? 'Auto' : 'Manual'}`
+  const t = txBarraConsola()
+  return modo === 'auto' ? t.modoAuto : t.modoManual
 }
 
 function textoTxDe(tx: DbEstadoTx, n: number): string | null {
-  if (tx === 'pendiente') return n > 0 ? `Tx pendiente (${n})` : 'Tx pendiente'
-  if (tx === 'abierta') return 'Tx abierta'
-  if (tx === 'fallida') return 'Tx fallida: haz Rollback'
+  const t = txBarraConsola()
+  if (tx === 'pendiente') return n > 0 ? t.txPendienteN(n) : t.txPendiente
+  if (tx === 'abierta') return t.txAbierta
+  if (tx === 'fallida') return t.txFallida
   return null
 }
 
@@ -81,18 +85,20 @@ function barraSoloLectura(modo: DbTxModo, titulo: string): BarraTx {
 
 /** Por qué es de solo lectura: la carpeta de una base de archivo lo dice; si no, la conexión. */
 function tituloSoloLecturaDe(sesion: DbEstadoSesion | null): string {
-  return sesion?.soloLecturaPorCarpeta === true ? MOTIVO_CARPETA_SIN_ESCRITURA : TITULO_SOLO_LECTURA
+  return sesion?.soloLecturaPorCarpeta === true ? motivoCarpetaSinEscritura() : tituloSoloLectura()
 }
 
 function tituloCommitDe(puede: boolean, corriendo: boolean, tx: DbEstadoTx): string {
-  if (puede) return 'Confirmar (Commit)'
-  if (corriendo && tx !== 'ninguna') return ESPERAR
-  return tx === 'fallida' ? 'La transacción falló: solo se puede revertir' : 'No hay transacción que confirmar'
+  const t = txBarraConsola()
+  if (puede) return t.confirmarCommit
+  if (corriendo && tx !== 'ninguna') return t.esperar
+  return tx === 'fallida' ? t.commitFallida : t.commitNinguna
 }
 
 function tituloRollbackDe(puede: boolean, corriendo: boolean, tx: DbEstadoTx): string {
-  if (puede) return 'Revertir (Rollback)'
-  return corriendo && tx !== 'ninguna' ? ESPERAR : 'No hay transacción que revertir'
+  const t = txBarraConsola()
+  if (puede) return t.revertirRollback
+  return corriendo && tx !== 'ninguna' ? t.esperar : t.rollbackNinguna
 }
 
 /**
@@ -115,17 +121,18 @@ export function estadoBarraTx(
   const hayTx = tx !== 'ninguna'
   const puedeCommit = hayTx && tx !== 'fallida' && !corriendo
   const puedeRollback = hayTx && !corriendo
-  const tituloModo = modo === 'auto' ? 'Transacción: Auto. Pulsa para Manual' : 'Transacción: Manual. Pulsa para Auto'
+  const t = txBarraConsola()
+  const tituloModo = modo === 'auto' ? t.tituloModoAuto : t.tituloModoManual
   return {
     modo,
     textoModo: textoModoDe(modo),
     soloLectura: false,
     tituloSoloLectura: null,
     textoTx,
-    tituloTx: textoTx !== null && opciones.deArchivo === true ? TITULO_TX_ARCHIVO : null,
+    tituloTx: textoTx !== null && opciones.deArchivo === true ? tituloTxArchivo() : null,
     modoPulsado: modo === 'manual',
     puedeCambiarModo: !corriendo,
-    tituloModo: corriendo ? ESPERAR : tituloModo,
+    tituloModo: corriendo ? t.esperar : tituloModo,
     puedeCommit,
     tituloCommit: tituloCommitDe(puedeCommit, corriendo, tx),
     puedeRollback,

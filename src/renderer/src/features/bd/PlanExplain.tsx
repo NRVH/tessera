@@ -3,7 +3,7 @@
 // (Operación, Objeto, Coste, Filas, Bytes, Detalle) y un conmutador a «Texto», el plan como
 // lo da el servidor o generado desde el árbol. Lo que se decide (anidar, filas visibles,
 // teclado, números, qué se copia) está en `resultados/planResultado.ts`; aquí solo se pinta.
-// Decisiones: docs/decisiones/bd/ui-resultados-pestanas.md
+// Decisiones: docs/decisiones/bd/ui-rejilla-modelo-resultados.md
 // =============================================================================
 
 import { memo, useId, useMemo, useState } from 'react'
@@ -28,6 +28,7 @@ import { esModPrincipal } from '../../util/atajos'
 import { IconoCopiar } from '../../comun/iconosMenu'
 import { IconoPlegarTodo } from './iconosBd'
 import { IconoChevronPlan, IconoDesplegarTodo, IconoVistaTexto } from './iconosConsola'
+import { txConsolaBd } from './textosConsolaBd.ts'
 
 export interface PlanExplainProps {
   plan: DbPlan
@@ -40,27 +41,27 @@ export interface PlanExplainProps {
  * vía `metaResultado`: la barra del plan no los repite.
  */
 export function metaPlan(plan: DbPlan): string {
+  const t = txConsolaBd()
   const r = resumenPlan(plan)
-  const partes = [cantidad(r.pasos, 'paso', 'pasos')]
-  if (r.coste !== null) partes.push(`coste ${numeroPlan(r.coste)}`)
+  const partes = [cantidad(r.pasos, t.paso, t.pasos)]
+  if (r.coste !== null) partes.push(t.coste(numeroPlan(r.coste)))
   partes.push(formatoDuracion(plan.tiempos.totalMs))
   return partes.join(' · ')
 }
 
-const MOTIVO_ARBOL = 'Solo en la vista de árbol'
-
 /** Desplegar y plegar todo: en la vista de texto, deshabilitados con su motivo. */
 function BotonesPlegado(p: { enTexto: boolean; desplegar: () => void; plegar: () => void }): React.JSX.Element {
+  const t = txConsolaBd()
   if (p.enTexto) {
     return (
       <>
-        <span className="btn-envoltura" title={MOTIVO_ARBOL}>
-          <button type="button" className="btn btn-icon" aria-label="Desplegar todo" disabled>
+        <span className="btn-envoltura" title={t.soloEnArbol}>
+          <button type="button" className="btn btn-icon" aria-label={t.desplegarTodo} disabled>
             <IconoDesplegarTodo />
           </button>
         </span>
-        <span className="btn-envoltura" title={MOTIVO_ARBOL}>
-          <button type="button" className="btn btn-icon" aria-label="Plegar todo" disabled>
+        <span className="btn-envoltura" title={t.soloEnArbol}>
+          <button type="button" className="btn btn-icon" aria-label={t.plegarTodo} disabled>
             <IconoPlegarTodo />
           </button>
         </span>
@@ -69,10 +70,10 @@ function BotonesPlegado(p: { enTexto: boolean; desplegar: () => void; plegar: ()
   }
   return (
     <>
-      <button type="button" className="btn btn-icon" aria-label="Desplegar todo" title="Desplegar todo" onClick={p.desplegar}>
+      <button type="button" className="btn btn-icon" aria-label={t.desplegarTodo} title={t.desplegarTodo} onClick={p.desplegar}>
         <IconoDesplegarTodo />
       </button>
-      <button type="button" className="btn btn-icon" aria-label="Plegar todo" title="Plegar todo" onClick={p.plegar}>
+      <button type="button" className="btn btn-icon" aria-label={t.plegarTodo} title={t.plegarTodo} onClick={p.plegar}>
         <IconoPlegarTodo />
       </button>
     </>
@@ -88,6 +89,7 @@ function BarraPlan(p: {
   copiar: () => void
 }): React.JSX.Element {
   const { enTexto } = p
+  const t = txConsolaBd()
   return (
     <div className="db-plan-barra">
       <div className="panel-actions">
@@ -95,8 +97,8 @@ function BarraPlan(p: {
           type="button"
           className={`btn btn-icon db-plan-vista${enTexto ? ' btn-active' : ''}`}
           aria-pressed={enTexto}
-          aria-label="Ver el plan como texto"
-          title={enTexto ? 'Vista de texto. Pulsa para el árbol' : 'Vista de árbol. Pulsa para el texto'}
+          aria-label={t.verPlanComoTexto}
+          title={enTexto ? t.vistaTexto : t.vistaArbol}
           onClick={p.alternarVista}
         >
           <IconoVistaTexto />
@@ -107,8 +109,8 @@ function BarraPlan(p: {
         <button
           type="button"
           className="btn btn-icon db-plan-copiar"
-          aria-label="Copiar el plan"
-          title={enTexto ? 'Copiar el plan en texto' : 'Copiar el árbol visible (columnas separadas por tabuladores)'}
+          aria-label={t.copiarPlan}
+          title={enTexto ? t.copiarPlanTexto : t.copiarArbolVisible}
           onClick={p.copiar}
         >
           <IconoCopiar />
@@ -137,7 +139,7 @@ function CeldaOperacion({ f, setActivo, alternar }: FilaArbolPlanProps): React.J
             type="button"
             className="db-plan-chevron"
             tabIndex={-1}
-            aria-label={f.abierto ? 'Plegar' : 'Desplegar'}
+            aria-label={f.abierto ? txConsolaBd().plegar : txConsolaBd().desplegar}
             onClick={(e) => {
               e.stopPropagation()
               setActivo(n.id)
@@ -194,23 +196,24 @@ function FilaArbolPlan(p: FilaArbolPlanProps): React.JSX.Element {
 
 /** Cabecera de columnas del árbol. */
 function CabeceraArbolPlan(): React.JSX.Element {
+  const t = txConsolaBd()
   return (
     <thead>
       <tr role="row">
         <th role="columnheader" className="db-plan-col-op">
-          Operación
+          {t.colOperacion}
         </th>
-        <th role="columnheader">Objeto</th>
+        <th role="columnheader">{t.colObjeto}</th>
         <th role="columnheader" className="num">
-          Coste
-        </th>
-        <th role="columnheader" className="num">
-          Filas
+          {t.colCoste}
         </th>
         <th role="columnheader" className="num">
-          Bytes
+          {t.colFilas}
         </th>
-        <th role="columnheader">Detalle</th>
+        <th role="columnheader" className="num">
+          {t.colBytes}
+        </th>
+        <th role="columnheader">{t.colDetalle}</th>
       </tr>
     </thead>
   )
@@ -289,7 +292,7 @@ function PlanExplainSinMemo({ plan, titulo }: PlanExplainProps): React.JSX.Eleme
   // Copia lo que se VE: el TSV del árbol visible o el texto.
   const copiar = (): void => {
     const contenido = vista === 'texto' ? texto : planComoTsv(filas)
-    window.tessera.clipboard.write(contenido).catch((err: unknown) => notifyError('No se pudo copiar el plan', err))
+    window.tessera.clipboard.write(contenido).catch((err: unknown) => notifyError(txConsolaBd().noSePudoCopiarPlan, err))
   }
 
   const idFila = (id: number): string => `${idBase}-n${id}`
@@ -327,7 +330,7 @@ function PlanExplainSinMemo({ plan, titulo }: PlanExplainProps): React.JSX.Eleme
       />
 
       {enTexto ? (
-        <pre className="db-plan-texto" tabIndex={0} aria-label={`${titulo}: texto`} onKeyDown={alTeclear}>
+        <pre className="db-plan-texto" tabIndex={0} aria-label={txConsolaBd().planTexto(titulo)} onKeyDown={alTeclear}>
           {texto}
         </pre>
       ) : (

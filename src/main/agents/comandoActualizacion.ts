@@ -15,6 +15,7 @@ import { ETIQUETA_AGENTE } from '../../shared/etiquetasAgente.ts'
 import { nombresSistema } from '../../shared/nombresSistema.ts'
 import type { Plataforma } from '../../shared/plataforma.ts'
 import { esVersionExacta } from '../../shared/versionesCli.ts'
+import { txAgentes } from './textos.ts'
 
 /** Paquetes de npm de cada CLI. */
 export const PAQUETE_CODEX = '@openai/codex'
@@ -170,7 +171,7 @@ function ordenGestorJs(
   }
 }
 
-const SIN_VERSION = 'Sin versión exacta: no se sabe qué versión instalar'
+const sinVersion = (): string => txAgentes().actualizacion.sinVersion
 
 type EntradaOrden = { metodo: MetodoInstalacion; plataforma: Plataforma; version: string | null }
 
@@ -179,7 +180,7 @@ function ordenClaude({ metodo, plataforma, version }: EntradaOrden): OrdenActual
     case 'nativo':
       return { tipo: 'auto', orden: 'claude update', requiereParar: false }
     case 'npm':
-      if (!esVersionExacta(version)) return { tipo: 'manual', orden: null, motivo: SIN_VERSION }
+      if (!esVersionExacta(version)) return { tipo: 'manual', orden: null, motivo: sinVersion() }
       return { tipo: 'auto', orden: ordenGestorJs('npm', PAQUETE_CLAUDE, version, plataforma), requiereParar: plataforma === 'windows' }
     case 'pnpm':
     case 'bun':
@@ -188,25 +189,25 @@ function ordenClaude({ metodo, plataforma, version }: EntradaOrden): OrdenActual
       return {
         tipo: 'manual',
         orden: esVersionExacta(version) ? ordenGestorJs(metodo, PAQUETE_CLAUDE, version, plataforma) : null,
-        motivo: `Claude Code está instalado con ${metodo}: Tessera sólo lo actualiza por su cuenta si viene de npm o de su instalador`
+        motivo: txAgentes().actualizacion.claudeGestorJs(metodo)
       }
     case 'brew':
       return {
         tipo: 'manual',
         orden: 'brew upgrade claude-code',
-        motivo: 'Claude Code está instalado con Homebrew: se actualiza con brew'
+        motivo: txAgentes().actualizacion.claudeBrew
       }
     case 'gestor':
       return {
         tipo: 'manual',
         orden: null,
-        motivo: 'Claude Code está instalado con un gestor de paquetes del sistema: actualízalo con ese gestor'
+        motivo: txAgentes().actualizacion.claudeGestor
       }
     case 'desconocido':
       return {
         tipo: 'manual',
         orden: 'claude update',
-        motivo: 'No se reconoce cómo está instalado Claude Code; su propio actualizador puede saberlo'
+        motivo: txAgentes().actualizacion.claudeDesconocido
       }
   }
 }
@@ -217,19 +218,19 @@ function ordenCodexWindows({ metodo, plataforma, version }: EntradaOrden): Orden
     case 'npm':
     case 'pnpm':
     case 'bun':
-      if (!esVersionExacta(version)) return { tipo: 'manual', orden: null, motivo: SIN_VERSION }
+      if (!esVersionExacta(version)) return { tipo: 'manual', orden: null, motivo: sinVersion() }
       return { tipo: 'auto', orden: ordenGestorJs(metodo, PAQUETE_CODEX, version, plataforma), requiereParar: true }
     case 'vite-plus':
       return {
         tipo: 'manual',
         orden: esVersionExacta(version) ? ordenGestorJs('vite-plus', PAQUETE_CODEX, version, plataforma) : null,
-        motivo: 'Codex está instalado con Vite+: ciérralo en todas partes y actualízalo con vp'
+        motivo: txAgentes().actualizacion.codexVitePlus
       }
     case 'gestor':
       return {
         tipo: 'manual',
         orden: null,
-        motivo: 'Codex está instalado con un gestor de paquetes del sistema: actualízalo con ese gestor'
+        motivo: txAgentes().actualizacion.codexGestor
       }
     case 'nativo':
     case 'brew':
@@ -237,7 +238,7 @@ function ordenCodexWindows({ metodo, plataforma, version }: EntradaOrden): Orden
       return {
         tipo: 'manual',
         orden: null,
-        motivo: 'No se reconoce cómo está instalado Codex; Tessera sólo lo actualiza si viene de npm, pnpm o bun'
+        motivo: txAgentes().actualizacion.codexDesconocido
       }
   }
 }
@@ -337,10 +338,10 @@ export function ordenReparacion(e: EntradaOrden & { agente: AgentKind }): OrdenA
     return {
       tipo: 'manual',
       orden: null,
-      motivo: `${nombre} no responde y Tessera no sabe reinstalarlo tal como está instalado: reinstálalo por donde lo instalaste`
+      motivo: txAgentes().actualizacion.noReinstalable(nombre)
     }
   }
-  if (!esVersionExacta(e.version)) return { tipo: 'manual', orden: null, motivo: SIN_VERSION }
+  if (!esVersionExacta(e.version)) return { tipo: 'manual', orden: null, motivo: sinVersion() }
   const metodo = e.metodo as 'npm' | 'pnpm' | 'bun'
   const paquete = e.agente === 'codex' ? PAQUETE_CODEX : PAQUETE_CLAUDE
   return {
@@ -364,7 +365,7 @@ const RE_RED =
 
 /** El nombre del agente para la frase; sin agente, «el agente». */
 function nombreAgente(agente: AgentKind | undefined): string {
-  return agente ? ETIQUETA_AGENTE[agente] : 'el agente'
+  return agente ? ETIQUETA_AGENTE[agente] : txAgentes().elAgente
 }
 
 /** La última línea con contenido de la salida, recortada, para no enseñar un volcado. */
@@ -388,45 +389,33 @@ type EntradaClasificar = {
 }
 
 function detalleBloqueado(nombre: string, bloqueadores: readonly ProcesoBloqueador[]): string {
+  const t = txAgentes().fallos
   const quienes =
     bloqueadores.length > 0
-      ? ' Siguen abiertos: ' +
-        bloqueadores.map((b) => `${b.nombre} (pid ${b.pid}${b.esDemonio ? ', el servicio app-server' : ''})`).join(', ') +
-        '.'
+      ? t.siguenAbiertos(
+          bloqueadores.map((b) => `${b.nombre} (pid ${b.pid}${b.esDemonio ? t.servicioAppServer : ''})`).join(', ')
+        )
       : ''
-  return (
-    `Algún programa tiene abiertos archivos de ${nombre}: probablemente un ${nombre} abierto fuera de ` +
-    `Tessera (tu editor u otra terminal). Ciérralo y vuelve a intentarlo.${quienes}`
-  )
+  return t.bloqueado(nombre, quienes)
 }
 
 /** EPERM en Windows sin nadie con la carpeta abierta: prefijo protegido o un antivirus. */
 function detallePermisosWindows(e: EntradaClasificar, nombre: string): string {
   const { sistema } = nombresSistema(e.plataforma)
-  const elevar = e.orden
-    ? `ejecuta en una terminal abierta como administrador: ${e.orden}.`
-    : 'actualízalo desde una terminal abierta como administrador.'
-  return (
-    `${sistema} no dejó escribir donde está instalado ${nombre}. Si es una carpeta ` +
-    `protegida (por ejemplo, dentro de Program Files), ${elevar} Si no, puede que un antivirus ` +
-    'u otro programa tenga abiertos sus archivos: vuelve a intentarlo.'
-  )
+  const t = txAgentes().fallos
+  const elevar = e.orden ? t.elevarConOrden(e.orden) : t.elevarSinOrden
+  return t.permisosWindows(sistema, nombre, elevar)
 }
 
 function detallePermisos(e: EntradaClasificar, nombre: string): string {
   const { tuEquipo } = nombresSistema(e.plataforma)
   // En Windows, sin elevar se repetiría el mismo EACCES.
-  const terminal =
-    e.plataforma === 'windows' ? `una terminal de ${tuEquipo} abierta como administrador` : `una terminal de ${tuEquipo}`
+  const t = txAgentes().fallos
+  const terminal = e.plataforma === 'windows' ? t.terminalAdmin(tuEquipo) : t.terminal(tuEquipo)
   // En Linux el Node de la distribución instala lo global en `/usr`, que es de root: repetir la
   // orden sin más da el mismo EACCES, así que se dice cómo salir de ahí.
-  const linux =
-    e.plataforma === 'linux'
-      ? ' Si está en una carpeta del sistema, ejecútala con sudo o cambia el prefijo de npm a tu carpeta personal (npm config set prefix ~/.local).'
-      : ''
-  return e.orden
-    ? `No hay permiso para escribir donde está instalado ${nombre}. Ejecuta esta orden en ${terminal}: ${e.orden}${linux}`
-    : `No hay permiso para escribir donde está instalado ${nombre}.${linux}`
+  const linux = e.plataforma === 'linux' ? t.sugerenciaLinux : ''
+  return e.orden ? t.permisosConOrden(nombre, terminal, e.orden, linux) : t.permisosSinOrden(nombre, linux)
 }
 
 /** Motivo y frase de un fallo que no es tope, en orden: bloqueo, permisos, red y genérico. */
@@ -441,14 +430,12 @@ function motivoYDetalle(e: EntradaClasificar, nombre: string): { motivo: MotivoE
     return { motivo: 'permisos', detalle: detallePermisos(e, nombre) }
   }
   if (RE_RED.test(salida)) {
-    return {
-      motivo: 'red',
-      detalle: `No se pudo descargar ${nombre}: falló la conexión. Comprueba la red y vuelve a intentarlo.`
-    }
+    return { motivo: 'red', detalle: txAgentes().fallos.red(nombre) }
   }
+  const t = txAgentes().fallos
   const ultima = ultimaLinea(salida)
-  const codigo = e.codigo === null ? '' : ` (código ${e.codigo})`
-  return { motivo: 'fallo', detalle: `La instalación de ${nombre} falló${codigo}${ultima ? `: ${ultima}` : '.'}` }
+  const codigo = e.codigo === null ? '' : t.codigo(e.codigo)
+  return { motivo: 'fallo', detalle: t.generico(nombre, codigo, ultima) }
 }
 
 /**
@@ -466,7 +453,7 @@ export function clasificarErrorInstalacion(e: EntradaClasificar): ErrorInstalaci
   if (e.tope) {
     return conOrden({
       motivo: 'tope',
-      detalle: `La instalación de ${nombre} tardó demasiado y se detuvo. Puede que la red vaya lenta: vuelve a intentarlo.`
+      detalle: txAgentes().fallos.tope(nombre)
     })
   }
   const r = motivoYDetalle(e, nombre)

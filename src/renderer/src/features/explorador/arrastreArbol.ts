@@ -4,6 +4,7 @@
 // Sin estado de React: las usan las filas y el cuerpo del árbol.
 // =============================================================================
 import { medidasFantasma, type ElementoFantasma } from './seleccionArbol'
+import { txExplorador } from './textos.ts'
 
 /**
  * true si el arrastre trae archivos del sistema y no un nodo del propio árbol.
@@ -83,7 +84,7 @@ export function pintarFantasma(
   if (resto > 0) {
     ctx.fillStyle = color('--fg-faint', '#7f8794')
     ctx.font = `italic ${Math.max(9, fuente - 1)}px system-ui, -apple-system, "Segoe UI", sans-serif`
-    ctx.fillText(`y ${resto} más`, 24, 3 + lineas.length * altoFila + altoResto / 2)
+    ctx.fillText(txExplorador().ymas(resto),24, 3 + lineas.length * altoFila + altoResto / 2)
   }
   return canvas.toDataURL('image/png')
 }

@@ -9,6 +9,7 @@ import type { DbCelda, DbTipoLogico } from '../db-explorador-ipc.ts'
 import type { ColumnaFormato, EscritorFilas } from '../formatosFilas.ts'
 import type { EscrituraSqlMotor, VistaDml } from './tipos.ts'
 import { NUMERAL_SQL, celda, hexDe, type Filas } from './comun.ts'
+import { txSql } from '../sql/textosSql.ts'
 
 /** Cada cuántas filas el guion INSERT cierra el lote con un `GO` (ver `docs/decisiones/bd/escritura-sql-sqlite-y-sqlserver.md`). */
 export const FILAS_POR_LOTE = 1000
@@ -108,7 +109,7 @@ function escritorInsertSqlServer(
   return {
     inicio: () =>
       tabla.indexOf('$(') >= 0 || nombres.some((x) => x.indexOf('$(') >= 0)
-        ? '-- Un nombre lleva «$(», que sqlcmd tomaría por una variable: córrelo con sqlcmd -x.\n'
+        ? txSql().script.sqlcmdVariable
         : '',
     filas: (filas: Filas) => {
       let s = ''

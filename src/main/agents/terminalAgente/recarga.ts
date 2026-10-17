@@ -10,12 +10,14 @@ import { buildAgentLaunchCommand, buildHostAgentLaunchCommand } from '../lineaAr
 import { briefingCompuesto } from '../briefingCompuesto'
 import { claveSesionAgente } from '../../../shared/db-ipc'
 import { PREFIJO_DOCKER_NO_DISPONIBLE } from '../../../shared/dockerErrors'
-import type { Profile } from '../../profiles/types'
+import type { Agente, Profile } from '../../profiles/types'
 import type { AgentOpenResult } from '../../../shared/agent-terminal-ipc'
 import { crearDetectorEnvio } from '../lineaEnviada'
 import { anclarApertura, sondearTrasLanzar } from './turnos'
 import { medidasDeProcesoNuevo } from './hibernacion'
 import { ACTIVITY_BOOT_GRACE_MS, type NucleoAgente, type OpenAgentSession } from './tipos'
+import { esSesionManual, recargarManual } from './aperturaManual'
+import { txAgentes } from '../textos.ts'
 
 type Relanzamiento = { launch: string; extraEnv: Record<string, string> }
 
@@ -27,23 +29,31 @@ export async function recargar(
   n: NucleoAgente,
   sessionId: string,
   dbConnectionIds?: string[],
-  resumeSessionId?: string
+  resumeSessionId?: string,
+  manual?: unknown
 ): Promise<AgentOpenResult> {
   const open = n.sessions.get(sessionId)
   if (!open) throw new Error(`No existe una sesión de agente con id "${sessionId}".`)
   const profile = n.profiles.get(open.profileId)
   if (!profile) throw new Error(`Perfil desconocido: "${open.profileId}".`)
+  // Un agente manual no tiene candado de actualización, cuenta ni conversación que fijar.
+  if (esSesionManual(open)) return recargarManual(n, open, profile, dbConnectionIds, manual)
 
   // Nativo: se espera el candado antes de tocar nada, y la sesión pudo cerrarse entretanto.
   if (open.host) {
-    await n.esperarCandado(open.agente)
+    await n.esperarCandado(deSerie(open))
     if (n.sessions.get(sessionId) !== open) {
-      throw new Error(`La sesión de agente "${sessionId}" se cerró mientras esperaba a la actualización.`)
+      throw new Error(txAgentes().manual.cerradaEsperando(sessionId))
     }
   }
 
   if (open.host) return recargarNativo(n, open, sessionId, dbConnectionIds, resumeSessionId)
   return recargarEnContenedor(n, open, profile, sessionId, dbConnectionIds, resumeSessionId)
+}
+
+/** El agente de una sesión de serie: las manuales salen antes por `recargarManual`. */
+function deSerie(open: OpenAgentSession): Agente {
+  return open.agente as Agente
 }
 
 /** Manda el chat de la sesión; el del renderer solo si la sesión arrancó sin reanudar. */
@@ -82,8 +92,8 @@ async function recargarNativo(
     dbConnectionIds !== undefined
       ? {
           launch: buildHostAgentLaunchCommand(
-            n.binaries[open.agente],
-            open.agente,
+            n.binaries[deSerie(open)],
+            deSerie(open),
             reanudar,
             briefingCompuesto(n.getDbBriefing(open.profileId, open.projectHostPath, dbConnectionIds), n.getSshBriefing(open.profileId))
           ),
@@ -125,8 +135,8 @@ function relanzamientoContenedor(
   const extraEnv = n.getContainerEnv(open.profileId, open.projectHostPath, dbConnectionIds, n.sandbox.dbBridgeContainerPath)
   const overrides: Relanzamiento = {
     launch: buildAgentLaunchCommand(
-      n.binaries[open.agente],
-      open.agente,
+      n.binaries[deSerie(open)],
+      deSerie(open),
       configContainerPath,
       n.sshSetup,
       reanudar,

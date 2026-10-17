@@ -18,9 +18,10 @@ import {
 } from '../protocoloTrabajador.ts'
 import { construirConsultaTabla, construirConteo, type ConsultaRejilla, esErrorRejilla } from '../sqlRejilla.ts'
 import type { Apertura } from './apertura.ts'
-import { ErrorGestor, MENSAJE_ESQUEMA_CAMBIADO, MENSAJE_NO_RELEIBLE, MENSAJE_SIN_LECTOR } from './errores.ts'
+import { ErrorGestor, mensajeEsquemaCambiado, mensajeNoReleible, mensajeSinLector } from './errores.ts'
 import type { NucleoSesiones } from './NucleoSesiones.ts'
 import { capacidades, opcionesDeLecturaEnFlujo, pagina } from './reglas.ts'
+import { txSesiones } from './textosSesiones.ts'
 import type { Lector, OrigenLector, Proceso, Sesion } from './tipos.ts'
 
 type OrigenConsola = Extract<OrigenLector, { tipo: 'consola' }>
@@ -47,7 +48,7 @@ function consultaDeConteo(s: Sesion, o: OrigenLector): ConsultaConteo {
   }
   // Se cuenta RE-EJECUTANDO el texto, también con un cursor de Oracle vivo: en otro
   // esquema contaría otra tabla. El lector sigue (su cursor, si lo hay, es válido).
-  if (s.estado.esquema !== o.esquema) throw new ErrorGestor('noReleible', MENSAJE_ESQUEMA_CAMBIADO)
+  if (s.estado.esquema !== o.esquema) throw new ErrorGestor('noReleible', mensajeEsquemaCambiado())
   const contarSaltando = 'cortarAlLlenar' in opcionesDeLecturaEnFlujo(o.dialecto, true)
   // Cada fragmento en su línea: un `--` final del usuario no se come el cierre. Envolver no
   // cambia los marcadores: los mismos nombres (Oracle) y posiciones (PG).
@@ -83,12 +84,12 @@ export class LectoresSesion {
   /** Siguiente página de un lector (cursor vivo, o re-ejecución si es releíble). */
   async leerMas(id: string, maxFilas: number, peticionId?: string): Promise<DbRespuesta<DbPagina>> {
     if (!Number.isInteger(maxFilas) || maxFilas < 1 || maxFilas > DB_PAGINA_MAX) {
-      return { ok: false, error: { motivo: 'interno', mensaje: `El tamaño de página tiene que estar entre 1 y ${DB_PAGINA_MAX}.` } }
+      return { ok: false, error: { motivo: 'interno', mensaje: txSesiones().paginaFuera(DB_PAGINA_MAX) } }
     }
     const l = this.n.lector(id)
-    if (!l) return { ok: false, error: { motivo: 'noReleible', mensaje: MENSAJE_SIN_LECTOR } }
+    if (!l) return { ok: false, error: { motivo: 'noReleible', mensaje: mensajeSinLector() } }
     if (l.origen.tipo === 'consola' && !l.cursor && !l.origen.releible) {
-      return { ok: false, error: { motivo: 'noReleible', mensaje: MENSAJE_NO_RELEIBLE } }
+      return { ok: false, error: { motivo: 'noReleible', mensaje: mensajeNoReleible() } }
     }
     // Con `peticionId`, «más» se detiene como `contar` o la pestaña de tabla: la clave en la
     // cola es lo que `cancelar` busca. Sin clave, una re-ejecución lenta bloquearía la sesión
@@ -105,7 +106,7 @@ export class LectoresSesion {
   private async correrMas(l: Lector, maxFilas: number, clave: string | null): Promise<DbPagina> {
     const s = l.sesion
     try {
-      if (this.n.lector(l.id) !== l) throw new ErrorGestor('noReleible', MENSAJE_SIN_LECTOR)
+      if (this.n.lector(l.id) !== l) throw new ErrorGestor('noReleible', mensajeSinLector())
       const con = this.n.conexionOError(s.conexionId)
       const p = await this.ap.empezar(s, clave)
       let ok = false
@@ -166,12 +167,12 @@ export class LectoresSesion {
     maxFilas: number
   ): Promise<ResultadoFilasTrabajador> {
     const s = l.sesion
-    if (!o.releible) throw new ErrorGestor('noReleible', MENSAJE_NO_RELEIBLE)
+    if (!o.releible) throw new ErrorGestor('noReleible', mensajeNoReleible())
     if (s.estado.esquema !== o.esquema) {
       // Su texto se resolvería contra OTRO esquema. No hay vuelta: la rejilla ya lo da por
       // cerrado (`lectorCerrado`) con este motivo.
       this.n.olvidarLector(l.id)
-      throw new ErrorGestor('noReleible', MENSAJE_ESQUEMA_CAMBIADO)
+      throw new ErrorGestor('noReleible', mensajeEsquemaCambiado())
     }
     const opciones: OpcionesEjecucion = {
       proposito: 'usuario',
@@ -190,7 +191,7 @@ export class LectoresSesion {
     if (o.binds !== undefined) peticion.binds = o.binds
     const r = await p.trabajador.enviar<'ejecutar'>(peticion)
     this.n.marcarExpulsados(r)
-    if (r.tipo !== 'filas') throw new ErrorGestor('noReleible', MENSAJE_SIN_LECTOR)
+    if (r.tipo !== 'filas') throw new ErrorGestor('noReleible', mensajeSinLector())
     return r
   }
 
@@ -229,7 +230,7 @@ export class LectoresSesion {
       binds: c.binds as BindsTrabajador,
       opciones
     })
-    if (r.tipo !== 'filas') throw new ErrorGestor('noReleible', MENSAJE_SIN_LECTOR)
+    if (r.tipo !== 'filas') throw new ErrorGestor('noReleible', mensajeSinLector())
     // Por clave: la siguiente página va detrás de la última fila de ÉSTA.
     if (c.columnasClave && r.ultimaClave) o.despues = r.ultimaClave
     // ROWNUM ya acota a `n` filas: el cursor que el trabajador dejara abierto solo
@@ -260,9 +261,9 @@ export class LectoresSesion {
   /** COUNT(*) bajo demanda, en la sesión del lector (ve sus propios cambios). */
   async contar(id: string, peticionId: string): Promise<DbRespuesta<number>> {
     const l = this.n.lector(id)
-    if (!l) return { ok: false, error: { motivo: 'noReleible', mensaje: MENSAJE_SIN_LECTOR } }
+    if (!l) return { ok: false, error: { motivo: 'noReleible', mensaje: mensajeSinLector() } }
     if (l.origen.tipo === 'consola' && !l.origen.releible) {
-      return { ok: false, error: { motivo: 'noReleible', mensaje: MENSAJE_NO_RELEIBLE } }
+      return { ok: false, error: { motivo: 'noReleible', mensaje: mensajeNoReleible() } }
     }
     try {
       const valor = await l.sesion.cola.correr(() => this.correrContar(l, peticionId), { clave: peticionId })
@@ -297,10 +298,10 @@ export class LectoresSesion {
       if (binds !== undefined) peticion.binds = binds
       const r = await p.trabajador.enviar<'ejecutar'>(peticion)
       tx = r.tx
-      if (r.tipo !== 'filas') throw new ErrorGestor('interno', 'El recuento no devolvió filas.')
+      if (r.tipo !== 'filas') throw new ErrorGestor('interno', txSesiones().recuentoSinFilas)
       const filas = JSON.parse(r.filasJson) as unknown[][]
       const n = contarSaltando ? (r.saltadas ?? r.nFilas) : Number(String(filas[0]?.[0] ?? ''))
-      if (!Number.isFinite(n)) throw new ErrorGestor('interno', 'El recuento no devolvió un número.')
+      if (!Number.isFinite(n)) throw new ErrorGestor('interno', txSesiones().recuentoSinNumero)
       ok = true
       return n
     } catch (e) {

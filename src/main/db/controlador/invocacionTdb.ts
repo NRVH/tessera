@@ -17,6 +17,7 @@ import {
   type DbConnection
 } from '../../../shared/db-ipc.ts'
 import { ColaConcurrencia } from '../../../shared/colaConcurrencia.ts'
+import { txDb } from '../textosDb.ts'
 import type { DbBridge } from '../dbBridge.ts'
 import { ejecutarTdb, type ResultadoTdb } from '../dockerBridge.ts'
 import type { ConnectionStore } from '../ConnectionStore.ts'
@@ -46,21 +47,22 @@ export function mensajeFalloTdb(
 ): string {
   const codigo = err?.code
   const senal = err?.signal
+  const t = txDb().tdb
   const causa =
     err === null
-      ? 'terminó sin dar respuesta'
+      ? t.sinRespuesta
       : err.killed === true && typeof senal === 'string'
-        ? `no respondió en ${Math.round(topeMs / 1000)} s y se detuvo`
+        ? t.sinPlazo(Math.round(topeMs / 1000))
         : codigo === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER'
-          ? 'su salida pasó del tope y se detuvo'
+          ? t.salidaExcesiva
           : typeof codigo === 'string'
-            ? `no arrancó (${codigo})`
+            ? t.noArranco(codigo)
             : typeof codigo === 'number'
-              ? `terminó con el código ${codigo} sin dar respuesta`
+              ? t.conCodigo(codigo)
               : typeof senal === 'string'
-                ? `se detuvo (${senal}) sin dar respuesta`
-                : 'terminó sin dar respuesta'
-  return `No se pudo ejecutar tdb: ${causa}.${conDetalle ? ' El detalle queda en el log de bases de datos (logs/db.log).' : ''}`
+                ? t.detenido(senal)
+                : t.sinRespuesta
+  return t.fallo(causa, conDetalle)
 }
 
 /**
@@ -118,9 +120,7 @@ export class InvocadorTdb {
       return Promise.resolve({
         exitCode: 2,
         stdout: '',
-        stderr:
-          '\n  ✗ Esta sesión ya no está autorizada.\n' +
-            '    Recarga la terminal para que Tessera vuelva a emitir sus credenciales.\n\n'
+        stderr: txDb().tdb.sesionNoAutorizada
       })
     }
     return colaTdb.correr(() => this.lanzarParaContenedor(perfil, token, argv, entrada))

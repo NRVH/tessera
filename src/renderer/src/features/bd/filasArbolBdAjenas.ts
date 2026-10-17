@@ -10,6 +10,7 @@ import { ALIAS_MAX } from '../../../../shared/db-ipc.ts'
 import { esMotor } from '../../../../shared/motores/index.ts'
 import { accionTecla, claveBd, coincidenciaDe, esContenedor, normalizarBusqueda } from './arbolBd.ts'
 import { fraseConsolas, listaNatural } from './filasArbolBdTextos.ts'
+import { txFilasArbol } from './textosFilasArbol.ts'
 import type { AccionTeclaBd, Coincidencia, FilaBd } from './arbolBd.ts'
 import type { DbConsolaInfo } from '../../../../shared/db-explorador-ipc.ts'
 import type { DbComparteId, DbConexionAjena, DbConnection } from '../../../../shared/db-ipc.ts'
@@ -27,27 +28,29 @@ export function causaAjena(a: Pick<DbConexionAjena, 'motor' | 'idRepetido'>): Ca
 }
 
 /** Lo que dice la fila de una ajena de motor desconocido, detrás de su alias y su motor. */
-export const TEXTO_AJENA = 'Requiere una versión más nueva de Tessera'
+export const textoAjenaMotor = (): string => txFilasArbol().textoAjena
 
 /**
  * Lo que dice la fila de una ajena de un motor conocido guardada de una forma que no reconoce.
  * No afirma ninguna de las dos posibilidades (versión más nueva o edición a mano).
  */
-export const TEXTO_AJENA_FORMA = 'Esta versión no reconoce cómo está guardada'
+export const textoAjenaForma = (): string => txFilasArbol().textoAjenaForma
 
 /** Con quién comparte el id una ajena por id repetido: «A», «una conexión de otro perfil» o null si ya no queda. */
 function otraDelId(c: DbComparteId): string | null {
-  if (c.tipo === 'conexion') return `«${c.alias.slice(0, ALIAS_MAX)}»`
-  return c.tipo === 'otroPerfil' ? 'una conexión de otro perfil' : null
+  const t = txFilasArbol()
+  if (c.tipo === 'conexion') return t.citado(c.alias.slice(0, ALIAS_MAX))
+  return c.tipo === 'otroPerfil' ? t.deOtroPerfil : null
 }
 
 /** El aviso corto de una ajena: el de la fila del árbol y el del popover de montaje. */
 export function textoAjena(a: DbConexionAjena): string {
+  const t = txFilasArbol()
   if (a.idRepetido !== undefined) {
     const otra = otraDelId(a.idRepetido)
-    return otra === null ? 'Compartía el identificador con una conexión eliminada' : `Comparte el identificador con ${otra}`
+    return otra === null ? t.comparteConEliminada : t.comparteCon(otra)
   }
-  return causaAjena(a) === 'motor' ? TEXTO_AJENA : TEXTO_AJENA_FORMA
+  return causaAjena(a) === 'motor' ? t.textoAjena : t.textoAjenaForma
 }
 
 /**
@@ -56,25 +59,13 @@ export function textoAjena(a: DbConexionAjena): string {
  * otro (desmontar, eliminar) lo añade cada uno detrás.
  */
 export function explicacionAjena(a: Pick<DbConexionAjena, 'motor' | 'idRepetido'>): string {
+  const t = txFilasArbol()
   if (a.idRepetido !== undefined) {
     const otra = otraDelId(a.idRepetido)
-    if (otra === null) {
-      return (
-        'Compartía el identificador con una conexión eliminada: Tessera lee las conexiones al ' +
-        'arrancar y hasta entonces la sigue tratando como repetida, así que reinicia Tessera para ' +
-        'usarla. Se conserva tal cual.'
-      )
-    }
-    return (
-      `Comparte el identificador con ${otra}: esta versión no puede distinguirlas, y todo lo que se ` +
-      `hace por ese identificador llega a la otra. Se conserva tal cual; elimínala si sobra.`
-    )
+    if (otra === null) return t.explicaEliminada
+    return t.explicaComparte(otra)
   }
-  return causaAjena(a) === 'motor'
-    ? `${TEXTO_AJENA}: la creó una versión más nueva, y esta no conoce su motor ni sabe ` +
-        'abrirla. Se conserva tal cual; actualiza Tessera para usarla.'
-    : `${TEXTO_AJENA_FORMA}: puede venir de una versión más nueva de Tessera (actualiza ` +
-        'para usarla) o de una edición a mano del archivo. Se conserva tal cual, sin tocarla.'
+  return causaAjena(a) === 'motor' ? t.explicaMotor(t.textoAjena) : t.explicaForma(t.textoAjenaForma)
 }
 
 /**
@@ -172,7 +163,7 @@ export interface AccionAjena {
 
 /** El menú de una ajena: SOLO eliminar, lo único que se puede hacer sin entender el registro. */
 export function accionesDeAjena(): readonly AccionAjena[] {
-  return [{ accion: 'eliminar', etiqueta: 'Eliminar conexión…' }]
+  return [{ accion: 'eliminar', etiqueta: txFilasArbol().eliminarConexionMenu }]
 }
 
 /** Tope del motor tal como se enseña: lo escribió otra versión (o alguien a mano). */
@@ -188,24 +179,22 @@ export function motorAjeno(a: Pick<DbConexionAjena, 'motor'>): string {
  * de DONDE se enseña: en el árbol, eliminarla; en el popover de montaje, desmontarla.
  */
 export function tooltipAjena(a: DbConexionAjena, donde: 'arbol' | 'montaje' = 'arbol'): string {
+  const t = txFilasArbol()
   return [
     a.alias.slice(0, ALIAS_MAX),
-    `Motor: ${motorAjeno(a)}`,
+    t.motorEtiqueta(motorAjeno(a)),
     '',
     explicacionAjena(a),
-    donde === 'montaje'
-      ? 'El agente no puede usarla con esta versión; aquí solo se puede desmontar.'
-      : salidaArbolAjena(a)
+    donde === 'montaje' ? t.salidaMontaje : salidaArbolAjena(a)
   ].join('\n')
 }
 
 /** La salida en el ÁRBOL; la del id repetido dice además que eliminarla no toca la otra. */
 function salidaArbolAjena(a: DbConexionAjena): string {
-  if (a.idRepetido === undefined) return 'Si ya no la quieres, elimínala: es lo único que esta versión puede hacer con ella.'
+  const t = txFilasArbol()
+  if (a.idRepetido === undefined) return t.salidaArbol
   const otra = otraDelId(a.idRepetido)
-  return otra === null
-    ? 'Si ya no la quieres, elimínala.'
-    : `Eliminarla no toca ${otra}: ni sus montajes ni sus consolas.`
+  return otra === null ? t.salidaArbolRepetida : t.eliminarNoToca(otra)
 }
 
 /** Lo que enseña la fila de una ajena MONTADA en el popover de montaje del agente. */
@@ -241,18 +230,19 @@ export function ajenasMontadasPopover(
 function partesCompartida(
   p: { proyectos: readonly string[] | null; consolas: readonly string[]; compartidaCon?: string | null; idRepetido?: DbComparteId }
 ): string[] | null {
+  const t = txFilasArbol()
   if (typeof p.compartidaCon === 'string') {
     const otra = p.compartidaCon.slice(0, ALIAS_MAX)
-    return [`«${otra}» comparte su identificador y no se toca: sus montajes y sus consolas siguen.`]
+    return [t.compartidaNoSeToca(otra)]
   }
   // La de OTRO perfil conserva lo suyo; lo de ESTE perfil (montajes y consolas de aquí) sí se va.
   if (p.idRepetido?.tipo !== 'otroPerfil') return null
   const partes: string[] = []
-  if (p.proyectos === null) partes.push('Se desmontará de los proyectos de este perfil donde la tuvieras.')
-  else if (p.proyectos.length > 0) partes.push(`Se desmontará de ${listaNatural(p.proyectos)}.`)
+  if (p.proyectos === null) partes.push(t.desmontarDeEstePerfil)
+  else if (p.proyectos.length > 0) partes.push(t.desmontarDe(listaNatural(p.proyectos)))
   const consolasAqui = fraseConsolas(p.consolas)
   if (consolasAqui !== null) partes.push(consolasAqui)
-  partes.push('La conexión de otro perfil que comparte su identificador no se toca: ni sus montajes ni sus consolas.')
+  partes.push(t.otroPerfilNoSeToca)
   return partes
 }
 
@@ -271,18 +261,19 @@ export function textoEliminarAjena(p: {
   /** La del id repetido: con quién lo comparte, como la fila. */
   idRepetido?: DbComparteId
 }): string {
+  const t = txFilasArbol()
   const alias = p.alias.slice(0, ALIAS_MAX)
   const partes = [
-    `Se eliminará «${alias}» y su contraseña guardada, si tiene. No se puede deshacer; la base de datos no se toca.`,
+    t.eliminarAjena(alias),
     // La del id repetido ya dice que se elimine si sobra: repetirlo sonaba a eco.
     p.idRepetido === undefined
-      ? `Es una conexión de ${motorAjeno(p)}. ${explicacionAjena(p)} Eliminarla solo hace falta si ya no la quieres.`
-      : `Es una conexión de ${motorAjeno(p)}. ${explicacionAjena(p)}`
+      ? `${t.esConexionDe(motorAjeno(p), explicacionAjena(p))} ${t.eliminarSoloSiNoQuieres}`
+      : t.esConexionDe(motorAjeno(p), explicacionAjena(p))
   ]
   const compartida = partesCompartida(p)
   if (compartida !== null) return [...partes, ...compartida].join('\n\n')
-  if (p.proyectos === null) partes.push('Se desmontará de todos los proyectos donde la tuvieras.')
-  else if (p.proyectos.length > 0) partes.push(`Se desmontará de ${listaNatural(p.proyectos)}.`)
+  if (p.proyectos === null) partes.push(t.desmontarDeTodos)
+  else if (p.proyectos.length > 0) partes.push(t.desmontarDe(listaNatural(p.proyectos)))
   const consolas = fraseConsolas(p.consolas)
   if (consolas !== null) partes.push(consolas)
   return partes.join('\n\n')

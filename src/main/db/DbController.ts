@@ -5,6 +5,7 @@
 // registra `ipc.ts`. Las piezas por tema viven en `controlador/`.
 // Decisiones: docs/decisiones/bd/conexiones-tdb-como-subproceso.md, docs/decisiones/bd/conexiones-edicion-y-ganchos.md
 // =============================================================================
+import { existsSync } from 'node:fs'
 import path from 'node:path'
 import {
   DB_CHANNELS,
@@ -44,6 +45,8 @@ import { avisosDeDescartados, construirEntornoHost, registroParaDescartes } from
 import { SHIM_DIR } from './shims'
 import { GestorTuneles, type DestinoTunel, type LineaTunel } from './tuneles/GestorTuneles'
 import { escucha, lanzarTunel, puertoLibre } from './tuneles/sistemaTuneles'
+import { txDb } from './textosDb.ts'
+import { VARIABLE_IDIOMA, idiomaActual } from '../../shared/i18n.ts'
 
 /** Lo que los túneles de las bases piden al módulo SSH (lo cumple `ControladorSsh`). */
 export interface SshParaTuneles {
@@ -154,7 +157,7 @@ export class DbController {
     })
     this.tuneles = new GestorTuneles({
       preparar: (profileId, sshId, destino, puertoLocal) => {
-        if (this.ssh === null) throw new Error('Tessera aún no puede abrir túneles SSH.')
+        if (this.ssh === null) throw new Error(txDb().conexion.sinTuneles)
         return this.ssh.prepararTunelBd(profileId, sshId, destino, puertoLocal)
       },
       aliasSsh: (id) => this.ssh?.aliasDe(id) ?? null,
@@ -260,8 +263,8 @@ export class DbController {
   }
 
   /**
-   * Entorno de una terminal en modo Docker: solo un token y una ruta, ninguna contraseña. Devuelve
-   * `{}` si el puente no está levantado: sin él, el modo Docker no ofrece bases.
+   * Entorno de una terminal en modo Docker: solo un token, una ruta y el idioma, ninguna contraseña.
+   * Sin el puente levantado, solo el idioma: sin él, el modo Docker no ofrece bases.
    */
   entornoContenedor(
     profileId: string,
@@ -269,7 +272,8 @@ export class DbController {
     idsMontados: readonly string[],
     rutaBuzonEnContenedor: string
   ): Record<string, string> {
-    if (!this.puente.listo) return {}
+    // El idioma no depende del puente: sin él, `tdb` y `tssh` del contenedor explican el fallo.
+    if (!this.puente.listo) return { [VARIABLE_IDIOMA]: idiomaActual() }
     const delPerfil = this.connections.list(profileId)
     const validas = idsMontados.filter((id) => delPerfil.some((c) => c.id === id))
     this.puente.setScope(profileId, projectHostPath, validas)
@@ -279,7 +283,8 @@ export class DbController {
       [ENV_SESION]: this.puente.mint(profileId, projectHostPath, {
         espacioDatos: this.espacio.esEspacioDeDatos(profileId, projectHostPath)
       }),
-      [ENV_BUZON]: rutaBuzonEnContenedor
+      [ENV_BUZON]: rutaBuzonEnContenedor,
+      [VARIABLE_IDIOMA]: idiomaActual()
     }
     dbLog(
       'env',
@@ -453,6 +458,42 @@ export class DbController {
     this.sendChanged()
   }
 
+  /** Las conexiones de un perfil con sus contraseñas, para una copia de la configuración (solo dentro del main). */
+  paraCopia(profileId: string): ReturnType<ConnectionStore['paraCopia']> {
+    return this.connections.paraCopia(profileId)
+  }
+
+  /** ¿Hay ya una conexión con ese id? Para la vista previa de una copia de la configuración. */
+  idOcupado(id: string): boolean {
+    return this.connections.idOcupado(id)
+  }
+
+  /**
+   * Las conexiones de una copia de la configuración de los perfiles importados, con un solo aviso al
+   * final. `revisar`: las de un archivo que no está en este equipo.
+   */
+  importarDeCopia(copia: unknown, perfiles: ReadonlySet<string>): { anadidas: number; saltadas: Array<{ alias: string; motivo: string }>; revisar: string[] } {
+    const r = { anadidas: 0, saltadas: [] as Array<{ alias: string; motivo: string }>, revisar: [] as string[] }
+    for (const item of Array.isArray(copia) ? copia : []) {
+      const c = (typeof item === 'object' && item !== null ? item : {}) as { registro?: Record<string, unknown>; secreto?: unknown }
+      const reg = c.registro ?? {}
+      if (typeof reg.profileId !== 'string' || !perfiles.has(reg.profileId)) continue
+      const alias = typeof reg.alias === 'string' ? reg.alias : '(sin nombre)'
+      const motivo = this.connections.importarDeCopia(reg, c.secreto)
+      if (motivo !== null) {
+        r.saltadas.push({ alias, motivo })
+        continue
+      }
+      r.anadidas++
+      if (typeof c.secreto === 'string' && c.secreto !== '' && !this.connections.puedeGuardarSecretos()) {
+        r.revisar.push(txDb().importacion.sinContrasena(alias))
+      }
+      if (typeof reg.archivo === 'string' && !existsSync(reg.archivo)) r.revisar.push(txDb().importacion.archivoAusente(alias))
+    }
+    if (r.anadidas > 0) this.sendChanged()
+    return r
+  }
+
   // --- Lo que atiende `ipc.ts` -------------------------------------------------
 
   /** Conexiones conocidas de un perfil. */
@@ -546,9 +587,9 @@ export class DbController {
   /** Diálogo para elegir la carpeta de un cliente de base de datos; `null` si se cancela. */
   async elegirCarpetaDriver(): Promise<string | null> {
     const res = await this.dialogos.elegir('carpeta-driver', {
-      title: 'Elige la carpeta del cliente de base de datos',
+      title: txDb().drivers.carpetaTitulo,
       properties: ['openDirectory'],
-      buttonLabel: 'Usar esta carpeta'
+      buttonLabel: txDb().drivers.carpetaBoton
     })
     return res.canceled || res.filePaths.length === 0 ? null : res.filePaths[0]
   }

@@ -180,7 +180,7 @@ test.describe.serial('La terminal a pantalla completa', () => {
   test('maximizar tapa el área de trabajo sin desmontar nada, la terminal crece y no se remonta; restaurar devuelve el layout', async () => {
     const win = s.win
     const shell = win.locator('.shell')
-    const lateral = win.locator('.sidebar').first()
+    const lateral = win.locator('.panel-lateral')
     const editor = win.locator('.editor-area')
     const agente = win.locator('.right-panel.cc-panel')
     const panel = win.locator('section.terminal-panel')
@@ -190,7 +190,7 @@ test.describe.serial('La terminal a pantalla completa', () => {
     const ocultar = panel.getByRole('button', { name: 'Ocultar el panel de terminal' })
 
     // --- Preparación: un archivo abierto (editor a la vista), la terminal en la franja y un marcador escrito ---
-    await win.locator('.sidebar .tree-row', { hasText: 'LEEME.txt' }).first().click({ timeout: 30_000 })
+    await win.locator('.sidebar .tree-row:visible', { hasText: 'LEEME.txt' }).first().click({ timeout: 30_000 })
     await expect(win.locator('.editor-tab.active', { hasText: 'LEEME.txt' })).toHaveCount(1)
     await win.getByRole('button', { name: 'Terminal', exact: true }).click()
     await expect(panel).toBeVisible()
@@ -281,7 +281,7 @@ test.describe.serial('La terminal a pantalla completa', () => {
   test('cerrar con Ctrl+` y cambiar a Git·Log lo recuerdan por ventana; abrir una pestaña (Mod+N) o elegir una vista sí lo restauran', async () => {
     const win = s.win
     const shell = win.locator('.shell')
-    const lateral = win.locator('.sidebar').first()
+    const lateral = win.locator('.panel-lateral')
     const editor = win.locator('.editor-area')
     const agente = win.locator('.right-panel.cc-panel')
     const panel = win.locator('section.terminal-panel')
@@ -398,7 +398,7 @@ test.describe.serial('La terminal a pantalla completa', () => {
       .toBe(1)
 
     // --- Con el foco FUERA de la franja el acorde no hace nada ---
-    await win.locator('.sidebar .tree-row', { hasText: 'LEEME.txt' }).first().click()
+    await win.locator('.sidebar .tree-row:visible', { hasText: 'LEEME.txt' }).first().click()
     await win.keyboard.press(acorde)
     await asentar(win)
     await expect(shell, 'con el foco en el explorador no alterna').not.toHaveClass(/\bfranja-pantalla-completa\b/)

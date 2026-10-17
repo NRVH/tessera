@@ -1,7 +1,7 @@
 # Sin menú en Windows, el mínimo en macOS, y los atajos de ventana por `before-input-event`
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/app/ventana.ts`, `src/main/app/arranque.ts`, `src/main/app/menuAplicacion.ts` (macOS: sin verificar aquí)
+- **Ámbito:** `src/main/app/ventana.ts`, `src/main/app/arranque.ts`, `src/main/app/menuAplicacion.ts`
 
 ## Contexto
 
@@ -11,7 +11,7 @@ terminales y `Ctrl+W` cerraba la app entera, donde en un editor significa cerrar
 ## Decisión
 
 - Windows y Linux: sin menú; copiar y pegar los resuelve Chromium en el motor. macOS: uno escrito a mano (Tessera,
-  Edición, Ventana, en español) que SUSTITUYE al de fábrica, sin «Archivo» ni «Ver»: el de fábrica sigue en Cocoa
+  Edición, Ventana, en el idioma de la app) que SUSTITUYE al de fábrica, sin «Archivo» ni «Ver»: el de fábrica sigue en Cocoa
   aunque se ponga `null` y trae «Close Window» (`Cmd+W` cierra la ventana) y «Reload». No existe para el pegado:
   medido en la app empaquetada con teclas nativas, `Cmd+V` pega también con `null` (son acciones nativas de la cadena
   de respondedores). «Edición» se repone para no perderla al sustituir el de fábrica.

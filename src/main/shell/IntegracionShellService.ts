@@ -8,6 +8,7 @@
 // =============================================================================
 
 import { logUpdate } from '../update/logUpdate'
+import { txShell } from './textos.ts'
 import { aplicarPlan, leerPredeterminado } from './RegistroWindows'
 import type { SistemaShell } from './adaptadores/sistemaElectron'
 import {
@@ -111,7 +112,7 @@ export class IntegracionShellService {
 
   private async aplicarAhora(pedido: EstadoIntegracion): Promise<ResultadoIntegracion> {
     if (this.disponibilidad() !== 'ok') {
-      return { ok: false, fallos: ['La integración con el Explorador no está disponible aquí.'] }
+      return { ok: false, fallos: [txShell().windows.noDisponible] }
     }
     const nuevo: EstadoIntegracion = {
       carpetas: pedido.carpetas === true,

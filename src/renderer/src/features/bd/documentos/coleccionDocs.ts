@@ -23,6 +23,7 @@ import {
 } from '../../../../../shared/filtroGuiado.ts'
 import type { ColumnaFiltrable } from '../filtro/modeloFiltro.ts'
 import { celdaDeValorTexto, documentoDeTexto, textoConCambios, unirColumnas } from './camposDocs.ts'
+import { txColeccionDocs } from './textosColeccionDocs.ts'
 
 export {
   camposDeTexto,
@@ -258,26 +259,26 @@ export function columnasConEdicion(columnas: readonly string[], filas: readonly 
 // --- Textos ---------------------------------------------------------------------------------
 
 export function textoCambiosDocs(n: number): string {
-  return n === 1 ? '1 cambio' : `${n.toLocaleString('es-ES')} cambios`
+  return txColeccionDocs().cambios(n)
 }
 
 /** Lo que se pregunta antes de enviar varios cambios a un servidor sin transacciones. */
-export const TEXTO_SIN_TRANSACCION =
-  'Este servidor no admite transacciones: si falla un cambio, los anteriores quedan aplicados y los siguientes no se envían.'
+export function textoSinTransaccion(): string {
+  return txColeccionDocs().sinTransaccion
+}
 
 /** El aviso tras «Enviar» (se dice siempre qué entró). */
 export function resumenEnvio(r: DbDocResultadoEnvio, total: number): { tono: 'exito' | 'error'; titulo: string; detalle?: string } {
-  if (!r.fallo) {
-    return { tono: 'exito', titulo: r.aplicados === 1 ? '1 cambio aplicado' : `${r.aplicados.toLocaleString('es-ES')} cambios aplicados` }
-  }
-  const que = `El cambio ${r.fallo.indice + 1} falló: ${r.fallo.mensaje}`
+  const t = txColeccionDocs()
+  if (!r.fallo) return { tono: 'exito', titulo: t.cambiosAplicados(r.aplicados) }
+  const que = t.cambioFallo(r.fallo.indice + 1, r.fallo.mensaje)
   if (r.transaccion || r.aplicados === 0) {
-    return { tono: 'error', titulo: 'No se aplicó ningún cambio', detalle: r.transaccion ? `${que}. Se deshizo todo.` : `${que}.` }
+    return { tono: 'error', titulo: t.ningunCambioAplicado, detalle: r.transaccion ? t.seDeshizoTodo(que) : t.punto(que) }
   }
   return {
     tono: 'error',
-    titulo: `Se aplicaron ${r.aplicados} de ${textoCambiosDocs(total)}`,
-    detalle: `${que}. Los siguientes no se enviaron y siguen pendientes.`
+    titulo: t.seAplicaron(r.aplicados, textoCambiosDocs(total)),
+    detalle: t.siguientesPendientes(que)
   }
 }
 
@@ -397,11 +398,10 @@ export function destinoDelError(e: DbErrorSql, modo: ModoFiltroDocs): DestinoErr
  * esos está el modo JSON.
  */
 export function motivoNoGuiarCampo(nombre: string): string | null {
-  if (nombre === '') return 'Un campo sin nombre no se puede filtrar ni ordenar desde aquí: usa JSON.'
-  if (nombre.charAt(0) === '$') return 'Un campo que empieza por «$» no se puede filtrar ni ordenar desde aquí: usa JSON.'
-  if (nombre.indexOf('.') >= 0) {
-    return 'El punto se lee como una ruta (a.b es el campo b dentro de a): para este campo, usa JSON.'
-  }
+  const t = txColeccionDocs()
+  if (nombre === '') return t.campoSinNombre
+  if (nombre.charAt(0) === '$') return t.campoConDolar
+  if (nombre.indexOf('.') >= 0) return t.campoConPunto
   return null
 }
 

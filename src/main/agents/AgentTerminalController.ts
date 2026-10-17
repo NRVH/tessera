@@ -28,6 +28,7 @@ import { pidsNativos, saveImage, sesionesNativas, stageFile } from './terminalAg
 import { anclarPorEntrada, snapshotActividad } from './terminalAgente/turnos'
 import { aplicarSegundoPlanoDeSesion, hibernarInactivos, marcarEs } from './terminalAgente/hibernacion'
 import type { CambioSegundoPlano } from '../transcripts/tareasSegundoPlano'
+import type { SesionConContexto } from './manuales/contexto'
 import {
   ACTIVITY_RESIZE_GRACE_MS,
   crearNucleo,
@@ -154,8 +155,8 @@ export class AgentTerminalController {
   }
 
   /** Relanza el proceso de una sesión conservando su id y su conversación. */
-  reload(sessionId: string, dbConnectionIds?: string[], resumeSessionId?: string): Promise<AgentOpenResult> {
-    return recargar(this.n, sessionId, dbConnectionIds, resumeSessionId)
+  reload(sessionId: string, dbConnectionIds?: string[], resumeSessionId?: string, manual?: unknown): Promise<AgentOpenResult> {
+    return recargar(this.n, sessionId, dbConnectionIds, resumeSessionId, manual)
   }
 
   /** Cierra la sesión y desmonta su credencial si era la última; el contenedor sigue vivo. */
@@ -163,9 +164,9 @@ export class AgentTerminalController {
     return cerrar(this.n, sessionId)
   }
 
-  /** Mata ya los ptys del agente (antes de instalar una actualización); devuelve cuántos. */
-  forceKillPtys(): number {
-    return this.terminals.killAllPtysNow()
+  /** Cierre de la app: mata el árbol de cada agente y su pty, con tope; devuelve cuántos había. */
+  matarPtysConArbol(topeMs: number, anotar?: (msg: string) => void): Promise<number> {
+    return this.terminals.matarTodoConArbol(topeMs, anotar)
   }
 
   /** Cierra todas las sesiones sin parar contenedores (tras un fallo del renderer). */
@@ -191,6 +192,14 @@ export class AgentTerminalController {
   /** Ids de las sesiones de agente abiertas. */
   liveSessionIds(): string[] {
     return [...this.sessions.keys()]
+  }
+
+  /** Dónde corre una sesión de agente manual con fuente de contexto, o null si no lo es. */
+  sesionConContexto(sessionId: unknown): SesionConContexto | null {
+    const s = typeof sessionId === 'string' ? this.sessions.get(sessionId) : undefined
+    const fuente = s?.manual?.contexto
+    if (!s || !fuente) return null
+    return { profileId: s.profileId, projectHostPath: s.projectHostPath, host: s.host, home: s.homeManual ?? '', fuente }
   }
 
   /** El perfil de una sesión abierta, o `undefined` si no existe (o el id no es un texto). */

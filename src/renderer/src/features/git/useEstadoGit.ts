@@ -20,7 +20,10 @@ import {
   invalidarRepos,
   listaOrdenada,
   marcarPedidos,
+  mismaListaEstados,
   nuevaGeneracion,
+  pausaReintento,
+  registrarFallo,
   reposAPedir,
   reposTocados,
   type EstadoRepos
@@ -35,7 +38,7 @@ import {
   fijarRepoStatuses,
   useStoreGit
 } from './store'
-import { backendAnclado, type UseTabs } from '../pestanas'
+import type { UseTabs } from '../pestanas'
 import type { EditorApp } from '../editor'
 
 /** Ventana de coalescing (ms) de las reacciones al watcher: una ráfaga, una revalidación. */
@@ -45,8 +48,6 @@ const FS_COALESCE_MS = 250
 export interface EstadoGitApp {
   /** Lo que la vista de git está mirando: cambia en el mismo commit que el clic. */
   objetivoGit: UseTabs['objetivoGit']
-  /** El backend ya apunta ahí: permiso para PEDIR. */
-  ancladoGit: boolean
   repoStatuses: RepoStatus[] | null
   worktreeCount: number | null
   decorations: ReturnType<typeof buildDecorations> | null
@@ -96,19 +97,46 @@ function reposDelObjetivo(objetivoGit: UseTabs['objetivoGit']): string[] | null 
   return soloRepo !== null ? [soloRepo] : null
 }
 
-/** Decoraciones de las rutas cambiadas; se congelan sin anclaje del backend. */
+type Decoraciones = ReturnType<typeof buildDecorations>
+
+/**
+ * Lista de estados del objetivo ACTUAL, sacada del mapa de estado y no de la lista del store: esa
+ * se reescribe un commit más tarde y en el cambio de proyecto aún sería del otro. Es `null`
+ * mientras el mapa no es de este objetivo (`alDia`) o no se sabe nada. Conserva la identidad
+ * mientras el contenido no cambie: marcar pedidos o invalidar repos crea un estado nuevo con el
+ * mismo mapa, y quien deriva de la lista no debe rehacerse por eso.
+ */
+function useListaEstable(estadoRepos: EstadoRepos, statusRepos: string[] | null, alDia: boolean): RepoStatus[] | null {
+  const previa = useRef<RepoStatus[] | null>(null)
+  const nueva = alDia && statusRepos !== null && estadoRepos.mapa.size > 0 ? listaOrdenada(estadoRepos, statusRepos) : null
+  const lista = mismaListaEstados(previa.current, nueva) ? previa.current : nueva
+  useEffect(() => {
+    previa.current = lista
+  }, [lista])
+  return lista
+}
+
+/**
+ * Decoraciones de las rutas cambiadas del proyecto `proyecto`, sacadas de la lista estable. Se
+ * enseñan las últimas que se supieron de ESTE proyecto mientras la lista no es de este objetivo
+ * (`alDia` falso) o su generación aún no ha recibido ninguna respuesta (`esperando`): un mapa
+ * vacío recién reiniciado no es «sin cambios» y no pisa la memoria.
+ */
 function useDecoraciones(
-  allChanges: Parameters<typeof buildDecorations>[0] | null,
-  ancladoGit: boolean
-): ReturnType<typeof buildDecorations> | null {
-  // Se congela sin anclaje: una ruta que exista en los dos proyectos casaría por igualdad.
-  const decoracionesRef = useRef<ReturnType<typeof buildDecorations> | null>(null)
+  lista: RepoStatus[] | null,
+  alDia: boolean,
+  esperando: boolean,
+  proyecto: string | null
+): Decoraciones | null {
+  const porProyecto = useRef(new Map<string, Decoraciones>())
   return useMemo(() => {
-    if (!ancladoGit) return decoracionesRef.current
-    const d = allChanges ? buildDecorations(allChanges) : null
-    decoracionesRef.current = d
+    if (proyecto === null) return null
+    if (!alDia || esperando) return porProyecto.current.get(proyecto) ?? null
+    const d = lista !== null ? buildDecorations(lista.flatMap((s) => s.changes)) : null
+    if (d) porProyecto.current.set(proyecto, d)
+    else porProyecto.current.delete(proyecto)
     return d
-  }, [allChanges, ancladoGit])
+  }, [lista, alDia, esperando, proyecto])
 }
 
 /** Letra de estado de git de cada pestaña de archivo abierta, por id de pestaña. */
@@ -128,7 +156,7 @@ function useLetrasPorPestana(
   }, [decorations, tabsEditor])
 }
 
-/** Rama del repo del objetivo: `repoStatuses` se construye para sus repos. */
+/** Rama del repo del objetivo, de la lista estable del objetivo. */
 function useRamaActiva(repoGit: { repoHostPath: string } | null, repoStatuses: RepoStatus[] | null): string | null {
   return useMemo(() => {
     const repo = repoGit?.repoHostPath ?? null
@@ -154,15 +182,23 @@ function useClavesEstado(objetivoGit: UseTabs['objetivoGit'], statusTick: number
   }
 }
 
-/** Lanza una tanda de estado (con prioridad) y vuelca su resultado en la generación `gen`. */
-function pedirEstado(pedir: string[], prioritarios: string[], gen: number): void {
+/** Lanza una tanda de estado del proyecto `raiz` (con prioridad) y vuelca su resultado en la generación `gen`. */
+function pedirEstado(raiz: string, pedir: string[], prioritarios: string[], gen: number): void {
   window.tessera.git
-    .multiStatus(pedir, prioritarios, gen)
+    .multiStatus(raiz, pedir, prioritarios, gen)
     .then((result) => actualizarEstadoRepos((prev) => aplicarTanda(prev, gen, result)))
     .catch((err: unknown) => {
       console.error('[app] estado del working-tree falló:', err)
-      // Se desmarcan: si no, quedarían en blanco para siempre en esta generación.
-      actualizarEstadoRepos((prev) => (prev.gen === gen ? desmarcarPedidos(prev, pedir) : prev))
+      // Se desmarcan para reintentar (si no, quedarían en blanco en esta generación), con una
+      // pausa que crece con los fallos seguidos de la generación: un fallo que se repite no
+      // puede convertirse en un bucle de peticiones.
+      const actual = useStoreGit.getState().estadoRepos
+      const pausa = pausaReintento(actual.gen === gen ? actual.fallos : 0)
+      actualizarEstadoRepos((prev) => registrarFallo(prev, gen))
+      setTimeout(
+        () => actualizarEstadoRepos((prev) => (prev.gen === gen ? desmarcarPedidos(prev, pedir) : prev)),
+        pausa
+      )
     })
     .finally(() => contarPeticionEstado(-1))
 }
@@ -176,11 +212,10 @@ function reposPrioritarios(repoActivoGit: string | null, reposVisibles: readonly
 
 interface EntradaCiclo {
   estadoRepos: EstadoRepos
-  proyectoGit: unknown
+  proyectoGit: { projectHostPath: string } | null
   repoGit: { repoHostPath: string } | null
   statusRepos: string[] | null
   statusReposKey: string
-  ancladoGit: boolean
   reposVisibles: readonly string[]
   claveEstadoRepos: string
   claveObjetivo: string
@@ -190,7 +225,7 @@ interface EntradaCiclo {
 /** Ciclo del mapa de estado: nueva generación, goteo, peticiones, lista ordenada y memoria. */
 function useCicloEstadoRepos(e: EntradaCiclo): void {
   const { estadoRepos, proyectoGit, repoGit } = e
-  const { statusRepos, statusReposKey, ancladoGit, reposVisibles, claveEstadoRepos, claveObjetivo, puedeSembrar } = e
+  const { statusRepos, statusReposKey, reposVisibles, claveEstadoRepos, claveObjetivo, puedeSembrar } = e
   useEffect(() => {
     actualizarEstadoRepos((prev) =>
       nuevaGeneracion(prev, claveEstadoRepos, puedeSembrar ? semillaEstadoRepos(claveObjetivo) : undefined)
@@ -204,8 +239,6 @@ function useCicloEstadoRepos(e: EntradaCiclo): void {
   )
   useEffect(() => {
     if (proyectoGit === null || statusRepos === null) return
-    // Sin anclaje no se pide: el backend contestaría vacío y se tomaría por «sin cambios».
-    if (!ancladoGit) return
     const prioritarios = reposPrioritarios(repoGit?.repoHostPath ?? null, reposVisibles)
     // Se espera a la generación de ESTA clave: el reset corre en el mismo commit.
     if (!estadoAlDia(estadoRepos, claveEstadoRepos)) return
@@ -214,10 +247,10 @@ function useCicloEstadoRepos(e: EntradaCiclo): void {
     const gen = estadoRepos.gen
     actualizarEstadoRepos((prev) => (prev.gen === gen ? marcarPedidos(prev, pedir) : prev))
     contarPeticionEstado(1)
-    pedirEstado(pedir, prioritarios, gen)
+    pedirEstado(proyectoGit.projectHostPath, pedir, prioritarios, gen)
     // `statusRepos` se recrea cada render; la clave de su CONTENIDO es la dep real.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [claveEstadoRepos, ancladoGit, repoGit, reposVisibles, estadoRepos])
+  }, [claveEstadoRepos, repoGit, reposVisibles, estadoRepos])
   useEffect(() => {
     if (proyectoGit === null || statusRepos === null) {
       fijarRepoStatuses(null)
@@ -237,7 +270,6 @@ function useCicloEstadoRepos(e: EntradaCiclo): void {
 /** Estado del árbol de trabajo de todos los repos del objetivo, con sus derivados. */
 export function useEstadoGit(tabs: UseTabs, editor: Pick<EditorApp, 'editorTabs'>): EstadoGitApp {
   const objetivoGit = tabs.objetivoGit
-  const ancladoGit = backendAnclado(objetivoGit, tabs.confirmedTarget)
   const proyectoGit = objetivoGit?.project ?? null
   const repoGit = objetivoGit?.repo ?? null
   // El estado vive en un MAPA por repo: cada respuesta perezosa habla de un subconjunto.
@@ -253,24 +285,25 @@ export function useEstadoGit(tabs: UseTabs, editor: Pick<EditorApp, 'editorTabs'
       statusTick: s.statusTick
     }))
   )
-  const allChanges = useMemo(() => (repoStatuses ? repoStatuses.flatMap((s) => s.changes) : null), [repoStatuses])
-  const decorations = useDecoraciones(allChanges, ancladoGit)
+  const claves = useClavesEstado(objetivoGit, statusTick)
+  const alDia = estadoAlDia(estadoRepos, claves.claveEstadoRepos)
+  const lista = useListaEstable(estadoRepos, claves.statusRepos, alDia)
+  const allChanges = useMemo(() => (lista ? lista.flatMap((s) => s.changes) : null), [lista])
+  const esperando = claves.statusRepos !== null && !estadoRepos.respondido && estadoRepos.mapa.size === 0
+  const decorations = useDecoraciones(lista, alDia, esperando, proyectoGit?.projectHostPath ?? null)
   const gitStatusById = useLetrasPorPestana(decorations, editor.editorTabs.tabs)
   useVigilancia(tabs)
   useVigilanciaGitExterno()
-  const activeBranch = useRamaActiva(repoGit, repoStatuses)
-  const claves = useClavesEstado(objetivoGit, statusTick)
+  const activeBranch = useRamaActiva(repoGit, lista)
   useCicloEstadoRepos({
     ...claves,
     estadoRepos,
     proyectoGit,
     repoGit,
-    ancladoGit,
     reposVisibles
   })
   return {
     objetivoGit,
-    ancladoGit,
     repoStatuses,
     worktreeCount: allChanges?.length ?? null,
     decorations,

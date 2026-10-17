@@ -12,6 +12,7 @@ import type { DbOrdenColumna } from '../../../../../shared/filtroGuiado'
 import type { EstadoFilaDocs } from './coleccionDocs'
 import { ordenDeColumna } from '../filtro/modeloFiltro'
 import { destinoTeclado } from './ventanaVirtual'
+import { txColeccionDocs } from './textosColeccionDocs'
 import { useVentanaVirtual, type VentanaVirtual } from './useVentanaVirtual'
 import '../rejilla.css'
 import './documentos.css'
@@ -75,14 +76,15 @@ function tituloCabeceraDoc(
   ordena: boolean,
   motivo: string | null
 ): string {
+  const t = txColeccionDocs()
   const lineas = [columna]
   if (estado) {
-    const dir = estado.dir === 'asc' ? 'ascendente' : 'descendente'
-    lineas.push(estado.prioridad !== null ? `Orden ${dir} (prioridad ${estado.prioridad})` : `Orden ${dir}`)
+    const dir = estado.dir === 'asc' ? t.ascendente : t.descendente
+    lineas.push(estado.prioridad !== null ? t.ordenCon(dir, estado.prioridad) : t.orden(dir))
   }
   if (ordena) {
-    if (motivo !== null) lineas.push(`No se ordena desde aquí: ${motivo}`)
-    else lineas.push('Clic: ordenar en el servidor (ascendente → descendente → sin orden)', 'Mayús+clic: añadir esta columna al orden')
+    if (motivo !== null) lineas.push(t.noSeOrdena(motivo))
+    else lineas.push(t.clicOrdenar, t.mayusClic)
   }
   return lineas.join('\n')
 }
@@ -142,7 +144,7 @@ function celdaDocumento(p: PropsTablaDocumentos, v: Ventana, i: number, k: numbe
       role="gridcell"
       data-campo={c}
       style={{ width: `${v.anchos[k]}ch` }}
-      title={celda ? celda.vista : `Sin el campo ${c}`}
+      title={celda ? celda.vista : txColeccionDocs().sinElCampo(c)}
       onDoubleClick={() => p.onEditarCelda?.(i, c)}
     >
       {celda ? celda.vista : ''}
@@ -241,7 +243,7 @@ export function TablaDocumentos(p: PropsTablaDocumentos): React.JSX.Element {
     <div
       className="db-rejilla db-docs-tabla"
       role="grid"
-      aria-label={p.etiquetaAria ?? 'Documentos'}
+      aria-label={p.etiquetaAria ?? txColeccionDocs().documentos}
       aria-rowcount={n + 1}
       tabIndex={0}
       onKeyDown={onKeyDown}
@@ -299,7 +301,7 @@ function EditorCeldaDoc({
       defaultValue={valor}
       spellCheck={false}
       autoComplete="off"
-      aria-label="Valor del campo (notación del shell)"
+      aria-label={txColeccionDocs().valorDelCampo}
       onMouseDown={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
       onKeyDown={(e) => {

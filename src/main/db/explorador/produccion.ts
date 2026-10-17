@@ -9,6 +9,7 @@
 import type { DbConnection } from '../../../shared/db-ipc.ts'
 import type { DbTxModo } from '../../../shared/db-explorador-ipc.ts'
 import { esEntornoProduccion, modoTxInicial } from '../../../shared/sql/produccionSql.ts'
+import { txProduccion } from './textosExplorador.ts'
 
 type ConEntorno = Pick<DbConnection, 'entorno'>
 
@@ -43,11 +44,6 @@ export function exigeConfirmacion(con: ConEntorno, soloLectura: boolean, confirm
  * no la conoce), y tiene que decir qué conexión es y qué hacer.
  */
 export function mensajeProduccion(alias: string, que: 'escritura' | 'commit' | 'enviar' = 'escritura'): string {
-  const accion =
-    que === 'commit'
-      ? 'confirma el COMMIT antes de enviarlo'
-      : que === 'enviar'
-        ? 'confirma los cambios antes de enviarlos'
-        : 'confirma la escritura antes de enviarla'
-  return `«${alias}» es una conexión de PRODUCCIÓN: ${accion}. No se envió nada.`
+  const t = txProduccion()
+  return t.mensaje(alias, t[que])
 }

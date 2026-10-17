@@ -6,7 +6,7 @@
 ## Contexto
 
 El catálogo suele estar tras una VPN y cada gesto que consulta cuesta; el lateral se desmonta al
-cambiar de vista. Filas: [ui-arbol-filas-y-carga](ui-arbol-filas-y-carga.md), [ui-arbol-nivel-bases](ui-arbol-nivel-bases.md), [ui-claves-arbol](ui-claves-arbol.md).
+cambiar de vista. Filas: [ui-arbol-filas-y-carga](ui-arbol-filas-y-carga.md), [ui-arbol-modelo](ui-arbol-modelo.md), [ui-claves-arbol](ui-claves-arbol.md).
 
 ## Decisión
 

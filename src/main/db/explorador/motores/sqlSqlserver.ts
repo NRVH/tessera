@@ -7,7 +7,7 @@
 
 import type { DbRefObjeto, DbTipoObjeto } from '../../../../shared/db-explorador-ipc.ts'
 import { MAX_ELEMENTOS_LISTA_IN } from '../limites.ts'
-import { noDisponible } from './filasCatalogo.ts'
+import { noDisponible, queFalta } from './filasCatalogo.ts'
 import { prefijoBase, SQL_TIPO_COLUMNA } from './nombresSqlserver.ts'
 import type { ConsultaCatalogo, DialectoCatalogo } from './tipos.ts'
 
@@ -308,7 +308,7 @@ export function sqlFks(d: DialectoCatalogo, esquema: string, objeto: string): Co
 /** Filas: `[definicion, tipo]` de `sys.sql_modules` (definición NULL = cifrada o sin permiso). */
 export function sqlFuente(d: DialectoCatalogo, ref: DbRefObjeto): ConsultaCatalogo {
   const tipos = TIPOS_OBJETO[ref.tipo]
-  if (ref.tipo !== 'vista' && ref.tipo !== 'rutina' && ref.tipo !== 'disparador') return noDisponible(d.motor, `fuente de ${ref.tipo}`)
+  if (ref.tipo !== 'vista' && ref.tipo !== 'rutina' && ref.tipo !== 'disparador') return noDisponible(d.motor, queFalta.fuenteDe(ref.tipo))
   const b = prefijoBase(d.base ?? ref.base)
   return ss(
     [

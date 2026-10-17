@@ -22,8 +22,8 @@ colgado, y `main/index.ts` la invoca siempre, no solo cuando hay transacciones.
   y la confirmación de producción.
 - «Confirmar» es un bloque: las fallidas se revierten (un COMMIT sobre una transacción abortada
   sería un ROLLBACK dado por bueno) y solo un COMMIT rechazado abre un segundo diálogo.
-- Con algo que preguntar, la ventana se trae a la vista antes: cerrar minimizada dejaba el diálogo
-  en la esquina de otro monitor (medido en Windows). Nunca lanza.
+- Con algo que preguntar, la ventana se trae a la vista antes: cerrar minimizada dejaría el diálogo
+  en la esquina de otro monitor. Nunca lanza.
 - `vaciarConsolas` y `pedirSinEnviar` responden al instante si no hay ventana viva.
 
 ## Consecuencias

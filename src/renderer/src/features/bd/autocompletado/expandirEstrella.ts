@@ -12,6 +12,7 @@ import type { EstrellaSelect } from './estrellaSql.ts'
 import { ajenaAlCatalogo, esquemaDeRef, type FuenteCatalogo } from './fuenteCatalogo.ts'
 import type { RefTabla } from './referenciasSql.ts'
 import { expuestoDe } from './relacionesFk.ts'
+import { txAutocompletado } from './textosAutocompletado.ts'
 
 function tablasCubiertas(e: EstrellaSelect, fuente: FuenteCatalogo, d: DialectoSql): RefTabla[] | null {
   if (!e.tablas || e.tablas.length === 0) return null
@@ -69,7 +70,7 @@ export function sugerenciaEstrella(e: EstrellaSelect, texto: string, fuente: Fue
   if (lista === null) return null
   const vista = lista.length > VISTA_PREVIA_ESTRELLA ? lista.slice(0, VISTA_PREVIA_ESTRELLA - 1) + '…' : lista
   return {
-    etiqueta: 'Expandir columnas',
+    etiqueta: txAutocompletado().expandirColumnas,
     detalle: ' (' + vista + ')',
     descripcion: '',
     tipo: 'expandir',

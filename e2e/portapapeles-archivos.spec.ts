@@ -168,7 +168,7 @@ async function pegarEn(destino: string): Promise<{ paths: string[]; fallidos: st
   const limite = Date.now() + 30_000
   for (;;) {
     try {
-      return await s.win.evaluate((d) => window.tessera.clipboard.pasteInto(d), destino)
+      return await s.win.evaluate((req) => window.tessera.clipboard.pasteInto(req), { raiz: proyecto, destDir: destino })
     } catch (err) {
       if (!String(err).includes('No hay proyecto activo') || Date.now() > limite) throw err
       await s.win.waitForTimeout(500)

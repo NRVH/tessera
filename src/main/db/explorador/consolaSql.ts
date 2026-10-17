@@ -13,6 +13,7 @@ import type { Sentencia } from '../../../shared/sql/divisorSql.ts'
 import { offsetDeErrorCompilacion } from '../../../shared/sql/posicionErrorSql.ts'
 import { motorExplorador } from './motores/index.ts'
 import type { ConsultaCatalogo, FilaCatalogo } from './motores/tipos.ts'
+import { txBinds } from './textosRejilla.ts'
 
 // --- Esquema de la consola ------------------------------------------------------------
 
@@ -35,7 +36,7 @@ export function sqlFijarEsquema(
 
 /** Mensaje de la Salida cuando el esquema guardado ya no existe al reabrir. */
 export function avisoEsquemaPerdido(esquema: string, actual: string | null): string {
-  return `El esquema ${esquema} de esta consola ya no existe: vuelve al de la conexión${actual ? ` (${actual})` : ''}.`
+  return txBinds().esquemaPerdido(esquema, actual)
 }
 
 /** La sentencia que solo LEE el esquema actual de la sesión (sin cambiarlo). */

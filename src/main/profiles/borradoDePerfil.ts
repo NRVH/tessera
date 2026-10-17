@@ -5,7 +5,7 @@
 // perfiles de ESE momento: entre medias pasan segundos y el usuario puede haber recreado el perfil con
 // el mismo id. Pura y sin Electron (todo llega inyectado), para probarla con `node` a secas
 // (`test-borrado-de-perfil.mts`); la compone `agents/componer.ts`.
-// Decisiones: docs/decisiones/agentes/agente-de-la-terminal.md
+// Decisiones: docs/decisiones/workspace/borrar-perfil-con-orden.md
 // =============================================================================
 
 import { hayMismoPerfil, type ResultadoBorrado } from '../util/carpetaDePerfil.ts'

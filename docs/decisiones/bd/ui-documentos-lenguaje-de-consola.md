@@ -30,7 +30,8 @@ Monaco lleva enganchado el servicio de lenguaje de TypeScript.
 ## Consecuencias
 
 La consola de Redis reutiliza `MarcasConsolaDocs`. El autocompletado propio (`db.`, colecciones,
-operadores `$`) queda pendiente.
+operadores `$`) vive en `documentos/autocompletadoDocs.ts` y se describe en
+[ui-documentos-consola.md](ui-documentos-consola.md).
 
 ## Descartes
 

@@ -10,7 +10,7 @@
 
 - [ ] `npm run typecheck`
 - [ ] `npm run lint`
-- [ ] `test:cabeceras`, `test:comentarios` y `test:menciones` sobre las rutas cambiadas
+- [ ] `test:cabeceras`, `test:comentarios`, `test:menciones` y `test:textos` sobre las rutas cambiadas (el hook de commit ya los corre)
 - [ ] Los scripts `test:*` del área: <!-- cuáles -->
 - [ ] Un spec e2e contra la app empaquetada: <!-- cuál, si el cambio vive en la frontera con el sistema -->
 

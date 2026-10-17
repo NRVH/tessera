@@ -6,7 +6,7 @@
 
 import type { IpcMain } from 'electron'
 import { KV_CHANNELS } from '../../../../shared/db-claves-ipc.ts'
-import { INTERNO } from '../documentos/validacionPeticion.ts'
+import { respuestaInterna } from '../documentos/validacionPeticion.ts'
 import type { ControladorClaves, OperacionClaves } from './ControladorClaves.ts'
 
 /** Lo que necesita `registrarIpcClaves`: el `ipcMain` (solo `handle`) y el controlador. */
@@ -25,7 +25,7 @@ export function registrarIpcClaves({ ipc, controlador }: DependenciasIpcClaves):
         return await controlador.atender(op, req)
       } catch (err) {
         controlador.log(`${canal}: ${err instanceof Error ? err.message : String(err)}`.slice(0, 200))
-        return INTERNO
+        return respuestaInterna()
       }
     })
   }

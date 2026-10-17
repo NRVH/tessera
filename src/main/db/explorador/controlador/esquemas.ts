@@ -42,6 +42,7 @@ import {
 } from '../catalogoSql.ts'
 import { TOPE_INDICE_AUTOCOMPLETADO } from '../limites.ts'
 
+import { txControlador } from './textosControlador.ts'
 import type { BaseEsquemas, ContextoExplorador } from './tipos.ts'
 import {
   claveConBase,
@@ -121,7 +122,7 @@ export class EsquemasExplorador {
     return this.c.seguro(async () => {
       const id = exigir(conexionId, 'conexionId')
       const norm = normalizarEsquemasVisibles(config)
-      if (!norm) return fallo('interno', 'La selección de esquemas no es válida.')
+      if (!norm) return fallo('interno', txControlador().seleccionEsquemasInvalida)
       this.c.conexionOError(id)
       let con: DbConnection
       try {
@@ -135,7 +136,7 @@ export class EsquemasExplorador {
         // no sirve de nada si no se hace lo que dice. Pero SIN rutas del host: un error de
         // `fs` en crudo las lleva en su `message`, y esto va al renderer
         // (`mensajeDeFalloDelRegistro` es la guarda de la frontera).
-        return fallo('interno', `No se pudo guardar la selección de esquemas: ${mensajeDeFalloDelRegistro(e)}`)
+        return fallo('interno', txControlador().noSeGuardoEsquemas(mensajeDeFalloDelRegistro(e)))
       }
       // El índice por esquema sigue valiendo en el main; lo que cambia es la FUSIÓN,
       // que el renderer guarda en su caché: el evento se la invalida (antes de responder).
@@ -157,7 +158,7 @@ export class EsquemasExplorador {
       const id = exigir(conexionId, 'conexionId')
       const con = this.c.conexionOError(id)
       if (!tieneNivelBases(descriptorSql(con.motor), con)) {
-        return fallo('interno', 'Esta conexión no tiene nivel «Bases»: trabaja en una sola base.')
+        return fallo('interno', txControlador().sinNivelBases)
       }
       const datos = await this.c.cache.memo(
         id,
@@ -186,20 +187,20 @@ export class EsquemasExplorador {
     return this.c.seguro(async () => {
       const id = exigir(conexionId, 'conexionId')
       const norm = normalizarEsquemasVisibles(config)
-      if (!norm) return fallo('interno', 'La selección de bases no es válida.')
+      if (!norm) return fallo('interno', txControlador().seleccionBasesInvalida)
       const actual = this.c.conexionOError(id)
       if (!tieneNivelBases(descriptorSql(actual.motor), actual)) {
-        return fallo('interno', 'Esta conexión no tiene nivel «Bases»: trabaja en una sola base.')
+        return fallo('interno', txControlador().sinNivelBases)
       }
       const fijar = this.c.conexiones.setBasesVisibles
-      if (typeof fijar !== 'function') return fallo('interno', 'Esta versión del registro de conexiones no guarda las bases visibles.')
+      if (typeof fijar !== 'function') return fallo('interno', txControlador().registroSinBases)
       let con: DbConnection
       try {
         con = fijar.call(this.c.conexiones, id, norm)
       } catch (e) {
         this.c.log(`fijar bases de ${id}: ${mensajeDe(e instanceof Error && e.cause !== undefined ? e.cause : e)}`)
         // Sin rutas del host, como en `fijarEsquemas`.
-        return fallo('interno', `No se pudo guardar la selección de bases: ${mensajeDeFalloDelRegistro(e)}`)
+        return fallo('interno', txControlador().noSeGuardoBases(mensajeDeFalloDelRegistro(e)))
       }
       this.c.cache.notificar({ conexionId: id, motivo: 'esquemas' })
       this.c.registro.notificarCambio()

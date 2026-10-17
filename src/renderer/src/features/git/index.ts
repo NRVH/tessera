@@ -6,11 +6,11 @@
 // las marcas de estado y los iconos. Lo que solo compone App.tsx está en `app.ts`
 // (docs/decisiones/renderer/barriles-sin-ciclos.md).
 // =============================================================================
-export { useStoreGit, bumpWorktree, anotarReposVisibles, cerrarHistorial } from './store'
-export { fijarAmbito } from './modelo/blobCache'
+export { useStoreGit, bumpWorktree, anotarReposVisibles, abrirHistorial, cerrarHistorial } from './store'
+export { claveHistorial } from './modelo/historialPorProyecto'
 export { etiquetaRevisiones } from './modelo/resolveWorkingDiffTarget'
 export type { EstadoGitApp } from './useEstadoGit'
-export type { AccionesGit } from './useAccionesGit'
+export type { AccionesGit, AccionesGitDe } from './useAccionesGit'
 export { GitPanel } from './GitPanel'
 export { GitLogPanel } from './GitLogPanel'
 export { fetchBlob } from './modelo/blobCache'

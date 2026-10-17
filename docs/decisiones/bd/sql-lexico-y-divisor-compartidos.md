@@ -17,7 +17,7 @@ que corta por `;` parte dentro de cadenas, comentarios, `$$…$$` y bloques PL/S
   anidan), q-quote de Oracle, `E'…'` y `$tag$` de PG, corchetes de SQLite y T-SQL, `/` sola,
   metacomandos `\cmd` de psql, `GO` de SQL Server. Una cadena sin cerrar se marca y llega al final.
 - La entrada valida el dialecto una vez (`reglasDe`) y baja la FILA a `leerToken`: validar en cada
-  token costaba, medido, entre un 3 y un 7 % del tiempo de tokenizar.
+  token añade un coste apreciable al tokenizar.
 - Los números de T-SQL se cortan donde los corta el servidor: con el léxico genérico, `1EDELETE` y
   `0xINSERT` escondían una escritura que el servidor ejecuta.
 - `GO n` no es separador: sale como palabra marcada (`loteRepetido`) y el aviso lo explica.

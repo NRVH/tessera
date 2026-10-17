@@ -6,7 +6,8 @@
 // =============================================================================
 import { app, Menu, nativeTheme } from 'electron'
 import * as nodePty from 'node-pty'
-import { initCrashLog } from './crashLog'
+import { initCrashLog, logCrash } from './crashLog'
+import { fijarDestinoVigia } from '../transcripts/vigiaContratos'
 import { revisarVolcados } from './volcados'
 import { plantillaMenuAplicacion } from './menuAplicacion'
 import { initDbLog } from '../db/dbLog'
@@ -21,6 +22,7 @@ import { asegurarPathDelHost } from '../util/pathDeLogin'
  */
 export function prepararArranque(): Promise<void> {
   initCrashLog()
+  fijarDestinoVigia((linea) => logCrash('contrato-cli', linea))
   revisarVolcados()
   // En la app empaquetada no hay consola: sin él, un fallo al montar una base no deja rastro.
   initDbLog(app.getPath('userData'))

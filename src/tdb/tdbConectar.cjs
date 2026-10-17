@@ -2,7 +2,8 @@
 // Cómo `tdb` abre una conexión: el secreto solo llega al DESTINO para el que Tessera lo
 // emitió (huella), sin él se dice qué falta antes de tocar el servidor, y una conexión con
 // túnel SSH va al extremo local que abre Tessera (`db.tunel`).
-// Depende de `motores.cjs`, `tdbConexiones.cjs`, `tdbPuente.cjs` y `tdbSalida.cjs`; lo usan los comandos.
+// Depende de `motores.cjs`, `tdbConexiones.cjs`, `tdbPuente.cjs`, `tdbSalida.cjs` y `textosTdb.cjs`;
+// lo usan los comandos.
 // Decisiones: docs/decisiones/bd/puente-huella-del-destino.md, docs/decisiones/bd/conexiones-tunel-ssh.md
 // =============================================================================
 'use strict'
@@ -11,6 +12,7 @@ const motoresTdb = require('./motores.cjs')
 const { adaptador } = require('./tdbConexiones.cjs')
 const { fallar } = require('./tdbSalida.cjs')
 const { pedirTunel } = require('./tdbPuente.cjs')
+const { textosTdb } = require('./textosTdb.cjs')
 
 /**
  * Nombre de la variable de entorno con el secreto de una conexión, derivado de su
@@ -90,26 +92,12 @@ function tieneSecretoGuardado(con) {
 
 /** El destino de la conexión cambió desde que se emitió el secreto: el remedio depende del origen. */
 function fallarDestinoCambiado(ctx, con, cambio) {
-  if (cambio === 'entorno') {
-    // Sin puente la contraseña se fijó al abrir la terminal; si el archivo se editó a mano
-    // con Tessera abierta, recargar la terminal no basta: de ahí el «si sigue igual».
-    fallar(
-      ctx,
-      `La conexión "${con.alias}" cambió desde que se abrió esta terminal (su servidor, puerto,\n` +
-        '    base o usuario ya no son los de entonces), así que tdb no le manda la contraseña de\n' +
-        '    entonces. Recarga la terminal (o "Reiniciar" en la cabecera del agente) para usarla;\n' +
-        '    si sigue igual (db-connections.json se editó a mano con Tessera abierta), reinicia Tessera.',
-      { destinoCambiado: true }
-    )
-  }
+  const t = textosTdb()
+  // Sin puente la contraseña se fijó al abrir la terminal; si el archivo se editó a mano
+  // con Tessera abierta, recargar la terminal no basta: de ahí el «si sigue igual».
+  if (cambio === 'entorno') fallar(ctx, t.destinoCambiadoEntorno(con.alias), { destinoCambiado: true })
   // Con puente lo servido es de la memoria de Tessera y lo leído es del disco.
-  fallar(
-    ctx,
-    `La conexión "${con.alias}" del registro no es la que tiene cargada Tessera (cambió mientras\n` +
-      '    tdb la leía, o se editó db-connections.json a mano con Tessera abierta), así que tdb no\n' +
-      '    le manda su contraseña. Vuelve a intentarlo; si sigue igual, reinicia Tessera.',
-    { destinoCambiado: true }
-  )
+  fallar(ctx, t.destinoCambiadoPuente(con.alias), { destinoCambiado: true })
 }
 
 /**
@@ -120,36 +108,14 @@ function fallarDestinoCambiado(ctx, con, cambio) {
  * Devuelve la sesión si se abre sin contraseña.
  */
 function abrirSinSecreto(ctx, con) {
+  const t = textosTdb()
   if (motoresTdb.secretoOpcional(con.motor)) {
-    if (ctx.puente === 'no responde') {
-      fallar(
-        ctx,
-        `El puente de Tessera no responde, así que tdb no sabe si "${con.alias}" tiene contraseña.\n` +
-          `    Recarga la terminal; si sigue igual, reinicia Tessera.  (tdb doctor)`
-      )
-    }
-    if (ctx.puente !== 'vivo' && tieneSecretoGuardado(con)) {
-      fallar(
-        ctx,
-        `"${con.alias}" tiene contraseña guardada, pero no llegó a esta terminal (se guardó después\n` +
-          '    de abrirla). Recarga la terminal (o "Reiniciar" en la cabecera del agente) para usarla.'
-      )
-    }
+    if (ctx.puente === 'no responde') fallar(ctx, t.puenteNoRespondeOpcional(con.alias))
+    if (ctx.puente !== 'vivo' && tieneSecretoGuardado(con)) fallar(ctx, t.secretoNoLlego(con.alias))
     return adaptador(ctx, con).abrir(con, undefined, ctx)
   }
-  if (ctx.puente === 'no responde') {
-    fallar(
-      ctx,
-      `El puente de Tessera no responde, así que no hay credenciales para "${con.alias}".\n` +
-        `    La contraseña SÍ está guardada; lo que falla es la conexión con Tessera.\n` +
-        `    Recarga la terminal; si sigue igual, reinicia Tessera.  (tdb doctor)`
-    )
-  }
-  fallar(
-    ctx,
-    `No hay contraseña para "${con.alias}" en esta sesión.\n` +
-      `    Guárdala con "Editar conexión…" en la vista Bases de datos de Tessera y reabre la terminal.`
-  )
+  if (ctx.puente === 'no responde') fallar(ctx, t.puenteNoRespondeObligatorio(con.alias))
+  fallar(ctx, t.sinContrasena(con.alias))
 }
 
 /** Abre la sesión de la conexión con su adaptador y el secreto que le corresponda. */
@@ -176,17 +142,10 @@ async function porTunel(ctx, con) {
   if (con.tunelSsh === undefined || con.tunelSsh === null) return con
   const pipe = process.env.TESSERA_DB_PIPE
   const token = ctx.fichaTunel || process.env.TESSERA_DB_SESSION
-  if (ctx.puente !== 'vivo' || !pipe || !token) {
-    fallar(
-      ctx,
-      `"${con.alias}" va por un túnel SSH, y ese túnel lo abre Tessera: esta terminal no llega a ella\n` +
-        '    (el puente no responde o no está). Recarga la terminal; si sigue igual, reinicia Tessera.  (tdb doctor)'
-    )
-  }
+  const t = textosTdb()
+  if (ctx.puente !== 'vivo' || !pipe || !token) fallar(ctx, t.tunelSinPuente(con.alias))
   const r = await pedirTunel(pipe, token, con.id)
-  if (!r || !r.ok) {
-    fallar(ctx, `No se pudo abrir el túnel SSH de "${con.alias}": ${r ? r.error : 'Tessera no contestó a tiempo.'}`)
-  }
+  if (!r || !r.ok) fallar(ctx, t.tunelFallo(con.alias, r ? r.error : t.tunelSinRespuesta))
   return { ...con, host: r.host, port: r.port, hostTls: con.host }
 }
 

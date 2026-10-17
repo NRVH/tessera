@@ -18,6 +18,7 @@ import type { Plataforma } from '../../../shared/plataforma.ts'
 import { writeFileAtomic } from '../../util/atomicWrite.ts'
 import { KeyedMutex } from '../../util/mutex.ts'
 import { codigoFs, ErrorConsolas, mensajeFs } from './controlador/consolasStoreErrores.ts'
+import { txConsolas } from './textosExplorador.ts'
 import {
   CARPETA,
   ESQUEMA_MAX,
@@ -133,9 +134,9 @@ export class ConsolasStore {
   crear(perfilId: string, conexionId: string, extension: ExtensionConsola = EXT): Promise<DbConsolaInfo> {
     return this.proteger(perfilId, async () => {
       if (typeof conexionId !== 'string' || conexionId === '') {
-        throw new ErrorConsolas('entrada', 'Falta la conexión de la consola.')
+        throw new ErrorConsolas('entrada', txConsolas().faltaConexion)
       }
-      if (!EXTENSIONES.includes(extension)) throw new ErrorConsolas('entrada', 'Tipo de consola desconocido.')
+      if (!EXTENSIONES.includes(extension)) throw new ErrorConsolas('entrada', txConsolas().tipoDesconocido)
       const { carpeta, entradas, disco } = await this.estado(perfilId)
       const ocupados = new Set<string>([
         ...[...disco.values()].map((a) => claveNombre(a.nombre)),
@@ -148,7 +149,7 @@ export class ConsolasStore {
         // pensar en el nombre de la consola.
         const c = codigoFs(err)
         if (c === 'EEXIST' || c === 'ENOTDIR') {
-          throw new ErrorConsolas('fs', 'La carpeta de consolas no tiene la forma esperada.')
+          throw new ErrorConsolas('fs', txConsolas().carpetaForma)
         }
         throw err
       }
@@ -187,7 +188,7 @@ export class ConsolasStore {
     return this.proteger(perfilId, async () => {
       const { carpeta, entrada } = await this.localizar(perfilId, id)
       const leido = await this.leerDisco(this.ruta(carpeta, entrada.nombre, extDe(entrada)))
-      if (leido === null) throw new ErrorConsolas('noExiste', 'El archivo de la consola ya no existe.')
+      if (leido === null) throw new ErrorConsolas('noExiste', txConsolas().archivoNoExiste)
       this.versiones.set(claveConsola(perfilId, id), leido.version)
       return leido
     })
@@ -200,11 +201,11 @@ export class ConsolasStore {
    */
   escribir(perfilId: string, id: string, texto: string): Promise<DbEscrituraConsola> {
     if (typeof texto !== 'string') {
-      return Promise.reject(new ErrorConsolas('entrada', 'El texto de la consola no es válido.'))
+      return Promise.reject(new ErrorConsolas('entrada', txConsolas().textoNoValido))
     }
     if (Buffer.byteLength(texto, 'utf8') > DB_CONSOLA_MAX_BYTES) {
       return Promise.reject(
-        new ErrorConsolas('tamano', `La consola supera el máximo de ${DB_CONSOLA_MAX_BYTES / (1024 * 1024)} MiB.`)
+        new ErrorConsolas('tamano', txConsolas().supera(DB_CONSOLA_MAX_BYTES / (1024 * 1024)))
       )
     }
     const clave = claveConsola(perfilId, id)
@@ -238,11 +239,11 @@ export class ConsolasStore {
       if (!v.ok) throw new ErrorConsolas('nombre', v.motivo)
       const { carpeta, entradas, disco } = await this.estado(perfilId)
       const entrada = entradas.find((e) => e.id === id)
-      if (!entrada) throw new ErrorConsolas('noExiste', 'La consola ya no existe.')
+      if (!entrada) throw new ErrorConsolas('noExiste', txConsolas().noExiste)
       const nueva = claveNombre(v.nombre)
       if (nueva !== claveNombre(entrada.nombre)) {
         const ocupado = nombreEnDisco(disco, nueva) || entradas.some((e) => e.id !== id && claveNombre(e.nombre) === nueva)
-        if (ocupado) throw new ErrorConsolas('nombre', `Ya hay una consola llamada «${v.nombre}».`)
+        if (ocupado) throw new ErrorConsolas('nombre', txConsolas().nombreRepetido(v.nombre))
       }
       const ext = extDe(entrada)
       if (v.nombre !== entrada.nombre) {
@@ -264,11 +265,11 @@ export class ConsolasStore {
   fijarEsquema(perfilId: string, id: string, esquema: string | null): Promise<DbConsolaInfo> {
     return this.proteger(perfilId, async () => {
       if (esquema !== null && (typeof esquema !== 'string' || esquema === '' || esquema.length > ESQUEMA_MAX)) {
-        throw new ErrorConsolas('entrada', 'El esquema no es válido.')
+        throw new ErrorConsolas('entrada', txConsolas().esquemaNoValido)
       }
       const { carpeta, entradas } = await this.estado(perfilId)
       const entrada = entradas.find((e) => e.id === id)
-      if (!entrada) throw new ErrorConsolas('noExiste', 'La consola ya no existe.')
+      if (!entrada) throw new ErrorConsolas('noExiste', txConsolas().noExiste)
       const nueva: EntradaIndice = { ...entrada }
       if (esquema === null) delete nueva.esquema
       else nueva.esquema = esquema
@@ -324,10 +325,7 @@ export class ConsolasStore {
       }
       if (quedan.length !== entradas.length) await this.guardarIndice(carpeta, quedan)
       if (fallos > 0) {
-        throw new ErrorConsolas(
-          'papelera',
-          fallos === 1 ? 'No se pudo mover 1 consola a la papelera.' : `No se pudieron mover ${fallos} consolas a la papelera.`
-        )
+        throw new ErrorConsolas('papelera', txConsolas().papelera(fallos))
       }
       return borradas
     })
@@ -385,7 +383,7 @@ export class ConsolasStore {
     // El borrado del perfil pudo mandar su carpeta a la papelera desde que se leyó el índice (un guardado
     // tardío del renderer): la escritura atómica crea las carpetas que falten y dejaría una huérfana.
     if (!(await stat(carpeta).then((s) => s.isDirectory(), () => false))) {
-      throw new ErrorConsolas('noExiste', 'La consola ya no existe.')
+      throw new ErrorConsolas('noExiste', txConsolas().noExiste)
     }
     await this.escribirArchivo(ruta, texto)
     // La de los bytes MANDADOS (UTF-8 sin BOM), no la de releer el disco: releer adoptaría un
@@ -408,10 +406,10 @@ export class ConsolasStore {
       perfilId.includes('\\') ||
       tieneControl(perfilId)
     ) {
-      throw new ErrorConsolas('perfil', 'Perfil no válido.')
+      throw new ErrorConsolas('perfil', txConsolas().perfilNoValido)
     }
     const dir = this.dirPerfil(perfilId)
-    if (!dir) throw new ErrorConsolas('perfil', 'El perfil no existe o no está cargado.')
+    if (!dir) throw new ErrorConsolas('perfil', txConsolas().perfilNoExiste)
     return path.join(path.resolve(dir), CARPETA)
   }
 
@@ -423,7 +421,7 @@ export class ConsolasStore {
   private async localizar(perfilId: string, id: string): Promise<{ carpeta: string; entrada: EntradaIndice }> {
     const carpeta = this.carpeta(perfilId)
     const entrada = typeof id === 'string' ? (await this.leerIndice(carpeta)).find((e) => e.id === id) : undefined
-    if (!entrada) throw new ErrorConsolas('noExiste', 'La consola ya no existe.')
+    if (!entrada) throw new ErrorConsolas('noExiste', txConsolas().noExiste)
     return { carpeta, entrada }
   }
 

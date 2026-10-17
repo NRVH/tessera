@@ -8,6 +8,7 @@
 
 import type { DbRespuesta, DbValidarSintaxis } from '../../shared/db-explorador-ipc.ts'
 import type { GramaticaLocal } from '../../shared/sql/dialectosSql.ts'
+import { txDb } from './textosDb.ts'
 import {
   TOPE_TEXTO_SINTAXIS,
   TOPE_TEXTOS_SINTAXIS,
@@ -81,16 +82,16 @@ function textosDe(req: unknown): string[] | ReturnType<typeof fallo> {
   const r = (typeof req === 'object' && req !== null ? req : {}) as Partial<DbValidarSintaxis>
   // Una gramática nueva en `GramaticaLocal` no compila hasta que diga aquí cómo se carga.
   if (typeof r.gramatica !== 'string' || !Object.prototype.hasOwnProperty.call(CARGADORES, r.gramatica)) {
-    return fallo('interno', 'Gramática desconocida.')
+    return fallo('interno', txDb().sintaxis.gramaticaDesconocida)
   }
   const textos = r.textos
   if (!Array.isArray(textos) || textos.some((t) => typeof t !== 'string')) {
-    return fallo('interno', 'Petición de sintaxis mal formada.')
+    return fallo('interno', txDb().sintaxis.peticionMalFormada)
   }
-  if (textos.length > TOPE_TEXTOS_SINTAXIS) return fallo('limite', 'Demasiadas sentencias para validarlas a la vez.')
+  if (textos.length > TOPE_TEXTOS_SINTAXIS) return fallo('limite', txDb().sintaxis.demasiadasSentencias)
   let total = 0
   for (const t of textos as string[]) total += t.length
-  if (total > TOPE_TOTAL_SINTAXIS) return fallo('limite', 'Demasiado texto para validarlo a la vez.')
+  if (total > TOPE_TOTAL_SINTAXIS) return fallo('limite', txDb().sintaxis.demasiadoTexto)
   return textos as string[]
 }
 
@@ -147,12 +148,12 @@ export class SintaxisLocal {
     const textos = textosDe(req)
     if (!Array.isArray(textos)) return textos
 
-    if (this.roto) return fallo('interno', 'La gramática local dejó de responder; vuelve al reiniciar Tessera.')
+    if (this.roto) return fallo('interno', txDb().sintaxis.gramaticaCaida)
     let parser: ParserPg
     try {
       parser = await this.cargar()
     } catch {
-      return fallo('interno', 'No se pudo cargar la gramática local.')
+      return fallo('interno', txDb().sintaxis.gramaticaNoCargo)
     }
 
     const salida: VeredictoSintaxis[] = []

@@ -3,7 +3,8 @@
 // para sus propios fallos: huella cambiada, autenticación, servidor inalcanzable (o conexión cortada) o
 // algoritmos. Puro, con la plataforma como parámetro: mira solo las últimas líneas de la salida ya sin
 // ANSI y solo mensajes del cliente OpenSSH a principio de línea. Sin ninguno no hay motivo: el 255 pudo
-// darlo el comando remoto.
+// darlo el comando remoto. Un `ssh` lanzado DENTRO de la sesión escribe los mismos mensajes; la huella
+// solo es de la conexión (o de su bastión) si el aviso nombra un `known_hosts` de la carpeta de huellas.
 // Decisiones: docs/decisiones/ssh/motor-linea-y-huellas.md
 // =============================================================================
 import { plataformaActual, type Plataforma } from '../../shared/plataforma.ts'
@@ -69,14 +70,29 @@ const PATRONES = MENSAJES.map(({ motivo, principio, corte }) => ({
 const DESPEDIDA = /^Connection to \S{1,300} closed\.\s*$/
 
 /**
+ * ¿Nombran esas líneas un archivo de `carpeta`? ssh escribe la ruta de `UserKnownHostsFile` en su aviso
+ * («Offending … key in RUTA:1»), con las barras duplicadas en Windows; unidas sin separador, una ruta
+ * partida por el ancho de la terminal vuelve a casar.
+ */
+function nombraCarpeta(lineas: readonly string[], carpeta: string, plataforma: Plataforma): boolean {
+  const normal = (s: string): string => {
+    const t = s.replace(/[\\/]+/g, '/')
+    return plataforma === 'windows' ? t.toLowerCase() : t
+  }
+  return normal(lineas.join('')).includes(`${normal(carpeta).replace(/\/$/, '')}/`)
+}
+
+/**
  * El motivo de la salida de una sesión SSH, o `undefined` si no salió por un fallo de ssh
  * (`esSalidaDeFalloSsh`: entonces el código es el del comando remoto, o el del cierre) o si ssh no
- * dejó escrito por qué.
+ * dejó escrito por qué. Con `carpetaHuellas`, una huella que no nombra esa carpeta es la de un ssh
+ * lanzado en el equipo remoto: el 255 es suyo y no hay motivo.
  */
 export function clasificarSalidaSsh(
   exitCode: number | null,
   cola: string,
-  plataforma: Plataforma = plataformaActual()
+  plataforma: Plataforma = plataformaActual(),
+  carpetaHuellas?: string
 ): TerminalExitReason | undefined {
   if (!esSalidaDeFalloSsh(exitCode, plataforma)) return undefined
   const lineas = cola
@@ -85,7 +101,20 @@ export function clasificarSalidaSsh(
     .slice(-LINEAS_FINALES)
   // La última línea de la sesión sin contar la despedida: la única donde un corte cuenta en mitad.
   const final = lineas.length - (lineas.length > 1 && DESPEDIDA.test(lineas[lineas.length - 1]) ? 2 : 1)
-  // De abajo arriba: gana el mensaje más reciente, porque la cola trae texto de antes.
+  const huellaPropia = carpetaHuellas === undefined || nombraCarpeta(lineas, carpetaHuellas, plataforma)
+  const motivo = motivoMasReciente(lineas, final)
+  if (motivo === 'ssh-huella-cambiada') return huellaPropia ? motivo : undefined
+  // Con un bastión, su aviso de huella va seguido del cierre del ssh exterior («Connection closed by
+  // UNKNOWN port 65535»): ese cierre lo causó la huella, y es ella lo que hay que decir.
+  if (motivo === 'ssh-inalcanzable' && huellaPropia && lineas.some((l) => HUELLA_RECHAZADA.test(l))) return 'ssh-huella-cambiada'
+  return motivo
+}
+
+/** El final del aviso de huella de ssh: el mismo con la huella cambiada que con una desconocida en estricto. */
+const HUELLA_RECHAZADA = /^Host key verification failed/
+
+/** De abajo arriba: gana el mensaje más reciente, porque la cola trae texto de antes. */
+function motivoMasReciente(lineas: readonly string[], final: number): TerminalExitReason | undefined {
   for (let i = lineas.length - 1; i >= 0; i--) {
     const desde = lineas.slice(i).join('')
     for (const { motivo, alPrincipio, enMitad } of PATRONES) {

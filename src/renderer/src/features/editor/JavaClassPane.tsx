@@ -7,7 +7,8 @@
 // =============================================================================
 
 import { nombreDeRuta } from '../../../../shared/jarPath'
-import { FALLO_SIN_DETALLE, NOMBRE_MOTOR } from './javaClassModelo'
+import { NOMBRE_MOTOR } from './javaClassModelo'
+import { txJava } from './textosVisores.ts'
 import { useJavaClass } from './useJavaClass'
 import type { OpenFile } from './centerPane'
 import type { DescompilarResult } from '../../../../shared/java-ipc'
@@ -46,7 +47,7 @@ export function JavaClassPane({
 
   return (
     // El aria-label es el nombre accesible del pane, ya que la cabecera no lleva rótulo.
-    <section className={`editor java-class${visible ? '' : ' hidden'}`} aria-label="Clase">
+    <section className={`editor java-class${visible ? '' : ' hidden'}`} aria-label={txJava().aria}>
       <CabeceraJava j={j} onClose={onClose} />
 
       <BarraProcedencia j={j} path={file.path} />
@@ -62,6 +63,7 @@ export function JavaClassPane({
 
 function CabeceraJava({ j, onClose }: { j: EstadoJava; onClose: () => void }): React.JSX.Element {
   const nombre = NOMBRE_MOTOR[j.otroMotor] ?? j.otroMotor
+  const t = txJava()
   return (
     <header className="panel-header editor-header">
       {/* Sin identidad a la izquierda: la pestaña ya dice nombre y ruta. La barra se queda por
@@ -69,8 +71,8 @@ function CabeceraJava({ j, onClose }: { j: EstadoJava; onClose: () => void }): R
       <div className="panel-actions">
         <button
           className="btn btn-icon"
-          title={`Volver a descompilar con ${nombre}`}
-          aria-label={`Volver a descompilar con ${nombre}`}
+          title={t.volverADescompilar(nombre)}
+          aria-label={t.volverADescompilar(nombre)}
           onClick={() => j.reintentar(j.otroMotor)}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
@@ -78,7 +80,7 @@ function CabeceraJava({ j, onClose }: { j: EstadoJava; onClose: () => void }): R
             <path d="M20 4v7h-7" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
-        <button className="btn btn-icon" title="Cerrar" aria-label="Cerrar" onClick={onClose}>
+        <button className="btn btn-icon" title={t.cerrar} aria-label={t.cerrar} onClick={onClose}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
             <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
           </svg>
@@ -91,10 +93,11 @@ function CabeceraJava({ j, onClose }: { j: EstadoJava; onClose: () => void }): R
 /** Procedencia del texto: motor, JVM y bytecode de origen. */
 function BarraProcedencia({ j, path }: { j: EstadoJava; path: string }): React.JSX.Element {
   const r = j.resultado
+  const t = txJava()
   return (
     <div className="java-class-bar">
       {j.cargando ? (
-        <span className="java-class-estado">Descompilando {nombreDeRuta(path)}…</span>
+        <span className="java-class-estado">{t.descompilando(nombreDeRuta(path))}</span>
       ) : r === null ? null : (
         <>
           {j.conFuente && r.motor !== null && (
@@ -109,14 +112,14 @@ function BarraProcedencia({ j, path }: { j: EstadoJava; path: string }): React.J
             </span>
           )}
           {j.conFuente && <span className="java-class-chip">{r.ms} ms</span>}
-          {r.estado === 'cache' && <span className="java-class-chip">en caché</span>}
+          {r.estado === 'cache' && <span className="java-class-chip">{t.enCache}</span>}
           {/* Sin LocalVariableTable los locales salen var1, var2… */}
           {j.conFuente && r.sinNombresLocales && (
-            <span className="java-class-aviso" title="La clase se compiló sin información de depuración (-g)">
-              sin nombres de variables
+            <span className="java-class-aviso" title={t.sinInfoDepuracion}>
+              {t.sinNombresVariables}
             </span>
           )}
-          {r.truncado && <span className="java-class-aviso">recortado</span>}
+          {r.truncado && <span className="java-class-aviso">{t.recortado}</span>}
         </>
       )}
     </div>
@@ -127,30 +130,31 @@ function BarraProcedencia({ j, path }: { j: EstadoJava; path: string }): React.J
 function MensajeJava({ j, r }: { j: EstadoJava; r: DescompilarResult }): React.JSX.Element {
   const otro = NOMBRE_MOTOR[j.otroMotor] ?? j.otroMotor
   const ocupado = j.accionEnCurso !== null
+  const t = txJava()
   return (
     <div className={`java-class-mensaje${j.conFuente ? ' es-aviso' : ''}`}>
-      <p>{r.mensaje !== '' ? r.mensaje : FALLO_SIN_DETALLE}</p>
+      <p>{r.mensaje !== '' ? r.mensaje : t.falloSinDetalle}</p>
       <div className="java-class-mensaje-acciones">
         {!j.conFuente && (
           <button className="btn" onClick={() => j.reintentar(j.otroMotor)}>
-            Probar con {otro}
+            {t.probarCon(otro)}
           </button>
         )}
         {/* Salida explícita para volver a sondear las JVM (~18 s) tras instalar un JDK. */}
         {!j.conFuente && (
           <button className="btn" disabled={ocupado} onClick={j.redetectar}>
-            {j.accionEnCurso === 'redetectar' ? 'Buscando Java…' : 'Volver a detectar Java'}
+            {j.accionEnCurso === 'redetectar' ? t.buscandoJava : t.volverADetectar}
           </button>
         )}
         {r.estado === 'sin-java' && (
           <button className="btn" disabled={ocupado} onClick={j.elegirJava}>
             {/* El nombre del binario cambia con el sistema. */}
-            {window.tessera.plataforma === 'windows' ? 'Elegir java.exe…' : 'Elegir java…'}
+            {window.tessera.plataforma === 'windows' ? t.elegirJavaExe : t.elegirJava}
           </button>
         )}
         {r.diagnostico !== '' && (
           <button className="btn" onClick={() => j.setDetalleAbierto((v) => !v)}>
-            {j.detalleAbierto ? 'Ocultar detalle' : 'Ver detalle'}
+            {j.detalleAbierto ? t.ocultarDetalle : t.verDetalle}
           </button>
         )}
       </div>

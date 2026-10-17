@@ -5,8 +5,8 @@
 
 ## Contexto
 
-El servidor no tiene candado de solo lectura (`readOnlyIntent` acepta un INSERT en un servidor suelto,
-medido) y un lote puede devolver varios conjuntos. Lado del main en `motores-sesion-sqlserver.md`.
+El servidor no tiene candado de solo lectura (`readOnlyIntent` acepta un INSERT en un servidor suelto)
+y un lote puede devolver varios conjuntos. Lado del main en `motores-sesion-sqlserver.md`.
 
 ## Decisión
 

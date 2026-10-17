@@ -10,7 +10,8 @@ import { AgentTerminalPane } from './AgentTerminalPane'
 import type { AgentPaneStatus } from './agentPaneTipos'
 import { ErrorBoundary } from '../../comun/ErrorBoundary'
 import { EstadoVacio, IconoAgenteVacio } from '../../comun/EstadoVacio'
-import type { Agente, Profile } from '../../../../main/profiles/types'
+import type { Profile } from '../../../../main/profiles/types'
+import type { IdAgente } from '../../../../shared/agentesManuales'
 import type { OpenAgentTarget } from '../pestanas'
 import type { DisposicionMosaico, PresetMosaico, OpcionMosaico } from '../mosaico'
 import type { ApiAgentePane } from './tipos'
@@ -23,8 +24,10 @@ import {
   useVersionesPorTarget
 } from './useCCPanelMosaico'
 import { propsPaneDeTarget, type CalculoColumna } from './panesCCPanel'
+import { useFuenteAgentes } from './useAgentesDelProyecto'
 import { contarRender } from '../../util/contadorRenders'
 import { enOrdenEstable } from '../../util/ordenEstable'
+import { txPane } from './textosPane.ts'
 
 /**
  * Lo que App le pasa a la columna cuando el MOSAICO está abierto (null = vista normal).
@@ -59,7 +62,7 @@ export interface MosaicoPanel {
   onAbrirProyecto: (casilla: string, profileId: string) => void
   /** Cambia el modo del proyecto (contenedor ⇄ nativo) desde la cabecera de la casilla. */
   onCambiarModo: (profileId: string, projectHostPath: string) => void
-  /** true si ese proyecto no puede cambiar de modo (el espacio de datos vive en nativo). */
+  /** true si ese proyecto no puede cambiar de modo (el espacio de datos y el agente de la terminal viven en nativo). */
   modoBloqueado: (projectHostPath: string) => boolean
   onEnfocar: (key: string) => void
   onAmpliar: (key: string) => void
@@ -92,7 +95,7 @@ export interface CCPanelProps {
   /** Reporta si un target tiene un agente DE VERDAD en marcha (ver `onVivoChange` del pane). */
   onTargetVivo?: (key: string, vivo: boolean) => void
   /** Cambia el agente seleccionado de un perfil (selector multi-agente). */
-  onSelectAgent?: (profileId: string, agente: Agente) => void
+  onSelectAgent?: (profileId: string, agente: IdAgente) => void
   /** Cuenta (login) seleccionada por target (key -> accountId), o null si ninguna. */
   accountByTarget?: Record<string, string | null>
   /** Fija la cuenta de un target (elegir/cambiar/limpiar). */
@@ -120,7 +123,7 @@ export interface CCPanelProps {
    */
   rutasAgenteTerminal?: ReadonlySet<string>
   /** Cambia el agente del agente de la terminal de un perfil: su selector es propio, no el del perfil. */
-  onSelectAgentTerminal?: (profileId: string, agente: Agente) => void
+  onSelectAgentTerminal?: (profileId: string, agente: IdAgente) => void
   /** Cierra el agente de la terminal de un perfil (desmonta su pane, que cierra la sesión). */
   onCerrarAgenteTerminal?: (profileId: string) => void
   /**
@@ -199,6 +202,7 @@ export function CCPanel(props: CCPanelProps): React.JSX.Element {
   const disposicion = useDisposicionMosaico(mosaico, medida)
   const coloresPerfil = useColoresPerfil(profiles)
   const opcionesPorPerfil = useOpcionesPorPerfil(mosaico?.opciones)
+  const fuenteAgentes = useFuenteAgentes()
   const calculo: CalculoColumna = {
     enMosaico,
     mosaico,
@@ -206,7 +210,8 @@ export function CCPanel(props: CCPanelProps): React.JSX.Element {
     profiles,
     coloresPerfil,
     opcionesPorPerfil,
-    versionesPorTarget
+    versionesPorTarget,
+    fuenteAgentes
   }
 
   const { anyVisible, variasALaVista, estiloRejilla } = presentacionColumna(
@@ -221,7 +226,7 @@ export function CCPanel(props: CCPanelProps): React.JSX.Element {
       ref={seccionRef}
       className={claseColumna(grow, hidden, enMosaico, variasALaVista)}
       style={estiloRejilla}
-      aria-label={enMosaico ? 'Mosaico de agentes' : 'Claude Code'}
+      aria-label={enMosaico ? txPane().columna.mosaico : 'Claude Code'}
     >
       {/* En orden ESTABLE y no en el de las pestañas: un pane que React cambia de sitio en
           el DOM pierde el scroll de su terminal. Qué pane se ve no depende del orden. */}
@@ -270,23 +275,20 @@ function VacioColumna({
   enEspera: AgenteEnEspera | null
 }): React.JSX.Element {
   if (!enMosaico && enEspera) return <VacioEnEspera enEspera={enEspera} />
+  const t = txPane().columna
   return enMosaico ? (
     <EstadoVacio
       className="cc-empty"
       icono={<IconoAgenteVacio />}
-      titulo="Mosaico de agentes"
-      pista={
-        enMarcha > 0
-          ? 'No hay ningún agente elegido. Márcalos en el selector de la barra para verlos aquí.'
-          : 'No queda ningún agente en marcha. Sal del mosaico para abrir uno.'
-      }
+      titulo={t.mosaico}
+      pista={enMarcha > 0 ? t.mosaicoSinElegir : t.mosaicoSinMarcha}
     />
   ) : (
     <EstadoVacio
       className="cc-empty"
       icono={<IconoAgenteVacio />}
       titulo="Claude Code"
-      pista="Selecciona un proyecto para iniciar el agente."
+      pista={t.seleccionaProyecto}
     />
   )
 }

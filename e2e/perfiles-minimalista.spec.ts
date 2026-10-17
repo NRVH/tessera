@@ -2,7 +2,8 @@
 // El modo minimalista de perfiles sobre la app empaquetada: sin banda ni línea de color, una
 // pastilla en la barra de título con el perfil activo; al pulsarla, la lista de perfiles con su ⋯
 // (el menú de siempre, con sus diálogos en coordenadas de la ventana), cambiar de perfil desde ella
-// y renombrar en la propia fila, donde un clic fuera guarda y Esc solo cancela la edición.
+// y renombrar en la propia fila, donde un clic fuera guarda y Esc solo cancela la edición. La lista
+// se reordena arrastrando y la banda queda en ese orden: es uno solo.
 // Decisiones: docs/decisiones/renderer/banda-de-perfiles.md
 // =============================================================================
 
@@ -24,6 +25,32 @@ function sembrar(datos: string, minimalista: boolean): void {
   writeFileSync(join(datos, 'profiles.json'), PERFILES)
   writeFileSync(join(datos, 'workspace-state.json'), JSON.stringify({ version: 1, activeProfileId: 'alfa', byProfile: {}, settings: { hideProfileNames: minimalista } }))
 }
+
+test('modo minimalista: la lista se reordena arrastrando y la banda sale en ese mismo orden', async () => {
+  let s: SesionTessera | null = null
+  try {
+    s = await abrirTessera({}, { sembrar: (d) => sembrar(d, true) })
+    const win = s.win
+    const pastilla = win.locator('.titlebar .selector-perfil-pastilla')
+    await expect(pastilla).toHaveText(/Perfil Alfa/, { timeout: 30_000 })
+    await pastilla.click()
+    const filas = win.getByRole('menu', { name: 'Perfiles' }).getByRole('menuitemradio')
+    await expect(filas, 'el orden de la banda').toHaveText([/Perfil Alfa/, /Perfil Beta/])
+
+    await win.locator('.selector-perfil-fila', { hasText: 'Perfil Alfa' }).dragTo(win.locator('.selector-perfil-fila', { hasText: 'Perfil Beta' }))
+    await expect(filas, 'Alfa pasa detrás de Beta').toHaveText([/Perfil Beta/, /Perfil Alfa/])
+    await expect(pastilla, 'reordenar no cambia de perfil').toHaveText(/Perfil Alfa/)
+
+    await win.keyboard.press('Escape')
+    await win.keyboard.press(`${process.platform === 'darwin' ? 'Meta' : 'Control'}+,`)
+    await win.locator('.ajustes-riel-item[data-cat="apariencia"]').click()
+    await win.getByRole('switch', { name: 'Modo minimalista de perfiles' }).click()
+    await win.keyboard.press('Escape')
+    await expect(win.locator('.tabs-profiles .profile-tab'), 'la banda, con el orden de la lista').toHaveText([/Perfil Beta/, /Perfil Alfa/])
+  } finally {
+    await s?.cerrar()
+  }
+})
 
 test('sin el modo, la banda de perfiles como siempre y ninguna pastilla', async () => {
   let s: SesionTessera | null = null

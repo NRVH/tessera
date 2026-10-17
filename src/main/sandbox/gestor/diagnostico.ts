@@ -6,7 +6,8 @@
 // =============================================================================
 import type { Profile } from '../../profiles/types.ts'
 import { EXTRAS_VACIOS, extrasDesdeSello } from '../../../shared/sandboxExtras.ts'
-import { DETALLE_DOCKER_ROOTLESS, esDockerRootless, pasosDocker } from '../../../shared/dockerErrors.ts'
+import { detalleDockerRootless, esDockerRootless, pasosDocker } from '../../../shared/dockerErrors.ts'
+import { txSandbox } from '../textos.ts'
 import { runDocker } from '../adaptadores/docker.ts'
 import { containerNameFor } from './nombres.ts'
 import type { NucleoSandbox } from './NucleoSandbox.ts'
@@ -67,17 +68,17 @@ export class DiagnosticoSandbox {
     if (info.error || info.status !== 0) {
       // Los pasos salen de `pasosDocker` para que el detalle y el texto del main sean el MISMO.
       const detalle = [
-        'El daemon de Docker no responde.',
+        txSandbox().diagnostico.daemon,
         (info.error && info.error.message) || info.stderr.trim() || info.stdout.trim(),
         '',
-        'Que verificar:',
+        txSandbox().diagnostico.queVerificar,
         ...pasosDocker()
       ].join('\n')
       return { ok: false, detalle }
     }
     const [version, opciones = ''] = info.stdout.trim().split('|')
     // Sin root, el gestor no puede montar los proyectos en caliente en el contenedor vivo.
-    if (esDockerRootless(opciones)) return { ok: false, detalle: DETALLE_DOCKER_ROOTLESS }
+    if (esDockerRootless(opciones)) return { ok: false, detalle: detalleDockerRootless() }
     return { ok: true, detalle: version }
   }
 
@@ -108,18 +109,12 @@ export class DiagnosticoSandbox {
         const parsed = JSON.parse(r.stdout) as DockerInspectState[]
         return parsed[0] ?? null
       } catch {
-        throw new Error(
-          `docker inspect ${name} devolvió una salida que no se pudo interpretar; ` +
-            'no se toca nada del perfil hasta poder consultarlo.'
-        )
+        throw new Error(txSandbox().diagnostico.salidaIlegible(name))
       }
     }
     // ÚNICO caso en que se puede afirmar que no existe (Docker no localiza este texto).
     if (/no such object|no such container/i.test(r.stderr)) return null
-    const motivo = r.error?.message || r.stderr.trim() || `docker salió con ${r.status}`
-    throw new Error(
-      `No se pudo consultar el estado del contenedor "${name}" (${motivo}). ` +
-        'No se recrea ni se desmonta nada: podría estar vivo.'
-    )
+    const motivo = r.error?.message || r.stderr.trim() || txSandbox().diagnostico.dockerSalio(r.status)
+    throw new Error(txSandbox().diagnostico.noSeConsulto(name, motivo))
   }
 }

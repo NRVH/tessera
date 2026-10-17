@@ -617,6 +617,26 @@ function dispose(r: Estado): void {
   r.pauseCancel = null
 }
 
+/**
+ * Rastreador que no deduce nada: el de un agente MANUAL, del que Tessera no sabe leer los turnos.
+ * Siempre 'idle': sin punto de «trabajando» ni aviso de fin.
+ */
+export function crearRastreadorInerte(): ActivityTracker {
+  const nada = (): void => {}
+  return {
+    onData: nada,
+    onInput: nada,
+    onTurnMark: nada,
+    suppress: nada,
+    setPaused: nada,
+    finish: nada,
+    state: () => 'idle',
+    motivoEspera: () => null,
+    esperandoRespuesta: () => false,
+    dispose: nada
+  }
+}
+
 /** Scheduler de producción: envuelve setTimeout/clearTimeout de Node/Electron. */
 export function realScheduler(fn: () => void, ms: number): () => void {
   const t = setTimeout(fn, ms)

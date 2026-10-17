@@ -7,6 +7,7 @@
 // =============================================================================
 import type { DbMotor } from '../../shared/db-ipc'
 import { plataformaActual, type Plataforma } from '../../shared/plataforma.ts'
+import { txDb } from './textosDb.ts'
 
 /** Un cliente de base de datos descargable o registrable, tal como se declara en el catálogo. */
 export interface DriverPackDef {
@@ -311,10 +312,7 @@ export function disponibilidadPack(
     if (macos !== null && macos < pack.macosMinimo) {
       return {
         ok: false,
-        motivo:
-          `${pack.nombre} necesita macOS ${pack.macosMinimo} o posterior, y este Mac tiene ` +
-          `macOS ${macos}: sus bibliotecas no cargarían. Con un cliente que sí funcione ` +
-          'aquí, usa "Seleccionar carpeta…".'
+        motivo: txDb().drivers.necesitaMacos(pack.nombre, pack.macosMinimo, macos)
       }
     }
   }

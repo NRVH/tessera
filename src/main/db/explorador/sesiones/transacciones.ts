@@ -19,6 +19,7 @@ import type { EsquemaConsola } from './esquemaConsola.ts'
 import type { NucleoSesiones } from './NucleoSesiones.ts'
 import type { Procesos } from './procesos.ts'
 import { capacidades, efectoTx, listaConProcesoVivo, rechazoDe } from './reglas.ts'
+import { txSesiones } from './textosSesiones.ts'
 import type { Proceso, RefConsola, ResolucionEnBloque, Sesion } from './tipos.ts'
 
 /** Transacciones y estado de las consolas. */
@@ -112,7 +113,7 @@ export class Transacciones {
    */
   async txConsola(ref: RefConsola, accion: DbResolverTx, confirmado?: boolean): Promise<DbRespuesta<DbEstadoSesion>> {
     if (accion !== 'commit' && accion !== 'rollback') {
-      return { ok: false, error: { motivo: 'interno', mensaje: 'Acción de transacción desconocida.' } }
+      return { ok: false, error: { motivo: 'interno', mensaje: txSesiones().accionTxDesconocida } }
     }
     let s: Sesion
     try {
@@ -124,7 +125,7 @@ export class Transacciones {
     } catch (e) {
       return this.ap.respuestaDeFallo(e)
     }
-    if (s.operacionUsuario !== null) return { ok: false, error: { motivo: 'ocupada', mensaje: 'La consola está ejecutando.' } }
+    if (s.operacionUsuario !== null) return { ok: false, error: { motivo: 'ocupada', mensaje: txSesiones().consolaEjecutando } }
     s.operacionUsuario = `tx:${accion}`
     try {
       return await s.cola.correr(
@@ -148,10 +149,10 @@ export class Transacciones {
   /** Cambia el modo de transacción (Manual -> Auto con tx viva exige `resolver`). */
   async modoTx(ref: RefConsola, modo: DbTxModo, resolver?: DbResolverTx): Promise<DbRespuesta<DbEstadoSesion>> {
     if (modo !== 'auto' && modo !== 'manual') {
-      return { ok: false, error: { motivo: 'interno', mensaje: 'Modo de transacción desconocido.' } }
+      return { ok: false, error: { motivo: 'interno', mensaje: txSesiones().modoTxDesconocido } }
     }
     if (resolver !== undefined && resolver !== 'commit' && resolver !== 'rollback') {
-      return { ok: false, error: { motivo: 'interno', mensaje: 'Resolución de transacción desconocida.' } }
+      return { ok: false, error: { motivo: 'interno', mensaje: txSesiones().resolucionDesconocida } }
     }
     let s: Sesion
     try {
@@ -160,7 +161,7 @@ export class Transacciones {
     } catch (e) {
       return this.ap.respuestaDeFallo(e)
     }
-    if (s.operacionUsuario !== null) return { ok: false, error: { motivo: 'ocupada', mensaje: 'La consola está ejecutando.' } }
+    if (s.operacionUsuario !== null) return { ok: false, error: { motivo: 'ocupada', mensaje: txSesiones().consolaEjecutando } }
     s.operacionUsuario = `modo:${modo}`
     try {
       return await s.cola.correr(
@@ -204,11 +205,11 @@ export class Transacciones {
    */
   async cerrarSesionConsola(perfilId: string, consolaId: string, resolver?: DbResolverTx): Promise<DbRespuesta<void>> {
     if (resolver !== undefined && resolver !== 'commit' && resolver !== 'rollback') {
-      return { ok: false, error: { motivo: 'interno', mensaje: 'Resolución de transacción desconocida.' } }
+      return { ok: false, error: { motivo: 'interno', mensaje: txSesiones().resolucionDesconocida } }
     }
     const s = this.n.sesionDeConsola(perfilId, consolaId)
     if (!s || s.eliminada) return { ok: true, valor: undefined }
-    if (s.operacionUsuario !== null) return { ok: false, error: { motivo: 'ocupada', mensaje: 'La consola está ejecutando.' } }
+    if (s.operacionUsuario !== null) return { ok: false, error: { motivo: 'ocupada', mensaje: txSesiones().consolaEjecutando } }
     s.operacionUsuario = 'cerrar'
     try {
       return await s.cola.correr(
@@ -258,7 +259,7 @@ export class Transacciones {
     } catch (e) {
       return this.ap.respuestaDeFallo(e)
     }
-    if (s.operacionUsuario !== null) return { ok: false, error: { motivo: 'ocupada', mensaje: 'La consola está ejecutando.' } }
+    if (s.operacionUsuario !== null) return { ok: false, error: { motivo: 'ocupada', mensaje: txSesiones().consolaEjecutando } }
     s.operacionUsuario = 'esquema'
     const d = dialectoDeMotor(con.motor)
     try {
@@ -340,7 +341,7 @@ export class Transacciones {
           if (r) return this.rechazo(s, r).error
           const t = efectoTx(ef)
           if (t) await this.ejecutarTx(s, t)
-          if (tieneTxPendiente(s.estado)) return { motivo: 'txPendiente', mensaje: 'La transacción sigue pendiente.' }
+          if (tieneTxPendiente(s.estado)) return { motivo: 'txPendiente', mensaje: txSesiones().txSigue }
           return null
         },
         { prioridad: 'alta' }

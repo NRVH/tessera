@@ -10,6 +10,7 @@ import type { ConexionSshPersistida } from '../conservarAlEditarSsh.ts'
 import type { ModoLineaSsh } from '../lineaSsh.ts'
 import { configSaltos, hostDeSalto, proxyCommand, type CitaProxy } from '../saltosSsh.ts'
 import { errorHost, errorPuerto, errorUsuario } from '../validacionSsh.ts'
+import { txSsh } from '../textos.ts'
 
 /** Lo que necesita. */
 export interface DepsLineaSaltos {
@@ -37,9 +38,9 @@ export function citaDe(plataforma: Plataforma, origen: string | null): CitaProxy
 /** Lo que impide usar un bastión, para el usuario; `null` si vale. */
 export function problemaDeSalto(s: ConexionSshPersistida, d: Pick<DepsLineaSaltos, 'existe' | 'rutaClave'>): string | null {
   const dato = errorHost(s.host) ?? errorPuerto(s.puerto) ?? errorUsuario(s.usuario)
-  if (dato !== null) return `El bastión «${s.alias}» tiene un dato que no vale: ${dato} Edítalo para corregirlo.`
+  if (dato !== null) return txSsh().saltos.datoMalo(s.alias, dato)
   if (s.metodo === 'clave' && (s.clave === undefined || !d.existe(d.rutaClave(s.id)))) {
-    return `El bastión «${s.alias}» usa un archivo de clave y falta la copia que guardó Tessera: edítalo y vuelve a elegir el archivo.`
+    return txSsh().saltos.sinCopiaClave(s.alias)
   }
   return null
 }
@@ -67,7 +68,7 @@ export function proxyDeSaltos(cadena: readonly ConexionSshPersistida[], p: Petic
   } catch (e) {
     // El error de `fs` lleva la ruta del host.
     const codigo = (e as NodeJS.ErrnoException)?.code ?? 'desconocido'
-    throw new Error(`No se pudo preparar el salto por el bastión (${codigo}).`, { cause: e })
+    throw new Error(txSsh().saltos.noSePreparo(codigo), { cause: e })
   }
   return hacia(0)
 }

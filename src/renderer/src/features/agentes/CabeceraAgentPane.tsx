@@ -11,8 +11,10 @@ import { ProfileDot, ModeIcon } from '../pestanas'
 import { PuntoMosaico } from '../mosaico'
 import { etiquetaModPrincipal } from '../../util/atajos'
 import { IconoCerrar } from '../../comun/iconosMenu'
-import { AGENT_LABEL, AGENT_LABEL_SHORT, type MosaicoPane } from './agentPaneTipos'
-import { rotuloHistorialConversaciones, textosMontajeBases } from './textosMontajeBases'
+import { agenteManualDe, nombreAgente, type MosaicoPane } from './agentPaneTipos'
+import { PestanasAgente } from './PestanasAgente'
+import { rotuloHistorialConversaciones, textosMontajeBases, type LugarAgente } from './textosMontajeBases'
+import { txPane } from './textosPane.ts'
 import { IconoMaximizar, IconoRestaurar } from '../../comun/iconosPanel'
 import {
   AccountIcon, CaretIcon, DbMountIcon, HistoryIcon, IconoCaret, IrAlProyectoIcon, NewChatIcon, UpdateIcon
@@ -37,7 +39,7 @@ function BotonBases({ m }: PropsParte): React.JSX.Element | null {
       className={`btn btn-icon db-mount-btn${p.dbMounted.length > 0 ? ' activo' : ''}`}
       onClick={() => montaje.setShowDbMount((v) => !v)}
       title={textosBases.rotuloBoton}
-      aria-label="Bases de datos montadas"
+      aria-label={txPane().cabecera.basesAria}
       aria-pressed={montaje.showDbMount}
     >
       <DbMountIcon />
@@ -66,7 +68,7 @@ function BotonNombreCasilla({ m, mosaico }: PropsParte & { mosaico: MosaicoPane 
       }}
       aria-haspopup="menu"
       aria-expanded={menuDestinos !== null}
-      title={`${mosaico.perfil} · ${mosaico.proyecto} · ${AGENT_LABEL[m.p.target.agente]} — elegir qué proyecto se ve aquí`}
+      title={txPane().cabecera.elegirProyecto(mosaico.perfil, mosaico.proyecto, nombreAgente(m.p.pestanasAgente, m.p.target.agente))}
     >
       <span className="casilla-nombre">
         <span className="casilla-perfil">{mosaico.perfil}</span>
@@ -81,17 +83,19 @@ function BotonNombreCasilla({ m, mosaico }: PropsParte & { mosaico: MosaicoPane 
 }
 
 function tituloOtroAgente(otro: NonNullable<MosaicoPane['otroAgente']>): string {
-  if (otro.esperando) return `${AGENT_LABEL[otro.agente]} te está ESPERANDO en este proyecto: pulsa para verlo aquí`
-  if (otro.trabajando) return `${AGENT_LABEL[otro.agente]} está TRABAJANDO en este proyecto: pulsa para verlo aquí`
-  if (otro.sinVer) return `${AGENT_LABEL[otro.agente]} terminó y no lo has revisado: pulsa para verlo aquí`
-  return `Ver ${AGENT_LABEL[otro.agente]} de este proyecto en esta casilla`
+  const t = txPane().cabecera
+  if (otro.esperando) return t.otroEsperando(otro.nombre)
+  if (otro.trabajando) return t.otroTrabajando(otro.nombre)
+  if (otro.sinVer) return t.otroSinVer(otro.nombre)
+  return t.otroVer(otro.nombre)
 }
 
-/** La etiqueta del agente es el conmutador al otro agente del proyecto, SOLO en esta casilla. */
+/** La etiqueta del agente es el conmutador al siguiente agente del proyecto, SOLO en esta casilla. */
 function ChipAgente({ m, mosaico }: PropsParte & { mosaico: MosaicoPane }): React.JSX.Element {
   const { agente } = m.p.target
+  const corta = m.p.pestanasAgente.find((x) => x.id === agente)?.corta ?? nombreAgente(m.p.pestanasAgente, agente)
   const otro = mosaico.otroAgente
-  if (!otro) return <span className="casilla-agente">{AGENT_LABEL_SHORT[agente]}</span>
+  if (!otro) return <span className="casilla-agente">{corta}</span>
   return (
     <button
       type="button"
@@ -100,9 +104,9 @@ function ChipAgente({ m, mosaico }: PropsParte & { mosaico: MosaicoPane }): Reac
         if (mosaico.otroAgente) mosaico.onElegirDestino(mosaico.otroAgente.key)
       }}
       title={tituloOtroAgente(otro)}
-      aria-label={`Cambiar a ${AGENT_LABEL[otro.agente]}`}
+      aria-label={txPane().cabecera.cambiarA(otro.nombre)}
     >
-      {AGENT_LABEL_SHORT[agente]}
+      {corta}
       {/* El otro agente reclama: sin este punto su trabajo quedaría invisible. */}
       {(otro.trabajando || otro.sinVer || otro.esperando) && (
         <PuntoMosaico color={mosaico.color} trabajando={otro.trabajando} sinVer={otro.sinVer} esperando={otro.esperando} />
@@ -130,8 +134,8 @@ function BotonModo({ m, mosaico }: PropsParte & { mosaico: MosaicoPane }): React
       }}
       aria-haspopup="menu"
       aria-expanded={menuModo !== null}
-      title={`Modo ${hostMode ? 'nativo' : 'contenedor'}: cambiarlo reinicia la sesión de este proyecto`}
-      aria-label={`Modo ${hostMode ? 'nativo' : 'contenedor'}`}
+      title={txPane().cabecera.modoTitulo(hostMode)}
+      aria-label={txPane().cabecera.modo(hostMode)}
     >
       {icono}
     </button>
@@ -157,60 +161,51 @@ function IdentidadCasilla({ m, mosaico }: PropsParte & { mosaico: MosaicoPane })
   )
 }
 
-/** Selector segmentado de agente; el CSS elige nombre completo o abreviatura por ancho. */
+/** Pestañas de agente; en un proyecto, con el «+» y sus menús. */
 function SelectorAgente({ m }: PropsParte): React.JSX.Element {
-  const { agentsInProfile, onSelectAgent } = m.p
-  const { agente } = m.p.target
+  const { pestanasAgente, onSelectAgent, target, hostMode, lugar } = m.p
   return (
-    <span className="agent-switch" role="tablist" aria-label="Agente">
-      {agentsInProfile.map((a) => (
-        <button
-          key={a}
-          type="button"
-          role="tab"
-          aria-selected={a === agente}
-          className={`agent-switch-btn${a === agente ? ' active' : ''}`}
-          onClick={() => {
-            if (a !== agente) onSelectAgent?.(m.p.target.profileId, a)
-          }}
-          title={`Cambiar a ${AGENT_LABEL[a]}`}
-          aria-label={AGENT_LABEL[a]}
-        >
-          <span className="agent-switch-full">{AGENT_LABEL[a]}</span>
-          <span className="agent-switch-short" aria-hidden="true">
-            {AGENT_LABEL_SHORT[a]}
-          </span>
-        </button>
-      ))}
-    </span>
+    <PestanasAgente
+      pestanas={pestanasAgente}
+      activo={target.agente}
+      profileId={target.profileId}
+      hostMode={hostMode}
+      soloElegir={lugar !== 'proyecto'}
+      onSelect={(id) => onSelectAgent?.(target.profileId, id)}
+    />
   )
 }
 
 /**
  * Historial y chat nuevo, pegados al selector porque actúan sobre la conversación del
- * agente elegido. El historial va primero: el chat nuevo abandona el hilo en curso.
+ * agente elegido. El historial va primero: el chat nuevo abandona el hilo en curso. Un agente
+ * manual no tiene historial que leer, solo el chat nuevo (sin sus argumentos de reanudar).
  */
 function AccionesConversacion({ m }: PropsParte): React.JSX.Element {
   const { s, ui, p } = m
+  const manual = agenteManualDe(p.pestanasAgente, p.target.agente) !== null
+  const t = txPane().cabecera
   return (
     <span className="panel-title-actions">
-      <button
-        type="button"
-        className="btn btn-icon"
-        onClick={() => ui.setShowHistory(true)}
-        disabled={s.actualizando}
-        title={rotuloHistorialConversaciones(p.lugar)}
-        aria-label="Historial de conversaciones"
-      >
-        <HistoryIcon />
-      </button>
+      {!manual && (
+        <button
+          type="button"
+          className="btn btn-icon"
+          onClick={() => ui.setShowHistory(true)}
+          disabled={s.actualizando}
+          title={rotuloHistorialConversaciones(p.lugar)}
+          aria-label={t.historialAria}
+        >
+          <HistoryIcon />
+        </button>
+      )}
       <button
         type="button"
         className="btn btn-icon"
         onClick={() => m.sesion.nueva()}
         disabled={!s.sessionId || s.status === 'booting' || s.reloading || s.actualizando}
-        title="Nueva conversación (empieza un chat nuevo, sin reanudar el último)"
-        aria-label="Nueva conversación"
+        title={t.nuevaTitulo}
+        aria-label={t.nuevaAria}
       >
         <NewChatIcon />
       </button>
@@ -230,7 +225,7 @@ function BotonCuenta({ m }: PropsParte): React.JSX.Element | null {
         const r = e.currentTarget.getBoundingClientRect()
         m.ui.setAccountMenu({ x: r.left, y: r.bottom + 4 })
       }}
-      title={`Cuenta: ${currentAccount.nombre}`}
+      title={txPane().cabecera.cuenta(currentAccount.nombre)}
     >
       <AccountIcon />
       <span className="account-btn-name">{currentAccount.nombre}</span>
@@ -239,9 +234,19 @@ function BotonCuenta({ m }: PropsParte): React.JSX.Element | null {
   )
 }
 
-/** En una casilla: ampliar la casilla (mismo gesto que maximizar) e ir al proyecto. */
-function AccionesCasilla({ mosaico }: { mosaico: MosaicoPane }): React.JSX.Element {
+/** «Ir a» lleva a donde vive el agente: su proyecto, la vista de bases de datos o la terminal. */
+function textosIrA(lugar: LugarAgente): { titulo: string; aria: string } {
+  const t = txPane().cabecera
+  if (lugar === 'datos') return { titulo: t.irADatos, aria: t.irADatosAria }
+  if (lugar === 'terminal') return { titulo: t.irALaTerminal, aria: t.irALaTerminalAria }
+  return { titulo: t.irAlProyecto, aria: t.irAlProyectoAria }
+}
+
+/** En una casilla: ampliar la casilla (mismo gesto que maximizar) e ir a donde vive el agente. */
+function AccionesCasilla({ mosaico, lugar }: { mosaico: MosaicoPane; lugar: LugarAgente }): React.JSX.Element {
   const mod = etiquetaModPrincipal()
+  const t = txPane().cabecera
+  const irA = textosIrA(lugar)
   return (
     <>
       <button
@@ -249,12 +254,8 @@ function AccionesCasilla({ mosaico }: { mosaico: MosaicoPane }): React.JSX.Eleme
         className={`btn btn-icon${mosaico.ampliada ? ' active' : ''}`}
         onClick={mosaico.onAmpliar}
         aria-pressed={mosaico.ampliada}
-        title={
-          mosaico.ampliada
-            ? `Restaurar: vuelve a enseñar todo el mosaico (${mod}+Shift+Enter)`
-            : `Ampliar: esta terminal ocupa todo el mosaico (${mod}+Shift+Enter)`
-        }
-        aria-label={mosaico.ampliada ? 'Restaurar el mosaico' : 'Ampliar esta terminal'}
+        title={mosaico.ampliada ? t.restaurarMosaico(mod) : t.ampliar(mod)}
+        aria-label={mosaico.ampliada ? t.restaurarMosaicoAria : t.ampliarAria}
       >
         {mosaico.ampliada ? <IconoRestaurar /> : <IconoMaximizar />}
       </button>
@@ -262,8 +263,8 @@ function AccionesCasilla({ mosaico }: { mosaico: MosaicoPane }): React.JSX.Eleme
         type="button"
         className="btn btn-icon"
         onClick={mosaico.onIrAlProyecto}
-        title="Ir al proyecto: sale del mosaico y abre esta terminal en la vista normal"
-        aria-label="Ir al proyecto"
+        title={irA.titulo}
+        aria-label={irA.aria}
       >
         <IrAlProyectoIcon />
       </button>
@@ -272,22 +273,24 @@ function AccionesCasilla({ mosaico }: { mosaico: MosaicoPane }): React.JSX.Eleme
 }
 
 /** Lo que tapa el agente al maximizarse: los archivos abiertos o, el de la terminal, las terminales. */
-const TEXTOS_RESTAURAR = {
-  archivos: { titulo: 'Restaurar: vuelve a mostrar los archivos abiertos', aria: 'Restaurar editor', sinCerrar: 'archivos' },
-  terminales: { titulo: 'Restaurar: vuelve a mostrar las terminales abiertas', aria: 'Restaurar terminales', sinCerrar: 'terminales' }
-} as const
+function textosRestaurar(lugar: string): { titulo: string; aria: string; sinCerrar: string } {
+  const c = txPane().cabecera
+  return lugar === 'terminal'
+    ? { titulo: c.restaurarTerminales, aria: c.restaurarTerminalesAria, sinCerrar: c.sinCerrarTerminales }
+    : { titulo: c.restaurarArchivos, aria: c.restaurarArchivosAria, sinCerrar: c.sinCerrarArchivos }
+}
 
 /** Maximizar/restaurar el agente sobre lo que tiene al lado. */
 function BotonMaximizar({ m }: PropsParte): React.JSX.Element {
   const { expanded, onToggleExpand } = m.p
-  const t = TEXTOS_RESTAURAR[m.p.lugar === 'terminal' ? 'terminales' : 'archivos']
-  const agente = AGENT_LABEL[m.p.target.agente]
+  const t = textosRestaurar(m.p.lugar)
+  const agente = nombreAgente(m.p.pestanasAgente, m.p.target.agente)
   return (
     <button
       className="btn btn-icon"
       onClick={onToggleExpand}
-      title={expanded ? t.titulo : `Maximizar: ${agente} ocupa todo el espacio (sin cerrar ${t.sinCerrar})`}
-      aria-label={expanded ? t.aria : `Maximizar ${agente}`}
+      title={expanded ? t.titulo : txPane().cabecera.maximizar(agente, t.sinCerrar)}
+      aria-label={expanded ? t.aria : txPane().cabecera.maximizarAria(agente)}
     >
       {expanded ? <IconoRestaurar /> : <IconoMaximizar />}
     </button>
@@ -308,8 +311,8 @@ function BotonCerrar({ m }: PropsParte): React.JSX.Element | null {
       onClick={() => onCerrar(m.p.target.profileId)}
       // A mitad de una actualización el pane está bloqueado: el orquestador cuenta con él.
       disabled={m.s.actualizando}
-      title="Cerrar el agente de la terminal: termina su sesión y libera la memoria que ocupa (la conversación queda en el historial)"
-      aria-label="Cerrar el agente de la terminal"
+      title={txPane().cabecera.cerrarAgente}
+      aria-label={txPane().cabecera.cerrarAgenteAria}
     >
       <IconoCerrar />
     </button>
@@ -323,7 +326,7 @@ function AccionesPanel({ m }: PropsParte): React.JSX.Element {
     <div className="panel-actions">
       {!mosaico && <BotonBases m={m} />}
       <BotonCuenta m={m} />
-      {mosaico && <AccionesCasilla mosaico={mosaico} />}
+      {mosaico && <AccionesCasilla mosaico={mosaico} lugar={m.p.lugar} />}
       {!mosaico && canExpand && <BotonMaximizar m={m} />}
       {!mosaico && <BotonCerrar m={m} />}
     </div>
@@ -341,16 +344,16 @@ function alDobleClic(mosaico: MosaicoPane | null): React.MouseEventHandler | und
 
 /** Cabecera del pane del agente. */
 export function CabeceraAgentPane({ m }: PropsParte): React.JSX.Element {
-  const { mosaico, agentsInProfile, hostMode } = m.p
+  const { mosaico, pestanasAgente, hostMode, lugar } = m.p
   return (
     <header className="panel-header" onDoubleClick={alDobleClic(mosaico)}>
       <span className="panel-title">
         {mosaico ? (
           <IdentidadCasilla m={m} mosaico={mosaico} />
-        ) : agentsInProfile.length > 1 ? (
+        ) : pestanasAgente.length > 1 || lugar === 'proyecto' ? (
           <SelectorAgente m={m} />
         ) : (
-          AGENT_LABEL[m.p.target.agente]
+          nombreAgente(pestanasAgente, m.p.target.agente)
         )}
         <AccionesConversacion m={m} />
         {/* Actualizar agentes rehornea la IMAGEN: ni en nativo (tiene su botón en la barra
@@ -360,8 +363,8 @@ export function CabeceraAgentPane({ m }: PropsParte): React.JSX.Element {
             type="button"
             className="btn btn-icon panel-name-btn"
             onClick={() => m.ui.setShowAgentsUpdate(true)}
-            title="Actualizar agentes (Codex y Claude Code) a la última versión"
-            aria-label="Actualizar agentes"
+            title={txPane().cabecera.actualizarAgentes}
+            aria-label={txPane().cabecera.actualizarAgentesAria}
           >
             <UpdateIcon />
           </button>

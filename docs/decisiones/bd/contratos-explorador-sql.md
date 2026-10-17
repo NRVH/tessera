@@ -19,8 +19,8 @@ ataría las pruebas del uno a las del otro. Este archivo solo importa tipos de `
   sentencias sin eventos (un `webContents.send` dentro de un handler llega antes que la respuesta). El
   main vuelve a partir el texto con `shared/sql` y rechaza si no sale exactamente una sentencia: la
   autoridad nunca se fía de lo que clasificó el renderer.
-- Las filas viajan como `filasJson: string` opaco: con objetos, una página de 500 x 100 celdas se
-  clonaba tres veces en profundidad, la primera en el hilo principal del main.
+- Las filas viajan como `filasJson: string` opaco: con objetos, una página grande se
+  clonaría varias veces en profundidad, la primera en el hilo principal del main.
 - `DbErrorSql.posicion` llega en UTF-16, relativa al texto enviado y convertida solo en el main
   ([sql-posicion-error.md](sql-posicion-error.md)). La salida del servidor y los errores de
   compilación viajan dentro del resultado de su sentencia. Exportar lo escribe el main

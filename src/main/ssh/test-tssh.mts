@@ -312,6 +312,7 @@ try {
       listar: () => conexiones.listar(),
       conexion: (id) => conexiones.conexion(id),
       rutaHuellas: (id) => conexiones.rutaHuellas(id),
+      carpetaHuellas: conexiones.carpetaHuellas,
       rutaClave: (id) => conexiones.rutaClave(id),
       askpass,
       binarios: () => binarios,
@@ -366,8 +367,11 @@ try {
     const argsCp = cp.args as string[]
     check('(d16) preparar cp: scp con -S de su misma carpeta, -r, y el host IPv6 entre corchetes', cp.exe === binarios.scp && argsCp[1] === path.join(dirSsh, esWindows() ? 'ssh.exe' : 'ssh') && argsCp.includes('-r') && cp.host === '[2001:db8::1]', j({ exe: cp.exe, s: argsCp[1], host: cp.host }))
 
-    const fin = pedir(tokenA, 'ssh.terminar', { ficha: conPw.ficha, alias: conPw.alias, uso: 'run', codigo: 255, ms: 812, cola: 'echo hola-secreto-remoto\nHost key verification failed.\n' })
+    const aviso = (ruta: string): string => `echo hola-secreto-remoto\nOffending ED25519 key in ${ruta}:1\nHost key verification failed.\n`
+    const fin = pedir(tokenA, 'ssh.terminar', { ficha: conPw.ficha, alias: conPw.alias, uso: 'run', codigo: 255, ms: 812, cola: aviso(conexiones.rutaHuellas(nas.id)) })
     check('(d17) terminar: revoca la ficha y clasifica un 255 de huella con su pista', fichas.cuantas === antes && fin.motivo === 'ssh-huella-cambiada' && String(fin.pista).includes('Olvidar la huella guardada'), j(fin).slice(0, 120))
+    const anidada = pedir(tokenA, 'ssh.terminar', { alias: 'web', uso: 'run', codigo: 255, ms: 9, cola: aviso('/root/.ssh/known_hosts') })
+    check('(d17b) la huella de un ssh lanzado en el equipo remoto no es de la conexión: sin motivo ni pista', anidada.ok === true && anidada.motivo === undefined && anidada.pista === undefined, j(anidada).slice(0, 120))
     const auth = pedir(tokenA, 'ssh.terminar', { alias: 'web', uso: 'run', codigo: 255, ms: 5, cola: 'pruebas@192.0.2.10: Permission denied (publickey,password).\n' })
     const remoto = pedir(tokenA, 'ssh.terminar', { alias: 'web', uso: 'run', codigo: 255, ms: 5, cola: 'mi programa falló\n' })
     check('(d18) autenticación con su pista; un 255 sin mensaje de ssh no se clasifica (pudo ser el remoto)', auth.motivo === 'ssh-autenticacion' && String(auth.pista).includes('No pidas') && remoto.motivo === undefined, j({ auth: auth.motivo, remoto: remoto.motivo }))
@@ -414,7 +418,7 @@ try {
     const conexiones = new ConexionesSsh({ storePath: path.join(userData, 'ssh-connections.json'), dirHuellas, dirClaves: path.join(userData, 'ssh', 'claves'), cifrado: cifradoFalso, log: () => {} })
     conexiones.crear(entrada('router'))
     const puente = new DbBridge({ conexionesDelPerfil: () => [], secretoDe: () => null, log: () => {} })
-    new PuenteTssh({ puerta: puente, listar: () => conexiones.listar(), conexion: (id) => conexiones.conexion(id), rutaHuellas: (id) => conexiones.rutaHuellas(id), rutaClave: (id) => conexiones.rutaClave(id), askpass: null, binarios: () => resolverBinariosSsh(), existe: existsSync, programaAskpass: '', nombrePerfil: () => undefined, auditar: () => {}, plataforma })
+    new PuenteTssh({ puerta: puente, listar: () => conexiones.listar(), conexion: (id) => conexiones.conexion(id), rutaHuellas: (id) => conexiones.rutaHuellas(id), carpetaHuellas: conexiones.carpetaHuellas, rutaClave: (id) => conexiones.rutaClave(id), askpass: null, binarios: () => resolverBinariosSsh(), existe: existsSync, programaAskpass: '', nombrePerfil: () => undefined, auditar: () => {}, plataforma })
     puente.start()
     await esperarHasta(() => puente.listo, 3000)
     const { env } = construirEntornoHost(
@@ -499,6 +503,7 @@ async function atajosReales(): Promise<void> {
     listar: () => conexiones.listar(),
     conexion: (id) => conexiones.conexion(id),
     rutaHuellas: (id) => conexiones.rutaHuellas(id),
+    carpetaHuellas: conexiones.carpetaHuellas,
     rutaClave: (id) => conexiones.rutaClave(id),
     askpass: null,
     binarios: () => ({ ssh: { exe: process.execPath, args: [sshFalso] }, scp: null, sshKeygen: null, origen: 'sistema', aviso: null, dePrueba: true }),
@@ -608,6 +613,7 @@ async function pruebaReal(): Promise<void> {
     listar: () => conexiones.listar(),
     conexion: (id) => conexiones.conexion(id),
     rutaHuellas: (id) => conexiones.rutaHuellas(id),
+    carpetaHuellas: conexiones.carpetaHuellas,
     rutaClave: (id) => conexiones.rutaClave(id),
     askpass,
     binarios: () => resolverBinariosSsh(),

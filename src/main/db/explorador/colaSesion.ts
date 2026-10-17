@@ -6,6 +6,8 @@
 // Decisiones: docs/decisiones/bd/sesiones-procesos-y-autoridad.md
 // =============================================================================
 
+import { txCola } from './textosExplorador.ts'
+
 export type PrioridadCola = 'alta' | 'normal' | 'baja'
 
 export interface OpcionesTarea {
@@ -32,13 +34,7 @@ export class ErrorCola extends Error {
   readonly clave: string | undefined
 
   constructor(motivo: MotivoCola, clave: string | undefined) {
-    super(
-      motivo === 'cancelada'
-        ? 'Operación cancelada antes de empezar'
-        : motivo === 'descartada'
-          ? 'Operación sustituida por una petición más reciente'
-          : 'Operación descartada: la sesión se cerró'
-    )
+    super(txCola()[motivo])
     this.name = 'ErrorCola'
     this.motivo = motivo
     this.clave = clave

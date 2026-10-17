@@ -11,6 +11,7 @@ import type { DbEstadoSesion } from '../../../../../shared/db-explorador-ipc'
 import { descriptorSql } from '../../../../../shared/motores/index'
 import { ejecutando as hayEjecucion } from './estadoConsola'
 import type { EjecucionEnCurso } from './tiposConsola'
+import { txPane } from './textosPane.ts'
 import type { DialogosConsola } from './useConsolaDialogos'
 import { pintarMarcas } from './useConsolaLote'
 import type { NucleoConsola } from './useConsolaNucleo'
@@ -84,16 +85,16 @@ async function forzarCierre(
   const alcance = alcanceForzar(descriptorSql(c.motor).sesion.procesoPorSesion)
   const soloConsola = alcance === 'consola' ? { perfilId, consolaId } : undefined
   const ok = await pedirConfirmacion({
-    titulo: alcance === 'consola' ? 'Forzar el cierre de la sesión' : 'Forzar el cierre de la conexión',
+    titulo: alcance === 'consola' ? txPane().forzarSesion : txPane().forzarConexion,
     mensaje: mensajeForzar(c.alias, txEnRiesgo(sesiones, c.id, nombres, soloConsola), alcance),
-    confirmar: 'Forzar el cierre',
+    confirmar: txPane().forzarConfirmar,
     peligro: true
   })
   if (!ok) return
   try {
     await api.forzar(c.id, soloConsola)
   } catch (err) {
-    p.salida('error', `No se pudo forzar el cierre: ${mensajeDe(err)}`)
+    p.salida('error', txPane().noSePudoForzar(mensajeDe(err)))
   }
 }
 

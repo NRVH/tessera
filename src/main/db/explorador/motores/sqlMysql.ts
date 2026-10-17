@@ -7,7 +7,7 @@
 // =============================================================================
 
 import type { DbRefObjeto, DbTipoObjeto } from '../../../../shared/db-explorador-ipc.ts'
-import { noDisponible } from './filasCatalogo.ts'
+import { noDisponible, queFalta } from './filasCatalogo.ts'
 import type { ConsultaCatalogo, DialectoCatalogo } from './tipos.ts'
 
 /** Una consulta de MySQL: las líneas unidas por `\n` y sus binds en el orden de sus `?`. */
@@ -287,7 +287,7 @@ export function sqlFuente(d: DialectoCatalogo, ref: DbRefObjeto): ConsultaCatalo
         [ref.esquema, ref.nombre]
       )
     default:
-      return noDisponible(d.motor, `fuente de ${ref.tipo}`)
+      return noDisponible(d.motor, queFalta.fuenteDe(ref.tipo))
   }
 }
 

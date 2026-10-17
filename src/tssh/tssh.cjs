@@ -12,6 +12,7 @@ const { ayuda } = require('./tsshAyuda.cjs')
 const { cmdDoctor } = require('./tsshDoctor.cjs')
 const { cmdCp, cmdLs, cmdRun } = require('./tsshOrdenes.cjs')
 const { CODIGOS, ErrorTssh, aviso } = require('./tsshSalida.cjs')
+const { textosTssh } = require('./textosTssh.cjs')
 
 /** Despacha el subcomando y resuelve con el código de salida. */
 async function main(argv) {
@@ -39,6 +40,6 @@ main(process.argv.slice(2)).then(salir, (e) => {
     salir(e.codigo)
     return
   }
-  aviso(`fallo inesperado: ${e instanceof Error ? e.message : String(e)}`)
+  aviso(textosTssh().falloInesperado(e instanceof Error ? e.message : String(e)))
   salir(1)
 })

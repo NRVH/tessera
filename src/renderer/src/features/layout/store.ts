@@ -17,13 +17,13 @@ import {
   DEFAULT_TERMINAL_HEIGHT
 } from '../../../../shared/workspace-state-ipc'
 import { conMaximizado, type MaximizadosPerfil, type PanelInferiorCentro } from './layoutCentro'
-import type { MotivoCcOculto } from '../editor'
+import { conColumna, type ColumnaPerfil } from './columnaPorPerfil'
 
 /** Estado del layout; los mapas por perfil usan '' como clave de «sin perfil». */
 export interface EstadoLayout {
   vistaPorPerfil: Record<string, string>
   panelPorPerfil: Record<string, string>
-  /** La franja deja de retener `gitlog` en cuanto hay proyecto confirmado o el usuario la toca. */
+  /** La franja deja de retener `gitlog` en cuanto hay un proyecto que mirar o el usuario la toca. */
   franjaLibre: boolean
   sidebarWidthByView: Record<string, number>
   ccWidth: number
@@ -40,9 +40,8 @@ export interface EstadoLayout {
   agenteTerminalAncho: number
   activityBarOrder: string[]
   bottomBarOrder: string[]
-  /** Maximizado CRUDO de la columna del agente; lo que se pinta es el coherente. */
-  ccExpanded: boolean
-  ccOculto: MotivoCcOculto
+  /** Maximizado y oculto de la columna del agente de cada perfil (efímero): `columnaPorPerfil.ts`. */
+  columnaPorPerfil: Readonly<Record<string, ColumnaPerfil>>
   /** Lo que cada perfil tiene maximizado (efímero: no se persiste). Es la verdad; lo que se pinta se deriva. */
   maximizadoPorPerfil: Record<string, MaximizadosPerfil>
   /**
@@ -78,8 +77,7 @@ export const useStoreLayout = create<EstadoLayout>()(() => ({
   agenteTerminalAncho: AGENTE_TERMINAL_ANCHO_POR_DEFECTO,
   activityBarOrder: [...ACTIVITY_BAR_DEFAULT_ORDER],
   bottomBarOrder: [...BOTTOM_BAR_DEFAULT_ORDER],
-  ccExpanded: false,
-  ccOculto: 'no',
+  columnaPorPerfil: {},
   maximizadoPorPerfil: {},
   franjaPantallaCompleta: null,
   perfilALaVista: ''
@@ -94,6 +92,17 @@ export function fijarMaximizado(
   useStoreLayout.setState((s) => {
     const siguiente = conMaximizado(s.maximizadoPorPerfil, perfil, clave, valor)
     return siguiente === s.maximizadoPorPerfil ? s : { maximizadoPorPerfil: siguiente }
+  })
+}
+
+/** Cambia la columna del agente de `perfil` ('' = sin perfil; de serie, el que está a la vista); no repinta si no cambia nada. */
+export function fijarColumna(
+  cambio: Partial<ColumnaPerfil> | ((actual: ColumnaPerfil) => Partial<ColumnaPerfil>),
+  perfil: string = useStoreLayout.getState().perfilALaVista
+): void {
+  useStoreLayout.setState((s) => {
+    const siguiente = conColumna(s.columnaPorPerfil, perfil, cambio)
+    return siguiente === s.columnaPorPerfil ? s : { columnaPorPerfil: siguiente }
   })
 }
 

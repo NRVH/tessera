@@ -6,8 +6,8 @@
 ## Contexto
 
 Las dos terminales crean el mismo xterm, lo conectan con un canal IPC de la misma forma y lo
-desmontan devolviendo su WebGL. Eran dos copias que ya divergían sin motivo: la del shell cerraba
-la sesión con el pty aún pausado por la contrapresión.
+desmontan devolviendo su WebGL. Dos copias divergen sin motivo: una puede cerrar la sesión con el
+pty aún pausado por la contrapresión y la otra no.
 
 ## Decisión
 
@@ -27,7 +27,9 @@ la sesión con el pty aún pausado por la contrapresión.
   como opción, nunca como otra copia.
 - Siguen siendo distintos a propósito: la apertura y el reinicio de la sesión, el clic derecho (el
   agente pega si el CLI no sigue el ratón), el pegado de imágenes y archivos (el agente los copia al
-  contenedor), el tamaño enviado al pty (el agente no repite el mismo) y el diagnóstico del WebGL.
+  contenedor), el tamaño enviado al pty (el agente no repite el mismo y nace con el suyo), el
+  diagnóstico del WebGL y el buscador, que solo tiene la de shell (sin `setSearchResults` no se
+  carga el addon y Mod+F llega al programa).
 
 ## Descartes
 

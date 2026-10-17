@@ -21,6 +21,7 @@ import { descriptorSql, etiquetasSqlDonde, type DescriptorSql } from '../motores
 import { nunca } from '../nunca.ts'
 import { dialectoDeMotor, marcadorPosicional, reglasDeMotor } from './dialectosSql.ts'
 import { citar as citarNombre } from './identificadoresSql.ts'
+import { txSql } from './textosSql.ts'
 
 /**
  * Nombre de la columna OCULTA con el ROWID de Oracle (`ROWIDTOCHAR(ROWID)`), la ÚLTIMA
@@ -89,13 +90,13 @@ function identificaPorRowid(d: DescriptorSql): boolean {
  */
 function mensajeSinRowid(): string {
   const donde = etiquetasSqlDonde(identificaPorRowid)
-  return donde === '' ? 'Ningún motor identifica las filas por su ROWID.' : `ROWID solo existe en ${donde}.`
+  return donde === '' ? txSql().dml.ningunRowid : txSql().dml.soloRowid(donde)
 }
 
 /** Un valor de la clave leído de la rejilla, como texto de bind. */
 function valorDeClave(v: DbCelda, columna: string): string {
   if (v === null || v === undefined) {
-    throw new ErrorDml(`La clave de la fila tiene «${columna}» vacío (NULL): no se puede encontrar la fila.`)
+    throw new ErrorDml(txSql().dml.claveNula(columna))
   }
   if (typeof v === 'boolean') return v ? 'true' : 'false'
   return v
@@ -111,7 +112,7 @@ function valorOriginal(v: unknown, columna: string): DbValorEdicion {
   if (v === null) return null
   if (typeof v === 'string') return v
   if (typeof v === 'boolean') return v ? 'true' : 'false'
-  throw new ErrorDml(`El valor leído de «${columna}» no es texto: no se puede comprobar si la fila cambió.`)
+  throw new ErrorDml(txSql().dml.noTexto(columna))
 }
 
 class Constructor {
@@ -162,19 +163,19 @@ class Constructor {
   }
 
   private dondeIdentidad(identidad: DbIdentidadFila, clave: readonly DbCelda[]): [string, string] {
-    if (identidad.tipo === 'ninguna') throw new ErrorDml(identidad.motivo || 'Esta tabla no se puede editar.')
+    if (identidad.tipo === 'ninguna') throw new ErrorDml(identidad.motivo || txSql().dml.noEditable)
     if (identidad.tipo === 'rowid') {
       // Lo que no identifique la fila sin clave por su ROWID, lanza: nunca un `ROWID = …`
       // contra un motor que no lo tiene. El mensaje nombra los motores que SÍ lo tienen,
       // del registro (hoy, «ROWID solo existe en Oracle.», como siempre).
       if (!identificaPorRowid(descriptorSql(this.motor))) throw new ErrorDml(mensajeSinRowid())
-      if (clave.length !== 1) throw new ErrorDml('La clave de la fila no cuadra con su ROWID.')
+      if (clave.length !== 1) throw new ErrorDml(txSql().dml.claveRowid)
       const [m, l] = this.valor(valorDeClave(clave[0], 'ROWID'), null, true)
       return [`ROWID = ${m}`, `ROWID = ${l}`]
     }
-    if (identidad.columnas.length === 0) throw new ErrorDml('La tabla no tiene clave con la que encontrar la fila.')
+    if (identidad.columnas.length === 0) throw new ErrorDml(txSql().dml.sinClave)
     if (clave.length !== identidad.columnas.length) {
-      throw new ErrorDml('La clave de la fila no cuadra con la clave de la tabla: vuelve a abrirla.')
+      throw new ErrorDml(txSql().dml.claveDistinta)
     }
     const sql: string[] = []
     const vista: string[] = []
@@ -238,7 +239,7 @@ export function sentenciaDeCambio(
   switch (cambio.tipo) {
     case 'actualizar': {
       const columnas = Object.keys(cambio.valores)
-      if (columnas.length === 0) throw new ErrorDml('No hay ninguna celda cambiada en la fila.')
+      if (columnas.length === 0) throw new ErrorDml(txSql().dml.sinCambios)
       const setSql: string[] = []
       const setVista: string[] = []
       for (const c of columnas) {
@@ -255,7 +256,7 @@ export function sentenciaDeCambio(
     case 'insertar': {
       const columnas = Object.keys(cambio.valores)
       if (columnas.length === 0) {
-        if (!reglasDeMotor(motor).insertDefaultValues) throw new ErrorDml('La fila nueva no tiene ningún valor.')
+        if (!reglasDeMotor(motor).insertDefaultValues) throw new ErrorDml(txSql().dml.sinValores)
         return k.resultado(`INSERT INTO ${tabla} DEFAULT VALUES`, `INSERT INTO ${tabla} DEFAULT VALUES`)
       }
       const marcas: string[] = []

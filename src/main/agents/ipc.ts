@@ -49,7 +49,7 @@ export function registrarIpcTerminalAgente(deps: {
   // Recargar relanza el proceso (y en contenedor, lo levanta): también espera al borrado de su perfil.
   ipc.handle(AGENT_TERMINAL_CHANNELS.RELOAD, (_e, req: AgentReloadRequest) => {
     const recargar = (): ReturnType<AgentTerminalController['reload']> =>
-      agentes.reload(req.sessionId, req.dbConnectionIds, req.resumeSessionId)
+      agentes.reload(req.sessionId, req.dbConnectionIds, req.resumeSessionId, req.manual)
     return esperarBorrado ? esperarBorrado(agentes.perfilDeSesion(req?.sessionId)).then(recargar) : recargar()
   })
   ipc.handle(AGENT_TERMINAL_CHANNELS.CLOSE, (_e, req: AgentCloseRequest) => agentes.close(req.sessionId))

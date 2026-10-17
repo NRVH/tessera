@@ -14,8 +14,7 @@ deja tirado.
 - Se sondea, se detecta y, si falta algo, se ofrece descargarlo, con una escotilla imprescindible: usar uno
   que ya se tiene (acepta la carpeta con el centinela o su padre).
 - Lo descargado vive en `userData/drivers`, nunca en la carpeta de instalación: el instalador NSIS la borra en
-  cada actualización, y decenas de MB de DLL alargarían las rutas hasta reventar el desinstalador (el accidente
-  del error «2»).
+  cada actualización, y decenas de MB de DLL alargarían las rutas hasta reventar el desinstalador.
 - Todo lo que se publica, lista, instala o registra pasa por `packsDePlataforma(plataforma)`: en Mac nunca se
   ofrece el zip de Windows, y «Seleccionar carpeta» comprueba el centinela de esa plataforma. La plataforma es
   una opción del constructor con la actual por defecto, para que la prueba fije las dos. `status()` lleva el
@@ -24,10 +23,10 @@ deja tirado.
 - Dos formatos: el zip de Windows se descarga a memoria y se aplana por basename (corta también un `../`); el
   .dmg de Mac va por `instalarDmg.ts` (ver `drivers-instalar-desde-dmg.md`).
 - Una sola descarga para los dos (`descargarConHuella`): porcentaje una vez por punto, SHA-256 al vuelo y plazo
-  de INACTIVIDAD (60 s sin ningún byte), no plazo total: 66 MB por VPN pueden tardar minutos, y un CDN que dejaba
-  de mandar bytes dejaba la barra en «Descargando…» para siempre y bloqueaba volver a pulsar. El temporizador se
+  de INACTIVIDAD (60 s sin ningún byte), no plazo total: 66 MB por VPN pueden tardar minutos, y un CDN que deja
+  de mandar bytes dejaría la barra en «Descargando…» para siempre y bloquearía volver a pulsar. El temporizador se
   para mientras se escribe un trozo. `escritor.cerrar()` se llama siempre, y su fallo no tapa el de la descarga.
 
 ## Consecuencias
 
-- Los packs de Windows se comportan como antes; una descarga parada ahora falla con su motivo.
+- Una descarga parada falla con su motivo en vez de quedarse en «Descargando…».

@@ -17,6 +17,7 @@ import type {
   RespuestasPorOp,
   RespuestaTrabajador
 } from '../protocoloTrabajador.ts'
+import { txSesiones } from './textosSesiones.ts'
 
 // --- Plazos --------------------------------------------------------------------------------
 
@@ -217,7 +218,7 @@ export class Correlador {
               {
                 clase: 'timeout',
                 codigo: 'TESSERA-PLAZO',
-                mensaje: `El proceso de la conexión no respondió a «${p.op}» en ${Math.round(plazo / 1000)} s.`
+                mensaje: txSesiones().procesoNoResponde(p.op, Math.round(plazo / 1000))
               },
               p.op
             )

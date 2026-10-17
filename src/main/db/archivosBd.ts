@@ -15,6 +15,7 @@ import { nunca } from '../../shared/nunca.ts'
 import type { Plataforma } from '../../shared/plataforma.ts'
 import type { DbArchivoElegido, DbMotor } from '../../shared/db-ipc.ts'
 import { canonizarRutaArchivo, claveRutaArchivo, nombreArchivoDeRuta, type DepsRutaArchivo } from './rutaArchivoBd.ts'
+import { txDb } from './textosDb.ts'
 
 /** Cuánto vale una ficha desde que se emite: la misma vida que las demás fichas (`util/fichas.ts`). */
 export const VIDA_FICHA_MS = VIDA_FICHA_POR_DEFECTO_MS
@@ -26,7 +27,9 @@ export interface FichaArchivo {
 }
 
 /** Mensaje de una ficha que el main no conoce (caducada o de antes de reiniciar). */
-export const MENSAJE_FICHA_DESCONOCIDA = 'Ese archivo ya no está elegido (pasó demasiado tiempo o se reinició Tessera). Vuelve a elegirlo.'
+export function mensajeFichaDesconocida(): string {
+  return txDb().archivos.fichaDesconocida
+}
 
 /** Las fichas vivas del main, sobre las `Fichas` genéricas. Una instancia por proceso. */
 export class FichasArchivo {
@@ -47,9 +50,9 @@ export class FichasArchivo {
   /** La ficha de `token` para `motor`. Lanza, con mensaje para el usuario, si no vale. */
   resolver(token: unknown, motor: DbMotor): FichaArchivo {
     const f = this.fichas.ver(token)
-    if (!f) throw new Error(MENSAJE_FICHA_DESCONOCIDA)
+    if (!f) throw new Error(mensajeFichaDesconocida())
     if (f.motor !== motor) {
-      throw new Error(`Ese archivo se eligió para ${etiquetaMotor(f.motor)}, no para ${etiquetaMotor(motor)}: vuelve a elegirlo.`)
+      throw new Error(txDb().archivos.fichaOtroMotor(etiquetaMotor(f.motor), etiquetaMotor(motor)))
     }
     return { ...f }
   }
@@ -90,14 +93,15 @@ export interface RutaDelProyecto {
  */
 export function rutaDeArchivoDelProyecto(projectHostPath: string, relPath: string, deps: DepsRutaArchivo): RutaDelProyecto {
   const p = pathDe(deps.plataforma)
-  if (typeof projectHostPath !== 'string' || !p.isAbsolute(projectHostPath)) throw new Error('Proyecto desconocido.')
-  if (typeof relPath !== 'string') throw new Error('Falta el archivo.')
-  if (tocaContenedor(relPath)) throw new Error('Ese archivo está dentro de un comprimido: no se puede abrir como base de datos.')
+  const t = txDb().archivos
+  if (typeof projectHostPath !== 'string' || !p.isAbsolute(projectHostPath)) throw new Error(t.proyectoDesconocido)
+  if (typeof relPath !== 'string') throw new Error(t.faltaArchivo)
+  if (tocaContenedor(relPath)) throw new Error(t.dentroDeComprimido)
   const rel = normalizarRelativaProyecto(relPath, deps.plataforma)
-  if (rel === '') throw new Error('Falta el archivo.')
+  if (rel === '') throw new Error(t.faltaArchivo)
   const raiz = p.normalize(projectHostPath)
   const escrita = p.resolve(raiz, rel)
-  if (!dentroDeCarpeta(raiz, escrita, deps.plataforma)) throw new Error('Ese archivo está fuera del proyecto.')
+  if (!dentroDeCarpeta(raiz, escrita, deps.plataforma)) throw new Error(t.fueraDelProyecto)
   const canon = canonizarRutaArchivo(escrita, deps)
   if (canon.existe) {
     // La raíz REAL del proyecto (una carpeta enlazada, `/tmp` → `/private/tmp`): contra ella
@@ -109,7 +113,7 @@ export function rutaDeArchivoDelProyecto(projectHostPath: string, relPath: strin
       /* se compara con la escrita */
     }
     if (!dentroDeCarpeta(raizReal, canon.ruta, deps.plataforma)) {
-      throw new Error(`«${nombreArchivoDeRuta(escrita, deps.plataforma)}» es un enlace a un archivo de fuera del proyecto: Tessera no lo abre como base de datos.`)
+      throw new Error(t.enlaceFuera(nombreArchivoDeRuta(escrita, deps.plataforma)))
     }
   }
   return canon
@@ -165,12 +169,12 @@ export interface AdaptadorArchivoBd {
 /** Un error de `sqliteComun` con su código, sin la ruta en el mensaje. */
 function sinRutaSqlite(e: unknown, nombre: string, comun: ComunSqlite, plataforma: Plataforma): Error {
   const codigo = (e as { codigo?: unknown })?.codigo
-  if (codigo === 'TESSERA-SQLITE-NO-EXISTE') return new Error(`No existe «${nombre}».`)
+  if (codigo === 'TESSERA-SQLITE-NO-EXISTE') return new Error(txDb().archivos.noExiste(nombre))
   if (codigo === 'TESSERA-SQLITE-PERMISO') return new Error(comun.mensajePermiso(nombre, plataforma))
   if (typeof codigo === 'string' && e instanceof Error) return e
   const errno = (e as NodeJS.ErrnoException)?.code
   if (errno === 'EPERM' || errno === 'EACCES') return new Error(comun.mensajePermiso(nombre, plataforma))
-  return new Error(`No se pudo leer «${nombre}»${typeof errno === 'string' ? ` (${errno})` : ''}.`)
+  return new Error(txDb().archivos.noSePudoLeer(nombre, typeof errno === 'string' ? errno : null))
 }
 
 /**
@@ -240,5 +244,5 @@ export function motorDeArchivo(ruta: string, adaptador: (m: DbMotor) => Adaptado
     }
   }
   if (primero instanceof Error) throw primero
-  throw new Error('Ninguna base de datos de archivo sabe abrir ese archivo.')
+  throw new Error(txDb().archivos.ningunaSabeAbrir)
 }

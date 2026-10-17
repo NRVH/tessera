@@ -6,7 +6,7 @@
 // Decisiones: docs/decisiones/renderer/objetivo-de-git-derivado.md
 // =============================================================================
 
-import { useEffect, useRef } from 'react'
+import { useLayoutEffect, useRef } from 'react'
 import type { OpenProject } from './tabsModel'
 import { fijarConfirmado, useStorePestanas, type ConfirmedTarget } from './store'
 import type { DetectedRepo } from '../../../../shared/workspace-ipc'
@@ -21,8 +21,8 @@ function confirmar(target: ConfirmedTarget): void {
 /**
  * Sincroniza el backend con el proyecto y repo activos y devuelve el objetivo
  * confirmado (null sin proyecto activo). El confirmado solo aparece cuando los
- * re-apuntados pendientes ya resolvieron, así el explorador, git y la terminal
- * no leen nunca contra un backend a medio re-apuntar.
+ * re-apuntados pendientes ya resolvieron, así el explorador y git no leen nunca
+ * contra un backend a medio re-apuntar.
  */
 export function useSincronizacionBackend(
   activeProfileId: string | null,
@@ -34,7 +34,10 @@ export function useSincronizacionBackend(
   const confirmedTarget = useStorePestanas((s) => s.confirmado)
   const lastFilesRoot = useRef<string | null>(null)
   const lastGitTarget = useRef<string | null>(null)
-  useEffect(() => {
+  // De LAYOUT: corre antes que los efectos de los hijos, así `setFilesRoot` llega al main antes que
+  // la primera petición del proyecto nuevo, y el main ya lo conoce (`FileService.paraRaiz`,
+  // `GitService.paraRaiz`): ni los archivos ni git esperan al confirmado.
+  useLayoutEffect(() => {
     if (
       activeProfileId === null ||
       globalActiveProject === null ||

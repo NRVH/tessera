@@ -7,6 +7,7 @@
 // =============================================================================
 
 import type { DbClaveSentinel, DbTopologiaRedis } from './db-ipc.ts'
+import { txUri } from './textosUri.ts'
 
 /** El puerto de fábrica de un sentinel (el que el formulario propone al elegir Sentinel). */
 export const PUERTO_SENTINEL = 26379
@@ -38,11 +39,11 @@ function servidorDe(texto: string, puertoPorDefecto: number): ServidorRedis | st
   const v6 = /^\[([^\]]+)\](?::(\d+))?$/.exec(texto)
   const simple = v6 ? null : /^([^:[\]]+)(?::(\d+))?$/.exec(texto)
   const m = v6 ?? simple
-  if (!m) return `«${texto}» no es un servidor válido (host o host:puerto).`
+  if (!m) return txUri().redis.servidorInvalido(texto)
   const host = m[1]
-  if (/[\s/?#@,]/.test(host)) return `«${texto}» no es un servidor válido (host o host:puerto).`
+  if (/[\s/?#@,]/.test(host)) return txUri().redis.servidorInvalido(texto)
   const port = m[2] === undefined ? puertoPorDefecto : puertoDe(m[2])
-  if (port === null) return `El puerto de «${texto}» no es válido: tiene que ser un número de 1 a 65535.`
+  if (port === null) return txUri().redis.puertoServidor(texto)
   return { host, port }
 }
 
@@ -55,8 +56,8 @@ export function servidoresRedis(host: string, puertoPorDefecto: number): Resulta
     .split(',')
     .map((s) => s.trim())
     .filter((s) => s !== '')
-  if (partes.length === 0) return { ok: false, error: 'Falta al menos un servidor.' }
-  if (partes.length > SERVIDORES_MAX) return { ok: false, error: `Son más de ${SERVIDORES_MAX} servidores: con unos pocos basta, el resto se descubre.` }
+  if (partes.length === 0) return { ok: false, error: txUri().redis.faltaServidor }
+  if (partes.length > SERVIDORES_MAX) return { ok: false, error: txUri().redis.demasiados(SERVIDORES_MAX) }
   const servidores: ServidorRedis[] = []
   for (const p of partes) {
     const s = servidorDe(p, puertoPorDefecto)
@@ -89,20 +90,20 @@ export interface DestinoTopologia {
  */
 export function validarTopologiaRedis(t: unknown, c: DestinoTopologia): string | null {
   if (t === undefined || t === null) {
-    return c.host.includes(',') ? 'Hay varios servidores: elige Sentinel o Cluster, o deja uno solo.' : null
+    return c.host.includes(',') ? txUri().redis.variosServidores : null
   }
-  if (!esTopologiaRedis(t)) return 'La topología (Sentinel o Cluster) no es válida.'
+  if (!esTopologiaRedis(t)) return txUri().redis.topologiaInvalida
   const nombre = t.modo === 'sentinel' ? 'Sentinel' : 'Cluster'
-  if (c.tunel) return `${nombre} no va por túnel SSH: el cliente se conecta a servidores que el túnel no lleva. Quita el túnel o elige «Un servidor».`
+  if (c.tunel) return txUri().redis.sinTunel(nombre)
   const lista = servidoresRedis(c.host, c.port)
   if (!lista.ok) return lista.error
   if (t.modo === 'cluster') {
     const base = (c.database ?? '').trim()
-    return base === '' || base === '0' ? null : 'En Cluster solo existe la base 0: deja la base vacía.'
+    return base === '' || base === '0' ? null : txUri().redis.clusterBase
   }
   const maestro = t.maestro.trim()
-  if (maestro === '') return 'Falta el nombre del maestro que vigilan los sentinels.'
-  if (maestro.length > MAESTRO_MAX || /\s/.test(maestro)) return 'El nombre del maestro no es válido (sin espacios).'
+  if (maestro === '') return txUri().redis.faltaMaestro
+  if (maestro.length > MAESTRO_MAX || /\s/.test(maestro)) return txUri().redis.maestro
   return null
 }
 
@@ -156,8 +157,9 @@ export interface CambioSecretos {
 }
 
 /** Lo que se dice cuando cambiar el sobre necesita la contraseña guardada y no se puede leer. */
-export const ERROR_SECRETO_ILEGIBLE =
-  'La contraseña guardada no se puede leer en este equipo: vuelve a escribir la contraseña (y la de los sentinels, si la llevan) para cambiar cómo se conecta.'
+export function errorSecretoIlegible(): string {
+  return txUri().redis.secretoIlegible
+}
 
 /**
  * Lo que se pasa al guardado como contraseña (`undefined` = conservar la guardada, '' = borrarla,
@@ -170,7 +172,7 @@ export function secretoAGuardar(c: CambioSecretos): string | undefined {
   if (c.previoConSobre === c.nuevoConSobre && c.password === undefined && c.passwordSentinel === undefined) return undefined
   // Rehacer el sobre con un trozo «conservado» que no se puede leer lo guardaría vacío: se pide en vez de pisarlo.
   if (c.previoIlegible === true && (c.password === undefined || (c.nuevoConSobre && c.passwordSentinel === undefined))) {
-    throw new Error(ERROR_SECRETO_ILEGIBLE)
+    throw new Error(errorSecretoIlegible())
   }
   const previo = c.previo === null ? { redis: '', sentinel: '' } : c.previoConSobre ? desempaquetarSecretos(c.previo) : { redis: c.previo, sentinel: '' }
   const redis = c.password !== undefined ? c.password : previo.redis

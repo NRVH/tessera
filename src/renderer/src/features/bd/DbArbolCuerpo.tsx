@@ -7,8 +7,10 @@
 // =============================================================================
 
 import type { MouseEvent, ReactNode } from 'react'
+import { EsperaCarga } from '../../comun/IndicadorCarga'
 import { VirtualList } from '../../comun/VirtualList'
-import { NOTA_FORMATO_AJENO, TITULO_FORMATO_AJENO, contarCoincidencias, type FilaArbol } from './filasArbolBd'
+import { contarCoincidencias, notaFormatoAjeno, tituloFormatoAjeno, type FilaArbol } from './filasArbolBd'
+import { txArbolFilas } from './textosArbolFilas.ts'
 import { abrirMenu, itemsVacio } from './arbolMenu'
 import { arrastraArchivos, cerrarBusqueda, idFila, soltarArchivos } from './DbArbolNavegacion'
 import { alTeclear, alTeclearBusqueda } from './DbArbolTeclado'
@@ -46,7 +48,7 @@ export function AvisoArbolVista({ a, aviso }: { a: CtxArbol; aviso: AvisoArbol }
           </button>
         )}
       </div>
-      <button type="button" className="sidebar-icon-btn db-arbol-aviso-cerrar" title="Cerrar el aviso" aria-label="Cerrar el aviso" onClick={() => a.e.setAviso(null)}>
+      <button type="button" className="sidebar-icon-btn db-arbol-aviso-cerrar" title={txArbolFilas().cerrarAviso} aria-label={txArbolFilas().cerrarAviso} onClick={() => a.e.setAviso(null)}>
         <IconoCerrar />
       </button>
     </div>
@@ -56,14 +58,15 @@ export function AvisoArbolVista({ a, aviso }: { a: CtxArbol; aviso: AvisoArbol }
 /** La barra de la búsqueda al teclear: filtra solo lo ya cargado. */
 export function BusquedaArbol({ a, busqueda }: { a: CtxArbol; busqueda: string }): React.JSX.Element {
   const nCoincidencias = busqueda ? contarCoincidencias(a.d.filas) : 0
+  const t = txArbolFilas()
   return (
     <div className="db-arbol-busqueda" role="search">
       <input
         ref={a.e.busquedaRef}
         value={busqueda}
         spellCheck={false}
-        placeholder="Buscar en lo cargado"
-        aria-label="Buscar en el árbol (solo lo ya cargado)"
+        placeholder={t.buscarPlaceholder}
+        aria-label={t.buscarAria}
         onChange={(e) => a.e.setBusqueda(e.target.value)}
         onKeyDown={(e) => alTeclearBusqueda(a, e)}
         onBlur={(e) => {
@@ -72,9 +75,9 @@ export function BusquedaArbol({ a, busqueda }: { a: CtxArbol; busqueda: string }
         }}
       />
       <span className="db-arbol-busqueda-cuenta" aria-live="polite">
-        {busqueda === '' ? '' : nCoincidencias === 0 ? 'Sin coincidencias' : `${nCoincidencias}`}
+        {busqueda === '' ? '' : nCoincidencias === 0 ? t.sinCoincidencias : `${nCoincidencias}`}
       </span>
-      <button type="button" className="sidebar-icon-btn" title="Cerrar la búsqueda (Esc)" aria-label="Cerrar la búsqueda" onClick={() => cerrarBusqueda(a)}>
+      <button type="button" className="sidebar-icon-btn" title={t.cerrarBusquedaTitulo} aria-label={t.cerrarBusqueda} onClick={() => cerrarBusqueda(a)}>
         <IconoCerrar />
       </button>
     </div>
@@ -87,7 +90,7 @@ function ListaArbol({ a }: { a: CtxArbol }): React.JSX.Element {
   return (
     <VirtualList<FilaArbol>
       className="db-arbol-lista"
-      ariaLabel="Bases de datos"
+      ariaLabel={txArbolFilas().listaAria}
       items={filas}
       itemHeight={a.p.altoFila}
       getKey={(f) => f.key}
@@ -115,9 +118,9 @@ function AvisoFormato({ aviso }: { aviso: string }): React.JSX.Element {
   return (
     <div className="db-arbol-aviso advertencia db-arbol-formato" role="status">
       <div className="db-arbol-aviso-texto">
-        <div className="db-arbol-aviso-titulo">{TITULO_FORMATO_AJENO}</div>
+        <div className="db-arbol-aviso-titulo">{tituloFormatoAjeno()}</div>
         {aviso}
-        <div className="db-arbol-aviso-detalle">{NOTA_FORMATO_AJENO}</div>
+        <div className="db-arbol-aviso-detalle">{notaFormatoAjeno()}</div>
       </div>
     </div>
   )
@@ -125,16 +128,17 @@ function AvisoFormato({ aviso }: { aviso: string }): React.JSX.Element {
 
 function contenidoCuerpo(a: CtxArbol): ReactNode {
   const { perfilId, conexiones, cargandoConexiones, avisoFormato, ajenas } = a.p
-  if (perfilId === null) return <div className="db-arbol-estado">Sin perfil activo.</div>
-  if (conexiones.length === 0 && cargandoConexiones) return <div className="db-arbol-estado">Cargando…</div>
+  const t = txArbolFilas()
+  if (perfilId === null) return <div className="db-arbol-estado">{t.sinPerfil}</div>
+  if (conexiones.length === 0 && cargandoConexiones) return <EsperaCarga texto={t.cargando} className="db-arbol-estado" />
   if (avisoFormato !== null) return <AvisoFormato aviso={avisoFormato} />
   // Con solo AJENAS no es un perfil vacío: se pinta la lista, con sus filas atenuadas.
   if (conexiones.length === 0 && ajenas.length === 0) {
     return (
       <div className="db-arbol-estado">
-        Sin conexiones en este perfil.{' '}
+        {t.sinConexionesPerfil}{' '}
         <button type="button" className="db-arbol-enlace" onClick={() => a.e.setDialogo({ conexionId: null })}>
-          Nueva conexión…
+          {t.nuevaConexion}
         </button>
       </div>
     )

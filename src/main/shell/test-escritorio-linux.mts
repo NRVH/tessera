@@ -3,8 +3,9 @@
 // Prueba de la capa PURA de «Abrir con Tessera» en Linux (npm run test:escritorio-linux): dónde
 // vive según `XDG_DATA_HOME`, la disponibilidad por plataforma, el escapado del `Exec` y su ida y
 // vuelta, y instalar, leer, reescribir y borrar sobre una carpeta TEMPORAL que hace de HOME (nunca
-// el real), respetando un `tessera.desktop` ajeno; y que instalarlo no le quita las carpetas a su
-// aplicación (`mimeapps.list`), con el servicio de punta a punta en Linux.
+// el real), respetando un `tessera.desktop` ajeno; el tipo `application/x-tessera` que va con la
+// entrada; y que instalarlo no le quita las carpetas a su aplicación (`mimeapps.list`), con el
+// servicio de punta a punta en Linux (y que al arrancar pone al día una entrada vieja).
 // Decisiones: docs/decisiones/sistema/abrir-con-en-linux.md
 // =============================================================================
 
@@ -41,7 +42,13 @@ const {
   rutaDesktop,
   rutaEjecutableLinux,
   rutaIcono,
-  fijadaDelDesktop
+  rutaIconoDocumento,
+  origenIconoDocumento,
+  fijadaDelDesktop,
+  MIME_COPIA,
+  contenidoMime,
+  mimeAlDia,
+  rutaPaqueteMime
 } = await import('./escritorioLinux.ts')
 const { MIME_CARPETA, aplicacionAFijar, conDefecto, defectoDeclarado, leerSalidaGio, rutaMimeapps, sinDefecto } = await import(
   './carpetasPorDefecto.ts'
@@ -129,7 +136,7 @@ hr('(D) contenido')
     'Icon=/d/icons/hicolor/512x512/apps/tessera.png',
     'Terminal=false',
     'Categories=Development;IDE;',
-    'MimeType=inode/directory;',
+    'MimeType=inode/directory;application/x-tessera;',
     'StartupWMClass=Tessera',
     `${CLAVE_PROPIA}=true`
   ]) {
@@ -141,19 +148,48 @@ hr('(D) contenido')
   check('(D) uno sin la clave no es propio', !esDesktopPropio('[Desktop Entry]\nName=Tessera\nExec=tessera %F\n'), '')
 }
 
+hr('(H) el tipo de las copias de la configuración (.tessera)')
+{
+  const x = contenidoMime()
+  check('(H1) la definición va a mime/packages/tessera.xml', rutaPaqueteMime('/d') === '/d/mime/packages/tessera.xml', rutaPaqueteMime('/d'))
+  check('(H2) declara application/x-tessera', MIME_COPIA === 'application/x-tessera' && x.includes(`<mime-type type="${MIME_COPIA}">`), '')
+  check('(H3) por la extensión .tessera', x.includes('<glob pattern="*.tessera"/>'), '')
+  check(
+    '(H4) con su icono de documento, en mimetypes y con el nombre derivado del tipo',
+    x.includes('<icon name="application-x-tessera"/>') && rutaIconoDocumento('/d') === '/d/icons/hicolor/512x512/mimetypes/application-x-tessera.png',
+    rutaIconoDocumento('/d')
+  )
+  check(
+    '(H4b) su PNG viaja junto al de la marca, con barras de las dos plataformas',
+    origenIconoDocumento('/opt/T/resources/icon.png') === '/opt/T/resources/tessera-documento.png' &&
+      origenIconoDocumento('C:\\T\\resources\\icon.png') === 'C:\\T\\resources\\tessera-documento.png',
+    origenIconoDocumento('/opt/T/resources/icon.png')
+  )
+  check('(H5) con su nombre en los dos idiomas', x.includes('<comment>Tessera configuration</comment>') && x.includes('<comment xml:lang="es">Configuración de Tessera</comment>'), '')
+  check('(H6) NEGATIVO: no hereda de JSON ni de texto', !x.includes('sub-class-of'), '')
+  check('(H7) es XML con su espacio de nombres', x.startsWith('<?xml') && x.includes('xmlns="http://www.freedesktop.org/standards/shared-mime-info"'), '')
+}
+
 hr('(E) en disco, sobre un HOME temporal')
 {
   const home = await mkdtemp(join(tmpdir(), 'tessera-escritorio-'))
   const datos = carpetaDatos({ home })
   const iconoOrigen = join(home, 'icono-origen.png')
   await writeFile(iconoOrigen, 'png-falso')
+  await writeFile(join(home, 'tessera-documento.png'), 'png-documento')
   try {
     const r1 = await instalarDesktop(datos, '/opt/A/tessera', iconoOrigen)
     check('(E1) instalar no falla', r1.fallos.length === 0 && r1.iconoCopiado, JSON.stringify(r1))
     const leido = await leerDesktopInstalado(datos)
     check('(E2) se lee y apunta al ejecutable', leido !== null && ejecutableDelDesktop(leido) === '/opt/A/tessera', String(leido && ejecutableDelDesktop(leido)))
     check('(E3) el icono se copió', (await readFile(rutaIcono(datos), 'utf8')) === 'png-falso', '')
+    check('(E3b) y el del documento, al tema de los tipos', (await readFile(rutaIconoDocumento(datos), 'utf8')) === 'png-documento', '')
     check('(E4) no queda el temporal', !(await existe(`${rutaDesktop(datos)}.tmp`)), '')
+    check(
+      '(E4b) con la entrada se escribe el tipo .tessera, sin temporal',
+      r1.mimeEscrito && (await readFile(rutaPaqueteMime(datos), 'utf8')) === contenidoMime() && (await mimeAlDia(datos)) && !(await existe(`${rutaPaqueteMime(datos)}.tmp`)),
+      JSON.stringify(r1)
+    )
 
     // Reconciliar: el ejecutable cambió y el instalado es nuestro, así que se reescribe.
     const ahora = '/home/a/Descargas/Tessera-2.AppImage'
@@ -164,7 +200,8 @@ hr('(E) en disco, sobre un HOME temporal')
 
     const r3 = await desinstalarDesktop(datos)
     check('(E7) borrar no falla y se va el archivo', r3.length === 0 && !(await existe(rutaDesktop(datos))), '')
-    check('(E8) y se va el icono', !(await existe(rutaIcono(datos))), '')
+    check('(E8) y se va el icono', !(await existe(rutaIcono(datos))) && !(await existe(rutaIconoDocumento(datos))), '')
+    check('(E8b) y el tipo .tessera', !(await existe(rutaPaqueteMime(datos))) && !(await mimeAlDia(datos)), '')
     check('(E9) borrar dos veces no es un fallo', (await desinstalarDesktop(datos)).length === 0, '')
 
     const r4 = await instalarDesktop(datos, '/x', join(home, 'no-existe.png'))
@@ -256,6 +293,22 @@ if (process.platform !== 'linux') {
     await servicio.aplicar(true)
     await servicio.aplicar(false)
     check('(G4) NEGATIVO: la que eligió el usuario sigue tras instalar y quitar', defectoDeclarado(await readFile(mimeapps, 'utf8'), MIME_CARPETA) === 'nemo.desktop', '')
+
+    // Una entrada de una versión sin el tipo `.tessera`, apuntando al MISMO ejecutable: al arrancar se pone al día.
+    const datosG = carpetaDatos({ home })
+    const vieja = (contenidoDesktop('/opt/A/tessera', rutaIcono(datosG)) ?? '').replace(`${MIME_COPIA};`, '')
+    await mkdir(join(datosG, 'applications'), { recursive: true })
+    await writeFile(rutaDesktop(datosG), vieja)
+    await rm(rutaPaqueteMime(datosG), { force: true })
+    await servicio.reconciliar()
+    const puesta = (await leerDesktopInstalado(datosG)) ?? ''
+    check(
+      '(G7) reconciliar pone al día una entrada sin el tipo .tessera',
+      puesta.includes(`MimeType=inode/directory;${MIME_COPIA};`) && (await mimeAlDia(datosG)) && ejecutableDelDesktop(puesta) === '/opt/A/tessera',
+      puesta
+    )
+    await servicio.aplicar(false)
+    await rm(mimeapps, { force: true })
 
     // Un mimeapps.list que es un ENLACE (dotfiles): se escribe su destino y el enlace sigue.
     const real = join(home, 'dotfiles-mimeapps.list')

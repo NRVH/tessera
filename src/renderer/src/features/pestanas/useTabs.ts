@@ -25,9 +25,10 @@ import {
   type OpenAgentTarget,
   type OpenProjectRef,
   type OpenProject,
-  type TabsState
+  type TabsState,
+  type AgentesDeProyecto
 } from './tabsModel'
-import { useStorePestanas, type ConfirmedTarget } from './store'
+import { useStorePestanas, type ConfirmedTarget, type ObjetivoVisto } from './store'
 import { useCargaInicialTabs, usePersistenciaTabs } from './usePersistenciaTabs'
 import { useEscaneoRepos } from './useEscaneoRepos'
 import { useSincronizacionBackend } from './useSincronizacionBackend'
@@ -35,7 +36,7 @@ import { useAccionesCrudPerfiles, useAccionesProyecto } from './useAccionesTabs'
 import type { Profile } from '../../../../main/profiles/types'
 import type { DetectedRepo } from '../../../../shared/workspace-ipc'
 
-export type { ConfirmedTarget }
+export type { ConfirmedTarget, ObjetivoVisto }
 
 /**
  * App decide y APLICA el modo (nativo/Docker) de un proyecto RECIÉN elegido antes de
@@ -65,15 +66,21 @@ export interface UseTabs {
    */
   activeProjectRepos: DetectedRepo[] | null
   /**
+   * Perfil y proyecto que se VEN, en el mismo commit que el clic. De aquí PINTA todo lo
+   * que cuelga de un proyecto (explorador, editor, columna del agente, terminal, mosaico):
+   * sus peticiones de archivos llevan su proyecto y no esperan al backend.
+   */
+  objetivoVisto: ObjetivoVisto | null
+  /**
    * Objetivo CONFIRMADO por el backend tras setActiveProject: perfil + proyecto
-   * + REPO ya re-apuntados. null = sin proyecto activo. Las tres zonas del shell
-   * (explorador/git/terminal) lo consumen para no leer nunca contra el objetivo viejo.
+   * + REPO ya re-apuntados. null = sin proyecto activo. Solo para lo que PIDE al
+   * main contra la raíz anclada sin decir su proyecto (búsqueda, montar bases, los
+   * avisos del vigilante), nunca para pintar.
    */
   confirmedTarget: ConfirmedTarget | null
   /**
-   * Objetivo de GIT del perfil que se está MOSTRANDO. `confirmedTarget` dice a qué
-   * apunta el BACKEND y éste qué está mirando el USUARIO: lo que se PINTA sale de
-   * aquí, lo que se PIDE espera al confirmado (`backendAnclado`).
+   * Objetivo de GIT del perfil que se está MOSTRANDO: lo que se pinta y lo que se pide.
+   * Cada petición de git lleva su proyecto (`raiz`), así que no espera al confirmado.
    */
   objetivoGit: ObjetivoGit | null
   /**
@@ -196,7 +203,8 @@ function perfilesHibernados(byProfile: TabsState['byProfile']): Set<string> {
 }
 
 /** Estado de pestañas, selectores y acciones de la ventana (ver `UseTabs`). */
-export function useTabs(): UseTabs {
+/** `agentesDe` da las pestañas de agente de cada proyecto (su modo y los agentes manuales); estable. */
+export function useTabs(agentesDe?: AgentesDeProyecto): UseTabs {
   const state = useStorePestanas((s) => s.tabs)
 
   useCargaInicialTabs()
@@ -209,6 +217,10 @@ export function useTabs(): UseTabs {
   // Memoizado sobre `state`: lo consumen efectos de la vista de git y un objeto nuevo
   // por render los re-dispararía en cada tecla.
   const objetivoGit = useMemo(() => selectObjetivoGitMostrado(state), [state])
+  const objetivoVisto = useMemo<ObjetivoVisto | null>(
+    () => (activeProfileId !== null && globalActiveProject !== null ? { profileId: activeProfileId, project: globalActiveProject } : null),
+    [activeProfileId, globalActiveProject]
+  )
   // Ruta de la vista de GIT: repoHostPath del repo activo, o la contenedora sin repo.
   const gitTargetPath = selectGitTargetPath(state)
   // Ruta del EXPLORADOR: SIEMPRE la contenedora, nunca un repo; solo cambia al activar otra pestaña.
@@ -237,15 +249,15 @@ export function useTabs(): UseTabs {
   // en cada render (uno por frame al arrastrar un splitter). Los selectores solo leen
   // `state.byProfile` (y los `profiles` que reciben): depender de `state` anularía el memo.
   const hibernatedTargetKeys = useMemo(
-    () => selectHibernatedTargetKeys(state, state.profiles),
+    () => selectHibernatedTargetKeys(state, state.profiles, agentesDe),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [state.byProfile, state.profiles]
+    [state.byProfile, state.profiles, agentesDe]
   )
 
   const allOpenTargets = useMemo(
-    () => selectAllOpenTargets(state, state.profiles),
+    () => selectAllOpenTargets(state, state.profiles, agentesDe),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [state.byProfile, state.profiles]
+    [state.byProfile, state.profiles, agentesDe]
   )
 
   const allOpenProjects = useMemo(
@@ -260,6 +272,7 @@ export function useTabs(): UseTabs {
     openProjects: selectActiveProfileProjects(state),
     activeProject: globalActiveProject,
     activeProjectRepos,
+    objetivoVisto,
     confirmedTarget,
     objetivoGit,
     allOpenTargets,

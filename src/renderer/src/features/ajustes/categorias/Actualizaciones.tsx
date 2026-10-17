@@ -8,6 +8,7 @@
 
 import { Fila, Grupo, Interruptor } from '../primitivas'
 import type { PropsCategoria } from '../tipos'
+import { txCategorias } from '../textosSistema.ts'
 import { BloqueAgentes } from './bloquesUpdate/BloqueAgentes'
 import { BloqueUpdate } from './bloquesUpdate/BloqueUpdate'
 
@@ -24,17 +25,18 @@ export function Actualizaciones({
   const veAlCerrar = ve('update-al-cerrar')
   const veAgentes = ve('update-agentes')
   if (!veVersion && !veAlCerrar && !veAgentes) return null
+  const t = txCategorias().actualizaciones
   // Las dos tarjetas que BUSCAN actualizaciones van seguidas; la preferencia de cuándo
   // se aplica, al final y en su propio grupo.
   return (
     <>
       {veVersion ? (
-        <Grupo titulo="Tessera">
+        <Grupo titulo={t.grupoTessera}>
           <BloqueUpdate />
         </Grupo>
       ) : null}
       {veAgentes ? (
-        <Grupo titulo="Agentes">
+        <Grupo titulo={t.grupoAgentes}>
           <BloqueAgentes act={actualizacionAgentes} onAbrir={onAbrirActualizacionAgentes} />
         </Grupo>
       ) : null}
@@ -55,17 +57,18 @@ function GrupoPreferencias({
   aplicarUpdateAlCerrar: boolean
   onToggleAplicarUpdateAlCerrar: () => void
 }): React.JSX.Element {
+  const t = txCategorias().actualizaciones
   return (
-    <Grupo titulo="Preferencias">
+    <Grupo titulo={t.grupoPreferencias}>
       <Fila
-        etiqueta="Aplicar al cerrar Tessera"
+        etiqueta={t.alCerrar}
         // La segunda frase dice la diferencia observable con el botón, que sí relanza la app.
-        ayuda="Cuando haya una actualización preparada, se instala al cerrar la app en vez de esperar a que pulses el botón. Cerrar Tessera no la vuelve a abrir."
+        ayuda={t.alCerrarAyuda}
         control={
           <Interruptor
             activo={aplicarUpdateAlCerrar}
             onChange={onToggleAplicarUpdateAlCerrar}
-            etiqueta="Aplicar la actualización al cerrar Tessera"
+            etiqueta={t.alCerrarEtiqueta}
           />
         }
       />

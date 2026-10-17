@@ -1,7 +1,7 @@
 # El agente corre bajo `env -i`, con git preparado por un preludio y un bloque de memoria que no miente
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/agents/{AgentLauncher,gitInContainer,sandboxMemory,sandboxMemoryBlock}.ts` (macOS: sin verificar aquí)
+- **Ámbito:** `src/main/agents/{AgentLauncher,gitInContainer,sandboxMemory,sandboxMemoryBlock}.ts`
 
 ## Contexto
 

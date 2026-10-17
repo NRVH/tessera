@@ -1,11 +1,20 @@
 # Estándar de código de Tessera
 
-Cómo se escribe y se organiza el código. Lo que se puede medir lo comprueban ESLint y cuatro
-guardias (ver «Cómo certificar un área»); lo demás, la revisión.
+Cómo se escribe y se organiza el código. Lo que se puede medir lo comprueban ESLint y cinco
+guardias (ver «Cómo certificar un área»), que el hook `pre-commit` corre sobre cada commit; lo
+demás, la revisión.
 
 ## Idioma e identificadores
 
-- Español en identificadores, comentarios, textos de la interfaz y mensajes de commit.
+- Español en identificadores, comentarios y mensajes de commit.
+- **Todo texto que ve el usuario nace en español e inglés**: interfaz, diálogos nativos, menús,
+  errores que llegan por IPC, avisos y la salida de `tdb` y `tssh`. Va en el `textos*.ts` de su área
+  con `crearTextos(es, en)` (`shared/i18n.ts`) y se lee al usarse, nunca en el nivel superior de un
+  módulo. Un literal escrito directamente en el JSX o en el `throw` compila igual y sale solo en
+  español: eso es un fallo. `test:textos` caza el del JSX (los nombres propios y términos que no se
+  traducen van en su lista `PERMITIDOS`); el de un `throw` o un diálogo del main se revisa a mano. Las dos redacciones con ortografía y mayúsculas de frase, nunca en
+  mayúsculas puras. Fuera quedan las instrucciones a los agentes de IA, los registros de diagnóstico
+  y el CHANGELOG (`docs/decisiones/app/idioma.md`).
 - Los identificadores ingleses que ya existen (`GitService`, `useTabs`…) no se traducen solo
   por idioma. Lo nuevo, en español.
 - **Nunca** cambian los nombres de los canales IPC ni las claves que se persisten
@@ -94,7 +103,8 @@ src/main/index.ts raíz de composición: crea adaptadores y servicios y registra
 
 Así un servicio se prueba con `node` a secas. Un servicio **no recibe `ipcMain`** ni registra
 handlers: recibe un emisor de eventos, y su `ipc.ts` le traduce cada petición. Los canales se
-declaran en `src/shared/*-ipc.ts`, y el renderer nunca ve ni envía rutas del host.
+declaran en `src/shared/*-ipc.ts`, y el renderer no resuelve rutas del host: solo envía la
+contenedora del proyecto como identidad (`EnProyecto` de `files-ipc.ts`).
 
 Las **raíces de composición** son `src/main/index.ts` (la app), `src/main/relevo/index.ts` (el
 modo relevo: el mismo binario arrancado para aplicar una actualización cuando la app ya no
@@ -176,6 +186,7 @@ npm run test:cabeceras -- <rutas>
 npm run test:menciones -- <rutas>
 npm run test:comentarios -- <rutas>
 npm run test:ciclos -- <rutas>
+npm run test:textos -- <rutas>
 ```
 
 - ESLint falla con lo que este estándar trata como error: el doble de los límites, las
@@ -183,15 +194,17 @@ npm run test:ciclos -- <rutas>
   no hacen fallar (`--quiet` los oculta). Para un área es `npx eslint <rutas>`: `npm run lint`
   es `eslint .`, y `npm run lint -- <rutas>` sigue revisando el repo entero.
 - Las guardias salen 1 ante cualquier hallazgo. `--detalle` lista todos y `--json <archivo>`
-  los vuelca. `--estricto`, que antes activaba el fallo, se sigue aceptando y no hace nada.
+  los vuelca. `--estricto` se acepta y no hace nada.
   Una opción que no conocen la cortan con salida 2: nunca se toma por una ruta.
 - `test:menciones` lee sus patrones de `--privados <archivo>` (o de la variable
   `TESSERA_PATRONES_PRIVADOS`; sin ninguna de las dos, de `.patrones-privados.txt`
   de la raíz, versionado solo en el repo privado): una expresión regular por línea con los productos y los datos
   que no deben acabar en el repo. `!` delante marca un patrón permitido (un nombre de paquete o
   de proveedor, que se tapa antes de buscar) y `(?i)` delante lo hace insensible a mayúsculas.
-  Ese archivo no se versiona.
+  El publicador lo excluye del repo público, donde la guardia no busca nada.
 - `test:ciclos` arma siempre el grafo del renderer entero; las rutas solo filtran qué módulos
   se informan.
-- Un área está certificada cuando los cinco comandos salen 0 sobre sus rutas, pruebas
+- El hook `pre-commit` (`.githooks/`, lo activa `npm install`) corre tipos, ciclos, ESLint y las
+  guardias sobre los archivos del commit, en paralelo, y lo para si algo falla.
+- Un área está certificada cuando los seis comandos salen 0 sobre sus rutas, pruebas
   co-ubicadas incluidas.

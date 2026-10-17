@@ -21,8 +21,20 @@ con el mismo nombre y las particiones aparecerían como tablas sueltas en el ár
   mensaje de siempre; el controlador no lo pide (lo decide antes con el descriptor).
 - Cada consulta de varias (FK, «Ver DDL») pasa por `lector.construir`: un fallo al construirla
   llega con su motivo y no como «Error interno».
+- **Disparadores:** hay carpeta `disparador` (como en Oracle): cada uno cuelga del esquema de su
+  tabla y enseña «sobre <tabla>» y su estado, se abre en la pestaña de fuente y tiene «Ver DDL». El
+  nombre de un disparador solo es único dentro de su tabla, así que la tabla viaja también en
+  `firma` (que ya distingue las sobrecargas de una rutina) y la fuente se pide por esquema, nombre
+  y tabla. La fuente trae el `CREATE TRIGGER` y la función que ejecuta; el DDL las pone en orden de
+  ejecución (función, después disparador). Quedan fuera los internos (`tgisinternal`: los de las
+  claves foráneas) y los clonados en particiones. La fila del árbol no repite la tabla como «(firma)».
 
 ## Consecuencias
 
 Quitar `conparentid = 0` duplica cada FK por partición en el diagrama y en el autocompletado
 de JOIN. El módulo no importa `./index.ts` ni `../catalogoSql.ts` (ciclos, ver `tipos.ts`).
+
+## Descartes
+
+- Un campo `tabla` en `DbRefObjeto` para los disparadores: toca el contrato, las claves de caché y
+  las pestañas por un caso que la firma ya resuelve.

@@ -1,7 +1,7 @@
-# El visor de una clave edita por la consola del main, sangra el JSON sobre el texto y acota lo que pinta
+# El visor de una clave edita por la consola del main, lee con una petición cancelable, sangra el JSON sobre el texto y acota lo que pinta
 
 - **Estado:** vigente
-- **Ámbito:** `claves/visorClaves.ts`, `claves/DbClavePane.tsx`, `claves/edicionClaves.ts`, `claves/useEdicionClave.ts`, `claves/DialogoEdicionClave.tsx`, `claves/accionesEdicionClave.tsx`
+- **Ámbito:** `claves/visorClaves.ts`, `claves/DbClavePane.tsx`, `claves/edicionClaves.ts`, `claves/useEdicionClave.ts`, `claves/DialogoEdicionClave.tsx`, `claves/accionesEdicionClave.tsx`, `claves/useLecturaClave.ts`, `claves/cuerpoClave.tsx`, `claves/TablaValores.tsx`
 
 ## Contexto
 
@@ -14,7 +14,8 @@ Puede ser enorme y sus bytes no tienen por qué ser UTF-8 (ver [ui-claves-arbol.
   editar y borrar campos de un hash, la caducidad (`EXPIRE`; vacía, `PERSIST`), renombrar y borrar la
   clave. Cada acción abre UN diálogo que pide el dato y enseña el comando exacto que se ejecutará,
   rehecho al escribir (`edicionClaves.ts`); en producción, con la franja y «Ejecutar en producción»,
-  que ya es la confirmación. Las listas, sets, zsets y streams siguen por la consola.
+  que ya es la confirmación. Las listas, sets, zsets y streams y la creación de claves se editan
+  con el mismo molde ([ui-claves-edicion-elementos.md](ui-claves-edicion-elementos.md)).
 - **Va por la consola de Redis del main**, en una sesión propia de la pestaña (`visor-<uuid>`, que
   se cierra al desmontarse): la política (producción, comandos peligrosos) la decide el main igual que
   para la consola, y si devuelve el comando sin enviar, el diálogo lo dice y el siguiente clic lo
@@ -43,6 +44,21 @@ Puede ser enorme y sus bytes no tienen por qué ser UTF-8 (ver [ui-claves-arbol.
   a sangrar el texto, y aquí el sangrado ya está hecho.
 - **«Cargar más»** suma el trozo nuevo sin repetir (HSCAN, SSCAN y ZSCAN pueden devolver un
   elemento dos veces); si la clave cambió de tipo entre dos trozos, vale lo nuevo.
+- **La pestaña no se registra en `registroEdicion`:** cada edición se ejecuta al aceptar su diálogo,
+  así que cerrar la pestaña no tiene nada pendiente que perder. «Abrir consola» abre el comando de
+  lectura del tipo y, si la clave es de otra base que la de la conexión, con `SELECT n` delante: se
+  sigue desde donde se estaba mirando.
+- **La lectura lleva `peticionId` y Stop la cancela** con el rol `datos`; el trabajador abandona la
+  conexión, porque Redis no cancela un comando en el servidor. «Detener» está siempre en la barra y,
+  si la lectura tarda, también en el cuerpo. Nada se pide hasta el primer `visible`.
+- **El TTL se recalcula cada segundo solo mientras la pestaña se ve y la clave caduca;** una
+  cuenta atrás con la pestaña oculta repintaría sin que nadie lo vea.
+- **`noExiste` (borrada o caducada entre el SCAN y el visor) y un tipo que el visor no sabe leer**
+  (lo añade un módulo) lo dicen y ofrecen «Abrir consola», en vez de una tabla vacía.
+- **La tabla de elementos no reutiliza `TablaDocumentos`.** Sus celdas son de documentos (tipo por
+  celda, campo ausente, edición) y sus columnas salen de los campos; aquí las columnas son fijas
+  por tipo y las celdas son bytes. Se comparte el CSS y la ventana virtual (`useVentanaVirtual.ts`),
+  no la lógica de celdas.
 
 ## Consecuencias
 

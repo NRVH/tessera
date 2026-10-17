@@ -16,6 +16,7 @@ import { emitirAhora, estado, hayNueva, ordenPara } from './emision.ts'
 import { ultimaClaude, ultimaCodex, ultimaCodexBrew } from './ultimas.ts'
 import { AGENTES } from './urls.ts'
 import { errMsg, type InfoCli, type NucleoNativos } from './tipos.ts'
+import { txAgentes } from '../textos.ts'
 
 /**
  * Lo vivo bajo las raíces de bloqueo de `i`, sin lo que cuelga de `pidsTessera`.
@@ -96,7 +97,7 @@ export async function refrescarAgente(e: NucleoNativos, agente: AgentKind, ignor
     if (agente === 'codex') await refrescarCodex(e)
     else await refrescarClaude(e)
   } catch (err) {
-    e.info[agente].error = `No se pudo comprobar ${ETIQUETA_AGENTE[agente]}: ${errMsg(err)}`
+    e.info[agente].error = txAgentes().nativos.noSeComprobo(ETIQUETA_AGENTE[agente], errMsg(err))
     e.deps.log(`agentes nativos: comprobar ${agente} falló: ${errMsg(err)}`)
   }
 }

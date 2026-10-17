@@ -7,6 +7,7 @@
 import { useEffect, useRef } from 'react'
 import { CLASE_MERMAID, CLASE_MERMAID_LISTO } from './htmlContent'
 import { dibujarMermaid } from './mermaidRender'
+import { txVistaPrevia } from './textosVisores.ts'
 
 /** Dibuja los diagramas de `contenedor` cada vez que `html` cambia (el nodo no cambia entre repintados). */
 export function useMermaid(
@@ -49,7 +50,7 @@ export function useMermaid(
         } else {
           // El error se enseña donde estaba el diagrama, con el texto de mermaid.
           hueco.classList.add('con-error')
-          hueco.textContent = `No se pudo dibujar el diagrama: ${r.error}`
+          hueco.textContent = txVistaPrevia().noSePudoDibujar(r.error)
         }
         // Se marca siempre, salga bien o mal: lo saca de los pendientes y del `height: 0`.
         hueco.classList.add(CLASE_MERMAID_LISTO)

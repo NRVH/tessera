@@ -12,11 +12,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { ArchivosDelCommit } from './ArchivosDelCommit'
 import { Splitter } from '../../comun/Splitter'
 import { EstadoVacio } from '../../comun/EstadoVacio'
+import { useRaizDelProyecto } from '../../comun/raizDelProyecto'
 import { IconoCopiar, IconoEtiqueta, IconoSinSeleccion } from './iconos'
 import { absoluteDate, hashCorto, relativeDate } from './modelo/formatoFecha'
 import type { Commit, CommitDetail, FileChange } from '../../../../shared/git-ipc'
 import type { FilaArbol } from './modelo/arbolArchivos'
 import { etiquetaModPrincipal } from '../../util/atajos'
+import { txGit } from './textos.ts'
 
 /** Cuántas ramas se enseñan antes de plegar el resto tras un «Mostrar todas». */
 const RAMAS_VISIBLES = 4
@@ -77,22 +79,21 @@ interface DatosDetalle {
 }
 
 /** Detalle y ramas del commit; un contador por petición descarta las respuestas viejas. */
-function useDatosDetalle(hash: string | null, repoHostPath: string | null, anclado: boolean): DatosDetalle {
+function useDatosDetalle(hash: string | null, repoHostPath: string | null): DatosDetalle {
   const [detalle, setDetalle] = useState<CommitDetail | null>(null)
   const [ramas, setRamas] = useState<string[] | null>(null)
   const [ramasError, setRamasError] = useState(false)
   const [todasLasRamas, setTodasLasRamas] = useState(false)
   const detalleRef = useRef(0)
   const ramasRef = useRef(0)
+  const raiz = useRaizDelProyecto()
 
   useEffect(() => {
     const id = ++detalleRef.current
     setDetalle(null)
     if (hash === null) return
-    // Sin anclaje la respuesta sería un vacío de rechazo.
-    if (!anclado) return
     window.tessera.git
-      .commitDetail(hash, repoHostPath ?? undefined)
+      .commitDetail(raiz, hash, repoHostPath ?? undefined)
       .then((d) => {
         if (detalleRef.current === id) setDetalle(d)
       })
@@ -100,7 +101,7 @@ function useDatosDetalle(hash: string | null, repoHostPath: string | null, ancla
         // Sin detalle se pinta lo que ya trae el Commit de la lista: degradar, no vaciar.
         if (detalleRef.current === id) setDetalle(null)
       })
-  }, [hash, repoHostPath, anclado])
+  }, [raiz, hash, repoHostPath])
 
   useEffect(() => {
     const id = ++ramasRef.current
@@ -108,16 +109,15 @@ function useDatosDetalle(hash: string | null, repoHostPath: string | null, ancla
     setRamasError(false)
     setTodasLasRamas(false)
     if (hash === null) return
-    if (!anclado) return
     window.tessera.git
-      .branchesContaining(hash, repoHostPath ?? undefined)
+      .branchesContaining(raiz, hash, repoHostPath ?? undefined)
       .then((r) => {
         if (ramasRef.current === id) setRamas(r)
       })
       .catch(() => {
         if (ramasRef.current === id) setRamasError(true)
       })
-  }, [hash, repoHostPath, anclado])
+  }, [raiz, hash, repoHostPath])
   return { detalle, ramas, ramasError, todasLasRamas, setTodasLasRamas }
 }
 
@@ -147,9 +147,10 @@ function datosFicha(commit: Commit, detalle: CommitDetail | null): {
 
 /** Mensaje mientras no hay ramas que listar: error, buscando o ninguna. */
 function MensajeRamas(p: { ramas: string[] | null; ramasError: boolean }): React.JSX.Element | null {
-  if (p.ramasError) return <span className="git-detalle-fecha">No se pudieron leer las ramas.</span>
-  if (p.ramas === null) return <span className="git-detalle-fecha">Buscando en qué ramas está…</span>
-  if (p.ramas.length === 0) return <span className="git-detalle-fecha">En ninguna rama.</span>
+  const t = txGit()
+  if (p.ramasError) return <span className="git-detalle-fecha">{t.errorRamas}</span>
+  if (p.ramas === null) return <span className="git-detalle-fecha">{t.buscandoRamas}</span>
+  if (p.ramas.length === 0) return <span className="git-detalle-fecha">{t.enNingunaRama}</span>
   return null
 }
 
@@ -157,11 +158,10 @@ function ListaRamas({ ramas, datos }: { ramas: string[]; datos: DatosDetalle }):
   const { todasLasRamas, setTodasLasRamas } = datos
   const ramasAMostrar = todasLasRamas ? ramas : ramas.slice(0, RAMAS_VISIBLES)
   const ocultas = Math.max(0, ramas.length - ramasAMostrar.length)
+  const t = txGit()
   return (
     <>
-      <span>
-        En {ramas.length} rama{ramas.length === 1 ? '' : 's'}:
-      </span>
+      <span>{t.enNRamas(ramas.length)}</span>
       {ramasAMostrar.map((r) => (
         <span key={r} className="ref-chip ref-chip-local" title={r}>
           <IconoEtiqueta />
@@ -170,12 +170,12 @@ function ListaRamas({ ramas, datos }: { ramas: string[]; datos: DatosDetalle }):
       ))}
       {ocultas > 0 && (
         <button className="git-detalle-mas" onClick={() => setTodasLasRamas(true)}>
-          Mostrar {ocultas} más
+          {t.mostrarNMas(ocultas)}
         </button>
       )}
       {todasLasRamas && ramas.length > RAMAS_VISIBLES && (
         <button className="git-detalle-mas" onClick={() => setTodasLasRamas(false)}>
-          Mostrar menos
+          {t.mostrarMenos}
         </button>
       )}
     </>
@@ -200,6 +200,7 @@ function FichaCommit(p: {
 }): React.JSX.Element {
   const { commit, datos, copiado, onCopiarHash } = p
   const { asunto, autor, email, iso, cuerpo, otroCommitter } = datosFicha(commit, datos.detalle)
+  const t = txGit()
   return (
     <div className="git-detalle-meta">
       <div className="git-detalle-asunto">{asunto}</div>
@@ -209,7 +210,7 @@ function FichaCommit(p: {
           type="button"
           className={`git-hash-chip${copiado ? ' copiado' : ''}`}
           // El atajo se enseña aquí, en el tooltip del comando equivalente, sin gastar píxeles.
-          title={copiado ? 'Copiado' : `Copiar el hash completo · ${etiquetaModPrincipal()}+C en la lista`}
+          title={copiado ? t.copiado : t.copiarHashLista(etiquetaModPrincipal())}
           onClick={onCopiarHash}
         >
           <span>{hashCorto(commit.hash, 10)}</span>
@@ -228,7 +229,7 @@ function FichaCommit(p: {
       {otroCommitter && (
         <div className="git-detalle-fila">
           <span className="git-detalle-fecha">
-            Aplicado por {otroCommitter}
+            {t.aplicadoPor(otroCommitter)}
             {datos.detalle?.committerIsoDate ? ` · ${absoluteDate(datos.detalle.committerIsoDate)}` : ''}
           </span>
         </div>
@@ -243,8 +244,6 @@ interface PropsDetalleCommit {
   commit: Commit | null
   /** Repo del commit: viaja con cada petición, o una respuesta tardía preguntaría en OTRO repo. */
   repoHostPath: string | null
-  /** ¿El backend está anclado a `repoHostPath`? Sin anclaje se leería un vacío de rechazo. */
-  anclado: boolean
   /** Alto de fila en px (theme/densidad; el mismo que ve el CSS). */
   altoFila: number
   /** Alto de la lista de archivos; lo que sobra es para la ficha del commit. */
@@ -270,29 +269,29 @@ interface PropsDetalleCommit {
 }
 
 export function DetalleCommit(p: PropsDetalleCommit): React.JSX.Element {
-  const { commit, repoHostPath, anclado } = p
+  const { commit, repoHostPath } = p
   const reparto = useRepartoDetalle(p.altoArchivos, p.minArchivos)
-  const datos = useDatosDetalle(commit?.hash ?? null, repoHostPath, anclado)
+  const datos = useDatosDetalle(commit?.hash ?? null, repoHostPath)
+  const t = txGit()
   // Los dos returns comparten tipo de raíz: el div se reutiliza al elegir el primer commit.
   if (!commit) {
     return (
       <div className="git-log-col git-log-detalle">
-        <div className="git-log-col-header">Detalle</div>
+        <div className="git-log-col-header">{t.detalle}</div>
         <EstadoVacio
           icono={<IconoSinSeleccion />}
-          titulo="Ningún commit seleccionado"
-          pista="Elige uno del historial para ver su mensaje, su autor y los archivos que tocó."
+          titulo={t.ningunCommitTitulo}
+          pista={t.ningunCommitPista}
         />
       </div>
     )
   }
   return (
     <div className="git-log-col git-log-detalle" ref={reparto.colRef}>
-      <div className="git-log-col-header">Detalle</div>
+      <div className="git-log-col-header">{t.detalle}</div>
       <ArchivosDelCommit
         commit={commit}
         repoHostPath={repoHostPath}
-        anclado={anclado}
         altoFila={p.altoFila}
         altoArchivos={reparto.altoListaEfectivo}
         rutaSeleccionada={p.rutaSeleccionada}
@@ -311,7 +310,7 @@ export function DetalleCommit(p: PropsDetalleCommit): React.JSX.Element {
         max={reparto.maxArchivos}
         direction={1}
         onResize={p.onAltoArchivos}
-        label="Reparto entre los archivos y el mensaje del commit"
+        label={t.repartoArchivosMensaje}
       />
       <FichaCommit commit={commit} datos={datos} copiado={p.copiado} onCopiarHash={p.onCopiarHash} />
     </div>

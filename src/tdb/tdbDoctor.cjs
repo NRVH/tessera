@@ -2,8 +2,8 @@
 // `tdb doctor`: lo primero que hay que pedir cuando alguien dice «no lo reconoce» o «monté
 // la base y no la ve». El subsistema falla en la ENTREGA (atajo, PATH, contexto), no en la
 // lógica, y eso es invisible desde dentro de una consulta. Nunca imprime un secreto: solo
-// cuántos hay. Depende de `motores.cjs`, `tdbConectar`, `tdbConexiones`, `tdbSalida` y, para
-// la plataforma, de `sqliteComun` (el único que lee `process.platform` es `archivoSqlite`).
+// cuántos hay. Depende de `motores.cjs`, `tdbConectar`, `tdbConexiones`, `tdbSalida`, `textosTdb`
+// y, para la plataforma, de `sqliteComun` (el único que lee `process.platform` es `archivoSqlite`).
 // =============================================================================
 'use strict'
 
@@ -14,6 +14,7 @@ const { secretoDe } = require('./tdbConectar.cjs')
 const { nombreDe, entendida } = require('./tdbConexiones.cjs')
 const { envolver } = require('./tdbSalida.cjs')
 const { plataformaDelProceso } = require('./sqliteComun.cjs')
+const { textosTdb } = require('./textosTdb.cjs')
 
 /**
  * ¿NO está el archivo de una base de archivo? Solo con ENOENT/ENOTDIR (o sin ruta de
@@ -138,36 +139,43 @@ function construirInfo(ctx, entorno, problemas) {
   }
 }
 
-function textoRegistro(ctx, info) {
-  if (!ctx.registro || info.registroExiste) return info.registro
-  return info.registro + (info.registroDesdeRespaldo ? '  <-- NO EXISTE (se usa su copia de respaldo, .bak)' : '  <-- NO EXISTE')
+function textoRegistro(ctx, info, t) {
+  if (!ctx.registro) return t.sinRegistro
+  if (info.registroExiste) return info.registro
+  return info.registro + (info.registroDesdeRespaldo ? t.noExisteConRespaldo : t.noExiste)
 }
 
-function textoAmbito(info) {
-  if (!info.ambitoDefinido) return 'sin acotar (ve todas las del perfil)'
-  return info.espacioDatos ? 'acotado al agente de datos' : 'acotado a este proyecto'
+function textoAmbito(info, t) {
+  if (!info.ambitoDefinido) return t.ambitoSinAcotar
+  return info.espacioDatos ? t.ambitoEspacio : t.ambitoProyecto
 }
 
+/**
+ * El volcado de texto. Los marcadores de «sin valor» se escriben aquí en el idioma de la
+ * invocación; los del `--json` (`construirInfo`) se quedan fijos.
+ */
 function pintarVolcado(ctx, info, entorno) {
+  const t = textosTdb()
+  const e = t.etiquetas
   console.log('')
   console.log('  tdb doctor')
   console.log('  ' + '─'.repeat(60))
-  fila('shell', info.shell)
-  fila('ejecutable', info.ejecutable)
-  fila('guion', info.guion)
-  fila('atajo', info.atajo)
-  fila('TESSERA_EXE', entorno.exe || '(no definida: el atajo usó su ruta horneada)')
-  fila('TESSERA_TDB', entorno.tdb || '(no definida: el atajo usó su ruta horneada)')
-  fila('atajo en PATH', info.atajoEnPath ? `sí (posición ${info.posicionEnPath})` : 'NO')
+  fila(e.shell, entorno.atajo ? info.shell : t.shellDesconocido)
+  fila(e.ejecutable, info.ejecutable)
+  fila(e.guion, info.guion)
+  fila(e.atajo, entorno.atajo || t.sinAtajo)
+  fila('TESSERA_EXE', entorno.exe || t.rutaHorneada)
+  fila('TESSERA_TDB', entorno.tdb || t.rutaHorneada)
+  fila(e.atajoEnPath, info.atajoEnPath ? t.enPath(info.posicionEnPath) : t.noEnPath)
   console.log('')
-  fila('perfil', info.perfil)
+  fila(e.perfil, ctx.perfil || t.sinPerfil)
   // El aviso de «no existe» solo tiene sentido si HAY una ruta que comprobar.
-  fila('registro', textoRegistro(ctx, info))
-  fila('drivers', info.driversDir)
-  fila('ámbito', textoAmbito(info))
-  fila('puente', info.puente)
-  fila('conexiones', `${info.conexionesVisibles} visibles de ${info.conexionesEnElPerfil} en el perfil`)
-  fila('secretos', `${info.secretosDelPuente} del puente, ${info.secretosEnElEntorno} en el entorno`)
+  fila(e.registro, textoRegistro(ctx, info, t))
+  fila(e.drivers, ctx.driversDir || t.sinDrivers)
+  fila(e.ambito, textoAmbito(info, t))
+  fila(e.puente, t.estadoPuente(info.puente))
+  fila(e.conexiones, t.conexionesVisibles(info.conexionesVisibles, info.conexionesEnElPerfil))
+  fila(e.secretos, t.secretosContados(info.secretosDelPuente, info.secretosEnElEntorno))
   console.log('')
 }
 
@@ -177,24 +185,12 @@ function pintarVolcado(ctx, info, entorno) {
  * ser viejo y no hay secretos: `tdb ls` aún lista algo, y esa lista puede mentir.
  */
 function veredictoDeEntrega(ctx, info) {
-  if (!ctx.registro) {
-    return [
-      '  ✗ Esta terminal NO lleva el contexto de Tessera.',
-      '    Recarga la terminal (o reinicia el agente) DESPUÉS de montar la base.'
-    ]
-  }
-  if (!info.registroExiste && !info.registroDesdeRespaldo) {
-    return ['  ✗ El registro apunta a un archivo que no existe.', '    Puede que la terminal la abriera otra instalación de Tessera.']
-  }
+  const t = textosTdb()
+  if (!ctx.registro) return t.doctorSinContexto
+  if (!info.registroExiste && !info.registroDesdeRespaldo) return t.doctorRegistroNoExiste
   // Antes que el ámbito vacío: «móntalas» no se puede con un registro que la app tampoco lee.
   if (ctx.formatoAjeno) return [`  ✗ ${ctx.avisoRegistro}`]
-  if (ctx.puente === 'no responde') {
-    return [
-      '  ✗ El puente de Tessera no responde.',
-      '    La lista puede estar desactualizada y no habrá contraseñas.',
-      '    Recarga la terminal; si sigue, reinicia Tessera.'
-    ]
-  }
+  if (ctx.puente === 'no responde') return t.doctorPuenteCaido
   return null
 }
 
@@ -204,37 +200,23 @@ function veredictoDeEntrega(ctx, info) {
  * casa es el destino.
  */
 function veredictoDeConexiones(ctx, info, problemas) {
+  const t = textosTdb()
   if (ctx.scopeDefinido && ctx.conexiones.length === 0) {
-    return [
-      ctx.espacioDatos
-        ? '  ! Contexto correcto, pero el agente de datos no tiene ninguna base montada.'
-        : '  ! Contexto correcto, pero este proyecto no tiene ninguna base montada.',
-      '    Móntalas con el icono de base de datos en la cabecera del agente.'
-    ]
+    return [ctx.espacioDatos ? t.doctorSinBasesEspacio : t.doctorSinBasesProyecto, t.doctorMontalas]
   }
   if (problemas.deOtroDestino.length > 0) {
     return [
-      '  ! ' +
-        envolver(
-          `Cambiaron desde que Tessera entregó su contraseña: ${problemas.deOtroDestino.map((c) => nombreDe(c)).join(', ')}. ` +
-            'tdb no se la manda a su destino actual.'
-        ),
-      '    Recarga la terminal (o reinicia el agente); si sigue igual, reinicia Tessera.'
+      '  ! ' + envolver(t.doctorOtroDestino(problemas.deOtroDestino.map((c) => nombreDe(c)).join(', '))),
+      t.doctorRecargaOReinicia
     ]
   }
   if (problemas.conSecretoObligatorio.length > info.secretosDelPuente + info.secretosEnElEntorno) {
-    return [
-      '  ! Hay conexiones visibles sin contraseña en esta sesión.',
-      '    Guárdala con "Editar conexión…" en la vista Bases de datos y recarga la terminal.'
-    ]
+    return t.doctorSinContrasena
   }
   if (problemas.archivosQueFaltan.length > 0) {
-    return [
-      '  ! ' + envolver(`No se encuentra el archivo de: ${problemas.archivosQueFaltan.join(', ')}.`),
-      '    Se movió, se borró o está en un disco desconectado. tdb test <nombre> dice cuál.'
-    ]
+    return ['  ! ' + envolver(t.doctorFaltaArchivo(problemas.archivosQueFaltan.join(', '))), t.doctorArchivoMovido]
   }
-  return ['  ✓ Todo en orden. Prueba:  tdb ls']
+  return [t.doctorTodoBien]
 }
 
 /**
@@ -244,13 +226,7 @@ function veredictoDeConexiones(ctx, info, problemas) {
  */
 function avisoDeRespaldo(ctx, info) {
   if (!(ctx.registro && !info.registroExiste && info.registroDesdeRespaldo)) return
-  console.log(
-    '  ! ' +
-      envolver(
-        'El registro (db-connections.json) no existe: se usa su copia de respaldo (db-connections.json.bak)' +
-          (ctx.formatoAjeno ? '.' : ', y Tessera lo recreará en su próxima escritura.')
-      )
-  )
+  console.log('  ! ' + envolver(textosTdb().doctorRespaldo(ctx.formatoAjeno)))
 }
 
 function cmdDoctor(ctx) {

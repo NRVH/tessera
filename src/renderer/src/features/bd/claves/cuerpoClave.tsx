@@ -7,6 +7,7 @@
 
 import type { DbKvBytes, DbKvContenido } from '../../../../../shared/db-claves-ipc'
 import { avisoTruncado, resumenElementos, siguienteDe } from './visorClaves'
+import { txVisorClaves } from './textosVisorClaves'
 import type { LecturaClave } from './useLecturaClave'
 import type { VisorClave } from './useVisorClave'
 import { ParteVista, VistaBytes, textoParte } from './PiezasVisorClave'
@@ -30,12 +31,13 @@ export interface EntradaCuerpo {
 
 function leyendo(e: EntradaCuerpo): React.JSX.Element {
   const cargando = e.lectura.cargando
+  const t = txVisorClaves()
   return (
     <div className="db-clave-leyendo" role="status">
-      {cargando ? 'Leyendo la clave…' : ''}
+      {cargando ? t.leyendoClave : ''}
       {cargando && e.lento && (
         <button type="button" className="btn" onClick={e.lectura.detener}>
-          Detener
+          {t.detener}
         </button>
       )}
     </div>
@@ -43,10 +45,11 @@ function leyendo(e: EntradaCuerpo): React.JSX.Element {
 }
 
 function detalleElemento(partes: VisorClave['partes']): React.JSX.Element {
+  const t = txVisorClaves()
   return (
-    <aside className="db-clave-detalle" aria-label="Elemento elegido">
+    <aside className="db-clave-detalle" aria-label={t.elementoElegido}>
       <div className="db-docs-panel-cab">
-        <span className="db-docs-panel-titulo">{partes.length > 0 ? 'Elemento elegido' : 'Ningún elemento elegido'}</span>
+        <span className="db-docs-panel-titulo">{partes.length > 0 ? t.elementoElegido : t.ningunElementoElegido}</span>
       </div>
       {partes.length > 0 ? (
         <div className="db-clave-detalle-partes">
@@ -56,7 +59,7 @@ function detalleElemento(partes: VisorClave['partes']): React.JSX.Element {
         </div>
       ) : (
         <div className="db-docs-panel-vacio">
-          <EstadoVacio titulo="Elige un elemento" pista="Su valor entero se ve aquí." />
+          <EstadoVacio titulo={t.eligeUnElemento} pista={t.valorEnteroAqui} />
         </div>
       )}
     </aside>
@@ -67,13 +70,14 @@ function cuerpoTabla(e: EntradaCuerpo, contenido: DbKvContenido): React.JSX.Elem
   const { tabla, indiceSel, setSeleccion, abrirMenuFila, panelDetalle, partes } = e.visor
   if (!tabla) return <></>
   const { cargandoMas, cargarMas } = e.lectura
+  const t = txVisorClaves()
   const hayMas = siguienteDe(contenido) !== null
   const resumen = resumenElementos(contenido)
   return (
     <div className={`db-clave-cuerpo${panelDetalle ? ' con-detalle' : ''}`}>
       <div className="db-clave-zona">
         {tabla.filas.length === 0 ? (
-          <EstadoVacio icono={<IconoClaveKv />} titulo="Sin elementos" pista="La clave existe pero no tiene elementos que enseñar." />
+          <EstadoVacio icono={<IconoClaveKv />} titulo={t.sinElementos} pista={t.sinElementosPista} />
         ) : (
           <TablaValores
             tabla={tabla}
@@ -89,12 +93,12 @@ function cuerpoTabla(e: EntradaCuerpo, contenido: DbKvContenido): React.JSX.Elem
                 <span className="db-kv-pie-contenido">
                   {resumen}
                   <button type="button" className="btn" disabled={cargandoMas} onClick={() => void cargarMas()}>
-                    {cargandoMas ? 'Cargando…' : 'Cargar más'}
+                    {cargandoMas ? t.cargando : t.cargarMas}
                   </button>
                 </span>
               ) : null
             }
-            etiquetaAria={`Elementos de ${e.nombre}`}
+            etiquetaAria={t.elementosDe(e.nombre)}
           />
         )}
       </div>
@@ -105,15 +109,16 @@ function cuerpoTabla(e: EntradaCuerpo, contenido: DbKvContenido): React.JSX.Elem
 
 function cuerpoOtro(e: EntradaCuerpo, tipoServidor: string): React.JSX.Element {
   const abrir = e.onAbrirConsola
+  const t = txVisorClaves()
   return (
     <EstadoVacio
       icono={<IconoClaveKv />}
-      titulo={`El visor no sabe leer el tipo ${tipoServidor}`}
-      pista="Lo añade un módulo del servidor. Puedes leerla con sus comandos desde la consola."
+      titulo={t.tipoNoLeible(tipoServidor)}
+      pista={t.tipoNoLeiblePista}
       accion={
         abrir ? (
           <button type="button" className="btn" onClick={abrir}>
-            Abrir consola
+            {t.abrirConsola}
           </button>
         ) : undefined
       }
@@ -127,7 +132,8 @@ function avisoDeLectura(l: LecturaClave): React.JSX.Element | null {
   if (descripcion) {
     return <AvisoCaja tono={descripcion.tono} titulo={descripcion.titulo} sugerencia={descripcion.sugerencia} detalle={descripcion.detalle} />
   }
-  if (!l.valor && l.detenida) return <AvisoCaja tono="info" titulo="Lectura detenida" sugerencia="Pulsa Refrescar para volver a leer la clave." />
+  const t = txVisorClaves()
+  if (!l.valor && l.detenida) return <AvisoCaja tono="info" titulo={t.lecturaDetenida} sugerencia={t.lecturaDetenidaPista} />
   return null
 }
 
@@ -137,15 +143,10 @@ export function cuerpoClave(e: EntradaCuerpo): React.JSX.Element {
   const aviso = avisoDeLectura(e.lectura)
   if (aviso) return aviso
   if (!e.lectura.valor || !contenido) return leyendo(e)
+  const t = txVisorClaves()
   switch (contenido.tipo) {
     case 'noExiste':
-      return (
-        <EstadoVacio
-          icono={<IconoClaveKv />}
-          titulo="La clave ya no existe"
-          pista="Se borró o caducó después de listarla. Refresca el árbol para ver las que quedan."
-        />
-      )
+      return <EstadoVacio icono={<IconoClaveKv />} titulo={t.claveYaNoExiste} pista={t.claveYaNoExistePista} />
     case 'otro':
       return cuerpoOtro(e, contenido.tipoServidor)
     case 'string':
@@ -153,7 +154,7 @@ export function cuerpoClave(e: EntradaCuerpo): React.JSX.Element {
     case 'json': {
       // No leído por grande: no es un documento vacío, así que no se pinta como tal.
       if (contenido.omitidoBytes !== undefined) {
-        return <EstadoVacio icono={<IconoClaveKv />} titulo="Documento demasiado grande para el visor" pista={avisoTruncado(contenido) ?? ''} />
+        return <EstadoVacio icono={<IconoClaveKv />} titulo={t.documentoGrande} pista={avisoTruncado(contenido) ?? ''} />
       }
       const b: DbKvBytes = { texto: contenido.texto, base64: '' }
       return <VistaBytes bytes={b} aviso={avisoTruncado(contenido)} modoElegido={modoElegido} onModo={setModoElegido} soloTexto />

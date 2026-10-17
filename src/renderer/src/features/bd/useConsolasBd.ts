@@ -82,6 +82,27 @@ function apuntarOptimista(todas: Map<string, Optimistas>, perfilId: string, cons
 }
 
 /**
+ * Lista los perfiles de interés al entrar en él. Lo de un perfil que deja de interesar se conserva y
+ * se refresca al volver, sin vaciarse; solo se sueltan los perfiles borrados (sin lista de vivos aún
+ * no se sabe cuáles sobran).
+ */
+function useListadoPorInteres(
+  clave: string,
+  claveVivos: string,
+  listar: (perfilId: string) => void,
+  setPorPerfil: (f: (prev: PorPerfil) => PorPerfil) => void
+): void {
+  useEffect(() => {
+    for (const perfilId of clave ? clave.split(',') : []) listar(perfilId)
+  }, [clave, listar])
+  useEffect(() => {
+    if (!claveVivos) return
+    const set = new Set(claveVivos.split(','))
+    setPorPerfil((prev) => soloInteres(prev, set))
+  }, [claveVivos, setPorPerfil])
+}
+
+/**
  * Las consolas de los perfiles de interés.
  * @param onListado se llama tras cada listado BUENO con los ids que existen (más
  *   las altas optimistas que el listado no podía conocer). Es donde `useBdApp` poda las
@@ -89,9 +110,11 @@ function apuntarOptimista(todas: Map<string, Optimistas>, perfilId: string, cons
  */
 export function useConsolasBd(
   perfilesInteres: readonly string[],
+  perfilesVivos: readonly string[],
   onListado?: (perfilId: string, idsVivos: readonly string[]) => void
 ): ConsolasBd {
   const clave = claveDe(perfilesInteres)
+  const claveVivos = claveDe(perfilesVivos)
   const onListadoRef = useRef(onListado)
   onListadoRef.current = onListado
   const [porPerfil, setPorPerfil] = useState<PorPerfil>(() => new Map())
@@ -124,12 +147,7 @@ export function useConsolasBd(
       .catch((err: unknown) => console.error('[db] no se pudieron listar las consolas:', err))
   }, [])
 
-  useEffect(() => {
-    const interes = clave ? clave.split(',') : []
-    const set = new Set(interes)
-    setPorPerfil((prev) => soloInteres(prev, set))
-    for (const perfilId of interes) listar(perfilId)
-  }, [clave, listar])
+  useListadoPorInteres(clave, claveVivos, listar, setPorPerfil)
 
   // Al volver a la ventana: el agente pudo tocar la carpeta mientras tanto.
   useEffect(() => {

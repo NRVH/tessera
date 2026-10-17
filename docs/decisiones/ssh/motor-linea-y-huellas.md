@@ -31,6 +31,12 @@ node-pty. Cerrar una terminal tecleaba `^C` y `exit`, que en una sesión remota 
   líneas sin ANSI traen un mensaje del cliente OpenSSH a principio de línea (huella cambiada, autenticación,
   inalcanzable o cortada, algoritmos); un corte vale también detrás del prompt remoto en la última línea, que es
   donde ssh lo escribe. Sin mensaje no hay motivo: el 255 pudo darlo el remoto. Gana el mensaje más reciente.
+  La huella cambiada, en la terminal, el SFTP y `tssh`, solo cuenta si el aviso nombra un archivo de
+  `ssh/huellas/` (ssh escribe ahí la ruta de su `known_hosts`, con las barras duplicadas en Windows): un `ssh`
+  lanzado en el equipo remoto escribe el mismo aviso con el suyo, y culpar a la conexión llevaría a olvidar una
+  huella buena. La única negativa propia sin ruta es la de un agente cuando el servidor ya no ofrece el tipo de
+  clave guardado («No … host key is known», en estricto): sale sin motivo y el agente lee el aviso de ssh tal
+  cual. Con un bastión, a su aviso le sigue el cierre del `ssh` exterior; ese cierre no tapa la huella.
   El renderer solo trata como fallo de ssh el 255 o una salida con motivo: un -1 de Windows sin motivo dice «La
   sesión terminó», porque también es como llega un `exit` normal cuyo código perdió ConPTY. El corte real se
   reconoce aquí, por su texto, y llega con motivo.

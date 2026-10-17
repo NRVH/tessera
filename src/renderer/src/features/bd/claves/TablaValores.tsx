@@ -2,12 +2,13 @@
 // TablaValores: la tabla virtual de los elementos de una clave de tipo colección (hash, list,
 // set, zset, stream). Columnas fijas por tipo y celdas que son bytes; solo se montan las
 // filas a la vista y las columnas van en `ch`. Toma el CSS de `TablaDocumentos`.
-// Decisiones: docs/decisiones/bd/ui-claves-pestana.md
+// Decisiones: docs/decisiones/bd/ui-claves-visor.md
 // =============================================================================
 
 import { destinoTeclado } from '../documentos/ventanaVirtual'
 import { useVentanaVirtual } from '../documentos/useVentanaVirtual'
 import type { TablaValor } from './visorClaves'
+import { txVisorClaves } from './textosVisorClaves'
 
 export interface PropsTablaValores {
   tabla: TablaValor
@@ -29,7 +30,7 @@ function celdaValor(c: Columna, f: Fila, k: number): React.JSX.Element {
   if (celda?.binario) cls.push('binario')
   if (celda?.ausente) cls.push('ausente')
   return (
-    <div key={k} className={cls.join(' ')} role="gridcell" style={{ width: `${c.ancho}ch` }} title={celda?.ausente ? `Sin ${c.titulo}` : celda?.texto}>
+    <div key={k} className={cls.join(' ')} role="gridcell" style={{ width: `${c.ancho}ch` }} title={celda?.ausente ? txVisorClaves().sinColumna(c.titulo) : celda?.texto}>
       {celda?.texto ?? ''}
     </div>
   )

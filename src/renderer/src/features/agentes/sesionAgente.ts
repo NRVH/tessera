@@ -8,11 +8,12 @@
 
 import type { Dispatch, SetStateAction } from 'react'
 import type { Terminal } from '@xterm/xterm'
-import type { AgentKind } from '../../../../shared/agent-terminal-ipc'
+import { esAgenteManual, type DefinicionAgente, type IdAgente } from '../../../../shared/agentesManuales'
 import {
-  C_DIM, C_ERR, C_OK, C_RST, C_WARN, HOST_ACCOUNT_ID, MAX_CONTAINER_RECOVERY_ATTEMPTS, RELOAD_BANNER, WAKE_BANNER
+  C_DIM, C_ERR, C_OK, C_RST, C_WARN, HOST_ACCOUNT_ID, MAX_CONTAINER_RECOVERY_ATTEMPTS, bannerReanudado, bannerReinicio
 } from './agentPaneTipos'
-import { fitAndSyncNow } from './terminalAgente'
+import { txSesion } from './textosSesion.ts'
+import { apuntarTamanoDeNacimiento, fitAndSyncNow, tamanoParaAbrir } from './terminalAgente'
 import type { ResultadoRelanzar } from './tipos'
 import { conversacionAReanudar, type UltimaConversacion } from './sesionViva'
 import type { EstadoSesion } from './useEstadoAgentPane'
@@ -24,7 +25,9 @@ export interface CtxSesion {
   s: EstadoSesion
   d: {
     profileId: string
-    agente: AgentKind
+    agente: IdAgente
+    /** La definición si es un agente manual: viaja al main con la apertura; sin conversaciones que leer. */
+    manual: DefinicionAgente | null
     projectHostPath: string
     hostMode: boolean
     selectedAccountId: string | null
@@ -41,6 +44,8 @@ export interface CtxSesion {
  */
 async function ultimaConversacion(ctx: CtxSesion, accountId: string): Promise<UltimaConversacion | undefined> {
   const { profileId, agente, projectHostPath, hostMode } = ctx.d
+  // De un agente manual no se leen conversaciones: reanuda con sus propios argumentos.
+  if (esAgenteManual(agente)) return undefined
   try {
     const list = await window.tessera.conversations.list({
       profileId,
@@ -80,7 +85,7 @@ export async function abrirSesion(ctx: CtxSesion, accountId: string): Promise<vo
   if (!term) return
   const apertura = r.sesion.empezarApertura(accountId)
   if (!apertura) return
-  if (apertura.banner) term.write(WAKE_BANNER)
+  if (apertura.banner) term.write(bannerReanudado())
   const { pedido } = apertura
   const ultima = !pedido.reanudar && !pedido.deCero ? await ultimaConversacion(ctx, accountId) : undefined
   const resumeSessionId = conversacionAReanudar(pedido, ultima)
@@ -92,6 +97,7 @@ export async function abrirSesion(ctx: CtxSesion, accountId: string): Promise<vo
   // Sin sesión viva su espejo ya vale null: solo `SesionAgente` lo escribe.
   s.setStatus('booting'); s.setError(null); s.setRecovery(null)
   try {
+    const tamano = tamanoParaAbrir(r)
     const res = await window.tessera.agentTerminal.open({
       profileId: d.profileId,
       agente: d.agente,
@@ -100,7 +106,10 @@ export async function abrirSesion(ctx: CtxSesion, accountId: string): Promise<vo
       resumeSessionId,
       mode: d.hostMode ? 'host' : 'container',
       // Del ref: cambiar el montaje no reabre la sesión; se aplica al reiniciar.
-      dbConnectionIds: r.dbMounted.current
+      dbConnectionIds: r.dbMounted.current,
+      // Un agente manual reanuda con sus argumentos salvo en «Nueva conversación».
+      ...(d.manual ? { manual: d.manual, reanudarManual: !pedido.deCero } : {}),
+      tamano
     })
     // Desmontado durante el open: no dejar la sesión huérfana.
     if (!r.term.current) {
@@ -108,6 +117,7 @@ export async function abrirSesion(ctx: CtxSesion, accountId: string): Promise<vo
       return
     }
     r.sesion.adoptar(res.sessionId)
+    apuntarTamanoDeNacimiento(r, res.sessionId, tamano)
     s.setStatus('live')
     ajustarTrasAbrir(r, term, true)
   } catch (err) {
@@ -174,27 +184,25 @@ export async function recuperarContenedor(ctx: Pick<CtxSesion, 'r' | 's'>): Prom
       s.setRecovery({ phase: 'recovering', attempt })
       s.setStatus('booting') // el punto del perfil gira "recuperando"
       term.write(
-        `\r\n${C_WARN}⚠ el contenedor Docker se cayó — reiniciando limpio ` +
-          `(intento ${attempt}/${MAX_CONTAINER_RECOVERY_ATTEMPTS})…${C_RST}\r\n`
+        `\r\n${C_WARN}${txSesion().contenedorCaido(attempt, MAX_CONTAINER_RECOVERY_ATTEMPTS)}${C_RST}\r\n`
       )
       try {
         await window.tessera.agentTerminal.reload(id)
         if (!r.term.current) return // desmontado durante el intento
         s.setStatus('live'); s.setRecovery(null)
-        term.write(`${C_OK}✓ contenedor reiniciado — sesión reanudada (sin re-login)${C_RST}\r\n`)
+        term.write(`${C_OK}${txSesion().contenedorReiniciado}${C_RST}\r\n`)
         ajustarTrasAbrir(r, term, true)
         return
       } catch (err) {
         if (!r.term.current) return
-        term.write(`${C_ERR}intento ${attempt} falló: ${textoError(err)}${C_RST}\r\n`)
+        term.write(`${C_ERR}${txSesion().intentoFallo(attempt, textoError(err))}${C_RST}\r\n`)
       }
     }
     if (!r.term.current) return
     s.setStatus('exited'); s.setRecovery({ phase: 'failed' })
     term.write(
-      `\r\n${C_ERR}✕ no se pudo recuperar tras ${MAX_CONTAINER_RECOVERY_ATTEMPTS} intentos.${C_RST}\r\n` +
-        `${C_DIM}Revisa Docker Desktop (que el motor esté "Running") y pulsa "Reintentar" ` +
-        `para levantarlo a mano.${C_RST}\r\n`
+      `\r\n${C_ERR}${txSesion().noRecuperado(MAX_CONTAINER_RECOVERY_ATTEMPTS)}${C_RST}\r\n` +
+        `${C_DIM}${txSesion().revisaDocker}${C_RST}\r\n`
     )
   } finally {
     r.recovering.current = false
@@ -223,7 +231,7 @@ export async function handleReload(ctx: CtxSesion, accion: 'reload' | 'open' | '
     }
     return
   }
-  await relanzarSesion(ctx, { enfocar: true, banner: RELOAD_BANNER })
+  await relanzarSesion(ctx, { enfocar: true, banner: bannerReinicio() })
 }
 
 /** Cuenta con la que se busca la conversación a reanudar al relanzar. */
@@ -252,13 +260,14 @@ export async function relanzarSesion(ctx: CtxSesion, opts: { enfocar: boolean; b
       // La entrada se reabre ANTES de relanzar: `disableStdin` corta también las
       // respuestas del xterm a las preguntas que el CLI hace al arrancar (ver el ADR).
       if (r.actualizando.current) term.options.disableStdin = false
-      await window.tessera.agentTerminal.reload(id, r.dbMounted.current, resumeId)
+      // Un agente manual relanza con su definición de ahora: reiniciar aplica lo editado.
+      await window.tessera.agentTerminal.reload(id, r.dbMounted.current, resumeId, ctx.d.manual ?? undefined)
       s.setStatus('live'); s.setRecovery(null)
       ajustarTrasAbrir(r, term, opts.enfocar)
       return 'ok'
     } catch (err) {
       s.setStatus('exited')
-      term.write(`\r\n${C_ERR}falló el reinicio: ${textoError(err)}${C_RST}\r\n`)
+      term.write(`\r\n${C_ERR}${txSesion().falloReinicio(textoError(err))}${C_RST}\r\n`)
       return 'fallo'
     }
   } finally {

@@ -56,6 +56,8 @@ export interface CreateSessionOptions {
    * árbol sin teclear nada. Pide `host: true`. Se conserva a través de reloadSession().
    */
   ejecutable?: EjecutableSesion
+  /** Columnas y filas con las que nace el pty; sin él (o fuera de rango), 80x24. */
+  tamano?: { cols: number; rows: number }
 }
 
 /**

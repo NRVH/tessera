@@ -7,6 +7,7 @@
 
 import { Fila, Grupo, Interruptor } from '../primitivas'
 import type { PropsCategoria } from '../tipos'
+import { txCategorias } from '../textosSistema.ts'
 
 export function Experimental({
   ve,
@@ -16,20 +17,21 @@ export function Experimental({
   onToggleVolcadosCaida
 }: PropsCategoria): React.JSX.Element | null {
   if (!ve('registro-salud') && !ve('volcados-caida')) return null
+  const t = txCategorias().experimental
   return (
-    <Grupo titulo="Diagnóstico">
+    <Grupo titulo={t.grupo}>
       {ve('registro-salud') && (
         <Fila
-          etiqueta="Registro de salud"
-          ayuda="Guarda cada 5 minutos, en un archivo de este equipo, cuánta memoria y cuántos procesos usa Tessera, para encontrar fugas con el uso real. No guarda nada de tus proyectos ni sale del equipo. Solo existe en las versiones alpha."
-          control={<Interruptor activo={registroSalud} onChange={onToggleRegistroSalud} etiqueta="Guardar el registro de salud" />}
+          etiqueta={t.salud}
+          ayuda={t.saludAyuda}
+          control={<Interruptor activo={registroSalud} onChange={onToggleRegistroSalud} etiqueta={t.saludEtiqueta} />}
         />
       )}
       {ve('volcados-caida') && (
         <Fila
-          etiqueta="Volcados de caída"
-          ayuda="Si Tessera se cae, guarda en este equipo un volcado de la caída (los diez últimos) y lo anota en su registro de fallos al volver a abrirla, para encontrar la causa. Nunca sale del equipo, y puede contener datos que la app tenía en memoria. El cambio vale al reiniciar Tessera. Solo existe en las versiones alpha."
-          control={<Interruptor activo={volcadosCaida} onChange={onToggleVolcadosCaida} etiqueta="Guardar volcados de caída" />}
+          etiqueta={t.volcados}
+          ayuda={t.volcadosAyuda}
+          control={<Interruptor activo={volcadosCaida} onChange={onToggleVolcadosCaida} etiqueta={t.volcadosEtiqueta} />}
         />
       )}
     </Grupo>

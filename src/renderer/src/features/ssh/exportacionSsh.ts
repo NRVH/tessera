@@ -7,18 +7,18 @@
 import { notify } from '../../comun/notifications'
 import type { SshExportacionOpenSsh } from '../../../../shared/ssh-ipc'
 import { mensajeDeErrorSsh } from './erroresSsh'
-
-const plural = (n: number, uno: string, varios: string): string => `${n} ${n === 1 ? uno : varios}`
+import { txSsh } from './textos.ts'
 
 /** El detalle del aviso: dónde van las claves, lo que no va y cómo usarlo. */
 export function detalleExportacion(r: SshExportacionOpenSsh): string {
+  const t = txSsh()
   const partes: string[] = []
-  if (r.bastiones > 0) partes.push(`Se añadieron ${plural(r.bastiones, 'bastión', 'bastiones')} por los que saltan.`)
-  if (r.carpetaClaves !== null) partes.push(`Las claves van en la carpeta «${r.carpetaClaves}», junto al archivo.`)
-  if (r.sinClave > 0) partes.push(`${plural(r.sinClave, 'conexión no tenía', 'conexiones no tenían')} su archivo de clave y va${r.sinClave === 1 ? '' : 'n'} sin él.`)
-  if (r.conSecreto > 0) partes.push(`Las contraseñas no se exportan (OpenSSH no las guarda): ssh las pedirá al conectar en ${plural(r.conSecreto, 'conexión', 'conexiones')}.`)
-  if (r.renombradas > 0) partes.push(`${plural(r.renombradas, 'nombre llevaba', 'nombres llevaban')} espacios o signos que OpenSSH no admite: el nombre original va en un comentario.`)
-  if (r.incluible) partes.push(`Para usarlas con ssh, añade «Include ${r.archivo}» al principio de tu archivo config (si ya tienes en él un Host con el mismo nombre, manda el exportado).`)
+  if (r.bastiones > 0) partes.push(t.expBastiones(r.bastiones))
+  if (r.carpetaClaves !== null) partes.push(t.expCarpetaClaves(r.carpetaClaves))
+  if (r.sinClave > 0) partes.push(t.expSinClave(r.sinClave))
+  if (r.conSecreto > 0) partes.push(t.expConSecreto(r.conSecreto))
+  if (r.renombradas > 0) partes.push(t.expRenombradas(r.renombradas))
+  if (r.incluible) partes.push(t.expInclude(r.archivo))
   return partes.join(' ')
 }
 
@@ -27,8 +27,8 @@ export async function exportarAOpenSsh(perfilId: string, ids?: readonly string[]
   try {
     const r = await window.tessera.ssh.exportarOpenSsh({ profileId: perfilId, ...(ids === undefined ? {} : { ids: [...ids] }) })
     if (r === null) return
-    notify('success', `Se ${r.conexiones === 1 ? 'exportó 1 conexión' : `exportaron ${r.conexiones} conexiones`} a «${r.archivo}»`, detalleExportacion(r) || undefined)
+    notify('success', txSsh().exportadas(r.conexiones, r.archivo), detalleExportacion(r) || undefined)
   } catch (err) {
-    notify('error', 'No se pudo exportar a OpenSSH', mensajeDeErrorSsh(err))
+    notify('error', txSsh().noSePudoExportar, mensajeDeErrorSsh(err))
   }
 }

@@ -3,6 +3,7 @@
 // búsqueda. El modal sigue centrado, de ahí que cada desplazamiento se aplique doble.
 // No usa `Splitter`: aquel es de un eje y reparte entre dos paneles; esto es el contorno.
 // =============================================================================
+import { txBusqueda } from './textos.ts'
 
 /** Tamaño mínimo del modal. */
 const MODAL_MIN_ANCHO = 560
@@ -21,17 +22,6 @@ const CURSOR_DE: Record<Lado, string> = {
   se: 'nwse-resize',
   ne: 'nesw-resize',
   so: 'nesw-resize'
-}
-
-const ETIQUETA_DE: Record<Lado, string> = {
-  n: 'Redimensionar por arriba',
-  s: 'Redimensionar por abajo',
-  e: 'Redimensionar por la derecha',
-  o: 'Redimensionar por la izquierda',
-  no: 'Redimensionar por la esquina superior izquierda',
-  ne: 'Redimensionar por la esquina superior derecha',
-  so: 'Redimensionar por la esquina inferior izquierda',
-  se: 'Redimensionar por la esquina inferior derecha'
 }
 
 interface ManijasProps {
@@ -89,6 +79,7 @@ export function ManijasRedimension({ ancho, alto, onResize }: ManijasProps): Rea
     window.addEventListener('mouseup', soltar)
   }
 
+  const etiquetas = txBusqueda().redimensionar
   return (
     <>
       {LADOS.map((lado) => (
@@ -96,7 +87,7 @@ export function ManijasRedimension({ ancho, alto, onResize }: ManijasProps): Rea
           key={lado}
           className={`buscar-manija buscar-manija-${lado}`}
           role="separator"
-          aria-label={ETIQUETA_DE[lado]}
+          aria-label={etiquetas[lado]}
           onMouseDown={(e) => alPresionar(e, lado)}
         />
       ))}

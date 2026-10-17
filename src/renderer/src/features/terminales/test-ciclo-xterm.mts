@@ -213,16 +213,15 @@ hr('(4) Atajos: la misma tabla para la terminal y el agente, en las dos platafor
     altKey?: boolean
     type?: string
   }
-  function probar(plataforma: 'windows' | 'mac' | 'linux', t: Tecla, opciones: { seleccion?: boolean; puedeBuscar?: boolean } = {}): string {
+  function probar(plataforma: 'windows' | 'mac' | 'linux', t: Tecla, opciones: { seleccion?: boolean; sinBuscador?: boolean } = {}): string {
     const hechos: string[] = []
     const term = { hasSelection: () => opciones.seleccion ?? false, clearSelection: () => hechos.push('limpiar') }
     const manejar = crearManejadorAtajos(
       term,
       {
-        abrirBuscador: () => hechos.push('buscar'),
+        ...(opciones.sinBuscador ? {} : { abrirBuscador: () => hechos.push('buscar') }),
         copiar: () => hechos.push('copiar'),
-        pegar: () => hechos.push('pegar'),
-        ...(opciones.puedeBuscar === undefined ? {} : { puedeBuscar: () => opciones.puedeBuscar as boolean })
+        pegar: () => hechos.push('pegar')
       },
       plataforma
     )
@@ -244,9 +243,9 @@ hr('(4) Atajos: la misma tabla para la terminal y el agente, en las dos platafor
     const otro = pl === 'mac' ? { ctrlKey: true } : { metaKey: true }
     check(`${pl}: Mod+F abre el buscador`, probar(pl, { key: 'f', ...mod }) === 'false:prevent,buscar', probar(pl, { key: 'f', ...mod }))
     check(
-      `${pl}: Mod+F con el selector de cuenta a la vista llega al pty`,
-      probar(pl, { key: 'F', ...mod }, { puedeBuscar: false }) === 'true:',
-      probar(pl, { key: 'F', ...mod }, { puedeBuscar: false })
+      `${pl}: Mod+F sin buscador (la terminal del agente) llega al pty`,
+      probar(pl, { key: 'F', ...mod }, { sinBuscador: true }) === 'true:',
+      probar(pl, { key: 'F', ...mod }, { sinBuscador: true })
     )
     check(`${pl}: el otro modificador + F no es nuestro`, probar(pl, { key: 'f', ...otro }) === 'true:', probar(pl, { key: 'f', ...otro }))
     check(

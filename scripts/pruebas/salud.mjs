@@ -4,7 +4,8 @@
 // días cubiertos, tendencia de memoria por proceso en MB/día (regresión lineal por grupos de la misma
 // sesión de la app y con el mismo nº de terminales+agentes abiertos: ni un reinicio ni abrir más
 // cosas se confunden con una fuga),
-// picos, memoria antes y después de cada suspensión y procesos caídos. Marca si cruza la línea
+// picos, memoria antes y después de cada suspensión y procesos caídos, y los avisos del vigía de
+// contratos con los CLIs (en `crash.log`). Marca si cruza la línea
 // de corte (fuga >= 100 MB/día). Uso: node scripts/pruebas/salud.mjs [carpeta-de-logs]
 // =============================================================================
 
@@ -103,11 +104,27 @@ function tendencia(muestras, valor) {
 
 const redondear = (v, d = 1) => (typeof v === 'number' ? Math.round(v * 10 ** d) / 10 ** d : '-')
 
+/**
+ * Avisos del vigía de contratos con los CLIs (`[contrato-cli]` en el registro de incidentes): un
+ * lector que dejó de entender lo que escribe una versión de Claude Code o Codex.
+ */
+function informarContratos(carpeta) {
+  const avisos = []
+  for (const nombre of ['crash.log.old', 'crash.log']) {
+    const ruta = join(carpeta, nombre)
+    if (!existsSync(ruta)) continue
+    for (const l of readFileSync(ruta, 'utf8').split('\n')) if (l.includes('[contrato-cli]')) avisos.push(l)
+  }
+  console.log(`\nContratos con los CLIs de los agentes: ${avisos.length === 0 ? 'sin avisos' : `${avisos.length} aviso(s)`}`)
+  for (const a of avisos.slice(-20)) console.log(`  ${a}`)
+}
+
 function main() {
   const carpeta = process.argv[2] ?? carpetaPorDefecto()
   const lineas = leerLineas(carpeta)
   const muestras = lineas.filter((l) => l.tipo === 'muestra')
   console.log(`Carpeta: ${carpeta}`)
+  informarContratos(carpeta)
   if (muestras.length === 0) {
     console.log('Sin muestras: el registro solo existe en las versiones alpha y con el ajuste encendido.')
     return

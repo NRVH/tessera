@@ -9,6 +9,7 @@ import { realpathSync } from 'node:fs'
 import path from 'node:path'
 import { plataformaActual, type Plataforma } from '../../shared/plataforma.ts'
 import { nunca } from '../../shared/nunca.ts'
+import { txDb } from './textosDb.ts'
 
 /** La ruta canónica de un archivo y si se pudo comprobar que existe. */
 export interface RutaCanonica {
@@ -41,8 +42,8 @@ function pathDe(plataforma: Plataforma): path.PlatformPath {
  */
 export function canonizarRutaArchivo(ruta: string, deps: DepsRutaArchivo = depsDeSerie()): RutaCanonica {
   const p = pathDe(deps.plataforma)
-  if (typeof ruta !== 'string' || ruta.trim() === '') throw new Error('Falta la ruta del archivo.')
-  if (!p.isAbsolute(ruta)) throw new Error(`La ruta del archivo tiene que ser absoluta: ${ruta}`)
+  if (typeof ruta !== 'string' || ruta.trim() === '') throw new Error(txDb().archivos.faltaRuta)
+  if (!p.isAbsolute(ruta)) throw new Error(txDb().archivos.rutaNoAbsoluta(ruta))
   const normal = p.normalize(ruta)
   try {
     return { ruta: deps.realpath(normal), existe: true }

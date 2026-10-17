@@ -11,11 +11,12 @@ import type { ErrorBarraFiltro } from '../filtro/modeloFiltro'
 import { textoError } from '../panesBd'
 import { aplicarEscrito, cambiarModo, quitarOrden, restaurarGuiado, teclaWhere } from './datosAcciones'
 import type { VistaDatos } from './datosTipos'
+import { txRejilla } from './textosRejilla.ts'
 
 /** El error del ORDEN (una columna que el servidor no sabe ordenar), o null. */
 function errorOrden(v: VistaDatos): string | null {
   const { errorCampo } = v.e
-  return errorCampo?.campo === 'orderBy' ? `No se pudo ordenar: ${textoError(errorCampo)}` : null
+  return errorCampo?.campo === 'orderBy' ? txRejilla().noSePudoOrdenar(textoError(errorCampo)) : null
 }
 
 /** El error que pinta la barra guiada: el suyo o el del servidor en su fila (el del orden va aparte). */
@@ -34,7 +35,7 @@ function avisoOrden(v: VistaDatos): React.JSX.Element | null {
     <div className="db-filtro-error campo-orderBy" role="alert">
       <span>{orden}</span>
       <button type="button" className="btn" onClick={() => quitarOrden(v)}>
-        Quitar el orden
+        {txRejilla().quitarOrden}
       </button>
     </div>
   )
@@ -58,7 +59,7 @@ function filtroGuiado(v: VistaDatos): React.JSX.Element {
         error={errorGuiada(v)}
         avanzado={{
           etiqueta: 'SQL',
-          titulo: 'Escribir el WHERE a mano, en el SQL del motor',
+          titulo: txRejilla().escribirWhere,
           onClick: () => cambiarModo(n, 'sql')
         }}
       />
@@ -80,7 +81,7 @@ function filtroSql(v: VistaDatos): React.JSX.Element {
           value={v.e.whereTxt}
           onChange={(e) => n.setWhereTxt(e.target.value)}
           onKeyDown={(e) => teclaWhere(v, e)}
-          placeholder="Filtrar filas (Intro aplica)"
+          placeholder={txRejilla().filtrarFilas}
           aria-invalid={errorCampo?.campo === 'where'}
           spellCheck={false}
           autoComplete="off"
@@ -91,10 +92,10 @@ function filtroSql(v: VistaDatos): React.JSX.Element {
       <button
         type="button"
         className="btn filtro-modo"
-        title="Volver al filtro guiado (columna · operador · valor)"
+        title={txRejilla().volverGuiado}
         onClick={() => cambiarModo(n, 'guiado')}
       >
-        Guiado
+        {txRejilla().guiado}
       </button>
       {errorCampo?.campo === 'where' && (
         <div className="db-filtro-error campo-where" role="alert">

@@ -20,7 +20,7 @@ import {
 } from './agentActivity'
 import { actualizarActividad, useStoreAgentes } from './store'
 import type { AgentesApp } from './useAgentesApp'
-import { agentTargetKey, type OpenAgentTarget, type UseTabs } from '../pestanas'
+import { agentTargetKey, type OpenAgentTarget } from '../pestanas'
 import { claveVista, useStoreMosaico } from '../mosaico'
 
 /** Actividad y atención por perfil. */
@@ -34,26 +34,18 @@ export interface ActividadAgentes {
 }
 
 /** Qué se está mirando AHORA: la regla única de «visto» (suscripción y marca). */
-function useClaveVista(tabs: UseTabs, agentes: AgentesApp, ccHidden: boolean): string | null {
+function useClaveVista(agentes: AgentesApp, ccHidden: boolean): string | null {
   const { mosaicoActivo, enfocada, teselas } = useStoreMosaico(
     useShallow((s) => ({ mosaicoActivo: s.mosaicoActivo, enfocada: s.enfocada, teselas: s.teselas }))
   )
-  const objetivoGit = tabs.objetivoGit
-  const confirmed = tabs.confirmedTarget
-  // Mientras el backend no confirma lo que ya enseñan las pestañas, nada cuenta como visto.
-  const vistaConfirmada =
-    objetivoGit !== null &&
-    confirmed !== null &&
-    objetivoGit.profileId === confirmed.profileId &&
-    objetivoGit.project.projectHostPath === confirmed.project.projectHostPath
   const lay = agentes.lay
   return claveVista({
     mosaico: mosaicoActivo,
     enfocada,
     teselas,
     activeTargetKey: agentes.activeTargetKeyEfectivo,
-    // El agente de datos y el de la terminal no dependen del proyecto confirmado: se ven si su columna se ve.
-    ccVisible: lay.agente === 'espacio' || lay.agente === 'terminal' ? !lay.cc.hidden : !ccHidden && vistaConfirmada
+    // La columna enseña el agente del proyecto que se ve desde el mismo commit que el clic.
+    ccVisible: lay.agente === 'espacio' || lay.agente === 'terminal' ? !lay.cc.hidden : !ccHidden
   })
 }
 
@@ -95,12 +87,11 @@ function useSuscripcionActividad(claveVistaRef: { current: string | null }): voi
 
 /** Actividad de los agentes, «visto» y poda. */
 export function useActividadAgentes(
-  tabs: UseTabs,
   agentes: AgentesApp,
   ccHidden: boolean
 ): ActividadAgentes {
   const activity = useStoreAgentes((s) => s.activity)
-  const claveVistaActual = useClaveVista(tabs, agentes, ccHidden)
+  const claveVistaActual = useClaveVista(agentes, ccHidden)
   // La suscripción se registra una vez y lee la regla al vuelo.
   const claveVistaRef = useRef(claveVistaActual)
   claveVistaRef.current = claveVistaActual

@@ -29,6 +29,7 @@ import {
 import { cancelarDatos, nuevaPeticion, ponerCambios, ponerEnvio } from './datosBase'
 import { consultar } from './datosLectura'
 import type { Envio, NucleoDatos } from './datosTipos'
+import { txRejilla } from './textosRejilla.ts'
 
 /**
  * Pregunta «Descartar N cambios» si hay algo pendiente y resuelve si se puede seguir (y,
@@ -86,14 +87,14 @@ export function abrirEnvio(n: NucleoDatos): void {
   })
   if (!conv.ok) {
     senalar(n, conv.fila, conv.error)
-    notify('error', 'No se puede enviar', conv.error)
+    notify('error', txRejilla().noSePuedeEnviar, conv.error)
     return
   }
   const previa = previaEnvio(con.motor, base.objetoReal, ident, conv.cambios, tiposPorNombre(base.columnas))
   if (!previa.ok) {
     const ref = filaDeIndice(conv.origen, previa.indice)
     if (ref) senalar(n, ref, previa.error)
-    notify('error', 'No se puede enviar', previa.error)
+    notify('error', txRejilla().noSePuedeEnviar, previa.error)
     return
   }
   ponerEnvio(n, {
@@ -110,7 +111,7 @@ export function abrirEnvio(n: NucleoDatos): void {
 function trasEnvioHecho(n: NucleoDatos, aplicados: number): void {
   ponerEnvio(n, null)
   ponerCambios(n, SIN_CAMBIOS)
-  notify('success', `${textoCambios(aplicados)} ${aplicados === 1 ? 'aplicado' : 'aplicados'}`)
+  notify('success', `${textoCambios(aplicados)} ${aplicados === 1 ? txRejilla().cambioAplicado : txRejilla().cambioAplicados}`)
   // El diálogo devuelve el foco a quien lo abrió; tras él, a la rejilla.
   requestAnimationFrame(() => n.accionesRef.current?.enfocar())
   const cargadas = n.resRef.current?.datos.filas.length ?? 0
@@ -129,7 +130,7 @@ function aplicarRespuestaEnvio(n: NucleoDatos, r: DbRespuesta<DbResultadoEnvio>,
       ...actual,
       estado: {
         tipo: 'error',
-        titulo: detenido ? 'Envío detenido: no se aplicó nada' : 'No se envió nada',
+        titulo: detenido ? txRejilla().envioDetenido : txRejilla().noSeEnvioNada,
         mensaje: detenido ? '' : textoError(r.error),
         indice: null
       }

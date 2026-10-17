@@ -1,11 +1,12 @@
 // =============================================================================
-// main: punto de entrada del renderer. Publica el tema y la plataforma antes de montar
-// nada, instala la red de seguridad de errores asíncronos y monta `App` bajo un
+// main: punto de entrada del renderer. Fija el idioma y publica el tema y la plataforma antes
+// de montar nada, instala la red de seguridad de errores asíncronos y monta `App` bajo un
 // ErrorBoundary raíz, sin StrictMode.
-// Depende de `App`, `comun/ErrorBoundary`, `comun/barrasDesplazamiento`, `theme/atomOneDark`, `theme/chromeVentana`,
+// Depende de `util/idiomaArranque` (el primer import), `App`,`comun/ErrorBoundary`, `comun/barrasDesplazamiento`, `theme/atomOneDark`, `theme/chromeVentana`,
 // `util/diagnosticoRendimiento` (el diagnóstico apagado que se enciende con F12) y `util/vigiaRendimiento` (alpha).
 // =============================================================================
 
+import './util/idiomaArranque'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import { ErrorBoundary } from './comun/ErrorBoundary'

@@ -78,7 +78,9 @@ request esto significa:
 
 ## Probar tu cambio
 
-No hay `npm test`. Corre lo que tu cambio pueda afectar:
+No hay `npm test`. Al hacer commit, un hook (lo activa `npm install`) corre tipos, lint y las
+guardias de texto sobre lo que cambiaste, y lo para si algo falla. Además, corre lo que tu cambio
+pueda afectar:
 
 ```bash
 npm run typecheck                  # proceso principal, interfaz y suite e2e
@@ -86,6 +88,7 @@ npm run lint                       # o: npx eslint <rutas> para un área
 npm run test:cabeceras -- <rutas>  # cabeceras de los archivos
 npm run test:comentarios -- <rutas>
 npm run test:menciones -- <rutas>
+npm run test:textos -- <rutas>     # textos de la interfaz en los dos idiomas
 npm run test:<nombre>              # los scripts de prueba del área que tocaste
 ```
 

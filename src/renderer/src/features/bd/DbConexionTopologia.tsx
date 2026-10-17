@@ -9,31 +9,35 @@ import { descriptor, usaOpcional } from '../../../../shared/motores/index'
 import { conModoRedis, type BorradorConexion, type ModoRedis } from './borradorConexion'
 import { avisoTopologiaRedis } from './camposConexion'
 import { pegarRecortado } from '../../util/pasteTrim'
+import { txConexionDialogo } from './textosConexionDialogo.ts'
 
 type Editar = (cambio: Partial<BorradorConexion>) => void
 
-const AYUDAS: Record<ModoRedis, string> = {
-  servidor: '',
-  sentinel:
-    'En Host van los sentinels separados por comas (sentinel1:26379, sentinel2:26379); el puerto de al lado vale para los que no lo digan. ' +
-    'Tessera les pregunta por el maestro y, tras un failover, vuelve a preguntar.',
-  cluster: 'En Host van uno o varios nodos separados por comas (nodo1:6379, nodo2:6379); el resto del cluster se descubre. En Cluster solo existe la base 0.'
+function ayudas(): Record<ModoRedis, string> {
+  const t = txConexionDialogo()
+  return { servidor: '', sentinel: t.ayudaSentinel, cluster: t.ayudaCluster }
 }
 
-const MODOS: readonly { valor: ModoRedis; etiqueta: string }[] = [
-  { valor: 'servidor', etiqueta: 'Un servidor' },
-  { valor: 'sentinel', etiqueta: 'Sentinel (maestro y réplicas)' },
-  { valor: 'cluster', etiqueta: 'Cluster' }
-]
+function modos(): readonly { valor: ModoRedis; etiqueta: string }[] {
+  const t = txConexionDialogo()
+  return [
+    { valor: 'servidor', etiqueta: t.modoServidor },
+    { valor: 'sentinel', etiqueta: t.modoSentinel },
+    { valor: 'cluster', etiqueta: t.modoCluster }
+  ]
+}
 
-const CLAVES: readonly { valor: DbClaveSentinel; etiqueta: string }[] = [
-  { valor: 'ninguna', etiqueta: 'Ninguna' },
-  { valor: 'misma', etiqueta: 'La misma de la conexión' },
-  { valor: 'propia', etiqueta: 'Otra' }
-]
+function claves(): readonly { valor: DbClaveSentinel; etiqueta: string }[] {
+  const t = txConexionDialogo()
+  return [
+    { valor: 'ninguna', etiqueta: t.claveNinguna },
+    { valor: 'misma', etiqueta: t.claveMisma },
+    { valor: 'propia', etiqueta: t.clavePropia }
+  ]
+}
 
-const esModo = (v: string): v is ModoRedis => MODOS.some((m) => m.valor === v)
-const esClave = (v: string): v is DbClaveSentinel => CLAVES.some((c) => c.valor === v)
+const esModo = (v: string): v is ModoRedis => modos().some((m) => m.valor === v)
+const esClave = (v: string): v is DbClaveSentinel => claves().some((c) => c.valor === v)
 
 /** ¿Pinta el motor del borrador la topología de Redis? */
 function conTopologia(b: BorradorConexion): boolean {
@@ -55,12 +59,13 @@ export function SelectorTopologiaRedis({
   if (!conTopologia(borrador)) return null
   const sentinel = borrador.modoRedis === 'sentinel'
   const aviso = avisoTopologiaRedis(borrador)
-  const ayuda = AYUDAS[borrador.modoRedis]
+  const ayuda = ayudas()[borrador.modoRedis]
+  const t = txConexionDialogo()
   return (
     <>
       <div className="dbc-fila">
         <label className="dbc-campo dbc-crece">
-          <span className="dbc-etiqueta">Conexión a</span>
+          <span className="dbc-etiqueta">{t.conexionA}</span>
           <select
             // El foco del «falta» va al maestro cuando lo hay: es lo que se puede corregir.
             data-campo={sentinel ? undefined : 'topologiaRedis'}
@@ -71,7 +76,7 @@ export function SelectorTopologiaRedis({
               if (esModo(v)) setBorrador((b) => conModoRedis(b, v))
             }}
           >
-            {MODOS.map((m) => (
+            {modos().map((m) => (
               <option key={m.valor} value={m.valor}>
                 {m.etiqueta}
               </option>
@@ -80,7 +85,7 @@ export function SelectorTopologiaRedis({
         </label>
         {sentinel && (
           <label className="dbc-campo dbc-sid">
-            <span className="dbc-etiqueta">Maestro</span>
+            <span className="dbc-etiqueta">{t.maestro}</span>
             <input
               data-campo="topologiaRedis"
               aria-invalid={invalido || undefined}
@@ -106,10 +111,11 @@ export function SelectorTopologiaRedis({
 /** Con Sentinel: qué contraseña llevan los sentinels y, si es otra, cuál. */
 export function ClaveSentinels({ borrador, editar }: { borrador: BorradorConexion; editar: Editar }): React.JSX.Element | null {
   if (!conTopologia(borrador) || borrador.modoRedis !== 'sentinel') return null
+  const t = txConexionDialogo()
   return (
     <div className="dbc-fila">
       <label className="dbc-campo dbc-crece">
-        <span className="dbc-etiqueta">Contraseña de los sentinels</span>
+        <span className="dbc-etiqueta">{t.contrasenaSentinels}</span>
         <select
           value={borrador.claveSentinel}
           onChange={(e) => {
@@ -117,7 +123,7 @@ export function ClaveSentinels({ borrador, editar }: { borrador: BorradorConexio
             if (esClave(v)) editar({ claveSentinel: v })
           }}
         >
-          {CLAVES.map((c) => (
+          {claves().map((c) => (
             <option key={c.valor} value={c.valor}>
               {c.etiqueta}
             </option>
@@ -126,11 +132,11 @@ export function ClaveSentinels({ borrador, editar }: { borrador: BorradorConexio
       </label>
       {borrador.claveSentinel === 'propia' && (
         <label className="dbc-campo dbc-crece">
-          <span className="dbc-etiqueta">La de los sentinels</span>
+          <span className="dbc-etiqueta">{t.laDeLosSentinels}</span>
           <input
             type="password"
             value={borrador.passwordSentinel ?? ''}
-            placeholder={borrador.id !== undefined ? '(sin cambios)' : ''}
+            placeholder={borrador.id !== undefined ? t.sinCambios : ''}
             autoComplete="new-password"
             onChange={(e) => editar({ passwordSentinel: e.target.value })}
             onPaste={pegarRecortado((v) => editar({ passwordSentinel: v }))}

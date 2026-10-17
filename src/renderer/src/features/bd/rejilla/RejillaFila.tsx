@@ -8,8 +8,9 @@
 
 import { memo } from 'react'
 import type { DbCelda, DbColumnaResultado } from '../../../../../shared/db-explorador-ipc'
-import { MOTIVO_BORRADA, MOTIVO_RECORTADA, type FilaEditada, type FilaNueva } from './cambiosRejilla'
+import { motivoBorrada, motivoRecortada, type FilaEditada, type FilaNueva } from './cambiosRejilla'
 import { formatoEntero, TEXTO_NULO, textoCelda, type TextoCelda } from './celdasRejilla'
+import { txRejilla } from './textosRejilla.ts'
 
 /** Tope del tooltip de una celda: un CLOB de 64 KiB en un `title` bloquea el hilo. */
 const TOPE_TOOLTIP = 2000
@@ -53,7 +54,7 @@ export interface FilaProps {
 function tooltipCelda(v: DbCelda, largo: number | undefined): string | undefined {
   if (typeof v !== 'string') return undefined
   const cuerpo = v.length > TOPE_TOOLTIP ? v.slice(0, TOPE_TOOLTIP) + '…' : v
-  return largo !== undefined ? `${cuerpo}\n(valor recortado: ${formatoEntero(largo)} en total)` : cuerpo
+  return largo !== undefined ? txRejilla().valorRecortado(cuerpo, formatoEntero(largo)) : cuerpo
 }
 
 function resumenOriginal(v: DbCelda | undefined): string {
@@ -76,12 +77,13 @@ function tituloEnEdicion(
   base: string | undefined,
   e: EstadoCelda
 ): { titulo: string | undefined; noEditable: boolean } {
-  const motivo = p.motivos?.[c] ?? (e.borrada ? MOTIVO_BORRADA : e.largo !== undefined ? MOTIVO_RECORTADA : null)
-  if (motivo) return { titulo: (base ? base + '\n' : '') + `No editable: ${motivo}`, noEditable: true }
+  const t = txRejilla()
+  const motivo = p.motivos?.[c] ?? (e.borrada ? motivoBorrada() : e.largo !== undefined ? motivoRecortada() : null)
+  if (motivo) return { titulo: (base ? base + '\n' : '') + t.noEditable(motivo), noEditable: true }
   if (e.cambiada && p.original) {
-    return { titulo: (base ? base + '\n' : '') + `Valor original: ${resumenOriginal(p.original[c])}`, noEditable: false }
+    return { titulo: (base ? base + '\n' : '') + t.valorOriginal(resumenOriginal(p.original[c])), noEditable: false }
   }
-  if (e.porDefecto) return { titulo: 'Sin escribir: se inserta con su valor por defecto (DEFAULT)', noEditable: false }
+  if (e.porDefecto) return { titulo: t.sinEscribir, noEditable: false }
   return { titulo: base, noEditable: false }
 }
 
@@ -124,9 +126,10 @@ function celdaDeFila(p: FilaProps, c: number, borrada: boolean): React.JSX.Eleme
 }
 
 function tituloNumero(p: FilaProps, borrada: boolean): string | undefined {
-  if (p.error) return `No se aplicó: ${p.error}`
-  if (p.nueva) return 'Fila nueva (sin enviar)'
-  return borrada ? 'Marcada para borrar (sin enviar)' : undefined
+  const t = txRejilla()
+  if (p.error) return t.noSeAplico(p.error)
+  if (p.nueva) return t.filaNueva
+  return borrada ? t.marcadaBorrar : undefined
 }
 
 /** Una fila visible; las que siguen dentro de la ventana conservan props idénticas. */

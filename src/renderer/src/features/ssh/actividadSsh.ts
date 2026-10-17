@@ -5,17 +5,20 @@
 // Decisiones: docs/decisiones/ssh/tssh-y-agentes.md
 // =============================================================================
 
+import { localeActual } from '../../../../shared/i18n.ts'
 import type { SshActividad, SshUsoTssh } from '../../../../shared/ssh-ipc'
+import { txSsh } from './textos.ts'
 
 /** Qué pidió el agente. */
 export function textoUso(uso: SshUsoTssh): string {
+  const t = txSsh()
   switch (uso) {
     case 'run':
-      return 'Orden remota'
+      return t.usoRun
     case 'cp':
-      return 'Copia de archivos'
+      return t.usoCp
     case 'doctor':
-      return 'Prueba de conexión'
+      return t.usoDoctor
   }
 }
 
@@ -27,42 +30,36 @@ export interface ResultadoActividad {
 
 /** Por qué `tssh` no la lanzó, por su código. */
 function textoRechazo(codigo: number | null): string {
+  const t = txSsh()
   switch (codigo) {
     case 4:
-      return 'Conexión no disponible para los agentes'
+      return t.rechazo4
     case 5:
-      return 'Huella del servidor sin confirmar'
+      return t.rechazo5
     case 6:
-      return 'La conexión no se puede usar'
+      return t.rechazo6
     case 3:
-      return 'Sin comunicación con Tessera'
+      return t.rechazo3
     default:
-      return 'Petición no válida'
+      return t.rechazoOtro
   }
 }
 
-/** Por qué falló ssh, si lo dijo. */
-const MOTIVOS: Readonly<Record<NonNullable<SshActividad['motivo']>, string>> = {
-  'ssh-autenticacion': 'El servidor rechazó las credenciales',
-  'ssh-inalcanzable': 'Servidor inalcanzable',
-  'ssh-huella-cambiada': 'La huella del servidor cambió',
-  'ssh-algoritmos': 'Algoritmos incompatibles'
-}
-
-/** El resultado de una petición, para su columna. */
+/** El resultado de una petición, para su columna. Por qué falló ssh, si lo dijo: `motivoActividad`. */
 export function resultadoActividad(e: SshActividad): ResultadoActividad {
-  if (e.estado === 'rechazada') return { texto: `No se lanzó: ${textoRechazo(e.codigo)}`, tono: 'aviso' }
-  if (e.estado === 'sinFinal') return { texto: 'Sin final registrado (en curso o interrumpida)', tono: 'aviso' }
-  if (e.tope) return { texto: 'Cortada por su tiempo máximo', tono: 'error' }
-  if (e.motivo !== undefined) return { texto: MOTIVOS[e.motivo], tono: 'error' }
-  if (e.codigo === 0) return { texto: 'Correcta', tono: 'ok' }
-  return { texto: e.codigo === null ? 'Terminó sin código' : `Terminó con el código ${e.codigo}`, tono: 'error' }
+  const t = txSsh()
+  if (e.estado === 'rechazada') return { texto: t.noSeLanzo(textoRechazo(e.codigo)), tono: 'aviso' }
+  if (e.estado === 'sinFinal') return { texto: t.sinFinal, tono: 'aviso' }
+  if (e.tope) return { texto: t.cortadaPorTope, tono: 'error' }
+  if (e.motivo !== undefined) return { texto: t.motivoActividad[e.motivo], tono: 'error' }
+  if (e.codigo === 0) return { texto: t.correcta, tono: 'ok' }
+  return { texto: e.codigo === null ? t.terminoSinCodigo : t.terminoConCodigo(e.codigo), tono: 'error' }
 }
 
 /** Lo que tardó: «0,4 s», «12 s», «3 min 5 s»; vacío si no se sabe. */
 export function textoDuracion(ms: number | null): string {
   if (ms === null) return ''
-  if (ms < 10_000) return `${(Math.round(ms / 100) / 10).toLocaleString('es-ES')} s`
+  if (ms < 10_000) return `${(Math.round(ms / 100) / 10).toLocaleString(localeActual())} s`
   const s = Math.round(ms / 1000)
   if (s < 60) return `${s} s`
   return `${Math.floor(s / 60)} min ${s % 60} s`

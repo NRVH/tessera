@@ -1,7 +1,7 @@
 // =============================================================================
 // El contexto de una invocación de `tdb`: perfil, registro, ámbito y secretos, leídos del
 // entorno de la terminal de Tessera y, si hay puente, de su respuesta (que manda).
-// Depende de `tdbRegistro`, `tdbConexiones`, `tdbPuente` y `tdbSalida`; lo usa `tdb.cjs`.
+// Depende de `tdbRegistro`, `tdbConexiones`, `tdbPuente`, `tdbSalida` y `textosTdb`; lo usa `tdb.cjs`.
 // Decisiones: docs/decisiones/bd/puente-punto-de-escucha-y-concesiones.md
 // =============================================================================
 'use strict'
@@ -11,6 +11,7 @@ const { fallar } = require('./tdbSalida.cjs')
 const { leerJson, leerRegistroConexiones } = require('./tdbRegistro.cjs')
 const { marcarIdsRepetidos } = require('./tdbConexiones.cjs')
 const { pedirAlPuente } = require('./tdbPuente.cjs')
+const { textosTdb } = require('./textosTdb.cjs')
 
 const ENV_PERFIL = 'TESSERA_PROFILE'
 const ENV_REGISTRO = 'TESSERA_DB_REGISTRY'
@@ -30,16 +31,6 @@ const ENV_ESPACIO = 'TESSERA_DB_ESPACIO'
 const ENV_PIPE = 'TESSERA_DB_PIPE'
 const ENV_SESION = 'TESSERA_DB_SESSION'
 const ENV_MODO = 'TESSERA_DB_MODE'
-
-const MENSAJE_SIN_CONTEXTO =
-  'Esta terminal no lleva el contexto de bases de datos de Tessera.\n' +
-  '    Suele ser una de estas dos:\n' +
-  '      - La terminal se abrió ANTES de montar la base. Pulsa "Recargar" en la\n' +
-  '        terminal de abajo, o "Reiniciar" en la cabecera del agente.\n' +
-  '      - No es una terminal de Tessera en modo Windows (una consola suelta, o\n' +
-  '        un proyecto en modo Docker).\n' +
-  '\n' +
-  '    Diagnóstico completo:  tdb doctor'
 
 /**
  * Las conexiones del registro como las lee el main y las de ESTE perfil. Solo objetos (el
@@ -111,7 +102,7 @@ async function contexto(opciones) {
   const tolerante = Boolean(opciones && opciones.tolerante)
   const registro = process.env[ENV_REGISTRO]
   const json = Boolean(opciones && opciones.json)
-  if (!registro && !tolerante) fallar({ json }, MENSAJE_SIN_CONTEXTO)
+  if (!registro && !tolerante) fallar({ json }, textosTdb().sinContexto)
   const driversDir = process.env[ENV_DRIVERS] || ''
   const catalogo = driversDir
     ? leerJson(path.join(driversDir, 'catalogo.json'), { packs: [], externos: {} })

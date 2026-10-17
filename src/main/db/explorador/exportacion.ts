@@ -22,6 +22,7 @@ import type { Plataforma } from '../../../shared/plataforma.ts'
 import { sanearNombreArchivo } from './ConsolasStore.ts'
 import { ErrorGestor } from './GestorSesiones.ts'
 import { EXPORTACIONES_RECORDADAS, PROGRESO_EXPORTACION_MS } from './limites.ts'
+import { txExportacion } from './textosExplorador.ts'
 
 /** Una página que entrega el productor. `recortes` como en `DbPagina`. */
 export interface PaginaExportacion {
@@ -89,29 +90,32 @@ export type PeticionExportacion = PeticionExportacionBase &
     | { preparar: (cancelada: () => boolean) => Promise<ProductorExportacion>; producir?: undefined }
   )
 
-export const MENSAJE_EXPORTACION_CANCELADA = 'Exportación cancelada.'
+export function mensajeExportacionCancelada(): string {
+  return txExportacion().cancelada
+}
 
 /** Error de disco -> mensaje SIN la ruta que Node mete en `message`. */
 export function mensajeFsExportacion(err: unknown): string {
   const code = (err as { code?: unknown } | null)?.code
+  const t = txExportacion()
   switch (code) {
     case 'ENOENT':
-      return 'La carpeta de destino ya no existe.'
+      return t.destinoNoExiste
     case 'EACCES':
     case 'EPERM':
-      return 'Sin permiso para escribir ahí, o el archivo está abierto en otro programa.'
+      return t.sinPermiso
     case 'EBUSY':
-      return 'El archivo está abierto en otro programa: ciérralo y vuelve a exportar.'
+      return t.abierto
     case 'ENOSPC':
-      return 'No queda espacio en el disco.'
+      return t.sinEspacio
     case 'EROFS':
-      return 'La carpeta de destino es de solo lectura.'
+      return t.soloLectura
     case 'ENAMETOOLONG':
-      return 'El nombre o la ruta del archivo son demasiado largos.'
+      return t.nombreLargo
     case 'EISDIR':
-      return 'Ya hay una carpeta con ese nombre.'
+      return t.esCarpeta
     default:
-      return typeof code === 'string' ? `Error de disco al exportar (${code}).` : 'Error de disco al exportar.'
+      return typeof code === 'string' ? t.errorDiscoCodigo(code) : t.errorDisco
   }
 }
 
@@ -138,10 +142,10 @@ export function filasDePagina(filasJson: string): DbCelda[][] {
   try {
     filas = JSON.parse(filasJson)
   } catch {
-    throw new ErrorGestor('interno', 'Las filas a exportar no son válidas.')
+    throw new ErrorGestor('interno', txExportacion().filasNoValidas)
   }
   if (!Array.isArray(filas) || !filas.every((f) => Array.isArray(f))) {
-    throw new ErrorGestor('interno', 'Las filas a exportar no son válidas.')
+    throw new ErrorGestor('interno', txExportacion().filasNoValidas)
   }
   return filas as DbCelda[][]
 }
@@ -223,7 +227,7 @@ export class Exportador {
     const nombre = sanearNombreArchivo(nombreSugerido, this.deps.plataforma) + '.' + ext
     const elegida = await this.deps.guardar(
       {
-        titulo: `Exportar como ${NOMBRE_FORMATO[formato]}`,
+        titulo: txExportacion().tituloDialogo(NOMBRE_FORMATO[formato]),
         nombrePropuesto: nombre,
         filtros: [{ name: NOMBRE_FORMATO[formato], extensions: [ext] }]
       },
@@ -241,7 +245,7 @@ export class Exportador {
    */
   async exportar(p: PeticionExportacion): Promise<DbExportado | null> {
     if (this.enCurso.has(p.peticionId)) {
-      throw new ErrorGestor('ocupada', 'Ya hay una exportación con ese identificador en curso.')
+      throw new ErrorGestor('ocupada', txExportacion().idEnCurso)
     }
     // Apuntada ANTES de nada y en este mismo turno: desde aquí un Stop con este id la
     // encuentra (ver la cabecera, STOP). Antes se apuntaba después del diálogo.
@@ -250,11 +254,11 @@ export class Exportador {
     try {
       const cancelada = (): boolean => marca.cancelada
       const producir = p.preparar ? await p.preparar(cancelada) : p.producir
-      if (marca.cancelada) throw new ErrorGestor('cancelada', MENSAJE_EXPORTACION_CANCELADA)
+      if (marca.cancelada) throw new ErrorGestor('cancelada', mensajeExportacionCancelada())
       const ruta = await this.elegirRuta(p.formato, p.nombreSugerido, p.ventana ?? null)
       if (ruta === null) return null
       // Un Stop con el diálogo abierto (la pestaña se cerró mientras tanto): no se escribe nada.
-      if (marca.cancelada) throw new ErrorGestor('cancelada', MENSAJE_EXPORTACION_CANCELADA)
+      if (marca.cancelada) throw new ErrorGestor('cancelada', mensajeExportacionCancelada())
       return await this.volcar(p, producir, ruta, marca)
     } finally {
       this.enCurso.delete(p.peticionId)
@@ -281,7 +285,7 @@ export class Exportador {
         (pagina) => this.escribirPagina(v, pagina),
         () => marca.cancelada
       )
-      if (marca.cancelada) throw new ErrorGestor('cancelada', MENSAJE_EXPORTACION_CANCELADA)
+      if (marca.cancelada) throw new ErrorGestor('cancelada', mensajeExportacionCancelada())
       // Cierra el temporal y lo renombra al destino: solo entonces el archivo bueno existe. En el
       // cuerpo y no en una función `async` aparte, que sumaría turnos.
       try {
@@ -334,7 +338,7 @@ export class Exportador {
 
   /** Escribe una página que entrega el productor y avisa del progreso. */
   private async escribirPagina(v: Volcado, pagina: PaginaExportacion): Promise<void> {
-    if (v.marca.cancelada) throw new ErrorGestor('cancelada', MENSAJE_EXPORTACION_CANCELADA)
+    if (v.marca.cancelada) throw new ErrorGestor('cancelada', mensajeExportacionCancelada())
     const trozo = filasDePagina(pagina.filasJson)
     if (!v.escritor) v.escritor = await this.iniciar(v, pagina.columnas)
     try {

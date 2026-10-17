@@ -8,6 +8,7 @@
 'use strict'
 
 const { errorDeUso } = require('./tsshSalida.cjs')
+const { textosTssh } = require('./textosTssh.cjs')
 
 /** El tope más largo que admite `--timeout`: un día. */
 const TOPE_MAX_S = 24 * 3600
@@ -18,15 +19,15 @@ const ALIAS_MAX = 500
 function segundos(valor) {
   const n = Number(valor)
   if (valor === undefined || String(valor).trim() === '' || !Number.isFinite(n) || n <= 0 || n > TOPE_MAX_S) {
-    throw errorDeUso(`--timeout necesita un número de segundos mayor que 0 y de ${TOPE_MAX_S} como mucho.`)
+    throw errorDeUso(textosTssh().timeoutInvalido(TOPE_MAX_S))
   }
   return n
 }
 
 /** Un alias como argumento: no vacío y de un largo razonable. */
 function aliasValido(alias, ejemplo) {
-  if (alias === null || alias.trim() === '') throw errorDeUso(`Falta el alias de la conexión: ${ejemplo}.`)
-  if (alias.length > ALIAS_MAX) throw errorDeUso('El alias es demasiado largo.')
+  if (alias === null || alias.trim() === '') throw errorDeUso(textosTssh().faltaAlias(ejemplo))
+  if (alias.length > ALIAS_MAX) throw errorDeUso(textosTssh().aliasLargo)
   return alias
 }
 
@@ -67,13 +68,13 @@ function analizarRun(args) {
       r.orden = args.slice(i)
       break
     }
-    if (a === '--') throw errorDeUso('Falta el alias antes de «--»: tssh run <alias> -- <orden>.')
-    if (a.startsWith('-')) throw errorDeUso(`run no tiene la opción «${a}».`)
+    if (a === '--') throw errorDeUso(textosTssh().faltaAliasAntesDeGuiones)
+    if (a.startsWith('-')) throw errorDeUso(textosTssh().runSinOpcion(a))
     r.alias = a
     i++
   }
-  aliasValido(r.alias, 'tssh run <alias> -- <orden>')
-  if (r.orden.every((p) => String(p).trim() === '')) throw errorDeUso('Falta la orden: tssh run <alias> -- <orden>.')
+  aliasValido(r.alias, textosTssh().ejemploRun)
+  if (r.orden.every((p) => String(p).trim() === '')) throw errorDeUso(textosTssh().faltaOrden)
   return r
 }
 
@@ -85,10 +86,10 @@ function analizarCp(args) {
   for (const a of args) {
     if (opciones && a === '--') opciones = false
     else if (opciones && (a === '-r' || a === '--recursivo')) r.recursivo = true
-    else if (opciones && a.startsWith('-') && a !== '-') throw errorDeUso(`cp no tiene la opción «${a}».`)
+    else if (opciones && a.startsWith('-') && a !== '-') throw errorDeUso(textosTssh().cpSinOpcion(a))
     else libres.push(a)
   }
-  if (libres.length !== 2) throw errorDeUso('cp necesita un origen y un destino: tssh cp [-r] <origen> <destino>.')
+  if (libres.length !== 2) throw errorDeUso(textosTssh().cpOrigenYDestino)
   r.origen = libres[0]
   r.destino = libres[1]
   return r
@@ -98,7 +99,7 @@ function analizarCp(args) {
 function analizarLs(args) {
   const r = { sub: 'ls', json: false }
   for (const a of args) {
-    if (a !== '--json') throw errorDeUso(`ls no lleva «${a}».`)
+    if (a !== '--json') throw errorDeUso(textosTssh().lsNoLleva(a))
     r.json = true
   }
   return r
@@ -107,9 +108,9 @@ function analizarLs(args) {
 /** `doctor [alias]`. */
 function analizarDoctor(args) {
   const libres = args.filter((a) => a !== '--')
-  if (libres.length > 1) throw errorDeUso('doctor lleva como mucho un alias (entre comillas si tiene espacios).')
-  if (libres.length === 1 && libres[0].startsWith('-') && args[0] !== '--') throw errorDeUso(`doctor no tiene la opción «${libres[0]}».`)
-  return { sub: 'doctor', alias: libres.length === 1 ? aliasValido(libres[0], 'tssh doctor <alias>') : null }
+  if (libres.length > 1) throw errorDeUso(textosTssh().doctorUnAlias)
+  if (libres.length === 1 && libres[0].startsWith('-') && args[0] !== '--') throw errorDeUso(textosTssh().doctorSinOpcion(libres[0]))
+  return { sub: 'doctor', alias: libres.length === 1 ? aliasValido(libres[0], textosTssh().ejemploDoctor) : null }
 }
 
 /** Los argumentos de `tssh` (sin el ejecutable ni el guion). Sin ninguno, la ayuda. */
@@ -120,7 +121,7 @@ function analizar(argv) {
   if (sub === 'run') return analizarRun(resto)
   if (sub === 'cp') return analizarCp(resto)
   if (sub === 'doctor') return analizarDoctor(resto)
-  throw errorDeUso(`tssh no tiene el subcomando «${sub}»: son ls, run, cp, doctor y help.`)
+  throw errorDeUso(textosTssh().subcomandoDesconocido(sub))
 }
 
 module.exports = { analizar, TOPE_MAX_S }

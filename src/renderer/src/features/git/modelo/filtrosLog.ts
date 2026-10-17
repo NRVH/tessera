@@ -74,14 +74,8 @@ export function autoresDe(commits: readonly Commit[]): AutorConteo[] {
 
 export type PresetFecha = 'cualquiera' | 'hoy' | 'semana' | 'mes' | 'anio'
 
-/** Etiquetas del desplegable, en español y en el orden en que se muestran. */
-export const PRESETS_FECHA: ReadonlyArray<{ id: PresetFecha; etiqueta: string }> = [
-  { id: 'cualquiera', etiqueta: 'Cualquier fecha' },
-  { id: 'hoy', etiqueta: 'Hoy' },
-  { id: 'semana', etiqueta: 'Última semana' },
-  { id: 'mes', etiqueta: 'Último mes' },
-  { id: 'anio', etiqueta: 'Último año' }
-]
+/** Presets del desplegable en el orden en que se muestran; el texto de cada uno está en `textos.ts`. */
+export const PRESETS_FECHA: readonly PresetFecha[] = ['cualquiera', 'hoy', 'semana', 'mes', 'anio']
 
 const DIA_MS = 24 * 60 * 60 * 1000
 

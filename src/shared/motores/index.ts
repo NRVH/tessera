@@ -23,6 +23,7 @@ import type {
 import { destinoDeRed } from './destinoRed.ts'
 import { TIPO_CAMPO_FORMA } from './definir.ts'
 import { nunca } from '../nunca.ts'
+import { idiomaActual } from '../i18n.ts'
 import { ORACLE } from './oracle.ts'
 import { POSTGRES } from './postgres.ts'
 import { SQLITE } from './sqlite.ts'
@@ -184,17 +185,26 @@ export function listaLegible(nombres: readonly string[]): string {
 }
 
 /**
+ * Como `listaLegible`, pero con la conjunción del idioma de la interfaz («A y B» / «A and B»).
+ * `listaLegible` se queda en español porque la usan los textos que se escriben para los agentes.
+ */
+function listaDeFrase(nombres: readonly string[]): string {
+  if (nombres.length <= 1) return nombres.join('')
+  return nombres.slice(0, -1).join(', ') + (idiomaActual() === 'en' ? ' and ' : ' y ') + nombres[nombres.length - 1]
+}
+
+/**
  * Las etiquetas de los motores que cumplen `cumple`, en el orden del registro, escritas
- * como lista (`listaLegible`): «Oracle», «Oracle y SQLite»; '' si ninguno. Para los
+ * como lista en el idioma de la interfaz: «Oracle», «Oracle y SQLite»; '' si ninguno. Para los
  * mensajes que dicen qué motores tienen algo.
  */
 export function etiquetasDonde(cumple: (d: DescriptorMotor) => boolean): string {
-  return listaLegible(IDS_MOTORES.filter((m) => cumple(MOTORES[m])).map((m) => MOTORES[m].etiqueta))
+  return listaDeFrase(IDS_MOTORES.filter((m) => cumple(MOTORES[m])).map((m) => MOTORES[m].etiqueta))
 }
 
 /** Como `etiquetasDonde`, entre los motores SQL («ROWID solo existe en Oracle y SQLite.»). */
 export function etiquetasSqlDonde(cumple: (d: DescriptorSql) => boolean): string {
-  return listaLegible(IDS_MOTORES_SQL.filter((m) => cumple(MOTORES[m])).map((m) => MOTORES[m].etiqueta))
+  return listaDeFrase(IDS_MOTORES_SQL.filter((m) => cumple(MOTORES[m])).map((m) => MOTORES[m].etiqueta))
 }
 
 /**

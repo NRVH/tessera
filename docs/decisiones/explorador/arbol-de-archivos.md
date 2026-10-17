@@ -5,12 +5,21 @@
 
 ## Contexto
 
-`FileTree` virtualiza el árbol, selecciona varias filas, arrastra, corta y pega, y se remonta
-con `key={projectHostPath}` al cambiar de proyecto. Sus efectos comparten registros (las
-cargas en vuelo, la cola de indexado) y varias carreras se arreglaron tras verlas en vivo.
+`FileTree` virtualiza el árbol, selecciona varias filas, arrastra, corta y pega, y hay uno por
+proyecto. Sus efectos comparten registros (las cargas en vuelo, la cola de indexado) y varias
+carreras se arreglaron tras verlas en vivo.
 
 ## Decisión
 
+- El `Sidebar` mantiene montados los árboles de los últimos proyectos vistos
+  (`renderer/vivos-y-ocultos.md`, 6
+  como mucho, clave `perfil|contenedora`) y enseña solo el del que se ve, con `display: contents`
+  para no añadir caja: al volver a un proyecto, su árbol está tal cual (carpetas abiertas, scroll,
+  selección). El oculto conserva su caja fuera del flujo, invisible e `inert` (con `display: none`
+  se perdería el desplazamiento), no se repinta por las props de fuera, cierra su menú y sus
+  diálogos y da por atendido un «revelar» del proyecto que se ve. No escucha al vigilante, que es
+  del proyecto anclado, así que se refresca SIEMPRE al volver a verse. El de un proyecto cerrado se
+  desmonta.
 - Todo el estado sigue siendo de `FileTree`: `useArbol` compone hooks parciales en el orden
   histórico de sus efectos y devuelve un `Arbol`. Las operaciones, el portapapeles, el menú y el
   teclado son funciones planas que reciben ese `Arbol` y no guardan estado. Se importan en un solo

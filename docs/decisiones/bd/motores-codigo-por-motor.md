@@ -6,14 +6,14 @@
 ## Contexto
 
 El descriptor compartido (`src/shared/motores/`) guarda lo que un motor ES. Lo que HACE en el
-main (el SQL de su catálogo, de su DDL y de su sesión) solo lo necesita el main. Antes eran 26
-ramas `if (motor === 'oracle')`, y un motor nuevo caía EN SILENCIO en la de PostgreSQL.
+main (el SQL de su catálogo, de su DDL y de su sesión) solo lo necesita el main. Con ramas
+`if (motor === 'oracle')`, un motor nuevo caería EN SILENCIO en la de PostgreSQL.
 
 ## Decisión
 
 - Dos interfaces, `CatalogoExplorador` y `SesionExplorador`, un archivo por motor y por interfaz
-  y el registro `MOTORES_EXPLORADOR`, un `Record<DbMotorSql, …>` exhaustivo: un motor nuevo no
-  compila hasta tener su catálogo y su sesión enteros. `catalogoSql.ts` es la FACHADA: delega en
+  y el registro `MOTORES_EXPLORADOR`: un motor nuevo no compila hasta tener su catálogo y su sesión
+  enteros. `catalogoSql.ts` es la FACHADA: delega en
   `motorExplorador(motor).catalogo` siempre dentro de la función.
 - Lo que un motor no tiene (sinónimos en PG, bases en Oracle) se implementa LANZANDO
   (`noDisponible`), no como método opcional: el compilador no señala un opcional que falta. Un
@@ -37,4 +37,4 @@ ramas `if (motor === 'oracle')`, y un motor nuevo caía EN SILENCIO en la de Pos
 
 - Un `Record<DbMotor, string>` por consulta: el SQL de un motor son funciones con troceado y
   hints por versión. Una forma de fila por tipo de objeto: once mapeadores casi iguales, y un
-  error de posición pasaba los tests de los demás.
+  error de posición pasaría los tests de los demás.

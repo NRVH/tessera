@@ -18,9 +18,10 @@ import { blindarEntradaPty } from './entradaPty.ts'
 import { descartarSalida, programarVolcado, volcarAhora } from './bufferSalida.ts'
 import { colaMuertesDelProceso } from './colaMuertes.ts'
 import { lanzarPtyDeSesion, resolverWorkspacePath } from './lanzamientoPty.ts'
-import { codigoDeSalidaTardio, liberarPty, matarArbolPosix, matarArbolWindows } from './adaptadores/pty.ts'
+import { codigoDeSalidaTardio, liberarPty, matarArbolPosix, matarArbolWindows, matarPty, raizViva, rematarPty } from './adaptadores/pty.ts'
+import { notaTaskkill } from './adaptadores/taskkill.ts'
 import { esWindows } from '../../shared/plataforma.ts'
-import { esperar } from '../util/esperas.ts'
+import { conTope, esperar } from '../util/esperas.ts'
 import {
   CTRL_C,
   CTRL_C_SETTLE_MS,
@@ -44,6 +45,17 @@ const GRACEFUL_EXIT_MS = 3000
 /** Tope para recuperar el código que ConPTY no trajo en `onExit`; menor que REAP_TIMEOUT_MS. */
 const CODIGO_TARDIO_TOPE_MS = 1000
 
+/** Tope de columnas y filas aceptado del renderer: más que cualquier pantalla real. */
+const MAX_TAMANO = 2000
+
+/** El tamaño pedido, si son enteros entre 1 y el tope; si no, null (viene por IPC). */
+function tamanoValido(t: unknown): { cols: number; rows: number } | null {
+  if (typeof t !== 'object' || t === null) return null
+  const { cols, rows } = t as { cols?: unknown; rows?: unknown }
+  const vale = (v: unknown): v is number => Number.isInteger(v) && (v as number) > 0 && (v as number) <= MAX_TAMANO
+  return vale(cols) && vale(rows) ? { cols, rows } : null
+}
+
 /** Sesiones de terminal (pty) de los perfiles: crea, recarga, detiene y cierra. */
 export class TerminalService {
   private readonly sandbox: SandboxManager
@@ -51,6 +63,8 @@ export class TerminalService {
   private counter = 0
   /** Turno de las MUERTES de pty (parar, cerrar, reiniciar, hibernar): de una en una, y del PROCESO. */
   private readonly muertes = colaMuertesDelProceso
+  /** La app se está cerrando: desde aquí no nace ni renace ningún pty, que ya nadie mataría. */
+  private apagando = false
 
   constructor(sandbox: SandboxManager) {
     this.sandbox = sandbox
@@ -81,8 +95,8 @@ export class TerminalService {
       ejecutable: opts.ejecutable,
       // `pty`, las suscripciones y `exit` los rellena spawnShell().
       pty: undefined as unknown as IPty,
-      cols: DEFAULT_COLS,
-      rows: DEFAULT_ROWS,
+      cols: tamanoValido(opts.tamano)?.cols ?? DEFAULT_COLS,
+      rows: tamanoValido(opts.tamano)?.rows ?? DEFAULT_ROWS,
       exitCode: null,
       reloading: false,
       closing: false,
@@ -99,9 +113,15 @@ export class TerminalService {
       resolveExit: () => {}
     }
 
+    this.exigirSinApagar()
     this.spawnShell(record)
     this.sessions.set(id, record)
     return record
+  }
+
+  /** Lanza si la app ya se está cerrando: un pty que naciera ahora quedaría vivo tras ella. */
+  private exigirSinApagar(): void {
+    if (this.apagando) throw new Error('La app se está cerrando: no se abren sesiones nuevas.')
   }
 
   /** stdin del usuario hacia el shell. */
@@ -198,6 +218,15 @@ export class TerminalService {
         record.reloading = false
       }
     }
+    // El pty viejo deja de ser de la sesión: si su raíz sigue viva (recolección vencida, o una parada
+    // que lo dio por muerto), se remata aquí para que no siga vivo fuera del mapa. Solo entonces entra
+    // en la cola: reconectar una sesión que ya terminó no espera a las muertes de otras sesiones.
+    const viejo = record.pty
+    if (raizViva(viejo)) {
+      await this.muertes.enTurno(async () => {
+        rematarPty(viejo)
+      })
+    }
 
     // El buffer del pty viejo se descarta, no se vuelca: son los ecos del shell que acabamos
     // de matar y llegarían tras el reset del renderer, repintando su prompt sobre la pantalla
@@ -205,6 +234,12 @@ export class TerminalService {
     descartarSalida(record)
     record.dataSub.dispose()
     record.exitSub.dispose()
+    // Mientras se esperaba la muerte del viejo, el cierre de la app pudo llevarse la sesión: relanzar
+    // ahí dejaría un pty fuera del mapa que nadie mataría.
+    if (record.closing || this.sessions.get(sessionId) !== record) {
+      throw new Error(`La sesión "${sessionId}" se cerró mientras se reiniciaba.`)
+    }
+    this.exigirSinApagar()
     record.exitCode = null
     record.paused = false
     // Fin de la parada: el proceso nuevo vuelve a hablar y su salida real se anuncia.
@@ -224,7 +259,14 @@ export class TerminalService {
     if (record.parada) await record.parada
 
     record.closing = true
-    await this.muertes.enTurno(() => this.killCurrentShell(record))
+    await this.muertes.enTurno(async () => {
+      try {
+        await this.killCurrentShell(record)
+      } finally {
+        // Sale del mapa: si la recolección venció, no puede quedar vivo sin nadie que lo mate.
+        rematarPty(record.pty)
+      }
+    })
     record.dataSub.dispose()
     record.exitSub.dispose()
     descartarSalida(record)
@@ -257,10 +299,15 @@ export class TerminalService {
       await turno.anterior
       estado.inicio = Date.now()
       // `killAllPtysNow` pudo llevársela mientras esperaba: ya no hay nada que matar.
-      if (record.exitCode === null && this.sessions.get(sessionId) === record) {
-        estado.arbol = true
-        await this.matarArbol(record)
-        estado.recolectado = await esperarSalida(record, REAP_TIMEOUT_MS)
+      try {
+        if (record.exitCode === null && this.sessions.get(sessionId) === record) {
+          estado.arbol = true
+          await this.matarArbol(record)
+          estado.recolectado = await esperarSalida(record, REAP_TIMEOUT_MS)
+        }
+      } finally {
+        // Sale del mapa: si su salida no llegó, se remata para que no siga vivo sin nadie que lo mate.
+        rematarPty(record.pty)
       }
     } finally {
       try {
@@ -379,11 +426,41 @@ export class TerminalService {
   }
 
   /**
-   * Mata todos los ptys vivos al instante, sin cierre elegante. Solo lo usa el cierre para
-   * actualizar: en Windows node-pty deja vivo un `OpenConsole.exe` cargado desde la carpeta de
-   * instalación y el desinstalador falla si sigue abierto. Best-effort; devuelve cuántos mató.
+   * Cierre de la app: mata el ÁRBOL de cada pty vivo y después los ptys que no hayan salido. Con
+   * solo `pty.kill()`, en Windows cae la raíz (la PowerShell) y sus hijos (el agente, `cmd`,
+   * `OpenConsole.exe`) siguen vivos sin padre y retienen la carpeta del proyecto. Desde aquí no
+   * nace ninguna sesión. Con tope: lo que no muera a tiempo se deja al `pty.kill()` del final.
+   * Devuelve cuántos ptys había vivos; `anotar` recibe lo que conviene dejar escrito (un `taskkill`
+   * que falló o que no acabó, el tope).
+   */
+  async matarTodoConArbol(topeMs: number, anotar: (msg: string) => void = () => {}): Promise<number> {
+    this.apagando = true
+    const vivos = [...this.sessions.values()].filter((r) => r.exitCode === null)
+    for (const record of vivos) {
+      record.closing = true
+      descartarSalida(record)
+    }
+    const pids = vivos.map((r) => r.pty.pid)
+    // Un solo `taskkill` para todos: matar ptys en paralelo desde node-pty revienta el proceso.
+    const arboles = esWindows()
+      ? matarArbolWindows(pids).then((r) => {
+          const nota = notaTaskkill(r)
+          if (nota) anotar(nota)
+        })
+      : Promise.all(pids.map((pid) => matarArbolPosix(pid)))
+    if ((await conTope(arboles, topeMs)) === 'tope') anotar(`los árboles no murieron en ${topeMs} ms`)
+    await conTope(Promise.all(vivos.map((r) => esperarSalida(r, topeMs))), topeMs)
+    this.killAllPtysNow()
+    return vivos.length
+  }
+
+  /**
+   * Mata al instante, sin cierre elegante, todos los ptys y vacía el mapa. En Windows node-pty deja
+   * vivo un `OpenConsole.exe` cargado desde la carpeta de instalación y el desinstalador falla si
+   * sigue abierto. Best-effort; devuelve cuántos mató.
    */
   killAllPtysNow(): number {
+    this.apagando = true
     let killed = 0
     for (const record of this.sessions.values()) {
       record.closing = true
@@ -399,7 +476,10 @@ export class TerminalService {
         /* noop */
       }
       try {
-        record.pty.kill()
+        // También a los que ya salieron: es lo que cierra su pseudoconsola, y con ella el
+        // `OpenConsole.exe`, que no cuelga del árbol de la shell y `taskkill /T` no alcanza. Una sola
+        // vez por pty: el que ya lo tuvo no lo repite.
+        matarPty(record.pty)
         killed++
       } catch {
         /* best-effort: seguimos con los demás */
@@ -508,7 +588,9 @@ export class TerminalService {
     const exitedGracefully = await esperarSalida(record, GRACEFUL_EXIT_MS)
 
     if (!exitedGracefully && record.exitCode === null) {
-      record.pty.kill()
+      // El árbol y no solo la raíz: un agente no sale con `exit`, y en Windows `pty.kill()` mata la
+      // PowerShell y deja vivo al agente que lanzó, sin padre.
+      await this.matarArbol(record)
       // `kill()` pide la muerte, no la garantiza: con tope, se sigue adelante si no se recolecta.
       await esperarSalida(record, REAP_TIMEOUT_MS)
     }
@@ -523,11 +605,7 @@ export class TerminalService {
    */
   private async matarDeReserva(record: SessionRecord): Promise<void> {
     if (esWindows()) return this.matarArbol(record)
-    try {
-      record.pty.kill()
-    } catch {
-      /* ya muerto o sin handle: la recolección con tope de después decide */
-    }
+    matarPty(record.pty)
   }
 
   /**
@@ -538,15 +616,13 @@ export class TerminalService {
    */
   private async matarArbol(record: SessionRecord): Promise<void> {
     const pty = record.pty
-    if (esWindows()) await matarArbolWindows(pty.pid)
-    else await matarArbolPosix(pty.pid)
+    if (esWindows()) {
+      const nota = notaTaskkill(await matarArbolWindows(pty.pid))
+      if (nota) dbLog('pty', `session=${record.id} ${nota}`)
+    } else await matarArbolPosix(pty.pid)
     // `onExit` llega DESPUÉS, asíncrono: mirar `exitCode` ya casi siempre daría null. Si `taskkill`
     // se lo llevó, el ConPTY está cerrado y `kill()` sería una llamada nativa sobre un handle muerto.
     if (await esperarSalida(record, REAP_TIMEOUT_MS)) return
-    try {
-      pty.kill()
-    } catch {
-      /* ya muerto o sin handle: la recolección con tope de después decide */
-    }
+    matarPty(pty)
   }
 }

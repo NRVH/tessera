@@ -22,6 +22,7 @@ import type { FileService } from '../files/FileService'
 import type { GitService } from '../git/GitService'
 import { elegirConDialogo } from '../util/adaptadores/dialogosNativos'
 import { scanRepos } from './scanRepos'
+import { txMain } from '../textos.ts'
 
 export interface WorkspaceServiceOptions {
   /** Ventana a la que anclar el diálogo (modal). */
@@ -79,6 +80,9 @@ export class WorkspaceService {
    */
   setFilesRoot(req: SetFilesRootRequest): SetFilesRootResult {
     const { projectHostPath } = req
+    // Git lo conoce primero: sus paneles piden sin esperar al confirmado, y si re-apuntar el
+    // explorador fallara, sus peticiones irían en bucle contra un proyecto desconocido.
+    this.gitService.conocerContenedora(projectHostPath)
     this.fileService.setProjectRoot(projectHostPath)
     // NO se re-apunta GitService aquí (movería la vista de git al cambiar de pestaña): el
     // renderer siempre ancla el files-root de una pestaña ANTES de activar un sub-repo suyo, así
@@ -105,7 +109,7 @@ export class WorkspaceService {
     // que contiene el proyecto activo, que es donde suelen vivir sus hermanos.
     const result = await elegirConDialogo(
       'abrir-proyecto',
-      { properties: ['openDirectory'], title: 'Abrir proyecto' },
+      { properties: ['openDirectory'], title: txMain().abrirProyecto },
       {
         ventana: this.getWindow(),
         despues: [this.activeContainerPath ? path.dirname(this.activeContainerPath) : null]

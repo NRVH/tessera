@@ -6,6 +6,7 @@
 // Decisiones: docs/decisiones/bd/drivers-descarga-y-plataformas.md
 // =============================================================================
 import { createHash } from 'node:crypto'
+import { txDb } from './textosDb.ts'
 
 /** Plazo sin recibir ningún byte tras el que se da la descarga por muerta. */
 export const PLAZO_INACTIVIDAD_DESCARGA_MS = 60_000
@@ -26,10 +27,7 @@ export interface OpcionesDescarga {
 /** El error de una descarga parada: dice cuánto tiempo y qué hacer. */
 export function mensajeInactividad(ms: number): string {
   const s = Math.max(1, Math.round(ms / 1000))
-  return (
-    `La descarga se detuvo: el servidor lleva ${s} s sin enviar datos. ` +
-    'Vuelve a intentarlo; si se repite, comprueba la conexión a internet o el proxy.'
-  )
+  return txDb().descarga.inactividad(s)
 }
 
 /** El temporizador de inactividad y la carrera que lo convierte en un rechazo. */
@@ -68,8 +66,8 @@ function crearVigilante(plazo: number): Vigilante {
 
 /** El cuerpo de una respuesta buena y su tamaño anunciado (NaN si no lo dice); lanza con una mala. */
 function cuerpoDe(res: Response): { total: number; reader: ReadableStreamDefaultReader<Uint8Array> } {
-  if (!res.ok) throw new Error(`El servidor respondió ${res.status} ${res.statusText}.`)
-  if (!res.body) throw new Error('Respuesta sin cuerpo.')
+  if (!res.ok) throw new Error(txDb().descarga.servidorRespondio(`${res.status} ${res.statusText}`))
+  if (!res.body) throw new Error(txDb().descarga.sinCuerpo)
   const totalHeader = res.headers.get('content-length')
   const total = totalHeader ? Number(totalHeader) : NaN
   return { total, reader: res.body.getReader() }

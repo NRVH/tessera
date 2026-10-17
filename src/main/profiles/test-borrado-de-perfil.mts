@@ -6,7 +6,7 @@
 // van a la papelera las dos carpetas del perfil y solo esas (cada dueño con su papelera inyectada). Y
 // preparar la carpeta de un perfil recién creado espera, con tope, al guardado que lo trae. Con dobles
 // y carpetas temporales.
-// Decisiones: docs/decisiones/agentes/agente-de-la-terminal.md
+// Decisiones: docs/decisiones/workspace/borrar-perfil-con-orden.md
 // =============================================================================
 
 import { existsSync, mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs'

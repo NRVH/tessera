@@ -12,6 +12,7 @@ import { SlotAccionesTira } from './slotAccionesTira'
 import { SearchBox } from '../../comun/SearchBox'
 import { AvisoCaja } from '../../comun/AvisoCaja'
 import { ControlModoVista } from './ControlModoVista'
+import { txEditor } from './textos.ts'
 import type { EditorPaneProps } from './editorPaneTipos'
 import { useAvisosPane, useNotificacionesPane, useRefsPane } from './editorPaneRefs'
 import { useRevelarLinea } from './useRevelarLinea'
@@ -51,15 +52,12 @@ function AvisosEditor(p: {
   saveError: string | null
   notice: string | null
 }): React.JSX.Element {
+  const t = txEditor()
   return (
     <>
-      {p.loadError && (
-        <AvisoCaja tono="error" titulo="No se pudo abrir el archivo" detalle={p.loadError} />
-      )}
+      {p.loadError && <AvisoCaja tono="error" titulo={t.noSePudoAbrirArchivo} detalle={p.loadError} />}
       {/* En `sugerencia` y no en `detalle`: éste va dentro de un <details> cerrado. */}
-      {p.saveError && (
-        <AvisoCaja tono="error" titulo="No se pudo guardar" sugerencia={p.saveError} />
-      )}
+      {p.saveError && <AvisoCaja tono="error" titulo={t.noSePudoGuardar} sugerencia={p.saveError} />}
       {p.notice && <AvisoCaja tono="info" titulo={p.notice} />}
     </>
   )
@@ -90,7 +88,7 @@ function CuerpoEditor({
               className="html-preview-marco"
               sandbox=""
               src={vista.urlVistaHtml}
-              title={`Vista previa de ${nombre}`}
+              title={txEditor().vistaPreviaDe(nombre)}
             />
           )}
         </div>
@@ -157,7 +155,7 @@ export function EditorPane(props: EditorPaneProps): React.JSX.Element {
       {busqueda.abierto && (
         <SearchBox
           className="en-documento sin-cabecera"
-          ariaLabel="Buscar en el documento"
+          ariaLabel={txEditor().buscarEnDocumento}
           focusToken={busqueda.focusToken}
           onFind={busqueda.buscar}
           onNavigate={busqueda.navegar}

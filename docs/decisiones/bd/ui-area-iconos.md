@@ -1,7 +1,7 @@
 # Los glifos de BD viven en un solo sitio y cada motor lleva un glifo propio salvo PostgreSQL, que lleva su logo sin tocar
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/features/bd/iconosBd*.tsx`
+- **Ámbito:** `src/renderer/src/features/bd/iconosBd*.tsx`, `src/renderer/src/features/bd/arbol.css` (tokens `--db-marca-*`)
 
 ## Contexto
 
@@ -15,8 +15,17 @@ se reconoce mejor por la marca de su motor, pero esas marcas tienen dueño y reg
   molde común: viewBox 24, trazo 1.6, `currentColor`, sin tamaño en línea. El nombre es el
   CONCEPTO (`IconoTabla`, `IconoEjecutar`), no el dibujo. El cilindro (`IconoBd`) usa el trazo
   1.7 del riel, para que la barra de actividad quede idéntica.
-- El color por motor lo pone la clase `db-motor-<motor>` o un token `--db-marca-*`: valores y
-  contrastes en [ui-arbol-colores-de-marca](ui-arbol-colores-de-marca.md).
+- El color por motor lo pone la clase `db-motor-<motor>` o un token `--db-marca-*`. Los valores
+  viven en `arbol.css` (tokens `--db-marca-*`) y no se repiten aquí.
+  - El SVG lleva de respaldo el color del tema OSCURO y `arbol.css` da el del CLARO en
+    `:root[data-theme='light']`, global y no bajo `.db-arbol` (el icono sale fuera del árbol: en el
+    diálogo, la tira de pestañas, los menús y el popover de montaje).
+  - Un glifo es un elemento gráfico y pide al menos 3:1 contra su fondo en los dos temas; un motor
+    nuevo trae su par de colores y su contraste medido en ambos. Los tonos: Oracle y Redis rojos
+    (los separa la forma), SQLite azul, SQL Server ámbar (porque el azul y el rojo ya son de
+    SQLite y de Oracle, que van juntos en el selector de motor), MongoDB verde. El verde claro
+    habitual de MongoDB no llega a 3:1 sobre el fondo claro, así que ese tema usa uno más oscuro.
+  - PostgreSQL no tiene token: su elefante va en sus colores oficiales en los dos temas.
 - `MARCAS_MOTOR` es un `Record<DbMotor, …>`: un motor nuevo no compila sin su entrada. Uno
   desconocido (datos de una versión más nueva, o un id como «constructor») cae al cilindro: se
   decide con `esMotor`, que usa `hasOwnProperty`. El nombre del producto no vive aquí: es la
@@ -27,7 +36,7 @@ se reconoce mejor por la marca de su motor, pero esas marcas tienen dueño y reg
 - Oracle: su logo y su «O Tag» (el anillo apaisado) exigen autorización escrita y prohíben la
   imitación. Glifo propio: el cilindro macizo en rojo, sin letras; lo que evoca es el color.
 - SQL Server, MongoDB y Redis: glifos propios por el mismo criterio. SQLite: glifo propio
-  provisional mientras no se compruebe la política de su logo.
+  que no usa su logo.
 
 ## Consecuencias
 

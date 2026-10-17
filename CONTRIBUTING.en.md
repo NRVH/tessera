@@ -74,7 +74,9 @@ this means:
 
 ## Testing your change
 
-There is no `npm test`. Run what your change can affect:
+There is no `npm test`. On commit, a hook (enabled by `npm install`) runs types, lint and the text
+guards over what you changed, and stops the commit if something fails. Beyond that, run what your
+change can affect:
 
 ```bash
 npm run typecheck                  # main process, interface and e2e suite
@@ -82,6 +84,7 @@ npm run lint                       # or: npx eslint <paths> for one area
 npm run test:cabeceras -- <paths>  # file headers
 npm run test:comentarios -- <paths>
 npm run test:menciones -- <paths>
+npm run test:textos -- <paths>     # interface texts in both languages
 npm run test:<name>                # the test scripts of the area you touched
 ```
 

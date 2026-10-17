@@ -27,6 +27,7 @@ import type { Apertura } from './apertura.ts'
 import { ErrorGestor, errorSql } from './errores.ts'
 import type { NucleoSesiones } from './NucleoSesiones.ts'
 import { bindsDeSentencia, capacidades } from './reglas.ts'
+import { txSesiones } from './textosSesiones.ts'
 import type { Proceso, Sesion } from './tipos.ts'
 
 /**
@@ -75,7 +76,7 @@ export class ExplicarSesion {
    */
   async explicar(req: DbExplicar & { conexionId: string }): Promise<DbRespuesta<DbPlan>> {
     if (typeof req.sql !== 'string' || req.sql.length > DB_CONSOLA_MAX_BYTES) {
-      return { ok: false, error: { motivo: 'limite', mensaje: 'La sentencia es demasiado grande.' } }
+      return { ok: false, error: { motivo: 'limite', mensaje: txSesiones().sentenciaGrande } }
     }
     let con: DbConnection
     let s: Sesion
@@ -92,7 +93,7 @@ export class ExplicarSesion {
         ok: false,
         error: {
           motivo: 'interno',
-          mensaje: partes.length === 0 ? 'No hay ninguna sentencia que explicar.' : 'Se explica una sola sentencia cada vez.'
+          mensaje: partes.length === 0 ? txSesiones().sinSentenciaExplicar : txSesiones().unaSentenciaExplicar
         }
       }
     }
@@ -104,7 +105,7 @@ export class ExplicarSesion {
     const binds = bindsDeSentencia(st, d, req.binds, !capacidades(d).explainPideValores)
     if (!binds.ok) return { ok: false, error: binds.error }
     if (s.operacionUsuario !== null) {
-      return { ok: false, error: { motivo: 'ocupada', mensaje: 'La consola ya está ejecutando otra operación.' } }
+      return { ok: false, error: { motivo: 'ocupada', mensaje: txSesiones().consolaOcupada } }
     }
     s.operacionUsuario = req.ejecucionId
     try {

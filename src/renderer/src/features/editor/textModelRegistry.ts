@@ -1,7 +1,7 @@
 // =============================================================================
 // Binding de Monaco e IPC sobre el núcleo puro del registro de buffers compartidos.
 // Enchufa el modelo de texto de Monaco y `files.read/write`, y expone el singleton `textModels`.
-// `acquire` y `reload` solo se llaman desde el target ACTIVO: la raíz de `files.read` es la suya.
+// Cada buffer lleva la contenedora de su proyecto y la manda con cada lectura y escritura.
 // Decisiones: docs/decisiones/editor/registro-de-modelos.md
 // =============================================================================
 
@@ -39,8 +39,8 @@ const deps: RegistryDeps<editor.ITextModel> = {
     const sub = model.onDidChangeContent(onChange)
     return () => sub.dispose()
   },
-  load: async (path, forcedEncoding) => {
-    const res = await window.tessera.files.read(path, forcedEncoding)
+  load: async (ruta, forcedEncoding) => {
+    const res = await window.tessera.files.read(ruta, forcedEncoding)
     return {
       content: res.content,
       language: res.language,
@@ -49,9 +49,9 @@ const deps: RegistryDeps<editor.ITextModel> = {
       binary: res.binary
     }
   },
-  existe: (path) => window.tessera.files.existe(path),
-  write: async (path, content, encoding) => {
-    const res = await window.tessera.files.write(path, content, encoding)
+  existe: (ruta) => window.tessera.files.existe(ruta),
+  write: async (ruta, content, encoding) => {
+    const res = await window.tessera.files.write(ruta, content, encoding)
     return { bytesWritten: res.bytesWritten }
   }
 }

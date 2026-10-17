@@ -18,6 +18,10 @@ import type { EmisorEventos } from '../../util/emisorEventos'
 import type { PortapapelesImagen } from '../adaptadores/portapapeles'
 import type { UmbralPruebas } from '../../../shared/ajustesAgente'
 import type { EstadoSegundoPlano } from '../../transcripts/tareasSegundoPlano'
+import type { DefinicionAgente, IdAgente } from '../../../shared/agentesManuales'
+
+/** La cuenta única de un agente manual: su carpeta del perfil, sin registro de cuentas. */
+export const CUENTA_AGENTE_MANUAL = 'manual'
 
 /** Binario del CLI en el contenedor por tipo de agente. */
 export const DEFAULT_BINARIES: Record<Agente, string> = {
@@ -109,7 +113,11 @@ export interface AgentTerminalControllerOptions {
 export interface OpenAgentSession {
   sessionId: string
   profileId: string
-  agente: Agente
+  agente: IdAgente
+  /** La definición de un agente manual (sin conversaciones, turnos ni hibernación automática); null en los de serie. */
+  manual: DefinicionAgente | null
+  /** La casa de un agente manual dentro del contenedor (su `HOME`); sin ella en nativo y en los de serie. */
+  homeManual?: string
   /** Cuenta con la que se abrió; parte de la clave del refcount de credencial. */
   accountId: string
   projectHostPath: string

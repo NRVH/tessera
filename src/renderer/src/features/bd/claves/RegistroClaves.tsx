@@ -4,7 +4,7 @@
 // derecha y su respuesta debajo, y las notas sueltas. Toma el CSS de la Salida (`db-salida-*`)
 // y añade el suyo en `consolaClaves.css`. Se autodesplaza salvo que el usuario haya subido a
 // leer, y no virtualiza: los topes de `consolaClaves.ts` lo acotan.
-// Decisiones: docs/decisiones/bd/ui-claves-comandos-y-registro.md
+// Decisiones: docs/decisiones/bd/ui-claves-consola.md
 // =============================================================================
 
 import { useLayoutEffect, useRef } from 'react'
@@ -13,6 +13,7 @@ import { EstadoVacio } from '../../../comun/EstadoVacio'
 import { pegadoAlFondo, sigueAlFondo, type AccionSalida, type IrAPosicion } from '../consola/salidaConsola'
 import { IconoLimpiar } from '../iconosBd'
 import { textoMs, type EntradaRegistro, type RegistroConsola } from './consolaClaves'
+import { txConsolaClaves } from './textosConsolaClaves'
 
 type Entrada = RegistroConsola['entradas'][number]
 
@@ -92,16 +93,17 @@ interface PropsRegistroClaves {
 }
 
 function CabeceraRegistro({ vacio, onLimpiar }: { vacio: boolean; onLimpiar: () => void }): React.JSX.Element {
+  const t = txConsolaClaves()
   return (
     <div className="db-resultados-cabecera">
-      <div className="db-resultados-tabs" role="tablist" aria-label="Salida">
-        <div className="terminal-tab db-resultado-tab active" role="tab" aria-selected tabIndex={0} title="Salida: cada comando con su respuesta">
-          <span className="terminal-tab-name">Salida</span>
+      <div className="db-resultados-tabs" role="tablist" aria-label={t.salida}>
+        <div className="terminal-tab db-resultado-tab active" role="tab" aria-selected tabIndex={0} title={t.salidaTitulo}>
+          <span className="terminal-tab-name">{t.salida}</span>
         </div>
       </div>
       <div className="panel-actions">
-        <span className="btn-envoltura" title={vacio ? 'La salida ya está vacía' : 'Limpiar la salida'}>
-          <button type="button" className="btn btn-icon" aria-label="Limpiar la salida" disabled={vacio} onClick={onLimpiar}>
+        <span className="btn-envoltura" title={vacio ? t.salidaVacia : t.limpiarSalida}>
+          <button type="button" className="btn btn-icon" aria-label={t.limpiarSalida} disabled={vacio} onClick={onLimpiar}>
             <IconoLimpiar />
           </button>
         </span>
@@ -144,7 +146,7 @@ function ListaRegistro({
       className="db-salida kv-registro"
       role="log"
       aria-live="polite"
-      aria-label="Salida de la consola"
+      aria-label={txConsolaClaves().salidaAria}
       tabIndex={0}
       onScroll={desplazamiento.alDesplazar}
     >
@@ -163,16 +165,17 @@ function ListaRegistro({
 export function RegistroClaves(p: PropsRegistroClaves): React.JSX.Element {
   const entradas = p.registro.entradas
   const desplazamiento = useAutodesplazamiento(p.visible, entradas)
+  const t = txConsolaClaves()
   return (
-    <section className="db-consola-resultados" style={{ height: p.alto }} aria-label="Resultados de la consola">
+    <section className="db-consola-resultados" style={{ height: p.alto }} aria-label={t.resultadosAria}>
       <CabeceraRegistro vacio={entradas.length === 0} onLimpiar={p.onLimpiar} />
       <div className="db-resultados-cuerpo">
         <div className="db-resultados-panel">
           {entradas.length === 0 ? (
             <EstadoVacio
               className="db-salida-vacia"
-              titulo="Sin salida"
-              pista={`${etiquetaAcorde('ejecutar')} ejecuta el comando de la línea del cursor o las líneas seleccionadas; ${etiquetaAcorde('ejecutarTodo')}, todos. Un comando por línea; las que empiezan por # son comentarios.`}
+              titulo={t.sinSalida}
+              pista={t.sinSalidaPista(etiquetaAcorde('ejecutar'), etiquetaAcorde('ejecutarTodo'))}
             />
           ) : (
             <ListaRegistro p={p} entradas={entradas} desplazamiento={desplazamiento} />

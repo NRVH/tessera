@@ -12,7 +12,7 @@ lanza un SELECT contra el servidor.
 ## Decisión
 
 - Modelo PROPIO, no extraído del de pestañas del editor, cuyo test es la red que demuestra que el
-  editor no cambia: un núcleo común irá en un cambio propio con ese test intacto.
+  editor no cambia: compartir un núcleo común arriesgaría esa garantía.
 - Sin pestañas efímeras: el porqué, en [ui-arbol-componente](ui-arbol-componente.md).
 - Ids en JSON de tuplas, que no colisionan: `datos` sin el tipo (el mismo objeto desde dos sitios
   cae en la MISMA pestaña); `fuente` y `ddl` con tipo y firma (dos sobrecargas de PG son dos);

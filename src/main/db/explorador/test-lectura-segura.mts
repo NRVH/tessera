@@ -5,7 +5,7 @@
 // sale la contraseña y el remedio de cada fallo, taparla en la salida, el centinela (lista blanca, EXPLAIN,
 // y que no veta nada de lo que el producto manda de verdad) y elegir la tabla de la pestaña de datos.
 // (node src/main/db/explorador/test-lectura-segura.mts  ·  npm run test:db-lectura-segura)
-// Decisiones: docs/decisiones/bd/conexiones-humo-de-solo-lectura.md
+// Decisiones: docs/decisiones/bd/sesiones-solo-lectura-impuesta.md
 // =============================================================================
 
 import { DbBridge } from '../dbBridge.ts'

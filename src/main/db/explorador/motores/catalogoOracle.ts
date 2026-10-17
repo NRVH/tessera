@@ -9,7 +9,7 @@
 
 import { tieneDdlOracle } from '../ddlCatalogo.ts'
 import type { CatalogoExplorador } from './catalogo.ts'
-import { noDisponible } from './filasCatalogo.ts'
+import { noDisponible, queFalta } from './filasCatalogo.ts'
 import {
   CLAVES_POR_CONSULTA,
   RESTRICCIONES_POR_CONSULTA,
@@ -76,7 +76,7 @@ export const CATALOGO_ORACLE: CatalogoExplorador = {
 
   // Una conexión de Oracle es UNA base: sin nivel «Bases».
   sqlBases(d) {
-    return noDisponible(d.motor, 'nivel «Bases»')
+    return noDisponible(d.motor, queFalta.nivelBases())
   },
   sqlEsquemas,
   esSistemaDeFila,

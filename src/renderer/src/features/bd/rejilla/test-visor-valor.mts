@@ -20,10 +20,12 @@ import {
   textoDeCelda,
   esColumnaBinaria,
   claveDeFila,
-  RAZON_SIN_CLAVE_PRIMARIA,
+  razonSinClavePrimaria,
   TOPE_HEX_VISOR,
   TOPE_JSON_COLOREADO
 } from './visorValor.ts'
+
+const RAZON_SIN_CLAVE_PRIMARIA = razonSinClavePrimaria()
 import type { DbCelda } from '../../../../../shared/db-explorador-ipc.ts'
 
 function hr(title: string): void {

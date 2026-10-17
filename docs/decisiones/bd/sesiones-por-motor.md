@@ -5,8 +5,8 @@
 
 ## Contexto
 
-Oracle, PostgreSQL, SQLite y SQL Server comparten el gestor. Comparar el dialecto con un
-literal (`d === 'oracle'`) dejaba que un motor nuevo cayera en silencio en la rama de otro.
+Oracle, PostgreSQL, SQLite y SQL Server comparten el gestor de sesiones; lo que cambia por motor
+no puede decidirse comparando literales (ver [registro-motores-descriptor.md](registro-motores-descriptor.md)).
 
 ## Decisión
 
@@ -28,13 +28,13 @@ literal (`d === 'oracle'`) dejaba que un motor nuevo cayera en silencio en la ra
 - Parámetros (`bindsConsola.ts`): el main los vuelve a sacar del texto que se ENVÍA y solo viajan
   los usados (node-oracledb rechaza uno de más). Oracle por clave en MAYÚSCULAS salvo `:"Id"`
   citado; PG posicional con tope 65535 (un `$1000000000` agotaba la memoria del main). El EXPLAIN
-  de Oracle en thick no admite binds y en thin exige todos (van como NULL). Medido en 11.2 y 21c.
+  de Oracle en thick no admite binds y en thin exige todos (van como NULL).
 
 ## Consecuencias
 
-- Sumar un motor es un caso en cada `switch` y un archivo de sesión, que no compilan sin decidir.
+- Sumar un motor es un archivo de sesión y un caso en cada unión, que no compilan sin decidir.
 
 ## Descartes
 
-- Métodos con el motor como parámetro en un único objeto (el `d === 'oracle'` de antes); meter en
+- Métodos con el motor como parámetro en un único objeto; meter en
   el motor `trasReaplicarEsquema` o `decidirIdentidad` enteros (reglas comunes con un dato por motor).

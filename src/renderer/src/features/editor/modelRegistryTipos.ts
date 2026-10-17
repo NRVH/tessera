@@ -5,6 +5,8 @@
 // Decisiones: docs/decisiones/editor/registro-de-modelos.md
 // =============================================================================
 
+import type { RutaEnProyecto } from '../../../../shared/files-ipc.ts'
+
 /** Lo que devuelve una carga de texto. Espejo de `FileContent` del IPC, sin acoplarse a él. */
 export interface LoadedText {
   content: string
@@ -18,6 +20,9 @@ export interface LoadedText {
 export interface WriteOutcome {
   bytesWritten: number
 }
+
+/** Un archivo: su ruta relativa y la contenedora de su proyecto, juntas hasta el main. */
+export type RutaArchivo = RutaEnProyecto
 
 /** Todo lo que el núcleo necesita del exterior, inyectado para que sea puro y testeable. */
 export interface RegistryDeps<M> {
@@ -33,10 +38,10 @@ export interface RegistryDeps<M> {
   getValue(model: M): string
   /** Suscribe cambios de contenido; devuelve el desuscriptor. */
   observe(model: M, onChange: () => void): () => void
-  load(path: string, forcedEncoding?: string): Promise<LoadedText>
+  load(ruta: RutaArchivo, forcedEncoding?: string): Promise<LoadedText>
   /** ¿El archivo sigue en disco? Se pregunta sin leerlo, que es lo único posible con el buffer sucio. */
-  existe(path: string): Promise<boolean>
-  write(path: string, content: string, encoding: string): Promise<WriteOutcome>
+  existe(ruta: RutaArchivo): Promise<boolean>
+  write(ruta: RutaArchivo, content: string, encoding: string): Promise<WriteOutcome>
 }
 
 /** Vista inmutable de una entrada del registro. `model` es null SOLO si es binario. */
@@ -59,7 +64,7 @@ export interface ConvertRequest {
 /** API del registro de buffers compartidos con refcount. */
 export interface ModelRegistry<M> {
   /** Sube el refcount SÍNCRONAMENTE y devuelve la entrada (cargándola la primera vez). */
-  acquire(key: string, path: string, opts?: { forcedEncoding?: string }): Promise<SharedTextModel<M>>
+  acquire(key: string, ruta: RutaArchivo, opts?: { forcedEncoding?: string }): Promise<SharedTextModel<M>>
   /** Baja el refcount; al llegar a 0 dispone. No-op si la key no existe o ya está en 0. */
   release(key: string): void
   /** Entrada YA cargada, o null. No dispara carga ni toca el refcount. */
@@ -99,10 +104,17 @@ export function esArchivoInexistente(err: unknown): boolean {
   return /ENOENT|ENOTDIR|no such file or directory/i.test(msg)
 }
 
+/** El archivo de una entrada, tal como viaja al disco. */
+export function rutaDe(e: Pick<Entry<unknown>, 'raiz' | 'path'>): RutaArchivo {
+  return { raiz: e.raiz, path: e.path }
+}
+
 /** Entrada interna del registro: un buffer, sus titulares y su estado. */
 export interface Entry<M> {
   key: string
   path: string
+  /** Contenedora del proyecto del archivo: toda lectura y escritura va a ella, nunca a la activa. */
+  raiz: string
   refs: number
   promise: Promise<SharedTextModel<M>>
   /** Snapshot publicado. null mientras la carga está en vuelo. */

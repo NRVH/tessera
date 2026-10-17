@@ -8,6 +8,7 @@
 // =============================================================================
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { notifyError } from '../../comun/notifications'
+import { txSesion } from './textosSesion.ts'
 import { asegurarModoNativo, type UseTabs } from '../pestanas'
 import { editorTargetKey } from '../editor'
 import {
@@ -69,7 +70,7 @@ async function asegurarAgenteTerminal(perfil: Perfil): Promise<string | null> {
     return ref.projectHostPath
   } catch (err) {
     console.error('[agente-terminal] no se pudo preparar el agente de la terminal:', err)
-    notifyError('No se pudo preparar el agente de la terminal', err)
+    notifyError(txSesion().noSePudoPrepararAgenteTerminal, err)
     return null
   }
 }

@@ -3,7 +3,7 @@
 // Markdown). Aquí se decide QUÉ se copia —el rango acotado a lo cargado y cuántas celdas
 // llegaron recortadas—; CÓMO se escribe cada formato es de `shared/formatosFilas.ts`, el
 // mismo serializador de «Exportar a archivo». Puro.
-// Decisiones: docs/decisiones/bd/ui-rejilla-modelo-visor.md
+// Decisiones: docs/decisiones/bd/ui-rejilla-visor-valor.md
 // =============================================================================
 
 import type { DbMotor } from '../../../../../shared/db-ipc.ts'

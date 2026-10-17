@@ -4,11 +4,12 @@
 // sistema cuando el usuario borra el perfil (nunca en firme). La usan `ssh/controlador/espacioTerminal.ts`
 // y `db/controlador/espacioDatos.ts`. Depende de `node:fs`, `node:path`, `shared/plataforma.ts` y de
 // la papelera que le inyecten (`shell.trashItem` en la app).
-// Decisiones: docs/decisiones/agentes/agente-de-la-terminal.md
+// Decisiones: docs/decisiones/workspace/borrar-perfil-con-orden.md
 // =============================================================================
 import { lstat } from 'node:fs/promises'
 import path from 'node:path'
 import { plataformaActual, type Plataforma } from '../../shared/plataforma.ts'
+import { txMain } from '../textos.ts'
 
 /** Nombres de dispositivo de Windows: con o sin extensión abren el dispositivo, no una carpeta. */
 const RESERVADO_WINDOWS = /^(con|prn|aux|nul|com[0-9¹²³]|lpt[0-9¹²³])(\..*)?$/i
@@ -132,5 +133,5 @@ export async function hijaDirectaALaPapelera(
       ultimoFallo = err
     }
   }
-  throw new Error('No se pudo mandar la carpeta a la papelera: se queda en su sitio.', { cause: ultimoFallo })
+  throw new Error(txMain().papelera, { cause: ultimoFallo })
 }

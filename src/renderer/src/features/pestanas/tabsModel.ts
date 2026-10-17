@@ -8,7 +8,8 @@
 // =============================================================================
 
 // Extensión .ts explícita: es un import de VALOR y los test-*.mts cargan este módulo con `node`.
-import { AGENTES_DISPONIBLES, type Agente, type Profile } from '../../../../main/profiles/types.ts'
+import { AGENTES_DISPONIBLES, type Profile } from '../../../../main/profiles/types.ts'
+import type { IdAgente } from '../../../../shared/agentesManuales.ts'
 import type { DetectedRepo } from '../../../../shared/workspace-ipc.ts'
 import type { ProjectEstado } from '../../../../shared/workspace-state-ipc.ts'
 import {
@@ -555,26 +556,6 @@ export function selectObjetivoGitMostrado(state: TabsState): ObjetivoGit | null 
   return selectObjetivoGit(state, state.activeProfileId)
 }
 
-/**
- * ¿El backend está anclado EXACTAMENTE a este objetivo? Es la ÚNICA puerta de
- * "pedir". `repos` NO entra en la comparación: es un detalle de pintado, no parte
- * de a qué apunta el backend.
- */
-export function backendAnclado(
-  objetivo: ObjetivoGit | null,
-  confirmado: {
-    profileId: string
-    project: { projectHostPath: string }
-    repo: { repoHostPath: string } | null
-  } | null
-): boolean {
-  if (objetivo === null || confirmado === null) return false
-  return (
-    objetivo.profileId === confirmado.profileId &&
-    objetivo.project.projectHostPath === confirmado.project.projectHostPath &&
-    (objetivo.repo?.repoHostPath ?? null) === (confirmado.repo?.repoHostPath ?? null)
-  )
-}
 
 /**
  * Unidad del multiplexado: un target de agente ABIERTO. `key` es estable y sirve
@@ -583,36 +564,38 @@ export function backendAnclado(
 export interface OpenAgentTarget {
   profileId: string
   projectHostPath: string
-  agente: Agente
+  agente: IdAgente
   /** `${profileId}|${projectHostPath}|${agente}` — estable e inequívoca. */
   key: string
 }
 
 /** Clave estable de un target (React key + dedupe). Fuente única de la forma. */
-export function agentTargetKey(profileId: string, projectHostPath: string, agente: Agente): string {
+export function agentTargetKey(profileId: string, projectHostPath: string, agente: IdAgente): string {
   return `${profileId}|${projectHostPath}|${agente}`
 }
 
-/** Agentes que se materializan como sesión: el set FIJO del producto, igual en todos los perfiles. */
-function agentsForProfile(_profile: Profile): Agente[] {
-  return [...AGENTES_DISPONIBLES]
-}
+/**
+ * Los agentes de un proyecto (pestañas de agente). Lo da quien sabe el modo del proyecto y los
+ * agentes manuales; por defecto, los de serie, iguales en todos los proyectos.
+ */
+export type AgentesDeProyecto = (profileId: string, projectHostPath: string) => readonly IdAgente[]
+
+const agentesDeSerie: AgentesDeProyecto = () => AGENTES_DISPONIBLES
 
 /**
  * Aplana TODOS los targets de agente abiertos de TODOS los perfiles: producto
- * (proyectos abiertos del perfil) × (agentes del perfil). Orden determinista:
+ * (proyectos abiertos del perfil) × (agentes de cada proyecto). Orden determinista:
  * perfiles en el orden de `profiles`, proyectos en el de sus pestañas (el de apertura
- * hasta que el usuario las reordena arrastrando), agentes en `agentsForProfile`. Quien
+ * hasta que el usuario las reordena arrastrando), agentes en el de `agentesDe`. Quien
  * monte nodos vivos con esta lista no puede usar su orden (ver `util/ordenEstable`).
  */
-export function selectAllOpenTargets(state: TabsState, profiles: Profile[]): OpenAgentTarget[] {
+export function selectAllOpenTargets(state: TabsState, profiles: Profile[], agentesDe: AgentesDeProyecto = agentesDeSerie): OpenAgentTarget[] {
   const targets: OpenAgentTarget[] = []
   for (const profile of profiles) {
     const tabs = state.byProfile[profile.id]
     if (!tabs) continue
-    const agentes = agentsForProfile(profile)
     for (const project of tabs.openProjects) {
-      for (const agente of agentes) {
+      for (const agente of agentesDe(profile.id, project.projectHostPath)) {
         targets.push({
           profileId: profile.id,
           projectHostPath: project.projectHostPath,
@@ -661,15 +644,14 @@ export function selectAllOpenProjects(state: TabsState, profiles: Profile[]): Op
  * columna de agente las usa para relanzar la sesión de un pane al despertar (el backend
  * cierra la sesión al hibernar y el pane no se entera solo).
  */
-export function selectHibernatedTargetKeys(state: TabsState, profiles: Profile[]): Set<string> {
+export function selectHibernatedTargetKeys(state: TabsState, profiles: Profile[], agentesDe: AgentesDeProyecto = agentesDeSerie): Set<string> {
   const keys = new Set<string>()
   for (const profile of profiles) {
     const tabs = state.byProfile[profile.id]
     if (!tabs) continue
-    const agentes = agentsForProfile(profile)
     for (const project of tabs.openProjects) {
       if (project.estado === 'active') continue
-      for (const agente of agentes) {
+      for (const agente of agentesDe(profile.id, project.projectHostPath)) {
         keys.add(agentTargetKey(profile.id, project.projectHostPath, agente))
       }
     }

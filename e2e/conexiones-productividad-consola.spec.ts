@@ -42,11 +42,6 @@ import { abrirTessera, borrarTemporal, MOD, PERFILES_SIN_SANDBOX, type SesionTes
 const ALIAS = 'PG-PRODUCTIVIDAD'
 /** La consulta con parámetro de la prueba (1): la busca después el historial. */
 const CON_PARAMETRO = 'select nombre from public.profile where id = $1'
-/**
- * Lo que se espera antes de hacer clic en una entrada del menú contextual de Monaco: él
- * no la atiende hasta 100 ms después de pintarla (ver el caso 4). Con holgura.
- */
-const MARGEN_MENU_MONACO_MS = 250
 
 test.describe.configure({ mode: 'serial' })
 
@@ -289,20 +284,10 @@ test.describe('explorador de BD: productividad SQL en la consola', () => {
     await win.keyboard.press(`${MOD}+KeyZ`)
     await expect.poll(() => monacoConsola(win, { op: 'texto' })).toBe(original)
 
-    // Desde el menú contextual del editor.
+    // Desde el menú contextual del editor (el de Tessera, con las acciones de la consola).
     await win.locator(`${CONSOLA} .db-consola-editor .view-lines`).click({ button: 'right' })
-    const entrada = win.getByRole('menuitem', { name: /Formatear SQL/ })
+    const entrada = win.locator('.ctx-menu').getByRole('menuitem', { name: /Formatear SQL/ })
     await expect(entrada).toBeVisible()
-    // Monaco NO atiende el clic de una entrada hasta 100 ms después de pintar el menú
-    // (`runOnceToEnableMouseUp` en `menu.js`: «para evitar clics accidentales», el
-    // `mouseup` del mismo clic derecho que lo abrió). Un usuario nunca hace clic tan
-    // rápido; Playwright sí, y el clic se perdía sin error y con el menú abierto
-    // (medido: con 400 ms de pausa funciona). Se da ese margen, con el ratón llegando a la
-    // entrada como llegaría el de una persona.
-    const caja = await entrada.boundingBox()
-    if (!caja) throw new Error('la entrada «Formatear SQL» no tiene caja')
-    await win.mouse.move(caja.x + caja.width / 2, caja.y + caja.height / 2)
-    await win.waitForTimeout(MARGEN_MENU_MONACO_MS)
     await entrada.click()
     await expect.poll(() => monacoConsola(win, { op: 'texto' }), { timeout: 15_000 }).toBe(formateado)
   })

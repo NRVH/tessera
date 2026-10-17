@@ -8,6 +8,7 @@
 
 import type { DbNodoPlan } from '../../../shared/db-explorador-ipc.ts'
 import { MAX_NODOS_PLAN, numero, texto } from './planSqlComun.ts'
+import { txPlanMysql } from './textosRejilla.ts'
 
 export const PREFIJO_EXPLICAR_MYSQL = 'EXPLAIN FORMAT=JSON\n'
 
@@ -22,51 +23,24 @@ function esObjeto(v: unknown): v is ObjetoJson {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
 }
 
-/** Las operaciones que son un PASO del plan, con su nombre visible. */
-const OPERACIONES: Readonly<Record<string, string>> = {
-  query_block: 'Consulta',
-  table: 'Tabla',
-  ordering_operation: 'Ordenación',
-  grouping_operation: 'Agrupación',
-  duplicates_removal: 'Quitar duplicados',
-  union_result: 'Unión',
-  windowing: 'Ventanas',
-  read_sorted_file: 'Leer ordenado',
-  filesort: 'Ordenación en archivo',
-  temporary_table: 'Tabla temporal',
-  materialized_from_subquery: 'Subconsulta materializada'
-}
-
-/** Cómo lee la tabla cada `access_type`, en palabras. */
-const ACCESO: Readonly<Record<string, string>> = {
-  ALL: 'recorrido completo',
-  index: 'recorrido del índice',
-  range: 'rango del índice',
-  ref: 'por índice',
-  eq_ref: 'por índice único',
-  const: 'una fila (constante)',
-  system: 'una fila (sistema)',
-  ref_or_null: 'por índice o NULL',
-  index_merge: 'mezcla de índices',
-  fulltext: 'texto completo',
-  unique_subquery: 'subconsulta única',
-  index_subquery: 'subconsulta por índice'
-}
+// Las operaciones que son un PASO del plan (con su nombre visible) y cómo lee la tabla cada
+// `access_type` viven en `txPlanMysql()`: se leen al armar el plan, en el idioma activo.
 
 /** El detalle de una tabla: su clave, sus condiciones y lo que usa. */
 function detalleDeTabla(t: ObjetoJson): string[] {
   const detalle: string[] = []
   const clave = texto(t['key']).trim()
-  if (clave) detalle.push(`clave: ${clave}`)
+  const x = txPlanMysql()
+  if (clave) detalle.push(x.clave(clave))
   const posibles = t['possible_keys']
-  if (Array.isArray(posibles) && posibles.length > 0) detalle.push(`posibles: ${posibles.map(texto).join(', ')}`)
+  if (Array.isArray(posibles) && posibles.length > 0) detalle.push(x.posibles(posibles.map(texto).join(', ')))
   const ref = t['ref']
-  if (Array.isArray(ref) && ref.length > 0) detalle.push(`ref: ${ref.map(texto).join(', ')}`)
+  if (Array.isArray(ref) && ref.length > 0) detalle.push(x.ref(ref.map(texto).join(', ')))
   const condicion = texto(t['attached_condition']).trim()
-  if (condicion) detalle.push(`condición: ${condicion}`)
-  if (t['using_index'] === true) detalle.push('solo el índice')
-  if (t['using_temporary_table'] === true) detalle.push('tabla temporal')
-  if (t['using_filesort'] === true) detalle.push('ordenación en archivo')
+  if (condicion) detalle.push(x.condicion(condicion))
+  if (t['using_index'] === true) detalle.push(x.soloIndice)
+  if (t['using_temporary_table'] === true) detalle.push(x.tablaTemporal)
+  if (t['using_filesort'] === true) detalle.push(x.ordenacionArchivo)
   return detalle
 }
 
@@ -83,10 +57,10 @@ interface Recorrido {
 }
 
 function nodoDe(clave: string, o: ObjetoJson, id: number, padre: number | null): DbNodoPlan {
-  const nodo: DbNodoPlan = { id, padre, operacion: OPERACIONES[clave] ?? clave }
+  const nodo: DbNodoPlan = { id, padre, operacion: txPlanMysql().operaciones[clave] ?? clave }
   if (clave === 'table') {
     const acceso = texto(o['access_type']).trim()
-    if (acceso) nodo.opciones = ACCESO[acceso] ?? acceso
+    if (acceso) nodo.opciones = txPlanMysql().acceso[acceso] ?? acceso
     const nombre = texto(o['table_name']).trim()
     if (nombre) nodo.objeto = nombre
     // MySQL: filas leídas por recorrido; MariaDB: `rows`.
@@ -103,7 +77,7 @@ function nodoDe(clave: string, o: ObjetoJson, id: number, padre: number | null):
   return nodo
 }
 
-/** Recorre el JSON: cada clave de `OPERACIONES` es un nodo hijo de `padre`; lo demás se atraviesa. */
+/** Recorre el JSON: cada clave de `txPlanMysql().operaciones` es un nodo hijo de `padre`; lo demás se atraviesa. */
 function recorrer(v: unknown, padre: number | null, r: Recorrido): void {
   if (r.nodos.length >= MAX_NODOS_PLAN) {
     r.recortado = true
@@ -116,7 +90,7 @@ function recorrer(v: unknown, padre: number | null, r: Recorrido): void {
   if (!esObjeto(v)) return
   for (const clave of Object.keys(v)) {
     const hijo = v[clave]
-    if (OPERACIONES[clave] !== undefined && esObjeto(hijo)) {
+    if (Object.hasOwn(txPlanMysql().operaciones, clave) && esObjeto(hijo)) {
       const id = r.nodos.length
       r.nodos.push(nodoDe(clave, hijo, id, padre))
       recorrer(hijo, id, r)

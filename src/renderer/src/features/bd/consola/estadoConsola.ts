@@ -18,8 +18,8 @@ import { reducirResultados, reducirSesionYSalida } from './reductorResultados.ts
 import { salidaVacia } from './salidaConsola.ts'
 
 export {
-  MOTIVO_LIBERADA,
-  PISTA_SIN_SENTENCIA,
+  motivoLiberada,
+  pistaSinSentencia,
   resultadoDeRespuesta,
   type AccionConsola,
   type AccionPestana,
@@ -28,8 +28,8 @@ export {
 } from './modeloConsola.ts'
 export { decidirLote, explicarPideValores, peligros, prevueloLote } from './decisionLote.ts'
 export {
-  TITULO_SOLO_LECTURA,
-  TITULO_TX_ARCHIVO,
+  tituloSoloLectura,
+  tituloTxArchivo,
   estadoBarraTx,
   pasoAAutoRequiereResolver,
   type BarraTx

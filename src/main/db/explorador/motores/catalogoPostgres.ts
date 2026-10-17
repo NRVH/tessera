@@ -8,7 +8,7 @@
 
 import { tieneDdlPg } from '../ddlCatalogo.ts'
 import type { CatalogoExplorador } from './catalogo.ts'
-import { aBool, noDisponible } from './filasCatalogo.ts'
+import { aBool, noDisponible, queFalta } from './filasCatalogo.ts'
 import {
   TIPO_RELKIND_PG,
   mapearColumnas,
@@ -30,10 +30,11 @@ import {
   sqlObjetos,
   sqlRestricciones
 } from './sqlPostgres.ts'
+import { txMotores } from './textosMotores.ts'
 import { leerDdlPostgres } from './verDdlPostgres.ts'
 
 /** Lo que PostgreSQL no lee: los tipos que da su trabajador ya son los declarados. */
-const SIN_TIPOS_DECLARADOS = 'Los tipos declarados solo se leen de Oracle: los de PostgreSQL ya llegan exactos.'
+const sinTiposDeclarados = (): string => txMotores().sinTiposDeclarados('PostgreSQL')
 
 /** El catálogo de PostgreSQL. */
 export const CATALOGO_POSTGRES: CatalogoExplorador = {
@@ -45,7 +46,7 @@ export const CATALOGO_POSTGRES: CatalogoExplorador = {
 
   // Una conexión de PG es UNA base: sin nivel «Bases».
   sqlBases(d) {
-    return noDisponible(d.motor, 'nivel «Bases»')
+    return noDisponible(d.motor, queFalta.nivelBases())
   },
   sqlEsquemas,
   esSistemaDeFila(_d, _nombre, fila) {
@@ -63,11 +64,11 @@ export const CATALOGO_POSTGRES: CatalogoExplorador = {
   mapearIndices,
 
   sqlTiposColumnas() {
-    throw new Error(SIN_TIPOS_DECLARADOS)
+    throw new Error(sinTiposDeclarados())
   },
 
   mapearTiposColumnas() {
-    throw new Error(SIN_TIPOS_DECLARADOS)
+    throw new Error(sinTiposDeclarados())
   },
 
   sqlFks,
@@ -85,15 +86,15 @@ export const CATALOGO_POSTGRES: CatalogoExplorador = {
   leerDdl: leerDdlPostgres,
 
   sqlResolverSinonimo(d) {
-    return noDisponible(d.motor, 'sinónimos')
+    return noDisponible(d.motor, queFalta.sinonimos())
   },
 
   sqlTipoDeObjeto(d) {
-    return noDisponible(d.motor, 'tipo de objeto por nombre')
+    return noDisponible(d.motor, queFalta.tipoPorNombre())
   },
 
   mapearTipoDeObjeto() {
-    return noDisponible('postgres', 'tipo de objeto por nombre')
+    return noDisponible('postgres', queFalta.tipoPorNombre())
   },
 
   sqlNombres,

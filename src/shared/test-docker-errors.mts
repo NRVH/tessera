@@ -12,8 +12,8 @@
 import {
   PREFIJO_DOCKER_NO_DISPONIBLE,
   RAZONES_SALIDA,
-  TEXTOS_SALIDA,
-  DETALLE_DOCKER_ROOTLESS,
+  textosSalida,
+  detalleDockerRootless,
   clasificarErrorArranque,
   esDockerRootless,
   normalizarErrorIpc,
@@ -21,6 +21,9 @@ import {
   razonDeMensaje
 } from './dockerErrors.ts'
 import { plataformaActual } from './plataforma.ts'
+
+const TEXTOS_SALIDA = textosSalida()
+const DETALLE_DOCKER_ROOTLESS = detalleDockerRootless()
 
 // ---------------------------------------------------------------------------
 // Reporte PASS/FAIL (mismo patrón que los otros test-*.mts)

@@ -7,7 +7,8 @@
 
 import { createPortal } from 'react-dom'
 import type { DbConnection } from '../../../../../shared/db-ipc'
-import { TEXTO_SIN_TRANSACCION, textoCambiosDocs } from './coleccionDocs'
+import { textoSinTransaccion, textoCambiosDocs } from './coleccionDocs'
+import { txColeccionDocs } from './textosColeccionDocs'
 import type { EstadoEdicion } from './useEdicionColeccion'
 import { ConfirmDialog } from '../../../comun/ConfirmDialog'
 import { ContextMenu } from '../../../comun/ContextMenu'
@@ -25,8 +26,6 @@ export interface DatosDialogos {
   onAceptarVistaPrevia: () => void
 }
 
-/** Lo que se dice tras el resumen: MongoDB solo va todo o nada si el servidor admite transacciones. */
-const MENSAJE_VISTA_PREVIA = 'en UNA transacción si el servidor las admite: si uno falla, no se aplica ninguno.'
 
 function vistaPreviaEnvio(d: DatosDialogos): React.JSX.Element | null {
   const v = d.ed.vistaPrevia
@@ -40,7 +39,8 @@ function vistaPreviaEnvio(d: DatosDialogos): React.JSX.Element | null {
       lineas={v.lineas}
       estado={{ tipo: 'listo' }}
       lenguaje="shell"
-      mensaje={MENSAJE_VISTA_PREVIA}
+      // Lo que se dice tras el resumen: MongoDB solo va todo o nada si el servidor admite transacciones.
+      mensaje={txColeccionDocs().vistaPrevia}
       onEnviar={d.onAceptarVistaPrevia}
       onCerrar={() => d.ed.setVistaPrevia(null)}
     />
@@ -51,20 +51,21 @@ function confirmacionEnvio(d: DatosDialogos): React.JSX.Element | null {
   const { confirmacion, pendientes } = d.ed
   if (!confirmacion) return null
   const destino = `${d.base}.${d.coleccion}`
+  const t = txColeccionDocs()
   return confirmacion.tipo === 'produccion' ? (
     <ConfirmDialog
-      title={`PRODUCCIÓN · ${d.conexion.alias}`}
-      message={`Vas a enviar ${textoCambiosDocs(pendientes)} a ${destino}, en una conexión de PRODUCCIÓN.`}
-      confirmLabel="Ejecutar en producción"
+      title={t.produccionTitulo(d.conexion.alias)}
+      message={t.produccionMensaje(textoCambiosDocs(pendientes), destino)}
+      confirmLabel={t.ejecutarEnProduccion}
       danger
       onConfirm={() => d.onResponderConfirmacion(true)}
       onCancel={() => d.onResponderConfirmacion(false)}
     />
   ) : (
     <ConfirmDialog
-      title="Sin transacciones"
-      message={`${TEXTO_SIN_TRANSACCION}\n\n¿Enviar ${textoCambiosDocs(pendientes)} de todas formas?`}
-      confirmLabel="Enviar sin transacción"
+      title={t.sinTransaccionTitulo}
+      message={t.sinTransaccionMensaje(textoSinTransaccion(), textoCambiosDocs(pendientes))}
+      confirmLabel={t.enviarSinTransaccion}
       danger
       onConfirm={() => d.onResponderConfirmacion(true)}
       onCancel={() => d.onResponderConfirmacion(false)}
@@ -77,15 +78,16 @@ export function dialogosColeccion(d: DatosDialogos): React.JSX.Element {
   const { menu, setMenu } = d.ed
   const envio = confirmacionEnvio(d)
   const previa = vistaPreviaEnvio(d)
+  const t = txColeccionDocs()
   return (
     <>
       {menu && createPortal(<ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />, document.body)}
       {d.descarte &&
         createPortal(
           <ConfirmDialog
-            title={`Descartar ${textoCambiosDocs(d.descarte.n)} sin enviar`}
-            message={`${d.base}.${d.coleccion} tiene ${textoCambiosDocs(d.descarte.n)} que no se han enviado. Si los descartas, se pierden.`}
-            confirmLabel="Descartar"
+            title={t.descartarSinEnviar(textoCambiosDocs(d.descarte.n))}
+            message={t.descartarMensaje(`${d.base}.${d.coleccion}`, textoCambiosDocs(d.descarte.n))}
+            confirmLabel={t.descartar}
             danger
             onConfirm={() => d.onResponderDescarte(true)}
             onCancel={() => d.onResponderDescarte(false)}

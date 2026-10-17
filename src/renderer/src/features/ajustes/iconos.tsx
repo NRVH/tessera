@@ -86,13 +86,38 @@ function IconoAcerca(): React.JSX.Element {
   )
 }
 
+/** Exportar e importar: dos flechas opuestas, lo que sale de un equipo y entra en otro. */
+function IconoCopia(): React.JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M4.5 8.5h13" strokeLinecap="round" />
+      <path d="M14 5l3.5 3.5L14 12" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M19.5 15.5h-13" strokeLinecap="round" />
+      <path d="M10 12l-3.5 3.5L10 19" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+/** Agentes: tres pestañas, la del medio delante; es lo que se ordena y se oculta aquí. */
+function IconoAgentes(): React.JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <rect x="3" y="7" width="18" height="10" rx="2.5" />
+      <path d="M9 7v10M15 7v10" />
+      <path d="M10.5 12h3" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 /** Un icono por categoría. COMPLETO a propósito: una categoría sin glifo no compila. */
 export const ICONOS: Record<CategoriaId, () => React.JSX.Element> = {
   apariencia: IconoApariencia,
   terminales: IconoTerminales,
   proyectos: IconoProyectos,
+  agentes: IconoAgentes,
   'bases-de-datos': IconoBasesDeDatos,
   integracion: IconoIntegracion,
+  copia: IconoCopia,
   actualizaciones: IconoActualizaciones,
   experimental: IconoExperimental,
   acerca: IconoAcerca

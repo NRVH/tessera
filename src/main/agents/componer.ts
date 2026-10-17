@@ -55,6 +55,7 @@ import { registrarIpcHibernacion } from '../hibernate/ipc'
 import { AgentTerminalController } from './AgentTerminalController'
 import { AgentesNativos } from './agentesNativos'
 import { ejecutarEnShellNativa } from './ejecutorShell'
+import { registrarIpcAgentesManuales } from './manuales/ipc'
 import { registrarIpcTerminalAgente, registrarIpcCuentas, registrarIpcAgentesNativos } from './ipc'
 import { portapapelesDelSistema } from './adaptadores/portapapeles'
 import { fetchTextoConTope } from './adaptadores/redElectron'
@@ -131,6 +132,16 @@ function componerSandbox({ refs, ipc, perfiles, dbController }: DepsSesiones): S
   )
   sharedSandbox.setAvisoRedHandler((aviso) => emisorSinContenido.emitir(SANDBOX_RED_CHANNELS.AVISO, aviso))
   registrarIpcRedSandbox({ ipc, sandbox: sharedSandbox, perfiles: () => perfiles.lista })
+  // Las capas de los agentes manuales de cada perfil: el registro es del main y sobrevive a actualizar.
+  sharedSandbox.usarRegistroCapas(join(app.getPath('userData'), 'capas-perfil.json'))
+  registrarIpcAgentesManuales({
+    ipc,
+    sandbox: sharedSandbox,
+    perfiles: () => perfiles.lista,
+    ejecutar: ejecutarEnShellNativa,
+    emisor: emisorSinContenido,
+    sesionConContexto: (id) => refs.agentes?.sesionConContexto(id) ?? null
+  })
   // Barrido de montajes colgados de un cierre sucio; `ensureContainer` lo espera. Bajo el
   // arnés de pruebas no se barren los heredados: pueden ser de la Tessera abierta del usuario.
   sharedSandbox.beginStartupSweep(!lanzadaPorElArnes(process.argv))
@@ -286,7 +297,11 @@ function depsDeBorrado(deps: DepsSesiones, sharedSandbox: SandboxManager): DepsB
     // La lista de cada momento: el guardado y la orden de borrado la reasignan, así que se lee al usarse.
     idsVivos: () => perfiles.lista.map((n) => n.id),
     candado: borrados,
-    pararContenedor: (p) => sharedSandbox.stopContainer(p),
+    // Con el contenedor se va la capa de imagen de sus agentes manuales.
+    pararContenedor: async (p) => {
+      await sharedSandbox.stopContainer(p)
+      sharedSandbox.olvidarCapa(p.id)
+    },
     borrarHistorial: async (id) => refs.explorador?.alBorrarPerfil(id),
     borrarConexionesSsh: (id) => ssh.alBorrarPerfil(id),
     borrarConexionesBd: (id) => dbController.alBorrarPerfil(id),

@@ -168,6 +168,41 @@ async function main(): Promise<void> {
     `usedTokens=${big.usedTokens} (esperado ${3 + 7 + 150_000 + 90})`
   )
 
+  // (d2) Mientras el modelo piensa, la última línea es la petición entera a la API, más grande que la cola.
+  const peticionBase = path.join(root, 'cc-peticion')
+  await writeJsonl(
+    path.join(peticionBase, 'projects', '-workspace-Alpha', 'sess-peticion.jsonl'),
+    [
+      ccTurn(cwdAlpha, { input_tokens: 3, cache_creation_input_tokens: 7, cache_read_input_tokens: 150_000, output_tokens: 90 }),
+      { type: 'api-request', cwd: cwdAlpha, timestamp: '2026-08-01T15:01:00Z', cuerpo: 'x'.repeat(900 * 1024) }
+    ],
+    new Date('2026-08-01T15:01:00Z')
+  )
+  const peticion = await reader.read(peticionBase, 'claude-code', 'Alpha')
+  check(
+    '(d2) con una línea final mayor que la cola (la petición a la API), el anillo sigue en el último turno, no en 0',
+    peticion.usedTokens === 3 + 7 + 150_000 + 90,
+    `usedTokens=${peticion.usedTokens}`
+  )
+
+  // (d3) Un mensaje sintético con el uso a 0 en la cola no basta: la cola sigue creciendo hasta el turno.
+  // Las peticiones suman más de 1 MiB para que la ventana crecida también recorte.
+  const sinteticoBase = path.join(root, 'cc-sintetico')
+  const peticionGrande = (n: number): Record<string, unknown> => ({ type: 'api-request', cwd: cwdAlpha, timestamp: `2026-08-01T15:0${n}:00Z`, cuerpo: 'x'.repeat(700 * 1024) })
+  await writeJsonl(
+    path.join(sinteticoBase, 'projects', '-workspace-Alpha', 'sess-sintetico.jsonl'),
+    [
+      peticionGrande(0),
+      ccTurn(cwdAlpha, { input_tokens: 4, cache_creation_input_tokens: 0, cache_read_input_tokens: 90_000, output_tokens: 6 }),
+      peticionGrande(1),
+      peticionGrande(2),
+      { ...ccTurn(cwdAlpha, { input_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 0 }), timestamp: '2026-08-01T15:03:00Z' }
+    ],
+    new Date('2026-08-01T15:03:00Z')
+  )
+  const sintetico = await reader.read(sinteticoBase, 'claude-code', 'Alpha')
+  check('(d3) un mensaje sintético con el uso a 0 no corta la búsqueda: el anillo da el último turno real', sintetico.usedTokens === 4 + 90_000 + 6, `usedTokens=${sintetico.usedTokens}`)
+
   // ---------------------------------------------------------------------------
   // Codex
   // ---------------------------------------------------------------------------

@@ -1,15 +1,19 @@
 // =============================================================================
-// Panel del explorador de archivos: elige entre el estado vacío y el `FileTree` de la
-// contenedora de la pestaña activa (no del repo activo: cambiar de repo es asunto de git).
-// Recuerda las carpetas abiertas de cada proyecto entre remontajes del árbol, que se
-// remonta por `key={projectHostPath}`. El renderer solo ve rutas relativas POSIX.
+// Panel del explorador de archivos: elige entre el estado vacío y los `FileTree` de las
+// contenedoras (no de los repos: cambiar de repo es asunto de git). Mantiene montados los árboles
+// de los últimos proyectos vistos (`comun/useVivosRecientes`) y enseña solo el del que se ve: al
+// volver a uno, está tal cual se dejó. Recuerda las carpetas abiertas de los que salen de la lista.
 // Decisiones: docs/decisiones/explorador/arbol-de-archivos.md
 // =============================================================================
-import { useCallback, useRef } from 'react'
+import { memo, useCallback, useRef } from 'react'
+import { useCapaVisible } from '../../comun/capaVisible'
 import { EstadoVacio, IconoCarpetaVacia } from '../../comun/EstadoVacio'
+import { CapaViva, useVivosRecientes } from '../../comun/useVivosRecientes'
+import type { Vivo } from '../../comun/vivosRecientes'
 import type { OpenFile } from '../editor'
 import type { OpenProject } from '../pestanas'
 import type { WorktreeDecorations } from '../git'
+import { txExplorador } from './textos.ts'
 import { FileTree } from './FileTree'
 import type { BasesDeArchivoSidebar } from './tiposArbol'
 
@@ -18,8 +22,12 @@ export type { BasesDeArchivoSidebar } from './tiposArbol'
 interface SidebarProps {
   /** Alto de fila en px; lo decide el tamaño de letra de la interfaz (theme/densidad). */
   altoFila: number
-  /** Contenedora activa confirmada, o null si no hay ninguna abierta. */
+  /** Perfil del proyecto que se ve: con la contenedora, la clave de su árbol. */
+  perfilId: string | null
+  /** Contenedora que se ve, o null si no hay ninguna abierta. */
   activeProject: OpenProject | null
+  /** Claves (`perfil|contenedora`) de los proyectos abiertos: el árbol de uno cerrado se desmonta. */
+  abiertos: ReadonlySet<string>
   /** Archivo abierto ahora mismo (para resaltar la fila activa). */
   openFile: OpenFile | null
   /** Decoraciones git del working-tree, o null si no se conocen. Solo lectura. */
@@ -41,59 +49,82 @@ interface SidebarProps {
   basesDeArchivo?: BasesDeArchivoSidebar
 }
 
-/** Panel lateral con el árbol de archivos del proyecto activo. */
-export function Sidebar({
-  altoFila,
-  varsDensidad,
-  activeProject,
-  openFile,
-  decorations,
-  onOpenFile,
-  onOpenFileHistory,
-  onDiscardChanges,
-  revelarRuta,
-  basesDeArchivo
-}: SidebarProps): React.JSX.Element {
-  // Carpetas abiertas por proyecto. Vive aquí porque el Sidebar no se remonta: cambiar de
-  // proyecto o de perfil y volver restaura el árbol. Es de sesión (un ref, sin disco).
+/** El árbol de un proyecto montado: su clave (`perfil|contenedora`) y su proyecto. */
+interface ArbolVivo extends Vivo {
+  projectHostPath: string
+  name: string
+}
+
+/** Un proyecto renombrado repinta su árbol, aunque ya fuera el último visto. */
+const mismoArbol = (a: ArbolVivo, b: ArbolVivo): boolean => a.clave === b.clave && a.name === b.name
+
+/**
+ * Un árbol oculto no se repinta por lo que le llega de fuera (callbacks nuevos en cada render del
+ * lateral, el archivo abierto…): nadie lo ve ni puede tocarlo. Al volver a verse recibe las props
+ * vigentes. Su propio estado (cargas, cambios) sí lo repinta.
+ */
+const FileTreeVivo = memo(
+  FileTree,
+  (antes, ahora) =>
+    !antes.activo &&
+    !ahora.activo &&
+    antes.altoFila === ahora.altoFila &&
+    antes.revelarRuta?.token === ahora.revelarRuta?.token
+)
+
+/** Panel lateral con el árbol de archivos del proyecto que se ve. */
+export function Sidebar(props: SidebarProps): React.JSX.Element {
+  const { altoFila, varsDensidad, perfilId, activeProject, abiertos } = props
+  // Carpetas abiertas de los árboles que salen de la lista viva: si se vuelve a ellos, se restauran.
+  // Es de sesión (un ref, sin disco).
   const expandedByProject = useRef<Map<string, Set<string>>>(new Map())
   const rememberExpanded = useCallback((projectHostPath: string, expanded: Set<string>) => {
     expandedByProject.current.set(projectHostPath, expanded)
   }, [])
+  const activo: ArbolVivo | null =
+    activeProject && perfilId !== null
+      ? { clave: `${perfilId}|${activeProject.projectHostPath}`, projectHostPath: activeProject.projectHostPath, name: activeProject.name }
+      : null
+  const vivos = useVivosRecientes(activo, abiertos, mismoArbol)
+  // Con el lateral de archivos oculto (se mira otra vista), el árbol del proyecto tampoco se ve: no
+  // escucha cambios ni atiende menús, y se recarga al volver a verse.
+  const lateralSeVe = useCapaVisible()
 
+  const t = txExplorador()
   return (
-    <aside className="sidebar" aria-label="Explorador" style={varsDensidad}>
-      {activeProject === null ? (
+    <aside className="sidebar" aria-label={t.titulo} style={varsDensidad}>
+      {activo === null && (
         <>
           <div className="sidebar-header">
-            <span className="sidebar-title">Explorador</span>
+            <span className="sidebar-title">{t.titulo}</span>
           </div>
           <div className="sidebar-body">
-            <EstadoVacio
-              icono={<IconoCarpetaVacia />}
-              titulo="Sin proyecto abierto"
-              pista="Abre un proyecto para explorar sus archivos."
-            />
+            <EstadoVacio icono={<IconoCarpetaVacia />} titulo={t.sinProyecto} pista={t.sinProyectoPista} />
           </div>
         </>
-      ) : (
-        // La clave es solo la contenedora: cambiar de repo no debe remontar el árbol.
-        <FileTree
-          key={activeProject.projectHostPath}
-          projectHostPath={activeProject.projectHostPath}
-          projectName={activeProject.name}
-          altoFila={altoFila}
-          initialExpanded={expandedByProject.current.get(activeProject.projectHostPath)}
-          onExpandedChange={rememberExpanded}
-          openFile={openFile}
-          decorations={decorations}
-          onOpenFile={onOpenFile}
-          onOpenFileHistory={onOpenFileHistory}
-          onDiscardChanges={onDiscardChanges}
-          revelarRuta={revelarRuta}
-          basesDeArchivo={basesDeArchivo}
-        />
       )}
+      {vivos.map((a) => {
+        const visto = a.clave === activo?.clave
+        return (
+          <CapaViva key={a.clave} visible={visto}>
+            <FileTreeVivo
+              projectHostPath={a.projectHostPath}
+              projectName={a.name}
+              activo={visto && lateralSeVe}
+              altoFila={altoFila}
+              initialExpanded={expandedByProject.current.get(a.projectHostPath)}
+              onExpandedChange={rememberExpanded}
+              openFile={visto ? props.openFile : null}
+              decorations={visto ? props.decorations : null}
+              onOpenFile={props.onOpenFile}
+              onOpenFileHistory={props.onOpenFileHistory}
+              onDiscardChanges={props.onDiscardChanges}
+              revelarRuta={props.revelarRuta}
+              basesDeArchivo={visto ? props.basesDeArchivo : undefined}
+            />
+          </CapaViva>
+        )
+      })}
     </aside>
   )
 }

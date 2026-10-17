@@ -21,6 +21,7 @@ import {
 import { normalizarFilasPorPagina, normalizarInactividadConsolaMin, normalizarTxInicial } from '../../../../shared/ajustesBd'
 import { normalizarInactividadAgenteMin } from '../../../../shared/ajustesAgente'
 import { SSH_RIEL_ANCHO_POR_DEFECTO } from '../../../../shared/ajustesTerminal'
+import { normalizarPreferenciaIdioma } from '../../../../shared/i18n'
 import { normalizarUiFont } from '../../theme/densidad'
 import { useStoreAjustes } from './store'
 import { useStoreLayout } from '../layout'
@@ -47,10 +48,12 @@ export function buildSettings(): WorkspaceSettings {
     diffColapsarSinCambios: a.diffColapsar,
     windowsModeProjects: [...useStorePestanas.getState().windowsModeKeys],
     defaultProjectMode: a.defaultProjectMode,
+    idioma: a.idioma,
     activityBarOrder: l.activityBarOrder,
     bottomBarOrder: l.bottomBarOrder,
     terminalFontFamily: a.terminalAppearance.fontFamily,
     terminalFontSize: a.terminalAppearance.fontSize,
+    terminalResaltado: a.terminalAppearance.resaltar !== false,
     agentFontFamily: a.agentAppearance.fontFamily,
     agentFontSize: a.agentAppearance.fontSize,
     uiFontSize: a.uiFontSize,
@@ -88,7 +91,12 @@ export function buildSettings(): WorkspaceSettings {
     sshRielVisiblePorPerfil: ssh.rielVisiblePorPerfil,
     sshRecientesPorPerfil: ssh.recientesPorPerfil,
     sshPestanasPorPerfil: pestanasSshAGuardar(),
-    agenteTerminalVisiblePorPerfil: useStoreAgenteTerminal.getState().visiblePorPerfil
+    agenteTerminalVisiblePorPerfil: useStoreAgenteTerminal.getState().visiblePorPerfil,
+    agentesNativos: useStoreAgentes.getState().agentesNativos,
+    agentesDockerPorPerfil: useStoreAgentes.getState().agentesDockerPorPerfil,
+    agentesOcultosPorPerfil: useStoreAgentes.getState().agentesOcultosPorPerfil,
+    ordenAgentesPorPerfil: useStoreAgentes.getState().ordenAgentesPorPerfil,
+    selectorAgentes: useStoreAgentes.getState().selectorAgentes
   }
 }
 
@@ -111,7 +119,14 @@ export function guardarAjustes(etiqueta: string): void {
 /** Reparte en los stores lo leído del archivo (ya saneado por normalizeSettings). */
 function hidratar(s: WorkspaceSettings): void {
   window.tessera.zoom.setLevel(s.zoomLevel)
-  useStoreAgentes.setState({ accountByTarget: s.agentAccountByTarget ?? {} })
+  useStoreAgentes.setState({
+    accountByTarget: s.agentAccountByTarget ?? {},
+    agentesNativos: s.agentesNativos ?? [],
+    agentesDockerPorPerfil: s.agentesDockerPorPerfil ?? {},
+    agentesOcultosPorPerfil: s.agentesOcultosPorPerfil ?? {},
+    ordenAgentesPorPerfil: s.ordenAgentesPorPerfil ?? {},
+    selectorAgentes: s.selectorAgentes ?? 'pestanas'
+  })
   useStorePestanas.setState({ windowsModeKeys: new Set(s.windowsModeProjects ?? []), coloresFijados: s.coloresPerfilFijados ?? [] })
   useStoreMosaico.setState({ mosaicoPreset: s.mosaicoPreset ?? 'auto' })
   useStoreBd.setState({ dbMounts: s.dbMountsByProject ?? {}, dbAgenteVisiblePorPerfil: s.dbAgenteVisiblePorPerfil ?? {} })
@@ -125,6 +140,7 @@ function hidratar(s: WorkspaceSettings): void {
   useStoreAgenteTerminal.setState({ visiblePorPerfil: s.agenteTerminalVisiblePorPerfil ?? {} })
   hidratarLayout(s)
   hidratarAjustes(s)
+  useStoreAjustes.setState({ idiomaAlArrancar: normalizarPreferenciaIdioma(s.idioma) })
 }
 
 function hidratarLayout(s: WorkspaceSettings): void {
@@ -154,7 +170,12 @@ function hidratarAjustes(s: WorkspaceSettings): void {
     registroSalud: s.registroSalud !== false,
     volcadosCaida: s.volcadosCaida !== false,
     defaultProjectMode: s.defaultProjectMode ?? 'windows',
-    terminalAppearance: { fontFamily: s.terminalFontFamily ?? '', fontSize: s.terminalFontSize ?? 0 },
+    idioma: normalizarPreferenciaIdioma(s.idioma),
+    terminalAppearance: {
+      fontFamily: s.terminalFontFamily ?? '',
+      fontSize: s.terminalFontSize ?? 0,
+      resaltar: s.terminalResaltado !== false
+    },
     agentAppearance: { fontFamily: s.agentFontFamily ?? '', fontSize: s.agentFontSize ?? 0 },
     uiFontSize: normalizarUiFont(s.uiFontSize ?? 0),
     // Los overrides no pasan por normalizarUiFont: 0 significa «igual que la interfaz».
@@ -174,6 +195,18 @@ function hidratarAjustes(s: WorkspaceSettings): void {
     dbConsolaInactividadMin: normalizarInactividadConsolaMin(s.dbConsolaInactividadMin),
     agenteInactividadMin: normalizarInactividadAgenteMin(s.agenteInactividadMin)
   })
+}
+
+/**
+ * Aplica unos ajustes ya saneados que vienen de una copia de la configuración: solo los stores de
+ * lo que viaja (`AJUSTES_EXPORTABLES`). El guardado lo dispara el cambio, como uno hecho a mano.
+ */
+export function aplicarAjustesImportados(s: WorkspaceSettings): void {
+  window.tessera.zoom.setLevel(s.zoomLevel)
+  useStoreMosaico.setState({ mosaicoPreset: s.mosaicoPreset ?? 'auto' })
+  useStorePestanas.setState({ coloresFijados: s.coloresPerfilFijados ?? [] })
+  useStoreLayout.setState({ activityBarOrder: s.activityBarOrder, bottomBarOrder: s.bottomBarOrder })
+  hidratarAjustes(s)
 }
 
 /** Guarda con espera cuando cambia alguna dependencia; salta hasta haber hidratado. */
@@ -245,6 +278,7 @@ function useCamposInmediatos(): unknown[] {
       s.volcadosCaida,
       s.diffColapsar,
       s.defaultProjectMode,
+      s.idioma,
       s.terminalAppearance,
       s.agentAppearance,
       s.uiFontSize,
@@ -280,7 +314,11 @@ function useCamposInmediatos(): unknown[] {
   const sshPestanas = useStoreTerminales((s) => s.ssh.porPerfil)
   const sshConexiones = useStoreSsh((s) => s.conexiones)
   const agenteTerminalVisible = useStoreAgenteTerminal((s) => s.visiblePorPerfil)
+  const agentesManuales = useStoreAgentes(
+    useShallow((s) => [s.agentesNativos, s.agentesDockerPorPerfil, s.agentesOcultosPorPerfil, s.ordenAgentesPorPerfil, s.selectorAgentes])
+  )
   return [
+    ...agentesManuales,
     ...ajustes,
     ...layout,
     windowsModeKeys,

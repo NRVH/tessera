@@ -7,6 +7,10 @@
 // =============================================================================
 
 import type { UpdateState } from '../../../../shared/update-ipc.ts'
+import { txActualizaciones } from './textos.ts'
+
+/** Los textos de la vista del botón. */
+const tx = (): ReturnType<typeof txActualizaciones>['vista'] => txActualizaciones().vista
 
 export type TonoUpdate = 'neutro' | 'acento' | 'verde' | 'rojo'
 
@@ -77,8 +81,8 @@ function vistaFallo(versionEsperada: string): VistaUpdate {
   return vista({
     icono: 'aviso',
     tono: 'rojo',
-    etiqueta: 'La actualización falló',
-    titulo: `La versión ${versionEsperada} no llegó a instalarse. Pulsa para ver por qué.`,
+    etiqueta: tx().falloEtiqueta,
+    titulo: tx().falloTitulo(versionEsperada),
     accion: 'abrir',
     deshabilitado: false
   })
@@ -88,8 +92,8 @@ function vistaDescargando({ newVersion, percent }: UpdateState): VistaUpdate {
   return vista({
     icono: 'anillo',
     tono: 'acento',
-    etiqueta: `Descargando ${newVersion ?? ''} · ${percent} %`.replace('  ', ' '),
-    titulo: `Descargando Tessera ${newVersion ?? ''} en segundo plano (${percent} %).`,
+    etiqueta: tx().descargandoEtiqueta(newVersion ?? '', percent).replace('  ', ' '),
+    titulo: tx().descargandoTitulo(newVersion ?? '', percent),
     accion: 'abrir',
     deshabilitado: false
   })
@@ -102,12 +106,13 @@ function vistaDescargando({ newVersion, percent }: UpdateState): VistaUpdate {
  */
 function vistaDisponible({ newVersion }: UpdateState): VistaUpdate {
   // `newVersion` puede faltar: antes de inventar un "Tessera null", la frase se degrada.
-  const quien = newVersion ? `Tessera ${newVersion}` : 'Una versión nueva de Tessera'
+  const t = tx()
+  const quien = newVersion ? t.quienConVersion(newVersion) : t.quienSinVersion
   return vista({
     icono: 'descarga',
     tono: 'acento',
-    etiqueta: `Descargar ${newVersion ?? ''}`.trim(),
-    titulo: `${quien} está disponible. Esta copia no puede instalarse sola: pulsa para ver cómo.`,
+    etiqueta: t.descargar(newVersion ?? '').trim(),
+    titulo: t.disponibleTitulo(quien),
     accion: 'abrir',
     deshabilitado: false
   })
@@ -120,15 +125,16 @@ function vistaDisponible({ newVersion }: UpdateState): VistaUpdate {
  */
 function vistaPreparada(s: UpdateState): VistaUpdate {
   const { newVersion } = s
+  const t = tx()
   const titulo = !s.aplicable
-    ? `Tessera ${newVersion} está preparada, pero falta confirmarla con el servidor. Pulsa para hacerlo e instalarla.`
+    ? t.sinConfirmar(newVersion)
     : s.seAplicaAlCerrar
-      ? `Tessera ${newVersion} está preparada. Se aplicará sola al cerrar; pulsa para hacerlo ya.`
-      : `Tessera ${newVersion} está preparada. Pulsa para reiniciar e instalarla.`
+      ? t.alCerrar(newVersion)
+      : t.preparada(newVersion)
   return vista({
     icono: 'descarga',
     tono: 'acento',
-    etiqueta: 'Actualizar ahora',
+    etiqueta: t.actualizarAhora,
     titulo,
     accion: 'instalar',
     deshabilitado: false
@@ -139,8 +145,8 @@ function vistaInstalando(): VistaUpdate {
   return vista({
     icono: 'anillo-indeterminado',
     tono: 'acento',
-    etiqueta: 'Instalando…',
-    titulo: 'Aplicando la actualización.',
+    etiqueta: tx().instalando,
+    titulo: tx().aplicando,
     accion: 'nada',
     deshabilitado: true
   })
@@ -150,8 +156,8 @@ function vistaError(): VistaUpdate {
   return vista({
     icono: 'aviso',
     tono: 'rojo',
-    etiqueta: 'No se pudo comprobar',
-    titulo: 'La comprobación de actualizaciones falló. Pulsa para ver por qué.',
+    etiqueta: tx().errorEtiqueta,
+    titulo: tx().errorTitulo,
     accion: 'abrir',
     deshabilitado: false
   })
@@ -161,8 +167,8 @@ function vistaAplicada(desde: string, hasta: string): VistaUpdate {
   return vista({
     icono: 'hecho',
     tono: 'verde',
-    etiqueta: `Actualizada a ${hasta}`,
-    titulo: `Tessera se actualizó de ${desde} a ${hasta}.`,
+    etiqueta: tx().aplicadaEtiqueta(hasta),
+    titulo: tx().aplicadaTitulo(desde, hasta),
     accion: 'abrir',
     deshabilitado: false
   })
@@ -172,8 +178,8 @@ function vistaBuscando(): VistaUpdate {
   return vista({
     icono: 'buscar-girando',
     tono: 'neutro',
-    etiqueta: 'Buscando…',
-    titulo: 'Comprobando si hay una versión nueva.',
+    etiqueta: tx().buscando,
+    titulo: tx().comprobando,
     accion: 'nada',
     deshabilitado: true
   })
@@ -183,8 +189,8 @@ function vistaReposo(): VistaUpdate {
   return vista({
     icono: 'buscar',
     tono: 'neutro',
-    etiqueta: 'Buscar actualizaciones',
-    titulo: 'Comprobar si hay una versión nueva de Tessera.',
+    etiqueta: tx().buscar,
+    titulo: tx().comprobar,
     accion: 'comprobar',
     deshabilitado: false
   })

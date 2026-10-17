@@ -9,6 +9,7 @@
 import { textoPildora } from './panesBd'
 import { textoTrayendo } from './rejilla/traerTodas'
 import { textoExportando } from './rejilla/exportarBd'
+import { txPanes } from './textosPanes.ts'
 
 export interface PildoraFilasProps {
   cargadas: number
@@ -29,11 +30,6 @@ export interface PildoraFilasProps {
   onCancelarExportacion?: () => void
 }
 
-const TITULO_SIN_ORDEN =
-  'Sin ORDER BY ni clave primaria, el servidor no garantiza el orden: al cargar más, alguna fila puede repetirse o saltarse'
-const TITULO_TRAER = 'Leer del servidor todas las filas que quepan en memoria'
-const TITULO_TRAYENDO = 'Leyendo el resto de las filas del servidor'
-
 function Sep(): React.JSX.Element {
   return (
     <span className="db-pildora-sep" aria-hidden="true">
@@ -49,7 +45,7 @@ function Recuento(p: PildoraFilasProps & { trayendoTodas: boolean }): React.JSX.
   const contable = t.contable && p.onContar !== undefined && !p.sinLector && !p.trayendoTodas
   if (p.trayendoTodas) {
     return (
-      <span className="db-pildora-texto" title={TITULO_TRAYENDO} role="status">
+      <span className="db-pildora-texto" title={txPanes().trayendoTitulo} role="status">
         {textoTrayendo(p.cargadas)}
       </span>
     )
@@ -78,7 +74,7 @@ function SinLector({ motivo, onVolverAEjecutar }: { motivo: string; onVolverAEje
       </span>
       {onVolverAEjecutar && (
         <button type="button" className="db-pildora-btn" onClick={onVolverAEjecutar}>
-          Volver a ejecutar
+          {txPanes().volverAEjecutar}
         </button>
       )}
     </>
@@ -98,10 +94,10 @@ function Exportando({ filas, onCancelar }: { filas: number; onCancelar?: () => v
           type="button"
           className="db-pildora-btn"
           onClick={onCancelar}
-          title="Detener la exportación"
-          aria-label="Detener la exportación"
+          title={txPanes().detenerExportacion}
+          aria-label={txPanes().detenerExportacion}
         >
-          Detener
+          {txPanes().detener}
         </button>
       )}
     </>
@@ -123,26 +119,26 @@ export function PildoraFilas(props: PildoraFilasProps): React.JSX.Element {
             type="button"
             className="db-pildora-btn"
             onClick={onDetenerTraerTodas}
-            title="Dejar de traer filas (lo ya traído se queda)"
-            aria-label="Detener «Traer todas»"
+            title={txPanes().dejarDeTraer}
+            aria-label={txPanes().detenerTraerTodas}
           >
-            Detener
+            {txPanes().detener}
           </button>
         </>
       )}
       {traible && (
         <>
           <Sep />
-          <button type="button" className="db-pildora-btn db-pildora-traer" onClick={onTraerTodas} title={TITULO_TRAER}>
-            Traer todas
+          <button type="button" className="db-pildora-btn db-pildora-traer" onClick={onTraerTodas} title={txPanes().traerTitulo}>
+            {txPanes().traerTodas}
           </button>
         </>
       )}
       {props.sinOrdenEstable && hayMas && (
         <>
           <Sep />
-          <span className="db-pildora-aviso" title={TITULO_SIN_ORDEN}>
-            sin orden estable
+          <span className="db-pildora-aviso" title={txPanes().sinOrdenTitulo}>
+            {txPanes().sinOrdenEstable}
           </span>
         </>
       )}

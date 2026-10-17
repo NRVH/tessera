@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { editor } from 'monaco-editor'
+import { useRaizDelProyecto } from '../../comun/raizDelProyecto'
 import { useVisibleLayout } from '../../comun/useVisibleLayout'
 import {
   crearEditorJava,
@@ -30,6 +31,7 @@ type AccionLarga = 'redetectar' | 'elegir'
 
 /** Estado del pane de clase Java: resultado, carga, motor y acciones de recuperación. */
 export function useJavaClass({ file, visible, targetKey, activeTargetKey, fsTick }: EntradaJavaClass) {
+  const raiz = useRaizDelProyecto()
   const hostRef = useRef<HTMLDivElement | null>(null)
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
   const modelRef = useRef<editor.ITextModel | null>(null)
@@ -56,13 +58,7 @@ export function useJavaClass({ file, visible, targetKey, activeTargetKey, fsTick
     async (motor: MotorPedido, ignorarCache = false): Promise<void> => {
       const token = ++tokenRef.current
       setCargando(true)
-      const { r, rechazada } = await pedirDescompilacion({
-        path: file.path,
-        motor,
-        targetKey,
-        token,
-        ignorarCache
-      })
+      const { r, rechazada } = await pedirDescompilacion({ raiz, path: file.path, motor, targetKey, token, ignorarCache })
       // Respuesta tardía de una petición anterior: se descarta. Que cambie el proyecto mientras
       // tanto no la invalida: el resultado sigue siendo de ESTE pane y queda listo al volver.
       if (token !== tokenRef.current) return
@@ -73,7 +69,7 @@ export function useJavaClass({ file, visible, targetKey, activeTargetKey, fsTick
       setDetalleAbierto(false)
       mostrarFuente(editorRef.current, modelRef, r.fuente)
     },
-    [file.path, targetKey]
+    [raiz, file.path, targetKey]
   )
 
   useEffect(() => {

@@ -52,7 +52,7 @@ function botonVista(win: Page, titulo: 'Archivos' | 'Conexiones a bases de datos
 
 /** Una fila del explorador de ARCHIVOS por su nombre. */
 function filaArchivo(win: Page, nombre: string): ReturnType<Page['locator']> {
-  return win.locator('.sidebar .tree-row', { hasText: nombre }).first()
+  return win.locator('.sidebar .tree-row:visible', { hasText: nombre }).first()
 }
 
 /** Carga el texto en la consola y pulsa «Ejecutar todo». */
@@ -163,6 +163,14 @@ test.describe('explorador de BD: SQLite', () => {
     await ejecutarTodoSeleccionado(win, 'select count(*) as n from clientes')
     await esperarFinEjecucion(win)
     await expect(celdaResultado(win, 0, 0)).toHaveText('3', { timeout: 15_000 })
+    // El texto empieza junto a los números de línea, sin la columna de plegado delante.
+    const hueco = await win.locator(`${CONSOLA} .monaco-editor`).first().evaluate((ed) => {
+      const numeros = ed.querySelector('.margin-view-overlays .line-numbers')?.getBoundingClientRect()
+      const texto = ed.querySelector('.view-lines')?.getBoundingClientRect()
+      return numeros && texto ? texto.left - numeros.right : -1
+    })
+    expect(hueco, 'el hueco entre los números y el texto').toBeGreaterThanOrEqual(0)
+    expect(hueco, 'el hueco entre los números y el texto').toBeLessThan(12)
   })
 
   // (2) EL ÁRBOL: `main` con sus tres carpetas (las vacías no se pintan: por eso se sembró

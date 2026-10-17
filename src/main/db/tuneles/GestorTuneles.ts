@@ -6,6 +6,7 @@
 // Decisiones: docs/decisiones/bd/conexiones-tunel-ssh.md
 // =============================================================================
 import type { DbTunelSsh } from '../../../shared/db-ipc.ts'
+import { txDb } from '../textosDb.ts'
 
 /** A dónde conecta el driver en lugar del servidor: el extremo local del túnel. */
 export interface DestinoTunel {
@@ -157,12 +158,12 @@ export class GestorTuneles {
 
   private async abrir(con: ConexionConTunel, sshId: string, t: Tunel): Promise<DestinoTunel> {
     const alias = this.d.aliasSsh(sshId)
-    if (alias === null) throw new Error(`La conexión SSH del túnel de «${con.alias}» ya no existe: edita la conexión y elige otra.`)
+    if (alias === null) throw new Error(txDb().tuneles.sshNoExiste(con.alias))
     const puerto = await this.d.puertoLibre()
     const linea = this.d.preparar(con.profileId, sshId, { host: con.host, puerto: con.port }, puerto)
     if (t.cerrado) {
       linea.alConectar()
-      throw new Error('El túnel se cerró mientras se abría.')
+      throw new Error(txDb().tuneles.cerradoAlAbrir)
     }
     const proceso = this.d.lanzar(linea)
     t.proceso = proceso
@@ -178,7 +179,7 @@ export class GestorTuneles {
       while (this.d.ahora() < fin) {
         if (salido || t.cerrado) {
           const causa = ultimaLinea(proceso.errores())
-          throw new Error(`No se pudo abrir el túnel SSH por «${alias}»${causa ? `: ${causa}` : '.'}`)
+          throw new Error(txDb().tuneles.noSeAbrio(alias, causa))
         }
         // Las dos cosas: la sesión empezada dice que el puerto es del ssh (no de otro proceso que lo tomara
         // entre medias, al que se mandaría la contraseña de la base), y la sonda que ya acepta conexiones.
@@ -188,7 +189,7 @@ export class GestorTuneles {
         }
         await this.d.esperar(PAUSA_SONDEO_MS)
       }
-      throw new Error(`El túnel SSH por «${alias}» no se abrió en ${TOPE_APERTURA_MS / 1000} s.`)
+      throw new Error(txDb().tuneles.tiempoAgotado(alias, TOPE_APERTURA_MS / 1000))
     } finally {
       linea.alConectar()
     }

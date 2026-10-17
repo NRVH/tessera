@@ -16,6 +16,7 @@ import {
 import type { DbController } from './DbController.ts'
 import type { CandadoDeBorrado } from '../profiles/candadoDeBorrado.ts'
 import type { LlegadaDePerfiles } from '../profiles/llegadaDePerfiles.ts'
+import { txDb } from './textosDb.ts'
 
 /** Lo que `registrarIpcBd` necesita: el `ipcMain` y el controlador al que delegar. */
 export interface DependenciasIpcBd {
@@ -46,7 +47,7 @@ function asegurarEspacio(
 ): ReturnType<DbController['ensureWorkspace']> {
   if (!perfiles) return bd.ensureWorkspace(req.profileId, req.nombrePerfil)
   const perfil = perfiles().find((p) => p.id === req?.profileId)
-  if (!perfil) throw new Error('Ese perfil no existe: no se prepara su espacio de datos.')
+  if (!perfil) throw new Error(txDb().conexion.perfilNoExiste)
   return bd.ensureWorkspace(perfil.id, perfil.nombre)
 }
 

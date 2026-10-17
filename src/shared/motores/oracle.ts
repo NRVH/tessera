@@ -7,6 +7,7 @@
 import type { DescriptorMotor } from './tipos.ts'
 import { definirMotor } from './definir.ts'
 import { destinoDeRed } from './destinoRed.ts'
+import { txMotores } from './textosMotores.ts'
 
 /**
  * Cuentas que crea Oracle (ver la procedencia en `catalogoSql.ts`). En 12.1+ lo dice
@@ -90,8 +91,12 @@ export const ORACLE: DescriptorMotor<'oracle'> = definirMotor({
       {
         campos: ['database', 'sid'],
         alMenosUno: true,
-        siNinguno: 'Oracle necesita un Service Name o un SID.',
-        siVarios: 'Indica Service Name O SID, no ambos.'
+        get siNinguno() {
+          return txMotores().necesitaServicioOSid('Oracle')
+        },
+        get siVarios() {
+          return txMotores().servicioOSid
+        }
       }
     ],
     faltaDestino: {},

@@ -1,10 +1,12 @@
 // =============================================================================
 // Los códigos de salida propios de `tssh`, el error que los lleva y cómo se avisa: siempre por la salida de
 // errores y con «tssh:» delante, para no mezclarse con la salida de la orden remota. Los mismos códigos los
-// decide el main (`CODIGOS_TSSH` de `src/main/ssh/controlador/puenteTssh.ts`). Sin dependencias.
+// decide el main (`CODIGOS_TSSH` de `src/main/ssh/controlador/puenteTssh.ts`). Solo depende de `textosTssh`.
 // Decisiones: docs/decisiones/ssh/tssh-y-agentes.md
 // =============================================================================
 'use strict'
+
+const { textosTssh } = require('./textosTssh.cjs')
 
 /**
  * Códigos propios: solo salen ANTES de que corra la orden remota (o al agotar el tope). Si la orden corre,
@@ -22,7 +24,7 @@ class ErrorTssh extends Error {
 
 /** Un fallo de uso (código 2), con la pista de la ayuda. */
 function errorDeUso(mensaje) {
-  return new ErrorTssh(CODIGOS.uso, `${mensaje} La ayuda: tssh help.`)
+  return new ErrorTssh(CODIGOS.uso, textosTssh().conPistaDeAyuda(mensaje))
 }
 
 /** Escribe una línea de `tssh` en la salida de errores. */

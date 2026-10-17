@@ -7,6 +7,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { ErrorBoundary } from '../../comun/ErrorBoundary'
 import { SettingsModal } from './SettingsModal'
 import { fijarAjuste, useStoreAjustes } from './store'
+import { txModal } from './textos.ts'
 import { useStoreAgentes, type SesionesNativas } from '../agentes'
 
 /** Setters estables de los ajustes que el modal cambia tal cual. */
@@ -50,7 +51,7 @@ export function ModalAjustes({ sesiones, cambiarZoom }: Props): React.JSX.Elemen
   const a = useStoreAjustes(useShallow((s) => s))
   if (!a.settingsOpen) return null
   return (
-    <ErrorBoundary label="la configuración" variant="pane">
+    <ErrorBoundary label={txModal().etiquetaError} variant="pane">
       <SettingsModal
         categoria={a.ajustesCategoria}
         onCambiarCategoria={fijar.categoria}

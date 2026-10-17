@@ -16,6 +16,7 @@ import {
 import { camposAMarcar, type CampoConexion, type CampoTextoFormulario, type FormularioMotor } from './camposConexion'
 import { mensajeDeError } from './filasArbolBd'
 import type { EstadoDrivers, EstadoFormularioConexion } from './useConexionDialogoEstado'
+import { txConexionDialogo } from './textosConexionDialogo.ts'
 
 /** Lo que las acciones leen y escriben del render en curso. */
 export interface ContextoAcciones {
@@ -58,7 +59,7 @@ export function aplicarUri(c: ContextoAcciones, texto: string): void {
     abierta: false,
     texto: '',
     error: null,
-    aviso: fuera.length > 0 ? `Rellenado desde la URI. Estas opciones no se guardan y se dejaron fuera: ${fuera.join(', ')}.` : null
+    aviso: fuera.length > 0 ? txConexionDialogo().uriRellenada(fuera.join(', ')) : null
   })
 }
 

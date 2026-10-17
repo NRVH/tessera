@@ -7,10 +7,11 @@
 // =============================================================================
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { ENCODINGS, encodingLabel } from '../../../../shared/encodings'
+import { encodingLabel, encodingOpciones } from '../../../../shared/encodings'
 import { useToasts, dismissAll, type Toast } from '../../comun/notifications'
 import { IconoColumnaAgente } from '../../comun/iconosPanel'
 import type { EditorMeta } from '../editor'
+import { txLayout } from './textos.ts'
 
 interface StatusBarProps {
   /** ¿La columna de agente (CC/Codex) está visible? (icono presionado). */
@@ -87,7 +88,7 @@ export function StatusBar({
   const [menu, setMenu] = useState<MenuAbierto | null>(null)
 
   return (
-    <footer className="status-bar" aria-label="Barra de estado">
+    <footer className="status-bar" aria-label={txLayout().estado.barra}>
       <BloqueIzquierdo branch={branch} lastProblem={lastProblem} />
 
       {/* La marca, en el centro exacto de la ventana. No es interactiva (`pointer-events:
@@ -108,9 +109,7 @@ export function StatusBar({
           title={
             razonBloqueoCc ??
             tituloCc ??
-            (ccVisible
-              ? 'Ocultar la columna del agente (CC/Codex)'
-              : 'Mostrar la columna del agente (CC/Codex)')
+            (ccVisible ? txLayout().estado.ocultarColumna : txLayout().estado.mostrarColumna)
           }
         >
           <IconoColumnaAgente />
@@ -120,7 +119,7 @@ export function StatusBar({
       {menu && editorMeta && (
         <StatusBarMenu
           anchor={menu.anchor}
-          title={MENU_TITLES[menu.step]}
+          title={menuTitles()[menu.step]}
           items={menuItems(menu.step, editorMeta)}
           onPick={(id) => elegirEnMenu(menu, id, { onPickEol, onReopenEncoding, onSaveEncoding }, setMenu)}
           onClose={() => setMenu(null)}
@@ -145,7 +144,7 @@ function BloqueIzquierdo({
   return (
     <div className="status-bar-left">
       {branch && (
-        <span className="status-bar-info" title={`Rama actual: ${branch}`}>
+        <span className="status-bar-info" title={txLayout().estado.ramaActual(branch)}>
           <BranchIcon />
           <span className="status-bar-info-text">{branch}</span>
         </span>
@@ -154,8 +153,8 @@ function BloqueIzquierdo({
         <button
           className="status-bar-btn status-bar-problem"
           onClick={() => dismissAll()}
-          title={`${lastProblem.title}${lastProblem.detail ? `\n${lastProblem.detail}` : ''}\n\nClic para descartar`}
-          aria-label={`Aviso: ${lastProblem.title}. Clic para descartar.`}
+          title={txLayout().estado.tituloProblema(lastProblem.title, lastProblem.detail)}
+          aria-label={txLayout().estado.ariaProblema(lastProblem.title)}
         >
           <ProblemIcon />
           <span className="status-bar-problem-text">{lastProblem.title}</span>
@@ -179,7 +178,7 @@ function BotonesArchivo({
     <>
       <button
         className="status-bar-btn"
-        title="Fin de línea (clic para cambiar)"
+        title={txLayout().estado.finDeLinea}
         aria-haspopup="menu"
         aria-expanded={menu?.step === 'eol'}
         onMouseDown={(e) => e.stopPropagation()}
@@ -192,7 +191,7 @@ function BotonesArchivo({
       </button>
       <button
         className="status-bar-btn"
-        title="Codificación del archivo (reabrir / convertir)"
+        title={txLayout().estado.codificacion}
         aria-haspopup="menu"
         aria-expanded={menu != null && menu.step !== 'eol'}
         onMouseDown={(e) => e.stopPropagation()}
@@ -231,11 +230,9 @@ function elegirEnMenu(
   }
 }
 
-const MENU_TITLES: Record<MenuStep, string> = {
-  eol: 'Fin de línea',
-  action: 'Codificación',
-  reopen: 'Reabrir con codificación',
-  save: 'Guardar con codificación (convierte)'
+function menuTitles(): Record<MenuStep, string> {
+  const t = txLayout().estado
+  return { eol: t.menuEol, action: t.menuAccion, reopen: t.menuReabrir, save: t.menuGuardar }
 }
 
 /** Ítems del menú según el paso. */
@@ -248,12 +245,12 @@ function menuItems(step: MenuStep, meta: EditorMeta): MenuItem[] {
   }
   if (step === 'action') {
     return [
-      { id: 'reopen', label: 'Reabrir con codificación…', checked: false },
-      { id: 'save', label: 'Guardar con codificación…', checked: false }
+      { id: 'reopen', label: txLayout().estado.itemReabrir, checked: false },
+      { id: 'save', label: txLayout().estado.itemGuardar, checked: false }
     ]
   }
   // reopen / save: la lista completa de codificaciones (la actual marcada).
-  return ENCODINGS.map((e) => ({ id: e.id, label: e.label, checked: e.id === meta.encodingId }))
+  return encodingOpciones().map((e) => ({ id: e.id, label: e.label, checked: e.id === meta.encodingId }))
 }
 
 interface MenuItem {

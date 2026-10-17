@@ -23,6 +23,7 @@ import {
 } from './nombres.ts'
 import type { NucleoSandbox } from './NucleoSandbox.ts'
 import type { ProjectMount } from './tipos.ts'
+import { txSandbox } from '../textos.ts'
 
 /** El helper privilegiado, las raíces del perfil y los proyectos montados. */
 export class MontajesSandbox {
@@ -65,8 +66,11 @@ export class MontajesSandbox {
     const res = await this.runPrivileged(ops)
     if (res.status !== 0) {
       throw new Error(
-        `No se pudo preparar ${descripcion} (${root}): ` +
-          (res.stderr.trim() || res.stdout.trim() || `nsenter salió con ${res.status}`)
+        txSandbox().montajes.noSePrepararon(
+          descripcion,
+          root,
+          res.stderr.trim() || res.stdout.trim() || txSandbox().montajes.nsenterSalio(res.status)
+        )
       )
     }
   }
@@ -132,8 +136,11 @@ export class MontajesSandbox {
       const res = await this.runPrivileged(`mkdir -p ${citarSh(target)} && mount --bind ${citarSh(daemonPath)} ${citarSh(target)}`)
       if (res.status !== 0) {
         throw new Error(
-          `No se pudo montar el proyecto "${normalized}" en el perfil "${profile.id}": ` +
-            (res.stderr.trim() || res.stdout.trim() || `nsenter salió con ${res.status}`)
+          txSandbox().montajes.noSeMontoProyecto(
+            normalized,
+            profile.id,
+            res.stderr.trim() || res.stdout.trim() || txSandbox().montajes.nsenterSalio(res.status)
+          )
         )
       }
 
@@ -166,8 +173,11 @@ export class MontajesSandbox {
       const res = await this.runPrivileged(`umount ${citarSh(target)} && rmdir ${citarSh(target)}`)
       if (res.status !== 0) {
         throw new Error(
-          `No se pudo desmontar el proyecto "${foundName}" del perfil "${profile.id}": ` +
-            (res.stderr.trim() || res.stdout.trim() || `nsenter salió con ${res.status}`)
+          txSandbox().montajes.noSeDesmontoProyecto(
+            foundName,
+            profile.id,
+            res.stderr.trim() || res.stdout.trim() || txSandbox().montajes.nsenterSalio(res.status)
+          )
         )
       }
       mounts.delete(foundName)

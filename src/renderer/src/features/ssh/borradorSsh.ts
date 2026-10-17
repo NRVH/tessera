@@ -10,6 +10,7 @@
 
 import { SSH_ALIAS_MAX, SSH_SECRETO_MAX_BYTES, pideSecretoSsh } from '../../../../shared/ssh-ipc.ts'
 import type { SshClaveElegida, SshConexion, SshConexionInput, SshMetodo, SshTipoTunel, SshTunel } from '../../../../shared/ssh-ipc.ts'
+import { txFormularioSsh } from './textosFormulario.ts'
 
 /** El puerto con el que nace una conexión. */
 export const PUERTO_SSH_POR_DEFECTO = 22
@@ -276,6 +277,6 @@ export function hayCambios(b: BorradorSsh, original: BorradorSsh): boolean {
 
 /** «Probar» prueba siempre lo GUARDADO: con cambios (o en un alta aún sin guardar), primero guarda. */
 export function etiquetaProbar(b: BorradorSsh, cambios: boolean): string {
-  return b.id === undefined || cambios ? 'Guardar y probar' : 'Probar'
+  return b.id === undefined || cambios ? txFormularioSsh().guardarYProbar : txFormularioSsh().probar
 }
 

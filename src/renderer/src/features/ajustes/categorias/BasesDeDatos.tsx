@@ -10,11 +10,11 @@
 
 import type { DbTxModo } from '../../../../../shared/db-explorador-ipc'
 import {
-  AYUDA_TX_INICIAL,
+  ayudaTxInicial,
   DB_FILAS_POR_PAGINA_OPCIONES,
   DB_FILAS_POR_PAGINA_POR_DEFECTO,
   DB_INACTIVIDAD_CONSOLA_MIN_POR_DEFECTO,
-  DB_INACTIVIDAD_CONSOLA_OPCIONES,
+  dbInactividadConsolaOpciones,
   DB_INACTIVIDAD_NUNCA,
   DB_TX_INICIAL_POR_DEFECTO,
   normalizarFilasPorPagina,
@@ -23,11 +23,12 @@ import {
 import { formatoEntero } from '../../bd'
 import { UI_FONT_MAX, UI_FONT_MIN, altoFila, resolverTamanoBd, tieneTamanoPropio } from '../../../theme/densidad'
 import { Fila, Grupo, Radios, Selector, Stepper } from '../primitivas'
+import { txBd } from '../textos.ts'
 import type { PropsCategoria } from '../tipos'
 
 /** «1000 filas»: con el MISMO formato de número que la píldora de la rejilla. */
 function etiquetaFilas(n: number): string {
-  return `${formatoEntero(n)} filas`
+  return txBd().filas(formatoEntero(n))
 }
 
 let opcionesFilasCalculadas: { label: string; value: string }[] | undefined
@@ -41,20 +42,17 @@ function opcionesFilas(): { label: string; value: string }[] {
   return opcionesFilasCalculadas
 }
 
-const OPCIONES_INACTIVIDAD = DB_INACTIVIDAD_CONSOLA_OPCIONES.map((o) => ({ label: o.etiqueta, value: String(o.min) }))
+function opcionesInactividad(): { label: string; value: string }[] {
+  return dbInactividadConsolaOpciones().map((o) => ({ label: o.etiqueta, value: String(o.min) }))
+}
 
-const MODOS_TX: readonly { id: DbTxModo; label: string; hint: string }[] = [
-  {
-    id: 'auto',
-    label: 'Automática',
-    hint: 'Cada sentencia se confirma sola al terminar.'
-  },
-  {
-    id: 'manual',
-    label: 'Manual',
-    hint: 'Los cambios esperan a «Confirmar (Commit)» o «Revertir».'
-  }
-]
+function modosTx(): readonly { id: DbTxModo; label: string; hint: string }[] {
+  const t = txBd()
+  return [
+    { id: 'auto', label: t.automatica, hint: t.automaticaAyuda },
+    { id: 'manual', label: t.manual, hint: t.manualAyuda }
+  ]
+}
 
 function GrupoApariencia({
   uiFontSize,
@@ -65,25 +63,22 @@ function GrupoApariencia({
   // El tamaño EFECTIVO de la vista: el suyo si lo tiene, si no el del Explorador (que a
   // su vez puede seguir a la interfaz). El stepper parte de aquí.
   const fuenteBd = resolverTamanoBd(uiFontSize, explorerFontSize, dbFontSize)
+  const t = txBd()
   return (
-    <Grupo titulo="Apariencia">
+    <Grupo titulo={t.grupoApariencia}>
       <Fila
-        etiqueta="Tamaño de letra"
-        ayuda={
-          tieneTamanoPropio(dbFontSize)
-            ? `Árbol de conexiones, rejillas y resultados. Tamaño propio · filas de ${altoFila(fuenteBd)} px.`
-            : 'Árbol de conexiones, rejillas y resultados. Igual que el Explorador.'
-        }
+        etiqueta={t.tamanoLetra}
+        ayuda={tieneTamanoPropio(dbFontSize) ? t.ayudaArbolPropio(altoFila(fuenteBd)) : t.ayudaArbolIgual}
         modificado={tieneTamanoPropio(dbFontSize)}
         onRestablecer={() => onChangeDbFontSize(0)}
-        tituloRestablecer="Volver a seguir el tamaño del Explorador"
+        tituloRestablecer={t.volverExplorador}
         control={
           <Stepper
             valor={fuenteBd}
             min={UI_FONT_MIN}
             max={UI_FONT_MAX}
             onChange={onChangeDbFontSize}
-            etiqueta="el tamaño de letra de la vista de bases de datos"
+            etiqueta={t.letraVista}
           />
         }
       />
@@ -96,20 +91,21 @@ function GrupoResultados({
   onChangeDbFilasPorPagina
 }: PropsCategoria): React.JSX.Element {
   const filas = normalizarFilasPorPagina(dbFilasPorPagina)
+  const t = txBd()
   return (
-    <Grupo titulo="Resultados">
+    <Grupo titulo={t.grupoResultados}>
       <Fila
-        etiqueta="Filas por página"
-        ayuda="Cuántas filas se leen de cada vez en las tablas y en los resultados de la consola. Vale para la siguiente lectura; lo ya cargado no cambia."
+        etiqueta={t.filasPorPagina}
+        ayuda={t.filasAyuda}
         modificado={filas !== DB_FILAS_POR_PAGINA_POR_DEFECTO}
         onRestablecer={() => onChangeDbFilasPorPagina(DB_FILAS_POR_PAGINA_POR_DEFECTO)}
-        tituloRestablecer={`Volver a ${etiquetaFilas(DB_FILAS_POR_PAGINA_POR_DEFECTO)}`}
+        tituloRestablecer={t.volverAFilas(etiquetaFilas(DB_FILAS_POR_PAGINA_POR_DEFECTO))}
         control={
           <Selector
             valor={String(filas)}
             opciones={opcionesFilas()}
             onChange={(v) => onChangeDbFilasPorPagina(normalizarFilasPorPagina(Number(v)))}
-            etiqueta="Filas por página"
+            etiqueta={t.filasPorPagina}
           />
         }
       />
@@ -122,23 +118,20 @@ function FilaInactividad({
   onChangeDbConsolaInactividadMin
 }: PropsCategoria): React.JSX.Element {
   const inactividad = normalizarInactividadConsolaMin(dbConsolaInactividadMin)
+  const t = txBd()
   return (
     <Fila
-      etiqueta="Cerrar la sesión inactiva tras"
-      ayuda={
-        inactividad === DB_INACTIVIDAD_NUNCA
-          ? 'La sesión de una consola no se cierra sola. Una con cambios sin confirmar no se cierra nunca.'
-          : 'Una consola ociosa suelta su sesión y la reabre al volver a usarla; se pierde lo fijado con ALTER SESSION o SET. Una con cambios sin confirmar no se cierra nunca.'
-      }
+      etiqueta={t.cerrarInactiva}
+      ayuda={inactividad === DB_INACTIVIDAD_NUNCA ? t.inactividadNunca : t.inactividadAyuda}
       modificado={inactividad !== DB_INACTIVIDAD_CONSOLA_MIN_POR_DEFECTO}
       onRestablecer={() => onChangeDbConsolaInactividadMin(DB_INACTIVIDAD_CONSOLA_MIN_POR_DEFECTO)}
-      tituloRestablecer="Volver a 30 minutos"
+      tituloRestablecer={t.volver30}
       control={
         <Selector
           valor={String(inactividad)}
-          opciones={OPCIONES_INACTIVIDAD}
+          opciones={opcionesInactividad()}
           onChange={(v) => onChangeDbConsolaInactividadMin(normalizarInactividadConsolaMin(Number(v)))}
-          etiqueta="Cerrar la sesión inactiva tras"
+          etiqueta={t.cerrarInactiva}
         />
       }
     />
@@ -147,19 +140,20 @@ function FilaInactividad({
 
 function GrupoConsolas(props: PropsCategoria): React.JSX.Element {
   const { ve, dbTxInicial, onChangeDbTxInicial } = props
+  const t = txBd()
   return (
-    <Grupo titulo="Consolas">
+    <Grupo titulo={t.grupoConsolas}>
       {ve('db-tx-inicial') && (
         <>
           <Fila
-            etiqueta="Transacción al abrir"
-            ayuda={AYUDA_TX_INICIAL}
+            etiqueta={t.transaccion}
+            ayuda={ayudaTxInicial()}
             modificado={dbTxInicial !== DB_TX_INICIAL_POR_DEFECTO}
             onRestablecer={() => onChangeDbTxInicial(DB_TX_INICIAL_POR_DEFECTO)}
-            tituloRestablecer="Volver a Automática"
+            tituloRestablecer={t.volverAutomatica}
             control={null}
           />
-          <Radios nombre="db-tx-inicial" valor={dbTxInicial} opciones={MODOS_TX} onChange={onChangeDbTxInicial} />
+          <Radios nombre="db-tx-inicial" valor={dbTxInicial} opciones={modosTx()} onChange={onChangeDbTxInicial} />
         </>
       )}
       {ve('db-inactividad-consola') && <FilaInactividad {...props} />}

@@ -14,6 +14,7 @@ import { SECCIONES, contarItems, dividirSecciones, type Seccion } from './estado
 import type { ArchivoEntrada, FilaArbol } from './arbolArchivos.ts'
 import { nameOf } from './rutasArchivo.ts'
 import { enConflicto } from './statusBadge.ts'
+import { txGit } from '../textos.ts'
 
 /** Identifica una fila: repo + ruta + eje (un archivo MM está en las dos secciones). */
 export interface FilaRef {
@@ -50,13 +51,6 @@ export interface ManejadoresArchivo {
 export type ItemCambio =
   | { kind: 'header'; id: string; seccion: Seccion; label: string; total: number }
   | { kind: 'fila'; id: string; seccion: Seccion; fila: FilaArbol }
-
-export const ETIQUETA_SECCION: Record<Seccion, string> = {
-  conflict: 'Conflictos',
-  staged: 'Preparados',
-  unstaged: 'Cambios',
-  untracked: 'Sin versionar'
-}
 
 /** Eje de git de una sección: `staged` mira el ÍNDICE, las otras tres el disco. */
 export function ejeDe(seccion: Seccion): 'staged' | 'unstaged' {
@@ -124,7 +118,7 @@ export function construirItems(secciones: Record<Seccion, WorkingChange[]>, omit
         kind: 'header',
         id: `h-${seccion}`,
         seccion,
-        label: ETIQUETA_SECCION[seccion],
+        label: txGit().secciones[seccion],
         total: lista.length
       })
     }

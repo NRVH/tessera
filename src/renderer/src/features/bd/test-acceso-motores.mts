@@ -183,10 +183,11 @@ const REGISTROS = [
   'MOTORES_EXPLORADOR',
   'ESCRITURA_SQL',
   'MARCAS_MOTOR',
-  'DESCRIPTORES',
-  'PRESENTACION'
+  'descriptores',
+  'presentaciones'
 ]
-const INDICE = new RegExp(`\\b(${REGISTROS.join('|')})\\[([^\\]]*)`, 'g')
+// Los dos últimos son funciones que devuelven la tabla (texto del idioma activo): se indexan como `descriptores()[`.
+const INDICE = new RegExp(`\\b(${REGISTROS.join('|')})(?:\\(\\))?\\[([^\\]]*)`, 'g')
 
 /**
  * ¿Es aceptable este índice? Las excepciones van por FORMA del índice y no por archivo: una
@@ -260,12 +261,12 @@ check('ningún índice directo a un registro por motor o dialecto', sueltos.leng
     ['  return REGLAS[dialecto].explain', false],
     ['  if (RESERVADAS[d].has(v)) return', false],
     ['  const t = CARPETAS_POR_MOTOR[c.motor]', false],
-    ['  return DESCRIPTORES[motor]', false],
+    ['  return descriptores()[motor]', false],
     ['  const x = descriptor(d).sql', true],
     ['  return RESERVADAS[dialectoDeMotor(d)].has(v)', true],
-    ['  return DESCRIPTORES[descriptor(motor).id]', true],
+    ['  return descriptores()[descriptor(motor).id]', true],
     ['  const m = esMotor(x) ? MARCAS_MOTOR[x] : undefined', true],
-    ['  const p = PRESENTACION[d.id]', true],
+    ['  const p = presentaciones()[d.id]', true],
     ['  // MOTORES[d] en un comentario', true],
     ['  /** Nombre del motor: `MOTORES[d].etiqueta`. */', true],
     ['  const a = 1 /* REGLAS[d] */ + MOTORES[d].id', false]

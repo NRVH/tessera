@@ -29,6 +29,7 @@ import {
   nombreTabla
 } from './rejilla/DatosCuerpo'
 import type { VistaDatos } from './rejilla/datosTipos'
+import { txArea } from './textosArea.ts'
 
 /** La pestaña de datos de un objeto de la base, con su edición y su «Enviar». */
 export function DbDatosPane(props: DbDatosPaneProps): React.JSX.Element {
@@ -43,7 +44,7 @@ export function DbDatosPane(props: DbDatosPaneProps): React.JSX.Element {
   const v: VistaDatos = { n, a, props, e, d, exportador }
 
   return (
-    <section className={`db-datos${props.visible ? '' : ' hidden'}`} aria-label={`Datos de ${nombreTabla(v)}`}>
+    <section className={`db-datos${props.visible ? '' : ' hidden'}`} aria-label={txArea().datosDe(nombreTabla(v))}>
       {barraDatos(v)}
 
       <div className="db-datos-cuerpo">

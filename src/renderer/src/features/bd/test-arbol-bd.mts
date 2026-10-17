@@ -12,7 +12,7 @@ import {
   nivelSelectorConsola,
   porDefectoSelector,
   sesionEsBase,
-  TEXTOS_POPOVER,
+  textosPopover,
   textosSelectorConsola
 } from './nivelBasesBd.ts'
 import {
@@ -51,7 +51,7 @@ import type { DbConnection } from '../../../../shared/db-ipc.ts'
 import { descriptor, type DescriptorClaves, type DescriptorDocumentos } from '../../../../shared/motores/index.ts'
 import { metaColeccion, ordenarBasesDocumentos, raizDocumentos } from './arbolDocumentos.ts'
 import {
-  TEXTOS_CLAVES,
+  textosClaves,
   acumularPagina,
   agruparClaves,
   basePorDefectoClaves,
@@ -88,6 +88,9 @@ function check(name: string, pass: boolean, evidence: string): void {
   console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)
 }
 const j = (v: unknown): string => JSON.stringify(v)
+// Los textos se leen al usarse; en las pruebas el idioma es el español de siempre.
+const TEXTOS_CLAVES = textosClaves()
+const TEXTOS_POPOVER = { esquemas: textosPopover('esquemas'), bases: textosPopover('bases') }
 const legibleClave = (k: string): string => k.split('\u0000').join('/')
 
 // ---------------------------------------------------------------------------

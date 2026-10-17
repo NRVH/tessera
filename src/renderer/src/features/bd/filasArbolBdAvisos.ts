@@ -7,28 +7,25 @@
 // =============================================================================
 
 import { descriptor, etiquetaMotor, extensionConsola } from '../../../../shared/motores/index.ts'
+import { txFilasArbol } from './textosFilasArbol.ts'
 import type { DbConnection } from '../../../../shared/db-ipc.ts'
 
 /**
  * Título del área vacía de un perfil que solo tiene ajenas, y motivo de los botones que el
  * lateral apaga entonces: SÍ hay conexiones (se ven); ninguna que esta versión pueda abrir.
  */
-export const TITULO_SOLO_AJENAS = 'Ninguna conexión que esta versión pueda abrir'
+export const tituloSoloAjenas = (): string => txFilasArbol().tituloSoloAjenas
 
 /** La pista de esa área vacía: no afirma ninguna causa (puede haber de varias); remite a cada fila. */
-export const PISTA_SOLO_AJENAS =
-  'Esta versión no sabe abrir las del árbol, y cada una dice por qué; se conservan tal cual. ' +
-  'Actualiza Tessera si vienen de una más nueva, o crea una aquí.'
+export const pistaSoloAjenas = (): string => txFilasArbol().pistaSoloAjenas
 
 /**
  * El vacío del popover de montaje del agente: nada que ofrecer y nada montado. Con ajenas no
  * dice que el perfil no tiene conexiones (el árbol las enseña): remite al árbol.
  */
 export function textoVacioMontaje(hayAjenas: boolean): string {
-  return hayAjenas
-    ? `${TITULO_SOLO_AJENAS}: la vista Bases de datos enseña las de este perfil atenuadas, ` +
-        'cada una con su porqué. Crea allí una para montarla.'
-    : 'Este perfil no tiene conexiones. Añádelas en la vista Bases de datos.'
+  const t = txFilasArbol()
+  return hayAjenas ? t.vacioMontajeConAjenas(t.tituloSoloAjenas) : t.vacioMontajeSinConexiones
 }
 
 // --- El registro entero con un FORMATO que esta versión no reconoce (`formatoAjeno`) -----
@@ -37,20 +34,16 @@ export function textoVacioMontaje(hayAjenas: boolean): string {
 // los dice el aviso del main (`aviso`); aquí va lo de la UI, sin nombrar la causa.
 
 /** Título del aviso, el mismo en el árbol, el área vacía y el popover de montaje. */
-export const TITULO_FORMATO_AJENO = 'No se puede usar el registro de conexiones'
+export const tituloFormatoAjeno = (): string => txFilasArbol().tituloFormatoAjeno
 
 /** Lo que pasa mientras tanto, detrás del aviso del main: sobre todo, que no se pierde nada. */
-export const NOTA_FORMATO_AJENO =
-  'Mientras tanto no se ve ninguna conexión ni se pueden crear, pero no se pierde nada: ' +
-  'el archivo no se modifica y las bases montadas en los proyectos se conservan.'
+export const notaFormatoAjeno = (): string => txFilasArbol().notaFormatoAjeno
 
 /** El porqué de los botones que se apagan (Nueva conexión, Nueva consola, Refrescar…), sin causa. */
-export const MOTIVO_FORMATO_AJENO = 'No disponible: no se puede usar el registro de conexiones'
+export const motivoFormatoAjeno = (): string => txFilasArbol().motivoFormatoAjeno
 
 /** La nota del popover de montaje: allí importa que el MONTAJE se conserva aunque no se pueda enseñar. */
-export const NOTA_MONTAJE_FORMATO_AJENO =
-  'Las bases montadas aquí se conservan tal cual: vuelven a estar disponibles en cuanto ' +
-  'Tessera pueda leer el registro.'
+export const notaMontajeFormatoAjeno = (): string => txFilasArbol().notaMontajeFormatoAjeno
 
 /**
  * El porqué de cada botón de la cabecera del árbol que se apaga, o `null` si está vivo. Sin
@@ -63,13 +56,14 @@ export function motivosCabeceraArbol(e: {
   ajenas: number
   avisoFormato: string | null
 }): { nuevaConexion: string | null; nuevaConsola: string | null; sinConexiones: string | null } {
-  const sinPerfil = e.perfilId === null ? 'Abre un perfil para usar las bases de datos' : null
-  const formato = e.avisoFormato !== null ? MOTIVO_FORMATO_AJENO : null
+  const t = txFilasArbol()
+  const sinPerfil = e.perfilId === null ? t.abrePerfil : null
+  const formato = e.avisoFormato !== null ? t.motivoFormatoAjeno : null
   return {
     nuevaConexion: sinPerfil ?? formato,
     nuevaConsola: sinPerfil ?? formato,
     sinConexiones:
-      sinPerfil ?? formato ?? (e.conexiones > 0 ? null : e.ajenas > 0 ? TITULO_SOLO_AJENAS : 'Todavía no hay conexiones')
+      sinPerfil ?? formato ?? (e.conexiones > 0 ? null : e.ajenas > 0 ? t.tituloSoloAjenas : t.sinConexionesTodavia)
   }
 }
 
@@ -80,7 +74,7 @@ export function motivosCabeceraArbol(e: {
  */
 export function motivoSinConsola(c: Pick<DbConnection, 'motor'> | null | undefined): string | null {
   if (!c || extensionConsola(descriptor(c.motor)) !== null) return null
-  return `La consola de ${etiquetaMotor(c.motor)} todavía no está disponible en esta versión.`
+  return txFilasArbol().consolaNoDisponible(etiquetaMotor(c.motor))
 }
 
 /**
@@ -93,11 +87,12 @@ export function vacioAreaSinConexiones(e: { hayAjenas: boolean; avisoFormato: st
   nota: string | null
   ofrecerAlta: boolean
 } {
+  const t = txFilasArbol()
   if (e.avisoFormato !== null) {
-    return { titulo: TITULO_FORMATO_AJENO, pista: e.avisoFormato, nota: NOTA_FORMATO_AJENO, ofrecerAlta: false }
+    return { titulo: t.tituloFormatoAjeno, pista: e.avisoFormato, nota: t.notaFormatoAjeno, ofrecerAlta: false }
   }
-  if (e.hayAjenas) return { titulo: TITULO_SOLO_AJENAS, pista: PISTA_SOLO_AJENAS, nota: null, ofrecerAlta: true }
-  return { titulo: 'Sin conexiones', pista: 'Crea la primera para explorar sus datos.', nota: null, ofrecerAlta: true }
+  if (e.hayAjenas) return { titulo: t.tituloSoloAjenas, pista: t.pistaSoloAjenas, nota: null, ofrecerAlta: true }
+  return { titulo: t.sinConexionesTitulo, pista: t.sinConexionesPista, nota: null, ofrecerAlta: true }
 }
 
 /** Qué pinta el popover de montaje del agente (ver `vistaPopoverMontaje`). */

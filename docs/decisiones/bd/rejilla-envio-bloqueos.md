@@ -17,12 +17,12 @@ esperaba sin plazo, y en Oracle 12c+ el Stop no corta una espera de bloqueo: sol
   con clave compuesta, las tuplas que quepan en mil binds), cada lote rellenado a una potencia de
   dos para no llenar la memoria compartida del servidor de textos de un solo uso. Solo la
   identidad: los originales ya los compara el DML. Al vencer, ORA-30006.
-- Por lotes: con 2000 UPDATE (11.2 y 21c), fila a fila eran 4000 viajes y 1,7-2,3 s frente a
-  0,8-1,2 s; y bloquear todo antes falla antes, sin UPDATE que revertir.
+- Por lotes: fila a fila serían dos viajes por cambio; y bloquear todo antes falla antes, sin UPDATE
+  que revertir.
 - Qué cambio tiene la fila bloqueada: por bisección con `FOR UPDATE NOWAIT` (ORA-00054 al
   instante, como mucho 20 sondas para mil filas, solo tras fallar el lote). Si ya no falla
   ninguna mitad, el error va en el primer cambio del lote y lo dice (`notaSinCulpable`).
-- Límite medido: el FOR UPDATE no cubre las esperas por datos sin confirmar que no están en la
+- Límite: el FOR UPDATE no cubre las esperas por datos sin confirmar que no están en la
   fila (un INSERT o UPDATE a una UNIQUE ya insertada por otra transacción, o el borrado de un
   padre con un hijo sin confirmar). Ahí manda el Stop o Forzar.
 - Los binds se adaptan a la columna: un texto largo hacia CLOB/NCLOB va como bind de LOB

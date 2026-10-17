@@ -24,11 +24,13 @@ import {
   raizCodexDesdeRuta
 } from './urls.ts'
 import { errMsg, type NucleoNativos } from './tipos.ts'
+import { txAgentes } from '../textos.ts'
 
 function errorDeSonda(e: NucleoNativos, agente: AgentKind, r: ResultadoEjecucion): string {
   const { tuEquipo } = nombresSistema(e.deps.plataforma)
-  if (r.tope) return `${ETIQUETA_AGENTE[agente]} no respondió a «${BINARIO[agente]} --version» a tiempo.`
-  return `No se encontró ${ETIQUETA_AGENTE[agente]} en ${tuEquipo}, o no respondió a «${BINARIO[agente]} --version».`
+  const t = txAgentes().nativos
+  if (r.tope) return t.sondaTope(ETIQUETA_AGENTE[agente], BINARIO[agente])
+  return t.sondaNoEncontrado(ETIQUETA_AGENTE[agente], tuEquipo, BINARIO[agente])
 }
 
 /** Sonda de versión sin mirar el candado; quien llega con una en vuelo espera ESA promesa. */
@@ -49,7 +51,7 @@ export function sondear(e: NucleoNativos, agente: AgentKind): Promise<string | n
     } catch (err) {
       // El ejecutor no rechaza; esto es la red de un falso o de un bug.
       s.valor = null
-      s.error = `No se pudo leer la versión de ${ETIQUETA_AGENTE[agente]}: ${errMsg(err)}`
+      s.error = txAgentes().nativos.noSeLeyoVersion(ETIQUETA_AGENTE[agente], errMsg(err))
       return null
     } finally {
       s.enVuelo = null

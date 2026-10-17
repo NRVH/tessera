@@ -25,6 +25,7 @@ import {
   type TerminalDataMessage,
   type TerminalExitMessage
 } from '../../shared/terminal-ipc'
+import { txMain } from '../textos.ts'
 
 /** Config de arranque del controlador. */
 export interface TerminalControllerOptions {
@@ -281,7 +282,7 @@ export class TerminalController {
   async abrirSsh(req: OpenSshRequest): Promise<OpenTerminalResult> {
     const profile = this.profiles.get(req?.profileId)
     if (!profile) throw new Error(`Perfil desconocido: "${req?.profileId}".`)
-    if (typeof req.conexionId !== 'string' || req.conexionId === '') throw new Error('Falta la conexión SSH que abrir.')
+    if (typeof req.conexionId !== 'string' || req.conexionId === '') throw new Error(txMain().terminales.faltaConexion)
     const { session, ssh } = await abrirSesionSsh(this.terminals, this.exigirLanzadorSsh(), profile, req.conexionId)
     this.log(`createSession [SSH] OK -> id=${session.id}`)
     this.wireSession(profile, session, '', true, ssh)
@@ -289,7 +290,7 @@ export class TerminalController {
   }
 
   private exigirLanzadorSsh(): LanzadorSshTerminal {
-    if (!this.lanzadorSsh) throw new Error('Las conexiones SSH no están disponibles en esta sesión de Tessera.')
+    if (!this.lanzadorSsh) throw new Error(txMain().terminales.sinSsh)
     return this.lanzadorSsh
   }
 
@@ -374,12 +375,13 @@ export class TerminalController {
   }
 
   /**
-   * Cierre para actualizar: mata los ptys al instante para liberar el helper `OpenConsole.exe`
-   * que node-pty carga desde la carpeta de instalación (vivo, el instalador no puede borrar
-   * los archivos viejos). No detiene contenedores. Síncrono; devuelve cuántos mató.
+   * Cierre de la app: mata el árbol de cada terminal y su pty, con tope, para que no quede ningún
+   * proceso suelto ni el helper `OpenConsole.exe` que node-pty carga desde la carpeta de
+   * instalación (vivo, el instalador no podría borrar los archivos viejos). No detiene
+   * contenedores. Devuelve cuántos había.
    */
-  forceKillPtys(): number {
-    return this.terminals.killAllPtysNow()
+  matarPtysConArbol(topeMs: number, anotar?: (msg: string) => void): Promise<number> {
+    return this.terminals.matarTodoConArbol(topeMs, anotar)
   }
 
   /**

@@ -18,11 +18,11 @@ contraseña antiguo (`NJS-116`). `initOracleClient` solo admite una llamada por 
 - Stop en thick: el explorador genera su `sqlnet.ora` con `DISABLE_OOB=ON` (más un `IFILE` al
   del usuario) y lo pasa como `configDir`. Sin él, `connection.break()` vuelve en 1 ms pero la
   consulta sigue: el break va como dato urgente de TCP y VPN y reenvíos de puertos lo tiran.
-  Medido contra una 11.2: sin él, sin respuesta a los 20,8 s; con él, cancelada en 818 ms.
 - Tras la escalada, `restaurarClasesThick` repone las clases base de oracledb: el intento thin,
-  aunque falle, las sustituye y cada LOB llegaba como un `ThinLobImpl` sin conexión.
+  aunque falle, las sustituye y cada LOB llegaría como un `ThinLobImpl` sin conexión.
 - Con un cliente cuyo soporte de Oracle no llega a la versión del servidor se avisa
-  (`avisoDeSoporte`) y nunca se bloquea. El cliente 23 conecta con una 11.2 (164/164).
+  (`avisoDeSoporte`) y nunca se bloquea: un cliente reciente en thick alcanza una 11.2 aunque Oracle
+  no lo garantice.
 
 ## Consecuencias
 

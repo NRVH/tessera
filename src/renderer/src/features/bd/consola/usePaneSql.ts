@@ -31,6 +31,10 @@ function crearEditor(host: HTMLElement, modelo: editor.ITextModel, soloLectura: 
     glyphMargin: true,
     minimap: { enabled: false },
     lineNumbersMinChars: 3,
+    // El texto, junto a los números: plegar SQL no aporta y su columna, con la de decoraciones,
+    // dejaba el hueco de cuatro o cinco caracteres.
+    folding: false,
+    lineDecorationsWidth: 6,
     wordBasedSuggestions: 'off',
     quickSuggestions: { other: true, comments: false, strings: false },
     suggest: { showWords: false, localityBonus: false },

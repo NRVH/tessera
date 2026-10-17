@@ -12,8 +12,8 @@ import type { Sentencia } from '../../../../shared/sql/divisorSql.ts'
 import { citar } from '../../../../shared/sql/identificadoresSql.ts'
 import type { ColumnaEdicion } from '../edicionRejilla.ts'
 import {
-  AVISO_BINDS_ORACLE,
-  AVISO_PLAN_RECORTADO,
+  avisoBindsOracle,
+  avisoPlanRecortado,
   MAX_NODOS_PLAN,
   nodosOracle,
   prefijoExplicarOracle,
@@ -23,7 +23,8 @@ import {
   textoOracle
 } from '../planSql.ts'
 import type { BindEntradaLob, OpcionesEjecucion } from '../protocoloTrabajador.ts'
-import { noDisponible, texto } from './filasCatalogo.ts'
+import { noDisponible, queFalta, texto } from './filasCatalogo.ts'
+import { txMotores } from './textosMotores.ts'
 import type { ContextoExplicar, MarcasTablaEdicion, SesionExplorador } from './sesion.ts'
 import type { ConsultaCatalogo, FilaCatalogo } from './tipos.ts'
 
@@ -71,12 +72,13 @@ function columnaOracle(f: FilaCatalogo): ColumnaEdicion {
   const identidad = texto(f[4]).trim().toUpperCase()
   const binaria = /^(RAW|LONG RAW|BLOB)$/.test(tipo)
   let noEditable: string | null = null
-  if (virtual) noEditable = 'Columna virtual: la calcula Oracle.'
-  else if (identidad === 'ALWAYS') noEditable = 'Identidad GENERATED ALWAYS: la numera Oracle.'
-  else if (binaria) noEditable = 'Binaria: no se edita como texto.'
-  else if (tipo === 'LONG') noEditable = 'LONG: no se puede escribir desde la rejilla.'
-  else if (tipo === 'BFILE') noEditable = 'BFILE: apunta a un archivo del servidor.'
-  else if (propietario !== '' || !ESCALARES_ORACLE.test(tipo)) noEditable = `${tipo || 'Este tipo'}: no se escribe como texto desde la rejilla.`
+  const t = txMotores()
+  if (virtual) noEditable = t.columnaVirtualOracle
+  else if (identidad === 'ALWAYS') noEditable = t.identidadOracle
+  else if (binaria) noEditable = t.binaria
+  else if (tipo === 'LONG') noEditable = t.longNoEscribible
+  else if (tipo === 'BFILE') noEditable = t.bfile
+  else if (propietario !== '' || !ESCALARES_ORACLE.test(tipo)) noEditable = t.tipoNoEscribible(tipo)
   const lob = tipo === 'CLOB' ? 'clob' : tipo === 'NCLOB' ? 'nclob' : null
   const nacional = propietario === '' && /^(NCHAR|NVARCHAR2|NCLOB)$/.test(tipo)
   return { nombre, tipo, noEditable, binaria, lob, nacional, comparable: comparacionOracle(tipo, propietario) }
@@ -101,7 +103,7 @@ function columnaOracle(f: FilaCatalogo): ColumnaEdicion {
  *     acordado.
  *   - Binds: en THICK el EXPLAIN no admite ninguno (ORA-01036) y en THIN los exige todos
  *     (NJS-098); EXPLAIN PLAN no mira sus valores, así que en thin los que falten van como
- *     NULL (los rellena el gestor) y no se pide nada al usuario (`AVISO_BINDS_ORACLE`).
+ *     NULL (los rellena el gestor) y no se pide nada al usuario (`avisoBindsOracle`).
  * Nunca un SAVEPOINT: un error de Oracle solo revierte la sentencia (lo fija
  * `test-gestor-sesiones`).
  */
@@ -139,13 +141,13 @@ async function explicarOracle(ctx: ContextoExplicar): Promise<DbPlan> {
   const rn = await ctx.ejecutar(SQL_NODOS_ORACLE, lectura, { ID: id })
   const rt = await ctx.ejecutar(SQL_TEXTO_ORACLE, { ...lectura, comprobarTx: !ctx.soloLectura }, { ID: id })
   ctx.fijarTx(ctx.soloLectura ? await ctx.accionTx('rollback') : rt.tx)
-  if (rn.tipo !== 'filas' || rt.tipo !== 'filas') throw ctx.error('interno', 'El servidor no devolvió el plan.')
+  if (rn.tipo !== 'filas' || rt.tipo !== 'filas') throw ctx.error('interno', txMotores().planSinFilas)
   const nodos = nodosOracle(JSON.parse(rn.filasJson) as unknown[][])
   const textoPlan = textoOracle(JSON.parse(rt.filasJson) as unknown[][])
   const valor: DbPlan = { nodos, texto: textoPlan, tiempos: { totalMs: Date.now() - ctx.t0, ejecucionMs: msEjecucion, lecturaMs: Date.now() - t2 } }
   const avisos: string[] = []
-  if (ctx.conParametros) avisos.push(AVISO_BINDS_ORACLE)
-  if (rn.hayMas) avisos.push(AVISO_PLAN_RECORTADO)
+  if (ctx.conParametros) avisos.push(avisoBindsOracle())
+  if (rn.hayMas) avisos.push(avisoPlanRecortado())
   if (avisos.length) valor.avisos = avisos
   return valor
 }
@@ -173,7 +175,7 @@ export const SESION_ORACLE: SesionExplorador = {
   // Fijar valida (ORA-01435), así que si la relectura dice otro, lo único que puede
   // haber pasado es que no exista.
   mensajeEsquemaNoAplicado(esquema: string): string {
-    return `El esquema ${esquema} no existe en esta conexión.`
+    return txMotores().esquemaNoExiste(esquema)
   },
 
   // ALL_ERRORS por dueño, nombre y tipo, en el orden del compilador (`sequence`), tras un
@@ -221,7 +223,7 @@ export const SESION_ORACLE: SesionExplorador = {
   // Oracle identifica una fila sin PK por su ROWID (`identidadSinPk: 'rowid'`), no por una
   // UNIQUE NOT NULL: no se le pregunta nunca (`necesitaUnica`).
   sqlUnicaNoNula(): ConsultaCatalogo {
-    return noDisponible('oracle', 'UNIQUE NOT NULL como identidad de la fila')
+    return noDisponible('oracle', queFalta.uniqueNotNull())
   },
 
   // El ROWID como texto (el trabajador no lee el tipo ROWID) y SIN alias de tabla: con un

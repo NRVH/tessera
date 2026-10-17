@@ -4,77 +4,82 @@
 // existe en el renderer es la CONEXIÓN, `useColumnaAgente.ts`, que corrige el store antes
 // de pintar. Con el agente maximizado, pasar a un proyecto con el archivo dividido no deja
 // los dos a la vez ni resucita el maximizado al volver; pasar a uno sin dividida lo
-// conserva. Agente falso (`agenteFalso.ts`). Nada depende del sistema.
+// conserva, y lo hecho en otro perfil no se lo quita. Al cerrar, con dos perfiles y sus
+// agentes, no queda ninguno vivo. Agente falso (`agenteFalso.ts`).
 // =============================================================================
 
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { mkdirSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { montarAgenteFalso } from './agenteFalso'
+import { dirname, join } from 'node:path'
+import { montarAgenteFalso, vivo, type AgenteFalso } from './agenteFalso'
 import { abrirTessera, borrarTemporal, type SesionTessera } from './tessera'
 
-/** Los tres proyectos: el que maximiza, el que tiene un Markdown dividido y uno normal. */
+/** Los de Personal (el que maximiza, el que tiene un Markdown dividido y uno normal) y el de Trabajo. */
 const PROYECTOS = {
-  alfa: ['alfa.txt'],
+  alfa: ['alfa.txt', 'docs/nota.md'],
   beta: ['beta.txt', 'LEEME.md'],
-  gamma: ['gamma.txt']
+  gamma: ['gamma.txt'],
+  delta: ['delta.txt']
 } as const
 type NombreProyecto = keyof typeof PROYECTOS
+const DE_PERSONAL: readonly NombreProyecto[] = ['alfa', 'beta', 'gamma']
 
 interface Montaje {
   raiz: string
   env: Record<string, string>
   rutas: Record<NombreProyecto, string>
+  agente: AgenteFalso
 }
 
 /** El agente falso, los tres proyectos con sus archivos y el entorno de la app. */
 function montar(): Montaje {
-  const { raiz, env } = montarAgenteFalso()
+  const agente = montarAgenteFalso()
+  const { raiz, env } = agente
   const rutas = {} as Record<NombreProyecto, string>
   for (const [nombre, archivos] of Object.entries(PROYECTOS) as [NombreProyecto, readonly string[]][]) {
     rutas[nombre] = join(raiz, nombre)
     mkdirSync(rutas[nombre])
     for (const archivo of archivos) {
       const contenido = archivo.endsWith('.md') ? `# ${nombre}\n\nUn documento de prueba.\n` : `${nombre}\n`
+      mkdirSync(dirname(join(rutas[nombre], archivo)), { recursive: true })
       writeFileSync(join(rutas[nombre], archivo), contenido)
     }
   }
-  return { raiz, env, rutas }
+  return { raiz, env, rutas, agente }
 }
 
-/** `profiles.json` + `workspace-state.json`: un perfil sin sandbox con los tres abiertos. */
+/** Un perfil sin sandbox, con su agente falso. */
+function perfil(id: string, nombre: string, color: string): object {
+  return { id, nombre, color, agentes: [{ tipo: 'claude-code', configDir: `./.tessera/perfiles/${id}/claude` }], sandbox: { habilitado: false } }
+}
+
+/** `profiles.json` + `workspace-state.json`: Personal con tres proyectos y Trabajo con uno. */
 function sembrar(datos: string, m: Montaje): void {
-  writeFileSync(
-    join(datos, 'profiles.json'),
-    JSON.stringify([
-      {
-        id: 'personal',
-        nombre: 'Personal',
-        color: '#9814c8',
-        agentes: [{ tipo: 'claude-code', configDir: './.tessera/perfiles/personal/claude' }],
-        sandbox: { habilitado: false }
-      }
-    ])
-  )
-  const nombres = Object.keys(PROYECTOS) as NombreProyecto[]
+  writeFileSync(join(datos, 'profiles.json'), JSON.stringify([perfil('personal', 'Personal', '#9814c8'), perfil('trabajo', 'Trabajo', '#1f8f4e')]))
+  const abierto = (n: NombreProyecto): object => ({ projectHostPath: m.rutas[n], name: n, estado: 'active' })
   writeFileSync(
     join(datos, 'workspace-state.json'),
     JSON.stringify({
       version: 1,
       activeProfileId: 'personal',
       byProfile: {
-        personal: {
-          openProjects: nombres.map((n) => ({ projectHostPath: m.rutas[n], name: n, estado: 'active' })),
-          activePath: m.rutas.alfa
-        }
+        personal: { openProjects: DE_PERSONAL.map(abierto), activePath: m.rutas.alfa },
+        trabajo: { openProjects: [abierto('delta')], activePath: m.rutas.delta }
       },
       // Todos NATIVOS: sin Docker y sin el modal que pregunta el modo del proyecto.
       settings: {
         defaultProjectMode: 'windows',
-        windowsModeProjects: nombres.map((n) => `personal|${m.rutas[n]}`)
+        windowsModeProjects: [...DE_PERSONAL.map((n) => `personal|${m.rutas[n]}`), `trabajo|${m.rutas.delta}`]
       }
     })
   )
+}
+
+/** Pasa al perfil `nombre` por su pestaña y espera a su proyecto activo. */
+async function irAlPerfil(win: Page, nombre: string, proyecto: NombreProyecto): Promise<void> {
+  await win.locator('.tabs-profiles .profile-tab', { hasText: nombre }).first().click()
+  await expect(win.locator('.tabs-projects .project-tab.active', { hasText: proyecto })).toHaveCount(1)
+  await asentar(win)
 }
 
 /** Deja que React confirme el render provocado por el gesto (ver `atajos.spec.ts`). */
@@ -91,7 +96,7 @@ async function irA(win: Page, nombre: NombreProyecto): Promise<void> {
 
 /** Abre un archivo desde el explorador (un clic, como el usuario) y espera su pestaña. */
 async function abrir(win: Page, archivo: string): Promise<void> {
-  await win.locator('.sidebar .tree-row', { hasText: archivo }).first().click({ timeout: 30_000 })
+  await win.locator('.sidebar .tree-row:visible', { hasText: archivo }).first().click({ timeout: 30_000 })
   await expect(win.locator('.editor-tab.active', { hasText: archivo })).toHaveCount(1)
 }
 
@@ -138,6 +143,9 @@ test.describe('agente maximizado y vista dividida', () => {
 
   test.afterAll(async () => {
     await s?.cerrar()
+    // Con dos perfiles, cada uno con su agente: cerrar la app no deja ninguno vivo sin ella.
+    const vivosTrasCerrar = (): number[] => (m ? m.agente.arranques().map((e) => e.pid).filter(vivo) : [])
+    await expect.poll(vivosTrasCerrar, { message: 'cerrar Tessera no deja agentes vivos', timeout: 10_000 }).toEqual([])
     if (m) await borrarTemporal(m.raiz)
   })
 
@@ -213,5 +221,46 @@ test.describe('agente maximizado y vista dividida', () => {
     await expect(win.locator('.editor-tab.active', { hasText: 'alfa.txt' })).toHaveCount(1)
     await expect(editor, 'en alfa se ve el editor: el maximizado se canceló, no se aparcó').toBeVisible()
     await expect(columna).not.toHaveClass(/\bcc-grow\b/)
+  })
+
+  test('el maximizado es del PERFIL: abrir archivos en otro no se lo quita al volver', async () => {
+    const win = s.win
+    const editor = win.locator('.editor-area')
+    const columna = win.locator('.right-panel.cc-panel')
+    const maximizar = win.locator('.agent-pane:not(.hidden)').getByRole('button', { name: 'Maximizar Claude Code' })
+    // Personal · alfa, con su pestaña de antes: se maximiza el agente.
+    await irA(win, 'alfa')
+    await win.locator('.agent-pane:not(.hidden) .panel-header').hover()
+    await pulsarEnCabecera(maximizar)
+    await expect(editor, 'maximizado en Personal').toBeHidden()
+
+    // Trabajo nunca maximizó: abrir allí un archivo enseña su editor y deja su columna normal.
+    await irAlPerfil(win, 'Trabajo', 'delta')
+    await expect(win.locator('.sidebar .tree-row', { hasText: 'delta.txt' })).toBeVisible({ timeout: 30_000 })
+    await abrir(win, 'delta.txt')
+    await expect(editor, 'Trabajo enseña su archivo').toBeVisible()
+    await expect(columna, 'y su columna no hereda el maximizado de Personal').not.toHaveClass(/\bcc-grow\b/)
+
+    // De vuelta en Personal, tal cual se dejó.
+    await irAlPerfil(win, 'Personal', 'alfa')
+    await expect(editor, 'Personal vuelve maximizado: lo hecho en Trabajo no le toca').toBeHidden()
+    await expect(columna).toHaveClass(/\bcc-grow\b/)
+    await pulsarEnCabecera(win.locator('.agent-pane:not(.hidden)').getByRole('button', { name: 'Restaurar editor' }))
+    await expect(editor).toBeVisible()
+  })
+
+  test('el explorador vuelve tal cual: la carpeta elegida en un proyecto sigue elegida al volver de otro perfil', async () => {
+    const win = s.win
+    await irA(win, 'alfa')
+    const docs = win.locator('.sidebar .tree-row:visible', { hasText: 'docs' }).first()
+    await docs.click()
+    await expect(docs, 'elegir la carpeta la marca').toHaveClass(/\bselected-dir\b/)
+    await expect(win.locator('.sidebar .tree-row', { hasText: 'nota.md' }), 'y la abre').toBeVisible()
+    await irAlPerfil(win, 'Trabajo', 'delta')
+    await expect(win.locator('.sidebar .tree-row:visible', { hasText: 'delta.txt' })).toBeVisible()
+    await irAlPerfil(win, 'Personal', 'alfa')
+    const docsDeVuelta = win.locator('.sidebar .tree-row:visible', { hasText: 'docs' }).first()
+    await expect(docsDeVuelta, 'al volver, la carpeta sigue elegida: el árbol no se rehízo').toHaveClass(/\bselected-dir\b/)
+    await expect(win.locator('.sidebar .tree-row:visible', { hasText: 'nota.md' })).toBeVisible()
   })
 })

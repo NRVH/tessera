@@ -442,9 +442,9 @@ test.describe('capturas del README', () => {
 
   test('principal, espacios y agentes', async () => {
     const win = s.win
-    await win.locator('.sidebar .tree-row', { hasText: 'src' }).first().click()
-    await win.locator('.sidebar .tree-row', { hasText: 'carrito.ts' }).first().click()
-    await win.locator('.sidebar .tree-row', { hasText: 'precios.ts' }).first().click()
+    await win.locator('.sidebar .tree-row:visible', { hasText: 'src' }).first().click()
+    await win.locator('.sidebar .tree-row:visible', { hasText: 'carrito.ts' }).first().click()
+    await win.locator('.sidebar .tree-row:visible', { hasText: 'precios.ts' }).first().click()
     await win.locator('.editor-tab', { hasText: 'carrito.ts' }).click()
     await expect(win.locator('.editor-tab.active', { hasText: 'carrito.ts' })).toHaveCount(1)
     await win.waitForTimeout(1500)
@@ -455,7 +455,7 @@ test.describe('capturas del README', () => {
 
   test('editor con vista dividida de un Markdown', async () => {
     const win = s.win
-    await win.locator('.sidebar .tree-row', { hasText: 'README.md' }).first().click()
+    await win.locator('.sidebar .tree-row:visible', { hasText: 'README.md' }).first().click()
     await expect(win.locator('.editor-tab.active', { hasText: 'README.md' })).toHaveCount(1)
     await win.getByRole('radio', { name: 'Editor y vista previa' }).click()
     await expect(win.locator('.editor-cuerpo.dividida > .markdown-preview')).toBeVisible()

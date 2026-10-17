@@ -11,6 +11,7 @@ import type { AgentKind } from '../../../../shared/agent-terminal-ipc'
 import type { EstadoAgentesNativos } from '../../../../shared/agentes-nativos-ipc'
 import { agentTargetKey } from '../pestanas'
 import { ejecutar as ejecutarActualizacion, planificar } from './actualizacionNativa'
+import { txActualizacion } from './textosActualizacion.ts'
 import type {
   ApiAgentePane,
   DepsActualizacion,
@@ -204,7 +205,7 @@ function useConsultas(set: Setters, refs: Refs): Consultas {
         if (refs.montado.current) set.setEstado(e)
       })
       .catch((e: unknown) => {
-        if (refs.montado.current) set.setErrorComprobar(`No se pudieron comprobar las versiones: ${mensaje(e)}`)
+        if (refs.montado.current) set.setErrorComprobar(txActualizacion().orquestador.noSeComprobo(mensaje(e)))
       })
       .finally(() => {
         refs.comprobando.current = false
@@ -253,7 +254,7 @@ function lanzar(forzado: boolean, set: Setters, refs: Refs, sinRevisar: Readonly
     .catch(
       (e: unknown): ResumenActualizacion => ({
         ok: false,
-        abortado: `La actualización se interrumpió: ${mensaje(e)}`,
+        abortado: txActualizacion().orquestador.interrumpida(mensaje(e)),
         instalaciones: [],
         sesiones: []
       })

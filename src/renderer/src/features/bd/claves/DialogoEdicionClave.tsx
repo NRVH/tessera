@@ -12,6 +12,7 @@ import { esProduccion } from '../consola/produccionConsola'
 import { alClicEnVelo, useDialogo, type Dialogo } from '../../../comun/useDialogo'
 import { comandoDeAccion, entradasIniciales, textosAccion, type AccionClave, type EntradasClave } from './edicionClaves'
 import type { EdicionClave } from './useEdicionClave'
+import { txEdicionClaves } from './textosEdicionClaves'
 import type { DbKvBytes } from '../../../../../shared/db-claves-ipc'
 
 export interface PropsDialogoEdicion {
@@ -60,11 +61,12 @@ export function Cuadro(props: { id: string; etiqueta: string; valor: string; mul
 
 export function Estado(props: { edicion: EdicionClave; motivo: string | null; errorPropio?: string | null }): React.JSX.Element {
   const { aviso, error, enviando } = props.edicion
+  const t = txEdicionClaves()
   return (
     <>
       {props.errorPropio && (
         <div className="db-envio-error" role="alert">
-          <div className="db-envio-error-titulo">No se pudo</div>
+          <div className="db-envio-error-titulo">{t.noSePudo}</div>
           <div className="db-envio-error-texto">{props.errorPropio}</div>
         </div>
       )}
@@ -76,14 +78,14 @@ export function Estado(props: { edicion: EdicionClave; motivo: string | null; er
       )}
       {error && (
         <div className="db-envio-error" role="alert">
-          <div className="db-envio-error-titulo">No se pudo</div>
+          <div className="db-envio-error-titulo">{t.noSePudo}</div>
           <div className="db-envio-error-texto">{error}</div>
         </div>
       )}
       {props.motivo && !error && <div className="modal-hint">{props.motivo}</div>}
       {enviando && (
         <div className="db-envio-estado" role="status">
-          Ejecutando…
+          {t.ejecutando}
         </div>
       )}
     </>
@@ -131,7 +133,7 @@ export function MarcoDialogo(p: {
 export function FranjaProduccion({ alias }: { alias: string }): React.JSX.Element {
   return (
     <div className="db-envio-franja" role="note">
-      <span className="db-envio-franja-texto">PRODUCCIÓN</span>
+      <span className="db-envio-franja-texto">{txEdicionClaves().produccionFranja}</span>
       <span className="db-envio-franja-alias">· {alias}</span>
     </div>
   )
@@ -139,12 +141,13 @@ export function FranjaProduccion({ alias }: { alias: string }): React.JSX.Elemen
 
 /** El comando exacto que se ejecutará, en la caja de la vista previa de «Enviar». */
 export function ComandoPrevio({ base, texto }: { base: number; texto: string }): React.JSX.Element {
+  const t = txEdicionClaves()
   return (
     <>
       <div className="db-envio-cab">
-        <span className="db-envio-cab-texto">Se ejecutará en db{base}</span>
+        <span className="db-envio-cab-texto">{t.seEjecutaraEn(base)}</span>
       </div>
-      <pre className="db-envio-sql" tabIndex={0} aria-label="Comando que se ejecutará">
+      <pre className="db-envio-sql" tabIndex={0} aria-label={t.comandoQueSeEjecutara}>
         <div className="db-envio-linea">{texto}</div>
       </pre>
     </>
@@ -165,7 +168,7 @@ export function Botones(p: {
   return (
     <div className="modal-actions">
       <button type="button" className="btn btn-ghost" onClick={p.onCancelar ?? p.edicion.cerrar} disabled={p.edicion.enviando}>
-        Cancelar
+        {txEdicionClaves().cancelar}
       </button>
       <button type="button" className={`btn ${p.clase}`} onClick={p.onEjecutar} disabled={!p.listo || p.edicion.enviando} autoFocus={p.focoEnEjecutar}>
         {p.texto}
@@ -182,7 +185,7 @@ export function DialogoEdicionClave(p: PropsDialogoEdicion): React.JSX.Element {
   const t = textosAccion(accion, p.nombreCampo)
   const produccion = esProduccion(conexion.entorno)
   const cmd = comandoDeAccion(p.clave, accion, e, p.conTtl)
-  const boton = edicion.aviso ? edicion.aviso.confirmar : produccion ? 'Ejecutar en producción' : t.boton
+  const boton = edicion.aviso ? edicion.aviso.confirmar : produccion ? txEdicionClaves().ejecutarEnProduccion : t.boton
   const ejecutar = (): void => {
     if (cmd.ok) edicion.ejecutar(cmd.texto, accion.tipo === 'renombrar' ? e.uno : undefined)
   }

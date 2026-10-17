@@ -8,6 +8,15 @@
    ============================================================================= */
 
 /* --- Chasis ------------------------------------------------------------------ */
+/* El árbol de un perfil, dentro del lateral (`.sidebar`) que comparte con los de los demás
+   perfiles, vivos y ocultos (`.capa-viva.oculta`): llena su columna. */
+.db-arbol {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
 .db-arbol-cuerpo {
   flex: 1 1 auto;
   min-height: 0;
@@ -95,7 +104,7 @@
    El SVG lleva de respaldo el color del tema oscuro y aquí va el del claro, con contraste
    de gráfico sobre #fafafa; el elefante de PostgreSQL no se recolorea. Global y no bajo
    `.db-arbol`: el icono sale también en el diálogo, las pestañas, los menús y el popover
-   de montaje. Valores y contrastes: docs/decisiones/bd/ui-arbol-colores-de-marca.md */
+   de montaje. Valores y contrastes: docs/decisiones/bd/ui-area-iconos.md */
 :root[data-theme='light'] {
   --db-marca-oracle: #c0392b;
   --db-marca-sqlite: #1f6fb2;

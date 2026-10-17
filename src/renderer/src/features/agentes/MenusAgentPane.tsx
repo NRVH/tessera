@@ -12,9 +12,11 @@ import { PuntoMosaico } from '../mosaico'
 import type { AgentAccount } from '../../../../shared/agent-accounts-ipc'
 import { AgentsUpdateModal } from './AgentsUpdateModal'
 import { ConversationsModal } from './ConversationsModal'
-import { AGENT_LABEL, HOST_ACCOUNT_ID, type MosaicoPane } from './agentPaneTipos'
+import { HOST_ACCOUNT_ID, nombreAgente, type MosaicoPane } from './agentPaneTipos'
+import { esAgenteManual } from '../../../../shared/agentesManuales'
 import { AgentContextMenu } from './iconosAgentPane'
 import { copySelection, pasteFromClipboard } from './terminalAgente'
+import { txPane } from './textosPane.ts'
 import type { ModeloAgentPane } from './useAgentPane'
 
 type PropsParte = { m: ModeloAgentPane }
@@ -25,11 +27,12 @@ type PropsParte = { m: ModeloAgentPane }
  * «es lo que ves aquí».
  */
 function itemsDestinos(mosaico: MosaicoPane): ContextMenuEntry[] {
+  const t = txPane().menus
   const items: ContextMenuEntry[] = mosaico.destinos.map((d) => {
     const aqui = d.proyectoKey === mosaico.proyectoKey
     return {
       icon: <PuntoMosaico color={d.color} enMarcha={d.enMarcha} trabajando={d.trabajando} sinVer={d.sinVer} esperando={d.esperando} />,
-      label: `${d.proyecto}${aqui ? '' : d.esCasilla ? ' (terminal abierta)' : d.dormido ? ' (dormido)' : ''}`,
+      label: `${d.proyecto}${aqui ? '' : d.esCasilla ? t.terminalAbierta : d.dormido ? t.dormido : ''}`,
       checked: aqui,
       disabled: d.esCasilla,
       onClick: () => mosaico.onElegirDestino(d.key)
@@ -38,7 +41,7 @@ function itemsDestinos(mosaico: MosaicoPane): ContextMenuEntry[] {
   items.push(SEP)
   items.push({
     icon: <IconoAbrir />,
-    label: `Abrir otro proyecto en ${mosaico.perfil}…`,
+    label: t.abrirOtro(mosaico.perfil),
     onClick: mosaico.onAbrirProyecto
   })
   return items
@@ -46,15 +49,16 @@ function itemsDestinos(mosaico: MosaicoPane): ContextMenuEntry[] {
 
 /** Los dos modos del PROYECTO, con el actual marcado; sin nombrar el sistema. */
 function itemsModo(hostMode: boolean, cambiar: () => void): ContextMenuEntry[] {
+  const t = txPane().menus
   return [
     {
-      label: 'Modo contenedor (aislado, cuenta del perfil)',
+      label: t.modoContenedor,
       checked: !hostMode,
       disabled: !hostMode,
       onClick: () => cambiar()
     },
     {
-      label: 'Modo nativo (fuera del contenedor, cuenta personal)',
+      label: t.modoNativo,
       checked: hostMode,
       disabled: hostMode,
       onClick: () => cambiar()
@@ -64,10 +68,11 @@ function itemsModo(hostMode: boolean, cambiar: () => void): ContextMenuEntry[] {
 
 /** Cerrar sesión (reversible) y, si no es la predeterminada, eliminar (al final y en rojo). */
 function itemsCuenta(cuenta: AgentAccount, m: ModeloAgentPane): ContextMenuEntry[] {
+  const t = txPane().menus
   const items: ContextMenuEntry[] = [
     {
       icon: <IconoCerrar />,
-      label: `Cerrar sesión de "${cuenta.nombre}"…`,
+      label: t.cerrarSesionDe(cuenta.nombre),
       onClick: () => m.ui.setConfirm({ kind: 'logout', account: cuenta })
     }
   ]
@@ -75,7 +80,7 @@ function itemsCuenta(cuenta: AgentAccount, m: ModeloAgentPane): ContextMenuEntry
     items.push(SEP)
     items.push({
       icon: <IconoEliminar />,
-      label: `Eliminar "${cuenta.nombre}"…`,
+      label: t.eliminarCuentaItem(cuenta.nombre),
       onClick: () => m.ui.setConfirm({ kind: 'delete', account: cuenta }),
       danger: true
     })
@@ -113,16 +118,13 @@ function MenusTerminalYCasilla({ m }: PropsParte): React.JSX.Element {
 /** Confirmación de cerrar sesión o eliminar la cuenta. */
 function ConfirmarCuenta({ m, confirm }: PropsParte & { confirm: NonNullable<ModeloAgentPane['ui']['confirm']> }): React.JSX.Element {
   const borrar = confirm.kind === 'delete'
+  const t = txPane().menus
   return (
     <ConfirmDialog
       danger={borrar}
-      title={borrar ? 'Eliminar cuenta' : 'Cerrar sesión'}
-      message={
-        borrar
-          ? `¿Eliminar la cuenta "${confirm.account.nombre}"? Se borrará su credencial de este equipo (no afecta tu cuenta del proveedor).`
-          : `¿Cerrar sesión de "${confirm.account.nombre}"? Tendrás que iniciar sesión otra vez para volver a usarla.`
-      }
-      confirmLabel={borrar ? 'Eliminar' : 'Cerrar sesión'}
+      title={borrar ? t.eliminarCuenta : t.cerrarSesion}
+      message={borrar ? t.mensajeEliminar(confirm.account.nombre) : t.mensajeCerrarSesion(confirm.account.nombre)}
+      confirmLabel={borrar ? t.eliminar : t.cerrarSesion}
       onConfirm={() => {
         const { kind, account } = confirm
         m.ui.setConfirm(null)
@@ -137,6 +139,7 @@ function ConfirmarCuenta({ m, confirm }: PropsParte & { confirm: NonNullable<Mod
 /** Menú de la cuenta, alta de la cuenta y su confirmación. */
 function DialogosCuenta({ m }: PropsParte): React.JSX.Element {
   const { ui, currentAccount } = m
+  const t = txPane().menus
   return (
     <>
       {ui.accountMenu && currentAccount && (
@@ -149,9 +152,9 @@ function DialogosCuenta({ m }: PropsParte): React.JSX.Element {
       )}
       {ui.addingAccount && (
         <PromptDialog
-          title={`Iniciar sesión — ${AGENT_LABEL[m.p.target.agente]}`}
-          label="Nombre de la cuenta"
-          confirmLabel="Crear e iniciar sesión"
+          title={t.iniciarSesionTitulo(nombreAgente(m.p.pestanasAgente, m.p.target.agente))}
+          label={t.nombreCuenta}
+          confirmLabel={t.crearEIniciar}
           onConfirm={(nm) => void m.cuenta.handleCreateAccount(nm)}
           onCancel={() => ui.setAddingAccount(false)}
         />
@@ -169,7 +172,7 @@ export function MenusAgentPane({ m }: PropsParte): React.JSX.Element {
     <>
       <MenusTerminalYCasilla m={m} />
       <DialogosCuenta m={m} />
-      {ui.showHistory && (
+      {ui.showHistory && !esAgenteManual(agente) && (
         <ConversationsModal
           profileId={profileId}
           agente={agente}

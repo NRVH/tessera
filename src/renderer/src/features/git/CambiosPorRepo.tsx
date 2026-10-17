@@ -11,7 +11,9 @@ import { useCallback, useMemo, useState } from 'react'
 import type { DetectedRepo } from '../../../../shared/workspace-ipc'
 import type { RepoStatus, WorkingChange } from '../../../../shared/git-ipc'
 import { ContextMenu } from '../../comun/ContextMenu'
+import { useRaizDelProyecto } from '../../comun/raizDelProyecto'
 import { EstadoVacio } from '../../comun/EstadoVacio'
+import { EsperaCarga } from '../../comun/IndicadorCarga'
 import { ChevronArbol } from '../../comun/iconosArbol'
 import { VirtualList } from '../../comun/VirtualList'
 import { Casilla } from './Casilla'
@@ -32,6 +34,7 @@ import {
   type ManejadoresArchivo,
   type ObjetivoMenu
 } from './modelo/seccionesCambios'
+import { txGit } from './textos.ts'
 import { useMarcasCambios } from './useMarcasCambios'
 
 interface PropsCambiosPorRepo {
@@ -52,6 +55,7 @@ interface PropsCambiosPorRepo {
 /** Zona de cambios del panel: plana con un repo, una sección colapsable por repo con varios. */
 export function CambiosPorRepo(props: PropsCambiosPorRepo): React.JSX.Element {
   const { altoFila, altoCabecera, repos, activeRepoPath, manejadores } = props
+  const raiz = useRaizDelProyecto()
   const { seleccionada, activa, seleccionar, abrirDiff } = useFilaActiva(props)
   // Menú contextual: uno vivo a la vez, con el OBJETIVO ya calculado por la fila que lo abrió.
   const [menu, setMenu] = useState<{
@@ -109,7 +113,7 @@ export function CambiosPorRepo(props: PropsCambiosPorRepo): React.JSX.Element {
         <ContextMenu
           x={menu.x}
           y={menu.y}
-          items={entradasMenuCambios(menu.datos, manejadores)}
+          items={entradasMenuCambios(menu.datos, manejadores, raiz)}
           onClose={() => setMenu(null)}
         />
       )}
@@ -177,16 +181,15 @@ function vistaRepoUnico(
   repoUnico: string | null,
   cuerpo: (repo: string, anidado: boolean) => React.JSX.Element
 ): React.JSX.Element {
+  const t = txGit()
   if (repoUnico === null && repos !== null) {
     return (
-      <EstadoVacio
-        icono={<IconoGitVacio />}
-        titulo="Esto no es un repositorio de git"
-        pista="La carpeta abierta no está versionada, así que no hay cambios que seguir."
-      />
+      <EstadoVacio icono={<IconoGitVacio />} titulo={t.noEsRepoTitulo} pista={t.noEsRepoCambios} />
     )
   }
-  if (repoUnico === null) return <div className="git-state">Cargando cambios…</div>
+  // Sin mínimo visible: el cuerpo que llega empieza su propia carga, y retener este aviso
+  // solo alargaría la espera.
+  if (repoUnico === null) return <EsperaCarga key="unico" texto={t.cargandoCambios} className="git-state" />
   return cuerpo(repoUnico, false)
 }
 
@@ -211,21 +214,30 @@ function listaDeRepos(
   marcas: MarcasRepo
 ): React.JSX.Element {
   const { repoLabels, activeRepoPath, isRepoExpanded, onToggleRepo } = props
+  const t = txGit()
   if (repos.length === 0) {
     const total = props.repos?.length ?? 0
-    if (statusPorRepo.size < total) return <div className="git-state">Cargando cambios…</div>
+    // La lista, si llega, sustituye al aviso en el acto: es ella la que pide los repos que se ven.
     return (
-      <EstadoVacio
-        icono={<IconoTodoLimpio />}
-        titulo="Sin cambios"
-        pista={`Ninguno de los ${total} repositorios tiene cambios sin commitear.`}
-      />
+      <EsperaCarga
+        key="varios"
+        cargando={statusPorRepo.size < total}
+        texto={t.cargandoCambios}
+        motivo={total > 1 ? t.motivoReposLeidos(statusPorRepo.size, total) : null}
+        className="git-state"
+      >
+        <EstadoVacio
+          icono={<IconoTodoLimpio />}
+          titulo={t.sinCambiosTitulo}
+          pista={t.ningunRepoConCambios(total)}
+        />
+      </EsperaCarga>
     )
   }
   return (
     <VirtualList
       className="repo-list"
-      ariaLabel="Repositorios con cambios"
+      ariaLabel={t.repositoriosConCambios}
       items={repos}
       itemHeight={medidas.alturaSeccion}
       getKey={(r) => r.repoHostPath}
@@ -267,6 +279,7 @@ function CabeceraRepo(d: {
   marcas: MarcasRepo
 }): React.JSX.Element {
   const { marcadas, alternarMarcas, acciones } = d.marcas
+  const t = txGit()
   const conteo = d.status?.changes.length ?? 0
   const claves = useMemo(() => clavesDeRepo(d.status), [d.status])
   const marca = marcaDeRepo(claves, marcadas)
@@ -289,11 +302,11 @@ function CabeceraRepo(d: {
         d.onToggle()
       }}
       aria-expanded={d.expandida}
-      title={d.activo ? 'Repositorio activo (el del historial de abajo)' : 'Abrir este repositorio y graficar su historial'}
+      title={d.activo ? t.repoActivo : t.repoAbrir}
     >
       <ChevronArbol abierto={d.expandida} />
       {claves.length > 0 && (
-        <Casilla estado={marca} etiqueta={`Marcar todo ${d.etiqueta}`} onAlternar={() => alternarMarcas(claves, marca !== 'llena')} />
+        <Casilla estado={marca} etiqueta={t.marcarTodo(d.etiqueta)} onAlternar={() => alternarMarcas(claves, marca !== 'llena')} />
       )}
       <span className="repo-name">{d.etiqueta}</span>
       <span className="repo-derecha">
@@ -304,7 +317,7 @@ function CabeceraRepo(d: {
         {/* Mientras hay marcas, los botones ocupan el sitio del conteo y de la rama: el nombre no se recorta. */}
         {seleccionCambios.length === 0 && conteo > 0 && <span className="repo-count">{conteo}</span>}
         {seleccionCambios.length === 0 && d.status?.branch && (
-          <span className="repo-branch" title={`Rama actual: ${d.status.branch}`}>
+          <span className="repo-branch" title={t.ramaActual(d.status.branch)}>
             <IconoRama />
             {/* El asterisco marca "tiene cambios". */}
             <span className="repo-branch-name">

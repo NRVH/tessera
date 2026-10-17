@@ -3,7 +3,7 @@
 // una por conjunto de filas o plan) con los metadatos del activo, y debajo la rejilla
 // (`resultados/DbResultadosRejilla.tsx`), el plan (`PlanExplain`) o la Salida. Las rejillas
 // ocultas siguen montadas; qué pestaña se sustituye lo decide `resultados/pestanasResultado.ts`.
-// Decisiones: docs/decisiones/bd/ui-resultados-pestanas.md
+// Decisiones: docs/decisiones/bd/ui-rejilla-modelo-resultados.md
 // =============================================================================
 
 import { memo } from 'react'
@@ -24,6 +24,7 @@ import { RejillaResultado, type DuenoRejillaResultado } from './resultados/DbRes
 import { IconoLimpiar } from './iconosBd'
 import { PlanExplain, metaPlan } from './PlanExplain'
 import { SalidaConsola } from './SalidaConsola'
+import { txPanes } from './textosPanes.ts'
 
 export interface DbResultadosProps extends DuenoRejillaResultado {
   resultados: EstadoResultados<ResultadoConsola>
@@ -42,16 +43,17 @@ export interface DbResultadosProps extends DuenoRejillaResultado {
 /** «40 filas · 671 ms», «500+ filas · 2 s 270 ms», «12 345 filas» (contadas). Un plan: «4 pasos · coste 6 · 12 ms». */
 function metaResultado(r: ResultadoConsola, total: number | undefined): string {
   if (r.plan) return metaPlan(r.plan)
+  const t = txPanes()
   const cargadas = r.datos ? r.datos.filas.length : r.filasPrimeraPagina
   const hayMas = r.datos ? r.datos.hayMas : false
   const filas =
     total !== undefined
-      ? cantidad(total, 'fila', 'filas')
+      ? cantidad(total, t.fila, t.filas)
       : hayMas
-        ? `${formatoEntero(cargadas)}+ filas`
-        : cantidad(cargadas, 'fila', 'filas')
+        ? t.masFilasMeta(formatoEntero(cargadas))
+        : cantidad(cargadas, t.fila, t.filas)
   const partes = [filas]
-  if (r.afectadas !== null) partes.push(cantidad(r.afectadas, 'afectada', 'afectadas'))
+  if (r.afectadas !== null) partes.push(cantidad(r.afectadas, t.afectada, t.afectadas))
   partes.push(formatoDuracion(r.tiempos.totalMs))
   return partes.join(' · ')
 }
@@ -67,12 +69,13 @@ function primeraLinea(sql: string): string {
  * `:id` distinto solo se distinguen por eso.
  */
 function tituloPestana(titulo: string, fijada: boolean, r: ResultadoConsola | undefined, d: DialectoSql): string {
+  const t = txPanes()
   const partes = [titulo]
   if (r) partes.push(primeraLinea(r.sql))
   const binds = r ? resumenBinds(r.binds, d) : ''
-  if (binds) partes.push(`Parámetros: ${binds}`)
-  if (r?.plan) partes.push('Plan de ejecución: la sentencia no se ejecutó')
-  if (fijada) partes.push('Fijada: la próxima ejecución no la sustituye')
+  if (binds) partes.push(t.parametros(binds))
+  if (r?.plan) partes.push(t.planNoEjecutado)
+  if (fijada) partes.push(t.fijada)
   return partes.join('\n')
 }
 
@@ -80,9 +83,10 @@ function tituloPestana(titulo: string, fijada: boolean, r: ResultadoConsola | un
 function AccionesResultados({ p }: { p: DbResultadosProps }): React.JSX.Element | null {
   if (p.resultados.activa !== ID_SALIDA) return null
   const vacia = p.salida.entradas.length === 0
+  const t = txPanes()
   return (
-    <span className="btn-envoltura" title={vacia ? 'La salida ya está vacía' : 'Limpiar la salida'}>
-      <button type="button" className="btn btn-icon" aria-label="Limpiar la salida" disabled={vacia} onClick={p.onLimpiarSalida}>
+    <span className="btn-envoltura" title={vacia ? t.salidaVacia : t.limpiarSalida}>
+      <button type="button" className="btn btn-icon" aria-label={t.limpiarSalida} disabled={vacia} onClick={p.onLimpiarSalida}>
         <IconoLimpiar />
       </button>
     </span>
@@ -114,7 +118,8 @@ function CuerpoResultados({ p }: { p: DbResultadosProps }): React.JSX.Element {
           <div key={t.id} className={`db-resultados-panel${esActiva ? '' : ' oculto'}`}>
             {r.errorDatos !== null && (
               <div className="db-resultados-error" role="alert">
-                No se pudieron leer las filas: {r.errorDatos}
+                {txPanes().noSePudieronLeerFilas}
+                {r.errorDatos}
               </div>
             )}
             {r.plan ? (
@@ -137,13 +142,13 @@ function DbResultadosSinMemo(p: DbResultadosProps): React.JSX.Element {
   const dialecto = dialectoDeMotor(p.motor)
 
   const meta = enSalida
-    ? cantidad(salida.entradas.length, 'entrada', 'entradas')
+    ? cantidad(salida.entradas.length, txPanes().entrada, txPanes().entradas)
     : rActiva
       ? metaResultado(rActiva, p.totales[activa])
       : ''
 
   return (
-    <section className="db-consola-resultados" style={{ height: p.alto }} aria-label="Resultados de la consola">
+    <section className="db-consola-resultados" style={{ height: p.alto }} aria-label={txPanes().resultadosAria}>
       <TiraResultados
         resultados={resultados}
         tituloDe={(t, r) => tituloPestana(t.titulo, t.fijada, r, dialecto)}

@@ -3,12 +3,14 @@
 // (`tessera-redis`, un comando por línea) y sus acciones de teclado, con los mismos acordes
 // que las otras consolas. Lo usa `DbConsolaClavesPane`; las marcas del margen son las de
 // `documentos/monacoConsolaDocs.ts`.
-// Decisiones: docs/decisiones/bd/ui-claves-comandos-y-registro.md
+// Decisiones: docs/decisiones/bd/ui-claves-consola.md
 // =============================================================================
 
 import type { editor, IDisposable, languages } from 'monaco-editor'
 import type { Plataforma } from '../../../../../shared/plataforma'
 import { ensureMonaco } from '../../../comun/monacoSetup'
+import { agregarAccionesConMenu } from '../../../comun/menuEditor'
+import { txConsolaClaves } from './textosConsolaClaves'
 
 /** Id de Monaco del lenguaje de las consolas de Redis. */
 export const LENGUAJE_CONSOLA_CLAVES = 'tessera-redis'
@@ -84,38 +86,39 @@ export function registrarAccionesConsolaClaves(
 ): IDisposable[] {
   const { KeyMod, KeyCode } = ensureMonaco()
   const grupo = '1_consola'
-  return [
-    ed.addAction({
+  const t = txConsolaClaves()
+  return agregarAccionesConMenu(ed, [
+    {
       id: 'tessera.consolaClaves.ejecutar',
-      label: 'Ejecutar comando o líneas seleccionadas',
+      label: t.accionEjecutar,
       keybindings: [KeyMod.CtrlCmd | KeyCode.Enter],
       contextMenuGroupId: grupo,
       contextMenuOrder: 1,
       run: () => h.ejecutar()
-    }),
-    ed.addAction({
+    },
+    {
       id: 'tessera.consolaClaves.ejecutarTodo',
-      label: 'Ejecutar todos los comandos',
+      label: t.accionEjecutarTodo,
       keybindings: [KeyMod.Alt | KeyCode.KeyX, KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.Enter],
       contextMenuGroupId: grupo,
       contextMenuOrder: 2,
       run: () => h.ejecutarTodo()
-    }),
-    ed.addAction({
+    },
+    {
       id: 'tessera.consolaClaves.detener',
-      label: 'Detener',
+      label: t.accionDetener,
       keybindings: [plataforma === 'mac' ? KeyMod.CtrlCmd | KeyCode.Period : KeyMod.CtrlCmd | KeyCode.F2],
       contextMenuGroupId: grupo,
       contextMenuOrder: 3,
       run: () => h.detener()
-    }),
-    ed.addAction({
+    },
+    {
       id: 'tessera.consolaClaves.historial',
-      label: 'Historial de comandos…',
+      label: t.accionHistorial,
       keybindings: [KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.KeyH],
       contextMenuGroupId: grupo,
       contextMenuOrder: 4,
       run: () => h.historial()
-    })
-  ]
+    }
+  ])
 }

@@ -9,6 +9,7 @@
 import { descriptorSql, tieneNivelBases } from '../../../../shared/motores/index.ts'
 import { contarVisibles, resolverVisibles } from '../../../../shared/dbEsquemas.ts'
 import { claveBd } from './arbolBdClaves.ts'
+import { txArbolNodos } from './textosArbolNodos.ts'
 import { ordenarEsquemas, partesDetalle } from './arbolBdReglas.ts'
 import { SIN_HIJOS, cargados, conBase, inicioConexion, pendiente, type ContextoArbol, type Nodo } from './arbolBdNodo.ts'
 import type { DescriptorSql } from '../../../../shared/motores/index.ts'
@@ -78,7 +79,7 @@ export function nodoConexionSql(ctx: ContextoArbol, c: DbConnection, d: Descript
         const set = new Set(visibles)
         const lista = ordenarEsquemas(resp.esquemas.filter((x) => set.has(x.nombre)))
         for (const x of lista) nodos.push(nodoEsquema(ctx, c, x, resp.porDefecto))
-        return cargados(nodos, lista.length === 0, 'Ningún esquema visible')
+        return cargados(nodos, lista.length === 0, txArbolNodos().ningunEsquemaVisible)
       }
       return pendiente(ctx, { tipo: 'esquemas', clave, conexionId: c.id }, nodos)
     }
@@ -114,7 +115,7 @@ function nodoConexionConBases(ctx: ContextoArbol, c: DbConnection): Nodo {
         const set = new Set(visibles)
         const lista = ordenarEsquemas(resp.bases.filter((x) => set.has(x.nombre)))
         for (const x of lista) nodos.push(nodoBase(ctx, c, x, resp.porDefecto))
-        return cargados(nodos, lista.length === 0, 'Ninguna base visible')
+        return cargados(nodos, lista.length === 0, txArbolNodos().ningunaBaseVisible)
       }
       return pendiente(ctx, { tipo: 'bases', clave: claveLista, conexionId: c.id }, nodos)
     }
@@ -146,12 +147,12 @@ function nodoBase(ctx: ContextoArbol, c: DbConnection, x: DbBase, porDefecto: st
     contenedor: true,
     etiqueta: x.nombre,
     hijos: () => {
-      if (!x.accesible) return { nodos: [], estado: { variante: 'empty', mensaje: 'Sin acceso a esta base' } }
+      if (!x.accesible) return { nodos: [], estado: { variante: 'empty', mensaje: txArbolNodos().sinAccesoBase } }
       if (resp && visibles) {
         const set = new Set(visibles)
         const lista = ordenarEsquemas(resp.esquemas.filter((y) => set.has(y.nombre)))
         const nodos = lista.map((y) => nodoEsquema(ctx, c, y, resp.porDefecto, x.nombre))
-        return cargados(nodos, lista.length === 0, 'Ningún esquema visible')
+        return cargados(nodos, lista.length === 0, txArbolNodos().ningunEsquemaVisible)
       }
       return pendiente(ctx, { tipo: 'esquemas', clave, conexionId: c.id, base: x.nombre })
     }
@@ -191,7 +192,7 @@ function nodoEsquema(ctx: ContextoArbol, c: DbConnection, x: DbEsquema, porDefec
           const cuenta = conteos[t] ?? 0
           if (cuenta > 0) nodos.push(nodoCarpeta(ctx, c.id, x.nombre, t, cuenta, baseDatos))
         }
-        return cargados(nodos, nodos.length === 0, 'Sin objetos')
+        return cargados(nodos, nodos.length === 0, txArbolNodos().sinObjetos)
       }
       return pendiente(ctx, { tipo: 'resumen', clave, conexionId: c.id, esquema: x.nombre, ...conBase(baseDatos) })
     }
@@ -219,7 +220,7 @@ function nodoCarpeta(ctx: ContextoArbol, conexionId: string, esquema: string, ti
       const objetos = ctx.e.objetos.get(clave)
       if (objetos) {
         const nodos = objetos.map((o) => nodoObjeto(ctx, conexionId, esquema, o, baseDatos))
-        return cargados(nodos, nodos.length === 0, 'Sin objetos')
+        return cargados(nodos, nodos.length === 0, txArbolNodos().sinObjetos)
       }
       return pendiente(ctx, { tipo: 'objetos', clave, conexionId, esquema, tipoObjeto: tipo, ...conBase(baseDatos) })
     }
@@ -261,7 +262,7 @@ function nodoObjeto(ctx: ContextoArbol, conexionId: string, esquema: string, o: 
           const n = nodoCarpetaDetalle(conexionId, esquema, o, parte, detalle, baseDatos)
           if (n) nodos.push(n)
         }
-        return cargados(nodos, nodos.length === 0, 'Sin detalle')
+        return cargados(nodos, nodos.length === 0, txArbolNodos().sinDetalle)
       }
       return pendiente(ctx, cargaDetalle(clave, conexionId, esquema, o, partes, baseDatos))
     }

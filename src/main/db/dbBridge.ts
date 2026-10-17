@@ -13,6 +13,7 @@ import { tmpdir } from 'node:os'
 // Extensión explícita: `test-db-bridge.mts` importa este módulo con `node` a secas.
 import { nombreAleatorio, planPuntoEscucha } from './puntoEscucha.ts'
 import { huellaDestino, type DestinoBd } from './huellaDestino.ts'
+import { txDb } from './textosDb.ts'
 
 /** Versión del protocolo. `tdb` la manda y el puente la exige. */
 const PROTOCOLO = 1
@@ -680,7 +681,7 @@ export class DbBridge implements PuertaPuente {
     const con = this.deps.conexionesDelPerfil(profileId).find((c) => c.id === id)
     if (!con) return { ok: false, error: 'no autorizado' }
     const apertura = this.deps.tunelDe?.(con) ?? null
-    if (apertura === null) return { ok: false, error: 'Esta conexión no lleva túnel SSH, o Tessera no puede abrirlo ahora.' }
+    if (apertura === null) return { ok: false, error: txDb().puente.sinTunel }
     return apertura.then(
       (d) => ({ ok: true, host: d.host, port: d.port }),
       (e: unknown) => ({ ok: false, error: e instanceof Error ? e.message : String(e) })

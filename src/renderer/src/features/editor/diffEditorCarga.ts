@@ -10,6 +10,7 @@ import { languageForFilename } from '../../../../shared/files-ipc'
 import { fetchBlob, isDiffEditable, esDiffDeUnLado } from '../git'
 import { textModels, type SharedTextModel } from './textModelRegistry'
 import { DiffNoticeError, blobContent, describeDiffError } from './diffEditorAvisos'
+import { txDiff } from './textos.ts'
 import { reponerModo } from './diffEditorModo'
 import type { InstanciaDiff } from './diffEditorInstancia'
 import type { DiffSide, DiffTarget } from './diffEditorTipos'
@@ -17,9 +18,9 @@ import type { DiffSide, DiffTarget } from './diffEditorTipos'
 type Monaco = ReturnType<typeof ensureMonaco>
 type LadoDerecho = string | SharedTextModel<editor.ITextModel>
 
-/** Pide el contenido de un lado por la caché de blobs; exists:false -> "". */
-async function fetchSide(side: DiffSide): Promise<string> {
-  return blobContent(await fetchBlob(side))
+/** Pide el contenido de un lado del proyecto `raiz` por la caché de blobs; exists:false -> "". */
+async function fetchSide(side: DiffSide, raiz: string): Promise<string> {
+  return blobContent(await fetchBlob(side, raiz))
 }
 
 /** Modelo MODIFIED a instalar y si queda editable; lanza un aviso si no se puede mostrar. */
@@ -30,17 +31,11 @@ function modeloModificado(
 ): { model: editor.ITextModel; canEdit: boolean } {
   if (typeof after === 'string') return { model: monaco.editor.createModel(after, language), canEdit: false }
   if (after.binary || after.model === null) {
-    throw new DiffNoticeError(
-      'Archivo binario: no hay diff de texto que mostrar.',
-      'Se detectaron bytes nulos. Ábrelo desde el explorador y se pintará con el visor que le corresponda.'
-    )
+    throw new DiffNoticeError(txDiff().binarioTitulo, txDiff().binarioHintCarga)
   }
   if (after.truncated) {
     // Guardar un buffer truncado destruiría el resto del archivo: se degrada con aviso.
-    throw new DiffNoticeError(
-      'El archivo es demasiado grande para editarlo aquí.',
-      'Supera el tope de 2 MiB, así que solo se cargó el principio y guardarlo perdería el resto.'
-    )
+    throw new DiffNoticeError(txDiff().grandeEditarTitulo, txDiff().grandeEditarHint)
   }
   return { model: after.model, canEdit: true }
 }
@@ -100,8 +95,11 @@ function prepararCorrida(inst: InstanciaDiff, target: DiffTarget, modelKey: stri
   return key
 }
 
-/** Carga `target` en el editor de la instancia y devuelve el cleanup de la corrida. */
-export function cargarDiff(inst: InstanciaDiff, target: DiffTarget, modelKey: string | undefined): () => void {
+/**
+ * Carga `target` en el editor de la instancia y devuelve el cleanup de la corrida. `raiz` es la
+ * contenedora del proyecto del pane: el lado editable se lee y se guarda contra ella.
+ */
+export function cargarDiff(inst: InstanciaDiff, target: DiffTarget, modelKey: string | undefined, raiz: string): () => void {
   let cancelled = false
   const enMemoria = inst.vivo.contenido
   // Con contenido en memoria manda SU lenguaje: la ruta del target es la del contenedor.
@@ -110,12 +108,12 @@ export function cargarDiff(inst: InstanciaDiff, target: DiffTarget, modelKey: st
 
   // Los DOS lados se cortocircuitan con contenido en memoria: si solo uno, el otro leería
   // los bytes del contenedor como texto. El derecho editable lo presta el registro.
-  const beforeP = enMemoria ? Promise.resolve(enMemoria.original) : fetchSide(target.before)
+  const beforeP = enMemoria ? Promise.resolve(enMemoria.original) : fetchSide(target.before, raiz)
   const afterP: Promise<LadoDerecho> = enMemoria
     ? Promise.resolve(enMemoria.modificado)
     : key !== null
-      ? textModels.acquire(key, target.after.path)
-      : fetchSide(target.after)
+      ? textModels.acquire(key, { raiz, path: target.after.path })
+      : fetchSide(target.after, raiz)
 
   Promise.all([beforeP, afterP])
     .then(([before, after]) => {

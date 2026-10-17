@@ -1,7 +1,7 @@
 # La red del anfitrión se MIDE con una sonda real; el prevuelo informa y no bloquea
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/sandbox/redAnfitrion.ts`, `gestor/red.ts`, `gestor/contenedores.ts`, `sandbox/ipc.ts` (macOS: sin verificar aquí)
+- **Ámbito:** `src/main/sandbox/redAnfitrion.ts`, `gestor/red.ts`, `gestor/contenedores.ts`, `sandbox/ipc.ts`
 
 ## Contexto
 

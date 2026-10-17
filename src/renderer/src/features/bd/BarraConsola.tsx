@@ -8,7 +8,8 @@
 // =============================================================================
 
 import { useEffect, useRef, useState } from 'react'
-import { TITULO_SOLO_LECTURA_AGENTES } from './camposConexion'
+import { tituloSoloLecturaAgentes } from './camposConexion'
+import { txConsolaBd } from './textosConsolaBd.ts'
 import { tituloBotonEsquema } from './consola/esquemaConsola'
 import { nivelSelectorConsola, textosSelectorConsola, type TextosSelectorConsola } from './nivelBasesBd'
 import { textoProgreso } from './consola/vivoConsola'
@@ -80,6 +81,7 @@ function IdentidadConsola({
   textos: TextosSelectorConsola
 }): React.JSX.Element {
   const tx = p.barraTx
+  const t = txConsolaBd()
   return (
     <div className="db-consola-identidad">
       <span className="db-consola-alias" title={p.alias}>
@@ -96,13 +98,13 @@ function IdentidadConsola({
       {/* «RO» INFORMA de la casilla de los agentes: al usuario de la consola no lo
           limita. La solo lectura de la SESIÓN (`tx.soloLectura`) la impone el main. */}
       {p.conexion.readonly && (
-        <span className="db-consola-dato" title={TITULO_SOLO_LECTURA_AGENTES}>
-          RO agentes
+        <span className="db-consola-dato" title={tituloSoloLecturaAgentes()}>
+          {t.roAgentes}
         </span>
       )}
       {tx.soloLectura && (
         <span className="db-consola-dato" title={tx.tituloSoloLectura ?? undefined}>
-          Solo lectura
+          {t.soloLectura}
         </span>
       )}
       {tx.textoTx && (
@@ -125,8 +127,8 @@ function IdentidadConsola({
 
 /** Por qué no se puede ejecutar (ni explicar) ahora; undefined = se puede. */
 function motivoParaEjecutar(p: BarraConsolaProps): string | undefined {
-  if (!p.cargado) return 'La consola todavía se está cargando'
-  if (p.ejecutando) return 'Ya hay una ejecución en curso'
+  if (!p.cargado) return txConsolaBd().consolaCargando
+  if (p.ejecutando) return txConsolaBd().ejecucionEnCurso
   return undefined
 }
 

@@ -10,6 +10,7 @@ import { ensureMonaco, MONACO_THEME, OPCIONES_BASE_MONACO } from '../../comun/mo
 import { esModPrincipal } from '../../util/atajos'
 import { ModelSaveBlocked, textModels } from './textModelRegistry'
 import type { EditorConvertReq } from './editorPaneTipos'
+import { txEditor } from './textos.ts'
 import type { EscritoresAviso, RefsPane } from './editorPaneRefs'
 
 type Monaco = ReturnType<typeof ensureMonaco>
@@ -94,11 +95,11 @@ function localizarBuscador(ed: editor.IStandaloneCodeEditor, monaco: Monaco): { 
     const dom = ed.getDomNode()
     if (!dom) return
     const find = dom.querySelector('.find-widget .find-part textarea') as HTMLTextAreaElement | null
-    if (find) find.placeholder = 'Buscar (↑↓ para el historial)'
+    if (find) find.placeholder = txEditor().buscarConHistorial
     const replace = dom.querySelector(
       '.find-widget .replace-part textarea'
     ) as HTMLTextAreaElement | null
-    if (replace) replace.placeholder = 'Reemplazar'
+    if (replace) replace.placeholder = txEditor().reemplazar
   }
   return ed.onKeyDown((e) => {
     // Solo el modificador con que Monaco arma su buscador (Ctrl aquí, Cmd en Mac).

@@ -8,6 +8,7 @@
 // =============================================================================
 
 import { sesionAtrasada } from '../../../../shared/versionesCli.ts'
+import { txTerminales } from './textos.ts'
 
 /** Estado de la sesión, tal y como lo llevan los panes (agente y shell). */
 export type EstadoSesion = 'booting' | 'live' | 'exited' | 'error'
@@ -25,22 +26,28 @@ export interface TextosBotonReinicio {
   tituloNormal: (etiquetaNormal: string) => string
 }
 
-/** Los textos de siempre, los del shell y los del agente. No cambian: hay pruebas y capturas que los leen. */
-export const TEXTOS_REINICIO: TextosBotonReinicio = {
-  reabrir: 'Reabrir',
-  reabriendo: 'Reabriendo…',
-  tituloReintentarArranque: 'Reintentar el arranque: vuelve a comprobar Docker y a levantar el contenedor',
-  tituloReabrir: 'Reabrir: vuelve a lanzar en el mismo panel (mismo id de sesión)',
-  tituloNormal: (etiquetaNormal) => `${etiquetaNormal} robusto: relanza conservando la sesión`
+/** Los textos de siempre, los del shell y los del agente. En español no cambian: hay pruebas y capturas que los leen. */
+export function textosReinicio(): TextosBotonReinicio {
+  const t = txTerminales()
+  return {
+    reabrir: t.reabrir,
+    reabriendo: t.reabriendo,
+    tituloReintentarArranque: t.tituloReintentarArranque,
+    tituloReabrir: t.tituloReabrir,
+    tituloNormal: t.tituloNormal
+  }
 }
 
 /** Los de una sesión SSH: se reconecta, con los datos vigentes de la conexión, y no hay contenedor que comprobar. */
-export const TEXTOS_RECONEXION_SSH: TextosBotonReinicio = {
-  reabrir: 'Reconectar',
-  reabriendo: 'Reconectando…',
-  tituloReintentarArranque: 'Reintentar: vuelve a abrir la conexión',
-  tituloReabrir: 'Reconectar: vuelve a abrir la sesión con los datos vigentes de la conexión',
-  tituloNormal: () => 'Reconectar: cierra esta sesión y la vuelve a abrir con los datos vigentes de la conexión'
+export function textosReconexionSsh(): TextosBotonReinicio {
+  const t = txTerminales()
+  return {
+    reabrir: t.reconectar,
+    reabriendo: t.reconectando,
+    tituloReintentarArranque: t.sshReintentarArranque,
+    tituloReabrir: t.sshReabrir,
+    tituloNormal: () => t.sshNormal
+  }
 }
 
 /** Fase de la recuperación ante una muerte anómala (sólo el pane del agente). */
@@ -75,7 +82,7 @@ export interface EntradaBotonReinicio {
    * alguna desconocida, el botón se comporta como siempre.
    */
   versiones?: { lanzada: string | null; instalada: string | null } | null
-  /** Los textos de esta sesión; ausente = los de siempre (`TEXTOS_REINICIO`). */
+  /** Los textos de esta sesión; ausente = los de siempre (`textosReinicio()`). */
   textos?: TextosBotonReinicio
   /**
    * Por qué el botón no se puede usar aunque haya sesión (una conexión SSH eliminada: no hay con
@@ -135,8 +142,8 @@ function esReintento(e: EntradaBotonReinicio, accion: Accion): boolean {
 }
 
 function etiquetaEnVuelo(e: EntradaBotonReinicio, reintento: boolean): string {
-  if (reintento) return 'Reintentando…'
-  return e.status === 'exited' ? (e.textos ?? TEXTOS_REINICIO).reabriendo : e.etiquetaProgreso
+  if (reintento) return txTerminales().reintentando
+  return e.status === 'exited' ? (e.textos ?? textosReinicio()).reabriendo : e.etiquetaProgreso
 }
 
 /** Etiqueta y `soloIcono`, decididos en las mismas ramas (no comparando con `etiquetaNormal`). */
@@ -146,30 +153,28 @@ function etiquetaDe(
 ): Pick<SalidaBotonReinicio, 'etiqueta' | 'soloIcono'> {
   const reintento = esReintento(e, accion)
   if (e.faseRecuperacion === 'recovering') {
-    const etiqueta = `Recuperando… (${e.intentoRecuperacion ?? 0}/${e.maxIntentos ?? 2})`
+    const etiqueta = txTerminales().recuperando(e.intentoRecuperacion ?? 0, e.maxIntentos ?? 2)
     return { etiqueta, soloIcono: false }
   }
   if (e.reloading) return { etiqueta: etiquetaEnVuelo(e, reintento), soloIcono: false }
-  if (reintento) return { etiqueta: 'Reintentar', soloIcono: false }
-  if (e.status === 'exited') return { etiqueta: (e.textos ?? TEXTOS_REINICIO).reabrir, soloIcono: false }
+  if (reintento) return { etiqueta: txTerminales().reintentar, soloIcono: false }
+  if (e.status === 'exited') return { etiqueta: (e.textos ?? textosReinicio()).reabrir, soloIcono: false }
   return { etiqueta: e.etiquetaNormal, soloIcono: true }
 }
 
 /** Aviso de sesión atrasada (corre un binario más viejo que el instalado), o null. */
 function avisoAtrasada(v: EntradaBotonReinicio['versiones']): string | null {
   if (!v || !sesionAtrasada(v.lanzada, v.instalada)) return null
-  return `corre ${v.lanzada} · instalada ${v.instalada}: reinicia para usarla`
+  return txTerminales().sesionAtrasada(v.lanzada, v.instalada)
 }
 
 /** Tooltip; el aviso de versión solo con el botón pulsable (en vuelo pediría lo que ya pasa). */
 function tituloDe(e: EntradaBotonReinicio, accion: Accion, habilitado: boolean): string {
-  const textos = e.textos ?? TEXTOS_REINICIO
+  const textos = e.textos ?? textosReinicio()
   if (e.bloqueo !== undefined) return e.bloqueo
   if (accion === 'open' || reintentandoEnFrio(e)) return textos.tituloReintentarArranque
-  if (e.faseRecuperacion === 'docker-down') {
-    return 'Reintentar: comprueba Docker y vuelve a levantar el contenedor + credenciales'
-  }
-  if (e.faseRecuperacion === 'failed') return 'Reintentar la recuperación del contenedor a mano'
+  if (e.faseRecuperacion === 'docker-down') return txTerminales().dockerCaido
+  if (e.faseRecuperacion === 'failed') return txTerminales().recuperacionAgotada
   if (e.status === 'exited') return textos.tituloReabrir
   const aviso = habilitado && accion === 'reload' ? avisoAtrasada(e.versiones) : null
   return aviso ?? textos.tituloNormal(e.etiquetaNormal)

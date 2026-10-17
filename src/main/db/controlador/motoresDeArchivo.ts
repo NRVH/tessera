@@ -31,6 +31,7 @@ import {
 } from '../archivosBd.ts'
 import type { ConnectionStore, EntradaConexion } from '../ConnectionStore.ts'
 import { canonizarRutaArchivo, claveRutaArchivo, depsDeSerie, nombreArchivoDeRuta } from '../rutaArchivoBd.ts'
+import { txDb } from '../textosDb.ts'
 
 /** Diálogos nativos ya anclados a la ventana por quien compone la app. */
 export interface DialogosBd {
@@ -65,14 +66,15 @@ export class MotoresDeArchivo {
   async elegir(req: { motor: DbMotor }): Promise<DbArchivoElegido | null> {
     const { motor, adaptador } = this.adaptadorPedido(req?.motor)
     const desc = descriptor(motor)
+    const t = txDb().archivos
     const r = await this.d.dialogos.elegir('archivo-bd', {
-      title: `Elige la base de datos ${desc.etiqueta}`,
+      title: t.elegirTitulo(desc.etiqueta),
       properties: ['openFile'],
       filters: [
-        { name: `Bases ${desc.etiqueta}`, extensions: [...desc.conexion.extensionesArchivo] },
-        { name: 'Todos los archivos', extensions: ['*'] }
+        { name: t.filtroBases(desc.etiqueta), extensions: [...desc.conexion.extensionesArchivo] },
+        { name: t.filtroTodos, extensions: ['*'] }
       ],
-      buttonLabel: 'Elegir'
+      buttonLabel: t.botonElegir
     })
     if (r.canceled || r.filePaths.length === 0) return null
     return this.fichaDeExistente(motor, adaptador, r.filePaths[0])
@@ -83,10 +85,11 @@ export class MotoresDeArchivo {
     const { motor, adaptador } = this.adaptadorPedido(req?.motor)
     const desc = descriptor(motor)
     const ext = desc.conexion.extensionesArchivo[0] ?? 'db'
+    const t = txDb().archivos
     const r = await this.d.dialogos.guardar('archivo-bd', `nueva.${ext}`, {
-      title: `Nueva base de datos ${desc.etiqueta}`,
-      filters: [{ name: `Bases ${desc.etiqueta}`, extensions: [...desc.conexion.extensionesArchivo] }],
-      buttonLabel: 'Crear'
+      title: t.nuevaTitulo(desc.etiqueta),
+      filters: [{ name: t.filtroBases(desc.etiqueta), extensions: [...desc.conexion.extensionesArchivo] }],
+      buttonLabel: t.botonCrear
     })
     if (r.canceled || !r.filePath) return null
     // Sin extensión, la del motor: el filtro no reconocería la base al volver a elegirla.
@@ -99,7 +102,7 @@ export class MotoresDeArchivo {
   /** Un archivo soltado sobre el árbol (la ruta la resuelve el preload), tratado como uno elegido. */
   soltado(req: { motor: DbMotor; ruta: string }): DbArchivoElegido {
     const { motor, adaptador } = this.adaptadorPedido(req?.motor)
-    if (typeof req?.ruta !== 'string' || req.ruta === '') throw new Error('Ese elemento no es un archivo del equipo.')
+    if (typeof req?.ruta !== 'string' || req.ruta === '') throw new Error(txDb().archivos.noEsArchivoDelEquipo)
     return this.fichaDeExistente(motor, adaptador, req.ruta)
   }
 
@@ -119,7 +122,7 @@ export class MotoresDeArchivo {
    */
   montar(req: DbMontarArchivoRequest): DbMontarArchivoRespuesta {
     const profileId = typeof req?.profileId === 'string' ? req.profileId : ''
-    if (!profileId) throw new Error('Una conexión requiere un perfil.')
+    if (!profileId) throw new Error(txDb().validacion.requierePerfil)
     const canon = this.archivoDelProyectoAnclado(req?.projectHostPath, req?.relPath)
     const motor = motorDeArchivo(canon.ruta, (m) => this.adaptadorArchivo(m))
     const previa = this.d.connections.conArchivo(profileId, canon.ruta)
@@ -177,7 +180,7 @@ export class MotoresDeArchivo {
   /** El adaptador de un motor de archivo pedido por el renderer, o lanza. */
   private adaptadorPedido(motor: unknown): { motor: DbMotor; adaptador: AdaptadorArchivoBd } {
     const a = esMotor(motor) && descriptor(motor).conexion.deArchivo ? this.adaptadorArchivo(motor) : null
-    if (!a || !esMotor(motor)) throw new Error('Ese motor no es de archivo.')
+    if (!a || !esMotor(motor)) throw new Error(txDb().archivos.motorNoEsDeArchivo)
     return { motor, adaptador: a }
   }
 
@@ -197,7 +200,7 @@ export class MotoresDeArchivo {
     const anclada = this.d.contenedoraAnclada()
     // `path` del main es el de este sistema, que es de donde son las dos rutas.
     if (anclada === null || !path.isAbsolute(pedido) || claveRutaArchivo(path.resolve(pedido)) !== claveRutaArchivo(path.resolve(anclada))) {
-      throw new Error('Ese archivo no es del proyecto abierto en el explorador: ábrelo desde su proyecto.')
+      throw new Error(txDb().archivos.noEsDelProyectoAbierto)
     }
     return rutaDeArchivoDelProyecto(pedido, String(relPath ?? ''), depsDeSerie())
   }
@@ -213,6 +216,6 @@ export class MotoresDeArchivo {
       adaptador.comprobar(canon.ruta, true)
       return canon.ruta
     }
-    throw new Error('No se sabe de dónde sale el archivo de la base.')
+    throw new Error(txDb().archivos.origenDesconocido)
   }
 }

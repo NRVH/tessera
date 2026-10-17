@@ -11,6 +11,7 @@ import type {
   AgentHibernarInactivosRequest,
   AgentHibernarInactivosResult
 } from '../../../shared/agent-terminal-ipc'
+import type { Agente } from '../../profiles/types'
 import { umbralEfectivoMs } from '../../../shared/ajustesAgente'
 import {
   aplicarSegundoPlano,
@@ -58,10 +59,13 @@ export function aplicarSegundoPlanoDeSesion(
   if (open) aplicarSegundoPlano(open.segundoPlano, cambios, open.lanzadaEn)
 }
 
-/** Foto síncrona de todas las sesiones, con lo que la política necesita para decidir. */
+/**
+ * Foto síncrona de las sesiones, con lo que la política necesita para decidir. Sin las de agentes
+ * manuales: de ellos no se sabe si trabajan, así que solo se hibernan a mano.
+ */
 export function medirSesiones(n: NucleoAgente): SesionMedida[] {
   const ahora = Date.now()
-  return [...n.sessions.values()].map((s) => ({
+  return [...n.sessions.values()].filter((s) => s.manual == null).map((s) => ({
     sessionId: s.sessionId,
     profileId: s.profileId,
     projectHostPath: s.projectHostPath,
@@ -120,14 +124,14 @@ export function hibernarInactivos(n: NucleoAgente, req: AgentHibernarInactivosRe
     const sesiones: AgenteHibernado['sesiones'] = []
     for (const id of p.sessionIds) {
       const open = n.sessions.get(id)
-      if (!open) continue
+      if (!open || open.manual) continue
       alinearChatConAncla(n, open)
       const desde = sinChatDesde(n, open)
       soltarSesion(n, id)
       matarEnSegundoPlano(n, id)
       sesiones.push({
         sessionId: id,
-        agente: open.agente,
+        agente: open.agente as Agente,
         resumeSessionId: open.resumeSessionId,
         ...(desde !== undefined ? { nuevaSiNadaDesde: desde } : {})
       })

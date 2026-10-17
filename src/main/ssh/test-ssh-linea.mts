@@ -17,7 +17,9 @@ import { esWindows } from '../../shared/plataforma.ts'
 import { admiteBinarioDePrueba, entornoSsh, resolverBinariosSsh, VAR_SSH_BINARIO } from './binariosSsh.ts'
 import { ARG_ARNES_E2E } from '../../shared/arnesE2e.ts'
 import { clasificarSalidaSsh, esSalidaDeFalloSsh } from './clasificacionSalida.ts'
-import { argumentosSsh, citarRutaOpcion, MENSAJE_SIN_COPIA_CLAVE, type DestinoLineaSsh } from './lineaSsh.ts'
+import { argumentosSsh, citarRutaOpcion, mensajeSinCopiaClave, type DestinoLineaSsh } from './lineaSsh.ts'
+
+const MENSAJE_SIN_COPIA_CLAVE = mensajeSinCopiaClave()
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -259,6 +261,35 @@ hr('4 - Por qué salió con 255: solo mensajes de ssh a principio de línea (y n
     const motivo = clasificarSalidaSsh(255, cola)
     check(`(4·) 255 sin motivo: ${nombre}`, motivo === undefined, String(motivo))
   }
+
+  // La huella, solo si el aviso nombra un known_hosts de la carpeta de huellas: el formato es el de
+  // ssh.exe (real), que duplica las barras; uno de un ssh lanzado en el equipo remoto nombra el suyo.
+  const avisoHuella = (ruta: string): string =>
+    '@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @\r\nThe fingerprint for the ED25519 key sent by the remote host is\r\nSHA256:inventada.\r\n' +
+    `Add correct host key in ${ruta} to get rid of this message.\r\nOffending ED25519 key in ${ruta}:1\r\n` +
+    'Host key for 192.0.2.7 has changed and you have requested strict checking.\r\nHost key verification failed.\r\n'
+  const carpetaWin = 'C:\\Users\\Ana\\AppData\\Roaming\\Tessera\\ssh\\huellas'
+  const rutaWin = 'C:\\\\Users\\\\Ana\\\\AppData\\\\Roaming\\\\Tessera\\\\ssh\\\\huellas\\\\c-1'
+  const huellaDe = (cola: string, carpeta: string, plataforma: 'windows' | 'mac' | 'linux'): string =>
+    String(clasificarSalidaSsh(255, cola, plataforma, carpeta))
+  check('(4h1) la de la conexión, con la ruta de ssh.exe (barras duplicadas): huella cambiada', huellaDe(avisoHuella(rutaWin), carpetaWin, 'windows') === 'ssh-huella-cambiada', huellaDe(avisoHuella(rutaWin), carpetaWin, 'windows'))
+  check('(4h2) en Windows no importan las mayúsculas de la ruta', huellaDe(avisoHuella(rutaWin.toUpperCase()), carpetaWin, 'windows') === 'ssh-huella-cambiada', huellaDe(avisoHuella(rutaWin.toUpperCase()), carpetaWin, 'windows'))
+  const partida = avisoHuella(rutaWin).replace('Roaming', 'Roa\r\nming')
+  check('(4h3) con la ruta partida por el ancho de la terminal, también', huellaDe(partida, carpetaWin, 'windows') === 'ssh-huella-cambiada', huellaDe(partida, carpetaWin, 'windows'))
+  const anidada = `${prompt}ssh root@192.0.2.7 uptime\r\n${avisoHuella('/root/.ssh/known_hosts')}${prompt}exit\r\nlogout\r\n`
+  check('(4h4) la de un ssh lanzado en el equipo remoto: sin motivo (el 255 es suyo)', huellaDe(anidada, carpetaWin, 'windows') === 'undefined', huellaDe(anidada, carpetaWin, 'windows'))
+  check('(4h5) …y el «No … host key is known» de un ssh remoto en estricto, tampoco', huellaDe(positivos[6][1], carpetaWin, 'windows') === 'undefined', huellaDe(positivos[6][1], carpetaWin, 'windows'))
+  const carpetaPosix = '/home/ana/.config/Tessera/ssh/huellas'
+  check('(4h6) en Linux y macOS, la ruta tal cual', huellaDe(avisoHuella(`${carpetaPosix}/c-1`), carpetaPosix, 'linux') === 'ssh-huella-cambiada', huellaDe(avisoHuella(`${carpetaPosix}/c-1`), carpetaPosix, 'linux'))
+  check('(4h7) en macOS las mayúsculas sí importan', huellaDe(avisoHuella(`${carpetaPosix.toUpperCase()}/c-1`), carpetaPosix, 'mac') === 'undefined', huellaDe(avisoHuella(`${carpetaPosix.toUpperCase()}/c-1`), carpetaPosix, 'mac'))
+  check('(4h8) una carpeta hermana con el mismo prefijo no cuenta', huellaDe(avisoHuella(`${carpetaPosix}-viejas/c-1`), carpetaPosix, 'linux') === 'undefined', huellaDe(avisoHuella(`${carpetaPosix}-viejas/c-1`), carpetaPosix, 'linux'))
+  // Real (ssh.exe con ProxyCommand y la huella del bastión cambiada): detrás va el cierre del exterior.
+  const bastion = `${avisoHuella(rutaWin.replace('c-1', 'bastion').replaceAll('\\\\', '/'))}Connection closed by UNKNOWN port 65535\r\n`
+  check('(4h10) la huella del bastión gana al cierre del ssh exterior que provoca', huellaDe(bastion, carpetaWin, 'windows') === 'ssh-huella-cambiada', huellaDe(bastion, carpetaWin, 'windows'))
+  check('(4h11) …también en «Probar», sin carpeta', String(clasificarSalidaSsh(255, bastion, 'windows')) === 'ssh-huella-cambiada', String(clasificarSalidaSsh(255, bastion, 'windows')))
+  const anidadaYCorte = `${anidada}Connection closed by 192.0.2.1 port 22\r\n`
+  check('(4h12) la de un ssh remoto seguida de un cierre de verdad: inalcanzable, no huella', huellaDe(anidadaYCorte, carpetaWin, 'windows') === 'ssh-inalcanzable', huellaDe(anidadaYCorte, carpetaWin, 'windows'))
+  check('(4h9) los demás motivos no dependen de la carpeta', clasificarSalidaSsh(255, 'Permission denied (publickey).\r\n', 'windows', carpetaWin) === 'ssh-autenticacion', String(clasificarSalidaSsh(255, 'Permission denied (publickey).\r\n', 'windows', carpetaWin)))
   const negativos: Array<[string, number | null]> = [['salida 0', 0], ['salida 1 (cierre)', 1], ['salida 3 (exit remoto)', 3], ['sin código', null]]
   for (const [nombre, codigo] of negativos) {
     const motivo = clasificarSalidaSsh(codigo, 'pruebas@127.0.0.1: Permission denied (password).')

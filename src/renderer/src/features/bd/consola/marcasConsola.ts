@@ -7,6 +7,7 @@
 // =============================================================================
 
 import type { DbErrorCompilacion } from '../../../../../shared/db-explorador-ipc'
+import { txSalida } from './textosSalida.ts'
 
 /** Estado de una sentencia dentro de un lote. */
 export type EstadoMarca =
@@ -58,17 +59,30 @@ export function formatoDuracion(ms: number, vivo: boolean = false): string {
 }
 
 /** Texto por defecto del tooltip de las que no traen detalle. */
-export const HOVER_OMITIDA = 'No se ejecutó: el lote se detuvo antes'
-export const HOVER_CLIENTE = 'Comando del cliente: no se envía al servidor'
-export const HOVER_PENDIENTE = 'En cola'
+export function hoverOmitida(): string {
+  return txSalida().hoverOmitida
+}
+export function hoverCliente(): string {
+  return txSalida().hoverCliente
+}
+export function hoverPendiente(): string {
+  return txSalida().hoverPendiente
+}
 /** Tooltip de la marca de un plan que llegó bien, si no trae detalle. */
-export const HOVER_PLAN = 'Plan de ejecución: la sentencia NO se ejecutó'
+export function hoverPlan(): string {
+  return txSalida().hoverPlan
+}
 
 /** El tooltip por defecto de las que no llegaron al servidor. */
-const HOVER_SIN_ENVIAR: Readonly<Record<'pendiente' | 'omitida' | 'cliente', string>> = {
-  pendiente: HOVER_PENDIENTE,
-  omitida: HOVER_OMITIDA,
-  cliente: HOVER_CLIENTE
+function hoverSinEnviar(e: 'pendiente' | 'omitida' | 'cliente'): string {
+  switch (e) {
+    case 'pendiente':
+      return hoverPendiente()
+    case 'omitida':
+      return hoverOmitida()
+    case 'cliente':
+      return hoverCliente()
+  }
 }
 
 /**
@@ -94,14 +108,14 @@ export function descriptorMarca(
   if (plan) return descriptorPlan(e, ms, detalle, codigo)
   const dur = ms !== null ? formatoDuracion(ms) : null
   if (e === 'ok' && avisos > 0) {
-    const texto = detalle || `Compilado con ${avisos === 1 ? '1 aviso' : `${avisos} avisos`}`
+    const texto = detalle || txSalida().compiladoCon(avisos)
     return { claseGlifo: 'db-glifo-avisos', claseBarra: 'db-barra-avisos', hover: conDuracion(texto, dur), despues: dur }
   }
   switch (e) {
     case 'pendiente':
     case 'omitida':
     case 'cliente':
-      return { claseGlifo: `db-glifo-${e}`, claseBarra: null, hover: detalle || HOVER_SIN_ENVIAR[e], despues: null }
+      return { claseGlifo: `db-glifo-${e}`, claseBarra: null, hover: detalle || hoverSinEnviar(e), despues: null }
     default:
       return descriptorEnviada(e, ms, dur, detalle, codigo)
   }
@@ -120,27 +134,28 @@ function descriptorEnviada(
   codigo: string | null | undefined
 ): DescriptorMarca {
   const claseGlifo = `db-glifo-${e}`
+  const t = txSalida()
   switch (e) {
     case 'corriendo': {
       const vivo = ms !== null ? formatoDuracion(ms, true) : ''
       return {
         claseGlifo,
         claseBarra: 'db-barra-corriendo',
-        hover: vivo ? `Ejecutando · ${vivo}` : 'Ejecutando',
+        hover: vivo ? `${t.ejecutando} · ${vivo}` : t.ejecutando,
         despues: vivo || null
       }
     }
     case 'ok':
-      return { claseGlifo, claseBarra: 'db-barra-ok', hover: conDuracion(detalle || 'Correcta', dur), despues: dur }
+      return { claseGlifo, claseBarra: 'db-barra-ok', hover: conDuracion(detalle || t.correcta, dur), despues: dur }
     case 'error':
       return {
         claseGlifo,
         claseBarra: 'db-barra-error',
-        hover: conDuracion(detalle || 'Error', dur),
+        hover: conDuracion(detalle || t.error, dur),
         despues: codigo ? codigo : dur
       }
     case 'cancelada':
-      return { claseGlifo, claseBarra: 'db-barra-cancelada', hover: dur ? `Cancelada tras ${dur}` : 'Cancelada', despues: dur }
+      return { claseGlifo, claseBarra: 'db-barra-cancelada', hover: dur ? t.cancelada(dur) : t.canceladaSola, despues: dur }
   }
 }
 
@@ -148,12 +163,12 @@ function descriptorEnviada(
 function descriptorPlan(e: EstadoMarca, ms: number | null, detalle: string, codigo?: string | null): DescriptorMarca {
   if (e === 'ok') {
     const dur = ms !== null ? formatoDuracion(ms) : null
-    return { claseGlifo: 'db-glifo-plan', claseBarra: null, hover: conDuracion(detalle || HOVER_PLAN, dur), despues: dur }
+    return { claseGlifo: 'db-glifo-plan', claseBarra: null, hover: conDuracion(detalle || hoverPlan(), dur), despues: dur }
   }
   const base = descriptorMarca(e, ms, detalle, codigo, 0, false)
   if (e === 'corriendo') {
     const vivo = ms !== null ? formatoDuracion(ms, true) : ''
-    return { ...base, claseBarra: null, hover: vivo ? `Obteniendo el plan · ${vivo}` : 'Obteniendo el plan' }
+    return { ...base, claseBarra: null, hover: vivo ? `${txSalida().obteniendoPlan} · ${vivo}` : txSalida().obteniendoPlan }
   }
   return { ...base, claseBarra: null }
 }
@@ -181,7 +196,7 @@ export function marcasCompilacion(lista: readonly DbErrorCompilacion[] | undefin
   for (const e of lista) {
     const p = e.posicion
     if (typeof p !== 'number' || !Number.isFinite(p) || p < 0) continue
-    const mensaje = (e.mensaje || '').trim() || (e.esAviso ? 'Aviso de compilación' : 'Error de compilación')
+    const mensaje = (e.mensaje || '').trim() || (e.esAviso ? txSalida().avisoCompilacion : txSalida().errorCompilacion)
     out.push({ desplazamiento: p, mensaje, severidad: e.esAviso ? 'aviso' : 'error', linea: e.linea, columna: e.columna })
   }
   return out.sort((a, b) =>

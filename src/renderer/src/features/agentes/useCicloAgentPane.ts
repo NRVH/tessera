@@ -6,7 +6,7 @@
 // =============================================================================
 
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react'
-import type { PropsAgentPane } from './agentPaneTipos'
+import { estadoParaElPunto, type PropsAgentPane } from './agentPaneTipos'
 import type { EstadoSesion } from './useEstadoAgentPane'
 import type { RefsAgentPane } from './useRefsAgentPane'
 
@@ -43,16 +43,18 @@ export function useMenusCasilla(esCasillaPane: boolean): MenusCasilla {
 export function useActivacion(p: PropsAgentPane, r: RefsAgentPane, s: EstadoSesion, showSelector: boolean): boolean {
   const { seEstaMirando, onStatusChange, hibernated } = p
   const { key } = p.target
-  const { status, sessionId } = s
+  const { status, sessionId, recuperando } = s
   const [activated, setActivated] = useState(p.visible)
   useEffect(() => {
     if (seEstaMirando) setActivated(true)
   }, [seEstaMirando])
   useEffect(() => {
     if (!activated) return
-    // Sin cuenta no hay contenedor arrancando: 'exited' deja el punto en el modelo.
-    onStatusChange?.(key, showSelector ? 'exited' : status)
-  }, [status, showSelector, activated, onStatusChange, key])
+    // `abriendo` no es estado de React: basta leerlo al dejar de mirarse el pane, que es cuando
+    // decide; una apertura que termina después cambia `status` y vuelve a reportar.
+    const abriendo = r.sesion.abriendo()
+    onStatusChange?.(key, estadoParaElPunto(status, { sinCuenta: showSelector, seEstaMirando, abriendo, recuperando }))
+  }, [status, showSelector, seEstaMirando, recuperando, activated, onStatusChange, key, r])
   // Exige el `sessionId`: tras hibernar el `status` se queda en 'live' sin nada detrás.
   const enVivo = activated && !hibernated && !showSelector && sessionId !== null && status === 'live'
   useEffect(() => {

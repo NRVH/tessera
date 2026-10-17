@@ -13,7 +13,7 @@ import {
   type DbEstadoTx,
   type DbRefSesion,
   type DbTxModo,
-  MOTIVO_CARPETA_SIN_ESCRITURA
+  motivoCarpetaSinEscritura
 } from '../../../../shared/db-explorador-ipc.ts'
 import { descriptor, pideUsuarioYClave } from '../../../../shared/motores/index.ts'
 import type { ClaseSentencia } from '../../../../shared/sql/clasificarSql.ts'
@@ -28,6 +28,7 @@ import { MAX_LECTORES_POR_SESION } from '../limites.ts'
 import { esFalloTrabajador, type ResultadoTrabajador } from '../protocoloTrabajador.ts'
 import { ErrorGestor, mensajeDe } from './errores.ts'
 import { claveDeRef, exigirSql } from './reglas.ts'
+import { txSesiones } from './textosSesiones.ts'
 import type { DependenciasGestor, Lector, Proceso, RefConsola, Sesion } from './tipos.ts'
 
 /** Estado del gestor de sesiones y las operaciones que lo tocan directamente. */
@@ -225,7 +226,7 @@ export class NucleoSesiones {
     if (!this.porCarpeta(s.conexionId)) return t.efectos
     // El rechazo por solo lectura dice el motivo de verdad: la carpeta, no la conexión.
     return t.efectos.map((e) =>
-      e.tipo === 'rechazar' && e.motivo === 'soloLectura' ? { ...e, mensaje: MOTIVO_CARPETA_SIN_ESCRITURA } : e
+      e.tipo === 'rechazar' && e.motivo === 'soloLectura' ? { ...e, mensaje: motivoCarpetaSinEscritura() } : e
     )
   }
 
@@ -348,7 +349,7 @@ export class NucleoSesiones {
     const previa = this.porClave.get(clave)
     if (previa) {
       if (previa.conexionId !== con.id) {
-        throw new ErrorGestor('interno', 'La consola está atada a otra conexión.')
+        throw new ErrorGestor('interno', txSesiones().consolaAtada)
       }
       return previa
     }
@@ -393,7 +394,7 @@ export class NucleoSesiones {
    */
   sesionExportacion(con: DbConnection, peticionId: string): Sesion {
     const clave = `exportacion|${peticionId}`
-    if (this.porClave.has(clave)) throw new ErrorGestor('ocupada', 'Ya hay una exportación con ese identificador en curso.')
+    if (this.porClave.has(clave)) throw new ErrorGestor('ocupada', txSesiones().exportacionEnCurso)
     const s = this.nuevaSesion(clave, { rol: 'datos', conexionId: con.id }, con, `exportacion:${peticionId}`)
     s.interna = true
     s.accion = 'exportar'
@@ -410,7 +411,7 @@ export class NucleoSesiones {
    */
   sesionEdicion(con: DbConnection, peticionId: string): Sesion {
     const clave = `edicion|${peticionId}`
-    if (this.porClave.has(clave)) throw new ErrorGestor('ocupada', 'Ya hay un envío con ese identificador en curso.')
+    if (this.porClave.has(clave)) throw new ErrorGestor('ocupada', txSesiones().envioEnCurso)
     const s = this.nuevaSesion(clave, { rol: 'datos', conexionId: con.id }, con, `${PREFIJO_SESION_EDICION}${peticionId}`)
     s.interna = true
     s.accion = 'enviar'
@@ -451,15 +452,15 @@ export class NucleoSesiones {
 
   conexionOError(id: string): DbConnection {
     const con = this.deps.conexion(id)
-    if (!con) throw new ErrorGestor('interno', 'La conexión ya no existe.')
+    if (!con) throw new ErrorGestor('interno', txSesiones().conexionNoExiste)
     exigirSql(con)
     return con
   }
 
   conexionDeConsola(ref: RefConsola): DbConnection {
     const con = this.deps.conexion(ref.conexionId)
-    if (!con) throw new ErrorGestor('interno', 'La conexión de esta consola ya no existe.')
-    if (con.profileId !== ref.perfilId) throw new ErrorGestor('interno', 'La consola no pertenece a este perfil.')
+    if (!con) throw new ErrorGestor('interno', txSesiones().conexionConsolaNoExiste)
+    if (con.profileId !== ref.perfilId) throw new ErrorGestor('interno', txSesiones().consolaOtroPerfil)
     exigirSql(con)
     return con
   }
@@ -471,12 +472,9 @@ export class NucleoSesiones {
     const secreto = con.tieneSecreto ? this.deps.secreto(con.id) : null
     if (secreto !== null) return secreto
     if (con.tieneSecreto) {
-      throw new ErrorGestor(
-        'sinSecreto',
-        'La contraseña guardada no se puede descifrar en este equipo. Edita la conexión y vuelve a escribirla.'
-      )
+      throw new ErrorGestor('sinSecreto', txSesiones().secretoNoDescifrable)
     }
-    throw new ErrorGestor('sinSecreto', 'Esta conexión no tiene contraseña guardada. Edítala para añadirla.')
+    throw new ErrorGestor('sinSecreto', txSesiones().sinSecreto)
   }
 
   /**
@@ -491,7 +489,7 @@ export class NucleoSesiones {
     } catch {
       ruta = null
     }
-    if (!ruta) throw new ErrorGestor('interno', 'La conexión no tiene archivo de base guardado. Edítala y elige el archivo.')
+    if (!ruta) throw new ErrorGestor('interno', txSesiones().sinArchivoBase)
     return ruta
   }
 

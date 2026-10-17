@@ -67,8 +67,8 @@ function main(): void {
     const malicioso = '"}, { "$where": "sleep(1000)" }, {"x": "'
     const ig = exprDe({ columna: 'estatus', categoria: 'texto', operador: 'igual', valor: malicioso })
     check('= exacto: un valor con comillas y llaves es SOLO un texto (sin $where en ninguna parte)', ig.valor?.$eq === malicioso && Object.keys(ig.valor).length === 1 && !/"\$where":/.test(ig.texto.replace(JSON.stringify(malicioso), '')), j(ig))
-    const dist = exprDe({ columna: 'estatus', categoria: 'texto', operador: 'distinto', valor: 'NOMINA PROCESADA' })
-    check('≠ es $ne (en MongoDB ya incluye los que no tienen el campo)', dist.valor?.$ne === 'NOMINA PROCESADA', j(dist))
+    const dist = exprDe({ columna: 'estatus', categoria: 'texto', operador: 'distinto', valor: 'PEDIDO ENVIADO' })
+    check('≠ es $ne (en MongoDB ya incluye los que no tienen el campo)', dist.valor?.$ne === 'PEDIDO ENVIADO', j(dist))
     const esp = exprDe({ columna: 'nombre', categoria: 'texto', operador: 'igual', valor: ' con espacios ' })
     check('el texto de = va tal cual (sin recortar)', esp.valor?.$eq === ' con espacios ', j(esp))
   }

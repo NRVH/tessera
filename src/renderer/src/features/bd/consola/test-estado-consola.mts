@@ -15,12 +15,14 @@ import type {
   DbResultadoSentencia,
   DbTiempos
 } from '../../../../../shared/db-explorador-ipc.ts'
-import { MOTIVO_CARPETA_SIN_ESCRITURA } from '../../../../../shared/dbExploradorSesiones.ts'
+import { motivoCarpetaSinEscritura } from '../../../../../shared/dbExploradorSesiones.ts'
+
+const MOTIVO_CARPETA_SIN_ESCRITURA = motivoCarpetaSinEscritura()
 import { dividirSentencias, type Sentencia } from '../../../../../shared/sql/divisorSql.ts'
 import type { DialectoSql } from '../../../../../shared/sql/dialectosSql.ts'
 import { ID_SALIDA } from '../resultados/pestanasResultado.ts'
 import { SEPARADOR_MILES } from '../rejilla/celdasRejilla.ts'
-import { descriptorMarca, formatoDuracion, HOVER_CLIENTE, HOVER_OMITIDA } from './marcasConsola.ts'
+import { descriptorMarca, formatoDuracion, hoverCliente, hoverOmitida } from './marcasConsola.ts'
 import { basesConsolaClaves, basesConsolaDocs, claveBaseConsola, esquemaAlCrear, sembrarBaseConsola } from './basesConsola.ts'
 import {
   crearLote,
@@ -38,14 +40,11 @@ import {
   type Lote
 } from './lote.ts'
 import {
-  ETIQUETA_FORZAR,
   MAX_ECO,
   MAX_ENTRADAS_SALIDA,
-  TEXTO_CLIENTE,
-  TEXTO_SESION_PERDIDA,
-  TEXTO_SIN_RESPUESTA_STOP,
   agregarSalida,
   cantidad,
+  etiquetaForzar,
   etiquetaPosicion,
   etiquetaRestantes,
   horaDe,
@@ -60,14 +59,17 @@ import {
   textoError,
   textoFilas,
   textoLoteDetenido,
+  textoCliente,
   textoNadaEjecutado,
+  textoSesionPerdida,
+  textoSinRespuestaStop,
   textoTx
 } from './salidaConsola.ts'
 import {
-  MOTIVO_LIBERADA,
-  PISTA_SIN_SENTENCIA,
-  TITULO_SOLO_LECTURA,
-  TITULO_TX_ARCHIVO,
+  motivoLiberada,
+  pistaSinSentencia,
+  tituloSoloLectura,
+  tituloTxArchivo,
   ejecutando,
   estadoBarraTx,
   estadoInicialConsola,
@@ -82,6 +84,17 @@ import {
   type AccionConsola,
   type EstadoConsola
 } from './estadoConsola.ts'
+
+const HOVER_CLIENTE = hoverCliente()
+const HOVER_OMITIDA = hoverOmitida()
+const ETIQUETA_FORZAR = etiquetaForzar()
+const TEXTO_CLIENTE = textoCliente()
+const TEXTO_SESION_PERDIDA = textoSesionPerdida()
+const TEXTO_SIN_RESPUESTA_STOP = textoSinRespuestaStop()
+const MOTIVO_LIBERADA = motivoLiberada()
+const PISTA_SIN_SENTENCIA = pistaSinSentencia()
+const TITULO_SOLO_LECTURA = tituloSoloLectura()
+const TITULO_TX_ARCHIVO = tituloTxArchivo()
 
 // ---------------------------------------------------------------------------
 // Reporte PASS/FAIL (mismo patrón que los otros test-*.mts)

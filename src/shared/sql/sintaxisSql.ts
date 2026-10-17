@@ -12,6 +12,7 @@ import { etiquetaMotor } from '../motores/index.ts'
 import type { Sentencia } from './divisorSql.ts'
 import { esSignificativo, tokenizar, type Token } from './lexicoSql.ts'
 import { offsetEnviadoAModelo, puntosDeCodigoAUtf16 } from './posicionErrorSql.ts'
+import { txSql } from './textosSql.ts'
 
 /**
  * Lo que el main dice de UN texto: válido, un error con su posición (puntos de código base 0
@@ -46,7 +47,7 @@ export const MAX_SENTENCIAS_SINTAXIS = 10_000
  * nombre sale del registro: la gramática lleva el id de su motor.
  */
 export function fuenteSintaxis(g: GramaticaLocal): string {
-  return `gramática de ${etiquetaMotor(g)}, sin ejecutar`
+  return txSql().sintaxis.fuente(etiquetaMotor(g))
 }
 
 /** Avisos léxicos que ya explican el fallo de la sentencia: con ellos no se pide la gramática. */
@@ -82,12 +83,13 @@ export function sentenciasAValidar(sentencias: readonly Sentencia[], d: Dialecto
  * «Error de sintaxis:», porque traducirlos a medias mentiría más que dejarlos en inglés.
  */
 export function mensajeSintaxis(crudo: string): string {
+  const t = txSql().sintaxis
   const cerca = /^syntax error at or near "([\s\S]*)"$/.exec(crudo)
-  if (cerca) return `Error de sintaxis cerca de «${cerca[1]}».`
-  if (crudo === 'syntax error at end of input') return 'La sentencia está incompleta: se acaba antes de lo que pide la gramática.'
+  if (cerca) return t.cerca(cerca[1])
+  if (crudo === 'syntax error at end of input') return t.incompleta
   const hondo = /^memory exhausted at or near "([\s\S]*)"$/.exec(crudo)
-  if (hondo) return `Anidamiento demasiado profundo cerca de «${hondo[1]}».`
-  return `Error de sintaxis: ${crudo}`
+  if (hondo) return t.hondo(hondo[1])
+  return t.otro(crudo)
 }
 
 /** Tokens significativos de la sentencia, en offsets del modelo. */

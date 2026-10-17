@@ -56,6 +56,13 @@ function sembrar(datos: string, m: Montaje): void {
         color: '#9814c8',
         agentes: [{ tipo: 'claude-code', configDir: './.tessera/perfiles/personal/claude' }],
         sandbox: { habilitado: false }
+      },
+      {
+        id: 'trabajo',
+        nombre: 'Trabajo',
+        color: '#14a0c8',
+        agentes: [{ tipo: 'claude-code', configDir: './.tessera/perfiles/trabajo/claude' }],
+        sandbox: { habilitado: false }
       }
     ])
   )
@@ -65,7 +72,8 @@ function sembrar(datos: string, m: Montaje): void {
       version: 1,
       activeProfileId: 'personal',
       byProfile: {
-        personal: { openProjects: [{ projectHostPath: m.carpeta, name: 'areas', estado: 'active' }], activePath: m.carpeta }
+        personal: { openProjects: [{ projectHostPath: m.carpeta, name: 'areas', estado: 'active' }], activePath: m.carpeta },
+        trabajo: { openProjects: [], activePath: null }
       },
       settings: { defaultProjectMode: 'windows', windowsModeProjects: [`personal|${m.carpeta}`] }
     })
@@ -138,5 +146,20 @@ test.describe('Git · Cambios con varios repos', () => {
     await panel.getByRole('button', { name: 'Desplegar los repositorios con cambios' }).click()
     await expect(filas, 'desplegados otra vez').toHaveCount(3)
     await expect(panel.getByRole('button', { name: 'Plegar todos los repositorios' })).toBeVisible()
+  })
+
+  test('un repo cerrado a mano sigue cerrado al volver de otro perfil', async () => {
+    const win = s.win
+    const panel = win.locator('.git-panel:visible')
+    const api = panel.locator('.repo-section', { has: win.locator('.repo-name', { hasText: /^api$/ }) })
+    await api.locator('.repo-header .repo-name').click()
+    await expect(api.locator('.git-arbol-fila'), 'api cerrado a mano').toHaveCount(0)
+    await expect(panel.locator('.git-arbol-fila'), 'web sigue abierto').toHaveCount(2)
+
+    await win.locator('.tabs-profiles .profile-tab', { hasText: 'Trabajo' }).first().click()
+    await win.locator('.tabs-profiles .profile-tab', { hasText: 'Personal' }).first().click()
+    await expect(panel.locator('.repo-header'), 'de vuelta, en la misma vista').toHaveCount(2, { timeout: 30_000 })
+    await expect(panel.locator('.git-arbol-fila'), 'web abierto y api sigue cerrado').toHaveCount(2)
+    await expect(api.locator('.git-arbol-fila')).toHaveCount(0)
   })
 })

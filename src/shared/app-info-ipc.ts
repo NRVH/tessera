@@ -1,15 +1,17 @@
 // =============================================================================
-// Contrato IPC de la identidad de la app (versión y motores), servida por el main.
+// Contrato IPC de la propia app: su identidad (versión y motores) y reiniciarla.
 // Canal propio y no `update:getState`: el «Acerca de» no debe depender de que el
 // auto-update esté habilitado (en desarrollo su estado es `disabled`).
 // Viene del main porque el renderer sandboxed no tiene `process.versions`.
-// Solo lectura y fija durante la vida del proceso: un `invoke`, sin canal de push.
+// Todo `invoke`, sin canal de push.
 // =============================================================================
 
 /** Canales del namespace. Molde del repo: objeto `as const` con sus tipos al lado. */
 export const APP_INFO_CHANNELS = {
   /** invoke -> AppInfo. Sin request. */
-  GET: 'appInfo:get'
+  GET: 'appInfo:get',
+  /** invoke -> void. Cierre ordenado y vuelta a abrir (el idioma se lee al arrancar). */
+  REINICIAR: 'appInfo:reiniciar'
 } as const
 
 /** Lo que la app es: su versión y sobre qué corre. */

@@ -38,11 +38,42 @@ import {
 import { CONTEXT_CHANNELS, type ContextRequest, type ContextSnapshot } from '../shared/context-ipc'
 import { HIBERNATE_CHANNELS, type HibernateResult } from '../shared/hibernate-ipc'
 import {
+  AGENTES_MANUALES_CHANNELS,
+  type AplicarCapaRequest,
+  type AplicarCapaResult,
+  type BuscarNativoResult,
+  type ProgresoCapaMessage
+} from '../shared/agentes-manuales-ipc'
+import type { LecturaContexto } from '../shared/contextoAgenteManual'
+import {
   SANDBOX_RED_CHANNELS,
   type AvisoRed,
   type PrevueloRequest,
   type ResultadoRedPrevuelo
 } from '../shared/sandbox-red-ipc'
+
+/** Agentes definidos a mano: buscar su programa en nativo, aplicar la capa Docker del perfil y leer su contexto. */
+export interface AgentesManualesApi {
+  /** Ruta del programa para la shell de las sesiones, o null si no lo encuentra. */
+  buscarNativo: (programa: string) => Promise<BuscarNativoResult>
+  /** Construye la capa del perfil y recrea su contenedor (nunca rechaza: el fallo va en el resultado). */
+  aplicarCapa: (req: AplicarCapaRequest) => Promise<AplicarCapaResult>
+  /** Suscribe a las líneas del build de la capa. Devuelve la función para desuscribirse. */
+  onProgreso: (cb: (p: ProgresoCapaMessage) => void) => () => void
+  /** Lee el contexto de una sesión con su fuente definida (nunca rechaza: el fallo va en el resultado). */
+  contexto: (sessionId: string) => Promise<LecturaContexto>
+}
+
+export const agentesManuales: AgentesManualesApi = {
+  buscarNativo: (programa) => ipcRenderer.invoke(AGENTES_MANUALES_CHANNELS.BUSCAR_NATIVO, { programa }),
+  contexto: (sessionId) => ipcRenderer.invoke(AGENTES_MANUALES_CHANNELS.CONTEXTO, { sessionId }),
+  aplicarCapa: (req) => ipcRenderer.invoke(AGENTES_MANUALES_CHANNELS.APLICAR_CAPA, req),
+  onProgreso: (cb) => {
+    const listener = (_e: Electron.IpcRendererEvent, p: ProgresoCapaMessage): void => cb(p)
+    ipcRenderer.on(AGENTES_MANUALES_CHANNELS.PROGRESO, listener)
+    return () => ipcRenderer.removeListener(AGENTES_MANUALES_CHANNELS.PROGRESO, listener)
+  }
+}
 
 /**
  * «Actualizar los agentes de tu equipo»: versiones de los CLIs nativos, instalación

@@ -8,7 +8,9 @@
 
 import type { RepoStatus, WorkingChange } from '../../../../shared/git-ipc'
 import { EstadoVacio } from '../../comun/EstadoVacio'
+import { EsperaCarga } from '../../comun/IndicadorCarga'
 import { VirtualList } from '../../comun/VirtualList'
+import { useRaizDelProyecto } from '../../comun/raizDelProyecto'
 import { FilaArbolArchivo } from './FilaArbolArchivo'
 import { IconoLote, IconoTodoLimpio } from './iconos'
 import { prefetchDiff } from './modelo/blobCache'
@@ -21,6 +23,7 @@ import {
   type ManejadoresArchivo,
   type ObjetivoMenu
 } from './modelo/seccionesCambios'
+import { txGit } from './textos.ts'
 import { useListaCambios, type ListaCambios } from './useListaCambios'
 
 interface PropsCuerpoRepo {
@@ -49,21 +52,23 @@ export function CuerpoRepo(props: PropsCuerpoRepo): React.JSX.Element {
   const { anidado, status, cargando, altoFila, altoCabecera, marcadas, acciones } = props
   const changes = status?.changes ?? null
   const lista = useListaCambios(changes, marcadas, altoCabecera, altoFila, anidado)
+  const raiz = useRaizDelProyecto()
   const pintarItem = (item: ItemCambio): React.JSX.Element => {
     if (item.kind === 'header') return cabeceraSubseccion(item, lista, acciones)
-    return filaCambio(item, lista, props)
+    return filaCambio(item, lista, props, raiz)
   }
   const estados = estadosTransitorios(status, cargando)
   // Working-tree LIMPIO: un vacío de verdad. Solo en el modo NO anidado: dentro de
   // una sección de repo el centrado de 100% empujaría a los repos de abajo.
   const limpio = status !== null && !status.error && changes?.length === 0
+  const t = txGit()
 
   // ANIDADO (multi-repo): sin scroll propio -> lista plana.
   if (anidado) {
     return (
       <div className="working-changes-list">
         {estados}
-        {limpio && <div className="git-state-inline">Sin cambios en el working-tree.</div>}
+        {limpio && <div className="git-state-inline">{t.sinCambiosLinea}</div>}
         {lista.items.map((item) => (
           <div key={item.id}>{pintarItem(item)}</div>
         ))}
@@ -75,8 +80,8 @@ export function CuerpoRepo(props: PropsCuerpoRepo): React.JSX.Element {
     return (
       <EstadoVacio
         icono={<IconoTodoLimpio />}
-        titulo="Sin cambios"
-        pista="El working-tree está limpio: no hay nada modificado ni sin versionar."
+        titulo={t.sinCambiosTitulo}
+        pista={t.sinCambiosPista}
       />
     )
   }
@@ -85,7 +90,7 @@ export function CuerpoRepo(props: PropsCuerpoRepo): React.JSX.Element {
   return (
     <VirtualList<ItemCambio>
       className="working-changes-list"
-      ariaLabel="Cambios del working-tree"
+      ariaLabel={t.cambiosWorkingTree}
       items={lista.items}
       itemHeight={lista.altoItem}
       getKey={(item) => item.id}
@@ -143,25 +148,26 @@ export function AccionesLote({
   const puedePreparar = seccion !== 'staged' && acciones.onStageMany
   // Descartar no se ofrece en conflictos: el lote lo revertiría a HEAD sin diálogo.
   const puedeDescartar = seccion !== 'staged' && seccion !== 'conflict' && acciones.onDiscardMany
-  const etiquetaPreparar = seccion === 'conflict' ? `Marcar ${n} como resueltos` : `Preparar ${n}`
+  const t = txGit()
+  const etiquetaPreparar = seccion === 'conflict' ? t.marcarResueltosN(n) : t.prepararN(n)
   return (
     <span className="subseccion-acciones">
       {seccion === 'staged' && acciones.onUnstageMany && (
-        <BotonLote accion="quitar" texto={`Quitar ${n}`} titulo={`Quitar ${n} de preparados`} onClick={() => acciones.onUnstageMany?.(seleccion)} />
+        <BotonLote accion="quitar" texto={t.quitarN(n)} titulo={t.quitarNTitulo(n)} onClick={() => acciones.onUnstageMany?.(seleccion)} />
       )}
       {puedePreparar && (
         <BotonLote
           accion="preparar"
           texto={etiquetaPreparar}
-          titulo={seccion === 'conflict' ? `Marcar ${n} archivos como resueltos` : `Preparar ${n} archivos`}
+          titulo={seccion === 'conflict' ? t.marcarResueltosNTitulo(n) : t.prepararNTitulo(n)}
           onClick={() => acciones.onStageMany?.(seleccion)}
         />
       )}
       {puedeDescartar && (
         <BotonLote
           accion="descartar"
-          texto={`Descartar ${n}`}
-          titulo={`Descartar los cambios de ${n} archivos`}
+          texto={t.descartarN(n)}
+          titulo={t.descartarNTitulo(n)}
           onClick={() => acciones.onDiscardMany?.(seleccion)}
         />
       )}
@@ -190,7 +196,8 @@ function BotonLote(p: { accion: 'preparar' | 'quitar' | 'descartar'; texto: stri
 function filaCambio(
   item: Extract<ItemCambio, { kind: 'fila' }>,
   lista: ListaCambios,
-  props: PropsCuerpoRepo
+  props: PropsCuerpoRepo,
+  raiz: string
 ): React.JSX.Element {
   const { seleccionada, activa, onAlternarMarcas, onSeleccionar, onAbrirDiff, onMenu } = props
   const { fila, seccion } = item
@@ -211,7 +218,7 @@ function filaCambio(
       onAbrir={() => onAbrirDiff(change, seccion)}
       onPrefetch={() => {
         const t = resolveWorkingDiffTarget(change, ejeDe(seccion))
-        prefetchDiff(t.before, t.after)
+        prefetchDiff(t.before, t.after, raiz)
       }}
       onMenu={(x, y) => onMenu(x, y, objetivoDe(seccion, ruta, lista))}
     />
@@ -221,15 +228,17 @@ function filaCambio(
 // Estados TRANSITORIOS (error y carga), comunes a los dos modos. Siguen siendo
 // líneas: centrar un "cargando" hace saltar el layout al llegar los datos.
 function estadosTransitorios(status: RepoStatus | null, cargando: boolean): React.JSX.Element {
+  const t = txGit()
   return (
     <>
       {status?.error && (
         // `title`: dentro de una sección de repo la línea se recorta a una fila; el texto entero vive aquí.
         <div className="git-error" title={status.error}>
-          No se pudieron leer los cambios: {status.error}
+          {t.errorCambios(status.error)}
         </div>
       )}
-      {!status && cargando && <div className="git-state-inline">Cargando cambios…</div>}
+      {/* Una sola línea: la sección tiene el alto medido de una fila mientras carga. */}
+      {!status && cargando && <EsperaCarga texto={t.cargandoCambios} variante="fila" className="git-state-inline" />}
     </>
   )
 }

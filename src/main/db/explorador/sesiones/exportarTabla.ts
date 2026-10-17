@@ -25,10 +25,11 @@ import {
   type ValorClave
 } from '../sqlRejilla.ts'
 import type { Apertura } from './apertura.ts'
-import { AVISO_EXPORTAR_POR_PAGINAS, ErrorGestor } from './errores.ts'
+import { avisoExportarPorPaginas, ErrorGestor } from './errores.ts'
 import type { NucleoSesiones } from './NucleoSesiones.ts'
 import { capacidades, paginaExportada } from './reglas.ts'
 import type { TablaSesion } from './tabla.ts'
+import { txSesiones } from './textosSesiones.ts'
 import type { ConsumidorPaginas, PeticionTabla, Proceso, Sesion } from './tipos.ts'
 
 /** Lo que recibe la tarea de cola de una exportación de tabla. */
@@ -150,7 +151,7 @@ export class ExportarTabla {
         binds = consulta.binds as BindsTrabajador
         break
       case 'rownum':
-        throw new ErrorGestor('interno', 'Exportar una tabla necesita leerla sin paginar: la forma ROWNUM no lo permite.')
+        throw new ErrorGestor('interno', txSesiones().exportarSinPaginar)
       case 'keyset':
         // SQLite: un cursor vivo bloquearía a la aplicación dueña del archivo.
         return this.exportarTablaPorPaginas(con, d, req, consumir, cancelada)
@@ -208,7 +209,7 @@ export class ExportarTabla {
           const fallido = this.tabla.errorDeTabla(s, p, consulta, e, t0)
           throw new ErrorGestor(fallido.error.motivo, fallido.error.mensaje, fallido.error)
         }
-        if (r.tipo !== 'filas') throw new ErrorGestor('interno', 'La consulta de la tabla no devolvió filas.')
+        if (r.tipo !== 'filas') throw new ErrorGestor('interno', txSesiones().tablaSinFilas)
         await this.volcarCursorVivo(s, p, r, consumir, cancelada)
         ok = true
       } catch (e) {
@@ -248,7 +249,7 @@ export class ExportarTabla {
     } finally {
       this.n.soltarSesionEfimera(s, usado)
     }
-    return primera.columnasClave ? undefined : AVISO_EXPORTAR_POR_PAGINAS
+    return primera.columnasClave ? undefined : avisoExportarPorPaginas()
   }
 
   /** La tarea de cola de `exportarTablaPorPaginas`: pide páginas hasta agotar la tabla. */
@@ -268,7 +269,7 @@ export class ExportarTabla {
         let desde = 0
         let columnas: DbColumnaResultado[] | null = null
         for (;;) {
-          if (cancelada()) throw new ErrorGestor('cancelada', 'Exportación cancelada.')
+          if (cancelada()) throw new ErrorGestor('cancelada', txSesiones().exportacionCancelada)
           const opciones = opcionesDePagina(this.n.ro(con), req, consulta)
           let r: ResultadoTrabajador
           try {
@@ -283,12 +284,12 @@ export class ExportarTabla {
             const fallido = this.tabla.errorDeTabla(s, p, consulta, e, t0)
             throw new ErrorGestor(fallido.error.motivo, fallido.error.mensaje, fallido.error)
           }
-          if (r.tipo !== 'filas') throw new ErrorGestor('interno', 'La consulta de la tabla no devolvió filas.')
+          if (r.tipo !== 'filas') throw new ErrorGestor('interno', txSesiones().tablaSinFilas)
           columnas = columnas ?? r.columnas
           await consumir(paginaExportada(columnas, r.filasJson, r.recortes))
           if (!r.hayMas || r.nFilas === 0) break
           if (consulta.columnasClave) {
-            if (!r.ultimaClave) throw new ErrorGestor('interno', 'El trabajador no devolvió la clave de la última fila.')
+            if (!r.ultimaClave) throw new ErrorGestor('interno', txSesiones().sinUltimaClave)
             despues = r.ultimaClave
           } else desde += r.nFilas
           consulta = consultaDePagina(d, req, despues, desde)
@@ -322,7 +323,7 @@ export class ExportarTabla {
     try {
       await consumir(paginaExportada(columnas, r.filasJson, r.recortes))
       while (lector !== null) {
-        if (cancelada()) throw new ErrorGestor('cancelada', 'Exportación cancelada.')
+        if (cancelada()) throw new ErrorGestor('cancelada', txSesiones().exportacionCancelada)
         const pagina = await p.trabajador.enviar<'leer'>({
           op: 'leer',
           sesion: s.idTrabajador,

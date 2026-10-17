@@ -29,6 +29,12 @@ export interface ConfirmedTarget {
   repo: DetectedRepo | null
 }
 
+/** El perfil y el proyecto que se VEN: cambian en el mismo commit que el clic (ver `useTabs`). */
+export interface ObjetivoVisto {
+  profileId: string
+  project: OpenProject
+}
+
 /** Estado de las pestañas y del modo de los proyectos. */
 export interface EstadoPestanas {
   /** Árbol de perfiles y proyectos; solo lo cambia `despacharTabs`. */

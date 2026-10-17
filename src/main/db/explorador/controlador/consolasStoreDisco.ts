@@ -10,6 +10,7 @@ import { open, readFile, rename, stat, unlink } from 'node:fs/promises'
 import type { FileHandle } from 'node:fs/promises'
 import { DB_CONSOLA_MAX_BYTES } from '../../../../shared/db-explorador-ipc.ts'
 import { codigoFs, ErrorConsolas, esTransitorio } from './consolasStoreErrores.ts'
+import { txControlador } from './textosControlador.ts'
 
 /** Versión de un archivo que no está en disco. */
 export const AUSENTE = 'ausente'
@@ -49,7 +50,7 @@ export async function leerBytesConsola(ruta: string): Promise<{ bytes: Buffer; v
   try {
     const grande = new ErrorConsolas(
       'tamano',
-      `El archivo de la consola supera ${DB_CONSOLA_MAX_BYTES / (1024 * 1024)} MiB; ábrelo como archivo.`
+      txControlador().consolaGrande(DB_CONSOLA_MAX_BYTES / (1024 * 1024))
     )
     if ((await fh.stat()).size > DB_CONSOLA_MAX_BYTES) throw grande
     const bytes = await fh.readFile()
@@ -80,7 +81,7 @@ export async function eliminarArchivoConsola(ruta: string, nombre: string, papel
     try {
       await papelera(ruta)
     } catch {
-      throw new ErrorConsolas('papelera', `No se pudo mover «${nombre}» a la papelera.`)
+      throw new ErrorConsolas('papelera', txControlador().noSeMovioPapelera(nombre))
     }
   }
   // Restos del escritor atómico: sin su archivo no los lee nadie.

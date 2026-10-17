@@ -10,8 +10,12 @@
 
 const net = require('node:net')
 
-// Fija y sin el texto del servidor: lo que este escriba no llega a la terminal por aquí.
-const MENSAJE_NO = 'Tessera no contestó esa pregunta del servidor'
+// Fija y sin el texto del servidor: lo que este escriba no llega a la terminal por aquí. En inglés
+// con `TESSERA_IDIOMA=en`, que ssh hereda de la terminal de Tessera.
+const MENSAJE_NO = {
+  es: 'Tessera no contestó esa pregunta del servidor',
+  en: 'Tessera did not answer that question from the server'
+}
 // Holgado: la respuesta puede tener que escribirla el usuario en un diálogo de Tessera.
 const TOPE_MS = 150_000
 const MAX_RESPUESTA = 64 * 1024
@@ -58,6 +62,6 @@ function preguntar(prompt, fin) {
 }
 
 preguntar(process.argv[2] ?? '', (secreto) => {
-  if (secreto === null) salir(process.stderr, MENSAJE_NO + '\n', 1)
+  if (secreto === null) salir(process.stderr, (process.env.TESSERA_IDIOMA === 'en' ? MENSAJE_NO.en : MENSAJE_NO.es) + '\n', 1)
   else salir(process.stdout, secreto + '\n', 0)
 })

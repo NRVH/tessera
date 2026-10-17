@@ -13,6 +13,7 @@ import { HUECO, recolocar, type AnclaPopover, type PosicionPopover } from '../..
 import { useCierreYFoco } from '../../comun/usePopoverFlotante'
 import { ListaConexionesSsh, type DatosListaConexionesSsh } from './ListaConexionesSsh'
 import { ID_LANZADOR_SSH } from './rielSsh'
+import { txSsh } from './textos.ts'
 
 /** Lo que recibe el popover: lo de la lista, el rectángulo de su ancla y cómo cerrarse. */
 export interface PropsPopoverConexionesSsh extends DatosListaConexionesSsh {
@@ -57,7 +58,7 @@ export function PopoverConexionesSsh({ ancla, onCerrar, ...lista }: PropsPopover
         id={ID_LANZADOR_SSH}
         className="ssh-popover"
         role="dialog"
-        aria-label="Conexiones SSH"
+        aria-label={txSsh().conexionesSsh}
         style={{ left: pos.left, top: pos.top }}
         onKeyDown={(e) => alTeclear(e, onCerrar)}
       >

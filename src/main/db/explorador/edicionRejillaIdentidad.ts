@@ -12,6 +12,7 @@ import { nunca } from '../../../shared/nunca.ts'
 import type { ColumnaEdicion, TablaEdicion } from './edicionRejillaTablas.ts'
 import { MAX_CLAVE, MAX_IDENT } from './edicionRejillaTipos.ts'
 import { COLUMNA_ROWID } from './sqlRejilla.ts'
+import { ES_IDENTIDAD, txIdentidad } from './textosRejilla.ts'
 
 export interface EntradaIdentidad {
   motor: DbMotor
@@ -38,27 +39,33 @@ export interface EntradaIdentidad {
   unica: readonly string[] | null
 }
 
-export const MOTIVO_SOLO_LECTURA = 'La conexión es de solo lectura: la rejilla no puede escribir en ella.'
+// Los `MOTIVO_*` son el texto en ESPAÑOL, fijo: sirven para comparar con la respuesta del explorador.
+// Lo que se enseña al usuario sale de `motivoSoloLectura()` y `decidirIdentidad`, en el idioma activo.
+export const MOTIVO_SOLO_LECTURA = ES_IDENTIDAD.soloLectura
 /** SQLite: la sombra de una tabla virtual o una `sqlite_*`. */
-export const MOTIVO_TABLA_INTERNA = 'Es una tabla interna del motor (la mantiene él, no el usuario): la rejilla no la edita.'
+export const MOTIVO_TABLA_INTERNA = ES_IDENTIDAD.tablaInterna
 /** SQLite: sin PK, y una columna llamada `rowid` tapa la dirección de la fila (o no la tiene). */
-export const MOTIVO_ROWID_TAPADO =
-  'La tabla no tiene clave primaria y una columna suya se llama como su dirección de fila (rowid): no hay forma fiable de encontrar cada fila.'
-export const MOTIVO_SIN_CLAVE_PG =
-  'La tabla no tiene clave primaria ni una UNIQUE con todas sus columnas NOT NULL: no hay forma fiable de encontrar cada fila.'
+export const MOTIVO_ROWID_TAPADO = ES_IDENTIDAD.rowidTapado
+export const MOTIVO_SIN_CLAVE_PG = ES_IDENTIDAD.sinClavePg
+
+/** El motivo de solo lectura de la conexión, en el idioma activo. */
+export function motivoSoloLectura(): string {
+  return txIdentidad().soloLectura
+}
 
 function motivoDeTipo(tipo: DbTipoObjeto): string {
+  const t = txIdentidad()
   switch (tipo) {
     case 'vista':
-      return 'Es una vista: la rejilla solo edita tablas.'
+      return t.vista
     case 'vistaMaterializada':
-      return 'Es una vista materializada: la rejilla solo edita tablas.'
+      return t.vistaMaterializada
     case 'tablaForanea':
-      return 'Es una tabla foránea (de otro servidor): la rejilla solo edita tablas locales.'
+      return t.tablaForanea
     case 'tablaVirtual':
-      return 'Es una tabla virtual (la sirve un módulo, no guarda filas propias): la rejilla solo edita tablas ordinarias.'
+      return t.tablaVirtual
     default:
-      return 'Este objeto no es una tabla: la rejilla solo edita tablas.'
+      return t.noEsTabla
   }
 }
 
@@ -74,11 +81,11 @@ function identidadSinPk(e: EntradaIdentidad): DbIdentidadFila {
     case 'rowid':
       // SQLite dice con qué alias se lee (`aliasRowid`); el DML de «Enviar» escribe `ROWID`,
       // así que solo vale si `rowid` no lo tapa una columna. Oracle no lo dice: siempre está.
-      if (e.aliasRowid !== undefined && e.aliasRowid !== 'rowid') return { tipo: 'ninguna', motivo: MOTIVO_ROWID_TAPADO }
+      if (e.aliasRowid !== undefined && e.aliasRowid !== 'rowid') return { tipo: 'ninguna', motivo: txIdentidad().rowidTapado }
       return { tipo: 'rowid', columna: COLUMNA_ROWID }
     case 'unicaNoNula':
       if (e.unica && e.unica.length > 0) return { tipo: 'pk', columnas: e.unica.slice() }
-      return { tipo: 'ninguna', motivo: MOTIVO_SIN_CLAVE_PG }
+      return { tipo: 'ninguna', motivo: txIdentidad().sinClavePg }
     default:
       return nunca(sinPk, 'decidirIdentidad')
   }
@@ -86,15 +93,14 @@ function identidadSinPk(e: EntradaIdentidad): DbIdentidadFila {
 
 /** Lo que decide la identidad (ver el ADR). Nunca lanza con un motor conocido. */
 export function decidirIdentidad(e: EntradaIdentidad): DbIdentidadFila {
-  if (e.soloLectura) return { tipo: 'ninguna', motivo: e.motivoSoloLectura ?? MOTIVO_SOLO_LECTURA }
-  if (e.remoto) return { tipo: 'ninguna', motivo: 'Es un objeto remoto (@dblink): la rejilla no escribe a través de un enlace.' }
+  const t = txIdentidad()
+  if (e.soloLectura) return { tipo: 'ninguna', motivo: e.motivoSoloLectura ?? t.soloLectura }
+  if (e.remoto) return { tipo: 'ninguna', motivo: t.remoto }
   if (e.tipo !== 'tabla') return { tipo: 'ninguna', motivo: motivoDeTipo(e.tipo) }
-  if (e.sistema) return { tipo: 'ninguna', motivo: 'Es una tabla del sistema: la rejilla no la edita.' }
-  if (e.temporal) {
-    return { tipo: 'ninguna', motivo: 'Es una tabla temporal: sus filas son de cada sesión, y «Enviar» escribe desde otra.' }
-  }
-  if (e.externa) return { tipo: 'ninguna', motivo: 'Es una tabla externa (sus filas están en un archivo del servidor): no se edita.' }
-  if (e.interna) return { tipo: 'ninguna', motivo: MOTIVO_TABLA_INTERNA }
+  if (e.sistema) return { tipo: 'ninguna', motivo: t.sistema }
+  if (e.temporal) return { tipo: 'ninguna', motivo: t.temporal }
+  if (e.externa) return { tipo: 'ninguna', motivo: t.externa }
+  if (e.interna) return { tipo: 'ninguna', motivo: t.tablaInterna }
   if (e.pk.length > 0) return { tipo: 'pk', columnas: e.pk.slice() }
   return identidadSinPk(e)
 }

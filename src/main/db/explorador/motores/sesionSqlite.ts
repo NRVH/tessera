@@ -8,10 +8,11 @@
 
 import type { DbPlan } from '../../../../shared/db-explorador-ipc.ts'
 import type { ColumnaEdicion } from '../edicionRejilla.ts'
-import { nodosSqlite, PREFIJO_EXPLICAR_SQLITE, sqlExplicarSqlite, textoPlanSqlite, AVISO_PLAN_RECORTADO } from '../planSql.ts'
+import { nodosSqlite, PREFIJO_EXPLICAR_SQLITE, sqlExplicarSqlite, textoPlanSqlite, avisoPlanRecortado } from '../planSql.ts'
 import type { BindValorSqlite, ResultadoTrabajador } from '../protocoloTrabajador.ts'
 import { afinidadSqlite, comparacionOriginalSqlite } from '../../../../shared/sql/originalesSql.ts'
 import { aNumero, texto } from './filasCatalogo.ts'
+import { txMotores } from './textosMotores.ts'
 import type { ContextoExplicar, MarcasTablaEdicion, SesionExplorador } from './sesion.ts'
 import type { ConsultaCatalogo, FilaCatalogo } from './tipos.ts'
 
@@ -52,9 +53,10 @@ function columnaSqlite(f: FilaCatalogo): ColumnaEdicion {
   const afinidad = afinidadSqlite(tipo)
   const binaria = afinidad === 'BLOB' && tipo.trim() !== ''
   let noEditable: string | null = null
-  if (oculta === 2 || oculta === 3) noEditable = 'Columna generada: la calcula SQLite.'
-  else if (oculta === 1) noEditable = 'Columna oculta de una tabla virtual: no se escribe.'
-  else if (binaria) noEditable = 'Binaria: no se edita como texto.'
+  const t = txMotores()
+  if (oculta === 2 || oculta === 3) noEditable = t.columnaGenerada('SQLite')
+  else if (oculta === 1) noEditable = t.columnaOcultaVirtual
+  else if (binaria) noEditable = t.binaria
   // La regla compartida con la rejilla (`shared/sql/originalesSql.ts`).
   const comparable = comparacionOriginalSqlite(tipo)
   return { nombre, tipo, noEditable, binaria, lob: null, nacional: false, comparable }
@@ -79,7 +81,7 @@ async function explicarSqlite(ctx: ContextoExplicar): Promise<DbPlan> {
   )
   ctx.prefijo(null)
   ctx.fijarTx(r.tx)
-  if (r.tipo !== 'filas') throw ctx.error('interno', 'SQLite no devolvió el plan.')
+  if (r.tipo !== 'filas') throw ctx.error('interno', txMotores().planSqliteSinFilas)
   const filas = JSON.parse(r.filasJson) as unknown[][]
   const { nodos, recortado } = nodosSqlite(filas)
   const valor: DbPlan = {
@@ -87,7 +89,7 @@ async function explicarSqlite(ctx: ContextoExplicar): Promise<DbPlan> {
     texto: textoPlanSqlite(filas),
     tiempos: { totalMs: Date.now() - ctx.t0, ejecucionMs: r.msEjecucion, lecturaMs: r.msLectura }
   }
-  if (recortado || r.hayMas) valor.avisos = [AVISO_PLAN_RECORTADO]
+  if (recortado || r.hayMas) valor.avisos = [avisoPlanRecortado()]
   return valor
 }
 
@@ -108,7 +110,7 @@ export const SESION_SQLITE: SesionExplorador = {
   },
 
   mensajeEsquemaNoAplicado(esquema: string): string {
-    return `SQLite no tiene el esquema ${esquema}: cada archivo es una base con un único esquema, main.`
+    return txMotores().esquemaSqlite(esquema)
   },
 
   sqlErroresCompilacion(): ConsultaCatalogo | null {
@@ -139,7 +141,7 @@ export const SESION_SQLITE: SesionExplorador = {
 
   // Sin PK, 'rowid' (la decide `decidirIdentidad` con `aliasRowid`): no se pregunta nunca.
   sqlUnicaNoNula(): ConsultaCatalogo {
-    throw new Error('Catálogo: «UNIQUE NOT NULL» no se usa en SQLite: una fila sin PK se identifica por su rowid.')
+    throw new Error(txMotores().uniqueNotNullSqlite)
   },
 
   // El alias que no tapa una columna (`aliasRowid` del catálogo); sin él, `rowid`.

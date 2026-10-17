@@ -10,6 +10,7 @@ import type { LectorDdl } from './catalogo.ts'
 import { texto, textoOpcional } from './filasCatalogo.ts'
 import { citarMysql } from './mapeoMysql.ts'
 import { my, sqlTipoDeRutina } from './sqlMysql.ts'
+import { txMotores } from './textosMotores.ts'
 import type { ConsultaCatalogo, FilaCatalogo } from './tipos.ts'
 
 /** Los tipos con «Ver DDL» en MySQL. */
@@ -40,7 +41,7 @@ export async function leerDdlMysql(lector: LectorDdl, ref: DbRefObjeto): Promise
     const filas = await leer(() => sqlTipoDeRutina(ref))
     clase = filas[0] ? texto(filas[0][0]).trim().toUpperCase() : undefined
     if (clase !== 'PROCEDURE' && clase !== 'FUNCTION') {
-      return { partes: [], origen: 'SHOW CREATE', aviso: 'No hay DDL visible: la rutina no existe o faltan privilegios para verla.' }
+      return { partes: [], origen: 'SHOW CREATE', aviso: txMotores().sinDdlRutina }
     }
   }
   const s = showCreate(clase as string, `${citarMysql(ref.esquema)}.${citarMysql(ref.nombre)}`)
@@ -48,6 +49,6 @@ export async function leerDdlMysql(lector: LectorDdl, ref: DbRefObjeto): Promise
   const ddl = filas[0] ? textoOpcional(filas[0][s.columna]) : undefined
   const origen = `SHOW CREATE ${clase as string}`
   // Sin el privilegio para ver el cuerpo, el servidor devuelve la fila con la sentencia en NULL.
-  if (ddl === undefined) return { partes: [], origen, aviso: 'No hay DDL visible: el objeto no existe o faltan privilegios para verlo.' }
+  if (ddl === undefined) return { partes: [], origen, aviso: txMotores().sinDdlObjeto }
   return { partes: [{ titulo: 'DDL', texto: ddl.trimEnd() + ';\n' }], origen }
 }

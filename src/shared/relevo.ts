@@ -6,6 +6,43 @@
 // si el relevo es utilizable y cómo se lee la salida del instalador; el efecto, en `main/relevo/`.
 // Decisiones: docs/decisiones/actualizacion/relevo-de-windows.md
 // =============================================================================
+import { crearTextos } from './i18n.ts'
+
+/** Los veredictos del instalador, en los dos idiomas. */
+const txRelevo = crearTextos(
+  {
+    instalada: 'Actualización instalada',
+    noEjecutoTitulo: 'El instalador no llegó a ejecutarse',
+    noEjecutoDetalle:
+      'No se pudo arrancar el archivo de instalación. Suele ser que el antivirus lo ' +
+      'bloqueó o que la descarga ya no está en su sitio. Tessera sigue instalada y ' +
+      'funcionando en la versión anterior.',
+    canceladaTitulo: 'Cancelaste la instalación',
+    canceladaDetalle: 'Windows pidió permiso y no se concedió. No se cambió nada.',
+    noReemplazoTitulo: 'El instalador no pudo reemplazar los archivos',
+    noReemplazoDetalle:
+      'El desinstalador de la versión anterior abortó. Casi siempre es una ruta ' +
+      'demasiado larga dentro de la carpeta de la aplicación, no un archivo en uso.',
+    fallo: (code: number) => `El instalador falló (código ${code})`,
+    falloDetalle: 'Tessera sigue instalada en la versión anterior; puedes abrirla y reintentar.'
+  },
+  {
+    instalada: 'Update installed',
+    noEjecutoTitulo: 'The installer did not run',
+    noEjecutoDetalle:
+      'The installation file could not be started. This is usually because an antivirus ' +
+      'blocked it or the download is no longer where it was. Tessera is still installed and ' +
+      'working on the previous version.',
+    canceladaTitulo: 'You canceled the installation',
+    canceladaDetalle: 'Windows asked for permission and it was not granted. Nothing was changed.',
+    noReemplazoTitulo: 'The installer could not replace the files',
+    noReemplazoDetalle:
+      'The uninstaller of the previous version aborted. It is almost always a path ' +
+      'that is too long inside the app folder, not a file in use.',
+    fallo: (code: number) => `The installer failed (code ${code})`,
+    falloDetalle: 'Tessera is still installed on the previous version; you can open it and try again.'
+  }
+)
 
 /** Versión del formato del encargo. Sube si cambian los campos. */
 export const ENCARGO_VERSION = 1
@@ -117,38 +154,18 @@ export interface VeredictoInstalador {
  * que el archivo no estaba donde se creía.
  */
 export function leerSalidaInstalador(code: number | null): VeredictoInstalador {
+  const t = txRelevo()
   if (code === 0) {
-    return { ok: true, titulo: 'Actualización instalada', detalle: '' }
+    return { ok: true, titulo: t.instalada, detalle: '' }
   }
   if (code === null) {
-    return {
-      ok: false,
-      titulo: 'El instalador no llegó a ejecutarse',
-      detalle:
-        'No se pudo arrancar el archivo de instalación. Suele ser que el antivirus lo ' +
-        'bloqueó o que la descarga ya no está en su sitio. Tessera sigue instalada y ' +
-        'funcionando en la versión anterior.'
-    }
+    return { ok: false, titulo: t.noEjecutoTitulo, detalle: t.noEjecutoDetalle }
   }
   if (code === 1223) {
-    return {
-      ok: false,
-      titulo: 'Cancelaste la instalación',
-      detalle: 'Windows pidió permiso y no se concedió. No se cambió nada.'
-    }
+    return { ok: false, titulo: t.canceladaTitulo, detalle: t.canceladaDetalle }
   }
   if (code === 2) {
-    return {
-      ok: false,
-      titulo: 'El instalador no pudo reemplazar los archivos',
-      detalle:
-        'El desinstalador de la versión anterior abortó. Casi siempre es una ruta ' +
-        'demasiado larga dentro de la carpeta de la aplicación, no un archivo en uso.'
-    }
+    return { ok: false, titulo: t.noReemplazoTitulo, detalle: t.noReemplazoDetalle }
   }
-  return {
-    ok: false,
-    titulo: `El instalador falló (código ${code})`,
-    detalle: 'Tessera sigue instalada en la versión anterior; puedes abrirla y reintentar.'
-  }
+  return { ok: false, titulo: t.fallo(code), detalle: t.falloDetalle }
 }

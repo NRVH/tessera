@@ -9,8 +9,8 @@
 // =============================================================================
 
 import {
-  ETIQUETA_CARPETA,
-  ETIQUETA_PARTE,
+  etiquetasCarpeta,
+  etiquetasParte,
   accionDeError,
   aliasParaConfirmar,
   aplicarOrden,
@@ -41,22 +41,22 @@ import {
   textoEliminarConexion,
   tieneSesiones,
   tooltipConexion,
-  TEXTO_AJENA,
-  TEXTO_AJENA_FORMA,
-  PISTA_SOLO_AJENAS,
-  TITULO_SOLO_AJENAS,
+  textoAjenaMotor,
+  textoAjenaForma,
+  pistaSoloAjenas,
+  tituloSoloAjenas,
   textoAjena,
   causaAjena,
   explicacionAjena,
   filaMontajeAjena,
   textoVacioMontaje,
-  MOTIVO_FORMATO_AJENO,
-  NOTA_FORMATO_AJENO,
-  NOTA_MONTAJE_FORMATO_AJENO,
-  TITULO_FORMATO_AJENO,
+  motivoFormatoAjeno,
+  notaFormatoAjeno,
+  notaMontajeFormatoAjeno,
+  tituloFormatoAjeno,
   motivosCabeceraArbol,
   accionDesconectarCabecera,
-  MOTIVO_DESCONECTAR_SIN_SELECCION,
+  motivoDesconectarSinSeleccion,
   vacioAreaSinConexiones,
   vistaPopoverMontaje,
   accionTeclaArbol,
@@ -108,6 +108,19 @@ function check(name: string, pass: boolean, evidence: string): void {
   console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)
 }
 const j = (v: unknown): string => JSON.stringify(v)
+
+// Los textos se leen al usarse; en las pruebas el idioma es el español de siempre.
+const ETIQUETA_CARPETA = etiquetasCarpeta()
+const ETIQUETA_PARTE = etiquetasParte()
+const TEXTO_AJENA = textoAjenaMotor()
+const TEXTO_AJENA_FORMA = textoAjenaForma()
+const PISTA_SOLO_AJENAS = pistaSoloAjenas()
+const TITULO_SOLO_AJENAS = tituloSoloAjenas()
+const MOTIVO_FORMATO_AJENO = motivoFormatoAjeno()
+const NOTA_FORMATO_AJENO = notaFormatoAjeno()
+const NOTA_MONTAJE_FORMATO_AJENO = notaMontajeFormatoAjeno()
+const TITULO_FORMATO_AJENO = tituloFormatoAjeno()
+const MOTIVO_DESCONECTAR_SIN_SELECCION = motivoDesconectarSinSeleccion()
 
 // --- Datos --------------------------------------------------------------------------
 

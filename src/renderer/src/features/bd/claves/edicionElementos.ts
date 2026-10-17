@@ -10,6 +10,7 @@
 import type { DbKvBytes, DbKvRespuesta } from '../../../../../shared/db-claves-ipc.ts'
 import { citarRedisCli } from './bytesClaves.ts'
 import type { ComandoClave, EntradasClave, TextosAccion } from './edicionClaves.ts'
+import { txEdicionClaves } from './textosEdicionClaves.ts'
 
 /** Los tipos con elementos que el visor edita (el hash vive en `edicionClaves.ts`). */
 export type TipoConElementos = 'list' | 'set' | 'zset' | 'stream'
@@ -42,52 +43,55 @@ export function puntuacionValida(s: string): string | null {
 
 /** Los textos del diálogo de cada acción. */
 export function textosElemento(a: AccionElemento, nombre = ''): TextosAccion {
+  const t = txEdicionClaves()
   const base = { etiqueta: null, etiquetaDos: null, multilinea: false, peligro: false }
   switch (a.tipo) {
     case 'anadir':
       return textosAnadir(a.de)
     case 'elemento':
-      return { ...base, titulo: `Editar el elemento ${a.indice}`, etiqueta: 'Valor', boton: 'Guardar', multilinea: true }
+      return { ...base, titulo: t.editarElElemento(a.indice), etiqueta: t.valor, boton: t.guardar, multilinea: true }
     case 'puntuacion':
-      return { ...base, titulo: `Puntuación de «${nombre}»`, etiqueta: 'Puntuación', boton: 'Guardar' }
+      return { ...base, titulo: t.puntuacionDe(nombre), etiqueta: t.puntuacion, boton: t.guardar }
     case 'quitar':
-      return { ...base, titulo: `Borrar «${nombre}»`, boton: a.de === 'list' ? 'Borrar el elemento' : 'Borrar el miembro', peligro: true }
+      return { ...base, titulo: t.borrarNombre(nombre), boton: a.de === 'list' ? t.borrarElementoBoton : t.borrarMiembroBoton, peligro: true }
     case 'quitarEntrada':
-      return { ...base, titulo: `Borrar la entrada ${a.id}`, boton: 'Borrar la entrada', peligro: true }
+      return { ...base, titulo: t.borrarEntradaTitulo(a.id), boton: t.borrarEntradaBoton, peligro: true }
     case 'crear':
-      return { ...base, titulo: 'Nueva clave', boton: 'Crear' }
+      return { ...base, titulo: t.nuevaClave, boton: t.crear }
   }
 }
 
 function textosAnadir(de: TipoConElementos): TextosAccion {
-  const base = { etiquetaDos: null, multilinea: false, peligro: false, boton: 'Añadir' }
+  const t = txEdicionClaves()
+  const base = { etiquetaDos: null, multilinea: false, peligro: false, boton: t.anadirBoton }
   switch (de) {
     case 'list':
-      return { ...base, titulo: 'Añadir un elemento', etiqueta: 'Valor (se añade al final)', multilinea: true }
+      return { ...base, titulo: t.anadirUnElemento, etiqueta: t.valorAlFinal, multilinea: true }
     case 'set':
-      return { ...base, titulo: 'Añadir un miembro', etiqueta: 'Miembro' }
+      return { ...base, titulo: t.anadirUnMiembro, etiqueta: t.miembro }
     case 'zset':
-      return { ...base, titulo: 'Añadir un miembro', etiqueta: 'Miembro', etiquetaDos: 'Puntuación' }
+      return { ...base, titulo: t.anadirUnMiembro, etiqueta: t.miembro, etiquetaDos: t.puntuacion }
     case 'stream':
-      return { ...base, titulo: 'Añadir una entrada', etiqueta: 'Campo', etiquetaDos: 'Valor' }
+      return { ...base, titulo: t.anadirUnaEntrada, etiqueta: t.campo, etiquetaDos: t.valor }
   }
 }
 
 /** Los cuadros que pide cada tipo al crear una clave (el nombre y el tipo son aparte). */
 export function cuadrosDeCreacion(tipo: TipoCreable): { etiqueta: string; etiquetaDos: string | null; multilinea: boolean } {
+  const t = txEdicionClaves()
   switch (tipo) {
     case 'string':
-      return { etiqueta: 'Valor', etiquetaDos: null, multilinea: true }
+      return { etiqueta: t.valor, etiquetaDos: null, multilinea: true }
     case 'hash':
-      return { etiqueta: 'Campo', etiquetaDos: 'Valor', multilinea: false }
+      return { etiqueta: t.campo, etiquetaDos: t.valor, multilinea: false }
     case 'list':
-      return { etiqueta: 'Primer elemento', etiquetaDos: null, multilinea: true }
+      return { etiqueta: t.primerElemento, etiquetaDos: null, multilinea: true }
     case 'set':
-      return { etiqueta: 'Primer miembro', etiquetaDos: null, multilinea: false }
+      return { etiqueta: t.primerMiembro, etiquetaDos: null, multilinea: false }
     case 'zset':
-      return { etiqueta: 'Primer miembro', etiquetaDos: 'Puntuación', multilinea: false }
+      return { etiqueta: t.primerMiembro, etiquetaDos: t.puntuacion, multilinea: false }
     case 'stream':
-      return { etiqueta: 'Campo de la primera entrada', etiquetaDos: 'Valor', multilinea: false }
+      return { etiqueta: t.campoPrimeraEntrada, etiquetaDos: t.valor, multilinea: false }
   }
 }
 
@@ -98,18 +102,19 @@ export function entradasInicialesElemento(a: AccionElemento): EntradasClave {
 
 /** Añadir un elemento a una clave que ya tiene ese tipo (`k` ya citada). */
 function comandoAnadir(k: string, de: TipoConElementos, e: EntradasClave): ComandoClave {
+  const t = txEdicionClaves()
   switch (de) {
     case 'list':
       return { ok: true, texto: `RPUSH ${k} ${texto(e.uno)}` }
     case 'set':
-      return e.uno === '' ? { ok: false, motivo: 'Escribe el miembro.' } : { ok: true, texto: `SADD ${k} ${texto(e.uno)}` }
+      return e.uno === '' ? { ok: false, motivo: t.escribeMiembro } : { ok: true, texto: `SADD ${k} ${texto(e.uno)}` }
     case 'zset': {
-      if (e.uno === '') return { ok: false, motivo: 'Escribe el miembro.' }
+      if (e.uno === '') return { ok: false, motivo: t.escribeMiembro }
       const p = puntuacionValida(e.dos)
-      return p === null ? { ok: false, motivo: 'La puntuación tiene que ser un número (o inf, -inf).' } : { ok: true, texto: `ZADD ${k} ${p} ${texto(e.uno)}` }
+      return p === null ? { ok: false, motivo: t.puntuacionNumero } : { ok: true, texto: `ZADD ${k} ${p} ${texto(e.uno)}` }
     }
     case 'stream':
-      return e.uno === '' ? { ok: false, motivo: 'Escribe el nombre del campo.' } : { ok: true, texto: `XADD ${k} * ${texto(e.uno)} ${texto(e.dos)}` }
+      return e.uno === '' ? { ok: false, motivo: t.escribeCampo } : { ok: true, texto: `XADD ${k} * ${texto(e.uno)} ${texto(e.dos)}` }
   }
 }
 
@@ -123,7 +128,7 @@ export function comandoElemento(k: string, a: AccionElemento, e: EntradasClave):
     case 'puntuacion': {
       const p = puntuacionValida(e.uno)
       // `XX`: solo si el miembro sigue ahí; sin él, ZADD lo crearía de nuevo.
-      return p === null ? { ok: false, motivo: 'La puntuación tiene que ser un número (o inf, -inf).' } : { ok: true, texto: `ZADD ${k} XX ${p} ${citarRedisCli(a.miembro)}` }
+      return p === null ? { ok: false, motivo: txEdicionClaves().puntuacionNumero } : { ok: true, texto: `ZADD ${k} XX ${p} ${citarRedisCli(a.miembro)}` }
     }
     case 'quitar': {
       const el = citarRedisCli(a.elemento)
@@ -133,7 +138,7 @@ export function comandoElemento(k: string, a: AccionElemento, e: EntradasClave):
     case 'quitarEntrada':
       return { ok: true, texto: `XDEL ${k} ${a.id}` }
     case 'crear':
-      return { ok: false, motivo: 'Escribe el nombre de la clave.' }
+      return { ok: false, motivo: txEdicionClaves().escribeNombreClave }
   }
 }
 
@@ -142,10 +147,10 @@ export function comandoElemento(k: string, a: AccionElemento, e: EntradasClave):
  * apareció entre la comprobación y el envío, no se pisa.
  */
 export function comandoCrear(nombre: string, tipo: TipoCreable, e: EntradasClave): ComandoClave {
-  if (nombre === '') return { ok: false, motivo: 'Escribe el nombre de la clave.' }
+  if (nombre === '') return { ok: false, motivo: txEdicionClaves().escribeNombreClave }
   const k = texto(nombre)
   if (tipo === 'string') return { ok: true, texto: `SET ${k} ${texto(e.uno)} NX` }
-  if (tipo === 'hash') return e.uno === '' ? { ok: false, motivo: 'Escribe el nombre del campo.' } : { ok: true, texto: `HSET ${k} ${texto(e.uno)} ${texto(e.dos)}` }
+  if (tipo === 'hash') return e.uno === '' ? { ok: false, motivo: txEdicionClaves().escribeCampo } : { ok: true, texto: `HSET ${k} ${texto(e.uno)} ${texto(e.dos)}` }
   return comandoAnadir(k, tipo, e)
 }
 
@@ -153,32 +158,34 @@ export function comandoCrear(nombre: string, tipo: TipoCreable, e: EntradasClave
 export function resultadoElemento(a: AccionElemento, r: DbKvRespuesta): { ok: true; aviso: string } | { ok: false; mensaje: string } {
   if (r.tipo === 'error') return { ok: false, mensaje: r.texto }
   const cero = r.tipo === 'entero' && r.valor === '0'
+  const t = txEdicionClaves()
   switch (a.tipo) {
     case 'anadir':
       return resultadoAnadir(a.de, cero)
     case 'elemento':
-      return { ok: true, aviso: 'Elemento guardado' }
+      return { ok: true, aviso: t.elementoGuardado }
     case 'puntuacion':
-      return { ok: true, aviso: 'Puntuación guardada' }
+      return { ok: true, aviso: t.puntuacionGuardada }
     case 'quitar':
-      return cero ? { ok: false, mensaje: 'Ya no estaba.' } : { ok: true, aviso: a.de === 'list' ? 'Elemento borrado' : 'Miembro borrado' }
+      return cero ? { ok: false, mensaje: t.yaNoEstaba } : { ok: true, aviso: a.de === 'list' ? t.elementoBorrado : t.miembroBorrado }
     case 'quitarEntrada':
-      return cero ? { ok: false, mensaje: 'La entrada ya no existía.' } : { ok: true, aviso: 'Entrada borrada' }
+      return cero ? { ok: false, mensaje: t.entradaNoExistia } : { ok: true, aviso: t.entradaBorrada }
     case 'crear':
-      return r.tipo === 'nulo' ? { ok: false, mensaje: 'Ya existe una clave con ese nombre: no se ha tocado.' } : { ok: true, aviso: 'Clave creada' }
+      return r.tipo === 'nulo' ? { ok: false, mensaje: t.claveOcupada } : { ok: true, aviso: t.claveCreada }
   }
 }
 
 function resultadoAnadir(de: TipoConElementos, cero: boolean): { ok: true; aviso: string } | { ok: false; mensaje: string } {
+  const t = txEdicionClaves()
   switch (de) {
     case 'list':
-      return { ok: true, aviso: 'Elemento añadido' }
+      return { ok: true, aviso: t.elementoAnadido }
     case 'set':
-      return cero ? { ok: false, mensaje: 'Ya era miembro del conjunto.' } : { ok: true, aviso: 'Miembro añadido' }
+      return cero ? { ok: false, mensaje: t.yaEraMiembro } : { ok: true, aviso: t.miembroAnadido }
     case 'zset':
       // Un miembro que ya estaba solo cambia su puntuación: ZADD da 0 y no es un fallo.
-      return { ok: true, aviso: cero ? 'Puntuación actualizada' : 'Miembro añadido' }
+      return { ok: true, aviso: cero ? t.puntuacionActualizada : t.miembroAnadido }
     case 'stream':
-      return { ok: true, aviso: 'Entrada añadida' }
+      return { ok: true, aviso: t.entradaAnadida }
   }
 }

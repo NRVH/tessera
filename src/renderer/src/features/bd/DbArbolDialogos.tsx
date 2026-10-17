@@ -25,6 +25,7 @@ import { DialogoBorrarClaves } from './claves/DialogoBorrarClaves'
 import { DialogoNuevaClave } from './claves/DialogoNuevaClave'
 import { aplicarFiltroClaves } from './DbArbolNavegacion'
 import type { CtxArbol, EstadoDialogo, PeticionTx, PopoverArbol } from './DbArbolTipos'
+import { txArbolAcciones } from './textosArbolAcciones.ts'
 
 function PopoverEsquemasArbol({ a, popover, conexion }: { a: CtxArbol; popover: PopoverArbol; conexion: DbConnection }): React.JSX.Element {
   return (
@@ -77,7 +78,7 @@ function ConfirmarConexion({ a, conexion }: { a: CtxArbol; conexion: DbConnectio
   const { proyectosMontada, consolas, sesiones } = a.p
   return (
     <ConfirmDialog
-      title="Eliminar conexión"
+      title={txArbolAcciones().tituloEliminarConexion}
       message={textoEliminarConexion({
         alias: conexion.alias,
         proyectos: proyectosMontada ? proyectosMontada(conexion.id) : null,
@@ -88,7 +89,7 @@ function ConfirmarConexion({ a, conexion }: { a: CtxArbol; conexion: DbConnectio
         ),
         sinEnviar: cambiosPendientesDeConexion(conexion.id)
       })}
-      confirmLabel="Eliminar"
+      confirmLabel={txArbolAcciones().eliminar}
       danger
       onConfirm={() => {
         a.e.setConfirmacion(null)
@@ -103,7 +104,7 @@ function ConfirmarAjena({ a, ajena }: { a: CtxArbol; ajena: DbConexionAjena }): 
   const { proyectosMontada, consolas, conexiones } = a.p
   return (
     <ConfirmDialog
-      title="Eliminar conexión"
+      title={txArbolAcciones().tituloEliminarConexion}
       message={textoEliminarAjena({
         alias: ajena.alias,
         motor: ajena.motor,
@@ -117,7 +118,7 @@ function ConfirmarAjena({ a, ajena }: { a: CtxArbol; ajena: DbConexionAjena }): 
         // La copia por id repetido dice con quién lo comparte, como su fila.
         idRepetido: ajena.idRepetido
       })}
-      confirmLabel="Eliminar"
+      confirmLabel={txArbolAcciones().eliminar}
       danger
       onConfirm={() => {
         a.e.setConfirmacion(null)
@@ -131,9 +132,9 @@ function ConfirmarAjena({ a, ajena }: { a: CtxArbol; ajena: DbConexionAjena }): 
 function ConfirmarConsola({ a, consola }: { a: CtxArbol; consola: DbConsolaInfo }): React.JSX.Element {
   return (
     <ConfirmDialog
-      title="Eliminar consola"
-      message={`«${consola.nombre}.sql» irá a la papelera; podrás recuperarla desde allí.`}
-      confirmLabel="Eliminar"
+      title={txArbolAcciones().tituloEliminarConsola}
+      message={txArbolAcciones().consolaALaPapelera(consola.nombre)}
+      confirmLabel={txArbolAcciones().eliminar}
       danger
       onConfirm={() => {
         a.e.setConfirmacion(null)
@@ -158,14 +159,15 @@ function ConfirmacionesArbol({ a }: { a: CtxArbol }): React.JSX.Element {
 
 function PromptsArbol({ a }: { a: CtxArbol }): React.JSX.Element {
   const { renombrando, setRenombrando, filtrandoClaves, setFiltrandoClaves } = a.e
+  const t = txArbolAcciones()
   return (
     <>
       {renombrando && (
         <PromptDialog
-          title="Renombrar consola"
-          label="Nombre"
+          title={t.tituloRenombrar}
+          label={t.etiquetaNombre}
           initialValue={renombrando.consola.nombre}
-          confirmLabel="Renombrar"
+          confirmLabel={t.renombrarBoton}
           error={renombrando.error}
           onConfirm={(nombre) => void renombrarConsola(a, renombrando.consola, nombre)}
           onCancel={() => setRenombrando(null)}
@@ -173,12 +175,12 @@ function PromptsArbol({ a }: { a: CtxArbol }): React.JSX.Element {
       )}
       {filtrandoClaves && (
         <PromptDialog
-          title={`Filtrar claves de ${etiquetaBaseClaves(filtrandoClaves.indice)}`}
-          label="Patrón o texto"
+          title={t.filtrarClavesDe(etiquetaBaseClaves(filtrandoClaves.indice))}
+          label={t.patronOTexto}
           initialValue={filtrandoClaves.actual}
-          confirmLabel="Filtrar"
+          confirmLabel={t.filtrar}
           allowEmpty
-          hint="Con * ? [ ] es un patrón (usuario:*). Sin comodines se busca el texto en cualquier parte del nombre. Vacío quita el filtro."
+          hint={t.pistaFiltro}
           onConfirm={(v) => {
             setFiltrandoClaves(null)
             aplicarFiltroClaves(a, filtrandoClaves, v)
@@ -281,7 +283,7 @@ function DialogoTxArbol({ peticion, onCerrar }: { peticion: PeticionTx; onCerrar
         {peticion.opciones.nota !== null && <div className="modal-message">{peticion.opciones.nota}</div>}
         <div className="modal-actions">
           <button ref={cancelarRef} type="button" className="btn btn-ghost" onClick={onCerrar}>
-            Cancelar
+            {txArbolAcciones().cancelar}
           </button>
           <button type="button" className="btn" onClick={() => resolver('rollback')}>
             {peticion.opciones.revertir}

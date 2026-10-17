@@ -14,6 +14,7 @@ import { VirtualList } from '../../comun/VirtualList'
 import type { SftpEntrada } from '../../../../shared/sftp-ipc'
 import { descripcionTipo, esNavegable, formatoFecha, formatoTamano } from './listadoSftp'
 import type { SeleccionSftp } from './seleccionSftp'
+import { txSftp } from './textos.ts'
 import { ATRIBUTO_CARPETA_SOLTAR } from './useArrastreSftp'
 
 export interface PropsListaSftp {
@@ -84,7 +85,7 @@ function Fila({ e, id, elegida, activa, conLider, alto, p }: PropsFila): React.J
         </span>
         {e.tipo === 'enlace' && (
           <span className="sftp-etiqueta-enlace" title={descripcionTipo(e)}>
-            enlace
+            {txSftp().enlace}
           </span>
         )}
       </span>
@@ -97,12 +98,13 @@ function Fila({ e, id, elegida, activa, conLider, alto, p }: PropsFila): React.J
 
 /** La cabecera de columnas. Fuera de la lista virtual: no se va con el scroll. */
 function CabeceraColumnas(): React.JSX.Element {
+  const t = txSftp()
   return (
     <div className="sftp-cabecera" aria-hidden="true">
-      <span className="sftp-celda sftp-celda-nombre">Nombre</span>
-      <span className="sftp-celda sftp-celda-tamano">Tamaño</span>
-      <span className="sftp-celda sftp-celda-fecha">Modificado</span>
-      <span className="sftp-celda sftp-celda-permisos">Permisos</span>
+      <span className="sftp-celda sftp-celda-nombre">{t.nombre}</span>
+      <span className="sftp-celda sftp-celda-tamano">{t.tamano}</span>
+      <span className="sftp-celda sftp-celda-fecha">{t.modificado}</span>
+      <span className="sftp-celda sftp-celda-permisos">{t.permisos}</span>
     </div>
   )
 }
@@ -130,7 +132,7 @@ export function ListaSftp(p: PropsListaSftp): React.JSX.Element {
       <VirtualList<SftpEntrada>
         className="sftp-lista"
         role="listbox"
-        ariaLabel="Contenido de la carpeta remota"
+        ariaLabel={txSftp().contenidoCarpeta}
         aria-activedescendant={indiceActivo >= 0 ? idDe(indiceActivo) : undefined}
         tabIndex={0}
         items={entradas}
@@ -151,10 +153,10 @@ export function ListaSftp(p: PropsListaSftp): React.JSX.Element {
           />
         )}
       />
-      {entradas.length === 0 && !p.cargando && <div className="sftp-vacia">Carpeta vacía</div>}
+      {entradas.length === 0 && !p.cargando && <div className="sftp-vacia">{txSftp().carpetaVacia}</div>}
       {p.soltando && (
         <div className="sftp-aviso-soltar">
-          {p.carpetaSoltar === null ? 'Suelta aquí para subir a esta carpeta' : `Suelta para subir a «${p.carpetaSoltar}»`}
+          {p.carpetaSoltar === null ? txSftp().sueltaAqui : txSftp().sueltaEn(p.carpetaSoltar)}
         </div>
       )}
     </div>

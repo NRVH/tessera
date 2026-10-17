@@ -37,4 +37,5 @@ Todo puede quitar la edición, nunca darla. La identidad y los comparables se re
 ## Descartes
 
 - `ctid` en PG: cambia con cualquier UPDATE y con un VACUUM FULL, no hay ROWID estable.
-- Buscar una UNIQUE en Oracle: ALL_CONSTRAINTS costaba 1,5-3,9 s por la VPN en la 11g.
+- Buscar una UNIQUE en Oracle: consultar ALL_CONSTRAINTS cuesta segundos por consulta en un servidor
+  remoto.

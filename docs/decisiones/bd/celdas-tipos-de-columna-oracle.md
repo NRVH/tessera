@@ -6,8 +6,7 @@
 ## Contexto
 
 `metaData.byteSize` no significa lo mismo en thin y en thick, y en ninguno es el tamaño declarado
-con su unidad. Medido (11.2 thick, 21c thin y thick, oracledb 6.10, AL32UTF8 con juego nacional
-AL16UTF16):
+con su unidad. Con AL32UTF8 y juego nacional AL16UTF16:
 
 | Declarado | thin | thick |
 |---|---|---|

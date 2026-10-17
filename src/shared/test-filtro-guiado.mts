@@ -86,10 +86,10 @@ function main(): void {
   check('día siguiente cruza mes y año bisiesto', diaSiguiente('2024-02-28') === '2024-02-29' && diaSiguiente('2024-02-29') === '2024-03-01' && diaSiguiente('2026-12-31') === '2027-01-01')
   check('booleano', leerBooleano('TRUE') === true && leerBooleano('no') === false && leerBooleano('quizá') === null)
   check('valor vacío pide «está vacío»', (problemaDeValor('texto', '  ') ?? '').includes('está vacío'))
-  check('texto admite comillas y cualquier cosa', problemaDeValor('texto', `NOMINA "PROCESADA"'; DROP`) === null)
+  check('texto admite comillas y cualquier cosa', problemaDeValor('texto', `PEDIDO "ENVIADO"'; DROP`) === null)
 
   hr('validarFiltro')
-  const ok = { union: 'todas', condiciones: [{ columna: 'ESTATUS', categoria: 'texto', operador: 'igual', valor: 'NOMINA PROCESADA' }] }
+  const ok = { union: 'todas', condiciones: [{ columna: 'ESTADO', categoria: 'texto', operador: 'igual', valor: 'PEDIDO ENVIADO' }] }
   check('filtro correcto', validarFiltro(ok) === null)
   check('sin condiciones es válido', validarFiltro({ union: 'cualquiera', condiciones: [] }) === null)
   check('unión inválida', validarFiltro({ union: 'y', condiciones: [] })?.indice === -1)
@@ -101,7 +101,7 @@ function main(): void {
   check('categoría inventada', validarFiltro({ union: 'todas', condiciones: [{ columna: 'X', categoria: 'sql', operador: 'vacio' }] }) !== null)
   const muchas = Array.from({ length: MAX_CONDICIONES + 1 }, () => ok.condiciones[0])
   check('más del tope de condiciones', validarFiltro({ union: 'todas', condiciones: muchas })?.indice === -1)
-  check('no es un objeto', validarFiltro(null) !== null && validarFiltro('ESTATUS = 1') !== null)
+  check('no es un objeto', validarFiltro(null) !== null && validarFiltro('ESTADO = 1') !== null)
 
   hr('validarOrden')
   check('orden correcto', validarOrden([{ columna: 'A', dir: 'asc' }, { columna: 'B', dir: 'desc' }]) === null)

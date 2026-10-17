@@ -6,6 +6,8 @@
 // cadena «hace 3 min» se quedaría rancia entre difusiones.
 // =============================================================================
 
+import { txActualizaciones } from './textos.ts'
+
 /**
  * Cada cuánto refrescan las vistas su "hace N min". Vive aquí para que las dos
  * superficies que lo pintan no puedan latir a ritmos distintos.
@@ -17,11 +19,12 @@ export const TICK_ULTIMO_CHEQUEO_MS = 30_000
  * atrás no debe producir "hace -4 min".
  */
 export function textoUltimoChequeo(ultimoMs: number | null, ahoraMs: number): string {
-  if (ultimoMs === null) return 'Aún no se ha comprobado'
+  const t = txActualizaciones().ultimoChequeo
+  if (ultimoMs === null) return t.nunca
   const min = Math.floor(Math.max(0, ahoraMs - ultimoMs) / 60_000)
-  if (min < 1) return 'Comprobado hace un momento'
-  if (min < 60) return `Comprobado hace ${min} min`
+  if (min < 1) return t.momento
+  if (min < 60) return t.min(min)
   const h = Math.floor(min / 60)
-  if (h < 24) return `Comprobado hace ${h} h`
-  return `Comprobado hace ${Math.floor(h / 24)} d`
+  if (h < 24) return t.horas(h)
+  return t.dias(Math.floor(h / 24))
 }

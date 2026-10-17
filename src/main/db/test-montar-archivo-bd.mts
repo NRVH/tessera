@@ -53,7 +53,7 @@ const { ConnectionStore } = await import('./ConnectionStore.ts')
 const { DbController } = await import('./DbController.ts')
 const { registrarIpcBd } = await import('./ipc.ts')
 const { DB_CHANNELS } = await import('../../shared/db-ipc.ts')
-const { MENSAJE_FICHA_DESCONOCIDA } = await import('./archivosBd.ts')
+const MENSAJE_FICHA_DESCONOCIDA = (await import('./archivosBd.ts')).mensajeFichaDesconocida()
 const { esWindows, esMac } = await import('../../shared/plataforma.ts')
 type DbConnection = import('../../shared/db-ipc.ts').DbConnection
 

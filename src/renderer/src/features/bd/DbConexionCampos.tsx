@@ -20,6 +20,7 @@ import {
   type DefCampo
 } from './camposConexion'
 import { pegarRecortado } from '../../util/pasteTrim'
+import { txConexionDialogo } from './textosConexionDialogo.ts'
 
 /** El `ancho` del descriptor, en las clases de este diálogo. `medio` es `.dbc-sid` (ver `dialogo.css`). */
 const CLASE_ANCHO: Record<AnchoCampo, string> = {
@@ -113,7 +114,7 @@ function inputPuerto(def: DefDe<'puerto'>, p: PropsCampo): React.JSX.Element {
       data-campo={def.campo}
       aria-invalid={(p.invalido && !apagado) || undefined}
       disabled={apagado}
-      title={apagado ? 'Con DNS SRV, el puerto no se usa' : undefined}
+      title={apagado ? txConexionDialogo().sinPuertoSrv : undefined}
       value={apagado ? '' : p.borrador.port}
       placeholder={apagado ? '—' : def.placeholder}
       onChange={(e) => p.onPuerto(Number(e.target.value))}
@@ -251,33 +252,34 @@ export function CampoArchivo({
   onElegir: () => void
   onCrear: () => void
 }): React.JSX.Element {
+  const t = txConexionDialogo()
   return (
     <div className="dbc-fila">
       <label className="dbc-campo dbc-crece">
-        <span className="dbc-etiqueta">Archivo</span>
+        <span className="dbc-etiqueta">{t.archivo}</span>
         <span className="dbc-archivo">
           <input
             data-campo="archivo"
             readOnly
             aria-invalid={invalido || undefined}
             value={nombre}
-            placeholder="Ningún archivo elegido"
+            placeholder={t.ningunArchivo}
             title={nombre || undefined}
             onClick={() => {
               if (!ocupado) onElegir()
             }}
           />
           <button type="button" className="btn" disabled={ocupado} onClick={onElegir}>
-            Elegir…
+            {t.elegir}
           </button>
           <button
             type="button"
             className="btn"
             disabled={ocupado}
-            title="Crea un archivo de base de datos nuevo y vacío"
+            title={t.crearNuevaTitulo}
             onClick={onCrear}
           >
-            Crear nueva…
+            {t.crearNueva}
           </button>
         </span>
       </label>

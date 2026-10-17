@@ -7,7 +7,7 @@
 // =============================================================================
 
 import type { CatalogoExplorador } from './catalogo.ts'
-import { aBool, noDisponible } from './filasCatalogo.ts'
+import { aBool, noDisponible, queFalta } from './filasCatalogo.ts'
 import { mapearColumnas, mapearFks, mapearFuente, mapearIndices, mapearRestricciones, TIPO_NOMBRE_MYSQL } from './mapeoMysql.ts'
 import {
   sqlClavePrimaria,
@@ -22,10 +22,11 @@ import {
   sqlObjetos,
   sqlRestricciones
 } from './sqlMysql.ts'
+import { txMotores } from './textosMotores.ts'
 import { leerDdlMysql, tieneDdlMysql } from './verDdlMysql.ts'
 
 /** Lo que MySQL no lee: el tipo que da su trabajador ya es el declarado. */
-const SIN_TIPOS_DECLARADOS = 'Los tipos declarados solo se leen de Oracle: los de MySQL ya llegan exactos.'
+const sinTiposDeclarados = (): string => txMotores().sinTiposDeclarados('MySQL')
 
 export const CATALOGO_MYSQL: CatalogoExplorador = {
   motor: 'mysql',
@@ -35,7 +36,7 @@ export const CATALOGO_MYSQL: CatalogoExplorador = {
 
   // Las bases de MySQL son sus esquemas: no hay un nivel «Bases» aparte.
   sqlBases(d) {
-    return noDisponible(d.motor, 'nivel «Bases»')
+    return noDisponible(d.motor, queFalta.nivelBases())
   },
   sqlEsquemas,
   esSistemaDeFila(_d, _nombre, fila) {
@@ -53,11 +54,11 @@ export const CATALOGO_MYSQL: CatalogoExplorador = {
   mapearIndices,
 
   sqlTiposColumnas() {
-    throw new Error(SIN_TIPOS_DECLARADOS)
+    throw new Error(sinTiposDeclarados())
   },
 
   mapearTiposColumnas() {
-    throw new Error(SIN_TIPOS_DECLARADOS)
+    throw new Error(sinTiposDeclarados())
   },
 
   sqlFks,
@@ -73,15 +74,15 @@ export const CATALOGO_MYSQL: CatalogoExplorador = {
   leerDdl: leerDdlMysql,
 
   sqlResolverSinonimo(d) {
-    return noDisponible(d.motor, 'sinónimos')
+    return noDisponible(d.motor, queFalta.sinonimos())
   },
 
   sqlTipoDeObjeto(d) {
-    return noDisponible(d.motor, 'tipo de objeto por nombre')
+    return noDisponible(d.motor, queFalta.tipoPorNombre())
   },
 
   mapearTipoDeObjeto() {
-    return noDisponible('mysql', 'tipo de objeto por nombre')
+    return noDisponible('mysql', queFalta.tipoPorNombre())
   },
 
   sqlNombres,

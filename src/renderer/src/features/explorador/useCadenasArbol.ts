@@ -11,6 +11,8 @@ import { entradasConCadena, necesitaCadena, podarCadenas, type ChainInfo, type F
 
 /** Cadenas cargadas, sus errores y los registros que comparten los dos efectos de carga. */
 export interface EstadoCadenas {
+  /** Contenedora del proyecto del árbol: cada `listDir` va a ella. */
+  raiz: string
   /** Cadena compactada y sus hijos, por ruta del primer segmento. */
   chains: Map<string, ChainInfo>
   setChains: React.Dispatch<React.SetStateAction<Map<string, ChainInfo>>>
@@ -26,22 +28,23 @@ export interface EstadoCadenas {
 }
 
 /** Sigue la cadena de carpetas de único hijo-carpeta desde `entry` y la fusiona en una fila. */
-async function loadChain(entry: FileEntry): Promise<ChainInfo> {
+async function loadChain(raiz: string, entry: FileEntry): Promise<ChainInfo> {
+  const listar = (path: string): Promise<FileEntry[]> => window.tessera.files.listDir({ raiz, path })
   // Un contenedor (.jar, .war…) es su propia fila: no se compacta con lo que tiene dentro.
   if (entry.contenedor != null) {
-    return { segments: [entry], children: await window.tessera.files.listDir(entry.path) }
+    return { segments: [entry], children: await listar(entry.path) }
   }
   const segments = [entry]
-  let children = await window.tessera.files.listDir(entry.path)
+  let children = await listar(entry.path)
   while (children.length === 1 && children[0].kind === 'dir') {
     segments.push(children[0])
-    children = await window.tessera.files.listDir(children[0].path)
+    children = await listar(children[0].path)
   }
   return { segments, children }
 }
 
 /** Estado de las cadenas y el aviso de que el árbol sigue montado. */
-export function useEstadoCadenas(): EstadoCadenas {
+export function useEstadoCadenas(raiz: string): EstadoCadenas {
   const [chains, setChains] = useState<Map<string, ChainInfo>>(new Map())
   const [chainErrors, setChainErrors] = useState<Map<string, string>>(new Map())
   const loadingChains = useRef<Set<string>>(new Set())
@@ -57,7 +60,7 @@ export function useEstadoCadenas(): EstadoCadenas {
       mountedRef.current = false
     }
   }, [])
-  return { chains, setChains, chainErrors, setChainErrors, loadingChains, colaIndexado: colaRef.current, mountedRef }
+  return { raiz, chains, setChains, chainErrors, setChainErrors, loadingChains, colaIndexado: colaRef.current, mountedRef }
 }
 
 function mensajeDe(err: unknown): string {
@@ -69,7 +72,7 @@ function mensajeDe(err: unknown): string {
  * llegar cambia `chains`, se re-aplana y el efecto vuelve a correr para el nivel siguiente.
  */
 export function useCargaPerezosa(cad: EstadoCadenas, rows: FlatRow[]): void {
-  const { chains, chainErrors, setChains, setChainErrors, loadingChains, colaIndexado, mountedRef } = cad
+  const { raiz, chains, chainErrors, setChains, setChainErrors, loadingChains, colaIndexado, mountedRef } = cad
   useEffect(() => {
     for (const row of rows) {
       if (!necesitaCadena(row)) continue
@@ -77,7 +80,7 @@ export function useCargaPerezosa(cad: EstadoCadenas, rows: FlatRow[]): void {
       if (chains.has(path) || chainErrors.has(path) || loadingChains.current.has(path)) continue
       loadingChains.current.add(path)
       colaIndexado
-        .correr(() => loadChain(row.entry))
+        .correr(() => loadChain(raiz, row.entry))
         .then((c) => {
           loadingChains.current.delete(path)
           if (!mountedRef.current) return
@@ -90,7 +93,7 @@ export function useCargaPerezosa(cad: EstadoCadenas, rows: FlatRow[]): void {
           setChainErrors((prev) => new Map(prev).set(path, mensajeDe(err)))
         })
     }
-  }, [rows, chains, chainErrors, colaIndexado, loadingChains, mountedRef, setChains, setChainErrors])
+  }, [raiz, rows, chains, chainErrors, colaIndexado, loadingChains, mountedRef, setChains, setChainErrors])
 }
 
 /**
@@ -98,7 +101,7 @@ export function useCargaPerezosa(cad: EstadoCadenas, rows: FlatRow[]): void {
  * del caché las de ramas colapsadas, que se recargan frescas al re-expandir.
  */
 export function useRefrescoCadenas(cad: EstadoCadenas, rows: FlatRow[], refreshToken: number): void {
-  const { setChains, setChainErrors, loadingChains, colaIndexado } = cad
+  const { raiz, setChains, setChainErrors, loadingChains, colaIndexado } = cad
   useEffect(() => {
     if (refreshToken === 0) return
     // Tira el abanico de la ráfaga anterior que no llegó a arrancar; lo que ya está en
@@ -113,7 +116,7 @@ export function useRefrescoCadenas(cad: EstadoCadenas, rows: FlatRow[], refreshT
       // Se apunta antes de encolar: mientras viva la petición, el efecto perezoso no la repite.
       loadingChains.current.add(path)
       colaIndexado
-        .correr(() => loadChain(entry))
+        .correr(() => loadChain(raiz, entry))
         .then((c) => {
           loadingChains.current.delete(path)
           if (!cancelled) setChains((prev) => new Map(prev).set(path, c))

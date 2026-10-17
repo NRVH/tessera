@@ -1,13 +1,38 @@
 // =============================================================================
 // Decide por extensión qué visor pinta un pane de archivo: 'monaco' (texto y .md con su toggle),
-// 'pdf', 'docx', 'zip', 'image' (imagen con zoom) o 'javaClass' (clase descompilada).
+// 'pdf', 'docx', 'zip', 'image' (imagen con zoom), 'audio', 'video' o 'javaClass' (clase descompilada).
 // El markdown no es un kind propio: `isMarkdownPath` habilita su toggle dentro de `EditorPane`.
 // Lo usa `PaneDeTab`.
 // =============================================================================
 
 import { extensionDe } from '../../util/extensionArchivo.ts'
 
-export type FileViewerKind = 'monaco' | 'pdf' | 'docx' | 'zip' | 'image' | 'javaClass'
+export type FileViewerKind = 'monaco' | 'pdf' | 'docx' | 'zip' | 'image' | 'audio' | 'video' | 'javaClass'
+
+/**
+ * Audio y vídeo que decodifica el Chromium de la app, sin nada instalado aparte. Un contenedor
+ * con un códec que no conoce (HEVC en un .mkv, por ejemplo) falla al cargar y el visor ofrece
+ * abrirlo con la app del sistema.
+ */
+const VIDEO_EXT_TO_MIME: Record<string, string> = {
+  mp4: 'video/mp4',
+  m4v: 'video/mp4',
+  mov: 'video/mp4',
+  webm: 'video/webm',
+  ogv: 'video/ogg',
+  mkv: 'video/x-matroska'
+}
+const AUDIO_EXT_TO_MIME: Record<string, string> = {
+  mp3: 'audio/mpeg',
+  wav: 'audio/wav',
+  ogg: 'audio/ogg',
+  oga: 'audio/ogg',
+  opus: 'audio/ogg',
+  m4a: 'audio/mp4',
+  aac: 'audio/aac',
+  flac: 'audio/flac',
+  weba: 'audio/webm'
+}
 
 /** Extensiones del visor de imágenes: las que Chromium no decodifica caen a «Abrir externamente». */
 const IMAGE_EXTENSIONS = new Set([
@@ -56,7 +81,16 @@ export function viewerKindForPath(path: string): FileViewerKind {
   if (ext === 'docx') return 'docx'
   if (ext === 'zip') return 'zip'
   if (IMAGE_EXTENSIONS.has(ext)) return 'image'
+  if (Object.hasOwn(VIDEO_EXT_TO_MIME, ext)) return 'video'
+  if (Object.hasOwn(AUDIO_EXT_TO_MIME, ext)) return 'audio'
   return 'monaco'
+}
+
+/** MIME con el que construir el Blob de un audio o vídeo; '' si no es de esos. */
+export function mediaMimeForPath(path: string): string {
+  const kind = viewerKindForPath(path)
+  const tabla = kind === 'video' ? VIDEO_EXT_TO_MIME : kind === 'audio' ? AUDIO_EXT_TO_MIME : null
+  return tabla?.[extensionDe(path)] ?? ''
 }
 
 /** MIME con el que construir el Blob de una imagen; '' si se deja al navegador deducirlo. */

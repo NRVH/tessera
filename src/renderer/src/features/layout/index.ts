@@ -4,7 +4,8 @@
 // componentes que arman la ventana y sus hooks los compone solo App.tsx y están en
 // `app.ts` (docs/decisiones/renderer/barriles-sin-ciclos.md).
 // =============================================================================
-export { useStoreLayout, fijadoresLayout, cambiarVistaSi, fijarMaximizado, salirDePantallaCompleta } from './store'
+export { useStoreLayout, fijadoresLayout, cambiarVistaSi, fijarMaximizado, fijarColumna, salirDePantallaCompleta } from './store'
+export { columnaDe, type ColumnaPerfil } from './columnaPorPerfil'
 export {
   derivarLayoutCentro,
   maximizadoCoherente,

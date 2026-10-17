@@ -4,6 +4,8 @@
 // Módulo puro, sin JSX ni DOM; lo usan UsageBars y ContextRing.
 // =============================================================================
 
+import { txContexto } from './textosContexto.ts'
+
 /** Variable CSS del nivel: verde, ámbar desde 75 y rojo desde 90 (los umbrales que hacen cambiar de plan). */
 export function varNivelUso(percent: number): string {
   if (percent >= 90) return '--red'
@@ -17,10 +19,11 @@ export function varNivelUso(percent: number): string {
  * (un límite nuevo de la cuenta) se enseña tal cual: antes eso que esconderlo.
  */
 export function etiquetaLargaUso(label: string): string {
-  if (label === '5h') return 'Sesión (5 h)'
-  if (label === '7d') return 'Semanal (7 días)'
-  if (label.endsWith(' 7d')) return `Semanal ${label.slice(0, -3)}`
-  if (label.endsWith(' 5h')) return `Sesión ${label.slice(0, -3)}`
+  const t = txContexto().uso
+  if (label === '5h') return t.sesion5h
+  if (label === '7d') return t.semanal7d
+  if (label.endsWith(' 7d')) return t.semanalDe(label.slice(0, -3))
+  if (label.endsWith(' 5h')) return t.sesionDe(label.slice(0, -3))
   return label
 }
 

@@ -10,6 +10,7 @@ import { formatearDocumento, formatearTokens, tokenizar, type FilaDocs } from '.
 import type { EstadoEdicion } from './useEdicionColeccion'
 import { sinIdentidad } from './edicionColeccion'
 import { copiarTexto } from './utilPanes'
+import { txColeccionDocs } from './textosColeccionDocs'
 import { EstadoVacio } from '../../../comun/EstadoVacio'
 import { IconoCopiar } from '../../../comun/iconosMenu'
 import { BotonBarraBd } from '../rejilla/DatosBotonBarra'
@@ -45,8 +46,9 @@ function JsonColoreado({ texto }: { texto: string }): React.JSX.Element {
 }
 
 function tituloPanel(f: FilaDocs | null): string {
-  if (!f) return 'Ningún documento elegido'
-  return f.estado === 'nuevo' ? 'Documento nuevo' : `_id: ${f.documento.celdas._id?.vista ?? '—'}`
+  const t = txColeccionDocs()
+  if (!f) return t.ningunDocumentoElegido
+  return f.estado === 'nuevo' ? t.documentoNuevo : `_id: ${f.documento.celdas._id?.vista ?? '—'}`
 }
 
 function puedeEditarEntero(d: DatosPanel, f: FilaDocs): boolean {
@@ -56,25 +58,26 @@ function puedeEditarEntero(d: DatosPanel, f: FilaDocs): boolean {
 
 function cabeceraPanel(d: DatosPanel): React.JSX.Element {
   const { filaSel, setJsonEdit } = d.ed
+  const t = txColeccionDocs()
   return (
     <div className="db-docs-panel-cab">
       <span className="db-docs-panel-titulo">{tituloPanel(filaSel)}</span>
       {filaSel && filaSel.estado !== 'normal' && (
         <span className="db-docs-panel-estado">
-          {filaSel.estado === 'borrado' ? 'se borrará' : filaSel.estado === 'nuevo' ? 'se insertará' : 'sin enviar'}
+          {filaSel.estado === 'borrado' ? t.seBorrara : filaSel.estado === 'nuevo' ? t.seInsertara : t.sinEnviarEstado}
         </span>
       )}
       {filaSel && puedeEditarEntero(d, filaSel) && (
         <BotonBarraBd
-          etiqueta="Editar documento"
-          titulo="Editar el documento entero (se reemplaza al Enviar)"
+          etiqueta={t.editarDocumento}
+          titulo={t.editarDocumentoTitulo}
           onClick={() => setJsonEdit({ clave: filaSel.clave, texto: formatearDocumento(filaSel.documento.texto) })}
         >
           <IconoEditar />
         </BotonBarraBd>
       )}
       {filaSel && (
-        <BotonBarraBd etiqueta="Copiar documento" titulo="Copiar el documento" onClick={() => copiarTexto(formatearDocumento(filaSel.documento.texto), 'Documento')}>
+        <BotonBarraBd etiqueta={t.copiarDocumento} titulo={t.copiarElDocumento} onClick={() => copiarTexto(formatearDocumento(filaSel.documento.texto), t.documento)}>
           <IconoCopiar />
         </BotonBarraBd>
       )}
@@ -84,6 +87,7 @@ function cabeceraPanel(d: DatosPanel): React.JSX.Element {
 
 function editorJson(d: DatosPanel): React.JSX.Element {
   const { jsonEdit, setJsonEdit } = d.ed
+  const t = txColeccionDocs()
   return (
     <>
       <textarea
@@ -106,14 +110,14 @@ function editorJson(d: DatosPanel): React.JSX.Element {
         }}
         spellCheck={false}
         autoFocus
-        aria-label="Documento en notación del shell"
+        aria-label={t.documentoEnShell}
       />
       <div className="db-docs-panel-acciones">
         <button type="button" className="btn btn-ghost" onClick={() => setJsonEdit(null)}>
-          Cancelar
+          {t.cancelar}
         </button>
         <button type="button" className="btn primary" onClick={d.onAplicarJson}>
-          Aplicar
+          {t.aplicar}
         </button>
       </div>
     </>
@@ -123,8 +127,9 @@ function editorJson(d: DatosPanel): React.JSX.Element {
 /** El panel lateral del documento elegido (ver la cabecera del módulo). */
 export function panelDocumento(d: DatosPanel): React.JSX.Element {
   const { filaSel, jsonEdit } = d.ed
+  const t = txColeccionDocs()
   return (
-    <aside className="db-docs-panel" aria-label="Documento elegido">
+    <aside className="db-docs-panel" aria-label={t.documentoElegido}>
       {cabeceraPanel(d)}
       {filaSel && jsonEdit && jsonEdit.clave === filaSel.clave ? (
         editorJson(d)
@@ -132,7 +137,7 @@ export function panelDocumento(d: DatosPanel): React.JSX.Element {
         <JsonColoreado texto={filaSel.documento.texto} />
       ) : (
         <div className="db-docs-panel-vacio">
-          <EstadoVacio titulo="Elige un documento" pista="Su contenido entero se ve aquí." />
+          <EstadoVacio titulo={t.eligeUnDocumento} pista={t.contenidoAqui} />
         </div>
       )}
     </aside>

@@ -20,7 +20,7 @@ Driver `tedious` (JS puro) contra SQL Server 2012 o superior (`versionMinima: 11
   host + puerto y el puerto se guarda (1433) aunque no se use, porque lo resuelve SQL Browser.
   `descartarAlGuardar: ['sid']` quita el SID que dejó Oracle.
 - Paginado `offsetFetch`. Sin cursores vivos (`lectorPorId` y `mantenerCursor` a `false`): una petición
-  pausada de tedious deja 3 bloqueos puestos y un `ALTER` de otra sesión espera (medido). «Más» en una
+  pausada de tedious deja 3 bloqueos puestos y un `ALTER` de otra sesión espera. «Más» en una
   consola re-ejecuta y salta filas.
 - Cancelar corta la petición con el attention de TDS y la conexión sigue usable: `procesoPorSesion: false`.
 - Carpetas: Tablas, Vistas, Rutinas, Sinónimos, Secuencias y Tipos. `esquemaImplicito: 'dbo'`;

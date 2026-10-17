@@ -9,7 +9,7 @@
 
 import { createRequire } from 'node:module'
 import {
-  ERROR_SECRETO_ILEGIBLE,
+  errorSecretoIlegible,
   desempaquetarSecretos,
   empaquetarSecretos,
   llevaSobre,
@@ -104,7 +104,7 @@ function guardarSecretos(): void {
       secretoAGuardar(c)
       return false
     } catch (e) {
-      return e instanceof Error && e.message === ERROR_SECRETO_ILEGIBLE
+      return e instanceof Error && e.message === errorSecretoIlegible()
     }
   }
   check(

@@ -10,6 +10,7 @@ import { descriptor, esMotor, pideUsuarioYClave, type CampoConexion, type CampoT
 import { nunca } from '../../../shared/nunca.ts'
 import type { ConexionPersistida } from '../conservarAlEditar.ts'
 import { opcionalesAGuardar, usuarioAGuardar, validarBaseClaves, validarOpcional } from '../opcionalesConexion.ts'
+import { txDb } from '../textosDb.ts'
 
 /**
  * Lo que reciben `create` y `update`: la entrada del renderer con el archivo de un motor de archivo
@@ -113,14 +114,15 @@ export function soloCambiaLaCasilla(nuevo: Record<string, unknown>, previo: Reco
 
 /** Perfil, nombre (no vacío, no larguísimo, único en el perfil incluidas las ajenas). */
 function validarNombre(input: EntradaConexion, ignoreId: string | undefined, guardadas: ConexionesGuardadas): void {
+  const t = txDb().validacion
   if (typeof input?.profileId !== 'string' || !input.profileId) {
-    throw new Error('Una conexión requiere un perfil.')
+    throw new Error(t.requierePerfil)
   }
   // El alias es un nombre libre: el secreto cuelga del `id`, así que espacios y símbolos no rompen nada.
   const alias = String(input.alias ?? '').trim()
-  if (!alias) throw new Error('La conexión necesita un nombre.')
+  if (!alias) throw new Error(t.necesitaNombre)
   if (alias.length > ALIAS_MAX) {
-    throw new Error(`El nombre no puede pasar de ${ALIAS_MAX} caracteres.`)
+    throw new Error(t.nombreLargo(ALIAS_MAX))
   }
   // `tdb` resuelve por nombre y las ajenas también se ven en la lista: un alias repetido confunde igual.
   const aliasNorm = alias.toLowerCase()
@@ -129,7 +131,7 @@ function validarNombre(input: EntradaConexion, ignoreId: string | undefined, gua
       (c) => c.profileId === input.profileId && c.id !== ignoreId && c.alias.trim().toLowerCase() === aliasNorm
     )?.alias ??
     guardadas.ajenasDelPerfil(input.profileId).find((a) => a.id !== ignoreId && a.alias.trim().toLowerCase() === aliasNorm)?.alias
-  if (choque !== undefined) throw new Error(`Este perfil ya tiene una conexión llamada "${choque}".`)
+  if (choque !== undefined) throw new Error(t.nombreRepetido(choque))
 }
 
 /** Lo que una regla de campo común ve de la entrada. */
@@ -168,8 +170,9 @@ const REGLAS_COMUNES: Record<CampoConexion, (c: ContextoCampo) => string | null>
 /** Valida la forma de una alta o edición. Lanza con un mensaje para el usuario. */
 export function validarEntrada(input: EntradaConexion, guardadas: ConexionesGuardadas, ignoreId?: string): void {
   validarNombre(input, ignoreId, guardadas)
+  const t = txDb().validacion
   // `esMotor` y no un `includes`: el motor llega por IPC y «constructor» no es un motor.
-  if (!esMotor(input.motor)) throw new Error(`Motor desconocido: "${String(input.motor)}".`)
+  if (!esMotor(input.motor)) throw new Error(t.motorDesconocido(String(input.motor)))
   // Se valida lo que se va a guardar, no lo que llegó: `limpiarDestinoBd` puede dejar en nada un `http://`.
   const { host, database, sid } = destinoAGuardar(input)
   const d = descriptor(input.motor)
@@ -187,19 +190,17 @@ export function validarEntrada(input: EntradaConexion, guardadas: ConexionesGuar
   // El túnel va por una conexión SSH de ESTE perfil: la de otro perfil no se puede usar.
   const tunel = d.conexion.opcionales.includes('tunelSsh') ? input.tunelSsh : undefined
   if (tunel && guardadas.existeSsh && !guardadas.existeSsh(input.profileId, tunel.conexionId)) {
-    throw new Error('La conexión SSH del túnel no existe en este perfil.')
+    throw new Error(t.sshNoExiste)
   }
   if (tunel && d.conexion.cifraPorTunel === false && input.tls?.cifrar === true) {
-    throw new Error(
-      `${d.etiqueta} no puede verificar su certificado a través de un túnel SSH: desmarca el cifrado (el túnel ya cifra el tramo hasta el servidor SSH) o quita el túnel.`
-    )
+    throw new Error(t.certificadoPorTunel(d.etiqueta))
   }
   // Un motor sin credenciales (SQLite) no guarda contraseña: quedaría un secreto huérfano.
   if (!pideUsuarioYClave(d) && typeof input.password === 'string' && input.password !== '') {
-    throw new Error(`${d.etiqueta} no usa contraseña.`)
+    throw new Error(t.sinContrasena(d.etiqueta))
   }
   if (input.passwordSentinel !== undefined && typeof input.passwordSentinel !== 'string') {
-    throw new Error('La contraseña de los sentinels no es válida.')
+    throw new Error(t.contrasenaSentinels)
   }
   // Lo que el destino exige es cosa del motor; va después de lo común (con el host vacío, el error es el del host).
   const errorDestino = d.conexion.validarDestino({ database, sid })

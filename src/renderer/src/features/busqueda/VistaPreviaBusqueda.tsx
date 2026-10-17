@@ -10,6 +10,7 @@ import type { editor } from 'monaco-editor'
 import { useVisibleLayout } from '../../comun/useVisibleLayout'
 import { EstadoVacio } from '../../comun/EstadoVacio'
 import { carpetaDe } from './filasResultado'
+import { txBusqueda } from './textos.ts'
 import {
   mensajeCargando,
   useCargaFila,
@@ -113,8 +114,8 @@ function TapaPrevia({
     return (
       <EstadoVacio
         icono={<IconoCodigoVacio />}
-        titulo="Elige un resultado"
-        pista="El archivo se abre aquí, centrado en la coincidencia."
+        titulo={txBusqueda().eligeUnResultado}
+        pista={txBusqueda().pistaEligeResultado}
         className="buscar-vacio"
       />
     )

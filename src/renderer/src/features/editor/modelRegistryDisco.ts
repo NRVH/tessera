@@ -6,9 +6,11 @@
 // =============================================================================
 
 import { marcarBorrado, recomputeDirty, snapshot } from './modelRegistryEntradas.ts'
+import { txEditor } from './textos.ts'
 import {
   esArchivoInexistente,
   ModelSaveBlocked,
+  rutaDe,
   type ConvertRequest,
   type Contexto,
   type Entry,
@@ -25,14 +27,15 @@ function mustEntry<M>(ctx: Contexto<M>, key: string): Entry<M> {
 
 /** Guardas comunes a `save` y `convert`: escribir en estos casos DESTRUIRÍA datos. */
 function assertWritable<M>(e: Entry<M>, verb: 'guardar' | 'convertir'): M {
+  const t = txEditor()
   if (e.binary || e.model === null) {
-    throw new ModelSaveBlocked(`No se puede ${verb} un archivo binario.`)
+    throw new ModelSaveBlocked(
+      verb === 'guardar' ? t.noSePuedeGuardarBinario : t.noSePuedeConvertirBinario
+    )
   }
   if (e.truncated) {
     throw new ModelSaveBlocked(
-      verb === 'guardar'
-        ? 'No se puede guardar un archivo abierto truncado (>2 MiB): se perdería el resto.'
-        : 'No se puede convertir un archivo abierto truncado (>2 MiB).'
+      verb === 'guardar' ? t.noSePuedeGuardarTruncado : t.noSePuedeConvertirTruncado
     )
   }
   return e.model
@@ -44,7 +47,7 @@ export async function revisarBorrado<M>(ctx: Contexto<M>, key: string): Promise<
   if (e === undefined) return false
   let hay: boolean
   try {
-    hay = await ctx.deps.existe(e.path)
+    hay = await ctx.deps.existe(rutaDe(e))
   } catch {
     // La pregunta falló: en la duda se deja la marca como estaba.
     return e.borrado
@@ -76,7 +79,7 @@ export async function guardar<M>(ctx: Contexto<M>, key: string): Promise<WriteOu
   if (!e.dirty) {
     let sigue: boolean
     try {
-      sigue = await ctx.deps.existe(e.path)
+      sigue = await ctx.deps.existe(rutaDe(e))
     } catch {
       // No se pudo preguntar: se sigue con el guardado que el usuario pidió con Ctrl+S.
       sigue = false
@@ -87,7 +90,7 @@ export async function guardar<M>(ctx: Contexto<M>, key: string): Promise<WriteOu
   // La versión se captura ANTES del await: si se sigue escribiendo, el buffer queda sucio.
   const versionAtSave = ctx.deps.versionId(model)
   const content = ctx.deps.getValue(model) // respeta el EOL del modelo; sin normalizar
-  const res = await ctx.deps.write(e.path, content, e.encoding)
+  const res = await ctx.deps.write(rutaDe(e), content, e.encoding)
 
   if (ctx.entries.get(key) !== e) return res // se cerró durante la escritura
   e.savedVersionId = versionAtSave
@@ -115,7 +118,7 @@ export async function convertir<M>(
   // Después del cambio de EOL: cambiarlo cuenta como edición y mueve la versión.
   const versionAtSave = ctx.deps.versionId(model)
   const content = ctx.deps.getValue(model)
-  const res = await ctx.deps.write(e.path, content, nextEncoding)
+  const res = await ctx.deps.write(rutaDe(e), content, nextEncoding)
 
   if (ctx.entries.get(key) !== e) return res
   marcarBorrado(e, false)
@@ -146,7 +149,7 @@ async function recargar<M>(
   // Ctrl+S lo recrea. Cualquier otro fallo de lectura sí sube.
   let res: LoadedText
   try {
-    res = await ctx.deps.load(e.path, forcedEncoding)
+    res = await ctx.deps.load(rutaDe(e), forcedEncoding)
   } catch (err) {
     if (!esArchivoInexistente(err)) throw err
     if (ctx.entries.get(key) === e) marcarBorrado(e, true)

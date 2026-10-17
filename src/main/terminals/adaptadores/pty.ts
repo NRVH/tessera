@@ -2,7 +2,8 @@
 // Adaptador de procesos de la terminal: único sitio que crea ptys (node-pty) y que mata un
 // árbol de procesos (`taskkill` en Windows; señales a grupos en macOS y Linux, con el plan de
 // `arbolProcesos.ts`). En Linux el pty nace sin lo heredado del main (`descriptoresHeredados.ts`).
-// No importa nada del dominio.
+// Cada pty queda en el registro del proceso (`registroPtys.ts`) hasta su salida, para que el cierre
+// remate lo que cualquier camino dejara suelto. No importa nada del dominio.
 // Lo usa `TerminalService`, que le pasa ya resueltos el archivo, los argumentos y el entorno.
 // Decisiones: docs/decisiones/terminales/pty-y-detencion-de-sesion.md
 // =============================================================================
@@ -10,10 +11,13 @@ import { spawn as ptySpawn } from 'node-pty'
 import type { IPty } from 'node-pty'
 import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { plataformaActual } from '../../../shared/plataforma.ts'
+import path from 'node:path'
+import { esWindows, plataformaActual } from '../../../shared/plataforma.ts'
 import { conTope, esperar } from '../../util/esperas.ts'
 import { BASH, lanzamientoSinHerencia } from './descriptoresHeredados.ts'
 import { leerTablaPs, planMuerte, planRemate, type PlanMuerte, type ProcesoPs } from './arbolProcesos.ts'
+import { crearRegistroPtys, type PtyPendiente, type Remate } from './registroPtys.ts'
+import { clasificarTaskkill, type ErrorEjecucion, type ResultadoTaskkill } from './taskkill.ts'
 
 /** Nombre del pty "type" que se anuncia al shell (TERM). */
 const PTY_NAME = 'xterm-256color'
@@ -40,7 +44,106 @@ export interface OpcionesPty {
  */
 export function lanzarPty(archivo: string, args: string[], opciones: OpcionesPty): IPty {
   const lanzamiento = lanzamientoSinHerencia(archivo, args, plataformaActual(), existsSync(BASH), opciones.env)
-  return ptySpawn(lanzamiento.archivo, lanzamiento.args, { name: PTY_NAME, ...opciones, env: lanzamiento.env, useConptyDll: true })
+  const pty = ptySpawn(lanzamiento.archivo, lanzamiento.args, { name: PTY_NAME, ...opciones, env: lanzamiento.env, useConptyDll: true })
+  registro.alta(pty, path.basename(archivo))
+  pty.onExit(() => registro.avisoDeSalida(pty))
+  // Cualquier `kill()` pasa por el registro, lo llame quien lo llame: en Windows un segundo cerraría otra
+  // vez la pseudoconsola y tumba el proceso, así que allí va una sola vez; fuera, cada señal se manda
+  // y solo se anota que el pty ya la tuvo.
+  const killDeNodePty = pty.kill.bind(pty)
+  killOriginal.set(pty, killDeNodePty)
+  pty.kill = (senal?: string): void => {
+    if (esWindows()) {
+      registro.matar(pty)
+      return
+    }
+    registro.anotarMatado(pty)
+    killDeNodePty(senal)
+  }
+  return pty
+}
+
+/** El `kill` de node-pty de cada pty, antes de pasar por el registro. */
+const killOriginal = new WeakMap<IPty, (senal?: string) => void>()
+
+/**
+ * Los ptys de este proceso cuya raíz puede seguir viva. Una raíz viva al salir cuelga la app: al
+ * desmontar Node, node-pty une el hilo que espera su fin.
+ */
+const registro = crearRegistroPtys<IPty>({
+  matar: (pty) => matarSinAplazar(pty),
+  senalar: esWindows() ? null : (pid) => process.kill(pid, 'SIGKILL'),
+  terminado: (pty, avisoDeSalida) => (esWindows() ? raizTerminadaWindows(pty) : avisoDeSalida)
+})
+
+/**
+ * En Windows, `onExit` llega al cerrarse la tubería de salida, que puede cerrarse con la raíz viva
+ * (un proceso que no usa la consola). El fin de la raíz lo marca el aviso nativo, que deja el código
+ * en el agente de node-pty.
+ */
+function raizTerminadaWindows(pty: IPty): boolean {
+  return typeof (pty as unknown as { _agent?: { exitCode?: unknown } })._agent?.exitCode === 'number'
+}
+
+/**
+ * `kill()` de node-pty sin esperar a su primer byte. En Windows node-pty aplaza `kill()` hasta que el
+ * pty escribe algo: una raíz que no escribe nunca no lo recibiría y seguiría viva, y con ella el hilo
+ * que la espera colgaría la salida de la app. Antes de ese byte se llama al `kill` de su agente, que es
+ * lo que el aplazado haría (cierra la pseudoconsola y termina la raíz con su handle); así no queda
+ * ninguno en cola que lo repita después. Los `resize`/`write` aplazados se descartan: correrían con el
+ * primer byte sobre una pseudoconsola ya cerrada.
+ */
+function matarSinAplazar(pty: IPty): void {
+  const interno = pty as unknown as { _isReady?: boolean; _deferreds?: unknown; _agent?: { kill?: () => void } }
+  if (esWindows() && interno._isReady === false && typeof interno._agent?.kill === 'function') {
+    interno._agent.kill()
+    if (Array.isArray(interno._deferreds)) interno._deferreds = []
+    return
+  }
+  killOriginal.get(pty)?.()
+}
+
+/** `kill()` de un pty, una sola vez: un segundo cerraría otra vez su pseudoconsola. Devuelve si lo mandó. */
+export function matarPty(pty: IPty): boolean {
+  return registro.matar(pty)
+}
+
+/**
+ * Para quien suelta un pty (cerrar, reiniciar, hibernar): si su raíz no consta como terminada,
+ * `kill()` si nadie se lo mandó y, fuera de Windows, SIGKILL a la raíz si ya lo tuvo.
+ */
+export function rematarPty(pty: IPty): Remate {
+  return registro.rematar(pty)
+}
+
+/** Si la raíz de `pty` no consta como terminada: solo entonces hay algo que rematar. */
+export function raizViva(pty: IPty): boolean {
+  return registro.pendiente(pty)
+}
+
+/** Los ptys cuya raíz no consta como terminada, para dejarlos escritos. */
+export function ptysPendientes(): PtyPendiente[] {
+  return registro.pendientes()
+}
+
+/** Lo que dejó `rematarPtysSueltos`: a cuántos mandó `kill()` y cuáles siguen con la raíz viva. */
+export interface ResumenRemate {
+  rematados: number
+  quedan: PtyPendiente[]
+}
+
+/**
+ * Final del cierre: remata TODO pty cuya raíz no consta como terminada, también los que ya no están
+ * en el mapa de ninguna sesión. Fuera de Windows, tras `espera`, SIGKILL a los que el `kill()` no tumbó; en Windows `kill()`
+ * ya termina la raíz con `TerminateProcess` y no se espera.
+ */
+export async function rematarPtysSueltos(esperaMs = 500): Promise<ResumenRemate> {
+  const cuenta = registro.rematarTodos()
+  if (!esWindows() && registro.pendientes().length > 0) {
+    await esperar(esperaMs)
+    registro.rematarTodos()
+  }
+  return { rematados: cuenta.kill, quedan: registro.pendientes() }
 }
 
 /**
@@ -83,24 +186,27 @@ export async function codigoDeSalidaTardio(pty: IPty, topeMs: number): Promise<n
 }
 
 /**
- * `taskkill /PID <pid> /T /F`: mata el proceso y todos sus descendientes; solo Windows (lo
- * decide quien llama). Ignora los errores —el proceso puede haber muerto ya— y la espera tiene
- * doble tope: el `timeout` de `execFile` y una carrera con un temporizador.
+ * `taskkill /PID <pid>… /T /F`: mata los procesos y todos sus descendientes, varios en una sola
+ * llamada; solo Windows (lo decide quien llama). Nunca lanza: devuelve cómo acabó, para que quien
+ * llama anote un fallo o un tope (con el tope, `execFile` corta `taskkill` a medias y parte del
+ * árbol puede seguir vivo). La espera tiene doble tope: el `timeout` de `execFile` y una carrera.
  */
-export function matarArbolWindows(pid: number): Promise<void> {
-  const hecho = new Promise<void>((resolve) => {
+export async function matarArbolWindows(pids: number | readonly number[]): Promise<ResultadoTaskkill> {
+  const lista = typeof pids === 'number' ? [pids] : pids
+  if (lista.length === 0) return { estado: 'ok' }
+  const hecho = new Promise<ResultadoTaskkill>((resolve) => {
     try {
       execFile(
         'taskkill',
-        ['/PID', String(pid), '/T', '/F'],
+        [...lista.flatMap((pid) => ['/PID', String(pid)]), '/T', '/F'],
         { windowsHide: true, timeout: TASKKILL_TIMEOUT_MS },
-        () => resolve()
+        (err, _stdout, stderr) => resolve(clasificarTaskkill(err as ErrorEjecucion | null, String(stderr ?? '')))
       )
-    } catch {
-      resolve()
+    } catch (e) {
+      resolve({ estado: 'fallo', detalle: String(e) })
     }
   })
-  return conTope(hecho, TASKKILL_TIMEOUT_MS + 500).then(() => undefined)
+  return (await conTope(hecho, TASKKILL_TIMEOUT_MS + 500)) === 'tope' ? { estado: 'tope' } : hecho
 }
 
 /** Tope de `ps`: es instantáneo, y uno que no vuelva no puede colgar el cierre. */

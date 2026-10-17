@@ -3,11 +3,12 @@
 // Prueba de mismasPropsPane (node src/renderer/src/features/agentes/test-props-pane-agente.mts):
 // el comparador con el que el pane del agente se salta el render. Fija que solo perdona
 // lo que la columna rehace sin cambiar (`target` y `versionesAgente`) y que cualquier
-// otra prop distinta, también una que se añada mañana, vuelve a pintar el pane.
+// otra prop distinta, también una que se añada mañana, vuelve a pintar el pane. Y qué estado
+// reporta el pane al punto del perfil (`estadoParaElPunto`).
 // Decisiones: docs/decisiones/agentes/pane-del-agente-sin-re-render.md
 // =============================================================================
 
-import { mismasPropsPane, type AgentTerminalPaneProps } from './agentPaneTipos.ts'
+import { estadoParaElPunto, mismasPropsPane, type AgentTerminalPaneProps } from './agentPaneTipos.ts'
 
 const results: { name: string; pass: boolean; evidence: string }[] = []
 function hr(title: string): void {
@@ -23,7 +24,10 @@ function check(name: string, pass: boolean, evidence: string): void {
 const onSelectAccount = (): void => {}
 const onToggleExpand = (): void => {}
 const onStatusChange = (): void => {}
-const agentes: AgentTerminalPaneProps['agentsInProfile'] = ['claude-code', 'codex']
+const agentes: AgentTerminalPaneProps['pestanasAgente'] = [
+  { id: 'claude-code', nombre: 'Claude Code', corta: 'CC', manual: null },
+  { id: 'codex', nombre: 'Codex', corta: 'Cdx', manual: null }
+]
 const montadas: string[] = []
 
 const target = (key = 'alfa|C:\\p\\alfa|claude-code'): AgentTerminalPaneProps['target'] => ({
@@ -49,7 +53,7 @@ function props(cambios: Partial<AgentTerminalPaneProps> = {}): AgentTerminalPane
     hibernated: false,
     profileName: 'Alfa',
     accentColor: '#61afef',
-    agentsInProfile: agentes,
+    pestanasAgente: agentes,
     dbMounted: montadas,
     dbReady: true,
     lugar: 'proyecto',
@@ -86,7 +90,7 @@ hr('(2) Lo que SÍ cambia repinta')
   check('de sin versiones a con versiones: distintas', !igual(props({ versionesAgente: null }), props()), 'false')
   check('otro handler: distintas', !igual(props(), props({ onStatusChange: () => {} })), 'false')
   check('otra lista de bases con el mismo contenido: distintas', !igual(props(), props({ dbMounted: [] })), 'false')
-  check('otra lista de agentes con el mismo contenido: distintas', !igual(props(), props({ agentsInProfile: ['claude-code', 'codex'] })), 'false')
+  check('otra lista de agentes con el mismo contenido: distintas', !igual(props(), props({ pestanasAgente: agentes?.map((x) => ({ ...x })) })), 'false')
   check('se hiberna: distintas', !igual(props(), props({ hibernated: true })), 'false')
   check('entra al mosaico (objeto `mosaico` nuevo): distintas', !igual(props(), props({ mosaico: {} as AgentTerminalPaneProps['mosaico'] })), 'false')
   check('otro token de foco: distintas', !igual(props(), props({ tokenFoco: 1 })), 'false')
@@ -103,6 +107,30 @@ hr('(3) Recorre la UNIÓN de claves: una prop nueva no queda rancia')
   const sinOpcional = props()
   delete sinOpcional.mostrado
   check('opcional ausente frente a `undefined` explícito: iguales', igual(sinOpcional, props()) && igual(props(), sinOpcional), 'true')
+}
+
+hr('(4) Lo que el pane reporta al punto del perfil')
+{
+  const mirado = { sinCuenta: false, seEstaMirando: true, abriendo: false, recuperando: false }
+  const oculto = { ...mirado, seEstaMirando: false }
+  check("arrancando y mirado: 'booting' (el punto gira)", estadoParaElPunto('booting', mirado) === 'booting', estadoParaElPunto('booting', mirado))
+  check(
+    "'booting' de un pane que no se mira y sin apertura: no gira (nadie lo abrirá hasta volver a él)",
+    estadoParaElPunto('booting', oculto) === 'exited',
+    estadoParaElPunto('booting', oculto)
+  )
+  check(
+    'una apertura en vuelo sigue girando aunque se deje de mirar (despertar y cambiar de perfil)',
+    estadoParaElPunto('booting', { ...oculto, abriendo: true }) === 'booting',
+    estadoParaElPunto('booting', { ...oculto, abriendo: true })
+  )
+  check(
+    'recuperando el contenedor sin mirarse: sigue girando',
+    estadoParaElPunto('booting', { ...oculto, recuperando: true }) === 'booting',
+    estadoParaElPunto('booting', { ...oculto, recuperando: true })
+  )
+  check('sin cuenta: nada arranca', estadoParaElPunto('booting', { ...mirado, sinCuenta: true }) === 'exited', 'exited')
+  check("viva y oculta: sigue 'live'", estadoParaElPunto('live', oculto) === 'live', estadoParaElPunto('live', oculto))
 }
 
 const passed = results.filter((r) => r.pass).length

@@ -12,6 +12,7 @@ import { registroCeldas, type DuenoRejilla } from '../rejilla/presupuestoCeldas'
 import { motivoTopeTraerTodas, siguientePaso } from '../rejilla/traerTodas'
 import type { AccionPestana } from './estadoConsola'
 import { textoError } from './salidaConsola'
+import { txPane } from './textosPane.ts'
 import type { ApiExplorador, Caja, RefsConsola } from './tiposConsola'
 import type { NucleoConsola } from './useConsolaNucleo'
 import { respuestaDeError, uuid } from '../documentos/consolaComun'
@@ -107,7 +108,7 @@ function pedirConteo(p: PiezasVuelo, id: string): void {
       if (r.desmontadoRef.current || r.conteosEnVueloRef.current.get(id) !== peticionId) return
       if (c.ok) p.setTotales((t) => ({ ...t, [id]: c.valor }))
       // Un conteo detenido con ■ no es un error: lo pidió el usuario.
-      else if (c.error.motivo !== 'cancelada') p.salida('error', `No se pudieron contar las filas: ${textoError(c.error)}`)
+      else if (c.error.motivo !== 'cancelada') p.salida('error', txPane().noSePudieronContar(textoError(c.error)))
     })
     .finally(() => {
       if (r.conteosEnVueloRef.current.get(id) !== peticionId) return

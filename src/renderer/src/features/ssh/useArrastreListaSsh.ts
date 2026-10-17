@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useState, type DragEvent } from 'react'
 import { notify } from '../../comun/notifications'
 import { mensajeDeErrorSsh } from './erroresSsh'
+import { txSsh } from './textos.ts'
 import type { FilaLista } from './listaSsh'
 import { cuantasConexiones, destinoDeFila, grupoIdDeDestino, idsDelArrastre, idsQueCambian, type SeleccionSsh } from './seleccionListaSsh'
 import { accionesSsh, type DatosPerfilSsh } from './store'
@@ -49,7 +50,7 @@ async function mover(perfilId: string, ids: string[], destino: string): Promise<
   try {
     await window.tessera.ssh.mover({ ids, profileId: perfilId, grupoId: grupoIdDeDestino(destino) })
   } catch (err) {
-    notify('error', 'No se pudieron mover las conexiones', mensajeDeErrorSsh(err))
+    notify('error', txSsh().noSePudieronMover, mensajeDeErrorSsh(err))
   }
 }
 

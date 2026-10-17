@@ -2,7 +2,7 @@
 // Contrato IPC del explorador para motores de CLAVES (Redis): canales KV, forma de las claves y
 // valores, y los motivos de rechazo. Aparte del SQL; reutiliza de él la conexión y `DbRespuesta`.
 // Hoja del grafo: solo `import type`; neutral y ES2020 (lo importan main, preload y renderer).
-// Decisiones: docs/decisiones/bd/contratos-claves.md
+// Decisiones: docs/decisiones/bd/claves-controlador.md
 // =============================================================================
 
 import type { DbRespuesta } from './db-explorador-ipc.ts'

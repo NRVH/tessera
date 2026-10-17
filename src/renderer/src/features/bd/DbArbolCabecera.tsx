@@ -12,6 +12,7 @@ import { accionDesconectarCabecera } from './filasArbolBd'
 import { etiquetaAcorde } from '../../util/atajos'
 import { desconectar, refrescarCabecera } from './DbArbolAcciones'
 import type { CtxArbol } from './DbArbolTipos'
+import { txArbolAcciones } from './textosArbolAcciones.ts'
 
 /** La cabecera del lateral. */
 export function CabeceraArbol({ a }: { a: CtxArbol }): React.JSX.Element {
@@ -20,40 +21,41 @@ export function CabeceraArbol({ a }: { a: CtxArbol }): React.JSX.Element {
   const conexionSelObj = conexionSel ? porId.get(conexionSel) : undefined
   // «Desconectar»: misma regla que el menú contextual de la conexión.
   const accionDesconectar = accionDesconectarCabecera(conexionSelObj, a.p.sesiones)
+  const t = txArbolAcciones()
   return (
     <div className="sidebar-header">
-      <span className="sidebar-title">Bases de datos</span>
+      <span className="sidebar-title">{t.tituloCabecera}</span>
       <div className="sidebar-actions">
-        <BotonCabecera titulo="Nueva conexión…" etiqueta="Nueva conexión" motivo={motivos.nuevaConexion} onClick={() => a.e.setDialogo({ conexionId: null })}>
+        <BotonCabecera titulo={t.nuevaConexion} etiqueta={t.nuevaConexionSinPuntos} motivo={motivos.nuevaConexion} onClick={() => a.e.setDialogo({ conexionId: null })}>
           <IconoNuevaConexion />
         </BotonCabecera>
         <BotonCabecera
-          titulo={`Nueva consola${conexionSelObj ? ` en ${conexionSelObj.alias}` : ''} (${etiquetaAcorde('nuevaConsola', a.plataforma)})`}
-          etiqueta="Nueva consola"
+          titulo={t.nuevaConsolaTitulo(conexionSelObj ? conexionSelObj.alias : null, etiquetaAcorde('nuevaConsola', a.plataforma))}
+          etiqueta={t.nuevaConsola}
           motivo={motivoNuevaConsola}
           onClick={() => a.p.onNuevaConsola(conexionSel)}
         >
           <IconoNuevaConsola />
         </BotonCabecera>
         <BotonCabecera
-          titulo={conexionSelObj ? `Refrescar ${conexionSelObj.alias}` : 'Refrescar todo'}
-          etiqueta="Refrescar"
+          titulo={conexionSelObj ? t.refrescarAlias(conexionSelObj.alias) : t.refrescarTodo}
+          etiqueta={t.refrescar}
           motivo={sinConexiones}
           onClick={() => refrescarCabecera(a)}
         >
           <IconoRefrescar />
         </BotonCabecera>
         <BotonCabecera
-          titulo="Plegar todo"
-          etiqueta="Plegar todo"
-          motivo={sinConexiones ?? (a.p.expandidos.size === 0 ? 'No hay nada desplegado' : null)}
+          titulo={t.plegarTodo}
+          etiqueta={t.plegarTodo}
+          motivo={sinConexiones ?? (a.p.expandidos.size === 0 ? t.nadaDesplegado : null)}
           onClick={a.p.onPlegarTodo}
         >
           <IconoPlegarTodo />
         </BotonCabecera>
         <BotonCabecera
           titulo={accionDesconectar.titulo}
-          etiqueta="Desconectar"
+          etiqueta={t.desconectar}
           motivo={accionDesconectar.motivo}
           onClick={() => {
             if (conexionSelObj) void desconectar(a, conexionSelObj)

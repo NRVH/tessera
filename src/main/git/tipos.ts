@@ -6,6 +6,7 @@
 // =============================================================================
 
 import type { EmisorEventos } from '../util/emisorEventos'
+import type { KeyedMutex } from '../util/mutex'
 
 /** Opciones del servicio de git; `projectRoot` y `log` son opcionales para poder probarlo. */
 export interface GitServiceOptions {
@@ -25,6 +26,15 @@ export interface GitServiceOptions {
   confirmDiscardMany?: (fileNames: string[]) => Promise<boolean>
   /** Emisor hacia el renderer para los avisos parciales de `multiStatus`; sin él no se emite nada. */
   eventos?: EmisorEventos
+  /** Contenedora del proyecto. Omitida: la fija `setProjectRoot`. */
+  containerPath?: string
+  /** Candado de escritura compartido: el de la vista que lo crea (`GitService.paraRaiz`). */
+  writeLock?: KeyedMutex
+  /**
+   * Es la vista de un proyecto que no es el anclado (`GitService.paraRaiz`): su abanico de estado
+   * va en un ámbito propio, que no cancela el cambio de ancla. Lo que pide es explícito.
+   */
+  vista?: boolean
 }
 
 /**

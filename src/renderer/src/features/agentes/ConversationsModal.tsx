@@ -12,6 +12,7 @@ import { ConfirmDialog } from '../../comun/ConfirmDialog'
 import { pegarRecortado } from '../../util/pasteTrim'
 import { PromptDialog } from '../../comun/PromptDialog'
 import { useDialogo } from '../../comun/useDialogo'
+import { txConversaciones } from './textosConversaciones.ts'
 import { lugarHistorial, type LugarAgente } from './textosMontajeBases'
 
 /** Lo que se muestra en la fila: el nombre propio si lo hay; si no, el automático. */
@@ -143,6 +144,7 @@ export function ConversationsModal(props: ConversationsModalProps): React.JSX.El
 
   const filtered = useMemo(() => filtrar(list, query), [list, query])
   const lugar = lugarHistorial(dondeVive, projectHostPath)
+  const t = txConversaciones()
 
   return (
     <div className="modal-overlay" role="presentation" onMouseDown={onClose}>
@@ -173,9 +175,9 @@ export function ConversationsModal(props: ConversationsModalProps): React.JSX.El
       {confirmDelete && (
         <ConfirmDialog
           danger
-          title="Eliminar conversación"
-          message={`¿Eliminar "${displayTitle(confirmDelete)}"?\nSe borra su transcript del disco. Esta acción no se puede deshacer.`}
-          confirmLabel="Eliminar"
+          title={t.eliminarTitulo}
+          message={t.eliminarMensaje(displayTitle(confirmDelete))}
+          confirmLabel={t.eliminar}
           onConfirm={() => {
             setConfirmDelete(null)
             void borrar(confirmDelete)
@@ -195,16 +197,17 @@ interface CabeceraConversacionesProps {
 }
 
 function CabeceraConversaciones({ agente, accentColor, cabecera, onClose }: CabeceraConversacionesProps): React.JSX.Element {
+  const t = txConversaciones()
   return (
     <header className="conv-header">
       <div className="conv-header-title">
         {accentColor && (
           <span className="profile-dot" style={{ background: accentColor }} aria-hidden="true" />
         )}
-        <span>Conversaciones de {AGENT_LABEL[agente]}</span>
+        <span>{t.titulo(AGENT_LABEL[agente])}</span>
         {cabecera && <span className="conv-header-profile">{cabecera}</span>}
       </div>
-      <button className="btn btn-icon conv-close" onClick={onClose} title="Cerrar (Esc)" aria-label="Cerrar">
+      <button className="btn btn-icon conv-close" onClick={onClose} title={t.cerrar} aria-label={t.cerrarAria}>
         ✕
       </button>
     </header>
@@ -233,12 +236,13 @@ interface PanelConversacionesProps {
 
 function PanelConversaciones(p: PanelConversacionesProps): React.JSX.Element {
   const { agente, query, setQuery, onClose } = p
+  const t = txConversaciones()
   return (
     <div
       className="conv-modal"
       role="dialog"
       aria-modal="true"
-      aria-label={`Conversaciones de ${AGENT_LABEL[agente]}`}
+      aria-label={t.titulo(AGENT_LABEL[agente])}
       onMouseDown={(e) => e.stopPropagation()}
     >
       <CabeceraConversaciones agente={agente} accentColor={p.accentColor} cabecera={p.lugar.cabecera} onClose={onClose} />
@@ -246,7 +250,7 @@ function PanelConversaciones(p: PanelConversacionesProps): React.JSX.Element {
       <div className="conv-search-wrap">
         <input
           className="conv-search"
-          placeholder="Buscar conversación…"
+          placeholder={t.buscar}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onPaste={pegarRecortado(setQuery)}
@@ -270,9 +274,7 @@ function PanelConversaciones(p: PanelConversacionesProps): React.JSX.Element {
         ))}
       </div>
 
-      <footer className="conv-footer">
-        Clic en una conversación para reanudarla en la terminal.
-      </footer>
+      <footer className="conv-footer">{t.pie}</footer>
     </div>
   )
 }
@@ -285,17 +287,18 @@ function EstadoLista({
   agente,
   enVacio
 }: EstadoListaProps & { agente: ConvAgent; enVacio: string }): React.JSX.Element {
+  const t = txConversaciones()
   return (
     <>
-      {list === null && !error && <div className="conv-empty">Cargando…</div>}
-      {error && <div className="conv-empty conv-error">No se pudo leer el historial:{'\n'}{error}</div>}
+      {list === null && !error && <div className="conv-empty">{t.cargando}</div>}
+      {error && <div className="conv-empty conv-error">{t.errorLeer}{'\n'}{error}</div>}
       {list !== null && !error && filtered.length === 0 && (
         <div className="conv-empty">
           {!accountId
-            ? 'Elige una cuenta primero.'
+            ? t.elegirCuenta
             : list.length === 0
-              ? `Aún no hay conversaciones de ${AGENT_LABEL[agente]} ${enVacio}.`
-              : 'Ningún resultado para la búsqueda.'}
+              ? t.sinConversaciones(AGENT_LABEL[agente], enVacio)
+              : t.sinResultados}
         </div>
       )}
     </>
@@ -310,21 +313,18 @@ interface FilaConversacionProps {
 }
 
 function FilaConversacion({ c, onResume, onRenombrar, onEliminar }: FilaConversacionProps): React.JSX.Element {
+  const t = txConversaciones()
   return (
     <div className="conv-item">
       <button
         className="conv-item-main"
         // Una conversación renombrada enseña su título automático en el tooltip.
-        title={
-          c.customTitle
-            ? `Reanudar: ${c.customTitle}\nTítulo automático: ${c.title}`
-            : `Reanudar: ${c.title}`
-        }
+        title={c.customTitle ? t.reanudarRenombrada(c.customTitle, c.title) : t.reanudar(c.title)}
         onClick={onResume}
       >
         <span className="conv-item-title">{displayTitle(c)}</span>
         {c.customTitle && (
-          <span className="conv-item-renamed" aria-label="Renombrada">
+          <span className="conv-item-renamed" aria-label={t.renombrada}>
             <TagIcon />
           </span>
         )}
@@ -332,8 +332,8 @@ function FilaConversacion({ c, onResume, onRenombrar, onEliminar }: FilaConversa
       </button>
       <button
         className="conv-item-rename"
-        title="Renombrar conversación"
-        aria-label="Renombrar conversación"
+        title={t.renombrar}
+        aria-label={t.renombrar}
         onClick={(e) => {
           e.stopPropagation()
           onRenombrar()
@@ -343,8 +343,8 @@ function FilaConversacion({ c, onResume, onRenombrar, onEliminar }: FilaConversa
       </button>
       <button
         className="conv-item-del"
-        title="Eliminar conversación"
-        aria-label="Eliminar conversación"
+        title={t.eliminarTitulo}
+        aria-label={t.eliminarTitulo}
         onClick={(e) => {
           e.stopPropagation()
           onEliminar()
@@ -363,18 +363,15 @@ interface DialogoRenombrarProps {
 }
 
 function DialogoRenombrar({ renaming, onConfirm, onCancel }: DialogoRenombrarProps): React.JSX.Element {
+  const t = txConversaciones()
   return (
     <PromptDialog
-      title="Renombrar conversación"
-      label="Nombre"
+      title={t.renombrar}
+      label={t.nombre}
       initialValue={renaming.customTitle ?? ''}
-      confirmLabel="Guardar"
+      confirmLabel={t.guardar}
       allowEmpty
-      hint={
-        renaming.customTitle
-          ? `Déjalo vacío para volver al título automático:\n"${renaming.title}"`
-          : `Título automático actual:\n"${renaming.title}"`
-      }
+      hint={renaming.customTitle ? t.pistaConNombre(renaming.title) : t.pistaSinNombre(renaming.title)}
       onConfirm={onConfirm}
       onCancel={onCancel}
     />
@@ -416,9 +413,9 @@ function formatDate(ms: number): string {
   const d = new Date(ms)
   const now = new Date()
   const hhmm = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  if (d.toDateString() === now.toDateString()) return `hoy ${hhmm}`
+  if (d.toDateString() === now.toDateString()) return txConversaciones().hoy(hhmm)
   const yesterday = new Date(now)
   yesterday.setDate(now.getDate() - 1)
-  if (d.toDateString() === yesterday.toDateString()) return `ayer ${hhmm}`
+  if (d.toDateString() === yesterday.toDateString()) return txConversaciones().ayer(hhmm)
   return d.toLocaleDateString([], { day: '2-digit', month: 'short' })
 }

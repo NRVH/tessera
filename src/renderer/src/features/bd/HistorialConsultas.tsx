@@ -13,7 +13,7 @@ import type { DbEntradaHistorial } from '../../../../shared/db-explorador-ipc'
 import {
   textoBorrarTodo,
   textosHistorial,
-  TEXTO_CONEXION_BORRADA,
+  textoConexionBorrada,
   aliasHistorial,
   detalleHistorial,
   glifoHistorial,
@@ -26,6 +26,7 @@ import { IconoEliminar } from '../../comun/iconosMenu'
 import { HUECO, MARGEN, recolocar, type PosicionPopover } from '../../comun/popoverFlotante'
 import { useCierreYFoco } from '../../comun/usePopoverFlotante'
 import { teclaHistorial, useHistorialConsultas, type HistorialConsultasProps } from './consola/useHistorialConsultas'
+import { txConsolaBd } from './textosConsolaBd.ts'
 
 const ANCHO = 600
 
@@ -36,15 +37,16 @@ function CabeceraHistorial({ h }: { h: Historial }): React.JSX.Element {
   // Deshabilitado solo si el historial ENTERO está vacío: con «Solo esta conexión» o un
   // filtro, una lista vacía no dice que no haya nada que borrar.
   const vacioDeVerdad = h.entradas !== null && h.total === 0 && h.filtro.trim() === '' && !h.soloEsta
+  const t = txConsolaBd()
   return (
     <div className="db-hist-cabecera">
       <span className="db-hist-titulo">
-        Historial <span className="db-hist-cuenta">{h.entradas ? cantidad(h.total, textosHistorial(h.lenguaje).una, textosHistorial(h.lenguaje).varias) : ''}</span>
+        {t.historial} <span className="db-hist-cuenta">{h.entradas ? cantidad(h.total, textosHistorial(h.lenguaje).una, textosHistorial(h.lenguaje).varias) : ''}</span>
       </span>
       <div className="panel-actions">
         {vacioDeVerdad ? (
-          <span className="btn-envoltura" title="El historial está vacío">
-            <button type="button" className="btn btn-icon db-hist-borrar-todo" aria-label="Borrar todo el historial…" disabled>
+          <span className="btn-envoltura" title={t.historialVacio}>
+            <button type="button" className="btn btn-icon db-hist-borrar-todo" aria-label={t.borrarTodoHistorial} disabled>
               <IconoEliminar />
             </button>
           </span>
@@ -52,8 +54,8 @@ function CabeceraHistorial({ h }: { h: Historial }): React.JSX.Element {
           <button
             type="button"
             className="btn btn-icon db-hist-borrar-todo"
-            title="Borrar todo el historial…"
-            aria-label="Borrar todo el historial…"
+            title={t.borrarTodoHistorial}
+            aria-label={t.borrarTodoHistorial}
             onClick={() => h.setConfirmando(true)}
           >
             <IconoEliminar />
@@ -66,15 +68,16 @@ function CabeceraHistorial({ h }: { h: Historial }): React.JSX.Element {
 
 /** La confirmación de «Borrar todo», en línea: un modal encima contaría como clic fuera. */
 function FranjaBorrarTodo({ h }: { h: Historial }): React.JSX.Element {
+  const t = txConsolaBd()
   return (
     <div className="db-hist-confirmar" role="alert">
       <span className="db-hist-confirmar-texto">{textoBorrarTodo(h.lenguaje)}</span>
       <div className="db-hist-confirmar-botones">
         <button type="button" className="btn btn-ghost" autoFocus onClick={h.cerrarConfirmacion}>
-          Cancelar
+          {t.cancelar}
         </button>
         <button type="button" className="btn danger" onClick={h.borrarTodo}>
-          Borrar todo
+          {t.borrarTodo}
         </button>
       </div>
     </div>
@@ -93,6 +96,7 @@ function ControlesHistorial({
   idBase: string
   alias: string
 }): React.JSX.Element {
+  const t = txConsolaBd()
   return (
     <div className="db-hist-controles">
       <input
@@ -105,14 +109,14 @@ function ControlesHistorial({
         aria-expanded="true"
         aria-controls={`${idBase}-lista`}
         aria-activedescendant={h.total > 0 ? `${idBase}-h${h.activo}` : undefined}
-        aria-label="Filtrar el historial"
+        aria-label={t.filtrarHistorial}
         onChange={(e) => {
           // Seguir tecleando retira el Enter que esperaba a la lista anterior.
           h.enterEsperandoRef.current = false
           h.setFiltro(e.target.value)
         }}
       />
-      <label className="db-hist-solo" title={`Solo lo ejecutado en ${alias}`}>
+      <label className="db-hist-solo" title={t.soloLoEjecutadoEn(alias)}>
         <input
           type="checkbox"
           checked={h.soloEsta}
@@ -121,7 +125,7 @@ function ControlesHistorial({
             h.setSoloEsta(e.target.checked)
           }}
         />
-        Solo esta conexión
+        {t.soloEstaConexion}
       </label>
     </div>
   )
@@ -129,6 +133,7 @@ function ControlesHistorial({
 
 /** El error con «Reintentar», «Cargando…» o la lista vacía. */
 function EstadoHistorial({ h }: { h: Historial }): React.JSX.Element {
+  const t = txConsolaBd()
   return (
     <>
       {h.error && (
@@ -137,11 +142,11 @@ function EstadoHistorial({ h }: { h: Historial }): React.JSX.Element {
             {h.error}
           </span>
           <button type="button" className="db-fila-accion" onClick={h.reintentar}>
-            Reintentar
+            {t.reintentar}
           </button>
         </div>
       )}
-      {!h.error && h.entradas === null && <div className="db-hist-estado">Cargando el historial…</div>}
+      {!h.error && h.entradas === null && <div className="db-hist-estado">{t.cargandoHistorial}</div>}
       {!h.error && h.entradas !== null && h.total === 0 && (
         <div className="db-hist-estado">
           {h.filtro.trim() !== '' ? textosHistorial(h.lenguaje).ninguna : textosHistorial(h.lenguaje).vacio}
@@ -187,13 +192,13 @@ function FilaHistorial({
       </span>
       <span className="db-hist-hora">{horaHistorial(e.en, ahora)}</span>
       <span className="db-hist-sql">{primeraLineaSql(e.sql)}</span>
-      <span className={`db-hist-meta${a === TEXTO_CONEXION_BORRADA ? ' borrada' : ''}`}>{meta}</span>
+      <span className={`db-hist-meta${a === textoConexionBorrada() ? ' borrada' : ''}`}>{meta}</span>
       <button
         type="button"
         className="db-hist-borrar"
         tabIndex={-1}
-        title="Borrar del historial"
-        aria-label="Borrar del historial"
+        title={txConsolaBd().borrarDelHistorial}
+        aria-label={txConsolaBd().borrarDelHistorial}
         onClick={(ev) => {
           ev.stopPropagation()
           h.borrar(i)
@@ -235,14 +240,15 @@ export function HistorialConsultas(p: HistorialConsultasProps): React.JSX.Elemen
   // La hora de referencia se fija al llegar la lista: «de hoy» no cambia mientras se mira.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const ahora = useMemo(() => Date.now(), [h.entradas])
-  const teclaBorrar = plataforma === 'mac' ? '⌘⌫' : 'Supr'
+  const tx = txConsolaBd()
+  const teclaBorrar = plataforma === 'mac' ? '⌘⌫' : tx.suprimir
 
   const contenido = (
     <div
       ref={raizRef}
       className="db-hist-pop"
       role="dialog"
-      aria-label={`Historial de ${textosHistorial(p.lenguaje).varias} de ${conexion.alias}`}
+      aria-label={tx.historialDe(textosHistorial(p.lenguaje).varias, conexion.alias)}
       style={{ left: pos.left, top: pos.top, width: `min(${ANCHO}px, calc(100vw - ${MARGEN * 2}px))` }}
       onKeyDown={(e) => teclaHistorial(e, h, plataforma, filtroRef.current)}
     >
@@ -250,14 +256,12 @@ export function HistorialConsultas(p: HistorialConsultasProps): React.JSX.Elemen
       {h.confirmando && <FranjaBorrarTodo h={h} />}
       <ControlesHistorial h={h} filtroRef={filtroRef} idBase={idBase} alias={conexion.alias} />
       <EstadoHistorial h={h} />
-      <div id={`${idBase}-lista`} className="db-hist-lista" role="listbox" aria-label="Consultas ejecutadas">
+      <div id={`${idBase}-lista`} className="db-hist-lista" role="listbox" aria-label={tx.consultasEjecutadas}>
         {(h.entradas ?? []).map((e, i) => (
           <FilaHistorial key={e.id} e={e} i={i} h={h} idBase={idBase} ahora={ahora} />
         ))}
       </div>
-      <div className="db-hist-pie">
-        Enter inserta en el cursor · {teclaBorrar} borra (con el filtro vacío) · Esc cierra
-      </div>
+      <div className="db-hist-pie">{tx.pieHistorial(teclaBorrar)}</div>
     </div>
   )
 

@@ -12,10 +12,11 @@
          nativo.
          img-src 'self' data: blob': el visor de IMÁGENES pinta el archivo en un
          <img> cuyo src es un Blob (object-URL) del mismo origen.
+         media-src 'self' blob': el visor de audio y vídeo, igual, en un <audio> o <video>.
          Todo lo demás permanece anclado a 'self' (sin orígenes remotos). -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; worker-src 'self' blob:; frame-src 'self' blob:"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; worker-src 'self' blob:; frame-src 'self' blob:"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tessera</title>

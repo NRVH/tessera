@@ -12,6 +12,7 @@ import { SEP } from './arbolBdClaves.ts'
 import { coincidenciaDe, normalizarBusqueda } from './arbolBdReglas.ts'
 import { crearContexto, type ContextoArbol, type EstadoHijos, type Nodo } from './arbolBdNodo.ts'
 import { nodoConexionSql } from './arbolBdNodosSql.ts'
+import { txArbolNodos } from './textosArbolNodos.ts'
 import { nodoConexionClaves, nodoConexionDocumentos } from './arbolBdNodosFamilias.ts'
 import type { DbConnection } from '../../../../shared/db-ipc.ts'
 import type { Coincidencia, EntradaArbolBd, FilaBd, FilaPlaceholder } from './arbolBdTipos.ts'
@@ -55,7 +56,7 @@ function emitir(n: Nodo, expandidos: ReadonlySet<string>, out: FilaBd[]): void {
   if (!expandida) return
   const h = n.hijos()
   for (const hijo of h.nodos) emitir(hijo, expandidos, out)
-  const estado = h.estado ?? (h.nodos.length === 0 ? { variante: 'empty' as const, mensaje: 'Vacío' } : null)
+  const estado = h.estado ?? (h.nodos.length === 0 ? { variante: 'empty' as const, mensaje: txArbolNodos().vacio } : null)
   if (estado) out.push(placeholder(n.base, estado))
 }
 
@@ -80,7 +81,7 @@ function filtrar(n: Nodo, f: string): FilaBd[] | null {
 function placeholder(padre: FilaBd, estado: EstadoHijos): FilaPlaceholder {
   const base = { key: `${padre.key}${SEP}~${estado.variante}`, depth: padre.depth + 1, padre: padre.key }
   if (estado.variante === 'loading') {
-    return { kind: 'placeholder', variante: 'loading', ...base, mensaje: 'Cargando…', carga: estado.carga }
+    return { kind: 'placeholder', variante: 'loading', ...base, mensaje: txArbolNodos().cargando, carga: estado.carga }
   }
   if (estado.variante === 'empty') {
     return { kind: 'placeholder', variante: 'empty', ...base, mensaje: estado.mensaje }

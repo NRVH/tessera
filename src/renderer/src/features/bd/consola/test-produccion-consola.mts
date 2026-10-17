@@ -11,8 +11,8 @@ import type { DialectoSql } from '../../../../../shared/sql/dialectosSql.ts'
 import type { DbEntorno } from '../../../../../shared/db-ipc.ts'
 import type { DbEstadoSesion, DbResultadoError } from '../../../../../shared/db-explorador-ipc.ts'
 import {
-  ETIQUETA_COMMIT_PRODUCCION,
-  ETIQUETA_EJECUTAR_PRODUCCION,
+  etiquetaCommitProduccion,
+  etiquetaEjecutarProduccion,
   commitPideConfirmacion,
   confirmacionCommitProduccion,
   confirmacionLoteProduccion,
@@ -28,6 +28,9 @@ import * as produccion from './produccionConsola.ts'
 import { decidirLote, estadoBarraTx, estadoInicialConsola, nuevoLoteId, reducirConsola, type EstadoConsola } from './estadoConsola.ts'
 import { crearLote } from './lote.ts'
 import { textoEntrada } from './salidaConsola.ts'
+
+const ETIQUETA_COMMIT_PRODUCCION = etiquetaCommitProduccion()
+const ETIQUETA_EJECUTAR_PRODUCCION = etiquetaEjecutarProduccion()
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))

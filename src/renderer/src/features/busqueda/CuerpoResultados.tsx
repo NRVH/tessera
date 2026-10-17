@@ -9,6 +9,7 @@ import { VirtualList } from '../../comun/VirtualList'
 import { Splitter } from '../../comun/Splitter'
 import { FilaResultado } from './FilaResultado'
 import { VistaPreviaBusqueda } from './VistaPreviaBusqueda'
+import { txBusqueda } from './textos.ts'
 import { seleccionar, type EstadoBusqueda } from './filasResultado'
 import type { CoincidenciaArchivo } from '../../../../shared/search-ipc'
 import type { OpcionesBusqueda } from '../../../../shared/textSearch'
@@ -46,11 +47,12 @@ export function CuerpoResultados({
   onAbrir,
   vacio
 }: CuerpoResultadosProps): React.JSX.Element {
+  const t = txBusqueda()
   return (
     <div className="buscar-cuerpo">
       <VirtualList
         className="buscar-lista"
-        ariaLabel="Resultados de la búsqueda"
+        ariaLabel={t.resultadosBusqueda}
         items={estado.filas}
         itemHeight={altoDeFila}
         // Lleva el índice porque un .class puede dar la misma cadena dos veces. El NUL va
@@ -74,7 +76,7 @@ export function CuerpoResultados({
         max={PREVIA_MAX}
         direction={-1}
         onResize={onAltoPrevia}
-        label="Ajustar el alto de la vista previa"
+        label={t.ajustarAltoPrevia}
       />
 
       <div className="buscar-previa-hueco" style={{ height: `${altoPrevia}px` }}>

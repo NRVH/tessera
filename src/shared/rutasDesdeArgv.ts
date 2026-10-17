@@ -5,10 +5,12 @@
 // `argv[0]` se descarta siempre: es el ejecutable y tiene forma de ruta absoluta.
 // En macOS el camino principal es el evento `open-file`, no el argv; los dos acaban en la
 // cola de `main/shell/aperturasPendientes.ts`. No toca el disco (`resolverApertura.ts`).
+// Un `.tessera` no es una apertura sino una copia que importar (`separarCopias`).
 // Decisiones: docs/decisiones/sistema/cola-de-aperturas.md
 // =============================================================================
 
 import { esWindows } from './plataforma.ts'
+import { EXTENSION_COPIA } from './copiaConfiguracion.ts'
 
 /**
  * Bandera que el instalador NSIS pasa tras una actualización. Vive aquí (y no solo en
@@ -158,6 +160,38 @@ export function rutasDesdeArgv(
     fuera.push(a)
   }
   return fuera
+}
+
+/**
+ * ¿Es una copia de la configuración (`.tessera`)? Por la extensión y sin tocar el disco. Un
+ * nombre que es SOLO la extensión (la carpeta `.tessera` de los perfiles) no cuenta: es una
+ * carpeta que se abre como proyecto. Vale para las dos familias de separadores.
+ */
+export function esArchivoCopia(ruta: string): boolean {
+  const nombre = ruta.slice(Math.max(ruta.lastIndexOf('/'), ruta.lastIndexOf('\\')) + 1).toLowerCase()
+  const sufijo = `.${EXTENSION_COPIA}`
+  return nombre.length > sufijo.length && nombre.endsWith(sufijo)
+}
+
+/** Lo que trae la línea de órdenes, repartido: proyectos o archivos que abrir, y copias que importar. */
+export interface RutasRepartidas {
+  aperturas: string[]
+  copias: string[]
+}
+
+/** Separa las copias de la configuración del resto, conservando el orden de cada lista. */
+export function separarCopias(rutas: readonly string[]): RutasRepartidas {
+  const fuera: RutasRepartidas = { aperturas: [], copias: [] }
+  for (const r of rutas) (esArchivoCopia(r) ? fuera.copias : fuera.aperturas).push(r)
+  return fuera
+}
+
+/** `rutasDesdeArgv` y `separarCopias` en un paso: es lo que mira el arranque. */
+export function clasificarArgv(
+  argv: readonly string[],
+  familia: FamiliaArgv = familiaArgvDelSistema()
+): RutasRepartidas {
+  return separarCopias(rutasDesdeArgv(argv, familia))
 }
 
 /** ¿Nos arrancaron justo después de una actualización? Misma bandera, mismo sitio. */

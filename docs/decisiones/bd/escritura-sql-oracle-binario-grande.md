@@ -7,7 +7,7 @@
 
 Un literal de más de 4000 bytes da ORA-01704, y el hex de `HEXTORAW('…')` ocupa el doble que los bytes:
 en la 11.2, 2000 bytes entran y 2001 no. «Copiar como INSERT» lleva hasta 32 KiB por celda y exportar,
-hasta 16 MiB. Trocearlo como el texto no sirve (medido): `HEXTORAW(a) || HEXTORAW(b)` concatena como
+hasta 16 MiB. Trocearlo como el texto no sirve: `HEXTORAW(a) || HEXTORAW(b)` concatena como
 `VARCHAR2` y da ORA-01489, y `TO_BLOB(a) || TO_BLOB(b)` da ORA-00932.
 
 ## Decisión
@@ -26,7 +26,7 @@ hasta 16 MiB. Trocearlo como el texto no sirve (medido): `HEXTORAW(a) || HEXTORA
   ORA-06502): el bloque se escribe igual, con un comentario que lo explica, y esa fila falla con el motivo
   a la vista.
 - El BLOB temporal se libera con `FREETEMPORARY`, y si el bloque falla PL/SQL lo libera al salir de
-  ámbito (medido con `V$TEMPORARY_LOBS`), así que no hace falta `EXCEPTION`. `tessera_b1` no choca con
+  ámbito, así que no hace falta `EXCEPTION`. `tessera_b1` no choca con
   una columna homónima: en `VALUES` no hay columnas a la vista.
 - El literal sigue siendo solo un literal: para un binario grande no existe ninguno y el escritor del
   `INSERT` lo saca al bloque.

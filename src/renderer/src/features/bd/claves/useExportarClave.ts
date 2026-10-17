@@ -11,6 +11,7 @@ import { notify } from '../../../comun/notifications'
 import { errorDeInvoke, textoError } from '../panesBd'
 import { nuevaPeticion } from '../documentos/utilPanes'
 import { pintarBytes } from './bytesClaves'
+import { txVisorClaves } from './textosVisorClaves'
 import { ELEMENTOS_POR_TROZO_EXPORTACION, documentoJsonDeClave, leerClaveEntera } from './exportarClave'
 
 export interface ExportarClave {
@@ -53,16 +54,16 @@ export function useExportarClave(conexionId: string, base: number, clave: DbKvBy
         () => !montadoRef.current
       )
       if (!lectura.ok) {
-        if (montadoRef.current) notify('error', 'No se pudo exportar la clave', lectura.mensaje)
+        if (montadoRef.current) notify('error', txVisorClaves().noSePudoExportar, lectura.mensaje)
         return
       }
       const nombre = pintarBytes(clave).slice(0, LARGO_NOMBRE_ARCHIVO) || 'clave'
       const r = await window.tessera.dbClaves.guardarTexto({ conexionId, nombre, texto: documentoJsonDeClave(clave, lectura.valor) })
       if (!montadoRef.current) return
-      if (!r.ok) notify('error', 'No se pudo exportar la clave', textoError(r.error))
-      else if (r.valor !== null) notify('success', `Clave exportada a ${r.valor.archivo}`)
+      if (!r.ok) notify('error', txVisorClaves().noSePudoExportar, textoError(r.error))
+      else if (r.valor !== null) notify('success', txVisorClaves().claveExportada(r.valor.archivo))
     } catch (err) {
-      if (montadoRef.current) notify('error', 'No se pudo exportar la clave', textoError(errorDeInvoke(err)))
+      if (montadoRef.current) notify('error', txVisorClaves().noSePudoExportar, textoError(errorDeInvoke(err)))
     } finally {
       if (montadoRef.current) setExportando(false)
     }

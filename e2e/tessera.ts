@@ -16,6 +16,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { plataformaDe, type Plataforma } from '../src/shared/plataforma.ts'
 import { ARG_ARNES_E2E } from '../src/shared/arnesE2e.ts'
+import { MARCA_GUARDIAN } from '../src/main/app/planGuardianSalida.ts'
 
 /**
  * La plataforma de las pruebas, que es también la del paquete que arrancan:
@@ -123,11 +124,63 @@ const UMBRAL_CIERRE_LENTO_MS = 5_000
  */
 const PLAZO_CIERRE_MS = 90_000
 
+/** Un proceso de la tabla del sistema. */
+interface ProcesoSistema {
+  pid: number
+  ppid: number
+  nombre: string
+  linea: string
+}
+
+/** La tabla de procesos del sistema; vacía si no se puede leer. */
+function tablaDeProcesos(): ProcesoSistema[] {
+  try {
+    if (PLATAFORMA === 'windows') {
+      const json = execFileSync(
+        'powershell.exe',
+        ['-NoProfile', '-NonInteractive', '-Command', 'Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,Name,CommandLine | ConvertTo-Json -Compress'],
+        { encoding: 'utf8', timeout: 30_000, maxBuffer: 64 * 1024 * 1024, windowsHide: true }
+      )
+      const filas = JSON.parse(json) as Array<{ ProcessId: number; ParentProcessId: number; Name: string; CommandLine: string | null }>
+      return filas.map((f) => ({ pid: f.ProcessId, ppid: f.ParentProcessId, nombre: f.Name, linea: f.CommandLine ?? '' }))
+    }
+    const salida = execFileSync('/bin/ps', ['-A', '-o', 'pid=,ppid=,comm=,args='], { encoding: 'utf8', timeout: 15_000, maxBuffer: 16 * 1024 * 1024 })
+    return salida
+      .split('\n')
+      .map((l) => /^\s*(\d+)\s+(\d+)\s+(\S+)\s*(.*)$/.exec(l))
+      .filter((m): m is RegExpExecArray => m !== null)
+      .map((m) => ({ pid: Number(m[1]), ppid: Number(m[2]), nombre: m[3], linea: m[4] }))
+  } catch {
+    return []
+  }
+}
+
 /**
- * `app.close()` con tope. Si vence, mata el árbol de procesos de la app (para que el temporal
- * se pueda borrar y la prueba siguiente no herede nada) y devuelve `true`.
+ * El árbol de procesos bajo `raiz`, una línea por proceso (pid, ppid, nombre y el principio de su
+ * línea de órdenes), sangrado por nivel. Es lo que dice QUÉ seguía vivo cuando el cierre no terminó:
+ * Tessera, la raíz de un pty, un `OpenConsole.exe` o un agente.
  */
-async function cerrarConTope(app: ElectronApplication): Promise<boolean> {
+function arbolDeProcesos(raiz: number): string {
+  const tabla = tablaDeProcesos()
+  if (tabla.length === 0) return '(no se pudo leer la tabla de procesos)'
+  const lineas: string[] = []
+  const visitar = (pid: number, nivel: number): void => {
+    for (const p of tabla.filter((x) => x.ppid === pid && x.pid !== pid)) {
+      lineas.push(`${'  '.repeat(nivel)}${p.pid} (padre ${p.ppid}) ${p.nombre}: ${p.linea.slice(0, 160)}`)
+      if (nivel < 8) visitar(p.pid, nivel + 1)
+    }
+  }
+  const propio = tabla.find((p) => p.pid === raiz)
+  lineas.push(propio ? `${propio.pid} (padre ${propio.ppid}) ${propio.nombre}: ${propio.linea.slice(0, 160)}` : `${raiz}: ya no existe`)
+  visitar(raiz, 1)
+  return lineas.join('\n')
+}
+
+/**
+ * `app.close()` con tope. Si vence, vuelca el árbol de procesos de la app, lo mata (para que el
+ * temporal se pueda borrar y la prueba siguiente no herede nada) y devuelve `colgado` con el árbol.
+ */
+async function cerrarConTope(app: ElectronApplication): Promise<{ colgado: boolean; arbol: string }> {
   const cerrada = app.close().then(
     () => false,
     () => false
@@ -138,13 +191,16 @@ async function cerrarConTope(app: ElectronApplication): Promise<boolean> {
   })
   const colgado = await Promise.race([cerrada, vencida])
   clearTimeout(reloj)
-  if (!colgado) return false
+  if (!colgado) return { colgado: false, arbol: '' }
   // `process()` también lanza si Playwright ya soltó la conexión a medio cerrar: no puede
-  // impedir que el cierre se explique.
+  // impedir que el cierre se explique. En Windows NO es Tessera: Playwright lanza la app a través
+  // de `cmd.exe /c`, y este es su pid; Tessera cuelga de él (y `cmd` vive mientras ella viva).
   let pid: number | undefined
+  let arbol = '(sin pid del proceso lanzado)'
   try {
     const proceso = app.process()
     pid = proceso.pid
+    if (pid !== undefined) arbol = arbolDeProcesos(pid)
     if (pid !== undefined && PLATAFORMA === 'windows') {
       execFileSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore', timeout: 15_000 })
     } else {
@@ -155,7 +211,7 @@ async function cerrarConTope(app: ElectronApplication): Promise<boolean> {
   }
   // Con su propio tope: si ni muerta suelta Playwright el `close`, se sigue igual.
   await Promise.race([cerrada, new Promise((r) => setTimeout(r, 15_000))])
-  return true
+  return { colgado: true, arbol }
 }
 
 /**
@@ -164,9 +220,10 @@ async function cerrarConTope(app: ElectronApplication): Promise<boolean> {
  * del temporal que se borra justo después: sin esto, el único rastro de un cierre colgado
  * (pasó: 60 s parado tras `cerrarTodo`) se perdía con él. Se imprime sólo si el cierre pasa
  * del umbral, que es el tope que el propio cierre pone a sus esperas de disco: por debajo, no
- * hay nada que contar. Si además hubo que matar la app, la prueba queda en rojo.
+ * hay nada que contar. Si hubo que matar la app, o la mató su propio guardián de salida porque no
+ * terminó tras «sale» (`MARCA_GUARDIAN` en el registro), la prueba queda en rojo.
  */
-function explicarCierreLento(datos: string, ms: number, colgado: boolean): void {
+function explicarCierreLento(datos: string, ms: number, colgado: boolean, arbol: string): void {
   if (ms <= UMBRAL_CIERRE_LENTO_MS) return
   let log: string
   try {
@@ -174,12 +231,14 @@ function explicarCierreLento(datos: string, ms: number, colgado: boolean): void 
   } catch (err) {
     log = `(sin cierre.log: ${String(err)})`
   }
-  console.warn(`[e2e] el cierre tardó ${ms} ms; logs/cierre.log de la app:\n${log}`)
+  const procesos = colgado ? `\nprocesos vivos bajo el lanzado por Playwright:\n${arbol}` : ''
+  console.warn(`[e2e] el cierre tardó ${ms} ms; logs/cierre.log de la app:\n${log}${procesos}`)
   // `soft`: el rojo queda en el hook, pero el resto de su limpieza (el PostgreSQL de la
   // prueba, el temporal del agente falso) sigue corriendo.
   expect
-    .soft(colgado, `el cierre no terminó en ${PLAZO_CIERRE_MS / 1000} s y se mató la app; logs/cierre.log:\n${log}`)
+    .soft(colgado, `el cierre no terminó en ${PLAZO_CIERRE_MS / 1000} s y se mató la app; logs/cierre.log:\n${log}${procesos}`)
     .toBe(false)
+  expect.soft(log.includes(MARCA_GUARDIAN), `la app no salió tras «sale» y la terminó su guardián; logs/cierre.log:\n${log}`).toBe(false)
 }
 
 export interface SesionTessera {
@@ -205,6 +264,57 @@ export interface OpcionesArranque {
    * `profiles.json` o un `workspace-state.json` de partida.
    */
   sembrar?: (datos: string) => void
+}
+
+/**
+ * Con `TESSERA_E2E_PANTALLA` (`derecha`, `izquierda`, `arriba` o `abajo`), lleva la ventana
+ * al monitor más cercano en esa dirección respecto al principal, para que las pruebas no
+ * ocupen la pantalla en la que se trabaja. Va por posición y no por número: el orden de
+ * los monitores del sistema no coincide con el de Electron. Conserva el tamaño (y el
+ * maximizado) para que nada de lo que se mide dependa de la variable; sin ella, o sin
+ * monitor en esa dirección, no hace nada.
+ */
+async function moverAPantallaElegida(app: ElectronApplication): Promise<void> {
+  const direccion = process.env.TESSERA_E2E_PANTALLA?.trim().toLowerCase()
+  if (!direccion) return
+  await app.evaluate(({ BrowserWindow, screen }, dir) => {
+    const ventana = BrowserWindow.getAllWindows()[0]
+    if (!ventana) return
+    const p = screen.getPrimaryDisplay().bounds
+    // Distancia del monitor al principal en la dirección pedida; null si no está en ella.
+    const distancia = (b: Electron.Rectangle): number | null => {
+      if (dir === 'derecha') return b.x >= p.x + p.width ? b.x - (p.x + p.width) : null
+      if (dir === 'izquierda') return b.x + b.width <= p.x ? p.x - (b.x + b.width) : null
+      if (dir === 'arriba') return b.y + b.height <= p.y ? p.y - (b.y + b.height) : null
+      if (dir === 'abajo') return b.y >= p.y + p.height ? b.y - (p.y + p.height) : null
+      return null
+    }
+    const destino = screen
+      .getAllDisplays()
+      .map((d) => ({ d, dist: distancia(d.bounds) }))
+      .filter((c): c is { d: Electron.Display; dist: number } => c.dist !== null)
+      .sort((a, b) => a.dist - b.dist)[0]?.d
+    if (!destino) return
+    const maximizada = ventana.isMaximized()
+    if (maximizada) ventana.unmaximize()
+    const area = destino.workArea
+    const { width, height } = ventana.getBounds()
+    const ancho = Math.min(width, area.width)
+    const alto = Math.min(height, area.height)
+    const rect = {
+      x: area.x + Math.round((area.width - ancho) / 2),
+      y: area.y + Math.round((area.height - alto) / 2),
+      width: ancho,
+      height: alto
+    }
+    ventana.setBounds(rect)
+    // La app reencaja la ventana cuando llega a otro monitor (en su `moved`, que un movimiento por
+    // código no siempre emite a tiempo). Se lo provoca ya, para que dé por suyo este monitor, y se le
+    // devuelve su tamaño: en el mismo monitor ya no lo vuelve a tocar.
+    ventana.emit('moved')
+    ventana.setBounds(rect)
+    if (maximizada) ventana.maximize()
+  }, direccion)
 }
 
 /**
@@ -265,6 +375,9 @@ export async function abrirTessera(
     // La PowerShell interactiva de la terminal nativa, sin perfil del usuario y sin escribir
     // en su historial real de PSReadLine (ver `shellNativoPara`). En Mac no hace nada.
     TESSERA_SHELL_AISLADA: '1',
+    // En español aunque el equipo esté en otro idioma: los selectores buscan los textos. El spec
+    // del idioma lanza la app en inglés con su propio `env`.
+    TESSERA_FORZAR_IDIOMA: 'es',
     ...env
   } as Record<string, string>
   delete entorno.ELECTRON_RUN_AS_NODE
@@ -275,6 +388,7 @@ export async function abrirTessera(
     timeout: 90_000
   })
   const win = await app.firstWindow({ timeout: 90_000 })
+  await moverAPantallaElegida(app)
   await win.waitForLoadState('domcontentloaded')
   // La barra de título es lo primero que pinta el renderer; sin esperarla, una
   // prueba rápida puede consultar el DOM antes de que exista nada que consultar.
@@ -304,8 +418,8 @@ export async function abrirTessera(
     // `beginShutdown`, que apaga contenedores y puede tardar; estas pruebas no
     // levantan ninguno, pero el temporizador de cortesía sigue ahí.
     const t0 = Date.now()
-    const colgado = await cerrarConTope(app)
-    explicarCierreLento(datos, Date.now() - t0, colgado)
+    const { colgado, arbol } = await cerrarConTope(app)
+    explicarCierreLento(datos, Date.now() - t0, colgado, arbol)
     await borrarTemporal(datos)
   }
 

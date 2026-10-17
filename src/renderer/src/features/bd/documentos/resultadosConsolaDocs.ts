@@ -18,6 +18,7 @@ import {
   type EstadoResultados
 } from '../resultados/pestanasResultado.ts'
 import { cantidad } from '../consola/salidaConsola.ts'
+import { txConsolaDocs } from './textosConsolaDocs.ts'
 
 /** Lo que enseña una pestaña de resultado de la consola de documentos. */
 export type ResultadoDocs =
@@ -65,7 +66,7 @@ export function resultadoDeRespuesta(r: DbDocResultado, sentencia: string): Resu
 /** Título de la pestaña: la colección si la hay; el plan, «Plan»; si no, `Resultado k` (k-ésimo del lote). */
 export function tituloResultadoDocs(r: ResultadoDocs, k: number): string {
   if (r.tipo === 'plan') return TITULO_PLAN
-  return r.tipo === 'documentos' && r.coleccion ? r.coleccion : `Resultado ${k}`
+  return r.tipo === 'documentos' && r.coleccion ? r.coleccion : txConsolaDocs().resultadoK(k)
 }
 
 /**
@@ -92,8 +93,9 @@ export function seleccionarDocumento(e: EstadoResultadosDocs, id: string, i: num
 
 /** «3 documentos (hay más) · pedidos», «4 pasos · 12 ms» (un plan) o «Valor». */
 export function metaResultadoDocs(r: ResultadoDocs): string {
-  if (r.tipo === 'plan') return `${cantidad(resumenPlan(r.plan).pasos, 'paso', 'pasos')} · ${formatoDuracion(r.plan.tiempos.totalMs)}`
-  if (r.tipo !== 'documentos') return 'Valor'
-  const n = cantidad(r.documentos.length, 'documento', 'documentos')
-  return `${n}${r.lector ? ' (hay más)' : ''}${r.coleccion ? ` · ${r.coleccion}` : ''}`
+  const t = txConsolaDocs()
+  if (r.tipo === 'plan') return `${cantidad(resumenPlan(r.plan).pasos, t.paso, t.pasos)} · ${formatoDuracion(r.plan.tiempos.totalMs)}`
+  if (r.tipo !== 'documentos') return t.valor
+  const n = cantidad(r.documentos.length, t.documento, t.documentos)
+  return `${n}${r.lector ? t.haMas : ''}${r.coleccion ? ` · ${r.coleccion}` : ''}`
 }

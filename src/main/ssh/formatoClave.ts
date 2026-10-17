@@ -9,6 +9,7 @@
 
 import { nombresSistema } from '../../shared/nombresSistema.ts'
 import type { Plataforma } from '../../shared/plataforma.ts'
+import { txSsh } from './textos.ts'
 // Solo el tipo, que se borra al compilar: el módulo sigue sin `fs` ni procesos. No puede vivir aquí y
 // que lo importe el adaptador: un adaptador no importa de su dominio (frontera F4).
 import type { SalidaCorta } from './adaptadores/permisosClave.ts'
@@ -43,19 +44,16 @@ const ACEPTADAS: Readonly<Record<string, FormatoClave>> = {
 
 /** Los rechazos: dicen qué hacer y solo nombran el archivo. */
 export const RECHAZO = {
-  grande: (n: string): string => `«${n}» es demasiado grande para ser una clave SSH.`,
-  binario: (n: string): string =>
-    `«${n}» no es un archivo de texto, así que no es una clave SSH. Si es un almacén .pfx o .p12, exporta de él la clave privada en formato PEM.`,
-  publica: (n: string): string => `«${n}» es la clave pública; elige la privada (suele llamarse igual, sin «.pub»).`,
-  putty: (n: string): string =>
-    `«${n}» es una clave de PuTTY: conviértela a formato OpenSSH con PuTTYgen: Conversions › Export OpenSSH key.`,
-  ssh2: (n: string): string => `«${n}» está en el formato SSH2: conviértela a formato OpenSSH con «ssh-keygen -i -f "${n}"».`,
-  certificado: (n: string): string => `«${n}» es un certificado, no una clave privada: elige el archivo de la clave.`,
-  dsa: (n: string): string =>
-    `«${n}» es una clave DSA, que OpenSSH ya no admite: crea otra (por ejemplo, con «ssh-keygen -t ed25519»).`,
-  pgp: (n: string): string => `«${n}» es una clave PGP, no una clave SSH.`,
-  danada: (n: string): string => `«${n}» parece una clave SSH, pero está incompleta o dañada.`,
-  desconocida: (n: string): string => `«${n}» no parece una clave SSH privada.`
+  grande: (n: string): string => txSsh().claves.rechazo.grande(n),
+  binario: (n: string): string => txSsh().claves.rechazo.binario(n),
+  publica: (n: string): string => txSsh().claves.rechazo.publica(n),
+  putty: (n: string): string => txSsh().claves.rechazo.putty(n),
+  ssh2: (n: string): string => txSsh().claves.rechazo.ssh2(n),
+  certificado: (n: string): string => txSsh().claves.rechazo.certificado(n),
+  dsa: (n: string): string => txSsh().claves.rechazo.dsa(n),
+  pgp: (n: string): string => txSsh().claves.rechazo.pgp(n),
+  danada: (n: string): string => txSsh().claves.rechazo.danada(n),
+  desconocida: (n: string): string => txSsh().claves.rechazo.desconocida(n)
 }
 
 /** `-----BEGIN X-----` (PEM) o `---- BEGIN X ----` (SSH2). */
@@ -207,12 +205,12 @@ function motivoDeKeygen(errores: string): string {
       .map((l) => l.trim())
       .filter((l) => l !== '')
       .at(-1) ?? ''
-  return /:\s*([a-z][a-z0-9 ,'()-]*)$/i.exec(ultima)?.[1] ?? 'error desconocido'
+  return /:\s*([a-z][a-z0-9 ,'()-]*)$/i.exec(ultima)?.[1] ?? txSsh().claves.keygenDesconocido
 }
 
 /** Interpreta `ssh-keygen -y -P "" -f <copia>`: la pública impresa, «frase incorrecta» o cualquier otro fallo. */
 export function veredictoKeygen(r: SalidaCorta): VeredictoKeygen {
-  if (r.agotado) return { tipo: 'ilegible', motivo: 'no respondió a tiempo' }
+  if (r.agotado) return { tipo: 'ilegible', motivo: txSsh().claves.keygenAgotado }
   if (r.codigo === 0) return { tipo: 'legible', algoritmo: algoritmoDePublica(r.salida) }
   if (r.errores.includes(FRASE_INCORRECTA)) return { tipo: 'cifrada' }
   return { tipo: 'ilegible', motivo: motivoDeKeygen(r.errores) }
@@ -245,9 +243,10 @@ export type DecisionImportacion = { ok: true; tipo: string | null; cifrada: bool
 export function decidirImportacion(c: ClaveReconocida, v: VeredictoKeygen, nombre: string): DecisionImportacion {
   if (v.tipo === 'ilegible') {
     // La copia ya nació protegida: si aun así ssh ve permisos de más, el problema es la copia, no la clave.
-    if (v.motivo === 'bad permissions') return { ok: false, error: `No se pudo dejar la copia de «${nombre}» solo para tu usuario: ssh no la acepta (bad permissions).` }
-    const pista = c.formato === 'pkcs8' ? ' Si es Ed25519, guárdala en el formato propio de OpenSSH: en PKCS#8 no la lee.' : ''
-    return { ok: false, error: `El cliente OpenSSH de este equipo no sabe leer «${nombre}» (ssh-keygen: ${v.motivo}).${pista}` }
+    const t = txSsh().claves
+    if (v.motivo === 'bad permissions') return { ok: false, error: t.malosPermisos(nombre) }
+    const pista = c.formato === 'pkcs8' ? t.pistaPkcs8 : ''
+    return { ok: false, error: t.noLegible(nombre, v.motivo, pista) }
   }
   const algoritmo = (v.tipo === 'legible' ? v.algoritmo : null) ?? c.algoritmo
   if (algoritmo === 'ssh-dss') return { ok: false, error: RECHAZO.dsa(nombre) }
@@ -261,17 +260,16 @@ export function decidirImportacion(c: ClaveReconocida, v: VeredictoKeygen, nombr
 export function nombreDeClave(base: string): string {
   // eslint-disable-next-line no-control-regex -- un nombre de archivo puede traerlos y la UI no los pinta
   const limpio = base.replace(/[\u0000-\u001f\u007f]/g, '?').trim()
-  if (limpio === '') return 'clave'
+  if (limpio === '') return txSsh().claves.claveSinNombre
   return limpio.length > 120 ? `${limpio.slice(0, 119)}…` : limpio
 }
 
 /** El mensaje de un fallo al leer el archivo elegido, sin su ruta. El remedio de un permiso depende del sistema. */
 export function mensajeDeLectura(codigo: string, nombre: string, plataforma: Plataforma): string {
-  if (codigo === 'ENOENT') return `«${nombre}» ya no está donde se eligió.`
-  if (codigo === 'EISDIR') return `«${nombre}» es una carpeta: elige el archivo de la clave.`
-  if (codigo !== 'EPERM' && codigo !== 'EACCES') return `No se pudo leer «${nombre}» (${codigo}).`
+  const t = txSsh().claves
+  if (codigo === 'ENOENT') return t.lecturaNoEsta(nombre)
+  if (codigo === 'EISDIR') return t.lecturaCarpeta(nombre)
+  if (codigo !== 'EPERM' && codigo !== 'EACCES') return t.lecturaFallo(nombre, codigo)
   const { sistema } = nombresSistema(plataforma)
-  return plataforma === 'mac'
-    ? `${sistema} no deja a Tessera leer «${nombre}». Elígela con «Elegir…» o da acceso a Tessera en Ajustes del Sistema › Privacidad y seguridad.`
-    : `${sistema} no deja a Tessera leer «${nombre}»: comprueba que tu usuario puede abrirla, o cópiala a otra carpeta y elígela desde allí.`
+  return plataforma === 'mac' ? t.permisosMac(sistema, nombre) : t.permisosOtra(sistema, nombre)
 }

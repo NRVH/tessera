@@ -18,6 +18,7 @@ import {
 } from '../pestanas'
 import { BotonActualizacion } from '../actualizaciones'
 import { etiquetaModPrincipal } from '../../util/atajos'
+import { txLayout } from './textos.ts'
 
 interface TabsBarProps {
   tabs: UseTabs
@@ -144,6 +145,7 @@ interface FranjaTituloProps {
  * en marcha se deshabilita diciendo por qué.
  */
 function BotonMosaico(p: Pick<FranjaTituloProps, 'mosaicoActivo' | 'mosaicoDisponible' | 'onToggleMosaico'>): React.JSX.Element {
+  const t = txLayout().titulo
   return (
     <div className="titlebar-inicio">
       <button
@@ -153,12 +155,12 @@ function BotonMosaico(p: Pick<FranjaTituloProps, 'mosaicoActivo' | 'mosaicoDispo
         aria-pressed={p.mosaicoActivo}
         title={
           p.mosaicoActivo
-            ? `Salir del mosaico (${etiquetaModPrincipal()}+Shift+M)`
+            ? t.salirMosaico(etiquetaModPrincipal())
             : p.mosaicoDisponible
-              ? `Mosaico de agentes: todas las terminales en marcha a la vista (${etiquetaModPrincipal()}+Shift+M)`
-              : 'Mosaico de agentes: no hay ningún agente en marcha'
+              ? t.mosaicoDisponible(etiquetaModPrincipal())
+              : t.mosaicoNoDisponible
         }
-        aria-label="Mosaico de agentes"
+        aria-label={t.mosaico}
       >
         <MosaicoIcon />
       </button>
@@ -202,8 +204,8 @@ function FranjaTitulo({
           className={`titlebar-btn${settingsActive ? ' active' : ''}`}
           onClick={onToggleSettings}
           aria-pressed={settingsActive}
-          title={`Configuración (${etiquetaModPrincipal()}+,)`}
-          aria-label="Configuración"
+          title={txLayout().titulo.configuracionTitulo(etiquetaModPrincipal())}
+          aria-label={txLayout().titulo.configuracion}
         >
           <GearIcon />
         </button>

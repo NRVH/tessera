@@ -1,7 +1,8 @@
 # El menú contextual agrupa con separadores y reserva dos columnas distintas: check e icono
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/comun/ContextMenu.tsx`, `contextMenuEstilos.ts` y `contextMenuModel.ts`
+- **Ámbito:** `src/renderer/src/comun/ContextMenu.tsx`, `contextMenuEstilos.ts` y `contextMenuModel.ts`;
+  el de los editores, `menuEditor.ts`, `menuEditorModelo.ts` y `MenuDeEditores.tsx`
 
 ## Contexto
 
@@ -21,6 +22,13 @@ etiquetas de todas las filas aunque solo algunas traigan check o icono.
   clases propias (`statusbar-menu-*`).
 - El menú detiene la propagación del `mousedown` para que clicar una opción no lo cierre antes de
   disparar su acción; el cierre global es `mousedown` fuera o Escape.
+- **Los editores de código usan este mismo menú**, no el de serie del editor, que tiene otro aspecto y
+  no está traducido. Se engancha a cada editor al crearse (`menuEditor.ts`, también los dos lados de un
+  diff) y lo pinta un anfitrión único (`MenuDeEditores.tsx`), porque los editores viven fuera de React.
+  Ofrece lo del panel (las acciones con `contextMenuGroupId`, registradas con `agregarAccionesConMenu`),
+  navegar por el código si el lenguaje lo admite, cambiar el texto y el portapapeles
+  (`menuEditorModelo.ts`). En solo lectura no sale lo que edita, salvo cortar y pegar, apagados. La
+  paleta de comandos del editor no entra: está sin traducir y sigue a un F1.
 
 ## Consecuencias
 

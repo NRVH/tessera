@@ -19,7 +19,9 @@ import type {
   DbResultadoFilas,
   DbTxModo
 } from '../../../shared/db-explorador-ipc.ts'
-import { MOTIVO_CARPETA_SIN_ESCRITURA } from '../../../shared/dbExploradorSesiones.ts'
+import { motivoCarpetaSinEscritura } from '../../../shared/dbExploradorSesiones.ts'
+
+const MOTIVO_CARPETA_SIN_ESCRITURA = motivoCarpetaSinEscritura()
 import {
   AVISO_BINDS_ORACLE,
   PREFIJO_EXPLICAR_PG,

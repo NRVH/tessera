@@ -191,6 +191,10 @@ click **Always Allow**.
   "Actualizar agentes" rebuilds the sandbox image with the latest versions.
 - Paste images and files into the agent's terminal; in Docker mode they are copied inside
   the container instead of passing a path the agent could not open.
+- **Any other terminal agent**, besides Claude Code and Codex: give it a name, the command
+  you would launch it with and, if you like, how to resume its last conversation. In Docker
+  mode you also write how to install it and Tessera bakes it into the workspace's image.
+  Agent tabs can be reordered by dragging, and any of them can be hidden.
 
 ### Sandbox or native, per project
 
@@ -225,7 +229,8 @@ you used to enter it.
   you convert them.
 - **Markdown** with a rendered view (including Mermaid diagrams), a code view, or both side
   by side with synchronized scrolling. HTML files get an isolated preview.
-- **Viewers** for PDF, Word (`.docx`), ZIP archives and images (with zoom).
+- **Viewers** for PDF, Word (`.docx`), ZIP archives, images (with zoom), and audio and video
+  (`.mp4`, `.webm`, `.mp3`, `.wav` and similar) with nothing to install.
 - **Java archives**: `.jar`, `.war`, `.ear` and `.aar` open in the explorer like folders, and
   `.class` files are decompiled on the fly. Comparing two versions of an archive shows which
   entries changed and the diff of the decompiled classes.
@@ -265,6 +270,9 @@ you used to enter it.
   native mode (PowerShell on Windows, your login shell on macOS and Linux).
 - Find in the scrollback, copy and paste that behave like the platform expects, and
   GPU-accelerated rendering that you can turn off in Settings.
+- **Colored logs**: output that arrives without color is highlighted (errors, warnings,
+  dates, IPs, URLs and HTTP codes) in the usual log formats, over SSH too, without changing
+  the text you copy. It can be turned off in Settings.
 - **Full screen**: the terminal takes the whole work area with a button or with
   Ctrl+Shift+Enter (⇧⌘↩), without closing anything it covers.
 - **Terminal agent**: in full screen, the workspace's own agent sits to the right of the
@@ -340,9 +348,14 @@ you used to enter it.
 
 ![Settings with its category rail and search box](assets/capturas/configuracion.png)
 
-A searchable settings window (Ctrl+, / ⌘,): appearance and zoom, terminal fonts, the
-default project mode and agent hibernation, the sandbox image, database defaults, system
-integration, updates, and an About page.
+A searchable settings window (Ctrl+, / ⌘,): appearance, zoom and language (English or
+Spanish), terminal fonts, the default project mode and agent hibernation, the sandbox image,
+database defaults, system integration, updates, and an About page.
+
+**Export and import** takes your setup to another computer (Windows, macOS or Linux): the
+workspaces you choose with their SSH and database connections, your agents and your
+preferences, in a `.tessera` file encrypted with a passphrase. On import you choose what
+comes in, and nothing you already had is touched.
 
 ### Automatic updates
 

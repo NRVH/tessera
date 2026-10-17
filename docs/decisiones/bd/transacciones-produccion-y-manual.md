@@ -6,7 +6,7 @@
 ## Contexto
 
 Una conexión con `entorno: 'produccion'` necesita que nada se escriba por descuido, pero Tessera
-informa y no prohíbe (principio del producto, no se re-litiga).
+informa y no prohíbe: marca y pide confirmar, nunca bloquea al usuario.
 
 ## Decisión
 
@@ -29,7 +29,7 @@ informa y no prohíbe (principio del producto, no se re-litiga).
 
 ## Descartes
 
-- Devolver una sesión «cerrada» inventada con el modo de nacimiento: el renderer la leía una vez
-  y la barra se congelaba (un «Manual» falso tras pasar a desarrollo, y la primera escritura se
-  confirmaba sola).
+- Devolver una sesión «cerrada» inventada con el modo de nacimiento: el renderer la leería una vez
+  y la barra se congelaría (un «Manual» falso tras pasar a desarrollo, y la primera escritura se
+  confirmaría sola).
 - Manual siempre en producción: pasar a Auto es una decisión consciente del usuario.

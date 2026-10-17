@@ -4,7 +4,7 @@
 // terminal o el espacio de datos de un perfil recién creado puede llegar ANTES que el guardado que lo
 // trae. Quien prepara espera aquí, con tope, a que `SAVE_PROFILES` lo traiga, y después vuelve a mirar la
 // lista con su guarda de siempre: un perfil que no llega sigue dando «Ese perfil no existe». Sin Electron.
-// Decisiones: docs/decisiones/agentes/agente-de-la-terminal.md
+// Decisiones: docs/decisiones/workspace/borrar-perfil-con-orden.md
 // =============================================================================
 
 /**

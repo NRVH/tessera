@@ -17,6 +17,7 @@ import { ExploradorSftp } from '../sftp'
 import { esPestanaSftp, sshPaneKey } from './sshTabsModel'
 import { TerminalPane } from './TerminalPane'
 import type { TerminalPaneApi, TerminalPaneInfo } from './terminalPaneTipos'
+import { txTerminales } from './textos.ts'
 import type { TerminalsPanelProps } from './TerminalsPanel'
 import type { ActivoTerminales } from './activoTerminales'
 import { enOrdenEstable } from '../../util/ordenEstable'
@@ -35,7 +36,7 @@ function BotonConectarPorSsh({ onClick }: { onClick: () => void }): React.JSX.El
   return (
     <button className="btn" onClick={onClick}>
       <IconoServidor />
-      Conectar por SSH…
+      {txTerminales().conectarPorSsh}
     </button>
   )
 }
@@ -51,12 +52,13 @@ interface PropsEstadoVacio {
 function EstadoVacioPila({ activo, perfilId, onAdd, onConectarPorSsh }: PropsEstadoVacio): React.JSX.Element {
   const { activeProject } = activo
   if (activo.pane !== null) return <></>
+  const t = txTerminales()
   if (activeProject === null) {
     return (
       <EstadoVacio
         icono={<IconoTerminalVacia />}
-        titulo="Sin proyecto abierto"
-        pista="Abre un proyecto para tener una terminal local, o conéctate a un equipo por SSH."
+        titulo={t.sinProyecto}
+        pista={t.sinProyectoPista}
         accion={perfilId === '' ? undefined : <BotonConectarPorSsh onClick={onConectarPorSsh} />}
       />
     )
@@ -64,12 +66,12 @@ function EstadoVacioPila({ activo, perfilId, onAdd, onConectarPorSsh }: PropsEst
   return (
     <EstadoVacio
       icono={<IconoTerminalVacia />}
-      titulo="No hay terminales"
-      pista="Cerraste todas las de este proyecto."
+      titulo={t.noHayTerminales}
+      pista={t.cerrasteTodas}
       accion={
         <button className="btn" onClick={() => onAdd(activeProject.key)}>
           <PlusIcon />
-          Nueva terminal
+          {t.nuevaTerminal}
         </button>
       }
     />
@@ -91,7 +93,7 @@ function PanesLocales({ panel, activo, onInfo, onApi }: PilaTerminalesProps): Re
             // La React key incluye el MODO: alternar nativo⇄Docker REMONTA el pane (cierra la
             // sesión vieja y abre otra en el shell correcto) en vez de dejar una sesión viva
             // con el modo equivocado. El resto de la key es fijo: el pane sobrevive a todo lo demás.
-            <ErrorBoundary key={`${key}${hostMode ? '|host' : ''}`} label="la terminal" variant="pane">
+            <ErrorBoundary key={`${key}${hostMode ? '|host' : ''}`} label={txTerminales().zonaTerminal} variant="pane">
               <TerminalPane
                 paneKey={key}
                 profileId={project.profileId}
@@ -135,7 +137,7 @@ function PanesSsh({ panel, activo, onInfo, onApi }: PilaTerminalesProps): React.
         if (esPestanaSftp(tab)) {
           const visible = panel.visible && key === activo.activePaneKey
           return (
-            <ErrorBoundary key={key} label="el explorador SFTP" variant="pane">
+            <ErrorBoundary key={key} label={txTerminales().zonaSftp} variant="pane">
               <div className={`terminal-pane${visible ? '' : ' hidden'}`}>
                 {/* La clave del pane es la id de la sesión: lleva el perfil, porque las ids de pestaña se repiten
                     entre perfiles (con la id sola, dos exploradores compartirían sesión y servidor). Al desmontarse
@@ -155,7 +157,7 @@ function PanesSsh({ panel, activo, onInfo, onApi }: PilaTerminalesProps): React.
           )
         }
         return (
-          <ErrorBoundary key={key} label="la conexión SSH" variant="pane">
+          <ErrorBoundary key={key} label={txTerminales().zonaSsh} variant="pane">
             <TerminalPane
               paneKey={key}
               profileId={perfil}

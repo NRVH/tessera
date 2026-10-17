@@ -13,6 +13,7 @@ import {
   MAX_RECIENTES,
   accionPeticion,
   alternarTesela,
+  candidatosDelMosaico,
   claveVista,
   compararCandidatos,
   limiteTeselas,
@@ -165,7 +166,7 @@ function universo(azar: () => number): CandidatoMosaico[] {
 
 /** Orden canónico de REFERENCIA, escrito aparte del módulo (en un universo no hay empates). */
 function canonicoRef(c: readonly CandidatoMosaico[]): string[] {
-  const rango = (a: Agente): number => (a === 'claude-code' ? 0 : 1)
+  const rango = (a: string): number => (a === 'claude-code' ? 0 : 1)
   return [...c]
     .sort(
       (a, b) =>
@@ -1251,6 +1252,80 @@ function main(): void {
       '(10h) la barra no exige casilla viva: con el mosaico abierto, sigue',
       accionPeticion({ ...pet, casilla: null }, { ...base, teselas: [] }) === 'alternar',
       'alternar'
+    )
+  }
+
+  hr('(11) candidatosDelMosaico: el agente de datos y el de la terminal, detrás de los proyectos de su perfil')
+  {
+    const datosA = '/datos/pA'
+    const termA = '/terminal/pA'
+    const termB = '/terminal/pB'
+    const lugarDe = (r: string): 'proyecto' | 'datos' | 'terminal' =>
+      r.startsWith('/datos/') ? 'datos' : r.startsWith('/terminal/') ? 'terminal' : 'proyecto'
+    const t = (profileId: string, projectHostPath: string, agente: Agente) => ({
+      key: agentTargetKey(profileId, projectHostPath, agente),
+      profileId,
+      projectHostPath,
+      agente
+    })
+    const candidatos = candidatosDelMosaico({
+      perfiles: ['pA', 'pB'],
+      proyectos: [
+        { profileId: 'pA', projectHostPath: '/w/uno' },
+        { profileId: 'pA', projectHostPath: '/w/dos' },
+        { profileId: 'pB', projectHostPath: '/w/tres' }
+      ],
+      // Entran desordenados a propósito: el orden lo pone ordenarCandidatos.
+      targets: [
+        t('pA', termA, 'claude-code'),
+        t('pB', termB, 'codex'),
+        t('pA', datosA, 'codex'),
+        t('pA', '/w/dos', 'claude-code'),
+        t('pB', '/w/tres', 'claude-code'),
+        t('pA', datosA, 'claude-code'),
+        t('pA', '/w/uno', 'codex'),
+        t('pA', '/w/uno', 'claude-code')
+      ],
+      lugarDe
+    })
+    const orden = ordenarCandidatos(candidatos).map((c) => `${c.profileId}:${c.projectHostPath}:${c.agente}`)
+    const esperado = [
+      'pA:/w/uno:claude-code',
+      'pA:/w/uno:codex',
+      'pA:/w/dos:claude-code',
+      `pA:${datosA}:claude-code`,
+      `pA:${datosA}:codex`,
+      `pA:${termA}:claude-code`,
+      'pB:/w/tres:claude-code',
+      `pB:${termB}:codex`
+    ]
+    check(
+      'proyectos en el orden de sus pestañas, luego datos y luego terminal, sin salir de su perfil',
+      JSON.stringify(orden) === JSON.stringify(esperado),
+      orden.join(' , ')
+    )
+    const sinProyectos = candidatosDelMosaico({
+      perfiles: ['pA'],
+      proyectos: [],
+      targets: [t('pA', termA, 'claude-code'), t('pA', datosA, 'claude-code')],
+      lugarDe
+    })
+    check(
+      'un perfil sin proyectos abiertos: datos 0 y terminal 1',
+      sinProyectos.find((c) => c.projectHostPath === datosA)?.ordenProyecto === 0 &&
+        sinProyectos.find((c) => c.projectHostPath === termA)?.ordenProyecto === 1,
+      sinProyectos.map((c) => `${c.projectHostPath}=${c.ordenProyecto}`).join(' , ')
+    )
+    const huerfano = candidatosDelMosaico({
+      perfiles: [],
+      proyectos: [],
+      targets: [t('pZ', '/w/cerrado', 'claude-code')],
+      lugarDe
+    })[0]
+    check(
+      'un target sin perfil ni pestaña conocidos va al final',
+      huerfano.ordenPerfil === Number.MAX_SAFE_INTEGER && huerfano.ordenProyecto === Number.MAX_SAFE_INTEGER,
+      `${huerfano.ordenPerfil} / ${huerfano.ordenProyecto}`
     )
   }
 

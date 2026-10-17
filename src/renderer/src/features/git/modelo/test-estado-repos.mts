@@ -21,6 +21,8 @@ import {
   estadoAlDia,
   invalidarRepos,
   nuevaGeneracion,
+  pausaReintento,
+  registrarFallo,
   reposAPedir,
   reposTocados
 } from './estadoRepos.ts'
@@ -368,6 +370,30 @@ function main(): void {
       antes !== despues && despues.length === 2 && mismaListaEstados(antes, despues),
       `n=${despues.length}`
     )
+  }
+
+  // -------------------------------------------------------------------------
+  hr('respondido y fallos: vacío «sin respuesta» frente a vacío «sin cambios»')
+  {
+    const nueva = nuevaGeneracion(ESTADO_REPOS_VACIO, 'obj|R')
+    check('(r1) una generación nueva no ha recibido respuesta', !nueva.respondido && nueva.fallos === 0, 'false')
+    const vacia = aplicarTanda(nueva, nueva.gen, [])
+    check('(r2) una tanda vacía de la generación vigente cuenta como respuesta', vacia.respondido && vacia.mapa.size === 0, 'true')
+    check('(r3) una tanda vacía repetida conserva la identidad', aplicarTanda(vacia, vacia.gen, []) === vacia, 'mismo objeto')
+    check('(r4) una respuesta de otra generación no cuenta', aplicarTanda(nueva, nueva.gen + 7, []) === nueva, 'ignorada')
+    const parcial = aplicarParcial(nueva, nueva.gen, st('r1'))
+    check('(r5) un parcial cuenta como respuesta', parcial.respondido, 'true')
+    check('(r6) invalidar y marcar pedidos no alteran `respondido`', marcarPedidos(parcial, ['r1']).respondido, 'true')
+    const sembrada = nuevaGeneracion(vacia, 'obj|S', new Map([['r1', st('r1')]]))
+    check('(r7) la semilla no cuenta como respuesta', !sembrada.respondido, 'false')
+
+    check('(f1) la pausa crece 3, 6, 12 s…', [0, 1, 2].map(pausaReintento).join() === '3000,6000,12000', [0, 1, 2].map(pausaReintento).join())
+    check('(f2) la pausa tiene tope', pausaReintento(30) === 60_000, `${pausaReintento(30)}`)
+    const fallo = registrarFallo(registrarFallo(nueva, nueva.gen), nueva.gen)
+    check('(f3) cada fallo de la generación suma', fallo.fallos === 2, `${fallo.fallos}`)
+    check('(f4) un fallo de otra generación se ignora', registrarFallo(nueva, nueva.gen + 1) === nueva, 'mismo objeto')
+    check('(f5) una respuesta buena reinicia los fallos', aplicarTanda(fallo, fallo.gen, []).fallos === 0, '0')
+    check('(f6) una generación nueva reinicia los fallos', nuevaGeneracion(fallo, 'obj|T').fallos === 0, '0')
   }
 
   // -------------------------------------------------------------------------

@@ -8,6 +8,7 @@ import { ConfirmDialog } from '../../comun/ConfirmDialog'
 import { RedContenedorModal } from './RedContenedorModal'
 import { nombresSistema } from '../../../../shared/nombresSistema'
 import type { Profile } from '../../../../main/profiles/types'
+import { txPestanas } from './textos.ts'
 import type { AccionesPerfil, HibernacionPendiente } from './useAccionesPerfil'
 
 /** Confirmación de hibernar un perfil con un agente trabajando. */
@@ -20,17 +21,13 @@ function ConfirmarHibernacion({
   onConfirm: () => void
   onCancel: () => void
 }): React.JSX.Element {
+  const t = txPestanas().dialogos
   return (
     <ConfirmDialog
-      title={`Hibernar el perfil "${hibernating.profile.nombre}"`}
-      message={
-        'Hay un agente TRABAJANDO en este perfil. Al hibernar se cierra su sesión\n' +
-        'y el turno en curso se pierde (la conversación no: al volver, se reanuda).\n\n' +
-        'También se cierran las terminales de este perfil, con lo que estén\n' +
-        'ejecutando: Tessera no puede saber si hay algo corriendo en ellas.'
-      }
-      confirmLabel="Hibernar"
-      cancelLabel="Cancelar"
+      title={t.hibernarTitulo(hibernating.profile.nombre)}
+      message={t.hibernarMensaje}
+      confirmLabel={t.hibernar}
+      cancelLabel={t.cancelar}
       // `danger` aunque no se borre nada: sin él ConfirmDialog enfoca CONFIRMAR, y este
       // diálogo sale justo tras teclear en una terminal, cuando un Enter suelto es más probable.
       danger
@@ -52,20 +49,13 @@ function ConfirmarEliminarPerfil({
 }): React.JSX.Element {
   // En el renderer no hay `process`: la plataforma llega por el preload.
   const { papelera } = nombresSistema(window.tessera.plataforma)
+  const t = txPestanas().dialogos
   return (
     <ConfirmDialog
-      title={`Eliminar el perfil "${profile.nombre}"`}
-      message={
-        'Se cerrarán sus sesiones y se detendrá su contenedor.\n\n' +
-        'Se borran sus conexiones SSH y de bases de datos y su historial de\n' +
-        'consultas. Las carpetas de su agente de la terminal y de su agente de\n' +
-        'datos, con las notas y las consolas que tengan, van a\n' +
-        `${papelera}: desde allí se recuperan.\n\n` +
-        'No se borran sus credenciales ni las conversaciones de sus cuentas:\n' +
-        'si lo recreas, las reencuentra.'
-      }
-      confirmLabel="Eliminar"
-      cancelLabel="Cancelar"
+      title={t.eliminarTitulo(profile.nombre)}
+      message={t.eliminarMensaje(papelera)}
+      confirmLabel={t.eliminar}
+      cancelLabel={t.cancelar}
       danger
       onConfirm={onConfirm}
       onCancel={onCancel}

@@ -28,6 +28,7 @@ import { binarioPendiente, emitirAhora, hayNueva, ordenPara, progreso } from './
 import { bloqueadoresAhora, refrescarAgente } from './refresco.ts'
 import { BINARIO } from './urls.ts'
 import { errMsg, type InfoCli, type NucleoNativos } from './tipos.ts'
+import { txAgentes } from '../textos.ts'
 
 const MOTIVO_FALLO: Readonly<Record<MotivoErrorInstalacion, MotivoFalloInstalar>> = {
   tope: 'tope',
@@ -88,18 +89,14 @@ async function esperarSinBloqueadores(e: NucleoNativos, i: InfoCli): Promise<Pro
 function detalleSinVersion(e: NucleoNativos, agente: AgentKind, instalada: string | null): string {
   const nombre = ETIQUETA_AGENTE[agente]
   const i = e.info[agente]
-  if (!esVersionExacta(i.ultima)) {
-    return `No se sabe cuál es la última versión de ${nombre}${i.error ? `: ${i.error}` : '.'}`
-  }
+  const t = txAgentes().nativos
+  if (!esVersionExacta(i.ultima)) return t.ultimaDesconocida(nombre, i.error)
   if (binarioPendiente(e, agente, instalada)) {
     const { tuEquipo } = nombresSistema(e.deps.plataforma)
-    return (
-      `${nombre} ${i.ultima} aún no está lista para ${tuEquipo}: el registro todavía no sirve su binario. ` +
-      'Vuelve a intentarlo en unos minutos.'
-    )
+    return t.binarioPendiente(nombre, i.ultima, tuEquipo)
   }
-  if (instalada === null) return `No se pudo leer la versión instalada de ${nombre}.`
-  return `${nombre} ya está al día (${instalada}).`
+  if (instalada === null) return t.noSeLeyoInstalada(nombre)
+  return t.alDia(nombre, instalada)
 }
 
 /** Fallo sin instalar: `despues` es `antes`, y los campos extra van antes de `detenidas`. */
@@ -144,7 +141,7 @@ async function revalidar(
   const orden = ordenPara(e, agente)
   if (orden === null) return fallo(c, 'sin-version', detalleSinVersion(e, agente, c.antes))
   if (orden.tipo !== 'auto') {
-    return fallo(c, 'no-instalable', orden.orden ? `${orden.motivo}. A mano: ${orden.orden}` : `${orden.motivo}.`)
+    return fallo(c, 'no-instalable', orden.orden ? txAgentes().nativos.aMano(orden.motivo, orden.orden) : `${orden.motivo}.`)
   }
   return { info, orden }
 }
@@ -158,7 +155,7 @@ async function pararLote(e: NucleoNativos, c: Curso, detener: string[]): Promise
     return fallo(
       c,
       'trabajando',
-      `No se paró nada: ${n === 1 ? 'una sesión no se podía parar' : `${n} sesiones no se podían parar`} (trabajando, esperando tu respuesta o ya no disponibles).`,
+      txAgentes().nativos.noSeParoNada(n),
       { rechazos: d.rechazos.map((r) => ({ sessionId: r.sessionId, causa: r.causa })) }
     )
   }
@@ -170,10 +167,10 @@ async function pararLote(e: NucleoNativos, c: Curso, detener: string[]): Promise
 async function comprobarBloqueo(e: NucleoNativos, c: Curso, info: InfoCli): Promise<InstalarResultado | null> {
   const quedan = await esperarSinBloqueadores(e, info)
   if (quedan.length === 0) return null
-  const lista = quedan.map((b) => `${b.nombre} (pid ${b.pid}${b.esDemonio ? ', el servicio app-server' : ''})`).join(', ')
-  const detalle =
-    `${c.nombre} sigue abierto fuera de las sesiones que se pararon: ${lista}. ` +
-    'Ciérralo (tu editor u otra terminal) y vuelve a intentarlo.'
+  const lista = quedan
+    .map((b) => `${b.nombre} (pid ${b.pid}${b.esDemonio ? txAgentes().fallos.servicioAppServer : ''})`)
+    .join(', ')
+  const detalle = txAgentes().nativos.sigueAbierto(c.nombre, lista)
   progreso(e, c.agente, detalle, 'error')
   return fallo(c, 'bloqueado', detalle, { bloqueadores: quedan, detenidas: c.detenidas })
 }
@@ -185,14 +182,13 @@ async function comprobarBloqueo(e: NucleoNativos, c: Curso, info: InfoCli): Prom
 function falloSinResponder(e: NucleoNativos, c: Curso, info: InfoCli): InstalarResultado {
   const { agente, nombre, antes, detenidas } = c
   const { tuEquipo } = nombresSistema(e.deps.plataforma)
-  const remedio = esReparable(agente, info.metodo)
-    ? `Vuelve a intentarlo en unos minutos con «Reparar ${nombre}».`
-    : 'Vuelve a instalarlo por donde lo instalaste.'
-  const causa = agente === 'codex' ? `: puede que su binario para ${tuEquipo} aún no estuviera disponible` : ''
+  const t = txAgentes().nativos
+  const remedio = esReparable(agente, info.metodo) ? t.remedioReparar(nombre) : t.remedioReinstalar
+  const causa = agente === 'codex' ? t.causaCodex(tuEquipo) : ''
   // El registro lo anunciaba y aun así no llegó: no se vuelve a ofrecer hasta que una
   // comprobación lo vea servido de nuevo.
   if (agente === 'codex') info.binarioPublicado = false
-  const detalle = `La instalación dejó ${nombre} sin responder a «${BINARIO[agente]} --version»${causa}. ${remedio}`
+  const detalle = t.sinResponder(nombre, BINARIO[agente], causa, remedio)
   progreso(e, agente, detalle, 'error')
   return { ok: false, agente, antes, despues: null, motivo: 'fallo', detalle, detenidas }
 }
@@ -234,12 +230,12 @@ async function resultado(
   }
   if (despues === null) return falloSinResponder(e, c, info)
   if (antes !== null && compararVersiones(despues, antes) <= 0) {
-    const detalle = `La orden terminó sin error, pero ${nombre} sigue en ${despues}.`
+    const detalle = txAgentes().nativos.sinCambio(nombre, despues)
     progreso(e, agente, detalle, 'error')
     return { ok: false, agente, antes, despues, motivo: 'fallo', detalle, detenidas }
   }
   info.ordenAyuda = null
-  progreso(e, agente, antes === null ? `${nombre} reparado: ${despues}` : `${nombre} ${antes} → ${despues}`, 'fin')
+  progreso(e, agente, antes === null ? txAgentes().nativos.reparado(nombre, despues) : `${nombre} ${antes} → ${despues}`, 'fin')
   return { ok: true, agente, antes, despues, detenidas }
 }
 
@@ -281,7 +277,7 @@ export async function instalar(e: NucleoNativos, req: InstalarRequest): Promise<
       antes: null,
       despues: null,
       motivo: 'fallo',
-      detalle: 'Agente desconocido.',
+      detalle: txAgentes().nativos.desconocido,
       detenidas: []
     }
   }
@@ -294,7 +290,7 @@ export async function instalar(e: NucleoNativos, req: InstalarRequest): Promise<
     return fallo(
       { agente, nombre, antes: s.valor, detenidas: [] },
       'ocupado',
-      `Ya hay una actualización de ${ETIQUETA_AGENTE[e.instalando]} en curso.`
+      txAgentes().nativos.ocupado(ETIQUETA_AGENTE[e.instalando])
     )
   }
 
@@ -305,7 +301,7 @@ export async function instalar(e: NucleoNativos, req: InstalarRequest): Promise<
   try {
     return await fases(e, c, detener)
   } catch (err) {
-    const detalle = `La actualización de ${nombre} falló: ${errMsg(err)}`
+    const detalle = txAgentes().nativos.fallo(nombre, errMsg(err))
     e.deps.log(`agentes nativos: ${detalle}`)
     progreso(e, agente, detalle, 'error')
     return { ok: false, agente, antes: c.antes, despues: s.valor, motivo: 'fallo', detalle, detenidas: c.detenidas }

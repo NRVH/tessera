@@ -27,12 +27,14 @@ import { useHistorialConsolaDocs, type HistorialConsolaDocs } from './useHistori
 import { useAutocompletadoDocs } from './proveedorDocsMonaco'
 import { HistorialConsultas } from '../HistorialConsultas'
 import { useRepartoAlto } from './useRepartoAlto'
+import { txConsolaDocs } from './textosConsolaDocs'
 import '../consola.css'
 
 
 function textoEstado(e: EstadoConsolaDocs): string | null {
   if (e.cargado) return e.pista
-  return e.errorCarga !== null ? `No se pudo leer la consola: ${e.errorCarga}` : 'Cargando…'
+  const t = txConsolaDocs()
+  return e.errorCarga !== null ? t.noSePudoLeer(e.errorCarga) : t.cargando
 }
 
 function useAccionesBarra(p: PropsConsolaDocs, e: EstadoConsolaDocs): { editarConexion: () => void; elegirBase: (b: string) => void } {
@@ -43,7 +45,7 @@ function useAccionesBarra(p: PropsConsolaDocs, e: EstadoConsolaDocs): { editarCo
     (b: string): void => {
       if (b === baseRef.current) return
       cambiarBase(b)
-      anotar([{ tipo: 'info', texto: `Base de la consola: ${b}` }])
+      anotar([{ tipo: 'info', texto: txConsolaDocs().cambioBase(b) }])
     },
     [baseRef, cambiarBase, anotar]
   )
@@ -160,7 +162,7 @@ export function DbConsolaDocsPane(p: PropsConsolaDocs): React.JSX.Element {
         max={maxResultados}
         direction={-1}
         onResize={p.onAltoResultados}
-        label="Reparto entre la consola y los resultados"
+        label={txConsolaDocs().repartoAria}
       />
 
       <ResultadosConsolaDocs p={p} e={e} x={x} alto={altoEfectivo} />

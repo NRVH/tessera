@@ -6,9 +6,9 @@
 ## Contexto
 
 `ExploradorController` traduce cada petición del renderer (`DBX_CHANNELS`) a `GestorSesiones`,
-`CacheCatalogo`, `ConsolasStore` y el SQL puro de `catalogoSql`/`sqlRejilla`. Crecía hasta las
-2.100 líneas, mezclaba el registro de canales con la lógica y las pruebas lo conducen con `node`
-a secas, sin Electron.
+`CacheCatalogo`, `ConsolasStore` y el SQL puro de `catalogoSql`/`sqlRejilla`. Registrar los
+canales y llevar la lógica en el mismo módulo lo haría crecer sin tope, y las pruebas lo conducen
+con `node` a secas, sin Electron.
 
 ## Decisión
 

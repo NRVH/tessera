@@ -8,11 +8,13 @@
 
 import type { DiffEditorPane, DiffTarget } from '../editor'
 import { EstadoVacio } from '../../comun/EstadoVacio'
+import { EsperaCarga } from '../../comun/IndicadorCarga'
 import { IconoGitVacio } from './iconos'
 import { Splitter } from '../../comun/Splitter'
 import { VirtualList } from '../../comun/VirtualList'
 import { AvisoCaja } from '../../comun/AvisoCaja'
 import { fechaCorta } from './modelo/formatoFecha'
+import { txGit } from './textos.ts'
 import type { FileRef } from '../../../../shared/git-ipc'
 import { useHistorialArchivo, type HistorialDeArchivo } from './useHistorialArchivo'
 
@@ -46,11 +48,12 @@ export function HistorialArchivo(props: HistorialArchivoProps): React.JSX.Elemen
   const historial = useHistorialArchivo(path)
   const { commits, error } = historial
   const nombre = path.slice(path.lastIndexOf('/') + 1)
+  const t = txGit()
 
   if (error !== null) {
     return (
       <div className="git-log-body">
-        <AvisoCaja tono="error" titulo="No se pudo leer el historial" detalle={error} />
+        <AvisoCaja tono="error" titulo={t.errorHistorial} detalle={error} />
       </div>
     )
   }
@@ -60,8 +63,8 @@ export function HistorialArchivo(props: HistorialArchivoProps): React.JSX.Elemen
       <div className="git-log-body">
         <EstadoVacio
           icono={<IconoGitVacio />}
-          titulo="Sin historial"
-          pista={`git no conoce ningún commit que haya tocado "${nombre}". Puede que sea un archivo nuevo que todavía no se ha confirmado.`}
+          titulo={t.sinHistorialTitulo}
+          pista={t.sinHistorialPista(nombre)}
         />
       </div>
     )
@@ -80,7 +83,7 @@ export function HistorialArchivo(props: HistorialArchivoProps): React.JSX.Elemen
         max={colMax}
         direction={1}
         onResize={onAnchoLista}
-        label="Ancho de la lista de commits del archivo"
+        label={t.anchoListaArchivo}
       />
       <div className="git-log-col git-historial-diff">{columnaDiff(historial, nombre, props)}</div>
     </div>
@@ -92,15 +95,16 @@ function listaDeCommits(
   nombre: string,
   props: HistorialArchivoProps
 ): React.JSX.Element {
+  const t = txGit()
   return (
     <VirtualList<FileRef>
       className="git-historial-scroll"
-      ariaLabel={`Commits de ${nombre}`}
+      ariaLabel={t.commitsDe(nombre)}
       items={commits ?? []}
       itemHeight={props.altoFila}
       getKey={(c) => c.hash}
       header={
-        commits === null ? <div className="git-state-inline">Cargando el historial…</div> : null
+        commits === null ? <EsperaCarga texto={t.cargandoHistorialArchivo} className="git-state-inline" /> : null
       }
       renderItem={(c) => (
         <div
@@ -123,16 +127,13 @@ function columnaDiff(
   nombre: string,
   props: HistorialArchivoProps
 ): React.JSX.Element {
+  const t = txGit()
   if (errorDiff !== null) {
-    return <AvisoCaja tono="error" titulo="No se pudo preparar el diff" detalle={errorDiff} />
+    return <AvisoCaja tono="error" titulo={t.errorDiff} detalle={errorDiff} />
   }
   if (target === 'no-aparece') {
     return (
-      <AvisoCaja
-        tono="info"
-        titulo="Este commit no toca el archivo con este nombre"
-        detalle={`En "${nombre}" el historial cruza renames, así que la lista incluye commits en los que el archivo se llamaba de otra forma. En ese punto no hay un cambio que comparar bajo el nombre actual.`}
-      />
+      <AvisoCaja tono="info" titulo={t.noTocaArchivoTitulo} detalle={t.noTocaArchivoDetalle(nombre)} />
     )
   }
   if (target !== null) {
@@ -152,7 +153,7 @@ function columnaDiff(
   }
   return (
     <div className="git-state-inline">
-      {hashActivo === null ? 'Elige un commit para ver qué cambió.' : 'Preparando el diff…'}
+      {hashActivo === null ? t.elegirCommit : t.preparandoDiff}
     </div>
   )
 }

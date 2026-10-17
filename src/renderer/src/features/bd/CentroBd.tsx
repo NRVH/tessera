@@ -9,6 +9,7 @@ import { pedirAltaConexion, pedirEdicionConexion } from './store'
 import type { BdApp } from './useBdApp'
 import { fijadoresLayout, useStoreLayout } from '../layout'
 import { useStoreAjustes, type Densidad } from '../ajustes'
+import { txArea } from './textosArea.ts'
 
 interface Props {
   bd: BdApp
@@ -25,7 +26,7 @@ export function CentroBd({ bd, enConexiones, oculta, densidad }: Props): React.J
   const { perfilActivoId: p, vistaDb, conexionesBd, consolasBd } = bd
   if (!enConexiones && vistaDb.todas.length === 0) return null
   return (
-    <ErrorBoundary label="el área de bases de datos" variant="pane">
+    <ErrorBoundary label={txArea().elAreaDeBd} variant="pane">
       <DbArea
         oculta={oculta}
         perfilId={p}

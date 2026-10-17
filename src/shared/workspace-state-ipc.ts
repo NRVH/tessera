@@ -9,6 +9,15 @@
 // =============================================================================
 
 import type { DbTxModo } from './db-explorador-ipc.ts'
+import { normalizarPreferenciaIdioma, type PreferenciaIdioma } from './i18n.ts'
+import {
+  normalizarDefiniciones,
+  normalizarIdsAgentePorPerfil,
+  normalizarSelectorAgentes,
+  type DefinicionAgente,
+  type IdAgente,
+  type SelectorAgentes
+} from './agentesManuales.ts'
 import { AGENTE_INACTIVIDAD_MIN_POR_DEFECTO, normalizarInactividadAgenteMin } from './ajustesAgente.ts'
 import {
   SSH_RIEL_ANCHO_POR_DEFECTO,
@@ -113,6 +122,11 @@ export interface WorkspaceSettings {
   terminalFontFamily: string
   terminalFontSize: number
   /**
+   * ¿La terminal de shell resalta los logs y las salidas de los comandos (errores en rojo, avisos en
+   * amarillo, etc.)? Por defecto ACTIVADO, así que su saneado es `!== false`.
+   */
+  terminalResaltado: boolean
+  /**
    * APARIENCIA de la terminal del AGENTE (CC/Codex), INDEPENDIENTE de la de shell.
    * Se separaron porque no se usan igual: en la del agente lees conversación larga
    * y quieres letra cómoda; en la de shell miras salida de comandos y quieres que
@@ -188,6 +202,11 @@ export interface WorkspaceSettings {
    * Entradas de proyectos o conexiones que ya no existen se ignoran al resolver.
    */
   dbMountsByProject: Record<string, string[]>
+  /**
+   * Idioma de la interfaz: `sistema` (el del equipo, si es español o inglés) o uno fijo. Lo lee el
+   * main al arrancar, así que cambiarlo pide reiniciar (`shared/i18n.ts`).
+   */
+  idioma: PreferenciaIdioma
   /**
    * Cuando hay una actualización PREPARADA, ¿se aplica sola al cerrar Tessera?
    *
@@ -421,6 +440,16 @@ export interface WorkspaceSettings {
    * (`profileId` -> true). Sin entrada = oculto. El saneado vive en `shared/ajustesTerminal.ts`.
    */
   agenteTerminalVisiblePorPerfil: Record<string, boolean>
+  /** Agentes manuales de los proyectos NATIVOS: de todo el equipo, los ven todos los perfiles. */
+  agentesNativos: DefinicionAgente[]
+  /** Agentes manuales de los proyectos Docker, por PERFIL: solo los ve el perfil donde se añadieron. */
+  agentesDockerPorPerfil: Record<string, DefinicionAgente[]>
+  /** Agentes ocultos, de serie o manuales, por PERFIL (`profileId` -> ['codex', 'm-eco']). Sin entrada = ninguno. */
+  agentesOcultosPorPerfil: Record<string, IdAgente[]>
+  /** Orden de los agentes elegido por el usuario, por PERFIL; un id que falte va al final en su orden de siempre. */
+  ordenAgentesPorPerfil: Record<string, IdAgente[]>
+  /** Cómo se elige el agente en la cabecera: pestañas o un desplegable. */
+  selectorAgentes: SelectorAgentes
 }
 
 /**
@@ -557,10 +586,12 @@ export const DEFAULT_SETTINGS: WorkspaceSettings = {
   hideProfileNames: false,
   windowsModeProjects: [],
   defaultProjectMode: 'windows',
+  idioma: 'sistema',
   activityBarOrder: [...ACTIVITY_BAR_DEFAULT_ORDER],
   bottomBarOrder: [...BOTTOM_BAR_DEFAULT_ORDER],
   terminalFontFamily: '',
   terminalFontSize: 0,
+  terminalResaltado: true,
   agentFontFamily: '',
   agentFontSize: 0,
   uiFontSize: 0,
@@ -601,7 +632,12 @@ export const DEFAULT_SETTINGS: WorkspaceSettings = {
   sshRielVisiblePorPerfil: {},
   sshRecientesPorPerfil: {},
   sshPestanasPorPerfil: {},
-  agenteTerminalVisiblePorPerfil: {}
+  agenteTerminalVisiblePorPerfil: {},
+  agentesNativos: [],
+  agentesDockerPorPerfil: {},
+  agentesOcultosPorPerfil: {},
+  ordenAgentesPorPerfil: {},
+  selectorAgentes: 'pestanas'
 }
 
 /** Rango válido del tamaño de fuente de terminal (0 = usar el predeterminado). */
@@ -750,7 +786,28 @@ function normalizeSettings(raw: unknown): WorkspaceSettings {
     sshRielVisiblePorPerfil: normalizarRielVisiblePorPerfil(obj.sshRielVisiblePorPerfil),
     sshRecientesPorPerfil: normalizarRecientesPorPerfil(obj.sshRecientesPorPerfil),
     sshPestanasPorPerfil: normalizarPestanasSshPorPerfil(obj.sshPestanasPorPerfil),
-    agenteTerminalVisiblePorPerfil: normalizarAgenteTerminalVisible(obj.agenteTerminalVisiblePorPerfil)
+    agenteTerminalVisiblePorPerfil: normalizarAgenteTerminalVisible(obj.agenteTerminalVisiblePorPerfil),
+    ...normalizarAgentesManuales(obj)
+  }
+}
+
+type AjustesDeAgentes = 'agentesNativos' | 'agentesDockerPorPerfil' | 'agentesOcultosPorPerfil' | 'ordenAgentesPorPerfil' | 'selectorAgentes'
+
+/** Agentes manuales, ocultos y orden: lo inválido se descarta; ocultos y orden son ids de agente. */
+function normalizarAgentesManuales(obj: Record<string, unknown>): Pick<WorkspaceSettings, AjustesDeAgentes> {
+  const docker: Record<string, DefinicionAgente[]> = {}
+  if (typeof obj.agentesDockerPorPerfil === 'object' && obj.agentesDockerPorPerfil !== null) {
+    for (const [perfil, lista] of Object.entries(obj.agentesDockerPorPerfil as Record<string, unknown>)) {
+      const defs = normalizarDefiniciones(lista, true)
+      if (defs.length > 0) docker[perfil] = defs
+    }
+  }
+  return {
+    agentesNativos: normalizarDefiniciones(obj.agentesNativos, false),
+    agentesDockerPorPerfil: docker,
+    agentesOcultosPorPerfil: normalizarIdsAgentePorPerfil(obj.agentesOcultosPorPerfil),
+    ordenAgentesPorPerfil: normalizarIdsAgentePorPerfil(obj.ordenAgentesPorPerfil),
+    selectorAgentes: normalizarSelectorAgentes(obj.selectorAgentes)
   }
 }
 
@@ -803,7 +860,7 @@ function normalizarGenerales(
   obj: Record<string, unknown>
 ): Pick<
   WorkspaceSettings,
-  'zoomLevel' | 'agentAccountByTarget' | 'hideProfileNames' | 'windowsModeProjects' | 'defaultProjectMode'
+  'zoomLevel' | 'agentAccountByTarget' | 'hideProfileNames' | 'windowsModeProjects' | 'defaultProjectMode' | 'idioma'
 > {
   // Mapa cuenta-por-target: acepta solo entradas string->string|null (defensivo).
   const agentAccountByTarget: Record<string, string | null> = {}
@@ -821,7 +878,8 @@ function normalizarGenerales(
       ? obj.windowsModeProjects.filter((k): k is string => typeof k === 'string')
       : DEFAULT_SETTINGS.windowsModeProjects,
     defaultProjectMode:
-      modo === 'windows' || modo === 'docker' || modo === 'ask' ? modo : DEFAULT_SETTINGS.defaultProjectMode
+      modo === 'windows' || modo === 'docker' || modo === 'ask' ? modo : DEFAULT_SETTINGS.defaultProjectMode,
+    idioma: normalizarPreferenciaIdioma(obj.idioma)
   }
 }
 
@@ -832,6 +890,7 @@ function normalizarFuentes(
   WorkspaceSettings,
   | 'terminalFontFamily'
   | 'terminalFontSize'
+  | 'terminalResaltado'
   | 'agentFontFamily'
   | 'agentFontSize'
   | 'uiFontSize'
@@ -847,6 +906,7 @@ function normalizarFuentes(
   return {
     terminalFontFamily,
     terminalFontSize,
+    terminalResaltado: obj.terminalResaltado !== false,
     agentFontFamily: typeof obj.agentFontFamily === 'string' ? obj.agentFontFamily.slice(0, 200) : terminalFontFamily,
     agentFontSize: tamanoTerminal(obj.agentFontSize, terminalFontSize),
     uiFontSize: tamanoUi(obj.uiFontSize),

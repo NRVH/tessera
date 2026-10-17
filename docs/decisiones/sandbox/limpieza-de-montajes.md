@@ -1,7 +1,7 @@
 # La raíz gestionada solo se borra cuando awk AFIRMA que no queda nada montado debajo
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/sandbox/limpiezaMontajes.ts`, `src/main/sandbox/gestor/barrido.ts` (macOS: sin verificar aquí)
+- **Ámbito:** `src/main/sandbox/limpiezaMontajes.ts`, `src/main/sandbox/gestor/barrido.ts`
 
 ## Contexto
 
@@ -13,7 +13,8 @@ Support` como `\040`. El `rm -rf` corría con los binds rw vivos y borraba archi
 ## Decisión
 
 - La base se canoniza con `readlink -f`. Si falla y la ruta EXISTE, se avisa y no se toca nada; si no existe, silencio
-  (el segundo cierre de una raíz ya limpia). Sin respaldo «la ruta tal cual»: era el bug reinstalado.
+  (el segundo cierre de una raíz ya limpia). Sin respaldo «la ruta tal cual»: con él volvería el fallo que la
+  canonización evita.
 - awk decodifica el campo 5: `\040`, `\011`, `\012` con `gsub`, y `\134` la ÚLTIMA con `split` + concatenación (el
   reemplazo de `gsub` con barras no es unánime entre awk; decodificarla antes haría de `\134040` un espacio).
 - Casa `mp == b || index(mp, b "/") == 1`: la base o un descendiente, nunca el vecino `sandbox-mm2`.

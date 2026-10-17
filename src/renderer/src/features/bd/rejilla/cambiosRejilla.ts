@@ -21,6 +21,7 @@ import {
   type RefFila
 } from './cambiosRejillaModelo.ts'
 import type { Celda, Seleccion } from './seleccionRejilla.ts'
+import { txEdicionRejilla } from './textosEdicionRejilla.ts'
 import { esColumnaBinaria } from './visorValor.ts'
 
 export * from './cambiosRejillaModelo.ts'
@@ -441,11 +442,10 @@ export function hayCambiosEnRango(
 
 // --- Qué se puede editar ------------------------------------------------------------------
 
-export const MOTIVO_BINARIA = 'Columna binaria: su valor no se escribe como texto desde la rejilla.'
-export const MOTIVO_ROWID = 'Columna interna de Tessera (ROWID).'
-export const MOTIVO_RECORTADA =
-  'El valor llegó recortado (más de 64 KiB): editarlo aquí guardaría solo el trozo que se ve.'
-export const MOTIVO_BORRADA = 'La fila está marcada para borrar: revierte el borrado para editarla.'
+export const motivoBinaria = (): string => txEdicionRejilla().binaria
+export const motivoRowid = (): string => txEdicionRejilla().rowid
+export const motivoRecortada = (): string => txEdicionRejilla().recortada
+export const motivoBorrada = (): string => txEdicionRejilla().borrada
 
 /**
  * Las columnas que el MAIN dice que no se editan (`DbTablaAbierta.noEditables`: las
@@ -458,7 +458,7 @@ export function noEditablesPorNombre(
   const out = new Map<string, string>()
   for (const n of lista ?? []) {
     if (typeof n?.columna !== 'string' || out.has(n.columna)) continue
-    out.set(n.columna, typeof n.motivo === 'string' && n.motivo.trim() !== '' ? n.motivo : 'No se puede editar desde la rejilla.')
+    out.set(n.columna, typeof n.motivo === 'string' && n.motivo.trim() !== '' ? n.motivo : txEdicionRejilla().noSeEditaDesdeRejilla)
   }
   return out
 }
@@ -475,10 +475,10 @@ export function motivoColumnaNoEditable(
   numColumnas: number,
   delMain?: ReadonlyMap<string, string>
 ): string | null {
-  if (col.nombre === COLUMNA_ROWID && indice === numColumnas - 1) return MOTIVO_ROWID
+  if (col.nombre === COLUMNA_ROWID && indice === numColumnas - 1) return motivoRowid()
   const delServidor = delMain?.get(col.nombre)
   if (delServidor !== undefined) return delServidor
-  if (esColumnaBinaria(col.tipoLogico, col.tipoMotor)) return MOTIVO_BINARIA
+  if (esColumnaBinaria(col.tipoLogico, col.tipoMotor)) return motivoBinaria()
   return null
 }
 
@@ -498,9 +498,9 @@ export function motivoCeldaNoEditable(
   recortada: boolean
 ): string | null {
   if (motivoColumna) return motivoColumna
-  if (estaBorrada(c, ref)) return MOTIVO_BORRADA
+  if (estaBorrada(c, ref)) return motivoBorrada()
   // Ni siquiera «Poner NULL»: el usuario no ha visto el valor entero que tiraría.
-  if (recortada && ref.tipo === 'servidor') return MOTIVO_RECORTADA
+  if (recortada && ref.tipo === 'servidor') return motivoRecortada()
   return null
 }
 
@@ -518,14 +518,14 @@ export function identidadParaEditar(identidad: DbIdentidadFila | undefined, colu
   const nombres = columnas.map((c) => c.nombre)
   if (identidad.tipo === 'rowid') {
     if (nombres.length === 0 || nombres[nombres.length - 1] !== identidad.columna) {
-      return { tipo: 'ninguna', motivo: 'No llegó el ROWID con el que encontrar cada fila: vuelve a abrir la tabla.' }
+      return { tipo: 'ninguna', motivo: txEdicionRejilla().faltaRowid }
     }
     return identidad
   }
-  if (identidad.columnas.length === 0) return { tipo: 'ninguna', motivo: 'La tabla no tiene clave con la que encontrar la fila.' }
+  if (identidad.columnas.length === 0) return { tipo: 'ninguna', motivo: txEdicionRejilla().sinClave }
   for (const k of identidad.columnas) {
     if (nombres.indexOf(k) < 0) {
-      return { tipo: 'ninguna', motivo: `Falta la columna ${k} de la clave en el resultado: vuelve a abrir la tabla.` }
+      return { tipo: 'ninguna', motivo: txEdicionRejilla().faltaColumnaClave(k) }
     }
   }
   return identidad

@@ -1,7 +1,7 @@
 # Todo pty se crea con la conpty.dll de node-pty, las paradas van de una en una y un reinicio descarta la cola del shell muerto
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/terminals/TerminalService.ts`, `terminals/paradaSesion.ts`, `terminals/colaMuertes.ts`, `terminals/lanzamientoPty.ts`, `terminals/adaptadores/pty.ts` y `terminals/TerminalController.ts`
+- **Ámbito:** `src/main/terminals/TerminalService.ts`, `terminals/paradaSesion.ts`, `terminals/colaMuertes.ts`, `terminals/lanzamientoPty.ts`, `terminals/adaptadores/pty.ts`, `terminals/adaptadores/registroPtys.ts`, `terminals/adaptadores/taskkill.ts` y `terminals/TerminalController.ts`
 
 ## Contexto
 
@@ -21,7 +21,23 @@ renderer después de que este limpiara la pantalla y repinta un prompt viejo.
 - TODA muerte de pty del PROCESO (parar, cerrar, reiniciar y el cierre por árbol de la hibernación
   por inactividad), de los agentes y de las terminales de abajo, va por una cola (`colaMuertes.ts`).
 - El kill de reserva, en Windows, es `taskkill /T /F` sobre el pty y después `pty.kill()`: al revés,
-  los hijos de la PowerShell quedan fuera del árbol y sobreviven.
+  los hijos de la PowerShell quedan fuera del árbol y sobreviven. Vale para todo lo que mata un
+  pty: parar, cerrar o reiniciar cuando el `exit` no basta (un agente nunca sale con él) y el
+  cierre de la app (`matarTodoConArbol`, un solo `taskkill` para todos). Desde que el cierre
+  empieza no nace ni renace ningún pty: nadie lo mataría.
+- Cada pty queda en el registro del proceso (`adaptadores/registroPtys.ts`) hasta que su raíz termina. Una raíz viva al
+  salir cuelga la app: al desmontar Node, node-pty une el hilo que espera su fin. En Windows esa muerte la marca el aviso
+  nativo de fin de proceso, no `onExit`, que con `useConptyDll` llega al cerrarse la tubería de salida aunque la raíz
+  siga viva (un proceso que no usa la consola). Cerrar, reiniciar e hibernar rematan el pty que sueltan
+  (`rematarPty`): `kill()` si nadie se lo mandó y, fuera de Windows, SIGKILL a la raíz si ya lo tuvo (allí el pid no se
+  reutiliza mientras no se recoge; en Windows el aviso llega a JS después de soltarse el handle, y basta `kill()`, que
+  termina la raíz con el handle de node-pty). El cierre de la app remata todos (`cierre-ordenado.md`).
+- Todo `kill()` de un pty pasa por el registro, lo llame quien lo llame (`lanzarPty` lo envuelve). En Windows va una
+  sola vez por pty, porque un segundo cerraría otra vez su pseudoconsola y tumba el proceso. Tampoco espera al primer
+  byte: node-pty aplaza `kill()` hasta entonces, una raíz que no escribe no lo recibiría nunca, y antes de ese byte se
+  llama al `kill` de su agente, que es lo que haría el aplazado.
+- `matarArbolWindows` devuelve cómo acabó `taskkill`. Un fallo o el tope, que corta `taskkill` a medias y puede dejar
+  parte del árbol vivo, se anotan: en `db.log` para una sesión y en `cierre.log` en el cierre de la app.
 - Un reinicio descarta el buffer de salida antes del kill y no lo vuelca; el camino de salida real
   (`onExit`) sí lo vuelca, para que el último output llegue antes del aviso.
 - `reloading` se limpia en un `finally` y toda espera tiene tope (`REAP_TIMEOUT_MS`): un `onExit`

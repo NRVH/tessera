@@ -7,6 +7,8 @@
 // =============================================================================
 
 import { useCallback, useEffect, useRef } from 'react'
+import { useCapaVisible } from './capaVisible'
+import { txComun } from './textos.ts'
 import { alClicEnVelo, useDialogo } from './useDialogo'
 
 interface ConfirmDialogProps {
@@ -21,11 +23,38 @@ interface ConfirmDialogProps {
   onCancel: () => void
 }
 
+/**
+ * Enter en `window` (solo Enter: el Escape lo lleva `useDialogo`). Oculto en una capa viva
+ * (`CapaViva`) no atiende: el Enter es de lo que se ve.
+ */
+function useEnterConfirma(
+  cardRef: React.RefObject<HTMLDivElement>,
+  danger: boolean,
+  onConfirmRef: React.MutableRefObject<() => void>
+): void {
+  const visible = useCapaVisible()
+  useEffect(() => {
+    if (!visible) return
+    function onKey(e: KeyboardEvent): void {
+      if (e.key !== 'Enter') return
+      // Enter sobre un botón del diálogo lo resuelve el propio botón (activación nativa).
+      const destino = e.target
+      if (destino instanceof HTMLButtonElement && cardRef.current?.contains(destino)) return
+      // Fuera de sus botones confirma solo lo que no destruye: `danger` no tiene «Enter por defecto».
+      e.preventDefault()
+      if (!danger) onConfirmRef.current()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+    // `cardRef` y `onConfirmRef` son refs estables; van en la lista solo por el linter.
+  }, [danger, cardRef, onConfirmRef, visible])
+}
+
 export function ConfirmDialog({
   title,
   message,
-  confirmLabel = 'Aceptar',
-  cancelLabel = 'Cancelar',
+  confirmLabel,
+  cancelLabel,
   danger = false,
   onConfirm,
   onCancel
@@ -50,21 +79,7 @@ export function ConfirmDialog({
     else confirmRef.current?.focus()
   }, [danger])
 
-  useEffect(() => {
-    // Solo Enter: el Escape lo lleva `useDialogo`.
-    function onKey(e: KeyboardEvent): void {
-      if (e.key !== 'Enter') return
-      // Enter sobre un botón del diálogo lo resuelve el propio botón (activación nativa).
-      const destino = e.target
-      if (destino instanceof HTMLButtonElement && cardRef.current?.contains(destino)) return
-      // Fuera de sus botones confirma solo lo que no destruye: `danger` no tiene «Enter por defecto».
-      e.preventDefault()
-      if (!danger) onConfirmRef.current()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-    // `cardRef` es un ref estable de `useDialogo`; va en la lista solo por el linter.
-  }, [danger, cardRef])
+  useEnterConfirma(cardRef, danger, onConfirmRef)
 
   return (
     <div className="modal-overlay" role="presentation" onMouseDown={alClicEnVelo(onCancel)}>
@@ -80,14 +95,14 @@ export function ConfirmDialog({
         <div className="modal-message">{message}</div>
         <div className="modal-actions">
           <button ref={cancelRef} className="btn btn-ghost" onClick={onCancel}>
-            {cancelLabel}
+            {cancelLabel ?? txComun().cancelar}
           </button>
           <button
             ref={confirmRef}
             className={`btn ${danger ? 'danger' : 'primary'}`}
             onClick={onConfirm}
           >
-            {confirmLabel}
+            {confirmLabel ?? txComun().aceptar}
           </button>
         </div>
       </div>

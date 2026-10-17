@@ -11,7 +11,7 @@ import {
   type DbRespuesta,
   type DbResultadoEnvio,
   type DbTablaAbierta,
-  MOTIVO_CARPETA_SIN_ESCRITURA,
+  motivoCarpetaSinEscritura,
   TIPOS_CON_DATOS
 } from '../../../../shared/db-explorador-ipc.ts'
 import type { DbConnection } from '../../../../shared/db-ipc.ts'
@@ -31,7 +31,7 @@ import {
   mapearTablaEdicion,
   mapearUnicaNoNula,
   mismaIdentidad,
-  MOTIVO_SOLO_LECTURA,
+  motivoSoloLectura,
   necesitaUnica,
   noEditablesDe,
   prepararEnvio,
@@ -48,6 +48,7 @@ import { sinSoloLecturaImpuesta } from '../soloLecturaImpuesta.ts'
 import type { ClaveKeyset } from '../sqlRejilla.ts'
 
 import type { ObjetosExplorador } from './objetos.ts'
+import { txControlador } from './textosControlador.ts'
 import type { ContextoExplorador } from './tipos.ts'
 import {
   claveConBase,
@@ -102,11 +103,11 @@ export class TablaExplorador {
 
   async abrirTabla(req: unknown): Promise<DbRespuesta<DbTablaAbierta>> {
     return this.c.seguro(async () => {
-      if (!esObjeto(req)) return fallo('interno', 'Petición inválida.')
+      if (!esObjeto(req)) return fallo('interno', txControlador().peticionInvalida)
       const id = exigir(req.conexionId, 'conexionId')
       const peticionId = exigir(req.peticionId, 'peticionId', 200)
       const objeto = this.c.refObjeto(req.objeto, id)
-      if (TIPOS_CON_DATOS.indexOf(objeto.tipo) < 0) return fallo('interno', 'Ese objeto no tiene datos que enseñar.')
+      if (TIPOS_CON_DATOS.indexOf(objeto.tipo) < 0) return fallo('interno', txControlador().objetoSinDatosVer)
       const where = opcional(req.where, 'where', MAX_FRAGMENTO) ?? null
       const orderBy = opcional(req.orderBy, 'orderBy', MAX_FRAGMENTO) ?? null
       // Filtro y orden se validan aquí, antes de leer nada del catálogo.
@@ -145,7 +146,7 @@ export class TablaExplorador {
     const paginado = await this.paginadoDe(id, con, destino, pk, remoto)
     // Un Stop que llegó mientras se leía el catálogo: no se lee nada. Esto y la llamada al gestor van
     // en el MISMO turno, y `leerTabla` encola antes de su primer `await`.
-    if (detenido()) return fallo('cancelada', 'Lectura detenida antes de empezar.')
+    if (detenido()) return fallo('cancelada', txControlador().lecturaDetenida)
     const r = await this.c.gestor.leerTabla({
       conexionId: id,
       peticionId,
@@ -231,7 +232,7 @@ export class TablaExplorador {
     } catch (e) {
       this.c.log(`no se pudo leer la identidad de edición de ${conexionId}: ${mensajeDe(e).slice(0, 200)}`)
       return {
-        identidad: { tipo: 'ninguna', motivo: 'No se pudo leer del catálogo cómo encontrar cada fila: la tabla se abre sin edición.' },
+        identidad: { tipo: 'ninguna', motivo: txControlador().sinIdentidad },
         columnas: null
       }
     }
@@ -248,7 +249,7 @@ export class TablaExplorador {
 
   /** El texto de por qué `roDe` dice solo lectura: la carpeta de una base de archivo, o el de siempre. */
   motivoRo(con: DbConnection): string {
-    return this.c.gestor.soloLecturaPorCarpeta(con.id) ? MOTIVO_CARPETA_SIN_ESCRITURA : MOTIVO_SOLO_LECTURA
+    return this.c.gestor.soloLecturaPorCarpeta(con.id) ? motivoCarpetaSinEscritura() : motivoSoloLectura()
   }
 
   /** Lo que decide la identidad sin preguntar al catálogo (`edicionDe`, `identidadAntesDeLeer`). */
@@ -399,12 +400,12 @@ export class TablaExplorador {
       if (!forma.ok) return fallo('interno', forma.mensaje)
       const v = forma.valor
       if (this.c.estado.hayEnPreparacion(v.conexionId, v.peticionId)) {
-        return fallo('ocupada', 'Ya hay un envío con ese identificador en curso.')
+        return fallo('ocupada', txControlador().envioEnCurso)
       }
       // Desde aquí, un Stop con este `peticionId` se apunta (ver `enPreparacion`).
       return this.prepararDatos(v.conexionId, v.peticionId, async (detenido) => {
         const objeto = this.c.refObjeto(v.objeto, v.conexionId)
-        if (TIPOS_CON_DATOS.indexOf(objeto.tipo) < 0) return fallo('interno', 'Ese objeto no tiene datos que editar.')
+        if (TIPOS_CON_DATOS.indexOf(objeto.tipo) < 0) return fallo('interno', txControlador().objetoSinDatosEditar)
         const con = this.c.conexionOError(v.conexionId)
         if (this.roDe(con)) return fallo('soloLectura', this.motivoRo(con))
         if (exigeConfirmacion(con, this.roDe(con), v.confirmado)) return fallo('produccion', mensajeProduccion(con.alias, 'enviar'))
@@ -419,7 +420,7 @@ export class TablaExplorador {
         const edicion = await this.edicionDe(v.conexionId, con, destino, dblink !== null, pk)
         if (edicion.identidad.tipo === 'ninguna') return fallo('interno', edicion.identidad.motivo)
         if (!mismaIdentidad(edicion.identidad, v.identidad)) {
-          return fallo('interno', 'La tabla cambió desde que se abrió (ya no se identifican sus filas igual): vuelve a abrirla.')
+          return fallo('interno', txControlador().tablaCambio)
         }
         const columnas = edicion.columnas ?? []
         const malo = validarCambios(edicion.identidad, v.cambios, columnas)
@@ -429,7 +430,7 @@ export class TablaExplorador {
         // Un Stop que llegó mientras se validaba: no se envía nada. Esto y la llamada al
         // gestor van en el MISMO turno, y el gestor registra la sesión del envío antes de
         // su primer `await`: desde entonces, el Stop ya la encuentra.
-        if (detenido()) return fallo('cancelada', 'Envío detenido antes de empezar: no se aplicó nada.')
+        if (detenido()) return fallo('cancelada', txControlador().envioDetenidoAntes)
         return this.c.gestor.enviarCambios({
           conexionId: v.conexionId,
           peticionId: v.peticionId,

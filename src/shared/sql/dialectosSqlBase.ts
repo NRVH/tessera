@@ -2,7 +2,7 @@
 // Tipos de base de las reglas por dialecto (el dialecto, el estilo de parámetros, los PRAGMA que
 // leen, la gramática local) y `deDialecto`, la validación de una tabla por dialecto.
 // Sin dependencias; los reexporta `dialectosSql.ts`, que es la entrada.
-// Decisiones: docs/decisiones/bd/sql-dialectos-como-tabla.md
+// Decisiones: docs/decisiones/bd/registro-motores-descriptor.md
 // =============================================================================
 
 /**

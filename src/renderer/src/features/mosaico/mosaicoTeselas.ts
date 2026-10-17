@@ -7,6 +7,7 @@
 // =============================================================================
 
 import type { Agente } from '../../../../main/profiles/types'
+import type { IdAgente } from '../../../../shared/agentesManuales'
 
 /** Una sesión de agente que PUEDE ser tesela, con lo necesario para ordenarla. */
 export interface CandidatoMosaico {
@@ -14,7 +15,7 @@ export interface CandidatoMosaico {
   key: string
   profileId: string
   projectHostPath: string
-  agente: Agente
+  agente: IdAgente
   /** Índice del perfil en la banda de perfiles. */
   ordenPerfil: number
   /** Índice del proyecto entre las pestañas de ese perfil. */
@@ -43,7 +44,7 @@ export interface OpcionMosaico {
   projectHostPath: string
   /** `${profileId}|${projectHostPath}`: la unidad del selector. */
   proyectoKey: string
-  agenteId: Agente
+  agenteId: IdAgente
   /** Nombre del perfil y del proyecto, ya resueltos. */
   perfil: string
   proyecto: string
@@ -87,12 +88,12 @@ const RANGO_AGENTE: Record<Agente, number> = {
 }
 
 /**
- * Rango de un agente; uno que RANGO_AGENTE no conoce (una clave persistida por
- * otra versión, que el tipo no ve) va detrás de los conocidos. Sin este respaldo
- * el rango sale `undefined`, la resta da NaN y pasa lo mismo que con indiceOrden.
+ * Rango de un agente; uno que RANGO_AGENTE no conoce (uno manual, o una clave persistida
+ * por otra versión) va detrás de los de serie, y entre ellos decide la clave. Sin este
+ * respaldo el rango sale `undefined`, la resta da NaN y pasa lo mismo que con indiceOrden.
  */
-function rangoAgente(agente: Agente): number {
-  return RANGO_AGENTE[agente] ?? Number.POSITIVE_INFINITY
+function rangoAgente(agente: IdAgente): number {
+  return (RANGO_AGENTE as Readonly<Record<string, number>>)[agente] ?? Number.POSITIVE_INFINITY
 }
 
 /**
@@ -134,6 +135,48 @@ export function compararCandidatos(a: CandidatoMosaico, b: CandidatoMosaico): nu
  */
 export function ordenarCandidatos(c: readonly CandidatoMosaico[]): CandidatoMosaico[] {
   return [...c].sort(compararCandidatos)
+}
+
+/** Dónde vive el agente de una carpeta: un proyecto, el espacio de datos o el agente de la terminal. */
+export type LugarCandidato = 'proyecto' | 'datos' | 'terminal'
+
+/** Entrada de `candidatosDelMosaico`. */
+export interface EntradaCandidatos {
+  /** Ids de los perfiles en el orden de su banda. */
+  perfiles: readonly string[]
+  /** Proyectos abiertos en el orden de sus pestañas. */
+  proyectos: readonly { profileId: string; projectHostPath: string }[]
+  /** Todos los targets abiertos: los de las pestañas y los del espacio de datos y la terminal. */
+  targets: readonly { key: string; profileId: string; projectHostPath: string; agente: IdAgente }[]
+  lugarDe: (projectHostPath: string) => LugarCandidato
+}
+
+/**
+ * Candidatos con su orden: el agente de datos y el de la terminal cuentan como un proyecto más de su
+ * perfil, detrás de sus pestañas y en ese orden (se abren desde la barra, no desde la banda).
+ */
+export function candidatosDelMosaico(e: EntradaCandidatos): CandidatoMosaico[] {
+  const ordenPerfil = new Map(e.perfiles.map((id, i) => [id, i]))
+  const ordenProyecto = new Map<string, number>()
+  const porPerfil = new Map<string, number>()
+  for (const p of e.proyectos) {
+    const n = porPerfil.get(p.profileId) ?? 0
+    ordenProyecto.set(`${p.profileId}|${p.projectHostPath}`, n)
+    porPerfil.set(p.profileId, n + 1)
+  }
+  const ordenDe = (profileId: string, projectHostPath: string): number => {
+    const lugar = e.lugarDe(projectHostPath)
+    if (lugar === 'proyecto') return ordenProyecto.get(`${profileId}|${projectHostPath}`) ?? Number.MAX_SAFE_INTEGER
+    return (porPerfil.get(profileId) ?? 0) + (lugar === 'datos' ? 0 : 1)
+  }
+  return e.targets.map((t) => ({
+    key: t.key,
+    profileId: t.profileId,
+    projectHostPath: t.projectHostPath,
+    agente: t.agente,
+    ordenPerfil: ordenPerfil.get(t.profileId) ?? Number.MAX_SAFE_INTEGER,
+    ordenProyecto: ordenDe(t.profileId, t.projectHostPath)
+  }))
 }
 
 /**

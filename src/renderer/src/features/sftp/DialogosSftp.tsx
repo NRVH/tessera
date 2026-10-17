@@ -8,6 +8,7 @@ import { ConfirmDialog } from '../../comun/ConfirmDialog'
 import { PromptDialog } from '../../comun/PromptDialog'
 import type { SftpPlan } from '../../../../shared/sftp-ipc'
 import { mensajeBorrado, mensajeConflictos, tituloBorrado, tituloConflictos } from './operacionesSftp'
+import { txSftp } from './textos.ts'
 import type { AccionesSftp } from './useAccionesSftp'
 
 export interface PropsDialogosSftp {
@@ -18,12 +19,13 @@ export interface PropsDialogosSftp {
 
 export function DialogosSftp({ acciones, plan, onResolverPlan }: PropsDialogosSftp): React.JSX.Element | null {
   const { dialogo } = acciones
+  const t = txSftp()
   if (plan !== null) {
     return (
       <ConfirmDialog
         title={tituloConflictos(plan.conflictos.length)}
         message={mensajeConflictos(plan.conflictos)}
-        confirmLabel="Reemplazar"
+        confirmLabel={t.reemplazar}
         danger
         onConfirm={() => onResolverPlan(true)}
         onCancel={() => onResolverPlan(false)}
@@ -33,8 +35,8 @@ export function DialogosSftp({ acciones, plan, onResolverPlan }: PropsDialogosSf
   if (dialogo?.tipo === 'carpeta') {
     return (
       <PromptDialog
-        title="Nueva carpeta"
-        label="Nombre de la carpeta"
+        title={t.nuevaCarpeta}
+        label={t.nombreCarpeta}
         error={acciones.errorDialogo}
         onConfirm={acciones.crearCarpeta}
         onCancel={acciones.cerrarDialogo}
@@ -44,10 +46,10 @@ export function DialogosSftp({ acciones, plan, onResolverPlan }: PropsDialogosSf
   if (dialogo?.tipo === 'renombrar') {
     return (
       <PromptDialog
-        title="Renombrar"
-        label="Nombre nuevo"
+        title={t.renombrar}
+        label={t.nombreNuevo}
         initialValue={dialogo.nombre}
-        confirmLabel="Renombrar"
+        confirmLabel={t.renombrar}
         selectBasename
         error={acciones.errorDialogo}
         onConfirm={acciones.renombrar}
@@ -60,7 +62,7 @@ export function DialogosSftp({ acciones, plan, onResolverPlan }: PropsDialogosSf
       <ConfirmDialog
         title={tituloBorrado(dialogo.nombres.length)}
         message={mensajeBorrado(dialogo.nombres, dialogo.hayCarpetas)}
-        confirmLabel="Eliminar"
+        confirmLabel={t.eliminar}
         danger
         onConfirm={acciones.borrar}
         onCancel={acciones.cerrarDialogo}

@@ -5,15 +5,15 @@
 
 ## Contexto
 
-`node:sqlite` es SÍNCRONO y no se puede interrumpir (ni `interrupt` ni progress handler, medido): mientras
+`node:sqlite` es SÍNCRONO y no se puede interrumpir (ni `interrupt` ni progress handler): mientras
 corre una consulta, el proceso entero está bloqueado. Lado del main en `motores-sesion-sqlite.md`.
 
 ## Decisión
 
-- Un proceso por consola (`procesoPorSesion`): el Stop es MATAR ese proceso (17 ms; relanzar cuesta 62 ms).
-  `cancelar` responde que no puede: si llegara, el proceso estaba libre. Descartados, medidos: un hilo
-  compartido (un ping a otra sesión del mismo proceso no respondió en 3 s) y `worker_threads` (`terminate()`
-  no corta la consulta y bloquea la salida del proceso).
+- Un proceso por consola (`procesoPorSesion`): el Stop es MATAR ese proceso (barato, y relanzarlo también).
+  `cancelar` responde que no puede: si llegara, el proceso estaba libre. Descartados: un hilo
+  compartido (otra sesión del mismo proceso no responde mientras corre una consulta) y `worker_threads`
+  (`terminate()` no corta la consulta y bloquea la salida del proceso).
 - La guardia la pone SIEMPRE `sqliteComun.cjs`: autorizador en toda conexión con el perfil que toca a cada
   sentencia, `limits.attach = 0` y apertura por cabecera. Tres capas de solo lectura: el main clasifica, el
   autorizador con el perfil 'lectura' (también en una conexión de escritura si llega `candadoRO`) y `readOnly`

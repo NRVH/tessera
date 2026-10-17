@@ -48,6 +48,8 @@ export type DialogoSsh =
   /** Crear un grupo (y, con `mover`, pasar esas conexiones a él) o renombrar uno. */
   | { tipo: 'grupo'; perfilId: string; grupo: SshGrupo | null; mover?: readonly string[] }
   | { tipo: 'eliminarConexion'; conexion: SshConexion }
+  /** Olvidar la huella del servidor ya aceptada: la próxima conexión guarda la que presente. */
+  | { tipo: 'olvidarHuella'; conexion: SshConexion }
   /** Las marcadas en el riel: borrarlas o pasarlas a otro grupo, con una sola confirmación. */
   | { tipo: 'eliminarConexiones'; perfilId: string; conexiones: readonly SshConexion[] }
   | { tipo: 'moverConexiones'; perfilId: string; conexiones: readonly SshConexion[] }
@@ -149,6 +151,7 @@ export const accionesSsh = {
   moverConexiones: (perfilId: string, conexiones: readonly SshConexion[]): void => useStoreSsh.setState({ dialogo: { tipo: 'moverConexiones', perfilId, conexiones } }),
   renombrarGrupo: (grupo: SshGrupo): void => useStoreSsh.setState({ dialogo: { tipo: 'grupo', perfilId: grupo.profileId, grupo } }),
   pedirEliminarConexion: (conexion: SshConexion): void => useStoreSsh.setState({ dialogo: { tipo: 'eliminarConexion', conexion } }),
+  pedirOlvidarHuella: (conexion: SshConexion): void => useStoreSsh.setState({ dialogo: { tipo: 'olvidarHuella', conexion } }),
   pedirEliminarGrupo: (grupo: SshGrupo, conexiones: number): void =>
     useStoreSsh.setState({ dialogo: { tipo: 'eliminarGrupo', grupo, conexiones } }),
   verActividad: (perfilId: string, alias = ''): void => useStoreSsh.setState({ dialogo: { tipo: 'actividad', perfilId, alias } }),

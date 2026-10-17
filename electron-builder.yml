@@ -94,6 +94,21 @@ win:
   # hay que regenerar este PNG a mano — son dos representaciones del mismo dibujo y
   # no hay nada que las mantenga sincronizadas.
   icon: build/icon.png
+  # LOS `.tessera` SON DE TESSERA: el doble clic abre el importar de la configuración con el
+  # archivo elegido. Lo escribe el instalador NSIS en `Software\Classes` de su `SHELL_CONTEXT`
+  # (el usuario; la máquina si en su página se elige instalar para todos) y lo quita su
+  # desinstalador; el portable no asocia nada. Siempre y sin casilla: solo la usa Tessera.
+  # El ProgID lleva un punto interior a propósito: los de la integración del Explorador son
+  # `Tessera.<extensión>` y una extensión no admite puntos, así que quitar una de ellas en
+  # Configuración nunca puede borrar este.
+  # Su icono es el de DOCUMENTO (una hoja con la marca), no el de la app: `build/tessera.ico` aquí,
+  # `tessera.icns` en macOS y `tessera-documento.png` en Linux. Son binarios derivados del mismo dibujo
+  # que `icon.png` y, como él, se regeneran a mano si cambia la marca.
+  fileAssociations:
+    - ext: tessera
+      name: Tessera.Configuracion.1
+      description: Configuración de Tessera
+      icon: tessera
 
 # =============================================================================
 # macOS
@@ -161,6 +176,17 @@ mac:
   # Mac, no sólo "no hay caché".
   artifactName: ${productName}-${version}-${arch}.${ext}
   identity: '-'
+  # `.tessera`, con rango `Owner` y no `Alternate` como el resto: aquí no se le quita la
+  # asociación a nadie, la extensión solo la usa Tessera. electron-builder la AÑADE a los
+  # `CFBundleDocumentTypes` de `extendInfo` (con `tessera.icns`, el icono de documento) y el tipo
+  # se exporta abajo (`UTExportedTypeDeclarations`), que es lo que hace que Launch Services la
+  # reconozca; el UTI lleva también `UTTypeIconFile`, que es el que mira Finder para un tipo declarado.
+  fileAssociations:
+    - ext: tessera
+      name: Configuración de Tessera
+      role: Editor
+      rank: Owner
+      icon: tessera
   # Con ad-hoc no hay notarización posible, y dejarlo implícito hace que el build
   # falle con un error de Apple en vez de con una decisión nuestra. `hardenedRuntime`
   # apagado por lo mismo: ad-hoc + hardened exige entitlements de library-validation
@@ -234,6 +260,17 @@ mac:
           - html
           - sh
           - txt
+    # El tipo de las copias de la configuración (`.tessera`): un JSON cifrado que no conforma
+    # con `public.json` a propósito, para que ningún editor de JSON se ofrezca a abrirlo.
+    UTExportedTypeDeclarations:
+      - UTTypeIdentifier: com.noe.tessera.configuracion
+        UTTypeDescription: Configuración de Tessera
+        UTTypeIconFile: tessera.icns
+        UTTypeConformsTo:
+          - public.data
+        UTTypeTagSpecification:
+          public.filename-extension:
+            - tessera
 
 # =============================================================================
 # Linux
@@ -269,12 +306,22 @@ linux:
   # usuario se hiciera) apuntaría a una ruta que ya no existe. Sin ella, la sustituye en su sitio.
   artifactName: ${productName}-linux-${arch}.${ext}
   synopsis: Varios proyectos y varias cuentas de IA en un solo lugar
+  # Solo pone el `MimeType=` en el `.desktop` que viaja DENTRO del AppImage, el que leen los
+  # integradores de AppImage. El tipo `application/x-tessera` (su XML y la entrada del usuario)
+  # lo instala la integración de escritorio de la app (`src/main/shell/escritorioLinux.ts`).
+  fileAssociations:
+    - ext: tessera
+      name: Configuración de Tessera
+      mimeType: application/x-tessera
   desktop:
     entry:
       StartupWMClass: Tessera
   extraResources:
     - from: build/icon.png
       to: icon.png
+    # El de los `.tessera`: lo instala `escritorioLinux.ts` junto con su tipo.
+    - from: build/tessera-documento.png
+      to: tessera-documento.png
 
 dmg:
   artifactName: ${productName}-${version}-${arch}.${ext}

@@ -10,6 +10,7 @@
 // =============================================================================
 import { plataformaActual, type Plataforma } from '../../shared/plataforma.ts'
 import type { SshMetodo, SshTunel } from '../../shared/ssh-ipc.ts'
+import { txSsh } from './textos.ts'
 
 /** Quién usa la línea: una pestaña de la terminal ('humano') o un agente por `tssh` ('agente'). */
 export type ModoLineaSsh = 'humano' | 'agente'
@@ -69,8 +70,9 @@ export interface OpcionesLineaSsh {
 }
 
 /** Una conexión con archivo de clave cuya copia no está: sin ella ssh probaría las claves por defecto. */
-export const MENSAJE_SIN_COPIA_CLAVE =
-  'Esta conexión usa un archivo de clave y no se encuentra la copia que guardó Tessera: edítala y vuelve a elegir el archivo.'
+export function mensajeSinCopiaClave(): string {
+  return txSsh().registro.sinCopiaClave
+}
 
 /**
  * Una ruta como valor de una opción `-o`: barras normales en Windows, `%` doblado y entre comillas
@@ -94,7 +96,7 @@ function opcionesDeMetodo(destino: DestinoLineaSsh, opts: OpcionesLineaSsh, plat
     return [`PreferredAuthentications=${metodos}`, 'PubkeyAuthentication=no']
   }
   if (destino.metodo !== 'clave') return []
-  if (!opts.rutaClave) throw new Error(MENSAJE_SIN_COPIA_CLAVE)
+  if (!opts.rutaClave) throw new Error(mensajeSinCopiaClave())
   return [`IdentityFile=${citarRutaOpcion(opts.rutaClave, plataforma)}`, 'IdentitiesOnly=yes', 'PreferredAuthentications=publickey']
 }
 

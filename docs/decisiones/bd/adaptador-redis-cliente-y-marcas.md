@@ -6,7 +6,7 @@
 
 ## Contexto
 
-Medido con `ioredis` 6 (JavaScript puro): reintenta para siempre y encola los comandos sin conexión;
+`ioredis` 6 (JavaScript puro) reintenta para siempre y encola los comandos sin conexión;
 habla RESP3 por defecto; su comprobación de «listo» es un `INFO` que un ACL sin `+info` rechaza; traga el
 `SELECT` del apretón de manos si la base no existe; aplica transformadores por nombre en minúscula
 (`hgetall` sale como objeto); devuelve el estado (`+OK`) como Buffer igual que un bulk; y `connect()`
@@ -29,7 +29,7 @@ rechaza con «Connection is closed.» cuando el fallo real fue AUTH o TLS.
 
 ## Consecuencias
 
-- Sin `enableReadyCheck: false`, un usuario de lectura sin `+info` no llegaba a conectar.
+- Sin `enableReadyCheck: false`, un usuario de lectura sin `+info` no llega a conectar.
 - El único error posible del estado como Buffer es pintar como estado un valor de un comando no listado que
   valga exactamente «OK».
 

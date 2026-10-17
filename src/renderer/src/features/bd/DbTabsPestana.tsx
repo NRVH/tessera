@@ -11,6 +11,7 @@ import { IconoClaveKv, IconoColeccion, IconoConsola, IconoDdl, IconoMotor, Icono
 import { MarcaEntorno } from './MarcaEntorno'
 import { recortarCentro, type DbTab, type IndicadorPestana, type TituloPestana } from './dbTabsModel'
 import type { ArrastrePestanas } from './useArrastrePestanas'
+import { txArea } from './textosArea.ts'
 
 /** Máximo de caracteres del nombre antes de recortarlo por el centro. */
 const NOMBRE_MAX = 32
@@ -18,13 +19,17 @@ const NOMBRE_MAX = 32
 const ALIAS_MAX = 20
 
 /** Qué dice cada indicador, para el tooltip (el color solo no es accesible). */
-const TEXTO_INDICADOR: Record<IndicadorPestana, string> = {
-  ejecutando: 'Ejecutando…',
-  cargando: 'Cargando…',
-  txPendiente: 'Transacción pendiente',
-  sinEnviar: 'Cambios sin enviar',
-  sesionPerdida: 'Sesión perdida',
-  error: 'Error'
+function textoIndicador(i: IndicadorPestana): string {
+  const t = txArea()
+  const textos: Record<IndicadorPestana, string> = {
+    ejecutando: t.ejecutando,
+    cargando: t.cargando,
+    txPendiente: t.txPendiente,
+    sinEnviar: t.sinEnviar,
+    sesionPerdida: t.sesionPerdida,
+    error: t.error
+  }
+  return textos[i]
 }
 
 function CloseIcon(): React.JSX.Element {
@@ -73,8 +78,8 @@ function HuecoAspa({
       )}
       <button
         className="editor-tab-close"
-        aria-label={`Cerrar ${nombre}`}
-        title="Cerrar"
+        aria-label={txArea().cerrarNombre(nombre)}
+        title={txArea().cerrar}
         // El aspa no arrastra la pestaña: un arrastre que empieza en ella es un
         // clic que se escapó, no un gesto de reordenar.
         draggable={false}
@@ -144,7 +149,7 @@ export function DbTabsPestana({
 }: DbTabsPestanaProps): React.JSX.Element {
   const nombre = titulo?.nombre ?? tab.id
   const alias = titulo?.conexion ?? ''
-  const tooltip = `${titulo?.tooltip ?? nombre}${indicador ? ` · ${TEXTO_INDICADOR[indicador]}` : ''}`
+  const tooltip = `${titulo?.tooltip ?? nombre}${indicador ? ` · ${textoIndicador(indicador)}` : ''}`
   const entorno = titulo?.entorno
   return (
     <div

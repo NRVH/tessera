@@ -1,18 +1,22 @@
 // =============================================================================
 // Mantiene el `tessera.desktop` de Linux: dice si se puede aquí, lo instala o lo borra en
 // caliente y al arrancar lo reescribe si apunta a otro ejecutable (el AppImage se movió o cambió
-// de nombre). Instalarlo no le quita las carpetas a su aplicación (`carpetasPorDefecto.ts`). La
+// de nombre) o es de una versión anterior. Con él va el tipo de los `.tessera`. Instalarlo no le
+// quita las carpetas a su aplicación (`carpetasPorDefecto.ts`). La
 // verdad es el disco; toda escritura pasa por una cola. La parte pura está en `escritorioLinux.ts`;
 // Electron entra por `SistemaShell` y por las rutas que pasa `index.ts`.
 // Decisiones: docs/decisiones/sistema/abrir-con-en-linux.md
 // =============================================================================
 
+import { access } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { logUpdate } from '../update/logUpdate'
+import { txShell } from './textos.ts'
 import type { SistemaShell } from './adaptadores/sistemaElectron'
 import {
   ARCHIVO_DESKTOP,
   carpetaDatos,
+  contenidoDesktop,
   desinstalarDesktop,
   disponibilidadEscritorioLinux,
   ejecutableDelDesktop,
@@ -20,7 +24,10 @@ import {
   fijadaDelDesktop,
   instalarDesktop,
   leerDesktopInstalado,
+  mimeAlDia,
   refrescarBaseEscritorio,
+  rutaIcono,
+  rutaIconoDocumento,
   type FalloEscritorio
 } from './escritorioLinux'
 import {
@@ -131,11 +138,12 @@ export class EscritorioLinuxService {
           fijadaAhora = true
         }
       } catch (e) {
-        return [{ operacion: 'conservar la aplicación de las carpetas', detalle: e instanceof Error ? e.message : String(e) }]
+        return [{ operacion: txShell().linux.conservarAplicacion, detalle: e instanceof Error ? e.message : String(e) }]
       }
     }
-    const { fallos, iconoCopiado } = await instalarDesktop(this.datos, this.ejecutable(), this.iconoOrigen, fijada)
+    const { fallos, iconoCopiado, mimeEscrito } = await instalarDesktop(this.datos, this.ejecutable(), this.iconoOrigen, fijada)
     if (!iconoCopiado) logUpdate(`no se pudo copiar el icono desde ${this.iconoOrigen}.`)
+    if (!mimeEscrito) logUpdate('no se pudo escribir el tipo de los archivos .tessera; se abrirán desde Configuración.')
     if (fallos.length > 0 && fijadaAhora && fijada !== null) await this.soltarCarpetas(fijada)
     return fallos
   }
@@ -162,7 +170,7 @@ export class EscritorioLinuxService {
 
   private async aplicarAhora(activo: boolean): Promise<ResultadoEscritorioLinux> {
     if (this.disponibilidad() !== 'ok') {
-      return { ok: false, fallos: ['«Abrir con Tessera» no está disponible aquí.'] }
+      return { ok: false, fallos: [txShell().linux.noDisponible] }
     }
     const fallos = activo ? await this.escribir() : await this.retirar()
     await refrescarBaseEscritorio(this.datos)
@@ -176,8 +184,9 @@ export class EscritorioLinuxService {
   }
 
   /**
-   * Al arrancar: si NUESTRO `.desktop` apunta a otro ejecutable, se reescribe. Nunca lo crea,
-   * y uno sin la clave propia no se toca. La lectura previa va en la cola con la escritura.
+   * Al arrancar: si NUESTRO `.desktop` apunta a otro ejecutable o no es el que escribe esta
+   * versión (le falta el tipo `.tessera`, o su definición), se reescribe. Nunca lo crea, y uno
+   * sin la clave propia no se toca. La lectura previa va en la cola con la escritura.
    */
   async reconciliar(): Promise<void> {
     return this.enCola(async () => {
@@ -186,7 +195,13 @@ export class EscritorioLinuxService {
       if (desktop === null || !esDesktopPropio(desktop)) return
       const actual = this.ejecutable()
       const apuntaba = ejecutableDelDesktop(desktop)
-      if (apuntaba === actual) return
+      const esperado = contenidoDesktop(actual, rutaIcono(this.datos), fijadaDelDesktop(desktop))
+      // El icono de los `.tessera` también: si su primera copia falló, se repone.
+      const iconoDocumento = await access(rutaIconoDocumento(this.datos)).then(
+        () => true,
+        () => false
+      )
+      if (apuntaba === actual && desktop === esperado && iconoDocumento && (await mimeAlDia(this.datos))) return
       logUpdate(`entrada de escritorio desactualizada (apuntaba a ${apuntaba ?? 'nada'}); se reescribe.`)
       const fallos = await this.escribir()
       await refrescarBaseEscritorio(this.datos)

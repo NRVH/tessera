@@ -7,6 +7,7 @@
 // =============================================================================
 
 import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { txComun } from './textos.ts'
 
 interface ErrorBoundaryProps {
   children: ReactNode
@@ -42,27 +43,28 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     if (!error) return this.props.children
 
     const full = this.props.variant === 'full'
-    const zone = this.props.label ?? 'la interfaz'
+    const t = txComun()
+    const zone = this.props.label ?? t.errorInterfaz
     return (
       <div className={`error-boundary${full ? ' error-boundary-full' : ' error-boundary-pane'}`}>
         <div className="error-boundary-card" role="alert">
           <div className="error-boundary-title">
-            {full ? 'Algo se rompió en la interfaz' : `Error en ${zone}`}
+            {full ? t.errorTotal : t.errorEn(zone)}
           </div>
           <div className="error-boundary-msg">{error.message || String(error)}</div>
           <div className="error-boundary-actions">
             {full ? (
               <button className="btn primary" onClick={() => window.location.reload()}>
-                Recargar la interfaz
+                {t.recargarInterfaz}
               </button>
             ) : (
               <button className="btn" onClick={this.reset}>
-                Reintentar
+                {t.reintentar}
               </button>
             )}
           </div>
           <div className="error-boundary-hint">
-            Tu trabajo en disco está a salvo. {full ? 'Al recargar se restaura la sesión.' : ''}
+            {t.trabajoASalvo}{full ? t.alRecargar : ''}
           </div>
         </div>
       </div>

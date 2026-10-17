@@ -38,7 +38,7 @@ import {
   type RespuestasDocs
 } from '../protocoloTrabajador.ts'
 import { esErrorCola } from '../colaSesion.ts'
-import { MENSAJE_SIN_LECTOR, motivoDeClase } from '../GestorSesiones.ts'
+import { mensajeSinLector, motivoDeClase } from '../GestorSesiones.ts'
 import { MAX_LECTORES_POR_SESION } from '../limites.ts'
 import { compilarConsultaDocs, ubicarErrorGuiado } from './filtroDocumentos.ts'
 import {
@@ -125,7 +125,7 @@ function ajustarPorCodigo(e: DbErrorSql, codigo: ErrorTrabajador['codigo']): voi
       break
     case CODIGO_LECTOR_DESCONOCIDO:
       e.motivo = 'noReleible'
-      e.mensaje = MENSAJE_SIN_LECTOR
+      e.mensaje = mensajeSinLector()
       break
   }
 }
@@ -249,7 +249,7 @@ export class GestorDocumentos extends GestorFamilia<ContextoErrorDocs, PeticionD
     const l = this.lectores.get(lector)
     if (!l || !l.sesion.abierta) {
       if (l) this.olvidarLector(l.id)
-      return { ok: false, error: { motivo: 'noReleible', mensaje: MENSAJE_SIN_LECTOR } }
+      return { ok: false, error: { motivo: 'noReleible', mensaje: mensajeSinLector() } }
     }
     return this.respuesta(async () => {
       try {

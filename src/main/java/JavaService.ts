@@ -19,6 +19,7 @@ import {
 import { contenedorEnDiscoDe, esNombreContenedor, esRutaVirtual } from '../../shared/jarPath.ts'
 import { Decompiler } from './Decompiler.ts'
 import { JavaRuntime } from './JavaRuntime.ts'
+import { txJava } from './textos.ts'
 import { writeFileAtomicSync } from '../util/atomicWrite.ts'
 import type { JarService } from './JarService.ts'
 import { elegirConDialogo } from '../util/adaptadores/dialogosNativos.ts'
@@ -28,8 +29,11 @@ const MAX_CONTEXTO = 64
 
 export interface JavaServiceOptions {
   jar: JarService
-  /** Traduce una ruta del proyecto a ruta del host (la de FileService). */
-  resolver: (relPosix: string) => string
+  /**
+   * El traductor de rutas del proyecto `raiz` de la petición (`FileService.paraRaiz(raiz)
+   * .resolveProyecto`). Lanza si la contenedora no se conoce o falta, antes de tocar el disco.
+   */
+  proyecto: (raiz: unknown) => { resolver: (relPosix: string) => string }
   /** Carpeta de datos de la app (`userData`), donde vive `java-runtime.json`. */
   rutaDatos: string
   /** Carpeta con los jars de los motores (`<appPath>/vendor/java`). */
@@ -39,7 +43,7 @@ export interface JavaServiceOptions {
 
 export class JavaService {
   private readonly jar: JarService
-  private readonly resolver: (relPosix: string) => string
+  private readonly proyecto: JavaServiceOptions['proyecto']
   private readonly log: (msg: string) => void
   private readonly rutaAjustes: string
   private readonly runtime: JavaRuntime
@@ -49,7 +53,7 @@ export class JavaService {
 
   constructor(o: JavaServiceOptions) {
     this.jar = o.jar
-    this.resolver = o.resolver
+    this.proyecto = o.proyecto
     this.log = o.log ?? ((m) => console.log(`[java] ${m}`))
     this.rutaAjustes = path.join(o.rutaDatos, 'java-runtime.json')
     const ajustes = this.leerAjustes()
@@ -195,10 +199,10 @@ export class JavaService {
     const enDisco = esRutaVirtual(req.path) ? contenedorEnDiscoDe(req.path) : req.path
     let absContenedor: string
     try {
-      absContenedor = this.resolver(enDisco)
+      absContenedor = this.proyecto(req.raiz).resolver(enDisco)
     } catch (err) {
-      // El contrato promete que este canal NUNCA rechaza: `resolver` sí puede lanzar
-      // (sin proyecto activo, ruta fuera del proyecto), y si se dejara salir, el
+      // El contrato promete que este canal NUNCA rechaza: `proyecto` y `resolver` sí pueden
+      // lanzar (proyecto desconocido, ruta fuera del proyecto), y si se dejara salir, el
       // pane se quedaría colgado en "Descompilando…" sin nada que enseñar.
       return {
         path: req.path,
@@ -261,11 +265,11 @@ export class JavaService {
     const r = await elegirConDialogo('java', {
       // El nombre del binario cambia con el sistema y el título lo dice: pedir
       // "java.exe" en un Mac manda al usuario a buscar un archivo que no existe.
-      title: esWindows() ? 'Elige el ejecutable de Java (java.exe)' : 'Elige el ejecutable de Java (java)',
+      title: esWindows() ? txJava().dialogo.tituloWindows : txJava().dialogo.tituloOtro,
       properties: ['openFile'],
       filters: esWindows()
-        ? [{ name: 'Ejecutable de Java', extensions: ['exe'] }]
-        : [{ name: 'Ejecutable de Java', extensions: ['*'] }]
+        ? [{ name: txJava().dialogo.filtro, extensions: ['exe'] }]
+        : [{ name: txJava().dialogo.filtro, extensions: ['*'] }]
     })
     if (r.canceled || r.filePaths.length === 0) return this.runtime.estado()
 

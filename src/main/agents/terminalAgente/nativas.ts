@@ -20,12 +20,13 @@ const MAX_STAGE_BYTES = 64 * 1024 * 1024
 export function sesionesNativas(n: NucleoAgente): Array<Omit<SesionNativa, 'atrasada'>> {
   const out: Array<Omit<SesionNativa, 'atrasada'>> = []
   for (const s of n.sessions.values()) {
-    if (!s.host || !n.terminals.estaViva(s.sessionId)) continue
+    // Un agente manual no se actualiza desde Tessera: no cuenta para el botón de los nativos.
+    if (!s.host || s.manual || !n.terminals.estaViva(s.sessionId)) continue
     out.push({
       sessionId: s.sessionId,
       profileId: s.profileId,
       projectHostPath: s.projectHostPath,
-      agente: s.agente,
+      agente: s.agente as Agente,
       versionLanzada: s.versionLanzada,
       trabajando: s.activity.state() === 'working',
       esperandoRespuesta: s.activity.esperandoRespuesta(),
