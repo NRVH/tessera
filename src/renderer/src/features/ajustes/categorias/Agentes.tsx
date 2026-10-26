@@ -10,7 +10,7 @@ import { Fila, Grupo, Selector } from '../primitivas'
 import type { PropsCategoria } from '../tipos'
 import { txCatalogo } from '../textosCatalogo.ts'
 
-export function Agentes({ ve, defaultProjectMode }: PropsCategoria): React.JSX.Element {
+export function Agentes({ ve }: PropsCategoria): React.JSX.Element {
   const selector = useStoreAgentes((s) => s.selectorAgentes)
   const t = textosSelectorAgentes()
   const grupos = txCatalogo().grupos
@@ -18,7 +18,7 @@ export function Agentes({ ve, defaultProjectMode }: PropsCategoria): React.JSX.E
     <>
       {ve('agentes-lista') && (
         <Grupo titulo={grupos['Agentes del perfil']}>
-          <GestionAgentes nuevoNativoPorDefecto={defaultProjectMode !== 'docker'} />
+          <GestionAgentes />
         </Grupo>
       )}
       {ve('selector-agentes') && (

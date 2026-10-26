@@ -7,7 +7,7 @@
 // =============================================================================
 import { useCallback, useLayoutEffect, useMemo } from 'react'
 import { columnaDe, fijarColumna, maximizadoCoherente, useStoreLayout } from '../layout'
-import { alternarColumnaAgente, editorTargetKey, useStoreEditor, type EditorApp } from '../editor'
+import { alternarColumnaAgente, useStoreEditor, type EditorApp } from '../editor'
 import { useStorePestanas, type UseTabs } from '../pestanas'
 import { useStoreAgentes } from './store'
 import { textosAgenteDiferido, type TextosAgenteDiferido } from './textosAgenteDiferido'
@@ -15,16 +15,15 @@ import { agenteAMostrar, pestanasDelProyecto } from './agentesDelProyecto'
 import { useFuenteAgentes } from './useAgentesDelProyecto'
 
 /** Cómo se llama el agente que arrancaría en el proyecto diferido: el elegido entre SUS pestañas. */
-function useNombreAgenteDiferido(perfil: string | null, ruta: string | null): string | null {
+function useNombreAgenteDiferido(perfil: string | null): string | null {
   const fuente = useFuenteAgentes()
-  const hostMode = useStorePestanas((s) => perfil !== null && ruta !== null && s.windowsModeKeys.has(editorTargetKey(perfil, ruta)))
   const elegido = useStoreAgentes((s) => (perfil === null ? undefined : s.selectedAgentByProfile[perfil]))
   return useMemo(() => {
     if (perfil === null) return null
-    const pestanas = pestanasDelProyecto(fuente, perfil, hostMode)
+    const pestanas = pestanasDelProyecto(fuente, perfil)
     const id = agenteAMostrar(pestanas.map((x) => x.id), elegido)
     return pestanas.find((x) => x.id === id)?.nombre ?? null
-  }, [fuente, perfil, hostMode, elegido])
+  }, [fuente, perfil, elegido])
 }
 
 /** Estado derivado de la columna del agente. */
@@ -103,7 +102,7 @@ export function useColumnaAgente(
   // Estable: va a la cabecera del pane, y una identidad nueva por perfil lo repintaría.
   const alternarCcMaximizado = useCallback(() => fijarColumna((c) => ({ maximizada: !c.maximizada })), [])
   // El agente que arrancaría: el elegido del perfil entre las pestañas del proyecto. La plataforma llega por el preload.
-  const nombreDiferido = useNombreAgenteDiferido(perfilDiferido, rutaDiferida)
+  const nombreDiferido = useNombreAgenteDiferido(perfilDiferido)
   const textosDiferido = useMemo(
     () => (nombreDiferido === null ? null : textosAgenteDiferido(window.tessera.plataforma, nombreDiferido)),
     [nombreDiferido]

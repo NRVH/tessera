@@ -7,16 +7,13 @@
 // tipos para no arrastrar componentes a la cadena de imports de nadie.
 // =============================================================================
 
-import type { DefaultProjectMode } from '../../../../shared/workspace-state-ipc'
+import type { PrimeroEnPararse } from '../../../../shared/semaforoContenedores'
 import type { DbTxModo } from '../../../../shared/db-explorador-ipc'
 import type { TerminalAppearance } from '../../theme/terminalAppearance'
 import type { UseActualizacionNativa } from '../agentes'
 
 /** Todo lo que Configuración puede leer y cambiar. Lo compone `ModalAjustes` desde los stores. */
 export interface AjustesProps {
-  /** Modo con el que NACE un proyecto nuevo (windows | docker | ask). */
-  defaultProjectMode: DefaultProjectMode
-  onChangeDefaultProjectMode: (mode: DefaultProjectMode) => void
   /** Modo minimalista de perfiles: sin banda, un selector en la barra de título. */
   hideProfileNames: boolean
   onToggleProfileNames: () => void
@@ -136,6 +133,27 @@ export interface AjustesProps {
    */
   agenteInactividadMin: number
   onChangeAgenteInactividadMin: (min: number) => void
+  /**
+   * LÍMITE DE CONTENEDORES de Docker (`shared/semaforoContenedores.ts`): cuántos a la vez
+   * (`SIN_LIMITE` = ninguno; sin valor = el recomendado para la memoria de Docker), qué se
+   * para primero al llegar a él y si los que están trabajando se respetan mientras haya otro.
+   */
+  limiteContenedores: number | undefined
+  onChangeLimiteContenedores: (limite: number | undefined) => void
+  primeroEnPararse: PrimeroEnPararse
+  onChangePrimeroEnPararse: (primero: PrimeroEnPararse) => void
+  protegerTrabajando: boolean
+  onChangeProtegerTrabajando: (proteger: boolean) => void
+  /**
+   * SATURACIÓN de Docker (`shared/saturacionDocker.ts`): a qué porcentaje de su memoria y durante
+   * cuántos segundos se hiberna un agente, y si se avisa antes de hacerlo.
+   */
+  saturacionUmbral: number
+  onChangeSaturacionUmbral: (pct: number) => void
+  saturacionSegundos: number
+  onChangeSaturacionSegundos: (segundos: number) => void
+  avisarAntesDeParar: boolean
+  onChangeAvisarAntesDeParar: (avisar: boolean) => void
 }
 
 /** Lo que recibe el panel de UNA categoría: los ajustes más el filtro del buscador. */

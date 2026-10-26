@@ -27,10 +27,6 @@ export const txSandbox = crearTextos(
       listo: 'Listo'
     },
     contenedores: {
-      loginCodexTitulo: 'El login de Codex no está disponible en este perfil',
-      loginCodexDetalle: (puerto: number) =>
-        `Otro perfil ya tiene tomado el puerto ${puerto}, que es el que Codex usa para terminar el ` +
-        'login por navegador. Todo lo demás funciona. Para poder iniciar sesión aquí, hiberna el otro perfil y vuelve a entrar a éste.',
       noSeCreo: (nombre: string, err: string) => `No se pudo crear el contenedor "${nombre}": ${err}`,
       noSeDetuvo: (nombre: string, err: string) => `No se pudo detener el contenedor "${nombre}": ${err}`,
       noSeElimino: (nombre: string, err: string) => `No se pudo eliminar el contenedor "${nombre}": ${err}`
@@ -141,10 +137,6 @@ export const txSandbox = crearTextos(
       listo: 'Done'
     },
     contenedores: {
-      loginCodexTitulo: 'Codex sign-in is not available in this profile',
-      loginCodexDetalle: (puerto: number) =>
-        `Another profile already holds port ${puerto}, which Codex uses to finish the ` +
-        'browser sign-in. Everything else works. To sign in here, hibernate the other profile and enter this one again.',
       noSeCreo: (nombre: string, err: string) => `Could not create container "${nombre}": ${err}`,
       noSeDetuvo: (nombre: string, err: string) => `Could not stop container "${nombre}": ${err}`,
       noSeElimino: (nombre: string, err: string) => `Could not remove container "${nombre}": ${err}`

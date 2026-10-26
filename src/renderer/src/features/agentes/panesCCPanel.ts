@@ -11,13 +11,14 @@
 import type { ComponentProps } from 'react'
 import type { AgentTerminalPane } from './AgentTerminalPane'
 import type { Profile } from '../../../../main/profiles/types'
-import { pestanasEstables, siguienteAgente, type FuenteAgentes, type PestanaAgente, type SitioAgente } from './agentesDelProyecto'
+import { esManualNativo, pestanasEstables, siguienteAgente, type FuenteAgentes, type PestanaAgente } from './agentesDelProyecto'
+import { agenteNativo, puedeElegirModo } from './modoAgente'
 import { agentTargetKey, tintaPerfil, type OpenAgentTarget } from '../pestanas'
 import { editorTargetKey } from '../editor'
 import type { DisposicionMosaico, OpcionMosaico } from '../mosaico'
 import type { CCPanelProps, MosaicoPanel } from './CCPanel'
 import type { ColorPerfil, VersionesAgente } from './useCCPanelMosaico'
-import type { LugarAgente } from './textosMontajeBases'
+import type { LugarEnLaPrincipal } from './textosMontajeBases'
 
 type PropsPane = ComponentProps<typeof AgentTerminalPane>
 type PropsVisibilidad = Pick<
@@ -32,6 +33,7 @@ type PropsBasesYCuenta = Pick<
   | 'onChangeDbMounted'
   | 'lugar'
   | 'onCerrar'
+  | 'onElegirModo'
   | 'selectedAccountId'
   | 'onSelectAccount'
 >
@@ -84,7 +86,7 @@ function casillaDe(target: OpenAgentTarget, { enMosaico, mosaico, disposicion }:
  * entre sí). El agente de la terminal, solo en el commit en que el usuario lo pidió: aparecer al entrar
  * en pantalla completa no. Los demás, salvo en los commits sin foco (`sinRobarFoco`).
  */
-function robaFocoDe(p: CCPanelProps, c: CalculoColumna, enfocada: boolean, lugar: LugarAgente): boolean {
+function robaFocoDe(p: CCPanelProps, c: CalculoColumna, enfocada: boolean, lugar: LugarEnLaPrincipal): boolean {
   if (c.enMosaico) return enfocada
   return lugar === 'terminal' ? (p.focoAgenteTerminal ?? false) : !(p.sinRobarFoco ?? false)
 }
@@ -100,7 +102,7 @@ function propsVisibilidad(
   p: CCPanelProps,
   c: CalculoColumna,
   casilla: Casilla,
-  lugar: LugarAgente
+  lugar: LugarEnLaPrincipal
 ): PropsVisibilidad {
   const esActivo = target.key === p.activeTargetKey
   const enfocada = target.key === c.mosaico?.enfocada
@@ -160,29 +162,20 @@ function propsMosaicoDe(
     onElegirDestino: (key: string) => mosaico.onElegirDestino(target.key, key),
     onAbrirProyecto: () => mosaico.onAbrirProyecto(target.key, profileId),
     otroAgente: otroAgenteDe(target, mosaico, pestanas),
-    onCambiarModo: mosaico.modoBloqueado(projectHostPath)
-      ? null
-      : () => mosaico.onCambiarModo(profileId, projectHostPath),
     onAmpliar: () => mosaico.onAmpliar(target.key),
     onIrAlProyecto: () => mosaico.onIrAlProyecto(target),
     onEnfocar: () => mosaico.onEnfocar(target.key)
   }
 }
 
-/** Qué pestañas le tocan: las de su proyecto (según el modo), las de la terminal o las del espacio de datos. */
-function sitioDe(lugar: LugarAgente, hostMode: boolean): SitioAgente {
-  if (lugar === 'proyecto') return hostMode ? 'proyecto-nativo' : 'proyecto-docker'
-  return lugar
-}
-
 /** Dónde vive el agente de un target: decide los textos, de quién es su selector y si monta bases. */
-function lugarDe(target: OpenAgentTarget, p: CCPanelProps): LugarAgente {
+function lugarDe(target: OpenAgentTarget, p: CCPanelProps): LugarEnLaPrincipal {
   if (p.rutasAgenteTerminal?.has(target.projectHostPath)) return 'terminal'
   return p.rutasEspacioDatos?.has(target.projectHostPath) ? 'datos' : 'proyecto'
 }
 
 /** Bases montadas (por proyecto, no por agente), cuenta del target y lo propio del agente de la terminal. */
-function propsBasesYCuenta(target: OpenAgentTarget, p: CCPanelProps, lugar: LugarAgente): PropsBasesYCuenta {
+function propsBasesYCuenta(target: OpenAgentTarget, p: CCPanelProps, lugar: LugarEnLaPrincipal): PropsBasesYCuenta {
   const { profileId, projectHostPath } = target
   const terminal = lugar === 'terminal'
   return {
@@ -195,6 +188,8 @@ function propsBasesYCuenta(target: OpenAgentTarget, p: CCPanelProps, lugar: Luga
     // Los TEXTOS de la cabecera: «este proyecto», «el agente de datos» o «el agente de la terminal».
     lugar,
     onCerrar: terminal ? p.onCerrarAgenteTerminal : undefined,
+    // La MISMA función para todos los que pueden elegir: el pane va memoizado.
+    onElegirModo: puedeElegirModo(lugar, target.agente) ? p.onElegirModoAgente : undefined,
     selectedAccountId: p.accountByTarget?.[target.key] ?? null,
     onSelectAccount: p.onSelectAccount ?? sinElegirCuenta
   }
@@ -205,18 +200,23 @@ function propsAvisos(p: CCPanelProps): PropsAvisos {
 }
 
 /**
- * Props completas del pane de un target. El modo nativo es del PROYECTO (clave sin el
- * agente); el color del perfil baja EN TINTA, el mismo tono que en el resto de la ventana.
+ * Props completas del pane de un target. Nativo o Docker es de cada AGENTE (`modoAgente.ts`); el
+ * color del perfil baja EN TINTA, el mismo tono que en el resto de la ventana.
  */
 export function propsPaneDeTarget(target: OpenAgentTarget, p: CCPanelProps, c: CalculoColumna): PropsPane {
   const profile = c.profiles.find((x) => x.id === target.profileId) ?? null
-  const hostMode = p.windowsModeKeys?.has(editorTargetKey(target.profileId, target.projectHostPath)) ?? false
   const casilla = casillaDe(target, c)
   const lugar = lugarDe(target, p)
+  const hostMode = agenteNativo({
+    lugar,
+    agente: target.agente,
+    elegido: p.modoPorTarget?.[target.key],
+    manualNativo: esManualNativo(c.fuenteAgentes, target.agente)
+  })
   // El botón de maximizar solo existe en el pane a la vista. Dárselo a todos repintaría
   // todos los panes cada vez que el proyecto activo pasa de tener pestañas a no tenerlas.
   const esActivo = target.key === p.activeTargetKey
-  const pestanas = pestanasEstables(c.fuenteAgentes, target.profileId, sitioDe(lugar, hostMode))
+  const pestanas = pestanasEstables(c.fuenteAgentes, target.profileId, lugar)
   return {
     target,
     hostMode,

@@ -26,9 +26,7 @@ import { escribirArchivosDeAtajo } from '../util/escrituraAtajos'
 import { crearConfigSaltos } from './adaptadores/configSaltos'
 import { escribirLanzadorAskpass } from './adaptadores/lanzadorAskpass'
 import { asegurarCarpetaProtegida, ejecutarCorto, escribirClaveProtegida } from './adaptadores/permisosClave'
-import { crearRegistroTssh, leerRegistroTssh } from './adaptadores/registroTssh'
-import { actividadDe } from './actividadTssh'
-import type { SshActividadPerfil } from '../../shared/ssh-ipc'
+import { crearRegistroTssh } from './adaptadores/registroTssh'
 import { generarAtajosTssh } from './atajosTssh'
 import { admiteBinarioDePrueba, resolverBinariosSsh, type BinariosSsh } from './binariosSsh'
 import { ConexionesSsh } from './ConexionesSsh'
@@ -290,6 +288,7 @@ function crearSesionesSftp(controlador: ControladorSsh, refs: ReferenciasApp): S
     log: (m) => dbLog('ssh', m)
   })
   process.once('exit', () => sesiones.cerrarTodas())
+  refs.sftp = sesiones
   return sesiones
 }
 
@@ -353,9 +352,7 @@ export function componerSsh(deps: DepsSsh): ComposicionSsh {
     configSaltos: crearConfigSaltos(join(userData, 'ssh', 'saltos')),
     log: (m) => dbLog('ssh', m)
   })
-  const dirLogs = join(userData, 'logs')
-  const actividad = async (profileId: string): Promise<SshActividadPerfil> => actividadDe(await leerRegistroTssh(dirLogs), profileId)
-  registrarIpcSsh({ ipc, ssh: controlador, espacio: espacioParaIpc(espacio, () => perfiles.lista, deps.borrados, deps.llegada), dialogo, actividad })
+  registrarIpcSsh({ ipc, ssh: controlador, espacio: espacioParaIpc(espacio, () => perfiles.lista, deps.borrados, deps.llegada), dialogo })
   registrarIpcSftp(ipc, crearSesionesSftp(controlador, refs))
   return { controlador, espacio }
 }

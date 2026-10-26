@@ -17,13 +17,18 @@ import type {
   AgentOpenRequest,
   AgentOpenResult,
   AgentResizeMessage,
-  AgentWriteMessage
+  AgentWriteMessage,
+  ConstanciaParada,
+  VigiaSaturacionConfig
 } from '../../shared/agent-terminal-ipc'
+import { VigiaSaturacion, type OpcionesVigia } from './terminalAgente/saturacion'
+import type { DatosLogin } from './loginCodex'
 import type { SesionNativa } from '../../shared/agentes-nativos-ipc'
 import type { TerminalService } from '../terminals/TerminalService'
 import { abrir } from './terminalAgente/apertura'
 import { recargar } from './terminalAgente/recarga'
-import { cerrar, cerrarDonde, closeAllSessions, detenerVarias, disposeAll } from './terminalAgente/cierre'
+import { cerrar, cerrarDeVentana, cerrarDonde, closeAllSessions, detenerVarias, disposeAll } from './terminalAgente/cierre'
+import type { IdAgente } from '../../shared/agentesManuales'
 import { pidsNativos, saveImage, sesionesNativas, stageFile } from './terminalAgente/nativas'
 import { anclarPorEntrada, snapshotActividad } from './terminalAgente/turnos'
 import { aplicarSegundoPlanoDeSesion, hibernarInactivos, marcarEs } from './terminalAgente/hibernacion'
@@ -31,6 +36,7 @@ import type { CambioSegundoPlano } from '../transcripts/tareasSegundoPlano'
 import type { SesionConContexto } from './manuales/contexto'
 import {
   ACTIVITY_RESIZE_GRACE_MS,
+  PERFIL_VENTANA,
   crearNucleo,
   errMsg,
   type AgentTerminalControllerOptions,
@@ -44,8 +50,36 @@ export type { AgentTerminalControllerOptions } from './terminalAgente/tipos'
 export class AgentTerminalController {
   private readonly n: NucleoAgente
 
-  constructor(opts: AgentTerminalControllerOptions) {
+  private readonly vigia: VigiaSaturacion
+
+  constructor(opts: AgentTerminalControllerOptions, vigia: OpcionesVigia = {}) {
     this.n = crearNucleo(opts)
+    this.vigia = new VigiaSaturacion(this.n, vigia)
+  }
+
+  /** Lo que el renderer manda al vigía de la saturación; la primera vez lo pone a medir. */
+  configurarSaturacion(config: VigiaSaturacionConfig): void {
+    this.vigia.configurar(config)
+  }
+
+  /** «Parar otro» durante el aviso de saturación. */
+  saturacionPararOtro(): boolean {
+    return this.vigia.pararOtro()
+  }
+
+  /** Una ronda del vigía ya, sin esperar a su intervalo (pruebas). */
+  rondaSaturacion(): Promise<void> {
+    return this.vigia.ronda()
+  }
+
+  /** El login de Codex pendiente en un contenedor de cuenta, o null. */
+  loginCodexEnCurso(): DatosLogin | null {
+    return this.n.loginCodex.enCurso()
+  }
+
+  /** La constancia de las últimas paradas, la más reciente primero. */
+  registroParadas(): ConstanciaParada[] {
+    return this.n.registroParadas.leer()
   }
 
   // Las pruebas leen el mapa de sesiones y sustituyen el servicio de terminales.
@@ -76,9 +110,50 @@ export class AgentTerminalController {
     return hibernarInactivos(this.n, req)
   }
 
-  /** Estado de actividad crudo de todas las sesiones vivas. */
-  snapshotActividad(): AgentActivityMessage[] {
-    return snapshotActividad(this.n)
+  /**
+   * Estado de actividad crudo de las sesiones vivas. Con `ventana`, solo las suyas y las que no
+   * tienen dueño: cada ventana ve la actividad de lo que ella abrió.
+   */
+  snapshotActividad(ventana?: number): AgentActivityMessage[] {
+    const todas = snapshotActividad(this.n)
+    if (ventana === undefined) return todas
+    return todas.filter((m) => {
+      const dueno = this.sessions.get(m.sessionId)?.ventana
+      return dueno === undefined || dueno === ventana
+    })
+  }
+
+  /** La ventana dueña de una sesión: su id, `undefined` si no tiene, o null si la sesión no existe. */
+  ventanaDe(sessionId: string): number | undefined | null {
+    const s = this.sessions.get(sessionId)
+    return s ? s.ventana : null
+  }
+
+  /** Las sesiones de una ventana, con su agente. */
+  sesionesDeVentana(ventana: number): Array<{ sessionId: string; agente: IdAgente }> {
+    return [...this.sessions.values()].filter((s) => s.ventana === ventana).map((s) => ({ sessionId: s.sessionId, agente: s.agente }))
+  }
+
+  /**
+   * La conversación en la que está una sesión ahora: la anclada o, si no, con la que arrancó. El ancla
+   * solo vale si es de esta sesión sola (las mismas guardas que `alinearChatConAncla`): dos ventanas del
+   * mismo agente comparten clave, y fiarse de ella haría que las dos reanudaran el mismo transcript.
+   * Dudosa (tras un `/clear` o un `/resume`) no se sabe cuál es: sin conversación, nace un chat nuevo.
+   */
+  conversacionDe(sessionId: string): string | undefined {
+    const s = this.sessions.get(sessionId)
+    if (!s) return undefined
+    const ancla = s.claveAncla && this.n.anclas ? this.n.anclas.get(s.claveAncla) : undefined
+    if (ancla && ancla.refs === 1) {
+      if (ancla.estado.tipo === 'anclada') return ancla.estado.sessionId
+      if (ancla.estado.tipo === 'dudosa') return undefined
+    }
+    return s.resumeSessionId
+  }
+
+  /** Cierra las sesiones de una ventana que se cierra (sus árboles de una vez); las demás siguen. */
+  cerrarDeVentana(ventana: number, topeMs: number, anotar?: (msg: string) => void): Promise<string[]> {
+    return cerrarDeVentana(this.n, ventana, topeMs, anotar)
   }
 
   /** Sesiones nativas con el proceso vivo, para el botón de los agentes nativos. */
@@ -100,6 +175,8 @@ export class AgentTerminalController {
   updateProfiles(profiles: Profile[]): void {
     this.n.profiles.clear()
     for (const p of profiles) this.n.profiles.set(p.id, p)
+    // El de las ventanas de agente no se persiste ni llega con la lista: se repone siempre.
+    this.n.profiles.set(PERFIL_VENTANA.id, PERFIL_VENTANA)
   }
 
   /**
@@ -149,9 +226,9 @@ export class AgentTerminalController {
     return saveImage(this.n, sessionId)
   }
 
-  /** Abre una sesión de agente, en contenedor o nativa. */
-  open(req: AgentOpenRequest): Promise<AgentOpenResult> {
-    return abrir(this.n, req)
+  /** Abre una sesión de agente, en contenedor o nativa; `ventana` es el id del `webContents` que la pide. */
+  open(req: AgentOpenRequest, ventana?: number): Promise<AgentOpenResult> {
+    return abrir(this.n, req, ventana)
   }
 
   /** Relanza el proceso de una sesión conservando su id y su conversación. */
@@ -176,6 +253,7 @@ export class AgentTerminalController {
 
   /** Cierra todas las sesiones al salir de la app. */
   disposeAll(): Promise<void> {
+    this.vigia.detener()
     return disposeAll(this.n)
   }
 
@@ -189,6 +267,11 @@ export class AgentTerminalController {
     return cerrarDonde(this.n, (s) => s.accountId === accountId)
   }
 
+  /** Cierra las sesiones en contenedor de un agente en un perfil, de todas sus cuentas (eliminarlo). */
+  closeSessionsForAgente(profileId: string, agente: IdAgente): Promise<string[]> {
+    return cerrarDonde(this.n, (s) => s.profileId === profileId && s.agente === agente && !s.host)
+  }
+
   /** Ids de las sesiones de agente abiertas. */
   liveSessionIds(): string[] {
     return [...this.sessions.keys()]
@@ -199,7 +282,7 @@ export class AgentTerminalController {
     const s = typeof sessionId === 'string' ? this.sessions.get(sessionId) : undefined
     const fuente = s?.manual?.contexto
     if (!s || !fuente) return null
-    return { profileId: s.profileId, projectHostPath: s.projectHostPath, host: s.host, home: s.homeManual ?? '', fuente }
+    return { profileId: s.profileId, agente: s.agente, accountId: s.accountId, projectHostPath: s.projectHostPath, host: s.host, home: s.homeManual ?? '', fuente }
   }
 
   /** El perfil de una sesión abierta, o `undefined` si no existe (o el id no es un texto). */

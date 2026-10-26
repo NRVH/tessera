@@ -19,9 +19,8 @@ devuelve 0 y los puertos se quedan en la VM. El éxito del comando no prueba nad
 - La sonda corre también tras (re)crear un contenedor con `redHost` (una vez por proceso: es una propiedad de la
   máquina) y avisa una vez por perfil. `null` no avisa: callar es mejor que inventar.
 - Modo de WSL preguntado a `wslinfo`, no al `.wslconfig` (la intención no es lo efectivo); es la nota del egress.
-- Puerto 1455 del login de Codex: publicado en `127.0.0.1` solo en `bridge`, con un forwarder `eth0 → 127.0.0.1` dentro
-  del contenedor. Con `--network host` Docker descarta `-p` y no admite `--hostname`. Si otro perfil tiene el 1455, se
-  avisa (`choque-1455`) y se crea sin publicarlo, sin fallar. Las sondas nunca usan el 1455.
+- Ningún contenedor publica el 1455 del login de Codex: su vuelta la trae el puente de Tessera, en los dos modos de red
+  (`contenedor-por-cuenta.md`). Con `--network host` Docker no admite `--hostname`. Las sondas nunca usan el 1455.
 - Tessera no escribe en los ajustes de Docker Desktop: explica dónde está el interruptor. El usuario manda aunque el
   prevuelo salga en rojo.
 

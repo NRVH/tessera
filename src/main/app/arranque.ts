@@ -9,7 +9,7 @@ import * as nodePty from 'node-pty'
 import { initCrashLog, logCrash } from './crashLog'
 import { fijarDestinoVigia } from '../transcripts/vigiaContratos'
 import { revisarVolcados } from './volcados'
-import { plantillaMenuAplicacion } from './menuAplicacion'
+import { plantillaMenuAplicacion, type AccionesMenu } from './menuAplicacion'
 import { initDbLog } from '../db/dbLog'
 import { initLogCierre } from '../util/registroCierre'
 import { asegurarPathDelHost } from '../util/pathDeLogin'
@@ -32,9 +32,9 @@ export function prepararArranque(): Promise<void> {
 }
 
 /** Chrome nativo en oscuro y el menú de aplicación de la plataforma (ninguno en Windows). */
-export function instalarTemaYMenu(): void {
+export function instalarTemaYMenu(acciones: AccionesMenu = {}): void {
   nativeTheme.themeSource = 'dark'
-  const plantillaMenu = plantillaMenuAplicacion()
+  const plantillaMenu = plantillaMenuAplicacion(undefined, acciones)
   Menu.setApplicationMenu(plantillaMenu ? Menu.buildFromTemplate(plantillaMenu) : null)
 }
 

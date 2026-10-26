@@ -34,6 +34,17 @@ export function IconoArchivoNuevo(): React.JSX.Element {
   )
 }
 
+/** Cuenta nueva: una persona con un `+`. */
+export function IconoCuentaNueva(): React.JSX.Element {
+  return (
+    <Svg>
+      <circle cx="10" cy="8" r="3.5" />
+      <path d="M3.5 20a6.5 6.5 0 0 1 10.5-5.1" />
+      <path d="M18 14v6M15 17h6" />
+    </Svg>
+  )
+}
+
 /** Carpeta nueva: carpeta con un `+`. */
 export function IconoCarpetaNueva(): React.JSX.Element {
   return (

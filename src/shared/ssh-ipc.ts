@@ -76,9 +76,7 @@ export const SSH_CHANNELS = {
   /** send (main -> renderer), SshPreguntaRetirada: esa pregunta ya no espera respuesta (venció o ssh terminó). */
   ASKPASS_RETIRAR: 'ssh:askpass:retirar',
   /** invoke: la respuesta del usuario, o `null` si canceló. SshRespuestaAskpass -> void. */
-  ASKPASS_RESPONDER: 'ssh:askpass:responder',
-  /** invoke: lo que hicieron los agentes con `tssh` en un perfil (`logs/ssh.log`). SshPedirActividad -> SshActividadPerfil. */
-  ACTIVIDAD: 'ssh:actividad'
+  ASKPASS_RESPONDER: 'ssh:askpass:responder'
 } as const
 
 /**
@@ -480,37 +478,6 @@ export interface SshRespuestaAskpass {
 
 /** Lo que pide un agente con `tssh`: una orden remota, una copia o la prueba de `tssh doctor <alias>`. */
 export type SshUsoTssh = 'run' | 'cp' | 'doctor'
-
-/**
- * Una petición de un agente con `tssh`, tal como quedó en el registro: rechazada antes de lanzar ssh (con el
- * código propio de `tssh`), o terminada (con el código de ssh, lo que tardó y, si ssh falló, por qué). Nunca
- * la orden remota ni las rutas: el registro no las guarda.
- */
-export interface SshActividad {
-  /** ISO 8601. */
-  fecha: string
-  uso: SshUsoTssh
-  /** El alias que escribió el agente (puede no existir: por eso se rechazó). */
-  alias: string
-  /** 'sinFinal': empezó y no consta cómo acabó (sigue en curso, o se interrumpió antes de apuntarlo). */
-  estado: 'rechazada' | 'terminada' | 'sinFinal'
-  codigo: number | null
-  ms: number | null
-  /** La cortó su `--timeout`. */
-  tope: boolean
-  motivo?: TerminalExitReason
-}
-
-/** Petición de `ACTIVIDAD`. */
-export interface SshPedirActividad {
-  profileId: string
-}
-
-/** Respuesta de `ACTIVIDAD`: la más reciente primero, con un tope; `mas` si había más antiguas. */
-export interface SshActividadPerfil {
-  entradas: SshActividad[]
-  mas: boolean
-}
 
 /** Petición de `ESPACIO_ASEGURAR`: el perfil. El nombre que se escribe en el contexto lo pone el main. */
 export interface SshEspacioAsegurar {

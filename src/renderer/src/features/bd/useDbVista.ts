@@ -31,6 +31,7 @@ import {
   type DbVistaPerfil
 } from './dbVistaEstado'
 import type { DbPane, DbTab } from './dbTabsModel'
+import { fijarMaximizado } from '../layout'
 
 /** Una pestaña de cualquier perfil, con su clave de keep-alive. */
 export interface PestanaBdMontada {
@@ -77,7 +78,11 @@ function enPerfil(perfilId: string, cambio: (v: DbVistaPerfil) => DbVistaPerfil)
 }
 
 const ACCIONES: AccionesVistaBd = {
-  abrir: (perfilId, pane) => enPerfil(perfilId, (v) => abrirEnVista(v, pane)),
+  // Abrir es querer verla: restaura el agente de datos si la tapaba.
+  abrir: (perfilId, pane) => {
+    fijarMaximizado('agenteDb', false, perfilId)
+    enPerfil(perfilId, (v) => abrirEnVista(v, pane))
+  },
   activar: (perfilId, tabId) => enPerfil(perfilId, (v) => activarEnVista(v, tabId)),
   cerrar: (perfilId, tabIds) => enPerfil(perfilId, (v) => cerrarEnVista(v, tabIds)),
   reemplazar: (perfilId, tabId, pane) => enPerfil(perfilId, (v) => reemplazarEnVista(v, tabId, pane)),

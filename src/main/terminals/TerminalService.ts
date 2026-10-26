@@ -455,6 +455,33 @@ export class TerminalService {
   }
 
   /**
+   * Lo mismo que `matarTodoConArbol` para UNAS sesiones, sin apagar el servicio: cerrar una ventana
+   * mata el árbol de las suyas de una vez (sin teclear nada en el agente) y el resto sigue. Las
+   * sesiones quedan en el mapa: quien llama las cierra después con `closeSession`, que ya las
+   * encuentra muertas. Devuelve cuántas había vivas.
+   */
+  async matarArbolesDe(ids: readonly string[], topeMs: number, anotar: (msg: string) => void = () => {}): Promise<number> {
+    const vivos = ids
+      .map((id) => this.sessions.get(id))
+      .filter((r): r is SessionRecord => r !== undefined && r.exitCode === null && !r.closing && !r.parada)
+    if (vivos.length === 0) return 0
+    for (const record of vivos) {
+      record.closing = true
+      descartarSalida(record)
+    }
+    const pids = vivos.map((r) => r.pty.pid)
+    const arboles = esWindows()
+      ? matarArbolWindows(pids).then((r) => {
+          const nota = notaTaskkill(r)
+          if (nota) anotar(nota)
+        })
+      : Promise.all(pids.map((pid) => matarArbolPosix(pid)))
+    if ((await conTope(arboles, topeMs)) === 'tope') anotar(`los árboles no murieron en ${topeMs} ms`)
+    await conTope(Promise.all(vivos.map((r) => esperarSalida(r, topeMs))), topeMs)
+    return vivos.length
+  }
+
+  /**
    * Mata al instante, sin cierre elegante, todos los ptys y vacía el mapa. En Windows node-pty deja
    * vivo un `OpenConsole.exe` cargado desde la carpeta de instalación y el desinstalador falla si
    * sigue abierto. Best-effort; devuelve cuántos mató.

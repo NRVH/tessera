@@ -29,6 +29,8 @@ especificación y se quita borrando un archivo.
 - `StartupWMClass=Tessera` (Electron pone el nombre de la app en `WM_CLASS`) y
   `app.setDesktopName('tessera.desktop')` solo en Linux, que fija el identificador de la ventana
   en Wayland: así el lanzador agrupa la ventana bajo esta entrada.
+- La entrada lleva la acción `ventana-agente` (clic derecho en el lanzador: el mismo `Exec` con
+  `--ventana-agente`), igual que el `.desktop` del AppImage (`agentes/ventana-de-agente.md`).
 - Tras escribir o borrar se llama a `update-desktop-database` y `update-mime-database` si están; su
   fallo no es error.
 - Como en macOS: la verdad es el disco, las escrituras van en cola, y al arrancar se reescribe el

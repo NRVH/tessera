@@ -2,9 +2,8 @@
 
 - **Estado:** vigente
 - **Ámbito:** `src/tssh/`, `src/main/ssh/` (`controlador/puenteTssh.ts`, `catalogoAgentes.ts`, `briefingSsh.ts`,
-  `atajosTssh.ts`, `lineaSsh.ts` en modo agente, `adaptadores/registroTssh.ts`, `actividadTssh.ts`, `controlador/buzonTssh.ts`,
-  `transferenciaBuzon.ts`), `src/main/agents/briefingCompuesto.ts` y la actividad de `features/ssh/` (`DialogoActividadSsh.tsx`,
-  `actividadSsh.ts`)
+  `atajosTssh.ts`, `lineaSsh.ts` en modo agente, `adaptadores/registroTssh.ts`, `controlador/buzonTssh.ts`,
+  `transferenciaBuzon.ts`) y `src/main/agents/briefingCompuesto.ts`
 
 ## Contexto
 
@@ -30,21 +29,16 @@ de un argumento (impares, lo parte), no analiza un apóstrofo tipográfico y lee
 - Aviso de arranque en nativo: el de bases tal cual (prefijo exacto) y detrás el de SSH, con los textos del usuario sin comillas
   tipográficas ni dobles (`tssh` busca el alias con cualquier comilla). Codex lo recibe por `-c developer_instructions` (ver
   `agentes/sesion-linea-de-arranque.md`).
-- `logs/ssh.log`: perfil, subcomando, alias, código y duración; nunca la orden remota ni las rutas. La interfaz lo enseña en
-  «Actividad de los agentes…» (menú de una conexión, filtrada a su alias, y pie del lanzador, todo el perfil): las peticiones
-  rechazadas y las terminadas del perfil, la más reciente primero y con tope de 500 (`actividadTssh.ts`, que lee también el
-  `.old`). Cada fin se empareja con el inicio pendiente más antiguo de su uso y alias; un inicio sin fin (en curso, o el
-  agente o Tessera murieron antes de apuntarlo) se enseña como tal, porque es la línea que escribe el main por su cuenta.
-  El fin lo informa `tssh`: como todo lo del agente, es de fiar lo que el modelo de amenaza dice (corre como el usuario).
-  El filtro es por alias, que es lo que guarda el registro: abierta desde una conexión, solo ese alias exacto; una
-  conexión renombrada no reúne sus líneas viejas.
+- `logs/ssh.log`: perfil, subcomando, alias, código y duración; nunca la orden remota ni las rutas. Es un registro para
+  auditar a mano, sin vista en la interfaz: quien usa las conexiones reintenta lo que falla y una lista de lo hecho solo
+  ocupaba sitio. El inicio lo escribe el main y el fin lo informa `tssh`, que corre como el usuario.
 - Atajos: el sh pide a MSYS que no convierta nada y `tssh` traduce las rutas locales (`/c/…`, y `/tmp/…` con `cygpath`); el ps1
   lleva BOM y no tiene `param` (así recibe `$input`); el cmd escribe la carpeta del usuario con su variable (`%LOCALAPPDATA%`).
 - El aviso de arranque y el `CLAUDE.md` del agente de la terminal salen del mismo catálogo y de las mismas frases (`catalogoAgentes`).
 - El ssh lanzado no hereda el programa de contraseñas, la ficha, el puente (`TESSERA_DB_PIPE`) ni el token de la sesión
   (`QUITAR_ENV_TSSH`); `tssh` vuelve a quitar el puente aunque una respuesta no traiga la lista.
 
-- Proyectos en modo Docker: `tssh` del contenedor es un cliente del buzón del puente de `tdb` (`src/tssh/tssh-container.cjs`,
+- Agentes en Docker: `tssh` del contenedor es un cliente del buzón del puente de `tdb` (`src/tssh/tssh-container.cjs`,
   registrado con `registrarPrograma` desde `controlador/buzonTssh.ts`) y el `tssh` real corre en el host con el token de la
   sesión del contenedor: el contenedor no tiene la VPN ni las claves, y las reglas son las mismas que en nativo. La salida va en
   base64 (un binario llega intacto) y al acabar, no en vivo, así que `run` lleva un tope de 10 min si no se pide otro. En `cp`

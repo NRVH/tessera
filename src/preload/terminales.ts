@@ -28,7 +28,11 @@ import {
   type AgentActivityMessage,
   type AgentDetenerVariasResult,
   type AgentHibernarInactivosRequest,
-  type AgentHibernarInactivosResult
+  type AgentHibernarInactivosResult,
+  type ParadaPorLimite,
+  type AvisoSaturacion,
+  type ConstanciaParada,
+  type VigiaSaturacionConfig
 } from '../shared/agent-terminal-ipc'
 
 /** API de terminal expuesta al renderer. Todo pasa por IPC; node-pty vive en el main. */
@@ -127,6 +131,16 @@ export interface AgentTerminalApi {
    * lo que el renderer le dice que hay en pantalla y devuelve los proyectos hibernados.
    */
   hibernarInactivos: (req: AgentHibernarInactivosRequest) => Promise<AgentHibernarInactivosResult>
+  /** El main paró el contenedor de otra cuenta por el límite o la saturación de Docker (ver PARADA_POR_LIMITE). */
+  onParadaPorLimite: (cb: (msg: ParadaPorLimite) => void) => () => void
+  /** Ajustes, política y lo que se ve, para el vigía de la saturación (ver SATURACION_VIGIA). */
+  configurarSaturacion: (config: VigiaSaturacionConfig) => void
+  /** Aviso previo, cancelación o «nada que parar» del vigía (ver SATURACION_AVISO). */
+  onAvisoSaturacion: (cb: (msg: AvisoSaturacion) => void) => () => void
+  /** Durante el aviso, parar otro en vez del anunciado; false si no hay otro. */
+  saturacionPararOtro: () => Promise<boolean>
+  /** La constancia de las últimas paradas, la más reciente primero. */
+  registroParadas: () => Promise<ConstanciaParada[]>
 }
 
 export const terminal: TerminalApi = {
@@ -185,5 +199,18 @@ export const agentTerminal: AgentTerminalApi = {
   activitySnapshot: () => ipcRenderer.invoke(AGENT_TERMINAL_CHANNELS.ACTIVITY_SNAPSHOT),
   detenerVarias: (sessionIds) =>
     ipcRenderer.invoke(AGENT_TERMINAL_CHANNELS.DETENER_VARIAS, { sessionIds }),
-  hibernarInactivos: (req) => ipcRenderer.invoke(AGENT_TERMINAL_CHANNELS.HIBERNAR_INACTIVOS, req)
+  hibernarInactivos: (req) => ipcRenderer.invoke(AGENT_TERMINAL_CHANNELS.HIBERNAR_INACTIVOS, req),
+  onParadaPorLimite: (cb) => {
+    const listener = (_e: Electron.IpcRendererEvent, msg: ParadaPorLimite): void => cb(msg)
+    ipcRenderer.on(AGENT_TERMINAL_CHANNELS.PARADA_POR_LIMITE, listener)
+    return () => ipcRenderer.removeListener(AGENT_TERMINAL_CHANNELS.PARADA_POR_LIMITE, listener)
+  },
+  configurarSaturacion: (config) => ipcRenderer.send(AGENT_TERMINAL_CHANNELS.SATURACION_VIGIA, config),
+  onAvisoSaturacion: (cb) => {
+    const listener = (_e: Electron.IpcRendererEvent, msg: AvisoSaturacion): void => cb(msg)
+    ipcRenderer.on(AGENT_TERMINAL_CHANNELS.SATURACION_AVISO, listener)
+    return () => ipcRenderer.removeListener(AGENT_TERMINAL_CHANNELS.SATURACION_AVISO, listener)
+  },
+  saturacionPararOtro: () => ipcRenderer.invoke(AGENT_TERMINAL_CHANNELS.SATURACION_OTRO),
+  registroParadas: () => ipcRenderer.invoke(AGENT_TERMINAL_CHANNELS.REGISTRO_PARADAS)
 }

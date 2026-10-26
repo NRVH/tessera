@@ -273,6 +273,13 @@ function main(): void {
   {
     const contenedor = buildAgentLaunchCommand('codex', 'codex', '/home/agente/.codex')
     check('(4h) en el contenedor, Codex tampoco arranca su servidor compartido', contenedor.includes('exec codex -c features.daemon_auto_start=false'), contenedor.slice(-120))
+    check(
+      '(4i) en el contenedor, Codex sin sesión inicia por navegador (no por código) y solo arranca si sale bien',
+      contenedor.includes('{ [ -f "$CODEX_HOME/auth.json" ] || codex login; } && exec codex') && !contenedor.includes('--device-auth'),
+      contenedor.slice(-160)
+    )
+    const claudeEnContenedor = buildAgentLaunchCommand('claude', 'claude-code', '/home/agente/.claude')
+    check('(4j) NEGATIVO: Claude Code no lleva ese login', !claudeEnContenedor.includes('login'), claudeEnContenedor.slice(-80))
   }
 
   // ---------------------------------------------------------------------------

@@ -1,13 +1,13 @@
 // =============================================================================
-// Registro de las cuentas de agente del modo contenedor: como mucho una por (perfil,
-// agente), privada del perfil. Persiste solo metadatos en `agent-accounts.json`; las
+// Registro de las cuentas de agente del modo contenedor: las que quiera el usuario por (perfil,
+// agente), privadas del perfil. Persiste solo metadatos en `agent-accounts.json`; las
 // credenciales viven en su carpeta del host, resuelta contra `dataRoot`.
 // Lo usan el controlador del agente, sus handlers IPC y los lectores de uso y contexto.
-// Decisiones: docs/decisiones/agentes/cuentas-una-por-perfil-y-agente.md
+// Decisiones: docs/decisiones/agentes/cuentas-por-perfil-y-agente.md
 // =============================================================================
 
 import { randomUUID } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, rmSync, unlinkSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, unlinkSync } from 'node:fs'
 import path from 'node:path'
 import { writeFileAtomicSync } from '../util/atomicWrite'
 import { txAgentes } from './textos.ts'
@@ -18,8 +18,8 @@ import {
   type Agente,
   type Profile
 } from '../profiles/types'
-import type { AgentAccount, CreateAccountRequest } from '../../shared/agent-accounts-ipc'
-import type { IdAgenteManual } from '../../shared/agentesManuales'
+import { MAX_NOMBRE_CUENTA, type AgentAccount, type CreateAccountRequest } from '../../shared/agent-accounts-ipc'
+import { CUENTA_AGENTE_MANUAL, esAgenteManual, type IdAgente, type IdAgenteManual } from '../../shared/agentesManuales'
 
 /** Archivos de credencial por agente (para "cerrar sesión" sin tocar el resto). */
 const CREDENTIAL_FILES: Record<Agente, string[]> = {
@@ -33,6 +33,11 @@ interface PersistedStore {
   version: number
   accounts: AgentAccount[]
 }
+
+export { MAX_NOMBRE_CUENTA }
+
+/** Cómo se enseña la predeterminada en cada idioma (`textosPane` `predeterminada`): reservados para ella. */
+const NOMBRES_PREDETERMINADA = ['predeterminada', 'default']
 
 /** Id determinista de la cuenta default de un (perfil, agente): único y estable. */
 function defaultAccountId(profileId: string, agente: Agente): string {
@@ -54,6 +59,7 @@ export class AccountStore {
     this.dataRoot = opts.dataRoot
     this.accounts = this.read()
     this.migrateDropGlobals()
+    this.migrarCarpetasAnidadas()
   }
 
   // --- Persistencia ----------------------------------------------------------
@@ -167,9 +173,24 @@ export class AccountStore {
     return this.accounts.find((a) => a.id === id)
   }
 
-  /** La cuenta de (perfil, agente): 0 o 1 (no hay multicuenta ni globales). */
-  list(profileId: string, agente: Agente): AgentAccount[] {
-    return this.accounts.filter((a) => a.agente === agente && a.profileId === profileId)
+  /**
+   * Las cuentas de (perfil, agente), en el orden en que se crearon (no hay globales). Un agente
+   * manual siempre tiene la predeterminada primero: su carpeta del perfil, sin entrada en el registro.
+   */
+  list(profileId: string, agente: IdAgente): AgentAccount[] {
+    const creadas = this.accounts.filter((a) => a.agente === agente && a.profileId === profileId)
+    if (!esAgenteManual(agente)) return creadas
+    return [{ id: CUENTA_AGENTE_MANUAL, nombre: 'Predeterminada', agente, profileId, isDefault: true }, ...creadas]
+  }
+
+  /**
+   * La cuenta `id` de un agente manual en el perfil: la predeterminada o una creada para ese agente.
+   * Lanza si no es suya: la carpeta de otra cuenta no se monta nunca.
+   */
+  cuentaManual(profileId: string, agente: IdAgenteManual, id: string | undefined): AgentAccount {
+    const cuenta = this.list(profileId, agente).find((a) => a.id === (id || CUENTA_AGENTE_MANUAL))
+    if (!cuenta) throw new Error(txAgentes().cuentas.cuentaDesconocida(String(id)))
+    return cuenta
   }
 
   /** Cuenta default (migrada) de un (perfil, agente); siempre existe tras ensureDefaults. */
@@ -188,31 +209,59 @@ export class AccountStore {
   /**
    * Carpeta host ABSOLUTA de credenciales de una cuenta (la crea si no existe).
    * - default (migrada): carpeta LEGACY del perfil, sin subcarpeta por cuenta.
-   * - creada: `./.tessera/perfiles/<perfil>/<sub>/<id>`.
+   * - creada: `./.tessera/perfiles/<perfil>/<sub>-cuentas/<id>`, HERMANA de la legacy y no dentro
+   *   de ella: dentro, la default vería las credenciales de las demás y borrarla las borraría.
    */
   hostDirFor(account: AgentAccount): string {
-    const sub = AGENT_CONFIG_SUBDIR[account.agente as Agente]
-    let rel: string
-    if (account.isDefault) {
-      // Cuenta migrada: respeta el `configDir` DECLARADO del perfil si existe (así no
-      // se pierde el login de perfiles que apuntan a una carpeta propia); si no, cae
-      // a la convención `./.tessera/perfiles/<id>/<sub>`.
-      const profile = this.profilesById.get(account.profileId)
-      rel = profile
-        ? agentConfigDir(profile, account.agente as Agente)
-        : `./.tessera/perfiles/${account.profileId}/${sub}`
-    } else {
-      rel = `./.tessera/perfiles/${account.profileId}/${sub}/${account.id}`
-    }
-    const abs = path.isAbsolute(rel) ? rel : path.resolve(this.dataRoot, rel)
+    if (esAgenteManual(account.agente) && account.id === CUENTA_AGENTE_MANUAL) return this.carpetaAgenteManual(account.profileId, account.agente)
+    const abs = account.isDefault ? this.carpetaDefault(account) : this.carpetaCreada(account)
     mkdirSync(abs, { recursive: true })
     return abs
   }
 
   /**
-   * Carpeta del host de un agente MANUAL en un perfil, junto a las de Claude Code y Codex. No
-   * pasa por el registro: un agente manual no tiene cuentas, solo esta carpeta, que en el
-   * contenedor es su `HOME`.
+   * Cuenta migrada: respeta el `configDir` DECLARADO del perfil si existe (así no se pierde el
+   * login de perfiles que apuntan a una carpeta propia); si no, la convención `./.tessera/perfiles/<id>/<sub>`.
+   */
+  private carpetaDefault(account: AgentAccount): string {
+    const sub = AGENT_CONFIG_SUBDIR[account.agente as Agente]
+    const profile = this.profilesById.get(account.profileId)
+    const rel = profile ? agentConfigDir(profile, account.agente as Agente) : `./.tessera/perfiles/${account.profileId}/${sub}`
+    return path.isAbsolute(rel) ? rel : path.resolve(this.dataRoot, rel)
+  }
+
+  /**
+   * La carpeta de una cuenta creada. Si aún está en el sitio anterior (anidada en la legacy), se
+   * mueve aquí con su login; si no se puede mover (algo la tiene abierta), se sigue usando allí.
+   */
+  private carpetaCreada(account: AgentAccount): string {
+    const sub = esAgenteManual(account.agente) ? account.agente : AGENT_CONFIG_SUBDIR[account.agente as Agente]
+    const base = path.resolve(this.dataRoot, `./.tessera/perfiles/${account.profileId}`)
+    const nueva = path.join(base, `${sub}-cuentas`, account.id)
+    const anidada = path.join(base, sub, account.id)
+    if (existsSync(nueva) || !existsSync(anidada)) return nueva
+    try {
+      mkdirSync(path.dirname(nueva), { recursive: true })
+      renameSync(anidada, nueva)
+      return nueva
+    } catch (err) {
+      // Mientras siga anidada, el contenedor de la predeterminada la ve: que conste. Se reintenta al arrancar.
+      console.warn(
+        `[cuentas] no se pudo sacar la cuenta "${account.id}" de la carpeta de la predeterminada: ` +
+          `${err instanceof Error ? err.message : String(err)}. Hasta moverla, esa cuenta no queda aislada.`
+      )
+      return anidada
+    }
+  }
+
+  /** Saca de la carpeta legacy las cuentas creadas que quedaron anidadas en ella. */
+  private migrarCarpetasAnidadas(): void {
+    for (const a of this.accounts) if (!a.isDefault && a.profileId) this.carpetaCreada(a)
+  }
+
+  /**
+   * Carpeta del host de un agente MANUAL en un perfil, junto a las de Claude Code y Codex: la de su
+   * cuenta predeterminada, que no pasa por el registro (las creadas sí). En el contenedor es su `HOME`.
    */
   carpetaAgenteManual(profileId: string, agente: IdAgenteManual): string {
     const abs = path.resolve(this.dataRoot, `./.tessera/perfiles/${profileId}/${agente}`)
@@ -223,9 +272,9 @@ export class AccountStore {
   // --- Mutaciones ------------------------------------------------------------
 
   /**
-   * Crea LA cuenta de (perfil, agente) (registro + carpeta vacía) y la devuelve.
-   * Modelo de una sola cuenta: si ya hay una para ese (perfil, agente), es un error
-   * (la UI solo ofrece "Iniciar sesión" cuando no hay ninguna).
+   * Crea una cuenta de (perfil, agente) (registro + carpeta vacía) y la devuelve. Puede haber
+   * varias; el nombre no se repite en el mismo (perfil, agente), sin distinguir mayúsculas, para
+   * que el selector no enseñe dos iguales.
    */
   create(req: CreateAccountRequest): AgentAccount {
     // Validación de forma en RUNTIME (los tipos TS no existen en runtime): un payload
@@ -233,15 +282,13 @@ export class AccountStore {
     // ni escribir basura en el registro persistido.
     const nombre = typeof req?.nombre === 'string' ? req.nombre.trim() : ''
     if (!nombre) throw new Error(txAgentes().cuentas.sinNombre)
-    if (!AGENTES_DISPONIBLES.includes(req.agente as Agente)) {
-      throw new Error(`Agente desconocido: "${req.agente}".`)
+    if (!AGENTES_DISPONIBLES.includes(req.agente as Agente) && !esAgenteManual(String(req.agente))) {
+      throw new Error(txAgentes().cuentas.agenteDesconocido(String(req.agente)))
     }
     if (typeof req.profileId !== 'string' || !req.profileId) {
       throw new Error(txAgentes().cuentas.sinPerfil)
     }
-    if (this.list(req.profileId, req.agente as Agente).length > 0) {
-      throw new Error(txAgentes().cuentas.yaTiene)
-    }
+    this.comprobarNombre(nombre, req.profileId, req.agente)
     const account: AgentAccount = {
       id: randomUUID(),
       nombre,
@@ -254,10 +301,52 @@ export class AccountStore {
     return account
   }
 
+  /**
+   * Lanza si el nombre (ya recortado) no vale para una cuenta de (perfil, agente): vacío, largo o repetido.
+   * `salvo` es la cuenta que se renombra, que puede quedarse con el suyo cambiando mayúsculas.
+   */
+  private comprobarNombre(nombre: string, profileId: string, agente: IdAgente, salvo?: string): void {
+    if (!nombre) throw new Error(txAgentes().cuentas.sinNombre)
+    if (nombre.length > MAX_NOMBRE_CUENTA) throw new Error(txAgentes().cuentas.nombreLargo(MAX_NOMBRE_CUENTA))
+    const clave = nombre.toLocaleLowerCase()
+    // La predeterminada se enseña con el nombre del idioma de la interfaz: ninguno de los dos se puede repetir.
+    if (
+      NOMBRES_PREDETERMINADA.includes(clave) ||
+      this.list(profileId, agente as Agente).some((a) => a.id !== salvo && a.nombre.trim().toLocaleLowerCase() === clave)
+    ) {
+      throw new Error(txAgentes().cuentas.nombreRepetido(nombre))
+    }
+  }
+
+  /**
+   * Cambia el nombre visible de una cuenta y la devuelve. Solo es su etiqueta: carpeta y contenedor van por
+   * id. La predeterminada no: su nombre es el del idioma de la interfaz.
+   */
+  rename(id: string, nombreNuevo: unknown): AgentAccount {
+    const account = typeof id === 'string' ? this.get(id) : undefined
+    if (!account) throw new Error(txAgentes().cuentas.cuentaDesconocida(String(id)))
+    if (account.isDefault) throw new Error(txAgentes().cuentas.predeterminadaNoSeRenombra)
+    const nombre = typeof nombreNuevo === 'string' ? nombreNuevo.trim() : ''
+    this.comprobarNombre(nombre, account.profileId, account.agente, account.id)
+    account.nombre = nombre
+    this.persist()
+    return account
+  }
+
+  /**
+   * Lanza si de esa cuenta no se puede cerrar sesión: la de un agente manual (no se sabe qué archivos
+   * son su credencial) o una que no existe. Quien cierra la pregunta ANTES de cerrar sus sesiones.
+   */
+  comprobarCierreSesion(id: string): void {
+    const account = this.get(id)
+    if (id === CUENTA_AGENTE_MANUAL || (account && esAgenteManual(account.agente))) throw new Error(txAgentes().cuentas.manualSinCierreSesion)
+    if (!account) throw new Error(txAgentes().cuentas.cuentaDesconocida(id))
+  }
+
   /** Cierra sesión: borra el/los archivo(s) de credencial. La cuenta permanece. */
   logout(id: string): void {
-    const account = this.get(id)
-    if (!account) throw new Error(`Cuenta desconocida: "${id}".`)
+    this.comprobarCierreSesion(id)
+    const account = this.get(id)!
     const dir = this.hostDirFor(account)
     for (const file of CREDENTIAL_FILES[account.agente as Agente]) {
       const p = path.join(dir, file)
@@ -269,8 +358,18 @@ export class AccountStore {
     }
   }
 
-  /** Elimina la cuenta por completo: carpeta de credenciales + entrada del registro. */
+  /** Lanza si la cuenta no se puede borrar (la predeterminada). Quien borra la pregunta ANTES de cerrar sus sesiones. */
+  comprobarBorrable(id: string): void {
+    // La de un agente manual no está en el registro, pero tampoco se borra (y su id es el de todas).
+    if (id === CUENTA_AGENTE_MANUAL || this.get(id)?.isDefault) throw new Error(txAgentes().cuentas.predeterminadaNoSeBorra)
+  }
+
+  /**
+   * Elimina la cuenta por completo: carpeta de credenciales + entrada del registro. La
+   * predeterminada no: su carpeta es la del perfil y se recrearía en el siguiente arranque.
+   */
   remove(id: string): void {
+    this.comprobarBorrable(id)
     const account = this.get(id)
     if (!account) return
     const dir = this.hostDirFor(account)
@@ -282,13 +381,38 @@ export class AccountStore {
     this.accounts = this.accounts.filter((a) => a.id !== id)
     this.persist()
   }
+
+  /**
+   * Las cuentas creadas de un agente manual en un perfil (sin la predeterminada). Lanza si el perfil
+   * no existe o el id no es de un agente manual: lo que devuelve se borra, y ambos acaban en rutas.
+   */
+  cuentasDeAgenteManual(profileId: string, agente: string): AgentAccount[] {
+    if (typeof profileId !== 'string' || !this.profilesById.has(profileId)) throw new Error(txAgentes().cuentas.perfilDesconocido(String(profileId)))
+    if (typeof agente !== 'string' || !esAgenteManual(agente)) throw new Error(txAgentes().cuentas.agenteDesconocido(String(agente)))
+    return this.accounts.filter((a) => a.agente === agente && a.profileId === profileId)
+  }
+
+  /**
+   * Borra lo que un agente manual dejó en un perfil al eliminarse: sus cuentas creadas y la carpeta
+   * de la predeterminada. Sin esto, otro agente con el mismo nombre (el mismo id) heredaría su login.
+   */
+  olvidarAgenteManual(profileId: string, agente: IdAgenteManual): void {
+    for (const a of this.cuentasDeAgenteManual(profileId, agente)) this.remove(a.id)
+    for (const carpeta of [agente, `${agente}-cuentas`]) {
+      try {
+        rmSync(path.resolve(this.dataRoot, `./.tessera/perfiles/${profileId}/${carpeta}`), { recursive: true, force: true })
+      } catch {
+        // Una carpeta en uso se queda; las cuentas ya salieron del registro.
+      }
+    }
+  }
 }
 
 /** Validación mínima de forma al leer el JSON (defensa ante ediciones manuales). */
 function isAccountShape(value: unknown): value is AgentAccount {
   if (typeof value !== 'object' || value === null) return false
   const a = value as Record<string, unknown>
-  const agenteOk = a.agente === 'claude-code' || a.agente === 'codex'
+  const agenteOk = a.agente === 'claude-code' || a.agente === 'codex' || (typeof a.agente === 'string' && esAgenteManual(a.agente))
   // Tolera el `scope` del modelo viejo (la migración lo procesa y lo quita).
   return typeof a.id === 'string' && typeof a.nombre === 'string' && agenteOk
 }

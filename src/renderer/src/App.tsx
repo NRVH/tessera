@@ -14,7 +14,7 @@ import { MenuDeEditores } from './comun/MenuDeEditores'
 import { useZonaEnfocada } from './util/zonaEnfocada'
 import { contarRender } from './util/contadorRenders'
 import { AgentAppearanceContext, TerminalAppearanceContext } from './theme/terminalAppearance'
-import { useAperturasApp, useModoProyecto, usePuntosPerfil, useTabs, useTintasPerfil } from './features/pestanas/app'
+import { useAperturasApp, usePuntosPerfil, useTabs, useTintasPerfil } from './features/pestanas/app'
 import {
   BarraEstadoApp,
   BarraTitulo,
@@ -42,13 +42,14 @@ import {
   useAgenteTerminal,
   useAgentesApp,
   useAutoHibernacion,
+  useSaturacionDocker,
   useAvisosSandbox,
   useColumnaAgente,
   useSesionesNativas,
   useAgentesDe
 } from './features/agentes/app'
 import { useStoreAjustes } from './features/ajustes'
-import { useAvisoIntegracion, useDensidad, usePersistenciaAjustes } from './features/ajustes/app'
+import { useAvisoIntegracion, useDensidad, usePersistenciaAjustes, useVigilarRecursosDocker } from './features/ajustes/app'
 import { CentroBd, useBdApp, useEspaciosDatos, useMontajesBd } from './features/bd/app'
 import { useStoreMosaico } from './features/mosaico'
 import { useMosaico } from './features/mosaico/app'
@@ -56,7 +57,7 @@ import { useAccionesGit, useEstadoGit } from './features/git/app'
 
 /** La primera mitad de los hooks de la ventana (pestañas, vistas, editor, columna y agentes). */
 function usePrimerosDeLaVentana() {
-  // Las pestañas de agente de cada proyecto dependen de su modo y de los agentes manuales.
+  // Las pestañas de agente de cada proyecto dependen de los agentes manuales.
   const agentesDe = useAgentesDe()
   const tabs = useTabs(agentesDe)
   const vistas = useVistasPorPerfil(tabs)
@@ -67,7 +68,6 @@ function usePrimerosDeLaVentana() {
   const densidad = useDensidad()
   const espacios = useEspaciosDatos(tabs)
   const agenteTerminal = useAgenteTerminal(tabs)
-  const modo = useModoProyecto(espacios.esEspacioDeDatos, agenteTerminal.esCarpetaAgenteTerminal)
   const tamanos = useTamanos(vistas.activeView, vistas.panelInferior)
   const conTerminales = useHayTerminalQueEnsenar(terminales)
   const agentes = useAgentesApp(tabs, vistas, columna, espacios, agenteTerminal, {
@@ -76,16 +76,16 @@ function usePrimerosDeLaVentana() {
   })
   const actividad = useActividadAgentes(agentes, columna.ccHidden)
   const tintas = useTintasPerfil(tabs)
-  return { tabs, vistas, editor, terminales, conTerminales, columna, densidad, espacios, agenteTerminal, modo, tamanos, agentes, actividad, tintas }
+  return { tabs, vistas, editor, terminales, conTerminales, columna, densidad, espacios, agenteTerminal, tamanos, agentes, actividad, tintas }
 }
 
 /** Los hooks de cada feature, en el orden que fija el de sus efectos (no se reordena). */
 function useFeaturesDeLaVentana() {
   const primeros = usePrimerosDeLaVentana()
-  const { tabs, vistas, editor, espacios, agenteTerminal, modo, agentes, actividad, tintas } = primeros
-  const mosaico = useMosaico(tabs, actividad, agentes, modo.decideProjectMode, tintas.tintasPorPerfil)
+  const { tabs, vistas, editor, espacios, agenteTerminal, agentes, actividad, tintas } = primeros
+  const mosaico = useMosaico(tabs, actividad, agentes, tintas.tintasPorPerfil)
   const sesiones = useSesionesNativas(tabs, actividad, mosaico.candidatosMosaico)
-  useAperturasApp(tabs, editor.openEditorTab, modo.forzarModoWindows, vistas.salirDeBd)
+  useAperturasApp(tabs, editor.openEditorTab, vistas.salirDeBd)
   useAvisoIntegracion()
   const montajes = useMontajesBd(tabs)
   const bd = useBdApp(tabs, vistas.enConexiones, montajes)
@@ -95,6 +95,7 @@ function useFeaturesDeLaVentana() {
   useRecargaEnVivo(editor)
   useConexionesSsh()
   usePersistenciaAjustes()
+  useVigilarRecursosDocker()
   const cambiarZoom = useAtajosGlobales({
     activeView: vistas.activeView,
     alternarPanelInferior: vistas.alternarPanelInferior,
@@ -106,6 +107,7 @@ function useFeaturesDeLaVentana() {
   })
   // El último: no mueve el orden de los efectos de los demás.
   useAutoHibernacion(tabs, actividad, sesiones.actualizacionNativa)
+  useSaturacionDocker(tabs)
   return { ...primeros, mosaico, sesiones, montajes, bd, puntos, git, accionesGit, cambiarZoom }
 }
 
@@ -157,7 +159,7 @@ function CapasDeAviso(): React.JSX.Element {
 function App(): React.JSX.Element {
   contarRender('App')
   const f = useFeaturesDeLaVentana()
-  const { tabs, vistas, editor, terminales, conTerminales, columna, densidad, espacios, agenteTerminal, modo, tamanos, agentes, actividad } = f
+  const { tabs, vistas, editor, terminales, conTerminales, columna, densidad, espacios, agenteTerminal, tamanos, agentes, actividad } = f
   const { tintas, mosaico, sesiones, montajes, bd, puntos, git, accionesGit, cambiarZoom } = f
   const zonaEnfocada = useZonaEnfocada()
   const apariencia = useStoreAjustes(
@@ -176,7 +178,7 @@ function App(): React.JSX.Element {
     <TerminalAppearanceContext.Provider value={apariencia.terminal}>
       <AgentAppearanceContext.Provider value={apariencia.agente}>
         <div className={claseShell} style={shellStyle}>
-          <BarraTitulo tabs={tabs} puntos={puntos} actividad={actividad} modo={modo} mosaico={mosaico} sesiones={sesiones} />
+          <BarraTitulo tabs={tabs} puntos={puntos} actividad={actividad} mosaico={mosaico} sesiones={sesiones} />
           <div className="shell-body">
             <RielActividad vistas={vistas} zonaEnfocada={zonaEnfocada} worktreeCount={git.worktreeCount} />
             <div className="shell-main">
@@ -185,7 +187,7 @@ function App(): React.JSX.Element {
                 <AreaEditor editor={editor} gitStatusById={git.gitStatusById} densidad={densidad} editorAreaOculta={lay.editorOculto} />
                 <CentroBd bd={bd} enConexiones={vistas.enConexiones} oculta={lay.dbAreaOculta} densidad={densidad} />
                 <ColumnaAgente
-                  {...{ tabs, tamanos, agentes, columna, mosaico, actividad, modo, espacios, agenteTerminal, montajes, sesiones }}
+                  {...{ tabs, tamanos, agentes, columna, mosaico, actividad, espacios, agenteTerminal, montajes, sesiones }}
                   maximizarAgenteTerminal={maximizarAgenteTerminal}
                 />
               </div>

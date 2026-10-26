@@ -20,6 +20,13 @@ pty aún pausado por la contrapresión y la otra no.
   para que un `open()` en vuelo detecte el desmontaje y cierre la que acabe de abrir.
 - Lo que no necesita xterm en ejecución (`sesionXterm.ts`) va aparte, con su prueba bajo `node`
   (`test:ciclo-xterm`).
+- En la pantalla alternativa (un agente a pantalla completa, `vim`, `less`) el host lleva
+  `data-pantalla="alternativa"` y la zona de desplazamiento de xterm no tiene barra, como en una
+  terminal nativa: allí no hay historial, el desplazamiento es del programa, y arrastrar la barra de
+  xterm movería la vista por debajo de lo que pinta y taparía sus últimas filas. Al cambiar de
+  pantalla la vista vuelve al fondo. Va en un atributo porque el `className` del host lo pinta React,
+  y se esconde la barra (`scrollbar-width`) y no el desplazamiento: cambiar `overflow` mueve
+  `scrollTop`, xterm lo toma por un gesto del usuario y, al volver, deja de seguir el final.
 
 ## Consecuencias
 

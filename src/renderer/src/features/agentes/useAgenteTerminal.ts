@@ -9,8 +9,7 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { notifyError } from '../../comun/notifications'
 import { txSesion } from './textosSesion.ts'
-import { asegurarModoNativo, type UseTabs } from '../pestanas'
-import { editorTargetKey } from '../editor'
+import type { UseTabs } from '../pestanas'
 import {
   abrirAgenteTerminal,
   cerrarAgenteTerminal,
@@ -66,7 +65,6 @@ function useRutasAgenteTerminal(tabs: UseTabs): void {
 async function asegurarAgenteTerminal(perfil: Perfil): Promise<string | null> {
   try {
     const ref = await window.tessera.ssh.asegurarEspacio({ profileId: perfil.id })
-    asegurarModoNativo(editorTargetKey(perfil.id, ref.projectHostPath))
     return ref.projectHostPath
   } catch (err) {
     console.error('[agente-terminal] no se pudo preparar el agente de la terminal:', err)

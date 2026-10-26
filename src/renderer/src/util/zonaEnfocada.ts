@@ -1,7 +1,7 @@
 // =============================================================================
 // zonaEnfocada: en cuál de las zonas grandes de la ventana está trabajando el usuario: la columna
-// lateral, la franja inferior, o ninguna (el editor y el agente, sin icono en el riel). Alimenta
-// los dos niveles de resaltado del riel: color para la zona con el foco, gris para la abierta.
+// lateral, la franja inferior, un agente, o ninguna (el editor). Alimenta los dos niveles de
+// resaltado del riel: color para la zona con el foco, gris para la abierta (`resaltadoRiel.ts`).
 // Sigue el FOCO y no el ratón, y escucha también `mousedown` porque las zonas no enfocables no
 // disparan `focusin`. El propio riel, la barra de título y la de estado no cambian la zona.
 // También resuelve cuál de los dos paneles de la franja contiene un elemento (`panelDeLaFranja`).
@@ -9,14 +9,16 @@
 
 import { useEffect, useState } from 'react'
 
-/** Zona con el foco. `null` = el editor, el agente, o nada en concreto. */
-export type ZonaEnfocada = 'lateral' | 'inferior' | null
+/** Zona con el foco. `agente`: el de la columna o una casilla del mosaico. `null` = el editor o nada en concreto. */
+export type ZonaEnfocada = 'lateral' | 'inferior' | 'agente' | null
 
 /** Raíces de cada zona. Los cuatro paneles laterales comparten `aside.sidebar`. */
 const SEL_LATERAL = 'aside.sidebar'
 const SEL_TERMINAL = '.terminal-panel'
 const SEL_GITLOG = '.git-log-panel'
 const SEL_INFERIOR = `${SEL_TERMINAL}, ${SEL_GITLOG}`
+/** Un pane de agente. El de la terminal vive dentro de la franja y cuenta como ella: se mira después. */
+const SEL_AGENTE = '.agent-pane'
 /**
  * CROMO: lo único que NO cambia la zona. Es una lista de excepciones y no de zonas
  * neutras: lo desconocido (el centro vacío, un modal, el marco) es NEUTRO, y solo estas
@@ -34,6 +36,7 @@ function zonaDe(el: Element): ZonaEnfocada | undefined {
   if (el.closest(SEL_CROMO)) return undefined
   if (el.closest(SEL_LATERAL)) return 'lateral'
   if (el.closest(SEL_INFERIOR)) return 'inferior'
+  if (el.closest(SEL_AGENTE)) return 'agente'
   return null
 }
 

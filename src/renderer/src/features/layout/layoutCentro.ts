@@ -1,11 +1,11 @@
 // =============================================================================
-// layoutCentro: qué se ve en el centro de la ventana, en una sola función pura.
-// Deriva de la vista, el mosaico, las pestañas del editor y el estado del agente qué
-// se oculta, qué crece, qué divisor se monta y qué dice la barra de estado; cuándo vale la
-// franja inferior (Git·Log o la terminal) a pantalla completa y si ahí la columna y el conmutador
-// de la barra son del agente de la terminal (lo esconde y lo coloca el CSS de `.shell`, sin
-// desmontar nada), y qué hacen ahí las aperturas en el editor que pide Git. Sin JSX, sin DOM y
-// sin más import que sus textos: lo prueba `test-layout-centro.mts` con `node`.
+// layoutCentro: qué se ve en el centro de la ventana, en una sola función pura. Deriva de la
+// vista, el mosaico, las pestañas y el estado del agente qué se oculta, qué crece, qué divisor se
+// monta y qué dice la barra de estado; cuándo vale la franja inferior a pantalla completa, si el
+// agente de datos tapa las pestañas de BD, si con la terminal a pantalla completa la columna y el
+// conmutador son del agente de la terminal (lo coloca el CSS de `.shell`, sin desmontar nada) y
+// qué hacen ahí las aperturas en el editor que pide Git. Sin JSX, sin DOM y sin más import que
+// sus textos: lo prueba `test-layout-centro.mts` con `node`.
 // Decisiones: docs/decisiones/layout/oculto-manda-sobre-maximizado.md, docs/decisiones/agentes/agente-de-la-terminal.md
 // =============================================================================
 
@@ -46,6 +46,12 @@ export interface EntradaLayoutCentro {
   conTerminales?: boolean
   /** El perfil dejó maximizado el agente de la terminal sobre las terminales. */
   agenteTerminalMaximizadoPedido?: boolean
+  /** El perfil dejó maximizado el agente de datos sobre las pestañas de BD. */
+  agenteDbMaximizadoPedido?: boolean
+  /** El perfil tiene pestañas de BD abiertas (tablas o consolas). Ausente = sí. */
+  hayPestanasBd?: boolean
+  /** El perfil tiene alguna conexión; sin ninguna, el centro enseña el alta o un aviso. Ausente = sí. */
+  hayConexionesBd?: boolean
 }
 
 export interface SalidaLayoutCentro {
@@ -58,6 +64,8 @@ export interface SalidaLayoutCentro {
   divisorAgente: 'editor' | 'db' | 'terminal' | null
   /** De quién es la columna del agente: del proyecto, del espacio de datos, de la terminal o de nadie. */
   agente: 'proyecto' | 'espacio' | 'terminal' | null
+  /** El agente de datos tapa las pestañas de BD: el área se esconde sin desmontarse y la columna crece. */
+  agenteDbMaximizado: boolean
   /**
    * Con el agente de la terminal en la columna, la de la terminal se queda en su cabecera y su riel y el
    * agente ocupa el resto: no hay terminal que enseñar, o el agente está maximizado sobre ellas.
@@ -132,13 +140,14 @@ export function pantallaCompletaCoherente(e: {
 }
 
 /**
- * Lo que un perfil tiene maximizado: cada ventana de la franja y el agente de la terminal recuerdan lo
- * suyo, y es lo último que eligió el usuario (cerrar la ventana o cambiar de perfil no lo borra).
+ * Lo que un perfil tiene maximizado: cada ventana de la franja, el agente de la terminal y el de datos
+ * recuerdan lo suyo, y es lo último que eligió el usuario (cerrar la ventana o cambiar de perfil no lo borra).
  */
 export interface MaximizadosPerfil {
   terminal?: boolean
   gitlog?: boolean
   agenteTerminal?: boolean
+  agenteDb?: boolean
 }
 
 /** El panel pedido a pantalla completa: el que está en la franja, si su perfil lo dejó maximizado. */
@@ -204,10 +213,11 @@ function divisorAgenteDe(
   e: EntradaLayoutCentro,
   db: boolean,
   listoDb: boolean,
-  ocultoEfectivo: boolean
+  ocultoEfectivo: boolean,
+  llenaDb: boolean
 ): SalidaLayoutCentro['divisorAgente'] {
   if (e.mosaico) return null
-  if (db) return listoDb ? 'db' : null
+  if (db) return listoDb && !llenaDb ? 'db' : null
   return e.hayPestanasEditor && !e.ccExpandido && !ocultoEfectivo ? 'editor' : null
 }
 
@@ -233,16 +243,40 @@ function razonBloqueoDe(e: EntradaLayoutCentro, db: boolean): string | null {
   return razonClasicaDe(e)
 }
 
+/** El agente de datos solo se ofrece a maximizar si está a la vista y hay pestañas de BD que tapar. */
+function puedeMaximizarAgenteDb(e: EntradaLayoutCentro, listoDb: boolean): boolean {
+  return listoDb && !e.mosaico && e.hayPestanasBd !== false
+}
+
+/**
+ * ¿Tapa el agente de datos las pestañas de BD? Si su perfil lo pidió y se puede ofrecer. Fuera de eso
+ * no se borra: al volver a verse, sigue como el usuario lo dejó.
+ */
+function agenteDbMaximizadoDe(e: EntradaLayoutCentro, db: boolean, listoDb: boolean): boolean {
+  return db && e.agenteDbMaximizadoPedido === true && puedeMaximizarAgenteDb(e, listoDb)
+}
+
+/**
+ * ¿Ocupa el agente de datos todo el centro? Maximizado o, como el de la columna sin archivos
+ * abiertos, sin pestañas de BD: el área vacía no aporta nada y el árbol sigue en el lateral. Sin
+ * conexiones no: el área ofrece el alta o avisa de un registro que no se entiende.
+ */
+function agenteDbLlenaDe(e: EntradaLayoutCentro, db: boolean, listoDb: boolean, maxDb: boolean): boolean {
+  const vacia = e.hayPestanasBd === false && e.hayConexionesBd !== false
+  return db && listoDb && !e.mosaico && (maxDb || vacia)
+}
+
 /** Si la columna del agente está oculta y si crece: el mosaico la muestra y la hace crecer. */
 function columnaAgenteDe(
   e: EntradaLayoutCentro,
   db: boolean,
   listoDb: boolean,
   ocultoEfectivo: boolean,
-  editorOculto: boolean
+  editorOculto: boolean,
+  llenaDb: boolean
 ): { hidden: boolean; grow: boolean } {
   if (e.mosaico) return { hidden: false, grow: true }
-  if (db) return { hidden: !listoDb, grow: false }
+  if (db) return { hidden: !listoDb, grow: llenaDb }
   return { hidden: ocultoEfectivo, grow: editorOculto }
 }
 
@@ -309,14 +343,17 @@ export function derivarLayoutCentro(e: EntradaLayoutCentro): SalidaLayoutCentro 
   const expandidoEfectivo = maximizadoCoherente(e)
   const editorOculto = !hay || expandidoEfectivo || db || e.mosaico
   const listoDb = agenteDbListo(e)
-  const columna = columnaAgenteDe(e, db, listoDb, ocultoEfectivo, editorOculto)
+  const maxDb = agenteDbMaximizadoDe(e, db, listoDb)
+  const llenaDb = agenteDbLlenaDe(e, db, listoDb, maxDb)
+  const columna = columnaAgenteDe(e, db, listoDb, ocultoEfectivo, editorOculto, llenaDb)
 
   const salida: SalidaLayoutCentro = {
     editorOculto,
-    dbAreaOculta: !db || e.mosaico,
-    cc: { hidden: columna.hidden, grow: columna.grow, canExpand: !db && hay },
-    divisorAgente: divisorAgenteDe(e, db, listoDb, ocultoEfectivo),
+    dbAreaOculta: !db || e.mosaico || llenaDb,
+    cc: { hidden: columna.hidden, grow: columna.grow, canExpand: db ? puedeMaximizarAgenteDb(e, listoDb) : hay },
+    divisorAgente: divisorAgenteDe(e, db, listoDb, ocultoEfectivo, llenaDb),
     agente: agenteDe(e, db, listoDb),
+    agenteDbMaximizado: maxDb,
     terminalPlegada: false,
     franja: franjaDe(e, db),
     barraEstado: {

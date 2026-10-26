@@ -88,12 +88,18 @@ export function applyOverlayZoom(window: BrowserWindow, zoomLevel: number): void
   })
 }
 
-/** Opciones de creación: sin marco nativo, botones del sistema y overlay en las dos plataformas. */
-function opcionesDeVentana(inicio: Rectangle): BrowserWindowConstructorOptions {
+/**
+ * Opciones de creación: sin marco nativo, botones del sistema y overlay en las dos plataformas.
+ * La ventana de agente pasa sus propios mínimos.
+ */
+export function opcionesDeVentana(
+  inicio: Rectangle,
+  minimo: { ancho: number; alto: number } = { ancho: MIN_WINDOW_WIDTH, alto: MIN_WINDOW_HEIGHT }
+): BrowserWindowConstructorOptions {
   return {
     ...inicio,
-    minWidth: MIN_WINDOW_WIDTH,
-    minHeight: MIN_WINDOW_HEIGHT,
+    minWidth: minimo.ancho,
+    minHeight: minimo.alto,
     show: false,
     titleBarStyle: esMac() ? 'hiddenInset' : 'hidden',
     // En macOS solo `height`: el semáforo lo pinta el sistema y no admite color.
@@ -129,7 +135,7 @@ function opcionesDeVentana(inicio: Rectangle): BrowserWindowConstructorOptions {
 }
 
 /** F11, F12/Mod+Shift+I y F5 (solo en desarrollo), con la ventana enfocada. */
-function instalarAtajos(window: BrowserWindow): void {
+export function instalarAtajos(window: BrowserWindow): void {
   window.webContents.on('before-input-event', (event, input) => {
     if (input.type !== 'keyDown' || input.isAutoRepeat) return
     // El modificador principal de la plataforma y SOLO él.
@@ -204,7 +210,7 @@ function instalarEncaje(window: BrowserWindow, monitorInicial: number): void {
 }
 
 /** Si el renderer muere, suelta las sesiones huérfanas y recarga la interfaz. */
-function instalarRecuperacion(window: BrowserWindow, deps: DepsVentana): void {
+export function instalarRecuperacion(window: BrowserWindow, deps: Pick<DepsVentana, 'cerrando' | 'soltarSesionesHuerfanas'>): void {
   window.webContents.on('render-process-gone', (_e, details) => {
     console.error(`[tessera] el renderer murió (${details.reason}, exit=${details.exitCode}).`)
     if (deps.cerrando() || window.isDestroyed()) return
@@ -220,7 +226,7 @@ function instalarRecuperacion(window: BrowserWindow, deps: DepsVentana): void {
 }
 
 /** El renderer nunca sale de su propio origen; los enlaces http(s) van al navegador. */
-function bloquearNavegacion(window: BrowserWindow): void {
+export function bloquearNavegacion(window: BrowserWindow): void {
   const appOrigin = (): string => {
     try {
       return new URL(window.webContents.getURL()).origin

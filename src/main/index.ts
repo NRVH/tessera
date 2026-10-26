@@ -64,9 +64,17 @@ import { instrumentarIpc, registrarIpcSalud } from './salud/ipc'
 import { instalarTemaYMenu, logNativeAbi, prepararArranque } from './app/arranque'
 import { fijarIdiomaDeArranque } from './app/idioma'
 import { registrarActivacion, registrarAperturaMac, registrarEventosDeApp } from './app/eventosApp'
-import { esArranqueTrasActualizar } from './app/instanciaUnica'
+import { esArranqueTrasActualizar, fijarAtencionVentanas, traerAlFrente } from './app/instanciaUnica'
 import { MODO_CAPTURA, runShotMode } from './app/modoCaptura'
-import { registrarIpcAcercaDe, registrarIpcEnlacesExternos, registrarIpcFallos } from './app/ipc'
+import { registrarIpcAcercaDe, registrarIpcEnlacesExternos, registrarIpcFallos, registrarIpcVentanaAgente } from './app/ipc'
+import { crearVentanaAgente } from './app/ventanaAgente'
+import { cerrarSoloPrincipal } from './app/cierrePrincipal'
+import { actualizarDock, actualizarJumpList, restauracionVentanas, tomarVentanasARestaurar } from './app/integracionVentanas'
+import { alCerrarPrincipal, ventanasDelArranque, type VentanaARestaurar } from './app/ventanasAgentePuro'
+import { pideVentanaAgente } from '../shared/ventana-agente-ipc'
+import { rutasDesdeArgv } from '../shared/rutasDesdeArgv'
+import { carpetaVentanaAgente } from './util/carpetaVentanaAgente'
+import { TOPE_PTYS_MS } from './util/registroCierre'
 
 // Lo primero: todo lo que lee rutas o versión de la app lo hace por `util/infoApp`.
 fijarInfoApp(infoAppElectron)
@@ -132,9 +140,11 @@ function componerEstadoWorkspace(): void {
       refs.explorador?.fijarAjustes(ajustesSesionesDe(settings))
       // Después de guardar y con try/catch: un overlay fallido no puede hacer mentir al guardado.
       // La ventana, la del emisor.
+      // El zoom es del origen y lo comparten las ventanas de agente: sus botones se realinean también.
       try {
         const win = BrowserWindow.fromWebContents(emisor)
         if (win) applyOverlayZoom(win, settings.zoomLevel)
+        for (const v of refs.ventanasAgente.values()) applyOverlayZoom(v.win, settings.zoomLevel)
       } catch (err) {
         console.error('[chrome] no se pudo realinear el overlay con el zoom:', err)
       }
@@ -217,15 +227,84 @@ function componerArchivos(): void {
   registrarIpcWorkspace({ ipc: ipcMain, workspace })
 }
 
-const crearVentanaPrincipal = (): BrowserWindow =>
-  crearVentana({
+/** Jump List y menú del Dock al día con las ventanas que hay. */
+function actualizarIntegracion(): void {
+  actualizarJumpList(refs)
+  actualizarDock(refs, { nuevaVentanaAgente: () => abrirVentanaAgente(), abrirPrincipal: () => abrirPrincipal() })
+}
+
+/** La X de la principal: con ventanas de agente vivas cierra solo lo suyo; si no, la app. */
+function pedirCierrePrincipal(): void {
+  if (alCerrarPrincipal(refs.ventanasAgente.size) === 'solo-principal') {
+    void cerrarSoloPrincipal(refs, () => void iniciarCierre(refs))
+  } else {
+    void iniciarCierre(refs)
+  }
+}
+
+function crearVentanaPrincipal(): BrowserWindow {
+  const win = crearVentana({
     cerrando: () => refs.cerrando,
-    pedirCierre: () => void iniciarCierre(refs),
+    pedirCierre: pedirCierrePrincipal,
+    // Solo las suyas: las sesiones de las ventanas de agente no murieron con este renderer.
     soltarSesionesHuerfanas: () => {
       void refs.terminales?.closeAllSessions()
-      void refs.agentes?.closeAllSessions()
+      void refs.agentes?.cerrarDeVentana(win.webContents.id, TOPE_PTYS_MS)
     }
   })
+  const id = win.webContents.id
+  win.once('closed', () => {
+    if (refs.ventana === win) refs.ventana = null
+    if (refs.cerrando) return
+    // Saliendo no se toca: el cierre ya dejó la Jump List sin «Abrir Tessera».
+    actualizarIntegracion()
+    // Red por si se cerró sin pasar por su X (un `window.close()` del renderer no emite `close`): sus
+    // sesiones no pueden quedarse vivas con las ventanas de agente. Tras el cierre ordenado no queda ninguna.
+    void refs.terminales?.cerrarTodasConArbol(TOPE_PTYS_MS)
+    void refs.agentes?.cerrarDeVentana(id, TOPE_PTYS_MS)
+  })
+  // Quien la crea la apunta en `refs.ventana` justo al volver: la Jump List y el Dock se ponen al día después.
+  queueMicrotask(actualizarIntegracion)
+  return win
+}
+
+/** Crea la principal si no la hay, o la trae al frente. */
+function abrirPrincipal(): void {
+  if (refs.cerrando) return
+  if (refs.ventana && !refs.ventana.isDestroyed()) {
+    traerAlFrente(refs.ventana, 'abrir la principal')
+    return
+  }
+  refs.ventana = crearVentanaPrincipal()
+}
+
+/** Abre una ventana de agente en la carpeta del usuario; `restaurada` trae su agente y su chat. */
+function abrirVentanaAgente(restaurada?: VentanaARestaurar): void {
+  if (refs.cerrando) return
+  crearVentanaAgente(
+    refs,
+    {
+      cerrarSesiones: (id) => refs.agentes?.cerrarDeVentana(id, TOPE_PTYS_MS) ?? Promise.resolve([]),
+      cerrarApp: () => void iniciarCierre(refs),
+      alCambiar: actualizarIntegracion
+    },
+    { carpeta: carpetaVentanaAgente(), ...(restaurada ?? {}) }
+  )
+}
+
+/**
+ * Las ventanas del arranque: la principal salvo que solo se pida una ventana de agente (la Jump
+ * List con Tessera cerrada), y las ventanas de agente que dejó escritas «Reiniciar para actualizar».
+ */
+function crearVentanasDelArranque(): void {
+  const { principal, agente } = ventanasDelArranque({
+    pideAgente: pideVentanaAgente(process.argv),
+    conRutas: rutasDesdeArgv(process.argv).length > 0
+  })
+  if (principal) refs.ventana = crearVentanaPrincipal()
+  if (agente) abrirVentanaAgente()
+  for (const v of tomarVentanasARestaurar()) abrirVentanaAgente(v)
+}
 
 /** `whenReady`: compone la app por fases, registra TODO antes de crear la ventana y arranca. */
 async function arrancar(): Promise<void> {
@@ -240,7 +319,7 @@ async function arrancar(): Promise<void> {
   instrumentarIpc(ipcMain, llamadasIpc, () => performance.now())
   registrarIpcFallos({ ipc: ipcMain })
   fijarIdiomaDeArranque()
-  instalarTemaYMenu()
+  instalarTemaYMenu({ nuevaVentanaAgente: () => abrirVentanaAgente() })
   const perfiles: PerfilesVivos = { lista: loadProfilesMutable() }
   console.log(`[tessera] ${perfiles.lista.length} perfiles cargados: ${perfiles.lista.map((p) => p.nombre).join(', ')}`)
   // Uno para toda la app: lo toma el borrado de un perfil y lo espera lo que lo recrea (BD, SSH, sesiones).
@@ -289,11 +368,20 @@ async function arrancar(): Promise<void> {
   })
 
   componerRegistroSalud()
-  refs.ventana = crearVentanaPrincipal()
+  registrarIpcVentanaAgente({
+    ipc: ipcMain,
+    refs,
+    abrir: () => abrirVentanaAgente(),
+    ventanaDe: (id) => refs.agentes?.ventanaDe(id) ?? null
+  })
+  // Con las sesiones aún vivas al empezar el cierre: si relanza tras actualizar, se reabren.
+  refs.restauracion = restauracionVentanas(refs, () => refs.agentes)
   if (MODO_CAPTURA) {
+    refs.ventana = crearVentanaPrincipal()
     console.log('[shot] TESSERA_SHOT=1 -> capturaré layout + zoom de la UI real y saldré.')
     runShotMode(refs.ventana)
   } else {
+    crearVentanasDelArranque()
     // Descarga en segundo plano; «Reiniciar» va al MISMO cierre ordenado, que instala al final.
     // Los canales van ANTES de sembrar y cablear: un fallo ahí no deja al renderer sin ellos.
     registrarIpcUpdate(ipcMain, peticionesUpdate)
@@ -312,6 +400,13 @@ async function arrancar(): Promise<void> {
   registrarActivacion(refs, crearVentanaPrincipal)
   // Al final del arranque: la ventana de un `open-file` en frío ya la creó `arrancar`.
   registrarAperturaMac(refs, crearVentanaPrincipal)
+  // Lo que pidió una segunda instancia mientras se arrancaba se atiende ya.
+  refs.arranqueTerminado = true
+  fijarAtencionVentanas(
+    { arranqueTerminado: () => refs.arranqueTerminado, abrirVentanaAgente: () => abrirVentanaAgente(), abrirPrincipal },
+    () => refs.ventana !== null && !refs.ventana.isDestroyed()
+  )
+  actualizarIntegracion()
 }
 
 app.whenReady().then(arrancar)

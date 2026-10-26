@@ -8,6 +8,7 @@
 
 import { AgentTerminalPane } from './AgentTerminalPane'
 import type { AgentPaneStatus } from './agentPaneTipos'
+import type { ModoAgente } from './modoAgente'
 import { ErrorBoundary } from '../../comun/ErrorBoundary'
 import { EstadoVacio, IconoAgenteVacio } from '../../comun/EstadoVacio'
 import type { Profile } from '../../../../main/profiles/types'
@@ -60,10 +61,6 @@ export interface MosaicoPanel {
   onElegirDestino: (casilla: string, destino: string) => void
   /** Abre un proyecto nuevo en ese perfil y lo trae a esa casilla. */
   onAbrirProyecto: (casilla: string, profileId: string) => void
-  /** Cambia el modo del proyecto (contenedor ⇄ nativo) desde la cabecera de la casilla. */
-  onCambiarModo: (profileId: string, projectHostPath: string) => void
-  /** true si ese proyecto no puede cambiar de modo (el espacio de datos y el agente de la terminal viven en nativo). */
-  modoBloqueado: (projectHostPath: string) => boolean
   onEnfocar: (key: string) => void
   onAmpliar: (key: string) => void
   onIrAlProyecto: (target: OpenAgentTarget) => void
@@ -100,8 +97,10 @@ export interface CCPanelProps {
   accountByTarget?: Record<string, string | null>
   /** Fija la cuenta de un target (elegir/cambiar/limpiar). */
   onSelectAccount?: (targetKey: string, accountId: string | null) => void
-  /** Claves `${profileId}|${projectHostPath}` de proyectos en modo nativo. */
-  windowsModeKeys?: Set<string>
+  /** Nativo o Docker elegido por target; sin entrada, nativo. */
+  modoPorTarget?: Readonly<Record<string, ModoAgente>>
+  /** Elige el modo (y con Docker, la cuenta) de un target. */
+  onElegirModoAgente?: (targetKey: string, modo: ModoAgente, accountId?: string) => void
   /**
    * Bases montadas por PROYECTO (clave `${profileId}|${projectHostPath}`): el montaje no
    * depende del agente, los dos agentes de un proyecto ven las mismas.
@@ -233,8 +232,8 @@ export function CCPanel(props: CCPanelProps): React.JSX.Element {
       {enOrdenEstable(targets, (t) => t.key).map((target) => {
         const propsPane = propsPaneDeTarget(target, props, calculo)
         return (
-          // La KEY incluye el modo: alternar nativo ⇄ contenedor REMONTA el pane (cierra
-          // la sesión vieja y abre otra en el otro modo).
+          // La KEY incluye el modo: pasar el agente de nativo a Docker o al revés REMONTA el pane
+          // (cierra la sesión vieja y abre otra en el otro modo).
           <ErrorBoundary key={`${target.key}${propsPane.hostMode ? '|host' : ''}`} label="Claude Code" variant="pane">
             <AgentTerminalPane {...propsPane} />
           </ErrorBoundary>

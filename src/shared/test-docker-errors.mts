@@ -13,6 +13,7 @@ import {
   PREFIJO_DOCKER_NO_DISPONIBLE,
   RAZONES_SALIDA,
   textosSalida,
+  avisoParaUsuario,
   detalleDockerRootless,
   clasificarErrorArranque,
   esDockerRootless,
@@ -155,6 +156,17 @@ function main(): void {
       `titulo=${JSON.stringify(aviso.titulo)}`
     )
   }
+  {
+    const aviso = clasificarErrorArranque(
+      `Error invoking remote method 'agentTerminal:open': Error: ${avisoParaUsuario('Ya hay un login en curso', 'Termínalo y pulsa «Reintentar».')}`,
+      TITULO_GENERICO
+    )
+    check(
+      '(8b) un aviso redactado para el usuario: su titular en vez del genérico y la explicación a la vista, sin detalle plegado',
+      aviso.titulo === 'Ya hay un login en curso' && aviso.sugerencia === 'Termínalo y pulsa «Reintentar».' && aviso.detalle === undefined,
+      JSON.stringify(aviso)
+    )
+  }
 
   hr('razonDeMensaje / exhaustividad de TEXTOS_SALIDA')
 
@@ -170,8 +182,8 @@ function main(): void {
       (r) => !TEXTOS_SALIDA[r]?.titulo.trim() || !TEXTOS_SALIDA[r]?.sugerencia.trim()
     )
     check(
-      '(10) las 4 causas de AgentExitReason tienen título y sugerencia',
-      RAZONES_SALIDA.length === 4 && sinTexto.length === 0,
+      '(10) las 7 causas de AgentExitReason tienen título y sugerencia',
+      RAZONES_SALIDA.length === 7 && sinTexto.length === 0,
       `causas=${RAZONES_SALIDA.length} sinTexto=[${sinTexto.join(', ')}]`
     )
   }

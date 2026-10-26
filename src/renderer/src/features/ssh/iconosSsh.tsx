@@ -1,7 +1,7 @@
 // =============================================================================
 // Iconos de las conexiones SSH: el servidor (el botón de la cabecera, la pestaña y la lista), el
-// servidor nuevo (la opción «Nueva conexión SSH…» de los menús), el de importar de OpenSSH, uno por método de autenticación y el
-// de una conexión que los agentes no ven.
+// servidor nuevo (la opción «Nueva conexión SSH…» de los menús), el de importar de OpenSSH, uno por método de autenticación, el
+// de una conexión que los agentes no ven y el de información del pie.
 // Molde de los iconos de cabecera: viewBox 24, trazo 1,8, `currentColor` (el color lo manda quien
 // los contiene) y sin tamaño en línea (lo pone el CSS). Sin dependencias.
 // =============================================================================
@@ -95,6 +95,17 @@ export function IconoClavesSistema(): React.JSX.Element {
     <Svg>
       <circle cx="8" cy="15" r="3.6" />
       <path d="M10.6 12.4 19.5 3.5M15.5 7.5l2.6 2.6M18 5l2 2" />
+    </Svg>
+  )
+}
+
+/** Información: una «i» en un círculo (lo que hace la opción de al lado). */
+export function IconoInfo(): React.JSX.Element {
+  return (
+    <Svg>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5.5" />
+      <path d="M12 7.6v.1" />
     </Svg>
   )
 }

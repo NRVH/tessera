@@ -76,10 +76,11 @@ alfabético.
 - [agentes/contratos-con-los-cli.md](agentes/contratos-con-los-cli.md) — lo que se lee de los CLIs
   se reconoce por su forma, un vigía anota lo que deja de entenderse y una sonda lo comprueba contra
   los CLIs instalados.
-- [agentes/cuentas-una-por-perfil-y-agente.md](agentes/cuentas-una-por-perfil-y-agente.md) — una
-  cuenta de agente por (perfil, agente), privada del perfil, y solo metadatos en el registro.
-- [agentes/hibernacion-por-inactividad.md](agentes/hibernacion-por-inactividad.md) — el agente de
-  un proyecto nativo fuera de pantalla se cierra solo tras N minutos sin E/S, matando su árbol sin
+- [agentes/cuentas-por-perfil-y-agente.md](agentes/cuentas-por-perfil-y-agente.md) — las cuentas
+  de agente son por (perfil, agente), las que quiera el usuario, privadas del perfil y con solo
+  metadatos en el registro.
+- [agentes/hibernacion-por-inactividad.md](agentes/hibernacion-por-inactividad.md) — el agente
+  nativo de un proyecto fuera de pantalla se cierra solo tras N minutos sin E/S, matando su árbol sin
   teclear nada, con vetos (trabajando, segundo plano, sin revisar…) y un estado propio en el renderer.
 - [agentes/nativos-actualizacion-del-host.md](agentes/nativos-actualizacion-del-host.md) — la
   versión instalada la dice el binario, la última su canal y su método, y un candado retiene las
@@ -98,6 +99,10 @@ alfabético.
   repinte los panes de todos los perfiles.
 - [agentes/sesion-del-agente-en-el-main.md](agentes/sesion-del-agente-en-el-main.md) — la sesión
   del agente toma el refcount de su credencial antes de tocar Docker y nunca para el contenedor.
+- [agentes/modo-por-agente.md](agentes/modo-por-agente.md) — los proyectos no tienen modo: cada
+  agente elige en su botón de cuenta la del sistema o una de Docker, y la terminal es siempre nativa.
+- [agentes/modo-del-agente-de-datos.md](agentes/modo-del-agente-de-datos.md) — sustituida por
+  `modo-por-agente.md`.
 - [agentes/sesion-linea-de-arranque.md](agentes/sesion-linea-de-arranque.md) — la línea de
   arranque del agente es una función pura que entrecomilla el briefing según la shell que la
   recibe.
@@ -121,6 +126,9 @@ alfabético.
 - [agentes/uso-token-de-claude-en-mac.md](agentes/uso-token-de-claude-en-mac.md) — el token de
   Claude Code sale del llavero solo en macOS y en modo host, y el fallo no es lo mismo que la
   ausencia.
+- [agentes/ventana-de-agente.md](agentes/ventana-de-agente.md) — la ventana de agente es otra
+  BrowserWindow con el agente nativo en la carpeta del usuario, un perfil sintético y su salida
+  enrutada por dueño; su X cierra solo ella y la de la principal, solo lo suyo.
 
 ### app
 
@@ -737,6 +745,8 @@ alfabético.
 
 - [sandbox/contenedor-del-agente.md](sandbox/contenedor-del-agente.md) — el agente corre bajo
   `env -i`, con git preparado por un preludio y un bloque de memoria que no miente.
+- [sandbox/contenedor-por-cuenta.md](sandbox/contenedor-por-cuenta.md) — cada cuenta de agente corre
+  en su propio contenedor; el del perfil queda para la terminal.
 - [sandbox/contenedores-propios.md](sandbox/contenedores-propios.md) — Tessera solo para o borra
   un contenedor con su prefijo y nacido de su imagen.
 - [sandbox/gestor-concurrencia.md](sandbox/gestor-concurrencia.md) — el gestor del sandbox
@@ -745,6 +755,8 @@ alfabético.
   manual y por perfil; el recuento de sesiones nunca para un contenedor.
 - [sandbox/imagen-y-extras.md](sandbox/imagen-y-extras.md) — la imagen se pone al día sola por
   sello y se degrada sin extras antes que dejar el perfil sin agente.
+- [sandbox/limite-de-contenedores.md](sandbox/limite-de-contenedores.md) — el usuario fija cuántos
+  contenedores a la vez con un semáforo, y al llegar al límite Tessera para otro según su política.
 - [sandbox/limpieza-de-montajes.md](sandbox/limpieza-de-montajes.md) — la raíz gestionada solo se
   borra cuando awk afirma que no queda nada montado debajo.
 - [sandbox/montajes-en-caliente.md](sandbox/montajes-en-caliente.md) — proyectos y credenciales
@@ -753,8 +765,12 @@ alfabético.
   viven en la VM en Windows y bajo `userData` en macOS.
 - [sandbox/red-del-anfitrion.md](sandbox/red-del-anfitrion.md) — la red del anfitrión se mide con
   una sonda real; el prevuelo informa y no bloquea.
+- [sandbox/saturacion-de-docker.md](sandbox/saturacion-de-docker.md) — si la memoria de Docker se
+  satura, Tessera para un contenedor según la política del usuario, con aviso previo y constancia.
 - [sandbox/ssh-global.md](sandbox/ssh-global.md) — el SSH del usuario se monta de solo lectura en
   todo contenedor y su config se traduce.
+- [sandbox/supervisor-de-contenedores.md](sandbox/supervisor-de-contenedores.md) — un supervisor
+  escucha los eventos de Docker y las sesiones se recuperan solas, con esperas y al volver Docker.
 - [sandbox/usuario-de-la-imagen-en-linux.md](sandbox/usuario-de-la-imagen-en-linux.md) — en Linux la
   imagen se hornea con el uid del usuario del equipo y un Docker sin root se rechaza con su
   explicación.
@@ -823,7 +839,7 @@ alfabético.
 - [terminales/contrapresion-del-pty.md](terminales/contrapresion-del-pty.md) — la salida del pty
   se frena con marcas alta y baja, y una pausa nunca dura más de cinco segundos.
 - [terminales/lanzador-de-conexiones.md](terminales/lanzador-de-conexiones.md) — la ▾ del botón
-  de nueva terminal abre la lista de conexiones SSH con «Recientes» y los grupos plegados (uno solo
+  de nueva terminal abre la lista de conexiones SSH con los grupos plegados (uno solo
   abierto a la vez, sin recordarlo), y el reinicio pasa al grupo de acciones de la derecha.
 - [terminales/pestanas-ssh-del-perfil.md](terminales/pestanas-ssh-del-perfil.md) — las pestañas SSH
   son del perfil, se ven sin proyecto, se abren solas solo la primera vez y no se reabren al arrancar.

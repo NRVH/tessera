@@ -118,6 +118,26 @@ function instalarPegadoYArrastre<S extends { sessionId: string }>(host: HTMLElem
   }
 }
 
+
+/**
+ * Como una terminal nativa: en la pantalla alternativa no hay historial que recorrer, así que la barra de
+ * xterm se esconde por CSS (arrastrarla movería la vista por debajo de lo que pinta el programa y taparía sus
+ * últimas filas) y, al cambiar de pantalla, la vista vuelve al fondo. El desplazamiento es del programa. Va en
+ * `data-pantalla` y no en una clase: el `className` del host lo repinta React.
+ */
+function seguirPantallaAlternativa(term: Terminal, host: HTMLElement): () => void {
+  const marcar = (): void => {
+    host.dataset.pantalla = term.buffer.active.type === 'alternate' ? 'alternativa' : 'normal'
+    term.scrollToBottom()
+  }
+  marcar()
+  const sub = term.buffer.onBufferChange(marcar)
+  return () => {
+    sub.dispose()
+    delete host.dataset.pantalla
+  }
+}
+
 /** Monta el xterm del pane en `host` (sin abrir la sesión) y devuelve la función que lo desmonta. */
 export function montarXterm<S extends { sessionId: string }>(host: HTMLDivElement, refs: RefsXterm, op: OpcionesMontaje<S>): () => void {
   const { term, fit } = crearXterm(refs, op.tema)
@@ -127,6 +147,7 @@ export function montarXterm<S extends { sessionId: string }>(host: HTMLDivElemen
   refs.fit.current = fit
   term.attachCustomKeyEventHandler(crearManejadorAtajos(term, op.atajos))
   const quitarPegado = instalarPegadoYArrastre(host, op)
+  const dejarPantalla = seguirPantallaAlternativa(term, host)
   const resaltar = op.resaltar
   // El estado se sigue aunque el interruptor esté apagado: al encenderlo, la pantalla alternativa y el
   // color abierto por el programa tienen que ser los de verdad.
@@ -144,6 +165,7 @@ export function montarXterm<S extends { sessionId: string }>(host: HTMLDivElemen
   return () => {
     ro.disconnect()
     quitarPegado()
+    dejarPantalla()
     sesion.desconectar()
     soltarBuscador()
     desmontarXterm(host, term, sesion.flow, refs, op.cerrarSesion)

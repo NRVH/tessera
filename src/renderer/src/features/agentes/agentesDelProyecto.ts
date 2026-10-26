@@ -1,6 +1,6 @@
 // =============================================================================
-// Las pestañas de agente de un proyecto: los de serie y los manuales de su modo (nativos, de todo
-// el equipo; Docker, solo del perfil), en el orden que eligió el perfil y sin los que ocultó.
+// Las pestañas de agente de un proyecto: los de serie y los manuales (nativos, de todo el equipo, y
+// Docker, del perfil), en el orden que eligió el perfil y sin los que ocultó.
 // También la lista del perfil entero que gestiona Configuración. Puro, sin React ni DOM:
 // lo usan la columna del agente, el modelo de pestañas, el mosaico y sus pruebas.
 // Decisiones: docs/decisiones/agentes/agentes-manuales.md
@@ -24,20 +24,29 @@ export interface FuenteAgentes {
 
 export const FUENTE_VACIA: FuenteAgentes = { nativos: [], dockerPorPerfil: {}, ocultosPorPerfil: {}, ordenPorPerfil: {} }
 
-/** Los manuales del modo del proyecto: nativo, los de todo el equipo; Docker, los de su perfil. */
-export function manualesDelModo(f: FuenteAgentes, profileId: string, hostMode: boolean): readonly DefinicionAgente[] {
-  return hostMode ? f.nativos : (f.dockerPorPerfil[profileId] ?? [])
+/**
+ * Los manuales de un proyecto del perfil: los nativos (de todo el equipo) y los Docker del perfil.
+ * Un id es único entre todos, pero si una copia vieja los repite, gana el nativo.
+ */
+export function manualesDelPerfil(f: FuenteAgentes, profileId: string): readonly DefinicionAgente[] {
+  const nativos = new Set(f.nativos.map((d) => d.id))
+  return [...f.nativos, ...(f.dockerPorPerfil[profileId] ?? []).filter((d) => !nativos.has(d.id))]
+}
+
+/** ¿Es un manual nativo (corre en el equipo) y no uno de Docker? */
+export function esManualNativo(f: FuenteAgentes, id: IdAgente): boolean {
+  return f.nativos.some((d) => d.id === id)
 }
 
 /** Los ids de las pestañas de un proyecto, en su orden. */
-export function agentesDelProyecto(f: FuenteAgentes, profileId: string, hostMode: boolean): IdAgente[] {
-  return pestanasDelProyecto(f, profileId, hostMode).map((x) => x.id)
+export function agentesDelProyecto(f: FuenteAgentes, profileId: string): IdAgente[] {
+  return pestanasDelProyecto(f, profileId).map((x) => x.id)
 }
 
 /** La definición de un agente manual del proyecto, o null (uno de serie o uno que ya no existe). */
-export function definicionDe(f: FuenteAgentes, profileId: string, hostMode: boolean, id: IdAgente): DefinicionAgente | null {
+export function definicionDe(f: FuenteAgentes, profileId: string, id: IdAgente): DefinicionAgente | null {
   if (!esAgenteManual(id)) return null
-  return manualesDelModo(f, profileId, hostMode).find((d) => d.id === id) ?? null
+  return manualesDelPerfil(f, profileId).find((d) => d.id === id) ?? null
 }
 
 /**
@@ -80,17 +89,17 @@ function pestanaManual(d: DefinicionAgente): PestanaAgente {
 }
 
 /** Todas las pestañas posibles de un proyecto, ocultas incluidas, en el orden del perfil. */
-export function todasDelProyecto(f: FuenteAgentes, profileId: string, hostMode: boolean): PestanaAgente[] {
-  const todas = [...AGENTES_DE_SERIE.map(pestanaDeSerie), ...manualesDelModo(f, profileId, hostMode).map(pestanaManual)]
+export function todasDelProyecto(f: FuenteAgentes, profileId: string): PestanaAgente[] {
+  const todas = [...AGENTES_DE_SERIE.map(pestanaDeSerie), ...manualesDelPerfil(f, profileId).map(pestanaManual)]
   return aplicarOrden(todas, (x) => x.id, f.ordenPorPerfil[profileId])
 }
 
 /**
- * Las pestañas de un proyecto: las de su modo sin las ocultas. Lo oculto vale para todo el perfil, y
- * en un modo donde no quedara ninguna se enseñan las de serie: un proyecto nunca se queda sin agente.
+ * Las pestañas de un proyecto, sin las ocultas. Lo oculto vale para todo el perfil, y si no quedara
+ * ninguna se enseñan las de serie: un proyecto nunca se queda sin agente.
  */
-export function pestanasDelProyecto(f: FuenteAgentes, profileId: string, hostMode: boolean): PestanaAgente[] {
-  const todas = todasDelProyecto(f, profileId, hostMode)
+export function pestanasDelProyecto(f: FuenteAgentes, profileId: string): PestanaAgente[] {
+  const todas = todasDelProyecto(f, profileId)
   const ocultos = f.ocultosPorPerfil[profileId] ?? []
   const visibles = todas.filter((x) => !ocultos.includes(x.id))
   return visibles.length > 0 ? visibles : todas.filter((x) => x.manual === null)
@@ -98,7 +107,7 @@ export function pestanasDelProyecto(f: FuenteAgentes, profileId: string, hostMod
 
 /**
  * El estado de las casillas de mostrar u ocultar: `mostrado` es el estado guardado (no si sale en la
- * fila por el respaldo de las de serie) y `bloqueada`, que es el último sin ocultar del modo.
+ * fila por el respaldo de las de serie) y `bloqueada`, que es el último sin ocultar.
  */
 export function casillasDeOcultar(
   todas: readonly PestanaAgente[],
@@ -112,12 +121,12 @@ export function casillasDeOcultar(
 }
 
 /** De dónde es un agente de la lista del perfil. */
-export type ModoAgente = 'serie' | 'nativo' | 'docker'
+export type OrigenAgente = 'serie' | 'nativo' | 'docker'
 
 /** Un agente de la lista del perfil que gestiona Configuración. */
 export interface AgenteDelPerfil {
   pestana: PestanaAgente
-  modo: ModoAgente
+  modo: OrigenAgente
   oculto: boolean
 }
 
@@ -126,7 +135,7 @@ export function agentesDelPerfil(f: FuenteAgentes, profileId: string): AgenteDel
   const ocultos = f.ocultosPorPerfil[profileId] ?? []
   const vistos = new Set<string>()
   const lista: AgenteDelPerfil[] = []
-  const anadir = (pestana: PestanaAgente, modo: ModoAgente): void => {
+  const anadir = (pestana: PestanaAgente, modo: OrigenAgente): void => {
     if (vistos.has(pestana.id)) return
     vistos.add(pestana.id)
     lista.push({ pestana, modo, oculto: ocultos.includes(pestana.id) })
@@ -142,17 +151,17 @@ export function agentesDelPerfil(f: FuenteAgentes, profileId: string): AgenteDel
  * marcados «Activar en la terminal». Las del espacio de datos son solo las de serie.
  */
 export function pestanasDeLaTerminal(f: FuenteAgentes, profileId: string): PestanaAgente[] {
-  const enTerminal = { ...f, nativos: f.nativos.filter((d) => d.enTerminal === true) }
-  return pestanasDelProyecto(enTerminal, profileId, true)
+  const enTerminal = { ...f, nativos: f.nativos.filter((d) => d.enTerminal === true), dockerPorPerfil: {} }
+  return pestanasDelProyecto(enTerminal, profileId)
 }
 
 /** Dónde vive el agente: decide qué pestañas le tocan. */
-export type SitioAgente = 'proyecto-nativo' | 'proyecto-docker' | 'terminal' | 'datos'
+export type SitioAgente = 'proyecto' | 'terminal' | 'datos'
 
 function pestanasDelSitio(f: FuenteAgentes, profileId: string, sitio: SitioAgente): PestanaAgente[] {
   if (sitio === 'terminal') return pestanasDeLaTerminal(f, profileId)
-  if (sitio === 'datos') return pestanasDelProyecto(FUENTE_VACIA, profileId, true)
-  return pestanasDelProyecto(f, profileId, sitio === 'proyecto-nativo')
+  if (sitio === 'datos') return pestanasDelProyecto(FUENTE_VACIA, profileId)
+  return pestanasDelProyecto(f, profileId)
 }
 
 const cachePestanas = new WeakMap<FuenteAgentes, Map<string, PestanaAgente[]>>()

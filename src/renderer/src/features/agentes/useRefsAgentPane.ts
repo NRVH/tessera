@@ -94,6 +94,9 @@ function crearRefs(p: PropsAgentPane, appearance: TerminalAppearance): RefsAgent
     },
     cerrar: (id) => window.tessera.agentTerminal.close(id)
   })
+  // La ventana de agente es como abrir una terminal y escribir el CLI: empieza con un chat nuevo. Una
+  // conversación pedida después (la restauración tras actualizar) gana a esto.
+  if (p.lugar === 'ventana') sesion.pedirNueva()
   return {
     ...terminal,
     sesion,

@@ -32,6 +32,7 @@ export interface BorradorAgente {
 
 export interface OpcionesModalAgente {
   profileId: string
+  /** Dónde corre: el de uno que se edita, o el de partida de uno nuevo (que se puede cambiar en el modal). */
   hostMode: boolean
   /** La definición a editar; sin ella, uno nuevo. */
   inicial: DefinicionAgente | null
@@ -61,8 +62,8 @@ function borradorDe(d: DefinicionAgente | null): BorradorAgente {
 const SIN_CONTEXTO = { contextoOrigen: '', contextoValor: '', contextoUsado: '', contextoMaximo: '' } as const
 const BORRADOR_VACIO: BorradorAgente = { nombre: '', comando: '', reanudar: '', instalacion: '', enTerminal: false, ...SIN_CONTEXTO }
 
-function destinoDe(o: OpcionesModalAgente): DestinoAgenteManual {
-  return o.hostMode ? { nativo: true } : { nativo: false, profileId: o.profileId }
+function destinoDe(o: OpcionesModalAgente, nativo: boolean): DestinoAgenteManual {
+  return nativo ? { nativo: true } : { nativo: false, profileId: o.profileId }
 }
 
 /** Los ids manuales del equipo, sin el que se edita: el nuevo id no puede chocar con ninguno. */
@@ -87,6 +88,8 @@ export function useModalAgenteManual(o: OpcionesModalAgente) {
   const [b, setB] = useState<BorradorAgente>(() => borradorDe(o.inicial))
   const [error, setError] = useState<string | null>(null)
   const [fase, setFase] = useState<FaseModal>({ tipo: 'editando' })
+  // Solo uno nuevo elige dónde corre: el de uno existente es donde viven su instalación y sus cuentas.
+  const [nativo, setNativo] = useState(o.hostMode)
   const editar = (cambio: Partial<BorradorAgente>): void => {
     setB((x) => ({ ...x, ...cambio }))
     setError(null)
@@ -96,36 +99,41 @@ export function useModalAgenteManual(o: OpcionesModalAgente) {
     setFase((f) => (f.tipo === 'instalando' ? { tipo: 'instalando', lineas: [...f.lineas, linea].slice(-400) } : f))
   )
   const pegar = async (): Promise<void> => {
-    const r = definicionDesdeJson(await window.tessera.clipboard.read(), idsExistentes(o), !o.hostMode)
+    const r = definicionDesdeJson(await window.tessera.clipboard.read(), idsExistentes(o), !nativo)
     if (!r.ok) return setError(r.error)
     setB(borradorDe(r.valor))
     setError(null)
   }
   const guardar = async (): Promise<void> => {
-    const def = definicionDelBorrador(b, o)
+    const def = definicionDelBorrador(b, o, nativo)
     if (!def.ok) return setError(def.error)
-    if (o.hostMode && fase.tipo !== 'sin-programa') {
+    if (nativo && fase.tipo !== 'sin-programa') {
       const programa = programaDelComando(def.valor.comando)
       if ((await window.tessera.agentesManuales.buscarNativo(programa)).ruta === null) return setFase({ tipo: 'sin-programa', programa })
     }
-    guardarAgenteManual(destinoDe(o), def.valor)
+    guardarAgenteManual(destinoDe(o, nativo), def.valor)
     selectAgent(o.profileId, def.valor.id)
-    if (o.hostMode || (def.valor.instalacion ?? '') === (o.inicial?.instalacion ?? '')) return o.onCerrar()
+    if (nativo || (def.valor.instalacion ?? '') === (o.inicial?.instalacion ?? '')) return o.onCerrar()
     setFase({ tipo: 'instalando', lineas: [] })
     const definiciones = useStoreAgentes.getState().agentesDockerPorPerfil[o.profileId] ?? []
     const resultado = await window.tessera.agentesManuales.aplicarCapa({ profileId: o.profileId, definiciones })
     setFase((f) => ({ tipo: 'instalado', lineas: f.tipo === 'instalando' ? f.lineas : [], resultado }))
   }
-  return { b, editar, error, fase, pegar, guardar }
+  const elegirNativo = (v: boolean): void => {
+    if (o.inicial !== null) return
+    setNativo(v)
+    if (fase.tipo === 'sin-programa') setFase({ tipo: 'editando' })
+  }
+  return { b, editar, error, fase, pegar, guardar, nativo, elegirNativo, eligeDonde: o.inicial === null }
 }
 
 /** La definición que sale del borrador: el id del que se edita, o uno nuevo a partir del nombre. */
-function definicionDelBorrador(b: BorradorAgente, o: OpcionesModalAgente) {
+function definicionDelBorrador(b: BorradorAgente, o: OpcionesModalAgente, nativo: boolean) {
   const id = o.inicial?.id ?? idDesdeNombre(b.nombre, idsExistentes(o))
   const contexto = b.contextoOrigen ? { origen: b.contextoOrigen, valor: b.contextoValor, usado: b.contextoUsado, maximo: b.contextoMaximo } : undefined
   return validarDefinicion(
-    { id, nombre: b.nombre, comando: b.comando, reanudar: b.reanudar, instalacion: o.hostMode ? undefined : b.instalacion, enTerminal: b.enTerminal, contexto },
-    !o.hostMode
+    { id, nombre: b.nombre, comando: b.comando, reanudar: b.reanudar, instalacion: nativo ? undefined : b.instalacion, enTerminal: b.enTerminal, contexto },
+    !nativo
   )
 }
 

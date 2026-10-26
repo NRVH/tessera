@@ -17,6 +17,7 @@ import { encolarAperturas, hayRelevoEnMarcha } from '../shell/aperturasPendiente
 import { encolarCopias } from '../configuracion/copiasPendientes'
 import { ARCHIVO_DESKTOP } from '../shell/escritorioLinux'
 import { esLinux } from '../../shared/plataforma'
+import { pideVentanaAgente } from '../../shared/ventana-agente-ipc'
 
 /**
  * Prepara el proceso al cargar el módulo. Devuelve el encargo del relevo (o `null` si
@@ -43,9 +44,10 @@ function prepararTessera(ventana: () => BrowserWindow | null): void {
   if (esLinux()) app.setDesktopName(ARCHIVO_DESKTOP)
   // Se mira antes del cerrojo: si ya hay una Tessera viva, la ruta viaja en su `second-instance`.
   const rutasDelExplorador = rutasDesdeArgv(process.argv)
-  if (rutasDelExplorador.length > 0 && hayRelevoEnMarcha()) {
+  // Una ventana de agente pedida desde la Jump List arranca desde la carpeta de instalación igual que una ruta.
+  if ((rutasDelExplorador.length > 0 || pideVentanaAgente(process.argv)) && hayRelevoEnMarcha()) {
     logUpdate(
-      'llegó una apertura desde el Explorador con una actualización en vuelo; ' +
+      'llegó una apertura desde el sistema con una actualización en vuelo; ' +
         'este proceso sale para no bloquear la carpeta de instalación.'
     )
     app.exit(0)

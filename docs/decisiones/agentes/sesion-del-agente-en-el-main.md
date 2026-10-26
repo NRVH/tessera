@@ -5,7 +5,7 @@
 
 ## Contexto
 
-Cada sesión corre el CLI (Claude Code o Codex) en un pty: dentro del contenedor del perfil, con la
+Cada sesión corre el CLI (Claude Code o Codex) en un pty: dentro del contenedor de su cuenta, con la
 carpeta de credenciales de su cuenta montada en `/agent-config/<tipo>` toda la sesión, o nativo en
 el host con el login personal. Varias sesiones de la misma (perfil, agente, cuenta) comparten montaje.
 
@@ -16,7 +16,8 @@ el host con el login personal. Varias sesiones de la misma (perfil, agente, cuen
   sesiones no veía una apertura en vuelo: se desmontaba la credencial bajo ella y el agente
   arrancaba sin login. Se desmonta solo al llegar a 0.
 - Cerrar una sesión solo apunta el refcount del contenedor (`agent:<id>`, para no chocar con la
-  terminal de abajo): los contenedores paran por hibernar o al cerrar la app.
+  terminal de abajo): ningún cierre de sesión para un contenedor; los de cuenta tienen su propia
+  parada (`sandbox/contenedor-por-cuenta.md`).
 - Lo primero al cerrar es revocar el token de bases, con la clave con espacio de nombres del agente.
 - `reload` vuelve a poner en pie Docker, contenedor, proyecto y credencial antes de relanzar: es
   la vía de recuperación tras una caída. La conversación de la sesión manda sobre la que resuelva

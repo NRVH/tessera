@@ -15,7 +15,8 @@ import {
   AGENT_ACCOUNT_CHANNELS,
   type AgentAccount,
   type ListAccountsRequest,
-  type CreateAccountRequest
+  type CreateAccountRequest,
+  type OlvidarAgenteManualRequest
 } from '../shared/agent-accounts-ipc'
 import {
   CONVERSATION_CHANNELS,
@@ -45,6 +46,7 @@ import {
   type ProgresoCapaMessage
 } from '../shared/agentes-manuales-ipc'
 import type { LecturaContexto } from '../shared/contextoAgenteManual'
+import { SANDBOX_ESTADO_CHANNELS, type EstadoDocker, type RecursosDocker } from '../shared/sandbox-estado-ipc'
 import {
   SANDBOX_RED_CHANNELS,
   type AvisoRed,
@@ -102,8 +104,10 @@ export interface AgentesNativosApi {
 export interface AgentAccountsApi {
   list: (req: ListAccountsRequest) => Promise<AgentAccount[]>
   create: (req: CreateAccountRequest) => Promise<AgentAccount>
+  rename: (id: string, nombre: string) => Promise<AgentAccount>
   logout: (id: string) => Promise<void>
   remove: (id: string) => Promise<void>
+  olvidarAgenteManual: (req: OlvidarAgenteManualRequest) => Promise<void>
 }
 
 /**
@@ -143,6 +147,15 @@ export interface RedContenedorApi {
 }
 
 /**
+ * Estado de Docker: su disponibilidad (las sesiones que esperaban a que volviera se recuperan con
+ * ella) y sus recursos (el semáforo del límite de contenedores).
+ */
+export interface EstadoDockerApi {
+  onCambio: (cb: (estado: EstadoDocker) => void) => () => void
+  recursos: () => Promise<RecursosDocker>
+}
+
+/**
  * Uso de cuenta del agente activo (footer del panel): % consumido de sus ventanas
  * de límite. El main cachea con TTL; `force` va a la fuente (abrir el desplegable).
  */
@@ -178,8 +191,10 @@ export interface HibernateApi {
 export const agentAccounts: AgentAccountsApi = {
   list: (req) => ipcRenderer.invoke(AGENT_ACCOUNT_CHANNELS.LIST, req),
   create: (req) => ipcRenderer.invoke(AGENT_ACCOUNT_CHANNELS.CREATE, req),
+  rename: (id, nombre) => ipcRenderer.invoke(AGENT_ACCOUNT_CHANNELS.RENAME, { id, nombre }),
   logout: (id) => ipcRenderer.invoke(AGENT_ACCOUNT_CHANNELS.LOGOUT, { id }),
-  remove: (id) => ipcRenderer.invoke(AGENT_ACCOUNT_CHANNELS.DELETE, { id })
+  remove: (id) => ipcRenderer.invoke(AGENT_ACCOUNT_CHANNELS.DELETE, { id }),
+  olvidarAgenteManual: (req) => ipcRenderer.invoke(AGENT_ACCOUNT_CHANNELS.OLVIDAR_AGENTE_MANUAL, req)
 }
 
 export const hibernate: HibernateApi = {
@@ -224,6 +239,15 @@ export const redContenedor: RedContenedorApi = {
     ipcRenderer.on(SANDBOX_RED_CHANNELS.AVISO, listener)
     return () => ipcRenderer.removeListener(SANDBOX_RED_CHANNELS.AVISO, listener)
   }
+}
+
+export const estadoDocker: EstadoDockerApi = {
+  onCambio: (cb) => {
+    const listener = (_e: Electron.IpcRendererEvent, estado: EstadoDocker): void => cb(estado)
+    ipcRenderer.on(SANDBOX_ESTADO_CHANNELS.DOCKER, listener)
+    return () => ipcRenderer.removeListener(SANDBOX_ESTADO_CHANNELS.DOCKER, listener)
+  },
+  recursos: () => ipcRenderer.invoke(SANDBOX_ESTADO_CHANNELS.RECURSOS)
 }
 
 export const usage: UsageApi = {

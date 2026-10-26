@@ -17,7 +17,8 @@ import { injectPaths } from './clipboardPaste'
 import { bannerFinSsh, motivoFinSsh } from './finSesionSsh'
 import { alternarWebgl, montarXterm, type OpcionesMontaje } from './montajeXterm'
 import { txTerminales } from './textos.ts'
-import type { OrigenTerminal, RefsTerminal, TerminalStatus } from './terminalPaneTipos'
+import type { CaidaContenedor, OrigenTerminal, RefsTerminal, TerminalStatus } from './terminalPaneTipos'
+import { textoSinMemoriaContenedor } from '../../../../shared/dockerErrors'
 import { useAparienciaXterm } from './useAparienciaXterm'
 
 /** Lo que el montaje necesita del pane: setters de estado y las acciones de teclado y pegado. */
@@ -27,16 +28,42 @@ export interface AccionesXterm {
   setExitCode: (codigo: number | null) => void
   setStatus: (estado: TerminalStatus) => void
   setFinSsh: (motivo: string | null) => void
+  setCaidaContenedor: (caida: CaidaContenedor | null) => void
   copySelection: () => void
   pasteFromClipboard: (e?: ClipboardEvent) => void
   writeToPty: (data: string) => void
   fitAndSyncDebounced: () => void
 }
 
-/** Fin del shell de NUESTRA sesión. */
+const ROJO = '\x1b[38;2;224;108;117m'
+const AMBAR = '\x1b[38;2;229;192;123m'
+const GRIS = '\x1b[38;2;92;99;112m'
+const FIN = '\x1b[0m'
+
+/**
+ * Fin del shell de NUESTRA sesión. En modo Docker, si murió el contenedor, se recrea solo; si
+ * Docker no responde, se espera a que vuelva; si se quedó sin memoria, solo se avisa: recrearlo
+ * sin más volvería a caer.
+ */
 function alSalirShell(term: Terminal, msg: TerminalExitMessage, acc: AccionesXterm): void {
   acc.setExitCode(msg.exitCode)
   acc.setStatus('exited')
+  const t = txTerminales()
+  if (msg.reason === 'container-down') {
+    term.write(`\r\n${AMBAR}${t.contenedorCaido}${FIN}\r\n`)
+    acc.setCaidaContenedor('recrear')
+    return
+  }
+  if (msg.reason === 'daemon-down') {
+    term.write(`\r\n${AMBAR}${t.dockerNoResponde(window.tessera.plataforma === 'linux')}${FIN}\r\n`)
+    acc.setCaidaContenedor('esperar-docker')
+    return
+  }
+  if (msg.reason === 'sin-memoria') {
+    const memoria = textoSinMemoriaContenedor(window.tessera.plataforma)
+    term.write(`\r\n${ROJO}${memoria.titulo}.${FIN}\r\n${GRIS}${memoria.sugerencia}${FIN}\r\n`)
+    return
+  }
   term.write(
     `\r\n\x1b[38;2;224;108;117m${txTerminales().shellTerminoCodigo(msg.exitCode)}` +
       `${txTerminales().usaReabrir}\x1b[0m\r\n`

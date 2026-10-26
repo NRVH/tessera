@@ -6,6 +6,8 @@
 // =============================================================================
 export { useStoreAjustes, fijarAjuste } from './store'
 export type { Densidad } from './useDensidad'
+export { useStoreRecursosDocker } from './storeRecursosDocker'
+export { cupoDeApertura } from './limiteContenedores'
 export { guardarAjustes } from './usePersistenciaAjustes'
 export { ModalAjustes } from './ModalAjustes'
 export { ImportarDesdeSistema } from './copia/ImportarDesdeSistema'

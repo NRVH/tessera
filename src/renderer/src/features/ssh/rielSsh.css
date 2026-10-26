@@ -35,6 +35,10 @@
   flex: 1 1 auto;
   height: auto;
 }
+/* «Nueva ventana de agente», fija al pie del riel con su filete, como en el lanzador. */
+.ssh-pie.ssh-riel-pie {
+  flex: 0 0 auto;
+}
 
 /* Un botón apagado dice su porqué desde un envoltorio vivo: Chromium no da eventos de ratón a un
    control deshabilitado. Sin caja propia. */

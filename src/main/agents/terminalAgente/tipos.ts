@@ -5,6 +5,7 @@
 // Decisiones: docs/decisiones/agentes/sesion-del-agente-en-el-main.md
 // =============================================================================
 
+import { homedir } from 'node:os'
 import type { SandboxManager } from '../../sandbox/SandboxManager'
 import type { SshSetup } from '../../sandbox/sshSetup'
 import { TerminalService } from '../../terminals/TerminalService'
@@ -19,9 +20,17 @@ import type { PortapapelesImagen } from '../adaptadores/portapapeles'
 import type { UmbralPruebas } from '../../../shared/ajustesAgente'
 import type { EstadoSegundoPlano } from '../../transcripts/tareasSegundoPlano'
 import type { DefinicionAgente, IdAgente } from '../../../shared/agentesManuales'
+import { PERFIL_VENTANA_AGENTE } from '../../../shared/ventana-agente-ipc'
+import type { VigiaSaturacionConfig } from '../../../shared/agent-terminal-ipc'
+import { RegistroParadas } from './registroParadas'
+import { PUERTO_LOGIN_CODEX, PuenteLoginCodex } from '../loginCodex'
+import { unirConContenedor } from '../../sandbox/adaptadores/docker'
+import { SANDBOX_RED_CHANNELS, type AvisoRed } from '../../../shared/sandbox-red-ipc'
+import { nombresSistema } from '../../../shared/nombresSistema'
+import { plataformaActual } from '../../../shared/plataforma'
+import { txAgentes } from '../textos'
 
-/** La cuenta única de un agente manual: su carpeta del perfil, sin registro de cuentas. */
-export const CUENTA_AGENTE_MANUAL = 'manual'
+export { CUENTA_AGENTE_MANUAL } from '../../../shared/agentesManuales'
 
 /** Binario del CLI en el contenedor por tipo de agente. */
 export const DEFAULT_BINARIES: Record<Agente, string> = {
@@ -48,6 +57,23 @@ export const ACTIVITY_MAX_PAUSE_MS = 8000
 
 /** Cuenta sintética del modo nativo; valor persistido en la clave de ancla, no se renombra. */
 export const HOST_ACCOUNT_ID = 'windows-personal'
+
+/**
+ * El perfil sintético de las ventanas de agente: sin sandbox, sin agentes declarados y nunca
+ * persistido. El controlador lo tiene siempre en su registro (también tras `updateProfiles`).
+ */
+export const PERFIL_VENTANA: Profile = Object.freeze({
+  id: PERFIL_VENTANA_AGENTE,
+  nombre: '',
+  color: '',
+  agentes: [],
+  sandbox: { habilitado: false }
+}) as Profile
+
+/** ¿Es una sesión (o petición) de una ventana de agente? */
+export function esDeVentanaAgente(profileId: string): boolean {
+  return profileId === PERFIL_VENTANA_AGENTE
+}
 
 type EntornoHost = (profileId: string, projectHostPath: string, dbConnectionIds: string[]) => Record<string, string>
 type BriefingBd = (profileId: string, projectHostPath: string, dbConnectionIds: string[]) => string | null
@@ -105,6 +131,14 @@ export interface AgentTerminalControllerOptions {
   reloj?: () => number
   /** Umbral de pruebas de la hibernación por inactividad: acorta el ajuste o lo apaga. */
   inactividadPruebasMs?: UmbralPruebas
+  /** Si al equipo le queda poca memoria (`vigilanteMemoria.ts`): acorta la hibernación y explica las salidas. */
+  pocaMemoria?: () => boolean
+  /** Carpeta de trabajo de las ventanas de agente (la del usuario); las pruebas la cambian. */
+  carpetaVentana?: () => string
+  /** Archivo de la constancia de las paradas por el límite o la saturación; sin él, solo en memoria. */
+  rutaRegistroParadas?: string
+  /** El puente del login por navegador de Codex (pruebas: otro puerto); sin él, el del 1455. */
+  loginCodex?: PuenteLoginCodex
   /** Logger del main. */
   log?: (msg: string) => void
 }
@@ -125,6 +159,8 @@ export interface OpenAgentSession {
   resumeSessionId?: string
   /** Modo nativo: sin contenedor, sin credencial montada y salida siempre 'ok'. */
   host: boolean
+  /** Ventana (id de su `webContents`) que la abrió: su salida y su actividad solo van a ella. */
+  ventana?: number
   activity: ActivityTracker
   /** Clave del ancla (agente + base + proyecto); vacía si no hay con qué anclar. */
   claveAncla: string
@@ -166,6 +202,8 @@ export interface NucleoAgente {
   readonly getContainerEnv: EntornoContenedor
   readonly bindDbSession: (extraEnv: Record<string, string>, sessionId: string) => void
   readonly revokeDbSession: (sessionId: string) => void
+  /** Carpeta de trabajo de las ventanas de agente: la impone el main, no la pide el renderer. */
+  readonly carpetaVentana: () => string
   readonly eventos: EmisorEventos
   readonly portapapeles: PortapapelesImagen
   readonly anclas: RegistroAnclas | null
@@ -176,20 +214,46 @@ export interface NucleoAgente {
   readonly alCambiarSesiones: () => void
   readonly reloj: () => number
   readonly inactividadPruebasMs: UmbralPruebas
+  readonly pocaMemoria: () => boolean
   /** Muertes de sesiones ya soltadas por la hibernación: el cierre de la app las espera. */
   readonly muertesEnVuelo: Set<Promise<void>>
+  /** La constancia de cada parada por el límite o la saturación. */
+  readonly registroParadas: RegistroParadas
+  /** Lo último que mandó el renderer al vigía de la saturación (también protege lo que se ve al hacer sitio). */
+  readonly vigia: { config: VigiaSaturacionConfig | null }
+  /** El único login de Codex en curso en los contenedores de cuenta y el puente de su vuelta. */
+  readonly loginCodex: PuenteLoginCodex
   readonly log: (msg: string) => void
 }
 
+/**
+ * Las dependencias de bases y SSH. Una ventana de agente es el CLI tal cual en la carpeta del usuario:
+ * sin `tdb` ni `tssh` en el PATH, sin aviso de bases ni de conexiones y sin token del puente.
+ */
 function dependenciasBd(
   opts: AgentTerminalControllerOptions
-): Pick<NucleoAgente, 'getHostEnv' | 'getDbBriefing' | 'getContainerEnv' | 'bindDbSession' | 'revokeDbSession'> {
+): Pick<NucleoAgente, 'getHostEnv' | 'getDbBriefing' | 'getSshBriefing' | 'getContainerEnv' | 'bindDbSession' | 'revokeDbSession'> {
+  const hostEnv = opts.getHostEnv ?? (() => ({}))
+  const dbBriefing = opts.getDbBriefing ?? (() => null)
+  const sshBriefing = opts.getSshBriefing ?? (() => null)
   return {
-    getHostEnv: opts.getHostEnv ?? (() => ({})),
-    getDbBriefing: opts.getDbBriefing ?? (() => null),
+    getHostEnv: (perfil, proyecto, ids) => (esDeVentanaAgente(perfil) ? {} : hostEnv(perfil, proyecto, ids)),
+    getDbBriefing: (perfil, proyecto, ids) => (esDeVentanaAgente(perfil) ? null : dbBriefing(perfil, proyecto, ids)),
+    getSshBriefing: (perfil) => (esDeVentanaAgente(perfil) ? null : sshBriefing(perfil)),
     getContainerEnv: opts.getContainerEnv ?? (() => ({})),
     bindDbSession: opts.bindDbSession ?? (() => {}),
     revokeDbSession: opts.revokeDbSession ?? (() => {})
+  }
+}
+
+/** Lo que mide la hibernación por inactividad: el reloj, el umbral de pruebas y la memoria del equipo. */
+function dependenciasInactividad(
+  opts: AgentTerminalControllerOptions
+): Pick<NucleoAgente, 'reloj' | 'inactividadPruebasMs' | 'pocaMemoria'> {
+  return {
+    reloj: opts.reloj ?? (() => performance.now()),
+    inactividadPruebasMs: opts.inactividadPruebasMs ?? null,
+    pocaMemoria: opts.pocaMemoria ?? (() => false)
   }
 }
 
@@ -202,6 +266,8 @@ export function crearNucleo(opts: AgentTerminalControllerOptions): NucleoAgente 
   const touchedProfiles = opts.touchedProfiles ?? new Set<string>()
   const binaries = { ...DEFAULT_BINARIES, ...(opts.binaries ?? {}) }
   for (const p of opts.profiles) profiles.set(p.id, p)
+  profiles.set(PERFIL_VENTANA.id, PERFIL_VENTANA)
+  const log = opts.log ?? ((m: string) => console.log(`[agent-terminal] ${m}`))
   return {
     sandbox: opts.sandbox,
     terminals,
@@ -213,7 +279,7 @@ export function crearNucleo(opts: AgentTerminalControllerOptions): NucleoAgente 
     binaries,
     sshSetup,
     ...bd,
-    getSshBriefing: opts.getSshBriefing ?? (() => null),
+    carpetaVentana: opts.carpetaVentana ?? (() => homedir()),
     eventos: opts.eventos,
     portapapeles: opts.portapapeles,
     anclas: opts.anclas ?? null,
@@ -222,11 +288,29 @@ export function crearNucleo(opts: AgentTerminalControllerOptions): NucleoAgente 
     sondearVersion: opts.sondearVersion ?? null,
     esperarCandado: opts.esperarCandado ?? (() => Promise.resolve()),
     alCambiarSesiones: opts.alCambiarSesiones ?? (() => {}),
-    reloj: opts.reloj ?? (() => performance.now()),
-    inactividadPruebasMs: opts.inactividadPruebasMs ?? null,
+    ...dependenciasInactividad(opts),
     muertesEnVuelo: new Set<Promise<void>>(),
-    log: opts.log ?? ((m) => console.log(`[agent-terminal] ${m}`))
+    registroParadas: new RegistroParadas(opts.rutaRegistroParadas ?? null, log),
+    vigia: { config: null },
+    loginCodex: opts.loginCodex ?? puenteLoginCodex(opts.eventos),
+    log
   }
+}
+
+/** El puente del 1455: lleva la vuelta del navegador por `docker exec` y avisa si el puerto no está libre. */
+function puenteLoginCodex(eventos: EmisorEventos): PuenteLoginCodex {
+  return new PuenteLoginCodex({
+    conectar: (contenedor, socket) => unirConContenedor(contenedor, PUERTO_LOGIN_CODEX, socket),
+    avisarPuertoOcupado: (datos) => {
+      const aviso: AvisoRed = {
+        profileId: datos.profileId,
+        motivo: 'choque-1455',
+        titulo: txAgentes().loginCodex.puertoOcupadoTitulo,
+        detalle: txAgentes().loginCodex.puertoOcupadoDetalle(datos.cuenta, PUERTO_LOGIN_CODEX, nombresSistema(plataformaActual()).tuEquipo)
+      }
+      eventos.emitir(SANDBOX_RED_CHANNELS.AVISO, aviso)
+    }
+  })
 }
 
 export function errMsg(err: unknown): string {

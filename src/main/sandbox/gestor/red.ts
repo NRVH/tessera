@@ -1,7 +1,7 @@
 // =============================================================================
 // Red del contenedor: toma las MEDIDAS del modo anfitrión (motor, ajustes de Docker, modo de
-// WSL y una sonda real) y delega criterio y textos en `redAnfitrion.ts`. También el puente
-// del callback de Codex (1455) y el aviso cuando la red del anfitrión no llega.
+// WSL y una sonda real) y delega criterio y textos en `redAnfitrion.ts`. También el aviso
+// cuando la red del anfitrión no llega.
 // Decisiones: docs/decisiones/sandbox/red-del-anfitrion.md
 // =============================================================================
 import { spawn } from 'node:child_process'
@@ -23,26 +23,6 @@ import { runDocker } from '../adaptadores/docker.ts'
 import { argsEtiquetaInstancia } from './nombres.ts'
 import { txSandbox } from '../textos.ts'
 import type { NucleoSandbox } from './NucleoSandbox.ts'
-
-/**
- * Puente TCP DENTRO del contenedor para el callback de login de Codex: Codex escucha solo
- * en el loopback del contenedor y el port-forward de Docker entra por eth0. Escucha en la
- * IP de eth0 (no 0.0.0.0, para no chocar con Codex) y reenvía a 127.0.0.1:1455;
- * idempotente (un segundo intento falla al bindear y sale).
- */
-export const CODEX_CALLBACK_FORWARDER_SCRIPT =
-  "const net=require('net'),os=require('os');" +
-  "const nic=Object.values(os.networkInterfaces()).flat().find(i=>i&&i.family==='IPv4'&&!i.internal);" +
-  'if(!nic)process.exit(0);' +
-  "net.createServer(c=>{const u=net.connect(1455,'127.0.0.1');u.on('error',()=>c.destroy());c.on('error',()=>u.destroy());c.pipe(u);u.pipe(c)})" +
-  ".on('error',()=>process.exit(0)).listen(1455,nic.address);"
-
-/** ¿El fallo de `docker run` es por un PUERTO ya en uso? Solo entonces se reintenta sin publicarlo. */
-export function isPortConflictError(stderr: string): boolean {
-  return /port is already allocated|address already in use|ports are not available|bind for [^\n]*failed|being used by/i.test(
-    stderr
-  )
-}
 
 /** Un puerto alto LIBRE pedido al sistema (bind al 0, leer, cerrar); nunca el 1455. */
 function puertoLibre(): Promise<number> {
@@ -273,19 +253,5 @@ export class RedSandbox {
     } catch {
       // Best-effort: un diagnóstico que falla no tumba la apertura de una sesión.
     }
-  }
-
-  /** Lanza (detached) el puente del callback de Codex; fire-and-forget. */
-  startCodexCallbackForwarder(containerName: string): void {
-    void runDocker(['exec', '-d', containerName, 'node', '-e', CODEX_CALLBACK_FORWARDER_SCRIPT]).then(
-      (r) => {
-        if (r.status !== 0) {
-          console.log(
-            `[sandbox] puente de callback de Codex no iniciado en ${containerName}: ${r.stderr.trim()}`
-          )
-        }
-      },
-      () => {}
-    )
   }
 }

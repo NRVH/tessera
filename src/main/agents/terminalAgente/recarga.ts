@@ -1,6 +1,6 @@
 // =============================================================================
 // Reinicio de una sesión del agente conservando su id y sus suscriptores. En contenedor
-// vuelve a poner en pie todo (Docker, contenedor, proyecto, credencial) antes de
+// vuelve a poner en pie todo (Docker, el contenedor de su cuenta, proyecto, credencial) antes de
 // relanzar; en nativo espera el candado de la actualización. La conversación con la que
 // corre la sesión manda sobre la que resuelva el renderer.
 // Decisiones: docs/decisiones/agentes/sesion-del-agente-en-el-main.md
@@ -14,6 +14,7 @@ import type { Agente, Profile } from '../../profiles/types'
 import type { AgentOpenResult } from '../../../shared/agent-terminal-ipc'
 import { crearDetectorEnvio } from '../lineaEnviada'
 import { anclarApertura, sondearTrasLanzar } from './turnos'
+import { contenedorDe, reservarLoginCodex } from './credenciales'
 import { medidasDeProcesoNuevo } from './hibernacion'
 import { ACTIVITY_BOOT_GRACE_MS, type NucleoAgente, type OpenAgentSession } from './tipos'
 import { esSesionManual, recargarManual } from './aperturaManual'
@@ -162,12 +163,15 @@ async function recargarEnContenedor(
 
   const account = n.accounts.get(open.accountId)
   if (!account) throw new Error(`Cuenta de agente desconocida: "${open.accountId}".`)
+  // Relanzar una cuenta sin credencial vuelve a iniciar sesión: la misma regla que al abrir.
+  reservarLoginCodex(n, profile, open.agente, account, sessionId)
 
-  await n.sandbox.ensureContainer(profile)
+  const destino = contenedorDe(profile, open.agente, account.id)
+  await n.sandbox.ensureContainer(destino)
   n.touchedProfiles.add(profile.id)
-  await n.sandbox.addProject(profile, open.projectHostPath)
+  await n.sandbox.addProject(destino, open.projectHostPath)
   const hostConfigDir = n.accounts.hostDirFor(account)
-  const cfgMount = await n.sandbox.mountAgentConfig(profile, open.agente, account.id, hostConfigDir)
+  const cfgMount = await n.sandbox.mountAgentConfig(destino, open.agente, account.id, hostConfigDir)
 
   // Sin lista de montajes (el reintento automático tras una caída) se relanza lo guardado.
   const overrides =

@@ -179,5 +179,5 @@ export function sanearPeticion(raw: unknown): AgentHibernarInactivosRequest {
     if (p) proyectos.push(p)
   }
   // `minutos` viaja crudo: lo sanea `umbralEfectivoMs`, que es quien conoce la lista.
-  return { minutos: r.minutos as number, proyectos }
+  return { minutos: r.minutos as number, proyectos, ...(r.ahora === true ? { ahora: true } : {}) }
 }

@@ -312,9 +312,10 @@ function main(): void {
       'acerca', 'agente-fuente', 'agente-inactividad', 'agente-tamano', 'agentes-lista', 'banda',
       'copia-exportar', 'copia-importar',
       'db-filas-pagina', 'db-font', 'db-inactividad-consola', 'db-tx-inicial',
-      'explorer-font', 'git-font', 'idioma',
+      'explorer-font', 'git-font', 'idioma', 'limite-contenedores', 'limite-politica',
       'menu-windows-archivos', 'menu-windows-carpetas', 'menu-windows-extensiones',
-      'modo-proyecto', 'registro-salud', 'sandbox-docs', 'sandbox-navegador', 'sandbox-otros', 'selector-agentes',
+      'paradas-registro', 'registro-salud', 'sandbox-docs', 'sandbox-navegador', 'sandbox-otros',
+      'saturacion-aviso', 'saturacion-segundos', 'saturacion-umbral', 'selector-agentes',
       'term-fuente', 'term-render', 'term-resaltado', 'term-tamano', 'ui-font',
       'update', 'update-agentes', 'update-al-cerrar', 'volcados-caida', 'zoom'
     ]
@@ -374,7 +375,7 @@ function main(): void {
     )
     check(
       'la categoría va entre Proyectos e Integración con el sistema',
-      CATEGORIAS.map((c) => c.id).join(',') === 'apariencia,terminales,proyectos,agentes,bases-de-datos,integracion,copia,actualizaciones,experimental,acerca',
+      CATEGORIAS.map((c) => c.id).join(',') === 'apariencia,terminales,proyectos,contenedores,agentes,bases-de-datos,integracion,copia,actualizaciones,experimental,acerca',
       CATEGORIAS.map((c) => c.id).join(',')
     )
     check(

@@ -7,6 +7,7 @@
 import type { Profile } from '../../profiles/types.ts'
 import { EXTRAS_VACIOS, extrasDesdeSello } from '../../../shared/sandboxExtras.ts'
 import { detalleDockerRootless, esDockerRootless, pasosDocker } from '../../../shared/dockerErrors.ts'
+import { usoDeStats } from '../../../shared/saturacionDocker.ts'
 import { txSandbox } from '../textos.ts'
 import { runDocker } from '../adaptadores/docker.ts'
 import { containerNameFor } from './nombres.ts'
@@ -21,6 +22,8 @@ import type {
 /** Sondas de Docker y del contenedor de un perfil. */
 export class DiagnosticoSandbox {
   private readonly n: NucleoSandbox
+  /** Diagnóstico en vuelo por perfil. */
+  private readonly diagnosticos = new Map<string, Promise<ContainerDeathCause>>()
 
   constructor(n: NucleoSandbox) {
     this.n = n
@@ -59,6 +62,24 @@ export class DiagnosticoSandbox {
     return caps
   }
 
+  /** La memoria y los núcleos que tiene Docker; null en lo que no se pueda leer. */
+  async recursos(): Promise<{ memoriaBytes: number | null; cpus: number | null }> {
+    const r = await runDocker(['info', '--format', '{{.MemTotal}} {{.NCPU}}'], { timeoutMs: 15_000 })
+    if (r.error || r.status !== 0) return { memoriaBytes: null, cpus: null }
+    const [mem, cpus] = r.stdout.trim().split(/\s+/).map((x) => Number.parseInt(x, 10))
+    return { memoriaBytes: Number.isFinite(mem) && mem > 0 ? mem : null, cpus: Number.isFinite(cpus) && cpus > 0 ? cpus : null }
+  }
+
+  /**
+   * La memoria que usan ahora todos los contenedores de Docker, de Tessera o no: lo que satura es
+   * la suma. null si Docker no responde o la salida no se entiende.
+   */
+  async usoMemoria(): Promise<number | null> {
+    const r = await runDocker(['stats', '--no-stream', '--format', '{{.MemUsage}}'], { timeoutMs: 20_000 })
+    if (r.error || r.status !== 0) return null
+    return usoDeStats(r.stdout)
+  }
+
   /** ¿Responde el daemon? Sonda caliente: timeout corto para que un daemon colgado falle rápido. */
   async checkDocker(): Promise<DockerCheckResult> {
     const info = await runDocker(
@@ -82,10 +103,32 @@ export class DiagnosticoSandbox {
     return { ok: true, detalle: version }
   }
 
-  /** Clasifica POR QUÉ murió una sesión (ver `ContainerDeathCause`). */
-  async diagnoseProfile(profile: Profile): Promise<ContainerDeathCause> {
+  /**
+   * Clasifica POR QUÉ murió una sesión (ver `ContainerDeathCause`). Las sesiones de un perfil
+   * mueren juntas con su contenedor: comparten UN diagnóstico en vuelo en vez de N sondas.
+   */
+  async diagnoseProfile(profile: Profile, exitCode: number | null = null): Promise<ContainerDeathCause> {
+    let enVuelo = this.diagnosticos.get(profile.id)
+    if (!enVuelo) {
+      enVuelo = this.diagnosticar(profile).finally(() => this.diagnosticos.delete(profile.id))
+      this.diagnosticos.set(profile.id, enVuelo)
+    }
+    const causa = await enVuelo
+    if (causa === 'daemon-down') this.n.alVerDockerCaido?.()
+    // El contenedor sigue, pero el kernel acaba de matar un proceso suyo por memoria. Es ESTA sesión
+    // si murió por SIGKILL (137) o sin código; una que salió por sí misma no lo es.
+    const muertaPorKill = exitCode === 137 || exitCode === null
+    return causa === 'ok' && muertaPorKill && this.n.oomReciente(profile.id, Date.now()) ? 'sin-memoria' : causa
+  }
+
+  private async diagnosticar(profile: Profile): Promise<ContainerDeathCause> {
+    // Lo que ya vio el supervisor no necesita sonda: la causa exacta y sin esperar a un daemon colgado.
+    const muerte = this.n.muerteReciente(profile.id, Date.now())
+    if (muerte === 'sin-memoria') return 'sin-memoria'
+    if (this.n.dockerCaido) return 'daemon-down'
     const docker = await this.checkDocker()
     if (!docker.ok) return 'daemon-down'
+    if (muerte === 'murio') return 'container-down'
     // Un `inspect` que no puede saberlo es un problema del daemon: 'container-down' haría
     // que la UI ofreciera recrear algo que podría seguir vivo.
     let st: DockerInspectState | null
@@ -94,6 +137,7 @@ export class DiagnosticoSandbox {
     } catch {
       return 'daemon-down'
     }
+    if (st && !st.State.Running && st.State.OOMKilled === true) return 'sin-memoria'
     if (!st || !st.State.Running) return 'container-down'
     return 'ok'
   }

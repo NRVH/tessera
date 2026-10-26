@@ -3,7 +3,8 @@
 // viven siempre en el main. Sirve a las dos clases de sesión: la del shell del proyecto (OPEN) y la
 // de una conexión SSH del perfil (OPEN_SSH, en el pty del host); el resto de canales es común.
 // invoke (renderer -> main): OPEN, OPEN_SSH, RELOAD, CLOSE. send (renderer -> main):
-// WRITE, RESIZE, FLOW. send (main -> renderer): DATA, EXIT (con `reason` si una SSH salió con 255).
+// WRITE, RESIZE, FLOW. send (main -> renderer): DATA, EXIT (con `reason` si una SSH salió con 255
+// o si murió el contenedor de un shell en modo Docker).
 // Hermanos: `agent-terminal-ipc.ts` (terminal del agente) y `ssh-ipc.ts` (registro de conexiones).
 // =============================================================================
 
@@ -128,7 +129,17 @@ export interface TerminalDataMessage {
  * huella del servidor cambió, no se autenticó, no se llegó al servidor o se cortó la conexión, o
  * no hubo algoritmos en común.
  */
-export type TerminalExitReason = 'ssh-huella-cambiada' | 'ssh-autenticacion' | 'ssh-inalcanzable' | 'ssh-algoritmos'
+export type MotivoSsh = 'ssh-huella-cambiada' | 'ssh-autenticacion' | 'ssh-inalcanzable' | 'ssh-algoritmos'
+
+/** Por qué terminó una sesión, si el main lo sabe: el de una SSH o el de un shell en modo Docker. */
+export type TerminalExitReason = MotivoSsh | MotivoContenedor
+
+/**
+ * Por qué terminó el shell de un proyecto en modo Docker, si no fue una salida normal: murió el
+ * contenedor (se recrea), Docker no responde (se espera a que vuelva) o el contenedor se quedó sin
+ * memoria (no se recrea solo: volvería a caer).
+ */
+export type MotivoContenedor = 'container-down' | 'daemon-down' | 'sin-memoria'
 
 /** Evento main -> renderer cuando el shell termina (usuario `exit`, crash, etc.). */
 export interface TerminalExitMessage {
@@ -136,8 +147,9 @@ export interface TerminalExitMessage {
   /** exitCode del shell; -1 si el sistema no lo dio (ConPTY a veces avisa sin código). */
   exitCode: number | null
   /**
-   * Solo en sesiones SSH, con exitCode 255 (en Windows también -1, que incluye la salida sin código)
-   * y si ssh dejó escrito por qué. Sin él, el 255 pudo darlo el comando remoto.
+   * En sesiones SSH, con exitCode 255 (en Windows también -1, que incluye la salida sin código)
+   * y si ssh dejó escrito por qué; sin él, el 255 pudo darlo el comando remoto. En un shell en modo
+   * Docker, si no salió por sí mismo (`MotivoContenedor`).
    */
   reason?: TerminalExitReason
 }

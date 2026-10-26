@@ -25,6 +25,7 @@ import type { SandboxManager } from '../../sandbox/SandboxManager'
 import type { EmisorEventos } from '../../util/emisorEventos'
 import type { OpcionesEjecucion, ResultadoEjecucion } from '../ejecutorShell'
 import { ordenBuscarPrograma, rutaDeSalida } from './busqueda'
+import { contenedorDe } from '../terminalAgente/credenciales'
 
 /** Tope de la búsqueda: la shell de login puede tardar en cargar su perfil. */
 const TOPE_BUSQUEDA_MS = 15_000
@@ -73,7 +74,7 @@ function depsContexto(deps: DepsIpc): DepsContexto {
     ejecutarEnContenedor: async (s, orden) => {
       const perfil = deps.perfiles().find((p) => p.id === s.profileId)
       if (!perfil) return { ok: false, salida: `Perfil desconocido: "${s.profileId}".` }
-      const r = await deps.sandbox.exec(perfil, orden, { project: s.projectHostPath })
+      const r = await deps.sandbox.exec(contenedorDe(perfil, s.agente, s.accountId), orden, { project: s.projectHostPath })
       return { ok: r.exitCode === 0, salida: r.exitCode === 0 ? r.stdout : r.stderr || r.stdout }
     },
     leerFinal

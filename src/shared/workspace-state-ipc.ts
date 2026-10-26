@@ -11,6 +11,7 @@
 import type { DbTxModo } from './db-explorador-ipc.ts'
 import { normalizarPreferenciaIdioma, type PreferenciaIdioma } from './i18n.ts'
 import {
+  esAgenteManual,
   normalizarDefiniciones,
   normalizarIdsAgentePorPerfil,
   normalizarSelectorAgentes,
@@ -19,13 +20,14 @@ import {
   type SelectorAgentes
 } from './agentesManuales.ts'
 import { AGENTE_INACTIVIDAD_MIN_POR_DEFECTO, normalizarInactividadAgenteMin } from './ajustesAgente.ts'
+import { POLITICA_POR_DEFECTO, normalizarCupo, type PrimeroEnPararse } from './semaforoContenedores.ts'
+import { SATURACION_POR_DEFECTO, normalizarSaturacion } from './saturacionDocker.ts'
 import {
   SSH_RIEL_ANCHO_POR_DEFECTO,
   normalizarAgenteTerminalVisible,
   normalizarAnchoRiel,
   normalizarGruposPlegados,
   normalizarPestanasSshPorPerfil,
-  normalizarRecientesPorPerfil,
   normalizarRielVisiblePorPerfil,
   type SshPestanasPorPerfil
 } from './ajustesTerminal.ts'
@@ -71,25 +73,15 @@ export interface WorkspaceSettings {
    */
   agentAccountByTarget: Record<string, string | null>
   /**
+   * Nativo o Docker elegido por cada target de agente (misma clave): sin entrada, nativo. Un archivo
+   * que no lo trae (de cuando el modo era del proyecto) lo deriva al sanearse (`modosDesdeModoDeProyecto`).
+   */
+  agentModeByTarget: Record<string, 'nativo' | 'docker'>
+  /**
    * Oculta los NOMBRES de los perfiles en la banda superior, dejando solo su línea
    * de color (modo compacto). Ajuste GLOBAL de UI; se recuerda entre reinicios.
    */
   hideProfileNames: boolean
-  /**
-   * Proyectos en MODO WINDOWS (host nativo, sin Docker, cuenta personal), como
-   * claves `${profileId}|${projectHostPath}`. Un proyecto aquí corre el agente y la
-   * terminal directamente en Windows con tu login personal, en vez de dentro del
-   * contenedor aislado del perfil. Pensado para proyectos legacy (p.ej. Java/Swing)
-   * que se levantan con herramientas de Windows. Se recuerda entre reinicios.
-   */
-  windowsModeProjects: string[]
-  /**
-   * Qué modo usa un proyecto RECIÉN abierto: `windows` (host nativo), `docker`
-   * (contenedor aislado) o `ask` (preguntar con un modal al abrir). Default `windows`
-   * (el 90% del uso). Cambiar el modo de un proyecto ya abierto sigue por el toggle
-   * por-pestaña; esto solo decide con qué modo NACE uno nuevo.
-   */
-  defaultProjectMode: DefaultProjectMode
   /**
    * Orden de los iconos de la barra de actividad izquierda (ids de vista:
    * 'files' | 'git' | 'db'), reordenables por drag&drop. Ausente/incompleto
@@ -364,11 +356,10 @@ export interface WorkspaceSettings {
    * oculto, que es el valor por defecto: el centro de esa vista es el explorador, y
    * el agente aparece solo cuando se le llama.
    *
-   * Es lo ÚNICO de la vista de bases de datos que se recuerda por perfil. Las
-   * pestañas NO se guardan, igual que las del editor de archivos: restaurarlas
-   * lanzaría consultas contra bases que al arrancar quizá no están a tiro (VPN) y
-   * reabriría filtros que ya no aplican. Las consolas sobreviven como ARCHIVOS del
-   * espacio de datos y se reabren desde su carpeta del árbol.
+   * Las pestañas de la vista NO se guardan, igual que las del editor de archivos:
+   * restaurarlas lanzaría consultas contra bases que al arrancar quizá no están a tiro
+   * (VPN) y reabriría filtros que ya no aplican. Las consolas sobreviven como ARCHIVOS
+   * del espacio de datos y se reabren desde su carpeta del árbol.
    */
   dbAgenteVisiblePorPerfil: Record<string, boolean>
   /**
@@ -409,6 +400,21 @@ export interface WorkspaceSettings {
    */
   agenteInactividadMin: number
   /**
+   * Cuántos contenedores de Docker a la vez (`semaforoContenedores.ts`); `SIN_LIMITE` (0) = sin
+   * límite. Ausente = el recomendado para la memoria de Docker de este equipo, así que no se exporta.
+   */
+  limiteContenedores?: number
+  /** Al llegar al límite, qué agente se para primero para hacer sitio. */
+  primeroEnPararse: PrimeroEnPararse
+  /** Al llegar al límite, los agentes que están trabajando no se paran mientras haya otro. */
+  protegerTrabajando: boolean
+  /** Porcentaje de la memoria de Docker a partir del que se considera saturado (`saturacionDocker.ts`). */
+  saturacionUmbral: number
+  /** Segundos que tiene que durar por encima del umbral antes de parar un agente. */
+  saturacionSegundos: number
+  /** Avisar antes de parar por saturación, con la opción de elegir otro. */
+  avisarAntesDeParar: boolean
+  /**
    * Grupos de conexiones SSH plegados en la lista de conexiones, por PERFIL (`profileId` -> ids de
    * grupo; `''` = «Sin grupo»). Sin entrada = todo desplegado, que es lo que ve quien nunca plegó.
    * El saneado vive en `shared/ajustesTerminal.ts`; aquí solo su forma.
@@ -425,11 +431,6 @@ export interface WorkspaceSettings {
    * entrada = se ve. Es una preferencia: que la terminal quede estrecha pliega el riel sin tocarla.
    */
   sshRielVisiblePorPerfil: Record<string, boolean>
-  /**
-   * Las últimas conexiones SSH abiertas desde Tessera, por PERFIL (`profileId` -> ids de conexión, la más
-   * reciente primero, hasta `SSH_RECIENTES_MAX`). El saneado vive en `shared/ajustesTerminal.ts`.
-   */
-  sshRecientesPorPerfil: Record<string, string[]>
   /**
    * Las pestañas SSH (y del explorador SFTP) abiertas al cerrar, por PERFIL, en su orden: vuelven al arrancar,
    * sin conectarse hasta que se miran. El saneado vive en `shared/ajustesTerminal.ts`.
@@ -470,9 +471,6 @@ export function esPresetMosaico(v: unknown): v is MosaicoPresetGuardado {
 
 // Una clave desconocida de un `workspace-state.json` viejo (p. ej. el antiguo colapso
 // por perfil del inspector de progreso) se ignora sola: el saneado solo copia lo que conoce.
-
-/** Modo con el que nace un proyecto nuevo (ajuste global). */
-export type DefaultProjectMode = 'windows' | 'docker' | 'ask'
 
 /** Rango de zoom válido (ESPEJO de ZOOM_MIN/MAX_LEVEL del preload; mantenlos sincronizados). */
 export const ZOOM_LEVEL_MIN = -3
@@ -583,9 +581,8 @@ export const DB_RESULTADOS_ALTO_MAX = 2000
 export const DEFAULT_SETTINGS: WorkspaceSettings = {
   zoomLevel: 0,
   agentAccountByTarget: {},
+  agentModeByTarget: {},
   hideProfileNames: false,
-  windowsModeProjects: [],
-  defaultProjectMode: 'windows',
   idioma: 'sistema',
   activityBarOrder: [...ACTIVITY_BAR_DEFAULT_ORDER],
   bottomBarOrder: [...BOTTOM_BAR_DEFAULT_ORDER],
@@ -627,10 +624,14 @@ export const DEFAULT_SETTINGS: WorkspaceSettings = {
   dbTxInicial: DB_TX_INICIAL_POR_DEFECTO,
   dbConsolaInactividadMin: DB_INACTIVIDAD_CONSOLA_MIN_POR_DEFECTO,
   agenteInactividadMin: AGENTE_INACTIVIDAD_MIN_POR_DEFECTO,
+  primeroEnPararse: POLITICA_POR_DEFECTO.primero,
+  protegerTrabajando: POLITICA_POR_DEFECTO.protegerTrabajando,
+  saturacionUmbral: SATURACION_POR_DEFECTO.umbralPct,
+  saturacionSegundos: SATURACION_POR_DEFECTO.segundos,
+  avisarAntesDeParar: SATURACION_POR_DEFECTO.avisoPrevio,
   sshGruposPlegadosPorPerfil: {},
   sshRielAncho: SSH_RIEL_ANCHO_POR_DEFECTO,
   sshRielVisiblePorPerfil: {},
-  sshRecientesPorPerfil: {},
   sshPestanasPorPerfil: {},
   agenteTerminalVisiblePorPerfil: {},
   agentesNativos: [],
@@ -746,7 +747,10 @@ export function normalizeWorkspaceState(raw: unknown): WorkspaceState | null {
     version: WORKSPACE_STATE_VERSION,
     activeProfileId,
     byProfile,
-    settings: normalizeSettings(obj.settings)
+    settings: normalizeSettings(
+      obj.settings,
+      Object.entries(byProfile).flatMap(([id, t]) => t.openProjects.map((p) => `${id}|${p.projectHostPath}`))
+    )
   }
 }
 
@@ -756,7 +760,7 @@ export function normalizeWorkspaceState(raw: unknown): WorkspaceState | null {
  * fuera de rango caen al default; el nivel de zoom se redondea y se acota. SIEMPRE
  * devuelve un objeto completo (nunca undefined), así lo persistido lo trae siempre.
  */
-function normalizeSettings(raw: unknown): WorkspaceSettings {
+function normalizeSettings(raw: unknown, proyectosAbiertos: readonly string[] = []): WorkspaceSettings {
   if (typeof raw !== 'object' || raw === null) return { ...DEFAULT_SETTINGS }
   const obj = raw as Record<string, unknown>
   // Los dos grupos del riel se sanean JUNTOS, como una partición: cada icono
@@ -771,7 +775,7 @@ function normalizeSettings(raw: unknown): WorkspaceSettings {
   // El orden de los grupos reproduce el de las claves de `WorkspaceSettings`, que es
   // el orden en que se escriben en el archivo.
   return {
-    ...normalizarGenerales(obj),
+    ...normalizarGenerales(obj, proyectosAbiertos),
     activityBarOrder: particionRiel.arriba,
     bottomBarOrder: particionRiel.abajo,
     ...normalizarFuentes(obj),
@@ -781,10 +785,11 @@ function normalizeSettings(raw: unknown): WorkspaceSettings {
     ...normalizarVistasPorPerfil(obj),
     ...normalizarVistaBd(obj),
     agenteInactividadMin: normalizarInactividadAgenteMin(obj.agenteInactividadMin),
+    ...normalizarCupo(obj),
+    ...normalizarSaturacion(obj),
     sshGruposPlegadosPorPerfil: normalizarGruposPlegados(obj.sshGruposPlegadosPorPerfil),
     sshRielAncho: normalizarAnchoRiel(obj.sshRielAncho),
     sshRielVisiblePorPerfil: normalizarRielVisiblePorPerfil(obj.sshRielVisiblePorPerfil),
-    sshRecientesPorPerfil: normalizarRecientesPorPerfil(obj.sshRecientesPorPerfil),
     sshPestanasPorPerfil: normalizarPestanasSshPorPerfil(obj.sshPestanasPorPerfil),
     agenteTerminalVisiblePorPerfil: normalizarAgenteTerminalVisible(obj.agenteTerminalVisiblePorPerfil),
     ...normalizarAgentesManuales(obj)
@@ -855,12 +860,38 @@ function listaDeTextos(v: unknown, transformar: (s: string) => string): string[]
   ]
 }
 
-/** Zoom, cuentas por target, nombres de perfil y modo de los proyectos. */
+/**
+ * El modo de cada agente al llegar desde cuando el modo era del proyecto: los agentes de serie de un
+ * proyecto que estaba en Docker siguen en Docker (los de un proyecto abierto, aunque nunca eligieran
+ * cuenta, y los que tenían cuenta guardada); los demás, nativos. Quien eligió Docker para aislar un
+ * proyecto no lo encuentra corriendo en su equipo al actualizar.
+ */
+export function modosDesdeModoDeProyecto(
+  cuentas: Readonly<Record<string, string | null>>,
+  proyectosNativos: readonly string[],
+  proyectosAbiertos: readonly string[] = []
+): Record<string, 'nativo' | 'docker'> {
+  const nativos = new Set(proyectosNativos)
+  const modos: Record<string, 'nativo' | 'docker'> = {}
+  for (const [target, cuenta] of Object.entries(cuentas)) {
+    const corte = target.lastIndexOf('|')
+    if (cuenta === null || corte < 0 || esAgenteManual(target.slice(corte + 1))) continue
+    if (!nativos.has(target.slice(0, corte))) modos[target] = 'docker'
+  }
+  for (const proyecto of proyectosAbiertos) {
+    if (nativos.has(proyecto)) continue
+    for (const agente of ['claude-code', 'codex']) modos[`${proyecto}|${agente}`] = 'docker'
+  }
+  return modos
+}
+
+/** Zoom, cuentas y modo por target, nombres de perfil e idioma. */
 function normalizarGenerales(
-  obj: Record<string, unknown>
+  obj: Record<string, unknown>,
+  proyectosAbiertos: readonly string[]
 ): Pick<
   WorkspaceSettings,
-  'zoomLevel' | 'agentAccountByTarget' | 'hideProfileNames' | 'windowsModeProjects' | 'defaultProjectMode' | 'idioma'
+  'zoomLevel' | 'agentAccountByTarget' | 'agentModeByTarget' | 'hideProfileNames' | 'idioma'
 > {
   // Mapa cuenta-por-target: acepta solo entradas string->string|null (defensivo).
   const agentAccountByTarget: Record<string, string | null> = {}
@@ -869,16 +900,24 @@ function normalizarGenerales(
       if (typeof v === 'string' || v === null) agentAccountByTarget[k] = v
     }
   }
-  const modo = obj.defaultProjectMode
+  let agentModeByTarget: Record<string, 'nativo' | 'docker'> = {}
+  if (typeof obj.agentModeByTarget === 'object' && obj.agentModeByTarget !== null) {
+    for (const [k, v] of Object.entries(obj.agentModeByTarget as Record<string, unknown>)) {
+      if (v === 'nativo' || v === 'docker') agentModeByTarget[k] = v
+    }
+  } else if (Array.isArray(obj.windowsModeProjects)) {
+    // Un archivo de cuando el modo era del proyecto: sus agentes conservan con qué corrían.
+    agentModeByTarget = modosDesdeModoDeProyecto(
+      agentAccountByTarget,
+      obj.windowsModeProjects.filter((k): k is string => typeof k === 'string'),
+      proyectosAbiertos
+    )
+  }
   return {
     zoomLevel: numeroAcotado(obj.zoomLevel, ZOOM_LEVEL_MIN, ZOOM_LEVEL_MAX, DEFAULT_SETTINGS.zoomLevel),
     agentAccountByTarget,
+    agentModeByTarget,
     hideProfileNames: obj.hideProfileNames === true,
-    windowsModeProjects: Array.isArray(obj.windowsModeProjects)
-      ? obj.windowsModeProjects.filter((k): k is string => typeof k === 'string')
-      : DEFAULT_SETTINGS.windowsModeProjects,
-    defaultProjectMode:
-      modo === 'windows' || modo === 'docker' || modo === 'ask' ? modo : DEFAULT_SETTINGS.defaultProjectMode,
     idioma: normalizarPreferenciaIdioma(obj.idioma)
   }
 }

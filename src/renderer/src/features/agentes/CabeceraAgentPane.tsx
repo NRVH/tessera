@@ -1,13 +1,14 @@
 // =============================================================================
 // Cabecera del pane del agente. En la vista normal: selector de agente, conversación
 // (historial y chat nuevo), bases montadas, cuenta, maximizar y, en el agente de la terminal,
-// cerrarlo. En una casilla del
-// mosaico la identidad va entera (punto, perfil, proyecto, agente, modo y bases) y el
-// selector de agente se va, porque cambiaría el agente de TODO el perfil.
+// cerrarlo. La cuenta dice también si corre nativo o en Docker. En una casilla del mosaico la
+// identidad va entera (punto, perfil, proyecto, agente y bases) y el selector de agente se va,
+// porque cambiaría el agente de TODO el perfil.
 // Decisiones: docs/decisiones/agentes/terminal-del-agente.md
 // =============================================================================
 
-import { ProfileDot, ModeIcon } from '../pestanas'
+import { ProfileDot } from '../pestanas'
+import { nombresSistema } from '../../../../shared/nombresSistema'
 import { PuntoMosaico } from '../mosaico'
 import { etiquetaModPrincipal } from '../../util/atajos'
 import { IconoCerrar } from '../../comun/iconosMenu'
@@ -17,9 +18,10 @@ import { rotuloHistorialConversaciones, textosMontajeBases, type LugarAgente } f
 import { txPane } from './textosPane.ts'
 import { IconoMaximizar, IconoRestaurar } from '../../comun/iconosPanel'
 import {
-  AccountIcon, CaretIcon, DbMountIcon, HistoryIcon, IconoCaret, IrAlProyectoIcon, NewChatIcon, UpdateIcon
+  DbMountIcon, HistoryIcon, IconoCaret, IconoContenedor, IconoEquipo, IrAlProyectoIcon, NewChatIcon, UpdateIcon
 } from './iconosAgentPane'
 import type { ModeloAgentPane } from './useAgentPane'
+import { nombreVisible } from './selectorCuenta.ts'
 
 interface PropsParte {
   m: ModeloAgentPane
@@ -115,33 +117,6 @@ function ChipAgente({ m, mosaico }: PropsParte & { mosaico: MosaicoPane }): Reac
   )
 }
 
-/** Glifo del modo (cubo = contenedor, monitor = nativo); también cambia el modo del proyecto. */
-function BotonModo({ m, mosaico }: PropsParte & { mosaico: MosaicoPane }): React.JSX.Element {
-  const { hostMode } = m.p
-  const icono = <ModeIcon windows={hostMode} color={hostMode ? 'var(--mode-windows)' : 'var(--azul)'} size={13} />
-  if (!mosaico.onCambiarModo) return icono
-  const { menuModo, setMenuModo } = m.menus
-  return (
-    <button
-      type="button"
-      className="casilla-modo-btn"
-      // Cambiar de modo remonta el pane: a mitad de una actualización no hay relanzar.
-      disabled={m.s.actualizando}
-      onMouseDown={(e) => e.stopPropagation()}
-      onClick={(e) => {
-        const r = e.currentTarget.getBoundingClientRect()
-        setMenuModo((mm) => (mm ? null : { x: r.left, y: r.bottom + 4 }))
-      }}
-      aria-haspopup="menu"
-      aria-expanded={menuModo !== null}
-      title={txPane().cabecera.modoTitulo(hostMode)}
-      aria-label={txPane().cabecera.modo(hostMode)}
-    >
-      {icono}
-    </button>
-  )
-}
-
 /** Identidad completa de la casilla; el punto es a la vez color del perfil y estado del agente. */
 function IdentidadCasilla({ m, mosaico }: PropsParte & { mosaico: MosaicoPane }): React.JSX.Element {
   return (
@@ -155,7 +130,6 @@ function IdentidadCasilla({ m, mosaico }: PropsParte & { mosaico: MosaicoPane })
       />
       <BotonNombreCasilla m={m} mosaico={mosaico} />
       <ChipAgente m={m} mosaico={mosaico} />
-      <BotonModo m={m} mosaico={mosaico} />
       <BotonBases m={m} />
     </span>
   )
@@ -163,13 +137,12 @@ function IdentidadCasilla({ m, mosaico }: PropsParte & { mosaico: MosaicoPane })
 
 /** Pestañas de agente; en un proyecto, con el «+» y sus menús. */
 function SelectorAgente({ m }: PropsParte): React.JSX.Element {
-  const { pestanasAgente, onSelectAgent, target, hostMode, lugar } = m.p
+  const { pestanasAgente, onSelectAgent, target, lugar } = m.p
   return (
     <PestanasAgente
       pestanas={pestanasAgente}
       activo={target.agente}
       profileId={target.profileId}
-      hostMode={hostMode}
       soloElegir={lugar !== 'proyecto'}
       onSelect={(id) => onSelectAgent?.(target.profileId, id)}
     />
@@ -213,23 +186,52 @@ function AccionesConversacion({ m }: PropsParte): React.JSX.Element {
   )
 }
 
-/** Botón de cuenta (solo en contenedor y con cuenta): su menú cierra sesión o la elimina. */
+/**
+ * El nombre del botón de cuenta: la del sistema si corre nativo; si no, la de Docker en uso, con su modo
+ * delante cuando el agente puede pasar de uno a otro. null = no hay botón.
+ */
+function nombreBotonCuenta(m: ModeloAgentPane): string | null {
+  const t = txPane().menus
+  const conModo = m.p.onElegirModo !== undefined
+  if (m.p.hostMode) return conModo ? t.modoNativo(nombresSistema(window.tessera.plataforma).sistema) : null
+  // En Docker y sin cuenta, el botón sigue: es la vuelta a nativo.
+  if (!m.currentAccount) return conModo ? t.cuentaDocker(t.sinCuenta) : null
+  const nombre = nombreVisible(m.currentAccount, t.predeterminada)
+  return conModo ? t.cuentaDocker(nombre) : nombre
+}
+
+/**
+ * Botón de cuenta: el icono de dónde corre (una pantalla, nativo; un cubo, Docker). Abre
+ * el selector, que pasa a nativo o a otra cuenta de Docker, crea una, cierra sesión o la elimina.
+ */
 function BotonCuenta({ m }: PropsParte): React.JSX.Element | null {
-  const { currentAccount } = m
-  if (m.p.hostMode || !currentAccount) return null
+  const nombre = nombreBotonCuenta(m)
+  if (nombre === null) return null
+  const { accountMenu, setAccountMenu } = m.ui
+  const titulo = txPane().cabecera.cuenta(nombre)
   return (
     <button
       type="button"
-      className="account-btn"
-      onClick={(e) => {
-        const r = e.currentTarget.getBoundingClientRect()
-        m.ui.setAccountMenu({ x: r.left, y: r.bottom + 4 })
+      className="btn btn-icon cuenta-btn"
+      // Cambiar de modo remonta el pane: a mitad de una actualización no hay relanzar.
+      disabled={m.s.actualizando}
+      // El selector se cierra con el mousedown de fuera; con el suyo abierto, sin esto el clic lo reabriría.
+      // Solo entonces: cerrado, el mousedown tiene que llegar al selector abierto de otro pane.
+      onMouseDown={(e) => {
+        if (accountMenu) e.stopPropagation()
       }}
-      title={txPane().cabecera.cuenta(currentAccount.nombre)}
+      onClick={(e) => {
+        if (accountMenu) return setAccountMenu(null)
+        const r = e.currentTarget.getBoundingClientRect()
+        m.cuenta.recargar()
+        setAccountMenu({ right: r.right, top: r.top, bottom: r.bottom })
+      }}
+      aria-haspopup="menu"
+      aria-expanded={accountMenu !== null}
+      title={titulo}
+      aria-label={titulo}
     >
-      <AccountIcon />
-      <span className="account-btn-name">{currentAccount.nombre}</span>
-      <CaretIcon />
+      {m.p.hostMode ? <IconoEquipo /> : <IconoContenedor />}
     </button>
   )
 }
@@ -272,12 +274,12 @@ function AccionesCasilla({ mosaico, lugar }: { mosaico: MosaicoPane; lugar: Luga
   )
 }
 
-/** Lo que tapa el agente al maximizarse: los archivos abiertos o, el de la terminal, las terminales. */
+/** Lo que tapa el agente al maximizarse: los archivos abiertos, las terminales o las pestañas de BD. */
 function textosRestaurar(lugar: string): { titulo: string; aria: string; sinCerrar: string } {
   const c = txPane().cabecera
-  return lugar === 'terminal'
-    ? { titulo: c.restaurarTerminales, aria: c.restaurarTerminalesAria, sinCerrar: c.sinCerrarTerminales }
-    : { titulo: c.restaurarArchivos, aria: c.restaurarArchivosAria, sinCerrar: c.sinCerrarArchivos }
+  if (lugar === 'terminal') return { titulo: c.restaurarTerminales, aria: c.restaurarTerminalesAria, sinCerrar: c.sinCerrarTerminales }
+  if (lugar === 'datos') return { titulo: c.restaurarPestanasBd, aria: c.restaurarPestanasBdAria, sinCerrar: c.sinCerrarPestanasBd }
+  return { titulo: c.restaurarArchivos, aria: c.restaurarArchivosAria, sinCerrar: c.sinCerrarArchivos }
 }
 
 /** Maximizar/restaurar el agente sobre lo que tiene al lado. */

@@ -862,9 +862,15 @@ function main(): void {
     j(sinPerfil.barraEstado)
   )
   check(
-    'db: nunca se puede maximizar el agente (canExpand=false)',
-    entradas.filter((e) => e.vista === 'db').every((e) => !derivarLayoutCentro(e).cc.canExpand),
-    'canExpand=false'
+    'db: solo se puede maximizar el agente de datos a la vista y con pestañas de BD que tapar',
+    entradas
+      .filter((e) => e.vista === 'db')
+      .flatMap((e) => [e, { ...e, hayPestanasBd: true }, { ...e, hayPestanasBd: false }])
+      .every((e) => {
+        const s = derivarLayoutCentro(e)
+        return s.cc.canExpand === (s.agente === 'espacio' && !e.mosaico && e.hayPestanasBd !== false)
+      }),
+    'canExpand ⇔ espacio y pestañas'
   )
 
   // -------------------------------------------------------------------------
@@ -895,6 +901,49 @@ function main(): void {
       return (s.divisorAgente === 'db') === listoDb && s.cc.hidden === !listoDb && (s.agente === 'espacio') === listoDb
     }),
     `${dbNoMosaico.length} combinaciones`
+  )
+  const conDb: EntradaLayoutCentro = { ...base, agenteDbVisible: true, espacioAbierto: true, hayPestanasBd: true }
+  const maxDb = derivarLayoutCentro({ ...conDb, agenteDbMaximizadoPedido: true })
+  check(
+    'agente de datos maximizado: el área de BD se oculta (sin desmontar), la columna crece y no hay divisor',
+    maxDb.agenteDbMaximizado &&
+      maxDb.dbAreaOculta &&
+      !maxDb.cc.hidden &&
+      maxDb.cc.grow &&
+      maxDb.cc.canExpand &&
+      maxDb.divisorAgente === null &&
+      maxDb.agente === 'espacio',
+    j(maxDb)
+  )
+  const pedido = { agenteDbMaximizadoPedido: true }
+  const sinPestanas = [false, true].map((p) => derivarLayoutCentro({ ...conDb, agenteDbMaximizadoPedido: p, hayPestanasBd: false }))
+  check(
+    'sin pestañas de BD el agente de datos ocupa todo el centro (como el de la columna sin archivos), sin botón de maximizar',
+    sinPestanas.every(
+      (s) => s.dbAreaOculta && s.cc.grow && !s.cc.hidden && s.divisorAgente === null && !s.cc.canExpand && !s.agenteDbMaximizado
+    ),
+    j(sinPestanas)
+  )
+  const sinConexiones = derivarLayoutCentro({ ...conDb, hayPestanasBd: false, hayConexionesBd: false })
+  check(
+    'NEGATIVO: sin conexiones el agente no tapa el centro, que ofrece el alta o el aviso del registro',
+    !sinConexiones.dbAreaOculta && !sinConexiones.cc.grow && sinConexiones.divisorAgente === 'db',
+    j(sinConexiones)
+  )
+  const negativos = {
+    sinAgente: derivarLayoutCentro({ ...conDb, ...pedido, agenteDbVisible: false }),
+    enFiles: derivarLayoutCentro({ ...conDb, ...pedido, vista: 'files', hayPestanasEditor: true }),
+    enMosaico: derivarLayoutCentro({ ...conDb, ...pedido, mosaico: true })
+  }
+  check(
+    'NEGATIVO: el pedido no tapa nada con el agente oculto, en otra vista ni en el mosaico',
+    !negativos.sinAgente.dbAreaOculta &&
+      negativos.sinAgente.cc.hidden &&
+      !negativos.enFiles.editorOculto &&
+      !negativos.enFiles.cc.grow &&
+      j(negativos.enMosaico) === j(derivarLayoutCentro({ ...conDb, mosaico: true })) &&
+      Object.values(negativos).every((s) => !s.agenteDbMaximizado),
+    j(negativos)
   )
   check(
     'db: el pestillo, la vista dividida y el maximizado del proyecto NO afectan al agente de datos',

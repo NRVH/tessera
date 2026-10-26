@@ -25,6 +25,7 @@ import {
   type AgentesNativosApi,
   type AgentesManualesApi,
   type RedContenedorApi,
+  type EstadoDockerApi,
   type UsageApi,
   type ContextApi,
   agentAccounts,
@@ -34,6 +35,7 @@ import {
   agentesNativos,
   agentesManuales,
   redContenedor,
+  estadoDocker,
   usage,
   context
 } from './agentes'
@@ -62,6 +64,7 @@ import {
   search
 } from './archivos'
 import { type GitApi, git } from './git'
+import { type VentanaAgenteApi, ventanaAgente } from './ventanaAgente'
 import {
   type WorkspaceApi,
   type ShutdownApi,
@@ -159,12 +162,14 @@ export interface TesseraApi {
   agentesNativos: AgentesNativosApi
   agentesManuales: AgentesManualesApi
   redContenedor: RedContenedorApi
+  estadoDocker: EstadoDockerApi
   usage: UsageApi
   context: ContextApi
   java: JavaApi
   comprimidos: ComprimidosApi
   search: SearchApi
   copiaConfiguracion: CopiaConfiguracionApi
+  ventanaAgente: VentanaAgenteApi
 }
 
 const api: TesseraApi = {
@@ -212,12 +217,14 @@ const api: TesseraApi = {
   agentesNativos,
   agentesManuales,
   redContenedor,
+  estadoDocker,
   usage,
   context,
   java,
   comprimidos,
   search,
-  copiaConfiguracion
+  copiaConfiguracion,
+  ventanaAgente
 }
 
 if (!process.contextIsolated) {

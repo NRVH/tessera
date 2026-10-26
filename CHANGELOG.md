@@ -8,6 +8,113 @@ Cada versión agrupa sus cambios en secciones, en este orden y solo las que teng
 Interfaz, Rendimiento y estabilidad, Instalación y actualizaciones, Correcciones y Seguridad. Una
 sección larga se divide en grupos por área.
 
+## [0.82.0] - 2026-10-26
+
+### Novedades
+
+- **Límite de contenedores de Docker, con semáforo.** En Configuración › Contenedores Docker eliges
+  cuántos contenedores pueden correr a la vez con una barra que se colorea según la memoria que tiene
+  Docker en tu equipo: verde, holgado; amarillo, justo, con riesgo de lentitud y cierres; rojo, alguno
+  fallará a medio proceso. Por defecto, el recomendado. Al llegar al límite, abrir otro agente en Docker
+  hiberna primero un contenedor sin agentes y, si no hay, el que diga tu política: los últimos que
+  abriste, los primeros o los que llevan más sin uso, sin tocar los que están trabajando si así lo
+  pides. Te avisa de qué paró y con qué regla, y su conversación sigue al volver.
+
+- **Cada agente elige su cuenta, nativa o de Docker, y los proyectos dejan de tener modo.** El botón de
+  cuenta de la cabecera del agente, un equipo o un contenedor en el color del perfil según dónde corre, abre un selector con dos
+  apartados: la cuenta de tu equipo y las de Docker, cada una en su tarjeta con la que usa marcada, sus
+  acciones de renombrar, cerrar sesión y eliminar al pasar por ella, y «Nueva cuenta de Docker…» al pie.
+  El selector sigue abierto mientras confirmas una acción, para seguir con otra cuenta.
+  Cerrar sesión o eliminar una cuenta espera en su diálogo hasta que termina, y si falla lo dice ahí; si
+  otro agente abierto la usa, el diálogo lo avisa y ese agente se reabre con login o con otra cuenta. En un mismo proyecto puedes tener Claude
+  Code con la cuenta de tu equipo y Codex con una de Docker, y cambiar en un clic; Tessera recuerda con
+  qué cuenta trabaja cada agente en cada proyecto. Cada cuenta de Docker corre en su propio contenedor,
+  así que dos cuentas del mismo agente trabajan a la vez sin pisarse. Todo lo demás corre en tu equipo:
+  la terminal de abajo es siempre la tuya, y desaparecen el modo de la pestaña del proyecto, la pregunta
+  al abrirlo y el ajuste del modo por defecto. Si usabas proyectos en Docker, sus agentes siguen con la
+  cuenta que tenían. Los agentes que defines a mano corren donde elijas al crearlos; en Docker también
+  tienen varias cuentas.
+
+- **Si Docker se queda sin memoria, Tessera para un agente con tu regla en vez de dejar que caiga
+  cualquiera.** Cuando la memoria de Docker pasa del umbral que eliges (90 % de serie) durante el tiempo
+  que fijas (30 s de serie), te avisa de qué agente parará y espera 30 s, con la opción de elegir otro; si
+  baja, no para nada. Usa la misma política del límite, nunca toca el agente que estás mirando y su
+  conversación sigue al volver. En Configuración › Contenedores Docker, «Últimas paradas» dice qué paró
+  Tessera, cuándo y con qué regla.
+
+- **Ventanas de agente: el agente de tu equipo en una ventana aparte, sin perfil ni proyecto.** Como
+  abrir una terminal y escribir `claude`: Claude Code, Codex o tus agentes nativos arrancan en tu
+  carpeta de usuario con un chat nuevo, con el historial de conversaciones, el chat nuevo, el anillo de contexto y el
+  pegado de imágenes de siempre. Se abre desde «Nueva ventana de agente», al pie de la lista de la ▾
+  del «+» de las terminales; en Windows también desde la Jump List (clic derecho en el icono de la
+  barra de tareas), aunque Tessera esté cerrada, y sus ventanas llevan su propio icono y su propio
+  grupo en la barra; en macOS desde el menú del Dock y el menú Ventana; en Linux desde el clic
+  derecho en el lanzador. Puedes abrir varias.
+- **Cerrar la ventana principal ya no cierra tus ventanas de agente.** Su agente sigue trabajando y
+  Tessera termina al cerrar la última ventana; la principal vuelve a abrirse desde el icono, la Jump
+  List o el Dock. «Actualizar los agentes de tu equipo» también reinicia las sesiones de las ventanas
+  de agente retomando su conversación, y tras «Reiniciar para actualizar» Tessera las vuelve a abrir
+  donde estaban.
+- **Con poca memoria en el equipo, Tessera hiberna antes los agentes que no estás usando.** El plazo
+  baja a 2 minutos con las mismas protecciones de siempre (nunca el que estás mirando ni uno que
+  trabaja), te avisa una vez con un botón para hibernarlos ya, y si un agente se cae por falta de
+  memoria, su terminal lo dice. Al volver a un proyecto, su agente retoma la conversación. Con el
+  ajuste en «Nunca», no hiberna.
+- **El agente de base de datos también puede correr en Docker.** Lo eliges en su botón de cuenta, como
+  en cualquier otro agente, y sigue viendo las bases que le montes.
+
+### Interfaz
+
+- **La red del contenedor se llama por lo que es: «propia» o «la de tu equipo».**
+- **El agente de base de datos se puede maximizar.** Su botón de maximizar tapa las tablas y consolas
+  abiertas sin cerrarlas y le da al agente todo el ancho junto al árbol de conexiones; «Restaurar»
+  las devuelve tal como estaban. Sin ninguna abierta, el agente ocupa todo el espacio, como en Archivos.
+- **El icono de la vista sigue con el color del perfil mientras escribes en su agente.** «Archivos» o
+  «Conexiones a bases de datos» no se apagan al pasar al agente del proyecto, ni «Terminal», a
+  pantalla completa, al pasar al agente de la terminal. Los de Git siguen igual: allí no hay agente.
+- **El lanzador de conexiones SSH es más corto.** Se quitan «Conexiones recientes» (los grupos y el
+  buscador ya llevan a cada una) y «Actividad de los agentes…»: lo que hacen los agentes con `tssh`
+  sigue apuntado en `logs/ssh.log`, sin la orden ni las rutas.
+- **El pie de cada agente dice de un vistazo de qué perfil es y dónde vive.** El rótulo «Agente de la
+  terminal», «Agente de base de datos» o el nombre del proyecto va ahora relleno del color del perfil,
+  así que al volver a un perfil se reconoce en qué agente se estaba trabajando.
+
+### Rendimiento y estabilidad
+
+- **Los agentes en Docker se recuperan solos cuando Docker falla.** Tessera
+  vigila sus contenedores: si uno muere, lo sabe al momento y lo recrea con reintentos espaciados, en
+  vez de dos seguidos que fallaban mientras Docker Desktop arrancaba. Si Docker se cae, la sesión
+  espera y vuelve sola en cuanto responde, sin pulsar «Reintentar». Y si Docker se queda sin memoria y el
+  sistema para un agente, lo dice así en lugar de «el agente terminó».
+
+### Correcciones
+
+- **Cerrar la terminal local ya no deja el panel vacío si queda una pestaña SSH.** Con una pestaña SSH
+  que venía del arranque anterior, cerrar la local dejaba la pestaña en la cabecera sin enseñarla, y
+  con el agente de la terminal abierto este ocupaba todo el sitio. Ahora pasa a verse la SSH y se
+  conecta.
+- **Los agentes a pantalla completa ya no tienen una segunda barra de desplazamiento.** Claude Code a
+  pantalla completa se desplaza solo, pero la terminal le añadía la suya: una barra que no movía nada
+  o que, arrastrada hasta abajo, tapaba las últimas filas y el cuadro del prompt hasta que el agente
+  se repintaba. Ahora, como en una terminal del sistema, mientras un programa usa toda la pantalla
+  (un agente, `vim`, `less`) la terminal no enseña barra, en todos los sitios donde se abre una.
+- **Cuando un agente termina, el aviso nombra el botón que hay.** Decía «Usa Reiniciar» y el botón
+  del pie se llama «Reabrir».
+- **Eliminar un agente manual de Docker borra también sus cuentas y su carpeta.** Se quedaban en el
+  perfil, y definir otro agente con el mismo nombre las recuperaba con la sesión iniciada. El diálogo
+  de borrado lo avisa; los archivos de los proyectos no se tocan.
+
+### Seguridad
+
+- **En modo Docker, cada cuenta de agente trabaja en su propio contenedor.** Las credenciales de una
+  cuenta ya no están al alcance de los agentes de otra. El contenedor de una cuenta se para solo a los 2 minutos de
+  cerrar su último agente, para que no consuma si no lo usas. Las cuentas de Codex inician sesión
+  por navegador, como siempre, aunque tu empresa tenga desactivado el inicio por código: el enlace sale
+  en la terminal y Tessera lleva la vuelta del navegador al contenedor de esa cuenta, también cuando es
+  Codex quien la pide porque tu sesión caducó. Se inicia sesión
+  en una cuenta a la vez; si otra está a medias, Tessera te dice cuál. Ningún contenedor abre puertos a
+  tu equipo.
+
 ## [0.81.0] - 2026-10-16
 
 ### Novedades

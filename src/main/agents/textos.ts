@@ -91,10 +91,42 @@ export const txAgentes = crearTextos(
       claudeServidorSinVersion: 'El servidor de versiones de Claude Code no dio una versión exacta.',
       claudeError: (err: string) => `No se pudo consultar la última versión de Claude Code: ${err}.`
     },
+    cupo: {
+      sinSitio: (limite: number) =>
+        `Hay ${limite} contenedores de Docker abiertos, el límite que pusiste, y no se puede parar ninguno: ` +
+        'todos tienen agentes trabajando o son agentes manuales. Espera a que alguno termine, ciérralo, o ' +
+        'sube el límite en Configuración › Contenedores Docker.',
+      ocupadoPorTerminales: (limite: number) =>
+        `El límite de ${limite} contenedores de Docker lo ocupan terminales Docker abiertas, que no se paran ` +
+        'solas. Cierra alguna o sube el límite en Configuración › Contenedores Docker.',
+      noSePudoParar: (id: string) => `No se pudo parar el contenedor "${id}" para hacer sitio: no se sabe de qué perfil es.`
+    },
     cuentas: {
       sinNombre: 'El nombre de la cuenta no puede estar vacío.',
       sinPerfil: 'Una cuenta requiere un perfil.',
-      yaTiene: 'Este perfil ya tiene una cuenta para este agente.'
+      nombreRepetido: (nombre: string) => `Ya hay una cuenta llamada «${nombre}» para este agente en este perfil.`,
+      nombreLargo: (max: number) => `El nombre de la cuenta no puede pasar de ${max} caracteres.`,
+      manualSinCierreSesion:
+        'Un agente manual no tiene un cierre de sesión que Tessera conozca: inicia y cierra sesión dentro de él, o elimina la cuenta.',
+      predeterminadaNoSeBorra: 'La cuenta predeterminada del perfil no se elimina: cierra su sesión.',
+      predeterminadaNoSeRenombra: 'La cuenta predeterminada del perfil no se renombra.',
+      cuentaDesconocida: (id: string) => `Cuenta de agente desconocida: «${id}».`,
+      agenteDesconocido: (id: string) => `Agente desconocido: «${id}».`,
+      perfilDesconocido: (id: string) => `Perfil desconocido: «${id}».`
+    },
+    loginCodex: {
+      predeterminada: 'Predeterminada',
+      enCursoTitulo: 'Ya hay un inicio de sesión de Codex en curso',
+      enCurso: (cuenta: string, perfil: string) =>
+        `Es el de la cuenta «${cuenta}» del perfil «${perfil}». Solo se puede iniciar sesión en una cuenta de Codex a la vez. ` +
+        'Termínalo (o cierra esa pestaña) y pulsa «Reintentar».',
+      mismaCuentaTitulo: (cuenta: string) => `La cuenta «${cuenta}» ya está iniciando sesión en otra pestaña`,
+      mismaCuenta: 'Termina el inicio de sesión en esa pestaña y pulsa «Reintentar».',
+      puertoOcupadoTitulo: 'El inicio de sesión de Codex no podrá terminar',
+      puertoOcupadoDetalle: (cuenta: string, puerto: number, tuEquipo: string) =>
+        `Tessera no pudo usar el puerto ${puerto} de ${tuEquipo}, al que vuelve el navegador al iniciar sesión en Codex: ` +
+        'lo tiene otro programa (por ejemplo, un Codex que está iniciando sesión fuera de Tessera) o el sistema lo reserva. ' +
+        `Libéralo y vuelve a abrir la cuenta «${cuenta}».`
     },
     contexto: {
       comandoFallo: 'El comando del contexto falló',
@@ -195,10 +227,42 @@ export const txAgentes = crearTextos(
       claudeServidorSinVersion: 'The Claude Code version server did not give an exact version.',
       claudeError: (err: string) => `Could not check the latest version of Claude Code: ${err}.`
     },
+    cupo: {
+      sinSitio: (limite: number) =>
+        `There are ${limite} Docker containers open, the limit you set, and none can be stopped: ` +
+        'they all have agents working or are manual agents. Wait for one to finish, close one, or ' +
+        'raise the limit in Settings › Docker containers.',
+      ocupadoPorTerminales: (limite: number) =>
+        `The limit of ${limite} Docker containers is taken by open Docker terminals, which are not stopped ` +
+        'on their own. Close one or raise the limit in Settings › Docker containers.',
+      noSePudoParar: (id: string) => `Could not stop container "${id}" to make room: its profile is unknown.`
+    },
     cuentas: {
       sinNombre: 'The account name cannot be empty.',
       sinPerfil: 'An account requires a profile.',
-      yaTiene: 'This profile already has an account for this agent.'
+      nombreRepetido: (nombre: string) => `There is already an account called “${nombre}” for this agent in this profile.`,
+      nombreLargo: (max: number) => `The account name cannot be longer than ${max} characters.`,
+      manualSinCierreSesion:
+        'A manual agent has no sign-out that Tessera knows about: sign in and out inside it, or delete the account.',
+      predeterminadaNoSeBorra: 'The profile’s default account cannot be deleted: sign out of it instead.',
+      predeterminadaNoSeRenombra: 'The profile’s default account cannot be renamed.',
+      cuentaDesconocida: (id: string) => `Unknown agent account: “${id}”.`,
+      agenteDesconocido: (id: string) => `Unknown agent: “${id}”.`,
+      perfilDesconocido: (id: string) => `Unknown profile: “${id}”.`
+    },
+    loginCodex: {
+      predeterminada: 'Default',
+      enCursoTitulo: 'A Codex sign-in is already in progress',
+      enCurso: (cuenta: string, perfil: string) =>
+        `It is for account “${cuenta}” in profile “${perfil}”. You can only sign in to one Codex account at a time. ` +
+        'Finish it (or close that tab) and click “Retry”.',
+      mismaCuentaTitulo: (cuenta: string) => `Account “${cuenta}” is already signing in in another tab`,
+      mismaCuenta: 'Finish signing in in that tab and click “Retry”.',
+      puertoOcupadoTitulo: 'The Codex sign-in will not be able to finish',
+      puertoOcupadoDetalle: (cuenta: string, puerto: number, tuEquipo: string) =>
+        `Tessera could not use port ${puerto} on ${tuEquipo}, where the browser returns when signing in to Codex: ` +
+        'another program holds it (for example, a Codex signing in outside Tessera) or the system reserves it. ' +
+        `Free it and open account “${cuenta}” again.`
     },
     contexto: {
       comandoFallo: 'The context command failed',

@@ -65,6 +65,9 @@ function materialIconsPlugin(): Plugin {
   }
 }
 
+/** La segunda pasada de `scripts/compilar.mjs`: solo la página de la ventana de agente. */
+const PAGINA_AGENTE = process.env.TESSERA_COMPILAR_PAGINA === 'agente'
+
 export default defineConfig({
   main: {
     plugins: [externalizeDepsPlugin()],
@@ -100,10 +103,8 @@ export default defineConfig({
       // host: true => escucha en 0.0.0.0; strictPort => falla si está ocupado en vez de
       // saltar a otro puerto (esconder la colisión dejaría el arranque no determinista: la
       // ventana cargaría de un puerto distinto cada vez). El puerto NO puede ser 1455: es
-      // también `CODEX_CALLBACK_PORT` (SandboxManager.ts) y Docker Desktop lo publica en
-      // `127.0.0.1:1455` en cuanto un perfil con Codex levanta su contenedor, así que
-      // `npm run dev` abortaba con «Port 1455 is already in use» según qué perfiles
-      // tuvieras arriba.
+      // el de la vuelta del login de Codex, que Tessera escucha mientras una cuenta en
+      // Docker inicia sesión (`agents/loginCodex.ts`).
       host: true,
       port: 1460,
       strictPort: true
@@ -129,9 +130,19 @@ export default defineConfig({
       // que se acababan de ahorrar. Los de los workers se excluyen del INSTALADOR en
       // `electron-builder.yml`; aquí se emiten igual, para poder depurarlos en local.
       sourcemap: true,
-      rollupOptions: {
-        input: resolve(__dirname, 'src/renderer/index.html')
-      }
+      // Dos páginas, cada una en su pasada (`scripts/compilar.mjs`). Juntas, rollup saca lo común
+      // a un trozo compartido que se enlaza antes que el CSS propio de la principal, y su cascada
+      // cambia: las reglas de igual especificidad ganan por orden. La de agente
+      // (`src/renderer/src/agente.tsx`) declara además los `index.ts` de las features sin efectos
+      // (solo reexportan, lo vigila `test:ciclos`), para no arrastrar el editor por un barril.
+      // Decisiones: docs/decisiones/agentes/ventana-de-agente.md
+      emptyOutDir: !PAGINA_AGENTE,
+      rollupOptions: PAGINA_AGENTE
+        ? {
+            input: { agente: resolve(__dirname, 'src/renderer/agente.html') },
+            treeshake: { moduleSideEffects: (id) => !/[\\/]features[\\/][^\\/]+[\\/]index\.tsx?$/.test(id) }
+          }
+        : { input: { index: resolve(__dirname, 'src/renderer/index.html') } }
     },
     // Conserva los nombres de funciones y clases al minificar. Es un seguro barato, no
     // una necesidad demostrada: se auditó y no hay un solo `constructor.name` ni

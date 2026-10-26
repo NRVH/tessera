@@ -84,7 +84,13 @@ export function buildAgentLaunchCommand(
   const aviso = argumentoBriefing(briefing, agente, citarSh)
   if (aviso) args.push(aviso)
 
-  const invocation = args.length > 0 ? `exec ${binary} ${args.join(' ')}` : `exec ${binary}`
+  const agenteSolo = args.length > 0 ? `exec ${binary} ${args.join(' ')}` : `exec ${binary}`
+  // Codex sin sesión en su cuenta: primero el login por navegador (el enlace sale en la terminal y la
+  // vuelta la trae el puente del 1455 de Tessera), y el agente solo si salió bien. Por navegador y no por
+  // código: una cuenta de empresa puede tener el código desactivado. Se mira al arrancar, así que vale
+  // igual al relanzar.
+  const invocation =
+    agente === 'codex' ? `{ [ -f "$CODEX_HOME/auth.json" ] || ${binary} login; } && ${agenteSolo}` : agenteSolo
   return composeCleanGitCommand(invocation, {
     agente,
     containerConfigPath,

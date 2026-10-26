@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // =============================================================================
 // Prueba del hueco de los botones de la ventana (node src/renderer/src/theme/test-chrome-ventana.mts).
-// Sobre todo un test de texto: lee main/app/ventana.ts, styles.css y theme/chromeVentana.ts,
-// sin comentarios, y comprueba que siguen de acuerdo (`.titlebar` en las dos plataformas,
-// las opciones de la ventana, ningún ancho fijo del semáforo, la pantalla completa de Mac).
+// Sobre todo un test de texto: lee main/app/ventana.ts, styles.css, theme/chromeVentana.ts y el
+// arranque de los dos renderers, sin comentarios, y comprueba que siguen de acuerdo (`.titlebar`
+// y la barra de la ventana de agente, las opciones de la ventana, ningún ancho fijo del semáforo,
+// la pantalla completa de Mac).
 // Ejecuta además `seguirSemaforo` con un overlay falso.
 // Decisiones: docs/decisiones/renderer/hueco-de-botones-de-ventana.md
 // =============================================================================
@@ -55,6 +56,9 @@ const stylesCss = sinComentarios(leer('../styles.css'))
 const ventanaTs = sinComentarios(leer('../../../main/app/ventana.ts'))
 const chromeVentanaTs = sinComentarios(leer('./chromeVentana.ts'))
 const mainTsx = sinComentarios(leer('../main.tsx'))
+const agenteTsx = sinComentarios(leer('../agente.tsx'))
+const arranqueTs = sinComentarios(leer('../util/arranqueRenderer.ts'))
+const ventanaAgenteCss = sinComentarios(leer('../features/agentes/ventanaAgente/ventanaAgente.css'))
 
 // -----------------------------------------------------------------------------
 hr('(1) .titlebar en macOS: el hueco lo da env(titlebar-area-x) y va a la izquierda')
@@ -121,8 +125,12 @@ hr('(5) chromeVentana.ts exporta sólo marcarPlataforma y seguirSemaforo')
     JSON.stringify(exportadas) === JSON.stringify(['marcarPlataforma', 'seguirSemaforo']),
     JSON.stringify(exportadas)
   )
-  check('main.tsx la importa y la llama', /marcarPlataforma\(\)/.test(mainTsx) && /from '\.\/theme\/chromeVentana'/.test(mainTsx), `importa=${/from '\.\/theme\/chromeVentana'/.test(mainTsx)} llama=${/marcarPlataforma\(\)/.test(mainTsx)}`)
-  check('main.tsx llama también a seguirSemaforo()', /seguirSemaforo\(\)/.test(mainTsx), /seguirSemaforo\(\)/.test(mainTsx) ? 'llama' : 'no la llama')
+  // El arranque común de los dos renderers (la principal y la ventana de agente) es quien las llama.
+  check('arranqueRenderer la importa y la llama', /marcarPlataforma\(\)/.test(arranqueTs) && /from '\.\.\/theme\/chromeVentana'/.test(arranqueTs), `importa=${/from '\.\.\/theme\/chromeVentana'/.test(arranqueTs)} llama=${/marcarPlataforma\(\)/.test(arranqueTs)}`)
+  check('arranqueRenderer llama también a seguirSemaforo()', /seguirSemaforo\(\)/.test(arranqueTs), /seguirSemaforo\(\)/.test(arranqueTs) ? 'llama' : 'no la llama')
+  check('main.tsx y agente.tsx hacen el arranque común', /arrancarRenderer\(\)/.test(mainTsx) && /arrancarRenderer\(\)/.test(agenteTsx), `main=${/arrancarRenderer\(\)/.test(mainTsx)} agente=${/arrancarRenderer\(\)/.test(agenteTsx)}`)
+  const reglaMac = reglaCss(ventanaAgenteCss, ":root[data-plataforma='mac'] .ventana-agente-barra")
+  check('la barra de la ventana de agente deja en Mac el hueco del semáforo', /padding-left:\s*env\(titlebar-area-x,/.test(reglaMac ?? ''), reglaMac?.trim().replace(/\s+/g, ' ') ?? 'sin regla')
 }
 
 // -----------------------------------------------------------------------------

@@ -10,7 +10,6 @@ import { ConfirmDialog } from '../../comun/ConfirmDialog'
 import { notify } from '../../comun/notifications'
 import { PromptDialog } from '../../comun/PromptDialog'
 import type { SshConexion, SshGrupo } from '../../../../shared/ssh-ipc'
-import { DialogoActividadSsh } from './DialogoActividadSsh'
 import { DialogoConexionSsh } from './DialogoConexionSsh'
 import { DialogoImportarOpenSsh } from './DialogoImportarOpenSsh'
 import { DialogoMoverSsh } from './DialogoMoverSsh'
@@ -191,6 +190,5 @@ export function DialogosSsh(): React.JSX.Element | null {
   if (dialogo.tipo === 'olvidarHuella') return <ConfirmarOlvidarHuella conexion={dialogo.conexion} />
   if (dialogo.tipo === 'eliminarConexiones') return <ConfirmarEliminarConexiones perfilId={dialogo.perfilId} conexiones={dialogo.conexiones} />
   if (dialogo.tipo === 'moverConexiones') return <DialogoMoverSsh perfilId={dialogo.perfilId} conexiones={dialogo.conexiones} />
-  if (dialogo.tipo === 'actividad') return <DialogoActividadSsh perfilId={dialogo.perfilId} alias={dialogo.alias} />
   return <ConfirmarEliminarGrupo grupo={dialogo.grupo} conexiones={dialogo.conexiones} />
 }

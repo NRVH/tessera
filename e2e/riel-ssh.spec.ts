@@ -211,6 +211,10 @@ test.describe.serial('El riel de conexiones SSH a pantalla completa', () => {
 
     // Su cabecera es la de los laterales: el título y sus acciones.
     await expect(riel().locator('.sidebar-header .sidebar-title')).toHaveText('Conexiones SSH')
+    // Y al pie, como en el lanzador, «Nueva ventana de agente» con su «i».
+    const ventana = riel().getByRole('button', { name: 'Nueva ventana de agente', exact: true })
+    await expect(ventana, 'el pie del riel ofrece «Nueva ventana de agente»').toBeVisible()
+    await expect(ventana.locator('.ssh-pie-info')).toHaveAttribute('title', /ventana aparte/)
     for (const nombre of ['Nueva conexión SSH…', 'Nuevo grupo…', 'Importar desde OpenSSH…', 'Exportar a OpenSSH…', 'Ocultar la lista']) {
       await expect(riel().getByRole('button', { name: nombre }), `la cabecera ofrece «${nombre}»`).toBeVisible()
     }
@@ -617,7 +621,7 @@ test.describe.serial('El riel de conexiones SSH a pantalla completa', () => {
     await win.keyboard.press('Escape')
     await expect(popover()).toHaveCount(0)
 
-    // Al abrir una conexión desde el riel, el lanzador la pone la primera de las recientes, sin abrir su grupo.
+    // Al abrir una conexión desde el riel, el lanzador no abre su grupo.
     await conmutador().click()
     await expect(riel()).toBeVisible()
     await riel().getByRole('treeitem', { name: /^Alfa 1,/ }).dblclick()
@@ -628,7 +632,6 @@ test.describe.serial('El riel de conexiones SSH a pantalla completa', () => {
     await flecha().click()
     await expect(grupoLanzador('Alfa'), 'se mira «Alfa 1», pero su grupo no se abre solo').toHaveAttribute('aria-expanded', 'false')
     await expect(grupoLanzador('Beta')).toHaveAttribute('aria-expanded', 'false')
-    await expect(popover().getByRole('treeitem').first(), 'y es la primera de las recientes').toHaveAccessibleName(/^Reciente, Alfa 1,/)
     await win.keyboard.press('Escape')
   })
 

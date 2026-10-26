@@ -57,7 +57,15 @@ async function deVerdad(dir: string): Promise<void> {
   fs.writeFileSync(grande, Array.from({ length: 3000 }, (_, i) => linea(i % 900)).join('\n') + '\n' + linea(500) + '\n', 'utf8')
   const final = await leerFinal(grande, 4096)
   check('el final de un archivo grande, sin pasar del tope', final.length <= 4096 && final.trimEnd().endsWith(linea(500)), `${final.length} bytes`)
-  const sesion: SesionConContexto = { profileId: 'p', projectHostPath: dir, host: true, home: '', fuente: { ...fuente, valor: 'grande.jsonl' } }
+  const sesion: SesionConContexto = {
+    profileId: 'p',
+    agente: 'm-prueba',
+    accountId: 'manual',
+    projectHostPath: dir,
+    host: true,
+    home: '',
+    fuente: { ...fuente, valor: 'grande.jsonl' }
+  }
   const deps: DepsContexto = {
     plataforma: aqui,
     homedir: os.homedir(),

@@ -18,15 +18,19 @@ lanzarlos donde se lanzan los suyos, con el mismo aislamiento.
 - **Lo que se define:** nombre y comando, obligatorios; cómo reanudar (`--continue`) y, en Docker, las
   órdenes de instalación, opcionales; y si se ofrece también como agente de la terminal. El id sale del
   nombre (`m-` y un slug), porque acaba en rutas del perfil y en una línea de `sh`.
-- **Alcance según el modo, como las cuentas:** los manuales nativos son de todo el equipo (los ven
-  todos los perfiles); los de Docker, solo del perfil donde se añadieron. Las pestañas de un proyecto
-  son las de serie visibles más los manuales de su modo. Todo vive en los ajustes (`agentesNativos`,
+- **Alcance según dónde corre, como las cuentas:** los manuales nativos son de todo el equipo (los ven
+  todos los perfiles); los de Docker, solo del perfil donde se añadieron. Al definir uno se elige
+  dónde corre y no cambia después (`modo-por-agente.md`). Las pestañas de un proyecto son las de
+  serie visibles, los manuales nativos y los de Docker de su perfil. Todo vive en los ajustes (`agentesNativos`,
   `agentesDockerPorPerfil`, `agentesOcultosPorPerfil`), con el mismo saneado que el resto.
 - **Las carpetas las decide Tessera.** En Docker, cada agente manual tiene su `HOME` persistente por
   perfil, junto a las cuentas de los de serie (`.tessera/perfiles/<perfil>/<agente>/`), montado con el
   mismo mecanismo que sus credenciales: lo que el programa guarde en `~/.algo` sobrevive a recrear el
   contenedor sin que nadie diga dónde lo guarda. Las llaves no se mueven: ssh lee `~/.ssh` del usuario
-  del sistema, no de `$HOME`. En nativo usa la carpeta personal de siempre.
+  del sistema, no de `$HOME`. En nativo usa la carpeta personal de siempre. Esa carpeta es su cuenta
+  predeterminada; se pueden crear otras, cada una con su `HOME` y su contenedor
+  (`cuentas-por-perfil-y-agente.md`). No tienen «cerrar sesión»: Tessera no sabe qué archivos son su
+  credencial, así que solo se eliminan.
 - **El comando se lanza tal cual**, por la shell de las sesiones nativas o bajo el `env -i` del
   contenedor con sus `.local/bin` delante del PATH, y sin `exec` (puede llevar sintaxis de shell).
   Reanudar se añade al abrir; «Nueva conversación» lanza sin ello, y recargar reanuda siempre.
@@ -62,6 +66,10 @@ lanzarlos donde se lanzan los suyos, con el mismo aislamiento.
   mosaico los ordena detrás de los de serie.
 - Cambiar las órdenes de instalación reinicia los agentes vivos del perfil, igual que «Actualizar
   agentes». Eliminar un agente manual no reconstruye la capa: lo instalado se queda hasta la siguiente.
+- Eliminar un agente manual de Docker cierra sus sesiones del perfil y borra sus cuentas y sus carpetas
+  (la predeterminada incluida): como el id sale del nombre, otro agente con el mismo nombre heredaría
+  su login. El main valida el perfil y el id antes de borrar. En nativo no se borra nada: su carpeta es
+  la personal del usuario.
 - Borrar un perfil borra también su capa.
 
 ## Descartes

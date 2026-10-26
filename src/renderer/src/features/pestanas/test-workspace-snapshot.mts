@@ -6,8 +6,7 @@
 // repoState, el round-trip a disco, la reconstrucción de openProjects y activePath, la proyección incremental
 // (no cambia al escanear repos, sí al abrir, cerrar, activar o reordenar), la normalización defensiva y los
 // ajustes por perfil: vistas, mosaico, grupos SSH plegados, el riel de conexiones SSH (ancho global y
-// visibilidad), el lanzador (las conexiones recientes, y que un archivo con el grupo abierto que ya no se
-// guarda se lea sin error) y si se ve el agente de la terminal.
+// visibilidad), el lanzador (que un archivo con ajustes que ya no se guardan se lea sin error) y si se ve el agente de la terminal.
 // =============================================================================
 
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
@@ -34,17 +33,13 @@ import {
 import {
   conAgenteTerminalVisible,
   conPlegado,
-  conReciente,
   conRielVisible,
   podarMapaPorPerfil,
-  podarRecientes,
-  SSH_RECIENTES_MAX,
   SSH_RIEL_ANCHO_MAX,
   SSH_RIEL_ANCHO_MIN,
   SSH_RIEL_ANCHO_POR_DEFECTO,
   type AgenteTerminalVisiblePorPerfil,
   type SshGruposPlegadosPorPerfil,
-  type SshRecientesPorPerfil,
   type SshRielVisiblePorPerfil
 } from '../../../../shared/ajustesTerminal.ts'
 import type { DetectedRepo } from '../../../../shared/workspace-ipc.ts'
@@ -1485,81 +1480,23 @@ hr('(15) SETTINGS del agente de la terminal: si se ve a pantalla completa, por P
 }
 
 // ---------------------------------------------------------------------------
-hr('(16) SETTINGS del lanzador de conexiones SSH: las conexiones recientes, por PERFIL')
+hr('(16) SETTINGS del lanzador de conexiones SSH: las claves retiradas se ignoran')
 // ---------------------------------------------------------------------------
-// `sshRecientesPorPerfil` (ids de conexión, la más reciente primero, hasta tres). Lo que se fija: el valor
-// por defecto, que se descarta la ENTRADA mala y nunca el mapa entero (ni a los vecinos), que los ids se
-// guardan sin repetir y sin pasar de tres, que sobreviven al disco y las operaciones puras del store. Y que
-// un archivo escrito antes de retirar `sshGrupoAbiertoPorPerfil` (el grupo que dejaba abierto el lanzador)
-// se lee sin error, con esa clave ignorada y sin que los demás ajustes se resientan.
+// Un archivo escrito con `sshGrupoAbiertoPorPerfil` (el grupo que dejaba abierto el lanzador) o con
+// `sshRecientesPorPerfil` (sus conexiones recientes) se lee sin error, con esas claves ignoradas y sin que
+// los demás ajustes se resientan; al volver a guardar lo leído ya no están en el disco.
 {
   const ajustes = (settings: unknown): Record<string, unknown> | undefined =>
     normalizeWorkspaceState({ version: 1, activeProfileId: null, byProfile: {}, settings })?.settings as
       | Record<string, unknown>
       | undefined
-  const recientes = (raw: unknown): unknown => ajustes({ sshRecientesPorPerfil: raw })?.sshRecientesPorPerfil
+  const RETIRADAS = ['sshGrupoAbiertoPorPerfil', 'sshRecientesPorPerfil']
   check(
-    '(16.1) por defecto: ninguna reciente, en DEFAULT_SETTINGS y sin la clave en el archivo; y el grupo abierto ya no es un ajuste',
-    eq(DEFAULT_SETTINGS.sshRecientesPorPerfil, {}) && eq(recientes(undefined), {}) && !('sshGrupoAbiertoPorPerfil' in DEFAULT_SETTINGS),
+    '(16.1) por defecto no hay ajustes de grupo abierto ni de recientes',
+    RETIRADAS.every((k) => !(k in DEFAULT_SETTINGS)),
     JSON.stringify(Object.keys(DEFAULT_SETTINGS).filter((k) => k.startsWith('ssh')))
   )
-  check(
-    '(16.2) las recientes conservan lo válido y su orden (la más reciente primero)',
-    eq(recientes({ alfa: ['c3', 'c1'], beta: ['c2'] }), { alfa: ['c3', 'c1'], beta: ['c2'] }),
-    JSON.stringify(recientes({ alfa: ['c3', 'c1'], beta: ['c2'] }))
-  )
-  check(
-    '(16.3) en un perfil, un id que no es de conexión, está repetido o no es texto se descarta; el resto se queda',
-    eq(recientes({ alfa: ['c1', 'c 1', 'c/1', 'c1', 7, '', 'c2'] }), { alfa: ['c1', 'c2'] }),
-    JSON.stringify(recientes({ alfa: ['c1', 'c 1', 'c/1', 'c1', 7, '', 'c2'] }))
-  )
-  check(
-    '(16.4) no pasan de tres: se queda con las tres primeras, que son las más recientes',
-    SSH_RECIENTES_MAX === 3 && eq(recientes({ alfa: ['c1', 'c2', 'c3', 'c4', 'c5'] }), { alfa: ['c1', 'c2', 'c3'] }),
-    JSON.stringify(recientes({ alfa: ['c1', 'c2', 'c3', 'c4', 'c5'] }))
-  )
-  check(
-    '(16.5) una entrada mala se descarta sola y un perfil sin ninguna no ocupa entrada',
-    eq(recientes({ alfa: ['c1'], malo: 'c2', otro: [1, null, {}], '': ['c3'], vacio: [], beta: ['c2'] }), { alfa: ['c1'], beta: ['c2'] }),
-    JSON.stringify(recientes({ alfa: ['c1'], malo: 'c2', otro: [1, null, {}], '': ['c3'], vacio: [], beta: ['c2'] }))
-  )
-  check(
-    '(16.6) un mapa que no es un objeto plano vuelve a vacío, sin romper la carga',
-    [null, 'alfa', 7, ['alfa'], true].every((raw) => eq(recientes(raw), {})),
-    'null/texto/número/array/booleano -> {}'
-  )
-  const conVecinos = ajustes({
-    sshRecientesPorPerfil: 7,
-    sshGruposPlegadosPorPerfil: { alfa: ['g1'] },
-    sshRielVisiblePorPerfil: { alfa: false }
-  })
-  check(
-    '(16.7) un valor malo no se lleva a sus vecinos (los plegados y el riel de SSH)',
-    eq(conVecinos?.sshRecientesPorPerfil, {}) &&
-      eq(conVecinos?.sshGruposPlegadosPorPerfil, { alfa: ['g1'] }) &&
-      eq(conVecinos?.sshRielVisiblePorPerfil, { alfa: false }),
-    JSON.stringify([conVecinos?.sshRecientesPorPerfil, conVecinos?.sshGruposPlegadosPorPerfil, conVecinos?.sshRielVisiblePorPerfil])
-  )
-  const dir9 = mkdtempSync(path.join(tmpdir(), 'tessera-ws-lanzador-'))
-  const file9 = path.join(dir9, 'workspace-state.json')
-  writeFileSync(
-    file9,
-    JSON.stringify(
-      normalizeWorkspaceState({ version: 1, activeProfileId: null, byProfile: {}, settings: { sshRecientesPorPerfil: { alfa: ['c2', 'c1'] } } }),
-      null,
-      2
-    ) + '\n',
-    'utf-8'
-  )
-  const back9 = normalizeWorkspaceState(JSON.parse(readFileSync(file9, 'utf-8')))?.settings as Record<string, unknown> | undefined
-  check(
-    '(16.8) round-trip: las recientes sobreviven a escribir->leer->normalize',
-    eq(back9?.sshRecientesPorPerfil, { alfa: ['c2', 'c1'] }),
-    JSON.stringify(back9?.sshRecientesPorPerfil)
-  )
-  // El archivo de la versión anterior: todavía trae el grupo abierto. Se lee, la clave se ignora y, al volver a
-  // guardar lo leído, ya no está en el disco.
-  const dirViejo = mkdtempSync(path.join(tmpdir(), 'tessera-ws-grupo-abierto-'))
+  const dirViejo = mkdtempSync(path.join(tmpdir(), 'tessera-ws-retiradas-'))
   const fileViejo = path.join(dirViejo, 'workspace-state.json')
   writeFileSync(
     fileViejo,
@@ -1578,54 +1515,25 @@ hr('(16) SETTINGS del lanzador de conexiones SSH: las conexiones recientes, por 
   )
   const viejo = normalizeWorkspaceState(JSON.parse(readFileSync(fileViejo, 'utf-8')))
   check(
-    '(16.9) un archivo que aún trae `sshGrupoAbiertoPorPerfil` se lee sin error y la clave no pasa a los ajustes',
-    viejo !== null && !('sshGrupoAbiertoPorPerfil' in (viejo.settings ?? {})),
+    '(16.2) un archivo que aún trae las claves retiradas se lee sin error y no pasan a los ajustes',
+    viejo !== null && RETIRADAS.every((k) => !(k in (viejo.settings ?? {}))),
     viejo === null ? 'null' : JSON.stringify(Object.keys(viejo.settings ?? {}).filter((k) => k.startsWith('ssh')))
   )
   check(
-    '(16.10) y sus vecinos se leen enteros: las recientes, los plegados y el riel',
-    eq(viejo?.settings?.sshRecientesPorPerfil, { alfa: ['c2', 'c1'] }) &&
-      eq(viejo?.settings?.sshGruposPlegadosPorPerfil, { alfa: ['g1'] }) &&
-      eq(viejo?.settings?.sshRielVisiblePorPerfil, { alfa: false }),
-    JSON.stringify([viejo?.settings?.sshRecientesPorPerfil, viejo?.settings?.sshGruposPlegadosPorPerfil, viejo?.settings?.sshRielVisiblePorPerfil])
+    '(16.3) y sus vecinos se leen enteros: los plegados y el riel',
+    eq(viejo?.settings?.sshGruposPlegadosPorPerfil, { alfa: ['g1'] }) && eq(viejo?.settings?.sshRielVisiblePorPerfil, { alfa: false }),
+    JSON.stringify([viejo?.settings?.sshGruposPlegadosPorPerfil, viejo?.settings?.sshRielVisiblePorPerfil])
   )
   writeFileSync(fileViejo, JSON.stringify(viejo, null, 2) + '\n', 'utf-8')
   check(
-    '(16.11) al guardar lo leído el archivo se limpia solo: la clave retirada ya no está en el disco',
-    !readFileSync(fileViejo, 'utf-8').includes('sshGrupoAbiertoPorPerfil'),
-    'sin la clave'
+    '(16.4) al guardar lo leído el archivo se limpia solo: las claves retiradas ya no están en el disco',
+    RETIRADAS.every((k) => !readFileSync(fileViejo, 'utf-8').includes(k)),
+    'sin las claves'
   )
   check(
-    '(16.12) un valor roto en esa clave retirada tampoco rompe la carga',
-    [null, 'malo', 7, ['g1'], { alfa: 7 }].every((raw) => ajustes({ sshGrupoAbiertoPorPerfil: raw }) !== undefined),
+    '(16.5) un valor roto en esas claves tampoco rompe la carga',
+    [null, 'malo', 7, ['g1'], { alfa: 7 }].every((raw) => ajustes({ sshGrupoAbiertoPorPerfil: raw, sshRecientesPorPerfil: raw }) !== undefined),
     'null/texto/número/array/objeto raro -> se lee'
-  )
-  const base: SshRecientesPorPerfil = { alfa: ['c1', 'c2', 'c3'] }
-  check(
-    '(16.13) una conexión nueva se pone la primera y empuja a las demás, sin pasar de tres: la más antigua sale',
-    eq(conReciente(base, 'alfa', 'c9'), { alfa: ['c9', 'c1', 'c2'] }) && eq(conReciente({}, 'alfa', 'c1'), { alfa: ['c1'] }) && eq(conReciente(base, 'beta', 'c7'), { alfa: ['c1', 'c2', 'c3'], beta: ['c7'] }),
-    JSON.stringify([conReciente(base, 'alfa', 'c9'), conReciente(base, 'beta', 'c7')])
-  )
-  check(
-    '(16.14) una ya anotada sube a la primera sin repetirse, y la que ya era la primera devuelve el MISMO objeto',
-    eq(conReciente(base, 'alfa', 'c3'), { alfa: ['c3', 'c1', 'c2'] }) && conReciente(base, 'alfa', 'c1') === base && eq(base, { alfa: ['c1', 'c2', 'c3'] }),
-    JSON.stringify(conReciente(base, 'alfa', 'c3'))
-  )
-  const dos: SshRecientesPorPerfil = { alfa: ['c1', 'c2'], beta: ['c3'] }
-  check(
-    '(16.15) podar las recientes olvida las conexiones que ya no existen, y un perfil que se queda sin ninguna pierde su entrada',
-    eq(podarRecientes(dos, new Set(['c1', 'c3'])), { alfa: ['c1'], beta: ['c3'] }) && eq(podarRecientes(dos, new Set(['c2'])), { alfa: ['c2'] }) && eq(podarRecientes(dos, new Set()), {}),
-    JSON.stringify([podarRecientes(dos, new Set(['c1', 'c3'])), podarRecientes(dos, new Set(['c2']))])
-  )
-  check(
-    '(16.16) y con todas vivas devuelve el MISMO objeto',
-    podarRecientes(dos, new Set(['c1', 'c2', 'c3', 'c4'])) === dos,
-    'misma referencia'
-  )
-  check(
-    '(16.17) la poda genérica por perfil sirve a las recientes: olvida los perfiles que ya no existen',
-    eq(podarMapaPorPerfil(dos, ['beta']), { beta: ['c3'] }),
-    JSON.stringify(podarMapaPorPerfil(dos, ['beta']))
   )
 }
 

@@ -201,8 +201,8 @@ function main(): void {
       j(Object.keys(s).filter((k) => k.startsWith('db')))
     )
     const claves = Object.keys(DEFAULT_SETTINGS).filter((k) => k.startsWith('db') && k !== 'dbMountsByProject')
-    // Los tres de la vista más los cuatro de Configuración › «Bases de datos».
-    // La lista es LITERAL: un campo nuevo tiene que entrar aquí a sabiendas.
+    // Los tres de la vista más los cuatro de Configuración › «Bases de datos». Nativo o Docker es de
+    // cada agente (`agentModeByTarget`), no del espacio. La lista es LITERAL: un campo nuevo tiene que entrar aquí a sabiendas.
     check(
       'de la vista de BD solo se persisten estos siete ajustes',
       j(claves.sort()) ===

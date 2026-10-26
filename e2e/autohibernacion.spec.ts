@@ -3,8 +3,8 @@
 // tests puros no ven (qué está en pantalla, la E/S del pty hasta el reloj del main, la muerte
 // del árbol sin teclear, la terminal de abajo intacta y la vuelta a SU conversación).
 // Usa el agente falso de `agenteFalso.ts` con `callar` y `conNieto`, y un umbral de 3 s por
-// `TESSERA_AGENTE_INACTIVIDAD_MS`; el ajuste sigue en sus 5 minutos de fábrica.
-// Corre en las dos plataformas.
+// `TESSERA_AGENTE_INACTIVIDAD_MS`; el ajuste sigue en sus 5 minutos de fábrica. Con poca memoria
+// forzada, el aviso y su botón. Corre en las dos plataformas.
 // Decisiones: docs/decisiones/agentes/hibernacion-por-inactividad.md
 // =============================================================================
 
@@ -212,5 +212,48 @@ test.describe('hibernación del agente por inactividad', () => {
     const pidAhora = await apuntarPidDeShell(win, join(m.agente.raiz, 'shell-beta-2.txt'))
     expect(pidAhora, 'el pid de la shell no cambió').toBe(pidShellBeta)
     await expect(win.locator('section.terminal-panel .terminal-tab')).toHaveCount(1)
+  })
+})
+
+// Poca memoria forzada (`TESSERA_E2E_POCA_MEMORIA`), con el ajuste de fábrica: sale el aviso y su
+// botón hiberna ya el proyecto oculto y callado, sin tocar el que está en pantalla. Que avise una sola
+// vez por racha lo fija `test-auto-hibernacion.mts`.
+test.describe('hibernación con poca memoria en el equipo', () => {
+  let s: SesionTessera
+  let m: Montaje
+
+  test.afterAll(async () => {
+    await s?.cerrar()
+    if (m) await borrarTemporal(m.agente.raiz)
+  })
+
+  test('avisa y «Hibernar inactivos ahora» hiberna el oculto, no el que se ve', async () => {
+    m = montar()
+    // Callados desde que arrancan: sin turno abierto que la política proteja.
+    m.agente.callar(m.rutas.alfa, true)
+    m.agente.callar(m.rutas.beta, true)
+    // El arnés apaga la hibernación; aquí va con el plazo de fábrica, 5 minutos (2 con poca memoria).
+    s = await abrirTessera(
+      { ...m.agente.env, TESSERA_E2E_POCA_MEMORIA: '1', TESSERA_AGENTE_INACTIVIDAD_MS: '300000' },
+      { sembrar: (datos) => sembrar(datos, m) }
+    )
+    const win = s.win
+    await expect.poll(() => arranquesEn(m, 'alfa').length, { timeout: 60_000 }).toBe(1)
+    // Antes de la primera ronda (a los 5 s): cuando salga el aviso, «alfa» ya está oculto.
+    await pestana(win, 'beta').click()
+    await expect.poll(() => arranquesEn(m, 'beta').length, { timeout: 60_000 }).toBe(1)
+    const pidAlfa = arranquesEn(m, 'alfa')[0].pid
+    const pidBeta = arranquesEn(m, 'beta')[0].pid
+
+    const aviso = win.locator('.toast', { hasText: 'Queda poca memoria en el equipo' })
+    await expect(aviso, 'el aviso de poca memoria').toHaveCount(1, { timeout: 30_000 })
+    // Con el ajuste de fábrica (5 minutos, 2 con poca memoria), nada cae todavía solo.
+    await expect(pestana(win, 'alfa')).not.toHaveClass(/\bhibernated\b/)
+    await aviso.locator('.toast-accion', { hasText: 'Hibernar inactivos ahora' }).click()
+
+    await expect(pestana(win, 'alfa'), 'el oculto se hiberna al momento').toHaveClass(/\bhibernated\b/, { timeout: 15_000 })
+    await expect.poll(() => vivo(pidAlfa), { timeout: 15_000, message: 'y su agente muere' }).toBe(false)
+    expect(vivo(pidBeta), 'el que está en pantalla sigue vivo').toBe(true)
+    await expect(pestana(win, 'beta')).not.toHaveClass(/\bhibernated\b/)
   })
 })

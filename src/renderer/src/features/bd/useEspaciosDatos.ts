@@ -1,13 +1,13 @@
 // =============================================================================
 // Espacios de datos: la carpeta de cada perfil donde vive el agente de datos. Pide
-// sus rutas al main para reconocerlas tras un reinicio, las prepara bajo demanda
-// (siempre en modo nativo) y muestra u oculta el agente de datos del perfil activo.
+// sus rutas al main para reconocerlas tras un reinicio, las prepara bajo demanda y
+// muestra u oculta el agente de datos del perfil activo. Nativo o Docker lo elige cada
+// agente desde su cuenta, como en un proyecto.
 // =============================================================================
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { notifyError } from '../../comun/notifications'
 import { ocultarAgenteDb, useStoreBd } from './store'
-import { asegurarModoNativo, type UseTabs } from '../pestanas'
-import { editorTargetKey } from '../editor'
+import type { UseTabs } from '../pestanas'
 import { txArea } from './textosArea.ts'
 
 /** Espacios de datos conocidos y acciones sobre el agente de datos. */
@@ -36,7 +36,7 @@ function useRutasEspacios(tabs: UseTabs): void {
         if (vivo) useStoreBd.setState({ dbWorkspacePaths: mapa })
       })
       .catch(() => {
-        // Sin este mapa el espacio sigue funcionando; solo se pierde el bloqueo de modo.
+        // Sin este mapa el espacio sigue funcionando; solo se pierde reconocerlo al arrancar.
       })
     return () => {
       vivo = false
@@ -53,7 +53,7 @@ export function useEspaciosDatos(tabs: UseTabs): EspaciosDatos {
     [espacioPathsSet]
   )
   useRutasEspacios(tabs)
-  // La carpeta la crea el main; se fuerza a nativo porque en el contenedor no hay `tdb` ni VPN.
+  // La carpeta la crea el main.
   const asegurarEspacioDeDatos = useCallback(async (perfil: { id: string; nombre: string }): Promise<boolean> => {
     try {
       const ref = await window.tessera.db.ensureWorkspace(perfil.id, perfil.nombre)
@@ -63,7 +63,6 @@ export function useEspaciosDatos(tabs: UseTabs): EspaciosDatos {
             ? s.dbWorkspacePaths
             : { ...s.dbWorkspacePaths, [perfil.id]: ref.projectHostPath }
       }))
-      asegurarModoNativo(editorTargetKey(perfil.id, ref.projectHostPath))
       useStoreBd.setState((s) => ({
         espaciosAbiertos: s.espaciosAbiertos.has(perfil.id) ? s.espaciosAbiertos : new Set(s.espaciosAbiertos).add(perfil.id)
       }))

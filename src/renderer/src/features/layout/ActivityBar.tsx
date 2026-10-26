@@ -12,7 +12,11 @@ import { moverEntreGrupos } from '../../util/gruposRiel'
 import { IconoCambios, IconoRama } from '../git'
 import { IconoBd } from '../bd'
 import { IconoArchivos, IconoTerminal } from '../../comun/iconosPanel'
+import type { ZonaEnfocada } from '../../util/zonaEnfocada'
 import { txLayout } from './textos.ts'
+import type { PanelInferiorCentro } from './layoutCentro'
+import { panelConColor, vistaConColor } from './resaltadoRiel'
+import { useStoreLayout } from './store'
 
 /** Vistas de la columna lateral. */
 export type ActivityView = 'files' | 'git' | 'db'
@@ -64,7 +68,7 @@ interface ActivityBarProps {
    * de la zona donde estás escribiendo se pinta con el color del perfil; el de la que está
    * abierta pero sin foco, en gris.
    */
-  zonaEnfocada?: 'lateral' | 'inferior' | null
+  zonaEnfocada?: ZonaEnfocada
   /** Panel visible en la franja inferior, o null si está cerrada. */
   panelInferior: PanelInferior | null
   /** Alterna la franja: el mismo panel la cierra; otro la sustituye. */
@@ -278,7 +282,8 @@ interface ContextoRiel {
   riel: ArrastreRiel
   active: ActivityView
   onSelect: (view: ActivityView) => void
-  zonaEnfocada: 'lateral' | 'inferior' | null
+  zonaEnfocada: ZonaEnfocada
+  pantallaCompleta: PanelInferiorCentro | null
   panelInferior: PanelInferior | null
   onTogglePanelInferior: (panel: PanelInferior) => void
   gitBadge?: number | null
@@ -292,7 +297,7 @@ function pintarPanel(id: PanelInferior, grupo: Grupo, ctx: ContextoRiel): React.
   return (
     <button
       key={id}
-      className={claseItem(abierto, abierto && ctx.zonaEnfocada === 'inferior', id, ctx.riel)}
+      className={claseItem(abierto, panelConColor(id, abierto, ctx.zonaEnfocada, ctx.pantallaCompleta), id, ctx.riel)}
       title={meta.title}
       aria-label={meta.label}
       aria-pressed={abierto}
@@ -322,8 +327,8 @@ function pintarVista(vista: ActivityView, grupo: Grupo, ctx: ContextoRiel): Reac
   return (
     <button
       key={vista}
-      // La vista lateral solo lleva el color del perfil si el foco está EN la columna.
-      className={claseItem(isActive, isActive && ctx.zonaEnfocada === 'lateral', vista, ctx.riel)}
+      // El color del perfil: el foco en la columna o en el agente que la acompaña (`resaltadoRiel.ts`).
+      className={claseItem(isActive, vistaConColor(vista, isActive, ctx.zonaEnfocada, ctx.pantallaCompleta), vista, ctx.riel)}
       title={meta.label}
       aria-label={ariaLabel}
       aria-pressed={isActive}
@@ -362,11 +367,13 @@ export function ActivityBar({
     if (!mismaLista(arribaNuevo, ids)) onReorder(arribaNuevo)
     if (!mismaLista(abajoNuevo, idsAbajo)) onReorderBottom(abajoNuevo)
   })
+  const pantallaCompleta = useStoreLayout((s) => s.franjaPantallaCompleta)
   const ctx: ContextoRiel = {
     riel,
     active,
     onSelect,
     zonaEnfocada,
+    pantallaCompleta,
     panelInferior,
     onTogglePanelInferior,
     gitBadge

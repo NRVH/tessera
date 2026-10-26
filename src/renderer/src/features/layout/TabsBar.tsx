@@ -12,7 +12,6 @@ import {
   ProjectTabs,
   SelectorPerfil,
   type UseTabs,
-  type DecideProjectMode,
   type ProfileDotState,
   type ProjectDotState
 } from '../pestanas'
@@ -37,12 +36,6 @@ interface TabsBarProps {
   waitingProfiles: Set<string>
   /** Modo minimalista de perfiles: sin banda; un selector en la barra de título. */
   hideProfileNames: boolean
-  /** Claves `${profileId}|${projectHostPath}` de proyectos en modo Windows (host nativo). */
-  windowsModeKeys: Set<string>
-  /** Alterna el modo Windows de un proyecto (host nativo ⇄ Docker aislado). */
-  onToggleWindowsMode: (profileId: string, projectHostPath: string) => void
-  /** Decide/aplica el modo (Windows/Docker) de un proyecto NUEVO antes de abrirlo. */
-  decideProjectMode: DecideProjectMode
   /** ¿El modal de Configuración está abierto? (engranaje presionado). */
   settingsActive: boolean
   /** Abre o CIERRA Configuración. Mismo handler que el atajo Ctrl+,. */
@@ -72,9 +65,6 @@ export function TabsBar({
   workingProfiles,
   waitingProfiles,
   hideProfileNames,
-  windowsModeKeys,
-  onToggleWindowsMode,
-  decideProjectMode,
   settingsActive,
   onToggleSettings,
   mosaicoActivo,
@@ -116,13 +106,7 @@ export function TabsBar({
           waiting={waitingProfiles}
         />
       )}
-      <FranjaProyectos
-        tabs={tabs}
-        dotStates={projectDotStates}
-        windowsModeKeys={windowsModeKeys}
-        onToggleWindowsMode={onToggleWindowsMode}
-        decideProjectMode={decideProjectMode}
-      />
+      <FranjaProyectos tabs={tabs} dotStates={projectDotStates} />
     </div>
   )
 }
@@ -244,29 +228,10 @@ function propsDePerfiles(tabs: UseTabs): {
 interface FranjaProyectosProps {
   tabs: UseTabs
   dotStates: Record<string, ProjectDotState>
-  windowsModeKeys: Set<string>
-  onToggleWindowsMode: (profileId: string, projectHostPath: string) => void
-  decideProjectMode: DecideProjectMode
-}
-
-/** Rutas (del perfil activo) en modo Windows: el subconjunto de las claves que es del perfil visible. */
-function rutasEnModoWindows(
-  activeProfileId: string | null,
-  rutas: string[],
-  windowsModeKeys: Set<string>
-): Set<string> {
-  if (activeProfileId === null) return new Set<string>()
-  return new Set(rutas.filter((path) => windowsModeKeys.has(`${activeProfileId}|${path}`)))
 }
 
 /** Banda de proyectos del perfil activo. */
-function FranjaProyectos({
-  tabs,
-  dotStates,
-  windowsModeKeys,
-  onToggleWindowsMode,
-  decideProjectMode
-}: FranjaProyectosProps): React.JSX.Element {
+function FranjaProyectos({ tabs, dotStates }: FranjaProyectosProps): React.JSX.Element {
   const {
     activeProfile,
     openProjects,
@@ -278,11 +243,6 @@ function FranjaProyectos({
     reordenarProyectos
   } = tabs
   const activeProfileId = activeProfile?.id ?? null
-  const windowsModePaths = rutasEnModoWindows(
-    activeProfileId,
-    openProjects.map((p) => p.projectHostPath),
-    windowsModeKeys
-  )
   return (
     <ProjectTabs
       projects={openProjects}
@@ -296,15 +256,11 @@ function FranjaProyectos({
       onCloseProject={(path) => {
         if (activeProfileId !== null) closeProject(activeProfileId, path)
       }}
-      onOpenProject={() => void openProjectInActiveProfile(decideProjectMode)}
+      onOpenProject={() => void openProjectInActiveProfile()}
       onReplaceProject={(path) => {
-        void replaceProjectInActiveProfile(path, decideProjectMode)
+        void replaceProjectInActiveProfile(path)
       }}
       dotStates={dotStates}
-      windowsModePaths={windowsModePaths}
-      onToggleWindowsMode={(path) => {
-        if (activeProfileId !== null) onToggleWindowsMode(activeProfileId, path)
-      }}
       activeProfileId={activeProfileId}
       onReorderProjects={reordenarProyectos}
     />

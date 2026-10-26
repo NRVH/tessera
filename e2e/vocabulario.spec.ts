@@ -43,31 +43,9 @@ test('el renderer SABE que está en un Mac (y lo sabe por el preload, no por `pr
   )
 })
 
-test('Configuración › Proyectos ofrece «macOS (nativo)», no «Windows (nativo)»', async () => {
+test('Configuración › Acerca de habla de «tu Mac»', async () => {
   await s.win.keyboard.press(`${MOD}+,`)
   await expect(s.win.locator('.ajustes-modal')).toHaveCount(1)
-  await s.win.locator('.ajustes-riel-item[data-cat="proyectos"]').click()
-
-  const radios = s.win.locator('.ajustes-radios .ajustes-radio')
-  await expect(radios).toHaveCount(3)
-  // El primero es el modo nativo. Su id interno sigue siendo 'windows' —está
-  // persistido en `workspace-state.json` y viaja por el IPC—, así que lo que se
-  // comprueba es lo que se LEE, que es lo único que cambió.
-  await expect(radios.nth(0).locator('.ajustes-fila-etiqueta')).toHaveText('macOS (nativo)')
-  await expect(radios.nth(0).locator('.ajustes-fila-ayuda')).toContainText('tu Mac')
-
-  // Y el id que se persiste NO ha cambiado: si el arreglo del rótulo hubiera arrastrado
-  // el identificador, cada usuario con el modo nativo por defecto lo perdería en
-  // silencio al actualizar.
-  const ids = await s.win.evaluate(() =>
-    Array.from(document.querySelectorAll<HTMLInputElement>('.ajustes-radios input')).map(
-      (i) => i.name
-    )
-  )
-  expect(ids.every((n) => n === 'defaultProjectMode')).toBe(true)
-})
-
-test('Configuración › Acerca de habla de «tu Mac»', async () => {
   await s.win.locator('.ajustes-riel-item[data-cat="acerca"]').click()
   const puntos = s.win.locator('.ajustes-acerca-puntos li')
   await expect(puntos).toHaveCount(4)
@@ -122,7 +100,7 @@ test('BARRIDO: ninguna categoría del modal nombra Windows', async () => {
 test('el menú del perfil nombra el ESTADO de la red, no un sistema ni una promesa', async () => {
   // Otro archivo (`ProfileTabs.tsx`) y otro camino: los menús contextuales no pasan por
   // el modal de ajustes, así que un barrido del modal no los cubre. El rótulo dice en qué
-  // red ESTÁ este perfil («Red del contenedor: aislada…»), cierto en las dos plataformas, y
+  // red ESTÁ este perfil («Red del contenedor: propia…»), cierto en las dos plataformas, y
   // los puntos suspensivos anuncian el diálogo, que es quien explica dónde acaban los
   // puertos (con `nombresSistema` y el diagnóstico). Se fijan las tres mitades negativas:
   // ni «Windows» a pelo, ni una promesa sobre macOS, ni un rótulo-acción con palomita que
@@ -133,7 +111,7 @@ test('el menú del perfil nombra el ESTADO de la red, no un sistema ni una prome
   const texto = await menu.innerText()
   expect(texto).toContain('Red del contenedor:')
   expect(texto, 'los puntos suspensivos son la convención de "abre un diálogo"').toMatch(
-    /Red del contenedor: (aislada|anfitrión)…/
+    /Red del contenedor: (propia|la de tu equipo)…/
   )
   expect(texto).not.toContain('Windows')
   expect(texto, 'el rótulo no puede prometer que los puertos acaban en el Mac').not.toContain(

@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { DbConexionAjena, DbConnection } from '../../../../shared/db-ipc'
 import { notify, notifyError } from '../../comun/notifications'
 import { txArea } from './textosArea.ts'
+import { fijarPerfilesConConexiones } from './store'
 
 /**
  * ¿Ya se avisó en esta sesión de que el registro se recuperó del `.bak`? De MÓDULO y no un
@@ -224,6 +225,8 @@ export function useConexionesBd(perfilesInteres: readonly string[], perfilesVivo
   )
 
   const porPerfil = registro.conexiones
+  // Espejo para el layout, que se decide antes de que exista este hook (`perfilesConConexiones`).
+  useEffect(() => fijarPerfilesConConexiones(porPerfil), [porPerfil])
   const ajenasPorPerfil = registro.ajenas
   const avisoFormatoPorPerfil = registro.avisos
   const cargando = useCallback(

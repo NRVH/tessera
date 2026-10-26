@@ -4,8 +4,9 @@
 // agente de un proyecto, en el del espacio de datos y en el de la terminal.
 // (node src/renderer/src/features/agentes/test-textos-montaje-bases.mts)
 // En un proyecto y en el espacio, los literales de siempre carácter a carácter (M1-M6, M9-M12);
-// en la terminal, «el agente de la terminal» sin la carpeta (M13-M16); ningún texto nombra el
-// sistema (M8), así que no hay plataforma que parametrizar.
+// en la terminal, «el agente de la terminal» sin la carpeta (M13-M16); en la ventana de agente,
+// «carpeta de usuario» sin el nombre de la cuenta (M17-M18); ningún texto nombra el sistema (M8),
+// así que no hay plataforma que parametrizar.
 // =============================================================================
 
 import {
@@ -15,8 +16,8 @@ import {
   type LugarAgente
 } from './textosMontajeBases.ts'
 
-/** Los tres sitios donde vive un agente. */
-const LUGARES: readonly LugarAgente[] = ['proyecto', 'datos', 'terminal']
+/** Los cuatro sitios donde vive un agente. */
+const LUGARES: readonly LugarAgente[] = ['proyecto', 'datos', 'terminal', 'ventana']
 
 // ---------------------------------------------------------------------------
 // Reporte PASS/FAIL (mismo patrón que los otros test-*.mts)
@@ -121,7 +122,19 @@ function main(): void {
     )
   }
 
-  hr('Los tres sitios: ningún nombre de sistema')
+  hr('VENTANA DE AGENTE (la carpeta del usuario)')
+  {
+    const historial = rotuloHistorialConversaciones('ventana')
+    check('(M17) el historial, «de tu carpeta de usuario»', historial === 'Historial de conversaciones de tu carpeta de usuario', historial)
+    const lugar = lugarHistorial('ventana', 'C:\\Users\\ana')
+    check(
+      '(M18) el modal: «carpeta de usuario», nunca el nombre de la cuenta',
+      lugar.cabecera === 'carpeta de usuario' && lugar.enVacio === 'en tu carpeta de usuario' && !JSON.stringify(lugar).includes('ana'),
+      JSON.stringify(lugar)
+    )
+  }
+
+  hr('Los cuatro sitios: ningún nombre de sistema')
   {
     const todos = LUGARES.flatMap((lugar) => [
       ...[0, 1, 4].flatMap((n) => {

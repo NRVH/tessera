@@ -3713,20 +3713,6 @@ body {
   color: var(--fg);
   background: var(--bg-surface-hi);
 }
-.casilla-modo-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  padding: 2px;
-  border: 0;
-  border-radius: 4px;
-  background: transparent;
-  cursor: pointer;
-}
-.casilla-modo-btn:hover {
-  background: var(--hover-suave);
-}
 /* Las bases cierran la identidad (ver AgentTerminalPane): mismo tamaño de icono que
    el resto de la fila y sin encoger, que si no el badge del contador se recortaría
    justo cuando hay algo que contar. */
@@ -3968,19 +3954,6 @@ body {
   }
 }
 
-@container agentheader (max-width: 340px) {
-  /* Aún más estrecho: cae el texto accesorio (el nombre de la cuenta), que queda en
-     su tooltip. Sobreviven los iconos y —sobre todo— el botón de maximizar. Aquí
-     caía también la etiqueta de la píldora de estado, que ya no existe. */
-  .agent-pane .account-btn-name {
-    display: none;
-  }
-  /* Aquí caía también `.agent-pane .panel-title .accent` (el nombre del perfil, que
-     el dot de color ya dice). Se retiró la regla con el barrido: la cabecera del
-     agente dejó de pintar ningún `.accent` —su identidad es el dot, el toggle y, en el
-     mosaico, `.casilla-identidad`—, así que no había nada que esconder. */
-}
-
 /* Footer del pane del agente: barra inferior que aloja el botón Reiniciar, lejos
    de los controles de layout del header (evita reinicios accidentales). */
 .agent-pane-footer {
@@ -4007,12 +3980,21 @@ body {
   /* Encoge mucho antes que el uso: entre los dos, el que corta su texto es el rótulo. Su icono no se
      corta nunca: el mínimo es su ancho. */
   flex: 0 100 auto;
-  min-width: 13px;
+  /* El icono más el relleno de los lados. */
+  min-width: 29px;
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  /* UNA PIEZA SÓLIDA del color del perfil, como el icono del riel con el foco: con varios perfiles y
+     proyectos, al volver a uno hay que ver de un vistazo de quién es este agente y dónde vive. En el
+     mosaico cada casilla redeclara `--perfil`, así que cada rótulo lleva el de su perfil. */
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--sel-solido);
   font-size: 11px;
-  color: var(--fg-muted);
+  /* Blanco, no --fg: sobre un relleno sólido el gris de texto de la app se hunde. */
+  color: #fff;
   white-space: nowrap;
 }
 .agent-footer-lugar > svg {
@@ -4445,39 +4427,6 @@ body {
   background: var(--border-soft);
 }
 
-/* Botón de CUENTA del agente (login): compacto, con el nombre truncable en columnas
-   estrechas (min-width:0) para no empujar el resto del header. */
-.account-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 22px;
-  max-width: 150px;
-  min-width: 0;
-  padding: 0 9px;
-  border: none;
-  border-radius: 7px;
-  background: var(--bg-surface);
-  box-shadow: var(--shadow-chip);
-  color: var(--fg-muted);
-  font-size: 11.5px;
-  cursor: pointer;
-  flex: 0 1 auto;
-}
-.account-btn:hover {
-  background: var(--bg-surface-hi);
-  color: var(--fg);
-}
-.account-btn svg {
-  flex: 0 0 auto;
-  opacity: 0.85;
-}
-.account-btn-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /* Estado "sin cuenta" del agente: tarjeta centrada con las acciones para añadir una
    cuenta global o privada. Ocupa el hueco de la terminal (que se colapsa). */
 .terminal-host.collapsed {
@@ -4906,6 +4855,18 @@ body {
   font-size: 12px;
   color: var(--red);
   white-space: pre-wrap;
+}
+/* El aro del botón de confirmar mientras su acción corre (`ConfirmDialog` con `ocupado`). */
+.modal-girando {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  border: 1.5px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  vertical-align: -1px;
+  animation: profile-dot-spin 0.7s linear infinite;
 }
 /* Nota informativa bajo el input (no es un error): tono apagado. */
 .modal-hint {
@@ -5495,6 +5456,153 @@ body {
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+}
+
+/* --- Límite de contenedores (deslizador con semáforo) ----------------------
+   La pista lleva el degradado de los cortes del equipo (`--limite-pista`, puesto inline);
+   el último paso de la barra es «Sin límite» y cae en el tramo rojo. */
+.limite-bloque {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 0 10px;
+}
+.limite-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.limite-valor {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--fg);
+  font-size: calc(var(--ui-font) + 1px);
+  font-weight: 600;
+}
+.limite-punto {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--fg-faint);
+}
+.limite-valor.verde .limite-punto {
+  background: var(--green);
+}
+.limite-valor.amarillo .limite-punto {
+  background: var(--yellow);
+}
+.limite-valor.rojo .limite-punto {
+  background: var(--red);
+}
+.limite-enlace {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: calc(var(--ui-font) - 1px);
+  cursor: pointer;
+}
+.limite-enlace:hover {
+  text-decoration: underline;
+}
+.limite-barra {
+  width: 100%;
+  height: 20px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  appearance: none;
+}
+.limite-barra:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.limite-barra::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--limite-pista);
+}
+.limite-barra::-webkit-slider-thumb {
+  width: 18px;
+  height: 18px;
+  margin-top: -5px;
+  border: 2px solid var(--bg-deep);
+  border-radius: 50%;
+  background: var(--fg);
+  box-shadow: 0 0 0 1px var(--border);
+  appearance: none;
+}
+.limite-barra:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+.limite-escala {
+  display: flex;
+  justify-content: space-between;
+  color: var(--fg-faint);
+  font-size: calc(var(--ui-font) - 2px);
+}
+.limite-aviso {
+  margin: 0;
+  font-size: calc(var(--ui-font) - 1px);
+  line-height: 1.45;
+}
+.limite-aviso.verde {
+  color: var(--green);
+}
+.limite-aviso.amarillo {
+  color: var(--yellow);
+}
+.limite-aviso.rojo {
+  color: var(--red);
+}
+.limite-maquina {
+  margin: 0;
+  color: var(--fg-faint);
+  font-size: calc(var(--ui-font) - 1px);
+  line-height: 1.45;
+}
+
+/* --- Últimas paradas (lista de como mucho 20 filas, sin virtualizar) -------- */
+.paradas-cabecera {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 6px;
+}
+.paradas-lista {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.parada-fila {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 0;
+  border-top: 1px solid var(--border-soft);
+  font-size: calc(var(--ui-font) - 1px);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.parada-cuando {
+  color: var(--fg-faint);
+}
+.parada-motivo {
+  color: var(--fg);
+  font-weight: 600;
+}
+.parada-que {
+  color: var(--fg);
+}
+.parada-regla {
+  color: var(--fg-muted);
 }
 
 /* --- Actualizaciones ------------------------------------------------------ */
@@ -6246,6 +6354,13 @@ body {
 .terminal-host .xterm-viewport {
   cursor: default; /* sobre el canalón/barra, cursor de flecha (no el de texto) */
 }
+/* En la pantalla alternativa (un agente a pantalla completa, `vim`) no hay historial: sin barra, como
+   en una terminal nativa. Se esconde la barra y no el desplazamiento: cambiar `overflow` mueve
+   `scrollTop`, xterm lo toma por un gesto del usuario y deja de seguir el final al volver. El atributo
+   lo pone `montajeXterm.ts`. */
+.terminal-host[data-pantalla='alternativa'] .xterm-viewport {
+  scrollbar-width: none;
+}
 /* El ratón sobre el texto está en `.xterm-screen`, hermana del viewport y no hija: el
    `:hover` genérico no lo alcanzaría y la barra no aparecería al entrar en la terminal. */
 .terminal-host:hover .xterm-viewport::-webkit-scrollbar-thumb {
@@ -6599,9 +6714,9 @@ body {
    `visibility`, NUNCA `display`: con display la fila reflowea y el título salta. Efecto
    BUSCADO: un elemento oculto así tampoco es enfocable, y el tabulador no se pasea por
    botones invisibles. SE ESCONDEN ACCIONES, NO IDENTIDAD NI ESTADO: la CUENTA con la que
-   corre el agente (`.account-btn`) y las bases montadas (`.db-mount-btn`) se quedan a la
+   corre el agente (`.cuenta-btn`) y las bases montadas (`.db-mount-btn`) se quedan a la
    vista, porque taparlas sería tapar la salvaguarda anti-cuenta-equivocada. Por eso la
-   regla apunta a `.btn` y el de bases se exceptúa a mano. El ✕ de cada pestaña tampoco
+   regla apunta a `.btn` y esos dos se exceptúan a mano. El ✕ de cada pestaña tampoco
    entra: pertenece a la pestaña, no al panel. */
 /* ESTADO VISIBLE. UNA SOLA LISTA CON `:is()`, y no cinco selectores repetidos en tres
    bloques: añadir un panel abajo obligaba a editar tres listas y a restituir la
@@ -6614,7 +6729,7 @@ body {
    redeclarar el atajo se pierde el de `.btn` y el hover sería instantáneo. */
 :is(.terminal-panel, .agent-pane, .git-log-panel)
   :is(
-    .panel-actions .btn:not(.db-mount-btn),
+    .panel-actions .btn:not(.db-mount-btn):not(.cuenta-btn),
     .panel-actions .git-icon-btn,
     /* Historial y chat nuevo viven en `.panel-title-actions` (izquierda, pegados al
        toggle) pero siguen siendo ACCIONES: se revelan al pasar el ratón igual que
@@ -6655,7 +6770,7 @@ body {
     /* `fijo`: a pantalla completa, las DOS salidas del modo (restaurar y ocultar o cerrar el panel) se
        quedan a la vista juntas: una fija y la otra escondida se leen como una avería. `abierto`: el botón
        cuyo menú o lista flotante está desplegado (va fuera del panel y le quita el foco). */
-    .panel-actions .btn:not(.db-mount-btn):not(.fijo):not(.abierto),
+    .panel-actions .btn:not(.db-mount-btn):not(.cuenta-btn):not(.fijo):not(.abierto),
     /* MIENTRAS GIRA NO SE ESCONDE: ese icono deja de ser una acción y pasa a ser el
        ÚNICO aviso de que el historial se está recargando. Es la misma línea que ya
        exceptúa a la cuenta del agente y a las bases montadas — se esconden acciones,
@@ -7193,6 +7308,9 @@ body.is-resizing * {
   position: fixed;
   z-index: 1000;
   min-width: 160px;
+  /* Un menú largo (muchas cuentas) hace scroll en vez de salirse: `usePosicionMenu` deja 8 px por lado. */
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
   padding: 4px;
   border: 1px solid var(--border);
   border-radius: 6px;

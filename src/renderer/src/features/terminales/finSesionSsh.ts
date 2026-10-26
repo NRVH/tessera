@@ -8,7 +8,7 @@
 // =============================================================================
 
 import type { Plataforma } from '../../../../shared/plataforma.ts'
-import type { TerminalExitReason } from '../../../../shared/terminal-ipc.ts'
+import type { MotivoSsh, TerminalExitReason } from '../../../../shared/terminal-ipc.ts'
 import { txTerminales } from './textos.ts'
 
 /** El código con el que sale ssh cuando falla él y no lo de dentro. */
@@ -24,8 +24,12 @@ export const UMBRAL_FALLO_AL_CONECTAR_MS = 20_000
  * ¿Salió ssh por un fallo suyo? Si el main clasificó un motivo por lo que ssh escribió (también un
  * corte en Windows, que llega como -1), manda él. Si no, solo el 255.
  */
-function esFalloDeSsh(exitCode: number | null, reason: TerminalExitReason | undefined): boolean {
+function esFalloDeSsh(exitCode: number | null, reason: MotivoSsh | undefined): boolean {
   return reason !== undefined || exitCode === CODIGO_FALLO_SSH
+}
+
+function esMotivoSsh(motivo: TerminalExitReason): motivo is MotivoSsh {
+  return motivo.startsWith('ssh-')
 }
 
 /**
@@ -45,9 +49,11 @@ function esSinCodigo(exitCode: number | null, plataforma: Plataforma): boolean {
 export function motivoFinSsh(
   exitCode: number | null,
   duracionMs: number,
-  reason?: TerminalExitReason,
+  motivo?: TerminalExitReason,
   plataforma: Plataforma = 'otra'
 ): string {
+  // Los motivos de un shell en modo Docker no son de SSH: aquí no dicen nada.
+  const reason = motivo !== undefined && esMotivoSsh(motivo) ? motivo : undefined
   const t = txTerminales()
   if (esFalloDeSsh(exitCode, reason)) {
     if (duracionMs >= UMBRAL_FALLO_AL_CONECTAR_MS) return t.seCorto

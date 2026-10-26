@@ -5,7 +5,7 @@
 // Decisiones: docs/decisiones/ssh/registro-y-claves.md
 // =============================================================================
 import type { IpcMain } from 'electron'
-import { SSH_CHANNELS, SSH_LOTE_MAX, type SshActividadPerfil, type SshConexionInput, type SshExportarOpenSsh, type SshMetodo, type SshTipoTunel, type SshTunel } from '../../shared/ssh-ipc.ts'
+import { SSH_CHANNELS, SSH_LOTE_MAX, type SshConexionInput, type SshExportarOpenSsh, type SshMetodo, type SshTipoTunel, type SshTunel } from '../../shared/ssh-ipc.ts'
 import { esObjeto } from '../util/valores.ts'
 import type { ControladorSsh } from './ControladorSsh.ts'
 import type { DialogoAskpass } from './controlador/dialogoAskpass.ts'
@@ -86,8 +86,6 @@ export interface DependenciasIpcSsh {
   espacio?: EspacioTerminalIpc
   /** Las preguntas de ssh que contesta el usuario; sin él no se registra `ASKPASS_RESPONDER`. */
   dialogo?: Pick<DialogoAskpass, 'responder'>
-  /** La actividad de los agentes con `tssh` de un perfil; sin ella no se registra `ACTIVIDAD`. */
-  actividad?: (profileId: string) => Promise<SshActividadPerfil>
 }
 
 /** Los ids de `ESPACIO_RUTAS`: una lista, de la que se descarta lo que no sea un texto. */
@@ -117,11 +115,10 @@ function registrarIpcEspacio(ipc: Pick<IpcMain, 'handle'>, espacio: EspacioTermi
 
 /**
  * Registra los dieciséis canales invocables del controlador y, si llegan sus dependencias, los dos de la carpeta
- * del agente de la terminal (`espacio`), la respuesta del diálogo de contraseñas (`dialogo`) y la actividad
- * de los agentes (`actividad`). `CAMBIO`, `AVISO` y las preguntas del diálogo los emite el main.
+ * del agente de la terminal (`espacio`) y la respuesta del diálogo de contraseñas (`dialogo`). `CAMBIO`, `AVISO` y
+ * las preguntas del diálogo los emite el main.
  */
-export function registrarIpcSsh({ ipc, ssh, espacio, dialogo, actividad }: DependenciasIpcSsh): void {
-  if (actividad) ipc.handle(SSH_CHANNELS.ACTIVIDAD, (_e, req: unknown) => actividad(texto(objeto(req, 'la petición'), 'profileId')))
+export function registrarIpcSsh({ ipc, ssh, espacio, dialogo }: DependenciasIpcSsh): void {
   ipc.handle(SSH_CHANNELS.LISTAR, () => ssh.listar())
   ipc.handle(SSH_CHANNELS.CREAR, (_e, input: unknown) => ssh.crear(entradaSshDe(input)))
   ipc.handle(SSH_CHANNELS.EDITAR, (_e, req: unknown) => {

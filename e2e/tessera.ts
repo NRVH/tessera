@@ -264,6 +264,11 @@ export interface OpcionesArranque {
    * `profiles.json` o un `workspace-state.json` de partida.
    */
   sembrar?: (datos: string) => void
+  /**
+   * Lo que se espera ver en la primera ventana antes de devolverla; por omisión la barra de
+   * título de la principal. Un arranque con `--ventana-agente` no crea la principal.
+   */
+  esperar?: string
 }
 
 /**
@@ -392,7 +397,7 @@ export async function abrirTessera(
   await win.waitForLoadState('domcontentloaded')
   // La barra de título es lo primero que pinta el renderer; sin esperarla, una
   // prueba rápida puede consultar el DOM antes de que exista nada que consultar.
-  await win.waitForSelector('.titlebar', { timeout: 30_000 })
+  await win.waitForSelector(opts.esperar ?? '.titlebar', { timeout: 30_000 })
 
   const cerrar = async (): Promise<void> => {
     // RED DEL CIERRE, para TODA la suite. Cerrar pasa por el

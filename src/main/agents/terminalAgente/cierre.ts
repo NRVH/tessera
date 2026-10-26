@@ -1,14 +1,14 @@
 // =============================================================================
 // Cierre y parada de sesiones del agente. Cerrar revoca el token de bases, suelta el
-// ancla y la credencial (desmontada solo con la última referencia) y apunta el refcount
-// del contenedor, que NUNCA se para aquí: solo la hibernación y el cierre de la app.
+// ancla y la credencial (desmontada solo con la última referencia) y, con la última sesión
+// del contenedor de su cuenta, programa su parada; el del perfil solo lo para la hibernación.
 // Parar por lotes (`detenerVarias`) conserva las sesiones nativas para relanzarlas.
 // Decisiones: docs/decisiones/agentes/sesion-del-agente-en-el-main.md
 // =============================================================================
 
 import { claveSesionAgente } from '../../../shared/db-ipc'
 import type { AgentDetenerVariasResult, CausaRechazoDetener } from '../../../shared/agent-terminal-ipc'
-import { cfgRefKey, releaseConfigRef } from './credenciales'
+import { cfgRefKey, contenedorDe, releaseConfigRef } from './credenciales'
 import { alinearChatConAncla } from './turnos'
 import { errMsg, type NucleoAgente, type OpenAgentSession } from './tipos'
 
@@ -29,6 +29,7 @@ export function soltarSesion(n: NucleoAgente, sessionId: string): OpenAgentSessi
   open.unsubExit()
   if (open.claveAncla) n.anclas?.release(open.claveAncla)
   n.turnos?.unwatch(sessionId)
+  n.loginCodex.soltarSesion(sessionId)
   n.sessions.delete(sessionId)
   if (open.host) n.alCambiarSesiones()
   return open
@@ -46,22 +47,33 @@ export async function cerrar(n: NucleoAgente, sessionId: string): Promise<void> 
   n.log(`closeSession OK -> id=${sessionId}`)
 }
 
-/** Suelta la referencia a la credencial (desmontándola en 0) y la del contenedor. */
+/** Un contenedor de cuenta sin agentes se para pasado este rato, si nadie lo vuelve a pedir. */
+export const PARADA_CONTENEDOR_INACTIVO_MS = 120_000
+
+/**
+ * Suelta la referencia a la credencial (desmontándola en 0) y la del contenedor de su cuenta. Si
+ * no queda ninguna sesión en ese contenedor, programa su parada: sin agentes no consume.
+ */
 async function soltarContenedor(n: NucleoAgente, open: OpenAgentSession, sessionId: string): Promise<void> {
   const profile = n.profiles.get(open.profileId)
+  if (!profile) return
+  const destino = contenedorDe(profile, open.agente, open.accountId)
   const cfgKey = cfgRefKey(open.profileId, open.agente, open.accountId)
-  const shouldUnmount = releaseConfigRef(n.configRefs, cfgKey)
-  if (profile && shouldUnmount) {
+  if (releaseConfigRef(n.configRefs, cfgKey)) {
     try {
-      await n.sandbox.unmountAgentConfig(profile, open.agente, open.accountId)
+      await n.sandbox.unmountAgentConfig(destino, open.agente, open.accountId)
       n.log(`unmountAgentConfig OK -> ${open.profileId}/${open.agente}/${open.accountId} (última sesión)`)
     } catch (err) {
       n.log(`unmountAgentConfig error: ${errMsg(err)}`)
     }
-  } else if (profile) {
+  } else {
     n.log(`config ${open.profileId}/${open.agente}/${open.accountId} sigue en uso por otra sesión; no se desmonta`)
   }
-  if (profile) n.sandbox.releaseSession(profile, `agent:${sessionId}`)
+  n.sandbox.releaseSession(destino, `agent:${sessionId}`)
+  const otraEnElMismo = [...n.sessions.values()].some(
+    (s) => !s.host && s.profileId === open.profileId && contenedorDe(profile, s.agente, s.accountId).id === destino.id
+  )
+  if (!otraEnElMismo) n.sandbox.programarParada(destino, PARADA_CONTENEDOR_INACTIVO_MS)
 }
 
 /** Cierra en serie las sesiones dadas, registrando cada fallo con `etiqueta`. */
@@ -83,10 +95,34 @@ export async function closeAllSessions(n: NucleoAgente): Promise<void> {
   await cerrarTolerante(n, ids, 'closeAllSessions')
 }
 
+/**
+ * Cierra las sesiones de una ventana que se cierra: primero mata el árbol de todas de una vez (sin
+ * teclear nada en el agente, que lo tomaría por un mensaje) y después las suelta una a una, ya
+ * muertas. Las de las demás ventanas siguen. Devuelve sus ids.
+ */
+export async function cerrarDeVentana(
+  n: NucleoAgente,
+  ventana: number,
+  topeMs: number,
+  anotar?: (msg: string) => void
+): Promise<string[]> {
+  const ids = [...n.sessions.values()].filter((s) => s.ventana === ventana).map((s) => s.sessionId)
+  if (ids.length === 0) return ids
+  n.log(`cerrarDeVentana(${ventana}): ${ids.length} sesión(es)`)
+  try {
+    await n.terminals.matarArbolesDe(ids, topeMs, anotar)
+  } catch (err) {
+    n.log(`cerrarDeVentana: matar los árboles falló: ${errMsg(err)}`)
+  }
+  await cerrarTolerante(n, ids, 'cerrarDeVentana')
+  return ids
+}
+
 /** Cierra todas las sesiones al salir de la app; los contenedores los para la terminal de abajo. */
 export async function disposeAll(n: NucleoAgente): Promise<void> {
   n.log(`disposeAll: ${n.sessions.size} sesión(es) de agente`)
   await cerrarTolerante(n, [...n.sessions.keys()], 'disposeAll')
+  n.loginCodex.cerrar()
   // Las sesiones que soltó la hibernación ya no están en el mapa, pero su árbol puede seguir
   // muriendo: quien llame aquí espera también a eso. OJO: el cierre normal de la app
   // (`app/cierre.ts`) NO pasa por aquí; allí una muerte en cola acaba como cualquier sesión

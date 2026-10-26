@@ -7,7 +7,7 @@
 // =============================================================================
 
 import type { Terminal } from '@xterm/xterm'
-import { textosSalida } from '../../../../shared/dockerErrors'
+import { textoSinMemoriaContenedor, textosSalida } from '../../../../shared/dockerErrors'
 import type { AgentExitMessage } from '../../../../shared/agent-terminal-ipc'
 import { notify } from '../../comun/notifications'
 import { injectPaths, stageOrPassthrough, type OpcionesMontaje } from '../terminales'
@@ -16,7 +16,7 @@ import { recuperarContenedor, type CtxSesion } from './sesionAgente'
 import { txSesion } from './textosSesion.ts'
 import { copySelection, fitAndSyncDebounced, pasteFromClipboard, writeToPty, type UiTerminal } from './terminalAgente'
 
-/** Docker no responde: se avisa y se espera a que el usuario lo levante (sin reintentos). */
+/** Docker no responde: se avisa y se espera a que vuelva (`useReanudarConDocker` sigue entonces). */
 function avisarDaemonCaido(term: Terminal, s: CtxSesion['s']): void {
   s.setStatus('exited')
   s.setRecovery({ phase: 'docker-down' })
@@ -31,7 +31,7 @@ function avisarSalidaDesconocida(term: Terminal, s: CtxSesion['s']): void {
   s.setStatus('exited')
   const t = txSesion()
   notify('warn', t.desconocidaAviso, t.desconocidaDetalle)
-  term.write(`\r\n${C_WARN}${t.desconocidaTerminal}${C_RST}\r\n` + `${C_DIM}${t.usaReiniciar}${C_RST}\r\n`)
+  term.write(`\r\n${C_WARN}${t.desconocidaTerminal}${C_RST}\r\n` + `${C_DIM}${t.usaReabrir}${C_RST}\r\n`)
 }
 
 /** Fin de NUESTRA sesión (el montaje común ya filtró las ajenas), según su causa. */
@@ -50,10 +50,22 @@ function alSalirSesion(term: Terminal, msg: AgentExitMessage, ctx: Pick<CtxSesio
     avisarSalidaDesconocida(term, s)
     return
   }
+  if (reason === 'parado-por-limite' || reason === 'parado-por-saturacion') {
+    // La sesión ya no existe en el main: se suelta, y «Reabrir» abre otra retomando la conversación.
+    void ctx.r.sesion.soltar('hibernada')
+    s.setStatus('exited')
+    const parado = textosSalida()[reason]
+    term.write(`\r\n${C_WARN}${parado.titulo}.${C_RST}\r\n${C_DIM}${parado.sugerencia}${C_RST}\r\n`)
+    return
+  }
   s.setStatus('exited')
-  term.write(
-    `\r\n${C_ERR}${txSesion().terminoConCodigo(msg.exitCode)}` + `${txSesion().usaReiniciar}${C_RST}\r\n`
-  )
+  const t = txSesion()
+  if (reason === 'sin-memoria') {
+    const memoria = ctx.r.hostMode.current ? textosSalida()['sin-memoria'] : textoSinMemoriaContenedor(window.tessera.plataforma)
+    term.write(`\r\n${C_ERR}${t.terminoConCodigo(msg.exitCode)}${memoria.titulo}.${C_RST}\r\n${C_DIM}${memoria.sugerencia}${C_RST}\r\n`)
+    return
+  }
+  term.write(`\r\n${C_ERR}${t.terminoConCodigo(msg.exitCode)}${t.usaReabrir}${C_RST}\r\n`)
 }
 
 /** Las opciones del montaje común para la terminal del agente. Todo lo que leen son refs. */

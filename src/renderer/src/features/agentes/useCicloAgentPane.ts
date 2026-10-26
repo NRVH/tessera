@@ -12,27 +12,23 @@ import type { RefsAgentPane } from './useRefsAgentPane'
 
 type Pos = { x: number; y: number } | null
 
-/** Menús de la cabecera de casilla: a qué proyecto apunta y en qué modo corre. */
+/** Menú de la cabecera de casilla: a qué proyecto apunta. */
 export interface MenusCasilla {
   menuDestinos: Pos
   setMenuDestinos: Dispatch<SetStateAction<Pos>>
-  menuModo: Pos
-  setMenuModo: Dispatch<SetStateAction<Pos>>
 }
 
 /**
- * Al dejar de ser casilla se cierran: el menú solo se cierra solo con un clic fuera o
+ * Al dejar de ser casilla se cierra: el menú solo se cierra solo con un clic fuera o
  * Escape, y el pane sobrevive (keep-alive), así que reaparecería en la próxima casilla.
  */
 export function useMenusCasilla(esCasillaPane: boolean): MenusCasilla {
   const [menuDestinos, setMenuDestinos] = useState<Pos>(null)
-  const [menuModo, setMenuModo] = useState<Pos>(null)
   useEffect(() => {
     if (esCasillaPane) return
     setMenuDestinos(null)
-    setMenuModo(null)
   }, [esCasillaPane])
-  return { menuDestinos, setMenuDestinos, menuModo, setMenuModo }
+  return { menuDestinos, setMenuDestinos }
 }
 
 /**

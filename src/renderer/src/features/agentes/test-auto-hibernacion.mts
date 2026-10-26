@@ -8,8 +8,10 @@
 
 import {
   apuntarSalidas,
+  avisoPocaMemoria,
   claveProyecto,
   construirPeticion,
+  etiquetasHibernados,
   planAplicacion,
   proyectosEnPantalla,
   siguienteEsperaMs,
@@ -96,11 +98,11 @@ hr('3. La petición de la ronda')
 hr('4. Aplicar la respuesta: la carrera con un clic')
 {
   const hib = (profileId: string, ruta: string) => ({ profileId, projectHostPath: ruta, sesiones: [{ sessionId: `s-${ruta}`, agente: 'claude-code' as const }] })
-  const resultado = { hibernados: [hib('p1', 'D:/a'), hib('p1', 'D:/b')], revisarEnMs: null, umbralMs: 300_000 }
+  const resultado = { hibernados: [hib('p1', 'D:/a'), hib('p1', 'D:/b')], revisarEnMs: null, umbralMs: 300_000, pocaMemoria: false }
   const pasos = planAplicacion(resultado, new Set([B]))
   check('(4a) el que sigue fuera de pantalla solo se marca', pasos[0].despertar === false, String(pasos[0].despertar))
   check('(4b) el que el usuario abrió mientras viajaba la petición se marca Y se despierta', pasos[1].despertar === true, String(pasos[1].despertar))
-  check('(4c) sin nada hibernado, ningún paso', planAplicacion({ hibernados: [], revisarEnMs: 5, umbralMs: 1 }, new Set()).length === 0, '0')
+  check('(4c) sin nada hibernado, ningún paso', planAplicacion({ hibernados: [], revisarEnMs: 5, umbralMs: 1, pocaMemoria: false }, new Set()).length === 0, '0')
 }
 
 hr('5. La espera hasta la siguiente ronda')
@@ -112,6 +114,32 @@ hr('5. La espera hasta la siguiente ronda')
   check('(5e) sin umbral conocido («Nunca»): un minuto', siguienteEsperaMs(null, null) === 60_000, String(siguienteEsperaMs(null, null)))
   check('(5f) tras un fallo: un minuto, pida lo que pida', siguienteEsperaMs(1000, 3000, true) === 60_000, String(siguienteEsperaMs(1000, 3000, true)))
   check('(5g) un valor que no es un número: un minuto', siguienteEsperaMs(NaN, 3000) === 60_000, String(siguienteEsperaMs(NaN, 3000)))
+}
+
+hr('6. El aviso de poca memoria: una vez por racha')
+{
+  const a = avisoPocaMemoria(true, false)
+  check('(6a) al entrar en poca memoria, avisa', a.avisar && a.avisado, JSON.stringify(a))
+  const b = avisoPocaMemoria(true, a.avisado)
+  check('(6b) en las rondas siguientes de la misma racha, no', !b.avisar && b.avisado, JSON.stringify(b))
+  const c = avisoPocaMemoria(false, b.avisado)
+  check('(6c) al recuperarse, se rearma sin avisar', !c.avisar && !c.avisado, JSON.stringify(c))
+  check('(6d) y en una racha nueva vuelve a avisar', avisoPocaMemoria(true, c.avisado).avisar, '')
+}
+
+hr('7. Nombrar lo que se paró por el límite')
+{
+  const sesion = (agente: 'claude-code' | 'codex') => ({ sessionId: `s-${agente}`, agente })
+  const etiqueta = (a: 'claude-code' | 'codex'): string => (a === 'codex' ? 'Codex' : 'Claude Code')
+  const hibernados = [
+    { profileId: 'p1', projectHostPath: 'D:\\trabajo\\api', sesiones: [sesion('codex')] },
+    { profileId: 'p1', projectHostPath: '/home/u/web', sesiones: [sesion('claude-code'), sesion('codex'), sesion('codex')] },
+    { profileId: 'p1', projectHostPath: 'D:\\trabajo\\vacio', sesiones: [] }
+  ]
+  const nombres = etiquetasHibernados(hibernados, (_p, ruta) => (ruta.endsWith('web') ? 'Sitio' : undefined), etiqueta)
+  check('(7a) sin nombre conocido, la carpeta (con ambos separadores)', nombres[0] === 'api · Codex', nombres[0])
+  check('(7b) con nombre conocido, ese; los agentes sin repetir', nombres[1] === 'Sitio · Claude Code, Codex', nombres[1])
+  check('(7c) sin sesiones, solo el proyecto', nombres[2] === 'vacio', nombres[2])
 }
 
 const allPass = results.every(Boolean)

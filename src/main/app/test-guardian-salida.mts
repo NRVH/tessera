@@ -12,7 +12,15 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { MARCA_GUARDIAN, guionPosix, guionWindows, planGuardian } from './planGuardianSalida.ts'
+import {
+  MARCA_GUARDIAN,
+  PLAZO_GUARDIAN_CON_PTYS_MS,
+  PLAZO_GUARDIAN_MS,
+  guionPosix,
+  guionWindows,
+  planGuardian,
+  plazoGuardian
+} from './planGuardianSalida.ts'
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -26,6 +34,13 @@ function check(name: string, pass: boolean, evidence: string): void {
 }
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
 const MATAR_POR_NOMBRE = /\/IM\b|Stop-Process\s+-Name|pkill|killall/i
+
+function casosDePlazo(): void {
+  hr('(p) el plazo: corto solo si queda algún pty sin su fin anotado')
+  check('(p1) sin ptys pendientes, el de siempre', plazoGuardian(0) === PLAZO_GUARDIAN_MS, String(plazoGuardian(0)))
+  check('(p2) con uno, el corto', plazoGuardian(1) === PLAZO_GUARDIAN_CON_PTYS_MS, String(plazoGuardian(1)))
+  check('(p3) el corto es menor y deja tiempo a un desmontaje sano', PLAZO_GUARDIAN_CON_PTYS_MS < PLAZO_GUARDIAN_MS && PLAZO_GUARDIAN_CON_PTYS_MS >= 2_000, String(PLAZO_GUARDIAN_CON_PTYS_MS))
+}
 
 function casosDeForma(): void {
   hr('(a) Windows: PowerShell por ruta absoluta y un guion que no mata un pid ajeno')
@@ -111,6 +126,7 @@ async function casosReales(): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  casosDePlazo()
   casosDeForma()
   await casosReales()
   const pasan = results.filter((r) => r.pass).length

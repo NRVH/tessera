@@ -108,6 +108,17 @@ function main(): void {
   )
 
   // -------------------------------------------------------------------------
+  hr('(2g) «Ventana» lleva «Nueva ventana de agente», que llama a su acción')
+  // -------------------------------------------------------------------------
+  let llamadas = 0
+  const conAccion = plantillaMenuAplicacion('mac', { nuevaVentanaAgente: () => llamadas++ }) as (ItemMenu & { click?: () => void })[] | null
+  const ventana = conAccion?.find((i) => i.label === 'Ventana')
+  const items = ventana && Array.isArray(ventana.submenu) ? (ventana.submenu as (ItemMenu & { click?: () => void })[]) : []
+  const nueva = items.find((i) => i.label === 'Nueva ventana de agente')
+  nueva?.click?.()
+  check('(2g) el ítem existe, sin rol, y su clic abre una ventana de agente', !!nueva && nueva.role === undefined && llamadas === 1, `llamadas=${llamadas}`)
+
+  // -------------------------------------------------------------------------
   hr('(3) lo que NO puede estar en ningún nivel')
   // -------------------------------------------------------------------------
   for (const rol of PROHIBIDOS) {

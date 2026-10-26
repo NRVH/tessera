@@ -40,10 +40,11 @@ export interface ContainerHandle {
 
 /**
  * Causa de la muerte de una sesión: 'daemon-down' (Docker no responde; Tessera no puede
- * arrancarlo), 'container-down' (Docker vive pero el contenedor no; se puede recrear) u
- * 'ok' (salida normal del proceso; no hay nada que recuperar).
+ * arrancarlo), 'container-down' (Docker vive pero el contenedor no; se puede recrear),
+ * 'sin-memoria' (el contenedor murió por memoria: recrearlo sin más volvería a caer) u 'ok'
+ * (salida normal del proceso; no hay nada que recuperar).
  */
-export type ContainerDeathCause = 'ok' | 'daemon-down' | 'container-down'
+export type ContainerDeathCause = 'ok' | 'daemon-down' | 'container-down' | 'sin-memoria'
 
 /** Un proyecto montado en caliente dentro del contenedor de un perfil. */
 export interface ProjectMount {
@@ -92,7 +93,8 @@ export interface ShutdownProgressLite {
 /** Lo que se lee de `docker inspect` de un contenedor. */
 export interface DockerInspectState {
   Id: string
-  State: { Running: boolean; Status: string }
+  /** `OOMKilled`: el kernel lo mató por memoria; solo lo dice un contenedor ya parado. */
+  State: { Running: boolean; Status: string; OOMKilled?: boolean }
   /** Con la barra delante (`/tessera-qa`). Lo usa `esContenedorDeTessera`. */
   Name?: string
   Config?: { Image?: string; Labels?: Record<string, string> | null } | null

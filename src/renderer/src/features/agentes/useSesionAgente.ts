@@ -1,17 +1,17 @@
 // =============================================================================
 // Efectos de la sesión del agente, en el orden en que los registra el pane: cambio de
 // cuenta, reconcile (abre si se mira, con cuenta y con los ajustes cargados),
-// hibernación y la API que publica para la actualización nativa. Devuelve las acciones
+// hibernación, la vuelta de Docker y la API que publica para la actualización nativa. Devuelve las acciones
 // de la interfaz atadas al contexto de este render.
 // Decisiones: docs/decisiones/agentes/terminal-del-agente.md
 // =============================================================================
 
-import { useEffect } from 'react'
-import { C_DIM, C_ERR, C_RST, HOST_ACCOUNT_ID, agenteManualDe, type PropsAgentPane } from './agentPaneTipos'
+import { useEffect, useRef } from 'react'
+import { C_DIM, C_ERR, C_RST, HOST_ACCOUNT_ID, agenteManualDe, type PropsAgentPane, type RecoveryState } from './agentPaneTipos'
 import { esAgenteManual } from '../../../../shared/agentesManuales'
 import {
-  abrirSesion, handleReload, liberarActualizacion, prepararActualizacion, relanzarSesion, resumeConversation,
-  startNewConversation, type CtxBloqueo, type CtxSesion
+  abrirSesion, handleReload, liberarActualizacion, prepararActualizacion, recuperarContenedor, relanzarSesion,
+  resumeConversation, startNewConversation, type CtxBloqueo, type CtxSesion
 } from './sesionAgente'
 import type { ApiAgentePane } from './tipos'
 import type { EstadoSesion } from './useEstadoAgentPane'
@@ -63,12 +63,12 @@ function useReconcile(p: PropsAgentPane, ctx: CtxSesion, activated: boolean): vo
  */
 function usePublicarApi(p: PropsAgentPane, c: CtxBloqueo): void {
   const { key, agente, profileId, projectHostPath } = p.target
-  const { r, setActualizando, setShowHistory, setMenuModo } = c
+  const { r, setActualizando, setShowHistory, setAccountMenu } = c
   useEffect(() => {
     const publicar = r.onApi.current
     // Un agente manual no se actualiza desde Tessera: no publica API para la actualización nativa.
     if (!publicar || esAgenteManual(agente)) return
-    const bloqueo = { r, setActualizando, setShowHistory, setMenuModo }
+    const bloqueo = { r, setActualizando, setShowHistory, setAccountMenu }
     const api: ApiAgentePane = {
       clave: key,
       agente,
@@ -84,7 +84,7 @@ function usePublicarApi(p: PropsAgentPane, c: CtxBloqueo): void {
     }
     publicar(key, api)
     return () => publicar(key, null)
-  }, [key, agente, profileId, projectHostPath, r, setActualizando, setShowHistory, setMenuModo])
+  }, [key, agente, profileId, projectHostPath, r, setActualizando, setShowHistory, setAccountMenu])
 }
 
 /** Efectos de la sesión y acciones de la interfaz ligadas a este render. */
@@ -104,6 +104,7 @@ export function useSesionAgente(
   useCambioDeCuenta(p, r)
   useReconcile(p, ctx, activated)
   useHibernar(r, hibernated)
+  useReanudarConDocker(ctx, s.recovery?.phase ?? null)
   // Una API vieja de un pane que ya no es nativo no relanza nada: solo lo deja suelto.
   r.relanzarApi.current = async ({ banner, error }) => {
     if (!r.hostMode.current) {
@@ -118,6 +119,23 @@ export function useSesionAgente(
     nueva: () => void startNewConversation(ctx),
     reiniciar: (accion) => void handleReload(ctx, accion)
   }
+}
+
+/**
+ * Docker volvió: la sesión que lo esperaba (caído, o con los reintentos agotados) se recupera
+ * sola, sin que haga falta pulsar «Reintentar». El contexto va por ref: la suscripción vive
+ * mientras dure la espera, no un render.
+ */
+function useReanudarConDocker(ctx: CtxSesion, fase: RecoveryState['phase'] | null): void {
+  const ctxRef = useRef(ctx)
+  ctxRef.current = ctx
+  const esperando = fase === 'docker-down' || fase === 'failed'
+  useEffect(() => {
+    if (!esperando) return
+    return window.tessera.estadoDocker.onCambio((estado) => {
+      if (estado === 'disponible') void recuperarContenedor(ctxRef.current)
+    })
+  }, [esperando])
 }
 
 /**

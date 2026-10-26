@@ -109,11 +109,23 @@ function IconoAgentes(): React.JSX.Element {
   )
 }
 
+/** Contenedores Docker: tres cajas apiladas, lo que el límite cuenta. */
+function IconoContenedores(): React.JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <rect x="3" y="4" width="8" height="7" rx="1.5" />
+      <rect x="13" y="4" width="8" height="7" rx="1.5" />
+      <rect x="8" y="13" width="8" height="7" rx="1.5" />
+    </svg>
+  )
+}
+
 /** Un icono por categoría. COMPLETO a propósito: una categoría sin glifo no compila. */
 export const ICONOS: Record<CategoriaId, () => React.JSX.Element> = {
   apariencia: IconoApariencia,
   terminales: IconoTerminales,
   proyectos: IconoProyectos,
+  contenedores: IconoContenedores,
   agentes: IconoAgentes,
   'bases-de-datos': IconoBasesDeDatos,
   integracion: IconoIntegracion,

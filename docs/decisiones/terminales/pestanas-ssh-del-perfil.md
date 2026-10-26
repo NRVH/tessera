@@ -15,8 +15,8 @@ depende del proyecto abierto, ni de cuál ni de que haya alguno. Las terminales 
   ve la terminal local activa y, sin local, la primera SSH. Elegir o crear una local suelta la elección.
 - Se pintan primero, luego un filete y luego las locales. El estado vacío «Sin proyecto abierto» no tapa sus panes y
   ofrece «Conectar por SSH…», que enseña la lista: el riel si se ve y, si no, el lanzador (`lanzador-de-conexiones.md`).
-- La React key del pane es `ssh|perfil|sN`, sin el modo del proyecto: alternar nativo y Docker no remonta una sesión
-  que no depende de él. Un id `sN` no se reutiliza.
+- La React key del pane es `ssh|perfil|sN`, sin ningún modo: el modo de un agente (`agentes/modo-por-agente.md`)
+  no remonta una sesión que no depende de él. Un id `sN` no se reutiliza.
 - Cerrar un proyecto no las cierra, solo olvida cuál se miraba en él; cerrar el perfil las poda, pero solo cuando las
   pestañas ya cargaron (antes, «ninguno» es «aún no hay datos»). Hibernar el perfil tampoco: el pane ignora `hibernated`.
 - Se abre sola solo la primera vez que se ve. Si falla o termina, volver a mirarla no reintenta: lo hace
@@ -27,7 +27,9 @@ depende del proyecto abierto, ni de cuál ni de que haya alguno. Las terminales 
 - Las pestañas abiertas (conexión, nombre a mano, alias, si es SFTP) se guardan en los ajustes
   (`sshPestanasPorPerfil`) y vuelven al arrancar SIN ELEGIR ninguna: un pane sin elegir no se ve y no abre su sesión,
   así que ninguna se conecta hasta que se mira. Las de una conexión que ya no existe no se vuelven a guardar (solo
-  con una lista de conexiones de fiar). La poda de perfiles se repite al llegar las guardadas.
+  con una lista de conexiones de fiar). La poda de perfiles se repite al llegar las guardadas. Cerrar la última
+  terminal local, si no se mira ninguna SSH, elige la primera del perfil aunque venga restaurada (`cierreLocal.ts`):
+  es un gesto del usuario, y sin elegida el panel se quedaba sin terminal y la columna del agente se lo comía.
 - El nombre es el alias, con « (n)» si la conexión se repite, y sigue al alias nuevo salvo renombrado a mano; una
   conexión eliminada conserva el último.
 - Al terminar: 255 en menos de 20 s es «No se pudo conectar», con el motivo si el main lo clasificó; 255 después, «Se
@@ -37,7 +39,7 @@ depende del proyecto abierto, ni de cuál ni de que haya alguno. Las terminales 
 
 ## Consecuencias
 
-- Pasar el modo del proyecto o `hibernated` al pane SSH reabriría o mataría sesiones remotas sin que nadie lo pida.
+- Pasar un modo de agente o `hibernated` al pane SSH reabriría o mataría sesiones remotas sin que nadie lo pida.
 - La lista de conexiones no importa las terminales: recibe por props las pestañas abiertas de cada conexión.
 
 ## Descartes

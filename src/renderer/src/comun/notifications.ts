@@ -59,13 +59,14 @@ function clearTimer(id: number): void {
 
 /**
  * Publica un toast. Devuelve su id (para descartarlo manualmente si se quiere).
- * `opciones.accion` añade un botón de texto (ver la cabecera).
+ * `opciones.accion` añade un botón de texto (ver la cabecera); `opciones.vidaMs` fija cuánto vive
+ * (un aviso con plazo vive lo que dura el plazo).
  */
 export function notify(
   kind: ToastKind,
   title: string,
   detail?: string,
-  opciones?: { accion?: AccionToast }
+  opciones?: { accion?: AccionToast; vidaMs?: number }
 ): number {
   const id = ++seq
   const accion = opciones?.accion
@@ -77,7 +78,7 @@ export function notify(
     next = next.slice(-MAX_TOASTS)
   }
   toasts = next
-  const vida = accion ? Math.max(AUTO_MS[kind], AUTO_MS_CON_ACCION) : AUTO_MS[kind]
+  const vida = opciones?.vidaMs ?? (accion ? Math.max(AUTO_MS[kind], AUTO_MS_CON_ACCION) : AUTO_MS[kind])
   timers.set(id, setTimeout(() => dismiss(id), vida))
   emit()
   return id

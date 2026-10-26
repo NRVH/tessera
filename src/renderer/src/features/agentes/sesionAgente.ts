@@ -9,6 +9,9 @@
 import type { Dispatch, SetStateAction } from 'react'
 import type { Terminal } from '@xterm/xterm'
 import { esAgenteManual, type DefinicionAgente, type IdAgente } from '../../../../shared/agentesManuales'
+import { ESPERAS_RECUPERACION_MS, esperarMs } from '../../../../shared/esperasRecuperacion'
+import type { PoliticaCupo } from '../../../../shared/semaforoContenedores'
+import { cupoDeApertura, useStoreAjustes, useStoreRecursosDocker } from '../ajustes'
 import {
   C_DIM, C_ERR, C_OK, C_RST, C_WARN, HOST_ACCOUNT_ID, MAX_CONTAINER_RECOVERY_ATTEMPTS, bannerReanudado, bannerReinicio
 } from './agentPaneTipos'
@@ -16,7 +19,7 @@ import { txSesion } from './textosSesion.ts'
 import { apuntarTamanoDeNacimiento, fitAndSyncNow, tamanoParaAbrir } from './terminalAgente'
 import type { ResultadoRelanzar } from './tipos'
 import { conversacionAReanudar, type UltimaConversacion } from './sesionViva'
-import type { EstadoSesion } from './useEstadoAgentPane'
+import type { AnclaCuenta, EstadoSesion } from './useEstadoAgentPane'
 import type { RefsAgentPane } from './useRefsAgentPane'
 
 /** Contexto de un render del pane para las operaciones de sesión. */
@@ -74,6 +77,19 @@ function textoError(err: unknown): string {
   return err instanceof Error ? err.message : String(err)
 }
 
+/** El cupo de la apertura: solo en Docker (en el equipo no hay contenedor que contar). */
+function cupoDeLaApertura(hostMode: boolean): { cupo: PoliticaCupo } | Record<string, never> {
+  if (hostMode) return {}
+  const a = useStoreAjustes.getState()
+  const cupo = cupoDeApertura(
+    a.limiteContenedores,
+    useStoreRecursosDocker.getState().recursos?.memoriaBytes ?? null,
+    a.primeroEnPararse,
+    a.protegerTrabajando
+  )
+  return cupo ? { cupo } : {}
+}
+
 /**
  * ABRE la sesión en el xterm ya montado. Idempotente: no abre con otra en vuelo ni con
  * una viva. En una re-apertura escribe el banner "reanudado". Si el open falla, devuelve
@@ -109,6 +125,7 @@ export async function abrirSesion(ctx: CtxSesion, accountId: string): Promise<vo
       dbConnectionIds: r.dbMounted.current,
       // Un agente manual reanuda con sus argumentos salvo en «Nueva conversación».
       ...(d.manual ? { manual: d.manual, reanudarManual: !pedido.deCero } : {}),
+      ...cupoDeLaApertura(d.hostMode),
       tamano
     })
     // Desmontado durante el open: no dejar la sesión huérfana.
@@ -169,7 +186,8 @@ export async function startNewConversation(ctx: CtxSesion): Promise<void> {
 /**
  * Recuperación AUTOMÁTICA y ACOTADA ante la muerte del contenedor con Docker vivo: cada
  * intento es un reload que recrea el contenedor y vuelve a montar proyecto y
- * credenciales. Tras N intentos se para y se deja la acción al usuario.
+ * credenciales, con esperas crecientes entre ellos. Tras N intentos se para; si Docker
+ * vuelve más tarde, `useReanudarConDocker` la lanza otra vez.
  */
 export async function recuperarContenedor(ctx: Pick<CtxSesion, 'r' | 's'>): Promise<void> {
   const { r, s } = ctx
@@ -182,6 +200,8 @@ export async function recuperarContenedor(ctx: Pick<CtxSesion, 'r' | 's'>): Prom
   try {
     for (let attempt = 1; attempt <= MAX_CONTAINER_RECOVERY_ATTEMPTS; attempt++) {
       s.setRecovery({ phase: 'recovering', attempt })
+      await esperarMs(ESPERAS_RECUPERACION_MS[attempt - 1])
+      if (!r.term.current) return // desmontado durante la espera
       s.setStatus('booting') // el punto del perfil gira "recuperando"
       term.write(
         `\r\n${C_WARN}${txSesion().contenedorCaido(attempt, MAX_CONTAINER_RECOVERY_ATTEMPTS)}${C_RST}\r\n`
@@ -281,10 +301,10 @@ export interface CtxBloqueo {
   r: RefsAgentPane
   setActualizando: Dispatch<SetStateAction<boolean>>
   setShowHistory: Dispatch<SetStateAction<boolean>>
-  setMenuModo: Dispatch<SetStateAction<{ x: number; y: number } | null>>
+  setAccountMenu: Dispatch<SetStateAction<AnclaCuenta | null>>
 }
 
-/** Bloquea el pane para la actualización nativa: entrada, historial y menú de modo. */
+/** Bloquea el pane para la actualización nativa: entrada, historial y menú de cuenta (cambiar de modo remonta el pane). */
 export function prepararActualizacion(c: CtxBloqueo): void {
   const { r } = c
   r.actualizando.current = true
@@ -292,7 +312,7 @@ export function prepararActualizacion(c: CtxBloqueo): void {
   const term = r.term.current
   if (term) term.options.disableStdin = true
   c.setShowHistory(false)
-  c.setMenuModo(null)
+  c.setAccountMenu(null)
 }
 
 /** Deshace `prepararActualizacion` (no hace nada si el pane no estaba preparado). */

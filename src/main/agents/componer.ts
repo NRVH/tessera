@@ -4,7 +4,7 @@
 // nativos, cuentas, conversaciones, uso, contexto, hibernación y el guardado de perfiles, con
 // sus `ipc.ts`. Lo llama `src/main/index.ts` con las referencias, `ipcMain` y lo ya compuesto.
 // =============================================================================
-import { app, type IpcMain } from 'electron'
+import { app, BrowserWindow, webContents, type IpcMain } from 'electron'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import os from 'node:os'
@@ -16,9 +16,11 @@ import { umbralPruebasDe } from '../../shared/ajustesAgente'
 import { AGENTS_UPDATE_CHANNELS } from '../../shared/agents-update-ipc'
 import { AGENTES_NATIVOS_CHANNELS } from '../../shared/agentes-nativos-ipc'
 import { SANDBOX_RED_CHANNELS } from '../../shared/sandbox-red-ipc'
+import { SANDBOX_ESTADO_CHANNELS } from '../../shared/sandbox-estado-ipc'
 import { USAGE_CHANNELS, type UsageChanged } from '../../shared/usage-ipc'
 import type { ReferenciasApp } from '../app/referencias'
-import { emisorDeVentana, type EmisorEventos } from '../util/emisorEventos'
+import { emisorATodas, emisorDeVentana, emisorPorSesion, type EmisorEventos } from '../util/emisorEventos'
+import { carpetaVentanaAgente } from '../util/carpetaVentanaAgente'
 import { saveProfilesMutable } from '../profiles/store'
 import type { PerfilesVivos, Profile } from '../profiles/types'
 import { loadWorkspaceSettings } from '../workspace/workspaceStateStore'
@@ -26,6 +28,7 @@ import type { DbController } from '../db/DbController'
 import { dbLog } from '../db/dbLog'
 import type { ControladorSsh } from '../ssh/ControladorSsh'
 import { lanzadaPorElArnes } from '../../shared/arnesE2e'
+import { VigilanteMemoria } from './vigilanteMemoria'
 import type { EspacioTerminal } from '../ssh/controlador/espacioTerminal'
 import { borrarPerfiles, type DepsBorradoCompleto, type DuenoDeCarpeta } from '../profiles/borradoDePerfil'
 import { BorradosPendientes, borrarPorOrden, listaAGuardar, terminarBorradosPendientes } from '../profiles/ordenDeBorrado'
@@ -131,6 +134,7 @@ function componerSandbox({ refs, ipc, perfiles, dbController }: DepsSesiones): S
     emisorSinContenido.emitir(AGENTS_UPDATE_CHANNELS.PROGRESS, { line, fase })
   )
   sharedSandbox.setAvisoRedHandler((aviso) => emisorSinContenido.emitir(SANDBOX_RED_CHANNELS.AVISO, aviso))
+  sharedSandbox.setEstadoDockerHandler((estado) => emisorSinContenido.emitir(SANDBOX_ESTADO_CHANNELS.DOCKER, estado))
   registrarIpcRedSandbox({ ipc, sandbox: sharedSandbox, perfiles: () => perfiles.lista })
   // Las capas de los agentes manuales de cada perfil: el registro es del main y sobrevive a actualizar.
   sharedSandbox.usarRegistroCapas(join(app.getPath('userData'), 'capas-perfil.json'))
@@ -176,6 +180,21 @@ interface SesionAgente {
   agentController: AgentTerminalController
 }
 
+/**
+ * El vigilante de la memoria del equipo, ya midiendo. `TESSERA_E2E_POCA_MEMORIA` (`1` o `0`) fija la
+ * respuesta, solo con la marca del arnés de interfaz.
+ */
+function crearVigilanteMemoria(): VigilanteMemoria {
+  const forzada = lanzadaPorElArnes(process.argv) ? process.env.TESSERA_E2E_POCA_MEMORIA : undefined
+  const vigilante = new VigilanteMemoria({
+    plataforma: plataformaActual(),
+    log: (m) => dbLog('hibernar', m),
+    ...(forzada === '1' || forzada === '0' ? { forzada: forzada === '1' } : {})
+  })
+  vigilante.iniciar()
+  return vigilante
+}
+
 /** La terminal del agente, con las anclas de conversación y el vigilante de turnos. */
 function componerSesionAgente(deps: DepsSesiones, sb: Sandbox, hostEnv: EntornoHost): SesionAgente {
   const { refs, ipc, perfiles, accounts, dbController } = deps
@@ -189,11 +208,20 @@ function componerSesionAgente(deps: DepsSesiones, sb: Sandbox, hostEnv: EntornoH
     undefined,
     (sessionId, cambios) => refs.agentes?.aplicarSegundoPlano(sessionId, cambios)
   )
+  // La salida de cada sesión va a la ventana que la abrió: la principal o una ventana de agente.
+  const eventos = emisorPorSesion(emisorDeVentana(() => refs.ventana), (sessionId) => {
+    const ventana = refs.agentes?.ventanaDe(sessionId)
+    if (ventana === undefined || ventana === null) return 'sin-dueno'
+    return webContents.fromId(ventana) ?? null
+  })
+  const memoria = crearVigilanteMemoria()
   const agentController = new AgentTerminalController({
+    pocaMemoria: () => memoria.pocaMemoria(),
     profiles: perfiles.lista,
     sandbox: sb.sharedSandbox,
     accounts,
-    eventos: emisorDeVentana(() => refs.ventana),
+    eventos,
+    carpetaVentana: () => carpetaVentanaAgente(),
     portapapeles: portapapelesDelSistema,
     touchedProfiles: sb.touchedProfiles,
     sshSetup: sb.sshSetup,
@@ -212,7 +240,8 @@ function componerSesionAgente(deps: DepsSesiones, sb: Sandbox, hostEnv: EntornoH
     esperarCandado: (agente) => (refs.agentesNativos ? refs.agentesNativos.esperarCandado(agente) : Promise.resolve()),
     alCambiarSesiones: () => refs.agentesNativos?.notificarSesiones(),
     // Solo la leen las pruebas de interfaz: acorta el umbral, no enciende la hibernación.
-    inactividadPruebasMs: umbralPruebasDe(process.env.TESSERA_AGENTE_INACTIVIDAD_MS)
+    inactividadPruebasMs: umbralPruebasDe(process.env.TESSERA_AGENTE_INACTIVIDAD_MS),
+    rutaRegistroParadas: join(app.getPath('userData'), 'logs', 'paradas-contenedores.jsonl')
   })
   refs.agentes = agentController
   registrarIpcTerminalAgente({ ipc, agentes: agentController, esperarBorrado: (id) => deps.borrados.esperar(id) })
@@ -250,12 +279,13 @@ function componerAgentesNativos(refs: ReferenciasApp, controladorAgentes: AgentT
 }
 
 /** Cuentas, conversaciones, uso de cuenta y contexto de la conversación. */
-function componerCuentasYUso({ refs, ipc, accounts }: DepsSesiones, sesion: SesionAgente, emisorSinContenido: EmisorEventos): void {
+function componerCuentasYUso({ refs, ipc, accounts }: DepsSesiones, sesion: SesionAgente, aTodas: EmisorEventos): void {
   // LOGOUT y DELETE cierran antes las sesiones vivas de esa cuenta, en cualquier perfil.
   registrarIpcCuentas({
     ipc,
     cuentas: accounts,
     cerrarSesionesDeCuenta: (id) => refs.agentes?.closeSessionsForAccount(id),
+    cerrarSesionesDeAgente: (profileId, agente) => refs.agentes?.closeSessionsForAgente(profileId, agente),
     // `usage` y `usageWatcher` se declaran más abajo: las clausuras los leen al atender.
     olvidarUso: (id) => usage.forget(id),
     soltarVigilanteUso: (id) => usageWatcher.cerrar(id)
@@ -271,10 +301,11 @@ function componerCuentasYUso({ refs, ipc, accounts }: DepsSesiones, sesion: Sesi
   // Cambiar de conversación cambia QUÉ se mide: la respuesta cacheada deja de valer.
   sesion.anclasConversacion.onCambio(() => contexts.invalidate())
   // Al terminar un turno el transcript crece: caduca uso y contexto y avisa al panel.
+  // A todas las ventanas (`aTodas`): el pie de una ventana de agente pinta el uso de la misma cuenta nativa.
   const usageWatcher = new UsageWatcher((key) => {
     usage.invalidate(key)
     contexts.invalidate()
-    emisorSinContenido.emitir(USAGE_CHANNELS.CHANGED, { key } satisfies UsageChanged)
+    aTodas.emitir(USAGE_CHANNELS.CHANGED, { key } satisfies UsageChanged)
   })
   refs.vigilanteUso = usageWatcher
   registrarIpcContexto({ ipc, contexto: new ServicioContexto({ lector: contexts, baseDe: sesion.baseDeCuenta }) })
@@ -359,7 +390,7 @@ export function componerSesiones(deps: DepsSesiones): AgentesNativos {
   const controller = componerTerminal(deps, sb, hostEnvForProfile)
   const sesion = componerSesionAgente(deps, sb, hostEnvForProfile)
   const agentesNativos = componerAgentesNativos(deps.refs, sesion.agentController)
-  componerCuentasYUso(deps, sesion, sb.emisorSinContenido)
+  componerCuentasYUso(deps, sesion, emisorATodas(() => BrowserWindow.getAllWindows()))
   // Rehornea la imagen y recrea los contenedores; los paneles vivos se recuperan solos.
   registrarIpcActualizarAgentes({ ipc, sandbox: sb.sharedSandbox, eventos: sb.emisorSinContenido })
   registrarIpcAgentesNativos({ ipc, nativos: agentesNativos })

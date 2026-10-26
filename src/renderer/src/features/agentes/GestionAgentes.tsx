@@ -10,7 +10,6 @@ import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { DefinicionAgente, IdAgente } from '../../../../shared/agentesManuales'
 import { useStorePestanas } from '../pestanas'
-import { editorTargetKey } from '../editor'
 import { agentesDelPerfil, sePuedeOcultar, type AgenteDelPerfil } from './agentesDelProyecto'
 import { moverUnPaso, soltarSobre } from './ordenAgentes.ts'
 import { fijarOrdenAgentes, ocultarAgente } from './store'
@@ -27,15 +26,12 @@ function SobreAjustes({ children }: { children: React.ReactNode }): React.JSX.El
   return createPortal(<div className="sobre-ajustes">{children}</div>, document.body)
 }
 
-/** El perfil activo, su nombre y el modo de su proyecto activo (el de un agente nuevo). */
-function usePerfilActivo(nuevoNativoPorDefecto: boolean): { profileId: string | null; nombre: string; nativo: boolean } {
+/** El perfil activo y su nombre. */
+function usePerfilActivo(): { profileId: string | null; nombre: string } {
   const tabs = useStorePestanas((s) => s.tabs)
-  const windowsModeKeys = useStorePestanas((s) => s.windowsModeKeys)
   const profileId = tabs.activeProfileId
-  if (!profileId) return { profileId: null, nombre: '', nativo: nuevoNativoPorDefecto }
-  const nombre = tabs.profiles.find((p) => p.id === profileId)?.nombre ?? profileId
-  const ruta = tabs.byProfile[profileId]?.activePath ?? null
-  return { profileId, nombre, nativo: ruta ? windowsModeKeys.has(editorTargetKey(profileId, ruta)) : nuevoNativoPorDefecto }
+  if (!profileId) return { profileId: null, nombre: '' }
+  return { profileId, nombre: tabs.profiles.find((p) => p.id === profileId)?.nombre ?? profileId }
 }
 
 type Modal = { inicial: DefinicionAgente | null; nativo: boolean } | null
@@ -63,10 +59,10 @@ function BotonIcono(p: { etiqueta: string; onClick: (e: React.MouseEvent<HTMLBut
   )
 }
 
-export function GestionAgentes({ nuevoNativoPorDefecto }: { nuevoNativoPorDefecto: boolean }): React.JSX.Element {
+export function GestionAgentes(): React.JSX.Element {
   const t = txSelector()
   const fuente = useFuenteAgentes()
-  const perfil = usePerfilActivo(nuevoNativoPorDefecto)
+  const perfil = usePerfilActivo()
   const [modal, setModal] = useState<Modal>(null)
   const [borrando, setBorrando] = useState<{ d: DefinicionAgente; nativo: boolean } | null>(null)
   const profileId = perfil.profileId ?? ''
@@ -94,7 +90,7 @@ export function GestionAgentes({ nuevoNativoPorDefecto }: { nuevoNativoPorDefect
         ))}
       </ul>
       <div>
-        <button type="button" className="btn" title={t.anadirEn(perfil.nativo)} onClick={() => setModal({ inicial: null, nativo: perfil.nativo })}>
+        <button type="button" className="btn" onClick={() => setModal({ inicial: null, nativo: true })}>
           {t.anadir}
         </button>
       </div>

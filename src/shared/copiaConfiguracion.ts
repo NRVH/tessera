@@ -49,7 +49,6 @@ export interface AgentesCopia {
 export const AJUSTES_EXPORTABLES = [
   'zoomLevel',
   'hideProfileNames',
-  'defaultProjectMode',
   'activityBarOrder',
   'bottomBarOrder',
   'terminalFontFamily',
@@ -72,7 +71,12 @@ export const AJUSTES_EXPORTABLES = [
   'dbFilasPorPagina',
   'dbTxInicial',
   'dbConsolaInactividadMin',
-  'agenteInactividadMin'
+  'agenteInactividadMin',
+  'primeroEnPararse',
+  'protegerTrabajando',
+  'saturacionUmbral',
+  'saturacionSegundos',
+  'avisarAntesDeParar'
 ] as const satisfies readonly (keyof WorkspaceSettings)[]
 
 export type AjustesCopia = Partial<Pick<WorkspaceSettings, (typeof AJUSTES_EXPORTABLES)[number]>>

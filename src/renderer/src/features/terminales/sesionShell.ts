@@ -6,7 +6,9 @@
 // Decisiones: docs/decisiones/terminales/terminales-keep-alive-y-reinicio-limpio.md
 // =============================================================================
 
+import type { Terminal } from '@xterm/xterm'
 import { normalizarErrorIpc } from '../../../../shared/dockerErrors'
+import { ESPERAS_RECUPERACION_MS, MAX_INTENTOS_RECUPERACION, esperarMs } from '../../../../shared/esperasRecuperacion'
 import type { OpenTerminalResult } from '../../../../shared/terminal-ipc'
 import { bannerFinSsh } from './finSesionSsh'
 import { txTerminales } from './textos.ts'
@@ -105,6 +107,23 @@ function relanzarPty(c: ContextoSesion, id: string): Promise<OpenTerminalResult>
   return c.origen.tipo === 'ssh' ? window.tessera.terminal.reload(id) : window.tessera.terminal.reload(id, c.refs.dbMounted.current)
 }
 
+/** Tras un relanzamiento que salió bien: pantalla limpia, sesión viva y nada pendiente de recuperar. */
+function reiniciarVista(c: ContextoSesion, term: Terminal): void {
+  const { refs, estado } = c
+  refs.flow.current?.reset()
+  term.reset()
+  refs.inicioSesion.current = Date.now()
+  estado.setDatosRecibidos(false)
+  estado.setFinSsh(null)
+  estado.setExitCode(null)
+  estado.setCaidaContenedor(null)
+  estado.setStatus('live')
+  requestAnimationFrame(() => {
+    c.fitAndSyncNow()
+    term.focus()
+  })
+}
+
 /**
  * Relanza el shell conservando el sessionId. La pantalla se limpia DESPUÉS de que el
  * relanzamiento salga bien (un fallo no borra el historial) y no se escribe nada antes de
@@ -120,17 +139,7 @@ async function relanzar(c: ContextoSesion, id: string): Promise<void> {
   try {
     await relanzarPty(c, id)
     if (refs.term.current !== term) return
-    refs.flow.current?.reset()
-    term.reset()
-    refs.inicioSesion.current = Date.now()
-    estado.setDatosRecibidos(false)
-    estado.setFinSsh(null)
-    estado.setExitCode(null)
-    estado.setStatus('live')
-    requestAnimationFrame(() => {
-      c.fitAndSyncNow()
-      term.focus()
-    })
+    reiniciarVista(c, term)
   } catch (err) {
     if (refs.term.current !== term) return
     const motivo = err instanceof Error ? err.message : String(err)
@@ -138,6 +147,45 @@ async function relanzar(c: ContextoSesion, id: string): Promise<void> {
     const texto = normalizarErrorIpc(motivo)
     term.write(`\r\n\x1b[38;2;224;108;117m${txTerminales().fallo(texto)}\x1b[0m\r\n`)
   } finally {
+    estado.setReloading(false)
+  }
+}
+
+/**
+ * Recupera el shell de un proyecto en modo Docker cuyo contenedor murió: relanza la sesión (el main
+ * recrea el contenedor y vuelve a montar el proyecto) con esperas crecientes. Agotados los intentos,
+ * deja la sesión esperando a que Docker vuelva, que la reintenta. Sale sin hacer nada si el pane se
+ * desmonta o si ya hay otra recuperación en curso.
+ */
+export async function recuperarShell(c: ContextoSesion): Promise<void> {
+  const { refs, estado } = c
+  const term = refs.term.current
+  const id = refs.session.current
+  if (!term || !id || refs.recuperando.current) return
+  refs.recuperando.current = true
+  estado.setCaidaContenedor(null)
+  estado.setReloading(true)
+  const t = txTerminales()
+  try {
+    for (let intento = 1; intento <= MAX_INTENTOS_RECUPERACION; intento++) {
+      await esperarMs(ESPERAS_RECUPERACION_MS[intento - 1])
+      if (refs.term.current !== term) return
+      term.write(`\x1b[38;2;92;99;112m${t.intentoRecuperacion(intento, MAX_INTENTOS_RECUPERACION)}\x1b[0m\r\n`)
+      try {
+        await relanzarPty(c, id)
+        if (refs.term.current !== term) return
+        reiniciarVista(c, term)
+        return
+      } catch (err) {
+        if (refs.term.current !== term) return
+        const motivo = normalizarErrorIpc(err instanceof Error ? err.message : String(err))
+        term.write(`\x1b[38;2;224;108;117m${t.intentoFallo(intento, motivo)}\x1b[0m\r\n`)
+      }
+    }
+    term.write(`\x1b[38;2;224;108;117m${t.noRecuperado(MAX_INTENTOS_RECUPERACION)}\x1b[0m\r\n`)
+    estado.setCaidaContenedor('esperar-docker')
+  } finally {
+    refs.recuperando.current = false
     estado.setReloading(false)
   }
 }

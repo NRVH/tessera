@@ -3,11 +3,14 @@
 // de `terminal-ipc.ts`, que no se toca, con las mismas formas de escritura, resize, datos
 // y salida, y un OPEN propio que lleva el agente, el modo y la cuenta.
 // invoke (renderer -> main): OPEN, RELOAD, CLOSE, SAVE_IMAGE, STAGE_FILE, ACTIVITY_SNAPSHOT,
-// DETENER_VARIAS, HIBERNAR_INACTIVOS; send (renderer -> main): WRITE, RESIZE, FLOW; send
-// (main -> renderer): DATA, EXIT, ACTIVITY. Lo sirve `src/main/agents/ipc.ts`.
+// DETENER_VARIAS, HIBERNAR_INACTIVOS, SATURACION_OTRO, REGISTRO_PARADAS; send (renderer -> main):
+// WRITE, RESIZE, FLOW, SATURACION_VIGIA; send (main -> renderer): DATA, EXIT, ACTIVITY,
+// PARADA_POR_LIMITE, SATURACION_AVISO. Lo sirve `src/main/agents/ipc.ts`.
 // =============================================================================
 
 import type { DefinicionAgente, IdAgente } from './agentesManuales.ts'
+import type { PoliticaCupo, PrimeroEnPararse } from './semaforoContenedores.ts'
+import type { AjustesSaturacion } from './saturacionDocker.ts'
 
 /** Tipos de agente admitidos (espejo de Agente en main/profiles/types, inline para no acoplar shared). */
 export type AgentKind = 'claude-code' | 'codex'
@@ -96,8 +99,82 @@ export const AGENT_TERMINAL_CHANNELS = {
    * mismo tick, y responde sin esperar a que mueran los procesos. Va en el canal del AGENTE
    * a propósito: desde aquí no se alcanza ninguna terminal de shell. No emite EXIT.
    */
-  HIBERNAR_INACTIVOS: 'agentTerminal:hibernarInactivos'
+  HIBERNAR_INACTIVOS: 'agentTerminal:hibernarInactivos',
+  /**
+   * send (main -> renderer): para abrir un agente en Docker con el límite de contenedores alcanzado,
+   * el main paró el contenedor de otra cuenta según la política del usuario. ParadaPorLimite. El
+   * renderer marca sus proyectos como hibernados (se retoman al volver) y dice qué regla se aplicó.
+   */
+  PARADA_POR_LIMITE: 'agentTerminal:paradaPorLimite',
+  /**
+   * send (renderer -> main): lo que el vigía de la saturación de Docker necesita del renderer: los
+   * ajustes, la política y qué proyectos se ven (el agente a la vista no se para). Se manda al
+   * cambiar cualquiera; sin recibirlo, el vigía no actúa. VigiaSaturacionConfig.
+   */
+  SATURACION_VIGIA: 'agentTerminal:saturacionVigia',
+  /** send (main -> renderer): aviso previo, cancelación o «nada que parar». AvisoSaturacion. */
+  SATURACION_AVISO: 'agentTerminal:saturacionAviso',
+  /** invoke: durante el aviso, parar otro en vez del anunciado. void -> boolean (false: no hay otro). */
+  SATURACION_OTRO: 'agentTerminal:saturacionOtro',
+  /** invoke: la constancia de las últimas paradas, la más reciente primero. void -> ConstanciaParada[]. */
+  REGISTRO_PARADAS: 'agentTerminal:registroParadas'
 } as const
+
+/** Por qué Tessera paró un contenedor: para abrir otro con el límite alcanzado, o Docker saturado. */
+export type MotivoParada = 'limite' | 'saturacion'
+
+/** Lo que el main paró para hacer sitio, y con qué regla. */
+export interface ParadaPorLimite {
+  motivo: MotivoParada
+  hibernados: AgenteHibernado[]
+  /** El límite y la política que se aplicaron, para que el aviso los diga. */
+  limite: number
+  primero: PrimeroEnPararse
+  /** El contenedor no tenía agentes: no se interrumpió nada. */
+  sinAgentes: boolean
+  /** `saturacion`: el porcentaje de memoria de Docker medido al parar. */
+  porcentaje?: number
+}
+
+/** Un proyecto con los agentes que se pararían o se pararon en un contenedor. */
+export interface ProyectoParado {
+  profileId: string
+  projectHostPath: string
+  agentes: IdAgente[]
+}
+
+/** Lo que manda el renderer al vigía de la saturación. */
+export interface VigiaSaturacionConfig {
+  ajustes: AjustesSaturacion
+  politica: Omit<PoliticaCupo, 'limite'>
+  /** Proyectos a la vista: sus contenedores no se paran. */
+  enPantalla: Array<{ profileId: string; projectHostPath: string }>
+}
+
+/**
+ * Lo que dice el vigía: `aviso`, se parará `proyectos` (los de un contenedor; vacío si no tiene
+ * agentes) en `plazoMs` si Docker sigue saturado; `cancelado`, bajó y no se para nada;
+ * `sin-candidatos`, saturado y nada que se pueda parar con la política del usuario.
+ */
+export type AvisoSaturacion =
+  | { tipo: 'aviso'; porcentaje: number; plazoMs: number; proyectos: ProyectoParado[] }
+  | { tipo: 'cancelado'; porcentaje: number }
+  | { tipo: 'sin-candidatos'; porcentaje: number }
+
+/** Una parada que hizo Tessera, con la regla que aplicó: lo que se puede consultar después. */
+export interface ConstanciaParada {
+  /** Epoch ms. */
+  en: number
+  motivo: MotivoParada
+  proyectos: ProyectoParado[]
+  primero: PrimeroEnPararse
+  protegerTrabajando: boolean
+  /** `limite`: el límite que se aplicó. */
+  limite?: number
+  /** `saturacion`: el porcentaje medido y el umbral del usuario. */
+  porcentaje?: number
+  umbralPct?: number
+}
 
 /** Petición para abrir una terminal de agente para un (perfil, agente, proyecto). */
 export interface AgentOpenRequest {
@@ -128,12 +205,17 @@ export interface AgentOpenRequest {
    */
   mode?: AgentRunMode
   /**
+   * En contenedor: el límite de contenedores y la política para hacer sitio, de los ajustes del
+   * usuario. Ausente = sin límite (las pruebas y quien no lo pida).
+   */
+  cupo?: PoliticaCupo
+  /**
    * Ids de las conexiones a base de datos MONTADAS en este proyecto. Solo se
    * inyectan sus credenciales en el entorno del pty y solo esas ve `tdb`. Ausente o
    * vacío => el agente no tiene ninguna base a mano.
    *
-   * Solo aplica en modo 'host': en contenedor no hay `tdb` (las bases van por la VPN
-   * del usuario y no se expone al contenedor).
+   * En contenedor no viajan secretos: `tdb` corre en el host por el buzón del puente
+   * y solo ve estas conexiones (`bd/puente-buzon-de-docker.md`).
    *
    * Se fija al ARRANCAR la sesión: cambiar el montaje con el agente vivo exige
    * reiniciarlo, porque los secretos viven en el entorno del proceso.
@@ -251,6 +333,8 @@ export interface AgentHibernarInactivosRequest {
   /** El ajuste `agenteInactividadMin` tal cual; el main lo sanea (0 = Nunca). */
   minutos: number
   proyectos: ProyectoHibernable[]
+  /** Hibernar ya lo que se pueda, sin esperar al plazo (el botón del aviso de poca memoria). */
+  ahora?: boolean
 }
 
 /** Un proyecto cuyo agente se acaba de hibernar, con el chat que debe reanudar cada sesión. */
@@ -271,6 +355,8 @@ export interface AgentHibernarInactivosResult {
   revisarEnMs: number | null
   /** El umbral aplicado, o null con «Nunca». */
   umbralMs: number | null
+  /** Al equipo le queda poca memoria: el umbral ya va acortado. */
+  pocaMemoria: boolean
 }
 
 /** Petición para volcar la imagen del portapapeles en el contenedor de una sesión. */
@@ -293,20 +379,25 @@ export interface AgentDataMessage {
 
 /**
  * Causa de una salida de sesión, clasificada por el main tras el exit:
- *   - 'ok'             → salida normal (Docker y contenedor vivos): el usuario cerró
- *                        el CLI o el proceso salió. La UI ofrece "Reiniciar".
- *   - 'container-down' → el contenedor del perfil murió (Docker vive). La UI se
- *                        AUTO-RECUPERA (recrea limpio + recarga credenciales), acotado.
- *   - 'daemon-down'    → el daemon de Docker no responde. Tessera NO puede arrancarlo:
- *                        la UI avisa y ofrece reintento MANUAL.
- *   - 'unknown'        → el DIAGNÓSTICO en sí falló (la sonda docker info/inspect lanzó):
- *                        no se pudo determinar la causa. La UI NO auto-recupera (podría
- *                        haber sido una salida normal), pero AVISA de forma visible en
- *                        vez de fingir 'ok' silencioso. Reintento manual.
- * Las tres primeras son espejo de ContainerDeathCause en main/sandbox; 'unknown' lo
- * añade el AgentTerminalController cuando el diagnóstico lanza.
+ * - 'ok': salida normal; la UI ofrece «Reabrir».
+ * - 'container-down': murió el contenedor con Docker vivo; la UI lo recrea sola, acotado.
+ * - 'daemon-down': Docker no responde; la UI avisa y espera a que vuelva.
+ * - 'unknown': falló el propio diagnóstico; la UI avisa (no finge 'ok') y no se recupera sola.
+ * - 'sin-memoria': la sesión murió por falta de memoria (del equipo, o de Docker en contenedor).
+ * - 'parado-por-limite': Tessera la paró para abrir otro agente con el límite de contenedores
+ *   alcanzado; la sesión ya no existe en el main y «Reabrir» retoma la conversación.
+ * - 'parado-por-saturacion': igual, pero porque la memoria de Docker se saturó.
+ * 'container-down' y 'daemon-down' son espejo de ContainerDeathCause en main/sandbox; las otras las
+ * pone el controlador del agente.
  */
-export type AgentExitReason = 'ok' | 'container-down' | 'daemon-down' | 'unknown'
+export type AgentExitReason =
+  | 'ok'
+  | 'container-down'
+  | 'daemon-down'
+  | 'unknown'
+  | 'sin-memoria'
+  | 'parado-por-limite'
+  | 'parado-por-saturacion'
 
 /**
  * Estado de ACTIVIDAD de un agente, derivado por el main del TURNO en curso (ver

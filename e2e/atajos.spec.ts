@@ -159,8 +159,7 @@ test.describe('atajos globales', () => {
 // parte del contrato, que es lo que vuelve intermitentes a las pruebas de teclado. El
 // diálogo nativo de carpeta se sustituye en el main (`app.evaluate`): `showOpenDialog` es
 // una ventana del sistema que Playwright no conduce, y la ruta sigue llegando OPACA desde
-// el main, como exige `tabsModel`. El proyecto nace en modo nativo (`defaultProjectMode`
-// vale 'windows' en un `userData` nuevo): sin modal de modo ni contenedor.
+// el main, como exige `tabsModel`. Sus agentes corren nativos (sin elegir Docker): sin contenedor.
 // -----------------------------------------------------------------------------
 test.describe('⌘+F en la vista renderizada de un Markdown', () => {
   let s: SesionTessera

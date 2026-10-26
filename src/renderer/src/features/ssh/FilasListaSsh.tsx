@@ -1,7 +1,7 @@
 // =============================================================================
 // Las clases de fila de la lista de conexiones SSH: la cabecera de un grupo (chevron, nombre y
 // recuento), una conexión (alias, usuario@host[:puerto], pestañas abiertas, un ojo tachado si los
-// agentes no la ven, icono del método y «⋯») y el rótulo de una sección («Recientes»).
+// agentes no la ven, icono del método y «⋯»).
 // Grupos y conexiones son `treeitem` de un `tree`: el foco real está en el filtro y la fila activa se
 // nombra con `aria-activedescendant`. Presentación pura: lo que pasa al pulsar lo decide quien las pinta.
 // =============================================================================
@@ -9,7 +9,7 @@
 import { ChevronArbol } from '../../comun/iconosArbol'
 import { esModPrincipal } from '../../util/atajos'
 import type { ModificadoresClicSsh } from './seleccionListaSsh'
-import { destinoSsh, type FilaConexion, type FilaGrupo, type FilaSeccion } from './listaSsh'
+import { destinoSsh, type FilaConexion, type FilaGrupo } from './listaSsh'
 import { IconoArchivoClave, IconoClavesSistema, IconoContrasena, IconoSinAgentes } from './iconosSsh'
 import type { SshMetodo } from '../../../../shared/ssh-ipc'
 import { txSsh } from './textos.ts'
@@ -75,18 +75,6 @@ export function FilaGrupoSsh({ fila, ...p }: PropsFila & { fila: FilaGrupo }): R
   )
 }
 
-/**
- * El rótulo de una sección: fuera del árbol de accesibilidad. Las conexiones de «Recientes» dicen que lo son
- * en su propio nombre, porque aquí no hay nada que leer.
- */
-export function FilaSeccionSsh({ fila, alto }: { fila: FilaSeccion; alto: number }): React.JSX.Element {
-  return (
-    <div className="ssh-fila-seccion" style={{ height: alto }} aria-hidden="true">
-      {fila.nombre}
-    </div>
-  )
-}
-
 /** Cuántas pestañas abiertas tiene la conexión, en azul (el azul de la paleta, no el del perfil: es un estado). */
 function Abiertas({ n }: { n: number }): React.JSX.Element | null {
   if (n <= 0) return null
@@ -128,13 +116,13 @@ function clasesConexion(nivel: 1 | 2, activa: boolean, enSesion: boolean, marcad
   return clases.join(' ')
 }
 
-/** El nombre que se anuncia de una conexión: si es de «Recientes», su destino, su método, sus pestañas y si los agentes no la ven. */
+/** El nombre que se anuncia de una conexión: alias, destino, método, pestañas y si los agentes no la ven. */
 function etiquetaConexion(fila: FilaConexion, destino: string, abiertas: number): string {
   const c = fila.conexion
   const t = txSsh()
   const sufijo = abiertas > 0 ? t.abiertasSufijo(abiertas) : ''
   const oculta = c.disponibleAgentes ? '' : t.noAgentesAria
-  return `${fila.reciente ? t.reciente : ''}${c.alias}, ${destino}, ${textoMetodo(c.metodo)}${sufijo}${oculta}`
+  return `${c.alias}, ${destino}, ${textoMetodo(c.metodo)}${sufijo}${oculta}`
 }
 
 /**
@@ -169,8 +157,7 @@ export function FilaConexionSsh({
       aria-level={fila.nivel}
       // En el riel dice lo marcado; en el lanzador, que no marca, la fila del cursor.
       aria-selected={marcada !== undefined || (onArrastrar === undefined && p.activa)}
-      // Solo la fila del grupo: la de «Recientes» repite la misma conexión y un lector diría dos «actual».
-      aria-current={enSesion && !fila.reciente ? 'true' : undefined}
+      aria-current={enSesion ? 'true' : undefined}
       aria-label={etiquetaConexion(fila, destino, abiertas)}
       className={clasesConexion(fila.nivel, p.activa, enSesion, marcada, p.enDestino === true)}
       style={{ height: p.alto }}

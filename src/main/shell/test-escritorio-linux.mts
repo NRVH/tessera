@@ -146,6 +146,16 @@ hr('(D) contenido')
   check('(D) lleva un Comment', lineas.some((l) => /^Comment=.+/.test(l)), '')
   check('(D) es propio', esDesktopPropio(c), '')
   check('(D) uno sin la clave no es propio', !esDesktopPropio('[Desktop Entry]\nName=Tessera\nExec=tessera %F\n'), '')
+  // La ventana de agente: una acción del lanzador, en su grupo y DESPUÉS del de la entrada.
+  const iAccion = lineas.indexOf('[Desktop Action ventana-agente]')
+  check('(D) declara la acción en la entrada', lineas.includes('Actions=ventana-agente;') && lineas.indexOf('Actions=ventana-agente;') < iAccion, '')
+  check(
+    '(D) su grupo lanza el mismo ejecutable con la bandera, sin %F',
+    iAccion > 0 && lineas.slice(iAccion).includes('Exec="/opt/Tessera/tessera" --ventana-agente'),
+    lineas.slice(iAccion).join(' | ')
+  )
+  check('(D) su nombre en español y en inglés', lineas.includes('Name=Nueva ventana de agente') && lineas.includes('Name[en]=New agent window'), '')
+  check('(D) el ejecutable que se lee es el de la entrada', ejecutableDelDesktop(c) === '/opt/Tessera/tessera', String(ejecutableDelDesktop(c)))
 }
 
 hr('(H) el tipo de las copias de la configuración (.tessera)')

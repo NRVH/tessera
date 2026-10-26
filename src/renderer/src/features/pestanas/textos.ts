@@ -1,6 +1,6 @@
 // =============================================================================
 // Textos de las pestañas de perfil y de proyecto: la banda y el selector de perfiles, su menú y
-// sus diálogos, el selector de color, el modo del proyecto, la red del contenedor y los avisos de
+// sus diálogos, el selector de color, la red del contenedor y los avisos de
 // las aperturas desde el gestor de archivos. Puro y sin JSX: el marcado lo compone cada componente.
 // Decisiones: docs/decisiones/app/idioma.md
 // =============================================================================
@@ -31,7 +31,7 @@ export const txPestanas = crearTextos(
     menu: {
       renombrar: 'Renombrar',
       cambiarColor: 'Cambiar color',
-      red: (redHost: boolean) => `Red del contenedor: ${redHost ? 'anfitrión' : 'aislada'}…`,
+      red: (redHost: boolean) => `Red del contenedor: ${redHost ? 'la de tu equipo' : 'propia'}…`,
       hibernarConfirma: 'Hibernar perfil…',
       hibernar: 'Hibernar perfil',
       eliminar: 'Eliminar perfil…'
@@ -61,8 +61,6 @@ export const txPestanas = crearTextos(
       despertando: 'Despertando…',
       despertandoAria: 'despertando',
       agenteHibernado: ' · agente hibernado por inactividad',
-      modoNativo: (nombre: string, dormido: string) =>
-        `${nombre} — modo nativo (fuera del contenedor, cuenta personal)${dormido}`,
       hibernado: (nombre: string) => `${nombre} (hibernado)`,
       cerrarAria: (nombre: string) => `Cerrar ${nombre}`,
       cerrar: 'Cerrar',
@@ -73,16 +71,7 @@ export const txPestanas = crearTextos(
       cerrarMensaje: (nombre: string) =>
         `¿Seguro que quieres cerrar «${nombre}»?\nSe cerrarán sus pestañas y la sesión del agente de este proyecto.`,
       cancelar: 'Cancelar',
-      volverDocker: 'Volver a modo Docker (aislado)',
-      irNativo: 'Trabajar en modo nativo (fuera del contenedor, cuenta personal)',
       abrirAqui: 'Abrir otro proyecto aquí…'
-    },
-    modo: {
-      titulo: (nombre: string) => `¿Cómo abrir “${nombre}”?`,
-      mensaje: 'Elige el modo de este proyecto. Podrás cambiarlo después desde el menú de su pestaña.',
-      nativoHint: 'Nativo · tu cuenta personal',
-      dockerHint: 'Aislado · cuenta del perfil',
-      cancelar: 'Cancelar'
     },
     color: {
       quitar: (tinta: string) => `${tinta} · clic derecho para quitarlo`,
@@ -100,9 +89,9 @@ export const txPestanas = crearTextos(
       titulo: (nombre: string) => `Color de «${nombre}»`
     },
     red: {
-      aislada: 'Aislada',
+      aislada: 'Propia',
       aisladaHint: 'Recomendada · red y puertos propios',
-      anfitrion: 'Del anfitrión',
+      anfitrion: 'La de tu equipo',
       anfitrionHint: (tuEquipo: string) => `--network host · comparte la red de ${tuEquipo}`,
       conRedAnfitrion: 'Con la red del anfitrión',
       puertos: (tuEquipo: string) => `Los puertos que abra el contenedor quedan en ${tuEquipo}, en el mismo número.`,
@@ -118,7 +107,7 @@ export const txPestanas = crearTextos(
       salidaVpn: 'Salida a la VPN',
       otroPerfil: 'Otro perfil ya usa la red del anfitrión',
       otroPerfilDetalle: (tuEquipo: string) =>
-        `En este modo los contenedores comparten el espacio de puertos de ${tuEquipo}, así que el login por navegador de Codex sólo podrá completarse en uno de los dos.`,
+        `En este modo los contenedores comparten el espacio de puertos de ${tuEquipo}: si los agentes de los dos levantan algo en el mismo puerto, el segundo no podrá.`,
       titulo: (nombre: string) => `Red del contenedor de “${nombre}”`,
       mensaje:
         'Decide por dónde entran y salen las conexiones de este perfil. El cambio se aplica al reiniciar su contenedor.',
@@ -165,7 +154,7 @@ export const txPestanas = crearTextos(
     menu: {
       renombrar: 'Rename',
       cambiarColor: 'Change color',
-      red: (redHost: boolean) => `Container network: ${redHost ? 'host' : 'isolated'}…`,
+      red: (redHost: boolean) => `Container network: ${redHost ? 'your computer’s' : 'its own'}…`,
       hibernarConfirma: 'Hibernate profile…',
       hibernar: 'Hibernate profile',
       eliminar: 'Delete profile…'
@@ -195,8 +184,6 @@ export const txPestanas = crearTextos(
       despertando: 'Waking…',
       despertandoAria: 'waking',
       agenteHibernado: ' · agent hibernated for inactivity',
-      modoNativo: (nombre: string, dormido: string) =>
-        `${nombre} — native mode (outside the container, personal account)${dormido}`,
       hibernado: (nombre: string) => `${nombre} (hibernated)`,
       cerrarAria: (nombre: string) => `Close ${nombre}`,
       cerrar: 'Close',
@@ -207,16 +194,7 @@ export const txPestanas = crearTextos(
       cerrarMensaje: (nombre: string) =>
         `Are you sure you want to close “${nombre}”?\nIts tabs and this project’s agent session will be closed.`,
       cancelar: 'Cancel',
-      volverDocker: 'Back to Docker mode (isolated)',
-      irNativo: 'Work in native mode (outside the container, personal account)',
       abrirAqui: 'Open another project here…'
-    },
-    modo: {
-      titulo: (nombre: string) => `How do you want to open “${nombre}”?`,
-      mensaje: 'Choose this project’s mode. You can change it later from its tab’s menu.',
-      nativoHint: 'Native · your personal account',
-      dockerHint: 'Isolated · profile account',
-      cancelar: 'Cancel'
     },
     color: {
       quitar: (tinta: string) => `${tinta} · right-click to remove it`,
@@ -234,9 +212,9 @@ export const txPestanas = crearTextos(
       titulo: (nombre: string) => `Color of “${nombre}”`
     },
     red: {
-      aislada: 'Isolated',
+      aislada: 'Its own',
       aisladaHint: 'Recommended · own network and ports',
-      anfitrion: 'Host',
+      anfitrion: 'Your computer’s',
       anfitrionHint: (tuEquipo: string) => `--network host · shares the network of ${tuEquipo}`,
       conRedAnfitrion: 'With the host network',
       puertos: (tuEquipo: string) => `Ports opened by the container stay on ${tuEquipo}, with the same number.`,
@@ -252,7 +230,7 @@ export const txPestanas = crearTextos(
       salidaVpn: 'VPN egress',
       otroPerfil: 'Another profile already uses the host network',
       otroPerfilDetalle: (tuEquipo: string) =>
-        `In this mode the containers share the port space of ${tuEquipo}, so Codex’s browser login can only complete in one of the two.`,
+        `In this mode the containers share the port space of ${tuEquipo}: if the agents of both start something on the same port, the second one cannot.`,
       titulo: (nombre: string) => `Container network for “${nombre}”`,
       mensaje:
         'Decide how this profile’s connections come in and go out. The change applies when its container restarts.',

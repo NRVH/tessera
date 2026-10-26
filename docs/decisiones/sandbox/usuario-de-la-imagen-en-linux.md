@@ -21,7 +21,7 @@ proyecto ni en `.git`, y lo que creara quedaría con un dueño que el usuario no
   sube `SANDBOX_IMAGE_VERSION`.
 - Docker sin root (`docker info` con `name=rootless`) se detecta en la sonda del daemon y se explica: el
   auxiliar privilegiado que monta los proyectos en caliente (`nsenter -t 1`) entra en el espacio de nombres
-  del usuario y no en el del daemon. Se propone el modo nativo o el Docker del sistema.
+  del usuario y no en el del daemon. Se propone usar el agente nativo o el Docker del sistema.
 
 ## Consecuencias
 

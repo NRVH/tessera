@@ -5,7 +5,7 @@
 
 ## Contexto
 
-El modo nativo corre fuera del contenedor, con cwd en la ruta real del proyecto. En Windows un
+Los agentes nativos y la terminal de abajo (siempre nativa, `agentes/modo-por-agente.md`) corren fuera del contenedor, con cwd en la ruta real del proyecto. En Windows un
 proceso hereda el PATH del sistema. En macOS una app lanzada desde el Finder la arranca `launchd`,
 que no lee `~/.zprofile` ni `~/.zshrc`: su PATH es `/usr/bin:/bin:/usr/sbin:/sbin`, sin Homebrew ni
 nvm, y `node`, `claude` o `codex` dan «command not found» aunque funcionen en cualquier terminal.

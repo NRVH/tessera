@@ -26,6 +26,11 @@ export interface EstadoBd {
   espaciosAbiertos: Set<string>
   /** Agente de datos a la vista, por perfil; sin entrada = oculto. Se persiste. */
   dbAgenteVisiblePorPerfil: Record<string, boolean>
+  /**
+   * Perfiles con alguna conexión leída. Sin ninguna, el centro enseña el alta o el aviso de un
+   * registro ilegible, y el agente de datos no lo tapa. No se persiste.
+   */
+  perfilesConConexiones: ReadonlySet<string>
   pedirNuevaConexion: PeticionToken<null> | null
   pedirEditarConexion: PeticionToken<string> | null
   menuConexiones: MenuConexiones | null
@@ -38,6 +43,7 @@ export const useStoreBd = create<EstadoBd>()(() => ({
   dbWorkspacePaths: {},
   espaciosAbiertos: new Set(),
   dbAgenteVisiblePorPerfil: {},
+  perfilesConConexiones: new Set(),
   pedirNuevaConexion: null,
   pedirEditarConexion: null,
   menuConexiones: null
@@ -49,6 +55,16 @@ export function actualizarVistaBd(f: (m: DbVistaMapa) => DbVistaMapa): void {
     const vistaBd = f(s.vistaBd)
     return vistaBd === s.vistaBd ? s : { vistaBd }
   })
+}
+
+/** Apunta qué perfiles tienen alguna conexión leída; el MISMO conjunto si no cambió. */
+export function fijarPerfilesConConexiones(porPerfil: ReadonlyMap<string, readonly unknown[]>): void {
+  const con = [...porPerfil].filter(([, lista]) => lista.length > 0).map(([id]) => id)
+  useStoreBd.setState((s) =>
+    con.length === s.perfilesConConexiones.size && con.every((id) => s.perfilesConConexiones.has(id))
+      ? {}
+      : { perfilesConConexiones: new Set(con) }
+  )
 }
 
 /** Oculta el agente de datos de un perfil borrando su entrada (oculto es el valor por defecto). */

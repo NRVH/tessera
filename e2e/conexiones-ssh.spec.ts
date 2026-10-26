@@ -1,11 +1,11 @@
 // =============================================================================
 // Las conexiones SSH del perfil en la terminal, sobre la app empaquetada y con un ssh FALSO
 // (`sshFalso.ts`, vía `TESSERA_SSH_BINARIO`): el botón dividido y su lanzador de conexiones (todo plegado al
-// abrirlo, un solo grupo abierto, «Recientes»), los grupos, el formulario y la lista de su selector «Grupo»,
+// abrirlo, un solo grupo abierto), los grupos, el formulario y la lista de su selector «Grupo»,
 // «Guardar» (solo guarda), las pestañas SSH del perfil, «Reconectar», «No se pudo conectar», «Disponible para
 // los agentes», editar y eliminar, el archivo de clave y la contraseña guardada (el programa de contraseñas
 // de verdad contra el falso), «Probar» y «Olvidar la huella guardada», la ▾ con el perfil vacío a pantalla
-// completa, «Importar desde OpenSSH…» y la guarda de las recientes con un archivo ajeno. Nada toca la red.
+// completa y «Importar desde OpenSSH…». Nada toca la red.
 // `TESSERA_E2E_CAPTURAS` guarda capturas.
 // =============================================================================
 
@@ -70,18 +70,6 @@ function sembrar(datos: string, m: Montaje): void {
       }
     })
   )
-  // Lo que hicieron los agentes con `tssh` (lo escribe el puente; aquí, sembrado): dos de este perfil y una de otro.
-  mkdirSync(join(datos, 'logs'), { recursive: true })
-  writeFileSync(
-    join(datos, 'logs', 'ssh.log'),
-    [
-      '[2026-10-08T09:00:00.000Z] perfil=personal sub=run alias="Con contraseña editada" inicio',
-      '[2026-10-08T09:00:01.500Z] perfil=personal sub=run alias="Con contraseña editada" codigo=0 ms=1500',
-      '[2026-10-08T09:05:00.000Z] perfil=personal sub=cp alias="Inventada" codigo=4 rechazada',
-      '[2026-10-08T09:06:00.000Z] perfil=trabajo sub=run alias="De otro perfil" codigo=0 ms=10',
-      ''
-    ].join('\n')
-  )
 }
 
 /** Deja que React confirme el render provocado por el gesto (dos fotogramas). */
@@ -131,16 +119,16 @@ async function teclear(win: Page, linea: string): Promise<void> {
   await win.keyboard.press('Enter')
 }
 
-/** Lo que el archivo de ajustes guarda del lanzador del perfil `personal`: las recientes y, a propósito, ningún grupo abierto. */
-function lanzadorGuardado(datos: string): { recientes: string[] | undefined; grupoAbierto: unknown } {
+/** Lo que el archivo de ajustes guarda del lanzador del perfil `personal`: a propósito, ningún grupo abierto. */
+function lanzadorGuardado(datos: string): { grupoAbierto: unknown } {
   try {
     const estado = JSON.parse(readFileSync(join(datos, 'workspace-state.json'), 'utf8')) as {
-      settings?: { sshGrupoAbiertoPorPerfil?: unknown; sshRecientesPorPerfil?: Record<string, string[]> }
+      settings?: { sshGrupoAbiertoPorPerfil?: unknown }
     }
-    return { recientes: estado.settings?.sshRecientesPorPerfil?.personal, grupoAbierto: estado.settings?.sshGrupoAbiertoPorPerfil }
+    return { grupoAbierto: estado.settings?.sshGrupoAbiertoPorPerfil }
   } catch {
     // La app lo está reescribiendo en este instante: el sondeo vuelve a mirar.
-    return { recientes: undefined, grupoAbierto: undefined }
+    return { grupoAbierto: undefined }
   }
 }
 
@@ -491,10 +479,8 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     expect(argv[argv.length - 1], 'y el host va el último').toBe('192.0.2.10')
     await capturar(win, 'ssh-pestana')
 
-    // La conexión sale arriba en «Recientes», contando su pestaña; el grupo de la que se mira NO se abre solo: todo entra plegado.
+    // El grupo de la conexión que se mira NO se abre solo: todo entra plegado.
     const lista = await abrirLista()
-    await expect(lista.locator('.ssh-fila-seccion'), 'el rótulo de las recientes, arriba').toHaveText('Recientes')
-    await expect(lista.getByRole('treeitem').first(), 'la recién abierta es la primera fila').toHaveAccessibleName(/^Reciente, Router, pruebas@192\.0\.2\.10:2222, Contraseña, 1 abierta$/)
     await expect(cabeceraGrupo(lista, 'Servidores'), 'el grupo de la conexión que se mira no se abre solo').toHaveAttribute('aria-expanded', 'false')
     await expect(cabeceraGrupo(lista, 'Producción'), 'ni ningún otro').toHaveAttribute('aria-expanded', 'false')
     await abrirGrupo(lista, 'Servidores')
@@ -629,8 +615,7 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
 
   test('«Disponible para los agentes» nace marcada; desmarcada, la fila de la lista lo dice y la edición la conserva', async () => {
     const win = s.win
-    // El alta se abre desde el menú de un grupo del RIEL, que solo guarda (E51): así la conexión no se abre y no
-    // entra en «Recientes», que la última prueba cuenta.
+    // El alta se abre desde el menú de un grupo del RIEL, que solo guarda (E51): así la conexión no se abre.
     await enCabecera(win)
     await panel().getByRole('button', { name: 'Maximizar el panel de terminal' }).click()
     const riel = win.locator('aside.ssh-riel')
@@ -707,7 +692,7 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     await win.keyboard.press('Escape')
     await esperarEnTerminal(win, BANNER_FALSO, 1, 'la sesión sigue viva y a la vista')
     const tras = await abrirLista()
-    await expect(tras.getByRole('treeitem', { name: /Router casa,/ }), 'ya no está en la lista, ni entre las recientes').toHaveCount(0)
+    await expect(tras.getByRole('treeitem', { name: /Router casa,/ }), 'ya no está en la lista').toHaveCount(0)
     await win.keyboard.press('Escape')
   })
 
@@ -716,11 +701,10 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     const lista = await abrirLista()
     const servidores = cabeceraGrupo(lista, 'Servidores')
     const produccion = cabeceraGrupo(lista, 'Producción')
-    // Al abrirlo no hay ninguno desplegado, aunque ya se hubiera abierto uno: con «Recientes» arriba basta.
+    // Al abrirlo no hay ninguno desplegado, aunque ya se hubiera abierto uno.
     await expect(servidores, 'entra plegado').toHaveAttribute('aria-expanded', 'false')
     await expect(produccion).toHaveAttribute('aria-expanded', 'false')
     await expect(lista.getByRole('treeitem', { name: /^Falla,/ }), 'y sus conexiones no se ven').toHaveCount(0)
-    await expect(lista.locator('.ssh-fila-seccion'), 'las recientes siguen arriba').toHaveText('Recientes')
     await capturar(win, 'ssh-lista-plegada')
 
     // Abrir uno cierra el otro.
@@ -742,7 +726,6 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     await filtro.fill('fal')
     await expect(produccion, 'con filtro los grupos con coincidencias se ven abiertos').toHaveAttribute('aria-expanded', 'true')
     await expect(lista.getByRole('treeitem', { name: /^Falla,/ })).toBeVisible()
-    await expect(lista.locator('.ssh-fila-seccion'), 'y no hay «Recientes»: solo coincidencias').toHaveCount(0)
     await filtro.fill('')
     await expect(produccion, 'sin filtro vuelve el acordeón: ninguno abierto').toHaveAttribute('aria-expanded', 'false')
 
@@ -813,7 +796,6 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     await expect(vacio).toContainText('Sin proyecto abierto')
     await vacio.getByRole('button', { name: 'Conectar por SSH…' }).click()
     await expect(popover(), '«Conectar por SSH…» abre el lanzador de conexiones').toBeVisible()
-    await expect(popover().getByRole('treeitem', { name: /^Reciente, Falla,/ }), 'con sus recientes arriba').toBeVisible()
     await win.keyboard.press('Escape')
     await expect(popover()).toHaveCount(0)
 
@@ -974,28 +956,6 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     await expect(panel().getByRole('tab', { name: /^Con contraseña editada, SSH/ }), 'el nombre nuevo llega a la pestaña').toBeVisible()
   })
 
-  test('«Actividad de los agentes…»: lo que hicieron con tssh, de esta conexión o de todo el perfil, nunca de otro', async () => {
-    const win = s.win
-    const lista = await abrirLista('Sin grupo')
-    await lista.getByRole('treeitem', { name: /^Con contraseña editada,/ }).click({ button: 'right' })
-    await menu('Actividad de los agentes…').click()
-    const dialogo = win.getByRole('dialog', { name: 'Actividad de los agentes por SSH' })
-    await expect(dialogo.getByRole('textbox', { name: 'Filtrar por conexión' }), 'filtrada a la conexión').toHaveValue('Con contraseña editada')
-    const filas = dialogo.locator('tbody tr')
-    await expect(filas).toHaveCount(1)
-    await expect(filas.first()).toContainText('Orden remota')
-    await expect(filas.first()).toContainText('Correcta')
-    await expect(filas.first()).toContainText('1,5 s')
-    await dialogo.getByRole('textbox', { name: 'Filtrar por conexión' }).fill('')
-    await expect(filas, 'todo el perfil, la más reciente primero, sin la de otro perfil').toHaveCount(2)
-    await expect(filas.first()).toContainText('Inventada')
-    await expect(filas.first()).toContainText('No se lanzó: Conexión no disponible para los agentes')
-    await expect(dialogo).not.toContainText('De otro perfil')
-    await capturar(win, 'ssh-actividad')
-    await dialogo.getByRole('button', { name: 'Cerrar' }).click()
-    await expect(dialogo).toHaveCount(0)
-  })
-
   test('con la huella cambiada, «Probar» lo dice en rojo y «Olvidar la huella guardada…» (confirmación anidada) la olvida y vuelve a probar', async () => {
     const win = s.win
     const lista = await abrirLista('Sin grupo')
@@ -1064,43 +1024,6 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     await expect(menu('Editar…')).toHaveCount(0)
     await win.keyboard.press('Escape')
     await expect(popover()).toHaveCount(0)
-  })
-
-  test('«Recientes»: las tres últimas conexiones abiertas, la más reciente primero; se recuerdan por perfil y con filtro no salen', async () => {
-    const win = s.win
-    const conexiones = (await win.evaluate(() => window.tessera.ssh.listar())).conexiones
-    const idDe = (alias: string): string | undefined => conexiones.find((x) => x.alias === alias)?.id
-    const lista = await abrirLista()
-    const recientes = lista.getByRole('treeitem', { name: /^Reciente, / })
-    await expect(recientes, 'tres y no más').toHaveCount(3)
-    await expect(recientes.nth(0), 'la última que se abrió, primero').toHaveAccessibleName(/^Reciente, Con contraseña editada,/)
-    await expect(recientes.nth(1)).toHaveAccessibleName(/^Reciente, Con clave,/)
-    await expect(recientes.nth(2)).toHaveAccessibleName(/^Reciente, Falla,/)
-    await expect
-      .poll(() => lanzadorGuardado(s.datos).recientes, { message: 'las recientes llegan a workspace-state.json, en su orden' })
-      .toEqual([idDe('Con contraseña editada'), idDe('Con clave'), idDe('Falla')])
-    await capturar(win, 'ssh-lista-recientes')
-
-    // Abrir otra la sube a la primera y echa a la más antigua, que sigue en su grupo.
-    await abrirGrupo(lista, 'Producción')
-    await lista.getByRole('treeitem', { name: /^Solo mía,/ }).click()
-    await expect(popover()).toHaveCount(0)
-    await expect(panel().getByRole('tab', { name: /^Solo mía, SSH/ })).toBeVisible({ timeout: 30_000 })
-    const otra = await abrirLista()
-    await expect(otra.getByRole('treeitem', { name: /^Reciente, / }).first(), 'la recién abierta es la primera').toHaveAccessibleName(/^Reciente, Solo mía,/)
-    await expect(otra.getByRole('treeitem', { name: /^Reciente, Falla,/ }), 'la más antigua sale de las recientes').toHaveCount(0)
-    await expect
-      .poll(() => lanzadorGuardado(s.datos).recientes, { message: 'y el archivo la sigue' })
-      .toEqual([idDe('Solo mía'), idDe('Con contraseña editada'), idDe('Con clave')])
-    await abrirGrupo(otra, 'Producción')
-    await expect(otra.getByRole('treeitem', { name: /^Falla,/ }), 'pero sigue en su grupo').toBeVisible()
-
-    // Con filtro no hay recientes: solo coincidencias.
-    await otra.getByRole('combobox', { name: 'Buscar conexión' }).fill('con')
-    await expect(otra.locator('.ssh-fila-seccion'), 'ni su rótulo').toHaveCount(0)
-    await expect(otra.getByRole('treeitem', { name: /^Reciente, / })).toHaveCount(0)
-    await expect(otra.getByRole('treeitem', { name: /^Con clave,/ }), 'solo lo que coincide').toBeVisible()
-    await win.keyboard.press('Escape')
   })
 
   test('«Nueva conexión SSH…» → «Importar desde OpenSSH…» (no en el lanzador; con el formulario vacío): varios Host abren la revisión (elegir, renombrar, grupo por fila y creado ahí); uno solo rellena el formulario', async () => {
@@ -1530,23 +1453,64 @@ test.describe.serial('Las pestañas SSH del arranque anterior vuelven, sin conec
   })
 })
 
-test.describe.serial('Las recientes del lanzador con un archivo de conexiones que esta versión no sabe leer', () => {
+test.describe.serial('Cerrar la terminal local con una pestaña SSH restaurada', () => {
   let s: SesionTessera
   let m: Montaje
-  const ID_RECIENTE = '11111111-2222-4333-8444-555555555555'
 
   test.beforeAll(async () => {
     m = montar()
     s = await abrirTessera(m.env, {
       sembrar: (datos) => {
         sembrar(datos, m)
-        // Lo recordado por una versión que sí leía el archivo…
+        const conexion = { id: 'c-web', profileId: 'personal', alias: 'Web', host: '192.0.2.40', puerto: 22, usuario: 'pruebas', metodo: 'sistema', disponibleAgentes: true }
+        writeFileSync(join(datos, 'ssh-connections.json'), JSON.stringify({ version: 1, grupos: [], conexiones: [conexion] }))
         const ruta = join(datos, 'workspace-state.json')
         const estado = JSON.parse(readFileSync(ruta, 'utf8')) as { settings: Record<string, unknown> }
-        estado.settings.sshRecientesPorPerfil = { personal: [ID_RECIENTE] }
+        estado.settings.sshPestanasPorPerfil = { personal: [{ conexionId: 'c-web', alias: 'Web' }] }
         writeFileSync(ruta, JSON.stringify(estado))
-        // …y un archivo de conexiones con una `version` que no es un número: el main lo bloquea y la lista llega vacía.
+      }
+    })
+  })
+
+  test.afterAll(async () => {
+    await s?.cerrar()
+    if (m) {
+      await borrarTemporal(m.ssh.raiz)
+      await borrarTemporal(m.raiz)
+    }
+  })
+
+  test('pasa a verse la SSH (y se conecta): el panel no se queda sin terminal elegida', async () => {
+    const win = s.win
+    await win.getByRole('button', { name: 'Terminal', exact: true }).click()
+    const panel = win.locator('section.terminal-panel')
+    await expect(panel).toBeVisible()
+    const web = panel.getByRole('tab', { name: 'Web, SSH' })
+    await expect(web, 'restaurada y sin elegir').toHaveAttribute('aria-selected', 'false')
+    const local = panel.locator('.terminal-tab', { hasNotText: 'Web' }).first()
+    await local.getByRole('button', { name: /^Cerrar/ }).click()
+    await expect(web, 'cerrar la local la elige').toHaveAttribute('aria-selected', 'true')
+    await expect.poll(() => m.ssh.arranques().length, { message: 'y se conecta, porque la cerró el usuario' }).toBe(1)
+    await expect(panel, 'el panel sigue con terminal').not.toHaveClass(/\bsin-terminal\b/)
+  })
+})
+
+test.describe.serial('Un archivo de conexiones que esta versión no sabe leer', () => {
+  let s: SesionTessera
+  let m: Montaje
+
+  test.beforeAll(async () => {
+    m = montar()
+    s = await abrirTessera(m.env, {
+      sembrar: (datos) => {
+        sembrar(datos, m)
+        // Una `version` que no es un número: el main lo bloquea y la lista llega vacía.
         writeFileSync(join(datos, 'ssh-connections.json'), JSON.stringify({ version: 'de-otra-version', grupos: [], conexiones: [] }))
+        // Y una pestaña SSH guardada por una versión que sí leía el archivo.
+        const ruta = join(datos, 'workspace-state.json')
+        const estado = JSON.parse(readFileSync(ruta, 'utf8')) as { settings: Record<string, unknown> }
+        estado.settings.sshPestanasPorPerfil = { personal: [{ conexionId: 'c-web', alias: 'Web' }] }
+        writeFileSync(ruta, JSON.stringify(estado))
       }
     })
     await s.app.evaluate(({ BrowserWindow }) => {
@@ -1564,7 +1528,7 @@ test.describe.serial('Las recientes del lanzador con un archivo de conexiones qu
     }
   })
 
-  test('la guarda de `cargar`: con la lista vacía por un archivo ajeno no se poda lo recordado, y al guardar los ajustes sigue en el archivo', async () => {
+  test('el riel lo dice, en vez de «Sin conexiones», y guardar los ajustes no borra las pestañas SSH recordadas', async () => {
     const win = s.win
     await win.getByRole('button', { name: 'Terminal', exact: true }).click()
     const panel = win.locator('section.terminal-panel')
@@ -1572,23 +1536,23 @@ test.describe.serial('Las recientes del lanzador con un archivo de conexiones qu
     await panel.locator('.panel-header').first().hover()
     await panel.getByRole('button', { name: 'Maximizar el panel de terminal' }).click()
     const riel = win.locator('aside.ssh-riel')
-    await expect(riel.getByText('No se pueden usar las conexiones SSH'), 'el archivo ajeno se dice en la lista, no «Sin conexiones»').toBeVisible()
+    await expect(riel.getByText('No se pueden usar las conexiones SSH')).toBeVisible()
 
-    // Plegar el riel guarda los ajustes enteros: ahí se vería una poda de las recientes.
+    // Plegar el riel guarda los ajustes enteros: con una lista vacía que no es de fiar no se poda nada.
     await panel.getByRole('button', { name: 'Panel de conexiones' }).click()
     await expect(riel).toBeHidden()
-    const guardado = (): { riel: unknown; recientes: unknown } => {
+    const guardado = (): { riel: unknown; pestanas: unknown } => {
       try {
         const e = JSON.parse(readFileSync(join(s.datos, 'workspace-state.json'), 'utf8')) as {
-          settings?: { sshRielVisiblePorPerfil?: Record<string, boolean>; sshRecientesPorPerfil?: Record<string, string[]> }
+          settings?: { sshRielVisiblePorPerfil?: Record<string, boolean>; sshPestanasPorPerfil?: Record<string, unknown[]> }
         }
-        return { riel: e.settings?.sshRielVisiblePorPerfil?.personal, recientes: e.settings?.sshRecientesPorPerfil?.personal }
+        return { riel: e.settings?.sshRielVisiblePorPerfil?.personal, pestanas: e.settings?.sshPestanasPorPerfil?.personal }
       } catch {
         // La app lo está reescribiendo en este instante: el sondeo vuelve a mirar.
-        return { riel: undefined, recientes: undefined }
+        return { riel: undefined, pestanas: undefined }
       }
     }
     await expect.poll(() => guardado().riel, { message: 'plegar el riel llegó al archivo de ajustes' }).toBe(false)
-    expect(guardado().recientes, 'y con él las recientes, intactas: un archivo ajeno no dice cuáles existen').toEqual([ID_RECIENTE])
+    expect(guardado().pestanas, 'la pestaña recordada sigue: un archivo ajeno no dice qué conexiones existen').toEqual([{ conexionId: 'c-web', alias: 'Web' }])
   })
 })

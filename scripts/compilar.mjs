@@ -1,13 +1,11 @@
 #!/usr/bin/env node
 // =============================================================================
-// Compila las tres capas (`electron-vite build`) con heap suficiente para V8 y, al final, en Windows,
-// el programa de contraseñas de SSH (`compilarAskpass.mjs`). Node dimensiona el heap según la RAM: con
-// 8 GB da ~2,2 GB y Rollup (~3.350 módulos y 55 MB de sourcemaps, a propósito: ver
-// `electron.vite.config.ts`) muere con «heap out of memory» y `dist/` se queda con la versión anterior.
-// Se lanza `process.execPath` con `--max-old-space-size=4096` (holgura sin paginar 8 GB; un techo
-// exagerado convierte una fuga en media hora de paginación) salvo que `NODE_OPTIONS` ya pida uno: la
-// bandera GANA a la variable, y se la respeta. Vale en las dos plataformas: evita el
-// `.bin/electron-vite`, que en Windows es un `.cmd`.
+// Compila las tres capas (`electron-vite build`, dos pasadas: la segunda, la página de la ventana de
+// agente) con heap para V8 y, en Windows, el programa de contraseñas de SSH (`compilarAskpass.mjs`).
+// Node dimensiona el heap según la RAM: con 8 GB da ~2,2 GB y Rollup (~3.350 módulos y 55 MB de
+// sourcemaps, ver `electron.vite.config.ts`) muere con «heap out of memory». Se lanza `process.execPath`
+// con `--max-old-space-size=4096` (holgura sin paginar 8 GB) salvo que `NODE_OPTIONS` ya pida uno, que
+// gana. Vale en las dos plataformas: evita el `.bin/electron-vite`, que en Windows es un `.cmd`.
 // =============================================================================
 
 import { spawnSync } from 'node:child_process'
@@ -31,11 +29,19 @@ const binario = path.join(
 const HEAP = '--max-old-space-size=4096'
 const heapYaPedido = /--max-old-space-size=/.test(process.env.NODE_OPTIONS ?? '')
 
-const { status, signal, error } = spawnSync(
-  process.execPath,
-  [...(heapYaPedido ? [] : [HEAP]), binario, 'build', ...process.argv.slice(2)],
-  { stdio: 'inherit' }
-)
+/** Una pasada de `electron-vite build`; la de la página de agente no vacía `out/renderer`. */
+function pasada(pagina) {
+  return spawnSync(process.execPath, [...(heapYaPedido ? [] : [HEAP]), binario, 'build', ...process.argv.slice(2)], {
+    stdio: 'inherit',
+    env: { ...process.env, TESSERA_COMPILAR_PAGINA: pagina }
+  })
+}
+
+// Dos pasadas: la ventana principal y, sobre su salida, la página de la ventana de agente (por qué, en
+// `electron.vite.config.ts`).
+let resultado = pasada('principal')
+if (resultado.status === 0) resultado = pasada('agente')
+const { status, signal, error } = resultado
 
 if (error) {
   console.error(`[compilar] no se pudo lanzar electron-vite: ${error.message}`)

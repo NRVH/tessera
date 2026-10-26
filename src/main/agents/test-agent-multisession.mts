@@ -37,6 +37,7 @@ export async function resolve(spec, ctx, next) {
 register('data:text/javascript,' + encodeURIComponent(resolveTsHook), import.meta.url)
 const { AgentTerminalController } = await import('./AgentTerminalController.ts')
 const { AccountStore } = await import('./AccountStore.ts')
+const { contenedorDe } = await import('./terminalAgente/credenciales.ts')
 
 const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = path.resolve(MODULE_DIR, '../../..')
@@ -153,23 +154,27 @@ async function main(): Promise<void> {
     // Ruta de config de la cuenta default de A (ahora scopeada por cuenta:
     // /agent-config/claude-code/<accountId>). Ambas sesiones usan la MISMA cuenta.
     const CFG_A = r1.configContainerPath
+    // Las dos sesiones comparten el contenedor de su cuenta, no el del perfil.
+    const C_A = contenedorDe(P_A, 'claude-code', r1.accountId)
+    const mismoContenedor = contenedorDe(P_A, 'claude-code', r2.accountId).id === C_A.id
 
     const bothLive = controller.liveSessionIds().includes(s1) && controller.liveSessionIds().includes(s2)
-    const cfgs = await sandbox.listAgentConfigs(P_A)
+    const cfgs = await sandbox.listAgentConfigs(C_A)
     const oneSharedMount = cfgs.length === 1 && cfgs[0].containerPath === CFG_A
     // cwd distinto por proyecto (ficheros nombrados por basename del cwd).
-    const pwdProyA = (await sandbox.exec(P_A, 'cat /tmp/pwd-proyecto-a 2>/dev/null')).stdout.trim()
-    const pwdProyB = (await sandbox.exec(P_A, 'cat /tmp/pwd-proyecto-b 2>/dev/null')).stdout.trim()
-    const envProyA = (await sandbox.exec(P_A, 'cat /tmp/env-proyecto-a 2>/dev/null')).stdout
-    const envProyB = (await sandbox.exec(P_A, 'cat /tmp/env-proyecto-b 2>/dev/null')).stdout
+    const pwdProyA = (await sandbox.exec(C_A, 'cat /tmp/pwd-proyecto-a 2>/dev/null')).stdout.trim()
+    const pwdProyB = (await sandbox.exec(C_A, 'cat /tmp/pwd-proyecto-b 2>/dev/null')).stdout.trim()
+    const envProyA = (await sandbox.exec(C_A, 'cat /tmp/env-proyecto-a 2>/dev/null')).stdout
+    const envProyB = (await sandbox.exec(C_A, 'cat /tmp/env-proyecto-b 2>/dev/null')).stdout
     const bothConfigEnv =
       field(envProyA, 'CLAUDE_CONFIG_DIR') === CFG_A &&
       field(envProyB, 'CLAUDE_CONFIG_DIR') === CFG_A
     const bothReadSecret =
-      (await sandbox.exec(P_A, `cat ${CFG_A}/credentials.json 2>/dev/null`)).stdout.includes(A_SECRET)
+      (await sandbox.exec(C_A, `cat ${CFG_A}/credentials.json 2>/dev/null`)).stdout.includes(A_SECRET)
     check(
-      '(1) dos sesiones vivas, mismo contenedor, 1 config mount compartido, cwd distinto, ambas ven la credencial',
+      '(1) dos sesiones vivas, mismo contenedor (el de su cuenta), 1 config mount compartido, cwd distinto, ambas ven la credencial',
       bothLive &&
+        mismoContenedor &&
         oneSharedMount &&
         pwdProyA === '/workspace/proyecto-a' &&
         pwdProyB === '/workspace/proyecto-b' &&
@@ -185,12 +190,13 @@ async function main(): Promise<void> {
     sB = rB.sessionId
     sleep(2000)
     const bLive = controller.liveSessionIds().includes(sB)
-    const cfgsB = await sandbox.listAgentConfigs(P_B)
+    const C_B = contenedorDe(P_B, 'claude-code', rB.accountId)
+    const cfgsB = await sandbox.listAgentConfigs(C_B)
     const bHasOwnMount = cfgsB.length === 1
     // A no debe alcanzar el secreto de B (contenedores separados).
-    const aScanB = (await sandbox.exec(P_A, `grep -rq ${B_SECRET} /agent-config /home /workspace /tmp 2>/dev/null && echo FOUND || echo ABSENT`)).stdout.trim()
+    const aScanB = (await sandbox.exec(C_A, `grep -rq ${B_SECRET} /agent-config /home /workspace /tmp 2>/dev/null && echo FOUND || echo ABSENT`)).stdout.trim()
     const containersDistinct =
-      (await sandbox.exec(P_A, 'hostname')).stdout.trim() !== (await sandbox.exec(P_B, 'hostname')).stdout.trim()
+      (await sandbox.exec(C_A, 'hostname')).stdout.trim() !== (await sandbox.exec(C_B, 'hostname')).stdout.trim()
     check(
       '(2) B vive en paralelo con su propio config; A no alcanza el secreto de B; contenedores distintos',
       bLive && bHasOwnMount && aScanB === 'ABSENT' && containersDistinct,
@@ -204,11 +210,11 @@ async function main(): Promise<void> {
     // --- (3) Cerrar UNA sesión de A NO desmonta el config (refcount>0) -----------
     hr('(3) close(A/proyecto-a): el config de A/claude sigue montado; A/proyecto-b sigue funcional')
     await controller.close(s1)
-    const cfgsAfter1 = await sandbox.listAgentConfigs(P_A)
+    const cfgsAfter1 = await sandbox.listAgentConfigs(C_A)
     const stillMounted = cfgsAfter1.length === 1
     const s2StillLive = controller.liveSessionIds().includes(s2)
-    const dirPresent = (await sandbox.exec(P_A, `test -d ${CFG_A} && echo YES || echo NO`)).stdout.trim()
-    const s2ReadsSecret = (await sandbox.exec(P_A, `cat ${CFG_A}/credentials.json 2>/dev/null`)).stdout.includes(A_SECRET)
+    const dirPresent = (await sandbox.exec(C_A, `test -d ${CFG_A} && echo YES || echo NO`)).stdout.trim()
+    const s2ReadsSecret = (await sandbox.exec(C_A, `cat ${CFG_A}/credentials.json 2>/dev/null`)).stdout.includes(A_SECRET)
     check(
       '(3) cerrar 1 de 2 sesiones NO desmonta el config compartido; la otra sigue funcional',
       stillMounted && s2StillLive && dirPresent === 'YES' && s2ReadsSecret && !controller.liveSessionIds().includes(s1),
@@ -218,11 +224,12 @@ async function main(): Promise<void> {
     // --- (4) Cerrar la ÚLTIMA sesión de A/claude SÍ desmonta el config -----------
     hr('(4) close(A/proyecto-b) [última]: el config de A/claude SE DESMONTA; contenedor vivo')
     await controller.close(s2)
-    const cfgsAfter2 = await sandbox.listAgentConfigs(P_A)
-    const dirGone = (await sandbox.exec(P_A, `test -e ${CFG_A} && echo EXISTS || echo GONE`)).stdout.trim()
+    const cfgsAfter2 = await sandbox.listAgentConfigs(C_A)
+    const dirGone = (await sandbox.exec(C_A, `test -e ${CFG_A} && echo EXISTS || echo GONE`)).stdout.trim()
     // Y la carpeta del AGENTE, padre de la de la cuenta: antes sobrevivía vacía.
-    const agenteGone = (await sandbox.exec(P_A, 'test -e /agent-config/claude-code && echo EXISTS || echo GONE')).stdout.trim()
-    const containerAlive = (await sandbox.exec(P_A, 'echo alive')).stdout.trim() === 'alive'
+    const agenteGone = (await sandbox.exec(C_A, 'test -e /agent-config/claude-code && echo EXISTS || echo GONE')).stdout.trim()
+    // Su parada está programada a los 2 minutos: sigue vivo.
+    const containerAlive = (await sandbox.exec(C_A, 'echo alive')).stdout.trim() === 'alive'
     check(
       '(4) cerrar la última sesión desmonta el config (GONE); contenedor sigue vivo',
       cfgsAfter2.length === 0 &&
@@ -244,8 +251,9 @@ async function main(): Promise<void> {
     }
     const orphans: string[] = []
     for (const p of ALL) {
+      // El del perfil y los de sus cuentas (`tessera-<id>--<huella>`).
       const cname = `tessera-${p.id}`
-      const psRaw = spawnSync('docker', ['ps', '-a', '--filter', `name=^${cname}$`, '--format', '{{.Names}}'], {
+      const psRaw = spawnSync('docker', ['ps', '-a', '--filter', `name=^${cname}(--.*)?$`, '--format', '{{.Names}}'], {
         encoding: 'utf8'
       }).stdout.trim()
       if (psRaw.length > 0) orphans.push(psRaw)

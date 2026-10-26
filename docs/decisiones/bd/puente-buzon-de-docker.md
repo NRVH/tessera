@@ -1,4 +1,4 @@
-# Modo Docker: un buzón de archivos por perfil, y el `tdb` real corre en el host
+# Agentes en Docker: un buzón de archivos por perfil, y el `tdb` real corre en el host
 
 - **Estado:** vigente
 - **Ámbito:** `src/main/db/dockerBridge.ts`, `src/tdb/tdb-container.cjs`, `SandboxManager`
@@ -11,8 +11,9 @@ caminos de datos. El puente al host recoge peticiones que el contenedor deja en 
 
 - Un buzón de archivos y no un puerto: un bind-mount funciona con red `bridge` y con `--network host`, no depende
   de WSL en modo `mirrored`, no abre puertos y no dispara avisos del firewall.
-- El buzón es por perfil, pero dentro de un perfil la frontera es el contenedor entero. Por eso el ámbito y los
-  secretos se resuelven siempre en el main a partir del token, y nunca se lee nada de eso del archivo de petición.
+- El buzón es por contenedor (el del perfil y el de cada cuenta, `sandbox/contenedor-por-cuenta.md`), y dentro
+  de un contenedor la frontera es el contenedor entero. Por eso el ámbito y los secretos se resuelven siempre en
+  el main a partir del token, y nunca se lee nada de eso del archivo de petición.
 - El SQL viaja en la petición (`entrada`), no como ruta: `--stdin` se colgaba 90 s (la entrada del `tdb` del host
   no la cerraba nadie) y `--file` leía una ruta del host. La entrada estándar del `tdb` real se escribe y se cierra
   siempre, y un `--file` que llegue por el buzón se rechaza sin ejecutar nada: dejaría al contenedor leer, y con una

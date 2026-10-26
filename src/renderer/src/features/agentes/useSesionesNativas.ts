@@ -1,7 +1,7 @@
 // =============================================================================
 // Actualizar los agentes de tu equipo (sesiones nativas): el hook de la
-// actualización, si hay algún proyecto abierto en modo nativo (las consolas de
-// datos y el agente de la terminal cuentan) y cómo se nombran y ordenan las
+// actualización, si hay algo abierto donde corre un agente nativo (un proyecto, el
+// espacio de datos o el agente de la terminal) y cómo se nombran y ordenan las
 // sesiones en su popover.
 // =============================================================================
 import { useMemo } from 'react'
@@ -11,7 +11,7 @@ import { txSesion } from './textosSesion.ts'
 import { useStoreAgenteTerminal } from './storeAgenteTerminal'
 import { useActualizacionNativa, type UseActualizacionNativa } from './useActualizacionNativa'
 import type { ActividadAgentes } from './useActividadAgentes'
-import { agentTargetKey, tintaPerfil, useStorePestanas, type UseTabs } from '../pestanas'
+import { agentTargetKey, tintaPerfil, type UseTabs } from '../pestanas'
 import { useStoreBd } from '../bd'
 import { ordenarCandidatos, type CandidatoMosaico } from '../mosaico'
 import { editorTargetKey } from '../editor'
@@ -23,15 +23,6 @@ export interface SesionesNativas {
   infoSesionesAgentes: InfoSesionesAgentes
 }
 
-/** ¿Alguna carpeta abierta (espacio de datos o agente de la terminal) está en modo nativo? */
-function hayCarpetaNativa(abiertos: ReadonlySet<string>, rutas: Record<string, string>, nativos: ReadonlySet<string>): boolean {
-  for (const profileId of abiertos) {
-    const ruta = rutas[profileId]
-    if (ruta !== undefined && nativos.has(editorTargetKey(profileId, ruta))) return true
-  }
-  return false
-}
-
 /** Actualización de agentes nativos y la información que pinta su botón. */
 export function useSesionesNativas(
   tabs: UseTabs,
@@ -40,19 +31,12 @@ export function useSesionesNativas(
 ): SesionesNativas {
   // Vive aquí y no en el botón: registra las APIs de todos los panes y su resultado es pegajoso.
   const actualizacionNativa = useActualizacionNativa(actividad.activity.unseen)
-  const windowsModeKeys = useStorePestanas((s) => s.windowsModeKeys)
   const { espaciosAbiertos, dbWorkspacePaths } = useStoreBd(
     useShallow((s) => ({ espaciosAbiertos: s.espaciosAbiertos, dbWorkspacePaths: s.dbWorkspacePaths }))
   )
   const terminal = useStoreAgenteTerminal(useShallow((s) => ({ abiertos: s.abiertos, rutas: s.rutas })))
-  // Cruza el modo con lo ABIERTO: el modo recuerda también proyectos cerrados.
-  const hayProyectoNativo = useMemo(
-    () =>
-      tabs.allOpenProjects.some((p) => windowsModeKeys.has(editorTargetKey(p.profileId, p.projectHostPath))) ||
-      hayCarpetaNativa(espaciosAbiertos, dbWorkspacePaths, windowsModeKeys) ||
-      hayCarpetaNativa(terminal.abiertos, terminal.rutas, windowsModeKeys),
-    [tabs.allOpenProjects, windowsModeKeys, espaciosAbiertos, dbWorkspacePaths, terminal.abiertos, terminal.rutas]
-  )
+  // Los agentes corren nativos salvo que elijan Docker: con algo abierto, hay donde actualizarlos.
+  const hayProyectoNativo = tabs.allOpenProjects.length > 0 || espaciosAbiertos.size > 0 || terminal.abiertos.size > 0
   const infoSesionesAgentes = useMemo((): InfoSesionesAgentes => {
     const perfiles = new Map<string, { nombre: string; color: string | null }>()
     for (const p of tabs.profiles) perfiles.set(p.id, { nombre: p.nombre, color: p.color ? tintaPerfil(p.color) : null })

@@ -1,8 +1,7 @@
 // =============================================================================
 // Capa de modales de la raíz, en su orden: Configuración, importar un `.tessera` abierto desde el
-// sistema, buscar en archivos, el
-// modo de un proyecto nuevo, cerrar sin guardar, el menú de elegir conexión y los diálogos de las
-// conexiones SSH.
+// sistema, buscar en archivos, cerrar sin guardar, el menú de elegir conexión y los diálogos de
+// las conexiones SSH.
 // En la raíz porque un `position: fixed` se resuelve contra cualquier ancestro con
 // transform o contain, y la app ya tiene uno vivo.
 // =============================================================================
@@ -10,7 +9,7 @@ import { ConfirmDialog } from '../../comun/ConfirmDialog'
 import { ContextMenu } from '../../comun/ContextMenu'
 import { ImportarDesdeSistema, ModalAjustes } from '../ajustes'
 import { ModalBusqueda } from '../busqueda'
-import { ProjectModeModal, useStorePestanas, type UseTabs } from '../pestanas'
+import type { UseTabs } from '../pestanas'
 import { useStoreEditor, type EditorApp } from '../editor'
 import { IconoMotor, motivoSinConsola, useStoreBd, type BdApp } from '../bd'
 import { DialogosSsh, PreguntaAskpassSsh } from '../ssh'
@@ -24,17 +23,6 @@ interface Props {
   bd: BdApp
   sesiones: SesionesNativas
   cambiarZoom: (nivel: number) => void
-}
-
-/** «¿Nativo o contenedor?» para el proyecto recién elegido; cancelar no lo abre. */
-function PreguntaModo(): React.JSX.Element | null {
-  const modeAsk = useStorePestanas((s) => s.modeAsk)
-  if (!modeAsk) return null
-  const cerrar = (mode: 'windows' | 'docker' | null): void => {
-    modeAsk.resolve(mode)
-    useStorePestanas.setState({ modeAsk: null })
-  }
-  return <ProjectModeModal name={modeAsk.name} onPick={(mode) => cerrar(mode)} onCancel={() => cerrar(null)} />
 }
 
 /** Cerrar perdiendo trabajo: un sin título o el último pane de un diff editable sucio. */
@@ -86,7 +74,6 @@ export function CapaModales({ tabs, perfilUI, editor, bd, sesiones, cambiarZoom 
       <ModalAjustes sesiones={sesiones} cambiarZoom={cambiarZoom} />
       <ImportarDesdeSistema />
       <ModalBusqueda tabs={tabs} perfilUI={perfilUI} editor={editor} />
-      <PreguntaModo />
       <CerrarSinGuardar editor={editor} />
       <MenuConexiones bd={bd} />
       <DialogosSsh />

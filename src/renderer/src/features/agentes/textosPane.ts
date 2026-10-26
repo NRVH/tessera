@@ -18,13 +18,10 @@ export const txPane = crearTextos(
       otroSinVer: (nombre: string) => `${nombre} terminó y no lo has revisado: pulsa para verlo aquí`,
       otroVer: (nombre: string) => `Ver ${nombre} de este proyecto en esta casilla`,
       cambiarA: (nombre: string) => `Cambiar a ${nombre}`,
-      modo: (hostMode: boolean) => `Modo ${hostMode ? 'nativo' : 'contenedor'}`,
-      modoTitulo: (hostMode: boolean) =>
-        `Modo ${hostMode ? 'nativo' : 'contenedor'}: cambiarlo reinicia la sesión de este proyecto`,
       historialAria: 'Historial de conversaciones',
       nuevaTitulo: 'Nueva conversación (empieza un chat nuevo, sin reanudar el último)',
       nuevaAria: 'Nueva conversación',
-      cuenta: (nombre: string) => `Cuenta: ${nombre}`,
+      cuenta: (nombre: string) => `Cuenta: ${nombre} · pasar a otra (nativa o de Docker) o añadir una`,
       restaurarMosaico: (mod: string) => `Restaurar: vuelve a enseñar todo el mosaico (${mod}+Shift+Enter)`,
       ampliar: (mod: string) => `Ampliar: esta terminal ocupa todo el mosaico (${mod}+Shift+Enter)`,
       restaurarMosaicoAria: 'Restaurar el mosaico',
@@ -39,8 +36,11 @@ export const txPane = crearTextos(
       restaurarArchivosAria: 'Restaurar editor',
       restaurarTerminales: 'Restaurar: vuelve a mostrar las terminales abiertas',
       restaurarTerminalesAria: 'Restaurar terminales',
+      restaurarPestanasBd: 'Restaurar: vuelve a mostrar las tablas y consolas abiertas',
+      restaurarPestanasBdAria: 'Restaurar tablas y consolas',
       sinCerrarArchivos: 'archivos',
       sinCerrarTerminales: 'terminales',
+      sinCerrarPestanasBd: 'tablas ni consolas',
       maximizar: (agente: string, sinCerrar: string) => `Maximizar: ${agente} ocupa todo el espacio (sin cerrar ${sinCerrar})`,
       maximizarAria: (agente: string) => `Maximizar ${agente}`,
       cerrarAgente:
@@ -65,15 +65,28 @@ export const txPane = crearTextos(
       despertar: 'Despertar',
       lugarTerminal: 'Agente de la terminal',
       lugarDatos: 'Agente de base de datos',
-      lugarProyectoTitulo: (proyecto: string) => `Agente del proyecto ${proyecto}`
+      lugarProyectoTitulo: (proyecto: string) => `Agente del proyecto ${proyecto}`,
+      lugarVentana: 'Carpeta de usuario',
+      lugarVentanaTitulo: 'Agente en tu carpeta de usuario, sin proyecto'
     },
     menus: {
       terminalAbierta: ' (terminal abierta)',
       dormido: ' (dormido)',
       abrirOtro: (perfil: string) => `Abrir otro proyecto en ${perfil}…`,
-      modoContenedor: 'Modo contenedor (aislado, cuenta del perfil)',
-      modoNativo: 'Modo nativo (fuera del contenedor, cuenta personal)',
+      modoNativo: (sistema: string) => `Nativo (${sistema})`,
+      cuentaDocker: (nombre: string) => `Docker · ${nombre}`,
+      sinCuenta: 'sin cuenta',
+      cuentaDe: (agente: string) => `Cuenta de ${agente}`,
+      enTuEquipo: 'En tu equipo',
+      enDocker: 'En Docker',
+      cuentas: 'Cuentas',
+      nativaDetalle: (tuEquipo: string) => `La sesión iniciada en ${tuEquipo}`,
+      dockerDetalle: 'Su propio contenedor',
+      sinCuentasDocker: 'Aún no hay cuentas de Docker. Crea una para usar varias a la vez.',
+      nuevaCuentaDocker: 'Nueva cuenta de Docker…',
+      enUso: 'En uso',
       cerrarSesionDe: (nombre: string) => `Cerrar sesión de "${nombre}"…`,
+      renombrarDe: (nombre: string) => `Renombrar "${nombre}"`,
       eliminarCuentaItem: (nombre: string) => `Eliminar "${nombre}"…`,
       eliminarCuenta: 'Eliminar cuenta',
       cerrarSesion: 'Cerrar sesión',
@@ -82,7 +95,18 @@ export const txPane = crearTextos(
       mensajeCerrarSesion: (nombre: string) =>
         `¿Cerrar sesión de "${nombre}"? Tendrás que iniciar sesión otra vez para volver a usarla.`,
       eliminar: 'Eliminar',
+      eliminando: 'Eliminando…',
+      usadaPorOtros: (n: number) =>
+        n === 1
+          ? 'Otro agente abierto la está usando: su sesión se cerrará.'
+          : `${n} agentes abiertos la están usando: sus sesiones se cerrarán.`,
+      cerrandoSesion: 'Cerrando sesión…',
       iniciarSesionTitulo: (agente: string) => `Iniciar sesión — ${agente}`,
+      nuevaCuenta: 'Nueva cuenta…',
+      predeterminada: 'Predeterminada',
+      nuevaCuentaTitulo: (agente: string) => `Nueva cuenta — ${agente}`,
+      nuevaCuentaAviso:
+        'Cada cuenta corre en su propio contenedor de Docker, así que dos cuentas trabajan a la vez sin pisarse; cuenta para el límite de contenedores de Configuración › Contenedores Docker.',
       nombreCuenta: 'Nombre de la cuenta',
       crearEIniciar: 'Crear e iniciar sesión',
       copiar: 'Copiar',
@@ -98,8 +122,12 @@ export const txPane = crearTextos(
       masAria: 'Añadir agente',
       eliminarTitulo: (nombre: string) => `Eliminar ${nombre}`,
       eliminarMensaje: (nativo: boolean) =>
-        `Se quita su pestaña de ${nativo ? 'todos los proyectos nativos, en todos los perfiles' : 'los proyectos Docker de este perfil'}, ` +
-        'y se cierra su terminal si está abierta. Lo que el agente guardó en su carpeta se conserva.',
+        nativo
+          ? 'Se quita su pestaña de todos los proyectos nativos, en todos los perfiles, y se cierra su terminal si está abierta. ' +
+            'Lo que el agente guardó en tu carpeta personal se conserva.'
+          : 'Se quita su pestaña de los proyectos Docker de este perfil y se cierran sus terminales. También se borran sus cuentas ' +
+            'y lo que guardó en sus carpetas, con su sesión iniciada y su configuración. Los archivos de los proyectos no se tocan.',
+      noSeBorraronCuentas: 'No se pudieron borrar las cuentas del agente',
       eliminar: 'Eliminar'
     },
     montaje: {
@@ -136,13 +164,10 @@ export const txPane = crearTextos(
       otroSinVer: (nombre: string) => `${nombre} finished and you have not reviewed it: click to see it here`,
       otroVer: (nombre: string) => `Show ${nombre} of this project in this tile`,
       cambiarA: (nombre: string) => `Switch to ${nombre}`,
-      modo: (hostMode: boolean) => `${hostMode ? 'Native' : 'Container'} mode`,
-      modoTitulo: (hostMode: boolean) =>
-        `${hostMode ? 'Native' : 'Container'} mode: changing it restarts this project’s session`,
       historialAria: 'Conversation history',
       nuevaTitulo: 'New conversation (starts a new chat, without resuming the last one)',
       nuevaAria: 'New conversation',
-      cuenta: (nombre: string) => `Account: ${nombre}`,
+      cuenta: (nombre: string) => `Account: ${nombre} · switch to another (native or Docker) or add one`,
       restaurarMosaico: (mod: string) => `Restore: show the whole mosaic again (${mod}+Shift+Enter)`,
       ampliar: (mod: string) => `Enlarge: this terminal fills the whole mosaic (${mod}+Shift+Enter)`,
       restaurarMosaicoAria: 'Restore the mosaic',
@@ -157,8 +182,11 @@ export const txPane = crearTextos(
       restaurarArchivosAria: 'Restore editor',
       restaurarTerminales: 'Restore: show the open terminals again',
       restaurarTerminalesAria: 'Restore terminals',
+      restaurarPestanasBd: 'Restore: show the open tables and consoles again',
+      restaurarPestanasBdAria: 'Restore tables and consoles',
       sinCerrarArchivos: 'files',
       sinCerrarTerminales: 'terminals',
+      sinCerrarPestanasBd: 'tables or consoles',
       maximizar: (agente: string, sinCerrar: string) => `Maximize: ${agente} takes all the space (without closing ${sinCerrar})`,
       maximizarAria: (agente: string) => `Maximize ${agente}`,
       cerrarAgente:
@@ -183,15 +211,28 @@ export const txPane = crearTextos(
       despertar: 'Wake',
       lugarTerminal: 'Terminal agent',
       lugarDatos: 'Database agent',
-      lugarProyectoTitulo: (proyecto: string) => `Agent of the project ${proyecto}`
+      lugarProyectoTitulo: (proyecto: string) => `Agent of the project ${proyecto}`,
+      lugarVentana: 'User folder',
+      lugarVentanaTitulo: 'Agent in your user folder, without a project'
     },
     menus: {
       terminalAbierta: ' (terminal open)',
       dormido: ' (asleep)',
       abrirOtro: (perfil: string) => `Open another project in ${perfil}…`,
-      modoContenedor: 'Container mode (isolated, profile account)',
-      modoNativo: 'Native mode (outside the container, personal account)',
+      modoNativo: (sistema: string) => `Native (${sistema})`,
+      cuentaDocker: (nombre: string) => `Docker · ${nombre}`,
+      sinCuenta: 'no account',
+      cuentaDe: (agente: string) => `${agente} account`,
+      enTuEquipo: 'On your computer',
+      enDocker: 'In Docker',
+      cuentas: 'Accounts',
+      nativaDetalle: (tuEquipo: string) => `The sign-in on ${tuEquipo}`,
+      dockerDetalle: 'Its own container',
+      sinCuentasDocker: 'No Docker accounts yet. Create one to use several at once.',
+      nuevaCuentaDocker: 'New Docker account…',
+      enUso: 'In use',
       cerrarSesionDe: (nombre: string) => `Sign out of “${nombre}”…`,
+      renombrarDe: (nombre: string) => `Rename “${nombre}”`,
       eliminarCuentaItem: (nombre: string) => `Delete “${nombre}”…`,
       eliminarCuenta: 'Delete account',
       cerrarSesion: 'Sign out',
@@ -200,7 +241,16 @@ export const txPane = crearTextos(
       mensajeCerrarSesion: (nombre: string) =>
         `Sign out of “${nombre}”? You will have to sign in again to use it.`,
       eliminar: 'Delete',
+      eliminando: 'Deleting…',
+      usadaPorOtros: (n: number) =>
+        n === 1 ? 'Another open agent is using it: its session will be closed.' : `${n} open agents are using it: their sessions will be closed.`,
+      cerrandoSesion: 'Signing out…',
       iniciarSesionTitulo: (agente: string) => `Sign in — ${agente}`,
+      nuevaCuenta: 'New account…',
+      predeterminada: 'Default',
+      nuevaCuentaTitulo: (agente: string) => `New account — ${agente}`,
+      nuevaCuentaAviso:
+        'Each account runs in its own Docker container, so two accounts work at the same time without getting in each other’s way; it counts toward the container limit in Settings › Docker containers.',
       nombreCuenta: 'Account name',
       crearEIniciar: 'Create and sign in',
       copiar: 'Copy',
@@ -216,8 +266,12 @@ export const txPane = crearTextos(
       masAria: 'Add agent',
       eliminarTitulo: (nombre: string) => `Delete ${nombre}`,
       eliminarMensaje: (nativo: boolean) =>
-        `Its tab is removed from ${nativo ? 'all native projects, in all profiles' : 'this profile’s Docker projects'}, ` +
-        'and its terminal is closed if it is open. What the agent saved in its folder is kept.',
+        nativo
+          ? 'Its tab is removed from all native projects, in all profiles, and its terminal is closed if it is open. ' +
+            'What the agent saved in your home folder is kept.'
+          : 'Its tab is removed from this profile’s Docker projects and its terminals are closed. Its accounts and what it saved ' +
+            'in its folders are deleted too, including its sign-in and settings. Project files are not touched.',
+      noSeBorraronCuentas: 'Could not delete the agent’s accounts',
       eliminar: 'Delete'
     },
     montaje: {

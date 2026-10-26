@@ -11,7 +11,7 @@ pierde en silencio, que es el peor desenlace para un clic del usuario.
 
 ## Decisión
 
-- No se recoge antes de que los ajustes estén cargados: el modo de los proyectos llega en el
+- No se recoge antes de que los ajustes estén cargados: el modo de cada agente llega en el
   mismo efecto que `settingsLoaded` y fijarlo antes lo pisaría al resolver la carga.
 - Se recoge sin esperar a las pestañas restauradas, pero diciéndolo (`pestanasCargadas`): hasta
   entonces el main resuelve también contra los proyectos PERSISTIDOS. Esperar al `init` para
@@ -36,7 +36,7 @@ pierde en silencio, que es el peor desenlace para un clic del usuario.
 ## Consecuencias
 
 - Mover la apertura a `recoger` o el respaldo a un efecto reabre la pérdida silenciosa de aperturas.
-- Sin la unión con lo persistido o sin la defensa de `planApertura`, abrir un archivo en frío saca
-  del contenedor (modo nativo) a un proyecto restaurado, o abre un duplicado nativo encima.
-- «Nuevo» significa «no abierto en ningún perfil ahora»: un proyecto cerrado no deja rastro de su
-  modo, y el diálogo de carpeta usa el mismo criterio.
+- Sin la unión con lo persistido o sin la defensa de `planApertura`, abrir un archivo en frío abre
+  un duplicado de un proyecto restaurado.
+- «Nuevo» significa «no abierto en ningún perfil ahora»: un proyecto cerrado no cuenta aunque sus
+  agentes recuerden su modo, y el diálogo de carpeta usa el mismo criterio.

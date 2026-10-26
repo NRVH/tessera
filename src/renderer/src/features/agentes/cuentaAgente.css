@@ -1,0 +1,253 @@
+/* =============================================================================
+   CUENTA DEL AGENTE — el botón de la cabecera (el icono de su modo) y su
+   selector (`PopoverCuenta.tsx`): secciones con título pequeño, una tarjeta por cuenta con su
+   icono, nombre y detalle, la que se usa marcada con el acento, y las acciones de una cuenta
+   de Docker apartadas a la derecha de su tarjeta, solo al pasar por ella o llegar con el teclado.
+   ============================================================================= */
+
+/* El botón: el icono de dónde corre (el equipo o el contenedor) sobre una pieza sólida del color del
+   perfil, como el rótulo del pie: es el indicador de nativo o Docker y tiene que leerse de un vistazo,
+   no solo al pasar el ratón. Blanco, no --fg: sobre un relleno sólido el gris de texto se hunde. */
+.btn.btn-icon.cuenta-btn {
+  border-radius: 6px;
+  background: var(--sel-solido);
+  color: #fff;
+}
+.btn.btn-icon.cuenta-btn:hover:not(:disabled) {
+  background: var(--sel-solido);
+  color: #fff;
+  filter: brightness(1.15);
+}
+
+.cuenta-pop {
+  position: fixed;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-modal);
+  box-shadow: var(--shadow-modal);
+  color: var(--fg);
+  font-size: var(--ui-font);
+}
+
+.cuenta-pop-titulo {
+  padding: 0 2px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.cuenta-seccion {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cuenta-seccion-titulo {
+  padding: 0 4px 2px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--fg-faint-modal);
+}
+
+.cuenta-vacio {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px dashed var(--border-soft);
+  border-radius: 8px;
+  color: var(--fg-muted-modal);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+/* La tarjeta y sus acciones van juntas en una caja: las acciones son hermanas del botón
+   (un botón no puede llevar otro dentro) y se superponen a su borde derecho. */
+.cuenta-tarjeta-caja {
+  position: relative;
+  border-radius: 8px;
+}
+.cuenta-tarjeta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.cuenta-tarjeta:hover,
+.cuenta-tarjeta:focus-visible {
+  background: var(--hover-suave);
+  outline: none;
+}
+.cuenta-tarjeta.actual {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.cuenta-tarjeta-icono {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--bg-surface);
+  color: var(--fg-muted);
+}
+.cuenta-tarjeta.actual .cuenta-tarjeta-icono {
+  color: var(--accent);
+}
+
+.cuenta-tarjeta-texto {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.cuenta-tarjeta-nombre,
+.cuenta-tarjeta-detalle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cuenta-tarjeta-nombre {
+  font-size: 12.5px;
+  color: var(--fg);
+}
+.cuenta-tarjeta-detalle {
+  font-size: 11px;
+  color: var(--fg-muted-modal);
+}
+
+/* Renombrando: la tarjeta deja de ser un botón y el nombre es un campo del mismo tamaño. */
+.cuenta-tarjeta.editando {
+  cursor: default;
+  border-color: var(--accent);
+}
+.cuenta-tarjeta-campo {
+  width: 100%;
+  min-width: 0;
+  padding: 1px 4px;
+  margin: -2px -5px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-surface);
+  color: var(--fg);
+  font: inherit;
+  font-size: 12.5px;
+  outline: none;
+}
+.cuenta-tarjeta-campo:focus {
+  border-color: var(--accent);
+}
+.cuenta-tarjeta-error {
+  font-size: 11px;
+  color: var(--red);
+  white-space: normal;
+}
+
+.cuenta-tarjeta-marca {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--accent);
+}
+
+/* Las acciones de una cuenta de Docker: a la derecha de su tarjeta, sobre un fondo que tapa
+   la marca, y solo al pasar por ella o al llegar con el teclado. */
+.cuenta-tarjeta-acciones {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  display: flex;
+  gap: 0;
+  padding: 2px;
+  border-radius: 7px;
+  background: var(--bg-modal);
+  transform: translateY(-50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+.cuenta-tarjeta-caja:hover .cuenta-tarjeta-acciones,
+.cuenta-tarjeta-caja:focus-within .cuenta-tarjeta-acciones {
+  opacity: 1;
+  pointer-events: auto;
+}
+.cuenta-accion {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Más estrechos que altos: los iconos quedan juntos sin encoger el área de clic en vertical. */
+  width: 24px;
+  height: 34px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+.cuenta-accion svg {
+  width: 14px;
+  height: 14px;
+}
+.cuenta-accion:hover,
+.cuenta-accion:focus-visible {
+  background: var(--hover-fuerte);
+  color: var(--fg);
+  outline: none;
+}
+/* Cada acción se tiñe de lo que hace: renombrar, azul; cerrar sesión (reversible), amarillo; eliminar, rojo.
+   El azul es `--azul` y no `--accent`: el acento es el color del perfil. */
+.cuenta-accion.renombrar:hover,
+.cuenta-accion.renombrar:focus-visible {
+  background: color-mix(in srgb, var(--azul) 17%, transparent);
+  color: var(--azul);
+}
+.cuenta-accion.salir:hover,
+.cuenta-accion.salir:focus-visible {
+  background: color-mix(in srgb, var(--yellow) 17%, transparent);
+  color: var(--yellow);
+}
+.cuenta-accion.peligro:hover,
+.cuenta-accion.peligro:focus-visible {
+  background: var(--danger-tinte);
+  color: var(--red-hi);
+}
+
+.cuenta-nueva {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  /* Solo el contorno del color del perfil: se distingue del vacío de encima sin competir con la
+     tarjeta en uso, que es la que lleva relleno. */
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.cuenta-nueva:hover,
+.cuenta-nueva:focus-visible {
+  background: var(--hover-suave);
+  color: var(--fg);
+  outline: none;
+}

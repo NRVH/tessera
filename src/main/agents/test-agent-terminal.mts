@@ -40,6 +40,7 @@ register('data:text/javascript,' + encodeURIComponent(resolveTsHook), import.met
 
 const { AgentTerminalController } = await import('./AgentTerminalController.ts')
 const { AccountStore } = await import('./AccountStore.ts')
+const { contenedorDe } = await import('./terminalAgente/credenciales.ts')
 
 const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = path.resolve(MODULE_DIR, '../../..')
@@ -146,9 +147,11 @@ async function casoAgenteManual(
     contexto: { origen: 'archivo' as const, valor: '~/.eco-uso.json', usado: 'ctx.usado', maximo: '1000' }
   }
   const res = await controller.open({ profileId: P_A.id, agente: 'm-eco', projectHostPath: projA, manual, reanudarManual: true })
+  // El agente manual no tiene cuentas: corre en su propio contenedor, distinto del de la terminal.
+  const cont = contenedorDe(P_A, 'm-eco', res.accountId)
   sleep(5000)
-  await casoContextoManual(controller, sandbox, res.sessionId)
-  const env = (await sandbox.exec(P_A, 'cat /tmp/man-env 2>/dev/null')).stdout
+  await casoContextoManual(controller, sandbox, cont, res.sessionId)
+  const env = (await sandbox.exec(cont, 'cat /tmp/man-env 2>/dev/null')).stdout
   const enHost = path.join(CREDS_ROOT, '.tessera', 'perfiles', P_A.id, 'm-eco', '.eco-guarda')
   const persistido = spawnSync(process.execPath, ['-e', `process.stdout.write(require('fs').existsSync(${JSON.stringify(enHost)}) ? 'SI' : 'NO')`], { encoding: 'utf8' }).stdout
   check(
@@ -157,11 +160,11 @@ async function casoAgenteManual(
     `HOME=${field(env, 'HOME')} | en_host=${persistido} | res.home=${res.configContainerPath}`
   )
   check('(f2) sus .local/bin delante del PATH', field(env, 'PATH').startsWith('/agent-config/m-eco/manual/.local/bin:'), field(env, 'PATH'))
-  await sandbox.exec(P_A, 'rm -f /tmp/man-env')
+  await sandbox.exec(cont, 'rm -f /tmp/man-env')
   const editada = { ...manual, contexto: { ...manual.contexto, maximo: '500' } }
   await controller.reload(res.sessionId, undefined, undefined, editada)
   sleep(5000)
-  const reEnv = (await sandbox.exec(P_A, 'cat /tmp/man-env 2>/dev/null')).stdout
+  const reEnv = (await sandbox.exec(cont, 'cat /tmp/man-env 2>/dev/null')).stdout
   check('(f3) recargar lo relanza con su HOME', field(reEnv, 'HOME') === '/agent-config/m-eco/manual', field(reEnv, 'HOME') || '(sin env)')
   const tras = controller.sesionConContexto(res.sessionId)?.fuente.maximo
   check('(f3b) reiniciar adopta la definición editada', tras === '500', String(tras))
@@ -169,7 +172,7 @@ async function casoAgenteManual(
   await controller.reload(res.sessionId, undefined, undefined, { ...manual, id: 'm-otro' }).catch((e: Error) => (ajena = e.message))
   check('(f3c) NEGATIVO: la definición de otro agente se rechaza', ajena.includes('m-eco'), ajena)
   await controller.close(res.sessionId)
-  const queda = (await sandbox.exec(P_A, 'test -e /agent-config/m-eco && echo EXISTS || echo GONE')).stdout.trim()
+  const queda = (await sandbox.exec(cont, 'test -e /agent-config/m-eco && echo EXISTS || echo GONE')).stdout.trim()
   check('(f4) cerrar desmonta su carpeta del contenedor', queda === 'GONE', queda)
 }
 
@@ -177,6 +180,7 @@ async function casoAgenteManual(
 async function casoContextoManual(
   controller: InstanceType<typeof AgentTerminalController>,
   sandbox: SandboxManager,
+  cont: Profile,
   sessionId: string
 ): Promise<void> {
   const s = controller.sesionConContexto(sessionId)
@@ -185,7 +189,7 @@ async function casoContextoManual(
     homedir: '/no-se-usa',
     ejecutarNativo: async () => ({ ok: false, salida: 'no debe llamarse' }),
     ejecutarEnContenedor: async (_s: unknown, orden: string) => {
-      const r = await sandbox.exec(P_A, orden, { project: s?.projectHostPath })
+      const r = await sandbox.exec(cont, orden, { project: s?.projectHostPath })
       return { ok: r.exitCode === 0, salida: r.exitCode === 0 ? r.stdout : r.stderr }
     },
     leerFinal: async () => 'no debe llamarse'
@@ -199,7 +203,7 @@ async function casoContextoManual(
   const t0 = Date.now()
   const colgado = s ? await leerContextoDeSesion({ ...s, fuente: { ...s.fuente, origen: 'comando', valor: 'sleep 60' } }, deps) : null
   const tarda = Date.now() - t0
-  const quedan = (await sandbox.exec(P_A, 'pgrep -fx "sleep 60" || true')).stdout.trim()
+  const quedan = (await sandbox.exec(cont, 'pgrep -fx "sleep 60" || true')).stdout.trim()
   check('(f-ctx4) un comando colgado acaba por su tope y no deja el proceso dentro', colgado?.ok === false && tarda < 20_000 && quedan === '', `${tarda} ms, quedan=[${quedan}]`)
 }
 
@@ -254,12 +258,14 @@ async function main(): Promise<void> {
 
     // Ruta de config scopeada por cuenta: /agent-config/claude-code/<accountId>.
     const CFG = res.configContainerPath
+    // La sesión corre en el contenedor de su cuenta, no en el del perfil (el de la terminal).
+    const C = contenedorDe(P_A, 'claude-code', res.accountId)
 
-    const cfgs = await sandbox.listAgentConfigs(P_A)
+    const cfgs = await sandbox.listAgentConfigs(C)
     const hasClaudeMount = cfgs.some((m) => m.agente === 'claude-code' && m.containerPath === CFG)
-    const envDump = (await sandbox.exec(P_A, 'cat /tmp/sess-env 2>/dev/null')).stdout
+    const envDump = (await sandbox.exec(C, 'cat /tmp/sess-env 2>/dev/null')).stdout
     const claudeEnv = field(envDump, 'CLAUDE_CONFIG_DIR')
-    const cfgRead = (await sandbox.exec(P_A, `cat ${CFG}/credentials.json 2>/dev/null`)).stdout
+    const cfgRead = (await sandbox.exec(C, `cat ${CFG}/credentials.json 2>/dev/null`)).stdout
     check(
       '(a) configDir montado durante la sesión + CLAUDE_CONFIG_DIR correcto + credencial legible',
       hasClaudeMount &&
@@ -275,9 +281,9 @@ async function main(): Promise<void> {
     const safeDirKey = field(envDump, 'GIT_CONFIG_KEY_0')
     const safeDirVal = field(envDump, 'GIT_CONFIG_VALUE_0')
     const term = field(envDump, 'TERM')
-    const keyMode = (await sandbox.exec(P_A, 'cat /tmp/sess-keymode 2>/dev/null')).stdout.trim()
-    const wrapOk = (await sandbox.exec(P_A, 'test -x /home/agente/.ssh_active/git-ssh.sh && echo YES || echo NO')).stdout.trim()
-    const sshList = (await sandbox.exec(P_A, 'cat /tmp/sess-ssh 2>/dev/null')).stdout
+    const keyMode = (await sandbox.exec(C, 'cat /tmp/sess-keymode 2>/dev/null')).stdout.trim()
+    const wrapOk = (await sandbox.exec(C, 'test -x /home/agente/.ssh_active/git-ssh.sh && echo YES || echo NO')).stdout.trim()
+    const sshList = (await sandbox.exec(C, 'cat /tmp/sess-ssh 2>/dev/null')).stdout
     console.log('--- ~/.ssh_active (visto por el stand-in) ---\n' + sshList.trim())
     check(
       '(b) GIT_SSH_COMMAND + safe.directory en el env de la sesión; llave copiada a 600; git-ssh.sh ejecutable; TERM seteado',
@@ -295,10 +301,10 @@ async function main(): Promise<void> {
     // El stand-in muere con el `^C` del cierre elegante, así que el `exit` que le sigue
     // llega a un pty ya muerto. Sin `entradaPty.ts`, en Windows esa escritura acababa en
     // un `write EAGAIN` no capturado que tumbaba esta prueba aquí, la mitad de las veces.
-    await sandbox.exec(P_A, 'rm -f /tmp/sess-env') // borra la evidencia previa
+    await sandbox.exec(C, 'rm -f /tmp/sess-env') // borra la evidencia previa
     const reRes = await controller.reload(sessionId)
     sleep(6000)
-    const reEnv = (await sandbox.exec(P_A, 'cat /tmp/sess-env 2>/dev/null')).stdout
+    const reEnv = (await sandbox.exec(C, 'cat /tmp/sess-env 2>/dev/null')).stdout
     const reAlive = field(reEnv, 'CLAUDE_CONFIG_DIR') === CFG
     check(
       '(c) reload conserva sessionId y la sesión revive (fichero de entorno recreado)',
@@ -315,7 +321,7 @@ async function main(): Promise<void> {
       'if cat /agent-config/codex/*/credentials.json 2>/dev/null; then echo "CODEX=REACHABLE"; else echo "CODEX=BLOCKED"; fi',
       `if grep -rq ${B_SECRET} /agent-config /home /workspace /tmp /etc 2>/dev/null; then echo "BSCAN=FOUND"; else echo "BSCAN=ABSENT"; fi`
     ].join('\n')
-    const iso = await sandbox.exec(P_A, isoCmd)
+    const iso = await sandbox.exec(C, isoCmd)
     console.log('--- salida cruda (e) ---\n' + iso.stdout.trim())
     const isoOk =
       field(iso.stdout, 'LIST') === 'claude-code,' &&
@@ -333,13 +339,14 @@ async function main(): Promise<void> {
     // --- (d) close: desmonta el configDir; sin sesión ni contenedor huérfano ----
     hr('(d) close: desmonta el configDir (/agent-config/claude-code desaparece), pty cerrado')
     await controller.close(sessionId)
-    const cfgsAfter = await sandbox.listAgentConfigs(P_A)
+    const cfgsAfter = await sandbox.listAgentConfigs(C)
     const mountGone = cfgsAfter.length === 0
-    const dirGone = (await sandbox.exec(P_A, `test -e ${CFG} && echo EXISTS || echo GONE`)).stdout.trim()
+    const dirGone = (await sandbox.exec(C, `test -e ${CFG} && echo EXISTS || echo GONE`)).stdout.trim()
     // Y la carpeta del AGENTE, padre de la de la cuenta: antes sobrevivía vacía.
-    const agenteGone = (await sandbox.exec(P_A, 'test -e /agent-config/claude-code && echo EXISTS || echo GONE')).stdout.trim()
+    const agenteGone = (await sandbox.exec(C, 'test -e /agent-config/claude-code && echo EXISTS || echo GONE')).stdout.trim()
     const noLiveSession = !controller.liveSessionIds().includes(sessionId)
-    const containerAlive = (await sandbox.exec(P_A, 'echo alive')).stdout.trim() === 'alive'
+    // La parada del contenedor de la cuenta está programada a los 2 minutos: sigue vivo.
+    const containerAlive = (await sandbox.exec(C, 'echo alive')).stdout.trim() === 'alive'
     check(
       '(d) close desmonta el configDir y cierra la sesión; contenedor sigue vivo, sin pty huérfano',
       mountGone && dirGone === 'GONE' && agenteGone === 'GONE' && noLiveSession && containerAlive,
@@ -357,8 +364,9 @@ async function main(): Promise<void> {
     }
     const orphans: string[] = []
     for (const p of ALL) {
+      // El del perfil y los de sus cuentas (`tessera-<id>--<huella>`).
       const cname = `tessera-${p.id}`
-      const psRaw = spawnSync('docker', ['ps', '-a', '--filter', `name=^${cname}$`, '--format', '{{.Names}}'], {
+      const psRaw = spawnSync('docker', ['ps', '-a', '--filter', `name=^${cname}(--.*)?$`, '--format', '{{.Names}}'], {
         encoding: 'utf8'
       }).stdout.trim()
       if (psRaw.length > 0) orphans.push(psRaw)

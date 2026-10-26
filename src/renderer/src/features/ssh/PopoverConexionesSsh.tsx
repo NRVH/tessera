@@ -3,7 +3,8 @@
 // cabecera de la terminal, alineado a su borde izquierdo y que sale hacia arriba si abajo no cabe. Se
 // cierra con Esc, un clic fuera, al conectar y al abrir un diálogo (quien lo monta lo cierra además si cambia
 // la pantalla completa, y le da un ancla nueva si cambia el panel o la ventana), y el foco vuelve a quien
-// lo tenía. Va a la capa flotante, bajo el menú contextual. Depende de `comun/`.
+// lo tenía. En el pie de la lista, «Nueva ventana de agente». Va a la capa flotante, bajo el menú
+// contextual. Depende de `comun/`.
 // Decisiones: docs/decisiones/terminales/lanzador-de-conexiones.md
 // =============================================================================
 

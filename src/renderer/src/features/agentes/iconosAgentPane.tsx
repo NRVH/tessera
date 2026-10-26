@@ -55,16 +55,6 @@ export function IconoCaret(): React.JSX.Element {
   )
 }
 
-/** Icono de cuenta/usuario para el botón de cuenta del header. */
-export function AccountIcon(): React.JSX.Element {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" width="14" height="14">
-      <circle cx="12" cy="8" r="3.4" />
-      <path d="M5.5 19a6.5 6.5 0 0 1 13 0" strokeLinecap="round" />
-    </svg>
-  )
-}
-
 /** Chevron hacia abajo del botón de cuenta (indica desplegable). */
 export function CaretIcon(): React.JSX.Element {
   return (
@@ -137,5 +127,62 @@ export function IrAlProyectoIcon(): React.JSX.Element {
         strokeLinejoin="round"
       />
     </svg>
+  )
+}
+
+/** Las propiedades comunes de los iconos del selector de cuenta: trazo, sin relleno y del color del texto. */
+function SvgCuenta({ tam, grosor = 1.6, children }: { tam: number; grosor?: number; children: React.ReactNode }): React.JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={grosor} strokeLinecap="round" strokeLinejoin="round" width={tam} height={tam} aria-hidden="true">
+      {children}
+    </svg>
+  )
+}
+
+/** Tu equipo (el agente nativo): una pantalla. */
+export function IconoEquipo({ tam = 16 }: { tam?: number }): React.JSX.Element {
+  return (
+    <SvgCuenta tam={tam}>
+      <rect x="3.5" y="5" width="17" height="11" rx="1.6" />
+      <path d="M9 19.5h6M12 16v3.5" />
+    </SvgCuenta>
+  )
+}
+
+/** Un contenedor de Docker (una cuenta en Docker): un cubo. */
+export function IconoContenedor({ tam = 16 }: { tam?: number }): React.JSX.Element {
+  return (
+    <SvgCuenta tam={tam} grosor={1.5}>
+      <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z" />
+      <path d="M4 7.5l8 4.5 8-4.5M12 12v9" />
+    </SvgCuenta>
+  )
+}
+
+/** Cerrar sesión: una puerta con la flecha saliendo. */
+export function IconoSalir(): React.JSX.Element {
+  return (
+    <SvgCuenta tam={14} grosor={1.7}>
+      <path d="M14 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4" />
+      <path d="M10 8l-4 4 4 4M6 12h9" />
+    </SvgCuenta>
+  )
+}
+
+/** La marca de la cuenta en uso. */
+export function IconoElegida(): React.JSX.Element {
+  return (
+    <SvgCuenta tam={14} grosor={2}>
+      <path d="M5 12.5l4.5 4.5L19 7.5" />
+    </SvgCuenta>
+  )
+}
+
+/** Añadir: el más del pie del selector. */
+export function IconoMas(): React.JSX.Element {
+  return (
+    <SvgCuenta tam={14} grosor={1.8}>
+      <path d="M12 5v14M5 12h14" />
+    </SvgCuenta>
   )
 }

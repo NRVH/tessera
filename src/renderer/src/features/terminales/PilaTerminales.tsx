@@ -85,19 +85,16 @@ function PanesLocales({ panel, activo, onInfo, onApi }: PilaTerminalesProps): Re
       {/* En orden ESTABLE y no en el de las pestañas de proyecto: una terminal que React
           cambia de sitio en el DOM pierde su scroll. */}
       {enOrdenEstable(panel.projects, (p) => p.key).flatMap((project) => {
-        const hostMode = panel.windowsModeKeys.has(project.key)
         const hibernated = panel.hibernatedProjectKeys.has(project.key)
         return (panel.terminals[project.key]?.list ?? []).map((t) => {
           const key = terminalPaneKey(project.key, t.id)
           return (
-            // La React key incluye el MODO: alternar nativo⇄Docker REMONTA el pane (cierra la
-            // sesión vieja y abre otra en el shell correcto) en vez de dejar una sesión viva
-            // con el modo equivocado. El resto de la key es fijo: el pane sobrevive a todo lo demás.
-            <ErrorBoundary key={`${key}${hostMode ? '|host' : ''}`} label={txTerminales().zonaTerminal} variant="pane">
+            <ErrorBoundary key={key} label={txTerminales().zonaTerminal} variant="pane">
               <TerminalPane
                 paneKey={key}
                 profileId={project.profileId}
-                origen={{ tipo: 'local', projectHostPath: project.projectHostPath, hostMode }}
+                // La terminal de un proyecto corre siempre en el equipo: Docker es solo para las cuentas de los agentes.
+                origen={{ tipo: 'local', projectHostPath: project.projectHostPath, hostMode: true }}
                 visible={panel.visible && key === activo.activePaneKey}
                 dbMounted={panel.dbMountsByProject?.[`${project.profileId}|${project.projectHostPath}`] ?? []}
                 dbReady={panel.dbReady}

@@ -13,6 +13,18 @@ import type { Plataforma } from '../../shared/plataforma.ts'
 
 /** Plazo tras «sale»: una salida sana tarda décimas de segundo. */
 export const PLAZO_GUARDIAN_MS = 15_000
+/**
+ * Plazo cuando al salir queda algún pty sin su fin anotado. En Windows es la firma de un desmontaje
+ * colgado: node-pty espera en un hilo nativo el aviso de fin de una raíz que ya no existe, y ese aviso
+ * no llega. Lo que se escribe a disco ya terminó con el `exit` de Node; esperar más solo retrasa el
+ * relanzamiento y el instalador.
+ */
+export const PLAZO_GUARDIAN_CON_PTYS_MS = 3_000
+
+/** El plazo del guardián según cuántos ptys quedan sin su fin anotado al salir. */
+export function plazoGuardian(ptysPendientes: number): number {
+  return ptysPendientes > 0 ? PLAZO_GUARDIAN_CON_PTYS_MS : PLAZO_GUARDIAN_MS
+}
 /** Cada cuánto mira el guardián POSIX si la app sigue siendo su padre. */
 export const SONDEO_GUARDIAN_MS = 500
 

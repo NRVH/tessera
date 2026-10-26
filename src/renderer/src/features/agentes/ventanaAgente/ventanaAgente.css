@@ -1,0 +1,62 @@
+/* =============================================================================
+   La ventana de agente: barra de título mínima (arrastra la ventana y deja el hueco de los
+   botones del sistema, igual que `.titlebar`) y debajo el pane del agente a toda la ventana.
+   Decisiones: docs/decisiones/agentes/ventana-de-agente.md
+   ============================================================================= */
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+.ventana-agente {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.ventana-agente-barra {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  height: var(--titlebar-h);
+  padding-left: 12px;
+  /* El mismo hueco que la barra de la principal: los botones del sistema a la derecha. */
+  padding-right: calc(100vw - env(titlebar-area-width, calc(100vw - var(--wco-w))));
+  background: var(--bg-chrome);
+  -webkit-app-region: drag;
+  user-select: none;
+}
+
+:root[data-plataforma='mac'] .ventana-agente-barra {
+  padding-right: 12px;
+  padding-left: env(titlebar-area-x, 80px);
+}
+
+:root[data-plataforma='mac'][data-semaforo='oculto'] .ventana-agente-barra {
+  padding-left: 12px;
+}
+
+.ventana-agente-titulo {
+  overflow: hidden;
+  font-size: var(--ui-font-titulo);
+  color: var(--fg-muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ventana-agente-cuerpo {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-top: 1px solid var(--border);
+}
+
+.ventana-agente-cargando {
+  margin: auto;
+  color: var(--fg-muted);
+}

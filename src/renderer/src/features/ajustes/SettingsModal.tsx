@@ -22,6 +22,7 @@ import { useRielAjustes } from './useRielAjustes'
 import { Apariencia } from './categorias/Apariencia'
 import { Terminales } from './categorias/Terminales'
 import { Proyectos } from './categorias/Proyectos'
+import { Contenedores } from './categorias/Contenedores'
 import { Agentes } from './categorias/Agentes'
 import { BasesDeDatos } from './categorias/BasesDeDatos'
 import { Integracion } from './categorias/Integracion'
@@ -35,6 +36,7 @@ const PANELES: Record<CategoriaId, (p: PropsCategoria) => React.JSX.Element | nu
   apariencia: Apariencia,
   terminales: Terminales,
   proyectos: Proyectos,
+  contenedores: Contenedores,
   agentes: Agentes,
   'bases-de-datos': BasesDeDatos,
   integracion: Integracion,

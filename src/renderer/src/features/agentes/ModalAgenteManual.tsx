@@ -1,8 +1,8 @@
 // =============================================================================
-// Modal para definir (o editar) un agente a mano: nombre, comando, cómo reanudar, en Docker
-// las órdenes de instalación, si se ofrece también en la terminal y de dónde sale su
-// contexto. Dice lo que un agente
-// manual no tiene. Al guardar en Docker con órdenes nuevas enseña el progreso de la capa.
+// Modal para definir (o editar) un agente a mano: nombre, dónde corre (solo uno nuevo), comando,
+// cómo reanudar, en Docker las órdenes de instalación, si se ofrece también en la terminal y de
+// dónde sale su contexto. Dice lo que un agente manual no tiene. Al guardar en Docker con órdenes
+// nuevas enseña el progreso de la capa.
 // La lógica vive en `useModalAgenteManual.ts`.
 // Decisiones: docs/decisiones/agentes/agentes-manuales.md
 // =============================================================================
@@ -13,6 +13,7 @@ import { alClicEnVelo, useDialogo } from '../../comun/useDialogo'
 import { MAX_COMANDO, MAX_INSTALACION, MAX_NOMBRE, MAX_REANUDAR } from '../../../../shared/agentesManuales'
 import { MAX_CAMPO, MAX_VALOR_FUENTE } from '../../../../shared/contextoAgenteManual'
 import { idiomaActual } from '../../../../shared/i18n.ts'
+import { nombresSistema } from '../../../../shared/nombresSistema'
 import { txAgenteManual } from './textosAgenteManual.ts'
 import { useModalAgenteManual, type BorradorAgente, type OpcionesModalAgente, type VistaModalAgente } from './useModalAgenteManual'
 
@@ -72,12 +73,35 @@ function CampoInstalacion({ v }: { v: VistaModalAgente }): React.JSX.Element {
   )
 }
 
-function CamposAgente({ v, hostMode }: { v: VistaModalAgente; hostMode: boolean }): React.JSX.Element {
+/** Dónde corre un agente nuevo: en el equipo o en Docker, con varias cuentas. Uno que se edita no lo cambia. */
+function CampoDonde({ v }: { v: VistaModalAgente }): React.JSX.Element | null {
+  const id = useId()
+  const t = txAgenteManual()
+  if (!v.eligeDonde) return null
+  return (
+    <div className="dbc-campo">
+      <label className="dbc-etiqueta" htmlFor={id}>
+        {t.dondeCorre}
+      </label>
+      <select id={id} value={v.nativo ? 'nativo' : 'docker'} aria-describedby={`${id}-ayuda`} onChange={(e) => v.elegirNativo(e.target.value === 'nativo')}>
+        <option value="nativo">{t.dondeNativo(nombresSistema(window.tessera.plataforma).sistema)}</option>
+        <option value="docker">{t.dondeDocker}</option>
+      </select>
+      <span id={`${id}-ayuda`} className="dbc-ayuda">
+        {t.dondeAyuda}
+      </span>
+    </div>
+  )
+}
+
+function CamposAgente({ v }: { v: VistaModalAgente }): React.JSX.Element {
   const { b, editar } = v
   const t = txAgenteManual()
+  const hostMode = v.nativo
   return (
     <>
       <CampoTexto etiqueta={t.nombre} valor={b.nombre} max={MAX_NOMBRE} placeholder={t.nombrePlaceholder} autoFocus onCambio={(nombre) => editar({ nombre })} />
+      <CampoDonde v={v} />
       <CampoTexto
         etiqueta={t.comando}
         valor={b.comando}
@@ -233,10 +257,10 @@ export function ModalAgenteManual(o: OpcionesModalAgente): React.JSX.Element {
         <form className="dbc-form" noValidate onSubmit={(e) => { e.preventDefault(); void v.guardar() }}>
           <div className="dbc-cabecera">
             <div id={idTitulo} className="modal-title">{o.inicial ? t.editar(o.inicial.nombre) : t.agenteNuevo}</div>
-            <div className="dbc-ayuda">{o.hostMode ? t.ambitoNativo : t.ambitoDocker}</div>
+            <div className="dbc-ayuda">{v.nativo ? t.ambitoNativo : t.ambitoDocker}</div>
           </div>
           <div className="dbc-cuerpo">
-            {v.fase.tipo === 'editando' || v.fase.tipo === 'sin-programa' ? <CamposAgente v={v} hostMode={o.hostMode} /> : <ProgresoInstalacion v={v} />}
+            {v.fase.tipo === 'editando' || v.fase.tipo === 'sin-programa' ? <CamposAgente v={v} /> : <ProgresoInstalacion v={v} />}
             {v.fase.tipo === 'sin-programa' && (
               <div className="dbc-error" role="alert">
                 {t.sinProgramaA}

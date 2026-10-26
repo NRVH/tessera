@@ -36,7 +36,10 @@ export function registrarEventosDeApp(refs: ReferenciasApp, esRelevo: boolean, p
   })
 }
 
-/** macOS: pulsar el Dock sin ventanas vuelve a crear la principal. */
+/**
+ * macOS: pulsar el Dock sin ninguna ventana vuelve a crear la principal. Con ventanas de agente
+ * abiertas no: la principal se pide desde el menú del Dock («Abrir Tessera»).
+ */
 export function registrarActivacion(refs: ReferenciasApp, crear: () => BrowserWindow): void {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -56,7 +59,8 @@ export function registrarAperturaMac(refs: ReferenciasApp, crear: () => BrowserW
   if (!esMac()) return
   app.on('open-file', () => {
     if (refs.cerrando) return
-    if (BrowserWindow.getAllWindows().length === 0) {
+    // Sin principal (cerrada con ventanas de agente abiertas, o nunca creada) se crea: lo que se abre son proyectos.
+    if (!refs.ventana || refs.ventana.isDestroyed()) {
       refs.ventana = crear()
       return
     }

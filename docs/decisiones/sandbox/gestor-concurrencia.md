@@ -5,8 +5,7 @@
 
 ## Contexto
 
-La terminal de abajo y la del agente piden el contenedor del mismo perfil a la vez; restaurar un workspace abre
-varios perfiles de golpe; un daemon colgado no responde nunca.
+Varios agentes piden el mismo contenedor a la vez; restaurar un workspace abre varios perfiles de golpe; un daemon colgado no responde nunca.
 
 ## Decisión
 

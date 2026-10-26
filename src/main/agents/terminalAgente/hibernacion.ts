@@ -1,12 +1,14 @@
 // =============================================================================
 // Hibernación por inactividad del agente: las medidas de cada sesión (última E/S del pty y
-// tareas en segundo plano) y la ronda que decide y cierra. Decide `politicaHibernacion`;
+// tareas en segundo plano) y la ronda que decide y cierra, con el plazo acortado si queda poca
+// memoria (`presionMemoria.ts`). Decide `politicaHibernacion`;
 // aquí se sueltan TODAS las sesiones elegidas en el mismo tick y se responde sin esperar a
 // las muertes, que siguen en la cola de `TerminalService`. Solo sesiones nativas.
 // Decisiones: docs/decisiones/agentes/hibernacion-por-inactividad.md
 // =============================================================================
 
 import type {
+  AgentExitReason,
   AgenteHibernado,
   AgentHibernarInactivosRequest,
   AgentHibernarInactivosResult
@@ -22,6 +24,7 @@ import {
 import { basenameSuelto } from '../../conversations/slugProyecto'
 import { dbLog } from '../../db/dbLog'
 import { decidirHibernacion, type DecisionHibernacion, type SesionMedida } from '../politicaHibernacion'
+import { umbralConMemoria } from '../presionMemoria'
 import { soltarSesion } from './cierre'
 import { alinearChatConAncla, sinChatDesde } from './turnos'
 import { errMsg, type NucleoAgente, type OpenAgentSession } from './tipos'
@@ -41,6 +44,16 @@ export function medidasDeProcesoNuevo(
 function trabajoPendiente(n: NucleoAgente, s: OpenAgentSession, ahora: number): boolean {
   if (haySegundoPlano(s.segundoPlano, ahora)) return true
   return s.agente === 'claude-code' && n.turnos?.vigila(s.sessionId) !== true
+}
+
+/**
+ * El motivo con el que se anuncia la salida de una sesión nativa: sin contenedor que diagnosticar, si
+ * terminó con un código de error y poca memoria en el equipo se dice, porque suele ser la causa; si
+ * no, 'ok'. Sin código (-1 o null) no se acusa a la memoria: ConPTY lo pierde también en una salida
+ * normal.
+ */
+export function motivoSalidaNativa(n: NucleoAgente, exitCode: number | null): AgentExitReason {
+  return exitCode !== null && exitCode !== 0 && exitCode !== -1 && n.pocaMemoria() ? 'sin-memoria' : 'ok'
 }
 
 /** Apunta una E/S del pty (salida o entrada) de la sesión; cerrada, se ignora. */
@@ -95,7 +108,7 @@ function registrarRonda(n: NucleoAgente, decision: DecisionHibernacion, umbralMs
 }
 
 /** Lanza la muerte del árbol de una sesión ya soltada y la apunta para el cierre de la app. */
-function matarEnSegundoPlano(n: NucleoAgente, sessionId: string): void {
+export function matarEnSegundoPlano(n: NucleoAgente, sessionId: string): void {
   // La parte síncrona de `cerrarConArbol` (marca y promesa de la parada) corre en este tick.
   const muerte = n.terminals.cerrarConArbol(sessionId).then(
     () => n.log(`hibernarInactivos: ${sessionId} cerrada`),
@@ -111,7 +124,10 @@ function matarEnSegundoPlano(n: NucleoAgente, sessionId: string): void {
  * sesión ya cerrada y no un proceso a medio matar. El chat se fija ANTES de soltar el ancla.
  */
 export function hibernarInactivos(n: NucleoAgente, req: AgentHibernarInactivosRequest): AgentHibernarInactivosResult {
-  const umbralMs = umbralEfectivoMs(req.minutos, n.inactividadPruebasMs)
+  const pocaMemoria = n.pocaMemoria()
+  const delAjuste = umbralEfectivoMs(req.minutos, n.inactividadPruebasMs)
+  // «Ahora» no salta «Nunca»: solo adelanta el plazo de quien hiberna.
+  const umbralMs = req.ahora === true && delAjuste !== null ? 0 : umbralConMemoria(delAjuste, pocaMemoria)
   const decision = decidirHibernacion({
     ahora: n.reloj(),
     umbralMs,
@@ -139,5 +155,5 @@ export function hibernarInactivos(n: NucleoAgente, req: AgentHibernarInactivosRe
     hibernados.push({ profileId: p.profileId, projectHostPath: p.projectHostPath, sesiones })
   }
   if (hibernados.length > 0) n.log(`hibernarInactivos: ${hibernados.length} proyecto(s) hibernado(s)`)
-  return { hibernados, revisarEnMs: decision.revisarEnMs, umbralMs }
+  return { hibernados, revisarEnMs: decision.revisarEnMs, umbralMs, pocaMemoria }
 }

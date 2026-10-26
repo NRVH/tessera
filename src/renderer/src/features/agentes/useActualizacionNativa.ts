@@ -11,6 +11,7 @@ import type { AgentKind } from '../../../../shared/agent-terminal-ipc'
 import type { EstadoAgentesNativos } from '../../../../shared/agentes-nativos-ipc'
 import { agentTargetKey } from '../pestanas'
 import { ejecutar as ejecutarActualizacion, planificar } from './actualizacionNativa'
+import { panesRemotos } from './panesRemotos'
 import { txActualizacion } from './textosActualizacion.ts'
 import type {
   ApiAgentePane,
@@ -224,19 +225,32 @@ function useConsultas(set: Setters, refs: Refs): Consultas {
   return { registrarApi, panes, comprobar, abrir, cerrar }
 }
 
-/** Las dependencias reales del orquestador: el main por IPC y los panes registrados. */
+/**
+ * Las dependencias reales del orquestador: el main por IPC, los panes registrados y los de las
+ * ventanas de agente, que salen de la última foto (`panesRemotos.ts`).
+ */
 function depsReales(set: Setters, refs: Refs): DepsActualizacion {
+  let ultimo: EstadoAgentesNativos | null = null
+  // Las sesiones vistas en CUALQUIER foto de la ejecución: la foto de después de parar el lote ya no trae
+  // las paradas, y sin ellas la de una ventana de agente no se relanzaría. Una que de verdad se cerró
+  // responde «saltada» desde el main.
+  const vistas = new Map<string, EstadoAgentesNativos['sesiones'][number]>()
   return {
     plataforma: window.tessera.plataforma,
     comprobar: async () => {
       const e = await window.tessera.agentesNativos.comprobar()
+      for (const s of e.sesiones) vistas.set(s.sessionId, s)
+      ultimo = { ...e, sesiones: [...vistas.values()] }
       if (refs.montado.current) set.setEstado(e)
       return e
     },
     instalar: (req) => window.tessera.agentesNativos.instalar(req),
     detener: (ids) => window.tessera.agentTerminal.detenerVarias(ids),
     // En el MOMENTO de llamar: un pane que se monta o desmonta a mitad cuenta.
-    panes: () => [...refs.apis.current.values()],
+    panes: () => {
+      const locales = [...refs.apis.current.values()]
+      return [...locales, ...panesRemotos(ultimo, locales, (req) => window.tessera.ventanaAgente.paneRemoto(req))]
+    },
     onEvento: (ev) => {
       if (!refs.montado.current) return
       if (ev.tipo === 'fase') {

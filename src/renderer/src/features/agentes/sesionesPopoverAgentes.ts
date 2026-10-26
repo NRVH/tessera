@@ -7,6 +7,7 @@
 import type { AgentKind } from '../../../../shared/agent-terminal-ipc.ts'
 import type { InstalarResultado } from '../../../../shared/agentes-nativos-ipc.ts'
 import { ETIQUETA_AGENTE } from '../../../../shared/etiquetasAgente.ts'
+import { PERFIL_VENTANA_AGENTE } from '../../../../shared/ventana-agente-ipc.ts'
 import { txActualizacion } from './textosActualizacion.ts'
 import type { EventoActualizacion, ResultadoSesion } from './tipos.ts'
 
@@ -39,8 +40,9 @@ function ultimo(ruta: string): string {
   return partes[partes.length - 1] ?? ruta
 }
 
-/** Cómo se nombra una sesión en el popover: «perfil · proyecto · agente». */
+/** Cómo se nombra una sesión en el popover: «perfil · proyecto · agente» (o «Ventana de agente · agente»). */
 export function nombreSesion(s: Sesion, info: InfoSesionesAgentes): string {
+  if (s.profileId === PERFIL_VENTANA_AGENTE) return `${txActualizacion().pasos.ventanaAgente} · ${ETIQUETA_AGENTE[s.agente]}`
   const perfil = info.perfiles.get(s.profileId)?.nombre ?? s.profileId
   const proyecto = info.nombresProyecto[`${s.profileId}|${s.projectHostPath}`] ?? ultimo(s.projectHostPath)
   return `${perfil} · ${proyecto} · ${ETIQUETA_AGENTE[s.agente]}`

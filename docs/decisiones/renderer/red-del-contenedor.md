@@ -9,7 +9,7 @@ La red del anfitrión (`--network host`) era un interruptor del menú del perfil
 sitios: al soltar solo persistía el flag (un contenedor vivo no cambia de red: se aplica al
 recrearlo); no comprobaba sus requisitos de máquina (con «Enable host networking» apagado en
 Docker Desktop, `docker run` devuelve 0 igual y los puertos se quedan en la VM); y no decía lo que
-se pierde (`-p`, `--hostname`, y dos perfiles en este modo chocan por el puerto 1455 del login).
+se pierde (`--hostname`, y dos perfiles en este modo comparten el espacio de puertos del equipo).
 
 ## Decisión
 

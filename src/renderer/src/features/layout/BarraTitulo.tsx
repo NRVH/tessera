@@ -6,7 +6,7 @@
 import { useShallow } from 'zustand/react/shallow'
 import { TabsBar } from './TabsBar'
 import { useStoreAjustes } from '../ajustes'
-import { useStorePestanas, type ModoProyecto, type UseTabs, type usePuntosPerfil } from '../pestanas'
+import type { UseTabs, usePuntosPerfil } from '../pestanas'
 import { BotonAgentesNativos, useStoreAgentes, type ActividadAgentes, type SesionesNativas } from '../agentes'
 import { BarraMosaico, setMosaicoPreset, useStoreMosaico, verCasilla, type MosaicoApp, type OpcionMosaico } from '../mosaico'
 import { contarRender } from '../../util/contadorRenders'
@@ -15,7 +15,6 @@ interface Props {
   tabs: UseTabs
   puntos: ReturnType<typeof usePuntosPerfil>
   actividad: ActividadAgentes
-  modo: ModoProyecto
   mosaico: MosaicoApp
   sesiones: SesionesNativas
 }
@@ -59,12 +58,11 @@ function BarraDelMosaico({ mosaico, actividad }: Pick<Props, 'mosaico' | 'activi
 }
 
 /** Barra de título con las pestañas de perfiles y proyectos. */
-export function BarraTitulo({ tabs, puntos, actividad, modo, mosaico, sesiones }: Props): React.JSX.Element {
+export function BarraTitulo({ tabs, puntos, actividad, mosaico, sesiones }: Props): React.JSX.Element {
   contarRender('BarraTitulo')
   const { hideProfileNames, settingsOpen } = useStoreAjustes(
     useShallow((s) => ({ hideProfileNames: s.hideProfileNames, settingsOpen: s.settingsOpen }))
   )
-  const windowsModeKeys = useStorePestanas((s) => s.windowsModeKeys)
   const mosaicoActivo = useStoreMosaico((s) => s.mosaicoActivo)
   const tokenAbrirAgentes = useStoreAgentes((s) => s.tokenAbrirAgentes)
   return (
@@ -76,9 +74,6 @@ export function BarraTitulo({ tabs, puntos, actividad, modo, mosaico, sesiones }
       workingProfiles={actividad.activityAttention.workingProfiles}
       waitingProfiles={actividad.activityAttention.esperandoProfiles}
       hideProfileNames={hideProfileNames}
-      windowsModeKeys={windowsModeKeys}
-      onToggleWindowsMode={modo.toggleWindowsMode}
-      decideProjectMode={modo.decideProjectMode}
       settingsActive={settingsOpen}
       onToggleSettings={() => useStoreAjustes.getState().alternarSettings()}
       mosaicoActivo={mosaicoActivo}

@@ -1,14 +1,14 @@
 // =============================================================================
 // useAccionesTabs: las acciones que `useTabs` expone a la UI (abrir, activar, cerrar,
-// reordenar, hibernar y CRUD de perfiles). Todas estables (deps vacías o solo `pickFolder…`):
-// leen el estado del momento con `leerTabs()` y escriben con `despacharTabs`. El
-// diálogo nativo y la decisión de modo son efectos de aquí; el reductor recibe hechos.
+// reordenar, hibernar y CRUD de perfiles). Todas estables (deps vacías): leen el estado del
+// momento con `leerTabs()` y escriben con `despacharTabs`. El diálogo nativo es efecto de
+// aquí; el reductor recibe hechos.
 // =============================================================================
 
 import { useCallback } from 'react'
 import { uniqueProfileId } from './tabsModel'
 import { despacharTabs as dispatch, leerTabs, marcarHibernando } from './store'
-import type { DecideProjectMode, UseTabs } from './useTabs'
+import type { UseTabs } from './useTabs'
 import type { Profile } from '../../../../main/profiles/types'
 import { iniciarTramo } from '../../util/diagnosticoRendimiento'
 
@@ -39,26 +39,14 @@ type AperturasProyecto = Pick<
 >
 
 /**
- * Diálogo nativo + decisión de modo, compartido por abrir y reemplazar. Devuelve el
- * proyecto elegido o null (cancelado / sin perfil). `decideMode` decide y APLICA el
- * modo SOLO si el proyecto es nuevo (re-elegir uno abierto no debe tocar su sesión
- * viva); devolver false lo CANCELA. `enPerfil` sustituye al perfil activo (mosaico).
+ * Diálogo nativo, compartido por abrir y reemplazar. Devuelve el proyecto elegido o null
+ * (cancelado / sin perfil). `enPerfil` sustituye al perfil activo (mosaico).
  */
-async function pickFolderAndDecideMode(
-  decideMode?: DecideProjectMode,
-  enPerfil?: string
-): Promise<{ profileId: string; project: ProyectoElegido } | null> {
+async function elegirCarpeta(enPerfil?: string): Promise<{ profileId: string; project: ProyectoElegido } | null> {
   const profileId = enPerfil ?? leerTabs().activeProfileId
   if (profileId === null) return null // sin perfil activo no hay dónde abrir
   const res = await window.tessera.workspace.openProjectDialog()
   if (res.canceled || !res.projectHostPath || !res.name) return null
-  const alreadyOpen =
-    leerTabs().byProfile[profileId]?.openProjects.some(
-      (p) => p.projectHostPath === res.projectHostPath
-    ) ?? false
-  if (!alreadyOpen && decideMode && !(await decideMode(profileId, res.projectHostPath, res.name))) {
-    return null
-  }
   return { profileId, project: { projectHostPath: res.projectHostPath, name: res.name } }
 }
 
@@ -66,9 +54,9 @@ async function pickFolderAndDecideMode(
 function useAperturasProyecto(): AperturasProyecto {
   // try/catch: el onClick es async y sin él un fallo del diálogo rechazaría la promesa en silencio.
   const openProjectInActiveProfile = useCallback(
-    async (decideMode?: DecideProjectMode) => {
+    async () => {
       try {
-        const r = await pickFolderAndDecideMode(decideMode)
+        const r = await elegirCarpeta()
         if (!r) return
         dispatch({ type: 'openProject', profileId: r.profileId, project: r.project })
       } catch (err) {
@@ -81,13 +69,9 @@ function useAperturasProyecto(): AperturasProyecto {
   // Abre en UN PERFIL CONCRETO sin cambiar el activo (casillas del mosaico). `alAbrir`
   // corre en el MISMO turno que la apertura: tras el `return` sería otro commit.
   const openProjectInProfile = useCallback(
-    async (
-      profileId: string,
-      decideMode?: DecideProjectMode,
-      alAbrir?: (project: ProyectoElegido) => void
-    ): Promise<ProyectoElegido | null> => {
+    async (profileId: string, alAbrir?: (project: ProyectoElegido) => void): Promise<ProyectoElegido | null> => {
       try {
-        const r = await pickFolderAndDecideMode(decideMode, profileId)
+        const r = await elegirCarpeta(profileId)
         if (!r) return null
         dispatch({ type: 'openProject', profileId: r.profileId, project: r.project })
         alAbrir?.(r.project)
@@ -100,8 +84,7 @@ function useAperturasProyecto(): AperturasProyecto {
     []
   )
 
-  // Abre o activa un proyecto de ruta ya conocida, sin diálogo. NO decide el modo:
-  // quien llame con un proyecto NUEVO debe fijarlo antes de despachar.
+  // Abre o activa un proyecto de ruta ya conocida, sin diálogo.
   const openKnownProject = useCallback(
     (profileId: string, project: ProyectoElegido, opciones?: { agenteDiferido?: boolean }) => {
       dispatch({ type: 'openProject', profileId, project, agenteDiferido: opciones?.agenteDiferido })
@@ -112,9 +95,9 @@ function useAperturasProyecto(): AperturasProyecto {
   // Primero el diálogo y solo si NO se cancela se cierra el viejo y se abre el nuevo:
   // al revés, cancelar dejaría el tab vacío.
   const replaceProjectInActiveProfile = useCallback(
-    async (oldPath: string, decideMode?: DecideProjectMode) => {
+    async (oldPath: string) => {
       try {
-        const r = await pickFolderAndDecideMode(decideMode)
+        const r = await elegirCarpeta()
         if (!r) return
         dispatch({ type: 'replaceProject', profileId: r.profileId, oldPath, project: r.project })
       } catch (err) {

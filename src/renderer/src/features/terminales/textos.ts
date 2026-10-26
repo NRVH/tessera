@@ -95,6 +95,17 @@ export const txTerminales = crearTextos(
     fallo: (texto: string) => `falló el reload: ${texto}`,
     shellTerminoCodigo: (codigo: number | null) => `el shell terminó (exitCode=${codigo}). `,
     usaReabrir: 'Usa Reabrir para volver a levantarlo.',
+    // Muerte del contenedor de un shell en modo Docker
+    contenedorCaido: '⚠ El contenedor del perfil se cayó: Tessera lo recrea y vuelve a abrir el shell.',
+    intentoRecuperacion: (intento: number, max: number) => `intento ${intento}/${max}…`,
+    intentoFallo: (intento: number, error: string) => `intento ${intento} falló: ${error}`,
+    noRecuperado: (max: number) =>
+      `✕ no se pudo recuperar tras ${max} intentos. Si Docker se cayó, se reintenta solo cuando vuelva; si no, revisa el error y usa Reabrir.`,
+    // En Linux no hay Docker Desktop: el remedio es arrancar su servicio.
+    dockerNoResponde: (linux: boolean) =>
+      linux
+        ? '⚠ Docker no responde. Arranca su servicio (sudo systemctl start docker): en cuanto vuelva, el shell se recupera solo.'
+        : '⚠ Docker no responde. Abre Docker Desktop: en cuanto vuelva, el shell se recupera solo.',
     // Botón de reinicio
     reabrir: 'Reabrir',
     reabriendo: 'Reabriendo…',
@@ -190,6 +201,15 @@ export const txTerminales = crearTextos(
     fallo: (texto: string) => `reload failed: ${texto}`,
     shellTerminoCodigo: (codigo: number | null) => `the shell ended (exitCode=${codigo}). `,
     usaReabrir: 'Use Reopen to start it again.',
+    contenedorCaido: '⚠ The profile container went down: Tessera recreates it and reopens the shell.',
+    intentoRecuperacion: (intento: number, max: number) => `attempt ${intento}/${max}…`,
+    intentoFallo: (intento: number, error: string) => `attempt ${intento} failed: ${error}`,
+    noRecuperado: (max: number) =>
+      `✕ could not recover after ${max} attempts. If Docker went down, it retries on its own when it is back; if not, check the error and use Reopen.`,
+    dockerNoResponde: (linux: boolean) =>
+      linux
+        ? '⚠ Docker is not responding. Start its service (sudo systemctl start docker): as soon as it is back, the shell recovers on its own.'
+        : '⚠ Docker is not responding. Open Docker Desktop: as soon as it is back, the shell recovers on its own.',
     reabrir: 'Reopen',
     reabriendo: 'Reopening…',
     tituloReintentarArranque: 'Retry startup: check Docker again and bring the container back up',

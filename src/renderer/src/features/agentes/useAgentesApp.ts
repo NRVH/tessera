@@ -145,11 +145,13 @@ function useLayoutDelCentro(
   pantallaCompleta: PanelInferiorCentro | null
 } {
   const perfil = tabs.activeProfile
-  const { espacioActivoPath, espacioAbierto, agenteDbVisible } = useStoreBd(
+  const { espacioActivoPath, espacioAbierto, agenteDbVisible, hayPestanasBd, hayConexionesBd } = useStoreBd(
     useShallow((s) => ({
       espacioActivoPath: perfil ? s.dbWorkspacePaths[perfil.id] : undefined,
       espacioAbierto: perfil ? s.espaciosAbiertos.has(perfil.id) : false,
-      agenteDbVisible: perfil ? s.dbAgenteVisiblePorPerfil[perfil.id] === true : false
+      agenteDbVisible: perfil ? s.dbAgenteVisiblePorPerfil[perfil.id] === true : false,
+      hayPestanasBd: perfil ? (s.vistaBd.get(perfil.id)?.pestanas.tabs.length ?? 0) > 0 : false,
+      hayConexionesBd: perfil ? s.perfilesConConexiones.has(perfil.id) : false
     }))
   )
   const terminal = useStoreAgenteTerminal(
@@ -177,7 +179,10 @@ function useLayoutDelCentro(
     agenteTerminalVisible: terminal.visible,
     agenteTerminalAbierto: terminal.abierto,
     conTerminales,
-    agenteTerminalMaximizadoPedido: maximizados?.agenteTerminal === true
+    agenteTerminalMaximizadoPedido: maximizados?.agenteTerminal === true,
+    agenteDbMaximizadoPedido: maximizados?.agenteDb === true,
+    hayPestanasBd,
+    hayConexionesBd
   })
   const pantallaCompleta = pantallaCompletaCoherente({ pedida, franja: lay.franja, mosaico: mosaicoActivo })
   return { lay, agenteDbVisible, espacioActivoPath, pantallaCompleta }

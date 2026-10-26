@@ -12,7 +12,7 @@ perfiles y proyectos, se pliega y enseña varias sesiones a la vez (el mosaico) 
 ## Decisión
 
 - Se monta un pane por cada target de agente ABIERTO, de todos los perfiles, con
-  `key = target.key` (más `|host` en modo nativo: cambiar de modo sí remonta). Solo el del
+  `key = target.key` (más `|host` en un agente nativo: cambiar su modo o su cuenta sí remonta, `modo-por-agente.md`). Solo el del
   target activo es visible (ninguno si su agente está diferido: `agente-diferido.md`); el resto, vivo.
 - Una sesión se cierra solo al salir su target de la lista o al desmontar la columna.
   Plegarla es `display: none`, y el estado vacío es un overlay, no un reemplazo.
@@ -35,6 +35,7 @@ perfiles y proyectos, se pliega y enseña varias sesiones a la vez (el mosaico) 
 
 ## Descartes
 
-- Una ventana aparte para el mosaico: el main habla con una sola, no hay forma de engancharse
-  a una sesión abierta y un pty tiene un único tamaño por el que dos vistas se pelearían.
+- Una ventana aparte para el mosaico: el main manda la salida de cada sesión solo a la ventana que
+  la abrió (`agentes/ventana-de-agente.md`), no hay forma de engancharse desde otra a una sesión
+  abierta y un pty tiene un único tamaño por el que dos vistas se pelearían.
 - Mover los nodos de las terminales a otro contenedor: no hace falta, ya están juntas aquí.

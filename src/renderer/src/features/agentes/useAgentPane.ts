@@ -57,7 +57,7 @@ export function useAgentPane(props: AgentTerminalPaneProps): ModeloAgentPane {
   useMontajeXterm(p, r, { r, s }, uiTerm, activated)
   useAparienciaXterm(r, appearance, p.accentColor, undefined, () => fitAndSyncNow(r))
   useVisibilidadXterm(p, r, activated)
-  const bloqueo = { setShowHistory: ui.setShowHistory, setMenuModo: menus.setMenuModo }
+  const bloqueo = { setShowHistory: ui.setShowHistory, setAccountMenu: ui.setAccountMenu }
   const sesion = useSesionAgente(p, r, s, bloqueo, activated)
   return { p, r, s, ui, uiTerm, menus, montaje, activated, showSelector, currentAccount, cuenta, sesion }
 }

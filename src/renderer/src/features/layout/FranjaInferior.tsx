@@ -20,7 +20,7 @@ import type { VistasPorPerfil } from './useVistasPorPerfil'
 import { GitLogPanel, cerrarHistorial, claveHistorial, useStoreGit, type EstadoGitApp } from '../git'
 import { TerminalsPanel, accionesTerminales, useStoreTerminales, type TerminalesApp } from '../terminales'
 import { fijarAjuste, useStoreAjustes, type Densidad } from '../ajustes'
-import { useStorePestanas, type UseTabs } from '../pestanas'
+import type { UseTabs } from '../pestanas'
 import { useStoreBd } from '../bd'
 import { DiffEditorPane, type EditorApp } from '../editor'
 
@@ -204,7 +204,6 @@ function PanelTerminales(p: PropsPanelTerminales): React.JSX.Element {
   const { lay, vistas, terminales, tintasPorPerfil, densidad, franjaPantallaCompleta, agenteTerminalVisible } = p
   const shellTerminals = useStoreTerminales((s) => s.shellTerminals)
   const estadoSsh = useStoreTerminales((s) => s.ssh)
-  const windowsModeKeys = useStorePestanas((s) => s.windowsModeKeys)
   const dbMounts = useStoreBd((s) => s.dbMounts)
   const settingsLoaded = useStoreAjustes((s) => s.settingsLoaded)
   const sshEnsenando = useSshEnsenandoTerminales(terminales)
@@ -215,7 +214,6 @@ function PanelTerminales(p: PropsPanelTerminales): React.JSX.Element {
       projects={terminales.terminalProjects}
       activeProjectKey={terminales.activeTerminalProjectKey}
       hibernatedProjectKeys={terminales.hibernatedProjectKeys}
-      windowsModeKeys={windowsModeKeys}
       dbMountsByProject={dbMounts}
       dbReady={settingsLoaded}
       profileColors={tintasPorPerfil}

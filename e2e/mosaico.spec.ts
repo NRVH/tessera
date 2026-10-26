@@ -616,7 +616,7 @@ test.describe('mosaico de agentes', () => {
   // que una sesión que NUNCA se había abierto arranque al ponerla en la casilla (el
   // latch `activated` del pane, que hasta ahora sólo lo movía `visible`). El agente
   // falso lo demuestra: aparece un arranque nuevo con su pid.
-  test('la cabecera de una casilla elige proyecto, agente y modo', async () => {
+  test('la cabecera de una casilla elige proyecto, agente y cuenta', async () => {
     const win = s.win
     await win.keyboard.press(`${MOD}+Shift+KeyM`)
     await expect(win.locator('.shell.modo-mosaico')).toHaveCount(1)
@@ -664,16 +664,15 @@ test.describe('mosaico de agentes', () => {
       .toBe(antes + 1)
     expect(arranques(m.log).at(-1)?.agente, 'y el que arrancó es Codex').toBe('codex')
 
-    // 3) El GLIFO del modo abre los dos modos del proyecto, con el actual marcado. No
-    //    se pulsa el otro: cambiar a contenedor levantaría Docker, que en la prueba no
-    //    existe, y además reinicia la sesión del proyecto. Lo que se fija aquí es que
-    //    el selector está y sabe en qué modo estás.
-    await casilla.locator('.casilla-modo-btn').click()
-    await expect(win.locator('.ctx-menu-item')).toHaveCount(2)
-    await expect(win.locator('.ctx-menu-item[aria-checked="true"]')).toContainText('nativo')
-    await expect(win.locator('.ctx-menu-item[aria-checked="true"]')).toBeDisabled()
+    // 3) La CUENTA del agente de la casilla, que es también su modo: nativo, con la del sistema marcada.
+    //    No se pulsa «Nueva cuenta…»: pasar a Docker levantaría un contenedor, que en la prueba no
+    //    existe. Lo que se fija aquí es que el selector está y sabe en qué modo corre.
+    await casilla.locator('.cuenta-btn').click()
+    const pop = win.locator('.cuenta-pop')
+    await expect(pop.locator('.cuenta-tarjeta[aria-checked="true"] .cuenta-tarjeta-detalle')).toContainText('La sesión iniciada en')
+    await expect(pop.locator('.cuenta-nueva')).toHaveCount(1)
     await win.keyboard.press('Escape')
-    await expect(win.locator('.ctx-menu')).toHaveCount(0)
+    await expect(pop).toHaveCount(0)
 
     expect(
       await win.evaluate(() => document.querySelectorAll('.agent-pane').length),

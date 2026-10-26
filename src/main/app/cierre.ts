@@ -36,6 +36,8 @@ import {
 import { ptysPendientes, rematarPtysSueltos } from '../terminals/adaptadores/pty'
 import { textoPendientes } from '../terminals/adaptadores/registroPtys'
 import { armarGuardianSalida } from './guardianSalida'
+import { plazoGuardian } from './planGuardianSalida'
+import { actualizarJumpList } from './integracionVentanas'
 import type { ReferenciasApp } from './referencias'
 import { opcionesReinicio } from './reinicio'
 import { txApp } from './textos.ts'
@@ -47,7 +49,7 @@ type PlanInstalar = Extract<ReturnType<typeof planDeCierre>, { tipo: 'instalar' 
  * Pregunta al explorador de BD (transacciones y cambios sin enviar) ANTES de marcar el
  * cierre: si se cancela, la siguiente X tiene que volver a pasar por aquí.
  */
-async function preguntarAntesDeSalir(
+export async function preguntarAntesDeSalir(
   refs: ReferenciasApp,
   explorador: ExploradorController,
   cierre: CronometroCierre
@@ -142,6 +144,8 @@ async function cerrarPtys(refs: ReferenciasApp, cierre: CronometroCierre): Promi
 async function detenerContenedores(refs: ReferenciasApp, cierre: CronometroCierre, send: Enviar): Promise<DockerPendiente | null> {
   const sandbox = refs.sandbox
   if (!sandbox) return null
+  // Parar los contenedores no es que mueran: el supervisor deja de escuchar antes.
+  sandbox.detenerSupervision()
   // Tras el tope, lo que llegue tarde ya no es de este cierre: ni al overlay ni al registro.
   const progresoCon =
     (avanzar: () => boolean) =>
@@ -208,12 +212,14 @@ async function pararServicios(
  * Escribe el «termina», destruye la ventana y sale del proceso. Tras `app.exit`, Node se desmonta
  * esperando lo que quede (el hilo de un pty con la raíz viva, una petición que no vuelve) sin JS que
  * pueda cortarlo: antes se deja escrito qué ptys quedan, el `exit` de Node dice cuánto tardó en llegar
- * y qué seguía activo, y el guardián termina el proceso si no sale en su plazo.
+ * y qué seguía activo, y el guardián termina el proceso si no sale en su plazo, más corto si queda
+ * algún pty sin su fin anotado (`plazoGuardian`).
  */
 function salir(win: BrowserWindow | null, cierre: CronometroCierre, motivo: string): void {
-  cierre.nota(`ptys con la raíz viva al salir: ${textoPendientes(ptysPendientes())}`)
+  const pendientes = ptysPendientes()
+  cierre.nota(`ptys con la raíz viva al salir: ${textoPendientes(pendientes)}`)
   anotarFinDeNode(cierre)
-  armarGuardianSalida({ log: rutaLogCierre() })
+  armarGuardianSalida({ log: rutaLogCierre(), plazoMs: plazoGuardian(pendientes.length) })
   cierre.termina(motivo)
   if (win && !win.isDestroyed()) win.destroy()
   app.exit(0)
@@ -244,6 +250,10 @@ export async function iniciarCierre(refs: ReferenciasApp, opciones: { reabrir?: 
   } catch (err) {
     console.error('[tessera] no se pudo anticipar el relevo:', err)
   }
+  // Con las sesiones aún vivas: si el cierre relanza tras actualizar, las ventanas de agente se reabren.
+  const recuerdo = recordarVentanas(refs)
+  // La Jump List queda en el sistema con la app cerrada: sin «Abrir Tessera», que ahí sobra.
+  actualizarJumpList(refs, false)
   const win = refs.ventana
   const send: Enviar = (p) => {
     if (win && !win.isDestroyed() && !win.webContents.isDestroyed()) {
@@ -270,7 +280,17 @@ export async function iniciarCierre(refs: ReferenciasApp, opciones: { reabrir?: 
   }
   const instalar = opciones.reabrir ? { ...plan, relanzar: true } : plan
   cierre.nota(`plan de cierre: instalar (origen ${instalar.origen}, relanzar ${instalar.relanzar ? 'sí' : 'no'})`)
-  await aplicarActualizacion(refs, cierre, win, send, instalar, dockerPendiente)
+  await aplicarActualizacion(refs, cierre, win, send, instalar, dockerPendiente, recuerdo)
+}
+
+/** Las ventanas de agente que habría que reabrir, o null; un fallo aquí no frena el cierre. */
+function recordarVentanas(refs: ReferenciasApp): unknown {
+  try {
+    return refs.restauracion?.recordar() ?? null
+  } catch (err) {
+    console.error('[tessera] no se pudieron recordar las ventanas de agente:', err)
+    return null
+  }
 }
 
 /**
@@ -283,8 +303,11 @@ async function aplicarActualizacion(
   win: BrowserWindow | null,
   send: Enviar,
   plan: PlanInstalar,
-  dockerPendiente: DockerPendiente | null
+  dockerPendiente: DockerPendiente | null,
+  recuerdo: unknown
 ): Promise<void> {
+  // Tras un cierre normal las ventanas de agente no vuelven; tras actualizar y relanzar, sí.
+  if (plan.relanzar) refs.restauracion?.guardar(recuerdo)
   // Solo el main sabe si se va a relanzar.
   const tc = txApp().cierre
   const sub = plan.relanzar ? tc.volveraAbrirse : tc.seCerrara
@@ -322,6 +345,8 @@ async function aplicarActualizacion(
     await cierre.etapa('docker-pendiente', () => dockerPendiente.trabajo)
   }
   refs.cerrando = false
+  // No hay arranque nuevo que las reabra: las ventanas de agente siguen ahí.
+  refs.restauracion?.olvidar()
   // Sin quitar su pestillo, abrir una sesión fallaría con «Tessera se está cerrando».
   refs.explorador?.reanudarTrasCierreAbortado()
   // El puente se pausó arriba: vuelve al mismo pipe y tokens (o a uno nuevo si ya no sirve).

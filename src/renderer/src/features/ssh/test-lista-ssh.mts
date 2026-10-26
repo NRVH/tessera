@@ -5,7 +5,7 @@
 // usuario y grupo (nunca por puerto ni id), los plegados, la lista plana sin grupos y el teclado en
 // Windows y en Mac (Supr y ⌘⌫ borran, ⌫ suelto no), las reglas del riel de pantalla completa (cuándo
 // cabe, hasta dónde se ensancha, qué ve el usuario) y las del lanzador: un solo grupo abierto y ninguno
-// al abrirlo, las conexiones recientes, dónde se enseña la lista cuando la piden y cuándo se ve su ▾.
+// al abrirlo, dónde se enseña la lista cuando la piden y cuándo se ve su ▾.
 // Decisiones: docs/decisiones/terminales/pestanas-ssh-del-perfil.md, docs/decisiones/terminales/riel-de-conexiones.md,
 // docs/decisiones/terminales/lanzador-de-conexiones.md
 // =============================================================================
@@ -15,12 +15,8 @@ import {
   cabeceraDe,
   construirFilas,
   destinoSsh,
-  nombreConexiones,
-  nombreRecientes,
   plegadosDeAcordeon,
   primeraConexion,
-  RECIENTES_MAX,
-  recientesDe,
   siguienteGrupoAbierto,
   textoSinCoincidencias,
   type AccionLista,
@@ -101,23 +97,21 @@ const CONEXIONES = [
 ]
 
 function filas(
-  extra: { filtro?: string; plegados?: string[]; grupos?: SshGrupo[]; conexiones?: SshConexion[]; recientes?: SshConexion[] } = {}
+  extra: { filtro?: string; plegados?: string[]; grupos?: SshGrupo[]; conexiones?: SshConexion[] } = {}
 ): FilaLista[] {
   return construirFilas({
     grupos: extra.grupos ?? GRUPOS,
     conexiones: extra.conexiones ?? CONEXIONES,
     filtro: extra.filtro ?? '',
-    plegados: new Set(extra.plegados ?? []),
-    recientes: extra.recientes
+    plegados: new Set(extra.plegados ?? [])
   })
 }
-/** Las filas como texto: `{Rótulo}`, `[Cabecera n]`, `conexión` y `r:conexión` (la de «Recientes»), para ver el orden de un vistazo. */
+/** Las filas como texto: `[Cabecera n]` y `conexión`, para ver el orden de un vistazo. */
 function ver(fs: FilaLista[]): string {
   return fs
     .map((f) => {
-      if (f.tipo === 'seccion') return `{${f.nombre}}`
       if (f.tipo === 'grupo') return `[${f.nombre} ${f.total}${f.abierto ? '' : ' plegado'}]`
-      return f.reciente ? `r:${f.conexion.alias}` : f.conexion.alias
+      return f.conexion.alias
     })
     .join(' | ')
 }
@@ -607,18 +601,11 @@ hr('(13) El acordeón del lanzador: un solo grupo abierto, y con filtro no cuent
   )
 }
 
-hr('(14) Al abrir el lanzador no hay ningún grupo abierto: «Recientes» arriba y todos los grupos plegados')
+hr('(14) Al abrir el lanzador no hay ningún grupo abierto: todos los grupos plegados')
 {
   const entrada = [...plegadosDeAcordeon(GRUPOS, null)]
-  const recientes = recientesDe(['c2', 'c1', 'c4'], CONEXIONES)
-  const conRecientes = ver(filas({ recientes, plegados: entrada }))
   check(
-    'con recientes: el rótulo, las recientes y solo las cabeceras, también «Sin grupo» y el grupo vacío, cada una con su recuento',
-    conRecientes === '{Recientes} | r:Servidor 10 | r:router casa | r:Nube | [Sin grupo 3 plegado] | [Árboles 1 plegado] | [Bases 2 plegado] | [Vacío 0 plegado]',
-    conRecientes
-  )
-  check(
-    'sin recientes (un perfil que nunca conectó) tampoco se abre ninguno: solo las cabeceras',
+    'no se abre ninguno: solo las cabeceras, también «Sin grupo» y el grupo vacío, cada una con su recuento',
     ver(filas({ plegados: entrada })) === '[Sin grupo 3 plegado] | [Árboles 1 plegado] | [Bases 2 plegado] | [Vacío 0 plegado]',
     ver(filas({ plegados: entrada }))
   )
@@ -627,116 +614,28 @@ hr('(14) Al abrir el lanzador no hay ningún grupo abierto: «Recientes» arriba
     !ver(filas({ conexiones: CONEXIONES.filter((c) => c.grupoId !== null && !c.grupoDesconocido), plegados: entrada })).includes('Sin grupo'),
     ver(filas({ conexiones: CONEXIONES.filter((c) => c.grupoId !== null && !c.grupoDesconocido), plegados: entrada }))
   )
-  const plana = filas({ grupos: [], conexiones: CONEXIONES.map((c) => ({ ...c, grupoId: null })), recientes: [CONEXIONES[3]], plegados: [...plegadosDeAcordeon([], null)] })
+  const plana = filas({ grupos: [], conexiones: CONEXIONES.map((c) => ({ ...c, grupoId: null })), plegados: [...plegadosDeAcordeon([], null)] })
   check(
     'MITAD NEGATIVA: sin grupos en el perfil no hay nada que plegar: la lista plana se ve entera',
-    ver(plana) === '{Recientes} | r:Nube | {Conexiones} | Huérfana | Nube | Ñandú | router casa | servidor 2 | Servidor 10',
+    ver(plana) === 'Huérfana | Nube | Ñandú | router casa | servidor 2 | Servidor 10',
     ver(plana)
   )
 }
 
-hr('(15) Las conexiones recientes: las últimas tres que siguen existiendo, solo en el lanzador y sin filtro')
+hr('(15) La lista plana no lleva rótulos y todas las filas tienen su clave')
 {
-  const rec = (ids: string[] | undefined): string => recientesDe(ids, CONEXIONES).map((c) => c.alias).join(' | ')
-  check('van por su orden: la más reciente primero', rec(['c3', 'c1', 'c4']) === 'servidor 2 | router casa | Nube', rec(['c3', 'c1', 'c4']))
-  check('no pasan de tres', RECIENTES_MAX === 3 && rec(['c1', 'c2', 'c3', 'c4', 'c5']) === 'router casa | Servidor 10 | servidor 2', rec(['c1', 'c2', 'c3', 'c4', 'c5']))
+  const plana = filas({ grupos: [], conexiones: CONEXIONES.map((c) => ({ ...c, grupoId: null })) })
   check(
-    'se podan las que ya no existen, y las que quedan siguen siendo hasta tres',
-    rec(['c9', 'c1', 'c8', 'c2', 'c3', 'c4']) === 'router casa | Servidor 10 | servidor 2',
-    rec(['c9', 'c1', 'c8', 'c2', 'c3', 'c4'])
-  )
-  check('una repetida solo cuenta una vez', rec(['c1', 'c1', 'c2']) === 'router casa | Servidor 10', rec(['c1', 'c1', 'c2']))
-  check('un perfil que nunca conectó no tiene ninguna', rec(undefined) === '' && rec([]) === '', 'vacío · vacío')
-
-  const recientes = recientesDe(['c2', 'c1', 'c4'], CONEXIONES)
-  const conRec = filas({ recientes })
-  check(
-    'con recientes, delante va su rótulo y sus conexiones, y detrás el árbol de siempre',
-    ver(conRec) === '{Recientes} | r:Servidor 10 | r:router casa | r:Nube | [Sin grupo 3] | Huérfana | Ñandú | router casa | [Árboles 1] | Nube | [Bases 2] | servidor 2 | Servidor 10 | [Vacío 0]',
-    ver(conRec)
-  )
-  check(
-    'una reciente sigue también en su grupo (sale dos veces) y cada fila tiene su clave',
-    conRec.filter((x) => x.tipo === 'conexion' && x.conexion.id === 'c2').length === 2 && new Set(conRec.map((x) => x.clave)).size === conRec.length,
-    `${conRec.length} filas, ${new Set(conRec.map((x) => x.clave)).size} claves`
-  )
-  const deRecientes = conRec.filter((x) => x.tipo === 'conexion' && x.reciente === true)
-  const delArbol = conRec.filter((x) => x.tipo === 'conexion' && x.reciente !== true)
-  check(
-    'las de «Recientes» van a nivel 1 y marcadas; las del árbol no llevan la marca',
-    deRecientes.length === 3 && deRecientes.every((x) => x.tipo === 'conexion' && x.nivel === 1) && delArbol.every((x) => x.tipo === 'conexion' && x.reciente === undefined),
-    `${deRecientes.length} marcadas · ${delArbol.length} del árbol`
-  )
-  check(
-    'con los grupos plegados las recientes siguen arriba: son del lanzador, no de un grupo',
-    ver(filas({ recientes, plegados: ['gB', 'gA', ''] })) === '{Recientes} | r:Servidor 10 | r:router casa | r:Nube | [Sin grupo 3 plegado] | [Árboles 1 plegado] | [Bases 2 plegado] | [Vacío 0]',
-    ver(filas({ recientes, plegados: ['gB', 'gA', ''] }))
-  )
-  check(
-    'MITAD NEGATIVA: con filtro no hay «Recientes», solo coincidencias; ni aunque el filtro case con una reciente',
-    ver(filas({ recientes, filtro: 'nube' })) === '[Árboles 1] | Nube' && !ver(filas({ recientes, filtro: 'router' })).includes('r:'),
-    `${ver(filas({ recientes, filtro: 'nube' }))} · ${ver(filas({ recientes, filtro: 'router' }))}`
-  )
-  check('un filtro de solo espacios cuenta como sin filtro: siguen las recientes', ver(filas({ recientes, filtro: '   ' })).startsWith('{Recientes} | r:Servidor 10'), ver(filas({ recientes, filtro: '   ' })))
-  check(
-    'MITAD NEGATIVA: sin recientes (o con una lista vacía) no hay rótulo ni filas de más: el árbol de siempre',
-    ver(filas({ recientes: [] })) === ver(filas()) && !ver(filas()).includes('{'),
-    ver(filas({ recientes: [] }))
-  )
-  const plana = filas({ grupos: [], conexiones: CONEXIONES.map((c) => ({ ...c, grupoId: null })), recientes: [CONEXIONES[3]] })
-  check(
-    'una lista plana (sin grupos) lleva un segundo rótulo tras las recientes: sin él se leería como una repetición',
-    ver(plana) === '{Recientes} | r:Nube | {Conexiones} | Huérfana | Nube | Ñandú | router casa | servidor 2 | Servidor 10',
+    'la lista plana (sin grupos) son solo conexiones a nivel 1, sin rótulos ni cabeceras',
+    plana.length === 6 && plana.every((x) => x.tipo === 'conexion' && x.nivel === 1),
     ver(plana)
   )
-  check('los rótulos son los de la interfaz', nombreRecientes() === 'Recientes' && nombreConexiones() === 'Conexiones', `${nombreRecientes()} · ${nombreConexiones()}`)
+  const f = filas()
+  check('cada fila tiene su clave', new Set(f.map((x) => x.clave)).size === f.length, `${f.length} filas`)
+  check('el cursor nace en la primera conexión y las flechas recorren todas las filas', primeraConexion(f) === 1 && j(accionTeclaLista(tecla('ArrowUp'), { filas: f, activo: 0, filtroVacio: true }, 'windows')) === j({ tipo: 'mover', indice: 0 }), String(primeraConexion(f)))
 }
 
-hr('(16) Teclado con «Recientes»: los rótulos no se alcanzan, ni con las flechas ni con Inicio y Fin')
-{
-  const R = filas({ recientes: recientesDe(['c2', 'c1', 'c4'], CONEXIONES) })
-  /** índices: 0 {Recientes} 1 r:Servidor 10 2 r:router casa 3 r:Nube 4 [Sin grupo] 5 Huérfana 6 Ñandú 7 router casa 8 [Árboles] 9 Nube 10 [Bases] 11 servidor 2 12 Servidor 10 13 [Vacío] */
-  const en = (fs: FilaLista[], e: TeclaLista, activo: number): AccionLista | null => accionTeclaLista(e, { filas: fs, activo, filtroVacio: true }, 'windows')
-  const acc = (e: TeclaLista, activo: number): AccionLista | null => en(R, e, activo)
-  check('el cursor nace en la primera reciente, no en el rótulo', primeraConexion(R) === 1, String(primeraConexion(R)))
-  check('↑ desde la primera reciente se queda donde está: el rótulo no se alcanza', j(acc(tecla('ArrowUp'), 1)) === j({ tipo: 'mover', indice: 1 }), j(acc(tecla('ArrowUp'), 1)))
-  check('↓ desde la última reciente baja a la primera cabecera', j(acc(tecla('ArrowDown'), 3)) === j({ tipo: 'mover', indice: 4 }), j(acc(tecla('ArrowDown'), 3)))
-  check(
-    'sin fila activa, ↓ y ↑ van a la primera alcanzable, no al rótulo',
-    j(acc(tecla('ArrowDown'), -1)) === j({ tipo: 'mover', indice: 1 }) && j(acc(tecla('ArrowUp'), -1)) === j({ tipo: 'mover', indice: 1 }),
-    `${j(acc(tecla('ArrowDown'), -1))} · ${j(acc(tecla('ArrowUp'), -1))}`
-  )
-  check(
-    'Inicio va a la primera alcanzable y Fin a la última',
-    j(acc(tecla('Home'), 9)) === j({ tipo: 'mover', indice: 1 }) && j(acc(tecla('End'), 2)) === j({ tipo: 'mover', indice: 13 }),
-    `${j(acc(tecla('Home'), 9))} · ${j(acc(tecla('End'), 2))}`
-  )
-  check('Intro sobre una reciente conecta con ella', j(acc(tecla('Enter'), 1)) === j({ tipo: 'conectar', conexionId: 'c2' }), j(acc(tecla('Enter'), 1)))
-  check(
-    'F2 y Supr sobre una reciente son de su conexión, como en su grupo',
-    j(acc(tecla('F2'), 2)) === j({ tipo: 'editar', conexionId: 'c1' }) && j(acc(tecla('Delete'), 2)) === j({ tipo: 'eliminarConexion', conexionId: 'c1' }),
-    `${j(acc(tecla('F2'), 2))} · ${j(acc(tecla('Delete'), 2))}`
-  )
-  check(
-    '← y → sobre una reciente no hacen nada (no cuelga de ninguna cabecera), y ← desde una conexión de un grupo sube a SU cabecera',
-    acc(tecla('ArrowLeft'), 2) === null && acc(tecla('ArrowRight'), 2) === null && cabeceraDe(R, 2) === -1 && j(acc(tecla('ArrowLeft'), 12)) === j({ tipo: 'mover', indice: 10 }),
-    `${acc(tecla('ArrowLeft'), 2)} · ${j(acc(tecla('ArrowLeft'), 12))}`
-  )
-  check(
-    'MITAD NEGATIVA: con el rótulo como fila activa (no debería pasar) ninguna tecla de acción hace nada',
-    ['Enter', 'F2', 'Delete', 'ArrowLeft', 'ArrowRight'].every((k) => acc(tecla(k), 0) === null) && acc(tecla('F10', { shiftKey: true }), 0) === null && acc(tecla('ContextMenu'), 0) === null,
-    'null en todas'
-  )
-  const P = filas({ grupos: [], conexiones: CONEXIONES.map((c) => ({ ...c, grupoId: null })), recientes: [CONEXIONES[3]] })
-  /** índices: 0 {Recientes} 1 r:Nube 2 {Conexiones} 3 Huérfana … */
-  check(
-    'en una lista plana, las flechas saltan también el segundo rótulo: de la reciente baja a la primera conexión y de ella vuelve',
-    j(en(P, tecla('ArrowDown'), 1)) === j({ tipo: 'mover', indice: 3 }) && j(en(P, tecla('ArrowUp'), 3)) === j({ tipo: 'mover', indice: 1 }),
-    `${j(en(P, tecla('ArrowDown'), 1))} · ${j(en(P, tecla('ArrowUp'), 3))}`
-  )
-}
-
-hr('(17) El acordeón por teclado: → abre un grupo cerrando el otro; ← e Intro lo cierran')
+hr('(16) El acordeón por teclado: → abre un grupo cerrando el otro; ← e Intro lo cierran')
 {
   let abierto: string | null = 'gB'
   const pulsar = (e: TeclaLista, indice: number): void => {

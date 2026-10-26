@@ -1,8 +1,7 @@
 // =============================================================================
 // Store de las pestañas: el árbol de perfiles y proyectos (el MISMO reducer de
-// tabsModel), el objetivo que el backend ya confirmó, los perfiles hibernándose, el
-// modo de cada proyecto y el modal «¿nativo o contenedor?». Vive en un store y no en
-// `useReducer` para compartir vía con los demás: ver docs/decisiones/renderer/estado-de-app.md
+// tabsModel), el objetivo que el backend ya confirmó y los perfiles hibernándose. Vive en un
+// store y no en `useReducer` para compartir vía con los demás: ver docs/decisiones/renderer/estado-de-app.md
 // =============================================================================
 import { create } from 'zustand'
 import {
@@ -15,12 +14,6 @@ import {
 } from './tabsModel.ts'
 import type { DetectedRepo } from '../../../../shared/workspace-ipc.ts'
 import type { Profile } from '../../../../main/profiles/types.ts'
-
-/** Modal de elección de modo en vuelo: nombre del proyecto y resolver de la promesa. */
-export interface PreguntaModo {
-  name: string
-  resolve: (mode: 'windows' | 'docker' | null) => void
-}
 
 /** Objetivo que el backend ya apunta (proyecto y repo); `repo` null = el contenedor. */
 export interface ConfirmedTarget {
@@ -35,7 +28,7 @@ export interface ObjetivoVisto {
   project: OpenProject
 }
 
-/** Estado de las pestañas y del modo de los proyectos. */
+/** Estado de las pestañas. */
 export interface EstadoPestanas {
   /** Árbol de perfiles y proyectos; solo lo cambia `despacharTabs`. */
   tabs: TabsState
@@ -45,22 +38,17 @@ export interface EstadoPestanas {
   confirmado: ConfirmedTarget | null
   /** Perfiles con la hibernación en vuelo. */
   hibernando: Set<string>
-  /** Claves `${profileId}|${projectHostPath}` de proyectos en modo nativo; se persiste. */
-  windowsModeKeys: Set<string>
   /** Colores de perfil fijados en el selector de color; se persiste (`coloresPerfilFijados`). */
   coloresFijados: string[]
-  modeAsk: PreguntaModo | null
 }
 
-/** Estado de las pestañas y del modo de los proyectos. */
+/** Estado de las pestañas. */
 export const useStorePestanas = create<EstadoPestanas>()(() => ({
   tabs: EMPTY_TABS_STATE,
   pestanasCargadas: false,
   confirmado: null,
   hibernando: new Set(),
-  windowsModeKeys: new Set(),
-  coloresFijados: [],
-  modeAsk: null
+  coloresFijados: []
 }))
 
 /** Estado de pestañas del momento (para callbacks y efectos; nunca en el render). */
@@ -106,11 +94,4 @@ export function marcarHibernando(profileId: string, hibernando: boolean): void {
     else next.delete(profileId)
     return { hibernando: next }
   })
-}
-
-/** Asegura que la clave esté en modo nativo (mismo conjunto si ya lo estaba). */
-export function asegurarModoNativo(key: string): void {
-  useStorePestanas.setState((s) =>
-    s.windowsModeKeys.has(key) ? {} : { windowsModeKeys: new Set(s.windowsModeKeys).add(key) }
-  )
 }

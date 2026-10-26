@@ -117,6 +117,90 @@ async function columnas(win: Page, selector: string): Promise<number> {
   )
 }
 
+/**
+ * Cuántos píxeles de la pantalla de la xterm (filas × celda) quedan por debajo de su zona visible: más de 0
+ * es que tiene más filas de las que caben, y las últimas (la línea del prompt de un agente) no se ven.
+ */
+async function sobranteBajo(win: Page, selector: string): Promise<number> {
+  return win.evaluate((sel) => {
+    const pantalla = document.querySelector(`${sel} .xterm-screen`)?.getBoundingClientRect()
+    const visible = document.querySelector(`${sel} .xterm-viewport`)?.getBoundingClientRect()
+    return pantalla && visible ? Math.round(pantalla.bottom - visible.bottom) : 999
+  }, selector)
+}
+
+/** Lo que la prueba lee y hace con el `Terminal` de una xterm. */
+interface EstadoXterm {
+  /** Cuántas líneas queda la vista por encima del fondo tras escribir, sin arrastrar nada (0 = en el fondo). */
+  sinTocar: number
+  pantalla: string
+  viewportY: number
+  baseY: number
+  /** El `scrollbar-width` de su zona de desplazamiento: `none` = sin barra. */
+  barra: string
+}
+
+/**
+ * Escribe `texto` en la xterm de `selector` como si lo mandara su programa, lleva su barra al fondo como el usuario
+ * arrastrándola y dice cómo queda. El `Terminal` se saca del estado de React del componente que la aloja (un ref
+ * suelto o un objeto de refs).
+ */
+async function escribirYArrastrar(win: Page, selector: string, texto: string, arrastrar = true, subirAntes = 0): Promise<EstadoXterm | null> {
+  return win.evaluate(
+    async ({ sel, txt, arr, subir }) => {
+      type Term = {
+        buffer: { active: { viewportY: number; baseY: number; type: string } }
+        cols: number
+        write: (d: string, cb: () => void) => void
+        scrollLines: (n: number) => void
+      }
+      const xterm = document.querySelector(sel)
+      const host = xterm?.parentElement
+      if (!host) return null
+      const clave = Object.keys(host).find((k) => k.startsWith('__reactFiber$'))
+      let fibra = clave ? (host as unknown as Record<string, { return: unknown; memoizedState: unknown } | undefined>)[clave] : undefined
+      const esTerm = (x: unknown): x is Term => !!x && typeof x === 'object' && 'buffer' in x && 'cols' in x
+      const buscar = (v: unknown): Term | null => {
+        if (!v || typeof v !== 'object') return null
+        const candidatos: unknown[] = [v, (v as { current?: unknown }).current]
+        for (const c of [...candidatos]) if (c && typeof c === 'object') for (const p of Object.values(c)) candidatos.push(p, (p as { current?: unknown } | null)?.current)
+        return (candidatos.find(esTerm) as Term | undefined) ?? null
+      }
+      let term: Term | null = null
+      while (fibra && !term) {
+        let hook = fibra.memoizedState as { memoizedState?: unknown; next?: unknown } | null
+        while (hook && typeof hook === 'object' && !term) {
+          term = buscar(hook.memoizedState)
+          hook = (hook.next as typeof hook) ?? null
+        }
+        fibra = fibra.return as typeof fibra
+      }
+      if (!term) return null
+      const t = term
+      if (subir > 0) t.scrollLines(-subir)
+      await new Promise<void>((r) => t.write(txt, r))
+      const viewport = host.querySelector<HTMLElement>('.xterm-viewport')
+      // Dos fotogramas: xterm recalcula su zona de desplazamiento al pintar, antes de que nadie pueda arrastrar.
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
+      // Las dos a la vez: el agente falso escribe una línea por segundo y movería `baseY` entre medias.
+      const sinTocar = t.buffer.active.viewportY - t.buffer.active.baseY
+      if (viewport && arr) {
+        viewport.scrollTop = viewport.scrollHeight
+        viewport.dispatchEvent(new Event('scroll'))
+      }
+      await new Promise((r) => setTimeout(r, 300))
+      return {
+        sinTocar,
+        pantalla: host.dataset.pantalla ?? '',
+        viewportY: t.buffer.active.viewportY,
+        baseY: t.buffer.active.baseY,
+        barra: viewport ? getComputedStyle(viewport).scrollbarWidth : ''
+      }
+    },
+    { sel: selector, txt: texto, arr: arrastrar, subir: subirAntes }
+  )
+}
+
 test.describe.serial('El agente de la terminal', () => {
   let s: SesionTessera
   let m: Montaje
@@ -254,6 +338,43 @@ test.describe.serial('El agente de la terminal', () => {
       console.log(`[agente-terminal] ${real} px: terminal ${await columnas(win, SHELL_XTERM)} col, agente ${await columnas(win, AGENTE_XTERM)} col`)
     }
     await s.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1500, 950))
+  })
+
+  test('la pantalla del agente cabe en su caja: la última fila (la del prompt) siempre se ve, también al cambiar el alto', async () => {
+    const win = s.win
+    for (const alto of [950, 700, 1000]) {
+      await s.app.evaluate(({ BrowserWindow }, h) => BrowserWindow.getAllWindows()[0].setSize(1500, h), alto)
+      await asentar(win)
+      console.log(`[agente-terminal] ${alto} px de alto: sobra ${await sobranteBajo(win, AGENTE_XTERM)} px en el agente, ${await sobranteBajo(win, SHELL_XTERM)} px en la terminal`)
+      await expect.poll(() => sobranteBajo(win, AGENTE_XTERM), { message: `el agente de la terminal a ${alto} px de alto` }).toBeLessThanOrEqual(1)
+      await expect.poll(() => sobranteBajo(win, SHELL_XTERM), { message: `la terminal a ${alto} px de alto` }).toBeLessThanOrEqual(1)
+    }
+    await s.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1500, 950))
+  })
+
+  test('un agente a pantalla completa (pantalla alternativa) no deja barra de xterm que tape sus últimas filas; al salir vuelve', async () => {
+    const win = s.win
+    // Historial de sobra en la pantalla normal, como el que deja la sesión antes de que el agente pinte la suya.
+    const relleno = Array.from({ length: 120 }, (_, i) => `línea ${i}\r\n`).join('')
+    const normal = await escribirYArrastrar(win, AGENTE_XTERM, relleno)
+    expect(normal, 'se encontró la xterm del agente').not.toBeNull()
+    expect(normal?.pantalla, 'en la pantalla normal').toBe('normal')
+    expect(normal?.baseY, 'con historial').toBeGreaterThan(0)
+    expect(normal?.barra, 'en la normal hay barra').not.toBe('none')
+
+    // Lo que hace Claude Code a pantalla completa al arrancar: pasa a la pantalla alternativa.
+    // Con la vista subida en el historial, para que la vuelta al fondo al salir sea del arreglo y no de antes.
+    // Sin arrastrar: en la pantalla alternativa no hay barra que el usuario pueda coger.
+    const alterna = await escribirYArrastrar(win, AGENTE_XTERM, '\x1b[?1049h\x1b[2J\x1b[Hprompt del agente', false, 50)
+    expect(alterna?.pantalla, 'pasa a la pantalla alternativa').toBe('alternativa')
+    expect(alterna?.barra, 'sin barra de xterm que arrastrar, como en una terminal nativa').toBe('none')
+    expect(alterna?.sinTocar, 'y se ve la pantalla del agente entera').toBe(0)
+
+    const deVuelta = await escribirYArrastrar(win, AGENTE_XTERM, '\x1b[?1049l')
+    expect(deVuelta?.pantalla, 'al salir, la normal').toBe('normal')
+    expect(deVuelta?.barra, 'con su barra otra vez').not.toBe('none')
+    expect(deVuelta?.sinTocar, 'y en el fondo sin tocar nada (cerrar `vim` no deja la vista al principio del historial)').toBe(0)
+    expect(deVuelta?.viewportY, 'y la barra al fondo llega a la última línea').toBe(deVuelta?.baseY)
   })
 
   test('se maximiza sobre las terminales, salir y volver a pantalla completa lo conserva, y el chip de las terminales tapadas lo restaura', async () => {

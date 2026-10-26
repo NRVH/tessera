@@ -48,14 +48,22 @@ export interface EstadoSesion {
   accounts: AgentAccount[] | null
 }
 
+/** De dónde cuelga el selector de cuenta. */
+export interface AnclaCuenta {
+  right: number
+  top: number
+  bottom: number
+}
+
 /** Estado de la interfaz del pane: miniaturas, menús y diálogos. */
 export interface EstadoUi {
   imagePreviews: PastedImagePreview[]
   setImagePreviews: Set<PastedImagePreview[]>
   ctxMenu: { x: number; y: number; hasSelection: boolean } | null
   setCtxMenu: Set<{ x: number; y: number; hasSelection: boolean } | null>
-  accountMenu: { x: number; y: number } | null
-  setAccountMenu: Set<{ x: number; y: number } | null>
+  /** El selector de cuenta abierto, colgando del botón (su borde derecho, el de arriba y el de abajo). */
+  accountMenu: AnclaCuenta | null
+  setAccountMenu: Set<AnclaCuenta | null>
   addingAccount: boolean
   setAddingAccount: Set<boolean>
   confirm: { kind: 'logout' | 'delete'; account: AgentAccount } | null
@@ -91,7 +99,7 @@ export function useEstadoSesion(): EstadoSesion {
 export function useEstadoUi(): EstadoUi {
   const [imagePreviews, setImagePreviews] = useState<PastedImagePreview[]>([])
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; hasSelection: boolean } | null>(null)
-  const [accountMenu, setAccountMenu] = useState<{ x: number; y: number } | null>(null)
+  const [accountMenu, setAccountMenu] = useState<AnclaCuenta | null>(null)
   const [addingAccount, setAddingAccount] = useState(false)
   const [confirm, setConfirm] = useState<{ kind: 'logout' | 'delete'; account: AgentAccount } | null>(null)
   const [showHistory, setShowHistory] = useState(false)

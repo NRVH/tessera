@@ -20,6 +20,7 @@ import {
 } from '../../../../shared/workspace-state-ipc'
 import { normalizarFilasPorPagina, normalizarInactividadConsolaMin, normalizarTxInicial } from '../../../../shared/ajustesBd'
 import { normalizarInactividadAgenteMin } from '../../../../shared/ajustesAgente'
+import { normalizarSaturacion } from '../../../../shared/saturacionDocker'
 import { SSH_RIEL_ANCHO_POR_DEFECTO } from '../../../../shared/ajustesTerminal'
 import { normalizarPreferenciaIdioma } from '../../../../shared/i18n'
 import { normalizarUiFont } from '../../theme/densidad'
@@ -41,13 +42,12 @@ export function buildSettings(): WorkspaceSettings {
   return {
     zoomLevel: window.tessera.zoom.getLevel(),
     agentAccountByTarget: useStoreAgentes.getState().accountByTarget,
+    agentModeByTarget: useStoreAgentes.getState().modoPorTarget,
     hideProfileNames: a.hideProfileNames,
     aplicarUpdateAlCerrar: a.aplicarUpdateAlCerrar,
     registroSalud: a.registroSalud,
     volcadosCaida: a.volcadosCaida,
     diffColapsarSinCambios: a.diffColapsar,
-    windowsModeProjects: [...useStorePestanas.getState().windowsModeKeys],
-    defaultProjectMode: a.defaultProjectMode,
     idioma: a.idioma,
     activityBarOrder: l.activityBarOrder,
     bottomBarOrder: l.bottomBarOrder,
@@ -86,10 +86,15 @@ export function buildSettings(): WorkspaceSettings {
     dbTxInicial: a.dbTxInicial,
     dbConsolaInactividadMin: a.dbConsolaInactividadMin,
     agenteInactividadMin: a.agenteInactividadMin,
+    ...(a.limiteContenedores !== undefined ? { limiteContenedores: a.limiteContenedores } : {}),
+    primeroEnPararse: a.primeroEnPararse,
+    protegerTrabajando: a.protegerTrabajando,
+    saturacionUmbral: a.saturacionUmbral,
+    saturacionSegundos: a.saturacionSegundos,
+    avisarAntesDeParar: a.avisarAntesDeParar,
     sshGruposPlegadosPorPerfil: ssh.plegadosPorPerfil,
     sshRielAncho: ssh.rielAncho,
     sshRielVisiblePorPerfil: ssh.rielVisiblePorPerfil,
-    sshRecientesPorPerfil: ssh.recientesPorPerfil,
     sshPestanasPorPerfil: pestanasSshAGuardar(),
     agenteTerminalVisiblePorPerfil: useStoreAgenteTerminal.getState().visiblePorPerfil,
     agentesNativos: useStoreAgentes.getState().agentesNativos,
@@ -121,20 +126,20 @@ function hidratar(s: WorkspaceSettings): void {
   window.tessera.zoom.setLevel(s.zoomLevel)
   useStoreAgentes.setState({
     accountByTarget: s.agentAccountByTarget ?? {},
+    modoPorTarget: s.agentModeByTarget ?? {},
     agentesNativos: s.agentesNativos ?? [],
     agentesDockerPorPerfil: s.agentesDockerPorPerfil ?? {},
     agentesOcultosPorPerfil: s.agentesOcultosPorPerfil ?? {},
     ordenAgentesPorPerfil: s.ordenAgentesPorPerfil ?? {},
     selectorAgentes: s.selectorAgentes ?? 'pestanas'
   })
-  useStorePestanas.setState({ windowsModeKeys: new Set(s.windowsModeProjects ?? []), coloresFijados: s.coloresPerfilFijados ?? [] })
+  useStorePestanas.setState({ coloresFijados: s.coloresPerfilFijados ?? [] })
   useStoreMosaico.setState({ mosaicoPreset: s.mosaicoPreset ?? 'auto' })
   useStoreBd.setState({ dbMounts: s.dbMountsByProject ?? {}, dbAgenteVisiblePorPerfil: s.dbAgenteVisiblePorPerfil ?? {} })
   useStoreSsh.setState({
     plegadosPorPerfil: s.sshGruposPlegadosPorPerfil ?? {},
     rielAncho: s.sshRielAncho ?? SSH_RIEL_ANCHO_POR_DEFECTO,
-    rielVisiblePorPerfil: s.sshRielVisiblePorPerfil ?? {},
-    recientesPorPerfil: s.sshRecientesPorPerfil ?? {}
+    rielVisiblePorPerfil: s.sshRielVisiblePorPerfil ?? {}
   })
   accionesTerminales.restaurarSsh(s.sshPestanasPorPerfil ?? {})
   useStoreAgenteTerminal.setState({ visiblePorPerfil: s.agenteTerminalVisiblePorPerfil ?? {} })
@@ -169,7 +174,6 @@ function hidratarAjustes(s: WorkspaceSettings): void {
     aplicarUpdateAlCerrar: s.aplicarUpdateAlCerrar !== false,
     registroSalud: s.registroSalud !== false,
     volcadosCaida: s.volcadosCaida !== false,
-    defaultProjectMode: s.defaultProjectMode ?? 'windows',
     idioma: normalizarPreferenciaIdioma(s.idioma),
     terminalAppearance: {
       fontFamily: s.terminalFontFamily ?? '',
@@ -193,7 +197,12 @@ function hidratarAjustes(s: WorkspaceSettings): void {
     dbFilasPorPagina: normalizarFilasPorPagina(s.dbFilasPorPagina),
     dbTxInicial: normalizarTxInicial(s.dbTxInicial),
     dbConsolaInactividadMin: normalizarInactividadConsolaMin(s.dbConsolaInactividadMin),
-    agenteInactividadMin: normalizarInactividadAgenteMin(s.agenteInactividadMin)
+    agenteInactividadMin: normalizarInactividadAgenteMin(s.agenteInactividadMin),
+    // Una copia importada no trae el límite (es de este equipo): conserva el que hay.
+    ...('limiteContenedores' in s ? { limiteContenedores: s.limiteContenedores } : {}),
+    primeroEnPararse: s.primeroEnPararse,
+    protegerTrabajando: s.protegerTrabajando,
+    ...normalizarSaturacion(s as unknown as Record<string, unknown>)
   })
 }
 
@@ -244,7 +253,8 @@ export function usePersistenciaAjustes(): void {
     }
   }, [])
   const accountByTarget = useStoreAgentes((s) => s.accountByTarget)
-  useGuardadoConEspera(cargados, [accountByTarget], 250, 'accounts')
+  const modoPorTarget = useStoreAgentes((s) => s.modoPorTarget)
+  useGuardadoConEspera(cargados, [accountByTarget, modoPorTarget], 250, 'accounts')
   const inmediatos = useCamposInmediatos()
   useEffect(() => {
     if (!cargados.current) return
@@ -277,7 +287,6 @@ function useCamposInmediatos(): unknown[] {
       s.registroSalud,
       s.volcadosCaida,
       s.diffColapsar,
-      s.defaultProjectMode,
       s.idioma,
       s.terminalAppearance,
       s.agentAppearance,
@@ -295,20 +304,24 @@ function useCamposInmediatos(): unknown[] {
       s.dbFilasPorPagina,
       s.dbTxInicial,
       s.dbConsolaInactividadMin,
-      s.agenteInactividadMin
+      s.agenteInactividadMin,
+      s.limiteContenedores,
+      s.primeroEnPararse,
+      s.protegerTrabajando,
+      s.saturacionUmbral,
+      s.saturacionSegundos,
+      s.avisarAntesDeParar
     ])
   )
   const layout = useStoreLayout(
     useShallow((s) => [s.activityBarOrder, s.bottomBarOrder, s.vistaPorPerfil, s.panelPorPerfil])
   )
-  const windowsModeKeys = useStorePestanas((s) => s.windowsModeKeys)
   const coloresFijados = useStorePestanas((s) => s.coloresFijados)
   const dbMounts = useStoreBd((s) => s.dbMounts)
   const dbAgenteVisible = useStoreBd((s) => s.dbAgenteVisiblePorPerfil)
   const mosaicoPreset = useStoreMosaico((s) => s.mosaicoPreset)
   const sshPlegados = useStoreSsh((s) => s.plegadosPorPerfil)
   const sshRielVisible = useStoreSsh((s) => s.rielVisiblePorPerfil)
-  const sshRecientes = useStoreSsh((s) => s.recientesPorPerfil)
   // Abrir, cerrar o renombrar una pestaña SSH cambia su lista; elegir otra no (y no se guarda). La lista de
   // conexiones también: decide cuáles se guardan, y una pestaña abierta antes de que llegue la suya se perdería.
   const sshPestanas = useStoreTerminales((s) => s.ssh.porPerfil)
@@ -321,14 +334,12 @@ function useCamposInmediatos(): unknown[] {
     ...agentesManuales,
     ...ajustes,
     ...layout,
-    windowsModeKeys,
     coloresFijados,
     dbMounts,
     dbAgenteVisible,
     mosaicoPreset,
     sshPlegados,
     sshRielVisible,
-    sshRecientes,
     sshPestanas,
     sshConexiones,
     agenteTerminalVisible

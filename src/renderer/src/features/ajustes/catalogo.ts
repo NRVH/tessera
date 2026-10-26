@@ -131,16 +131,6 @@ export const CATEGORIAS = [
     titulo: 'Proyectos',
     grupos: [
       {
-        titulo: 'Al abrir un proyecto nuevo',
-        ajustes: [
-          {
-            id: 'modo-proyecto',
-            etiqueta: 'Modo por defecto',
-            claves: ['docker', 'windows', 'aislado', 'nativo', 'contenedor']
-          }
-        ]
-      },
-      {
         titulo: 'Agentes en segundo plano',
         ajustes: [
           {
@@ -167,6 +157,63 @@ export const CATEGORIAS = [
             id: 'sandbox-otros',
             etiqueta: 'Otros paquetes',
             claves: ['apt', 'instalar', 'paquete', 'imagen', 'sudo', 'debian']
+          }
+        ]
+      }
+    ]
+  },
+  {
+    // Detrás de Proyectos: cuántos contenedores aguanta el equipo cuando los proyectos corren en Docker.
+    id: 'contenedores',
+    titulo: 'Contenedores Docker',
+    grupos: [
+      {
+        titulo: 'Contenedores a la vez',
+        ajustes: [
+          {
+            id: 'limite-contenedores',
+            etiqueta: 'Límite de contenedores',
+            claves: ['docker', 'contenedores', 'límite', 'limitar', 'memoria', 'ram', 'semáforo', 'cuentas', 'agentes', 'recomendado', 'sin límite', 'núcleos']
+          }
+        ]
+      },
+      {
+        titulo: 'Al llegar al límite',
+        ajustes: [
+          {
+            id: 'limite-politica',
+            etiqueta: 'Qué parar primero',
+            claves: ['parar', 'detener', 'hibernar', 'último', 'primero', 'inactivos', 'trabajando', 'proteger', 'docker', 'contenedores', 'límite', 'agentes']
+          }
+        ]
+      },
+      {
+        titulo: 'Si Docker se satura',
+        ajustes: [
+          {
+            id: 'saturacion-umbral',
+            etiqueta: 'Saturado por encima del',
+            claves: ['saturado', 'saturación', 'memoria', 'umbral', 'porcentaje', 'docker', 'ram', 'hibernar', 'parar']
+          },
+          {
+            id: 'saturacion-segundos',
+            etiqueta: 'Durante',
+            claves: ['saturación', 'segundos', 'tiempo', 'minuto', 'espera', 'docker', 'memoria', 'hibernar']
+          },
+          {
+            id: 'saturacion-aviso',
+            etiqueta: 'Avisar antes de parar',
+            claves: ['aviso', 'avisar', 'antes', 'parar', 'elegir', 'otro', 'saturación', 'docker', 'hibernar']
+          }
+        ]
+      },
+      {
+        titulo: 'Últimas paradas',
+        ajustes: [
+          {
+            id: 'paradas-registro',
+            etiqueta: 'Historial de paradas',
+            claves: ['paradas', 'historial', 'últimas', 'hibernado', 'parado', 'docker', 'contenedores', 'límite', 'saturación']
           }
         ]
       }

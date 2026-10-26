@@ -26,10 +26,10 @@ export interface ModificadoresClicSsh {
   shift: boolean
 }
 
-/** Las conexiones que se ven, en su orden: las únicas que se pueden marcar (las de «Recientes» no son otra fila). */
+/** Las conexiones que se ven, en su orden: las únicas que se pueden marcar. */
 export function idsVisibles(filas: readonly FilaLista[]): string[] {
   const ids: string[] = []
-  for (const f of filas) if (f.tipo === 'conexion' && !f.reciente) ids.push(f.conexion.id)
+  for (const f of filas) if (f.tipo === 'conexion') ids.push(f.conexion.id)
   return ids
 }
 
@@ -101,14 +101,13 @@ export function idsDelArrastre(s: SeleccionSsh, visibles: readonly string[], id:
 
 /**
  * El grupo al que va lo que se suelta sobre la fila `indice`: el suyo si es una cabecera, el de su cabecera si es
- * una conexión que cuelga de un grupo (`ID_SIN_GRUPO` = «Sin grupo»). `null` donde no se puede soltar: un rótulo,
- * una conexión de «Recientes» o la lista plana de un perfil sin grupos.
+ * una conexión que cuelga de un grupo (`ID_SIN_GRUPO` = «Sin grupo»). `null` donde no se puede soltar: la lista
+ * plana de un perfil sin grupos.
  */
 export function destinoDeFila(filas: readonly FilaLista[], indice: number): string | null {
   const f = filas[indice]
-  if (f === undefined || f.tipo === 'seccion') return null
+  if (f === undefined) return null
   if (f.tipo === 'grupo') return f.grupoId
-  if (f.reciente) return null
   const cabecera = cabeceraDe(filas, indice)
   const g = filas[cabecera]
   return g?.tipo === 'grupo' ? g.grupoId : null

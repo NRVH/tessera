@@ -20,7 +20,14 @@ import type { OrigenTerminal, TerminalPaneProps } from './terminalPaneTipos'
 import { txTerminales } from './textos.ts'
 import { useActivado, useEstadoSesion, useRefsTerminal, type EstadoSesion } from './useEstadoTerminalPane'
 import { useInterfazTerminal } from './useInterfazTerminal'
-import { useAccionesSsh, useAperturaSesion, usePrimerDatoSsh, usePublicacionPane, type AccionesSsh } from './useSesionShell'
+import {
+  useAccionesSsh,
+  useAperturaSesion,
+  usePrimerDatoSsh,
+  usePublicacionPane,
+  useRecuperacionContenedor,
+  type AccionesSsh
+} from './useSesionShell'
 import { useAjustesVivosXterm, useCicloXterm } from './useXtermPane'
 import { contarRender } from '../../util/contadorRenders'
 
@@ -65,12 +72,20 @@ export function TerminalPane(props: TerminalPaneProps): React.JSX.Element {
   useCicloXterm(
     activated,
     refs,
-    { ...ui, setExitCode: estado.setExitCode, setStatus: estado.setStatus, setFinSsh: estado.setFinSsh, fitAndSyncDebounced },
+    {
+      ...ui,
+      setExitCode: estado.setExitCode,
+      setStatus: estado.setStatus,
+      setFinSsh: estado.setFinSsh,
+      setCaidaContenedor: estado.setCaidaContenedor,
+      fitAndSyncDebounced
+    },
     origen
   )
   useAjustesVivosXterm(refs, { appearance, accentColor, visible, activated }, fitAndSyncNow)
   useAperturaSesion(props, refs, estado, activated, fitAndSyncNow)
   usePrimerDatoSsh(props, refs, estado)
+  useRecuperacionContenedor(props, refs, estado, fitAndSyncNow)
   usePublicacionPane(props, refs, estado, fitAndSyncNow)
   const conexion = useStoreSsh((s) => (origen.tipo === 'ssh' ? conexionPorId(s, origen.conexionId) : undefined))
   const accionesSsh = useAccionesSsh(props, refs, estado, fitAndSyncNow, conexion !== undefined)

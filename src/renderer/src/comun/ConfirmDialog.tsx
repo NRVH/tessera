@@ -19,6 +19,14 @@ interface ConfirmDialogProps {
   cancelLabel?: string
   /** true = acción destructiva: confirmar de contorno, foco por defecto en Cancelar. */
   danger?: boolean
+  /**
+   * Mientras la acción confirmada corre: el diálogo sigue abierto, sin botones ni cierre, y el de
+   * confirmar dice este texto. Lo que tarda (cerrar sesiones, parar un contenedor) no debe dejar
+   * ver como vivo lo que se está destruyendo.
+   */
+  ocupado?: string | null
+  /** Por qué falló la acción: el diálogo sigue abierto para reintentar o cancelar. */
+  error?: string | null
   onConfirm: () => void
   onCancel: () => void
 }
@@ -56,6 +64,8 @@ export function ConfirmDialog({
   confirmLabel,
   cancelLabel,
   danger = false,
+  ocupado = null,
+  error = null,
   onConfirm,
   onCancel
 }: ConfirmDialogProps): React.JSX.Element {
@@ -63,10 +73,11 @@ export function ConfirmDialog({
   const cancelRef = useRef<HTMLButtonElement>(null)
   // Los callbacks van por ref y no como dependencias de los efectos: los llamadores los
   // pasan en línea y relanzarían el efecto del foco en cada repintado del padre.
+  // Ocupado no atiende ni Enter, ni Escape, ni el clic en el fondo.
   const onConfirmRef = useRef(onConfirm)
-  onConfirmRef.current = onConfirm
+  onConfirmRef.current = ocupado !== null ? () => {} : onConfirm
   const onCancelRef = useRef(onCancel)
-  onCancelRef.current = onCancel
+  onCancelRef.current = ocupado !== null ? () => {} : onCancel
 
   // Esc y devolución del foco salen de `useDialogo`. Va ANTES del efecto del foco inicial:
   // el hook apunta a quién tenía el foco al montar. Sin trampa de Tab (ver el ADR).
@@ -82,27 +93,35 @@ export function ConfirmDialog({
   useEnterConfirma(cardRef, danger, onConfirmRef)
 
   return (
-    <div className="modal-overlay" role="presentation" onMouseDown={alClicEnVelo(onCancel)}>
+    <div className="modal-overlay" role="presentation" onMouseDown={alClicEnVelo(() => onCancelRef.current())}>
       <div
         ref={cardRef}
         className="modal-card"
         role="dialog"
         aria-modal="true"
         aria-label={title}
+        aria-busy={ocupado !== null}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="modal-title">{title}</div>
         <div className="modal-message">{message}</div>
+        {error && (
+          <div className="modal-error" role="alert">
+            {error}
+          </div>
+        )}
         <div className="modal-actions">
-          <button ref={cancelRef} className="btn btn-ghost" onClick={onCancel}>
+          <button ref={cancelRef} className="btn btn-ghost" onClick={onCancel} disabled={ocupado !== null}>
             {cancelLabel ?? txComun().cancelar}
           </button>
           <button
             ref={confirmRef}
             className={`btn ${danger ? 'danger' : 'primary'}`}
             onClick={onConfirm}
+            disabled={ocupado !== null}
           >
-            {confirmLabel ?? txComun().aceptar}
+            {ocupado !== null && <span className="modal-girando" aria-hidden="true" />}
+            {ocupado ?? confirmLabel ?? txComun().aceptar}
           </button>
         </div>
       </div>

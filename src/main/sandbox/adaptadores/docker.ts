@@ -2,10 +2,11 @@
 // Adaptador del CLI `docker`: lanza los subprocesos y recoge su salida sin bloquear el main.
 // Un semáforo ÚNICO acota cuántos corren a la vez; todo comando lleva techo de tiempo y
 // de salida, y el build y la escritura por stdin, el suyo propio.
-// Lo usan las operaciones de `sandbox/gestor/`; no importa nada del dominio (F4).
+// Lo usan las operaciones de `sandbox/gestor/` y el puente del login de Codex; no importa nada del dominio (F4).
 // Decisiones: docs/decisiones/sandbox/gestor-concurrencia.md
 // =============================================================================
 import { spawn } from 'node:child_process'
+import type { Socket } from 'node:net'
 
 /** Resultado de un comando `docker`: nunca rechaza; el fallo va en `status`/`error`. */
 export interface CommandResult {
@@ -168,6 +169,41 @@ export function runDockerBuild(
       finish(null)
     })
     child.on('close', (c) => finish(c))
+  })
+}
+
+/**
+ * Une una conexión del equipo con `127.0.0.1:<puerto>` DENTRO de un contenedor, por la
+ * entrada y la salida de un `docker exec -i`: no hace falta publicar el puerto. La corta
+ * a los `topeMs` si nadie la cierra antes.
+ */
+export function unirConContenedor(contenedor: string, puerto: number, socket: Socket, topeMs = 60_000): void {
+  const guion =
+    `const s=require('net').connect(${puerto},'127.0.0.1');process.stdin.pipe(s);s.pipe(process.stdout);` +
+    "s.on('error',()=>process.exit(1));s.on('close',()=>process.exit(0))"
+  const child = spawn('docker', ['exec', '-i', contenedor, 'node', '-e', guion])
+  const matar = (): void => {
+    clearTimeout(tope)
+    try {
+      child.kill('SIGKILL')
+    } catch {
+      /* ya murió */
+    }
+  }
+  const tope = setTimeout(() => {
+    matar()
+    socket.destroy()
+  }, topeMs)
+  socket.pipe(child.stdin)
+  child.stdout.pipe(socket)
+  child.stdin.on('error', () => {})
+  socket.on('error', matar)
+  socket.on('close', matar)
+  child.on('error', () => socket.destroy())
+  // `end` y no `destroy`: lo último que mandó el contenedor aún puede estar en el búfer.
+  child.on('close', () => {
+    clearTimeout(tope)
+    socket.end()
   })
 }
 

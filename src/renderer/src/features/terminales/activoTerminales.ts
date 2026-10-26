@@ -83,7 +83,6 @@ export interface EntradaActivo {
   contexto: string
   ssh: SshTabsState
   infoByPane: Readonly<Record<string, TerminalPaneInfo | undefined>>
-  windowsModeKeys: ReadonlySet<string>
   hibernatedProjectKeys: ReadonlySet<string>
   dbReady?: boolean
   /** Las conexiones SSH que existen: de las demás no se puede reconectar. */
@@ -173,7 +172,8 @@ export function hayTerminalQueEnsenar(e: EntradaPane): boolean {
 export function derivarActivo(e: EntradaActivo): ActivoTerminales {
   const { activeProject, sshLista, pane } = paneDe(e)
   const proyecto = e.activeProjectKey ? e.terminals[e.activeProjectKey] : undefined
-  const activeHostMode = activeProject !== null && e.windowsModeKeys.has(activeProject.key)
+  // La terminal de un proyecto corre siempre en el equipo: Docker es solo para las cuentas de los agentes.
+  const activeHostMode = activeProject !== null
   return {
     activeProject,
     activeList: proyecto?.list ?? [],

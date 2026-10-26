@@ -13,7 +13,6 @@ import { useStoreAgentes, type SesionesNativas } from '../agentes'
 /** Setters estables de los ajustes que el modal cambia tal cual. */
 const fijar = {
   categoria: fijarAjuste('ajustesCategoria'),
-  defaultProjectMode: fijarAjuste('defaultProjectMode'),
   paquetesSandbox: fijarAjuste('paquetesSandbox'),
   accionRapidaFinder: fijarAjuste('accionRapidaFinder'),
   terminalAppearance: fijarAjuste('terminalAppearance'),
@@ -25,7 +24,13 @@ const fijar = {
   dbFilasPorPagina: fijarAjuste('dbFilasPorPagina'),
   dbTxInicial: fijarAjuste('dbTxInicial'),
   dbConsolaInactividadMin: fijarAjuste('dbConsolaInactividadMin'),
-  agenteInactividadMin: fijarAjuste('agenteInactividadMin')
+  agenteInactividadMin: fijarAjuste('agenteInactividadMin'),
+  limiteContenedores: fijarAjuste('limiteContenedores'),
+  primeroEnPararse: fijarAjuste('primeroEnPararse'),
+  protegerTrabajando: fijarAjuste('protegerTrabajando'),
+  saturacionUmbral: fijarAjuste('saturacionUmbral'),
+  saturacionSegundos: fijarAjuste('saturacionSegundos'),
+  avisarAntesDeParar: fijarAjuste('avisarAntesDeParar')
 }
 
 /** Invierte un ajuste booleano. */
@@ -56,8 +61,6 @@ export function ModalAjustes({ sesiones, cambiarZoom }: Props): React.JSX.Elemen
         categoria={a.ajustesCategoria}
         onCambiarCategoria={fijar.categoria}
         onClose={() => useStoreAjustes.setState({ settingsOpen: false })}
-        defaultProjectMode={a.defaultProjectMode}
-        onChangeDefaultProjectMode={fijar.defaultProjectMode}
         hideProfileNames={a.hideProfileNames}
         onToggleProfileNames={() => alternar('hideProfileNames')}
         aplicarUpdateAlCerrar={a.aplicarUpdateAlCerrar}
@@ -104,6 +107,18 @@ export function ModalAjustes({ sesiones, cambiarZoom }: Props): React.JSX.Elemen
         onChangeDbConsolaInactividadMin={fijar.dbConsolaInactividadMin}
         agenteInactividadMin={a.agenteInactividadMin}
         onChangeAgenteInactividadMin={fijar.agenteInactividadMin}
+        limiteContenedores={a.limiteContenedores}
+        onChangeLimiteContenedores={fijar.limiteContenedores}
+        primeroEnPararse={a.primeroEnPararse}
+        onChangePrimeroEnPararse={fijar.primeroEnPararse}
+        protegerTrabajando={a.protegerTrabajando}
+        onChangeProtegerTrabajando={fijar.protegerTrabajando}
+        saturacionUmbral={a.saturacionUmbral}
+        onChangeSaturacionUmbral={fijar.saturacionUmbral}
+        saturacionSegundos={a.saturacionSegundos}
+        onChangeSaturacionSegundos={fijar.saturacionSegundos}
+        avisarAntesDeParar={a.avisarAntesDeParar}
+        onChangeAvisarAntesDeParar={fijar.avisarAntesDeParar}
         zoomLevel={a.zoomLevel}
         onChangeZoomLevel={cambiarZoom}
       />

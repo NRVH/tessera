@@ -8,6 +8,8 @@
 // =============================================================================
 
 import type {
+  AgentKind,
+  ProyectoParado,
   AgenteHibernado,
   AgentHibernarInactivosRequest,
   AgentHibernarInactivosResult,
@@ -109,6 +111,15 @@ export function construirPeticion(e: EntradaPeticion): AgentHibernarInactivosReq
   return { minutos: e.minutos, proyectos }
 }
 
+/**
+ * El aviso de poca memoria: una vez por racha. Se avisa al entrar en ella y se rearma cuando el main
+ * dice que se recuperó (su vigilante ya tiene holgura para no ir y venir).
+ */
+export function avisoPocaMemoria(pocaMemoria: boolean, avisado: boolean): { avisar: boolean; avisado: boolean } {
+  if (!pocaMemoria) return { avisar: false, avisado: false }
+  return { avisar: !avisado, avisado: true }
+}
+
 /** Qué hacer con un proyecto que el main acaba de hibernar. */
 export interface PasoAplicacion {
   hibernado: AgenteHibernado
@@ -120,11 +131,44 @@ export interface PasoAplicacion {
 }
 
 /** Los pasos para aplicar la respuesta de una ronda, con lo que está en pantalla AHORA. */
-export function planAplicacion(resultado: AgentHibernarInactivosResult, enPantallaAhora: ReadonlySet<string>): PasoAplicacion[] {
+export function planAplicacion<R extends Pick<AgentHibernarInactivosResult, 'hibernados'>>(
+  resultado: R,
+  enPantallaAhora: ReadonlySet<string>
+): PasoAplicacion[] {
   return resultado.hibernados.map((hibernado) => ({
     hibernado,
     despertar: enPantallaAhora.has(claveProyecto(hibernado.profileId, hibernado.projectHostPath))
   }))
+}
+
+/**
+ * Cómo se nombra para el usuario lo que se paró por el límite: «proyecto · Agente, Agente» por
+ * proyecto, con el nombre del proyecto que da `nombreDe` (la carpeta si no se conoce).
+ */
+export function etiquetasHibernados(
+  hibernados: readonly AgenteHibernado[],
+  nombreDe: (profileId: string, projectHostPath: string) => string | undefined,
+  etiquetaAgente: (agente: AgentKind) => string
+): string[] {
+  return etiquetasProyectos(
+    hibernados.map((h) => ({ profileId: h.profileId, projectHostPath: h.projectHostPath, agentes: h.sesiones.map((s) => s.agente) })),
+    nombreDe,
+    (a) => etiquetaAgente(a as AgentKind)
+  )
+}
+
+/** «proyecto · agentes» de cada proyecto, con el nombre de su pestaña o, si no está abierta, su carpeta. */
+export function etiquetasProyectos(
+  proyectos: readonly ProyectoParado[],
+  nombreDe: (profileId: string, projectHostPath: string) => string | undefined,
+  etiquetaAgente: (agente: string) => string
+): string[] {
+  return proyectos.map((p) => {
+    const carpeta = p.projectHostPath.split(/[\\/]+/).filter(Boolean).pop() ?? p.projectHostPath
+    const nombre = nombreDe(p.profileId, p.projectHostPath) ?? carpeta
+    const agentes = [...new Set(p.agentes.map(etiquetaAgente))]
+    return agentes.length > 0 ? `${nombre} · ${agentes.join(', ')}` : nombre
+  })
 }
 
 /**

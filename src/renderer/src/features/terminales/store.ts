@@ -6,9 +6,9 @@
 // del contexto: el contexto de un proyecto es su clave, así que no hace falta pasarlo aparte.
 // =============================================================================
 import { create } from 'zustand'
+import { cerrarLocal } from './cierreLocal'
 import {
   addTerminal,
-  closeTerminal,
   ensureProject,
   initialShellTerminalsState,
   pruneProjects,
@@ -58,7 +58,12 @@ export const accionesTerminales = {
   /** Nueva terminal local, activa y visible: suelta la SSH que se mirara en ese proyecto. */
   anadir: (key: string): void =>
     useStoreTerminales.setState((s) => ({ shellTerminals: addTerminal(s.shellTerminals, key), ssh: soltarSsh(s.ssh, key) })),
-  cerrar: (key: string, id: string): void => aplicar((s) => closeTerminal(s, key, id)),
+  /** Cierra una local; si era la que se veía y no queda otra, pasa a verse la SSH del perfil (`cierreLocal.ts`). */
+  cerrar: (key: string, id: string): void =>
+    useStoreTerminales.setState((s) => {
+      const r = cerrarLocal(s.shellTerminals, s.ssh, key, id)
+      return { shellTerminals: r.shell, ssh: r.ssh }
+    }),
   /** Elegir una local la hace visible: suelta la SSH que se mirara en ese proyecto. */
   elegir: (key: string, id: string): void =>
     useStoreTerminales.setState((s) => ({ shellTerminals: selectTerminal(s.shellTerminals, key, id), ssh: soltarSsh(s.ssh, key) })),

@@ -1,5 +1,5 @@
 // =============================================================================
-// IPC del sandbox: el prevuelo de la red del anfitrión y «Actualizar agentes». Único sitio
+// IPC del sandbox: el prevuelo de la red del anfitrión, los recursos de Docker y «Actualizar agentes». Único sitio
 // con `ipcMain` del dominio; valida la petición y delega. Solo lo importa `src/main/agents/componer.ts`.
 // Decisiones: docs/decisiones/sandbox/red-del-anfitrion.md
 // =============================================================================
@@ -7,6 +7,7 @@ import type { IpcMain } from 'electron'
 import type { Profile } from '../profiles/types.ts'
 import type { EmisorEventos } from '../util/emisorEventos.ts'
 import { SANDBOX_RED_CHANNELS, type PrevueloRequest } from '../../shared/sandbox-red-ipc.ts'
+import { SANDBOX_ESTADO_CHANNELS } from '../../shared/sandbox-estado-ipc.ts'
 import { AGENTS_UPDATE_CHANNELS, type AgentsUpdateResult } from '../../shared/agents-update-ipc.ts'
 import type { SandboxManager } from './SandboxManager.ts'
 import { actualizarImagenAgentes } from './actualizarImagenAgentes.ts'
@@ -26,6 +27,8 @@ export function registrarIpcRedSandbox(deps: {
     if (!p) throw new Error(`perfil desconocido: ${req.profileId}`)
     return deps.sandbox.prevueloRedHost(p, profiles, req.medirTrafico)
   })
+  // Los recursos de Docker para el semáforo del límite: sin petición, nada que validar.
+  deps.ipc.handle(SANDBOX_ESTADO_CHANNELS.RECURSOS, () => deps.sandbox.recursos())
 }
 
 /** Registra `AGENTS_UPDATE.RUN`: el progreso sale por `AGENTS_UPDATE.PROGRESS` como `{ line }`. */

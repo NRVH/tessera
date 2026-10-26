@@ -55,20 +55,28 @@ function ajustes(): void {
     uiFontSize: 15,
     dbFilasPorPagina: 1000,
     ccWidth: 777,
-    windowsModeProjects: ['p|C:\\x'],
     menuWindowsCarpetas: true,
-    agentAccountByTarget: { 'p|x|claude-code': 'cuenta' }
+    agentAccountByTarget: { 'p|x|claude-code': 'cuenta' },
+    agentModeByTarget: { 'p|x|codex': 'docker' }
   }
   const fuera = ajustesParaExportar(mios) as Record<string, unknown>
   check('solo los exportables', Object.keys(fuera).sort().join() === [...AJUSTES_EXPORTABLES].sort().join(), Object.keys(fuera).join())
   check('las preferencias van', fuera.uiFontSize === 15 && fuera.dbFilasPorPagina === 1000, j({ ui: fuera.uiFontSize, filas: fuera.dbFilasPorPagina }))
-  check('NEGATIVO: ni tamaños, ni proyectos, ni cuentas, ni el menú del sistema', !('ccWidth' in fuera) && !('windowsModeProjects' in fuera) && !('agentAccountByTarget' in fuera) && !('menuWindowsCarpetas' in fuera), '')
+  check(
+    'NEGATIVO: ni tamaños, ni proyectos, ni cuentas ni el modo de cada agente, ni el menú del sistema',
+    !('ccWidth' in fuera) && !('agentAccountByTarget' in fuera) && !('agentModeByTarget' in fuera) && !('menuWindowsCarpetas' in fuera),
+    ''
+  )
 
   hr('(3) Los importados, encima de los de ahora')
-  const actual: WorkspaceSettings = { ...DEFAULT_SETTINGS, ccWidth: 500, windowsModeProjects: ['a|b'], uiFontSize: 13 }
-  const r = ajustesConImportados(actual, { uiFontSize: 16, ccWidth: 900, windowsModeProjects: ['c|d'], dbFilasPorPagina: 'mucho', menuWindowsCarpetas: true })
+  const actual: WorkspaceSettings = { ...DEFAULT_SETTINGS, ccWidth: 500, agentModeByTarget: { 'a|b|codex': 'docker' }, uiFontSize: 13 }
+  const r = ajustesConImportados(actual, { uiFontSize: 16, ccWidth: 900, agentModeByTarget: { 'c|d|codex': 'nativo' }, dbFilasPorPagina: 'mucho', menuWindowsCarpetas: true })
   check('un exportable se aplica', r.uiFontSize === 16, String(r.uiFontSize))
-  check('NEGATIVO: lo que no viaja no se toca aunque venga', r.ccWidth === 500 && j(r.windowsModeProjects) === j(['a|b']) && r.menuWindowsCarpetas === false, j({ cc: r.ccWidth, w: r.windowsModeProjects }))
+  check(
+    'NEGATIVO: lo que no viaja no se toca aunque venga',
+    r.ccWidth === 500 && j(r.agentModeByTarget) === j({ 'a|b|codex': 'docker' }) && r.menuWindowsCarpetas === false,
+    j({ cc: r.ccWidth, m: r.agentModeByTarget })
+  )
   check('un valor que no vale se sanea, no rompe', typeof r.dbFilasPorPagina === 'number', String(r.dbFilasPorPagina))
   check('basura: se quedan los de ahora', ajustesConImportados(actual, 'x') === actual, '')
 }

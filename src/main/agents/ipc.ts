@@ -22,14 +22,17 @@ import {
   type CreateAccountRequest,
   type DeleteAccountRequest,
   type ListAccountsRequest,
-  type LogoutAccountRequest
+  type LogoutAccountRequest,
+  type OlvidarAgenteManualRequest,
+  type RenameAccountRequest
 } from '../../shared/agent-accounts-ipc'
+import type { IdAgenteManual } from '../../shared/agentesManuales'
 import { AGENTES_NATIVOS_CHANNELS, type InstalarRequest } from '../../shared/agentes-nativos-ipc'
-import type { Agente } from '../profiles/types'
 import type { AgentTerminalController } from './AgentTerminalController'
 import type { AccountStore } from './AccountStore'
 import type { AgentesNativos } from './agentesNativos'
 import { sanearPeticion } from './politicaHibernacion'
+import { sanearConfigSaturacion } from '../../shared/saturacionDocker'
 
 /** Registra los canales de la terminal del agente. */
 export function registrarIpcTerminalAgente(deps: {
@@ -39,13 +42,17 @@ export function registrarIpcTerminalAgente(deps: {
   esperarBorrado?: (profileId: unknown) => Promise<void>
 }): void {
   const { ipc, agentes, esperarBorrado } = deps
-  ipc.handle(AGENT_TERMINAL_CHANNELS.OPEN, (_e: IpcMainInvokeEvent, req: AgentOpenRequest) =>
-    esperarBorrado ? esperarBorrado(req?.profileId).then(() => agentes.open(req)) : agentes.open(req)
-  )
+  // La sesión queda a nombre de la ventana que la abre: su salida y su actividad solo van a ella.
+  ipc.handle(AGENT_TERMINAL_CHANNELS.OPEN, (e: IpcMainInvokeEvent, req: AgentOpenRequest) => {
+    const ventana = e?.sender?.id
+    return esperarBorrado
+      ? esperarBorrado(req?.profileId).then(() => agentes.open(req, ventana))
+      : agentes.open(req, ventana)
+  })
   ipc.on(AGENT_TERMINAL_CHANNELS.WRITE, (_e, msg: AgentWriteMessage) => agentes.escribir(msg))
   ipc.on(AGENT_TERMINAL_CHANNELS.RESIZE, (_e, msg: AgentResizeMessage) => agentes.redimensionar(msg))
   ipc.on(AGENT_TERMINAL_CHANNELS.FLOW, (_e, msg: AgentFlowMessage) => agentes.flujo(msg))
-  ipc.handle(AGENT_TERMINAL_CHANNELS.ACTIVITY_SNAPSHOT, () => agentes.snapshotActividad())
+  ipc.handle(AGENT_TERMINAL_CHANNELS.ACTIVITY_SNAPSHOT, (e: IpcMainInvokeEvent) => agentes.snapshotActividad(e?.sender?.id))
   // Recargar relanza el proceso (y en contenedor, lo levanta): también espera al borrado de su perfil.
   ipc.handle(AGENT_TERMINAL_CHANNELS.RELOAD, (_e, req: AgentReloadRequest) => {
     const recargar = (): ReturnType<AgentTerminalController['reload']> =>
@@ -65,6 +72,12 @@ export function registrarIpcTerminalAgente(deps: {
   ipc.handle(AGENT_TERMINAL_CHANNELS.HIBERNAR_INACTIVOS, (_e, req: unknown) =>
     agentes.hibernarInactivos(sanearPeticion(req))
   )
+  ipc.on(AGENT_TERMINAL_CHANNELS.SATURACION_VIGIA, (_e, config: unknown) => {
+    const valida = sanearConfigSaturacion(config)
+    if (valida) agentes.configurarSaturacion(valida)
+  })
+  ipc.handle(AGENT_TERMINAL_CHANNELS.SATURACION_OTRO, () => agentes.saturacionPararOtro())
+  ipc.handle(AGENT_TERMINAL_CHANNELS.REGISTRO_PARADAS, () => agentes.registroParadas())
 }
 
 /**
@@ -75,25 +88,37 @@ export function registrarIpcCuentas(deps: {
   ipc: Pick<IpcMain, 'handle'>
   cuentas: AccountStore
   cerrarSesionesDeCuenta: (id: string) => Promise<unknown> | undefined
+  cerrarSesionesDeAgente: (profileId: string, agente: IdAgenteManual) => Promise<unknown> | undefined
   olvidarUso: (id: string) => void
   /** Cierra ya el vigilante del uso de la cuenta: abierto, impide borrar su carpeta en Windows. */
   soltarVigilanteUso: (id: string) => void
 }): void {
-  const { ipc, cuentas, cerrarSesionesDeCuenta, olvidarUso, soltarVigilanteUso } = deps
-  ipc.handle(AGENT_ACCOUNT_CHANNELS.LIST, (_e, req: ListAccountsRequest) =>
-    cuentas.list(req.profileId, req.agente as Agente)
-  )
+  const { ipc, cuentas, cerrarSesionesDeCuenta, cerrarSesionesDeAgente, olvidarUso, soltarVigilanteUso } = deps
+  ipc.handle(AGENT_ACCOUNT_CHANNELS.LIST, (_e, req: ListAccountsRequest) => cuentas.list(req.profileId, req.agente))
   ipc.handle(AGENT_ACCOUNT_CHANNELS.CREATE, (_e, req: CreateAccountRequest) => cuentas.create(req))
+  ipc.handle(AGENT_ACCOUNT_CHANNELS.RENAME, (_e, req: RenameAccountRequest) => cuentas.rename(req?.id, req?.nombre))
   ipc.handle(AGENT_ACCOUNT_CHANNELS.LOGOUT, async (_e, req: LogoutAccountRequest) => {
+    // Antes de cerrar nada: rechazarlo después habría matado sus agentes igualmente.
+    cuentas.comprobarCierreSesion(req.id)
     await cerrarSesionesDeCuenta(req.id)
     cuentas.logout(req.id)
     olvidarUso(req.id)
   })
   ipc.handle(AGENT_ACCOUNT_CHANNELS.DELETE, async (_e, req: DeleteAccountRequest) => {
+    // Antes de cerrar nada: rechazar la predeterminada después habría matado sus agentes igualmente.
+    cuentas.comprobarBorrable(req.id)
     await cerrarSesionesDeCuenta(req.id)
     soltarVigilanteUso(req.id)
     cuentas.remove(req.id)
     olvidarUso(req.id)
+  })
+  ipc.handle(AGENT_ACCOUNT_CHANNELS.OLVIDAR_AGENTE_MANUAL, async (_e, req: OlvidarAgenteManualRequest) => {
+    // Valida perfil y agente antes de cerrar nada: lo que sigue borra carpetas.
+    const creadas = cuentas.cuentasDeAgenteManual(req?.profileId, req?.agente)
+    await cerrarSesionesDeAgente(req.profileId, req.agente)
+    for (const a of creadas) soltarVigilanteUso(a.id)
+    cuentas.olvidarAgenteManual(req.profileId, req.agente)
+    for (const a of creadas) olvidarUso(a.id)
   })
 }
 

@@ -15,7 +15,7 @@ usuario no podía abrir para leer.
   lado. La vista no tiene campo «deshabilitado». Son dos clics: abrir y confirmar, y la acción
   nombra lo que hará («Actualizar Codex y reiniciar 5 sesiones»).
 - Precedencia del punto: en curso (anillo, sin punto) > error > ok sin ver > aviso. El error es
-  PEGAJOSO hasta «Descartar»; el ok se retira al verlo; el aviso sólo con algún proyecto nativo
+  PEGAJOSO hasta «Descartar»; el ok se retira al verlo; el aviso sólo con algún agente nativo
   abierto y sólo si hay algo que Tessera pueda instalar o reiniciar.
 - Un resumen `abortado` (la compuerta paró antes de tocar nada) no pinta punto.
 - El estado vive en `useActualizacionNativa`, montado desde App y no en el botón: cerrar el popover

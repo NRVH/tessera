@@ -9,10 +9,14 @@
 import { crearTextos } from '../../../../shared/i18n.ts'
 
 /**
- * Dónde vive el agente de un pane: un proyecto, el espacio de datos (vista Bases de datos)
- * o la carpeta del agente de la terminal (a pantalla completa de la terminal).
+ * Dónde vive el agente de un pane: un proyecto, el espacio de datos (vista Bases de datos),
+ * la carpeta del agente de la terminal (a pantalla completa de la terminal) o la carpeta del
+ * usuario (una ventana de agente).
  */
-export type LugarAgente = 'proyecto' | 'datos' | 'terminal'
+export type LugarAgente = 'proyecto' | 'datos' | 'terminal' | 'ventana'
+
+/** Los lugares de la ventana principal (la columna, el mosaico): todos menos la ventana de agente. */
+export type LugarEnLaPrincipal = Exclude<LugarAgente, 'ventana'>
 
 /** Lo que pinta el selector de montaje según dónde viva. */
 export interface TextosMontajeBases {
@@ -27,6 +31,7 @@ interface Lugares {
   proyecto: string
   datos: string
   terminal: string
+  ventana: string
 }
 
 const tx = crearTextos(
@@ -35,16 +40,18 @@ const tx = crearTextos(
     en: {
       proyecto: 'en este proyecto',
       datos: 'en el agente de datos',
-      terminal: 'en el agente de la terminal'
+      terminal: 'en el agente de la terminal',
+      ventana: 'en tu carpeta de usuario'
     } as Lugares,
     /** Complemento de pertenencia («de …») de cada sitio. */
     de: {
       proyecto: 'de este proyecto',
       datos: 'del agente de datos',
-      terminal: 'del agente de la terminal'
+      terminal: 'del agente de la terminal',
+      ventana: 'de tu carpeta de usuario'
     } as Lugares,
     /** Rótulo de la cabecera del modal en los agentes que no son de un proyecto. */
-    cabecera: { datos: 'agente de datos', terminal: 'agente de la terminal' },
+    cabecera: { datos: 'agente de datos', terminal: 'agente de la terminal', ventana: 'carpeta de usuario' },
     tituloBases: (donde: string) => `Bases montadas ${donde}`,
     rotuloMontadas: (n: number, donde: string) => `${n} base(s) montada(s) ${donde}`,
     rotuloMontar: (donde: string) => `Montar bases de datos ${donde}`,
@@ -55,14 +62,16 @@ const tx = crearTextos(
     en: {
       proyecto: 'in this project',
       datos: 'in the data agent',
-      terminal: 'in the terminal agent'
+      terminal: 'in the terminal agent',
+      ventana: 'in your user folder'
     },
     de: {
       proyecto: 'of this project',
       datos: 'of the data agent',
-      terminal: 'of the terminal agent'
+      terminal: 'of the terminal agent',
+      ventana: 'of your user folder'
     },
-    cabecera: { datos: 'data agent', terminal: 'terminal agent' },
+    cabecera: { datos: 'data agent', terminal: 'terminal agent', ventana: 'user folder' },
     tituloBases: (donde: string) => `Databases mounted ${donde}`,
     rotuloMontadas: (n: number, donde: string) => `${n} database${n === 1 ? '' : 's'} mounted ${donde}`,
     rotuloMontar: (donde: string) => `Mount databases ${donde}`,
@@ -104,6 +113,7 @@ export interface LugarHistorial {
  * siempre: el último segmento de la ruta, o «este proyecto» si no hay). El espacio de
  * datos y el agente de la terminal viven en `<userData>/<…>/<id del perfil>`: su carpeta
  * es el ID del perfil, que no le dice nada al usuario, así que se nombran como en su vista.
+ * La ventana de agente, «carpeta de usuario» y no el nombre de la cuenta del sistema.
  */
 export function lugarHistorial(lugar: LugarAgente, projectHostPath: string): LugarHistorial {
   const t = tx()

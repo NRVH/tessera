@@ -12,6 +12,7 @@ import { copyFile, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promis
 import { execFile } from 'node:child_process'
 import { plataformaActual, type Plataforma } from '../../shared/plataforma'
 import type { DisponibilidadEscritorioLinux } from '../../shared/escritorio-linux-ipc'
+import { ARGUMENTO_VENTANA_AGENTE } from '../../shared/ventana-agente-ipc'
 import { txShell } from './textos.ts'
 
 /** El nombre del archivo; coincide con el `app.setDesktopName` del arranque (ver el ADR). */
@@ -34,6 +35,9 @@ export const ACTUALIZAR_MIME = 'update-mime-database'
 
 /** El tipo de las copias de la configuración (`.tessera`). Solo lo declara Tessera. */
 export const MIME_COPIA = 'application/x-tessera'
+
+/** El id de la acción del `.desktop` que abre una ventana de agente (clic derecho en el lanzador). */
+export const ACCION_VENTANA_AGENTE = 'ventana-agente'
 
 /** Lo que el entorno dice de dónde viven los datos del usuario. */
 export interface EntornoDatos {
@@ -176,8 +180,15 @@ export function contenidoDesktop(ejecutable: string, icono: string, fijada: stri
     'Categories=Development;IDE;',
     `MimeType=inode/directory;${MIME_COPIA};`,
     `StartupWMClass=${CLASE_VENTANA}`,
+    `Actions=${ACCION_VENTANA_AGENTE};`,
     `${CLAVE_PROPIA}=true`,
     ...(fijada !== null ? [`${CLAVE_FIJADA}=${fijada}`] : []),
+    '',
+    // La entrada del lanzador al pulsar con el botón derecho: una ventana de agente sin proyecto.
+    `[Desktop Action ${ACCION_VENTANA_AGENTE}]`,
+    'Name=Nueva ventana de agente',
+    'Name[en]=New agent window',
+    `Exec=${exec} ${ARGUMENTO_VENTANA_AGENTE}`,
     ''
   ].join('\n')
 }

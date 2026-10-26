@@ -1,7 +1,7 @@
 # Los iconos del riel se reparten en dos grupos que el usuario decide, y ninguno puede quedarse vacío
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/util/gruposRiel.ts`, `features/layout/ActivityBar.tsx`, `normalizarParticion` en `src/shared/workspace-state-ipc.ts`
+- **Ámbito:** `src/renderer/src/util/gruposRiel.ts`, `util/zonaEnfocada.ts`, `features/layout/ActivityBar.tsx`, `resaltadoRiel.ts`, `normalizarParticion` en `src/shared/workspace-state-ipc.ts`
 
 ## Contexto
 
@@ -21,6 +21,9 @@ botón es una preferencia, no una propiedad de lo que abre.
 - La operación entre grupos es `moverEntreGrupos`, hermana de `reorderByDrag` y no un parámetro suyo:
   opera sobre DOS listas. El saneado del archivo de ajustes es `normalizarParticion`, que reparte
   todos los ids entre los dos grupos con cada uno exactamente una vez.
+- El color del perfil marca el icono de la zona donde trabajas (`util/zonaEnfocada.ts`); el abierto sin el
+  foco va en gris. Con el foco en el agente sigues en su vista: «Archivos» o «Conexiones a bases de datos»,
+  o «Terminal» a pantalla completa (`features/layout/resaltadoRiel.ts`); los de git no, allí no hay agente.
 - `activityBarOrder` y `bottomBarOrder` conservan su nombre (renombrarlos reiniciaría la preferencia
   de todo el mundo), pero su contrato es una PARTICIÓN, no dos conjuntos estancos.
 

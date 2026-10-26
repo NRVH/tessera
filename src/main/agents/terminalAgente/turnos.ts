@@ -177,7 +177,7 @@ export async function emitExit(
 ): Promise<void> {
   let reason: AgentExitReason = 'ok'
   try {
-    reason = await n.sandbox.diagnoseProfile(profile)
+    reason = await n.sandbox.diagnoseProfile(profile, exitCode)
   } catch (err) {
     n.log(`diagnoseProfile error: ${errMsg(err)}`)
     reason = 'unknown'

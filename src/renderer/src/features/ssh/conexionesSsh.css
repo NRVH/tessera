@@ -173,18 +173,6 @@
   color: var(--fg-muted);
   font-weight: 600;
 }
-/* El rótulo de una sección («Recientes»): una etiqueta pequeña, sin acción ni cursor. */
-.ssh-fila-seccion {
-  display: flex;
-  align-items: flex-end;
-  padding: 0 8px 2px;
-  color: var(--fg-faint);
-  font-size: calc(var(--ui-font) - 2px);
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  user-select: none;
-}
 .ssh-grupo-nombre {
   min-width: 0;
   overflow: hidden;
@@ -283,7 +271,7 @@
 }
 .ssh-pie {
   display: flex;
-  /* Tres acciones no caben en los 360 px del lanzador: la tercera baja de línea. */
+  /* Con una letra grande las dos altas no caben en los 360 px del lanzador: la segunda baja de línea. */
   flex-wrap: wrap;
   gap: 4px;
   margin-top: 4px;
@@ -311,78 +299,28 @@
   width: 14px;
   height: 14px;
 }
-/* La actividad de los agentes no es un alta: va aparte, a la derecha (o en su propia línea si no cabe). */
-.ssh-pie-boton.ssh-pie-actividad {
-  margin-left: auto;
+/* «Nueva ventana de agente» no es un alta del perfil: su propia fila, alineada con las de arriba y con la «i». */
+.ssh-pie.ssh-pie-ventana {
+  align-items: center;
+  margin-top: 0;
+}
+/* La «i» va dentro del botón, pegada al texto. Un píxel más abajo que el centro de la caja: el centro
+   visual de un texto en minúsculas cae por debajo del de su línea. */
+.ssh-pie-info {
+  position: relative;
+  top: 1px;
+  margin-left: -2px;
+  display: inline-flex;
+  align-items: center;
   color: var(--fg-faint);
+  cursor: help;
 }
-
-/* --- La actividad de los agentes por SSH ------------------------------------------------- */
-.modal-card.db-conexion-modal.ssh-actividad-modal {
-  width: min(760px, 100%);
-}
-.ssh-actividad-filtro {
-  margin-bottom: 10px;
-}
-/* La tabla se desplaza dentro del diálogo; su cabecera se queda arriba. */
-.ssh-actividad-tabla-caja {
-  max-height: min(420px, 55vh);
-  overflow: auto;
-  border: 1px solid var(--border-soft);
-  border-radius: 8px;
-}
-.ssh-actividad-tabla {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12px;
-}
-.ssh-actividad-tabla th {
-  position: sticky;
-  top: 0;
-  padding: 6px 10px;
-  background: var(--bg-deep);
-  color: var(--fg-muted);
-  font-weight: 600;
-  text-align: left;
-  white-space: nowrap;
-}
-.ssh-actividad-tabla td {
-  padding: 5px 10px;
-  border-top: 1px solid var(--border-soft);
+.ssh-pie-info:hover {
   color: var(--fg);
-  vertical-align: top;
 }
-.ssh-actividad-tabla .ssh-actividad-num {
-  text-align: right;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-.ssh-actividad-fecha {
-  white-space: nowrap;
-  color: var(--fg-muted);
-  font-variant-numeric: tabular-nums;
-}
-.ssh-actividad-alias {
-  max-width: 180px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.ssh-actividad-uso {
-  white-space: nowrap;
-}
-.ssh-actividad-resultado.ssh-actividad-ok {
-  color: var(--green);
-}
-.ssh-actividad-resultado.ssh-actividad-error {
-  color: var(--red);
-}
-.ssh-actividad-resultado.ssh-actividad-aviso {
-  color: var(--yellow);
-}
-.ssh-actividad-vacia {
-  margin: 12px 0;
-  color: var(--fg-muted);
+.ssh-pie-boton .ssh-pie-info svg {
+  width: 13px;
+  height: 13px;
 }
 
 /* --- El diálogo de una conexión --------------------------------------------------------- */

@@ -22,7 +22,7 @@
 
 AI coding agents are powerful, and they are also a new kind of process running on your
 computer with your permissions. Tessera organizes your projects into **workspaces**, runs
-Claude Code and Codex next to them, and lets you decide project by project how far an agent
+Claude Code and Codex next to them, and lets you decide agent by agent how far an agent
 can reach: natively, with the account on your computer, or inside the workspace's own Docker
 sandbox, with an account that belongs to that workspace and only its projects in view.
 
@@ -50,21 +50,22 @@ sandbox, with an account that belongs to that workspace and only its projects in
 
 ## Why Tessera
 
-- **Several AI accounts, each where it belongs.** Each project runs in one of two modes, and
-  the mode decides the account. **Native** projects (the default) use the Claude Code and
-  Codex account already signed in on your computer, the same one in every workspace.
-  **Docker** projects use an account that belongs to their workspace: you sign in once inside
-  that workspace, it is stored with it, and it is never shared with any other workspace. Put
-  your personal plan, your team's plan or an account tied to one project in its own
-  workspace, switch those projects to Docker, and each keeps its own conversation history and
-  usage limits, without signing out every time you switch.
-- **Agents see only what you give them, in Docker mode.** A Docker project's agent runs
-  inside its workspace's container, with that workspace's projects mounted and nothing else:
-  not your home folder, not your other repositories, not the rest of your disk. A wrong
-  command or a malicious prompt stays inside the box. A native agent runs as you, with your
-  permissions, like any agent you start from a terminal.
-- **You stay in control.** New projects open natively unless you change the default in
-  Settings, and any project can be switched between native and Docker from its tab. Agent
+- **Several AI accounts, each where it belongs.** Each agent chooses where it runs in the
+  account button of its header. **Native** (the default) uses the Claude Code or Codex
+  account already signed in on your computer, the same one in every workspace. A **Docker**
+  account belongs to its workspace: you sign in once inside that workspace, it is stored with
+  it, and it is never shared with any other workspace. Put your personal plan, your team's
+  plan or an account tied to one project in its own workspace, pick that account in the
+  agent, and each keeps its own conversation history and usage limits, without signing out
+  every time you switch. A workspace can have several accounts of the same agent, each in its
+  own container, working at the same time.
+- **An agent in Docker sees only what you give it.** It runs inside its workspace's
+  container, with that workspace's projects mounted and nothing else: not your home folder,
+  not your other repositories, not the rest of your disk. A wrong command or a malicious
+  prompt stays inside the box. A native agent runs as you, with your permissions, like any
+  agent you start from a terminal.
+- **You stay in control.** Agents open natively unless you pick a Docker account, and each
+  agent of each project remembers its choice. Agent
   credentials are mounted only while the agent runs. Database access goes through a small
   CLI that never shows the agent a password, and a connection can be made read-only for
   agents. SSH connections work the same way: the agent reaches your servers with `tssh`
@@ -122,11 +123,12 @@ click **Always Allow**.
 
 | What | When you need it |
 | --- | --- |
-| **Docker** | Only for sandbox mode: Docker Desktop on Windows (with the WSL 2 backend) and on macOS, and the system's Docker on Linux (rootless Docker is not supported: Tessera explains it and offers native mode). Tessera builds its sandbox image the first time a workspace needs it. |
-| **Claude Code** and/or **Codex** | Only for native mode: installed on your computer and signed in. In sandbox mode both come preinstalled in the image. |
+| **Docker** | Only for agents that use a Docker account: Docker Desktop on Windows (with the WSL 2 backend) and on macOS, and the system's Docker on Linux (rootless Docker is not supported: Tessera explains it and offers the native agent). Tessera builds its sandbox image the first time a workspace needs it. |
+| **Claude Code** and/or **Codex** | For native agents: installed on your computer and signed in. In Docker both come preinstalled in the image. |
 | **Git** | For the Git view, which runs on your computer. On macOS it comes with the Xcode Command Line Tools. |
 | **OpenSSH client** | For SSH connections. On Windows it is the optional feature "OpenSSH Client", installed by default on Windows 10 and 11 (if it is missing, Tessera uses the one that ships with Git and says so); on macOS and most Linux distributions it comes with the system. |
 | **GNOME Keyring or KWallet** | Only on Linux, to save passwords. Without either one, connections can still be created, but Tessera does not save their password: it never leaves it on disk in near plain text. |
+| **Memory** | Tessera takes 400 to 800 MB, and each open agent adds 0.3 to 1.5 GB depending on its MCP servers. 4 GB fits one or two agents; 8 GB or more, as many as you use. When the computer runs low on memory, Tessera hibernates the agents you are not using sooner and lets you know. |
 | **Java** (optional) | To decompile `.class` files. Tessera ships two engines: CFR, which runs on Java 6 or later, and Vineflower, which needs Java 17 or later. It finds every Java runtime installed and uses the best one for each engine. |
 
 ## Getting started
@@ -138,14 +140,14 @@ click **Always Allow**.
    or delete it, and drag it to reorder.
 3. **Add projects** with the **+** in the project bar ("Abrir proyecto") and pick a folder.
    A project can be a single repository or a folder that contains several.
-4. **Choose where the project runs.** New projects open in the mode set in
-   **Settings › Proyectos › Modo por defecto** (native unless you change it): native (on
-   your computer, with the account signed in on it, shared by every workspace), Docker
-   (isolated, with the workspace's own account) or ask every time. Right-click a project
-   tab to switch it between the two.
-5. **Sign in to the agent.** In Docker mode, the agent panel offers **Iniciar sesión** the
-   first time: that account is then used by every Docker project of the workspace. In native
-   mode, the agent uses the account you are already signed in with on your computer.
+4. **Choose the agent's account.** Each agent opens natively: on your computer, with the
+   account signed in on it, shared by every workspace. The account button in its header opens
+   a picker with two sections, **On your computer** and **In Docker**, with a card per account
+   (each in its own container) and **New Docker account…** at the bottom. From each card you
+   can also rename it, sign out or delete it. The choice is remembered per agent and project.
+5. **Sign in to the agent.** With a new Docker account, the agent panel offers **Iniciar
+   sesión** the first time: that account can then be used by the agents of the workspace. A
+   native agent uses the account you are already signed in with on your computer.
 
 ## Features
 
@@ -168,7 +170,7 @@ click **Always Allow**.
   is closed after some minutes without activity (5 by default, or never) and resumes its
   conversation when you come back. It never happens while the agent is working, waiting for
   you or holding unsent text.
-- Each workspace's container uses an isolated network by default, or the host network
+- Each workspace's container uses its own network by default, or your computer's network
   (when it is enabled in Docker Desktop) so that the servers an agent starts are reachable
   from your browser.
 
@@ -177,39 +179,41 @@ click **Always Allow**.
 ![The agent panel, with Claude Code and Codex one click apart and the account usage in its footer](assets/capturas/agentes.png)
 
 - Both agents are available in every workspace, side by side, in a real terminal.
-- Accounts follow the project's mode. Native projects share the account signed in on your
-  computer. Docker projects use their workspace's own account, one per workspace and agent,
-  kept in its own folder and never shared with another workspace. If you want isolated
-  accounts, switch the project to Docker.
+- Each agent chooses its account. Native agents share the account signed in on your
+  computer. A Docker account belongs to its workspace, kept in its own folder and never
+  shared with another workspace. If you want one account per workspace, pick a Docker
+  account in the agent.
 - **Conversation history** per project: browse past conversations, resume any of them or
   delete them. Opening a project resumes its last conversation.
 - **Account usage** in the agent's footer (the 5-hour and weekly limits), and how much of
   the **context window** the current conversation is using.
-- **Keep agents up to date.** In native mode, one button checks for new Claude Code and
+- **Keep agents up to date.** For native agents, one button checks for new Claude Code and
   Codex versions, installs them and restarts only the sessions that need it, each one back
-  in its conversation; it waits while an affected agent is still working. In Docker mode,
+  in its conversation; it waits while an affected agent is still working. For Docker agents,
   "Actualizar agentes" rebuilds the sandbox image with the latest versions.
-- Paste images and files into the agent's terminal; in Docker mode they are copied inside
-  the container instead of passing a path the agent could not open.
+- Paste images and files into the agent's terminal; for an agent in Docker they are copied
+  inside the container instead of passing a path the agent could not open.
 - **Any other terminal agent**, besides Claude Code and Codex: give it a name, the command
-  you would launch it with and, if you like, how to resume its last conversation. In Docker
-  mode you also write how to install it and Tessera bakes it into the workspace's image.
+  you would launch it with, where it runs (native, for your whole computer, or Docker, for
+  the workspace) and, if you like, how to resume its last conversation. In Docker you also
+  write how to install it and Tessera bakes it into the workspace's image. Each project
+  shows the built-in agents, the native custom ones and the Docker ones of its workspace.
   Agent tabs can be reordered by dragging, and any of them can be hidden.
 
-### Sandbox or native, per project
+### Sandbox or native, per agent
 
-- **Docker sandbox (isolated).** One container per workspace, created and managed by
+- **Agent in Docker.** One container per workspace and account, created and managed by
   Tessera. Projects are mounted under `/workspace/<folder>`; nothing else from your disk is
   mounted except the agent's credentials and, read-only, your SSH keys, so Git over SSH keeps
   working with your own host aliases. The agent has `sudo` inside its container to install
   tools, without any extra Docker privileges. In **Settings › Proyectos** you can bake
   document tools, the system libraries a test browser needs, or any other Debian packages
   into the image.
-- **Native (the default).** The agent and the terminal run on your computer, with your own
-  account and your own tools: a desktop app started from local scripts, a database only
-  reachable through your VPN. It needs no Docker, and the agent has the same access you
-  have. Change the default in **Settings › Proyectos › Modo por defecto**, or switch a single
-  project from its tab.
+- **Native (the default).** The agent runs on your computer, with your own account and your
+  own tools: a desktop app started from local scripts, a database only reachable through
+  your VPN. It needs no Docker, and the agent has the same access you have. The bottom
+  terminal is always native. Switch an agent between the two from the account button in its
+  header.
 
 ### Agent mosaic
 
@@ -266,8 +270,8 @@ you used to enter it.
 ![Terminal panel at the bottom of the window](assets/capturas/terminales.png)
 
 - A terminal panel at the bottom of the window for the active project, with several
-  terminals in tabs: inside the workspace's container in Docker mode, or your own shell in
-  native mode (PowerShell on Windows, your login shell on macOS and Linux).
+  terminals in tabs, always native: your own shell (PowerShell on Windows, your login shell
+  on macOS and Linux).
 - Find in the scrollback, copy and paste that behave like the platform expects, and
   GPU-accelerated rendering that you can turn off in Settings.
 - **Colored logs**: output that arrives without color is highlighted (errors, warnings,
@@ -285,7 +289,7 @@ you used to enter it.
 
 - **Each workspace's SSH connections**, named and in groups, open in terminal tabs that show
   in all of its projects, and also with no project open. In full screen they stay pinned in
-  a rail on the left; otherwise, in the terminal's ▾, with the recent ones on top.
+  a rail on the left; otherwise, in the terminal's ▾.
 - **Three ways in**: password, key file (`.pem` or OpenSSH, which Tessera keeps as a
   protected copy without touching the original) or the system keys (the SSH agent and your
   `.ssh` folder). The password and the key's passphrase are stored encrypted and supplied
@@ -314,8 +318,8 @@ you used to enter it.
   terminal agent can list the connections, run commands and copy files with a small CLI,
   `tssh`, by connection name. They never see the password or the key, and they only reach
   servers whose fingerprint you already accepted. Each connection's "Available to agents"
-  checkbox decides whether they see it, and "Agent activity" shows what each one asked for,
-  with which connection, and how it ended.
+  checkbox decides whether they see it, and every request is recorded in `logs/ssh.log`
+  (which connection and how it ended, never the command).
 
 ### Databases
 
@@ -349,7 +353,7 @@ you used to enter it.
 ![Settings with its category rail and search box](assets/capturas/configuracion.png)
 
 A searchable settings window (Ctrl+, / ⌘,): appearance, zoom and language (English or
-Spanish), terminal fonts, the default project mode and agent hibernation, the sandbox image,
+Spanish), terminal fonts, agent hibernation, the sandbox image,
 database defaults, system integration, updates, and an About page.
 
 **Export and import** takes your setup to another computer (Windows, macOS or Linux): the
@@ -412,18 +416,18 @@ In the **Connections** view:
 | Linux | `~/.config/Tessera` |
 
 That folder holds your workspaces, the open tabs, settings, the agent sign-ins used in
-sandbox mode, database connections (with encrypted passwords), SSH connections (with encrypted
+Docker agents, database connections (with encrypted passwords), SSH connections (with encrypted
 passwords, the protected copies of their keys and each server's fingerprints), saved consoles, Oracle
 Instant Client if you downloaded it, and logs. Writes are crash-safe, with a backup copy of each file.
 
-**Your projects are never copied.** Tessera opens them where they are; in sandbox mode it
+**Your projects are never copied.** Tessera opens them where they are; for agents in Docker it
 mounts the project folders into the workspace's container. The Windows uninstaller asks
 whether to keep or delete your data, and an update never touches it.
 
 ## Privacy
 
-- **What an agent sees.** In sandbox mode, only the projects of its workspace, its own
-  credentials and, read-only, your SSH keys. In native mode, an agent runs as you on your
+- **What an agent sees.** An agent in Docker sees only the projects of its workspace,
+  its own credentials and, read-only, your SSH keys. A native agent runs as you on your
   computer, like it would in any terminal.
 - **No telemetry.** Tessera has no analytics, no crash reporting service and no usage
   tracking. Logs are written only to the data folder above.
@@ -447,7 +451,7 @@ whether to keep or delete your data, and an update never touches it.
 ## Building from source
 
 You need **Node.js 22.18 or later** (the release workflow uses the latest Node 22) and
-**Git**. For sandbox mode you also need Docker.
+**Git**. For agents in Docker you also need Docker.
 
 ```bash
 git clone https://github.com/NRVH/tessera.git
@@ -501,7 +505,8 @@ macOS the app is signed ad hoc automatically: you do not need an Apple developer
   node-pty for the terminals, the system's `git` binary for Git, the system's OpenSSH
   client for SSH and SFTP, and Docker for the sandbox.
 - The editor, the explorer and Git run on your computer (they are your tools); the agents
-  and their terminals run in the workspace's container, unless the project is native.
+  run on your computer or, if you pick a Docker account, in the workspace's container; the
+  bottom terminal is always native.
 - The interface runs with `contextIsolation` and `sandbox` enabled and talks to the main
   process only through typed IPC. Two rules cross all of it:
   - **The interface never sees or sends host paths.** Everything travels as paths relative

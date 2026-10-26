@@ -54,8 +54,6 @@ function montar(): Montaje {
 interface ProyectoSembrado {
   ruta: string
   nombre: string
-  /** ¿En modo nativo? Lo normal aquí: sin Docker. */
-  nativo?: boolean
   agenteDiferido?: boolean
   /** Restaurado dormido: su agente no arranca hasta que algo lo despierte. */
   hibernado?: boolean
@@ -72,7 +70,6 @@ function sembrar(datos: string, porPerfil: { personal?: ProyectoSembrado[]; otro
   })
   writeFileSync(join(datos, 'profiles.json'), JSON.stringify([perfil('personal', 'Personal', '#9814c8'), perfil('otro', 'Otro', '#1f9e7a')]))
   const byProfile: Record<string, object> = {}
-  const nativos: string[] = []
   for (const [id, lista] of Object.entries(porPerfil)) {
     if (!lista || lista.length === 0) continue
     byProfile[id] = {
@@ -84,7 +81,6 @@ function sembrar(datos: string, porPerfil: { personal?: ProyectoSembrado[]; otro
       })),
       activePath: lista[0].ruta
     }
-    for (const p of lista) if (p.nativo !== false) nativos.push(`${id}|${p.ruta}`)
   }
   writeFileSync(
     join(datos, 'workspace-state.json'),
@@ -92,7 +88,7 @@ function sembrar(datos: string, porPerfil: { personal?: ProyectoSembrado[]; otro
       version: 1,
       activeProfileId: 'personal',
       byProfile,
-      settings: { defaultProjectMode: 'windows', windowsModeProjects: nativos, menuWindowsAvisado: true }
+      settings: { agentModeByTarget: {}, menuWindowsAvisado: true }
     })
   )
 }
@@ -104,7 +100,8 @@ interface Persistido {
   diferidos: string[]
   /** `perfil|ruta` de los que siguen dormidos. */
   hibernados: string[]
-  nativos: string[]
+  /** Nativo o Docker elegido por agente. */
+  modos: Record<string, string>
 }
 
 /** Lo que dice `workspace-state.json`; null si no está o está a medio escribir. */
@@ -114,7 +111,7 @@ function persistido(datos: string): Persistido | null {
   try {
     const doc = JSON.parse(readFileSync(ruta, 'utf8')) as {
       byProfile?: Record<string, { openProjects?: Array<{ projectHostPath?: string; agenteDiferido?: boolean; estado?: string }> }>
-      settings?: { windowsModeProjects?: string[] }
+      settings?: { agentModeByTarget?: Record<string, string> }
     }
     const todos = Object.entries(doc.byProfile ?? {}).flatMap(([id, t]) =>
       (t.openProjects ?? []).map((p) => ({
@@ -127,7 +124,7 @@ function persistido(datos: string): Persistido | null {
       proyectos: todos.map((p) => p.clave),
       diferidos: todos.filter((p) => p.diferido).map((p) => p.clave),
       hibernados: todos.filter((p) => p.dormido).map((p) => p.clave),
-      nativos: doc.settings?.windowsModeProjects ?? []
+      modos: doc.settings?.agentModeByTarget ?? {}
     }
   } catch {
     return null
@@ -160,34 +157,27 @@ async function conApp(
 
 test.describe('abrir un archivo desde el sistema con Tessera cerrada', () => {
   /** Arranca con el archivo en `argv`: tiene que caer en el proyecto restaurado que lo contiene. */
-  async function comprobarArranqueEnFrio(nativo: boolean): Promise<void> {
+  async function comprobarArranqueEnFrio(): Promise<void> {
     const m = montar()
-    const restaurado: ProyectoSembrado = { ruta: m.contenedora, nombre: 'contenedora', nativo }
+    const restaurado: ProyectoSembrado = { ruta: m.contenedora, nombre: 'contenedora' }
     await conApp(m, [m.archivoDeContenedora], { personal: [restaurado] }, async ({ win, datos }) => {
       // Que el archivo se abra prueba que la apertura ya se procesó entera.
       await expect(pestanaEditor(win, 'nota.txt')).toHaveCount(1, { timeout: 30_000 })
       await expect(win.locator('.tabs-projects .project-tab')).toHaveCount(1)
       await expect(proyectoActivo(win, 'contenedora')).toHaveCount(1)
       await expect(win.locator(COLUMNA), 'un proyecto que ya estaba abierto no se pliega').not.toHaveClass(/\bcc-hidden\b/)
-      // El modo nativo se guarda al instante y las pestañas a los 150 ms: margen para que
-      // un proyecto o una clave de más lleguen al disco antes de mirarlo.
+      // Los ajustes se guardan con espera y las pestañas a los 150 ms: margen para que un proyecto
+      // o una clave de más lleguen al disco antes de mirarlo.
       await win.waitForTimeout(1_500)
       const p = persistido(datos)
       expect(p?.proyectos, 'no se abrió un segundo proyecto sobre el restaurado').toEqual([`personal|${m.contenedora}`])
-      expect(p?.nativos, 'ningún proyecto ganó el modo nativo por abrir el archivo').toEqual(
-        nativo ? [`personal|${m.contenedora}`] : []
-      )
+      expect(p?.modos, 'abrir el archivo no cambia el modo de ningún agente').toEqual({})
       expect(p?.diferidos, 'ni la marca de agente diferido').toEqual([])
     })
   }
 
   test('cae en el proyecto restaurado que lo contiene, sin duplicarlo', async () => {
-    await comprobarArranqueEnFrio(true)
-  })
-
-  // La mitad de SEGURIDAD: el restaurado corría en contenedor y no puede pasar a nativo.
-  test('no pasa a modo nativo un proyecto restaurado que estaba en contenedor', async () => {
-    await comprobarArranqueEnFrio(false)
+    await comprobarArranqueEnFrio()
   })
 })
 

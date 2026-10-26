@@ -111,6 +111,7 @@ export const txActualizacion = crearTextos(
       reiniciadas: (sesiones: string, n: number) => `${sesiones} ${n === 1 ? 'reiniciada' : 'reiniciadas'}.`
     },
     pasos: {
+      ventanaAgente: 'Ventana de agente',
       comprobando: 'Comprobando versiones…',
       deteniendo: (etq: string | null) => `Deteniendo las sesiones de ${etq ?? 'los agentes'}…`,
       instalando: (etq: string | null) => `Instalando ${etq ?? 'la versión nueva'}…`,
@@ -274,6 +275,7 @@ export const txActualizacion = crearTextos(
       reiniciadas: (sesiones: string) => `${sesiones} restarted.`
     },
     pasos: {
+      ventanaAgente: 'Agent window',
       comprobando: 'Checking versions…',
       deteniendo: (etq: string | null) => `Stopping the sessions of ${etq ?? 'the agents'}…`,
       instalando: (etq: string | null) => `Installing ${etq ?? 'the new version'}…`,

@@ -13,7 +13,7 @@ import type { SearchAddon } from '@xterm/addon-search'
 import type { WebglAddon } from '@xterm/addon-webgl'
 import type { TerminalAppearance } from '../../theme/terminalAppearance'
 import type { FlowWriter } from './flowControl'
-import type { RefsTerminal, TerminalStatus } from './terminalPaneTipos'
+import type { CaidaContenedor, RefsTerminal, TerminalStatus } from './terminalPaneTipos'
 
 /** Estado de la sesión del pane y sus setters (estables, como todo `useState`). */
 export interface EstadoSesion {
@@ -33,6 +33,9 @@ export interface EstadoSesion {
   /** Solo SSH: qué pasó al terminar la sesión, para la franja de reconexión; `null` mientras vive. */
   finSsh: string | null
   setFinSsh: Dispatch<SetStateAction<string | null>>
+  /** Solo en modo Docker: el contenedor murió y la sesión se recupera sola (`CaidaContenedor`). */
+  caidaContenedor: CaidaContenedor | null
+  setCaidaContenedor: Dispatch<SetStateAction<CaidaContenedor | null>>
 }
 
 /** Estado de la sesión del pane: estado, id, código de salida, error, reload en vuelo y si ya llegaron datos. */
@@ -44,9 +47,11 @@ export function useEstadoSesion(): EstadoSesion {
   const [reloading, setReloading] = useState(false)
   const [datosRecibidos, setDatosRecibidos] = useState(false)
   const [finSsh, setFinSsh] = useState<string | null>(null)
+  const [caidaContenedor, setCaidaContenedor] = useState<CaidaContenedor | null>(null)
   return {
     status, setStatus, sessionId, setSessionId, exitCode, setExitCode, error, setError,
-    reloading, setReloading, datosRecibidos, setDatosRecibidos, finSsh, setFinSsh
+    reloading, setReloading, datosRecibidos, setDatosRecibidos, finSsh, setFinSsh,
+    caidaContenedor, setCaidaContenedor
   }
 }
 
@@ -81,6 +86,7 @@ export function useRefsTerminal(
   const hasOpenedOnce = useRef(false)
   const intentado = useRef(false)
   const inicioSesion = useRef(0)
+  const recuperando = useRef(false)
   const visibleRef = useRef(visible)
   const resizeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const appearanceRef = useRef(appearance)
@@ -103,6 +109,7 @@ export function useRefsTerminal(
       hasOpenedOnce,
       intentado,
       inicioSesion,
+      recuperando,
       visible: visibleRef,
       resizeTimer,
       appearance: appearanceRef,

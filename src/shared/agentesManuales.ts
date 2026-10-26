@@ -13,6 +13,12 @@ import { txAgentesManuales } from './textosAgentes.ts'
 /** Id de un agente manual: `m-` y un slug, porque acaba en rutas del perfil y en una línea de `sh`. */
 export type IdAgenteManual = `m-${string}`
 
+/**
+ * La cuenta predeterminada de un agente manual en Docker: su carpeta del perfil, sin entrada en el
+ * registro de cuentas. Las que cree el usuario sí van al registro, cada una con su carpeta.
+ */
+export const CUENTA_AGENTE_MANUAL = 'manual'
+
 /** Cualquier agente de una pestaña: uno de serie o uno manual. */
 export type IdAgente = AgentKind | IdAgenteManual
 

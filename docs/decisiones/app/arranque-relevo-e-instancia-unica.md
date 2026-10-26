@@ -1,7 +1,7 @@
 # El proceso decide al cargar si es el relevo o Tessera, y solo Tessera toma el cerrojo de instancia única
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/app/proceso.ts`, `src/main/app/instanciaUnica.ts`, `src/main/app/devUserData.ts`, `src/main/index.ts`
+- **Ámbito:** `src/main/app/proceso.ts`, `src/main/app/instanciaUnica.ts`, `src/main/app/devUserData.ts`, `src/main/app/ventanasAgentePuro.ts`, `src/main/index.ts`
 
 ## Contexto
 
@@ -20,15 +20,19 @@ mismo `userData` se pisan: el atajo `tdb` y los temporales de nombre fijo de la 
   moría al arrancar (la Tessera que se cierra aún lo tiene) y, al revés, mientras su ventana espera al usuario
   bloquearía abrir Tessera con el icono. En `whenReady` sale por `arrancarRelevo` sin tocar nada más.
 - **Tessera:** fija el AppUserModelID (`com.noe.tessera`, `.dev` en desarrollo: la instalada y la de `npm run dev`
-  no se agrupan en la barra de tareas); lee las rutas de «Abrir con Tessera» del `argv`; si llegan CON ruta y hay un
-  relevo en vuelo, sale (en Windows un proceso lanzado desde la carpeta de instalación impide renombrarla, el
-  «error 2»); reclama el cerrojo; encola las rutas; y registra `second-instance` y `open-file`.
+  no se agrupan en la barra de tareas); lee las rutas de «Abrir con Tessera» del `argv`; si llegan CON ruta (o con
+  `--ventana-agente`) y hay un relevo en vuelo, sale (en Windows un proceso lanzado desde la carpeta de instalación
+  impide renombrarla, el «error 2»); reclama el cerrojo; encola las rutas; y registra `second-instance` y `open-file`.
+- `second-instance` con `--ventana-agente` abre una ventana de agente; sin ella y sin principal (se cerró con ventanas
+  de agente abiertas) crea la principal. Lo que llega arrancando se atiende al terminar el arranque
+  (`fijarAtencionVentanas`), también la latch de traer al frente si ese arranque no creó la principal
+  → [`agentes/ventana-de-agente.md`](../agentes/ventana-de-agente.md).
 - `second-instance` y `open-file` se registran al cargar, no en `whenReady`: en frío pasan segundos entre el cerrojo
   y la ventana, y en macOS el `open-file` que abrió la app llega antes de `ready`. Las dos vías van a la MISMA cola,
   salvo los `.tessera`, que van a la del importar de la configuración.
 - `open-file` no mira el relevo en vuelo: en macOS la actualización sustituye el `.app` y no hay carpeta bloqueada.
 - Un SEGUNDO oyente de `open-file` (`registrarAperturaMac`), registrado al final del arranque, trae la ventana al
-  frente o la crea si no queda ninguna. Va después para no crear dos ventanas en frío; en Windows no se registra.
+  frente o la crea si no hay principal. Va después para no crear dos ventanas en frío; en Windows no se registra.
 
 ## Consecuencias
 

@@ -132,13 +132,6 @@ export const txTerminales = crearTextos(
 
 export const txProyectos = crearTextos(
   {
-    nativo: (sistema: string) => `${sistema} (nativo)`,
-    nativoAyuda: (tuEquipo: string, shell: string) =>
-      `Abre en ${tuEquipo} con tu cuenta personal, sin Docker. La terminal es ${shell}.`,
-    docker: 'Docker (aislado)',
-    dockerAyuda: 'Abre en el contenedor del perfil, con su cuenta privada.',
-    preguntar: 'Preguntar siempre',
-    preguntarAyuda: 'Pregunta el modo con un modal cada vez que abres un proyecto.',
     documentos: 'Herramientas de documentos',
     documentosAyuda:
       'LibreOffice y poppler, para convertir y capturar PDF, Word, Excel y PowerPoint. Añade en torno a 1 GB a la imagen.',
@@ -159,19 +152,9 @@ export const txProyectos = crearTextos(
     otrosPlaceholder: 'p. ej. jq ripgrep',
     hibernar: 'Hibernar el agente inactivo tras',
     volver5: 'Volver a 5 minutos',
-    grupoNuevo: 'Al abrir un proyecto nuevo',
-    grupoNuevoAyuda:
-      'Solo decide con qué modo NACE. El de un proyecto ya abierto se cambia desde el menú de su pestaña.',
     grupoSegundoPlano: 'Agentes en segundo plano'
   },
   {
-    nativo: (sistema: string) => `${sistema} (native)`,
-    nativoAyuda: (tuEquipo: string, shell: string) =>
-      `Opens on ${tuEquipo} with your personal account, without Docker. The terminal is ${shell}.`,
-    docker: 'Docker (isolated)',
-    dockerAyuda: 'Opens in the profile’s container, with its private account.',
-    preguntar: 'Always ask',
-    preguntarAyuda: 'Asks for the mode in a dialog every time you open a project.',
     documentos: 'Document tools',
     documentosAyuda:
       'LibreOffice and poppler, to convert and capture PDF, Word, Excel and PowerPoint files. Adds about 1 GB to the image.',
@@ -192,9 +175,6 @@ export const txProyectos = crearTextos(
     otrosPlaceholder: 'e.g. jq ripgrep',
     hibernar: 'Hibernate the idle agent after',
     volver5: 'Back to 5 minutes',
-    grupoNuevo: 'When opening a new project',
-    grupoNuevoAyuda:
-      'It only decides which mode a project STARTS in. For a project that is already open, change it from its tab menu.',
     grupoSegundoPlano: 'Background agents'
   }
 )

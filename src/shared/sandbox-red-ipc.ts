@@ -51,8 +51,8 @@ export interface ResultadoRedPrevuelo {
   notaEgress: string | null
   /**
    * ¿Hay OTRO perfil vivo ahora mismo en modo anfitrión? En ese modo todos los
-   * contenedores comparten el espacio de puertos del equipo, así que dos Codex chocan
-   * en el 1455 y el segundo login se queda sin vía. Nombre del perfil, o `null`.
+   * contenedores comparten el espacio de puertos del equipo, así que dos servidores en
+   * el mismo puerto chocan. Nombre del perfil, o `null`.
    */
   otroPerfilEnAnfitrion: string | null
   /**
@@ -64,6 +64,7 @@ export interface ResultadoRedPrevuelo {
 }
 
 /** Motivo del aviso. El texto lo compone el main; esto es para poder distinguirlos. */
+/** `choque-1455`: otro programa tiene el puerto al que vuelve el login de Codex. */
 export type MotivoAvisoRed = 'sonda-fallida' | 'choque-1455'
 
 /** Aviso de red que el main empuja al renderer, ya redactado. */

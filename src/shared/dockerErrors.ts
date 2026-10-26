@@ -5,7 +5,7 @@
 // `normalizarErrorIpc` quita el «Error invoking remote method…» con que Electron envuelve
 // lo que cruza un `invoke`; sin eso, comparar por prefijo no casaría nunca.
 // La comparación va anclada (`startsWith`): con `includes`, un detalle que citara la frase
-// de pasada pondría cara de «Docker apagado» a otra cosa.
+// de pasada pondría cara de «Docker apagado» a otra cosa; `avisoParaUsuario`, a la vista.
 // =============================================================================
 import type { AgentExitReason } from './agent-terminal-ipc.ts'
 import { crearTextos } from './i18n.ts'
@@ -13,6 +13,17 @@ import { plataformaActual, type Plataforma } from './plataforma.ts'
 
 /** Prefijo EXACTO con el que el main marca "el daemon no responde". */
 export const PREFIJO_DOCKER_NO_DISPONIBLE = 'Docker no disponible:'
+
+/** Marca de un rechazo que el main ya redactó para el usuario: no es un fallo técnico. */
+const MARCA_AVISO_USUARIO = 'Aviso de Tessera:'
+
+/**
+ * Un rechazo del main con titular y explicación para el usuario: el pane los enseña tal cual, a la
+ * vista, en vez de plegarlos como detalle técnico.
+ */
+export function avisoParaUsuario(titulo: string, explicacion: string): string {
+  return `${MARCA_AVISO_USUARIO}${titulo}\n${explicacion}`
+}
 
 /**
  * Los textos de este módulo en los dos idiomas. Los pasos de cada plataforma son listas:
@@ -64,14 +75,39 @@ const txDocker = crearTextos(
       'daemon-down': {
         titulo: 'Docker no está disponible',
         sugerencia:
-          'Tessera no puede arrancar Docker por ti. Abre Docker Desktop, espera a que el motor esté en "Running" y pulsa "Reintentar" aquí abajo.'
+          'Tessera no puede arrancar Docker por ti. Abre Docker Desktop: en cuanto el motor esté en "Running", una sesión abierta se recupera sola; si no, pulsa "Reintentar".'
       },
       unknown: {
         titulo: 'No se pudo determinar la causa',
         sugerencia:
           'El diagnóstico de Docker falló, así que Tessera no sabe si fue una salida normal o una caída. Revisa Docker Desktop y pulsa "Reintentar".'
+      },
+      'sin-memoria': {
+        titulo: 'El agente terminó con poca memoria en el equipo',
+        sugerencia: 'Cierra programas o proyectos que no uses y pulsa "Reabrir": la conversación sigue donde estaba.'
+      },
+      'parado-por-limite': {
+        titulo: 'Tessera paró este agente para hacer sitio',
+        sugerencia:
+          'Se llegó al límite de contenedores de Docker al abrir otro agente, y tu política eligió este. Pulsa "Reabrir": la conversación sigue donde estaba.'
+      },
+      'parado-por-saturacion': {
+        titulo: 'Tessera paró este agente porque Docker se quedaba sin memoria',
+        sugerencia:
+          'La memoria de Docker pasó del umbral de tus ajustes durante el tiempo que fijaste, y tu política eligió este. Pulsa "Reabrir" cuando haya sitio: la conversación sigue donde estaba.'
       }
-    } as Record<AgentExitReason, TextoSalida>
+    } as Record<AgentExitReason, TextoSalida>,
+    sinMemoriaContenedor: {
+      titulo: 'Docker se quedó sin memoria',
+      sugerencia:
+        'El sistema lo paró al agotarse la memoria que tiene Docker. Cierra agentes o terminales de Docker que no uses, o dale más memoria en Docker Desktop, y pulsa "Reabrir": la conversación sigue donde estaba.'
+    },
+    // En Linux Docker usa la memoria del equipo: no hay un ajuste que subir.
+    sinMemoriaContenedorLinux: {
+      titulo: 'El equipo se quedó sin memoria',
+      sugerencia:
+        'El sistema paró este proceso de Docker al agotarse la memoria. Cierra agentes, terminales de Docker o programas que no uses y pulsa "Reabrir": la conversación sigue donde estaba.'
+    }
   },
   {
     pasosWindows: [
@@ -114,13 +150,37 @@ const txDocker = crearTextos(
       'daemon-down': {
         titulo: 'Docker is not available',
         sugerencia:
-          'Tessera cannot start Docker for you. Open Docker Desktop, wait for the engine to be "Running" and click "Retry" below.'
+          'Tessera cannot start Docker for you. Open Docker Desktop: as soon as the engine is "Running", an open session recovers on its own; if not, click "Retry".'
       },
       unknown: {
         titulo: 'The cause could not be determined',
         sugerencia:
           'The Docker diagnosis failed, so Tessera does not know whether it was a normal exit or a crash. Check Docker Desktop and click "Retry".'
+      },
+      'sin-memoria': {
+        titulo: 'The agent ended while the computer was low on memory',
+        sugerencia: 'Close programs or projects you are not using and click "Reopen": the conversation continues where it was.'
+      },
+      'parado-por-limite': {
+        titulo: 'Tessera stopped this agent to make room',
+        sugerencia:
+          'The Docker container limit was reached while opening another agent, and your policy picked this one. Click "Reopen": the conversation continues where it was.'
+      },
+      'parado-por-saturacion': {
+        titulo: 'Tessera stopped this agent because Docker was running out of memory',
+        sugerencia:
+          'Docker memory stayed above the threshold in your settings for the time you set, and your policy picked this one. Click "Reopen" when there is room: the conversation continues where it was.'
       }
+    },
+    sinMemoriaContenedor: {
+      titulo: 'Docker ran out of memory',
+      sugerencia:
+        'The system stopped it when Docker’s memory ran out. Close Docker agents or terminals you are not using, or give it more memory in Docker Desktop, and click "Reopen": the conversation continues where it was.'
+    },
+    sinMemoriaContenedorLinux: {
+      titulo: 'The computer ran out of memory',
+      sugerencia:
+        'The system stopped this Docker process when memory ran out. Close Docker agents, terminals or programs you are not using and click "Reopen": the conversation continues where it was.'
     }
   }
 )
@@ -173,7 +233,10 @@ export const RAZONES_SALIDA: readonly AgentExitReason[] = [
   'ok',
   'container-down',
   'daemon-down',
-  'unknown'
+  'unknown',
+  'sin-memoria',
+  'parado-por-limite',
+  'parado-por-saturacion'
 ]
 
 export interface TextoSalida {
@@ -189,6 +252,15 @@ export interface TextoSalida {
  */
 export function textosSalida(): Record<AgentExitReason, TextoSalida> {
   return txDocker().salida
+}
+
+/**
+ * El texto de 'sin-memoria' de una sesión en un contenedor. En Linux Docker no tiene memoria propia
+ * que subir: el remedio es otro y la frase se bifurca entera. La plataforma entra por parámetro: el
+ * renderer no tiene `process`.
+ */
+export function textoSinMemoriaContenedor(plataforma: Plataforma): TextoSalida {
+  return plataforma === 'linux' ? txDocker().sinMemoriaContenedorLinux : txDocker().sinMemoriaContenedor
 }
 
 /**
@@ -225,6 +297,10 @@ export interface AvisoArranque {
  */
 export function clasificarErrorArranque(bruto: string, tituloGenerico: string): AvisoArranque {
   const limpio = normalizarErrorIpc(bruto)
+  if (limpio.startsWith(MARCA_AVISO_USUARIO)) {
+    const [titulo, ...resto] = limpio.slice(MARCA_AVISO_USUARIO.length).split('\n')
+    return { titulo: titulo.trim(), sugerencia: resto.join('\n').trim() || undefined }
+  }
   if (limpio.startsWith(PREFIJO_DOCKER_NO_DISPONIBLE)) {
     const detalle = limpio.slice(PREFIJO_DOCKER_NO_DISPONIBLE.length).trim()
     const caido = textosSalida()['daemon-down']

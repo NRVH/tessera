@@ -541,5 +541,19 @@ check(
   ciclosFeatures.every((c) => c.length <= MAX_FEATURES_EN_CICLO),
   entreFeatures
 )
+// El build declara los barriles sin efectos (`electron.vite.config.ts`): lo que hagan al cargar se perdería.
+const conEfectos = [...fuentes]
+  .filter(([f]) => /\/features\/[^/]+\/index\.tsx?$/.test(f))
+  .filter(([f, texto]) =>
+    ts.createSourceFile(f, texto, ts.ScriptTarget.Latest).statements.some(
+      (st) =>
+        !ts.isExportDeclaration(st) &&
+        !ts.isInterfaceDeclaration(st) &&
+        !ts.isTypeAliasDeclaration(st) &&
+        !(ts.isImportDeclaration(st) && st.importClause !== undefined)
+    )
+  )
+  .map(([f]) => f.slice(RENDERER.length + 1))
+check('los index.ts de las features solo reexportan', conEfectos.length === 0, conEfectos.join(', ') || 'todos')
 informar(hallazgos, op)
 cerrar('ciclos', fuentes.size, hallazgos, op)

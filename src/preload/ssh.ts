@@ -7,9 +7,7 @@
 import { ipcRenderer, webUtils } from 'electron'
 import {
   SSH_CHANNELS,
-  type SshActividadPerfil,
   type SshAviso,
-  type SshPedirActividad,
   type SshBorrarConexion,
   type SshBorrarGrupo,
   type SshClaveElegida,
@@ -95,8 +93,6 @@ export interface SshApi {
   onPreguntaRetirada: (cb: (retirada: SshPreguntaRetirada) => void) => () => void
   /** La respuesta del usuario a una pregunta, o `null` si cancela. No se guarda. */
   responderAskpass: (req: SshRespuestaAskpass) => Promise<void>
-  /** Lo que hicieron los agentes con `tssh` en un perfil, lo más reciente primero. */
-  actividad: (req: SshPedirActividad) => Promise<SshActividadPerfil>
 }
 
 export const ssh: SshApi = {
@@ -143,6 +139,5 @@ export const ssh: SshApi = {
     ipcRenderer.on(SSH_CHANNELS.ASKPASS_RETIRAR, listener)
     return () => ipcRenderer.removeListener(SSH_CHANNELS.ASKPASS_RETIRAR, listener)
   },
-  responderAskpass: (req) => ipcRenderer.invoke(SSH_CHANNELS.ASKPASS_RESPONDER, req),
-  actividad: (req) => ipcRenderer.invoke(SSH_CHANNELS.ACTIVIDAD, req)
+  responderAskpass: (req) => ipcRenderer.invoke(SSH_CHANNELS.ASKPASS_RESPONDER, req)
 }

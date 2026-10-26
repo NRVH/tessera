@@ -7,12 +7,11 @@
 // =============================================================================
 import { useRef, useState } from 'react'
 import { useArrastreProyectos, type ArrastreProyectos } from './useArrastreProyectos'
-import { IconoAbrir, IconoAjustes, IconoCerrar } from '../../comun/iconosMenu'
+import { IconoAbrir, IconoCerrar } from '../../comun/iconosMenu'
 import type { OpenProject } from './tabsModel'
 import type { ProjectDotState } from './profileDotState'
-import { ContextMenu, SEP } from '../../comun/ContextMenu'
+import { ContextMenu } from '../../comun/ContextMenu'
 import { ConfirmDialog } from '../../comun/ConfirmDialog'
-import { ModeIcon } from './modeIcon'
 import { txPestanas } from './textos.ts'
 
 interface ProjectTabsProps {
@@ -27,10 +26,6 @@ interface ProjectTabsProps {
   onReplaceProject: (projectHostPath: string) => void
   /** Estado visual del glifo por proyecto (vivo / gris hibernado / spinner al despertar). */
   dotStates: Record<string, ProjectDotState>
-  /** Rutas de proyectos en MODO NATIVO (host, cuenta personal, sin Docker). */
-  windowsModePaths: Set<string>
-  /** Alterna el modo nativo de un proyecto (host nativo ⇄ Docker aislado). */
-  onToggleWindowsMode: (projectHostPath: string) => void
   /**
    * Perfil dueño de estas pestañas. El arrastre lo captura al empezar y no se aplica si al
    * soltar el perfil activo es otro.
@@ -90,40 +85,48 @@ function PlusIcon(): React.JSX.Element {
   )
 }
 
+/** Carpeta con `</>`: «un proyecto de código», con el trazo de los demás iconos de la banda. */
+function IconoProyecto({ color }: { color: string }): React.JSX.Element {
+  return (
+    <svg
+      className="project-glyph"
+      viewBox="0 0 16 16"
+      width={13}
+      height={13}
+      fill="none"
+      stroke={color}
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M1.75 4.25v8.25c0 .55.45 1 1 1h10.5c.55 0 1-.45 1-1V6c0-.55-.45-1-1-1H7.9L6.6 3.4c-.2-.25-.5-.4-.8-.4H2.75c-.55 0-1 .45-1 1.25z" />
+      <path d="M6.1 7.6 4.9 9.1l1.2 1.5M9.9 7.6l1.2 1.5-1.2 1.5M8.55 7.3l-1.1 3.6" />
+    </svg>
+  )
+}
+
 /**
- * Glifo de MODO de un proyecto: cubo (Docker aislado) o monitor (nativo, ámbar), con el
- * estado de sesión en el mismo trazo: spinner al despertar, gris si está hibernado. El modo
- * y el estado completos viven en el `title` de la pestaña, así que el svg es decorativo.
+ * Glifo de un proyecto, con el estado de sesión en el mismo trazo: spinner al despertar, gris si
+ * está hibernado. El estado completo vive en el `title` de la pestaña, así que el svg es decorativo.
  */
-function ModeGlyph({
-  windows,
-  state
-}: {
-  windows: boolean
-  state: ProjectDotState
-}): React.JSX.Element {
+function GlifoProyecto({ state }: { state: ProjectDotState }): React.JSX.Element {
   if (state === 'waking') {
     return <span className="project-dot spinner" title={txPestanas().proyectos.despertando} aria-label={txPestanas().proyectos.despertandoAria} />
   }
-  // `--azul` y no `--accent`: el acento sigue al perfil y con uno ámbar el glifo de Docker
-  // y el del modo nativo se verían del mismo color a 13 px.
-  const color =
-    state === 'hibernated' ? 'var(--fg-faint)' : windows ? 'var(--mode-windows)' : 'var(--azul)'
-  return <ModeIcon windows={windows} color={color} size={13} />
+  return <IconoProyecto color={state === 'hibernated' ? 'var(--fg-faint)' : 'var(--fg-muted)'} />
 }
 
-function tituloDePestana(project: OpenProject, windowsMode: boolean): string {
-  // El agente cerrado por inactividad se dice también en modo nativo, que es donde ocurre.
+function tituloDePestana(project: OpenProject): string {
   const t = txPestanas().proyectos
   const dormido = project.estado === 'agente-hibernado' ? t.agenteHibernado : ''
-  if (windowsMode) return t.modoNativo(project.name, dormido)
-  return project.estado === 'hibernated' ? t.hibernado(project.name) : `${project.name}${dormido}`
+  const nombre = project.estado === 'hibernated' ? t.hibernado(project.name) : project.name
+  return `${nombre}${dormido}`
 }
 
 interface PestanaProyectoProps {
   project: OpenProject
   active: boolean
-  windowsMode: boolean
   dotState: ProjectDotState
   onSelect: () => void
   onMenu: (x: number, y: number) => void
@@ -145,11 +148,10 @@ function claseDePestana(project: OpenProject, active: boolean, arrastre: Arrastr
   return base
 }
 
-/** Pestaña de un proyecto: glifo de modo, nombre con marquee y "x" que pide confirmación. */
+/** Pestaña de un proyecto: su glifo, nombre con marquee y "x" que pide confirmación. */
 function PestanaProyecto({
   project,
   active,
-  windowsMode,
   dotState,
   onSelect,
   onMenu,
@@ -163,7 +165,7 @@ function PestanaProyecto({
       role="tab"
       aria-selected={active}
       className={claseDePestana(project, active, arrastre)}
-      title={tituloDePestana(project, windowsMode)}
+      title={tituloDePestana(project)}
       // Sin el atributo cuando no aplica: en reposo, con un solo proyecto, el nodo es el de siempre.
       draggable={arrastrable || undefined}
       onDragStart={(e) => arrastre.alEmpezar(ruta, e)}
@@ -177,7 +179,7 @@ function PestanaProyecto({
         onMenu(e.clientX, e.clientY)
       }}
     >
-      <ModeGlyph windows={windowsMode} state={dotState} />
+      <GlifoProyecto state={dotState} />
       <TabName name={project.name} />
       <button
         className="project-tab-close"
@@ -267,24 +269,13 @@ interface MenuProyectoProps {
   x: number
   y: number
   project: OpenProject
-  windowsMode: boolean
   onClose: () => void
-  onToggleWindowsMode: (projectHostPath: string) => void
   onReplaceProject: (projectHostPath: string) => void
   onCloseRequest: (project: OpenProject) => void
 }
 
-/** Menú contextual de un proyecto: alternar modo, abrir otro en su hueco y cerrar. */
-function MenuProyecto({
-  x,
-  y,
-  project,
-  windowsMode,
-  onClose,
-  onToggleWindowsMode,
-  onReplaceProject,
-  onCloseRequest
-}: MenuProyectoProps): React.JSX.Element {
+/** Menú contextual de un proyecto: abrir otro en su hueco y cerrar. */
+function MenuProyecto({ x, y, project, onClose, onReplaceProject, onCloseRequest }: MenuProyectoProps): React.JSX.Element {
   const t = txPestanas().proyectos
   return (
     <ContextMenu
@@ -292,16 +283,6 @@ function MenuProyecto({
       y={y}
       onClose={onClose}
       items={[
-        {
-          // Alterna dónde corre el proyecto: en el host, con la cuenta personal y sin
-          // aislamiento, o dentro del contenedor Docker del perfil. El rótulo no nombra
-          // «Windows» porque el modo existe en las dos plataformas; el identificador interno
-          // `windowsMode` se conserva porque está persistido y viaja por el IPC.
-          icon: <IconoAjustes />,
-          label: windowsMode ? t.volverDocker : t.irNativo,
-          onClick: () => onToggleWindowsMode(project.projectHostPath)
-        },
-        SEP,
         {
           icon: <IconoAbrir />,
           label: t.abrirAqui,
@@ -315,8 +296,8 @@ function MenuProyecto({
 
 /** Banda de subpestañas de los proyectos abiertos (nivel 2 de pestañas). */
 export function ProjectTabs(props: ProjectTabsProps): React.JSX.Element {
-  const { projects, activePath, hasActiveProfile, onOpenProject, windowsModePaths } = props
-  const { onSelectProject, onCloseProject, onReplaceProject, dotStates, onToggleWindowsMode } = props
+  const { projects, activePath, hasActiveProfile, onOpenProject } = props
+  const { onSelectProject, onCloseProject, onReplaceProject, dotStates } = props
   const arrastre = useArrastreProyectos(projects, props.activeProfileId, props.onReorderProjects)
   const arrastrable = projects.length > 1 && props.activeProfileId !== null
   const [menu, setMenu] = useState<{ x: number; y: number; project: OpenProject } | null>(null)
@@ -333,7 +314,6 @@ export function ProjectTabs(props: ProjectTabsProps): React.JSX.Element {
             key={project.projectHostPath}
             project={project}
             active={project.projectHostPath === activePath}
-            windowsMode={windowsModePaths.has(project.projectHostPath)}
             dotState={dotStates[project.projectHostPath] ?? 'active'}
             onSelect={() => onSelectProject(project.projectHostPath)}
             onMenu={(x, y) => setMenu({ x, y, project })}
@@ -352,9 +332,7 @@ export function ProjectTabs(props: ProjectTabsProps): React.JSX.Element {
           x={menu.x}
           y={menu.y}
           project={menu.project}
-          windowsMode={windowsModePaths.has(menu.project.projectHostPath)}
           onClose={() => setMenu(null)}
-          onToggleWindowsMode={onToggleWindowsMode}
           onReplaceProject={onReplaceProject}
           onCloseRequest={setClosing}
         />

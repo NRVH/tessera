@@ -11,7 +11,7 @@ import { ContextMenu, type ContextMenuEntry } from '../../comun/ContextMenu'
 import { EnCapaFlotante } from '../../comun/capaFlotante'
 import { esAgenteManual, type DefinicionAgente, type IdAgente } from '../../../../shared/agentesManuales'
 import { useStoreAjustes } from '../ajustes'
-import { agentesDelPerfil, todasDelProyecto, type PestanaAgente } from './agentesDelProyecto'
+import { agentesDelPerfil, esManualNativo, todasDelProyecto, type PestanaAgente } from './agentesDelProyecto'
 import { soltarSobre } from './ordenAgentes.ts'
 import { fijarOrdenAgentes, useStoreAgentes } from './store'
 import { ConfirmarBorradoAgente } from './ConfirmarBorradoAgente'
@@ -26,7 +26,6 @@ interface PropsPestanas {
   pestanas: readonly PestanaAgente[]
   activo: IdAgente
   profileId: string
-  hostMode: boolean
   /** Sin «+» ni menús ni arrastre (el agente de la terminal y el de datos): solo elegir. */
   soloElegir?: boolean
   onSelect: (id: IdAgente) => void
@@ -50,7 +49,7 @@ function useSelector(p: PropsPestanas) {
   const ctx: ContextoMenus = {
     profileId: p.profileId,
     visibles: p.pestanas,
-    todas: todasDelProyecto(fuente, p.profileId, p.hostMode),
+    todas: todasDelProyecto(fuente, p.profileId),
     ocultos: fuente.ocultosPorPerfil[p.profileId] ?? [],
     activo: p.activo,
     onSelect: (id) => {
@@ -78,7 +77,7 @@ function useSelector(p: PropsPestanas) {
     const orden = soltarSobre(agentesDelPerfil(fuente, p.profileId).map((x) => x.pestana.id), id, destino)
     if (orden) fijarOrdenAgentes(p.profileId, orden)
   }
-  return { menu, setMenu, modal, setModal, borrando, setBorrando, ctx, abrirEn, alternarBajo, soltar }
+  return { menu, setMenu, modal, setModal, borrando, setBorrando, ctx, abrirEn, alternarBajo, soltar, fuente }
 }
 
 type Selector = ReturnType<typeof useSelector>
@@ -187,12 +186,18 @@ export function PestanasAgente(p: PropsPestanas): React.JSX.Element {
       )}
       {s.modal && (
         <EnCapaFlotante>
-          <ModalAgenteManual profileId={p.profileId} hostMode={p.hostMode} inicial={s.modal.inicial} onCerrar={() => s.setModal(null)} />
+          {/* Uno nuevo elige en el modal dónde corre; uno que se edita sigue donde se definió. */}
+          <ModalAgenteManual
+            profileId={p.profileId}
+            hostMode={s.modal.inicial === null || esManualNativo(s.fuente, s.modal.inicial.id)}
+            inicial={s.modal.inicial}
+            onCerrar={() => s.setModal(null)}
+          />
         </EnCapaFlotante>
       )}
       {s.borrando && (
         <EnCapaFlotante>
-          <ConfirmarBorradoAgente d={s.borrando} profileId={p.profileId} nativo={p.hostMode} onCerrar={() => s.setBorrando(null)} />
+          <ConfirmarBorradoAgente d={s.borrando} profileId={p.profileId} nativo={esManualNativo(s.fuente, s.borrando.id)} onCerrar={() => s.setBorrando(null)} />
         </EnCapaFlotante>
       )}
     </span>

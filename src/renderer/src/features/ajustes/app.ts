@@ -6,4 +6,5 @@
 // =============================================================================
 export { useDensidad } from './useDensidad'
 export { usePersistenciaAjustes } from './usePersistenciaAjustes'
+export { useVigilarRecursosDocker } from './storeRecursosDocker'
 export { useAvisoIntegracion } from './useAvisoIntegracion'

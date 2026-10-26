@@ -20,6 +20,7 @@ import {
 import { bannerFinSsh, motivoFinSsh } from './finSesionSsh.ts'
 import { hayTextoVisible } from './textoSesionSsh.ts'
 import { addTerminal, ensureProject, terminalProjectKey, type ShellTerminalsState } from './shellTerminalsModel.ts'
+import { cerrarLocal } from './cierreLocal.ts'
 import {
   abiertasPorConexion,
   abrirSsh,
@@ -212,7 +213,6 @@ function entrada(extra: Partial<EntradaActivo> = {}): EntradaActivo {
     contexto: CTX_A,
     ssh: initialSshTabsState,
     infoByPane: {},
-    windowsModeKeys: new Set(),
     hibernatedProjectKeys: new Set(),
     conexionesVivas: new Set(['c1', 'c2', 'c3']),
     ...extra
@@ -277,8 +277,8 @@ hr('(10) El botón de reinicio del pane que se ve: «Reconectar» en SSH, el de 
   check('MITAD NEGATIVA: una local nunca se bloquea por conexiones; una SSH hibernada no existe (no se bloquea por hibernar)', local.boton?.habilitado === true && derivarActivo(entrada({ ssh: elegirSsh(s, 'alfa', CTX_A, 's2'), infoByPane: { 'ssh|alfa|s2': vivo }, hibernatedProjectKeys: new Set([KEY_A]) })).boton?.habilitado === true, 'habilitados')
   const hibernada = derivarActivo(entrada({ ssh: s, infoByPane: { [`${KEY_A}|t1`]: vivo }, hibernatedProjectKeys: new Set([KEY_A]) }))
   check('MITAD NEGATIVA: una local de un proyecto hibernado sí se bloquea (lo de siempre)', hibernada.boton?.habilitado === false, j(hibernada.boton))
-  const modos = derivarActivo(entrada({ ssh: s, windowsModeKeys: new Set([KEY_A]) }))
-  check('el modo nativo del proyecto sigue marcándose para sus locales', modos.activeHostMode === true, String(modos.activeHostMode))
+  const modos = derivarActivo(entrada({ ssh: s }))
+  check('las locales de un proyecto corren siempre en el equipo', modos.activeHostMode === true, String(modos.activeHostMode))
   const dosLocales = addTerminal(ensureProject({}, KEY_A), KEY_A)
   check('la local que se ve es la activa del proyecto (la última creada)', derivarActivo(entrada({ terminals: dosLocales, ssh: s })).localActivaId === 't2', derivarActivo(entrada({ terminals: dosLocales, ssh: s })).localActivaId ?? 'null')
 }
@@ -398,6 +398,28 @@ hr('R - Las pestañas vuelven al arrancar, sin conectarse')
     JSON.stringify(n.p1) === JSON.stringify([{ conexionId: 'c-1', alias: 'a' }]) && !('' in n) && !('p3' in n) && n.p4.length === SSH_PESTANAS_MAX,
     JSON.stringify({ p1: n.p1, perfiles: Object.keys(n), p4: n.p4?.length })
   )
+}
+
+hr('(C) Cerrar la última terminal local deja verse la SSH que queda, aunque venga restaurada')
+{
+  // La clave del proyecto es también su contexto SSH: `cerrarLocal` se apoya en eso.
+  const ctx = terminalProjectKey('p1', 'D:/proy')
+  check('(C0) la clave del proyecto es su contexto SSH', ctx === contextoSsh('p1', 'D:/proy'), ctx)
+  const restauradas = restaurarSsh(initialSshTabsState, { p1: [{ conexionId: 'c-vpn', alias: 'vpn' }] })
+  // `ensureProject` ya trae la primera terminal local del proyecto.
+  const conLocal = ensureProject({} as ShellTerminalsState, ctx)
+  const idLocal = conLocal[ctx].activeId!
+  const r = cerrarLocal(conLocal, restauradas, ctx, idLocal)
+  const pane = derivarPaneActivo({ perfilId: 'p1', sshLista: sshDePerfil(r.ssh, 'p1'), sshElegidaId: r.ssh.activaPorContexto[ctx] ?? null, proyectoKey: ctx, localActivaId: r.shell[ctx].activeId })
+  check('(C1) sin otra local, se elige la SSH restaurada y se ve: el panel no se queda vacío', pane?.tipo === 'ssh' && r.ssh.activaPorContexto[ctx] !== undefined, JSON.stringify(pane))
+  const dosLocales = addTerminal(conLocal, ctx)
+  const otra = cerrarLocal(dosLocales, restauradas, ctx, dosLocales[ctx].activeId!)
+  check('(C2) si queda otra local, pasa a verse esa y la SSH sigue sin elegir', otra.shell[ctx].activeId === idLocal && otra.ssh === restauradas, String(otra.shell[ctx].activeId))
+  const conSshElegida = elegirSsh(restauradas, 'p1', ctx, sshDePerfil(restauradas, 'p1')[0].id)
+  const vista = cerrarLocal(conLocal, conSshElegida, ctx, idLocal)
+  check('(C3) si ya se veía una SSH, cerrar una local no toca la elección', vista.ssh === conSshElegida, 'mismo objeto')
+  const sinSsh = cerrarLocal(conLocal, initialSshTabsState, ctx, idLocal)
+  check('(C4) sin pestañas SSH, no se inventa nada', sinSsh.ssh === initialSshTabsState && sinSsh.shell[ctx].activeId === null, 'vacío')
 }
 
 hr('RESULTADO (PASS/FAIL)')

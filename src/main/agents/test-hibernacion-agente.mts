@@ -52,6 +52,8 @@ const { AgentTerminalController } = await import('./AgentTerminalController.ts')
 const { registrarIpcTerminalAgente } = await import('./ipc.ts')
 const { crearRegistroAnclas, claveAncla } = await import('../context/anclaConversacion.ts')
 const { AGENT_TERMINAL_CHANNELS } = await import('../../shared/agent-terminal-ipc.ts')
+const { motivoSalidaNativa } = await import('./terminalAgente/hibernacion.ts')
+type NucleoAgente = import('./terminalAgente/tipos.ts').NucleoAgente
 
 interface SesionFalsa {
   viva: boolean
@@ -137,8 +139,9 @@ const perfil = { id: 'p1', nombre: 'P1', color: '#000000', agentes: [] } as unkn
 const sinVigilante = new Set<string>()
 const vigilanteFalso = { watch: () => {}, unwatch: () => {}, vigila: (id: string) => !sinVigilante.has(id) }
 
-function crearControlador(inactividadPruebasMs: number | null = null): InstanceType<typeof AgentTerminalController> {
+function crearControlador(inactividadPruebasMs: number | null = null, pocaMemoria = false): InstanceType<typeof AgentTerminalController> {
   const ctrl = new AgentTerminalController({
+    pocaMemoria: () => pocaMemoria,
     profiles: [perfil],
     sandbox: {} as never,
     accounts: {} as never,
@@ -404,6 +407,44 @@ hr('7. El umbral de pruebas acorta, pero no enciende')
   check('(7a) con «Nunca», ni con el umbral de pruebas', nunca.hibernados.length === 0 && nunca.umbralMs === null, JSON.stringify(nunca))
   const r = corto.hibernarInactivos({ minutos: 5, proyectos: p })
   check('(7b) con 5 minutos y el umbral de pruebas a 3 s: cae a los 3,5 s', r.umbralMs === 3000 && r.hibernados[0]?.sesiones[0]?.sessionId === idCorto, JSON.stringify(r))
+  await tick()
+}
+
+hr('7bis. Con poca memoria el plazo se acorta, y «ahora» no espera')
+{
+  const justo = crearControlador(null, true)
+  const idJusto = (await justo.open({ profileId: 'p1', agente: 'claude-code', projectHostPath: 'C:\\proy\\m', mode: 'host' })).sessionId
+  ahora += 150_000
+  const p = [proyecto('C:\\proy\\m', { fueraDePantallaMs: 150_000 })]
+  const r = justo.hibernarInactivos({ minutos: 5, proyectos: p })
+  check(
+    '(7c) con 5 minutos y poca memoria: el plazo es de 2 y cae a los 2,5',
+    r.umbralMs === 120_000 && r.pocaMemoria && r.hibernados[0]?.sesiones[0]?.sessionId === idJusto,
+    JSON.stringify(r)
+  )
+  const nunca = justo.hibernarInactivos({ minutos: 0, proyectos: p, ahora: true })
+  check('(7d) «Nunca» se respeta con poca memoria y aunque se pida «ahora»', nunca.umbralMs === null && nunca.hibernados.length === 0, JSON.stringify(nunca))
+  const holgado = crearControlador()
+  const idHolgado = (await holgado.open({ profileId: 'p1', agente: 'claude-code', projectHostPath: 'C:\\proy\\n', mode: 'host' })).sessionId
+  ahora += 10_000
+  const q = [proyecto('C:\\proy\\n', { fueraDePantallaMs: 10_000 })]
+  const espera = holgado.hibernarInactivos({ minutos: 5, proyectos: q })
+  check('(7e) con memoria de sobra, el plazo del ajuste y sin aviso', espera.umbralMs === 300_000 && !espera.pocaMemoria && espera.hibernados.length === 0, JSON.stringify(espera))
+  const ya = holgado.hibernarInactivos({ minutos: 5, proyectos: q, ahora: true })
+  check('(7f) «ahora» hiberna ya lo que está fuera de pantalla', ya.umbralMs === 0 && ya.hibernados[0]?.sesiones[0]?.sessionId === idHolgado, JSON.stringify(ya))
+  const nucleo = (poca: boolean): NucleoAgente => ({ pocaMemoria: () => poca }) as unknown as NucleoAgente
+  check(
+    '(7h) una sesión nativa que termina con error y poca memoria lo dice; bien, sin código o con memoria de sobra, no',
+    motivoSalidaNativa(nucleo(true), 1) === 'sin-memoria' &&
+      motivoSalidaNativa(nucleo(true), 0) === 'ok' &&
+      motivoSalidaNativa(nucleo(true), -1) === 'ok' &&
+      motivoSalidaNativa(nucleo(true), null) === 'ok' &&
+      motivoSalidaNativa(nucleo(false), 1) === 'ok',
+    'sin-memoria / ok'
+  )
+  const enPantalla = await holgado.open({ profileId: 'p1', agente: 'claude-code', projectHostPath: 'C:\\proy\\o', mode: 'host' })
+  const visto = holgado.hibernarInactivos({ minutos: 5, proyectos: [proyecto('C:\\proy\\o', { enPantalla: true })], ahora: true })
+  check('(7g) y nunca el que está en pantalla', visto.hibernados.length === 0 && holgado.liveSessionIds().includes(enPantalla.sessionId), JSON.stringify(visto))
   await tick()
 }
 

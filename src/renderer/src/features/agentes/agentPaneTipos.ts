@@ -8,13 +8,15 @@
 import type { DbConnection } from '../../../../shared/db-ipc'
 import type { AgentKind } from '../../../../shared/agent-terminal-ipc'
 // Con extensión: es un import de VALOR y `test-props-pane-agente.mts` carga este módulo con `node`.
-import { esAgenteManual, type DefinicionAgente, type IdAgente } from '../../../../shared/agentesManuales.ts'
+import { CUENTA_AGENTE_MANUAL, esAgenteManual, type DefinicionAgente, type IdAgente } from '../../../../shared/agentesManuales.ts'
+import { MAX_INTENTOS_RECUPERACION } from '../../../../shared/esperasRecuperacion.ts'
 import { txSesion } from './textosSesion.ts'
 import type { PestanaAgente } from './agentesDelProyecto'
 import type { OpenAgentTarget } from '../pestanas'
 import type { CeldaMosaico, OpcionMosaico } from '../mosaico'
 import type { ApiAgentePane } from './tipos'
 import type { LugarAgente } from './textosMontajeBases'
+import type { ModoAgente } from './modoAgente'
 
 /**
  * Lo que el MOSAICO le cuenta a una casilla. Ausente = vista normal (la cabecera de
@@ -64,12 +66,6 @@ export interface MosaicoPane {
    * no esconda trabajo en marcha del agente que no se ve.
    */
   otroAgente: { key: string; agente: IdAgente; nombre: string; trabajando: boolean; sinVer: boolean; esperando: boolean } | null
-  /**
-   * Cambia el modo del PROYECTO (contenedor ⇄ nativo) desde el glifo de la cabecera.
-   * null = no se puede (el espacio de datos vive siempre en modo nativo). El pane se
-   * remonta con la otra clave.
-   */
-  onCambiarModo: (() => void) | null
   onAmpliar: () => void
   /** Sale del mosaico y abre este (perfil, proyecto, agente) en la vista normal. */
   onIrAlProyecto: () => void
@@ -110,8 +106,8 @@ export interface AgentTerminalPaneProps {
   /** Target (perfil, proyecto, agente) de ESTA sesión. Estable durante la vida del pane. */
   target: OpenAgentTarget
   /**
-   * MODO NATIVO: el agente corre en el anfitrión con la cuenta personal, sin contenedor
-   * ni sistema de cuentas. El pane se REMONTA al alternar el modo, así que es fijo
+   * MODO NATIVO: el agente corre en el anfitrión con la cuenta del sistema, sin contenedor.
+   * Lo decide el agente (`modoAgente.ts`); el pane se REMONTA al cambiarlo, así que es fijo
    * durante su vida.
    */
   hostMode?: boolean
@@ -156,6 +152,11 @@ export interface AgentTerminalPaneProps {
    * terminal: con él, la cabecera pinta «Cerrar el agente de la terminal».
    */
   onCerrar?: (profileId: string) => void
+  /**
+   * Elige nativo o Docker (y con Docker, la cuenta) para el agente del target. Solo lo usan los
+   * agentes que pueden elegir (`puedeElegirModo`): el selector de cuenta ofrece entonces la del sistema.
+   */
+  onElegirModo?: (targetKey: string, modo: ModoAgente, accountId?: string) => void
   /** Cuenta elegida para este target, o null (el pane no arranca y pide iniciar sesión). */
   selectedAccountId: string | null
   /** Fija la cuenta del target (elegir/cambiar). null limpia (queda sin cuenta). */
@@ -205,11 +206,20 @@ export interface PropsAgentPane
   extends Required<
     Omit<
       AgentTerminalPaneProps,
-      'onSelectAgent' | 'onChangeDbMounted' | 'onStatusChange' | 'onVivoChange' | 'onApi' | 'onCerrar' | 'enPantalla' | 'mostrado'
+      | 'onSelectAgent'
+      | 'onChangeDbMounted'
+      | 'onStatusChange'
+      | 'onVivoChange'
+      | 'onApi'
+      | 'onCerrar'
+      | 'onElegirModo'
+      | 'enPantalla'
+      | 'mostrado'
     >
   > {
   onSelectAgent?: (profileId: string, agente: IdAgente) => void
   onCerrar?: (profileId: string) => void
+  onElegirModo?: (targetKey: string, modo: ModoAgente, accountId?: string) => void
   onChangeDbMounted?: (profileId: string, projectHostPath: string, ids: string[]) => void
   onStatusChange?: (key: string, status: AgentPaneStatus) => void
   onVivoChange?: (key: string, vivo: boolean) => void
@@ -246,8 +256,8 @@ export function resolverProps(props: AgentTerminalPaneProps): PropsAgentPane {
   const enMosaico = p.enMosaico ?? false
   return {
     ...p,
-    // Un agente manual no tiene cuentas: su cuenta sintética deja pasar la puerta de «sin cuenta no arranca».
-    selectedAccountId: esAgenteManual(p.target.agente) ? CUENTA_AGENTE_MANUAL : p.selectedAccountId,
+    // Un agente manual siempre tiene cuenta: sin elegir otra, la predeterminada (su carpeta del perfil).
+    selectedAccountId: esAgenteManual(p.target.agente) ? (p.selectedAccountId ?? CUENTA_AGENTE_MANUAL) : p.selectedAccountId,
     ...defectosSesion(p),
     robaFoco: p.robaFoco ?? true,
     tokenFoco: p.tokenFoco ?? 0,
@@ -301,8 +311,8 @@ export function bannerReanudado(): string {
   return `\r\n\x1b[38;2;92;99;112m${txSesion().bannerReanudado}\x1b[0m\r\n`
 }
 
-/** Reintentos automáticos ante la muerte del contenedor; después se para y se avisa. */
-export const MAX_CONTAINER_RECOVERY_ATTEMPTS = 2
+/** Reintentos automáticos ante la muerte del contenedor (`shared/esperasRecuperacion.ts`). */
+export const MAX_CONTAINER_RECOVERY_ATTEMPTS = MAX_INTENTOS_RECUPERACION
 
 /** Lista vacía estable para el popover de montaje mientras `dbConexiones` es null. */
 export const SIN_CONEXIONES_MONTAJE: readonly DbConnection[] = []
@@ -344,5 +354,4 @@ export function agenteManualDe(pestanas: readonly PestanaAgente[], agente: IdAge
  */
 export const HOST_ACCOUNT_ID = 'windows-personal'
 
-/** La cuenta sintética de un agente manual en Docker; el main la usa igual (`CUENTA_AGENTE_MANUAL`). */
-export const CUENTA_AGENTE_MANUAL = 'manual'
+export { CUENTA_AGENTE_MANUAL }

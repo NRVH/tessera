@@ -13,6 +13,8 @@ import type { AgentConfigMount, CapacidadesSandbox, ContainerHandle, ProjectMoun
 import { plataformaActual } from '../../../shared/plataforma.ts'
 import { nombreImagen, usuarioImagenPara, type UsuarioImagen } from './usuarioImagen.ts'
 import { SANDBOX_IMAGE } from './nombres.ts'
+import type { CausaMuerte } from './eventosDocker.ts'
+import type { EstadoDocker } from '../../../shared/sandbox-estado-ipc.ts'
 
 /** El usuario del equipo, si esta plataforma lo hornea en la imagen; `null` si no se puede leer. */
 function usuarioDelEquipo(): UsuarioImagen | null {
@@ -69,6 +71,41 @@ export class NucleoSandbox {
   prepararBuzonDb: ((profileId: string) => string) | null = null
   /** Avisa al puente de BD de que el contenedor del perfil murió. */
   olvidarBuzonDb: ((profileId: string) => void) | null = null
+  /**
+   * Contenedores que Tessera está parando o borrando ella misma (nombre -> paradas en curso): su
+   * `die` no es una muerte para el supervisor.
+   */
+  readonly paradasEsperadas = new Map<string, number>()
+  /** Por qué murió el último contenedor de cada perfil que cayó sin que Tessera lo parara. */
+  readonly muertes = new Map<string, { causa: CausaMuerte; en: number }>()
+  /**
+   * Cuándo avisó Docker del último OOM en el contenedor vivo de cada perfil. El kernel mata el
+   * proceso que más ocupa (un agente) y el contenedor sigue: sin esto, el agente solo «terminó».
+   */
+  readonly oomRecientes = new Map<string, number>()
+  /** ¿Docker dejó de responder según el supervisor? Falso mientras no se sepa lo contrario. */
+  dockerCaido = false
+  /** Arranca la vigilancia de los contenedores; la cablea la fachada. */
+  iniciarSupervision: (() => void) | null = null
+  /**
+   * Un diagnóstico vio a Docker sin responder: el supervisor lo da por caído y sondea, para avisar
+   * cuando vuelva aunque su `docker events` no se hubiera cortado. Lo cablea la fachada.
+   */
+  alVerDockerCaido: (() => void) | null = null
+  /** Sumidero de los cambios de disponibilidad de Docker (lo reemite el main). */
+  onEstadoDocker: ((estado: EstadoDocker) => void) | null = null
+
+  /** La causa de muerte del contenedor del perfil si fue hace menos de `ventanaMs`; null si no. */
+  muerteReciente(profileId: string, ahora: number, ventanaMs = 120_000): CausaMuerte | null {
+    const m = this.muertes.get(profileId)
+    return m && ahora - m.en < ventanaMs ? m.causa : null
+  }
+
+  /** ¿Avisó Docker de un OOM en el contenedor del perfil hace menos de `ventanaMs`? */
+  oomReciente(profileId: string, ahora: number, ventanaMs = 60_000): boolean {
+    const en = this.oomRecientes.get(profileId)
+    return en !== undefined && ahora - en < ventanaMs
+  }
 
   constructor(dockerfileDir: string, sshSetup: SshSetup | null) {
     this.dockerfileDir = dockerfileDir

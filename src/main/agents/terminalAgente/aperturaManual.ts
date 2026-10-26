@@ -1,8 +1,8 @@
 // =============================================================================
-// Apertura y recarga de un agente MANUAL: el comando que definió el usuario, en el
-// contenedor del perfil (con su `HOME` persistente montado como las credenciales de los de
-// serie) o en la shell nativa. Sin cuentas, conversaciones, turnos, sonda de versión ni
-// aviso por opción de arranque: lo que Tessera no sabe leer de un CLI que no conoce.
+// Apertura y recarga de un agente MANUAL: el comando que definió el usuario, en el contenedor de
+// su cuenta (con la carpeta de la cuenta montada como su `HOME`, como las credenciales de los de
+// serie) o en la shell nativa. Sin conversaciones, turnos, sonda de versión ni aviso por opción
+// de arranque: lo que Tessera no sabe leer de un CLI que no conoce.
 // Decisiones: docs/decisiones/agentes/agentes-manuales.md
 // =============================================================================
 
@@ -15,10 +15,12 @@ import type { Profile } from '../../profiles/types'
 import { AGENT_TERMINAL_CHANNELS, type AgentDataMessage, type AgentOpenRequest, type AgentOpenResult } from '../../../shared/agent-terminal-ipc'
 import { crearDetectorEnvio } from '../lineaEnviada'
 import { txAgentes } from '../textos.ts'
-import { acquireConfigRef, cfgRefKey, releaseConfigRef } from './credenciales'
+import { acquireConfigRef, cfgRefKey, contenedorDe, releaseConfigRef } from './credenciales'
+import { conSitio, mientrasSeAbre } from './cupo'
+import type { PoliticaCupo } from '../../../shared/semaforoContenedores'
 import { emitExit } from './turnos'
-import { marcarEs, medidasDeProcesoNuevo } from './hibernacion'
-import { CUENTA_AGENTE_MANUAL, HOST_ACCOUNT_ID, errMsg, type NucleoAgente, type OpenAgentSession } from './tipos'
+import { marcarEs, medidasDeProcesoNuevo, motivoSalidaNativa } from './hibernacion'
+import { HOST_ACCOUNT_ID, errMsg, type NucleoAgente, type OpenAgentSession } from './tipos'
 
 /** ¿Es la sesión de un agente manual? (Estrecha el tipo para no repetir la comprobación.) */
 export function esSesionManual(open: OpenAgentSession): open is OpenAgentSession & { manual: DefinicionAgente } {
@@ -67,27 +69,41 @@ export async function abrirManual(n: NucleoAgente, profile: Profile, req: AgentO
   const def = definicionDePeticion(req)
   const reanudar = req.reanudarManual !== false
   if (req.mode === 'host') return abrirManualNativo(n, profile, def, req, reanudar)
-  const cfgKey = cfgRefKey(profile.id, def.id, CUENTA_AGENTE_MANUAL)
+  // La cuenta elegida, si es de este agente en este perfil; sin ninguna, la predeterminada.
+  const cuenta = n.accounts.cuentaManual(profile.id, def.id, req.accountId).id
+  const cfgKey = cfgRefKey(profile.id, def.id, cuenta)
   acquireConfigRef(n.configRefs, cfgKey)
   try {
-    return await abrirManualEnContenedor(n, profile, def, req, reanudar)
+    return await mientrasSeAbre(contenedorDe(profile, def.id, cuenta).id, () =>
+      abrirManualEnContenedor(n, profile, def, req, reanudar, cuenta)
+    )
   } catch (err) {
     if (releaseConfigRef(n.configRefs, cfgKey)) {
-      await n.sandbox.unmountAgentConfig(profile, def.id, CUENTA_AGENTE_MANUAL).catch((e) => n.log(`rollback del agente manual: ${errMsg(e)}`))
+      await n.sandbox
+        .unmountAgentConfig(contenedorDe(profile, def.id, cuenta), def.id, cuenta)
+        .catch((e) => n.log(`rollback del agente manual: ${errMsg(e)}`))
     }
     throw err
   }
 }
 
-/** Contenedor, proyecto y la carpeta del agente montada; devuelve dónde quedó (su `HOME`). */
-async function prepararContenedorManual(n: NucleoAgente, profile: Profile, def: DefinicionAgente, projectHostPath: string): Promise<{ proyecto: string; home: string }> {
+/** Su contenedor, el proyecto y la carpeta de la cuenta montada; devuelve dónde quedó (su `HOME`). */
+async function prepararContenedorManual(
+  n: NucleoAgente,
+  profile: Profile,
+  def: DefinicionAgente,
+  projectHostPath: string,
+  cuenta: string,
+  cupo?: PoliticaCupo
+): Promise<{ proyecto: string; home: string }> {
   const docker = await n.sandbox.checkDocker()
   if (!docker.ok) throw new Error(`${PREFIJO_DOCKER_NO_DISPONIBLE}\n${docker.detalle}`)
-  await n.sandbox.ensureContainer(profile)
+  const destino = contenedorDe(profile, def.id, cuenta)
+  await conSitio(n, destino, cupo, () => n.sandbox.ensureContainer(destino))
   n.touchedProfiles.add(profile.id)
-  const mount = await n.sandbox.addProject(profile, projectHostPath)
-  const carpeta = n.accounts.carpetaAgenteManual(profile.id, def.id)
-  const cfg = await n.sandbox.mountAgentConfig(profile, def.id, CUENTA_AGENTE_MANUAL, carpeta)
+  const mount = await n.sandbox.addProject(destino, projectHostPath)
+  const carpeta = n.accounts.hostDirFor(n.accounts.cuentaManual(profile.id, def.id, cuenta))
+  const cfg = await n.sandbox.mountAgentConfig(destino, def.id, cuenta, carpeta)
   return { proyecto: mount.projectHostPath, home: cfg.containerPath }
 }
 
@@ -96,21 +112,23 @@ async function abrirManualEnContenedor(
   profile: Profile,
   def: DefinicionAgente,
   req: AgentOpenRequest,
-  reanudar: boolean
+  reanudar: boolean,
+  cuenta: string
 ): Promise<AgentOpenResult> {
-  const preparado = await prepararContenedorManual(n, profile, def, req.projectHostPath)
+  const preparado = await prepararContenedorManual(n, profile, def, req.projectHostPath, cuenta, req.cupo)
   const extraEnv = n.getContainerEnv(profile.id, req.projectHostPath, req.dbConnectionIds ?? [], n.sandbox.dbBridgeContainerPath)
   const launch = buildManualAgentLaunchCommand(invocacionAgenteManual(def, reanudar), preparado.home, n.sshSetup, extraEnv)
-  const session = await n.terminals.createSession(profile, { project: req.projectHostPath, launch, extraEnv, tamano: req.tamano })
+  const destino = contenedorDe(profile, def.id, cuenta)
+  const session = await n.terminals.createSession(destino, { project: req.projectHostPath, launch, extraEnv, tamano: req.tamano })
   n.bindDbSession(extraEnv, claveSesionAgente(session.id))
-  n.sandbox.retainSession(profile.id, `agent:${session.id}`)
+  n.sandbox.retainSession(destino.id, `agent:${session.id}`)
   n.log(`open() [MANUAL] perfil=${profile.id} agente=${def.id} id=${session.id} home=${preparado.home}`)
   const unsubData = suscribirDatos(n, session.id)
-  const unsubExit = n.terminals.onExit(session.id, (exitCode) => void emitExit(n, profile, session.id, exitCode))
+  const unsubExit = n.terminals.onExit(session.id, (exitCode) => void emitExit(n, destino, session.id, exitCode))
   const datos = {
     sessionId: session.id,
     profileId: profile.id,
-    accountId: CUENTA_AGENTE_MANUAL,
+    accountId: cuenta,
     projectHostPath: req.projectHostPath,
     host: false,
     manual: def,
@@ -121,7 +139,7 @@ async function abrirManualEnContenedor(
     sessionId: session.id,
     profileId: profile.id,
     agente: def.id,
-    accountId: CUENTA_AGENTE_MANUAL,
+    accountId: cuenta,
     projectHostPath: preparado.proyecto,
     workspacePath: session.workspacePath,
     configContainerPath: preparado.home
@@ -142,7 +160,7 @@ async function abrirManualNativo(
   n.log(`open() [MANUAL NATIVO] perfil=${profile.id} agente=${def.id} id=${session.id}`)
   const unsubData = suscribirDatos(n, session.id)
   const unsubExit = n.terminals.onExit(session.id, (exitCode) => {
-    n.eventos.emitir(AGENT_TERMINAL_CHANNELS.EXIT, { sessionId: session.id, exitCode, reason: 'ok' })
+    n.eventos.emitir(AGENT_TERMINAL_CHANNELS.EXIT, { sessionId: session.id, exitCode, reason: motivoSalidaNativa(n, exitCode) })
     n.alCambiarSesiones()
   })
   const datos = { sessionId: session.id, profileId: profile.id, accountId: HOST_ACCOUNT_ID, projectHostPath: req.projectHostPath, host: true, manual: def }
@@ -189,7 +207,7 @@ export async function recargarManual(
     extraEnv = n.getHostEnv(open.profileId, open.projectHostPath, ids)
     launch = invocacionAgenteManual(open.manual, true)
   } else {
-    home = (await prepararContenedorManual(n, profile, open.manual, open.projectHostPath)).home
+    home = (await prepararContenedorManual(n, profile, open.manual, open.projectHostPath, open.accountId)).home
     open.homeManual = home
     extraEnv = n.getContainerEnv(open.profileId, open.projectHostPath, ids, n.sandbox.dbBridgeContainerPath)
     launch = buildManualAgentLaunchCommand(invocacionAgenteManual(open.manual, true), home, n.sshSetup, extraEnv)

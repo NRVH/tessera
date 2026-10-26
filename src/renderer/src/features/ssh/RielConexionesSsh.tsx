@@ -1,8 +1,8 @@
 // =============================================================================
 // El riel de conexiones SSH: la lista de conexiones fija, a la izquierda de la terminal, mientras está
 // a pantalla completa. Una cabecera como la de los laterales (el título y cinco acciones: nueva
-// conexión, nuevo grupo, importar de OpenSSH, exportar a OpenSSH y ocultar) sobre la MISMA `ListaConexionesSsh` en modo fijo, y un divisor
-// para ensancharlo. Se monta la primera vez que se enseña y desde entonces se queda montado, oculto
+// conexión, nuevo grupo, importar de OpenSSH, exportar a OpenSSH y ocultar) sobre la MISMA `ListaConexionesSsh` en modo fijo,
+// «Nueva ventana de agente» al pie, como en el lanzador, y un divisor para ensancharlo. Se monta la primera vez que se enseña y desde entonces se queda montado, oculto
 // cuando no se enseña, para volver tal cual (`renderer/vivos-y-ocultos.md`). Lleva su propio límite de
 // error, porque un fallo suyo no puede desmontar las terminales. Depende de `comun/`.
 // Decisiones: docs/decisiones/terminales/riel-de-conexiones.md
@@ -19,6 +19,7 @@ import { Splitter } from '../../comun/Splitter'
 import { SSH_RIEL_ANCHO_MIN } from '../../../../shared/ajustesTerminal'
 import { IconoOcultarLista } from './iconosRielSsh'
 import { exportarAOpenSsh } from './exportacionSsh'
+import { FilaVentanaAgente } from './FilaVentanaAgente'
 import { IconoExportar, IconoImportar, IconoServidorNuevo } from './iconosSsh'
 import { importarDesdeOpenSsh } from './importacionSsh'
 import { ListaConexionesSsh, type DatosListaConexionesSsh, type PropsListaConexionesSsh } from './ListaConexionesSsh'
@@ -91,6 +92,7 @@ function RielYDivisor({ ancho, anchoMax, onAncho, onOcultar, ...lista }: PropsRi
             </CapaViva>
           ))}
         </div>
+        <FilaVentanaAgente className="ssh-riel-pie" />
       </aside>
       <Splitter
         orientation="vertical"

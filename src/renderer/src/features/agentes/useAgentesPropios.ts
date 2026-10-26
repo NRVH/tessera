@@ -13,7 +13,7 @@ import { despertarAlVerse } from './hibernacionFueraDePestanas'
 import { actualizarHibernadosFueraDePestanas, selectAgent, useStoreAgentes } from './store'
 import { abrirAgenteTerminal, elegirAgenteTerminal, useStoreAgenteTerminal } from './storeAgenteTerminal'
 import { txSesion } from './textosSesion.ts'
-import type { LugarAgente } from './textosMontajeBases'
+import type { LugarEnLaPrincipal } from './textosMontajeBases'
 import { useAgentesDe, useFuenteAgentes } from './useAgentesDelProyecto'
 import type { OpenAgentTarget, UseTabs } from '../pestanas'
 import { fijarMaximizado, useStoreLayout } from '../layout'
@@ -21,9 +21,9 @@ import { useStoreBd } from '../bd'
 
 /** Lo que el mosaico necesita saber de cada carpeta, sea proyecto, espacio de datos o agente de la terminal. */
 export interface AgentesPropios {
-  lugarDe: (projectHostPath: string) => LugarAgente
+  lugarDe: (projectHostPath: string) => LugarEnLaPrincipal
   /** Cómo se llama la casilla del agente de datos o del de la terminal. */
-  nombreDe: (lugar: Exclude<LugarAgente, 'proyecto'>) => string
+  nombreDe: (lugar: Exclude<LugarEnLaPrincipal, 'proyecto'>) => string
   /** Los agentes de esa carpeta, en el orden de sus pestañas. */
   agentesDe: (profileId: string, projectHostPath: string) => readonly IdAgente[]
   /** El agente elegido en esa carpeta, o el primero. */
@@ -70,7 +70,7 @@ function useAgentesPorLugar(
   const selectedAgentByProfile = useStoreAgentes((s) => s.selectedAgentByProfile)
   const agenteTerminalPorPerfil = useStoreAgenteTerminal((s) => s.agentePorPerfil)
   const lugarDe = useCallback(
-    (ruta: string): LugarAgente => (esCarpetaAgenteTerminal(ruta) ? 'terminal' : esEspacioDeDatos(ruta) ? 'datos' : 'proyecto'),
+    (ruta: string): LugarEnLaPrincipal => (esCarpetaAgenteTerminal(ruta) ? 'terminal' : esEspacioDeDatos(ruta) ? 'datos' : 'proyecto'),
     [esEspacioDeDatos, esCarpetaAgenteTerminal]
   )
   const agentesDe = useCallback(

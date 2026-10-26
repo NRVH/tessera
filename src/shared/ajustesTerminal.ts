@@ -1,7 +1,6 @@
 // =============================================================================
 // Ajustes de la terminal que se persisten: qué grupos de conexiones SSH tiene plegados cada perfil,
-// el riel de conexiones a pantalla completa (su ancho, global, y si se ve, por perfil), lo que
-// recuerda el lanzador de conexiones por perfil (las últimas conexiones abiertas) y si se ve el
+// el riel de conexiones a pantalla completa (su ancho, global, y si se ve, por perfil) y si se ve el
 // agente de la terminal, con su saneado y su valor por defecto. Puro y ES2020:
 // lo leen `workspace-state-ipc.ts`, el main y el renderer, y los tres tienen que llegar al mismo valor. Sin imports.
 // Decisiones: docs/decisiones/terminales/pestanas-ssh-del-perfil.md, docs/decisiones/terminales/riel-de-conexiones.md,
@@ -131,65 +130,13 @@ export function conRielVisible(mapa: SshRielVisiblePorPerfil, perfilId: string, 
   return out
 }
 
-// --- El lanzador de conexiones SSH ---------------------------------------------------------
-
-/** Cuántas conexiones recientes se recuerdan, y se enseñan, por perfil. */
-export const SSH_RECIENTES_MAX = 3
+// --- Conexiones SSH ------------------------------------------------------------------------
 
 /**
  * Un id de conexión del registro SSH (`[A-Za-z0-9_-]`, no vacío). Es la ÚNICA expresión: el registro
  * del main la reexporta como `ID_SEGURO` (también nombra archivos, `ssh/huellas/<id>`).
  */
 export const ID_CONEXION = /^[A-Za-z0-9_-]{1,128}$/
-
-/** Lo que se guarda: perfil -> ids de sus últimas conexiones abiertas desde Tessera, la más reciente primero. */
-export type SshRecientesPorPerfil = Record<string, string[]>
-
-/**
- * El mapa de conexiones recientes SANEADO: se descarta la ENTRADA mala y nunca el mapa entero, los ids se
- * guardan sin repetir y en el orden en que llegan, y no pasan de `SSH_RECIENTES_MAX`. Un perfil sin
- * ninguna no ocupa entrada.
- */
-export function normalizarRecientesPorPerfil(raw: unknown): SshRecientesPorPerfil {
-  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {}
-  const out: SshRecientesPorPerfil = {}
-  for (const [perfil, ids] of Object.entries(raw as Record<string, unknown>)) {
-    if (perfil.length === 0 || !Array.isArray(ids)) continue
-    const limpios: string[] = []
-    for (const id of ids) {
-      if (typeof id !== 'string' || !ID_CONEXION.test(id) || limpios.includes(id)) continue
-      if (limpios.length >= SSH_RECIENTES_MAX) break
-      limpios.push(id)
-    }
-    if (limpios.length > 0) out[perfil] = limpios
-  }
-  return out
-}
-
-/**
- * Pone una conexión la primera de las recientes de un perfil (sin repetirla y sin pasar de
- * `SSH_RECIENTES_MAX`) devolviendo el mapa nuevo, o el MISMO objeto si ya era la primera.
- */
-export function conReciente(mapa: SshRecientesPorPerfil, perfilId: string, conexionId: string): SshRecientesPorPerfil {
-  const actuales = mapa[perfilId] ?? []
-  if (actuales[0] === conexionId) return mapa
-  return { ...mapa, [perfilId]: [conexionId, ...actuales.filter((id) => id !== conexionId)].slice(0, SSH_RECIENTES_MAX) }
-}
-
-/**
- * Olvida de las recientes las conexiones que ya no existen (`vivas`), y la entrada de un perfil que se
- * queda sin ninguna. Devuelve el MISMO objeto si no sobra nada.
- */
-export function podarRecientes(mapa: SshRecientesPorPerfil, vivas: ReadonlySet<string>): SshRecientesPorPerfil {
-  let cambio = false
-  const out: SshRecientesPorPerfil = {}
-  for (const [perfil, ids] of Object.entries(mapa)) {
-    const quedan = ids.filter((id) => vivas.has(id))
-    if (quedan.length !== ids.length) cambio = true
-    if (quedan.length > 0) out[perfil] = quedan
-  }
-  return cambio ? out : mapa
-}
 
 // --- Las pestañas SSH abiertas, para el siguiente arranque --------------------------------------
 

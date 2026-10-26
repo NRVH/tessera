@@ -1,5 +1,5 @@
 // =============================================================================
-// Apertura de una sesión del agente: en el contenedor del perfil (cuenta, refcount de la
+// Apertura de una sesión del agente: en el contenedor de su cuenta (cuenta, refcount de la
 // credencial ANTES de tocar Docker, contenedor, montajes, memoria del sandbox, línea de
 // arranque bajo `env -i`) o nativa en el host (candado de la actualización y shell nativa).
 // Decisiones: docs/decisiones/agentes/sesion-del-agente-en-el-main.md
@@ -21,10 +21,12 @@ import {
 import type { AgentAccount } from '../../../shared/agent-accounts-ipc'
 import type { ActivityTracker } from '../agentActivity'
 import { crearDetectorEnvio } from '../lineaEnviada'
-import { acquireConfigRef, cfgRefKey, releaseConfigRef } from './credenciales'
+import { acquireConfigRef, alVerLoginCodex, cfgRefKey, contenedorDe, releaseConfigRef, reservarLoginCodex } from './credenciales'
+import { crearDetectorLoginCodex } from '../loginCodex'
+import { conSitio, mientrasSeAbre } from './cupo'
 import { anclarNuevaSesion, emitExit, makeActivityTracker, sondearTrasLanzar } from './turnos'
-import { marcarEs, medidasDeProcesoNuevo } from './hibernacion'
-import { ACTIVITY_BOOT_GRACE_MS, HOST_ACCOUNT_ID, errMsg, type NucleoAgente, type OpenAgentSession } from './tipos'
+import { marcarEs, medidasDeProcesoNuevo, motivoSalidaNativa } from './hibernacion'
+import { ACTIVITY_BOOT_GRACE_MS, HOST_ACCOUNT_ID, errMsg, esDeVentanaAgente, type NucleoAgente, type OpenAgentSession } from './tipos'
 import { abrirManual } from './aperturaManual'
 import { esAgenteManual } from '../../../shared/agentesManuales'
 
@@ -44,13 +46,18 @@ function sesionNueva(n: NucleoAgente, datos: DatosSesion): OpenAgentSession {
   }
 }
 
-/** Reenvía la salida del pty al renderer y al rastreador de actividad, y apunta la E/S. */
-function suscribirDatos(n: NucleoAgente, sessionId: string, activity: ActivityTracker): () => void {
+/**
+ * Reenvía la salida del pty al renderer y al rastreador de actividad, y apunta la E/S. Con
+ * `verLogin` (Codex en contenedor), mira además si Codex empezó un login por navegador.
+ */
+function suscribirDatos(n: NucleoAgente, sessionId: string, activity: ActivityTracker, verLogin = false): () => void {
+  const detector = verLogin ? crearDetectorLoginCodex() : null
   return n.terminals.onData(sessionId, (data) => {
     const payload: AgentDataMessage = { sessionId, data }
     n.eventos.emitir(AGENT_TERMINAL_CHANNELS.DATA, payload)
     activity.onData(data)
     marcarEs(n, sessionId)
+    if (detector?.(data)) alVerLoginCodex(n, sessionId)
   })
 }
 
@@ -68,10 +75,30 @@ function resolverCuenta(n: NucleoAgente, profile: Profile, agente: Agente, req: 
 }
 
 /**
+ * Una petición de una ventana de agente, impuesta por el main: siempre nativa, en la carpeta del
+ * usuario y sin bases, pida lo que pida el renderer.
+ */
+function peticionDeVentana(n: NucleoAgente, req: AgentOpenRequest): AgentOpenRequest {
+  return { ...req, mode: 'host', projectHostPath: n.carpetaVentana(), dbConnectionIds: [], accountId: undefined }
+}
+
+/**
+ * Abre una sesión de agente y la apunta a la ventana que la pidió. El dueño se fija en la misma
+ * tanda de microtareas en que la sesión entra en el mapa, antes de que el pty entregue nada.
+ */
+export async function abrir(n: NucleoAgente, req: AgentOpenRequest, ventana?: number): Promise<AgentOpenResult> {
+  const pedida = esDeVentanaAgente(req.profileId) ? peticionDeVentana(n, req) : req
+  const res = await abrirSinDueno(n, pedida)
+  const open = n.sessions.get(res.sessionId)
+  if (open && ventana !== undefined) open.ventana = ventana
+  return res
+}
+
+/**
  * Abre una sesión de agente. En contenedor, el refcount de la credencial se toma antes
  * del primer `await` de Docker y se devuelve (desmontando si era la última) si falla.
  */
-export async function abrir(n: NucleoAgente, req: AgentOpenRequest): Promise<AgentOpenResult> {
+async function abrirSinDueno(n: NucleoAgente, req: AgentOpenRequest): Promise<AgentOpenResult> {
   const profile = n.profiles.get(req.profileId)
   if (!profile) throw new Error(`Perfil desconocido: "${req.profileId}".`)
   if (esAgenteManual(req.agente)) return abrirManual(n, profile, req)
@@ -84,14 +111,19 @@ export async function abrir(n: NucleoAgente, req: AgentOpenRequest): Promise<Age
   const account = resolverCuenta(n, profile, agente, req)
   n.log(`open() perfil=${profile.id} agente=${agente} cuenta=${account.id} proyecto=${req.projectHostPath}`)
 
+  // Antes de tocar Docker: si otra cuenta está iniciando sesión en Codex, esta no se abre.
+  const login = reservarLoginCodex(n, profile, agente, account)
   const cfgKey = cfgRefKey(profile.id, agente, account.id)
   acquireConfigRef(n.configRefs, cfgKey)
   try {
-    return await abrirEnContenedor(n, profile, agente, account, req)
+    const res = await mientrasSeAbre(contenedorDe(profile, agente, account.id).id, () => abrirEnContenedor(n, profile, agente, account, req))
+    login?.asignar(res.sessionId)
+    return res
   } catch (err) {
+    login?.soltar()
     if (releaseConfigRef(n.configRefs, cfgKey)) {
       try {
-        await n.sandbox.unmountAgentConfig(profile, agente, account.id)
+        await n.sandbox.unmountAgentConfig(contenedorDe(profile, agente, account.id), agente, account.id)
       } catch (unmountErr) {
         n.log(`open() rollback unmountAgentConfig error: ${errMsg(unmountErr)}`)
       }
@@ -100,7 +132,7 @@ export async function abrir(n: NucleoAgente, req: AgentOpenRequest): Promise<Age
   }
 }
 
-/** Contenedor, proyecto, credencial montada y la memoria del sandbox que el CLI lee al arrancar. */
+/** El contenedor de la cuenta, el proyecto, la credencial montada y la memoria del sandbox que el CLI lee al arrancar. */
 async function prepararContenedor(
   n: NucleoAgente,
   profile: Profile,
@@ -111,17 +143,18 @@ async function prepararContenedor(
   const docker = await n.sandbox.checkDocker()
   if (!docker.ok) throw new Error(`${PREFIJO_DOCKER_NO_DISPONIBLE}\n${docker.detalle}`)
 
-  await n.sandbox.ensureContainer(profile)
+  const destino = contenedorDe(profile, agente, account.id)
+  await conSitio(n, destino, req.cupo, () => n.sandbox.ensureContainer(destino))
   n.touchedProfiles.add(profile.id)
 
-  const mount = await n.sandbox.addProject(profile, req.projectHostPath)
+  const mount = await n.sandbox.addProject(destino, req.projectHostPath)
 
   const hostConfigDir = n.accounts.hostDirFor(account)
-  const cfgMount = await n.sandbox.mountAgentConfig(profile, agente, account.id, hostConfigDir)
+  const cfgMount = await n.sandbox.mountAgentConfig(destino, agente, account.id, hostConfigDir)
   n.log(`mountAgentConfig OK -> ${agente}/${account.id} => ${cfgMount.containerPath} (host=${hostConfigDir})`)
 
   // Las capacidades se preguntan al contenedor vivo (su imagen), no a los ajustes.
-  const caps = await n.sandbox.capacidades(profile)
+  const caps = await n.sandbox.capacidades(destino)
   escribirBloqueSandbox(
     hostConfigDir,
     agente,
@@ -143,6 +176,7 @@ async function abrirEnContenedor(
   req: AgentOpenRequest
 ): Promise<AgentOpenResult> {
   const preparado = await prepararContenedor(n, profile, agente, account, req)
+  const destino = contenedorDe(profile, agente, account.id)
   // Antes de `launch`: la línea corre bajo `env -i` y tiene que llevar estas variables dentro.
   const extraEnv = n.getContainerEnv(profile.id, req.projectHostPath, req.dbConnectionIds ?? [], n.sandbox.dbBridgeContainerPath)
   const launch = buildAgentLaunchCommand(
@@ -155,19 +189,19 @@ async function abrirEnContenedor(
     // En Docker también hay `tssh` (por el buzón del puente), así que va el de SSH detrás del de bases.
     briefingCompuesto(n.getDbBriefing(profile.id, req.projectHostPath, req.dbConnectionIds ?? []), n.getSshBriefing(profile.id))
   )
-  const session = await n.terminals.createSession(profile, { project: req.projectHostPath, launch, extraEnv, tamano: req.tamano })
+  const session = await n.terminals.createSession(destino, { project: req.projectHostPath, launch, extraEnv, tamano: req.tamano })
   n.bindDbSession(extraEnv, claveSesionAgente(session.id))
   // Refcount del contenedor con clave `agent:` para no chocar con la terminal de abajo.
-  n.sandbox.retainSession(profile.id, `agent:${session.id}`)
+  n.sandbox.retainSession(destino.id, `agent:${session.id}`)
   n.log(`createSession OK -> id=${session.id} cwd=${session.workspacePath}`)
 
   const activity = makeActivityTracker(n, session.id, profile.id, req.projectHostPath, agente)
   activity.suppress(ACTIVITY_BOOT_GRACE_MS)
-  const unsubData = suscribirDatos(n, session.id, activity)
+  const unsubData = suscribirDatos(n, session.id, activity, agente === 'codex')
   const unsubExit = n.terminals.onExit(session.id, (exitCode) => {
     // Cierra el turno en silencio: una muerte no es novedad que revisar.
     activity.finish()
-    void emitExit(n, profile, session.id, exitCode)
+    void emitExit(n, destino, session.id, exitCode)
   })
 
   const clave = anclarNuevaSesion(n, session.id, agente, account.id, false, req.projectHostPath, req.resumeSessionId)
@@ -200,11 +234,11 @@ async function abrirEnContenedor(
   }
 }
 
-/** Salida de una sesión nativa: sin contenedor que diagnosticar, siempre 'ok'. */
+/** Salida de una sesión nativa: sin contenedor que diagnosticar; si terminó mal con poca memoria, se dice. */
 function suscribirSalidaNativa(n: NucleoAgente, sessionId: string, activity: ActivityTracker): () => void {
   return n.terminals.onExit(sessionId, (exitCode) => {
     activity.finish()
-    const payload: AgentExitMessage = { sessionId, exitCode, reason: 'ok' }
+    const payload: AgentExitMessage = { sessionId, exitCode, reason: motivoSalidaNativa(n, exitCode) }
     n.eventos.emitir(AGENT_TERMINAL_CHANNELS.EXIT, payload)
     n.log(`agente [NATIVO] EXIT session=${sessionId} exitCode=${exitCode}`)
     n.alCambiarSesiones()

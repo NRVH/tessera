@@ -28,7 +28,8 @@ con la última publicada, los instala y el renderer relanza las sesiones.
 - El CANDADO: mientras se instala un CLI, abrir y reiniciar sesiones de ese agente esperan y sus
   sondas devuelven la última medida. `instalar` espera antes a la sonda que siguiera en vuelo.
 - Instalar: candado → revalidar → parar el lote → esperar bloqueadores → orden (5 min) →
-  re-sondear → soltar. Si la orden sale bien y el CLI no responde o sigue en la misma versión, es
+  re-sondear → soltar. El lote incluye las sesiones de las ventanas de agente: el orquestador de la
+  principal las prepara y relanza por el main en la ventana dueña (`ventana-de-agente.md`). Si la orden sale bien y el CLI no responde o sigue en la misma versión, es
   FALLO: decir «actualizado» mentiría.
 - REPARAR: un CLI que no responde a `--version` pero cuyo método se detecta sin ejecutarlo (Codex
   por npm, pnpm o bun) se ofrece como reinstalación de la última, con la orden del gestor en las

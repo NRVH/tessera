@@ -50,6 +50,16 @@ export function IconoArchivos(): React.JSX.Element {
   )
 }
 
+/** Carpeta de usuario: una casa, el sitio de la ventana de agente. */
+export function IconoCasa(): React.JSX.Element {
+  return (
+    <SvgRiel>
+      <path d="M3 10.5 12 3l9 7.5" />
+      <path d="M5.5 9v10.5a1.5 1.5 0 0 0 1.5 1.5h10a1.5 1.5 0 0 0 1.5-1.5V9" />
+    </SvgRiel>
+  )
+}
+
 /** Terminal: un marco cuadrado con una sola marca, el cursor. */
 export function IconoTerminal(): React.JSX.Element {
   return (

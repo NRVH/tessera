@@ -12,7 +12,9 @@ mezclarse con ningún proyecto ni con el agente de datos.
 ## Decisión
 
 - Es la TERCERA familia de targets de la columna (tras los proyectos y el espacio de datos):
-  `useTargetsTerminal`, un target por agente para cada perfil con el agente preparado.
+  `useTargetsTerminal`, un target por agente para cada perfil con el agente preparado. El pane dice
+  dónde vive con `LugarAgente`; la cuarta, `'ventana'`, no es de la columna sino de la ventana de
+  agente (`ventana-de-agente.md`), y la principal trabaja con `LugarEnLaPrincipal`, sin ella.
 - Carpeta DEFINITIVA por perfil, `<userData>/terminal/<perfil>` (id validado como hija directa por
   `util/carpetaDePerfil.ts`): el historial del agente se indexa por la carpeta, así que no cambia
   nunca. Su `CLAUDE.md` y su `AGENTS.md` llevan el bloque `tessera:ssh` (conexiones disponibles para

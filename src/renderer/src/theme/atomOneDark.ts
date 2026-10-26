@@ -238,8 +238,6 @@ export const THEMES: Record<ThemeName, Record<string, string>> = {
     '--accent': ATOM_ONE_DARK.accent,
     // Fondo del brillo de acento (fila de archivo activa en el explorador).
     '--accent-glow': 'rgba(106,168,255,0.18)',
-    // Ámbar del modo Windows nativo (glifo de modo en la pestaña de proyecto).
-    '--mode-windows': '#dfa25a',
     /**
      * Tinte del contenido que vive DENTRO de un archivo contenedor (.jar/.war/…).
      * Al desplegar un .jar, todo su interior se

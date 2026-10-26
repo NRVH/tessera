@@ -1,7 +1,7 @@
 // =============================================================================
 // La lista de conexiones SSH de un perfil: un filtro (combobox) y un árbol de grupos plegables
 // con las conexiones, en lista virtual. `modo` 'flotante' es el lanzador de la cabecera (un solo grupo
-// abierto, sus recientes, pie de altas y alto acotado); 'fijo' llena su contenedor, para el riel de la
+// abierto, pie de altas y alto acotado); 'fijo' llena su contenedor, para el riel de la
 // terminal a pantalla completa, y en él se marcan varias y se arrastran entre grupos (o a «Nuevo grupo…»). El foco real está en el filtro y la fila activa se nombra con
 // `aria-activedescendant`. Las altas y el teclado salen de `useListaSsh`; el orden, el filtro y las
 // teclas, de `listaSsh` (puro).
@@ -15,7 +15,8 @@ import { IconoCarpetaNueva } from '../../comun/iconosMenu'
 import { useDesplazamientoConservado } from '../../comun/useDesplazamientoConservado'
 import { VirtualList } from '../../comun/VirtualList'
 import { FILAS_MAX } from '../../comun/popoverFlotante'
-import { FilaConexionSsh, FilaGrupoSsh, FilaSeccionSsh } from './FilasListaSsh'
+import { FilaConexionSsh, FilaGrupoSsh } from './FilasListaSsh'
+import { FilaVentanaAgente } from './FilaVentanaAgente'
 import { IconoServidorNuevo } from './iconosSsh'
 import { textoSinCoincidencias, type FilaLista } from './listaSsh'
 import { MenuFilaSsh } from './menuListaSsh'
@@ -49,7 +50,7 @@ function EstadoSinFilas({ v }: { v: VistaListaSsh }): React.JSX.Element | null {
   return <div className="ssh-estado">{t.sinConexiones}</div>
 }
 
-/** El alto de una fila: las conexiones, el de una fila; las cabeceras y los rótulos, el de una cabecera. */
+/** El alto de una fila: las conexiones, el de una fila; las cabeceras, el de una cabecera. */
 function altoDeFila(f: FilaLista | undefined, altoFila: number, altoCabecera: number): number {
   return f?.tipo === 'conexion' ? altoFila : altoCabecera
 }
@@ -65,7 +66,6 @@ function ArbolConexiones({ v, p, idArbol }: { v: VistaListaSsh; p: PropsListaCon
   const desplazable = useRef<HTMLDivElement>(null)
   useDesplazamientoConservado(desplazable, p.oculta !== true)
   const renderFila = (f: FilaLista, i: number): React.JSX.Element => {
-    if (f.tipo === 'seccion') return <FilaSeccionSsh fila={f} alto={altoCabecera} />
     const comunes = {
       id: v.idFila(f),
       activa: i === v.indiceActivo,
@@ -82,9 +82,9 @@ function ArbolConexiones({ v, p, idArbol }: { v: VistaListaSsh; p: PropsListaCon
         fila={f}
         abiertas={p.abiertasPorConexion[id] ?? 0}
         enSesion={id === p.conexionActivaId}
-        marcada={v.seleccion.ids.has(id) && !f.reciente ? (varias ? 'varias' : 'sola') : undefined}
+        marcada={v.seleccion.ids.has(id) ?(varias ? 'varias' : 'sola') : undefined}
         onDoblePulsar={() => v.alDoblePulsar(f)}
-        onArrastrar={fijo && !f.reciente ? { onDragStart: (ev) => v.dnd.alEmpezar(id, ev), onDragEnd: v.dnd.alTerminar } : undefined}
+        onArrastrar={fijo ? { onDragStart: (ev) => v.dnd.alEmpezar(id, ev), onDragEnd: v.dnd.alTerminar } : undefined}
         {...comunes}
       />
     )
@@ -109,25 +109,25 @@ function ArbolConexiones({ v, p, idArbol }: { v: VistaListaSsh; p: PropsListaCon
 }
 
 /**
- * El pie del lanzador: las dos altas («Importar desde OpenSSH…» vive en el formulario de alta) y, aparte, la
- * actividad de los agentes del perfil.
+ * El pie del lanzador: las dos altas («Importar desde OpenSSH…» vive en el formulario de alta) y, aparte,
+ * «Nueva ventana de agente», que no es una conexión del perfil sino otra ventana, sin perfil ni proyecto.
  */
-function PieAltas({ v }: { v: VistaListaSsh }): React.JSX.Element {
+function PieAltas({ v, alAbrirVentana }: { v: VistaListaSsh; alAbrirVentana?: () => void }): React.JSX.Element {
   const t = txSsh()
   return (
-    <div className="ssh-pie">
-      <button type="button" className="ssh-pie-boton" onClick={v.nuevaConexion}>
-        <IconoServidorNuevo />
-        {t.nuevaConexionPie}
-      </button>
-      <button type="button" className="ssh-pie-boton" onClick={v.nuevoGrupo}>
-        <IconoCarpetaNueva />
-        {t.nuevoGrupoPie}
-      </button>
-      <button type="button" className="ssh-pie-boton ssh-pie-actividad" onClick={v.verActividad}>
-        {t.actividadAgentes}
-      </button>
-    </div>
+    <>
+      <div className="ssh-pie">
+        <button type="button" className="ssh-pie-boton" onClick={v.nuevaConexion}>
+          <IconoServidorNuevo />
+          {t.nuevaConexionPie}
+        </button>
+        <button type="button" className="ssh-pie-boton" onClick={v.nuevoGrupo}>
+          <IconoCarpetaNueva />
+          {t.nuevoGrupoPie}
+        </button>
+      </div>
+      <FilaVentanaAgente alAbrir={alAbrirVentana} />
+    </>
   )
 }
 
@@ -177,7 +177,7 @@ export function ListaConexionesSsh(p: PropsListaConexionesSsh): React.JSX.Elemen
       {v.avisos.recuperado !== null && <AvisoCaja tono="info" titulo={txSsh().copiaRespaldo} sugerencia={v.avisos.recuperado} />}
       {conArbol ? <ArbolConexiones v={v} p={p} idArbol={idArbol} /> : <EstadoSinFilas v={v} />}
       {p.modo === 'fijo' && v.dnd.arrastrando && <ZonaNuevoGrupo v={v} />}
-      {p.modo === 'flotante' && (v.estado === 'filas' || v.estado === 'sinCoincidencias' || v.estado === 'vacia') && <PieAltas v={v} />}
+      {p.modo === 'flotante' && (v.estado === 'filas' || v.estado === 'sinCoincidencias' || v.estado === 'vacia') && <PieAltas v={v} alAbrirVentana={p.alAbrirDialogo} />}
       {v.menu && <MenuFilaSsh menu={v.menu} disparador={filtroRef} onClose={v.cerrarMenu} />}
     </div>
   )

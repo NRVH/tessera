@@ -10,11 +10,15 @@ import path from 'node:path'
 import { citarSh } from '../../../shared/citarShell.ts'
 import { leerContexto, TOPE_LECTURA_BYTES, type FuenteContexto, type LecturaContexto } from '../../../shared/contextoAgenteManual.ts'
 import type { Plataforma } from '../../../shared/plataforma.ts'
+import type { IdAgente } from '../../../shared/agentesManuales.ts'
 import { txAgentes } from '../textos.ts'
 
 /** Lo que hace falta saber de la sesión para leer su contexto. */
 export interface SesionConContexto {
   profileId: string
+  /** El agente manual: en Docker su contenedor es el de su cuenta (`contenedorDe`). */
+  agente: IdAgente
+  accountId: string
   projectHostPath: string
   host: boolean
   /** Su `HOME` en el contenedor; vacío en nativo, donde es la carpeta personal de siempre. */

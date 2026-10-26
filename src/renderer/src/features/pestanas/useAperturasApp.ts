@@ -18,7 +18,6 @@ import { useStoreAjustes } from '../ajustes'
 export function useAperturasApp(
   tabs: UseTabs,
   openEditorTab: EditorApp['openEditorTab'],
-  forzarModoWindows: (profileId: string, projectHostPath: string) => void,
   salirDeBd: () => void
 ): void {
   const visto = tabs.objetivoVisto
@@ -43,7 +42,6 @@ export function useAperturasApp(
       salirMosaico(false)
       tabs.setActiveProject(profileId, projectHostPath, opciones)
     },
-    forzarModoWindows,
     quitarAgenteDiferido: tabs.quitarAgenteDiferido,
     abrirArchivo: (file) => {
       salirMosaico(false)

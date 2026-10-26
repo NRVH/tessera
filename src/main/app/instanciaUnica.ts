@@ -1,7 +1,7 @@
 // =============================================================================
 // Una sola Tessera viva, y que se VEA cuando vuelve: cerrojo de instancia única,
-// atención a la segunda instancia (con sus rutas) y la escalera que trae la ventana
-// al frente, sobre todo al arrancar tras una actualización.
+// atención a la segunda instancia (con sus rutas, o pidiendo una ventana de agente) y la
+// escalera que trae la ventana al frente, sobre todo al arrancar tras una actualización.
 // Depende de `electron`, de `primerPlanoPuro.ts` (decide cada empujón) y de `logUpdate`.
 // Decisiones: docs/decisiones/app/arranque-relevo-e-instancia-unica.md,
 //   docs/decisiones/app/ventana-arranque-y-recuperacion.md
@@ -12,6 +12,8 @@ import { logUpdate } from '../update/logUpdate'
 import { PRIMER_PLANO, decidirIntentoPrimerPlano } from './primerPlanoPuro'
 import { FLAG_ACTUALIZADO, rutasDesdeArgv } from '../../shared/rutasDesdeArgv'
 import { esMac } from '../../shared/plataforma'
+import { pideVentanaAgente } from '../../shared/ventana-agente-ipc'
+import { decidirSegundaInstancia, type DecisionSegundaInstancia } from './ventanasAgentePuro'
 
 // La bandera `--updated` que el instalador NSIS pasa tras un update vive en
 // `shared/rutasDesdeArgv.ts`: allí hace falta para NO confundirla con una ruta que el
@@ -274,18 +276,62 @@ export function atenderSegundaInstancia(
       alRecibirRutas?.(rutas)
     }
     const win = getWin()
-    if (win === null) {
-      // Todavía no hay ventana: estamos arrancando en frío. Se anota y la atiende
-      // `atenderSegundaInstanciaPendiente` en cuanto la ventana pueda mostrarse.
-      // Sin esta latch, el arranque en frío —que es JUSTO cuando el usuario vuelve
-      // a pulsar el icono porque "no pasa nada"— se tragaba el aviso: el segundo
-      // proceso moría y el primero no se enteraba.
+    const decision = decidirSegundaInstancia({
+      pideAgente: pideVentanaAgente(argv) && rutas.length === 0,
+      arranqueTerminado: atencion?.arranqueTerminado() ?? false,
+      hayPrincipal: win !== null && !win.isDestroyed()
+    })
+    atenderDecision(decision, win)
+  })
+}
+
+function atenderDecision(decision: DecisionSegundaInstancia, win: BrowserWindow | null): void {
+  switch (decision) {
+    case 'ventana-agente':
+      atencion?.abrirVentanaAgente()
+      return
+    case 'ventana-agente-al-arrancar':
+      ventanasAgentePendientes++
+      return
+    case 'pendiente':
+      // Todavía arrancando. Se anota y la atiende `atenderSegundaInstanciaPendiente` en cuanto la
+      // ventana pueda mostrarse (o, si este arranque no crea la principal, al terminarlo). Sin esta
+      // latch, el arranque en frío —que es JUSTO cuando el usuario vuelve a pulsar el icono porque
+      // "no pasa nada"— se tragaba el aviso: el segundo proceso moría y el primero no se enteraba.
       logUpdate('alguien intentó abrir Tessera mientras esta aún arrancaba; se atenderá al mostrar la ventana.')
       segundaInstanciaPendiente = true
       return
-    }
-    traerAlFrente(win, 'segunda instancia')
-  })
+    case 'traer-principal':
+      traerAlFrente(win, 'segunda instancia')
+      return
+    case 'crear-principal':
+      logUpdate('alguien abrió Tessera con solo ventanas de agente: se crea la principal.')
+      atencion?.abrirPrincipal()
+  }
+}
+
+/** Cómo se abren ventanas desde una segunda instancia; lo fija `index.ts` al terminar el arranque. */
+export interface AtencionVentanas {
+  arranqueTerminado: () => boolean
+  abrirVentanaAgente: () => void
+  abrirPrincipal: () => void
+}
+
+let atencion: AtencionVentanas | null = null
+/** Ventanas de agente pedidas mientras el arranque seguía en curso. */
+let ventanasAgentePendientes = 0
+
+/**
+ * Engancha la apertura de ventanas y atiende lo que llegó durante el arranque: las ventanas de
+ * agente pedidas y, si este arranque no creó la principal, el intento de abrir Tessera.
+ */
+export function fijarAtencionVentanas(a: AtencionVentanas, hayPrincipal: () => boolean): void {
+  atencion = a
+  for (; ventanasAgentePendientes > 0; ventanasAgentePendientes--) a.abrirVentanaAgente()
+  if (segundaInstanciaPendiente && !hayPrincipal()) {
+    segundaInstanciaPendiente = false
+    a.abrirPrincipal()
+  }
 }
 
 /** ¿Alguien intentó abrir Tessera mientras esta aún no tenía ventana? */

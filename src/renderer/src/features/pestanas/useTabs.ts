@@ -38,16 +38,6 @@ import type { DetectedRepo } from '../../../../shared/workspace-ipc'
 
 export type { ConfirmedTarget, ObjetivoVisto }
 
-/**
- * App decide y APLICA el modo (nativo/Docker) de un proyecto RECIÉN elegido antes de
- * abrirlo (según el ajuste por defecto, o preguntando). Devuelve false para CANCELAR.
- */
-export type DecideProjectMode = (
-  profileId: string,
-  projectHostPath: string,
-  name: string
-) => Promise<boolean>
-
 /** Superficie que el hook expone a la UI: estado leído por selectores + acciones. */
 export interface UseTabs {
   // --- Selectores (derivados del estado actual) -----------------------------
@@ -105,14 +95,13 @@ export interface UseTabs {
   /** Cambia el perfil activo; su proyecto-activo recordado pasa a ser el global. */
   setActiveProfile: (profileId: string) => void
   /** Abre el diálogo nativo y, si no se cancela, abre el proyecto en el perfil activo. */
-  openProjectInActiveProfile: (decideMode?: DecideProjectMode) => Promise<void>
+  openProjectInActiveProfile: () => Promise<void>
   /**
    * Abre el diálogo y añade el proyecto elegido a ESE perfil (no al activo), sin
    * cambiar el perfil activo. Devuelve el proyecto abierto, o null si se canceló.
    */
   openProjectInProfile: (
     profileId: string,
-    decideMode?: DecideProjectMode,
     alAbrir?: (project: { projectHostPath: string; name: string }) => void
   ) => Promise<{ projectHostPath: string; name: string } | null>
   /**
@@ -131,7 +120,7 @@ export interface UseTabs {
    * elegido en el mismo hueco de la banda (cerrar actual + abrir nuevo en un gesto).
    * Cancelar el diálogo no cierra nada.
    */
-  replaceProjectInActiveProfile: (oldPath: string, decideMode?: DecideProjectMode) => Promise<void>
+  replaceProjectInActiveProfile: (oldPath: string) => Promise<void>
   /**
    * Marca un proyecto ya abierto como activo dentro de su perfil; con `entrar`, además pasa a ese
    * perfil en la misma acción, sin despertar el proyecto que el perfil tenía activo.

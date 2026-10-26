@@ -1,6 +1,6 @@
 // =============================================================================
 // Todo lo que sabe y hace la lista de conexiones SSH de un perfil: el filtro, la fila activa, qué
-// filas se pintan (en el lanzador, con un solo grupo abierto y las conexiones recientes), en el riel lo
+// filas se pintan (en el lanzador, con un solo grupo abierto), en el riel lo
 // marcado y el arrastre (`useArrastreListaSsh`), el menú de una fila y las acciones (conectar, plegar,
 // editar, mover, eliminar…) que salen del teclado, del ratón y del menú.
 // El teclado lo decide `accionTeclaLista` (puro); aquí se ejecuta. Devuelve la VISTA que pinta
@@ -19,7 +19,6 @@ import {
   construirFilas,
   plegadosDeAcordeon,
   primeraConexion,
-  recientesDe,
   siguienteGrupoAbierto,
   type AccionLista,
   type FilaConexion,
@@ -46,7 +45,7 @@ import { accionesSsh, datosDePerfil, useStoreSsh, type DatosPerfilSsh } from './
 /** Lo que la lista recibe de quien la aloja. */
 export interface OpcionesListaSsh {
   perfilId: string
-  /** 'flotante': el lanzador, con un solo grupo abierto y sus recientes. 'fijo': el riel, con cada grupo por su cuenta. */
+  /** 'flotante': el lanzador, con un solo grupo abierto. 'fijo': el riel, con cada grupo por su cuenta. */
   modo: 'flotante' | 'fijo'
   /** Cuántas pestañas SSH hay abiertas de cada conexión (id -> n). */
   abiertasPorConexion: Readonly<Record<string, number>>
@@ -94,11 +93,10 @@ function useEstadoListaSsh(o: OpcionesListaSsh) {
   const flotante = o.modo === 'flotante'
   const datos = useStoreSsh((s) => datosDePerfil(s, perfilId))
   const plegadosGuardados = useStoreSsh((s) => s.plegadosPorPerfil[perfilId])
-  const recientesGuardados = useStoreSsh((s) => s.recientesPorPerfil[perfilId])
   const avisos = useStoreSsh(useShallow((s) => ({ cargado: s.cargado, ajeno: s.avisoFormatoAjeno, recuperado: s.avisoRecuperado })))
   const [filtro, setFiltro] = useState('')
   const [activoClave, setActivoClave] = useState<string | null>(null)
-  // El único grupo abierto del lanzador: nace sin ninguno (con «Recientes» arriba no hace falta ver el resto) y no se recuerda.
+  // El único grupo abierto del lanzador: nace sin ninguno y no se recuerda.
   const [abierto, fijarAbierto] = useState<string | null>(null)
   // Lo que se arrastra en el riel: mientras dura, «Sin grupo» se enseña aunque esté vacío, para poder soltar ahí.
   const [arrastre, fijarArrastre] = useState<string[] | null>(null)
@@ -106,11 +104,10 @@ function useEstadoListaSsh(o: OpcionesListaSsh) {
     () => (flotante ? plegadosDeAcordeon(datos.grupos, abierto) : new Set(plegadosGuardados ?? [])),
     [flotante, datos.grupos, abierto, plegadosGuardados]
   )
-  const recientes = useMemo(() => (flotante ? recientesDe(recientesGuardados, datos.conexiones) : []), [flotante, recientesGuardados, datos.conexiones])
   const mostrarSinGrupo = arrastre !== null
   const filas = useMemo(
-    () => construirFilas({ grupos: datos.grupos, conexiones: datos.conexiones, filtro, plegados, recientes, mostrarSinGrupo }),
-    [datos, filtro, plegados, recientes, mostrarSinGrupo]
+    () => construirFilas({ grupos: datos.grupos, conexiones: datos.conexiones, filtro, plegados, mostrarSinGrupo }),
+    [datos, filtro, plegados, mostrarSinGrupo]
   )
   const estado = estadoDe(avisos.cargado, avisos.ajeno, datos, filas, filtro)
   // Solo el riel marca varias; lo marcado que deja de verse (un grupo plegado, un filtro, un borrado) se suelta.
@@ -188,8 +185,7 @@ function itemsDeFila(o: OpcionesListaSsh, datos: DatosPerfilSsh, f: FilaGrupo | 
       onDuplicar: () => void duplicar(c),
       onMoverAGrupo: () => conDialogo(o, () => accionesSsh.editarConexion(c, true)),
       onOlvidarHuella: c.huellaServidor.length > 0 ? () => conDialogo(o, () => accionesSsh.pedirOlvidarHuella(c)) : null,
-      onEliminar: () => conDialogo(o, () => accionesSsh.pedirEliminarConexion(c)),
-      onVerActividad: () => conDialogo(o, () => accionesSsh.verActividad(o.perfilId, c.alias))
+      onEliminar: () => conDialogo(o, () => accionesSsh.pedirEliminarConexion(c))
     })
   }
   const g = datos.grupos.find((x) => x.id === f.grupoId)
@@ -206,7 +202,7 @@ function itemsDeFila(o: OpcionesListaSsh, datos: DatosPerfilSsh, f: FilaGrupo | 
  * ellas; sobre una sin marcar, esa pasa a ser la única marcada y sale su menú de siempre.
  */
 function itemsAlAbrirMenu(o: OpcionesListaSsh, e: EstadoLista, f: FilaGrupo | FilaConexion): ContextMenuEntry[] {
-  if (o.modo !== 'fijo' || f.tipo !== 'conexion' || f.reciente) return itemsDeFila(o, e.datos, f)
+  if (o.modo !== 'fijo' || f.tipo !== 'conexion') return itemsDeFila(o, e.datos, f)
   const sel = resolverClicDerechoSsh(e.seleccion, f.conexion.id)
   e.fijarSeleccion(sel)
   if (sel.ids.size <= 1) return itemsDeFila(o, e.datos, f)
@@ -287,7 +283,6 @@ export function useListaSsh(o: OpcionesListaSsh, filtroRef: RefObject<HTMLInputE
   const idFila = (f: FilaLista): string => `${idBase}-${f.clave}`
   const arrastre = useArrastreListaSsh({ ...e, perfilId: o.perfilId })
   const abrirMenu = (f: FilaLista, x: number, y: number): void => {
-    if (f.tipo === 'seccion') return
     e.setActivoClave(f.clave)
     const items = itemsAlAbrirMenu(o, e, f)
     // «Sin grupo» no tiene menú: sin opciones no se abre nada.
@@ -318,12 +313,11 @@ export function useListaSsh(o: OpcionesListaSsh, filtroRef: RefObject<HTMLInputE
    * elegir para editarla, moverla o borrarla) y conecta en el lanzador, que es un menú.
    */
   const alPulsar = (f: FilaLista, mods: ModificadoresClicSsh = { mod: false, shift: false }): void => {
-    if (f.tipo === 'seccion') return
     e.setActivoClave(f.clave)
     filtroRef.current?.focus()
     if (f.tipo === 'conexion') {
       if (o.modo === 'flotante') o.onConectar(f.conexion)
-      else if (!f.reciente) e.fijarSeleccion(resolverClicSsh(e.seleccion, e.visibles, f.conexion.id, mods))
+      else e.fijarSeleccion(resolverClicSsh(e.seleccion, e.visibles, f.conexion.id, mods))
     } else if (e.filtro === '') plegarGrupo(f.grupoId, f.abierto)
   }
   /** Doble clic en una conexión del riel: conecta. */
@@ -344,8 +338,7 @@ export function useListaSsh(o: OpcionesListaSsh, filtroRef: RefObject<HTMLInputE
       e.setActivoClave(null)
     },
     nuevaConexion: () => conDialogo(o, () => accionesSsh.nuevaConexion(o.perfilId)),
-    nuevoGrupo: () => conDialogo(o, () => accionesSsh.nuevoGrupo(o.perfilId)),
-    verActividad: () => conDialogo(o, () => accionesSsh.verActividad(o.perfilId))
+    nuevoGrupo: () => conDialogo(o, () => accionesSsh.nuevoGrupo(o.perfilId))
   }
 }
 

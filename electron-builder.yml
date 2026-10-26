@@ -109,6 +109,13 @@ win:
       name: Tessera.Configuracion.1
       description: Configuración de Tessera
       icon: tessera
+  # El icono de las VENTANAS DE AGENTE: llevan su propio grupo en la barra de tareas
+  # (`src/main/app/ventanaAgente.ts`), y Windows lo pinta desde un .ico suelto en disco,
+  # no desde los recursos del .exe. También lo usa la tarea de la Jump List. Como el de
+  # documento, se regenera a mano si cambia la marca.
+  extraResources:
+    - from: build/tessera-agente.ico
+      to: tessera-agente.ico
 
 # =============================================================================
 # macOS
@@ -313,15 +320,27 @@ linux:
     - ext: tessera
       name: Configuración de Tessera
       mimeType: application/x-tessera
+  # La acción «Nueva ventana de agente» (clic derecho en el lanzador). Es la misma que escribe
+  # `escritorioLinux.ts` en el `.desktop` de la integración propia; esta va en el del AppImage,
+  # el que leen sus integradores (que reescriben `AppRun` por la ruta del AppImage).
   desktop:
     entry:
       StartupWMClass: Tessera
+      Actions: ventana-agente;
+    desktopActions:
+      ventana-agente:
+        Name: Nueva ventana de agente
+        Name[en]: New agent window
+        Exec: AppRun --ventana-agente
   extraResources:
     - from: build/icon.png
       to: icon.png
     # El de los `.tessera`: lo instala `escritorioLinux.ts` junto con su tipo.
     - from: build/tessera-documento.png
       to: tessera-documento.png
+    # El de las ventanas de agente (`src/main/app/ventanaAgente.ts`).
+    - from: build/tessera-agente.png
+      to: tessera-agente.png
 
 dmg:
   artifactName: ${productName}-${version}-${arch}.${ext}

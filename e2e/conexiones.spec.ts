@@ -1189,6 +1189,23 @@ test.describe('explorador de bases de datos', () => {
     expect(await pestanas.allTextContents(), 'ninguna pestaña de la vista se cerró').toEqual(antes)
     await expect(win.locator('.tabs-projects .project-tab'), 'ni el proyecto').toHaveCount(1)
 
+    // Maximizar el agente de datos tapa las pestañas de BD sin cerrarlas; restaurar las devuelve.
+    const pane = win.locator('.right-panel .agent-pane:not(.hidden)')
+    await pane.locator('button[aria-label^="Maximizar"]').click()
+    await expect(win.locator('.db-area')).toBeHidden()
+    await expect(win.locator('.right-panel')).toHaveClass(/cc-grow/)
+    await pane.locator('button[aria-label="Restaurar tablas y consolas"]').click()
+    await expect(win.locator('.db-area')).toBeVisible()
+    await expect(win.locator('.right-panel')).not.toHaveClass(/cc-grow/)
+    // Abrir una tabla desde el árbol con el agente maximizado la enseña: abrir es querer verla.
+    const activa = (await win.locator(`${PESTANAS}[aria-selected="true"]`).textContent()) ?? ''
+    await pane.locator('button[aria-label^="Maximizar"]').click()
+    await expect(win.locator('.db-area')).toBeHidden()
+    await fila(win, 'objeto', 'cliente').dblclick()
+    await expect(win.locator('.db-area')).toBeVisible()
+    await expect(pane.locator('button[aria-label^="Maximizar"]')).toBeVisible()
+    await win.locator(PESTANAS, { hasText: activa }).first().click()
+
     await monacoConsola(win, { op: 'foco' })
     await win.keyboard.press(ACORDE_AGENTE)
     await expect(win.locator('.right-panel')).toBeHidden()
@@ -1227,6 +1244,31 @@ test.describe('explorador de bases de datos', () => {
     await botonVista(win, 'Git · Cambios').click()
     await asentar(win)
     await capturar(win, '12-vista-git-tras-db')
+  })
+
+  // (9d) EL AGENTE DE DATOS ELIGE SU CUENTA como los de un proyecto: nativo por defecto, y su botón de
+  // cuenta ofrece pasar a una de Docker o crearla. No hay glifo de modo: Docker es del agente, no del espacio.
+  test('(9d) el agente de datos corre nativo y su botón de cuenta ofrece Docker, sin glifo de modo', async () => {
+    const win = s!.win
+    await botonVista(win, 'Conexiones a bases de datos').click()
+    await monacoConsola(win, { op: 'foco' })
+    await win.keyboard.press(ACORDE_AGENTE)
+    const pane = win.locator('.right-panel .agent-pane:not(.hidden)')
+    const cuenta = pane.locator('.panel-actions .cuenta-btn')
+    await expect(cuenta, 'nativo por defecto, con la cuenta del sistema').toHaveAttribute('aria-label', /^Cuenta: Nativo \(/, { timeout: 30_000 })
+    await expect(pane.locator('.panel-actions button[aria-label^="Modo"]'), 'sin glifo de modo').toHaveCount(0)
+    await expect(pane.getByText('Sin cuenta para Claude Code'), 'en nativo no pide cuenta').toHaveCount(0)
+
+    await cuenta.click()
+    const pop = win.locator('.cuenta-pop')
+    await expect(pop.locator('.cuenta-seccion').first().locator('.cuenta-tarjeta'), 'la del sistema, marcada').toHaveAttribute('aria-checked', 'true')
+    await expect(pop.locator('.cuenta-nueva'), 'y crear una de Docker').toHaveText('Nueva cuenta de Docker…')
+    await win.keyboard.press('Escape')
+    await expect(pop, 'Escape lo cierra').toHaveCount(0)
+
+    await monacoConsola(win, { op: 'foco' })
+    await win.keyboard.press(ACORDE_AGENTE)
+    await expect(win.locator('.right-panel')).toBeHidden()
   })
 
   // (10) CERRAR LA APP CON UNA TRANSACCIÓN PENDIENTE, por `before-quit` y por la X, y lo

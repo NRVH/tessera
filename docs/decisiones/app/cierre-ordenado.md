@@ -1,7 +1,7 @@
 # Todo cierre pasa por un único cierre ordenado que pregunta antes, apaga en orden, decide la actualización al final y no deja el proceso vivo
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/app/cierre.ts`, `src/main/app/eventosApp.ts`, `src/main/app/guardianSalida.ts`, `src/main/app/planGuardianSalida.ts`, `src/main/util/registroCierre.ts`, `src/main/util/esperas.ts`
+- **Ámbito:** `src/main/app/cierre.ts`, `src/main/app/cierrePrincipal.ts`, `src/main/app/eventosApp.ts`, `src/main/app/guardianSalida.ts`, `src/main/app/planGuardianSalida.ts`, `src/main/util/registroCierre.ts`, `src/main/util/esperas.ts`
 
 ## Contexto
 
@@ -29,7 +29,10 @@ lo último que se tecleó, y sin que el instalador tropiece con archivos en uso.
   «sale».
 - Antes de `app.exit`, `salir()` deja escritos los ptys con la raíz viva, escucha el `exit` de Node (cuánto tarda tras
   «sale» y qué seguía activo en su bucle) y arma el **guardián de salida**: un proceso aparte que termina la app si no
-  ha salido 15 s después de «sale», dejando antes su línea en `cierre.log`. Tras `app.exit` no corre JS que pueda
+  ha salido 15 s después de «sale», dejando antes su línea en `cierre.log`. Si al salir queda algún pty sin su fin
+  anotado, el plazo es de 3 s: en Windows es la firma de un desmontaje que no termina nunca (node-pty espera en un
+  hilo nativo el aviso de fin de una raíz que ya no existe), y esperar solo retrasaría el relanzamiento y el
+  instalador; lo que se escribe a disco ya terminó con el `exit` de Node. Tras `app.exit` no corre JS que pueda
   cortar un desmontaje colgado, sea cual sea su causa; desde fuera sí. Nunca mata por nombre ni un pid que ya pudiera
   ser de otro: en Windows (PowerShell por ruta absoluta y guion codificado) abre un handle al proceso, con el que el
   pid ya no se reutiliza, y solo sigue si ese proceso nació antes que el guardián; en macOS y Linux (`/bin/sh`) solo
@@ -37,6 +40,11 @@ lo último que se tecleó, y sin que el instalador tropiece con archivos en uso.
   consola, PowerShell sale sin hacer nada, y allí un hijo no muere con su padre. Su cwd es el temporal del sistema,
   para no retener la carpeta de un proyecto ni la de instalación.
 - `window-all-closed` no sale mientras `cerrando`: `destroy()` lo emite síncrono y salía antes de lanzar el instalador.
+- Con ventanas de agente abiertas, la X de la principal NO pasa por aquí: `cierrePrincipal.ts` hace la misma pregunta y
+  cierra en orden solo lo de la principal (consolas, `workspace-state`, sesiones de BD, vigilantes, sus terminales y
+  agentes por su árbol), sin servicios, contenedores, puente ni guardián, que son de la app. `iniciarCierre` llega al
+  cerrar la última ventana o al salir, y entonces cierra también las de agente; si relanza tras actualizar, deja
+  escritas las que hay para reabrirlas → [`agentes/ventana-de-agente.md`](../agentes/ventana-de-agente.md).
 - Con actualización: se matan los ptys registrados (en Windows cargan `OpenConsole.exe` desde la carpeta de
   instalación) y se lanza el instalador. Si falla y el cierre lo pidió el usuario al CERRAR, se sale igual (nunca se
   devuelve una app vaciada que no pidió actualizar). Si pidió actualizar: plan B, abrir el instalador a mano; plan C,
@@ -56,5 +64,5 @@ Un cierre que termina el guardián deja en rojo el e2e que lo provocó.
 - Salir con `process.exit`: se salta el apagado de Chromium, que vacía el almacenamiento de la sesión.
 
 - Cierre «elegante» de los ptys uno a uno: lento y frágil. Dentro de un contenedor `docker rm -f`
-  garantiza su muerte; en modo nativo la garantiza matar el árbol de cada pty (`cerrar-ptys`, con
+  garantiza su muerte; en un agente o terminal nativos la garantiza matar el árbol de cada pty (`cerrar-ptys`, con
   tope), no solo su raíz.

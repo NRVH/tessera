@@ -1,7 +1,7 @@
 // =============================================================================
 // Efectos de sesión de un `TerminalPane`: reconcile de apertura, hibernación, fit al volver a ser
-// visible, el primer dato de una sesión SSH, reconectar o cancelar una SSH desde el propio pane y
-// publicación de estado y acciones hacia el panel. Se
+// visible, el primer dato de una sesión SSH, la recuperación del contenedor en modo Docker,
+// reconectar o cancelar una SSH desde el propio pane y publicación de estado y acciones hacia el panel. Se
 // llaman en este orden (React corre los efectos de un componente en el orden de declaración).
 // Una sesión SSH no depende del contenedor ni de los ajustes de montaje, ignora la hibernación y se
 // abre sola solo la primera vez que se ve.
@@ -9,7 +9,7 @@
 // =============================================================================
 
 import { useEffect, useRef } from 'react'
-import { abrirSesion, cancelarConexion, manejarReload, type ContextoSesion } from './sesionShell'
+import { abrirSesion, cancelarConexion, manejarReload, recuperarShell, type ContextoSesion } from './sesionShell'
 import { hayTextoVisible } from './textoSesionSsh'
 import type { RefsTerminal, TerminalPaneProps } from './terminalPaneTipos'
 import type { EstadoSesion } from './useEstadoTerminalPane'
@@ -101,6 +101,32 @@ export function usePrimerDatoSsh(props: TerminalPaneProps, refs: RefsTerminal, e
       if (msg.sessionId === refs.session.current && hayTextoVisible(msg.data)) setDatosRecibidos(true)
     })
   }, [esSsh, datosRecibidos, refs, setDatosRecibidos])
+}
+
+/**
+ * El contenedor de un shell en modo Docker murió: con 'recrear' se recupera ya; con
+ * 'esperar-docker' se recupera cuando Docker vuelva a responder. El contexto va por ref: la
+ * suscripción vive lo que dura la espera, no un render.
+ */
+export function useRecuperacionContenedor(
+  props: TerminalPaneProps,
+  refs: RefsTerminal,
+  estado: EstadoSesion,
+  fitAndSyncNow: () => void
+): void {
+  const ctx = useRef(contextoSesion(props, refs, estado, fitAndSyncNow))
+  ctx.current = contextoSesion(props, refs, estado, fitAndSyncNow)
+  const caida = estado.caidaContenedor
+  useEffect(() => {
+    if (caida === 'recrear') {
+      void recuperarShell(ctx.current)
+      return
+    }
+    if (caida !== 'esperar-docker') return
+    return window.tessera.estadoDocker.onCambio((e) => {
+      if (e === 'disponible') void recuperarShell(ctx.current)
+    })
+  }, [caida])
 }
 
 /** Reconectar y cancelar una sesión SSH desde su propio pane. */

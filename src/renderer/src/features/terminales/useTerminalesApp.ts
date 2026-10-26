@@ -7,7 +7,7 @@
 // Decisiones: docs/decisiones/terminales/pestanas-ssh-del-perfil.md
 // =============================================================================
 import { useCallback, useEffect, useMemo } from 'react'
-import { accionesSsh, conexionPorId, useStoreSsh } from '../ssh'
+import { conexionPorId, useStoreSsh } from '../ssh'
 import { terminalProjectKey } from './shellTerminalsModel'
 import { contextoSsh, contextosVivosSsh } from './sshTabsModel'
 import { hayTerminalQueEnsenar } from './activoTerminales'
@@ -100,13 +100,11 @@ export function useTerminalesApp(tabs: UseTabs, terminalVisible: boolean): Termi
   usePodaSsh(tabs, terminalProjects)
   useAliasSsh()
   // Con el contexto del momento: una conexión de OTRO perfil se abre sin proyecto.
-  // Toda apertura pasa por aquí (la lista y el riel), así que aquí se anota como reciente.
   const conectarSsh = useCallback(
     (perfilId: string, conexionId: string, alias?: string) => {
       const nombre = alias ?? conexionPorId(useStoreSsh.getState(), conexionId)?.alias ?? ''
       const contexto = perfilId === perfilTerminal ? contextoTerminal : contextoSsh(perfilId, null)
       accionesTerminales.abrirSsh(contexto, perfilId, conexionId, nombre)
-      accionesSsh.registrarReciente(perfilId, conexionId)
     },
     [perfilTerminal, contextoTerminal]
   )

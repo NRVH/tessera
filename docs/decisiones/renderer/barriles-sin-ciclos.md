@@ -1,7 +1,7 @@
 # Entre los barriles de las features no hay ciclos: lo que solo compone App va en `app.ts`
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/features/*/index.ts` y `app.ts`, `App.tsx`, `scripts/calidad/test-ciclos.mts`
+- **Ámbito:** `src/renderer/src/features/*/index.ts` y `app.ts`, `App.tsx`, `scripts/calidad/test-ciclos.mts`, `electron.vite.config.ts`
 
 ## Contexto
 
@@ -40,6 +40,10 @@ modelo de diffs de git.
 - Un hook nuevo que solo monte App va al `app.ts`. Si una feature empieza a necesitar algo de
   otra que ya la necesita, la guardia lo para: se pasa por parámetro o prop, o se mueve la pieza
   a la feature de la que realmente es.
+- La pasada de la página de la ventana de agente declara los `index.ts` sin efectos
+  (`treeshake.moduleSideEffects` en `electron.vite.config.ts`): importar un símbolo de un barril
+  no arrastra lo demás que exporta.
+  Por eso un barril solo reexporta; un efecto al cargar va en el módulo que lo necesita.
 
 ## Descartes
 

@@ -23,7 +23,8 @@ import {
   type ResizeTerminalMessage,
   type FlowControlMessage,
   type TerminalDataMessage,
-  type TerminalExitMessage
+  type TerminalExitMessage,
+  type MotivoContenedor
 } from '../../shared/terminal-ipc'
 import { txMain } from '../textos.ts'
 
@@ -90,6 +91,11 @@ interface OpenSession {
   unsubExit: () => void
   /** Sesión SSH: su conexión y la cola de salida con que se clasifica su EXIT. */
   ssh?: SesionSsh
+  /**
+   * Cuántas veces se relanzó (conserva el sessionId). El EXIT de un shell en modo Docker sale tras
+   * un diagnóstico que tarda: si entretanto se relanzó, ese EXIT es del shell viejo y no se envía.
+   */
+  relanzamientos: number
 }
 
 /** Puente entre el proceso main y las terminales: abre, recarga y cierra sesiones. */
@@ -209,6 +215,7 @@ export class TerminalController {
     } else if (open.host && dbConnectionIds === undefined) {
       dbLog('reload', `sesión ${sessionId}: sin lista de montaje, se CONSERVA el entorno anterior`)
     }
+    if (open) open.relanzamientos++
     const session = await this.terminals.reloadSession(sessionId, overrides)
     this.log(
       `reloadSession OK -> id=${session.id} cwd=${session.workspacePath} entorno=${
@@ -294,6 +301,29 @@ export class TerminalController {
     return this.lanzadorSsh
   }
 
+  /**
+   * EXIT de un shell en modo Docker, con el motivo si no salió por sí mismo: el renderer recrea el
+   * contenedor, espera a Docker o avisa de la memoria. Un diagnóstico que falla manda la salida a secas.
+   */
+  private async emitirSalidaContenedor(profile: Profile, sessionId: string, exitCode: number | null): Promise<void> {
+    const relanzamientos = this.sessions.get(sessionId)?.relanzamientos ?? 0
+    let reason: MotivoContenedor | undefined
+    try {
+      const causa = await this.sandbox.diagnoseProfile(profile, exitCode)
+      reason = causa === 'ok' ? undefined : causa
+    } catch (err) {
+      this.log(`diagnoseProfile error: ${err instanceof Error ? err.message : String(err)}`)
+    }
+    const actual = this.sessions.get(sessionId)
+    if (actual && actual.relanzamientos !== relanzamientos) {
+      this.log(`shell EXIT session=${sessionId} descartado: se relanzó mientras se diagnosticaba`)
+      return
+    }
+    const payload: TerminalExitMessage = { sessionId, exitCode, ...(reason ? { reason } : {}) }
+    this.eventos.emitir(TERMINAL_CHANNELS.EXIT, payload)
+    this.log(`shell EXIT session=${sessionId} exitCode=${exitCode}${reason ? ` motivo=${reason}` : ''}`)
+  }
+
   /** Cablea DATA/EXIT hacia el renderer, registra la sesión y devuelve el resultado IPC. */
   private wireSession(
     profile: Profile,
@@ -312,6 +342,10 @@ export class TerminalController {
     // del shell (`exit`, un crash), no en el kill interno de un reload.
     const unsubExit = this.terminals.onExit(session.id, (exitCode) => {
       ssh?.alTerminar()
+      if (!ssh && !host) {
+        void this.emitirSalidaContenedor(profile, session.id, exitCode)
+        return
+      }
       const payload: TerminalExitMessage =
         ssh && this.lanzadorSsh ? salidaSsh(session.id, exitCode, ssh, this.lanzadorSsh) : { sessionId: session.id, exitCode }
       this.eventos.emitir(TERMINAL_CHANNELS.EXIT, payload)
@@ -325,6 +359,7 @@ export class TerminalController {
       host,
       unsubData,
       unsubExit,
+      relanzamientos: 0,
       ...(ssh ? { ssh } : {})
     })
 
@@ -382,6 +417,17 @@ export class TerminalController {
    */
   matarPtysConArbol(topeMs: number, anotar?: (msg: string) => void): Promise<number> {
     return this.terminals.matarTodoConArbol(topeMs, anotar)
+  }
+
+  /**
+   * Cierre de la ventana principal con ventanas de agente abiertas: mata el árbol de todas las
+   * terminales de una vez y las cierra, sin apagar el servicio (la principal puede volver a abrirse).
+   * No detiene contenedores. Devuelve cuántas había vivas.
+   */
+  async cerrarTodasConArbol(topeMs: number, anotar?: (msg: string) => void): Promise<number> {
+    const vivas = await this.terminals.matarArbolesDe([...this.sessions.keys()], topeMs, anotar)
+    await this.closeAllSessions()
+    return vivas
   }
 
   /**

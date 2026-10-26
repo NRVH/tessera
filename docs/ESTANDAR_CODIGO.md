@@ -120,6 +120,7 @@ le aplican.
 ```
 src/renderer/src/
   App.tsx, main.tsx   composición y arranque; App.tsx no guarda estado de dominio
+  agente.tsx          arranque de la ventana de agente (su propia página, `agente.html`)
   features/<dominio>/
     index.ts          API pública: lo único que importan las demás features
     app.ts            lo que solo compone App.tsx (hooks use*App, el shell); nadie más lo importa

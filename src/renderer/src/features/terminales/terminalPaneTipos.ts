@@ -96,6 +96,12 @@ export interface TerminalPaneProps {
  * `useRefsTerminal` una sola vez), así que ninguno de sus campos entra en las
  * dependencias de un efecto por cambiar de identidad.
  */
+/**
+ * El contenedor de un shell en modo Docker murió: 'recrear' lo reintenta ya, con esperas
+ * crecientes; 'esperar-docker' espera a que Docker vuelva (estaba caído, o se agotaron los intentos).
+ */
+export type CaidaContenedor = 'recrear' | 'esperar-docker'
+
 export interface RefsTerminal {
   host: RefObject<HTMLDivElement>
   term: MutableRefObject<Terminal | null>
@@ -118,6 +124,8 @@ export interface RefsTerminal {
   intentado: MutableRefObject<boolean>
   /** Cuándo (epoch ms) arrancó la sesión SSH vigente: de ahí sale si salió con 255 al conectar o después. */
   inicioSesion: MutableRefObject<number>
+  /** ¿Hay una recuperación del contenedor en curso? Guarda síncrona contra dos a la vez. */
+  recuperando: MutableRefObject<boolean>
   /** `visible` legible desde callbacks async (no robar foco si ya se fue a otra terminal). */
   visible: MutableRefObject<boolean>
   /** Temporizador del debounce del resize AL PTY (trailing). */

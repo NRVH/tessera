@@ -1,6 +1,5 @@
 // =============================================================================
-// Los menús de la lista de conexiones SSH: el de una conexión (Conectar, Ir a la sesión abierta,
-// Actividad de los agentes, Editar, Duplicar, Mover a grupo, Olvidar la huella guardada, Eliminar), el de varias marcadas en el riel (Mover a un grupo,
+// Los menús de la lista de conexiones SSH: el de una conexión (Conectar, Ir a la sesión abierta, Editar, Duplicar, Mover a grupo, Olvidar la huella guardada, Eliminar), el de varias marcadas en el riel (Mover a un grupo,
 // Exportar a OpenSSH, Eliminar) y el de un grupo real (Nueva conexión aquí, Renombrar, Eliminar grupo; «Sin grupo» no tiene), más el componente que los pinta en la capa flotante: la lista flotante tiene su propio
 // recorte y el menú no puede colgar de ella. Depende de `ContextMenu` y `capaFlotante`.
 // Decisiones: docs/decisiones/terminales/pestanas-ssh-del-perfil.md
@@ -29,13 +28,11 @@ export interface AccionesMenuConexion {
   /** Olvida la huella del servidor ya aceptada; `null` si no hay ninguna guardada (la opción no sale). */
   onOlvidarHuella: (() => void) | null
   onEliminar: () => void
-  /** Lo que hicieron los agentes con esta conexión. */
-  onVerActividad: () => void
 }
 
 /**
- * Conectar · Abrir explorador SFTP · Ir a la sesión abierta (si hay) · — · Actividad de los agentes… · — ·
- * Editar… · Duplicar · Mover a grupo… · — · Olvidar la huella guardada… (si hay) · Eliminar…
+ * Conectar · Abrir explorador SFTP · Ir a la sesión abierta (si hay) · — · Editar… · Duplicar · Mover a grupo… ·
+ * — · Olvidar la huella guardada… (si hay) · Eliminar…
  */
 export function itemsMenuConexion(a: AccionesMenuConexion): ContextMenuEntry[] {
   const t = txSsh()
@@ -43,8 +40,6 @@ export function itemsMenuConexion(a: AccionesMenuConexion): ContextMenuEntry[] {
     { label: t.conectar, icon: <IconoServidor />, onClick: a.onConectar },
     { label: t.abrirSftp, icon: <IconoSftp />, onClick: a.onAbrirSftp },
     ...(a.onIrASesion ? [{ label: t.irASesion, onClick: a.onIrASesion }] : []),
-    SEP,
-    { label: t.actividadAgentes, onClick: a.onVerActividad },
     SEP,
     { label: t.editar, icon: <IconoRenombrar />, onClick: a.onEditar },
     { label: t.duplicar, onClick: a.onDuplicar },

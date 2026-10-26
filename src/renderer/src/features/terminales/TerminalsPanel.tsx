@@ -73,12 +73,6 @@ export interface TerminalsPanelProps {
   activeProjectKey: string | null
   /** Proyectos hibernados: el backend mató sus sesiones; sus panes deben relanzarlas al despertar. */
   hibernatedProjectKeys: Set<string>
-  /**
-   * Claves `${profileId}|${projectHostPath}` de proyectos en MODO NATIVO: la terminal
-   * corre en el host. El nombre del prop conserva el «windows» del modo viejo porque
-   * viaja hasta `useModoProyecto`.
-   */
-  windowsModeKeys: Set<string>
   /** Bases montadas por proyecto: el mismo ámbito que la sesión de agente, para que `tdb` vea lo mismo. */
   dbMountsByProject?: Record<string, string[]>
   /** ¿Ya se hidrataron los ajustes de donde sale el montaje? Ver TerminalPane.dbReady. */
@@ -175,7 +169,6 @@ function usePanelTerminales(props: TerminalsPanelProps) {
     contexto: ssh.contexto,
     ssh: ssh.estado,
     infoByPane: info.infoByPane,
-    windowsModeKeys: props.windowsModeKeys,
     hibernatedProjectKeys: props.hibernatedProjectKeys,
     dbReady: props.dbReady,
     conexionesVivas

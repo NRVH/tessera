@@ -29,7 +29,7 @@ import {
   useStoreMosaico,
   verCasilla
 } from './store'
-import { agentTargetKey, type DecideProjectMode, type OpenAgentTarget, type UseTabs } from '../pestanas'
+import { agentTargetKey, type OpenAgentTarget, type UseTabs } from '../pestanas'
 import { editorTargetKey } from '../editor'
 import { useNombresAgente, useStoreAgentes, type ActividadAgentes, type AgentesApp } from '../agentes'
 import type { IdAgente } from '../../../../shared/agentesManuales'
@@ -315,7 +315,6 @@ function useDestinos(
 function useAbrirProyectoEnCasilla(
   tabs: UseTabs,
   proyectoPorClave: Map<string, string>,
-  decideProjectMode: DecideProjectMode,
   agenteDelProyecto: AgenteDelProyecto
 ): MosaicoApp['abrirProyectoEnCasilla'] {
   const agenteRef = useRef(agenteDelProyecto)
@@ -339,7 +338,7 @@ function useAbrirProyectoEnCasilla(
         destinoPendiente: { casilla, key: agentTargetKey(profileId, abierto.projectHostPath, agente), proyecto }
       })
     }
-    void tabs.openProjectInProfile(profileId, decideProjectMode, alAbrir)
+    void tabs.openProjectInProfile(profileId, alAbrir)
   }
 }
 
@@ -367,7 +366,6 @@ export function useMosaico(
   tabs: UseTabs,
   actividad: ActividadAgentes,
   agentes: AgentesMosaico,
-  decideProjectMode: DecideProjectMode,
   tintasPorPerfil: Record<string, string>
 ): MosaicoApp {
   const salidaSinFoco = useStoreMosaico((s) => s.salidaSinFoco)
@@ -396,7 +394,7 @@ export function useMosaico(
   )
   const proyectoPorClave = useProyectoPorClave(candidatosMosaico)
   const destinos = useDestinos(tabs, agentes, candidatosMosaico, proyectoPorClave)
-  const abrirProyectoEnCasilla = useAbrirProyectoEnCasilla(tabs, proyectoPorClave, decideProjectMode, agenteDelProyecto)
+  const abrirProyectoEnCasilla = useAbrirProyectoEnCasilla(tabs, proyectoPorClave, agenteDelProyecto)
   const ejecutarRef = useRef<(a: AccionMosaico) => void>(() => {})
   ejecutarRef.current = (a) => ejecutarAccion(a, entrarMosaico)
   useAtajosMosaico(ejecutarRef)

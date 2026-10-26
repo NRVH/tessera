@@ -10,14 +10,14 @@ import { useShallow } from 'zustand/react/shallow'
 import { CC_WIDTH_MIN } from '../../../../shared/workspace-state-ipc'
 import { Splitter } from '../../comun/Splitter'
 import { CCPanel, type MosaicoPanel } from './CCPanel'
-import { handleTargetStatus, handleTargetVivo, selectAccount, selectAgent, useStoreAgentes } from './store'
+import { elegirModoAgente, handleTargetStatus, handleTargetVivo, selectAccount, selectAgent, useStoreAgentes } from './store'
 import { cerrarAgenteTerminal, elegirAgenteTerminal, soltarFocoAgenteTerminal, useStoreAgenteTerminal } from './storeAgenteTerminal'
 import type { AgentesApp } from './useAgentesApp'
 import type { AgenteTerminalApp } from './useAgenteTerminal'
 import type { ColumnaAgenteEstado } from './useColumnaAgente'
 import type { SesionesNativas } from './useSesionesNativas'
 import { fijadoresLayout, fijarMaximizado, useStoreLayout, type SalidaLayoutCentro, type Tamanos } from '../layout'
-import { useStorePestanas, type ModoProyecto, type UseTabs } from '../pestanas'
+import type { UseTabs } from '../pestanas'
 import { useStoreBd, type EspaciosDatos, type MontajesBd } from '../bd'
 import { useStoreAjustes } from '../ajustes'
 import { ampliarCasilla, enfocarCasilla, setDisposicionMosaico, useStoreMosaico, type MosaicoApp } from '../mosaico'
@@ -31,7 +31,6 @@ interface Props {
   tamanos: Tamanos
   mosaico: MosaicoApp
   actividad: ActividadAgentes
-  modo: ModoProyecto
   espacios: EspaciosDatos
   agenteTerminal: AgenteTerminalApp
   montajes: MontajesBd
@@ -41,7 +40,7 @@ interface Props {
 }
 
 /** Lo que el mosaico pinta en la columna; null fuera del mosaico. */
-function usePanelMosaico(p: Pick<Props, 'mosaico' | 'actividad' | 'modo' | 'agentes'>): MosaicoPanel | null {
+function usePanelMosaico(p: Pick<Props, 'mosaico' | 'actividad'>): MosaicoPanel | null {
   const m = useStoreMosaico(
     useShallow((s) => ({
       activo: s.mosaicoActivo,
@@ -65,9 +64,6 @@ function usePanelMosaico(p: Pick<Props, 'mosaico' | 'actividad' | 'modo' | 'agen
     opciones: p.mosaico.opcionesMosaico,
     onElegirDestino: p.mosaico.elegirDestinoCasilla,
     onAbrirProyecto: p.mosaico.abrirProyectoEnCasilla,
-    onCambiarModo: p.modo.toggleWindowsMode,
-    // Ni el espacio de datos ni el agente de la terminal cambian de modo: viven en nativo.
-    modoBloqueado: (ruta) => p.agentes.propios.lugarDe(ruta) !== 'proyecto',
     onEnfocar: enfocarCasilla,
     onAmpliar: ampliarCasilla,
     onIrAlProyecto: p.mosaico.irAlProyectoDesdeMosaico,
@@ -129,14 +125,18 @@ function useFocoDeLaColumna(lay: SalidaLayoutCentro): { tokenFoco: number; sinRo
 }
 
 /**
- * Maximizar el agente: sobre los archivos abiertos (el de la columna) o, el de la terminal, sobre las
- * terminales, que solo se ofrece si hay alguna que tapar.
+ * Maximizar el agente: sobre los archivos abiertos (el de la columna), el de datos sobre las pestañas de
+ * BD o, el de la terminal, sobre las terminales, que solo se ofrece si hay alguna que tapar.
  */
 function maximizarDe(
   lay: SalidaLayoutCentro,
   columna: Props['columna'],
   terminal: Props['maximizarAgenteTerminal']
 ): { canExpand: boolean; expanded: boolean; onToggleExpand: () => void } {
+  if (lay.agente === 'espacio') {
+    const expanded = lay.agenteDbMaximizado
+    return { canExpand: lay.cc.canExpand, expanded, onToggleExpand: () => fijarMaximizado('agenteDb', !expanded) }
+  }
   if (lay.agente !== 'terminal') {
     return { canExpand: lay.cc.canExpand, expanded: columna.ccExpanded, onToggleExpand: columna.alternarCcMaximizado }
   }
@@ -147,8 +147,8 @@ export function ColumnaAgente(props: Props): React.JSX.Element {
   const { tabs, agentes, columna, tamanos, espacios, agenteTerminal, montajes, sesiones } = props
   const lay = agentes.lay
   const accountByTarget = useStoreAgentes((s) => s.accountByTarget)
+  const modoPorTarget = useStoreAgentes((s) => s.modoPorTarget)
   const foco = useFocoDeLaColumna(lay)
-  const windowsModeKeys = useStorePestanas((s) => s.windowsModeKeys)
   const dbMounts = useStoreBd((s) => s.dbMounts)
   const settingsLoaded = useStoreAjustes((s) => s.settingsLoaded)
   const mosaicoPanel = usePanelMosaico(props)
@@ -171,7 +171,8 @@ export function ColumnaAgente(props: Props): React.JSX.Element {
         onSelectAgent={selectAgent}
         accountByTarget={accountByTarget}
         onSelectAccount={selectAccount}
-        windowsModeKeys={windowsModeKeys}
+        modoPorTarget={modoPorTarget}
+        onElegirModoAgente={elegirModoAgente}
         dbMountsByProject={dbMounts}
         onChangeDbMounted={montajes.setDbMountedForProject}
         dbReady={settingsLoaded}

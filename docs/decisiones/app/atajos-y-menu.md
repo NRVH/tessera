@@ -17,7 +17,8 @@ terminales y `Ctrl+W` cerraba la app entera, donde en un editor significa cerrar
   de respondedores). «Edición» se repone para no perderla al sustituir el de fábrica.
 - Cada ítem lleva `label` y no se usan los roles-contenedor (`editMenu`, `windowMenu`, `appMenu`): sus rótulos salen en
   inglés y no se localizan. Se acepta perder la lista de ventanas (hay una) y los extras de edición; `appMenu`
-  traería además el «Acerca de» nativo, duplicando la categoría de Configuración.
+  traería además el «Acerca de» nativo, duplicando la categoría de Configuración. «Ventana» lleva además «Nueva
+  ventana de agente», sin atajo (`agentes/ventana-de-agente.md`). La ventana de agente instala los mismos atajos.
 - Los atajos de ventana se atienden en `before-input-event` de la ventana, no con `globalShortcut` (sería de todo el
   sistema, sin foco incluido): `F11` pantalla completa; `F12` o Mod+Shift+I las herramientas de desarrollo, también
   empaquetada (único diagnóstico en la máquina del usuario); `F5` recargar SOLO en desarrollo.

@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os'
 import type { Agente, Profile } from '../../profiles/types'
 import type { SesionNativa } from '../../../shared/agentes-nativos-ipc'
 import type { NucleoAgente, OpenAgentSession } from './tipos'
+import { contenedorDe } from './credenciales'
 
 /** Tope de un archivo arrastrado para copiar al contenedor. */
 const MAX_STAGE_BYTES = 64 * 1024 * 1024
@@ -50,12 +51,13 @@ export function pidsNativos(n: NucleoAgente, agente: Agente): number[] {
   return out
 }
 
+/** La sesión y el contenedor donde corre (el de su cuenta), que es adonde se copian los archivos. */
 function sesionYPerfil(n: NucleoAgente, sessionId: string): { open: OpenAgentSession; profile: Profile } {
   const open = n.sessions.get(sessionId)
   if (!open) throw new Error(`No existe una sesión de agente con id "${sessionId}".`)
   const profile = n.profiles.get(open.profileId)
   if (!profile) throw new Error(`Perfil desconocido: "${open.profileId}".`)
-  return { open, profile }
+  return { open, profile: open.host ? profile : contenedorDe(profile, open.agente, open.accountId) }
 }
 
 /** Ruta en el contenedor (o en el host, en nativo) de un archivo del host; null si no vale. */

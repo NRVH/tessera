@@ -1,7 +1,7 @@
 // =============================================================================
 // La lista de conexiones SSH de un perfil, en lógica pura: el orden («Sin grupo» primero, luego
 // los grupos, y dentro las conexiones), el filtro sin tildes ni mayúsculas, los grupos plegados, el
-// acordeón del lanzador (un solo grupo abierto, y ninguno al abrirlo), las conexiones recientes, las
+// acordeón del lanzador (un solo grupo abierto, y ninguno al abrirlo), las
 // filas que pinta el árbol, cómo se escribe el destino de una conexión y qué hace cada tecla del
 // teclado (`accionTeclaLista`). Sin React ni DOM: se fija bajo `node` (`test-lista-ssh.mts`).
 // Decisiones: docs/decisiones/terminales/pestanas-ssh-del-perfil.md, docs/decisiones/terminales/lanzador-de-conexiones.md
@@ -10,7 +10,7 @@
 import { localeActual } from '../../../../shared/i18n.ts'
 import type { Plataforma } from '../../../../shared/plataforma.ts'
 import type { SshConexion, SshGrupo } from '../../../../shared/ssh-ipc.ts'
-import { SSH_PLEGADO_SIN_GRUPO, SSH_RECIENTES_MAX } from '../../../../shared/ajustesTerminal.ts'
+import { SSH_PLEGADO_SIN_GRUPO } from '../../../../shared/ajustesTerminal.ts'
 import { esBorrarPestanaEnfocada, type TeclaBorrado } from '../../util/atajos.ts'
 import { txSsh } from './textos.ts'
 
@@ -20,17 +20,6 @@ export const ID_SIN_GRUPO = SSH_PLEGADO_SIN_GRUPO
 /** El nombre visible de «Sin grupo». */
 export function nombreSinGrupo(): string {
   return txSsh().sinGrupo
-}
-
-/** Cuántas conexiones recientes enseña el lanzador. */
-export const RECIENTES_MAX = SSH_RECIENTES_MAX
-
-/** Los rótulos del lanzador: sus recientes y, en una lista sin grupos, el resto de las conexiones que vienen tras ellas. */
-export function nombreRecientes(): string {
-  return txSsh().recientes
-}
-export function nombreConexiones(): string {
-  return txSsh().conexiones
 }
 
 /** El puerto que no se escribe en el destino. */
@@ -50,25 +39,15 @@ export interface FilaGrupo {
   real: boolean
 }
 
-/** Un rótulo («Recientes»): no se pulsa ni se alcanza con el teclado. */
-export interface FilaSeccion {
-  tipo: 'seccion'
-  /** Clave estable de la fila: `s:<id>`. */
-  clave: string
-  nombre: string
-}
-
-/** Una conexión; `nivel` 2 cuelga de una cabecera y 1 va suelta (lista plana, o bajo «Recientes»). */
+/** Una conexión; `nivel` 2 cuelga de una cabecera y 1 va suelta (lista plana). */
 export interface FilaConexion {
   tipo: 'conexion'
   clave: string
   conexion: SshConexion
   nivel: 1 | 2
-  /** Sale bajo «Recientes»: la misma conexión sigue también en su grupo. */
-  reciente?: true
 }
 
-export type FilaLista = FilaSeccion | FilaGrupo | FilaConexion
+export type FilaLista = FilaGrupo | FilaConexion
 
 /** Lo que hace falta para construir la lista de un perfil. */
 export interface EntradaLista {
@@ -77,8 +56,6 @@ export interface EntradaLista {
   filtro: string
   /** Ids de los grupos plegados (`''` = «Sin grupo»). Con filtro se ignoran. */
   plegados: ReadonlySet<string>
-  /** Las conexiones recientes que enseña el lanzador, la más reciente primero. Con filtro no salen. */
-  recientes?: readonly SshConexion[]
   /** «Sin grupo» se enseña aunque no tenga conexiones (si hay grupos): mientras se arrastra, es un destino más. */
   mostrarSinGrupo?: boolean
 }
@@ -139,15 +116,8 @@ function repartir(e: EntradaLista, palabras: readonly string[], porId: ReadonlyM
   return reparto
 }
 
-/** La fila de una conexión; la de «Recientes» lleva otra clave, porque la misma conexión sale también en su grupo. */
-function filaConexion(c: SshConexion, nivel: 1 | 2, reciente = false): FilaConexion {
-  return reciente
-    ? { tipo: 'conexion', clave: `r:${c.id}`, conexion: c, nivel, reciente: true }
-    : { tipo: 'conexion', clave: `c:${c.id}`, conexion: c, nivel }
-}
-
-function filaSeccion(id: string, nombre: string): FilaSeccion {
-  return { tipo: 'seccion', clave: `s:${id}`, nombre }
+function filaConexion(c: SshConexion, nivel: 1 | 2): FilaConexion {
+  return { tipo: 'conexion', clave: `c:${c.id}`, conexion: c, nivel }
 }
 
 /** La cabecera y, si está abierta, sus conexiones. */
@@ -168,8 +138,14 @@ function bloqueDeGrupo(
   return abierto ? [cabecera, ...conexiones.map((c) => filaConexion(c, 2))] : [cabecera]
 }
 
-/** El árbol de grupos y conexiones, sin las recientes. */
-function filasDelArbol(e: EntradaLista, palabras: readonly string[]): FilaLista[] {
+/**
+ * Las filas del árbol. Sin ningún grupo en el perfil es una lista plana, sin cabeceras. Con grupos:
+ * «Sin grupo» primero y solo si tiene conexiones, luego los grupos por nombre. Con filtro se
+ * ignoran los plegados, los grupos sin coincidencias desaparecen y uno cuyo nombre casa trae todas
+ * sus conexiones (el nombre del grupo está en lo que se busca).
+ */
+export function construirFilas(e: EntradaLista): FilaLista[] {
+  const palabras = palabrasDe(e.filtro)
   const porId = new Map(e.grupos.map((g) => [g.id, g]))
   const reparto = repartir(e, palabras, porId)
   const abierto = (id: string): boolean => palabras.length > 0 || !e.plegados.has(id)
@@ -188,25 +164,8 @@ function filasDelArbol(e: EntradaLista, palabras: readonly string[]): FilaLista[
   return filas
 }
 
-/**
- * Las filas del árbol. Sin ningún grupo en el perfil es una lista plana, sin cabeceras. Con grupos:
- * «Sin grupo» primero y solo si tiene conexiones, luego los grupos por nombre. Con filtro se
- * ignoran los plegados, los grupos sin coincidencias desaparecen y uno cuyo nombre casa trae todas
- * sus conexiones (el nombre del grupo está en lo que se busca). Delante van las recientes, solo sin
- * filtro: un rótulo y sus conexiones, que siguen también en su grupo; la lista plana, que no tiene
- * cabeceras, lleva otro rótulo detrás para que no se lea como una repetición.
- */
-export function construirFilas(e: EntradaLista): FilaLista[] {
-  const palabras = palabrasDe(e.filtro)
-  const arbol = filasDelArbol(e, palabras)
-  const recientes = palabras.length === 0 ? (e.recientes ?? []) : []
-  if (recientes.length === 0) return arbol
-  const resto = e.grupos.length === 0 ? [filaSeccion('conexiones', nombreConexiones())] : []
-  return [filaSeccion('recientes', nombreRecientes()), ...recientes.map((c) => filaConexion(c, 1, true)), ...resto, ...arbol]
-}
-
 // ---------------------------------------------------------------------------
-// El lanzador: un solo grupo abierto y las conexiones recientes
+// El lanzador: un solo grupo abierto
 // ---------------------------------------------------------------------------
 
 /**
@@ -227,18 +186,6 @@ export function plegadosDeAcordeon(grupos: readonly SshGrupo[], abierto: string 
 export function siguienteGrupoAbierto(abierto: string | null, grupoId: string, plegar: boolean): string | null {
   if (!plegar) return grupoId
   return abierto === grupoId ? null : abierto
-}
-
-/** Las conexiones recientes de un perfil: las que siguen existiendo, en su orden y hasta `RECIENTES_MAX`. */
-export function recientesDe(ids: readonly string[] | undefined, conexiones: readonly SshConexion[]): SshConexion[] {
-  const porId = new Map(conexiones.map((c) => [c.id, c]))
-  const out: SshConexion[] = []
-  for (const id of ids ?? []) {
-    const c = porId.get(id)
-    if (c && !out.includes(c)) out.push(c)
-    if (out.length >= RECIENTES_MAX) break
-  }
-  return out
 }
 
 /** El índice de la primera conexión (donde nace el cursor), o 0 si solo hay cabeceras, o -1 si no hay filas. */
@@ -299,19 +246,18 @@ function sinModificadores(e: TeclaLista): boolean {
   return !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey
 }
 
-/** La fila activa, si es de las que se alcanzan con el teclado (un rótulo no lo es). */
+/** La fila activa, si la hay. */
 function filaActiva(c: ContextoTeclaLista): FilaGrupo | FilaConexion | undefined {
-  const fila = c.filas[c.activo]
-  return fila?.tipo === 'seccion' ? undefined : fila
+  return c.filas[c.activo]
 }
 
-/** El índice de la fila alcanzable más cercana a `desde` en la dirección `paso`, o `null` si no queda ninguna. */
+/** El índice de la fila vecina de `desde` en la dirección `paso`, o `null` si no queda ninguna. */
 function vecina(filas: readonly FilaLista[], desde: number, paso: 1 | -1): number | null {
-  for (let i = desde + paso; i >= 0 && i < filas.length; i += paso) if (filas[i].tipo !== 'seccion') return i
-  return null
+  const i = desde + paso
+  return i >= 0 && i < filas.length ? i : null
 }
 
-/** ↑ y ↓ (y Inicio y Fin con el filtro vacío): se queda en los extremos, no da la vuelta, y salta los rótulos. */
+/** ↑ y ↓ (y Inicio y Fin con el filtro vacío): se queda en los extremos, no da la vuelta. */
 function teclaDeMovimiento(e: TeclaLista, c: ContextoTeclaLista): AccionLista | null {
   const primera = vecina(c.filas, -1, 1)
   const ultima = vecina(c.filas, c.filas.length, -1)

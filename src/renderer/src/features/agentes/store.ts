@@ -1,5 +1,5 @@
 // =============================================================================
-// Store de los agentes: agente y cuenta elegidos, estado de sesión que reportan los
+// Store de los agentes: agente, cuenta y modo elegidos, estado de sesión que reportan los
 // panes, actividad (trabajando / terminó sin ver), qué targets tienen agente vivo y los
 // hibernados que no son pestaña.
 // Los efectos que lo alimentan viven en useAgentesApp y useActividadAgentes. Una acción
@@ -9,6 +9,7 @@ import { create } from 'zustand'
 import type { DefinicionAgente, IdAgente, SelectorAgentes } from '../../../../shared/agentesManuales'
 import type { AgentPaneStatus } from './agentPaneTipos'
 import { emptyActivityState, type ActivityState } from './agentActivity.ts'
+import type { ModoAgente } from './modoAgente.ts'
 
 /** Estado de los agentes de todos los perfiles. */
 export interface EstadoAgentes {
@@ -26,6 +27,8 @@ export interface EstadoAgentes {
   selectorAgentes: SelectorAgentes
   /** Cuenta elegida por target de agente; se persiste. */
   accountByTarget: Record<string, string | null>
+  /** Nativo o Docker elegido por target de agente; sin entrada, nativo. Se persiste. */
+  modoPorTarget: Record<string, ModoAgente>
   agentStatus: Record<string, AgentPaneStatus>
   activity: ActivityState
   /** Targets con un agente de verdad en marcha, según los propios panes. */
@@ -48,6 +51,7 @@ export const useStoreAgentes = create<EstadoAgentes>()(() => ({
   ordenAgentesPorPerfil: {},
   selectorAgentes: 'pestanas',
   accountByTarget: {},
+  modoPorTarget: {},
   agentStatus: {},
   activity: emptyActivityState,
   vivos: new Set(),
@@ -124,6 +128,21 @@ export function selectAccount(targetKey: string, accountId: string | null): void
       ? s
       : { accountByTarget: { ...s.accountByTarget, [targetKey]: accountId } }
   )
+}
+
+/**
+ * Elige nativo o Docker para un agente de un proyecto, y con Docker su cuenta, en el MISMO turno: el
+ * pane se remonta con el modo nuevo y tiene que encontrar ya la cuenta con la que abrir.
+ */
+export function elegirModoAgente(targetKey: string, modo: ModoAgente, accountId?: string): void {
+  useStoreAgentes.setState((s) => {
+    const cuentaIgual = accountId === undefined || s.accountByTarget[targetKey] === accountId
+    if (s.modoPorTarget[targetKey] === modo && cuentaIgual) return s
+    return {
+      modoPorTarget: { ...s.modoPorTarget, [targetKey]: modo },
+      ...(cuentaIgual ? {} : { accountByTarget: { ...s.accountByTarget, [targetKey]: accountId } })
+    }
+  })
 }
 
 /** Anota el estado de sesión que reporta un pane (sin cambios si es el mismo). */

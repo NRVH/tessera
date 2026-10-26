@@ -1,7 +1,7 @@
 # La franja inferior se maximiza con un solo estado coherente, solo con CSS y sin desmontar nada
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/features/layout/` (`layoutCentro.ts`, `usePantallaCompletaFranja.ts`, `useAtajoPantallaCompleta.ts`), `styles.css` (`.shell.franja-pantalla-completa`), `util/atajos.ts` y `e2e/{git,terminal}-pantalla-completa.spec.ts`
+- **Ámbito:** `src/renderer/src/features/layout/` (`layoutCentro.ts`, `usePantallaCompletaFranja.ts`, `useAtajoPantallaCompleta.ts`), `styles.css` (`.shell.franja-pantalla-completa`), `util/atajos.ts`, el maximizado del agente de datos (`features/agentes/ColumnaAgente.tsx`, `features/bd/useDbVista.ts`) y `e2e/{git,terminal}-pantalla-completa.spec.ts`, `e2e/conexiones.spec.ts`
 
 ## Contexto
 
@@ -12,8 +12,11 @@ búsqueda global abrían una pestaña que nadie veía.
 ## Decisión
 
 - **Lo último que eligió el usuario, por perfil y por ventana.** La verdad es
-  `maximizadoPorPerfil` (efímero, no se persiste): cada perfil guarda si la terminal, Git·Log y el
-  agente de la terminal están maximizados, cada uno lo suyo. Cerrar la ventana y reabrirla, pasar
+  `maximizadoPorPerfil` (efímero, no se persiste): cada perfil guarda si la terminal, Git·Log, el
+  agente de la terminal y el de datos están maximizados, cada uno lo suyo. El de datos tapa las
+  pestañas de BD (el área se esconde sin desmontarse y la columna crece) solo a la vista y con alguna
+  pestaña que tapar; lo borran su botón de restaurar y abrir una tabla o una consola (`useDbVista.abrir`).
+  Sin pestañas de BD ocupa todo el centro sin pedirlo, como el agente de la columna sin archivos abiertos. Cerrar la ventana y reabrirla, pasar
   de la terminal a Git·Log y volver, cambiar de perfil, el mosaico o la vista de datos NO lo
   borran: al volver, cada ventana está como la dejó. Lo borran el botón de restaurar, el acorde,
   abrir una pestaña del editor y elegir una vista lateral, que es elegir ver esa vista.

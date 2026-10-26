@@ -1,6 +1,7 @@
 // =============================================================================
 // La plantilla del menú de aplicación: ninguno en Windows y Linux, el mínimo en
 // macOS (Tessera, Edición, Ventana, con rótulos en el idioma de la app y sin `close` ni `reload`).
+// «Ventana» lleva además «Nueva ventana de agente».
 // Puro, para probarlo con `node` (`test-menu-aplicacion.mts`); lo monta `arranque.ts`
 // con `Menu.buildFromTemplate`. Salir va por `before-quit` a `iniciarCierre`.
 // Decisiones: docs/decisiones/app/atajos-y-menu.md
@@ -10,15 +11,22 @@ import type { MenuItemConstructorOptions } from 'electron'
 import { plataformaActual, type Plataforma } from '../../shared/plataforma.ts'
 import { txApp } from './textos.ts'
 
+/** Lo que hacen los ítems propios del menú (los demás son roles del sistema). */
+export interface AccionesMenu {
+  nuevaVentanaAgente?: () => void
+}
+
 /**
  * La plantilla del menú de aplicación para una plataforma, o `null` si esa
  * plataforma no debe tener menú. Explícita para poder probar las dos desde una.
  */
 export function plantillaMenuAplicacion(
-  plataforma: Plataforma = plataformaActual()
+  plataforma: Plataforma = plataformaActual(),
+  acciones: AccionesMenu = {}
 ): MenuItemConstructorOptions[] | null {
   if (plataforma !== 'mac') return null
   const t = txApp().menu
+  const nueva = txApp().ventanaAgente.nueva
   return [
     // Sin `about` (ver el ADR): el «Acerca de» es una categoría de Configuración.
     {
@@ -48,6 +56,8 @@ export function plantillaMenuAplicacion(
       submenu: [
         { role: 'minimize', label: t.minimizar },
         { role: 'zoom', label: 'Zoom' },
+        { type: 'separator' },
+        { label: nueva, click: () => acciones.nuevaVentanaAgente?.() },
         { type: 'separator' },
         { role: 'front', label: t.traerAlFrente }
       ]

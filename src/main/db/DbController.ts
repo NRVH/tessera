@@ -279,7 +279,7 @@ export class DbController {
     this.puente.setScope(profileId, projectHostPath, validas)
     const env = {
       [ENV_MODO]: 'pipe',
-      // Hoy el espacio de datos nunca llega aquí, pero la marca se calcula igual: es gratis.
+      // El agente de datos en contenedor también llega aquí: la marca da a `tdb` sus textos.
       [ENV_SESION]: this.puente.mint(profileId, projectHostPath, {
         espacioDatos: this.espacio.esEspacioDeDatos(profileId, projectHostPath)
       }),

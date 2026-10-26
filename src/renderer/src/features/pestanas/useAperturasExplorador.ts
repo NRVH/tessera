@@ -69,11 +69,6 @@ export interface AperturasExploradorArgs {
   quitarAgenteDiferido: (profileId: string, projectHostPath: string) => void
   /** Activa un proyecto que ya estaba abierto; con `entrar`, además pasa a su perfil (puede no ser el que se mira). */
   setActiveProject: (profileId: string, projectHostPath: string, opciones?: { entrar?: boolean }) => void
-  /**
-   * Marca un proyecto como "modo nativo" (corre en el host) antes de abrirlo. El
-   * nombre conserva el "Windows" del modo viejo: es el callback de `useModoProyecto`.
-   */
-  forzarModoWindows: (profileId: string, projectHostPath: string) => void
   /** Abre un archivo en el editor (ruta POSIX relativa a la contenedora). */
   abrirArchivo: (file: { path: string; name: string }) => void
   /** Despliega y hace scroll hasta esa ruta en el árbol de archivos. */
@@ -95,10 +90,6 @@ function abrirProyecto(ap: AperturaResuelta, perfilActivo: string, a: AperturasE
     a.setActiveProject(plan.profileId, plan.projectHostPath, { entrar: true })
     return plan.profileId
   }
-  // El modo se fija ANTES de abrir: `openKnownProject` no pasa por `decideProjectMode`
-  // (eso es del diálogo de carpeta) y sin esto nacería en el contenedor del perfil.
-  // «Nuevo» = no abierto en ningún perfil ahora; el diálogo de carpeta usa el mismo criterio.
-  a.forzarModoWindows(plan.profileId, ap.contenedora.projectHostPath)
   // La marca de agente diferido va en la MISMA acción que crea el proyecto: no existe
   // ningún instante con el proyecto abierto y sin ella, en el que su agente arrancaría.
   a.openKnownProject(plan.profileId, ap.contenedora, { agenteDiferido: plan.agenteDiferido })
@@ -115,7 +106,7 @@ function avanzarPendiente(p: Pendiente, a: AperturasExploradorArgs, ahora: numbe
   let perfil = p.profileId
   if (perfil === null) {
     // Sin las pestañas restauradas no se sabe qué está abierto: decidir ahora podría
-    // abrir como nuevo (y en modo nativo) un proyecto que va a restaurarse.
+    // abrir como nuevo un proyecto que va a restaurarse.
     const activo = a.pestanasCargadas ? a.activeProfileId : null
     if (activo === null) {
       if (!vencida) return p

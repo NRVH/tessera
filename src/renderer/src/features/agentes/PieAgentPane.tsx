@@ -1,7 +1,8 @@
 // =============================================================================
 // Pie del pane del agente: uso de la cuenta y contexto de la conversación (solo en
 // pantalla y con cuenta; en uno manual, su contexto si tiene fuente), dónde vive el agente
-// (proyecto, datos o terminal) y el botón de reinicio, abajo y lejos de maximizar porque es
+// (proyecto, datos, terminal o la carpeta del usuario de una ventana de agente) y el botón de
+// reinicio, abajo y lejos de maximizar porque es
 // destructivo. Qué ofrece el botón lo decide `botonReinicio` (puro, con prueba); un agente que no
 // es pestaña y está hibernado ofrece en su lugar «Despertar» (`puedeDespertarseAMano`).
 // Decisiones: docs/decisiones/agentes/terminal-del-agente.md
@@ -17,7 +18,7 @@ import { UsageBars } from './UsageBars'
 import { HOST_ACCOUNT_ID, MAX_CONTAINER_RECOVERY_ATTEMPTS, agenteManualDe } from './agentPaneTipos'
 import { txPane } from './textosPane.ts'
 import { ReloadIcon } from './iconosAgentPane'
-import { IconoArchivos, IconoTerminal } from '../../comun/iconosPanel'
+import { IconoArchivos, IconoCasa, IconoTerminal } from '../../comun/iconosPanel'
 import { IconoBd } from '../bd'
 import { esAgenteManual } from '../../../../shared/agentesManuales'
 import { compactConversation } from './terminalAgente'
@@ -129,7 +130,9 @@ function RotuloLugar({ m }: { m: ModeloAgentPane }): React.JSX.Element {
       ? [<IconoTerminal key="i" />, t.lugarTerminal, t.lugarTerminal]
       : lugar === 'datos'
         ? [<IconoBd key="i" />, t.lugarDatos, t.lugarDatos]
-        : [<IconoArchivos key="i" />, proyecto, t.lugarProyectoTitulo(proyecto)]
+        : lugar === 'ventana'
+          ? [<IconoCasa key="i" />, t.lugarVentana, t.lugarVentanaTitulo]
+          : [<IconoArchivos key="i" />, proyecto, t.lugarProyectoTitulo(proyecto)]
   return (
     <span className="agent-footer-lugar" title={titulo}>
       {icono}

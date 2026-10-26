@@ -1,6 +1,7 @@
 // =============================================================================
-// Textos de la aplicación que el main pone delante del usuario: el menú de macOS y el progreso del
-// cierre (overlay). Español e inglés juntos; se leen al usarse, nunca en el nivel superior.
+// Textos de la aplicación que el main pone delante del usuario: el menú de macOS, el progreso del
+// cierre (overlay) y las entradas de la ventana de agente (Jump List, Dock). Español e inglés
+// juntos; se leen al usarse, nunca en el nivel superior.
 // Depende solo de shared/i18n.
 // =============================================================================
 import { crearTextos } from '../../shared/i18n.ts'
@@ -30,7 +31,15 @@ export const txApp = crearTextos(
       seCerrara: 'Tessera se cerrará; la nueva versión estará lista la próxima vez que la abras.',
       preparando: 'Preparando la actualización…',
       esperandoDocker: 'Esperando a que Docker termine…',
-      cancelado: 'Cierre cancelado.'
+      cancelado: 'Cierre cancelado.',
+      cerrandoVentana: 'Cerrando la ventana; las ventanas de agente siguen abiertas…'
+    },
+    ventanaAgente: {
+      nueva: 'Nueva ventana de agente',
+      nuevaDescripcion: 'Abre un agente en tu carpeta de usuario, sin proyecto',
+      abrir: 'Abrir Tessera',
+      abrirDescripcion: 'Abre la ventana principal de Tessera',
+      titulo: 'Agente'
     }
   },
   {
@@ -57,7 +66,15 @@ export const txApp = crearTextos(
       seCerrara: 'Tessera will close; the new version will be ready the next time you open it.',
       preparando: 'Preparing the update…',
       esperandoDocker: 'Waiting for Docker to finish…',
-      cancelado: 'Closing canceled.'
+      cancelado: 'Closing canceled.',
+      cerrandoVentana: 'Closing the window; agent windows stay open…'
+    },
+    ventanaAgente: {
+      nueva: 'New agent window',
+      nuevaDescripcion: 'Opens an agent in your user folder, without a project',
+      abrir: 'Open Tessera',
+      abrirDescripcion: 'Opens the main Tessera window',
+      titulo: 'Agent'
     }
   }
 )
