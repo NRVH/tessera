@@ -1101,19 +1101,6 @@ async function escenario10(): Promise<void> {
     `eventos=${JSON.stringify(pb.map((p) => p.hibernados.map((h) => h.projectHostPath)))} manual_corre=${contenedorCorre(nm)}`
   )
 
-  base = await reiniciar()
-  L = base + 2
-  await conTope(sandbox.ensureContainer(P), 120_000, 'ensureContainer perfil')
-  const g1 = await abrir(P, 'claude-code', proy[0], A1.id, pol(L))
-  desde = emitidos.length
-  await abrir(P, 'claude-code', proy[1], A2.id, pol(L))
-  pb = paradasDesde(desde)
-  check(
-    '(10f) el contenedor del perfil cuenta para el límite pero no se para: con él y una cuenta en el límite, se para la cuenta',
-    pb.length === 1 && pb[0].hibernados[0]?.sesiones[0]?.sessionId === g1.sessionId && contenedorCorre(containerNameFor(P)) && !contenedorCorre(nombreDe(A1)) && sandbox.contenedoresVivos().length === L,
-    `eventos=${pb.length} perfil_corre=${contenedorCorre(containerNameFor(P))} vivos=${sandbox.contenedoresVivos().length}/${L}`
-  )
-
   // (g) Dos aperturas a la vez cuando solo queda un hueco: nunca se pasa del límite.
   base = await reiniciar()
   L = base + 3

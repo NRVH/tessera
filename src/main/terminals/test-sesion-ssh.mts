@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // =============================================================================
 // Prueba de la sesión SSH de la terminal (npm run test:sesion-ssh), con `TerminalController` y
-// `TerminalService` reales, un sandbox que no se puede tocar y el «ssh» falso `sshFalsoSesion.mjs`:
+// `TerminalService` reales, sin sandbox y con el «ssh» falso `sshFalsoSesion.mjs`:
 // cerrar y reconectar no teclean nada y pasan por la cola de muertes, el código de salida y su
 // motivo llegan, hibernar no la cierra, nunca se pide el entorno de BD y la conexión es del perfil.
 // Parte REAL con `bash scripts/pruebas/ssh.sh correr …` (TESSERA_TEST_SSH): contraseña buena y mala.
@@ -14,7 +14,6 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Profile } from '../profiles/types.ts'
-import type { SandboxManager } from '../sandbox/SandboxManager.ts'
 import { TERMINAL_CHANNELS, type TerminalDataMessage, type TerminalExitMessage } from '../../shared/terminal-ipc.ts'
 import { colaMuertesDelProceso } from './colaMuertes.ts'
 import type { LanzadorSshTerminal } from './lanzadorSsh.ts'
@@ -88,16 +87,6 @@ function vivo(pid: number): boolean {
   }
 }
 
-/** Sandbox que no debe tocarse: una sesión SSH no tiene contenedor. */
-const SANDBOX_FALSO = new Proxy(
-  {},
-  {
-    get(_t, prop) {
-      throw new Error(`una sesión SSH no debe tocar el sandbox (pidió ${String(prop)})`)
-    }
-  }
-) as unknown as SandboxManager
-
 /** Lo que el controlador emite, por sesión. */
 class Eventos {
   datos = new Map<string, string>()
@@ -153,8 +142,6 @@ function controlador(eventos: Eventos, lanzadorSsh?: LanzadorSshTerminal): Contr
   return new TerminalController({
     profiles: [PERFIL],
     eventos,
-    dockerfileDir: '',
-    sandbox: SANDBOX_FALSO,
     getHostEnv: () => {
       llamadasBd.push('getHostEnv')
       return { TESSERA_DB_SESSION: 'no-debe-llegar' }

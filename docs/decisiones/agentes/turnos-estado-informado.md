@@ -12,7 +12,8 @@ existe, porque sin BEL se confunde con «terminó» a los 10 s de silencio, y el
 marca del transcript no llega o no casa. El «Program Status Protocol» (OSC 7501, revisión 0.3) es el agente diciendo
 su estado por su propia salida: `idle`, `working`, `done`, `blocked` (con `kind`), `error` y `clear`. Claude Code lo
 emite desde la 2.1.295, pero solo si la terminal contesta a su sonda (`OSC 7501 ; ?`), que manda seguida de un
-`CSI c`: si llega antes la respuesta a este, da el protocolo por no soportado.
+`CSI c`: si llega antes la respuesta a este, da el protocolo por no soportado. Codex lo emite desde la 0.163 sin
+preguntar, siempre que su salida sea una terminal, con `app=codex` en cada aviso salvo en `clear`.
 
 ## Decisión
 
@@ -20,11 +21,14 @@ emite desde la 2.1.295, pero solo si la terminal contesta a su sonda (`OSC 7501 
   su respuesta al `CSI c` cruza el IPC y llegaría primero la de xterm. Vale igual en Docker: viaja por el pty.
 - **Una respuesta por proceso, y solo desde ella cuentan sus avisos.** Una sonda o un aviso que salgan en lo que el
   agente enseña (un archivo, un log) no pueden apagar la deducción ni escribirle a ciegas en su entrada, y la despedida
-  del proceso que muere tras un relanzamiento no cae sobre el nuevo. Un programa que informe sin preguntar antes (la
-  especificación lo permite) se queda con la deducción.
+  del proceso que muere tras un relanzamiento no cae sobre el nuevo.
+- **Un agente que informa sin preguntar se reconoce por su `app`** (`informaSinSonda`, hoy solo Codex): en su sesión
+  cuentan sin sonda los avisos que dicen ser él, y los demás se ignoran como antes. Un aviso falso que saliera en lo
+  que enseña solo cambiaría el punto hasta su siguiente aviso. Su `clear` no lleva `app` y no se cuenta: el cierre
+  del proceso ya lo apaga.
 - **Desde el primer aviso de una sesión, manda el agente.** El Enter ya no abre, y ni el BEL, ni el silencio, ni la
-  marca del transcript cierran. Hasta ese aviso (y en un agente o una versión que no informa, Codex hoy) sigue la
-  deducción entera. Se decide por sesión y no por versión: no hay que saber qué CLI lo soporta.
+  marca del transcript cierran. Hasta ese aviso (y en un agente o una versión que no informa) sigue la deducción
+  entera. Se decide por sesión y no por versión: no hay que saber qué CLI lo soporta.
 - **El tope sigue, contado desde el último `working`**: un agente que se cuelga sin cerrarse ni avisar no deja el punto
   encendido para siempre, y uno que trabaja horas avisando a cada paso no se corta. Cierra en silencio, y un `working`
   posterior lo vuelve a abrir.
@@ -49,5 +53,6 @@ emite desde la 2.1.295, pero solo si la terminal contesta a su sonda (`OSC 7501 
 
 - Contestar desde el renderer (`registerOscHandler` de xterm): pierde la carrera con la respuesta al `CSI c`, y la
   sesión no visible no tiene xterm que la conteste.
-- Quitar la deducción: es lo único que hay para Codex y para un Claude Code anterior a la 2.1.295.
+- Quitar la deducción: es lo único que hay para un Claude Code anterior a la 2.1.295, un Codex anterior a la 0.163 y
+  los agentes manuales.
 - Mirar los registros hijos (subagentes): nada de lo medido los usa todavía para algo que el raíz no diga.

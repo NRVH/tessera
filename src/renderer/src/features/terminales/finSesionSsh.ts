@@ -8,7 +8,7 @@
 // =============================================================================
 
 import type { Plataforma } from '../../../../shared/plataforma.ts'
-import type { MotivoSsh, TerminalExitReason } from '../../../../shared/terminal-ipc.ts'
+import type { MotivoSsh } from '../../../../shared/terminal-ipc.ts'
 import { txTerminales } from './textos.ts'
 
 /** El código con el que sale ssh cuando falla él y no lo de dentro. */
@@ -28,10 +28,6 @@ function esFalloDeSsh(exitCode: number | null, reason: MotivoSsh | undefined): b
   return reason !== undefined || exitCode === CODIGO_FALLO_SSH
 }
 
-function esMotivoSsh(motivo: TerminalExitReason): motivo is MotivoSsh {
-  return motivo.startsWith('ssh-')
-}
-
 /**
  * ¿Es la salida sin código de Windows? Allí -1 / 4294967295 sin motivo del main puede ser un corte
  * del que ssh no dejó texto, pero también un `exit` normal cuyo código perdió ConPTY: no se afirma
@@ -49,11 +45,9 @@ function esSinCodigo(exitCode: number | null, plataforma: Plataforma): boolean {
 export function motivoFinSsh(
   exitCode: number | null,
   duracionMs: number,
-  motivo?: TerminalExitReason,
+  reason?: MotivoSsh,
   plataforma: Plataforma = 'otra'
 ): string {
-  // Los motivos de un shell en modo Docker no son de SSH: aquí no dicen nada.
-  const reason = motivo !== undefined && esMotivoSsh(motivo) ? motivo : undefined
   const t = txTerminales()
   if (esFalloDeSsh(exitCode, reason)) {
     if (duracionMs >= UMBRAL_FALLO_AL_CONECTAR_MS) return t.seCorto

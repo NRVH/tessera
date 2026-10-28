@@ -22,7 +22,4 @@ export interface HibernateProfileRequest {
 export interface HibernateResult {
   /** ids de las sesiones cerradas (agente + terminal; nunca las SSH). Vacío si no había ninguna. */
   closedSessionIds: string[]
-  /** ¿El contenedor del perfil sigue vivo tras hibernar? Siempre `false` (murió);
-   *  el renderer lo usa solo como confirmación/telemetría. */
-  containerAlive: boolean
 }

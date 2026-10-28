@@ -96,9 +96,6 @@ export const txAgentes = crearTextos(
         `Hay ${limite} contenedores de Docker abiertos, el límite que pusiste, y no se puede parar ninguno: ` +
         'todos tienen agentes trabajando o son agentes manuales. Espera a que alguno termine, ciérralo, o ' +
         'sube el límite en Configuración › Contenedores Docker.',
-      ocupadoPorTerminales: (limite: number) =>
-        `El límite de ${limite} contenedores de Docker lo ocupan terminales Docker abiertas, que no se paran ` +
-        'solas. Cierra alguna o sube el límite en Configuración › Contenedores Docker.',
       noSePudoParar: (id: string) => `No se pudo parar el contenedor "${id}" para hacer sitio: no se sabe de qué perfil es.`
     },
     cuentas: {
@@ -232,9 +229,6 @@ export const txAgentes = crearTextos(
         `There are ${limite} Docker containers open, the limit you set, and none can be stopped: ` +
         'they all have agents working or are manual agents. Wait for one to finish, close one, or ' +
         'raise the limit in Settings › Docker containers.',
-      ocupadoPorTerminales: (limite: number) =>
-        `The limit of ${limite} Docker containers is taken by open Docker terminals, which are not stopped ` +
-        'on their own. Close one or raise the limit in Settings › Docker containers.',
       noSePudoParar: (id: string) => `Could not stop container "${id}" to make room: its profile is unknown.`
     },
     cuentas: {

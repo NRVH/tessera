@@ -2,7 +2,7 @@
 // Lector de solo lectura de las conversaciones que Claude Code y Codex ya persisten en disco,
 // bajo la carpeta de credenciales de cada cuenta, sin acoplarse al AccountStore.
 //   - Claude Code: `<base>/projects/<proyecto>/<sessionId>.jsonl`.
-//   - Codex: `<base>/sessions/AAAA/MM/DD/rollout-*.jsonl`.
+//   - Codex: `<base>/sessions/AAAA/MM/DD/rollout-*.jsonl`, o `.jsonl.zst` si Codex lo comprimió.
 // Dónde están lo dice `listadoTranscripts`; `slugProyecto` filtra por proyecto. Lo usa
 // `ServicioConversaciones`.
 // =============================================================================
@@ -12,7 +12,7 @@ import path from 'node:path'
 import type { ConvAgent, ConversationSummary } from '../../shared/conversations-ipc'
 // Extensión explícita: `test-conversations.mts` corre con `node` a secas.
 import { basenameSuelto, esDelProyecto } from './slugProyecto.ts'
-import { conFechas, rolloutsCodex, transcriptsClaude } from '../transcripts/listadoTranscripts.ts'
+import { conFechas, rolloutsCodex, rutaPlana, transcriptsClaude } from '../transcripts/listadoTranscripts.ts'
 import { leerCabezaJsonl } from '../transcripts/cabezaJsonl.ts'
 import { TAMANO_SOSPECHOSO, avisarContrato, versionDeLinea } from '../transcripts/vigiaContratos.ts'
 import { esRolloutDeSubagente } from '../transcripts/formatoTranscript.ts'
@@ -110,13 +110,15 @@ export class ConversationsReader {
     if (!/^[0-9a-fA-F-]{8,64}$/.test(sessionId)) return false // guarda: solo ids con forma de UUID
     const files =
       agente === 'codex'
-        ? (await rolloutsCodex(dir)).filter((p) => codexSessionIdFromName(p) === sessionId)
+        ? (await rolloutsCodex(dir, undefined, { comprimidos: true })).filter((p) => codexSessionIdFromName(p) === sessionId)
         : (await transcriptsClaude(dir, { respaldo: 'todas' })).filter(
             (p) => path.basename(p, '.jsonl') === sessionId
           )
     let deleted = false
     for (const file of files) {
       await rm(file, { force: true })
+      // A medio comprimir conviven el plano y el `.zst`: se van los dos.
+      if (agente === 'codex') await rm(`${rutaPlana(file)}.zst`, { force: true })
       this.cache.delete(file) // el resumen memorizado ya no aplica
       deleted = true
       if (agente !== 'codex') {
@@ -236,7 +238,7 @@ export class ConversationsReader {
   // Codex no codifica el cwd en ninguna ruta (agrupa por fecha): no hay criba posible y se
   // recorre todo. `soloUltima` sí aplica, con la ruta como filtro exacto (ver `resumir`).
   private async listCodexIn(base: string, opts: OpcionesEscaneo = {}): Promise<ConversationSummary[]> {
-    return this.resumir(await rolloutsCodex(base), 'codex', opts)
+    return this.resumir(await rolloutsCodex(base, undefined, { comprimidos: true }), 'codex', opts)
   }
 
   private async summarizeCodex(file: string, st: Stats): Promise<ConversationSummary | null> {
@@ -442,9 +444,9 @@ function codexItemMessage(item: unknown): { role: 'user' | 'assistant'; text: st
   return { role: tipo === 'UserMessage' ? 'user' : 'assistant', text }
 }
 
-/** sessionId de Codex desde el nombre `rollout-<ts>-<uuid>.jsonl` (fallback si falta session_meta). */
+/** sessionId de Codex desde el nombre `rollout-<ts>-<uuid>.jsonl[.zst]` (fallback si falta session_meta). */
 function codexSessionIdFromName(file: string): string {
-  const base = path.basename(file, '.jsonl')
+  const base = path.basename(rutaPlana(file), '.jsonl')
   const m = base.match(/rollout-.*?-([0-9a-fA-F-]{36})$/)
   return m ? m[1] : base
 }

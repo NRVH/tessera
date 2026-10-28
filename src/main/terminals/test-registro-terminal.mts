@@ -9,7 +9,6 @@
 // =============================================================================
 
 import { register } from 'node:module'
-import type { SandboxManager } from '../sandbox/SandboxManager.ts'
 import type { EmisorEventos } from '../util/emisorEventos.ts'
 
 function hr(title: string): void {
@@ -67,8 +66,6 @@ function montar() {
   const controlador = new TerminalController({
     profiles: [],
     eventos,
-    dockerfileDir: '',
-    sandbox: {} as SandboxManager,
     log: (m) => lineas.push(m)
   })
   // `terminals` es privado y lo crea el constructor: se sustituye el campo por el doble.

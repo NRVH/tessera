@@ -24,11 +24,11 @@ export interface TerminalProjectTarget {
 }
 
 /**
- * De dónde sale la sesión de un pane: una terminal LOCAL de un proyecto (con su ruta y su modo) o
+ * De dónde sale la sesión de un pane: una terminal LOCAL de un proyecto (con su ruta) o
  * una conexión SSH guardada del perfil. FIJO en vida del componente: va en la React key.
  */
 export type OrigenTerminal =
-  | { tipo: 'local'; projectHostPath: string; hostMode: boolean }
+  | { tipo: 'local'; projectHostPath: string }
   | { tipo: 'ssh'; conexionId: string }
 
 /** Lo que el pane reporta hacia arriba para que el header pinte SU estado. */
@@ -57,9 +57,8 @@ export interface TerminalPaneProps {
   /** Perfil de ESTA ranura. FIJO en vida del componente (va en la React key). */
   profileId: string
   /**
-   * De dónde sale su sesión. Local: el proyecto de la ranura (cwd/mount) y su modo (nativo = un
-   * shell del host con cwd en la ruta real; si no, uno dentro del contenedor). Alternar el modo
-   * REMONTA el pane (va en la React key): otra sesión, otro shell. SSH: la conexión guardada.
+   * De dónde sale su sesión. Local: un shell del equipo con cwd en la ruta real del proyecto de la
+   * ranura. SSH: la conexión guardada.
    */
   origen: OrigenTerminal
   /**
@@ -73,14 +72,14 @@ export interface TerminalPaneProps {
    */
   dbMounted?: string[]
   /**
-   * ¿Están ya cargados los ajustes (de donde sale `dbMounted`)? En modo nativo la
-   * terminal NO se abre hasta que sea true: nacería sin `tdb` en el PATH.
+   * ¿Están ya cargados los ajustes (de donde sale `dbMounted`)? La terminal local
+   * NO se abre hasta que sea true: nacería sin `tdb` en el PATH.
    */
   dbReady?: boolean
   /**
    * El proyecto está HIBERNADO: el backend ya mató esta sesión por detrás. El pane
    * limpia su sessionId muerto y la reabre cuando vuelva a ser visible. Una sesión SSH lo
-   * IGNORA: no depende del contenedor del perfil y el main no la cierra al hibernar.
+   * IGNORA: el main no la cierra al hibernar.
    */
   hibernated?: boolean
   /** Color del perfil, ya en tinta (ver features/pestanas/colorPerfil). Solo tiñe el CURSOR. */
@@ -96,12 +95,6 @@ export interface TerminalPaneProps {
  * `useRefsTerminal` una sola vez), así que ninguno de sus campos entra en las
  * dependencias de un efecto por cambiar de identidad.
  */
-/**
- * El contenedor de un shell en modo Docker murió: 'recrear' lo reintenta ya, con esperas
- * crecientes; 'esperar-docker' espera a que Docker vuelva (estaba caído, o se agotaron los intentos).
- */
-export type CaidaContenedor = 'recrear' | 'esperar-docker'
-
 export interface RefsTerminal {
   host: RefObject<HTMLDivElement>
   term: MutableRefObject<Terminal | null>
@@ -111,7 +104,7 @@ export interface RefsTerminal {
   /** Escritor con contrapresión: `reload` lo reinicia junto con `term.reset()`. */
   flow: MutableRefObject<FlowWriter | null>
   session: MutableRefObject<string | null>
-  /** Guarda contra aperturas solapadas (open() tarda: docker puede irse a ~1 min). */
+  /** Guarda contra aperturas solapadas: `open()` es asíncrono y un segundo disparo antes de que vuelva crearía un pty duplicado. */
   opening: MutableRefObject<boolean>
   /** Montaje de bases por ref: cambiarlo no reabre el shell; se aplica al reabrir. */
   dbMounted: MutableRefObject<string[]>
@@ -124,8 +117,6 @@ export interface RefsTerminal {
   intentado: MutableRefObject<boolean>
   /** Cuándo (epoch ms) arrancó la sesión SSH vigente: de ahí sale si salió con 255 al conectar o después. */
   inicioSesion: MutableRefObject<number>
-  /** ¿Hay una recuperación del contenedor en curso? Guarda síncrona contra dos a la vez. */
-  recuperando: MutableRefObject<boolean>
   /** `visible` legible desde callbacks async (no robar foco si ya se fue a otra terminal). */
   visible: MutableRefObject<boolean>
   /** Temporizador del debounce del resize AL PTY (trailing). */

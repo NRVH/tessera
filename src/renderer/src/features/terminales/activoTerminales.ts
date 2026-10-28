@@ -6,7 +6,7 @@
 // Decisiones: docs/decisiones/terminales/pestanas-ssh-del-perfil.md
 // =============================================================================
 
-import { botonReinicio, textosReconexionSsh, type SalidaBotonReinicio } from './reloadButton.ts'
+import { botonReinicio, textosReconexionSsh, textosReinicioShell, type SalidaBotonReinicio } from './reloadButton.ts'
 import { txTerminales } from './textos.ts'
 import { terminalPaneKey, type ShellTerminal, type ShellTerminalsState } from './shellTerminalsModel.ts'
 import { esPestanaSftp, sshDePerfil, sshPaneKey, type SshTab, type SshTabsState } from './sshTabsModel.ts'
@@ -59,7 +59,6 @@ export interface ActivoTerminales {
   activeProject: TerminalProjectTarget | null
   /** Las terminales locales del proyecto que se mira. */
   activeList: ShellTerminal[]
-  activeHostMode: boolean
   /** Las pestañas SSH del perfil. */
   sshLista: readonly SshTab[]
   /** La terminal local que se VE (`null` si se ve una SSH o nada): la que la tira marca como activa. */
@@ -94,7 +93,7 @@ export function motivoConexionEliminada(): string {
   return txTerminales().conexionEliminadaMotivo
 }
 
-/** El botón de una terminal local, el de siempre: sin cuenta que pedir, solo espera a los ajustes en modo nativo. */
+/** El botón de una terminal local, el de siempre: sin cuenta que pedir, solo espera a los ajustes. */
 function botonLocal(info: TerminalPaneInfo | undefined, hibernated: boolean, puedeAbrir: boolean): SalidaBotonReinicio {
   return botonReinicio({
     status: info?.status ?? 'booting',
@@ -103,7 +102,8 @@ function botonLocal(info: TerminalPaneInfo | undefined, hibernated: boolean, pue
     hibernated,
     puedeAbrir,
     etiquetaNormal: txTerminales().reiniciar,
-    etiquetaProgreso: txTerminales().reiniciando
+    etiquetaProgreso: txTerminales().reiniciando,
+    textos: textosReinicioShell()
   })
 }
 
@@ -123,13 +123,13 @@ function botonSsh(info: TerminalPaneInfo | undefined, existe: boolean): SalidaBo
 }
 
 /** El botón de reinicio del pane que se ve, según sea una SSH o una local; `null` si no se ve ninguno. */
-function botonDelPane(pane: PaneActivo | null, e: EntradaActivo, hostMode: boolean): SalidaBotonReinicio | null {
+function botonDelPane(pane: PaneActivo | null, e: EntradaActivo): SalidaBotonReinicio | null {
   if (pane === null) return null
   const info = e.infoByPane[pane.paneKey]
   // El explorador SFTP no tiene pty que reiniciar: él mismo ofrece «Reintentar» / «Reconectar» si algo falla.
   if (pane.tipo === 'ssh') return esPestanaSftp(pane.tab) ? null : botonSsh(info, e.conexionesVivas.has(pane.tab.conexionId))
-  // En modo nativo la terminal local espera a que los ajustes de montaje estén hidratados.
-  return botonLocal(info, e.hibernatedProjectKeys.has(pane.projectKey), hostMode ? (e.dbReady ?? true) : true)
+  // La terminal local espera a que los ajustes de montaje estén hidratados.
+  return botonLocal(info, e.hibernatedProjectKeys.has(pane.projectKey), e.dbReady ?? true)
 }
 
 /** Cuál de las dos clases de pestaña se ve y con qué id: la otra es `null`. */
@@ -172,16 +172,13 @@ export function hayTerminalQueEnsenar(e: EntradaPane): boolean {
 export function derivarActivo(e: EntradaActivo): ActivoTerminales {
   const { activeProject, sshLista, pane } = paneDe(e)
   const proyecto = e.activeProjectKey ? e.terminals[e.activeProjectKey] : undefined
-  // La terminal de un proyecto corre siempre en el equipo: Docker es solo para las cuentas de los agentes.
-  const activeHostMode = activeProject !== null
   return {
     activeProject,
     activeList: proyecto?.list ?? [],
-    activeHostMode,
     sshLista,
     ...idsVistos(pane),
     pane,
     activePaneKey: pane?.paneKey ?? null,
-    boton: botonDelPane(pane, e, activeHostMode)
+    boton: botonDelPane(pane, e)
   }
 }

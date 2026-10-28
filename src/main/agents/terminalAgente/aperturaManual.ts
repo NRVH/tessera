@@ -100,7 +100,6 @@ async function prepararContenedorManual(
   if (!docker.ok) throw new Error(`${PREFIJO_DOCKER_NO_DISPONIBLE}\n${docker.detalle}`)
   const destino = contenedorDe(profile, def.id, cuenta)
   await conSitio(n, destino, cupo, () => n.sandbox.ensureContainer(destino))
-  n.touchedProfiles.add(profile.id)
   const mount = await n.sandbox.addProject(destino, projectHostPath)
   const carpeta = n.accounts.hostDirFor(n.accounts.cuentaManual(profile.id, def.id, cuenta))
   const cfg = await n.sandbox.mountAgentConfig(destino, def.id, cuenta, carpeta)

@@ -10,6 +10,7 @@
 // =============================================================================
 
 import { existsSync, readFileSync, readdirSync, statSync, openSync, readSync, closeSync } from 'node:fs'
+import { execSync } from 'node:child_process'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { esMac, esWindows } from '../../src/shared/plataforma.ts'
@@ -125,16 +126,46 @@ async function versiones(agente: AgenteTranscript, archivos: Array<{ archivo: st
   return [...vistas].sort((a, b) => a.localeCompare(b, 'en', { numeric: true }))
 }
 
-/** ¿Sigue el binario nativo más nuevo de Claude Code hablando el protocolo de estado (OSC 7501)? */
-function estadoInformadoClaude(): string {
+/** El binario nativo más nuevo de Claude Code, o `null` si la instalación no lo tiene. */
+function binarioClaude(): string | null {
   const dir = join(homedir(), '.local', 'share', 'claude', 'versions')
   const instaladas = existsSync(dir)
     ? readdirSync(dir).filter((n) => /^\d+\.\d+\.\d+/.test(n)).sort((a, b) => a.localeCompare(b, 'en', { numeric: true }))
     : []
-  if (instaladas.length === 0) return 'instalación sin binario nativo: no comprobado'
-  const ruta = join(dir, instaladas.at(-1) as string)
+  if (instaladas.length === 0) return null
   console.log(`  binario nativo: ${instaladas.at(-1)}`)
-  const aguja = Buffer.from('OSC 7501')
+  return join(dir, instaladas.at(-1) as string)
+}
+
+/** El binario de Codex de la instalación global de npm, o `null` si no está ahí. */
+function binarioCodex(): string | null {
+  let raiz: string
+  try {
+    raiz = execSync('npm root -g', { encoding: 'utf8', timeout: 30_000 }).trim()
+  } catch {
+    return null
+  }
+  const paquetes = join(raiz, '@openai', 'codex', 'node_modules', '@openai')
+  if (!existsSync(paquetes)) return null
+  for (const p of readdirSync(paquetes).filter((n) => n.startsWith('codex-'))) {
+    const vendor = join(paquetes, p, 'vendor')
+    if (!existsSync(vendor)) continue
+    for (const destino of readdirSync(vendor)) {
+      const ruta = join(vendor, destino, 'bin', esWindows() ? 'codex.exe' : 'codex')
+      if (existsSync(ruta)) return ruta
+    }
+  }
+  return null
+}
+
+/**
+ * ¿Sigue el binario hablando el protocolo de estado (OSC 7501)? Se busca un texto que el binario
+ * lleva solo si lo emite: Claude Code lo nombra en su sonda; Codex escribe su `app` en cada aviso.
+ */
+function estadoInformado(agente: AgenteTranscript): string {
+  const ruta = agente === 'claude-code' ? binarioClaude() : binarioCodex()
+  if (ruta === null) return 'instalación sin binario localizable: no comprobado'
+  const aguja = Buffer.from(agente === 'claude-code' ? 'OSC 7501' : ':app=codex')
   const fd = openSync(ruta, 'r')
   try {
     const trozo = Buffer.alloc(4 * 1024 * 1024)
@@ -149,7 +180,7 @@ function estadoInformadoClaude(): string {
       previo = ventana.subarray(Math.max(0, ventana.length - aguja.length))
       pos += n
     }
-    return 'FALLA: el binario ya no menciona OSC 7501; el punto vuelve a deducir el estado'
+    return 'FALLA: el binario ya no emite OSC 7501; el punto vuelve a deducir el estado'
   } finally {
     closeSync(fd)
   }
@@ -180,14 +211,14 @@ async function sondear(agente: AgenteTranscript, nombre: string): Promise<boolea
     if (v === 'falla') bien = false
     console.log(`  ${MARCA[v]} ${c.contrato}: ${pasan}/${archivos.length}${v === 'ok' ? '' : ` (si falla, ${c.efecto})`}`)
   }
-  if (agente === 'claude-code' && !sondearEstadoInformado()) bien = false
+  if (!sondearEstadoInformado(agente)) bien = false
   return bien
 }
 
 const MARCA: Record<Veredicto, string> = { ok: 'ok   ', aviso: 'aviso', falla: 'FALLA' }
 
-function sondearEstadoInformado(): boolean {
-  const estado = estadoInformadoClaude()
+function sondearEstadoInformado(agente: AgenteTranscript): boolean {
+  const estado = estadoInformado(agente)
   const v: Veredicto = estado === 'ok' ? 'ok' : estado.startsWith('FALLA') ? 'falla' : 'aviso'
   console.log(`  ${MARCA[v]} estado informado (OSC 7501): ${estado}`)
   return v !== 'falla'

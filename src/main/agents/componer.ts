@@ -101,13 +101,11 @@ export function crearCuentas(perfiles: PerfilesVivos): AccountStore {
 
 interface Sandbox {
   sharedSandbox: SandboxManager
-  dockerfileDir: string
   sshSetup: SshSetup | null
   emisorSinContenido: EmisorEventos
-  touchedProfiles: Set<string>
 }
 
-/** El sandbox COMPARTIDO por las dos terminales, con el `.ssh` global y el puente de BD. */
+/** El sandbox de los agentes, con el `.ssh` global y el puente de BD. */
 function componerSandbox({ refs, ipc, perfiles, dbController }: DepsSesiones): Sandbox {
   const dockerfileDir = join(app.getAppPath(), 'docker', 'sandbox')
   // `.ssh` global: se montan de solo lectura la carpeta y las hermanas que cite su `config`.
@@ -149,22 +147,17 @@ function componerSandbox({ refs, ipc, perfiles, dbController }: DepsSesiones): S
   // Barrido de montajes colgados de un cierre sucio; `ensureContainer` lo espera. Bajo el
   // arnés de pruebas no se barren los heredados: pueden ser de la Tessera abierta del usuario.
   sharedSandbox.beginStartupSweep(!lanzadaPorElArnes(process.argv))
-  return { sharedSandbox, dockerfileDir, sshSetup, emisorSinContenido, touchedProfiles: new Set<string>() }
+  return { sharedSandbox, sshSetup, emisorSinContenido }
 }
 
 type EntornoHost = (profileId: string, projectHostPath: string, dbConnectionIds: string[]) => Record<string, string>
 
 /** La terminal de abajo. */
-function componerTerminal({ refs, ipc, perfiles, dbController, ssh, borrados }: DepsSesiones, sb: Sandbox, hostEnv: EntornoHost): TerminalController {
+function componerTerminal({ refs, ipc, perfiles, dbController, ssh, borrados }: DepsSesiones, hostEnv: EntornoHost): TerminalController {
   const controller = new TerminalController({
     profiles: perfiles.lista,
     eventos: emisorDeVentana(() => refs.ventana),
-    dockerfileDir: sb.dockerfileDir,
-    sandbox: sb.sharedSandbox,
-    touchedProfiles: sb.touchedProfiles,
     getHostEnv: hostEnv,
-    getContainerEnv: (perfil, proyecto, ids, buzon) =>
-      dbController.entornoContenedor(perfil, proyecto, ids, buzon),
     bindDbSession: (env, sessionId) => dbController.atarSesion(env, sessionId),
     revokeDbSession: (sessionId) => dbController.revocarSesion(sessionId),
     lanzadorSsh: ssh
@@ -223,7 +216,6 @@ function componerSesionAgente(deps: DepsSesiones, sb: Sandbox, hostEnv: EntornoH
     eventos,
     carpetaVentana: () => carpetaVentanaAgente(),
     portapapeles: portapapelesDelSistema,
-    touchedProfiles: sb.touchedProfiles,
     sshSetup: sb.sshSetup,
     anclas: anclasConversacion,
     getAgentBase: baseDeCuenta,
@@ -387,7 +379,7 @@ export function componerSesiones(deps: DepsSesiones): AgentesNativos {
   // Entorno extra de las terminales NATIVAS (`tdb` y las bases montadas), recalculado en cada apertura.
   const hostEnvForProfile: EntornoHost = (profileId, projectHostPath, dbConnectionIds) =>
     dbController.entornoHost(profileId, projectHostPath, dbConnectionIds)
-  const controller = componerTerminal(deps, sb, hostEnvForProfile)
+  const controller = componerTerminal(deps, hostEnvForProfile)
   const sesion = componerSesionAgente(deps, sb, hostEnvForProfile)
   const agentesNativos = componerAgentesNativos(deps.refs, sesion.agentController)
   componerCuentasYUso(deps, sesion, emisorATodas(() => BrowserWindow.getAllWindows()))

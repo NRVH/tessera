@@ -105,6 +105,11 @@ export interface ActivityTrackerOptions {
   onChange: (state: AgentActivityState, motivo?: AgentMotivoEspera | null) => void
   /** Contesta a la sonda del protocolo de estado (escribe en el pty): sin respuesta, el agente no informa. */
   responderSonda?: () => void
+  /**
+   * El `app` de un agente que informa sin preguntar antes (la especificación lo permite): sus avisos
+   * cuentan sin sonda, pero solo los que dicen ser él. Sin esto, solo cuentan tras contestar la sonda.
+   */
+  informaSinSonda?: string
   /** Programa `fn` para dentro de `ms` y devuelve un cancelador (setTimeout en producción). */
   schedule: (fn: () => void, ms: number) => () => void
   /** Reloj inyectable; en producción, `Date.now`. */
@@ -427,7 +432,9 @@ function onData(r: Estado, chunk: string): void {
     r.sondaContestada = true
     r.opts.responderSonda?.()
   }
-  if (r.sondaContestada) for (const aviso of lectura.avisos) aplicarAviso(r, aviso)
+  for (const aviso of lectura.avisos) {
+    if (r.sondaContestada || (r.opts.informaSinSonda !== undefined && aviso.app === r.opts.informaSinSonda)) aplicarAviso(r, aviso)
+  }
   if (lectura.avisos.length > 0) avisarEspera(r)
   // Solo una campana suelta: el BEL que cierra un OSC (un título, un aviso) no lo es.
   if (lectura.campanas > 0 && r.informado === null) {

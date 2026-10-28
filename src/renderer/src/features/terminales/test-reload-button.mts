@@ -8,7 +8,7 @@
 // Decisiones: docs/decisiones/terminales/boton-de-reinicio-una-sola-verdad.md
 // =============================================================================
 
-import { textosReconexionSsh, textosReinicio, botonReinicio, type EntradaBotonReinicio } from './reloadButton.ts'
+import { textosReconexionSsh, textosReinicio, textosReinicioShell, botonReinicio, type EntradaBotonReinicio } from './reloadButton.ts'
 
 // ---------------------------------------------------------------------------
 // Reporte PASS/FAIL (mismo patrón que los otros test-*.mts)
@@ -289,6 +289,12 @@ function main(): void {
         fallido.titulo === 'Reintentar el arranque: vuelve a comprobar Docker y a levantar el contenedor' &&
         vivo.titulo === 'Reiniciar robusto: relanza conservando la sesión',
       `${muerta.titulo} | ${fallido.titulo} | ${vivo.titulo}`
+    )
+    const enShell = botonReinicio(shell({ ...ARRANQUE_FALLIDO, textos: textosReinicioShell() }))
+    check(
+      '(22.2) el reintento de la terminal local no habla de Docker ni de contenedor',
+      enShell.titulo.startsWith('Reintentar el arranque') && !/docker|contenedor/i.test(enShell.titulo),
+      JSON.stringify(enShell.titulo)
     )
     check(
       '(23) pasar los textos por defecto a mano no cambia nada (el de siempre ES el parámetro por defecto)',

@@ -30,14 +30,14 @@ había al escribirlas, así que siguen en verde.
 - **Una sonda contra los CLIs instalados** (`npm run sonda:agentes`). Pasa los transcripts reales más
   recientes de la máquina (los del sistema y los de cada cuenta de cada perfil) por los mismos lectores de
   Tessera y dice qué contrato entiende en cuántos. Solo lectura: no ejecuta los CLIs, no gasta tokens y no
-  imprime contenido. En Claude Code mira también que el binario nativo más nuevo siga hablando el protocolo de
-  estado. Sale con 1 si un contrato no se entiende en ningún transcript.
+  imprime contenido. Mira también que el binario de cada uno (el nativo más nuevo de Claude Code, el de la
+  instalación global de npm de Codex) siga hablando el protocolo de estado. Sale con 1 si un contrato no se entiende en ningún transcript.
 
 ## Contratos
 
 | Qué se lee | De dónde | Lo usa | Lo comprueba |
 |---|---|---|---|
-| Mensajes, título, `cwd` e id de la conversación | Cabeza del transcript; en Codex, `session_meta` y los mensajes | Historial y reanudar | Sonda, vigía, `test:conversations` |
+| Mensajes, título, `cwd` e id de la conversación | Cabeza del transcript; en Codex, `session_meta` y los mensajes, también de los rollouts que comprime (`.jsonl.zst`, zstd) | Historial y reanudar | Sonda, vigía, `test:conversations` |
 | `cwd` de la cabecera | Primeras líneas (Codex: la primera, que pesa decenas de KiB) | Atribuir turnos al proyecto | Sonda, vigía, `test:vigilante-turnos` |
 | Marcas de turno (`turn_duration`, `stop_reason`, `task_started`/`task_complete`/`turn_aborted`) | Cola del transcript | Punto de estado | Sonda, `test:turnos` |
 | Tareas en segundo plano | Resultados de herramientas y avisos de tarea de Claude Code | Veto de la hibernación | `test:segundo-plano` |
@@ -45,7 +45,7 @@ había al escribirlas, así que siguen en verde.
 | Ventana por modelo | Tabla propia en `ContextReader` | Anillo de contexto | Nadie: un modelo nuevo cae al escalón por defecto |
 | `rate_limits` de `token_count` | Cola del rollout de Codex | Uso de la cuenta | Sonda, `test-usage` |
 | Uso de la cuenta de Claude Code | Su API de uso con el token de `.credentials.json` | Uso de la cuenta | `test-usage` con un cuerpo capturado; errores visibles |
-| Protocolo de estado (OSC 7501) | Flujo del pty | Punto de estado y «te espera» | Sonda (el binario lo menciona), agente falso en `e2e/` |
+| Protocolo de estado (OSC 7501); en Codex, sin sonda y con `app=codex` | Flujo del pty | Punto de estado y «te espera» | Sonda (el binario de cada uno lo emite), `test-agent-activity-tracker`, agente falso en `e2e/` |
 | Reanudar, aviso de arranque y carpeta de la cuenta (`--resume`, `resume`, `--append-system-prompt`, `-c developer_instructions`, `-c features.daemon_auto_start=false`, `CLAUDE_CONFIG_DIR`, `CODEX_HOME`) | Línea de arranque | Abrir y aislar cuentas | `test-linea-arranque-agente`; un flag desconocido da error visible al arrancar |
 | `--version`, método de instalación, canal y registros de versiones | CLI, `.claude.json`, `settings.json`, npm | Actualizar los nativos | `test-agentes-nativos`; los fallos se ven en el botón |
 

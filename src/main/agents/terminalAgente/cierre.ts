@@ -118,7 +118,7 @@ export async function cerrarDeVentana(
   return ids
 }
 
-/** Cierra todas las sesiones al salir de la app; los contenedores los para la terminal de abajo. */
+/** Cierra todas las sesiones de agente y espera sus muertes en vuelo; no para contenedores. */
 export async function disposeAll(n: NucleoAgente): Promise<void> {
   n.log(`disposeAll: ${n.sessions.size} sesión(es) de agente`)
   await cerrarTolerante(n, [...n.sessions.keys()], 'disposeAll')

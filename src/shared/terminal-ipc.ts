@@ -44,26 +44,15 @@ export const TERMINAL_CHANNELS = {
   EXIT: 'terminal:exit'
 } as const
 
-/**
- * Dónde corre el shell de la terminal:
- *   - 'container' (por defecto): dentro del contenedor Docker del perfil.
- *   - 'host': una PowerShell nativa de Windows, con cwd en la ruta real del
- *     proyecto (proyectos en modo Windows). Espejo de AgentRunMode.
- */
-export type TerminalRunMode = 'container' | 'host'
-
 /** Petición para abrir una terminal anclada a un proyecto de un perfil. */
 export interface OpenTerminalRequest {
   /** Id de perfil (debe existir en config/profiles.json). */
   profileId: string
   /** Ruta host (Windows) del proyecto a montar/anclar como cwd. */
   projectHostPath: string
-  /** Dónde correr el shell. Ausente => 'container' (retrocompatible). */
-  mode?: TerminalRunMode
   /**
    * Ids de las conexiones montadas en este proyecto (mismo ámbito que la sesión de
-   * agente): así `tdb` a mano ve exactamente lo mismo que ve el agente. Solo en
-   * modo 'host'.
+   * agente): así `tdb` a mano ve exactamente lo mismo que ve el agente.
    */
   dbConnectionIds?: string[]
 }
@@ -131,15 +120,8 @@ export interface TerminalDataMessage {
  */
 export type MotivoSsh = 'ssh-huella-cambiada' | 'ssh-autenticacion' | 'ssh-inalcanzable' | 'ssh-algoritmos'
 
-/** Por qué terminó una sesión, si el main lo sabe: el de una SSH o el de un shell en modo Docker. */
-export type TerminalExitReason = MotivoSsh | MotivoContenedor
-
-/**
- * Por qué terminó el shell de un proyecto en modo Docker, si no fue una salida normal: murió el
- * contenedor (se recrea), Docker no responde (se espera a que vuelva) o el contenedor se quedó sin
- * memoria (no se recrea solo: volvería a caer).
- */
-export type MotivoContenedor = 'container-down' | 'daemon-down' | 'sin-memoria'
+/** Por qué terminó una sesión, si el main lo sabe: solo las SSH traen motivo. */
+export type TerminalExitReason = MotivoSsh
 
 /** Evento main -> renderer cuando el shell termina (usuario `exit`, crash, etc.). */
 export interface TerminalExitMessage {
@@ -148,8 +130,7 @@ export interface TerminalExitMessage {
   exitCode: number | null
   /**
    * En sesiones SSH, con exitCode 255 (en Windows también -1, que incluye la salida sin código)
-   * y si ssh dejó escrito por qué; sin él, el 255 pudo darlo el comando remoto. En un shell en modo
-   * Docker, si no salió por sí mismo (`MotivoContenedor`).
+   * y si ssh dejó escrito por qué; sin él, el 255 pudo darlo el comando remoto.
    */
   reason?: TerminalExitReason
 }

@@ -93,8 +93,7 @@ function PanesLocales({ panel, activo, onInfo, onApi }: PilaTerminalesProps): Re
               <TerminalPane
                 paneKey={key}
                 profileId={project.profileId}
-                // La terminal de un proyecto corre siempre en el equipo: Docker es solo para las cuentas de los agentes.
-                origen={{ tipo: 'local', projectHostPath: project.projectHostPath, hostMode: true }}
+                origen={{ tipo: 'local', projectHostPath: project.projectHostPath }}
                 visible={panel.visible && key === activo.activePaneKey}
                 dbMounted={panel.dbMountsByProject?.[`${project.profileId}|${project.projectHostPath}`] ?? []}
                 dbReady={panel.dbReady}
@@ -114,10 +113,6 @@ function PanesLocales({ panel, activo, onInfo, onApi }: PilaTerminalesProps): Re
 /** El motivo de un fallo del explorador SFTP, con las mismas palabras que el de una pestaña SSH que no conecta. */
 const textoMotivoSftp = (motivo: Parameters<typeof motivoFinSsh>[2]): string => motivoFinSsh(null, 0, motivo)
 
-/**
- * Los panes de las pestañas SSH de TODOS los perfiles. La React key no lleva el modo de ningún
- * proyecto (una conexión SSH no depende de él) ni la hibernación: sobreviven a las dos.
- */
 /** Monta su contenido la primera vez que es visible y ya no lo desmonta al ocultarse. */
 function TrasVerse({ visible, children }: { visible: boolean; children: React.ReactNode }): React.JSX.Element | null {
   const [visto, setVisto] = useState(visible)
@@ -125,6 +120,10 @@ function TrasVerse({ visible, children }: { visible: boolean; children: React.Re
   return visto || visible ? <>{children}</> : null
 }
 
+/**
+ * Los panes de las pestañas SSH de TODOS los perfiles. La React key no lleva ningún proyecto
+ * (una conexión SSH no depende de él) ni la hibernación: sobreviven a las dos.
+ */
 function PanesSsh({ panel, activo, onInfo, onApi }: PilaTerminalesProps): React.JSX.Element {
   const todas = Object.entries(panel.ssh.estado.porPerfil).flatMap(([perfil, cur]) => cur.lista.map((tab) => ({ perfil, tab })))
   return (

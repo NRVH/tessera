@@ -58,7 +58,8 @@ function tamanoValido(t: unknown): { cols: number; rows: number } | null {
 
 /** Sesiones de terminal (pty) de los perfiles: crea, recarga, detiene y cierra. */
 export class TerminalService {
-  private readonly sandbox: SandboxManager
+  /** Solo las sesiones en contenedor (`host` falso) lo necesitan; las nativas y las SSH no. */
+  private readonly sandbox: SandboxManager | undefined
   private readonly sessions = new Map<string, SessionRecord>()
   private counter = 0
   /** Turno de las MUERTES de pty (parar, cerrar, reiniciar, hibernar): de una en una, y del PROCESO. */
@@ -66,7 +67,7 @@ export class TerminalService {
   /** La app se está cerrando: desde aquí no nace ni renace ningún pty, que ya nadie mataría. */
   private apagando = false
 
-  constructor(sandbox: SandboxManager) {
+  constructor(sandbox?: SandboxManager) {
     this.sandbox = sandbox
   }
 
@@ -78,9 +79,13 @@ export class TerminalService {
     const containerName = containerNameFor(profile)
     // En modo nativo no hay contenedor: no se consulta el registro de montajes del sandbox.
     const host = opts.host === true
-    const workspacePath = host
-      ? path.resolve(opts.project)
-      : await resolverWorkspacePath(this.sandbox, profile, opts.project)
+    let workspacePath: string
+    if (host) {
+      workspacePath = path.resolve(opts.project)
+    } else {
+      if (!this.sandbox) throw new Error('Una sesión en contenedor necesita el SandboxManager.')
+      workspacePath = await resolverWorkspacePath(this.sandbox, profile, opts.project)
+    }
 
     const id = `term-${profile.id}-${++this.counter}`
     const record: SessionRecord = {

@@ -258,7 +258,7 @@ export class SandboxManager {
     this.paradasPendientes.delete(id)
   }
 
-  /** Registra una sesión viva del perfil (informativo). */
+  /** Registra una sesión viva del contenedor (el de la cuenta). */
   retainSession(profileId: string, sessionKey: string): void {
     this.contenedores.retainSession(profileId, sessionKey)
   }
@@ -269,8 +269,7 @@ export class SandboxManager {
   }
 
   /**
-   * Los ids de los contenedores que corren ahora (los de perfil y los de cuenta): lo que cuenta para
-   * el límite. Un contenedor muerto deja de estar en cuanto lo ve el supervisor.
+   * Los ids de los contenedores de cuenta que corren ahora: lo que cuenta para el límite. Un contenedor muerto deja de estar en cuanto lo ve el supervisor.
    */
   contenedoresVivos(): string[] {
     return [...this.n.handles.keys()]
@@ -291,7 +290,7 @@ export class SandboxManager {
     return this.n.handles.has(id)
   }
 
-  /** Nº de sesiones vivas registradas para un perfil. */
+  /** Nº de sesiones vivas registradas para un contenedor. */
   liveSessionCount(profileId: string): number {
     return this.contenedores.liveSessionCount(profileId)
   }

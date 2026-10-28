@@ -174,7 +174,7 @@ export class ContenedoresSandbox {
     ]
   }
 
-  /** Registra una sesión viva del perfil; `sessionKey` va con su origen (`term:`/`agent:`). */
+  /** Registra una sesión viva del contenedor `profileId`; `sessionKey` va con su origen (`agent:`). */
   retainSession(profileId: string, sessionKey: string): void {
     let set = this.n.liveSessions.get(profileId)
     if (!set) {
@@ -194,7 +194,7 @@ export class ContenedoresSandbox {
     return wasLast
   }
 
-  /** Nº de sesiones vivas registradas para un perfil (0 si ninguna). */
+  /** Nº de sesiones vivas registradas para un contenedor (0 si ninguna). */
   liveSessionCount(profileId: string): number {
     return this.n.liveSessions.get(profileId)?.size ?? 0
   }

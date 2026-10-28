@@ -1,6 +1,6 @@
 // =============================================================================
 // Hibernación a demanda y SOLO por perfil: cierra las sesiones del perfil en las dos
-// terminales (la de abajo y la del agente), salvo las SSH, y para su contenedor como respaldo.
+// terminales (la de abajo y la del agente), salvo las SSH, y para los contenedores de sus cuentas.
 // Es el único que conoce a la vez los dos controladores; el estado 'hibernated' lo marca el renderer.
 // Lo registra `hibernate/ipc.ts`.
 // Decisiones: docs/decisiones/sandbox/hibernacion-manual.md
@@ -16,7 +16,7 @@ export interface HibernationControllerOptions {
   terminal: TerminalController
   agent: AgentTerminalController
   sandbox: SandboxManager
-  /** Resuelve profileId -> Profile actual (para el backstop stopContainer del perfil). */
+  /** Resuelve profileId -> Profile actual (para parar los contenedores de sus cuentas). */
   getProfile: (profileId: string) => Profile | undefined
   log?: (msg: string) => void
 }
@@ -39,9 +39,10 @@ export class HibernationController {
   }
 
   /**
-   * Hiberna un PERFIL: cierra sus sesiones y para su contenedor como respaldo (aunque no hubiera
-   * sesiones; idempotente y aislado a `tessera-<profileId>`). Las SSH se quedan: hibernar libera
-   * el contenedor y los agentes, una SSH ocupa unos MB y cerrarla cortaría el trabajo remoto.
+   * Hiberna un PERFIL: cierra sus sesiones y para los contenedores de sus cuentas (cerrar una sesión
+   * nunca para un contenedor; también si no hubiera sesiones; idempotente y aislado a los del
+   * perfil). Las SSH se quedan: hibernar libera los contenedores y los agentes, una SSH ocupa unos
+   * MB y cerrarla cortaría el trabajo remoto.
    */
   async hibernateProfile(profileId: string): Promise<HibernateResult> {
     const [term, ag] = await Promise.all([
@@ -58,9 +59,8 @@ export class HibernationController {
         this.log(`hibernateProfile stopContainer(${profileId}) error: ${errMsg(err)}`)
       }
     }
-    const containerAlive = this.sandbox.liveSessionCount(profileId) > 0
-    this.log(`hibernateProfile ${profileId}: ${closedSessionIds.length} sesión(es) cerradas; contenedor detenido`)
-    return { closedSessionIds, containerAlive }
+    this.log(`hibernateProfile ${profileId}: ${closedSessionIds.length} sesión(es) cerradas; contenedores detenidos`)
+    return { closedSessionIds }
   }
 }
 

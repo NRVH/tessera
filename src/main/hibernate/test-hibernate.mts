@@ -2,7 +2,7 @@
 // =============================================================================
 // Prueba de la hibernación por perfil (npm run test:hibernate), contra Docker real con
 // los dos controladores y un agente de mentira (`sleep`): hibernar A cierra sus tres
-// sesiones y mata su contenedor sin tocar B, y luego B igual.
+// sesiones y mata el contenedor de su cuenta sin tocar B, y luego B igual.
 // Perfiles desechables `hibqa`/`hibqb`.
 // Decisiones: docs/decisiones/sandbox/hibernacion-manual.md
 // =============================================================================
@@ -105,9 +105,7 @@ async function main(): Promise<void> {
   const eventos = { emitir: (): void => {}, hayDestino: (): boolean => false }
   const terminal = new TerminalController({
     profiles: ALL,
-    sandbox,
-    eventos,
-    dockerfileDir: path.join(REPO_ROOT, 'docker', 'sandbox')
+    eventos
   })
   const accounts = new AccountStore({
     storePath: path.join(CREDS_ROOT, 'agent-accounts.json'),
@@ -150,37 +148,34 @@ async function main(): Promise<void> {
     const tA1 = (await terminal.open({ profileId: P_A.id, projectHostPath: A1 })).sessionId
     const resAgente = await agent.open({ profileId: P_A.id, agente: 'claude-code', projectHostPath: A1 })
     const aA1 = resAgente.sessionId
-    // El agente corre en el contenedor de su cuenta; las terminales, en el del perfil.
+    // El agente corre en el contenedor de su cuenta; las terminales son del equipo y no usan contenedor.
     const CA = contenedorDe(P_A, 'claude-code', resAgente.accountId)
     const tA2 = (await terminal.open({ profileId: P_A.id, projectHostPath: A2 })).sessionId
     const tB1 = (await terminal.open({ profileId: P_B.id, projectHostPath: B1 })).sessionId
     await sleep(1500)
     check(
-      '(a) refcount del perfil A=2 (terminales de A1 y A2), del contenedor de la cuenta de A=1 (agente de A1), B=1; los tres contenedores arriba',
-      sandbox.liveSessionCount(P_A.id) === 2 &&
-        sandbox.liveSessionCount(CA.id) === 1 &&
-        sandbox.liveSessionCount(P_B.id) === 1 &&
-        containerUp(P_A.id) &&
+      '(a) el contenedor de la cuenta de A tiene 1 sesión (agente de A1) y está arriba; las terminales no levantan ningún contenedor',
+      sandbox.liveSessionCount(CA.id) === 1 &&
         containerUp(CA.id) &&
-        containerUp(P_B.id),
-      `refA=${sandbox.liveSessionCount(P_A.id)} refCuentaA=${sandbox.liveSessionCount(CA.id)} refB=${sandbox.liveSessionCount(P_B.id)} A.up=${containerUp(P_A.id)} cuentaA.up=${containerUp(CA.id)} B.up=${containerUp(P_B.id)}`
+        sandbox.liveSessionCount(P_A.id) === 0 &&
+        sandbox.liveSessionCount(P_B.id) === 0 &&
+        !containerUp(P_A.id) &&
+        !containerUp(P_B.id),
+      `refCuentaA=${sandbox.liveSessionCount(CA.id)} cuentaA.up=${containerUp(CA.id)} A.up=${containerUp(P_A.id)} B.up=${containerUp(P_B.id)}`
     )
 
     // --- (b) hibernar el PERFIL A: cierra TODAS sus sesiones y MATA su contenedor.
-    hr('(b) hibernateProfile(A): cierra term+agente de A1 y term de A2; MATA el contenedor A; B intacto')
+    hr('(b) hibernateProfile(A): cierra term+agente de A1 y term de A2; MATA el contenedor de la cuenta de A; B intacto')
     const rb = await hibernation.hibernateProfile(P_A.id)
     await sleep(500)
     check(
-      '(b) cerró las 3 sesiones de A (A1 term+agente, A2 term); contenedores de A (perfil y cuenta) MUERTOS; refA=0; B intacto',
+      '(b) cerró las 3 sesiones de A (A1 term+agente, A2 term); contenedor de la cuenta de A MUERTO; su contador a 0',
       rb.closedSessionIds.length === 3 &&
-        rb.containerAlive === false &&
         sandbox.liveSessionCount(P_A.id) === 0 &&
         sandbox.liveSessionCount(CA.id) === 0 &&
         !containerUp(P_A.id) &&
-        !containerUp(CA.id) &&
-        sandbox.liveSessionCount(P_B.id) === 1 &&
-        containerUp(P_B.id),
-      `cerradas=${rb.closedSessionIds.length} aliveA=${rb.containerAlive} refA=${sandbox.liveSessionCount(P_A.id)} refCuentaA=${sandbox.liveSessionCount(CA.id)} A.up=${containerUp(P_A.id)} cuentaA.up=${containerUp(CA.id)} refB=${sandbox.liveSessionCount(P_B.id)} B.up=${containerUp(P_B.id)}`
+        !containerUp(CA.id),
+      `cerradas=${rb.closedSessionIds.length} refA=${sandbox.liveSessionCount(P_A.id)} refCuentaA=${sandbox.liveSessionCount(CA.id)} A.up=${containerUp(P_A.id)} cuentaA.up=${containerUp(CA.id)}`
     )
     check(
       '(c) SELECCIÓN por PERFIL (aislamiento): se cerraron SOLO las de A (tA1, aA1, tA2); la de B (tB1) sobrevive',
@@ -196,12 +191,14 @@ async function main(): Promise<void> {
     )
 
     // --- (d) hibernar el PERFIL B: mata su contenedor ------------------------
-    hr('(d) hibernateProfile(B): cierra su sesión y MATA su contenedor')
+    hr('(d) hibernateProfile(B): cierra su sesión')
     const rd = await hibernation.hibernateProfile(P_B.id)
     await sleep(500)
     check(
-      '(d) cerró la sesión de B; contenedor B muerto; contador B vacío',
+      '(d) cerró la sesión de B; ningún contenedor de B; contador B vacío',
       rd.closedSessionIds.length === 1 &&
+        rd.closedSessionIds.includes(tB1) &&
+        terminal.liveSessionIds().length === 0 &&
         sandbox.liveSessionCount(P_B.id) === 0 &&
         !containerUp(P_B.id),
       `cerradas=${rd.closedSessionIds.length} B.up=${containerUp(P_B.id)}`

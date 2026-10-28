@@ -1,7 +1,7 @@
 // =============================================================================
 // listadoTranscripts: dónde están en disco los transcripts de una cuenta, sin recorrer
 // la carpeta entera. Claude Code: `<base>/projects/<carpeta>/<sessionId>.jsonl`, con la
-// criba por nombre de carpeta ANTES de leerla. Codex: `<base>/sessions/**/rollout-*.jsonl`.
+// criba por nombre de carpeta ANTES de leerla. Codex: `<base>/sessions/**/rollout-*.jsonl[.zst]`.
 // Sin electron y con el `fs` inyectable; lo usan ConversationsReader y ContextReader.
 // Decisiones: docs/decisiones/agentes/conversaciones-criba-por-carpeta.md
 // =============================================================================
@@ -70,22 +70,42 @@ export async function transcriptsClaude(base: string, opciones: OpcionesClaude):
   return transcriptsDe(fs, rutas(resto))
 }
 
-async function rolloutsBajo(fs: FsListado, dir: string): Promise<string[]> {
+/** Codex comprime los rollouts fríos a `rollout-*.jsonl.zst` y borra el `.jsonl`. */
+const SUFIJO_COMPRIMIDO = '.zst'
+
+/** ¿Es un rollout comprimido de Codex? */
+export function esComprimido(ruta: string): boolean {
+  return ruta.endsWith(SUFIJO_COMPRIMIDO)
+}
+
+/** El nombre del rollout sin la compresión: `rollout-….jsonl` para los dos formatos. */
+export function rutaPlana(ruta: string): string {
+  return esComprimido(ruta) ? ruta.slice(0, -SUFIJO_COMPRIMIDO.length) : ruta
+}
+
+async function rolloutsBajo(fs: FsListado, dir: string, comprimidos: boolean): Promise<string[]> {
   const fuera: string[] = []
+  const nombres = new Set<string>()
   for (const e of await entradas(fs, dir)) {
     const ruta = path.join(dir, e.name)
-    if (e.isDirectory()) fuera.push(...(await rolloutsBajo(fs, ruta)))
-    else if (e.isFile() && /^rollout-.*\.jsonl$/.test(e.name)) fuera.push(ruta)
+    if (e.isDirectory()) fuera.push(...(await rolloutsBajo(fs, ruta, comprimidos)))
+    else if (e.isFile() && (comprimidos ? /^rollout-.*\.jsonl(\.zst)?$/ : /^rollout-.*\.jsonl$/).test(e.name)) {
+      fuera.push(ruta)
+      nombres.add(e.name)
+    }
   }
-  return fuera
+  // Mientras Codex comprime o restaura, los dos formatos conviven un momento: gana el plano.
+  return fuera.filter((r) => !esComprimido(r) || !nombres.has(path.basename(rutaPlana(r))))
 }
 
 /**
  * Rollouts de Codex de una cuenta: los de `<base>/sessions` (agrupados por fecha). Lo
- * archivado y lo temporal (`archived_sessions/`, `.tmp/`) no son conversaciones vivas.
+ * archivado y lo temporal (`archived_sessions/`, `.tmp/`) no son conversaciones vivas. Con
+ * `comprimidos`, también los `.jsonl.zst`: solo los quiere quien lee la cabeza (el historial),
+ * porque una conversación viva nunca está comprimida (Codex la restaura antes de escribir).
  */
-export async function rolloutsCodex(base: string, fs: FsListado = FS_REAL): Promise<string[]> {
-  return rolloutsBajo(fs, path.join(base, 'sessions'))
+export async function rolloutsCodex(base: string, fs: FsListado = FS_REAL, opciones: { comprimidos?: boolean } = {}): Promise<string[]> {
+  return rolloutsBajo(fs, path.join(base, 'sessions'), opciones.comprimidos === true)
 }
 
 /** Un transcript con su `stat` (fecha de última escritura y tamaño). */

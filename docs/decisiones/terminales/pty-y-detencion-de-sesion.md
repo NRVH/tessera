@@ -51,8 +51,8 @@ renderer después de que este limpiara la pantalla y repinta un prompt viejo.
   node-pty (`codigoDeSalidaTardio`) hasta `CODIGO_TARDIO_TOPE_MS` (1 s, menor que `REAP_TIMEOUT_MS`) antes de anunciar nada;
   si no aparece, el record queda con -1 y a quien escucha le llega ese mismo -1. Si entretanto la sesión se dio por muerta o ya
   tiene otro pty, el código tardío no se aplica: sería de un proceso que ya no es el suyo.
-- El RELOAD de una sesión abierta (terminal y agente) espera al candado del borrado del perfil de esa sesión: relanzar a
-  mitad del borrado levantaría el contenedor de un perfil que se está borrando.
+- El RELOAD de una sesión abierta (terminal y agente) espera al candado del borrado del perfil de esa sesión: relanzar un
+  agente a mitad del borrado levantaría el contenedor de una cuenta de un perfil que se está borrando.
 - En Linux el pty se lanza envuelto en `bash`, que cierra todo descriptor mayor que 2 y ejecuta en su lugar la shell
   (`adaptadores/descriptoresHeredados.ts`): node-pty hace allí `forkpty` + `execvp` sin cerrar nada, y la shell heredaba
   los `.pak`, la memoria compartida, las tuberías y los sockets del IPC de Chromium, que un proceso suelto de un agente

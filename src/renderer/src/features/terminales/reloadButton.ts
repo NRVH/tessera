@@ -38,6 +38,11 @@ export function textosReinicio(): TextosBotonReinicio {
   }
 }
 
+/** Los de la terminal local: es un shell nativo, así que el reintento no comprueba Docker ni contenedor. */
+export function textosReinicioShell(): TextosBotonReinicio {
+  return { ...textosReinicio(), tituloReintentarArranque: txTerminales().shellReintentarArranque }
+}
+
 /** Los de una sesión SSH: se reconecta, con los datos vigentes de la conexión, y no hay contenedor que comprobar. */
 export function textosReconexionSsh(): TextosBotonReinicio {
   const t = txTerminales()

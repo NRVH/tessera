@@ -29,7 +29,6 @@ interface AccionesPestanas {
 interface PestanaProps extends AccionesPestanas {
   terminal: ShellTerminal
   projectKey: string
-  hostMode: boolean
   activa: boolean
   info: TerminalPaneInfo | undefined
   renombrando: Renombrando | null
@@ -39,7 +38,7 @@ interface PestanaProps extends AccionesPestanas {
 function Pestana(p: PestanaProps): React.JSX.Element {
   const { terminal: t, projectKey, info, renombrando, setRenombrando } = p
   const dead = info?.status === 'exited' || info?.status === 'error'
-  const nombre = terminalName(t, p.hostMode)
+  const nombre = terminalName(t)
   // Las DOS mitades de la clave: ver `Renombrando`.
   const editando = renombrando?.id === t.id && renombrando.key === projectKey
   const abrirRenombrado = (): void => setRenombrando({ key: projectKey, id: t.id, texto: nombre })
@@ -135,7 +134,6 @@ interface ZonaPestanasProps extends AccionesPestanas {
   lista: ShellTerminal[]
   /** La terminal local que se ve (`null` si se ve una SSH o nada). */
   localActivaId: string | null
-  hostMode: boolean
   infoByPane: Record<string, TerminalPaneInfo>
   renombrando: Renombrando | null
   setRenombrando: Dispatch<SetStateAction<Renombrando | null>>
@@ -179,7 +177,6 @@ export function ZonaPestanas(p: ZonaPestanasProps): React.JSX.Element {
               key={t.id}
               terminal={t}
               projectKey={projectKey}
-              hostMode={p.hostMode}
               activa={t.id === p.localActivaId}
               info={p.infoByPane[terminalPaneKey(projectKey, t.id)]}
               renombrando={p.renombrando}

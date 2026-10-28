@@ -249,7 +249,6 @@ function ZonaCabecera(z: ZonaCabeceraProps): React.JSX.Element {
       projectKey={activo.activeProject?.key ?? null}
       lista={activo.activeList}
       localActivaId={activo.localActivaId}
-      hostMode={activo.activeHostMode}
       infoByPane={infoByPane}
       renombrando={renombrando}
       setRenombrando={setRenombrando}

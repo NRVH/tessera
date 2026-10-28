@@ -168,7 +168,6 @@ async function recargarEnContenedor(
 
   const destino = contenedorDe(profile, open.agente, account.id)
   await n.sandbox.ensureContainer(destino)
-  n.touchedProfiles.add(profile.id)
   await n.sandbox.addProject(destino, open.projectHostPath)
   const hostConfigDir = n.accounts.hostDirFor(account)
   const cfgMount = await n.sandbox.mountAgentConfig(destino, open.agente, account.id, hostConfigDir)

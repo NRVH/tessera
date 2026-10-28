@@ -145,7 +145,6 @@ async function prepararContenedor(
 
   const destino = contenedorDe(profile, agente, account.id)
   await conSitio(n, destino, req.cupo, () => n.sandbox.ensureContainer(destino))
-  n.touchedProfiles.add(profile.id)
 
   const mount = await n.sandbox.addProject(destino, req.projectHostPath)
 

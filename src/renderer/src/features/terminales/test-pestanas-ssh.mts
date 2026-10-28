@@ -277,8 +277,6 @@ hr('(10) El botón de reinicio del pane que se ve: «Reconectar» en SSH, el de 
   check('MITAD NEGATIVA: una local nunca se bloquea por conexiones; una SSH hibernada no existe (no se bloquea por hibernar)', local.boton?.habilitado === true && derivarActivo(entrada({ ssh: elegirSsh(s, 'alfa', CTX_A, 's2'), infoByPane: { 'ssh|alfa|s2': vivo }, hibernatedProjectKeys: new Set([KEY_A]) })).boton?.habilitado === true, 'habilitados')
   const hibernada = derivarActivo(entrada({ ssh: s, infoByPane: { [`${KEY_A}|t1`]: vivo }, hibernatedProjectKeys: new Set([KEY_A]) }))
   check('MITAD NEGATIVA: una local de un proyecto hibernado sí se bloquea (lo de siempre)', hibernada.boton?.habilitado === false, j(hibernada.boton))
-  const modos = derivarActivo(entrada({ ssh: s }))
-  check('las locales de un proyecto corren siempre en el equipo', modos.activeHostMode === true, String(modos.activeHostMode))
   const dosLocales = addTerminal(ensureProject({}, KEY_A), KEY_A)
   check('la local que se ve es la activa del proyecto (la última creada)', derivarActivo(entrada({ terminals: dosLocales, ssh: s })).localActivaId === 't2', derivarActivo(entrada({ terminals: dosLocales, ssh: s })).localActivaId ?? 'null')
 }

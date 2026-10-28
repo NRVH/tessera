@@ -79,7 +79,6 @@ function montar(host: boolean, fallo: Fallo) {
       mountAgentConfig: async () => ({ containerPath: '/cfg' })
     },
     accounts: { get: () => ({ id: 'a1' }), hostDirFor: () => 'C:\\cfg' },
-    touchedProfiles: new Set<string>(),
     terminals: {
       reloadSession: async (id: string) => {
         eventos.push('relanzar')

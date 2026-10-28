@@ -11,6 +11,7 @@
 
 import { mkdtemp, mkdir, writeFile, utimes, readdir, stat, readFile, open } from 'node:fs/promises'
 import { randomBytes } from 'node:crypto'
+import { zstdCompressSync } from 'node:zlib'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { ConversationsReader } from './ConversationsReader.ts'
@@ -126,6 +127,65 @@ async function probarAlcanceDelListado(root: string, reader: ConversationsReader
   )
   const hizo = await reader.deleteConversation(codex, 'codex', UUID_AJENA)
   check('(k.2) ni se borra', !hizo && (await existe(fuera)), `borró=${hizo}`)
+}
+
+const UUID_ZST = 'b1b1b1b1-b1b1-4b1b-8b1b-b1b1b1b1b1b1'
+const UUID_ZST_PAR = 'b2b2b2b2-b2b2-4b2b-8b2b-b2b2b2b2b2b2'
+const UUID_ZST_ROTO = 'b3b3b3b3-b3b3-4b3b-8b3b-b3b3b3b3b3b3'
+
+/** Escribe un rollout comprimido como lo deja Codex (`.jsonl.zst`) y fija su mtime. */
+async function writeJsonlZst(file: string, objs: object[], mtime: Date): Promise<void> {
+  await mkdir(path.dirname(file), { recursive: true })
+  await writeFile(file, zstdCompressSync(Buffer.from(objs.map((o) => JSON.stringify(o)).join('\n') + '\n', 'utf8')))
+  await utimes(file, mtime, mtime)
+}
+
+/**
+ * Codex comprime los rollouts fríos a `.jsonl.zst` y borra el `.jsonl`: el historial los lista,
+ * auto-reanudar los encuentra y borrar los borra. Mientras comprime conviven los dos y gana el plano.
+ */
+async function probarComprimidos(root: string, reader: ConversationsReader): Promise<void> {
+  const base = path.join(root, 'codex-zst')
+  const dia = path.join(base, 'sessions', '2026', '06', '01')
+  const cwd = '/x/gamma'
+  const rollout = (id: string, texto: string): object[] => [
+    { type: 'session_meta', timestamp: '2026-06-01T09:00:00Z', payload: { session_id: id, cwd } },
+    { type: 'event_msg', timestamp: '2026-06-01T09:00:01Z', payload: { type: 'user_message', message: texto } }
+  ]
+  const fecha = new Date('2026-06-01T09:00:01Z')
+  const comprimido = path.join(dia, `rollout-2026-06-01T09-00-00-${UUID_ZST}.jsonl.zst`)
+  await writeJsonlZst(comprimido, rollout(UUID_ZST, 'la de hace semanas'), fecha)
+  // A medio comprimir: el plano y el comprimido a la vez.
+  await writeJsonl(path.join(dia, `rollout-2026-06-01T08-00-00-${UUID_ZST_PAR}.jsonl`), rollout(UUID_ZST_PAR, 'a medias'), fecha)
+  await writeJsonlZst(path.join(dia, `rollout-2026-06-01T08-00-00-${UUID_ZST_PAR}.jsonl.zst`), rollout(UUID_ZST_PAR, 'a medias'), fecha)
+
+  const panel = await reader.listConversations([{ dir: base, agente: 'codex' }])
+  const vieja = panel.find((c) => c.id === UUID_ZST)
+  check(
+    '(z) un rollout comprimido sale en el historial con su título, su proyecto y su fecha',
+    vieja?.title === 'la de hace semanas' && vieja.projectPath === cwd && vieja.updatedAt === fecha.getTime(),
+    `title="${vieja?.title}" cwd=${vieja?.projectPath} updatedAt=${vieja?.updatedAt}`
+  )
+  check('(z.2) mientras conviven los dos formatos, la conversación sale una vez', panel.filter((c) => c.id === UUID_ZST_PAR).length === 1, `ids=${JSON.stringify(panel.map((c) => c.id.slice(0, 2)))}`)
+  const ultima = await reader.listConversations([{ dir: base, agente: 'codex' }], { rutaProyecto: cwd, soloUltima: true })
+  check('(z.3) auto-reanudar la encuentra aunque esté comprimida', ultima.length === 1, `ids=${JSON.stringify(ultima.map((c) => c.id.slice(0, 2)))}`)
+  const lineas = await leerCabezaJsonl(comprimido, { presupuesto: 64 * 1024, lecturaMax: 30 })
+  check('(z.4) la cabeza de un comprimido respeta `lecturaMax`, contado sobre el JSONL', lineas.length === 0, `lineas=${lineas.length}`)
+  const rota = path.join(dia, `rollout-2026-06-01T07-00-00-${UUID_ZST_ROTO}.jsonl.zst`)
+  await writeFile(rota, Buffer.from('esto no es zstd, ni de lejos'))
+  await utimes(rota, fecha, fecha)
+  const conRota = await reader.listConversations([{ dir: base, agente: 'codex' }])
+  check('(z.7) un `.zst` corrupto no tumba el listado ni sale como conversación', !conRota.some((c) => c.id === UUID_ZST_ROTO) && conRota.some((c) => c.id === UUID_ZST), `ids=${conRota.length}`)
+  const sinArchivo = await leerCabezaJsonl(path.join(dia, 'no-existe.jsonl.zst'), { presupuesto: 1024, lecturaMax: 1024 }).then(
+    () => 'resolvió',
+    (e: unknown) => (e as NodeJS.ErrnoException).code ?? 'error'
+  )
+  check('(z.8) leer la cabeza de un `.zst` inexistente rechaza la promesa', sinArchivo === 'ENOENT', `resultado=${sinArchivo}`)
+  const hizo = await reader.deleteConversation(base, 'codex', UUID_ZST)
+  check('(z.5) borrar una conversación comprimida borra su `.jsonl.zst`', hizo && !(await existe(comprimido)), `borró=${hizo}`)
+  const par = path.join(dia, `rollout-2026-06-01T08-00-00-${UUID_ZST_PAR}.jsonl`)
+  const hizoPar = await reader.deleteConversation(base, 'codex', UUID_ZST_PAR)
+  check('(z.6) borrarla a medio comprimir se lleva las dos formas', hizoPar && !(await existe(par)) && !(await existe(`${par}.zst`)), `borró=${hizoPar}`)
 }
 
 const UUID_FOTO_VIEJA = '99999999-9999-4999-8999-999999999990'
@@ -668,6 +728,7 @@ async function main(): Promise<void> {
   await probarCosteConCapturas(root)
   await probarTituloConEmoji(root, reader)
   await probarVigia(root, reader)
+  await probarComprimidos(root, reader)
 
   console.log('\n' + '='.repeat(78))
   const allPass = results.every((r) => r.pass)

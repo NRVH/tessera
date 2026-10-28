@@ -101,8 +101,6 @@ alfabético.
   del agente toma el refcount de su credencial antes de tocar Docker y nunca para el contenedor.
 - [agentes/modo-por-agente.md](agentes/modo-por-agente.md) — los proyectos no tienen modo: cada
   agente elige en su botón de cuenta la del sistema o una de Docker, y la terminal es siempre nativa.
-- [agentes/modo-del-agente-de-datos.md](agentes/modo-del-agente-de-datos.md) — sustituida por
-  `modo-por-agente.md`.
 - [agentes/sesion-linea-de-arranque.md](agentes/sesion-linea-de-arranque.md) — la línea de
   arranque del agente es una función pura que entrecomilla el briefing según la shell que la
   recibe.

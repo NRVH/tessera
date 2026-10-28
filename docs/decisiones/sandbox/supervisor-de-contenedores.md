@@ -1,7 +1,7 @@
 # Un supervisor escucha los eventos de Docker y las sesiones se recuperan solas, con esperas y al volver Docker
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/sandbox/gestor/` (`supervisor.ts`, `eventosDocker.ts`, `diagnostico.ts`, `contenedores.ts`, `NucleoSandbox.ts`), `shared/sandbox-estado-ipc.ts`, `shared/esperasRecuperacion.ts`, `main/terminals/TerminalController.ts`, `features/agentes/` (`sesionAgente.ts`, `useSesionAgente.ts`, `xtermAgente.ts`) y `features/terminales/` (`sesionShell.ts`, `useSesionShell.ts`, `useXtermPane.ts`)
+- **Ámbito:** `src/main/sandbox/gestor/` (`supervisor.ts`, `eventosDocker.ts`, `diagnostico.ts`, `contenedores.ts`, `NucleoSandbox.ts`), `shared/sandbox-estado-ipc.ts`, `shared/esperasRecuperacion.ts` y `features/agentes/` (`sesionAgente.ts`, `useSesionAgente.ts`, `xtermAgente.ts`)
 
 ## Contexto
 
@@ -28,10 +28,9 @@ cuenta mientras Docker aún arranca.
   «disponible» llega aunque el `docker events` no se cortara o Docker volviera antes de la primera.
   No es un `inspect` periódico (lo que el puente de BD descartó por coste): es un solo proceso parado.
 - **Diagnóstico.** Usa lo que vio el supervisor antes de sondear, y las sesiones de un perfil comparten
-  uno en vuelo. Las terminales dentro del contenedor también lo reciben en su `EXIT`, que se descarta si
-  el shell se relanzó mientras se diagnosticaba (conserva el sessionId y sería del shell viejo).
-- **Recuperación.** El agente y la terminal reintentan con esperas de 0, 2, 5, 10 y 20 s. Con Docker
-  caído, o con los intentos agotados, esperan a «disponible» y se recuperan solos; «Reintentar» y
+  uno en vuelo.
+- **Recuperación.** El agente reintenta con esperas de 0, 2, 5, 10 y 20 s. Con Docker
+  caído, o con los intentos agotados, espera a «disponible» y se recupera solo; «Reintentar» y
   «Reabrir» siguen ahí.
 
 ## Consecuencias

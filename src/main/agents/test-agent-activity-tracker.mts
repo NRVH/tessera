@@ -61,7 +61,7 @@ const MAX_SUPPRESS = 3000
 const MAX_PAUSE = 8000
 const TOLERANCIA = 5000
 
-function setup(): {
+function setup(informaSinSonda?: string): {
   tracker: ActivityTracker
   clock: ReturnType<typeof makeClock>
   changes: AgentActivityState[]
@@ -108,7 +108,8 @@ function setup(): {
       motivos.push(m ?? null)
     },
     alCambiarEspera: (e) => esperas.push(e),
-    responderSonda: () => sondas.push(clock.now())
+    responderSonda: () => sondas.push(clock.now()),
+    ...(informaSinSonda !== undefined ? { informaSinSonda } : {})
   })
   return {
     tracker,
@@ -786,6 +787,23 @@ const espera = (t: ActivityTracker): string => `state=${t.state()} esperandoResp
   informa('?')
   informa('?')
   check('(22q) la sonda se contesta una sola vez por proceso', sondas.length === 1, `sondas=${sondas.length}`)
+}
+{
+  // Codex informa sin preguntar: sus avisos cuentan, pero solo los que dicen ser él.
+  const { tracker, submit, changes, motivos, informa, sondas } = setup('codex')
+  informa('state=idle')
+  informa('state=working:app=claude-code')
+  submit()
+  check('(22u) sin sonda, un aviso sin app o de otro programa sigue ignorándose', tracker.state() === 'working' && changes.join(',') === 'working', `changes=[${changes.join(',')}]`)
+  informa('state=blocked:app=codex:kind=permission')
+  check(
+    '(22v) el de Codex cuenta sin sonda: blocked espera tu respuesta con su motivo',
+    changes.join(',') === 'working,blocked' && motivos[1] === 'permission' && tracker.esperandoRespuesta() && sondas.length === 0,
+    `changes=[${changes.join(',')}] motivos=${motivos.join()} sondas=${sondas.length}`
+  )
+  informa('state=working:app=codex')
+  informa('state=done:app=codex')
+  check('(22w) y manda él: vuelve a trabajar y done avisa del fin', changes.join(',') === 'working,blocked,working,done' && tracker.state() === 'idle', `changes=[${changes.join(',')}]`)
 }
 {
   // Informado, el tope cuenta desde el último 'working': colgado sin avisar, el punto se apaga.

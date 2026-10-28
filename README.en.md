@@ -89,7 +89,7 @@ installation folder. On macOS, open the `.dmg` and drag Tessera to **Application
 Linux, make the AppImage executable (`chmod +x Tessera-linux-x86_64.AppImage`) and open it.
 
 Tessera updates itself on all three platforms: a new version downloads in the background and
-is applied when you close the app (you can change that in **Settings › Actualizaciones**).
+is applied when you close the app (you can change that in **Settings › Updates**).
 
 ### First launch of an app without a paid signature
 
@@ -138,15 +138,15 @@ click **Always Allow**.
 2. **Create more workspaces** with the **+** at the end of the workspace bar: give each one
    a name and a color. Right-click a workspace to rename it, change its color, hibernate it
    or delete it, and drag it to reorder.
-3. **Add projects** with the **+** in the project bar ("Abrir proyecto") and pick a folder.
+3. **Add projects** with the **+** in the project bar ("Open project") and pick a folder.
    A project can be a single repository or a folder that contains several.
 4. **Choose the agent's account.** Each agent opens natively: on your computer, with the
    account signed in on it, shared by every workspace. The account button in its header opens
    a picker with two sections, **On your computer** and **In Docker**, with a card per account
    (each in its own container) and **New Docker account…** at the bottom. From each card you
    can also rename it, sign out or delete it. The choice is remembered per agent and project.
-5. **Sign in to the agent.** With a new Docker account, the agent panel offers **Iniciar
-   sesión** the first time: that account can then be used by the agents of the workspace. A
+5. **Sign in to the agent.** With a new Docker account, the agent panel offers **Sign
+   in** the first time: that account can then be used by the agents of the workspace. A
    native agent uses the account you are already signed in with on your computer.
 
 ## Features
@@ -158,7 +158,7 @@ click **Always Allow**.
 - Two levels of tabs: workspaces on top, each with its own color so you always know which
   account you are in, and the open projects of that workspace below.
 - Reorder workspaces and projects by dragging them.
-- **Minimalist mode** (Settings › Apariencia): the workspace bar is replaced by a small
+- **Minimalist mode** (Settings › Appearance): the workspace bar is replaced by a small
   selector in the middle of the title bar, showing the active workspace; click it to see the
   others, with the same menu to rename them, change their color, hibernate or delete them.
 - Tessera remembers which projects each workspace had open and restores them when you
@@ -206,7 +206,7 @@ click **Always Allow**.
   Tessera. Projects are mounted under `/workspace/<folder>`; nothing else from your disk is
   mounted except the agent's credentials and, read-only, your SSH keys, so Git over SSH keeps
   working with your own host aliases. The agent has `sudo` inside its container to install
-  tools, without any extra Docker privileges. In **Settings › Proyectos** you can bake
+  tools, without any extra Docker privileges. In **Settings › Projects** you can bake
   document tools, the system libraries a test browser needs, or any other Debian packages
   into the image.
 - **Native (the default).** The agent runs on your computer, with your own account and your

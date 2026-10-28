@@ -3,7 +3,7 @@
 // para otro según la política del usuario (`shared/semaforoContenedores.ts`): primero uno sin
 // agentes, después el que diga la política; nunca uno a la vista. `pararPor` es la parada común
 // con la saturación: salida por agente, aviso con la regla y constancia. Sin ninguno que parar, la
-// apertura se rechaza con su motivo. Los de perfil (la terminal) cuentan, pero no se paran.
+// apertura se rechaza con su motivo. Solo se paran los contenedores de cuenta.
 // Decisiones: docs/decisiones/sandbox/limite-de-contenedores.md
 // =============================================================================
 
@@ -67,7 +67,7 @@ function aLaVista(n: NucleoAgente, sesiones: readonly OpenAgentSession[]): boole
   return sesiones.some((s) => vistos.some((v) => v.profileId === s.profileId && v.projectHostPath === s.projectHostPath))
 }
 
-/** Lo que se sabe de cada contenedor de cuenta vivo; los de perfil no son candidatos. */
+/** Lo que se sabe de cada contenedor de cuenta vivo. */
 export function candidatos(n: NucleoAgente, vivos: readonly string[] = n.sandbox.contenedoresVivos()): ContenedorCandidato[] {
   return vivos
     .filter((id) => n.sandbox.esDeCuenta(id) && !parandose.has(id))
@@ -247,17 +247,9 @@ export async function hacerSitio(n: NucleoAgente, destino: Profile, cupo: Politi
     if (hayCupo(vivos.length, cupo.limite)) return
     const lista = candidatos(n, vivos)
     const victima = elegirAParar(lista, cupo, destino.id)
-    if (victima === null) throw new Error(motivoSinSitio(lista, cupo.limite))
+    if (victima === null) throw new Error(txAgentes().cupo.sinSitio(cupo.limite))
     n.log(`cupo: paro "${victima}" para abrir "${destino.id}" (límite ${cupo.limite}, ${cupo.primero})`)
     await pararPor(n, victima, { motivo: 'limite', politica: cupo, limite: cupo.limite })
   }
   if (!hayCupo(n.sandbox.contenedoresVivos().length, cupo.limite)) throw new Error(txAgentes().cupo.sinSitio(cupo.limite))
-}
-
-/**
- * Por qué no hay sitio, dicho como es: sin ningún contenedor de cuenta que parar, lo que ocupa el cupo
- * son contenedores de perfil (las terminales Docker); si no, todos están trabajando o son manuales.
- */
-function motivoSinSitio(lista: readonly ContenedorCandidato[], limite: number): string {
-  return lista.length === 0 ? txAgentes().cupo.ocupadoPorTerminales(limite) : txAgentes().cupo.sinSitio(limite)
 }

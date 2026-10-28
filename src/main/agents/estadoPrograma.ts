@@ -17,6 +17,8 @@ export interface AvisoPrograma {
   /** El registro al que se refiere: `null` es el raíz (el del programa); `a/b`, un hijo. */
   id: string | null
   motivo: MotivoEspera | null
+  /** El programa que dice ser (`app`), o `null` si no lo dice. */
+  app: string | null
 }
 
 /** Lo que trae un trozo de salida. */
@@ -82,7 +84,8 @@ export function avisoDe(cuerpo: string): AvisoPrograma | null {
   return {
     estado: estado as EstadoInformado,
     id: id ?? null,
-    motivo: estado === 'blocked' && motivo !== undefined && MOTIVOS.has(motivo) ? (motivo as MotivoEspera) : null
+    motivo: estado === 'blocked' && motivo !== undefined && MOTIVOS.has(motivo) ? (motivo as MotivoEspera) : null,
+    app: m.get('app') ?? null
   }
 }
 

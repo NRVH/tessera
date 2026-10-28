@@ -25,7 +25,6 @@ import {
   useAperturaSesion,
   usePrimerDatoSsh,
   usePublicacionPane,
-  useRecuperacionContenedor,
   type AccionesSsh
 } from './useSesionShell'
 import { useAjustesVivosXterm, useCicloXterm } from './useXtermPane'
@@ -77,7 +76,6 @@ export function TerminalPane(props: TerminalPaneProps): React.JSX.Element {
       setExitCode: estado.setExitCode,
       setStatus: estado.setStatus,
       setFinSsh: estado.setFinSsh,
-      setCaidaContenedor: estado.setCaidaContenedor,
       fitAndSyncDebounced
     },
     origen
@@ -85,7 +83,6 @@ export function TerminalPane(props: TerminalPaneProps): React.JSX.Element {
   useAjustesVivosXterm(refs, { appearance, accentColor, visible, activated }, fitAndSyncNow)
   useAperturaSesion(props, refs, estado, activated, fitAndSyncNow)
   usePrimerDatoSsh(props, refs, estado)
-  useRecuperacionContenedor(props, refs, estado, fitAndSyncNow)
   usePublicacionPane(props, refs, estado, fitAndSyncNow)
   const conexion = useStoreSsh((s) => (origen.tipo === 'ssh' ? conexionPorId(s, origen.conexionId) : undefined))
   const accionesSsh = useAccionesSsh(props, refs, estado, fitAndSyncNow, conexion !== undefined)
@@ -94,7 +91,7 @@ export function TerminalPane(props: TerminalPaneProps): React.JSX.Element {
   return (
     <div className={`terminal-pane${visible ? '' : ' hidden'}${esSsh ? ' ssh' : ''}`} aria-hidden={!visible}>
       {/* El mensaje llega ENVUELTO por el IPC de Electron; clasificarErrorArranque lo
-          desenvuelve y, si es Docker apagado, dice qué hacer. */}
+          desenvuelve, respeta un aviso del main al usuario y pliega el detalle técnico. */}
       {estado.error && !esSsh && (
         <AvisoCaja tono="error" {...clasificarErrorArranque(estado.error, txTerminales().noSePudoAbrirTerminal)} />
       )}

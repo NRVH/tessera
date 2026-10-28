@@ -97,8 +97,6 @@ export interface AgentTerminalControllerOptions {
   eventos: EmisorEventos
   /** Imagen del portapapeles para `saveImage`. */
   portapapeles: PortapapelesImagen
-  /** Set compartido de perfiles tocados (la terminal de abajo para sus contenedores). */
-  touchedProfiles?: Set<string>
   /** Binario por agente (pruebas: un sustituto). */
   binaries?: Partial<Record<Agente, string>>
   /** Setup ssh global reproducido en el contenedor; null = sin ssh. */
@@ -193,7 +191,6 @@ export interface NucleoAgente {
   readonly sessions: Map<string, OpenAgentSession>
   /** Refcount de credenciales por `perfil/agente/cuenta`: el único. */
   readonly configRefs: Map<string, number>
-  readonly touchedProfiles: Set<string>
   readonly binaries: Record<Agente, string>
   readonly sshSetup: SshSetup | null
   readonly getHostEnv: EntornoHost
@@ -263,7 +260,6 @@ export function crearNucleo(opts: AgentTerminalControllerOptions): NucleoAgente 
   const terminals = new TerminalService(opts.sandbox)
   const sshSetup = opts.sshSetup ?? null
   const bd = dependenciasBd(opts)
-  const touchedProfiles = opts.touchedProfiles ?? new Set<string>()
   const binaries = { ...DEFAULT_BINARIES, ...(opts.binaries ?? {}) }
   for (const p of opts.profiles) profiles.set(p.id, p)
   profiles.set(PERFIL_VENTANA.id, PERFIL_VENTANA)
@@ -275,7 +271,6 @@ export function crearNucleo(opts: AgentTerminalControllerOptions): NucleoAgente 
     profiles,
     sessions: new Map<string, OpenAgentSession>(),
     configRefs: new Map<string, number>(),
-    touchedProfiles,
     binaries,
     sshSetup,
     ...bd,

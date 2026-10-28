@@ -15,7 +15,7 @@ usuario: Tessera tiene que decírselo claro y no morir por ello.
 - **Límite del usuario con semáforo.** Un ajuste por equipo (no se exporta) con una barra coloreada según la
   memoria que tiene Docker (`docker info`): verde, todos trabajando a pleno caben en el 70 %; amarillo, a
   medio gas en el 90 %; rojo, más allá. Hay «Sin límite», también en rojo. Sin ajuste vale el recomendado,
-  el último verde. Cuentan todos los contenedores de Tessera, también los de perfil.
+  el último verde. Cuentan todos los contenedores de Tessera.
 - **Al llegar al límite, al abrir un agente en Docker** (el cupo viaja en la petición, desde los ajustes):
   se para primero un contenedor de cuenta sin agentes; si no hay, el que diga la política (los últimos
   abiertos, por defecto, que protege las tareas largas; los primeros; o los de más tiempo sin uso). Nunca
@@ -26,7 +26,6 @@ usuario: Tessera tiene que decírselo claro y no morir por ello.
   la apertura se rechaza explicando por qué.
 - **De uno en uno.** Hacer sitio y crear el contenedor van en un solo turno: dos aperturas a la vez no se
   cuelan las dos por el último hueco. Sin límite, o con el contenedor ya vivo, nadie espera.
-- **Los de perfil cuentan pero no se paran:** no llevan cuenta y son ligeros.
 
 ## Consecuencias
 

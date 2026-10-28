@@ -158,14 +158,9 @@ console.log('\n[9] nombres y claves')
 {
   const t1 = { id: 't1', n: 1, indice: 1 }
   const t2 = { id: 't2', n: 2, indice: 2 }
-  check('la PRIMERA no lleva número', terminalName(t1, true) === 'Local', terminalName(t1, true))
-  check('la segunda sí', terminalName(t2, true) === 'Local (2)', terminalName(t2, true))
-  check('dentro del contenedor es Docker', terminalName(t2, false) === 'Docker (2)', terminalName(t2, false))
-  check(
-    'el mismo hueco cambia de nombre con el MODO',
-    terminalName(t1, true) === 'Local' && terminalName(t1, false) === 'Docker'
-  )
-  check('un nombre a mano gana al de por defecto', terminalName({ ...t2, nombre: 'dev server' }, true) === 'dev server')
+  check('la PRIMERA no lleva número', terminalName(t1) === 'Local', terminalName(t1))
+  check('la segunda sí', terminalName(t2) === 'Local (2)', terminalName(t2))
+  check('un nombre a mano gana al de por defecto', terminalName({ ...t2, nombre: 'dev server' }) === 'dev server')
   check(
     'clave de proyecto = perfil|ruta',
     terminalProjectKey('p1', 'D:\\x') === 'p1|D:\\x'
@@ -178,7 +173,7 @@ console.log('\n[10] el número de la pestaña SE RECICLA (a diferencia del id)')
   s = addTerminal(s, A)
   s = addTerminal(s, A)
   const nombres = (st: ShellTerminalsState): string =>
-    st[A].list.map((t) => terminalName(t, true)).join(',')
+    st[A].list.map((t) => terminalName(t)).join(',')
   check('tres seguidas', nombres(s) === 'Local,Local (2),Local (3)', nombres(s))
   s = closeTerminal(s, A, 't2') // cierra "Local (2)"
   s = addTerminal(s, A)
@@ -193,7 +188,7 @@ console.log('\n[11] renameTerminal')
 {
   const base: ShellTerminalsState = addTerminal(ensureProject(initialShellTerminalsState, A), A)
   const nombre = (st: ShellTerminalsState, id: string): string =>
-    terminalName(st[A].list.find((t) => t.id === id)!, true)
+    terminalName(st[A].list.find((t) => t.id === id)!)
 
   const r1 = renameTerminal(base, A, 't2', '  dev server  ')
   check('renombra y recorta espacios', nombre(r1, 't2') === 'dev server', nombre(r1, 't2'))
@@ -204,18 +199,8 @@ console.log('\n[11] renameTerminal')
 
   const r3 = renameTerminal(base, A, 't2', 'Local (2)')
   check(
-    'escribir justo el automático no lo materializa (sigue siguiendo al modo)',
-    r3[A].list[1].nombre === undefined && terminalName(r3[A].list[1], false) === 'Docker (2)'
-  )
-
-  // La trampa que abría comparar solo contra el modo VIGENTE: en Docker, escribir
-  // "Local (2)" no coincidía con "Docker (2)", se guardaba como nombre propio y esa
-  // pestaña quedaba clavada mientras sus hermanas seguían al modo.
-  const r4 = renameTerminal(base, A, 't2', 'Docker (2)')
-  check(
-    'tampoco materializa el automático del OTRO modo',
-    r4[A].list[1].nombre === undefined && terminalName(r4[A].list[1], true) === 'Local (2)',
-    String(r4[A].list[1].nombre)
+    'escribir justo el automático no lo materializa (sigue siguiendo al índice)',
+    r3[A].list[1].nombre === undefined && terminalName(r3[A].list[1]) === 'Local (2)'
   )
 
   check('renombrar con el mismo valor es no-op (identidad estable)', renameTerminal(r1, A, 't2', 'dev server') === r1)

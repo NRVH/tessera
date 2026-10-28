@@ -225,6 +225,8 @@ export function makeActivityTracker(
     // Sin respuesta, el agente no informa de su estado y queda la deducción. Se escribe en el acto,
     // antes de que la terminal conteste al `CSI c` que sigue a la sonda (eso sería «no lo entiendo»).
     responderSonda: () => n.terminals.write(sessionId, RESPUESTA_SONDA),
+    // Codex informa sin preguntar.
+    ...(agente === 'codex' ? { informaSinSonda: 'codex' } : {}),
     // «Espera tu respuesta» no es un estado de actividad: el botón se entera por aquí.
     alCambiarEspera: () => {
       if (n.sessions.get(sessionId)?.host) n.alCambiarSesiones()

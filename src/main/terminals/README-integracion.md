@@ -1,8 +1,8 @@
 # Integración de terminal en Electron
 
-El `TerminalService` (pty vía `docker exec -it`, o nativo en el modo sin contenedor) vive en el
-proceso **main** de Electron y se expone al renderer por **IPC tipado**. La UI (xterm.js,
-`TerminalPane`) solo habla por esos canales.
+El `TerminalService` (pty nativo en la ruta del proyecto; el agente en contenedor usa su variante con
+`docker exec -it`) vive en el proceso **main** de Electron y se expone al renderer por **IPC
+tipado**. La UI (xterm.js, `TerminalPane`) solo habla por esos canales.
 
 ---
 
@@ -41,7 +41,7 @@ Todo vive en el **main**; `node-pty` nunca se importa en el renderer. La ventana
 
 - **Tipos y canales**: [`src/shared/terminal-ipc.ts`](../../shared/terminal-ipc.ts)
 - **Orquestador en main**: [`TerminalController.ts`](./TerminalController.ts) — orquesta
-  `SandboxManager` + `TerminalService` (no los reimplementa).
+  `TerminalService` (no lo reimplementa) para el shell nativo y las sesiones SSH; no usa Docker.
 - **Registro de canales**: [`ipc.ts`](./ipc.ts) — `registrarIpcTerminal` (lo llama `src/main/agents/componer.ts`).
 - **Sesiones SSH**: [`sesionSsh.ts`](./sesionSsh.ts) con lo que da el dominio SSH por
   [`lanzadorSsh.ts`](./lanzadorSsh.ts) (lo implementa `src/main/ssh/ControladorSsh.ts`).
@@ -58,13 +58,13 @@ API expuesta (`window.tessera.terminal`):
 
 | Método | Dirección | Descripción |
 |---|---|---|
-| `open({ profileId, projectHostPath })` | invoke | Abre sesión: `checkDocker → ensureContainer → addProject → createSession`. Devuelve `{ sessionId, workspacePath, … }`. |
+| `open({ profileId, projectHostPath })` | invoke | Abre un shell nativo del sistema con cwd en la ruta del proyecto (con `tdb` y las bases montadas en el entorno). Devuelve `{ sessionId, workspacePath, … }`. |
 | `openSsh({ profileId, conexionId })` | invoke | Abre una conexión SSH guardada del perfil: ssh directo en un pty del host (sin shell, cwd en HOME), sin entorno de BD. Devuelve `{ sessionId, … }` con `projectHostPath` y `workspacePath` vacíos. `close` y `reload` («Reconectar», con los datos vigentes) matan el árbol sin teclear nada; hibernar el perfil no la cierra. |
 | `write({ sessionId, data })` | send | stdin hacia el shell. |
 | `resize({ sessionId, cols, rows })` | send | Reflow del pty. |
 | `setFlow({ sessionId, paused })` | send | Contrapresión: pausa/reanuda la lectura del pty cuando xterm no da abasto. |
 | `reload(sessionId, dbConnectionIds?)` | invoke | Relevanta el shell con el MISMO `sessionId` y suscriptores; en una sesión SSH es «Reconectar». |
-| `close(sessionId)` | invoke | Cierra la sesión (el contenedor sigue vivo). |
+| `close(sessionId)` | invoke | Cierra la sesión y mata el árbol de procesos de su pty. |
 | `onData(cb) => unsub` | evento | Salida (stdout/stderr) del shell. |
 | `onExit(cb) => unsub` | evento | El shell terminó. En una sesión SSH que sale con 255 trae `reason` (huella cambiada, autenticación, inalcanzable, algoritmos u otro). |
 
@@ -78,9 +78,8 @@ la instancia del pty por debajo.
 `before-quit` → `iniciarCierre()` (`app/cierre.ts`), que cierra los FSWatcher
 (`FileService.dispose()`, `UsageWatcher.disposeAll()`) y luego mata TODO con
 `SandboxManager.stopAllContainers()` (`docker rm -f` = SIGKILL, que arrastra los ptys y agentes
-de dentro, desmonta y verifica). No se usa el cierre "elegante" de
-`TerminalController.disposeAll()` (Ctrl-C/exit por sesión, lento y frágil): `rm -f` es completo
-y rápido. `disposeAll()` sigue disponible para la hibernación por perfil. Antes de Docker, en
+de dentro, desmonta y verifica): es completo y rápido, sin el cierre por sesión (Ctrl-C/exit),
+lento y frágil. Antes de Docker, en
 todo cierre, `matarPtysConArbol()` mata el árbol de cada pty nativo y después el pty, con tope y
 con el proceso aún entero (etapa `cerrar-ptys` de `app/cierre.ts`); después, `ptys-sueltos`
 remata todo pty del registro de `adaptadores/pty.ts` cuya raíz siga viva, también los que ya no

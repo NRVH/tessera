@@ -8,6 +8,21 @@ Cada versión agrupa sus cambios en secciones, en este orden y solo las que teng
 Interfaz, Rendimiento y estabilidad, Instalación y actualizaciones, Correcciones y Seguridad. Una
 sección larga se divide en grupos por área.
 
+## [0.82.1] - 2026-10-27
+
+### Novedades
+
+- **Codex también avisa cuando te espera.** Con Codex 0.163 o posterior, el punto de su perfil y del mosaico sigue
+  lo que Codex dice de sí mismo, como ya hacía Claude Code: late mientras trabaja, se apaga al terminar y, si te pide
+  un permiso, te hace una pregunta o necesita que inicies sesión, se queda con el anillo de «te espera» en lugar de
+  darse por terminado a los pocos segundos. Mientras espera, tampoco se hiberna ni se reinicia al actualizar.
+
+### Correcciones
+
+- **El historial de Codex no pierde las conversaciones antiguas cuando Codex las comprime.** Las versiones nuevas de
+  Codex pueden comprimir las conversaciones de más de una semana; Tessera las sigue listando, las retoma al abrir el
+  proyecto si son las últimas y las borra cuando se lo pides.
+
 ## [0.82.0] - 2026-10-26
 
 ### Novedades

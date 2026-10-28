@@ -13,10 +13,12 @@ comparten todos sus proyectos. Cambiar de perfil o de proyecto es constante y no
 - Un contenedor para por hibernar su perfil (`stopContainer`), por cerrar la app, o por las reglas propias de los de
   cuenta: sin agentes a los 2 minutos, el límite y la saturación (`limite-de-contenedores.md`,
   `saturacion-de-docker.md`). Cambiar de perfil o de proyecto nunca detiene nada.
-- `liveSessions` cuenta las sesiones de las dos terminales con claves `term:`/`agent:` (sus ids pueden coincidir) y es
-  informativo: `releaseSession` solo apunta, y devolver «era la última» no para nada.
-- Hibernar un perfil cierra sus sesiones en los dos controladores y hace un `stopContainer` de respaldo (idempotente y
-  aislado a `tessera-<perfil>` y a los de sus cuentas). `HibernationController` es el único que conoce los dos controladores.
+- `liveSessions` cuenta las sesiones de los agentes en Docker por id de contenedor de la cuenta: solo evita parar uno
+  con sesiones al vencer su plazo de inactividad. `releaseSession` solo apunta, y devolver «era la última» no para
+  nada. La terminal de abajo es nativa y no usa contenedor.
+- Hibernar un perfil cierra sus sesiones en los dos controladores y hace `stopContainer` del perfil, que para los
+  contenedores de todas sus cuentas (cerrar sesiones nunca para ninguno; idempotente, aislado a los del perfil).
+  `HibernationController` es el único que conoce los dos controladores.
 - El estado 'hibernated' lo marca y persiste el renderer; deshibernar es perezoso (entrar al perfil recrea).
 - Lo manual es parar el CONTENEDOR. El agente NATIVO de un proyecto sí se cierra solo por inactividad, sin tocar
   contenedores ni terminales: `agentes/hibernacion-por-inactividad.md`.

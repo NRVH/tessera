@@ -15,9 +15,8 @@ export interface ShellTerminal {
   /** Número que se ve en la pestaña: el hueco libre más bajo al crearla; se recicla al cerrar. */
   indice: number
   /**
-   * Nombre puesto a mano (doble clic en la pestaña). `undefined` = el de por defecto,
-   * que depende del modo del proyecto ("Local" nativo, "Docker" en el contenedor) y
-   * por eso no se materializa aquí.
+   * Nombre puesto a mano (doble clic en la pestaña). `undefined` = el de por defecto
+   * ("Local"), que se deriva de `indice` y no se materializa aquí.
    */
   nombre?: string
 }
@@ -51,19 +50,17 @@ export function terminalPaneKey(projectKey: string, terminalId: string): string 
 }
 
 /**
- * Nombre visible de una ranura: dónde corre el shell ("Local" en el host, "Docker"
- * dentro del contenedor del perfil), no qué binario es. El (2) aparece desde la
- * segunda; la primera es "Local" a secas.
+ * Nombre visible de una ranura: "Local", donde corre el shell, no qué binario es. El (2)
+ * aparece desde la segunda; la primera es "Local" a secas.
  */
-export function terminalName(t: ShellTerminal, hostMode: boolean): string {
+export function terminalName(t: ShellTerminal): string {
   if (t.nombre !== undefined && t.nombre !== '') return t.nombre
-  return nombreAutomatico(t.indice, hostMode)
+  return nombreAutomatico(t.indice)
 }
 
-/** El nombre que le tocaría a la ranura `indice` en ese modo, sin mirar el suyo. */
-function nombreAutomatico(indice: number, hostMode: boolean): string {
-  const base = hostMode ? 'Local' : 'Docker'
-  return indice <= 1 ? base : `${base} (${indice})`
+/** El nombre que le tocaría a la ranura `indice`, sin mirar el suyo. */
+function nombreAutomatico(indice: number): string {
+  return indice <= 1 ? 'Local' : `Local (${indice})`
 }
 
 /** El hueco de rótulo más bajo que no esté ocupado por una ranura viva. */
@@ -100,10 +97,9 @@ export function addTerminal(state: ShellTerminalsState, key: string): ShellTermi
 }
 
 /**
- * Renombra una ranura. Un nombre en blanco, o igual al automático de CUALQUIERA de los
- * dos modos, devuelve la ranura a su nombre automático en vez de guardar el texto: si
- * se guardara, la pestaña se quedaría clavada al cambiar de modo. Borrar el campo es la
- * única forma de deshacer un renombrado.
+ * Renombra una ranura. Un nombre en blanco, o igual al automático, devuelve la ranura a
+ * su nombre automático en vez de guardar el texto. Borrar el campo es la única forma de
+ * deshacer un renombrado.
  */
 export function renameTerminal(
   state: ShellTerminalsState,
@@ -116,11 +112,7 @@ export function renameTerminal(
   const i = cur.list.findIndex((t) => t.id === id)
   if (i === -1) return state
   const limpio = nombre.trim()
-  const automaticos = [
-    nombreAutomatico(cur.list[i].indice, true),
-    nombreAutomatico(cur.list[i].indice, false)
-  ]
-  const siguiente = limpio === '' || automaticos.includes(limpio) ? undefined : limpio
+  const siguiente = limpio === '' || limpio === nombreAutomatico(cur.list[i].indice) ? undefined : limpio
   if (cur.list[i].nombre === siguiente) return state
   const list = cur.list.map((t, j) => (j === i ? { ...t, nombre: siguiente } : t))
   return { ...state, [key]: { ...cur, list } }

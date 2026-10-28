@@ -3,12 +3,16 @@
 // presupuesto: una línea gigante (una imagen pegada, en base64) se compacta quitándole las
 // tiradas largas de base64 y, si aun así no cabe, se salta hasta su salto de línea. Lo que se
 // lee de más por esas líneas también tiene tope. Con líneas normales lee y devuelve lo mismo
-// que un corte fijo de `presupuesto` bytes.
+// que un corte fijo de `presupuesto` bytes. Un rollout comprimido de Codex se lee igual.
 // Lo usan `ConversationsReader`, `TurnWatcher` y `ContextReader`. Decisiones: docs/decisiones/agentes/conversaciones-cabeza-por-lineas.md
 // =============================================================================
 
+import { createReadStream } from 'node:fs'
 import { open } from 'node:fs/promises'
+import { pipeline } from 'node:stream'
 import { StringDecoder } from 'node:string_decoder'
+import { createZstdDecompress } from 'node:zlib'
+import { esComprimido } from './listadoTranscripts.ts'
 import type { LineaJsonl } from '../util/jsonlCola.ts'
 
 /** Topes de la lectura de cabeza. */
@@ -73,28 +77,63 @@ const lineaVacia = (): LineaEnCurso => ({ texto: '', cola: '', compactando: fals
  */
 export async function leerCabezaJsonl(file: string, opts: OpcionesCabeza): Promise<string[]> {
   const trozo = opts.trozo ?? 64 * 1024
-  const handle = await open(file, 'r')
   const decoder = new StringDecoder('utf8')
   const lineas: string[] = []
   const linea = lineaVacia()
   const cuenta: Recuento = { presupuesto: opts.presupuesto, quitados: 0, lineasQuitadas: 0 }
   let leidos = 0
+  let terminado = false
+  // `lecturaMax` cuenta bytes del JSONL, también en un rollout comprimido: tras descomprimir.
+  for await (const buf of trozosDe(file, trozo, opts.lecturaMax)) {
+    leidos += buf.length
+    if (!trocear(decoder.write(buf), linea, lineas, cuenta)) {
+      terminado = true
+      break
+    }
+    if (leidos - cuenta.quitados >= opts.presupuesto || leidos >= opts.lecturaMax) {
+      terminado = true
+      break
+    }
+  }
+  // Fin del fichero: la última línea, sin salto, está entera.
+  if (!terminado) cerrarLinea(linea, lineas, cuenta)
+  return lineas
+}
+
+/**
+ * Los bytes del JSONL desde el principio, en trozos y sin pasar de `max`. Un rollout comprimido de
+ * Codex (`.jsonl.zst`) se descomprime al vuelo: solo se lee la cabeza, no el archivo entero.
+ */
+async function* trozosDe(file: string, trozo: number, max: number): AsyncGenerator<Buffer> {
+  if (esComprimido(file)) {
+    // `pipeline` lleva el error de la lectura o de la descompresión al `for await` y, al destruir
+    // el descompresor (por salir antes de tiempo), cierra también el descriptor del archivo.
+    const flujo = pipeline(createReadStream(file), createZstdDecompress(), () => {})
+    let dados = 0
+    try {
+      for await (const buf of flujo as AsyncIterable<Buffer>) {
+        const parte = buf.subarray(0, max - dados)
+        dados += parte.length
+        yield parte
+        if (dados >= max) return
+      }
+    } finally {
+      flujo.destroy()
+    }
+    return
+  }
+  const handle = await open(file, 'r')
   try {
     const buf = Buffer.alloc(trozo)
-    while (leidos < opts.lecturaMax) {
-      const { bytesRead } = await handle.read(buf, 0, Math.min(trozo, opts.lecturaMax - leidos), leidos)
-      if (bytesRead === 0) {
-        cerrarLinea(linea, lineas, cuenta) // fin del fichero: la última línea, sin salto, está entera
-        break
-      }
+    for (let leidos = 0; leidos < max; ) {
+      const { bytesRead } = await handle.read(buf, 0, Math.min(trozo, max - leidos), leidos)
+      if (bytesRead === 0) return
       leidos += bytesRead
-      if (!trocear(decoder.write(buf.subarray(0, bytesRead)), linea, lineas, cuenta)) break
-      if (leidos - cuenta.quitados >= opts.presupuesto) break
+      yield Buffer.from(buf.subarray(0, bytesRead))
     }
   } finally {
     await handle.close()
   }
-  return lineas
 }
 
 /**

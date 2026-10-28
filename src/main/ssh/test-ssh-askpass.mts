@@ -23,7 +23,6 @@ import { SSH_CHANNELS, type SshAviso, type SshConexionInput, type SshPreguntaAsk
 import { TERMINAL_CHANNELS, type TerminalDataMessage } from '../../shared/terminal-ipc.ts'
 import { DbBridge, type OperacionPuente, type PuertaPuente, type RespuestaOperacion } from '../db/dbBridge.ts'
 import type { Profile } from '../profiles/types.ts'
-import type { SandboxManager } from '../sandbox/SandboxManager.ts'
 import { sinAnsi } from '../terminals/sesionSsh.ts'
 import { crearConfigSaltos } from './adaptadores/configSaltos.ts'
 import { escribirLanzadorAskpass } from './adaptadores/lanzadorAskpass.ts'
@@ -944,7 +943,6 @@ async function bastionReal(b: PruebaBastion): Promise<void> {
 async function pestanaReal(ctrl: ControladorSsh, fichas: FichasAskpass, idPw: string, emitidos: string[]): Promise<void> {
   const { TerminalController } = await import('../terminals/TerminalController.ts')
   const perfil: Profile = { id: 'pa', nombre: 'PA', color: '#1D9E75', agentes: [{ tipo: 'claude-code', configDir: './.tessera/perfiles/pa/claude' }], sandbox: { habilitado: false } }
-  const sandbox = new Proxy({}, { get: (_t, p) => { throw new Error(`una sesión SSH no toca el sandbox (${String(p)})`) } }) as unknown as SandboxManager
   let texto = ''
   const salidas: number[] = []
   const terminal = new TerminalController({
@@ -956,8 +954,6 @@ async function pestanaReal(ctrl: ControladorSsh, fichas: FichasAskpass, idPw: st
       },
       hayDestino: () => true
     },
-    dockerfileDir: '',
-    sandbox,
     lanzadorSsh: ctrl,
     log: () => {}
   })

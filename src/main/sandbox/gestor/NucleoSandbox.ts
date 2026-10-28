@@ -39,7 +39,10 @@ export class NucleoSandbox {
   readonly agentConfigMounts = new Map<string, Map<string, AgentConfigMount>>()
   /** Creaciones de contenedor EN VUELO por perfil: coalescen las llamadas simultáneas. */
   readonly ensureInFlight = new Map<string, Promise<ContainerHandle>>()
-  /** Sesiones vivas por perfil (`term:`/`agent:`): SOLO informativo, nunca para el contenedor. */
+  /**
+   * Sesiones vivas por id de contenedor (el de la cuenta), cada una con clave `agent:<sesión>`: nunca
+   * paran el contenedor; solo impiden parar uno con sesiones al vencer su plazo de inactividad.
+   */
   readonly liveSessions = new Map<string, Set<string>>()
   /** Barrido de arranque en vuelo; `ensureContainer` lo espera. `null` = no lanzado. */
   startupSweep: Promise<void> | null = null
