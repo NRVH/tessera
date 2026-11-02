@@ -389,7 +389,7 @@ test.describe('mosaico de agentes', () => {
     // Y se dice que está DORMIDO: marcarlo levanta su contenedor, que es el único
     // clic de esta lista con ese coste.
     await expect(win.locator('.ctx-menu-item', { hasText: 'Trabajo · epsilon' })).toHaveCount(1)
-    await expect(win.locator('.ctx-menu-item', { hasText: 'Trabajo · epsilon' })).toContainText('dormido')
+    await expect(win.locator('.ctx-menu-item', { hasText: 'Trabajo · epsilon' })).toContainText('hibernado')
     await expect(win.locator('.ctx-menu-item', { hasText: 'Trabajo · gamma' })).toHaveCount(1)
     await expect(filas.filter({ hasText: 'Claude Code' })).toHaveCount(0)
     await expect(filas.filter({ hasText: 'Codex' })).toHaveCount(0)
@@ -669,7 +669,7 @@ test.describe('mosaico de agentes', () => {
     //    existe. Lo que se fija aquí es que el selector está y sabe en qué modo corre.
     await casilla.locator('.cuenta-btn').click()
     const pop = win.locator('.cuenta-pop')
-    await expect(pop.locator('.cuenta-tarjeta[aria-checked="true"] .cuenta-tarjeta-detalle')).toContainText('La sesión iniciada en')
+    await expect(pop.locator('.cuenta-tarjeta[aria-checked="true"] .cuenta-tarjeta-detalle')).toContainText('La que usas en')
     await expect(pop.locator('.cuenta-nueva')).toHaveCount(1)
     await win.keyboard.press('Escape')
     await expect(pop).toHaveCount(0)

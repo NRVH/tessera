@@ -1,13 +1,14 @@
 // =============================================================================
 // Lo que va DENTRO de la copia cifrada: los perfiles y, según los apartados elegidos, sus
 // conexiones SSH (con secretos, claves y huellas) y de bases de datos (con sus contraseñas), los
-// agentes definidos a mano y los ajustes. Arma el contenido al exportar, lo lee al importar
+// agentes definidos a mano, los ajustes y el índice del historial. Arma el contenido al exportar, lo lee al importar
 // (perfiles validados como los de `profiles.json`), da su vista previa sin secretos y lo reduce a lo
 // elegido. Sin electron: las conexiones llegan por parámetro.
 // Decisiones: docs/decisiones/configuracion/exportar-importar.md
 // =============================================================================
 
-import type { ExportarRequest, ResumenExportacion } from '../../shared/copia-configuracion-ipc.ts'
+import type { AgenteHistorial, ExportarRequest, FuenteHistorial, ResumenExportacion } from '../../shared/copia-configuracion-ipc.ts'
+import type { FuenteHistorialCopia } from './historialCopia.ts'
 import type { AgentesCopia, AjustesCopia } from '../../shared/copiaConfiguracion.ts'
 import type { ConexionPrevia, PreviaConexiones, SeleccionConexiones } from '../../shared/seleccionCopia.ts'
 import type { Profile } from '../profiles/types.ts'
@@ -23,6 +24,35 @@ export interface ContenidoCopia {
   bd?: ConexionBdCopia[]
   agentes?: AgentesCopia
   ajustes?: AjustesCopia
+  /** El índice del historial que va en trozos detrás (versión 2 del archivo). */
+  historial?: { fuentes: FuenteHistorialCopia[] }
+}
+
+const esAgenteHistorial = (v: unknown): v is AgenteHistorial => v === 'claude-code' || v === 'codex'
+const esCuenta = (v: unknown): boolean => Number.isInteger(v) && (v as number) >= 0
+
+/** Las fuentes del historial con su forma; las demás se quedan fuera. */
+export function fuentesValidas(raw: unknown): FuenteHistorialCopia[] {
+  if (!Array.isArray(raw)) return []
+  return raw.flatMap((x): FuenteHistorialCopia[] => {
+    const f = objeto(x)
+    const ok =
+      esCuenta(f.id) && esAgenteHistorial(f.agente) && (f.perfil === null || typeof f.perfil === 'string') &&
+      (f.cuenta === null || typeof f.cuenta === 'string') && typeof f.predeterminada === 'boolean' &&
+      esCuenta(f.conversaciones) && esCuenta(f.bytes)
+    if (!ok || (f.perfil === null) !== (f.cuenta === null)) return []
+    const proyectos = Object.fromEntries(Object.entries(objeto(f.proyectos)).filter(([, v]) => typeof v === 'string')) as Record<string, string>
+    const { id, agente, perfil, cuenta, predeterminada, conversaciones, bytes } = f as unknown as FuenteHistorialCopia
+    return [{ id, agente, perfil, cuenta, predeterminada, conversaciones, bytes, proyectos }]
+  })
+}
+
+/** Lo que el renderer ve del historial: sin las rutas de los proyectos. */
+export function previaHistorial(c: ContenidoCopia): FuenteHistorial[] {
+  const perfiles = new Set(c.perfiles.map((p) => p.id))
+  return (c.historial?.fuentes ?? [])
+    .filter((f) => f.perfil === null || perfiles.has(f.perfil))
+    .map(({ id, agente, perfil, cuenta, predeterminada, conversaciones, bytes }) => ({ id, agente, perfil, cuenta, predeterminada, conversaciones, bytes }))
 }
 
 /** De dónde salen las conexiones de un perfil, con sus secretos en claro (solo dentro del main). */
@@ -91,6 +121,7 @@ export function leerContenido(texto: string): { contenido: ContenidoCopia; inval
   if (Array.isArray(r.bd)) contenido.bd = r.bd as ContenidoCopia['bd']
   if (typeof r.agentes === 'object' && r.agentes !== null) contenido.agentes = r.agentes as AgentesCopia
   if (typeof r.ajustes === 'object' && r.ajustes !== null) contenido.ajustes = r.ajustes as AjustesCopia
+  if (typeof r.historial === 'object' && r.historial !== null) contenido.historial = { fuentes: fuentesValidas(objeto(r.historial).fuentes) }
   return { contenido, invalidos }
 }
 
@@ -126,7 +157,7 @@ export function previaConexiones(c: ContenidoCopia, yaEsta: { ssh: (id: string) 
  * El contenido reducido a lo elegido: los perfiles, las conexiones por id y los grupos SSH que usan
  * las conexiones elegidas (el grupo viaja con su conexión). Un grupo vacío en el archivo entra con su perfil.
  */
-export function seleccionarContenido(c: ContenidoCopia, sel: SeleccionConexiones): ContenidoCopia {
+export function seleccionarContenido(c: ContenidoCopia, sel: Pick<SeleccionConexiones, 'perfiles' | 'ssh' | 'bd'>): ContenidoCopia {
   const perfiles = new Set(sel.perfiles)
   const ssh = new Set(sel.ssh)
   const bd = new Set(sel.bd)
@@ -143,5 +174,27 @@ export function seleccionarContenido(c: ContenidoCopia, sel: SeleccionConexiones
     fuera.ssh = { grupos, conexiones }
   }
   if (c.bd) fuera.bd = lista(c.bd).filter((x) => bd.has(texto(registroDe(x).id)))
+  return fuera
+}
+
+/**
+ * El contenido con cada perfil del archivo cambiado por el de aquí que lo recibe: el perfil, sus grupos y
+ * conexiones SSH, sus bases y su historial. Un perfil sin destino se queda con su id.
+ */
+export function reasignarContenido(c: ContenidoCopia, destinos: Readonly<Record<string, string>>): ContenidoCopia {
+  const a = (perfil: string): string => (Object.prototype.hasOwnProperty.call(destinos, perfil) ? destinos[perfil] : perfil)
+  const conPerfil = <T>(x: T): T => {
+    const r = registroDe(x)
+    return { ...(x as Crudo), registro: { ...r, profileId: a(texto(r.profileId)) } } as T
+  }
+  const fuera: ContenidoCopia = { ...c, perfiles: c.perfiles.map((p) => ({ ...p, id: a(p.id) })) }
+  if (c.ssh) {
+    fuera.ssh = {
+      grupos: lista(c.ssh.grupos).map((g) => ({ ...g, profileId: a(texto(objeto(g).profileId)) })),
+      conexiones: lista(c.ssh.conexiones).map(conPerfil)
+    }
+  }
+  if (c.bd) fuera.bd = lista(c.bd).map(conPerfil)
+  if (c.historial) fuera.historial = { fuentes: c.historial.fuentes.map((f) => (f.perfil === null ? f : { ...f, perfil: a(f.perfil) })) }
   return fuera
 }

@@ -14,7 +14,7 @@ export { TerminalImageChips, type PastedImagePreview } from './TerminalImageChip
 export { handleTerminalPaste, injectPaths, stageOrPassthrough } from './clipboardPaste'
 export type { FlowWriter } from './flowControl'
 export { debeAbrirMenuContextual, laAppUsaElRaton } from './comportamientoTerminal'
-export { botonReinicio } from './reloadButton'
+export { botonReinicio, textosReinicio } from './reloadButton'
 export { montarXterm, alternarWebgl, type OpcionesMontaje } from './montajeXterm'
 export { useAparienciaXterm } from './useAparienciaXterm'
 export { ajustarXterm, ajustarConRebote } from './ajusteTamano'

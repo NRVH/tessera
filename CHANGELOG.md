@@ -8,6 +8,107 @@ Cada versión agrupa sus cambios en secciones, en este orden y solo las que teng
 Interfaz, Rendimiento y estabilidad, Instalación y actualizaciones, Correcciones y Seguridad. Una
 sección larga se divide en grupos por área.
 
+## [0.83.0] - 2026-11-02
+
+### Novedades
+
+- **Tessera Academy, la ayuda dentro de la app.** En Configuración › Tessera Academy, 22 artículos cuentan cómo
+  funciona Tessera por temas (perfiles, cuentas, nativo o Docker, hibernar, `tdb`, `tssh` y `tctx`, bases de datos,
+  SSH, git, atajos…), en español y en inglés, con lo de tu sistema y un glosario. El buscador de Configuración también
+  los encuentra, y los diálogos que más cuesta entender (el selector de cuenta, «Continuar con…», las reglas del
+  perfil, hibernar, la red del contenedor, las bases del agente, las conexiones SSH y de bases de datos, los agentes
+  propios) llevan un botón ⓘ que abre la explicación justa encima del diálogo.
+- **Reglas del perfil para los agentes.** En el menú de cada perfil, «Reglas para los agentes…» abre un texto donde
+  escribes cómo quieres que trabajen los agentes de ese perfil (cómo se sube al repositorio, qué ramas, qué no se toca).
+  Todos los agentes del perfil las leen al arrancar, en Docker o en tu equipo y de cualquier cuenta, así que no hace falta
+  repetirlas en cada proyecto ni en el archivo de cada herramienta. Viajan con el perfil en la copia de la configuración.
+  Un agente no las cambia: cuando le dices que algo es una regla del perfil, te lo propone con el nuevo comando `tctx`, y
+  Tessera te avisa para que veas el cambio exacto (las reglas de ahora frente a las propuestas, con el motivo) y lo
+  aceptes, lo edites antes o lo descartes. Con `tctx reglas`, un agente ya abierto lee las vigentes.
+- **Continuar el trabajo en otro agente o cuenta.** En el selector de cuenta del agente, el menú «⋯» de cada cuenta
+  que no es la de ahora tiene «Continuar esta conversación en…» esa cuenta: la conversación se copia allí (en Docker
+  o en tu equipo) y el agente sigue donde la dejaste, sin tocar la original. Y el botón «Continuar con…» de la
+  cabecera abre el otro agente del proyecto (de Claude Code a Codex o al revés), en la cuenta que elijas, con una
+  conversación nueva que empieza leyendo un resumen de lo último que hablasteis y el estado de git; el agente te
+  cuenta dónde quedó el trabajo y espera instrucciones. Ese resumen solo lo lee esa sesión, con `tctx traspaso`, y
+  desaparece al cerrarla.
+- **Los agentes buscan en lo que se habló en el proyecto.** Con `tctx buscar` y unas palabras, un agente recupera lo
+  que se decidió en las conversaciones de ese proyecto, con Claude Code o con Codex y desde cualquier cuenta del perfil,
+  sin que tengas que repetírselo ni mantener un resumen: recibe las coincidencias más recientes, con la fecha, el título
+  de la conversación y un trozo alrededor. Lo saben desde que arrancan. En Docker, cada agente solo busca en su propia
+  cuenta, igual que solo ve sus credenciales. También funciona desde la terminal del proyecto.
+- **El historial de conversaciones viaja en la copia de la configuración.** Al exportar, «Historial de conversaciones»
+  (desmarcado de serie) lleva lo hablado con los agentes en las cuentas de Docker de los perfiles elegidos y, si lo
+  marcas, también el de Claude Code y Codex en tu equipo; antes de exportar ves cuántas conversaciones son y cuánto
+  ocupan. Solo van las conversaciones, cifradas con la frase como el resto: nunca las sesiones iniciadas ni los ajustes
+  de los agentes. Al importar eliges qué cuentas traer; lo que ya tenías no se pisa (una conversación que siguió en los
+  dos equipos se conserva la de aquí y se dice), una cuenta que falta se crea sin sesión y, si el proyecto está en otra
+  carpeta en el equipo nuevo, sus conversaciones aparecen en él. Una Tessera anterior no abre una copia con historial.
+- **Importar un perfil en uno que ya tienes.** Al importar la configuración, cada perfil del archivo elige su destino:
+  «Perfil nuevo» o «Añadir a» uno de este equipo, y de serie va al que se llama igual aunque se creara aparte en cada
+  equipo. El de aquí no cambia de nombre ni de color: recibe las conexiones, los agentes y el historial que le falten, y
+  sus reglas si no tenía; si tenía otras, eliges mantenerlas o sustituirlas, viendo antes la diferencia.
+
+### Interfaz
+
+- **Terminal a pantalla completa sin el botón de ocultar las conexiones.** Con terminales no aportaba y sin ellas dejaba
+  la columna vacía; la lista de conexiones SSH se ve siempre que cabe.
+- **La terminal y Git · Log a pantalla completa ya no se confunden con la vista del proyecto.** La barra de proyectos
+  se aparta y el panel sube a ocupar su alto, la cabecera dice de qué proyecto es, y en la barra lateral solo queda la
+  flecha **Volver al proyecto**, con el color del perfil. La barra de perfiles no cambia.
+- **Menús contextuales nuevos.** Flotan sobre la ventana con el gris de los diálogos, filas redondeadas, separadores
+  más suaves y un resaltado con el color del perfil; las explicaciones van en una segunda línea en vez de entre
+  paréntesis. Los menús de fin de línea y codificación de la barra de estado, las listas desplegables de los
+  diálogos y los tooltips se ven igual.
+- **Configuración, ordenada.** Las categorías se agrupan (General, Espacio de trabajo, Datos, Tessera y Ayuda) y
+  cada nombre se lee entero.
+- **La app en inglés, revisada entera.** Unos 940 textos de la interfaz, los avisos y la ayuda de `tdb`, `tssh` y
+  `tctx` pasan a un inglés técnico claro y actual: frases cortas, sin modismos, mayúscula solo al principio en botones
+  y menús («Hibernate profile…», «Load full history») y los mismos términos en toda la app. En español, los avisos
+  ya no gritan con palabras en mayúsculas.
+- **Textos más claros en perfiles, proyectos, agentes, terminales y git.** Los botones y avisos dicen qué hacen y qué
+  consecuencia tienen: abrir una carpeta como proyecto y en qué perfil queda, qué se cierra al hibernar un perfil o
+  reiniciar su red, que cerrar un proyecto no toca su carpeta, qué conversaciones ve cada cuenta y cómo se llevan a
+  otra, qué se pierde al descartar cambios o eliminar archivos (se borran sin papelera) y qué hace reiniciar o
+  reabrir un agente o una terminal. «Hibernar» y «reanudar» sustituyen a «dormir» y «despertar» en toda la interfaz,
+  los avisos de Tessera dejan de hablar en primera persona y desaparecen las mayúsculas sueltas, «tssh», «transcript»
+  y «exitCode» de los textos visibles.
+
+### Instalación y actualizaciones
+
+- **Una actualización ya no pasa a escondidas.** En Windows, la ventana de la actualización sale siempre, también
+  cuando se aplica al cerrar Tessera, y enseña cada paso hasta el final; antes, al cerrar, se instalaba en silencio y
+  la app desaparecía un rato sin ninguna señal. Si algo falla, la ventana comprueba si Tessera sigue en su sitio y
+  te deja elegir: **Reintentar**, **Volver a la versión anterior** (repone la que tenías, aunque el instalador la
+  hubiera quitado, y la abre) o **Abrir el instalador** para hacerlo paso a paso. En macOS, una notificación avisa al
+  empezar y otra al terminar, con el resultado.
+
+### Correcciones
+
+- **Los agentes usan todos sus colores en las terminales de Tessera.** Las terminales anuncian que admiten color real.
+  En Windows, Codex nativo recupera el fondo gris de tus preguntas y los colores de su tema; en Docker, los agentes
+  pasan de 256 colores a color real. Las sesiones ya abiertas lo reciben al reiniciarlas.
+- **En Mac, el aviso de una pestaña cuyo archivo se borró dice `⌘+S`** para volver a crearlo, no `Ctrl+S`. Y el
+  mensaje de `tdb` fuera de una terminal de Tessera ya no dice que no funciona en un proyecto en Docker.
+- **`tdb` y `tssh` funcionan en Linux aunque Tessera corra dentro de WSL.** Sus atajos se negaban a
+  arrancar como si se les llamara desde WSL contra la Tessera de Windows.
+- **«Cambiar «X» por otra carpeta…» pregunta antes de cerrar el proyecto.** Tras elegir la carpeta,
+  un diálogo dice qué proyecto se cierra con su agente (la conversación queda en el historial) y
+  cuál se abre; antes lo sustituía sin preguntar.
+- **Cambiar la red del contenedor tiene su propio aviso.** Sale si un agente está trabajando o una
+  terminal del perfil ejecuta algo, y dice que aplicar la red reinicia los contenedores y qué se
+  corta; antes enseñaba el de «Hibernar el perfil», que no se había pedido, y con solo terminales
+  en marcha no preguntaba. Mientras Tessera mira qué ejecutan las terminales (hasta unos segundos en
+  Windows) el cursor pasa a «en curso», un segundo clic no repite la consulta y la decisión usa el
+  estado de ese momento. En macOS y Linux una terminal solo cuenta si tiene un comando delante: los
+  ayudantes del prompt y los trabajos de fondo no hacen preguntar de más.
+- **Descartar cambios en git pregunta también cuando el archivo vuelve a su versión del último
+  commit.** Antes solo preguntaba si el archivo se eliminaba del disco. Al descartar varios, una
+  sola pregunta lista los que vuelven atrás y los que se eliminan, antes de tocar ninguno; cancelar
+  ya no deja revertidos los que se podían recuperar.
+- **Hibernar un perfil avisa si una terminal está ejecutando algo.** El diálogo dice cuántas se
+  cierran y que lo que ejecutan se detiene; antes, sin agentes trabajando, se hibernaba sin preguntar.
+
 ## [0.82.1] - 2026-10-27
 
 ### Novedades

@@ -295,6 +295,11 @@ export class SandboxManager {
     return this.contenedores.liveSessionCount(profileId)
   }
 
+  /** Dónde está montado el proyecto en ese contenedor o dónde lo montará `addProject` (el nombre queda reservado), sin tocar Docker. */
+  reservarRutaEnContenedor(profile: Profile, projectHostPath: string): string {
+    return this.montajes.reservarRuta(profile.id, projectHostPath)
+  }
+
   /** Monta el proyecto en caliente en `/workspace/<nombre>`. */
   addProject(profile: Profile, projectHostPath: string): Promise<ProjectMount> {
     return this.montajes.addProject(profile, projectHostPath)

@@ -157,13 +157,13 @@ function main(): void {
   }
   check(
     'tdb ls --json sin contexto: misma forma, el mensaje en inglés',
-    sinCtxEn.codigo === 1 && jsonEn.ok === false && String(jsonEn.error).startsWith('This terminal does not carry'),
+    sinCtxEn.codigo === 1 && jsonEn.ok === false && String(jsonEn.error).startsWith('This terminal does not have'),
     sinCtxEn.salida.trim().slice(0, 80)
   )
   const contEs = correr('tdb-container.cjs', ['ls'], null)
   const contEn = correr('tdb-container.cjs', ['ls'], 'en')
   check('cliente del contenedor, en español', contEs.codigo === 2 && contEs.errores.includes('Esta terminal no lleva el contexto de bases de datos'), contEs.errores.trim().split('\n')[0])
-  check('cliente del contenedor, en inglés', contEn.codigo === 2 && contEn.errores.includes('This terminal does not carry the Tessera database context'), contEn.errores.trim().split('\n')[0])
+  check('cliente del contenedor, en inglés', contEn.codigo === 2 && contEn.errores.includes('This terminal does not have the Tessera database context'), contEn.errores.trim().split('\n')[0])
 
   hr('RESULTADO (PASS/FAIL)')
   for (const r of results) {

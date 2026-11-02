@@ -168,7 +168,7 @@ function main(): void {
   const choque = sq('select :a, ?1', { a: 'A', '1': 'uno' })
   check(
     'con `:a, ?1` se envía (SQL válido), el valor que va es el de :a y el resultado lo avisa',
-    choque.ok && j(choque.binds) === j({ nombrados: { ':a': 'A' }, anonimos: [] }) && choque.aviso === 'En SQLite, ?1 y :a son el MISMO parámetro: se usó el valor de :a y el de ?1 no.',
+    choque.ok && j(choque.binds) === j({ nombrados: { ':a': 'A' }, anonimos: [] }) && choque.aviso === 'En SQLite, ?1 y :a son el mismo parámetro: se usó el valor de :a y el de ?1 no.',
     j(choque)
   )
   const sinChoque = sq('select ?1, :a', { '1': 'uno', a: 'A' })

@@ -268,6 +268,7 @@ function PopoverContexto(p: PopoverContextoProps): React.JSX.Element {
         {txContexto().contexto.titulo}
         <span className="agent-usage-pop-agent">{nombreAgente(agente)}</span>
       </div>
+      <div className="agent-usage-foot">{txContexto().contexto.explicacion}</div>
 
       {/* La barra se pinta SIEMPRE que haya porcentaje, también el 0 % de un chat vacío:
           es el estado que más se consulta. Lo que desaparece es el detalle que no existe. */}

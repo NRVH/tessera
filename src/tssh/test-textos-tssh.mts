@@ -135,7 +135,7 @@ function main(): void {
   )
   check(
     'error de uso en inglés, con el mismo código',
-    usoEn.codigo === CODIGOS.uso && usoEn.errores === 'tssh: Missing the connection alias: tssh run <alias> -- <command>. Help: tssh help.\n',
+    usoEn.codigo === CODIGOS.uso && usoEn.errores === 'tssh: Missing connection alias: tssh run <alias> -- <command>. Help: tssh help.\n',
     usoEn.errores.trim()
   )
   const sinPuenteEn = correr('tssh.cjs', ['ls'], 'en')
@@ -143,7 +143,7 @@ function main(): void {
   const contEs = correr('tssh-container.cjs', ['ls'], null)
   const contEn = correr('tssh-container.cjs', ['ls'], 'en')
   check('cliente del contenedor, en español', contEs.codigo === CODIGOS.puente && contEs.errores.startsWith('tssh: Esta terminal no lleva el contexto de Tessera'), contEs.errores.trim())
-  check('cliente del contenedor, en inglés', contEn.codigo === CODIGOS.puente && contEn.errores.startsWith('tssh: This terminal does not carry the Tessera context'), contEn.errores.trim())
+  check('cliente del contenedor, en inglés', contEn.codigo === CODIGOS.puente && contEn.errores.startsWith('tssh: This terminal does not have the Tessera context'), contEn.errores.trim())
 
   hr('RESULTADO (PASS/FAIL)')
   for (const r of results) {

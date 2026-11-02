@@ -33,14 +33,12 @@ import {
 import {
   conAgenteTerminalVisible,
   conPlegado,
-  conRielVisible,
   podarMapaPorPerfil,
   SSH_RIEL_ANCHO_MAX,
   SSH_RIEL_ANCHO_MIN,
   SSH_RIEL_ANCHO_POR_DEFECTO,
   type AgenteTerminalVisiblePorPerfil,
-  type SshGruposPlegadosPorPerfil,
-  type SshRielVisiblePorPerfil
+  type SshGruposPlegadosPorPerfil
 } from '../../../../shared/ajustesTerminal.ts'
 import type { DetectedRepo } from '../../../../shared/workspace-ipc.ts'
 import type { Profile } from '../../../../main/profiles/types.ts'
@@ -1286,26 +1284,21 @@ hr('(13) SETTINGS de SSH: los grupos de conexiones plegados, por PERFIL')
 }
 
 // ---------------------------------------------------------------------------
-hr('(14) SETTINGS de SSH: el riel de conexiones a pantalla completa (ancho GLOBAL, visibilidad por PERFIL)')
+hr('(14) SETTINGS de SSH: el riel de conexiones a pantalla completa (ancho GLOBAL)')
 // ---------------------------------------------------------------------------
-// Dos claves nuevas: `sshRielAncho` (px, entero y dentro del rango del lateral) y
-// `sshRielVisiblePorPerfil` (sin entrada = visible). Lo que se fija: el valor por defecto, que un
-// valor malo cae a su por defecto SIN llevarse a los vecinos (y, en el mapa, se descarta la ENTRADA y
-// no el mapa entero), que sobreviven al disco y las operaciones puras del store y de la poda.
+// `sshRielAncho` (px, entero y dentro del rango del lateral). Lo que se fija: el valor por defecto, que un
+// valor malo cae a su por defecto SIN llevarse a los vecinos, que sobrevive al disco, que la clave antigua de
+// ocultar el riel se ignora y la poda por perfil.
 {
   const ajustes = (settings: unknown): Record<string, unknown> | undefined =>
     normalizeWorkspaceState({ version: 1, activeProfileId: null, byProfile: {}, settings })?.settings as
       | Record<string, unknown>
       | undefined
   const ancho = (raw: unknown): unknown => ajustes({ sshRielAncho: raw })?.sshRielAncho
-  const visibles = (raw: unknown): unknown => ajustes({ sshRielVisiblePorPerfil: raw })?.sshRielVisiblePorPerfil
   check(
-    '(14.1) por defecto: 260 px y ningún perfil lo oculta, en DEFAULT_SETTINGS y sin la clave en el archivo',
-    DEFAULT_SETTINGS.sshRielAncho === 260 &&
-      eq(DEFAULT_SETTINGS.sshRielVisiblePorPerfil, {}) &&
-      ancho(undefined) === 260 &&
-      eq(visibles(undefined), {}),
-    `${DEFAULT_SETTINGS.sshRielAncho} · ${JSON.stringify(DEFAULT_SETTINGS.sshRielVisiblePorPerfil)}`
+    '(14.1) por defecto: 260 px, en DEFAULT_SETTINGS y sin la clave en el archivo',
+    DEFAULT_SETTINGS.sshRielAncho === 260 && ancho(undefined) === 260,
+    `${DEFAULT_SETTINGS.sshRielAncho}`
   )
   check(
     '(14.2) el rango y el ancho por defecto son los del lateral de la app: no se separan',
@@ -1327,73 +1320,30 @@ hr('(14) SETTINGS de SSH: el riel de conexiones a pantalla completa (ancho GLOBA
   )
   const conVecinos = ajustes({
     sshRielAncho: 'malo',
-    sshRielVisiblePorPerfil: 7,
     sshGruposPlegadosPorPerfil: { alfa: ['g1'] },
     dbAgenteWidth: 500
   })
   check(
-    '(14.6) dos valores malos no se llevan a sus vecinos (plegados SSH y ancho del agente de datos)',
-    conVecinos?.sshRielAncho === 260 &&
-      eq(conVecinos?.sshRielVisiblePorPerfil, {}) &&
-      eq(conVecinos?.sshGruposPlegadosPorPerfil, { alfa: ['g1'] }) &&
-      conVecinos?.dbAgenteWidth === 500,
-    JSON.stringify([conVecinos?.sshRielAncho, conVecinos?.sshRielVisiblePorPerfil, conVecinos?.sshGruposPlegadosPorPerfil, conVecinos?.dbAgenteWidth])
-  )
-  check(
-    '(14.7) la visibilidad conserva lo válido (true y false)',
-    eq(visibles({ alfa: false, beta: true }), { alfa: false, beta: true }),
-    JSON.stringify(visibles({ alfa: false, beta: true }))
-  )
-  check(
-    '(14.8) una entrada mala se descarta sola y las demás sobreviven',
-    eq(visibles({ alfa: false, malo: 'no', otro: 0, nulo: null, lista: [false], '': false, beta: true }), { alfa: false, beta: true }),
-    JSON.stringify(visibles({ alfa: false, malo: 'no', otro: 0, nulo: null, lista: [false], '': false, beta: true }))
-  )
-  check(
-    '(14.9) un mapa que no es un objeto plano vuelve a vacío, sin romper la carga',
-    [null, 'alfa', 7, [false], true].every((raw) => eq(visibles(raw), {})),
-    'null/texto/número/array/booleano -> {}'
+    '(14.6) un ancho malo no se lleva a sus vecinos (plegados SSH y ancho del agente de datos)',
+    conVecinos?.sshRielAncho === 260 && eq(conVecinos?.sshGruposPlegadosPorPerfil, { alfa: ['g1'] }) && conVecinos?.dbAgenteWidth === 500,
+    JSON.stringify([conVecinos?.sshRielAncho, conVecinos?.sshGruposPlegadosPorPerfil, conVecinos?.dbAgenteWidth])
   )
   const dir7 = mkdtempSync(path.join(tmpdir(), 'tessera-ws-riel-'))
   const file7 = path.join(dir7, 'workspace-state.json')
   writeFileSync(
     file7,
     JSON.stringify(
-      normalizeWorkspaceState({ version: 1, activeProfileId: null, byProfile: {}, settings: { sshRielAncho: 333, sshRielVisiblePorPerfil: { alfa: false } } }),
+      normalizeWorkspaceState({ version: 1, activeProfileId: null, byProfile: {}, settings: { sshRielAncho: 333 } }),
       null,
       2
     ) + '\n',
     'utf-8'
   )
   const back7 = normalizeWorkspaceState(JSON.parse(readFileSync(file7, 'utf-8')))?.settings as Record<string, unknown> | undefined
+  check('(14.10) round-trip: el ancho sobrevive a escribir->leer->normalize', back7?.sshRielAncho === 333, JSON.stringify(back7?.sshRielAncho))
+  const dosOcultos: Record<string, boolean> = { alfa: false, beta: false }
   check(
-    '(14.10) round-trip: el ancho y la visibilidad sobreviven a escribir->leer->normalize',
-    back7?.sshRielAncho === 333 && eq(back7?.sshRielVisiblePorPerfil, { alfa: false }),
-    JSON.stringify([back7?.sshRielAncho, back7?.sshRielVisiblePorPerfil])
-  )
-  const oculto: SshRielVisiblePorPerfil = { alfa: false }
-  check(
-    '(14.11) ocultar añade la entrada y mostrar la borra (verse es lo de por defecto): no se guarda un `true`',
-    eq(conRielVisible({}, 'alfa', false), { alfa: false }) &&
-      eq(conRielVisible(oculto, 'alfa', true), {}) &&
-      eq(conRielVisible(oculto, 'beta', false), { alfa: false, beta: false }),
-    JSON.stringify([conRielVisible({}, 'alfa', false), conRielVisible(oculto, 'alfa', true)])
-  )
-  const sinEntrada: SshRielVisiblePorPerfil = {}
-  const trueAMano: SshRielVisiblePorPerfil = { alfa: true }
-  check(
-    '(14.12) lo que no cambia devuelve el MISMO objeto (no repinta ni dispara un guardado): ocultar uno oculto, mostrar uno que se ve',
-    conRielVisible(oculto, 'alfa', false) === oculto && conRielVisible(sinEntrada, 'alfa', true) === sinEntrada,
-    'misma referencia'
-  )
-  check(
-    '(14.13) un `true` escrito a mano vale como «se ve»: mostrarlo no cambia nada y ocultarlo lo pasa a `false`',
-    conRielVisible(trueAMano, 'alfa', true) === trueAMano && eq(conRielVisible(trueAMano, 'alfa', false), { alfa: false }),
-    JSON.stringify(conRielVisible(trueAMano, 'alfa', false))
-  )
-  const dosOcultos: SshRielVisiblePorPerfil = { alfa: false, beta: false }
-  check(
-    '(14.14) la poda genérica olvida los perfiles que ya no existen, no con una lista vacía, y con todos vivos es la misma referencia',
+    '(14.11) la poda genérica olvida los perfiles que ya no existen, no con una lista vacía, y con todos vivos es la misma referencia',
     eq(podarMapaPorPerfil(dosOcultos, ['alfa']), { alfa: false }) &&
       podarMapaPorPerfil(dosOcultos, []) === dosOcultos &&
       podarMapaPorPerfil(dosOcultos, ['alfa', 'beta']) === dosOcultos,
@@ -1433,13 +1383,11 @@ hr('(15) SETTINGS del agente de la terminal: si se ve a pantalla completa, por P
     [null, 'alfa', 7, [true], true].every((raw) => eq(visibles(raw), {})),
     'null/texto/número/array/booleano -> {}'
   )
-  const conVecinos = ajustes({ agenteTerminalVisiblePorPerfil: 'malo', sshRielVisiblePorPerfil: { alfa: false }, dbAgenteVisiblePorPerfil: { alfa: true } })
+  const conVecinos = ajustes({ agenteTerminalVisiblePorPerfil: 'malo', sshRielAncho: 300, dbAgenteVisiblePorPerfil: { alfa: true } })
   check(
     '(15.5) un valor malo no se lleva a sus vecinos (el riel SSH y el agente de datos)',
-    eq(conVecinos?.agenteTerminalVisiblePorPerfil, {}) &&
-      eq(conVecinos?.sshRielVisiblePorPerfil, { alfa: false }) &&
-      eq(conVecinos?.dbAgenteVisiblePorPerfil, { alfa: true }),
-    JSON.stringify([conVecinos?.agenteTerminalVisiblePorPerfil, conVecinos?.sshRielVisiblePorPerfil, conVecinos?.dbAgenteVisiblePorPerfil])
+    eq(conVecinos?.agenteTerminalVisiblePorPerfil, {}) && conVecinos?.sshRielAncho === 300 && eq(conVecinos?.dbAgenteVisiblePorPerfil, { alfa: true }),
+    JSON.stringify([conVecinos?.agenteTerminalVisiblePorPerfil, conVecinos?.sshRielAncho, conVecinos?.dbAgenteVisiblePorPerfil])
   )
   const dir8 = mkdtempSync(path.join(tmpdir(), 'tessera-ws-agente-terminal-'))
   const file8 = path.join(dir8, 'workspace-state.json')
@@ -1480,19 +1428,20 @@ hr('(15) SETTINGS del agente de la terminal: si se ve a pantalla completa, por P
 }
 
 // ---------------------------------------------------------------------------
-hr('(16) SETTINGS del lanzador de conexiones SSH: las claves retiradas se ignoran')
+hr('(16) SETTINGS de SSH: las claves retiradas se ignoran')
 // ---------------------------------------------------------------------------
-// Un archivo escrito con `sshGrupoAbiertoPorPerfil` (el grupo que dejaba abierto el lanzador) o con
-// `sshRecientesPorPerfil` (sus conexiones recientes) se lee sin error, con esas claves ignoradas y sin que
+// Un archivo escrito con `sshGrupoAbiertoPorPerfil` (el grupo que dejaba abierto el lanzador), con
+// `sshRecientesPorPerfil` (sus conexiones recientes) o con `sshRielVisiblePorPerfil` (qué perfiles ocultaban
+// el riel) se lee sin error, con esas claves ignoradas y sin que
 // los demás ajustes se resientan; al volver a guardar lo leído ya no están en el disco.
 {
   const ajustes = (settings: unknown): Record<string, unknown> | undefined =>
     normalizeWorkspaceState({ version: 1, activeProfileId: null, byProfile: {}, settings })?.settings as
       | Record<string, unknown>
       | undefined
-  const RETIRADAS = ['sshGrupoAbiertoPorPerfil', 'sshRecientesPorPerfil']
+  const RETIRADAS = ['sshGrupoAbiertoPorPerfil', 'sshRecientesPorPerfil', 'sshRielVisiblePorPerfil']
   check(
-    '(16.1) por defecto no hay ajustes de grupo abierto ni de recientes',
+    '(16.1) por defecto no hay ajustes de grupo abierto, de recientes ni de riel oculto',
     RETIRADAS.every((k) => !(k in DEFAULT_SETTINGS)),
     JSON.stringify(Object.keys(DEFAULT_SETTINGS).filter((k) => k.startsWith('ssh')))
   )
@@ -1508,6 +1457,7 @@ hr('(16) SETTINGS del lanzador de conexiones SSH: las claves retiradas se ignora
         sshGrupoAbiertoPorPerfil: { alfa: 'g1', beta: '' },
         sshRecientesPorPerfil: { alfa: ['c2', 'c1'] },
         sshGruposPlegadosPorPerfil: { alfa: ['g1'] },
+        sshRielAncho: 300,
         sshRielVisiblePorPerfil: { alfa: false }
       }
     }),
@@ -1520,9 +1470,9 @@ hr('(16) SETTINGS del lanzador de conexiones SSH: las claves retiradas se ignora
     viejo === null ? 'null' : JSON.stringify(Object.keys(viejo.settings ?? {}).filter((k) => k.startsWith('ssh')))
   )
   check(
-    '(16.3) y sus vecinos se leen enteros: los plegados y el riel',
-    eq(viejo?.settings?.sshGruposPlegadosPorPerfil, { alfa: ['g1'] }) && eq(viejo?.settings?.sshRielVisiblePorPerfil, { alfa: false }),
-    JSON.stringify([viejo?.settings?.sshGruposPlegadosPorPerfil, viejo?.settings?.sshRielVisiblePorPerfil])
+    '(16.3) y sus vecinos se leen enteros: los plegados y el ancho del riel',
+    eq(viejo?.settings?.sshGruposPlegadosPorPerfil, { alfa: ['g1'] }) && viejo?.settings?.sshRielAncho === 300,
+    JSON.stringify([viejo?.settings?.sshGruposPlegadosPorPerfil, viejo?.settings?.sshRielAncho])
   )
   writeFileSync(fileViejo, JSON.stringify(viejo, null, 2) + '\n', 'utf-8')
   check(

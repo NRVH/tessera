@@ -67,6 +67,7 @@ export const txCatalogo = crearTextos(
       copia: 'Exportar e importar',
       actualizaciones: 'Actualizaciones',
       experimental: 'Experimental',
+      academy: 'Tessera Academy',
       acerca: 'Acerca de'
     } as Record<CategoriaId, string>,
     grupos: {
@@ -103,7 +104,7 @@ export const txCatalogo = crearTextos(
       'explorer-font': 'Explorador',
       'git-font': 'Vista de git',
       zoom: 'Zoom',
-      banda: 'Modo minimalista de perfiles',
+      banda: 'Perfiles en un selector compacto',
       'term-fuente': 'Fuente',
       'term-tamano': 'Tamaño',
       'term-resaltado': 'Resaltar logs y salidas',
@@ -154,6 +155,7 @@ export const txCatalogo = crearTextos(
       copia: 'Export and import',
       actualizaciones: 'Updates',
       experimental: 'Experimental',
+      academy: 'Tessera Academy',
       acerca: 'About'
     } as Record<CategoriaId, string>,
     grupos: {
@@ -190,7 +192,7 @@ export const txCatalogo = crearTextos(
       'explorer-font': 'Explorer',
       'git-font': 'Git view',
       zoom: 'Zoom',
-      banda: 'Minimal profile bar',
+      banda: 'Profiles in a compact selector',
       'term-fuente': 'Font',
       'term-tamano': 'Size',
       'term-resaltado': 'Highlight logs and output',
@@ -199,7 +201,7 @@ export const txCatalogo = crearTextos(
       'term-render': 'Rendering',
       'agentes-lista': 'Agents',
       'selector-agentes': 'Agent selector',
-      'agente-inactividad': 'Hibernate the idle agent after',
+      'agente-inactividad': 'Hibernate idle agents after',
       'limite-contenedores': 'Container limit',
       'limite-politica': 'What to stop first',
       'saturacion-umbral': 'Saturated above',
@@ -211,7 +213,7 @@ export const txCatalogo = crearTextos(
       'sandbox-otros': 'Other packages',
       'db-font': 'Font size',
       'db-filas-pagina': 'Rows per page',
-      'db-tx-inicial': 'Transaction on open',
+      'db-tx-inicial': 'Transaction mode for new consoles',
       'db-inactividad-consola': 'Close the idle session after',
       'menu-windows-carpetas': 'Folders and drives',
       'menu-windows-archivos': 'Any file',

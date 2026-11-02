@@ -21,6 +21,11 @@ export function apilar(id: string): void {
   pila.push(id)
 }
 
+/** ¿Hay algún diálogo abierto? Quien se abre encima de otro lo mira antes de apilarse. */
+export function hayDialogos(): boolean {
+  return pila.length > 0
+}
+
 /** Quita el diálogo de donde esté: los desmontajes no llegan siempre de arriba abajo. Un id que no está se ignora. */
 export function desapilar(id: string): void {
   const i = pila.indexOf(id)

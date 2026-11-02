@@ -57,8 +57,10 @@ function enviar(pipe, linea) {
     socket.setTimeout(TOPE_MS, () => acabar(null))
     socket.on('error', () => acabar(null))
     socket.on('connect', () => socket.write(linea))
+    // Con codificación, un carácter multibyte partido entre dos trozos se une en vez de salir como U+FFFD.
+    socket.setEncoding('utf8')
     socket.on('data', (trozo) => {
-      leido += trozo.toString('utf-8')
+      leido += trozo
       const corte = leido.indexOf('\n')
       if (corte >= 0) acabar(leerRespuesta(leido.slice(0, corte)))
       else if (leido.length > MAX_RESPUESTA) acabar(null)

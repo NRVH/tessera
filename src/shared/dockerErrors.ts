@@ -143,44 +143,44 @@ const txDocker = crearTextos(
         sugerencia: 'The session ended normally. Click "Reopen" to launch it again in this pane.'
       },
       'container-down': {
-        titulo: 'The profile container went down',
+        titulo: 'The profile container stopped',
         sugerencia:
-          'Docker is still running, so Tessera can recreate it clean and recover your credentials. If that fails, click "Retry".'
+          'Docker is still running, so Tessera can recreate the container from scratch and recover your credentials. If that fails, click "Retry".'
       },
       'daemon-down': {
         titulo: 'Docker is not available',
         sugerencia:
-          'Tessera cannot start Docker for you. Open Docker Desktop: as soon as the engine is "Running", an open session recovers on its own; if not, click "Retry".'
+          'Tessera cannot start Docker for you. Open Docker Desktop: as soon as the engine is "Running", open sessions recover automatically; if not, click "Retry".'
       },
       unknown: {
         titulo: 'The cause could not be determined',
         sugerencia:
-          'The Docker diagnosis failed, so Tessera does not know whether it was a normal exit or a crash. Check Docker Desktop and click "Retry".'
+          'The Docker check failed, so Tessera does not know whether it was a normal exit or a crash. Check Docker Desktop and click "Retry".'
       },
       'sin-memoria': {
         titulo: 'The agent ended while the computer was low on memory',
-        sugerencia: 'Close programs or projects you are not using and click "Reopen": the conversation continues where it was.'
+        sugerencia: 'Close programs or projects you are not using and click "Reopen": the conversation resumes where it stopped.'
       },
       'parado-por-limite': {
         titulo: 'Tessera stopped this agent to make room',
         sugerencia:
-          'The Docker container limit was reached while opening another agent, and your policy picked this one. Click "Reopen": the conversation continues where it was.'
+          'The Docker container limit was reached while opening another agent, and your policy selected this one. Click "Reopen": the conversation resumes where it stopped.'
       },
       'parado-por-saturacion': {
         titulo: 'Tessera stopped this agent because Docker was running out of memory',
         sugerencia:
-          'Docker memory stayed above the threshold in your settings for the time you set, and your policy picked this one. Click "Reopen" when there is room: the conversation continues where it was.'
+          'Docker memory stayed above the threshold in your settings for the time you set, and your policy selected this one. Click "Reopen" when there is room: the conversation resumes where it stopped.'
       }
     },
     sinMemoriaContenedor: {
       titulo: 'Docker ran out of memory',
       sugerencia:
-        'The system stopped it when Docker’s memory ran out. Close Docker agents or terminals you are not using, or give it more memory in Docker Desktop, and click "Reopen": the conversation continues where it was.'
+        'The system stopped it when Docker’s memory ran out. Close Docker agents or terminals you are not using, or give Docker more memory in Docker Desktop, and click "Reopen": the conversation resumes where it stopped.'
     },
     sinMemoriaContenedorLinux: {
       titulo: 'The computer ran out of memory',
       sugerencia:
-        'The system stopped this Docker process when memory ran out. Close Docker agents, terminals or programs you are not using and click "Reopen": the conversation continues where it was.'
+        'The system stopped this Docker process when memory ran out. Close Docker agents, terminals, or programs you are not using and click "Reopen": the conversation resumes where it stopped.'
     }
   }
 )

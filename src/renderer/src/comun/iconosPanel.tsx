@@ -70,6 +70,15 @@ export function IconoTerminal(): React.JSX.Element {
   )
 }
 
+/** Volver: una flecha hacia la izquierda, del trazo del riel. */
+export function IconoVolver(): React.JSX.Element {
+  return (
+    <SvgRiel>
+      <path d="M19 12H5M11 6l-6 6 6 6" />
+    </SvgRiel>
+  )
+}
+
 /** Maximizar: flechas hacia las cuatro esquinas. */
 export function IconoMaximizar(): React.JSX.Element {
   return (

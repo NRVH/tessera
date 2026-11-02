@@ -23,6 +23,7 @@ import type { DefinicionAgente, IdAgente } from '../../../shared/agentesManuales
 import { PERFIL_VENTANA_AGENTE } from '../../../shared/ventana-agente-ipc'
 import type { VigiaSaturacionConfig } from '../../../shared/agent-terminal-ipc'
 import { RegistroParadas } from './registroParadas'
+import type { RegistroTraspasos } from '../../traspaso/RegistroTraspasos'
 import { PUERTO_LOGIN_CODEX, PuenteLoginCodex } from '../loginCodex'
 import { unirConContenedor } from '../../sandbox/adaptadores/docker'
 import { SANDBOX_RED_CHANNELS, type AvisoRed } from '../../../shared/sandbox-red-ipc'
@@ -137,9 +138,14 @@ export interface AgentTerminalControllerOptions {
   rutaRegistroParadas?: string
   /** El puente del login por navegador de Codex (pruebas: otro puerto); sin él, el del 1455. */
   loginCodex?: PuenteLoginCodex
+  /** Los traspasos de «Continuar en…»: la apertura toma el suyo y el cierre lo olvida. Sin él, se ignoran. */
+  traspasos?: PuertaTraspasos
   /** Logger del main. */
   log?: (msg: string) => void
 }
+
+/** Lo que la sesión del agente usa del registro de traspasos. */
+export type PuertaTraspasos = Pick<RegistroTraspasos, 'reservar' | 'devolver' | 'consumir' | 'olvidarSesion'>
 
 /** Una sesión de agente abierta. */
 export interface OpenAgentSession {
@@ -155,6 +161,8 @@ export interface OpenAgentSession {
   projectHostPath: string
   /** Conversación con la que arrancó o se relanzó: la red del reload si el renderer no resuelve. */
   resumeSessionId?: string
+  /** Lo que el aviso de arranque dice del traspaso con el que se abrió; se repite al relanzar. */
+  avisoTraspaso?: string
   /** Modo nativo: sin contenedor, sin credencial montada y salida siempre 'ok'. */
   host: boolean
   /** Ventana (id de su `webContents`) que la abrió: su salida y su actividad solo van a ella. */
@@ -220,12 +228,13 @@ export interface NucleoAgente {
   readonly vigia: { config: VigiaSaturacionConfig | null }
   /** El único login de Codex en curso en los contenedores de cuenta y el puente de su vuelta. */
   readonly loginCodex: PuenteLoginCodex
+  readonly traspasos: PuertaTraspasos | null
   readonly log: (msg: string) => void
 }
 
 /**
- * Las dependencias de bases y SSH. Una ventana de agente es el CLI tal cual en la carpeta del usuario:
- * sin `tdb` ni `tssh` en el PATH, sin aviso de bases ni de conexiones y sin token del puente.
+ * Las dependencias de bases, SSH y reglas. Una ventana de agente es el CLI tal cual en la carpeta del usuario:
+ * sin `tdb`, `tssh` ni `tctx` en el PATH, sin aviso de bases, de conexiones ni de reglas y sin token del puente.
  */
 function dependenciasBd(
   opts: AgentTerminalControllerOptions
@@ -288,6 +297,7 @@ export function crearNucleo(opts: AgentTerminalControllerOptions): NucleoAgente 
     registroParadas: new RegistroParadas(opts.rutaRegistroParadas ?? null, log),
     vigia: { config: null },
     loginCodex: opts.loginCodex ?? puenteLoginCodex(opts.eventos),
+    traspasos: opts.traspasos ?? null,
     log
   }
 }

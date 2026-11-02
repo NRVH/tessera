@@ -26,7 +26,8 @@
 # LO QUE NECESITA LA DISTRO (una vez, como root): xvfb xauth dbus-x11 gnome-keyring
 # libsecret-1-0 libnss3 libasound2t64 libgbm1 libgtk-3-0t64 libxss1 libxtst6
 # libatk-bridge2.0-0t64 libcups2t64 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1
-# libxrandr2 libfuse2t64 libaio1t64 build-essential python3. Node 22 lo baja solo a
+# libxrandr2 libfuse2t64 libaio1t64 build-essential python3 desktop-file-utils shared-mime-info
+# libglib2.0-bin xdg-utils (las cuatro últimas, para el `tessera.desktop`). Node 22 lo baja solo a
 # `~/.local/node22`, sin tocar el Node del sistema. La distro: $TESSERA_WSL (Ubuntu-24.04).
 # =============================================================================
 set -euo pipefail

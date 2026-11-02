@@ -11,6 +11,7 @@ import { despacharTabs as dispatch, leerTabs, marcarHibernando } from './store'
 import type { UseTabs } from './useTabs'
 import type { Profile } from '../../../../main/profiles/types'
 import { iniciarTramo } from '../../util/diagnosticoRendimiento'
+import type { ConfirmarReemplazo } from './confirmaciones'
 
 type ProyectoElegido = { projectHostPath: string; name: string }
 
@@ -92,13 +93,13 @@ function useAperturasProyecto(): AperturasProyecto {
     []
   )
 
-  // Primero el diálogo y solo si NO se cancela se cierra el viejo y se abre el nuevo:
-  // al revés, cancelar dejaría el tab vacío.
+  // Primero el diálogo y la confirmación, y solo si ninguno se cancela se cierra el viejo y se
+  // abre el nuevo: al revés, cancelar dejaría el tab vacío.
   const replaceProjectInActiveProfile = useCallback(
-    async (oldPath: string) => {
+    async (oldPath: string, confirmar: ConfirmarReemplazo) => {
       try {
         const r = await elegirCarpeta()
-        if (!r) return
+        if (!r || !(await confirmar(r.project))) return
         dispatch({ type: 'replaceProject', profileId: r.profileId, oldPath, project: r.project })
       } catch (err) {
         console.error('[tabs] replaceProjectInActiveProfile falló:', err)
@@ -195,7 +196,7 @@ export function useAccionesProyecto(rescanActiveProject: () => () => void): Acci
 /** Acciones del CRUD de perfiles que expone `useTabs`. */
 export type AccionesCrudPerfiles = Pick<
   UseTabs,
-  'addProfile' | 'renameProfile' | 'recolorProfile' | 'setProfileRedHost' | 'deleteProfile' | 'reorderProfiles'
+  'addProfile' | 'renameProfile' | 'recolorProfile' | 'setProfileRedHost' | 'setProfileReglas' | 'deleteProfile' | 'reorderProfiles'
 >
 
 /** CRUD de perfiles: construyen el hecho y despachan; `usePersistenciaTabs` guarda a disco. */
@@ -226,6 +227,10 @@ export function useAccionesCrudPerfiles(): AccionesCrudPerfiles {
     dispatch({ type: 'setProfileRedHost', profileId, redHost })
   }, [])
 
+  const setProfileReglas = useCallback((profileId: string, reglas: string) => {
+    dispatch({ type: 'setProfileReglas', profileId, reglas })
+  }, [])
+
   const deleteProfile = useCallback((profileId: string) => {
     dispatch({ type: 'deleteProfile', profileId })
     // Guardar la lista nunca borra: lo del perfil solo se borra con esta orden.
@@ -238,5 +243,5 @@ export function useAccionesCrudPerfiles(): AccionesCrudPerfiles {
     dispatch({ type: 'reorderProfiles', orderedIds })
   }, [])
 
-  return { addProfile, renameProfile, recolorProfile, setProfileRedHost, deleteProfile, reorderProfiles }
+  return { addProfile, renameProfile, recolorProfile, setProfileRedHost, setProfileReglas, deleteProfile, reorderProfiles }
 }

@@ -3,14 +3,22 @@
 // muera (sus DLL siguen cargadas desde la carpeta a reemplazar), comprueba que la carpeta de
 // instalación se puede RENOMBRAR (lo primero que hace el desinstalador de NSIS, con o sin
 // procesos a la vista), lanza el instalador y espera su código de salida para contarlo, que es
-// lo que Tessera no podía hacer. Escribe su propio registro.
+// lo que Tessera no podía hacer. Tras un fallo, reintenta o repone la versión anterior desde
+// su propia copia. Escribe su propio registro.
 // Decisiones: docs/decisiones/actualizacion/relevo-de-windows.md
 // =============================================================================
 
 import { spawn } from 'node:child_process'
 import { appendFileSync, existsSync, mkdirSync, renameSync } from 'node:fs'
 import path from 'node:path'
-import { leerSalidaInstalador, type EncargoRelevo, type VeredictoInstalador } from '../../shared/relevo'
+import { robocopy, robocopyBien } from '../util/robocopy'
+import {
+  PROPIOS_DE_LA_COPIA,
+  destinoRestaurable,
+  leerSalidaInstalador,
+  type EncargoRelevo,
+  type VeredictoInstalador
+} from '../../shared/relevo'
 import { esperar } from '../util/esperas'
 import { txRelevoUi } from './textos.ts'
 
@@ -90,6 +98,8 @@ export async function probarRenombrado(raiz: string): Promise<EstadoCarpeta> {
       return 'atascada'
     }
   }
+  // Sin carpeta no hay nada que liberar: es el reintento tras un fallo que ya la quitó.
+  if (!existsSync(raiz)) return 'libre'
   try {
     renameSync(raiz, tmp)
   } catch {
@@ -133,7 +143,6 @@ export async function ejecutarRelevo(
   log: (m: string) => void
 ): Promise<VeredictoInstalador> {
   try {
-    // --- 1. El padre ---------------------------------------------------------
     avisar(txRelevoUi().cerrandoTitulo, txRelevoUi().cerrandoDetalle)
     log(`esperando al pid ${encargo.pidPadre}`)
     const finEspera = Date.now() + ESPERA_PADRE_MS
@@ -142,8 +151,23 @@ export async function ejecutarRelevo(
     }
     const seguiaVivo = procesoVivo(encargo.pidPadre)
     log(`padre ${seguiaVivo ? 'SIGUE VIVO tras la espera' : 'terminado'}`)
+  } catch (err) {
+    log(`la espera al padre lanzó (se sigue): ${String(err)}`)
+  }
+  return instalar(encargo, avisar, log)
+}
 
-    // --- 2. La carpeta -------------------------------------------------------
+/**
+ * Libera la carpeta y lanza el instalador: lo que se repite al pulsar «Reintentar». NUNCA
+ * lanza, por lo mismo que `ejecutarRelevo`.
+ */
+export async function instalar(
+  encargo: EncargoRelevo,
+  avisar: Progreso,
+  log: (m: string) => void
+): Promise<VeredictoInstalador> {
+  try {
+    // --- La carpeta ----------------------------------------------------------
     avisar(txRelevoUi().carpetaTitulo, txRelevoUi().carpetaDetalle)
     const finCarpeta = Date.now() + ESPERA_CARPETA_MS
     let estado: EstadoCarpeta = 'ocupada'
@@ -173,7 +197,7 @@ export async function ejecutarRelevo(
       log('AVISO: la carpeta no llegó a estar libre; se intenta instalar igual')
     }
 
-    // --- 3. El instalador ----------------------------------------------------
+    // --- El instalador ------------------------------------------------------
     if (!existsSync(encargo.instalador)) {
       log(`el instalador NO existe en ${encargo.instalador}`)
       return leerSalidaInstalador(null)
@@ -202,4 +226,43 @@ export async function ejecutarRelevo(
       detalle: txRelevoUi().noCompletoDetalle(String(err))
     }
   }
+}
+
+/**
+ * Vuelve a la versión anterior: repone en la carpeta de instalación la copia del relevo, que es
+ * esa versión entera (es el programa que pinta esta ventana). Si la prueba de renombrado la dejó
+ * apartada, basta con devolverla a su nombre. Si no, se COPIA encima sobrescribiendo todo, pero
+ * sin `/MIR`: el usuario pudo instalar en una carpeta suya, y `/MIR` borraría lo que no estuviera
+ * en la copia. Lo que la versión nueva dejara de más no estorba a la anterior. Los accesos
+ * directos sobreviven a la desinstalación por actualización; la ficha de «Aplicaciones
+ * instaladas» la repone la siguiente actualización. Devuelve si el ejecutable quedó en su sitio.
+ * NUNCA lanza.
+ */
+export async function restaurarAnterior(
+  encargo: EncargoRelevo,
+  copia: string,
+  log: (m: string) => void
+): Promise<boolean> {
+  const raiz = encargo.raizInstalacion
+  const tmp = `${raiz}${SUFIJO_TMP}`
+  if (!existsSync(raiz) && existsSync(tmp)) {
+    try {
+      renameSync(tmp, raiz)
+      log(`la versión anterior estaba apartada en ${tmp}; vuelve a su nombre`)
+      return existsSync(encargo.exeApp)
+    } catch (err) {
+      log(`no se pudo devolver ${tmp} a su nombre: ${String(err)}`)
+      return false
+    }
+  }
+  if (!destinoRestaurable(raiz, copia)) {
+    log(`no se repone: ${raiz} no es un destino seguro para la copia ${copia}`)
+    return false
+  }
+  log(`reponiendo la versión ${encargo.versionActual}: ${copia} -> ${raiz}`)
+  // `/IS /IT`: también los archivos que robocopy daría por iguales, para no dejar ninguno de la nueva.
+  const code = await robocopy(copia, raiz, ['/E', '/IS', '/IT', '/XF', ...PROPIOS_DE_LA_COPIA, '/R:2', '/W:1'])
+  const enSuSitio = existsSync(encargo.exeApp)
+  log(`reposición: robocopy ${code}; el ejecutable ${enSuSitio ? 'está' : 'NO está'} en su sitio`)
+  return robocopyBien(code) && enSuSitio
 }

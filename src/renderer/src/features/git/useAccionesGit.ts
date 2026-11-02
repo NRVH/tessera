@@ -67,7 +67,7 @@ interface Efectos {
   recargar: (rutas: ReadonlySet<string>) => void
 }
 
-/** Descarta un archivo; lo irrecuperable lo confirma el main. */
+/** Descarta un archivo; la confirmación (revertir o borrar) la pide el main. */
 async function descartar(raiz: string, path: string, ef: Efectos): Promise<void> {
   try {
     const result = await window.tessera.git.discardChanges(raiz, path)

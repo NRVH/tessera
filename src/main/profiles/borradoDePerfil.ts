@@ -1,6 +1,6 @@
 // =============================================================================
 // El borrado de lo de un perfil BORRADO, solo con su orden explícita: cerrar sus sesiones, parar su
-// contenedor, su historial de consultas, sus conexiones SSH y de bases de datos, y mandar a la papelera sus carpetas. Cada perfil con su candado
+// contenedor, su historial de consultas, sus conexiones SSH y de bases de datos, su propuesta de reglas, y mandar a la papelera sus carpetas. Cada perfil con su candado
 // (`candadoDeBorrado.ts`) de principio a fin, y cada paso irreversible decidido contra la lista de
 // perfiles de ESE momento: entre medias pasan segundos y el usuario puede haber recreado el perfil con
 // el mismo id. Pura y sin Electron (todo llega inyectado), para probarla con `node` a secas
@@ -44,6 +44,8 @@ export interface DepsBorradoCompleto<P extends { id: string }> extends DepsBorra
   borrarConexionesSsh: (profileId: string) => void
   /** Sus conexiones de bases de datos, con sus contraseñas guardadas: también en firme. */
   borrarConexionesBd: (profileId: string) => void
+  /** Su propuesta de reglas pendiente: un perfil recreado con el mismo id no debe heredarla. */
+  borrarPropuestaReglas: (profileId: string) => void
 }
 
 /**
@@ -100,13 +102,20 @@ async function mandarCarpetasAPapelera(deps: DepsBorradoDePerfil, profileId: str
 }
 
 /**
- * Lo de un perfil, en orden: sus sesiones, su contenedor, su historial, sus conexiones SSH y de bases de
- * datos, y sus carpetas.
+ * Lo de un perfil, en orden: su propuesta de reglas, sus sesiones, su contenedor, su historial, sus
+ * conexiones SSH y de bases de datos y sus carpetas.
  * Justo antes de cada paso se mira si sigue borrado, sin nada que esperar entre esa comprobación y el paso: parar
  * el contenedor de un perfil recreado mataría sus agentes, y sus conexiones SSH se borran en firme.
  */
 async function borrarPerfil<P extends { id: string }>(deps: DepsBorradoCompleto<P>, perfil: P): Promise<void> {
   const id = perfil.id
+  // La propuesta de reglas, sin condición y al empezar: un perfil recreado con el mismo id no puede
+  // heredar la del anterior, y ninguna comprobación de abajo la dejaría sin borrar.
+  try {
+    deps.borrarPropuestaReglas(id)
+  } catch (err) {
+    deps.error(`[tessera] no se pudo borrar la propuesta de reglas del perfil eliminado ${id}:`, err)
+  }
   // Las sesiones, lo PRIMERO: una SSH abierta seguiría usando sus claves y su known_hosts mientras
   // se borran, y un agente seguiría escribiendo en las carpetas que van a la papelera.
   if (!sigueBorrado(deps, id, 'sus sesiones ni nada suyo')) return

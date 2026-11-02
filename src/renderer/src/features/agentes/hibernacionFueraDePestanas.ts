@@ -2,7 +2,7 @@
 // Hibernación coherente de los targets de agente que NO son pestaña (el agente de datos y el de la
 // terminal). Hibernar un perfil cierra en el main TODAS sus sesiones de agente, pero el modelo de
 // pestañas solo marca sus proyectos: estos se marcan aquí al empezar la hibernación, para que su pane
-// suelte la sesión muerta, y se desmarcan al volver a verse o con el botón «Despertar» de su pie. Lógica pura: solo hay `import type` de otras features
+// suelte la sesión muerta, y se desmarcan al volver a verse o con el botón «Reanudar» de su pie. Lógica pura: solo hay `import type` de otras features
 // y corre bajo `node` (`test-hibernacion-fuera-de-pestanas.mts`).
 // Decisiones: docs/decisiones/agentes/agente-de-la-terminal.md
 // =============================================================================

@@ -1,6 +1,6 @@
 // =============================================================================
 // Lo que de la feature de pestañas solo compone App.tsx: el hook de pestañas, las
-// aperturas desde el sistema, los puntos y las tintas de perfil.
+// aperturas desde el sistema, los puntos y las tintas de perfil, y la capa de las propuestas de reglas.
 // Las demás features usan `index.ts`; esto no va allí para no cerrar un ciclo entre
 // barriles. Ver docs/decisiones/renderer/barriles-sin-ciclos.md.
 // =============================================================================
@@ -8,3 +8,4 @@ export { useTabs } from './useTabs'
 export { useAperturasApp } from './useAperturasApp'
 export { usePuntosPerfil } from './usePuntosPerfil'
 export { useTintasPerfil } from './useTintasPerfil'
+export { CapaPropuestasReglas } from './CapaPropuestasReglas'

@@ -1,6 +1,6 @@
 // =============================================================================
 // Ciclo de la sesión del agente en su pane: abrir (reanudando la última conversación),
-// reanudar otra, empezar una nueva, recuperarse de la muerte del contenedor, reiniciar
+// reanudar otra, empezar una nueva o una con traspaso, recuperarse de la muerte del contenedor, reiniciar
 // y el bloqueo de la actualización nativa. Cada función recibe el contexto del render
 // que la llama (refs, setters y sus valores); el estado de la sesión lo cambia `r.sesion`.
 // Decisiones: docs/decisiones/agentes/terminal-del-agente.md
@@ -16,9 +16,11 @@ import {
   C_DIM, C_ERR, C_OK, C_RST, C_WARN, HOST_ACCOUNT_ID, MAX_CONTAINER_RECOVERY_ATTEMPTS, bannerReanudado, bannerReinicio
 } from './agentPaneTipos'
 import { txSesion } from './textosSesion.ts'
+import { txTraspaso } from './textosTraspaso.ts'
+import { esTraspasoCaducado } from './traspasoPendiente.ts'
 import { apuntarTamanoDeNacimiento, fitAndSyncNow, tamanoParaAbrir } from './terminalAgente'
 import type { ResultadoRelanzar } from './tipos'
-import { conversacionAReanudar, type UltimaConversacion } from './sesionViva'
+import { conversacionAReanudar, type PedidoApertura, type UltimaConversacion } from './sesionViva'
 import type { AnclaCuenta, EstadoSesion } from './useEstadoAgentPane'
 import type { RefsAgentPane } from './useRefsAgentPane'
 
@@ -77,6 +79,15 @@ function textoError(err: unknown): string {
   return err instanceof Error ? err.message : String(err)
 }
 
+/**
+ * Qué se devuelve al pedido y qué dice el pane cuando la apertura falla. Si fue porque el main ya no tiene el
+ * traspaso, este se suelta (reintentarlo fallaría igual) y el pane lo dice.
+ */
+function pedidoTrasFallo(pedido: PedidoApertura, err: unknown): { pedido: PedidoApertura; texto: string } {
+  if (pedido.traspaso !== null && esTraspasoCaducado(err)) return { pedido: { ...pedido, traspaso: null }, texto: txTraspaso().caducado }
+  return { pedido, texto: textoError(err) }
+}
+
 /** El cupo de la apertura: solo en Docker (en el equipo no hay contenedor que contar). */
 function cupoDeLaApertura(hostMode: boolean): { cupo: PoliticaCupo } | Record<string, never> {
   if (hostMode) return {}
@@ -120,6 +131,7 @@ export async function abrirSesion(ctx: CtxSesion, accountId: string): Promise<vo
       projectHostPath: d.projectHostPath,
       accountId,
       resumeSessionId,
+      ...(pedido.traspaso ? { traspasoId: pedido.traspaso } : {}),
       mode: d.hostMode ? 'host' : 'container',
       // Del ref: cambiar el montaje no reabre la sesión; se aplica al reiniciar.
       dbConnectionIds: r.dbMounted.current,
@@ -139,8 +151,10 @@ export async function abrirSesion(ctx: CtxSesion, accountId: string): Promise<vo
     ajustarTrasAbrir(r, term, true)
   } catch (err) {
     if (!r.term.current) return
-    r.sesion.devolverPedido(pedido)
-    s.setError(textoError(err))
+    // Un traspaso que el main ya no tiene no se reintenta ni se sustituye en silencio por un chat vacío: se dice.
+    const fallo = pedidoTrasFallo(pedido, err)
+    r.sesion.devolverPedido(fallo.pedido)
+    s.setError(fallo.texto)
     s.setStatus('error')
   } finally {
     r.sesion.terminarApertura()
@@ -181,6 +195,26 @@ export async function resumeConversation(ctx: CtxSesion, convId: string): Promis
 export async function startNewConversation(ctx: CtxSesion): Promise<void> {
   const acc = cuentaParaCambiar(ctx)
   if (acc) await cambiarDeConversacion(ctx, acc, () => ctx.r.sesion.pedirNueva())
+}
+
+/**
+ * Abre con un traspaso: con una sesión viva la cierra y reabre con él; sin ella, queda pedido para la apertura
+ * que el pane hace a continuación (si el main ya no lo tiene, esa apertura lo dice). Con una sesión viva que
+ * ahora no se puede cambiar (preparada para actualizar) no hace nada y devuelve false: el traspaso sigue
+ * esperando, con su caducidad, donde estaba.
+ */
+export async function abrirConTraspaso(ctx: CtxSesion, traspasoId: string, reanudar: string | null): Promise<boolean> {
+  const pedir = (): void => ctx.r.sesion.pedirTraspaso(traspasoId, reanudar)
+  const acc = cuentaParaCambiar(ctx)
+  if (ctx.r.sesion.id() === null) pedir()
+  else if (acc) await cambiarDeConversacion(ctx, acc, pedir)
+  else return false
+  return true
+}
+
+/** ¿Se puede aplicar ahora un traspaso en este pane? Con una sesión viva, solo si se puede cambiar de conversación. */
+export function puedeAbrirConTraspaso(ctx: CtxSesion): boolean {
+  return ctx.r.sesion.id() === null || cuentaParaCambiar(ctx) !== null
 }
 
 /**

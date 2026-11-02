@@ -13,11 +13,12 @@ terminal». Decirle «en este proyecto» lo mandaba a buscar un proyecto que no 
 
 ## Decisión
 
-- Una sola función decide cada texto con `lugar: 'proyecto' | 'datos' | 'terminal'`: selector de
-  montaje, rótulo del historial y lugar del modal. Repartirlos acaba con uno que dice «agente de
-  datos» y otro que se quedó en «este proyecto».
-- En un proyecto y en el espacio de datos los textos no cambiaron ni un carácter al pasar del
-  booleano al lugar: el test los fija contra los literales.
+- El rótulo del historial y el lugar del modal los decide una sola función con
+  `lugar: 'proyecto' | 'datos' | 'terminal' | 'ventana'`. Repartirlos acaba con uno que dice «agente
+  de datos» y otro que se quedó en «este proyecto».
+- El selector de bases no depende del lugar: habla de lo que el agente puede consultar («Bases que
+  el agente puede consultar»), sin nombrar proyecto ni vista, y es el mismo en los cuatro.
+- El test fija los textos de cada lugar contra los literales.
 - No se nombra el proyecto (el montaje es de la carpeta, no de la pestaña) ni el nombre viejo
   del espacio («consola de datos»).
 - En el espacio de datos y en el agente de la terminal el modal de historial no enseña su carpeta:

@@ -107,7 +107,7 @@ const txFiltroGuiado = crearTextos(
       vacio: 'is empty',
       noVacio: 'is not empty'
     },
-    escribeValor: 'Enter a value (to look for empty ones, use “is empty”).',
+    escribeValor: 'Enter a value (to find empty values, use “is empty”).',
     valorLargo: (max: number) => `The value is over ${max} characters.`,
     noNumero: 'Not a number (use a decimal point: 12.5).',
     noFecha: 'Not a date (YYYY-MM-DD, with an optional time HH:MM[:SS]).',
@@ -120,9 +120,9 @@ const txFiltroGuiado = crearTextos(
     tipoInvalido: 'Invalid column type.',
     operadorInvalido: 'That operator is not valid for this column.',
     sobraValor: 'Extra value in the condition.',
-    ordenInvalido: 'Invalid order.',
+    ordenInvalido: 'Invalid sort order.',
     ordenMax: (max: number) => `You can sort by up to ${max} columns.`,
-    columnaRepetida: (columna: string) => `Column ${columna} appears twice in the order.`
+    columnaRepetida: (columna: string) => `Column ${columna} appears twice in the sort order.`
   }
 )
 

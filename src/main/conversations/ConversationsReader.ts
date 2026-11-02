@@ -285,7 +285,7 @@ export class ConversationsReader {
  * Una línea ya parseada de un `.jsonl` de agente. Los campos conocidos se declaran; el resto
  * es `unknown` y lo estrechan los helpers.
  */
-type JsonLine = Record<string, unknown> & { type?: string; payload?: Record<string, unknown> }
+export type JsonLine = Record<string, unknown> & { type?: string; payload?: Record<string, unknown> }
 
 /** Lo que se va recogiendo de la cabeza de un transcript de Claude Code. */
 interface AcumuladoClaude {
@@ -363,7 +363,7 @@ function campo(obj: unknown, ...ruta: string[]): unknown {
 }
 
 /** Epoch ms desde un timestamp ISO o numérico; 0 si no se reconoce. */
-function parseTs(v: unknown): number {
+export function parseTs(v: unknown): number {
   if (typeof v === 'number') return v > 1e12 ? v : v * 1000 // seg -> ms si viene en segundos
   if (typeof v === 'string') {
     const n = Date.parse(v)
@@ -378,7 +378,7 @@ function clip(s: string): string {
 }
 
 /** Texto inyectado por el CLI (no tecleado por el humano): caveats, hooks y wrappers de comandos. */
-function isCliWrapperText(text: string): boolean {
+export function isCliWrapperText(text: string): boolean {
   return /^<(local-command|command-name|command-message|command-args|user-prompt-submit-hook)\b/.test(
     text.trimStart()
   )
@@ -396,7 +396,7 @@ function isHumanClaudeUser(obj: JsonLine): boolean {
 }
 
 /** Extrae el texto visible de un mensaje de CC (string directo o bloques `text`). */
-function claudeMessageText(obj: JsonLine): string {
+export function claudeMessageText(obj: JsonLine): string {
   const content = campo(obj, 'message', 'content')
   if (typeof content === 'string') return content.trim()
   if (Array.isArray(content)) {
@@ -416,7 +416,7 @@ function claudeMessageText(obj: JsonLine): string {
  * de una de dos formas según su versión: `user_message`/`agent_message` con el texto en
  * `message`, o `item_completed` con un `UserMessage`/`AgentMessage` cuyo texto va en bloques.
  */
-function codexEventMessage(obj: JsonLine): { role: 'user' | 'assistant'; text: string } | null {
+export function codexEventMessage(obj: JsonLine): { role: 'user' | 'assistant'; text: string } | null {
   if (obj?.type !== 'event_msg') return null
   const tipo = campo(obj, 'payload', 'type')
   if (tipo === 'item_completed') return codexItemMessage(campo(obj, 'payload', 'item'))

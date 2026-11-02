@@ -30,7 +30,8 @@ montar o desmontar aplica al momento, sin perder la conversación.
 - El token se compara en tiempo constante; «no autorizado» es el mismo mensaje para inexistente, caducado y gastado.
 - Otros dominios registran sus operaciones (`registrarOperacion`) sin tocar `resolve` ni su contrato: con token de SESIÓN (el puente
   la busca y dice de quién es; un token de un solo uso no vale) o con token PROPIO, que valida la operación (`ssh.askpass`, con sus
-  fichas efímeras: el token de un agente nunca le sirve). Lo no registrado sigue siendo «operacion desconocida». El ámbito de las de
+  fichas efímeras: el token de un agente nunca le sirve). Las dos pueden contestar con una promesa (una pregunta al usuario, una
+  lectura larga como `tctx buscar`): el socket espera y una pausa del puente lo corta. Lo no registrado sigue siendo «operacion desconocida». El ámbito de las de
   `tssh` (`ssh.listar`, `ssh.preparar`…) es el PERFIL entero de la sesión, no lo montado (ver `ssh/tssh-y-agentes.md`).
 
 ## Descartes

@@ -31,9 +31,9 @@ export const ES_IDENTIDAD = {
 
 export const txIdentidad = crearTextos(ES_IDENTIDAD, {
   soloLectura: 'The connection is read-only: the grid cannot write to it.',
-  tablaInterna: 'This is an internal engine table (the engine maintains it, not the user): the grid does not edit it.',
+  tablaInterna: 'This is an internal engine table (maintained by the engine, not by users): the grid cannot edit it.',
   rowidTapado:
-    'The table has no primary key and one of its columns is named like its row address (rowid): there is no reliable way to find each row.',
+    'The table has no primary key and one of its columns has the same name as its row address (rowid): there is no reliable way to find each row.',
   sinClavePg:
     'The table has no primary key or UNIQUE constraint with all its columns NOT NULL: there is no reliable way to find each row.',
   vista: 'This is a view: the grid only edits tables.',
@@ -42,8 +42,8 @@ export const txIdentidad = crearTextos(ES_IDENTIDAD, {
   tablaVirtual: 'This is a virtual table (served by a module, it keeps no rows of its own): the grid only edits ordinary tables.',
   noEsTabla: 'This object is not a table: the grid only edits tables.',
   remoto: 'This is a remote object (@dblink): the grid does not write through a link.',
-  sistema: 'This is a system table: the grid does not edit it.',
-  temporal: 'This is a temporary table: its rows belong to each session, and “Submit” writes from another one.',
+  sistema: 'This is a system table: the grid cannot edit it.',
+  temporal: 'This is a temporary table: its rows belong to each session, and “Submit” writes from a different session.',
   externa: 'This is an external table (its rows are in a file on the server): it cannot be edited.'
 })
 
@@ -68,21 +68,21 @@ export const txEnvio = crearTextos(
   },
   {
     filaNuevaChoca:
-      'The new row conflicts with one locked by an uncommitted transaction (maybe one of your consoles).',
-    filaBloqueada: 'The row is locked by another transaction (maybe one of your consoles with uncommitted changes).',
+      'The new row conflicts with one locked by an uncommitted transaction (perhaps one of your consoles).',
+    filaBloqueada: 'The row is locked by another transaction (perhaps one of your consoles with uncommitted changes).',
     bloqueada: (que: string) => `${que} Nothing was applied: commit or roll back that transaction and submit again.`,
     sinCulpable: (desde: number, hasta: number, espera: boolean) =>
-      `(Could not tell which of changes ${desde} to ${hasta} it was${espera ? ': by the time it was looked for, the other transaction had already released it' : ''}.)`,
+      `(Could not tell which of changes ${desde} to ${hasta} it was${espera ? ': by the time Tessera checked, the other transaction had already released it' : ''}.)`,
     noSeConstruyo: 'Could not build the statement.',
-    commitServidor: (detalle: string) => `The commit (COMMIT) failed: ${detalle}\nNothing was applied.`,
+    commitServidor: (detalle: string) => `COMMIT failed: ${detalle}\nNothing was applied.`,
     commitIncierto: (detalle: string) =>
-      `It is not known whether the COMMIT was applied: ${detalle}\n` +
+      `Tessera cannot tell whether the COMMIT was applied: ${detalle}\n` +
       'Reload the table and check the data before submitting again.',
     filaNoInsertada: 'The new row was not inserted (0 rows). Nothing was applied.',
     filaCambio:
-      'The row is gone or changed since it was read (the change touched none). Nothing was applied: reload the table.',
+      'The row no longer exists or changed after it was read (the change affected no rows). Nothing was applied: reload the table.',
     tocoVarias: (filas: number) =>
-      `The change would have touched ${filas} rows instead of one (the key does not identify a single row). Nothing was applied.`
+      `The change would have affected ${filas} rows instead of one (the key does not identify a single row). Nothing was applied.`
   }
 )
 
@@ -137,7 +137,7 @@ export const txSqlRejilla = crearTextos(
   {
     ningunMotorRowid: 'No engine reads rows by their ROWID.',
     rowidSoloEn: (donde: string) => `ROWID only exists in ${donde}.`,
-    sinBases: (etiqueta: string) => `${etiqueta} has no databases inside a connection: the object cannot carry a database.`,
+    sinBases: (etiqueta: string) => `${etiqueta} has no databases inside a connection: the object cannot specify a database.`,
     faltaEsquema: 'The object’s schema is missing.',
     faltaEsquemaONombre: 'The object’s schema or name is missing.',
     noEsEsquema: (publico: string) => `${publico} is not a schema: the synonym must be resolved before querying it.`,
@@ -160,9 +160,9 @@ export const txSqlRejilla = crearTextos(
     faltaCerrarParen: (et: string) => `Missing closing “)” for a “(” in ${et}.`,
     sinVariables: (et: string, valor: string) => `${et} does not accept bind variables (${valor}): type the value.`,
     sinPsql: (et: string) => `${et} does not accept psql commands.`,
-    sinForUpdate: 'ORDER BY does not accept FOR UPDATE or FOR SHARE: the grid only reads.',
-    whereConGuiado: 'The guided filter and the free WHERE cannot be combined: one or the other applies.',
-    orderConCabecera: 'The header sort and the free ORDER BY cannot be combined: one or the other applies.'
+    sinForUpdate: 'ORDER BY does not accept FOR UPDATE or FOR SHARE: the grid only reads data.',
+    whereConGuiado: 'The guided filter and the free-form WHERE cannot be combined: only one of them applies.',
+    orderConCabecera: 'The header sort and the free-form ORDER BY cannot be combined: only one of them applies.'
   }
 )
 
@@ -201,15 +201,15 @@ export const txBinds = crearTextos(
     faltaTexto: 'Falta el texto de la sentencia para enlazar sus parámetros.',
     indiceMax: (max: number) => `Como mucho ?${max}: la sentencia usa un número de parámetro más alto.`,
     choque: (motor: string, numero: string, nombre: string) =>
-      `En ${motor}, ${numero} y ${nombre} son el MISMO parámetro: se usó el valor de ${nombre} y el de ${numero} no.`,
+      `En ${motor}, ${numero} y ${nombre} son el mismo parámetro: se usó el valor de ${nombre} y el de ${numero} no.`,
     pareja: (numero: string, nombre: string) => `${numero} y ${nombre}`,
     choques: (motor: string, parejas: string) =>
-      `En ${motor}, cada pareja es el MISMO parámetro (${parejas}): se usaron los valores de los nombres y los de los números no.`,
+      `En ${motor}, cada pareja es el mismo parámetro (${parejas}): se usaron los valores de los nombres y los de los números no.`,
     esquemaPerdido: (esquema: string, actual: string | null) =>
       `El esquema ${esquema} de esta consola ya no existe: vuelve al de la conexión${actual ? ` (${actual})` : ''}.`
   },
   {
-    formaInesperada: 'The parameters do not have the expected shape.',
+    formaInesperada: 'The parameters do not have the expected format.',
     demasiados: (max: number) => `Too many parameters (more than ${max}).`,
     nombreNoValido: 'A parameter has an invalid name.',
     valorTexto: (k: string) => `The value of “${k}” must be text or NULL.`,
@@ -221,12 +221,12 @@ export const txBinds = crearTextos(
     faltaTexto: 'The statement text is missing, so its parameters cannot be bound.',
     indiceMax: (max: number) => `At most ?${max}: the statement uses a higher parameter number.`,
     choque: (motor: string, numero: string, nombre: string) =>
-      `In ${motor}, ${numero} and ${nombre} are the SAME parameter: the value of ${nombre} was used and the one of ${numero} was not.`,
+      `In ${motor}, ${numero} and ${nombre} are the SAME parameter: the value of ${nombre} was used, not the value of ${numero}.`,
     pareja: (numero: string, nombre: string) => `${numero} and ${nombre}`,
     choques: (motor: string, parejas: string) =>
-      `In ${motor}, each pair is the SAME parameter (${parejas}): the values of the names were used and those of the numbers were not.`,
+      `In ${motor}, each pair is the SAME parameter (${parejas}): the values of the named parameters were used, not those of the numbered ones.`,
     esquemaPerdido: (esquema: string, actual: string | null) =>
-      `The schema ${esquema} of this console no longer exists: falling back to the connection’s${actual ? ` (${actual})` : ''}.`
+      `This console’s schema ${esquema} no longer exists: switching back to the connection’s schema${actual ? ` (${actual})` : ''}.`
   }
 )
 

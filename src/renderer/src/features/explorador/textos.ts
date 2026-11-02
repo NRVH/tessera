@@ -30,7 +30,7 @@ export const txExplorador = crearTextos(
     reemplazarArchivos: 'Reemplazar archivos',
     reemplazarArchivo: 'Reemplazar archivo',
     yaExiste: (varios: boolean, lista: string) =>
-      `Ya existe${varios ? 'n' : ''} en la carpeta destino:\n${lista}\n\n¿Reemplazar con lo que soltaste?`,
+      `Ya existe${varios ? 'n' : ''} en la carpeta destino:\n${lista}\n\nSi reemplazas, se sustituyen (una carpeta se sustituye entera, con todo lo que tenga) y lo anterior no se puede recuperar.`,
     reemplazar: 'Reemplazar',
     eliminar: 'Eliminar',
     eliminarCarpeta: 'Eliminar carpeta',
@@ -38,9 +38,10 @@ export const txExplorador = crearTextos(
     eliminarElementos: (n: number) => `Eliminar ${n} elementos`,
     avisoContenidoCarpetas: '\nSe eliminará también todo el contenido de las carpetas.',
     avisoContenido: '\nSe eliminará también todo su contenido.',
-    seguroEliminar: (nombre: string, aviso: string) => `¿Seguro que quieres eliminar "${nombre}"?${aviso}`,
+    seguroEliminar: (nombre: string, aviso: string) =>
+      `¿Eliminar "${nombre}"? Se borra del disco sin pasar por la papelera: no se puede deshacer.${aviso}`,
     seguroEliminarVarios: (n: number, listado: string, resto: number, aviso: string) =>
-      `¿Seguro que quieres eliminar estos ${n} elementos?\n${listado}${resto > 0 ? `\n…y ${resto} más` : ''}${aviso}`,
+      `¿Eliminar estos ${n} elementos? Se borran del disco sin pasar por la papelera: no se puede deshacer.\n${listado}${resto > 0 ? `\n…y ${resto} más` : ''}${aviso}`,
     ymas: (n: number) => `y ${n} más`,
     // Menú contextual
     abrirJarEn: (gestor: string) => `Abrir el .jar en ${gestor}`,
@@ -55,7 +56,7 @@ export const txExplorador = crearTextos(
     copiarRutas: (n: number) => (n > 1 ? `Copiar ${n} rutas` : 'Copiar ruta'),
     copiarRutasRelativas: (n: number) => (n > 1 ? `Copiar ${n} rutas relativas` : 'Copiar ruta relativa'),
     renombrarPuntos: 'Renombrar…',
-    descartarCambios: 'Descartar cambios…',
+    descartarCambios: 'Descartar cambios (vuelve a la versión de git)',
     eliminarElementosPuntos: (n: number) => `Eliminar ${n} elementos…`,
     eliminarCarpetaPuntos: 'Eliminar carpeta…',
     eliminarArchivoPuntos: 'Eliminar archivo…',
@@ -89,7 +90,7 @@ export const txExplorador = crearTextos(
     reemplazarArchivos: 'Replace files',
     reemplazarArchivo: 'Replace file',
     yaExiste: (varios: boolean, lista: string) =>
-      `${varios ? 'These already exist' : 'This already exists'} in the destination folder:\n${lista}\n\nReplace with what you dropped?`,
+      `${varios ? 'These already exist' : 'This already exists'} in the destination folder:\n${lista}\n\nReplacing overwrites ${varios ? 'them' : 'it'} (a folder is replaced with everything in it), and the previous content cannot be recovered.`,
     reemplazar: 'Replace',
     eliminar: 'Delete',
     eliminarCarpeta: 'Delete folder',
@@ -97,14 +98,15 @@ export const txExplorador = crearTextos(
     eliminarElementos: (n: number) => `Delete ${n} items`,
     avisoContenidoCarpetas: '\nEverything inside the folders will be deleted too.',
     avisoContenido: '\nEverything inside it will be deleted too.',
-    seguroEliminar: (nombre: string, aviso: string) => `Are you sure you want to delete “${nombre}”?${aviso}`,
+    seguroEliminar: (nombre: string, aviso: string) =>
+      `Delete “${nombre}”? It is deleted from disk without being moved to the trash. This cannot be undone.${aviso}`,
     seguroEliminarVarios: (n: number, listado: string, resto: number, aviso: string) =>
-      `Are you sure you want to delete these ${n} items?\n${listado}${resto > 0 ? `\n…and ${resto} more` : ''}${aviso}`,
+      `Delete these ${n} items? They are deleted from disk without being moved to the trash. This cannot be undone.\n${listado}${resto > 0 ? `\n…and ${resto} more` : ''}${aviso}`,
     ymas: (n: number) => `and ${n} more`,
-    abrirJarEn: (gestor: string) => `Open the .jar in ${gestor}`,
+    abrirJarEn: (gestor: string) => `Open .jar in ${gestor}`,
     abrirEn: (gestor: string) => `Open in ${gestor}`,
     historialArchivo: 'File history',
-    desmontarBd: 'Unmount the database',
+    desmontarBd: 'Unmount database',
     montarBd: 'Mount as database',
     cortar: (n: number) => (n > 1 ? `Cut ${n} items` : 'Cut'),
     copiar: (n: number) => (n > 1 ? `Copy ${n} items` : 'Copy'),
@@ -113,15 +115,15 @@ export const txExplorador = crearTextos(
     copiarRutas: (n: number) => (n > 1 ? `Copy ${n} paths` : 'Copy path'),
     copiarRutasRelativas: (n: number) => (n > 1 ? `Copy ${n} relative paths` : 'Copy relative path'),
     renombrarPuntos: 'Rename…',
-    descartarCambios: 'Discard changes…',
+    descartarCambios: 'Discard changes (restore the Git version)',
     eliminarElementosPuntos: (n: number) => `Delete ${n} items…`,
     eliminarCarpetaPuntos: 'Delete folder…',
     eliminarArchivoPuntos: 'Delete file…',
     noSePudoEliminar: (lista: string) => `Could not delete: ${lista}.`,
     noSeMovio: (varios: boolean, nombres: string) =>
       `Nothing was moved: ${nombres} already ${varios ? 'exist' : 'exists'} in the destination folder.`,
-    noSePudoLeerUbicacion: 'Could not read the location of what you dropped.',
-    noSePudoPegar: (lista: string) => `Could not paste: ${lista}. The rest was pasted.`,
+    noSePudoLeerUbicacion: 'Could not read the location of the dropped items.',
+    noSePudoPegar: (lista: string) => `Could not paste: ${lista}. Everything else was pasted.`,
     noSePudoObtenerRuta: 'Could not get the path.'
   }
 )

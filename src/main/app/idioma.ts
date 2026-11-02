@@ -1,7 +1,7 @@
 // =============================================================================
 // El idioma del proceso main: se resuelve una vez al arrancar (la variable de las pruebas, el
-// ajuste guardado o el idioma del sistema) y se deja en el entorno para que lo hereden `tdb` y
-// `tssh`. La ventana lo recibe como argumento (`ventana.ts`).
+// ajuste guardado o el idioma del sistema) y se deja en el entorno para que lo hereden `tdb`,
+// `tssh` y `tctx`. La ventana lo recibe como argumento (`ventana.ts`).
 // Depende de `shared/i18n` y de los ajustes guardados.
 // Decisiones: docs/decisiones/app/idioma.md
 // =============================================================================

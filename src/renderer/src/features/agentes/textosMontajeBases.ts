@@ -1,8 +1,8 @@
 // =============================================================================
-// Textos de la cabecera del agente que dicen DÓNDE: el selector «Bases montadas»,
-// el rótulo del historial de conversaciones y el lugar que nombra su modal. Cada
-// agente se nombra por la vista donde vive: «el agente de datos», «el agente de la
-// terminal»; los textos de proyecto no cambian. Lógica pura con test bajo `node`.
+// Textos de la cabecera del agente: el selector de bases que el agente puede consultar,
+// el rótulo del historial de conversaciones y el lugar que nombra su modal. El historial
+// nombra cada agente por la vista donde vive («el agente de datos», «el agente de la
+// terminal»); el selector es el mismo en todos. Lógica pura con test bajo `node`.
 // Decisiones: docs/decisiones/agentes/textos-espacio-de-datos.md
 // =============================================================================
 
@@ -18,7 +18,7 @@ export type LugarAgente = 'proyecto' | 'datos' | 'terminal' | 'ventana'
 /** Los lugares de la ventana principal (la columna, el mosaico): todos menos la ventana de agente. */
 export type LugarEnLaPrincipal = Exclude<LugarAgente, 'ventana'>
 
-/** Lo que pinta el selector de montaje según dónde viva. */
+/** Lo que pinta el selector de montaje. */
 export interface TextosMontajeBases {
   /** Título del popover. */
   titulo: string
@@ -26,7 +26,7 @@ export interface TextosMontajeBases {
   rotuloBoton: string
 }
 
-/** Un complemento por sitio; el de proyecto es el texto de siempre. */
+/** Un complemento por sitio. */
 interface Lugares {
   proyecto: string
   datos: string
@@ -52,9 +52,9 @@ const tx = crearTextos(
     } as Lugares,
     /** Rótulo de la cabecera del modal en los agentes que no son de un proyecto. */
     cabecera: { datos: 'agente de datos', terminal: 'agente de la terminal', ventana: 'carpeta de usuario' },
-    tituloBases: (donde: string) => `Bases montadas ${donde}`,
-    rotuloMontadas: (n: number, donde: string) => `${n} base(s) montada(s) ${donde}`,
-    rotuloMontar: (donde: string) => `Montar bases de datos ${donde}`,
+    tituloBases: 'Bases que el agente puede consultar',
+    rotuloMontadas: (n: number) => `El agente puede consultar ${n} ${n === 1 ? 'base' : 'bases'}`,
+    rotuloMontar: 'Dar al agente acceso a bases de datos',
     historial: (de: string) => `Historial de conversaciones ${de}`,
     enCarpeta: (carpeta: string) => `en ${carpeta || 'este proyecto'}`
   },
@@ -72,21 +72,20 @@ const tx = crearTextos(
       ventana: 'of your user folder'
     },
     cabecera: { datos: 'data agent', terminal: 'terminal agent', ventana: 'user folder' },
-    tituloBases: (donde: string) => `Databases mounted ${donde}`,
-    rotuloMontadas: (n: number, donde: string) => `${n} database${n === 1 ? '' : 's'} mounted ${donde}`,
-    rotuloMontar: (donde: string) => `Mount databases ${donde}`,
+    tituloBases: 'Databases the agent can query',
+    rotuloMontadas: (n: number) => `The agent can query ${n} database${n === 1 ? '' : 's'}`,
+    rotuloMontar: 'Give the agent access to databases',
     historial: (de: string) => `Conversation history ${de}`,
     enCarpeta: (carpeta: string) => `in ${carpeta || 'this project'}`
   }
 )
 
-/** Textos del selector según dónde vive el pane y cuántas bases tiene montadas ahora. */
-export function textosMontajeBases(lugar: LugarAgente, montadas: number): TextosMontajeBases {
+/** Textos del selector según cuántas bases tiene el agente a su alcance ahora. */
+export function textosMontajeBases(montadas: number): TextosMontajeBases {
   const t = tx()
-  const donde = t.en[lugar]
   return {
-    titulo: t.tituloBases(donde),
-    rotuloBoton: montadas > 0 ? t.rotuloMontadas(montadas, donde) : t.rotuloMontar(donde)
+    titulo: t.tituloBases,
+    rotuloBoton: montadas > 0 ? t.rotuloMontadas(montadas) : t.rotuloMontar
   }
 }
 

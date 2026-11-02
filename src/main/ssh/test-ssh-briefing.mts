@@ -15,9 +15,10 @@ import path from 'node:path'
 import { esWindows, type Plataforma } from '../../shared/plataforma.ts'
 import type { SshConexion, SshListaConexiones } from '../../shared/ssh-ipc.ts'
 import { briefingBasesAgente, type ConexionAviso } from '../db/briefingAgente.ts'
-import { briefingCompuesto } from '../agents/briefingCompuesto.ts'
+import { AVISO_HISTORIAL, briefingCompuesto } from '../agents/briefingCompuesto.ts'
 import { buildHostAgentLaunchCommand } from '../agents/lineaArranqueAgente.ts'
-import { MAX_EN_AVISO, briefingSsh, textoParaAviso } from './briefingSsh.ts'
+import { textoParaAviso } from '../../shared/textoParaAviso.ts'
+import { MAX_EN_AVISO, briefingSsh } from './briefingSsh.ts'
 import { buscarDisponible, catalogoAgentes } from './catalogoAgentes.ts'
 
 function hr(title: string): void {
@@ -112,17 +113,17 @@ try {
   const avisoBd = briefingBasesAgente(bd, false) ?? ''
   const avisoSsh = briefingSsh(catalogoAgentes(lista([conexion({ alias: 'web' })]), 'pa')) ?? ''
   {
-    const compuesto = briefingCompuesto(avisoBd, avisoSsh) ?? ''
+    const compuesto = briefingCompuesto({ bd: avisoBd, ssh: avisoSsh, reglas: undefined }) ?? ''
     check('(c1) el de bases es un prefijo byte a byte', avisoBd.length > 0 && compuesto.slice(0, avisoBd.length) === avisoBd && Buffer.from(compuesto).subarray(0, Buffer.byteLength(avisoBd)).equals(Buffer.from(avisoBd)), `${avisoBd.length} caracteres`)
     check('(c2) y el SSH va detrás, separado', compuesto === `${avisoBd}\n\n${avisoSsh}`, 'detrás')
-    check('(c3) sin SSH, el de bases tal cual (mismo objeto de texto)', briefingCompuesto(avisoBd, null) === avisoBd, 'igual')
-    check('(c4) sin bases, solo el SSH; sin ninguno, null', briefingCompuesto(null, avisoSsh) === avisoSsh && briefingCompuesto(null, null) === null, 'null')
+    check('(c3) sin SSH, el de bases tal cual (mismo objeto de texto)', briefingCompuesto({ bd: avisoBd, ssh: null, reglas: undefined }) === avisoBd, 'igual')
+    check('(c4) sin bases, solo el SSH; sin ninguno, null', briefingCompuesto({ bd: null, ssh: avisoSsh, reglas: undefined }) === avisoSsh && briefingCompuesto({ bd: null, ssh: null, reglas: undefined }) === null, 'null')
   }
 
   // ---------------------------------------------------------------------------
   hr('D - La línea de arranque: Claude Code lo recibe por --append-system-prompt y Codex por -c developer_instructions')
   {
-    const compuesto = briefingCompuesto(avisoBd, avisoSsh)
+    const compuesto = briefingCompuesto({ bd: avisoBd, ssh: avisoSsh, reglas: undefined })
     for (const p of ['windows', 'mac'] as Plataforma[]) {
       const claude = buildHostAgentLaunchCommand('claude', 'claude-code', undefined, compuesto, p)
       const codex = buildHostAgentLaunchCommand('codex', 'codex', undefined, compuesto, p)
@@ -145,7 +146,7 @@ try {
       conexion({ alias: 'precio $HOME `ls` 100%', usuario: 'root' })
     ]
     const soloSsh = briefingSsh(catalogoAgentes(lista(trampa), 'pa')) ?? ''
-    const compuesto = briefingCompuesto(avisoBd, soloSsh)
+    const compuesto = briefingCompuesto({ bd: avisoBd, ssh: soloSsh, reglas: undefined })
     const esperado = (compuesto ?? '').replace(/\r?\n/g, ' ').trim()
     // El de bases lleva `"<SQL>"` y PowerShell 5.1 le quita esas comillas al pasarlo:
     // aquí se mira que el argumento no se parte y que el bloque SSH llega entero.
@@ -251,15 +252,16 @@ export async function resolve(spec, ctx, next) {
   const ctrl = crear(true)
   const claude = await ctrl.open({ profileId: 'pa', agente: 'claude-code', projectHostPath: 'C:\\proy\\a', mode: 'host' })
   await ctrl.open({ profileId: 'pa', agente: 'codex', projectHostPath: 'C:\\proy\\b', mode: 'host' })
-  const conLosDos = buildHostAgentLaunchCommand('claude', 'claude-code', undefined, `${avisoBd}\n\nAVISO-SSH`)
+  // La apertura añade siempre, detrás, el anuncio de `tctx buscar`.
+  const conLosDos = buildHostAgentLaunchCommand('claude', 'claude-code', undefined, `${avisoBd}\n\nAVISO-SSH\n\n${AVISO_HISTORIAL}`)
   check('(f1) apertura nativa de Claude Code: el de bases y DETRÁS el SSH', lanzadas[0] === conLosDos, (lanzadas[0] ?? '').slice(-60))
-  const codexConLosDos = buildHostAgentLaunchCommand('codex', 'codex', undefined, `${avisoBd}\n\nAVISO-SSH`)
+  const codexConLosDos = buildHostAgentLaunchCommand('codex', 'codex', undefined, `${avisoBd}\n\nAVISO-SSH\n\n${AVISO_HISTORIAL}`)
   check('(f2) apertura nativa de Codex: los dos avisos por -c', lanzadas[1] === codexConLosDos && codexConLosDos.startsWith('codex -c '), j(lanzadas[1]).slice(0, 80))
   await ctrl.reload(claude.sessionId, [])
   check('(f3) recarga nativa (con montajes): vuelve a componer los dos', recargadas[0] === conLosDos, (recargadas[0] ?? '').slice(-60))
   const sinSsh = crear(false)
   await sinSsh.open({ profileId: 'pa', agente: 'claude-code', projectHostPath: 'C:\\proy\\c', mode: 'host' })
-  check('(f4) sin aviso SSH, la línea es la de siempre (solo el de bases)', lanzadas[2] === buildHostAgentLaunchCommand('claude', 'claude-code', undefined, avisoBd), (lanzadas[2] ?? '').slice(-40))
+  check('(f4) sin aviso SSH, la línea es la de siempre (solo el de bases)', lanzadas[2] === buildHostAgentLaunchCommand('claude', 'claude-code', undefined, `${avisoBd}\n\n${AVISO_HISTORIAL}`),(lanzadas[2] ?? '').slice(-40))
 }
 
 const allPass = results.every(Boolean)

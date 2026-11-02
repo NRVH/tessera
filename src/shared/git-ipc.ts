@@ -68,7 +68,7 @@ export const GIT_CHANNELS = {
   STATUS_PARCIAL: 'git:statusParcial',
   /** invoke: contenido ACTUAL en disco de un archivo del working-tree (lado "after" del diff working-vs-HEAD). WorkingBlobRequest -> BlobResult. */
   WORKING_BLOB: 'git:workingBlob',
-  /** invoke: descarta los cambios locales del working-tree de un archivo (revierte trackeado a HEAD/índice; borra untracked, con confirmación nativa). DiscardChangesRequest -> DiscardChangesResult. */
+  /** invoke: descarta los cambios locales de un archivo (revierte el rastreado a HEAD o borra el no commiteado), siempre con confirmación nativa. DiscardChangesRequest -> DiscardChangesResult. */
   DISCARD_CHANGES: 'git:discardChanges',
   /** invoke: añade un archivo al índice (stage). StageFileRequest -> WriteResult. */
   STAGE_FILE: 'git:stageFile',

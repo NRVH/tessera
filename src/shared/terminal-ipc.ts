@@ -2,7 +2,7 @@
 // Contrato IPC de la terminal de la interfaz (main <-> preload <-> UI); node-pty y los servicios
 // viven siempre en el main. Sirve a las dos clases de sesión: la del shell del proyecto (OPEN) y la
 // de una conexión SSH del perfil (OPEN_SSH, en el pty del host); el resto de canales es común.
-// invoke (renderer -> main): OPEN, OPEN_SSH, RELOAD, CLOSE. send (renderer -> main):
+// invoke (renderer -> main): OPEN, OPEN_SSH, RELOAD, CLOSE, EN_MARCHA. send (renderer -> main):
 // WRITE, RESIZE, FLOW. send (main -> renderer): DATA, EXIT (con `reason` si una SSH salió con 255
 // o si murió el contenedor de un shell en modo Docker).
 // Hermanos: `agent-terminal-ipc.ts` (terminal del agente) y `ssh-ipc.ts` (registro de conexiones).
@@ -38,6 +38,11 @@ export const TERMINAL_CHANNELS = {
   RELOAD: 'terminal:reload',
   /** invoke: cierra la sesión (el contenedor sigue vivo). CloseTerminalRequest -> void. */
   CLOSE: 'terminal:close',
+  /**
+   * invoke: cuántas terminales de shell de un perfil están abiertas y cuántas ejecutan algo
+   * (hibernar las cierra). TerminalesEnMarchaRequest -> TerminalesEnMarcha.
+   */
+  EN_MARCHA: 'terminal:enMarcha',
   /** send (main -> renderer): salida (stdout/stderr) del shell. TerminalDataMessage. */
   DATA: 'terminal:data',
   /** send (main -> renderer): el shell terminó. TerminalExitMessage. */
@@ -105,6 +110,19 @@ export interface ReloadTerminalRequest {
 
 export interface CloseTerminalRequest {
   sessionId: string
+}
+
+export interface TerminalesEnMarchaRequest {
+  profileId: string
+}
+
+/**
+ * Las terminales de shell vivas de un perfil (las SSH no: hibernar no las cierra) y cuántas
+ * ejecutan algo más que el shell en reposo. `enMarcha` es null si no se pudo mirar.
+ */
+export interface TerminalesEnMarcha {
+  abiertas: number
+  enMarcha: number | null
 }
 
 /** Evento main -> renderer con salida del shell. */

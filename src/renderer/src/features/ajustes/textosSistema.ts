@@ -115,7 +115,7 @@ export const txIntegracion = crearTextos(
       errorRegistro: (error: string) => `Couldn’t change the Windows registry: ${error}`,
       grupoMenu: 'File Explorer context menu',
       grupoMenuAyuda:
-        'Adds “Open with Tessera” to the right-click menu. It applies instantly and can be removed just as fast: no reinstall or administrator permissions needed. On Windows 11 it appears under “Show more options”.',
+        'Adds “Open with Tessera” to the right-click menu. It applies immediately and you can remove it just as quickly, with no reinstall or administrator permissions. On Windows 11 it appears under “Show more options”.',
       carpetas: 'Folders and drives',
       carpetasAyuda:
         'When you right-click a folder, the background of an open folder or a drive. Opens that folder as a project.',
@@ -126,19 +126,19 @@ export const txIntegracion = crearTextos(
       archivosEtiqueta: 'Open with Tessera on any file',
       grupoAbrirCon: 'Open with Tessera',
       abrirConAyuda: [
-        'The checked extensions offer Tessera in the Windows “Open with” menu. ',
+        'Selected extensions offer Tessera in the Windows “Open with” menu. ',
         'They do not',
         ' make it the default application: Windows protects that choice and only you can make it, from its default apps settings.'
       ],
       sugeridas: 'Suggested extensions',
-      sugeridasAyuda: 'The ones you edit every day. Check the ones you want to open with Tessera.',
+      sugeridasAyuda: 'The ones you edit every day. Select the ones you want to open with Tessera.',
       sugeridasEtiqueta: 'Extensions associated with Tessera',
       otrasExtensiones: 'Other extensions',
-      otrasAyuda: 'Separated by spaces or commas. The dot is added for you.',
+      otrasAyuda: 'Separated by spaces or commas. Tessera adds the dot.',
       otrasEtiqueta: 'Other extensions associated with Tessera',
       otrasPlaceholder: 'e.g. .bat .ini (Enter to apply)',
       appPredeterminada: 'Default application',
-      appPredeterminadaAyuda: 'For a double-click to open Tessera directly, choose it in the Windows settings panel.',
+      appPredeterminadaAyuda: 'To open files in Tessera with a double-click, choose it in Windows settings.',
       abrirAjustesWindows: 'Open Windows settings'
     },
     finder: {
@@ -156,15 +156,15 @@ export const txIntegracion = crearTextos(
       ayuda: [
         '“Open with › Tessera” on a ',
         'file',
-        ' always works: the app bundle itself declares it, so there is nothing to turn on. What you enable here is the ',
+        ' always works: the app bundle itself declares it, so there is nothing to turn on. What you turn on here is the ',
         'quick action',
         ' for ',
         'folders',
-        ', which macOS doesn’t offer on its own.'
+        ', which macOS doesn’t provide by default.'
       ],
       accion: 'Quick action “Open in Tessera”',
       accionAyuda:
-        'Adds “Open in Tessera” to the right-click menu on a folder, under “Services” / “Quick Actions”. Opens that folder as a project. It applies instantly and is removed just as fast: it is installed in your home folder, with no administrator permissions.',
+        'Adds “Open in Tessera” to the right-click menu on a folder, under “Services” / “Quick Actions”. Opens that folder as a project. It applies immediately and you can remove it just as quickly: it installs in your home folder, with no administrator permissions.',
       accionEtiqueta: 'Quick action “Open in Tessera” in the Finder'
     },
     linux: {
@@ -182,7 +182,7 @@ export const txIntegracion = crearTextos(
         `Adds “Open with Tessera” to the right-click menu on a folder in ${gestor} and puts Tessera in the application launcher. It doesn’t make it the default application for opening folders.`,
       fila: '“Open with Tessera” on folders',
       filaAyuda:
-        'Opens that folder as a project. It applies instantly and is removed just as fast: it is installed in your home folder, with no administrator permissions.',
+        'Opens that folder as a project. It applies immediately and you can remove it just as quickly: it installs in your home folder, with no administrator permissions.',
       filaEtiqueta: (gestor: string) => `“Open with Tessera” in ${gestor}`
     },
     aviso: {
@@ -202,7 +202,7 @@ export const txCategorias = crearTextos(
       lema: 'El IDE de escritorio para trabajar en varios proyectos y con varias cuentas de IA.',
       puntos: (tuEquipo: string): readonly string[] => [
         'Cada espacio de trabajo tiene su propio sandbox y sus propias cuentas de IA: varias licencias conviven sin chocar ni mezclar conversaciones.',
-        `Claude Code y Codex sólo ven los proyectos de su espacio, no ${tuEquipo}; sólo el proyecto que tú elijas corre en nativo, con tu cuenta.`,
+        `Claude Code y Codex solo ven los proyectos de su espacio, no ${tuEquipo}; solo el proyecto que tú elijas corre en nativo, con tu cuenta.`,
         'Editor, explorador, Git, terminales y bases de datos junto a los agentes, cambiando de proyecto con una pestaña.',
         'El mosaico enseña a la vez todos los agentes que trabajan, y un botón los pone al día sin cortar a ninguno.'
       ],
@@ -252,7 +252,7 @@ export const txCategorias = crearTextos(
         'Each workspace has its own sandbox and its own AI accounts: several licenses coexist without clashing or mixing conversations.',
         `Claude Code and Codex only see the projects in their workspace, not ${tuEquipo}; only the project you choose runs natively, with your account.`,
         'Editor, explorer, Git, terminals and databases alongside the agents, switching projects with a tab.',
-        'The mosaic shows every working agent at once, and one button brings them all up to date without interrupting any.'
+        'The mosaic shows every working agent at once, and one button updates them all without interrupting any.'
       ],
       licencia: (licencia: string) => `Open source · ${licencia} license`,
       codigoFuente: 'Source code',
@@ -266,7 +266,7 @@ export const txCategorias = crearTextos(
       grupoPreferencias: 'Preferences',
       alCerrar: 'Apply when Tessera closes',
       alCerrarAyuda:
-        'When an update is ready, it is installed when the app closes instead of waiting for you to click the button. Closing Tessera does not reopen it.',
+        'When an update is ready, it is installed when the app closes instead of waiting for you to click the button. Tessera does not reopen afterward.',
       alCerrarEtiqueta: 'Apply the update when Tessera closes'
     },
     experimental: {
@@ -283,9 +283,9 @@ export const txCategorias = crearTextos(
     copia: {
       grupo: 'Tessera settings',
       grupoAyuda:
-        'Profiles, SSH and database connections (with their passwords and keys), hand-defined agents and settings, in a file encrypted with a passphrase. When importing, what is missing is added and what is already there is left alone.',
+        'Profiles, SSH and database connections (with their passwords and keys), custom agents and settings, in a file encrypted with a passphrase. When you import, Tessera adds what is missing and keeps what is already there.',
       exportar: 'Export',
-      exportarAyuda: 'Choose which profiles and what to take along.',
+      exportarAyuda: 'Choose which profiles and what data to include.',
       exportarBoton: 'Export…',
       importar: 'Import',
       importarAyuda: 'From a file exported on this or another computer, from any system.',
@@ -346,7 +346,7 @@ export const txBloquesUpdate = crearTextos(
       verDetalleTitulo: 'Opens the panel with the details of the last update.',
       verDetalle: 'View details',
       actualizarTitulo:
-        'Opens the title bar button’s panel: there you can see which sessions will restart and confirm.',
+        'Opens the title bar button’s panel, where you can see which sessions will restart and confirm.',
       actualizar: 'Update…',
       buscar: 'Check for updates'
     }
@@ -376,10 +376,10 @@ export const txLineasUpdate = crearTextos(
     aviso: {
       noSePudo: (v: string) => `Version ${v} could not be applied. `,
       sigues: (v: string) => `You are still on ${v}.`,
-      agotado: ' Tessera stopped trying.',
+      agotado: ' Tessera stopped retrying.',
       actualizada: (desde: string, hasta: string) => `Updated from ${desde} to ${hasta}.`
     },
-    preparadaAlCerrar: (v: string) => `Version ${v} is ready; it will be applied when Tessera closes.`,
+    preparadaAlCerrar: (v: string) => `Version ${v} is ready; it is applied when Tessera closes.`,
     preparadaEsperando: (v: string) => `Version ${v} is ready and waiting for you to install it.`,
     descargando: (v: string, pct: number) => `Downloading ${v}… ${pct}%`,
     disponible: (v: string) =>
@@ -415,9 +415,9 @@ export const txLineasAgentes = crearTextos(
     cli: {
       noResponde: (error: string) => `Not responding: ${error}`,
       noInstalado: (tuEquipo: string) => `Not installed on ${tuEquipo}.`,
-      repararReinstalando: (base: string, ultima: string) => `${base} It can be repaired by reinstalling ${ultima}.`,
+      repararReinstalando: (base: string, ultima: string) => `${base} You can repair it by reinstalling ${ultima}.`,
       repararCuando: (base: string, ultima: string, tuEquipo: string) =>
-        `${base} It can be repaired once ${ultima} is ready for ${tuEquipo}.`,
+        `${base} You can repair it once ${ultima} is ready for ${tuEquipo}.`,
       aunNoLista: (instalada: string, ultima: string, tuEquipo: string) =>
         `${instalada} · ${ultima} isn’t ready for ${tuEquipo} yet.`,
       disponible: (instalada: string, ultima: string) => `${instalada} → ${ultima} available.`,

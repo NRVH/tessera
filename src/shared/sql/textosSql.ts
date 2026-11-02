@@ -96,27 +96,27 @@ export const txSql = crearTextos(
       y: ' and ',
       soloSePermite: (forma: string, lista: string, use: string) => `only ${forma}${lista}${use} is allowed.`,
       use: ' (and USE to change database)',
-      pragma: 'only the PRAGMAs that read are allowed (table_info, index_list, user_version…).',
+      pragma: 'only read-only PRAGMAs are allowed (table_info, index_list, user_version…).',
       estaSentencia: 'this statement',
       dml: (v: string) => `${v} modifies data.`,
       ddl: (v: string) => `${v} changes the structure of the database.`,
-      plsql: 'a PL/SQL block can write and cannot be checked before running it.',
+      plsql: 'a PL/SQL block can write data, and this cannot be checked before it runs.',
       rutina: (v: string) => `${v} runs code that may write.`,
       bloqueo: (v: string) => `${v} locks rows to modify them.`,
       tx: 'transactions are managed by Tessera.',
-      otra: (v: string) => `it cannot be checked that ${v} only reads.`
+      otra: (v: string) => `there is no way to verify that ${v} only reads.`
     },
     formato: {
-      inicio: 'Tessera fixes this format',
+      inicio: 'Tessera sets this format',
       restablece: (verbo: string, inicio: string) =>
         `${inicio} (${verbo} also resets it); use RESET with the parameter you need.`,
       conRemedios: (inicio: string, lista: string, remedios: string) => `${inicio} (${lista}); ${remedios}.`,
       porDefecto: 'use TO_CHAR to see it in another format',
       remedios: {
-        bytea_output: "use encode(…, 'escape') to see it another way",
+        bytea_output: "use encode(…, 'escape') to see it in another format",
         standard_conforming_strings: "use E'…' if you need backslash escapes",
         dateformat: 'use CONVERT or FORMAT to see it in another format',
-        language: 'use FORMAT with its culture to see it in another language',
+        language: 'use FORMAT with a culture argument to see it in another language',
         textsize: 'use SUBSTRING to read a long value in parts',
         implicit_transactions: 'use the console’s Manual mode to open the transaction',
         quoted_identifier: 'use brackets for names and single quotes for strings',
@@ -128,7 +128,7 @@ export const txSql = crearTextos(
       puntoYComaServidor: 'Is a “;” missing at the end of the previous line? Without it, the server runs both statements together.',
       puntoYComaJuntas: 'Is a “;” missing at the end of the previous line? Without it, both statements are sent together.',
       loteRepetido:
-        'Tessera does not repeat batches: “GO n” is not supported and, as is, the server would read it as part of the statement and raise an error. Leave GO on its own (or repeat the batch by hand).',
+        'Tessera does not repeat batches: “GO n” is not supported, and the server would read it as part of the statement and return an error. Use GO on its own (or repeat the batch manually).',
       faltaBarra: 'Is a “/” missing after the PL/SQL block? Without it, what follows is sent inside the block.',
       comentarioSinCerrar: 'Unclosed comment.',
       identificadorSinCerrar: 'Unclosed quoted identifier.',
@@ -140,7 +140,7 @@ export const txSql = crearTextos(
     sintaxis: {
       fuente: (motor: string) => `${motor} grammar, not executed`,
       cerca: (cerca: string) => `Syntax error near “${cerca}”.`,
-      incompleta: 'The statement is incomplete: it ends before what the grammar requires.',
+      incompleta: 'The statement is incomplete: it ends before the grammar expects.',
       hondo: (cerca: string) => `Nesting too deep near “${cerca}”.`,
       otro: (crudo: string) => `Syntax error: ${crudo}`
     },
@@ -155,17 +155,17 @@ export const txSql = crearTextos(
     dml: {
       ningunRowid: 'No engine identifies rows by ROWID.',
       soloRowid: (donde: string) => `ROWID only exists in ${donde}.`,
-      claveNula: (columna: string) => `The row key has “${columna}” empty (NULL): the row cannot be found.`,
-      noTexto: (columna: string) => `The value read from “${columna}” is not text: it cannot be checked whether the row changed.`,
+      claveNula: (columna: string) => `The row key column “${columna}” is empty (NULL), so the row cannot be found.`,
+      noTexto: (columna: string) => `The value read from “${columna}” is not text, so there is no way to check whether the row changed.`,
       sinValores: 'The new row has no values.',
       noEditable: 'This table cannot be edited.',
       claveRowid: 'The row key does not match its ROWID.',
-      sinClave: 'The table has no key to find the row with.',
+      sinClave: 'The table has no key to identify the row.',
       claveDistinta: 'The row key does not match the table key: open it again.',
-      sinCambios: 'No cell has been changed in the row.'
+      sinCambios: 'No cells in the row have changed.'
     },
     script: {
-      sqlcmdVariable: '-- A name contains “$(”, which sqlcmd would take for a variable: run it with sqlcmd -x.\n',
+      sqlcmdVariable: '-- A name contains “$(”, which sqlcmd would treat as a variable: run it with sqlcmd -x.\n',
       rawGrande: (bytes: number, tope: number) =>
         `-- ${bytes} bytes do not fit in a PL/SQL RAW variable (limit ${tope}): ` +
         'this row will fail with ORA-06502, and there is no way to insert it with SQL.'

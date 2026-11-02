@@ -22,6 +22,14 @@ ve.
   con el número de coincidencias. Borrar el texto vuelve a la categoría elegida.
 - El motor de búsqueda trabaja sobre una lista plana de grupos con título «Categoría Grupo» (solo
   pajar, nunca se pinta) y sinónimos declarados en el catálogo. Su test valida el catálogo real.
+- El riel agrupa las categorías (General, Espacio de trabajo, Datos, Tessera, Ayuda) con un
+  título pequeño por grupo; el orden y los grupos los fija `RIEL`, y su test exige que toda
+  categoría esté en uno. El riel es lo bastante ancho para el nombre más largo a la letra de
+  serie; con el modal estrecho colapsa a iconos (el nombre sigue en el `title`) y cada grupo queda
+  como un filete. Sin divisor para cambiar su ancho: el ancho se adapta solo y un ajuste más que
+  gestionar no aporta en un diálogo.
+- La categoría «Tessera Academy» no está en el catálogo: la añade `conAcademy` al montar el modal,
+  con los artículos como filas (`tessera-academy.md`).
 - La puerta por plataforma o capacidad va en el CATÁLOGO (`categoriasVisibles`), nunca en el panel:
   el buscador cuenta sobre el catálogo y anunciaría coincidencias que el panel no enseña.
 - La herencia se lee en el propio control: un tamaño que hereda enseña el efectivo con «Igual que la

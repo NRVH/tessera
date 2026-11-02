@@ -13,8 +13,8 @@ menús de Tessera (el contextual, los popovers) son propios. En macOS era ademá
 - `appearance: base-select` en el control y en `::picker(select)`, para los `select` de un modal (`.modal-overlay select`) y no
   para los de una barra. La lista es un popover de la capa superior: ni la recorta el cuerpo con scroll del modal ni la mueve
   su animación, y el motor la coloca, la voltea si abajo no cabe y la cierra al pulsar fuera.
-- La lista copia lo del menú contextual (fondo `--bg-elevated`, filete, radio de 6 px, sombra, resaltado `color-mix` del acento,
-  lo elegido marcado en acento) y se limita a 320 px o al 45 % de la ventana.
+- La lista copia lo del menú contextual (fondo `--bg-modal`, filete suave, radio de 10 px, sombra, resaltado con el
+  color del perfil al 28 %, lo elegido marcado en ese color) y se limita a 320 px o al 45 % de la ventana.
 - El control CERRADO conserva el aspecto que le da la hoja de cada select: el modo base centra mal, deja envolver el texto y
   dibuja otra flecha, así que se compensa (texto centrado y sangrado 4 px como el nativo, una línea recortada en el borde con
   `contain: paint`, flecha propia con `::picker-icon` a 14 px del filete, más adentro que el nativo para que no se vea pegada al borde). La regla pesa (0,2,1) a propósito: gana a la de

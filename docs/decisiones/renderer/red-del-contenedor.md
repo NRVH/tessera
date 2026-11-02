@@ -19,9 +19,10 @@ se pierde (`--hostname`, y dos perfiles en este modo comparten el espacio de pue
   cadenas específicas de sistema obligarían a exentar `test:nombres-sistema`.
 - «Aplicar» NUNCA se deshabilita, ni con el prevuelo en rojo: la sonda puede dar un falso negativo
   y quitar una función que hoy funciona es peor que un aviso de más.
-- Se confirma ANTES de persistir. Con un agente trabajando se pasa por la misma confirmación que
-  «Hibernar perfil» y el modo se guarda al confirmar; guardar y luego preguntar dejaba, al cancelar,
-  el perfil marcado con una red que su contenedor no tiene.
+- Se confirma ANTES de persistir, con la regla de «Hibernar el perfil» (`pestanas/confirmaciones.ts`),
+  porque aplicar lo hiberna: un agente trabajando o una terminal que ejecuta algo. Pregunta su propio
+  diálogo («Cambiar la red de…»), que nombra los dos motivos, y el modo se guarda al confirmar;
+  guardar y luego preguntar dejaba, al cancelar, una red que su contenedor no tiene.
 - La respuesta del prevuelo se descarta solo si el diálogo ya se cerró (ref de montaje), no con una
   limpieza por ejecución: ésta dejaba `midiendo` en true para siempre si se alternaba la elección
   mientras medía, y el candado impedía reintentar. Tampoco va `midiendo` en las dependencias.

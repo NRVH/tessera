@@ -250,9 +250,48 @@ function main(): void {
     )
     check(
       '(2d) el fracaso POSTERIOR a tocar el destino no borra el stage',
-      /fracaso_sucio\(\) \{ anotar "fallo: \$1"; exit 1; \}/.test(guion) &&
-        /fracaso_limpio\(\) \{ anotar "fallo: \$1"; rm -rf "\$stage"; exit 1; \}/.test(guion),
+      /fracaso_sucio\(\) \{ anotar "fallo: \$1"; avisar "\$2"; exit 1; \}/.test(guion) &&
+        /fracaso_limpio\(\) \{ anotar "fallo: \$1"; avisar "\$aviso_fallo"; rm -rf "\$stage"; exit 1; \}/.test(guion),
       'fracaso_sucio sin rm; fracaso_limpio con rm'
+    )
+  }
+  {
+    // Con la app cerrada, la notificación es lo único que el usuario ve: al empezar (ya sin
+    // la app), al acabar bien y en cada fallo, con el texto que dice si la anterior volvió.
+    const avisos = {
+      titulo: 'Tessera',
+      inicio: "Actualizando a la 1.0.0… no abras la app (it's $HOME)",
+      ok: 'Tessera 1.0.0 está instalada.',
+      fallo: 'No se pudo; sigue la anterior.',
+      sinVuelta: 'Ni se pudo ni volvió.'
+    }
+    const conAvisos = guionRelevoMac({ ...OPC, avisos })
+    const iEspera = conAvisos.indexOf('sleep 0.5\ndone')
+    const iInicio = conAvisos.indexOf('avisar "$aviso_inicio"')
+    const iDesempaquetar = conAvisos.indexOf('ditto -x -k')
+    check(
+      '(2n) la notificación de inicio sale cuando la app ya se cerró y antes de desempaquetar',
+      iEspera > 0 && iInicio > iEspera && iDesempaquetar > iInicio,
+      `espera@${iEspera} inicio@${iInicio} ditto@${iDesempaquetar}`
+    )
+    check(
+      '(2o) la de éxito va tras anotar el ok; la de «no volvió» solo en el fallo sin devolución',
+      conAvisos.indexOf('avisar "$aviso_ok"') > conAvisos.indexOf('anotar ok') &&
+        /NI devolver la anterior[^\n]*" "\$aviso_sin_vuelta"/.test(conAvisos) &&
+        /se ha devuelto la anterior" "\$aviso_fallo"/.test(conAvisos),
+      'ok tras anotar; sin_vuelta y fallo en su sitio'
+    )
+    check(
+      '(2p) los textos van citados con citarSh y por argumentos del AppleScript, no en su código',
+      conAvisos.includes(`aviso_inicio=${citarSh(avisos.inicio)}`) &&
+        conAvisos.includes(`"$1" "$aviso_titulo"`) &&
+        !conAvisos.includes("(it's $HOME)'"),
+      citarSh(avisos.inicio)
+    )
+    check(
+      '(2q) sin avisos, `avisar` no hace nada (las pruebas no disparan notificaciones)',
+      guion.includes(`aviso_inicio=${citarSh('')}`) && guion.includes('[ -n "$1" ] || return 0'),
+      'textos vacíos'
     )
   }
   check(

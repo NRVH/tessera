@@ -15,7 +15,7 @@ export type PreferenciaIdioma = 'sistema' | Idioma
 export const IDIOMAS: readonly Idioma[] = ['es', 'en']
 /** Argumento con el que la ventana recibe el idioma resuelto (el renderer no tiene `process`). */
 export const ARGUMENTO_IDIOMA = '--tessera-idioma='
-/** Variable de entorno con el idioma resuelto: la pone el main y la heredan `tdb` y `tssh`. */
+/** Variable de entorno con el idioma resuelto: la pone el main y la heredan `tdb`, `tssh` y `tctx`. */
 export const VARIABLE_IDIOMA = 'TESSERA_IDIOMA'
 /**
  * Variable que FIJA el idioma de la app por encima del ajuste y del sistema, para las pruebas. Es

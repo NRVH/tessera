@@ -47,7 +47,7 @@ export const txLote = crearTextos(
       `${contexto}\n«${alias}» es una conexión de producción: «Confirmar (Commit)» hace definitivos los cambios.`,
     noSeConfirmo: (motivo: string) => `No se confirmó: ${motivo}`,
     // Progreso y pistas
-    pistaVariasPlan: 'Explicar el plan es de UNA sentencia: deja el cursor en una o selecciona solo una',
+    pistaVariasPlan: 'Explicar el plan es de una sola sentencia: deja el cursor en una o selecciona solo una',
     pistaYaFormateado:
       'Nada que cambiar: ya estaba formateado, o es algo que el formateador deja como está (PL/SQL, comandos…)',
     deteniendo: 'Deteniendo…',
@@ -76,7 +76,7 @@ export const txLote = crearTextos(
     laSentencia: 'The statement',
     sinWhere: (verbo: string) => `${verbo} without WHERE: affects every row in the table`,
     truncate: (verbo: string) => `${verbo}: empties the whole table`,
-    dropObjeto: (verbo: string) => `${verbo}: deletes the object`,
+    dropObjeto: (verbo: string) => `${verbo}: drops the object`,
     tituloPeligro: (verbo: string) => `Run ${verbo} without WHERE?`,
     tituloPeligros: 'Run statements without WHERE?',
     mensajePeligros: (alias: string, cuerpo: string) => `On ${alias}:\n\n${cuerpo}`,
@@ -91,41 +91,41 @@ export const txLote = crearTextos(
       `${n} of the ${total} statements write: ${verbos}.`,
     esProduccion: (alias: string) => `“${alias}” is a production connection.`,
     ddlConfirma: (motor: string, cuantas: string) =>
-      `In ${motor}, a DDL statement commits what is pending: this console’s uncommitted changes${cuantas} ` +
-      'will be committed and can no longer be rolled back.',
+      `In ${motor}, a DDL statement commits any pending changes: this console’s uncommitted changes${cuantas} ` +
+      'will be committed and cannot be rolled back.',
     bloqueUno: 'This block contains a COMMIT',
     bloqueDeLote: 'A block in the batch contains a COMMIT',
     bloquesDeLote: (n: number) => `${n} blocks in the batch contain a COMMIT`,
     efectoSinPendientes:
-      'everything written up to that point is committed without going through the COMMIT confirmation, and can no longer be rolled back.',
+      'everything written up to that point is committed without the COMMIT confirmation and cannot be rolled back.',
     efectoConPendientes: (cuantas: string) =>
-      `it also commits this console’s uncommitted changes${cuantas} without going through the COMMIT confirmation, and they can no longer be rolled back.`,
+      `it also commits this console’s uncommitted changes${cuantas} without the COMMIT confirmation, and they cannot be rolled back.`,
     sujetoEfecto: (sujeto: string, efecto: string) => `${sujeto}: ${efecto}`,
     tituloEjecutarProd: (alias: string) => `Production: run on ${alias}?`,
     tituloConfirmarProd: (alias: string) => `Production: commit on ${alias}?`,
     commitProd: (alias: string, cuantas: string) =>
       `“${alias}” is a production connection.\n\n` +
-      `COMMIT makes this console’s pending changes final${cuantas}.`,
+      `COMMIT makes this console’s pending changes permanent${cuantas}.`,
     contextoProd: (contexto: string, alias: string) =>
-      `${contexto}\n“${alias}” is a production connection: “Commit” makes the changes final.`,
+      `${contexto}\n“${alias}” is a production connection: “Commit” makes the changes permanent.`,
     noSeConfirmo: (motivo: string) => `Not committed: ${motivo}`,
-    pistaVariasPlan: 'Explaining a plan works on ONE statement: leave the cursor in one or select only one',
+    pistaVariasPlan: 'Explain plan works on a single statement: place the cursor in one statement or select only one',
     pistaYaFormateado:
-      'Nothing to change: it was already formatted, or it is something the formatter leaves as is (PL/SQL, commands…)',
+      'Nothing to change: the text is already formatted, or the formatter leaves it as is (PL/SQL, commands…)',
     deteniendo: 'Stopping…',
     obteniendoPlan: 'Getting the plan',
     ejecutandoDe: (n: number, total: number) => `Running ${n} of ${total}`,
     ejecutando: 'Running',
-    txFallida: 'The console’s transaction failed: it can only be rolled back.',
+    txFallida: 'The console’s transaction failed and can only be rolled back.',
     txSinConfirmarN: (cant: string) => `The console has an uncommitted transaction (${cant}).`,
     txSinConfirmar: 'The console has an uncommitted transaction.',
     otraConsola: 'a console from another profile',
     sesionDatos: 'the data session',
     cabezaConexion: (alias: string) =>
-      `The connection to ${alias} (all its sessions) will be closed and the server will roll back anything uncommitted.`,
+      `The connection to ${alias} (all its sessions) will be closed, and the server will roll back any uncommitted changes.`,
     vacioConexion: 'There are no uncommitted transactions on this connection.',
     cabezaConsola: (alias: string) =>
-      `This console’s session with ${alias} will be closed and anything uncommitted in it will be rolled back. The connection’s other consoles and tabs are left as they are.`,
+      `This console’s session with ${alias} will be closed, and its uncommitted changes will be rolled back. Other consoles and tabs on this connection are not affected.`,
     vacioConsola: 'This console has no uncommitted transactions.',
     sePerderan: 'These will be lost:',
     lineaSinConfirmarN: (nombre: string, cant: string) => `· ${nombre}: ${cant} uncommitted`,

@@ -1,0 +1,59 @@
+/* =============================================================================
+   Diálogo de las reglas de un perfil para sus agentes (un texto grande en monoespaciada y su
+   contador, que se pone en rojo al pasar el tope) y el de la revisión de una propuesta (motivo y
+   diff). El formulario común sale de `comun/formularioModal.css`, que se importa antes.
+   Decisiones: docs/decisiones/agentes/reglas-del-perfil.md
+   ============================================================================= */
+
+.modal-card.reglas-modal {
+  width: min(640px, 100%);
+}
+.dbc-campo textarea.reglas-texto {
+  font-family: 'Cascadia Mono', Menlo, Consolas, ui-monospace, monospace;
+  font-size: 12.5px;
+  min-height: 260px;
+  max-height: 60vh;
+}
+.reglas-contador {
+  align-self: flex-end;
+  font-size: 11.5px;
+  color: var(--fg-faint);
+  font-variant-numeric: tabular-nums;
+}
+.reglas-contador.excedido {
+  color: var(--red);
+}
+
+/* El aviso de una propuesta pendiente dentro del diálogo de reglas. */
+.reglas-aviso-propuesta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+  color: var(--fg-muted);
+}
+.reglas-aviso-propuesta span {
+  flex: 1;
+}
+
+/* La revisión de una propuesta: el motivo y el diff, que ocupa el ancho que haya. */
+.modal-card.propuesta-reglas-modal {
+  width: min(960px, 100%);
+}
+.propuesta-reglas-motivo p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.propuesta-reglas-motivo p.vacio,
+.propuesta-reglas-motivo p.desde {
+  color: var(--fg-faint);
+}
+.propuesta-reglas-diff {
+  height: min(52vh, 460px);
+  min-height: 180px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}

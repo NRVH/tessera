@@ -52,7 +52,7 @@ export const txSandbox = crearTextos(
       noSeConstruyo: (imagen: string, dir: string) => `No se pudo construir la imagen "${imagen}" desde "${dir}".`,
       extrasFallidos:
         'No se pudieron instalar los paquetes extra (¿algún nombre no existe en Debian?). ' +
-        'Se construye el sandbox SIN ellos; revísalos en Configuración → Proyectos → Sandbox de Docker.',
+        'Se construye el sandbox sin ellos; revísalos en Configuración → Proyectos → Sandbox de Docker.',
       listaSinExtras: 'Imagen del sandbox lista (sin los paquetes extra).',
       fallaReconstruccion: (imagen: string, codigo: number | null) =>
         `Falló la reconstrucción de la imagen "${imagen}" (docker build salió con ${codigo}).`
@@ -86,7 +86,7 @@ export const txSandbox = crearTextos(
       motorRemedio: 'Abre Docker Desktop y espera a que el motor esté en marcha.',
       linuxTitulo: 'Docker ejecuta contenedores Linux',
       linuxRemedio:
-        'Docker está en modo de contenedores Windows, y la red del anfitrión sólo existe para contenedores Linux. Cámbialo desde el icono de Docker en la bandeja del sistema.',
+        'Docker está en modo de contenedores Windows, y la red del anfitrión solo existe para contenedores Linux. Cámbialo desde el icono de Docker en la bandeja del sistema.',
       motorOk: 'Docker responde y ejecuta contenedores Linux',
       versionTitulo: (mayor: number, menor: number) => `Docker Desktop ${mayor}.${menor} o posterior`,
       versionDesconocida:
@@ -113,20 +113,20 @@ export const txSandbox = crearTextos(
       egressEspejo:
         'WSL está en modo espejo, así que los contenedores de todos los perfiles salen por la VPN que tengas activa. No depende de esta opción.',
       egressNat:
-        'WSL está en modo NAT: los contenedores NO siguen a la VPN que tengas activa. Eso es independiente de esta opción y se arregla en %USERPROFILE%\\.wslconfig con networkingMode=mirrored (y luego «wsl --shutdown»).'
+        'WSL está en modo NAT: los contenedores no siguen a la VPN que tengas activa. Eso es independiente de esta opción y se arregla en %USERPROFILE%\\.wslconfig con networkingMode=mirrored (y luego «wsl --shutdown»).'
     }
   },
   {
     actualizar: {
-      reconstruyendo: 'Rebuilding the agent image (docker build --no-cache)… this may take a few minutes.',
-      horneado: (codex: string, claude: string) => `✓ Baked into the image: ${codex} · ${claude}`,
-      recreando: 'Recreating containers (active agents restart by themselves)…',
-      listo: '✓ Done. Agents will reopen on the new version.',
+      reconstruyendo: 'Rebuilding the agent image (docker build --no-cache)… this might take a few minutes.',
+      horneado: (codex: string, claude: string) => `✓ Included in the image: ${codex} · ${claude}`,
+      recreando: 'Recreating containers (active agents restart automatically)…',
+      listo: '✓ Done. Agents will reopen with the new version.',
       error: (e: string) => `✕ Error: ${e}`
     },
     contenedorAjeno: (nombre: string) =>
-      `A container named “${nombre}” already exists that Tessera did not create, and Tessera does not remove ` +
-      'containers that are not its own. Rename it (docker rename) so you can use ' +
+      `A container named “${nombre}” already exists, but Tessera did not create it, and Tessera does not remove ` +
+      'containers it did not create. Rename it (docker rename) to use ' +
       "this profile's isolation.",
     progreso: {
       deteniendo: 'Stopping containers…',
@@ -142,7 +142,7 @@ export const txSandbox = crearTextos(
       noSeElimino: (nombre: string, err: string) => `Could not remove container "${nombre}": ${err}`
     },
     montajes: {
-      nsenterSalio: (status: number | null) => `nsenter exited with ${status}`,
+      nsenterSalio: (status: number | null) => `nsenter exited with code ${status}`,
       noSePrepararon: (descripcion: string, raiz: string, motivo: string) =>
         `Could not prepare ${descripcion} (${raiz}): ${motivo}`,
       noSeMontoProyecto: (proyecto: string, perfil: string, motivo: string) =>
@@ -161,14 +161,14 @@ export const txSandbox = crearTextos(
       lista: 'Docker sandbox image ready.',
       noSeConstruyo: (imagen: string, dir: string) => `Could not build image "${imagen}" from "${dir}".`,
       extrasFallidos:
-        'The extra packages could not be installed (does a name not exist in Debian?). ' +
+        'The extra packages could not be installed (is one of the names missing from Debian?). ' +
         'The sandbox is being built WITHOUT them; check them in Settings → Projects → Docker sandbox.',
       listaSinExtras: 'Docker sandbox image ready (without the extra packages).',
       fallaReconstruccion: (imagen: string, codigo: number | null) =>
-        `Rebuilding image "${imagen}" failed (docker build exited with ${codigo}).`
+        `Rebuilding image "${imagen}" failed (docker build exited with code ${codigo}).`
     },
     capa: {
-      sinCapa: "Could not prepare this profile's manual-agents layer: the base image is used, without them.",
+      sinCapa: "Could not prepare this profile's manual-agents layer: Tessera uses the base image without them.",
       instalando: "Installing the manual agents into this profile's image…",
       fallo: 'The installation failed (see the log above).',
       noSeComprobo: (detalle: string) => `It was installed, but the image could not be checked: ${detalle}`
@@ -178,52 +178,52 @@ export const txSandbox = crearTextos(
       queVerificar: 'What to check:',
       salidaIlegible: (nombre: string) =>
         `docker inspect ${nombre} returned output that could not be interpreted; ` +
-        "nothing in the profile is touched until it can be queried.",
-      dockerSalio: (status: number | null) => `docker exited with ${status}`,
+        "Tessera does not change anything in the profile until it can query the container.",
+      dockerSalio: (status: number | null) => `docker exited with code ${status}`,
       noSeConsulto: (nombre: string, motivo: string) =>
         `Could not query the state of container "${nombre}" (${motivo}). ` +
-        'Nothing is recreated or unmounted: it might still be alive.'
+        'Nothing is recreated or unmounted: it might still be running.'
     },
     red: {
       sondaTitulo: (tuEquipo: string) => `The host network is not reaching ${tuEquipo}`,
       sondaDetalle: (perfil: string, tuEquipo: string) =>
-        `The container for “${perfil}” was created asking for the host network, but a real test did not reach ` +
-        `${tuEquipo}. This is usually because “Enable host networking” is off in Docker Desktop (Settings › Resources › ` +
+        `The container for “${perfil}” was created with the host network, but a real test did not reach ` +
+        `${tuEquipo}. This usually happens because “Enable host networking” is off in Docker Desktop (Settings › Resources › ` +
         'Network). Open “Container network…” in the profile menu to see the full diagnosis.'
     },
     prevuelo: {
       motorTitulo: 'Docker is responding',
-      motorRemedio: 'Open Docker Desktop and wait for the engine to be running.',
+      motorRemedio: 'Open Docker Desktop and wait for the engine to start.',
       linuxTitulo: 'Docker runs Linux containers',
       linuxRemedio:
-        'Docker is in Windows containers mode, and the host network only exists for Linux containers. Switch it from the Docker icon in the system tray.',
+        'Docker is in Windows containers mode, and the host network exists only for Linux containers. Switch modes from the Docker icon in the system tray.',
       motorOk: 'Docker is responding and runs Linux containers',
       versionTitulo: (mayor: number, menor: number) => `Docker Desktop ${mayor}.${menor} or later`,
       versionDesconocida:
-        'Docker Desktop was not recognized (it may be Docker Engine or another distribution). What decides is the traffic check, below.',
+        'Docker Desktop was not recognized (it might be Docker Engine or another distribution). The traffic check below is what decides.',
       versionVieja: (tmayor: number, tmenor: number, mayor: number, menor: number) =>
-        `You have ${tmayor}.${tmenor}. The host network arrived in Docker Desktop ${mayor}.${menor}; update Docker Desktop.`,
+        `You have ${tmayor}.${tmenor}. Host networking became available in Docker Desktop ${mayor}.${menor}; update Docker Desktop.`,
       versionOk: (mayor: number, menor: number) => `Docker Desktop ${mayor}.${menor}`,
       ajusteTitulo: '“Enable host networking” in Docker Desktop',
       ajusteDesconocido:
-        'The Docker Desktop settings could not be read. What decides is the traffic check, below.',
+        'The Docker Desktop settings could not be read. The traffic check below is what decides.',
       ajusteApagado:
-        'It is off, and ships that way by default. Turn it on in Docker Desktop › Settings › Resources › Network and click “Apply and restart”.',
+        'It is off, which is the default. Turn it on in Docker Desktop › Settings › Resources › Network and click “Apply and restart”.',
       ajusteOk: '“Enable host networking” is on',
       aislamientoTitulo: '“Enhanced Container Isolation” off',
       aislamientoDesconocido: 'The Docker Desktop settings could not be read.',
       aislamientoActivo: (tuEquipo: string) =>
-        `It is on. Isolating the container from ${tuEquipo} and giving it its network are opposites, and Docker does not allow both at once: turn it off in Docker Desktop › Settings › General. If your organization enforces it by policy, this mode is not available here.`,
-      traficoTitulo: (tuEquipo: string) => `Traffic really reaches ${tuEquipo}`,
+        `It is on. Isolating the container from ${tuEquipo} and giving it access to that network are mutually exclusive, and Docker does not allow both: turn it off in Docker Desktop › Settings › General. If your organization enforces it through a policy, this mode is not available here.`,
+      traficoTitulo: (tuEquipo: string) => `Traffic actually reaches ${tuEquipo}`,
       traficoDesconocido: 'The check could not be completed.',
       traficoWindows: (tuEquipo: string) =>
-        `The test port did not reach ${tuEquipo}. If you updated WSL recently, Docker documents an incompatibility of this feature with recent WSL 2 kernels: try “wsl --update --rollback” and restart Docker Desktop.`,
+        `The test port did not reach ${tuEquipo}. If you updated WSL recently, Docker documents an incompatibility between this feature and recent WSL 2 kernels: try “wsl --update --rollback” and restart Docker Desktop.`,
       traficoOtra: (tuEquipo: string) =>
-        `The test port did not reach ${tuEquipo}. Restart Docker Desktop after applying the network setting; if it stays the same, this mode is not working on this machine and the profile will do better on an isolated network.`,
+        `The test port did not reach ${tuEquipo}. Restart Docker Desktop after applying the network setting; if nothing changes, this mode does not work on this computer, and the profile will work better on an isolated network.`,
       egressEspejo:
-        'WSL is in mirrored mode, so the containers of all profiles go out through whichever VPN you have active. It does not depend on this option.',
+        'WSL is in mirrored mode, so containers in all profiles send their traffic through your active VPN. This option does not affect that.',
       egressNat:
-        'WSL is in NAT mode: containers do NOT follow whichever VPN you have active. That is independent of this option and is fixed in %USERPROFILE%\\.wslconfig with networkingMode=mirrored (then “wsl --shutdown”).'
+        'WSL is in NAT mode: containers do NOT send their traffic through your active VPN. This option does not affect that; to change it, set networkingMode=mirrored in %USERPROFILE%\\.wslconfig (then run “wsl --shutdown”).'
     }
   }
 )

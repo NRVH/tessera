@@ -220,6 +220,17 @@ export class AccountStore {
   }
 
   /**
+   * Dónde está o estaría la carpeta de una cuenta, sin crear ni mover nada: para quien solo lee (una carpeta
+   * que no existe no tiene nada que leer).
+   */
+  rutaDe(account: AgentAccount): string {
+    if (esAgenteManual(account.agente) && account.id === CUENTA_AGENTE_MANUAL) return this.rutaAgenteManual(account.profileId, account.agente)
+    if (account.isDefault) return this.carpetaDefault(account)
+    const { nueva, anidada } = this.rutasDeCreada(account)
+    return existsSync(nueva) || !existsSync(anidada) ? nueva : anidada
+  }
+
+  /**
    * Cuenta migrada: respeta el `configDir` DECLARADO del perfil si existe (así no se pierde el
    * login de perfiles que apuntan a una carpeta propia); si no, la convención `./.tessera/perfiles/<id>/<sub>`.
    */
@@ -235,10 +246,7 @@ export class AccountStore {
    * mueve aquí con su login; si no se puede mover (algo la tiene abierta), se sigue usando allí.
    */
   private carpetaCreada(account: AgentAccount): string {
-    const sub = esAgenteManual(account.agente) ? account.agente : AGENT_CONFIG_SUBDIR[account.agente as Agente]
-    const base = path.resolve(this.dataRoot, `./.tessera/perfiles/${account.profileId}`)
-    const nueva = path.join(base, `${sub}-cuentas`, account.id)
-    const anidada = path.join(base, sub, account.id)
+    const { nueva, anidada } = this.rutasDeCreada(account)
     if (existsSync(nueva) || !existsSync(anidada)) return nueva
     try {
       mkdirSync(path.dirname(nueva), { recursive: true })
@@ -254,6 +262,13 @@ export class AccountStore {
     }
   }
 
+  /** Las dos carpetas posibles de una cuenta creada: la actual y la anidada en la legacy. */
+  private rutasDeCreada(account: AgentAccount): { nueva: string; anidada: string } {
+    const sub = esAgenteManual(account.agente) ? account.agente : AGENT_CONFIG_SUBDIR[account.agente as Agente]
+    const base = path.resolve(this.dataRoot, `./.tessera/perfiles/${account.profileId}`)
+    return { nueva: path.join(base, `${sub}-cuentas`, account.id), anidada: path.join(base, sub, account.id) }
+  }
+
   /** Saca de la carpeta legacy las cuentas creadas que quedaron anidadas en ella. */
   private migrarCarpetasAnidadas(): void {
     for (const a of this.accounts) if (!a.isDefault && a.profileId) this.carpetaCreada(a)
@@ -264,9 +279,13 @@ export class AccountStore {
    * cuenta predeterminada, que no pasa por el registro (las creadas sí). En el contenedor es su `HOME`.
    */
   carpetaAgenteManual(profileId: string, agente: IdAgenteManual): string {
-    const abs = path.resolve(this.dataRoot, `./.tessera/perfiles/${profileId}/${agente}`)
+    const abs = this.rutaAgenteManual(profileId, agente)
     mkdirSync(abs, { recursive: true })
     return abs
+  }
+
+  private rutaAgenteManual(profileId: string, agente: IdAgenteManual): string {
+    return path.resolve(this.dataRoot, `./.tessera/perfiles/${profileId}/${agente}`)
   }
 
   // --- Mutaciones ------------------------------------------------------------

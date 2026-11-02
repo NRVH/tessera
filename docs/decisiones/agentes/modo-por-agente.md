@@ -17,9 +17,10 @@ modo al proyecto obligaba a cambiar de modo el proyecto entero para usar otra cu
 - **Cada agente de serie elige el suyo**, en su botón de cuenta: la cuenta del sistema (nativo) o una de
   sus cuentas de Docker, y «Nueva cuenta de Docker…» (crearla corriendo nativo es pasar a Docker con ella).
   El botón es el icono del modo (equipo o contenedor), y el selector un popover con un apartado por modo y una
-  tarjeta por cuenta: elegir y administrar (renombrar en la propia tarjeta, cerrar sesión, eliminar) quedan
-  separados, y confirmar una acción no cierra el selector, las acciones solo
-  al pasar por la tarjeta, para que un clic de elección no caiga en una destructiva. Cualquier cuenta se
+  tarjeta por cuenta: elegir y administrar (seguir allí la conversación, renombrar en la propia tarjeta, cerrar
+  sesión, eliminar) quedan separados. Las acciones van en un menú tras el botón «⋯» de la tarjeta, que solo
+  aparece al pasar por ella, agrupadas por consecuencia y con eliminar al final y aislado: un clic de elección
+  nunca cae en una acción, y una destructiva pide abrir el menú. Confirmar una acción no cierra el selector. Cualquier cuenta se
   administra desde cualquier pane: el main cierra todas sus sesiones, el diálogo avisa de cuántos agentes
   abiertos la usan y espera a que termine, y esos panes la sueltan y reabren (`retiroDeCuentas.ts`). El
   modo se guarda por target (`agentModeByTarget`, `perfil|proyecto|agente`) junto a la cuenta (`agentAccountByTarget`);
@@ -35,7 +36,7 @@ modo al proyecto obligaba a cambiar de modo el proyecto entero para usar otra cu
   agentes de serie de un proyecto que estaba en Docker siguen en Docker (los de un proyecto abierto aunque
   nunca eligieran cuenta, y los que tenían cuenta guardada), para que quien lo aisló no lo encuentre
   corriendo en su equipo; los demás, nativos. Solo si el archivo no trae aún modo por agente.
-- **Un agente en Docker sin cuenta conserva su botón** («Docker · sin cuenta»): es la vuelta a nativo.
+- **Un agente en Docker sin cuenta conserva su botón** («Cuenta de <agente>: sin cuenta…»): es la vuelta a nativo.
 
 ## Consecuencias
 

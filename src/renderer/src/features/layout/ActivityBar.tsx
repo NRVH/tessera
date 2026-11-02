@@ -2,7 +2,8 @@
 // ActivityBar: barra de actividad izquierda en dos grupos separados por un filete. Los
 // iconos de vista abren la columna lateral (radio: siempre hay una activa) y los de panel
 // la franja inferior (toggle). Un icono se arrastra dentro de su grupo o al otro: el grupo
-// decide dónde está el botón, no qué abre. Un grupo no puede quedarse vacío.
+// decide dónde está el botón, no qué abre. Un grupo no puede quedarse vacío. Con la franja a
+// pantalla completa solo queda la flecha de volver.
 // Depende de `util/reorderByDrag`, `util/gruposRiel` (la guarda del cruce) y los iconos de `../git` y `../bd`.
 // =============================================================================
 
@@ -11,10 +12,9 @@ import { reorderByDrag } from '../../util/reorderByDrag'
 import { moverEntreGrupos } from '../../util/gruposRiel'
 import { IconoCambios, IconoRama } from '../git'
 import { IconoBd } from '../bd'
-import { IconoArchivos, IconoTerminal } from '../../comun/iconosPanel'
+import { IconoArchivos, IconoTerminal, IconoVolver } from '../../comun/iconosPanel'
 import type { ZonaEnfocada } from '../../util/zonaEnfocada'
 import { txLayout } from './textos.ts'
-import type { PanelInferiorCentro } from './layoutCentro'
 import { panelConColor, vistaConColor } from './resaltadoRiel'
 import { useStoreLayout } from './store'
 
@@ -283,7 +283,6 @@ interface ContextoRiel {
   active: ActivityView
   onSelect: (view: ActivityView) => void
   zonaEnfocada: ZonaEnfocada
-  pantallaCompleta: PanelInferiorCentro | null
   panelInferior: PanelInferior | null
   onTogglePanelInferior: (panel: PanelInferior) => void
   gitBadge?: number | null
@@ -297,7 +296,7 @@ function pintarPanel(id: PanelInferior, grupo: Grupo, ctx: ContextoRiel): React.
   return (
     <button
       key={id}
-      className={claseItem(abierto, panelConColor(id, abierto, ctx.zonaEnfocada, ctx.pantallaCompleta), id, ctx.riel)}
+      className={claseItem(abierto, panelConColor(abierto, ctx.zonaEnfocada), id, ctx.riel)}
       title={meta.title}
       aria-label={meta.label}
       aria-pressed={abierto}
@@ -328,7 +327,7 @@ function pintarVista(vista: ActivityView, grupo: Grupo, ctx: ContextoRiel): Reac
     <button
       key={vista}
       // El color del perfil: el foco en la columna o en el agente que la acompaña (`resaltadoRiel.ts`).
-      className={claseItem(isActive, vistaConColor(vista, isActive, ctx.zonaEnfocada, ctx.pantallaCompleta), vista, ctx.riel)}
+      className={claseItem(isActive, vistaConColor(vista, isActive, ctx.zonaEnfocada), vista, ctx.riel)}
       title={meta.label}
       aria-label={ariaLabel}
       aria-pressed={isActive}
@@ -342,6 +341,31 @@ function pintarVista(vista: ActivityView, grupo: Grupo, ctx: ContextoRiel): Reac
         </span>
       )}
     </button>
+  )
+}
+
+/**
+ * El riel a pantalla completa: los demás iconos llevarían a vistas que están tapadas, así que queda solo la
+ * salida, que hace lo mismo que el icono del panel (cierra la franja; al volver a abrirla sigue maximizada).
+ */
+function RielVolver({ panel, onVolver }: { panel: PanelInferior; onVolver: (panel: PanelInferior) => void }): React.JSX.Element {
+  const t = txLayout().riel
+  // Volver desmonta este botón: el foco pasa al icono del panel que se acaba de cerrar, en el riel entero,
+  // para que el teclado no se quede en el cuerpo de la ventana.
+  const volver = (): void => {
+    onVolver(panel)
+    requestAnimationFrame(() => {
+      const etiqueta = CSS.escape(panelesDelRiel()[panel].label)
+      document.querySelector<HTMLElement>(`.activity-bar .activity-item[aria-label="${etiqueta}"]`)?.focus()
+    })
+  }
+  return (
+    <nav className="activity-bar" aria-label={t.barra}>
+      {/* Siempre con el relleno del perfil, como el icono de la zona donde trabajas: es la única salida del modo. */}
+      <button type="button" className="activity-item active enfocada" title={t.volverTitulo[panel]} aria-label={t.volver} onClick={volver}>
+        <IconoVolver />
+      </button>
+    </nav>
   )
 }
 
@@ -373,7 +397,6 @@ export function ActivityBar({
     active,
     onSelect,
     zonaEnfocada,
-    pantallaCompleta,
     panelInferior,
     onTogglePanelInferior,
     gitBadge
@@ -381,6 +404,8 @@ export function ActivityBar({
   // Lo que decide cómo se comporta un icono es su familia, no el grupo donde vive.
   const pintar = (id: string, grupo: Grupo): React.JSX.Element =>
     esPanel(id) ? pintarPanel(id, grupo, ctx) : pintarVista(id as ActivityView, grupo, ctx)
+
+  if (pantallaCompleta !== null) return <RielVolver panel={pantallaCompleta} onVolver={onTogglePanelInferior} />
 
   return (
     <nav className="activity-bar" aria-label={txLayout().riel.barra}>

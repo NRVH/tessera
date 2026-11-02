@@ -29,7 +29,7 @@ import { crearConfigSaltos } from './adaptadores/configSaltos.ts'
 import { escribirLanzadorAskpass } from './adaptadores/lanzadorAskpass.ts'
 import { asegurarCarpetaProtegida, ejecutarCorto, escribirClaveProtegida } from './adaptadores/permisosClave.ts'
 import { crearRegistroTssh } from './adaptadores/registroTssh.ts'
-import { generarAtajosTssh } from './atajosTssh.ts'
+import { generarAtajosPrograma, type OpcionesAtajos } from '../util/atajosPrograma.ts'
 import { resolverBinariosSsh, type BinariosSsh } from './binariosSsh.ts'
 import { esSalidaDeFalloSsh } from './clasificacionSalida.ts'
 import { ConexionesSsh } from './ConexionesSsh.ts'
@@ -40,6 +40,11 @@ import { CODIGOS_TSSH, PuenteTssh, QUITAR_ENV_TSSH } from './controlador/puenteT
 import { FichasAskpass } from './fichasAskpass.ts'
 import { argumentosScp, argumentosSsh, hostParaScp } from './lineaSsh.ts'
 import { lanzadorAskpassSh, rutaGuionAskpass, rutaProgramaAskpass } from './programaAskpass.ts'
+
+/** Los atajos de `tssh` de ESTE sistema (o de la plataforma que se pida). */
+function generarAtajosTssh(opts: OpcionesAtajos, plataforma: Plataforma = plataformaActual()): ReturnType<typeof generarAtajosPrograma> {
+  return generarAtajosPrograma({ nombre: 'tssh', variable: 'TESSERA_TSSH' }, opts, plataforma)
+}
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))

@@ -15,11 +15,9 @@ type Banda = ReturnType<typeof useBandaPerfiles>
 /** Selector de color, menú, popover de creación y diálogos de la banda de perfiles. */
 export function CapasPerfil({
   profiles,
-  working,
   banda
 }: {
   profiles: Profile[]
-  working?: Set<string>
   banda: Banda
 }): React.JSX.Element {
   const { menu, cerrarMenu, renombrado, crear, acciones } = banda
@@ -39,11 +37,11 @@ export function CapasPerfil({
           y={menu.y}
           profile={perfilDelMenu}
           totalPerfiles={profiles.length}
-          working={working?.has(perfilDelMenu.id) ?? false}
           onClose={cerrarMenu}
           onRename={renombrado.startRename}
           onColor={acciones.openColorPicker}
           onRed={acciones.abrirRed}
+          onReglas={acciones.abrirReglas}
           onHibernate={acciones.requestHibernate}
           onDelete={acciones.requestDelete}
         />

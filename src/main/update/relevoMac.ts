@@ -11,7 +11,13 @@ import { spawn } from 'node:child_process'
 import { accessSync, constants, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
-import { bundleDesdeExe, guionRelevoMac, interpretarMarcaRelevo, type ResultadoRelevo } from './relevoMacPuro'
+import {
+  bundleDesdeExe,
+  guionRelevoMac,
+  interpretarMarcaRelevo,
+  type AvisosRelevoMac,
+  type ResultadoRelevo
+} from './relevoMacPuro'
 import { rutaExe, rutaUserData } from '../util/infoApp'
 
 /** Nombre del archivo donde el guion deja su desenlace. */
@@ -92,6 +98,8 @@ export interface LanzamientoRelevoMac {
   destino: string
   /** Volver a abrir la app al terminar. */
   relanzar: boolean
+  /** Las notificaciones que cuentan la actualización con la app ya cerrada. */
+  avisos: AvisosRelevoMac
   log: (m: string) => void
 }
 
@@ -128,7 +136,8 @@ export function lanzarRelevoMac(o: LanzamientoRelevoMac): boolean {
         marca,
         traza: path.join(dir, NOMBRE_TRAZA),
         relanzar: o.relanzar,
-        argumentos: [`--user-data-dir=${rutaUserData()}`]
+        argumentos: [`--user-data-dir=${rutaUserData()}`],
+        avisos: o.avisos
       }),
       { mode: 0o700 }
     )

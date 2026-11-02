@@ -4,7 +4,8 @@
 // tiradas largas de base64 y, si aun así no cabe, se salta hasta su salto de línea. Lo que se
 // lee de más por esas líneas también tiene tope. Con líneas normales lee y devuelve lo mismo
 // que un corte fijo de `presupuesto` bytes. Un rollout comprimido de Codex se lee igual.
-// Lo usan `ConversationsReader`, `TurnWatcher` y `ContextReader`. Decisiones: docs/decisiones/agentes/conversaciones-cabeza-por-lineas.md
+// Lo usan `ConversationsReader`, `TurnWatcher` y `ContextReader`; la búsqueda del historial, sus trozos y su compactado.
+// Decisiones: docs/decisiones/agentes/conversaciones-cabeza-por-lineas.md
 // =============================================================================
 
 import { createReadStream } from 'node:fs'
@@ -104,7 +105,7 @@ export async function leerCabezaJsonl(file: string, opts: OpcionesCabeza): Promi
  * Los bytes del JSONL desde el principio, en trozos y sin pasar de `max`. Un rollout comprimido de
  * Codex (`.jsonl.zst`) se descomprime al vuelo: solo se lee la cabeza, no el archivo entero.
  */
-async function* trozosDe(file: string, trozo: number, max: number): AsyncGenerator<Buffer> {
+export async function* trozosDe(file: string, trozo: number, max: number): AsyncGenerator<Buffer> {
   if (esComprimido(file)) {
     // `pipeline` lleva el error de la lectura o de la descompresión al `for await` y, al destruir
     // el descompresor (por salir antes de tiempo), cierra también el descriptor del archivo.
@@ -222,7 +223,7 @@ function compactarEnCurso(linea: LineaEnCurso, parte: string, cuenta: Recuento):
  * `\` o un `\u` + menos de 4 dígitos con que termine. Con barras pares, la última es la letra de
  * un `\\` y nada queda a medias.
  */
-function corteSinEscapeAMedias(texto: string): number {
+export function corteSinEscapeAMedias(texto: string): number {
   let fin = texto.length
   let digitos = 0
   while (digitos < 3 && fin > 0 && /[0-9a-fA-F]/.test(texto[fin - 1])) {

@@ -55,6 +55,10 @@ files:
   # sus atajos de `bin/s<N>` invocan con el propio ejecutable; su ruta es `<appPath>/src/tssh/tssh.cjs`.
   - src/tssh/**
   - '!src/tssh/test-*'
+  # CLI `tctx` (las reglas del perfil para los agentes): el mismo caso que `src/tssh`; su ruta es
+  # `<appPath>/src/tctx/tctx.cjs`.
+  - src/tctx/**
+  - '!src/tctx/test-*'
   # Programa de contraseñas de SSH en macOS (`askpass.cjs`): el mismo caso que `src/tdb`, lo arranca
   # un lanzador `sh` con el propio ejecutable. En Windows es `out/askpass/tessera-askpass.exe`, que
   # compila `scripts/compilarAskpass.mjs` y viaja con `out/**`; su fuente (.cs) no viaja.

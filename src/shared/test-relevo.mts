@@ -3,19 +3,30 @@
 // Prueba del RELEVO (npm run test:relevo), que hace que una actualización fallida no
 // sea muda. Fija: el ENCARGO se valida antes de creérselo (lo escribe otro proceso);
 // una copia de OTRA versión no se usa; los códigos de salida se traducen y «no
-// arrancó» se distingue de «arrancó y falló» (arreglos distintos); y el HTML escapa
-// lo que le metan, porque las versiones salen del feed.
+// arrancó» se distingue de «arrancó y falló» (arreglos distintos); tras un fallo se
+// ofrecen salidas y la vuelta a la anterior solo repone sobre un destino seguro; y el
+// HTML escapa lo que le metan, porque las versiones salen del feed.
 // =============================================================================
 
 import {
   ENCARGO_VERSION,
   FLAG_RELEVO,
   copiaUtilizable,
+  destinoRestaurable,
   encargoValido,
   leerSalidaInstalador,
-  rutaEncargoDesdeArgv
+  rutaEncargoDesdeArgv,
+  situacionTrasFallo
 } from './relevo.ts'
-import { escaparHtml, paginaRelevo } from '../main/relevo/relevoUi.ts'
+import {
+  MARCA_ABRIR,
+  MARCA_ANTERIOR,
+  MARCA_COPIAR,
+  MARCA_INSTALADOR,
+  MARCA_REINTENTAR,
+  escaparHtml,
+  paginaRelevo
+} from '../main/relevo/relevoUi.ts'
 
 // ---------------------------------------------------------------------------
 function hr(title: string): void {
@@ -123,10 +134,52 @@ function main(): void {
       /ruta/i.test(leerSalidaInstalador(2).detalle),
       leerSalidaInstalador(2).detalle.slice(0, 60)
     )
+    // Un fallo del instalador puede llegar DESPUÉS de quitar la versión vieja: el código de
+    // salida no basta para prometer que sigue ahí. Eso lo dice `situacionTrasFallo`, que mira.
     check(
-      'todo fallo aclara que la versión anterior sigue instalada',
-      [null, -1, 2].every((c) => /anterior/i.test(leerSalidaInstalador(c).detalle)),
-      'los tres lo dicen'
+      'un fallo genérico no promete que la versión anterior sigue instalada',
+      !/sigue instalada/i.test(leerSalidaInstalador(-1).detalle),
+      leerSalidaInstalador(-1).detalle
+    )
+    check(
+      'tras un fallo con la app en su sitio, se ofrecen las tres salidas',
+      /reintentar/i.test(situacionTrasFallo(true)) &&
+        /versión anterior/i.test(situacionTrasFallo(true)) &&
+        /instalador/i.test(situacionTrasFallo(true)),
+      situacionTrasFallo(true)
+    )
+    check(
+      'tras un fallo que quitó la app, se dice que se quitó y que la anterior sigue guardada',
+      /se quitó/i.test(situacionTrasFallo(false)) && /sigue guardada/i.test(situacionTrasFallo(false)),
+      situacionTrasFallo(false)
+    )
+  }
+
+  // -------------------------------------------------------------------------
+  hr('3b) VOLVER A LA ANTERIOR solo repone sobre un destino seguro (robocopy /MIR borra lo que sobra)')
+  {
+    const copia = 'C:\\Users\\a\\AppData\\Local\\tessera-updater\\relevo'
+    const casos: [string, string, boolean][] = [
+      ['C:\\Users\\a\\AppData\\Local\\Programs\\Tessera', copia, true],
+      ['c:/users/a/appdata/local/programs/tessera/', copia, true],
+      ['\\\\servidor\\apps\\Tessera', copia, true],
+      ['C:\\', copia, false],
+      ['C:', copia, false],
+      ['\\\\servidor\\apps', copia, false],
+      [copia, copia, false],
+      ['C:\\Users\\A\\AppData\\Local\\tessera-updater\\relevo\\', copia, false],
+      ['C:\\Users\\a\\AppData\\Local\\tessera-updater', copia, false],
+      ['C:\\Users\\a\\AppData\\Local\\tessera-updater\\relevo\\sub', copia, false],
+      ['C:\\Programs\\..\\..', copia, false],
+      ['Programs\\Tessera', copia, false],
+      ['', copia, false],
+      ['C:\\Users\\a\\AppData\\Local\\tessera-updater\\relevo-otra', copia, true]
+    ]
+    const fallos = casos.filter(([r, c, esperado]) => destinoRestaurable(r, c) !== esperado)
+    check(
+      'la raíz de una unidad o de un recurso, la propia copia, una que contenga a la otra o una relativa, no',
+      fallos.length === 0,
+      fallos.length === 0 ? `${casos.length} casos` : JSON.stringify(fallos)
     )
   }
 
@@ -146,12 +199,17 @@ function main(): void {
     )
     const normal = paginaRelevo('0.43.0', '0.44.0')
     check(
-      'la página anuncia el salto de versión y trae los dos botones',
+      'la página anuncia el salto de versión y trae los botones del final y las salidas de un fallo',
       normal.includes('0.43.0') &&
         normal.includes('0.44.0') &&
-        normal.includes('id="abrir"') &&
-        normal.includes('id="copiar"'),
+        ['abrir', 'copiar', 'reintentar', 'anterior', 'instalador'].every((id) => normal.includes(`id="${id}"`)),
       'contiene versiones y botones'
+    )
+    check(
+      'cada salida avisa con su propia marca',
+      [MARCA_REINTENTAR, MARCA_ANTERIOR, MARCA_INSTALADOR].every((m) => normal.includes(`console.log('${m}')`)) &&
+        new Set([MARCA_ABRIR, MARCA_COPIAR, MARCA_REINTENTAR, MARCA_ANTERIOR, MARCA_INSTALADOR]).size === 5,
+      'cinco marcas distintas'
     )
     check(
       'la página declara CSP y no carga nada de fuera',

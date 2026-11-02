@@ -13,7 +13,8 @@ import {
   type ResizeTerminalMessage,
   type FlowControlMessage,
   type TerminalDataMessage,
-  type TerminalExitMessage
+  type TerminalExitMessage,
+  type TerminalesEnMarcha
 } from '../shared/terminal-ipc'
 import type { DefinicionAgente } from '../shared/agentesManuales'
 import {
@@ -57,6 +58,8 @@ export interface TerminalApi {
   reload: (sessionId: string, dbConnectionIds?: string[]) => Promise<OpenTerminalResult>
   /** Cierra la sesión (el contenedor sigue vivo). */
   close: (sessionId: string) => Promise<void>
+  /** Cuántas terminales de shell del perfil están abiertas y cuántas ejecutan algo. */
+  enMarcha: (profileId: string) => Promise<TerminalesEnMarcha>
   /** Suscribe a la salida del shell. Devuelve una función para desuscribirse. */
   onData: (cb: (msg: TerminalDataMessage) => void) => () => void
   /** Suscribe al fin del shell. Devuelve una función para desuscribirse. */
@@ -152,6 +155,7 @@ export const terminal: TerminalApi = {
   reload: (sessionId, dbConnectionIds) =>
     ipcRenderer.invoke(TERMINAL_CHANNELS.RELOAD, { sessionId, dbConnectionIds }),
   close: (sessionId) => ipcRenderer.invoke(TERMINAL_CHANNELS.CLOSE, { sessionId }),
+  enMarcha: (profileId) => ipcRenderer.invoke(TERMINAL_CHANNELS.EN_MARCHA, { profileId }),
   onData: (cb) => {
     const listener = (_e: Electron.IpcRendererEvent, msg: TerminalDataMessage): void => cb(msg)
     ipcRenderer.on(TERMINAL_CHANNELS.DATA, listener)

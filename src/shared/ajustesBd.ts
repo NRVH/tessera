@@ -21,8 +21,8 @@ const txAjustesBd = crearTextos(
   },
   {
     ayudaTx:
-      'The mode a console session starts with. It also applies to open tabs that have not run anything yet; ' +
-      'those that already have a session keep their mode. In production they always start in Manual.',
+      'The mode a console session starts in. It also applies to open tabs that have not run anything yet; ' +
+      'tabs that already have a session keep their mode. In production, sessions always start in Manual.',
     minutos: (n: number) => `${n} minutes`,
     hora: (n: number) => `${n} hour`,
     horas: (n: number) => `${n} hours`,

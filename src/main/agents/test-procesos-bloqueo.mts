@@ -317,6 +317,13 @@ hr('(3) guionListado')
     !sinRaiz.includes('CommandLine') && guionListado({ conLineaComando: true }).includes('cmd = $_.CommandLine'),
     'ok'
   )
+  const conPids = guionListado({ pids: [12, 34, 12, -5, 1.5] })
+  check(
+    '(3e) con pids: filtra en CIM por ellos y sus hijos, sin ruta, y ignora lo que no sea un pid',
+    conPids.includes("-Filter 'ProcessId=12 OR ParentProcessId=12 OR ProcessId=34 OR ParentProcessId=34'") &&
+      !conPids.includes('ExecutablePath'),
+    conPids
+  )
 }
 
 // ---------------------------------------------------------------------------

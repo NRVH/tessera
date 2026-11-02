@@ -290,7 +290,7 @@ hr('(11) Qué se dice al terminar una sesión SSH')
   check('con el de red inalcanzable (la VPN)', m(255, 400, 'ssh-inalcanzable') === 'No se pudo conectar: el servidor no responde: ¿falta la VPN?', m(255, 400, 'ssh-inalcanzable'))
   check(
     'con el de la huella cambiada, que dice dónde olvidarla',
-    m(255, 400, 'ssh-huella-cambiada').startsWith('No se pudo conectar: la huella del servidor cambió;') && m(255, 400, 'ssh-huella-cambiada').includes('«Olvidar la huella guardada…»'),
+    m(255, 400, 'ssh-huella-cambiada').startsWith('No se pudo conectar: la huella del servidor no es la guardada:') && m(255, 400, 'ssh-huella-cambiada').includes('«Olvidar la huella guardada…»'),
     m(255, 400, 'ssh-huella-cambiada')
   )
   check('con el de algoritmos antiguos', m(255, 400, 'ssh-algoritmos') === 'No se pudo conectar: el servidor solo ofrece algoritmos antiguos', m(255, 400, 'ssh-algoritmos'))

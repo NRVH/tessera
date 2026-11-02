@@ -37,6 +37,16 @@
 .dbc-cabecera .modal-title {
   margin-bottom: 4px;
 }
+/* El título con su botón ⓘ al lado, fuera del título para no entrar en el nombre del diálogo. */
+.dbc-titulo-fila {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.dbc-titulo-fila .modal-title {
+  margin-bottom: 0;
+}
 
 .dbc-cuerpo {
   flex: 1 1 auto;

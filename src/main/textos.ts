@@ -44,15 +44,15 @@ export const txMain = crearTextos(
     comprimidos: {
       revisionGrande: (ruta: string, mb: number) =>
         `“${ruta}” is ${mb} MB in that revision and exceeds what Tessera can open at once.`,
-      niveles: (max: number) => `You can only go down ${max} levels inside a compressed file.`,
+      niveles: (max: number) => `You can only go ${max} levels deep inside a compressed file.`,
       entradaGrande: (nombre: string, kb: number) =>
-        `“${nombre}” is ${kb} KB uncompressed and exceeds the maximum that can be compared.`,
-      binario: 'This entry has null bytes: there is no text diff to show.',
+        `“${nombre}” is ${kb} KB uncompressed and exceeds the maximum size that can be compared.`,
+      binario: 'This entry contains null bytes: there is no text diff to show.',
       yaNoEsta: (nombre: string) => `“${nombre}” is no longer in the container.`,
       ningunaRevision: 'This compressed file does not exist in either of the two revisions.'
     },
     portapapeles: {
-      noSeLeyo: 'Could not read what is on the clipboard.',
+      noSeLeyo: 'Could not read the clipboard contents.',
       noSeLeyoImagen: 'Could not read the image from the clipboard.',
       vacio: 'There are no files or images on the clipboard.'
     },

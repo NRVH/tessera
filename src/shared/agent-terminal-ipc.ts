@@ -200,6 +200,11 @@ export interface AgentOpenRequest {
    */
   resumeSessionId?: string
   /**
+   * El traspaso que preparó «Continuar en…» (`traspaso-ipc.ts`) para ESTA apertura: su aviso de arranque, su
+   * primer mensaje y lo que leerá `tctx traspaso`. Si no existe o no es de este (perfil, proyecto, agente), la apertura falla.
+   */
+  traspasoId?: string
+  /**
    * Dónde correr el agente. Ausente => 'container' (retrocompatible). En 'host' se
    * ignora `accountId` (se usa el login personal nativo) y no se toca Docker.
    */

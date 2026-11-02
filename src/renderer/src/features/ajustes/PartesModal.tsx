@@ -4,7 +4,8 @@
 // manejadores de teclado los posee `SettingsModal`.
 // =============================================================================
 
-import type { CategoriaId } from './catalogo'
+import { Fragment } from 'react'
+import type { CategoriaId, GrupoRiel } from './catalogo'
 import { ICONOS, IconoBuscarAjuste } from './iconos'
 import { txModal } from './textos.ts'
 
@@ -65,7 +66,7 @@ export function RielCategorias({
   alPulsarEnRiel
 }: {
   rielRef: React.RefObject<HTMLElement>
-  categorias: readonly { id: CategoriaId; titulo: string }[]
+  categorias: readonly { id: CategoriaId; titulo: string; grupo: GrupoRiel | null }[]
   categoria: CategoriaId
   conteo: ReadonlyMap<string, number>
   hayConsulta: boolean
@@ -81,31 +82,40 @@ export function RielCategorias({
       aria-label={txModal().categorias}
       onKeyDown={alPulsarEnRiel}
     >
-      {categorias.map((c) => {
+      {categorias.map((c, i) => {
         const Icono = ICONOS[c.id]
         const n = conteo.get(c.id) ?? 0
         const activa = c.id === categoria
+        // El título de grupo va delante de la primera categoría de cada uno; no es un `tab`, así
+        // que las flechas del riel lo saltan solas.
+        const nuevoGrupo = c.grupo !== null && c.grupo !== categorias[i - 1]?.grupo
         return (
-          <button
-            key={c.id}
-            type="button"
-            role="tab"
-            data-cat={c.id}
-            id={`ajustes-tab-${c.id}`}
-            aria-selected={activa}
-            aria-controls={`ajustes-panel-${c.id}`}
-            // Roving tabindex: Tab sale del riel en UNA pulsación en vez de recorrerlo entero.
-            tabIndex={activa ? 0 : -1}
-            className={`ajustes-riel-item${activa ? ' activa' : ''}${
-              hayConsulta && n === 0 ? ' vacia' : ''
-            }`}
-            onClick={() => onIrA(c.id)}
-            title={c.titulo}
-          >
-            <Icono />
-            <span className="ajustes-riel-nombre">{c.titulo}</span>
-            {hayConsulta && <span className="ajustes-riel-conteo">{n}</span>}
-          </button>
+          <Fragment key={c.id}>
+            {nuevoGrupo && (
+              <div className={`ajustes-riel-grupo${i === 0 ? ' primero' : ''}`} role="presentation">
+                <span>{txModal().gruposRiel[c.grupo as GrupoRiel]}</span>
+              </div>
+            )}
+            <button
+              type="button"
+              role="tab"
+              data-cat={c.id}
+              id={`ajustes-tab-${c.id}`}
+              aria-selected={activa}
+              aria-controls={`ajustes-panel-${c.id}`}
+              // Roving tabindex: Tab sale del riel en UNA pulsación en vez de recorrerlo entero.
+              tabIndex={activa ? 0 : -1}
+              className={`ajustes-riel-item${activa ? ' activa' : ''}${
+                hayConsulta && n === 0 ? ' vacia' : ''
+              }`}
+              onClick={() => onIrA(c.id)}
+              title={c.titulo}
+            >
+              <Icono />
+              <span className="ajustes-riel-nombre">{c.titulo}</span>
+              {hayConsulta && <span className="ajustes-riel-conteo">{n}</span>}
+            </button>
+          </Fragment>
         )
       })}
     </nav>

@@ -76,7 +76,7 @@ const txAvisosPlan = crearTextos(
   avisosPlanEs,
   {
     bindsOracle:
-      'Oracle does not look at parameter values when explaining (EXPLAIN PLAN does not do “bind peeking”): the real execution plan may differ.',
+      'Oracle ignores parameter values when it explains a statement (EXPLAIN PLAN does not do “bind peeking”): the actual execution plan might differ.',
     planRecortado: `The plan has more than ${MAX_NODOS_PLAN} steps: only the first ones are shown.`
   }
 )

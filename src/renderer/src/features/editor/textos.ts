@@ -32,7 +32,7 @@ export const txEditor = crearTextos(
     noSePudoAbrirArchivo: 'Could not open the file',
     noSePudoGuardar: 'Could not save',
     vistaPreviaDe: (nombre: string) => `Preview of ${nombre}`,
-    buscarEnDocumento: 'Search in the document',
+    buscarEnDocumento: 'Find in document',
     archivoBinarioNoSeMuestra: 'Binary file: not shown in the editor.',
     archivoGrandeTruncado: 'Large file: only the beginning is shown (truncated to 2 MiB).',
     buscarConHistorial: 'Find (↑↓ for history)',
@@ -44,8 +44,8 @@ export const txEditor = crearTextos(
     sinTitulo: (n: number) => `Untitled-${n}`,
     noSePuedeGuardarBinario: 'Cannot save a binary file.',
     noSePuedeConvertirBinario: 'Cannot convert a binary file.',
-    noSePuedeGuardarTruncado: 'Cannot save a truncated open file (>2 MiB): the rest would be lost.',
-    noSePuedeConvertirTruncado: 'Cannot convert a truncated open file (>2 MiB).'
+    noSePuedeGuardarTruncado: 'Cannot save a file that was opened truncated (>2 MiB): the rest would be lost.',
+    noSePuedeConvertirTruncado: 'Cannot convert a file that was opened truncated (>2 MiB).'
   }
 )
 
@@ -57,7 +57,7 @@ export const txPestanas = crearTextos(
     fueraDelProyecto: (nombre: string) => `${nombre} (fuera del proyecto)`,
     sinGuardar: (nombre: string) => `${nombre} (sin guardar)`,
     diffDe: (ruta: string) => `${ruta} (diff)`,
-    sufijoBorrado: ' · el archivo ya no existe en disco; Ctrl+S vuelve a crearlo',
+    sufijoBorrado: (mod: string) => ` · el archivo ya no existe en disco; ${mod}+S vuelve a crearlo`,
     sufijoEfimera: ' · vista previa (se reemplaza al abrir otro diff del historial)',
     abrirEnExplorador: 'Abrir en el explorador',
     noSePudoAbrirExplorador: 'No se pudo abrir el explorador',
@@ -75,8 +75,8 @@ export const txPestanas = crearTextos(
     fueraDelProyecto: (nombre: string) => `${nombre} (outside the project)`,
     sinGuardar: (nombre: string) => `${nombre} (unsaved)`,
     diffDe: (ruta: string) => `${ruta} (diff)`,
-    sufijoBorrado: ' · the file no longer exists on disk; Ctrl+S creates it again',
-    sufijoEfimera: ' · preview (replaced when you open another history diff)',
+    sufijoBorrado: (mod: string) => ` · the file no longer exists on disk; press ${mod}+S to create it again`,
+    sufijoEfimera: ' · preview (replaced when you open another diff from the history)',
     abrirEnExplorador: 'Show in file manager',
     noSePudoAbrirExplorador: 'Could not open the file manager',
     guardarComo: 'Save as…',
@@ -84,7 +84,7 @@ export const txPestanas = crearTextos(
     cerrarIzquierda: 'Close tabs to the left',
     cerrarTodo: 'Close all',
     archivosAbiertos: 'Open files',
-    pestanasOcultas: 'Tabs out of view'
+    pestanasOcultas: 'Hidden tabs'
   }
 )
 
@@ -148,9 +148,9 @@ export const txDiff = crearTextos(
     carpetaHint: 'Folders have no diff. Open one of the files inside to see its changes.',
     binarioTitulo: 'Binary file: there is no text diff to show.',
     binarioHintBlob:
-      'Null bytes were detected. If the file is still in the project, open it from the explorer with the system application.',
+      'Null bytes were detected. If the file is still in the project, open it from the explorer in its default app.',
     binarioHintCarga:
-      'Null bytes were detected. Open it from the explorer and it will be shown with the matching viewer.',
+      'Null bytes were detected. Open it from the explorer to view it in the matching viewer.',
     grandeVerTitulo: 'The file is too large to show the diff.',
     grandeVerHint: 'It exceeds the 2 MiB limit. You can open it from the explorer if you need to see it.',
     grandeEditarTitulo: 'The file is too large to edit here.',
@@ -158,21 +158,21 @@ export const txDiff = crearTextos(
       'It exceeds the 2 MiB limit, so only the beginning was loaded and saving it would lose the rest.',
     yaNoEstaTitulo: 'The file is no longer on disk.',
     yaNoEstaHint: 'It was moved or deleted after this view was opened. Reload the changes to refresh the list.',
-    sinPermisosTitulo: 'There is no permission to read this file.',
+    sinPermisosTitulo: 'You do not have permission to read this file.',
     sinPermisosHint: 'Check the file permissions, or whether another program has it locked.',
     enUsoTitulo: 'The file is in use by another program.',
     enUsoHint: 'Close it and open the diff again.',
     noSePudoMostrarTitulo: 'Could not show this diff.',
-    noSePudoMostrarHint: 'Try reloading the changes. If it happens again, the detail below helps diagnose it.',
+    noSePudoMostrarHint: 'Try reloading the changes. If it happens again, the details below can help diagnose it.',
     sinDiferencias: 'No differences',
     unaDiferencia: '1 difference',
     diferencias: (n: number) => `${n} differences`,
     aria: 'Diff',
     sinFuenteBorrado: 'This file is deleted: there is no source to jump to',
-    sinFuenteNoProyecto: 'What is being compared is not a project file, so there is no source to jump to',
-    saltarAlFuenteTitulo: 'Jump to source (opens the file at the line you are looking at)',
+    sinFuenteNoProyecto: 'The compared item is not a project file, so there is no source to jump to',
+    saltarAlFuenteTitulo: 'Jump to source (opens the file at the line you are viewing)',
     saltarAlFuente: 'Jump to source',
-    mostrarCompleto: 'Show the whole file',
+    mostrarCompleto: 'Show full file',
     sinFragmentos: 'This diff has no unchanged sections to collapse',
     colapsarTitulo: (lineas: number) => `Collapse unchanged sections (${lineas} lines of context)`,
     colapsar: 'Collapse unchanged sections',

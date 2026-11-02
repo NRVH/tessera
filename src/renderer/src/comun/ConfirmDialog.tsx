@@ -27,6 +27,8 @@ interface ConfirmDialogProps {
   ocupado?: string | null
   /** Por qué falló la acción: el diálogo sigue abierto para reintentar o cancelar. */
   error?: string | null
+  /** Botón ⓘ junto al título; lo pone quien sabe qué artículo explica el diálogo. */
+  ayuda?: React.ReactNode
   onConfirm: () => void
   onCancel: () => void
 }
@@ -48,6 +50,8 @@ function useEnterConfirma(
       // Enter sobre un botón del diálogo lo resuelve el propio botón (activación nativa).
       const destino = e.target
       if (destino instanceof HTMLButtonElement && cardRef.current?.contains(destino)) return
+      // Enter dentro de otro diálogo abierto encima (Configuración desde el ⓘ) es de ese diálogo.
+      if (destino instanceof Element && destino.closest('[role="dialog"]') && !cardRef.current?.contains(destino)) return
       // Fuera de sus botones confirma solo lo que no destruye: `danger` no tiene «Enter por defecto».
       e.preventDefault()
       if (!danger) onConfirmRef.current()
@@ -66,6 +70,7 @@ export function ConfirmDialog({
   danger = false,
   ocupado = null,
   error = null,
+  ayuda,
   onConfirm,
   onCancel
 }: ConfirmDialogProps): React.JSX.Element {
@@ -103,7 +108,14 @@ export function ConfirmDialog({
         aria-busy={ocupado !== null}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="modal-title">{title}</div>
+        {ayuda ? (
+          <div className="modal-titulo-fila">
+            <div className="modal-title">{title}</div>
+            {ayuda}
+          </div>
+        ) : (
+          <div className="modal-title">{title}</div>
+        )}
         <div className="modal-message">{message}</div>
         {error && (
           <div className="modal-error" role="alert">

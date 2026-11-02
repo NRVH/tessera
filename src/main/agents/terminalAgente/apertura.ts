@@ -28,6 +28,9 @@ import { anclarNuevaSesion, emitExit, makeActivityTracker, sondearTrasLanzar } f
 import { marcarEs, medidasDeProcesoNuevo, motivoSalidaNativa } from './hibernacion'
 import { ACTIVITY_BOOT_GRACE_MS, HOST_ACCOUNT_ID, errMsg, esDeVentanaAgente, type NucleoAgente, type OpenAgentSession } from './tipos'
 import { abrirManual } from './aperturaManual'
+import type { TraspasoPendiente } from '../../traspaso/RegistroTraspasos'
+import { txTraspaso } from '../../traspaso/textos'
+import { MARCA_TRASPASO_CADUCADO } from '../../../shared/traspaso-ipc'
 import { esAgenteManual } from '../../../shared/agentesManuales'
 
 type DatosSesion = Omit<
@@ -167,6 +170,59 @@ async function prepararContenedor(
   return { projectHostPath: mount.projectHostPath, configContainerPath: cfgMount.containerPath }
 }
 
+/**
+ * El de bases tal cual delante y, detrás, el de SSH (también en Docker hay `tssh`, por el buzón del puente) y
+ * las reglas del perfil, que se leen del perfil vivo al abrir.
+ */
+function avisoDeArranque(n: NucleoAgente, profile: Profile, projectHostPath: string, dbIds: string[], traspaso: TraspasoPendiente | null): string | null {
+  return briefingCompuesto({
+    bd: n.getDbBriefing(profile.id, projectHostPath, dbIds),
+    ssh: n.getSshBriefing(profile.id),
+    reglas: profile.reglas,
+    historial: true,
+    traspaso: traspaso?.aviso ?? null
+  })
+}
+
+/**
+ * Toma el traspaso de «Continuar en…» de esta apertura, si la petición lo trae. Uno que no existe, que caducó,
+ * que ya tomó otra apertura o que es de otra apertura falla: abrir un chat sin él dejaría al usuario sin el
+ * trabajo que pidió continuar, y sin saberlo.
+ */
+function traspasoDe(n: NucleoAgente, profile: Profile, agente: Agente, req: AgentOpenRequest): TraspasoPendiente | null {
+  if (!req.traspasoId || !n.traspasos) return null
+  const t = n.traspasos.reservar(req.traspasoId, { profileId: profile.id, projectHostPath: req.projectHostPath, agente })
+  if (!t) throw new Error(`${MARCA_TRASPASO_CADUCADO}: ${txTraspaso().caducado}`)
+  return t
+}
+
+/** Corre lo que crea la sesión; si falla, el traspaso vuelve a estar pendiente para el reintento. */
+async function devolviendoSiFalla<T>(n: NucleoAgente, req: AgentOpenRequest, traspaso: TraspasoPendiente | null, crear: () => Promise<T> | T): Promise<T> {
+  try {
+    return await crear()
+  } catch (err) {
+    if (traspaso && req.traspasoId) n.traspasos?.devolver(req.traspasoId)
+    throw err
+  }
+}
+
+/** La sesión ya existe: el traspaso se gasta y lo que leerá `tctx traspaso` queda atado a ella. */
+function consumirTraspaso(n: NucleoAgente, req: AgentOpenRequest, traspaso: TraspasoPendiente | null, sessionId: string): void {
+  if (traspaso && req.traspasoId) n.traspasos?.consumir(req.traspasoId, claveSesionAgente(sessionId))
+}
+
+/** La línea de arranque en el contenedor, con el aviso (y el primer mensaje del traspaso, si lo hay). */
+function lineaEnContenedor(
+  n: NucleoAgente,
+  profile: Profile,
+  agente: Agente,
+  req: AgentOpenRequest,
+  o: { configPath: string; extraEnv: Record<string, string>; traspaso: TraspasoPendiente | null }
+): string {
+  const aviso = avisoDeArranque(n, profile, req.projectHostPath, req.dbConnectionIds ?? [], o.traspaso)
+  return buildAgentLaunchCommand(n.binaries[agente], agente, o.configPath, n.sshSetup, req.resumeSessionId, o.extraEnv, aviso, o.traspaso?.promptInicial)
+}
+
 async function abrirEnContenedor(
   n: NucleoAgente,
   profile: Profile,
@@ -178,20 +234,15 @@ async function abrirEnContenedor(
   const destino = contenedorDe(profile, agente, account.id)
   // Antes de `launch`: la línea corre bajo `env -i` y tiene que llevar estas variables dentro.
   const extraEnv = n.getContainerEnv(profile.id, req.projectHostPath, req.dbConnectionIds ?? [], n.sandbox.dbBridgeContainerPath)
-  const launch = buildAgentLaunchCommand(
-    n.binaries[agente],
-    agente,
-    preparado.configContainerPath,
-    n.sshSetup,
-    req.resumeSessionId,
-    extraEnv,
-    // En Docker también hay `tssh` (por el buzón del puente), así que va el de SSH detrás del de bases.
-    briefingCompuesto(n.getDbBriefing(profile.id, req.projectHostPath, req.dbConnectionIds ?? []), n.getSshBriefing(profile.id))
-  )
-  const session = await n.terminals.createSession(destino, { project: req.projectHostPath, launch, extraEnv, tamano: req.tamano })
+  const traspaso = traspasoDe(n, profile, agente, req)
+  const session = await devolviendoSiFalla(n, req, traspaso, () => {
+    const launch = lineaEnContenedor(n, profile, agente, req, { configPath: preparado.configContainerPath, extraEnv, traspaso })
+    return n.terminals.createSession(destino, { project: req.projectHostPath, launch, extraEnv, tamano: req.tamano })
+  })
   n.bindDbSession(extraEnv, claveSesionAgente(session.id))
+  consumirTraspaso(n, req, traspaso, session.id)
   // Refcount del contenedor con clave `agent:` para no chocar con la terminal de abajo.
-  n.sandbox.retainSession(destino.id, `agent:${session.id}`)
+  n.sandbox.retainSession(destino.id, claveSesionAgente(session.id))
   n.log(`createSession OK -> id=${session.id} cwd=${session.workspacePath}`)
 
   const activity = makeActivityTracker(n, session.id, profile.id, req.projectHostPath, agente)
@@ -214,6 +265,7 @@ async function abrirEnContenedor(
       projectHostPath: req.projectHostPath,
       host: false,
       resumeSessionId: req.resumeSessionId,
+      ...(traspaso?.aviso ? { avisoTraspaso: traspaso.aviso } : {}),
       claveAncla: clave,
       manual: null,
       activity,
@@ -255,18 +307,15 @@ async function abrirNativo(
   n.log(`open() [NATIVO] perfil=${profile.id} agente=${agente} proyecto=${req.projectHostPath} bd=${dbIds.length}`)
   // El candado va lo primero, antes de acuñar tokens o entornos que la espera envejecería.
   await n.esperarCandado(agente)
-  // El de bases tal cual delante y, detrás, el de SSH: en nativo el agente tiene `tssh` en el PATH.
-  const briefing = briefingCompuesto(n.getDbBriefing(profile.id, req.projectHostPath, dbIds), n.getSshBriefing(profile.id))
-  const launch = buildHostAgentLaunchCommand(n.binaries[agente], agente, req.resumeSessionId, briefing)
-  const extraEnv = n.getHostEnv(profile.id, req.projectHostPath, dbIds)
-  const session = await n.terminals.createSession(profile, {
-    project: req.projectHostPath,
-    launch,
-    host: true,
-    extraEnv,
-    tamano: req.tamano
+  const traspaso = traspasoDe(n, profile, agente, req)
+  const { session, extraEnv } = await devolviendoSiFalla(n, req, traspaso, async () => {
+    const briefing = avisoDeArranque(n, profile, req.projectHostPath, dbIds, traspaso)
+    const launch = buildHostAgentLaunchCommand(n.binaries[agente], agente, req.resumeSessionId, briefing, undefined, traspaso?.promptInicial)
+    const env = n.getHostEnv(profile.id, req.projectHostPath, dbIds)
+    return { extraEnv: env, session: await n.terminals.createSession(profile, { project: req.projectHostPath, launch, host: true, extraEnv: env, tamano: req.tamano }) }
   })
   n.bindDbSession(extraEnv, claveSesionAgente(session.id))
+  consumirTraspaso(n, req, traspaso, session.id)
   n.log(`createSession [NATIVO] OK -> id=${session.id} cwd=${session.workspacePath}`)
 
   const activity = makeActivityTracker(n, session.id, profile.id, req.projectHostPath, agente)
@@ -283,6 +332,7 @@ async function abrirNativo(
     projectHostPath: req.projectHostPath,
     host: true,
     resumeSessionId: req.resumeSessionId,
+    ...(traspaso?.aviso ? { avisoTraspaso: traspaso.aviso } : {}),
     claveAncla: claveHost,
     manual: null,
     activity,

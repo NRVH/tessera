@@ -5,7 +5,7 @@
 // Uso: node src/main/configuracion/test-cifrado-frase.mts
 // =============================================================================
 
-import { VERSION_ARCHIVO, cifrarCopia, copiaSinCifrar, descifrarCopia, leerArchivoCopia } from './cifradoFrase.ts'
+import { VERSION_ARCHIVO, VERSION_SIN_HISTORIAL, descifrarCopia, leerArchivoCopia, prepararCopia, type ArchivoCopia } from './cifradoFrase.ts'
 
 const resultados: { nombre: string; pasa: boolean; evidencia: string }[] = []
 function hr(titulo: string): void {
@@ -19,6 +19,11 @@ function check(nombre: string, pasa: boolean, evidencia: string): void {
 const CONTENIDO = JSON.stringify({ perfiles: [{ id: 'p', nombre: 'Ñandú ✓' }], secreto: 'contraseña-de-prueba' })
 const FRASE = 'una frase de prueba'
 
+/** Una copia sin historial con la frase, por el mismo camino que exportar. */
+async function cifrarCopia(contenido: string, frase: string, meta: Parameters<typeof prepararCopia>[2]): Promise<ArchivoCopia> {
+  return (await prepararCopia(contenido, frase, meta, false)).archivo
+}
+
 async function idaYVuelta(): Promise<void> {
   hr('(1) Ida y vuelta')
   const t0 = Date.now()
@@ -26,7 +31,7 @@ async function idaYVuelta(): Promise<void> {
   const ms = Date.now() - t0
   const texto = JSON.stringify(archivo)
   check('el contenido no se lee en claro en el archivo', !texto.includes('contraseña-de-prueba') && !texto.includes('Ñandú'), `${texto.length} bytes`)
-  check('la cabecera dice versión, plataforma y app', archivo.version === VERSION_ARCHIVO && archivo.plataforma === 'mac' && archivo.app === '9.9.9', '')
+  check('la cabecera dice versión (la 1, sin historial), plataforma y app', archivo.version === VERSION_SIN_HISTORIAL && archivo.plataforma === 'mac' && archivo.app === '9.9.9', '')
   check('derivar la clave cuesta (scrypt), pero no demasiado', ms > 20 && ms < 10_000, `${ms} ms`)
   const leido = leerArchivoCopia(texto)
   const d = leido.ok ? await descifrarCopia(leido.archivo, FRASE) : null
@@ -39,9 +44,9 @@ async function idaYVuelta(): Promise<void> {
 
 async function sinFrase(): Promise<void> {
   hr('(1b) Sin frase, solo si se pide')
-  const a = copiaSinCifrar(CONTENIDO, { plataforma: 'windows', app: '9.9.9' })
+  const { archivo: a, clave } = await prepararCopia(CONTENIDO, null, { plataforma: 'windows', app: '9.9.9' }, false)
   const texto = JSON.stringify(a)
-  check('la cabecera lo dice: sin cifrado', a.cifrado === null && a.version === VERSION_ARCHIVO, texto.slice(0, 120))
+  check('la cabecera lo dice: sin cifrado, y no hay clave', a.cifrado === null && a.version === VERSION_SIN_HISTORIAL && clave === null, texto.slice(0, 120))
   const leido = leerArchivoCopia(texto)
   check('se lee como una copia válida', leido.ok, JSON.stringify(leido).slice(0, 120))
   const d = leido.ok ? await descifrarCopia(leido.archivo, '') : null

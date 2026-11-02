@@ -1,7 +1,7 @@
 // =============================================================================
 // El color del perfil en el riel de actividad, sobre la app empaquetada: marca la vista donde trabajas, y
-// con el foco en el agente sigue en la que lo acompaña («Archivos», o «Terminal» a pantalla completa);
-// «Cambios» no, porque allí no hay agente. La regla entera la fija `test-resaltado-riel.mts`.
+// con el foco en el agente sigue en la que lo acompaña («Archivos»); «Cambios» no, porque allí no hay
+// agente. La regla entera la fija `test-resaltado-riel.mts`.
 // =============================================================================
 
 import { expect, test, type Page } from '@playwright/test'
@@ -66,19 +66,5 @@ test.describe.serial('El color del perfil en el riel de actividad', () => {
     await expect(cambios).toHaveClass(/\bactive\b/)
     await expect(cambios).not.toHaveClass(/\benfocada\b/)
     await icono(win, 'Archivos').click()
-  })
-
-  test('con la terminal a pantalla completa, «Terminal» sigue con el color en el agente de la terminal', async () => {
-    const win = s.win
-    await win.getByRole('button', { name: 'Terminal', exact: true }).click()
-    const panel = win.locator('section.terminal-panel')
-    await expect(panel).toBeVisible()
-    await panel.locator('.panel-header').first().hover()
-    await panel.getByRole('button', { name: 'Maximizar el panel de terminal' }).click()
-    // A pantalla completa el agente de esa vista es el de la terminal, que se enseña con su botón.
-    await win.getByRole('button', { name: /^Mostrar el agente de la terminal/ }).click()
-    await agente(win).click()
-    await expect(icono(win, 'Terminal')).toHaveClass(/\benfocada\b/)
-    await expect(icono(win, 'Archivos'), 'y la vista lateral, que no se ve, no').not.toHaveClass(/\benfocada\b/)
   })
 })

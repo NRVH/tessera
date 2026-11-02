@@ -134,11 +134,11 @@ actualización si Tessera puede usar sus contraseñas guardadas: pulsa **Permiti
 2. **Crea más espacios de trabajo** con el **+** del final de la barra de perfiles: dale a
    cada uno un nombre y un color. Con clic derecho sobre un perfil lo renombras, le cambias
    el color, lo hibernas o lo eliminas, y arrastrándolo lo reordenas.
-3. **Añade proyectos** con el **+** de la barra de proyectos («Abrir proyecto») y elige una
+3. **Añade proyectos** con el **+** de la barra de proyectos («Abrir una carpeta como proyecto») y elige una
    carpeta. Un proyecto puede ser un solo repositorio o una carpeta que contiene varios.
 4. **Elige la cuenta del agente.** Cada agente abre en nativo: en tu equipo, con la cuenta
    iniciada en él, la misma en todos los espacios. El botón de cuenta de su cabecera abre
-   un selector con dos apartados: **En tu equipo** y **En Docker**, con una tarjeta por
+   un selector con dos apartados: **En tu equipo** y **Cuentas aisladas (Docker)**, con una tarjeta por
    cuenta (cada una en su propio contenedor) y **Nueva cuenta de Docker…** al pie. Desde
    cada tarjeta también la renombras, cierras su sesión o la eliminas. La elección se
    recuerda por agente y proyecto.
@@ -156,7 +156,7 @@ actualización si Tessera puede usar sus contraseñas guardadas: pulsa **Permiti
 - Dos niveles de pestañas: arriba los espacios de trabajo, cada uno con su color para que
   siempre sepas en qué cuenta estás, y debajo los proyectos abiertos de ese espacio.
 - Reordena espacios y proyectos arrastrándolos.
-- **Modo minimalista** (Configuración › Apariencia): la barra de espacios se cambia por un
+- **Perfiles en un selector compacto** (Configuración › Apariencia): la barra de espacios se cambia por un
   selector pequeño en el centro de la barra de título, con el espacio activo; al pulsarlo
   salen los demás, con el mismo menú para renombrarlos, cambiarles el color, hibernarlos o
   eliminarlos.
@@ -164,7 +164,7 @@ actualización si Tessera puede usar sus contraseñas guardadas: pulsa **Permiti
   abrir la app, sin arrancar todos los agentes a la vez: un agente arranca cuando entras a
   su proyecto.
 - **Hiberna un espacio de trabajo** para parar su contenedor y liberar su memoria; se
-  despierta donde lo dejaste al volver a él.
+  reanuda donde lo dejaste al volver a él.
 - **Los agentes inactivos se hibernan solos**: el agente nativo de un proyecto que no está
   en pantalla se cierra tras unos minutos sin actividad (5 por defecto, o nunca) y retoma su
   conversación al volver. Nunca pasa mientras el agente trabaja, te espera o tiene texto
@@ -185,11 +185,11 @@ actualización si Tessera puede usar sus contraseñas guardadas: pulsa **Permiti
   Docker en el agente.
 - **Historial de conversaciones** por proyecto: recorre las conversaciones anteriores,
   reanuda cualquiera o bórralas. Al abrir un proyecto se reanuda su última conversación.
-- **Uso de la cuenta** en el pie del agente (los límites de 5 horas y semanal), y cuánto de
+- **Uso de la cuenta** en el pie del agente (los límites que tenga su plan: de 5 horas, semanal o por modelo), y cuánto de
   la **ventana de contexto** gasta la conversación actual.
 - **Agentes siempre al día.** Para los agentes nativos, un botón comprueba si hay versión nueva
   de Claude Code y de Codex, la instala y reinicia solo las sesiones que lo necesitan, cada una
-  en su conversación; espera mientras algún agente afectado siga trabajando. Para los de
+  en su conversación; se salta las que trabajan, esperan tu respuesta o tienen texto sin enviar. Para los de
   Docker, «Actualizar agentes» reconstruye la imagen del sandbox con las últimas versiones.
 - Pega imágenes y archivos en la terminal del agente; si está en Docker se copian dentro del
   contenedor en vez de pasar una ruta que el agente no podría abrir.
@@ -243,8 +243,8 @@ el que entraste.
 
 - Selección múltiple con Ctrl/⌘-clic y Mayús-clic, arrastrar y soltar para mover, crear,
   renombrar y borrar.
-- Copia y pega archivos entre Tessera y el Explorador o el Finder por el portapapeles del
-  sistema.
+- Pega en Tessera los archivos copiados en el Explorador o el Finder; copiar en Tessera deja
+  sus rutas como texto, para pegarlas en el editor o en un agente.
 - **Buscar en archivos** en todo el proyecto o en una carpeta, con vista previa en vivo.
 - Colores de estado de Git en archivos y carpetas, al día según cambian en disco.
 - **«Abrir con Tessera»** desde el menú del clic derecho del Explorador de Windows (carpetas,
@@ -258,8 +258,9 @@ el que entraste.
 
 ![Vista de Git con el grafo del historial y un diff](assets/capturas/git.png)
 
-- **Cambios**: el árbol de trabajo como lista o como árbol, preparar y quitar del índice,
-  descartar, ignorar (en `.gitignore` o solo en local) y hacer commit.
+- **Cambios**: lo que cambió en el árbol de trabajo, preparar y quitar del índice, descartar
+  (siempre preguntando antes) e ignorar (en `.gitignore` o solo en local). El commit se hace en
+  la terminal o se le pide al agente.
 - **Historial** con su grafo de ramas, filtros, el detalle de cada commit y el historial de
   un solo archivo.
 - **Diffs editables**: corrige algo directamente en el diff de tu copia de trabajo.
@@ -275,7 +276,7 @@ el que entraste.
   varias terminales en pestañas, siempre nativas: tu propia shell (PowerShell en Windows, tu
   shell de inicio de sesión en macOS y en Linux).
 - Buscar en el historial de la terminal, copiar y pegar como espera cada plataforma, y
-  renderizado acelerado por GPU que puedes apagar en Configuración.
+  renderizado acelerado por GPU.
 - **Logs con color**: lo que llega sin color se resalta (errores, avisos, fechas, IPs, URLs y
   códigos HTTP) en los formatos de log habituales, también por SSH, sin cambiar el texto que
   copias. Se apaga en Configuración.
@@ -390,7 +391,7 @@ tecla distinta en cada plataforma, siguiendo las convenciones de cada sistema.
 | Buscar en una terminal | Ctrl+F | ⌘F |
 | Copiar en una terminal (con selección) | Ctrl+C | ⌘C |
 | Pegar en una terminal | Ctrl+V | ⌘V |
-| Abrir el elemento seleccionado (explorador, árbol de bases de datos) | F4 o Enter | F4, ⌘↓ o Enter |
+| Abrir el elemento seleccionado (árbol de bases de datos, explorador SFTP) | F4 o Enter | F4, ⌘↓ o Enter |
 | Borrar los archivos seleccionados | Supr | ⌘⌫ o Supr |
 
 Con el foco en una terminal, Ctrl+N en Windows y Linux es de la shell (le llega como ^N) y no

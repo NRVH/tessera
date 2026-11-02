@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // =============================================================================
-// Prueba de `discardChanges` de GitService (npm run test:git-discard) contra repos temporales, en
-// las ramas sin diálogo: rastreado modificado (con y sin preparar) revierte a HEAD, rastreado limpio
-// es no-op y sin repo activo devuelve `{ ok:false }` sin lanzar. Sin confirmación inyectada no se
-// borra nada, y una ruta vacía, `.`, con `..` o una carpeta se rechaza sin tocar nada, también en
+// Prueba de `discardChanges` de GitService (npm run test:git-discard) contra repos temporales:
+// rastreado modificado (con y sin preparar) pregunta y revierte a HEAD, y cancelar no lo toca;
+// sin repo activo devuelve `{ ok:false }` sin lanzar. Sin confirmación inyectada no se descarta
+// nada, y una ruta vacía, `.`, con `..` o una carpeta se rechaza sin tocar nada, también en
 // un monorepo. Cada rechazo lleva `error` (cancelar no), y si git no contesta no se borra nada.
 // Ni una carpeta donde HEAD tiene el archivo, ni un conflicto, ni un borrado ya preparado (su copia
 // se compara con los bytes de checkout), ni una rama con la ref dañada pierden datos.
@@ -170,19 +170,27 @@ function repoCon(prefijo: string, archivos: Record<string, string>): {
   return { dir, cli, put, leer: (rel) => readFileSync(path.join(dir, rel), 'utf8') }
 }
 
-/** Servicio sobre `dir` que CONFIRMA todo borrado y cuenta cuántas veces se le pidió. */
-function servicioQueConfirma(dir: string, silent: () => void): { g: InstanceType<typeof GitService>; pedidas: () => number } {
-  let n = 0
+/**
+ * Servicio sobre `dir` que CONFIRMA todo descarte y cuenta cuántas veces se le pidió BORRAR
+ * (`pedidas`) y cuántas REVERTIR a HEAD (`revertidas`).
+ */
+function servicioQueConfirma(
+  dir: string,
+  silent: () => void
+): { g: InstanceType<typeof GitService>; pedidas: () => number; revertidas: () => number } {
+  let borrar = 0
+  let revertir = 0
   const g = new GitService({
     projectRoot: dir,
     log: silent,
-    confirmDiscard: async () => {
-      n++
+    confirmDiscard: async (_nombre, borra) => {
+      if (borra) borrar++
+      else revertir++
       return true
     }
   })
   g.setProjectRoot(dir)
-  return { g, pedidas: () => n }
+  return { g, pedidas: () => borrar, revertidas: () => revertir }
 }
 
 /**
@@ -258,21 +266,22 @@ async function casosQuePerdianDatos(silent: () => void): Promise<void> {
     r.cli(['rm', '-q', '--cached', 'k.txt'])
     r.cli(['rm', '-q', '--cached', 'm.txt'])
     r.put('m.txt', 'v1 + TRABAJO\n')
-    const { g, pedidas } = servicioQueConfirma(r.dir, silent)
-    await checkThrows('(9c) `git rm d.txt` -> se restaura (índice y disco) sin pedir confirmación', async () => {
+    const { g, pedidas, revertidas } = servicioQueConfirma(r.dir, silent)
+    await checkThrows('(9c) `git rm d.txt` -> se restaura (índice y disco) confirmando revertir, nunca borrar', async () => {
       const res = await g.discardChanges('d.txt')
       const estado = r.cli(['status', '--porcelain', '--', 'd.txt'])
       return {
-        pass: res.ok === true && existsSync(path.join(r.dir, 'd.txt')) && r.leer('d.txt') === 'v1\n' && estado === '' && pedidas() === 0,
-        evidence: `res=${JSON.stringify(res)} estado=${JSON.stringify(estado)} pedidas=${pedidas()}`
+        pass:
+          res.ok === true && existsSync(path.join(r.dir, 'd.txt')) && r.leer('d.txt') === 'v1\n' && estado === '' && pedidas() === 0 && revertidas() === 1,
+        evidence: `res=${JSON.stringify(res)} estado=${JSON.stringify(estado)} pedidas=${pedidas()} revertidas=${revertidas()}`
       }
     })
     await checkThrows('(9d) `git rm --cached k.txt` con el disco igual a HEAD -> vuelve al índice, el disco intacto', async () => {
       const res = await g.discardChanges('k.txt')
       const estado = r.cli(['status', '--porcelain', '--', 'k.txt'])
       return {
-        pass: res.ok === true && existsSync(path.join(r.dir, 'k.txt')) && estado === '' && pedidas() === 0,
-        evidence: `res=${JSON.stringify(res)} estado=${JSON.stringify(estado)} pedidas=${pedidas()}`
+        pass: res.ok === true && existsSync(path.join(r.dir, 'k.txt')) && estado === '' && pedidas() === 0 && revertidas() === 2,
+        evidence: `res=${JSON.stringify(res)} estado=${JSON.stringify(estado)} pedidas=${pedidas()} revertidas=${revertidas()}`
       }
     })
     await checkThrows('(9e) `git rm --cached m.txt` con cambios en disco -> error legible, el trabajo del disco intacto', async () => {
@@ -381,7 +390,7 @@ async function casosDeLaCopiaDelDisco(silent: () => void): Promise<void> {
         evidence: `res=${JSON.stringify(res)} disco=${JSON.stringify(r.leer('c.nb'))}`
       }
     })
-    await checkThrows('(10a-bis) mismo filtro, copia igual a HEAD -> se restaura sin confirmar', async () => {
+    await checkThrows('(10a-bis) mismo filtro, copia igual a HEAD -> se restaura sin pedir borrarla', async () => {
       const res = await g.discardChanges('limpio.nb')
       const indice = r.cli(['ls-files', '--', 'limpio.nb']).trim()
       return { pass: res.ok === true && indice === 'limpio.nb' && pedidas() === 0, evidence: `res=${JSON.stringify(res)} indice=${indice}` }
@@ -521,10 +530,17 @@ async function main(): Promise<void> {
 
   try {
     const silent = (): void => {}
-    // single repo, sin containerPath -> prefijo identidad. `git` usa la
-    // confirmación por DEFECTO (no borra nada), y las ramas trackeado-en-HEAD ni
-    // la invocan, así que es seguro y determinista.
-    const git = new GitService({ projectRoot: repo, log: silent })
+    // single repo, sin containerPath -> prefijo identidad. `git` CONFIRMA y anota cada
+    // pregunta (nombre y si borra): revertir a HEAD también pierde trabajo y pregunta.
+    const preguntas: Array<{ nombre: string; borra: boolean }> = []
+    const git = new GitService({
+      projectRoot: repo,
+      log: silent,
+      confirmDiscard: async (nombre, borra) => {
+        preguntas.push({ nombre, borra })
+        return true
+      }
+    })
     git.setProjectRoot(repo)
 
     // Instancias con la confirmación destructiva INYECTADA (sin diálogo real),
@@ -541,7 +557,7 @@ async function main(): Promise<void> {
     // -----------------------------------------------------------------------
     // (1) TRACKEADO modificado (unstaged) -> revierte a git, WT limpio.
     // -----------------------------------------------------------------------
-    hr('(1) discard de un trackeado modificado sin stage -> vuelve a original')
+    hr('(1) discard de un trackeado modificado sin stage -> confirma y vuelve a original')
     writeFileSync(path.join(repo, 'unstaged.txt'), 'MODIFICADO\n', 'utf8')
 
     const preStatus1 = await git.workingStatus()
@@ -551,6 +567,15 @@ async function main(): Promise<void> {
       JSON.stringify(hasPath(preStatus1, 'unstaged.txt') ?? null)
     )
 
+    // (1-cancelar) revertir pierde lo no commiteado: se pregunta, y cancelar no toca el archivo.
+    await checkThrows('(1-cancelar) revertir con la confirmación en NO -> ok:false sin error, el disco intacto', async () => {
+      const res: DiscardChangesResult = await gitNo.discardChanges('unstaged.txt')
+      return {
+        pass: res.ok === false && res.error === undefined && read('unstaged.txt') === 'MODIFICADO\n',
+        evidence: `${JSON.stringify(res)} disco=${JSON.stringify(read('unstaged.txt'))}`
+      }
+    })
+
     await checkThrows('(1b) discardChanges(unstaged.txt) -> { ok:true, wasUntracked:false }', async () => {
       const res: DiscardChangesResult = await git.discardChanges('unstaged.txt')
       return {
@@ -558,6 +583,11 @@ async function main(): Promise<void> {
         evidence: JSON.stringify(res)
       }
     })
+    check(
+      '(1-pregunta) revertir pidió UNA confirmación, de revertir (no de borrar), con su nombre',
+      preguntas.length === 1 && preguntas[0].nombre === 'unstaged.txt' && preguntas[0].borra === false,
+      JSON.stringify(preguntas)
+    )
 
     check(
       '(1c) el CONTENIDO en disco volvió a "original\\n"',
@@ -744,7 +774,7 @@ async function main(): Promise<void> {
     }
 
     // Una CARPETA con un archivo trackeado y modificado debajo: el pathspec casaría todo lo de
-    // dentro y `checkout HEAD` lo revertiría entero sin confirmar. Con y sin barra final.
+    // dentro y `checkout HEAD` lo revertiría entero. Con y sin barra final.
     mkdirSync(path.join(app, 'sub'), { recursive: true })
     writeFileSync(path.join(app, 'sub', 'c.txt'), 'original\n', 'utf8')
     const monoCli = (args: string[]): string =>

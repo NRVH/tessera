@@ -186,3 +186,32 @@ export function IconoMas(): React.JSX.Element {
     </SvgCuenta>
   )
 }
+
+/** Más acciones de una cuenta: los tres puntos, que abren su menú. */
+export function IconoMasAcciones(): React.JSX.Element {
+  return (
+    <SvgCuenta tam={16} grosor={2.6}>
+      <path d="M5.5 12h.01M12 12h.01M18.5 12h.01" />
+    </SvgCuenta>
+  )
+}
+
+/** Seguir la conversación en otra cuenta: un bocadillo con una flecha que sale. */
+export function IconoSeguirAqui(): React.JSX.Element {
+  return (
+    <SvgCuenta tam={14} grosor={1.7}>
+      <path d="M13 5H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h1.5v3l3.5-3H14a2 2 0 0 0 2-2v-1" />
+      <path d="M15 4h5v5M20 4l-6 6" />
+    </SvgCuenta>
+  )
+}
+
+/** Pasar el trabajo a otro agente: dos flechas que se cruzan de un lado a otro. */
+export function IconoPasarA({ tam = 16 }: { tam?: number }): React.JSX.Element {
+  return (
+    <SvgCuenta tam={tam} grosor={1.6}>
+      <path d="M4 8h13M14 4.5L17.5 8 14 11.5" />
+      <path d="M20 16H7M10 12.5L6.5 16 10 19.5" />
+    </SvgCuenta>
+  )
+}

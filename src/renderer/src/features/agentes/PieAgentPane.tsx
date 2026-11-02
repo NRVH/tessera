@@ -8,7 +8,7 @@
 // Decisiones: docs/decisiones/agentes/terminal-del-agente.md
 // =============================================================================
 
-import { botonReinicio } from '../terminales'
+import { botonReinicio, textosReinicio } from '../terminales'
 import { useStorePestanas } from '../pestanas'
 import { ContextRing } from './ContextRing'
 import { ContextoManual } from './ContextoManual'
@@ -31,7 +31,11 @@ import type { ModeloAgentPane } from './useAgentPane'
 function estadoBoton(m: ModeloAgentPane): ReturnType<typeof botonReinicio> {
   const { p, s } = m
   const t = txPane().pie
+  const { agente } = p.target
+  // Un agente manual solo retoma la conversación si su definición trae cómo reanudar.
+  const retoma = !esAgenteManual(agente) || !!agenteManualDe(p.pestanasAgente, agente)?.reanudar
   return botonReinicio({
+    textos: textosReinicio(retoma),
     status: s.status,
     sessionId: s.sessionId,
     reloading: s.reloading || s.actualizando,

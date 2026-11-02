@@ -7,6 +7,7 @@
 // =============================================================================
 
 import type { Profile } from '../../../../main/profiles/types.ts'
+import { MAX_REGLAS_PERFIL, normalizarReglas } from '../../../../shared/reglasPerfil.ts'
 import type { DetectedRepo } from '../../../../shared/workspace-ipc.ts'
 import type { EstadoProyecto, OpenProject, ProfileTabs, TabsAction, TabsState } from './tabsModel.ts'
 
@@ -376,6 +377,27 @@ export function reducirSetProfileRedHost(state: TabsState, action: Accion<'setPr
         ? { ...p, sandbox: { ...p.sandbox, redHost: action.redHost } }
         : p
     )
+  }
+}
+
+/**
+ * Fija las reglas de un perfil: normalizadas, y vacías quitan el campo. Pasado el tope no cambia nada
+ * (el diálogo ya no deja guardar).
+ */
+export function reducirSetProfileReglas(state: TabsState, action: Accion<'setProfileReglas'>): TabsState {
+  const reglas = normalizarReglas(action.reglas)
+  if (reglas.length > MAX_REGLAS_PERFIL) return state
+  const actual = state.profiles.find((p) => p.id === action.profileId)
+  if (!actual || (actual.reglas ?? '') === reglas) return state
+  return {
+    ...state,
+    profiles: state.profiles.map((p) => {
+      if (p.id !== action.profileId) return p
+      const siguiente: Profile = { ...p }
+      if (reglas === '') delete siguiente.reglas
+      else siguiente.reglas = reglas
+      return siguiente
+    })
   }
 }
 

@@ -28,7 +28,7 @@ caminos de datos. El puente al host recoge peticiones que el contenedor deja en 
 - El contenedor escribe en el buzón, así que el host nunca sigue un enlace de ahí: lo que escribe (clientes,
   lanzadores, centinela, respuestas) lo crea en exclusiva tras quitar lo que hubiera, y una petición que no es un
   archivo normal no se lee. Un enlace llamado `tdb` haría que el host pisara el archivo al que apunta.
-- Otros dominios registran su programa en el mismo buzón (`registrarPrograma`; p. ej. `tssh`): sus archivos se copian con los
+- Otros dominios registran su programa en el mismo buzón (`registrarPrograma`; `tssh` y `tctx`): sus archivos se copian con los
   de `tdb`, su lanzador se escribe igual y sus peticiones llevan `prog`. Sin `prog` es de `tdb`, como las de un cliente de
   una versión anterior; un `prog` que no está registrado contesta que se reinicie Tessera. El archivo de una petición pasa de 64 MiB: no se lee.
 - Truncar una respuesta en silencio haría creer que se vio todo: por encima de 8 MiB se descarta con un error.

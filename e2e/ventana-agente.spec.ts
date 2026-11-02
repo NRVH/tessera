@@ -153,7 +153,7 @@ test.describe.serial('La ventana de agente', () => {
     const lanzador = win.getByRole('dialog', { name: 'Conexiones SSH' })
     await expect(lanzador).toBeVisible()
     const boton = lanzador.getByRole('button', { name: 'Nueva ventana de agente', exact: true })
-    await expect(boton.locator('.ssh-pie-info'), 'una «i» pegada al texto explica qué es').toHaveAttribute('title', /ventana aparte, en tu carpeta de usuario/)
+    await expect(boton.locator('.ssh-pie-info'), 'una «i» pegada al texto explica qué es').toHaveAttribute('title', /ventana aparte, sin proyecto, en tu carpeta de usuario/)
     const [ventana] = await Promise.all([
       s.app.waitForEvent('window', { timeout: 30_000 }),
       boton.click()

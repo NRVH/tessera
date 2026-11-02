@@ -162,7 +162,7 @@ const HOY: Record<DbMotorSql, ValoresHoy> = {
         campos: ['database', 'sid'],
         alMenosUno: true,
         siNinguno: 'Oracle necesita un Service Name o un SID.',
-        siVarios: 'Indica Service Name O SID, no ambos.'
+        siVarios: 'Indica Service Name o SID, no ambos.'
       }
     ],
     descartarAlGuardar: [],
@@ -415,7 +415,7 @@ const OTRAS_FAMILIAS: Record<Exclude<DbMotor, DbMotorSql>, ValoresOtraFamilia> =
 /** `ConnectionStore.validate` ANTES del descriptor: la parte que dependía del motor, tal cual. */
 function validarDeAntes(motor: string, database: string, sid: string): string | null {
   if (motor === 'oracle' && !database && !sid) return 'Oracle necesita un Service Name o un SID.'
-  if (motor === 'oracle' && database && sid) return 'Indica Service Name O SID, no ambos.'
+  if (motor === 'oracle' && database && sid) return 'Indica Service Name o SID, no ambos.'
   if (motor === 'postgres' && !database) return 'PostgreSQL necesita el nombre de la base.'
   return null
 }

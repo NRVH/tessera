@@ -56,6 +56,52 @@
   gap: 4px;
 }
 
+/* El perfil y, a la derecha, su destino; en estrecho, el selector baja debajo del nombre. */
+.copia-perfil {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.copia-perfil > .copia-casilla {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.copia-eleccion {
+  flex: none;
+  max-width: 100%;
+  font-size: 12px;
+}
+
+.copia-reglas .copia-casilla {
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.copia-ver-diff {
+  font-size: 12px;
+  padding: 2px 8px;
+}
+
+/* El diff de las reglas, más bajo que en su revisión: va dentro de una lista. */
+.copia-reglas-diff {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.copia-reglas-diff p {
+  margin: 0;
+}
+
+.copia-reglas-diff .propuesta-reglas-diff {
+  height: 240px;
+  min-height: 0;
+}
+
 .copia-hijos {
   display: flex;
   flex-direction: column;

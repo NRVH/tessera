@@ -20,6 +20,8 @@ export function soltarSesion(n: NucleoAgente, sessionId: string): OpenAgentSessi
   // Lo primero: el token deja de valer aunque el resto falle. Clave con espacio de nombres
   // del agente, para no revocar el de la terminal de abajo del mismo perfil.
   n.revokeDbSession(claveSesionAgente(sessionId))
+  // El traspaso es de la sesión: se va con ella.
+  n.traspasos?.olvidarSesion(claveSesionAgente(sessionId))
   const open = n.sessions.get(sessionId)
   if (!open) return undefined
   // Cierre silencioso: cerrar o hibernar no es un «terminó, revísalo».
@@ -69,7 +71,7 @@ async function soltarContenedor(n: NucleoAgente, open: OpenAgentSession, session
   } else {
     n.log(`config ${open.profileId}/${open.agente}/${open.accountId} sigue en uso por otra sesión; no se desmonta`)
   }
-  n.sandbox.releaseSession(destino, `agent:${sessionId}`)
+  n.sandbox.releaseSession(destino, claveSesionAgente(sessionId))
   const otraEnElMismo = [...n.sessions.values()].some(
     (s) => !s.host && s.profileId === open.profileId && contenedorDe(profile, s.agente, s.accountId).id === destino.id
   )

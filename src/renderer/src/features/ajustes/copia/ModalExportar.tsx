@@ -1,8 +1,8 @@
 // =============================================================================
-// Modal de EXPORTAR la configuración: qué perfiles y qué apartados (todo marcado de serie), la
-// frase escrita dos veces (o, marcándolo y con su aviso, sin frase) y, al guardar, el resumen (y las
-// conexiones que viajan sin su secreto porque este equipo ya no lo puede descifrar). La operación
-// vive en `operacionesCopia.ts`.
+// Modal de EXPORTAR la configuración: qué perfiles y qué apartados (todo marcado de serie salvo el
+// historial de conversaciones, `HistorialExportar.tsx`), la frase escrita dos veces (o, marcándolo y con
+// su aviso, sin frase) y, al guardar, el resumen (y las conexiones que viajan sin su secreto porque este
+// equipo ya no lo puede descifrar). La operación vive en `operacionesCopia.ts`.
 // Decisiones: docs/decisiones/configuracion/exportar-importar.md
 // =============================================================================
 import '../../../comun/formularioModal.css'
@@ -14,6 +14,8 @@ import { MIN_FRASE, errorDeFrase, type ApartadosCopia } from '../../../../../sha
 import type { ResumenExportacion } from '../../../../../shared/copia-configuracion-ipc'
 import { exportarCopia } from './operacionesCopia'
 import { CampoFrase, Casilla } from './camposCopia'
+import { HistorialExportar } from './HistorialExportar'
+import { formatoBytes } from '../../../util/formatoBytes'
 import { txCopia } from './textosCopia.ts'
 
 const CLAVES_APARTADOS: ReadonlyArray<keyof ApartadosCopia> = ['ssh', 'bd', 'agentes', 'ajustes']
@@ -24,6 +26,8 @@ function Resumen({ nombre, r, sinFrase }: { nombre: string; r: ResumenExportacio
     <div className="copia-resumen" role="status">
       <p className="copia-ok">{t.exportar.guardado(nombre)}</p>
       <p className={sinFrase ? 'dbc-error' : 'dbc-ayuda'}>{t.exportar.resumen(r.perfiles, r.ssh, r.bd, r.agentes, sinFrase)}</p>
+      {r.historial && <p className="dbc-ayuda">{t.exportar.resumenHistorial(r.historial.conversaciones, formatoBytes(r.historial.bytes))}</p>}
+      {r.historial && r.historial.saltadas > 0 && <p className="dbc-ayuda">{t.exportar.historialSaltadas(r.historial.saltadas)}</p>}
       {r.sinSecreto.length > 0 && (
         <div className="dbc-error">{t.exportar.sinSecreto(t.comun.lista(r.sinSecreto))}</div>
       )}
@@ -41,6 +45,8 @@ function useExportar(onCerrar: () => void) {
   const [frase, setFrase] = useState('')
   const [repetida, setRepetida] = useState('')
   const [sinFrase, setSinFrase] = useState(false)
+  // Desmarcado de serie: puede ser grande y es tan sensible como lo hablado.
+  const [historial, setHistorial] = useState({ activo: false, nativo: false })
   const [error, setError] = useState<string | null>(null)
   const [estado, setEstado] = useState<{ tipo: 'editando' } | { tipo: 'guardando' } | { tipo: 'hecho'; nombre: string; resumen: ResumenExportacion }>({ tipo: 'editando' })
   const alternar = (id: string): void => setElegidos((l) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]))
@@ -50,7 +56,7 @@ function useExportar(onCerrar: () => void) {
     setError(null)
     setEstado({ tipo: 'guardando' })
     try {
-      const r = await exportarCopia(elegidos, apartados, frase, sinFrase)
+      const r = await exportarCopia(elegidos, apartados, frase, sinFrase, historial.activo ? { nativo: historial.nativo } : null)
       if (r.estado === 'cancelado') return setEstado({ tipo: 'editando' })
       setEstado({ tipo: 'hecho', nombre: r.nombre, resumen: r.resumen })
     } catch (err) {
@@ -63,7 +69,7 @@ function useExportar(onCerrar: () => void) {
     setSinFrase((x) => !x)
     setError(null)
   }
-  return { perfiles, elegidos, alternar, apartados, setApartados, frase, setFrase, repetida, setRepetida, sinFrase, alternarSinFrase, error, estado, exportar, onCerrar }
+  return { perfiles, elegidos, alternar, apartados, setApartados, historial, setHistorial, frase, setFrase, repetida, setRepetida, sinFrase, alternarSinFrase, error, estado, exportar, onCerrar }
 }
 
 function Campos({ v }: { v: ReturnType<typeof useExportar> }): React.JSX.Element {
@@ -82,6 +88,15 @@ function Campos({ v }: { v: ReturnType<typeof useExportar> }): React.JSX.Element
           <Casilla key={k} etiqueta={t.exportar.apartados[k]} marcada={v.apartados[k]} onCambio={() => v.setApartados((a) => ({ ...a, [k]: !a[k] }))} />
         ))}
       </fieldset>
+      <HistorialExportar
+        perfiles={v.perfiles}
+        elegidos={v.elegidos}
+        activo={v.historial.activo}
+        nativo={v.historial.nativo}
+        sinFrase={v.sinFrase}
+        onActivo={() => v.setHistorial((h) => ({ ...h, activo: !h.activo }))}
+        onNativo={() => v.setHistorial((h) => ({ ...h, nativo: !h.nativo }))}
+      />
       {!v.sinFrase && (
         <>
           <CampoFrase etiqueta={t.comun.frase} valor={v.frase} onCambio={v.setFrase} autoFocus ayuda={t.exportar.fraseAyuda(MIN_FRASE)} />

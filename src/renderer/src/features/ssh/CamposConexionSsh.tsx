@@ -9,6 +9,7 @@
 // =============================================================================
 
 import { IconoCarpetaNueva } from '../../comun/iconosMenu'
+import { AYUDA, BotonAyuda } from '../academy'
 import { pegarRecortado } from '../../util/pasteTrim'
 import { nombresSistema } from '../../../../shared/nombresSistema'
 import { SSH_ALIAS_MAX, type SshGrupo, type SshMetodo } from '../../../../shared/ssh-ipc'
@@ -39,8 +40,11 @@ export function CabeceraConexionSsh({
   return (
     <div className="dbc-cabecera">
       <div className="ssh-cabecera-titulo">
-        <div id={idTitulo} className="modal-title">
-          {esEdicion ? t.editarConexion : t.nuevaConexion}
+        <div className="dbc-titulo-fila">
+          <div id={idTitulo} className="modal-title">
+            {esEdicion ? t.editarConexion : t.nuevaConexion}
+          </div>
+          <BotonAyuda destino={AYUDA.conexionSsh} />
         </div>
         {!esEdicion && importar && (
           <button

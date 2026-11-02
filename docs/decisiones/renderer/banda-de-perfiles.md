@@ -21,7 +21,7 @@ Con colores puros, cinco pestañas se volvían una guirnalda que competía con e
 - Cada pestaña ocupa `flex: 1` (1 perfil = todo, N = 1/N). Lo que cuelga de la banda desaparece en
   el modo minimalista, así que nada que deba verse siempre (p. ej. el aviso de actualización) va
   dentro de ella.
-- **Modo minimalista de perfiles** (ajuste de Apariencia): la banda no se monta y su sitio lo ocupa
+- **Perfiles en un selector compacto** (ajuste de Apariencia): la banda no se monta y su sitio lo ocupa
   `SelectorPerfil`, una pastilla en `.titlebar` (con `no-drag`, como los demás controles de esa
   barra) con el punto y el nombre del perfil activo; la lista de perfiles sale al pulsarla. Usa el
   mismo estado que la banda (`useBandaPerfiles`) y las mismas capas (`CapasPerfil`): crear,

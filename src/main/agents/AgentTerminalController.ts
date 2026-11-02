@@ -31,6 +31,7 @@ import { cerrar, cerrarDeVentana, cerrarDonde, closeAllSessions, detenerVarias, 
 import type { IdAgente } from '../../shared/agentesManuales'
 import { pidsNativos, saveImage, sesionesNativas, stageFile } from './terminalAgente/nativas'
 import { anclarPorEntrada, snapshotActividad } from './terminalAgente/turnos'
+import { contenedorDe } from './terminalAgente/credenciales'
 import { aplicarSegundoPlanoDeSesion, hibernarInactivos, marcarEs } from './terminalAgente/hibernacion'
 import type { CambioSegundoPlano } from '../transcripts/tareasSegundoPlano'
 import type { SesionConContexto } from './manuales/contexto'
@@ -39,12 +40,24 @@ import {
   PERFIL_VENTANA,
   crearNucleo,
   errMsg,
+  esDeVentanaAgente,
   type AgentTerminalControllerOptions,
   type NucleoAgente,
   type OpenAgentSession
 } from './terminalAgente/tipos'
 
 export type { AgentTerminalControllerOptions } from './terminalAgente/tipos'
+
+/** Lo que «Continuar en…» necesita de la sesión de origen. */
+export interface SesionDeOrigen {
+  profileId: string
+  agente: Agente
+  accountId: string
+  host: boolean
+  projectHostPath: string
+  /** La conversación en la que está, si se sabe (ver `conversacionDe`). */
+  conversacion?: string
+}
 
 /** Sesiones del CLI del agente: apertura, reinicio, cierre, entrada y consultas. */
 export class AgentTerminalController {
@@ -149,6 +162,53 @@ export class AgentTerminalController {
       if (ancla.estado.tipo === 'dudosa') return undefined
     }
     return s.resumeSessionId
+  }
+
+  /** Las conversaciones en las que están ahora las sesiones vivas (las que se saben, ver `conversacionDe`). */
+  conversacionesAbiertas(): Set<string> {
+    const fuera = new Set<string>()
+    for (const id of this.sessions.keys()) {
+      const c = this.conversacionDe(id)
+      if (c) fuera.add(c)
+    }
+    return fuera
+  }
+
+  /**
+   * De quién es una sesión de un agente de serie y en qué conversación está, para «Continuar en…». Null si
+   * no existe, es de un agente manual o de una ventana de agente (sin perfil).
+   */
+  origenDeTraspaso(sessionId: string): SesionDeOrigen | null {
+    const s = this.sessions.get(sessionId)
+    if (!s || s.manual !== null || esDeVentanaAgente(s.profileId)) return null
+    const conversacion = this.conversacionDe(sessionId)
+    return {
+      profileId: s.profileId,
+      agente: s.agente as Agente,
+      accountId: s.accountId,
+      host: s.host,
+      projectHostPath: s.projectHostPath,
+      ...(conversacion ? { conversacion } : {})
+    }
+  }
+
+  /**
+   * De quién es una sesión viva, también la de un agente manual, para el alcance de `tctx buscar`: su perfil, su
+   * agente, su cuenta y si corre en el equipo. Null si no existe.
+   */
+  sesionParaHistorial(sessionId: string): { profileId: string; agente: string; accountId: string; host: boolean } | null {
+    const s = this.sessions.get(sessionId)
+    return s ? { profileId: s.profileId, agente: s.agente, accountId: s.accountId, host: s.host } : null
+  }
+
+  /**
+   * Dónde ve el proyecto el agente de esa cuenta en su contenedor (`/workspace/<carpeta>`); null sin el perfil.
+   * Si aún no está montado, el nombre queda reservado para que `addProject` lo use luego.
+   */
+  rutaEnContenedor(profileId: string, agente: Agente, accountId: string, projectHostPath: string): string | null {
+    const profile = this.n.profiles.get(profileId)
+    if (!profile) return null
+    return this.n.sandbox.reservarRutaEnContenedor(contenedorDe(profile, agente, accountId), projectHostPath)
   }
 
   /** Cierra las sesiones de una ventana que se cierra (sus árboles de una vez); las demás siguen. */

@@ -49,10 +49,11 @@ function puntoDeEscucha(log: (msg: string) => void): PuntoEscucha {
 }
 
 /**
- * Tope de una petición. Son cuatro campos; 4 KiB sobran de largo, y poner un tope
- * evita que un cliente roto (o malicioso) haga crecer un buffer sin fin.
+ * Tope de una petición (en caracteres), para que un cliente roto o malicioso no haga crecer un buffer
+ * sin fin. La más larga es `ctx.proponer`, que lleva unas reglas enteras: `tctx` no manda una de más de
+ * `MAX_PETICION` de `src/tctx/tctxOrdenes.cjs` (que cabe aquí con el token y la operación).
  */
-const MAX_PETICION = 4096
+const MAX_PETICION = 32 * 1024
 
 /** Un cliente que no completa su petición en este tiempo se descarta. */
 const TIMEOUT_SOCKET_MS = 5000
@@ -85,6 +86,8 @@ interface Concesion {
    * el ámbito. Siempre false en un token de un solo uso.
    */
   espacioDatos: boolean
+  /** La sesión a la que se ató el token (`bind`); sin atar, no tiene. */
+  sesion?: string
   /** Solo para tokens de un solo uso: id autorizado y momento de caducidad. */
   unaVez?: { connectionId: string; caducaEn: number }
 }
@@ -164,6 +167,8 @@ export interface SesionDelPuente {
   profileId: string
   projectHostPath: string
   espacioDatos: boolean
+  /** La sesión a la que se ató el token (`bind`), si ya se ató: lo que es solo de esa sesión se busca por aquí. */
+  sesion?: string
 }
 
 /** Lo que responde una operación registrada; viaja tal cual como una línea JSON. */
@@ -176,10 +181,11 @@ export interface RespuestaOperacion {
 /**
  * Una operación de otro dominio. Con token 'sesion', el puente exige un token de sesión vivo (nunca uno
  * de un solo uso) y le dice de quién es; con 'propio', la operación valida su propio token y el puente
- * solo comprueba la versión. Con una promesa, la respuesta sale cuando se cumple (una pregunta al usuario).
+ * solo comprueba la versión. Con una promesa, la respuesta sale cuando se cumple (una pregunta al usuario, o
+ * una lectura larga del disco que no puede bloquear el hilo).
  */
 export type OperacionPuente =
-  | { token: 'sesion'; manejar: (peticion: Record<string, unknown>, sesion: SesionDelPuente) => RespuestaOperacion }
+  | { token: 'sesion'; manejar: (peticion: Record<string, unknown>, sesion: SesionDelPuente) => RespuestaOperacion | Promise<RespuestaOperacion> }
   | { token: 'propio'; manejar: (peticion: Record<string, unknown>) => RespuestaOperacion | Promise<RespuestaOperacion> }
 
 /** Lo que el puente deja ver a otros dominios: si escucha, dónde, y el registro de sus operaciones. */
@@ -470,7 +476,9 @@ export class DbBridge implements PuertaPuente {
 
   /** Ata un token ya acuñado a su sesión, para poder revocarlo al cerrarla. */
   bind(token: string, sessionId: string): void {
-    if (!this.concesiones.has(token)) return
+    const concesion = this.concesiones.get(token)
+    if (!concesion) return
+    concesion.sesion = sessionId
     // Una sesión que se reata (reload) suelta su token anterior: si no, cada recarga
     // dejaría un token vivo y sin dueño, que es exactamente un oráculo de credenciales.
     const previo = this.porSesion.get(sessionId)
@@ -523,6 +531,18 @@ export class DbBridge implements PuertaPuente {
     return this.buscarConcesion(token)?.profileId ?? null
   }
 
+  /**
+   * De quién es un token de SESIÓN, con la misma regla que las operaciones con token 'sesion': un token de
+   * un solo uso es del «Probar» de una base y no abre nada más. Lo usa también quien atiende por el buzón
+   * de Docker sin lanzar un proceso (`tctx`).
+   */
+  sesionDeToken(token: string): SesionDelPuente | null {
+    const concesion = this.buscarConcesion(token)
+    if (!concesion || concesion.unaVez) return null
+    const { profileId, projectHostPath, espacioDatos, sesion } = concesion
+    return sesion === undefined ? { profileId, projectHostPath, espacioDatos } : { profileId, projectHostPath, espacioDatos, sesion }
+  }
+
   /** Cuántas concesiones vivas hay (para el registro y para los tests). */
   get concesionesVivas(): number {
     return this.concesiones.size
@@ -563,15 +583,15 @@ export class DbBridge implements PuertaPuente {
       return { ok: false, error: 'error interno' }
     }
     try {
+      let r: RespuestaOperacion | Promise<RespuestaOperacion>
       if (operacion.token === 'propio') {
-        const r = operacion.manejar(p)
-        return r instanceof Promise ? r.catch(fallo) : r
+        r = operacion.manejar(p)
+      } else {
+        const sesion = this.sesionDeToken(String(p.token ?? ''))
+        if (!sesion) return { ok: false, error: 'no autorizado' }
+        r = operacion.manejar(p, sesion)
       }
-      const concesion = this.buscarConcesion(String(p.token ?? ''))
-      // Un token de un solo uso es del «Probar» de una base: no abre ninguna otra operación.
-      if (!concesion || concesion.unaVez) return { ok: false, error: 'no autorizado' }
-      const { profileId, projectHostPath, espacioDatos } = concesion
-      return operacion.manejar(p, { profileId, projectHostPath, espacioDatos })
+      return r instanceof Promise ? r.catch(fallo) : r
     } catch (err) {
       return fallo(err)
     }
@@ -584,9 +604,11 @@ export class DbBridge implements PuertaPuente {
     socket.on('timeout', () => socket.destroy())
     socket.on('error', () => socket.destroy())
 
+    // Con codificación, un carácter multibyte partido entre dos trozos se une en vez de salir como U+FFFD.
+    socket.setEncoding('utf8')
     let buffer = ''
-    socket.on('data', (trozo) => {
-      buffer += trozo.toString('utf-8')
+    socket.on('data', (trozo: string) => {
+      buffer += trozo
       if (buffer.length > MAX_PETICION) {
         socket.destroy()
         return

@@ -207,6 +207,7 @@ function propsDePerfiles(tabs: UseTabs): {
   onRenameProfile: UseTabs['renameProfile']
   onRecolorProfile: UseTabs['recolorProfile']
   onToggleRedHost: UseTabs['setProfileRedHost']
+  onSetReglas: UseTabs['setProfileReglas']
   onDeleteProfile: UseTabs['deleteProfile']
   onReorderProfiles: UseTabs['reorderProfiles']
   onHibernateProfile: UseTabs['hibernateProfile']
@@ -219,6 +220,7 @@ function propsDePerfiles(tabs: UseTabs): {
     onRenameProfile: tabs.renameProfile,
     onRecolorProfile: tabs.recolorProfile,
     onToggleRedHost: tabs.setProfileRedHost,
+    onSetReglas: tabs.setProfileReglas,
     onDeleteProfile: tabs.deleteProfile,
     onReorderProfiles: tabs.reorderProfiles,
     onHibernateProfile: tabs.hibernateProfile
@@ -248,6 +250,7 @@ function FranjaProyectos({ tabs, dotStates }: FranjaProyectosProps): React.JSX.E
       projects={openProjects}
       activePath={activeProject?.projectHostPath ?? null}
       hasActiveProfile={activeProfileId !== null}
+      profileName={activeProfile?.nombre ?? null}
       onSelectProject={(path) => {
         // El perfil activo es el dueño de estas subpestañas; guardia por si el perfil
         // cambió entre render y clic.
@@ -257,8 +260,8 @@ function FranjaProyectos({ tabs, dotStates }: FranjaProyectosProps): React.JSX.E
         if (activeProfileId !== null) closeProject(activeProfileId, path)
       }}
       onOpenProject={() => void openProjectInActiveProfile()}
-      onReplaceProject={(path) => {
-        void replaceProjectInActiveProfile(path)
+      onReplaceProject={(path, confirmar) => {
+        void replaceProjectInActiveProfile(path, confirmar)
       }}
       dotStates={dotStates}
       activeProfileId={activeProfileId}

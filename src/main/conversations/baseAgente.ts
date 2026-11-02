@@ -29,3 +29,13 @@ export function crearBaseDeCuenta(cuentas: Pick<AccountStore, 'get' | 'hostDirFo
     return cuentas.hostDirFor(account)
   }
 }
+
+/** Como `crearBaseDeCuenta`, para quien solo lee: no crea ni mueve carpetas (`AccountStore.rutaDe`). */
+export function crearBaseDeCuentaDeLectura(cuentas: Pick<AccountStore, 'get' | 'rutaDe'>): BaseDeCuenta {
+  return (agente, accountId, host) => {
+    if (host) return baseNativaAgente(agente)
+    const account = cuentas.get(accountId)
+    if (!account || account.agente !== agente) return null
+    return cuentas.rutaDe(account)
+  }
+}

@@ -3,8 +3,8 @@
 // pone el renderer; el main añade las conexiones y sus secretos, cifra y guarda), ABRIR (elige el
 // archivo y lee su cabecera), DESCIFRAR (con la frase: devuelve perfiles, agentes, ajustes y la
 // lista de conexiones, nunca un secreto), CONEXIONES (da de alta las elegidas, que no salen del
-// main) y OLVIDAR; y la copia que llega del sistema al abrir un `.tessera` (aviso HAY_PENDIENTE,
-// recogida TOMAR_PENDIENTE). Lo sirve `src/main/configuracion/ipc.ts`.
+// main; también el historial elegido) y OLVIDAR; PREVIA_HISTORIAL para el diálogo de exportar; y la copia
+// que llega del sistema (aviso HAY_PENDIENTE, recogida TOMAR_PENDIENTE). Lo sirve `src/main/configuracion/ipc.ts`.
 // =============================================================================
 
 import type { AgentesCopia, AjustesCopia, ApartadosCopia } from './copiaConfiguracion.ts'
@@ -25,8 +25,35 @@ export const COPIA_CONFIGURACION_CHANNELS = {
   /** invoke: () -> AbrirResult | null. Abre la copia que llegó del sistema (doble clic), si hay. */
   TOMAR_PENDIENTE: 'copiaConfiguracion:tomarPendiente',
   /** send (main -> renderer), sin datos: hay una copia del sistema que recoger con TOMAR_PENDIENTE. */
-  HAY_PENDIENTE: 'copiaConfiguracion:hayPendiente'
+  HAY_PENDIENTE: 'copiaConfiguracion:hayPendiente',
+  /** invoke: PreviaHistorialRequest -> FuenteHistorial[]. Lo que llevaría el historial, sin leer ninguna conversación. */
+  PREVIA_HISTORIAL: 'copiaConfiguracion:previaHistorial'
 } as const
+
+export type AgenteHistorial = 'claude-code' | 'codex'
+
+/** Las conversaciones de una cuenta de Docker de un perfil, o las nativas de un agente en el equipo. */
+export interface FuenteHistorial {
+  /** Su número dentro del archivo. */
+  id: number
+  agente: AgenteHistorial
+  /** null: la carpeta nativa del agente, que es del equipo y no de un perfil. */
+  perfil: string | null
+  /** El nombre de la cuenta de Docker; null en la nativa. */
+  cuenta: string | null
+  predeterminada: boolean
+  conversaciones: number
+  bytes: number
+}
+
+export interface PreviaHistorialRequest {
+  perfiles: string[]
+  /** También la carpeta nativa de cada agente en este equipo. */
+  nativo: boolean
+}
+
+/** Por encima de esto, el diálogo de exportar avisa de lo que ocupa. */
+export const AVISO_HISTORIAL_BYTES = 1024 ** 3
 
 /**
  * Un perfil tal como viaja: el `Profile` del main, que valida su forma entera al exportar y al
@@ -49,6 +76,8 @@ export interface ExportarRequest {
   apartados: ApartadosCopia
   agentes?: AgentesCopia
   ajustes?: AjustesCopia
+  /** Presente: el historial de las cuentas de Docker de los perfiles elegidos y, con `nativo`, el de este equipo. */
+  historial?: { nativo: boolean }
 }
 
 export interface ResumenExportacion {
@@ -56,6 +85,8 @@ export interface ResumenExportacion {
   ssh: number
   bd: number
   agentes: number
+  /** Solo si se pidió el historial. `saltadas`: archivos que desaparecieron o se bloquearon mientras se exportaba. */
+  historial?: { conversaciones: number; bytes: number; saltadas: number }
   /** Conexiones cuyo secreto este equipo no puede descifrar: viajan sin él. */
   sinSecreto: string[]
   /** Conexiones SSH por clave cuya copia de la clave ya no está: en el otro equipo no se podrán importar. */
@@ -89,6 +120,8 @@ export type DescifrarResult =
       conexiones: PreviaConexiones
       /** Perfiles del archivo que no tienen una forma válida: no se importan. */
       perfilesInvalidos: number
+      /** El historial que trae, por cuenta; vacío si no trae. */
+      historial: FuenteHistorial[]
     }
 
 export interface ConexionesRequest {
@@ -108,4 +141,32 @@ export interface ResultadoConexiones {
   bd: { anadidas: number; saltadas: ConexionSaltada[] }
   /** Lo que se importó pero depende de este equipo (una carpeta, un archivo): conviene revisarlo. */
   revisar: string[]
+  /** Solo si se eligió algo del historial. */
+  historial?: ResumenHistorialImportado
+}
+
+/** Un archivo del historial que no se escribió, y por qué. */
+export interface HistorialApartado {
+  ruta: string
+  motivo: string
+}
+
+/** Lo que pasó con cada conversación del historial al importar. */
+export interface ResumenHistorialImportado {
+  /** No estaban aquí. */
+  importadas: number
+  /** Aquí estaba su principio: se pusieron al día. */
+  actualizadas: number
+  /** Aquí ya estaban iguales (o más avanzadas). */
+  alDia: number
+  /** Aquí había otra cosa con su nombre: se conservó la de aquí. */
+  conservadas: HistorialApartado[]
+  /** Se dejaron bajo la carpeta del proyecto con la ruta de este equipo. */
+  rutaCambiada: number
+  /** Carpetas de proyecto que se quedaron con la ruta de origen: cuántas conversaciones y por qué. */
+  rutaOriginal: Array<{ carpeta: string; conversaciones: number; motivo: string }>
+  /** Lo que no se escribió: no era una conversación, quedaba fuera de su cuenta o la cuenta no se pudo preparar. */
+  saltadas: HistorialApartado[]
+  /** Si el historial se cortó a medias (archivo dañado o tocado); lo escrito hasta ahí se queda. */
+  error: string | null
 }

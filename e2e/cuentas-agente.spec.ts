@@ -29,9 +29,20 @@ test('renombrar y eliminar cuentas de Docker desde el selector, que sigue abiert
     const tarjeta = (nombre: string): ReturnType<typeof pop.locator> => pop.locator('.cuenta-tarjeta', { hasText: nombre })
     await expect(tarjeta('Trabajo')).toHaveCount(1)
 
+    // Las acciones van en el menú «⋯» de cada tarjeta: Escape lo cierra a él y el selector sigue.
+    const menuDe = async (nombre: string): Promise<void> => {
+      await tarjeta(nombre).hover()
+      await pop.getByRole('button', { name: `Más acciones de "${nombre}"` }).click()
+      await expect(win.locator('.ctx-menu')).toBeVisible()
+    }
+    await menuDe('Trabajo')
+    await win.keyboard.press('Escape')
+    await expect(win.locator('.ctx-menu')).toHaveCount(0)
+    await expect(pop, 'Escape cierra el menú, no el selector').toBeVisible()
+
     // Renombrar: un nombre repetido se rechaza con el motivo y la tarjeta sigue en edición.
-    await tarjeta('Trabajo').hover()
-    await pop.getByRole('button', { name: 'Renombrar "Trabajo"' }).click()
+    await menuDe('Trabajo')
+    await win.locator('.ctx-menu').getByRole('menuitem', { name: 'Renombrar' }).click()
     const campo = pop.locator('.cuenta-tarjeta-campo')
     await campo.fill('personal')
     await campo.press('Enter')
@@ -43,15 +54,15 @@ test('renombrar y eliminar cuentas de Docker desde el selector, que sigue abiert
     await expect(tarjeta('Trabajo')).toHaveCount(0)
 
     // Escape en el campo solo cancela la edición: el selector no se cierra.
-    await tarjeta('Oficina').hover()
-    await pop.getByRole('button', { name: 'Renombrar "Oficina"' }).click()
+    await menuDe('Oficina')
+    await win.locator('.ctx-menu').getByRole('menuitem', { name: 'Renombrar' }).click()
     await campo.press('Escape')
     await expect(campo).toHaveCount(0)
     await expect(pop).toBeVisible()
 
     // Eliminar: el diálogo va encima y, al terminar, el selector sigue abierto y ya sin ella.
-    await tarjeta('Oficina').hover()
-    await pop.getByRole('button', { name: 'Eliminar "Oficina"…' }).click()
+    await menuDe('Oficina')
+    await win.locator('.ctx-menu').getByRole('menuitem', { name: 'Eliminar cuenta…' }).click()
     await win.locator('.modal-card button.danger').click()
     await expect(win.locator('.modal-card')).toHaveCount(0)
     await expect(tarjeta('Oficina')).toHaveCount(0)

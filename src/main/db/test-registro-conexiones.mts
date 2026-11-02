@@ -2597,7 +2597,7 @@ hr('(19) El alta valida el motor y el destino con el descriptor')
     const database = limpiarDestinoBd(input.database)
     const sid = limpiarDestinoBd(input.sid)
     if (input.motor === 'oracle' && !database && !sid) return 'Oracle necesita un Service Name o un SID.'
-    if (input.motor === 'oracle' && database && sid) return 'Indica Service Name O SID, no ambos.'
+    if (input.motor === 'oracle' && database && sid) return 'Indica Service Name o SID, no ambos.'
     if (input.motor === 'postgres' && !database) return 'PostgreSQL necesita el nombre de la base.'
     return null
   }
@@ -2661,7 +2661,7 @@ hr('(19) El alta valida el motor y el destino con el descriptor')
     'El puerto debe ser un entero entre 1 y 65535.',
     'Falta el usuario.',
     'Oracle necesita un Service Name o un SID.',
-    'Indica Service Name O SID, no ambos.',
+    'Indica Service Name o SID, no ambos.',
     'PostgreSQL necesita el nombre de la base.'
   ]
   const faltan = ESPERADOS.filter((e) => !vistos.has(e))

@@ -3,7 +3,8 @@
 // equipo A exporta (con sus secretos en claro dentro del contenido) y un equipo B, que ya tiene
 // cosas, importa. Se comprueba que se conservan los ids y los enlaces (grupo, bastión, túnel de una
 // base), que los secretos se vuelven a cifrar, que lo que ya está no se toca, lo que se salta, la
-// vista previa sin secretos y que solo entra lo elegido.
+// vista previa sin secretos, que solo entra lo elegido y que, añadido a un perfil de aquí con otro id,
+// todo entra en ese perfil.
 // Uso: node src/main/configuracion/test-copia-conexiones.mts
 // =============================================================================
 
@@ -27,7 +28,7 @@ register('data:text/javascript,' + encodeURIComponent(resolverTs))
 const { ConnectionStore } = await import('../db/ConnectionStore.ts')
 const { ConexionesSsh } = await import('../ssh/ConexionesSsh.ts')
 const { importarSshDeCopia } = await import('../ssh/controlador/copiaSsh.ts')
-const { armarContenido, leerContenido, previaConexiones, seleccionarContenido } = await import('./contenido.ts')
+const { armarContenido, leerContenido, previaConexiones, reasignarContenido, seleccionarContenido } = await import('./contenido.ts')
 
 const resultados: { nombre: string; pasa: boolean; evidencia: string }[] = []
 function hr(titulo: string): void {
@@ -174,6 +175,24 @@ const rF = await importarElegido(f, { perfiles: ['trabajo'], ssh: [], bd: [base.
 check('una base elegida sin su túnel no entra a medias: se salta con su motivo', f.bd.get(base.id) === undefined && typeof rF.bd[0]?.motivo === 'string', JSON.stringify(rF.bd))
 const rF2 = await importarElegido(f, { perfiles: [], ssh: [bastion.id, app.id], bd: [base.id] })
 check('NEGATIVO: sin su perfil elegido no entra nada', rF2.ssh.anadidas === 0 && rF2.bd.length === 0 && f.ssh.conexion(bastion.id) === undefined, '')
+
+hr('(9) Añadir a un perfil de aquí con otro id: todo va a ese perfil')
+const g = equipo('G')
+const grupoG = g.ssh.crearGrupo('personal', 'Producción')
+const historialCopia = { fuentes: [{ id: 0, agente: 'claude-code' as const, perfil: 'trabajo', cuenta: 'Trabajo', predeterminada: false, conversaciones: 1, bytes: 1, proyectos: {} }] }
+const reasignado = reasignarContenido(
+  { ...seleccionarContenido(contenido, { perfiles: ['trabajo'], ssh: [bastion.id, app.id], bd: [base.id] }), historial: historialCopia },
+  { trabajo: 'personal' }
+)
+const perfilesG = new Set(reasignado.perfiles.map((p) => p.id))
+const rG = await importarSshDeCopia(reasignado.ssh, perfilesG, { conexiones: g.ssh, deCopia: async () => { throw new Error('sin claves') }, crear: (input: SshConexionInput, id: string) => void g.ssh.crear(input, { id }) })
+const rGBd = (reasignado.bd ?? []).map((x) => g.bd.importarDeCopia(x.registro, x.secreto))
+check('las SSH entran en el perfil de destino, con su bastión', rG.anadidas === 2 && g.ssh.conexion(app.id)?.profileId === 'personal' && g.ssh.conexion(app.id)?.saltoId === bastion.id, JSON.stringify(rG))
+check('el grupo que ya se llama igual en el destino se reutiliza', g.ssh.conexion(app.id)?.grupoId === grupoG.id && g.ssh.listar('personal').grupos.length === 1, JSON.stringify(g.ssh.listar('personal').grupos))
+check('la base entra en el destino con su túnel', rGBd[0] === null && g.bd.get(base.id)?.profileId === 'personal' && g.bd.get(base.id)?.tunelSsh?.conexionId === app.id, JSON.stringify(rGBd))
+check('el historial de sus cuentas va al perfil de destino', reasignado.historial?.fuentes[0]?.perfil === 'personal', JSON.stringify(reasignado.historial))
+check('NEGATIVO: nada queda en el perfil del archivo', g.ssh.listar('trabajo').conexiones.length === 0 && g.bd.list('trabajo').length === 0, '')
+check('NEGATIVO: el contenido abierto no cambia', contenido.ssh?.conexiones.every((x) => x.registro.profileId === 'trabajo') === true, '')
 
 rmSync(raiz, { recursive: true, force: true })
 const pasan = resultados.filter((r) => r.pasa).length

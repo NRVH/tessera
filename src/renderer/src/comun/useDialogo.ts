@@ -58,6 +58,10 @@ function useFocoAlVolver(ref: React.RefObject<HTMLDivElement>, visible: boolean)
   useEffect(() => {
     const card = ref.current
     if (!card) return
+    // El diálogo pudo enfocar un campo antes de este efecto, y ese foco no llega como `focusin`.
+    if (document.activeElement instanceof HTMLElement && card.contains(document.activeElement)) {
+      ultimoFoco.current = document.activeElement
+    }
     const apuntar = (e: FocusEvent): void => {
       if (e.target instanceof HTMLElement) ultimoFoco.current = e.target
     }

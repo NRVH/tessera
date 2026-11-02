@@ -17,7 +17,7 @@ el main (diálogos nativos, menú de macOS, errores que llegan por IPC), `shared
   interpolación son funciones del propio texto; fechas y números, con `localeActual()`.
 - **El idioma se fija una vez al arrancar.** El main lo resuelve tras `whenReady` (variable de las
   pruebas, ajuste guardado, idiomas preferidos del sistema: el primero que Tessera habla, si no
-  inglés), lo pasa a la ventana como argumento y al entorno de `tdb` y `tssh`. Cambiarlo en
+  inglés), lo pasa a la ventana como argumento y al entorno de `tdb`, `tssh` y `tctx`. Cambiarlo en
   Configuración pide reiniciar, y la fila ofrece hacerlo por el cierre ordenado.
 - **Los textos se leen al usarse** (`tx().clave` dentro de la función o del componente), nunca en el
   nivel superior de un módulo: allí se evaluarían antes de fijar el idioma.

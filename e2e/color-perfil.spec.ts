@@ -46,7 +46,7 @@ test('cambiar el color de un perfil: popover bajo la pestaña, muestra, fijar y 
     await expect(hex, 'y el personalizado sigue a la muestra elegida').not.toHaveValue(sembrado.toLowerCase())
 
     await hex.fill('#aa5566')
-    await selector.getByRole('button', { name: 'Fijar' }).click()
+    await selector.getByRole('button', { name: 'Guardar en fijados' }).click()
     await expect(selector.locator('.selector-color-rejilla').nth(1).locator('.selector-color-muestra'), 'queda fijado').toHaveCount(1)
     await expect.poll(() => fijadosPersistidos(s!.datos), { message: 'y se guarda en los ajustes', timeout: 10_000 }).toEqual(['#aa5566'])
 

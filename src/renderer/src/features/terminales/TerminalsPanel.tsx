@@ -21,7 +21,6 @@ import {
 } from 'react'
 import {
   accionesSsh,
-  BotonRielSsh,
   enfocarRielSsh,
   ID_LANZADOR_SSH,
   LanzadorSsh,
@@ -30,7 +29,7 @@ import {
   useStoreSsh,
   type DatosListaConexionesSsh
 } from '../ssh'
-import { AccionesPanel, reinicioLocal, type ReinicioPanel } from './AccionesPanelTerminal'
+import { AccionesPanel, type ReinicioPanel } from './AccionesPanelTerminal'
 import { txTerminales } from './textos.ts'
 import { conexionDelPane, derivarActivo, type ActivoTerminales } from './activoTerminales'
 import { PilaTerminales } from './PilaTerminales'
@@ -71,6 +70,8 @@ export interface TerminalsPanelProps {
   projects: TerminalProjectTarget[]
   /** Proyecto que se está mirando (o null). Solo sus terminales pueden verse. */
   activeProjectKey: string | null
+  /** El nombre de su pestaña ('' sin proyecto): a pantalla completa, sin la banda de proyectos, lo dice la cabecera. */
+  nombreProyecto?: string
   /** Proyectos hibernados: el backend mató sus sesiones; sus panes deben relanzarlas al despertar. */
   hibernatedProjectKeys: Set<string>
   /** Bases montadas por proyecto: el mismo ámbito que la sesión de agente, para que `tdb` vea lo mismo. */
@@ -307,7 +308,7 @@ function reinicioDe(activo: ActivoTerminales, apisRef: MutableRefObject<Record<s
   if (!boton || activo.pane?.tipo !== 'local') return null
   return {
     boton,
-    alcance: reinicioLocal(),
+    etiqueta: txTerminales().reiniciarTerminal,
     onReload: () => {
       if (activePaneKey) void apisRef.current[activePaneKey]?.reload(boton.accion)
     }
@@ -347,12 +348,6 @@ export function TerminalsPanel(props: TerminalsPanelProps): React.JSX.Element {
     props.onPantallaCompleta(pedir)
     enfocarTerminal()
   }
-  // Ocultar el riel desde su cabecera quita del DOM el botón que se pulsó: sin foco en la franja, el acorde
-  // de pantalla completa dejaría de valer hasta que se pulsase la terminal.
-  const ocultarRiel = (): void => {
-    riel.ocultar()
-    enfocarTerminal()
-  }
   useFocoAlOcultarAgente(props.agenteTerminalVisible ?? false, props.pantallaCompleta, enfocarTerminal)
   // Se elige primero, para que se vea qué se reconecta; una que aún no se había visto se abre sola al verse.
   const reconectarSsh = (id: string): void => {
@@ -364,10 +359,12 @@ export function TerminalsPanel(props: TerminalsPanelProps): React.JSX.Element {
   return (
     <section ref={panelRef} {...atributosPanel(props.visible, sinTerminal, riel.columnaPlegadaMin)} aria-label={txTerminales().panel}>
       <header className="panel-header">
-        {/* Solo a pantalla completa y antes que el título: gobierna el riel, que queda justo debajo. */}
-        <BotonRielSsh riel={riel} />
-        {/* Solo «Terminal»: la ruta del workspace ya la escribe el prompt del shell, dos píxeles más abajo. */}
-        <span className="panel-title">{txTerminales().panel}</span>
+        {/* «Terminal» y, a pantalla completa, el proyecto, como la cabecera de Git: la banda de proyectos se aparta.
+            La ruta no: ya la escribe el prompt del shell, dos píxeles más abajo. */}
+        <span className="panel-title">
+          <span>{txTerminales().panel}</span>
+          {props.pantallaCompleta && props.nombreProyecto && <span className="accent">{props.nombreProyecto}</span>}
+        </span>
         <ZonaCabecera {...{ props, activo, infoByPane, renombrando, setRenombrando, nueva, tapadas }} enfocarTerminal={enfocarTerminal} reconectarSsh={reconectarSsh} />
         {/* Tapadas, la columna es el resto plegado del panel y no lleva sus botones: el único restaurar a la
             vista es el del agente, que baja un nivel; con las terminales de vuelta, el de aquí baja el siguiente. */}
@@ -385,7 +382,7 @@ export function TerminalsPanel(props: TerminalsPanelProps): React.JSX.Element {
       {/* El error NO se pinta aquí: lo pinta el propio TerminalPane, dentro de su hueco. */}
       <div className="terminal-body" ref={cuerpoRef}>
         {/* Enseñado una vez, se queda montado y oculto cuando no se enseña: vuelve con su filtro y su fila. */}
-        <RielConexionesSshVivo {...lista} visible={riel.visible} ancho={riel.ancho} anchoMax={riel.anchoMax} onAncho={riel.fijarAncho} onOcultar={ocultarRiel} />
+        <RielConexionesSshVivo {...lista} visible={riel.visible} ancho={riel.ancho} anchoMax={riel.anchoMax} onAncho={riel.fijarAncho} />
         {/* Tapadas por el agente no están a la vista: sueltan su contexto gráfico como las de fondo. */}
         <PilaTerminales panel={sinTerminal ? { ...props, visible: false } : props} activo={activo} onInfo={handleInfo} onApi={handleApi} onConectarPorSsh={riel.pedirLista} />
       </div>

@@ -72,7 +72,7 @@ export function generarShims(
   opts: ShimOpts,
   plataforma: Plataforma = plataformaActual()
 ): ShimGenerado[] {
-  const sh: ShimGenerado = { nombre: 'tdb', contenido: shimSh(opts), eol: 'lf' }
+  const sh: ShimGenerado = { nombre: 'tdb', contenido: shimSh(opts, plataforma), eol: 'lf' }
   if (plataforma !== 'windows') return [sh]
   return [
     sh,
@@ -81,21 +81,30 @@ export function generarShims(
   ]
 }
 
+/**
+ * La guarda contra WSL del atajo `sh`, solo en Windows: allí ese atajo es el del shell de Git, y desde una
+ * distro de WSL la ruta del ejecutable es de Windows y el puente local es inalcanzable (medio soporte sería
+ * peor que ninguno). En Linux, una Tessera que corre DENTRO de WSL es la del propio sistema y debe funcionar.
+ */
+export function guardaWsl(nombre: string, plataforma: Plataforma): string[] {
+  if (plataforma !== 'windows') return []
+  return [
+    'if [ -n "$WSL_DISTRO_NAME" ]; then',
+    `  echo "${nombre} no funciona desde WSL. Usa PowerShell o la terminal de Tessera." >&2`,
+    '  exit 2',
+    'fi',
+    ''
+  ]
+}
+
 /** Atajo para Git Bash (o cualquier sh). El que desbloquea al AGENTE. */
-function shimSh({ exe, script, sello }: ShimOpts): string {
+function shimSh({ exe, script, sello }: ShimOpts, plataforma: Plataforma): string {
   return [
     '#!/bin/sh',
     `# Atajo generado por Tessera (contrato ${SHIM_DIR}, ${sello}).`,
     '# Se reescribe en cada arranque: no lo edites.',
     '',
-    '# Desde WSL esto no puede funcionar: la ruta del ejecutable es de Windows (WSL',
-    '# necesita /mnt/c/...) y el puente local de Tessera es inalcanzable. Medio soporte',
-    '# sería peor que ninguno, así que se falla claro y pronto.',
-    'if [ -n "$WSL_DISTRO_NAME" ]; then',
-    '  echo "tdb no funciona desde WSL. Usa PowerShell o la terminal de Tessera." >&2',
-    '  exit 2',
-    'fi',
-    '',
+    ...guardaWsl('tdb', plataforma),
     '# El ENTORNO manda sobre la ruta horneada: una terminal abierta por ESTA instancia',
     '# de Tessera invoca ESTA instancia, aunque otra haya reescrito el atajo después.',
     `[ -n "$TESSERA_EXE" ] || TESSERA_EXE=${citarSh(exe)}`,

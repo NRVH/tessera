@@ -99,6 +99,12 @@ alfabético.
   repinte los panes de todos los perfiles.
 - [agentes/sesion-del-agente-en-el-main.md](agentes/sesion-del-agente-en-el-main.md) — la sesión
   del agente toma el refcount de su credencial antes de tocar Docker y nunca para el contenedor.
+- [agentes/buscar-en-el-historial.md](agentes/buscar-en-el-historial.md) — `tctx buscar`: el agente busca en
+  las conversaciones de su proyecto cuando lo necesita; en Docker, solo en las de su cuenta.
+- [agentes/traspaso-entre-agentes.md](agentes/traspaso-entre-agentes.md) — «Continuar esta conversación en…»: el mismo
+  agente sigue la misma conversación (se copia a la cuenta de destino); otro recibe un traspaso derivado.
+- [agentes/reglas-del-perfil.md](agentes/reglas-del-perfil.md) — las reglas del perfil las escribe o
+  aprueba el usuario (un agente solo las propone con `tctx`) y llegan en el arranque a todo agente del perfil.
 - [agentes/modo-por-agente.md](agentes/modo-por-agente.md) — los proyectos no tienen modo: cada
   agente elige en su botón de cuenta la del sistema o una de Docker, y la terminal es siempre nativa.
 - [agentes/sesion-linea-de-arranque.md](agentes/sesion-linea-de-arranque.md) — la línea de
@@ -523,9 +529,14 @@ alfabético.
 - [configuracion/exportar-importar.md](configuracion/exportar-importar.md) — la configuración viaja
   en un archivo cifrado con una frase (o, si se pide y con su aviso, sin ella) y al importarla se
   fusiona por id; los secretos no cruzan al renderer.
+- [configuracion/historial-en-la-copia.md](configuracion/historial-en-la-copia.md) — el historial de
+  conversaciones viaja en la copia, opcional, cifrado por trozos, sin credenciales y sin pisar lo que hay.
 - [configuracion/modal-con-riel-y-buscador.md](configuracion/modal-con-riel-y-buscador.md) —
   Configuración es un modal con un riel de categorías sin ninguna vacía, y su buscador atraviesa
   todas.
+- [configuracion/tessera-academy.md](configuracion/tessera-academy.md) — la ayuda son artículos por
+  concepto en la categoría «Tessera Academy» de Configuración, y los diálogos complejos llevan un ⓘ
+  que abre la sección que los explica.
 
 ### despliegue
 
@@ -641,8 +652,9 @@ alfabético.
 - [layout/oculto-manda-sobre-maximizado.md](layout/oculto-manda-sobre-maximizado.md) — maximizado
   y oculto de la columna del agente son de cada perfil; con los dos a la vez manda el oculto.
 - [layout/pantalla-completa-de-la-franja.md](layout/pantalla-completa-de-la-franja.md) — la franja
-  inferior se maximiza con un solo estado coherente, solo con CSS y sin desmontar; abrir una
-  pestaña o elegir una vista lateral sale del modo, y el atajo solo vale con el foco en la franja.
+  inferior se maximiza con un solo estado coherente, solo con CSS y sin desmontar; la banda de
+  proyectos se aparta, el riel deja solo la flecha de volver, abrir una pestaña sale del modo, y el
+  atajo solo vale con el foco en la franja.
 
 ### mosaico
 
@@ -856,8 +868,7 @@ alfabético.
   shell resalta logs y salidas con colores ANSI en el flujo: error y aviso la línea entera, info y
   ok solo su etiqueta, y nunca lo que ya trae color ni la pantalla alternativa.
 - [terminales/riel-de-conexiones.md](terminales/riel-de-conexiones.md) — la lista de conexiones SSH es un riel fijo
-  solo a pantalla completa, plegable, que se pliega solo si la terminal quedaría por debajo de 420 px sin tocar la
-  preferencia del perfil.
+  solo a pantalla completa, que se ve siempre que cabe y se pliega solo si la terminal quedaría por debajo de 420 px.
 - [terminales/terminales-keep-alive-y-reinicio-limpio.md](terminales/terminales-keep-alive-y-reinicio-limpio.md)
   — las terminales viven por ranura, siguen vivas al ocultarse y se reinician con la pantalla
   limpia.

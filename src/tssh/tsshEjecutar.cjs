@@ -14,7 +14,7 @@ const { plataformaDelProceso } = require('./tsshRutas.cjs')
 
 /** Bytes de la salida de errores que se guardan; Tessera mira las últimas líneas. */
 const BYTES_COLA = 8192
-/** Lo que se le manda a Tessera: su puente corta las peticiones a 4 KiB. */
+/** Lo que se le manda a Tessera: las últimas líneas bastan, y la petición cabe holgada en el tope de su puente. */
 const MAX_COLA = 2000
 
 /** Las secuencias ANSI y los controles salvo el salto de línea, por su código (escritos tal cual romperían el archivo). */

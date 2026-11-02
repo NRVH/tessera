@@ -39,16 +39,16 @@ export const txGit = crearTextos(
     rutaNoValida: 'Invalid path.',
     carpetaAlPreparar: 'It is a folder: stage its files one by one.',
     carpetaAlQuitar: 'It is a folder: unstage its files one by one.',
-    gitNoResponde: 'git did not respond; try again.',
-    gitFallo: (linea: string) => `git failed: ${linea}`,
-    gitFalloSalida: (codigo: number) => `git failed (exit ${codigo}).`,
+    gitNoResponde: 'Git did not respond; try again.',
+    gitFallo: (linea: string) => `Git failed: ${linea}`,
+    gitFalloSalida: (codigo: number) => `Git failed (exit code ${codigo}).`,
     sinRepo: 'There is no active repository.',
     sinRepoRuta: 'There is no repository for this path.',
-    proyectoDesconocido: 'This git operation belongs to a project that isn’t open: nothing was done.',
+    proyectoDesconocido: 'This Git operation belongs to a project that isn’t open: nothing was done.',
     mensajeVacio: 'The commit message is empty.',
     demasiadosEnLote: (tope: number) => `Too many files in a batch (limit ${tope}).`,
     copiaNoLeida: (codigo: string) => `Could not read the copy on disk: ${codigo}`,
-    cambioDeEstado: 'The file changed state during the confirmation.',
+    cambioDeEstado: 'The file’s state changed while you were confirming.',
     descarte: {
       esCarpeta: 'It is a folder: discard its files one by one.',
       fueraDelRepo: 'Path outside the repository.',
@@ -60,7 +60,7 @@ export const txGit = crearTextos(
       borradoGrande:
         'Its deletion is already staged and the copy on disk is too large to check: unstage it before discarding.',
       fueraDelArbol:
-        'It is marked as not to be touched in the working tree (skip-worktree): remove the mark before discarding.',
+        'It is marked to be skipped in the working tree (skip-worktree): remove the flag before discarding.',
       ramaRota: 'The current branch does not point to a valid commit (its reference is damaged): nothing is discarded.'
     }
   }

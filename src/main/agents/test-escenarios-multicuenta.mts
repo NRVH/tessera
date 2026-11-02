@@ -913,17 +913,18 @@ async function escenario9(): Promise<void> {
     veA === 'marca-de-A' && existsSync(enHostB) && readFileSync(enHostB, 'utf8').trim() === 'marca-de-B' && readFileSync(enHostA, 'utf8').trim() === 'marca-de-A',
     `A_ve=${veA}`
   )
-  const enlaces = [await ejecutar(ca, 'readlink /usr/local/bin/tdb /usr/local/bin/tssh'), await ejecutar(cb, 'readlink /usr/local/bin/tdb /usr/local/bin/tssh')]
+  const leer = 'readlink /usr/local/bin/tdb /usr/local/bin/tssh /usr/local/bin/tctx'
+  const enlaces = [await ejecutar(ca, leer), await ejecutar(cb, leer)]
   check(
-    '(9d) tdb y tssh quedan enlazados al buzón en cada contenedor de cuenta',
-    enlaces.every((e) => e.stdout.trim().split(/\r?\n/).join('|') === '/agent-config/dbbridge/tdb|/agent-config/dbbridge/tssh'),
+    '(9d) tdb, tssh y tctx quedan enlazados al buzón en cada contenedor de cuenta',
+    enlaces.every((e) => e.stdout.trim().split(/\r?\n/).join('|') === '/agent-config/dbbridge/tdb|/agent-config/dbbridge/tssh|/agent-config/dbbridge/tctx'),
     enlaces.map((e) => e.stdout.trim().split(/\r?\n/).join('|')).join(' ; ')
   )
 }
 
 // --- Escenario 10: el límite de contenedores hace sitio parando uno de cuenta ---------------
 
-const REGEX_SIN_SITIO = /^(Hay \d+ contenedores de Docker abiertos|There are \d+ Docker containers open)/
+const REGEX_SIN_SITIO = /^(Hay \d+ contenedores de Docker abiertos|\d+ Docker containers are open)/
 
 async function escenario10(): Promise<void> {
   const P = perfil(S10)

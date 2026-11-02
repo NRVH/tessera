@@ -38,6 +38,26 @@ export function leerTablaPs(salida: string): ProcesoPs[] {
   return filas
 }
 
+/** Las columnas de `ps` que lee `leerTablaPsConTty`, en su orden. */
+export const COLUMNAS_PS_CON_TTY = 'pid=,ppid=,pgid=,tpgid='
+
+/** Una fila de `ps` con el grupo en primer plano de su tty (`<= 0` si no tiene tty). */
+export interface ProcesoPsTty extends ProcesoPs {
+  tpgid: number
+}
+
+/** Las filas de `ps -A -o pid=,ppid=,pgid=,tpgid=`; lo que no sean cuatro enteros se descarta. */
+export function leerTablaPsConTty(salida: string): ProcesoPsTty[] {
+  const filas: ProcesoPsTty[] = []
+  for (const linea of salida.split('\n')) {
+    const m = /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(-?\d+)\s*$/.exec(linea)
+    if (!m) continue
+    const [pid, ppid, pgid, tpgid] = [Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4])]
+    if (pid > 0 && [ppid, pgid, tpgid].every(Number.isSafeInteger)) filas.push({ pid, ppid, pgid, tpgid })
+  }
+  return filas
+}
+
 /** La raíz y todos sus descendientes, siguiendo `ppid`. */
 function arbolDe(tabla: readonly ProcesoPs[], raiz: number): ProcesoPs[] {
   const porPadre = new Map<number, ProcesoPs[]>()

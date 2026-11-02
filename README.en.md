@@ -138,11 +138,11 @@ click **Always Allow**.
 2. **Create more workspaces** with the **+** at the end of the workspace bar: give each one
    a name and a color. Right-click a workspace to rename it, change its color, hibernate it
    or delete it, and drag it to reorder.
-3. **Add projects** with the **+** in the project bar ("Open project") and pick a folder.
+3. **Add projects** with the **+** in the project bar ("Open a folder as a project") and pick a folder.
    A project can be a single repository or a folder that contains several.
 4. **Choose the agent's account.** Each agent opens natively: on your computer, with the
    account signed in on it, shared by every workspace. The account button in its header opens
-   a picker with two sections, **On your computer** and **In Docker**, with a card per account
+   a picker with two sections, **On your computer** and **Isolated accounts (Docker)**, with a card per account
    (each in its own container) and **New Docker account…** at the bottom. From each card you
    can also rename it, sign out or delete it. The choice is remembered per agent and project.
 5. **Sign in to the agent.** With a new Docker account, the agent panel offers **Sign
@@ -158,13 +158,13 @@ click **Always Allow**.
 - Two levels of tabs: workspaces on top, each with its own color so you always know which
   account you are in, and the open projects of that workspace below.
 - Reorder workspaces and projects by dragging them.
-- **Minimalist mode** (Settings › Appearance): the workspace bar is replaced by a small
+- **Profiles in a compact selector** (Settings › Appearance): the workspace bar is replaced by a small
   selector in the middle of the title bar, showing the active workspace; click it to see the
   others, with the same menu to rename them, change their color, hibernate or delete them.
 - Tessera remembers which projects each workspace had open and restores them when you
   reopen the app, without starting every agent at once: an agent starts when you enter its
   project.
-- **Hibernate a workspace** to stop its container and free its memory; it wakes up where you
+- **Hibernate a workspace** to stop its container and free its memory; it resumes where you
   left it when you go back to it.
 - **Idle agents hibernate on their own**: a native agent of a project that is not on screen
   is closed after some minutes without activity (5 by default, or never) and resumes its
@@ -185,11 +185,11 @@ click **Always Allow**.
   account in the agent.
 - **Conversation history** per project: browse past conversations, resume any of them or
   delete them. Opening a project resumes its last conversation.
-- **Account usage** in the agent's footer (the 5-hour and weekly limits), and how much of
+- **Account usage** in the agent's footer (whatever limits its plan has: 5-hour, weekly or per model), and how much of
   the **context window** the current conversation is using.
 - **Keep agents up to date.** For native agents, one button checks for new Claude Code and
   Codex versions, installs them and restarts only the sessions that need it, each one back
-  in its conversation; it waits while an affected agent is still working. For Docker agents,
+  in its conversation; it skips those that are working, waiting for your answer or have unsent text. For Docker agents,
   "Actualizar agentes" rebuilds the sandbox image with the latest versions.
 - Paste images and files into the agent's terminal; for an agent in Docker they are copied
   inside the container instead of passing a path the agent could not open.
@@ -243,7 +243,8 @@ you used to enter it.
 
 - Multi-select with Ctrl/⌘-click and Shift-click, drag and drop to move, create, rename and
   delete.
-- Copy and paste files between Tessera and Explorer or Finder through the system clipboard.
+- Paste into Tessera the files you copied in Explorer or Finder; copying in Tessera leaves their
+  paths as text, to paste them into the editor or an agent.
 - **Search in files** across the whole project or one folder, with a live preview.
 - Git status colors on files and folders, refreshed as files change on disk.
 - **"Open with Tessera"** from the right-click menu of Windows Explorer (folders, any file,
@@ -256,8 +257,8 @@ you used to enter it.
 
 ![Git view with the history graph and a diff](assets/capturas/git.png)
 
-- **Changes**: the working tree as a list or a tree, stage and unstage, discard, ignore
-  (in `.gitignore` or only locally) and commit.
+- **Changes**: what changed in the working tree, stage and unstage, discard (always asking
+  first) and ignore (in `.gitignore` or only locally). You commit in the terminal or ask the agent.
 - **History** with its branch graph, filters, commit details and the history of a single
   file.
 - **Editable diffs**: fix something directly in the diff of your working copy.
@@ -273,7 +274,7 @@ you used to enter it.
   terminals in tabs, always native: your own shell (PowerShell on Windows, your login shell
   on macOS and Linux).
 - Find in the scrollback, copy and paste that behave like the platform expects, and
-  GPU-accelerated rendering that you can turn off in Settings.
+  GPU-accelerated rendering.
 - **Colored logs**: output that arrives without color is highlighted (errors, warnings,
   dates, IPs, URLs and HTTP codes) in the usual log formats, over SSH too, without changing
   the text you copy. It can be turned off in Settings.
@@ -385,7 +386,7 @@ different key on each platform, following each system's conventions.
 | Find in a terminal | Ctrl+F | ⌘F |
 | Copy in a terminal (with a selection) | Ctrl+C | ⌘C |
 | Paste in a terminal | Ctrl+V | ⌘V |
-| Open the selected item (explorer, database tree) | F4 or Enter | F4, ⌘↓ or Enter |
+| Open the selected item (database tree, SFTP explorer) | F4 or Enter | F4, ⌘↓ or Enter |
 | Delete the selected files | Delete | ⌘⌫ or Delete |
 
 With focus in a terminal, Ctrl+N on Windows and Linux belongs to the shell (it receives it

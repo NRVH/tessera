@@ -125,7 +125,7 @@ function NuevaCuenta({ m }: PropsParte): React.JSX.Element {
       title={primera ? t.iniciarSesionTitulo(nombreAgente(m.p.pestanasAgente, m.p.target.agente)) : t.nuevaCuentaTitulo(nombreAgente(m.p.pestanasAgente, m.p.target.agente))}
       label={t.nombreCuenta}
       confirmLabel={t.crearEIniciar}
-      hint={primera ? undefined : t.nuevaCuentaAviso}
+      hint={t.nuevaCuentaAviso}
       error={error}
       onConfirm={(nm) => {
         setError(null)

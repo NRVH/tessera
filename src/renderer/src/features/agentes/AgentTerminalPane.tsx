@@ -29,11 +29,8 @@ function SinCuenta({ m }: { m: ModeloAgentPane }): React.JSX.Element {
   return (
     <div className="agent-empty-account">
       <div className="agent-empty-title">{t.sinCuenta(nombreAgente(m.p.pestanasAgente, m.p.target.agente))}</div>
-      <div className="agent-empty-hint">
-        {t.sinCuentaA}
-        <strong>{m.p.profileName}</strong>
-        {t.sinCuentaB}
-      </div>
+      {/* Solo un agente que elige su modo tiene la opción de su equipo en el botón de cuenta. */}
+      <div className="agent-empty-hint">{t.sinCuentaPista(nombreAgente(m.p.pestanasAgente, m.p.target.agente), m.p.onElegirModo !== undefined)}</div>
       <div className="agent-empty-actions">
         <button className="btn btn-primary" onClick={() => m.ui.setAddingAccount(true)}>
           {t.iniciarSesion}

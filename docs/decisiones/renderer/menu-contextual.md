@@ -19,7 +19,14 @@ etiquetas de todas las filas aunque solo algunas traigan check o icono.
   imagen) lo hacen porque un menú puede combinar ambas.
 - El margen entre el check y la etiqueta es de 4px: lo notan los menús conmutables (filtros del historial
   de git, selector de repositorio), aunque hoy ninguno combine check e icono. La barra de estado usa
-  clases propias (`statusbar-menu-*`).
+  clases propias (`statusbar-menu-*`) porque abre hacia arriba y su lista se desplaza, pero con la misma
+  superficie y el mismo resaltado; la lista de un select de modal y el tooltip también la comparten.
+- El menú es de la familia de lo que flota: la superficie de los modales (`--bg-modal`) con sus grises
+  de apoyo, no la de las capas de la ventana, sobre la que se confundía con el fondo. Filas con radio
+  dentro de la tarjeta, separadores metidos y tenues, la letra del ajuste de interfaz y un resaltado
+  teñido con el color del perfil: lo único con color dice en qué perfil estás.
+- La explicación de una opción va en una segunda línea pequeña (`detalle`), no entre paréntesis en la
+  etiqueta, que se queda corta y no ensancha el menú.
 - El menú detiene la propagación del `mousedown` para que clicar una opción no lo cierre antes de
   disparar su acción; el cierre global es `mousedown` fuera o Escape.
 - **Los editores de código usan este mismo menú**, no el de serie del editor, que tiene otro aspecto y

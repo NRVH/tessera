@@ -2,8 +2,8 @@
 // Raíz de composición del proceso main: al cargar prepara el proceso (relevo, instancia
 // única, blindaje) y en `whenReady` crea adaptadores y servicios por fases, registra los
 // `ipc.ts` de cada dominio (todos, de forma síncrona, antes de crear la ventana) y arranca.
-// Las bases de datos, las conexiones SSH y las sesiones se componen en el `componer.ts` de `db/`,
-// `ssh/` y `agents/`; la fontanería de Electron (ventana, cierre, menú, eventos de `app`) vive en `app/`.
+// Las bases de datos, las conexiones SSH, las reglas del perfil y las sesiones se componen en el
+// `componer.ts` de `db/`, `ssh/`, `reglas/` y `agents/`; la fontanería de Electron (ventana, cierre, menú, eventos de `app`) vive en `app/`.
 // Decisiones: docs/decisiones/app/arranque-relevo-e-instancia-unica.md, docs/decisiones/app/cierre-ordenado.md
 // =============================================================================
 import { app, BrowserWindow, ipcMain } from 'electron'
@@ -22,6 +22,10 @@ import { LlegadaDePerfiles } from './profiles/llegadaDePerfiles'
 import { loadWorkspaceSettings, proyectosPersistidos } from './workspace/workspaceStateStore'
 import { componerBd } from './db/componer'
 import { componerSsh } from './ssh/componer'
+import { componerReglas } from './reglas/componer'
+import { RegistroTraspasos } from './traspaso/RegistroTraspasos'
+import { OP_TRASPASO, atenderTraspaso } from './traspaso/operacionTraspaso'
+import { OP_BUSCAR, OperacionBuscarHistorial } from './historial/operacionBuscar'
 import { limpiarMemoriaGlobal } from './db/agentMemory'
 import { dbLog } from './db/dbLog'
 import { aplicarExtrasSandbox, componerSesiones, crearCuentas } from './agents/componer'
@@ -45,6 +49,8 @@ import { WorkspaceService } from './workspace/WorkspaceService'
 import { registrarIpcEstadoWorkspace, registrarIpcWorkspace } from './workspace/ipc'
 import { registrarIpcPerfiles } from './profiles/ipc'
 import { registrarIpcCopiaConfiguracion } from './configuracion/ipc'
+import { cuentasDelHistorial } from './configuracion/historialCopia'
+import { baseNativaAgente } from './conversations/baseAgente'
 import { plataformaActual } from '../shared/plataforma'
 import { registrarIpcShell } from './shell/ipc'
 import { sistemaShellElectron } from './shell/adaptadores/sistemaElectron'
@@ -332,6 +338,22 @@ async function arrancar(): Promise<void> {
   const dbController = componerBd(comun)
   // Antes de las sesiones: la terminal abre las conexiones SSH con este controlador.
   const ssh = componerSsh({ ...comun, puente: dbController.puertaPuente, buzon: dbController.puertaBuzon, binDir: dbController.binDir })
+  // En memoria: lo prepara «Continuar en…», lo toma la apertura del destino y lo lee `tctx traspaso`.
+  const traspasos = new RegistroTraspasos()
+  // Se registra ya con las de `tctx`; las sesiones y las cuentas se le conectan al componerlas.
+  const buscarHistorial = new OperacionBuscarHistorial()
+  // `tctx` usa el mismo puente, buzón y carpeta de atajos que `tdb` y `tssh`.
+  const reglas = componerReglas({
+    ...comun,
+    puente: dbController.puertaPuente,
+    buzon: dbController.puertaBuzon,
+    sesionDeToken: (token) => dbController.sesionDeToken(token),
+    binDir: dbController.binDir,
+    otrasOperaciones: [
+      { op: OP_TRASPASO, manejar: (_p, s) => atenderTraspaso(traspasos, s) },
+      { op: OP_BUSCAR, manejar: (p, s) => buscarHistorial.atender(p, s) }
+    ]
+  })
   // Los túneles SSH de las bases usan las conexiones SSH del perfil.
   dbController.conectarSsh(ssh.controlador)
   ssh.controlador.alCambiarConexion(() => dbController.alCambiarConexionSsh())
@@ -347,7 +369,13 @@ async function arrancar(): Promise<void> {
     fuentes: { ssh: (id) => ssh.controlador.paraCopia(id), bd: (id) => dbController.paraCopia(id) },
     importarSsh: (copia, ids) => ssh.controlador.importarDeCopia(copia, ids),
     importarBd: (copia, ids) => dbController.importarDeCopia(copia, ids),
-    yaEsta: { ssh: (id) => ssh.controlador.idOcupado(id), bd: (id) => dbController.idOcupado(id) }
+    yaEsta: { ssh: (id) => ssh.controlador.idOcupado(id), bd: (id) => dbController.idOcupado(id) },
+    historial: {
+      ...cuentasDelHistorial(accounts),
+      baseNativa: baseNativaAgente,
+      proyectos: proyectosPersistidos,
+      conversacionesAbiertas: () => refs.agentes?.conversacionesAbiertas() ?? new Set()
+    }
   })
   registrarIpcAcercaDe({ ipc: ipcMain, reiniciar: () => void iniciarCierre(refs, { reabrir: true }) })
   registrarIpcPortapapeles({
@@ -364,7 +392,10 @@ async function arrancar(): Promise<void> {
     dbController,
     ssh: ssh.controlador,
     espacioTerminal: ssh.espacio,
-    espacioDatos: dbController.espacioDatos
+    espacioDatos: dbController.espacioDatos,
+    propuestasReglas: reglas.propuestas,
+    traspasos,
+    buscarHistorial
   })
 
   componerRegistroSalud()

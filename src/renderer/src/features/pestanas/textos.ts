@@ -1,6 +1,6 @@
 // =============================================================================
 // Textos de las pestañas de perfil y de proyecto: la banda y el selector de perfiles, su menú y
-// sus diálogos, el selector de color, la red del contenedor y los avisos de
+// sus diálogos, el selector de color, la red del contenedor, las reglas y sus propuestas, y los avisos de
 // las aperturas desde el gestor de archivos. Puro y sin JSX: el marcado lo compone cada componente.
 // Decisiones: docs/decisiones/app/idioma.md
 // =============================================================================
@@ -13,17 +13,19 @@ export const txPestanas = crearTextos(
       puntoEsperando: 'Un agente te está esperando',
       puntoTrabajando: 'Trabajando…',
       puntoAtencion: 'Un agente terminó y aún no lo revisas',
-      despertando: 'Despertando…',
-      despertandoAria: 'despertando',
+      despertando: 'Reanudando…',
+      despertandoAria: 'reanudando',
       hibernando: 'Hibernando…',
       hibernandoAria: 'hibernando',
-      hibernado: 'Hibernado',
+      hibernado: 'Hibernado: sin agentes ni terminales en marcha; ábrelo para reanudarlo',
       hibernadoAria: 'hibernado',
       perfiles: 'Perfiles',
-      agregar: 'Agregar perfil',
+      cambiar: 'Cambiar de perfil',
+      agregar: 'Nuevo perfil: otro espacio con sus propios proyectos, cuentas de IA y conexiones',
       opcionesDe: (nombre: string) => `Opciones de ${nombre}`,
       opciones: 'Opciones del perfil',
       nuevo: 'Nuevo perfil',
+      nuevoSubtitulo: 'Cada perfil tiene sus propios proyectos, cuentas de IA, conexiones y reglas.',
       nombrePlaceholder: 'Nombre del perfil',
       cancelar: 'Cancelar',
       crear: 'Crear'
@@ -31,47 +33,89 @@ export const txPestanas = crearTextos(
     menu: {
       renombrar: 'Renombrar',
       cambiarColor: 'Cambiar color',
-      red: (redHost: boolean) => `Red del contenedor: ${redHost ? 'la de tu equipo' : 'propia'}…`,
-      hibernarConfirma: 'Hibernar perfil…',
-      hibernar: 'Hibernar perfil',
-      eliminar: 'Eliminar perfil…'
+      red: (redHost: boolean) => `Red del contenedor Docker: ${redHost ? 'la de tu equipo' : 'aislada'}…`,
+      hibernar: 'Hibernar el perfil…',
+      hibernarDetalle: 'Cierra sus agentes y terminales para liberar memoria',
+      eliminar: 'Eliminar perfil…',
+      eliminarSinOtro: 'Necesitas al menos otro perfil',
+      reglas: 'Reglas para los agentes…'
+    },
+    reglas: {
+      titulo: (nombre: string) => `Reglas del perfil "${nombre}"`,
+      mensaje:
+        'Las leen al arrancar todos los agentes de este perfil, en Docker o en tu equipo. ' +
+        'Los agentes pueden proponerte cambios; nunca las cambian solos.',
+      etiqueta: 'Reglas',
+      placeholder: 'Por ejemplo: sube siempre a la rama de trabajo y nunca a la principal.',
+      contador: (n: number, max: number) => `${n} / ${max}`,
+      demasiado: 'Demasiado largo: quita texto para poder guardar.',
+      guardar: 'Guardar',
+      cancelar: 'Cancelar',
+      hayPropuesta: 'Un agente propone un cambio a estas reglas.',
+      revisarPropuesta: 'Revisar propuesta'
+    },
+    propuesta: {
+      aviso: (nombre: string) => `Un agente propone cambiar las reglas de "${nombre}"`,
+      revisar: 'Revisar',
+      titulo: (nombre: string) => `Propuesta de reglas para "${nombre}"`,
+      mensaje: 'No se aplica hasta que la aceptes. A la izquierda, las vigentes; a la derecha, las propuestas.',
+      motivo: 'Motivo del agente',
+      sinMotivo: 'El agente no dio ningún motivo.',
+      desde: (proyecto: string) => `Propuesta desde el proyecto ${proyecto}.`,
+      aceptar: 'Aceptar',
+      editar: 'Editar antes de aceptar',
+      descartar: 'Descartar',
+      yaNoEsta: 'Esa propuesta ya no está pendiente.',
+      aceptada: 'Reglas actualizadas: las leen los agentes que arranquen desde ahora.'
     },
     dialogos: {
       hibernarTitulo: (nombre: string) => `Hibernar el perfil "${nombre}"`,
-      hibernarMensaje:
-        'Hay un agente TRABAJANDO en este perfil. Al hibernar se cierra su sesión\n' +
-        'y el turno en curso se pierde (la conversación no: al volver, se reanuda).\n\n' +
-        'También se cierran las terminales de este perfil, con lo que estén\n' +
-        'ejecutando: Tessera no puede saber si hay algo corriendo en ellas.',
-      hibernar: 'Hibernar',
+      hibernarAgente: 'Un agente está trabajando: se corta su respuesta (la conversación se retoma al reanudar).',
+      hibernarEnMarcha: (n: number) =>
+        n === 1
+          ? 'Una terminal del perfil está ejecutando algo: se cierra y lo que ejecuta se detiene.'
+          : `${n} terminales del perfil están ejecutando algo: se cierran y lo que ejecutan se detiene.`,
+      hibernarAbiertas: (n: number) =>
+        n === 1
+          ? 'Se cierra la terminal del perfil y se detiene lo que ejecute.'
+          : `Se cierran las ${n} terminales del perfil y se detiene lo que ejecuten.`,
+      hibernarTerminales: 'Se cierran las terminales del perfil y se detiene lo que ejecuten.',
+      hibernarConversaciones: 'Las conversaciones de los agentes se retoman al reanudar.',
+      hibernar: (nombre: string) => `Parar e hibernar «${nombre}»`,
+      redTitulo: (nombre: string) => `Cambiar la red de «${nombre}»`,
+      redMensaje: 'Aplicar la red reinicia los contenedores del perfil y lo deja hibernado; las conexiones SSH siguen abiertas.',
+      redCambiar: 'Cambiar la red',
       cancelar: 'Cancelar',
       eliminarTitulo: (nombre: string) => `Eliminar el perfil "${nombre}"`,
       eliminarMensaje: (papelera: string) =>
-        'Se cerrarán sus sesiones y se detendrá su contenedor.\n\n' +
-        'Se borran sus conexiones SSH y de bases de datos y su historial de\n' +
-        'consultas. Las carpetas de su agente de la terminal y de su agente de\n' +
-        'datos, con las notas y las consolas que tengan, van a\n' +
-        `${papelera}: desde allí se recuperan.\n\n` +
-        'No se borran sus credenciales ni las conversaciones de sus cuentas:\n' +
-        'si lo recreas, las reencuentra.',
-      eliminar: 'Eliminar'
+        'Se cierran sus agentes y terminales y se detiene su contenedor.\n\n' +
+        'Se borran sus conexiones SSH y de bases de datos y su historial de consultas. ' +
+        `Las notas y consultas de sus agentes van a ${papelera}: desde allí se recuperan.\n\n` +
+        'Sus cuentas de IA y conversaciones no se borran de este equipo.',
+      eliminar: (nombre: string) => `Eliminar «${nombre}»`
     },
     proyectos: {
       aria: 'Proyectos abiertos',
-      despertando: 'Despertando…',
-      despertandoAria: 'despertando',
-      agenteHibernado: ' · agente hibernado por inactividad',
-      hibernado: (nombre: string) => `${nombre} (hibernado)`,
+      despertando: 'Reanudando…',
+      despertandoAria: 'reanudando',
+      agenteHibernado: ' · agente hibernado para ahorrar memoria; clic para reanudar',
+      hibernado: (nombre: string) => `${nombre} · hibernado para ahorrar memoria; clic para reanudar`,
       cerrarAria: (nombre: string) => `Cerrar ${nombre}`,
       cerrar: 'Cerrar',
+      cerrarConfirmar: (nombre: string) => `Cerrar «${nombre}»`,
       sinProyectos: 'Sin proyectos abiertos',
-      abrirEnlace: 'Abrir…',
-      abrir: 'Abrir proyecto',
+      abrirEnlace: 'Abrir una carpeta como proyecto…',
+      abrir: (perfil: string | null) =>
+        perfil === null ? 'Abrir una carpeta como proyecto' : `Abrir una carpeta como proyecto en «${perfil}»`,
       cerrarTitulo: 'Cerrar proyecto',
-      cerrarMensaje: (nombre: string) =>
-        `¿Seguro que quieres cerrar «${nombre}»?\nSe cerrarán sus pestañas y la sesión del agente de este proyecto.`,
+      cerrarMensaje: 'Se cierran sus pestañas y su agente. La carpeta no se toca y la conversación queda en el historial.',
       cancelar: 'Cancelar',
-      abrirAqui: 'Abrir otro proyecto aquí…'
+      abrirAqui: (nombre: string) => `Cambiar «${nombre}» por otra carpeta…`,
+      reemplazarTitulo: (nombre: string) => `Cambiar «${nombre}» por otra carpeta`,
+      reemplazarMensaje: (nombre: string, carpeta: string) =>
+        `Se cierra el proyecto «${nombre}» con sus pestañas y su agente (la conversación queda en el historial) ` +
+        `y se abre «${carpeta}» en su lugar. Ninguna de las dos carpetas se toca.`,
+      reemplazar: (carpeta: string) => `Cambiar por «${carpeta}»`
     },
     color: {
       quitar: (tinta: string) => `${tinta} · clic derecho para quitarlo`,
@@ -79,7 +123,7 @@ export const txPestanas = crearTextos(
       tono: 'Tono',
       luz: 'Luz',
       hex: 'Color en hexadecimal',
-      fijar: 'Fijar',
+      fijar: 'Guardar en fijados',
       aplicar: 'Aplicar',
       colores: 'Colores',
       fijados: 'Fijados',
@@ -92,8 +136,8 @@ export const txPestanas = crearTextos(
       aislada: 'Propia',
       aisladaHint: 'Recomendada · red y puertos propios',
       anfitrion: 'La de tu equipo',
-      anfitrionHint: (tuEquipo: string) => `--network host · comparte la red de ${tuEquipo}`,
-      conRedAnfitrion: 'Con la red del anfitrión',
+      anfitrionHint: (tuEquipo: string) => `Usa la red de ${tuEquipo}: ve sus VPN y puertos`,
+      conRedAnfitrion: (tuEquipo: string) => `Con la red de ${tuEquipo}`,
       puertos: (tuEquipo: string) => `Los puertos que abra el contenedor quedan en ${tuEquipo}, en el mismo número.`,
       nombreEquipo:
         'El contenedor pierde su nombre de equipo propio y comparte el espacio de puertos con los demás perfiles.',
@@ -105,7 +149,7 @@ export const txPestanas = crearTextos(
       comprobando: 'comprobando…',
       sinDiagnostico: 'No se pudo completar el diagnóstico.',
       salidaVpn: 'Salida a la VPN',
-      otroPerfil: 'Otro perfil ya usa la red del anfitrión',
+      otroPerfil: 'Otro perfil ya usa la red de tu equipo',
       otroPerfilDetalle: (tuEquipo: string) =>
         `En este modo los contenedores comparten el espacio de puertos de ${tuEquipo}: si los agentes de los dos levantan algo en el mismo puerto, el segundo no podrá.`,
       titulo: (nombre: string) => `Red del contenedor de “${nombre}”`,
@@ -115,8 +159,9 @@ export const txPestanas = crearTextos(
       sigueAnteriorDetalle:
         'Ya está elegido este modo, pero el contenedor que está corriendo nació con el otro. Reinícialo para aplicarlo.',
       cancelar: 'Cancelar',
-      aplicarIgualmente: 'Aplicar de todas formas y reiniciar',
-      aplicar: 'Aplicar y reiniciar el contenedor'
+      aplicarIgualmente: (perfil: string) =>
+        `Aplicar de todas formas y reiniciar «${perfil}» (cierra sus agentes y terminales)`,
+      aplicar: (perfil: string) => `Cambiar la red y reiniciar «${perfil}» (cierra sus agentes y terminales)`
     },
     aperturas: {
       noSePudoAbrir: (nombre: string) => `No se pudo abrir «${nombre}»`,
@@ -136,17 +181,19 @@ export const txPestanas = crearTextos(
       puntoEsperando: 'An agent is waiting for you',
       puntoTrabajando: 'Working…',
       puntoAtencion: 'An agent finished and you have not reviewed it yet',
-      despertando: 'Waking…',
-      despertandoAria: 'waking',
+      despertando: 'Resuming…',
+      despertandoAria: 'resuming',
       hibernando: 'Hibernating…',
       hibernandoAria: 'hibernating',
-      hibernado: 'Hibernated',
+      hibernado: 'Hibernated: no agents or terminals running. Open it to resume.',
       hibernadoAria: 'hibernated',
       perfiles: 'Profiles',
-      agregar: 'Add profile',
+      cambiar: 'Switch profile',
+      agregar: 'New profile: another space with its own projects, AI accounts and connections',
       opcionesDe: (nombre: string) => `Options for ${nombre}`,
       opciones: 'Profile options',
       nuevo: 'New profile',
+      nuevoSubtitulo: 'Each profile has its own projects, AI accounts, connections and rules.',
       nombrePlaceholder: 'Profile name',
       cancelar: 'Cancel',
       crear: 'Create'
@@ -154,47 +201,89 @@ export const txPestanas = crearTextos(
     menu: {
       renombrar: 'Rename',
       cambiarColor: 'Change color',
-      red: (redHost: boolean) => `Container network: ${redHost ? 'your computer’s' : 'its own'}…`,
-      hibernarConfirma: 'Hibernate profile…',
-      hibernar: 'Hibernate profile',
-      eliminar: 'Delete profile…'
+      red: (redHost: boolean) => `Docker container network: ${redHost ? 'your computer’s' : 'isolated'}…`,
+      hibernar: 'Hibernate profile…',
+      hibernarDetalle: 'Closes its agents and terminals to free memory',
+      eliminar: 'Delete profile…',
+      eliminarSinOtro: 'You need at least one other profile',
+      reglas: 'Rules for agents…'
+    },
+    reglas: {
+      titulo: (nombre: string) => `Rules for the profile “${nombre}”`,
+      mensaje:
+        'Every agent in this profile reads them at startup, in Docker or on your computer. ' +
+        'Agents can propose changes; they never change the rules themselves.',
+      etiqueta: 'Rules',
+      placeholder: 'For example: always push to the working branch, never to main.',
+      contador: (n: number, max: number) => `${n} / ${max}`,
+      demasiado: 'Too long: remove some text to save.',
+      guardar: 'Save',
+      cancelar: 'Cancel',
+      hayPropuesta: 'An agent proposes a change to these rules.',
+      revisarPropuesta: 'Review proposal'
+    },
+    propuesta: {
+      aviso: (nombre: string) => `An agent proposes changing the rules of “${nombre}”`,
+      revisar: 'Review',
+      titulo: (nombre: string) => `Proposed rules for “${nombre}”`,
+      mensaje: 'Nothing changes until you accept it. On the left, the current rules; on the right, the proposed ones.',
+      motivo: 'Reason from the agent',
+      sinMotivo: 'The agent gave no reason.',
+      desde: (proyecto: string) => `Proposed from the project ${proyecto}.`,
+      aceptar: 'Accept',
+      editar: 'Edit before accepting',
+      descartar: 'Discard',
+      yaNoEsta: 'That proposal is no longer pending.',
+      aceptada: 'Rules updated: agents that start from now on read them.'
     },
     dialogos: {
       hibernarTitulo: (nombre: string) => `Hibernate the profile “${nombre}”`,
-      hibernarMensaje:
-        'An agent is WORKING in this profile. Hibernating closes its session\n' +
-        'and the turn in progress is lost (the conversation is not: it resumes when you come back).\n\n' +
-        'This profile’s terminals are also closed, along with whatever they are\n' +
-        'running: Tessera cannot know whether something is running in them.',
-      hibernar: 'Hibernate',
+      hibernarAgente: 'An agent is working: its reply is interrupted (the conversation continues when you resume).',
+      hibernarEnMarcha: (n: number) =>
+        n === 1
+          ? 'A terminal of the profile is running something: it is closed and what it runs is stopped.'
+          : `${n} terminals of the profile are running something: they are closed and what they run is stopped.`,
+      hibernarAbiertas: (n: number) =>
+        n === 1
+          ? 'The profile’s terminal is closed and whatever it runs is stopped.'
+          : `The profile’s ${n} terminals are closed and whatever they run is stopped.`,
+      hibernarTerminales: 'The profile’s terminals are closed and whatever they run is stopped.',
+      hibernarConversaciones: 'The agents’ conversations continue when you resume.',
+      hibernar: (nombre: string) => `Stop and hibernate “${nombre}”`,
+      redTitulo: (nombre: string) => `Change the network of “${nombre}”`,
+      redMensaje: 'Applying the network restarts the profile’s containers and leaves it hibernated; SSH connections stay open.',
+      redCambiar: 'Change network',
       cancelar: 'Cancel',
       eliminarTitulo: (nombre: string) => `Delete the profile “${nombre}”`,
       eliminarMensaje: (papelera: string) =>
-        'Its sessions will be closed and its container will be stopped.\n\n' +
-        'Its SSH and database connections and its query history are\n' +
-        'deleted. The folders of its terminal agent and its data agent,\n' +
-        'with whatever notes and consoles they hold, go to the\n' +
-        `${papelera}: you can recover them from there.\n\n` +
-        'Its credentials and its accounts’ conversations are not deleted:\n' +
-        'if you recreate it, it finds them again.',
-      eliminar: 'Delete'
+        'Its agents and terminals are closed and its container is stopped.\n\n' +
+        'Its SSH and database connections and its query history are deleted. ' +
+        `Its agents’ notes and queries go to the ${papelera}: you can recover them from there.\n\n` +
+        'Its AI accounts and conversations are not deleted from this computer.',
+      eliminar: (nombre: string) => `Delete “${nombre}”`
     },
     proyectos: {
       aria: 'Open projects',
-      despertando: 'Waking…',
-      despertandoAria: 'waking',
-      agenteHibernado: ' · agent hibernated for inactivity',
-      hibernado: (nombre: string) => `${nombre} (hibernated)`,
+      despertando: 'Resuming…',
+      despertandoAria: 'resuming',
+      agenteHibernado: ' · agent hibernated to save memory; click to resume',
+      hibernado: (nombre: string) => `${nombre} · hibernated to save memory; click to resume`,
       cerrarAria: (nombre: string) => `Close ${nombre}`,
       cerrar: 'Close',
+      cerrarConfirmar: (nombre: string) => `Close “${nombre}”`,
       sinProyectos: 'No open projects',
-      abrirEnlace: 'Open…',
-      abrir: 'Open project',
+      abrirEnlace: 'Open a folder as a project…',
+      abrir: (perfil: string | null) =>
+        perfil === null ? 'Open a folder as a project' : `Open a folder as a project in “${perfil}”`,
       cerrarTitulo: 'Close project',
-      cerrarMensaje: (nombre: string) =>
-        `Are you sure you want to close “${nombre}”?\nIts tabs and this project’s agent session will be closed.`,
+      cerrarMensaje: 'Its tabs and its agent are closed. The folder is not touched and the conversation stays in the history.',
       cancelar: 'Cancel',
-      abrirAqui: 'Open another project here…'
+      abrirAqui: (nombre: string) => `Replace “${nombre}” with another folder…`,
+      reemplazarTitulo: (nombre: string) => `Replace “${nombre}” with another folder`,
+      reemplazarMensaje: (nombre: string, carpeta: string) =>
+        `The project “${nombre}” is closed with its tabs and its agent (the conversation stays in the history) ` +
+        `and “${carpeta}” opens in its place. Neither folder is touched.`,
+      reemplazar: (carpeta: string) => `Replace with “${carpeta}”`
     },
     color: {
       quitar: (tinta: string) => `${tinta} · right-click to remove it`,
@@ -202,7 +291,7 @@ export const txPestanas = crearTextos(
       tono: 'Hue',
       luz: 'Lightness',
       hex: 'Color in hexadecimal',
-      fijar: 'Pin',
+      fijar: 'Save to pinned',
       aplicar: 'Apply',
       colores: 'Colors',
       fijados: 'Pinned',
@@ -212,11 +301,11 @@ export const txPestanas = crearTextos(
       titulo: (nombre: string) => `Color of “${nombre}”`
     },
     red: {
-      aislada: 'Its own',
+      aislada: 'Own network',
       aisladaHint: 'Recommended · own network and ports',
-      anfitrion: 'Your computer’s',
-      anfitrionHint: (tuEquipo: string) => `--network host · shares the network of ${tuEquipo}`,
-      conRedAnfitrion: 'With the host network',
+      anfitrion: 'Your computer’s network',
+      anfitrionHint: (tuEquipo: string) => `Uses the network of ${tuEquipo}: sees its VPNs and ports`,
+      conRedAnfitrion: (tuEquipo: string) => `With the network of ${tuEquipo}`,
       puertos: (tuEquipo: string) => `Ports opened by the container stay on ${tuEquipo}, with the same number.`,
       nombreEquipo:
         'The container loses its own hostname and shares the port space with the other profiles.',
@@ -226,31 +315,32 @@ export const txPestanas = crearTextos(
       puenteBd: 'The database bridge does not change: it does not use ports.',
       comprobaciones: 'Checks',
       comprobando: 'checking…',
-      sinDiagnostico: 'The diagnosis could not be completed.',
+      sinDiagnostico: 'The checks could not be completed.',
       salidaVpn: 'VPN egress',
-      otroPerfil: 'Another profile already uses the host network',
+      otroPerfil: 'Another profile already uses your computer’s network',
       otroPerfilDetalle: (tuEquipo: string) =>
-        `In this mode the containers share the port space of ${tuEquipo}: if the agents of both start something on the same port, the second one cannot.`,
+        `In this mode the containers share the port space of ${tuEquipo}: if agents in both profiles use the same port, the second one fails.`,
       titulo: (nombre: string) => `Container network for “${nombre}”`,
       mensaje:
-        'Decide how this profile’s connections come in and go out. The change applies when its container restarts.',
+        'Choose how this profile’s connections come in and go out. The change applies when its container restarts.',
       sigueAnterior: 'The container is still on the previous network',
       sigueAnteriorDetalle:
         'This mode is already selected, but the running container was created with the other one. Restart it to apply it.',
       cancelar: 'Cancel',
-      aplicarIgualmente: 'Apply anyway and restart',
-      aplicar: 'Apply and restart the container'
+      aplicarIgualmente: (perfil: string) =>
+        `Apply anyway and restart “${perfil}” (closes its agents and terminals)`,
+      aplicar: (perfil: string) => `Change network and restart “${perfil}” (closes its agents and terminals)`
     },
     aperturas: {
       noSePudoAbrir: (nombre: string) => `Could not open “${nombre}”`,
       sinPerfil: 'There is no profile to open it in. Create one and try again.',
       sinCargar: 'The tabs did not finish loading. Try again.',
       tardoDemasiado: (nombre: string) => `“${nombre}” took too long to open`,
-      tardoDetalle: 'The project opened, but there was no time to show what you pointed at.',
+      tardoDetalle: 'The project opened, but Tessera could not show what you selected in time.',
       noExiste: 'no longer exists',
       sinPermiso: (sistema: string) => `cannot be read (${sistema} denies access)`,
       rutaInvalida: 'could not be opened',
-      fuera: 'ended up outside the project folder',
+      fuera: 'is outside the project folder',
       laRuta: (motivo: string) => `The path ${motivo}.`
     }
   }

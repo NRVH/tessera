@@ -7,12 +7,15 @@
   position: fixed;
   z-index: 10000;
   max-width: 320px;
-  padding: 4px 8px;
-  /* La piel de los menús contextuales: lo que flota en la app se ve igual. */
-  border: 1px solid var(--border-soft);
-  border-radius: 6px;
-  background: var(--bg-elevated);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  padding: 5px 9px;
+  /* La superficie de los menús contextuales: lo que flota en la app es de la misma familia. */
+  border: 1px solid var(--border-soft, var(--border));
+  border-radius: 7px;
+  background: var(--bg-modal);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--fg) 5%, transparent),
+    0 1px 2px rgba(0, 0, 0, 0.3),
+    0 6px 18px -4px rgba(0, 0, 0, 0.5);
   color: var(--fg);
   font-size: 12px;
   line-height: 1.35;

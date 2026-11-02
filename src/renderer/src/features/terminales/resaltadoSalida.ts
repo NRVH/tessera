@@ -43,6 +43,8 @@ const RE_SGR = new RegExp(`^${ESC}\\[([0-9;]*)m$`)
 const RE_REINICIO = new RegExp(`^${ESC}\\[0*m$`)
 /** Parámetros de SGR que apagan en vez de encender: reinicio y los «por defecto» de cada atributo. */
 const APAGAN = new Set([0, 22, 23, 24, 25, 27, 28, 29, 39, 49])
+/** Color de 256 (`;5;n`) o real (`;2;r;g;b`) para el texto, el fondo y el subrayado. */
+const COLOR_EXTENDIDO = new Set([38, 48, 58])
 
 /** ¿Es un SGR que pone color o estilo (no un simple reinicio)? Entonces el programa ya colorea. */
 function esSgrConColor(secuencia: string): boolean {
@@ -61,7 +63,16 @@ function colorTrasSgr(secuencia: string, previo: boolean): boolean {
   if (!m) return previo
   const params = m[1] === '' ? [0] : m[1].split(';').map((p) => (p === '' ? 0 : Number(p)))
   let encendido = previo
-  for (const p of params) encendido = !APAGAN.has(p) ? true : p === 0 ? false : encendido
+  for (let i = 0; i < params.length; i++) {
+    const p = params[i]
+    if (COLOR_EXTENDIDO.has(p)) {
+      encendido = true
+      // Sus argumentos no son parámetros: un componente a 0 no es un reinicio.
+      i += params[i + 1] === 2 ? 4 : params[i + 1] === 5 ? 2 : 0
+    } else {
+      encendido = !APAGAN.has(p) ? true : p === 0 ? false : encendido
+    }
+  }
   return encendido
 }
 

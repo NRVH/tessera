@@ -1,7 +1,7 @@
 # En Windows la actualización la aplica un relevo: una copia de la app fuera de la carpeta de instalación que supervisa al instalador y cuenta cómo acabó
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/update/stagingRelevo.ts`, `installDirLock*.ts`, `installDirPaths.ts`, `procesosSistema.ts`, `src/main/relevo/`
+- **Ámbito:** `src/main/update/stagingRelevo.ts`, `installDirLock*.ts`, `installDirPaths.ts`, `procesosSistema.ts`, `src/main/relevo/`, `src/shared/relevo.ts`
 
 ## Contexto
 
@@ -18,7 +18,9 @@ unos 12 caracteres en el renombrado, pasa de MAX_PATH (260, sin prefijo `\\?\`).
   (robocopy tiene handles sobre la carpeta mientras la recorre). Códigos 0-7 de robocopy son éxito.
 - robocopy y el relevo arrancan con `cwd` fuera de la carpeta de instalación: el directorio actual de un proceso es
   un handle abierto sobre ella.
-- Solo con `relanzar` (el botón): al cerrar, el usuario no pidió una ventana que sobreviva a la app. Se lanza al
+- Siempre que se instala, con el botón o al cerrar con una preparada: el instalador desinstala la versión vieja antes
+  de poner la nueva, y sin una ventana el usuario se queda ese rato sin la app, sin saber qué pasa ni cómo acabó. El
+  relevo nunca relanza solo: al terminar ofrece **Abrir Tessera**. Se lanza al
   EMPEZAR el cierre (`anticiparRelevo`), tras la pregunta de salida y antes de matar terminales y contenedores: el
   proceso de Tessera llegó a morir a mitad del cierre sin dejar rastro (sin volcado, sin evento del sistema) justo
   después de matar las pseudoconsolas, y con el relevo al final eso era «se cerró y no pasó nada». Como el relevo
@@ -37,6 +39,22 @@ unos 12 caracteres en el renombrado, pasa de MAX_PATH (260, sin prefijo `\\?\`).
   `/S --updated` sin `--force-run`: relanza el usuario con el botón. `--updated` mata la app y conserva accesos.
 - La ventana es HTML en una URL `data:` sin React ni archivos de la app (se está borrando debajo). Los botones avisan
   por `console.log` de una marca leída en `console-message` (del objeto del evento). Los pintados van encolados.
+- Tras un fallo se COMPRUEBA si el ejecutable sigue en su sitio (el código de salida no lo dice: el instalador pudo
+  fallar después de desinstalar) y se ofrecen tres salidas, una a la vez y sin botones mientras trabaja:
+  **Reintentar** (la carpeta y el instalador otra vez; sin carpeta, la prueba de renombrado la da por libre),
+  **Volver a la versión anterior** y **Abrir el instalador** (sin `/S`, con su asistente). Si lo que falla es abrir
+  Tessera tras una instalación buena, la ventana se queda en el final bueno: las salidas de un fallo desharían algo
+  que funciona.
+- Volver a la anterior: si la prueba de renombrado la dejó apartada (`.relevo-tmp`), se devuelve a su nombre; si
+  no, se COPIA encima la copia del relevo, que es esa versión entera (`robocopy /E /IS /IT`, sin el encargo ni el
+  marcador de versión), y se abre. Sirve con la carpeta borrada, a medias o intacta. Nunca `/MIR`: el instalador
+  deja elegir la carpeta, puede ser una del usuario, y `/MIR` borraría lo que no esté en la copia; lo que la nueva
+  dejara de más no estorba a la anterior. Ni aun así se copia sobre la raíz de una unidad o de un recurso, la propia
+  copia o una carpeta que contenga a la otra o esté dentro (`destinoRestaurable`). Los accesos directos sobreviven
+  porque la desinstalación por actualización los conserva; la ficha de aplicaciones instaladas la borra el
+  desinstalador y la repone la siguiente actualización.
+- El aviso de cierre solo promete la ventana si el relevo ya está en marcha; sin copia preparada se instala por el
+  camino de siempre y dice que la versión nueva estará lista al volver a abrir.
 
 ## Consecuencias
 
@@ -45,3 +63,7 @@ El relevo no puede vivir en lo que reemplaza ni tener su `cwd` ahí. Las esperas
 ## Descartes
 
 - Avisar con `location.hash` y `did-navigate-in-page`: Chromium bloquea la navegación de fragmento en una URL `data:`.
+- Instalar en silencio al cerrar: la app desaparece durante la instalación sin ninguna señal, y un fallo a mitad
+  deja al usuario sin ella hasta que alguien la reinstale.
+- Volver a la anterior con el instalador que NSIS guarda en `tessera-updater\installer.exe`: lo reescribe cada
+  instalación, también la que acaba de fallar, así que puede ser ya el de la versión nueva.

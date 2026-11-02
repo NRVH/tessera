@@ -385,7 +385,7 @@ function validarComoElMain(input: DbConnectionInput): void {
     throw new Error('Oracle necesita un Service Name o un SID.')
   }
   if (input.motor === 'oracle' && database && sid) {
-    throw new Error('Indica Service Name O SID, no ambos.')
+    throw new Error('Indica Service Name o SID, no ambos.')
   }
   if (input.motor === 'postgres' && !database) {
     throw new Error('PostgreSQL necesita el nombre de la base.')
@@ -453,7 +453,7 @@ const CAMPOS_DEL_MENSAJE: Array<[RegExp, CampoConexion[]]> = [
   [/^El puerto/, ['port']],
   [/^Falta el usuario/, ['user']],
   [/Service Name o un SID/, ['database', 'sid']],
-  [/Service Name O SID, no ambos/, ['database', 'sid']],
+  [/Service Name o SID, no ambos/, ['database', 'sid']],
   [/PostgreSQL necesita el nombre de la base/, ['database']],
   [/La base es un número entero/, ['database']]
 ]

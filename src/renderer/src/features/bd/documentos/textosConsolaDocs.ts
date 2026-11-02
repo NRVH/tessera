@@ -107,7 +107,7 @@ export const txConsolaDocs = crearTextos(
     nadaEnEjecucion: 'Nothing is running',
     historialTitulo: (acorde: string) => `Command history · ${acorde}`,
     historial: 'Command history',
-    esperaParaCambiarBase: 'Wait for the execution to finish to change the database',
+    esperaParaCambiarBase: 'Wait for the execution to finish before changing the database',
     baseCambiar: (base: string) => `Database: ${base}. Click to change`,
     baseElegir: 'Console database. Click to choose',
     baseDeLaConsolaN: (base: string) => `Console database: ${base}`,
@@ -118,16 +118,16 @@ export const txConsolaDocs = crearTextos(
     bases: 'Databases',
     baseDeLaConsolaEn: (alias: string) => `Console database on ${alias}`,
     filtrarBases: 'Filter databases',
-    pistaSelector: 'Enter selects · Esc cancels · also “use name”',
+    pistaSelector: 'Enter to select · Esc to cancel · or type “use name”',
     noSePudoLeer: (e: string) => `Could not read the console: ${e}`,
     cargando: 'Loading…',
-    repartoAria: 'Split between the console and the results',
+    repartoAria: 'Console and results splitter',
     resultadosAria: 'Console results',
     fijada: 'Pinned: the next execution does not replace it',
     salidaVacia: 'The output is already empty',
-    limpiarSalida: 'Clear the output',
+    limpiarSalida: 'Clear output',
     cargarMas: 'Load more',
-    exportarResultado: 'Export the whole result to a file (the query is run again)',
+    exportarResultado: 'Export the full result to a file (runs the query again)',
     nombreResultado: 'Result',
     sinSalida: 'No output',
     sinSalidaPista: (ejecutar: string, todo: string) =>
@@ -175,7 +175,7 @@ export const txConsolaDocs = crearTextos(
     forzarEtiqueta: 'Force (closes the connection and its open cursors)',
     forzarTitulo: 'Force the connection to close?',
     forzarMensaje: (alias: string) =>
-      `The connection to “${alias}” will be closed: whatever is running is cut off, and the open cursors of its tabs and consoles are lost.`,
+      `The connection to “${alias}” will close. Anything running is interrupted, and the open cursors in its tabs and consoles are lost.`,
     forzar: 'Force'
   }
 )

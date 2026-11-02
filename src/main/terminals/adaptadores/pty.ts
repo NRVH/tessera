@@ -15,7 +15,16 @@ import path from 'node:path'
 import { esWindows, plataformaActual } from '../../../shared/plataforma.ts'
 import { conTope, esperar } from '../../util/esperas.ts'
 import { BASH, lanzamientoSinHerencia } from './descriptoresHeredados.ts'
-import { leerTablaPs, planMuerte, planRemate, type PlanMuerte, type ProcesoPs } from './arbolProcesos.ts'
+import {
+  COLUMNAS_PS_CON_TTY,
+  leerTablaPs,
+  leerTablaPsConTty,
+  planMuerte,
+  planRemate,
+  type PlanMuerte,
+  type ProcesoPs,
+  type ProcesoPsTty
+} from './arbolProcesos.ts'
 import { crearRegistroPtys, type PtyPendiente, type Remate } from './registroPtys.ts'
 import { clasificarTaskkill, type ErrorEjecucion, type ResultadoTaskkill } from './taskkill.ts'
 
@@ -215,17 +224,34 @@ const PS_TIMEOUT_MS = 2000
 const GRACIA_TERM_MS = 500
 
 /** La tabla de procesos del sistema; vacía si `ps` falla (y entonces no se señala nada). */
-function tablaDeProcesos(): Promise<ProcesoPs[]> {
-  return new Promise<ProcesoPs[]>((resolve) => {
+async function tablaDeProcesos(): Promise<ProcesoPs[]> {
+  return (await tablaDeProcesosPosix()) ?? []
+}
+
+/** Ejecuta `ps -A` con esas columnas; null si falla. Ruta absoluta: el PATH heredado puede traer otro `ps`. */
+function psConColumnas<T>(columnas: string, leer: (salida: string) => T): Promise<T | null> {
+  return new Promise<T | null>((resolve) => {
     try {
-      // Ruta absoluta: el PATH heredado puede traer otro `ps` por delante.
-      execFile('/bin/ps', ['-A', '-o', 'pid=,ppid=,pgid='], { timeout: PS_TIMEOUT_MS }, (err, stdout) =>
-        resolve(err ? [] : leerTablaPs(String(stdout)))
+      execFile('/bin/ps', ['-A', '-o', columnas], { timeout: PS_TIMEOUT_MS }, (err, stdout) =>
+        resolve(err ? null : leer(String(stdout)))
       )
     } catch {
-      resolve([])
+      resolve(null)
     }
   })
+}
+
+/** La tabla de procesos de macOS y Linux; null si `ps` falla. */
+function tablaDeProcesosPosix(): Promise<ProcesoPs[] | null> {
+  return psConColumnas('pid=,ppid=,pgid=', leerTablaPs)
+}
+
+/**
+ * La tabla de macOS y Linux con el grupo en primer plano de cada tty, para saber qué ejecuta una
+ * terminal; null si `ps` falla, que no es lo mismo que «no hay nada».
+ */
+export function tablaDeProcesosConTty(): Promise<ProcesoPsTty[] | null> {
+  return psConColumnas(COLUMNAS_PS_CON_TTY, leerTablaPsConTty)
 }
 
 function senalar(plan: Pick<PlanMuerte, 'grupos' | 'pids'>, senal: NodeJS.Signals): void {

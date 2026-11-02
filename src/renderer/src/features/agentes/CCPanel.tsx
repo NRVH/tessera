@@ -225,7 +225,7 @@ export function CCPanel(props: CCPanelProps): React.JSX.Element {
       ref={seccionRef}
       className={claseColumna(grow, hidden, enMosaico, variasALaVista)}
       style={estiloRejilla}
-      aria-label={enMosaico ? txPane().columna.mosaico : 'Claude Code'}
+      aria-label={enMosaico ? txPane().columna.mosaico : txPane().columna.agente}
     >
       {/* En orden ESTABLE y no en el de las pestañas: un pane que React cambia de sitio en
           el DOM pierde el scroll de su terminal. Qué pane se ve no depende del orden. */}
@@ -234,7 +234,7 @@ export function CCPanel(props: CCPanelProps): React.JSX.Element {
         return (
           // La KEY incluye el modo: pasar el agente de nativo a Docker o al revés REMONTA el pane
           // (cierra la sesión vieja y abre otra en el otro modo).
-          <ErrorBoundary key={`${target.key}${propsPane.hostMode ? '|host' : ''}`} label="Claude Code" variant="pane">
+          <ErrorBoundary key={`${target.key}${propsPane.hostMode ? '|host' : ''}`} label={txPane().columna.agente} variant="pane">
             <AgentTerminalPane {...propsPane} />
           </ErrorBoundary>
         )
@@ -286,7 +286,7 @@ function VacioColumna({
     <EstadoVacio
       className="cc-empty"
       icono={<IconoAgenteVacio />}
-      titulo="Claude Code"
+      titulo={t.agente}
       pista={t.seleccionaProyecto}
     />
   )

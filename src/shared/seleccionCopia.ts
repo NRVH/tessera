@@ -1,10 +1,13 @@
 // =============================================================================
-// Qué se importa de una copia de la configuración: el árbol de la vista previa (cada perfil con sus
-// conexiones SSH, de bases de datos y agentes debajo; los agentes nativos y los ajustes aparte), las
-// casillas que se marcan y desmarcan con sus dependencias (el bastión de una SSH, el túnel de una
-// base) y la selección que se manda a importar. Puro: lo usan el main, el renderer y los `test-*.mts`.
+// Qué se importa de una copia de la configuración: el árbol de la vista previa (cada perfil, con su
+// destino, y sus reglas, conexiones SSH, de bases de datos, agentes e historial por cuenta debajo; los
+// agentes nativos, el historial nativo y los ajustes aparte), las casillas que se marcan y desmarcan con
+// sus dependencias (el bastión de una SSH, el túnel de una base) y la selección que se manda a importar. Puro.
 // Decisiones: docs/decisiones/configuracion/exportar-importar.md
 // =============================================================================
+
+import type { FuenteHistorial } from './copia-configuracion-ipc.ts'
+import type { EstadoReglas } from './destinoCopia.ts'
 
 /** Una conexión del archivo tal como la ve la vista previa: sin secretos. */
 export interface ConexionPrevia {
@@ -24,7 +27,7 @@ export interface PreviaConexiones {
   bd: ConexionPrevia[]
 }
 
-export type TipoElemento = 'perfil' | 'ssh' | 'bd' | 'agente' | 'nativo' | 'ajustes'
+export type TipoElemento = 'perfil' | 'reglas' | 'ssh' | 'bd' | 'agente' | 'nativo' | 'historial' | 'ajustes'
 
 export interface ElementoImportar {
   clave: string
@@ -36,11 +39,24 @@ export interface ElementoImportar {
   yaEsta: boolean
   /** Las claves de los elementos sin los que este no puede entrar. */
   requiere: string[]
+  /** El historial de una cuenta (o el nativo de un agente), para enseñar cuánto trae. */
+  historial?: FuenteHistorial
+}
+
+/** Un perfil del archivo con lo suyo debajo, el perfil de aquí que lo recibe (null = perfil nuevo) y cómo quedan sus reglas en él. */
+export interface GrupoImportar {
+  perfil: ElementoImportar
+  hijos: ElementoImportar[]
+  destino: string | null
+  /** Solo con destino un perfil de aquí y reglas en el archivo; un perfil nuevo se lleva las suyas. */
+  reglas: Exclude<EstadoReglas, 'ninguna'> | null
 }
 
 export interface ArbolImportar {
-  perfiles: Array<{ perfil: ElementoImportar; hijos: ElementoImportar[] }>
+  perfiles: GrupoImportar[]
   nativos: ElementoImportar[]
+  /** El historial nativo de cada agente: del equipo, no de un perfil. */
+  historialNativo: ElementoImportar[]
   ajustes: ElementoImportar | null
 }
 
@@ -51,25 +67,43 @@ interface Nombrado {
 
 export interface EntradaArbol {
   perfiles: readonly Nombrado[]
-  perfilesAqui: ReadonlySet<string>
+  /** El perfil de aquí que recibe cada perfil del archivo; null o ausente, perfil nuevo. */
+  destinos: Readonly<Record<string, string | null>>
+  /** Las reglas de cada perfil del archivo frente a las de su destino. */
+  reglas?: Readonly<Record<string, EstadoReglas>>
   conexiones: PreviaConexiones
   agentes?: { nativos: readonly Nombrado[]; dockerPorPerfil: Readonly<Record<string, readonly Nombrado[]>> }
   agentesAqui: { nativos: ReadonlySet<string>; dockerPorPerfil: Readonly<Record<string, readonly string[]>> }
   ajustes: boolean
+  historial?: readonly FuenteHistorial[]
 }
 
-/** Lo que se manda a importar. Las conexiones van por id; los agentes Docker, por perfil. */
+/**
+ * Lo que se manda a importar. Las conexiones van por id; los agentes Docker, por perfil; el historial, por
+ * su número. `destinos`: el perfil de aquí de cada perfil elegido (null = perfil nuevo); `reglas`: los
+ * perfiles elegidos cuyas reglas se ponen en su destino.
+ */
 export interface SeleccionImportar {
   perfiles: string[]
+  destinos: Record<string, string | null>
+  reglas: string[]
   ssh: string[]
   bd: string[]
   nativos: string[]
   agentesPorPerfil: Record<string, string[]>
   ajustes: boolean
+  historial: string[]
 }
 
-/** Lo que el main necesita para dar de alta las conexiones elegidas. */
-export type SeleccionConexiones = Pick<SeleccionImportar, 'perfiles' | 'ssh' | 'bd'>
+/**
+ * Lo que el main necesita para dar de alta las conexiones y el historial elegidos. `reasignar`: el id de
+ * aquí que recibe lo de cada perfil del archivo (sin él, el suyo); `fusionados`: los que van a un perfil que
+ * ya existía, del que no se revisa nada del archivo.
+ */
+export type SeleccionConexiones = Pick<SeleccionImportar, 'perfiles' | 'ssh' | 'bd' | 'historial'> & {
+  reasignar: Record<string, string>
+  fusionados: string[]
+}
 
 /** Una casilla que cambió sola por una dependencia: `nombre` cambió por `por`. */
 export interface AvisoSeleccion {
@@ -95,24 +129,37 @@ export function arbolImportar(e: EntradaArbol): ArbolImportar {
     if (!c.yaEsta && req !== undefined && req !== el.clave) el.requiere.push(req)
     return el
   }
-  const perfiles = e.perfiles.map((p) => {
-    const agentesAqui = new Set(e.agentesAqui.dockerPorPerfil[p.id] ?? [])
+  const perfiles = e.perfiles.map((p): GrupoImportar => {
+    const destino = e.destinos[p.id] ?? null
+    // Los agentes «ya están» si los tiene el perfil que los recibe; uno nuevo no tiene ninguno.
+    const agentesAqui = new Set(destino === null ? [] : (e.agentesAqui.dockerPorPerfil[destino] ?? []))
+    const estado = e.reglas?.[p.id] ?? 'ninguna'
+    const reglas = destino === null || estado === 'ninguna' ? null : estado
     const hijos = [
+      // Solo traerlas es una casilla; iguales no hay nada que hacer, y distintas se elige aparte.
+      ...(reglas !== null ? [elemento('reglas', p.id, p.id, p.nombre, reglas !== 'traer')] : []),
       ...e.conexiones.ssh.filter((c) => c.perfil === p.id).map((c) => conexion('ssh', c)),
       ...e.conexiones.bd.filter((c) => c.perfil === p.id).map((c) => conexion('bd', c)),
-      ...(e.agentes?.dockerPorPerfil[p.id] ?? []).map((a) => elemento('agente', a.id, p.id, a.nombre, agentesAqui.has(a.id)))
+      ...(e.agentes?.dockerPorPerfil[p.id] ?? []).map((a) => elemento('agente', a.id, p.id, a.nombre, agentesAqui.has(a.id))),
+      ...(e.historial ?? []).filter((h) => h.perfil === p.id).map(historial)
     ]
-    return { perfil: elemento('perfil', p.id, null, p.nombre, e.perfilesAqui.has(p.id)), hijos }
+    return { perfil: elemento('perfil', p.id, null, p.nombre, destino !== null), hijos, destino, reglas }
   })
   return {
     perfiles,
     nativos: (e.agentes?.nativos ?? []).map((a) => elemento('nativo', a.id, null, a.nombre, e.agentesAqui.nativos.has(a.id))),
+    historialNativo: (e.historial ?? []).filter((h) => h.perfil === null).map(historial),
     ajustes: e.ajustes ? elemento('ajustes', 'ajustes', null, '', false) : null
   }
 }
 
+/** El historial nunca «ya está»: se fusiona conversación a conversación al importar. */
+function historial(h: FuenteHistorial): ElementoImportar {
+  return { ...elemento('historial', String(h.id), h.perfil, h.cuenta ?? '', false), historial: h }
+}
+
 function elementos(a: ArbolImportar): ElementoImportar[] {
-  return [...a.perfiles.flatMap((g) => [g.perfil, ...g.hijos]), ...a.nativos, ...(a.ajustes ? [a.ajustes] : [])]
+  return [...a.perfiles.flatMap((g) => [g.perfil, ...g.hijos]), ...a.nativos, ...a.historialNativo, ...(a.ajustes ? [a.ajustes] : [])]
 }
 
 /** De serie y con «Marcar todo», todo lo que no está aquí: así ninguna dependencia queda fuera. */
@@ -204,23 +251,58 @@ export function alternar(a: ArbolImportar, sel: ReadonlySet<string>, clave: stri
   return { seleccion: nueva, avisos: sel.has(clave) ? quitar(a, nueva, [clave]) : poner(a, nueva, [clave]) }
 }
 
-/** La selección que se manda a importar. Un perfil entra si se marcó él o algo suyo. */
-export function seleccionParaImportar(a: ArbolImportar, sel: ReadonlySet<string>): SeleccionImportar {
-  const fuera: SeleccionImportar = { perfiles: [], ssh: [], bd: [], nativos: [], agentesPorPerfil: {}, ajustes: a.ajustes !== null && sel.has(a.ajustes.clave) }
+/**
+ * Al cambiar el destino de un perfil, la selección con el árbol nuevo: lo de los demás perfiles sigue
+ * igual; lo del que cambió se marca entero (`marcar`, como de serie) o conserva lo que siga siendo
+ * marcable, con su perfil si queda algo suyo.
+ */
+export function seleccionTrasCambiarDestino(a: ArbolImportar, sel: ReadonlySet<string>, perfil: string, marcar: boolean): Set<string> {
+  const marcables = new Set(elementos(a).filter((e) => !e.yaEsta).map((e) => e.clave))
+  const nueva = new Set([...sel].filter((c) => marcables.has(c)))
+  const g = a.perfiles.find((x) => x.perfil.id === perfil)
+  if (!g) return nueva
+  const delGrupo = [g.perfil, ...g.hijos].filter((e) => !e.yaEsta).map((e) => e.clave)
+  if (marcar) poner(a, nueva, delGrupo)
+  else if (!g.perfil.yaEsta && g.hijos.some((h) => nueva.has(h.clave))) nueva.add(g.perfil.clave)
+  return nueva
+}
+
+/**
+ * La selección que se manda a importar. Un perfil entra si se marcó él o algo suyo, o si se eligió
+ * sustituir sus reglas (`sustituir`, solo vale con reglas distintas a las de su destino).
+ */
+export function seleccionParaImportar(a: ArbolImportar, sel: ReadonlySet<string>, sustituir: ReadonlySet<string> = new Set()): SeleccionImportar {
+  const fuera: SeleccionImportar = {
+    perfiles: [],
+    destinos: {},
+    reglas: [],
+    ssh: [],
+    bd: [],
+    nativos: [],
+    agentesPorPerfil: {},
+    ajustes: a.ajustes !== null && sel.has(a.ajustes.clave),
+    historial: []
+  }
   for (const g of a.perfiles) {
     const hijos = g.hijos.filter((h) => sel.has(h.clave))
-    if (sel.has(g.perfil.clave) || hijos.length > 0) fuera.perfiles.push(g.perfil.id)
+    const sustituye = g.reglas === 'distintas' && sustituir.has(g.perfil.id)
+    if (!sel.has(g.perfil.clave) && hijos.length === 0 && !sustituye) continue
+    fuera.perfiles.push(g.perfil.id)
+    fuera.destinos[g.perfil.id] = g.destino
+    if (sustituye) fuera.reglas.push(g.perfil.id)
     for (const h of hijos) {
-      if (h.tipo === 'ssh' || h.tipo === 'bd') fuera[h.tipo].push(h.id)
+      if (h.tipo === 'ssh' || h.tipo === 'bd' || h.tipo === 'historial') fuera[h.tipo].push(h.id)
+      else if (h.tipo === 'reglas') fuera.reglas.push(g.perfil.id)
       else (fuera.agentesPorPerfil[g.perfil.id] ??= []).push(h.id)
     }
   }
   fuera.nativos = a.nativos.filter((n) => sel.has(n.clave)).map((n) => n.id)
+  fuera.historial.push(...a.historialNativo.filter((n) => sel.has(n.clave)).map((n) => n.id))
   return fuera
 }
 
 export function haySeleccion(s: SeleccionImportar): boolean {
-  return s.perfiles.length > 0 || s.nativos.length > 0 || s.ajustes
+  return s.perfiles.length > 0 || s.nativos.length > 0 || s.ajustes || s.historial.length > 0
 }
 
 const objeto = (v: unknown): Record<string, unknown> => (typeof v === 'object' && v !== null ? (v as Record<string, unknown>) : {})
@@ -242,5 +324,6 @@ export function agentesSeleccionados(copia: unknown, s: Pick<SeleccionImportar, 
 export function leerSeleccionConexiones(raw: unknown): SeleccionConexiones {
   const o = objeto(raw)
   const lista = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [])
-  return { perfiles: lista(o.perfiles), ssh: lista(o.ssh), bd: lista(o.bd) }
+  const reasignar = Object.fromEntries(Object.entries(objeto(o.reasignar)).filter((x): x is [string, string] => typeof x[1] === 'string' && x[1] !== ''))
+  return { perfiles: lista(o.perfiles), ssh: lista(o.ssh), bd: lista(o.bd), historial: lista(o.historial), reasignar, fusionados: lista(o.fusionados) }
 }

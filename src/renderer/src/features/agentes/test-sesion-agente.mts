@@ -6,7 +6,9 @@
 // la sesión en cada caso, incluido lo que NO hace (cerrar lo que el main ya cerró).
 // =============================================================================
 
+import { MARCA_TRASPASO_CADUCADO } from '../../../../shared/traspaso-ipc.ts'
 import { PLAN_SOLTAR, SesionAgente, conversacionAReanudar, type MotivoSoltar, type PedidoApertura } from './sesionViva.ts'
+import { decidirTraspaso, esTraspasoCaducado } from './traspasoPendiente.ts'
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -98,8 +100,28 @@ hr('(1b) Hibernada sin chat conocido: la más reciente solo si tuvo actividad de
   s.pedirSiNadaDesde(5000)
   s.pedirNueva()
   check('pedir una nueva también', s.empezarApertura('c1')?.pedido.nadaDesde === null, 'anulado')
+  s.terminarApertura()
 
-  const pedido = (p: Partial<PedidoApertura>): PedidoApertura => ({ reanudar: null, deCero: false, nadaDesde: null, ...p })
+  // «Continuar en…»: el traspaso viaja con lo pedido y se gasta en una sola apertura.
+  s.pedirTraspaso('t-1', 'conv-copiada')
+  const t1 = s.empezarApertura('c1')
+  check('traspaso del mismo agente: reanuda la copiada y lleva el id', t1?.pedido.traspaso === 't-1' && t1.pedido.reanudar === 'conv-copiada' && !t1.pedido.deCero, JSON.stringify(t1))
+  s.devolverPedido(t1!.pedido)
+  s.terminarApertura()
+  check('un open fallido lo devuelve con el traspaso', s.empezarApertura('c1')?.pedido.traspaso === 't-1', 'devuelto')
+  s.terminarApertura()
+  check('y la siguiente apertura ya no lo lleva', s.empezarApertura('c1')?.pedido.traspaso === null, 'gastado')
+  s.terminarApertura()
+  s.pedirTraspaso('t-2', null)
+  const t2 = s.empezarApertura('c1')
+  check('traspaso a otro agente: conversación nueva con el id', t2?.pedido.traspaso === 't-2' && t2.pedido.deCero && t2.pedido.reanudar === null, JSON.stringify(t2))
+  s.terminarApertura()
+  s.pedirTraspaso('t-3', null)
+  s.pedirReanudar('del-historial')
+  check('reanudar otra después lo anula', s.empezarApertura('c1')?.pedido.traspaso === null, 'anulado')
+  s.terminarApertura()
+
+  const pedido = (p: Partial<PedidoApertura>): PedidoApertura => ({ reanudar: null, deCero: false, nadaDesde: null, traspaso: null, ...p })
   const ultima = { id: 'reciente', updatedAt: 4000 }
   check('sin nada pedido: la más reciente', conversacionAReanudar(pedido({}), ultima) === 'reciente', 'reciente')
   check(
@@ -190,6 +212,21 @@ hr('(4) El plan')
   const cierran = motivos.filter((m) => PLAN_SOLTAR[m].cerrar).sort().join(',')
   check('solo cierran en el main los casos en que el main no la cerró ya', cierran === 'conversacion,cuenta,desmontaje', cierran)
   check('el plan es inmutable', Object.isFrozen(PLAN_SOLTAR), 'frozen')
+}
+
+hr('Traspaso pendiente: cuándo se aplica, se espera, se descarta o caducó')
+{
+  const AHORA = 1_000_000
+  const docker = { caduca: AHORA + 5000, modo: 'docker' as const, accountId: 'B' }
+  const nativo = { caduca: AHORA + 5000, modo: 'nativo' as const, accountId: null }
+  const o = (p: { hostMode?: boolean; cuenta?: string | null; yaCoincidio?: boolean; ahora?: number }) => ({ ahora: AHORA, hostMode: false, cuenta: null, yaCoincidio: false, ...p })
+  check('en su modo y cuenta: se aplica', decidirTraspaso(docker, o({ cuenta: 'B' })) === 'aplicar' && decidirTraspaso(nativo, o({ hostMode: true })) === 'aplicar', 'aplicar')
+  check('el pane aún no llegó a su modo o cuenta: espera', decidirTraspaso(docker, o({ cuenta: 'A' })) === 'esperar' && decidirTraspaso(nativo, o({ hostMode: false })) === 'esperar', 'esperar')
+  check('si ya estuvo en su modo y cuenta y luego cambió: se descarta', decidirTraspaso(docker, o({ cuenta: 'A', yaCoincidio: true })) === 'descartar' && decidirTraspaso(nativo, o({ hostMode: false, yaCoincidio: true })) === 'descartar', 'descartar')
+  check('pasada su vida caduca, coincida o no: nunca cierra una sesión viva por él', decidirTraspaso(docker, o({ cuenta: 'B', ahora: AHORA + 5000 })) === 'caducado' && decidirTraspaso(docker, o({ cuenta: 'A', ahora: AHORA + 6000 })) === 'caducado', 'caducado')
+  check('antes de su vida sigue valiendo', decidirTraspaso(docker, o({ cuenta: 'B', ahora: AHORA + 4999 })) === 'aplicar', 'aplicar')
+  check('el error del main por un traspaso que ya no existe se reconoce por su marca, también envuelto por IPC', esTraspasoCaducado(new Error(`${MARCA_TRASPASO_CADUCADO}: ya no está`)) && esTraspasoCaducado(new Error(`Error invoking remote method 'x': Error: ${MARCA_TRASPASO_CADUCADO}: ya no está`)) && esTraspasoCaducado(`${MARCA_TRASPASO_CADUCADO}`), 'marca')
+  check('cualquier otro fallo de apertura no se confunde con él', !esTraspasoCaducado(new Error('Docker no disponible')) && !esTraspasoCaducado(undefined), 'otro')
 }
 
 hr('RESULTADO DE VERIFICACIONES (PASS/FAIL)')

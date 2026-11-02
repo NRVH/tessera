@@ -126,6 +126,12 @@ console.log('\nAtajos por plataforma\n')
   )
   const otra = generarShims({ exe: '/x/node', script: '/x/tdb.cjs', sello: 'T' }, 'otra')
   comprobar('Linux se comporta como macOS, no como Windows', otra.length === 1)
+  // Una Tessera de Linux que corre DENTRO de WSL es la del sistema: su atajo no puede negarse por WSL.
+  const linux = generarShims({ exe: '/x/node', script: '/x/tdb.cjs', sello: 'T' }, 'linux')
+  comprobar('en Linux el atajo no lleva la guarda de WSL', !linux[0].contenido.includes('WSL_DISTRO_NAME'))
+  comprobar('en macOS tampoco', !mac[0].contenido.includes('WSL_DISTRO_NAME'))
+  const win = generarShims({ exe: 'C:/x/Tessera.exe', script: 'C:/x/tdb.cjs', sello: 'T' }, 'windows')
+  comprobar('en Windows el atajo de Git Bash sí la lleva', win[0].contenido.includes('WSL_DISTRO_NAME'))
 }
 
 // --- Un usuario con «ñ» (C:\Users\Muñoz) --------------------------------------

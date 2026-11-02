@@ -100,7 +100,7 @@ test('BARRIDO: ninguna categoría del modal nombra Windows', async () => {
 test('el menú del perfil nombra el ESTADO de la red, no un sistema ni una promesa', async () => {
   // Otro archivo (`ProfileTabs.tsx`) y otro camino: los menús contextuales no pasan por
   // el modal de ajustes, así que un barrido del modal no los cubre. El rótulo dice en qué
-  // red ESTÁ este perfil («Red del contenedor: propia…»), cierto en las dos plataformas, y
+  // red ESTÁ este perfil («Red del contenedor Docker: aislada…»), cierto en las dos plataformas, y
   // los puntos suspensivos anuncian el diálogo, que es quien explica dónde acaban los
   // puertos (con `nombresSistema` y el diagnóstico). Se fijan las tres mitades negativas:
   // ni «Windows» a pelo, ni una promesa sobre macOS, ni un rótulo-acción con palomita que
@@ -109,9 +109,9 @@ test('el menú del perfil nombra el ESTADO de la red, no un sistema ni una prome
   const menu = s.win.locator('.ctx-menu')
   await expect(menu).toHaveCount(1)
   const texto = await menu.innerText()
-  expect(texto).toContain('Red del contenedor:')
+  expect(texto).toContain('Red del contenedor Docker:')
   expect(texto, 'los puntos suspensivos son la convención de "abre un diálogo"').toMatch(
-    /Red del contenedor: (propia|la de tu equipo)…/
+    /Red del contenedor Docker: (aislada|la de tu equipo)…/
   )
   expect(texto).not.toContain('Windows')
   expect(texto, 'el rótulo no puede prometer que los puertos acaban en el Mac').not.toContain(

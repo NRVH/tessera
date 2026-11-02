@@ -52,7 +52,7 @@ export const txPane = crearTextos(
     contextoCierre: 'To close the console, commit or roll back first.',
     contextoAuto: 'To switch to Tx Auto, commit or roll back first.',
     detenerTitulo: 'Stop and close?',
-    detenerMensaje: (nombre: string) => `${nombre} is running. What is running will be stopped and the tab will be closed.`,
+    detenerMensaje: (nombre: string) => `${nombre} is running. Closing the tab stops the current execution.`,
     detenerConfirmar: 'Stop and close',
     conflictoTitulo: 'The file changed outside Tessera',
     conflictoMensaje: (nombre: string) =>
@@ -62,15 +62,15 @@ export const txPane = crearTextos(
     forzarSesion: 'Force the session to close',
     forzarConexion: 'Force the connection to close',
     forzarConfirmar: 'Force close',
-    noSePudoForzar: (motivo: string) => `Could not force the close: ${motivo}`,
+    noSePudoForzar: (motivo: string) => `Could not force close: ${motivo}`,
     noSePudoCambiarEsquema: (motivo: string) => `Could not change the schema: ${motivo}`,
     consolaSinSentencias: 'The console has no statements',
-    textoCambio: 'The text has changed since that batch: run it again',
+    textoCambio: 'The text has changed since that batch ran: run it again',
     noSePudoFormatear: (motivo: string) => `Could not format: ${motivo}`,
     noSePudoBorrar: (motivo: string) => `Could not delete: ${motivo}`,
     noSePudieronContar: (motivo: string) => `Could not count the rows: ${motivo}`,
     reintentar: 'Retry',
-    enterElige: 'Enter selects · Esc cancels',
+    enterElige: 'Enter to select · Esc to cancel',
     marcadorLinea: (linea: number, columna: number) => `line ${linea}, col. ${columna}`,
     accionEjecutar: 'Run statement or selection',
     accionEjecutarTodo: 'Run all',
@@ -110,7 +110,7 @@ export const txHistorialConsola = crearTextos(
     quePreguntaOrdenes: (motor: string) => `órdenes de ${motor}`,
     quePreguntaSql: 'consultas SQL',
     borrarTodo: (que: string) =>
-      `¿Borrar TODO el historial de ${que} de este perfil? Incluye el de todas sus conexiones y no se puede deshacer.`
+      `¿Borrar todo el historial de ${que} de este perfil? Incluye el de todas sus conexiones y no se puede deshacer.`
   },
   {
     conexionBorrada: '(connection deleted)',
@@ -138,7 +138,7 @@ export const txHistorialConsola = crearTextos(
     quePreguntaOrdenes: (motor: string) => `${motor} commands`,
     quePreguntaSql: 'SQL queries',
     borrarTodo: (que: string) =>
-      `Delete ALL of the history of ${que} for this profile? It includes the history of all its connections and cannot be undone.`
+      `Delete all history of ${que} for this profile? This includes every connection in the profile and cannot be undone.`
   }
 )
 
@@ -158,17 +158,17 @@ export const txParametros = crearTextos(
     finDialogo: (que: string) => `${que}. Se envían como texto y el servidor los convierte al tipo de su sitio.`
   },
   {
-    nPuntoOrden: (clave: string) => `? no. ${clave}`,
+    nPuntoOrden: (clave: string) => `? #${clave}`,
     pieDolarNumero: 'By number: $1, $2…',
     pieDosPuntos: 'Without quotes, :id and :ID are the same',
     pieSqlite: 'By name (:id, @id and $id are the same) or by number: ?, ?1',
     pieNinguno: 'No parameters: @x is a batch variable (DECLARE)',
-    pieInterrogacion: 'By order: each ? is a value (@x is a session variable)',
-    valoresExplicar: 'Values to explain the plan of the statement',
+    pieInterrogacion: 'By position: each ? is a value (@x is a session variable)',
+    valoresExplicar: 'Values to explain the statement’s plan',
     valoresEjecutarUna: 'Values to run the statement',
     valoresEjecutarN: (cant: string) => `Values to run ${cant} in the batch`,
     sentencia: 'statement',
     sentencias: 'statements',
-    finDialogo: (que: string) => `${que}. They are sent as text and the server converts them to the type of their position.`
+    finDialogo: (que: string) => `${que}. They are sent as text, and the server converts them to the type expected at each position.`
   }
 )

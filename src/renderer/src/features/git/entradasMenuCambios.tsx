@@ -14,6 +14,7 @@ import {
   IconoPreparar
 } from '../../comun/iconosMenu'
 import { SEP, type ContextMenuEntry } from '../../comun/ContextMenu'
+import { nombresSistema } from '../../../../shared/nombresSistema'
 import type { Seccion } from './modelo/estadoRepos'
 import { existeEnDisco } from './modelo/resolveWorkingDiffTarget'
 import { nameOf } from './modelo/rutasArchivo'
@@ -57,7 +58,7 @@ function entradasAbrir(
     },
     {
       icon: <IconoAbrirFuera />,
-      label: txGit().abrirEnExplorador,
+      label: txGit().mostrarEn(nombresSistema(window.tessera.plataforma).gestorArchivos),
       onClick: () => {
         if (path) void window.tessera.files.reveal({ raiz, path })
       },

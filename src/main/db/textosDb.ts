@@ -206,17 +206,17 @@ export const txDb = crearTextos(
       motorDesconocido: (motor) => `Unknown engine: "${motor}".`,
       sshNoExiste: 'The tunnel’s SSH connection does not exist in this profile.',
       certificadoPorTunel: (etiqueta) =>
-        `${etiqueta} can’t verify its certificate through an SSH tunnel: clear the encryption option (the tunnel already encrypts the leg to the SSH server) or remove the tunnel.`,
+        `${etiqueta} can’t verify its certificate through an SSH tunnel: clear the encryption option (the tunnel already encrypts the connection to the SSH server) or remove the tunnel.`,
       sinContrasena: (etiqueta) => `${etiqueta} does not use a password.`,
       contrasenaSentinels: 'The Sentinel password is not valid.'
     },
     opcionales: {
       srvPorTunel: 'An SRV address (mongodb+srv) can’t go through an SSH tunnel: enter the server and port.',
       redisPorTunel:
-        'Sentinel and Cluster can’t go through an SSH tunnel: the client connects to servers the tunnel doesn’t carry. Remove the tunnel or choose “Single server”.',
+        'Sentinel and Cluster can’t go through an SSH tunnel: the client connects to servers the tunnel doesn’t reach. Remove the tunnel or choose “Single server”.',
       variosServidoresPorTunel: 'With an SSH tunnel, the connection accepts a single server.',
-      replicaSetPorTunel: 'With an SSH tunnel, the connection goes straight to one server: remove replicaSet and directConnection=false from the options.',
-      instanciaPorTunel: 'With an SSH tunnel, the connection needs the port, not the instance: the tunnel doesn’t carry the query that resolves it.',
+      replicaSetPorTunel: 'With an SSH tunnel, the connection goes directly to a single server: remove replicaSet and directConnection=false from the options.',
+      instanciaPorTunel: 'With an SSH tunnel, the connection needs the port, not the instance: the query that resolves the instance doesn’t go through the tunnel.',
       instanciaInvalida: 'The instance is not valid.',
       instanciaSoloNombre: 'The instance takes only its name (e.g. SQLEXPRESS), without the server or the port.',
       autenticacionDesconocida: (v) => `Unknown authentication: "${v}".`,
@@ -243,7 +243,7 @@ export const txDb = crearTextos(
       rutaNoAbsoluta: (ruta) => `The file path must be absolute: ${ruta}`,
       noEsArchivoDelEquipo: 'That item is not a file on this computer.',
       motorNoEsDeArchivo: 'That engine is not a file-based engine.',
-      noEsDelProyectoAbierto: 'That file is not from the project open in the explorer: open it from its project.',
+      noEsDelProyectoAbierto: 'That file does not belong to the project open in the explorer: open it from its project.',
       origenDesconocido: 'Can’t tell where the database file comes from.',
       elegirTitulo: (etiqueta) => `Choose the ${etiqueta} database`,
       filtroBases: (etiqueta) => `${etiqueta} databases`,
@@ -264,12 +264,12 @@ export const txDb = crearTextos(
       falloDesconocido: 'Unknown failure.'
     },
     tdb: {
-      sinRespuesta: 'ended without answering',
-      sinPlazo: (s) => `did not answer within ${s} s and was stopped`,
-      salidaExcesiva: 'its output went over the limit and it was stopped',
+      sinRespuesta: 'ended without responding',
+      sinPlazo: (s) => `did not respond within ${s} s and was stopped`,
+      salidaExcesiva: 'its output exceeded the limit and it was stopped',
       noArranco: (codigo) => `did not start (${codigo})`,
-      conCodigo: (codigo) => `ended with code ${codigo} without answering`,
-      detenido: (senal) => `was stopped (${senal}) without answering`,
+      conCodigo: (codigo) => `ended with code ${codigo} without responding`,
+      detenido: (senal) => `was stopped (${senal}) without responding`,
       fallo: (causa, conDetalle) =>
         `Couldn’t run tdb: ${causa}.${conDetalle ? ' The details are in the database log (logs/db.log).' : ''}`,
       sesionNoAutorizada:
@@ -281,8 +281,8 @@ export const txDb = crearTextos(
         '\n  ✗ --file does not go through the bridge: the path would belong to the host computer, not to your folder.\n' +
         '    The container’s tdb reads the file and sends its SQL; reload the terminal to\n' +
         "    use it, or pass it through standard input:  tdb query <database> --stdin <<'SQL'\n\n",
-      tdbCortado: (s) => `\n  ✗ tdb did not finish within ${s} s and was cut off.\n\n`,
-      programaDesconocido: (que) => `\n  ✗ This Tessera can’t handle “${que}” through the mailbox: restart or update it.\n\n`,
+      tdbCortado: (s) => `\n  ✗ tdb did not finish within ${s} s and was stopped.\n\n`,
+      programaDesconocido: (que) => `\n  ✗ This version of Tessera can’t handle “${que}” through the mailbox: restart or update it.\n\n`,
       respuestaGrande: (mib) => `\n  ✗ The response exceeded the ${mib} MiB the host bridge allows and was discarded.\n\n`,
       respuestaDescartada: (mib) =>
         `The response exceeded ${mib} MiB and was discarded.\n` + `Narrow the query (for example with --limit).\n`
@@ -302,16 +302,16 @@ export const txDb = crearTextos(
       sinDescargaAutomatica: 'This client has no automatic download.',
       huellaNoCoincide: (bytes) =>
         `the download (${bytes} bytes) does not match the package’s published SHA-256 fingerprint. ` +
-        'It may be a truncated download or a proxy that returned something else; if ' +
+        'It might be a truncated download or a proxy that returned something else; if ' +
         'it happens again, the published package changed and Tessera needs to update its entry.',
       noEsZip: 'The download is not a ZIP file (did the network return an error page?).',
       necesitaMacos: (nombre, minimo, actual) =>
         `${nombre} needs macOS ${minimo} or later, and this Mac has ` +
-        `macOS ${actual}: its libraries wouldn’t load. With a client that does work ` +
-        'here, use “Select folder…”.',
+        `macOS ${actual}: its libraries wouldn’t load. If you have a client that works ` +
+        'on this Mac, use “Select folder…”.',
       cubre: {
         'oracle-ic-19': 'Oracle 11.2 and later',
-        'oracle-ic-12.1': 'Oracle 10.2 – 11.1 (older than what 19 reaches)',
+        'oracle-ic-12.1': 'Oracle 10.2 – 11.1 (older than the versions 19 supports)',
         'oracle-ic-23-macos-arm64': 'Oracle 11.2 and later',
         'oracle-ic-19-linux-x64': 'Oracle 11.2 and later'
       },
@@ -331,18 +331,18 @@ export const txDb = crearTextos(
       noSeMonto: (detalle) => `Couldn’t mount the disk image: ${detalle}`,
       noSeCopio: (detalle) => `Couldn’t copy the client from the disk image: ${detalle}`,
       firmaIncorrecta: (nombre, teamId, detalle) =>
-        `"${nombre}" does not carry the vendor’s expected signature (Team ID ${teamId}): ${detalle}`
+        `"${nombre}" does not have the vendor’s expected signature (Team ID ${teamId}): ${detalle}`
     },
     descarga: {
       inactividad: (s) =>
         `The download stopped: the server has sent no data for ${s} s. ` +
         'Try again; if it keeps happening, check your internet connection or proxy.',
-      servidorRespondio: (estado) => `The server responded ${estado}.`,
-      sinCuerpo: 'Response without a body.'
+      servidorRespondio: (estado) => `The server responded with ${estado}.`,
+      sinCuerpo: 'The response has no body.'
     },
     importacion: {
       sinContrasena: (alias) =>
-        `The database “${alias}” was imported without its password: this computer has nowhere to store it, so it will ask for it when you connect.`,
+        `The database “${alias}” was imported without its password: this computer has nowhere to store it, so Tessera will ask for it when you connect.`,
       archivoAusente: (alias) => `The database “${alias}” points to a file that is not on this computer: edit it and choose its file.`
     },
     tuneles: {
@@ -357,7 +357,7 @@ export const txDb = crearTextos(
       peticionMalFormada: 'Malformed syntax request.',
       demasiadasSentencias: 'Too many statements to validate at once.',
       demasiadoTexto: 'Too much text to validate at once.',
-      gramaticaCaida: 'The local grammar stopped responding; it comes back when you restart Tessera.',
+      gramaticaCaida: 'The local grammar stopped responding; restart Tessera to restore it.',
       gramaticaNoCargo: 'Couldn’t load the local grammar.'
     }
   }

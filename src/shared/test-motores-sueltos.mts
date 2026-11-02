@@ -84,11 +84,18 @@ const ZONAS: readonly { ruta: string; motivo: string }[] = [
 ]
 
 /**
- * Archivos fuera de las zonas que SÍ pueden tener un motor suelto, con el motivo. Vacía
- * a propósito: lo de un solo motor dentro de un archivo común va con la marca
- * `motor-fijo:` en su línea, que es más estrecha que eximir el archivo entero.
+ * Archivos fuera de las zonas que SÍ pueden tener un motor suelto, con el motivo. Lo de un solo
+ * motor dentro de un archivo común va con la marca `motor-fijo:` en su línea, que es más estrecha
+ * que eximir el archivo entero; aquí solo entra texto de ayuda, que nombra motores sin decidir nada.
  */
-const EXCEPCIONES: readonly { archivo: string; motivo: string }[] = []
+const EXCEPCIONES: readonly { archivo: string; motivo: string }[] = [
+  {
+    archivo: 'src/renderer/src/features/academy/contenido/basesDeDatos.ts',
+    motivo:
+      'el artículo de Tessera Academy sobre las bases de datos: enumera los motores que se pueden ' +
+      'elegir y los que tienen sintaxis propia, como explicación para el usuario'
+  }
+]
 
 /**
  * Textos de UN motor por diseño que nombran su producto fuera de las zonas (o, en un archivo de
@@ -136,7 +143,7 @@ const EXCEPCIONES_NOMBRE: readonly { archivo: string; texto?: string; motivo: st
     archivo: 'src/tdb/motores.cjs',
     motivo: 'la copia CJS del registro (`etiqueta` de cada motor), cruzada con `shared/motores` por test:motores-tdb'
   },
-  ...['Oracle no mira el valor de los parámetros al explicar', 'Oracle does not look at parameter values when explaining'].map(
+  ...['Oracle no mira el valor de los parámetros al explicar', 'Oracle ignores parameter values when it explains a statement'].map(
     (texto) => ({
       archivo: 'src/main/db/explorador/planSql.ts',
       texto,
@@ -171,13 +178,13 @@ const EXCEPCIONES_NOMBRE: readonly { archivo: string; texto?: string; motivo: st
   // Textos de interfaz de módulos `textos*.ts` (la guardia también los mira).
   ...[
     'Oracle ya no lo publica para descarga directa',
-    'Oracle no longer publishes it for direct download'
+    'Oracle no longer offers it as a direct download'
   ].map((texto) => ({
     archivo: 'src/renderer/src/features/bd/textosConexionDialogo.ts',
     texto,
     motivo: 'el aviso de un pack del Instant Client que no se puede bajar: quien lo publica es Oracle'
   })),
-  ...['Solo hacen falta para Oracle anterior a 12.1.', 'They are only needed for Oracle earlier than 12.1.'].map((texto) => ({
+  ...['Solo hacen falta para Oracle anterior a 12.1.', 'Only needed for Oracle versions earlier than 12.1.'].map((texto) => ({
     archivo: 'src/renderer/src/features/bd/textosConexionDialogo.ts',
     texto,
     motivo:

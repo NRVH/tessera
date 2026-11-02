@@ -55,16 +55,16 @@ const TEXTOS = {
     sinRespuesta: (s) => `El puente no respondió en ${s} s.\n` + '    Comprueba que Tessera sigue abierta y recarga la terminal.'
   },
   en: {
-    faltaRutaFile: 'Missing the path after --file.',
+    faltaRutaFile: 'Missing path after --file.',
     noExisteArchivo: (ruta) => `The file "${ruta}" does not exist.`,
     archivoVacio: (ruta) => `The file "${ruta}" is empty.`,
-    sqlGrande: (mib) => `The SQL exceeds the ${mib} MiB the bridge to the host accepts.`,
+    sqlGrande: (mib) => `The SQL exceeds the ${mib} MiB limit of the bridge to the host.`,
     sinContexto:
-      'This terminal does not carry the Tessera database context.\n' +
+      'This terminal does not have the Tessera database context.\n' +
       '    Reload the terminal (or restart the agent) after mounting the database.',
     sinBuzon: (buzon) => `The bridge to the host is not mounted (${buzon} does not exist).\n` + '    Reload the terminal so Tessera mounts it again.',
-    sinSenales: 'The bridge to the host is mounted but Tessera gives no sign of life.\n' + '    Reload the terminal; if it persists, restart Tessera.',
-    sinCentinela: 'The bridge to the host is not responding (the sentinel is missing).\n' + '    It usually happens after the container is recreated: reload the terminal.',
+    sinSenales: 'The bridge to the host is mounted, but Tessera is not responding.\n' + '    Reload the terminal; if the problem persists, restart Tessera.',
+    sinCentinela: 'The bridge to the host is not responding (the sentinel is missing).\n' + '    This usually happens after the container is recreated: reload the terminal.',
     sinRespuesta: (s) => `The bridge did not respond within ${s} s.\n` + '    Check that Tessera is still open and reload the terminal.'
   }
 }

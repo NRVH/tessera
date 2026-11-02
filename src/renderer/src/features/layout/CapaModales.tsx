@@ -1,12 +1,13 @@
 // =============================================================================
 // Capa de modales de la raíz, en su orden: Configuración, importar un `.tessera` abierto desde el
-// sistema, buscar en archivos, cerrar sin guardar, el menú de elegir conexión y los diálogos de
-// las conexiones SSH.
+// sistema, buscar en archivos, cerrar sin guardar, el menú de elegir conexión, los diálogos de
+// las conexiones SSH y, encima de todo, el lector de Tessera Academy (lo abre un ⓘ de cualquiera).
 // En la raíz porque un `position: fixed` se resuelve contra cualquier ancestro con
 // transform o contain, y la app ya tiene uno vivo.
 // =============================================================================
 import { ConfirmDialog } from '../../comun/ConfirmDialog'
 import { ContextMenu } from '../../comun/ContextMenu'
+import { LectorAcademy } from '../academy'
 import { ImportarDesdeSistema, ModalAjustes } from '../ajustes'
 import { ModalBusqueda } from '../busqueda'
 import type { UseTabs } from '../pestanas'
@@ -78,6 +79,7 @@ export function CapaModales({ tabs, perfilUI, editor, bd, sesiones, cambiarZoom 
       <MenuConexiones bd={bd} />
       <DialogosSsh />
       <PreguntaAskpassSsh />
+      <LectorAcademy />
     </>
   )
 }

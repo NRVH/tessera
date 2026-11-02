@@ -17,7 +17,7 @@ pegado a la ▾ (un clic errado lo disparaba) y con cinco grupos y veinte conexi
   `agentes/ventana-de-agente.md`) con una «i» que explica qué es, porque el nombre solo no lo dice; cierra el lanzador.
   Es el patrón de las terminales con pestañas: el «+» crea lo de siempre y la ▾ despliega lo demás. Ya no hay botón «Conexiones».
 - Cabecera: `[pestañas] [+][▾] … [⟳] │ [agente] [⤢] │ [—]`. El reinicio pasa al grupo de la derecha, separado por filetes, que
-  se funden con las acciones en reposo. A pantalla completa el conmutador del riel va al extremo izquierdo.
+  se funden con las acciones en reposo.
 - En el lanzador solo hay UN grupo abierto: abrir uno cierra el otro, y al abrirlo no hay ninguno (todos, también «Sin grupo»,
   plegados: la ventana es pequeña y ver todo desplegado es ruido). No se recuerda el último ni se abre el de la
   conexión que se mira. Con filtro el acordeón no cuenta: salen las coincidencias de todos los grupos.

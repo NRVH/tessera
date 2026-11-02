@@ -67,6 +67,12 @@ export interface Profile {
    * SOLO su propia `.ssh`, nunca la de otro.
    */
   sshDir?: string
+  /**
+   * Reglas para los agentes de este perfil (Markdown, como mucho `MAX_REGLAS_PERFIL` caracteres): las escribe
+   * o aprueba el usuario y llegan en el aviso de arranque de todo agente de serie del perfil.
+   * Ausente = sin reglas. Decisiones: docs/decisiones/agentes/reglas-del-perfil.md
+   */
+  reglas?: string
   sandbox: {
     habilitado: boolean
     /**

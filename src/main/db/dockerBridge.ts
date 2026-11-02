@@ -3,7 +3,7 @@
 // una petición en un buzón bind-monteado por perfil; esto la recoge, ejecuta el `tdb` real en el host
 // (con sus Instant Clients y la VPN del usuario) y deja la respuesta. Ámbito y secretos salen siempre del
 // token; el SQL viaja en la petición, nunca como ruta. Cliente: `src/tdb/tdb-container.cjs`. Otros
-// dominios registran aquí su programa (`tssh`: `src/main/ssh/controlador/buzonTssh.ts`).
+// dominios registran aquí su programa (`tssh`: `src/main/ssh/controlador/buzonTssh.ts`; `tctx`: `src/main/reglas/buzonTctx.ts`).
 // Decisiones: docs/decisiones/bd/puente-buzon-de-docker.md
 // =============================================================================
 // `readdirSync` sigue aquí para `barrer`, que corre una vez al preparar un perfil; el del sondeo es asíncrono.
@@ -85,7 +85,7 @@ export interface RespuestaPrograma {
 }
 
 /**
- * Otro programa que el buzón sirve además de `tdb` (hoy `tssh`), que registra su dominio: sus archivos se
+ * Otro programa que el buzón sirve además de `tdb` (`tssh`, `tctx`), que registra su dominio: sus archivos se
  * copian al buzón en cada preparación, su lanzador se escribe como el de `tdb` y sus peticiones (`prog` = su
  * nombre) las atiende él. El token viaja dentro y lo resuelve quien atiende, nunca este puente.
  */

@@ -334,37 +334,24 @@ hr('(11) El riel de pantalla completa: cuándo cabe, hasta dónde se ensancha y 
     `${anchoMaximoRiel(930)} · ${anchoMaximoRiel(930, 480)} · ${anchoMaximoRiel(930, 400)}`
   )
 
-  const base: EntradaRiel = { pantallaCompleta: true, perfilId: 'personal', oculto: false, disponible: 1400, ancho: 260 }
+  const base: EntradaRiel = { pantallaCompleta: true, perfilId: 'personal', disponible: 1400, ancho: 260 }
+  const SI = j({ visible: true })
+  const NO = j({ visible: false })
   const ve = (e: Partial<EntradaRiel>): string => j(resolverRiel({ ...base, ...e }))
-  check('a pantalla completa, con perfil y sitio, el riel se ve', ve({}) === j({ enRiel: true, visible: true }), ve({}))
+  check('a pantalla completa, con perfil y sitio, el riel se ve', ve({}) === SI, ve({}))
+  check('MITAD NEGATIVA: fuera de pantalla completa no hay riel, aunque haya sitio', ve({ pantallaCompleta: false }) === NO, ve({ pantallaCompleta: false }))
+  check('sin perfil no hay conexiones que enseñar: ni riel', ve({ perfilId: '' }) === NO, ve({ perfilId: '' }))
+  check('sin sitio el riel se pliega solo (el lanzador queda a mano): 600 px no admiten 260', ve({ disponible: 600 }) === NO, ve({ disponible: 600 }))
   check(
-    'MITAD NEGATIVA: fuera de pantalla completa no hay riel, aunque haya sitio y el perfil no lo oculte',
-    ve({ pantallaCompleta: false }) === j({ enRiel: false, visible: false }),
-    ve({ pantallaCompleta: false })
-  )
-  check('sin perfil no hay conexiones que enseñar: ni riel', ve({ perfilId: '' }) === j({ enRiel: false, visible: false }), ve({ perfilId: '' }))
-  check(
-    'un perfil que lo ocultó sigue en modo riel (el botón lo alterna) pero no lo ve',
-    ve({ oculto: true }) === j({ enRiel: true, visible: false }),
-    ve({ oculto: true })
-  )
-  check(
-    'sin sitio el riel se pliega solo y deja de ser riel (el botón vuelve al popover): 600 px no admiten 260',
-    ve({ disponible: 600 }) === j({ enRiel: false, visible: false }),
-    ve({ disponible: 600 })
-  )
-  check(
-    'y reaparece solo al ensanchar, con la misma preferencia: no hay nada que guardar ni deshacer',
-    ve({ disponible: 600 }) === j({ enRiel: false, visible: false }) && ve({ disponible: 1400 }) === j({ enRiel: true, visible: true }),
+    'y reaparece solo al ensanchar: no hay nada que guardar ni deshacer',
+    ve({ disponible: 600 }) === NO && ve({ disponible: 1400 }) === SI,
     `${ve({ disponible: 600 })} -> ${ve({ disponible: 1400 })}`
   )
   check(
     'lo que decide es el ancho que pide: con 900 px cabe el de 260 y no el de 480',
-    ve({ disponible: 900, ancho: 260 }) === j({ enRiel: true, visible: true }) && ve({ disponible: 900, ancho: 480 }) === j({ enRiel: false, visible: false }),
+    ve({ disponible: 900, ancho: 260 }) === SI && ve({ disponible: 900, ancho: 480 }) === NO,
     `${ve({ disponible: 900, ancho: 260 })} · ${ve({ disponible: 900, ancho: 480 })}`
   )
-  const SI = j({ enRiel: true, visible: true })
-  const NO = j({ enRiel: false, visible: false })
   check(
     'columna plegada: el sitio son las dos columnas y el vecino es el agente (330 px). 1400 admiten 480; fuera de pantalla completa o sin perfil, no',
     ve({ disponible: 1400, ancho: 480, sinTerminal: true }) === SI &&
@@ -413,22 +400,20 @@ hr('(11) El riel de pantalla completa: cuándo cabe, hasta dónde se ensancha y 
     )
   }
   check(
-    'la resolución no devuelve preferencia alguna: plegar por falta de sitio no la toca',
-    j(Object.keys(resolverRiel(base)).sort()) === j(['enRiel', 'visible']),
+    'la resolución solo dice si se ve: no devuelve preferencia alguna',
+    j(Object.keys(resolverRiel(base))) === j(['visible']),
     j(Object.keys(resolverRiel(base)))
   )
   let coherente = true
   for (const pantallaCompleta of [true, false]) {
     for (const perfilId of ['', 'personal']) {
-      for (const oculto of [true, false]) {
-        for (const disponible of [0, 500, 686, 1400]) {
-          const r = resolverRiel({ pantallaCompleta, perfilId, oculto, disponible, ancho: 260 })
-          if (r.visible && !r.enRiel) coherente = false
-        }
+      for (const disponible of [0, 500, 686, 1400]) {
+        const r = resolverRiel({ pantallaCompleta, perfilId, disponible, ancho: 260 })
+        if (r.visible && !(pantallaCompleta && perfilId !== '')) coherente = false
       }
     }
   }
-  check('todas las combinaciones: lo que se ve siempre está en modo riel', coherente, '2 · 2 · 2 · 4 casos')
+  check('todas las combinaciones: lo que se ve siempre es a pantalla completa y con perfil', coherente, '2 · 2 · 4 casos')
   check(
     'el id del riel y su rango: ssh-riel, 180 ≤ 260 ≤ 480',
     ID_RIEL_SSH === 'ssh-riel' && SSH_RIEL_ANCHO_MIN <= SSH_RIEL_ANCHO_POR_DEFECTO && SSH_RIEL_ANCHO_POR_DEFECTO <= SSH_RIEL_ANCHO_MAX,
@@ -438,45 +423,30 @@ hr('(11) El riel de pantalla completa: cuándo cabe, hasta dónde se ensancha y 
 
 hr('(12) Dónde se enseña la lista cuando la piden («Conectar por SSH…»), cuándo se ve la ▾ y cuándo se cierra el lanzador abierto')
 {
-  const donde = (e: { enRiel: boolean; visible: boolean }): string => dondeConectar(e)
-  check('con el riel a la vista, la lista que se pide es el riel (se le da el foco): no se abre el lanzador', donde({ enRiel: true, visible: true }) === 'riel', donde({ enRiel: true, visible: true }))
-  check(
-    'con el riel plegado a mano sigue el lanzador, sin mostrar el riel: no hay preferencia que guardar',
-    donde({ enRiel: true, visible: false }) === 'lanzador',
-    donde({ enRiel: true, visible: false })
-  )
+  const donde = (e: { visible: boolean }): string => dondeConectar(e)
+  check('con el riel a la vista, la lista que se pide es el riel (se le da el foco): no se abre el lanzador', donde({ visible: true }) === 'riel', donde({ visible: true }))
   check(
     'fuera de pantalla completa, o sin sitio para el riel: el lanzador de siempre',
-    donde({ enRiel: false, visible: false }) === 'lanzador',
-    donde({ enRiel: false, visible: false })
+    donde({ visible: false }) === 'lanzador',
+    donde({ visible: false })
   )
-  let coherente = true
-  for (const enRiel of [true, false]) {
-    for (const visible of [true, false]) {
-      if (visible && !enRiel) continue
-      if ((dondeConectar({ enRiel, visible }) === 'riel') !== visible) coherente = false
-    }
-  }
-  check('todas las vistas coherentes: va al riel si y solo si se ve', coherente, '3 casos')
   const entrada = (e: Partial<EntradaRiel> = {}): EntradaRiel => ({
     pantallaCompleta: true,
     perfilId: 'personal',
-    oculto: false,
     disponible: 1400,
     ancho: 260,
     ...e
   })
   const resuelve = (e: Partial<EntradaRiel>): string => dondeConectar(resolverRiel(entrada(e)))
   check(
-    'alimentada por `resolverRiel`: a la vista -> riel; ocultado a mano, estrecho o sin pantalla completa -> lanzador',
-    resuelve({}) === 'riel' && resuelve({ oculto: true }) === 'lanzador' && resuelve({ disponible: 600 }) === 'lanzador' && resuelve({ pantallaCompleta: false }) === 'lanzador',
-    `${resuelve({})} · ${resuelve({ oculto: true })} · ${resuelve({ disponible: 600 })} · ${resuelve({ pantallaCompleta: false })}`
+    'alimentada por `resolverRiel`: a la vista -> riel; estrecho o sin pantalla completa -> lanzador',
+    resuelve({}) === 'riel' && resuelve({ disponible: 600 }) === 'lanzador' && resuelve({ pantallaCompleta: false }) === 'lanzador',
+    `${resuelve({})} · ${resuelve({ disponible: 600 })} · ${resuelve({ pantallaCompleta: false })}`
   )
   // La ▾ del lanzador: se ve solo cuando la lista no está ya a la vista en el riel (los cuatro estados, por `resolverRiel`).
   const flecha = (e: Partial<EntradaRiel> = {}): boolean => flechaLanzadorVisible(resolverRiel(entrada(e)))
   check('fuera de pantalla completa la ▾ se ve: no hay riel y nada cambia', flecha({ pantallaCompleta: false }), String(flecha({ pantallaCompleta: false })))
   check('MITAD NEGATIVA: a pantalla completa con el riel a la vista la ▾ no se ve, porque el riel ya es la lista', !flecha(), String(flecha()))
-  check('con el riel plegado a mano la ▾ vuelve: la lista nunca se queda sin entrada', flecha({ oculto: true }), String(flecha({ oculto: true })))
   check(
     'con el riel plegado solo por falta de sitio (600 px no admiten 260) la ▾ vuelve, y se va otra vez al ensanchar',
     flecha({ disponible: 600 }) && !flecha({ disponible: 1400 }),
@@ -494,16 +464,14 @@ hr('(12) Dónde se enseña la lista cuando la piden («Conectar por SSH…»), c
   let casos = 0
   for (const pantallaCompleta of [true, false]) {
     for (const perfilId of ['', 'personal']) {
-      for (const oculto of [true, false]) {
-        for (const disponible of [0, 500, 686, 1400]) {
-          for (const ancho of [SSH_RIEL_ANCHO_MIN, SSH_RIEL_ANCHO_POR_DEFECTO, SSH_RIEL_ANCHO_MAX]) {
-            const r = resolverRiel({ pantallaCompleta, perfilId, oculto, disponible, ancho })
-            const conFlecha = flechaLanzadorVisible(r)
-            if (!r.visible && !conFlecha) siempreUna = false
-            if (r.visible && conFlecha) nuncaDos = false
-            if (conFlecha !== (dondeConectar(r) === 'lanzador')) comoDondeConectar = false
-            casos++
-          }
+      for (const disponible of [0, 500, 686, 1400]) {
+        for (const ancho of [SSH_RIEL_ANCHO_MIN, SSH_RIEL_ANCHO_POR_DEFECTO, SSH_RIEL_ANCHO_MAX]) {
+          const r = resolverRiel({ pantallaCompleta, perfilId, disponible, ancho })
+          const conFlecha = flechaLanzadorVisible(r)
+          if (!r.visible && !conFlecha) siempreUna = false
+          if (r.visible && conFlecha) nuncaDos = false
+          if (conFlecha !== (dondeConectar(r) === 'lanzador')) comoDondeConectar = false
+          casos++
         }
       }
     }
@@ -521,12 +489,9 @@ hr('(12) Dónde se enseña la lista cuando la piden («Conectar por SSH…»), c
   check('y se cierra si la ▾ deja de verse con el mismo modo: el riel pasa a enseñar la lista', lanzadorSeCierra(modo(true, true), modo(true, false)), 'true')
   const modoDe = (e: Partial<EntradaRiel>): ModoLanzador => ({ pantallaCompleta: entrada(e).pantallaCompleta, flechaVisible: flecha(e) })
   check(
-    'alimentada por `resolverRiel`: mostrar el riel (con su conmutador o al ensanchar la ventana) lo cierra; plegarlo, no',
-    lanzadorSeCierra(modoDe({ oculto: true }), modoDe({ oculto: false })) &&
-      lanzadorSeCierra(modoDe({ disponible: 600 }), modoDe({ disponible: 1400 })) &&
-      !lanzadorSeCierra(modoDe({ oculto: false }), modoDe({ oculto: true })) &&
-      !lanzadorSeCierra(modoDe({ disponible: 1400 }), modoDe({ disponible: 600 })),
-    'true · true · false · false'
+    'alimentada por `resolverRiel`: mostrar el riel al ensanchar la ventana lo cierra; plegarlo, no',
+    lanzadorSeCierra(modoDe({ disponible: 600 }), modoDe({ disponible: 1400 })) && !lanzadorSeCierra(modoDe({ disponible: 1400 }), modoDe({ disponible: 600 })),
+    'true · false'
   )
   check(
     'MITAD NEGATIVA: si ni el modo ni la ▾ cambian no se cierra',

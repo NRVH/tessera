@@ -17,6 +17,8 @@ editores) no pueden desmontarse al cambiar de vista o de proyecto sin perder su 
 [ barra de estado ]
 ```
 
+- A pantalla completa de la franja inferior, la banda de proyectos se aparta y la franja sube a ocupar
+  su alto (`pantalla-completa-de-la-franja.md`).
 - La franja inferior (terminal o Git·Log) vive DENTRO de la columna principal y ocupa todo su
   ancho, también bajo el lateral; no es hermana del cuerpo: de ancho completo recortaría el riel.
   El riel es su propia tarjeta, así que no tiene que medir lo mismo que el lateral. Unir riel y

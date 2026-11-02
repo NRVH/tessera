@@ -21,11 +21,11 @@ function check(name: string, pass: boolean, evidence: string): void {
 hr('1. El nombre largo de cada ventana')
 {
   const casos: Array<[string, string]> = [
-    ['5h', 'Sesión (5 h)'],
-    ['7d', 'Semanal (7 días)'],
+    ['5h', 'Cada 5 horas'],
+    ['7d', 'Semanal'],
     ['Fable 7d', 'Semanal Fable'],
     ['Opus 7d', 'Semanal Opus'],
-    ['Cowork 5h', 'Sesión Cowork'],
+    ['Cowork 5h', 'Cada 5 horas Cowork'],
     // Lo que no se conoce se enseña tal cual: un límite nuevo no puede desaparecer.
     ['Monthly', 'Monthly'],
     ['Individual limit 30d', 'Individual limit 30d'],

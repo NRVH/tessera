@@ -23,6 +23,10 @@ explicarse. `MacUpdater.doDownloadUpdate` ni siquiera baja un archivo: levanta u
   apartado. Todo fallo antes de apartar deja el destino intacto; después, devuelve la versión anterior.
 - El guion escribe `ok` o `fallo: <motivo>` en una marca de UN solo uso que el arranque consume para
   `avisoFallo.mensaje`: es lo único que puede decir POR QUÉ no se aplicó.
+- Con la app ya cerrada, el guion lo cuenta con notificaciones del sistema (`osascript`): al empezar (ya sin la
+  app), al acabar bien y al fallar, y en este caso distingue si la anterior volvió a su sitio o dónde quedó. Los
+  textos llegan ya traducidos y van como argumentos del AppleScript, no dentro de su código; sin permiso de
+  notificaciones, el guion sigue igual. Sin esto, desempaquetar y verificar pasaba sin que nada se viera.
 - Solo es aplicable si el CONTENEDOR del `.app` es escribible (`/Applications` de otra cuenta, un `.dmg` montado).
   Se comprueba antes de descargar y otra vez al aplicar; se repite porque el `.app` se puede haber movido.
 - No se portan los pre-vuelos de Windows: no hay archivos en uso que borrar (se renombra un directorio), no existe

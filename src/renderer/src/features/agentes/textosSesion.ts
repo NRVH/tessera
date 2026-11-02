@@ -43,15 +43,15 @@ export const txSesion = crearTextos(
       'Tessera hibernará antes los agentes que no estés usando. Al volver a un proyecto, su agente retoma la conversación.',
     pocaMemoriaAccion: 'Hibernar inactivos ahora',
     limiteTitulo: (limite: number) => `Límite de ${limite} ${limite === 1 ? 'contenedor' : 'contenedores'}`,
-    limiteSinAgentes: 'Paré un contenedor que ya no tenía agentes para abrir el nuevo.',
+    limiteSinAgentes: 'Tessera paró un contenedor que ya no tenía agentes para abrir el nuevo.',
     limiteDetalle: (lista: string, primero: PrimeroEnPararse, varios: boolean) =>
-      `Hiberné ${lista} (${reglaEs(primero, varios)}) para abrir el nuevo. ${varios ? 'Sus conversaciones siguen' : 'Su conversación sigue'} al volver.`,
+      `Tessera hibernó ${lista} (${reglaEs(primero, varios)}) para abrir el nuevo. ${varios ? 'Sus conversaciones siguen' : 'Su conversación sigue'} al volver.`,
     limiteYMas: (n: number) => `y ${n} más`,
     saturacionTitulo: (pct: number) => `Docker al ${pct} % de su memoria`,
     saturacionAviso: (lista: string | null, segundos: number) =>
       lista === null
-        ? `Si sigue así, en ${segundos} s pararé un contenedor que ya no tiene agentes.`
-        : `Si sigue así, en ${segundos} s hibernaré ${lista}. Su conversación se retoma al volver, pero lo que esté haciendo se interrumpe.`,
+        ? `Si sigue así, en ${segundos} s Tessera parará un contenedor que ya no tiene agentes.`
+        : `Si sigue así, en ${segundos} s Tessera hibernará ${lista}. Su conversación se retoma al volver, pero lo que esté haciendo se interrumpe.`,
     saturacionOtro: 'Parar otro',
     saturacionSinOtro: 'No hay otro que se pueda parar: se parará el anunciado.',
     saturacionCanceladoTitulo: 'Docker se recuperó',
@@ -59,12 +59,12 @@ export const txSesion = crearTextos(
     saturacionSinCandidatos:
       'No hay ningún agente que se pueda parar con tus ajustes: los que estás mirando y los manuales no se paran. Cierra lo que no uses.',
     saturacionParada: (lista: string, primero: PrimeroEnPararse, varios: boolean) =>
-      `Hiberné ${lista} (${reglaEs(primero, varios)}). ${varios ? 'Sus conversaciones siguen' : 'Su conversación sigue'} al volver.`,
-    saturacionSinAgentes: 'Paré un contenedor que ya no tenía agentes.',
+      `Tessera hibernó ${lista} (${reglaEs(primero, varios)}). ${varios ? 'Sus conversaciones siguen' : 'Su conversación sigue'} al volver.`,
+    saturacionSinAgentes: 'Tessera paró un contenedor que ya no tenía agentes.',
     saturacionRojo: 'Tu límite de contenedores está en rojo: Docker no da para tantos a la vez.',
     terminoConCodigo: (code: number | null | undefined) => `el agente terminó (exitCode=${code}). `,
-    sandboxPreparando: 'Preparando la imagen del sandbox…',
-    sandboxListo: 'Sandbox listo',
+    sandboxPreparando: 'Preparando el entorno aislado de los agentes (la primera vez tarda unos minutos)…',
+    sandboxListo: 'Entorno aislado listo',
     sandboxPaquetes: 'Paquetes extra del sandbox',
     noSePudoPrepararAgenteTerminal: 'No se pudo preparar el agente de la terminal',
     basesDeDatos: 'Bases de datos',
@@ -74,46 +74,46 @@ export const txSesion = crearTextos(
     bannerReiniciado: '── agent restarted ──',
     bannerReanudado: '── agent resumed ──',
     contenedorCaido: (intento: number, max: number) =>
-      `⚠ the Docker container went down — restarting clean (attempt ${intento}/${max})…`,
+      `⚠ the Docker container stopped — restarting from a clean state (attempt ${intento}/${max})…`,
     contenedorReiniciado: '✓ container restarted — session resumed (no re-login)',
     intentoFallo: (intento: number, error: string) => `attempt ${intento} failed: ${error}`,
     noRecuperado: (max: number) => `✕ could not recover after ${max} attempts.`,
     revisaDocker:
-      'If Docker went down, it retries on its own when it responds again; if Docker is running, check the error and click "Retry".',
+      'If Docker stopped, Tessera retries automatically when it responds again; if Docker is running, check the error and click “Retry”.',
     falloReinicio: (error: string) => `the restart failed: ${error}`,
     daemonCaido: (titulo: string) => `⚠ ${titulo} (the daemon is not responding).`,
     desconocidaAviso: 'The agent session ended unexpectedly',
     desconocidaDetalle:
-      'The cause could not be determined (the Docker diagnosis did not respond). Use Reopen to launch it again.',
-    desconocidaTerminal: '⚠ The agent ended and the reason could not be determined (the diagnosis failed).',
-    usaReabrir: 'Use Reopen to launch it again.',
+      'The cause could not be determined (Docker diagnostics did not respond). Click Reopen to start it again.',
+    desconocidaTerminal: '⚠ The agent ended and the reason could not be determined (diagnostics failed).',
+    usaReabrir: 'Click Reopen to start it again.',
     pocaMemoriaTitulo: 'The computer is low on memory',
     pocaMemoriaDetalle:
-      'Tessera will hibernate the agents you are not using sooner. When you return to a project, its agent picks up the conversation.',
+      'Tessera hibernates idle agents sooner. When you return to a project, its agent continues the conversation.',
     pocaMemoriaAccion: 'Hibernate idle agents now',
     limiteTitulo: (limite: number) => `Limit of ${limite} ${limite === 1 ? 'container' : 'containers'}`,
-    limiteSinAgentes: 'I stopped a container that no longer had agents to open the new one.',
+    limiteSinAgentes: 'To open the new one, Tessera stopped a container that no longer had agents.',
     limiteDetalle: (lista: string, primero: PrimeroEnPararse, varios: boolean) =>
-      `I hibernated ${lista} (${reglaEn(primero, varios)}) to open the new one. ${varios ? 'Their conversations resume' : 'Its conversation resumes'} when you return.`,
+      `Tessera hibernated ${lista} (${reglaEn(primero, varios)}) to open the new one. ${varios ? 'Their conversations resume' : 'Its conversation resumes'} when you return.`,
     limiteYMas: (n: number) => `and ${n} more`,
-    saturacionTitulo: (pct: number) => `Docker at ${pct} % of its memory`,
+    saturacionTitulo: (pct: number) => `Docker is at ${pct}% of its memory`,
     saturacionAviso: (lista: string | null, segundos: number) =>
       lista === null
-        ? `If it stays like this, in ${segundos} s I will stop a container that no longer has agents.`
-        : `If it stays like this, in ${segundos} s I will hibernate ${lista}. Its conversation resumes when you return, but whatever it is doing is interrupted.`,
+        ? `If it stays like this, in ${segundos} s Tessera will stop a container that no longer has agents.`
+        : `If it stays like this, in ${segundos} s Tessera will hibernate ${lista}. Its conversation resumes when you return, but whatever it is doing is interrupted.`,
     saturacionOtro: 'Stop another one',
-    saturacionSinOtro: 'There is no other one that can be stopped: the announced one will be stopped.',
+    saturacionSinOtro: 'Nothing else can be stopped: Tessera will stop the one announced.',
     saturacionCanceladoTitulo: 'Docker recovered',
-    saturacionCancelado: (pct: number) => `It dropped to ${pct} % of its memory: nothing is stopped.`,
+    saturacionCancelado: (pct: number) => `It dropped to ${pct}% of its memory: nothing will be stopped.`,
     saturacionSinCandidatos:
-      'No agent can be stopped with your settings: the ones you are looking at and manual ones are never stopped. Close what you are not using.',
+      'No agent can be stopped with your settings: agents on screen and custom agents are never stopped. Close what you are not using.',
     saturacionParada: (lista: string, primero: PrimeroEnPararse, varios: boolean) =>
-      `I hibernated ${lista} (${reglaEn(primero, varios)}). ${varios ? 'Their conversations resume' : 'Its conversation resumes'} when you return.`,
-    saturacionSinAgentes: 'I stopped a container that no longer had agents.',
-    saturacionRojo: 'Your container limit is in the red: Docker cannot handle that many at once.',
+      `Tessera hibernated ${lista} (${reglaEn(primero, varios)}). ${varios ? 'Their conversations resume' : 'Its conversation resumes'} when you return.`,
+    saturacionSinAgentes: 'Tessera stopped a container that no longer had agents.',
+    saturacionRojo: 'Your container limit is too high: Docker cannot handle that many at once.',
     terminoConCodigo: (code: number | null | undefined) => `the agent ended (exitCode=${code}). `,
-    sandboxPreparando: 'Preparing the sandbox image…',
-    sandboxListo: 'Sandbox ready',
+    sandboxPreparando: 'Preparing the agents’ isolated environment (the first time takes a few minutes)…',
+    sandboxListo: 'Isolated environment ready',
     sandboxPaquetes: 'Extra sandbox packages',
     noSePudoPrepararAgenteTerminal: 'Could not prepare the terminal agent',
     basesDeDatos: 'Databases',

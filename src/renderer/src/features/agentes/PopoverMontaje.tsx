@@ -7,7 +7,6 @@
 
 import type { DbConexionAjena, DbConnection } from '../../../../shared/db-ipc'
 import { destinoLegible } from '../../../../shared/motores/index'
-import { nombresSistema } from '../../../../shared/nombresSistema'
 import {
   IconoBd,
   IconoMotor,
@@ -17,6 +16,7 @@ import {
   ajenasMontadasPopover,
   filaMontajeAjena
 } from '../bd'
+import { AYUDA, BotonAyuda } from '../academy'
 import { textosMontajeBases } from './textosMontajeBases'
 import { txPane } from './textosPane.ts'
 import type { ModeloAgentPane } from './useAgentPane'
@@ -26,7 +26,6 @@ interface PropsLista {
   ajenas: DbConexionAjena[]
   montadas: string[]
   onChange?: (ids: string[]) => void
-  hostMode: boolean
 }
 
 /** Una conexión conocida: interruptor de montaje, marca del motor, alias y destino. */
@@ -80,7 +79,7 @@ function FilaAjena({ a, montadas, onChange }: { a: DbConexionAjena } & Pick<Prop
 }
 
 /** Las conexiones, las ajenas montadas y las notas de cómo se aplica el montaje. */
-function ListaMontaje({ conexiones, ajenas, montadas, onChange, hostMode }: PropsLista): React.JSX.Element {
+function ListaMontaje({ conexiones, ajenas, montadas, onChange }: PropsLista): React.JSX.Element {
   const sinProbar = conexiones.filter((c) => !c.verificada && !montadas.includes(c.id))
   const t = txPane().montaje
   return (
@@ -106,18 +105,7 @@ function ListaMontaje({ conexiones, ajenas, montadas, onChange, hostMode }: Prop
         {t.aplicaA}
         <strong>{t.alMomento}</strong>
         {t.aplicaB}
-        <code>tdb ls</code>
-        {t.aplicaC}
       </p>
-      {/* En contenedor la consulta la ejecuta Tessera en el anfitrión: por eso llega a
-          bases detrás de la VPN sin que el contenedor esté en ella. */}
-      {!hostMode && (
-        <p className="db-mount-nota">
-          {t.consultasA}
-          {nombresSistema(window.tessera.plataforma).tuEquipo}
-          {t.consultasB}
-        </p>
-      )}
     </>
   )
 }
@@ -144,7 +132,6 @@ function CuerpoMontaje({ m }: { m: ModeloAgentPane }): React.JSX.Element {
       ajenas={dbAjenas}
       montadas={m.p.dbMounted}
       onChange={onChangeDbMounted && ((ids) => onChangeDbMounted(target.profileId, target.projectHostPath, ids))}
-      hostMode={m.p.hostMode}
     />
   )
 }
@@ -152,7 +139,7 @@ function CuerpoMontaje({ m }: { m: ModeloAgentPane }): React.JSX.Element {
 /** Popover de montaje; el color del perfil llega ya en tinta como variable. */
 export function PopoverMontaje({ m }: { m: ModeloAgentPane }): React.JSX.Element {
   const { p, montaje } = m
-  const textosBases = textosMontajeBases(p.lugar, p.dbMounted.length)
+  const textosBases = textosMontajeBases(p.dbMounted.length)
   return (
     <div
       className="db-mount-pop"
@@ -160,6 +147,7 @@ export function PopoverMontaje({ m }: { m: ModeloAgentPane }): React.JSX.Element
     >
       <div className="db-mount-pop-head">
         <span>{textosBases.titulo}</span>
+        <BotonAyuda destino={AYUDA.basesDelAgente} alAbrir={() => montaje.setShowDbMount(false)} className="db-mount-ayuda" />
         <button
           type="button"
           className="btn btn-icon"

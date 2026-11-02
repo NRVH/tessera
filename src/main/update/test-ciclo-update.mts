@@ -3,8 +3,9 @@
 // Prueba del CICLO de actualización con un `SistemaUpdate` falso (npm run test:ciclo-update):
 // el ciclo sin inicializar (`planDeCierre` da «ninguno» y no lanza), `sembrarDesdeMarcador` con
 // un marcador real en una `userData` temporal (preparada, aplicada y fallida) y `planDeCierre`
-// empaquetada con y sin descarga lista, y `anticiparRelevo` (cuándo lanza el relevo y que un cierre
-// abortado lo cancela). Sin `electron`: las rutas entran por `fijarInfoApp` y el
+// empaquetada con y sin descarga lista, `anticiparRelevo` (cuándo lanza el relevo y que un cierre
+// abortado lo cancela) y la vuelta a la versión anterior desde la copia del relevo, con robocopy de
+// verdad en un temporal. Sin `electron`: las rutas entran por `fijarInfoApp` y el
 // resto por el doble; el resolver-hook solo reintenta con `.ts` los imports sin extensión.
 // =============================================================================
 
@@ -31,7 +32,9 @@ const raiz = mkdtempSync(path.join(tmpdir(), 'tessera-ciclo-update-'))
 process.env.LOCALAPPDATA = path.join(raiz, 'local')
 
 const { ciclo, fijarSistema, motor, sistema, seAplicaAlCerrarAhora } = await import('./nucleo.ts')
-const { anticiparRelevo, planDeCierre, runInstaller } = await import('./instalacion.ts')
+const { anticiparRelevo, cancelarRelevoAnticipado, planDeCierre, runInstaller } = await import('./instalacion.ts')
+const { restaurarAnterior } = await import('../relevo/supervisor.ts')
+const { ENCARGO_VERSION } = await import('../../shared/relevo.ts')
 const { dirRelevo, exeRelevo, NOMBRE_ENCARGO } = await import('./stagingRelevo.ts')
 const { sembrarDesdeMarcador } = await import('./arranque.ts')
 await import('./chequeo.ts')
@@ -265,8 +268,12 @@ try {
       mkdirSync(dirRelevo(), { recursive: true })
       copyFileSync(path.join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'whoami.exe'), exeRelevo())
       writeFileSync(path.join(dirRelevo(), 'version.txt'), '1.2.0')
+      // Al cerrar con una preparada también sale: sin ventana, el usuario se queda sin la app
+      // y sin saber qué pasa mientras dura.
       ciclo.state = { ...ciclo.state, status: 'ready' }
-      check('al cerrar con una preparada (sin relanzar), no se lanza', anticiparRelevo() === false && !existsSync(encargo), 'ready')
+      check('al cerrar con una preparada (sin relanzar), también se lanza', anticiparRelevo() === true && existsSync(encargo), 'ready')
+      cancelarRelevoAnticipado()
+      check('y cancelarlo borra su encargo', !existsSync(encargo), 'cancelado')
       ciclo.state = { ...ciclo.state, status: 'installing' }
       ciclo.motorArmado = false
       check('si el feed no la confirmó, no se lanza (abortará antes de ceder nada)', anticiparRelevo() === false && !existsSync(encargo), 'motor sin armar')
@@ -287,6 +294,74 @@ try {
       writeFileSync(instalador, 'instalador de mentira')
       check('cancelado, el siguiente «Actualizar ahora» lo vuelve a lanzar', anticiparRelevo() === true && existsSync(encargo), 'relanzado')
     }
+  }
+
+  // ---------------------------------------------------------------------------------
+  hr('(6) volver a la versión anterior: la copia del relevo se repone EXACTA en la carpeta de instalación')
+  if (!esWindows()) {
+    check('fuera de Windows no hay copia que reponer', true, process.platform)
+  } else {
+    const copia = path.join(raiz, 'reponer', 'relevo')
+    const destino = path.join(raiz, 'reponer', 'Programs', 'Tessera')
+    mkdirSync(path.join(copia, 'resources'), { recursive: true })
+    writeFileSync(path.join(copia, 'Tessera.exe'), 'version vieja')
+    writeFileSync(path.join(copia, 'resources', 'app.asar'), 'asar viejo')
+    writeFileSync(path.join(copia, 'version.txt'), '1.2.0')
+    writeFileSync(path.join(copia, 'encargo.json'), '{}')
+    const encargoReponer = {
+      version: ENCARGO_VERSION,
+      instalador: path.join(raiz, 'Setup.exe'),
+      raizInstalacion: destino,
+      exeApp: path.join(destino, 'Tessera.exe'),
+      pidPadre: 1,
+      versionActual: '1.2.0',
+      versionNueva: '1.3.0',
+      log: path.join(raiz, 'relevo.log')
+    }
+    const nada = (): void => {}
+
+    // El instalador quitó la carpeta entera y no puso la nueva.
+    const tras1 = await restaurarAnterior(encargoReponer, copia, nada)
+    check(
+      'sin carpeta: la crea con la versión anterior, sin el marcador ni el encargo de la copia',
+      tras1 &&
+        readFileSync(path.join(destino, 'Tessera.exe'), 'utf8') === 'version vieja' &&
+        existsSync(path.join(destino, 'resources', 'app.asar')) &&
+        !existsSync(path.join(destino, 'version.txt')) &&
+        !existsSync(path.join(destino, 'encargo.json')),
+      destino
+    )
+
+    // El instalador dejó la nueva a medias, en una carpeta donde el usuario tiene algo suyo.
+    writeFileSync(path.join(destino, 'Tessera.exe'), 'version nueva a medias')
+    writeFileSync(path.join(destino, 'notas-del-usuario.txt'), 'suyo')
+    rmSync(path.join(destino, 'resources'), { recursive: true, force: true })
+    const tras2 = await restaurarAnterior(encargoReponer, copia, nada)
+    check(
+      'a medias: repone lo cambiado y lo que falta, y NO borra lo que no es de la copia',
+      tras2 &&
+        readFileSync(path.join(destino, 'Tessera.exe'), 'utf8') === 'version vieja' &&
+        existsSync(path.join(destino, 'resources', 'app.asar')) &&
+        readFileSync(path.join(destino, 'notas-del-usuario.txt'), 'utf8') === 'suyo',
+      destino
+    )
+
+    // La prueba de renombrado la dejó apartada: se devuelve a su nombre, sin copiar nada.
+    rmSync(destino, { recursive: true, force: true })
+    mkdirSync(`${destino}.relevo-tmp`, { recursive: true })
+    writeFileSync(path.join(`${destino}.relevo-tmp`, 'Tessera.exe'), 'la apartada')
+    const tras4 = await restaurarAnterior(encargoReponer, copia, nada)
+    check(
+      'apartada como .relevo-tmp: vuelve a su nombre (es la versión anterior entera)',
+      tras4 &&
+        readFileSync(path.join(destino, 'Tessera.exe'), 'utf8') === 'la apartada' &&
+        !existsSync(`${destino}.relevo-tmp`),
+      destino
+    )
+
+    // Un destino peligroso no se toca: /MIR borraría lo que sobra en él.
+    const tras3 = await restaurarAnterior({ ...encargoReponer, raizInstalacion: path.parse(raiz).root }, copia, nada)
+    check('sobre la raíz de la unidad no repone nada', tras3 === false, path.parse(raiz).root)
   }
 } finally {
   // Con reintentos: el relevo de mentira de (5) puede seguir saliendo con su cwd en el temporal.

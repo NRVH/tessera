@@ -62,7 +62,7 @@ interface Rechazo {
   error: string
 }
 
-/** Lo que `ssh.terminar` mira de la salida de errores: el puente corta las peticiones a 4 KiB. */
+/** Lo que `ssh.terminar` mira de la salida de errores: el final, donde ssh dice por qué no entró. */
 const MAX_COLA = 3000
 /** El alias como se apunta: lo escribe el agente y podría ser cualquier cosa. */
 const MAX_ALIAS_REGISTRO = 120

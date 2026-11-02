@@ -68,7 +68,7 @@ export const txUri = crearTextos(
     opciones: {
       faltaClave: (trozo: string) => `The key is missing in “${trozo}” (key=value).`,
       sinValor: (clave: string) => `The option “${clave}” has no value (key=value).`,
-      cifrado: (clave: string) => `Encryption does not go in the options (“${clave}”): use the connection’s TLS checkboxes.`,
+      cifrado: (clave: string) => `Encryption is not set in the options (“${clave}”): use the connection’s TLS check boxes.`,
       credenciales: (clave: string) => `User and password go in their own fields, not in the options (“${clave}”).`,
       noAdmitida: (clave: string, admitidas: string) => `“${clave}” is not a supported option. Supported: ${admitidas}.`,
       repetida: (clave: string) => `The option “${clave}” is repeated.`,
@@ -76,10 +76,10 @@ export const txUri = crearTextos(
         `The value of “${clave}” has a % that is not part of an encoded character: write it as %25.`,
       booleana: (clave: string) => `“${clave}” must be true or false.`,
       entera: (clave: string) => `“${clave}” must be an integer.`,
-      sinInterrogacion: 'Without the leading “?”: only key=value&key=value.',
-      sinEspacios: 'Options contain no spaces or “#”.',
+      sinInterrogacion: 'Omit the leading “?”: use only key=value&key=value.',
+      sinEspacios: 'Options cannot contain spaces or “#”.',
       authSource: 'The authentication database (authSource) goes in its own field, not in the options.',
-      tlsContradice: 'tls and ssl say different things in the URI.',
+      tlsContradice: 'tls and ssl have conflicting values in the URI.',
       srvDirecta: 'A mongodb+srv URI does not support directConnection=true.',
       variosHosts: 'With several hosts, directConnection=true and loadBalanced=true are not valid: remove them or keep a single host.',
       sslModeMysql: (valor: string, admitidos: string) => `ssl-mode “${valor}” is not valid. Supported: ${admitidos}.`,
@@ -100,24 +100,24 @@ export const txUri = crearTextos(
       puertoInvalido: (puerto: string) => `The port “${puerto}” is not valid (1-65535).`,
       srvUnHost: 'A mongodb+srv URI has a single host name.',
       srvSinPuerto: 'A mongodb+srv URI has no port: the host’s DNS records provide it.',
-      variosHostsServidor: 'The URI has several hosts and the connection goes to a single server: enter the server’s.',
+      variosHostsServidor: 'The URI has several hosts, but this connection is to a single server: enter only that server’s host.',
       variosHostsRedis:
-        'The URI has several hosts and this URI goes to a single server: for Sentinel or Cluster, choose the mode in “Connect to” and enter the servers in Host, separated by commas.',
+        'The URI has several hosts, but this connection is to a single server: for Sentinel or Cluster, choose the mode in “Connect to” and enter the servers in Host, separated by commas.',
       rutaBaseRedis: (invalida: string) => `The URI path holds the database number (/0, /1…). ${invalida}`
     },
     redis: {
       base: (max: number, v: string) => `The database is an integer from 0 to ${max} (empty means 0): “${v}” is not.`,
       servidorInvalido: (texto: string) => `“${texto}” is not a valid server (host or host:port).`,
       puertoServidor: (texto: string) => `The port of “${texto}” is not valid: it must be a number from 1 to 65535.`,
-      demasiados: (max: number) => `That is more than ${max} servers: a few are enough, the rest are discovered.`,
+      demasiados: (max: number) => `That is more than ${max} servers: a few are enough, and the rest are discovered automatically.`,
       topologiaInvalida: 'The topology (Sentinel or Cluster) is not valid.',
       sinTunel: (nombre: string) =>
-        `${nombre} does not go through an SSH tunnel: the client connects to servers the tunnel does not carry. Remove the tunnel or choose “One server”.`,
+        `${nombre} cannot use an SSH tunnel: the client connects to servers the tunnel does not forward to. Remove the tunnel or choose “One server”.`,
       clusterBase: 'Cluster only has database 0: leave the database empty.',
       maestro: 'The master name is not valid (no spaces).',
-      faltaServidor: 'At least one server is missing.',
-      variosServidores: 'There are several servers: choose Sentinel or Cluster, or leave just one.',
-      faltaMaestro: 'The name of the master the sentinels watch is missing.',
+      faltaServidor: 'Enter at least one server.',
+      variosServidores: 'There are several servers: choose Sentinel or Cluster, or keep just one.',
+      faltaMaestro: 'Enter the name of the master that the sentinels monitor.',
       secretoIlegible:
         'The saved password cannot be read on this computer: type the password again (and the sentinels’, if they have one) to change how it connects.'
     }

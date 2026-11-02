@@ -15,7 +15,8 @@ import {
   clearActivityKeys,
   dejarDeVer,
   sincronizarActividad,
-  isWorking
+  isWorking,
+  turnoEnMarcha
 } from './agentActivity.ts'
 
 const results: { name: string; pass: boolean; evidence: string }[] = []
@@ -189,6 +190,17 @@ const B = 'perfilA|C:\\p\\2|codex'
   check('(14j) la foto del main manda sobre la espera (una colgada se apaga)', !foto.esperando.has(B) && foto.unseen.has(B), `esperando=${[...foto.esperando]}`)
   const repuesta = sincronizarActividad(emptyActivityState, { [B]: 'idle' }, new Map([[B, 'auth']]))
   check('(14k) y la repone tras recargar', repuesta.esperando.get(B) === 'auth', '')
+}
+
+// (15) Turno en marcha: trabajando o esperando una respuesta; ocioso o terminado, no.
+{
+  let s = applyActivity(emptyActivityState, A, 'working', false)
+  check('(15a) trabajando: turno en marcha', turnoEnMarcha(s, A), '')
+  s = applyActivity(s, A, 'blocked', false, 'permission')
+  check('(15b) esperando una respuesta: turno en marcha', turnoEnMarcha(s, A) && !isWorking(s, A), '')
+  s = applyActivity(s, A, 'done', false)
+  check('(15c) terminado: no', !turnoEnMarcha(s, A), '')
+  check('(15d) un target sin actividad: no', !turnoEnMarcha(emptyActivityState, B), '')
 }
 
 const allPass = results.every((r) => r.pass)

@@ -1,6 +1,6 @@
 /* =============================================================================
    EL RIEL DE CONEXIONES SSH: la lista fija a la izquierda de la terminal a pantalla completa, el
-   aviso de su límite de error y su conmutador en la cabecera de la terminal. La cabecera del riel es
+   aviso de su límite de error. La cabecera del riel es
    la de los laterales (`.sidebar-header`, global). Va dentro de `.terminal-body` y no toca
    `.shell-main`: ahí no caben `transform`, `contain` ni `container-type`.
    Decisiones: docs/decisiones/terminales/riel-de-conexiones.md
@@ -63,15 +63,4 @@
    ocupa todo el cuerpo; en fila, para que el riel conserve el alto del cuerpo y su lista, el desplazamiento. */
 .terminal-body > .capa-viva.oculta {
   flex-direction: row;
-}
-
-/* El conmutador del riel, el primero de la cabecera de la terminal a pantalla completa: no se encoge.
-   Apagado lo envuelve un span con su porqué (`title`) que mide lo que él. No es de `.panel-actions`:
-   gobierna la columna que tiene debajo, a su izquierda, y por eso no se funde en reposo. */
-.terminal-panel > .panel-header > .ssh-riel-conmutador,
-.terminal-panel > .panel-header > .btn-envoltura {
-  flex: 0 0 auto;
-}
-.terminal-panel > .panel-header > .btn-envoltura {
-  display: inline-flex;
 }

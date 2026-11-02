@@ -120,7 +120,7 @@ async function abrirManualEnContenedor(
   const destino = contenedorDe(profile, def.id, cuenta)
   const session = await n.terminals.createSession(destino, { project: req.projectHostPath, launch, extraEnv, tamano: req.tamano })
   n.bindDbSession(extraEnv, claveSesionAgente(session.id))
-  n.sandbox.retainSession(destino.id, `agent:${session.id}`)
+  n.sandbox.retainSession(destino.id, claveSesionAgente(session.id))
   n.log(`open() [MANUAL] perfil=${profile.id} agente=${def.id} id=${session.id} home=${preparado.home}`)
   const unsubData = suscribirDatos(n, session.id)
   const unsubExit = n.terminals.onExit(session.id, (exitCode) => void emitExit(n, destino, session.id, exitCode))

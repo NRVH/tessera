@@ -15,6 +15,13 @@ export const txModal = crearTextos(
     cerrarTitulo: 'Cerrar (Esc)',
     cerrar: 'Cerrar',
     categorias: 'Categorías de configuración',
+    gruposRiel: {
+      general: 'General',
+      trabajo: 'Espacio de trabajo',
+      datos: 'Datos',
+      tessera: 'Tessera',
+      ayuda: 'Ayuda'
+    },
     resultados: 'Resultados de la búsqueda',
     sinResultados: (consulta: string) => `Ningún ajuste coincide con «${consulta}».`,
     etiquetaError: 'la configuración',
@@ -30,10 +37,17 @@ export const txModal = crearTextos(
     cerrarTitulo: 'Close (Esc)',
     cerrar: 'Close',
     categorias: 'Settings categories',
+    gruposRiel: {
+      general: 'General',
+      trabajo: 'Workspace',
+      datos: 'Data',
+      tessera: 'Tessera',
+      ayuda: 'Help'
+    },
     resultados: 'Search results',
     sinResultados: (consulta: string) => `No settings match “${consulta}”.`,
     etiquetaError: 'settings',
-    restablecerHeredado: 'Back to the inherited value',
+    restablecerHeredado: 'Reset to the inherited value',
     restablecer: (e: string) => `Reset ${e}`,
     reducir: (e: string) => `Decrease ${e}`,
     aumentar: (e: string) => `Increase ${e}`
@@ -47,7 +61,7 @@ export const txApariencia = crearTextos(
     volverInterfaz: 'Volver a seguir el tamaño de la interfaz',
     zoom: 'Zoom',
     zoomAyuda: (mod: string) =>
-      `Escala TODA la ventana —editor y terminales incluidos—, al contrario que los tamaños de arriba. Es lo mismo que ${mod} +/− y Ctrl+rueda; ${mod}+0 lo devuelve al 100%.`,
+      `Escala toda la ventana —editor y terminales incluidos—, al contrario que los tamaños de arriba. Es lo mismo que ${mod} +/− y Ctrl+rueda; ${mod}+0 lo devuelve al 100%.`,
     volver100: 'Volver al 100%',
     zoomVentana: 'el zoom de la ventana',
     grupoTamanos: 'Tamaño y escala',
@@ -60,17 +74,17 @@ export const txApariencia = crearTextos(
     vistaGit: 'Vista de git',
     letraGit: 'el tamaño de letra de la vista de git',
     grupoBarra: 'Barra de perfiles',
-    minimalista: 'Modo minimalista de perfiles',
+    minimalista: 'Perfiles en un selector compacto',
     minimalistaAyuda: 'Cambia la banda de perfiles por un selector compacto en la barra de título.'
   },
   {
     tamanoPropio: (alto: number) => `Custom size · ${alto} px rows.`,
     igualInterfaz: 'Same as the interface.',
-    volverInterfaz: 'Go back to following the interface size',
+    volverInterfaz: 'Match the interface size',
     zoom: 'Zoom',
     zoomAyuda: (mod: string) =>
-      `Scales the WHOLE window, editor and terminals included, unlike the sizes above. Same as ${mod} +/− and Ctrl+wheel; ${mod}+0 resets it to 100%.`,
-    volver100: 'Back to 100%',
+      `Scales the entire window, including the editor and terminals, unlike the sizes above. Same as ${mod} +/− and Ctrl+wheel; ${mod}+0 resets it to 100%.`,
+    volver100: 'Reset to 100%',
     zoomVentana: 'the window zoom',
     grupoTamanos: 'Size and scale',
     interfaz: 'Interface',
@@ -82,7 +96,7 @@ export const txApariencia = crearTextos(
     vistaGit: 'Git view',
     letraGit: 'the Git view font size',
     grupoBarra: 'Profile bar',
-    minimalista: 'Minimal profile bar',
+    minimalista: 'Profiles in a compact selector',
     minimalistaAyuda: 'Replaces the profile strip with a compact selector in the title bar.'
   }
 )
@@ -111,7 +125,7 @@ export const txTerminales = crearTextos(
   {
     grupoTerminal: 'Terminal',
     grupoAgente: 'Agent terminal',
-    ayudaAgente: 'The one for Claude Code and Codex, independent of the one above.',
+    ayudaAgente: 'The terminal for Claude Code and Codex, set separately from the one above.',
     nombreTerminal: 'the terminal',
     nombreAgente: 'the agent terminal',
     fuente: 'Font',
@@ -121,7 +135,7 @@ export const txTerminales = crearTextos(
     predeterminada: 'Default',
     resaltar: 'Highlight logs and output',
     resaltarAyuda:
-      'Errors in red, warnings in yellow and what went well in green; dates, processes, paths, IPs and config keys in their own color, over SSH too. The text does not change, and anything already in color or a full-screen editor is left alone.',
+      'Errors in red, warnings in yellow and successes in green; dates, processes, paths, IPs and config keys in their own color, over SSH too. The text does not change, and output that already has color or a full-screen editor stays as it is.',
     rendimiento: 'Performance',
     renderizado: 'Rendering',
     porGpu: 'Terminals draw on the GPU.',
@@ -158,23 +172,23 @@ export const txProyectos = crearTextos(
     documentos: 'Document tools',
     documentosAyuda:
       'LibreOffice and poppler, to convert and capture PDF, Word, Excel and PowerPoint files. Adds about 1 GB to the image.',
-    hornearDocumentos: 'Bake in the document tools',
+    hornearDocumentos: 'Include the document tools in the image',
     sandbox: 'Docker sandbox',
     sandboxAyuda: [
       'The agent can already install whatever it wants inside the container (it has ',
       'sudo',
-      '), but that is lost when the profile hibernates or Tessera quits. What you check here is baked into the image and survives. It takes effect when the image is rebuilt: the next time an agent opens, or when you click “Update agents”.'
+      '), but that is lost when the profile hibernates or Tessera quits. What you select here is built into the image and is kept. It takes effect when the image is rebuilt: the next time an agent opens, or when you click “Update agents”.'
     ],
     navegador: 'Test browser',
     navegadorAyuda:
-      'The system libraries Chromium needs (playwright install-deps). It doesn’t include the browser: that gets installed inside the project.',
-    hornearNavegador: 'Bake in the Chromium system libraries',
+      'The system libraries Chromium needs (playwright install-deps). It doesn’t include the browser: that is installed inside the project.',
+    hornearNavegador: 'Include the Chromium system libraries in the image',
     otros: 'Other packages',
     otrosAyuda: 'Debian package names separated by spaces.',
-    otrosEtiqueta: 'Other packages to bake into the sandbox image',
+    otrosEtiqueta: 'Other packages to include in the sandbox image',
     otrosPlaceholder: 'e.g. jq ripgrep',
-    hibernar: 'Hibernate the idle agent after',
-    volver5: 'Back to 5 minutes',
+    hibernar: 'Hibernate idle agents after',
+    volver5: 'Reset to 5 minutes',
     grupoSegundoPlano: 'Background agents'
   }
 )
@@ -211,7 +225,7 @@ export const txBd = crearTextos(
   {
     filas: (n: string) => `${n} rows`,
     automatica: 'Automatic',
-    automaticaAyuda: 'Each statement commits on its own when it finishes.',
+    automaticaAyuda: 'Each statement commits automatically when it finishes.',
     manual: 'Manual',
     manualAyuda: 'Changes wait for “Commit” or “Roll back”.',
     grupoApariencia: 'Appearance',
@@ -219,21 +233,21 @@ export const txBd = crearTextos(
     ayudaArbolPropio: (alto: number) =>
       `Connection tree, grids and results. Custom size · ${alto} px rows.`,
     ayudaArbolIgual: 'Connection tree, grids and results. Same as the Explorer.',
-    volverExplorador: 'Go back to following the Explorer size',
+    volverExplorador: 'Match the Explorer size',
     letraVista: 'the font size of the database view',
     grupoResultados: 'Results',
     filasPorPagina: 'Rows per page',
     filasAyuda:
       'How many rows are read at a time in tables and in console results. It applies to the next read; what is already loaded doesn’t change.',
-    volverAFilas: (filas: string) => `Back to ${filas}`,
+    volverAFilas: (filas: string) => `Reset to ${filas}`,
     cerrarInactiva: 'Close the idle session after',
     inactividadNunca:
-      'A console session never closes on its own. A console with uncommitted changes is never closed.',
+      'A console session never closes automatically. A console with uncommitted changes is never closed.',
     inactividadAyuda:
       'An idle console releases its session and reopens it when you use it again; anything set with ALTER SESSION or SET is lost. A console with uncommitted changes is never closed.',
-    volver30: 'Back to 30 minutes',
+    volver30: 'Reset to 30 minutes',
     grupoConsolas: 'Consoles',
-    transaccion: 'Transaction on open',
-    volverAutomatica: 'Back to Automatic'
+    transaccion: 'Transaction mode for new consoles',
+    volverAutomatica: 'Reset to Automatic'
   }
 )

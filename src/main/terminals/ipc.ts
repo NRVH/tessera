@@ -13,10 +13,11 @@ import {
   type ResizeTerminalMessage,
   type FlowControlMessage,
   type ReloadTerminalRequest,
-  type CloseTerminalRequest
+  type CloseTerminalRequest,
+  type TerminalesEnMarchaRequest
 } from '../../shared/terminal-ipc'
 
-/** Registra los seis `handle` y los tres `on` de la terminal; el orden de registro se conserva. */
+/** Registra los cinco `handle` y los tres `on` de la terminal; el orden de registro se conserva. */
 export function registrarIpcTerminal(deps: {
   ipc: Pick<IpcMain, 'handle' | 'on'>
   terminales: TerminalController
@@ -39,4 +40,7 @@ export function registrarIpcTerminal(deps: {
     terminales.close(req.sessionId)
   )
   ipc.handle(TERMINAL_CHANNELS.OPEN_SSH, (_e, req: OpenSshRequest) => trasBorrado(req, () => terminales.abrirSsh(req)))
+  ipc.handle(TERMINAL_CHANNELS.EN_MARCHA, (_e, req: TerminalesEnMarchaRequest | undefined) =>
+    terminales.terminalesEnMarcha(req?.profileId)
+  )
 }

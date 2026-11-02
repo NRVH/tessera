@@ -32,8 +32,8 @@ export const txDocumentos = crearTextos(
     numeroLargo: (max: number) =>
       `The number has more than ${max} significant digits: the server would not store it exactly.`,
     ordenNumerico: (campos: string) =>
-      `A field with a numeric name (${campos}) can only be sorted first (and, if there are several, in ascending order): ` +
-      'Tessera cannot yet put it after another one.',
+      `A field with a numeric name (${campos}) can only be the first sort key (and, if there are several, in ascending order): ` +
+      'Tessera cannot sort by it after another field yet.',
     camposOmitidos: (n: number) =>
       `${n} ${n === 1 ? 'document had' : 'documents had'} fields that are not in the CSV columns (those of the first documents): those fields were not written.`
   }

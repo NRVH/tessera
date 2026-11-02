@@ -1,10 +1,9 @@
 // =============================================================================
-// Genera las capturas del README en `assets/capturas/` con datos NEUTROS: perfiles,
-// proyectos, repo git y base de datos de demostración creados aquí, agente falso con una
-// conversación de muestra y `userData` temporal. NO es una prueba: no corre con
-// `npm run test:e2e` (ver `testIgnore` de `playwright.config.ts`), solo con
-// `npm run capturas:readme` (`TESSERA_CAPTURAS_README=1`). Hace falta el paquete
-// (`npm run pack:dir`) y, para `bases-de-datos.png`, Docker con `postgres:16-alpine`.
+// Genera las capturas del README (`assets/capturas/`) y, con `TESSERA_CAPTURAS_ACADEMY=1`, las de
+// Tessera Academy en el idioma de `TESSERA_CAPTURAS_IDIOMA`, con datos NEUTROS: perfiles, proyectos,
+// repo git y base de datos de demostración, agente falso y `userData` temporal. NO es una prueba:
+// solo corre con `npm run capturas:readme` o `capturas:academy`. Hace falta el paquete
+// (`npm run pack:dir`) y, para la base de datos, Docker con `postgres:16-alpine`.
 // =============================================================================
 
 import { expect, test, type Locator, type Page } from '@playwright/test'
@@ -20,6 +19,46 @@ import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 
 const SALIDA = resolve(process.cwd(), 'assets', 'capturas')
+const SALIDA_ACADEMY = resolve(process.cwd(), 'src', 'renderer', 'src', 'features', 'academy', 'capturas')
+const ANCHO_ACADEMY = 1200
+
+/** Con `TESSERA_CAPTURAS_ACADEMY=1` solo se escriben las de la Academy, en el idioma de la pasada. */
+const SOLO_ACADEMY = process.env.TESSERA_CAPTURAS_ACADEMY === '1'
+const IDIOMA: 'es' | 'en' = process.env.TESSERA_CAPTURAS_IDIOMA === 'en' ? 'en' : 'es'
+
+/** Las etiquetas de la interfaz que buscan los selectores, en el idioma de la pasada. */
+const L =
+  IDIOMA === 'en'
+    ? {
+        dividida: 'Editor and preview',
+        gitCambios: /^Git · Changes/,
+        terminal: 'Terminal',
+        nuevaTerminal: 'New terminal',
+        maximizar: 'Maximize terminal panel',
+        restaurar: 'Restore terminal panel',
+        editar: 'Edit…',
+        editarSsh: 'Edit SSH connection',
+        diferencias: 'Differences',
+        archivos: 'Files',
+        conexionesBd: 'Database connections',
+        tablas: 'tables',
+        mosaico: 'Agent mosaic'
+      }
+    : {
+        dividida: 'Editor y vista previa',
+        gitCambios: /^Git · Cambios/,
+        terminal: 'Terminal',
+        nuevaTerminal: 'Nueva terminal',
+        maximizar: 'Maximizar el panel de terminal',
+        restaurar: 'Restaurar el panel de terminal',
+        editar: 'Editar…',
+        editarSsh: 'Editar conexión SSH',
+        diferencias: 'Diferencias',
+        archivos: 'Archivos',
+        conexionesBd: 'Conexiones a bases de datos',
+        tablas: 'tablas',
+        mosaico: 'Mosaico de agentes'
+      }
 
 /**
  * Carpeta de los proyectos de demostración: corta y sin nombre de usuario, porque su ruta
@@ -152,6 +191,28 @@ function crearProyecto(nombre: string): string {
   return dir
 }
 
+/** La conversación que pinta el agente de demostración, en el idioma de la pasada. */
+const CONVERSACION_DEMO = {
+  es: {
+    pide: 'Añade el cálculo de envíos al carrito',
+    reviso: 'Reviso primero cómo calcula el total.',
+    lineas: 'líneas',
+    separo: 'Lo separo en su propio módulo:',
+    tarifa: 'tarifa por zona',
+    suma: 'suma el envío al total',
+    listo: 'Listo. ¿Ejecuto los tests?'
+  },
+  en: {
+    pide: 'Add shipping costs to the cart',
+    reviso: 'First I check how the total is computed.',
+    lineas: 'lines',
+    separo: 'I split it into its own module:',
+    tarifa: 'rate per zone',
+    suma: 'adds shipping to the total',
+    listo: 'Done. Shall I run the tests?'
+  }
+}
+
 /**
  * Programa del agente de demostración: pinta una conversación fija, sin pid, ruta ni
  * latido, y deja pasar `--version`, `update` y `npm` al agente falso de siempre.
@@ -181,19 +242,20 @@ L.push(fila('* ' + nombre, c('1', '* ' + nombre)))
 L.push(fila('proyecto: ' + proyecto, c('2', 'proyecto: ' + proyecto)))
 L.push(borde)
 L.push('')
-L.push(c('1;36', '>') + ' Añade el cálculo de envíos al carrito')
+const T = ${JSON.stringify(CONVERSACION_DEMO[IDIOMA])}
+L.push(c('1;36', '>') + ' ' + T.pide)
 L.push('')
-L.push(c('1;32', '*') + ' Reviso primero cómo calcula el total.')
-L.push('  ' + c('2', '- Read(src/carrito.ts)') + c('2', '  48 líneas'))
-L.push('  ' + c('2', '- Read(src/precios.ts)') + c('2', '  22 líneas'))
+L.push(c('1;32', '*') + ' ' + T.reviso)
+L.push('  ' + c('2', '- Read(src/carrito.ts)') + c('2', '  48 ' + T.lineas))
+L.push('  ' + c('2', '- Read(src/precios.ts)') + c('2', '  22 ' + T.lineas))
 L.push('')
-L.push(c('1;32', '*') + ' Lo separo en su propio módulo:')
-L.push('  - ' + c('1', 'envios.ts') + ': tarifa por zona')
-L.push('  - ' + c('1', 'carrito.ts') + ': suma el envío al total')
+L.push(c('1;32', '*') + ' ' + T.separo)
+L.push('  - ' + c('1', 'envios.ts') + ': ' + T.tarifa)
+L.push('  - ' + c('1', 'carrito.ts') + ': ' + T.suma)
 L.push('  ' + c('2', '- Write(src/envios.ts)') + '  ' + c('32', '+9'))
 L.push('  ' + c('2', '- Update(src/carrito.ts)') + '  ' + c('32', '+5') + ' ' + c('31', '-2'))
 L.push('')
-L.push(c('1;32', '*') + ' Listo. ¿Ejecuto los tests?')
+L.push(c('1;32', '*') + ' ' + T.listo)
 L.push('')
 L.push(c('1;36', '>') + ' ')
 process.stdout.write(L.join(NL))
@@ -282,21 +344,70 @@ async function asentar(win: Page): Promise<void> {
   await win.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
 }
 
-/** Descarta avisos, aparca el ratón donde no marca nada y guarda la captura. */
+type Region = Locator | { x: number; y: number; width: number; height: number }
+
+/**
+ * Pasa una captura a WebP con el canvas de la propia ventana (sin dependencias), a como mucho
+ * `ANCHO_ACADEMY` de ancho: la Academy las pinta en una columna de lectura y van en el instalador.
+ */
+async function aWebp(win: Page, png: Buffer): Promise<Buffer> {
+  const b64 = await win.evaluate(
+    async ({ datos, ancho }) => {
+      const img = new Image()
+      img.src = `data:image/png;base64,${datos}`
+      await img.decode()
+      const escala = Math.min(1, ancho / img.width)
+      const lienzo = document.createElement('canvas')
+      lienzo.width = Math.round(img.width * escala)
+      lienzo.height = Math.round(img.height * escala)
+      const ctx = lienzo.getContext('2d')!
+      ctx.imageSmoothingQuality = 'high'
+      ctx.drawImage(img, 0, 0, lienzo.width, lienzo.height)
+      return lienzo.toDataURL('image/webp', 0.86).split(',')[1]
+    },
+    { datos: png.toString('base64'), ancho: ANCHO_ACADEMY }
+  )
+  return Buffer.from(b64, 'base64')
+}
+
+/**
+ * Descarta avisos, aparca el ratón donde no marca nada y guarda la captura: en el README (solo en
+ * español y sin `TESSERA_CAPTURAS_ACADEMY`) y en la Academy con cada id de `academy`, en el idioma
+ * de la pasada. `raton: false` deja el ratón donde está (un menú que se cierra al moverlo).
+ */
 async function foto(
   win: Page,
-  nombre: string,
-  region?: Locator | { x: number; y: number; width: number; height: number }
+  nombres: { readme?: string; academy?: string[] },
+  region?: Region,
+  raton = true
 ): Promise<void> {
   for (const cerrar of await win.locator('.toast-close').all()) await cerrar.click().catch(() => {})
   const marca = await win.locator('.status-bar-marca').boundingBox()
-  if (marca) await win.mouse.move(marca.x + marca.width / 2, marca.y + marca.height / 2)
+  if (raton && marca) await win.mouse.move(marca.x + marca.width / 2, marca.y + marca.height / 2)
   await win.waitForTimeout(500)
   await asentar(win)
-  mkdirSync(SALIDA, { recursive: true })
-  const path = join(SALIDA, `${nombre}.png`)
-  if (region && 'screenshot' in region) await region.screenshot({ path, animations: 'disabled' })
-  else await win.screenshot({ path, animations: 'disabled', clip: region })
+  const png =
+    region && 'screenshot' in region
+      ? await region.screenshot({ animations: 'disabled' })
+      : await win.screenshot({ animations: 'disabled', clip: region })
+  if (nombres.readme && !SOLO_ACADEMY && IDIOMA === 'es') {
+    mkdirSync(SALIDA, { recursive: true })
+    writeFileSync(join(SALIDA, `${nombres.readme}.png`), png)
+  }
+  if (!SOLO_ACADEMY || !nombres.academy?.length) return
+  mkdirSync(SALIDA_ACADEMY, { recursive: true })
+  const webp = await aWebp(win, png)
+  for (const id of nombres.academy) writeFileSync(join(SALIDA_ACADEMY, `${id}.${IDIOMA}.webp`), webp)
+}
+
+/** El rectángulo que abarca varias cajas, con un margen alrededor. */
+async function abarcar(cajas: Locator[], margen = 10): Promise<{ x: number; y: number; width: number; height: number }> {
+  const bs = (await Promise.all(cajas.map((c) => c.boundingBox()))).filter((b) => b !== null)
+  const x = Math.max(0, Math.min(...bs.map((b) => b.x)) - margen)
+  const y = Math.max(0, Math.min(...bs.map((b) => b.y)) - margen)
+  const x2 = Math.max(...bs.map((b) => b.x + b.width)) + margen
+  const y2 = Math.max(...bs.map((b) => b.y + b.height)) + margen
+  return { x, y, width: x2 - x, height: y2 - y }
 }
 
 async function ponerCasilla(win: Page, texto: string): Promise<void> {
@@ -378,7 +489,12 @@ test.describe('capturas del README', () => {
     agente = montarAgenteFalso()
     instalarAgenteDemo(agente)
     s = await abrirTessera(
-      { ...agente.env, ...instalarSshDemo(agente.raiz), TESSERA_USO_CLAUDE: `http://127.0.0.1:${port}/uso` },
+      {
+        ...agente.env,
+        ...instalarSshDemo(agente.raiz),
+        TESSERA_USO_CLAUDE: `http://127.0.0.1:${port}/uso`,
+        TESSERA_FORZAR_IDIOMA: IDIOMA
+      },
       {
         sembrar: (datos) => {
           writeFileSync(
@@ -448,24 +564,53 @@ test.describe('capturas del README', () => {
     await win.locator('.editor-tab', { hasText: 'carrito.ts' }).click()
     await expect(win.locator('.editor-tab.active', { hasText: 'carrito.ts' })).toHaveCount(1)
     await win.waitForTimeout(1500)
-    await foto(win, 'principal')
-    await foto(win, 'espacios', { x: 0, y: 0, width: 1600, height: 100 })
-    await foto(win, 'agentes', win.locator('.right-panel'))
+    await foto(win, { readme: 'principal', academy: ['ventana'] })
+    await foto(win, { readme: 'espacios' }, { x: 0, y: 0, width: 1600, height: 100 })
+    await foto(win, { readme: 'agentes' }, win.locator('.right-panel'))
+  })
+
+  test('academy: menú del perfil y selector de cuenta con el menú de una tarjeta', async () => {
+    test.skip(!SOLO_ACADEMY, 'solo para la Academy')
+    const win = s.win
+    await win.locator('.profile-tab[data-perfil-id="personal"]').click({ button: 'right' })
+    const menu = win.locator('.ctx-menu')
+    await expect(menu).toBeVisible()
+    await foto(win, { academy: ['menu-del-perfil'] }, await abarcar([win.locator('.profile-tab[data-perfil-id="personal"]'), menu]), false)
+    await win.keyboard.press('Escape')
+    await expect(menu).toHaveCount(0)
+
+    await win.evaluate(async () => {
+      for (const nombre of ['Trabajo', 'Pruebas']) {
+        await window.tessera.agentAccounts.create({ nombre, agente: 'claude-code', profileId: 'personal' })
+      }
+    })
+    await win.locator('.agent-pane:not(.hidden) .cuenta-btn').first().click()
+    const pop = win.locator('.cuenta-pop')
+    await expect(pop.locator('.cuenta-tarjeta', { hasText: 'Pruebas' })).toHaveCount(1)
+    await foto(win, { academy: ['selector-de-cuenta'] }, await abarcar([pop]), false)
+    const tarjeta = pop.locator('.cuenta-tarjeta', { hasText: 'Trabajo' })
+    await tarjeta.hover()
+    await pop.locator('.cuenta-accion[aria-label*="Trabajo"]').click()
+    await expect(menu).toBeVisible()
+    await foto(win, { academy: ['continuar-menu-cuenta'] }, await abarcar([pop, menu]), false)
+    await win.keyboard.press('Escape')
+    await win.keyboard.press('Escape')
+    await expect(pop).toHaveCount(0)
   })
 
   test('editor con vista dividida de un Markdown', async () => {
     const win = s.win
     await win.locator('.sidebar .tree-row:visible', { hasText: 'README.md' }).first().click()
     await expect(win.locator('.editor-tab.active', { hasText: 'README.md' })).toHaveCount(1)
-    await win.getByRole('radio', { name: 'Editor y vista previa' }).click()
+    await win.getByRole('radio', { name: L.dividida }).click()
     await expect(win.locator('.editor-cuerpo.dividida > .markdown-preview')).toBeVisible()
     await win.waitForTimeout(1000)
-    await foto(win, 'editor')
+    await foto(win, { readme: 'editor', academy: ['editor-markdown-dividido'] })
   })
 
   test('git: cambios con diff e historial con grafo', async () => {
     const win = s.win
-    await win.getByRole('button', { name: /^Git · Cambios/ }).click()
+    await win.getByRole('button', { name: L.gitCambios }).click()
     await win.locator('.git-panel .git-arbol-fila', { hasText: 'carrito.ts' }).dblclick()
     await expect(win.locator('.monaco-diff-editor').filter({ visible: true })).toContainText('envio')
     await win.getByRole('button', { name: 'Git · Log' }).click()
@@ -475,29 +620,29 @@ test.describe('capturas del README', () => {
     // El detalle abre el primer archivo del commit; se vuelve al diff del cambio sin confirmar. Se espera a
     // que lo abra: si no, la apertura llega después del clic y tapa el diff que se quería enseñar.
     await expect(win.locator('.editor-tab.active', { hasText: 'CHANGELOG.md' })).toHaveCount(1, { timeout: 15_000 })
-    await win.locator('.editor-tab', { has: win.getByRole('img', { name: 'Diferencias' }) }).filter({ hasText: 'carrito.ts' }).click()
+    await win.locator('.editor-tab', { has: win.getByRole('img', { name: L.diferencias }) }).filter({ hasText: 'carrito.ts' }).click()
     await expect(win.locator('.monaco-diff-editor').filter({ visible: true })).toContainText('envio')
     await win.waitForTimeout(1200)
-    await foto(win, 'git')
+    await foto(win, { readme: 'git', academy: ['git-log-con-diff'] })
   })
 
   test('terminales con dos terminales', async () => {
     const win = s.win
-    await win.locator('.activity-item[title="Archivos"]').click()
+    await win.locator(`.activity-item[title="${L.archivos}"]`).click()
     await win.locator('.editor-tab', { hasText: 'carrito.ts' }).first().click()
-    await win.getByRole('button', { name: 'Terminal' }).click()
+    await win.getByRole('button', { name: L.terminal }).click()
     const panel = win.locator('section.terminal-panel')
     await expect(panel.locator('.terminal-tab')).toHaveCount(1)
     await panel.locator('.xterm').first().click()
     await win.keyboard.type('git status -s')
     await win.keyboard.press('Enter')
-    await panel.getByRole('button', { name: 'Nueva terminal' }).click()
+    await panel.getByRole('button', { name: L.nuevaTerminal }).click()
     await expect(panel.locator('.terminal-tab')).toHaveCount(2)
     await panel.locator('.xterm').filter({ visible: true }).first().click()
     await win.keyboard.type('git --no-pager log --oneline --graph --decorate -8')
     await win.keyboard.press('Enter')
     await win.waitForTimeout(2500)
-    await foto(win, 'terminales')
+    await foto(win, { readme: 'terminales' })
   })
 
   test('conexiones SSH: terminal a pantalla completa con el riel y una sesión, y el formulario', async () => {
@@ -513,7 +658,7 @@ test.describe('capturas del README', () => {
       await crear('nas-casa', null, '192.0.2.30', 'admin')
     })
     const panel = win.locator('section.terminal-panel')
-    await panel.getByRole('button', { name: 'Maximizar el panel de terminal' }).click()
+    await panel.getByRole('button', { name: L.maximizar }).click()
     const riel = win.locator('aside.ssh-riel')
     await expect(riel).toBeVisible()
     // El doble clic conecta. El texto de la terminal no se lee del DOM (se pinta por GPU): se espera a la pestaña.
@@ -526,17 +671,17 @@ test.describe('capturas del README', () => {
       await win.keyboard.press('Enter')
     }
     await win.waitForTimeout(1500)
-    await foto(win, 'ssh')
+    await foto(win, { readme: 'ssh', academy: ['ssh-riel', 'terminal-pantalla-completa'] })
 
     await riel.getByRole('treeitem', { name: /^web-01,/ }).click({ button: 'right' })
-    await win.locator('.ctx-menu-item', { hasText: 'Editar…' }).click()
-    const dialogo = win.getByRole('dialog', { name: 'Editar conexión SSH' })
+    await win.locator('.ctx-menu-item', { hasText: L.editar }).click()
+    const dialogo = win.getByRole('dialog', { name: L.editarSsh })
     await expect(dialogo).toBeVisible()
     await win.waitForTimeout(500)
-    await foto(win, 'ssh-conexion', dialogo)
+    await foto(win, { readme: 'ssh-conexion' }, dialogo)
     await win.keyboard.press('Escape')
     await expect(dialogo).toHaveCount(0)
-    await panel.getByRole('button', { name: 'Restaurar el panel de terminal' }).click()
+    await panel.getByRole('button', { name: L.restaurar }).click()
   })
 
   test('configuración', async () => {
@@ -545,7 +690,10 @@ test.describe('capturas del README', () => {
     await expect(win.locator('.ajustes-modal')).toHaveCount(1)
     await win.locator('.ajustes-riel-item[data-cat="proyectos"]').click()
     await win.waitForTimeout(800)
-    await foto(win, 'configuracion')
+    await foto(win, { readme: 'configuracion' })
+    await win.locator('.ajustes-riel-item[data-cat="contenedores"]').click()
+    await win.waitForTimeout(800)
+    await foto(win, { academy: ['docker-limite'] }, win.locator('.ajustes-modal'))
     await win.keyboard.press('Escape')
     await expect(win.locator('.ajustes-modal')).toHaveCount(0)
   })
@@ -554,7 +702,7 @@ test.describe('capturas del README', () => {
     test.skip(pg === null, motivoPg ?? 'sin PostgreSQL de demostración')
     const win = s.win
     const p = pg!
-    await win.locator('.activity-item[title="Conexiones a bases de datos"]').click()
+    await win.locator(`.activity-item[title="${L.conexionesBd}"]`).click()
     await win.evaluate(
       (c) =>
         window.tessera.db.create({
@@ -576,7 +724,7 @@ test.describe('capturas del README', () => {
     const publico = fila(win, 'esquema', 'public')
     await expect(publico).toHaveCount(1, { timeout: 30_000 })
     await desplegar(publico)
-    const tablas = await filaTras(win, publico, 'carpeta', 'tablas-public', 'tablas')
+    const tablas = await filaTras(win, publico, 'carpeta', 'tablas-public', L.tablas)
     await desplegar(tablas)
     await expect(fila(win, 'objeto', 'pedidos')).toHaveCount(1, { timeout: 30_000 })
     await abrirConsolaNueva(win, `${MOD}+KeyN`)
@@ -586,13 +734,13 @@ test.describe('capturas del README', () => {
     // Sin la selección azul de «ejecutar todo»: el cursor al final.
     await monacoConsola(win, { op: 'cursorAlFinal' })
     await win.waitForTimeout(800)
-    await foto(win, 'bases-de-datos')
+    await foto(win, { readme: 'bases-de-datos', academy: ['bd-vista'] })
   })
 
   test('mosaico de agentes', async () => {
     const win = s.win
     // Las sesiones son perezosas: se arrancan mirando cada proyecto, como el usuario.
-    await win.locator('.activity-item[title="Archivos"]').click()
+    await win.locator(`.activity-item[title="${L.archivos}"]`).click()
     await win.locator('.tabs-projects .project-tab', { hasText: 'api-pedidos' }).first().click()
     await expect.poll(() => agente.arranques('claude').length, { timeout: 60_000 }).toBe(2)
     await win.locator('.profile-tab', { hasText: 'Estudio' }).first().click()
@@ -600,7 +748,7 @@ test.describe('capturas del README', () => {
     await win.locator('.profile-tab', { hasText: 'Proyectos libres' }).first().click()
     await expect.poll(() => agente.arranques('claude').length, { timeout: 60_000 }).toBe(4)
     await win.waitForTimeout(2000)
-    await expect(win.locator('.titlebar-inicio button[aria-label="Mosaico de agentes"]')).toBeEnabled({ timeout: 30_000 })
+    await expect(win.locator(`.titlebar-inicio button[aria-label="${L.mosaico}"]`)).toBeEnabled({ timeout: 30_000 })
     await win.keyboard.press(`${MOD}+Shift+KeyM`)
     await expect(win.locator('.shell.modo-mosaico')).toHaveCount(1)
     for (const t of ['Personal · tienda-web', 'Personal · api-pedidos', 'Estudio · apuntes-sql', 'Proyectos libres · juego-2d']) {
@@ -610,6 +758,6 @@ test.describe('capturas del README', () => {
       .poll(() => win.locator('.right-panel.cc-mosaico > .agent-pane:not(.hidden)').count())
       .toBe(4)
     await win.waitForTimeout(1500)
-    await foto(win, 'mosaico')
+    await foto(win, { readme: 'mosaico', academy: ['mosaico'] })
   })
 })

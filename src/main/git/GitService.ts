@@ -180,7 +180,7 @@ export class GitService {
     return this.blobs.workingBlob(relPosix)
   }
 
-  /** Descarta los cambios de un archivo; lo irrecuperable pide confirmación. */
+  /** Descarta los cambios de un archivo, con confirmación (revertir a HEAD o borrar del disco). */
   discardChanges(relPosix: string): Promise<DiscardChangesResult> {
     return this.descartes.discardChanges(relPosix)
   }

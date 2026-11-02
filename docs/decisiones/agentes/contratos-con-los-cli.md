@@ -2,7 +2,7 @@
 
 - **Estado:** vigente
 - **Ámbito:** `src/main/transcripts/vigiaContratos.ts`, los lectores que lo usan (`conversations/ConversationsReader.ts`,
-  `context/ContextReader.ts`, `agents/TurnWatcher.ts`), su destino en `app/arranque.ts` y
+  `context/ContextReader.ts`, `agents/TurnWatcher.ts`, `traspaso/`, `historial/`), su destino en `app/arranque.ts` y
   `scripts/pruebas/sonda-agentes.mts`
 
 ## Contexto
@@ -38,6 +38,7 @@ había al escribirlas, así que siguen en verde.
 | Qué se lee | De dónde | Lo usa | Lo comprueba |
 |---|---|---|---|
 | Mensajes, título, `cwd` e id de la conversación | Cabeza del transcript; en Codex, `session_meta` y los mensajes, también de los rollouts que comprime (`.jsonl.zst`, zstd) | Historial y reanudar | Sonda, vigía, `test:conversations` |
+| Mensajes de texto del usuario y del agente, con el `timestamp` de su línea | Transcript entero, por líneas (también `.jsonl.zst`) | `tctx buscar` (`historial/`) | `test:buscar-historial`; una forma que no entienda deja la búsqueda sin coincidencias |
 | `cwd` de la cabecera | Primeras líneas (Codex: la primera, que pesa decenas de KiB) | Atribuir turnos al proyecto | Sonda, vigía, `test:vigilante-turnos` |
 | Marcas de turno (`turn_duration`, `stop_reason`, `task_started`/`task_complete`/`turn_aborted`) | Cola del transcript | Punto de estado | Sonda, `test:turnos` |
 | Tareas en segundo plano | Resultados de herramientas y avisos de tarea de Claude Code | Veto de la hibernación | `test:segundo-plano` |
@@ -47,6 +48,8 @@ había al escribirlas, así que siguen en verde.
 | Uso de la cuenta de Claude Code | Su API de uso con el token de `.credentials.json` | Uso de la cuenta | `test-usage` con un cuerpo capturado; errores visibles |
 | Protocolo de estado (OSC 7501); en Codex, sin sonda y con `app=codex` | Flujo del pty | Punto de estado y «te espera» | Sonda (el binario de cada uno lo emite), `test-agent-activity-tracker`, agente falso en `e2e/` |
 | Reanudar, aviso de arranque y carpeta de la cuenta (`--resume`, `resume`, `--append-system-prompt`, `-c developer_instructions`, `-c features.daemon_auto_start=false`, `CLAUDE_CONFIG_DIR`, `CODEX_HOME`) | Línea de arranque | Abrir y aislar cuentas | `test-linea-arranque-agente`; un flag desconocido da error visible al arrancar |
+| Dónde busca cada CLI una conversación para reanudarla: Claude Code, `projects/<cwd con lo no alfanumérico a «-»>/<id>.jsonl` (y su carpeta `<id>/`); Codex, por su id bajo `sessions/` (también `.jsonl.zst`); los dos la cargan con el `cwd` de otro modo dentro | Carpeta de la cuenta de destino | «Continuar esta conversación en…» con el mismo agente (`traspaso/`) | `test:traspaso` (rutas); si cambia, reanudar dice que no la encuentra, a la vista |
+| Primer mensaje como argumento posicional, el último de la línea (`claude … "<prompt>"`, `codex … "<prompt>"`) | Línea de arranque | «Continuar con…» otro agente | `test-linea-arranque-agente` (ejecutado en las shells); un argumento que no entienda da error visible al arrancar |
 | `--version`, método de instalación, canal y registros de versiones | CLI, `.claude.json`, `settings.json`, npm | Actualizar los nativos | `test-agentes-nativos`; los fallos se ven en el botón |
 
 ## Consecuencias

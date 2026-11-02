@@ -1,7 +1,7 @@
 // =============================================================================
 // Pruebas de `copiaConfiguracion.ts`: la frase, qué ajustes viajan (y cuáles no), cómo se ponen
-// encima de los de ahora, la fusión de perfiles y agentes (se añade lo que falta y lo que ya está
-// no se toca) y la elección de qué se importa (`seleccionCopia.ts`), con sus dependencias.
+// encima de los de ahora, la fusión de agentes (se añade lo que falta y lo que ya está no se toca) y
+// la elección de qué se importa (`seleccionCopia.ts`), con sus dependencias.
 // Uso: node src/shared/test-copia-configuracion.mts
 // =============================================================================
 
@@ -11,8 +11,7 @@ import {
   ajustesConImportados,
   ajustesParaExportar,
   errorDeFrase,
-  fusionarAgentes,
-  perfilesAFusionar
+  fusionarAgentes
 } from './copiaConfiguracion.ts'
 import { DEFAULT_SETTINGS, type WorkspaceSettings } from './workspace-state-ipc.ts'
 import type { DefinicionAgente } from './agentesManuales.ts'
@@ -84,10 +83,7 @@ function ajustes(): void {
 const def = (id: string, extra: Partial<DefinicionAgente> = {}): DefinicionAgente => ({ id: id as DefinicionAgente['id'], nombre: id.slice(2), comando: id.slice(2), ...extra })
 
 function perfilesYAgentes(): void {
-  hr('(4) Perfiles: se crean los que faltan')
-  const { nuevos, existentes } = perfilesAFusionar([{ id: 'a' }], [{ id: 'a', n: 1 }, { id: 'b', n: 2 }, { id: 'b', n: 3 }])
-  check('a ya está, b es nuevo (una vez)', j(nuevos) === j([{ id: 'b', n: 2 }]) && existentes.length === 1, j({ nuevos, existentes }))
-
+  // A qué perfil va cada uno (y los que se crean): `test-destino-copia.mts`.
   hr('(5) Agentes: se añaden los que faltan')
   const s = { agentesNativos: [def('m-eco')], agentesDockerPorPerfil: { a: [def('m-orca')], z: [def('m-z')] }, agentesOcultosPorPerfil: { a: ['codex' as const], z: ['codex' as const] } }
   const exp = agentesParaExportar(s, ['a'])
@@ -113,7 +109,7 @@ const con = (id: string, perfil: string, depende: string | null = null, yaEsta =
 function arbolDePrueba(): ArbolImportar {
   return arbolImportar({
     perfiles: [{ id: 'a', nombre: 'A' }, { id: 'b', nombre: 'B' }],
-    perfilesAqui: new Set(['a']),
+    destinos: { a: 'a', b: null },
     conexiones: {
       // `app` salta por `bastion`; la base `pg` va por el túnel de `app`; `vieja` ya está aquí.
       ssh: [con('bastion', 'b'), con('app', 'b', 'bastion'), con('vieja', 'a', null, true), con('suelta', 'a')],
@@ -185,13 +181,39 @@ function seleccion(): void {
     j(f.agentesOcultosPorPerfil.a) === j(['codex', 'm-gato', 'm-lince', 'm-ya']),
     j(f.agentesOcultosPorPerfil)
   )
-  check('NEGATIVO: basura en la selección del IPC, vacía', j(leerSeleccionConexiones({ ssh: 'x', bd: [1, 'b'] })) === j({ perfiles: [], ssh: [], bd: ['b'] }), '')
+  check(
+    'NEGATIVO: basura en la selección del IPC, vacía',
+    j(leerSeleccionConexiones({ ssh: 'x', bd: [1, 'b'], historial: 'todo', reasignar: { a: 1, b: 'c', d: '' }, fusionados: 'a' })) ===
+      j({ perfiles: [], ssh: [], bd: ['b'], historial: [], reasignar: { b: 'c' }, fusionados: [] }),
+    ''
+  )
+}
+
+function historial(): void {
+  hr('(9) El historial: por cuenta bajo su perfil, el nativo aparte')
+  const h = (id: number, perfil: string | null) => ({ id, agente: 'claude-code' as const, perfil, cuenta: perfil ? 'Trabajo' : null, predeterminada: false, conversaciones: 3, bytes: 10 })
+  const a = arbolImportar({
+    perfiles: [{ id: 'a', nombre: 'A' }],
+    destinos: { a: 'a' },
+    conexiones: { ssh: [], bd: [] },
+    agentesAqui: { nativos: new Set(), dockerPorPerfil: {} },
+    ajustes: false,
+    historial: [h(0, 'a'), h(1, null), h(2, 'fuera')]
+  })
+  check('el de la cuenta cuelga de su perfil; el nativo, aparte', a.perfiles[0].hijos.length === 1 && a.perfiles[0].hijos[0].tipo === 'historial' && a.historialNativo.length === 1, j(a.perfiles[0].hijos.map((x) => x.id)))
+  check('NEGATIVO: el de un perfil que no viene no aparece', !j(a).includes('"id":"2"'), '')
+  const ini = seleccionParaImportar(a, seleccionInicial(a))
+  check('de serie (cifrado) entra todo el historial y el perfil que lo recibe', j(ini.historial.sort()) === j(['0', '1']) && j(ini.perfiles) === j(['a']), j(ini))
+  const soloNativo = seleccionParaImportar(a, new Set([a.historialNativo[0].clave]))
+  check('solo el nativo ya es algo que importar, sin perfil', haySeleccion(soloNativo) && soloNativo.perfiles.length === 0 && j(soloNativo.historial) === j(['1']), j(soloNativo))
+  check('NEGATIVO: nada marcado (sin frase), nada', !haySeleccion(seleccionParaImportar(a, new Set())), '')
 }
 
 frase()
 ajustes()
 perfilesYAgentes()
 seleccion()
+historial()
 const pasan = resultados.filter((r) => r.pasa).length
 const todo = pasan === resultados.length
 hr(`VEREDICTO: ${pasan}/${resultados.length} PASS — ${todo ? 'TODO PASS' : 'HAY FAIL'}`)

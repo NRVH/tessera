@@ -10,8 +10,10 @@
 
 import {
   CATEGORIAS,
+  CATEGORIA_ACADEMY,
   CATEGORIA_INICIAL,
   categoriasVisibles,
+  RIEL,
   idsDuplicados,
   resolverCategoria,
   siguienteCategoria
@@ -443,9 +445,13 @@ function main(): void {
     // acción rápida del Finder es de Mac y allí no pinta nada.
     check(
       'en Windows se ven TODAS las categorías del catálogo',
-      win.map((c) => c.id).join(',') === CATEGORIAS.map((c) => c.id).join(','),
+      [...win.map((c) => c.id)].sort().join(',') === [...CATEGORIAS.map((c) => c.id)].sort().join(','),
       win.map((c) => c.id).join(',')
     )
+    const ordenRiel = RIEL.flatMap((g) => g.categorias).filter((id) => id !== CATEGORIA_ACADEMY)
+    check('el riel sigue el orden de sus grupos', win.map((c) => c.id).join(',') === ordenRiel.join(','), win.map((c) => `${c.grupo}:${c.id}`).join(' '))
+    const sinGrupo = CATEGORIAS.map((c) => c.id as string).filter((id) => !ordenRiel.includes(id as never))
+    check('toda categoría del catálogo está en un grupo del riel', sinGrupo.length === 0, sinGrupo.join(', ') || 'ok')
     check(
       'Windows pierde EXACTAMENTE las filas del Finder y de Linux, nada más',
       todosLosIds.filter((id) => !idsDe(win).includes(id)).join(',') ===

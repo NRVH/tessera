@@ -11,6 +11,7 @@ import type { ResultadoRedPrevuelo } from '../../../../shared/sandbox-red-ipc'
 import { nombresSistema } from '../../../../shared/nombresSistema'
 import { AvisoCaja } from '../../comun/AvisoCaja'
 import { useDialogo } from '../../comun/useDialogo'
+import { AYUDA, BotonAyuda } from '../academy'
 import { txPestanas } from './textos.ts'
 
 interface RedContenedorModalProps {
@@ -109,7 +110,7 @@ function QueCambia({ tuEquipo }: { tuEquipo: string }): React.JSX.Element {
   const t = txPestanas().red
   return (
     <div className="red-bloque">
-      <div className="red-bloque-titulo">{t.conRedAnfitrion}</div>
+      <div className="red-bloque-titulo">{t.conRedAnfitrion(tuEquipo)}</div>
       <ul className="red-lista">
         <li>{t.puertos(tuEquipo)}</li>
         <li>{t.nombreEquipo}</li>
@@ -206,7 +207,10 @@ export function RedContenedorModal({
   return (
     <div className="modal-overlay" onMouseDown={onCancel}>
       <div ref={dlg.ref} className="modal-card red-modal" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-title">{t.titulo(profile.nombre)}</div>
+        <div className="modal-titulo-fila">
+          <div className="modal-title">{t.titulo(profile.nombre)}</div>
+          <BotonAyuda destino={AYUDA.redDelContenedor} />
+        </div>
         <div className="modal-message">{t.mensaje}</div>
 
         <ElegirRed eleccion={eleccion} tuEquipo={n.tuEquipo} onElegir={setEleccion} />
@@ -230,7 +234,7 @@ export function RedContenedorModal({
           {/* Nunca deshabilitado: la sonda puede dar un falso negativo, y con el mismo modo
               elegido el botón sigue siendo una forma legítima de reiniciar el contenedor. */}
           <button className="btn primary" onClick={() => onAplicar(eleccion === 'anfitrion')}>
-            {conFallas ? t.aplicarIgualmente : t.aplicar}
+            {conFallas ? t.aplicarIgualmente(profile.nombre) : t.aplicar(profile.nombre)}
           </button>
         </div>
       </div>

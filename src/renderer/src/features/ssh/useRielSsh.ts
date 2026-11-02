@@ -1,6 +1,6 @@
 // =============================================================================
-// El riel de conexiones SSH de la terminal: de dónde sale lo que se ve (la preferencia del perfil y el
-// ancho, del store; el sitio, medido en la zona de la terminal y su agente a pantalla completa) y
+// El riel de conexiones SSH de la terminal: de dónde sale lo que se ve (el ancho, del store; el sitio,
+// medido en la zona de la terminal y su agente a pantalla completa) y
 // qué se hace con ello, también si la ▾ del lanzador se ve. Lo decide `rielSsh` (puro); aquí solo se mide
 // y se enlaza. Depende del store de SSH.
 // Decisiones: docs/decisiones/terminales/riel-de-conexiones.md
@@ -20,13 +20,7 @@ import { accionesSsh, useStoreSsh } from './store'
 
 /** El riel de conexiones de la terminal ahora y lo que se puede hacer con él. */
 export interface RielSsh {
-  /** La terminal está a pantalla completa. */
-  pantallaCompleta: boolean
-  /** Hay un riel que gobernar: a pantalla completa, con perfil y con sitio. Si no, su conmutador no puede hacer nada. */
-  enRiel: boolean
-  /** Hay un perfil: sin él no hay conexiones que enseñar, y la falta de sitio no es el motivo. */
-  conPerfil: boolean
-  /** El riel se ve: está en modo riel y el perfil no lo ocultó. */
+  /** El riel se ve: a pantalla completa, con perfil y con sitio. */
   visible: boolean
   /** La ▾ del lanzador se ve: la lista no está ya a la vista en el riel. */
   flechaVisible: boolean
@@ -35,12 +29,8 @@ export interface RielSsh {
   anchoMax: number
   /** Lo mínimo que mide la columna plegada (su cabecera): el panel lo lleva al CSS. */
   columnaPlegadaMin: number
-  /** Alterna la preferencia del perfil. */
-  alternar: () => void
   /** Enseña la lista de conexiones sin elegir dónde: da el foco al filtro del riel si se ve y, si no, abre el lanzador. */
   pedirLista: () => void
-  /** Lo oculta (la preferencia del perfil). */
-  ocultar: () => void
   fijarAncho: (px: number) => void
 }
 
@@ -93,29 +83,22 @@ export function useRielSsh(
   columna: ColumnaRiel
 ): RielSsh {
   const ancho = useStoreSsh((s) => s.rielAncho)
-  const oculto = useStoreSsh((s) => s.rielVisiblePorPerfil[perfilId] === false)
   const zona = useAnchoZona(cuerpoRef, pantallaCompleta)
   const sinTerminal = columna.plegada
   const { disponible, desplegado } = sitioDelRiel(zona, columna.agenteAncho, sinTerminal)
-  const { enRiel, visible } = resolverRiel({ pantallaCompleta, perfilId, oculto, disponible, ancho, sinTerminal })
-  const alternar = useCallback(() => accionesSsh.alternarRiel(perfilId), [perfilId])
-  const ocultar = useCallback(() => accionesSsh.fijarRielVisible(perfilId, false), [perfilId])
+  const resolucion = resolverRiel({ pantallaCompleta, perfilId, disponible, ancho, sinTerminal })
+  const { visible } = resolucion
   const pedirLista = useCallback(() => {
-    if (dondeConectar({ enRiel, visible }) === 'riel') enfocarRielSsh()
+    if (dondeConectar({ visible }) === 'riel') enfocarRielSsh()
     else accionesSsh.abrirLista()
-  }, [enRiel, visible])
+  }, [visible])
   return {
-    pantallaCompleta,
-    enRiel,
-    conPerfil: perfilId !== '',
     visible,
-    flechaVisible: flechaLanzadorVisible({ enRiel, visible }),
+    flechaVisible: flechaLanzadorVisible(resolucion),
     ancho,
     anchoMax: anchoMaximoDe({ disponible, ancho, sinTerminal, desplegado }),
     columnaPlegadaMin: COLUMNA_PLEGADA_MIN,
-    alternar,
     pedirLista,
-    ocultar,
     fijarAncho: accionesSsh.fijarAnchoRiel
   }
 }

@@ -3,8 +3,9 @@
 // Prueba de textosMontajeBases: qué dicen el selector «Bases montadas» y el historial en el
 // agente de un proyecto, en el del espacio de datos y en el de la terminal.
 // (node src/renderer/src/features/agentes/test-textos-montaje-bases.mts)
-// En un proyecto y en el espacio, los literales de siempre carácter a carácter (M1-M6, M9-M12);
-// en la terminal, «el agente de la terminal» sin la carpeta (M13-M16); en la ventana de agente,
+// El selector de bases dice lo mismo en todos los sitios (M1-M3, M7); el historial, en un proyecto y
+// en el espacio, los literales de siempre carácter a carácter (M9-M12);
+// en la terminal, «el agente de la terminal» sin la carpeta (M14-M16); en la ventana de agente,
 // «carpeta de usuario» sin el nombre de la cuenta (M17-M18); ningún texto nombra el sistema (M8),
 // así que no hay plataforma que parametrizar.
 // =============================================================================
@@ -42,48 +43,33 @@ function check(name: string, pass: boolean, evidence: string): void {
 const PROHIBIDOS = ['Windows', 'macOS', 'Finder', 'PowerShell', 'Explorador', 'DPAPI', 'Llavero']
 
 function main(): void {
-  hr('Agente de un PROYECTO: los textos de siempre')
+  hr('Selector de bases: lo mismo en cualquier sitio, dice qué logra y no qué es «montar»')
   {
-    const t = textosMontajeBases('proyecto', 0)
-    check('(M1) título del popover sin cambios', t.titulo === 'Bases montadas en este proyecto', t.titulo)
+    const t = textosMontajeBases(0)
+    check('(M1) título del popover', t.titulo === 'Bases que el agente puede consultar', t.titulo)
     check(
-      '(M2) rótulo del botón sin nada montado sin cambios',
-      t.rotuloBoton === 'Montar bases de datos en este proyecto',
+      '(M2) rótulo del botón sin nada a su alcance',
+      t.rotuloBoton === 'Dar al agente acceso a bases de datos',
       t.rotuloBoton
     )
   }
   {
-    const uno = textosMontajeBases('proyecto', 1).rotuloBoton
-    const tres = textosMontajeBases('proyecto', 3).rotuloBoton
+    const uno = textosMontajeBases(1).rotuloBoton
+    const tres = textosMontajeBases(3).rotuloBoton
     check(
-      '(M3) rótulo del botón con bases montadas sin cambios',
-      uno === '1 base(s) montada(s) en este proyecto' && tres === '3 base(s) montada(s) en este proyecto',
+      '(M3) rótulo del botón con bases a su alcance, en singular y plural',
+      uno === 'El agente puede consultar 1 base' && tres === 'El agente puede consultar 3 bases',
       `${uno} | ${tres}`
     )
   }
-
-  hr('Agente del ESPACIO DE DATOS (vista Bases de datos)')
-  {
-    const t = textosMontajeBases('datos', 0)
-    check('(M4) título del popover: «en el agente de datos»', t.titulo === 'Bases montadas en el agente de datos', t.titulo)
-    check(
-      '(M5) rótulo del botón sin nada montado',
-      t.rotuloBoton === 'Montar bases de datos en el agente de datos',
-      t.rotuloBoton
-    )
-  }
-  {
-    const dos = textosMontajeBases('datos', 2).rotuloBoton
-    check('(M6) rótulo del botón con bases montadas', dos === '2 base(s) montada(s) en el agente de datos', dos)
-  }
   {
     const todos = [0, 1, 5].flatMap((n) => {
-      const t = textosMontajeBases('datos', n)
+      const t = textosMontajeBases(n)
       return [t.titulo, t.rotuloBoton]
     })
-    const malos = todos.filter((s) => /proyecto|consola/i.test(s))
+    const malos = todos.filter((s) => /proyecto|consola|monta/i.test(s))
     check(
-      '(M7) en el espacio ningún texto dice «proyecto» ni «consola»',
+      '(M7) ningún texto del selector dice «proyecto», «consola» ni «montar»',
       malos.length === 0,
       malos[0] ?? `textos=${todos.length}`
     )
@@ -91,15 +77,6 @@ function main(): void {
 
   hr('Agente de la TERMINAL (a pantalla completa de la terminal)')
   {
-    const t = textosMontajeBases('terminal', 0)
-    const dos = textosMontajeBases('terminal', 2).rotuloBoton
-    check(
-      '(M13) el selector dice «en el agente de la terminal»',
-      t.titulo === 'Bases montadas en el agente de la terminal' &&
-        t.rotuloBoton === 'Montar bases de datos en el agente de la terminal' &&
-        dos === '2 base(s) montada(s) en el agente de la terminal',
-      `${t.titulo} | ${t.rotuloBoton} | ${dos}`
-    )
     const historial = rotuloHistorialConversaciones('terminal')
     check(
       '(M14) el historial, «del agente de la terminal»',
@@ -114,10 +91,10 @@ function main(): void {
         !JSON.stringify(lugar).includes('a1b2c3d4'),
       JSON.stringify(lugar)
     )
-    const todos = [t.titulo, t.rotuloBoton, dos, historial, lugar.cabecera, lugar.enVacio]
+    const todos = [historial, lugar.cabecera, lugar.enVacio]
     check(
       '(M16) ningún texto suyo dice «proyecto», «consola» ni «datos»',
-      todos.every((s) => !/proyecto|consola|datos\b/i.test(s.replace('bases de datos', ''))),
+      todos.every((s) => !/proyecto|consola|datos\b/i.test(s)),
       todos.join(' | ')
     )
   }
@@ -138,7 +115,7 @@ function main(): void {
   {
     const todos = LUGARES.flatMap((lugar) => [
       ...[0, 1, 4].flatMap((n) => {
-        const t = textosMontajeBases(lugar, n)
+        const t = textosMontajeBases(n)
         return [t.titulo, t.rotuloBoton]
       }),
       rotuloHistorialConversaciones(lugar),

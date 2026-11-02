@@ -2,22 +2,12 @@
 // La ventana del relevo como una cadena de HTML autocontenida: sin React, sin build y sin cargar
 // nada del disco de la app (se está reemplazando debajo), con la paleta oscura de Tessera pero
 // sin su `styles.css`. Comunicación de UNA dirección: el main pinta por `executeJavaScript`
-// (`window.relevo.estado`) y los dos botones avisan por `console.log` de una marca propia, sin
+// (`window.relevo.estado`) y los botones avisan por `console.log` de una marca propia, sin
 // preload ni IPC. Lo prueba `shared/test-relevo.mts`.
 // Decisiones: docs/decisiones/actualizacion/relevo-de-windows.md
 // =============================================================================
 import { idiomaActual } from '../../shared/i18n.ts'
 import { txRelevoUi } from './textos.ts'
-
-/** Lo que la ventana sabe pintar. */
-export interface EstadoRelevo {
-  /** Fase: 'esperando' | 'instalando' | 'ok' | 'error' */
-  fase: 'esperando' | 'instalando' | 'ok' | 'error'
-  titulo: string
-  detalle: string
-  /** Líneas de registro que se enseñan en el desplegable. */
-  log: string[]
-}
 
 /**
  * Marcas que la página imprime por consola al pulsar cada botón. Llevan prefijo
@@ -26,6 +16,9 @@ export interface EstadoRelevo {
  */
 export const MARCA_ABRIR = 'tessera-relevo:abrir'
 export const MARCA_COPIAR = 'tessera-relevo:copiar'
+export const MARCA_REINTENTAR = 'tessera-relevo:reintentar'
+export const MARCA_ANTERIOR = 'tessera-relevo:anterior'
+export const MARCA_INSTALADOR = 'tessera-relevo:instalador'
 
 /** Escapa texto para meterlo en el HTML sin que un `<` rompa la página. */
 export function escaparHtml(s: string): string {
@@ -83,7 +76,8 @@ export function paginaRelevo(versionActual: string, versionNueva: string): strin
   pre { margin: 0; padding: 0 10px 10px; overflow: auto; flex: 1 1 auto; min-height: 0;
         font: 11px/1.45 Consolas, "Cascadia Mono", monospace; color: var(--fg-muted);
         -webkit-user-select: text; user-select: text; }
-  .pie { padding: 0 24px 20px; display: flex; gap: 8px; justify-content: flex-end; }
+  .pie { padding: 0 24px 20px; display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+  #copiar { margin-right: auto; }
   button { font: inherit; padding: 6px 14px; border-radius: 7px; cursor: pointer;
            border: 1px solid var(--borde); background: transparent; color: var(--fg); }
   button:hover { border-color: #454a55; }
@@ -102,6 +96,9 @@ export function paginaRelevo(versionActual: string, versionNueva: string): strin
   </div>
   <div class="pie">
     <button id="copiar" hidden>${escaparHtml(t.copiarRegistro)}</button>
+    <button id="instalador" title="${escaparHtml(t.tipInstalador)}" hidden>${escaparHtml(t.instalador)}</button>
+    <button id="anterior" title="${escaparHtml(t.tipAnterior)}" hidden>${escaparHtml(t.anterior)}</button>
+    <button id="reintentar" class="primario" title="${escaparHtml(t.tipReintentar)}" hidden>${escaparHtml(t.reintentar)}</button>
     <button id="abrir" class="primario" hidden>${escaparHtml(t.abrirTessera)}</button>
   </div>
 <script>
@@ -114,17 +111,27 @@ export function paginaRelevo(versionActual: string, versionNueva: string): strin
       $('log').scrollTop = $('log').scrollHeight
       const b = $('barra')
       b.className = 'barra' + (e.fase === 'ok' ? ' quieta ok' : e.fase === 'error' ? ' quieta err' : '')
-      const fin = e.fase === 'ok' || e.fase === 'error'
-      $('abrir').hidden = !fin
-      $('copiar').hidden = !fin
+      const ok = e.fase === 'ok'
+      const error = e.fase === 'error'
+      // Bien: abrir la app. Mal: las salidas (reintentar, volver a la anterior o hacerlo a
+      // mano). Mientras trabaja, ninguno: un segundo clic lanzaría dos cosas a la vez.
+      $('abrir').hidden = !ok
+      $('reintentar').hidden = !error
+      $('anterior').hidden = !error
+      $('instalador').hidden = !error
+      $('copiar').hidden = !ok && !error
       // El registro se despliega SOLO si algo falló: en el camino feliz nadie lo
       // quiere ver, y en el malo es lo primero que hace falta.
-      if (e.fase === 'error') $('caja').open = true
-      if (fin) $('abrir').focus()
+      if (error) $('caja').open = true
+      if (ok) $('abrir').focus()
+      if (error) $('reintentar').focus()
     }
   }
   $('abrir').addEventListener('click', () => { console.log('${MARCA_ABRIR}') })
   $('copiar').addEventListener('click', () => { console.log('${MARCA_COPIAR}') })
+  $('reintentar').addEventListener('click', () => { console.log('${MARCA_REINTENTAR}') })
+  $('anterior').addEventListener('click', () => { console.log('${MARCA_ANTERIOR}') })
+  $('instalador').addEventListener('click', () => { console.log('${MARCA_INSTALADOR}') })
 </script>
 </body></html>`
 }

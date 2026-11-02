@@ -92,7 +92,7 @@ export const txArbolAcciones = crearTextos(
     tituloCabecera: 'Databases',
     nuevaConexionSinPuntos: 'New connection',
     nuevaConsolaTitulo: (alias: string | null, acorde: string) =>
-      `New console${alias !== null ? ` in ${alias}` : ''} (${acorde})`,
+      `New console${alias !== null ? ` on ${alias}` : ''} (${acorde})`,
     refrescarAlias: (alias: string) => `Refresh ${alias}`,
     refrescarTodo: 'Refresh all',
     nadaDesplegado: 'Nothing is expanded',
@@ -120,7 +120,7 @@ export const txArbolAcciones = crearTextos(
     borrarPorPatron: 'Delete keys by pattern…',
     filtrarPorPrefijo: (prefijo: string) => `Filter by ${prefijo}*`,
     copiarPrefijo: 'Copy prefix',
-    borrarClavesPrefijo: (prefijo: string) => `Delete the ${prefijo}* keys…`,
+    borrarClavesPrefijo: (prefijo: string) => `Delete ${prefijo}* keys…`,
     abrirConAcorde: (acorde: string) => `Open (${acorde})`,
     copiarNombre: 'Copy name',
     nuevaConexion: 'New connection…',
@@ -128,15 +128,15 @@ export const txArbolAcciones = crearTextos(
     tituloEliminarConexion: 'Delete connection',
     eliminar: 'Delete',
     tituloEliminarConsola: 'Delete console',
-    consolaALaPapelera: (nombre: string) => `“${nombre}.sql” will go to the trash; you can recover it from there.`,
+    consolaALaPapelera: (nombre: string) => `“${nombre}.sql” will be moved to the trash. You can restore it from there.`,
     tituloRenombrar: 'Rename console',
     etiquetaNombre: 'Name',
     renombrarBoton: 'Rename',
-    filtrarClavesDe: (base: string) => `Filter keys of ${base}`,
+    filtrarClavesDe: (base: string) => `Filter keys in ${base}`,
     patronOTexto: 'Pattern or text',
     filtrar: 'Filter',
     pistaFiltro:
-      'With * ? [ ] it is a pattern (user:*). Without wildcards the text is searched anywhere in the name. Empty removes the filter.',
+      'Use * ? [ ] for a pattern (user:*). Without wildcards, Tessera searches for the text anywhere in the name. Leave it empty to remove the filter.',
     cancelar: 'Cancel',
     noSePudoCopiar: (m: string) => `Could not copy: ${m}`,
     noSePudoRefrescar: (m: string) => `Could not refresh: ${m}`,
@@ -147,7 +147,7 @@ export const txArbolAcciones = crearTextos(
     desconectarConCambios: (alias: string, nombres: readonly string[], soloRevertir: boolean) =>
       `${alias} has uncommitted changes` +
       (nombres.length > 0 ? ` in ${nombres.join(', ')}` : '') +
-      (soloRevertir ? '. To disconnect they must be rolled back.' : '. To disconnect they must be committed or rolled back.'),
+      (soloRevertir ? '. Roll them back to disconnect.' : '. Commit or roll them back to disconnect.'),
     noSePudoDesconectar: (alias: string, m: string) => `Could not disconnect ${alias}: ${m}`,
     noSePudoEliminarAlias: (alias: string, m: string) => `Could not delete ${alias}: ${m}`,
     txConsolaSinConfirmar: 'Uncommitted transaction',

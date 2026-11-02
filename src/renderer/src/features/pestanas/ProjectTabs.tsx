@@ -5,13 +5,14 @@
 // No dispara el backend: reporta la intención a `useTabs`. Depende de comun/ContextMenu y ConfirmDialog.
 // Decisiones: docs/decisiones/renderer/reordenar-proyectos-arrastrando.md
 // =============================================================================
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useArrastreProyectos, type ArrastreProyectos } from './useArrastreProyectos'
 import { IconoAbrir, IconoCerrar } from '../../comun/iconosMenu'
 import type { OpenProject } from './tabsModel'
 import type { ProjectDotState } from './profileDotState'
 import { ContextMenu } from '../../comun/ContextMenu'
 import { ConfirmDialog } from '../../comun/ConfirmDialog'
+import { reemplazoPideConfirmacion, type ConfirmarReemplazo } from './confirmaciones'
 import { txPestanas } from './textos.ts'
 
 interface ProjectTabsProps {
@@ -19,11 +20,16 @@ interface ProjectTabsProps {
   activePath: string | null
   /** false si no hay perfil activo: deshabilita abrir (no hay dónde). */
   hasActiveProfile: boolean
+  /** Nombre del perfil activo, para decir en el botón de abrir dónde queda el proyecto. */
+  profileName: string | null
   onSelectProject: (projectHostPath: string) => void
   onCloseProject: (projectHostPath: string) => void
   onOpenProject: () => void
-  /** Abre el diálogo nativo y reemplaza ESTE proyecto por el elegido, en su mismo hueco. */
-  onReplaceProject: (projectHostPath: string) => void
+  /**
+   * Abre el diálogo nativo y reemplaza ESTE proyecto por el elegido, en su mismo hueco, si
+   * `confirmar` lo aprueba (lo pregunta esta banda, ya con la carpeta elegida).
+   */
+  onReplaceProject: (projectHostPath: string, confirmar: ConfirmarReemplazo) => void
   /** Estado visual del glifo por proyecto (vivo / gris hibernado / spinner al despertar). */
   dotStates: Record<string, ProjectDotState>
   /**
@@ -223,16 +229,19 @@ function SinProyectos({
 
 function BotonAbrirProyecto({
   hasActiveProfile,
+  profileName,
   onOpenProject
 }: {
   hasActiveProfile: boolean
+  profileName: string | null
   onOpenProject: () => void
 }): React.JSX.Element {
+  const etiqueta = txPestanas().proyectos.abrir(profileName)
   return (
     <button
       className="project-tab-add"
-      aria-label={txPestanas().proyectos.abrir}
-      title={txPestanas().proyectos.abrir}
+      aria-label={etiqueta}
+      title={etiqueta}
       onClick={onOpenProject}
       disabled={!hasActiveProfile}
     >
@@ -256,8 +265,8 @@ function ConfirmarCierre({
       // danger: enfoca "Cancelar", así un Enter reflejo no confirma el cierre.
       danger
       title={t.cerrarTitulo}
-      message={t.cerrarMensaje(project.name)}
-      confirmLabel={t.cerrar}
+      message={t.cerrarMensaje}
+      confirmLabel={t.cerrarConfirmar(project.name)}
       cancelLabel={t.cancelar}
       onConfirm={onConfirm}
       onCancel={onCancel}
@@ -265,17 +274,76 @@ function ConfirmarCierre({
   )
 }
 
+/** Sustitución pendiente de confirmar: el proyecto que se cierra y la carpeta elegida. */
+interface ReemplazoPendiente {
+  project: OpenProject
+  nueva: { projectHostPath: string; name: string }
+}
+
+/** Confirmación de cambiar un proyecto por otra carpeta: cierra el proyecto y su agente, como la ✕. */
+function ConfirmarReemplazoDialogo({ pendiente, onRespuesta }: { pendiente: ReemplazoPendiente; onRespuesta: (aprobado: boolean) => void }): React.JSX.Element {
+  const t = txPestanas().proyectos
+  return (
+    <ConfirmDialog
+      // danger: enfoca "Cancelar", así un Enter reflejo no cierra el proyecto.
+      danger
+      title={t.reemplazarTitulo(pendiente.project.name)}
+      message={t.reemplazarMensaje(pendiente.project.name, pendiente.nueva.name)}
+      confirmLabel={t.reemplazar(pendiente.nueva.name)}
+      cancelLabel={t.cancelar}
+      onConfirm={() => onRespuesta(true)}
+      onCancel={() => onRespuesta(false)}
+    />
+  )
+}
+
+/**
+ * La sustitución que espera respuesta. `pedir` da la pregunta para un proyecto; llega ya con la
+ * carpeta elegida, así el diálogo nombra la que se cierra y la que se abre.
+ */
+function useReemplazoPendiente(): {
+  pendiente: ReemplazoPendiente | null
+  pedir: (project: OpenProject) => ConfirmarReemplazo
+  responder: (aprobado: boolean) => void
+} {
+  const [pendiente, setPendiente] = useState<ReemplazoPendiente | null>(null)
+  // Quien espera la respuesta: se resuelve siempre, también si otra pregunta ocupa su lugar o la
+  // banda se desmonta (sin diálogo no habría quien conteste, y la acción quedaría colgada).
+  const esperando = useRef<((aprobado: boolean) => void) | null>(null)
+  const soltar = (aprobado: boolean): void => {
+    const responder = esperando.current
+    esperando.current = null
+    responder?.(aprobado)
+  }
+  useEffect(() => () => soltar(false), [])
+  return {
+    pendiente,
+    pedir: (project) => (nueva) =>
+      reemplazoPideConfirmacion(project.projectHostPath, nueva.projectHostPath)
+        ? new Promise<boolean>((responder) => {
+            soltar(false)
+            esperando.current = responder
+            setPendiente({ project, nueva })
+          })
+        : Promise.resolve(true),
+    responder: (aprobado) => {
+      soltar(aprobado)
+      setPendiente(null)
+    }
+  }
+}
+
 interface MenuProyectoProps {
   x: number
   y: number
   project: OpenProject
   onClose: () => void
-  onReplaceProject: (projectHostPath: string) => void
+  onReplace: (project: OpenProject) => void
   onCloseRequest: (project: OpenProject) => void
 }
 
 /** Menú contextual de un proyecto: abrir otro en su hueco y cerrar. */
-function MenuProyecto({ x, y, project, onClose, onReplaceProject, onCloseRequest }: MenuProyectoProps): React.JSX.Element {
+function MenuProyecto({ x, y, project, onClose, onReplace, onCloseRequest }: MenuProyectoProps): React.JSX.Element {
   const t = txPestanas().proyectos
   return (
     <ContextMenu
@@ -285,8 +353,8 @@ function MenuProyecto({ x, y, project, onClose, onReplaceProject, onCloseRequest
       items={[
         {
           icon: <IconoAbrir />,
-          label: t.abrirAqui,
-          onClick: () => onReplaceProject(project.projectHostPath)
+          label: t.abrirAqui(project.name),
+          onClick: () => onReplace(project)
         },
         { icon: <IconoCerrar />, label: t.cerrar, onClick: () => onCloseRequest(project) }
       ]}
@@ -304,6 +372,7 @@ export function ProjectTabs(props: ProjectTabsProps): React.JSX.Element {
   // Proyecto pendiente de confirmar cierre: la "x" (o el "Cerrar" del menú) abre el modal
   // en vez de cerrar de una.
   const [closing, setClosing] = useState<OpenProject | null>(null)
+  const reemplazo = useReemplazoPendiente()
   return (
     <div className="tabs-projects" role="tablist" aria-label={txPestanas().proyectos.aria}>
       {projects.length === 0 ? (
@@ -324,7 +393,11 @@ export function ProjectTabs(props: ProjectTabsProps): React.JSX.Element {
         ))
       )}
       {projects.length > 0 && (
-        <BotonAbrirProyecto hasActiveProfile={hasActiveProfile} onOpenProject={onOpenProject} />
+        <BotonAbrirProyecto
+          hasActiveProfile={hasActiveProfile}
+          profileName={props.profileName}
+          onOpenProject={onOpenProject}
+        />
       )}
 
       {menu && (
@@ -333,10 +406,12 @@ export function ProjectTabs(props: ProjectTabsProps): React.JSX.Element {
           y={menu.y}
           project={menu.project}
           onClose={() => setMenu(null)}
-          onReplaceProject={onReplaceProject}
+          onReplace={(project) => onReplaceProject(project.projectHostPath, reemplazo.pedir(project))}
           onCloseRequest={setClosing}
         />
       )}
+
+      {reemplazo.pendiente && <ConfirmarReemplazoDialogo pendiente={reemplazo.pendiente} onRespuesta={reemplazo.responder} />}
 
       {closing && (
         <ConfirmarCierre

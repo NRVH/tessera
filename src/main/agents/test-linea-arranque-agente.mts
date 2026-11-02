@@ -3,12 +3,13 @@
 // Prueba de la línea de arranque nativa del agente (npm run test:linea-arranque-agente):
 // la forma de las dos ramas desde cualquier máquina y, donde hay shell POSIX, la
 // EJECUCIÓN real con un binario sustituto para ver el argv que recibe (apóstrofos,
-// heredoc, `$`). Sin shell POSIX esos casos se saltan con aviso y cuentan en el veredicto.
+// heredoc, `$`); el prompt inicial del traspaso, también en PowerShell 5.1 en Windows.
+// Sin la shell, esos casos se saltan con aviso y cuentan en el veredicto.
 // Decisiones: docs/decisiones/agentes/sesion-linea-de-arranque.md
 // =============================================================================
 
 import { spawnSync } from 'node:child_process'
-import { chmodSync, existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { buildAgentLaunchCommand, buildHostAgentLaunchCommand, buildManualAgentLaunchCommand } from './lineaArranqueAgente.ts'
@@ -101,7 +102,73 @@ function casosAgenteManual(): void {
     !/CLAUDE_CONFIG_DIR|CODEX_HOME|append-system-prompt|developer_instructions/.test(linea), '')
   check('(M4) el comando del usuario llega entero (sintaxis de shell incluida), sin exec delante',
     linea.includes(citarSh('npx lince --modo "rápido" && echo fin').slice(1, -1)) && !linea.includes('exec npx'), linea.slice(-120))
-  check('(M5) bajo env -i, con TERM y las variables de bases', linea.startsWith('env -i ') && linea.includes('TERM=xterm-256color') && linea.includes(`TESSERA_DB_MODE='docker'`), '')
+  check('(M5) bajo env -i, con TERM, color real y las variables de bases', linea.startsWith('env -i ') && linea.includes('TERM=xterm-256color') && linea.includes('COLORTERM=truecolor') && linea.includes(`TESSERA_DB_MODE='docker'`), '')
+  const deSerie = buildAgentLaunchCommand('codex', 'codex', '/agent-config/codex')
+  check('(M6) un agente de serie también se lanza con color real', deSerie.startsWith('env -i ') && deSerie.includes('COLORTERM=truecolor'), deSerie.slice(0, 200))
+}
+
+/** Un primer mensaje con lo que una shell puede torcer: apóstrofo, backticks, `$`, comillas dobles y una ñ. */
+const PROMPT = "Continúas un trabajo que empezó O'Brien. Lee el traspaso con `tctx traspaso` y $HOME, \"resume\" en 5 líneas."
+/** Lo que llega: las comillas dobles pasan a simples (PowerShell 5.1 las rompería al pasarlas a un ejecutable). */
+const LLEGA = PROMPT.replace(/"/g, "'")
+
+/** El argv que recibe un eco en Node lanzado por PowerShell 5.1 con la línea de Windows. */
+function argvEnPowerShell(dir: string, agente: 'claude-code' | 'codex', resume: string | undefined): string[] {
+  const eco = path.join(dir, 'eco.cjs')
+  const salida = path.join(dir, `argv-${agente}.json`)
+  writeFileSync(eco, "require('node:fs').writeFileSync(process.env.ECO_SALIDA, JSON.stringify(process.argv.slice(2)))\n")
+  const linea = buildHostAgentLaunchCommand(`& '${process.execPath}' '${eco}'`, agente, resume, BRIEFING, 'windows', PROMPT)
+  spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', linea], { env: { ...process.env, ECO_SALIDA: salida }, encoding: 'utf8', windowsHide: true, timeout: 60_000 })
+  try {
+    return JSON.parse(readFileSync(salida, 'utf8')) as string[]
+  } catch {
+    return []
+  }
+}
+
+/** El primer mensaje del traspaso: el último argumento, citado como el aviso, y ejecutado de verdad. */
+function casosPromptInicial(): void {
+  hr('(P) Prompt inicial: el último argumento, en las dos formas y en el contenedor')
+  for (const p of PLATAFORMAS) {
+    const cc = buildHostAgentLaunchCommand('claude', 'claude-code', undefined, BRIEFING, p, PROMPT)
+    const citar = p === 'windows' ? (v: string): string => `'${v.replace(/'/g, "''")}'` : citarSh
+    check(`(P1) [${p}] Claude Code: detrás del aviso, citado con la regla de su shell`, cc.endsWith(` ${citar(LLEGA)}`) && cc.includes('--append-system-prompt '), cc.slice(-120))
+    const cx = buildHostAgentLaunchCommand('codex', 'codex', undefined, null, p, PROMPT)
+    check(`(P2) [${p}] Codex: detrás de sus opciones`, cx === `codex -c features.daemon_auto_start=false ${citar(LLEGA)}`, cx)
+    check(`(P3) [${p}] sin prompt, la línea de siempre`, buildHostAgentLaunchCommand('claude', 'claude-code', undefined, null, p, null) === 'claude', '')
+    check(`(P4) [${p}] uno que empezara por «-» no se pasa (sería una opción)`, buildHostAgentLaunchCommand('claude', 'claude-code', undefined, null, p, '--dangerously-skip-permissions') === 'claude', '')
+  }
+  const contenedor = buildAgentLaunchCommand('codex', 'codex', '/agent-config/codex/a', null, undefined, undefined, BRIEFING, PROMPT)
+  check('(P5) en el contenedor, Codex: el prompt POSIX al final de su exec, tras el login', contenedor.includes(`&& exec codex -c features.daemon_auto_start=false -c `) && contenedor.includes(citarSh(` ${citarSh(LLEGA)}`).slice(1, -1)), contenedor.slice(-160))
+  const dir = mkdtempSync(path.join(tmpdir(), 'tessera-prompt-'))
+  try {
+    const standin = path.join(dir, 'agente-standin.sh')
+    writeFileSync(standin, ['#!/bin/sh', 'for a in "$@"; do', "  printf 'ARG:%s\\n' \"$a\"", 'done', ''].join('\n'), 'utf8')
+    chmodSync(standin, 0o755)
+    for (const shell of SHELLS_POSIX) {
+      if (!existsSync(shell)) {
+        saltar(`(P6) ejecución en ${shell}`, 'no existe en esta máquina')
+        continue
+      }
+      const { argv } = argvRecibido(shell, buildHostAgentLaunchCommand(citarSh(standin), 'claude-code', undefined, BRIEFING, 'mac', PROMPT))
+      check(`(P6) [${shell}] el binario recibe el prompt intacto como último argumento`, argv.length === 3 && argv[2] === LLEGA, j2(argv))
+    }
+    if (plataformaActual() === 'windows') {
+      const cc = argvEnPowerShell(dir, 'claude-code', undefined)
+      check('(P7) PowerShell 5.1: Claude Code recibe el aviso y el prompt, cada uno entero', cc.length === 3 && cc[0] === '--append-system-prompt' && cc[1] === PLANO && cc[2] === LLEGA, j2(cc))
+      const cx = argvEnPowerShell(dir, 'codex', ID)
+      check('(P8) PowerShell 5.1: Codex reanudando, con el prompt al final', cx[0] === 'resume' && cx[1] === ID && cx[cx.length - 1] === LLEGA, j2(cx))
+    } else {
+      saltar('(P7/P8) PowerShell 5.1', 'solo en Windows')
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
+/** Para las evidencias. */
+function j2(v: unknown): string {
+  return JSON.stringify(v).slice(0, 200)
 }
 
 function main(): void {
@@ -313,6 +380,7 @@ function main(): void {
   }
 
   casosAgenteManual()
+  casosPromptInicial()
 
   // ---------------------------------------------------------------------------
   // Reporte final

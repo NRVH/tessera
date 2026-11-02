@@ -18,17 +18,8 @@ import { txCatalogo } from './textosCatalogo.ts'
 /**
  * Las categorías del riel, EN ORDEN, y sus ajustes.
  *
- * El orden es por FRECUENCIA DE USO, no por antigüedad: Apariencia (lo que de
- * verdad se toca) · Terminales · Proyectos · Agentes · Bases de datos · Integración con el
- * sistema · Actualizaciones · Acerca de. «Bases de datos» sigue a Proyectos porque es la
- * otra forma de trabajar dentro de un perfil. «Integración con el sistema» va detrás de Proyectos
- * porque es su continuación natural —cómo se ABRE un proyecto desde fuera de la app— y
- * delante de Actualizaciones porque se toca una vez
- * al instalar y otra si cambias de idea, que sigue siendo más que un update. El modo
- * por defecto de proyecto se toca una vez en la vida y abría el panel; "Acerca de"
- * se abre menos que ninguna, y va al final por eso — con el efecto secundario
- * bueno de quedar pegada a Actualizaciones, que es la otra categoría donde la app
- * habla de sí misma.
+ * El orden y los grupos con que se ven en el riel los pone `RIEL`, no este literal: aquí
+ * importa qué hay en cada una. La primera es la que se abre por defecto.
  *
  * NO hay categorías "previstas" vacías. Una entrada del riel que abre un panel
  * en blanco se lee como un fallo, no como una hoja de ruta; que quepan más se ve
@@ -80,7 +71,7 @@ export const CATEGORIAS = [
         ajustes: [
           {
             id: 'banda',
-            etiqueta: 'Modo minimalista de perfiles',
+            etiqueta: 'Perfiles en un selector compacto',
             claves: ['perfiles', 'minimalista', 'selector', 'compacta', 'banda']
           }
         ]
@@ -499,7 +490,40 @@ export const CATEGORIAS = [
  * sin este tipo renombrar una categoría en un sitio y no en el otro no daba
  * ningún error — la sección simplemente desaparecía en tiempo de ejecución.
  */
-export type CategoriaId = (typeof CATEGORIAS)[number]['id']
+export type CategoriaId = (typeof CATEGORIAS)[number]['id'] | typeof CATEGORIA_ACADEMY
+
+/**
+ * La categoría de Tessera Academy. No está en `CATEGORIAS` porque sus filas son los artículos,
+ * que son de la feature `academy`: quien monta el modal la mete con `conAcademy`, y así este
+ * catálogo sigue sin importar nada de otra feature y su test sigue viendo solo ajustes.
+ */
+export const CATEGORIA_ACADEMY = 'academy'
+
+/** El catálogo con la categoría de Tessera Academy; su sitio en el riel lo pone `RIEL`. */
+export function conAcademy(
+  grupos: CategoriaBuscable['grupos'],
+  catalogo: readonly CategoriaBuscable[] = CATEGORIAS
+): CategoriaBuscable[] {
+  return [...catalogo, { id: CATEGORIA_ACADEMY, titulo: 'Tessera Academy', grupos }]
+}
+
+export type GrupoRiel = 'general' | 'trabajo' | 'datos' | 'tessera' | 'ayuda'
+
+/**
+ * Cómo se agrupan las categorías en el riel, y en qué orden. Con doce categorías una lista plana
+ * se lee revuelta: el grupo dice de qué va cada una antes de leer su nombre. `Record` sobre los
+ * grupos y un test que exige que cada categoría esté en uno: una categoría nueva sin grupo falla.
+ */
+export const RIEL: readonly { grupo: GrupoRiel; categorias: readonly CategoriaId[] }[] = [
+  { grupo: 'general', categorias: ['apariencia', 'terminales', 'integracion'] },
+  { grupo: 'trabajo', categorias: ['proyectos', 'agentes', 'contenedores', 'bases-de-datos'] },
+  { grupo: 'datos', categorias: ['copia'] },
+  { grupo: 'tessera', categorias: ['actualizaciones', 'experimental', 'acerca'] },
+  { grupo: 'ayuda', categorias: [CATEGORIA_ACADEMY] }
+]
+
+const POSICION_EN_RIEL = new Map(RIEL.flatMap((g) => g.categorias).map((id, i) => [id as string, i]))
+const GRUPO_EN_RIEL = new Map(RIEL.flatMap((g) => g.categorias.map((id) => [id as string, g.grupo])))
 
 /**
  * Categorías que sólo existen donde una capacidad lo permite.
@@ -601,6 +625,8 @@ const AJUSTES_SOLO_ALPHA: ReadonlySet<AjusteId> = new Set<AjusteId>(['registro-s
  */
 export interface CategoriaVisible extends CategoriaBuscable {
   id: CategoriaId
+  /** El grupo del riel; `null` en una categoría que no está en `RIEL` (un catálogo sintético). */
+  grupo: GrupoRiel | null
 }
 
 /**
@@ -682,9 +708,13 @@ export function categoriasVisibles(
           }))
       }))
       .filter((g) => g.ajustes.length > 0)
-    if (grupos.length > 0) out.push({ id: c.id as CategoriaId, titulo: tituloCategoria(c.id, c.titulo), grupos })
+    if (grupos.length > 0) {
+      out.push({ id: c.id as CategoriaId, titulo: tituloCategoria(c.id, c.titulo), grupos, grupo: GRUPO_EN_RIEL.get(c.id) ?? null })
+    }
   }
-  return out
+  // El orden del riel es el de sus grupos; lo que no está en `RIEL` queda al final, en su orden.
+  const posicion = (id: string): number => POSICION_EN_RIEL.get(id) ?? Number.MAX_SAFE_INTEGER
+  return out.sort((a, b) => posicion(a.id) - posicion(b.id))
 }
 
 /** La primera categoría del catálogo: el destino por defecto y el de rescate. */

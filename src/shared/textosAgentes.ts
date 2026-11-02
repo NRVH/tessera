@@ -36,23 +36,23 @@ export const txAgentesManuales = crearTextos(
   },
   {
     nombre: {
-      falta: 'The name is missing.',
+      falta: 'The name is required.',
       pasaDe: (max: number) => `The name is over ${max} characters.`,
       unaLinea: 'The name must be a single line.'
     },
     comando: {
-      falta: 'The command is missing.',
+      falta: 'The command is required.',
       pasaDe: (max: number) => `The command is over ${max} characters.`,
       unaLinea: 'The command must be a single line.'
     },
     reanudar: {
-      falta: 'How to resume is missing.',
-      pasaDe: (max: number) => `How to resume is over ${max} characters.`,
-      unaLinea: 'How to resume must be a single line.'
+      falta: '“How to resume” is required.',
+      pasaDe: (max: number) => `“How to resume” is over ${max} characters.`,
+      unaLinea: '“How to resume” must be a single line.'
     },
-    instalacionSoloDocker: 'Install commands only exist in Docker: in native mode you install the agent yourself.',
+    instalacionSoloDocker: 'Install commands apply only in Docker: in native mode, you install the agent yourself.',
     instalacionLarga: (max: number) => `The install commands are over ${max} characters.`,
-    instalacionControl: 'The install commands contain characters that are not text.',
+    instalacionControl: 'The install commands contain non-text characters.',
     noEsObjeto: 'The definition is not an object.',
     idNoValido: 'The agent id is not valid.',
     noEsJson: 'The pasted text is not JSON.',
@@ -82,12 +82,12 @@ export const txContextoAgente = crearTextos(
     } as FuenteOrigen,
     usadoNoNumero: 'Lo usado tiene que ser un campo del JSON, no un número.',
     usado: {
-      falta: 'Falta El campo de lo usado.',
+      falta: 'Falta el campo de lo usado.',
       pasaDe: (max: number) => `El campo de lo usado pasa de ${max} caracteres.`,
       noValido: 'El campo de lo usado no es un campo válido (p. ej. «context.used»).'
     } as CampoFuente,
     maximo: {
-      falta: 'Falta El máximo.',
+      falta: 'Falta el máximo.',
       pasaDe: (max: number) => `El máximo pasa de ${max} caracteres.`,
       noValido: 'El máximo no es un campo válido (p. ej. «context.used»).'
     } as CampoFuente,
@@ -96,25 +96,25 @@ export const txContextoAgente = crearTextos(
   },
   {
     noEsObjeto: 'The context source is not an object.',
-    comandoOArchivo: 'The context source is a command or a file.',
+    comandoOArchivo: 'The context source must be a command or a file.',
     comando: {
-      falta: 'The context command is missing.',
+      falta: 'The context command is required.',
       pasaDe: (max: number) => `The context command is over ${max} characters.`,
       unaLinea: 'The context command must be a single line.'
     },
     archivo: {
-      falta: 'The context file is missing.',
+      falta: 'The context file is required.',
       pasaDe: (max: number) => `The context file is over ${max} characters.`,
       unaLinea: 'The context file must be a single line.'
     },
     usadoNoNumero: 'The used value must be a JSON field, not a number.',
     usado: {
-      falta: 'The used-value field is missing.',
+      falta: 'The used-value field is required.',
       pasaDe: (max: number) => `The used-value field is over ${max} characters.`,
       noValido: 'The used-value field is not a valid field (e.g. “context.used”).'
     },
     maximo: {
-      falta: 'The maximum is missing.',
+      falta: 'The maximum is required.',
       pasaDe: (max: number) => `The maximum is over ${max} characters.`,
       noValido: 'The maximum is not a valid field (e.g. “context.used”).'
     },

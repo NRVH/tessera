@@ -152,9 +152,11 @@ test.describe('Git·Log a pantalla completa', () => {
     await expect(agente, 'la columna del agente queda tapada').toBeHidden()
     const lienzo = await alto(win.locator('.shell-main'))
     expect(Math.abs((await alto(panel)) - lienzo), 'el panel ocupa el alto entero del lienzo').toBeLessThanOrEqual(3)
-    for (const cromo of ['.titlebar', '.tabs-projects', '.activity-bar', '.status-bar']) {
+    for (const cromo of ['.titlebar', '.tabs-profiles', '.activity-bar', '.status-bar']) {
       await expect(win.locator(cromo).first(), `${cromo} se queda`).toBeVisible()
     }
+    await expect(win.locator('.tabs-projects'), 'la banda de proyectos se aparta').toBeHidden()
+    await expect(win.locator('.activity-bar .activity-item'), 'el riel deja solo la flecha de volver').toHaveCount(1)
     expect(await win.locator('.agent-pane').count(), 'los panes del agente siguen montados').toBe(panesAgente)
     await expect(win.locator('.editor-tab', { hasText: 'LEEME.txt' }), 'la pestaña sigue abierta').toHaveCount(1)
 

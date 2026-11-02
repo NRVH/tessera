@@ -10,6 +10,10 @@
 
 import { textosReconexionSsh, textosReinicio, textosReinicioShell, botonReinicio, type EntradaBotonReinicio } from './reloadButton.ts'
 
+/** El tooltip en reposo del botón del agente. */
+const TITULO_AGENTE =
+  'Reiniciar el agente: se cierra y vuelve a abrir con la misma conversación; si estaba trabajando, se corta lo que hacía.'
+
 // ---------------------------------------------------------------------------
 // Reporte PASS/FAIL (mismo patrón que los otros test-*.mts)
 // ---------------------------------------------------------------------------
@@ -160,7 +164,7 @@ function main(): void {
       `${fmt(enVuelo)} | ${fmt(enVueloShell)}`
     )
     check(
-      '(11c) …y su tooltip no se cambia por el de "reinicio robusto"',
+      '(11c) …y su tooltip no se cambia por el del reinicio en reposo',
       enVuelo.titulo.includes('Reintentar el arranque'),
       JSON.stringify(enVuelo.titulo)
     )
@@ -236,8 +240,8 @@ function main(): void {
   {
     const r = botonReinicio(agente({ versiones: ATRASADA }))
     check(
-      '(18) atrasada: «corre 2.1.280 · instalada 2.1.281: reinicia para usarla», y sigue siendo sólo icono',
-      r.titulo === 'corre 2.1.280 · instalada 2.1.281: reinicia para usarla' &&
+      '(18) atrasada: dice la versión instalada y la que corre, y sigue siendo sólo icono',
+      r.titulo === 'Hay una versión nueva instalada (2.1.281; usas la 2.1.280). Reinicia para usarla; la conversación sigue.' &&
         r.habilitado &&
         r.accion === 'reload' &&
         r.soloIcono &&
@@ -271,7 +275,7 @@ function main(): void {
   }
 
   // ---------------------------------------------------------------------------
-  hr('Los textos de SIEMPRE no cambian ni un carácter (el shell y el agente)')
+  hr('Los textos del botón: carácter por carácter (el agente y el shell)')
 
   {
     const muerta = botonReinicio(shell({ status: 'exited' }))
@@ -284,11 +288,19 @@ function main(): void {
       `${muerta.etiqueta} | ${muertaEnVuelo.etiqueta} | ${fallido.etiqueta} | ${vivo.etiqueta}`
     )
     check(
-      '(22) tooltips: los tres de siempre, carácter por carácter',
-      muerta.titulo === 'Reabrir: vuelve a lanzar en el mismo panel (mismo id de sesión)' &&
+      '(22) tooltips del agente: los tres, carácter por carácter',
+      muerta.titulo === 'Reabrir el agente y seguir en la misma conversación' &&
         fallido.titulo === 'Reintentar el arranque: vuelve a comprobar Docker y a levantar el contenedor' &&
-        vivo.titulo === 'Reiniciar robusto: relanza conservando la sesión',
+        vivo.titulo === TITULO_AGENTE,
       `${muerta.titulo} | ${fallido.titulo} | ${vivo.titulo}`
+    )
+    const shellLocal = botonReinicio(shell({ status: 'exited', textos: textosReinicioShell() }))
+    const shellVivo = botonReinicio(shell({ textos: textosReinicioShell() }))
+    check(
+      '(22.1) tooltips de la terminal local: un shell nuevo en la misma pestaña, sin hablar de conversación',
+      shellLocal.titulo === 'Abre un shell nuevo en esta misma pestaña' &&
+        shellVivo.titulo === 'Reiniciar esta terminal: cierra el shell y lo que corre en él, y abre uno nuevo en la misma pestaña',
+      `${shellLocal.titulo} | ${shellVivo.titulo}`
     )
     const enShell = botonReinicio(shell({ ...ARRANQUE_FALLIDO, textos: textosReinicioShell() }))
     check(
@@ -303,10 +315,18 @@ function main(): void {
       'misma salida'
     )
     check(
-      '(24) el agente conserva «Reiniciar robusto» y «Actualizando…»',
-      botonReinicio(agente()).titulo === 'Reiniciar robusto: relanza conservando la sesión' &&
+      '(24) el agente dice que se reabre con la misma conversación, y conserva «Actualizando…»',
+      botonReinicio(agente()).titulo === TITULO_AGENTE &&
         botonReinicio(agente({ reloading: true, etiquetaProgreso: 'Actualizando…' })).etiqueta === 'Actualizando…',
       botonReinicio(agente()).titulo
+    )
+    const sinConversacion = textosReinicio(false)
+    const sinVivo = botonReinicio(agente({ textos: sinConversacion }))
+    const sinMuerta = botonReinicio(agente({ status: 'exited', textos: sinConversacion }))
+    check(
+      '(24.1) un agente que no retoma la conversación no la promete, ni en reposo ni con la sesión muerta',
+      !/misma conversación/.test(sinVivo.titulo + sinMuerta.titulo) && /nueva/.test(sinVivo.titulo) && /nueva/.test(sinMuerta.titulo),
+      `${sinVivo.titulo} | ${sinMuerta.titulo}`
     )
   }
 

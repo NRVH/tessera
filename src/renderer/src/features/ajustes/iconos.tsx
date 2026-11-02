@@ -6,6 +6,7 @@
 // `Record` completo sobre `CategoriaId`: una categoría sin icono no compila.
 // =============================================================================
 
+import { IconoBirrete } from '../academy'
 import type { CategoriaId } from './catalogo'
 
 /** Apariencia: la "A" grande y la pequeña del control de tamaño de texto. */
@@ -132,6 +133,8 @@ export const ICONOS: Record<CategoriaId, () => React.JSX.Element> = {
   copia: IconoCopia,
   actualizaciones: IconoActualizaciones,
   experimental: IconoExperimental,
+  // El birrete: el de Tessera Academy, que es suyo y se dibuja allí.
+  academy: IconoBirrete,
   acerca: IconoAcerca
 }
 

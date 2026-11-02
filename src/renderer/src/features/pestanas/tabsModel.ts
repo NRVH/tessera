@@ -29,6 +29,7 @@ import {
   reducirSetActiveProfile,
   reducirSetActiveProject,
   reducirSetActiveRepo,
+  reducirSetProfileReglas,
   reducirSetProfileRedHost,
   reducirSetScannedRepos,
   reducirWakeProject,
@@ -198,6 +199,7 @@ export type TabsAction =
   /** Cambia el color de un perfil. */
   | { type: 'recolorProfile'; profileId: string; color: string }
   | { type: 'setProfileRedHost'; profileId: string; redHost: boolean }
+  | { type: 'setProfileReglas'; profileId: string; reglas: string }
   /** Elimina un perfil (y su estado de sesión); si era el activo, hereda un vecino. */
   | { type: 'deleteProfile'; profileId: string }
   /** Reordena los perfiles a la secuencia de ids dada (drag & drop). */
@@ -376,6 +378,8 @@ function reducirReposYPerfiles(
       return reducirRecolorProfile(state, action)
     case 'setProfileRedHost':
       return reducirSetProfileRedHost(state, action)
+    case 'setProfileReglas':
+      return reducirSetProfileReglas(state, action)
     case 'deleteProfile':
       return reducirDeleteProfile(state, action)
     case 'reorderProfiles':

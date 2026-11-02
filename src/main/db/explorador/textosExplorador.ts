@@ -32,7 +32,7 @@ export const txSalida = crearTextos(
     titulo: 'Unsubmitted changes',
     mensaje: (n: number, _frase: string) =>
       n === 1 ? 'There is 1 unsubmitted change.' : `There are ${n} unsubmitted changes.`,
-    detalle: (lineas: string) => `${lineas}\n\nIf you quit, they are discarded: they never reached the database.`,
+    detalle: (lineas: string) => `${lineas}\n\nIf you quit, they are discarded: they were never sent to the database.`,
     descartarYSalir: 'Discard and quit',
     cancelar: 'Cancel',
     bloque: (lineas: string) =>
@@ -78,20 +78,20 @@ export const txSesion = crearTextos(
     caidaConTx: 'The connection process ended unexpectedly; the server rolled back the transaction',
     caidaSinTx: 'The connection process ended unexpectedly; it will reopen on the next operation',
     perdidaEnCommit:
-      'Session lost while the COMMIT was in flight: it is not known whether it was applied. Check the data before repeating the changes',
+      'Session lost while the COMMIT was in flight: Tessera cannot tell whether it was applied. Check the data before repeating the changes',
     caidaEnCommit:
-      'The connection process ended while the COMMIT was in flight: it is not known whether it was applied. Check the data before repeating the changes',
+      'The connection process ended while the COMMIT was in flight: Tessera cannot tell whether it was applied. Check the data before repeating the changes',
     perdidaEnAuto:
-      'Session lost while the statement was in flight, which commits on its own (Auto, or an Oracle DDL): it is not known whether it was applied. Check the data before repeating it',
+      'Session lost while a statement that commits automatically (Auto, or an Oracle DDL) was in flight: Tessera cannot tell whether it was applied. Check the data before running it again',
     caidaEnAuto:
-      'The connection process ended while the statement was in flight, which commits on its own (Auto, or an Oracle DDL): it is not known whether it was applied. Check the data before repeating it',
+      'The connection process ended while a statement that commits automatically (Auto, or an Oracle DDL) was in flight: Tessera cannot tell whether it was applied. Check the data before running it again',
     perdidaPorDentro:
-      'Session lost while a PL/SQL block or routine was in flight, which can commit internally: it is not known whether it was applied. Check the data before repeating the changes',
+      'Session lost while a PL/SQL block or routine that can commit internally was in flight: Tessera cannot tell whether it was applied. Check the data before repeating the changes',
     caidaPorDentro:
-      'The connection process ended while a PL/SQL block or routine was in flight, which can commit internally: it is not known whether it was applied. Check the data before repeating the changes',
-    inactividad: 'Session closed for inactivity; it will reopen when used and its ALTER SESSION and SET settings are lost',
+      'The connection process ended while a PL/SQL block or routine that can commit internally was in flight: Tessera cannot tell whether it was applied. Check the data before repeating the changes',
+    inactividad: 'Session closed due to inactivity; it will reopen when you use it, and its ALTER SESSION and SET settings are lost',
     detenidaConTx:
-      'Query stopped: to stop it the console session was closed, and the transaction it had open was rolled back',
+      'Query stopped: the console session was closed to stop it, and its open transaction was rolled back',
     editada: 'The connection was edited; the session will reopen with the new settings',
     expulsada: 'Session closed to make room for another (live session limit)',
     commitImplicito: 'The DDL implicitly committed the pending changes',
@@ -141,7 +141,7 @@ export const txFamilia = crearTextos(
     errorInterno: 'Internal error in the database explorer.',
     conexionNoExiste: 'The connection no longer exists.',
     procesoTerminoInesperado: 'The connection process ended unexpectedly.',
-    cerradaPorInactividad: 'The session was closed for inactivity; it reopens when used.',
+    cerradaPorInactividad: 'The session was closed due to inactivity; it reopens when you use it.',
     sinSecreto: 'The saved password cannot be decrypted on this computer. Edit the connection and enter it again.',
     limiteConsolas: (max: number) =>
       `This connection already has ${max} consoles working at once. Wait for one to finish.`,
@@ -150,7 +150,7 @@ export const txFamilia = crearTextos(
     motorNoEsFamilia: (etiqueta: string, familia: string) =>
       `${etiqueta} is not a ${familia} engine: this request is not for this connection.`,
     consolaOtroPerfil: 'The console does not belong to this profile.',
-    sinNivelBases: 'This connection has no “Databases” level: the request cannot carry a database.',
+    sinNivelBases: 'This connection has no “Databases” level: the request cannot specify a database.',
     nombreFamilia: { sql: 'SQL', documentos: 'document', claves: 'key-value' },
     motorNoEsDeFamilia: (etiqueta: string, familia: string) => `${etiqueta} is not a ${familia} engine.`,
     sinSoporte: (etiqueta: string) => `Connecting to ${etiqueta} is not supported in this version yet.`
@@ -176,7 +176,7 @@ export const txConsolas = crearTextos(
   {
     faltaConexion: 'The console’s connection is missing.',
     tipoDesconocido: 'Unknown console type.',
-    carpetaForma: 'The consoles folder does not have the expected shape.',
+    carpetaForma: 'The consoles folder does not have the expected structure.',
     archivoNoExiste: 'The console file no longer exists.',
     textoNoValido: 'The console text is not valid.',
     supera: (mib: number) => `The console exceeds the ${mib} MiB maximum.`,
@@ -209,7 +209,7 @@ export const txExportacion = crearTextos(
   {
     cancelada: 'Export canceled.',
     destinoNoExiste: 'The destination folder no longer exists.',
-    sinPermiso: 'No permission to write there, or the file is open in another program.',
+    sinPermiso: 'You do not have permission to write there, or the file is open in another program.',
     abierto: 'The file is open in another program: close it and export again.',
     sinEspacio: 'There is no space left on the disk.',
     soloLectura: 'The destination folder is read-only.',
@@ -248,7 +248,7 @@ export const txProceso = crearTextos(
   },
   {
     noEnMarcha: 'The connection process is not running.',
-    noSePudoHablar: (detalle: string) => `Could not talk to the connection process: ${detalle}`,
+    noSePudoHablar: (detalle: string) => `Could not communicate with the connection process: ${detalle}`,
     termino: (como: string) => `The connection process ended (${como}).`,
     senal: (s: string) => `signal ${s}`,
     codigo: (c: string) => `code ${c}`

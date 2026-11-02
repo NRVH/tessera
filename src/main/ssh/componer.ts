@@ -22,12 +22,12 @@ import { dbLog } from '../db/dbLog'
 import { plataformaActual, type Plataforma } from '../../shared/plataforma'
 import { elegirConDialogo, guardarConDialogo } from '../util/adaptadores/dialogosNativos'
 import { emisorDeVentana } from '../util/emisorEventos'
+import { generarAtajosPrograma } from '../util/atajosPrograma'
 import { escribirArchivosDeAtajo } from '../util/escrituraAtajos'
 import { crearConfigSaltos } from './adaptadores/configSaltos'
 import { escribirLanzadorAskpass } from './adaptadores/lanzadorAskpass'
 import { asegurarCarpetaProtegida, ejecutarCorto, escribirClaveProtegida } from './adaptadores/permisosClave'
 import { crearRegistroTssh } from './adaptadores/registroTssh'
-import { generarAtajosTssh } from './atajosTssh'
 import { admiteBinarioDePrueba, resolverBinariosSsh, type BinariosSsh } from './binariosSsh'
 import { ConexionesSsh } from './ConexionesSsh'
 import { ControladorSsh } from './ControladorSsh'
@@ -181,7 +181,8 @@ function prepararAtajosTssh(binDir: string): void {
   const script = join(app.getAppPath(), 'src', 'tssh', 'tssh.cjs')
   if (!existsSync(script)) dbLog('ssh', 'falta src/tssh/tssh.cjs: el atajo tssh no podrá arrancar')
   try {
-    escribirArchivosDeAtajo(binDir, generarAtajosTssh({ exe: process.execPath, script, sello: new Date().toISOString(), env: process.env }))
+    const atajos = generarAtajosPrograma({ nombre: 'tssh', variable: 'TESSERA_TSSH' }, { exe: process.execPath, script, sello: new Date().toISOString(), env: process.env })
+    escribirArchivosDeAtajo(binDir, atajos)
     dbLog('ssh', `atajos de tssh escritos en ${binDir}`)
   } catch (err) {
     dbLog('ssh', `ERROR al escribir los atajos de tssh en ${binDir}: ${String(err)}`)

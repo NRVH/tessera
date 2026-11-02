@@ -13,15 +13,16 @@ export const txPane = crearTextos(
       basesAria: 'Bases de datos montadas',
       elegirProyecto: (perfil: string, proyecto: string, agente: string) =>
         `${perfil} · ${proyecto} · ${agente} — elegir qué proyecto se ve aquí`,
-      otroEsperando: (nombre: string) => `${nombre} te está ESPERANDO en este proyecto: pulsa para verlo aquí`,
-      otroTrabajando: (nombre: string) => `${nombre} está TRABAJANDO en este proyecto: pulsa para verlo aquí`,
-      otroSinVer: (nombre: string) => `${nombre} terminó y no lo has revisado: pulsa para verlo aquí`,
+      otroEsperando: (nombre: string) => `${nombre} espera tu respuesta en este proyecto: pulsa para verlo en esta casilla`,
+      otroTrabajando: (nombre: string) => `${nombre} está trabajando en este proyecto: pulsa para verlo en esta casilla`,
+      otroSinVer: (nombre: string) => `${nombre} terminó y no lo has revisado: pulsa para verlo en esta casilla`,
       otroVer: (nombre: string) => `Ver ${nombre} de este proyecto en esta casilla`,
       cambiarA: (nombre: string) => `Cambiar a ${nombre}`,
       historialAria: 'Historial de conversaciones',
-      nuevaTitulo: 'Nueva conversación (empieza un chat nuevo, sin reanudar el último)',
+      nuevaTitulo: 'Nueva conversación: la actual se cierra y queda en el historial',
       nuevaAria: 'Nueva conversación',
-      cuenta: (nombre: string) => `Cuenta: ${nombre} · pasar a otra (nativa o de Docker) o añadir una`,
+      cuenta: (agente: string, nombre: string | null) =>
+        `Cuenta de ${agente}: ${nombre ?? 'la de tu equipo'}. Pulsa para usar otra cuenta o añadir una.`,
       restaurarMosaico: (mod: string) => `Restaurar: vuelve a enseñar todo el mosaico (${mod}+Shift+Enter)`,
       ampliar: (mod: string) => `Ampliar: esta terminal ocupa todo el mosaico (${mod}+Shift+Enter)`,
       restaurarMosaicoAria: 'Restaurar el mosaico',
@@ -34,7 +35,7 @@ export const txPane = crearTextos(
       irALaTerminalAria: 'Ir a la terminal',
       restaurarArchivos: 'Restaurar: vuelve a mostrar los archivos abiertos',
       restaurarArchivosAria: 'Restaurar editor',
-      restaurarTerminales: 'Restaurar: vuelve a mostrar las terminales abiertas',
+      restaurarTerminales: 'Mostrar las terminales: el agente deja de ocupar todo el panel',
       restaurarTerminalesAria: 'Restaurar terminales',
       restaurarPestanasBd: 'Restaurar: vuelve a mostrar las tablas y consolas abiertas',
       restaurarPestanasBdAria: 'Restaurar tablas y consolas',
@@ -51,8 +52,9 @@ export const txPane = crearTextos(
     },
     terminal: {
       sinCuenta: (agente: string) => `Sin cuenta para ${agente}`,
-      sinCuentaA: 'Inicia sesión con la cuenta de ',
-      sinCuentaB: ' para este agente. Se usará en todos los proyectos de este perfil en modo Docker.',
+      sinCuentaPista: (agente: string, puedeUsarEquipo: boolean) =>
+        `Inicia sesión con tu cuenta de ${agente} para usar este agente en Docker.` +
+        (puedeUsarEquipo ? ' Si prefieres la de tu equipo, elígela en el botón de cuenta.' : ''),
       iniciarSesion: 'Iniciar sesión',
       noSePudoIniciar: 'No se pudo iniciar el agente'
     },
@@ -61,8 +63,8 @@ export const txPane = crearTextos(
       actualizando: 'Actualizando…',
       reiniciando: 'Reiniciando…',
       etiquetaReinicio: 'Reiniciar agente',
-      despertarTitulo: 'Este agente cerró su sesión al hibernarse: despiértalo para abrir otra',
-      despertar: 'Despertar',
+      despertarTitulo: 'Tessera paró este agente porque no lo usabas, para ahorrar memoria. Reanúdalo para seguir donde lo dejaste.',
+      despertar: 'Reanudar',
       lugarTerminal: 'Agente de la terminal',
       lugarDatos: 'Agente de base de datos',
       lugarProyectoTitulo: (proyecto: string) => `Agente del proyecto ${proyecto}`,
@@ -71,27 +73,30 @@ export const txPane = crearTextos(
     },
     menus: {
       terminalAbierta: ' (terminal abierta)',
-      dormido: ' (dormido)',
+      dormido: ' (hibernado)',
       abrirOtro: (perfil: string) => `Abrir otro proyecto en ${perfil}…`,
-      modoNativo: (sistema: string) => `Nativo (${sistema})`,
-      cuentaDocker: (nombre: string) => `Docker · ${nombre}`,
       sinCuenta: 'sin cuenta',
       cuentaDe: (agente: string) => `Cuenta de ${agente}`,
+      cuentaDeAyuda: (puedeSeguir: boolean) =>
+        'Cada cuenta tiene sus propias conversaciones. Al cambiar, el agente se abre con la otra' +
+        (puedeSeguir ? '; para llevarte esta conversación, usa ⋯ › Continuar esta conversación en…' : '.'),
       enTuEquipo: 'En tu equipo',
-      enDocker: 'En Docker',
+      enDocker: 'Cuentas aisladas (Docker)',
       cuentas: 'Cuentas',
-      nativaDetalle: (tuEquipo: string) => `La sesión iniciada en ${tuEquipo}`,
-      dockerDetalle: 'Su propio contenedor',
+      nativaDetalle: (tuEquipo: string) => `La que usas en ${tuEquipo}`,
+      dockerDetalle: 'Aislada: trabaja a la vez que las demás',
       sinCuentasDocker: 'Aún no hay cuentas de Docker. Crea una para usar varias a la vez.',
+      sinCuentasDockerContinuar: 'Ninguna cuenta de Docker todavía; se crean desde el botón de cuenta del agente.',
       nuevaCuentaDocker: 'Nueva cuenta de Docker…',
       enUso: 'En uso',
-      cerrarSesionDe: (nombre: string) => `Cerrar sesión de "${nombre}"…`,
-      renombrarDe: (nombre: string) => `Renombrar "${nombre}"`,
-      eliminarCuentaItem: (nombre: string) => `Eliminar "${nombre}"…`,
+      masAccionesDe: (nombre: string) => `Más acciones de "${nombre}"`,
+      renombrarItem: 'Renombrar',
+      cerrarSesionItem: 'Cerrar sesión…',
+      eliminarItem: 'Eliminar cuenta…',
       eliminarCuenta: 'Eliminar cuenta',
       cerrarSesion: 'Cerrar sesión',
       mensajeEliminar: (nombre: string) =>
-        `¿Eliminar la cuenta "${nombre}"? Se borrará su credencial de este equipo (no afecta tu cuenta del proveedor).`,
+        `¿Eliminar la cuenta "${nombre}"? Se borran de este equipo su sesión iniciada y todas sus conversaciones, y no se pueden recuperar. Tu cuenta del proveedor no cambia.`,
       mensajeCerrarSesion: (nombre: string) =>
         `¿Cerrar sesión de "${nombre}"? Tendrás que iniciar sesión otra vez para volver a usarla.`,
       eliminar: 'Eliminar',
@@ -106,8 +111,8 @@ export const txPane = crearTextos(
       predeterminada: 'Predeterminada',
       nuevaCuentaTitulo: (agente: string) => `Nueva cuenta — ${agente}`,
       nuevaCuentaAviso:
-        'Cada cuenta corre en su propio contenedor de Docker, así que dos cuentas trabajan a la vez sin pisarse; cuenta para el límite de contenedores de Configuración › Contenedores Docker.',
-      nombreCuenta: 'Nombre de la cuenta',
+        'La cuenta corre aislada en Docker, para usar varias a la vez. Al crearla, este agente pasa a usarla con su propio historial.',
+      nombreCuenta: 'Nombre para reconocerla (p. ej., Trabajo)',
       crearEIniciar: 'Crear e iniciar sesión',
       copiar: 'Copiar',
       pegar: 'Pegar'
@@ -119,13 +124,13 @@ export const txPane = crearTextos(
       editar: 'Editar…',
       copiarDefinicion: 'Copiar definición (JSON)',
       eliminarItem: 'Eliminar…',
-      masAria: 'Añadir agente',
+      masAria: 'Añadir un agente propio (por su comando)',
       eliminarTitulo: (nombre: string) => `Eliminar ${nombre}`,
       eliminarMensaje: (nativo: boolean) =>
         nativo
-          ? 'Se quita su pestaña de todos los proyectos nativos, en todos los perfiles, y se cierra su terminal si está abierta. ' +
+          ? 'Se quita de todos los proyectos, en todos los perfiles, y se cierra su terminal si está abierta. ' +
             'Lo que el agente guardó en tu carpeta personal se conserva.'
-          : 'Se quita su pestaña de los proyectos Docker de este perfil y se cierran sus terminales. También se borran sus cuentas ' +
+          : 'Se quita de todos los proyectos de este perfil y se cierran sus terminales. También se borran sus cuentas ' +
             'y lo que guardó en sus carpetas, con su sesión iniciada y su configuración. Los archivos de los proyectos no se tocan.',
       noSeBorraronCuentas: 'No se pudieron borrar las cuentas del agente',
       eliminar: 'Eliminar'
@@ -134,21 +139,21 @@ export const txPane = crearTextos(
       cargando: 'Cargando…',
       cerrar: 'Cerrar',
       sinProbarA: (n: number) =>
-        `${n} conexión(es) sin probar. Despliégalas en la vista Bases de datos (o pulsa `,
+        n === 1
+          ? '1 conexión aún no se ha probado y no se puede dar al agente. Ábrela una vez en la vista Bases de datos (o usa '
+          : `${n} conexiones aún no se han probado y no se pueden dar al agente. Ábrelas una vez en la vista Bases de datos (o usa `,
       probarConexion: 'Probar conexión',
-      sinProbarB: ' en su menú) para poder montarlas.',
-      aplicaA: 'Se aplica ',
+      sinProbarB: ' en su menú).',
+      aplicaA: 'El cambio vale ',
       alMomento: 'al momento',
-      aplicaB: ', sin reiniciar. El agente puede seguir nombrando la lista con la que arrancó: pídele un ',
-      aplicaC: ' y la verá.',
-      consultasA: 'Las consultas las ejecuta Tessera en ',
-      consultasB: ': el contenedor no toca la base ni necesita la VPN.'
+      aplicaB: '. Si el agente nombra una lista vieja, pídele que vuelva a mirar qué bases tiene.'
     },
     columna: {
       mosaico: 'Mosaico de agentes',
       mosaicoSinElegir: 'No hay ningún agente elegido. Márcalos en el selector de la barra para verlos aquí.',
       mosaicoSinMarcha: 'No queda ningún agente en marcha. Sal del mosaico para abrir uno.',
-      seleccionaProyecto: 'Selecciona un proyecto para iniciar el agente.',
+      agente: 'Agente',
+      seleccionaProyecto: 'Abre una carpeta como proyecto (botón + de la barra de proyectos) y su agente arrancará en ella.',
       redimensionarCc: 'Redimensionar Claude Code',
       redimensionarAgente: 'Redimensionar el agente',
       redimensionarTerminal: 'Redimensionar el agente de la terminal'
@@ -159,28 +164,29 @@ export const txPane = crearTextos(
       basesAria: 'Mounted databases',
       elegirProyecto: (perfil: string, proyecto: string, agente: string) =>
         `${perfil} · ${proyecto} · ${agente} — choose which project shows here`,
-      otroEsperando: (nombre: string) => `${nombre} is WAITING for you in this project: click to see it here`,
-      otroTrabajando: (nombre: string) => `${nombre} is WORKING in this project: click to see it here`,
-      otroSinVer: (nombre: string) => `${nombre} finished and you have not reviewed it: click to see it here`,
-      otroVer: (nombre: string) => `Show ${nombre} of this project in this tile`,
+      otroEsperando: (nombre: string) => `${nombre} is waiting for your reply in this project: click to see it in this tile`,
+      otroTrabajando: (nombre: string) => `${nombre} is working in this project: click to see it in this tile`,
+      otroSinVer: (nombre: string) => `${nombre} finished and you have not reviewed it: click to see it in this tile`,
+      otroVer: (nombre: string) => `Show this project’s ${nombre} in this tile`,
       cambiarA: (nombre: string) => `Switch to ${nombre}`,
       historialAria: 'Conversation history',
-      nuevaTitulo: 'New conversation (starts a new chat, without resuming the last one)',
+      nuevaTitulo: 'New conversation: closes the current one and keeps it in the history',
       nuevaAria: 'New conversation',
-      cuenta: (nombre: string) => `Account: ${nombre} · switch to another (native or Docker) or add one`,
+      cuenta: (agente: string, nombre: string | null) =>
+        `${agente} account: ${nombre ?? 'the one on your computer'}. Click to use another account or add one.`,
       restaurarMosaico: (mod: string) => `Restore: show the whole mosaic again (${mod}+Shift+Enter)`,
       ampliar: (mod: string) => `Enlarge: this terminal fills the whole mosaic (${mod}+Shift+Enter)`,
       restaurarMosaicoAria: 'Restore the mosaic',
       ampliarAria: 'Enlarge this terminal',
-      irAlProyecto: 'Go to the project: leaves the mosaic and opens this terminal in the normal view',
-      irAlProyectoAria: 'Go to the project',
+      irAlProyecto: 'Go to project: leaves the mosaic and opens this terminal in the normal view',
+      irAlProyectoAria: 'Go to project',
       irADatos: 'Go to databases: leaves the mosaic and opens this terminal next to your databases',
       irADatosAria: 'Go to databases',
       irALaTerminal: 'Go to the terminal: leaves the mosaic and opens this terminal next to the full-screen terminal',
       irALaTerminalAria: 'Go to the terminal',
       restaurarArchivos: 'Restore: show the open files again',
       restaurarArchivosAria: 'Restore editor',
-      restaurarTerminales: 'Restore: show the open terminals again',
+      restaurarTerminales: 'Show the terminals: the agent stops filling the whole panel',
       restaurarTerminalesAria: 'Restore terminals',
       restaurarPestanasBd: 'Restore: show the open tables and consoles again',
       restaurarPestanasBdAria: 'Restore tables and consoles',
@@ -197,8 +203,9 @@ export const txPane = crearTextos(
     },
     terminal: {
       sinCuenta: (agente: string) => `No account for ${agente}`,
-      sinCuentaA: 'Sign in with the account of ',
-      sinCuentaB: ' for this agent. It will be used in all of this profile’s projects in Docker mode.',
+      sinCuentaPista: (agente: string, puedeUsarEquipo: boolean) =>
+        `Sign in with your ${agente} account to use this agent in Docker.` +
+        (puedeUsarEquipo ? ' If you prefer the one on your computer, choose it in the account button.' : ''),
       iniciarSesion: 'Sign in',
       noSePudoIniciar: 'Could not start the agent'
     },
@@ -207,8 +214,8 @@ export const txPane = crearTextos(
       actualizando: 'Updating…',
       reiniciando: 'Restarting…',
       etiquetaReinicio: 'Restart agent',
-      despertarTitulo: 'This agent closed its session when it hibernated: wake it to open another',
-      despertar: 'Wake',
+      despertarTitulo: 'Tessera stopped this agent because you were not using it, to save memory. Resume it to continue where you left off.',
+      despertar: 'Resume',
       lugarTerminal: 'Terminal agent',
       lugarDatos: 'Database agent',
       lugarProyectoTitulo: (proyecto: string) => `Agent of the project ${proyecto}`,
@@ -217,29 +224,32 @@ export const txPane = crearTextos(
     },
     menus: {
       terminalAbierta: ' (terminal open)',
-      dormido: ' (asleep)',
+      dormido: ' (hibernated)',
       abrirOtro: (perfil: string) => `Open another project in ${perfil}…`,
-      modoNativo: (sistema: string) => `Native (${sistema})`,
-      cuentaDocker: (nombre: string) => `Docker · ${nombre}`,
       sinCuenta: 'no account',
       cuentaDe: (agente: string) => `${agente} account`,
+      cuentaDeAyuda: (puedeSeguir: boolean) =>
+        'Each account has its own conversations. When you switch, the agent opens with the new account' +
+        (puedeSeguir ? '; to keep this conversation, use ⋯ › Continue this conversation in…' : '.'),
       enTuEquipo: 'On your computer',
-      enDocker: 'In Docker',
+      enDocker: 'Isolated accounts (Docker)',
       cuentas: 'Accounts',
-      nativaDetalle: (tuEquipo: string) => `The sign-in on ${tuEquipo}`,
-      dockerDetalle: 'Its own container',
+      nativaDetalle: (tuEquipo: string) => `The one you use on ${tuEquipo}`,
+      dockerDetalle: 'Isolated: works at the same time as the others',
       sinCuentasDocker: 'No Docker accounts yet. Create one to use several at once.',
+      sinCuentasDockerContinuar: 'No Docker accounts yet; create them from the agent’s account button.',
       nuevaCuentaDocker: 'New Docker account…',
       enUso: 'In use',
-      cerrarSesionDe: (nombre: string) => `Sign out of “${nombre}”…`,
-      renombrarDe: (nombre: string) => `Rename “${nombre}”`,
-      eliminarCuentaItem: (nombre: string) => `Delete “${nombre}”…`,
+      masAccionesDe: (nombre: string) => `More actions for “${nombre}”`,
+      renombrarItem: 'Rename',
+      cerrarSesionItem: 'Sign out…',
+      eliminarItem: 'Delete account…',
       eliminarCuenta: 'Delete account',
       cerrarSesion: 'Sign out',
       mensajeEliminar: (nombre: string) =>
-        `Delete the account “${nombre}”? Its credential will be erased from this computer (your provider account is not affected).`,
+        `Delete the account “${nombre}”? Its sign-in and all its conversations are erased from this computer and cannot be recovered. Your provider account does not change.`,
       mensajeCerrarSesion: (nombre: string) =>
-        `Sign out of “${nombre}”? You will have to sign in again to use it.`,
+        `Sign out of “${nombre}”? You need to sign in again to use it.`,
       eliminar: 'Delete',
       eliminando: 'Deleting…',
       usadaPorOtros: (n: number) =>
@@ -250,8 +260,8 @@ export const txPane = crearTextos(
       predeterminada: 'Default',
       nuevaCuentaTitulo: (agente: string) => `New account — ${agente}`,
       nuevaCuentaAviso:
-        'Each account runs in its own Docker container, so two accounts work at the same time without getting in each other’s way; it counts toward the container limit in Settings › Docker containers.',
-      nombreCuenta: 'Account name',
+        'The account runs isolated in Docker, so you can use several at once. Once created, this agent switches to it, with its own history.',
+      nombreCuenta: 'A name to recognize it (e.g., Work)',
       crearEIniciar: 'Create and sign in',
       copiar: 'Copy',
       pegar: 'Paste'
@@ -263,13 +273,13 @@ export const txPane = crearTextos(
       editar: 'Edit…',
       copiarDefinicion: 'Copy definition (JSON)',
       eliminarItem: 'Delete…',
-      masAria: 'Add agent',
+      masAria: 'Add custom agent (by command)',
       eliminarTitulo: (nombre: string) => `Delete ${nombre}`,
       eliminarMensaje: (nativo: boolean) =>
         nativo
-          ? 'Its tab is removed from all native projects, in all profiles, and its terminal is closed if it is open. ' +
+          ? 'It is removed from all projects, in all profiles, and its terminal is closed if it is open. ' +
             'What the agent saved in your home folder is kept.'
-          : 'Its tab is removed from this profile’s Docker projects and its terminals are closed. Its accounts and what it saved ' +
+          : 'It is removed from all of this profile’s projects and its terminals are closed. Its accounts and what it saved ' +
             'in its folders are deleted too, including its sign-in and settings. Project files are not touched.',
       noSeBorraronCuentas: 'Could not delete the agent’s accounts',
       eliminar: 'Delete'
@@ -278,21 +288,21 @@ export const txPane = crearTextos(
       cargando: 'Loading…',
       cerrar: 'Close',
       sinProbarA: (n: number) =>
-        `${n} connection(s) not tested. Expand them in the Databases view (or click `,
+        n === 1
+          ? '1 connection has not been tested yet and cannot be shared with the agent. Open it once in the Databases view (or use '
+          : `${n} connections have not been tested yet and cannot be shared with the agent. Open them once in the Databases view (or use `,
       probarConexion: 'Test connection',
-      sinProbarB: ' in their menu) to be able to mount them.',
-      aplicaA: 'It applies ',
+      sinProbarB: ' in their menu).',
+      aplicaA: 'The change takes effect ',
       alMomento: 'immediately',
-      aplicaB: ', without restarting. The agent may keep naming the list it started with: ask it for a ',
-      aplicaC: ' and it will see it.',
-      consultasA: 'Queries are run by Tessera on ',
-      consultasB: ': the container does not touch the database or need the VPN.'
+      aplicaB: '. If the agent mentions an old list, ask it to check again which databases it has.'
     },
     columna: {
       mosaico: 'Agent mosaic',
-      mosaicoSinElegir: 'No agent is selected. Check them in the bar selector to see them here.',
+      mosaicoSinElegir: 'No agent is selected. Select agents in the bar’s selector to see them here.',
       mosaicoSinMarcha: 'No agent is running. Leave the mosaic to open one.',
-      seleccionaProyecto: 'Select a project to start the agent.',
+      agente: 'Agent',
+      seleccionaProyecto: 'Open a folder as a project (the + button in the projects bar) and its agent starts there.',
       redimensionarCc: 'Resize Claude Code',
       redimensionarAgente: 'Resize the agent',
       redimensionarTerminal: 'Resize the terminal agent'

@@ -10,6 +10,7 @@ import '../../comun/formularioModal.css'
 import './agentesManuales.css'
 import { useId } from 'react'
 import { alClicEnVelo, useDialogo } from '../../comun/useDialogo'
+import { AYUDA, BotonAyuda } from '../academy'
 import { MAX_COMANDO, MAX_INSTALACION, MAX_NOMBRE, MAX_REANUDAR } from '../../../../shared/agentesManuales'
 import { MAX_CAMPO, MAX_VALOR_FUENTE } from '../../../../shared/contextoAgenteManual'
 import { idiomaActual } from '../../../../shared/i18n.ts'
@@ -256,7 +257,10 @@ export function ModalAgenteManual(o: OpcionesModalAgente): React.JSX.Element {
       >
         <form className="dbc-form" noValidate onSubmit={(e) => { e.preventDefault(); void v.guardar() }}>
           <div className="dbc-cabecera">
-            <div id={idTitulo} className="modal-title">{o.inicial ? t.editar(o.inicial.nombre) : t.agenteNuevo}</div>
+            <div className="dbc-titulo-fila">
+              <div id={idTitulo} className="modal-title">{o.inicial ? t.editar(o.inicial.nombre) : t.agenteNuevo}</div>
+              <BotonAyuda destino={AYUDA.agenteManual} />
+            </div>
             <div className="dbc-ayuda">{v.nativo ? t.ambitoNativo : t.ambitoDocker}</div>
           </div>
           <div className="dbc-cuerpo">

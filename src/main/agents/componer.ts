@@ -1,7 +1,7 @@
 // =============================================================================
 // Composición de las sesiones, parte de la raíz de composición de la app: el sandbox compartido,
 // la terminal de abajo, la del agente con sus anclas y su vigilante de turnos, los agentes
-// nativos, cuentas, conversaciones, uso, contexto, hibernación y el guardado de perfiles, con
+// nativos, cuentas, conversaciones (y `tctx buscar`), uso, contexto, «Continuar en…», hibernación y el guardado de perfiles, con
 // sus `ipc.ts`. Lo llama `src/main/index.ts` con las referencias, `ipcMain` y lo ya compuesto.
 // =============================================================================
 import { app, BrowserWindow, webContents, type IpcMain } from 'electron'
@@ -30,6 +30,7 @@ import type { ControladorSsh } from '../ssh/ControladorSsh'
 import { lanzadaPorElArnes } from '../../shared/arnesE2e'
 import { VigilanteMemoria } from './vigilanteMemoria'
 import type { EspacioTerminal } from '../ssh/controlador/espacioTerminal'
+import type { PropuestasReglas } from '../reglas/propuestasReglas'
 import { borrarPerfiles, type DepsBorradoCompleto, type DuenoDeCarpeta } from '../profiles/borradoDePerfil'
 import { BorradosPendientes, borrarPorOrden, listaAGuardar, terminarBorradosPendientes } from '../profiles/ordenDeBorrado'
 import type { CandadoDeBorrado } from '../profiles/candadoDeBorrado'
@@ -39,11 +40,13 @@ import { resolveSshSetup, type SshSetup } from '../sandbox/sshSetup'
 import { registrarIpcRedSandbox, registrarIpcActualizarAgentes } from '../sandbox/ipc'
 import { TerminalController } from '../terminals/TerminalController'
 import { registrarIpcTerminal } from '../terminals/ipc'
+import type { FilaProceso } from '../terminals/terminalesEnMarcha'
+import { tablaDeProcesosConTty } from '../terminals/adaptadores/pty'
 import { listarProcesosWindows } from '../update/procesosSistema'
 import { ConversationsReader } from '../conversations/ConversationsReader'
 import { crearTitulosConversacion } from '../conversations/conversationTitles'
 import { ServicioConversaciones } from '../conversations/ServicioConversaciones'
-import { crearBaseDeCuenta, type BaseDeCuenta } from '../conversations/baseAgente'
+import { crearBaseDeCuenta, crearBaseDeCuentaDeLectura, type BaseDeCuenta } from '../conversations/baseAgente'
 import { registrarIpcConversaciones } from '../conversations/ipc'
 import { UsageReader } from '../usage/UsageReader'
 import { ServicioUso } from '../usage/ServicioUso'
@@ -63,7 +66,14 @@ import { registrarIpcTerminalAgente, registrarIpcCuentas, registrarIpcAgentesNat
 import { portapapelesDelSistema } from './adaptadores/portapapeles'
 import { fetchTextoConTope } from './adaptadores/redElectron'
 import { AccountStore } from './AccountStore'
+import { nombreVisibleCuenta } from './textos'
 import { TurnWatcher } from './TurnWatcher'
+import { ejecutarGit } from '../git/adaptadores/procesoGit'
+import type { RegistroTraspasos } from '../traspaso/RegistroTraspasos'
+import { ServicioTraspaso } from '../traspaso/ServicioTraspaso'
+import { registrarIpcTraspaso } from '../traspaso/ipc'
+import type { OperacionBuscarHistorial } from '../historial/operacionBuscar'
+import { TOPES_DEFECTO, buscarEnHistorial } from '../historial/buscarHistorial'
 
 /** Lo que la composición de las sesiones recibe de `index.ts`. */
 export interface DepsSesiones {
@@ -78,10 +88,16 @@ export interface DepsSesiones {
   espacioTerminal: Pick<EspacioTerminal, 'borrar'>
   /** El espacio de datos de cada perfil (`DbController.espacioDatos`): igual que la carpeta de arriba. */
   espacioDatos: DuenoDeCarpeta
+  /** Las propuestas de reglas pendientes: el borrado de un perfil quita la suya y cada guardado resuelve las aceptadas. */
+  propuestasReglas: Pick<PropuestasReglas, 'borrarPerfil' | 'alGuardarPerfiles'>
   /** El candado del borrado de cada perfil: lo toma el guardado de perfiles y lo esperan sus sesiones al abrirse. */
   borrados: CandadoDeBorrado
   /** La llegada de un perfil recién creado: el guardado de perfiles despierta a quien espera uno nuevo. */
   llegada: Pick<LlegadaDePerfiles, 'cambiaron'>
+  /** Los traspasos de «Continuar en…»: los prepara su servicio, los toma la apertura y los lee `tctx traspaso`. */
+  traspasos: RegistroTraspasos
+  /** `tctx buscar`, ya registrada en el puente: aquí recibe las sesiones, las cuentas y el lector del historial. */
+  buscarHistorial: Pick<OperacionBuscarHistorial, 'conectar'>
 }
 
 /** Pasa al sandbox los paquetes a hornear: solo marca la imagen como obsoleta, no la rehornea. */
@@ -152,6 +168,16 @@ function componerSandbox({ refs, ipc, perfiles, dbController }: DepsSesiones): S
 
 type EntornoHost = (profileId: string, projectHostPath: string, dbConnectionIds: string[]) => Record<string, string>
 
+/**
+ * La tabla de procesos de la plataforma, o null si no se pudo leer. En Windows solo trae los
+ * shells y sus hijos directos; en macOS y Linux, la tabla entera con el grupo de cada tty.
+ */
+async function tablaProcesosDelSistema(shells: readonly number[]): Promise<FilaProceso[] | null> {
+  if (!esWindows()) return tablaDeProcesosConTty()
+  const r = await listarProcesosWindows({ timeoutMs: 5000, soloPids: shells })
+  return r.ok ? r.procesos : null
+}
+
 /** La terminal de abajo. */
 function componerTerminal({ refs, ipc, perfiles, dbController, ssh, borrados }: DepsSesiones, hostEnv: EntornoHost): TerminalController {
   const controller = new TerminalController({
@@ -160,7 +186,8 @@ function componerTerminal({ refs, ipc, perfiles, dbController, ssh, borrados }: 
     getHostEnv: hostEnv,
     bindDbSession: (env, sessionId) => dbController.atarSesion(env, sessionId),
     revokeDbSession: (sessionId) => dbController.revocarSesion(sessionId),
-    lanzadorSsh: ssh
+    lanzadorSsh: ssh,
+    tablaProcesos: tablaProcesosDelSistema
   })
   refs.terminales = controller
   registrarIpcTerminal({ ipc, terminales: controller, esperarBorrado: (id) => borrados.esperar(id) })
@@ -233,7 +260,8 @@ function componerSesionAgente(deps: DepsSesiones, sb: Sandbox, hostEnv: EntornoH
     alCambiarSesiones: () => refs.agentesNativos?.notificarSesiones(),
     // Solo la leen las pruebas de interfaz: acorta el umbral, no enciende la hibernación.
     inactividadPruebasMs: umbralPruebasDe(process.env.TESSERA_AGENTE_INACTIVIDAD_MS),
-    rutaRegistroParadas: join(app.getPath('userData'), 'logs', 'paradas-contenedores.jsonl')
+    rutaRegistroParadas: join(app.getPath('userData'), 'logs', 'paradas-contenedores.jsonl'),
+    traspasos: deps.traspasos
   })
   refs.agentes = agentController
   registrarIpcTerminalAgente({ ipc, agentes: agentController, esperarBorrado: (id) => deps.borrados.esperar(id) })
@@ -270,8 +298,8 @@ function componerAgentesNativos(refs: ReferenciasApp, controladorAgentes: AgentT
   return agentesNativos
 }
 
-/** Cuentas, conversaciones, uso de cuenta y contexto de la conversación. */
-function componerCuentasYUso({ refs, ipc, accounts }: DepsSesiones, sesion: SesionAgente, aTodas: EmisorEventos): void {
+/** Cuentas, conversaciones (y su búsqueda), uso de cuenta y contexto de la conversación; devuelve el lector del contexto. */
+function componerCuentasYUso({ refs, ipc, accounts, buscarHistorial }: DepsSesiones, sesion: SesionAgente, aTodas: EmisorEventos): ContextReader {
   // LOGOUT y DELETE cierran antes las sesiones vivas de esa cuenta, en cualquier perfil.
   registrarIpcCuentas({
     ipc,
@@ -284,9 +312,27 @@ function componerCuentasYUso({ refs, ipc, accounts }: DepsSesiones, sesion: Sesi
   })
   // UNA sola instancia de títulos: dos sobre el mismo archivo se pisarían las escrituras.
   const titulos = crearTitulosConversacion(join(app.getPath('userData'), 'conversation-titles.json'))
+  // Uno para el panel y la búsqueda: comparten la caché de resúmenes.
+  const lector = new ConversationsReader()
   registrarIpcConversaciones({
     ipc,
-    conversaciones: new ServicioConversaciones({ lector: new ConversationsReader(), titulos, baseDe: sesion.baseDeCuenta })
+    conversaciones: new ServicioConversaciones({ lector, titulos, baseDe: sesion.baseDeCuenta })
+  })
+  buscarHistorial.conectar({
+    sesionAgente: (id) => sesion.agentController.sesionParaHistorial(id),
+    cuentasDelPerfil: (profileId, agente) => accounts.list(profileId, agente).map((c) => ({ id: c.id, nombre: nombreVisibleCuenta(c) })),
+    cuenta: (id) => {
+      const c = accounts.get(id)
+      return c ? { profileId: c.profileId, agente: c.agente, nombre: nombreVisibleCuenta(c) } : null
+    },
+    baseDe: crearBaseDeCuentaDeLectura(accounts),
+    buscar: (fuentes, proyecto, consulta, max) =>
+      buscarEnHistorial(fuentes, proyecto, consulta, { ...TOPES_DEFECTO, max }, {
+        resumenDe: (archivo, agente) => lector.resumenDe(archivo, agente),
+        tituloPropio: (agente, id) => titulos.getCustomTitle(agente, id),
+        log: (m) => dbLog('historial', m)
+      }),
+    log: (m) => dbLog('historial', m)
   })
   const usage = new UsageReader()
   const contexts = new ContextReader(Date.now, sesion.anclasConversacion)
@@ -302,6 +348,39 @@ function componerCuentasYUso({ refs, ipc, accounts }: DepsSesiones, sesion: Sesi
   refs.vigilanteUso = usageWatcher
   registrarIpcContexto({ ipc, contexto: new ServicioContexto({ lector: contexts, baseDe: sesion.baseDeCuenta }) })
   registrarIpcUso({ ipc, uso: new ServicioUso({ lector: usage, vigilante: usageWatcher, baseDe: sesion.baseDeCuenta }) })
+  return contexts
+}
+
+/**
+ * «Continuar en…»: su servicio con las sesiones del agente, las carpetas de las cuentas y git en el equipo. La
+ * conversación que no sepa el ancla la aprende el lector del contexto, el mismo que alimenta el anillo.
+ */
+function componerTraspaso({ ipc, accounts, traspasos }: DepsSesiones, sesion: SesionAgente, contexts: ContextReader): void {
+  const servicio = new ServicioTraspaso({
+    origenDe: (id) => sesion.agentController.origenDeTraspaso(id),
+    aprenderConversacion: async (o) => {
+      const base = sesion.baseDeCuenta(o.agente, o.accountId, o.host)
+      if (!base) return
+      contexts.invalidate()
+      await contexts.read(base, o.agente, o.projectHostPath)
+    },
+    baseDe: (agente, accountId, host) => sesion.baseDeCuenta(agente, accountId, host),
+    rutaEnContenedor: (profileId, agente, accountId, proyecto) => sesion.agentController.rutaEnContenedor(profileId, agente, accountId, proyecto),
+    cuenta: (id, profileId, agente) => {
+      const c = accounts.get(id)
+      return c && c.profileId === profileId && c.agente === agente ? { nombre: c.nombre } : null
+    },
+    git: async (args, cwd) => {
+      try {
+        return (await ejecutarGit(args, cwd)).stdout
+      } catch {
+        return null
+      }
+    },
+    registro: traspasos,
+    log: (m) => dbLog('traspaso', m)
+  })
+  registrarIpcTraspaso({ ipc, traspaso: servicio })
 }
 
 /**
@@ -309,7 +388,7 @@ function componerCuentasYUso({ refs, ipc, accounts }: DepsSesiones, sesion: Sesi
  * abiertas, SSH incluidas (el renderer ya las cierra al quitarlo; esto cubre la carrera): una SSH viva
  * seguiría usando las claves y el known_hosts que se borran, y un proceso con la carpeta como directorio
  * de trabajo la bloquearía en Windows. Luego su contenedor, su historial de consultas, sus conexiones SSH
- * y de bases de datos, y las carpetas de sus dos agentes propios (la del agente de la terminal y el
+ * y de bases de datos, su propuesta de reglas, y las carpetas de sus dos agentes propios (la del agente de la terminal y el
  * espacio de datos), que van a la papelera del sistema para poder deshacerse. El historial de las
  * conversaciones vive en la cuenta y no se toca.
  * Con el candado del perfil, y cada paso mira `perfiles.lista` de ESE momento (`profiles/borradoDePerfil.ts`).
@@ -328,6 +407,7 @@ function depsDeBorrado(deps: DepsSesiones, sharedSandbox: SandboxManager): DepsB
     borrarHistorial: async (id) => refs.explorador?.alBorrarPerfil(id),
     borrarConexionesSsh: (id) => ssh.alBorrarPerfil(id),
     borrarConexionesBd: (id) => dbController.alBorrarPerfil(id),
+    borrarPropuestaReglas: (id) => deps.propuestasReglas.borrarPerfil(id),
     cerrarSesiones: (id) => Promise.all([refs.agentes?.closeSessionsForProfile(id), refs.terminales?.closeSessionsForProfile(id, { incluirSsh: true })]),
     // Cada dueño lleva su papelera desde que nace (`shell.trashItem`, en su composición).
     carpetas: [
@@ -361,6 +441,8 @@ function registrarIpcGuardarPerfiles(deps: DepsSesiones, sharedSandbox: SandboxM
     const { lista, retenidos } = listaAGuardar(perfiles.lista, next)
     for (const p of retenidos) console.error(`[tessera] el guardado no trae el perfil ${p.id}: se conserva (solo se borra con su orden)`)
     fijarLista(lista)
+    // Las reglas aceptadas ya están en disco: solo ahora se quita su propuesta.
+    deps.propuestasReglas.alGuardarPerfiles(lista)
   })
   ipc.handle(IPC_CHANNELS.DELETE_PROFILE, async (_e, profileId: unknown) => {
     if (typeof profileId !== 'string') throw new Error('deleteProfile: se esperaba el id del perfil.')
@@ -382,7 +464,8 @@ export function componerSesiones(deps: DepsSesiones): AgentesNativos {
   const controller = componerTerminal(deps, hostEnvForProfile)
   const sesion = componerSesionAgente(deps, sb, hostEnvForProfile)
   const agentesNativos = componerAgentesNativos(deps.refs, sesion.agentController)
-  componerCuentasYUso(deps, sesion, emisorATodas(() => BrowserWindow.getAllWindows()))
+  const contexts = componerCuentasYUso(deps, sesion, emisorATodas(() => BrowserWindow.getAllWindows()))
+  componerTraspaso(deps, sesion, contexts)
   // Rehornea la imagen y recrea los contenedores; los paneles vivos se recuperan solos.
   registrarIpcActualizarAgentes({ ipc, sandbox: sb.sharedSandbox, eventos: sb.emisorSinContenido })
   registrarIpcAgentesNativos({ ipc, nativos: agentesNativos })

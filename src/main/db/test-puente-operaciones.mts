@@ -3,7 +3,8 @@
 // Prueba del registro de operaciones del puente (`DbBridge.registrarOperacion`; npm run
 // test:puente-operaciones), aparte de `test-db-bridge`, que sigue igual: lo no registrado es «operacion
 // desconocida», `resolve` no se sustituye, una op 'propio' valida su token y una 'sesion' recibe la sesión
-// de la CONCESIÓN (nunca la de la petición, ni con un token de un solo uso), y por el pipe real.
+// de la CONCESIÓN (nunca la de la petición, ni con un token de un solo uso), también si contesta con una
+// promesa, y por el pipe real.
 // Decisiones: docs/decisiones/bd/puente-punto-de-escucha-y-concesiones.md
 // =============================================================================
 
@@ -81,6 +82,17 @@ hr("4 - Token 'sesion': solo una concesión de sesión viva, y la sesión es la 
   puente.bind(deSesion, 's1')
   puente.revoke('s1')
   check('(4d) revocada la sesión, su token deja de valer', pedir(deSesion).error === 'no autorizado' && llamadas.length === 1, 'revocado')
+  // Una lectura larga (`tctx buscar`) contesta con una promesa: el puente la espera, y su fallo es el de siempre.
+  puente.registrarOperacion('prueba.sesion-tarde', { token: 'sesion', manejar: async (_p, s) => ({ ok: true, perfil: s.profileId }) })
+  puente.registrarOperacion('prueba.sesion-rota', { token: 'sesion', manejar: () => Promise.reject(new Error('rota de sesión')) })
+  const viva = puente.mint('p1', PROYECTO)
+  const tarde = puente.resolver({ v: 1, token: viva, op: 'prueba.sesion-tarde', profileId: 'otro' })
+  const r4e = tarde instanceof Promise ? await tarde : null
+  check('(4e) con token de sesión, una promesa se espera y lleva la sesión de la concesión', j(r4e) === j({ ok: true, perfil: 'p1' }), j(r4e))
+  const rota = await puente.resolver({ v: 1, token: viva, op: 'prueba.sesion-rota' })
+  check('(4f) y si su promesa falla, «error interno» y una línea en el registro', j(rota) === j({ ok: false, error: 'error interno' }) && registro.some((m) => m.includes('rota de sesión')), j(rota))
+  const sinToken = puente.resolver({ v: 1, token: 'inventado', op: 'prueba.sesion-tarde' })
+  check('(4g) sin token válido ni se llama: «no autorizado» en el acto', !(sinToken instanceof Promise) && j(sinToken) === j({ ok: false, error: 'no autorizado' }), j(sinToken))
 }
 
 hr('5 - Una operación que lanza: «error interno» y una línea en el registro')

@@ -8,7 +8,7 @@ demás, la revisión.
 
 - Español en identificadores, comentarios y mensajes de commit.
 - **Todo texto que ve el usuario nace en español e inglés**: interfaz, diálogos nativos, menús,
-  errores que llegan por IPC, avisos y la salida de `tdb` y `tssh`. Va en el `textos*.ts` de su área
+  errores que llegan por IPC, avisos y la salida de `tdb`, `tssh` y `tctx`. Va en el `textos*.ts` de su área
   con `crearTextos(es, en)` (`shared/i18n.ts`) y se lee al usarse, nunca en el nivel superior de un
   módulo. Un literal escrito directamente en el JSX o en el `throw` compila igual y sale solo en
   español: eso es un fallo. `test:textos` caza el del JSX (los nombres propios y términos que no se
@@ -108,8 +108,8 @@ contenedora del proyecto como identidad (`EnProyecto` de `files-ipc.ts`).
 
 Las **raíces de composición** son `src/main/index.ts` (la app), `src/main/relevo/index.ts` (el
 modo relevo: el mismo binario arrancado para aplicar una actualización cuando la app ya no
-existe) y los `componer.ts` que figuran en `RAICES` de `eslint.config.mjs` (hoy `db/`, `ssh/` y
-`agents/`). Solo ellas componen servicios con Electron y registran los `ipc.ts`. Un `componer.ts`
+existe) y los `componer.ts` que figuran en `RAICES` de `eslint.config.mjs` (hoy `db/`, `ssh/`,
+`reglas/` y `agents/`). Solo ellas componen servicios con Electron y registran los `ipc.ts`. Un `componer.ts`
 es un trozo de la raíz de la app sacado de `index.ts` para que no crezca: recibe `refs`,
 `ipcMain` y lo ya compuesto, y **solo `index.ts` lo importa** (ni otro `componer.ts` ni el
 relevo). Añadir uno es añadirlo a esa lista; un `componer.ts` fuera de ella no es raíz y F1-F3

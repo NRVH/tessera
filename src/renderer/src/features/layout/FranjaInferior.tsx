@@ -177,6 +177,7 @@ function useSshEnsenandoTerminales(terminales: Props['terminales']): {
 
 type PropsPanelTerminales = Pick<
   Props,
+  | 'tabs'
   | 'lay'
   | 'vistas'
   | 'terminales'
@@ -207,6 +208,9 @@ function PanelTerminales(p: PropsPanelTerminales): React.JSX.Element {
   const dbMounts = useStoreBd((s) => s.dbMounts)
   const settingsLoaded = useStoreAjustes((s) => s.settingsLoaded)
   const sshEnsenando = useSshEnsenandoTerminales(terminales)
+  // El nombre que lleva su pestaña: a pantalla completa la banda de proyectos se aparta y lo dice la cabecera.
+  // Es el mismo proyecto del que sale la terminal activa (`activeTerminalProjectKey`).
+  const nombreProyecto = p.tabs.objetivoVisto?.project.name ?? ''
   // En el mosaico no se toca `visible`: lo esconde el CSS (volver a verse robaría el foco).
   return (
     <TerminalsPanel
@@ -235,6 +239,7 @@ function PanelTerminales(p: PropsPanelTerminales): React.JSX.Element {
       onRename={accionesTerminales.renombrar}
       onClosePanel={() => vistas.cerrarPanelInferior()}
       pantallaCompleta={franjaPantallaCompleta === 'terminal'}
+      nombreProyecto={nombreProyecto}
       onPantallaCompleta={pantallaCompletaTerminal}
       agenteTerminalVisible={agenteTerminalVisible}
       {...columnaDeLaTerminal(p)}

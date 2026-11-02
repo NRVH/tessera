@@ -34,12 +34,12 @@ const txAjustesAgente = crearTextos(
     unaHora: '1 hour',
     nunca: 'Never',
     ayuda:
-      'Closes the agent (Claude Code or Codex) of a project that is not on screen once it has gone that long without ' +
-      'typing or receiving anything, and frees its memory and that of its MCP servers. When you return to its tab its ' +
-      'conversation resumes; it takes a few seconds. An agent that Tessera sees working, with a background task, ' +
-      'waiting for your reply, with unsent text or with a result you have not seen yet is not closed; neither are ' +
-      'terminals. It only applies to projects in native mode.',
-    ayudaNunca: 'Agents stay open until you close their tab, hibernate the profile or close Tessera.'
+      'Closes the agent (Claude Code or Codex) of a project that is not on screen after it has been idle for this long ' +
+      '(nothing typed or received), freeing its memory and that of its MCP servers. When you return to its tab, the ' +
+      'conversation resumes in a few seconds. An agent is not closed if Tessera sees it working, running a background ' +
+      'task, waiting for your reply, holding unsent text, or showing a result you have not seen yet. Terminals are ' +
+      'never closed. Applies only to projects in native mode.',
+    ayudaNunca: 'Agents stay open until you close their tab, hibernate the profile, or close Tessera.'
   }
 )
 

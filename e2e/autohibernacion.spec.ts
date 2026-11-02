@@ -171,7 +171,7 @@ test.describe('hibernación del agente por inactividad', () => {
     m.agente.callar(m.rutas.gamma, true)
 
     await expect(pestana(win, 'beta'), 'la pestaña de «beta» pasa a hibernada').toHaveClass(/\bhibernated\b/, { timeout: 45_000 })
-    await expect(pestana(win, 'beta')).toHaveAttribute('title', /agente hibernado por inactividad/)
+    await expect(pestana(win, 'beta')).toHaveAttribute('title', /agente hibernado para ahorrar memoria/)
     // Sin aviso: la pestaña atenuada y su título son toda la señal (pedido del usuario).
     await expect(win.locator('.toast', { hasText: /hibernad/ })).toHaveCount(0)
     // El ajuste sigue en Configuración › Proyectos, de fábrica en 5 minutos.

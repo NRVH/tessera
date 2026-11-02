@@ -45,34 +45,39 @@
   translate: 0 2px;
 }
 
-/* La lista: lo mismo que `.ctx-menu`. El tope de alto cabe en la mitad de la ventana para que
-   el motor la ponga siempre entera, encima o debajo del control. */
+/* La lista: lo mismo que `.ctx-menu` (superficie, filete, radio, sombra y resaltado con el color
+   del perfil). El tope de alto cabe en la mitad de la ventana para que el motor la ponga siempre
+   entera, encima o debajo del control. */
 .modal-overlay select:not([multiple], [size])::picker(select) {
   max-height: min(320px, 45vh);
   text-indent: 0;
   margin-block: 4px;
-  padding: 4px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg-elevated);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  padding: 5px;
+  border: 1px solid var(--border-soft, var(--border));
+  border-radius: 10px;
+  background: var(--bg-modal);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--fg) 5%, transparent),
+    0 1px 2px rgba(0, 0, 0, 0.3),
+    0 12px 32px -6px rgba(0, 0, 0, 0.55);
   color: var(--fg);
 }
 .modal-overlay select:not([multiple], [size]) option {
-  padding: 6px 10px;
-  border-radius: 4px;
+  min-height: calc(var(--ui-row-h, 22px) + 6px);
+  padding: 4px 10px;
+  border-radius: 6px;
   color: var(--fg);
 }
 .modal-overlay select:not([multiple], [size]) option:hover:not(:disabled),
 .modal-overlay select:not([multiple], [size]) option:focus-visible:not(:disabled) {
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  background: color-mix(in srgb, var(--perfil, var(--accent)) 28%, transparent);
   outline: none;
 }
 .modal-overlay select:not([multiple], [size]) option:disabled {
   opacity: 0.4;
 }
 .modal-overlay select:not([multiple], [size]) option::checkmark {
-  color: var(--accent);
+  color: var(--perfil, var(--accent));
 }
 
 @media (prefers-reduced-motion: reduce) {

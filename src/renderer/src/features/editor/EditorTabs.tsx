@@ -23,6 +23,7 @@ import { FileTypeIcon } from '../../comun/fileIcons'
 import { ContextMenu, SEP } from '../../comun/ContextMenu'
 import { txPestanas } from './textos.ts'
 import { useRaizDelProyecto } from '../../comun/raizDelProyecto'
+import { etiquetaModPrincipal } from '../../util/atajos'
 
 interface EditorTabsProps {
   tabs: EditorTab[]
@@ -125,7 +126,7 @@ function Pestana({
         borrado ? ' borrado' : ''
       }${enArchivo ? ' in-archive' : ''}${tab.efimera ? ' efimera' : ''}`}
       // Los sufijos van aquí y no en `tabTooltip`, que solo ve el pane y no el flag ni el borrado.
-      title={`${tabTooltip(tab.pane)}${borrado ? t.sufijoBorrado : ''}${tab.efimera ? t.sufijoEfimera : ''}`}
+      title={`${tabTooltip(tab.pane)}${borrado ? t.sufijoBorrado(etiquetaModPrincipal()) : ''}${tab.efimera ? t.sufijoEfimera : ''}`}
       onClick={onSelect}
       onContextMenu={onMenu}
     >

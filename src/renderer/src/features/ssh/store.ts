@@ -2,8 +2,8 @@
 // Store de las conexiones SSH de la ventana: las conexiones y los grupos de TODOS los perfiles
 // (el main los manda juntos; cada lista filtra por el suyo), el diálogo abierto, si el lanzador
 // (la lista flotante) está desplegado, los grupos plegados de cada perfil, el riel de pantalla
-// completa (su ancho y qué perfiles lo ocultan); lo recordado se persiste. Las reglas de plegar,
-// ocultar y podar son las de `shared/ajustesTerminal`, puras y con su prueba.
+// completa (su ancho); lo recordado se persiste. Las reglas de plegar
+// y podar son las de `shared/ajustesTerminal`, puras y con su prueba.
 // Decisiones: docs/decisiones/terminales/pestanas-ssh-del-perfil.md, docs/decisiones/terminales/riel-de-conexiones.md,
 // docs/decisiones/terminales/lanzador-de-conexiones.md
 // =============================================================================
@@ -11,11 +11,9 @@ import { create } from 'zustand'
 import {
   SSH_RIEL_ANCHO_POR_DEFECTO,
   conPlegado,
-  conRielVisible,
   normalizarAnchoRiel,
   podarMapaPorPerfil,
-  type SshGruposPlegadosPorPerfil,
-  type SshRielVisiblePorPerfil
+  type SshGruposPlegadosPorPerfil
 } from '../../../../shared/ajustesTerminal'
 import type { SshConexion, SshGrupo, SshLecturaOpenSsh, SshListaConexiones } from '../../../../shared/ssh-ipc'
 import type { ImportacionEnFormulario } from './importacionOpenSsh'
@@ -68,8 +66,6 @@ export interface EstadoSsh {
   plegadosPorPerfil: SshGruposPlegadosPorPerfil
   /** Ancho (px) del riel de conexiones a pantalla completa. GLOBAL; se persiste. */
   rielAncho: number
-  /** Perfil -> el riel se ve a pantalla completa. Sin entrada = se ve. Se persiste. */
-  rielVisiblePorPerfil: SshRielVisiblePorPerfil
 }
 
 /** Estado de las conexiones SSH. */
@@ -82,8 +78,7 @@ export const useStoreSsh = create<EstadoSsh>()(() => ({
   dialogo: null,
   listaAbierta: false,
   plegadosPorPerfil: {},
-  rielAncho: SSH_RIEL_ANCHO_POR_DEFECTO,
-  rielVisiblePorPerfil: {}
+  rielAncho: SSH_RIEL_ANCHO_POR_DEFECTO
 }))
 
 /** Reparte conexiones y grupos por perfil. */
@@ -151,23 +146,10 @@ export const accionesSsh = {
       const rielAncho = normalizarAnchoRiel(px)
       return rielAncho === s.rielAncho ? s : { rielAncho }
     }),
-  /** Muestra u oculta el riel de un perfil; no hace nada si ya está así. */
-  fijarRielVisible: (perfilId: string, visible: boolean): void =>
-    useStoreSsh.setState((s) => {
-      const rielVisiblePorPerfil = conRielVisible(s.rielVisiblePorPerfil, perfilId, visible)
-      return rielVisiblePorPerfil === s.rielVisiblePorPerfil ? s : { rielVisiblePorPerfil }
-    }),
-  /** Alterna el riel de un perfil: se ve (no hay entrada, o `true`) y pasa a ocultarse, o al revés. */
-  alternarRiel: (perfilId: string): void =>
-    useStoreSsh.setState((s) => ({
-      rielVisiblePorPerfil: conRielVisible(s.rielVisiblePorPerfil, perfilId, s.rielVisiblePorPerfil[perfilId] === false)
-    })),
-  /** Olvida lo recordado de los perfiles que ya no existen: plegados y riel (nunca con una lista vacía). */
+  /** Olvida lo recordado de los perfiles que ya no existen: los grupos plegados (nunca con una lista vacía). */
   podarPerfiles: (perfilesVivos: string[]): void =>
     useStoreSsh.setState((s) => {
       const plegadosPorPerfil = podarMapaPorPerfil(s.plegadosPorPerfil, perfilesVivos)
-      const rielVisiblePorPerfil = podarMapaPorPerfil(s.rielVisiblePorPerfil, perfilesVivos)
-      const igual = plegadosPorPerfil === s.plegadosPorPerfil && rielVisiblePorPerfil === s.rielVisiblePorPerfil
-      return igual ? s : { plegadosPorPerfil, rielVisiblePorPerfil }
+      return plegadosPorPerfil === s.plegadosPorPerfil ? s : { plegadosPorPerfil }
     })
 }

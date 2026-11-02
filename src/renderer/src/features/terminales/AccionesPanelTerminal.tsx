@@ -3,8 +3,7 @@
 // filete, de lo que más se usa a lo terminal: reiniciar la terminal local que se ve; maximizar
 // o restaurar el panel; y ocultarlo. Las acciones se ocultan en reposo con `visibility`, no `display`,
 // salvo restaurar y ocultar a pantalla completa: son las dos salidas del modo. El «+» y la ▾ de las
-// conexiones viven en las pestañas, y el conmutador del riel, al otro extremo de la cabecera. El del
-// agente de la terminal no está aquí: es el de la barra de estado.
+// conexiones viven en las pestañas. El del agente de la terminal no está aquí: es el de la barra de estado.
 // Decisiones: docs/decisiones/terminales/terminales-keep-alive-y-reinicio-limpio.md, docs/decisiones/agentes/agente-de-la-terminal.md
 // =============================================================================
 
@@ -14,24 +13,10 @@ import { HideIcon, ReloadIcon } from './IconosTerminales'
 import type { SalidaBotonReinicio } from './reloadButton'
 import { txTerminales } from './textos.ts'
 
-/** Cómo se llama el reinicio del pane que se ve y a qué alcanza. */
-export interface AlcanceReinicio {
-  /** Nombre completo del botón: su nombre accesible en reposo. */
-  etiqueta: string
-  /** El final del tooltip: lo que se ve afectado. */
-  alcance: string
-}
-
-/** El reinicio de una terminal local, el de siempre. */
-export function reinicioLocal(): AlcanceReinicio {
-  const t = txTerminales()
-  return { etiqueta: t.reiniciarTerminal, alcance: t.soloEstaTerminal }
-}
-
-/** El reinicio del pane que se ve: su estado, a qué alcanza y qué hace. */
+/** El reinicio del pane que se ve: su estado, su nombre accesible en reposo y qué hace. */
 export interface ReinicioPanel {
   boton: SalidaBotonReinicio
-  alcance: AlcanceReinicio
+  etiqueta: string
   onReload: () => void
 }
 
@@ -40,14 +25,14 @@ export interface ReinicioPanel {
  * tooltip; solo crece para enseñar un estado que contar («Reiniciando…»).
  */
 function BotonReinicioTerminal({ reinicio }: { reinicio: ReinicioPanel }): React.JSX.Element {
-  const { boton, alcance } = reinicio
+  const { boton, etiqueta } = reinicio
   return (
     <button
       className={`btn btn-icon terminal-reload-btn${boton.soloIcono ? ' solo-icono' : ' boton-reinicio'}`}
       onClick={reinicio.onReload}
       disabled={!boton.habilitado}
-      title={`${boton.titulo} · ${alcance.alcance}`}
-      aria-label={boton.soloIcono ? alcance.etiqueta : boton.etiqueta}
+      title={boton.titulo}
+      aria-label={boton.soloIcono ? etiqueta : boton.etiqueta}
     >
       <ReloadIcon />
       {/* ENVUELTA, no suelta como texto: el CSS la oculta cuando la cabecera se estrecha. */}

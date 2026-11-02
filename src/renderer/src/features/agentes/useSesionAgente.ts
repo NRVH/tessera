@@ -1,5 +1,5 @@
 // =============================================================================
-// Efectos de la sesión del agente, en el orden en que los registra el pane: cambio de
+// Efectos de la sesión del agente, en el orden en que los registra el pane: traspaso pendiente, cambio de
 // cuenta, reconcile (abre si se mira, con cuenta y con los ajustes cargados),
 // hibernación, la vuelta de Docker y la API que publica para la actualización nativa. Devuelve las acciones
 // de la interfaz atadas al contexto de este render.
@@ -10,9 +10,13 @@ import { useEffect, useRef } from 'react'
 import { C_DIM, C_ERR, C_RST, HOST_ACCOUNT_ID, agenteManualDe, type PropsAgentPane, type RecoveryState } from './agentPaneTipos'
 import { esAgenteManual } from '../../../../shared/agentesManuales'
 import {
-  abrirSesion, handleReload, liberarActualizacion, prepararActualizacion, recuperarContenedor, relanzarSesion,
-  resumeConversation, startNewConversation, type CtxBloqueo, type CtxSesion
+  abrirConTraspaso, abrirSesion, handleReload, liberarActualizacion, prepararActualizacion, puedeAbrirConTraspaso,
+  recuperarContenedor, relanzarSesion, resumeConversation, startNewConversation, type CtxBloqueo, type CtxSesion
 } from './sesionAgente'
+import { tomarTraspaso, useStoreAgentes } from './store'
+import { txTraspaso } from './textosTraspaso.ts'
+import { decidirTraspaso } from './traspasoPendiente.ts'
+import { notifyError } from '../../comun/notifications'
 import type { ApiAgentePane } from './tipos'
 import type { EstadoSesion } from './useEstadoAgentPane'
 import type { RefsAgentPane } from './useRefsAgentPane'
@@ -22,6 +26,54 @@ export interface AccionesSesion {
   resume: (convId: string) => void
   nueva: () => void
   reiniciar: (accion: 'reload' | 'open' | 'nada') => void
+}
+
+/**
+ * TRASPASO de «Continuar en…»: lo toma el pane de su target cuando ya corre en su modo y con su cuenta (los
+ * fija el mismo cambio del store, que remonta el pane o le cambia la cuenta). Se registra ANTES que el cambio
+ * de cuenta y el reconcile: en ese mismo commit, la apertura que hagan ya lo lleva. Con una sesión viva de la
+ * misma cuenta, nadie más la cierra: se cambia de conversación aquí. Con una apertura en vuelo, espera a que acabe.
+ */
+function useTraspasoPendiente(p: PropsAgentPane, ctx: CtxSesion): void {
+  const { key } = p.target
+  const { hostMode, selectedAccountId } = p
+  const pendiente = useStoreAgentes((s) => s.traspasosPendientes[key])
+  const ctxRef = useRef(ctx)
+  ctxRef.current = ctx
+  const status = ctx.s.status
+  // El traspaso que ya vio al pane en su modo y cuenta: si luego cambia a otro, ya no es lo que se pidió.
+  const yaCoincidio = useRef<string | null>(null)
+  // Pasada su vida el main ya no lo tiene: no se queda esperando a un pane que quizá nunca llegue a su modo.
+  useEffect(() => {
+    if (!pendiente) return
+    const t = setTimeout(() => tomarTraspaso(key, pendiente.traspasoId), Math.max(0, pendiente.caduca - Date.now()))
+    return () => clearTimeout(t)
+  }, [pendiente, key])
+  useEffect(() => {
+    if (!pendiente) return
+    const decision = decidirTraspaso(pendiente, {
+      ahora: Date.now(),
+      hostMode: !!hostMode,
+      cuenta: selectedAccountId,
+      yaCoincidio: yaCoincidio.current === pendiente.traspasoId
+    })
+    if (decision === 'esperar') return
+    if (decision === 'caducado' || decision === 'descartar') {
+      tomarTraspaso(key, pendiente.traspasoId)
+      if (decision === 'caducado') notifyError(txTraspaso().caducado)
+      return
+    }
+    yaCoincidio.current = pendiente.traspasoId
+    const { r } = ctxRef.current
+    if (r.sesion.abriendo()) return
+    if (!hostMode && r.sesion.abiertaConOtraCuenta(selectedAccountId)) {
+      tomarTraspaso(key, pendiente.traspasoId)
+      r.sesion.pedirTraspaso(pendiente.traspasoId, pendiente.reanudar)
+    } else if (puedeAbrirConTraspaso(ctxRef.current)) {
+      tomarTraspaso(key, pendiente.traspasoId)
+      void abrirConTraspaso(ctxRef.current, pendiente.traspasoId, pendiente.reanudar)
+    }
+  }, [pendiente, hostMode, selectedAccountId, key, status])
 }
 
 /**
@@ -101,6 +153,7 @@ export function useSesionAgente(
   const ctx: CtxSesion = {
     r, s, d: { profileId, agente, manual, projectHostPath, hostMode, selectedAccountId, hibernated, dbReady, reloading: s.reloading }
   }
+  useTraspasoPendiente(p, ctx)
   useCambioDeCuenta(p, r)
   useReconcile(p, ctx, activated)
   useHibernar(r, hibernated)

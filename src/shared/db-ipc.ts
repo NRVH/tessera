@@ -831,9 +831,11 @@ export const ENV_BUZON = 'TESSERA_DB_BRIDGE'
  * token y una ruta, y la consulta la ejecuta el host (ver `entornoContenedor`).
  * Tampoco `ENV_ESPACIO`: el porqué, en su declaración. El idioma sí (`VARIABLE_IDIOMA` de
  * `i18n.ts`, escrita aquí porque este archivo no importa valores): con él hablan los clientes de
- * `tdb` y `tssh` del contenedor.
+ * `tdb`, `tssh` y `tctx` del contenedor.
  */
 export const ENV_CONTENEDOR = [ENV_MODO, ENV_SESION, ENV_BUZON, 'TESSERA_IDIOMA'] as const
+
+const PREFIJO_SESION_AGENTE = 'agent:'
 
 /**
  * Clave con la que el puente indexa la sesión del PANE DEL AGENTE, para no chocar
@@ -850,5 +852,10 @@ export const ENV_CONTENEDOR = [ENV_MODO, ENV_SESION, ENV_BUZON, 'TESSERA_IDIOMA'
  * puerta, y por eso el refcount del contenedor ya namespacea igual (`agent:<id>`).
  */
 export function claveSesionAgente(sessionId: string): string {
-  return `agent:${sessionId}`
+  return `${PREFIJO_SESION_AGENTE}${sessionId}`
+}
+
+/** El id de la sesión de agente de una clave de `claveSesionAgente`; null si la clave no es de un agente (la terminal). */
+export function idDeClaveSesionAgente(clave: string): string | null {
+  return clave.startsWith(PREFIJO_SESION_AGENTE) ? clave.slice(PREFIJO_SESION_AGENTE.length) : null
 }

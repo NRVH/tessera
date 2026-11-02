@@ -13,7 +13,7 @@ marcado tiene que ser exactamente lo que el backend recibe.
 
 - Cuatro secciones, las de `git status`: Conflictos, Preparados, Cambios y Sin versionar. Un
   archivo en conflicto sale de las demás (se resuelve, no se descarta: descartar no se ofrece
-  ahí, lo revertiría a HEAD sin confirmar); uno preparado y modificado aparece en Preparados y en
+  ahí, lo revertiría a HEAD y perdería la resolución); uno preparado y modificado aparece en Preparados y en
   Cambios, con la letra de su eje en cada una. Lista plana con la carpeta en gris tras el
   nombre, no árbol: aquí importa qué cambió, no la forma del repo.
 - El reparto en secciones (`dividirSecciones`) es UN módulo puro que comparten la lista y la

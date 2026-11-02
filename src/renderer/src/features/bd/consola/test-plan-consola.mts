@@ -114,7 +114,7 @@ function main(): void {
   const fin = d(ini.e, { tipo: 'planTerminado', loteId: ini.id, indice: 0, respuesta: { ok: true, valor: PLAN }, esquema: 'HR', ahora: T0 + 12, binds: { ID: '5' } })
   const m = marcaDe(fin.lote!.sentencias[0], T0 + 20, true)
   check('(1f) terminado: glifo de plan, NO la ✓, y sin barra', m.claseGlifo === 'db-glifo-plan' && m.claseBarra === null, j(m))
-  check('(1g) su tooltip dice que no se ejecutó', m.hover.includes('NO se ejecutó') && m.despues === '12 ms', m.hover)
+  check('(1g) su tooltip dice que no se ejecutó', m.hover.includes('no se ejecutó') && m.despues === '12 ms', m.hover)
   check('(1h) el lote acaba', fin.lote?.estado === 'terminado', String(fin.lote?.estado))
   const lf = lineas(fin)
   check('(1i) la Salida: el plan (sin decir que corrió) y el aviso del main', lf[1] === 'completado:Plan de ejecución: 2 pasos en 12 ms (la sentencia no se ejecutó)' && lf[2] === 'aviso:PLAN_TABLE se revirtió al terminar', j(lf))

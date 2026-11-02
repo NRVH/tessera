@@ -3,8 +3,8 @@
 // se pinta (error en rojo, info en azul) y con el interruptor de Configuración apagado deja de pintarse.
 // Se mide en PÍXELES de una captura y no en el búfer: lo que se prueba es que el color llegue a la
 // pantalla por el camino real (pty, contrapresión y el dibujo por GPU). La lógica de
-// qué se pinta está en `test:resaltado-salida`.
-// Decisiones: docs/decisiones/terminales/resaltado-de-la-salida.md
+// qué se pinta está en `test:resaltado-salida`. Además, que la terminal anuncia que pinta color real.
+// Decisiones: docs/decisiones/terminales/resaltado-de-la-salida.md y pty-shell-nativo-y-entorno.md
 // =============================================================================
 
 import { expect, test, type Page } from '@playwright/test'
@@ -177,5 +177,13 @@ test.describe.serial('El resaltado de la salida en la terminal', () => {
     // El azul se compara entre las dos capturas: la selección que deja el buscador sobre el marcador
     // está en las dos, y algunas shells pintan su prompt de azul.
     expect(encendido.azul - apagado.azul, `ni las etiquetas en azul — ${JSON.stringify({ encendido, apagado })}`).toBeGreaterThan(80)
+  })
+
+  test('la terminal nativa anuncia a sus programas que pinta color real', async () => {
+    const win = s.win
+    await win.locator(PANTALLA).click()
+    await win.keyboard.type(`echo "color=${PLATAFORMA === 'windows' ? '$env:' : '$'}COLORTERM"`)
+    await win.keyboard.press('Enter')
+    await expect.poll(() => contarEnTerminal(win, 'color=truecolor'), { timeout: 30_000 }).toBe(1)
   })
 })

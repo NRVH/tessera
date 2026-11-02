@@ -1,0 +1,604 @@
+/* =============================================================================
+   Tessera Academy: el índice de Configuración (rejilla de tarjetas a todo el ancho), el lector
+   (modal propio con índice de secciones fijo y cuerpo con scroll) y el botón ⓘ de los diálogos.
+   Los tamaños cuelgan de `--ui-font`; el lector usa container queries para plegar su índice.
+   ============================================================================= */
+
+/* --- Índice ------------------------------------------------------------------ */
+
+.academy-indice {
+  color: var(--fg);
+}
+
+.academy-presentacion {
+  margin: 0 0 18px;
+  color: var(--fg-muted);
+  line-height: 1.5;
+}
+
+.academy-grupo + .academy-grupo {
+  margin-top: 22px;
+}
+
+.academy-grupo-titulo {
+  margin: 0 0 10px;
+  color: var(--fg-muted);
+  font-size: calc(var(--ui-font) - 1px);
+  font-weight: 600;
+}
+
+.academy-tarjetas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.academy-tarjetas > li {
+  display: flex;
+}
+
+.academy-tarjeta {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--fg) 3%, transparent);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease,
+    transform 120ms ease;
+}
+
+.academy-tarjeta:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  transform: translateY(-1px);
+}
+
+.academy-tarjeta:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.academy-icono-articulo {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--ui-font) + 22px);
+  height: calc(var(--ui-font) + 22px);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+}
+
+.academy-icono-articulo svg {
+  width: calc(var(--ui-font) + 6px);
+  height: calc(var(--ui-font) + 6px);
+}
+
+.academy-tarjeta-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.academy-tarjeta-titulo {
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.academy-tarjeta-resumen {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--fg-muted);
+  font-size: calc(var(--ui-font) - 1px);
+  line-height: 1.45;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.academy-tarjeta-pie {
+  margin-top: 2px;
+  color: var(--fg-faint);
+  font-size: calc(var(--ui-font) - 2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .academy-tarjeta {
+    transition: none;
+  }
+  .academy-tarjeta:hover {
+    transform: none;
+  }
+}
+
+/* --- Lector ------------------------------------------------------------------ */
+
+/* Encima de todo lo que puede tener un ⓘ: también de lo que Configuración abre sobre sí misma
+   (el agente propio va en una capa a 2100). */
+.modal-overlay.academy-lector-velo {
+  z-index: 2200;
+}
+
+.academy-lector {
+  /* Como toda superficie: declara la variable para escalar con el ajuste de interfaz. */
+  font-size: var(--ui-font);
+  container-type: inline-size;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(1040px, 100%);
+  height: min(860px, 100%);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg-modal);
+  box-shadow: var(--shadow-modal);
+  color: var(--fg);
+  outline: none;
+  animation: modal-pop 150ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .academy-lector {
+    animation: none;
+  }
+}
+
+.academy-lector-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px 16px 24px;
+  border-bottom: 1px solid var(--border-soft);
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--accent) 8%, transparent),
+    transparent
+  );
+}
+
+.academy-lector-cabecera .academy-icono-articulo {
+  width: calc(var(--ui-font) + 30px);
+  height: calc(var(--ui-font) + 30px);
+  border-radius: 11px;
+}
+
+.academy-lector-cabecera .academy-icono-articulo svg {
+  width: calc(var(--ui-font) + 10px);
+  height: calc(var(--ui-font) + 10px);
+}
+
+.academy-lector-titulos {
+  flex: 1;
+  min-width: 0;
+}
+
+.academy-lector-grupo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--fg-muted);
+  font-size: calc(var(--ui-font) - 1px);
+}
+
+.academy-lector-grupo svg {
+  width: calc(var(--ui-font) + 2px);
+  height: calc(var(--ui-font) + 2px);
+  color: var(--accent);
+}
+
+.academy-titulo {
+  margin: 2px 0 0;
+  font-size: calc(var(--ui-font) + 8px);
+  font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.academy-lector-cerrar {
+  align-self: flex-start;
+}
+
+.academy-lector-cuerpo {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  gap: 32px;
+  overflow-y: auto;
+  padding: 24px 32px 32px 24px;
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .academy-lector-cuerpo {
+    scroll-behavior: auto;
+  }
+}
+
+.academy-lector-toc {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.academy-lector-toc-titulo {
+  margin-bottom: 6px;
+  padding-left: 12px;
+  color: var(--fg-faint);
+  font-size: calc(var(--ui-font) - 2px);
+  font-weight: 600;
+}
+
+.academy-toc-item {
+  padding: 6px 10px;
+  border: none;
+  border-left: 2px solid var(--border-soft);
+  border-radius: 0 6px 6px 0;
+  background: none;
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: calc(var(--ui-font) - 1px);
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+}
+
+.academy-toc-item:hover {
+  background: var(--hover-suave);
+  color: var(--fg);
+}
+
+.academy-toc-item.activa {
+  border-left-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.academy-toc-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* En un lector estrecho el índice pasa arriba, como fila de pastillas que no se fija. */
+@container (max-width: 720px) {
+  .academy-lector-cuerpo {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+    padding: 18px 18px 24px;
+  }
+  .academy-lector-toc {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .academy-lector-toc-titulo {
+    display: none;
+  }
+  .academy-toc-item {
+    padding: 4px 10px;
+    border: 1px solid var(--border-soft);
+    border-radius: 999px;
+  }
+  .academy-toc-item.activa {
+    border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  }
+}
+
+/* --- Artículo ---------------------------------------------------------------- */
+
+.academy-articulo {
+  max-width: 82ch;
+  min-width: 0;
+  font-size: calc(var(--ui-font) + 1px);
+  line-height: 1.65;
+}
+
+.academy-resumen {
+  margin: 0 0 8px;
+  color: var(--fg-muted);
+  font-size: calc(var(--ui-font) + 2px);
+  line-height: 1.55;
+}
+
+.academy-seccion {
+  /* Deja aire arriba al llevar la sección a la vista desde un ⓘ o el índice. */
+  scroll-margin-top: 12px;
+  margin: 0 -12px;
+  padding: 10px 12px 4px;
+  border-radius: 10px;
+}
+
+.academy-seccion + .academy-seccion {
+  margin-top: 14px;
+}
+
+.academy-seccion h3 {
+  margin: 12px 0 10px;
+  font-size: calc(var(--ui-font) + 4px);
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.academy-seccion p {
+  margin: 0 0 12px;
+}
+
+.academy-articulo strong {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.academy-lista {
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+}
+
+.academy-lista li {
+  position: relative;
+  padding-left: 20px;
+}
+
+.academy-lista li + li {
+  margin-top: 6px;
+}
+
+.academy-lista li::before {
+  position: absolute;
+  top: 0.62em;
+  left: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  content: '';
+}
+
+.academy-pasos {
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+  counter-reset: paso;
+}
+
+.academy-pasos li {
+  position: relative;
+  min-height: 1.8em;
+  padding: 2px 0 0 38px;
+  counter-increment: paso;
+}
+
+.academy-pasos li + li {
+  margin-top: 10px;
+}
+
+.academy-pasos li::before {
+  position: absolute;
+  /* Centrado con la primera línea del paso, que es más alta que el círculo. */
+  top: 0.22em;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75em;
+  height: 1.75em;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+  font-size: calc(var(--ui-font) - 1px);
+  font-weight: 700;
+  content: counter(paso);
+}
+
+.academy-nota {
+  display: flex;
+  gap: 10px;
+  margin: 4px 0 14px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.academy-nota svg {
+  flex: none;
+  width: calc(var(--ui-font) + 4px);
+  height: calc(var(--ui-font) + 4px);
+  margin-top: 0.15em;
+  color: var(--accent);
+}
+
+.academy-nota p {
+  margin: 0;
+}
+
+.academy-articulo code {
+  padding: 1px 6px;
+  border: 1px solid var(--border-soft);
+  border-radius: 5px;
+  background: var(--bg-deep);
+  font-family: var(--mono, ui-monospace, 'Cascadia Code', Consolas, monospace);
+  font-size: 0.88em;
+}
+
+.academy-atajo {
+  display: inline-flex;
+  gap: 3px;
+  vertical-align: baseline;
+}
+
+.academy-atajo kbd {
+  min-width: 1.6em;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--bg-elevated);
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 0.82em;
+  font-weight: 600;
+  line-height: 1.55;
+  text-align: center;
+}
+
+.academy-figura {
+  margin: 6px 0 18px;
+}
+
+.academy-captura {
+  display: block;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+}
+
+.academy-figura figcaption {
+  margin-top: 8px;
+  color: var(--fg-faint);
+  font-size: calc(var(--ui-font) - 1px);
+  text-align: center;
+}
+
+/* Un enlace de la Academy es un botón: navega dentro del lector, no a una URL. */
+.academy-enlace {
+  display: inline;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-align: inherit;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.academy-enlace:hover {
+  text-decoration-color: currentColor;
+}
+
+.academy-enlace:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: 2px;
+}
+
+.academy-destacada {
+  animation: academy-destacar 1.8s ease-out;
+}
+
+@keyframes academy-destacar {
+  from {
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+  }
+  to {
+    background: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .academy-destacada {
+    animation: none;
+  }
+}
+
+.academy-pasar {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 28px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.academy-pasar-boton {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.academy-pasar-boton:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+.academy-pasar-boton:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.academy-siguiente {
+  grid-column: 2;
+  text-align: right;
+}
+
+.academy-pasar-etiqueta {
+  color: var(--fg-faint);
+  font-size: calc(var(--ui-font) - 2px);
+}
+
+.academy-pasar-titulo {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* --- Botón ⓘ ------------------------------------------------------------------ */
+/* Discreto en el encabezado de un diálogo: gris hasta que el puntero o el foco llegan. */
+.boton-ayuda {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--ui-font) + 8px);
+  height: calc(var(--ui-font) + 8px);
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--fg-faint);
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.boton-ayuda svg {
+  width: calc(var(--ui-font) + 2px);
+  height: calc(var(--ui-font) + 2px);
+}
+
+.boton-ayuda:hover {
+  background: var(--hover-suave);
+  color: var(--accent);
+}
+
+.boton-ayuda:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  color: var(--accent);
+}

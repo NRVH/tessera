@@ -22,25 +22,34 @@ export interface TextosBotonReinicio {
   tituloReintentarArranque: string
   /** Tooltip con la sesión muerta. */
   tituloReabrir: string
-  /** Tooltip en reposo, a partir de la etiqueta normal. */
-  tituloNormal: (etiquetaNormal: string) => string
+  /** Tooltip en reposo. */
+  tituloNormal: string
 }
 
-/** Los textos de siempre, los del shell y los del agente. En español no cambian: hay pruebas y capturas que los leen. */
-export function textosReinicio(): TextosBotonReinicio {
+/**
+ * Los textos del agente, que son los de por defecto; el shell y la conexión SSH tienen los suyos.
+ * `retomaConversacion` en falso (un agente manual sin comando para retomar) no promete la conversación.
+ */
+export function textosReinicio(retomaConversacion = true): TextosBotonReinicio {
   const t = txTerminales()
   return {
     reabrir: t.reabrir,
     reabriendo: t.reabriendo,
     tituloReintentarArranque: t.tituloReintentarArranque,
-    tituloReabrir: t.tituloReabrir,
-    tituloNormal: t.tituloNormal
+    tituloReabrir: retomaConversacion ? t.tituloReabrir : t.tituloReabrirSinConversacion,
+    tituloNormal: retomaConversacion ? t.tituloNormal : t.tituloNormalSinConversacion
   }
 }
 
 /** Los de la terminal local: es un shell nativo, así que el reintento no comprueba Docker ni contenedor. */
 export function textosReinicioShell(): TextosBotonReinicio {
-  return { ...textosReinicio(), tituloReintentarArranque: txTerminales().shellReintentarArranque }
+  const t = txTerminales()
+  return {
+    ...textosReinicio(),
+    tituloReintentarArranque: t.shellReintentarArranque,
+    tituloReabrir: t.shellReabrir,
+    tituloNormal: t.shellNormal
+  }
 }
 
 /** Los de una sesión SSH: se reconecta, con los datos vigentes de la conexión, y no hay contenedor que comprobar. */
@@ -51,7 +60,7 @@ export function textosReconexionSsh(): TextosBotonReinicio {
     reabriendo: t.reconectando,
     tituloReintentarArranque: t.sshReintentarArranque,
     tituloReabrir: t.sshReabrir,
-    tituloNormal: () => t.sshNormal
+    tituloNormal: t.sshNormal
   }
 }
 
@@ -182,7 +191,7 @@ function tituloDe(e: EntradaBotonReinicio, accion: Accion, habilitado: boolean):
   if (e.faseRecuperacion === 'failed') return txTerminales().recuperacionAgotada
   if (e.status === 'exited') return textos.tituloReabrir
   const aviso = habilitado && accion === 'reload' ? avisoAtrasada(e.versiones) : null
-  return aviso ?? textos.tituloNormal(e.etiquetaNormal)
+  return aviso ?? textos.tituloNormal
 }
 
 /** Decide etiqueta, tooltip, estado y acción del botón de reinicio a partir del estado del pane. */

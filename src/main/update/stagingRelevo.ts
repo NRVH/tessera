@@ -7,13 +7,15 @@
 // Decisiones: docs/decisiones/actualizacion/relevo-de-windows.md
 // =============================================================================
 
-import { execFile, spawn } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import os from 'node:os'
+import { robocopy, robocopyBien } from '../util/robocopy'
 import {
   ENCARGO_VERSION,
   FLAG_RELEVO,
+  MARCADOR_COPIA as MARCADOR,
+  NOMBRE_ENCARGO,
   copiaUtilizable,
   type EncargoRelevo
 } from '../../shared/relevo'
@@ -21,11 +23,7 @@ import { esWindows } from '../../shared/plataforma'
 import { conTope } from '../util/esperas'
 import { appEmpaquetada, rutaAppData, rutaExe, versionApp } from '../util/infoApp'
 
-/** Marcador con la versión con la que se hizo la copia. */
-const MARCADOR = 'version.txt'
-
-/** Nombre del encargo dentro de la carpeta del relevo. */
-export const NOMBRE_ENCARGO = 'encargo.json'
+export { NOMBRE_ENCARGO }
 
 /**
  * `%LOCALAPPDATA%`. Se prefiere la variable de entorno a derivarla de `appData`:
@@ -116,23 +114,8 @@ async function copiar(log: (m: string) => void): Promise<boolean> {
   log(`preparando el relevo: copiando ${origen} -> ${destino}`)
   try {
     mkdirSync(destino, { recursive: true })
-    const code = await new Promise<number | null>((resolve) => {
-      execFile(
-        'robocopy',
-        [origen, destino, '/MIR', '/NFL', '/NDL', '/NJH', '/NJS', '/NP', '/R:1', '/W:1'],
-        // `cwd` FUERA de la carpeta de instalación: el directorio actual de un
-        // proceso mantiene un handle abierto sobre él, y esa carpeta es justo la
-        // que hay que poder renombrar.
-        { windowsHide: true, timeout: 10 * 60_000, cwd: os.tmpdir() },
-        (err) => {
-          // robocopy usa códigos 0-7 como ÉXITO (8+ es error), así que `execFile`
-          // reporta "fallo" en copias perfectamente buenas. Se lee el código real.
-          const c = (err as { code?: number } | null)?.code
-          resolve(typeof c === 'number' ? c : err ? null : 0)
-        }
-      )
-    })
-    if (code === null || code >= 8) {
+    const code = await robocopy(origen, destino, ['/MIR', '/R:1', '/W:1'])
+    if (!robocopyBien(code)) {
       log(`la copia del relevo falló (robocopy ${code}); se seguirá con el camino de siempre`)
       return false
     }

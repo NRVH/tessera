@@ -82,6 +82,29 @@ async function enCabecera(win: Page): Promise<void> {
   await win.locator('section.terminal-panel .panel-header').first().hover()
 }
 
+/**
+ * Pliega el riel de conexiones por falta de sitio, que es la única forma: lo ensancha al máximo con el teclado y
+ * estrecha la ventana. Devuelve el tamaño anterior para devolvérselo con `ensancharVentana`.
+ */
+async function plegarRielPorSitio(s: SesionTessera, riel: Locator): Promise<[number, number]> {
+  await s.win.getByRole('separator', { name: 'Redimensionar la lista de conexiones SSH' }).focus()
+  for (let i = 0; i < 30; i++) await s.win.keyboard.press('ArrowRight')
+  const antes = await s.app.evaluate(({ BrowserWindow }) => {
+    const w = BrowserWindow.getAllWindows()[0]
+    const [ancho, alto] = w.getSize()
+    w.setSize(900, alto)
+    return [ancho, alto] as [number, number]
+  })
+  await expect(riel, 'sin sitio el riel se pliega solo').toBeHidden()
+  return antes
+}
+
+/** Devuelve la ventana a su tamaño y espera a que el riel reaparezca. */
+async function ensancharVentana(s: SesionTessera, riel: Locator, [ancho, alto]: [number, number]): Promise<void> {
+  await s.app.evaluate(({ BrowserWindow }, t) => BrowserWindow.getAllWindows()[0].setSize(t.ancho, t.alto), { ancho, alto })
+  await expect(riel, 'al ensanchar el riel reaparece solo').toBeVisible()
+}
+
 /** Número de coincidencias que anuncia el buscador de la terminal (`3 coincidencias` o `1 / 3`). */
 function totalDe(etiqueta: string): number {
   const m = /(\d+) coincidencias|\d+ \/ (\d+)/.exec(etiqueta)
@@ -262,9 +285,7 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     await expect(riel.getByText('Sin conexiones SSH en este perfil'), 'vacía, y sin botón de alta repetido en su cuerpo').toBeVisible()
     await expect(flecha(), 'con el riel a la vista no hay ▾').toHaveCount(0)
 
-    const conmutador = panel().getByRole('button', { name: 'Panel de conexiones' })
-    await conmutador.click()
-    await expect(riel, 'plegado a mano').toBeHidden()
+    const tamano = await plegarRielPorSitio(s, riel)
     await enCabecera(win)
     await expect(flecha(), 'con el riel plegado la ▾ vuelve, aunque no haya conexiones ni grupos').toBeVisible()
     await flecha().click()
@@ -276,8 +297,7 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     await expect(popover()).toHaveCount(0)
 
     // Se deja todo como estaba: el riel a la vista y el panel restaurado.
-    await conmutador.click()
-    await expect(riel).toBeVisible()
+    await ensancharVentana(s, riel, tamano)
     await panel().getByRole('button', { name: 'Restaurar el panel de terminal' }).click()
     await expect(win.locator('.shell')).not.toHaveClass(/\bterminal-pantalla-completa\b/)
   })
@@ -374,14 +394,14 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     await expect.poll(abierta, { message: 'el clic abre la lista' }).toBe(true)
     const piel = await c.grupo.evaluate((el) => {
       const lista = getComputedStyle(el, '::picker(select)')
-      // El fondo del menú contextual, resuelto a color con una sonda: `--bg-elevated` es un token del tema.
+      // El fondo del menú contextual, resuelto a color con una sonda: `--bg-modal` es un token del tema.
       const sonda = document.body.appendChild(document.createElement('i'))
-      sonda.style.background = 'var(--bg-elevated)'
+      sonda.style.background = 'var(--bg-modal)'
       const fondoMenu = getComputedStyle(sonda).backgroundColor
       sonda.remove()
       return { radio: lista.borderTopLeftRadius, filete: lista.borderTopWidth, fondo: lista.backgroundColor, sombra: lista.boxShadow, fondoMenu }
     })
-    expect([piel.radio, piel.filete], 'redondeada y con filete, como el menú contextual').toEqual(['6px', '1px'])
+    expect([piel.radio, piel.filete], 'redondeada y con filete, como el menú contextual').toEqual(['10px', '1px'])
     expect(piel.fondo, 'con el fondo del menú contextual').toBe(piel.fondoMenu)
     expect(piel.sombra, 'y su sombra').not.toBe('none')
     const encima = await win.evaluate(() =>
@@ -504,7 +524,7 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
       const p = win.locator('.tabs-projects .project-tab', { hasText: nombre }).first()
       await p.hover()
       await p.getByRole('button', { name: `Cerrar ${nombre}` }).click()
-      await win.getByRole('dialog', { name: 'Cerrar proyecto' }).getByRole('button', { name: 'Cerrar', exact: true }).click()
+      await win.getByRole('dialog', { name: 'Cerrar proyecto' }).getByRole('button', { name: `Cerrar «${nombre}»`, exact: true }).click()
       await expect(win.locator('.tabs-projects .project-tab', { hasText: nombre })).toHaveCount(0)
     }
     await cerrar('alfa')
@@ -632,7 +652,7 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     await c.host.fill('192.0.2.30')
     await c.usuario.fill('pruebas')
     await casilla.uncheck()
-    await expect(dialogo.getByText('Los agentes no la ven'), 'la ayuda dice qué significa desmarcarla').toBeVisible()
+    await expect(dialogo.getByText('Los agentes del perfil no ven esta conexión'), 'la ayuda dice qué significa desmarcarla').toBeVisible()
     await capturar(win, 'ssh-casilla-agentes')
     await dialogo.getByRole('button', { name: 'Guardar', exact: true }).click()
     await expect(dialogo).toHaveCount(0)
@@ -808,15 +828,12 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     await vacio.getByRole('button', { name: 'Conectar por SSH…' }).click()
     await expect(riel.getByRole('combobox', { name: 'Buscar conexión' }), '«Conectar por SSH…» lleva el foco al filtro del riel').toBeFocused()
     await expect(popover(), 'y no abre el lanzador').toHaveCount(0)
-    const conmutador = panel().getByRole('button', { name: 'Panel de conexiones' })
-    await conmutador.click()
-    await expect(riel).toBeHidden()
+    const tamano = await plegarRielPorSitio(s, riel)
     await vacio.getByRole('button', { name: 'Conectar por SSH…' }).click()
     await expect(popover(), 'con el riel plegado vuelve al lanzador').toBeVisible()
     await win.keyboard.press('Escape')
     await expect(popover()).toHaveCount(0)
-    await conmutador.click()
-    await expect(riel, 'se deja el riel como estaba: a la vista').toBeVisible()
+    await ensancharVentana(s, riel, tamano)
     await panel().getByRole('button', { name: 'Restaurar el panel de terminal' }).click()
     await expect(win.locator('.shell')).not.toHaveClass(/\bfranja-pantalla-completa\b/)
   })
@@ -1538,21 +1555,21 @@ test.describe.serial('Un archivo de conexiones que esta versión no sabe leer', 
     const riel = win.locator('aside.ssh-riel')
     await expect(riel.getByText('No se pueden usar las conexiones SSH')).toBeVisible()
 
-    // Plegar el riel guarda los ajustes enteros: con una lista vacía que no es de fiar no se poda nada.
-    await panel.getByRole('button', { name: 'Panel de conexiones' }).click()
-    await expect(riel).toBeHidden()
-    const guardado = (): { riel: unknown; pestanas: unknown } => {
+    // Ensanchar el riel guarda los ajustes enteros: con una lista vacía que no es de fiar no se poda nada.
+    await win.getByRole('separator', { name: 'Redimensionar la lista de conexiones SSH' }).focus()
+    await win.keyboard.press('ArrowRight')
+    const guardado = (): { ancho: unknown; pestanas: unknown } => {
       try {
         const e = JSON.parse(readFileSync(join(s.datos, 'workspace-state.json'), 'utf8')) as {
-          settings?: { sshRielVisiblePorPerfil?: Record<string, boolean>; sshPestanasPorPerfil?: Record<string, unknown[]> }
+          settings?: { sshRielAncho?: number; sshPestanasPorPerfil?: Record<string, unknown[]> }
         }
-        return { riel: e.settings?.sshRielVisiblePorPerfil?.personal, pestanas: e.settings?.sshPestanasPorPerfil?.personal }
+        return { ancho: e.settings?.sshRielAncho, pestanas: e.settings?.sshPestanasPorPerfil?.personal }
       } catch {
         // La app lo está reescribiendo en este instante: el sondeo vuelve a mirar.
-        return { riel: undefined, pestanas: undefined }
+        return { ancho: undefined, pestanas: undefined }
       }
     }
-    await expect.poll(() => guardado().riel, { message: 'plegar el riel llegó al archivo de ajustes' }).toBe(false)
+    await expect.poll(() => guardado().ancho, { message: 'ensanchar el riel llegó al archivo de ajustes' }).toBeGreaterThan(260)
     expect(guardado().pestanas, 'la pestaña recordada sigue: un archivo ajeno no dice qué conexiones existen').toEqual([{ conexionId: 'c-web', alias: 'Web' }])
   })
 })

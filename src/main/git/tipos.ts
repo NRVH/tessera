@@ -15,15 +15,16 @@ export interface GitServiceOptions {
   /** Logger del main (por defecto `console.log` con prefijo). */
   log?: (msg: string) => void
   /**
-   * Confirma un borrado irrecuperable (archivo sin seguimiento, o añadido sin commit):
-   * recibe el nombre y devuelve true si el usuario lo aprueba. Por defecto no borra nada.
+   * Confirma el descarte de un archivo: `borra` dice si se elimina del disco (sin seguimiento, o
+   * añadido sin commit) o si vuelve a HEAD perdiendo lo no commiteado. True si el usuario lo
+   * aprueba. Por defecto no se descarta nada.
    */
-  confirmDiscard?: (fileName: string) => Promise<boolean>
+  confirmDiscard?: (fileName: string, borra: boolean) => Promise<boolean>
   /**
-   * Confirma UNA vez un descarte en lote: recibe los nombres de lo que se va a BORRAR (lo
-   * que git puede devolver no se lista). Por defecto no borra nada.
+   * Confirma UNA vez un descarte en lote, antes de tocar nada: los nombres de lo que se va a
+   * BORRAR del disco y, aparte, los de lo que vuelve a HEAD. Por defecto no se descarta nada.
    */
-  confirmDiscardMany?: (fileNames: string[]) => Promise<boolean>
+  confirmDiscardMany?: (aBorrar: string[], aRevertir: string[]) => Promise<boolean>
   /** Emisor hacia el renderer para los avisos parciales de `multiStatus`; sin él no se emite nada. */
   eventos?: EmisorEventos
   /** Contenedora del proyecto. Omitida: la fija `setProjectRoot`. */
@@ -66,7 +67,7 @@ export interface GrupoRepo {
 }
 
 /**
- * Qué hay que hacerle a un archivo para descartarlo: `revertir` (en HEAD, recuperable),
+ * Qué hay que hacerle a un archivo para descartarlo: `revertir` (en HEAD: vuelve a esa versión),
  * `borrar-indexado` (añadido sin commit: fuera del índice y del disco) o `borrar` (sin seguimiento).
  */
 export type ClaseDescarte = 'revertir' | 'borrar-indexado' | 'borrar'

@@ -647,7 +647,7 @@ async function main(): Promise<void> {
     if (parametrosSql('select :a, ?1', 'sqlite').length === 2) {
       const choque = await ejecutar('select :a, ?1', k1, 10, { binds: { a: 'A', '1': 'uno' } })
       const avisosChoque = choque.ok ? ((choque.valor as { avisos?: string[] }).avisos ?? []) : []
-      check('(c) `:a, ?1`: las dos columnas valen A, y el resultado avisa', choque.ok && JSON.stringify(filasDe(choque.valor)) === '[["A","A"]]' && avisosChoque.some((a) => /MISMO parámetro/.test(a)), JSON.stringify(choque.ok ? { f: filasDe(choque.valor), a: avisosChoque } : choque))
+      check('(c) `:a, ?1`: las dos columnas valen A, y el resultado avisa', choque.ok && JSON.stringify(filasDe(choque.valor)) === '[["A","A"]]' && avisosChoque.some((a) => /mismo parámetro/.test(a)), JSON.stringify(choque.ok ? { f: filasDe(choque.valor), a: avisosChoque } : choque))
     } else {
       console.log('  (el léxico aún no da `?1` de SQLite: el aviso de (c) queda para cuando lo dé)')
     }

@@ -9,6 +9,7 @@
 import { fileURLToPath } from 'node:url'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
+import { MAX_REGLAS_PERFIL } from '../../shared/reglasPerfil.ts'
 import { validateProfileShape } from './validate.ts'
 import type { Profile } from './types.ts'
 
@@ -103,6 +104,16 @@ function main(): void {
     erroresDuplicado.some((e) => e.includes('duplicado')),
     `errores=${JSON.stringify(erroresDuplicado)}`
   )
+
+  // --- CASO (d): reglas del perfil: opcionales, con tope -------------------------
+  hr('CASO (d) - "reglas" opcional: válida, vacía, en el tope, demasiado larga o de otro tipo')
+  const conReglas = (reglas: unknown): unknown => ({ ...duplicado, agentes: [{ tipo: 'claude-code', configDir: './a' }], reglas })
+  check('(d.1) un texto de reglas es válido', validateProfileShape(conReglas('Sube siempre a la rama de trabajo.')).length === 0, '')
+  check('(d.2) en el tope exacto es válido', validateProfileShape(conReglas('x'.repeat(MAX_REGLAS_PERFIL))).length === 0, '')
+  const largas = validateProfileShape(conReglas('x'.repeat(MAX_REGLAS_PERFIL + 1)))
+  check('(d.3) pasado el tope se rechaza con un error claro', largas.some((e) => e.includes('reglas')), `errores=${JSON.stringify(largas)}`)
+  const noTexto = validateProfileShape(conReglas(42))
+  check('(d.4) que no sea texto se rechaza', noTexto.some((e) => e.includes('reglas')), `errores=${JSON.stringify(noTexto)}`)
 
   // --- Reporte final -----------------------------------------------------------
   hr('RESULTADO DE VERIFICACIONES (PASS/FAIL)')

@@ -7,10 +7,12 @@
 // =============================================================================
 import { app, type BrowserWindow } from 'electron'
 import { SHUTDOWN_CHANNELS, type ShutdownProgress } from '../../shared/shutdown-ipc'
+import { esMac } from '../../shared/plataforma'
 import {
   anticiparRelevo,
   cancelarRelevoAnticipado,
   cierreCanceladoAntesDeInstalar,
+  hayRelevoAnticipado,
   openInstallerManually,
   planDeCierre,
   reportInstallAborted,
@@ -308,9 +310,17 @@ async function aplicarActualizacion(
 ): Promise<void> {
   // Tras un cierre normal las ventanas de agente no vuelven; tras actualizar y relanzar, sí.
   if (plan.relanzar) refs.restauracion?.guardar(recuerdo)
-  // Solo el main sabe si se va a relanzar.
+  // Solo el main sabe si se va a relanzar y quién cuenta el resto: en Windows, la ventana del
+  // relevo si ya está en marcha (que no relanza: abre el usuario); en macOS, las notificaciones
+  // del guion; en Linux, nadie, porque el AppImage se sustituye antes de cerrar.
   const tc = txApp().cierre
-  const sub = plan.relanzar ? tc.volveraAbrirse : tc.seCerrara
+  const sub = hayRelevoAnticipado()
+    ? tc.ventanaActualizacion
+    : plan.relanzar
+      ? tc.volveraAbrirse
+      : esMac()
+        ? tc.seCerraraConAviso
+        : tc.seCerrara
   send({ phase: 'installing', done: 0, total: 0, label: tc.preparando, sub })
 
   // Si el instalador toma el control, esto NUNCA resuelve (el proceso muere).

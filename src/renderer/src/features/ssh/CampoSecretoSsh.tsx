@@ -71,7 +71,7 @@ export function CampoSecretoSsh({ borrador, destino, marcados, editar }: PropsCa
         <p className="dbc-ayuda">{ayudaSecreto(destino, esFrase)}</p>
         {olvidable && (
           <button type="button" className="btn btn-ghost ssh-secreto-olvidar" onClick={() => editar({ olvidarSecreto: !borrador.olvidarSecreto, secreto: '' })}>
-            {borrador.olvidarSecreto ? t.noOlvidarla : t.olvidarGuardada(esFrase)}
+            {borrador.olvidarSecreto ? t.noOlvidarla(esFrase) : t.olvidarGuardada(esFrase)}
           </button>
         )}
       </div>

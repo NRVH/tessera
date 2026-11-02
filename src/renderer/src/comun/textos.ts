@@ -52,7 +52,7 @@ export const txComun = crearTextos(
     errorInterfaz: 'the interface',
     errorTotal: 'Something broke in the interface',
     errorEn: (zona: string) => `Error in ${zona}`,
-    recargarInterfaz: 'Reload the interface',
+    recargarInterfaz: 'Reload interface',
     reintentar: 'Retry',
     trabajoASalvo: 'Your work on disk is safe. ',
     alRecargar: 'Reloading restores the session.',

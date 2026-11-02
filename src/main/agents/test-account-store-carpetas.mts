@@ -106,6 +106,17 @@ function main(): void {
     check('NEGATIVO: ni vacío ni el de la predeterminada', fallo(() => store.rename(trabajo.id, '   ')) !== '' && fallo(() => store.rename(trabajo.id, 'Default')) !== '', 'ok')
     check('NEGATIVO: la predeterminada no se renombra', fallo(() => store.rename(def.id, 'Mía')) !== '', 'ok')
     check('NEGATIVO: una que no existe da error, no se crea', fallo(() => store.rename('no-existe', 'X')) !== '' && store.get('no-existe') === undefined, 'ok')
+
+    hr('(5) rutaDe: la misma carpeta que hostDirFor, sin crear ni mover nada')
+    const fantasma = { id: 'sin-carpeta', nombre: 'Fantasma', agente: 'claude-code' as const, profileId: 'p' }
+    const prevista = store.rutaDe(fantasma)
+    check('una cuenta sin carpeta: da su ruta y no la crea', prevista === path.join(raiz, '.tessera', 'perfiles', 'p', 'claude-cuentas', 'sin-carpeta') && !existsSync(prevista), prevista)
+    check('una existente: la misma que hostDirFor', store.rutaDe(personal) === store.hostDirFor(personal) && store.rutaDe(def) === store.hostDirFor(def), store.rutaDe(personal))
+    const rezagada = { id: 'rezagada', nombre: 'Rezagada', agente: 'claude-code' as const, profileId: 'p' }
+    const dentro = path.join(legacy, 'rezagada')
+    mkdirSync(dentro, { recursive: true })
+    const ruta = store.rutaDe(rezagada)
+    check('una que sigue anidada: apunta a donde está y no la mueve', ruta === dentro && existsSync(dentro) && !existsSync(path.join(raiz, '.tessera', 'perfiles', 'p', 'claude-cuentas', 'rezagada')), ruta)
   } finally {
     rmSync(raiz, { recursive: true, force: true })
   }

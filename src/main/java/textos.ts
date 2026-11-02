@@ -91,10 +91,10 @@ export const txJava = crearTextos(
       noEsJava: 'That does not look like a java.exe: running it did not return a Java version.',
       sinJava: 'No Java installation was found on this computer.',
       necesitaJdk: (requiere: number, mejor: number) =>
-        `It needs JDK ${requiere} or later; the newest one found is ${mejor}.`,
+        `It requires JDK ${requiere} or later; the newest one found is ${mejor}.`,
       sinJavaMensaje:
-        'Java was not found on this computer. Viewing the code of a class needs a Java installation ' +
-        '(any version from 6). If you have one in an unusual location, choose it with “Choose java.exe…”.'
+        'Java was not found on this computer. Viewing the code of a class requires a Java installation ' +
+        '(version 6 or later). If you have one in an unusual location, choose it with “Choose java.exe…”.'
     },
     dialogo: {
       tituloWindows: 'Choose the Java executable (java.exe)',
@@ -105,7 +105,7 @@ export const txJava = crearTextos(
       rutaVacia: 'That path does not point to anything inside a compressed file.',
       yaNoEsta: (interna: string) =>
         `“${interna}” is no longer inside the file. ` +
-        'It may have been rebuilt since you last opened it.',
+        'It might have been rebuilt since you last opened it.',
       demasiadosAnidados: 'There are too many files nested inside one another.',
       esCarpeta: 'That is a folder, not a compressed file.',
       muyGrande: (mb: number) => `The file is ${mb} MB and exceeds the maximum Tessera opens.`,
@@ -122,7 +122,7 @@ export const txJava = crearTextos(
       zip64Falta: 'The file says it is ZIP64 but its extended index is missing.',
       zip64Danado: 'The file’s extended index (ZIP64) is damaged.',
       indiceFuera: 'The file’s index points outside of it (it is damaged or incomplete).',
-      indiceCortado: 'The file’s index is cut off in the middle of an entry; what could be read was listed.',
+      indiceCortado: 'The file’s index is truncated in the middle of an entry; the readable entries were listed.',
       nombreNoAdmitido: (nombre: string) => `An entry with an unsupported name was ignored: ${nombre}`,
       masDeEntradas: (n: number) =>
         `The file has more than ${n.toLocaleString(localeActual())} entries; the first ones were listed.`,
@@ -130,12 +130,12 @@ export const txJava = crearTextos(
       entradaGrande: (nombre: string, mb: number) =>
         `“${nombre}” is ${mb} MB uncompressed and exceeds the maximum Tessera opens.`,
       compresion: (nombre: string, metodo: number) =>
-        `“${nombre}” uses a compression Tessera cannot read (method ${metodo}). ` +
+        `“${nombre}” uses a compression method Tessera cannot read (method ${metodo}). ` +
         'Open it with an external tool.',
       entradaDesplazada: (nombre: string) =>
-        `The file is damaged: entry “${nombre}” is not where its index says.`,
+        `The file is damaged: entry “${nombre}” is not where its index says it is.`,
       entradaSupera: (nombre: string) => `“${nombre}” exceeds the maximum Tessera opens.`,
-      noDescomprime: (nombre: string) => `Could not decompress “${nombre}” (it may be damaged or encrypted).`
+      noDescomprime: (nombre: string) => `Could not decompress “${nombre}” (it might be damaged or encrypted).`
     }
   }
 )

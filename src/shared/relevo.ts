@@ -3,7 +3,8 @@
 // cuando Tessera ya no existe (espera a que muera, lanza el instalador y cuenta cómo salió).
 // Corre desde una COPIA fuera de la carpeta de instalación, que es la que el instalador
 // tiene que renombrar. Aquí solo vive lo que se prueba con `node`: la forma del encargo,
-// si el relevo es utilizable y cómo se lee la salida del instalador; el efecto, en `main/relevo/`.
+// si el relevo es utilizable, cómo se lee la salida del instalador, qué se dice tras un fallo
+// y si se puede reponer la copia; el efecto, en `main/relevo/`.
 // Decisiones: docs/decisiones/actualizacion/relevo-de-windows.md
 // =============================================================================
 import { crearTextos } from './i18n.ts'
@@ -15,34 +16,102 @@ const txRelevo = crearTextos(
     noEjecutoTitulo: 'El instalador no llegó a ejecutarse',
     noEjecutoDetalle:
       'No se pudo arrancar el archivo de instalación. Suele ser que el antivirus lo ' +
-      'bloqueó o que la descarga ya no está en su sitio. Tessera sigue instalada y ' +
-      'funcionando en la versión anterior.',
+      'bloqueó o que la descarga ya no está en su sitio.',
     canceladaTitulo: 'Cancelaste la instalación',
-    canceladaDetalle: 'Windows pidió permiso y no se concedió. No se cambió nada.',
+    canceladaDetalle: 'Windows pidió permiso y no se concedió, así que el instalador no llegó a empezar.',
     noReemplazoTitulo: 'El instalador no pudo reemplazar los archivos',
     noReemplazoDetalle:
       'El desinstalador de la versión anterior abortó. Casi siempre es una ruta ' +
       'demasiado larga dentro de la carpeta de la aplicación, no un archivo en uso.',
     fallo: (code: number) => `El instalador falló (código ${code})`,
-    falloDetalle: 'Tessera sigue instalada en la versión anterior; puedes abrirla y reintentar.'
+    falloDetalle: 'El instalador terminó con un error antes de acabar.',
+    sigueEnSuSitio:
+      'Puedes reintentar, volver a la versión anterior o abrir el instalador para hacerlo paso a paso.',
+    seQuito:
+      'La versión anterior se quitó y la nueva no llegó a instalarse. Puedes reintentar, volver a la ' +
+      'versión anterior (sigue guardada) o abrir el instalador para hacerlo paso a paso.'
   },
   {
     instalada: 'Update installed',
     noEjecutoTitulo: 'The installer did not run',
     noEjecutoDetalle:
       'The installation file could not be started. This is usually because an antivirus ' +
-      'blocked it or the download is no longer where it was. Tessera is still installed and ' +
-      'working on the previous version.',
+      'blocked it or the downloaded file was moved or deleted.',
     canceladaTitulo: 'You canceled the installation',
-    canceladaDetalle: 'Windows asked for permission and it was not granted. Nothing was changed.',
+    canceladaDetalle: 'Windows asked for permission and it was not granted, so the installer did not start.',
     noReemplazoTitulo: 'The installer could not replace the files',
     noReemplazoDetalle:
-      'The uninstaller of the previous version aborted. It is almost always a path ' +
-      'that is too long inside the app folder, not a file in use.',
+      'The previous version’s uninstaller stopped. This is almost always caused by a path ' +
+      'that is too long inside the app folder, not by a file in use.',
     fallo: (code: number) => `The installer failed (code ${code})`,
-    falloDetalle: 'Tessera is still installed on the previous version; you can open it and try again.'
+    falloDetalle: 'The installer stopped with an error before finishing.',
+    sigueEnSuSitio:
+      'You can try again, go back to the previous version or open the installer to do it step by step.',
+    seQuito:
+      'The previous version was removed and the new one was not installed. You can try again, go back ' +
+      'to the previous version (it is still saved) or open the installer to do it step by step.'
   }
 )
+
+/** Lo que la ventana del relevo sabe pintar. */
+export interface EstadoRelevo {
+  fase: 'esperando' | 'instalando' | 'ok' | 'error'
+  titulo: string
+  detalle: string
+  /** Líneas de registro que se enseñan en el desplegable. */
+  log: string[]
+}
+
+/** Lo que se le pide pintar a la ventana; el registro lo pone ella. */
+export type EstadoPintable = Omit<EstadoRelevo, 'log'>
+
+/** Nombre del encargo dentro de la carpeta del relevo. */
+export const NOMBRE_ENCARGO = 'encargo.json'
+/** Marcador con la versión con la que se hizo la copia del relevo. */
+export const MARCADOR_COPIA = 'version.txt'
+/** Lo que la carpeta del relevo tiene y la instalación no: no se repone al volver a la versión anterior. */
+export const PROPIOS_DE_LA_COPIA = [NOMBRE_ENCARGO, MARCADOR_COPIA] as const
+
+/**
+ * Qué se le dice tras un fallo, según si el ejecutable sigue en su sitio. Se comprueba en vez de
+ * suponerlo: el instalador desinstala la versión vieja ANTES de poner la nueva, y si falla entre
+ * medias no queda nada que abrir.
+ */
+export function situacionTrasFallo(appEnSuSitio: boolean): string {
+  return appEnSuSitio ? txRelevo().sigueEnSuSitio : txRelevo().seQuito
+}
+
+/**
+ * ¿Se puede reponer la copia del relevo sobre la carpeta de instalación? Es el destino de un
+ * `robocopy /MIR`, que borra lo que sobra: nunca la raíz de una unidad, nunca la propia copia y
+ * nunca una carpeta que contenga a la otra. Rutas de Windows: solo allí hay relevo con copia.
+ */
+export function destinoRestaurable(raiz: string, copia: string): boolean {
+  const r = rutaWindowsNormal(raiz)
+  const c = rutaWindowsNormal(copia)
+  if (r === null || c === null) return false
+  // `c:` (la unidad) o `\\servidor\recurso` (la raíz de un recurso compartido).
+  if (/^[a-z]:$/.test(r) || /^\\\\[^\\]+\\[^\\]+$/.test(r)) return false
+  if (r === c) return false
+  return !r.startsWith(`${c}\\`) && !c.startsWith(`${r}\\`)
+}
+
+/** Ruta absoluta de Windows en minúsculas, con `\`, sin barra final ni `.`/`..`; o null si no es absoluta. */
+function rutaWindowsNormal(ruta: string): string | null {
+  const s = ruta.trim().replace(/\//g, '\\').toLowerCase()
+  const unidad = /^[a-z]:\\/.test(s)
+  if (!unidad && !s.startsWith('\\\\')) return null
+  const prefijo = unidad ? s.slice(0, 2) : ''
+  const partes: string[] = []
+  for (const p of (unidad ? s.slice(3) : s.slice(2)).split('\\')) {
+    if (p === '' || p === '.') continue
+    if (p === '..') {
+      if (partes.length === 0) return null
+      partes.pop()
+    } else partes.push(p)
+  }
+  return unidad ? [prefijo, ...partes].join('\\') : `\\\\${partes.join('\\')}`
+}
 
 /** Versión del formato del encargo. Sube si cambian los campos. */
 export const ENCARGO_VERSION = 1

@@ -46,7 +46,8 @@ lo último que se tecleó, y sin que el instalador tropiece con archivos en uso.
   cerrar la última ventana o al salir, y entonces cierra también las de agente; si relanza tras actualizar, deja
   escritas las que hay para reabrirlas → [`agentes/ventana-de-agente.md`](../agentes/ventana-de-agente.md).
 - Con actualización: se matan los ptys registrados (en Windows cargan `OpenConsole.exe` desde la carpeta de
-  instalación) y se lanza el instalador. Si falla y el cierre lo pidió el usuario al CERRAR, se sale igual (nunca se
+  instalación) y se lanza el instalador; el aviso de cierre dice quién contará el resto (en Windows la ventana del
+  relevo, en macOS las notificaciones del guion). Si falla y el cierre lo pidió el usuario al CERRAR, se sale igual (nunca se
   devuelve una app vaciada que no pidió actualizar). Si pidió actualizar: plan B, abrir el instalador a mano; plan C,
   abortar el cierre, reanudar el explorador de BD y el puente, y enseñar el error.
 

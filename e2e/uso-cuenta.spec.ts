@@ -153,7 +153,7 @@ test.describe('uso de la cuenta en el pie del agente', () => {
         },
         { timeout: 15_000 }
       )
-      .toEqual(['Sesión (5 h)', 'Semanal (7 días)', 'Semanal Fable'])
+      .toEqual(['Cada 5 horas', 'Semanal', 'Semanal Fable'])
     await s.win.mouse.move(5, 5)
     await expect(pop).toHaveCount(0)
   })

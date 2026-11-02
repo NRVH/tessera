@@ -21,6 +21,7 @@ import { freeInstallDirForUpdate, preflightInstallDirPaths } from './installDirL
 import { cancelarRelevo, esperarCopiaRelevo, lanzarRelevo } from './stagingRelevo'
 import { decidirComoInstalar } from './decisionInstalar'
 import { bundleDeLaApp, lanzarRelevoMac, sePuedeEscribirEnElBundle } from './relevoMac'
+import { rutaApartado, type AvisosRelevoMac } from './relevoMacPuro'
 import { procesoVivo } from '../relevo/supervisor'
 import { logUpdate as log } from './logUpdate'
 import { txUpdate } from './textos.ts'
@@ -85,7 +86,7 @@ let relevoAnticipado: number | null = null
 /** El marcador de la actualización que se le puede ceder al relevo ahora mismo, o null. Sin efectos. */
 function relevoAplicable(): MarcadorUpdate | null {
   const plan = planDeCierre()
-  if (plan.tipo !== 'instalar' || !plan.relanzar) return null
+  if (plan.tipo !== 'instalar') return null
   const m = ciclo.marcador
   if (m === null || !instaladorPresente(m)) return null
   return decisionActual().via === 'quitAndInstall' ? m : null
@@ -101,16 +102,23 @@ function decisionActual(): ReturnType<typeof decidirComoInstalar> {
 }
 
 /**
- * Windows, «Actualizar ahora»: lanza el relevo al EMPEZAR el cierre, antes de matar terminales
- * y contenedores. Su ventana sale en el acto, y como solo espera a que desaparezca este pid, la
- * actualización sigue aunque este proceso muera a mitad del cierre sin llegar a `runInstaller`.
- * Si el cierre acaba abortándose, `fallarInstalacion` lo cancela. Devuelve si quedó lanzado.
+ * Windows, siempre que se vaya a instalar (con «Actualizar ahora» o al cerrar con una preparada):
+ * lanza el relevo al EMPEZAR el cierre, antes de matar terminales y contenedores. Su ventana sale
+ * en el acto y cuenta la instalación hasta el final, y como solo espera a que desaparezca este
+ * pid, la actualización sigue aunque este proceso muera a mitad del cierre sin llegar a
+ * `runInstaller`. Si el cierre acaba abortándose, `fallarInstalacion` lo cancela. Devuelve si
+ * quedó lanzado.
  */
 export function anticiparRelevo(): boolean {
   if (relevoAnticipado !== null) return true
   const marcador = esWindows() ? relevoAplicable() : null
   if (marcador === null) return false
   relevoAnticipado = lanzarRelevo(marcador.rutaInstalador, marcador.versionDestino, (m) => log(m))
+  return relevoAnticipado !== null
+}
+
+/** ¿Hay una ventana de actualización en marcha? El aviso de cierre solo la promete entonces. */
+export function hayRelevoAnticipado(): boolean {
   return relevoAnticipado !== null
 }
 
@@ -124,16 +132,17 @@ export function cancelarRelevoAnticipado(): void {
 /**
  * ¿Hay un relevo vivo al que entregarle el trabajo? Normalmente ya está lanzado desde el
  * principio del cierre (`anticiparRelevo`); si no (la copia aún no estaba) o se cayó mientras
- * esperaba, se lanza aquí, DESPUÉS de los dos pre-vuelos. Sólo con `relanzar`: al cerrar, abrir
- * una ventana que sobreviva a la app es justo lo que el usuario no pidió. Sin copia, `false` y
- * se sigue por el camino de siempre.
+ * esperaba, se lanza aquí, DESPUÉS de los dos pre-vuelos. También al cerrar: instalar sin una
+ * ventana deja al usuario sin la app y sin saber por qué mientras dura. Sin copia, `false` y se
+ * sigue por el camino de siempre.
  */
-function relevoEnMarcha(opts: RunInstallerOptions): boolean {
+function relevoEnMarcha(): boolean {
   if (relevoAnticipado !== null && !procesoVivo(relevoAnticipado)) {
     log(`el relevo anticipado (pid ${relevoAnticipado}) ya no existe; se lanza otro.`)
     relevoAnticipado = null
   }
-  if (!opts.relanzar || ciclo.marcador === null || !instaladorPresente(ciclo.marcador)) return false
+  // En Linux no hay relevo: el AppImage se sustituye dentro de `quitAndInstall`, con la app viva.
+  if (!esWindows() || ciclo.marcador === null || !instaladorPresente(ciclo.marcador)) return false
   if (relevoAnticipado !== null) return true
   relevoAnticipado = lanzarRelevo(ciclo.marcador.rutaInstalador, ciclo.marcador.versionDestino, (m) => log(m))
   if (relevoAnticipado === null) log('no hay relevo preparado; se instala por el camino de siempre.')
@@ -254,7 +263,7 @@ export async function runInstaller(opts: RunInstallerOptions): Promise<false> {
     log(`el pre-vuelo de rutas lanzó (se sigue): ${rawDetail(err)}`)
   }
 
-  if (relevoEnMarcha(opts)) {
+  if (relevoEnMarcha()) {
     paso(txUpdate().pasos.entregandoVentana)
     // Se sella ANTES de morir: después de `app.exit` no hay `finally`, y el arranque
     // siguiente necesita saber que se intentó.
@@ -309,6 +318,19 @@ export async function runInstaller(opts: RunInstallerOptions): Promise<false> {
   })
 }
 
+/** Las notificaciones con las que el guion de macOS cuenta la actualización con la app cerrada. */
+function avisosMac(bundle: string, relanzar: boolean): AvisosRelevoMac {
+  const version = ciclo.marcador?.versionDestino ?? ciclo.state.newVersion ?? ''
+  const am = txUpdate().avisosMac
+  return {
+    titulo: am.titulo,
+    inicio: am.inicio(version),
+    ok: relanzar ? am.okReabre(version) : am.ok(version),
+    fallo: am.fallo,
+    sinVuelta: am.sinVuelta(rutaApartado(bundle))
+  }
+}
+
 /**
  * La rama de macOS de `runInstaller`: misma forma (pre-vuelos, ceder el control, y si
  * seguimos vivos pasado el plazo es que falló) con otro mecanismo detrás. Los dos
@@ -354,7 +376,8 @@ function instalarEnMac(opts: RunInstallerOptions, paso: (label: string) => void)
   }
 
   paso(txUpdate().pasos.entregando)
-  if (!lanzarRelevoMac({ zip, destino: bundle, relanzar: opts.relanzar, log: (m) => log(m) })) {
+  const avisos = avisosMac(bundle, opts.relanzar)
+  if (!lanzarRelevoMac({ zip, destino: bundle, relanzar: opts.relanzar, avisos, log: (m) => log(m) })) {
     // NO se bloquea: no poder escribir o lanzar un guion es transitorio (disco lleno, un
     // antivirus), y bloquear mataría una actualización perfectamente buena.
     fallarInstalacion(installerNotStartedError(), 'runInstaller/mac/lanzar', opts)

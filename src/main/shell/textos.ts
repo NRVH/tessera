@@ -30,10 +30,10 @@ export const txShell = crearTextos(
   {
     linux: {
       noDisponible: '“Open with Tessera” is not available here.',
-      conservarAplicacion: 'keep the folders’ application',
+      conservarAplicacion: 'keep the default app for folders',
       escribirEntrada: 'write the entry',
       borrarEntrada: 'delete the entry',
-      yaExiste: (ruta: string) => `${ruta} already exists and Tessera did not create it; it is not replaced`,
+      yaExiste: (ruta: string) => `${ruta} already exists and Tessera did not create it, so it is not replaced`,
       noSeCita: 'the Tessera path cannot be quoted'
     },
     windows: {

@@ -47,7 +47,7 @@ function renderOpcion(
       ref={(el) => {
         itemRefs.current[i] = el
       }}
-      className={`ctx-menu-item${entry.danger ? ' danger' : ''}`}
+      className={`ctx-menu-item${entry.danger ? ' danger' : ''}${entry.detalle ? ' con-detalle' : ''}`}
       role={entry.checked !== undefined ? 'menuitemcheckbox' : 'menuitem'}
       aria-checked={entry.checked !== undefined ? entry.checked : undefined}
       disabled={entry.disabled}
@@ -70,7 +70,14 @@ function renderOpcion(
           {entry.icon}
         </span>
       )}
-      {entry.label}
+      {entry.detalle ? (
+        <span className="ctx-menu-textos">
+          <span>{entry.label}</span>
+          <span className="ctx-menu-detalle">{entry.detalle}</span>
+        </span>
+      ) : (
+        entry.label
+      )}
     </button>
   )
 }

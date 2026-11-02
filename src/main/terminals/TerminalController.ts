@@ -20,8 +20,10 @@ import {
   type ResizeTerminalMessage,
   type FlowControlMessage,
   type TerminalDataMessage,
-  type TerminalExitMessage
+  type TerminalExitMessage,
+  type TerminalesEnMarcha
 } from '../../shared/terminal-ipc'
+import { contarConProceso, type FilaProceso } from './terminalesEnMarcha'
 import { txMain } from '../textos.ts'
 
 /** Config de arranque del controlador. */
@@ -50,6 +52,8 @@ export interface TerminalControllerOptions {
   revokeDbSession?: (sessionId: string) => void
   /** El dominio SSH (`ssh/ControladorSsh`): sin él, `abrirSsh` no está disponible. */
   lanzadorSsh?: LanzadorSshTerminal
+  /** La tabla de procesos del sistema, o null si no se pudo leer; sin ella no se sabe qué ejecuta una terminal. */
+  tablaProcesos?: (shells: readonly number[]) => Promise<FilaProceso[] | null>
 }
 
 interface OpenSession {
@@ -79,6 +83,7 @@ export class TerminalController {
   private readonly bindDbSession: (extraEnv: Record<string, string>, sessionId: string) => void
   private readonly revokeDbSession: (sessionId: string) => void
   private readonly lanzadorSsh: LanzadorSshTerminal | null
+  private readonly tablaProcesos: ((shells: readonly number[]) => Promise<FilaProceso[] | null>) | null
   private readonly log: (msg: string) => void
 
   constructor(opts: TerminalControllerOptions) {
@@ -89,6 +94,7 @@ export class TerminalController {
     this.bindDbSession = opts.bindDbSession ?? (() => {})
     this.revokeDbSession = opts.revokeDbSession ?? (() => {})
     this.lanzadorSsh = opts.lanzadorSsh ?? null
+    this.tablaProcesos = opts.tablaProcesos ?? null
     this.log = opts.log ?? ((m) => console.log(`[terminal] ${m}`))
   }
 
@@ -327,6 +333,21 @@ export class TerminalController {
   /** El perfil de una sesión abierta, o `undefined` si no existe (o el id no es un texto): su RELOAD espera al borrado de ese perfil. */
   perfilDeSesion(sessionId: unknown): string | undefined {
     return typeof sessionId === 'string' ? this.sessions.get(sessionId)?.profileId : undefined
+  }
+
+  /**
+   * Las terminales de shell vivas del perfil y cuántas ejecutan algo (hibernar las cierra; las SSH
+   * no). Sin terminales no se consulta la tabla de procesos, que en Windows cuesta ~1 s.
+   */
+  async terminalesEnMarcha(profileId: unknown): Promise<TerminalesEnMarcha> {
+    const pids = [...this.sessions.values()]
+      .filter((s) => s.profileId === profileId && !s.ssh)
+      .map((s) => this.terminals.pidDe(s.sessionId))
+      .filter((pid): pid is number => pid !== null)
+    if (pids.length === 0) return { abiertas: 0, enMarcha: 0 }
+    const tabla = this.tablaProcesos ? await this.tablaProcesos(pids).catch(() => null) : null
+    // Una tabla en la que falta algún shell cuenta como «no se pudo mirar», no como «en reposo».
+    return { abiertas: pids.length, enMarcha: tabla === null ? null : contarConProceso(tabla, pids) }
   }
 }
 

@@ -123,8 +123,7 @@ ${documentos}${claves}`,
     '    Suele ser una de estas dos:\n' +
     '      - La terminal se abrió ANTES de montar la base. Pulsa "Recargar" en la\n' +
     '        terminal de abajo, o "Reiniciar" en la cabecera del agente.\n' +
-    '      - No es una terminal de Tessera en modo Windows (una consola suelta, o\n' +
-    '        un proyecto en modo Docker).\n' +
+    '      - No es una terminal de Tessera (una consola abierta fuera de la app).\n' +
     '\n' +
     '    Diagnóstico completo:  tdb doctor',
 
@@ -372,21 +371,21 @@ const en = {
   argAlias: 'alias',
   argSql: 'SQL',
   argTabla: 'table',
-  stdinVacio: 'Nothing arrived on standard input.\n' + "    From bash:  tdb query <db> --stdin <<'SQL'  …  SQL",
-  faltaRutaFile: 'Missing the path after --file.',
+  stdinVacio: 'Nothing was received on standard input.\n' + "    From bash:  tdb query <db> --stdin <<'SQL'  …  SQL",
+  faltaRutaFile: 'Missing path after --file.',
   noExisteArchivo: (ruta) => `The file "${ruta}" does not exist.`,
   archivoVacio: (ruta) => `The file "${ruta}" is empty.`,
   sqlExpandido:
     'Your shell seems to have expanded a variable INSIDE the SQL: the query has a\n' +
-    '    system path embedded in it. It usually happens in cmd.exe with a LIKE that\n' +
-    '    contains %something%, and it would not fail: it would return other rows.\n' +
+    '    system path embedded in it. This usually happens in cmd.exe with a LIKE that\n' +
+    '    contains %something%, and it would not fail: it would return different rows.\n' +
     '\n' +
-    '    Pass it through standard input, which goes through no parser:\n' +
+    '    Pass it through standard input, which bypasses every parser:\n' +
     "      tdb query <db> --stdin <<'SQL'  …  SQL",
   comandoDesconocido: (cmd) => `Unknown command: "${cmd}". See 'tdb help'.`,
 
   ayudaClaves: (kv) => `
-  In ${kv}, query accepts redis-cli commands, with their quotes; several, one per
+  In ${kv}, query accepts redis-cli commands, with their quoting; several, one per
   line (they run in order and stop at the first error; # starts a comment).
   “SELECT <n>” switches the database for the following lines.
 
@@ -398,13 +397,13 @@ const en = {
     REDIS
 
   tdb schema <alias> ["<pattern>"] lists the keys (a bounded SCAN, never KEYS) with their
-  type and TTL; there are no tables, so describe does not apply. There tdb ONLY READS, also
-  on write connections: read commands pass (GET, HGETALL, SCAN, TYPE…);
-  KEYS, CONFIG, FLUSHALL and any write, never. To write, use the Tessera console.
+  type and TTL; there are no tables, so describe does not apply. Here tdb ONLY READS, even
+  on write connections: read commands are allowed (GET, HGETALL, SCAN, TYPE…), but KEYS,
+  CONFIG, FLUSHALL and all writes are rejected. To write, use the Tessera console.
 `,
   ayudaDocumentos: (docs) => `
   In ${docs}, query accepts mongosh syntax, INTERPRETED (no JavaScript is run):
-  one statement per command, and “use <db>” on the first line for another database.
+  one statement per command, and “use <db>” on the first line to switch databases.
 
     tdb query mymongo "db.customers.find({ name: 'Ana' }).sort({ age: -1 }).limit(5)"
 
@@ -415,37 +414,37 @@ const en = {
     db.orders.aggregate([{ $group: { _id: '$customer', n: { $sum: 1 } } }])
     JS
 
-  There tdb enforces read-only: find, aggregate without $out or $merge,
-  countDocuments, distinct… pass; the real guarantee is a user with the read role.
+  Here tdb enforces read-only: find, aggregate without $out or $merge, countDocuments,
+  distinct… are allowed; the real guarantee is a user with the read role.
 `,
   ayuda: (limite, sinCandado, documentos, claves) => `
   tdb — query the databases configured in Tessera (active profile)
 
     tdb ls                          List the connections mounted in this session
-    tdb doctor                      Why it does not work (shell, context, PATH)
+    tdb doctor                      Diagnose problems (shell, context, PATH)
     tdb test <alias>                Check that the connection responds
     tdb query <alias> "<SQL>"       Run a query (limit ${limite} rows)
-    tdb schema <alias>              Tables and foreign keys of the database
-    tdb describe <alias> <TABLE>    Columns, types, PK and references
-    tdb sessions <alias>            Open sessions of your user
-    tdb driver ls | install <id>    Database clients
+    tdb schema <alias>              List tables and foreign keys
+    tdb describe <alias> <TABLE>    Show columns, types, PK and references
+    tdb sessions <alias>            List your user's open sessions
+    tdb driver ls | install <id>    Manage database clients
 
   Options:
     --json          JSON output (for automated use)
-    --limit N       Change the row limit of 'query'
+    --limit N       Change the row limit for 'query'
     --stdin         Read the SQL from standard input, not from the command line
     --file <path>   Read the SQL from a file
 
   LONG SQL OR SQL WITH SYMBOLS: pass it with --stdin. On the command line the SQL
-  goes through the shell's parser and each one mangles it its own way (cmd expands
-  %VAR%, bash expands $ and quotes). From bash, with the delimiter quoted:
+  goes through the shell's parser, and each shell mangles it in its own way (cmd
+  expands %VAR%, bash expands $ and quotes). From bash, quote the delimiter:
 
     tdb query mydb --stdin <<'SQL'
     SELECT * FROM customers WHERE name LIKE '%García%'
     SQL
 
-  Connections are READ-ONLY unless marked otherwise in Tessera: the server does the
-  rejecting (in a file database, Tessera's guard), not this command. ${sinCandado} has
+  Connections are READ-ONLY unless marked otherwise in Tessera: the server enforces it
+  (for a file database, Tessera's guard does), not this command. ${sinCandado} has
   no such lock: there tdb enforces it, rejecting every write, every EXEC and every
   transaction before sending, and rolling back each batch.
   In ${sinCandado}, GO on its own line separates batches, as in sqlcmd.
@@ -456,28 +455,27 @@ ${documentos}${claves}`,
 
   formatoAjeno:
     'This tdb does not recognize the format of the connections registry (db-connections.json),\n' +
-    '    so it sees none of them. It may come from a newer version of Tessera (update\n' +
-    '    to use them) or from a hand edit of the file; Tessera does not touch it.',
+    '    so it sees none of them. It might come from a newer version of Tessera (update\n' +
+    '    to use them) or from a manual edit of the file; Tessera does not modify it.',
   ilegibleNoJson: 'it is not valid JSON',
   ilegibleNoAbre: (codigo) => `it could not be opened (${codigo})`,
   respaldoInservible: ', and its backup copy (db-connections.json.bak) is not usable either',
   respaldoLegible:
     ', and its backup copy (db-connections.json.bak), although readable, is not used: the next ' +
-    'write would replace the registry without having been able to save it aside',
-  remedioRoto: 'fix it (it is usually a hand edit: an extra comma, an unclosed quote)',
+    'write would replace the registry without saving a copy first',
+  remedioRoto: 'fix it (it is usually a manual edit: an extra comma, an unclosed quote)',
   remedioInaccesible: 'check its permissions, or whether another program has it open exclusively,',
   registroIlegible: (que, copia, remedio) =>
     `This tdb cannot read the connections registry (db-connections.json): ${que}${copia}, ` +
-    'so it sees none of them. Tessera does not touch it so as not to lose what is inside: ' +
+    'so it sees none of them. Tessera does not modify it, to avoid losing its contents: ' +
     `${remedio} and restart Tessera, which reads it at startup.`,
 
   sinContexto:
-    'This terminal does not carry the Tessera database context.\n' +
-    '    It is usually one of these two:\n' +
-    '      - The terminal was opened BEFORE mounting the database. Press "Reload" on the\n' +
+    'This terminal does not have the Tessera database context.\n' +
+    '    It is usually one of these two causes:\n' +
+    '      - The terminal was opened BEFORE the database was mounted. Click "Reload" on the\n' +
     '        bottom terminal, or "Restart" in the agent header.\n' +
-    '      - It is not a Tessera terminal in native mode (a standalone console, or\n' +
-    '        a project in Docker mode).\n' +
+    '      - It is not a Tessera terminal (a console opened outside the app).\n' +
     '\n' +
     '    Full diagnosis:  tdb doctor',
 
@@ -487,51 +485,51 @@ ${documentos}${claves}`,
   idRepetido: (nombre, otra) =>
     `"${nombre}" shares its identifier with ${otra}: this tdb cannot tell them apart\n` +
     '    and uses the first one in the registry. Tessera keeps it as is; delete it from\n' +
-    '    Tessera if it is not needed.',
-  motorDesconocido: (nombre, motor) => `"${nombre}" uses an engine (${motor}) this tdb does not know: update Tessera`,
+    '    Tessera if you do not need it.',
+  motorDesconocido: (nombre, motor) => `"${nombre}" uses an engine (${motor}) that this tdb does not recognize: update Tessera`,
   formaDesconocida: (nombre) =>
-    `"${nombre}" is saved in a form this tdb does not recognize.\n` +
-    '    It may come from a newer version of Tessera (update to use it) or from a\n' +
-    '    hand edit of the file; Tessera keeps it as is.',
+    `"${nombre}" is saved in a format this tdb does not recognize.\n` +
+    '    It might come from a newer version of Tessera (update to use it) or from a\n' +
+    '    manual edit of the file; Tessera keeps it as is.',
   ningunaDisponible: '(none)',
   noHayConexion: (alias, disponibles, otras) =>
     `There is no connection named "${alias}" in this profile.\n    Available: ${disponibles}` +
     (otras > 0 ? `\n    (and ${otras} this tdb cannot use: tdb ls)` : ''),
 
   destinoCambiadoEntorno: (alias) =>
-    `The connection "${alias}" changed since this terminal was opened (its server, port,\n` +
-    '    database or user are no longer the same), so tdb does not send it the password from\n' +
-    '    back then. Reload the terminal (or "Restart" in the agent header) to use it;\n' +
-    '    if it stays the same (db-connections.json was edited by hand with Tessera open), restart Tessera.',
+    `The connection "${alias}" changed after this terminal was opened (its server, port,\n` +
+    '    database or user are no longer the same), so tdb does not send it the password saved\n' +
+    '    at that time. Reload the terminal (or "Restart" in the agent header) to use it;\n' +
+    '    if the problem persists (db-connections.json was edited manually while Tessera was open), restart Tessera.',
   destinoCambiadoPuente: (alias) =>
     `The connection "${alias}" in the registry is not the one Tessera has loaded (it changed while\n` +
-    '    tdb was reading it, or db-connections.json was edited by hand with Tessera open), so tdb\n' +
-    '    does not send it its password. Try again; if it stays the same, restart Tessera.',
+    '    tdb was reading it, or db-connections.json was edited manually while Tessera was open), so tdb\n' +
+    '    does not send its password. Try again; if the problem persists, restart Tessera.',
   puenteNoRespondeOpcional: (alias) =>
-    `The Tessera bridge is not responding, so tdb does not know whether "${alias}" has a password.\n` +
-    `    Reload the terminal; if it stays the same, restart Tessera.  (tdb doctor)`,
+    `The Tessera bridge is not responding, so tdb cannot tell whether "${alias}" has a password.\n` +
+    `    Reload the terminal; if the problem persists, restart Tessera.  (tdb doctor)`,
   secretoNoLlego: (alias) =>
     `"${alias}" has a saved password, but it did not reach this terminal (it was saved after\n` +
-    '    opening it). Reload the terminal (or "Restart" in the agent header) to use it.',
+    '    the terminal opened). Reload the terminal (or "Restart" in the agent header) to use it.',
   puenteNoRespondeObligatorio: (alias) =>
     `The Tessera bridge is not responding, so there are no credentials for "${alias}".\n` +
-    `    The password IS saved; what fails is the connection with Tessera.\n` +
-    `    Reload the terminal; if it stays the same, restart Tessera.  (tdb doctor)`,
+    `    The password IS saved; the connection to Tessera is what fails.\n` +
+    `    Reload the terminal; if the problem persists, restart Tessera.  (tdb doctor)`,
   sinContrasena: (alias) =>
     `There is no password for "${alias}" in this session.\n` +
     `    Save it with "Edit connection…" in the Tessera Databases view and reopen the terminal.`,
   tunelSinPuente: (alias) =>
-    `"${alias}" goes through an SSH tunnel, and Tessera opens that tunnel: this terminal cannot reach it\n` +
-    '    (the bridge is not responding or is missing). Reload the terminal; if it stays the same, restart Tessera.  (tdb doctor)',
-  tunelFallo: (alias, detalle) => `Could not open the SSH tunnel of "${alias}": ${detalle}`,
-  tunelSinRespuesta: 'Tessera did not answer in time.',
+    `"${alias}" goes through an SSH tunnel that Tessera opens, and this terminal cannot reach Tessera\n` +
+    '    (the bridge is not responding or is missing). Reload the terminal; if the problem persists, restart Tessera.  (tdb doctor)',
+  tunelFallo: (alias, detalle) => `Could not open the SSH tunnel for "${alias}": ${detalle}`,
+  tunelSinRespuesta: 'Tessera did not respond in time.',
 
   responde: (alias, ms, modo) => `\n  ✓ ${alias} responds in ${ms} ms (${modo})`,
   avisoTest: (aviso) => `    Warning: ${aviso}\n`,
   sinDocumentos: '  (no documents)',
   documentos: (n, hayMas) => {
     const nombre = n === 1 ? 'document' : 'documents'
-    return hayMas ? `  ${n} ${nombre} (LIMIT reached: there are more; use --limit N for more)\n` : `  ${n} ${nombre}\n`
+    return hayMas ? `  ${n} ${nombre} (LIMIT reached; use --limit N for more)\n` : `  ${n} ${nombre}\n`
   },
   filas: (n, tope) =>
     tope ? `\n  ${n} rows (LIMIT reached; use --limit N for more)\n` : `\n  ${n} row${n === 1 ? '' : 's'}\n`,
@@ -541,20 +539,20 @@ ${documentos}${claves}`,
   clavesSinInfo: '\n  Cannot read the keys per database (no permission for INFO).',
   basesConClaves: '\n  Databases with keys:\n',
   marcaActual: '◄ current',
-  otraBaseClaves: '\n  For another database, “SELECT <n>” on the first line of the query.',
+  otraBaseClaves: '\n  For another database, put “SELECT <n>” on the first line of the query.',
   filtroPatron: (patron) => `, pattern ${patron}`,
-  clavesDe: (alias, base, filtro, n, hayMas) => `\n  Keys of ${alias} (database ${base}${filtro}) — ${n}${hayMas ? ' (there are more)' : ''}\n`,
-  ningunaClave: (hayMas) => (hayMas ? '  (none in what was scanned; there is more to scan)' : '  (none)'),
+  clavesDe: (alias, base, filtro, n, hayMas) => `\n  Keys in ${alias} (database ${base}${filtro}) — ${n}${hayMas ? ' (there are more)' : ''}\n`,
+  ningunaClave: (hayMas) => (hayMas ? '  (none in the scanned range; more remains to scan)' : '  (none)'),
   topeScan: (alias) => [
     `\n  LIMIT: the SCAN was not completed. Narrow it with a pattern (tdb schema ${alias} "user:*")`,
     '  or use --limit N for more.'
   ],
   sinTablasClaves: (etiqueta, alias) =>
-    `\n  ${etiqueta} has no tables or foreign keys. To look at a key:  tdb query ${alias} "TYPE <key>"\n`,
-  coleccionesDe: (alias, base, n) => `\n  Collections of ${alias}${base ? ` (database ${base})` : ''} — ${n}\n`,
-  noFijaBase: (alias, actual) => `\n  "${alias}" does not set a database: the above is from "${actual}". Databases you can reach:\n`,
+    `\n  ${etiqueta} has no tables or foreign keys. To inspect a key:  tdb query ${alias} "TYPE <key>"\n`,
+  coleccionesDe: (alias, base, n) => `\n  Collections in ${alias}${base ? ` (database ${base})` : ''} — ${n}\n`,
+  noFijaBase: (alias, actual) => `\n  "${alias}" does not set a database: the list above is from "${actual}". Databases you can access:\n`,
   otraBaseDocumentos: (alias) => [
-    '\n  To query another database, “use <DATABASE>” on the first line of the statement; and here:',
+    '\n  To query another database, put “use <DATABASE>” on the first line of the statement; here:',
     `    tdb describe ${alias} <DATABASE>.<COLLECTION>`
   ],
   sinForaneasDocumentos: (etiqueta) => [
@@ -573,32 +571,32 @@ ${documentos}${claves}`,
     `The collection "${tabla}" does not exist in "${alias}"${usuario ? ` or is not visible to ${usuario}` : ''}.`,
   tablaNoVisible: (tabla, usuario) => `The table "${tabla}" does not exist or is not visible to ${usuario}.`,
   tablaNoExiste: (tabla, alias) => `The table "${tabla}" does not exist in "${alias}".`,
-  muestraDocumentos: '\n  Top-level fields from a SAMPLE of documents: a rare field may not show up.',
+  muestraDocumentos: '\n  Top-level fields from a SAMPLE of documents: a rare field might not appear.',
   indices: '\n  Indexes:\n',
   referencias: '\n  References:\n',
   si: 'yes',
   no: 'no',
   sesionesSql: (usuario, alias) => `\n  Open sessions of ${usuario} on ${alias}:\n`,
-  conexionesClaves: (usuario, alias) => `\n  Connections of ${usuario ? usuario : 'default'} on ${alias}:\n`,
+  conexionesClaves: (usuario, alias) => `\n  Connections of ${usuario ? usuario : 'the default user'} on ${alias}:\n`,
   operacionesDocumentos: (usuario, alias) =>
-    `\n  Operations in progress of ${usuario ? usuario : 'this connection (no user)'} on ${alias}:\n`,
+    `\n  Operations in progress for ${usuario ? usuario : 'this connection (no user)'} on ${alias}:\n`,
   notaSesiones:
-    `\n  The one at the bottom is THIS query and will end when the command finishes.\n` +
+    `\n  The last one is THIS query; it ends when the command finishes.\n` +
     `  Tessera does not keep connections open between invocations.\n`,
 
   columnasLs: ['ALIAS', 'ENGINE', 'TARGET', 'USER', 'MODE', 'ENVIRONMENT'],
   destinoMotorDesconocido: 'unknown engine: update Tessera',
-  destinoFormaDesconocida: 'unrecognized form (see below)',
-  destinoIdRepetido: 'repeated id (see below)',
+  destinoFormaDesconocida: 'unrecognized format (see below)',
+  destinoIdRepetido: 'duplicate id (see below)',
   sinConexionesEspacio: (n) => [
     '\n  The data agent has no database mounted.',
     `  The profile has ${n}: mount them with the databases button`,
-    '  in its header, and check the ones you want it to see.\n'
+    '  in its header, and select the ones you want it to see.\n'
   ],
   sinConexionesProyecto: (n) => [
     '\n  This PROJECT has no database mounted.',
     `  The profile has ${n}: mount them with the database icon`,
-    '  in the agent header, and check the ones you want here.\n'
+    '  in the agent header, and select the ones you want here.\n'
   ],
   sinConexionesPerfil: [
     '\n  There are no connections configured in this profile.',
@@ -615,17 +613,17 @@ ${documentos}${claves}`,
   conQuien: (nombre, otra) => `${nombre} (with ${otra})`,
   noUsablesPorMotor: (lista) => [
     `\n  They need a newer version of Tessera: ${lista}.`,
-    '  This tdb does not know their engine and cannot query them: update Tessera.'
+    '  This tdb does not recognize their engine and cannot query them: update Tessera.'
   ],
   noUsablesPorForma: (lista) => [
-    `\n  How they are saved is not recognized: ${lista}.`,
-    '  They may come from a newer version of Tessera (update to use them) or from a',
-    '  hand edit of the file; Tessera keeps them as is. This tdb cannot query them.'
+    `\n  Their saved format is not recognized: ${lista}.`,
+    '  They might come from a newer version of Tessera (update to use them) or from a',
+    '  manual edit of the file; Tessera keeps them as is. This tdb cannot query them.'
   ],
   noUsablesPorId: (lista) => [
     `\n  They share their identifier with another connection: ${lista}.`,
     '  This tdb cannot tell them apart and uses the first one in the registry; Tessera keeps',
-    '  them as is. Delete the one that is not needed from Tessera.'
+    '  them as is. Delete the one you do not need from Tessera.'
   ],
 
   shellDesconocido: 'unknown (direct invocation, no shortcut)',
@@ -636,9 +634,9 @@ ${documentos}${claves}`,
   rutaHorneada: '(not set: the shortcut used its built-in path)',
   noExisteConRespaldo: '  <-- DOES NOT EXIST (its backup copy, .bak, is used)',
   noExiste: '  <-- DOES NOT EXIST',
-  ambitoSinAcotar: 'not narrowed (sees all of the profile)',
-  ambitoEspacio: 'narrowed to the data agent',
-  ambitoProyecto: 'narrowed to this project',
+  ambitoSinAcotar: 'not restricted (sees the whole profile)',
+  ambitoEspacio: 'restricted to the data agent',
+  ambitoProyecto: 'restricted to this project',
   etiquetas: {
     shell: 'shell',
     ejecutable: 'executable',
@@ -656,29 +654,29 @@ ${documentos}${claves}`,
   enPath: (posicion) => `yes (position ${posicion})`,
   noEnPath: 'NO',
   estadoPuente: (estado) => PUENTE_EN[estado] || estado,
-  conexionesVisibles: (visibles, enPerfil) => `${visibles} visible of ${enPerfil} in the profile`,
+  conexionesVisibles: (visibles, enPerfil) => `${visibles} visible out of ${enPerfil} in the profile`,
   secretosContados: (puente, entorno) => `${puente} from the bridge, ${entorno} in the environment`,
   doctorSinContexto: [
-    '  ✗ This terminal does NOT carry the Tessera context.',
+    '  ✗ This terminal does NOT have the Tessera context.',
     '    Reload the terminal (or restart the agent) AFTER mounting the database.'
   ],
-  doctorRegistroNoExiste: ['  ✗ The registry points to a file that does not exist.', '    The terminal may have been opened by another Tessera installation.'],
+  doctorRegistroNoExiste: ['  ✗ The registry points to a file that does not exist.', '    Another Tessera installation might have opened this terminal.'],
   doctorPuenteCaido: [
     '  ✗ The Tessera bridge is not responding.',
-    '    The list may be out of date and there will be no passwords.',
-    '    Reload the terminal; if it persists, restart Tessera.'
+    '    The list might be out of date, and passwords will not be available.',
+    '    Reload the terminal; if the problem persists, restart Tessera.'
   ],
-  doctorSinBasesEspacio: '  ! Context is correct, but the data agent has no database mounted.',
-  doctorSinBasesProyecto: '  ! Context is correct, but this project has no database mounted.',
+  doctorSinBasesEspacio: '  ! The context is correct, but the data agent has no database mounted.',
+  doctorSinBasesProyecto: '  ! The context is correct, but this project has no database mounted.',
   doctorMontalas: '    Mount them with the database icon in the agent header.',
-  doctorOtroDestino: (lista) => `They changed since Tessera delivered their password: ${lista}. ` + 'tdb does not send it to their current target.',
-  doctorRecargaOReinicia: '    Reload the terminal (or restart the agent); if it stays the same, restart Tessera.',
+  doctorOtroDestino: (lista) => `They changed after Tessera provided their password: ${lista}. ` + 'tdb does not send it to their current target.',
+  doctorRecargaOReinicia: '    Reload the terminal (or restart the agent); if the problem persists, restart Tessera.',
   doctorSinContrasena: [
-    '  ! There are visible connections without a password in this session.',
+    '  ! Some visible connections have no password in this session.',
     '    Save it with "Edit connection…" in the Databases view and reload the terminal.'
   ],
-  doctorFaltaArchivo: (lista) => `The file of these cannot be found: ${lista}.`,
-  doctorArchivoMovido: '    It was moved, deleted or is on a disconnected drive. tdb test <name> says which one.',
+  doctorFaltaArchivo: (lista) => `The files for these cannot be found: ${lista}.`,
+  doctorArchivoMovido: '    They were moved or deleted, or they are on a disconnected drive. tdb test <name> says which one.',
   doctorTodoBien: '  ✓ All good. Try:  tdb ls',
   doctorRespaldo: (formatoAjeno) =>
     'The registry (db-connections.json) does not exist: its backup copy (db-connections.json.bak) is used' +
@@ -687,21 +685,21 @@ ${documentos}${claves}`,
   columnasDrivers: ['ID', 'NAME', 'MB', 'COVERS', 'STATUS'],
   instalado: 'installed',
   noInstalado: 'not installed',
-  servidorRespondio: (status, texto) => `the server responded ${status} ${texto}`,
+  servidorRespondio: (status, texto) => `the server responded with ${status} ${texto}`,
   noEsZip: 'the download is not a ZIP',
-  descomprimiendo: '  Unpacking…',
+  descomprimiendo: '  Extracting…',
   paqueteSinCentinela: (centinela) => `the package does not contain ${centinela}`,
-  driverDesconocido: (id) => `Unknown driver: "${id}". See the available ones with: tdb driver ls`,
+  driverDesconocido: (id) => `Unknown driver: "${id}". List the available ones with: tdb driver ls`,
   yaInstalado: (nombre) => `\n  ${nombre} is already installed.\n`,
-  sinCarpetaDrivers: (variable) => 'I do not know where to install drivers (missing ' + variable + ').',
+  sinCarpetaDrivers: (variable) => 'Cannot tell where to install drivers (' + variable + ' is not set).',
   dmgLoInstalaTessera: (nombre) =>
-    `${nombre} is published as a disk image and Tessera installs it:\n` +
-    `    "Download" in "Database clients", in the connection dialog (Databases view).`,
+    `${nombre} is distributed as a disk image, so Tessera installs it:\n` +
+    `    use "Download" in "Database clients", in the connection dialog (Databases view).`,
   descargando: (nombre, mb) => `\n  Downloading ${nombre} (${mb} MB)…`,
   instaladoEn: (nombre, destino) => `\n  ✓ ${nombre} installed in ${destino}\n`,
   noSeInstalo: (nombre, motivo) =>
     `Could not install ${nombre}: ${motivo}\n` +
-    `    Alternative: download it by hand and register it with "Select folder…" in\n` +
+    `    Alternative: download it manually and register it with "Select folder…" in\n` +
     `    "Database clients", in the connection dialog (Databases view).`,
   subcomandoDriver: (sub) => `Unknown driver subcommand: "${sub}". Use ls | install.`
 }

@@ -13,7 +13,7 @@ import type { SandboxManager } from '../sandbox/SandboxManager.ts'
 import { normalizarRutaResuelta } from '../sandbox/rutasSandbox.ts'
 import { dbLog } from '../db/dbLog.ts'
 import { shellNativoPara, VAR_SHELL_AISLADA } from './shellNativo.ts'
-import { mergeEnv, primerPath } from './entornoPty.ts'
+import { ASIGNACIONES_TERMINAL_CONTENEDOR, ENTORNO_COLOR, mergeEnv, primerPath } from './entornoPty.ts'
 import { cleanEnv, envDocker } from './entornoDocker.ts'
 import { lanzarPty } from './adaptadores/pty.ts'
 import type { SessionRecord } from './tiposSesion.ts'
@@ -48,8 +48,7 @@ export function lanzarPtyDocker(record: SessionRecord): IPty {
     [
       'exec',
       '-it',
-      '-e',
-      'TERM=xterm-256color', // docker exec no hereda TERM del host
+      ...ASIGNACIONES_TERMINAL_CONTENEDOR.flatMap((asignacion) => ['-e', asignacion]), // docker exec no hereda el entorno del host
       '-e',
       'GIT_PAGER=cat', // git no abre `less` en la terminal embebida; no toca el PAGER global
       ...envDocker(record.extraEnv),
@@ -77,7 +76,7 @@ export function lanzarPtyNativo(record: SessionRecord): IPty {
   )
   // `extraEnv` se fusiona sobre el entorno heredado y el PATH se antepone, no se sustituye:
   // cómo (delimitador y caja de la clave) depende del sistema y lo decide `entornoPty.ts`.
-  const env = mergeEnv(cleanEnv(), record.extraEnv)
+  const env = mergeEnv(cleanEnv(), { ...ENTORNO_COLOR, ...record.extraEnv })
   // Único punto donde el entorno pasa de intención a proceso; solo nombres, ningún secreto.
   dbLog(
     'pty',

@@ -2,7 +2,8 @@
 // Tessera en inglés, en la app empaquetada: el idioma llega a la ventana por el preload (el renderer
 // no tiene `process`) y la interfaz lo habla. Dos arranques: uno con el idioma fijado por la variable
 // de las pruebas y otro con el AJUSTE guardado, que es el camino del usuario. La comprobación fuerte
-// es el barrido del modal de Configuración: en inglés no queda ni una letra acentuada.
+// es el barrido del modal de Configuración: en inglés no queda ni una letra acentuada, tampoco en
+// los artículos de Tessera Academy ni en sus capturas, y su ⓘ abre el artículo en inglés.
 // =============================================================================
 
 import { expect, test, type Page } from '@playwright/test'
@@ -71,6 +72,49 @@ test.describe('con el idioma fijado a inglés', () => {
       .map(({ cat, texto }) => ({ cat, letras: texto.match(/[^\n]*[áéíóúñ¿¡][^\n]*/gi) ?? [] }))
       .filter((r) => r.letras.length > 0)
     expect(restos).toEqual([])
+  })
+
+  test('BARRIDO: Tessera Academy, artículo a artículo, en inglés y con sus capturas en inglés', async () => {
+    const modal = s.win.locator('.ajustes-modal')
+    await s.win.locator('.ajustes-riel-item[data-cat="academy"]').click()
+    const ids = await modal.locator('.academy-tarjeta').evaluateAll((els) => els.map((e) => e.getAttribute('data-articulo') ?? ''))
+    expect(ids).toHaveLength(22)
+    const restos: string[] = []
+    let capturas = 0
+    for (const id of ids) {
+      await modal.locator(`.academy-tarjeta[data-articulo="${id}"]`).click()
+      const articulo = s.win.locator('.academy-lector')
+      await expect(articulo).toBeVisible()
+      const texto = await articulo.evaluate((a) => {
+        const titulos = Array.from(a.querySelectorAll('[title]')).map((e) => e.getAttribute('title') ?? '')
+        const alts = Array.from(a.querySelectorAll('img')).map((e) => `${e.getAttribute('alt') ?? ''} ${e.getAttribute('src') ?? ''}`)
+        return [(a as HTMLElement).innerText, ...titulos, ...alts].join('\n')
+      })
+      for (const l of texto.match(/[^\n]*[áéíóúñ¿¡][^\n]*/gi) ?? []) restos.push(`${id}: ${l}`)
+      // La captura en inglés y no la española de reserva. Vite les pone un hash: `ventana.en-Ab12.webp`.
+      for (const src of texto.match(/\S+\.(es|en)-[\w-]+\.webp/g) ?? []) {
+        capturas++
+        if (/\.es-[\w-]+\.webp/.test(src)) restos.push(`${id}: ${src}`)
+      }
+      await s.win.keyboard.press('Escape')
+      await expect(articulo).toHaveCount(0)
+    }
+    expect(restos).toEqual([])
+    expect(capturas, 'el barrido vio las capturas').toBeGreaterThan(5)
+  })
+
+  test('el ⓘ de un diálogo habla inglés y abre el artículo en inglés', async () => {
+    await s.win.keyboard.press('Escape')
+    await expect(s.win.locator('.ajustes-modal')).toHaveCount(0)
+    await s.win.locator('.profile-tab[data-perfil-id="personal"]').click({ button: 'right' })
+    await s.win.getByRole('menuitem', { name: 'Rules for agents…' }).click()
+    const ayuda = s.win.getByRole('dialog').getByRole('button', { name: /Tessera Academy/ })
+    await expect(ayuda).toHaveAttribute('title', /^Explained in Tessera Academy: [^áéíóúñ]+$/)
+    await ayuda.click()
+    await expect(s.win.locator('.academy-lector .academy-articulo[data-articulo="reglas-del-perfil"]')).toBeVisible()
+    await s.win.keyboard.press('Escape')
+    await expect(s.win.locator('.academy-lector')).toHaveCount(0)
+    await s.win.keyboard.press('Escape')
   })
 })
 

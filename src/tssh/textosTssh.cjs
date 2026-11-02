@@ -185,31 +185,31 @@ const en = {
   conPistaDeAyuda: (mensaje) => `${mensaje} Help: tssh help.`,
   falloInesperado: (detalle) => `unexpected failure: ${detalle}`,
 
-  timeoutInvalido: (max) => `--timeout needs a number of seconds greater than 0 and at most ${max}.`,
-  faltaAlias: (ejemplo) => `Missing the connection alias: ${ejemplo}.`,
+  timeoutInvalido: (max) => `--timeout requires a number of seconds greater than 0 and no more than ${max}.`,
+  faltaAlias: (ejemplo) => `Missing connection alias: ${ejemplo}.`,
   aliasLargo: 'The alias is too long.',
   ejemploRun: 'tssh run <alias> -- <command>',
   ejemploDoctor: 'tssh doctor <alias>',
-  faltaAliasAntesDeGuiones: 'Missing the alias before “--”: tssh run <alias> -- <command>.',
+  faltaAliasAntesDeGuiones: 'Missing alias before “--”: tssh run <alias> -- <command>.',
   runSinOpcion: (opcion) => `run has no option “${opcion}”.`,
-  faltaOrden: 'Missing the command: tssh run <alias> -- <command>.',
+  faltaOrden: 'Missing command: tssh run <alias> -- <command>.',
   cpSinOpcion: (opcion) => `cp has no option “${opcion}”.`,
-  cpOrigenYDestino: 'cp needs a source and a destination: tssh cp [-r] <source> <destination>.',
+  cpOrigenYDestino: 'cp requires a source and a destination: tssh cp [-r] <source> <destination>.',
   lsNoLleva: (argumento) => `ls does not take “${argumento}”.`,
-  doctorUnAlias: 'doctor takes at most one alias (quoted if it has spaces).',
+  doctorUnAlias: 'doctor takes at most one alias (quote it if it contains spaces).',
   doctorSinOpcion: (opcion) => `doctor has no option “${opcion}”.`,
-  subcomandoDesconocido: (sub) => `tssh has no subcommand “${sub}”: they are ls, run, cp, doctor and help.`,
+  subcomandoDesconocido: (sub) => `tssh has no subcommand “${sub}”: valid subcommands are ls, run, cp, doctor and help.`,
 
   rutaMsysDesconocida: (texto) =>
-    `I do not know which Windows folder “${texto}” is: use a Windows path (C:\\...) or one relative to the current folder.`,
+    `Cannot tell which Windows folder “${texto}” is: use a Windows path (C:\\...) or one relative to the current folder.`,
   dosLadosRemotos: 'Both sides are remote: copy to this computer first and then to the other one.',
   ningunLadoRemoto: 'Neither side is remote: one of them has to be <alias>:<path>.',
 
   terminalAjena:
     'This terminal was not opened by Tessera (TESSERA_DB_PIPE and TESSERA_DB_SESSION are missing): tssh only works in Tessera terminals and native agents.',
-  tesseraNoContesta: 'Tessera is not answering: is it open? If it is, reload the terminal (or restart the agent).',
+  tesseraNoContesta: 'Tessera is not responding: is it open? If it is, reload the terminal (or restart the agent).',
   sesionNoReconocida: 'Tessera does not recognize this session: reload the terminal (or restart the agent).',
-  versionDistinta: 'The open Tessera does not know this version of tssh: restart it (or update it).',
+  versionDistinta: 'The running Tessera does not support this version of tssh: restart it (or update it).',
   falloInterno: 'Tessera failed while handling the request (the details are in its log, logs/db.log).',
 
   metodos: { contrasena: 'password', clave: 'key file', sistema: 'system keys' },
@@ -219,18 +219,18 @@ const en = {
   secretoIlegibleAqui: 'secret unreadable here',
   lista: 'ready',
   excluidas: (n) => {
-    if (n === 1) return '(1 more connection of this profile is not available to agents)'
-    return n > 1 ? `(${n} more connections of this profile are not available to agents)` : ''
+    if (n === 1) return '(1 more connection in this profile is not available to agents)'
+    return n > 1 ? `(${n} more connections in this profile are not available to agents)` : ''
   },
-  noPuedeLeerConexiones: (aviso) => `Tessera cannot read the SSH connections of this profile right now: ${aviso}`,
-  sinConexiones: 'This profile has no SSH connection available to agents.',
+  noPuedeLeerConexiones: (aviso) => `Tessera cannot read the SSH connections in this profile right now: ${aviso}`,
+  sinConexiones: 'This profile has no SSH connections available to agents.',
   sinGrupo: 'No group',
   columnasLs: ['ALIAS', 'GROUP', 'TARGET', 'METHOD', 'STATUS'],
   noPudoPreparar: 'Tessera could not prepare the connection.',
-  topeAgotado: (s) => `the ${s} s limit ran out and the connection was cut.`,
+  topeAgotado: (s) => `the ${s} s limit was reached and the connection was closed.`,
   noSePudoLanzar: (programa, motivo) => `could not launch ${programa}: ${motivo}.`,
   motivoDesconocido: 'unknown reason',
-  aliasConEspacios: ' If the alias has spaces, put it in quotes.',
+  aliasConEspacios: ' If the alias contains spaces, put it in quotes.',
 
   shellDesconocido: 'unknown (direct invocation, no shortcut)',
   sinAtajo: '(direct invocation, no shortcut)',
@@ -269,8 +269,8 @@ const en = {
   pruebaSinRespuesta: (s) => `no response in ${s} s`,
   pruebaFalla: (codigo) => `fails (code ${codigo})`,
   todoBienRun: (alias) => `All good. Try:  tssh run ${alias} -- uptime`,
-  equipoNoContesta: 'The computer is not answering: check the network or the VPN with the user.',
-  sshNoEntro: 'ssh could not log in; the user can press “Test” on the connection to see why.',
+  equipoNoContesta: 'The computer is not responding: check the network or the VPN with the user.',
+  sshNoEntro: 'ssh could not log in; the user can click “Test” on the connection to see why.',
   noHayAlias: (alias) => `There is no available connection named “${alias}”.`,
   huellaConfirmada: 'confirmed',
   huellaPorConfirmar: 'NOT CONFIRMED',
@@ -282,19 +282,19 @@ const en = {
     `${n} available to agents${excluidas ? `, ${excluidas} more that are not` : ''}`,
   sinClienteSsh: 'The system SSH client was not found: tssh cannot connect.',
   todoBienLs: 'All good. Try:  tssh ls',
-  todoBienSinConexiones: 'All good, but this profile has no connection available to agents.',
+  todoBienSinConexiones: 'All good, but this profile has no connections available to agents.',
 
-  sinContextoContenedor: 'This terminal does not carry the Tessera context: reload the terminal (or restart the agent).',
+  sinContextoContenedor: 'This terminal does not have the Tessera context: reload the terminal (or restart the agent).',
   buzonSinMontar: (buzon) => `The bridge to the host is not mounted (${buzon} does not exist): reload the terminal.`,
-  buzonNoResponde: 'The bridge to the host is not responding: reload the terminal; if it persists, restart Tessera.',
-  cpTopeMiB: (mib) => `In Docker mode, tssh cp moves at most ${mib} MiB at a time: copy in parts.`,
-  cpTopeArchivos: (n) => `In Docker mode, tssh cp moves at most ${n} files at a time: copy in parts.`,
+  buzonNoResponde: 'The bridge to the host is not responding: reload the terminal; if the problem persists, restart Tessera.',
+  cpTopeMiB: (mib) => `In Docker mode, tssh cp moves at most ${mib} MiB at a time: copy in smaller batches.`,
+  cpTopeArchivos: (n) => `In Docker mode, tssh cp moves at most ${n} files at a time: copy in smaller batches.`,
   noExisteLocal: (local) => `“${local}” does not exist.`,
-  copiaEntera: (local) => `“${local}” cannot be copied whole: choose a specific folder.`,
+  copiaEntera: (local) => `“${local}” cannot be copied as a whole: choose a specific folder.`,
   niArchivoNiCarpeta: (local) => `“${local}” is neither a file nor a folder.`,
   esCarpeta: (local) => `“${local}” is a folder: use tssh cp -r.`,
-  respuestaIncomprensible: 'The response from Tessera cannot be understood.',
-  entradaGrande: (mib) => `The input exceeds the ${mib} MiB the bridge to the host accepts.`,
+  respuestaIncomprensible: 'Tessera returned a response that cannot be interpreted.',
+  entradaGrande: (mib) => `The input exceeds the ${mib} MiB limit of the bridge to the host.`,
   puenteSinRespuesta: (s) => `The bridge did not respond within ${s} s: check that Tessera is still open and reload the terminal.`,
 
   ayuda: (c) => `
@@ -302,16 +302,16 @@ const en = {
 
   tssh ls [--json]
       The connections the user made available to agents, with their target, their
-      method and whether they are ready (fingerprint confirmed and, if they need it, password saved).
-      The others are not named: only how many there are.
+      method and whether they are ready (fingerprint confirmed and, if needed, password saved).
+      Other connections are not named: only their count is shown.
 
   tssh run <alias> [--timeout S] [--stdin] -- <command>
-      Runs the command on the computer, without a terminal, with its output live, and exits with its code.
-      Without --stdin the command gets no input; with --stdin it gets tssh's:
+      Runs the command on the computer, without a terminal, streaming its output, and exits with its code.
+      Without --stdin the command receives no input; with --stdin it receives tssh's input:
         tssh run web -- uptime
         tssh run "home nas" -- df -h /
         tssh run web --stdin -- 'cat > /tmp/note.txt' < note.txt
-      --timeout S cuts the connection after S seconds (exits with ${c.tope}). Without it, there is no limit.
+      --timeout S closes the connection after S seconds (exits with ${c.tope}). Without it, there is no limit.
 
   tssh cp [-r] <source> <destination>
       Copies with scp between this computer and a connection. The remote side is <alias>:<path> (a
@@ -321,30 +321,30 @@ const en = {
       On Windows, a drive letter (C:\\…) is always local.
 
   tssh doctor [alias]
-      Diagnoses: the shortcut, the bridge with Tessera, the SSH client and, with an alias, the
-      connection and a real test.
+      Checks the shortcut, the bridge to Tessera, the SSH client and, with an alias, the
+      connection, with a real test.
 
   tssh help
-      This help.
+      Shows this help.
 
-  If the alias has spaces, put it in quotes; its quotes can be typed straight.
+  If the alias contains spaces, put it in quotes; straight quotes work.
   tssh never asks for or shows passwords: Tessera provides them. It only connects to computers whose
-  fingerprint a person already accepted from the Tessera terminal (or with “Test”).
+  fingerprint a person has already accepted in the Tessera terminal (or with “Test”).
 
-  Exit codes. If the command or the copy gets to run, the code is its own, and 255 if ssh
-  could not connect or log in (tssh says why). tssh's own codes come before connecting:
-    ${c.uso}    wrong usage (arguments, subcommand) or from WSL
-    ${c.puente}    Tessera is not answering or does not recognize this terminal
+  Exit codes. If the command or the copy runs, tssh exits with its code, or with 255 if ssh
+  could not connect or log in (tssh says why). tssh's own codes occur before connecting:
+    ${c.uso}    wrong usage (arguments, subcommand) or run from WSL
+    ${c.puente}    Tessera is not responding or does not recognize this terminal
     ${c.alias}    there is no available connection with that alias
     ${c.huella}    the server fingerprint is not confirmed, or it changed
     ${c.noUsable}    the connection cannot be used now (its password, the copy of its
          key or the SSH client is missing)
-    ${c.tope}  --timeout ran out
+    ${c.tope}  --timeout expired
 
-  In PowerShell, an unquoted -- does not reach tssh: it understands it anyway (after the alias,
+  In PowerShell, an unquoted -- does not reach tssh, but tssh handles it anyway (after the alias,
   the command starts at the first word that is not a tssh option); type '--' if the command
-  starts with --stdin or --timeout. The output is text: for binaries, tssh cp. In cmd.exe, the
-  %variables% in your line are expanded before reaching tssh.
+  starts with --stdin or --timeout. The output is text: for binary files, use tssh cp. In cmd.exe,
+  %variables% in your command line are expanded before they reach tssh.
 `
 }
 

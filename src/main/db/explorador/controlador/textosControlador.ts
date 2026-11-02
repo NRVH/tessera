@@ -126,18 +126,19 @@ const en = {
   sinonimoNoEncontrado: (esquema: string, nombre: string) =>
     `Synonym ${esquema}.${nombre} was not found, or you do not have access to its target.`,
   destinoNoVisible: (esquema: string, nombre: string) => `The target ${esquema}.${nombre} does not exist or is not visible.`,
-  sinonimoCadena: 'The synonym chains more than three hops.',
+  sinonimoCadena: 'The synonym chain has more than three hops.',
   lecturaDetenida: 'Read stopped before it started.',
   envioEnCurso: 'A submission with that identifier is already in progress.',
-  tablaCambio: 'The table changed since it was opened (its rows are no longer identified the same way): open it again.',
+  tablaCambio: 'The table changed after it was opened (its rows can no longer be identified the same way): open it again.',
   envioDetenidoAntes: 'Submission stopped before it started: nothing was applied.',
-  sinIdentidad: 'Could not read from the catalog how to find each row: the table opens without editing.',
+  sinIdentidad: 'Could not read from the catalog how to identify each row: the table opens as read-only.',
   cerrando: 'Tessera is closing.',
   sinProceso: 'Could not start the connection process.',
   cierreForzado: 'The connection was force-closed.',
-  sesionPerdidaMotivo: (motivo: string) => `The session with the server was lost (${motivo}). It reopens when you use it.`,
-  sesionPerdida: 'The session with the server was lost. It reopens when you use it.',
-  txPendientesAlEditar: 'First commit or roll back the pending transactions of this connection.',
+  sesionPerdidaMotivo: (motivo: string) =>
+    `The session with the server was lost (${motivo}). It reopens the next time you use it.`,
+  sesionPerdida: 'The session with the server was lost. It reopens the next time you use it.',
+  txPendientesAlEditar: 'Commit or roll back the pending transactions of this connection first.',
   conexionAlias: 'connection',
   consolaAlias: 'console',
   fallidaSeRevierte: (quien: string) => `${quien} (failed: it will be rolled back)`,
@@ -156,10 +157,10 @@ const en = {
   falloBotones: ['Quit and roll back', 'Cancel'] as readonly string[],
   fsNoEncontrado: 'The console file was not found.',
   fsYaExiste: 'A file with that name already exists.',
-  fsSinPermiso: 'No permission to access the consoles folder.',
+  fsSinPermiso: 'You do not have permission to access the consoles folder.',
   fsEnUso: 'The console file is in use by another program.',
   fsSinEspacio: 'There is no space left on the disk.',
-  fsCarpetaRara: 'The consoles folder does not have the expected shape.',
+  fsCarpetaRara: 'The consoles folder does not have the expected structure.',
   fsNombreLargo: 'The name is too long for the file system.',
   fsErrorDisco: (codigo: string) => `Disk error in the consoles (${codigo}).`,
   consolasInesperado: 'Unexpected error in the consoles.',
@@ -177,7 +178,7 @@ const en = {
   nombreReservado: (raiz: string) => `“${raiz}” is a reserved system name.`,
   consolaNombreNoValido: 'Invalid console name.',
   consolaTipoDesconocido: 'Unknown console type.',
-  consolaFueraCarpeta: 'Console name outside its folder.'
+  consolaFueraCarpeta: 'The console name points outside its folder.'
 }
 
 export const txControlador = crearTextos(es, en)

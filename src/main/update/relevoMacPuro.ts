@@ -1,7 +1,8 @@
 // =============================================================================
 // El relevo de macOS, la parte PURA (sin electron ni `fs`): el texto del guion `sh` que
-// sustituye el `.app` (desempaquetar, buscar, verificar, APARTAR el viejo, poner el nuevo),
-// de dónde sale el bundle a partir del ejecutable y cómo se lee el desenlace que deja.
+// sustituye el `.app` (desempaquetar, buscar, verificar, APARTAR el viejo, poner el nuevo) y lo
+// cuenta con notificaciones, de dónde sale el bundle a partir del ejecutable y cómo se lee el
+// desenlace que deja.
 // Separado de `relevoMac.ts` para que `test-relevo-mac.mts` EJECUTE el guion de verdad con
 // `node` a secas: un fallo aquí deja a un usuario sin aplicación.
 // Decisiones: docs/decisiones/actualizacion/relevo-de-macos.md
@@ -43,6 +44,30 @@ export interface OpcionesGuionRelevo {
    * un camino que no existe.
    */
   stage?: string
+  /**
+   * Notificaciones del sistema al empezar y al acabar. Con la app ya cerrada no queda otra
+   * forma de contar qué pasa; sin ellas, el guion trabaja sin que nadie lo vea.
+   */
+  avisos?: AvisosRelevoMac
+}
+
+/** Sin textos, `avisar` no hace nada: lo que usan las pruebas. */
+const SIN_AVISOS: AvisosRelevoMac = { titulo: '', inicio: '', ok: '', fallo: '', sinVuelta: '' }
+
+/** Dónde aparta el guion la versión anterior mientras pone la nueva. */
+export function rutaApartado(destino: string): string {
+  return `${destino}.anterior`
+}
+
+/** Los textos de las notificaciones, ya en el idioma de la app. */
+export interface AvisosRelevoMac {
+  titulo: string
+  inicio: string
+  ok: string
+  /** La actualización no se aplicó y la versión anterior sigue en su sitio. */
+  fallo: string
+  /** Ni se aplicó ni se pudo devolver la anterior: dice dónde quedó. */
+  sinVuelta: string
 }
 
 /**
@@ -55,7 +80,8 @@ export interface OpcionesGuionRelevo {
  */
 export function guionRelevoMac(o: OpcionesGuionRelevo): string {
   const stage = o.stage ?? path.posix.join(path.posix.dirname(o.destino), '.tessera-relevo')
-  const apartado = `${o.destino}.anterior`
+  const apartado = rutaApartado(o.destino)
+  const av = o.avisos ?? SIN_AVISOS
   const vueltas = Math.max(1, Math.round((o.esperaSegundos ?? ESPERA_CIERRE_SEGUNDOS) * 2))
   const args = (o.argumentos ?? []).map(citarSh).join(' ')
   const relanzar = o.relanzar
@@ -76,6 +102,11 @@ stage=${citarSh(stage)}
 marca=${citarSh(o.marca)}
 traza=${citarSh(o.traza)}
 vueltas=${citarSh(String(vueltas))}
+aviso_titulo=${citarSh(av.titulo)}
+aviso_inicio=${citarSh(av.inicio)}
+aviso_ok=${citarSh(av.ok)}
+aviso_fallo=${citarSh(av.fallo)}
+aviso_sin_vuelta=${citarSh(av.sinVuelta)}
 
 # Todo queda registrado. El que falla aquí es un proceso al que ya no mira nadie: sin
 # traza, el fallo sería mudo, que es justo lo que el invariante 2 del updater prohíbe.
@@ -85,14 +116,24 @@ set -x
 # El desenlace, en una línea que el arranque siguiente sabe leer.
 anotar() { echo "$1" > "$marca" 2>/dev/null || true; }
 
+# Una notificación del sistema: con la app cerrada es lo único que el usuario ve. Los textos
+# van como argumentos del AppleScript, no dentro de su código, así que no hay que escaparlos.
+# Nunca para el guion: sin permiso de notificaciones, se sigue igual.
+avisar() {
+  [ -n "$1" ] || return 0
+  osascript -e 'on run argv' -e 'display notification (item 1 of argv) with title (item 2 of argv)' \\
+    -e 'end run' "$1" "$aviso_titulo" >/dev/null 2>&1 || true
+}
+
 # Fracaso ANTES de tocar el destino: la app del usuario sigue entera donde estaba, así
 # que sí se puede limpiar el material de trabajo.
-fracaso_limpio() { anotar "fallo: $1"; rm -rf "$stage"; exit 1; }
+fracaso_limpio() { anotar "fallo: $1"; avisar "$aviso_fallo"; rm -rf "$stage"; exit 1; }
 
 # Fracaso DESPUÉS de tocar el destino. Aquí NO se borra nada: la única copia buena de
 # la app puede estar en "$stage" o en "$apartado", y limpiar por pulcritud es
-# exactamente el fallo que dejó al usuario sin app en la primera sonda.
-fracaso_sucio() { anotar "fallo: $1"; exit 1; }
+# exactamente el fallo que dejó al usuario sin app en la primera sonda. El segundo
+# argumento es la notificación: depende de si la anterior volvió a su sitio.
+fracaso_sucio() { anotar "fallo: $1"; avisar "$2"; exit 1; }
 
 # 1. Esperar a que Tessera desaparezca. Mientras el proceso viva, sus dylib siguen
 #    mapeadas desde el bundle que hay que sustituir. Si no muere, NO se toca nada:
@@ -102,10 +143,12 @@ while kill -0 "$pid" 2>/dev/null; do
   i=$((i + 1))
   if [ "$i" -ge "$vueltas" ]; then
     anotar "fallo: la aplicación no llegó a cerrarse"
+    avisar "$aviso_fallo"
     exit 1
   fi
   sleep 0.5
 done
+avisar "$aviso_inicio"
 
 # 2. Desempaquetar en la carpeta de trabajo (misma unidad que el destino en
 #    producción: ver \`stage\` en las opciones).
@@ -133,9 +176,9 @@ mv "$destino" "$apartado" || fracaso_limpio "no se pudo apartar la versión ante
 if ! mv "$nueva" "$destino"; then
   rm -rf "$destino"
   if mv "$apartado" "$destino" || ditto "$apartado" "$destino"; then
-    fracaso_sucio "no se pudo instalar la versión nueva; se ha devuelto la anterior"
+    fracaso_sucio "no se pudo instalar la versión nueva; se ha devuelto la anterior" "$aviso_fallo"
   fi
-  fracaso_sucio "no se pudo instalar la versión nueva NI devolver la anterior; la anterior está en $apartado"
+  fracaso_sucio "no se pudo instalar la versión nueva NI devolver la anterior; la anterior está en $apartado" "$aviso_sin_vuelta"
 fi
 
 # 7. A partir de aquí ya no hay vuelta atrás que dar, así que se limpia.
@@ -144,6 +187,7 @@ rm -rf "$stage"
 
 # El "ok" va ANTES de relanzar: la app que arranca tiene que poder leerlo.
 anotar ok
+avisar "$aviso_ok"
 ${relanzar}
 exit 0
 `

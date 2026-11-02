@@ -1,7 +1,7 @@
 // =============================================================================
 // El riel de conexiones SSH: la lista de conexiones fija, a la izquierda de la terminal, mientras está
-// a pantalla completa. Una cabecera como la de los laterales (el título y cinco acciones: nueva
-// conexión, nuevo grupo, importar de OpenSSH, exportar a OpenSSH y ocultar) sobre la MISMA `ListaConexionesSsh` en modo fijo,
+// a pantalla completa. Una cabecera como la de los laterales (el título y cuatro acciones: nueva
+// conexión, nuevo grupo, importar de OpenSSH y exportar a OpenSSH) sobre la MISMA `ListaConexionesSsh` en modo fijo,
 // «Nueva ventana de agente» al pie, como en el lanzador, y un divisor para ensancharlo. Se monta la primera vez que se enseña y desde entonces se queda montado, oculto
 // cuando no se enseña, para volver tal cual (`renderer/vivos-y-ocultos.md`). Lleva su propio límite de
 // error, porque un fallo suyo no puede desmontar las terminales. Depende de `comun/`.
@@ -17,7 +17,6 @@ import { ErrorBoundary } from '../../comun/ErrorBoundary'
 import { IconoCarpetaNueva } from '../../comun/iconosMenu'
 import { Splitter } from '../../comun/Splitter'
 import { SSH_RIEL_ANCHO_MIN } from '../../../../shared/ajustesTerminal'
-import { IconoOcultarLista } from './iconosRielSsh'
 import { exportarAOpenSsh } from './exportacionSsh'
 import { FilaVentanaAgente } from './FilaVentanaAgente'
 import { IconoExportar, IconoImportar, IconoServidorNuevo } from './iconosSsh'
@@ -27,16 +26,15 @@ import { ID_RIEL_SSH } from './rielSsh'
 import { accionesSsh, useStoreSsh } from './store'
 import { txSsh } from './textos.ts'
 
-/** Lo que recibe el riel: lo de la lista, su ancho con el tope que deja la terminal y cómo ocultarse. */
+/** Lo que recibe el riel: lo de la lista y su ancho con el tope que deja la terminal. */
 export interface PropsRielConexionesSsh extends DatosListaConexionesSsh {
   ancho: number
   anchoMax: number
   onAncho: (px: number) => void
-  onOcultar: () => void
 }
 
-/** La cabecera: el título y las altas (que se apagan con el archivo de conexiones de una versión más nueva) y ocultar. */
-function CabeceraRiel({ perfilId, onOcultar }: { perfilId: string; onOcultar: () => void }): React.JSX.Element {
+/** La cabecera: el título y las altas (que se apagan con el archivo de conexiones de una versión más nueva). */
+function CabeceraRiel({ perfilId }: { perfilId: string }): React.JSX.Element {
   const avisoAjeno = useStoreSsh((s) => s.avisoFormatoAjeno)
   const t = txSsh()
   return (
@@ -55,9 +53,6 @@ function CabeceraRiel({ perfilId, onOcultar }: { perfilId: string; onOcultar: ()
         <BotonCabecera titulo={t.exportarOpenSsh} motivo={avisoAjeno} onClick={() => void exportarAOpenSsh(perfilId)}>
           <IconoExportar />
         </BotonCabecera>
-        <BotonCabecera titulo={t.ocultarLista} motivo={null} onClick={onOcultar}>
-          <IconoOcultarLista />
-        </BotonCabecera>
       </div>
     </div>
   )
@@ -75,7 +70,7 @@ const ListaViva = memo(
 )
 
 /** El riel de conexiones SSH del perfil y su divisor, uno detrás de otro (los dos son hijos de la fila de la terminal). */
-function RielYDivisor({ ancho, anchoMax, onAncho, onOcultar, ...lista }: PropsRielConexionesSsh): React.JSX.Element {
+function RielYDivisor({ ancho, anchoMax, onAncho, ...lista }: PropsRielConexionesSsh): React.JSX.Element {
   // Una lista por perfil, y vivas las de los últimos vistos: el filtro, la fila elegida y el
   // desplazamiento son de cada perfil y vuelven tal cual (`renderer/vivos-y-ocultos.md`).
   const vivas = useVivosRecientes({ clave: lista.perfilId }, null)
@@ -84,7 +79,7 @@ function RielYDivisor({ ancho, anchoMax, onAncho, onOcultar, ...lista }: PropsRi
   return (
     <>
       <aside id={ID_RIEL_SSH} className="ssh-riel" aria-label={txSsh().conexionesSsh} style={{ width: ancho }}>
-        <CabeceraRiel perfilId={lista.perfilId} onOcultar={onOcultar} />
+        <CabeceraRiel perfilId={lista.perfilId} />
         <div className="ssh-riel-cuerpo">
           {vivas.map(({ clave }) => (
             <CapaViva key={clave} visible={clave === lista.perfilId}>

@@ -86,7 +86,7 @@ test.describe.serial('Borrar un perfil', () => {
   test('«Eliminar perfil…» se lleva sus conexiones SSH y de bases de datos, y solo las suyas', async () => {
     await s.win.locator('.profile-tab', { hasText: 'Trabajo' }).first().click({ button: 'right' })
     await s.win.getByRole('menuitem', { name: 'Eliminar perfil…' }).click()
-    await s.win.getByRole('button', { name: 'Eliminar', exact: true }).click()
+    await s.win.getByRole('button', { name: 'Eliminar «Trabajo»', exact: true }).click()
     await expect(s.win.locator('.profile-tab', { hasText: 'Trabajo' })).toHaveCount(0)
     await expect.poll(async () => (await estado()).ssh).toEqual(['personal:ssh-personal'])
     const e = await estado()

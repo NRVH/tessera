@@ -51,9 +51,11 @@ function peticion(pipe, mensaje, topeMs, aceptar) {
       acabar(null)
     })
     socket.on('error', () => acabar(null))
+    // Con codificación, un carácter multibyte partido entre dos trozos se une en vez de salir como U+FFFD.
+    socket.setEncoding('utf8')
     let buffer = ''
     socket.on('data', (t) => {
-      buffer += t.toString('utf-8')
+      buffer += t
     })
     socket.on('end', () => {
       try {

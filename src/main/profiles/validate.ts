@@ -4,6 +4,7 @@
 // el primero. Pura y sin dependencias, para probarla con `node` a secas (`test-loader.mts`).
 // =============================================================================
 
+import { MAX_REGLAS_PERFIL } from '../../shared/reglasPerfil.ts'
 import type { Agente, AgenteConfig } from './types'
 
 const AGENTES: Agente[] = ['claude-code', 'codex']
@@ -14,6 +15,11 @@ function isAgenteConfig(value: unknown): value is AgenteConfig {
   if (typeof a.tipo !== 'string' || !AGENTES.includes(a.tipo as Agente)) return false
   if (typeof a.configDir !== 'string' || a.configDir.length === 0) return false
   return true
+}
+
+/** Las reglas, si vienen, son un texto dentro del tope. */
+function reglasValidas(reglas: unknown): boolean {
+  return reglas === undefined || (typeof reglas === 'string' && reglas.length <= MAX_REGLAS_PERFIL)
 }
 
 /**
@@ -55,6 +61,11 @@ export function validateProfileShape(value: unknown): string[] {
   // valida aquí que la carpeta exista: eso lo resuelve el montaje en runtime.
   if (p.sshDir !== undefined && (typeof p.sshDir !== 'string' || p.sshDir.length === 0)) {
     errors.push('"sshDir" (si se declara) debe ser un string no vacío: la ruta host absoluta de la carpeta .ssh')
+  }
+
+  // "reglas" es OPCIONAL: texto de las reglas del perfil para los agentes, con tope.
+  if (!reglasValidas(p.reglas)) {
+    errors.push(`"reglas" (si se declara) debe ser un string de como mucho ${MAX_REGLAS_PERFIL} caracteres`)
   }
 
   if (typeof p.sandbox !== 'object' || p.sandbox === null) {

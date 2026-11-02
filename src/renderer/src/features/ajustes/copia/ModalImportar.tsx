@@ -1,6 +1,6 @@
 // =============================================================================
 // Modal de IMPORTAR la configuración de un archivo ya elegido: la frase (o el aviso si va sin cifrar), lo que trae frente a lo que
-// hay aquí como lista de casillas para elegir qué entra (`ListaImportar.tsx`) y, al importar solo lo
+// hay aquí como lista de casillas para elegir qué entra y a qué perfil va (`ListaImportar.tsx`) y, al importar solo lo
 // marcado, el resumen: lo añadido, lo que se saltó y por qué, y lo que conviene revisar porque depende del
 // equipo. Cerrar sin importar suelta el archivo en el main. La operación vive en `operacionesCopia.ts`.
 // Decisiones: docs/decisiones/configuracion/exportar-importar.md
@@ -9,18 +9,20 @@ import '../../../comun/formularioModal.css'
 import './copia.css'
 import { useCallback, useEffect, useId, useState, useSyncExternalStore } from 'react'
 import { alClicEnVelo, useDialogo } from '../../../comun/useDialogo'
-import type { AbrirResult } from '../../../../../shared/copia-configuracion-ipc'
+import type { AbrirResult, ResumenHistorialImportado } from '../../../../../shared/copia-configuracion-ipc'
 import { nombresSistema } from '../../../../../shared/nombresSistema'
-import { importarCopia, vistaPrevia, type Descifrado, type ResumenImportacion } from './operacionesCopia'
+import { destinosDeSerie, importarCopia, reglasDelArchivo, vistaPrevia, type Descifrado, type ResumenImportacion } from './operacionesCopia'
 import {
   alternar,
   haySeleccion,
   seleccionInicial,
   seleccionParaImportar,
+  seleccionTrasCambiarDestino,
   type ArbolImportar,
   type AvisoSeleccion,
   type SeleccionImportar
 } from '../../../../../shared/seleccionCopia'
+import { useStorePestanas } from '../../pestanas'
 import { CampoFrase } from './camposCopia'
 import { ListaImportar } from './ListaImportar'
 import { txCopia } from './textosCopia.ts'
@@ -28,7 +30,17 @@ import { txCopia } from './textosCopia.ts'
 type Abierto = Extract<AbrirResult, { estado: 'abierto' }>
 type Fase =
   | { tipo: 'frase'; ocupado: boolean }
-  | { tipo: 'previa'; d: Descifrado; arbol: ArbolImportar; seleccion: ReadonlySet<string>; avisos: AvisoSeleccion[] }
+  | {
+      tipo: 'previa'
+      d: Descifrado
+      /** El perfil de aquí que recibe cada perfil del archivo; null, uno nuevo. */
+      destinos: Readonly<Record<string, string | null>>
+      /** Los perfiles del archivo cuyas reglas distintas sustituyen a las de su destino. */
+      sustituir: ReadonlySet<string>
+      arbol: ArbolImportar
+      seleccion: ReadonlySet<string>
+      avisos: AvisoSeleccion[]
+    }
   | { tipo: 'importando' }
   | { tipo: 'hecho'; r: ResumenImportacion }
   /** Falló a medias: el archivo ya se soltó en el main, así que no se ofrece reintentar aquí. */
@@ -42,11 +54,23 @@ function sistemaDe(p: string): string {
 
 function Previa({ p, v, cifrado }: { p: Extract<Fase, { tipo: 'previa' }>; v: ReturnType<typeof useImportar>; cifrado: boolean }): React.JSX.Element {
   const t = txCopia()
+  const aqui = useStorePestanas((s) => s.tabs.profiles)
   return (
     <div className="copia-resumen">
       {/* El aviso sigue a la vista mientras se elige: es lo que explica por qué no viene nada marcado. */}
       {!cifrado && <div className="dbc-error" role="note">{t.importar.sinCifrarPrevia}</div>}
-      <ListaImportar arbol={p.arbol} seleccion={p.seleccion} avisos={p.avisos} onAlternar={v.alternarCasilla} onMarcarTodo={v.marcarTodo} />
+      <ListaImportar
+        arbol={p.arbol}
+        seleccion={p.seleccion}
+        avisos={p.avisos}
+        aqui={aqui}
+        reglasArchivo={reglasDelArchivo(p.d)}
+        sustituir={p.sustituir}
+        onAlternar={v.alternarCasilla}
+        onMarcarTodo={v.marcarTodo}
+        onDestino={v.cambiarDestino}
+        onSustituir={v.elegirReglas}
+      />
       {p.d.perfilesInvalidos > 0 && <div className="dbc-error">{t.importar.perfilesInvalidos(p.d.perfilesInvalidos)}</div>}
     </div>
   )
@@ -66,6 +90,31 @@ function Saltadas({ titulo, lista }: { titulo: string; lista: Array<{ alias: str
   )
 }
 
+/** Lo que pasó con el historial: los recuentos y, aparte, lo conservado, lo que no cambió de ruta y lo saltado. */
+function HechoHistorial({ h }: { h: ResumenHistorialImportado }): React.JSX.Element {
+  const t = txCopia().importar
+  return (
+    <div className="copia-resumen" data-testid="copia-historial-hecho">
+      <p className="dbc-ayuda">{t.historialHecho(h.importadas, h.actualizadas, h.alDia, h.conservadas.length, h.saltadas.length)}</p>
+      {h.rutaCambiada > 0 && <p className="dbc-ayuda">{t.historialRutaCambiada(h.rutaCambiada)}</p>}
+      <Saltadas titulo={t.historialConservadas} lista={h.conservadas.map((c) => ({ alias: c.ruta, motivo: c.motivo }))} />
+      {h.rutaOriginal.length > 0 && (
+        <>
+          <p className="dbc-ayuda">{t.historialRutaOriginal}</p>
+          <ul className="copia-detalle">
+            {h.rutaOriginal.map((c) => (
+              <li key={c.carpeta}>{t.historialCarpeta(c.carpeta, c.conversaciones, c.motivo)}</li>
+            ))}
+          </ul>
+        </>
+      )}
+      <Saltadas titulo={t.historialSaltadas} lista={h.saltadas.map((c) => ({ alias: c.ruta, motivo: c.motivo }))} />
+      {h.error && <div className="dbc-error">{h.error}</div>}
+      <p className="dbc-ayuda">{t.historialSesion}</p>
+    </div>
+  )
+}
+
 function Hecho({ r }: { r: ResumenImportacion }): React.JSX.Element {
   const { ssh, bd, revisar } = r.conexiones
   const fallidas = r.capas.filter((c) => !c.resultado.ok || c.resultado.faltan.length > 0)
@@ -74,8 +123,10 @@ function Hecho({ r }: { r: ResumenImportacion }): React.JSX.Element {
     <div className="copia-resumen" role="status">
       <p className="copia-ok">{t.importado}</p>
       <p className="dbc-ayuda">{t.hecho(r.perfilesNuevos.length, ssh.anadidas, bd.anadidas, r.agentes, r.ajustes)}</p>
+      {r.reglas.length > 0 && <p className="dbc-ayuda">{t.reglasHecho(txCopia().comun.lista(r.reglas))}</p>}
       <Saltadas titulo={t.saltadasSsh} lista={ssh.saltadas} />
       <Saltadas titulo={t.saltadasBd} lista={bd.saltadas} />
+      {r.conexiones.historial && <HechoHistorial h={r.conexiones.historial} />}
       {revisar.length > 0 && (
         <ul className="copia-detalle">
           {revisar.map((t, i) => (
@@ -104,10 +155,12 @@ function useImportar(a: Abierto) {
       setError(d.error)
       return setFase({ tipo: 'frase', ocupado: false })
     }
-    const arbol = vistaPrevia(d)
-    // Sin cifrar, cualquiera pudo cambiarlo (añadir un agente con sus órdenes, unos ajustes): nada
-    // entra marcado de serie y lo que se importa lo elige el usuario de una en una.
-    setFase({ tipo: 'previa', d, arbol, seleccion: a.cifrado ? seleccionInicial(arbol) : new Set<string>(), avisos: [] })
+    const destinos = destinosDeSerie(d)
+    const arbol = vistaPrevia(d, destinos)
+    // Sin cifrar, cualquiera pudo cambiarlo (añadir un agente con sus órdenes, unos ajustes, unas reglas):
+    // nada entra marcado de serie y lo que se importa lo elige el usuario de una en una. Sustituir unas
+    // reglas nunca viene elegido.
+    setFase({ tipo: 'previa', d, destinos, sustituir: new Set(), arbol, seleccion: a.cifrado ? seleccionInicial(arbol) : new Set<string>(), avisos: [] })
   }
   const alternarCasilla = (clave: string): void =>
     setFase((f) => {
@@ -117,6 +170,24 @@ function useImportar(a: Abierto) {
     })
   const marcarTodo = (todo: boolean): void =>
     setFase((f) => (f.tipo === 'previa' ? { ...f, seleccion: todo ? seleccionInicial(f.arbol) : new Set<string>(), avisos: [] } : f))
+  // Otro destino cambia qué ya está (los agentes del perfil que lo recibe) y qué pasa con las reglas.
+  const cambiarDestino = (perfil: string, destino: string | null): void =>
+    setFase((f) => {
+      if (f.tipo !== 'previa') return f
+      const destinos = { ...f.destinos, [perfil]: destino }
+      const arbol = vistaPrevia(f.d, destinos)
+      const sustituir = new Set(f.sustituir)
+      sustituir.delete(perfil)
+      return { ...f, destinos, sustituir, arbol, seleccion: seleccionTrasCambiarDestino(arbol, f.seleccion, perfil, a.cifrado), avisos: [] }
+    })
+  const elegirReglas = (perfil: string, sustituye: boolean): void =>
+    setFase((f) => {
+      if (f.tipo !== 'previa') return f
+      const sustituir = new Set(f.sustituir)
+      if (sustituye) sustituir.add(perfil)
+      else sustituir.delete(perfil)
+      return { ...f, sustituir }
+    })
   const importar = async (d: Descifrado, sel: SeleccionImportar): Promise<void> => {
     setFase({ tipo: 'importando' })
     try {
@@ -127,13 +198,13 @@ function useImportar(a: Abierto) {
       setFase({ tipo: 'fallo' })
     }
   }
-  return { frase, setFrase, error, fase, descifrar, alternarCasilla, marcarTodo, importar }
+  return { frase, setFrase, error, fase, descifrar, alternarCasilla, marcarTodo, cambiarDestino, elegirReglas, importar }
 }
 
 /** «Importar» manda solo lo marcado; sin nada marcado no hay nada que importar. */
 function BotonImportar({ fase, importar }: { fase: Extract<Fase, { tipo: 'previa' }>; importar: (d: Descifrado, sel: SeleccionImportar) => Promise<void> }): React.JSX.Element {
   const t = txCopia().importar
-  const sel = seleccionParaImportar(fase.arbol, fase.seleccion)
+  const sel = seleccionParaImportar(fase.arbol, fase.seleccion, fase.sustituir)
   const vacia = !haySeleccion(sel)
   return (
     <button type="button" className="btn primary" disabled={vacia} title={vacia ? t.nadaMarcado : undefined} onClick={() => void importar(fase.d, sel)}>

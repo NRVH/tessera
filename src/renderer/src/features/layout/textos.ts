@@ -19,7 +19,9 @@ export const txLayout = crearTextos(
       cambiosSinConfirmar: (n: number) => `${n} cambios sin confirmar`,
       barra: 'Barra de actividad',
       grupoSuperior: 'Grupo superior del riel',
-      grupoInferior: 'Grupo inferior del riel'
+      grupoInferior: 'Grupo inferior del riel',
+      volver: 'Volver al proyecto',
+      volverTitulo: { terminal: 'Cierra la terminal y vuelve al proyecto', gitlog: 'Cierra el historial de git y vuelve al proyecto' }
     },
     estado: {
       barra: 'Barra de estado',
@@ -27,8 +29,8 @@ export const txLayout = crearTextos(
       mostrarAgenteDatos: (acorde: string) => `Mostrar el agente de datos (${acorde})`,
       ocultarAgenteTerminal: (acorde: string) => `Ocultar el agente de la terminal, que sigue corriendo (${acorde})`,
       mostrarAgenteTerminal: (acorde: string) => `Mostrar el agente de la terminal (${acorde})`,
-      ocultarColumna: 'Ocultar la columna del agente (CC/Codex)',
-      mostrarColumna: 'Mostrar la columna del agente (CC/Codex)',
+      ocultarColumna: 'Ocultar el agente; sigue trabajando',
+      mostrarColumna: 'Mostrar el agente',
       ramaActual: (rama: string) => `Rama actual: ${rama}`,
       tituloProblema: (titulo: string, detalle: string | undefined) =>
         `${titulo}${detalle ? `\n${detalle}` : ''}\n\nClic para descartar`,
@@ -43,11 +45,11 @@ export const txLayout = crearTextos(
       itemGuardar: 'Guardar con codificación…'
     },
     razones: {
-      sinArchivo: 'Abre un archivo para poder ocultar la columna del agente',
+      sinArchivo: 'Sin un archivo abierto el agente ocupa el centro; abre uno para poder ocultarlo',
       vistaDividida:
         'En vista dividida la columna del agente se esconde para dejar sitio a los dos paneles. Cambia el modo del archivo para recuperarla.',
       mosaico: 'En el mosaico de agentes las terminales ocupan toda la ventana. Sal del mosaico para ocultar la columna.',
-      sinPerfilDb: 'Abre un perfil para usar el agente de datos',
+      sinPerfilDb: 'Elige un perfil en la barra de arriba para usar el agente de bases de datos',
       gitLogPantallaCompleta:
         'A pantalla completa de Git no hay columna del agente. Pulsa Restaurar en el panel para volver a verla.'
     },
@@ -55,7 +57,7 @@ export const txLayout = crearTextos(
       salirMosaico: (mod: string) => `Salir del mosaico (${mod}+Shift+M)`,
       mosaicoDisponible: (mod: string) =>
         `Mosaico de agentes: todas las terminales en marcha a la vista (${mod}+Shift+M)`,
-      mosaicoNoDisponible: 'Mosaico de agentes: no hay ningún agente en marcha',
+      mosaicoNoDisponible: 'Ver todos los agentes a la vez (cuando haya alguno en marcha)',
       mosaico: 'Mosaico de agentes',
       configuracionTitulo: (mod: string) => `Configuración (${mod}+,)`,
       configuracion: 'Configuración'
@@ -94,7 +96,9 @@ export const txLayout = crearTextos(
       cambiosSinConfirmar: (n: number) => `${n} uncommitted change${n === 1 ? '' : 's'}`,
       barra: 'Activity bar',
       grupoSuperior: 'Sidebar top group',
-      grupoInferior: 'Sidebar bottom group'
+      grupoInferior: 'Sidebar bottom group',
+      volver: 'Back to the project',
+      volverTitulo: { terminal: 'Closes the terminal and goes back to the project', gitlog: 'Closes the git history and goes back to the project' }
     },
     estado: {
       barra: 'Status bar',
@@ -102,8 +106,8 @@ export const txLayout = crearTextos(
       mostrarAgenteDatos: (acorde: string) => `Show the data agent (${acorde})`,
       ocultarAgenteTerminal: (acorde: string) => `Hide the terminal agent, which keeps running (${acorde})`,
       mostrarAgenteTerminal: (acorde: string) => `Show the terminal agent (${acorde})`,
-      ocultarColumna: 'Hide the agent column (CC/Codex)',
-      mostrarColumna: 'Show the agent column (CC/Codex)',
+      ocultarColumna: 'Hide the agent; it keeps working',
+      mostrarColumna: 'Show the agent',
       ramaActual: (rama: string) => `Current branch: ${rama}`,
       tituloProblema: (titulo: string, detalle: string | undefined) =>
         `${titulo}${detalle ? `\n${detalle}` : ''}\n\nClick to dismiss`,
@@ -118,18 +122,18 @@ export const txLayout = crearTextos(
       itemGuardar: 'Save with encoding…'
     },
     razones: {
-      sinArchivo: 'Open a file to be able to hide the agent column',
+      sinArchivo: 'With no file open, the agent fills the center; open a file to hide it',
       vistaDividida:
-        'In split view the agent column is hidden to make room for the two panes. Change the file’s mode to bring it back.',
+        'In split view the agent column is hidden to make room for the two panes. Change the file’s view mode to show it again.',
       mosaico: 'In the agent mosaic the terminals take up the whole window. Leave the mosaic to hide the column.',
-      sinPerfilDb: 'Open a profile to use the data agent',
+      sinPerfilDb: 'Choose a profile in the bar at the top to use the database agent',
       gitLogPantallaCompleta:
         'In full-screen Git there is no agent column. Click Restore in the panel to see it again.'
     },
     titulo: {
       salirMosaico: (mod: string) => `Leave the mosaic (${mod}+Shift+M)`,
       mosaicoDisponible: (mod: string) => `Agent mosaic: every running terminal in view (${mod}+Shift+M)`,
-      mosaicoNoDisponible: 'Agent mosaic: no agent is running',
+      mosaicoNoDisponible: 'See all agents at once (when one is running)',
       mosaico: 'Agent mosaic',
       configuracionTitulo: (mod: string) => `Settings (${mod}+,)`,
       configuracion: 'Settings'
@@ -152,7 +156,7 @@ export const txLayout = crearTextos(
       aria: 'Closing Tessera',
       actualizando: 'Updating Tessera',
       cerrando: 'Closing Tessera',
-      reabre: 'Tessera will reopen on its own when it finishes.',
+      reabre: 'Tessera reopens automatically when it finishes.',
       deteniendo: 'Stopping Docker containers…'
     }
   }

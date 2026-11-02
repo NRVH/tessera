@@ -44,7 +44,7 @@ test('modo minimalista: la lista se reordena arrastrando y la banda sale en ese 
     await win.keyboard.press('Escape')
     await win.keyboard.press(`${process.platform === 'darwin' ? 'Meta' : 'Control'}+,`)
     await win.locator('.ajustes-riel-item[data-cat="apariencia"]').click()
-    await win.getByRole('switch', { name: 'Modo minimalista de perfiles' }).click()
+    await win.getByRole('switch', { name: 'Perfiles en un selector compacto' }).click()
     await win.keyboard.press('Escape')
     await expect(win.locator('.tabs-profiles .profile-tab'), 'la banda, con el orden de la lista').toHaveText([/Perfil Beta/, /Perfil Alfa/])
   } finally {

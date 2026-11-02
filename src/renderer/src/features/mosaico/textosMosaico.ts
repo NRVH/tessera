@@ -17,9 +17,9 @@ export const txMosaico = crearTextos(
     agentes: (n: number) => (n === 1 ? '1 agente' : `${n} agentes`),
     trabajando: (n: number) => ` · ${n} trabajando`,
     selectorTitulo:
-      'Elegir qué proyectos se ven (como mucho seis). Los que no están en marcha arrancan al añadirlos, y los dormidos levantan antes su contenedor.',
+      'Elegir qué proyectos se ven (como mucho seis). Los que no están en marcha arrancan al añadirlos, y los hibernados levantan antes su contenedor.',
     casillasDe: (n: number, total: number) => `${n} de ${total}`,
-    dormido: ' (dormido)',
+    dormido: ' (hibernado)',
     distribucion: 'Distribución',
     presets: {
       auto: {
@@ -48,9 +48,9 @@ export const txMosaico = crearTextos(
     agentes: (n: number) => (n === 1 ? '1 agent' : `${n} agents`),
     trabajando: (n: number) => ` · ${n} working`,
     selectorTitulo:
-      'Choose which projects are shown (six at most). Those not running start when added, and sleeping ones bring up their container first.',
+      'Choose which projects to show (up to six). Projects that are not running start when you add them, and hibernated ones start their container first.',
     casillasDe: (n: number, total: number) => `${n} of ${total}`,
-    dormido: ' (asleep)',
+    dormido: ' (hibernated)',
     distribucion: 'Layout',
     presets: {
       auto: {
@@ -68,10 +68,10 @@ export const txMosaico = crearTextos(
         ayuda: 'Main and stack: the first one large on the left and the rest stacked on the right'
       }
     },
-    avisoTitulo: (nombre: string) => `“${nombre}” does not fit in this window: Automatic is used until there is room.`,
-    avisoAria: (nombre: string) => `${nombre} does not fit: Automatic is used`,
+    avisoTitulo: (nombre: string) => `“${nombre}” does not fit in this window: Tessera uses Automatic until there is room.`,
+    avisoAria: (nombre: string) => `${nombre} does not fit: using Automatic`,
     casillaAVista: 'Tile in view',
     yaTieneTerminal: 'That project already has a terminal',
-    yaTieneTerminalDetalle: (nombre: string) => `“${nombre}” is already shown in another tile; taking you to it.`
+    yaTieneTerminalDetalle: (nombre: string) => `“${nombre}” is already shown in another tile; switching to it.`
   }
 )

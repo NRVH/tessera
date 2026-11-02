@@ -164,4 +164,6 @@ export interface PropsCategoria extends AjustesProps {
    * catálogo y lo que se ve no pueden divergir.
    */
   ve: (id: string) => boolean
+  /** ¿Se pinta como resultado del buscador? Tessera Academy enseña entonces la lista de artículos. */
+  enBusqueda: boolean
 }

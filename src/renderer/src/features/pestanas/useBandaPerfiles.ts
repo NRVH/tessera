@@ -6,6 +6,7 @@
 // =============================================================================
 import { useState } from 'react'
 import type { Profile } from '../../../../main/profiles/types'
+import type { ProfileDotState } from './profileDotState'
 import { useAccionesPerfil } from './useAccionesPerfil'
 import { useArrastrePerfiles } from './useArrastrePerfiles'
 import { useCrearPerfil } from './useCrearPerfil'
@@ -14,10 +15,13 @@ import { useRenombrarPerfil } from './useRenombrarPerfil'
 interface OpcionesBanda {
   profiles: Profile[]
   working?: Set<string>
+  /** Estado de hibernación de cada perfil; ausente => activo. */
+  dotStates?: Record<string, ProfileDotState>
   onAddProfile: (nombre: string, color: string) => void
   onRenameProfile: (profileId: string, nombre: string) => void
   onRecolorProfile: (profileId: string, color: string) => void
   onToggleRedHost: (profileId: string, redHost: boolean) => void
+  onSetReglas: (profileId: string, reglas: string) => void
   onDeleteProfile: (profileId: string) => void
   onReorderProfiles: (orderedIds: string[]) => void
   onHibernateProfile: (profileId: string) => void

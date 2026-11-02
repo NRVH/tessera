@@ -81,6 +81,17 @@ function desarmarParaRelanzar(n: NucleoAgente, open: OpenAgentSession): void {
   open.activity.suppress(ACTIVITY_BOOT_GRACE_MS)
 }
 
+/** El aviso de arranque de la sesión al relanzarla: las reglas son las vigentes del perfil, no las de cuando se abrió. */
+function avisoDeArranque(n: NucleoAgente, open: OpenAgentSession, dbConnectionIds: string[]): string | null {
+  return briefingCompuesto({
+    bd: n.getDbBriefing(open.profileId, open.projectHostPath, dbConnectionIds),
+    ssh: n.getSshBriefing(open.profileId),
+    reglas: n.profiles.get(open.profileId)?.reglas,
+    historial: true,
+    traspaso: open.avisoTraspaso ?? null
+  })
+}
+
 async function recargarNativo(
   n: NucleoAgente,
   open: OpenAgentSession,
@@ -96,7 +107,7 @@ async function recargarNativo(
             n.binaries[deSerie(open)],
             deSerie(open),
             reanudar,
-            briefingCompuesto(n.getDbBriefing(open.profileId, open.projectHostPath, dbConnectionIds), n.getSshBriefing(open.profileId))
+            avisoDeArranque(n, open, dbConnectionIds)
           ),
           extraEnv: n.getHostEnv(open.profileId, open.projectHostPath, dbConnectionIds)
         }
@@ -142,7 +153,7 @@ function relanzamientoContenedor(
       n.sshSetup,
       reanudar,
       extraEnv,
-      briefingCompuesto(n.getDbBriefing(open.profileId, open.projectHostPath, dbConnectionIds), n.getSshBriefing(open.profileId))
+      avisoDeArranque(n, open, dbConnectionIds)
     ),
     extraEnv
   }

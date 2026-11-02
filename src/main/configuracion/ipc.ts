@@ -1,16 +1,17 @@
 // =============================================================================
-// IPC de la copia de la configuración: exportar (armar, cifrar con la frase y guardar con el
-// diálogo nativo) e importar en tres pasos (abrir y leer la cabecera, descifrar con la frase y, ya
-// fusionados los perfiles en el renderer, dar de alta las conexiones elegidas). Lo descifrado se queda en
-// el main hasta CONEXIONES u OLVIDAR: ningún secreto cruza al renderer. Un `.tessera` abierto desde el
-// sistema se abre igual, sin diálogo (`copiasPendientes.ts`).
+// IPC de la copia de la configuración: exportar (armar, cifrar con la frase y guardar con el diálogo
+// nativo; con historial, en trozos) e importar en tres pasos (abrir y leer la cabecera, descifrar con la
+// frase y, ya fusionados los perfiles en el renderer, dar de alta las conexiones y el historial elegidos,
+// cada uno en su perfil de destino).
+// Lo descifrado (y la clave) se queda en el main hasta CONEXIONES u OLVIDAR: ningún secreto cruza al
+// renderer. Un `.tessera` abierto desde el sistema se abre igual, sin diálogo (`copiasPendientes.ts`).
 // Decisiones: docs/decisiones/configuracion/exportar-importar.md
 // =============================================================================
 
 import type { BrowserWindow, IpcMain } from 'electron'
 import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { readFile, realpath, stat } from 'node:fs/promises'
+import { realpath, stat } from 'node:fs/promises'
 import path from 'node:path'
 import {
   COPIA_CONFIGURACION_CHANNELS as C,
@@ -20,21 +21,35 @@ import {
   type DescifrarResult,
   type ExportarRequest,
   type ExportarResult,
-  type ResultadoConexiones
+  type FuenteHistorial,
+  type PreviaHistorialRequest,
+  type ResultadoConexiones,
+  type ResumenExportacion,
+  type ResumenHistorialImportado
 } from '../../shared/copia-configuracion-ipc'
 import { EXTENSION_COPIA, MIN_FRASE } from '../../shared/copiaConfiguracion'
 import type { Plataforma } from '../../shared/plataforma'
 import { writeFileAtomicSync } from '../util/atomicWrite'
 import { elegirConDialogo, guardarConDialogo } from '../util/adaptadores/dialogosNativos'
-import { cifrarCopia, copiaSinCifrar, descifrarCopia, leerArchivoCopia, type ArchivoCopia } from './cifradoFrase'
+import { descifrarCopia, prepararCopia, type ArchivoCopia } from './cifradoFrase'
 import { txConfiguracion } from './textos.ts'
 import { conectarAvisoCopias, tomarCopiaPendiente } from './copiasPendientes'
 import { copiaDelSistemaAceptable } from './rutaCopiaSistema'
 import { leerSeleccionConexiones } from '../../shared/seleccionCopia'
-import { armarContenido, leerContenido, previaConexiones, seleccionarContenido, type ContenidoCopia, type FuentesConexiones } from './contenido'
+import {
+  armarContenido,
+  leerContenido,
+  previaConexiones,
+  previaHistorial,
+  reasignarContenido,
+  seleccionarContenido,
+  type ContenidoCopia,
+  type FuentesConexiones
+} from './contenido'
+import { ImportadorHistorial, escribirHistorial, recogerHistorial, type DepsHistorial } from './historialCopia'
+import { listarConCache } from './inclusionHistorial'
+import { EscritorCopia, leerCabeceraCopia, leerTrozos, selloDe } from './trozosCopia'
 
-/** Una copia es texto: más que esto no es una copia de Tessera. */
-const TOPE_ARCHIVO_BYTES = 64 * 1024 * 1024
 /** Cuánto vive un archivo abierto (y lo descifrado de él) sin importarse ni soltarse. */
 const VIDA_ABIERTO_MS = 15 * 60_000
 const filtros = (): Array<{ name: string; extensions: string[] }> => [
@@ -51,11 +66,17 @@ export interface DepsCopiaConfiguracion {
   importarBd: (copia: unknown, perfiles: ReadonlySet<string>) => { anadidas: number; saltadas: Array<{ alias: string; motivo: string }>; revisar: string[] }
   /** ¿Hay ya en este equipo una conexión con ese id? Para marcarla en la vista previa. */
   yaEsta: { ssh: (id: string) => boolean; bd: (id: string) => boolean }
+  historial: DepsHistorial
 }
 
 interface Abierto {
   archivo: ArchivoCopia
+  ruta: string
+  /** El SHA-256 de la primera línea de un archivo de la versión 2 (con historial); null en la 1. */
+  hashLinea: Buffer | null
   contenido?: ContenidoCopia
+  /** La clave de la frase, para abrir los trozos del historial; null sin frase. */
+  clave?: Buffer | null
 }
 
 /** `tessera-configuracion-AAAA-MM-DD.tessera`. */
@@ -71,9 +92,47 @@ async function exportar(d: DepsCopiaConfiguracion, req: ExportarRequest): Promis
   const r = await guardarConDialogo('copia-configuracion', nombrePropuesto(), { filters: filtros() }, { ventana: d.ventana() })
   if (r.canceled || !r.filePath) return { estado: 'cancelado' }
   const meta = { plataforma: d.plataforma, app: d.version }
-  const archivo = sinFrase ? copiaSinCifrar(JSON.stringify(contenido), meta) : await cifrarCopia(JSON.stringify(contenido), req.frase, meta)
-  writeFileAtomicSync(r.filePath, JSON.stringify(archivo, null, 2))
+  const frase = sinFrase ? null : req.frase
+  if (typeof req.historial !== 'object' || req.historial === null) {
+    const { archivo } = await prepararCopia(JSON.stringify(contenido), frase, meta, false)
+    writeFileAtomicSync(r.filePath, JSON.stringify(archivo, null, 2))
+    return { estado: 'guardado', nombre: path.basename(r.filePath), resumen }
+  }
+  await exportarConHistorial(d, r.filePath, { contenido, resumen, frase, nativo: req.historial.nativo === true, meta })
   return { estado: 'guardado', nombre: path.basename(r.filePath), resumen }
+}
+
+/** El archivo de la versión 2: el contenido con el índice del historial y, detrás, las conversaciones en trozos. */
+async function exportarConHistorial(
+  d: DepsCopiaConfiguracion,
+  ruta: string,
+  o: { contenido: ContenidoCopia; resumen: ResumenExportacion; frase: string | null; nativo: boolean; meta: { plataforma: Plataforma; app: string } }
+): Promise<void> {
+  const fuentes = await recogerHistorial(d.historial, o.contenido.perfiles.map((p) => p.id), o.nativo, true)
+  const contenido: ContenidoCopia = { ...o.contenido, historial: { fuentes: fuentes.map((f) => f.fuente) } }
+  const resumen = {
+    conversaciones: fuentes.reduce((n, f) => n + f.fuente.conversaciones, 0),
+    bytes: fuentes.reduce((n, f) => n + f.fuente.bytes, 0),
+    saltadas: 0
+  }
+  o.resumen.historial = resumen
+  const { archivo, clave } = await prepararCopia(JSON.stringify(contenido), o.frase, o.meta, true)
+  const e = await EscritorCopia.abrir(ruta, archivo, clave)
+  try {
+    resumen.saltadas = await escribirHistorial(e, fuentes)
+    await e.cerrar()
+  } catch (err) {
+    // El error que ve el usuario es el de exportar; uno al borrar el temporal solo se registra.
+    await e.abortar().catch((fallo: unknown) => console.warn(`[copia] no se pudo borrar el temporal de la copia: ${String(fallo)}`))
+    throw err
+  }
+}
+
+/** Lo que llevaría el historial de esos perfiles (y el nativo), sin abrir ninguna conversación. */
+async function previaHistorialExportar(d: DepsCopiaConfiguracion, req: PreviaHistorialRequest, listar: ReturnType<typeof listarConCache>): Promise<FuenteHistorial[]> {
+  const perfiles = Array.isArray(req?.perfiles) ? req.perfiles.filter((p): p is string => typeof p === 'string') : []
+  const fuentes = await recogerHistorial(d.historial, perfiles, req?.nativo === true, false, listar)
+  return fuentes.map((f) => f.fuente)
 }
 
 async function abrir(d: DepsCopiaConfiguracion, abiertos: Map<string, Abierto>): Promise<AbrirResult> {
@@ -86,13 +145,12 @@ async function abrir(d: DepsCopiaConfiguracion, abiertos: Map<string, Abierto>):
 /** Lee la cabecera de una copia y la deja abierta con su token: lo mismo la elegida a mano que la del sistema. */
 async function abrirRuta(ruta: string, abiertos: Map<string, Abierto>): Promise<AbrirResult> {
   try {
-    if ((await stat(ruta)).size > TOPE_ARCHIVO_BYTES) return { estado: 'error', error: txConfiguracion().demasiadoGrande }
-    const leido = leerArchivoCopia(await readFile(ruta, 'utf8'))
+    const leido = await leerCabeceraCopia(ruta)
     if (!leido.ok) return { estado: 'error', error: leido.error }
     // Un solo archivo abierto a la vez: abrir otro suelta el anterior.
     abiertos.clear()
     const token = randomUUID()
-    abiertos.set(token, { archivo: leido.archivo })
+    abiertos.set(token, { archivo: leido.archivo, ruta, hashLinea: leido.hash })
     // Si el renderer no llega a soltarlo (se recarga, se cae), lo descifrado no se queda en memoria.
     setTimeout(() => abiertos.delete(token), VIDA_ABIERTO_MS).unref()
     const { creado, plataforma, app } = leido.archivo
@@ -127,14 +185,44 @@ async function descifrar(d: DepsCopiaConfiguracion, abiertos: Map<string, Abiert
   const leido = leerContenido(r.contenido)
   if (!leido) return { ok: false, error: txConfiguracion().contenidoIlegible }
   a.contenido = leido.contenido
+  a.clave = r.clave
   const { perfiles, agentes, ajustes } = leido.contenido
-  return { ok: true, perfiles, agentes, ajustes, conexiones: previaConexiones(leido.contenido, d.yaEsta), perfilesInvalidos: leido.invalidos }
+  return {
+    ok: true,
+    perfiles,
+    agentes,
+    ajustes,
+    conexiones: previaConexiones(leido.contenido, d.yaEsta),
+    perfilesInvalidos: leido.invalidos,
+    // Sin la primera línea de la versión 2 no hay trozos que leer: un índice suelto no se ofrece.
+    historial: a.hashLinea === null ? [] : previaHistorial(leido.contenido)
+  }
 }
 
-/** Perfiles cuya carpeta `.ssh` no está en este equipo. */
-function revisarPerfiles(c: ContenidoCopia): string[] {
+/**
+ * Las conversaciones elegidas, trozo a trozo; los trozos de las fuentes no elegidas se saltan sin descifrar.
+ * Un archivo dañado corta aquí, con lo escrito hasta ahí.
+ */
+async function importarHistorial(d: DepsCopiaConfiguracion, a: Abierto, c: ContenidoCopia, elegidas: readonly string[]): Promise<ResumenHistorialImportado | undefined> {
+  if (a.hashLinea === null || elegidas.length === 0 || !c.historial) return undefined
+  const perfiles = new Set(c.perfiles.map((p) => p.id))
+  const fuentes = c.historial.fuentes.filter((f) => elegidas.includes(String(f.id)) && (f.perfil === null || perfiles.has(f.perfil)))
+  const imp = new ImportadorHistorial(d.historial)
+  imp.preparar(fuentes)
+  const sello = selloDe(a.hashLinea, a.clave ?? null, a.archivo.cifrado?.sal ?? null)
+  try {
+    for await (const t of leerTrozos(a.ruta, a.hashLinea, sello, new Set(fuentes.map((f) => f.id)))) await imp.trozo(t)
+    return imp.cerrar(null)
+  } catch (err) {
+    await imp.soltar()
+    return imp.cerrar(txConfiguracion().historial.error(err instanceof Error ? err.message : String(err)))
+  }
+}
+
+/** Perfiles nuevos cuya carpeta `.ssh` no está en este equipo; de uno que va a un perfil de aquí no se trae. */
+function revisarPerfiles(c: ContenidoCopia, fusionados: ReadonlySet<string>): string[] {
   return c.perfiles
-    .filter((p) => typeof p.sshDir === 'string' && p.sshDir !== '' && !existsSync(p.sshDir))
+    .filter((p) => !fusionados.has(p.id) && typeof p.sshDir === 'string' && p.sshDir !== '' && !existsSync(p.sshDir))
     .map((p) => txConfiguracion().sshNoEsta(p.nombre))
 }
 
@@ -142,25 +230,33 @@ async function conexiones(d: DepsCopiaConfiguracion, abiertos: Map<string, Abier
   const a = abiertos.get(req?.token)
   if (!a?.contenido) throw new Error(txConfiguracion().noAbiertoCorto)
   abiertos.delete(req.token)
-  const c = seleccionarContenido(a.contenido, leerSeleccionConexiones(req.seleccion))
+  const seleccion = leerSeleccionConexiones(req.seleccion)
+  const elegido = seleccionarContenido(a.contenido, seleccion)
+  const revisarDePerfiles = revisarPerfiles(elegido, new Set(seleccion.fusionados))
+  // Cada cosa al perfil de aquí que la recibe: el mismo, uno nuevo con otro id o uno que ya existía.
+  const c = reasignarContenido(elegido, seleccion.reasignar)
   const perfiles = new Set(c.perfiles.map((p) => p.id))
   // SSH antes: una base puede ir por el túnel de una conexión SSH de la copia.
   const ssh = await d.importarSsh(c.ssh, perfiles)
   const bd = d.importarBd(c.bd, perfiles)
   const sinSecretoSsh = ssh.sinSecreto.map((a) => txConfiguracion().sinSecretoSsh(a))
+  const historial = await importarHistorial(d, a, c, seleccion.historial)
   return {
     ssh: { anadidas: ssh.anadidas, saltadas: ssh.saltadas },
     bd: { anadidas: bd.anadidas, saltadas: bd.saltadas },
-    revisar: [...revisarPerfiles(c), ...sinSecretoSsh, ...bd.revisar]
+    revisar: [...revisarDePerfiles, ...sinSecretoSsh, ...bd.revisar],
+    ...(historial ? { historial } : {})
   }
 }
 
 export function registrarIpcCopiaConfiguracion(d: DepsCopiaConfiguracion): void {
   const abiertos = new Map<string, Abierto>()
+  const listarPrevia = listarConCache()
   d.ipc.handle(C.EXPORTAR, (_e, req: ExportarRequest) => exportar(d, req))
   d.ipc.handle(C.ABRIR, () => abrir(d, abiertos))
   d.ipc.handle(C.DESCIFRAR, (_e, req: DescifrarRequest) => descifrar(d, abiertos, req))
   d.ipc.handle(C.CONEXIONES, (_e, req: ConexionesRequest) => conexiones(d, abiertos, req))
+  d.ipc.handle(C.PREVIA_HISTORIAL, (_e, req: PreviaHistorialRequest) => previaHistorialExportar(d, req, listarPrevia))
   d.ipc.handle(C.OLVIDAR, (_e, req: { token?: unknown }) => {
     if (typeof req?.token === 'string') abiertos.delete(req.token)
   })

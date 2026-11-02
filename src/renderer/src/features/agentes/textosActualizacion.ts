@@ -179,17 +179,17 @@ export const txActualizacion = crearTextos(
       introA: 'Downloads and installs the latest version of ',
       introY: ' and ',
       introB:
-        ', rebuilding the base image (a few minutes) and restarting the containers. Agents you have open will restart on their own on the new version.',
+        ', rebuilding the base image (a few minutes) and restarting the containers. Open agents restart automatically on the new version.',
       okAntes: '✓ Agents updated. Now: ',
       okSep: ' · ',
       okDespues: '.',
       fallo: '✕ Could not update: ',
       cancelar: 'Cancel',
       actualizar: 'Update',
-      trabajando: 'Updating… do not close the app.'
+      trabajando: 'Updating… Do not close the app.'
     },
     boton: {
-      etiqueta: (tuEquipo: string) => `Update the agents on ${tuEquipo}`,
+      etiqueta: (tuEquipo: string) => `Update agents on ${tuEquipo}`,
       actualizando: 'Updating…',
       fases: {
         comprobando: 'checking versions',
@@ -199,7 +199,7 @@ export const txActualizacion = crearTextos(
         terminado: 'finishing'
       },
       tituloEnCurso: (tuEquipo: string, fase: string) =>
-        `Updating the agents on ${tuEquipo}: ${fase}. Click to see the progress.`,
+        `Updating the agents on ${tuEquipo}: ${fase}. Click to view progress.`,
       sesiones: sesionesEn,
       lista: (partes: string[]) => {
         if (partes.length <= 1) return partes.join('')
@@ -210,18 +210,18 @@ export const txActualizacion = crearTextos(
       reparar: (lista: string) => `repair ${lista}`,
       reiniciar: (sesiones: string) => `restart ${sesiones}`,
       accionPorDefecto: 'Update and restart',
-      saltoRepara: (etq: string, ultima: string | null) => `${etq} is not responding: it can be repaired with ${ultima}`,
+      saltoRepara: (etq: string, ultima: string | null) => `${etq} is not responding: you can repair it with ${ultima}`,
       noSePudo: (lista: string) => `could not update ${lista}`,
       ni: ' or ',
       noVolvio: (sesiones: string) => `${sesiones} did not start again`,
-      errorTitulo: (detalle: string) => `The agent update ran into problems${detalle}. Click to see what happened.`,
+      errorTitulo: (detalle: string) => `The agent update had problems${detalle}. Click to see what happened.`,
       reiniciadas: (sesiones: string) => `${sesiones} restarted`,
       okTitulo: (detalle: string) => `Agents updated${detalle}. Click to see the summary.`,
       corre: (sesiones: string, n: number) => `${sesiones} ${n === 1 ? 'is' : 'are'} running an older version`,
       avisoTitulo: (tuEquipo: string, partes: string, espera: string) =>
-        `There are news in the agents on ${tuEquipo}: ${partes}.${espera} Click to see them.`,
+        `The agents on ${tuEquipo} have updates: ${partes}.${espera} Click to see them.`,
       reposoSinEstado: (tuEquipo: string) => `Check the Claude Code and Codex versions on ${tuEquipo}.`,
-      reposoManual: (partes: string) => `A new version is available that you install by hand: ${partes}. Click to see how.`,
+      reposoManual: (partes: string) => `A new version is available that you install manually: ${partes}. Click to see how.`,
       reposoAlDia: (tuEquipo: string) =>
         `The agents on ${tuEquipo} are up to date. Click to check or restart them.`
     },
@@ -234,15 +234,15 @@ export const txActualizacion = crearTextos(
       todoAlDia: 'Everything is up to date',
       nadaQueInstalar: 'Nothing Tessera can install right now',
       reiniciarIgualmente: (n: number) => `Restart anyway (${n})`,
-      reparacion: (a: string | null) => `It is not responding: ${a} will be reinstalled. `,
+      reparacion: (a: string | null) => `It is not responding: Tessera will reinstall ${a}. `,
       faseB:
-        'Its sessions will be stopped before installing (the running executable locks the folder) and will come back on their own in their conversation.',
-      faseA: 'It installs with its sessions open; they restart afterwards.',
+        'Tessera stops its sessions before installing (the running executable locks the folder) and restarts each one in its conversation.',
+      faseA: 'It installs while its sessions stay open; they restart afterward.',
       binarioPendiente: (ultima: string | null, tuEquipo: string) =>
-        `${ultima ?? 'The new version'} is not ready for ${tuEquipo} yet: the registry does not serve its binary. Check again in a few minutes.`,
-      manualConOrden: '. Command to run by hand:',
+        `${ultima ?? 'The new version'} is not ready for ${tuEquipo} yet: the registry does not provide its binary yet. Check again in a few minutes.`,
+      manualConOrden: '. Run this command manually:',
       manualSinOrden: '.',
-      bloqueado: 'It will not be installed: other programs have its folder open. Close them and check again.',
+      bloqueado: 'Tessera cannot install it: other programs have its folder open. Close them and check again.',
       noInstalado: 'It is not installed or is not responding.',
       atrasadas: (n: number) =>
         `It is already installed; ${n === 1 ? '1 session is' : `${n} sessions are`} running an older version.`,
@@ -264,13 +264,13 @@ export const txActualizacion = crearTextos(
       reiniciando: 'Restarting',
       actualizando: 'Updating',
       titulo: (verbo: string, tuEquipo: string) => `${verbo} the agents on ${tuEquipo}`,
-      noCierres: 'Do not close Tessera until it finishes: some stopped sessions may be waiting to come back.',
+      noCierres: 'Do not close Tessera until it finishes: some stopped sessions may still be waiting to restart.',
       descartar: 'Discard',
       noSeHizoNada: 'Nothing was done',
       noSePudoActualizar: 'could not update',
       sesionesReiniciadas: 'Sessions restarted',
       agentesActualizados: 'Agents updated',
-      conProblemas: 'The update ran into problems',
+      conProblemas: 'The update had problems',
       ningunaReiniciada: 'No session was restarted.',
       reiniciadas: (sesiones: string) => `${sesiones} restarted.`
     },
@@ -294,7 +294,7 @@ export const txActualizacion = crearTextos(
       noArranco: 'did not start again',
       cerrada: 'was closed before it could restart',
       sinResondeo: 'its version could not be checked again',
-      versionDesconocida: 'it is not known which version it started with',
+      versionDesconocida: 'the version it started with is unknown',
       alDia: 'already runs the installed version',
       noNativa: 'no longer runs in native mode',
       seCerro: 'was closed',
@@ -306,9 +306,9 @@ export const txActualizacion = crearTextos(
       otraSesion: (etq: string, espera: boolean) => `another ${etq} session ${espera ? 'is waiting for your reply' : 'was working'}`
     },
     plan: {
-      brew: 'It is installed with Homebrew: update it with its command',
-      gestor: 'It is installed with a system package manager that Tessera does not handle',
-      desconocido: 'It is not known how it was installed: update it where you installed it',
+      brew: 'It is installed with Homebrew: update it with the Homebrew command',
+      gestor: 'It is installed with a system package manager that Tessera does not support',
+      desconocido: 'Tessera cannot tell how it was installed: update it the same way you installed it',
       sinOrden: 'Tessera has no automatic command for this installation on this computer',
       yaEnCurso: 'An update is already in progress',
       nadaQueHacer: 'There is nothing to update or restart',

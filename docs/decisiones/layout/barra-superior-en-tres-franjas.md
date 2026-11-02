@@ -12,7 +12,8 @@ de perfil se reparten el ancho a partes iguales (`flex: 1 1 0`).
 ## Decisión
 
 - Tres franjas: `.titlebar` (30 px: mosaico, agentes, asa de arrastre, aviso, engranaje), la
-  banda de perfiles a ancho completo y la de proyectos del perfil activo.
+  banda de perfiles a ancho completo y la de proyectos del perfil activo, que se aparta con la franja
+  inferior a pantalla completa (`pantalla-completa-de-la-franja.md`).
 - Los botones de ventana no están en el DOM: el renderer solo reserva su hueco con
   `env(titlebar-area-*)` en `.titlebar`.
 - La región de arrastre es solo `.titlebar`: el arrastre para reordenar y el menú contextual de

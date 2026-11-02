@@ -1,8 +1,9 @@
 /* =============================================================================
    CUENTA DEL AGENTE — el botón de la cabecera (el icono de su modo) y su
    selector (`PopoverCuenta.tsx`): secciones con título pequeño, una tarjeta por cuenta con su
-   icono, nombre y detalle, la que se usa marcada con el acento, y las acciones de una cuenta
-   de Docker apartadas a la derecha de su tarjeta, solo al pasar por ella o llegar con el teclado.
+   icono, nombre y detalle, la que se usa marcada con el acento, y las acciones de cada cuenta
+   (seguir la conversación allí y, en Docker, administrarla) apartadas a la derecha de su tarjeta,
+   solo al pasar por ella o llegar con el teclado.
    ============================================================================= */
 
 /* El botón: el icono de dónde corre (el equipo o el contenedor) sobre una pieza sólida del color del
@@ -36,11 +37,27 @@
   font-size: var(--ui-font);
 }
 
+/* El título con su botón ⓘ al lado. */
+.cuenta-pop-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
 .cuenta-pop-titulo {
   padding: 0 2px;
   font-size: 12.5px;
   font-weight: 600;
   color: var(--fg);
+}
+
+.cuenta-pop-ayuda {
+  margin: 0;
+  padding: 0 2px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--fg-muted-modal);
 }
 
 .cuenta-seccion {
@@ -167,8 +184,8 @@
   color: var(--accent);
 }
 
-/* Las acciones de una cuenta de Docker: a la derecha de su tarjeta, sobre un fondo que tapa
-   la marca, y solo al pasar por ella o al llegar con el teclado. */
+/* El botón «⋯» de una cuenta: a la derecha de su tarjeta, sobre un fondo que tapa la marca, y solo al pasar
+   por ella, al llegar con el teclado o mientras su menú está abierto. */
 .cuenta-tarjeta-acciones {
   position: absolute;
   top: 50%;
@@ -184,7 +201,8 @@
   transition: opacity 0.12s ease;
 }
 .cuenta-tarjeta-caja:hover .cuenta-tarjeta-acciones,
-.cuenta-tarjeta-caja:focus-within .cuenta-tarjeta-acciones {
+.cuenta-tarjeta-caja:focus-within .cuenta-tarjeta-acciones,
+.cuenta-tarjeta-acciones.abierto {
   opacity: 1;
   pointer-events: auto;
 }
@@ -192,9 +210,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  /* Más estrechos que altos: los iconos quedan juntos sin encoger el área de clic en vertical. */
-  width: 24px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   border: 0;
   border-radius: 6px;
   background: transparent;
@@ -202,31 +219,15 @@
   cursor: pointer;
 }
 .cuenta-accion svg {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
 }
 .cuenta-accion:hover,
-.cuenta-accion:focus-visible {
+.cuenta-accion:focus-visible,
+.cuenta-tarjeta-acciones.abierto .cuenta-accion {
   background: var(--hover-fuerte);
   color: var(--fg);
   outline: none;
-}
-/* Cada acción se tiñe de lo que hace: renombrar, azul; cerrar sesión (reversible), amarillo; eliminar, rojo.
-   El azul es `--azul` y no `--accent`: el acento es el color del perfil. */
-.cuenta-accion.renombrar:hover,
-.cuenta-accion.renombrar:focus-visible {
-  background: color-mix(in srgb, var(--azul) 17%, transparent);
-  color: var(--azul);
-}
-.cuenta-accion.salir:hover,
-.cuenta-accion.salir:focus-visible {
-  background: color-mix(in srgb, var(--yellow) 17%, transparent);
-  color: var(--yellow);
-}
-.cuenta-accion.peligro:hover,
-.cuenta-accion.peligro:focus-visible {
-  background: var(--danger-tinte);
-  color: var(--red-hi);
 }
 
 .cuenta-nueva {

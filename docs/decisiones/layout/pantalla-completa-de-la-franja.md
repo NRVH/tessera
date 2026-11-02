@@ -1,7 +1,7 @@
 # La franja inferior se maximiza con un solo estado coherente, solo con CSS y sin desmontar nada
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/features/layout/` (`layoutCentro.ts`, `usePantallaCompletaFranja.ts`, `useAtajoPantallaCompleta.ts`), `styles.css` (`.shell.franja-pantalla-completa`), `util/atajos.ts`, el maximizado del agente de datos (`features/agentes/ColumnaAgente.tsx`, `features/bd/useDbVista.ts`) y `e2e/{git,terminal}-pantalla-completa.spec.ts`, `e2e/conexiones.spec.ts`
+- **Ámbito:** `src/renderer/src/features/layout/` (`layoutCentro.ts`, `usePantallaCompletaFranja.ts`, `useAtajoPantallaCompleta.ts`), `styles.css` (`.shell.franja-pantalla-completa`), el riel a pantalla completa (`ActivityBar.tsx`), `util/atajos.ts`, el maximizado del agente de datos (`features/agentes/ColumnaAgente.tsx`, `features/bd/useDbVista.ts`) y `e2e/{git,terminal}-pantalla-completa.spec.ts`, `e2e/conexiones.spec.ts`
 
 ## Contexto
 
@@ -19,7 +19,8 @@ búsqueda global abrían una pestaña que nadie veía.
   Sin pestañas de BD ocupa todo el centro sin pedirlo, como el agente de la columna sin archivos abiertos. Cerrar la ventana y reabrirla, pasar
   de la terminal a Git·Log y volver, cambiar de perfil, el mosaico o la vista de datos NO lo
   borran: al volver, cada ventana está como la dejó. Lo borran el botón de restaurar, el acorde,
-  abrir una pestaña del editor y elegir una vista lateral, que es elegir ver esa vista.
+  abrir una pestaña del editor y elegir una vista lateral desde donde la franja no se pinta (la vista
+  de datos), que es elegir ver esa vista.
 - **Lo que se pinta se deriva en el render** (`pantallaCompletaPedidaDe` + `pantallaCompletaCoherente`,
   puras): el panel que está en la franja, si su perfil lo dejó maximizado, fuera de la vista de
   datos y del mosaico. Nada se corrige en un efecto: al cambiar de perfil el primer render ya sale
@@ -54,14 +55,20 @@ búsqueda global abrían una pestaña que nadie veía.
   siguiente arranca sin maximizar. Tapadas, las terminales no están a la vista y sueltan su contexto
   gráfico. Sin terminales, la cabecera, estrecha, pasa a dos líneas para que el «+» no quede bajo los
   botones.
+- **Que se note el modo:** con los mismos marcos, la vista se confunde con la del proyecto. Los proyectos son de la vista del proyecto: su banda se aparta (fuera del flujo, con su
+  scroll intacto, como en el mosaico) y la franja sube a ocupar su alto; la fila de arriba, tapada,
+  se compensa lo mismo para no cambiar de alto. La banda de perfiles no se toca: se cambia de
+  perfil desde aquí. El riel deja solo la salida, una flecha siempre con el color del perfil que hace lo mismo que el icono del panel
+  (cierra la franja; al volver a abrirla sigue maximizada): los demás iconos llevaban a vistas tapadas.
+  El botón de restaurar sigue bajando el panel a su alto.
 - Solo CSS y sin desmontar: la fila de arriba sale del flujo con su tamaño y se apaga con
   `content-visibility` + `visibility`, como en el mosaico. Ni el editor ni los agentes de arriba
   reciben un resize. El panel maximizado SÍ cambia de tamaño y el pty de la terminal visible se
   redimensiona por su observador (espera de 120 ms): es lo buscado.
-- Salidas: el botón de restaurar (`fijo`: no se esconde en reposo), cualquier apertura de una
-  pestaña del editor (`useAbrirPestana`, su único punto) y elegir una vista lateral del riel. Las
-  dos últimas valen también para Git·Log, que antes dejaba abrir pestañas tapadas. Moverse por
-  los commits no abre nada ni sale (`aperturaDesdeGit`).
+- Salidas: el botón de restaurar (`fijo`: no se esconde en reposo), que baja el panel a su alto;
+  la flecha del riel, que lo cierra; y cualquier apertura de una pestaña del editor
+  (`useAbrirPestana`, su único punto), que vale también para Git·Log. Moverse por los commits no
+  abre nada ni sale (`aperturaDesdeGit`).
 - Atajo `Mod+Shift+↩`, solo con el foco DENTRO de la franja y sin mosaico (allí el mismo acorde
   amplía una casilla), en fase de captura: xterm lo convertiría en un CR. Se traga la
   autorrepetición y respeta un modal abierto.

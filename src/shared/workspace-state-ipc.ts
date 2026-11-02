@@ -28,7 +28,6 @@ import {
   normalizarAnchoRiel,
   normalizarGruposPlegados,
   normalizarPestanasSshPorPerfil,
-  normalizarRielVisiblePorPerfil,
   type SshPestanasPorPerfil
 } from './ajustesTerminal.ts'
 import {
@@ -427,11 +426,6 @@ export interface WorkspaceSettings {
    */
   sshRielAncho: number
   /**
-   * ¿Se ve el riel de conexiones SSH a pantalla completa?, por PERFIL (`profileId` -> boolean). Sin
-   * entrada = se ve. Es una preferencia: que la terminal quede estrecha pliega el riel sin tocarla.
-   */
-  sshRielVisiblePorPerfil: Record<string, boolean>
-  /**
    * Las pestañas SSH (y del explorador SFTP) abiertas al cerrar, por PERFIL, en su orden: vuelven al arrancar,
    * sin conectarse hasta que se miran. El saneado vive en `shared/ajustesTerminal.ts`.
    */
@@ -631,7 +625,6 @@ export const DEFAULT_SETTINGS: WorkspaceSettings = {
   avisarAntesDeParar: SATURACION_POR_DEFECTO.avisoPrevio,
   sshGruposPlegadosPorPerfil: {},
   sshRielAncho: SSH_RIEL_ANCHO_POR_DEFECTO,
-  sshRielVisiblePorPerfil: {},
   sshPestanasPorPerfil: {},
   agenteTerminalVisiblePorPerfil: {},
   agentesNativos: [],
@@ -789,7 +782,6 @@ function normalizeSettings(raw: unknown, proyectosAbiertos: readonly string[] = 
     ...normalizarSaturacion(obj),
     sshGruposPlegadosPorPerfil: normalizarGruposPlegados(obj.sshGruposPlegadosPorPerfil),
     sshRielAncho: normalizarAnchoRiel(obj.sshRielAncho),
-    sshRielVisiblePorPerfil: normalizarRielVisiblePorPerfil(obj.sshRielVisiblePorPerfil),
     sshPestanasPorPerfil: normalizarPestanasSshPorPerfil(obj.sshPestanasPorPerfil),
     agenteTerminalVisiblePorPerfil: normalizarAgenteTerminalVisible(obj.agenteTerminalVisiblePorPerfil),
     ...normalizarAgentesManuales(obj)

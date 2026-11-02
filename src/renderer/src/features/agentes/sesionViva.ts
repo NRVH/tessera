@@ -66,6 +66,8 @@ export interface PedidoApertura {
    * desde este instante (epoch ms); si no, la conversación que había estaba vacía y se empieza de cero.
    */
   nadaDesde: number | null
+  /** El traspaso de «Continuar en…» con el que abrir (lo prepara el main; `traspaso-ipc.ts`). */
+  traspaso: string | null
 }
 
 /** La última conversación de la carpeta, con cuándo tuvo su último mensaje. */
@@ -99,6 +101,7 @@ export class SesionAgente {
   private reanudar: string | null = null
   private deCero = false
   private nadaDesde: number | null = null
+  private traspaso: string | null = null
   private abiertaAntes = false
   private espejo: EspejoSesion = SIN_ESPEJO
   private readonly puertos: PuertosSesion
@@ -140,6 +143,7 @@ export class SesionAgente {
   pedirReanudar(conversacionId: string): void {
     this.reanudar = conversacionId
     this.nadaDesde = null
+    this.traspaso = null
   }
 
   /** La próxima apertura empieza una conversación nueva. */
@@ -147,6 +151,17 @@ export class SesionAgente {
     this.deCero = true
     this.reanudar = null
     this.nadaDesde = null
+    this.traspaso = null
+  }
+
+  /**
+   * La próxima apertura lleva el traspaso `id`: reanuda la conversación copiada (mismo agente) o, sin ella,
+   * empieza una nueva con el traspaso derivado.
+   */
+  pedirTraspaso(id: string, reanudar: string | null): void {
+    if (reanudar) this.pedirReanudar(reanudar)
+    else this.pedirNueva()
+    this.traspaso = id
   }
 
   /**
@@ -156,6 +171,7 @@ export class SesionAgente {
   pedirSiNadaDesde(desde: number): void {
     this.reanudar = null
     this.nadaDesde = desde
+    this.traspaso = null
   }
 
   /**
@@ -166,10 +182,11 @@ export class SesionAgente {
     if (!this.puedeAbrir()) return null
     this.enVuelo = true
     this.cuenta = cuenta
-    const pedido = { reanudar: this.reanudar, deCero: this.deCero, nadaDesde: this.nadaDesde }
+    const pedido = { reanudar: this.reanudar, deCero: this.deCero, nadaDesde: this.nadaDesde, traspaso: this.traspaso }
     this.reanudar = null
     this.deCero = false
     this.nadaDesde = null
+    this.traspaso = null
     return { banner: this.abiertaAntes, pedido }
   }
 
@@ -178,6 +195,7 @@ export class SesionAgente {
     this.reanudar = pedido.reanudar
     this.deCero = pedido.deCero
     this.nadaDesde = pedido.nadaDesde
+    this.traspaso = pedido.traspaso
   }
 
   /** Adopta la sesión que acaba de abrir el main. */

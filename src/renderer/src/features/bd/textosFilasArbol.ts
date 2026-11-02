@@ -168,9 +168,9 @@ export const txFilasArbol = crearTextos(
     produccionEntreParentesis: 'production',
     secretoIlegible: (almacen: string) =>
       'The saved password cannot be decrypted on this computer. It was encrypted with ' +
-      `${almacen}, which ties it to the user and the machine where it was saved: enter it again.`,
+      `${almacen}, which ties it to the user and computer where it was saved. Enter it again.`,
     sinContrasena: 'No saved password.',
-    subtipoSombra: 'Internal table of a virtual table: the engine maintains it, it is not edited.',
+    subtipoSombra: 'Internal table of a virtual table, maintained by the engine. It cannot be edited.',
     subtipoSistema: 'Internal engine table.',
     subtipoSinRowid: 'WITHOUT ROWID: identified by its primary key.',
     instalarCliente: 'Install client…',
@@ -180,27 +180,27 @@ export const txFilasArbol = crearTextos(
     citado: (s: string) => `“${s}”`,
     unoMas: '1 more',
     masN: (n: number) => `${n} more`,
-    consolaALaPapelera: (nombre: string) => `Its console “${nombre}” will go to the trash.`,
-    consolasALaPapelera: (n: number) => `Its ${n} consoles will go to the trash.`,
+    consolaALaPapelera: (nombre: string) => `Its console “${nombre}” will be moved to the trash.`,
+    consolasALaPapelera: (n: number) => `Its ${n} consoles will be moved to the trash.`,
     eliminarConexion: (alias: string) =>
-      `“${alias}” and its saved password will be deleted. This cannot be undone; the database is not touched.`,
-    desmontarDeTodos: 'It will be unmounted from all the projects where you had it.',
+      `“${alias}” and its saved password will be deleted. This cannot be undone. The database itself is not affected.`,
+    desmontarDeTodos: 'It will be unmounted from every project where you mounted it.',
     desmontarDe: (lista: string) => `It will be unmounted from ${lista}.`,
     revertirSinConfirmar: (lista: string) => `Uncommitted changes in ${lista} will be rolled back.`,
     descartarUnCambio: '1 unsubmitted change in its data tabs will be discarded.',
     descartarCambios: (n: number) => `${n} unsubmitted changes in its data tabs will be discarded.`,
     tituloSoloAjenas: 'No connections this version can open',
     pistaSoloAjenas:
-      'This version cannot open the ones in the tree, and each one says why; they are kept as they are. ' +
-      'Update Tessera if they come from a newer one, or create one here.',
+      'This version cannot open the connections in the tree; each one shows why. They are kept as they are. ' +
+      'Update Tessera if they come from a newer version, or create a new one here.',
     vacioMontajeConAjenas: (titulo: string) =>
       `${titulo}: the Databases view shows this profile’s connections dimmed, ` +
       'each with its reason. Create one there to mount it.',
     vacioMontajeSinConexiones: 'This profile has no connections. Add them in the Databases view.',
     tituloFormatoAjeno: 'The connection registry cannot be used',
     notaFormatoAjeno:
-      'Meanwhile no connections are shown and none can be created, but nothing is lost: ' +
-      'the file is not modified and the databases mounted in projects are kept.',
+      'In the meantime, no connections are shown and none can be created, but nothing is lost: ' +
+      'the file is not modified, and the databases mounted in projects are kept.',
     motivoFormatoAjeno: 'Unavailable: the connection registry cannot be used',
     notaMontajeFormatoAjeno:
       'The databases mounted here are kept as they are: they become available again as soon as ' +
@@ -216,12 +216,12 @@ export const txFilasArbol = crearTextos(
     comparteConEliminada: 'It shared its identifier with a deleted connection',
     comparteCon: (otra: string) => `It shares its identifier with ${otra}`,
     explicaEliminada:
-      'It shared its identifier with a deleted connection: Tessera reads the connections at ' +
-      'startup and until then keeps treating it as a duplicate, so restart Tessera to ' +
+      'It shared its identifier with a deleted connection. Tessera reads connections at ' +
+      'startup and treats it as a duplicate until then, so restart Tessera to ' +
       'use it. It is kept as it is.',
     explicaComparte: (otra: string) =>
-      `It shares its identifier with ${otra}: this version cannot tell them apart, and everything done ` +
-      `by that identifier reaches the other one. It is kept as it is; delete it if it is not needed.`,
+      `It shares its identifier with ${otra}: this version cannot tell them apart, and any action ` +
+      `on that identifier also affects the other one. It is kept as it is; delete it if you do not need it.`,
     explicaMotor: (texto: string) =>
       `${texto}: it was created by a newer version, and this one does not know its engine or how ` +
       'to open it. It is kept as it is; update Tessera to use it.',
@@ -231,18 +231,18 @@ export const txFilasArbol = crearTextos(
     eliminarConexionMenu: 'Delete connection…',
     motorEtiqueta: (motor: string) => `Engine: ${motor}`,
     salidaMontaje: 'The agent cannot use it with this version; here it can only be unmounted.',
-    salidaArbol: 'If you no longer want it, delete it: it is the only thing this version can do with it.',
+    salidaArbol: 'If you no longer want it, delete it; that is the only action this version can take on it.',
     salidaArbolRepetida: 'If you no longer want it, delete it.',
-    eliminarNoToca: (otra: string) => `Deleting it does not affect ${otra}: neither its mounts nor its consoles.`,
+    eliminarNoToca: (otra: string) => `Deleting it does not affect ${otra} or its mounts and consoles.`,
     compartidaNoSeToca: (otra: string) =>
-      `“${otra}” shares its identifier and is not touched: its mounts and consoles stay.`,
-    desmontarDeEstePerfil: 'It will be unmounted from the projects of this profile where you had it.',
+      `“${otra}” shares its identifier and is not affected: its mounts and consoles are kept.`,
+    desmontarDeEstePerfil: 'It will be unmounted from the projects in this profile where you mounted it.',
     otroPerfilNoSeToca:
-      'The connection from another profile that shares its identifier is not touched: neither its mounts nor its consoles.',
+      'The connection from another profile that shares its identifier is not affected, nor are its mounts or consoles.',
     eliminarAjena: (alias: string) =>
-      `“${alias}” and its saved password, if any, will be deleted. This cannot be undone; the database is not touched.`,
+      `“${alias}” and its saved password, if any, will be deleted. This cannot be undone. The database itself is not affected.`,
     esConexionDe: (motor: string, explicacion: string) => `It is a ${motor} connection. ${explicacion}`,
-    eliminarSoloSiNoQuieres: 'Deleting it is only needed if you no longer want it.',
+    eliminarSoloSiNoQuieres: 'Delete it only if you no longer want it.',
     unaConsola: 'a console',
     pestanasDatos: 'the data tabs',
     elArbol: 'the tree',
@@ -262,8 +262,8 @@ export const txFilasArbol = crearTextos(
       `${alias}: the pending changes were committed and the ${n} failed transactions were rolled back${quien}.`,
     soloRevertirVarias: (n: number) =>
       `All ${n} transactions failed, and a failed transaction can only be rolled back.`,
-    soloRevertirUna: 'The transaction failed: it can only be rolled back.',
-    desconectarSinSeleccion: 'Choose a connection (or something inside it) to disconnect it',
+    soloRevertirUna: 'The transaction failed and can only be rolled back.',
+    desconectarSinSeleccion: 'Select a connection (or an item inside it) to disconnect it',
     desconectar: 'Disconnect',
     desconectarAlias: (alias: string) => `Disconnect ${alias}`,
     noConectada: (alias: string) => `${alias} is not connected`

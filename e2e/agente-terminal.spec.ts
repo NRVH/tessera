@@ -507,14 +507,13 @@ test.describe.serial('El agente de la terminal', () => {
     await s.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1500, 950))
   })
 
-  test('con el agente maximizado, la cabecera de la terminal va en una línea y sin encimarse a 1024, 1366 y 1920 px, con el riel al mínimo, al máximo y oculto', async () => {
+  test('con el agente maximizado, la cabecera de la terminal va en una línea y sin encimarse a 1024, 1366 y 1920 px, con el riel al mínimo y al máximo', async () => {
     const info = test.info()
     const win = s.win
     const panel = win.locator('section.terminal-panel')
     const pane = win.locator('.right-panel .agent-pane:not(.hidden)')
     const cabecera = panel.locator('> .panel-header')
     const divisor = panel.getByRole('separator', { name: 'Redimensionar la lista de conexiones SSH' })
-    const botonRiel = panel.getByRole('button', { name: 'Panel de conexiones' })
     await pane.locator('.panel-header').hover()
     await pane.getByRole('button', { name: 'Maximizar Claude Code' }).click()
     await expect(panel).toHaveClass(/\bsin-terminal\b/)
@@ -566,11 +565,6 @@ test.describe.serial('El agente de la terminal', () => {
       await comprobar(`${ancho}-riel-min`)
       await arrastrarRiel(600)
       await comprobar(`${ancho}-riel-max`)
-      await botonRiel.click()
-      await expect(win.locator('.ssh-riel')).toBeHidden()
-      await comprobar(`${ancho}-riel-oculto`)
-      await botonRiel.click()
-      await expect(win.locator('.ssh-riel')).toBeVisible()
     }
 
     await s.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1500, 950))

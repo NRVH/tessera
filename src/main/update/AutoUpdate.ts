@@ -49,6 +49,7 @@ export {
   anticiparRelevo,
   cancelarRelevoAnticipado,
   cierreCanceladoAntesDeInstalar,
+  hayRelevoAnticipado,
   openInstallerManually,
   planDeCierre,
   reportInstallAborted,

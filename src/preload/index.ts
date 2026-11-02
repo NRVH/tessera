@@ -65,6 +65,8 @@ import {
 } from './archivos'
 import { type GitApi, git } from './git'
 import { type VentanaAgenteApi, ventanaAgente } from './ventanaAgente'
+import { type ReglasApi, reglas } from './reglas'
+import { type TraspasoApi, traspaso } from './traspaso'
 import {
   type WorkspaceApi,
   type ShutdownApi,
@@ -170,6 +172,8 @@ export interface TesseraApi {
   search: SearchApi
   copiaConfiguracion: CopiaConfiguracionApi
   ventanaAgente: VentanaAgenteApi
+  reglas: ReglasApi
+  traspaso: TraspasoApi
 }
 
 const api: TesseraApi = {
@@ -224,7 +228,9 @@ const api: TesseraApi = {
   comprimidos,
   search,
   copiaConfiguracion,
-  ventanaAgente
+  ventanaAgente,
+  reglas,
+  traspaso
 }
 
 if (!process.contextIsolated) {

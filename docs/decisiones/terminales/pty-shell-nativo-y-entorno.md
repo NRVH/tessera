@@ -1,7 +1,7 @@
 # El modo nativo lanza un shell de login e interactivo en macOS y fusiona el PATH según el sistema
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/terminals/shellNativo.ts` y `terminals/entornoPty.ts`
+- **Ámbito:** `src/main/terminals/shellNativo.ts`, `terminals/entornoPty.ts` y `terminals/lanzamientoPty.ts`
 
 ## Contexto
 
@@ -22,6 +22,11 @@ Un `zsh -lc` es login pero no interactivo: carga `.zprofile` y nunca `.zshrc`, d
   colapsa `Path`/`PATH` a una sola clave (la búsqueda es sin distinguir caja); en POSIX son
   variables distintas y una `Path` ajena no se toca.
 - Las dos funciones son puras y reciben la plataforma como parámetro con la actual por defecto.
+- Toda terminal de Tessera, nativa o de contenedor, lleva `COLORTERM=truecolor`, y pisa la heredada: lo que
+  pinta es xterm, sea cual sea la terminal que lanzó la app. En Windows el pty no define `TERM`; sin esta
+  variable, un agente que no reconoce la terminal no pinta fondos ni los colores de su tema. `TERM` sigue
+  sin definirse allí, para no cambiar a los programas de Windows que lo interpretan. Las sesiones SSH no la
+  llevan: `ssh` solo envía `TERM` al servidor.
 
 ## Consecuencias
 

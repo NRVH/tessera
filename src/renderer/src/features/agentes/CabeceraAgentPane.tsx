@@ -1,6 +1,6 @@
 // =============================================================================
 // Cabecera del pane del agente. En la vista normal: selector de agente, conversación
-// (historial y chat nuevo), bases montadas, cuenta, maximizar y, en el agente de la terminal,
+// (historial y chat nuevo), bases montadas, pasar a otro agente, cuenta, maximizar y, en el agente de la terminal,
 // cerrarlo. La cuenta dice también si corre nativo o en Docker. En una casilla del mosaico la
 // identidad va entera (punto, perfil, proyecto, agente y bases) y el selector de agente se va,
 // porque cambiaría el agente de TODO el perfil.
@@ -8,7 +8,6 @@
 // =============================================================================
 
 import { ProfileDot } from '../pestanas'
-import { nombresSistema } from '../../../../shared/nombresSistema'
 import { PuntoMosaico } from '../mosaico'
 import { etiquetaModPrincipal } from '../../util/atajos'
 import { IconoCerrar } from '../../comun/iconosMenu'
@@ -22,6 +21,7 @@ import {
 } from './iconosAgentPane'
 import type { ModeloAgentPane } from './useAgentPane'
 import { nombreVisible } from './selectorCuenta.ts'
+import { BotonPasarA } from './PopoverTraspaso'
 
 interface PropsParte {
   m: ModeloAgentPane
@@ -34,7 +34,7 @@ interface PropsParte {
 function BotonBases({ m }: PropsParte): React.JSX.Element | null {
   const { p, montaje } = m
   if (!p.onChangeDbMounted) return null
-  const textosBases = textosMontajeBases(p.lugar, p.dbMounted.length)
+  const textosBases = textosMontajeBases(p.dbMounted.length)
   return (
     <button
       type="button"
@@ -187,17 +187,18 @@ function AccionesConversacion({ m }: PropsParte): React.JSX.Element {
 }
 
 /**
- * El nombre del botón de cuenta: la del sistema si corre nativo; si no, la de Docker en uso, con su modo
- * delante cuando el agente puede pasar de uno a otro. null = no hay botón.
+ * El rótulo del botón de cuenta: la del equipo si corre nativo; si no, la de Docker en uso (o «sin
+ * cuenta»). null = no hay botón: solo lo hay si el agente puede pasar de nativo a Docker o ya usa una cuenta.
  */
-function nombreBotonCuenta(m: ModeloAgentPane): string | null {
+function tituloBotonCuenta(m: ModeloAgentPane): string | null {
   const t = txPane().menus
   const conModo = m.p.onElegirModo !== undefined
-  if (m.p.hostMode) return conModo ? t.modoNativo(nombresSistema(window.tessera.plataforma).sistema) : null
+  const agente = nombreAgente(m.p.pestanasAgente, m.p.target.agente)
+  const cuenta = txPane().cabecera.cuenta
+  if (m.p.hostMode) return conModo ? cuenta(agente, null) : null
   // En Docker y sin cuenta, el botón sigue: es la vuelta a nativo.
-  if (!m.currentAccount) return conModo ? t.cuentaDocker(t.sinCuenta) : null
-  const nombre = nombreVisible(m.currentAccount, t.predeterminada)
-  return conModo ? t.cuentaDocker(nombre) : nombre
+  if (!m.currentAccount) return conModo ? cuenta(agente, t.sinCuenta) : null
+  return cuenta(agente, nombreVisible(m.currentAccount, t.predeterminada))
 }
 
 /**
@@ -205,10 +206,9 @@ function nombreBotonCuenta(m: ModeloAgentPane): string | null {
  * el selector, que pasa a nativo o a otra cuenta de Docker, crea una, cierra sesión o la elimina.
  */
 function BotonCuenta({ m }: PropsParte): React.JSX.Element | null {
-  const nombre = nombreBotonCuenta(m)
-  if (nombre === null) return null
+  const titulo = tituloBotonCuenta(m)
+  if (titulo === null) return null
   const { accountMenu, setAccountMenu } = m.ui
-  const titulo = txPane().cabecera.cuenta(nombre)
   return (
     <button
       type="button"
@@ -327,6 +327,7 @@ function AccionesPanel({ m }: PropsParte): React.JSX.Element {
   return (
     <div className="panel-actions">
       {!mosaico && <BotonBases m={m} />}
+      <BotonPasarA m={m} />
       <BotonCuenta m={m} />
       {mosaico && <AccionesCasilla mosaico={mosaico} lugar={m.p.lugar} />}
       {!mosaico && canExpand && <BotonMaximizar m={m} />}

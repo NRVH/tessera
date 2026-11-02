@@ -2,7 +2,7 @@
 
 - **Estado:** vigente
 - **Ámbito:** `src/tssh/`, `src/main/ssh/` (`controlador/puenteTssh.ts`, `catalogoAgentes.ts`, `briefingSsh.ts`,
-  `atajosTssh.ts`, `lineaSsh.ts` en modo agente, `adaptadores/registroTssh.ts`, `controlador/buzonTssh.ts`,
+  `lineaSsh.ts` en modo agente, `adaptadores/registroTssh.ts`, `controlador/buzonTssh.ts`,
   `transferenciaBuzon.ts`) y `src/main/agents/briefingCompuesto.ts`
 
 ## Contexto
@@ -13,7 +13,7 @@ de un argumento (impares, lo parte), no analiza un apóstrofo tipográfico y lee
 
 ## Decisión
 
-- `tssh` (`ls`, `run`, `cp`, `doctor`, `help`), hermano de `tdb`: atajos sh, ps1 y cmd en la misma `bin/s<N>`, ya en el PATH de
+- `tssh` (`ls`, `run`, `cp`, `doctor`, `help`), hermano de `tdb` (y de `tctx`, con los mismos atajos de `util/atajosPrograma.ts`): atajos sh, ps1 y cmd en la misma `bin/s<N>`, ya en el PATH de
   las terminales y los agentes nativos. Vocabulario cerrado: ninguna opción llega a ssh. Tras el alias de `run`, la orden empieza
   en la primera palabra que no es una opción de `tssh`, haya `--` o no.
 - El puente de `tdb`, con el token de SESIÓN y el PERFIL entero como ámbito: `ssh.listar` (las «Disponible para los agentes» y
@@ -26,9 +26,9 @@ de un argumento (impares, lo parte), no analiza un apóstrofo tipográfico y lee
 - Una conexión con bastión salta por él aunque el bastión no esté disponible para los agentes, con su huella confirmada y su
   secreto; nunca abre sus túneles (`tuneles-y-bastiones.md`).
 - Códigos propios, antes de conectar: 2 uso, 3 puente, 4 alias, 5 huella, 6 no se puede usar, 124 tope. Si la orden corre, el suyo.
-- Aviso de arranque en nativo: el de bases tal cual (prefijo exacto) y detrás el de SSH, con los textos del usuario sin comillas
-  tipográficas ni dobles (`tssh` busca el alias con cualquier comilla). Codex lo recibe por `-c developer_instructions` (ver
-  `agentes/sesion-linea-de-arranque.md`).
+- Aviso de arranque, en nativo y en Docker: el de bases tal cual (prefijo exacto) y detrás el de SSH (y, si las hay, las reglas del
+  perfil: `agentes/reglas-del-perfil.md`), con los textos del usuario sin comillas tipográficas ni dobles (`tssh` busca el alias
+  con cualquier comilla). Codex lo recibe por `-c developer_instructions` (ver `agentes/sesion-linea-de-arranque.md`).
 - `logs/ssh.log`: perfil, subcomando, alias, código y duración; nunca la orden remota ni las rutas. Es un registro para
   auditar a mano, sin vista en la interfaz: quien usa las conexiones reintenta lo que falla y una lista de lo hecho solo
   ocupaba sitio. El inicio lo escribe el main y el fin lo informa `tssh`, que corre como el usuario.

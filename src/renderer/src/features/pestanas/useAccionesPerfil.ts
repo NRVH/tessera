@@ -1,26 +1,40 @@
 // =============================================================================
 // useAccionesPerfil: acciones del menú de un perfil que abren un diálogo o un selector:
-// cambiar color, eliminar, hibernar y red del contenedor. Guarda qué diálogo está abierto
-// y dónde se abre el selector de color. Lo llama `useBandaPerfiles`; depende del tipo `Profile` del main.
+// cambiar color, eliminar, hibernar, red del contenedor y reglas para los agentes (`useReglasPerfil`).
+// Guarda qué diálogo está abierto y dónde se abre el selector de color. Lo llama `useBandaPerfiles`;
+// depende del tipo `Profile` del main.
 // Decisiones: docs/decisiones/renderer/red-del-contenedor.md
 // =============================================================================
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Profile } from '../../../../main/profiles/types'
+import type { TerminalesEnMarcha } from '../../../../shared/terminal-ipc'
+import { useReglasPerfil, type AccionesReglas } from './useReglasPerfil'
+import { decidirTrasConsulta, type ConfirmacionHibernar, type DecisionTrasConsulta } from './confirmaciones'
+import type { ProfileDotState } from './profileDotState'
 
-/**
- * Perfil pendiente de confirmar la hibernación. `redHost` viaja cuando viene de aplicar un
- * cambio de red: el modo se persiste al confirmar, no antes.
- */
+/** Perfil pendiente de confirmar la hibernación, con lo que el diálogo tiene que nombrar. */
 export interface HibernacionPendiente {
   profile: Profile
-  redHost?: boolean
+  confirmacion: ConfirmacionHibernar
+}
+
+/** Cambio de red pendiente de confirmar: el modo se persiste al confirmar, no antes. */
+export interface RedPendiente {
+  profile: Profile
+  redHost: boolean
+  confirmacion: ConfirmacionHibernar
 }
 
 interface OpcionesAcciones {
+  /** Los perfiles vivos: al volver una consulta se comprueba que el perfil siga existiendo. */
+  profiles?: Profile[]
+  /** Hibernación de cada perfil; ausente => activo. */
+  dotStates?: Record<string, ProfileDotState>
   /** ids de perfil con alguna sesión trabajando. */
   working?: Set<string>
   onRecolorProfile: (profileId: string, color: string) => void
   onToggleRedHost: (profileId: string, redHost: boolean) => void
+  onSetReglas: (profileId: string, reglas: string) => void
   onDeleteProfile: (profileId: string) => void
   onHibernateProfile: (profileId: string) => void
 }
@@ -32,22 +46,26 @@ export interface SelectorColorAbierto {
   y: number
 }
 
-export interface AccionesPerfil {
+export interface AccionesPerfil extends AccionesReglas {
   deleting: Profile | null
   hibernating: HibernacionPendiente | null
   /** Perfil cuyo diálogo de red está abierto. */
   redModal: string | null
+  /** Cambio de red que espera confirmación (corta un agente o lo que ejecuta una terminal). */
+  cambiandoRed: RedPendiente | null
   selectorColor: SelectorColorAbierto | null
   openColorPicker: (profile: Profile) => void
   cerrarSelectorColor: () => void
   requestDelete: (profile: Profile) => void
-  requestHibernate: (profile: Profile, trabajando: boolean) => void
+  requestHibernate: (profile: Profile) => void
   abrirRed: (profileId: string) => void
   cerrarRed: () => void
   aplicarRed: (profile: Profile, redHost: boolean) => void
   elegirColor: (profileId: string, color: string) => void
   confirmarHibernacion: () => void
   cancelarHibernacion: () => void
+  confirmarRed: () => void
+  cancelarRed: () => void
   confirmarEliminar: () => void
   cancelarEliminar: () => void
 }
@@ -81,43 +99,119 @@ function useSelectorColor(
   }
 }
 
-/** Estado de los diálogos de perfil (eliminar, hibernar, red) y del selector de color. */
-export function useAccionesPerfil(
-  { working, onRecolorProfile, onToggleRedHost, onDeleteProfile, onHibernateProfile }: OpcionesAcciones,
-  cerrarMenu: () => void
-): AccionesPerfil {
+/**
+ * El diálogo de red y su confirmación. Se confirma ANTES de persistir: si se guardara el modo y
+ * luego se preguntara, cancelar dejaría el perfil marcado con una red que su contenedor no tiene.
+ */
+function useCambioRed(
+  consultar: Consultar,
+  onToggleRedHost: (profileId: string, redHost: boolean) => void,
+  onHibernateProfile: (profileId: string) => void
+): Pick<AccionesPerfil, 'redModal' | 'cambiandoRed' | 'abrirRed' | 'cerrarRed' | 'aplicarRed' | 'confirmarRed' | 'cancelarRed'> {
+  const [redModal, setRedModal] = useState<string | null>(null)
+  const [cambiandoRed, setCambiandoRed] = useState<RedPendiente | null>(null)
+  // Aplicar la red es reiniciar el contenedor: el perfil se hiberna con el modo nuevo, así que
+  // pregunta con la misma regla que «Hibernar el perfil».
+  const aplicar = (profileId: string, redHost: boolean): void => {
+    onToggleRedHost(profileId, redHost)
+    onHibernateProfile(profileId)
+  }
+  return {
+    redModal,
+    cambiandoRed,
+    abrirRed: setRedModal,
+    cerrarRed: () => setRedModal(null),
+    aplicarRed: (profile, redHost) => {
+      setRedModal(null)
+      consultar(profile.id, (decision) => {
+        if (decision.tipo === 'nada') return
+        // Un perfil ya hibernado no tiene qué cortar: el modo nuevo se guarda igual.
+        if (decision.tipo === 'preguntar') setCambiandoRed({ profile, redHost, confirmacion: decision.confirmacion })
+        else aplicar(profile.id, redHost)
+      })
+    },
+    confirmarRed: () => {
+      if (cambiandoRed) aplicar(cambiandoRed.profile.id, cambiandoRed.redHost)
+      setCambiandoRed(null)
+    },
+    cancelarRed: () => setCambiandoRed(null)
+  }
+}
+
+/** Las terminales del perfil y cuántas ejecutan algo; null si el main no contestó. */
+async function terminalesDe(profileId: string): Promise<TerminalesEnMarcha | null> {
+  try {
+    return await window.tessera.terminal.enMarcha(profileId)
+  } catch (err) {
+    console.error('[perfil] terminal.enMarcha falló:', err)
+    return null
+  }
+}
+
+type Consultar = (profileId: string, alVolver: (decision: DecisionTrasConsulta) => void) => void
+
+/**
+ * Mira qué cortaría hibernar un perfil. La consulta tarda (hasta unos segundos en Windows): el
+ * cursor lo dice, un segundo gesto sobre el mismo perfil se ignora y, al volver, se decide con el
+ * estado de ese momento (perfil borrado, ya hibernado, agente que empezó a trabajar) y no con el
+ * de la pulsación.
+ */
+function useConsultaPerfil({ profiles, dotStates, working }: OpcionesAcciones): Consultar {
+  const vivo = useRef({ profiles, dotStates, working })
+  useEffect(() => {
+    vivo.current = { profiles, dotStates, working }
+  })
+  const enVuelo = useRef(new Set<string>())
+  const [cuantas, setCuantas] = useState(0)
+  useEffect(() => {
+    document.body.classList.toggle('consultando-perfil', cuantas > 0)
+    return () => document.body.classList.remove('consultando-perfil')
+  }, [cuantas])
+  return (profileId, alVolver) => {
+    if (enVuelo.current.has(profileId)) return
+    enVuelo.current.add(profileId)
+    setCuantas(enVuelo.current.size)
+    void terminalesDe(profileId).then((terminales) => {
+      enVuelo.current.delete(profileId)
+      setCuantas(enVuelo.current.size)
+      const { profiles: perfiles, dotStates: estados, working: trabajando } = vivo.current
+      const estado = estados?.[profileId]
+      alVolver(
+        decidirTrasConsulta(
+          {
+            existe: perfiles?.some((p) => p.id === profileId) === true,
+            hibernado: estado === 'hibernated' || estado === 'hibernating',
+            trabajando: trabajando?.has(profileId) === true
+          },
+          terminales
+        )
+      )
+    })
+  }
+}
+
+/** Estado de los diálogos de perfil (eliminar, hibernar, red, reglas) y del selector de color. */
+export function useAccionesPerfil(opciones: OpcionesAcciones, cerrarMenu: () => void): AccionesPerfil {
+  const { onRecolorProfile, onToggleRedHost, onSetReglas, onDeleteProfile, onHibernateProfile } = opciones
   const [deleting, setDeleting] = useState<Profile | null>(null)
   const [hibernating, setHibernating] = useState<HibernacionPendiente | null>(null)
-  const [redModal, setRedModal] = useState<string | null>(null)
+  const consultar = useConsultaPerfil(opciones)
+  const red = useCambioRed(consultar, onToggleRedHost, onHibernateProfile)
+  const reglas = useReglasPerfil(onSetReglas)
   const selectorColor = useSelectorColor(cerrarMenu, onRecolorProfile)
 
-  // Hibernar mata los ptys del perfil: si hay un agente trabajando se pregunta; si no,
-  // se ejecuta directo. Solo el agente es una señal fiable: las terminales de shell no
-  // tienen detección de actividad, y el texto del diálogo avisa de que también se cierran.
-  function requestHibernate(profile: Profile, trabajando: boolean): void {
+  // Hibernar mata los ptys del perfil: se pregunta si se corta algo (un agente trabajando o una
+  // terminal que ejecuta algo, `confirmaciones.ts`); si no, se ejecuta directo.
+  function requestHibernate(profile: Profile): void {
     cerrarMenu()
-    if (trabajando) setHibernating({ profile })
-    else onHibernateProfile(profile.id)
-  }
-
-  // Se confirma ANTES de persistir: si se guardara el modo y luego se preguntara, cancelar
-  // dejaría el perfil marcado con una red que su contenedor no tiene. Con un agente a mitad
-  // de turno se pasa por la misma confirmación que "Hibernar perfil".
-  function aplicarRed(profile: Profile, redHost: boolean): void {
-    setRedModal(null)
-    if (working?.has(profile.id)) setHibernating({ profile, redHost })
-    else {
-      onToggleRedHost(profile.id, redHost)
-      onHibernateProfile(profile.id)
-    }
+    consultar(profile.id, (decision) => {
+      if (decision.tipo === 'preguntar') setHibernating({ profile, confirmacion: decision.confirmacion })
+      else if (decision.tipo === 'ejecutar') onHibernateProfile(profile.id)
+    })
   }
 
   function confirmarHibernacion(): void {
     if (!hibernating) return
-    // El modo de red se persiste AQUÍ, al confirmar, no al pulsar "Aplicar".
-    if (hibernating.redHost !== undefined) {
-      onToggleRedHost(hibernating.profile.id, hibernating.redHost)
-    }
     onHibernateProfile(hibernating.profile.id)
     setHibernating(null)
   }
@@ -130,17 +224,15 @@ export function useAccionesPerfil(
 
   return {
     ...selectorColor,
+    ...red,
     deleting,
     hibernating,
-    redModal,
+    ...reglas,
     requestDelete: (profile) => {
       cerrarMenu()
       setDeleting(profile)
     },
     requestHibernate,
-    abrirRed: setRedModal,
-    cerrarRed: () => setRedModal(null),
-    aplicarRed,
     confirmarHibernacion,
     cancelarHibernacion: () => setHibernating(null),
     confirmarEliminar,

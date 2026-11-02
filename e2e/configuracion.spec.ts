@@ -94,14 +94,23 @@ test('la categoría «Integración con el sistema» SÍ aparece en el riel, en l
   expect(cats).toEqual([
     'apariencia',
     'terminales',
-    'proyectos',
-    'contenedores',
-    'agentes',
-    'bases-de-datos',
     'integracion',
+    'proyectos',
+    'agentes',
+    'contenedores',
+    'bases-de-datos',
     'copia',
     'actualizaciones',
-    'acerca'
+    'acerca',
+    'academy'
+  ])
+  // Agrupadas: un título por grupo del riel, en su orden.
+  expect(await s.win.locator('.ajustes-riel-grupo').allInnerTexts()).toEqual([
+    'General',
+    'Espacio de trabajo',
+    'Datos',
+    'Tessera',
+    'Ayuda'
   ])
   // El título del riel es el que ve el usuario, y es la mitad del encargo: un Mac no
   // puede tener una categoría de ajustes llamada «Windows».

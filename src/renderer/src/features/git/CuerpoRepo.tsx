@@ -146,7 +146,7 @@ export function AccionesLote({
   const n = seleccion.length
   if (n === 0) return null
   const puedePreparar = seccion !== 'staged' && acciones.onStageMany
-  // Descartar no se ofrece en conflictos: el lote lo revertiría a HEAD sin diálogo.
+  // Descartar no se ofrece en conflictos: el lote lo revertiría a HEAD y perdería la resolución.
   const puedeDescartar = seccion !== 'staged' && seccion !== 'conflict' && acciones.onDiscardMany
   const t = txGit()
   const etiquetaPreparar = seccion === 'conflict' ? t.marcarResueltosN(n) : t.prepararN(n)

@@ -186,6 +186,13 @@ function main(): void {
       rb.includes('\r\nCaused by: algo dentro del bloque\r\n[ERROR] también dentro\r\n') && rb.endsWith(`${ROJO}ERROR suelto${FIN}\r\n`),
       ver(rb)
     )
+    for (const sgr of ['38;2;255;135;0', '48;2;0;0;0', '38;5;0', '48;5;0', '1;38;2;0;0;0']) {
+      const dentro = `${E}[${sgr}mempieza\r\nERROR dentro\r\n`
+      const r = resaltarSalida(dentro, nuevo())
+      check(`un componente a 0 de ${sgr} no cuenta como reinicio: el color sigue abierto`, r === dentro, ver(r))
+    }
+    const cerrado = resaltarSalida(`${E}[38;2;255;135;0mbloque${E}[0m\r\nERROR suelto\r\n`, nuevo())
+    check('y el reinicio real sí lo cierra', cerrado.endsWith(`${ROJO}ERROR suelto${FIN}\r\n`), ver(cerrado))
     const negrita = nuevo()
     const rn = resaltarSalida(`${E}[1mtítulo\r\n2026-10-12 10:00:00 DEBUG dentro\r\n`, negrita)
     check('tampoco dentro de una negrita abierta (el cierre del atenuado la apagaría)', !rn.includes(`${E}[22m`), ver(rn))

@@ -13,7 +13,15 @@ import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { mergeEnv, colapsarPath, clavePath, primerPath, delimitadorPath } from './entornoPty.ts'
+import {
+  ASIGNACIONES_TERMINAL_CONTENEDOR,
+  ENTORNO_COLOR,
+  mergeEnv,
+  colapsarPath,
+  clavePath,
+  primerPath,
+  delimitadorPath
+} from './entornoPty.ts'
 import { cleanEnv } from './entornoDocker.ts'
 import { plataformaActual, type Plataforma } from '../../shared/plataforma.ts'
 
@@ -326,6 +334,15 @@ function main(): void {
       JSON.stringify(e) === JSON.stringify({ HOME: '/home/a' }),
       JSON.stringify(e)
     )
+  }
+
+  hr('(Color) los programas saben que la terminal pinta color real')
+  {
+    const heredada = mergeEnv({ COLORTERM: '256color', HOME: '/h' }, { ...ENTORNO_COLOR }, 'mac')
+    check('pisa la heredada y conserva el resto', heredada.COLORTERM === 'truecolor' && heredada.HOME === '/h', JSON.stringify(heredada))
+    const sinHeredar = mergeEnv({ Path: 'C:\\A' }, { ...ENTORNO_COLOR, PATH: BIN_WIN }, 'windows')
+    check('en Windows llega sin estorbar al PATH', sinHeredar.COLORTERM === 'truecolor' && sinHeredar.Path === `${BIN_WIN};C:\\A`, JSON.stringify(sinHeredar))
+    check('un contenedor recibe TERM y color real', ASIGNACIONES_TERMINAL_CONTENEDOR.includes('TERM=xterm-256color') && ASIGNACIONES_TERMINAL_CONTENEDOR.includes('COLORTERM=truecolor'), ASIGNACIONES_TERMINAL_CONTENEDOR.join(' '))
   }
 
   hr('RESULTADO (PASS/FAIL)')

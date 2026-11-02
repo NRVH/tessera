@@ -366,9 +366,40 @@ function pedir(
 }
 {
   // Un cliente roto (o malicioso) no puede hacer crecer el buffer sin fin.
-  const enorme = 'x'.repeat(9000) + '\n'
+  const enorme = 'x'.repeat(40 * 1024) + '\n'
   const r = await pedir('', enorme)
   comprobar('una petición gigante se corta sin respuesta', r === null)
+}
+{
+  // Un carácter multibyte partido entre dos escrituras llega entero, y el tope cuenta caracteres:
+  // 20 000 «é» son 40 KB pero 20 000 caracteres, y caben.
+  puente.registrarOperacion('prueba.eco-utf8', { token: 'propio', manejar: (p) => ({ ok: true, dato: p.dato }) })
+  const dato = 'señal-' + 'é'.repeat(20000) + '-ñ'
+  const bytes = Buffer.from(JSON.stringify({ v: 1, op: 'prueba.eco-utf8', dato }) + '\n', 'utf8')
+  const corte = bytes.indexOf(0xc3, 20) + 1 // entre los dos bytes de una letra
+  const r = await new Promise<Record<string, unknown> | null>((resolve) => {
+    const socket = connect(puente.pipe)
+    let leido = ''
+    socket.setEncoding('utf8')
+    socket.setTimeout(3000, () => {
+      socket.destroy()
+      resolve(null)
+    })
+    socket.on('error', () => resolve(null))
+    socket.on('data', (t: string) => {
+      leido += t
+    })
+    socket.on('end', () => {
+      try {
+        resolve(JSON.parse(leido))
+      } catch {
+        resolve(null)
+      }
+    })
+    socket.write(bytes.subarray(0, corte))
+    setTimeout(() => socket.write(bytes.subarray(corte)), 150)
+  })
+  comprobar('un carácter multibyte partido entre dos escrituras llega íntegro', r?.dato === dato, String(r?.dato).slice(0, 40))
 }
 {
   // Concurrencia: el agente y varias terminales del mismo proyecto pueden invocar a

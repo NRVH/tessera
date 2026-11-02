@@ -1140,15 +1140,12 @@ test.describe('explorador de bases de datos', () => {
     const boton = pane.locator('.db-mount-btn')
     await expect(boton).toBeVisible({ timeout: 30_000 })
     await expect(boton.locator('.db-mount-badge'), 'sin nada montado no hay contador').toHaveCount(0)
-    await expect(boton, 'el rótulo nombra el agente de datos, no un proyecto').toHaveAttribute(
-      'title',
-      'Montar bases de datos en el agente de datos'
-    )
+    await expect(boton, 'el rótulo no habla de «proyecto»').toHaveAttribute('title', 'Dar al agente acceso a bases de datos')
     await boton.click()
     const pop = pane.locator('.db-mount-pop')
     await expect(pop).toBeVisible()
     const cabecera = pop.locator('.db-mount-pop-head')
-    await expect(cabecera).toContainText('Bases montadas en el agente de datos')
+    await expect(cabecera).toContainText('Bases que el agente puede consultar')
     await expect(cabecera, 'en el agente de datos no se habla de «proyecto»').not.toContainText('proyecto')
     const item = pop
       .locator('.db-mount-item')
@@ -1159,7 +1156,7 @@ test.describe('explorador de bases de datos', () => {
     await expect(item).toHaveClass(/\bon\b/)
     await expect(boton.locator('.db-mount-badge')).toHaveText('1')
     await expect(boton).toHaveClass(/\bactivo\b/)
-    await expect(boton).toHaveAttribute('title', '1 base(s) montada(s) en el agente de datos')
+    await expect(boton).toHaveAttribute('title', 'El agente puede consultar 1 base')
     await capturar(win, '18-bases-montadas')
     await pop.getByRole('button', { name: 'Cerrar' }).click()
     await expect(pop).toHaveCount(0)
@@ -1219,13 +1216,12 @@ test.describe('explorador de bases de datos', () => {
     // La columna del agente del PROYECTO vuelve: ocultar la del agente de datos no la
     // toca (son dos destinos distintos del mismo panel).
     await expect(win.locator('.right-panel')).toBeVisible()
-    // Y SU SELECTOR DE MONTAJE SIGUE DICIENDO «en este proyecto»: el texto del agente
-    // de datos (9b) no se filtra a los agentes de proyecto. La base se montó en el
-    // espacio, no aquí, así que el proyecto no tiene ninguna y el rótulo es el de montar.
+    // Y EL SELECTOR DEL AGENTE DEL PROYECTO NO CUENTA LA BASE DEL ESPACIO: se montó allí, no
+    // aquí, así que el proyecto no tiene ninguna y el rótulo es el de dar acceso.
     await expect(
       win.locator('.right-panel .agent-pane:not(.hidden) .db-mount-btn'),
-      'el agente del proyecto nombra el proyecto, como siempre'
-    ).toHaveAttribute('title', 'Montar bases de datos en este proyecto')
+      'el agente del proyecto no cuenta las bases del espacio'
+    ).toHaveAttribute('title', 'Dar al agente acceso a bases de datos')
     // Y NINGUNA SESIÓN SE RELANZÓ NI SE CERRÓ (Anexo D.12: entrar en 'db' no mata
     // sesiones). El agente falso apunta cada arranque con su pid: el del proyecto
     // arrancó UNA vez y sigue vivo tras pasar por la vista; el del espacio de datos
@@ -1255,7 +1251,7 @@ test.describe('explorador de bases de datos', () => {
     await win.keyboard.press(ACORDE_AGENTE)
     const pane = win.locator('.right-panel .agent-pane:not(.hidden)')
     const cuenta = pane.locator('.panel-actions .cuenta-btn')
-    await expect(cuenta, 'nativo por defecto, con la cuenta del sistema').toHaveAttribute('aria-label', /^Cuenta: Nativo \(/, { timeout: 30_000 })
+    await expect(cuenta, 'nativo por defecto, con la cuenta del sistema').toHaveAttribute('aria-label', /^Cuenta de Claude Code: la de tu equipo/, { timeout: 30_000 })
     await expect(pane.locator('.panel-actions button[aria-label^="Modo"]'), 'sin glifo de modo').toHaveCount(0)
     await expect(pane.getByText('Sin cuenta para Claude Code'), 'en nativo no pide cuenta').toHaveCount(0)
 

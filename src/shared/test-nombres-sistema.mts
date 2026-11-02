@@ -85,6 +85,17 @@ const EXCEPCIONES: readonly { archivo: string; motivo: string }[] = [
   {
     archivo: 'src/renderer/src/features/ajustes/catalogo.ts',
     motivo: 'el título del grupo «Explorador de Windows», que sólo se monta en Windows'
+  },
+  ...['actualizaciones', 'atajos', 'nativoODocker'].map((a) => ({
+    archivo: `src/renderer/src/features/academy/contenido/${a}.ts`,
+    motivo:
+      'artículos de Tessera Academy con bloques `soloEn` de una plataforma (sus requisitos, sus teclas, ' +
+      'su Llavero): ahí el nombre es el asunto. `test-academy.mts` exige que un nombre de sistema solo ' +
+      'vaya en un bloque `soloEn`'
+  })),
+  {
+    archivo: 'src/renderer/src/features/academy/contenido/ssh.ts',
+    motivo: '«Explorador SFTP» es el explorador DE TESSERA para un servidor, no el gestor de archivos del sistema'
   }
 ]
 

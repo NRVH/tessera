@@ -363,6 +363,14 @@ async function main(): Promise<void> {
     codexConOtra.map((w) => w.label).join(' · ') === '5h · 7d · Individual limit 30d',
     codexConOtra.map((w) => w.label).join(' · ')
   )
+  check(
+    '(i2n) un plan sin límite de 5 horas: Claude Code sin `session` y Codex con `primary` nulo',
+    etiquetas([semanal, deModelo('Fable')]) === '7d · Fable 7d' &&
+      ventanasCodex({ primary: null, secondary: { used_percent: 10, window_minutes: 10080 } }, 0)
+        .map((w) => w.label)
+        .join(' · ') === '7d',
+    etiquetas([semanal, deModelo('Fable')])
+  )
   const sinNombre = { kind: 'weekly_scoped', group: 'weekly', percent: 17, scope: { model: { id: 'claude-fable-5', display_name: null } } }
   const sinNada = { kind: 'weekly_scoped', group: 'weekly', percent: 17, scope: { model: null, surface: null } }
   check(

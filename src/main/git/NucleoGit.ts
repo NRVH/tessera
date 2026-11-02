@@ -72,10 +72,10 @@ export class NucleoGit {
   private readonly eventos: EmisorEventos | null
 
   readonly log: (msg: string) => void
-  /** Confirmación destructiva (sin seguimiento / añadido sin HEAD). */
-  readonly confirmDiscard: (fileName: string) => Promise<boolean>
+  /** Confirmación del descarte de un archivo (revertir a HEAD o borrar del disco). */
+  readonly confirmDiscard: (fileName: string, borra: boolean) => Promise<boolean>
   /** Confirmación ÚNICA de un descarte en lote. */
-  readonly confirmDiscardMany: (fileNames: string[]) => Promise<boolean>
+  readonly confirmDiscardMany: (aBorrar: string[], aRevertir: string[]) => Promise<boolean>
   /**
    * Serializa las ESCRITURAS de git (`.git/index.lock`); las lecturas no pasan por aquí. La
    * clave es la raíz del repo que se toca: dos repos no se bloquean entre sí.
@@ -91,7 +91,7 @@ export class NucleoGit {
     this.writeLock = opts.writeLock ?? new KeyedMutex()
     this.vista = opts.vista === true
     this.log = opts.log ?? ((m) => console.log(`[git] ${m}`))
-    // Sin quien confirme, no se borra nada.
+    // Sin quien confirme, no se descarta nada.
     this.confirmDiscard = opts.confirmDiscard ?? (async () => false)
     this.confirmDiscardMany = opts.confirmDiscardMany ?? (async () => false)
     this.eventos = opts.eventos ?? null

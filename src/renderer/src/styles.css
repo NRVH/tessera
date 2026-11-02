@@ -46,6 +46,8 @@
 
 :root {
   --activity-width: 48px;
+  /* Alto de la banda de proyectos: la franja a pantalla completa lo hereda al ocultarla. */
+  --alto-banda-proyectos: 32px;
   --sidebar-width: 260px;
 
   /* MARCO Y LIENZO: contorno gris único y área de trabajo hundida en un panel oscuro
@@ -1257,6 +1259,11 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+.profile-create-hint {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--fg-muted);
+}
 .profile-create-name {
   width: 100%;
   box-sizing: border-box;
@@ -1429,7 +1436,7 @@ body {
 /* NIVEL 2 — proyectos. Banda más baja, indentada y más tenue: se lee como HIJA
    del perfil (más fondo, menos peso). */
 .tabs-projects {
-  height: 32px;
+  height: var(--alto-banda-proyectos);
   flex: 0 0 auto;
   display: flex;
   align-items: stretch;
@@ -3396,6 +3403,26 @@ body {
 .shell.franja-pantalla-completa :is(.git-log-panel, .terminal-panel) {
   flex: 1 1 auto;
 }
+/* Los proyectos son de la vista del proyecto: a pantalla completa su banda se aparta y la franja
+   sube a ocupar su alto. Sale del flujo con su scroll intacto, como en el mosaico (con `display:
+   none` la pestaña activa quedaba fuera de la vista al volver). `.shell-main` crece ese alto por
+   arriba; la fila de arriba, tapada, baja su borde superior lo mismo para conservar su alto: el agente
+   de la columna no recibe un resize. La banda de perfiles no se toca. */
+.shell.franja-pantalla-completa .tabs-bar {
+  position: relative;
+}
+.shell.franja-pantalla-completa .tabs-bar > .tabs-projects {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  content-visibility: hidden;
+  visibility: hidden;
+  pointer-events: none;
+}
+.shell.franja-pantalla-completa:not(.agente-terminal-visible) .shell-main-top {
+  top: var(--alto-banda-proyectos);
+}
 
 /* EL AGENTE DE LA TERMINAL, a la derecha de la terminal a pantalla completa (`.agente-terminal-visible`,
    que App pone cuando la columna es suya). NADA SE DESMONTA (desmontar un pane cierra su sesión) ni se
@@ -4755,6 +4782,11 @@ body {
   --danger-filete: color-mix(in srgb, var(--red) 55%, transparent);
   --danger-filete-fuerte: color-mix(in srgb, var(--red) 70%, transparent);
 }
+/* Un modal abierto desde otro (Configuración desde un ⓘ) sube un nivel: con el mismo z-index
+   mandaría el orden del DOM, y el diálogo de origen puede venir después. */
+.modal-overlay.modal-encima {
+  z-index: 2010;
+}
 
 /* Un modal ANIDADO en otro apilaba dos velos (ConversationsModal monta un PromptDialog
    y un ConfirmDialog dentro de su overlay): dos capas al 50 % daban un 75 % efectivo y
@@ -4808,6 +4840,16 @@ body {
   font-weight: 600;
   color: var(--fg);
   margin-bottom: 8px;
+}
+/* El título con su botón ⓘ al lado. */
+.modal-titulo-fila {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.modal-titulo-fila .modal-title {
+  margin-bottom: 0;
 }
 
 .modal-message {
@@ -4902,8 +4944,8 @@ body {
      así que el card respeta ese margen solo. El `min-height` es un SUELO: en una
      ventana muy baja preferimos que el overlay recorte a que la cabecera se coma
      todo el alto y no quede contenido debajo. */
-  width: min(880px, 100%);
-  height: min(600px, 100%);
+  width: min(960px, 100%);
+  height: min(680px, 100%);
   min-height: 260px;
   display: flex;
   flex-direction: column;
@@ -4947,10 +4989,10 @@ body {
      entonces NADA scrollea: ni el panel ni el riel. */
   min-height: 0;
   display: grid;
-  /* El riel crece con la letra porque su tope está en `em`, atado a la
-     `font-size` del card: a 18 px "Actualizaciones" sigue cabiendo, y a 9 px se
-     queda en el suelo de 150 px sin verse ridículo. */
-  grid-template-columns: clamp(150px, 12em, 230px) 1fr;
+  /* El riel crece con la letra porque su tope está en `em`, atado a la `font-size` del card:
+     a la letra de serie cabe entero el nombre más largo («Integración con el sistema»), y a
+     9 px se queda en el suelo de 180 px sin verse ridículo. */
+  grid-template-columns: clamp(180px, 16.5em, 290px) 1fr;
 }
 .ajustes-riel {
   display: flex;
@@ -5017,6 +5059,19 @@ body {
   /* Cifras de ancho fijo: sin esto el riel baila al pasar de 9 a 10 resultados. */
   font-variant-numeric: tabular-nums;
 }
+/* El título de un grupo del riel: pequeño y apagado, solo ordena. */
+.ajustes-riel-grupo {
+  padding: 12px 8px 4px;
+  color: var(--fg-faint);
+  font-size: max(9px, calc(var(--ui-font) - 2px));
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ajustes-riel-grupo.primero {
+  padding-top: 2px;
+}
 /* Categoría sin coincidencias durante una búsqueda: se atenúa pero SIGUE siendo
    clicable, para poder volver a ella al borrar el texto. */
 .ajustes-riel-item.vacia {
@@ -5044,12 +5099,25 @@ body {
   font-weight: 600;
 }
 
-/* Ventana estrecha: el riel colapsa a iconos. Es CONTAINER query y no media
-   query porque el card mide un porcentaje del viewport; el nombre sigue vivo en
-   el `title` y el `aria-label`, así que no se pierde información. */
-@container ajustesmodal (max-width: 520px) {
+/* Ventana estrecha: el riel colapsa a iconos, y cada grupo queda como un filete entre ellos.
+   Es CONTAINER query y no media query porque el card mide un porcentaje del viewport; el
+   nombre sigue vivo en el `title` y el `aria-label`, así que no se pierde información. El
+   umbral deja al panel, con el riel entero, al menos el ancho de una fila de ajuste. */
+@container ajustesmodal (max-width: 640px) {
   .ajustes-modal-cuerpo {
     grid-template-columns: 44px 1fr;
+  }
+  .ajustes-riel-grupo {
+    height: 0;
+    margin: 6px 4px;
+    padding: 0;
+    border-top: 1px solid var(--border);
+  }
+  .ajustes-riel-grupo.primero {
+    display: none;
+  }
+  .ajustes-riel-grupo > span {
+    display: none;
   }
   .ajustes-riel-item {
     justify-content: center;
@@ -6710,14 +6778,13 @@ body {
 
 /* ACCIONES QUE SE ESCONDEN EN REPOSO en los tres paneles de la franja inferior: la
    terminal, la columna del agente y el historial de git. Con el ratón fuera y sin foco
-   dentro, el panel enseña solo su título y sus pestañas.
-   `visibility`, NUNCA `display`: con display la fila reflowea y el título salta. Efecto
-   BUSCADO: un elemento oculto así tampoco es enfocable, y el tabulador no se pasea por
-   botones invisibles. SE ESCONDEN ACCIONES, NO IDENTIDAD NI ESTADO: la CUENTA con la que
-   corre el agente (`.cuenta-btn`) y las bases montadas (`.db-mount-btn`) se quedan a la
-   vista, porque taparlas sería tapar la salvaguarda anti-cuenta-equivocada. Por eso la
-   regla apunta a `.btn` y esos dos se exceptúan a mano. El ✕ de cada pestaña tampoco
-   entra: pertenece a la pestaña, no al panel. */
+   dentro, el panel enseña solo su título y sus pestañas. `visibility`, NUNCA `display`: con
+   display la fila reflowea y el título salta, y oculto así tampoco es enfocable.
+   SE ESCONDEN ACCIONES, NO IDENTIDAD NI ESTADO: la cuenta del agente (`.cuenta-btn`) y las
+   bases montadas (`.db-mount-btn`) se quedan a la vista, porque son la salvaguarda contra la
+   cuenta equivocada, y «Continuar con…» (`.pasar-btn`), que se busca junto a la cuenta: la
+   regla apunta a `.btn` y esos tres se exceptúan a mano. El ✕ de cada pestaña tampoco entra:
+   pertenece a la pestaña, no al panel. */
 /* ESTADO VISIBLE. UNA SOLA LISTA CON `:is()`, y no cinco selectores repetidos en tres
    bloques: añadir un panel abajo obligaba a editar tres listas y a restituir la
    transición en dos, y olvidar una da un botón que no se funde o que ignora
@@ -6729,7 +6796,7 @@ body {
    redeclarar el atajo se pierde el de `.btn` y el hover sería instantáneo. */
 :is(.terminal-panel, .agent-pane, .git-log-panel)
   :is(
-    .panel-actions .btn:not(.db-mount-btn):not(.cuenta-btn),
+    .panel-actions .btn:not(.db-mount-btn):not(.cuenta-btn):not(.pasar-btn),
     .panel-actions .git-icon-btn,
     /* Historial y chat nuevo viven en `.panel-title-actions` (izquierda, pegados al
        toggle) pero siguen siendo ACCIONES: se revelan al pasar el ratón igual que
@@ -6770,7 +6837,7 @@ body {
     /* `fijo`: a pantalla completa, las DOS salidas del modo (restaurar y ocultar o cerrar el panel) se
        quedan a la vista juntas: una fija y la otra escondida se leen como una avería. `abierto`: el botón
        cuyo menú o lista flotante está desplegado (va fuera del panel y le quita el foco). */
-    .panel-actions .btn:not(.db-mount-btn):not(.cuenta-btn):not(.fijo):not(.abierto),
+    .panel-actions .btn:not(.db-mount-btn):not(.cuenta-btn):not(.pasar-btn):not(.fijo):not(.abierto),
     /* MIENTRAS GIRA NO SE ESCONDE: ese icono deja de ser una acción y pasa a ser el
        ÚNICO aviso de que el historial se está recargando. Es la misma línea que ya
        exceptúa a la cuenta del agente y a las bases montadas — se esconden acciones,
@@ -7149,25 +7216,44 @@ body {
 }
 
 /* Popover del selector (EOL/encoding): abre HACIA ARRIBA desde su botón (la barra
-   está al fondo). `bottom`/`left`/`max-height` los fija el componente inline. */
+   está al fondo). `bottom`/`left`/`max-height` los fija el componente inline. Se ve como
+   el menú contextual (`contextMenuEstilos.ts`): misma superficie, grises de modal y
+   resaltado con el color del perfil; la sombra cae hacia arriba porque abre hacia arriba. */
 .statusbar-menu {
+  --fg-muted: var(--fg-muted-modal, #9a9eae);
+  --fg-faint: var(--fg-faint-modal, #8c8f9c);
   position: fixed;
   z-index: 1000;
   min-width: 220px;
   display: flex;
   flex-direction: column;
-  padding: 4px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg-elevated);
-  box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.45);
+  padding: 5px;
+  border: 1px solid var(--border-soft, var(--border));
+  border-radius: 10px;
+  background: var(--bg-modal);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--fg) 5%, transparent),
+    0 -1px 2px rgba(0, 0, 0, 0.3),
+    0 -12px 32px -6px rgba(0, 0, 0, 0.55);
+  font-size: var(--ui-font);
+  transform-origin: bottom left;
+  animation: statusbar-menu-aparece 110ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes statusbar-menu-aparece {
+  from {
+    opacity: 0;
+    transform: translateY(3px) scale(0.98);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .statusbar-menu {
+    animation: none;
+  }
 }
 .statusbar-menu-title {
   flex: 0 0 auto;
-  padding: 4px 10px 6px;
-  font-size: 10.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  padding: 4px 10px 5px;
+  font-size: calc(var(--ui-font) - 1.5px);
   color: var(--fg-faint);
 }
 /* La lista es lo que scrollea (encoding tiene decenas de opciones). */
@@ -7180,30 +7266,30 @@ body {
   display: flex;
   align-items: center;
   width: 100%;
-  padding: 5px 10px;
+  min-height: calc(var(--ui-row-h, 22px) + 6px);
+  padding: 4px 10px;
   border: none;
-  border-radius: 5px;
+  border-radius: 6px;
   background: transparent;
   color: var(--fg);
   font-family: inherit;
-  font-size: 12.5px;
+  font-size: inherit;
+  line-height: 1.3;
   text-align: left;
   white-space: nowrap;
   cursor: pointer;
 }
 .statusbar-menu-item:hover,
 .statusbar-menu-item:focus-visible {
-  background: rgba(255, 255, 255, 0.07);
+  background: color-mix(in srgb, var(--perfil, var(--accent)) 28%, transparent);
   outline: none;
-}
-.statusbar-menu-item.checked {
-  color: var(--accent);
 }
 .statusbar-menu-check {
   flex: 0 0 auto;
   display: inline-block;
   width: 16px;
-  color: var(--accent);
+  margin-right: 4px;
+  color: var(--perfil, var(--accent));
 }
 
 /* --- Splitters de redimensionado ---------------------------------------- */
@@ -7297,6 +7383,12 @@ body.is-resizing {
 
 body.is-resizing * {
   pointer-events: none;
+}
+
+/* Mientras se mira si hibernar un perfil corta algo (hasta unos segundos en Windows). */
+body.consultando-perfil,
+body.consultando-perfil * {
+  cursor: progress;
 }
 
 /* --- Menú contextual (Copiar/Pegar de la terminal) ---------------------- */
@@ -8342,6 +8434,10 @@ body.is-resizing * {
     0 10px 28px rgba(0, 0, 0, 0.45),
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
   backdrop-filter: blur(3px);
+}
+/* El ⓘ va junto al ✕, no en medio de la cabecera. */
+.db-mount-pop-head .db-mount-ayuda {
+  margin-left: auto;
 }
 .db-mount-pop-head {
   display: flex;

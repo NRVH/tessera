@@ -19,7 +19,7 @@ export const txVisorComun = crearTextos(
     cerrarArchivo: 'Close file',
     abrirExternamente: 'Open externally',
     mostrarEnExplorador: 'Show in file manager',
-    noSePudoAbrirConApp: (err: string) => `Could not open with a system app: ${err}`
+    noSePudoAbrirConApp: (err: string) => `Could not open it in its default app: ${err}`
   }
 )
 
@@ -56,23 +56,23 @@ export const txBinario = crearTextos(
     tipoZip: 'Compressed archive',
     abrirEnWord: 'Open in Word',
     abrirTitulo: (etiqueta: string) =>
-      `${etiqueta}: opens the file with its system application (full fidelity)`,
+      `${etiqueta}: opens the file in its default app (full fidelity)`,
     noSePudoAbrir: 'Could not open the file',
-    buscarEnDocumento: 'Search in the document',
-    queVersion: 'Which version is being shown',
+    buscarEnDocumento: 'Find in document',
+    queVersion: 'Version shown',
     zipResumen: (archivos: number, carpetas: number, tamano: string) =>
       `${archivos} file${archivos === 1 ? '' : 's'}${carpetas > 0 ? `, ${carpetas} folder${carpetas === 1 ? '' : 's'}` : ''} · ${tamano} uncompressed`,
     archivoVacio: 'The archive is empty.',
     colNombre: 'Name',
     colTamano: 'Size',
     colComprimido: 'Compressed',
-    pdfExcede: 'The PDF exceeds the maximum (50 MiB) and cannot be shown in full.',
+    pdfExcede: 'The PDF exceeds the 50 MiB limit and cannot be shown in full.',
     pdfNoExiste: 'The PDF does not exist in this revision.',
     tipoAudio: 'Audio',
     tipoVideo: 'Video',
-    mediaExcede: 'The file exceeds the maximum (50 MiB) to play it here. Open it with the system app.',
+    mediaExcede: 'The file exceeds the 50 MiB limit and cannot be played here. Open it in its default app.',
     mediaNoExiste: 'The file does not exist in this revision.',
-    noReproducible: 'This format cannot be played here. Open it with the system app.',
+    noReproducible: 'This format cannot be played here. Open it in its default app.',
     convertido: (n: number) =>
       `Converted with ${n} formatting warning${n === 1 ? '' : 's'}. Use “Open in Word” to see it as is.`
   }
@@ -125,7 +125,7 @@ export const txImagen = crearTextos(
     imagenClic: 'Image — click to see the SVG code',
     codigoSvgAria: 'SVG code (switch to image)',
     imagenAria: 'Image (switch to SVG code)',
-    abrirExternamenteTitulo: 'Open externally: opens the image with its system application',
+    abrirExternamenteTitulo: 'Open externally: opens the image in its default app',
     mostrarEnCarpeta: 'Show in folder',
     controlesZoom: 'Zoom controls',
     alejar: 'Zoom out',
@@ -135,10 +135,10 @@ export const txImagen = crearTextos(
     ajustar: 'Fit',
     rotarTitulo: 'Rotate 90°',
     rotarAria: 'Rotate 90 degrees',
-    supera50: 'The image exceeds the maximum (50 MiB) and cannot be shown in full.',
+    supera50: 'The image exceeds the 50 MiB limit and cannot be shown in full.',
     sinDimensiones: 'Could not determine the image dimensions.',
     formatoNoMostrable:
-      'This image format cannot be shown in the viewer. Open it with the system application.',
+      'This image format cannot be shown in the viewer. Open it in its default app.',
     noSePudoLeerCodigo: (err: string) => `Could not read the code: ${err}`,
     diffAria: 'Image diff',
     noSePudoLeer: 'Could not read the image.',
@@ -146,17 +146,17 @@ export const txImagen = crearTextos(
       'The revision may no longer exist, or the repository may be in an unusual state.',
     antes: 'Before',
     despues: 'After',
-    nuevo: 'It did not exist: the file is new.',
+    nuevo: 'Did not exist: the file is new.',
     sinVersionAnterior: 'There is no previous version.',
     borradoEnRevision: 'Deleted in this revision.',
     sinVersionPosterior: 'There is no later version.',
-    mismasDimensionesYPeso: (w: number, h: number) => `Same dimensions (${w}×${h}) and same size.`,
+    mismasDimensionesYPeso: (w: number, h: number) => `Same dimensions (${w}×${h}) and same file size.`,
     mismasDimensionesOtroContenido: (w: number, h: number) =>
       `Same dimensions (${w}×${h}): the change is in the content.`,
     cerrarDiff: 'Close diff',
-    pesaDemasiado: (tamano: string) => `It is ${tamano} and exceeds the 50 MiB maximum: it cannot be drawn.`,
+    pesaDemasiado: (tamano: string) => `It is ${tamano} and exceeds the 50 MiB limit: it cannot be rendered.`,
     navegadorNoDibuja:
-      'The browser cannot draw this format. Open it from the explorer with the system application.'
+      'The browser cannot render this format. Open it from the explorer in its default app.'
   }
 )
 
@@ -242,7 +242,7 @@ export const txComprimido = crearTextos(
     sinNombresLocales: ' · no variable names (the class has no LocalVariableTable)',
     entradasQueCambiaron: 'Entries that changed',
     comparando: 'Comparing…',
-    repartoEntradasDiff: 'Split between the entries and the diff',
+    repartoEntradasDiff: 'Resize entries and diff',
     sinDiferencias: 'No differences inside the archive',
     entradasCambiadas: (n: number) => `${n} ${n === 1 ? 'entry changed' : 'entries changed'}`,
     identicas: (n: number) => ` · ${n} identical`,
@@ -250,9 +250,9 @@ export const txComprimido = crearTextos(
     elegirEntrada: 'Choose an entry to see its differences',
     noSePudoComparar: 'Could not compare the file',
     sinDiferenciasHint:
-      'The two versions of the archive have the same content. They may differ in dates or in the order of the entries, which do not change what is inside.',
+      'The two versions of the archive have the same content. They may differ in dates or in the order of the entries, which does not change the contents.',
     nueva: (tamano: string) => `New, ${tamano}.`,
-    borrada: (tamano: string) => `Deleted; it took up ${tamano}.`,
+    borrada: (tamano: string) => `Deleted; it was ${tamano}.`,
     cambio: (antes: string, despues: string) => `Changed from ${antes} to ${despues}.`,
     entradaBinaria: 'Binary entry: there is no text diff to show.',
     grandeEnteraTitulo: 'The entry is too large to compare in full.',
@@ -262,7 +262,7 @@ export const txComprimido = crearTextos(
     comparandoArchivo: 'Comparing the file…',
     leyendoEntrada: 'Reading the entry…',
     tituloNueva: (nombre: string, tamano: string) => `${nombre}\nNew · ${tamano}`,
-    tituloBorrada: (nombre: string, tamano: string) => `${nombre}\nDeleted · took up ${tamano}`,
+    tituloBorrada: (nombre: string, tamano: string) => `${nombre}\nDeleted · was ${tamano}`,
     tituloModificada: (nombre: string, antes: string, despues: string) =>
       `${nombre}\nModified · ${antes} → ${despues}`
   }
@@ -283,8 +283,8 @@ export const txVistaPrevia = crearTextos(
     diagramaVacio: 'The diagram is empty.',
     diagramaSintaxis: 'The diagram has a syntax error.',
     noSePudoDibujar: (err: string) => `Could not draw the diagram: ${err}`,
-    sinCarpeta: (lista: string) => `the page is loaded without its folder, so these do not resolve: ${lista}`,
-    sinRed: (lista: string) => `this view does not reach the network, so these are not downloaded: ${lista}`,
+    sinCarpeta: (lista: string) => `the page loads without its folder, so these cannot be resolved: ${lista}`,
+    sinRed: (lista: string) => `this view has no network access, so these are not downloaded: ${lista}`,
     unirPartes: '; and ',
     faltanRecursos: (partes: string) =>
       `Some resources are missing, so the page may look unstyled — ${partes}. JavaScript does not run either.`

@@ -23,6 +23,7 @@ import {
   type EsquemaUri
 } from './camposConexion'
 import { pegarRecortado } from '../../util/pasteTrim'
+import { AYUDA, BotonAyuda } from '../academy'
 import { IconoMotor } from './iconosBd'
 import { IconoOjo } from '../../comun/iconosFormulario'
 import { uriCerrada, type EstadoUri } from './useConexionDialogoEstado'
@@ -36,8 +37,11 @@ export function CabeceraConexion({ idTitulo, esEdicion }: { idTitulo: string; es
   const t = txConexionDialogo()
   return (
     <div className="dbc-cabecera">
-      <div id={idTitulo} className="modal-title">
-        {esEdicion ? t.editarConexion : t.nuevaConexion}
+      <div className="dbc-titulo-fila">
+        <div id={idTitulo} className="modal-title">
+          {esEdicion ? t.editarConexion : t.nuevaConexion}
+        </div>
+        <BotonAyuda destino={AYUDA.conexionBd} />
       </div>
       {!esEdicion && (
         <p className="dbc-ayuda">

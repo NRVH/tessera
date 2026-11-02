@@ -36,6 +36,11 @@ export interface ContextMenuItem {
   danger?: boolean
   /** Texto al apuntar la opción; sobre todo, por qué está deshabilitada (una opción apagada no se explica sola). */
   title?: string
+  /**
+   * Una segunda línea pequeña bajo la etiqueta: lo que la opción hace o cuesta («Cierra sus agentes
+   * y terminales»). Así la etiqueta se queda corta y el menú no se ensancha con una frase.
+   */
+  detalle?: string
 }
 
 /** Línea divisoria entre grupos de opciones. */

@@ -25,9 +25,31 @@ import type { NucleoSandbox } from './NucleoSandbox.ts'
 import type { ProjectMount } from './tipos.ts'
 import { txSandbox } from '../textos.ts'
 
+/**
+ * El nombre bajo `/workspace` que no usa otro proyecto: el de la carpeta, o `<carpeta>-2`, `-3`… Los nombres
+ * reservados (ruta del host en minúsculas -> nombre) cuentan como ocupados para los demás proyectos, y el
+ * proyecto que tiene reserva recibe la suya.
+ */
+export function nombreLibre(
+  mounts: ReadonlyMap<string, ProjectMount>,
+  hostPathNormalizada: string,
+  reservas: ReadonlyMap<string, string> = new Map()
+): string {
+  const clave = hostPathNormalizada.toLowerCase()
+  const propio = reservas.get(clave)
+  if (propio !== undefined && !mounts.has(propio)) return propio
+  const ocupado = (nombre: string): boolean => mounts.has(nombre) || [...reservas].some(([k, v]) => k !== clave && v === nombre)
+  const base = sanitizeWorkspaceName(path.basename(hostPathNormalizada))
+  let name = base
+  for (let n = 2; ocupado(name); n++) name = `${base}-${n}`
+  return name
+}
+
 /** El helper privilegiado, las raíces del perfil y los proyectos montados. */
 export class MontajesSandbox {
   private readonly n: NucleoSandbox
+  /** Por contenedor: nombre prometido a un proyecto aún sin montar (ruta del host en minúsculas -> nombre). */
+  private readonly reservas = new Map<string, Map<string, string>>()
 
   constructor(n: NucleoSandbox) {
     this.n = n
@@ -105,6 +127,25 @@ export class MontajesSandbox {
   }
 
   /**
+   * Dónde está montado el proyecto en ese contenedor o, si aún no lo está, dónde lo montará `addProject`:
+   * el nombre queda reservado para ese proyecto hasta que se monte, así que otro con la misma carpeta no se
+   * lo quita. Sin Docker: lo dice el registro de montajes.
+   */
+  reservarRuta(profileId: string, projectHostPath: string): string {
+    const normalized = normalizeHostPath(projectHostPath)
+    const ya = this.findMount(profileId, normalized)
+    if (ya) return ya.workspacePath
+    let delContenedor = this.reservas.get(profileId)
+    if (!delContenedor) {
+      delContenedor = new Map<string, string>()
+      this.reservas.set(profileId, delContenedor)
+    }
+    const nombre = nombreLibre(this.mountsFor(profileId), normalized, delContenedor)
+    delContenedor.set(normalized.toLowerCase(), nombre)
+    return `${WORKSPACE_ROOT}/${nombre}`
+  }
+
+  /**
    * Monta el proyecto EN CALIENTE en `/workspace/<nombre>` sin recrear el contenedor.
    * Idempotente; si dos proyectos distintos comparten basename, los siguientes reciben
    * `<base>-2`, `<base>-3`… Bajo el `profileLock`: el check-then-act es atómico.
@@ -124,11 +165,8 @@ export class MontajesSandbox {
       if (already) return already
 
       const mounts = this.mountsFor(profile.id)
-      const base = sanitizeWorkspaceName(path.basename(normalized))
-      let name = base
-      for (let n = 2; mounts.has(name); n++) {
-        name = `${base}-${n}`
-      }
+      const reservas = this.reservas.get(profile.id)
+      const name = nombreLibre(mounts, normalized, reservas)
 
       const root = managedRootFor(profile)
       const daemonPath = toDaemonPath(normalized)
@@ -150,6 +188,7 @@ export class MontajesSandbox {
         workspacePath: `${WORKSPACE_ROOT}/${name}`
       }
       mounts.set(name, mount)
+      reservas?.delete(normalized.toLowerCase())
       return mount
     })
   }
@@ -203,7 +242,7 @@ export class MontajesSandbox {
   }
 
   /**
-   * Monta el buzón del puente de BD y enlaza `tdb` y `tssh` en el PATH del contenedor. Best-effort:
+   * Monta el buzón del puente de BD y enlaza `tdb`, `tssh` y `tctx` en el PATH del contenedor. Best-effort:
    * si falla, el perfil se queda sin bases pero el contenedor y el agente siguen.
    */
   async mountDbBridge(profile: Profile): Promise<void> {
@@ -225,7 +264,7 @@ export class MontajesSandbox {
         )
         return
       }
-      // `tdb` y `tssh` (el programa que registra el dominio SSH en el mismo buzón), en un solo `exec`.
+      // `tdb`, `tssh` y `tctx` (los programas que registran SSH y las reglas en el mismo buzón), en un solo `exec`.
       const enlace = await runDocker([
         'exec',
         '-u',
@@ -233,11 +272,10 @@ export class MontajesSandbox {
         containerNameFor(profile),
         'sh',
         '-c',
-        `ln -sf ${citarSh(`${DB_BRIDGE_CONTAINER}/tdb`)} /usr/local/bin/tdb && ` +
-          `ln -sf ${citarSh(`${DB_BRIDGE_CONTAINER}/tssh`)} /usr/local/bin/tssh`
+        ['tdb', 'tssh', 'tctx'].map((p) => `ln -sf ${citarSh(`${DB_BRIDGE_CONTAINER}/${p}`)} /usr/local/bin/${p}`).join(' && ')
       ])
       if (enlace.status !== 0) {
-        console.log(`[sandbox] no se pudo enlazar tdb y tssh en "${profile.id}": ${enlace.stderr.trim()}`)
+        console.log(`[sandbox] no se pudo enlazar tdb, tssh y tctx en "${profile.id}": ${enlace.stderr.trim()}`)
       }
     } catch (err) {
       console.log(`[sandbox] puente de BD no disponible en "${profile.id}": ${errText(err)}`)

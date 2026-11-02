@@ -16,7 +16,7 @@ export const txAgenteManual = crearTextos(
     nombrePlaceholder: 'Mi agente',
     comando: 'Comando',
     comandoNativo:
-      'Tal como lo teclearías en la terminal del proyecto. En los proyectos nativos lo instalas tú: Tessera solo comprueba que tu shell lo encuentre.',
+      'Tal como lo teclearías en la terminal del proyecto. Si corre en tu equipo, lo instalas tú: Tessera solo comprueba que tu shell lo encuentre.',
     comandoDocker: 'Tal como lo teclearías en la terminal del proyecto, dentro del contenedor de este perfil.',
     reanudar: 'Cómo reanudar (opcional)',
     reanudarAyuda:
@@ -69,22 +69,22 @@ export const txAgenteManual = crearTextos(
   {
     ordenesInstalacion: 'Install commands (optional)',
     ordenesAyuda:
-      'They run as administrator when this profile’s image is prepared, on top of the common one. Afterwards it checks that the command’s program was installed.',
+      'They run as administrator when Tessera prepares this profile’s image, on top of the shared one. Then Tessera checks that the command’s program is installed.',
     nombre: 'Name',
     nombrePlaceholder: 'My agent',
     comando: 'Command',
     comandoNativo:
-      'Just as you would type it in the project terminal. In native projects you install it yourself: Tessera only checks that your shell can find it.',
-    comandoDocker: 'Just as you would type it in the project terminal, inside this profile’s container.',
+      'Exactly as you would type it in the project terminal. If it runs on your computer, you install it yourself: Tessera only checks that your shell can find it.',
+    comandoDocker: 'Exactly as you would type it in the project terminal, inside this profile’s container.',
     reanudar: 'How to resume (optional)',
     reanudarAyuda:
-      'It is added to the command when opening the project to pick up the last conversation; “New conversation” launches it without this.',
+      'Tessera adds it to the command when the project opens, to continue the last conversation; “New conversation” starts the agent without it.',
     limites:
-      'A hand-defined agent has no conversation history, account usage, end-of-turn notice or automatic hibernation: Tessera cannot read those things from a program it does not know.',
+      'A custom agent has no conversation history, account usage, end-of-turn notification, or automatic hibernation: Tessera cannot read that information from a program it does not know.',
     activarTerminal: 'Enable in the terminal',
     terminalAyudaA:
       'It can also be chosen as the full-screen terminal agent. There, Tessera gives it the context of your servers and databases only in an ',
-    terminalAyudaB: ' file: if your agent does not read that file, it will work without that context, and it is better to leave this off.',
+    terminalAyudaB: ' file: if your agent does not read that file, it works without that context, so leave this off.',
     contexto: 'Context (optional)',
     contextoNo: 'Do not show it',
     contextoComando: 'A command provides it',
@@ -96,7 +96,7 @@ export const txAgenteManual = crearTextos(
     valorComandoAyuda:
       'It runs every 15 seconds while the agent is on screen, in the project folder and with the same home folder as the agent.',
     valorArchivoAyuda:
-      '“~” is the agent’s home folder and a relative path hangs from the project. If it is JSON Lines, the most recent line that has the fields is read.',
+      '“~” is the agent’s home folder, and a relative path starts at the project folder. For JSON Lines, Tessera reads the most recent line that has the fields.',
     campoUsado: 'Field for the amount used',
     campoUsadoAyuda: 'With dots and brackets: “context.used”, “turns[-1].tokens”.',
     maximo: 'Maximum',
@@ -104,7 +104,7 @@ export const txAgenteManual = crearTextos(
     preparando: 'Preparing this profile’s image…',
     falloInstalacion: 'The installation failed.',
     faltan: (programas: string) =>
-      `It was installed, but I cannot find ${programas} in the image: the agent will not start. Check the command or the install commands.`,
+      `The installation finished, but Tessera cannot find ${programas} in the image: the agent will not start. Check the command or the install commands.`,
     listo: 'Done: the agent is now in this profile’s image.',
     cerrar: 'Close',
     pegarDefinicion: 'Paste definition',
@@ -115,7 +115,7 @@ export const txAgenteManual = crearTextos(
     guardar: 'Save',
     editar: (nombre: string) => `Edit ${nombre}`,
     agenteNuevo: 'New agent',
-    ambitoNativo: 'Runs on your computer and all profiles will see it.',
+    ambitoNativo: 'Runs on your computer and is available in all profiles.',
     ambitoDocker: 'Runs in Docker, with its accounts, and only in this profile.',
     dondeCorre: 'Where it runs',
     dondeNativo: (sistema: string) => `On your computer (${sistema})`,

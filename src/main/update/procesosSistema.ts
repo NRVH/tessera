@@ -41,6 +41,11 @@ export interface OpcionesListado {
   bajoRaiz?: string
   /** Pedir también la línea de comandos (cuesta bytes, no tiempo; ver `guionListado`). */
   conLineaComando?: boolean
+  /**
+   * Solo estos procesos y sus hijos directos, sin ruta de ejecutable: la consulta es más corta y
+   * la salida diminuta. Si un pid no sale, ya no existe.
+   */
+  soloPids?: readonly number[]
   /** Tope de la llamada a PowerShell, en ms. */
   timeoutMs?: number
 }
@@ -55,6 +60,15 @@ const TIMEOUT_POR_DEFECTO_MS = 10_000
 const TOPE_SALIDA = 32 * 1024 * 1024
 
 /**
+ * El filtro WQL de esos procesos y sus hijos directos. Solo enteros positivos: nada del llamador
+ * llega al guion como texto.
+ */
+function filtroDePids(pids: readonly number[]): string {
+  const validos = [...new Set(pids)].filter((p) => Number.isSafeInteger(p) && p > 0)
+  return validos.length === 0 ? 'ProcessId=0 AND ProcessId=-1' : validos.map((p) => `ProcessId=${p} OR ParentProcessId=${p}`).join(' OR ')
+}
+
+/**
  * El guion de PowerShell que produce la tabla en JSON. Puro. La raíz del filtro NO se
  * interpola: la lee de `$env:TESSERA_RAIZ_PROCESOS`, así que una carpeta con comillas,
  * `$` o backticks no puede romper el guion ni inyectar nada.
@@ -67,14 +81,19 @@ const TOPE_SALIDA = 32 * 1024 * 1024
  * que matar no se mataba, en silencio. El `ParentProcessId` no se reescribe al morir el
  * padre y los pid se reutilizan: un huérfano puede aparentar descender de otro proceso.
  */
-export function guionListado(opts: { bajoRaiz?: boolean; conLineaComando?: boolean } = {}): string {
+export function guionListado(
+  opts: { bajoRaiz?: boolean; conLineaComando?: boolean; pids?: readonly number[] } = {}
+): string {
   const columnas =
-    'pid = $_.ProcessId; ppid = $_.ParentProcessId; name = $_.Name; path = $_.ExecutablePath' +
+    'pid = $_.ProcessId; ppid = $_.ParentProcessId; name = $_.Name' +
+    (opts.pids ? '' : '; path = $_.ExecutablePath') +
     (opts.conLineaComando ? '; cmd = $_.CommandLine' : '')
   return (
     'try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}; ' +
     (opts.bajoRaiz ? `$root = $env:${VAR_RAIZ}; ` : '') +
-    'Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | ' +
+    'Get-CimInstance Win32_Process ' +
+    (opts.pids ? `-Filter '${filtroDePids(opts.pids)}' ` : '') +
+    '-ErrorAction SilentlyContinue | ' +
     (opts.bajoRaiz
       ? 'Where-Object { $_.ExecutablePath -and ' +
         '$_.ExecutablePath.StartsWith($root, [System.StringComparison]::OrdinalIgnoreCase) } | '
@@ -127,7 +146,11 @@ export function parsearTablaProcesos(raw: string): ProcesoSistema[] | null {
  * consola VISIBLE (un parpadeo negro al cerrar la app).
  */
 function invocacion(opts: OpcionesListado): { args: string[]; env: NodeJS.ProcessEnv } {
-  const script = guionListado({ bajoRaiz: opts.bajoRaiz !== undefined, conLineaComando: opts.conLineaComando })
+  const script = guionListado({
+    bajoRaiz: opts.bajoRaiz !== undefined,
+    conLineaComando: opts.conLineaComando,
+    pids: opts.soloPids
+  })
   const env: NodeJS.ProcessEnv = { ...process.env }
   if (opts.bajoRaiz !== undefined) env[VAR_RAIZ] = withSep(opts.bajoRaiz.replace(/\//g, '\\'))
   return { args: ['-NoProfile', '-NonInteractive', '-Command', script], env }

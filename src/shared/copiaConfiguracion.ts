@@ -1,9 +1,9 @@
 // =============================================================================
 // La copia de la configuración para llevarla a otro equipo, en lo que ve el renderer: qué ajustes
 // viajan (los de preferencia, no los de este equipo, sus proyectos o la integración con su
-// sistema), la frase, y cómo se FUSIONA lo importado con lo que ya hay: perfiles, agentes
-// definidos a mano y ajustes. Se añade lo que falta, emparejado por id, y lo que existe no se
-// toca. Puro: lo usan el main, el renderer y los `test-*.mts`.
+// sistema), la frase, y cómo se FUSIONA lo importado con lo que ya hay: agentes definidos a mano y
+// ajustes (a qué perfil va cada perfil del archivo lo decide `destinoCopia.ts`). Se añade lo que
+// falta, emparejado por id, y lo que existe no se toca. Puro: lo usan el main, el renderer y los `test-*.mts`.
 // Decisiones: docs/decisiones/configuracion/exportar-importar.md
 // =============================================================================
 
@@ -113,20 +113,6 @@ export function agentesParaExportar(s: Pick<WorkspaceSettings, 'agentesNativos' 
     dockerPorPerfil: structuredClone(dePerfiles(s.agentesDockerPorPerfil)),
     ocultosPorPerfil: structuredClone(dePerfiles(s.agentesOcultosPorPerfil))
   }
-}
-
-/** Qué perfiles de la copia faltan aquí (se crean) y cuáles ya están (se fusionan sus conexiones). */
-export function perfilesAFusionar<P extends { id: string }>(actuales: readonly { id: string }[], importados: readonly P[]): { nuevos: P[]; existentes: P[] } {
-  const ya = new Set(actuales.map((p) => p.id))
-  const vistos = new Set<string>()
-  const nuevos: P[] = []
-  const existentes: P[] = []
-  for (const p of importados) {
-    if (vistos.has(p.id)) continue
-    vistos.add(p.id)
-    ;(ya.has(p.id) ? existentes : nuevos).push(p)
-  }
-  return { nuevos, existentes }
 }
 
 type AgentesActuales = Pick<WorkspaceSettings, 'agentesNativos' | 'agentesDockerPorPerfil' | 'agentesOcultosPorPerfil'>

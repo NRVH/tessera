@@ -37,7 +37,7 @@ import { EspacioDatos } from './controlador/espacioDatos'
 import { contextoDeDrivers, InvocadorTdb } from './controlador/invocacionTdb'
 import { MotoresDeArchivo, type DialogosBd } from './controlador/motoresDeArchivo'
 import { probarConexion } from './controlador/probarConexion'
-import { DbBridge, type PuertaPuente } from './dbBridge'
+import { DbBridge, type PuertaPuente, type SesionDelPuente } from './dbBridge'
 import { dbLog } from './dbLog'
 import { DockerBridge, type PuertaBuzon } from './dockerBridge'
 import type { CtxDrivers } from './explorador/protocoloTrabajador'
@@ -249,7 +249,12 @@ export class DbController {
     return this.puente
   }
 
-  /** La puerta del buzón de Docker para otros dominios: registran su programa (`tssh`) junto a `tdb`. */
+  /** De quién es un token de sesión del puente (`DbBridge.sesionDeToken`): para quien atiende por el buzón sin lanzar un proceso. */
+  sesionDeToken(token: string): SesionDelPuente | null {
+    return this.puente.sesionDeToken(token)
+  }
+
+  /** La puerta del buzón de Docker para otros dominios: registran su programa (`tssh`, `tctx`) junto a `tdb`. */
   get puertaBuzon(): PuertaBuzon {
     return this.puenteDocker
   }
@@ -272,7 +277,7 @@ export class DbController {
     idsMontados: readonly string[],
     rutaBuzonEnContenedor: string
   ): Record<string, string> {
-    // El idioma no depende del puente: sin él, `tdb` y `tssh` del contenedor explican el fallo.
+    // El idioma no depende del puente: sin él, `tdb`, `tssh` y `tctx` del contenedor explican el fallo.
     if (!this.puente.listo) return { [VARIABLE_IDIOMA]: idiomaActual() }
     const delPerfil = this.connections.list(profileId)
     const validas = idsMontados.filter((id) => delPerfil.some((c) => c.id === id))

@@ -1,7 +1,7 @@
 // =============================================================================
 // Store de los agentes: agente, cuenta y modo elegidos, estado de sesión que reportan los
-// panes, actividad (trabajando / terminó sin ver), qué targets tienen agente vivo y los
-// hibernados que no son pestaña.
+// panes, actividad (trabajando / terminó sin ver), qué targets tienen agente vivo, los
+// hibernados que no son pestaña y los traspasos que esperan a su pane.
 // Los efectos que lo alimentan viven en useAgentesApp y useActividadAgentes. Una acción
 // que no cambia nada devuelve el mismo estado: con `{}` se avisaría a todos los oyentes.
 // =============================================================================
@@ -40,6 +40,20 @@ export interface EstadoAgentes {
    * hibernar su perfil. Las pestañas lo llevan en su modelo; estos, aquí.
    */
   hibernadosFueraDePestanas: ReadonlySet<string>
+  /** Traspasos de «Continuar en…» que esperan a que el pane de su target los tome (`useSesionAgente`). */
+  traspasosPendientes: Record<string, TraspasoPendiente>
+}
+
+/** Un traspaso ya preparado en el main, con el modo y la cuenta con que tiene que abrirse el destino. */
+export interface TraspasoPendiente {
+  traspasoId: string
+  /** Hasta cuándo vale (epoch ms): el main lo descarta a los `VIDA_PENDIENTE_MS`; aquí se cuenta desde antes de pedirlo. */
+  caduca: number
+  /** La conversación copiada que reanudar (mismo agente), o null: conversación nueva con el traspaso. */
+  reanudar: string | null
+  modo: ModoAgente
+  /** En Docker, la cuenta; en nativo, null. */
+  accountId: string | null
 }
 
 /** Estado de los agentes. */
@@ -56,7 +70,8 @@ export const useStoreAgentes = create<EstadoAgentes>()(() => ({
   activity: emptyActivityState,
   vivos: new Set(),
   tokenAbrirAgentes: 0,
-  hibernadosFueraDePestanas: new Set()
+  hibernadosFueraDePestanas: new Set(),
+  traspasosPendientes: {}
 }))
 
 /** Elige el agente de un perfil. */
@@ -142,6 +157,28 @@ export function elegirModoAgente(targetKey: string, modo: ModoAgente, accountId?
       modoPorTarget: { ...s.modoPorTarget, [targetKey]: modo },
       ...(cuentaIgual ? {} : { accountByTarget: { ...s.accountByTarget, [targetKey]: accountId } })
     }
+  })
+}
+
+/**
+ * Deja un traspaso para el pane de `targetKey` y elige su modo (y en Docker su cuenta) en el MISMO turno: el
+ * pane que se remonta o cambia de cuenta ve ya el traspaso al abrir.
+ */
+export function pedirTraspasoEn(targetKey: string, t: TraspasoPendiente): void {
+  useStoreAgentes.setState((s) => ({
+    traspasosPendientes: { ...s.traspasosPendientes, [targetKey]: t },
+    modoPorTarget: { ...s.modoPorTarget, [targetKey]: t.modo },
+    ...(t.modo === 'docker' && t.accountId !== null ? { accountByTarget: { ...s.accountByTarget, [targetKey]: t.accountId } } : {})
+  }))
+}
+
+/** El pane tomó el traspaso: se quita, solo si sigue siendo ese. */
+export function tomarTraspaso(targetKey: string, traspasoId: string): void {
+  useStoreAgentes.setState((s) => {
+    if (s.traspasosPendientes[targetKey]?.traspasoId !== traspasoId) return s
+    const resto = { ...s.traspasosPendientes }
+    delete resto[targetKey]
+    return { traspasosPendientes: resto }
   })
 }
 

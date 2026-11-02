@@ -57,6 +57,7 @@ export function CrearPerfilPopover({
       onMouseDown={(e) => e.stopPropagation()}
     >
       <div className="profile-create-title">{t.nuevo}</div>
+      <div className="profile-create-hint">{t.nuevoSubtitulo}</div>
       <input
         className="profile-create-name"
         autoFocus

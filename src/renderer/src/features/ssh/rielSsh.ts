@@ -1,7 +1,7 @@
 // =============================================================================
 // Las reglas del riel de conexiones SSH a pantalla completa, en lógica pura: cuánto sitio hace falta para que
 // quepa junto a la terminal o, con su columna plegada, junto al agente (que no bajan de un mínimo), hasta dónde
-// se ensancha, qué ve el usuario según el modo, el perfil, su preferencia y el sitio, dónde se enseña la lista
+// se ensancha, qué ve el usuario según el modo, el perfil y el sitio, dónde se enseña la lista
 // cuando la piden sin elegir, cuándo se ve la ▾ del lanzador (nunca a la vez que el riel) y cuándo se cierra
 // el lanzador abierto. Sin React ni DOM: se fija bajo `node` (`test-lista-ssh.mts`). Depende de los límites
 // de `shared/ajustesTerminal` y del ancho mínimo del agente (`shared/workspace-state-ipc`).
@@ -11,7 +11,7 @@
 import { SSH_RIEL_ANCHO_MAX, SSH_RIEL_ANCHO_MIN } from '../../../../shared/ajustesTerminal.ts'
 import { CC_WIDTH_MIN } from '../../../../shared/workspace-state-ipc.ts'
 
-/** El id del riel: lo nombra el `aria-controls` de su conmutador, en la cabecera de la terminal. */
+/** El id del riel y de su `<aside>`. */
 export const ID_RIEL_SSH = 'ssh-riel'
 
 /** El id del lanzador (la lista flotante): lo nombra el `aria-controls` de la ▾ de la cabecera. */
@@ -60,8 +60,6 @@ export interface EntradaRiel {
   pantallaCompleta: boolean
   /** El perfil de la terminal; `''` sin perfil (no hay conexiones que enseñar). */
   perfilId: string
-  /** Su preferencia: el perfil lo ocultó a mano. Que no haya sitio no la cambia. */
-  oculto: boolean
   /**
    * Ancho (px) del cuerpo de la terminal, de borde a borde; con la columna plegada, el de las dos columnas
    * (la de la terminal y la de su agente), que es lo que reparten.
@@ -99,19 +97,13 @@ export function sitioDelRiel(zona: number, agenteAncho: number | null, plegada: 
 
 /** Qué ve el usuario. */
 export interface ResolucionRiel {
-  /** Hay un riel que gobernar (a pantalla completa, con perfil y con sitio): su conmutador funciona. */
-  enRiel: boolean
-  /** El riel se ve: está en modo riel y su perfil no lo ocultó. */
+  /** El riel se ve: a pantalla completa, con perfil y con sitio. */
   visible: boolean
 }
 
-/**
- * Qué ve el usuario. Sin sitio el riel se pliega SIN que cambie la preferencia (la entrada no la
- * devuelve: no hay nada que guardar) y reaparece solo cuando vuelve a haberlo.
- */
+/** Qué ve el usuario. Sin sitio el riel se pliega y reaparece solo cuando vuelve a haberlo. */
 export function resolverRiel(e: EntradaRiel): ResolucionRiel {
-  const enRiel = e.pantallaCompleta && e.perfilId !== '' && haySitio(e)
-  return { enRiel, visible: enRiel && !e.oculto }
+  return { visible: e.pantallaCompleta && e.perfilId !== '' && haySitio(e) }
 }
 
 /**
@@ -138,8 +130,7 @@ export type DondeConectar = 'riel' | 'lanzador'
 
 /**
  * Dónde se enseña la lista cuando la piden sin elegir (el «Conectar por SSH…» del estado vacío de la
- * terminal): en el riel si se ve, y si no en el lanzador de la cabecera. Con el riel plegado a mano sigue
- * siendo el lanzador: mostrar el riel guardaría una preferencia que el usuario no ha tocado.
+ * terminal): en el riel si se ve, y si no en el lanzador de la cabecera.
  */
 export function dondeConectar(riel: ResolucionRiel): DondeConectar {
   return riel.visible ? 'riel' : 'lanzador'
@@ -147,8 +138,8 @@ export function dondeConectar(riel: ResolucionRiel): DondeConectar {
 
 /**
  * ¿Se ve la ▾ del botón de nueva terminal? Solo cuando la lista no está ya a la vista en el riel (es la otra
- * cara de `dondeConectar`): a pantalla completa con el riel visible la ▾ sobra, y en cuanto el riel se pliega,
- * a mano o por falta de sitio, vuelve. Así la lista siempre tiene una entrada, y nunca dos.
+ * cara de `dondeConectar`): a pantalla completa con el riel visible la ▾ sobra, y en cuanto el riel se pliega
+ * por falta de sitio, vuelve. Así la lista siempre tiene una entrada, y nunca dos.
  */
 export function flechaLanzadorVisible(riel: ResolucionRiel): boolean {
   return dondeConectar(riel) === 'lanzador'
@@ -163,8 +154,7 @@ export interface ModoLanzador {
 
 /**
  * ¿Se cierra el lanzador abierto al pasar de un modo a otro? Sí si cambia la pantalla completa (la ▾ ya no está
- * donde se midió su ancla: la cabecera gana o pierde el conmutador del riel por la izquierda) y sí si la ▾ deja de
- * verse (el riel pasa a enseñar la lista). Que el riel se pliegue y la ▾ vuelva no lo cierra.
+ * donde se midió su ancla) y sí si la ▾ deja de verse (el riel pasa a enseñar la lista). Que el riel se pliegue y la ▾ vuelva no lo cierra.
  */
 export function lanzadorSeCierra(antes: ModoLanzador, ahora: ModoLanzador): boolean {
   return antes.pantallaCompleta !== ahora.pantallaCompleta || (antes.flechaVisible && !ahora.flechaVisible)

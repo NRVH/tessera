@@ -86,7 +86,7 @@ test.describe.serial('Agentes definidos a mano', () => {
   test('un programa que la shell no encuentra se avisa antes de guardar', async () => {
     const win = s.win
     await expect(pestana(win, 'Claude Code')).toBeVisible({ timeout: 30_000 })
-    await win.locator('.agent-pane:not(.hidden) [aria-label="Añadir agente"]').click()
+    await win.locator('.agent-pane:not(.hidden) [aria-label="Añadir un agente propio (por su comando)"]').click()
     const modal = win.locator('.agman-modal')
     // Se abre desde el título del panel, que va en mayúsculas: el modal no debe heredarlas.
     expect(await modal.evaluate((m) => getComputedStyle(m).textTransform)).toBe('none')
@@ -102,7 +102,7 @@ test.describe.serial('Agentes definidos a mano', () => {
 
   test('el «+» define un agente, que arranca reanudando y se queda con su pestaña', async () => {
     const win = s.win
-    await win.locator('.agent-pane:not(.hidden) [aria-label="Añadir agente"]').click()
+    await win.locator('.agent-pane:not(.hidden) [aria-label="Añadir un agente propio (por su comando)"]').click()
     const modal = win.locator('.agman-modal')
     await modal.getByLabel('Nombre').fill('Eco')
     await modal.getByLabel('Comando').fill('eco-agente --modo prueba')
@@ -215,7 +215,7 @@ test.describe.serial('Agentes definidos a mano', () => {
   test('Configuración › Agentes: la lista del perfil, el ojo, mover y el modo lista', async () => {
     const win = s.win
     await pestana(win, 'Eco').click({ button: 'right' })
-    await win.getByRole('menuitem', { name: 'Gestionar agentes…' }).click()
+    await win.getByRole('menuitem', { name: 'Ordenar y ocultar agentes en Configuración…' }).click()
     const modal = win.locator('.ajustes-modal')
     await expect(modal.locator('.ajustes-riel-item[data-cat="agentes"]')).toHaveAttribute('aria-selected', 'true')
     const filas = modal.locator('.gestion-agente')
@@ -240,7 +240,7 @@ test.describe.serial('Agentes definidos a mano', () => {
     await expect(win.locator('.agent-pane:not(.hidden) .agent-switch-btn')).toHaveCount(0)
     await lista.click()
     await expect(casilla(win, 'Eco')).toHaveAttribute('aria-checked', 'true')
-    await expect(win.getByRole('menuitem', { name: 'Gestionar agentes…' })).toBeVisible()
+    await expect(win.getByRole('menuitem', { name: 'Ordenar y ocultar agentes en Configuración…' })).toBeVisible()
     await casilla(win, 'Codex').click()
     await expect(lista).toHaveText('Codex')
     await expect.poll(() => ajustes(s).selectorAgentes).toBe('lista')

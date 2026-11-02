@@ -75,41 +75,41 @@ export const txContenedores = crearTextos(
     contenedores: (n: number) => `${n} ${n === 1 ? 'container' : 'containers'}`,
     color: { verde: 'Comfortable', amarillo: 'Tight', rojo: 'Excessive' } as Record<ColorSemaforo, string>,
     aviso: {
-      verde: 'Your computer keeps them all working at once with room to spare.',
-      amarillo: 'Very tight: with all of them working there may be slowness, stopped agents and unexpected Tessera crashes.',
-      rojo: 'Excessive: with all of them working, some of your agents will fail mid-task. You risk losing work and Tessera closing.'
+      verde: 'Your computer can run them all at once with room to spare.',
+      amarillo: 'Very tight: with all of them working, expect slowdowns, stopped agents and unexpected Tessera crashes.',
+      rojo: 'Excessive: with all of them working, some of your agents will fail mid-task. You may lose work, and Tessera may close.'
     } as Record<ColorSemaforo, string>,
     avisoSinLimite:
-      'With no limit there is no safety net: with all of them working, some of your agents will fail mid-task. You risk losing work and Tessera closing.',
+      'With no limit, nothing protects you: with all of them working, some of your agents will fail mid-task. You may lose work, and Tessera may close.',
     maquina: (gb: string, nucleos: number | null, recomendado: number) =>
       nucleos === null
         ? `Docker has ${gb} GB on this computer: up to ${recomendado} are recommended.`
         : `Docker has ${gb} GB and ${nucleos} ${nucleos === 1 ? 'core' : 'cores'} on this computer: up to ${recomendado} are recommended.`,
     ahora: (vivos: number) => `${vivos} running now.`,
-    noResponde: 'Docker is not responding: the traffic light is calculated as soon as it is back.',
-    usarRecomendado: 'Use the recommended',
+    noResponde: 'Docker is not responding: the indicator updates as soon as it responds.',
+    usarRecomendado: 'Use recommended value',
     grupoPolitica: 'When the limit is reached',
     politicaAyuda:
-      'Before stopping anything, Tessera stops a container that no longer has agents. What gets stopped is hibernated: the conversation resumes when you return, but whatever it was doing is interrupted. If all of them are protected, the new agent does not open and you are told why.',
+      'First, Tessera stops a container that no longer has agents. A stopped agent is hibernated: the conversation resumes when you return, but whatever it was doing is interrupted. If all of them are protected, the new agent does not open and Tessera tells you why.',
     primero: {
       ultimos: {
         label: 'The most recent ones you opened',
-        hint: 'Recommended: it protects the ones that have been on long tasks the longest.'
+        hint: 'Recommended: protects the agents that have been running long tasks the longest.'
       },
       primeros: { label: 'The first ones you opened', hint: 'The oldest ones are stopped.' },
       inactivos: { label: 'The ones idle the longest', hint: 'The one with the longest time without input or output is stopped.' }
     } as Record<PrimeroEnPararse, { label: string; hint: string }>,
-    proteger: 'Do not stop the ones that are working while there is another',
+    proteger: 'Do not stop working agents while another can be stopped',
     protegerAyuda: 'An agent that is producing output is not interrupted if there is another one to stop.',
     grupoSaturacion: 'If Docker gets saturated',
     saturacionAyuda:
-      'Tessera measures the memory used by all Docker containers. When it stays above the threshold for that long, it hibernates an agent following «When the limit is reached» (what to stop first and whether working agents are protected). It never stops the one you are looking at or a manual one. If all the remaining ones are working, it stops a working one: with Docker out of memory one would fall anyway, without a choice. The conversation resumes when you return.',
+      'Tessera measures the memory used by all Docker containers. When it stays above the threshold for that long, it hibernates an agent following “When the limit is reached” (what to stop first and whether working agents are protected). It never stops the agent on screen or a custom agent. If all the remaining ones are working, it stops a working one: with Docker out of memory, one would fail anyway, with no choice of which. The conversation resumes when you return.',
     umbral: 'Considered saturated when Docker memory is above',
     umbralValor: (pct: number) => `${pct}%`,
     duracion: 'for',
     duracionValor: (s: number) => (s < 60 ? `${s} s` : `${s / 60} min`),
-    avisar: (s: number) => `Warn ${s} s before stopping, with the option to pick another`,
-    avisarAyuda: 'If you clear it, the stop happens without a warning.',
+    avisar: (s: number) => `Warn ${s} s before stopping, so you can choose another`,
+    avisarAyuda: 'If you clear it, Tessera stops the agent without warning.',
     grupoParadas: 'Latest stops',
     actualizar: 'Refresh',
     sinParadas: 'Tessera has not stopped any container.',

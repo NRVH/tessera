@@ -325,7 +325,7 @@ function StatusBarMenu({ anchor, title, items, onPick, onClose }: StatusBarMenuP
         {items.map((it) => (
           <button
             key={it.id}
-            className={`statusbar-menu-item${it.checked ? ' checked' : ''}`}
+            className="statusbar-menu-item"
             role="menuitemradio"
             aria-checked={it.checked}
             onClick={() => onPick(it.id)}

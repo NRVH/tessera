@@ -26,7 +26,8 @@ export function RielActividad({ vistas, zonaEnfocada, worktreeCount }: Props): R
     <ActivityBar
       active={vistas.activeView}
       onSelect={(view) => {
-        // A pantalla completa la columna lateral está tapada: elegir una vista sale del modo.
+        // Elegir una vista es elegir verla: la franja que quedó maximizada sin pintarse (desde la vista
+        // de datos) no vuelve a taparla. A pantalla completa el riel solo tiene la flecha de volver.
         salirDePantallaCompleta()
         vistas.setActiveView(view)
       }}

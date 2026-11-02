@@ -94,7 +94,6 @@ export function buildSettings(): WorkspaceSettings {
     avisarAntesDeParar: a.avisarAntesDeParar,
     sshGruposPlegadosPorPerfil: ssh.plegadosPorPerfil,
     sshRielAncho: ssh.rielAncho,
-    sshRielVisiblePorPerfil: ssh.rielVisiblePorPerfil,
     sshPestanasPorPerfil: pestanasSshAGuardar(),
     agenteTerminalVisiblePorPerfil: useStoreAgenteTerminal.getState().visiblePorPerfil,
     agentesNativos: useStoreAgentes.getState().agentesNativos,
@@ -138,8 +137,7 @@ function hidratar(s: WorkspaceSettings): void {
   useStoreBd.setState({ dbMounts: s.dbMountsByProject ?? {}, dbAgenteVisiblePorPerfil: s.dbAgenteVisiblePorPerfil ?? {} })
   useStoreSsh.setState({
     plegadosPorPerfil: s.sshGruposPlegadosPorPerfil ?? {},
-    rielAncho: s.sshRielAncho ?? SSH_RIEL_ANCHO_POR_DEFECTO,
-    rielVisiblePorPerfil: s.sshRielVisiblePorPerfil ?? {}
+    rielAncho: s.sshRielAncho ?? SSH_RIEL_ANCHO_POR_DEFECTO
   })
   accionesTerminales.restaurarSsh(s.sshPestanasPorPerfil ?? {})
   useStoreAgenteTerminal.setState({ visiblePorPerfil: s.agenteTerminalVisiblePorPerfil ?? {} })
@@ -321,7 +319,6 @@ function useCamposInmediatos(): unknown[] {
   const dbAgenteVisible = useStoreBd((s) => s.dbAgenteVisiblePorPerfil)
   const mosaicoPreset = useStoreMosaico((s) => s.mosaicoPreset)
   const sshPlegados = useStoreSsh((s) => s.plegadosPorPerfil)
-  const sshRielVisible = useStoreSsh((s) => s.rielVisiblePorPerfil)
   // Abrir, cerrar o renombrar una pestaña SSH cambia su lista; elegir otra no (y no se guarda). La lista de
   // conexiones también: decide cuáles se guardan, y una pestaña abierta antes de que llegue la suya se perdería.
   const sshPestanas = useStoreTerminales((s) => s.ssh.porPerfil)
@@ -339,7 +336,6 @@ function useCamposInmediatos(): unknown[] {
     dbAgenteVisible,
     mosaicoPreset,
     sshPlegados,
-    sshRielVisible,
     sshPestanas,
     sshConexiones,
     agenteTerminalVisible

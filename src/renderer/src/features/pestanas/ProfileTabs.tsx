@@ -24,6 +24,8 @@ interface ProfileTabsProps {
   onRecolorProfile: (profileId: string, color: string) => void
   /** Activa/desactiva `redHost` (--network host): los puertos del perfil quedan en el equipo. */
   onToggleRedHost: (profileId: string, redHost: boolean) => void
+  /** Guarda las reglas del perfil para sus agentes (vacías, las quita). */
+  onSetReglas: (profileId: string, reglas: string) => void
   onDeleteProfile: (profileId: string) => void
   onReorderProfiles: (orderedIds: string[]) => void
   /** Hiberna el perfil: mata su contenedor y marca sus proyectos hibernados. */
@@ -70,7 +72,7 @@ export function ProfileTabs(props: ProfileTabsProps): React.JSX.Element {
         +
       </button>
 
-      <CapasPerfil profiles={profiles} working={working} banda={banda} />
+      <CapasPerfil profiles={profiles} banda={banda} />
     </div>
   )
 }

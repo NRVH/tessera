@@ -28,6 +28,7 @@ interface SelectorPerfilProps {
   onRenameProfile: (profileId: string, nombre: string) => void
   onRecolorProfile: (profileId: string, color: string) => void
   onToggleRedHost: (profileId: string, redHost: boolean) => void
+  onSetReglas: (profileId: string, reglas: string) => void
   onDeleteProfile: (profileId: string) => void
   onReorderProfiles: (orderedIds: string[]) => void
   onHibernateProfile: (profileId: string) => void
@@ -235,7 +236,7 @@ export function SelectorPerfil(props: SelectorPerfilProps): React.JSX.Element {
         style={activo ? colorDe(activo) : undefined}
         aria-haspopup="menu"
         aria-expanded={ancla !== null}
-        title={txPestanas().perfil.perfiles}
+        title={txPestanas().perfil.cambiar}
         onClick={(e) => {
           const r = e.currentTarget.getBoundingClientRect()
           setAncla(ancla ? null : { x: r.left + r.width / 2, y: r.bottom + 4 })
@@ -248,7 +249,7 @@ export function SelectorPerfil(props: SelectorPerfilProps): React.JSX.Element {
       {ancla && <ListaPerfiles ancla={ancla} lista={lista} banda={banda} props={props} cerrar={cerrar} />}
       {/* En la capa flotante: la pastilla se centra con `transform`, que encerraría sus `position: fixed`. */}
       <EnCapaFlotante>
-        <CapasPerfil profiles={props.profiles} working={props.working} banda={banda} />
+        <CapasPerfil profiles={props.profiles} banda={banda} />
       </EnCapaFlotante>
     </div>
   )

@@ -14,7 +14,7 @@ import { MenuDeEditores } from './comun/MenuDeEditores'
 import { useZonaEnfocada } from './util/zonaEnfocada'
 import { contarRender } from './util/contadorRenders'
 import { AgentAppearanceContext, TerminalAppearanceContext } from './theme/terminalAppearance'
-import { useAperturasApp, usePuntosPerfil, useTabs, useTintasPerfil } from './features/pestanas/app'
+import { CapaPropuestasReglas, useAperturasApp, usePuntosPerfil, useTabs, useTintasPerfil } from './features/pestanas/app'
 import {
   BarraEstadoApp,
   BarraTitulo,
@@ -212,6 +212,7 @@ function App(): React.JSX.Element {
           {/* Dentro de `.shell` y fuera de `.shell-main`: los menús y popovers pintados aquí heredan el color del perfil. */}
           <CapaFlotante />
           <CapaModales {...{ tabs, editor, bd, sesiones, cambiarZoom }} perfilUI={vistas.perfilUI} />
+          <CapaPropuestasReglas profiles={tabs.profiles} onSetReglas={tabs.setProfileReglas} />
           <CapasDeAviso />
         </div>
       </AgentAppearanceContext.Provider>

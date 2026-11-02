@@ -4,7 +4,7 @@
 // vida, destructivo). Eliminar queda al final, aislado por un separador y en rojo.
 // Sin estado propio: `ProfileTabs` le pasa las acciones. Depende de comun/ContextMenu.
 // =============================================================================
-import { IconoAjustes, IconoDescartar, IconoEliminar, IconoRed, IconoRenombrar } from '../../comun/iconosMenu'
+import { IconoAjustes, IconoDescartar, IconoEliminar, IconoRed, IconoReglas, IconoRenombrar } from '../../comun/iconosMenu'
 import { ContextMenu, SEP } from '../../comun/ContextMenu'
 import type { Profile } from '../../../../main/profiles/types'
 import { txPestanas } from './textos.ts'
@@ -15,27 +15,26 @@ interface MenuContextualPerfilProps {
   profile: Profile
   /** Cuántos perfiles hay: con uno solo no se puede eliminar. */
   totalPerfiles: number
-  /** ¿Algún agente de este perfil está a mitad de turno? Es el mismo Set que pulsa su dot. */
-  working: boolean
   onClose: () => void
   onRename: (profile: Profile) => void
   onColor: (profile: Profile) => void
   onRed: (profileId: string) => void
-  onHibernate: (profile: Profile, working: boolean) => void
+  onReglas: (profileId: string) => void
+  onHibernate: (profile: Profile) => void
   onDelete: (profile: Profile) => void
 }
 
-/** Menú contextual de un perfil (renombrar, color, red, hibernar, eliminar). */
+/** Menú contextual de un perfil (renombrar, color, red, reglas para los agentes, hibernar, eliminar). */
 export function MenuContextualPerfil({
   x,
   y,
   profile,
   totalPerfiles,
-  working,
   onClose,
   onRename,
   onColor,
   onRed,
+  onReglas,
   onHibernate,
   onDelete
 }: MenuContextualPerfilProps): React.JSX.Element {
@@ -57,18 +56,23 @@ export function MenuContextualPerfil({
           label: t.red(profile.sandbox?.redHost === true),
           onClick: () => onRed(profile.id)
         },
+        {
+          icon: <IconoReglas />,
+          label: t.reglas,
+          onClick: () => onReglas(profile.id)
+        },
         SEP,
         {
-          // Hibernar libera RAM sin cerrar la app. Solo lleva "…" si hay un agente trabajando,
-          // porque entonces abre una confirmación (se pierde su turno).
           icon: <IconoDescartar />,
-          label: working ? t.hibernarConfirma : t.hibernar,
-          onClick: () => onHibernate(profile, working)
+          label: t.hibernar,
+          detalle: t.hibernarDetalle,
+          onClick: () => onHibernate(profile)
         },
         SEP,
         {
           icon: <IconoEliminar />,
           label: t.eliminar,
+          detalle: totalPerfiles <= 1 ? t.eliminarSinOtro : undefined,
           onClick: () => onDelete(profile),
           danger: true,
           // No dejar la app sin perfiles: con uno solo, no se puede eliminar.

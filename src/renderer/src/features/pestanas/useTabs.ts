@@ -35,6 +35,7 @@ import { useSincronizacionBackend } from './useSincronizacionBackend'
 import { useAccionesCrudPerfiles, useAccionesProyecto } from './useAccionesTabs'
 import type { Profile } from '../../../../main/profiles/types'
 import type { DetectedRepo } from '../../../../shared/workspace-ipc'
+import type { ConfirmarReemplazo } from './confirmaciones'
 
 export type { ConfirmedTarget, ObjetivoVisto }
 
@@ -116,11 +117,11 @@ export interface UseTabs {
   /** Quita la marca de agente diferido de un proyecto (el usuario pidió su agente). */
   quitarAgenteDiferido: (profileId: string, projectHostPath: string) => void
   /**
-   * Abre el diálogo nativo y, si no se cancela, REEMPLAZA `oldPath` por el proyecto
-   * elegido en el mismo hueco de la banda (cerrar actual + abrir nuevo en un gesto).
-   * Cancelar el diálogo no cierra nada.
+   * Abre el diálogo nativo y, si no se cancela y `confirmar` lo aprueba con la carpeta elegida,
+   * REEMPLAZA `oldPath` por ella en el mismo hueco de la banda (cerrar actual + abrir nuevo en
+   * un gesto). Cancelar cualquiera de los dos no cierra nada.
    */
-  replaceProjectInActiveProfile: (oldPath: string) => Promise<void>
+  replaceProjectInActiveProfile: (oldPath: string, confirmar: ConfirmarReemplazo) => Promise<void>
   /**
    * Marca un proyecto ya abierto como activo dentro de su perfil; con `entrar`, además pasa a ese
    * perfil en la misma acción, sin despertar el proyecto que el perfil tenía activo.
@@ -174,6 +175,8 @@ export interface UseTabs {
    * `--network host`. Aplica al RE-CREAR el contenedor (hibernar+abrir o reiniciar).
    */
   setProfileRedHost: (profileId: string, redHost: boolean) => void
+  /** Fija las reglas del perfil para sus agentes (normalizadas; vacías, las quitan). */
+  setProfileReglas: (profileId: string, reglas: string) => void
   /** Elimina un perfil (y cierra sus sesiones/contenedor). */
   deleteProfile: (profileId: string) => void
   /** Reordena los perfiles a la secuencia de ids dada (drag & drop). */

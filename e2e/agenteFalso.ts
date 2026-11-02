@@ -1,7 +1,7 @@
 // =============================================================================
 // El mundo falso de los agentes para las pruebas de interfaz: `claude`, `codex` y `npm` de mentira
 // en el PATH y un registro de versiones por HTTP local. `--version` contesta de un fichero; `update`
-// sube esa versión; lo demás es el AGENTE (tty crudo, apunta argv, pid y cada byte; sale al segundo
+// sube esa versión; lo demás es el AGENTE (tty crudo, apunta argv, pid, el puente de su sesión y cada byte; sale al segundo
 // ^C; `fin` toca la campana; con `informa`, sondea el estado informado y `osc:<cuerpo>` lo informa).
 // El paquete de Codex tiene la forma de npm y su `codex.exe` (copia del Node de las pruebas) cuelga
 // de la raíz, para que uno vivo bloquee la carpeta (`EBUSY`) como el real. En Mac, `SHELL` es un
@@ -40,6 +40,9 @@ export interface EventoFalso {
   nieto?: number
   /** Argumentos (arranque, update, npm): lo que va DETRÁS del nombre del CLI. */
   argv?: string[]
+  /** Arranque: el puente y el token de la sesión, para hablar con Tessera como ella (`tctx`). */
+  pipe?: string | null
+  sesion?: string | null
   /** Bytes recibidos por stdin, en hexadecimal (entrada). */
   hex?: string
   /** Por qué salió el agente por su cuenta (salida). */
@@ -147,7 +150,7 @@ function update() {
 }
 
 function agenteVivo() {
-  apunta('arranque', { argv: args })
+  apunta('arranque', { argv: args, pipe: process.env.TESSERA_DB_PIPE || null, sesion: process.env.TESSERA_DB_SESSION || null })
   if (existe('nieto')) {
     // Un proceso SUELTO y sordo, como un servidor MCP: cerrar el pty no se lo lleva; solo
     // muere si se mata el árbol entero.

@@ -1,14 +1,24 @@
 // =============================================================================
-// Entorno del pty nativo: cómo se fusionan las variables extra (conexiones de BD y el atajo `tdb`)
-// sobre el entorno heredado en cada sistema.
+// Entorno de los ptys: qué colores se anuncian a los programas y cómo se fusionan las variables extra
+// (conexiones de BD y el atajo `tdb`) sobre el entorno heredado en cada sistema.
 // Puro, con la plataforma como parámetro: el delimitador del PATH (`;` o `:`) y la caja de la clave
 // (Windows la colapsa, POSIX no).
-// Sin `process.env` ni `node-pty`. Lo usan `TerminalService`, `java/decompilerArgs` y
-// `util/pathDeLogin`.
+// Sin `process.env` ni `node-pty`. Lo usan `lanzamientoPty`, `agents/lineaArranqueAgente`,
+// `java/decompilerArgs` y `util/pathDeLogin`.
 // Decisiones: docs/decisiones/terminales/pty-shell-nativo-y-entorno.md
 // =============================================================================
 
 import { plataformaActual, type Plataforma } from '../../shared/plataforma.ts'
+
+/**
+ * xterm pinta color real, y un programa no tiene otra forma de saberlo: sin esta variable, un agente
+ * se limita a 256 colores o, en Windows, donde el pty no define `TERM`, deja de pintar fondos y
+ * colores de tema. Manda sobre la heredada: la terminal que importa es esta, no la que lanzó Tessera.
+ */
+export const ENTORNO_COLOR = { COLORTERM: 'truecolor' } as const
+
+/** Lo que recibe un proceso del contenedor, donde no se hereda nada del host. */
+export const ASIGNACIONES_TERMINAL_CONTENEDOR = ['TERM=xterm-256color', `COLORTERM=${ENTORNO_COLOR.COLORTERM}`] as const
 
 /** Separador de segmentos del PATH: `;` en Windows, `:` en cualquier POSIX. */
 export function delimitadorPath(plataforma: Plataforma = plataformaActual()): string {

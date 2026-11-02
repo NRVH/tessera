@@ -10,6 +10,8 @@ import {
   type DescifrarResult,
   type ExportarRequest,
   type ExportarResult,
+  type FuenteHistorial,
+  type PreviaHistorialRequest,
   type ResultadoConexiones
 } from '../shared/copia-configuracion-ipc'
 import type { SeleccionConexiones } from '../shared/seleccionCopia'
@@ -21,8 +23,10 @@ export interface CopiaConfiguracionApi {
   abrir: () => Promise<AbrirResult>
   /** Descifra con la frase: perfiles, agentes, ajustes y la lista de conexiones (sus secretos se quedan en el main). */
   descifrar: (token: string, frase: string) => Promise<DescifrarResult>
-  /** Da de alta las conexiones elegidas del archivo abierto; después ya no está abierto. */
+  /** Da de alta las conexiones y el historial elegidos del archivo abierto; después ya no está abierto. */
   conexiones: (token: string, seleccion: SeleccionConexiones) => Promise<ResultadoConexiones>
+  /** Cuántas conversaciones y cuánto ocupan por cuenta, para el diálogo de exportar. */
+  previaHistorial: (req: PreviaHistorialRequest) => Promise<FuenteHistorial[]>
   /** Suelta el archivo abierto sin importar. */
   olvidar: (token: string) => Promise<void>
   /** Abre la copia que llegó del sistema (doble clic en un `.tessera`), o `null` si no hay ninguna. */
@@ -36,6 +40,7 @@ export const copiaConfiguracion: CopiaConfiguracionApi = {
   abrir: () => ipcRenderer.invoke(C.ABRIR),
   descifrar: (token, frase) => ipcRenderer.invoke(C.DESCIFRAR, { token, frase }),
   conexiones: (token, seleccion) => ipcRenderer.invoke(C.CONEXIONES, { token, seleccion }),
+  previaHistorial: (req) => ipcRenderer.invoke(C.PREVIA_HISTORIAL, req),
   olvidar: (token) => ipcRenderer.invoke(C.OLVIDAR, { token }),
   tomarPendiente: () => ipcRenderer.invoke(C.TOMAR_PENDIENTE),
   onPendiente: (cb) => {

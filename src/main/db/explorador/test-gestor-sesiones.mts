@@ -3594,14 +3594,14 @@ async function main(): Promise<void> {
     // Los avisos solo existen en los resultados que no son error: se leen sin estrechar el tipo.
     const avisosDe = (r: Awaited<ReturnType<typeof ejecutar>>): string[] => (r.ok ? ((r.valor as { avisos?: string[] }).avisos ?? []) : [])
     const par = await ejecutarCon(g2, 'select :a, ?1', { a: 'A', '1': 'uno' }, 'q-par', 's1')
-    check('con `:a, ?1`: se ejecuta y el resultado AVISA de que ?1 no se usó', par.ok && avisosDe(par).some((a) => /\?1 y :a son el MISMO parámetro/.test(a)), JSON.stringify(par))
+    check('con `:a, ?1`: se ejecuta y el resultado AVISA de que ?1 no se usó', par.ok && avisosDe(par).some((a) => /\?1 y :a son el mismo parámetro/.test(a)), JSON.stringify(par))
     const siguiente = await ejecutar(g2, 'select 2', 'q-par', 's1')
-    check('…y la siguiente sentencia ya no lo lleva', siguiente.ok && !avisosDe(siguiente).some((a) => /MISMO parámetro/.test(a)), JSON.stringify(avisosDe(siguiente)))
+    check('…y la siguiente sentencia ya no lo lleva', siguiente.ok && !avisosDe(siguiente).some((a) => /mismo parámetro/.test(a)), JSON.stringify(avisosDe(siguiente)))
     const rFalla = await ejecutarCon(g2, 'select falla, :a, ?1', { a: 'A', '1': 'uno' }, 'q-par', 's1')
     const trasFallo = await ejecutar(g2, 'select 3', 'q-par', 's1')
     check(
       'si la sentencia con el aviso FALLA, el aviso no sale pegado a la siguiente',
-      rFalla.ok && rFalla.valor.tipo === 'error' && trasFallo.ok && trasFallo.valor.tipo === 'filas' && !avisosDe(trasFallo).some((a) => /MISMO parámetro/.test(a)),
+      rFalla.ok && rFalla.valor.tipo === 'error' && trasFallo.ok && trasFallo.valor.tipo === 'filas' && !avisosDe(trasFallo).some((a) => /mismo parámetro/.test(a)),
       JSON.stringify({ falla: rFalla.ok ? rFalla.valor.tipo : rFalla, tras: avisosDe(trasFallo) })
     )
     await g2.cerrarTodo(100)

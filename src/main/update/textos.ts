@@ -54,6 +54,15 @@ export const txUpdate = crearTextos(
       comprobandoDonde: 'Comprobando dónde vive la aplicación…',
       entregando: 'Entregando a la actualización…'
     },
+    avisosMac: {
+      titulo: 'Tessera',
+      inicio: (v: string) => `Actualizando a la versión ${v}… Espera a que termine para abrir Tessera.`,
+      ok: (v: string) => `Tessera ${v} está instalada. Ya puedes abrirla.`,
+      okReabre: (v: string) => `Tessera ${v} está instalada y vuelve a abrirse.`,
+      fallo: 'No se pudo actualizar Tessera; sigue la versión anterior. Ábrela para ver el motivo.',
+      sinVuelta: (ruta: string) =>
+        `No se pudo actualizar Tessera ni devolver la versión anterior. Está guardada en ${ruta}.`
+    },
     descarga: {
       noSeLeyo: (err: string) => `no se pudo leer la descarga para verificarla: ${err}`,
       noCoincide: (esperado: string, obtenido: string) =>
@@ -71,30 +80,30 @@ export const txUpdate = crearTextos(
   {
     instaladorNoArranco: 'The installer did not start.',
     noSePudoAplicar: (motivo: string) => `The update could not be applied: ${motivo}.`,
-    rutasLargas: (n: number) => `Paths too long in the installation folder (${n}):\n`,
+    rutasLargas: (n: number) => `Paths that are too long in the installation folder (${n}):\n`,
     errores: {
       instaladorNoPudoArrancar:
         'The update was downloaded, but the installer could not start. ' +
         'You can open it manually with the button below.',
       rutaLarga:
         'The update cannot be installed: some files in the installation folder have paths that are too long ' +
-        'and the uninstaller would not be able to move them. Delete them (the details list them) ' +
-        'or reinstall Tessera manually; your data is not touched.',
+        'and the uninstaller could not move them. Delete them (they are listed in the details) ' +
+        'or reinstall Tessera manually; your data is not affected.',
       danada:
-        'The update was downloaded corrupted and was discarded for security. ' +
-        'It will be retried automatically; if it keeps failing, republish the installer.',
+        'The downloaded update was corrupted and was discarded for security. ' +
+        'Tessera will retry automatically; if it keeps failing, republish the installer.',
       sinVersion: (servidor: string) => `The update server (${servidor}) has no published version.`,
       permisosMac: (sistema: string) =>
         `${sistema} blocked the update because of permissions. This usually happens when ` +
         'Tessera runs from the .dmg or from a folder your user cannot ' +
         'write to: drag it to Applications and open it again.',
       permisosOtra: (sistema: string) =>
-        `${sistema} blocked the update because of permissions. Close Tessera and run it ` +
+        `${sistema} blocked the update because of permissions. Close Tessera and open it ` +
         'again; if it happens again, install the new version manually.',
       sinEspacio: 'There is not enough disk space to download the update.',
       redSuspendida:
-        'The check ran right after waking from sleep, while the network was still off. ' +
-        'It will retry by itself as soon as the connection is back.',
+        'The check ran right after the computer resumed, while the network was still unavailable. ' +
+        'It will retry automatically as soon as the connection is back.',
       sinRed: (servidor: string) => `Could not reach the update server (${servidor}). Check your connection.`,
       desconocido: (crudo: string) => `Could not update: ${crudo}`
     },
@@ -104,17 +113,26 @@ export const txUpdate = crearTextos(
       feedNoConfirma: 'the feed did not confirm the cached download (server down or version withdrawn)',
       sinRutaPaquete: 'the path of the downloaded package is not recorded',
       sinPermiso: (carpeta: string) =>
-        `there is no permission to write to ${carpeta}, so the app cannot be replaced`
+        `you do not have permission to write to ${carpeta}, so the app cannot be replaced`
     },
     pasos: {
       comprobandoInstalador: 'Checking the downloaded installer…',
       liberando: 'Freeing the installation folder…',
-      carpetaOcupada: 'The folder is still busy; trying anyway…',
+      carpetaOcupada: 'The folder is still in use; continuing anyway…',
       revisando: 'Checking the app folder…',
-      entregandoVentana: 'Handing over to the update window…',
+      entregandoVentana: 'Passing control to the update window…',
       aplicando: 'Applying the update…',
-      comprobandoDonde: 'Checking where the app lives…',
-      entregando: 'Handing over to the update…'
+      comprobandoDonde: 'Checking where the app is installed…',
+      entregando: 'Passing control to the update…'
+    },
+    avisosMac: {
+      titulo: 'Tessera',
+      inicio: (v: string) => `Updating to version ${v}… Wait until it finishes before opening Tessera.`,
+      ok: (v: string) => `Tessera ${v} is installed. You can open it now.`,
+      okReabre: (v: string) => `Tessera ${v} is installed and is opening again.`,
+      fallo: 'Tessera could not be updated; the previous version is still there. Open it to see why.',
+      sinVuelta: (ruta: string) =>
+        `Tessera could not be updated and the previous version could not be restored. It is saved at ${ruta}.`
     },
     descarga: {
       noSeLeyo: (err: string) => `could not read the download to verify it: ${err}`,
@@ -123,11 +141,11 @@ export const txUpdate = crearTextos(
         `(expected sha512 ${esperado}…, got ${obtenido}…); ` +
         'the file was discarded.',
       sinRespuesta: (s: number, bytes: number) =>
-        `the download got no response for ${s} s ` +
-        `(${bytes} bytes received); what was downloaded was discarded.`,
-      servidorRespondio: (codigo: number) => `the server responded ${codigo} when asked for the update`,
+        `the download received no response for ${s} s ` +
+        `(${bytes} bytes received); the partial download was discarded.`,
+      servidorRespondio: (codigo: number) => `the server responded with ${codigo} when the update was requested`,
       interrumpida: 'the download was interrupted before it finished',
-      incompleta: (real: number, bytes: number) => `the download was written incompletely (${real} of ${bytes} bytes)`
+      incompleta: (real: number, bytes: number) => `the downloaded file is incomplete (${real} of ${bytes} bytes)`
     }
   }
 )

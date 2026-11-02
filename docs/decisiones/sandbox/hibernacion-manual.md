@@ -1,7 +1,8 @@
 # La hibernación del contenedor es manual y por perfil; el recuento de sesiones nunca para un contenedor
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/hibernate/`, `src/main/sandbox/gestor/contenedores.ts`, `src/shared/hibernate-ipc.ts`
+- **Ámbito:** `src/main/hibernate/`, `src/main/sandbox/gestor/contenedores.ts`, `src/shared/hibernate-ipc.ts`,
+  `src/main/terminals/terminalesEnMarcha.ts`, `features/pestanas/confirmaciones.ts`
 
 ## Contexto
 
@@ -20,6 +21,13 @@ comparten todos sus proyectos. Cambiar de perfil o de proyecto es constante y no
   contenedores de todas sus cuentas (cerrar sesiones nunca para ninguno; idempotente, aislado a los del perfil).
   `HibernationController` es el único que conoce los dos controladores.
 - El estado 'hibernated' lo marca y persiste el renderer; deshibernar es perezoso (entrar al perfil recrea).
+- Hibernar a mano pregunta solo si corta algo (`features/pestanas/confirmaciones.ts`): un agente trabajando o una
+  terminal de shell que ejecuta algo (`terminals/terminalesEnMarcha.ts`, sobre `ps` o la tabla de Windows, ~1 s).
+  En macOS y Linux un shell ejecuta algo si el grupo en primer plano de su tty (`tpgid`) no es el suyo: así los
+  ayudantes permanentes del prompt y los trabajos de fondo no cuentan. Windows no tiene tty: cuenta un hijo directo
+  que no sea la consola (`conhost.exe`, `OpenConsole.exe`); su consulta se limita a los shells y sus hijos.
+  Si no se pudo mirar, o algún shell no aparece en la tabla, cuenta cualquier terminal abierta: el error cae del
+  lado de preguntar.
 - Lo manual es parar el CONTENEDOR. El agente NATIVO de un proyecto sí se cierra solo por inactividad, sin tocar
   contenedores ni terminales: `agentes/hibernacion-por-inactividad.md`.
 

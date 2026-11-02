@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 // =============================================================================
 // Prueba de los lotes de GitService (npm run test:git-lote) en repos temporales: UN lote = UNA
-// confirmación; cancelar aborta solo los borrados; una ruta vacía no toca nada (`checkout HEAD --
+// confirmación, antes de tocar nada; cancelar no revierte ni borra; una ruta vacía no toca nada (`checkout HEAD --
 // :/` arrasaría el repo); `-z` con acentos y espacios; multi-repo con una ruta mala que no tumba
 // al resto; 300 rutas troceadas; e ignorar (carpeta entera a una línea, lo rastreado se omite,
 // repetir no duplica); una carpeta o un git que no contesta no borran nada, y los rechazos del
-// descarte singular (conflicto, borrado preparado, ref dañada) y del preparar valen en lote; lo
-// recuperable se revierte antes del diálogo y lo que se iba a borrar se re-clasifica tras él.
+// descarte singular (conflicto, borrado preparado, ref dañada) y del preparar valen en lote;
+// nada se toca antes del diálogo y todo se re-clasifica tras él.
 // =============================================================================
 
 import { execFileSync } from 'node:child_process'
@@ -108,7 +108,7 @@ function statusDe(repo: string): string[] {
 
 function nuevoServicio(
   raiz: string,
-  opciones: { contenedora?: string; confirmar?: (nombres: string[]) => Promise<boolean> } = {}
+  opciones: { contenedora?: string; confirmar?: (aBorrar: string[], aRevertir: string[]) => Promise<boolean> } = {}
 ): InstanceType<typeof GitService> {
   const g = new GitService({
     projectRoot: raiz,
@@ -293,9 +293,8 @@ async function lotesQuePerdianDatos(): Promise<void> {
 
 
 /**
- * (26-28) La copia de un borrado preparado se compara por bytes también en lote (y en tandas), lo
- * recuperable se revierte con la foto tomada bajo el candado, antes del diálogo, y lo que se iba a
- * borrar se re-clasifica después de él.
+ * (26-28) La copia de un borrado preparado se compara por bytes también en lote (y en tandas),
+ * nada se toca antes del diálogo, y lo que se iba a revertir o borrar se re-clasifica después.
  */
 async function lotesDeLaCopiaYElDialogo(): Promise<void> {
   hr('26) LOTE: borrados preparados en tanda; un filtro clean con pérdida no esconde trabajo')
@@ -309,56 +308,66 @@ async function lotesDeLaCopiaYElDialogo(): Promise<void> {
     escribir(repo, 'c.nb', 'celda\nOUT resultado\n')
     cli(['rm', '-q', '-r', '--cached', 'd', 'c.nb'])
     let llamadas = 0
+    let listados: string[] = []
     const rutas = ['c.nb', ...Array.from({ length: 300 }, (_, i) => `d/f${i}.txt`)]
     const res = await nuevoServicio(repo, {
-      confirmar: async () => {
+      confirmar: async (aBorrar, aRevertir) => {
         llamadas++
+        listados = [...aBorrar, ...aRevertir]
         return true
       }
     }).discardChangesMany(rutas)
     const porRuta = new Map(res.map((r) => [r.path, r]))
     check(
-      '(26a) c.nb (líneas que el filtro esconde) en error, sin confirmar, las líneas siguen en disco',
+      '(26a) c.nb (líneas que el filtro esconde) en error, fuera del diálogo, las líneas siguen en disco',
       porRuta.get('c.nb')?.estado === 'error' &&
-        llamadas === 0 &&
+        llamadas === 1 &&
+        !listados.includes('c.nb') &&
         readFileSync(path.join(repo, 'c.nb'), 'utf8') === 'celda\nOUT resultado\n',
-      JSON.stringify(porRuta.get('c.nb'))
+      `${JSON.stringify(porRuta.get('c.nb'))} llamadas=${llamadas}`
     )
     const revertidos = res.filter((r) => r.path.startsWith('d/') && r.estado === 'revertido').length
     check('(26b) las 300 copias iguales a HEAD vuelven al índice', revertidos === 300 && cli(['ls-files', 'd']).split('\n').filter(Boolean).length === 300, `revertidos=${revertidos}`)
   }
 
-  hr('27) LOTE: lo recuperable se revierte con la foto del candado; lo que cambie durante el diálogo no se pisa')
+  hr('27) LOTE: nada se revierte antes del diálogo; lo que cambie durante él no se pisa')
   {
-    // `x` borrado del disco (se revierte) + `nuevo.txt` sin seguimiento (abre el diálogo). Durante
-    // el diálogo, sin candado, otro proceso pondría `x/trabajo.txt`; y el usuario cancela.
+    // `x` borrado del disco (se revertiría) + `nuevo.txt` sin seguimiento. Durante el diálogo,
+    // sin candado, otro proceso pone `x/trabajo.txt`; primero el usuario cancela y luego aprueba.
     const repo = nuevoRepo('lote-dialogo', { x: 'v1\n' })
     rmSync(path.join(repo, 'x'))
     escribir(repo, 'nuevo.txt', 'n\n')
-    let xAlAbrir = 'nada'
-    let creado = false
+    let xAlAbrir = 'sin preguntar'
     const res = await nuevoServicio(repo, {
       confirmar: async () => {
         const abs = path.join(repo, 'x')
         xAlAbrir = existsSync(abs) ? (statSync(abs).isDirectory() ? 'carpeta' : 'archivo') : 'nada'
-        if (xAlAbrir === 'nada') {
-          escribir(repo, 'x/trabajo.txt', 'IMPORTANTE\n')
-          creado = true
-        }
         return false
       }
     }).discardChangesMany(['x', 'nuevo.txt'])
     const porRuta = new Map(res.map((r) => [r.path, r]))
-    const trabajo = existsSync(path.join(repo, 'x', 'trabajo.txt'))
     check(
-      '(27a) x/trabajo.txt no se pierde: o x ya estaba revertido al abrir el diálogo, o lo creado sigue',
-      creado ? trabajo && porRuta.get('x')?.estado === 'error' : xAlAbrir === 'archivo' && porRuta.get('x')?.estado === 'revertido',
-      `xAlAbrir=${xAlAbrir} creado=${creado} trabajo=${trabajo} ${JSON.stringify(res)}`
+      '(27a) al abrir el diálogo x sigue sin restaurar, y cancelar lo deja así',
+      xAlAbrir === 'nada' && porRuta.get('x')?.estado === 'cancelado' && !existsSync(path.join(repo, 'x')),
+      `xAlAbrir=${xAlAbrir} ${JSON.stringify(res)}`
     )
     check(
       '(27b) cancelar no borra nuevo.txt',
       porRuta.get('nuevo.txt')?.estado === 'cancelado' && existsSync(path.join(repo, 'nuevo.txt')),
       JSON.stringify(porRuta.get('nuevo.txt'))
+    )
+    const aprobado = await nuevoServicio(repo, {
+      confirmar: async () => {
+        escribir(repo, 'x/trabajo.txt', 'IMPORTANTE\n')
+        return true
+      }
+    }).discardChangesMany(['x'])
+    check(
+      '(27c) aprobado, pero x pasó a ser una carpeta durante el diálogo: error y x/trabajo.txt intacto',
+      aprobado.length === 1 &&
+        aprobado[0].estado === 'error' &&
+        readFileSync(path.join(repo, 'x', 'trabajo.txt'), 'utf8') === 'IMPORTANTE\n',
+      JSON.stringify(aprobado)
     )
   }
 
@@ -375,9 +384,9 @@ async function lotesDeLaCopiaYElDialogo(): Promise<void> {
       }
     }).discardChangesMany(['nuevo.txt'])
     check(
-      '(28) nuevo.txt sale cancelado («cambió de estado») y sigue en disco',
+      '(28) nuevo.txt sale en error («cambió de estado», que el usuario ve) y sigue en disco',
       res.length === 1 &&
-        res[0].estado === 'cancelado' &&
+        res[0].estado === 'error' &&
         /cambió de estado/.test(res[0].error ?? '') &&
         readFileSync(path.join(repo, 'nuevo.txt'), 'utf8') === 'TRABAJO\n',
       JSON.stringify(res)
@@ -466,10 +475,18 @@ async function main(): Promise<void> {
       escribir(repo, 'nuevo.txt', 'sin git\n')
       let llamadas = 0
       let nombresVistos: string[] = []
+      let revertirVistos: string[] = []
+      let intactoAlPreguntar = false
       const git = nuevoServicio(repo, {
-        confirmar: async (nombres) => {
+        confirmar: async (nombres, revertir) => {
           llamadas++
           nombresVistos = nombres
+          // `?? []`: así la mutación (un servicio que no pase la lista) falla en el check, no en un TypeError.
+          revertirVistos = revertir ?? []
+          intactoAlPreguntar =
+            readFileSync(path.join(repo, 'uno.txt'), 'utf8') === 'CAMBIADO\n' &&
+            readFileSync(path.join(repo, 'dos.txt'), 'utf8') === 'CAMBIADO\n' &&
+            existsSync(path.join(repo, 'nuevo.txt'))
           return true
         }
       })
@@ -477,10 +494,11 @@ async function main(): Promise<void> {
       const res = await git.discardChangesMany(['uno.txt', 'dos.txt', 'nuevo.txt'])
       check('(3a) EXACTAMENTE 1 confirmación para 3 archivos', llamadas === 1, `llamadas=${llamadas}`)
       check(
-        '(3b) la confirmación lista SOLO lo irrecuperable',
-        nombresVistos.join(',') === 'nuevo.txt',
-        nombresVistos.join(',')
+        '(3b) la confirmación lista aparte lo que se borra y lo que vuelve a HEAD',
+        nombresVistos.join(',') === 'nuevo.txt' && [...revertirVistos].sort().join(',') === 'dos.txt,uno.txt',
+        `borrar=${nombresVistos.join(',')} revertir=${revertirVistos.join(',')}`
       )
+      check('(3b-bis) al preguntar, nada se ha tocado todavía', intactoAlPreguntar, String(intactoAlPreguntar))
       const porRuta = new Map(res.map((r) => [r.path, r.estado]))
       check(
         '(3c) los 2 trackeados salen "revertido" y el nuevo "borrado"',
@@ -509,7 +527,7 @@ async function main(): Promise<void> {
     }
 
     // -------------------------------------------------------------------------
-    hr('4) CANCELAR: aborta los borrados, revierte lo recuperable')
+    hr('4) CANCELAR: no revierte ni borra nada')
     {
       const repo = nuevoRepo('lote-cancelar', { 'uno.txt': 'uno\n' })
       escribir(repo, 'uno.txt', 'CAMBIADO\n')
@@ -519,9 +537,9 @@ async function main(): Promise<void> {
       const res: ResultadoDescarte[] = await git.discardChangesMany(['uno.txt', 'nuevo.txt'])
       const porRuta = new Map(res.map((r) => [r.path, r.estado]))
       check(
-        '(4a) el recuperable se revierte IGUAL',
-        porRuta.get('uno.txt') === 'revertido' &&
-          readFileSync(path.join(repo, 'uno.txt'), 'utf8') === 'uno\n',
+        '(4a) el que volvería a HEAD sale "cancelado" y conserva sus cambios',
+        porRuta.get('uno.txt') === 'cancelado' &&
+          readFileSync(path.join(repo, 'uno.txt'), 'utf8') === 'CAMBIADO\n',
         JSON.stringify(res)
       )
       check(

@@ -236,5 +236,73 @@ test.describe.serial('Exportar e importar la configuración', () => {
     await expect(importar).toContainText('Importado.', { timeout: 30_000 })
     const ssh = await b.evaluate(async () => (await window.tessera.ssh.listar()).conexiones.find((c) => c.alias === 'abierta'))
     expect(ssh?.tieneSecreto && !ssh?.secretoIlegible, 'la contraseña entra y queda cifrada con el almacén de B').toBe(true)
+    await s.cerrar()
+    s = null
+  })
+
+  // El mismo perfil en dos equipos con distinto id: lo del archivo se añade al de aquí, que no cambia de nombre.
+  test('añadir a un perfil de aquí con otro id: recibe las conexiones y, si se elige, las reglas, sin crear otro', async () => {
+    const conReglas = join(dir, 'con-reglas.tessera')
+    const REGLAS_ARCHIVO = 'Usa pnpm.\nLos commits, en español.'
+    const REGLAS_AQUI = 'Usa npm.'
+    const trabajo = { ...JSON.parse(PERFILES)[1], reglas: REGLAS_ARCHIVO }
+    s = await abrirTessera({}, { sembrar: (datos) => writeFileSync(join(datos, 'profiles.json'), JSON.stringify([trabajo])) })
+    await s.win.evaluate(async (ssh) => {
+      const salto = await window.tessera.ssh.crear({ profileId: 'trabajo', alias: 'salto', grupoId: null, host: 'salto.ejemplo', puerto: 22, usuario: 'yo', metodo: 'contrasena', disponibleAgentes: false, secreto: ssh })
+      await window.tessera.db.create({ profileId: 'trabajo', alias: 'principal', motor: 'postgres', host: 'db.ejemplo', port: 5432, database: 'app', user: 'app', readonly: true, tunelSsh: { conexionId: salto.id } })
+    }, SECRETO_SSH)
+    await s.app.evaluate(({ dialog }, r) => {
+      dialog.showSaveDialog = (async () => ({ canceled: false, filePath: r })) as typeof dialog.showSaveDialog
+    }, conReglas)
+    await abrirCategoria(s.win)
+    await s.win.locator('.ajustes-modal').getByRole('button', { name: 'Exportar…' }).click()
+    const exportar = s.win.locator('.copia-modal')
+    await exportar.getByLabel('Frase', { exact: true }).fill(FRASE)
+    await exportar.getByLabel('Repite la frase').fill(FRASE)
+    await exportar.getByRole('button', { name: 'Exportar…' }).click()
+    await expect(exportar).toContainText('Guardado en «con-reglas.tessera»', { timeout: 30_000 })
+    await s.cerrar()
+
+    // En B, «Trabajo» tiene otro id y otras reglas.
+    const aqui = { ...trabajo, id: 'trabajo-pc', color: '#20a060', reglas: REGLAS_AQUI, agentes: [{ tipo: 'claude-code', configDir: './.tessera/perfiles/trabajo-pc/claude' }] }
+    s = await abrirTessera({}, { sembrar: (datos) => writeFileSync(join(datos, 'profiles.json'), JSON.stringify([aqui])) })
+    const win = s.win
+    await s.app.evaluate(({ dialog }, r) => {
+      dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [r] })) as typeof dialog.showOpenDialog
+    }, conReglas)
+    await abrirCategoria(win)
+    await win.locator('.ajustes-modal').getByRole('button', { name: 'Importar…' }).click()
+    const modal = win.locator('.copia-modal')
+    await modal.getByLabel('Frase').fill(FRASE)
+    await modal.getByRole('button', { name: 'Abrir' }).click()
+    const destino = modal.getByLabel('Destino de «Trabajo»')
+    await expect(destino, 'de serie, al perfil de aquí con el mismo nombre').toHaveValue('trabajo-pc', { timeout: 30_000 })
+    await destino.selectOption({ label: 'Perfil nuevo' })
+    await expect(modal.getByLabel('Reglas de «Trabajo»'), 'a un perfil nuevo no hay reglas que elegir').toHaveCount(0)
+    await destino.selectOption({ label: 'Añadir a «Trabajo»' })
+    const reglas = modal.getByLabel('Reglas de «Trabajo»')
+    await expect(reglas, 'reglas distintas: de serie se mantienen las de aquí').toHaveValue('mantener')
+    await modal.getByRole('button', { name: 'Ver diferencias' }).click()
+    await expect(modal.getByTestId('propuesta-reglas-diff'), 'con el mismo diff que la revisión de propuestas').toBeVisible()
+    await reglas.selectOption({ label: 'Sustituir por las del archivo' })
+    await expect(modal.getByRole('checkbox', { name: 'SSH · salto' })).toBeChecked()
+    await expect(modal.getByRole('checkbox', { name: 'Base de datos · principal' })).toBeChecked()
+    await modal.getByRole('button', { name: 'Importar' }).click()
+    await expect(modal).toContainText('Importado.', { timeout: 30_000 })
+    await expect(modal).toContainText('0 perfil(es) nuevo(s), 1 conexión(es) SSH, 1 de bases de datos')
+    await expect(modal).toContainText('Reglas del archivo puestas en «Trabajo».')
+    const r = await win.evaluate(async () => {
+      const perfiles = await window.tessera.getProfiles()
+      return {
+        perfiles: perfiles.map((p) => [p.id, p.nombre, p.color]),
+        reglas: perfiles[0]?.reglas,
+        ssh: (await window.tessera.ssh.listar()).conexiones.find((c) => c.alias === 'salto')?.profileId,
+        bd: (await window.tessera.db.list('trabajo-pc')).map((c) => c.alias)
+      }
+    })
+    expect(r.perfiles, 'ningún perfil nuevo; el de aquí conserva su nombre y su color').toEqual([['trabajo-pc', 'Trabajo', '#20a060']])
+    expect(r.reglas, 'las reglas del archivo, en el perfil de aquí').toBe(REGLAS_ARCHIVO)
+    expect(r.ssh, 'la conexión SSH, en el perfil de aquí').toBe('trabajo-pc')
+    expect(r.bd, 'y la base, con su túnel').toEqual(['principal'])
   })
 })

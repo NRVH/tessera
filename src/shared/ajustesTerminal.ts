@@ -1,6 +1,6 @@
 // =============================================================================
 // Ajustes de la terminal que se persisten: qué grupos de conexiones SSH tiene plegados cada perfil,
-// el riel de conexiones a pantalla completa (su ancho, global, y si se ve, por perfil) y si se ve el
+// el riel de conexiones a pantalla completa (su ancho, global) y si se ve el
 // agente de la terminal, con su saneado y su valor por defecto. Puro y ES2020:
 // lo leen `workspace-state-ipc.ts`, el main y el renderer, y los tres tienen que llegar al mismo valor. Sin imports.
 // Decisiones: docs/decisiones/terminales/pestanas-ssh-del-perfil.md, docs/decisiones/terminales/riel-de-conexiones.md,
@@ -92,9 +92,6 @@ export const SSH_RIEL_ANCHO_POR_DEFECTO = 260
 export const SSH_RIEL_ANCHO_MIN = 180
 export const SSH_RIEL_ANCHO_MAX = 480
 
-/** Lo que se guarda: perfil -> el riel se ve a pantalla completa. Sin entrada = se ve. */
-export type SshRielVisiblePorPerfil = Record<string, boolean>
-
 /**
  * El ancho del riel SANEADO: un número finito se redondea y se acota al rango; cualquier otra cosa
  * (texto, `null`, `NaN`, infinito) vuelve al ancho por defecto.
@@ -102,32 +99,6 @@ export type SshRielVisiblePorPerfil = Record<string, boolean>
 export function normalizarAnchoRiel(raw: unknown): number {
   if (typeof raw !== 'number' || !Number.isFinite(raw)) return SSH_RIEL_ANCHO_POR_DEFECTO
   return Math.min(SSH_RIEL_ANCHO_MAX, Math.max(SSH_RIEL_ANCHO_MIN, Math.round(raw)))
-}
-
-/**
- * El mapa de visibilidad del riel SANEADO. Como el de grupos plegados, se descarta la ENTRADA mala y
- * nunca el mapa entero: está indexado por perfil, y tirarlo por la clave de uno cambiaría el riel de todos.
- */
-export function normalizarRielVisiblePorPerfil(raw: unknown): SshRielVisiblePorPerfil {
-  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {}
-  const out: SshRielVisiblePorPerfil = {}
-  for (const [perfil, visible] of Object.entries(raw as Record<string, unknown>)) {
-    if (perfil.length > 0 && typeof visible === 'boolean') out[perfil] = visible
-  }
-  return out
-}
-
-/**
- * Muestra u oculta el riel de un perfil devolviendo el mapa nuevo, o el MISMO objeto si ya estaba así
- * (identidad estable: no repinta ni dispara un guardado). Verse es lo de por defecto, así que mostrarlo
- * borra la entrada en vez de guardar un `true`.
- */
-export function conRielVisible(mapa: SshRielVisiblePorPerfil, perfilId: string, visible: boolean): SshRielVisiblePorPerfil {
-  if ((mapa[perfilId] !== false) === visible) return mapa
-  const out = { ...mapa }
-  if (visible) delete out[perfilId]
-  else out[perfilId] = false
-  return out
 }
 
 // --- Conexiones SSH ------------------------------------------------------------------------

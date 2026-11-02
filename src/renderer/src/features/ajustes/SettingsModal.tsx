@@ -7,8 +7,10 @@
 // =============================================================================
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { hayDialogos } from '../../comun/pilaDialogos'
 import { useDialogo } from '../../comun/useDialogo'
-import { categoriasVisibles, type CategoriaId } from './catalogo'
+import { gruposAcademy, PanelAcademy } from '../academy'
+import { categoriasVisibles, conAcademy, type CategoriaId } from './catalogo'
 import {
   contarPorCategoria,
   filtrarAjustes,
@@ -43,6 +45,7 @@ const PANELES: Record<CategoriaId, (p: PropsCategoria) => React.JSX.Element | nu
   copia: Copia,
   actualizaciones: Actualizaciones,
   experimental: Experimental,
+  academy: PanelAcademy,
   acerca: Acerca
 }
 
@@ -55,7 +58,7 @@ const PANELES: Record<CategoriaId, (p: PropsCategoria) => React.JSX.Element | nu
  * usara el catálogo completo, se podría llegar a un ajuste que no se monta
  * (ver `catalogo.categoriasVisibles`).
  */
-const CATEGORIAS_VISIBLES = categoriasVisibles(window.tessera.capacidades)
+const CATEGORIAS_VISIBLES = categoriasVisibles(window.tessera.capacidades, conAcademy(gruposAcademy()))
 const TODOS_LOS_GRUPOS = gruposDe(CATEGORIAS_VISIBLES)
 
 interface SettingsModalProps extends AjustesProps {
@@ -103,7 +106,7 @@ function ResultadosBusqueda({
             {/* Con la búsqueda abierta el nombre de la categoría es lo
                 único que distingue dos filas "Fuente" o dos "Tamaño". */}
             <div className="ajustes-bloque-titulo">{c.titulo}</div>
-            <Panel ve={ve} {...ajustes} />
+            <Panel ve={ve} enBusqueda {...ajustes} />
           </div>
         )
       })}
@@ -122,7 +125,7 @@ function PanelCategoria({
   ajustes: AjustesProps
 }): React.JSX.Element {
   const Panel = PANELES[categoria]
-  return <Panel ve={ve} {...ajustes} />
+  return <Panel ve={ve} enBusqueda={false} {...ajustes} />
 }
 
 /** El `tabpanel` del modal: resultados apilados con consulta, la categoría elegida sin ella. */
@@ -219,6 +222,9 @@ export function SettingsModal({
   const { consulta, setConsulta, hayConsulta, conteo, ve, vacio, conResultados, alPulsarEnBuscador } =
     useConsultaAjustes()
 
+  // Abierta con Ctrl+, sobre otro diálogo que va después en el DOM con el mismo z-index (buscar en
+  // archivos, cerrar sin guardar), Configuración tiene que quedar encima de él.
+  const [encimaDeOtro] = useState(hayDialogos)
   const { ref, alPulsarTecla } = useDialogo({ onClose })
   const buscadorRef = useRef<HTMLInputElement>(null)
   const { rielRef, bloques, irA, alPulsarEnRiel } = useRielAjustes(
@@ -234,7 +240,7 @@ export function SettingsModal({
   }, [])
 
   return (
-    <div className="modal-overlay" role="presentation" onMouseDown={onClose}>
+    <div className={`modal-overlay${encimaDeOtro ? ' modal-encima' : ''}`} role="presentation" onMouseDown={onClose}>
       <div
         ref={ref}
         className="ajustes-modal"

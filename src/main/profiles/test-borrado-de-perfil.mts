@@ -326,6 +326,7 @@ function escenarioCompleto(opciones: {
     borrarHistorial: async (id) => paso('historial', id),
     borrarConexionesSsh: (id) => paso('ssh', id),
     borrarConexionesBd: (id) => paso('bd', id),
+    borrarPropuestaReglas: (id) => paso('reglas', id),
     cerrarSesiones: async (id) => paso('cerrar', id),
     carpetas: [carpeta('terminal'), carpeta('datos')],
     log: () => {},
@@ -339,12 +340,12 @@ hr('(12) El borrado entero, sin carrera: todos los pasos, en orden (las sesiones
   const { deps, pasos } = escenarioCompleto({ lista: ['beta'] })
   await borrarPerfiles(deps, [{ id: 'trabajo' }])
   check(
-    '(12a) sesiones, contenedor, historial, SSH, BD y las dos carpetas',
-    pasos.join(' | ') === 'cerrar trabajo | parar trabajo | historial trabajo | ssh trabajo | bd trabajo | papelera-terminal trabajo | papelera-datos trabajo',
+    '(12a) la propuesta de reglas, sesiones, contenedor, historial, SSH, BD y las dos carpetas',
+    pasos.join(' | ') === 'reglas trabajo | cerrar trabajo | parar trabajo | historial trabajo | ssh trabajo | bd trabajo | papelera-terminal trabajo | papelera-datos trabajo',
     pasos.join(' | ')
   )
   // Una SSH viva (incluirSsh) seguiría usando las claves y el known_hosts que borra `ssh`.
-  check('(12b) las sesiones se cierran ANTES de borrar sus conexiones SSH, y solo una vez', pasos.indexOf('cerrar trabajo') === 0 && pasos.filter((p) => p.startsWith('cerrar')).length === 1, pasos.join(' | '))
+  check('(12b) las sesiones se cierran ANTES de borrar sus conexiones SSH, y solo una vez', pasos.indexOf('cerrar trabajo') === 1 && pasos.filter((p) => p.startsWith('cerrar')).length === 1, pasos.join(' | '))
 }
 
 hr('(13) Recreado mientras se para su contenedor: ni historial, ni SSH, ni carpetas')
@@ -356,7 +357,7 @@ hr('(13) Recreado mientras se para su contenedor: ni historial, ni SSH, ni carpe
     }
   })
   await borrarPerfiles(deps, [{ id: 'trabajo' }])
-  check('(13a) solo el cierre y la parada, que ya había empezado', pasos.join(' | ') === 'cerrar trabajo | parar trabajo', pasos.join(' | '))
+  check('(13a) solo la propuesta, el cierre y la parada, que ya había empezado', pasos.join(' | ') === 'reglas trabajo | cerrar trabajo | parar trabajo', pasos.join(' | '))
 }
 
 hr('(13b) Recreado mientras se cierran sus sesiones: ni su contenedor ni nada más')
@@ -368,7 +369,8 @@ hr('(13b) Recreado mientras se cierran sus sesiones: ni su contenedor ni nada m�
     }
   })
   await borrarPerfiles(deps, [{ id: 'trabajo' }])
-  check('(13c) solo el cierre, que ya había empezado', pasos.join(' | ') === 'cerrar trabajo', pasos.join(' | '))
+  // La propuesta del perfil anterior se borra aunque el perfil se recree: el nuevo no la hereda.
+  check('(13c) solo la propuesta y el cierre, que ya había empezado', pasos.join(' | ') === 'reglas trabajo | cerrar trabajo', pasos.join(' | '))
 }
 
 hr('(14) Recreado entre el historial y las conexiones SSH: sus conexiones (en firme) no se tocan')
@@ -380,7 +382,7 @@ hr('(14) Recreado entre el historial y las conexiones SSH: sus conexiones (en fi
     }
   })
   await borrarPerfiles(deps, [{ id: 'trabajo' }])
-  check('(14a) se para tras el historial: ni SSH ni carpetas', pasos.join(' | ') === 'cerrar trabajo | parar trabajo | historial trabajo', pasos.join(' | '))
+  check('(14a) se para tras el historial: ni SSH ni carpetas', pasos.join(' | ') === 'reglas trabajo | cerrar trabajo | parar trabajo | historial trabajo', pasos.join(' | '))
 }
 
 hr('(15) Recreado tras las conexiones SSH: ni sus conexiones de BD (en firme) ni sus carpetas')
@@ -392,7 +394,7 @@ hr('(15) Recreado tras las conexiones SSH: ni sus conexiones de BD (en firme) ni
     }
   })
   await borrarPerfiles(deps, [{ id: 'trabajo' }])
-  check('(15a) se para tras SSH', pasos.join(' | ') === 'cerrar trabajo | parar trabajo | historial trabajo | ssh trabajo', pasos.join(' | '))
+  check('(15a) se para tras SSH', pasos.join(' | ') === 'reglas trabajo | cerrar trabajo | parar trabajo | historial trabajo | ssh trabajo', pasos.join(' | '))
 }
 
 hr('(15b) Recreado tras las conexiones de BD: ni sus carpetas')
@@ -404,7 +406,7 @@ hr('(15b) Recreado tras las conexiones de BD: ni sus carpetas')
     }
   })
   await borrarPerfiles(deps, [{ id: 'trabajo' }])
-  check('(15c) se para tras BD', pasos.join(' | ') === 'cerrar trabajo | parar trabajo | historial trabajo | ssh trabajo | bd trabajo', pasos.join(' | '))
+  check('(15c) se para tras BD', pasos.join(' | ') === 'reglas trabajo | cerrar trabajo | parar trabajo | historial trabajo | ssh trabajo | bd trabajo', pasos.join(' | '))
 }
 
 hr('(16) Dos perfiles en el mismo borrado: el segundo, recreado antes de su parada, no se para')
@@ -417,9 +419,9 @@ hr('(16) Dos perfiles en el mismo borrado: el segundo, recreado antes de su para
     }
   })
   await borrarPerfiles(deps, [{ id: 'uno' }, { id: 'dos' }])
-  check('(16a) «uno» se borra entero', pasos.filter((p) => p.endsWith(' uno')).length === 7, pasos.join(' | '))
-  check('(16b) de «dos» no se toca nada, ni su contenedor', !pasos.some((p) => p.endsWith(' dos')), pasos.join(' | '))
-  check('(16c) y van uno detrás de otro (nada de «dos» antes de acabar «uno»)', pasos.at(-1) === 'papelera-datos uno', String(pasos.at(-1)))
+  check('(16a) «uno» se borra entero', pasos.filter((p) => p.endsWith(' uno')).length === 8, pasos.join(' | '))
+  check('(16b) de «dos» solo se quita su propuesta de reglas: ni su contenedor ni nada más', pasos.filter((p) => p.endsWith(' dos')).join(' | ') === 'reglas dos', pasos.join(' | '))
+  check('(16c) y van uno detrás de otro (nada de «dos» antes de acabar «uno»)', pasos.at(-1) === 'reglas dos' && pasos.at(-2) === 'papelera-datos uno', pasos.slice(-2).join(' | '))
 }
 
 hr('(17) El candado: preparar la carpeta del perfil recreado (ESPACIO_ASEGURAR) espera al borrado')
@@ -452,7 +454,7 @@ hr('(17) El candado: preparar la carpeta del perfil recreado (ESPACIO_ASEGURAR) 
   parada.soltar()
   const ref = await asegurado
   await Promise.all([borrado, sesion])
-  check('(17d) al soltar el candado se prepara, y el borrado no tocó nada más', ref.projectHostPath === 'terminal/trabajo' && pasos.filter((p) => p.endsWith(' trabajo')).join(' | ') === 'cerrar trabajo | parar trabajo | asegurar trabajo', pasos.join(' | '))
+  check('(17d) al soltar el candado se prepara, y el borrado no tocó nada más', ref.projectHostPath === 'terminal/trabajo' && pasos.filter((p) => p.endsWith(' trabajo')).join(' | ') === 'reglas trabajo | cerrar trabajo | parar trabajo | asegurar trabajo', pasos.join(' | '))
   check('(17e) y la sesión se abre después', sesionAbierta, `sesionAbierta=${sesionAbierta}`)
 }
 
@@ -503,7 +505,7 @@ hr('(19) El candado: preparar el espacio de datos del recreado (WORKSPACE_ENSURE
   check('(19a) mientras dura el borrado, el espacio del recreado NO se prepara', !pasos.includes('espacio trabajo'), pasos.join(' | '))
   parada.soltar()
   await Promise.all([borrado, asegurado])
-  check('(19b) al soltar el candado se prepara, y el borrado no tocó nada más', pasos.join(' | ') === 'cerrar trabajo | parar trabajo | espacio trabajo', pasos.join(' | '))
+  check('(19b) al soltar el candado se prepara, y el borrado no tocó nada más', pasos.join(' | ') === 'reglas trabajo | cerrar trabajo | parar trabajo | espacio trabajo', pasos.join(' | '))
 }
 
 hr('(20) Recreado con otra caja entre el historial y las conexiones SSH: es el mismo perfil y no se tocan')
@@ -517,7 +519,7 @@ hr('(20) Recreado con otra caja entre el historial y las conexiones SSH: es el m
   await borrarPerfiles(deps, [{ id: 'trabajo' }])
   check(
     '(20a) se para tras el historial, como con el mismo id: ni SSH (en firme) ni carpetas',
-    pasos.join(' | ') === 'cerrar trabajo | parar trabajo | historial trabajo',
+    pasos.join(' | ') === 'reglas trabajo | cerrar trabajo | parar trabajo | historial trabajo',
     pasos.join(' | ')
   )
 }

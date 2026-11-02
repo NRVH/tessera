@@ -213,6 +213,11 @@ function sincronizarCrudo(state: ActivityState, vivos: Record<string, AgentWork>
   return { ...state, raw }
 }
 
+/** true si el target tiene un turno en marcha: trabajando, o esperando una respuesta (un permiso, una pregunta). */
+export function turnoEnMarcha(state: ActivityState, key: string): boolean {
+  return state.raw[key] === 'working' || state.esperando.has(key)
+}
+
 /** true si el target está trabajando ahora mismo. */
 export function isWorking(state: ActivityState, key: string): boolean {
   return state.raw[key] === 'working'

@@ -11,13 +11,14 @@ import type { Agente } from '../profiles/types.ts'
 import type { SshSetup } from '../sandbox/sshSetup.ts'
 import { plataformaActual, type Plataforma } from '../../shared/plataforma.ts'
 import { citarPowerShell, citarSh } from '../../shared/citarShell.ts'
+import { ASIGNACIONES_TERMINAL_CONTENEDOR } from '../terminals/entornoPty.ts'
 import { composeCleanGitCommand, dbAgentAssignments } from './gitInContainer.ts'
 
 /**
  * Id de conversación aceptable (forma de UUID, lo que generan los dos CLIs): acaba dentro
- * de un `sh -c`. Si no calza se ignora y se arranca conversación nueva.
+ * de un `sh -c` y de rutas del disco. Si no calza se ignora y se arranca conversación nueva.
  */
-const ID_CONVERSACION = /^[0-9a-fA-F-]{8,64}$/
+export const ID_CONVERSACION = /^[0-9a-fA-F-]{8,64}$/
 
 /**
  * Codex, sin su servidor compartido en segundo plano: con él, todas las sesiones de una cuenta
@@ -34,14 +35,14 @@ function argumentoReanudar(agente: Agente, resumeSessionId?: string): string | n
 }
 
 /**
- * Lo que Codex oye además del aviso: su sandbox (`workspace-write`) suele ir sin red, y `tdb` y
- * `tssh` necesitan el puente de Tessera y la red.
+ * Lo que Codex oye además del aviso: su sandbox (`workspace-write`) suele ir sin red, y `tdb`, `tssh`
+ * y `tctx` necesitan el puente de Tessera (y los dos primeros, la red).
  */
 const AVISO_SANDBOX_CODEX =
-  'Si tu sandbox no tiene red, `tdb` y `tssh` fallarán dentro de él: pide permiso para ejecutarlos fuera del sandbox.'
+  'Si tu sandbox no tiene red, `tdb`, `tssh` y `tctx` fallarán dentro de él: pide permiso para ejecutarlos fuera del sandbox.'
 
 /**
- * El aviso de arranque (bases y SSH) en el flag de cada CLI, o null: `--append-system-prompt`
+ * El aviso de arranque (bases, SSH y reglas del perfil) en el flag de cada CLI, o null: `--append-system-prompt`
  * en Claude Code y `-c developer_instructions=…` en Codex. Los saltos de línea se aplanan a
  * espacios; un briefing en blanco no produce flag. `citar` es la regla de la shell que la
  * recibe.
@@ -61,9 +62,21 @@ function argumentoBriefing(
 }
 
 /**
+ * El primer mensaje de la conversación como argumento posicional, el último de la línea (los dos CLIs lo
+ * aceptan así, también tras `--resume`/`resume <id>`), o null. Va en una línea, como el aviso.
+ */
+function argumentoPrompt(prompt: string | null | undefined, citar: (valor: string) => string): string | null {
+  // PowerShell 5.1 no escapa las comillas dobles de un argumento al pasarlo a un ejecutable: lo partiría.
+  const plano = (prompt ?? '').replace(/\r?\n/g, ' ').replace(/"/g, "'").trim()
+  // Un primer mensaje que empezara por `-` lo leería el CLI como una opción.
+  if (plano.length === 0 || plano.startsWith('-')) return null
+  return citar(plano)
+}
+
+/**
  * Comando de arranque del agente EN EL CONTENEDOR: entorno limpio (`env -i`) con el
  * preludio ssh/git, las asignaciones de git y de bases (re-inyectadas: `env -i` borra los
- * `-e` de `docker exec`), TERM y la carpeta de configuración del agente; luego `exec`.
+ * `-e` de `docker exec`), TERM, COLORTERM y la carpeta de configuración del agente; luego `exec`.
  * `binary` es inyectable para las pruebas.
  */
 export function buildAgentLaunchCommand(
@@ -73,7 +86,8 @@ export function buildAgentLaunchCommand(
   sshSetup: SshSetup | null = null,
   resumeSessionId?: string,
   dbEnv?: Record<string, string>,
-  briefing?: string | null
+  briefing?: string | null,
+  promptInicial?: string | null
 ): string {
   const args: string[] = []
   const reanudar = argumentoReanudar(agente, resumeSessionId)
@@ -83,6 +97,8 @@ export function buildAgentLaunchCommand(
   // POSIX siempre: esta línea acaba en el `bash -c` del contenedor sea cual sea el host.
   const aviso = argumentoBriefing(briefing, agente, citarSh)
   if (aviso) args.push(aviso)
+  const prompt = argumentoPrompt(promptInicial, citarSh)
+  if (prompt) args.push(prompt)
 
   const agenteSolo = args.length > 0 ? `exec ${binary} ${args.join(' ')}` : `exec ${binary}`
   // Codex sin sesión en su cuenta: primero el login por navegador (el enlace sale en la terminal y la
@@ -94,7 +110,7 @@ export function buildAgentLaunchCommand(
   return composeCleanGitCommand(invocation, {
     agente,
     containerConfigPath,
-    extraAssignments: ['TERM=xterm-256color', ...dbAgentAssignments(dbEnv)],
+    extraAssignments: [...ASIGNACIONES_TERMINAL_CONTENEDOR, ...dbAgentAssignments(dbEnv)],
     sshSetup
   })
 }
@@ -114,7 +130,7 @@ export function buildManualAgentLaunchCommand(
   return composeCleanGitCommand(invocacion, {
     home,
     pathDelante: [`${home}/.local/bin`, '/home/agente/.local/bin'],
-    extraAssignments: ['TERM=xterm-256color', ...dbAgentAssignments(dbEnv)],
+    extraAssignments: [...ASIGNACIONES_TERMINAL_CONTENEDOR, ...dbAgentAssignments(dbEnv)],
     sshSetup
   })
 }
@@ -129,7 +145,8 @@ export function buildHostAgentLaunchCommand(
   agente: Agente,
   resumeSessionId?: string,
   briefing?: string | null,
-  plataforma: Plataforma = plataformaActual()
+  plataforma: Plataforma = plataformaActual(),
+  promptInicial?: string | null
 ): string {
   const args: string[] = []
   const reanudar = argumentoReanudar(agente, resumeSessionId)
@@ -138,5 +155,7 @@ export function buildHostAgentLaunchCommand(
   const citar = plataforma === 'windows' ? citarPowerShell : citarSh
   const aviso = argumentoBriefing(briefing, agente, citar)
   if (aviso) args.push(aviso)
+  const prompt = argumentoPrompt(promptInicial, citar)
+  if (prompt) args.push(prompt)
   return args.length ? `${binary} ${args.join(' ')}` : binary
 }

@@ -90,17 +90,17 @@ const es = {
 const en = {
   pista: 'Hint: ',
   exportarNoReleible:
-    'A query can only be run again to export it if it has no side effects (a SELECT without nextval or FOR UPDATE): export what is already loaded.',
+    'Tessera can run a query again for an export only if it has no side effects (a SELECT without nextval or FOR UPDATE): export the rows already loaded.',
   filaDesaparecida: 'The row no longer exists (it was deleted or its key changed): run the query again.',
   exportarPorPaginas:
-    'The export was done in pages by running the query again: if someone wrote to the database in the meantime, a row may be missing or repeated.',
+    'The export ran the query again page by page: if someone wrote to the database in the meantime, a row might be missing or repeated.',
   detenida:
-    'Stopped: to stop it, the console session was closed; it reopens on its own on the next operation.',
+    'Stopped: the console session was closed to stop it; it reopens automatically on the next operation.',
   sinLector: 'The result is no longer available: run the query again.',
   noReleible:
-    'Reading more rows would require running a statement that modifies data again: run it again yourself if you want to see them.',
+    'Reading more rows would require running a data-modifying statement again: run it again yourself if you want to see them.',
   esquemaCambiado:
-    'The console schema changed since this query ran: running it again now would read different tables. Run it again yourself.',
+    'The console schema changed after this query ran: running it again now would read different tables. Run it again yourself.',
   sinOrden:
     'No stable order: the table has no primary key and there is no ORDER BY, so pages may repeat or skip rows.',
   consolaAtada: 'The console is bound to another connection.',
@@ -113,7 +113,7 @@ const en = {
   sinSecreto: 'This connection has no saved password. Edit it to add one.',
   sinArchivoBase: 'The connection has no saved database file. Edit it and choose the file.',
   consolasOcupadas: (n: number) =>
-    `There are ${n} consoles with an open session on this connection and all of them are busy or have pending transactions.`,
+    `This connection has ${n} consoles with an open session, and all of them are busy or have pending transactions.`,
   cerrando: 'Tessera is closing.',
   sesionCerradaAbriendo: 'The session was closed while it was opening.',
   operacionCancelada: 'Operation canceled.',
@@ -126,7 +126,7 @@ const en = {
   paginaFuera: (max: number) => `The page size must be between 1 and ${max}.`,
   consolaOcupada: 'The console is already running another operation.',
   sinSentenciaEjecutar: 'There is no statement to run.',
-  variasSentencias: (n: number) => `The text contains ${n} statements and they run one per request.`,
+  variasSentencias: (n: number) => `The text contains ${n} statements, and only one runs per request.`,
   comandoCliente: (verbo: string) => `“${verbo}” is a client command: it is not sent to the server.`,
   procesoNoResponde: (op: string, segundos: number) =>
     `The connection process did not respond to “${op}” within ${segundos} s.`,
@@ -134,15 +134,15 @@ const en = {
   bloqueoArchivo: (nombre: string | null, alias: string, cambiosSinConfirmar: boolean) => {
     const quien = nombre ? `The console “${nombre}” (${alias})` : `A console of “${alias}”`
     const que = cambiosSinConfirmar ? 'has uncommitted changes' : 'has an open transaction'
-    return `${quien} ${que} on this same file, and meanwhile the whole file is locked for writing. Commit or roll it back in that console and submit again.`
+    return `${quien} ${que} on this same file, and until it ends the whole file is locked for writing. Commit or roll it back in that console and submit again.`
   },
   nadaAplicado: (base: string) => `${base}: nothing was applied.`,
   envioDetenidoNada: 'Submission stopped: nothing was applied.',
   envioDetenido: 'Submission stopped.',
   sinSentenciaExplicar: 'There is no statement to explain.',
-  unaSentenciaExplicar: 'Only one statement is explained at a time.',
+  unaSentenciaExplicar: 'You can explain only one statement at a time.',
   consolaOtraConexion: 'That console does not belong to this connection.',
-  consolaEjecutando: 'The console is running.',
+  consolaEjecutando: 'The console is running a statement.',
   valorSinFilas: 'Reading the value returned no rows.',
   consultaGrande: 'The query is too large.',
   exportacionCancelada: 'Export canceled.',
@@ -152,17 +152,17 @@ const en = {
   recuentoSinFilas: 'The count returned no rows.',
   recuentoSinNumero: 'The count did not return a number.',
   limiteProcesosConsola: (tope: number) =>
-    `There are ${tope} consoles with their own process open at once and none can be closed without losing work. Close one to open another.`,
+    `${tope} consoles with their own process are open at once, and none can be closed without losing work. Close one to open another.`,
   limiteProcesosConexion: (tope: number) =>
-    `There are ${tope} connections open at once and none can be closed without losing work. Disconnect one to open another.`,
+    `${tope} connections are open at once, and none can be closed without losing work. Disconnect one to open another.`,
   sinProceso: 'Could not start the connection process.',
   listaBlancaNoSql: 'The read-only allowlist does not belong to a SQL session.',
   revirtioServidor: (etiqueta: string, codigo?: string) =>
     `${etiqueta} rolled back the transaction${codigo ? ` (error ${codigo})` : ''}: uncommitted changes were lost.`,
   creadoConErrores: (mensaje: string) => `Created with compilation errors: ${mensaje}`,
   tablaBloqueada: (mensaje: string) =>
-    'The table is locked by an uncommitted transaction (maybe one of your consoles): Retry when it finishes, ' +
-    `or “Read without waiting”, which also shows what has not been committed yet. (${mensaje})`,
+    'The table is locked by an uncommitted transaction (perhaps one of your consoles): click “Retry” when it finishes, ' +
+    `or “Read without waiting”, which also shows changes not yet committed. (${mensaje})`,
   accionTxDesconocida: 'Unknown transaction action.',
   modoTxDesconocido: 'Unknown transaction mode.',
   txSigue: 'The transaction is still pending.'
