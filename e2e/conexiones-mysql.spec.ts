@@ -191,7 +191,7 @@ test.describe('explorador de BD: MySQL', () => {
     await expect(d.locator('[data-campo="instancia"]')).toHaveCount(0)
     await expect(d.getByLabel('Cifrar la conexión (TLS)')).not.toBeChecked()
     await expect(d).toContainText('el servidor abre sus transacciones en solo lectura')
-    await expect(d).toContainText('tú no quedas limitado')
+    await expect(d).toContainText('Usted no tiene esa limitación')
 
     await d.locator('[data-campo="alias"]').fill(ALIAS)
     await d.locator('[data-campo="host"]').fill(p.host)
@@ -323,7 +323,7 @@ test.describe('explorador de BD: MySQL', () => {
     await expect(fila(win, 'conexion', ALIAS_FIJA)).toHaveCount(1)
     await fila(win, 'conexion', ALIAS_FIJA).click()
     await abrirConsolaNueva(win, `${MOD}+KeyN`)
-    await expect(win.locator(`${CONSOLA} .db-consola-barra`)).toContainText('RO agentes')
+    await expect(win.locator(`${CONSOLA} .db-consola-barra`)).toContainText('Solo lectura (agentes)')
     await ejecutarTodoSeleccionado(win, "INSERT INTO t VALUES (4, 'Del usuario')")
     await esperarFinEjecucion(win)
     await expect(win.locator(`${CONSOLA} .db-glifo-error`), 'la escritura NO se rechaza').toHaveCount(0)

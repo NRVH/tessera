@@ -59,7 +59,7 @@ export const txSalida = crearTextos(
     cliente: 'Comando del cliente: no se envía al servidor',
     sinRespuestaStop: 'El servidor no responde a la cancelación',
     forzar: 'Forzar (cierra la conexión y revierte sus transacciones)',
-    stopConCambios: 'No se puede parar sin cerrar la sesión de esta consola, y tiene cambios sin confirmar',
+    stopConCambios: 'No se puede detener sin cerrar la sesión de esta consola, y la sesión tiene cambios sin confirmar',
     forzarConsola: 'Forzar (cierra la sesión de esta consola y revierte su transacción)',
     confirmadoEn: (dur: string) => `Confirmado (Commit) en ${dur}`,
     revertidoEn: (dur: string) => `Revertido (Rollback) en ${dur}`,
@@ -71,7 +71,7 @@ export const txSalida = crearTextos(
     avisoPerdida: 'Sesión perdida; se abrirá otra en la próxima ejecución',
     avisoInactividad: 'Sesión cerrada por inactividad; se perdieron los ALTER SESSION y SET de esta consola',
     avisoEditada: 'La conexión se editó; se abrirá una sesión nueva en la próxima ejecución',
-    avisoExpulsada: 'Sesión cerrada para dejar sitio a otra; se abrirá de nuevo en la próxima ejecución',
+    avisoExpulsada: 'Sesión cerrada para dejar espacio a otra; se abrirá de nuevo en la próxima ejecución',
     // Marcas del margen
     hoverOmitida: 'No se ejecutó: el lote se detuvo antes',
     hoverCliente: 'Comando del cliente: no se envía al servidor',
@@ -92,8 +92,8 @@ export const txSalida = crearTextos(
     // Resultados
     resultado: (k: number, j: number) => `Resultado ${k}.${j}`,
     noSePudieronLeer: (motivo: string) => `No se pudieron leer las filas: ${motivo}`,
-    pistaSinSentencia: 'Coloca el cursor en una sentencia o selecciona texto',
-    motivoLiberada: 'Se soltaron filas para liberar memoria; vuelve a ejecutar para verlas'
+    pistaSinSentencia: 'Coloque el cursor en una sentencia o seleccione texto',
+    motivoLiberada: 'Se descartaron filas para liberar memoria; vuelva a ejecutar para verlas'
   },
   {
     fila: 'row',

@@ -1,5 +1,5 @@
 // =============================================================================
-// «Actualizar los agentes de tu equipo» sobre la app empaquetada, con el mundo falso de
+// «Actualizar los agentes de su equipo» sobre la app empaquetada, con el mundo falso de
 // `agenteFalso.ts` y conversaciones sembradas en `CLAUDE_CONFIG_DIR` / `CODEX_HOME`: la
 // cadena que cruza cuatro procesos. En Windows npm entra sin ningún `codex.exe` vivo (parar
 // → esperar → instalar); cada sesión parada vuelve UNA vez a SU conversación (también la de

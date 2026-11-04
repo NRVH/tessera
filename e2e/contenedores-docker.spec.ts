@@ -49,7 +49,8 @@ test('la sección enseña el deslizador, el valor y las explicaciones', async ()
   await expect(s.win.locator('.ajustes-grupo-ayuda').first()).toContainText('entre 0,3 y 1,5 GB')
   await expect(s.win.locator('.ajustes-radios .ajustes-radio')).toHaveCount(3)
   await expect(s.win.locator('.ajustes-switch')).toHaveCount(2)
-  await expect(s.win.locator('.ajustes-grupo-ayuda').nth(1)).toContainText('Si todos están protegidos')
+  await expect(s.win.locator('.ajustes-grupo-ayuda').nth(1)).toContainText('Tessera detiene un contenedor')
+  await expect(s.win.locator('.limite-escala')).toHaveText('Sin límite')
   const dir = process.env.TESSERA_E2E_CAPTURAS
   if (dir) {
     mkdirSync(dir, { recursive: true })
@@ -88,10 +89,10 @@ test('el semáforo cambia de color y «Sin límite» es el último paso', async 
   await barra().fill(String(ultimo))
   await expect(s.win.locator('.limite-valor-texto')).toHaveText('Sin límite')
   await expect(s.win.locator('.limite-valor')).toHaveAttribute('data-color', 'rojo')
-  await expect(s.win.locator('.limite-aviso.rojo')).toContainText('Sin límite no hay red')
+  await expect(s.win.locator('.limite-aviso.rojo')).toContainText('Sin límite no hay protección')
 })
 
-test('el valor llega a workspace-state.json y «Usar el recomendado» lo quita', async () => {
+test('el valor llega a workspace-state.json y «Usar el valor recomendado» lo quita', async () => {
   test.skip(memoria === null, 'Docker no responde: el deslizador está deshabilitado')
   await barra().fill(String(cortes.maximo + 1))
   // «Sin límite» se guarda como 0.
@@ -108,7 +109,7 @@ test('el valor llega a workspace-state.json y «Usar el recomendado» lo quita',
 })
 
 test('la política para hacer sitio se guarda', async () => {
-  await s.win.locator('.ajustes-radio', { hasText: 'Los primeros que abriste' }).click()
+  await s.win.locator('.ajustes-radio', { hasText: 'El primer contenedor abierto' }).click()
   await s.win.locator('.ajustes-switch').first().click()
   await expect
     .poll(
@@ -145,7 +146,7 @@ test('«Si Docker se satura» enseña sus tres controles con los valores de seri
   await expect(selects.nth(1)).toHaveValue('30')
   const aviso = s.win.locator('.ajustes-switch').nth(1)
   await expect(aviso).toHaveAttribute('aria-checked', 'true')
-  await expect(s.win.locator('.ajustes-grupo-ayuda').nth(2)).toContainText('Si todos los que quedan están trabajando')
+  await expect(s.win.locator('.ajustes-grupo-ayuda').nth(2)).toContainText('Si todos los restantes están trabajando')
 })
 
 test('cambiar umbral, tiempo y aviso llega a workspace-state.json', async () => {
@@ -161,8 +162,8 @@ test('cambiar umbral, tiempo y aviso llega a workspace-state.json', async () => 
     .toBe('95|120|false')
 })
 
-test('«Últimas paradas» enseña el texto vacío y «Actualizar» lo mantiene', async () => {
-  await expect(s.win.locator('.paradas-vacio')).toHaveText('Tessera no ha parado ningún contenedor.')
+test('«Últimos contenedores detenidos» enseña el texto vacío y «Actualizar» lo mantiene', async () => {
+  await expect(s.win.locator('.paradas-vacio')).toHaveText('Tessera no ha detenido ningún contenedor.')
   await expect(s.win.locator('.parada-fila')).toHaveCount(0)
   await s.win.locator('.paradas-actualizar').click()
   await expect(s.win.locator('.paradas-vacio')).toHaveCount(1)

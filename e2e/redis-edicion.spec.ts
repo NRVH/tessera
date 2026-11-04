@@ -181,7 +181,7 @@ test.describe.serial('explorador de BD: editar Redis desde el visor', () => {
     await dlg.locator('input').fill('edicion_texto')
     await expect(dlg.getByLabel('Comando que se ejecutará')).toHaveText('RENAMENX edicion_hash edicion_texto')
     await dlg.getByRole('button', { name: 'Renombrar' }).click()
-    await expect(dlg.getByRole('alert')).toContainText('Ya hay una clave con ese nombre')
+    await expect(dlg.getByRole('alert')).toContainText('Ya existe una clave con ese nombre')
     expect(await redis('TYPE edicion_texto'), 'la clave que ya existía sigue siendo el string').toEqual({ tipo: 'simple', texto: 'string' })
     await dlg.locator('input').fill('edicion_texto2')
     await dlg.getByRole('button', { name: 'Renombrar' }).click()

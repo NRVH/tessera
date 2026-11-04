@@ -15,21 +15,21 @@ const txRelevo = crearTextos(
     instalada: 'Actualización instalada',
     noEjecutoTitulo: 'El instalador no llegó a ejecutarse',
     noEjecutoDetalle:
-      'No se pudo arrancar el archivo de instalación. Suele ser que el antivirus lo ' +
-      'bloqueó o que la descarga ya no está en su sitio.',
-    canceladaTitulo: 'Cancelaste la instalación',
-    canceladaDetalle: 'Windows pidió permiso y no se concedió, así que el instalador no llegó a empezar.',
+      'No se pudo iniciar el archivo de instalación. Suele deberse a que un antivirus lo ' +
+      'bloqueó o a que el archivo descargado se movió o se eliminó.',
+    canceladaTitulo: 'Se canceló la instalación',
+    canceladaDetalle: 'Windows solicitó permiso y no se concedió, por lo que el instalador no llegó a iniciarse.',
     noReemplazoTitulo: 'El instalador no pudo reemplazar los archivos',
     noReemplazoDetalle:
-      'El desinstalador de la versión anterior abortó. Casi siempre es una ruta ' +
-      'demasiado larga dentro de la carpeta de la aplicación, no un archivo en uso.',
+      'El desinstalador de la versión anterior se detuvo. Casi siempre se debe a una ruta ' +
+      'demasiado larga dentro de la carpeta de la aplicación, no a un archivo en uso.',
     fallo: (code: number) => `El instalador falló (código ${code})`,
-    falloDetalle: 'El instalador terminó con un error antes de acabar.',
+    falloDetalle: 'El instalador terminó con un error antes de finalizar.',
     sigueEnSuSitio:
-      'Puedes reintentar, volver a la versión anterior o abrir el instalador para hacerlo paso a paso.',
+      'Puede reintentar, volver a la versión anterior o abrir el instalador para realizar la instalación paso a paso.',
     seQuito:
-      'La versión anterior se quitó y la nueva no llegó a instalarse. Puedes reintentar, volver a la ' +
-      'versión anterior (sigue guardada) o abrir el instalador para hacerlo paso a paso.'
+      'La versión anterior se eliminó y la nueva no llegó a instalarse. Puede reintentar, volver a la ' +
+      'versión anterior (sigue guardada) o abrir el instalador para realizar la instalación paso a paso.'
   },
   {
     instalada: 'Update installed',

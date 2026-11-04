@@ -178,7 +178,7 @@ hr('(2) Oracle')
   check('Service Name o SID, y al menos uno', j(g.campos) === j(['database', 'sid']) && g.alMenosUno, j(g))
   check(
     'con la ayuda de siempre',
-    g.ayuda === 'Service Name o SID, no los dos. Las 11g heredadas suelen ir por SID.',
+    g.ayuda === 'Indique Service Name o SID, no ambos. Las bases 11g antiguas suelen usar SID.',
     g.ayuda
   )
   check('la ayuda va bajo la fila del SID', j(ayudasTrasFila('oracle', 1)) === j([g.ayuda]), j(ayudasTrasFila('oracle', 1)))
@@ -385,7 +385,7 @@ function validarComoElMain(input: DbConnectionInput): void {
     throw new Error('Oracle necesita un Service Name o un SID.')
   }
   if (input.motor === 'oracle' && database && sid) {
-    throw new Error('Indica Service Name o SID, no ambos.')
+    throw new Error('Indique Service Name o SID, no ambos.')
   }
   if (input.motor === 'postgres' && !database) {
     throw new Error('PostgreSQL necesita el nombre de la base.')
@@ -455,7 +455,7 @@ const CAMPOS_DEL_MENSAJE: Array<[RegExp, CampoConexion[]]> = [
   [/Service Name o un SID/, ['database', 'sid']],
   [/Service Name o SID, no ambos/, ['database', 'sid']],
   [/PostgreSQL necesita el nombre de la base/, ['database']],
-  [/La base es un número entero/, ['database']]
+  [/La base de datos es un número entero/, ['database']]
 ]
 
 hr('(8) paridad con ConnectionStore.validate')
@@ -629,7 +629,7 @@ hr('(11) motores de archivo: la oferta por extensión y la ayuda de «Solo lectu
   const red = ayudaSoloLectura('oracle')
   check(
     'con usuario y clave: dice que limita a los agentes (tdb) y no al usuario, y la garantía del servidor',
-    /agentes/.test(red) && /tdb/.test(red) && /tú no quedas limitado/.test(red) && red.includes('el servidor abre sus transacciones en solo lectura') && /permisos de lectura/.test(red),
+    /agentes/.test(red) && /tdb/.test(red) && /Usted no tiene esa limitación/.test(red) && red.includes('el servidor abre sus transacciones en solo lectura') && /permisos de lectura/.test(red),
     red
   )
   check('PostgreSQL: la misma que Oracle', ayudaSoloLectura('postgres') === red, 'igual')
@@ -641,19 +641,19 @@ hr('(11) motores de archivo: la oferta por extensión y la ayuda de «Solo lectu
   )
   check(
     'sin credenciales (un archivo): avisa de que una transacción abierta bloquea a las demás aplicaciones del archivo',
-    /transacción esté abierta/.test(arch) && /demás aplicaciones/.test(arch) && /pueden no poder escribir/.test(arch),
+    /transacción abierta/.test(arch) && /otras aplicaciones/.test(arch) && /pueden no poder escribir/.test(arch),
     arch
   )
   check(
     'MITAD NEGATIVA: en una base de servidor no se avisa de bloquear el archivo',
-    !/demás aplicaciones/.test(red) && !/demás aplicaciones/.test(ayudaSoloLectura('mongodb')),
+    !/otras aplicaciones/.test(red) && !/otras aplicaciones/.test(ayudaSoloLectura('mongodb')),
     red
   )
   // Ninguna ayuda promete que TESSERA rechace las escrituras del usuario: limita a los agentes.
   const todas = IDS_MOTORES.map((m) => ayudaSoloLectura(m))
   check(
     'NEGATIVO: ninguna ayuda dice «Tessera rechaza cualquier escritura» (describía al explorador limitando al humano)',
-    todas.every((a) => !/Tessera rechaza/.test(a) && /tú no quedas limitado/.test(a)),
+    todas.every((a) => !/Tessera rechaza/.test(a) && /Usted no tiene esa limitación/.test(a)),
     j(todas)
   )
   check('la etiqueta de la casilla nombra a los agentes', ETIQUETA_SOLO_LECTURA === 'Solo lectura para los agentes (recomendado)', ETIQUETA_SOLO_LECTURA)
@@ -762,8 +762,8 @@ hr('(12) SQL Server: sus campos, lo que se marca y la paridad con validarOpciona
   // Solo lectura: aquí lo impone Tessera (el texto pedido, al byte en su parte clave).
   const ro = ayudaSoloLectura('sqlserver')
   check(
-    'solo lectura: «aquí el solo lectura lo impone Tessera; para garantía, un usuario con db_datareader»',
-    ro.includes('aquí el solo lectura lo impone Tessera; para garantía, un usuario con db_datareader') && !ro.includes('el servidor abre'),
+    'solo lectura: «Tessera impone el modo de solo lectura; para una garantía real, use un usuario con db_datareader»',
+    ro.includes('Tessera impone el modo de solo lectura; para una garantía real, use un usuario con db_datareader') && !ro.includes('el servidor abre'),
     ro
   )
 
@@ -819,7 +819,7 @@ hr('(13) MongoDB y Redis: usuario y clave OFRECIDOS sin exigirlos')
     check(`${motor}: sin host, se marca el host`, j(faltantes({ ...b, host: '' })) === j(['host']), j(faltantes({ ...b, host: '' })))
     // Solo lectura: lo impone Tessera y la garantía es de la familia.
     const ro = ayudaSoloLectura(motor)
-    check(`${motor}: solo lectura lo impone Tessera`, ro.includes('aquí el solo lectura lo impone Tessera') && !ro.includes('el servidor abre'), ro)
+    check(`${motor}: solo lectura lo impone Tessera`, ro.includes('Tessera impone el modo de solo lectura') && !ro.includes('el servidor abre'), ro)
   }
   check('MongoDB: la garantía es el rol read', ayudaSoloLectura('mongodb').includes('rol read'), ayudaSoloLectura('mongodb'))
   check('Redis: la garantía es un usuario ACL', ayudaSoloLectura('redis').includes('usuario ACL'), ayudaSoloLectura('redis'))

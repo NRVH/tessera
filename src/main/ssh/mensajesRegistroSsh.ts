@@ -12,9 +12,9 @@ const ARCHIVO = 'el registro de conexiones SSH (ssh-connections.json)'
 /** Un formato entero que esta versión no sabe escribir sin estropearlo. */
 export const MENSAJE_FORMATO_AJENO_SSH =
   `Esta versión de Tessera no reconoce el formato de ${ARCHIVO} y no sabe escribirlo sin ` +
-  'estropearlo, así que no lo toca. Puede venir de una versión más nueva de Tessera (actualiza ' +
-  'para añadir conexiones) o de una edición a mano del archivo (corrígelo y reinicia Tessera, que ' +
-  'lo lee al arrancar).'
+  'estropearlo, así que no lo toca. Puede venir de una versión más nueva de Tessera (actualice ' +
+  'Tessera para añadir conexiones) o de una edición manual del archivo (corríjalo y reinicie Tessera, que ' +
+  'lo lee al iniciar).'
 
 /** Por qué no se puede leer: tiene contenido y no es JSON, o existe y no se deja abrir. */
 export type CausaIlegibleSsh = { tipo: 'roto' } | { tipo: 'inaccesible'; codigo: string }
@@ -34,11 +34,11 @@ export function mensajeRegistroIlegibleSsh(causa: CausaIlegibleSsh, respaldo: Es
         : ''
   const remedio =
     causa.tipo === 'roto'
-      ? 'corrígelo (suele ser una edición a mano: una coma de más, una comilla sin cerrar)'
-      : 'revisa sus permisos, o si otro programa lo tiene abierto en exclusiva,'
+      ? 'corríjalo (suele ser una edición manual: una coma de más, una comilla sin cerrar)'
+      : 'revise sus permisos, o si otro programa lo tiene abierto en exclusiva,'
   return (
     `No se puede leer ${ARCHIVO}: ${que}${copia}. Tessera no lo toca para no perder lo que tiene ` +
-    `dentro: ${remedio} y reinicia Tessera, que lo lee al arrancar.`
+    `dentro: ${remedio} y reinicie Tessera, que lo lee al iniciar.`
   )
 }
 
@@ -67,19 +67,19 @@ export function mensajeRegistroRecuperadoSsh(sufijoCopia: string | null): string
         `ssh-connections.json${SUFIJO_COPIA_ILEGIBLE_SSH} (con la fecha detrás si ese nombre ya existe).`
     : `${mayuscula(ARCHIVO)} no era JSON válido: se recuperaron las conexiones de su copia de ` +
         'respaldo (ssh-connections.json.bak), a la que puede faltarle el último cambio, y el archivo ' +
-        `dañado se conservó aparte, como ssh-connections.json${sufijoCopia}: si echas algo en falta, está ahí.`
+        `dañado se conservó aparte, como ssh-connections.json${sufijoCopia}: si falta algún dato, está en ese archivo.`
 }
 
 /** Una escritura que no se hizo porque el principal cambió por fuera con Tessera abierta. */
 export const MENSAJE_CAMBIADO_FUERA_SSH =
   `No se guardó el cambio: ${ARCHIVO} cambió fuera de Tessera mientras estaba abierta, y ` +
-  'sobrescribirlo perdería ese cambio. Reinicia Tessera, que lo lee al arrancar.'
+  'sobrescribirlo perdería ese cambio. Reinicie Tessera, que lo lee al iniciar.'
 
 /** El principal roto que se suplió con el `.bak` se corrigió a mano con Tessera abierta. */
 export const MENSAJE_RESCATADO_CORREGIDO_SSH =
   `No se guardó el cambio: ${ARCHIVO} ya es JSON válido, pero Tessera sigue con las conexiones ` +
-  'de su copia de respaldo (ssh-connections.json.bak), que leyó al arrancar porque entonces no lo ' +
-  'era, y sustituirlo ahora perdería lo que corregiste. Reinicia Tessera, que lo lee al arrancar.'
+  'de su copia de respaldo (ssh-connections.json.bak), que leyó al iniciar porque entonces no lo ' +
+  'era, y sustituirlo ahora perdería lo que usted corrigió. Reinicie Tessera, que lo lee al iniciar.'
 
 /** La copia aparte del principal roto no se pudo guardar: sin copia no se sustituye. */
 export function mensajeCopiaIlegibleFallidaSsh(codigo: string, fase: 'escribir' | 'leer' = 'escribir'): string {
@@ -88,22 +88,22 @@ export function mensajeCopiaIlegibleFallidaSsh(codigo: string, fase: 'escribir' 
     `una copia aparte (ssh-connections.json${SUFIJO_COPIA_ILEGIBLE_SSH}), `
   return fase === 'leer'
     ? `${inicio}pero ahora el archivo no se deja leer para copiarlo (${codigo}). El archivo no se ` +
-        'toca: revisa sus permisos, o si otro programa lo tiene abierto en exclusiva, y vuelve a intentarlo.'
-    : `${inicio}que no se pudo escribir (${codigo}). El archivo no se toca: revisa los permisos ` +
-        'de su carpeta, o apártalo tú (muévelo a otro sitio) y vuelve a intentarlo.'
+        'toca: revise sus permisos, o si otro programa lo tiene abierto en exclusiva, y vuelva a intentarlo.'
+    : `${inicio}que no se pudo escribir (${codigo}). El archivo no se toca: revise los permisos ` +
+        'de su carpeta, o aparte el archivo (muévalo a otra ubicación) y vuelva a intentarlo.'
 }
 
 /** Una escritura que falló en la E/S misma; sustituye al error de `fs`, que lleva la ruta del host. */
 export function mensajeEscrituraFallidaSsh(codigo: string): string {
   const remedio =
     codigo === 'ENOSPC'
-      ? 'No queda espacio en el disco: libera espacio y vuelve a intentarlo.'
+      ? 'No queda espacio en el disco: libere espacio y vuelva a intentarlo.'
       : codigo === 'EBUSY'
-        ? 'Otro programa lo tiene abierto en exclusiva: ciérralo y vuelve a intentarlo.'
+        ? 'Otro programa lo tiene abierto en exclusiva: ciérrelo y vuelva a intentarlo.'
         : codigo === 'EACCES' || codigo === 'EPERM' || codigo === 'EROFS'
-          ? 'Revisa los permisos de su carpeta, o si otro programa (un antivirus, una sincronización ' +
-            'en la nube) lo tiene abierto, y vuelve a intentarlo.'
-          : 'Vuelve a intentarlo; si se repite, revisa los permisos de su carpeta y el espacio libre en el disco.'
+          ? 'Revise los permisos de su carpeta, o si otro programa (un antivirus, una sincronización ' +
+            'en la nube) lo tiene abierto, y vuelva a intentarlo.'
+          : 'Vuelva a intentarlo; si se repite, revise los permisos de su carpeta y el espacio libre en el disco.'
   return `No se guardó el cambio: no se pudo escribir ${ARCHIVO} (${codigo}). El registro sigue como estaba. ${remedio}`
 }
 

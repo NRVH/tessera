@@ -174,7 +174,7 @@ function main(): void {
   // -------------------------------------------------------------------------
   check(
     '(4a) el motivo del tope dice cuántas y qué hacer',
-    motivoTopeTraerTodas(49500) === `Se trajeron 49${NBSP}500 filas; el resto no cabe en memoria: expórtalo a archivo`,
+    motivoTopeTraerTodas(49500) === `Se trajeron 49${NBSP}500 filas; el resto no cabe en memoria: expórtelo a un archivo`,
     motivoTopeTraerTodas(49500)
   )
   check('(4b) singular', motivoTopeTraerTodas(1).startsWith('Se trajeron 1 fila;'), motivoTopeTraerTodas(1))

@@ -14,8 +14,8 @@ const tx = crearTextos(
   {
     grupo: 'Idioma',
     etiqueta: 'Idioma',
-    sistema: 'El del sistema',
-    ayuda: 'El de la interfaz y el de las órdenes tdb y tssh. Vale al reiniciar Tessera.',
+    sistema: 'Idioma del sistema',
+    ayuda: 'Se aplica a la interfaz y a las órdenes tdb y tssh. El cambio surte efecto al reiniciar Tessera.',
     pendiente: 'Tessera cambiará de idioma al reiniciar.',
     reiniciar: 'Reiniciar ahora'
   },

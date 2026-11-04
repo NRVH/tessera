@@ -123,6 +123,7 @@ const EXCEPCIONES_NOMBRE: readonly { archivo: string; texto?: string; motivo: st
     'Oracle no longer publishes ${nombre} for direct download',
     'Oracle no longer publishes Oracle Instant Client 12.1 (Basic Light) for direct download',
     'Oracle 11.2 y superior',
+    'Oracle 10.2 a 11.1',
     'Oracle 10.2 – 11.1',
     'fuera del soporte de Oracle',
     'Oracle 11.2 and later',
@@ -143,7 +144,7 @@ const EXCEPCIONES_NOMBRE: readonly { archivo: string; texto?: string; motivo: st
     archivo: 'src/tdb/motores.cjs',
     motivo: 'la copia CJS del registro (`etiqueta` de cada motor), cruzada con `shared/motores` por test:motores-tdb'
   },
-  ...['Oracle no mira el valor de los parámetros al explicar', 'Oracle ignores parameter values when it explains a statement'].map(
+  ...['Oracle no considera el valor de los parámetros al explicar','Oracle ignores parameter values when it explains a statement'].map(
     (texto) => ({
       archivo: 'src/main/db/explorador/planSql.ts',
       texto,
@@ -177,7 +178,7 @@ const EXCEPCIONES_NOMBRE: readonly { archivo: string; texto?: string; motivo: st
   },
   // Textos de interfaz de módulos `textos*.ts` (la guardia también los mira).
   ...[
-    'Oracle ya no lo publica para descarga directa',
+    'Oracle ya no ofrece este cliente para descarga directa',
     'Oracle no longer offers it as a direct download'
   ].map((texto) => ({
     archivo: 'src/renderer/src/features/bd/textosConexionDialogo.ts',
@@ -1005,7 +1006,7 @@ function main(): void {
   )
   check('NEGATIVO: comentarios, identificadores, otra caja o palabra, y el nombre sacado del registro', nomNo.hallazgos.length === 0, JSON.stringify(nomNo.hallazgos))
   excepcionesUsadas.clear()
-  const exenta = escanearTexto('src/main/db/explorador/planSql.ts', "const A = 'Oracle no mira el valor de los parámetros al explicar'\nconst B = 'Oracle otra cosa'\n")
+  const exenta = escanearTexto('src/main/db/explorador/planSql.ts', "const A = 'Oracle no considera el valor de los parámetros al explicar'\nconst B = 'Oracle otra cosa'\n")
   check(
     'una excepción con texto exime SOLO el literal que lo contiene',
     exenta.hallazgos.length === 1 && exenta.hallazgos[0].linea === 2,

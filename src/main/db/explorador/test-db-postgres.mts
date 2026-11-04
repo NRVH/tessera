@@ -722,7 +722,7 @@ async function main(): Promise<void> {
     check('sin PK: rechazado', !vSinPk.ok && /clave primaria/.test(vSinPk.error.mensaje), JSON.stringify(vSinPk))
     const vCol = await ex.valor({ conexionId: 'c1', objeto: refDoc, clave, columna: 'no_existe' })
     const vClave = await ex.valor({ conexionId: 'c1', objeto: refDoc, clave: ['1'], columna: 'cuerpo' })
-    check('columna inventada o clave de otro tamaño: rechazado sin tocar el servidor', !vCol.ok && !vClave.ok && /no cuadra/.test(vClave.error.mensaje), `${vCol.ok ? '' : vCol.error.mensaje} | ${vClave.ok ? '' : vClave.error.mensaje}`)
+    check('columna inventada o clave de otro tamaño: rechazado sin tocar el servidor', !vCol.ok && !vClave.ok && /no coincide con la clave primaria/.test(vClave.error.mensaje), `${vCol.ok ? '' : vCol.error.mensaje} | ${vClave.ok ? '' : vClave.error.mensaje}`)
 
     hr('(13b) Valor de un resultado de CONSOLA: en su sesión, que ve la tx sin confirmar')
     // Antes se leía en `datos`, que solo ve lo confirmado: en Manual, una fila recién

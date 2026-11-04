@@ -11,15 +11,15 @@ export const txMain = crearTextos(
     sinTitulo: '(sin título)',
     busqueda: {
       fallo: (err: string) => `La búsqueda falló: ${err}`,
-      rutaInvalida: 'Ruta de proyecto inválida.'
+      rutaInvalida: 'Ruta de proyecto no válida.'
     },
     comprimidos: {
       revisionGrande: (ruta: string, mb: number) =>
         `«${ruta}» ocupa ${mb} MB en esa revisión y supera lo que Tessera puede abrir de una vez.`,
-      niveles: (max: number) => `Sólo se puede bajar ${max} niveles dentro de un archivo comprimido.`,
+      niveles: (max: number) => `Solo se admiten ${max} niveles de profundidad dentro de un archivo comprimido.`,
       entradaGrande: (nombre: string, kb: number) =>
         `«${nombre}» ocupa ${kb} KB descomprimida y supera el máximo que se puede comparar.`,
-      binario: 'Esta entrada tiene bytes nulos: no hay diff de texto que mostrar.',
+      binario: 'Esta entrada tiene bytes nulos: no hay comparación de texto que mostrar.',
       yaNoEsta: (nombre: string) => `«${nombre}» ya no está en el contenedor.`,
       ningunaRevision: 'Este archivo comprimido no existe en ninguna de las dos revisiones.'
     },
@@ -33,7 +33,7 @@ export const txMain = crearTextos(
       faltaConexion: 'Falta la conexión SSH que abrir.',
       sinSsh: 'Las conexiones SSH no están disponibles en esta sesión de Tessera.'
     },
-    papelera: 'No se pudo mandar la carpeta a la papelera: se queda en su sitio.'
+    papelera: 'No se pudo mover la carpeta a la papelera: permanece en su ubicación.'
   },
   {
     sinTitulo: '(untitled)',

@@ -13,7 +13,7 @@ import { crearTextos } from '../../../shared/i18n.ts'
  */
 export const ES_IDENTIDAD = {
   soloLectura: 'La conexión es de solo lectura: la rejilla no puede escribir en ella.',
-  tablaInterna: 'Es una tabla interna del motor (la mantiene él, no el usuario): la rejilla no la edita.',
+  tablaInterna: 'Es una tabla interna del motor (la mantiene el propio motor, no el usuario): la rejilla no puede editarla.',
   rowidTapado:
     'La tabla no tiene clave primaria y una columna suya se llama como su dirección de fila (rowid): no hay forma fiable de encontrar cada fila.',
   sinClavePg:
@@ -24,9 +24,9 @@ export const ES_IDENTIDAD = {
   tablaVirtual: 'Es una tabla virtual (la sirve un módulo, no guarda filas propias): la rejilla solo edita tablas ordinarias.',
   noEsTabla: 'Este objeto no es una tabla: la rejilla solo edita tablas.',
   remoto: 'Es un objeto remoto (@dblink): la rejilla no escribe a través de un enlace.',
-  sistema: 'Es una tabla del sistema: la rejilla no la edita.',
-  temporal: 'Es una tabla temporal: sus filas son de cada sesión, y «Enviar» escribe desde otra.',
-  externa: 'Es una tabla externa (sus filas están en un archivo del servidor): no se edita.'
+  sistema: 'Es una tabla del sistema: la rejilla no puede editarla.',
+  temporal: 'Es una tabla temporal: sus filas pertenecen a cada sesión, y «Enviar» escribe desde otra sesión.',
+  externa: 'Es una tabla externa (sus filas están en un archivo del servidor): no se puede editar.'
 }
 
 export const txIdentidad = crearTextos(ES_IDENTIDAD, {
@@ -50,21 +50,21 @@ export const txIdentidad = crearTextos(ES_IDENTIDAD, {
 export const txEnvio = crearTextos(
   {
     filaNuevaChoca:
-      'La fila nueva choca con otra que una transacción sin confirmar tiene bloqueada (quizá una consola tuya).',
-    filaBloqueada: 'La fila está bloqueada por otra transacción (quizá una consola tuya con cambios sin confirmar).',
-    bloqueada: (que: string) => `${que} No se aplicó nada: confirma o revierte esa transacción y vuelve a enviar.`,
+      'La fila nueva choca con otra que una transacción sin confirmar tiene bloqueada (quizá una de sus consolas).',
+    filaBloqueada: 'La fila está bloqueada por otra transacción (quizá una de sus consolas con cambios sin confirmar).',
+    bloqueada: (que: string) => `${que} No se aplicó nada: confirme o revierta esa transacción y vuelva a enviar los cambios.`,
     sinCulpable: (desde: number, hasta: number, espera: boolean) =>
-      `(No se pudo saber cuál de los cambios ${desde} a ${hasta}${espera ? ': al buscarla, la otra transacción ya la había soltado' : ''}.)`,
+      `(No se pudo determinar cuál de los cambios ${desde} a ${hasta} causó el bloqueo${espera ? ': al buscarlo, la otra transacción ya había liberado la fila' : ''}.)`,
     noSeConstruyo: 'No se pudo construir la sentencia.',
-    commitServidor: (detalle: string) => `Falló al confirmar (COMMIT): ${detalle}\nNo se aplicó nada.`,
+    commitServidor: (detalle: string) => `Falló la confirmación (COMMIT): ${detalle}\nNo se aplicó nada.`,
     commitIncierto: (detalle: string) =>
       `No se sabe si el COMMIT llegó a aplicarse: ${detalle}\n` +
-      'Vuelve a cargar la tabla y comprueba los datos antes de repetir el envío.',
+      'Vuelva a cargar la tabla y compruebe los datos antes de repetir el envío.',
     filaNoInsertada: 'La fila nueva no se insertó (0 filas). No se aplicó nada.',
     filaCambio:
-      'La fila ya no está o cambió desde que se leyó (el cambio no tocó ninguna). No se aplicó nada: vuelve a cargar la tabla.',
+      'La fila ya no existe o cambió desde que se leyó (el cambio no afectó a ninguna fila). No se aplicó nada: vuelva a cargar la tabla.',
     tocoVarias: (filas: number) =>
-      `El cambio habría tocado ${filas} filas en vez de una (la clave no identifica una sola fila). No se aplicó nada.`
+      `El cambio habría modificado ${filas} filas en vez de una (la clave no identifica una sola fila). No se aplicó nada.`
   },
   {
     filaNuevaChoca:
@@ -89,7 +89,7 @@ export const txEnvio = crearTextos(
 export const txValorCelda = crearTextos(
   {
     sinPk: 'La tabla no tiene clave primaria: no hay forma fiable de volver a encontrar la fila.',
-    claveNoCuadra: 'La clave de la fila no cuadra con la clave primaria de la tabla: vuelve a abrirla.',
+    claveNoCuadra: 'La clave de la fila no coincide con la clave primaria de la tabla: vuelva a abrir la tabla.',
     faltaObjeto: 'Falta el objeto o la columna.',
     claveNula: 'La clave de la fila tiene un valor nulo.',
     claveBinaria: 'La clave binaria no llegó como hexadecimal.'
@@ -110,10 +110,10 @@ export const txSqlRejilla = crearTextos(
     sinBases: (etiqueta: string) => `${etiqueta} no tiene bases dentro de una conexión: el objeto no puede llevar base.`,
     faltaEsquema: 'Falta el esquema del objeto.',
     faltaEsquemaONombre: 'Falta el esquema o el nombre del objeto.',
-    noEsEsquema: (publico: string) => `${publico} no es un esquema: hay que resolver el sinónimo antes de consultarlo.`,
-    bindsNoCasan: 'Los parámetros del filtro de este motor no casan con su forma de paginado.',
+    noEsEsquema: (publico: string) => `${publico} no es un esquema: el sinónimo debe resolverse antes de consultarlo.`,
+    bindsNoCasan: 'Los parámetros del filtro de este motor no coinciden con su forma de paginado.',
     remotoSinRowid: 'Un objeto remoto (@dblink) no se lee con su ROWID.',
-    formaNoVale: (forma: string, d: string) => `La forma de paginado «${forma}» no vale para ${d}.`,
+    formaNoVale: (forma: string, d: string) => `La forma de paginado «${forma}» no es válida para ${d}.`,
     sinClave: 'Sin clave ni ORDER BY, esta tabla no se puede paginar.',
     aliasRowid: 'Alias de rowid no válido.',
     claveSinColumnas: 'La clave del paginado no tiene columnas.',
@@ -125,10 +125,10 @@ export const txSqlRejilla = crearTextos(
     cadenaDolarSinCerrar: (delim: string, et: string) => `Cadena con ${delim} sin cerrar en ${et}.`,
     cadenaSinCerrar: (et: string) => `Cadena sin cerrar en ${et}.`,
     textoSinCerrar: (et: string) => `Texto sin cerrar en ${et}.`,
-    sinPuntoYComa: (et: string) => `${et} no admite «;»: aquí va una sola expresión.`,
-    sobraParen: (et: string) => `Sobra un «)» en ${et}: no tiene su «(».`,
+    sinPuntoYComa: (et: string) => `${et} no admite «;»: solo admite una expresión.`,
+    sobraParen: (et: string) => `Sobra un «)» en ${et}: no tiene su «(» correspondiente.`,
     faltaCerrarParen: (et: string) => `Falta cerrar un «(» en ${et}.`,
-    sinVariables: (et: string, valor: string) => `${et} no admite variables de enlace (${valor}): escribe el valor.`,
+    sinVariables: (et: string, valor: string) => `${et} no admite variables de enlace (${valor}): escriba el valor.`,
     sinPsql: (et: string) => `${et} no admite comandos de psql.`,
     sinForUpdate: 'ORDER BY no admite FOR UPDATE ni FOR SHARE: la rejilla solo lee.',
     whereConGuiado: 'El filtro guiado y el WHERE libre no van juntos: se aplica uno u otro.',
@@ -168,10 +168,10 @@ export const txSqlRejilla = crearTextos(
 
 export const txFiltro = crearTextos(
   {
-    operadorNoVale: 'Ese operador no vale para esta columna.',
+    operadorNoVale: 'Ese operador no es válido para esta columna.',
     noEsFecha: 'No es una fecha (AAAA-MM-DD, con hora opcional HH:MM[:SS]).',
-    escribeBool: 'Escribe true o false.',
-    noEsNumero: 'No es un número (usa punto decimal: 12.5).',
+    escribeBool: 'Escriba true o false.',
+    noEsNumero: 'No es un número (use punto decimal: 12.5).',
     cifrasMax: (n: number) => `Este motor compara números de hasta ${n} cifras.`,
     cifrasEscalaMax: (n: number, escala: number) =>
       `Este motor compara números de hasta ${n} cifras, ${escala} de ellas decimales.`
@@ -192,21 +192,21 @@ export const txBinds = crearTextos(
     formaInesperada: 'Los parámetros no tienen la forma esperada.',
     demasiados: (max: number) => `Demasiados parámetros (más de ${max}).`,
     nombreNoValido: 'Un parámetro tiene un nombre no válido.',
-    valorTexto: (k: string) => `El valor de «${k}» tiene que ser texto o NULL.`,
+    valorTexto: (k: string) => `El valor de «${k}» debe ser texto o NULL.`,
     muyGrandes: 'Los valores de los parámetros son demasiado grandes.',
     falta: (p: string) => `Falta el valor del parámetro ${p}.`,
     faltan: (ps: string) => `Faltan los valores de los parámetros ${ps}.`,
     posicionMax: (motor: string, max: number, texto: string | null) =>
-      `${motor} admite como mucho $${max}: ${texto ?? 'el parámetro'} no puede enviarse.`,
+      `${motor} admite hasta $${max}: ${texto ?? 'el parámetro'} no puede enviarse.`,
     faltaTexto: 'Falta el texto de la sentencia para enlazar sus parámetros.',
-    indiceMax: (max: number) => `Como mucho ?${max}: la sentencia usa un número de parámetro más alto.`,
+    indiceMax: (max: number) => `El máximo es ?${max}: la sentencia usa un número de parámetro superior.`,
     choque: (motor: string, numero: string, nombre: string) =>
-      `En ${motor}, ${numero} y ${nombre} son el mismo parámetro: se usó el valor de ${nombre} y el de ${numero} no.`,
+      `En ${motor}, ${numero} y ${nombre} son el mismo parámetro: se usó el valor de ${nombre} y se ignoró el de ${numero}.`,
     pareja: (numero: string, nombre: string) => `${numero} y ${nombre}`,
     choques: (motor: string, parejas: string) =>
-      `En ${motor}, cada pareja es el mismo parámetro (${parejas}): se usaron los valores de los nombres y los de los números no.`,
+      `En ${motor}, cada pareja es el mismo parámetro (${parejas}): se usaron los valores de los nombres y se ignoraron los de los números.`,
     esquemaPerdido: (esquema: string, actual: string | null) =>
-      `El esquema ${esquema} de esta consola ya no existe: vuelve al de la conexión${actual ? ` (${actual})` : ''}.`
+      `El esquema ${esquema} de esta consola ya no existe: se usa el esquema de la conexión${actual ? ` (${actual})` : ''}.`
   },
   {
     formaInesperada: 'The parameters do not have the expected format.',
@@ -239,8 +239,8 @@ export const txPlanMysql = crearTextos(
       grouping_operation: 'Agrupación',
       duplicates_removal: 'Quitar duplicados',
       union_result: 'Unión',
-      windowing: 'Ventanas',
-      read_sorted_file: 'Leer ordenado',
+      windowing: 'Funciones de ventana',
+      read_sorted_file: 'Lectura ordenada',
       filesort: 'Ordenación en archivo',
       temporary_table: 'Tabla temporal',
       materialized_from_subquery: 'Subconsulta materializada'
@@ -260,7 +260,7 @@ export const txPlanMysql = crearTextos(
       index_subquery: 'subconsulta por índice'
     } as Record<string, string>,
     clave: (v: string) => `clave: ${v}`,
-    posibles: (v: string) => `posibles: ${v}`,
+    posibles: (v: string) => `claves posibles: ${v}`,
     ref: (v: string) => `ref: ${v}`,
     condicion: (v: string) => `condición: ${v}`,
     soloIndice: 'solo el índice',

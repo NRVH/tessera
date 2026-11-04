@@ -137,7 +137,7 @@ const CON_TOKEN = ['exec', '-e', 'TESSERA_DB_SESSION=tok-test', CONTENEDOR, 'tdb
 {
   const t0 = Date.now()
   const r = await ejecutar(['exec', CONTENEDOR, 'tdb', 'ls'])
-  ok('sin token, falla con un mensaje accionable', r.err.includes('Recarga la terminal'), r.err)
+  ok('sin token, falla con un mensaje accionable', r.err.includes('Reinicie la terminal'), r.err)
   ok('y falla rápido, no al timeout', Date.now() - t0 < 8000, `${Date.now() - t0} ms`)
 }
 {
@@ -148,7 +148,7 @@ const CON_TOKEN = ['exec', '-e', 'TESSERA_DB_SESSION=tok-test', CONTENEDOR, 'tdb
   docker(['exec', '-u', 'root', CONTENEDOR, 'sh', '-c', 'touch -d "2020-01-01" /agent-config/dbbridge/.alive'])
   const t0 = Date.now()
   const r = await ejecutar([...CON_TOKEN, 'ls'])
-  ok('con el puente caído avisa en vez de colgarse', r.err.includes('no da señales'), r.err)
+  ok('con el puente caído avisa en vez de colgarse', r.err.includes('está montado, pero Tessera no responde'), r.err)
   ok('y en segundos, no en minutos', Date.now() - t0 < 8000, `${Date.now() - t0} ms`)
 }
 

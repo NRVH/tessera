@@ -10,7 +10,7 @@ export const txAcademy = crearTextos(
   {
     nombre: 'Tessera Academy',
     presentacion:
-      'Cómo funciona Tessera, por temas. Los botones ⓘ de los diálogos abren la parte que los explica.',
+      'Cómo funciona Tessera, por temas. El botón ⓘ de un diálogo abre la sección que explica ese diálogo.',
     indice: 'Índice de Tessera Academy',
     enEsteArticulo: 'En este artículo',
     anteriorEtiqueta: 'Anterior',

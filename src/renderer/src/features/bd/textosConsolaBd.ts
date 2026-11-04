@@ -10,14 +10,14 @@ import { crearTextos } from '../../../../shared/i18n.ts'
 export const txConsolaBd = crearTextos(
   {
     // --- barra ---
-    roAgentes: 'RO agentes',
+    roAgentes: 'Solo lectura (agentes)',
     soloLectura: 'Solo lectura',
     consolaCargando: 'La consola todavía se está cargando',
     ejecucionEnCurso: 'Ya hay una ejecución en curso',
     // --- salida ---
     sinSalida: 'Sin salida',
     pistaSalida: (ejecutar: string, todo: string, explicar: string) =>
-      `${ejecutar} ejecuta la sentencia del cursor; ${todo}, todas; ${explicar}, su plan sin ejecutarla.`,
+      `${ejecutar} ejecuta la sentencia donde está el cursor; ${todo} ejecuta todas las sentencias; ${explicar} muestra el plan de ejecución sin ejecutar la sentencia.`,
     salidaAria: 'Salida de la consola',
     // --- transacción pendiente ---
     txSinConfirmar: 'Transacción sin confirmar',
@@ -60,7 +60,7 @@ export const txConsolaBd = crearTextos(
     historialDe: (varias: string, alias: string) => `Historial de ${varias} de ${alias}`,
     consultasEjecutadas: 'Consultas ejecutadas',
     suprimir: 'Supr',
-    pieHistorial: (tecla: string) => `Enter inserta en el cursor · ${tecla} borra (con el filtro vacío) · Esc cierra`,
+    pieHistorial: (tecla: string) => `Intro inserta la consulta en el cursor · ${tecla} la borra del historial (con el filtro vacío) · Esc cierra`,
     // --- plan ---
     paso: 'paso',
     pasos: 'pasos',
@@ -69,8 +69,8 @@ export const txConsolaBd = crearTextos(
     desplegarTodo: 'Desplegar todo',
     plegarTodo: 'Plegar todo',
     verPlanComoTexto: 'Ver el plan como texto',
-    vistaTexto: 'Vista de texto. Pulsa para el árbol',
-    vistaArbol: 'Vista de árbol. Pulsa para el texto',
+    vistaTexto: 'Vista de texto. Haga clic para cambiar a la vista de árbol',
+    vistaArbol: 'Vista de árbol. Haga clic para cambiar a la vista de texto',
     copiarPlan: 'Copiar el plan',
     copiarPlanTexto: 'Copiar el plan en texto',
     copiarArbolVisible: 'Copiar el árbol visible (columnas separadas por tabuladores)',

@@ -140,12 +140,12 @@ test.describe('Git · Cambios con varios repos', () => {
     const panel = s.win.locator('.git-panel')
     const filas = panel.locator('.git-arbol-fila')
     await expect(filas, 'de entrada, abiertos los dos repos con cambios').toHaveCount(3)
-    await panel.getByRole('button', { name: 'Plegar todos los repositorios' }).click()
+    await panel.getByRole('button', { name: 'Contraer todos los repositorios' }).click()
     await expect(filas, 'plegados, no se ve ningún archivo').toHaveCount(0)
     await expect(panel.locator('.repo-header'), 'las cabeceras siguen').toHaveCount(2)
-    await panel.getByRole('button', { name: 'Desplegar los repositorios con cambios' }).click()
+    await panel.getByRole('button', { name: 'Expandir los repositorios con cambios' }).click()
     await expect(filas, 'desplegados otra vez').toHaveCount(3)
-    await expect(panel.getByRole('button', { name: 'Plegar todos los repositorios' })).toBeVisible()
+    await expect(panel.getByRole('button', { name: 'Contraer todos los repositorios' })).toBeVisible()
   })
 
   test('un repo cerrado a mano sigue cerrado al volver de otro perfil', async () => {

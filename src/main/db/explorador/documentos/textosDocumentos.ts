@@ -9,16 +9,16 @@ import { crearTextos } from '../../../../shared/i18n.ts'
 export const txDocumentos = crearTextos(
   {
     errorInterno: 'Error interno del explorador de bases de datos.',
-    campoNulo: 'El nombre del campo lleva un carácter nulo.',
+    campoNulo: 'El nombre del campo contiene un carácter nulo.',
     rutaNoValida: (nombre: string) =>
       `«${nombre}» no es una ruta de campo válida (un punto al principio, al final o dos seguidos).`,
     campoDolar: (nombre: string) => `El campo «${nombre}» empieza por $: el servidor lo leería como un operador.`,
-    operadorNoVale: 'Ese operador no vale para esta columna.',
+    operadorNoVale: 'Ese operador no es válido para esta columna.',
     numeroLargo: (max: number) =>
-      `El número pasa de ${max} cifras significativas: el servidor no lo guarda exacto.`,
+      `El número supera las ${max} cifras significativas: el servidor no lo guarda con exactitud.`,
     ordenNumerico: (campos: string) =>
-      `Un campo de nombre numérico (${campos}) solo puede ordenar el primero (y, si hay varios, de menor a mayor): ` +
-      'Tessera todavía no sabe ponerlo detrás de otro.',
+      `Un campo de nombre numérico (${campos}) solo puede ser el primer criterio de orden (y, si hay varios, de menor a mayor): ` +
+      'Tessera todavía no puede ordenar por él después de otro campo.',
     camposOmitidos: (n: number) =>
       `${n} ${n === 1 ? 'documento tenía' : 'documentos tenían'} campos que no están en las columnas del CSV (las de los primeros documentos): esos campos no se escribieron.`
   },

@@ -1,12 +1,12 @@
 // =============================================================================
 // Prueba del selector de cuenta del agente (npm run test:selector-cuenta): la cuenta del sistema
 // cuando el agente puede correr nativo, las de Docker con la actual marcada (una sola), la actual
-// aunque la lista vaya por detrás, y qué acciones admite cada una.
+// aunque la lista vaya por detrás, qué acciones admite cada una y a cuáles se puede continuar.
 // Decisiones: docs/decisiones/agentes/cuentas-por-perfil-y-agente.md
 // =============================================================================
 
 import type { AgentAccount } from '../../../../shared/agent-accounts-ipc.ts'
-import { nombreVisible, vistaSelectorCuenta, type VistaSelectorCuenta } from './selectorCuenta.ts'
+import { nombreVisible, otrasCuentas, vistaSelectorCuenta, type VistaSelectorCuenta } from './selectorCuenta.ts'
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -62,6 +62,17 @@ check('sin ofrecerla (manuales, terminal), no sale', vistaSelectorCuenta([pre, t
 hr('(4) nombre visible')
 check('la predeterminada se enseña con el texto de la interfaz, no con el guardado', nombreVisible(pre, 'Default') === 'Default', nombreVisible(pre, 'Default'))
 check('las creadas, con el nombre que les puso el usuario', nombreVisible(tr, 'Default') === 'Trabajo', 'ok')
+
+hr('(5) a qué cuentas se puede continuar')
+const nombres = (o: ReturnType<typeof otrasCuentas>): string => [...(o.nativa ? ['nativa'] : []), ...o.docker.map((c) => c.nombre)].join(' | ')
+const desdeDocker = nombres(otrasCuentas([pre, tr, pe], tr.id, false))
+check('en Docker: la del sistema y las demás de Docker, sin la de ahora', desdeDocker === 'nativa | Predeterminada | Personal', desdeDocker)
+const desdeNativo = nombres(otrasCuentas([pre, tr], null, true))
+check('en nativo: las de Docker, sin la del sistema', desdeNativo === 'Predeterminada | Trabajo', desdeNativo)
+const recordada = nombres(otrasCuentas([pre, tr], tr.id, true))
+check('NEGATIVO: en nativo, la de Docker que el pane recuerda sigue siendo un destino', recordada === 'Predeterminada | Trabajo', recordada)
+const otroAgente = nombres(otrasCuentas([pre, tr], null, false))
+check('de otro agente: todas, con la del sistema', otroAgente === 'nativa | Predeterminada | Trabajo', otroAgente)
 
 hr('RESULTADO (PASS/FAIL)')
 const passed = results.filter((r) => r.pass).length

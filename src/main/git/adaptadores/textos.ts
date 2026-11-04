@@ -16,13 +16,13 @@ export const txConfirmaciones = crearTextos(
     unoBorrarPregunta: (nombre: string) => `¿Descartar "${nombre}"?`,
     variosPregunta: (n: number) => `¿Descartar los cambios de ${n} archivos?`,
     unoDetalle:
-      'Vuelve a su versión del último commit: sus cambios sin commitear se pierden, y no se puede deshacer.',
+      'El archivo vuelve a su versión del último commit: sus cambios sin confirmar se pierden y no se pueden recuperar.',
     unoBorrarDetalle:
-      'Este archivo no tiene una versión en git a la que volver: descartar sus cambios lo elimina del disco, y no se puede deshacer.',
+      'Este archivo no tiene una versión en Git a la que volver: descartar sus cambios lo elimina del disco y no se puede deshacer.',
     resto: (n: number) => `\n…y ${n} más`,
     revierten: (lista: string) =>
-      `Vuelven a su versión del último commit y sus cambios sin commitear se pierden:\n${lista}`,
-    borran: (lista: string) => `No tienen una versión en git a la que volver y se eliminarán del disco:\n${lista}`,
+      `Estos archivos vuelven a su versión del último commit y sus cambios sin confirmar se pierden:\n${lista}`,
+    borran: (lista: string) => `Estos archivos no tienen una versión en Git a la que volver y se eliminarán del disco:\n${lista}`,
     sinDeshacer: 'No se puede deshacer.'
   },
   {

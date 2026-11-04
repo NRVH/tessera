@@ -159,7 +159,7 @@ export const CATEGORIAS = [
     titulo: 'Contenedores Docker',
     grupos: [
       {
-        titulo: 'Contenedores a la vez',
+        titulo: 'Contenedores simultáneos',
         ajustes: [
           {
             id: 'limite-contenedores',
@@ -173,7 +173,7 @@ export const CATEGORIAS = [
         ajustes: [
           {
             id: 'limite-politica',
-            etiqueta: 'Qué parar primero',
+            etiqueta: 'Qué contenedor detener primero',
             claves: ['parar', 'detener', 'hibernar', 'último', 'primero', 'inactivos', 'trabajando', 'proteger', 'docker', 'contenedores', 'límite', 'agentes']
           }
         ]
@@ -193,18 +193,18 @@ export const CATEGORIAS = [
           },
           {
             id: 'saturacion-aviso',
-            etiqueta: 'Avisar antes de parar',
+            etiqueta: 'Avisar antes de detener',
             claves: ['aviso', 'avisar', 'antes', 'parar', 'elegir', 'otro', 'saturación', 'docker', 'hibernar']
           }
         ]
       },
       {
-        titulo: 'Últimas paradas',
+        titulo: 'Últimos contenedores detenidos',
         ajustes: [
           {
             id: 'paradas-registro',
-            etiqueta: 'Historial de paradas',
-            claves: ['paradas', 'historial', 'últimas', 'hibernado', 'parado', 'docker', 'contenedores', 'límite', 'saturación']
+            etiqueta: 'Historial de contenedores detenidos',
+            claves: ['paradas', 'detenidos', 'historial', 'últimas', 'últimos', 'hibernado', 'parado', 'docker', 'contenedores', 'límite', 'saturación']
           }
         ]
       }

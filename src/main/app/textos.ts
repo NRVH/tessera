@@ -27,10 +27,10 @@ export const txApp = crearTextos(
     cierre: {
       dockerNoResponde: 'Docker no responde: sus contenedores se limpiarán al volver a abrir Tessera',
       cerrando: 'Cerrando Tessera…',
-      volveraAbrirse: 'Tessera volverá a abrirse sola al terminar.',
-      seCerrara: 'Tessera se cerrará; la nueva versión estará lista la próxima vez que la abras.',
-      seCerraraConAviso: 'Tessera se cerrará y te avisará de cómo acaba la actualización.',
-      ventanaActualizacion: 'Una ventana te enseñará cómo va la actualización y te dejará abrir Tessera al terminar.',
+      volveraAbrirse: 'Tessera se abrirá de nuevo automáticamente al terminar.',
+      seCerrara: 'Tessera se cerrará; la nueva versión estará lista la próxima vez que se abra.',
+      seCerraraConAviso: 'Tessera se cerrará y avisará de cómo termina la actualización.',
+      ventanaActualizacion: 'Una ventana mostrará el avance de la actualización y permitirá abrir Tessera al terminar.',
       preparando: 'Preparando la actualización…',
       esperandoDocker: 'Esperando a que Docker termine…',
       cancelado: 'Cierre cancelado.',
@@ -38,7 +38,7 @@ export const txApp = crearTextos(
     },
     ventanaAgente: {
       nueva: 'Nueva ventana de agente',
-      nuevaDescripcion: 'Abre un agente en tu carpeta de usuario, sin proyecto',
+      nuevaDescripcion: 'Abre un agente en su carpeta de usuario, sin proyecto',
       abrir: 'Abrir Tessera',
       abrirDescripcion: 'Abre la ventana principal de Tessera',
       titulo: 'Agente'

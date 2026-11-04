@@ -7,71 +7,71 @@ import { crearTextos } from '../../shared/i18n.ts'
 
 export const txUpdate = crearTextos(
   {
-    instaladorNoArranco: 'El instalador no llegó a arrancar.',
+    instaladorNoArranco: 'El instalador no llegó a iniciarse.',
     noSePudoAplicar: (motivo: string) => `La actualización no se pudo aplicar: ${motivo}.`,
     rutasLargas: (n: number) => `Rutas demasiado largas en la carpeta de instalación (${n}):\n`,
     errores: {
       instaladorNoPudoArrancar:
-        'La actualización se descargó, pero el instalador no pudo arrancar. ' +
-        'Puedes abrirlo a mano desde el botón de abajo.',
+        'La actualización se descargó, pero el instalador no pudo iniciarse. ' +
+        'Puede abrirlo manualmente desde el botón de abajo.',
       rutaLarga:
         'No se puede actualizar: hay archivos con rutas demasiado largas en la carpeta de ' +
-        'instalación y el desinstalador no podría moverlos. Bórralos (el detalle los lista) ' +
-        'o reinstala Tessera a mano; tus datos no se tocan.',
+        'instalación y el desinstalador no podría moverlos. Elimínelos (el detalle los enumera) ' +
+        'o reinstale Tessera manualmente; sus datos no se modifican.',
       danada:
         'La actualización se descargó dañada y se descartó por seguridad. ' +
-        'Se volverá a intentar sola; si insiste, vuelve a publicar el instalador.',
+        'Se volverá a intentar automáticamente; si el problema persiste, hay que volver a publicar el instalador.',
       sinVersion: (servidor: string) => `El servidor de actualizaciones (${servidor}) no tiene ninguna versión publicada.`,
       permisosMac: (sistema: string) =>
-        `${sistema} bloqueó la actualización por permisos. Suele pasar cuando ` +
-        'Tessera corre desde el .dmg o desde una carpeta donde tu usuario no puede ' +
-        'escribir: arrástrala a Aplicaciones y vuelve a abrirla.',
+        `${sistema} bloqueó la actualización por falta de permisos. Suele ocurrir cuando ` +
+        'Tessera se ejecuta desde el .dmg o desde una carpeta en la que el usuario no puede ' +
+        'escribir: arrastre Tessera a Aplicaciones y ábrala de nuevo.',
       permisosOtra: (sistema: string) =>
-        `${sistema} bloqueó la actualización por permisos. Cierra Tessera y ejecútala ` +
-        'de nuevo; si vuelve a pasar, instala la versión nueva a mano.',
-      sinEspacio: 'No hay espacio en disco para descargar la actualización.',
+        `${sistema} bloqueó la actualización por falta de permisos. Cierre Tessera y ábrala ` +
+        'de nuevo; si el problema persiste, instale la versión nueva manualmente.',
+      sinEspacio: 'No hay espacio en disco suficiente para descargar la actualización.',
       redSuspendida:
-        'La comprobación se hizo justo al salir de suspensión, con la red aún apagada. ' +
-        'Se reintenta sola en cuanto vuelva la conexión.',
-      sinRed: (servidor: string) => `No se pudo contactar el servidor de actualizaciones (${servidor}). Comprueba tu conexión.`,
+        'La comprobación se hizo justo al salir de la suspensión, con la red aún desactivada. ' +
+        'Se reintentará automáticamente en cuanto se restablezca la conexión.',
+      sinRed: (servidor: string) => `No se pudo contactar con el servidor de actualizaciones (${servidor}). Compruebe su conexión.`,
       desconocido: (crudo: string) => `No se pudo actualizar: ${crudo}`
     },
     motivos: {
       instaladorAusente: 'el instalador descargado ya no está en disco',
-      sinRevalidar: 'la actualización venía del marcador y aún no se ha revalidado contra el feed',
-      feedNoConfirma: 'el feed no confirmó la descarga cacheada (servidor caído o versión retirada)',
+      sinRevalidar: 'la actualización quedó registrada en el inicio anterior y aún no se ha revalidado con el canal de actualizaciones',
+      feedNoConfirma: 'el canal de actualizaciones no confirmó la descarga almacenada (servidor no disponible o versión retirada)',
       sinRutaPaquete: 'no consta la ruta del paquete descargado',
       sinPermiso: (carpeta: string) =>
-        `no hay permiso para escribir en ${carpeta}, así que no se puede sustituir la aplicación`
+        `no hay permiso para escribir en ${carpeta}, por lo que no se puede sustituir la aplicación`
     },
     pasos: {
       comprobandoInstalador: 'Comprobando el instalador descargado…',
       liberando: 'Liberando la carpeta de instalación…',
-      carpetaOcupada: 'La carpeta sigue ocupada; se intenta igual…',
+      carpetaOcupada: 'La carpeta sigue en uso; se intentará de todos modos…',
       revisando: 'Revisando la carpeta de la aplicación…',
-      entregandoVentana: 'Entregando a la ventana de actualización…',
+      entregandoVentana: 'Transfiriendo el control a la ventana de actualización…',
       aplicando: 'Aplicando la actualización…',
-      comprobandoDonde: 'Comprobando dónde vive la aplicación…',
-      entregando: 'Entregando a la actualización…'
+      comprobandoDonde: 'Comprobando la ubicación de la aplicación…',
+      entregando: 'Transfiriendo el control a la actualización…'
     },
     avisosMac: {
       titulo: 'Tessera',
-      inicio: (v: string) => `Actualizando a la versión ${v}… Espera a que termine para abrir Tessera.`,
-      ok: (v: string) => `Tessera ${v} está instalada. Ya puedes abrirla.`,
-      okReabre: (v: string) => `Tessera ${v} está instalada y vuelve a abrirse.`,
-      fallo: 'No se pudo actualizar Tessera; sigue la versión anterior. Ábrela para ver el motivo.',
+      inicio: (v: string) => `Actualizando a la versión ${v}… Espere a que termine para abrir Tessera.`,
+      ok: (v: string) => `Tessera ${v} está instalada. Ya puede abrirla.`,
+      okReabre: (v: string) => `Tessera ${v} está instalada y se vuelve a abrir.`,
+      fallo: 'No se pudo actualizar Tessera; se mantiene la versión anterior. Ábrala para ver el motivo.',
       sinVuelta: (ruta: string) =>
-        `No se pudo actualizar Tessera ni devolver la versión anterior. Está guardada en ${ruta}.`
+        `No se pudo actualizar Tessera ni restaurar la versión anterior. La versión anterior está guardada en ${ruta}.`
     },
     descarga: {
       noSeLeyo: (err: string) => `no se pudo leer la descarga para verificarla: ${err}`,
       noCoincide: (esperado: string, obtenido: string) =>
-        'la actualización descargada no coincide con la que el servidor anuncia ' +
+        'la actualización descargada no coincide con la que anuncia el servidor ' +
         `(sha512 esperado ${esperado}…, obtenido ${obtenido}…); ` +
-        'se ha descartado el archivo.',
+        'se descartó el archivo.',
       sinRespuesta: (s: number, bytes: number) =>
-        `la descarga se quedó sin respuesta durante ${s} s ` +
-        `(${bytes} bytes recibidos); se ha descartado lo bajado.`,
+        `la descarga dejó de responder durante ${s} s ` +
+        `(${bytes} bytes recibidos); se descartó lo descargado.`,
       servidorRespondio: (codigo: number) => `el servidor respondió ${codigo} al pedir la actualización`,
       interrumpida: 'la descarga se interrumpió antes de terminar',
       incompleta: (real: number, bytes: number) => `la descarga se escribió incompleta (${real} de ${bytes} bytes)`

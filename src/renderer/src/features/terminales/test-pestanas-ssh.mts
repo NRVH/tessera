@@ -287,10 +287,10 @@ hr('(11) Qué se dice al terminar una sesión SSH')
   const m = (codigo: number | null, ms: number, r?: TerminalExitReason): string => motivoFinSsh(codigo, ms, r)
   check('255 en menos de 20 s sin motivo: «No se pudo conectar»', m(255, 400) === 'No se pudo conectar', m(255, 400))
   check('con el motivo de autenticación', m(255, 400, 'ssh-autenticacion') === 'No se pudo conectar: el servidor no aceptó las credenciales', m(255, 400, 'ssh-autenticacion'))
-  check('con el de red inalcanzable (la VPN)', m(255, 400, 'ssh-inalcanzable') === 'No se pudo conectar: el servidor no responde: ¿falta la VPN?', m(255, 400, 'ssh-inalcanzable'))
+  check('con el de red inalcanzable (la VPN)', m(255, 400, 'ssh-inalcanzable') === 'No se pudo conectar: el servidor no responde; compruebe si requiere una conexión VPN', m(255, 400, 'ssh-inalcanzable'))
   check(
     'con el de la huella cambiada, que dice dónde olvidarla',
-    m(255, 400, 'ssh-huella-cambiada').startsWith('No se pudo conectar: la huella del servidor no es la guardada:') && m(255, 400, 'ssh-huella-cambiada').includes('«Olvidar la huella guardada…»'),
+    m(255, 400, 'ssh-huella-cambiada').startsWith('No se pudo conectar: la huella del servidor no coincide con la guardada:') && m(255, 400, 'ssh-huella-cambiada').includes('«Olvidar la huella guardada…»'),
     m(255, 400, 'ssh-huella-cambiada')
   )
   check('con el de algoritmos antiguos', m(255, 400, 'ssh-algoritmos') === 'No se pudo conectar: el servidor solo ofrece algoritmos antiguos', m(255, 400, 'ssh-algoritmos'))
@@ -312,14 +312,14 @@ hr('(11) Qué se dice al terminar una sesión SSH')
     'Windows: el corte real llega con -1 Y el motivo del main: «Se cortó la conexión» (y rápido, «No se pudo conectar: …»)',
     w(-1, 60_000, 'ssh-inalcanzable') === 'Se cortó la conexión' &&
       w(4294967295, 60_000, 'ssh-inalcanzable') === 'Se cortó la conexión' &&
-      w(-1, 400, 'ssh-inalcanzable') === 'No se pudo conectar: el servidor no responde: ¿falta la VPN?',
+      w(-1, 400, 'ssh-inalcanzable') === 'No se pudo conectar: el servidor no responde; compruebe si requiere una conexión VPN',
     `${w(-1, 60_000, 'ssh-inalcanzable')} · ${w(-1, 400, 'ssh-inalcanzable')}`
   )
   check('Windows: el 255 sin motivo sigue siendo fallo de ssh', w(255, 400) === 'No se pudo conectar' && w(255, 60_000) === 'Se cortó la conexión', `${w(255, 400)} · ${w(255, 60_000)}`)
   check('MITAD NEGATIVA: en mac, -1 y 4294967295 no son fallo de ssh', x(-1, 400) === 'La sesión terminó (código -1)' && x(4294967295, 400) === 'La sesión terminó (código 4294967295)', x(-1, 400))
   check('MITAD NEGATIVA: sin plataforma tampoco', m(-1, 400) === 'La sesión terminó (código -1)', m(-1, 400))
-  check('el banner dice que Intro vuelve a conectar', bannerFinSsh('La sesión terminó') === 'La sesión terminó. Pulsa Intro para volver a conectar.', bannerFinSsh('La sesión terminó'))
-  check('y no duplica la puntuación: «…¿falta la VPN?» ya cierra', bannerFinSsh('No se pudo conectar: el servidor no responde: ¿falta la VPN?') === 'No se pudo conectar: el servidor no responde: ¿falta la VPN? Pulsa Intro para volver a conectar.', 'una sola puntuación')
+  check('el banner dice que Intro vuelve a conectar', bannerFinSsh('La sesión terminó') === 'La sesión terminó. Pulse Intro para volver a conectar.', bannerFinSsh('La sesión terminó'))
+  check('y no duplica la puntuación: «…VPN?» ya cierra', bannerFinSsh('No se pudo conectar: ¿requiere una VPN?') === 'No se pudo conectar: ¿requiere una VPN? Pulse Intro para volver a conectar.', 'una sola puntuación')
 }
 
 hr('(12) El «Conectando a…» se retira con el primer TEXTO, no con las secuencias con que se abre el pty')

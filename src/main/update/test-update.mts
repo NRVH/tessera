@@ -107,7 +107,7 @@ for (const code of ['ECONNREFUSED', 'ENOTFOUND', 'ETIMEDOUT', 'EAI_AGAIN', 'EHOS
   const mac = describeUpdateError(errWithCode('open failed', 'EACCES'), FEED, 'mac').message
   check(
     '(permisos) EACCES en Windows -> permisos, y manda a cerrar y reabrir',
-    /permisos/i.test(win) && win.startsWith('Windows') && /cierra tessera/i.test(win),
+    /permisos/i.test(win) && win.startsWith('Windows') && /cierre tessera/i.test(win),
     JSON.stringify(win)
   )
   check(
@@ -133,7 +133,7 @@ for (const code of ['ECONNREFUSED', 'ENOTFOUND', 'ETIMEDOUT', 'EAI_AGAIN', 'EHOS
   const { message } = describeUpdateError(installerNotStartedError(), FEED)
   check(
     '(watchdog) el instalador no arrancó -> ofrece abrirlo a mano',
-    /a mano/i.test(message),
+    /manualmente/i.test(message),
     JSON.stringify(message)
   )
 }
@@ -145,7 +145,7 @@ for (const code of ['ECONNREFUSED', 'ENOTFOUND', 'ETIMEDOUT', 'EAI_AGAIN', 'EHOS
   const { message } = describeUpdateError(updateNotApplicableError(motivo), FEED)
   check(
     '(pre-vuelo) no aplicable -> dice el motivo REAL y no ofrece abrirlo a mano',
-    message.includes(motivo) && !/a mano/i.test(message),
+    message.includes(motivo) && !/manualmente/i.test(message),
     JSON.stringify(message)
   )
 }
@@ -157,7 +157,7 @@ for (const code of ['ECONNREFUSED', 'ENOTFOUND', 'ETIMEDOUT', 'EAI_AGAIN', 'EHOS
   const { message } = describeUpdateError(err, FEED)
   check(
     '(watchdog) el código propio tiene precedencia sobre el sniffing de texto',
-    /a mano/i.test(message) && !MENSAJE_DE_RED.test(message),
+    /manualmente/i.test(message) && !MENSAJE_DE_RED.test(message),
     JSON.stringify(message)
   )
 }

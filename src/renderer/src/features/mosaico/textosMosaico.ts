@@ -17,14 +17,14 @@ export const txMosaico = crearTextos(
     agentes: (n: number) => (n === 1 ? '1 agente' : `${n} agentes`),
     trabajando: (n: number) => ` · ${n} trabajando`,
     selectorTitulo:
-      'Elegir qué proyectos se ven (como mucho seis). Los que no están en marcha arrancan al añadirlos, y los hibernados levantan antes su contenedor.',
+      'Elegir qué proyectos se muestran (como máximo seis). Los que no están en ejecución se inician al añadirlos, y en los hibernados se inicia antes su contenedor.',
     casillasDe: (n: number, total: number) => `${n} de ${total}`,
     dormido: ' (hibernado)',
     distribucion: 'Distribución',
     presets: {
       auto: {
         nombre: 'Automático',
-        ayuda: 'Automático: reparte según cuántas haya y la forma de la ventana'
+        ayuda: 'Automático: distribuye según el número de agentes y la forma de la ventana'
       } as TextoPreset,
       cuadricula: {
         nombre: 'Cuadrícula',
@@ -37,11 +37,11 @@ export const txMosaico = crearTextos(
         ayuda: 'Principal y pila: la primera grande a la izquierda y las demás apiladas a la derecha'
       }
     },
-    avisoTitulo: (nombre: string) => `«${nombre}» no cabe en esta ventana: se usa Automático hasta que haya sitio.`,
+    avisoTitulo: (nombre: string) => `«${nombre}» no cabe en esta ventana: se usa Automático hasta que haya espacio disponible.`,
     avisoAria: (nombre: string) => `${nombre} no cabe: se usa Automático`,
     casillaAVista: 'Casilla a la vista',
     yaTieneTerminal: 'Ese proyecto ya tiene terminal',
-    yaTieneTerminalDetalle: (nombre: string) => `«${nombre}» se está viendo en otra casilla; te llevo a ella.`
+    yaTieneTerminalDetalle: (nombre: string) => `«${nombre}» ya se muestra en otra casilla; se pasa a ella.`
   },
   {
     aria: 'Agent mosaic',

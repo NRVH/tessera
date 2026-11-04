@@ -52,6 +52,22 @@ The essentials:
 - **The interface never sees or sends host paths**, and every IPC channel is declared in
   `src/shared/*-ipc.ts` and exposed through `src/preload/`.
 
+## How the code is organized
+
+```
+src/
+  main/       Electron main process: containers, agents, Git, files, databases, updates
+  preload/    the typed bridge exposed to the interface
+  renderer/   React interface, organized by feature
+  shared/     IPC contracts and pure logic used by both sides
+  tdb/        the database CLI that agents use
+  tssh/       the SSH connections CLI that agents use
+  tctx/       the rules, handoffs and history CLI that agents use
+  askpass/    the helper that gives the saved password to the OpenSSH client
+docker/       the container image
+e2e/          Playwright suite against the packaged app
+```
+
 ## Windows, macOS and Linux are all first class
 
 Tessera runs on Windows, macOS and Linux, and none is a port of another. For a pull request

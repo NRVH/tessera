@@ -99,7 +99,7 @@ function main(): void {
     const sinPk = construirConsultaValor({ ...base, pk: [], clave: [] })
     check('sin PK', esErrorValor(sinPk) && /clave primaria/.test(sinPk.error), sql(sinPk))
     const otroTam = construirConsultaValor({ ...base, pk: [{ nombre: 'A', binario: false }], clave: ['1', '2'] })
-    check('la clave no tiene el tamaño de la PK', esErrorValor(otroTam) && /no cuadra/.test(otroTam.error), sql(otroTam))
+    check('la clave no tiene el tamaño de la PK', esErrorValor(otroTam) && /no coincide con la clave primaria/.test(otroTam.error), sql(otroTam))
     const nulo = construirConsultaValor({ ...base, pk: [{ nombre: 'A', binario: false }], clave: [null] })
     check('un NULL en la clave', esErrorValor(nulo), sql(nulo))
   }

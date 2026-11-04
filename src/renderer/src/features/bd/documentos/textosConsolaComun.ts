@@ -11,7 +11,7 @@ export const txConsolaComun = crearTextos(
   {
     // --- piezas de la barra ---
     editarConexion: 'Editar conexión…',
-    roAgentes: 'RO agentes',
+    roAgentes: 'Solo lectura (agentes)',
     baseDeLaConsola: 'Base de la consola',
     baseDeLaConsolaEn: 'Base de la consola en ',
     filtrarBases: 'Filtrar bases',
@@ -21,14 +21,14 @@ export const txConsolaComun = crearTextos(
     // --- carcasa ---
     consolaAria: (nombre: string) => `Consola ${nombre}`,
     archivoCambio: 'El archivo cambió fuera de Tessera',
-    cargarDelDisco: 'Cargar la del disco',
-    conservarLaMia: 'Conservar la mía',
+    cargarDelDisco: 'Cargar la versión del disco',
+    conservarLaMia: 'Conservar mi versión',
     // --- cierre ---
     detenerYCerrarTitulo: '¿Detener y cerrar?',
-    detenerYCerrarMensaje: (nombre: string) => `${nombre} está ejecutando. Se detendrá lo que corre y se cerrará la pestaña.`,
+    detenerYCerrarMensaje: (nombre: string) => `${nombre} está ejecutando una sentencia. Se detendrá la ejecución en curso y se cerrará la pestaña.`,
     detenerYCerrar: 'Detener y cerrar',
     conflictoMensaje: (nombre: string) =>
-      `${nombre} tiene cambios sin guardar y el archivo cambió fuera de Tessera. Si la cierras, se queda la versión del disco y se pierden tus cambios.`,
+      `${nombre} tiene cambios sin guardar y el archivo cambió fuera de Tessera. Si la cierra, se conservará la versión del disco y se perderán sus cambios.`,
     cerrarSinGuardar: 'Cerrar sin guardar',
     // --- errores y estado ---
     errorDesconocido: 'Error desconocido',

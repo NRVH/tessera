@@ -906,7 +906,7 @@ async function main(): Promise<void> {
         'sobrante-b.txt'
       ]
       const res = await git.stageFiles(rutas)
-      const recortadas = res.filter((r) => !r.ok && (r.error ?? '').includes('Demasiados archivos'))
+      const recortadas = res.filter((r) => !r.ok && (r.error ?? '').includes('demasiados archivos'))
       check(
         '(15a) las 2 sobrantes se reportan como FALLO (antes se perdían)',
         recortadas.length === 2 &&

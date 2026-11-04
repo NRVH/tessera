@@ -418,7 +418,7 @@ async function main(): Promise<void> {
     )
     const o2 = falso(ORA, () => [], async () => ({ texto: 'CREATE TABLE x;', longitud: TOPE_DDL + 1, recortado: true }))
     const r2 = await CATALOGO_ORACLE.leerDdl(o2.lector, tabla)
-    check('oracle: recortado, con su aviso', r2.aviso === `El DDL pasa de ${TOPE_DDL} caracteres: se enseña recortado.`, j(r2))
+    check('oracle: recortado, con su aviso', r2.aviso === `El DDL supera los ${TOPE_DDL} caracteres: se muestra recortado.`, j(r2))
     // Vacío (o NULL): repliegue; una tabla sin columnas visibles no tiene DDL.
     for (const [nombre, bloque] of [['vacío', texto('  \n ')], ['NULL', async () => null]] as const) {
       const o = falso(ORA, () => [], bloque)

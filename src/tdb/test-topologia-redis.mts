@@ -131,7 +131,7 @@ function validar(): void {
   check('MITAD NEGATIVA: un servidor con una lista: se pide Sentinel o Cluster', /Sentinel o Cluster/.test(validarTopologiaRedis(undefined, d) ?? ''), '')
   check('Sentinel sin maestro: falta el maestro', /maestro/.test(validarTopologiaRedis({ ...sentinel, maestro: ' ' }, d) ?? ''), '')
   check('Sentinel con espacios en el maestro: no vale', /maestro/.test(validarTopologiaRedis({ ...sentinel, maestro: 'mi maestro' }, d) ?? ''), '')
-  check('Cluster con base 3: solo existe la 0', /base 0/.test(validarTopologiaRedis({ modo: 'cluster' }, { ...d, database: '3' }) ?? ''), '')
+  check('Cluster con base 3: solo existe la 0', /base de datos 0/.test(validarTopologiaRedis({ modo: 'cluster' }, { ...d, database: '3' }) ?? ''), '')
   check('Cluster con base 0 escrita: vale', validarTopologiaRedis({ modo: 'cluster' }, { ...d, database: '0' }) === null, '')
   check('con túnel SSH: Sentinel y Cluster no', /túnel SSH/.test(validarTopologiaRedis(sentinel, { ...d, tunel: true }) ?? '') && /túnel SSH/.test(validarTopologiaRedis({ modo: 'cluster' }, { ...d, tunel: true }) ?? ''), '')
   check('un servidor de la lista que no vale: su motivo', /no es un servidor válido/.test(validarTopologiaRedis({ modo: 'cluster' }, { ...d, host: 'a,b c' }) ?? ''), '')

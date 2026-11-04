@@ -27,26 +27,26 @@ export const txSql = crearTextos(
     formato: {
       inicio: 'Tessera fija este formato',
       restablece: (verbo: string, inicio: string) =>
-        `${inicio} (${verbo} también lo restablece); usa RESET con el parámetro que necesites.`,
+        `${inicio} (${verbo} también lo restablece); use RESET con el parámetro que necesite.`,
       conRemedios: (inicio: string, lista: string, remedios: string) => `${inicio} (${lista}); ${remedios}.`,
-      porDefecto: 'usa TO_CHAR para verlo con otro formato',
+      porDefecto: 'use TO_CHAR para verlo con otro formato',
       remedios: {
-        bytea_output: "usa encode(…, 'escape') para verlo de otra forma",
-        standard_conforming_strings: "usa E'…' si necesitas escapes con la barra",
-        dateformat: 'usa CONVERT o FORMAT para verlo con otro formato',
-        language: 'usa FORMAT con su cultura para verlo en otro idioma',
-        textsize: 'usa SUBSTRING para leer un valor largo por partes',
-        implicit_transactions: 'usa el modo Manual de la consola para abrir la transacción',
-        quoted_identifier: 'usa corchetes para los nombres y comillas simples para las cadenas',
-        sql_mode: 'usa acentos graves para los nombres; los demás modos se pueden pedir en la propia sentencia (CAST, IGNORE)',
-        juego: 'usa CONVERT(… USING juego) para leer un valor en otro juego de caracteres'
+        bytea_output: "use encode(…, 'escape') para verlo de otra forma",
+        standard_conforming_strings: "use E'…' si necesita secuencias de escape con barra invertida",
+        dateformat: 'use CONVERT o FORMAT para verlo con otro formato',
+        language: 'use FORMAT con su cultura para verlo en otro idioma',
+        textsize: 'use SUBSTRING para leer un valor largo por partes',
+        implicit_transactions: 'use el modo Manual de la consola para abrir la transacción',
+        quoted_identifier: 'use corchetes para los nombres y comillas simples para las cadenas',
+        sql_mode: 'use acentos graves para los nombres; los demás modos se pueden pedir en la propia sentencia (CAST, IGNORE)',
+        juego: 'use CONVERT(… USING juego) para leer un valor en otro juego de caracteres'
       } as Record<string, string>
     },
     avisos: {
       puntoYComaServidor: '¿Falta «;» al final de la línea anterior? Sin él, el servidor ejecuta las dos sentencias juntas.',
       puntoYComaJuntas: '¿Falta «;» al final de la línea anterior? Sin él, las dos sentencias se envían juntas.',
       loteRepetido:
-        'Tessera no repite lotes: «GO n» no se admite y, tal cual, el servidor lo leería como parte de la sentencia y daría un error. Deja el GO solo (o repite el lote a mano).',
+        'Tessera no repite lotes: «GO n» no se admite y el servidor lo interpretaría como parte de la sentencia y devolvería un error. Escriba GO sin número (o repita el lote manualmente).',
       faltaBarra: '¿Falta «/» tras el bloque PL/SQL? Sin ella, lo que sigue se envía dentro del bloque.',
       comentarioSinCerrar: 'Comentario sin cerrar.',
       identificadorSinCerrar: 'Identificador entre comillas sin cerrar.',
@@ -58,14 +58,14 @@ export const txSql = crearTextos(
     sintaxis: {
       fuente: (motor: string) => `gramática de ${motor}, sin ejecutar`,
       cerca: (cerca: string) => `Error de sintaxis cerca de «${cerca}».`,
-      incompleta: 'La sentencia está incompleta: se acaba antes de lo que pide la gramática.',
+      incompleta: 'La sentencia está incompleta: termina antes de lo que exige la gramática.',
       hondo: (cerca: string) => `Anidamiento demasiado profundo cerca de «${cerca}».`,
       otro: (crudo: string) => `Error de sintaxis: ${crudo}`
     },
     explicar: {
       show: 'SHOW no tiene plan de ejecución.',
-      yaExplain: 'La sentencia ya es un EXPLAIN: ejecútala tal cual para ver su salida.',
-      yaShowplan: 'La sentencia ya pide su plan con SET SHOWPLAN: ejecútala tal cual, o quita el SET para explicarla.',
+      yaExplain: 'La sentencia ya es un EXPLAIN: ejecútela sin cambios para ver su salida.',
+      yaShowplan: 'La sentencia ya pide su plan con SET SHOWPLAN: ejecútela sin cambios, o quite el SET para explicarla.',
       soloConsultas: (verbo: string) =>
         `Solo se puede explicar una consulta o un INSERT, UPDATE, DELETE o MERGE (esto es ${verbo}).`,
       otraCosa: 'otra cosa'
@@ -73,17 +73,17 @@ export const txSql = crearTextos(
     dml: {
       ningunRowid: 'Ningún motor identifica las filas por su ROWID.',
       soloRowid: (donde: string) => `ROWID solo existe en ${donde}.`,
-      claveNula: (columna: string) => `La clave de la fila tiene «${columna}» vacío (NULL): no se puede encontrar la fila.`,
+      claveNula: (columna: string) => `La columna «${columna}» de la clave de la fila está vacía (NULL): no se puede localizar la fila.`,
       noTexto: (columna: string) => `El valor leído de «${columna}» no es texto: no se puede comprobar si la fila cambió.`,
       sinValores: 'La fila nueva no tiene ningún valor.',
       noEditable: 'Esta tabla no se puede editar.',
-      claveRowid: 'La clave de la fila no cuadra con su ROWID.',
-      sinClave: 'La tabla no tiene clave con la que encontrar la fila.',
-      claveDistinta: 'La clave de la fila no cuadra con la clave de la tabla: vuelve a abrirla.',
+      claveRowid: 'La clave de la fila no coincide con su ROWID.',
+      sinClave: 'La tabla no tiene clave con la que localizar la fila.',
+      claveDistinta: 'La clave de la fila no coincide con la clave de la tabla: vuelva a abrir la tabla.',
       sinCambios: 'No hay ninguna celda cambiada en la fila.'
     },
     script: {
-      sqlcmdVariable: '-- Un nombre lleva «$(», que sqlcmd tomaría por una variable: córrelo con sqlcmd -x.\n',
+      sqlcmdVariable: '-- Un nombre contiene «$(», que sqlcmd interpretaría como una variable: ejecútelo con sqlcmd -x.\n',
       rawGrande: (bytes: number, tope: number) =>
         `-- ${bytes} bytes no caben en una variable RAW de PL/SQL (tope ${tope}): ` +
         'esta fila fallará con ORA-06502, y no hay forma de insertarla con SQL.'

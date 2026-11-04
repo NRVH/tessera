@@ -58,7 +58,7 @@ export function motivoCarpetaSinEscritura(): string {
 const txSesiones = crearTextos(
   {
     carpetaSinEscritura:
-      'La carpeta de la base no admite escritura, así que se abrió en solo lectura. Para editarla, cópiala a una carpeta donde se pueda escribir.'
+      'La carpeta de la base no admite escritura, así que se abrió en solo lectura. Para editarla, cópiela a una carpeta donde se pueda escribir.'
   },
   {
     carpetaSinEscritura:

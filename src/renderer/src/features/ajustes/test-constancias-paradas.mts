@@ -63,12 +63,12 @@ function regla(): void {
   hr('(3) regla y fecha')
   check(
     'primero y protección',
-    filaDeConstancia(base, 'es-ES').regla === 'Los últimos que abriste, protegiendo a los que trabajan',
+    filaDeConstancia(base, 'es-ES').regla === 'El último contenedor abierto, protegiendo a los que trabajan',
     filaDeConstancia(base, 'es-ES').regla
   )
   check(
     'sin protección',
-    filaDeConstancia({ ...base, primero: 'inactivos', protegerTrabajando: false }, 'es-ES').regla === 'Los que llevan más tiempo sin uso, sin proteger a los que trabajan',
+    filaDeConstancia({ ...base, primero: 'inactivos', protegerTrabajando: false }, 'es-ES').regla === 'El contenedor con más tiempo sin actividad, sin proteger a los que trabajan',
     ''
   )
   const f = filaDeConstancia(base, 'en-US').cuando

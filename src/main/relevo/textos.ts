@@ -9,7 +9,7 @@ export const txRelevoUi = crearTextos(
   {
     ventana: 'Actualizando Tessera',
     preparando: 'Preparando la actualización…',
-    noCierres: 'No cierres esta ventana.',
+    noCierres: 'No cierre esta ventana.',
     verRegistro: 'Ver registro',
     copiarRegistro: 'Copiar registro',
     abrirTessera: 'Abrir Tessera',
@@ -18,33 +18,33 @@ export const txRelevoUi = crearTextos(
     carpetaTitulo: 'Preparando la carpeta…',
     carpetaDetalle: 'Comprobando que la aplicación esté liberada.',
     instalandoTitulo: 'Instalando la actualización…',
-    instalandoDetalle: 'Esto tarda unos segundos.',
+    instalandoDetalle: 'Este proceso tarda unos segundos.',
     detenidaTitulo: 'La actualización se detuvo por seguridad',
     detenidaDetalle: (tmp: string, raiz: string) =>
-      'No se pudo dejar la carpeta de la aplicación en su sitio, así que no se ' +
-      'instaló nada para no empeorarlo.\n\n' +
+      'No se pudo dejar la carpeta de la aplicación en su ubicación original, por lo que no se ' +
+      'instaló nada para evitar un daño mayor.\n\n' +
       `La versión anterior sigue completa en:\n${tmp}\n\n` +
-      `Renómbrala a:\n${raiz}\n\n` +
+      `Renombre esa carpeta como:\n${raiz}\n\n` +
       'y Tessera volverá a funcionar como antes.',
     noCompletoTitulo: 'La actualización no se pudo completar',
     noCompletoDetalle: (err: string) => err,
     noAbrioTitulo: 'No se pudo abrir Tessera',
-    noAbrioDetalle: 'Ábrela desde el icono del escritorio o el menú de inicio.',
-    yaPuedes: 'Ya puedes abrir Tessera.',
+    noAbrioDetalle: 'Ábrala desde el icono del escritorio o desde el menú de inicio.',
+    yaPuedes: 'Ya puede abrir Tessera.',
     reintentar: 'Reintentar',
-    tipReintentar: 'Vuelve a lanzar la instalación de la versión nueva.',
+    tipReintentar: 'Vuelve a iniciar la instalación de la versión nueva.',
     anterior: 'Volver a la versión anterior',
-    tipAnterior: 'Repone la versión que tenías y la abre.',
+    tipAnterior: 'Restaura la versión anterior y la abre.',
     instalador: 'Abrir el instalador',
-    tipInstalador: 'Abre el instalador de la versión nueva con su asistente, para hacerlo paso a paso.',
+    tipInstalador: 'Abre el instalador de la versión nueva con su asistente, para realizar la instalación paso a paso.',
     restaurandoTitulo: 'Volviendo a la versión anterior…',
-    restaurandoDetalle: 'Reponiendo los archivos de la versión que tenías.',
+    restaurandoDetalle: 'Restaurando los archivos de la versión anterior.',
     noRestauroTitulo: 'No se pudo volver a la versión anterior',
     noRestauroDetalle: (copia: string, raiz: string) =>
-      `La versión anterior sigue guardada en:\n${copia}\n\nCopia su contenido a:\n${raiz}\n\n` +
-      'o reintenta la instalación.',
+      `La versión anterior sigue guardada en:\n${copia}\n\nCopie su contenido en:\n${raiz}\n\n` +
+      'o reintente la instalación.',
     noAbrioInstaladorTitulo: 'No se pudo abrir el instalador',
-    noAbrioInstaladorDetalle: (ruta: string) => `Ábrelo a mano desde:\n${ruta}`
+    noAbrioInstaladorDetalle: (ruta: string) => `Ábralo manualmente desde:\n${ruta}`
   },
   {
     ventana: 'Updating Tessera',

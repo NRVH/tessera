@@ -1251,7 +1251,7 @@ test.describe('explorador de bases de datos', () => {
     await win.keyboard.press(ACORDE_AGENTE)
     const pane = win.locator('.right-panel .agent-pane:not(.hidden)')
     const cuenta = pane.locator('.panel-actions .cuenta-btn')
-    await expect(cuenta, 'nativo por defecto, con la cuenta del sistema').toHaveAttribute('aria-label', /^Cuenta de Claude Code: la de tu equipo/, { timeout: 30_000 })
+    await expect(cuenta, 'nativo por defecto, con la cuenta del sistema').toHaveAttribute('aria-label', /^Cuenta de Claude Code: la de su equipo/, { timeout: 30_000 })
     await expect(pane.locator('.panel-actions button[aria-label^="Modo"]'), 'sin glifo de modo').toHaveCount(0)
     await expect(pane.getByText('Sin cuenta para Claude Code'), 'en nativo no pide cuenta').toHaveCount(0)
 

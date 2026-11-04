@@ -29,19 +29,19 @@ export const txDb = crearTextos(
       motorDesconocido: (motor: string) => `Motor desconocido: "${motor}".`,
       sshNoExiste: 'La conexión SSH del túnel no existe en este perfil.',
       certificadoPorTunel: (etiqueta: string) =>
-        `${etiqueta} no puede verificar su certificado a través de un túnel SSH: desmarca el cifrado (el túnel ya cifra el tramo hasta el servidor SSH) o quita el túnel.`,
+        `${etiqueta} no puede verificar su certificado a través de un túnel SSH: desmarque el cifrado (el túnel ya cifra el tramo hasta el servidor SSH) o quite el túnel.`,
       sinContrasena: (etiqueta: string) => `${etiqueta} no usa contraseña.`,
       contrasenaSentinels: 'La contraseña de los sentinels no es válida.'
     },
     opcionales: {
-      srvPorTunel: 'Una dirección SRV (mongodb+srv) no puede ir por un túnel SSH: pon el servidor y el puerto.',
+      srvPorTunel: 'Una dirección SRV (mongodb+srv) no puede ir por un túnel SSH: indique el servidor y el puerto.',
       redisPorTunel:
-        'Sentinel y Cluster no van por túnel SSH: el cliente se conecta a servidores que el túnel no lleva. Quita el túnel o elige «Un servidor».',
+        'Sentinel y Cluster no van por túnel SSH: el cliente se conecta a servidores que el túnel no lleva. Quite el túnel o elija «Un servidor».',
       variosServidoresPorTunel: 'Con túnel SSH, la conexión admite un solo servidor.',
-      replicaSetPorTunel: 'Con túnel SSH, la conexión va directa a un servidor: quita replicaSet y directConnection=false de las opciones.',
+      replicaSetPorTunel: 'Con túnel SSH, la conexión va directa a un servidor: quite replicaSet y directConnection=false de las opciones.',
       instanciaPorTunel: 'Con túnel SSH, la conexión necesita el puerto y no la instancia: el túnel no lleva la consulta que la resuelve.',
       instanciaInvalida: 'La instancia no es válida.',
-      instanciaSoloNombre: 'En la instancia va solo su nombre (p. ej. SQLEXPRESS), sin el servidor ni el puerto.',
+      instanciaSoloNombre: 'El campo de instancia admite solo su nombre (por ejemplo, SQLEXPRESS), sin el servidor ni el puerto.',
       autenticacionDesconocida: (v: string) => `Autenticación desconocida: "${v}".`,
       dominioInvalido: 'El dominio no es válido.',
       faltaDominio: 'Falta el dominio de la cuenta.',
@@ -52,8 +52,8 @@ export const txDb = crearTextos(
       tunelInvalido: 'El túnel SSH de la conexión no es válido.'
     },
     archivos: {
-      fichaDesconocida: 'Ese archivo ya no está elegido (pasó demasiado tiempo o se reinició Tessera). Vuelve a elegirlo.',
-      fichaOtroMotor: (elegido: string, pedido: string) => `Ese archivo se eligió para ${elegido}, no para ${pedido}: vuelve a elegirlo.`,
+      fichaDesconocida: 'Ese archivo ya no está elegido (pasó demasiado tiempo o se reinició Tessera). Vuelva a elegirlo.',
+      fichaOtroMotor: (elegido: string, pedido: string) => `Ese archivo se eligió para ${elegido}, no para ${pedido}: vuelva a elegirlo.`,
       proyectoDesconocido: 'Proyecto desconocido.',
       faltaArchivo: 'Falta el archivo.',
       dentroDeComprimido: 'Ese archivo está dentro de un comprimido: no se puede abrir como base de datos.',
@@ -66,9 +66,9 @@ export const txDb = crearTextos(
       rutaNoAbsoluta: (ruta: string) => `La ruta del archivo tiene que ser absoluta: ${ruta}`,
       noEsArchivoDelEquipo: 'Ese elemento no es un archivo del equipo.',
       motorNoEsDeArchivo: 'Ese motor no es de archivo.',
-      noEsDelProyectoAbierto: 'Ese archivo no es del proyecto abierto en el explorador: ábrelo desde su proyecto.',
-      origenDesconocido: 'No se sabe de dónde sale el archivo de la base.',
-      elegirTitulo: (etiqueta: string) => `Elige la base de datos ${etiqueta}`,
+      noEsDelProyectoAbierto: 'Ese archivo no es del proyecto abierto en el explorador: ábralo desde su proyecto.',
+      origenDesconocido: 'No se puede determinar el origen del archivo de la base de datos.',
+      elegirTitulo: (etiqueta: string) => `Elegir la base de datos ${etiqueta}`,
       filtroBases: (etiqueta: string) => `Bases ${etiqueta}`,
       filtroTodos: 'Todos los archivos',
       botonElegir: 'Elegir',
@@ -76,78 +76,79 @@ export const txDb = crearTextos(
       botonCrear: 'Crear'
     },
     probar: {
-      cambioEnVuelo: 'La conexión cambió mientras se probaba. Vuelve a probarla.',
+      cambioEnVuelo: 'La conexión cambió mientras se probaba. Vuelva a probarla.',
       sinContrasenaGuardada: 'Esta conexión no tiene contraseña guardada.',
       contrasenaIlegible: (almacen: string) =>
         'La contraseña guardada no se puede descifrar en este equipo.\n' +
-        `La guarda ${almacen}, que la ata a tu ` +
-        'usuario y a esta máquina, así que un perfil copiado de otro equipo (o un ' +
-        'cambio de cuenta) la deja ilegible. Edita la conexión y vuelve a escribirla.',
+        `La guarda ${almacen}, que la asocia a su ` +
+        'usuario y a esta máquina, por lo que un perfil copiado de otro equipo (o un ' +
+        'cambio de cuenta) la deja ilegible. Edite la conexión y vuelva a escribirla.',
       conectado: (ms: string, modo: string, aviso: string) => `Conectado en ${ms} ms (${modo}).${aviso}`,
-      falloDesconocido: 'Fallo desconocido.'
+      falloDesconocido: 'Error desconocido.'
     },
     tdb: {
       sinRespuesta: 'terminó sin dar respuesta',
       sinPlazo: (s: number) => `no respondió en ${s} s y se detuvo`,
-      salidaExcesiva: 'su salida pasó del tope y se detuvo',
-      noArranco: (codigo: string) => `no arrancó (${codigo})`,
+      salidaExcesiva: 'su salida superó el límite y se detuvo',
+      noArranco: (codigo: string) => `no se inició (${codigo})`,
       conCodigo: (codigo: number) => `terminó con el código ${codigo} sin dar respuesta`,
       detenido: (senal: string) => `se detuvo (${senal}) sin dar respuesta`,
       fallo: (causa: string, conDetalle: boolean) =>
-        `No se pudo ejecutar tdb: ${causa}.${conDetalle ? ' El detalle queda en el log de bases de datos (logs/db.log).' : ''}`,
+        `No se pudo ejecutar tdb: ${causa}.${conDetalle ? ' El detalle se encuentra en el registro de bases de datos (logs/db.log).' : ''}`,
       sesionNoAutorizada:
-        '\n  ✗ Esta sesión ya no está autorizada.\n' + '    Recarga la terminal para que Tessera vuelva a emitir sus credenciales.\n\n'
+        '\n  ✗ Esta sesión ya no está autorizada.\n' + '    Reinicie la terminal para que Tessera vuelva a emitir sus credenciales.\n\n'
     },
     puente: {
       sinTunel: 'Esta conexión no lleva túnel SSH, o Tessera no puede abrirlo ahora.',
       fileNoLlega:
-        '\n  ✗ --file no llega por el puente: la ruta sería del equipo anfitrión, no de tu carpeta.\n' +
-        '    El tdb del contenedor lee el archivo y manda su SQL; recarga la terminal para\n' +
-        "    usarlo, o pásalo por la entrada estándar:  tdb query <base> --stdin <<'SQL'\n\n",
-      tdbCortado: (s: number) => `\n  ✗ tdb no terminó en ${s} s y se cortó.\n\n`,
-      programaDesconocido: (que: string) => `\n  ✗ Esta Tessera no sabe atender «${que}» por el buzón: reiníciala o actualízala.\n\n`,
+        '\n  ✗ --file no llega por el puente: la ruta correspondería al equipo anfitrión, no a su carpeta.\n' +
+        '    El tdb del contenedor lee el archivo y envía su SQL; reinicie la terminal para\n' +
+        "    usarlo, o envíe el archivo por la entrada estándar:  tdb query <base> --stdin <<'SQL'\n\n",
+      tdbCortado: (s: number) => `\n  ✗ tdb no terminó en ${s} s y se interrumpió.\n\n`,
+      programaDesconocido: (que: string) =>
+        `\n  ✗ Esta versión de Tessera no puede atender «${que}» por el buzón: reinicie o actualice Tessera.\n\n`,
       respuestaGrande: (mib: number) => `\n  ✗ La respuesta superó los ${mib} MiB que admite el puente al host y se descartó.\n\n`,
       respuestaDescartada: (mib: number) =>
-        `La respuesta superó los ${mib} MiB y se descartó.\n` + `Acota la consulta (por ejemplo con --limit).\n`
+        `La respuesta superó los ${mib} MiB y se descartó.\n` + `Acote la consulta (por ejemplo, con --limit).\n`
     },
     drivers: {
       noDisponible: (packId: string) => `El driver "${packId}" no está disponible en este sistema.`,
       desconocido: (packId: string) => `Driver desconocido: "${packId}".`,
       noEncontrado: (centinela: string, ruta: string) =>
-        `No encontré "${centinela}" en "${ruta}". Elige la carpeta del Instant Client (la que contiene ${centinela}).`,
+        `No se encontró "${centinela}" en "${ruta}". Elija la carpeta del Instant Client (la que contiene ${centinela}).`,
       oracleSinDescarga: (nombre: string) =>
         `Oracle ya no publica ${nombre} para descarga directa: solo queda en su ` +
         'archivo histórico, que exige iniciar sesión y aceptar la licencia en el ' +
-        'navegador. Descárgalo a mano y usa "Seleccionar carpeta…".',
+        'navegador. Descárguelo manualmente y use "Seleccionar carpeta…".',
       sinContenido: (centinela: string) => `El paquete descargado no contiene "${centinela}".`,
       noSePudoInstalar: (nombre: string, mensaje: string) =>
-        `No se pudo instalar ${nombre}: ${mensaje}\n` + `Alternativa: descárgalo a mano y usa "Seleccionar carpeta…".`,
+        `No se pudo instalar ${nombre}: ${mensaje}\n` + `Alternativa: descárguelo manualmente y use "Seleccionar carpeta…".`,
       sinDescargaAutomatica: 'Este cliente no tiene descarga automática.',
       huellaNoCoincide: (bytes: number) =>
         `lo descargado (${bytes} bytes) no coincide con la huella SHA-256 publicada ` +
-        'del paquete. Puede ser una descarga cortada o un proxy que devolvió otra cosa; si ' +
-        'se repite, el paquete publicado cambió y Tessera tiene que actualizar su ficha.',
-      noEsZip: 'Lo descargado no es un ZIP (¿la red devolvió una página de error?).',
+        'del paquete. Puede tratarse de una descarga interrumpida o de un proxy que devolvió otro contenido; si ' +
+        'se repite, el paquete publicado cambió y Tessera debe actualizar su ficha.',
+      noEsZip: 'Lo descargado no es un ZIP (la red pudo haber devuelto una página de error).',
       necesitaMacos: (nombre: string, minimo: number, actual: number) =>
         `${nombre} necesita macOS ${minimo} o posterior, y este Mac tiene ` +
-        `macOS ${actual}: sus bibliotecas no cargarían. Con un cliente que sí funcione ` +
-        'aquí, usa "Seleccionar carpeta…".',
+        `macOS ${actual}: no se podrían cargar sus bibliotecas. Si dispone de un cliente que funcione ` +
+        'en este Mac, use "Seleccionar carpeta…".',
       cubre: {
         'oracle-ic-19': 'Oracle 11.2 y superior',
-        'oracle-ic-12.1': 'Oracle 10.2 – 11.1 (más antiguas que las que alcanza el 19)',
+        'oracle-ic-12.1': 'Oracle 10.2 a 11.1 (versiones anteriores a las que admite el cliente 19)',
         'oracle-ic-23-macos-arm64': 'Oracle 11.2 y superior',
         'oracle-ic-19-linux-x64': 'Oracle 11.2 y superior'
       } as Record<string, string>,
       avisoSoporte: {
-        'oracle-ic-23-macos-arm64': '11.2–18c están fuera del soporte de Oracle; probado.'
+        'oracle-ic-23-macos-arm64': 'Las versiones 11.2 a 18c están fuera del soporte de Oracle; Tessera las probó con este cliente.'
       } as Record<string, string>,
       sinDescarga: {
         'oracle-ic-12.1':
           'Oracle ya no publica Oracle Instant Client 12.1 (Basic Light) para descarga directa: ' +
           'solo queda en su archivo histórico, que exige iniciar sesión y aceptar la licencia ' +
-          'en el navegador. Descárgalo a mano y usa "Seleccionar carpeta…".'
+          'en el navegador. Descárguelo manualmente y use "Seleccionar carpeta…".'
       } as Record<string, string>,
-      carpetaTitulo: 'Elige la carpeta del cliente de base de datos',
+      carpetaTitulo: 'Elegir la carpeta del cliente de base de datos',
       carpetaBoton: 'Usar esta carpeta',
       imagenVacia: 'la imagen de disco está vacía.',
       imagenSinArchivo: (archivo: string) => `La imagen de disco no contiene "${archivo}".`,
@@ -159,17 +160,18 @@ export const txDb = crearTextos(
     descarga: {
       inactividad: (s: number) =>
         `La descarga se detuvo: el servidor lleva ${s} s sin enviar datos. ` +
-        'Vuelve a intentarlo; si se repite, comprueba la conexión a internet o el proxy.',
+        'Vuelva a intentarlo; si se repite, compruebe la conexión a internet o el proxy.',
       servidorRespondio: (estado: string) => `El servidor respondió ${estado}.`,
       sinCuerpo: 'Respuesta sin cuerpo.'
     },
     importacion: {
       sinContrasena: (alias: string) =>
-        `La base «${alias}» se importó sin su contraseña: este equipo no tiene dónde guardarla, así que te la pedirá al conectar.`,
-      archivoAusente: (alias: string) => `La base «${alias}» apunta a un archivo que no está en este equipo: edítala y elige el suyo.`
+        `La base «${alias}» se importó sin su contraseña: este equipo no tiene dónde guardarla, por lo que Tessera se la solicitará al conectar.`,
+      archivoAusente: (alias: string) =>
+        `La base «${alias}» apunta a un archivo que no está en este equipo: edite la conexión y elija el archivo correspondiente.`
     },
     tuneles: {
-      sshNoExiste: (alias: string) => `La conexión SSH del túnel de «${alias}» ya no existe: edita la conexión y elige otra.`,
+      sshNoExiste: (alias: string) => `La conexión SSH del túnel de «${alias}» ya no existe: edite la conexión y elija otra.`,
       cerradoAlAbrir: 'El túnel se cerró mientras se abría.',
       noSeAbrio: (alias: string, causa: string) => `No se pudo abrir el túnel SSH por «${alias}»${causa ? `: ${causa}` : '.'}`,
       tiempoAgotado: (alias: string, s: number) => `El túnel SSH por «${alias}» no se abrió en ${s} s.`,
@@ -180,7 +182,7 @@ export const txDb = crearTextos(
       peticionMalFormada: 'Petición de sintaxis mal formada.',
       demasiadasSentencias: 'Demasiadas sentencias para validarlas a la vez.',
       demasiadoTexto: 'Demasiado texto para validarlo a la vez.',
-      gramaticaCaida: 'La gramática local dejó de responder; vuelve al reiniciar Tessera.',
+      gramaticaCaida: 'La gramática local dejó de responder; se restablecerá al reiniciar Tessera.',
       gramaticaNoCargo: 'No se pudo cargar la gramática local.'
     }
   },
@@ -273,13 +275,13 @@ export const txDb = crearTextos(
       fallo: (causa, conDetalle) =>
         `Couldn’t run tdb: ${causa}.${conDetalle ? ' The details are in the database log (logs/db.log).' : ''}`,
       sesionNoAutorizada:
-        '\n  ✗ This session is no longer authorized.\n' + '    Reload the terminal so Tessera issues its credentials again.\n\n'
+        '\n  ✗ This session is no longer authorized.\n' + '    Restart the terminal so Tessera issues its credentials again.\n\n'
     },
     puente: {
       sinTunel: 'This connection has no SSH tunnel, or Tessera can’t open it right now.',
       fileNoLlega:
         '\n  ✗ --file does not go through the bridge: the path would belong to the host computer, not to your folder.\n' +
-        '    The container’s tdb reads the file and sends its SQL; reload the terminal to\n' +
+        '    The container’s tdb reads the file and sends its SQL; restart the terminal to\n' +
         "    use it, or pass it through standard input:  tdb query <database> --stdin <<'SQL'\n\n",
       tdbCortado: (s) => `\n  ✗ tdb did not finish within ${s} s and was stopped.\n\n`,
       programaDesconocido: (que) => `\n  ✗ This version of Tessera can’t handle “${que}” through the mailbox: restart or update it.\n\n`,
@@ -316,7 +318,7 @@ export const txDb = crearTextos(
         'oracle-ic-19-linux-x64': 'Oracle 11.2 and later'
       },
       avisoSoporte: {
-        'oracle-ic-23-macos-arm64': '11.2–18c are outside Oracle support; tested.'
+        'oracle-ic-23-macos-arm64': 'Versions 11.2 to 18c are outside Oracle support; Tessera tested them with this client.'
       },
       sinDescarga: {
         'oracle-ic-12.1':

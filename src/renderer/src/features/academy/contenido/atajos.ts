@@ -9,7 +9,7 @@ import type { Articulo } from '../modelo.ts'
 
 const es: Articulo = {
   resumen:
-    'Los atajos de teclado principales de Tessera, con las teclas de {tuEquipo}: algunos gestos cambian de tecla, no solo de modificador, para seguir las costumbres de cada sistema.',
+    'Los principales atajos de teclado de Tessera, con las teclas de {tuEquipo}. Para respetar las convenciones de cada sistema, algunas acciones usan otra tecla además de otro modificador. Un mismo atajo puede hacer cosas distintas según dónde esté el foco; cada apartado lo indica.',
   secciones: [
     {
       ancla: 'generales',
@@ -18,23 +18,24 @@ const es: Articulo = {
         {
           soloEn: ['windows', 'linux'],
           lista: [
-            '`Ctrl+,` abre **Configuración**.',
-            '`Ctrl+Shift+F` abre **Buscar en archivos**.',
-            '`Ctrl+N` crea un archivo nuevo, o una consola nueva en la vista de bases de datos.',
-            '`Ctrl` y la tecla del acento grave muestran u ocultan el panel de terminal.',
-            '`Ctrl+=`, `Ctrl+-` y `Ctrl+0` acercan, alejan y restablecen el zoom; también `Ctrl` y la rueda del ratón.'
+            '`Ctrl+,` abre o cierra **Configuración**.',
+            '`Ctrl+Mayús+F` abre **Buscar en archivos**.',
+            '`Ctrl+N` abre una pestaña de archivo sin título o, en la vista de bases de datos, crea una consola nueva.',
+            '`Ctrl` y la tecla del acento grave muestran u ocultan el panel de terminal. En la vista de bases de datos, cambian a la vista de archivos y abren el panel.',
+            '`Ctrl+=`, `Ctrl+-` y `Ctrl+0` acercan, alejan y restablecen el zoom; `Ctrl` con la rueda del ratón también cambia el zoom.'
           ]
         },
         {
           soloEn: ['mac'],
           lista: [
-            '`⌘,` abre **Configuración**.',
+            '`⌘,` abre o cierra **Configuración**.',
             '`⇧⌘F` abre **Buscar en archivos**.',
-            '`⌘N` crea un archivo nuevo, o una consola nueva en la vista de bases de datos.',
-            '`⌃` y la tecla del acento grave muestran u ocultan el panel de terminal: con `⌘` el sistema cambiaría de ventana.',
-            '`⌘=`, `⌘-` y `⌘0` acercan, alejan y restablecen el zoom; también `⌘` y la rueda, o pellizcando en el trackpad.'
+            '`⌘N` abre una pestaña de archivo sin título o, en la vista de bases de datos, crea una consola nueva.',
+            '`⌃` y la tecla del acento grave muestran u ocultan el panel de terminal: con `⌘`, el sistema cambiaría de ventana. En la vista de bases de datos, cambian a la vista de archivos y abren el panel.',
+            '`⌘=`, `⌘-` y `⌘0` acercan, alejan y restablecen el zoom; `⌘` con la rueda, o el gesto de pellizcar en el trackpad, también cambia el zoom.'
           ]
-        }
+        },
+        { nota: 'Con el [mosaico](glosario/mosaico) activo no tienen efecto los atajos de **Buscar en archivos**, de la pestaña o consola nueva ni del panel de terminal.' }
       ]
     },
     {
@@ -44,17 +45,17 @@ const es: Articulo = {
         {
           soloEn: ['windows', 'linux'],
           lista: [
-            '`Ctrl+Shift+M` entra en el [mosaico](mosaico) o sale de él.',
-            '`Ctrl+1` a `Ctrl+6` enfocan una casilla.',
-            '`Ctrl+Shift+Enter` amplía la casilla enfocada o la restaura.'
+            '`Ctrl+Mayús+M` entra en el [mosaico](mosaico) o sale de él.',
+            '`Ctrl+1` a `Ctrl+6`, dentro del mosaico, llevan el foco a una casilla.',
+            '`Ctrl+Mayús+Intro`, dentro del mosaico, amplía la casilla enfocada o la restaura.'
           ]
         },
         {
           soloEn: ['mac'],
           lista: [
             '`⇧⌘M` entra en el [mosaico](mosaico) o sale de él.',
-            '`⌘1` a `⌘6` enfocan una casilla.',
-            '`⇧⌘↩` amplía la casilla enfocada o la restaura.'
+            '`⌘1` a `⌘6`, dentro del mosaico, llevan el foco a una casilla.',
+            '`⇧⌘↩`, dentro del mosaico, amplía la casilla enfocada o la restaura.'
           ]
         }
       ]
@@ -66,22 +67,24 @@ const es: Articulo = {
         {
           soloEn: ['windows', 'linux'],
           lista: [
-            '`Ctrl+Shift+Enter`, con el foco en la terminal o en **Git · Log**, los pone a pantalla completa o los restaura.',
-            '`Ctrl+C` copia lo seleccionado en la terminal (sin selección, interrumpe), `Ctrl+V` pega y `Ctrl+F` busca.',
-            '`Ctrl+Alt+B` muestra u oculta el agente de la terminal a pantalla completa.',
-            '`Ctrl+C` en la lista de **Git · Log** copia el hash del commit.'
+            '`Ctrl+Mayús+Intro`, con el foco en la terminal o en **Git · Log**, pone el panel a pantalla completa o lo restaura.',
+            '`Ctrl+C` copia lo seleccionado en la terminal (sin selección, interrumpe el programa en curso) y `Ctrl+V` pega.',
+            '`Ctrl+F` busca en la salida de una terminal de shell o SSH; en la terminal de un agente, la tecla llega al agente.',
+            '`Ctrl+Alt+B`, con la terminal a pantalla completa, muestra u oculta el [agente de la terminal](glosario/agente-de-la-terminal).',
+            '`Ctrl+C` en la lista de **Git · Log** copia el hash completo del commit.'
           ]
         },
         {
           soloEn: ['mac'],
           lista: [
-            '`⇧⌘↩`, con el foco en la terminal o en **Git · Log**, los pone a pantalla completa o los restaura.',
-            '`⌘C` copia lo seleccionado en la terminal, `⌘V` pega y `⌘F` busca; `⌃C` interrumpe.',
-            '`⌥⌘B` muestra u oculta el agente de la terminal a pantalla completa.',
-            '`⌘C` en la lista de **Git · Log** copia el hash del commit.'
+            '`⇧⌘↩`, con el foco en la terminal o en **Git · Log**, pone el panel a pantalla completa o lo restaura.',
+            '`⌘C` copia lo seleccionado en la terminal y `⌘V` pega; `⌃C` interrumpe el programa en curso.',
+            '`⌘F` busca en la salida de una terminal de shell o SSH; en la terminal de un agente, la tecla llega al agente.',
+            '`⌥⌘B`, con la terminal a pantalla completa, muestra u oculta el [agente de la terminal](glosario/agente-de-la-terminal).',
+            '`⌘C` en la lista de **Git · Log** copia el hash completo del commit.'
           ]
         },
-        { soloEn: ['windows', 'linux'], nota: 'Con el foco en la terminal, `Ctrl+N` es de la shell y no crea un archivo.' }
+        { soloEn: ['windows', 'linux'], nota: 'Con el foco en la terminal, `Ctrl+N` llega a la shell y no abre una pestaña de archivo.' }
       ]
     },
     {
@@ -92,9 +95,9 @@ const es: Articulo = {
           soloEn: ['windows', 'linux'],
           lista: [
             '`Ctrl+S` guarda el archivo.',
-            '`F7` y `Shift+F7` saltan al cambio siguiente y al anterior de un diff.',
-            '`Ctrl+C`, `Ctrl+X` y `Ctrl+V` copian, cortan y pegan archivos en el explorador, y `Ctrl+A` selecciona todo lo desplegado.',
-            '`Supr` borra lo seleccionado en el explorador, siempre preguntando antes, y `Esc` vacía la selección.'
+            '`F7` y `Mayús+F7` saltan al cambio siguiente y al anterior de un diff.',
+            '`Ctrl+C`, `Ctrl+X` y `Ctrl+V` copian, cortan y pegan archivos en el explorador, y `Ctrl+A` selecciona todos los elementos visibles del árbol.',
+            '`Supr` elimina lo seleccionado en el explorador, siempre con confirmación previa, y `Esc` vacía la selección.'
           ]
         },
         {
@@ -102,11 +105,11 @@ const es: Articulo = {
           lista: [
             '`⌘S` guarda el archivo.',
             '`F7` y `⇧F7` saltan al cambio siguiente y al anterior de un diff.',
-            '`⌘C`, `⌘X` y `⌘V` copian, cortan y pegan archivos en el explorador, y `⌘A` selecciona todo lo desplegado.',
-            '`⌘⌫` borra lo seleccionado en el explorador, siempre preguntando antes, y `Esc` vacía la selección.'
+            '`⌘C`, `⌘X` y `⌘V` copian, cortan y pegan archivos en el explorador, y `⌘A` selecciona todos los elementos visibles del árbol.',
+            '`⌘⌫` elimina lo seleccionado en el explorador, siempre con confirmación previa, y `Esc` vacía la selección.'
           ]
         },
-        'Más sobre el editor y el explorador en [Editor y explorador](editor-y-explorador).'
+        'Puede encontrar más información en [Editor y explorador](editor-y-explorador).'
       ]
     },
     {
@@ -116,26 +119,26 @@ const es: Articulo = {
         {
           soloEn: ['windows', 'linux'],
           lista: [
-            '`Ctrl+Enter` ejecuta la sentencia del cursor, y `Alt+X` o `Ctrl+Shift+Enter`, la consola entera.',
+            '`Ctrl+Intro` ejecuta la selección o la sentencia en la que está el cursor; `Alt+X` o `Ctrl+Mayús+Intro` ejecutan toda la consola.',
             '`Ctrl+F2` detiene la ejecución.',
-            '`Ctrl+Alt+Shift+K` confirma la transacción (commit) y `Ctrl+Alt+Shift+R` la deshace (rollback).',
-            '`Ctrl+Shift+E` enseña el plan de ejecución, `Ctrl+Shift+H` el historial de consultas y `Ctrl+Alt+L` formatea el SQL.',
-            '`Ctrl+W` cierra la pestaña y `Ctrl+Alt+B` muestra u oculta el agente de datos.',
-            '`F4` o `Enter` abre el elemento elegido en el árbol.'
+            '`Ctrl+Alt+Mayús+K` confirma la transacción (commit) y `Ctrl+Alt+Mayús+R` la revierte (rollback).',
+            '`Ctrl+Mayús+E` muestra el plan de ejecución sin ejecutar la sentencia, `Ctrl+Mayús+H` abre el historial de consultas y `Ctrl+Alt+L` da formato al SQL.',
+            '`Ctrl+W` cierra la pestaña y `Ctrl+Alt+B` muestra u oculta el [agente de datos](glosario/agente-de-datos). Los dos atajos actúan solo en la vista de bases de datos.',
+            '`F4` o `Intro` abre el elemento seleccionado en el árbol.'
           ]
         },
         {
           soloEn: ['mac'],
           lista: [
-            '`⌘↩` ejecuta la sentencia del cursor, y `⌥X` o `⇧⌘↩`, la consola entera.',
+            '`⌘↩` ejecuta la selección o la sentencia en la que está el cursor; `⌥X` o `⇧⌘↩` ejecutan toda la consola.',
             '`⌘.` detiene la ejecución.',
-            '`⌥⇧⌘K` confirma la transacción (commit) y `⌥⇧⌘R` la deshace (rollback).',
-            '`⇧⌘E` enseña el plan de ejecución, `⇧⌘H` el historial de consultas y `⌥⌘L` formatea el SQL.',
-            '`⌘W` cierra la pestaña y `⌥⌘B` muestra u oculta el agente de datos.',
-            '`F4`, `⌘↓` o `↩` abre el elemento elegido en el árbol.'
+            '`⌥⇧⌘K` confirma la transacción (commit) y `⌥⇧⌘R` la revierte (rollback).',
+            '`⇧⌘E` muestra el plan de ejecución sin ejecutar la sentencia, `⇧⌘H` abre el historial de consultas y `⌥⌘L` da formato al SQL.',
+            '`⌘W` cierra la pestaña y `⌥⌘B` muestra u oculta el [agente de datos](glosario/agente-de-datos). Los dos atajos actúan solo en la vista de bases de datos.',
+            '`F4`, `⌘↓` o `↩` abre el elemento seleccionado en el árbol.'
           ]
         },
-        'Todo lo demás de la vista, en [Bases de datos](bases-de-datos).'
+        'El resto de la vista se explica en [Bases de datos](bases-de-datos).'
       ]
     }
   ]
@@ -143,7 +146,7 @@ const es: Articulo = {
 
 const en: Articulo = {
   resumen:
-    'The main keyboard shortcuts in Tessera, with the keys for {tuEquipo}. To follow the conventions of each operating system, some actions use a different key, not just a different modifier.',
+    'The main keyboard shortcuts in Tessera, with the keys for {tuEquipo}. To follow the conventions of each operating system, some actions use a different key, not just a different modifier. The same shortcut can do different things depending on where the focus is; each section says so.',
   secciones: [
     {
       ancla: 'generales',
@@ -152,23 +155,24 @@ const en: Articulo = {
         {
           soloEn: ['windows', 'linux'],
           lista: [
-            '`Ctrl+,` opens **Settings**.',
+            '`Ctrl+,` opens or closes **Settings**.',
             '`Ctrl+Shift+F` opens **Search in files**.',
-            '`Ctrl+N` creates a new file, or a new console in the database view.',
-            '`Ctrl` and the backtick key show or hide the terminal panel.',
-            '`Ctrl+=`, `Ctrl+-`, and `Ctrl+0` zoom in, zoom out, and reset the zoom; `Ctrl` with the mouse wheel also zooms.'
+            '`Ctrl+N` opens an untitled file tab or, in the database view, creates a new console.',
+            '`Ctrl` and the backtick key show or hide the terminal panel. In the database view, they switch to the files view and open the panel.',
+            '`Ctrl+=`, `Ctrl+-`, and `Ctrl+0` zoom in, zoom out, and reset the zoom; `Ctrl` with the mouse wheel also changes the zoom.'
           ]
         },
         {
           soloEn: ['mac'],
           lista: [
-            '`⌘,` opens **Settings**.',
+            '`⌘,` opens or closes **Settings**.',
             '`⇧⌘F` opens **Search in files**.',
-            '`⌘N` creates a new file, or a new console in the database view.',
-            '`⌃` and the backtick key show or hide the terminal panel; with `⌘`, macOS would switch windows instead.',
-            '`⌘=`, `⌘-`, and `⌘0` zoom in, zoom out, and reset the zoom; `⌘` with the scroll wheel, or pinching on the trackpad, also zooms.'
+            '`⌘N` opens an untitled file tab or, in the database view, creates a new console.',
+            '`⌃` and the backtick key show or hide the terminal panel; with `⌘`, the system would switch windows instead. In the database view, they switch to the files view and open the panel.',
+            '`⌘=`, `⌘-`, and `⌘0` zoom in, zoom out, and reset the zoom; `⌘` with the scroll wheel, or pinching on the trackpad, also changes the zoom.'
           ]
-        }
+        },
+        { nota: 'While the [mosaic](glosario/mosaico) is active, the shortcuts for **Search in files**, the new tab or console, and the terminal panel have no effect.' }
       ]
     },
     {
@@ -179,16 +183,16 @@ const en: Articulo = {
           soloEn: ['windows', 'linux'],
           lista: [
             '`Ctrl+Shift+M` opens or closes the [mosaic](mosaico).',
-            '`Ctrl+1` to `Ctrl+6` move the focus to a tile.',
-            '`Ctrl+Shift+Enter` enlarges the focused tile or restores it.'
+            '`Ctrl+1` to `Ctrl+6`, inside the mosaic, move the focus to a tile.',
+            '`Ctrl+Shift+Enter`, inside the mosaic, enlarges the focused tile or restores it.'
           ]
         },
         {
           soloEn: ['mac'],
           lista: [
             '`⇧⌘M` opens or closes the [mosaic](mosaico).',
-            '`⌘1` to `⌘6` move the focus to a tile.',
-            '`⇧⌘↩` enlarges the focused tile or restores it.'
+            '`⌘1` to `⌘6`, inside the mosaic, move the focus to a tile.',
+            '`⇧⌘↩`, inside the mosaic, enlarges the focused tile or restores it.'
           ]
         }
       ]
@@ -200,22 +204,24 @@ const en: Articulo = {
         {
           soloEn: ['windows', 'linux'],
           lista: [
-            '`Ctrl+Shift+Enter`, when the terminal or **Git · Log** has focus, switches it to full screen or restores it.',
-            '`Ctrl+C` copies the selection in the terminal (with nothing selected, it interrupts the program), `Ctrl+V` pastes, and `Ctrl+F` searches.',
-            '`Ctrl+Alt+B` shows or hides the terminal agent in full screen.',
-            '`Ctrl+C` in the **Git · Log** list copies the commit hash.'
+            '`Ctrl+Shift+Enter`, when the terminal or **Git · Log** has focus, switches the panel to full screen or restores it.',
+            '`Ctrl+C` copies the selection in the terminal (with nothing selected, it interrupts the running program), and `Ctrl+V` pastes.',
+            '`Ctrl+F` searches the output of a shell or SSH terminal; in an agent’s terminal, the key goes to the agent.',
+            '`Ctrl+Alt+B`, with the terminal in full screen, shows or hides the [terminal agent](glosario/agente-de-la-terminal).',
+            '`Ctrl+C` in the **Git · Log** list copies the full commit hash.'
           ]
         },
         {
           soloEn: ['mac'],
           lista: [
-            '`⇧⌘↩`, when the terminal or **Git · Log** has focus, switches it to full screen or restores it.',
-            '`⌘C` copies the selection in the terminal, `⌘V` pastes, and `⌘F` searches; `⌃C` interrupts the program.',
-            '`⌥⌘B` shows or hides the terminal agent in full screen.',
-            '`⌘C` in the **Git · Log** list copies the commit hash.'
+            '`⇧⌘↩`, when the terminal or **Git · Log** has focus, switches the panel to full screen or restores it.',
+            '`⌘C` copies the selection in the terminal, and `⌘V` pastes; `⌃C` interrupts the running program.',
+            '`⌘F` searches the output of a shell or SSH terminal; in an agent’s terminal, the key goes to the agent.',
+            '`⌥⌘B`, with the terminal in full screen, shows or hides the [terminal agent](glosario/agente-de-la-terminal).',
+            '`⌘C` in the **Git · Log** list copies the full commit hash.'
           ]
         },
-        { soloEn: ['windows', 'linux'], nota: 'When the terminal has focus, `Ctrl+N` goes to the shell and does not create a file.' }
+        { soloEn: ['windows', 'linux'], nota: 'When the terminal has focus, `Ctrl+N` goes to the shell and does not open a file tab.' }
       ]
     },
     {
@@ -227,8 +233,8 @@ const en: Articulo = {
           lista: [
             '`Ctrl+S` saves the file.',
             '`F7` and `Shift+F7` go to the next and previous change in a diff.',
-            '`Ctrl+C`, `Ctrl+X`, and `Ctrl+V` copy, cut, and paste files in the explorer, and `Ctrl+A` selects all expanded items.',
-            '`Del` deletes the selection in the explorer, always after asking you, and `Esc` clears the selection.'
+            '`Ctrl+C`, `Ctrl+X`, and `Ctrl+V` copy, cut, and paste files in the explorer, and `Ctrl+A` selects all visible items in the tree.',
+            '`Del` deletes the selection in the explorer, always after asking for confirmation, and `Esc` clears the selection.'
           ]
         },
         {
@@ -236,11 +242,11 @@ const en: Articulo = {
           lista: [
             '`⌘S` saves the file.',
             '`F7` and `⇧F7` go to the next and previous change in a diff.',
-            '`⌘C`, `⌘X`, and `⌘V` copy, cut, and paste files in the explorer, and `⌘A` selects all expanded items.',
-            '`⌘⌫` deletes the selection in the explorer, always after asking you, and `Esc` clears the selection.'
+            '`⌘C`, `⌘X`, and `⌘V` copy, cut, and paste files in the explorer, and `⌘A` selects all visible items in the tree.',
+            '`⌘⌫` deletes the selection in the explorer, always after asking for confirmation, and `Esc` clears the selection.'
           ]
         },
-        'For more about the editor and the explorer, see [Editor and explorer](editor-y-explorador).'
+        'For more information, see [Editor and explorer](editor-y-explorador).'
       ]
     },
     {
@@ -250,22 +256,22 @@ const en: Articulo = {
         {
           soloEn: ['windows', 'linux'],
           lista: [
-            '`Ctrl+Enter` runs the statement at the cursor, and `Alt+X` or `Ctrl+Shift+Enter` runs the whole console.',
+            '`Ctrl+Enter` runs the selection or the statement at the cursor; `Alt+X` or `Ctrl+Shift+Enter` runs the whole console.',
             '`Ctrl+F2` stops the execution.',
             '`Ctrl+Alt+Shift+K` commits the transaction, and `Ctrl+Alt+Shift+R` rolls it back.',
-            '`Ctrl+Shift+E` shows the execution plan, `Ctrl+Shift+H` shows the query history, and `Ctrl+Alt+L` formats the SQL.',
-            '`Ctrl+W` closes the tab, and `Ctrl+Alt+B` shows or hides the data agent.',
+            '`Ctrl+Shift+E` shows the execution plan without running the statement, `Ctrl+Shift+H` opens the query history, and `Ctrl+Alt+L` formats the SQL.',
+            '`Ctrl+W` closes the tab, and `Ctrl+Alt+B` shows or hides the [data agent](glosario/agente-de-datos). Both shortcuts act only in the databases view.',
             '`F4` or `Enter` opens the selected item in the tree.'
           ]
         },
         {
           soloEn: ['mac'],
           lista: [
-            '`⌘↩` runs the statement at the cursor, and `⌥X` or `⇧⌘↩` runs the whole console.',
+            '`⌘↩` runs the selection or the statement at the cursor; `⌥X` or `⇧⌘↩` runs the whole console.',
             '`⌘.` stops the execution.',
             '`⌥⇧⌘K` commits the transaction, and `⌥⇧⌘R` rolls it back.',
-            '`⇧⌘E` shows the execution plan, `⇧⌘H` shows the query history, and `⌥⌘L` formats the SQL.',
-            '`⌘W` closes the tab, and `⌥⌘B` shows or hides the data agent.',
+            '`⇧⌘E` shows the execution plan without running the statement, `⇧⌘H` opens the query history, and `⌥⌘L` formats the SQL.',
+            '`⌘W` closes the tab, and `⌥⌘B` shows or hides the [data agent](glosario/agente-de-datos). Both shortcuts act only in the databases view.',
             '`F4`, `⌘↓`, or `↩` opens the selected item in the tree.'
           ]
         },

@@ -58,7 +58,7 @@ test('Tessera Academy: índice, lector, buscador y ⓘ sobre un diálogo', async
     await expect(ajustes, 'y Configuración sigue debajo').toBeVisible()
     await ajustes.locator('.academy-tarjeta[data-articulo="hibernar"]').click()
     const nativo = lector.locator('.academy-seccion .academy-enlace', { hasText: 'nativo' }).first()
-    await expect(nativo).toHaveAttribute('title', /en tu equipo/)
+    await expect(nativo).toHaveAttribute('title', /en su (equipo|Mac)/)
     await nativo.click()
     await expect(lector.locator('.academy-titulo')).toHaveText('Glosario')
     await expect(lector.locator('#academy-glosario-nativo')).toBeInViewport()

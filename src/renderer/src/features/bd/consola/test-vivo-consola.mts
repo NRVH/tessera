@@ -195,7 +195,7 @@ hr('(8) txEnRiesgo y mensajeForzar')
   const mc = mensajeForzar('base.db', soloC1, 'consola')
   check(
     'el mensaje de alcance consola dice que solo se cierra esta sesión y que lo demás sigue',
-    mc.startsWith('Se cerrará la sesión de esta consola con base.db') && mc.includes('siguen como están') && mc.includes('· consola_1: 3 sentencias sin confirmar') && !mc.includes('todas sus sesiones'),
+    mc.startsWith('Se cerrará la sesión de esta consola con base.db') && mc.includes('no se modifican') && mc.includes('· consola_1: 3 sentencias sin confirmar') && !mc.includes('todas sus sesiones'),
     mc
   )
   check('…y sin transacción lo dice de la consola', mensajeForzar('base.db', [], 'consola').includes('Esta consola no tiene transacciones sin confirmar'), 'ok')

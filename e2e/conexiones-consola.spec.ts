@@ -174,7 +174,7 @@ test.describe('explorador de BD: consola, árbol y pestañas (segunda entrega)',
     const win = s!.win
     const boton = win.locator(`${CONSOLA} .db-consola-esquema-btn`)
     await expect(boton).toBeEnabled()
-    await expect(boton).toHaveAttribute('title', /Esquema: public\. Pulsa para cambiar/)
+    await expect(boton).toHaveAttribute('title', /Esquema: public\. Haga clic para cambiar/)
     await boton.click()
     const pop = win.locator('.db-esquema-consola-pop')
     await expect(pop).toBeVisible()

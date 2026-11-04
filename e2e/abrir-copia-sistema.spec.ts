@@ -26,7 +26,7 @@ async function esperarImportar(win: Page, nombre: string): Promise<ReturnType<Pa
   const modal = win.locator('.copia-modal')
   await expect(modal).toBeVisible({ timeout: 30_000 })
   await expect(modal).toContainText(`«${nombre}»`)
-  await expect(modal.getByLabel('Frase')).toBeVisible()
+  await expect(modal.getByLabel('Frase de contraseña', { exact: true })).toBeVisible()
   await expect(win.locator('.ajustes-modal'), 'no hace falta abrir Configuración').toHaveCount(0)
   return modal
 }
@@ -88,7 +88,7 @@ test.describe.serial('Abrir un .tessera desde el sistema', () => {
     const modal = await esperarImportar(win, 'copia de ana.tessera')
     const veces = (await win.locator('body').innerText()).split('copia de ana').length - 1
     expect(veces, 'el nombre solo sale en el importar: no se abre como proyecto ni como archivo').toBe(1)
-    await modal.getByLabel('Frase').fill(FRASE)
+    await modal.getByLabel('Frase de contraseña', { exact: true }).fill(FRASE)
     await modal.getByRole('button', { name: 'Abrir' }).click()
     await expect(modal.getByRole('checkbox', { name: 'Trabajo', exact: true })).toBeChecked({ timeout: 30_000 })
     await modal.getByRole('button', { name: 'Importar' }).click()

@@ -104,7 +104,7 @@ function main(): void {
   hr('3. Mensajes')
   const m: Array<[string, string]> = [
     ['syntax error at or near "SELEC"', 'Error de sintaxis cerca de «SELEC».'],
-    ['syntax error at end of input', 'La sentencia está incompleta: se acaba antes de lo que pide la gramática.'],
+    ['syntax error at end of input', 'La sentencia está incompleta: termina antes de lo que exige la gramática.'],
     ['memory exhausted at or near "("', 'Anidamiento demasiado profundo cerca de «(».'],
     ['invalid Unicode escape value', 'Error de sintaxis: invalid Unicode escape value'],
     ['syntax error at or near """', 'Error de sintaxis cerca de «"».']

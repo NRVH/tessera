@@ -29,16 +29,16 @@ const es = {
 
   // --- tsshRutas.cjs ---
   rutaMsysDesconocida: (texto) =>
-    `No sé a qué carpeta de Windows corresponde «${texto}»: usa una ruta de Windows (C:\\...) o una relativa a la carpeta actual.`,
-  dosLadosRemotos: 'Los dos lados son remotos: copia primero a este equipo y después al otro.',
-  ningunLadoRemoto: 'Ninguno de los dos lados es remoto: uno tiene que ser <alias>:<ruta>.',
+    `No se pudo determinar a qué carpeta de Windows corresponde «${texto}»: use una ruta de Windows (C:\\...) o una relativa a la carpeta actual.`,
+  dosLadosRemotos: 'Los dos lados son remotos: copie primero a este equipo y después al otro.',
+  ningunLadoRemoto: 'Ninguno de los dos lados es remoto: uno debe ser <alias>:<ruta>.',
 
   // --- tsshPuente.cjs ---
   terminalAjena:
     'Esta terminal no la abrió Tessera (faltan TESSERA_DB_PIPE y TESSERA_DB_SESSION): tssh solo funciona en las terminales y los agentes nativos de Tessera.',
-  tesseraNoContesta: 'Tessera no contesta: ¿está abierta? Si lo está, recarga la terminal (o reinicia el agente).',
-  sesionNoReconocida: 'Tessera no reconoce esta sesión: recarga la terminal (o reinicia el agente).',
-  versionDistinta: 'La Tessera abierta no conoce esta versión de tssh: reiníciala (o actualízala).',
+  tesseraNoContesta: 'Tessera no responde: compruebe que está abierta. Si lo está, reinicie la terminal (o reinicie el agente).',
+  sesionNoReconocida: 'Tessera no reconoce esta sesión: reinicie la terminal (o reinicie el agente).',
+  versionDistinta: 'La Tessera abierta no reconoce esta versión de tssh: reinicie Tessera (o actualícela).',
   falloInterno: 'Tessera falló al atender la petición (el detalle está en su registro, logs/db.log).',
 
   // --- tsshOrdenes.cjs ---
@@ -57,10 +57,10 @@ const es = {
   sinGrupo: 'Sin grupo',
   columnasLs: ['ALIAS', 'GRUPO', 'DESTINO', 'MÉTODO', 'ESTADO'],
   noPudoPreparar: 'Tessera no pudo preparar la conexión.',
-  topeAgotado: (s) => `se agotó el tope de ${s} s y se cortó la conexión.`,
-  noSePudoLanzar: (programa, motivo) => `no se pudo lanzar ${programa}: ${motivo}.`,
+  topeAgotado: (s) => `se agotó el límite de ${s} s y se cerró la conexión.`,
+  noSePudoLanzar: (programa, motivo) => `no se pudo ejecutar ${programa}: ${motivo}.`,
   motivoDesconocido: 'motivo desconocido',
-  aliasConEspacios: ' Si el alias lleva espacios, ponlo entre comillas.',
+  aliasConEspacios: ' Si el alias contiene espacios, escríbalo entre comillas.',
 
   // --- tsshDoctor.cjs ---
   shellDesconocido: 'desconocido (invocación directa, sin atajo)',
@@ -100,8 +100,8 @@ const es = {
   pruebaSinRespuesta: (s) => `sin respuesta en ${s} s`,
   pruebaFalla: (codigo) => `falla (código ${codigo})`,
   todoBienRun: (alias) => `Todo en orden. Prueba:  tssh run ${alias} -- uptime`,
-  equipoNoContesta: 'El equipo no contesta: comprueba con el usuario la red o la VPN.',
-  sshNoEntro: 'ssh no pudo entrar; el usuario puede pulsar «Probar» en la conexión para ver el motivo.',
+  equipoNoContesta: 'El equipo no responde: compruebe con el usuario la red o la VPN.',
+  sshNoEntro: 'ssh no pudo iniciar sesión; el usuario puede pulsar «Probar» en la conexión para ver el motivo.',
   noHayAlias: (alias) => `No hay ninguna conexión disponible llamada «${alias}».`,
   huellaConfirmada: 'confirmada',
   huellaPorConfirmar: 'SIN CONFIRMAR',
@@ -116,22 +116,22 @@ const es = {
   todoBienSinConexiones: 'Todo en orden, pero este perfil no tiene ninguna conexión disponible para los agentes.',
 
   // --- tssh-container.cjs ---
-  sinContextoContenedor: 'Esta terminal no lleva el contexto de Tessera: recarga la terminal (o reinicia el agente).',
-  buzonSinMontar: (buzon) => `El puente al host no está montado (${buzon} no existe): recarga la terminal.`,
-  buzonNoResponde: 'El puente al host no responde: recarga la terminal; si sigue, reinicia Tessera.',
-  cpTopeMiB: (mib) => `En modo Docker, tssh cp mueve como mucho ${mib} MiB por vez: copia por partes.`,
-  cpTopeArchivos: (n) => `En modo Docker, tssh cp mueve como mucho ${n} archivos por vez: copia por partes.`,
+  sinContextoContenedor: 'Esta terminal no tiene el contexto de Tessera: reinicie la terminal (o reinicie el agente).',
+  buzonSinMontar: (buzon) => `El puente al host no está montado (${buzon} no existe): reinicie la terminal.`,
+  buzonNoResponde: 'El puente al host no responde: reinicie la terminal; si el problema continúa, reinicie Tessera.',
+  cpTopeMiB: (mib) => `En modo Docker, tssh cp transfiere como máximo ${mib} MiB cada vez: copie por partes.`,
+  cpTopeArchivos: (n) => `En modo Docker, tssh cp transfiere como máximo ${n} archivos cada vez: copie por partes.`,
   noExisteLocal: (local) => `No existe «${local}».`,
-  copiaEntera: (local) => `No se puede copiar «${local}» entero: elige una carpeta concreta.`,
+  copiaEntera: (local) => `No se puede copiar «${local}» completo: seleccione una carpeta concreta.`,
   niArchivoNiCarpeta: (local) => `«${local}» no es un archivo ni una carpeta.`,
-  esCarpeta: (local) => `«${local}» es una carpeta: usa tssh cp -r.`,
-  respuestaIncomprensible: 'La respuesta de Tessera no se entiende.',
+  esCarpeta: (local) => `«${local}» es una carpeta: use tssh cp -r.`,
+  respuestaIncomprensible: 'La respuesta de Tessera no se pudo interpretar.',
   entradaGrande: (mib) => `La entrada supera los ${mib} MiB que admite el puente al host.`,
-  puenteSinRespuesta: (s) => `El puente no respondió en ${s} s: comprueba que Tessera sigue abierta y recarga la terminal.`,
+  puenteSinRespuesta: (s) => `El puente no respondió en ${s} s: compruebe que Tessera sigue abierta y reinicie la terminal.`,
 
   // --- tsshAyuda.cjs ---
   ayuda: (c) => `
-  tssh — las conexiones SSH del perfil de Tessera, para ti y para los agentes
+  tssh — las conexiones SSH del perfil de Tessera, para el usuario y para los agentes
 
   tssh ls [--json]
       Las conexiones que el usuario dejó disponibles para los agentes, con su destino, su
@@ -160,7 +160,7 @@ const es = {
   tssh help
       Esta ayuda.
 
-  Si el alias lleva espacios, ponlo entre comillas; sus comillas pueden escribirse rectas.
+  Si el alias contiene espacios, escríbalo entre comillas; las comillas pueden escribirse rectas.
   tssh nunca pide ni enseña contraseñas: las pone Tessera. Solo conecta con equipos cuya huella
   ya aceptó una persona desde la terminal de Tessera (o con «Probar»).
 
@@ -175,9 +175,9 @@ const es = {
     ${c.tope}  se agotó --timeout
 
   En PowerShell, un -- sin comillas no llega a tssh: lo entiende igual (tras el alias, la orden
-  empieza en la primera palabra que no es una opción de tssh); escribe '--' si la orden empieza
+  empieza en la primera palabra que no es una opción de tssh); escriba '--' si la orden empieza
   por --stdin o --timeout. La salida es texto: para binarios, tssh cp. En cmd.exe, las
-  %variables% de tu línea se expanden antes de llegar a tssh.
+  %variables% de la línea de órdenes se expanden antes de llegar a tssh.
 `
 }
 
@@ -207,8 +207,8 @@ const en = {
 
   terminalAjena:
     'This terminal was not opened by Tessera (TESSERA_DB_PIPE and TESSERA_DB_SESSION are missing): tssh only works in Tessera terminals and native agents.',
-  tesseraNoContesta: 'Tessera is not responding: is it open? If it is, reload the terminal (or restart the agent).',
-  sesionNoReconocida: 'Tessera does not recognize this session: reload the terminal (or restart the agent).',
+  tesseraNoContesta: 'Tessera is not responding: is it open? If it is, restart the terminal (or restart the agent).',
+  sesionNoReconocida: 'Tessera does not recognize this session: restart the terminal (or restart the agent).',
   versionDistinta: 'The running Tessera does not support this version of tssh: restart it (or update it).',
   falloInterno: 'Tessera failed while handling the request (the details are in its log, logs/db.log).',
 
@@ -284,9 +284,9 @@ const en = {
   todoBienLs: 'All good. Try:  tssh ls',
   todoBienSinConexiones: 'All good, but this profile has no connections available to agents.',
 
-  sinContextoContenedor: 'This terminal does not have the Tessera context: reload the terminal (or restart the agent).',
-  buzonSinMontar: (buzon) => `The bridge to the host is not mounted (${buzon} does not exist): reload the terminal.`,
-  buzonNoResponde: 'The bridge to the host is not responding: reload the terminal; if the problem persists, restart Tessera.',
+  sinContextoContenedor: 'This terminal does not have the Tessera context: restart the terminal (or restart the agent).',
+  buzonSinMontar: (buzon) => `The bridge to the host is not mounted (${buzon} does not exist): restart the terminal.`,
+  buzonNoResponde: 'The bridge to the host is not responding: restart the terminal; if the problem persists, restart Tessera.',
   cpTopeMiB: (mib) => `In Docker mode, tssh cp moves at most ${mib} MiB at a time: copy in smaller batches.`,
   cpTopeArchivos: (n) => `In Docker mode, tssh cp moves at most ${n} files at a time: copy in smaller batches.`,
   noExisteLocal: (local) => `“${local}” does not exist.`,
@@ -295,7 +295,7 @@ const en = {
   esCarpeta: (local) => `“${local}” is a folder: use tssh cp -r.`,
   respuestaIncomprensible: 'Tessera returned a response that cannot be interpreted.',
   entradaGrande: (mib) => `The input exceeds the ${mib} MiB limit of the bridge to the host.`,
-  puenteSinRespuesta: (s) => `The bridge did not respond within ${s} s: check that Tessera is still open and reload the terminal.`,
+  puenteSinRespuesta: (s) => `The bridge did not respond within ${s} s: check that Tessera is still open and restart the terminal.`,
 
   ayuda: (c) => `
   tssh — the SSH connections of the Tessera profile, for you and for agents

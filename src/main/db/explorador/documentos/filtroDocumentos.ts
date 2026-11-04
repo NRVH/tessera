@@ -319,7 +319,7 @@ export function compilarConsultaDocs(
     const f = compilarFiltroDocs(req.filtroGuiado)
     if (!f.ok) return f
     if (f.valor.texto !== '') {
-      if (req.filtro.trim() !== '') return invalida('filtro guiado y filtro de texto a la vez')
+      if (req.filtro.trim() !== '') return invalida('filtro guiado y filtro de texto al mismo tiempo')
       r.filtro = f.valor.texto
       r.rangos = f.valor.rangos
     }
@@ -328,7 +328,7 @@ export function compilarConsultaDocs(
     const o = compilarOrdenDocs(req.ordenColumnas)
     if (!o.ok) return o
     if (o.valor !== '') {
-      if (req.orden.trim() !== '') return invalida('orden de la cabecera y orden de texto a la vez')
+      if (req.orden.trim() !== '') return invalida('orden de la cabecera y orden de texto al mismo tiempo')
       r.orden = o.valor
       r.ordenGuiado = true
     }

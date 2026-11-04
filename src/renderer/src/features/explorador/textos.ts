@@ -10,7 +10,7 @@ export const txExplorador = crearTextos(
   {
     titulo: 'Explorador',
     sinProyecto: 'Sin proyecto abierto',
-    sinProyectoPista: 'Abre un proyecto para explorar sus archivos.',
+    sinProyectoPista: 'Abra un proyecto para explorar sus archivos.',
     arbolArchivos: 'Árbol de archivos',
     cargando: 'cargando…',
     vacio: '(vacío)',
@@ -30,7 +30,7 @@ export const txExplorador = crearTextos(
     reemplazarArchivos: 'Reemplazar archivos',
     reemplazarArchivo: 'Reemplazar archivo',
     yaExiste: (varios: boolean, lista: string) =>
-      `Ya existe${varios ? 'n' : ''} en la carpeta destino:\n${lista}\n\nSi reemplazas, se sustituyen (una carpeta se sustituye entera, con todo lo que tenga) y lo anterior no se puede recuperar.`,
+      `Ya existe${varios ? 'n' : ''} en la carpeta destino:\n${lista}\n\nSi reemplaza, el contenido anterior se sustituye (una carpeta se sustituye completa, con todo lo que contiene) y no se podrá recuperar.`,
     reemplazar: 'Reemplazar',
     eliminar: 'Eliminar',
     eliminarCarpeta: 'Eliminar carpeta',
@@ -39,9 +39,9 @@ export const txExplorador = crearTextos(
     avisoContenidoCarpetas: '\nSe eliminará también todo el contenido de las carpetas.',
     avisoContenido: '\nSe eliminará también todo su contenido.',
     seguroEliminar: (nombre: string, aviso: string) =>
-      `¿Eliminar "${nombre}"? Se borra del disco sin pasar por la papelera: no se puede deshacer.${aviso}`,
+      `¿Desea eliminar "${nombre}"? Se borrará del disco sin pasar por la papelera y no se podrá deshacer.${aviso}`,
     seguroEliminarVarios: (n: number, listado: string, resto: number, aviso: string) =>
-      `¿Eliminar estos ${n} elementos? Se borran del disco sin pasar por la papelera: no se puede deshacer.\n${listado}${resto > 0 ? `\n…y ${resto} más` : ''}${aviso}`,
+      `¿Desea eliminar estos ${n} elementos? Se borrarán del disco sin pasar por la papelera y no se podrá deshacer.\n${listado}${resto > 0 ? `\n…y ${resto} más` : ''}${aviso}`,
     ymas: (n: number) => `y ${n} más`,
     // Menú contextual
     abrirJarEn: (gestor: string) => `Abrir el .jar en ${gestor}`,
@@ -56,7 +56,7 @@ export const txExplorador = crearTextos(
     copiarRutas: (n: number) => (n > 1 ? `Copiar ${n} rutas` : 'Copiar ruta'),
     copiarRutasRelativas: (n: number) => (n > 1 ? `Copiar ${n} rutas relativas` : 'Copiar ruta relativa'),
     renombrarPuntos: 'Renombrar…',
-    descartarCambios: 'Descartar cambios (vuelve a la versión de git)',
+    descartarCambios: 'Descartar cambios (restaura la versión de Git)',
     eliminarElementosPuntos: (n: number) => `Eliminar ${n} elementos…`,
     eliminarCarpetaPuntos: 'Eliminar carpeta…',
     eliminarArchivoPuntos: 'Eliminar archivo…',
@@ -64,8 +64,8 @@ export const txExplorador = crearTextos(
     noSePudoEliminar: (lista: string) => `No se pudo eliminar: ${lista}.`,
     noSeMovio: (varios: boolean, nombres: string) =>
       `No se movió nada: ya ${varios ? 'existen' : 'existe'} ${nombres} en la carpeta destino.`,
-    noSePudoLeerUbicacion: 'No se pudo leer la ubicación de lo que soltaste.',
-    noSePudoPegar: (lista: string) => `No se pudo pegar: ${lista}. El resto sí se pegó.`,
+    noSePudoLeerUbicacion: 'No se pudo leer la ubicación de los elementos soltados.',
+    noSePudoPegar: (lista: string) => `No se pudo pegar: ${lista}. Los demás elementos sí se pegaron.`,
     noSePudoObtenerRuta: 'No se pudo obtener la ruta.'
   },
   {

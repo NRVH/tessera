@@ -189,8 +189,8 @@ function main(): void {
     const win = decidirVistaBotonAgentes(entrada({ nombres: nombresSistema('windows') }))
     const mac = decidirVistaBotonAgentes(entrada({ nombres: nombresSistema('mac') }))
     check(
-      '(V3c) con los nombres reales: «…de tu Windows» / «…de tu Mac»',
-      win.etiqueta === 'Actualizar los agentes de tu Windows' && mac.etiqueta === 'Actualizar los agentes de tu Mac',
+      '(V3c) con los nombres reales: «…de su equipo Windows» / «…de su Mac»',
+      win.etiqueta === 'Actualizar los agentes de su equipo Windows' && mac.etiqueta === 'Actualizar los agentes de su Mac',
       `${win.etiqueta} | ${mac.etiqueta}`
     )
   }
@@ -238,7 +238,7 @@ function main(): void {
     const m = decidirVistaBotonAgentes(entrada({ estado: MANUAL }))
     check(
       '(V8) una sesión atrasada avisa; un CLI que se instala a mano no (pero el título lo cuenta)',
-      v.punto === 'aviso' && v.titulo.includes('1 sesión corre una versión anterior') && m.punto === null && m.titulo.includes('a mano'),
+      v.punto === 'aviso' && v.titulo.includes('1 sesión usa una versión anterior') && m.punto === null && m.titulo.includes('manualmente'),
       `${fmt(v)} ${v.titulo} | ${fmt(m)} ${m.titulo}`
     )
   }
@@ -262,7 +262,7 @@ function main(): void {
     const v = decidirVistaBotonAgentes(entrada({ estado: esperando, plan: planificar(esperando) }))
     check(
       '(V9b) una que espera tu respuesta también lo dice en el título, con su propio motivo',
-      v.punto === 'aviso' && v.visible && v.titulo.includes('Espera: 1 agente espera tu respuesta.'),
+      v.punto === 'aviso' && v.visible && v.titulo.includes('Espera: 1 agente espera su respuesta.'),
       v.titulo
     )
   }

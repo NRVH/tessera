@@ -669,7 +669,7 @@ test.describe('mosaico de agentes', () => {
     //    existe. Lo que se fija aquí es que el selector está y sabe en qué modo corre.
     await casilla.locator('.cuenta-btn').click()
     const pop = win.locator('.cuenta-pop')
-    await expect(pop.locator('.cuenta-tarjeta[aria-checked="true"] .cuenta-tarjeta-detalle')).toContainText('La que usas en')
+    await expect(pop.locator('.cuenta-tarjeta[aria-checked="true"] .cuenta-tarjeta-detalle')).toContainText('Cuenta de')
     await expect(pop.locator('.cuenta-nueva')).toHaveCount(1)
     await win.keyboard.press('Escape')
     await expect(pop).toHaveCount(0)

@@ -25,10 +25,10 @@ export const txVisorClaves = crearTextos(
     sinCaducidad: 'Sin caducidad',
     caducada: 'Caducada',
     principioDelValor: (visto: string, total: string) =>
-      `Se ve el principio: ${visto} de ${total}. Para leerlo entero, usa GETRANGE en la consola.`,
+      `Se ve el principio: ${visto} de ${total}. Para leerlo entero, use GETRANGE en la consola.`,
     jsonOmitido: (tam: string) =>
-      `El documento ocupa ${tam} en memoria: el visor no lo lee para no bloquear la conexión. Léelo por partes en la consola (JSON.GET clave $.campo).`,
-    jsonCortado: 'El documento es más grande que el tope del visor y se ve cortado.',
+      `El documento ocupa ${tam} en memoria: el visor no lo lee para no bloquear la conexión. Léalo por partes en la consola (JSON.GET clave $.campo).`,
+    jsonCortado: 'El documento supera el límite del visor y se muestra cortado.',
     colCampo: 'Campo',
     colValor: 'Valor',
     colIndice: 'Índice',
@@ -39,7 +39,7 @@ export const txVisorClaves = crearTextos(
     // --- exportar ---
     claveNoExiste: 'La clave ya no existe.',
     tipoDeModulo: (tipo: string) =>
-      `El tipo ${tipo} lo añade un módulo del servidor: el visor no sabe leerlo, así que tampoco exportarlo.`,
+      `El tipo ${tipo} lo añade un módulo del servidor: el visor no puede leerlo y, por tanto, tampoco exportarlo.`,
     exportacionDetenida: 'Exportación detenida.',
     demasiadoGrande: (tope: number) =>
       `La clave tiene más de ${tope.toLocaleString('es-ES')} elementos: es demasiado grande para exportarla de una vez.`,
@@ -51,7 +51,7 @@ export const txVisorClaves = crearTextos(
     caduca: (resto: string) => `Caduca en ${resto}`,
     leyendo: 'Leyendo…',
     claveNoCaduca: 'La clave no caduca',
-    tiempoRestante: 'Tiempo que le queda (TTL)',
+    tiempoRestante: 'Tiempo de vida restante (TTL)',
     detenida: ' · detenida',
     claveAria: (nombre: string) => `Clave ${nombre}`,
     exportarJson: 'Exportar a JSON',
@@ -79,19 +79,19 @@ export const txVisorClaves = crearTextos(
     leyendoClave: 'Leyendo la clave…',
     elementoElegido: 'Elemento elegido',
     ningunElementoElegido: 'Ningún elemento elegido',
-    eligeUnElemento: 'Elige un elemento',
-    valorEnteroAqui: 'Su valor entero se ve aquí.',
+    eligeUnElemento: 'Seleccione un elemento',
+    valorEnteroAqui: 'Su valor completo se muestra aquí.',
     sinElementos: 'Sin elementos',
-    sinElementosPista: 'La clave existe pero no tiene elementos que enseñar.',
+    sinElementosPista: 'La clave existe pero no tiene elementos que mostrar.',
     cargando: 'Cargando…',
     cargarMas: 'Cargar más',
     elementosDe: (nombre: string) => `Elementos de ${nombre}`,
-    tipoNoLeible: (tipo: string) => `El visor no sabe leer el tipo ${tipo}`,
-    tipoNoLeiblePista: 'Lo añade un módulo del servidor. Puedes leerla con sus comandos desde la consola.',
+    tipoNoLeible: (tipo: string) => `El visor no puede leer el tipo ${tipo}`,
+    tipoNoLeiblePista: 'Lo añade un módulo del servidor. Puede leer la clave desde la consola con los comandos de ese módulo.',
     lecturaDetenida: 'Lectura detenida',
-    lecturaDetenidaPista: 'Pulsa Refrescar para volver a leer la clave.',
+    lecturaDetenidaPista: 'Pulse Refrescar para volver a leer la clave.',
     claveYaNoExiste: 'La clave ya no existe',
-    claveYaNoExistePista: 'Se borró o caducó después de listarla. Refresca el árbol para ver las que quedan.',
+    claveYaNoExistePista: 'Se borró o caducó después de listarla. Refresque el árbol para ver las claves que quedan.',
     documentoGrande: 'Documento demasiado grande para el visor',
     // --- tabla ---
     sinColumna: (titulo: string) => `Sin ${titulo}`,
@@ -101,7 +101,7 @@ export const txVisorClaves = crearTextos(
     noEsUtf8: 'No es texto UTF-8',
     textoUtf8: 'Texto UTF-8',
     leidos: ' leídos',
-    hexRecortado: 'El volcado hex enseña solo el principio del valor.',
+    hexRecortado: 'El volcado hex muestra solo el principio del valor.',
     copiarParte: (titulo: string) => `Copiar ${titulo}`
   },
   {

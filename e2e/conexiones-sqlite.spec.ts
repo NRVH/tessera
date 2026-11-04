@@ -275,7 +275,7 @@ test.describe('explorador de BD: SQLite', () => {
   })
 
   // (6) La montada nace con «Solo lectura para los agentes» (para `tdb`), y desde el
-  // Esa casilla NO limita al usuario: la barra lo INFORMA («RO agentes», con su
+  // Esa casilla NO limita al usuario: la barra lo INFORMA («Solo lectura (agentes)», con su
   // título) y una escritura desde la consola entra (SQLite abierto en lectura-escritura).
   test('(6) la montada es de solo lectura para los agentes, no para el usuario', async () => {
     const win = s!.win
@@ -285,9 +285,9 @@ test.describe('explorador de BD: SQLite', () => {
     await expect(montada.locator('.db-chip-ro'), 'la marca RO se conserva, como información').toHaveAttribute('title', /agentes/)
     await montada.click()
     await abrirConsolaNueva(win, `${MOD}+KeyN`)
-    const marca = win.locator(`${CONSOLA} .db-consola-barra .db-consola-dato`, { hasText: 'RO agentes' })
+    const marca = win.locator(`${CONSOLA} .db-consola-barra .db-consola-dato`, { hasText: 'Solo lectura (agentes)' })
     await expect(marca).toHaveAttribute('title', /tdb no escribe/)
-    await expect(win.locator(`${CONSOLA} .db-consola-barra`), 'ya no dice «Solo lectura» a secas').not.toContainText(/Solo lectura(?! para)/)
+    await expect(win.locator(`${CONSOLA} .db-consola-barra`), 'ya no dice «Solo lectura» a secas').not.toContainText(/Solo lectura(?! \(agentes\))/)
     await ejecutarTodoSeleccionado(win, "delete from clientes where nombre = 'Eva'")
     await esperarFinEjecucion(win)
     await expect(win.locator(`${CONSOLA} .db-glifo-error`), 'la escritura NO se rechaza').toHaveCount(0)

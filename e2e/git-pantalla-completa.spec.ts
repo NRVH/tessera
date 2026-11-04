@@ -119,9 +119,9 @@ test.describe('Git·Log a pantalla completa', () => {
     const editor = win.locator('.editor-area')
     const agente = win.locator('.right-panel.cc-panel')
     const panel = win.locator('.git-log-panel')
-    const maximizar = panel.getByRole('button', { name: 'Maximizar el panel de git' })
-    const restaurar = panel.getByRole('button', { name: 'Restaurar el panel de git' })
-    const cerrar = panel.getByRole('button', { name: 'Cerrar el panel de git' })
+    const maximizar = panel.getByRole('button', { name: 'Maximizar el panel de Git' })
+    const restaurar = panel.getByRole('button', { name: 'Restaurar el panel de Git' })
+    const cerrar = panel.getByRole('button', { name: 'Cerrar el panel de Git' })
     const recargar = panel.getByRole('button', { name: 'Recargar el historial y las ramas' })
 
     // --- Preparación: un archivo abierto (editor a la vista) y Git·Log en la franja ---
@@ -204,8 +204,8 @@ test.describe('Git·Log a pantalla completa', () => {
     const shell = win.locator('.shell')
     const agente = win.locator('.right-panel.cc-panel')
     const panel = win.locator('.git-log-panel')
-    const maximizar = panel.getByRole('button', { name: 'Maximizar el panel de git' })
-    const restaurar = panel.getByRole('button', { name: 'Restaurar el panel de git' })
+    const maximizar = panel.getByRole('button', { name: 'Maximizar el panel de Git' })
+    const restaurar = panel.getByRole('button', { name: 'Restaurar el panel de Git' })
     const commits = panel.locator('.git-fila-commit')
     const detalle = panel.locator('.git-log-detalle')
     const asunto = detalle.locator('.git-detalle-asunto')
@@ -271,7 +271,7 @@ test.describe('Git·Log a pantalla completa', () => {
     await expect(pestanaActiva.locator('.editor-tab-kind')).toHaveAttribute('aria-label', 'Diferencias')
     await expect(diffVisible).toContainText('adiós')
 
-    // --- (c) Historial de un archivo: doble clic en una versión y «Saltar al fuente» salen del modo ---
+    // --- (c) Historial de un archivo: doble clic en una versión y «Ir al archivo fuente» salen del modo ---
     await win.locator('.sidebar .tree-row:visible', { hasText: 'LEEME.txt' }).first().click({ button: 'right' })
     await win.locator('.ctx-menu').getByRole('menuitem', { name: 'Historial del archivo' }).click()
     const versiones = panel.locator('.git-hist-fila')
@@ -281,7 +281,7 @@ test.describe('Git·Log a pantalla completa', () => {
     await maximizar.click()
     await expect(shell).toHaveClass(/\bgit-pantalla-completa\b/)
     await versiones.first().click()
-    const saltar = panel.getByRole('button', { name: 'Saltar al fuente' })
+    const saltar = panel.getByRole('button', { name: 'Ir al archivo fuente' })
     await expect(saltar).toBeEnabled({ timeout: 30_000 })
     await expect(shell, 'elegir una versión no sale (el diff se ve dentro del panel)').toHaveClass(
       /\bgit-pantalla-completa\b/
@@ -307,7 +307,7 @@ test.describe('Git·Log a pantalla completa', () => {
     const lateral = win.locator('.panel-lateral')
     const editor = win.locator('.editor-area')
     const panel = win.locator('.git-log-panel')
-    const maximizar = panel.getByRole('button', { name: 'Maximizar el panel de git' })
+    const maximizar = panel.getByRole('button', { name: 'Maximizar el panel de Git' })
     const nueva = win.locator('.editor-tab.active', { hasText: 'Sin título' })
 
     // --- Punto de partida (lo deja la prueba anterior): Git en la franja y a pantalla completa ---

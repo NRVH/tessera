@@ -9,14 +9,14 @@ export const txSandbox = crearTextos(
   {
     actualizar: {
       reconstruyendo: 'Reconstruyendo la imagen de agentes (docker build --no-cache)… puede tardar unos minutos.',
-      horneado: (codex: string, claude: string) => `✓ Horneado en la imagen: ${codex} · ${claude}`,
-      recreando: 'Recreando contenedores (los agentes activos se reinician solos)…',
+      horneado: (codex: string, claude: string) => `✓ Incluido en la imagen: ${codex} · ${claude}`,
+      recreando: 'Recreando contenedores (los agentes activos se reinician automáticamente)…',
       listo: '✓ Listo. Los agentes se reabrirán sobre la versión nueva.',
       error: (e: string) => `✕ Error: ${e}`
     },
     contenedorAjeno: (nombre: string) =>
-      `Ya existe un contenedor «${nombre}» que no creó Tessera, y Tessera no borra ni para ` +
-      'contenedores ajenos. Cámbiale el nombre (docker rename) para poder usar el ' +
+      `Ya existe un contenedor «${nombre}» que no creó Tessera. Tessera no detiene ni elimina ` +
+      'contenedores ajenos. Cámbiele el nombre (docker rename) para poder usar el ' +
       'aislamiento de este perfil.',
     progreso: {
       deteniendo: 'Deteniendo contenedores…',
@@ -52,7 +52,7 @@ export const txSandbox = crearTextos(
       noSeConstruyo: (imagen: string, dir: string) => `No se pudo construir la imagen "${imagen}" desde "${dir}".`,
       extrasFallidos:
         'No se pudieron instalar los paquetes extra (¿algún nombre no existe en Debian?). ' +
-        'Se construye el sandbox sin ellos; revísalos en Configuración → Proyectos → Sandbox de Docker.',
+        'El sandbox se construye sin ellos; revíselos en Configuración → Proyectos → Sandbox de Docker.',
       listaSinExtras: 'Imagen del sandbox lista (sin los paquetes extra).',
       fallaReconstruccion: (imagen: string, codigo: number | null) =>
         `Falló la reconstrucción de la imagen "${imagen}" (docker build salió con ${codigo}).`
@@ -60,60 +60,60 @@ export const txSandbox = crearTextos(
     capa: {
       sinCapa: 'No se pudo preparar la capa de los agentes manuales de este perfil: se usa la imagen base, sin ellos.',
       instalando: 'Instalando los agentes manuales en la imagen de este perfil…',
-      fallo: 'Falló la instalación (mira el registro de arriba).',
+      fallo: 'Falló la instalación (revise el registro anterior).',
       noSeComprobo: (detalle: string) => `Se instaló, pero no se pudo comprobar la imagen: ${detalle}`
     },
     diagnostico: {
       daemon: 'El daemon de Docker no responde.',
-      queVerificar: 'Que verificar:',
+      queVerificar: 'Qué verificar:',
       salidaIlegible: (nombre: string) =>
         `docker inspect ${nombre} devolvió una salida que no se pudo interpretar; ` +
         'no se toca nada del perfil hasta poder consultarlo.',
       dockerSalio: (status: number | null) => `docker salió con ${status}`,
       noSeConsulto: (nombre: string, motivo: string) =>
         `No se pudo consultar el estado del contenedor "${nombre}" (${motivo}). ` +
-        'No se recrea ni se desmonta nada: podría estar vivo.'
+        'No se recrea ni se desmonta nada: el contenedor podría seguir en ejecución.'
     },
     red: {
       sondaTitulo: (tuEquipo: string) => `La red del anfitrión no está llegando a ${tuEquipo}`,
       sondaDetalle: (perfil: string, tuEquipo: string) =>
-        `El contenedor de “${perfil}” se creó pidiendo la red del anfitrión, pero una prueba real no llegó a ` +
-        `${tuEquipo}. Suele ser que «Enable host networking» está desactivado en Docker Desktop (Settings › Resources › ` +
-        'Network). Abre «Red del contenedor…» en el menú del perfil para ver el diagnóstico completo.'
+        `El contenedor de “${perfil}” se creó solicitando la red del anfitrión, pero una prueba real no llegó a ` +
+        `${tuEquipo}. Suele deberse a que «Enable host networking» está desactivado en Docker Desktop (Settings › Resources › ` +
+        'Network). Abra «Red del contenedor…» en el menú del perfil para ver el diagnóstico completo.'
     },
     prevuelo: {
       motorTitulo: 'Docker responde',
-      motorRemedio: 'Abre Docker Desktop y espera a que el motor esté en marcha.',
+      motorRemedio: 'Abra Docker Desktop y espere a que el motor esté en marcha.',
       linuxTitulo: 'Docker ejecuta contenedores Linux',
       linuxRemedio:
-        'Docker está en modo de contenedores Windows, y la red del anfitrión solo existe para contenedores Linux. Cámbialo desde el icono de Docker en la bandeja del sistema.',
+        'Docker está en modo de contenedores Windows, y la red del anfitrión solo existe para contenedores Linux. Cambie el modo desde el icono de Docker en la bandeja del sistema.',
       motorOk: 'Docker responde y ejecuta contenedores Linux',
       versionTitulo: (mayor: number, menor: number) => `Docker Desktop ${mayor}.${menor} o posterior`,
       versionDesconocida:
         'No se reconoció Docker Desktop (puede ser Docker Engine u otra distribución). Lo que decide es la comprobación del tráfico, más abajo.',
       versionVieja: (tmayor: number, tmenor: number, mayor: number, menor: number) =>
-        `Tienes la ${tmayor}.${tmenor}. La red del anfitrión llegó a Docker Desktop en la ${mayor}.${menor}; actualiza Docker Desktop.`,
+        `La versión instalada es la ${tmayor}.${tmenor}. La red del anfitrión llegó a Docker Desktop en la versión ${mayor}.${menor}; actualice Docker Desktop.`,
       versionOk: (mayor: number, menor: number) => `Docker Desktop ${mayor}.${menor}`,
       ajusteTitulo: '«Enable host networking» en Docker Desktop',
       ajusteDesconocido:
         'No se pudo leer la configuración de Docker Desktop. Lo que decide es la comprobación del tráfico, más abajo.',
       ajusteApagado:
-        'Está desactivado, y viene así de fábrica. Actívalo en Docker Desktop › Settings › Resources › Network y pulsa «Apply and restart».',
+        'Está desactivado, y viene así de fábrica. Actívelo en Docker Desktop › Settings › Resources › Network y pulse «Apply and restart».',
       ajusteOk: '«Enable host networking» activado',
       aislamientoTitulo: '«Enhanced Container Isolation» desactivado',
       aislamientoDesconocido: 'No se pudo leer la configuración de Docker Desktop.',
       aislamientoActivo: (tuEquipo: string) =>
-        `Está activado. Aislar el contenedor de ${tuEquipo} y darle su red son lo contrario, y Docker no deja hacer las dos cosas a la vez: desmárcalo en Docker Desktop › Settings › General. Si tu organización lo impone por política, este modo no está disponible aquí.`,
+        `Está activado. Aislar el contenedor de ${tuEquipo} y darle acceso a su red son objetivos opuestos, y Docker no permite combinarlos: desmárquelo en Docker Desktop › Settings › General. Si su organización lo impone por política, este modo no está disponible aquí.`,
       traficoTitulo: (tuEquipo: string) => `El tráfico llega de verdad a ${tuEquipo}`,
       traficoDesconocido: 'No se pudo completar la comprobación.',
       traficoWindows: (tuEquipo: string) =>
-        `El puerto de prueba no llegó a ${tuEquipo}. Si actualizaste WSL hace poco, Docker documenta una incompatibilidad de esta función con los kernels recientes de WSL 2: prueba «wsl --update --rollback» y reinicia Docker Desktop.`,
+        `El puerto de prueba no llegó a ${tuEquipo}. Si actualizó WSL recientemente, Docker documenta una incompatibilidad de esta función con los kernels recientes de WSL 2: pruebe «wsl --update --rollback» y reinicie Docker Desktop.`,
       traficoOtra: (tuEquipo: string) =>
-        `El puerto de prueba no llegó a ${tuEquipo}. Reinicia Docker Desktop después de aplicar el ajuste de red; si sigue igual, este modo no está operativo en esta máquina y el perfil funcionará mejor en red aislada.`,
+        `El puerto de prueba no llegó a ${tuEquipo}. Reinicie Docker Desktop después de aplicar el ajuste de red; si el resultado es el mismo, este modo no está operativo en esta máquina y el perfil funcionará mejor en red aislada.`,
       egressEspejo:
-        'WSL está en modo espejo, así que los contenedores de todos los perfiles salen por la VPN que tengas activa. No depende de esta opción.',
+        'WSL está en modo espejo, por lo que los contenedores de todos los perfiles salen por la VPN que esté activa. No depende de esta opción.',
       egressNat:
-        'WSL está en modo NAT: los contenedores no siguen a la VPN que tengas activa. Eso es independiente de esta opción y se arregla en %USERPROFILE%\\.wslconfig con networkingMode=mirrored (y luego «wsl --shutdown»).'
+        'WSL está en modo NAT: los contenedores no usan la VPN que esté activa. Esto es independiente de esta opción y se corrige en %USERPROFILE%\\.wslconfig con networkingMode=mirrored (y después «wsl --shutdown»).'
     }
   },
   {

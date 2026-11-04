@@ -12,27 +12,27 @@ export const txAgentesManuales = crearTextos(
   {
     nombre: {
       falta: 'Falta el nombre.',
-      pasaDe: (max: number) => `El nombre pasa de ${max} caracteres.`,
-      unaLinea: 'El nombre tiene que ser una sola línea.'
+      pasaDe: (max: number) => `El nombre supera los ${max} caracteres.`,
+      unaLinea: 'El nombre debe ser una sola línea.'
     } as CampoLinea,
     comando: {
       falta: 'Falta el comando.',
-      pasaDe: (max: number) => `El comando pasa de ${max} caracteres.`,
-      unaLinea: 'El comando tiene que ser una sola línea.'
+      pasaDe: (max: number) => `El comando supera los ${max} caracteres.`,
+      unaLinea: 'El comando debe ser una sola línea.'
     } as CampoLinea,
     reanudar: {
-      falta: 'Falta cómo reanudar.',
-      pasaDe: (max: number) => `Cómo reanudar pasa de ${max} caracteres.`,
-      unaLinea: 'Cómo reanudar tiene que ser una sola línea.'
+      falta: 'Falta indicar cómo reanudar.',
+      pasaDe: (max: number) => `El campo «Cómo reanudar» supera los ${max} caracteres.`,
+      unaLinea: 'El campo «Cómo reanudar» debe ser una sola línea.'
     } as CampoLinea,
-    instalacionSoloDocker: 'Las órdenes de instalación solo existen en Docker: en nativo el agente lo instalas tú.',
-    instalacionLarga: (max: number) => `Las órdenes de instalación pasan de ${max} caracteres.`,
-    instalacionControl: 'Las órdenes de instalación llevan caracteres que no son texto.',
+    instalacionSoloDocker: 'Las órdenes de instalación solo existen en Docker: en modo nativo, usted debe instalar el agente.',
+    instalacionLarga: (max: number) => `Las órdenes de instalación superan los ${max} caracteres.`,
+    instalacionControl: 'Las órdenes de instalación contienen caracteres que no son texto.',
     noEsObjeto: 'La definición no es un objeto.',
     idNoValido: 'El id del agente no es válido.',
     noEsJson: 'El texto pegado no es JSON.',
     noEsAgente: 'El JSON no es la definición de un agente de Tessera.',
-    masNueva: 'Esta definición es de una Tessera más nueva: actualiza Tessera para pegarla.'
+    masNueva: 'Esta definición pertenece a una versión más reciente de Tessera: actualice Tessera para poder pegarla.'
   },
   {
     nombre: {
@@ -72,26 +72,26 @@ export const txContextoAgente = crearTextos(
     comandoOArchivo: 'La fuente del contexto es un comando o un archivo.',
     comando: {
       falta: 'Falta el comando del contexto.',
-      pasaDe: (max: number) => `El comando del contexto pasa de ${max} caracteres.`,
-      unaLinea: 'El comando del contexto tiene que ser una sola línea.'
+      pasaDe: (max: number) => `El comando del contexto supera los ${max} caracteres.`,
+      unaLinea: 'El comando del contexto debe ser una sola línea.'
     } as FuenteOrigen,
     archivo: {
       falta: 'Falta el archivo del contexto.',
-      pasaDe: (max: number) => `El archivo del contexto pasa de ${max} caracteres.`,
-      unaLinea: 'El archivo del contexto tiene que ser una sola línea.'
+      pasaDe: (max: number) => `El archivo del contexto supera los ${max} caracteres.`,
+      unaLinea: 'El archivo del contexto debe ser una sola línea.'
     } as FuenteOrigen,
-    usadoNoNumero: 'Lo usado tiene que ser un campo del JSON, no un número.',
+    usadoNoNumero: 'El valor usado debe ser un campo del JSON, no un número.',
     usado: {
-      falta: 'Falta el campo de lo usado.',
-      pasaDe: (max: number) => `El campo de lo usado pasa de ${max} caracteres.`,
-      noValido: 'El campo de lo usado no es un campo válido (p. ej. «context.used»).'
+      falta: 'Falta el campo del valor usado.',
+      pasaDe: (max: number) => `El campo del valor usado supera los ${max} caracteres.`,
+      noValido: 'El campo del valor usado no es válido (por ejemplo, «context.used»).'
     } as CampoFuente,
     maximo: {
       falta: 'Falta el máximo.',
-      pasaDe: (max: number) => `El máximo pasa de ${max} caracteres.`,
-      noValido: 'El máximo no es un campo válido (p. ej. «context.used»).'
+      pasaDe: (max: number) => `El máximo supera los ${max} caracteres.`,
+      noValido: 'El máximo no es un campo válido (por ejemplo, «context.used»).'
     } as CampoFuente,
-    salidaSinNumeros: (usado: string) => `La salida no trae «${usado}» y el máximo como números.`,
+    salidaSinNumeros: (usado: string) => `La salida no contiene «${usado}» y el máximo como números.`,
     maximoCero: 'El máximo es 0.'
   },
   {

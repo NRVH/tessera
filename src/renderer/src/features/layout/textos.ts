@@ -15,27 +15,27 @@ export const txLayout = crearTextos(
       terminal: 'Terminal',
       terminalTitulo: 'Terminal (Ctrl+`)',
       gitLog: 'Git · Log',
-      gitLogTitulo: 'Historial de git',
+      gitLogTitulo: 'Historial de Git',
       cambiosSinConfirmar: (n: number) => `${n} cambios sin confirmar`,
       barra: 'Barra de actividad',
       grupoSuperior: 'Grupo superior del riel',
       grupoInferior: 'Grupo inferior del riel',
       volver: 'Volver al proyecto',
-      volverTitulo: { terminal: 'Cierra la terminal y vuelve al proyecto', gitlog: 'Cierra el historial de git y vuelve al proyecto' }
+      volverTitulo: { terminal: 'Cierra la terminal y vuelve al proyecto', gitlog: 'Cierra el historial de Git y vuelve al proyecto' }
     },
     estado: {
       barra: 'Barra de estado',
       ocultarAgenteDatos: (acorde: string) => `Ocultar el agente de datos (${acorde})`,
       mostrarAgenteDatos: (acorde: string) => `Mostrar el agente de datos (${acorde})`,
-      ocultarAgenteTerminal: (acorde: string) => `Ocultar el agente de la terminal, que sigue corriendo (${acorde})`,
+      ocultarAgenteTerminal: (acorde: string) => `Ocultar el agente de la terminal, que sigue en ejecución (${acorde})`,
       mostrarAgenteTerminal: (acorde: string) => `Mostrar el agente de la terminal (${acorde})`,
       ocultarColumna: 'Ocultar el agente; sigue trabajando',
       mostrarColumna: 'Mostrar el agente',
       ramaActual: (rama: string) => `Rama actual: ${rama}`,
       tituloProblema: (titulo: string, detalle: string | undefined) =>
-        `${titulo}${detalle ? `\n${detalle}` : ''}\n\nClic para descartar`,
-      ariaProblema: (titulo: string) => `Aviso: ${titulo}. Clic para descartar.`,
-      finDeLinea: 'Fin de línea (clic para cambiar)',
+        `${titulo}${detalle ? `\n${detalle}` : ''}\n\nHaga clic para descartar`,
+      ariaProblema: (titulo: string) => `Aviso: ${titulo}. Haga clic para descartar.`,
+      finDeLinea: 'Fin de línea (haga clic para cambiar)',
       codificacion: 'Codificación del archivo (reabrir / convertir)',
       menuEol: 'Fin de línea',
       menuAccion: 'Codificación',
@@ -45,19 +45,19 @@ export const txLayout = crearTextos(
       itemGuardar: 'Guardar con codificación…'
     },
     razones: {
-      sinArchivo: 'Sin un archivo abierto el agente ocupa el centro; abre uno para poder ocultarlo',
+      sinArchivo: 'Sin un archivo abierto, el agente ocupa el centro; abra un archivo para poder ocultarlo',
       vistaDividida:
-        'En vista dividida la columna del agente se esconde para dejar sitio a los dos paneles. Cambia el modo del archivo para recuperarla.',
-      mosaico: 'En el mosaico de agentes las terminales ocupan toda la ventana. Sal del mosaico para ocultar la columna.',
-      sinPerfilDb: 'Elige un perfil en la barra de arriba para usar el agente de bases de datos',
+        'En vista dividida, la columna del agente se oculta para dejar espacio a los dos paneles. Cambie el modo de vista del archivo para volver a mostrarla.',
+      mosaico: 'En el mosaico de agentes, las terminales ocupan toda la ventana. Salga del mosaico para ocultar la columna.',
+      sinPerfilDb: 'Elija un perfil en la barra superior para usar el agente de bases de datos',
       gitLogPantallaCompleta:
-        'A pantalla completa de Git no hay columna del agente. Pulsa Restaurar en el panel para volver a verla.'
+        'A pantalla completa de Git no hay columna del agente. Pulse Restaurar en el panel para volver a mostrarla.'
     },
     titulo: {
-      salirMosaico: (mod: string) => `Salir del mosaico (${mod}+Shift+M)`,
+      salirMosaico: (mod: string) => `Salir del mosaico (${mod}+Mayús+M)`,
       mosaicoDisponible: (mod: string) =>
-        `Mosaico de agentes: todas las terminales en marcha a la vista (${mod}+Shift+M)`,
-      mosaicoNoDisponible: 'Ver todos los agentes a la vez (cuando haya alguno en marcha)',
+        `Mosaico de agentes: todas las terminales en ejecución visibles (${mod}+Mayús+M)`,
+      mosaicoNoDisponible: 'Ver todos los agentes al mismo tiempo (cuando haya alguno en ejecución)',
       mosaico: 'Mosaico de agentes',
       configuracionTitulo: (mod: string) => `Configuración (${mod}+,)`,
       configuracion: 'Configuración'
@@ -72,15 +72,15 @@ export const txLayout = crearTextos(
     cerrarSinGuardar: {
       titulo: 'Cerrar sin guardar',
       mensajeDiff: (nombre: string) =>
-        `"${nombre}" tiene cambios sin guardar.\nSi cierras el diff, se pierden: no se han escrito a disco.`,
-      mensajeArchivo: (nombre: string) => `"${nombre}" tiene cambios sin guardar.\nSi lo cierras, se pierden.`,
+        `"${nombre}" tiene cambios sin guardar.\nSi cierra la comparación, se pierden: no se han escrito en disco.`,
+      mensajeArchivo: (nombre: string) => `"${nombre}" tiene cambios sin guardar.\nSi lo cierra, se pierden.`,
       cancelar: 'Cancelar'
     },
     cierre: {
       aria: 'Cerrando Tessera',
       actualizando: 'Actualizando Tessera',
       cerrando: 'Cerrando Tessera',
-      reabre: 'Tessera volverá a abrirse sola al terminar.',
+      reabre: 'Tessera se abrirá de nuevo automáticamente al terminar.',
       deteniendo: 'Deteniendo contenedores Docker…'
     }
   },

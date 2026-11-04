@@ -104,7 +104,7 @@ function main(): void {
     [
       'rutaMsysDesconocida',
       (es.rutaMsysDesconocida as F)('/tmp'),
-      'No sé a qué carpeta de Windows corresponde «/tmp»: usa una ruta de Windows (C:\\...) o una relativa a la carpeta actual.'
+      'No se pudo determinar a qué carpeta de Windows corresponde «/tmp»: use una ruta de Windows (C:\\...) o una relativa a la carpeta actual.'
     ],
     ['conexionesDisponibles', (es.conexionesDisponibles as F)(2, 1), '2 disponibles para los agentes, 1 más que no lo están'],
     ['todoBienRun', (es.todoBienRun as F)('"nas casa"'), 'Todo en orden. Prueba:  tssh run "nas casa" -- uptime']
@@ -113,11 +113,11 @@ function main(): void {
   const ayuda = (es.ayuda as F)(CODIGOS)
   check(
     'ayuda: cabecera, códigos y cierre de siempre',
-    ayuda.startsWith('\n  tssh — las conexiones SSH del perfil de Tessera, para ti y para los agentes\n') &&
+    ayuda.startsWith('\n  tssh — las conexiones SSH del perfil de Tessera, para el usuario y para los agentes\n') &&
       ayuda.includes('    2    uso incorrecto (argumentos, subcomando) o desde WSL\n') &&
       ayuda.includes('    124  se agotó --timeout\n') &&
       ayuda.includes('una letra de unidad (C:\\…) es siempre local') &&
-      ayuda.endsWith('  %variables% de tu línea se expanden antes de llegar a tssh.\n'),
+      ayuda.endsWith('  %variables% de la línea de órdenes se expanden antes de llegar a tssh.\n'),
     `${ayuda.length} caracteres`
   )
 
@@ -142,7 +142,7 @@ function main(): void {
   check('sin puente, en inglés y con el código del puente', sinPuenteEn.codigo === CODIGOS.puente && sinPuenteEn.errores.startsWith('tssh: This terminal was not opened by Tessera'), sinPuenteEn.errores.trim())
   const contEs = correr('tssh-container.cjs', ['ls'], null)
   const contEn = correr('tssh-container.cjs', ['ls'], 'en')
-  check('cliente del contenedor, en español', contEs.codigo === CODIGOS.puente && contEs.errores.startsWith('tssh: Esta terminal no lleva el contexto de Tessera'), contEs.errores.trim())
+  check('cliente del contenedor, en español', contEs.codigo === CODIGOS.puente && contEs.errores.startsWith('tssh: Esta terminal no tiene el contexto de Tessera'), contEs.errores.trim())
   check('cliente del contenedor, en inglés', contEn.codigo === CODIGOS.puente && contEn.errores.startsWith('tssh: This terminal does not have the Tessera context'), contEn.errores.trim())
 
   hr('RESULTADO (PASS/FAIL)')

@@ -228,7 +228,7 @@ async function main(): Promise<void> {
     check('sin entrada: la entrada se cierra y tdb contesta en el acto', ms < RAPIDO_MS && r.stderr.includes('No llegó nada'), `${ms} ms · ${una(r.stderr)}`)
 
     const r2 = await ejecutarTdb({ ejecutable: process.execPath, argv: ['-e', 'setTimeout(() => {}, 20000)'], env: entornoTdb(), timeoutMs: 1000, maxBuffer: 1 << 20 })
-    check('el tope de tiempo se dice en stderr', r2.exitCode !== 0 && r2.stderr.includes('no terminó en 1 s y se cortó'), una(r2.stderr))
+    check('el tope de tiempo se dice en stderr', r2.exitCode !== 0 && r2.stderr.includes('no terminó en 1 s y se interrumpió'), una(r2.stderr))
 
     const r3 = await ejecutarTdb({ ejecutable: process.execPath, argv: ['-e', 'process.exit(0)'], env: entornoTdb(), entrada: 'x'.repeat(4 << 20), timeoutMs: TOPE_MS, maxBuffer: 1 << 20 })
     check('un proceso que no lee su entrada no tumba a quien escribe (EPIPE)', r3.exitCode === 0, JSON.stringify(r3))

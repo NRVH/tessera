@@ -102,11 +102,11 @@ function main(): void {
   hr('VENTANA DE AGENTE (la carpeta del usuario)')
   {
     const historial = rotuloHistorialConversaciones('ventana')
-    check('(M17) el historial, «de tu carpeta de usuario»', historial === 'Historial de conversaciones de tu carpeta de usuario', historial)
+    check('(M17) el historial, «de su carpeta de usuario»', historial === 'Historial de conversaciones de su carpeta de usuario', historial)
     const lugar = lugarHistorial('ventana', 'C:\\Users\\ana')
     check(
       '(M18) el modal: «carpeta de usuario», nunca el nombre de la cuenta',
-      lugar.cabecera === 'carpeta de usuario' && lugar.enVacio === 'en tu carpeta de usuario' && !JSON.stringify(lugar).includes('ana'),
+      lugar.cabecera === 'carpeta de usuario' && lugar.enVacio === 'en su carpeta de usuario' && !JSON.stringify(lugar).includes('ana'),
       JSON.stringify(lugar)
     )
   }

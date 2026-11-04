@@ -161,7 +161,7 @@ function main(): void {
   const conRecorte = avisoExportado({ ...hecho, recortadas: 3 }, 'windows')
   check(
     '(6n) celdas recortadas: aviso ámbar que lo dice',
-    conRecorte.tipo === 'warn' && conRecorte.detalle === '2 KB · 3 celdas pasaban de 16 MiB y se escribieron recortadas',
+    conRecorte.tipo === 'warn' && conRecorte.detalle === '2 KB · 3 celdas superaban los 16 MiB y se escribieron recortadas',
     conRecorte.detalle
   )
   const sinOrden = avisoExportado({ ...hecho, aviso: 'Sin orden estable.' }, 'mac')
@@ -169,7 +169,7 @@ function main(): void {
   check('(6p) NEGATIVO: recortadas 0 no avisa', avisoExportado({ ...hecho, recortadas: 0 }, 'windows').tipo === 'success', 'ok')
   check('(6m) píldora: sin cifra hasta el primer progreso', textoExportando(0) === 'Exportando…' && textoExportando(Number.NaN) === 'Exportando…', 'ok')
   check('(6n) píldora: con cifra', textoExportando(45000) === `Exportando: 45${NBSP}000 filas` && textoExportando(1) === 'Exportando: 1 fila', textoExportando(45000))
-  check('(6o) detenida por Stop / por cerrar la pestaña', avisoDetenida(false).detalle === undefined && avisoDetenida(true).detalle === 'Se cerró la pestaña que la lanzó.', 'ok')
+  check('(6o) detenida por Stop / por cerrar la pestaña', avisoDetenida(false).detalle === undefined && avisoDetenida(true).detalle === 'Se cerró la pestaña que inició la exportación.', 'ok')
   check('(6p) menús: exportar los cinco, CSV primero; copiar como sin TSV', j(FORMATOS_EXPORTAR) === j(['csv', 'tsv', 'json', 'insert', 'markdown']) && !FORMATOS_COPIAR_COMO.includes('tsv') && FORMATOS_COPIAR_COMO.length === 4, 'ok')
   const a = nuevoIdExportacion()
   const b = nuevoIdExportacion()

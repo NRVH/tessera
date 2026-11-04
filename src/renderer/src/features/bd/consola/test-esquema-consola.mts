@@ -98,13 +98,13 @@ function main(): void {
   hr('(3) cursor inicial y título')
   check('el cursor abre en la vigente', indiceInicialEsquema(elegida) === 2, String(indiceInicialEsquema(elegida)))
   check('sin vigente a la vista (filtrada): la primera', indiceInicialEsquema(filtrada) === 0 && indiceInicialEsquema([]) === 0, '0')
-  check('título del botón', tituloBotonEsquema('ventas', false) === 'Esquema: ventas. Pulsa para cambiar', tituloBotonEsquema('ventas', false))
+  check('título del botón', tituloBotonEsquema('ventas', false) === 'Esquema: ventas. Haga clic para cambiar', tituloBotonEsquema('ventas', false))
   check(
     'mientras ejecuta: por qué está deshabilitado',
-    tituloBotonEsquema('ventas', true) === 'Espera a que termine la ejecución para cambiar el esquema',
+    tituloBotonEsquema('ventas', true) === 'Espere a que termine la ejecución para cambiar el esquema',
     tituloBotonEsquema('ventas', true)
   )
-  check('sin esquema conocido', tituloBotonEsquema(null, false) === 'Esquema de la consola. Pulsa para cambiar', tituloBotonEsquema(null, false))
+  check('sin esquema conocido', tituloBotonEsquema(null, false) === 'Esquema de la consola. Haga clic para cambiar', tituloBotonEsquema(null, false))
 
   hr('(4) SQL Server: la lista es de BASES y la primera opción lo dice')
   const bases = opcionesEsquemaConsola(LISTA, 'public', null, 'public', '', (p) => `Base de la conexión (${p ?? ''})`)

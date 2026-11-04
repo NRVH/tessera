@@ -11,14 +11,14 @@ export const txVisorComun = crearTextos(
     cargando: 'Cargando…',
     cerrarArchivo: 'Cerrar archivo',
     abrirExternamente: 'Abrir externamente',
-    mostrarEnExplorador: 'Mostrar en el explorador de archivos',
-    noSePudoAbrirConApp: (err: string) => `No se pudo abrir con una app del sistema: ${err}`
+    mostrarEnExplorador: (gestor: string) => `Mostrar en ${gestor}`,
+    noSePudoAbrirConApp: (err: string) => `No se pudo abrir con la aplicación predeterminada del sistema: ${err}`
   },
   {
     cargando: 'Loading…',
     cerrarArchivo: 'Close file',
     abrirExternamente: 'Open externally',
-    mostrarEnExplorador: 'Show in file manager',
+    mostrarEnExplorador: (gestor: string) => `Show in ${gestor}`,
     noSePudoAbrirConApp: (err: string) => `Could not open it in its default app: ${err}`
   }
 )
@@ -30,13 +30,13 @@ export const txBinario = crearTextos(
     tipoZip: 'Archivo comprimido',
     abrirEnWord: 'Abrir en Word',
     abrirTitulo: (etiqueta: string) =>
-      `${etiqueta}: abre el archivo con su aplicación del sistema (fidelidad total)`,
+      `${etiqueta}: abre el archivo con su aplicación predeterminada del sistema (con todo su formato)`,
     noSePudoAbrir: 'No se pudo abrir el archivo',
     buscarEnDocumento: 'Buscar en el documento',
-    queVersion: 'Qué versión se está mostrando',
+    queVersion: 'Versión que se muestra',
     zipResumen: (archivos: number, carpetas: number, tamano: string) =>
       `${archivos} archivo(s)${carpetas > 0 ? `, ${carpetas} carpeta(s)` : ''} · ${tamano} sin comprimir`,
-    archivoVacio: 'El archivo está vacío.',
+    archivoVacio: 'El archivo comprimido está vacío.',
     colNombre: 'Nombre',
     colTamano: 'Tamaño',
     colComprimido: 'Comprimido',
@@ -44,11 +44,13 @@ export const txBinario = crearTextos(
     pdfNoExiste: 'El PDF no existe en esta revisión.',
     tipoAudio: 'Audio',
     tipoVideo: 'Vídeo',
-    mediaExcede: 'El archivo supera el máximo (50 MiB) para reproducirlo aquí. Ábrelo con la app del sistema.',
+    mediaExcede:
+      'El archivo supera el máximo de 50 MiB para reproducirlo aquí. Ábralo con la aplicación predeterminada del sistema.',
     mediaNoExiste: 'El archivo no existe en esta revisión.',
-    noReproducible: 'Este formato no se puede reproducir aquí. Ábrelo con la app del sistema.',
+    noReproducible:
+      'Este formato no se puede reproducir aquí. Ábralo con la aplicación predeterminada del sistema.',
     convertido: (n: number) =>
-      `Convertido con ${n} aviso(s) de formato. Usa "Abrir en Word" para verlo tal cual.`
+      `Convertido con ${n} aviso(s) de formato. Use «Abrir en Word» para ver el documento con su formato original.`
   },
   {
     tipoPdf: 'PDF',
@@ -81,11 +83,11 @@ export const txBinario = crearTextos(
 export const txImagen = crearTextos(
   {
     aria: 'Imagen',
-    codigoSvgClic: 'Código SVG — clic para ver la imagen',
-    imagenClic: 'Imagen — clic para ver el código SVG',
+    codigoSvgClic: 'Código SVG — haga clic para ver la imagen',
+    imagenClic: 'Imagen — haga clic para ver el código SVG',
     codigoSvgAria: 'Código SVG (cambiar a imagen)',
     imagenAria: 'Imagen (cambiar a código SVG)',
-    abrirExternamenteTitulo: 'Abrir externamente: abre la imagen con su aplicación del sistema',
+    abrirExternamenteTitulo: 'Abrir externamente: abre la imagen con su aplicación predeterminada del sistema',
     mostrarEnCarpeta: 'Mostrar en la carpeta',
     controlesZoom: 'Controles de zoom',
     alejar: 'Alejar',
@@ -98,13 +100,13 @@ export const txImagen = crearTextos(
     supera50: 'La imagen supera el máximo (50 MiB) y no puede mostrarse completa.',
     sinDimensiones: 'No se pudieron determinar las dimensiones de la imagen.',
     formatoNoMostrable:
-      'Este formato de imagen no se puede mostrar en el visor. Ábrelo con la aplicación del sistema.',
+      'Este formato de imagen no se puede mostrar en el visor. Ábralo con la aplicación predeterminada del sistema.',
     noSePudoLeerCodigo: (err: string) => `No se pudo leer el código: ${err}`,
     // Diff de imagen
     diffAria: 'Diff de imagen',
     noSePudoLeer: 'No se pudo leer la imagen.',
     noSePudoLeerSugerencia:
-      'Puede que la revisión ya no exista o que el repositorio esté en un estado raro.',
+      'Es posible que la revisión ya no exista o que el repositorio esté en un estado inconsistente.',
     antes: 'Antes',
     despues: 'Después',
     nuevo: 'No existía: el archivo es nuevo.',
@@ -115,9 +117,9 @@ export const txImagen = crearTextos(
     mismasDimensionesOtroContenido: (w: number, h: number) =>
       `Mismas dimensiones (${w}×${h}): el cambio está en el contenido.`,
     cerrarDiff: 'Cerrar diff',
-    pesaDemasiado: (tamano: string) => `Pesa ${tamano} y supera el máximo de 50 MiB: no se puede pintar.`,
+    pesaDemasiado: (tamano: string) => `La imagen ocupa ${tamano} y supera el máximo de 50 MiB: no se puede mostrar.`,
     navegadorNoDibuja:
-      'El navegador no sabe dibujar este formato. Ábrelo desde el explorador con la aplicación del sistema.'
+      'El visor no puede mostrar este formato. Ábralo desde el explorador con la aplicación predeterminada del sistema.'
   },
   {
     aria: 'Image',
@@ -214,7 +216,7 @@ export const txComprimido = crearTextos(
     entradasCambiadas: (n: number) => `${n} ${n === 1 ? 'entrada cambiada' : 'entradas cambiadas'}`,
     identicas: (n: number) => ` · ${n} idénticas`,
     listaRecortada: ' · lista recortada',
-    elegirEntrada: 'Elige una entrada para ver sus diferencias',
+    elegirEntrada: 'Seleccione una entrada para ver sus diferencias',
     noSePudoComparar: 'No se pudo comparar el archivo',
     sinDiferenciasHint:
       'Las dos versiones del comprimido tienen el mismo contenido. Pueden diferir en fechas o en el orden de las entradas, que no cambian lo que hay dentro.',
@@ -223,7 +225,7 @@ export const txComprimido = crearTextos(
     cambio: (antes: string, despues: string) => `Cambió de ${antes} a ${despues}.`,
     entradaBinaria: 'Entrada binaria: no hay diff de texto que mostrar.',
     grandeEnteraTitulo: 'La entrada es demasiado grande para compararla entera.',
-    grandeEnteraHint: 'Sólo se pudo leer el principio, y un diff a medias se leería como un borrado gigante.',
+    grandeEnteraHint: 'Solo se pudo leer el principio, y un diff parcial se interpretaría como un borrado masivo.',
     grandeAquiTitulo: 'La entrada es demasiado grande para compararla aquí.',
     noSePudoLeerEntrada: 'No se pudo leer esta entrada',
     comparandoArchivo: 'Comparando el archivo…',
@@ -273,11 +275,11 @@ export const txVistaPrevia = crearTextos(
     diagramaVacio: 'El diagrama está vacío.',
     diagramaSintaxis: 'El diagrama tiene un error de sintaxis.',
     noSePudoDibujar: (err: string) => `No se pudo dibujar el diagrama: ${err}`,
-    sinCarpeta: (lista: string) => `la página se carga sin su carpeta, así que no resuelven: ${lista}`,
-    sinRed: (lista: string) => `esta vista no sale a la red, así que no se descargan: ${lista}`,
+    sinCarpeta: (lista: string) => `la página se carga sin su carpeta, por lo que no se pueden resolver: ${lista}`,
+    sinRed: (lista: string) => `esta vista no tiene acceso a la red, por lo que no se descargan: ${lista}`,
     unirPartes: '; y ',
     faltanRecursos: (partes: string) =>
-      `Faltan recursos y por eso la página puede verse sin formato — ${partes}. Tampoco se ejecuta JavaScript.`
+      `Faltan recursos, por lo que la página puede mostrarse sin formato: ${partes}. Tampoco se ejecuta JavaScript.`
   },
   {
     diagramaVacio: 'The diagram is empty.',

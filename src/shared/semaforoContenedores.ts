@@ -34,7 +34,7 @@ export interface CortesSemaforo {
  */
 export function cortesSemaforo(memoriaBytes: number): CortesSemaforo {
   const mem = Number.isFinite(memoriaBytes) && memoriaBytes > 0 ? memoriaBytes : 0
-  // Nunca menos de 2: la terminal Docker del perfil cuenta y no se para, y con 1 no cabría ni un agente.
+  // Nunca menos de 2: el agente visible en pantalla no se detiene, y con 1 no cabría ningún otro.
   const verdeHasta = Math.max(2, Math.floor((mem * 0.7) / MEMORIA_POR_CONTENEDOR_TRABAJANDO))
   const amarilloHasta = Math.max(verdeHasta + 1, Math.floor((mem * 0.9) / MEMORIA_POR_CONTENEDOR_JUSTO))
   const maximo = Math.max(amarilloHasta + Math.ceil(amarilloHasta / 2), 8)

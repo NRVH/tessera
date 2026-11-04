@@ -150,7 +150,7 @@ function main(): void {
     )
     check(
       'tras un fallo que quitó la app, se dice que se quitó y que la anterior sigue guardada',
-      /se quitó/i.test(situacionTrasFallo(false)) && /sigue guardada/i.test(situacionTrasFallo(false)),
+      /se eliminó/i.test(situacionTrasFallo(false)) && /sigue guardada/i.test(situacionTrasFallo(false)),
       situacionTrasFallo(false)
     )
   }

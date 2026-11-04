@@ -12,8 +12,8 @@ import { crearTextos } from './i18n.ts'
 const txAjustesBd = crearTextos(
   {
     ayudaTx:
-      'Con qué modo empieza la sesión de una consola. Vale también para las pestañas abiertas que aún no han ejecutado nada; ' +
-      'las que ya tienen sesión conservan su modo. En producción empiezan siempre en Manual.',
+      'Modo con el que se inicia la sesión de una consola. También se aplica a las pestañas abiertas que aún no han ejecutado nada; ' +
+      'las que ya tienen sesión conservan su modo. En las conexiones de producción, la sesión se inicia siempre en modo Manual.',
     minutos: (n: number) => `${n} minutos`,
     hora: (n: number) => `${n} hora`,
     horas: (n: number) => `${n} horas`,

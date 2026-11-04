@@ -190,7 +190,7 @@ async function main(): Promise<void> {
       ic23.servidorDesde === 11.2 &&
       ic23.servidorHasta === 99 &&
       ic23.soporteOracleDesde === 19 &&
-      ic23.aviso === '11.2–18c están fuera del soporte de Oracle; probado.' &&
+      ic23.aviso === 'Las versiones 11.2 a 18c están fuera del soporte de Oracle; Tessera las probó con este cliente.' &&
       ic23.sizeMB === 66 &&
       ic23.carpetaInterna === 'instantclient_23_26' &&
       ic23.macosMinimo === 13,
@@ -325,7 +325,7 @@ async function main(): Promise<void> {
     !msgMac.includes('tdb driver install') &&
       msgMac.includes('Falta: Oracle Instant Client 23.26 (Basic Light) (66 MB).') &&
       msgMac.includes('Clientes de base de datos') &&
-      msgMac.endsWith('\nOracle 11.2: 11.2–18c están fuera del soporte de Oracle; probado.'),
+      msgMac.endsWith('\nOracle 11.2: Las versiones 11.2 a 18c están fuera del soporte de Oracle; Tessera las probó con este cliente.'),
     JSON.stringify(msgMac)
   )
   const msgMac533 = oracleCjs.mensajeRequiereCliente(

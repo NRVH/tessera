@@ -13,55 +13,55 @@ export const txCopia = crearTextos(
     comun: {
       cerrar: 'Cerrar',
       cancelar: 'Cancelar',
-      frase: 'Frase',
+      frase: 'Frase de contraseña',
       lista: (xs: readonly string[]) => xs.map((a) => `«${a}»`).join(', ')
     },
     exportar: {
       apartados: {
         ssh: 'Conexiones SSH (con sus contraseñas, claves y huellas)',
         bd: 'Conexiones de bases de datos (con sus contraseñas)',
-        agentes: 'Agentes definidos a mano',
+        agentes: 'Agentes definidos manualmente',
         ajustes: 'Ajustes de Tessera (preferencias, no tamaños de los paneles)'
       },
       guardado: (nombre: string) => `Guardado en «${nombre}».`,
       resumen: (perfiles: number, ssh: number, bd: number, agentes: number, sinFrase: boolean) =>
-        `${perfiles} perfil(es), ${ssh} conexión(es) SSH, ${bd} de bases de datos y ${agentes} agente(s) definidos a mano. ${
+        `${perfiles} perfil(es), ${ssh} conexión(es) SSH, ${bd} de bases de datos y ${agentes} agente(s) definidos manualmente. ${
           sinFrase
-            ? 'El archivo va sin cifrar: quien lo tenga puede leer tus contraseñas y claves. Bórralo cuando ya no lo necesites.'
-            : 'Guarda la frase: sin ella el archivo no se puede abrir.'
+            ? 'El archivo no está cifrado: quien lo tenga puede leer sus contraseñas y claves. Elimínelo cuando ya no lo necesite.'
+            : 'Conserve la frase de contraseña: sin ella no se puede abrir el archivo.'
         }`,
       sinSecreto: (lista: string) =>
-        `Estas conexiones van sin su contraseña porque este equipo ya no la puede leer: ${lista}. Tendrás que escribirla en el otro equipo.`,
+        `Estas conexiones se exportan sin su contraseña porque este equipo ya no puede leerla: ${lista}. Deberá escribirla de nuevo en el otro equipo.`,
       sinClave: (lista: string) =>
-        `A estas conexiones SSH les falta su archivo de clave y no se podrán importar: ${lista}. Edítalas, vuelve a elegir la clave y exporta otra vez.`,
-      elegirPerfil: 'Elige al menos un perfil.',
+        `A estas conexiones SSH les falta su archivo de clave y no se podrán importar: ${lista}. Edítelas, seleccione de nuevo la clave y vuelva a exportar.`,
+      elegirPerfil: 'Seleccione al menos un perfil.',
       perfiles: 'Perfiles',
-      queLlevar: 'Qué llevar',
+      queLlevar: 'Qué incluir',
       fraseAyuda: (min: number) =>
-        `Al menos ${min} caracteres. Cifra todo el archivo; sin ella no se puede importar, y Tessera no la guarda.`,
-      repiteFrase: 'Repite la frase',
-      sinFrase: 'Exportar sin frase',
+        `Mínimo ${min} caracteres. Cifra todo el archivo; sin ella no se puede importar y Tessera no la guarda.`,
+      repiteFrase: 'Repetir la frase de contraseña',
+      sinFrase: 'Exportar sin frase de contraseña',
       sinFraseAviso:
-        'El archivo irá sin cifrar: las contraseñas de tus conexiones y tus claves SSH quedarán legibles para cualquiera que lo tenga (una carpeta sincronizada, un correo, un USB). Guárdalo y bórralo bajo tu responsabilidad.',
+        'El archivo no estará cifrado: las contraseñas de sus conexiones y sus claves SSH quedarán legibles para cualquiera que lo tenga (en una carpeta sincronizada, un correo o una memoria USB). Guárdelo y elimínelo bajo su responsabilidad.',
       titulo: 'Exportar la configuración',
       subtitulo: 'Para llevarla a otro equipo. No incluye los proyectos abiertos ni las sesiones iniciadas de los agentes.',
       exportando: 'Exportando…',
       exportar: 'Exportar…',
       historial: 'Historial de conversaciones',
       historialAyuda:
-        'Lo hablado con los agentes en las cuentas de Docker de los perfiles elegidos. Solo las conversaciones: ni sesiones iniciadas ni ajustes de los agentes.',
+        'Las conversaciones con los agentes en las cuentas de Docker de los perfiles seleccionados. Solo se incluyen las conversaciones, no las sesiones iniciadas ni los ajustes de los agentes.',
       historialNativo: 'Incluir el historial nativo de este equipo (Claude Code y Codex)',
       historialCargando: 'Contando conversaciones…',
-      historialVacio: 'No hay conversaciones que llevar.',
+      historialVacio: 'No hay conversaciones que incluir.',
       historialNoSeLeyo: (motivo: string) => `No se pudo contar el historial: ${motivo}`,
       historialFila: (n: number, tam: string) => `${n} conversación(es) · ${tam}`,
       historialTotal: (n: number, tam: string) => `En total: ${n} conversación(es) · ${tam}`,
-      historialGrande: (tam: string) => `El historial ocupa ${tam}: exportarlo tardará y el archivo será grande.`,
+      historialGrande: (tam: string) => `El historial ocupa ${tam}: la exportación tardará y el archivo será grande.`,
       historialSinFrase:
-        'Además lleva lo hablado con los agentes, que puede incluir código y datos de tus proyectos: también quedará legible.',
+        'Además incluye las conversaciones con los agentes, que pueden contener código y datos de sus proyectos: también quedarán legibles.',
       resumenHistorial: (n: number, tam: string) => `Historial: ${n} conversación(es) (${tam}).`,
       historialSaltadas: (n: number) =>
-        `${n} archivo(s) del historial desaparecieron o estaban bloqueados mientras se exportaba (un agente los comprimió o los borró) y no van en la copia.`,
+        `${n} archivo(s) del historial desaparecieron o estaban bloqueados durante la exportación (un agente los comprimió o los eliminó) y no se incluyen en la copia.`,
       deEsteEquipo: 'este equipo'
     },
     agentes: { 'claude-code': 'Claude Code', codex: 'Codex' },
@@ -69,38 +69,38 @@ export const txCopia = crearTextos(
     importar: {
       queImportar: 'Qué importar',
       previaAyuda:
-        'Desmarca lo que no quieras traer y elige a qué perfil va cada uno: uno nuevo o uno de este equipo. Lo que ya existe aquí no se toca.',
+        'Desmarque lo que no desee importar y elija el perfil de destino de cada elemento: uno nuevo o uno de este equipo. Lo que ya existe aquí no se modifica.',
       todo: 'Todo',
       recuento: (marcadas: number, total: number) => `${marcadas} de ${total} seleccionados`,
       perfilNuevo: 'Perfil nuevo',
       anadirA: (perfil: string) => `Añadir a «${perfil}»`,
       destinoDe: (perfil: string) => `Destino de «${perfil}»`,
       reglas: 'Reglas del perfil',
-      reglasTraer: 'el perfil de aquí no tiene: se traen las del archivo',
+      reglasTraer: 'el perfil de este equipo no tiene reglas: se importan las del archivo',
       reglasIguales: 'Iguales',
       reglasDe: (perfil: string) => `Reglas de «${perfil}»`,
-      mantenerReglas: 'Mantener las de aquí',
+      mantenerReglas: 'Mantener las de este equipo',
       sustituirReglas: 'Sustituir por las del archivo',
       verDiferencias: 'Ver diferencias',
       ocultarDiferencias: 'Ocultar diferencias',
-      diferenciasAyuda: 'A la izquierda, las de este equipo; a la derecha, las del archivo.',
-      reglasHecho: (perfiles: string) => `Reglas del archivo puestas en ${perfiles}.`,
+      diferenciasAyuda: 'A la izquierda, las reglas de este equipo; a la derecha, las del archivo.',
+      reglasHecho: (perfiles: string) => `Reglas del archivo aplicadas en ${perfiles}.`,
       yaEsta: 'Ya existe',
       tipo: { ssh: 'SSH', bd: 'Base de datos', agente: 'Agente', nativo: 'Agente', historial: 'Historial' },
       nativos: 'Agentes nativos (de todo el equipo)',
       historialNativo: 'Historial nativo de los agentes (va a la carpeta de este equipo)',
       historialHecho: (importadas: number, actualizadas: number, alDia: number, conservadas: number, saltadas: number) =>
-        `Historial: ${importadas} conversación(es) nueva(s), ${actualizadas} puesta(s) al día, ${alDia} ya estaban, ${conservadas} conservada(s) y ${saltadas} saltada(s).`,
-      historialRutaCambiada: (n: number) => `${n} conversación(es) se dejaron bajo la ruta que su proyecto tiene en este equipo.`,
-      historialConservadas: 'Se conservó la de este equipo:',
-      historialRutaOriginal: 'Se quedaron con la ruta de origen (aparecerán al abrir el proyecto en esa ruta):',
+        `Historial: ${importadas} conversación(es) nueva(s), ${actualizadas} actualizada(s), ${alDia} ya estaban al día, ${conservadas} conservada(s) y ${saltadas} omitida(s).`,
+      historialRutaCambiada: (n: number) => `${n} conversación(es) se guardaron bajo la ruta que su proyecto tiene en este equipo.`,
+      historialConservadas: 'Se conservó la versión de este equipo:',
+      historialRutaOriginal: 'Se conservaron con la ruta de origen (aparecerán al abrir el proyecto en esa ruta):',
       historialCarpeta: (carpeta: string, n: number, motivo: string) => `«${carpeta}» (${n}): ${motivo}`,
       historialSaltadas: 'No se importaron:',
-      historialSesion: 'Las sesiones de las cuentas no viajan: inicia sesión en cada cuenta nueva para seguir sus conversaciones.',
+      historialSesion: 'Las sesiones iniciadas de las cuentas no se transfieren: inicie sesión en cada cuenta nueva para continuar sus conversaciones.',
       ajustes: 'Ajustes de Tessera (sustituyen las preferencias de este equipo)',
       marcadaTambien: (nombre: string, por: string) => `También se marca «${nombre}»: «${por}» la necesita.`,
       desmarcadaTambien: (nombre: string, por: string) => `También se desmarca «${nombre}»: necesita «${por}».`,
-      nadaMarcado: 'Marca al menos una cosa que importar.',
+      nadaMarcado: 'Marque al menos un elemento que importar.',
       perfilesInvalidos: (n: number) => `${n} perfil(es) del archivo no tienen una forma válida y no se importan.`,
       importado: 'Importado.',
       hecho: (nuevos: number, ssh: number, bd: number, agentes: number, ajustes: boolean) =>
@@ -109,9 +109,9 @@ export const txCopia = crearTextos(
       saltadasBd: 'No se importaron estas conexiones de bases de datos:',
       saltada: (alias: string, motivo: string) => `«${alias}»: ${motivo}`,
       capaFallida: (perfil: string, error: string | null) =>
-        `Los agentes de «${perfil}» no se pudieron instalar en su imagen${error ? `: ${error}` : ''}. Edita uno de ellos para volver a intentarlo.`,
+        `Los agentes de «${perfil}» no se pudieron instalar en su imagen${error ? `: ${error}` : ''}. Edite uno de ellos para volver a intentarlo.`,
       errorFinal: (motivo: string) =>
-        `No se pudo terminar de importar (${motivo}). Lo que ya entró se queda; vuelve a importar el archivo para completar el resto.`,
+        `No se pudo terminar de importar (${motivo}). Lo ya importado se conserva; vuelva a importar el archivo para completar el resto.`,
       importar: 'Importar',
       importando: 'Importando…',
       abriendo: 'Abriendo…',
@@ -119,15 +119,15 @@ export const txCopia = crearTextos(
       titulo: 'Importar la configuración',
       cabecera: (nombre: string, sistema: string, fecha: string, app: string) =>
         `«${nombre}», exportado en ${sistema} el ${fecha} con Tessera ${app}.`,
-      fraseAyuda: 'La que se eligió al exportar.',
+      fraseAyuda: 'La frase de contraseña que se eligió al exportar.',
       sinCifrar:
-        'Este archivo se exportó sin frase y no está cifrado: cualquiera pudo leerlo o cambiarlo. Importa solo si sabes de dónde viene, y bórralo después.',
+        'Este archivo se exportó sin frase de contraseña y no está cifrado: cualquiera pudo leerlo o modificarlo. Impórtelo solo si conoce su origen y elimínelo después.',
       continuar: 'Continuar',
       sinCifrarPrevia:
-        'Archivo sin cifrar: nada viene marcado. Marca solo lo que reconozcas, sobre todo agentes (llevan órdenes que se ejecutan) y ajustes.',
+        'Archivo sin cifrar: no hay nada marcado. Marque solo lo que reconozca, sobre todo los agentes (incluyen órdenes que se ejecutan) y los ajustes.',
       noSeAbrio: 'No se pudo abrir el archivo de configuración',
       progreso:
-        'Importando… Si llegan agentes de Docker con órdenes de instalación o mucho historial de conversaciones, puede tardar unos minutos.'
+        'Importando… Si el archivo incluye agentes de Docker con órdenes de instalación o mucho historial de conversaciones, puede tardar unos minutos.'
     }
   },
   {

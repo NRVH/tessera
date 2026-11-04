@@ -11,7 +11,7 @@ const es = {
   // --- tdb.cjs ---
   soloLecturaNoConsulta: (alias, permitidas) =>
     `"${alias}" es de SOLO LECTURA y esa sentencia no es una consulta.\n` + `    Permitidas: ${permitidas}.`,
-  faltaArgumento: (nombre) => `Falta el argumento <${nombre}>. Usa 'tdb help'.`,
+  faltaArgumento: (nombre) => `Falta el argumento <${nombre}>. Use 'tdb help'.`,
   argAlias: 'alias',
   argSql: 'SQL',
   argTabla: 'tabla',
@@ -20,18 +20,18 @@ const es = {
   noExisteArchivo: (ruta) => `No existe el archivo "${ruta}".`,
   archivoVacio: (ruta) => `El archivo "${ruta}" está vacío.`,
   sqlExpandido:
-    'Tu shell parece haber expandido una variable DENTRO del SQL: la consulta lleva\n' +
-    '    incrustada una ruta del sistema. Suele pasar en cmd.exe con un LIKE que\n' +
+    'Su shell parece haber expandido una variable DENTRO del SQL: la consulta contiene\n' +
+    '    una ruta del sistema incrustada. Suele ocurrir en cmd.exe con un LIKE que\n' +
     '    contiene %algo%, y no daría error: devolvería otras filas.\n' +
     '\n' +
-    '    Pásalo por la entrada estándar, que no atraviesa ningún parser:\n' +
+    '    Envíelo por la entrada estándar, que no pasa por ningún analizador del shell:\n' +
     "      tdb query <base> --stdin <<'SQL'  …  SQL",
-  comandoDesconocido: (cmd) => `Comando desconocido: "${cmd}". Usa 'tdb help'.`,
+  comandoDesconocido: (cmd) => `Comando desconocido: "${cmd}". Use 'tdb help'.`,
 
   // --- tdbAyuda.cjs ---
   ayudaClaves: (kv) => `
   En ${kv}, query acepta comandos de redis-cli, con sus comillas; varios, uno por
-  línea (se ejecutan en orden y se para en el primer error; # empieza un comentario).
+  línea (se ejecutan en orden y se detienen en el primer error; # inicia un comentario).
   «SELECT <n>» cambia de base para las líneas siguientes.
 
     tdb query miredis "HGETALL usuario:1"
@@ -42,9 +42,10 @@ const es = {
     REDIS
 
   tdb schema <alias> ["<patrón>"] lista las claves (un SCAN acotado, nunca KEYS) con su tipo
-  y su TTL; no hay tablas, así que describe no aplica. Ahí tdb SOLO LEE, también en
-  las conexiones de escritura: pasan los comandos de lectura (GET, HGETALL, SCAN, TYPE…);
-  KEYS, CONFIG, FLUSHALL y toda escritura, nunca. Para escribir, la consola de Tessera.
+  y su TTL; no hay tablas, así que el comando describe no se aplica. En este tipo de
+  conexión tdb SOLO LEE, también en las conexiones de escritura: se admiten los comandos
+  de lectura (GET, HGETALL, SCAN, TYPE…); KEYS, CONFIG, FLUSHALL y toda escritura se
+  rechazan siempre. Para escribir, utilice la consola de Tessera.
 `,
   ayudaDocumentos: (docs) => `
   En ${docs}, query acepta la sintaxis de mongosh, INTERPRETADA (no se ejecuta
@@ -52,43 +53,43 @@ const es = {
 
     tdb query mimongo "db.clientes.find({ nombre: 'Ana' }).sort({ edad: -1 }).limit(5)"
 
-  Con operadores ($gt, $group…), por --stdin: el shell expandiría el $.
+  Con operadores ($gt, $group…), use --stdin: el shell expandiría el $.
 
     tdb query mimongo --stdin <<'JS'
     use otra
     db.pedidos.aggregate([{ $group: { _id: '$cliente', n: { $sum: 1 } } }])
     JS
 
-  Ahí el solo lectura lo impone tdb: pasan find, aggregate sin $out ni $merge,
-  countDocuments, distinct…; la garantía de verdad es un usuario con el rol read.
+  En estas conexiones tdb impone el modo de solo lectura: se admiten find, aggregate sin
+  $out ni $merge, countDocuments, distinct…; la garantía real es usar un usuario con el rol read.
 `,
   ayuda: (limite, sinCandado, documentos, claves) => `
   tdb — consulta las bases de datos configuradas en Tessera (perfil activo)
 
-    tdb ls                          Lista las conexiones montadas en esta sesión
-    tdb doctor                      Por qué no funciona (shell, contexto, PATH)
-    tdb test <alias>                Comprueba que la conexión responde
-    tdb query <alias> "<SQL>"       Ejecuta una consulta (tope ${limite} filas)
+    tdb ls                          Listar las conexiones montadas en esta sesión
+    tdb doctor                      Diagnosticar por qué no funciona (shell, contexto, PATH)
+    tdb test <alias>                Comprobar que la conexión responde
+    tdb query <alias> "<SQL>"       Ejecutar una consulta (tope ${limite} filas)
     tdb schema <alias>              Tablas y claves foráneas de la base
     tdb describe <alias> <TABLA>    Columnas, tipos, PK y referencias
-    tdb sessions <alias>            Sesiones abiertas de tu usuario
+    tdb sessions <alias>            Sesiones abiertas de su usuario
     tdb driver ls | install <id>    Clientes de base de datos
 
   Opciones:
-    --json          Salida JSON (para consumo automático)
-    --limit N       Cambia el tope de filas de 'query'
+    --json          Salida JSON (para uso automatizado)
+    --limit N       Cambiar el tope de filas de 'query'
     --stdin         El SQL entra por la entrada estándar, no por la línea de comandos
     --file <ruta>   El SQL se lee de un archivo
 
-  SQL LARGO O CON SÍMBOLOS: pásalo por --stdin. En la línea de comandos el SQL
-  atraviesa el parser del shell y cada uno lo estropea a su manera (cmd expande
+  SQL LARGO O CON SÍMBOLOS: envíelo por --stdin. En la línea de comandos el SQL
+  pasa por el analizador del shell y cada shell lo altera a su manera (cmd expande
   %VAR%, bash expande $ y comillas). Desde bash, con el delimitador entrecomillado:
 
     tdb query mibase --stdin <<'SQL'
     SELECT * FROM clientes WHERE nombre LIKE '%García%'
     SQL
 
-  Las conexiones son de SOLO LECTURA salvo que se marquen lo contrario en Tessera:
+  Las conexiones son de SOLO LECTURA salvo que se indique lo contrario en Tessera:
   el rechazo lo hace el servidor (en una base de archivo, la guardia de Tessera),
   no este comando. ${sinCandado} no tiene ese candado: ahí lo impone tdb, que rechaza
   toda escritura, todo EXEC y toda transacción antes de enviar, y revierte cada lote.
@@ -102,27 +103,27 @@ ${documentos}${claves}`,
   // --- tdbRegistro.cjs (copia de los textos de `mensajesRegistro.ts` del main) ---
   formatoAjeno:
     'Este tdb no reconoce el formato del registro de conexiones (db-connections.json),\n' +
-    '    así que no ve ninguna. Puede venir de una versión más nueva de Tessera (actualiza\n' +
-    '    para usarlas) o de una edición a mano del archivo; Tessera no lo toca.',
+    '    así que no ve ninguna. Puede venir de una versión más nueva de Tessera (actualice\n' +
+    '    Tessera para usarlas) o de una edición manual del archivo; Tessera no lo modifica.',
   ilegibleNoJson: 'no es JSON válido',
   ilegibleNoAbre: (codigo) => `no se pudo abrir (${codigo})`,
   respaldoInservible: ', y su copia de respaldo (db-connections.json.bak) tampoco sirve',
   respaldoLegible:
     ', y su copia de respaldo (db-connections.json.bak), aunque se lee, no se usa: la próxima ' +
     'escritura sustituiría el registro sin haber podido guardarlo aparte',
-  remedioRoto: 'corrígelo (suele ser una edición a mano: una coma de más, una comilla sin cerrar)',
-  remedioInaccesible: 'revisa sus permisos, o si otro programa lo tiene abierto en exclusiva,',
+  remedioRoto: 'corríjalo (suele ser una edición manual: una coma de más, una comilla sin cerrar)',
+  remedioInaccesible: 'revise sus permisos, o si otro programa lo tiene abierto en exclusiva,',
   registroIlegible: (que, copia, remedio) =>
     `Este tdb no puede leer el registro de conexiones (db-connections.json): ${que}${copia}, ` +
-    'así que no ve ninguna. Tessera no lo toca para no perder lo que tiene dentro: ' +
-    `${remedio} y reinicia Tessera, que lo lee al arrancar.`,
+    'así que no ve ninguna. Tessera no lo modifica para no perder su contenido: ' +
+    `${remedio} y reinicie Tessera, que lo lee al iniciar.`,
 
   // --- tdbContexto.cjs ---
   sinContexto:
     'Esta terminal no lleva el contexto de bases de datos de Tessera.\n' +
-    '    Suele ser una de estas dos:\n' +
-    '      - La terminal se abrió ANTES de montar la base. Pulsa "Recargar" en la\n' +
-    '        terminal de abajo, o "Reiniciar" en la cabecera del agente.\n' +
+    '    Suele deberse a una de estas dos causas:\n' +
+    '      - La terminal se abrió ANTES de montar la base. Use "Reiniciar terminal" en la\n' +
+    '        terminal inferior, o "Reiniciar" en la cabecera del agente.\n' +
     '      - No es una terminal de Tessera (una consola abierta fuera de la app).\n' +
     '\n' +
     '    Diagnóstico completo:  tdb doctor',
@@ -133,13 +134,13 @@ ${documentos}${claves}`,
   unaDeOtroPerfil: 'una conexión de otro perfil',
   idRepetido: (nombre, otra) =>
     `"${nombre}" comparte su identificador con ${otra}: este tdb no puede distinguirlas\n` +
-    '    y usa la primera del registro. Tessera la conserva tal cual; elimínala desde\n' +
+    '    y usa la primera del registro. Tessera la conserva sin cambios; elimínela desde\n' +
     '    Tessera si sobra.',
-  motorDesconocido: (nombre, motor) => `"${nombre}" es de un motor (${motor}) que este tdb no conoce: actualiza Tessera`,
+  motorDesconocido: (nombre, motor) => `"${nombre}" es de un motor (${motor}) que este tdb no conoce: actualice Tessera`,
   formaDesconocida: (nombre) =>
     `"${nombre}" está guardada de una forma que este tdb no reconoce.\n` +
-    '    Puede venir de una versión más nueva de Tessera (actualiza para usarla) o de una\n' +
-    '    edición a mano del archivo; Tessera la conserva tal cual.',
+    '    Puede venir de una versión más nueva de Tessera (actualice Tessera para usarla) o de una\n' +
+    '    edición manual del archivo; Tessera la conserva sin cambios.',
   ningunaDisponible: '(ninguna)',
   noHayConexion: (alias, disponibles, otras) =>
     `No hay ninguna conexión llamada "${alias}" en este perfil.\n    Disponibles: ${disponibles}` +
@@ -149,38 +150,38 @@ ${documentos}${claves}`,
   destinoCambiadoEntorno: (alias) =>
     `La conexión "${alias}" cambió desde que se abrió esta terminal (su servidor, puerto,\n` +
     '    base o usuario ya no son los de entonces), así que tdb no le manda la contraseña de\n' +
-    '    entonces. Recarga la terminal (o "Reiniciar" en la cabecera del agente) para usarla;\n' +
-    '    si sigue igual (db-connections.json se editó a mano con Tessera abierta), reinicia Tessera.',
+    '    entonces. Reinicie la terminal (o "Reiniciar" en la cabecera del agente) para usarla;\n' +
+    '    si el problema persiste (db-connections.json se editó manualmente con Tessera abierta), reinicie Tessera.',
   destinoCambiadoPuente: (alias) =>
     `La conexión "${alias}" del registro no es la que tiene cargada Tessera (cambió mientras\n` +
-    '    tdb la leía, o se editó db-connections.json a mano con Tessera abierta), así que tdb no\n' +
-    '    le manda su contraseña. Vuelve a intentarlo; si sigue igual, reinicia Tessera.',
+    '    tdb la leía, o se editó db-connections.json manualmente con Tessera abierta), así que tdb no\n' +
+    '    le envía su contraseña. Vuelva a intentarlo; si el problema persiste, reinicie Tessera.',
   puenteNoRespondeOpcional: (alias) =>
-    `El puente de Tessera no responde, así que tdb no sabe si "${alias}" tiene contraseña.\n` +
-    `    Recarga la terminal; si sigue igual, reinicia Tessera.  (tdb doctor)`,
+    `El puente de Tessera no responde, así que tdb no puede saber si "${alias}" tiene contraseña.\n` +
+    `    Reinicie la terminal; si el problema persiste, reinicie Tessera.  (tdb doctor)`,
   secretoNoLlego: (alias) =>
     `"${alias}" tiene contraseña guardada, pero no llegó a esta terminal (se guardó después\n` +
-    '    de abrirla). Recarga la terminal (o "Reiniciar" en la cabecera del agente) para usarla.',
+    '    de abrirla). Reinicie la terminal (o "Reiniciar" en la cabecera del agente) para usarla.',
   puenteNoRespondeObligatorio: (alias) =>
     `El puente de Tessera no responde, así que no hay credenciales para "${alias}".\n` +
     `    La contraseña SÍ está guardada; lo que falla es la conexión con Tessera.\n` +
-    `    Recarga la terminal; si sigue igual, reinicia Tessera.  (tdb doctor)`,
+    `    Reinicie la terminal; si el problema persiste, reinicie Tessera.  (tdb doctor)`,
   sinContrasena: (alias) =>
     `No hay contraseña para "${alias}" en esta sesión.\n` +
-    `    Guárdala con "Editar conexión…" en la vista Bases de datos de Tessera y reabre la terminal.`,
+    `    Guárdela con "Editar conexión…" en la vista Bases de datos de Tessera y vuelva a abrir la terminal.`,
   tunelSinPuente: (alias) =>
-    `"${alias}" va por un túnel SSH, y ese túnel lo abre Tessera: esta terminal no llega a ella\n` +
-    '    (el puente no responde o no está). Recarga la terminal; si sigue igual, reinicia Tessera.  (tdb doctor)',
+    `"${alias}" va por un túnel SSH, y ese túnel lo abre Tessera: esta terminal no puede comunicarse con Tessera\n` +
+    '    (el puente no responde o no está). Reinicie la terminal; si el problema persiste, reinicie Tessera.  (tdb doctor)',
   tunelFallo: (alias, detalle) => `No se pudo abrir el túnel SSH de "${alias}": ${detalle}`,
-  tunelSinRespuesta: 'Tessera no contestó a tiempo.',
+  tunelSinRespuesta: 'Tessera no respondió a tiempo.',
 
   // --- tdbConsulta.cjs ---
   responde: (alias, ms, modo) => `\n  ✓ ${alias} responde en ${ms} ms (${modo})`,
   avisoTest: (aviso) => `    Aviso: ${aviso}\n`,
   sinDocumentos: '  (sin documentos)',
   documentos: (n, hayMas) =>
-    hayMas ? `  ${n} documento(s) (TOPE alcanzado: hay más; usa --limit N para más)\n` : `  ${n} documento(s)\n`,
-  filas: (n, tope) => (tope ? `\n  ${n} filas (TOPE alcanzado; usa --limit N para más)\n` : `\n  ${n} fila(s)\n`),
+    hayMas ? `  ${n} documento(s) (TOPE alcanzado: hay más; use --limit N para ver más)\n` : `  ${n} documento(s)\n`,
+  filas: (n, tope) => (tope ? `\n  ${n} filas (TOPE alcanzado; use --limit N para ver más)\n` : `\n  ${n} fila(s)\n`),
   conjunto: (i, n) => `  Conjunto ${i} de ${n}:\n`,
   salidaServidor: '  Salida del servidor:',
 
@@ -193,13 +194,13 @@ ${documentos}${claves}`,
   clavesDe: (alias, base, filtro, n, hayMas) => `\n  Claves de ${alias} (base ${base}${filtro}) — ${n}${hayMas ? ' (hay más)' : ''}\n`,
   ningunaClave: (hayMas) => (hayMas ? '  (ninguna en lo recorrido; hay más por recorrer)' : '  (ninguna)'),
   topeScan: (alias) => [
-    `\n  TOPE: el SCAN no se recorrió entero. Acota con un patrón (tdb schema ${alias} "usuario:*")`,
-    '  o usa --limit N para más.'
+    `\n  TOPE: el SCAN no se recorrió entero. Acote con un patrón (tdb schema ${alias} "usuario:*")`,
+    '  o use --limit N para ver más.'
   ],
   sinTablasClaves: (etiqueta, alias) =>
-    `\n  ${etiqueta} no tiene tablas ni claves foráneas. Para mirar una clave:  tdb query ${alias} "TYPE <clave>"\n`,
+    `\n  ${etiqueta} no tiene tablas ni claves foráneas. Para consultar una clave:  tdb query ${alias} "TYPE <clave>"\n`,
   coleccionesDe: (alias, base, n) => `\n  Colecciones de ${alias}${base ? ` (base ${base})` : ''} — ${n}\n`,
-  noFijaBase: (alias, actual) => `\n  "${alias}" no fija base: lo de arriba es de "${actual}". Bases a las que llegas:\n`,
+  noFijaBase: (alias, actual) => `\n  "${alias}" no fija base: lo anterior es de "${actual}". Bases a las que puede acceder:\n`,
   otraBaseDocumentos: (alias) => [
     '\n  Para consultar otra base, «use <BASE>» en la primera línea de la sentencia; y aquí:',
     `    tdb describe ${alias} <BASE>.<COLECCION>`
@@ -220,7 +221,7 @@ ${documentos}${claves}`,
     `La colección "${tabla}" no existe en "${alias}"${usuario ? ` o no es visible para ${usuario}` : ''}.`,
   tablaNoVisible: (tabla, usuario) => `La tabla "${tabla}" no existe o no es visible para ${usuario}.`,
   tablaNoExiste: (tabla, alias) => `La tabla "${tabla}" no existe en "${alias}".`,
-  muestraDocumentos: '\n  Campos de primer nivel de una MUESTRA de documentos: un campo raro puede no salir.',
+  muestraDocumentos: '\n  Campos de primer nivel de una MUESTRA de documentos: un campo poco frecuente puede no aparecer.',
   indices: '\n  Índices:\n',
   referencias: '\n  Referencias:\n',
   si: 'sí',
@@ -230,29 +231,29 @@ ${documentos}${claves}`,
   operacionesDocumentos: (usuario, alias) =>
     `\n  Operaciones en curso de ${usuario ? usuario : 'esta conexión (sin usuario)'} en ${alias}:\n`,
   notaSesiones:
-    `\n  La de abajo es ESTA consulta y morirá al terminar el comando.\n` +
+    `\n  La última es ESTA consulta y se cerrará al terminar el comando.\n` +
     `  Tessera no mantiene conexiones abiertas entre invocaciones.\n`,
 
   // --- tdbLs.cjs ---
   columnasLs: ['ALIAS', 'MOTOR', 'DESTINO', 'USUARIO', 'MODO', 'ENTORNO'],
-  destinoMotorDesconocido: 'motor desconocido: actualiza Tessera',
+  destinoMotorDesconocido: 'motor desconocido: actualice Tessera',
   destinoFormaDesconocida: 'forma no reconocida (ver debajo)',
   destinoIdRepetido: 'id repetido (ver debajo)',
   sinConexionesEspacio: (n) => [
     '\n  El agente de datos no tiene ninguna base montada.',
-    `  El perfil tiene ${n}: móntalas con el botón de bases de`,
-    '  datos de su cabecera, y marca las que quieras que vea.\n'
+    `  El perfil tiene ${n}: móntelas con el botón de bases de`,
+    '  datos de su cabecera, y marque las que desee que vea.\n'
   ],
   sinConexionesProyecto: (n) => [
     '\n  Este PROYECTO no tiene ninguna base montada.',
-    `  El perfil tiene ${n}: móntalas con el icono de base de`,
-    '  datos en la cabecera del agente, y marca las que quieras aquí.\n'
+    `  El perfil tiene ${n}: móntelas con el icono de base de`,
+    '  datos en la cabecera del agente, y marque las que desee usar aquí.\n'
   ],
   sinConexionesPerfil: [
     '\n  No hay conexiones configuradas en este perfil.',
-    '  Añádelas en la vista Bases de datos de Tessera (icono de base de datos).\n'
+    '  Añádalas en la vista Bases de datos de Tessera (icono de base de datos).\n'
   ],
-  ningunaVisible: ['\n  Ninguna conexión visible en esta sesión.', '  Ejecuta  tdb doctor  para ver con qué perfil y ámbito arrancó.\n'],
+  ningunaVisible: ['\n  Ninguna conexión visible en esta sesión.', '  Ejecute  tdb doctor  para ver con qué perfil y ámbito se inició.\n'],
   entornoProduccion: 'PRODUCCIÓN',
   entornoPruebas: 'pruebas',
   entornoDesarrollo: 'desarrollo',
@@ -263,17 +264,17 @@ ${documentos}${claves}`,
   conQuien: (nombre, otra) => `${nombre} (con ${otra})`,
   noUsablesPorMotor: (lista) => [
     `\n  Requieren una versión más nueva de Tessera: ${lista}.`,
-    '  Este tdb no conoce su motor y no puede consultarlas: actualiza Tessera.'
+    '  Este tdb no conoce su motor y no puede consultarlas: actualice Tessera.'
   ],
   noUsablesPorForma: (lista) => [
     `\n  No se reconoce cómo están guardadas: ${lista}.`,
-    '  Pueden venir de una versión más nueva de Tessera (actualiza para usarlas) o de una',
-    '  edición a mano del archivo; Tessera las conserva tal cual. Este tdb no puede consultarlas.'
+    '  Pueden venir de una versión más nueva de Tessera (actualice Tessera para usarlas) o de una',
+    '  edición manual del archivo; Tessera las conserva sin cambios. Este tdb no puede consultarlas.'
   ],
   noUsablesPorId: (lista) => [
     `\n  Comparten su identificador con otra conexión: ${lista}.`,
     '  Este tdb no puede distinguirlas y usa la primera del registro; Tessera las conserva',
-    '  tal cual. Elimina desde Tessera la que sobre.'
+    '  sin cambios. Elimine desde Tessera la que sobre.'
   ],
 
   // --- tdbDoctor.cjs ---
@@ -282,7 +283,7 @@ ${documentos}${claves}`,
   sinPerfil: '(sin TESSERA_PROFILE)',
   sinRegistro: '(sin TESSERA_DB_REGISTRY)',
   sinDrivers: '(sin TESSERA_DB_DRIVERS)',
-  rutaHorneada: '(no definida: el atajo usó su ruta horneada)',
+  rutaHorneada: '(no definida: el atajo usó su ruta incorporada)',
   noExisteConRespaldo: '  <-- NO EXISTE (se usa su copia de respaldo, .bak)',
   noExiste: '  <-- NO EXISTE',
   ambitoSinAcotar: 'sin acotar (ve todas las del perfil)',
@@ -309,26 +310,26 @@ ${documentos}${claves}`,
   secretosContados: (puente, entorno) => `${puente} del puente, ${entorno} en el entorno`,
   doctorSinContexto: [
     '  ✗ Esta terminal NO lleva el contexto de Tessera.',
-    '    Recarga la terminal (o reinicia el agente) DESPUÉS de montar la base.'
+    '    Reinicie la terminal (o reinicie el agente) DESPUÉS de montar la base.'
   ],
   doctorRegistroNoExiste: ['  ✗ El registro apunta a un archivo que no existe.', '    Puede que la terminal la abriera otra instalación de Tessera.'],
   doctorPuenteCaido: [
     '  ✗ El puente de Tessera no responde.',
     '    La lista puede estar desactualizada y no habrá contraseñas.',
-    '    Recarga la terminal; si sigue, reinicia Tessera.'
+    '    Reinicie la terminal; si el problema persiste, reinicie Tessera.'
   ],
   doctorSinBasesEspacio: '  ! Contexto correcto, pero el agente de datos no tiene ninguna base montada.',
   doctorSinBasesProyecto: '  ! Contexto correcto, pero este proyecto no tiene ninguna base montada.',
-  doctorMontalas: '    Móntalas con el icono de base de datos en la cabecera del agente.',
+  doctorMontalas: '    Móntelas con el icono de base de datos en la cabecera del agente.',
   doctorOtroDestino: (lista) => `Cambiaron desde que Tessera entregó su contraseña: ${lista}. ` + 'tdb no se la manda a su destino actual.',
-  doctorRecargaOReinicia: '    Recarga la terminal (o reinicia el agente); si sigue igual, reinicia Tessera.',
+  doctorRecargaOReinicia: '    Reinicie la terminal (o reinicie el agente); si el problema persiste, reinicie Tessera.',
   doctorSinContrasena: [
     '  ! Hay conexiones visibles sin contraseña en esta sesión.',
-    '    Guárdala con "Editar conexión…" en la vista Bases de datos y recarga la terminal.'
+    '    Guárdela con "Editar conexión…" en la vista Bases de datos y reinicie la terminal.'
   ],
   doctorFaltaArchivo: (lista) => `No se encuentra el archivo de: ${lista}.`,
   doctorArchivoMovido: '    Se movió, se borró o está en un disco desconectado. tdb test <nombre> dice cuál.',
-  doctorTodoBien: '  ✓ Todo en orden. Prueba:  tdb ls',
+  doctorTodoBien: '  ✓ Todo en orden. Pruebe:  tdb ls',
   doctorRespaldo: (formatoAjeno) =>
     'El registro (db-connections.json) no existe: se usa su copia de respaldo (db-connections.json.bak)' +
     (formatoAjeno ? '.' : ', y Tessera lo recreará en su próxima escritura.'),
@@ -341,9 +342,9 @@ ${documentos}${claves}`,
   noEsZip: 'lo descargado no es un ZIP',
   descomprimiendo: '  Descomprimiendo…',
   paqueteSinCentinela: (centinela) => `el paquete no contiene ${centinela}`,
-  driverDesconocido: (id) => `Driver desconocido: "${id}". Mira los disponibles con: tdb driver ls`,
+  driverDesconocido: (id) => `Driver desconocido: "${id}". Consulte los disponibles con: tdb driver ls`,
   yaInstalado: (nombre) => `\n  ${nombre} ya está instalado.\n`,
-  sinCarpetaDrivers: (variable) => 'No sé dónde instalar drivers (falta ' + variable + ').',
+  sinCarpetaDrivers: (variable) => 'No se puede determinar dónde instalar los drivers (falta ' + variable + ').',
   dmgLoInstalaTessera: (nombre) =>
     `${nombre} se publica como imagen de disco y lo instala Tessera:\n` +
     `    "Descargar" en "Clientes de base de datos", en el diálogo de la conexión (vista Bases de datos).`,
@@ -351,9 +352,9 @@ ${documentos}${claves}`,
   instaladoEn: (nombre, destino) => `\n  ✓ ${nombre} instalado en ${destino}\n`,
   noSeInstalo: (nombre, motivo) =>
     `No se pudo instalar ${nombre}: ${motivo}\n` +
-    `    Alternativa: descárgalo a mano y regístralo con "Seleccionar carpeta…" en\n` +
+    `    Alternativa: descárguelo manualmente y regístrelo con "Seleccionar carpeta…" en\n` +
     `    "Clientes de base de datos", en el diálogo de la conexión (vista Bases de datos).`,
-  subcomandoDriver: (sub) => `Subcomando de driver desconocido: "${sub}". Usa ls | install.`
+  subcomandoDriver: (sub) => `Subcomando de driver desconocido: "${sub}". Use ls | install.`
 }
 
 /** Los estados del puente de `ctx.puente` (valores internos) tal como se leen en inglés. */
@@ -473,7 +474,7 @@ ${documentos}${claves}`,
   sinContexto:
     'This terminal does not have the Tessera database context.\n' +
     '    It is usually one of these two causes:\n' +
-    '      - The terminal was opened BEFORE the database was mounted. Click "Reload" on the\n' +
+    '      - The terminal was opened BEFORE the database was mounted. Use "Restart terminal" on the\n' +
     '        bottom terminal, or "Restart" in the agent header.\n' +
     '      - It is not a Tessera terminal (a console opened outside the app).\n' +
     '\n' +
@@ -499,7 +500,7 @@ ${documentos}${claves}`,
   destinoCambiadoEntorno: (alias) =>
     `The connection "${alias}" changed after this terminal was opened (its server, port,\n` +
     '    database or user are no longer the same), so tdb does not send it the password saved\n' +
-    '    at that time. Reload the terminal (or "Restart" in the agent header) to use it;\n' +
+    '    at that time. Restart the terminal (or "Restart" in the agent header) to use it;\n' +
     '    if the problem persists (db-connections.json was edited manually while Tessera was open), restart Tessera.',
   destinoCambiadoPuente: (alias) =>
     `The connection "${alias}" in the registry is not the one Tessera has loaded (it changed while\n` +
@@ -507,20 +508,20 @@ ${documentos}${claves}`,
     '    does not send its password. Try again; if the problem persists, restart Tessera.',
   puenteNoRespondeOpcional: (alias) =>
     `The Tessera bridge is not responding, so tdb cannot tell whether "${alias}" has a password.\n` +
-    `    Reload the terminal; if the problem persists, restart Tessera.  (tdb doctor)`,
+    `    Restart the terminal; if the problem persists, restart Tessera.  (tdb doctor)`,
   secretoNoLlego: (alias) =>
     `"${alias}" has a saved password, but it did not reach this terminal (it was saved after\n` +
-    '    the terminal opened). Reload the terminal (or "Restart" in the agent header) to use it.',
+    '    the terminal opened). Restart the terminal (or "Restart" in the agent header) to use it.',
   puenteNoRespondeObligatorio: (alias) =>
     `The Tessera bridge is not responding, so there are no credentials for "${alias}".\n` +
     `    The password IS saved; the connection to Tessera is what fails.\n` +
-    `    Reload the terminal; if the problem persists, restart Tessera.  (tdb doctor)`,
+    `    Restart the terminal; if the problem persists, restart Tessera.  (tdb doctor)`,
   sinContrasena: (alias) =>
     `There is no password for "${alias}" in this session.\n` +
     `    Save it with "Edit connection…" in the Tessera Databases view and reopen the terminal.`,
   tunelSinPuente: (alias) =>
     `"${alias}" goes through an SSH tunnel that Tessera opens, and this terminal cannot reach Tessera\n` +
-    '    (the bridge is not responding or is missing). Reload the terminal; if the problem persists, restart Tessera.  (tdb doctor)',
+    '    (the bridge is not responding or is missing). Restart the terminal; if the problem persists, restart Tessera.  (tdb doctor)',
   tunelFallo: (alias, detalle) => `Could not open the SSH tunnel for "${alias}": ${detalle}`,
   tunelSinRespuesta: 'Tessera did not respond in time.',
 
@@ -658,22 +659,22 @@ ${documentos}${claves}`,
   secretosContados: (puente, entorno) => `${puente} from the bridge, ${entorno} in the environment`,
   doctorSinContexto: [
     '  ✗ This terminal does NOT have the Tessera context.',
-    '    Reload the terminal (or restart the agent) AFTER mounting the database.'
+    '    Restart the terminal (or restart the agent) AFTER mounting the database.'
   ],
   doctorRegistroNoExiste: ['  ✗ The registry points to a file that does not exist.', '    Another Tessera installation might have opened this terminal.'],
   doctorPuenteCaido: [
     '  ✗ The Tessera bridge is not responding.',
     '    The list might be out of date, and passwords will not be available.',
-    '    Reload the terminal; if the problem persists, restart Tessera.'
+    '    Restart the terminal; if the problem persists, restart Tessera.'
   ],
   doctorSinBasesEspacio: '  ! The context is correct, but the data agent has no database mounted.',
   doctorSinBasesProyecto: '  ! The context is correct, but this project has no database mounted.',
   doctorMontalas: '    Mount them with the database icon in the agent header.',
   doctorOtroDestino: (lista) => `They changed after Tessera provided their password: ${lista}. ` + 'tdb does not send it to their current target.',
-  doctorRecargaOReinicia: '    Reload the terminal (or restart the agent); if the problem persists, restart Tessera.',
+  doctorRecargaOReinicia: '    Restart the terminal (or restart the agent); if the problem persists, restart Tessera.',
   doctorSinContrasena: [
     '  ! Some visible connections have no password in this session.',
-    '    Save it with "Edit connection…" in the Databases view and reload the terminal.'
+    '    Save it with "Edit connection…" in the Databases view and restart the terminal.'
   ],
   doctorFaltaArchivo: (lista) => `The files for these cannot be found: ${lista}.`,
   doctorArchivoMovido: '    They were moved or deleted, or they are on a disconnected drive. tdb test <name> says which one.',

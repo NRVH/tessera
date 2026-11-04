@@ -20,7 +20,7 @@ export const txTabsBd = crearTextos(
       secuencia: 'Secuencia',
       sinonimo: 'Sinónimo',
       tipoObjeto: 'Tipo de objeto',
-      tipoColeccion: 'Tipo colección',
+      tipoColeccion: 'Tipo de colección',
       tipo: 'Tipo',
       disparador: 'Disparador',
       evento: 'Evento'

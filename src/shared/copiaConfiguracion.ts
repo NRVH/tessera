@@ -13,8 +13,8 @@ import { crearTextos } from './i18n.ts'
 
 const txCopia = crearTextos(
   {
-    fraseCorta: (min: number) => `La frase tiene que tener al menos ${min} caracteres.`,
-    fraseDistinta: 'Las dos frases no coinciden.'
+    fraseCorta: (min: number) => `La frase de contraseña debe tener al menos ${min} caracteres.`,
+    fraseDistinta: 'Las dos frases de contraseña no coinciden.'
   },
   {
     fraseCorta: (min: number) => `The passphrase must be at least ${min} characters long.`,

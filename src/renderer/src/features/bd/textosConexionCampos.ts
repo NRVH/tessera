@@ -12,21 +12,21 @@ export const txConexionCampos = crearTextos(
   {
     // --- solo lectura y entorno ---
     etiquetaSoloLectura: 'Solo lectura para los agentes (recomendado)',
-    tituloSoloLecturaAgentes: 'Solo lectura para los agentes: tdb no escribe en esta conexión (tú sí puedes)',
+    tituloSoloLecturaAgentes: 'Solo lectura para los agentes: tdb no escribe en esta conexión (usted sí puede escribir)',
     ayudaQuien:
-      'Los agentes (Claude Code, Codex), que consultan por tdb, solo pueden leer esta conexión; tú no quedas ' +
-      'limitado: desde el explorador editas, insertas, borras y confirmas como siempre. ',
+      'Los agentes (Claude Code, Codex), que consultan mediante tdb, solo pueden leer esta conexión. Usted no tiene ' +
+      'esa limitación: desde el explorador puede editar, insertar, borrar y confirmar como siempre. ',
     ayudaClasificador:
-      'tdb rechaza sus escrituras y deshace lo que se cuele: aquí el solo lectura lo impone Tessera; para ' +
-      'garantía, un usuario con db_datareader.',
+      'tdb rechaza las escrituras de los agentes y deshace cualquiera que se cuele. En este motor, Tessera impone ' +
+      'el modo de solo lectura; para una garantía real, use un usuario con db_datareader.',
     ayudaListaBlanca: (garantia: string) =>
-      `tdb solo les deja pasar las operaciones de lectura: aquí el solo lectura lo impone Tessera; para garantía, ${garantia}.`,
+      `tdb solo permite a los agentes las operaciones de lectura. En este motor, Tessera impone el modo de solo lectura; para una garantía real, use ${garantia}.`,
     ayudaUsuarioClave:
-      'tdb rechaza sus escrituras y el servidor abre sus transacciones en solo lectura. La garantía de ' +
-      'verdad sigue siendo darles un usuario de base de datos con permisos de lectura.',
+      'tdb rechaza las escrituras de los agentes y el servidor abre sus transacciones en solo lectura. La única ' +
+      'garantía real es asignarles un usuario de base de datos con permisos de lectura.',
     ayudaArchivo:
-      'tdb abre el archivo en solo lectura y rechaza sus escrituras. Mientras una transacción esté abierta, ' +
-      'las demás aplicaciones que usan el archivo pueden no poder escribir en él.',
+      'tdb abre el archivo en modo de solo lectura y rechaza las escrituras de los agentes. Mientras haya una transacción abierta, ' +
+      'otras aplicaciones que usan el archivo pueden no poder escribir en él.',
     garantiaDocumentos: 'un usuario con el rol read',
     garantiaClaves: 'un usuario ACL que solo pueda leer (+@read)',
     garantiaSql: 'un usuario con permisos de lectura',
@@ -35,7 +35,7 @@ export const txConexionCampos = crearTextos(
     ayudaEntornoDesarrollo: 'Marca verde en el árbol, en las pestañas de esta conexión y en la barra de sus consolas.',
     ayudaEntornoPruebas: 'Marca ámbar en el árbol, en las pestañas de esta conexión y en la barra de sus consolas.',
     ayudaEntornoProduccion:
-      'Marca roja, y Tessera pide confirmación antes de cada escritura (DML, DDL, PL/SQL y COMMIT, y al enviar los cambios de la rejilla). Sus consolas nuevas arrancan en Tx Manual.',
+      'Marca roja, y Tessera pide confirmación antes de cada escritura (DML, DDL, PL/SQL y COMMIT, y al enviar los cambios de la rejilla). Las consolas nuevas de esta conexión se inician en Tx Manual.',
     // --- presentación por motor ---
     host: 'Host',
     puerto: 'Puerto',
@@ -43,43 +43,43 @@ export const txConexionCampos = crearTextos(
     autenticacionSql: (producto: string) => `Usuario de ${producto}`,
     autenticacionNtlm: 'Cuenta de dominio (NTLM)',
     ayudaInstancia:
-      'Con instancia con nombre, el puerto no se usa: lo resuelve el servicio SQL Browser del servidor (UDP 1434). Sin ella, la instancia por defecto en el puerto.',
+      'Si se indica una instancia con nombre, no se usa el puerto: lo resuelve el servicio SQL Browser del servidor (UDP 1434). Sin instancia, se usa la instancia predeterminada en el puerto indicado.',
     confiarCertificado: 'Confiar en el certificado del servidor',
     ayudaCifrado:
-      'El certificado se verifica contra las autoridades de confianza de tu equipo. Si el servidor usa uno propio (autofirmado), marca «Confiar en el certificado del servidor»: se cifra igual, pero sin comprobar quién es el servidor.',
+      'El certificado se verifica contra las autoridades de confianza de este equipo. Si el servidor usa uno propio (autofirmado), active «Confiar en el certificado del servidor»: la conexión se cifra igualmente, pero no se comprueba la identidad del servidor.',
     ayudaBaseDocumentos:
-      'Sin base, el árbol enseña todas las que el usuario puede leer. Usuario y contraseña son opcionales: sin ellos se conecta sin autenticar.',
+      'Si no se indica una base, el árbol muestra todas las que el usuario puede leer. Usuario y contraseña son opcionales: sin ellos, la conexión se establece sin autenticación.',
     ayudaBaseClaves:
-      'La base con la que se abre la conexión (0 si va vacía); el árbol enseña todas. Usuario y contraseña son opcionales, y la contraseña vale sin usuario.',
+      'Base con la que se abre la conexión (0 si el campo queda vacío); el árbol muestra todas. Usuario y contraseña son opcionales, y la contraseña puede indicarse sin usuario.',
     ayudaHostMongo:
-      'Un servidor o, sin DNS SRV, los miembros de un replica set separados por comas (h1,h2:27018): el puerto vale para los que no llevan el suyo.',
+      'Un servidor o, sin DNS SRV, los miembros de un replica set separados por comas (h1,h2:27018). El puerto indicado se aplica a los miembros que no especifican el suyo.',
     ayudaSrv:
-      'Para Atlas y los clústeres que publican sus miembros en DNS: el host es el nombre del clúster, el puerto no se usa y la conexión se cifra salvo que desmarques el cifrado.',
+      'Para Atlas y los clústeres que publican sus miembros en DNS: el host es el nombre del clúster, el puerto no se usa y la conexión se cifra salvo que se desactive el cifrado.',
     ayudaOpcionesUri:
-      'Lo que iría detrás del «?» de la URI (clave=valor&clave=valor). El cifrado, las credenciales y la base de autenticación no: van en sus campos.',
+      'Opciones que irían después del «?» de la URI (clave=valor&clave=valor). El cifrado, las credenciales y la base de autenticación no se incluyen aquí: se indican en sus propios campos.',
     ayudaAuthSource:
-      'Dónde se creó el usuario (authSource). Vacío: la base de datos de arriba, como mongosh. Un usuario de «admin» necesita «admin» aquí si escribes otra base.',
+      'Base de datos donde se creó el usuario (authSource). Si queda vacío, se usa la base de datos indicada arriba, igual que en mongosh. Un usuario creado en «admin» requiere «admin» aquí si se indica otra base.',
     uriMongoEjemplo: 'mongodb://usuario:clave@host:27017/base?authSource=admin',
-    uriMongoAyuda: 'Rellena host, puerto, usuario, contraseña, base, SRV, cifrado y opciones. La URI no se guarda: solo sus campos.',
+    uriMongoAyuda: 'Se rellenan host, puerto, usuario, contraseña, base, SRV, cifrado y opciones. La URI no se guarda: solo sus campos.',
     uriRedisEjemplo: 'redis://usuario:clave@host:6379/0',
     uriRedisAyuda:
-      'Rellena host, puerto, usuario, contraseña, base y cifrado (rediss:// cifra). La URI no se guarda: solo sus campos; lo de detrás del «?» se deja fuera.',
+      'Se rellenan host, puerto, usuario, contraseña, base y cifrado (rediss:// cifra). La URI no se guarda, solo sus campos; lo que va después del «?» se omite.',
     uriPostgresEjemplo: 'postgres://usuario:clave@host:5432/base?sslmode=require',
     uriPostgresAyuda:
-      'Rellena host, puerto, usuario, contraseña, base y cifrado (sslmode: require, prefer y allow cifran sin verificar el certificado; verify-ca y verify-full lo verifican; sin él o disable, sin cifrar). La URI no se guarda: solo sus campos; el resto de opciones se deja fuera.',
+      'Se rellenan host, puerto, usuario, contraseña, base y cifrado (sslmode: require, prefer y allow cifran sin verificar el certificado; verify-ca y verify-full lo verifican; si se omite o es disable, no se cifra). La URI no se guarda, solo sus campos; el resto de las opciones se omite.',
     uriMysqlEjemplo: 'mysql://usuario:clave@host:3306/base?ssl-mode=REQUIRED',
     uriMysqlAyuda:
-      'Rellena host, puerto, usuario, contraseña, base y cifrado (ssl-mode: REQUIRED y PREFERRED cifran sin verificar el certificado; VERIFY_CA y VERIFY_IDENTITY lo verifican; sin él o DISABLED, sin cifrar). Vale también mariadb://. La URI no se guarda: solo sus campos; el resto de opciones se deja fuera.',
-    ayudaBaseMysql: 'La base en la que abre la sesión. Sin ella, el árbol enseña igual todas las que el usuario puede ver.',
+      'Se rellenan host, puerto, usuario, contraseña, base y cifrado (ssl-mode: REQUIRED y PREFERRED cifran sin verificar el certificado; VERIFY_CA y VERIFY_IDENTITY lo verifican; si se omite o es DISABLED, no se cifra). También se admite mariadb://. La URI no se guarda, solo sus campos; el resto de las opciones se omite.',
+    ayudaBaseMysql: 'Base en la que se inicia la sesión. Si no se indica, el árbol muestra igualmente todas las que el usuario puede ver.',
     opcional: 'opcional',
     ayudaCifradoOracle:
-      'Conecta por TCPS: el puerto suele ser otro (2484, no 1521). El certificado se verifica siempre contra las autoridades de confianza de tu equipo; si el servidor usa uno propio, instala su autoridad en el sistema. No disponible con bases anteriores a 12.1.',
+      'La conexión usa TCPS: el puerto suele ser otro (2484, no 1521). El certificado se verifica siempre contra las autoridades de confianza de este equipo; si el servidor usa uno propio, instale la autoridad de certificación correspondiente en el sistema. No está disponible con bases de datos anteriores a la versión 12.1.',
     cifrarTcps: 'Cifrar la conexión (TCPS)',
     cifrarSsl: 'Cifrar la conexión (SSL)',
     cifrarTls: 'Cifrar la conexión (TLS)',
     cifrar: 'Cifrar la conexión',
-    ayudaServiceNameSid: 'Service Name o SID, no los dos. Las 11g heredadas suelen ir por SID.',
-    phBaseOpcionalTodas: 'opcional: sin ella, todas',
+    ayudaServiceNameSid: 'Indique Service Name o SID, no ambos. Las bases 11g antiguas suelen usar SID.',
+    phBaseOpcionalTodas: 'opcional; si queda vacío, se muestran todas',
     instancia: 'Instancia',
     autenticacion: 'Autenticación',
     dominio: 'Dominio',

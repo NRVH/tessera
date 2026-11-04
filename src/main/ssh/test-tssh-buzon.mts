@@ -203,7 +203,7 @@ try {
   const uso = await cliente(buzon, ['run', 'web'], { cwd: trabajo })
   check('(b6) un error de uso sale aquí, con 2, sin ir al host', uso.codigo === 2 && uso.errores.includes('Falta la orden') && llamadas.length === 3, `codigo=${uso.codigo} llamadas=${llamadas.length}`)
   const sinToken = await cliente(buzon, ['ls'], { cwd: trabajo, token: '' })
-  check('(b7) sin token de sesión: código 3 y qué hacer', sinToken.codigo === 3 && sinToken.errores.includes('recarga la terminal'), `codigo=${sinToken.codigo} ${sinToken.errores.trim()}`)
+  check('(b7) sin token de sesión: código 3 y qué hacer', sinToken.codigo === 3 && sinToken.errores.includes('reinicie la terminal'), `codigo=${sinToken.codigo} ${sinToken.errores.trim()}`)
 
   hr('C - cp de subida: el contenido viaja en la petición y el host lo deja en un temporal suyo')
   {
@@ -217,7 +217,7 @@ try {
     writeFileSync(path.join(trabajo, 'proy', 'src', 'a.txt'), 'a')
     writeFileSync(path.join(trabajo, 'proy', 'b.txt'), 'b')
     const sinR = await cliente(buzon, ['cp', 'proy', 'srv:/tmp/'], { cwd: trabajo })
-    check('(c3) una carpeta sin -r: código 2, sin ir al host', sinR.codigo === 2 && sinR.errores.includes('usa tssh cp -r'), `codigo=${sinR.codigo}`)
+    check('(c3) una carpeta sin -r: código 2, sin ir al host', sinR.codigo === 2 && sinR.errores.includes('use tssh cp -r'), `codigo=${sinR.codigo}`)
     const conR = await cliente(buzon, ['cp', '-r', 'proy', 'srv:/tmp/'], { cwd: trabajo })
     const subido = llamadas.at(-1)!.subido ?? {}
     check('(c4) cp -r: la carpeta entera, con la vacía, y -r llega al host', conR.codigo === 0 && subido['src/vacia'] === '<carpeta>' && subido['src/a.txt'] === Buffer.from('a').toString('hex') && subido['b.txt'] !== undefined && llamadas.at(-1)!.argv[1] === '-r', j(Object.keys(subido)))
@@ -250,7 +250,7 @@ try {
     const local = await pedir({ v: 1, prog: 'tssh', token: 't', argv: ['cp'], cp: { subida: false, recursivo: false, remoto: plataforma === 'windows' ? 'C:\\Windows\\win.ini' : '/etc/passwd' } })
     check('(e1) una «ruta remota» que es del host: se rechaza sin lanzar tssh', local?.exitCode === 2 && llamadas.length === antes, j(local))
     const raro = await pedir({ v: 1, prog: 'otro', token: 't', argv: [] })
-    check('(e2) un programa que no está registrado: código 2 y que se reinicie Tessera', raro?.exitCode === 2 && String(raro?.stderr).includes('no sabe atender'), j(raro))
+    check('(e2) un programa que no está registrado: código 2 y que se reinicie Tessera', raro?.exitCode === 2 && String(raro?.stderr).includes('no puede atender'), j(raro))
     const tdb = await pedir({ v: 1, token: 'tok-tdb', argv: ['ls'] })
     check('(e3) una petición de tdb (sin prog) sigue yendo a tdb, con su forma de siempre', tdb?.exitCode === 0 && tdb?.stdout === 'tdb tok-tdb ls\n', j(tdb))
   }

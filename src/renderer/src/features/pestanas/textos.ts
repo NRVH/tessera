@@ -10,14 +10,14 @@ import { crearTextos } from '../../../../shared/i18n.ts'
 export const txPestanas = crearTextos(
   {
     perfil: {
-      puntoEsperando: 'Un agente te está esperando',
+      puntoEsperando: 'Un agente espera su respuesta',
       puntoTrabajando: 'Trabajando…',
-      puntoAtencion: 'Un agente terminó y aún no lo revisas',
+      puntoAtencion: 'Un agente terminó y aún no se ha revisado',
       despertando: 'Reanudando…',
       despertandoAria: 'reanudando',
       hibernando: 'Hibernando…',
       hibernandoAria: 'hibernando',
-      hibernado: 'Hibernado: sin agentes ni terminales en marcha; ábrelo para reanudarlo',
+      hibernado: 'Hibernado: sin agentes ni terminales en ejecución; ábralo para reanudarlo',
       hibernadoAria: 'hibernado',
       perfiles: 'Perfiles',
       cambiar: 'Cambiar de perfil',
@@ -33,22 +33,22 @@ export const txPestanas = crearTextos(
     menu: {
       renombrar: 'Renombrar',
       cambiarColor: 'Cambiar color',
-      red: (redHost: boolean) => `Red del contenedor Docker: ${redHost ? 'la de tu equipo' : 'aislada'}…`,
+      red: (redHost: boolean) => `Red del contenedor Docker: ${redHost ? 'la de su equipo' : 'aislada'}…`,
       hibernar: 'Hibernar el perfil…',
       hibernarDetalle: 'Cierra sus agentes y terminales para liberar memoria',
       eliminar: 'Eliminar perfil…',
-      eliminarSinOtro: 'Necesitas al menos otro perfil',
+      eliminarSinOtro: 'Se necesita al menos otro perfil',
       reglas: 'Reglas para los agentes…'
     },
     reglas: {
       titulo: (nombre: string) => `Reglas del perfil "${nombre}"`,
       mensaje:
-        'Las leen al arrancar todos los agentes de este perfil, en Docker o en tu equipo. ' +
-        'Los agentes pueden proponerte cambios; nunca las cambian solos.',
+        'Todos los agentes de este perfil las leen al iniciarse, tanto en Docker como en su equipo. ' +
+        'Los agentes pueden proponer cambios, pero nunca las modifican por su cuenta.',
       etiqueta: 'Reglas',
-      placeholder: 'Por ejemplo: sube siempre a la rama de trabajo y nunca a la principal.',
+      placeholder: 'Por ejemplo: subir siempre los cambios a la rama de trabajo y nunca a la principal.',
       contador: (n: number, max: number) => `${n} / ${max}`,
-      demasiado: 'Demasiado largo: quita texto para poder guardar.',
+      demasiado: 'Demasiado largo: reduzca el texto para poder guardar.',
       guardar: 'Guardar',
       cancelar: 'Cancelar',
       hayPropuesta: 'Un agente propone un cambio a estas reglas.',
@@ -58,7 +58,7 @@ export const txPestanas = crearTextos(
       aviso: (nombre: string) => `Un agente propone cambiar las reglas de "${nombre}"`,
       revisar: 'Revisar',
       titulo: (nombre: string) => `Propuesta de reglas para "${nombre}"`,
-      mensaje: 'No se aplica hasta que la aceptes. A la izquierda, las vigentes; a la derecha, las propuestas.',
+      mensaje: 'No se aplica hasta que se acepte. A la izquierda, las vigentes; a la derecha, las propuestas.',
       motivo: 'Motivo del agente',
       sinMotivo: 'El agente no dio ningún motivo.',
       desde: (proyecto: string) => `Propuesta desde el proyecto ${proyecto}.`,
@@ -66,11 +66,11 @@ export const txPestanas = crearTextos(
       editar: 'Editar antes de aceptar',
       descartar: 'Descartar',
       yaNoEsta: 'Esa propuesta ya no está pendiente.',
-      aceptada: 'Reglas actualizadas: las leen los agentes que arranquen desde ahora.'
+      aceptada: 'Reglas actualizadas: las leerán los agentes que se inicien a partir de ahora.'
     },
     dialogos: {
       hibernarTitulo: (nombre: string) => `Hibernar el perfil "${nombre}"`,
-      hibernarAgente: 'Un agente está trabajando: se corta su respuesta (la conversación se retoma al reanudar).',
+      hibernarAgente: 'Un agente está trabajando: se interrumpe su respuesta (la conversación se retoma al reanudar).',
       hibernarEnMarcha: (n: number) =>
         n === 1
           ? 'Una terminal del perfil está ejecutando algo: se cierra y lo que ejecuta se detiene.'
@@ -81,7 +81,7 @@ export const txPestanas = crearTextos(
           : `Se cierran las ${n} terminales del perfil y se detiene lo que ejecuten.`,
       hibernarTerminales: 'Se cierran las terminales del perfil y se detiene lo que ejecuten.',
       hibernarConversaciones: 'Las conversaciones de los agentes se retoman al reanudar.',
-      hibernar: (nombre: string) => `Parar e hibernar «${nombre}»`,
+      hibernar: (nombre: string) => `Detener e hibernar «${nombre}»`,
       redTitulo: (nombre: string) => `Cambiar la red de «${nombre}»`,
       redMensaje: 'Aplicar la red reinicia los contenedores del perfil y lo deja hibernado; las conexiones SSH siguen abiertas.',
       redCambiar: 'Cambiar la red',
@@ -98,8 +98,8 @@ export const txPestanas = crearTextos(
       aria: 'Proyectos abiertos',
       despertando: 'Reanudando…',
       despertandoAria: 'reanudando',
-      agenteHibernado: ' · agente hibernado para ahorrar memoria; clic para reanudar',
-      hibernado: (nombre: string) => `${nombre} · hibernado para ahorrar memoria; clic para reanudar`,
+      agenteHibernado: ' · agente hibernado para ahorrar memoria; haga clic para reanudar',
+      hibernado: (nombre: string) => `${nombre} · hibernado para ahorrar memoria; haga clic para reanudar`,
       cerrarAria: (nombre: string) => `Cerrar ${nombre}`,
       cerrar: 'Cerrar',
       cerrarConfirmar: (nombre: string) => `Cerrar «${nombre}»`,
@@ -118,7 +118,7 @@ export const txPestanas = crearTextos(
       reemplazar: (carpeta: string) => `Cambiar por «${carpeta}»`
     },
     color: {
-      quitar: (tinta: string) => `${tinta} · clic derecho para quitarlo`,
+      quitar: (tinta: string) => `${tinta} · haga clic con el botón derecho para quitarlo`,
       muestraAria: (tinta: string) => `Color ${tinta}`,
       tono: 'Tono',
       luz: 'Luz',
@@ -127,7 +127,7 @@ export const txPestanas = crearTextos(
       aplicar: 'Aplicar',
       colores: 'Colores',
       fijados: 'Fijados',
-      sinFijados: 'Fija un color personalizado para volver a usarlo.',
+      sinFijados: 'Fije un color personalizado para volver a usarlo.',
       personalizado: 'Personalizado',
       aria: (nombre: string) => `Color de ${nombre}`,
       titulo: (nombre: string) => `Color de «${nombre}»`
@@ -135,29 +135,29 @@ export const txPestanas = crearTextos(
     red: {
       aislada: 'Propia',
       aisladaHint: 'Recomendada · red y puertos propios',
-      anfitrion: 'La de tu equipo',
-      anfitrionHint: (tuEquipo: string) => `Usa la red de ${tuEquipo}: ve sus VPN y puertos`,
+      anfitrion: 'La de su equipo',
+      anfitrionHint: (tuEquipo: string) => `Usa la red de ${tuEquipo}: tiene acceso a sus VPN y puertos`,
       conRedAnfitrion: (tuEquipo: string) => `Con la red de ${tuEquipo}`,
-      puertos: (tuEquipo: string) => `Los puertos que abra el contenedor quedan en ${tuEquipo}, en el mismo número.`,
+      puertos: (tuEquipo: string) => `Los puertos que abra el contenedor se abren en ${tuEquipo} con el mismo número.`,
       nombreEquipo:
         'El contenedor pierde su nombre de equipo propio y comparte el espacio de puertos con los demás perfiles.',
       soloTcp:
-        'Sólo lleva TCP y UDP: nada por debajo, y un proceso del contenedor no puede escuchar por debajo del puerto 1024.',
+        'Solo transporta TCP y UDP, sin otros protocolos, y un proceso del contenedor no puede escuchar en puertos inferiores al 1024.',
       incompatible: 'Es incompatible con «Enhanced Container Isolation» de Docker Desktop.',
       puenteBd: 'El puente de bases de datos no cambia: no usa puertos.',
       comprobaciones: 'Comprobaciones',
       comprobando: 'comprobando…',
       sinDiagnostico: 'No se pudo completar el diagnóstico.',
       salidaVpn: 'Salida a la VPN',
-      otroPerfil: 'Otro perfil ya usa la red de tu equipo',
+      otroPerfil: 'Otro perfil ya usa la red de su equipo',
       otroPerfilDetalle: (tuEquipo: string) =>
-        `En este modo los contenedores comparten el espacio de puertos de ${tuEquipo}: si los agentes de los dos levantan algo en el mismo puerto, el segundo no podrá.`,
+        `En este modo los contenedores comparten el espacio de puertos de ${tuEquipo}: si los agentes de ambos perfiles abren un servicio en el mismo puerto, el segundo no podrá hacerlo.`,
       titulo: (nombre: string) => `Red del contenedor de “${nombre}”`,
       mensaje:
-        'Decide por dónde entran y salen las conexiones de este perfil. El cambio se aplica al reiniciar su contenedor.',
+        'Define por dónde entran y salen las conexiones de este perfil. El cambio se aplica al reiniciar su contenedor.',
       sigueAnterior: 'El contenedor sigue con la red anterior',
       sigueAnteriorDetalle:
-        'Ya está elegido este modo, pero el contenedor que está corriendo nació con el otro. Reinícialo para aplicarlo.',
+        'Este modo ya está elegido, pero el contenedor en ejecución se creó con el otro. Reinícielo para aplicarlo.',
       cancelar: 'Cancelar',
       aplicarIgualmente: (perfil: string) =>
         `Aplicar de todas formas y reiniciar «${perfil}» (cierra sus agentes y terminales)`,
@@ -165,10 +165,10 @@ export const txPestanas = crearTextos(
     },
     aperturas: {
       noSePudoAbrir: (nombre: string) => `No se pudo abrir «${nombre}»`,
-      sinPerfil: 'No hay ningún perfil donde abrirlo. Crea uno y vuelve a intentarlo.',
-      sinCargar: 'Las pestañas no terminaron de cargar. Vuelve a intentarlo.',
+      sinPerfil: 'No hay ningún perfil donde abrirlo. Cree uno y vuelva a intentarlo.',
+      sinCargar: 'Las pestañas no terminaron de cargar. Vuelva a intentarlo.',
       tardoDemasiado: (nombre: string) => `«${nombre}» tardó demasiado en abrirse`,
-      tardoDetalle: 'El proyecto se abrió, pero no dio tiempo a mostrar lo que señalaste.',
+      tardoDetalle: 'El proyecto se abrió, pero no hubo tiempo de mostrar el archivo indicado.',
       noExiste: 'ya no existe',
       sinPermiso: (sistema: string) => `no se puede leer (${sistema} deniega el acceso)`,
       rutaInvalida: 'no se pudo abrir',

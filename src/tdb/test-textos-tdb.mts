@@ -97,7 +97,7 @@ function main(): void {
 
   hr('C. El español es el de antes, byte a byte')
   const exactos: [string, string, string][] = [
-    ['faltaArgumento', (es.faltaArgumento as F)('alias'), "Falta el argumento <alias>. Usa 'tdb help'."],
+    ['faltaArgumento', (es.faltaArgumento as F)('alias'), "Falta el argumento <alias>. Use 'tdb help'."],
     [
       'noHayConexion',
       (es.noHayConexion as F)('x', '"a"', 2),
@@ -105,15 +105,15 @@ function main(): void {
     ],
     ['noHayConexion sin otras', (es.noHayConexion as F)('x', '(ninguna)', 0), 'No hay ninguna conexión llamada "x" en este perfil.\n    Disponibles: (ninguna)'],
     ['filas', (es.filas as F)(3, false), '\n  3 fila(s)\n'],
-    ['filas con tope', (es.filas as F)(50, true), '\n  50 filas (TOPE alcanzado; usa --limit N para más)\n'],
-    ['documentos con tope', (es.documentos as F)(2, true), '  2 documento(s) (TOPE alcanzado: hay más; usa --limit N para más)\n'],
+    ['filas con tope', (es.filas as F)(50, true), '\n  50 filas (TOPE alcanzado; use --limit N para ver más)\n'],
+    ['documentos con tope', (es.documentos as F)(2, true), '  2 documento(s) (TOPE alcanzado: hay más; use --limit N para ver más)\n'],
     [
       'sinContrasena',
       (es.sinContrasena as F)('mibase'),
       'No hay contraseña para "mibase" en esta sesión.\n' +
-        '    Guárdala con "Editar conexión…" en la vista Bases de datos de Tessera y reabre la terminal.'
+        '    Guárdela con "Editar conexión…" en la vista Bases de datos de Tessera y vuelva a abrir la terminal.'
     ],
-    ['doctorTodoBien', es.doctorTodoBien as string, '  ✓ Todo en orden. Prueba:  tdb ls'],
+    ['doctorTodoBien', es.doctorTodoBien as string, '  ✓ Todo en orden. Pruebe:  tdb ls'],
     ['columnasLs', (es.columnasLs as string[]).join(','), 'ALIAS,MOTOR,DESTINO,USUARIO,MODO,ENTORNO'],
     ['clavesDe', (es.clavesDe as F)('r', 0, ', patrón u:*', 3, true), '\n  Claves de r (base 0, patrón u:*) — 3 (hay más)\n'],
     ['binario', (es.binario as F)(4), '<binario 4 bytes>'],
@@ -128,7 +128,7 @@ function main(): void {
   check(
     'ayuda: cabecera, tope y cierre de siempre',
     ayuda.startsWith('\n  tdb — consulta las bases de datos configuradas en Tessera (perfil activo)\n') &&
-      ayuda.includes('Ejecuta una consulta (tope 50 filas)') &&
+      ayuda.includes('Ejecutar una consulta (tope 50 filas)') &&
       ayuda.endsWith('  En SQL Server, GO en su propia línea separa lotes, como en sqlcmd.\n'),
     `${ayuda.length} caracteres`
   )

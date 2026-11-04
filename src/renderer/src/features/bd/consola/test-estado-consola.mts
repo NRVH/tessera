@@ -661,7 +661,7 @@ function main(): void {
     check(
       'Auto sin tx: sin contador, ✓ y ↶ deshabilitados con title',
       nada.textoTx === null && !nada.puedeCommit && !nada.puedeRollback && nada.tituloCommit === 'No hay transacción que confirmar' &&
-        nada.tituloModo === 'Transacción: Auto. Pulsa para Manual' && !nada.modoPulsado && nada.puedeCambiarModo,
+        nada.tituloModo === 'Transacción: Auto. Haga clic para cambiar a Manual' && !nada.modoPulsado && nada.puedeCambiarModo,
       JSON.stringify(nada)
     )
     const abierta = estadoBarraTx(sesion({ tx: 'abierta' }))
@@ -669,7 +669,7 @@ function main(): void {
     const fallida = estadoBarraTx(sesion({ txModo: 'manual', tx: 'fallida', sentenciasEnTx: 1 }))
     check(
       'fallida: solo Rollback',
-      !fallida.puedeCommit && fallida.puedeRollback && fallida.textoTx === 'Tx fallida: haz Rollback' &&
+      !fallida.puedeCommit && fallida.puedeRollback && fallida.textoTx === 'Tx fallida: ejecute Rollback' &&
         fallida.tituloCommit === 'La transacción falló: solo se puede revertir',
       JSON.stringify(fallida)
     )
@@ -705,7 +705,7 @@ function main(): void {
     const corriendo = estadoBarraTx(sesion({ txModo: 'manual', tx: 'pendiente', sentenciasEnTx: 1 }), { ejecutando: true })
     check(
       'mientras ejecuta: Commit/Rollback/⇄ esperan',
-      !corriendo.puedeCommit && !corriendo.puedeRollback && !corriendo.puedeCambiarModo && corriendo.tituloCommit === 'Espera a que termine la ejecución',
+      !corriendo.puedeCommit && !corriendo.puedeRollback && !corriendo.puedeCambiarModo && corriendo.tituloCommit === 'Espere a que termine la ejecución',
       JSON.stringify(corriendo)
     )
     check(
@@ -930,7 +930,7 @@ function main(): void {
     check('avisos del resultado a la Salida', textos(conAvisos).indexOf('Se ejecutó fuera de la transacción (VACUUM no admite transacción)') >= 0, JSON.stringify(textos(conAvisos)))
 
     const conPista = d(estadoInicialConsola('postgres'), { tipo: 'pista', texto: PISTA_SIN_SENTENCIA })
-    check('pista', conPista.pista === 'Coloca el cursor en una sentencia o selecciona texto', String(conPista.pista))
+    check('pista', conPista.pista === 'Coloque el cursor en una sentencia o seleccione texto', String(conPista.pista))
     check('pista igual: mismo estado', d(conPista, { tipo: 'pista', texto: PISTA_SIN_SENTENCIA }) === conPista, 'identidad')
     const trasLote = d(conPista, { tipo: 'loteCreado', lote: crearLote(1, ss) })
     check('un lote nuevo borra la pista', trasLote.pista === null, String(trasLote.pista))

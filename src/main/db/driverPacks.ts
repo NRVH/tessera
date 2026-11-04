@@ -182,7 +182,7 @@ export const DRIVER_PACKS: readonly DriverPackDef[] = [
     sobrantes: ['install_ic.sh', 'INSTALL_IC_README.txt'],
     macosMinimo: 13,
     soporteOracleDesde: 19,
-    aviso: '11.2–18c están fuera del soporte de Oracle; probado.',
+    aviso: 'Las versiones 11.2 a 18c están fuera del soporte de Oracle; Tessera las probó con este cliente.',
     carpetaInterna: 'instantclient_23_26',
     plataformas: ['mac'],
     centinela: { mac: 'libclntsh.dylib' },

@@ -9,28 +9,28 @@ import { crearTextos } from '../../../../shared/i18n.ts'
 const es = {
   pista: 'Pista: ',
   exportarNoReleible:
-    'Solo se puede volver a ejecutar para exportar una consulta sin efectos (un SELECT sin nextval ni FOR UPDATE): exporta lo que ya está cargado.',
-  filaDesaparecida: 'La fila ya no existe (se borró o cambió su clave): vuelve a ejecutar la consulta.',
+    'Solo se puede volver a ejecutar para exportar una consulta sin efectos (un SELECT sin nextval ni FOR UPDATE): exporte las filas ya cargadas.',
+  filaDesaparecida: 'La fila ya no existe (se borró o cambió su clave): vuelva a ejecutar la consulta.',
   exportarPorPaginas:
     'Se exportó por páginas, volviendo a ejecutar la consulta: si alguien escribió en la base mientras tanto, puede faltar o repetirse alguna fila.',
   detenida:
-    'Detenida: para pararla se cerró la sesión de la consola, que se vuelve a abrir sola en la siguiente operación.',
-  sinLector: 'El resultado ya no está disponible: vuelve a ejecutar la consulta.',
+    'Detenida: para detenerla se cerró la sesión de la consola, que se reabre automáticamente en la siguiente operación.',
+  sinLector: 'El resultado ya no está disponible: vuelva a ejecutar la consulta.',
   noReleible:
-    'Para leer más filas habría que volver a ejecutar una sentencia que modifica datos: vuelve a ejecutarla tú si quieres verlas.',
+    'Para leer más filas habría que volver a ejecutar una sentencia que modifica datos: vuelva a ejecutarla manualmente si desea verlas.',
   esquemaCambiado:
-    'El esquema de la consola cambió desde que se ejecutó esta consulta: volver a ejecutarla ahora leería otras tablas. Vuelve a ejecutarla tú.',
+    'El esquema de la consola cambió desde que se ejecutó esta consulta: volver a ejecutarla ahora leería otras tablas. Vuelva a ejecutarla manualmente.',
   sinOrden:
-    'Sin orden estable: la tabla no tiene clave primaria y no hay ORDER BY, así que las páginas pueden repetir o saltarse filas.',
-  consolaAtada: 'La consola está atada a otra conexión.',
+    'Sin orden estable: la tabla no tiene clave primaria y no hay ORDER BY, así que las páginas pueden repetir u omitir filas.',
+  consolaAtada: 'La consola pertenece a otra conexión.',
   exportacionEnCurso: 'Ya hay una exportación con ese identificador en curso.',
   envioEnCurso: 'Ya hay un envío con ese identificador en curso.',
   conexionNoExiste: 'La conexión ya no existe.',
   conexionConsolaNoExiste: 'La conexión de esta consola ya no existe.',
   consolaOtroPerfil: 'La consola no pertenece a este perfil.',
-  secretoNoDescifrable: 'La contraseña guardada no se puede descifrar en este equipo. Edita la conexión y vuelve a escribirla.',
-  sinSecreto: 'Esta conexión no tiene contraseña guardada. Edítala para añadirla.',
-  sinArchivoBase: 'La conexión no tiene archivo de base guardado. Edítala y elige el archivo.',
+  secretoNoDescifrable: 'La contraseña guardada no se puede descifrar en este equipo. Edite la conexión y vuelva a escribirla.',
+  sinSecreto: 'Esta conexión no tiene contraseña guardada. Edite la conexión para añadirla.',
+  sinArchivoBase: 'La conexión no tiene archivo de base guardado. Edite la conexión y elija el archivo.',
   consolasOcupadas: (n: number) =>
     `Hay ${n} consolas con sesión abierta en esta conexión y todas están ocupadas o con transacciones pendientes.`,
   cerrando: 'Tessera se está cerrando.',
@@ -39,10 +39,10 @@ const es = {
   errorInterno: 'Error interno del explorador de bases de datos.',
   servidorTimeout: 'El servidor no respondió a tiempo.',
   txPendientesDriver: (n: number) =>
-    `Hay ${n === 1 ? 'una consola' : `${n} consolas`} con transacciones pendientes que usan este cliente: confírmalas o revierte antes de cambiarlo.`,
+    `Hay ${n === 1 ? 'una consola' : `${n} consolas`} con transacciones pendientes que usan este cliente: confírmelas o revíertalas antes de cambiarlo.`,
   resolucionDesconocida: 'Resolución de transacción desconocida.',
   sentenciaGrande: 'La sentencia es demasiado grande.',
-  paginaFuera: (max: number) => `El tamaño de página tiene que estar entre 1 y ${max}.`,
+  paginaFuera: (max: number) => `El tamaño de página debe estar entre 1 y ${max}.`,
   consolaOcupada: 'La consola ya está ejecutando otra operación.',
   sinSentenciaEjecutar: 'No hay ninguna sentencia que ejecutar.',
   variasSentencias: (n: number) => `El texto contiene ${n} sentencias y se ejecuta una por petición.`,
@@ -53,7 +53,7 @@ const es = {
   bloqueoArchivo: (nombre: string | null, alias: string, cambiosSinConfirmar: boolean) => {
     const quien = nombre ? `La consola «${nombre}» (${alias})` : `Una consola de «${alias}»`
     const que = cambiosSinConfirmar ? 'tiene cambios sin confirmar' : 'tiene una transacción abierta'
-    return `${quien} ${que} en este mismo archivo, y mientras tanto el archivo entero queda bloqueado para escribir. Confírmala o revírtela en esa consola y vuelve a enviar.`
+    return `${quien} ${que} en este mismo archivo, y, mientras no termine, el archivo entero queda bloqueado para escribir. Confirme o revierta esa transacción en esa consola y vuelva a enviar los cambios.`
   },
   nadaAplicado: (base: string) => `${base}: no se aplicó nada.`,
   envioDetenidoNada: 'Envío detenido: no se aplicó nada.',
@@ -66,22 +66,22 @@ const es = {
   consultaGrande: 'La consulta es demasiado grande.',
   exportacionCancelada: 'Exportación cancelada.',
   tablaSinFilas: 'La consulta de la tabla no devolvió filas.',
-  exportarSinPaginar: 'Exportar una tabla necesita leerla sin paginar: la forma ROWNUM no lo permite.',
-  sinUltimaClave: 'El trabajador no devolvió la clave de la última fila.',
+  exportarSinPaginar: 'Para exportar una tabla es necesario leerla sin paginar: la forma ROWNUM no lo permite.',
+  sinUltimaClave: 'El proceso de lectura no devolvió la clave de la última fila.',
   recuentoSinFilas: 'El recuento no devolvió filas.',
   recuentoSinNumero: 'El recuento no devolvió un número.',
   limiteProcesosConsola: (tope: number) =>
-    `Hay ${tope} consolas con proceso propio abiertas a la vez y ninguna se puede cerrar sin perder trabajo. Cierra alguna para abrir otra.`,
+    `Hay ${tope} consolas con proceso propio abiertas al mismo tiempo y ninguna se puede cerrar sin perder trabajo. Cierre alguna para abrir otra.`,
   limiteProcesosConexion: (tope: number) =>
-    `Hay ${tope} conexiones abiertas a la vez y ninguna se puede cerrar sin perder trabajo. Desconecta alguna para abrir otra.`,
-  sinProceso: 'No se pudo lanzar el proceso de la conexión.',
-  listaBlancaNoSql: 'La lista blanca de solo lectura no es de una sesión SQL.',
+    `Hay ${tope} conexiones abiertas al mismo tiempo y ninguna se puede cerrar sin perder trabajo. Desconecte alguna para abrir otra.`,
+  sinProceso: 'No se pudo iniciar el proceso de la conexión.',
+  listaBlancaNoSql: 'La lista de sentencias permitidas de solo lectura no corresponde a una sesión SQL.',
   revirtioServidor: (etiqueta: string, codigo?: string) =>
     `${etiqueta} revirtió la transacción${codigo ? ` (error ${codigo})` : ''}: los cambios sin confirmar se perdieron.`,
   creadoConErrores: (mensaje: string) => `Creado con errores de compilación: ${mensaje}`,
   tablaBloqueada: (mensaje: string) =>
-    'La tabla está bloqueada por una transacción sin confirmar (quizá una consola tuya): Reintentar cuando termine, ' +
-    `o «Leer sin esperar», que enseña también lo que aún no se ha confirmado. (${mensaje})`,
+    'La tabla está bloqueada por una transacción sin confirmar (quizá una de sus consolas). Haga clic en «Reintentar» cuando termine, ' +
+    `o «Leer sin esperar», que muestra también lo que aún no se ha confirmado. (${mensaje})`,
   accionTxDesconocida: 'Acción de transacción desconocida.',
   modoTxDesconocido: 'Modo de transacción desconocido.',
   txSigue: 'La transacción sigue pendiente.'

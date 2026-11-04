@@ -11,27 +11,27 @@ export const txGit = crearTextos(
   {
     // Cabeceras, estados vacíos y de carga
     sinProyectoTitulo: 'Sin proyecto abierto',
-    sinProyectoCambios: 'Abre un proyecto para ver sus cambios de git.',
-    sinProyectoHistorial: 'Abre un proyecto para ver su historial de git.',
-    noEsRepoTitulo: 'Esto no es un repositorio de git',
-    noEsRepoCambios: 'La carpeta abierta no está versionada, así que no hay cambios que seguir.',
+    sinProyectoCambios: 'Abra un proyecto para ver sus cambios de Git.',
+    sinProyectoHistorial: 'Abra un proyecto para ver su historial de Git.',
+    noEsRepoTitulo: 'La carpeta abierta no es un repositorio de Git',
+    noEsRepoCambios: 'La carpeta abierta no está versionada, por lo que no hay cambios que seguir.',
     noEsRepoHistorial:
-      'La carpeta abierta no está versionada, así que no hay historial que enseñar. Abre un proyecto con git para ver sus commits y sus ramas.',
+      'La carpeta abierta no está versionada, por lo que no hay historial que mostrar. Abra un proyecto con Git para ver sus commits y sus ramas.',
     cargandoCambios: 'Cargando cambios…',
     motivoReposLeidos: (leidos: number, total: number) => `${leidos} de ${total} repositorios leídos`,
     sinCambiosTitulo: 'Sin cambios',
-    sinCambiosPista: 'El working-tree está limpio: no hay nada modificado ni sin versionar.',
-    sinCambiosLinea: 'Sin cambios en el working-tree.',
-    ningunRepoConCambios: (total: number) => `Ninguno de los ${total} repositorios tiene cambios sin commitear.`,
+    sinCambiosPista: 'El directorio de trabajo está limpio: no hay archivos modificados ni sin versionar.',
+    sinCambiosLinea: 'Sin cambios en el directorio de trabajo.',
+    ningunRepoConCambios: (total: number) => `Ninguno de los ${total} repositorios tiene cambios sin confirmar.`,
     errorCambios: (error: string) => `No se pudieron leer los cambios: ${error}`,
-    cambiosWorkingTree: 'Cambios del working-tree',
+    cambiosWorkingTree: 'Cambios del directorio de trabajo',
     repositoriosConCambios: 'Repositorios con cambios',
 
     // Panel lateral de Cambios
-    panelCambios: 'Cambios de git',
+    panelCambios: 'Cambios de Git',
     cambios: 'Cambios',
-    plegarRepos: 'Plegar todos los repositorios',
-    desplegarRepos: 'Desplegar los repositorios con cambios',
+    plegarRepos: 'Contraer todos los repositorios',
+    desplegarRepos: 'Expandir los repositorios con cambios',
     recargarCambios: 'Recargar los cambios',
     repoActivo: 'Repositorio activo (el del historial de abajo)',
     repoAbrir: 'Ver el historial de este repositorio en el panel de abajo',
@@ -56,7 +56,7 @@ export const txGit = crearTextos(
     prepararNTitulo: (n: number) => `Preparar ${n} archivos`,
     descartarN: (n: number) => `Descartar ${n}`,
     descartarNTitulo: (n: number) =>
-      `Devuelve ${n} archivos a su versión de git: sus cambios se pierden y los nuevos se eliminan del disco`,
+      `Restaura ${n} archivos a su versión de Git: sus cambios se pierden y los archivos nuevos se eliminan del disco`,
 
     // Menú contextual de una fila de Cambios
     abrirArchivo: 'Abrir archivo',
@@ -68,7 +68,7 @@ export const txGit = crearTextos(
     agregarGitignoreN: (n: number) => `Agregar ${n} a .gitignore`,
     agregarExclusionLocal: 'Ignorar solo en este equipo (.git/info/exclude)',
     agregarExclusionLocalN: (n: number) => `Ignorar ${n} solo en este equipo (.git/info/exclude)`,
-    descartarCambios: 'Descartar cambios (vuelve a la versión de git)',
+    descartarCambios: 'Descartar cambios (restaura la versión de Git)',
     descartarArchivosN: (n: number) => `Descartar ${n} archivos…`,
 
     // Fila de archivo
@@ -87,21 +87,21 @@ export const txGit = crearTextos(
     headIndice: 'HEAD ↔ Índice',
 
     // Panel de Log: cabecera y vistas
-    panelHistorial: 'Historial de git',
+    panelHistorial: 'Historial de Git',
     recargarHistorial: 'Recargar el historial y las ramas',
-    restaurarPanel: 'Restaurar el panel de git',
-    maximizarPanel: 'Maximizar el panel de git',
-    restaurarTitulo: 'Restaurar: git vuelve al panel inferior',
-    maximizarTitulo: 'Maximizar: git ocupa toda el área de trabajo (sin cerrar nada)',
-    cerrarPanel: 'Cerrar el panel de git',
-    vistasGit: 'Vistas de git',
+    restaurarPanel: 'Restaurar el panel de Git',
+    maximizarPanel: 'Maximizar el panel de Git',
+    restaurarTitulo: 'Restaurar: el panel de Git vuelve a la parte inferior',
+    maximizarTitulo: 'Maximizar: el panel de Git ocupa toda el área de trabajo (sin cerrar nada)',
+    cerrarPanel: 'Cerrar el panel de Git',
+    vistasGit: 'Vistas de Git',
     historialDe: (nombre: string) => `Historial: ${nombre}`,
     cerrarHistorial: 'Cerrar el historial',
     anchoRamas: 'Ancho de la columna de ramas',
     anchoDetalle: 'Ancho de la columna de detalle',
 
     // Árbol de ramas
-    repoDelHistorial: 'Repositorio del historial (clic para cambiar)',
+    repoDelHistorial: 'Repositorio del historial (haga clic para cambiar)',
     ramas: 'Ramas',
     repositorio: 'Repositorio',
     cargandoRamas: 'Cargando ramas…',
@@ -109,7 +109,7 @@ export const txGit = crearTextos(
     verTodasRamasTitulo: 'Ver el historial de todas las ramas',
     todasLasRamas: 'Todas las ramas',
     ramaActualHead: (rama: string) => `${rama} — rama actual (HEAD)`,
-    ramaQuitarFiltro: (rama: string) => `${rama} — clic para quitar el filtro`,
+    ramaQuitarFiltro: (rama: string) => `${rama} — haga clic para quitar el filtro`,
     ramaFiltrar: (rama: string) => `Filtrar el historial por ${rama}`,
     carpetaRamas: (ruta: string, n: number) => `${ruta} (${n} rama${n === 1 ? '' : 's'})`,
     local: 'Local',
@@ -117,9 +117,9 @@ export const txGit = crearTextos(
 
     // Barra de filtros
     sinResultados: 'sin resultados',
-    coincidenciaAnteriorTitulo: 'Coincidencia anterior (Mayús+Enter)',
+    coincidenciaAnteriorTitulo: 'Coincidencia anterior (Mayús+Intro)',
     coincidenciaAnterior: 'Coincidencia anterior',
-    coincidenciaSiguienteTitulo: 'Coincidencia siguiente (Enter)',
+    coincidenciaSiguienteTitulo: 'Coincidencia siguiente (Intro)',
     coincidenciaSiguiente: 'Coincidencia siguiente',
     textoOHash: 'Texto o hash',
     buscarEnHistorial: 'Buscar en el historial de commits',
@@ -142,18 +142,18 @@ export const txGit = crearTextos(
 
     // Lista de commits
     historialDeCommits: 'Historial de commits',
-    errorHistoria: 'No se pudo leer la historia de git:',
+    errorHistoria: 'No se pudo leer el historial de Git:',
     cargandoHistorial: 'Cargando historial…',
     ningunCommitCoincide: 'Ningún commit coincide con los filtros.',
     avisoOculto: (lista: number, total: number, hayMas: boolean) =>
-      `${lista} de ${total} commits${hayMas ? ' cargados (el filtro solo mira dentro de estos)' : ''}`,
+      `${lista} de ${total} commits${hayMas ? ' cargados (el filtro solo se aplica a estos)' : ''}`,
     cargarCompletoTitulo: (n: number) =>
-      `Mostrando los últimos ${n} commits; cargar el historial completo del repositorio`,
+      `Se muestran los últimos ${n} commits. Cargar el historial completo del repositorio`,
     cargando: 'Cargando…',
     cargarCompleto: (n: number) => `Cargar el historial completo (más de ${n})`,
     sinCommitsTitulo: 'Aún no hay commits',
     sinCommitsPista:
-      'Este repositorio está recién creado. En cuanto confirmes el primer commit, su historial aparecerá aquí.',
+      'Este repositorio se acaba de crear. Cuando se confirme el primer commit, su historial aparecerá aquí.',
     copiado: 'Copiado',
     copiarHashFila: (hash: string) => `Copiar el hash completo (${hash})`,
     copiarHashLista: (mod: string) => `Copiar el hash completo · ${mod}+C en la lista`,
@@ -162,11 +162,11 @@ export const txGit = crearTextos(
     // Detalle del commit
     detalle: 'Detalle',
     ningunCommitTitulo: 'Ningún commit seleccionado',
-    ningunCommitPista: 'Elige uno del historial para ver su mensaje, su autor y los archivos que tocó.',
+    ningunCommitPista: 'Seleccione uno del historial para ver su mensaje, su autor y los archivos que modificó.',
     repartoArchivosMensaje: 'Reparto entre los archivos y el mensaje del commit',
     errorRamas: 'No se pudieron leer las ramas.',
-    buscandoRamas: 'Buscando en qué ramas está…',
-    enNingunaRama: 'En ninguna rama.',
+    buscandoRamas: 'Buscando las ramas que contienen este commit…',
+    enNingunaRama: 'No está en ninguna rama.',
     enNRamas: (n: number) => `En ${n} rama${n === 1 ? '' : 's'}:`,
     mostrarNMas: (n: number) => `Mostrar ${n} más`,
     mostrarMenos: 'Mostrar menos',
@@ -174,12 +174,12 @@ export const txGit = crearTextos(
     archivosDelCommit: 'Archivos del commit',
     errorArchivos: (error: string) => `No se pudieron leer los archivos: ${error}`,
     cargandoArchivos: 'Cargando archivos…',
-    commitSinArchivos: 'Este commit no cambió archivos.',
+    commitSinArchivos: 'Este commit no modificó ningún archivo.',
 
     // Chips de referencias
     chipEtiqueta: (nombre: string) => `Etiqueta ${nombre}`,
     chipRamaActual: (nombre: string) => `${nombre} (rama actual)`,
-    chipHeadSinRama: 'HEAD (sin rama, detached)',
+    chipHeadSinRama: 'HEAD (sin rama, detached HEAD)',
     chipRamaRemota: (nombre: string) => `Rama remota ${nombre}`,
     chipRama: (nombre: string) => `Rama ${nombre}`,
 
@@ -187,15 +187,15 @@ export const txGit = crearTextos(
     errorHistorial: 'No se pudo leer el historial',
     sinHistorialTitulo: 'Sin historial',
     sinHistorialPista: (nombre: string) =>
-      `git no conoce ningún commit que haya tocado "${nombre}". Puede que sea un archivo nuevo que todavía no se ha confirmado.`,
+      `Git no registra ningún commit que haya modificado "${nombre}". Es posible que sea un archivo nuevo que todavía no se ha confirmado.`,
     anchoListaArchivo: 'Ancho de la lista de commits del archivo',
     commitsDe: (nombre: string) => `Commits de ${nombre}`,
     cargandoHistorialArchivo: 'Cargando el historial…',
     errorDiff: 'No se pudo preparar el diff',
-    noTocaArchivoTitulo: 'Este commit no toca el archivo con este nombre',
+    noTocaArchivoTitulo: 'Este commit no modifica el archivo con este nombre',
     noTocaArchivoDetalle: (nombre: string) =>
-      `En "${nombre}" el historial cruza renames, así que la lista incluye commits en los que el archivo se llamaba de otra forma. En ese punto no hay un cambio que comparar bajo el nombre actual.`,
-    elegirCommit: 'Elige un commit para ver qué cambió.',
+      `El historial de "${nombre}" incluye cambios de nombre, por lo que la lista contiene commits en los que el archivo se llamaba de otra forma. En esos commits no hay un cambio que comparar con el nombre actual.`,
+    elegirCommit: 'Seleccione un commit para ver qué cambió.',
     preparandoDiff: 'Preparando el diff…',
 
     // Avisos de las acciones
@@ -211,8 +211,8 @@ export const txGit = crearTextos(
     noSePudoEscribirExclusiones: 'No se pudo escribir el archivo de exclusiones',
     algunosNoIgnorados: 'Algunos archivos no se pudieron ignorar',
     resumenIgnorados: (ignorados: number, omitidos: number) =>
-      `${ignorados} ignorados · ${omitidos} omitidos, git ya los rastrea.\n` +
-      'Para dejar de seguirlos habría que sacarlos del repositorio, y eso el resto del equipo lo vería como un borrado.',
+      `${ignorados} ignorados · ${omitidos} omitidos porque Git ya los rastrea.\n` +
+      'Para dejar de rastrearlos habría que quitarlos del repositorio, y el resto del equipo lo vería como un borrado.',
     algunosNoDescartados: 'No se pudieron descartar algunos archivos',
 
     // Fechas relativas

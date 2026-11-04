@@ -349,7 +349,7 @@ async function casosQuePerdianDatos(silent: () => void): Promise<void> {
       return {
         pass:
           res.ok === false &&
-          /^git falló/.test(res.error ?? '') &&
+          /^Git falló/.test(res.error ?? '') &&
           !/no respondió/.test(res.error ?? '') &&
           r.leer('a.txt') === 'TRABAJO\n' &&
           pedidas() === 0,

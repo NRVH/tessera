@@ -262,10 +262,10 @@ async function main(): Promise<void> {
             : m === 'sqlite'
               ? 'SQLite no tiene el esquema VENTAS: cada archivo es una base con un único esquema, main.'
               : m === 'sqlserver'
-                ? 'No se puede usar la base VENTAS en esta conexión: no existe o no tienes acceso a ella.'
+                ? 'No se puede usar la base VENTAS en esta conexión: no existe o no tiene acceso a ella.'
                 : m === 'mysql'
-                  ? 'No se puede usar la base VENTAS en esta conexión: no existe o no tienes permiso sobre ella.'
-                  : 'No se puede usar el esquema VENTAS en esta conexión: no existe o no tienes permiso de uso (USAGE) sobre él.'
+                  ? 'No se puede usar la base VENTAS en esta conexión: no existe o no tiene permiso sobre ella.'
+                  : 'No se puede usar el esquema VENTAS en esta conexión: no existe o no tiene permiso de uso (USAGE) sobre él.'
         )
       ),
     j(mensajes)

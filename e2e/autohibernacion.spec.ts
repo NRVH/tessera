@@ -245,7 +245,7 @@ test.describe('hibernación con poca memoria en el equipo', () => {
     const pidAlfa = arranquesEn(m, 'alfa')[0].pid
     const pidBeta = arranquesEn(m, 'beta')[0].pid
 
-    const aviso = win.locator('.toast', { hasText: 'Queda poca memoria en el equipo' })
+    const aviso = win.locator('.toast', { hasText: 'El equipo tiene poca memoria disponible' })
     await expect(aviso, 'el aviso de poca memoria').toHaveCount(1, { timeout: 30_000 })
     // Con el ajuste de fábrica (5 minutos, 2 con poca memoria), nada cae todavía solo.
     await expect(pestana(win, 'alfa')).not.toHaveClass(/\bhibernated\b/)

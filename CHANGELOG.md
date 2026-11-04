@@ -8,6 +8,24 @@ Cada versión agrupa sus cambios en secciones, en este orden y solo las que teng
 Interfaz, Rendimiento y estabilidad, Instalación y actualizaciones, Correcciones y Seguridad. Una
 sección larga se divide en grupos por área.
 
+## [Sin publicar]
+
+## [0.83.1] - 2026-11-04
+
+### Interfaz
+
+- **La Academy explica qué necesita Codex en Docker.** Dentro de un contenedor, su sandbox no puede arrancar: hay que
+  elegir **Full Access** con `/permissions`. Tessera no activa ese modo automáticamente.
+- **Continuar una conversación se hace desde un solo botón.** ⇄, en la cabecera del agente, reúne las otras cuentas del
+  mismo agente, que se llevan la conversación completa, y los otros agentes, que reciben un resumen. El menú ⋯ de una
+  cuenta queda para administrarla.
+- **Los textos en español son formales y precisos.** Toda la aplicación trata de usted y usa el mismo vocabulario, y
+  muchas etiquetas y mensajes se reescribieron para que no dejen lugar a dudas.
+- **Tessera Academy, revisada de principio a fin.** Los artículos y el glosario definen sus términos, explican los
+  procedimientos paso a paso con su resultado y corrigen descripciones que ya no coincidían con la aplicación.
+- **La presentación de Tessera describe lo que hace hoy.** El README y **Configuración › Acerca de** explican el uso de
+  varias cuentas al mismo tiempo, cómo continuar en otra cuenta o en otro agente, y los límites de cada modo.
+
 ## [0.83.0] - 2026-11-02
 
 ### Novedades

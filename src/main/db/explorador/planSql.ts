@@ -69,8 +69,8 @@ export const SQL_TEXTO_ORACLE = "SELECT plan_table_output FROM TABLE(DBMS_XPLAN.
 
 const avisosPlanEs = {
   bindsOracle:
-    'Oracle no mira el valor de los parámetros al explicar (EXPLAIN PLAN no hace «bind peeking»): el plan de la ejecución real puede ser otro.',
-  planRecortado: `El plan tiene más de ${MAX_NODOS_PLAN} pasos: se enseñan los primeros.`
+    'Oracle no considera el valor de los parámetros al explicar (EXPLAIN PLAN no hace «bind peeking»): el plan de la ejecución real puede ser otro.',
+  planRecortado: `El plan tiene más de ${MAX_NODOS_PLAN} pasos: se muestran los primeros.`
 }
 const txAvisosPlan = crearTextos(
   avisosPlanEs,

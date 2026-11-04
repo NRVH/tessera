@@ -43,7 +43,7 @@ test('el renderer SABE que está en un Mac (y lo sabe por el preload, no por `pr
   )
 })
 
-test('Configuración › Acerca de habla de «tu Mac»', async () => {
+test('Configuración › Acerca de habla de «su Mac»', async () => {
   await s.win.keyboard.press(`${MOD}+,`)
   await expect(s.win.locator('.ajustes-modal')).toHaveCount(1)
   await s.win.locator('.ajustes-riel-item[data-cat="acerca"]').click()
@@ -51,7 +51,7 @@ test('Configuración › Acerca de habla de «tu Mac»', async () => {
   await expect(puntos).toHaveCount(4)
   // La frase del sandbox nombra el equipo por el vocabulario compartido: lo que los
   // agentes NO ven.
-  await expect(puntos.nth(1)).toContainText('no tu Mac')
+  await expect(puntos.nth(1)).toContainText('no su Mac')
 })
 
 test('BARRIDO: ninguna categoría del modal nombra Windows', async () => {
@@ -111,7 +111,7 @@ test('el menú del perfil nombra el ESTADO de la red, no un sistema ni una prome
   const texto = await menu.innerText()
   expect(texto).toContain('Red del contenedor Docker:')
   expect(texto, 'los puntos suspensivos son la convención de "abre un diálogo"').toMatch(
-    /Red del contenedor Docker: (aislada|la de tu equipo)…/
+    /Red del contenedor Docker: (aislada|la de su equipo)…/
   )
   expect(texto).not.toContain('Windows')
   expect(texto, 'el rótulo no puede prometer que los puertos acaban en el Mac').not.toContain(

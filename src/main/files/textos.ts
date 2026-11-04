@@ -8,20 +8,20 @@ import { crearTextos } from '../../shared/i18n.ts'
 export const txArchivos = crearTextos(
   {
     sinProyecto: 'No hay proyecto activo.',
-    proyectoDesconocido: 'Esta operación es de un proyecto que no está abierto: no se hizo nada.',
+    proyectoDesconocido: 'Esta operación corresponde a un proyecto que no está abierto: no se realizó ningún cambio.',
     dentroComprimido: 'Esa ruta está dentro de un archivo comprimido y no se puede modificar desde aquí.',
-    fueraDelProyecto: 'Ruta fuera del proyecto (path traversal bloqueado).',
+    fueraDelProyecto: 'La ruta está fuera del proyecto (se bloqueó por seguridad).',
     codificacionPierde:
-      'El texto tiene caracteres que la codificación seleccionada no admite; ' +
-      'guardar los perdería. Cambia a UTF-8 para conservarlos.',
+      'El texto contiene caracteres que la codificación seleccionada no admite, ' +
+      'por lo que se perderían al guardar. Cambie a UTF-8 para conservarlos.',
     guardarComo: 'Guardar como',
     guardar: 'Guardar',
     yaExiste: (nombre: string) => `Ya existe "${nombre}" en esa carpeta.`,
     destinoNoCarpeta: 'El destino no es una carpeta.',
-    origenInvalido: 'Origen inválido.',
+    origenInvalido: 'El origen no es válido.',
     carpetaEnSiMisma: 'No se puede mover una carpeta dentro de sí misma.',
     dosElementos: (nombre: string) =>
-      `Hay dos elementos llamados "${nombre}" en la selección: no caben los dos en la misma carpeta.`,
+      `Hay dos elementos llamados "${nombre}" en la selección y no pueden estar en la misma carpeta.`,
     yaNoExiste: (nombre: string) => `Ya no existe "${nombre}".`,
     nadaQuePegar: 'No hay nada que pegar.',
     noRenombrarVarios: 'No se puede renombrar al pegar varios elementos.',
@@ -31,17 +31,17 @@ export const txArchivos = crearTextos(
     noSePudoLeer: (nombre: string) => `No se pudo leer "${nombre}".`,
     noEsUnArchivo: (nombre: string) => `"${nombre}" no es un archivo.`,
     noMoverEnSiMisma: (nombre: string) => `No se puede mover "${nombre}" dentro de sí misma.`,
-    nadaQueArrastrarUno: 'Eso ya no está en el proyecto: no hay nada que arrastrar.',
+    nadaQueArrastrarUno: 'El elemento ya no está en el proyecto: no hay nada que arrastrar.',
     nadaQueArrastrarVarios: 'Ninguno de esos elementos sigue en el proyecto: no hay nada que arrastrar.',
     noEliminarRaiz: 'No se puede eliminar la raíz del proyecto.',
-    workerError: 'Error en el worker de archivos.',
-    workerSalio: (codigo: number) => `El worker de archivos salió inesperadamente (código ${codigo}).`,
-    documentoGrande: 'Documento demasiado grande para previsualizar (>50 MiB).',
-    comprimidoGrande: 'Archivo comprimido demasiado grande para listar (>50 MiB).',
+    workerError: 'Error en el proceso de trabajo de archivos.',
+    workerSalio: (codigo: number) => `El proceso de trabajo de archivos terminó inesperadamente (código ${codigo}).`,
+    documentoGrande: 'El documento es demasiado grande para mostrar su vista previa (más de 50 MiB).',
+    comprimidoGrande: 'El archivo comprimido es demasiado grande para listar su contenido (más de 50 MiB).',
     nombreVacio: 'El nombre no puede estar vacío.',
-    nombreReservado: 'Nombre reservado.',
+    nombreReservado: 'El nombre está reservado por el sistema.',
     nombreBarras: 'El nombre no puede contener "/" ni "\\".',
-    nombreInvalido: 'El nombre tiene caracteres inválidos.',
+    nombreInvalido: 'El nombre contiene caracteres no válidos.',
     demasiadasCopias: (nombre: string) => `Demasiadas copias de "${nombre}" en la carpeta destino.`
   },
   {

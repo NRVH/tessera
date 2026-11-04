@@ -81,7 +81,7 @@ function main(): void {
   // «PostgreSQL» escrito a mano pasaría el primero y no el segundo.
   check(
     'el mensaje de PG es el de siempre, al byte',
-    !rg.ok && rg.mensaje === 'PostgreSQL admite como mucho $65535: $1000000000 no puede enviarse.',
+    !rg.ok && rg.mensaje === 'PostgreSQL admite hasta $65535: $1000000000 no puede enviarse.',
     rg.ok ? '' : rg.mensaje
   )
   const descriptorPg = MOTORES.postgres as { etiqueta: string }
@@ -94,7 +94,7 @@ function main(): void {
   } finally {
     descriptorPg.etiqueta = etiquetaPg
   }
-  check('y nombra la etiqueta del registro (cambiada: «PG de prueba»)', conOtra === 'PG de prueba admite como mucho $65535: $70000 no puede enviarse.', conOtra)
+  check('y nombra la etiqueta del registro (cambiada: «PG de prueba»)', conOtra === 'PG de prueba admite hasta $65535: $70000 no puede enviarse.', conOtra)
   const rTope = bindsParaTrabajador(parametrosSql('select $65535', 'postgres'), { '65535': 'x' }, 'postgres')
   check(
     'NEGATIVO: `$65535`, el tope, sí se manda (65534 NULL y el valor)',
@@ -168,7 +168,7 @@ function main(): void {
   const choque = sq('select :a, ?1', { a: 'A', '1': 'uno' })
   check(
     'con `:a, ?1` se envía (SQL válido), el valor que va es el de :a y el resultado lo avisa',
-    choque.ok && j(choque.binds) === j({ nombrados: { ':a': 'A' }, anonimos: [] }) && choque.aviso === 'En SQLite, ?1 y :a son el mismo parámetro: se usó el valor de :a y el de ?1 no.',
+    choque.ok && j(choque.binds) === j({ nombrados: { ':a': 'A' }, anonimos: [] }) && choque.aviso === 'En SQLite, ?1 y :a son el mismo parámetro: se usó el valor de :a y se ignoró el de ?1.',
     j(choque)
   )
   const sinChoque = sq('select ?1, :a', { '1': 'uno', a: 'A' })

@@ -61,13 +61,13 @@ export const txApariencia = crearTextos(
     volverInterfaz: 'Volver a seguir el tamaño de la interfaz',
     zoom: 'Zoom',
     zoomAyuda: (mod: string) =>
-      `Escala toda la ventana —editor y terminales incluidos—, al contrario que los tamaños de arriba. Es lo mismo que ${mod} +/− y Ctrl+rueda; ${mod}+0 lo devuelve al 100%.`,
+      `Escala toda la ventana, incluidos el editor y las terminales, a diferencia de los tamaños anteriores. Equivale a ${mod} +/− y Ctrl+rueda; ${mod}+0 restablece el 100%.`,
     volver100: 'Volver al 100%',
     zoomVentana: 'el zoom de la ventana',
     grupoTamanos: 'Tamaño y escala',
     interfaz: 'Interfaz',
     interfazAyuda: (alto: number) =>
-      `Pestañas, barra de estado y paneles. Filas de ${alto} px. No toca el editor ni las terminales, que tienen su propio tamaño.`,
+      `Pestañas, barra de estado y paneles. Filas de ${alto} px. No afecta al editor ni a las terminales, que tienen su propio tamaño.`,
     letraInterfaz: 'el tamaño de letra de la interfaz',
     explorador: 'Explorador',
     letraExplorador: 'el tamaño de letra del explorador',
@@ -75,7 +75,7 @@ export const txApariencia = crearTextos(
     letraGit: 'el tamaño de letra de la vista de git',
     grupoBarra: 'Barra de perfiles',
     minimalista: 'Perfiles en un selector compacto',
-    minimalistaAyuda: 'Cambia la banda de perfiles por un selector compacto en la barra de título.'
+    minimalistaAyuda: 'Sustituye la banda de perfiles por un selector compacto en la barra de título.'
   },
   {
     tamanoPropio: (alto: number) => `Custom size · ${alto} px rows.`,
@@ -105,7 +105,7 @@ export const txTerminales = crearTextos(
   {
     grupoTerminal: 'Terminal',
     grupoAgente: 'Terminal del agente',
-    ayudaAgente: 'La de Claude Code y Codex, independiente de la de arriba.',
+    ayudaAgente: 'Terminal de Claude Code y Codex, independiente de la terminal anterior.',
     nombreTerminal: 'la terminal',
     nombreAgente: 'la terminal del agente',
     fuente: 'Fuente',
@@ -115,11 +115,11 @@ export const txTerminales = crearTextos(
     predeterminada: 'Predeterminada',
     resaltar: 'Resaltar logs y salidas',
     resaltarAyuda:
-      'Errores en rojo, avisos en amarillo y lo que fue bien en verde; fechas, procesos, rutas, IPs y claves de configuración en su color, también en SSH. No cambia el texto ni toca lo que ya viene en color, ni los editores a pantalla completa.',
+      'Muestra los errores en rojo, los avisos en amarillo y los éxitos en verde; las fechas, los procesos, las rutas, las IP y las claves de configuración llevan su propio color, también en SSH. No modifica el texto, ni la salida que ya trae color, ni los editores a pantalla completa.',
     rendimiento: 'Rendimiento',
     renderizado: 'Renderizado',
-    porGpu: 'Las terminales dibujan por GPU.',
-    porSoftware: 'Sin GPU disponible: las terminales dibujan por software.',
+    porGpu: 'Las terminales se renderizan con la GPU.',
+    porSoftware: 'No hay GPU disponible: las terminales se renderizan por software.',
     sinDatosGpu: 'sin datos de GPU'
   },
   {
@@ -148,21 +148,21 @@ export const txProyectos = crearTextos(
   {
     documentos: 'Herramientas de documentos',
     documentosAyuda:
-      'LibreOffice y poppler, para convertir y capturar PDF, Word, Excel y PowerPoint. Añade en torno a 1 GB a la imagen.',
-    hornearDocumentos: 'Hornear las herramientas de documentos',
+      'LibreOffice y poppler, para convertir y capturar PDF, Word, Excel y PowerPoint. Aumenta el tamaño de la imagen en aproximadamente 1 GB.',
+    hornearDocumentos: 'Incluir las herramientas de documentos en la imagen',
     sandbox: 'Sandbox de Docker',
     sandboxAyuda: [
-      'El agente ya puede instalar lo que quiera dentro del contenedor (tiene ',
+      'El agente puede instalar cualquier paquete dentro del contenedor (dispone de ',
       'sudo',
-      '), pero eso se pierde al hibernar el perfil o al cerrar Tessera. Lo que se marque aquí se hornea en la imagen y sobrevive. Se aplica al reconstruirla: la próxima vez que se abra un agente, o al pulsar «Actualizar agentes».'
+      '), pero lo instalado se pierde al hibernar el perfil o al cerrar Tessera. Lo que se marque aquí se incluye en la imagen y se conserva. Se aplica al reconstruir la imagen: la próxima vez que se abra un agente o al pulsar «Actualizar agentes».'
     ],
     navegador: 'Navegador de pruebas',
     navegadorAyuda:
-      'Las libs de sistema que necesita Chromium (playwright install-deps). No incluye el navegador: ese se instala dentro del proyecto.',
-    hornearNavegador: 'Hornear las libs de sistema de Chromium',
+      'Las bibliotecas del sistema que necesita Chromium (playwright install-deps). No incluye el navegador, que se instala dentro del proyecto.',
+    hornearNavegador: 'Incluir las bibliotecas del sistema de Chromium en la imagen',
     otros: 'Otros paquetes',
     otrosAyuda: 'Nombres de paquetes de Debian separados por espacios.',
-    otrosEtiqueta: 'Otros paquetes a hornear en la imagen del sandbox',
+    otrosEtiqueta: 'Otros paquetes que incluir en la imagen del sandbox',
     otrosPlaceholder: 'p. ej. jq ripgrep',
     hibernar: 'Hibernar el agente inactivo tras',
     volver5: 'Volver a 5 minutos',
@@ -197,7 +197,7 @@ export const txBd = crearTextos(
   {
     filas: (n: string) => `${n} filas`,
     automatica: 'Automática',
-    automaticaAyuda: 'Cada sentencia se confirma sola al terminar.',
+    automaticaAyuda: 'Cada sentencia se confirma automáticamente al terminar.',
     manual: 'Manual',
     manualAyuda: 'Los cambios esperan a «Confirmar (Commit)» o «Revertir».',
     grupoApariencia: 'Apariencia',
@@ -210,13 +210,13 @@ export const txBd = crearTextos(
     grupoResultados: 'Resultados',
     filasPorPagina: 'Filas por página',
     filasAyuda:
-      'Cuántas filas se leen de cada vez en las tablas y en los resultados de la consola. Vale para la siguiente lectura; lo ya cargado no cambia.',
+      'Número de filas que se leen en cada lectura de las tablas y de los resultados de la consola. Se aplica a partir de la siguiente lectura; lo ya cargado no cambia.',
     volverAFilas: (filas: string) => `Volver a ${filas}`,
     cerrarInactiva: 'Cerrar la sesión inactiva tras',
     inactividadNunca:
-      'La sesión de una consola no se cierra sola. Una con cambios sin confirmar no se cierra nunca.',
+      'La sesión de una consola nunca se cierra automáticamente. Una consola con cambios sin confirmar no se cierra nunca.',
     inactividadAyuda:
-      'Una consola ociosa suelta su sesión y la reabre al volver a usarla; se pierde lo fijado con ALTER SESSION o SET. Una con cambios sin confirmar no se cierra nunca.',
+      'Una consola inactiva libera su sesión y la abre de nuevo al volver a usarla; se pierde lo configurado con ALTER SESSION o SET. Una consola con cambios sin confirmar no se cierra nunca.',
     volver30: 'Volver a 30 minutos',
     grupoConsolas: 'Consolas',
     transaccion: 'Transacción al abrir',

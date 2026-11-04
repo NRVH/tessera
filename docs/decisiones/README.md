@@ -101,7 +101,7 @@ alfabético.
   del agente toma el refcount de su credencial antes de tocar Docker y nunca para el contenedor.
 - [agentes/buscar-en-el-historial.md](agentes/buscar-en-el-historial.md) — `tctx buscar`: el agente busca en
   las conversaciones de su proyecto cuando lo necesita; en Docker, solo en las de su cuenta.
-- [agentes/traspaso-entre-agentes.md](agentes/traspaso-entre-agentes.md) — «Continuar esta conversación en…»: el mismo
+- [agentes/traspaso-entre-agentes.md](agentes/traspaso-entre-agentes.md) — «Continuar esta conversación»: el mismo
   agente sigue la misma conversación (se copia a la cuenta de destino); otro recibe un traspaso derivado.
 - [agentes/reglas-del-perfil.md](agentes/reglas-del-perfil.md) — las reglas del perfil las escribe o
   aprueba el usuario (un agente solo las propone con `tctx`) y llegan en el arranque a todo agente del perfil.
@@ -146,6 +146,8 @@ alfabético.
   proceso vivo.
 - [app/idioma.md](app/idioma.md) — la interfaz habla español o inglés, con textos tipados junto a su
   código, y el idioma se fija al arrancar.
+- [app/redaccion.md](app/redaccion.md) — los textos en español son formales, tratan de usted y no dejan lugar a
+  dudas.
 - [app/registro-de-salud.md](app/registro-de-salud.md) — las versiones alpha graban un registro
   local de memoria y procesos; la pública no graba nada.
 - [app/ventana-arranque-y-recuperacion.md](app/ventana-arranque-y-recuperacion.md) — la ventana

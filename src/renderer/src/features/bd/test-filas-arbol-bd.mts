@@ -555,14 +555,14 @@ check(
 )
 {
   const t = textoEliminarConexion({ alias: 'QA', proyectos: null, consolas: [], conTx: [] })
-  check('sin saber los proyectos: en general', t.indexOf('todos los proyectos donde la tuvieras') !== -1, j(t))
+  check('sin saber los proyectos: en general', t.indexOf('todos los proyectos donde esté montada') !== -1, j(t))
   const t2 = textoEliminarConexion({ alias: 'QA', proyectos: ['api', 'web'], consolas: ['consola_1'], conTx: ['consola_1'] })
   check('nombra los proyectos', t2.indexOf('Se desmontará de «api» y «web».') !== -1, j(t2))
-  check('una consola por su nombre', t2.indexOf('Su consola «consola_1» irá a la papelera.') !== -1, j(t2))
+  check('una consola por su nombre', t2.indexOf('Su consola «consola_1» se moverá a la papelera.') !== -1, j(t2))
   check('los cambios que se revierten', t2.indexOf('Se revertirán los cambios sin confirmar de «consola_1».') !== -1, j(t2))
   const t3 = textoEliminarConexion({ alias: 'QA', proyectos: [], consolas: ['a', 'b'], conTx: [] })
   check('sin montar: no habla de proyectos', t3.indexOf('desmontará') === -1, j(t3))
-  check('varias consolas: cuántas', t3.indexOf('Sus 2 consolas irán a la papelera.') !== -1, j(t3))
+  check('varias consolas: cuántas', t3.indexOf('Sus 2 consolas se moverán a la papelera.') !== -1, j(t3))
   check('NEGATIVO: sin ediciones pendientes no habla de ellas', t3.indexOf('sin enviar') === -1 && t2.indexOf('sin enviar') === -1, j(t3))
   const t4 = textoEliminarConexion({ alias: 'QA', proyectos: [], consolas: [], conTx: [], sinEnviar: 1 })
   check('una edición sin enviar: en singular', t4.indexOf('Se descartará 1 cambio sin enviar de sus pestañas de datos.') !== -1, j(t4))
@@ -686,22 +686,22 @@ hr('(13b) ajenas: lo que dicen')
   )
   const t = tooltipAjena(AJENAS[0])
   check('el tooltip: alias, motor tal cual y el porqué', t.startsWith('SQLS-VENTAS\nMotor: db2\n') && t.includes(TEXTO_AJENA), j(t))
-  check('el tooltip ofrece las dos salidas', t.includes('actualiza Tessera') && t.includes('elimínala'), j(t))
+  check('el tooltip ofrece las dos salidas', t.includes('actualice Tessera') && t.includes('elimínela'), j(t))
   check('un motor normal se enseña tal cual', motorAjeno(AJENAS[1]) === 'sqlite', motorAjeno(AJENAS[1]))
   const largo = motorAjeno({ motor: 'x'.repeat(200) })
   check('un motor absurdo se recorta (viene de otra versión o de una edición a mano)', largo.length === 33 && largo.endsWith('…'), `${largo.length}`)
   const e = textoEliminarAjena({ alias: 'SQLS-VENTAS', motor: 'db2', proyectos: null, consolas: [] })
   check('eliminar: nombra la conexión y avisa de que es irreversible', e.includes('«SQLS-VENTAS»') && e.includes('No se puede deshacer'), j(e))
   check('eliminar: la base de datos no se toca', e.includes('la base de datos no se toca'), j(e))
-  check('eliminar: dice de qué motor es y que actualizar es la otra salida', e.includes('db2') && e.includes('actualiza Tessera'), j(e))
-  check('eliminar sin saber los proyectos: en general', e.includes('todos los proyectos donde la tuvieras'), j(e))
+  check('eliminar: dice de qué motor es y que actualizar es la otra salida', e.includes('db2') && e.includes('actualice Tessera'), j(e))
+  check('eliminar sin saber los proyectos: en general', e.includes('todos los proyectos donde esté montada'), j(e))
   const e2 = textoEliminarAjena({ alias: 'X', motor: 'sqlite', proyectos: ['api'], consolas: ['informe'] })
   check('eliminar: nombra dónde estaba montada', e2.includes('Se desmontará de «api».'), j(e2))
   // El main manda sus consolas a la papelera por id, como las de cualquier conexión:
   // si el perfil las lista, el diálogo lo dice.
-  check('eliminar: su consola va a la papelera, por su nombre', e2.includes('Su consola «informe» irá a la papelera.'), j(e2))
+  check('eliminar: su consola va a la papelera, por su nombre', e2.includes('Su consola «informe» se moverá a la papelera.'), j(e2))
   const e3 = textoEliminarAjena({ alias: 'X', motor: 'sqlite', proyectos: [], consolas: ['a', 'b'] })
-  check('eliminar: varias consolas, cuántas', e3.includes('Sus 2 consolas irán a la papelera.'), j(e3))
+  check('eliminar: varias consolas, cuántas', e3.includes('Sus 2 consolas se moverán a la papelera.'), j(e3))
   check('NEGATIVO: sin montar, no habla de proyectos', !e3.includes('desmontará'), j(e3))
   check('NEGATIVO: sin consolas, no habla de la papelera', !e.includes('papelera'), j(e))
   // Una CONOCIDA con el mismo id (edición a mano). Se borra solo la ajena, y los
@@ -863,15 +863,15 @@ hr('(13f) ajenas: UN solo criterio en todas las superficies')
     )
     check(
       `${q} el diálogo dice que eliminar es solo para quien ya no la quiere`,
-      eliminar(a).includes('Eliminarla solo hace falta si ya no la quieres.'),
+      eliminar(a).includes('Elimínela solo si ya no la necesita.'),
       j(eliminar(a))
     )
-    check(`${q} se conserva tal cual (lo dice su explicación)`, porque.includes('Se conserva tal cual'), j(porque))
+    check(`${q} se conserva tal cual (lo dice su explicación)`, porque.includes('Se conserva sin cambios'), j(porque))
   }
   // Motor desconocido: solo lo escribe una versión más nueva, y actualizar es cómo se usa.
   check(
     'motor: «requiere una versión más nueva» y actualizar para usarla',
-    explicacionAjena(porMotor).startsWith(TEXTO_AJENA) && explicacionAjena(porMotor).includes('actualiza Tessera para usarla'),
+    explicacionAjena(porMotor).startsWith(TEXTO_AJENA) && explicacionAjena(porMotor).includes('actualice Tessera para usarla'),
     j(explicacionAjena(porMotor))
   )
   check('motor: NEGATIVO, no habla de ediciones a mano', !explicacionAjena(porMotor).includes('a mano'), j(explicacionAjena(porMotor)))
@@ -879,7 +879,7 @@ hr('(13f) ajenas: UN solo criterio en todas las superficies')
   const fForma = explicacionAjena(porForma)
   check(
     'forma: las dos posibilidades (versión más nueva, con su salida, o edición a mano)',
-    fForma.startsWith(TEXTO_AJENA_FORMA) && fForma.includes('versión más nueva') && fForma.includes('actualiza') && fForma.includes('edición a mano'),
+    fForma.startsWith(TEXTO_AJENA_FORMA) && fForma.includes('versión más reciente') && fForma.includes('actualice') && fForma.includes('edición manual'),
     j(fForma)
   )
   check(
@@ -892,12 +892,12 @@ hr('(13f) ajenas: UN solo criterio en todas las superficies')
   const mM = filaMontajeAjena(porMotor)
   check(
     'popover: su tooltip da la salida de allí (desmontar), no la del árbol',
-    mM.tooltip.includes('desmontar') && !mM.tooltip.includes('elimínala'),
+    mM.tooltip.includes('desmontar') && !mM.tooltip.includes('elimínela'),
     j(mM.tooltip)
   )
   check(
     '(contraprueba) el tooltip del árbol da la de allí (eliminar), no la del popover',
-    tooltipAjena(porMotor).includes('elimínala') && !tooltipAjena(porMotor).includes('desmontar'),
+    tooltipAjena(porMotor).includes('elimínela') && !tooltipAjena(porMotor).includes('desmontar'),
     j(tooltipAjena(porMotor))
   )
   check('popover: «motor · aviso»', mM.destino === 'db2 · Requiere una versión más nueva de Tessera', j(mM.destino))
@@ -921,10 +921,10 @@ hr('(13f) ajenas: UN solo criterio en todas las superficies')
   )
   check(
     'área vacía: remite a la fila, se conservan, y las dos salidas (actualizar si toca, o crear una nueva)',
-    PISTA_SOLO_AJENAS.includes('cada una dice por qué') &&
-      PISTA_SOLO_AJENAS.includes('se conservan tal cual') &&
-      PISTA_SOLO_AJENAS.includes('Actualiza Tessera si vienen de una más nueva') &&
-      PISTA_SOLO_AJENAS.includes('crea una aquí'),
+    PISTA_SOLO_AJENAS.includes('cada una indica el motivo') &&
+      PISTA_SOLO_AJENAS.includes('se conserva sin cambios') &&
+      PISTA_SOLO_AJENAS.includes('Actualice Tessera si proceden de una versión más reciente') &&
+      PISTA_SOLO_AJENAS.includes('cree una conexión nueva aquí'),
     j(PISTA_SOLO_AJENAS)
   )
   // El vacío del popover de montaje: con ajenas sin montar no dice que el perfil no tiene
@@ -932,14 +932,14 @@ hr('(13f) ajenas: UN solo criterio en todas las superficies')
   const vacioConAjenas = textoVacioMontaje(true)
   check(
     'popover vacío CON ajenas: NEGATIVO, no dice que el perfil no tiene conexiones',
-    !/no tiene conexiones|Añádelas/.test(vacioConAjenas),
+    !/no tiene conexiones|Añádalas/.test(vacioConAjenas),
     j(vacioConAjenas)
   )
   check(
     'popover vacío CON ajenas: el título del área vacía, remite al árbol y a crear una',
     vacioConAjenas.startsWith(TITULO_SOLO_AJENAS) &&
       vacioConAjenas.includes('vista Bases de datos') &&
-      vacioConAjenas.includes('Crea allí una'),
+      vacioConAjenas.includes('Cree allí una conexión'),
     j(vacioConAjenas)
   )
   check(
@@ -949,7 +949,7 @@ hr('(13f) ajenas: UN solo criterio en todas las superficies')
   )
   check(
     'popover vacío SIN ajenas: el texto de siempre',
-    textoVacioMontaje(false) === 'Este perfil no tiene conexiones. Añádelas en la vista Bases de datos.',
+    textoVacioMontaje(false) === 'Este perfil no tiene conexiones. Añádalas en la vista Bases de datos.',
     j(textoVacioMontaje(false))
   )
 }
@@ -1022,16 +1022,16 @@ hr('(13h) ajenas por id REPETIDO: su causa, sus textos, su clave y el popover')
     'la explicación: no se pueden distinguir, se conserva, y elimínala si sobra; NEGATIVO: ni «versión más nueva» ni «actualiza» ni «cómo está guardada»',
     eCopia.includes('«Original»') &&
       eCopia.includes('no puede distinguirlas') &&
-      eCopia.includes('Se conserva tal cual') &&
-      eCopia.includes('elimínala si sobra') &&
-      !/versión más nueva|actualiza/i.test(eCopia) &&
+      eCopia.includes('Se conserva sin cambios') &&
+      eCopia.includes('elimine la que no necesite') &&
+      !/versión más (nueva|reciente)|actualice/i.test(eCopia) &&
       !eCopia.includes(TEXTO_AJENA_FORMA),
     j(eCopia)
   )
   check('la de otro perfil: NEGATIVO, no la nombra', !explicacionAjena(deOtro).includes('Original') && explicacionAjena(deOtro).includes('otro perfil'), j(explicacionAjena(deOtro)))
   check(
     'la que se quedó sin la otra (eliminada): se podrá usar al reiniciar, y se dice',
-    explicacionAjena(huerfana).includes('reinicia Tessera para usarla') && explicacionAjena(huerfana).includes('Se conserva tal cual'),
+    explicacionAjena(huerfana).includes('reinicie Tessera para usarla') && explicacionAjena(huerfana).includes('Se conserva sin cambios'),
     j(explicacionAjena(huerfana))
   )
   const dialogo = (a: DbConexionAjena, compartidaCon: string | null): string =>
@@ -1063,7 +1063,7 @@ hr('(13h) ajenas por id REPETIDO: su causa, sus textos, su clave y el popover')
     'el tooltip del árbol: eliminarla no toca la otra (ni sus montajes ni sus consolas)',
     tooltipAjena(copia).endsWith('Eliminarla no toca «Original»: ni sus montajes ni sus consolas.') &&
       tooltipAjena(deOtro).endsWith('Eliminarla no toca una conexión de otro perfil: ni sus montajes ni sus consolas.') &&
-      tooltipAjena(huerfana).endsWith('Si ya no la quieres, elimínala.'),
+      tooltipAjena(huerfana).endsWith('Si ya no la necesita, elimínela.'),
     j([tooltipAjena(copia), tooltipAjena(huerfana)])
   )
   const dCopia = dialogo(copia, 'Original')
@@ -1079,14 +1079,14 @@ hr('(13h) ajenas por id REPETIDO: su causa, sus textos, su clave y el popover')
   check(
     'el de la de otro perfil: se desmonta de los proyectos de ESTE perfil y sus consolas de aquí van a la papelera; la otra no se toca',
     dOtro.includes('Se desmontará de «api».') &&
-      dOtro.includes('Su consola «informe» irá a la papelera.') &&
+      dOtro.includes('Su consola «informe» se moverá a la papelera.') &&
       dOtro.endsWith('La conexión de otro perfil que comparte su identificador no se toca: ni sus montajes ni sus consolas.'),
     j(dOtro)
   )
   const dOtroSinSaber = textoEliminarAjena({ alias: deOtro.alias, motor: deOtro.motor, proyectos: null, consolas: [], idRepetido: deOtro.idRepetido })
   check(
     'sin saber los proyectos: «de los proyectos de ESTE perfil», NEGATIVO: no «de todos los proyectos» (los del otro perfil siguen montados); sin consolas, sin papelera',
-    dOtroSinSaber.includes('Se desmontará de los proyectos de este perfil donde la tuvieras.') &&
+    dOtroSinSaber.includes('Se desmontará de los proyectos de este perfil donde esté montada.') &&
       !dOtroSinSaber.includes('todos los proyectos') &&
       !dOtroSinSaber.includes('papelera'),
     j(dOtroSinSaber)
@@ -1182,7 +1182,7 @@ hr('(14) registro con FORMATO AJENO: aviso en vez de «Sin conexiones», y sin a
   check(
     'sin perfil manda «Abre un perfil», también con la marca',
     motivosCabeceraArbol({ perfilId: null, conexiones: 0, ajenas: 0, avisoFormato: AVISO }).nuevaConexion ===
-      'Abre un perfil para usar las bases de datos',
+      'Abra un perfil para usar las bases de datos',
     'ok'
   )
 
@@ -1196,13 +1196,13 @@ hr('(14) registro con FORMATO AJENO: aviso en vez de «Sin conexiones», y sin a
   check('área vacía: NO ofrece «Nueva conexión…» (el main rechazaría el alta)', area.ofrecerAlta === false, j(area.ofrecerAlta))
   check(
     'área vacía: NEGATIVO, no dice «Sin conexiones» ni manda a crear',
-    area.titulo !== 'Sin conexiones' && !/Crea la primera|crea una/i.test(`${area.titulo} ${area.pista}`),
+    area.titulo !== 'Sin conexiones' && !/Cree la primera|cree una/i.test(`${area.titulo} ${area.pista}`),
     j(area)
   )
   check(
     'NEGATIVO: sin la marca, el vacío de siempre (con y sin ajenas), y ofrece el alta',
     j(vacioAreaSinConexiones({ hayAjenas: false, avisoFormato: null })) ===
-      j({ titulo: 'Sin conexiones', pista: 'Crea la primera para explorar sus datos.', nota: null, ofrecerAlta: true }) &&
+      j({ titulo: 'Sin conexiones', pista: 'Cree la primera conexión para explorar sus datos.', nota: null, ofrecerAlta: true }) &&
       j(vacioAreaSinConexiones({ hayAjenas: true, avisoFormato: null })) ===
         j({ titulo: TITULO_SOLO_AJENAS, pista: PISTA_SOLO_AJENAS, nota: null, ofrecerAlta: true }),
     'ok'
@@ -1211,7 +1211,7 @@ hr('(14) registro con FORMATO AJENO: aviso en vez de «Sin conexiones», y sin a
     'la nota dice que no se pierde nada: el archivo no se toca y los montajes se conservan',
     NOTA_FORMATO_AJENO.includes('no se pierde nada') &&
       NOTA_FORMATO_AJENO.includes('no se modifica') &&
-      NOTA_FORMATO_AJENO.includes('montadas en los proyectos se conservan'),
+      NOTA_FORMATO_AJENO.includes('se conservan las bases montadas en los proyectos'),
     j(NOTA_FORMATO_AJENO)
   )
 
@@ -1225,7 +1225,7 @@ hr('(14) registro con FORMATO AJENO: aviso en vez de «Sin conexiones», y sin a
   )
   check(
     'popover: la nota del montaje dice que las montadas se conservan',
-    NOTA_MONTAJE_FORMATO_AJENO.includes('se conservan') && !/no tiene conexiones|Añádelas/.test(NOTA_MONTAJE_FORMATO_AJENO),
+    NOTA_MONTAJE_FORMATO_AJENO.includes('se conservan') && !/no tiene conexiones|Añádalas/.test(NOTA_MONTAJE_FORMATO_AJENO),
     j(NOTA_MONTAJE_FORMATO_AJENO)
   )
   // Mitades negativas: sin la marca, el comportamiento de siempre.

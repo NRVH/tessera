@@ -469,7 +469,7 @@ async function main(): Promise<void> {
 
   hr('(8) Un cambio que no tocó EXACTAMENTE una fila')
   {
-    check('0 filas: la fila ya no está o cambió', /ya no está o cambió/.test(mensajeFilas(0, 'actualizar')) && /No se aplicó nada/.test(mensajeFilas(0, 'borrar')), mensajeFilas(0, 'actualizar'))
+    check('0 filas: la fila ya no está o cambió', /ya no existe o cambió/.test(mensajeFilas(0, 'actualizar')) && /No se aplicó nada/.test(mensajeFilas(0, 'borrar')), mensajeFilas(0, 'actualizar'))
     check('más de una: la clave no identifica', /3 filas/.test(mensajeFilas(3, 'borrar')), mensajeFilas(3, 'borrar'))
     check('un INSERT con 0 filas lo dice de otro modo', /fila nueva/.test(mensajeFilas(0, 'insertar')), mensajeFilas(0, 'insertar'))
     // El COMMIT que falla (`indice: -1`).
@@ -479,7 +479,7 @@ async function main(): Promise<void> {
     perdidos.push(mensajeFalloCommit('interno', null))
     check(
       'NEGATIVO: una PÉRDIDA (o cualquier cosa que no sea el servidor) con el COMMIT en camino NO dice «no se aplicó nada»: dice que no se sabe y que se compruebe',
-      perdidos.every((m) => !/No se aplicó nada/i.test(m) && /No se sabe/.test(m) && /comprueba/.test(m) && /COMMIT/.test(m)),
+      perdidos.every((m) => !/No se aplicó nada/i.test(m) && /No se sabe/.test(m) && /compruebe/.test(m) && /COMMIT/.test(m)),
       JSON.stringify(perdidos)
     )
   }
@@ -949,7 +949,7 @@ async function main(): Promise<void> {
     const nota = notaSinCulpable(0, 999, true)
     check(
       'la nota cuando no se pudo señalar: los cambios del lote (base 1) y el porqué',
-      nota === '(No se pudo saber cuál de los cambios 1 a 1000: al buscarla, la otra transacción ya la había soltado.)' && notaSinCulpable(4, 9, false) === '(No se pudo saber cuál de los cambios 5 a 10.)',
+      nota === '(No se pudo determinar cuál de los cambios 1 a 1000 causó el bloqueo: al buscarlo, la otra transacción ya había liberado la fila.)' && notaSinCulpable(4, 9, false) === '(No se pudo determinar cuál de los cambios 5 a 10 causó el bloqueo.)',
       nota
     )
     // El SQL de PG se lee de donde sale de verdad (la sesión de PG, por
@@ -973,12 +973,12 @@ async function main(): Promise<void> {
     const m = mensajeFilaBloqueada('actualizar')
     check(
       'el mensaje: bloqueada por otra transacción (quizá una consola tuya), no se aplicó nada, qué hacer',
-      m === 'La fila está bloqueada por otra transacción (quizá una consola tuya con cambios sin confirmar). No se aplicó nada: confirma o revierte esa transacción y vuelve a enviar.' &&
+      m === 'La fila está bloqueada por otra transacción (quizá una de sus consolas con cambios sin confirmar). No se aplicó nada: confirme o revierta esa transacción y vuelva a enviar los cambios.' &&
         mensajeFilaBloqueada('borrar') === m,
       m
     )
     const mi = mensajeFilaBloqueada('insertar')
-    check('un INSERT (PG) que choca con una clave sin confirmar lo dice con sus palabras', /fila nueva/.test(mi) && /No se aplicó nada/.test(mi) && /vuelve a enviar/.test(mi), mi)
+    check('un INSERT (PG) que choca con una clave sin confirmar lo dice con sus palabras', /fila nueva/.test(mi) && /No se aplicó nada/.test(mi) && /vuelva a enviar/.test(mi), mi)
   }
 
   hr('(13) Lo que decide el motor, sin literales y con los valores de antes')

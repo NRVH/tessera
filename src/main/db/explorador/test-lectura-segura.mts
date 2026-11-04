@@ -218,13 +218,13 @@ check('sin perfil conocido busca en todo el registro (como tdb)', sinPerfil.ok &
   const deForma = buscarEnRegistro(REGISTRO, 'C-SIN-ALIAS', 'alfa')
   check(
     'una AJENA de forma que casa por id: no se devuelve, se nombra por su id y se dice su causa',
-    !deForma.ok && deForma.mensaje.startsWith('«c-sin-alias» está guardada de una forma') && deForma.mensaje.includes('edición a mano'),
+    !deForma.ok && deForma.mensaje.startsWith('«c-sin-alias» está guardada de una forma') && deForma.mensaje.includes('edición manual del archivo'),
     deForma.ok ? `la devolvió: ${String(deForma.entrada.id)}` : deForma.mensaje
   )
   const deMotor = buscarEnRegistro(REGISTRO, 'ventas sqls', 'alfa')
   check(
     'una AJENA de motor que casa por alias: no se devuelve, y dice su motor',
-    !deMotor.ok && deMotor.mensaje.startsWith('«Ventas SQLS» es de un motor (db2)') && deMotor.mensaje.includes('actualiza Tessera'),
+    !deMotor.ok && deMotor.mensaje.startsWith('«Ventas SQLS» es de un motor (db2)') && deMotor.mensaje.includes('actualice Tessera'),
     deMotor.ok ? `la devolvió: ${String(deMotor.entrada.id)}` : deMotor.mensaje
   )
   // la COPIA de una conocida con su mismo id (pegada a mano) es ajena por
@@ -350,11 +350,11 @@ const HUELLAS = { 'c-alfa': huellaDestino(DESTINO) }
 const r1 = resolverSecreto('c-alfa', { tipo: 'ok', scope: ['c-alfa'], secretos: { 'c-alfa': 'del-puente' }, huellas: HUELLAS }, ENV, DESTINO)
 check('con puente: la del puente aunque el entorno traiga otra', r1.ok && r1.secreto === 'del-puente' && r1.origen === 'puente', JSON.stringify(r1.ok ? r1.origen : r1))
 const r2 = resolverSecreto('c-alfa', { tipo: 'ok', scope: [], secretos: {}, huellas: {} }, ENV, DESTINO)
-check('puente sin ella en el scope -> «no está montada», SIN caer al entorno', !r2.ok && /NO está montada/.test(r2.mensaje), JSON.stringify(r2))
+check('puente sin ella en el scope -> «no está montada», SIN caer al entorno', !r2.ok && /no está montada en el proyecto/.test(r2.mensaje), JSON.stringify(r2))
 const r3 = resolverSecreto('c-alfa', { tipo: 'ok', scope: ['c-alfa'], secretos: {}, huellas: {} }, ENV, DESTINO)
 check('montada pero sin contraseña -> dice que la escriba y la pruebe', !r3.ok && /no tiene su contraseña/.test(r3.mensaje) && /Probar/.test(r3.mensaje), JSON.stringify(r3))
 const r4 = resolverSecreto('c-alfa', { tipo: 'rechazado', error: 'no autorizado' }, ENV, DESTINO)
-check('token rechazado -> «Recargar» la terminal', !r4.ok && /Recargar/.test(r4.mensaje), JSON.stringify(r4))
+check('token rechazado -> «Reiniciar terminal»', !r4.ok && /Reiniciar terminal/.test(r4.mensaje), JSON.stringify(r4))
 const r5 = resolverSecreto('c-alfa', { tipo: 'noResponde' }, ENV, DESTINO)
 check('puente que no responde -> Tessera cerrada u otra instancia', !r5.ok && /no responde/.test(r5.mensaje), JSON.stringify(r5))
 const r6 = resolverSecreto('c-alfa', { tipo: 'sinPuente' }, ENV, DESTINO)
@@ -367,7 +367,7 @@ check('una contraseña vacía del puente cuenta como que no hay', !r8.ok, JSON.s
 const r9 = resolverSecreto('c-alfa', { tipo: 'ok', scope: ['c-alfa'], secretos: { 'c-alfa': 'del-puente' }, huellas: HUELLAS }, ENV, OTRO)
 check(
   'con puente: si la entrada del registro no es la que sirve el puente (otra huella), NO se usa, y se dice que se reinicie',
-  !r9.ok && /no es la que tiene cargada Tessera/.test(r9.mensaje) && /reinicia Tessera/.test(r9.mensaje),
+  !r9.ok && /no es la que tiene cargada Tessera/.test(r9.mensaje) && /reinicie Tessera/.test(r9.mensaje),
   JSON.stringify(r9)
 )
 const r10 = resolverSecreto('c-alfa', { tipo: 'ok', scope: ['c-alfa'], secretos: { 'c-alfa': 'del-puente' }, huellas: null }, ENV, DESTINO)
@@ -378,7 +378,7 @@ check('sin puente: la de una terminal de Tessera, con la huella de SU destino, s
 const r12 = resolverSecreto('c-alfa', { tipo: 'sinPuente' }, ENV_TERMINAL, OTRO)
 check(
   'sin puente: la de una terminal de Tessera cuya conexión cambió de destino NO se usa, y se dice que se recargue',
-  !r12.ok && /de otro destino/.test(r12.mensaje) && /Recarga la terminal/.test(r12.mensaje),
+  !r12.ok && /de otro destino/.test(r12.mensaje) && /Reinicie la terminal/.test(r12.mensaje),
   JSON.stringify(r12)
 )
 // Y el puente REAL manda la huella que el smoke acepta: la entrada que sirve, contra sí misma.

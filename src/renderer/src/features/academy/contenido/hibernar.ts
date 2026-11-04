@@ -1,5 +1,5 @@
 // =============================================================================
-// Tessera Academy · Hibernar y reanudar: el perfil a mano, el agente inactivo solo.
+// Tessera Academy · Hibernar y reanudar: el perfil manualmente, el agente inactivo automáticamente.
 // Su forma es la de `modelo.ts` y el inglés repite la del español (`test-academy.mts`); las
 // etiquetas en negrita son las de la interfaz, copiadas tal cual en cada idioma.
 // =============================================================================
@@ -9,45 +9,46 @@ import type { Articulo } from '../modelo.ts'
 
 const es: Articulo = {
   resumen:
-    'Hibernar cierra lo que no estás usando para devolver memoria a tu equipo. Lo que se cierra vuelve donde lo dejaste al reanudarlo.',
+    'Hibernar cierra lo que no se está usando para liberar memoria de su equipo. Al reanudar, cada agente retoma su conversación donde la dejó.',
   secciones: [
     {
       ancla: 'perfil',
       titulo: 'Hibernar un perfil',
       bloques: [
-        'Con clic derecho sobre un perfil, **Hibernar el perfil…** cierra sus agentes y sus terminales y para sus [contenedores de Docker](contenedores-docker); sus sesiones SSH siguen abiertas. El perfil se queda en la barra, atenuado.',
-        'Solo pregunta antes si cortaría algo: un agente que está trabajando o una terminal que ejecuta un comando. Si no se puede comprobar, pregunta igual.',
-        { nota: 'Cambiar de perfil nunca hiberna nada: el perfil que dejas sigue trabajando en segundo plano.' }
+        'Haga clic con el botón derecho en un perfil y seleccione **Hibernar el perfil…**. Tessera cierra sus agentes y sus terminales y detiene sus [contenedores de Docker](contenedores-docker); sus sesiones SSH siguen abiertas. El perfil permanece en la barra, atenuado.',
+        'Tessera solo pide confirmación si hibernar interrumpiría algo: un agente que está trabajando o una terminal que ejecuta un comando. Si no puede comprobarlo, pide confirmación igualmente.',
+        { nota: 'Cambiar de perfil nunca hiberna nada: el perfil anterior sigue trabajando en segundo plano.' }
       ]
     },
     {
       ancla: 'reanudar',
       titulo: 'Reanudar',
       bloques: [
-        'Para reanudar un perfil hibernado basta con abrirlo. Sus proyectos vuelven con las mismas pestañas y cada agente retoma su conversación donde la dejó.',
+        'Para reanudar un perfil hibernado, basta con abrirlo. Sus proyectos vuelven con las mismas pestañas y cada agente retoma su conversación donde la dejó.',
         'Las terminales se abren de nuevo vacías: lo que ejecutaban se detuvo al hibernar.'
       ]
     },
     {
       ancla: 'agente-inactivo',
-      titulo: 'El agente inactivo se hiberna solo',
+      titulo: 'El agente inactivo se hiberna automáticamente',
       bloques: [
-        'El agente [nativo](glosario/nativo) de un proyecto que no está en pantalla se hiberna solo tras unos minutos sin actividad. Las terminales de ese proyecto no se tocan.',
+        'El agente [nativo](glosario/nativo) de un proyecto que no está visible en pantalla se hiberna automáticamente tras unos minutos sin actividad. Un proyecto está visible si es la pestaña activa o si ocupa una casilla del [mosaico](mosaico). Las terminales de ese proyecto no se cierran.',
         {
           lista: [
-            'Nunca pasa mientras el agente trabaja, te espera o tiene texto sin enviar, ni si dejó una tarea en segundo plano.',
-            'Su pestaña se ve atenuada; con un clic se reanuda en su conversación.',
-            'El plazo se cambia en **Configuración › Proyectos › Hibernar el agente inactivo tras**: 5 minutos por defecto, o nunca.'
+            'Nunca ocurre mientras un agente del proyecto está trabajando, espera su respuesta, tiene texto sin enviar, terminó sin que se haya revisado el resultado o dejó una tarea en segundo plano.',
+            'Los agentes de un proyecto se hibernan todos o ninguno, así que tampoco ocurre si alguno de ellos se ejecuta en Docker.',
+            'Su pestaña aparece atenuada. Haga clic en ella para reanudar el agente en su conversación.',
+            'El plazo se cambia en **Configuración › Proyectos › Hibernar el agente inactivo tras**: 5 minutos de forma predeterminada, o «Nunca».'
           ]
         },
-        'Si a tu equipo le queda poca memoria, el plazo baja a 2 minutos y Tessera ofrece **Hibernar inactivos ahora**. Si elegiste nunca, se respeta.'
+        'Si su equipo tiene poca memoria disponible, el plazo baja a 2 minutos y Tessera ofrece **Hibernar inactivos ahora**. Si se eligió «Nunca», el plazo no cambia.'
       ]
     },
     {
       ancla: 'docker',
       titulo: 'Los agentes en Docker',
       bloques: [
-        'Un agente en Docker no se hiberna por inactividad: lo caro es su contenedor, que se para al hibernar el perfil, al cerrar Tessera, a los 2 minutos sin agentes o cuando lo piden el límite o la saturación. Lo explica [Contenedores de Docker](contenedores-docker).'
+        'Un agente en Docker no se hiberna por inactividad, porque lo que ocupa memoria es su contenedor. El contenedor se detiene al hibernar el perfil, al cerrar Tessera, a los 2 minutos sin agentes o cuando lo exigen el límite de contenedores o la saturación de memoria de Docker. Consulte [Contenedores de Docker](contenedores-docker).'
       ]
     }
   ]
@@ -55,7 +56,7 @@ const es: Articulo = {
 
 const en: Articulo = {
   resumen:
-    'Hibernating closes what you are not using and frees memory on your computer. When you resume, everything returns to where you left it.',
+    'Hibernating closes what you are not using and frees memory on your computer. When you resume, each agent continues its conversation from where it stopped.',
   secciones: [
     {
       ancla: 'perfil',
@@ -78,22 +79,23 @@ const en: Articulo = {
       ancla: 'agente-inactivo',
       titulo: 'Idle agents hibernate automatically',
       bloques: [
-        'When a project is not on screen, its [native](glosario/nativo) agent hibernates automatically after a few minutes of inactivity. The terminals of that project stay open.',
+        'When a project is not visible on screen, its [native](glosario/nativo) agent hibernates automatically after a few minutes of inactivity. A project is visible if it is the active tab or occupies a [mosaic](mosaico) tile. The terminals of that project stay open.',
         {
           lista: [
-            'An agent never hibernates while it is working, while it is waiting for you, while it has unsent text, or while a task it started is still running in the background.',
+            'It never happens while an agent in the project is working, is waiting for your reply, has unsent text, has finished and you have not reviewed the result, or has left a task running in the background.',
+            'The agents of a project hibernate all together or not at all, so it also does not happen if one of them runs in Docker.',
             'Its tab appears dimmed. Click the tab to resume the agent in its conversation.',
-            'To change the delay, go to **Settings › Projects › Hibernate idle agents after**. The default is 5 minutes; you can also choose never.'
+            'To change the delay, go to **Settings › Projects › Hibernate idle agents after**. The default is 5 minutes; you can also choose “Never”.'
           ]
         },
-        'If your computer is low on memory, the delay drops to 2 minutes, and Tessera offers **Hibernate idle agents now**. If you chose never, Tessera respects that setting.'
+        'If your computer is low on memory, the delay drops to 2 minutes, and Tessera offers **Hibernate idle agents now**. If you chose “Never”, the delay does not change.'
       ]
     },
     {
       ancla: 'docker',
       titulo: 'Agents in Docker',
       bloques: [
-        'An agent in Docker does not hibernate when it is idle, because the costly part is its container. The container stops when the profile hibernates, when Tessera closes, after 2 minutes with no agents, or when the container limit or Docker memory saturation requires it. For details, see [Docker containers](contenedores-docker).'
+        'An agent in Docker does not hibernate when it is idle, because what uses the memory is its container. The container stops when the profile hibernates, when Tessera closes, after 2 minutes with no agents, or when the container limit or Docker memory saturation requires it. For details, see [Docker containers](contenedores-docker).'
       ]
     }
   ]

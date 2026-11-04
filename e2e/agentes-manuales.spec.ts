@@ -1,5 +1,5 @@
 // =============================================================================
-// Agentes definidos a mano sobre la app empaquetada, en un proyecto NATIVO: el «+» de las pestañas
+// Agentes definidos manualmente sobre la app empaquetada, en un proyecto NATIVO: el «+» de las pestañas
 // de agente, el modal (con el aviso de un programa que la shell no encuentra), el agente arrancando
 // con «cómo reanudar» al abrir y sin él en «Nueva conversación», su contexto leído de un archivo
 // del proyecto, copiar su definición, ocultar
@@ -51,7 +51,7 @@ const nombresDePestanas = (win: Page): Promise<string[]> =>
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- el JSON de los ajustes, leído tal cual del disco
 const ajustes = (s: SesionTessera): any => JSON.parse(readFileSync(join(s.datos, 'workspace-state.json'), 'utf8')).settings
 
-test.describe.serial('Agentes definidos a mano', () => {
+test.describe.serial('Agentes definidos manualmente', () => {
   let s: SesionTessera
   let agente: AgenteFalso
   let registro: string
@@ -222,7 +222,7 @@ test.describe.serial('Agentes definidos a mano', () => {
     await expect(filas).toHaveCount(3)
     expect(await filas.locator('.gestion-agente-nombre').allInnerTexts()).toEqual(['Eco', 'Claude Code', 'Codex'])
     // Sin ratón: ↓ con el asa enfocada la baja un puesto.
-    await modal.getByRole('button', { name: 'Arrastra (o ↑/↓) para ordenar Eco' }).focus()
+    await modal.getByRole('button', { name: 'Arrastrar (o ↑/↓) para ordenar Eco' }).focus()
     await win.keyboard.press('ArrowDown')
     await expect.poll(() => filas.locator('.gestion-agente-nombre').allInnerTexts()).toEqual(['Claude Code', 'Eco', 'Codex'])
     await expect.poll(() => nombresDePestanas(win)).toEqual(['Claude Code', 'Eco', 'Codex'])

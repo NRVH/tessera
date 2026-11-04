@@ -128,7 +128,7 @@ for (const [nombre, contenido, esperado] of rechazadas) {
 }
 check(
   '(b) los mensajes que dicen cómo convertir nombran la herramienta',
-  RECHAZO.putty(N).includes('PuTTYgen: Conversions › Export OpenSSH key') && RECHAZO.ssh2(N).includes('ssh-keygen -i'),
+  RECHAZO.putty(N).includes('PuTTYgen (Conversions › Export OpenSSH key)') && RECHAZO.ssh2(N).includes('ssh-keygen -i'),
   RECHAZO.putty(N)
 )
 
@@ -183,8 +183,8 @@ hr('E - Leer el archivo: mensajes sin ruta, y el remedio de un permiso según el
 {
   const win = mensajeDeLectura('EPERM', N, 'windows')
   const mac = mensajeDeLectura('EACCES', N, 'mac')
-  check('(e1) Windows: nombra el sistema y no manda a los ajustes de macOS', win.startsWith('Windows no deja') && !win.includes('Ajustes del Sistema'), win)
-  check('(e2) macOS: nombra el sistema y manda a Privacidad', mac.startsWith('macOS no deja') && mac.includes('Privacidad y seguridad'), mac)
+  check('(e1) Windows: nombra el sistema y no manda a los ajustes de macOS', win.startsWith('Windows no permite') && !win.includes('Ajustes del Sistema'), win)
+  check('(e2) macOS: nombra el sistema y manda a Privacidad', mac.startsWith('macOS no permite') && mac.includes('Privacidad y seguridad'), mac)
   check('(e3) ENOENT y EISDIR con su texto', mensajeDeLectura('ENOENT', N, 'mac').includes('ya no está') && mensajeDeLectura('EISDIR', N, 'windows').includes('carpeta'), 'textos')
   check('(e4) el nombre sin controles y con tope', nombreDeClave('a\nb') === 'a?b' && nombreDeClave('  ') === 'clave' && nombreDeClave('x'.repeat(200)).length === 120, nombreDeClave('a\nb'))
 }

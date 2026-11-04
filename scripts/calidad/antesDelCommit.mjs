@@ -34,7 +34,8 @@ const pasos = [
         ['cabeceras', ...node('scripts/calidad/test-cabeceras.mts', rutas)],
         ['menciones', ...node('scripts/calidad/test-menciones.mts', rutas)],
         ['comentarios', ...node('scripts/calidad/test-comentarios.mts', rutas)],
-        ['textos', ...node('scripts/calidad/test-textos.mts', rutas)]
+        ['textos', ...node('scripts/calidad/test-textos.mts', rutas)],
+        ['registro', ...node('scripts/calidad/test-registro.mts', rutas)]
       ])
 ]
 

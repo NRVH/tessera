@@ -16,23 +16,23 @@ export const txAgenteManual = crearTextos(
     nombrePlaceholder: 'Mi agente',
     comando: 'Comando',
     comandoNativo:
-      'Tal como lo teclearías en la terminal del proyecto. Si corre en tu equipo, lo instalas tú: Tessera solo comprueba que tu shell lo encuentre.',
-    comandoDocker: 'Tal como lo teclearías en la terminal del proyecto, dentro del contenedor de este perfil.',
+      'Tal como se escribiría en la terminal del proyecto. Si se ejecuta en su equipo, debe instalarlo usted: Tessera solo comprueba que su shell lo encuentre.',
+    comandoDocker: 'Tal como se escribiría en la terminal del proyecto, dentro del contenedor de este perfil.',
     reanudar: 'Cómo reanudar (opcional)',
     reanudarAyuda:
-      'Se añade al comando al abrir el proyecto para retomar la última conversación; «Nueva conversación» lo lanza sin esto.',
+      'Se añade al comando al abrir el proyecto para retomar la última conversación; «Nueva conversación» inicia el agente sin esta parte.',
     limites:
-      'Un agente definido a mano no tiene historial de conversaciones, uso de la cuenta, aviso de fin de turno ni hibernación automática: Tessera no sabe leer esas cosas de un programa que no conoce.',
+      'Un agente definido manualmente no tiene historial de conversaciones, uso de la cuenta, aviso de fin de turno ni hibernación automática: Tessera no sabe leer esas cosas de un programa que no conoce.',
     activarTerminal: 'Activar en la terminal',
     terminalAyudaA:
-      'También se podrá elegir como agente de la terminal a pantalla completa. Allí Tessera le da el contexto de tus servidores y bases solo en un archivo ',
-    terminalAyudaB: ': si tu agente no lee ese archivo, trabajará sin ese contexto, y es mejor dejar esto apagado.',
+      'También se podrá elegir como agente de la terminal a pantalla completa. Allí Tessera le entrega el contexto de sus servidores y bases de datos únicamente en un archivo ',
+    terminalAyudaB: ': si su agente no lee ese archivo, trabajará sin ese contexto y conviene dejar esta opción desactivada.',
     contexto: 'Contexto (opcional)',
     contextoNo: 'No mostrarlo',
     contextoComando: 'Lo da un comando',
     contextoArchivo: 'Está en un archivo',
     contextoAyuda:
-      'Si tu agente dice en JSON cuánto contexto lleva, Tessera lo enseña en un anillo al pie. Se aplica al abrir o reiniciar el agente.',
+      'Si su agente informa en JSON cuánto contexto lleva usado, Tessera lo muestra en un anillo en la parte inferior. Se aplica al abrir o reiniciar el agente.',
     comandoQueLoDa: 'Comando que lo da',
     archivo: 'Archivo',
     valorComandoAyuda:
@@ -46,25 +46,26 @@ export const txAgenteManual = crearTextos(
     preparando: 'Preparando la imagen de este perfil…',
     falloInstalacion: 'Falló la instalación.',
     faltan: (programas: string) =>
-      `Se instaló, pero no encuentro ${programas} en la imagen: el agente no arrancará. Revisa el comando o las órdenes.`,
+      `Se instaló, pero no se encuentra ${programas} en la imagen: el agente no se iniciará. Revise el comando o las órdenes de instalación.`,
     listo: 'Listo: el agente ya está en la imagen de este perfil.',
     cerrar: 'Cerrar',
     pegarDefinicion: 'Pegar definición',
-    pegarTitulo: 'Rellena el formulario con una definición copiada (JSON)',
+    pegarTitulo: 'Rellenar el formulario con una definición copiada (JSON)',
     cancelar: 'Cancelar',
     instalando: 'Instalando…',
     guardarIgualmente: 'Guardar igualmente',
     guardar: 'Guardar',
     editar: (nombre: string) => `Editar ${nombre}`,
     agenteNuevo: 'Agente nuevo',
-    ambitoNativo: 'Corre en tu equipo y lo verán todos los perfiles.',
-    ambitoDocker: 'Corre en Docker, con sus cuentas, y solo en este perfil.',
-    dondeCorre: 'Dónde corre',
-    dondeNativo: (sistema: string) => `En tu equipo (${sistema})`,
+    ambitoNativo: 'Se ejecuta en su equipo y está disponible en todos los perfiles.',
+    ambitoDocker: 'Se ejecuta en Docker, con sus cuentas, y solo en este perfil.',
+    dondeCorre: 'Dónde se ejecuta',
+    dondeNativo: (sistema: string) => `En su equipo (${sistema})`,
     dondeDocker: 'En Docker, con varias cuentas',
-    dondeAyuda: 'En Docker cada cuenta tiene su propio contenedor, para usar varias a la vez. Luego no se puede cambiar.',
-    sinProgramaA: 'Tu shell no encuentra «',
-    sinProgramaB: '». Instálalo antes de abrir el agente, o guárdalo igualmente si lo vas a instalar después.'
+    dondeAyuda:
+      'En Docker cada cuenta tiene su propio contenedor, de modo que se pueden usar varias simultáneamente. Esta elección no se puede cambiar después.',
+    sinProgramaA: 'Su shell no encuentra «',
+    sinProgramaB: '». Instálelo antes de abrir el agente, o guarde la definición de todos modos si lo instalará después.'
   },
   {
     ordenesInstalacion: 'Install commands (optional)',

@@ -19,19 +19,19 @@ export const txConsolaDocs = crearTextos(
     nadaEnEjecucion: 'No hay nada en ejecución',
     historialTitulo: (acorde: string) => `Historial de órdenes · ${acorde}`,
     historial: 'Historial de órdenes',
-    esperaParaCambiarBase: 'Espera a que termine la ejecución para cambiar la base',
-    baseCambiar: (base: string) => `Base: ${base}. Pulsa para cambiar`,
-    baseElegir: 'Base de la consola. Pulsa para elegir',
+    esperaParaCambiarBase: 'Espere a que termine la ejecución para cambiar la base',
+    baseCambiar: (base: string) => `Base: ${base}. Haga clic para cambiar`,
+    baseElegir: 'Base de la consola. Haga clic para elegir',
     baseDeLaConsolaN: (base: string) => `Base de la consola: ${base}`,
     baseDeLaConsola: 'Base de la consola',
     baseActual: (base: string) => `Base actual: ${base}`,
-    sinBaseTitulo: 'Sin base elegida: elige una o escribe «use nombre»',
+    sinBaseTitulo: 'Sin base seleccionada: elija una o escriba «use nombre»',
     sinBase: 'Sin base',
     // --- selector de base ---
     bases: 'Bases',
     baseDeLaConsolaEn: (alias: string) => `Base de la consola en ${alias}`,
     filtrarBases: 'Filtrar bases',
-    pistaSelector: 'Enter elige · Esc cancela · también «use nombre»',
+    pistaSelector: 'Intro selecciona · Esc cancela · también «use nombre»',
     // --- panes ---
     noSePudoLeer: (e: string) => `No se pudo leer la consola: ${e}`,
     cargando: 'Cargando…',
@@ -46,11 +46,11 @@ export const txConsolaDocs = crearTextos(
     nombreResultado: 'Resultado',
     sinSalida: 'Sin salida',
     sinSalidaPista: (ejecutar: string, todo: string) =>
-      `${ejecutar} ejecuta la sentencia del cursor; ${todo}, todas. Separa las sentencias con «;» o con una línea en blanco.`,
+      `${ejecutar} ejecuta la sentencia del cursor; ${todo} ejecuta todas las sentencias. Separe las sentencias con «;» o con una línea en blanco.`,
     ningunDocumento: 'Ningún documento',
     consultaSinDocumentos: 'La consulta no devolvió documentos.',
     documentoElegido: 'Documento elegido',
-    eligeDocumentoDeLaTabla: 'Elige un documento de la tabla para verlo entero.',
+    eligeDocumentoDeLaTabla: 'Seleccione un documento de la tabla para verlo completo.',
     valorDevuelto: 'Valor devuelto',
     entrada: 'entrada',
     entradas: 'entradas',
@@ -94,7 +94,7 @@ export const txConsolaDocs = crearTextos(
     forzarEtiqueta: 'Forzar (cierra la conexión y sus cursores abiertos)',
     forzarTitulo: '¿Forzar el cierre de la conexión?',
     forzarMensaje: (alias: string) =>
-      `Se cerrará la conexión con «${alias}»: lo que esté corriendo se corta y los cursores abiertos de sus pestañas y consolas se pierden.`,
+      `Se cerrará la conexión con «${alias}»: se interrumpirá lo que esté en ejecución y se perderán los cursores abiertos de sus pestañas y consolas.`,
     forzar: 'Forzar'
   },
   {

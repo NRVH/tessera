@@ -86,7 +86,7 @@ const EXCEPCIONES: readonly { archivo: string; motivo: string }[] = [
     archivo: 'src/renderer/src/features/ajustes/catalogo.ts',
     motivo: 'el título del grupo «Explorador de Windows», que sólo se monta en Windows'
   },
-  ...['actualizaciones', 'atajos', 'nativoODocker'].map((a) => ({
+  ...['actualizaciones', 'nativoODocker'].map((a) => ({
     archivo: `src/renderer/src/features/academy/contenido/${a}.ts`,
     motivo:
       'artículos de Tessera Academy con bloques `soloEn` de una plataforma (sus requisitos, sus teclas, ' +
@@ -267,12 +267,12 @@ function main(): void {
   hr('(2) El equipo y el sistema son dos palabras distintas en Apple')
   check(
     'mac: `tuEquipo` dice Mac y `sistema` dice macOS',
-    mac.sistema === 'macOS' && mac.tuEquipo === 'tu Mac',
+    mac.sistema === 'macOS' && mac.tuEquipo === 'su Mac',
     `sistema="${mac.sistema}" tuEquipo="${mac.tuEquipo}"`
   )
   check(
     'windows: los dos son Windows (que es por lo que el problema no se veía)',
-    win.sistema === 'Windows' && win.tuEquipo === 'tu Windows',
+    win.sistema === 'Windows' && win.tuEquipo === 'su equipo Windows',
     `sistema="${win.sistema}" tuEquipo="${win.tuEquipo}"`
   )
 

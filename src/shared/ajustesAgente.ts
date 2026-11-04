@@ -25,9 +25,9 @@ const txAjustesAgente = crearTextos(
       'Cierra el agente (Claude Code o Codex) de un proyecto que no está en pantalla cuando lleva ese tiempo sin ' +
       'escribir ni recibir nada, y libera su memoria y la de sus servidores MCP. Al volver a su pestaña se reanuda ' +
       'su conversación; tarda unos segundos. No se cierra un agente que Tessera ve trabajando, con una tarea en ' +
-      'segundo plano, esperando tu respuesta, con texto sin enviar o con un resultado que aún no has visto; ni ' +
+      'segundo plano, esperando su respuesta, con texto sin enviar o con un resultado que aún no se ha visto; ni ' +
       'las terminales. Solo se aplica a los proyectos en modo nativo.',
-    ayudaNunca: 'Los agentes siguen abiertos hasta que cierres su pestaña, hibernes el perfil o cierres Tessera.'
+    ayudaNunca: 'Los agentes siguen abiertos hasta que se cierre su pestaña, se hiberne el perfil o se cierre Tessera.'
   },
   {
     minutos: (n: number) => `${n} minutes`,

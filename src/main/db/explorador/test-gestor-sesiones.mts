@@ -1759,7 +1759,7 @@ async function main(): Promise<void> {
     check('y el mensaje no afirma que no exista: puede faltar el permiso USAGE', !r.ok && /USAGE/.test(r.error.mensaje) && /sin_usage/.test(r.error.mensaje), r.ok ? '' : r.error.mensaje)
     check(
       'el mensaje de PG es el de siempre, al byte (sale de la sesión de PG)',
-      !r.ok && r.error.mensaje === 'No se puede usar el esquema sin_usage en esta conexión: no existe o no tienes permiso de uso (USAGE) sobre él.',
+      !r.ok && r.error.mensaje === 'No se puede usar el esquema sin_usage en esta conexión: no existe o no tiene permiso de uso (USAGE) sobre él.',
       r.ok ? '' : r.error.mensaje
     )
     // Sin anterior (era el de la conexión): RESET.

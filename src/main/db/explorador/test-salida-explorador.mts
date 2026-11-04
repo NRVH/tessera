@@ -343,7 +343,7 @@ async function main(): Promise<void> {
     check(
       '(3o) con transacciones y SIN cambios, el diálogo de siempre',
       o?.message === 'Hay una transacción sin confirmar.' &&
-        o?.detail === 'ED · consola\n\nSi sales revirtiendo, se pierden sus cambios.' &&
+        o?.detail === 'ED · consola\n\nSi sale revirtiendo, se pierden sus cambios.' &&
         d === 'cancelar',
       j([o?.message, o?.detail, d])
     )

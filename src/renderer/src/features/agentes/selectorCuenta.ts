@@ -38,6 +38,20 @@ export function nombreVisible(cuenta: AgentAccount, predeterminada: string): str
   return cuenta.isDefault ? predeterminada : cuenta.nombre
 }
 
+/** A qué cuentas de un agente se puede continuar. */
+export interface OtrasCuentas {
+  nativa: boolean
+  docker: AgentAccount[]
+}
+
+/**
+ * Las cuentas de un agente menos la que usa la sesión: `enNativo` quita la del sistema y `actualId`, una de
+ * Docker. Corriendo nativo no se quita ninguna de Docker aunque el pane recuerde una.
+ */
+export function otrasCuentas(cuentas: readonly AgentAccount[], actualId: string | null, enNativo: boolean): OtrasCuentas {
+  return { nativa: !enNativo, docker: cuentas.filter((c) => enNativo || c.id !== actualId) }
+}
+
 /**
  * La vista del selector. `actual` es la cuenta de Docker en uso, o null si el agente corre nativo o aún
  * no tiene; sale aunque la lista vaya un paso por detrás de una recién creada.

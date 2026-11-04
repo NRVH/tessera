@@ -10,38 +10,38 @@ export const txJava = crearTextos(
     descompilador: {
       salidaExcesiva:
         'El descompilador generó más texto del que Tessera puede mostrar y se detuvo. ' +
-        'Suele pasar con clases generadas automáticamente.',
+        'Suele ocurrir con clases generadas automáticamente.',
       timeout: (s: number) => `El descompilador tardó más de ${s} s con esta clase y se detuvo.`,
       motorFallo: (motor: string, codigo: number | null) =>
-        `${motor} no pudo descompilar esta clase (terminó con código ${codigo}). Prueba con el otro motor.`,
+        `${motor} no pudo descompilar esta clase (terminó con código ${codigo}). Pruebe con el otro motor.`,
       motorVacio: (motor: string) =>
-        `${motor} terminó sin errores pero no produjo código para esta clase. Prueba con el otro motor.`,
+        `${motor} terminó sin errores, pero no generó código para esta clase. Pruebe con el otro motor.`,
       usoCfr: 'Se usó CFR porque no hay ningún JDK 17 o superior instalado para ejecutar Vineflower.',
       noEsClase: 'Este archivo no es una clase de Java (le falta la firma 0xCAFEBABE).',
-      motorNoUsable: 'Ese motor no se puede usar con las versiones de Java que hay en el equipo.'
+      motorNoUsable: 'Ese motor no se puede usar con las versiones de Java instaladas en el equipo.'
     },
     runtime: {
       noExiste: 'Ese archivo no existe.',
-      noEsJava: 'Eso no parece un java.exe: al ejecutarlo no devolvió una versión de Java.',
+      noEsJava: 'El archivo seleccionado no parece ser un java.exe: al ejecutarlo no devolvió una versión de Java.',
       sinJava: 'No se encontró ninguna instalación de Java en el equipo.',
       necesitaJdk: (requiere: number, mejor: number) =>
-        `Necesita un JDK ${requiere} o superior; el más nuevo que se encontró es ${mejor}.`,
+        `Se necesita un JDK ${requiere} o superior; el más reciente que se encontró es el ${mejor}.`,
       sinJavaMensaje:
-        'No se encontró Java en este equipo. Para ver el código de una clase hace falta una instalación de Java ' +
-        '(cualquiera desde la 6). Si tienes una en una ruta poco habitual, elígela con "Elegir java.exe…".'
+        'No se encontró Java en este equipo. Para ver el código de una clase se necesita una instalación de Java ' +
+        '(cualquier versión desde la 6). Si tiene una en una ruta poco habitual, selecciónela con "Elegir java.exe…".'
     },
     dialogo: {
-      tituloWindows: 'Elige el ejecutable de Java (java.exe)',
-      tituloOtro: 'Elige el ejecutable de Java (java)',
+      tituloWindows: 'Seleccione el ejecutable de Java (java.exe)',
+      tituloOtro: 'Seleccione el ejecutable de Java (java)',
       filtro: 'Ejecutable de Java'
     },
     zip: {
       rutaVacia: 'Esa ruta no apunta a nada dentro de un archivo comprimido.',
       yaNoEsta: (interna: string) =>
         `«${interna}» ya no está dentro del archivo. ` +
-        'Puede que se haya reconstruido desde la última vez que lo abriste.',
+        'Es posible que se haya reconstruido desde la última vez que se abrió.',
       demasiadosAnidados: 'Hay demasiados archivos anidados unos dentro de otros.',
-      esCarpeta: 'Eso es una carpeta, no un archivo comprimido.',
+      esCarpeta: 'La ruta corresponde a una carpeta, no a un archivo comprimido.',
       muyGrande: (mb: number) => `El archivo ocupa ${mb} MB y supera el máximo que Tessera abre.`,
       noAbrible: (interna: string) => `«${interna}» no es un archivo que Tessera pueda abrir por dentro.`,
       noEstaEnPadre: (interna: string) => `«${interna}» no está dentro del archivo que lo contiene.`,
@@ -53,10 +53,10 @@ export const txJava = crearTextos(
       tamanos: 'El archivo declara tamaños que Tessera no puede manejar.',
       pequeno: 'El archivo es demasiado pequeño para ser un .jar o .zip válido.',
       sinIndice: 'No parece un archivo comprimido válido (no se encontró su índice).',
-      zip64Falta: 'El archivo dice ser ZIP64 pero le falta su índice extendido.',
+      zip64Falta: 'El archivo se declara ZIP64, pero le falta su índice extendido.',
       zip64Danado: 'El índice extendido (ZIP64) del archivo está dañado.',
       indiceFuera: 'El índice del archivo apunta fuera de él (está dañado o incompleto).',
-      indiceCortado: 'El índice del archivo se corta a mitad de una entrada; se listó lo que se pudo leer.',
+      indiceCortado: 'El índice del archivo se interrumpe en mitad de una entrada; se listó lo que se pudo leer.',
       nombreNoAdmitido: (nombre: string) => `Se ignoró una entrada con un nombre no admitido: ${nombre}`,
       masDeEntradas: (n: number) =>
         `El archivo tiene más de ${n.toLocaleString(localeActual())} entradas; se listaron las primeras.`,
@@ -65,7 +65,7 @@ export const txJava = crearTextos(
         `«${nombre}» ocupa ${mb} MB descomprimido y supera el máximo que Tessera abre.`,
       compresion: (nombre: string, metodo: number) =>
         `«${nombre}» usa una compresión que Tessera no sabe leer (método ${metodo}). ` +
-        'Ábrelo con una herramienta externa.',
+        'Ábralo con una herramienta externa.',
       entradaDesplazada: (nombre: string) =>
         `El archivo está dañado: la entrada «${nombre}» no está donde dice su índice.`,
       entradaSupera: (nombre: string) => `«${nombre}» supera el máximo que Tessera abre.`,

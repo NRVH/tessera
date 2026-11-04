@@ -446,7 +446,7 @@ async function main(): Promise<void> {
       const res: WriteResult = await conFallo(conCodigo).stageFile('base.txt')
       const preparado = gitCli(['diff', '--cached', '--name-only']).trim()
       return {
-        pass: res.ok === false && res.error === 'git falló: fatal: index file corrupt' && preparado === '',
+        pass: res.ok === false && res.error === 'Git falló: fatal: index file corrupt' && preparado === '',
         evidence: `res=${JSON.stringify(res)} preparado=${JSON.stringify(preparado)}`
       }
     })

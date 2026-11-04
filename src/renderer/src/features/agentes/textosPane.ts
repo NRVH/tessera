@@ -13,23 +13,23 @@ export const txPane = crearTextos(
       basesAria: 'Bases de datos montadas',
       elegirProyecto: (perfil: string, proyecto: string, agente: string) =>
         `${perfil} · ${proyecto} · ${agente} — elegir qué proyecto se ve aquí`,
-      otroEsperando: (nombre: string) => `${nombre} espera tu respuesta en este proyecto: pulsa para verlo en esta casilla`,
-      otroTrabajando: (nombre: string) => `${nombre} está trabajando en este proyecto: pulsa para verlo en esta casilla`,
-      otroSinVer: (nombre: string) => `${nombre} terminó y no lo has revisado: pulsa para verlo en esta casilla`,
+      otroEsperando: (nombre: string) => `${nombre} espera su respuesta en este proyecto: pulse para verlo en esta casilla`,
+      otroTrabajando: (nombre: string) => `${nombre} está trabajando en este proyecto: pulse para verlo en esta casilla`,
+      otroSinVer: (nombre: string) => `${nombre} terminó y aún no se ha revisado: pulse para verlo en esta casilla`,
       otroVer: (nombre: string) => `Ver ${nombre} de este proyecto en esta casilla`,
       cambiarA: (nombre: string) => `Cambiar a ${nombre}`,
       historialAria: 'Historial de conversaciones',
       nuevaTitulo: 'Nueva conversación: la actual se cierra y queda en el historial',
       nuevaAria: 'Nueva conversación',
       cuenta: (agente: string, nombre: string | null) =>
-        `Cuenta de ${agente}: ${nombre ?? 'la de tu equipo'}. Pulsa para usar otra cuenta o añadir una.`,
-      restaurarMosaico: (mod: string) => `Restaurar: vuelve a enseñar todo el mosaico (${mod}+Shift+Enter)`,
-      ampliar: (mod: string) => `Ampliar: esta terminal ocupa todo el mosaico (${mod}+Shift+Enter)`,
+        `Cuenta de ${agente}: ${nombre ?? 'la de su equipo'}. Haga clic para usar otra cuenta o añadir una.`,
+      restaurarMosaico: (mod: string) => `Restaurar: vuelve a mostrar todo el mosaico (${mod}+Mayús+Intro)`,
+      ampliar: (mod: string) => `Ampliar: esta terminal ocupa todo el mosaico (${mod}+Mayús+Intro)`,
       restaurarMosaicoAria: 'Restaurar el mosaico',
       ampliarAria: 'Ampliar esta terminal',
       irAlProyecto: 'Ir al proyecto: sale del mosaico y abre esta terminal en la vista normal',
       irAlProyectoAria: 'Ir al proyecto',
-      irADatos: 'Ir a bases de datos: sale del mosaico y abre esta terminal junto a tus bases',
+      irADatos: 'Ir a bases de datos: sale del mosaico y abre esta terminal junto a sus bases de datos',
       irADatosAria: 'Ir a bases de datos',
       irALaTerminal: 'Ir a la terminal: sale del mosaico y abre esta terminal junto a la terminal a pantalla completa',
       irALaTerminalAria: 'Ir a la terminal',
@@ -53,8 +53,8 @@ export const txPane = crearTextos(
     terminal: {
       sinCuenta: (agente: string) => `Sin cuenta para ${agente}`,
       sinCuentaPista: (agente: string, puedeUsarEquipo: boolean) =>
-        `Inicia sesión con tu cuenta de ${agente} para usar este agente en Docker.` +
-        (puedeUsarEquipo ? ' Si prefieres la de tu equipo, elígela en el botón de cuenta.' : ''),
+        `Inicie sesión con su cuenta de ${agente} para usar este agente en Docker.` +
+        (puedeUsarEquipo ? ' Si prefiere la de su equipo, selecciónela en el botón de cuenta.' : ''),
       iniciarSesion: 'Iniciar sesión',
       noSePudoIniciar: 'No se pudo iniciar el agente'
     },
@@ -63,13 +63,13 @@ export const txPane = crearTextos(
       actualizando: 'Actualizando…',
       reiniciando: 'Reiniciando…',
       etiquetaReinicio: 'Reiniciar agente',
-      despertarTitulo: 'Tessera paró este agente porque no lo usabas, para ahorrar memoria. Reanúdalo para seguir donde lo dejaste.',
+      despertarTitulo: 'Tessera hibernó este agente porque no se estaba usando, para ahorrar memoria. Reanúdelo para continuar donde lo dejó.',
       despertar: 'Reanudar',
       lugarTerminal: 'Agente de la terminal',
       lugarDatos: 'Agente de base de datos',
       lugarProyectoTitulo: (proyecto: string) => `Agente del proyecto ${proyecto}`,
       lugarVentana: 'Carpeta de usuario',
-      lugarVentanaTitulo: 'Agente en tu carpeta de usuario, sin proyecto'
+      lugarVentanaTitulo: 'Agente en su carpeta de usuario, sin proyecto'
     },
     menus: {
       terminalAbierta: ' (terminal abierta)',
@@ -79,14 +79,14 @@ export const txPane = crearTextos(
       cuentaDe: (agente: string) => `Cuenta de ${agente}`,
       cuentaDeAyuda: (puedeSeguir: boolean) =>
         'Cada cuenta tiene sus propias conversaciones. Al cambiar, el agente se abre con la otra' +
-        (puedeSeguir ? '; para llevarte esta conversación, usa ⋯ › Continuar esta conversación en…' : '.'),
-      enTuEquipo: 'En tu equipo',
+        (puedeSeguir ? '; para llevar esta conversación a la otra cuenta, use ⇄ en la cabecera.' : '.'),
+      enTuEquipo: 'En su equipo',
       enDocker: 'Cuentas aisladas (Docker)',
       cuentas: 'Cuentas',
-      nativaDetalle: (tuEquipo: string) => `La que usas en ${tuEquipo}`,
-      dockerDetalle: 'Aislada: trabaja a la vez que las demás',
-      sinCuentasDocker: 'Aún no hay cuentas de Docker. Crea una para usar varias a la vez.',
-      sinCuentasDockerContinuar: 'Ninguna cuenta de Docker todavía; se crean desde el botón de cuenta del agente.',
+      nativaDetalle: (tuEquipo: string) => `Cuenta de ${tuEquipo}`,
+      dockerDetalle: 'Aislada; funciona junto a las demás',
+      sinCuentasDocker: 'Aún no hay cuentas de Docker. Cree una para usar varias simultáneamente.',
+      sinCuentasDockerContinuar: 'Aún no hay cuentas de Docker; se crean desde el botón de cuenta del agente.',
       nuevaCuentaDocker: 'Nueva cuenta de Docker…',
       enUso: 'En uso',
       masAccionesDe: (nombre: string) => `Más acciones de "${nombre}"`,
@@ -96,9 +96,9 @@ export const txPane = crearTextos(
       eliminarCuenta: 'Eliminar cuenta',
       cerrarSesion: 'Cerrar sesión',
       mensajeEliminar: (nombre: string) =>
-        `¿Eliminar la cuenta "${nombre}"? Se borran de este equipo su sesión iniciada y todas sus conversaciones, y no se pueden recuperar. Tu cuenta del proveedor no cambia.`,
+        `¿Eliminar la cuenta "${nombre}"? Se borran de este equipo su sesión iniciada y todas sus conversaciones, y no se pueden recuperar. Su cuenta del proveedor no cambia.`,
       mensajeCerrarSesion: (nombre: string) =>
-        `¿Cerrar sesión de "${nombre}"? Tendrás que iniciar sesión otra vez para volver a usarla.`,
+        `¿Cerrar sesión de "${nombre}"? Deberá iniciar sesión otra vez para volver a usarla.`,
       eliminar: 'Eliminar',
       eliminando: 'Eliminando…',
       usadaPorOtros: (n: number) =>
@@ -111,7 +111,7 @@ export const txPane = crearTextos(
       predeterminada: 'Predeterminada',
       nuevaCuentaTitulo: (agente: string) => `Nueva cuenta — ${agente}`,
       nuevaCuentaAviso:
-        'La cuenta corre aislada en Docker, para usar varias a la vez. Al crearla, este agente pasa a usarla con su propio historial.',
+        'La cuenta se ejecuta aislada en Docker, de modo que se pueden usar varias simultáneamente. Al crearla, este agente pasa a usarla con su propio historial.',
       nombreCuenta: 'Nombre para reconocerla (p. ej., Trabajo)',
       crearEIniciar: 'Crear e iniciar sesión',
       copiar: 'Copiar',
@@ -129,7 +129,7 @@ export const txPane = crearTextos(
       eliminarMensaje: (nativo: boolean) =>
         nativo
           ? 'Se quita de todos los proyectos, en todos los perfiles, y se cierra su terminal si está abierta. ' +
-            'Lo que el agente guardó en tu carpeta personal se conserva.'
+            'Lo que el agente guardó en su carpeta personal se conserva.'
           : 'Se quita de todos los proyectos de este perfil y se cierran sus terminales. También se borran sus cuentas ' +
             'y lo que guardó en sus carpetas, con su sesión iniciada y su configuración. Los archivos de los proyectos no se tocan.',
       noSeBorraronCuentas: 'No se pudieron borrar las cuentas del agente',
@@ -140,20 +140,20 @@ export const txPane = crearTextos(
       cerrar: 'Cerrar',
       sinProbarA: (n: number) =>
         n === 1
-          ? '1 conexión aún no se ha probado y no se puede dar al agente. Ábrela una vez en la vista Bases de datos (o usa '
-          : `${n} conexiones aún no se han probado y no se pueden dar al agente. Ábrelas una vez en la vista Bases de datos (o usa `,
+          ? '1 conexión aún no se ha probado y no se puede compartir con el agente. Ábrala una vez en la vista Bases de datos (o use '
+          : `${n} conexiones aún no se han probado y no se pueden compartir con el agente. Ábralas una vez en la vista Bases de datos (o use `,
       probarConexion: 'Probar conexión',
       sinProbarB: ' en su menú).',
       aplicaA: 'El cambio vale ',
       alMomento: 'al momento',
-      aplicaB: '. Si el agente nombra una lista vieja, pídele que vuelva a mirar qué bases tiene.'
+      aplicaB: '. Si el agente menciona una lista anterior, pídale que vuelva a comprobar qué bases de datos tiene.'
     },
     columna: {
       mosaico: 'Mosaico de agentes',
-      mosaicoSinElegir: 'No hay ningún agente elegido. Márcalos en el selector de la barra para verlos aquí.',
-      mosaicoSinMarcha: 'No queda ningún agente en marcha. Sal del mosaico para abrir uno.',
+      mosaicoSinElegir: 'No hay ningún agente elegido. Márquelos en el selector de la barra para verlos aquí.',
+      mosaicoSinMarcha: 'No hay ningún agente en ejecución. Salga del mosaico para abrir uno.',
       agente: 'Agente',
-      seleccionaProyecto: 'Abre una carpeta como proyecto (botón + de la barra de proyectos) y su agente arrancará en ella.',
+      seleccionaProyecto: 'Abra una carpeta como proyecto (botón + de la barra de proyectos) y su agente se iniciará en ella.',
       redimensionarCc: 'Redimensionar Claude Code',
       redimensionarAgente: 'Redimensionar el agente',
       redimensionarTerminal: 'Redimensionar el agente de la terminal'
@@ -230,12 +230,12 @@ export const txPane = crearTextos(
       cuentaDe: (agente: string) => `${agente} account`,
       cuentaDeAyuda: (puedeSeguir: boolean) =>
         'Each account has its own conversations. When you switch, the agent opens with the new account' +
-        (puedeSeguir ? '; to keep this conversation, use ⋯ › Continue this conversation in…' : '.'),
+        (puedeSeguir ? '; to keep this conversation, use ⇄ in the header.' : '.'),
       enTuEquipo: 'On your computer',
       enDocker: 'Isolated accounts (Docker)',
       cuentas: 'Accounts',
-      nativaDetalle: (tuEquipo: string) => `The one you use on ${tuEquipo}`,
-      dockerDetalle: 'Isolated: works at the same time as the others',
+      nativaDetalle: (tuEquipo: string) => `Account on ${tuEquipo}`,
+      dockerDetalle: 'Isolated; runs alongside the others',
       sinCuentasDocker: 'No Docker accounts yet. Create one to use several at once.',
       sinCuentasDockerContinuar: 'No Docker accounts yet; create them from the agent’s account button.',
       nuevaCuentaDocker: 'New Docker account…',

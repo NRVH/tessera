@@ -392,8 +392,8 @@ export function avisoAlSobrescribir(actual: string | null, conocido: string | nu
  */
 export const MENSAJE_CAMBIADO_FUERA =
   'No se guardó el cambio: el registro de conexiones (db-connections.json) cambió fuera de ' +
-  'Tessera mientras estaba abierta, y sobrescribirlo perdería ese cambio. Reinicia Tessera, ' +
-  'que lo lee al arrancar.'
+  'Tessera mientras estaba abierta, y sobrescribirlo perdería ese cambio. Reinicie Tessera, ' +
+  'que lo lee al iniciar.'
 
 /**
  * El error de una escritura que NO se hizo porque el principal roto que se suplió con el
@@ -405,8 +405,8 @@ export const MENSAJE_CAMBIADO_FUERA =
 export const MENSAJE_RESCATADO_CORREGIDO =
   'No se guardó el cambio: el registro de conexiones (db-connections.json) ya es JSON válido, pero ' +
   'Tessera sigue con las conexiones de su copia de respaldo (db-connections.json.bak), que leyó al ' +
-  'arrancar porque entonces no lo era, y sustituirlo ahora perdería lo que corregiste. Reinicia ' +
-  'Tessera, que lo lee al arrancar.'
+  'iniciar porque entonces no lo era, y sustituirlo ahora perdería lo que usted corrigió. Reinicie ' +
+  'Tessera, que lo lee al iniciar.'
 
 /**
  * El nombre con que se enseña una entrada cruda en un texto: su alias si trae uno legible,

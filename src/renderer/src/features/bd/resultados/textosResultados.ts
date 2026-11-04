@@ -21,7 +21,7 @@ export const txResultados = crearTextos(
     cerrarEsteResultado: 'Cerrar este resultado',
     cerrarNombre: (titulo: string) => `Cerrar ${titulo}`,
     tiraAria: 'Salida y resultados',
-    salidaTitulo: 'Salida: lo que pasó en cada ejecución',
+    salidaTitulo: 'Salida: lo ocurrido en cada ejecución',
     salida: 'Salida',
     // --- rejilla del resultado ---
     celdaYaNoCargada: 'La celda ya no está cargada',

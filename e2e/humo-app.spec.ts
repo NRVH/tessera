@@ -219,7 +219,7 @@ test.describe.serial('humo: lo que compone App.tsx', () => {
 
     for (let i = 1; i <= 14; i++) await abrirDesdeArbol(win, `largo-${String(i).padStart(2, '0')}.txt`)
     await expect(modos, 'un .txt no tiene modo de vista').toHaveCount(0)
-    const flecha = tira.getByRole('button', { name: 'Pestañas que no se ven' })
+    const flecha = tira.getByRole('button', { name: 'Pestañas ocultas' })
     await expect(flecha).toBeVisible()
     await flecha.click()
     const item = win.locator('.ctx-menu').getByText('notas.md', { exact: true })

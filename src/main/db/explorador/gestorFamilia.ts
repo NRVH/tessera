@@ -368,7 +368,7 @@ export class GestorFamilia<C, P extends { operacion: string }, R extends { [K in
     if (!victima) {
       throw new ErrorGestor(
         'limite',
-        `Hay ${MAX_PROCESOS} conexiones de ${this.cfg.etiqueta} trabajando a la vez. Espera a que termine alguna o desconecta una.`
+        `Hay ${MAX_PROCESOS} conexiones de ${this.cfg.etiqueta} trabajando al mismo tiempo. Espere a que termine alguna o desconecte una.`
       )
     }
     this.log(`tope de procesos: sale el de ${victima.conexionId}`)

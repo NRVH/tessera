@@ -393,7 +393,7 @@ async function main(): Promise<void> {
       '(P11) esperar tu respuesta bloquea como trabajar, y lo dice aparte: «Espera: 1 agente espera tu respuesta»',
       !uno.puedeEjecutar &&
         uno.bloqueantes.map((s) => s.sessionId).join() === 'k1' &&
-        uno.motivoNoEjecutar === 'Espera: 1 agente espera tu respuesta',
+        uno.motivoNoEjecutar === 'Espera: 1 agente espera su respuesta',
       `${uno.motivoNoEjecutar} bloqueantes=${uno.bloqueantes.map((s) => s.sessionId)}`
     )
     const dos = planificar(
@@ -402,7 +402,7 @@ async function main(): Promise<void> {
         sesiones: [sesion('k1', 'claude-code', { esperandoRespuesta: true }), sesion('k2', 'claude-code', { esperandoRespuesta: true })]
       })
     )
-    check('(P11b) en plural: «Espera: 2 agentes esperan tu respuesta»', dos.motivoNoEjecutar === 'Espera: 2 agentes esperan tu respuesta', String(dos.motivoNoEjecutar))
+    check('(P11b) en plural: «Espera: 2 agentes esperan tu respuesta»', dos.motivoNoEjecutar === 'Espera: 2 agentes esperan su respuesta', String(dos.motivoNoEjecutar))
     const mixto = planificar(
       estado({
         claude: CLAUDE_NUEVA,
@@ -417,13 +417,13 @@ async function main(): Promise<void> {
     )
     check(
       '(P11c) mezcla: «Espera: 3 agentes trabajando y 1 que espera tu respuesta»',
-      mixto.bloqueantes.length === 4 && mixto.motivoNoEjecutar === 'Espera: 3 agentes trabajando y 1 que espera tu respuesta',
+      mixto.bloqueantes.length === 4 && mixto.motivoNoEjecutar === 'Espera: 3 agentes trabajando y 1 que espera su respuesta',
       String(mixto.motivoNoEjecutar)
     )
     const forzado = planificar(estado({ sesiones: [sesion('k1', 'claude-code', { esperandoRespuesta: true })] }), { forzado: true })
     check(
       '(P11d) «Reiniciar igualmente» también espera a que le contestes',
-      !forzado.puedeEjecutar && forzado.motivoNoEjecutar === 'Espera: 1 agente espera tu respuesta',
+      !forzado.puedeEjecutar && forzado.motivoNoEjecutar === 'Espera: 1 agente espera su respuesta',
       String(forzado.motivoNoEjecutar)
     )
   }
@@ -474,7 +474,7 @@ async function main(): Promise<void> {
     const r = await ejecutar({}, m.deps)
     check(
       '(E1d) una afectada espera tu respuesta → abortado con su motivo y NADA más llamado',
-      r.abortado === 'Espera: 1 agente espera tu respuesta' && m.log.join() === 'comprobar' && r.sesiones.length === 0,
+      r.abortado === 'Espera: 1 agente espera su respuesta' && m.log.join() === 'comprobar' && r.sesiones.length === 0,
       `abortado=${r.abortado} log=${m.log.join()}`
     )
   }
@@ -695,7 +695,7 @@ async function main(): Promise<void> {
     check(
       '(E11b) «espera tu respuesta» en B → la suya lo dice, y la otra dice por quién se saltó',
       sesionDe(r, 'c2')?.motivo === MOTIVO.esperaRespuesta &&
-        sesionDe(r, 'c1')?.motivo === 'otra sesión de Codex espera tu respuesta' &&
+        sesionDe(r, 'c1')?.motivo === 'otra sesión de Codex espera su respuesta' &&
         ninguno(m.log, ['relanzar:', 'detener:']) &&
         m.panes.every((p) => !p.preparado),
       fmtSesiones(r)
@@ -826,7 +826,7 @@ async function main(): Promise<void> {
     const r = await ejecutar({}, m.deps)
     check(
       '(E12e) «ocupada» fuera de las inciertas sigue siendo rechazo → saltada, sin relanzar',
-      ninguno(m.log, ['relanzar:']) && sesionDe(r, 'k1')?.motivo === 'estaba a mitad de otro reinicio' && !m.pane('k1').preparado,
+      ninguno(m.log, ['relanzar:']) && sesionDe(r, 'k1')?.motivo === 'estaba en medio de otro reinicio' && !m.pane('k1').preparado,
       `${m.log.join(' ')} | ${fmtSesiones(r)}`
     )
   }

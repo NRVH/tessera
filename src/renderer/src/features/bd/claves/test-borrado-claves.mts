@@ -91,7 +91,7 @@ async function main(): Promise<void> {
   hr('Textos')
   check('casaConTodas: solo * (o varios)', casaConTodas('*') && casaConTodas('**') && !casaConTodas('a*') && !casaConTodas(''), 'ok')
   check('textoClaves: singular y plural con miles', textoClaves(1) === '1 clave' && textoClaves(2345).endsWith('claves'), `${textoClaves(1)} ${textoClaves(2345)}`)
-  check('el resumen distingue completa, tope y detenida', resumenVistaPrevia({ claves: [txt('a')], fin: 'completa' }) === 'Se borrarán 1 clave.' && /parado/.test(resumenVistaPrevia({ claves: [txt('a')], fin: 'tope' })) && /detenida/i.test(resumenVistaPrevia({ claves: [], fin: 'detenida' })), 'ok')
+  check('el resumen distingue completa, tope y detenida', resumenVistaPrevia({ claves: [txt('a')], fin: 'completa' }) === 'Se borrarán 1 clave.' && /se detuvo al llegar a ese límite/.test(resumenVistaPrevia({ claves: [txt('a')], fin: 'tope' })) && /detenida/i.test(resumenVistaPrevia({ claves: [], fin: 'detenida' })), 'ok')
   check('sin claves: lo dice', /Ninguna/.test(resumenVistaPrevia({ claves: [], fin: 'completa' })), resumenVistaPrevia({ claves: [], fin: 'completa' }))
 
   const ok = results.filter((x) => x.pass).length

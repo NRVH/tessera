@@ -617,7 +617,7 @@ hr('(8) los esqueletos de MongoDB y Redis, y el `tdb` real con ellos')
       const s = x.stdout || ''
       check(
         'MongoDB con el puente caído: «no sabe si tiene contraseña», no el del esqueleto',
-        x.status === 1 && s.includes('El puente de Tessera no responde') && s.includes('no sabe si') && !s.includes('SÍ está guardada'),
+        x.status === 1 && s.includes('El puente de Tessera no responde') && s.includes('no puede saber si') && !s.includes('SÍ está guardada'),
         s.trim()
       )
     }

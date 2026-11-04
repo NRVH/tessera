@@ -27,7 +27,7 @@ usuario culpa a Tessera. Tessera no decide qué sacrificar: aplica lo que el usu
   conversación. Tras cada parada hay un respiro de 20 s para que la memoria baje; si sigue saturado, es
   la misma racha y se actúa sin volver a esperar el tiempo.
 - **Constancia:** cada parada (por el límite o por la saturación) se anuncia con su regla y se apunta en
-  `logs/paradas-contenedores.jsonl` (las 200 últimas), que la sección enseña en «Últimas paradas». Si el
+  `logs/paradas-contenedores.jsonl` (las 200 últimas), que la sección enseña en «Últimos contenedores detenidos». Si el
   límite está en rojo, el aviso lo recuerda.
 - **El renderer manda** los ajustes, la política y qué proyectos se ven (`SATURACION_VIGIA`); sin eso el
   vigía no mide ni actúa.

@@ -41,14 +41,14 @@ const tx = crearTextos(
       proyecto: 'en este proyecto',
       datos: 'en el agente de datos',
       terminal: 'en el agente de la terminal',
-      ventana: 'en tu carpeta de usuario'
+      ventana: 'en su carpeta de usuario'
     } as Lugares,
     /** Complemento de pertenencia («de …») de cada sitio. */
     de: {
       proyecto: 'de este proyecto',
       datos: 'del agente de datos',
       terminal: 'del agente de la terminal',
-      ventana: 'de tu carpeta de usuario'
+      ventana: 'de su carpeta de usuario'
     } as Lugares,
     /** Rótulo de la cabecera del modal en los agentes que no son de un proyecto. */
     cabecera: { datos: 'agente de datos', terminal: 'agente de la terminal', ventana: 'carpeta de usuario' },

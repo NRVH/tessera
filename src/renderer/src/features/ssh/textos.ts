@@ -28,7 +28,7 @@ export const txSsh = crearTextos(
     nuevoGrupoPie: 'Nuevo grupo…',
     nuevaVentanaAgente: 'Nueva ventana de agente',
     nuevaVentanaAgenteTitulo:
-      'Abre un agente en una ventana aparte, sin proyecto, en tu carpeta de usuario; sigue abierta aunque cierres la ventana principal',
+      'Abre un agente en una ventana aparte, sin proyecto, en su carpeta de usuario; la ventana sigue abierta aunque se cierre la ventana principal',
     // Filas
     metodos: {
       contrasena: 'Contraseña',
@@ -95,7 +95,7 @@ export const txSsh = crearTextos(
     errorDesconocido: 'Error desconocido',
     noSePudoExportar: 'No se pudo exportar a OpenSSH',
     exportadas: (n: number, archivo: string) => `Se ${n === 1 ? 'exportó 1 conexión' : `exportaron ${n} conexiones`} a «${archivo}»`,
-    expBastiones: (n: number) => `Se añadieron ${n} ${n === 1 ? 'bastión' : 'bastiones'} por los que saltan.`,
+    expBastiones: (n: number) => `Se añadieron ${n} ${n === 1 ? 'bastión' : 'bastiones'} a través de los cuales se conectan las demás conexiones.`,
     expCarpetaClaves: (carpeta: string) => `Las claves van en la carpeta «${carpeta}», junto al archivo.`,
     expSinClave: (n: number) => `${n} ${n === 1 ? 'conexión no tenía' : 'conexiones no tenían'} su archivo de clave y va${n === 1 ? '' : 'n'} sin él.`,
     expConSecreto: (n: number) =>
@@ -103,29 +103,29 @@ export const txSsh = crearTextos(
     expRenombradas: (n: number) =>
       `${n} ${n === 1 ? 'nombre llevaba' : 'nombres llevaban'} espacios o signos que OpenSSH no admite: el nombre original va en un comentario.`,
     expInclude: (archivo: string) =>
-      `Para usarlas con ssh, añade «Include ${archivo}» al principio de tu archivo config (si ya tienes en él un Host con el mismo nombre, manda el exportado).`,
+      `Para usarlas con ssh, añada «Include ${archivo}» al principio de su archivo config. Si ese archivo ya contiene un Host con el mismo nombre, prevalece el exportado.`,
     noSePudoLeer: 'No se pudo leer el archivo de OpenSSH',
-    nadaQueImportar: 'Nada que importar',
+    nadaQueImportar: 'No hay nada que importar',
     noSeImporto: 'No se importó',
-    dialogoAbierto: 'Hay un diálogo de conexiones abierto: ciérralo y vuelve a importar.',
+    dialogoAbierto: 'Hay un diálogo de conexiones abierto. Ciérrelo y vuelva a importar.',
     // Importación pura
-    pendExiste: 'ya hay una conexión con ese nombre: cámbialo',
-    pendSinUsuario: 'el archivo no trae el usuario',
+    pendExiste: 'ya existe una conexión con ese nombre; cámbielo',
+    pendSinUsuario: 'el archivo no indica el usuario',
     pendPuerto: 'el puerto no es un número',
-    pendClaveInutil: 'su archivo de clave no se pudo usar: entra con las claves del sistema',
-    datosLeidos: (alias: string, archivo: string) => `Datos de «${alias}» leídos de «${archivo}». Revisa, elige el grupo y guarda.`,
-    ojo: (pendientes: string) => ` Ojo: ${pendientes}.`,
+    pendClaveInutil: 'su archivo de clave no se pudo usar; se conectará con las claves del sistema',
+    datosLeidos: (alias: string, archivo: string) => `Datos de «${alias}» leídos de «${archivo}». Revíselos, elija el grupo y guarde.`,
+    ojo: (pendientes: string) => ` Atención: ${pendientes}.`,
     bloquePatrones: (n: number) => (n === 1 ? '1 bloque con comodines o Match' : `${n} bloques con comodines o Match`),
     includeNoSeSigue: (n: number) => `${n} Include (no se siguen)`,
     noSeImporta: (partes: string) => `No se importa: ${partes}.`,
     y: ' y ',
     sinHostConcreto: (archivo: string) => `«${archivo}» no tiene ningún Host concreto que importar.`,
     probPuerto: 'El puerto del archivo no es un número.',
-    probNombre: 'Ponle un nombre.',
+    probNombre: 'Indique un nombre.',
     probUsuario: 'Falta el usuario.',
-    probClave: 'Elige el archivo de clave.',
-    probExiste: 'Ya hay una conexión con ese nombre.',
-    probRepetido: 'Hay otra con el mismo nombre.',
+    probClave: 'Seleccione el archivo de clave.',
+    probExiste: 'Ya existe una conexión con ese nombre.',
+    probRepetido: 'Hay otra conexión con el mismo nombre.',
     importadas: (n: number) => (n === 1 ? 'Se importó 1 conexión SSH' : `Se importaron ${n} conexiones SSH`),
     importadasEn: (cuantas: string, grupo: string) => `${cuantas} en ${grupo}`,
     importadasReparto: (cuantas: string, partes: string, ultima: string) => `${cuantas}: ${partes} y ${ultima}`,
@@ -133,7 +133,7 @@ export const txSsh = crearTextos(
     // Revisión de la importación
     importarTitulo: 'Importar desde OpenSSH',
     importarAyuda: (n: number, archivo: string) =>
-      `${n} conexiones en «${archivo}». Elige cuáles importar, cómo se llaman y cómo entran: lo que escribas aquí se guarda cifrado y quedan listas para conectar.`,
+      `${n} conexiones en «${archivo}». Elija cuáles importar, con qué nombre y con qué autenticación. Lo que escriba aquí se guarda cifrado y las conexiones quedan listas para usarse.`,
     conexionesDelArchivo: 'Conexiones del archivo',
     importandoPuntos: 'Importando…',
     importarUna: 'Importar 1 conexión',
@@ -165,9 +165,9 @@ export const txSsh = crearTextos(
     // Aviso del askpass
     askConexion: (alias: string) => `Conexión SSH «${alias}»`,
     askRechazada:
-      'El servidor rechazó la contraseña (o la frase de la clave) guardada. Escribe la correcta para esta conexión (no se guardará; para cambiarla, edita la conexión).',
+      'El servidor rechazó la contraseña (o la frase de la clave) guardada. Escriba la correcta para esta conexión; no se guardará. Para cambiar la guardada, edite la conexión.',
     askServidorPregunta: 'El servidor pregunta:',
-    askNoSeGuarda: 'La respuesta no se guarda. Cancelar corta la conexión.',
+    askNoSeGuarda: 'La respuesta no se guarda. Al cancelar se cierra la conexión.',
     askEnviar: 'Enviar'
   },
   {

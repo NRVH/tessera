@@ -22,6 +22,7 @@ import {
 } from './iconosVisor'
 import type { OpenFile } from './centerPane'
 import { txImagen, txVisorComun } from './textosVisores.ts'
+import { nombresSistema } from '../../../../shared/nombresSistema'
 
 interface ImageViewerPaneProps {
   file: OpenFile
@@ -62,6 +63,7 @@ function CabeceraImagen({ v, onClose }: { v: EstadoVisor; onClose: () => void })
   const { notice, loading, error, nat, size, isSvg, showSource } = v
   const t = txImagen()
   const comun = txVisorComun()
+  const mostrarEn = comun.mostrarEnExplorador(nombresSistema(window.tessera.plataforma).gestorArchivos)
   return (
     <header className="panel-header editor-header">
       {/* Sin identidad a la izquierda (la pestaña ya dice nombre e icono): la barra existe
@@ -96,8 +98,8 @@ function CabeceraImagen({ v, onClose }: { v: EstadoVisor; onClose: () => void })
         <button
           className="btn btn-icon"
           onClick={() => void v.revealInFolder()}
-          title={comun.mostrarEnExplorador}
-          aria-label={comun.mostrarEnExplorador}
+          title={mostrarEn}
+          aria-label={mostrarEn}
         >
           <FolderIcon />
         </button>

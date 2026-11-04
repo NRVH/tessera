@@ -176,7 +176,7 @@ try {
   )
   check(
     '4c',
-    (await rejects(() => svc.importFromHost([A], '../Descargas', false), /path traversal/)) === '',
+    (await rejects(() => svc.importFromHost([A], '../Descargas', false), /fuera del proyecto \(se bloqueó por seguridad\)/)) === '',
     'un destino fuera del proyecto se bloquea'
   )
   // La raíz cae en la MISMA guarda de ciclo: todo destino vive dentro de ella, así

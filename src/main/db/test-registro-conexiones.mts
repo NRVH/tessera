@@ -369,7 +369,7 @@ hr('(4) Formato ajeno, BOM y .bak')
     const alta = intentar(() => s.create(ALTA))
     check(
       `${que}: dar de alta falla diciendo por qué (versión más nueva o edición a mano)`,
-      !alta.ok && alta.error.includes('versión más nueva de Tessera') && alta.error.includes('a mano'),
+      !alta.ok && alta.error.includes('versión más nueva de Tessera') && alta.error.includes('edición manual'),
       alta.ok ? 'CREÓ' : alta.error
     )
     check(`${que}: y el archivo sigue byte a byte`, readFileSync(r, 'utf-8') === contenido, readFileSync(r, 'utf-8').slice(0, 120))
@@ -400,7 +400,7 @@ hr('(4) Formato ajeno, BOM y .bak')
     'el aviso nombra el archivo y los DOS orígenes (versión más nueva y edición a mano)',
     reg.MENSAJE_FORMATO_AJENO.includes('db-connections.json') &&
       reg.MENSAJE_FORMATO_AJENO.includes('versión más nueva') &&
-      reg.MENSAJE_FORMATO_AJENO.includes('a mano'),
+      reg.MENSAJE_FORMATO_AJENO.includes('edición manual'),
     reg.MENSAJE_FORMATO_AJENO
   )
   // Y QUÉ HACER tras corregirlo a mano: el store lee
@@ -418,7 +418,7 @@ hr('(4) Formato ajeno, BOM y .bak')
   )
   check(
     'por eso el aviso manda a corregirlo y REINICIAR Tessera',
-    reg.MENSAJE_FORMATO_AJENO.includes('corrígelo') && reg.MENSAJE_FORMATO_AJENO.includes('reinicia Tessera'),
+    reg.MENSAJE_FORMATO_AJENO.includes('corríjalo') && reg.MENSAJE_FORMATO_AJENO.includes('reinicie Tessera'),
     reg.MENSAJE_FORMATO_AJENO
   )
   const lcBien = sc.listaCompleta('p1')
@@ -697,8 +697,8 @@ hr('(8) Un registro que NO SE PUEDE LEER no se sobrescribe')
     'el aviso nombra el archivo, dice qué pasa y qué hacer (corregirlo y REINICIAR, que lo lee al arrancar)',
     avisoSinBak.includes('db-connections.json') &&
       avisoSinBak.includes('no es JSON válido') &&
-      avisoSinBak.includes('corrígelo') &&
-      avisoSinBak.includes('reinicia Tessera') &&
+      avisoSinBak.includes('corríjalo') &&
+      avisoSinBak.includes('reinicie Tessera') &&
       avisoSinBak.includes('no lo toca'),
     avisoSinBak
   )
@@ -1114,7 +1114,7 @@ hr('(11) El registro roto con .bak legible se guarda APARTE antes de sustituirlo
     'el aviso dice que a la copia de respaldo puede faltarle el último cambio (el .bak va una escritura por detrás), antes y después de copiar',
     reg.mensajeRegistroRecuperado(null).includes('puede faltarle el último cambio') &&
       reg.mensajeRegistroRecuperado('.ilegible').includes('puede faltarle el') &&
-      reg.mensajeRegistroRecuperado('.ilegible').includes('si echas algo en falta, está ahí'),
+      reg.mensajeRegistroRecuperado('.ilegible').includes('si falta algún dato, está en ese archivo'),
     reg.mensajeRegistroRecuperado('.ilegible')
   )
   check('NEGATIVO: leer no copia ni toca nada', copias(a.carpeta).length === 0 && readFileSync(a.ruta).equals(ROTO), JSON.stringify(copias(a.carpeta)))
@@ -1369,7 +1369,7 @@ hr('(11) El registro roto con .bak legible se guarda APARTE antes de sustituirlo
     reg.MENSAJE_RESCATADO_CORREGIDO.startsWith('No se guardó el cambio') &&
       reg.MENSAJE_RESCATADO_CORREGIDO.includes('ya es JSON válido') &&
       reg.MENSAJE_RESCATADO_CORREGIDO.includes('db-connections.json.bak') &&
-      reg.MENSAJE_RESCATADO_CORREGIDO.includes('Reinicia Tessera'),
+      reg.MENSAJE_RESCATADO_CORREGIDO.includes('Reinicie Tessera'),
     reg.MENSAJE_RESCATADO_CORREGIDO
   )
   // Al reiniciar, el principal ya legible manda: se ve el arreglo, sin aviso, y se escribe.
@@ -1418,8 +1418,8 @@ hr('(11) El registro roto con .bak legible se guarda APARTE antes de sustituirlo
   check(
     'el aviso dice qué pasa con la copia y qué hacer (permisos u otro programa, y reiniciar)',
     avisoBloq.includes('su copia de respaldo (db-connections.json.bak), aunque se lee, no se usa') &&
-      avisoBloq.includes('revisa sus permisos, o si otro programa lo tiene abierto') &&
-      avisoBloq.includes('reinicia Tessera') &&
+      avisoBloq.includes('revise sus permisos, o si otro programa lo tiene abierto') &&
+      avisoBloq.includes('reinicie Tessera') &&
       !avisoBloq.includes('tampoco sirve'),
     avisoBloq
   )
@@ -1492,7 +1492,7 @@ hr('(11) El registro roto con .bak legible se guarda APARTE antes de sustituirlo
       fallida.includes('db-connections.json.ilegible') &&
       fallida.includes('(EACCES)') &&
       fallida.includes('permisos') &&
-      fallida.includes('apártalo tú'),
+      fallida.includes('aparte el archivo'),
     fallida
   )
 }
@@ -2292,8 +2292,8 @@ hr('(17) «Probar» sin rutas del host, y la mitad del renderer del borrado')
     ['el tope de tiempo (execFile lo mata: killed + señal)', { killed: true, signal: 'SIGTERM', code: null }, 'no respondió en 90 s y se detuvo'],
     ['una caída en Windows (código de salida del acceso indebido)', { killed: false, signal: null, code: 3221225477 }, 'terminó con el código 3221225477 sin dar respuesta'],
     ['una caída en macOS (una señal, sin código)', { killed: false, signal: 'SIGSEGV', code: null }, 'se detuvo (SIGSEGV) sin dar respuesta'],
-    ['el tope de salida', { code: 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER' }, 'su salida pasó del tope y se detuvo'],
-    ['un arranque que falla DE VERDAD (su message lleva la ruta)', errorArranque as Parameters<typeof mensajeFalloTdb>[0], 'no arrancó (ENOENT)'],
+    ['el tope de salida', { code: 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER' }, 'su salida superó el límite y se detuvo'],
+    ['un arranque que falla DE VERDAD (su message lleva la ruta)', errorArranque as Parameters<typeof mensajeFalloTdb>[0], 'no se inició (ENOENT)'],
     ['salir con 0 sin decir nada', null, 'terminó sin dar respuesta']
   ]
   check(
@@ -2322,11 +2322,11 @@ hr('(17) «Probar» sin rutas del host, y la mitad del renderer del borrado')
   )
   check(
     'y el tope de salida de uno DE VERDAD, la suya',
-    mensajeFalloTdb(errSalida as Parameters<typeof mensajeFalloTdb>[0], false, TOPE) === 'No se pudo ejecutar tdb: su salida pasó del tope y se detuvo.',
+    mensajeFalloTdb(errSalida as Parameters<typeof mensajeFalloTdb>[0], false, TOPE) === 'No se pudo ejecutar tdb: su salida superó el límite y se detuvo.',
     JSON.stringify({ code: (errSalida as { code?: unknown })?.code })
   )
   const conLog = mensajeFalloTdb({ code: 1 }, true, TOPE)
-  check('mensajeFalloTdb con detalle: manda al log de bases de datos, que se nombra sin su ruta', conLog.endsWith(' El detalle queda en el log de bases de datos (logs/db.log).') && !conRutaDelHost(conLog), conLog)
+  check('mensajeFalloTdb con detalle: manda al log de bases de datos, que se nombra sin su ruta', conLog.endsWith(' El detalle se encuentra en el registro de bases de datos (logs/db.log).') && !conRutaDelHost(conLog), conLog)
 
   const appDir = mkdtempSync(path.join(dir, 'app-'))
   const scriptTdb = path.join(appDir, 'src', 'tdb', 'tdb.cjs')
@@ -2369,7 +2369,7 @@ hr('(17) «Probar» sin rutas del host, y la mitad del renderer del borrado')
   )
   check(
     '«Probar» con un tdb que se cae con una traza (rutas de sus módulos): la causa y dónde está el detalle, SIN la traza',
-    !traza.ok && traza.mensaje === 'No se pudo ejecutar tdb: terminó con el código 1 sin dar respuesta. El detalle queda en el log de bases de datos (logs/db.log).' && !conRutaDelHost(traza.mensaje),
+    !traza.ok && traza.mensaje === 'No se pudo ejecutar tdb: terminó con el código 1 sin dar respuesta. El detalle se encuentra en el registro de bases de datos (logs/db.log).' && !conRutaDelHost(traza.mensaje),
     traza.mensaje.slice(0, 200)
   )
   check('y la traza va al log', lineasLog.some((l) => l.includes('Cannot find module')), JSON.stringify(lineasLog).slice(0, 200))
@@ -2597,7 +2597,7 @@ hr('(19) El alta valida el motor y el destino con el descriptor')
     const database = limpiarDestinoBd(input.database)
     const sid = limpiarDestinoBd(input.sid)
     if (input.motor === 'oracle' && !database && !sid) return 'Oracle necesita un Service Name o un SID.'
-    if (input.motor === 'oracle' && database && sid) return 'Indica Service Name o SID, no ambos.'
+    if (input.motor === 'oracle' && database && sid) return 'Indique Service Name o SID, no ambos.'
     if (input.motor === 'postgres' && !database) return 'PostgreSQL necesita el nombre de la base.'
     return null
   }
@@ -2661,7 +2661,7 @@ hr('(19) El alta valida el motor y el destino con el descriptor')
     'El puerto debe ser un entero entre 1 y 65535.',
     'Falta el usuario.',
     'Oracle necesita un Service Name o un SID.',
-    'Indica Service Name o SID, no ambos.',
+    'Indique Service Name o SID, no ambos.',
     'PostgreSQL necesita el nombre de la base.'
   ]
   const faltan = ESPERADOS.filter((e) => !vistos.has(e))
@@ -2909,7 +2909,7 @@ hr('(22) Una SQL Server en el registro (base opcional, instancia, dominio, cifra
   const sinDominio = intentar(() => store.create({ ...alta, alias: 'Sin dominio', dominio: '  ' }))
   check('NTLM sin dominio: «Falta el dominio de la cuenta.»', !sinDominio.ok && sinDominio.error === 'Falta el dominio de la cuenta.', sinDominio.ok ? 'creó' : sinDominio.error)
   const instMala = intentar(() => store.create({ ...alta, alias: 'Inst mala', instancia: 'srv\\SQLEXPRESS' }))
-  check('instancia con el servidor pegado: se dice qué va ahí', !instMala.ok && instMala.error.startsWith('En la instancia va solo su nombre'), instMala.ok ? 'creó' : instMala.error)
+  check('instancia con el servidor pegado: se dice qué va ahí', !instMala.ok && instMala.error.startsWith('El campo de instancia admite solo su nombre'), instMala.ok ? 'creó' : instMala.error)
   const autRara = intentar(() => store.create({ ...alta, alias: 'Aut rara', autenticacion: 'kerberos' as never }))
   check('una autenticación desconocida se rechaza', !autRara.ok && autRara.error === 'Autenticación desconocida: "kerberos".', autRara.ok ? 'creó' : autRara.error)
   const tlsMalo = intentar(() => store.create({ ...alta, alias: 'TLS malo', tls: { cifrar: 'si' } as never }))
@@ -3238,7 +3238,7 @@ hr('(Redis) Sentinel y Cluster: topología guardada, túnel rechazado y la contr
   const lista = intentar(() => store.create({ ...base, alias: 'RL' }))
   check('una lista de servidores sin Sentinel ni Cluster: rechazada', !lista.ok && /Sentinel o Cluster/.test(lista.error), lista.ok ? 'CREÓ' : lista.error)
   const baseCluster = intentar(() => store.create({ ...base, alias: 'RB', database: '4', topologiaRedis: { modo: 'cluster' } }))
-  check('Cluster con base 4: rechazado', !baseCluster.ok && /base 0/.test(baseCluster.error), baseCluster.ok ? 'CREÓ' : baseCluster.error)
+  check('Cluster con base 4: rechazado', !baseCluster.ok && /base de datos 0/.test(baseCluster.error), baseCluster.ok ? 'CREÓ' : baseCluster.error)
   const pgConTopologia = store.create({ profileId: 'p1', alias: 'PGT', motor: 'postgres', host: 'h', port: 5432, database: 'd', user: 'u', readonly: true, topologiaRedis: { modo: 'cluster' } })
   check('MITAD NEGATIVA: un motor que no la declara no la guarda', !('topologiaRedis' in de(disco(ruta), pgConTopologia.id)!), '')
   const aMano = archivo({ version: 1, connections: [{ id: 'r-mal', profileId: 'p1', alias: 'RM', motor: 'redis', host: 'h', port: 6379, user: '', readonly: true, topologiaRedis: { modo: 'otra' } }] })

@@ -23,7 +23,9 @@ entrecomillar, con `$` y backticks expandidos. Sin error visible.
   Codex (no tiene el otro), aplanado a una línea en las dos formas; en blanco no produce flag. En
   Codex lleva el prefijo fijo «Avisos de Tessera:» (`-c` toma el valor como TOML si se puede, y una
   palabra no lo es) y una frase más: su sandbox suele ir sin red, así que pida salir de él para
-  `tdb`, `tssh` y `tctx`. Abrirle la red desde Tessera no: el sandbox es configuración del usuario.
+  `tdb`, `tssh` y `tctx`. Abrirle la red desde Tessera no: el sandbox es configuración del usuario. Tampoco
+  se fuerza el acceso completo en el contenedor, donde el sandbox de Codex no puede arrancar porque Docker
+  no deja crear espacios de nombres: lo elige el usuario y lo explica la Academy (`nativoODocker.ts`).
 - Codex arranca siempre con `-c features.daemon_auto_start=false`: si no, en macOS y en Linux (y en
   el contenedor) arranca un servidor compartido por cuenta, fuera de la terminal, que corre las órdenes
   de todas sus sesiones con el entorno de la primera y no se para al cerrar la pestaña. En Windows ya

@@ -9,7 +9,7 @@ export const txMotores = crearTextos(
   {
     necesitaBase: (motor: string) => `${motor} necesita el nombre de la base.`,
     necesitaServicioOSid: (motor: string) => `${motor} necesita un Service Name o un SID.`,
-    servicioOSid: 'Indica Service Name o SID, no ambos.'
+    servicioOSid: 'Indique Service Name o SID, no ambos.'
   },
   {
     necesitaBase: (motor: string) => `${motor} needs the database name.`,

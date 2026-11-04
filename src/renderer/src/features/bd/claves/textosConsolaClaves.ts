@@ -19,8 +19,8 @@ export const txConsolaClaves = crearTextos(
     nadaEnEjecucion: 'No hay nada en ejecución',
     historialTitulo: (acorde: string) => `Historial de comandos · ${acorde}`,
     historial: 'Historial de comandos',
-    esperaParaCambiarBase: 'Espera a que termine la ejecución para cambiar la base',
-    baseCambiar: (base: string) => `Base: ${base}. Pulsa para cambiar`,
+    esperaParaCambiarBase: 'Espere a que termine la ejecución para cambiar la base',
+    baseCambiar: (base: string) => `Base: ${base}. Haga clic para cambiar`,
     baseDeLaConsola: (base: string) => `Base de la consola: ${base}`,
     soloBase0: 'Cluster: solo existe la base 0',
     baseActual: (base: string) => `Base actual: ${base} (también la cambia «SELECT n»)`,
@@ -28,7 +28,7 @@ export const txConsolaClaves = crearTextos(
     noSePudoLeer: (e: string) => `No se pudo leer la consola: ${e}`,
     cargando: 'Cargando…',
     repartoAria: 'Reparto entre la consola y los resultados',
-    pistaSinComando: 'Coloca el cursor en un comando o selecciona líneas',
+    pistaSinComando: 'Coloque el cursor en un comando o seleccione líneas',
     // --- registro ---
     salida: 'Salida',
     salidaTitulo: 'Salida: cada comando con su respuesta',
@@ -38,12 +38,12 @@ export const txConsolaClaves = crearTextos(
     resultadosAria: 'Resultados de la consola',
     sinSalida: 'Sin salida',
     sinSalidaPista: (ejecutar: string, todo: string) =>
-      `${ejecutar} ejecuta el comando de la línea del cursor o las líneas seleccionadas; ${todo}, todos. Un comando por línea; las que empiezan por # son comentarios.`,
+      `${ejecutar} ejecuta el comando de la línea del cursor o las líneas seleccionadas; ${todo} ejecuta todos los comandos. Debe haber un comando por línea; las líneas que empiezan por # son comentarios.`,
     // --- selector de base ---
     bases: 'Bases',
     baseDeLaConsolaEn: (alias: string) => `Base de la consola en ${alias}`,
     filtrarBases: 'Filtrar bases (3 o db3)',
-    pistaSelector: 'Enter elige · Esc cancela · también «SELECT n»',
+    pistaSelector: 'Intro selecciona · Esc cancela · también «SELECT n»',
     conteoClaves: (n: number) => (n === 1 ? '1 clave' : `${n} claves`),
     // --- acciones del editor ---
     accionEjecutar: 'Ejecutar comando o líneas seleccionadas',
@@ -69,7 +69,7 @@ export const txConsolaClaves = crearTextos(
     forzarEtiqueta: 'Forzar (cierra la conexión con el servidor)',
     forzarTitulo: '¿Forzar el cierre de la conexión?',
     forzarMensaje: (alias: string) =>
-      `Se cerrará la conexión con «${alias}»: lo que esté corriendo se corta, y un MULTI abierto en sus consolas se descarta.`,
+      `Se cerrará la conexión con «${alias}»: se interrumpirá lo que esté en ejecución y se descartará cualquier MULTI abierto en sus consolas.`,
     forzar: 'Forzar'
   },
   {

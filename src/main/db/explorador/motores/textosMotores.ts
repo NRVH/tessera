@@ -29,14 +29,14 @@ const es = {
   sinDdlEnBase: 'No hay DDL visible: el objeto no existe en la base.',
   sinDdlOracle: (motivo: string) =>
     `No hay DDL visible: el objeto no existe o faltan privilegios para verlo (DBMS_METADATA: ${motivo}).`,
-  ddlRecortado: (tope: number) => `El DDL pasa de ${tope} caracteres: se enseña recortado.`,
+  ddlRecortado: (tope: number) => `El DDL supera los ${tope} caracteres: se muestra recortado.`,
   ddlVacio: 'devolvió un DDL vacío',
   sinCuerpo:
-    'No se ve el cuerpo: o el paquete no tiene, o ALL_SOURCE solo lo enseña a su dueño y a quien tenga privilegios de depuración.',
+    'No se puede ver el cuerpo: el paquete no tiene cuerpo, o ALL_SOURCE lo muestra solo a su dueño y a quien tenga privilegios de depuración.',
   codigoOfuscado: 'Código ofuscado (wrapped): Oracle no guarda el fuente legible.',
   sinDefinicionSqlServer:
-    'SQL Server no enseña la definición: el objeto está cifrado (WITH ENCRYPTION) o te falta el permiso VIEW DEFINITION.',
-  motivoOra31603: 'ORA-31603: sin SELECT_CATALOG_ROLE no enseña objetos de otro esquema, y nunca los que mantiene Oracle',
+    'SQL Server no muestra la definición: el objeto está cifrado (WITH ENCRYPTION) o falta el permiso VIEW DEFINITION.',
+  motivoOra31603: 'ORA-31603: sin SELECT_CATALOG_ROLE no muestra objetos de otro esquema, y nunca los que mantiene Oracle',
   motivoSinXdk: 'DBMS_METADATA no funciona en este servidor (su instalación no tiene el XDK)',
   motivoOra01031: 'ORA-01031: privilegios insuficientes',
   motivoSinAcceso: 'DBMS_METADATA no es accesible para este usuario',
@@ -66,18 +66,18 @@ const es = {
   periodoTemporal: 'Periodo de una tabla temporal: lo escribe SQL Server.',
   planSinFilas: 'El servidor no devolvió el plan.',
   planSqliteSinFilas: 'SQLite no devolvió el plan.',
-  planGrande: 'El plan es demasiado grande para enseñarlo.',
-  planNoEntendido: 'El servidor devolvió un plan que Tessera no entiende.',
-  sinPermisoShowplan: 'No tienes permiso para ver planes en esta base (SHOWPLAN): pídeselo a quien administre el servidor.',
+  planGrande: 'El plan es demasiado grande para mostrarlo.',
+  planNoEntendido: 'El servidor devolvió un plan que Tessera no puede interpretar.',
+  sinPermisoShowplan: 'No tiene permiso para ver planes en esta base (SHOWPLAN): solicítelo a quien administre el servidor.',
   baseNoAplicadaMysql: (esquema: string) =>
-    `No se puede usar la base ${esquema} en esta conexión: no existe o no tienes permiso sobre ella.`,
+    `No se puede usar la base ${esquema} en esta conexión: no existe o no tiene permiso sobre ella.`,
   esquemaNoExiste: (esquema: string) => `El esquema ${esquema} no existe en esta conexión.`,
   esquemaNoAplicadoPostgres: (esquema: string) =>
-    `No se puede usar el esquema ${esquema} en esta conexión: no existe o no tienes permiso de uso (USAGE) sobre él.`,
+    `No se puede usar el esquema ${esquema} en esta conexión: no existe o no tiene permiso de uso (USAGE) sobre él.`,
   esquemaSqlite: (esquema: string) =>
     `SQLite no tiene el esquema ${esquema}: cada archivo es una base con un único esquema, main.`,
   baseNoAplicadaSqlServer: (esquema: string) =>
-    `No se puede usar la base ${esquema} en esta conexión: no existe o no tienes acceso a ella.`,
+    `No se puede usar la base ${esquema} en esta conexión: no existe o no tiene acceso a ella.`,
   uniqueNotNullSqlite: 'Catálogo: «UNIQUE NOT NULL» no se usa en SQLite: una fila sin PK se identifica por su rowid.'
 }
 

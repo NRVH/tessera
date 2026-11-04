@@ -76,18 +76,18 @@ function mensajeDeAjena(reg: Registro, hallada: Candidata): string {
   if (hallada.idRepetido) {
     return (
       `«${nombre}» comparte su identificador con ${conQuienComparte(reg, hallada)}: esta versión no puede distinguirlas y usa la primera ` +
-      'del registro. Tessera la conserva tal cual; elimínala desde Tessera si sobra.'
+      'del registro. Tessera la conserva tal cual; elimínela desde Tessera si sobra.'
     )
   }
   const motor = hallada.crudo.motor
   // `esMotor` y no un `includes`: es la misma pregunta que se hacen el main y `tdb`.
   if (!esMotor(motor)) {
     const legible = typeof motor === 'string' && motor.trim() !== '' ? motor : MOTOR_ILEGIBLE
-    return `«${nombre}» es de un motor (${legible}) que esta versión de Tessera no conoce: actualiza Tessera para usarla.`
+    return `«${nombre}» es de un motor (${legible}) que esta versión de Tessera no conoce: actualice Tessera para usarla.`
   }
   return (
     `«${nombre}» está guardada de una forma que esta versión no reconoce. Puede venir de una versión más ` +
-    'nueva de Tessera (actualiza para usarla) o de una edición a mano del archivo; Tessera la conserva tal cual.'
+    'nueva de Tessera (actualice Tessera para usarla) o de una edición manual del archivo; Tessera la conserva tal cual.'
   )
 }
 
@@ -243,23 +243,23 @@ function secretoDelPuente(id: string, puente: Extract<EstadoPuente, { tipo: 'ok'
       ok: false,
       mensaje:
         'La conexión del registro no es la que tiene cargada Tessera (cambió mientras se leía, o se editó ' +
-        'db-connections.json a mano con Tessera abierta), así que no se le manda su contraseña. Vuelve a ' +
-        'lanzar; si sigue igual, reinicia Tessera.'
+        'db-connections.json manualmente con Tessera abierta), así que no se le envía su contraseña. Vuelva a ' +
+        'ejecutar la consulta; si el problema continúa, reinicie Tessera.'
     }
   }
   if (puente.scope.indexOf(id) < 0) {
     return {
       ok: false,
       mensaje:
-        'La base NO está montada en el proyecto de esta terminal. Márcala en el selector de bases de ese ' +
-        'proyecto (aplica al momento, no hace falta reiniciar) y vuelve a lanzar.'
+        'La base no está montada en el proyecto de esta terminal. Márquela en el selector de bases de ese ' +
+        'proyecto (se aplica de inmediato, no hace falta reiniciar) y vuelva a ejecutar la consulta.'
     }
   }
   return {
     ok: false,
     mensaje:
       'La base está montada, pero Tessera no tiene su contraseña (no se guardó, o se guardó en otro ' +
-      'equipo y aquí no se puede descifrar). Escríbela en la conexión, pulsa «Probar» y vuelve a lanzar.'
+      'equipo y aquí no se puede descifrar). Escríbala en la conexión, haga clic en «Probar» y vuelva a ejecutar la consulta.'
   }
 }
 
@@ -279,9 +279,9 @@ function secretoDelEntorno(
       ok: false,
       mensaje:
         `La contraseña del entorno es de otro destino: la conexión cambió desde que se abrió la terminal (${envVarDestino(id)} ` +
-        'no casa con la del registro). Recarga la terminal y vuelve a lanzar; si sigue igual, reinicia Tessera ' +
-        '(el registro se editó a mano con la app abierta y la memoria no se relee); si la contraseña la pusiste a ' +
-        'mano, quita también esa variable.'
+        'no coincide con la del registro). Reinicie la terminal y vuelva a ejecutar la consulta; si el problema continúa, reinicie Tessera ' +
+        '(el registro se editó manualmente con la aplicación abierta y la memoria no se relee); si la contraseña se definió ' +
+        'manualmente, elimine también esa variable.'
     }
   }
   if (s) return { ok: true, secreto: s, origen: 'entorno' }
@@ -313,14 +313,14 @@ export function resolverSecreto(
         ok: false,
         mensaje:
           `El puente de Tessera rechazó el token de esta terminal (${puente.error}): es de una sesión anterior. ` +
-          'Pulsa «Recargar» en la terminal y vuelve a lanzar.'
+          'Haga clic en «Reiniciar terminal» en el panel de terminales y vuelva a ejecutar la consulta.'
       }
     case 'noResponde':
       return {
         ok: false,
         mensaje:
-          'El puente de Tessera no responde (¿Tessera cerrada, o la terminal es de otra instancia?). ' +
-          'Lánzalo desde una terminal de la Tessera abierta ahora; si sigue igual, reinicia Tessera.'
+          'El puente de Tessera no responde (¿Tessera está cerrada, o la terminal pertenece a otra instancia?). ' +
+          'Ejecútelo desde una terminal de la Tessera abierta ahora; si el problema continúa, reinicie Tessera.'
       }
     case 'sinPuente':
       return secretoDelEntorno(id, entorno, huella)

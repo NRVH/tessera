@@ -17,7 +17,7 @@ export const txArbolAcciones = crearTextos(
       `Nueva consola${alias !== null ? ` en ${alias}` : ''} (${acorde})`,
     refrescarAlias: (alias: string) => `Refrescar ${alias}`,
     refrescarTodo: 'Refrescar todo',
-    nadaDesplegado: 'No hay nada desplegado',
+    nadaDesplegado: 'No hay ningún elemento desplegado',
     // --- menús ---
     nuevaConsola: 'Nueva consola',
     refrescar: 'Refrescar',
@@ -52,7 +52,7 @@ export const txArbolAcciones = crearTextos(
     tituloEliminarConexion: 'Eliminar conexión',
     eliminar: 'Eliminar',
     tituloEliminarConsola: 'Eliminar consola',
-    consolaALaPapelera: (nombre: string) => `«${nombre}.sql» irá a la papelera; podrás recuperarla desde allí.`,
+    consolaALaPapelera: (nombre: string) => `«${nombre}.sql» se moverá a la papelera y podrá recuperarse desde ella.`,
     tituloRenombrar: 'Renombrar consola',
     etiquetaNombre: 'Nombre',
     renombrarBoton: 'Renombrar',
@@ -60,7 +60,7 @@ export const txArbolAcciones = crearTextos(
     patronOTexto: 'Patrón o texto',
     filtrar: 'Filtrar',
     pistaFiltro:
-      'Con * ? [ ] es un patrón (usuario:*). Sin comodines se busca el texto en cualquier parte del nombre. Vacío quita el filtro.',
+      'Si el texto contiene * ? [ ] se interpreta como patrón (por ejemplo, usuario:*). Sin comodines, se busca el texto en cualquier parte del nombre. Si el campo queda vacío, se quita el filtro.',
     cancelar: 'Cancelar',
     // --- acciones ---
     noSePudoCopiar: (m: string) => `No se pudo copiar: ${m}`,
@@ -72,12 +72,14 @@ export const txArbolAcciones = crearTextos(
     desconectarConCambios: (alias: string, nombres: readonly string[], soloRevertir: boolean) =>
       `${alias} tiene cambios sin confirmar` +
       (nombres.length > 0 ? ` en ${nombres.join(', ')}` : '') +
-      (soloRevertir ? '. Para desconectar hay que revertirlos.' : '. Para desconectar hay que confirmarlos o revertirlos.'),
+      (soloRevertir
+        ? '. Para desconectar, primero debe revertirlos.'
+        : '. Para desconectar, primero debe confirmarlos o revertirlos.'),
     noSePudoDesconectar: (alias: string, m: string) => `No se pudo desconectar ${alias}: ${m}`,
     noSePudoEliminarAlias: (alias: string, m: string) => `No se pudo eliminar ${alias}: ${m}`,
     txConsolaSinConfirmar: 'Transacción sin confirmar',
     consolaConCambios: (nombre: string) =>
-      `«${nombre}» tiene cambios sin confirmar. Elige qué hacer con ellos antes de eliminarla.`,
+      `«${nombre}» tiene cambios sin confirmar. Antes de eliminarla, decida qué hacer con ellos.`,
     noSePudoEliminarConsola: (nombre: string, m: string) => `No se pudo eliminar «${nombre}»: ${m}`,
     // --- navegación ---
     noSePudoResolverSinonimo: (objeto: string, m: string) => `No se pudo resolver el sinónimo ${objeto}: ${m}`,
@@ -85,7 +87,7 @@ export const txArbolAcciones = crearTextos(
       `El sinónimo ${objeto} apunta a ${tipo} ${destino}, que no tiene datos que abrir.`,
     noSePudieronCargarClaves: (m: string) => `No se pudieron cargar más claves: ${m}`,
     noEsBaseDeArchivo: (nombre: string) =>
-      `«${nombre}» no parece una base de datos de archivo que Tessera sepa abrir.`,
+      `«${nombre}» no parece un archivo de base de datos que Tessera pueda abrir.`,
     noSePudoGuardarOrden: (m: string) => `No se pudo guardar el orden: ${m}`
   },
   {

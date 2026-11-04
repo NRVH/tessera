@@ -12,7 +12,7 @@ import { textosReconexionSsh, textosReinicio, textosReinicioShell, botonReinicio
 
 /** El tooltip en reposo del botón del agente. */
 const TITULO_AGENTE =
-  'Reiniciar el agente: se cierra y vuelve a abrir con la misma conversación; si estaba trabajando, se corta lo que hacía.'
+  'Reiniciar el agente: se cierra y vuelve a abrir con la misma conversación; si estaba trabajando, se interrumpe lo que hacía.'
 
 // ---------------------------------------------------------------------------
 // Reporte PASS/FAIL (mismo patrón que los otros test-*.mts)
@@ -86,7 +86,7 @@ function main(): void {
   {
     const r = botonReinicio(agente(ARRANQUE_FALLIDO))
     check('(1) habilitado, "Reintentar" y accion open', r.habilitado && r.etiqueta === 'Reintentar' && r.accion === 'open', fmt(r))
-    check('(2) el tooltip habla de reintentar el arranque', r.titulo.includes('Reintentar el arranque'), JSON.stringify(r.titulo))
+    check('(2) el tooltip habla de reintentar el arranque', r.titulo.includes('Reintentar el inicio'), JSON.stringify(r.titulo))
   }
 
   hr('Las tres guardas: cuándo NO debe abrir')
@@ -165,7 +165,7 @@ function main(): void {
     )
     check(
       '(11c) …y su tooltip no se cambia por el del reinicio en reposo',
-      enVuelo.titulo.includes('Reintentar el arranque'),
+      enVuelo.titulo.includes('Reintentar el inicio'),
       JSON.stringify(enVuelo.titulo)
     )
   }
@@ -241,7 +241,7 @@ function main(): void {
     const r = botonReinicio(agente({ versiones: ATRASADA }))
     check(
       '(18) atrasada: dice la versión instalada y la que corre, y sigue siendo sólo icono',
-      r.titulo === 'Hay una versión nueva instalada (2.1.281; usas la 2.1.280). Reinicia para usarla; la conversación sigue.' &&
+      r.titulo === 'Hay una versión nueva instalada (2.1.281); la sesión usa la 2.1.280. Reinicie el agente para usarla; la conversación continúa.' &&
         r.habilitado &&
         r.accion === 'reload' &&
         r.soloIcono &&
@@ -289,8 +289,8 @@ function main(): void {
     )
     check(
       '(22) tooltips del agente: los tres, carácter por carácter',
-      muerta.titulo === 'Reabrir el agente y seguir en la misma conversación' &&
-        fallido.titulo === 'Reintentar el arranque: vuelve a comprobar Docker y a levantar el contenedor' &&
+      muerta.titulo === 'Reabrir el agente y continuar en la misma conversación' &&
+        fallido.titulo === 'Reintentar el inicio: vuelve a comprobar Docker y a iniciar el contenedor' &&
         vivo.titulo === TITULO_AGENTE,
       `${muerta.titulo} | ${fallido.titulo} | ${vivo.titulo}`
     )
@@ -299,13 +299,13 @@ function main(): void {
     check(
       '(22.1) tooltips de la terminal local: un shell nuevo en la misma pestaña, sin hablar de conversación',
       shellLocal.titulo === 'Abre un shell nuevo en esta misma pestaña' &&
-        shellVivo.titulo === 'Reiniciar esta terminal: cierra el shell y lo que corre en él, y abre uno nuevo en la misma pestaña',
+        shellVivo.titulo === 'Reiniciar esta terminal: cierra el shell y lo que se ejecuta en él, y abre uno nuevo en la misma pestaña',
       `${shellLocal.titulo} | ${shellVivo.titulo}`
     )
     const enShell = botonReinicio(shell({ ...ARRANQUE_FALLIDO, textos: textosReinicioShell() }))
     check(
       '(22.2) el reintento de la terminal local no habla de Docker ni de contenedor',
-      enShell.titulo.startsWith('Reintentar el arranque') && !/docker|contenedor/i.test(enShell.titulo),
+      enShell.titulo.startsWith('Reintentar el inicio') && !/docker|contenedor/i.test(enShell.titulo),
       JSON.stringify(enShell.titulo)
     )
     check(

@@ -11,7 +11,7 @@
 
 Las reglas del perfil viajan con el perfil, pero lo hablado vive en las carpetas de cada CLI: las nativas en la
 carpeta del usuario y las de las cuentas de Docker en los datos de Tessera. Sin ellas, en otro equipo el
-historial, `tctx buscar` y «Continuar esta conversación en…» no tienen nada. Esas carpetas guardan también la sesión iniciada de
+historial, `tctx buscar` y «Continuar esta conversación» no tienen nada. Esas carpetas guardan también la sesión iniciada de
 cada cuenta, y una conversación puede llevar código y datos sensibles.
 
 ## Decisión
@@ -38,7 +38,7 @@ cada cuenta, y una conversación puede llevar código y datos sensibles.
 - **Al exportar, un archivo que desaparece o se bloquea** entre el listado y su lectura (Codex comprime un
   rollout frío y borra el `.jsonl`) se salta y el resumen dice cuántos; cualquier otro fallo (el disco lleno)
   corta la exportación, borra el temporal y enseña ese error.
-- **Al importar, fusiona sin pisar**, con las reglas de «Continuar esta conversación en…»: igual (o aquí más avanzado), se salta;
+- **Al importar, fusiona sin pisar**, con las reglas de «Continuar esta conversación» en otra cuenta: igual (o aquí más avanzado), se salta;
   el principio de lo que llega, se pone al día; distinto, se conserva el de este equipo y se dice. Poner al día
   sustituye el archivo, y un CLI que lo tenga abierto seguiría escribiendo en el viejo (en macOS y Linux esos
   turnos se perderían; en Windows la sustitución falla): una conversación en la que está ahora una sesión de

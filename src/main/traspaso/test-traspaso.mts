@@ -324,7 +324,7 @@ async function servicio(): Promise<void> {
     check('(i1) una petición sin forma', (await intentar({ origen: base })).includes('no es válida'), '')
     check('(i2) la sesión no es de ese perfil o ya no existe', (await intentar({ origen: { ...base, profileId: 'pb' }, destino: { agente: 'codex', modo: 'nativo' } })).includes('ya no está abierta') && (await intentar({ origen: { ...base, sessionId: 'otra' }, destino: { agente: 'codex', modo: 'nativo' } })).includes('ya no está abierta'), '')
     check('(i3) una cuenta de destino que no es del perfil', (await intentar({ origen: base, destino: { agente: 'claude-code', modo: 'docker', accountId: 'Z' } })).includes('no es de este perfil'), '')
-    check('(i4) el mismo destino que el origen', (await intentar({ origen: base, destino: { agente: 'claude-code', modo: 'docker', accountId: 'A' } })).includes('no hay nada que pasar'), '')
+    check('(i4) el mismo destino que el origen', (await intentar({ origen: base, destino: { agente: 'claude-code', modo: 'docker', accountId: 'A' } })).includes('no hay nada que traspasar'), '')
     let aprendio = false
     const sinConversacion = await intentar({ origen: base, destino: { agente: 'claude-code', modo: 'nativo' } }, m.deps(o, { aprenderConversacion: async () => { aprendio = true } }))
     check('(i5) sin conversación conocida, primero intenta aprenderla y luego lo dice', aprendio && sinConversacion.includes('No se sabe en qué conversación'), sinConversacion)

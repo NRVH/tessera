@@ -16,7 +16,7 @@ export const txSalida = crearTextos(
     pestanasMas: (n: number) => (n === 1 ? 'y 1 pestaña más' : `y ${n} pestañas más`),
     titulo: 'Cambios sin enviar',
     mensaje: (_n: number, frase: string) => `Hay ${frase} sin enviar.`,
-    detalle: (lineas: string) => `${lineas}\n\nSi sales, se descartan: no llegaron a la base de datos.`,
+    detalle: (lineas: string) => `${lineas}\n\nSi sale, se descartan: no llegaron a la base de datos.`,
     descartarYSalir: 'Descartar y salir',
     cancelar: 'Cancelar',
     bloque: (lineas: string) =>
@@ -49,25 +49,25 @@ export const txSesion = crearTextos(
     caidaConTx: 'El proceso de la conexión terminó de forma inesperada; el servidor revirtió la transacción',
     caidaSinTx: 'El proceso de la conexión terminó de forma inesperada; se reabrirá en la siguiente operación',
     perdidaEnCommit:
-      'Sesión perdida con el COMMIT en camino: no se sabe si llegó a aplicarse. Comprueba los datos antes de repetir los cambios',
+      'Sesión perdida con el COMMIT en curso: no se sabe si llegó a aplicarse. Compruebe los datos antes de repetir los cambios',
     caidaEnCommit:
-      'El proceso de la conexión terminó con el COMMIT en camino: no se sabe si llegó a aplicarse. Comprueba los datos antes de repetir los cambios',
+      'El proceso de la conexión terminó con el COMMIT en curso: no se sabe si llegó a aplicarse. Compruebe los datos antes de repetir los cambios',
     perdidaEnAuto:
-      'Sesión perdida con la sentencia en camino, que se confirma sola (Auto, o un DDL de Oracle): no se sabe si llegó a aplicarse. Comprueba los datos antes de repetirla',
+      'Sesión perdida con la sentencia en curso, que se confirma sola (Auto, o un DDL de Oracle): no se sabe si llegó a aplicarse. Compruebe los datos antes de repetirla',
     caidaEnAuto:
-      'El proceso de la conexión terminó con la sentencia en camino, que se confirma sola (Auto, o un DDL de Oracle): no se sabe si llegó a aplicarse. Comprueba los datos antes de repetirla',
+      'El proceso de la conexión terminó con la sentencia en curso, que se confirma sola (Auto, o un DDL de Oracle): no se sabe si llegó a aplicarse. Compruebe los datos antes de repetirla',
     perdidaPorDentro:
-      'Sesión perdida con un bloque PL/SQL o una rutina en camino, que pueden confirmar por dentro: no se sabe si se aplicó. Comprueba los datos antes de repetir los cambios',
+      'Sesión perdida con un bloque PL/SQL o una rutina en curso, que pueden confirmar por dentro: no se sabe si se aplicó. Compruebe los datos antes de repetir los cambios',
     caidaPorDentro:
-      'El proceso de la conexión terminó con un bloque PL/SQL o una rutina en camino, que pueden confirmar por dentro: no se sabe si se aplicó. Comprueba los datos antes de repetir los cambios',
-    inactividad: 'Sesión cerrada por inactividad; se reabrirá al usarla y se pierden sus ALTER SESSION y SET',
+      'El proceso de la conexión terminó con un bloque PL/SQL o una rutina en curso, que pueden confirmar por dentro: no se sabe si se aplicó. Compruebe los datos antes de repetir los cambios',
+    inactividad: 'Sesión cerrada por inactividad; se reabrirá al usarla y se pierden los ajustes de ALTER SESSION y SET',
     detenidaConTx:
-      'Consulta detenida: para pararla se cerró la sesión de la consola, y la transacción que tenía abierta se revirtió',
+      'Consulta detenida: para detenerla se cerró la sesión de la consola, y la transacción que tenía abierta se revirtió',
     editada: 'La conexión se editó; la sesión se reabrirá con los datos nuevos',
-    expulsada: 'Sesión cerrada para dejar sitio a otra (límite de sesiones vivas)',
+    expulsada: 'Sesión cerrada para liberar espacio para otra (límite de sesiones activas)',
     commitImplicito: 'El DDL confirmó de forma implícita los cambios pendientes',
     ocupada: 'La sesión está ocupada con otra operación',
-    txPendiente: 'Confirma o revierte primero',
+    txPendiente: 'Confirme o revierta primero la transacción pendiente',
     txFallida: 'La transacción falló; solo se puede revertir',
     soloLectura: 'La conexión es de solo lectura',
     cerrada: 'La sesión no está abierta'
@@ -96,7 +96,7 @@ export const txSesion = crearTextos(
     expulsada: 'Session closed to make room for another (live session limit)',
     commitImplicito: 'The DDL implicitly committed the pending changes',
     ocupada: 'The session is busy with another operation',
-    txPendiente: 'Commit or roll back first',
+    txPendiente: 'Commit or roll back the pending transaction first',
     txFallida: 'The transaction failed; it can only be rolled back',
     soloLectura: 'The connection is read-only',
     cerrada: 'The session is not open'
@@ -123,9 +123,9 @@ export const txFamilia = crearTextos(
     conexionNoExiste: 'La conexión ya no existe.',
     procesoTerminoInesperado: 'El proceso de la conexión terminó inesperadamente.',
     cerradaPorInactividad: 'La sesión se cerró por inactividad; se reabre al usarla.',
-    sinSecreto: 'La contraseña guardada no se puede descifrar en este equipo. Edita la conexión y vuelve a escribirla.',
+    sinSecreto: 'La contraseña guardada no se puede descifrar en este equipo. Edite la conexión y vuelva a escribirla.',
     limiteConsolas: (max: number) =>
-      `Esta conexión ya tiene ${max} consolas trabajando a la vez. Espera a que termine alguna.`,
+      `Esta conexión ya tiene ${max} consolas en ejecución al mismo tiempo. Espere a que termine alguna.`,
     sinConexion: 'La conexión ya no existe.',
     motorDesconocido: (motor: string) => `Motor desconocido: "${motor}".`,
     motorNoEsFamilia: (etiqueta: string, familia: string) =>
@@ -194,9 +194,9 @@ export const txExportacion = crearTextos(
   {
     cancelada: 'Exportación cancelada.',
     destinoNoExiste: 'La carpeta de destino ya no existe.',
-    sinPermiso: 'Sin permiso para escribir ahí, o el archivo está abierto en otro programa.',
-    abierto: 'El archivo está abierto en otro programa: ciérralo y vuelve a exportar.',
-    sinEspacio: 'No queda espacio en el disco.',
+    sinPermiso: 'No hay permiso para escribir en esa ubicación, o el archivo está abierto en otro programa.',
+    abierto: 'El archivo está abierto en otro programa: ciérrelo y vuelva a exportar.',
+    sinEspacio: 'No hay espacio disponible en el disco.',
     soloLectura: 'La carpeta de destino es de solo lectura.',
     nombreLargo: 'El nombre o la ruta del archivo son demasiado largos.',
     esCarpeta: 'Ya hay una carpeta con ese nombre.',
@@ -225,9 +225,9 @@ export const txExportacion = crearTextos(
 
 export const txProduccion = crearTextos(
   {
-    commit: 'confirma el COMMIT antes de enviarlo',
-    enviar: 'confirma los cambios antes de enviarlos',
-    escritura: 'confirma la escritura antes de enviarla',
+    commit: 'confirme el COMMIT antes de enviarlo',
+    enviar: 'confirme los cambios antes de enviarlos',
+    escritura: 'confirme la escritura antes de enviarla',
     mensaje: (alias: string, accion: string) => `«${alias}» es una conexión de PRODUCCIÓN: ${accion}. No se envió nada.`
   },
   {
@@ -241,7 +241,7 @@ export const txProduccion = crearTextos(
 export const txProceso = crearTextos(
   {
     noEnMarcha: 'El proceso de la conexión no está en marcha.',
-    noSePudoHablar: (detalle: string) => `No se pudo hablar con el proceso de la conexión: ${detalle}`,
+    noSePudoHablar: (detalle: string) => `No se pudo comunicar con el proceso de la conexión: ${detalle}`,
     termino: (como: string) => `El proceso de la conexión terminó (${como}).`,
     senal: (s: string) => `señal ${s}`,
     codigo: (c: string) => `código ${c}`

@@ -79,7 +79,7 @@ test.describe.serial('El agente informa su estado', () => {
 
     await enviarAlAgente(win, 'osc:state=blocked:app=claude-code:kind=question')
     await expect(punto, 'te espera: el anillo').toHaveClass(/\besperando\b/)
-    await expect(punto).toHaveAttribute('title', 'Un agente te está esperando')
+    await expect(punto).toHaveAttribute('title', 'Un agente espera su respuesta')
     await expect
       .poll(async () => (await win.evaluate(() => window.tessera.agentesNativos.estado())).sesiones.some((x) => x.esperandoRespuesta), {
         message: 'el main también lo sabe (veta la hibernación y el reinicio)'

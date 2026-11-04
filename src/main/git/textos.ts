@@ -8,31 +8,31 @@ import { crearTextos } from '../../shared/i18n.ts'
 export const txGit = crearTextos(
   {
     rutaNoValida: 'Ruta no válida.',
-    carpetaAlPreparar: 'Es una carpeta: prepara sus archivos uno a uno.',
-    carpetaAlQuitar: 'Es una carpeta: quita sus archivos de preparados uno a uno.',
-    gitNoResponde: 'git no respondió; inténtalo de nuevo.',
-    gitFallo: (linea: string) => `git falló: ${linea}`,
-    gitFalloSalida: (codigo: number) => `git falló (salida ${codigo}).`,
+    carpetaAlPreparar: 'Es una carpeta: prepare sus archivos uno a uno.',
+    carpetaAlQuitar: 'Es una carpeta: quite sus archivos de preparados uno a uno.',
+    gitNoResponde: 'Git no respondió; inténtelo de nuevo.',
+    gitFallo: (linea: string) => `Git falló: ${linea}`,
+    gitFalloSalida: (codigo: number) => `Git falló (código de salida ${codigo}).`,
     sinRepo: 'No hay repositorio activo.',
     sinRepoRuta: 'No hay repositorio para esta ruta.',
-    proyectoDesconocido: 'Esta operación de git es de un proyecto que no está abierto: no se hizo nada.',
+    proyectoDesconocido: 'Esta operación de Git corresponde a un proyecto que no está abierto: no se realizó ningún cambio.',
     mensajeVacio: 'El mensaje de commit está vacío.',
-    demasiadosEnLote: (tope: number) => `Demasiados archivos en un lote (tope ${tope}).`,
+    demasiadosEnLote: (tope: number) => `Hay demasiados archivos en un lote (límite: ${tope}).`,
     copiaNoLeida: (codigo: string) => `No se pudo leer la copia del disco: ${codigo}`,
     cambioDeEstado: 'El archivo cambió de estado durante la confirmación.',
     descarte: {
-      esCarpeta: 'Es una carpeta: descarta sus archivos uno a uno.',
-      fueraDelRepo: 'Ruta fuera del repositorio.',
-      enConflicto: 'Está en conflicto: resuélvelo (o aborta la fusión) antes de descartar.',
-      carpetaSobreArchivo: 'Hay una carpeta donde estaba el archivo: muévela antes de descartar.',
-      archivoSobreCarpeta: 'Hay un archivo donde estaba una de sus carpetas: muévelo antes de descartar.',
+      esCarpeta: 'Es una carpeta: descarte sus archivos uno a uno.',
+      fueraDelRepo: 'La ruta está fuera del repositorio.',
+      enConflicto: 'El archivo está en conflicto: resuélvalo (o aborte la fusión) antes de descartar.',
+      carpetaSobreArchivo: 'Hay una carpeta donde estaba el archivo: muévala antes de descartar.',
+      archivoSobreCarpeta: 'Hay un archivo donde estaba una de sus carpetas: muévalo antes de descartar.',
       borradoConCambios:
-        'Su borrado ya está preparado y la copia del disco tiene cambios: quítalo de preparados antes de descartar.',
+        'El borrado del archivo ya está preparado y la copia del disco tiene cambios: quítelo de preparados antes de descartar.',
       borradoGrande:
-        'Su borrado ya está preparado y la copia del disco es demasiado grande para comprobarla: quítalo de preparados antes de descartar.',
+        'El borrado del archivo ya está preparado y la copia del disco es demasiado grande para comprobarla: quítelo de preparados antes de descartar.',
       fueraDelArbol:
-        'Está marcado para no tocarse en el árbol de trabajo (skip-worktree): quita la marca antes de descartar.',
-      ramaRota: 'La rama actual no apunta a un commit válido (su referencia está dañada): no se descarta nada.'
+        'El archivo está marcado para que Git no lo modifique en el directorio de trabajo (skip-worktree): quite la marca antes de descartar.',
+      ramaRota: 'La rama actual no apunta a un commit válido (su referencia está dañada): no se descartó nada.'
     }
   },
   {

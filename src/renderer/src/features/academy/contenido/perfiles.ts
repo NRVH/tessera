@@ -9,24 +9,24 @@ import type { Articulo } from '../modelo.ts'
 
 const es: Articulo = {
   resumen:
-    'Un perfil es un espacio de trabajo con sus proyectos, sus cuentas y sus conexiones. Su color te dice en todo momento en cuál estás.',
+    'Un perfil es un espacio de trabajo con sus propios proyectos, cuentas y conexiones. Su color indica en todo momento en qué perfil se encuentra.',
   secciones: [
     {
       ancla: 'que-guarda',
       titulo: 'Qué guarda un perfil',
       bloques: [
-        'Cada perfil tiene lo suyo y no lo comparte con los demás:',
+        'Cada perfil conserva lo siguiente y no lo comparte con los demás perfiles:',
         {
           lista: [
-            'Sus proyectos abiertos, en el orden en que los dejaste.',
-            'Sus [cuentas de Docker](cuentas) y los agentes que añadiste para correr en Docker.',
+            'Sus proyectos abiertos, en el orden en que se dejaron.',
+            'Sus [cuentas de Docker](cuentas/docker) y los agentes añadidos para ejecutarse en Docker.',
             'Sus conexiones [SSH](ssh) y de [bases de datos](bases-de-datos).',
             'Sus [reglas para los agentes](reglas-del-perfil), su color y la red de sus contenedores.',
-            'Qué agentes se ven en sus proyectos y en qué orden.'
+            'Qué agentes se muestran en sus proyectos y en qué orden.'
           ]
         },
         {
-          nota: 'La cuenta de tu equipo y los agentes que corren en tu equipo son los mismos en todos los perfiles. Si quieres una cuenta distinta en cada perfil, usa una cuenta de Docker.'
+          nota: 'La cuenta de su equipo y los agentes que se ejecutan en su equipo son los mismos en todos los perfiles. Para usar una cuenta distinta en cada perfil, utilice una cuenta de Docker.'
         }
       ]
     },
@@ -36,49 +36,49 @@ const es: Articulo = {
       bloques: [
         {
           pasos: [
-            'Pulsa el **+** del final de la barra de perfiles.',
-            'Escribe su nombre (por ejemplo, «Trabajo» o «Personal») y elige un color.',
-            'Pulsa **Crear**. El perfil nuevo empieza sin proyectos.'
+            'Haga clic en el **+** del final de la barra de perfiles. Se abre el formulario **Nuevo perfil**.',
+            'Escriba el nombre (por ejemplo, «Trabajo» o «Personal») y seleccione un color.',
+            'Haga clic en **Crear**. El perfil nuevo aparece en la barra, sin proyectos.'
           ]
         },
-        'Para cambiar de perfil, pulsa su pestaña. Cambiar nunca hiberna nada: el perfil que dejas sigue trabajando en segundo plano, y un punto en su pestaña te avisa si un agente trabaja, te espera o terminó sin que lo hayas revisado.',
-        'Arrastra las pestañas para ordenar los perfiles.'
+        'Para cambiar de perfil, haga clic en su pestaña. Cambiar de perfil nunca [hiberna](glosario/hibernar) nada: el perfil anterior sigue trabajando en segundo plano. Un punto en su pestaña indica si un agente está trabajando, espera su respuesta o terminó sin que se haya revisado el resultado.',
+        'Para cambiar el orden de los perfiles, arrastre sus pestañas.'
       ]
     },
     {
       ancla: 'menu',
       titulo: 'El menú del perfil',
       bloques: [
-        'Con clic derecho sobre un perfil:',
+        'Haga clic con el botón derecho en un perfil para abrir su menú:',
         {
           lista: [
-            '**Renombrar** (también con doble clic) y **Cambiar color**.',
-            '**Red del contenedor Docker**: si los contenedores del perfil usan una red propia o la de {tuEquipo}. Lo explica [Contenedores de Docker](contenedores-docker).',
-            '**Reglas para los agentes…**: instrucciones que leen todos sus agentes al arrancar. Ver [Reglas para los agentes](reglas-del-perfil).',
-            '**Hibernar el perfil…**: cierra sus agentes y terminales para liberar memoria. Ver [Hibernar un perfil](hibernar/perfil).'
+            '**Renombrar** (también con doble clic en la pestaña) y **Cambiar color**.',
+            '**Red del contenedor Docker**: indica si los contenedores del perfil usan una red propia o la de {tuEquipo}. Cambiarla reinicia los contenedores y deja el perfil hibernado. Consulte [Contenedores de Docker](contenedores-docker).',
+            '**Reglas para los agentes…**: instrucciones que los agentes del perfil reciben al iniciarse. Consulte [Reglas para los agentes](reglas-del-perfil).',
+            '**Hibernar el perfil…**: cierra sus agentes y terminales para liberar memoria. Consulte [Hibernar un perfil](hibernar/perfil).'
           ]
         },
-        { captura: 'menu-del-perfil', alt: 'El menú del clic derecho de un perfil, con renombrar, color, red, reglas, hibernar y eliminar' }
+        { captura: 'menu-del-perfil', alt: 'El menú contextual de un perfil, con renombrar, color, red, reglas, hibernar y eliminar' }
       ]
     },
     {
       ancla: 'selector-compacto',
       titulo: 'Perfiles en un selector compacto',
       bloques: [
-        'Si la barra de perfiles te quita sitio, activa **Configuración › Apariencia › Perfiles en un selector compacto**. La barra desaparece y en la barra de título queda una pastilla con el perfil activo; al pulsarla salen los demás.',
-        'Desde esa lista haces lo mismo que desde la barra: crear, ordenar arrastrando, renombrar y el resto del menú.'
+        'Si la barra de perfiles ocupa demasiado espacio, active **Configuración › Apariencia › Perfiles en un selector compacto**. La barra desaparece y la barra de título muestra un botón con el perfil activo; al hacer clic en él se despliegan los demás perfiles.',
+        'Esa lista ofrece las mismas acciones que la barra: crear, ordenar arrastrando, renombrar y el resto del menú del perfil.'
       ]
     },
     {
       ancla: 'eliminar',
       titulo: 'Eliminar un perfil',
       bloques: [
-        '**Eliminar perfil…** está al final de su menú. Necesitas tener al menos otro perfil.',
+        '**Eliminar perfil…** está al final del menú del perfil y solo se puede usar si existe al menos otro perfil. Tessera pide confirmación y, al confirmar, ocurre lo siguiente:',
         {
           lista: [
-            'Se cierran sus agentes y terminales y se detiene su contenedor.',
-            'Se borran sus conexiones SSH y de bases de datos y su historial de consultas.',
-            'Las notas y consultas de sus agentes van a {papelera}: desde allí se recuperan.',
+            'Se cierran sus agentes y terminales y se detienen sus contenedores.',
+            'Se borran sus conexiones SSH y de bases de datos, su historial de consultas y sus reglas para los agentes.',
+            'Las notas y consultas de sus agentes van a {papelera}, desde donde se pueden recuperar.',
             'Sus cuentas de IA y sus conversaciones no se borran de {tuEquipo}.'
           ]
         }
@@ -99,7 +99,7 @@ const en: Articulo = {
         {
           lista: [
             'Its open projects, in the order you left them.',
-            'Its [Docker accounts](cuentas) and the agents you added to run in Docker.',
+            'Its [Docker accounts](cuentas/docker) and the agents you added to run in Docker.',
             'Its [SSH](ssh) and [database](bases-de-datos) connections.',
             'Its [rules for agents](reglas-del-perfil), its color, and the network of its containers.',
             'Which agents appear in its projects, and in what order.'
@@ -116,12 +116,12 @@ const en: Articulo = {
       bloques: [
         {
           pasos: [
-            'Click the **+** at the end of the profile bar.',
+            'Click the **+** at the end of the profile bar. The **New profile** form opens.',
             'Enter a name (for example, “Work” or “Personal”) and choose a color.',
-            'Click **Create**. The new profile starts with no projects.'
+            'Click **Create**. The new profile appears in the bar, with no projects.'
           ]
         },
-        'To switch to a profile, click its tab. Switching never hibernates anything: the profile you leave keeps running in the background. A dot on its tab shows whether an agent is working, is waiting for you, or has finished and you have not reviewed the result yet.',
+        'To switch to a profile, click its tab. Switching never [hibernates](glosario/hibernar) anything: the profile you leave keeps running in the background. A dot on its tab shows whether an agent is working, is waiting for your reply, or has finished and you have not reviewed the result yet.',
         'To reorder the profiles, drag their tabs.'
       ]
     },
@@ -133,8 +133,8 @@ const en: Articulo = {
         {
           lista: [
             '**Rename** (or double-click the tab) and **Change color**.',
-            '**Docker container network**: whether the profile’s containers use their own network or the network of {tuEquipo}. For details, see [Docker containers](contenedores-docker).',
-            '**Rules for agents…**: instructions that every agent in the profile reads when it starts. See [Rules for agents](reglas-del-perfil).',
+            '**Docker container network**: whether the profile’s containers use their own network or the network of {tuEquipo}. Changing it restarts the containers and leaves the profile hibernated. See [Docker containers](contenedores-docker).',
+            '**Rules for agents…**: instructions that the profile’s agents receive when they start. See [Rules for agents](reglas-del-perfil).',
             '**Hibernate profile…**: closes its agents and terminals to free memory. See [Hibernate a profile](hibernar/perfil).'
           ]
         },
@@ -145,7 +145,7 @@ const en: Articulo = {
       ancla: 'selector-compacto',
       titulo: 'Profiles in a compact selector',
       bloques: [
-        'If the profile bar takes up too much space, turn on **Settings › Appearance › Profiles in a compact selector**. The bar disappears, and the title bar shows the active profile in a small button; click it to see the other profiles.',
+        'If the profile bar takes up too much space, turn on **Settings › Appearance › Profiles in a compact selector**. The bar disappears, and the title bar shows a button with the active profile; click it to see the other profiles.',
         'This list offers the same actions as the bar: create, drag to reorder, rename, and the rest of the profile menu.'
       ]
     },
@@ -153,11 +153,11 @@ const en: Articulo = {
       ancla: 'eliminar',
       titulo: 'Delete a profile',
       bloques: [
-        '**Delete profile…** is at the end of the profile menu. You can delete a profile only if you have at least one other profile.',
+        '**Delete profile…** is at the end of the profile menu, and you can use it only if at least one other profile exists. Tessera asks you to confirm, and then the following happens:',
         {
           lista: [
-            'Tessera closes its agents and terminals and stops its container.',
-            'Tessera deletes its SSH and database connections and its query history.',
+            'Tessera closes its agents and terminals and stops its containers.',
+            'Tessera deletes its SSH and database connections, its query history, and its rules for agents.',
             'The notes and queries of its agents move to {papelera}, where you can recover them.',
             'Its AI accounts and conversations stay on {tuEquipo}.'
           ]

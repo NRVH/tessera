@@ -8,8 +8,8 @@ import { crearTextos } from '../../../shared/i18n.ts'
 export const txAdaptadores = crearTextos(
   {
     remedioSinAlmacen:
-      ' Instala y desbloquea GNOME Keyring o KWallet y vuelve a abrir Tessera; si tu escritorio no ' +
-      'es GNOME ni KDE, ábrela con --password-store=gnome-libsecret.',
+      ' Instale y desbloquee GNOME Keyring o KWallet y vuelva a abrir Tessera; si su escritorio no ' +
+      'es GNOME ni KDE, inicie Tessera con --password-store=gnome-libsecret.',
     exportarClave: 'Exportar la clave a JSON'
   },
   {

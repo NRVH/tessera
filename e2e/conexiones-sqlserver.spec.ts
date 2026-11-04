@@ -254,8 +254,8 @@ test.describe('explorador de BD: SQL Server', () => {
     const confiar = d.getByLabel('Confiar en el certificado del servidor')
     await expect(confiar).not.toBeChecked()
     // Solo lectura PARA LOS AGENTES: aquí lo impone Tessera (tdb), no el servidor.
-    await expect(d).toContainText('aquí el solo lectura lo impone Tessera; para garantía, un usuario con db_datareader')
-    await expect(d).toContainText('tú no quedas limitado')
+    await expect(d).toContainText('Tessera impone el modo de solo lectura; para una garantía real, use un usuario con db_datareader')
+    await expect(d).toContainText('Usted no tiene esa limitación')
 
     await d.locator('[data-campo="alias"]').fill(ALIAS)
     await d.locator('[data-campo="host"]').fill(p.host)
@@ -427,13 +427,13 @@ test.describe('explorador de BD: SQL Server', () => {
   })
 
   // (6) «SOLO LECTURA PARA LOS AGENTES» (la fija): la casilla limita a `tdb`,
-  // no al usuario. La barra lo INFORMA («RO agentes») y un INSERT desde la consola entra; se
+  // no al usuario. La barra lo INFORMA («Solo lectura (agentes)») y un INSERT desde la consola entra; se
   // borra después para dejar la tabla con sus tres filas.
   test('(6) con «Solo lectura para los agentes», el INSERT del usuario entra', async () => {
     const win = s!.win
     await fila(win, 'conexion', ALIAS_FIJA).click()
     await abrirConsolaNueva(win, `${MOD}+KeyN`)
-    await expect(win.locator(`${CONSOLA} .db-consola-barra`)).toContainText('RO agentes')
+    await expect(win.locator(`${CONSOLA} .db-consola-barra`)).toContainText('Solo lectura (agentes)')
     await ejecutarTodoSeleccionado(win, "INSERT INTO dbo.t VALUES (4, N'Del usuario')")
     await esperarFinEjecucion(win)
     await expect(win.locator(`${CONSOLA} .db-glifo-error`), 'la escritura NO se rechaza').toHaveCount(0)

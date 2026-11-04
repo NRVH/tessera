@@ -5,7 +5,7 @@
 <h1 align="center">Tessera</h1>
 
 <p align="center">
-  <strong>The desktop IDE for people who work across several projects and several AI accounts.</strong>
+  <strong>The desktop IDE for working with AI agents: your projects, your Claude Code and Codex accounts, and your development tools, in one window.</strong>
 </p>
 
 <p align="center">
@@ -15,25 +15,37 @@
 </p>
 
 <p align="center">
-  <a href="./README.md">Leer en español</a>
+  <a href="#download"><strong>Download</strong></a> · <a href="./README.md">Leer en español</a>
 </p>
 
-![Tessera with several workspaces open, an agent working and the editor beside it](assets/capturas/principal.png)
+![Tessera with a profile open, its projects, the editor and an agent working](assets/capturas/principal.png)
 
-AI coding agents are powerful, and they are also a new kind of process running on your
-computer with your permissions. Tessera organizes your projects into **workspaces**, runs
-Claude Code and Codex next to them, and lets you decide agent by agent how far an agent
-can reach: natively, with the account on your computer, or inside the workspace's own Docker
-sandbox, with an account that belongs to that workspace and only its projects in view.
+## What Tessera offers
 
-> **Language note.** Tessera's interface and the project (its documents, issue templates and
-> release notes) are in Spanish. This README, the contributing guide, the security policy and
-> the code of conduct also have English versions, and issues and pull requests are welcome in
-> English.
+- **As many accounts as your computer can handle.** Each agent uses the account signed in on your
+  computer or an isolated account in Docker. You can create several Docker accounts of Claude Code
+  and Codex and run them at the same time. Tessera sets no fixed maximum: it recommends a limit
+  based on Docker's memory, and you can change it.
+- **Your work continues when you switch accounts or agents.** Moving to another account of the
+  same agent (Claude Code to Claude Code, or Codex to Codex) brings the whole conversation. Moving
+  between Claude Code and Codex brings a summary of the latest messages and the Git status.
+- **You decide how far each agent can reach.** In Docker, an agent sees only the projects it works
+  on. It uses databases and SSH servers by name, without receiving the passwords.
+- **You write instructions once.** Profile rules reach the Claude Code and Codex agents of that
+  profile, in any project and with any account. An agent can propose changes, but only you accept
+  them.
+- **Everything in one place.** Editor, file explorer, Git, terminals, SSH connections and databases
+  next to the agents, a grid to follow up to six agents at once, and a built-in guide, Tessera
+  Academy.
+
+> **Language note.** The interface and Tessera Academy are available in English and Spanish. The
+> source code, commit messages and release notes are in Spanish, and issues and pull requests are
+> welcome in either language.
 
 ## Contents
 
-- [Why Tessera](#why-tessera)
+- [Several accounts at the same time](#several-accounts-at-the-same-time)
+- [Continue in another account or agent](#continue-in-another-account-or-agent)
 - [Download](#download)
 - [Requirements](#requirements)
 - [Getting started](#getting-started)
@@ -43,370 +55,281 @@ sandbox, with an account that belongs to that workspace and only its projects in
 - [Privacy](#privacy)
 - [Building from source](#building-from-source)
 - [Architecture](#architecture)
-- [Tests](#tests)
 - [Contributing](#contributing)
 - [License](#license)
 - [Author](#author)
 
-## Why Tessera
+## Several accounts at the same time
 
-- **Several AI accounts, each where it belongs.** Each agent chooses where it runs in the
-  account button of its header. **Native** (the default) uses the Claude Code or Codex
-  account already signed in on your computer, the same one in every workspace. A **Docker**
-  account belongs to its workspace: you sign in once inside that workspace, it is stored with
-  it, and it is never shared with any other workspace. Put your personal plan, your team's
-  plan or an account tied to one project in its own workspace, pick that account in the
-  agent, and each keeps its own conversation history and usage limits, without signing out
-  every time you switch. A workspace can have several accounts of the same agent, each in its
-  own container, working at the same time.
-- **An agent in Docker sees only what you give it.** It runs inside its workspace's
-  container, with that workspace's projects mounted and nothing else: not your home folder,
-  not your other repositories, not the rest of your disk. A wrong command or a malicious
-  prompt stays inside the box. A native agent runs as you, with your permissions, like any
-  agent you start from a terminal.
-- **You stay in control.** Agents open natively unless you pick a Docker account, and each
-  agent of each project remembers its choice. Agent
-  credentials are mounted only while the agent runs. Database access goes through a small
-  CLI that never shows the agent a password, and a connection can be made read-only for
-  agents. SSH connections work the same way: the agent reaches your servers with `tssh`
-  without seeing the password or the key.
-- **One window for all of it.** Editor, file explorer, Git, terminals, SSH connections and
-  database connections next to the agents, with a tab per workspace and a sub-tab per project.
+<img src="assets/capturas/cuentas.png" align="right" width="300" alt="Account selector with the computer's account and two Docker accounts (shown in Spanish)">
+
+Tessera organizes your work into **profiles**. Each profile has its color, its projects and its
+accounts. Each agent chooses its account from the button in its header, and Tessera remembers the
+choice per agent and project:
+
+- **The account on your computer** (native agent) is the session already signed in to Claude Code
+  or Codex. It is the default and it is the same in every profile.
+- **A Docker account** (isolated account) is an independent session that belongs to one agent in
+  one profile. Each one runs in its own container, with its own history and usage limits, so two
+  accounts of the same agent can work at the same time without interfering.
+
+How many depends on your computer. As a guide, Tessera recommends 3 simultaneous containers with
+8 GB of memory for Docker, 7 with 16 GB and 14 with 32 GB. A traffic light shows whether the value
+you choose is comfortable, tight or excessive, and there is also a **No limit** option.
+
+<br clear="right">
+
+![Docker containers settings (shown in Spanish): limit with a traffic light and which container stops when it is reached](assets/capturas/limite-contenedores.png)
+
+When the limit is reached, Tessera first stops a container with no agents and, if there is none,
+the one set by the option you chose. If Docker's memory is saturated, it warns you before stopping
+an agent and lets you choose another. The conversation is kept and resumes when you return.
+
+## Continue in another account or agent
+
+<img src="assets/capturas/continuar.png" align="right" width="300" alt="Continue this conversation menu (shown in Spanish), with other accounts of the same agent and those of the other agent">
+
+The **⇄** button in the agent header brings both options together:
+
+| Destination | What moves | How it continues |
+| --- | --- | --- |
+| **Another account of the same agent**, in Docker or on your computer | The whole conversation | The agent resumes it in that account |
+| **The other agent**, Claude Code to Codex or the other way around | A summary: the latest text messages and the Git status | A new conversation that reads the summary and waits for your instructions |
+
+The original conversation does not change. Continuing in another account creates a copy: what you
+write in one does not appear in the other. Custom agents do not have this option.
+
+<br clear="right">
 
 ## Download
 
 | Platform | Direct download (latest version) | Supported systems |
 | --- | --- | --- |
 | Windows | **[Download for Windows](https://github.com/NRVH/tessera/releases/latest/download/Tessera-Setup.exe)** (`.exe`) | Windows 11 (64-bit) |
-| macOS | **[Download for Mac](https://github.com/NRVH/tessera/releases/latest/download/Tessera-mac-arm64.dmg)** (`.dmg`) | macOS 12 Monterey or later, **Apple Silicon only** (M1 and newer) |
+| macOS | **[Download for Mac](https://github.com/NRVH/tessera/releases/latest/download/Tessera-mac-arm64.dmg)** (`.dmg`) | macOS 12 Monterey or later, **Apple Silicon only** (M1 and later) |
 | Linux | **[Download for Linux](https://github.com/NRVH/tessera/releases/latest/download/Tessera-linux-x86_64.AppImage)** (`.AppImage`) | 64-bit (x86-64) desktop distributions with FUSE (`libfuse2`) |
 
 Release notes and earlier installers are on
 **[Releases](https://github.com/NRVH/tessera/releases)**.
 
-The Windows installer is per user (no administrator rights needed) and lets you choose the
-installation folder. On macOS, open the `.dmg` and drag Tessera to **Applications**. On
-Linux, make the AppImage executable (`chmod +x Tessera-linux-x86_64.AppImage`) and open it.
+The Windows installer is per user: it does not ask for administrator permissions and lets you choose
+the installation folder. On macOS, open the `.dmg` and drag Tessera to **Applications**. On Linux,
+make the AppImage executable (`chmod +x Tessera-linux-x86_64.AppImage`) and open it.
 
-Tessera updates itself on all three platforms: a new version downloads in the background and
-is applied when you close the app (you can change that in **Settings › Updates**).
+Tessera updates itself on all three platforms: it downloads the new version in the background and
+applies it when it closes. You can change this in **Settings › Updates**.
 
 ### First launch of an app without a paid signature
 
-Tessera is an independent open source project and is not signed with a paid code-signing
-certificate, so Windows and macOS will warn you the first time you open it. This is
-expected.
+Tessera is an independent open-source project and is not signed with a paid certificate, so Windows
+and macOS show a warning the first time you open it.
 
-- **Windows.** SmartScreen shows "Windows protected your PC". Click **More info** and then
-  **Run anyway**.
-- **macOS 15 Sequoia and later.** The first open is blocked. Go to **System Settings ›
-  Privacy & Security**, scroll down and click **Open Anyway** next to the message about
-  Tessera, then confirm.
-- **macOS 12 to 14.** Right-click (or Control-click) Tessera in Applications, choose
-  **Open**, and confirm.
+- **Windows.** SmartScreen shows "Windows protected your PC". Click **More info** and then **Run
+  anyway**.
+- **macOS 15 Sequoia and later.** The first launch is blocked. Open **System Settings › Privacy &
+  Security**, scroll to the notice about Tessera, click **Open Anyway** and confirm.
+- **macOS 12 to 14.** Right-click (or Control-click) Tessera in Applications, choose **Open** and
+  confirm.
 - **Any macOS version, from the terminal:**
 
   ```bash
   xattr -dr com.apple.quarantine /Applications/Tessera.app
   ```
 
-You only have to do this once: automatic updates are downloaded by Tessera itself and do
-not trigger the warning again. If you would rather not trust a prebuilt binary, you can
-[build Tessera from source](#building-from-source).
+You only need to do this once: Tessera downloads its own updates and this warning does not appear
+again. You can also [build Tessera from source](#building-from-source).
 
-On macOS the app is signed with Tessera's own certificate, the same in every version, so the
-permissions you grant it (folder access, Accessibility, screen recording) survive updates.
-The Keychain does ask once after each update whether Tessera may use its saved passwords:
-click **Always Allow**.
+On macOS, the app is signed with Tessera's own certificate, the same in every version, so the
+permissions you grant are kept across updates. The Keychain asks once after each update whether
+Tessera can use its saved passwords: click **Always Allow**.
 
 ## Requirements
 
 | What | When you need it |
 | --- | --- |
-| **Docker** | Only for agents that use a Docker account: Docker Desktop on Windows (with the WSL 2 backend) and on macOS, and the system's Docker on Linux (rootless Docker is not supported: Tessera explains it and offers the native agent). Tessera builds its sandbox image the first time a workspace needs it. |
-| **Claude Code** and/or **Codex** | For native agents: installed on your computer and signed in. In Docker both come preinstalled in the image. |
-| **Git** | For the Git view, which runs on your computer. On macOS it comes with the Xcode Command Line Tools. |
-| **OpenSSH client** | For SSH connections. On Windows it is the optional feature "OpenSSH Client", installed by default on Windows 10 and 11 (if it is missing, Tessera uses the one that ships with Git and says so); on macOS and most Linux distributions it comes with the system. |
-| **GNOME Keyring or KWallet** | Only on Linux, to save passwords. Without either one, connections can still be created, but Tessera does not save their password: it never leaves it on disk in near plain text. |
-| **Memory** | Tessera takes 400 to 800 MB, and each open agent adds 0.3 to 1.5 GB depending on its MCP servers. 4 GB fits one or two agents; 8 GB or more, as many as you use. When the computer runs low on memory, Tessera hibernates the agents you are not using sooner and lets you know. |
-| **Java** (optional) | To decompile `.class` files. Tessera ships two engines: CFR, which runs on Java 6 or later, and Vineflower, which needs Java 17 or later. It finds every Java runtime installed and uses the best one for each engine. |
+| **Docker** | Only for Docker accounts: Docker Desktop on Windows (with the WSL 2 backend) and macOS, and the system Docker on Linux (rootless Docker is not supported). Tessera builds the container image the first time it is needed. |
+| **Claude Code** and **Codex** | For native agents, at least one, installed on your computer and signed in. In Docker, both are included in the image. Each account needs its own subscription with the provider. |
+| **Git** | For the Git view. On macOS it comes with the Xcode Command Line Tools. |
+| **OpenSSH client** | For SSH connections. On Windows it is the optional "OpenSSH Client" feature, installed by default; if it is missing, Tessera uses the one from Git and tells you. On macOS and most Linux distributions it comes with the system. |
+| **GNOME Keyring or KWallet** | Linux only, to save passwords. Without them, connections are still created, but Tessera does not save their passwords. |
+| **Memory** | Tessera uses 400 to 800 MB, and each open agent uses 0.3 to 1.5 GB depending on its MCP servers. When memory runs low, Tessera hibernates idle native agents sooner and tells you. |
+| **Java** (optional) | To decompile `.class` files. Tessera includes two engines: CFR (Java 6 or later) and Vineflower (Java 17 or later). |
 
 ## Getting started
 
-1. **Open Tessera.** A fresh installation starts with one workspace called **Personal**.
-   Workspaces are called *perfiles* in the interface.
-2. **Create more workspaces** with the **+** at the end of the workspace bar: give each one
-   a name and a color. Right-click a workspace to rename it, change its color, hibernate it
-   or delete it, and drag it to reorder.
-3. **Add projects** with the **+** in the project bar ("Open a folder as a project") and pick a folder.
-   A project can be a single repository or a folder that contains several.
-4. **Choose the agent's account.** Each agent opens natively: on your computer, with the
-   account signed in on it, shared by every workspace. The account button in its header opens
-   a picker with two sections, **On your computer** and **Isolated accounts (Docker)**, with a card per account
-   (each in its own container) and **New Docker account…** at the bottom. From each card you
-   can also rename it, sign out or delete it. The choice is remembered per agent and project.
-5. **Sign in to the agent.** With a new Docker account, the agent panel offers **Sign
-   in** the first time: that account can then be used by the agents of the workspace. A
-   native agent uses the account you are already signed in with on your computer.
+1. **Open Tessera.** A new installation starts with the **Personal** profile. To create another,
+   click the **+** at the end of the profile bar. Right-clicking a profile lets you rename it, change
+   its color, write its rules, hibernate it or delete it.
+2. **Add a project** with the **+** in the project bar and choose its folder. It can be one repository
+   or a folder that contains several.
+3. **Choose the agent's account** with the account button in its header: the one on your computer or
+   an isolated Docker account. To create one, choose **New Docker account…**.
+4. **Sign in.** In a new Docker account, the agent panel offers **Sign in**. A native agent uses the
+   session already signed in on your computer.
+
+Inside the app, **Settings › Tessera Academy** explains each feature step by step, in English and
+Spanish. The **ⓘ** button in dialogs opens the matching section.
 
 ## Features
 
-### Workspaces and tabs
+### Profiles and projects
 
-![Workspace bar with colored workspaces and project tabs](assets/capturas/espacios.png)
+![Profile bar with colors and project tabs](assets/capturas/espacios.png)
 
-- Two levels of tabs: workspaces on top, each with its own color so you always know which
-  account you are in, and the open projects of that workspace below.
-- Reorder workspaces and projects by dragging them.
-- **Profiles in a compact selector** (Settings › Appearance): the workspace bar is replaced by a small
-  selector in the middle of the title bar, showing the active workspace; click it to see the
-  others, with the same menu to rename them, change their color, hibernate or delete them.
-- Tessera remembers which projects each workspace had open and restores them when you
-  reopen the app, without starting every agent at once: an agent starts when you enter its
-  project.
-- **Hibernate a workspace** to stop its container and free its memory; it resumes where you
-  left it when you go back to it.
-- **Idle agents hibernate on their own**: a native agent of a project that is not on screen
-  is closed after some minutes without activity (5 by default, or never) and resumes its
-  conversation when you come back. It never happens while the agent is working, waiting for
-  you or holding unsent text.
-- Each workspace's container uses its own network by default, or your computer's network
-  (when it is enabled in Docker Desktop) so that the servers an agent starts are reachable
-  from your browser.
+- Two levels of tabs: profiles on top, each with its color, and the open projects of that profile
+  below. Drag them to reorder.
+- **Profiles in a compact selector** (Settings › Appearance): replaces the profile bar with a selector
+  in the title bar.
+- Tessera restores each profile's open projects without starting every agent at once: an agent starts
+  when you enter its project.
+- **Hibernating a profile** stops its containers and frees their memory; it resumes when you return.
+- **Idle native agents hibernate** after a few minutes (5 by default, or never) and resume their
+  conversation when you return. This does not happen while the agent is working, waiting for a reply,
+  or has unsent text.
 
-### Claude Code and Codex
+### Agents
 
-![The agent panel, with Claude Code and Codex one click apart and the account usage in its footer](assets/capturas/agentes.png)
+![Agent panel, with Claude Code and Codex one click away and the account usage in its footer](assets/capturas/agentes.png)
 
-- Both agents are available in every workspace, side by side, in a real terminal.
-- Each agent chooses its account. Native agents share the account signed in on your
-  computer. A Docker account belongs to its workspace, kept in its own folder and never
-  shared with another workspace. If you want one account per workspace, pick a Docker
-  account in the agent.
-- **Conversation history** per project: browse past conversations, resume any of them or
-  delete them. Opening a project resumes its last conversation.
-- **Account usage** in the agent's footer (whatever limits its plan has: 5-hour, weekly or per model), and how much of
-  the **context window** the current conversation is using.
-- **Keep agents up to date.** For native agents, one button checks for new Claude Code and
-  Codex versions, installs them and restarts only the sessions that need it, each one back
-  in its conversation; it skips those that are working, waiting for your answer or have unsent text. For Docker agents,
-  "Actualizar agentes" rebuilds the sandbox image with the latest versions.
-- Paste images and files into the agent's terminal; for an agent in Docker they are copied
-  inside the container instead of passing a path the agent could not open.
-- **Any other terminal agent**, besides Claude Code and Codex: give it a name, the command
-  you would launch it with, where it runs (native, for your whole computer, or Docker, for
-  the workspace) and, if you like, how to resume its last conversation. In Docker you also
-  write how to install it and Tessera bakes it into the workspace's image. Each project
-  shows the built-in agents, the native custom ones and the Docker ones of its workspace.
-  Agent tabs can be reordered by dragging, and any of them can be hidden.
+- **Claude Code and Codex** in every project, in a real terminal.
+- **Conversation history** per project and account: resume or delete conversations. Opening a project
+  resumes its last conversation.
+- **Account usage** in the agent footer, with your plan's limits, and how much of the **context window**
+  the conversation uses.
+- **Profile rules.** A text with your instructions (branches, what not to change, how to name commits)
+  that agents receive when they start. With `tctx proponer`, an agent proposes a change and you review
+  the difference before accepting it. You write them in **Rules for agents…**, in the profile menu.
+- **Search what was said.** With `tctx buscar`, an agent retrieves what was discussed in the project's
+  conversations. In Docker, it searches only its own account.
+- **Agent windows.** A native agent in a separate window, with no profile or project, from **New agent
+  window**.
+- **Updating agents.** For native agents, a button checks for a new version, installs it and restarts the
+  sessions that need it, each in its own conversation; it waits for sessions that are working or waiting
+  for a reply. In Docker, **Update agents** rebuilds the image.
+- **Images and files** can be pasted into the agent's terminal; in Docker they are copied into the
+  container.
+- **Any other terminal agent**, added by hand with its name, its command and where it runs. It has no
+  history, account usage or automatic hibernation.
 
-### Sandbox or native, per agent
+### Native or in Docker, per agent
 
-- **Agent in Docker.** One container per workspace and account, created and managed by
-  Tessera. Projects are mounted under `/workspace/<folder>`; nothing else from your disk is
-  mounted except the agent's credentials and, read-only, your SSH keys, so Git over SSH keeps
-  working with your own host aliases. The agent has `sudo` inside its container to install
-  tools, without any extra Docker privileges. In **Settings › Projects** you can bake
-  document tools, the system libraries a test browser needs, or any other Debian packages
-  into the image.
-- **Native (the default).** The agent runs on your computer, with your own account and your
-  own tools: a desktop app started from local scripts, a database only reachable through
-  your VPN. It needs no Docker, and the agent has the same access you have. The bottom
-  terminal is always native. Switch an agent between the two from the account button in its
-  header.
+| | Native | Docker |
+| --- | --- | --- |
+| **Account** | The one signed in on your computer, one per agent | The ones you create, per agent and profile, each in its container |
+| **What it sees** | The same as you, with your permissions | The projects it works on, its own account and, read-only, your SSH keys |
+| **Needs Docker** | No | Yes |
+| **Good for** | Tools and VPNs on your computer | Keeping accounts apart and limiting what the agent sees |
+
+An agent in Docker can change the projects mounted in its container and use the network; the rest of your
+disk is out of its reach. It has `sudo` inside the container, with no extra Docker privileges, and what it
+installs is lost when the container stops. To keep something, build it into the image from **Settings ›
+Projects**. **Codex in Docker** requires choosing **Full Access** with `/permissions`, because its own sandbox
+cannot start inside a container; Tessera does not turn that mode on for you.
+
+The bottom terminal is always native. A native agent is not isolated: it has your permissions, as if you had
+started it from a terminal.
 
 ### Agent mosaic
 
-![Mosaic with several agents working at the same time](assets/capturas/mosaico.png)
+![Mosaic with several agents working at once](assets/capturas/mosaico.png)
 
-Every agent that is working, in one grid of up to six tiles, so you can follow several
-projects at once. Jump to a tile, maximize it, and leave the mosaic with the same shortcut
-you used to enter it.
+A grid with up to six visible agents, from any project and profile, including the terminal agent and the
+database view agent. Jump to a tile, enlarge it, and leave with the same shortcut.
 
 ### Editor and viewers
 
-![Monaco editor with a Markdown file in split view](assets/capturas/editor.png)
+![Editor with a Markdown file in split view](assets/capturas/editor.png)
 
-- **Monaco** editor with syntax highlighting for many languages, find and replace, and
-  tabs per project.
-- Detects each file's **encoding and line endings**, shows them in the status bar and lets
-  you convert them.
-- **Markdown** with a rendered view (including Mermaid diagrams), a code view, or both side
-  by side with synchronized scrolling. HTML files get an isolated preview.
-- **Viewers** for PDF, Word (`.docx`), ZIP archives, images (with zoom), and audio and video
-  (`.mp4`, `.webm`, `.mp3`, `.wav` and similar) with nothing to install.
-- **Java archives**: `.jar`, `.war`, `.ear` and `.aar` open in the explorer like folders, and
-  `.class` files are decompiled on the fly. Comparing two versions of an archive shows which
-  entries changed and the diff of the decompiled classes.
+- **Monaco**, with syntax highlighting, find and replace, and tabs per project.
+- **Encoding and line endings** of each file, shown in the status bar and convertible.
+- **Markdown** with a rendered view (including Mermaid diagrams), a code view, or both with synchronized
+  scrolling. HTML files have an isolated preview.
+- **Viewers** for PDF, Word (`.docx`), ZIP, images, audio and video.
+- **Java archives**: `.jar`, `.war`, `.ear` and `.aar` open as folders and `.class` files are decompiled when
+  opened, also when comparing two versions.
 
 ### File explorer
 
-- Multi-select with Ctrl/⌘-click and Shift-click, drag and drop to move, create, rename and
-  delete.
-- Paste into Tessera the files you copied in Explorer or Finder; copying in Tessera leaves their
-  paths as text, to paste them into the editor or an agent.
-- **Search in files** across the whole project or one folder, with a live preview.
-- Git status colors on files and folders, refreshed as files change on disk.
-- **"Open with Tessera"** from the right-click menu of Windows Explorer (folders, any file,
-  or associated extensions, each switchable in Settings); on macOS, a Finder quick action
-  for folders plus "Open With" for code and text files; and on Linux, Tessera in your file
-  manager's "Open With" for folders and in the application launcher. Tessera never makes
-  itself the default app for a file type.
+- Multiple selection, drag and drop to move, create, rename and delete.
+- **Find in files** across the project or a folder, with a preview.
+- Git status colors, kept up to date as files change on disk.
+- **"Open with Tessera"** from the system file manager, on all three platforms. Tessera never becomes the
+  default app for a file type.
 
 ### Git
 
 ![Git view with the history graph and a diff](assets/capturas/git.png)
 
-- **Changes**: what changed in the working tree, stage and unstage, discard (always asking
-  first) and ignore (in `.gitignore` or only locally). You commit in the terminal or ask the agent.
-- **History** with its branch graph, filters, commit details and the history of a single
-  file.
-- **Editable diffs**: fix something directly in the diff of your working copy.
-- **Several repositories** in one project folder, also grouped in subfolders by area or by
-  layer (up to four levels deep): Changes shows only the ones with changes, each with a
-  checkbox to select it whole, and you pick which one the history shows.
+- **Changes**: stage, unstage, discard (always with confirmation) and ignore. You commit in the terminal or
+  ask the agent to do it.
+- **History** with a branch graph, filters, commit details and the history of a single file.
+- **Editable diffs** on your working copy.
+- **Several repositories** in one project folder, also in subfolders (up to four levels).
 
 ### Terminals
 
 ![Terminal panel at the bottom of the window](assets/capturas/terminales.png)
 
-- A terminal panel at the bottom of the window for the active project, with several
-  terminals in tabs, always native: your own shell (PowerShell on Windows, your login shell
-  on macOS and Linux).
-- Find in the scrollback, copy and paste that behave like the platform expects, and
-  GPU-accelerated rendering.
-- **Colored logs**: output that arrives without color is highlighted (errors, warnings,
-  dates, IPs, URLs and HTTP codes) in the usual log formats, over SSH too, without changing
-  the text you copy. It can be turned off in Settings.
-- **Full screen**: the terminal takes the whole work area with a button or with
-  Ctrl+Shift+Enter (⇧⌘↩), without closing anything it covers.
-- **Terminal agent**: in full screen, the workspace's own agent sits to the right of the
-  terminal, with its own folder and history, to get help with your servers without
-  opening a project. Leaving full screen hides it without closing it.
+- Several terminals in tabs for the active project, with your own shell.
+- **Colored logs**: errors, warnings, dates, IPs, URLs and HTTP codes are highlighted without changing the
+  text you copy, also over SSH. You can turn this off in Settings.
+- **Full screen** with a button or with Ctrl+Shift+Enter (⇧⌘↩), and next to it the **terminal agent**, which
+  belongs to the profile, to get help with your servers without opening a project.
 
 ### SSH connections
 
-![Full-screen terminal with the rail of grouped SSH connections and an open session](assets/capturas/ssh.png)
+![Full-screen terminal with grouped SSH connections and an open session](assets/capturas/ssh.png)
 
-- **Each workspace's SSH connections**, named and in groups, open in terminal tabs that show
-  in all of its projects, and also with no project open. In full screen they stay pinned in
-  a rail on the left; otherwise, in the terminal's ▾.
-- **Three ways in**: password, key file (`.pem` or OpenSSH, which Tessera keeps as a
-  protected copy without touching the original) or the system keys (the SSH agent and your
-  `.ssh` folder). The password and the key's passphrase are stored encrypted and supplied
-  automatically when connecting; if the server rejects them, or asks for a second factor,
-  Tessera asks you in a dialog. "Test" checks the connection before saving it.
-
-  ![SSH connection form: name, group, host, user and authentication](assets/capturas/ssh-conexion.png)
-
-- **Bastions and tunnels**: a connection can jump through another one of the workspace to
-  reach a machine that is not directly visible (up to four hops), and open local, remote and
-  SOCKS tunnels that live as long as its terminal. The terminal, the SFTP explorer and the
-  agents go through the bastion the same way.
-- **Sessions reconnect** from the terminal itself (Enter or "Reconnect") when they drop, and
-  open SSH tabs come back when you reopen Tessera, without connecting until you look at them.
-- **Import from OpenSSH**: reads your `~/.ssh/config` (or a file you pick). With a single
-  `Host` it fills in the form; with several, it opens a review to choose which to import,
-  rename them, set each one's user and group, and leave the password or key ready.
-- **Export to OpenSSH**: saves the workspace's connections (or the ones you select) to an
-  OpenSSH `config`, with their bastions, tunnels and a protected copy of their keys.
-- **Organize them your way**: groups, several at once with Ctrl/⌘-click and Shift-click,
-  drag them from one group to another, and "Duplicate" to make a full copy.
-- **SFTP explorer** for each connection in a tab: browse, create folders, rename, delete, and
-  upload and download files and folders (also by dropping them) with progress, cancellation
-  and confirmation before replacing.
-- **`tssh` for agents.** The agent of any project in the workspace, native or Docker, and the
-  terminal agent can list the connections, run commands and copy files with a small CLI,
-  `tssh`, by connection name. They never see the password or the key, and they only reach
-  servers whose fingerprint you already accepted. Each connection's "Available to agents"
-  checkbox decides whether they see it, and every request is recorded in `logs/ssh.log`
-  (which connection and how it ended, never the command).
+- **Connections per profile**, named and grouped, that open in terminal tabs.
+- **Three ways to authenticate**: password, key file or the system's keys. Passwords and key passphrases are
+  stored encrypted.
+- **Bastions and tunnels**: up to four hops, and local, remote and SOCKS tunnels.
+- **Reconnect** from the terminal itself, and SSH tabs come back when you open Tessera.
+- **Import and export** in the OpenSSH format (`~/.ssh/config`).
+- **SFTP explorer** to browse, create, rename, delete, upload and download, with progress.
+- **`tssh` for agents.** They run commands and copy files by the connection's name, without seeing the password
+  or the key, and only on servers whose fingerprint a person has already accepted. The **Available to agents**
+  checkbox decides which ones they can use.
 
 ### Databases
 
-![Connections view with the database tree, a SQL console and the result grid](assets/capturas/bases-de-datos.png)
+![Connections view with the database tree, a SQL console and the results grid](assets/capturas/bases-de-datos.png)
 
-- **Oracle, PostgreSQL, SQL Server, MySQL, MariaDB, MongoDB, Redis and SQLite**, in a
-  **Connections** view of their own, organized per workspace. Redis also with Sentinel (it
-  follows the new primary after a failover) and with Cluster.
-- **Encrypted connections** (SSL/TLS, and TCPS on Oracle) with the certificate checked
-  against your computer's trusted authorities, and **through an SSH tunnel** over one of your
-  SSH connections, bastions included. Pasting a URI (`postgres://`, `mysql://`,
-  `mongodb://`…) fills in the form.
-- A tree of schemas and objects, a result grid with paging and export, SQL consoles with
-  autocomplete, formatting, explain plans and query history, and consoles for MongoDB and
-  Redis in their own syntax.
-- **Editing with confirmation**: changes in the grid or in a console wait until you send
-  them, all or nothing. Connections can be marked as development, testing or production,
-  and production asks before writing. Tessera warns; it never locks you out.
-- **Read-only is for agents.** Marking a connection read-only limits what agents can do with
-  it; it never limits you.
-- **`tdb` for agents.** Attach a connection to a project and the agent can query it with a
-  small CLI, `tdb`, by the connection's name. The agent never sees the password.
-- Oracle works out of the box in thin mode. Older servers that need thick mode use Oracle
-  Instant Client, which Tessera can download for you from oracle.com, or you can point it
-  to one you already have.
-- Passwords are encrypted with your system's secret store (DPAPI on Windows, the Keychain
-  on macOS, GNOME Keyring or KWallet on Linux).
+- **Oracle, PostgreSQL, SQL Server, MySQL, MariaDB, MongoDB, Redis and SQLite**, organized by profile. Redis also
+  with Sentinel and Cluster.
+- **Encrypted connections** (SSL/TLS, and TCPS on Oracle) and **through an SSH tunnel**, also with a bastion.
+- Schema and object tree, a grid with paging and export, SQL consoles with autocomplete, formatting, execution
+  plans and history, and dedicated consoles for MongoDB and Redis.
+- **Editing with confirmation**: changes wait until you submit them, all or nothing. A production connection asks
+  for confirmation before writing.
+- **`tdb` for agents.** Mount a connection in a project and the agent can query it by name, without seeing the
+  password. Writes through `tdb` skip the production confirmation: to prevent them, leave the connection on
+  **Read-only for agents**, which does not limit what you do in the view.
+- **Database view agent**, which belongs to the profile, native or in Docker.
+- Passwords are encrypted with the system's secret store (DPAPI on Windows, the Keychain on macOS, GNOME Keyring
+  or KWallet on Linux).
 
 ### Settings
 
-![Settings with its category rail and search box](assets/capturas/configuracion.png)
+![Settings with its categories and search box](assets/capturas/configuracion.png)
 
-A searchable settings window (Ctrl+, / ⌘,): appearance, zoom and language (English or
-Spanish), terminal fonts, agent hibernation, the sandbox image,
-database defaults, system integration, updates, and an About page.
-
-**Export and import** takes your setup to another computer (Windows, macOS or Linux): the
-workspaces you choose with their SSH and database connections, your agents and your
-preferences, in a `.tessera` file encrypted with a passphrase. On import you choose what
-comes in, and nothing you already had is touched.
-
-### Automatic updates
-
-Tessera checks its release feed on GitHub, downloads new versions in the background and
-applies them when you close the app, on Windows, macOS and Linux.
+- A window with a search box (Ctrl+, / ⌘,), with the interface in English or Spanish.
+- **Export and import** takes your profiles, connections, agents and preferences to another computer, in a
+  `.tessera` file encrypted with a passphrase. Optionally, the conversations too. When importing, each profile can
+  be created as new or added to an existing one.
 
 ## Keyboard shortcuts
-
-The main modifier is Ctrl on Windows and Linux and ⌘ on macOS. A few gestures use a
-different key on each platform, following each system's conventions.
 
 | Action | Windows and Linux | macOS |
 | --- | --- | --- |
 | Settings | Ctrl+, | ⌘, |
-| Search in files | Ctrl+Shift+F | ⇧⌘F |
-| New file (new console in Connections) | Ctrl+N | ⌘N |
-| Show or hide the terminal panel | Ctrl+` | ⌃` |
-| Zoom in / out / reset | Ctrl+= / Ctrl+- / Ctrl+0 | ⌘= / ⌘- / ⌘0 |
-| Enter or leave the agent mosaic | Ctrl+Shift+M | ⇧⌘M |
-| Focus mosaic tile 1 to 6 | Ctrl+1 … Ctrl+6 | ⌘1 … ⌘6 |
-| Maximize or restore the focused tile | Ctrl+Shift+Enter | ⇧⌘↩ |
-| Full screen for the bottom panel (with focus in the terminal or in Git·Log) | Ctrl+Shift+Enter | ⇧⌘↩ |
-| Find in a terminal | Ctrl+F | ⌘F |
-| Copy in a terminal (with a selection) | Ctrl+C | ⌘C |
-| Paste in a terminal | Ctrl+V | ⌘V |
-| Open the selected item (database tree, SFTP explorer) | F4 or Enter | F4, ⌘↓ or Enter |
-| Delete the selected files | Delete | ⌘⌫ or Delete |
+| Find in files | Ctrl+Shift+F | ⇧⌘F |
+| Show or hide the terminal | Ctrl+` | ⌃` |
+| Enter or leave the mosaic | Ctrl+Shift+M | ⇧⌘M |
+| Focus a mosaic tile | Ctrl+1 … Ctrl+6 | ⌘1 … ⌘6 |
+| Enlarge the tile or the terminal | Ctrl+Shift+Enter | ⇧⌘↩ |
 
-With focus in a terminal, Ctrl+N on Windows and Linux belongs to the shell (it receives it
-as ^N) and does not create a file; on macOS ⌘N is not a control key and creates the file
-anyway.
-
-In the **Connections** view:
-
-| Action | Windows and Linux | macOS |
-| --- | --- | --- |
-| Run the current statement | Ctrl+Enter | ⌘↩ |
-| Run the whole console | Alt+X or Ctrl+Shift+Enter | ⌥X or ⇧⌘↩ |
-| Stop | Ctrl+F2 | ⌘. |
-| Commit | Ctrl+Alt+Shift+K | ⌥⇧⌘K |
-| Rollback | Ctrl+Alt+Shift+R | ⌥⇧⌘R |
-| Explain plan | Ctrl+Shift+E | ⇧⌘E |
-| Query history | Ctrl+Shift+H | ⇧⌘H |
-| Format SQL | Ctrl+Alt+L | ⌥⌘L |
-| Close the tab | Ctrl+W | ⌘W |
-| Show or hide the agent | Ctrl+Alt+B | ⌥⌘B |
+The full list, including the database view, is in **Tessera Academy › Keyboard shortcuts**.
 
 ## Where your data lives
 
@@ -416,43 +339,31 @@ In the **Connections** view:
 | macOS | `~/Library/Application Support/Tessera` |
 | Linux | `~/.config/Tessera` |
 
-That folder holds your workspaces, the open tabs, settings, the agent sign-ins used in
-Docker agents, database connections (with encrypted passwords), SSH connections (with encrypted
-passwords, the protected copies of their keys and each server's fingerprints), saved consoles, Oracle
-Instant Client if you downloaded it, and logs. Writes are crash-safe, with a backup copy of each file.
+That folder holds your profiles, settings, Docker account sessions, connections (with encrypted passwords), saved
+consoles and logs. Writes survive an unexpected shutdown.
 
-**Your projects are never copied.** Tessera opens them where they are; for agents in Docker it
-mounts the project folders into the workspace's container. The Windows uninstaller asks
-whether to keep or delete your data, and an update never touches it.
+**Your projects are never copied.** Tessera opens them where they are; for agents in Docker, it mounts their folders
+in the container. The Windows uninstaller asks whether to keep or delete your data, and an update does not change it.
 
 ## Privacy
 
-- **What an agent sees.** An agent in Docker sees only the projects of its workspace,
-  its own credentials and, read-only, your SSH keys. A native agent runs as you on your
-  computer, like it would in any terminal.
-- **No telemetry.** Tessera has no analytics, no crash reporting service and no usage
-  tracking. Logs are written only to the data folder above.
-- **Network connections Tessera makes by itself:**
-  - the update feed on GitHub (`github.com/NRVH/tessera/releases`);
-  - the account usage shown in the agent's footer, read from Anthropic's API with that
-    account's own token (for Codex it is read from local files);
-  - checks for new agent versions against the npm registry, the Claude Code release feed
-    and, on macOS, Homebrew;
-  - when you ask for it, the Oracle Instant Client download from oracle.com;
-  - when it builds the sandbox image, Docker pulls the base image and packages from their
-    public registries.
-- **What each agent does with its provider** (Anthropic for Claude Code, OpenAI for Codex)
-  is governed by that provider and your account, not by Tessera.
-- **Database passwords** are stored encrypted with the system's secret store, and agents
-  reach the databases through `tdb` without receiving them.
-- **SSH passwords and keys** follow the same path: encrypted with the system's secret store,
-  never in the environment or the logs, and agents reach the servers through `tssh` without
-  receiving them.
+- **No telemetry.** Tessera has no analytics, crash-reporting service or usage tracking. Logs are written only to the
+  data folder.
+- **Network connections Tessera makes on its own:**
+  - the update channel on GitHub (`github.com/NRVH/tessera/releases`);
+  - the account usage shown in the agent footer, read from Anthropic's API with that account's token (Codex's is read
+    from local files);
+  - checking for new agent versions against the npm registry, the Claude Code release channel and, on macOS, Homebrew;
+  - when you ask for it, downloading Oracle Instant Client from oracle.com;
+  - when building the container image, Docker downloads the base image and packages from its public registries.
+- **What each agent does with its provider** (Anthropic for Claude Code, OpenAI for Codex) is governed by that provider
+  and your account, not by Tessera.
+- **Passwords and keys** are stored encrypted with the system's secret store. Agents reach databases and servers through
+  `tdb` and `tssh` without receiving them.
 
 ## Building from source
 
-You need **Node.js 22.18 or later** (the release workflow uses the latest Node 22) and
-**Git**. For agents in Docker you also need Docker.
+You need **Node.js 22.18 or later** and **Git**; for agents in Docker, Docker as well.
 
 ```bash
 git clone https://github.com/NRVH/tessera.git
@@ -461,104 +372,44 @@ npm ci
 npm run dev
 ```
 
-`npm run dev` downloads the Electron binary on first run and opens the app with hot reload.
-The development instance keeps its data in a separate `Tessera-dev` folder, so it never
-touches an installed copy.
-
-To build an installer for your own platform:
+`npm run dev` opens the app with hot reload and keeps its data in a separate folder, `Tessera-dev`, so it does not touch
+an installed copy. To build the installer for the current platform:
 
 ```bash
 npm run release:win   # Windows: dist/Tessera-<version>-Setup.exe
-npm run release:mac   # macOS:   dist/Tessera-<version>-arm64.dmg (and the .zip used by updates)
+npm run release:mac   # macOS:   dist/Tessera-<version>-arm64.dmg (and the .zip that updates use)
 npm run release:linux # Linux:   dist/Tessera-linux-x86_64.AppImage
 ```
 
-electron-builder does not cross-compile, so each platform is built on that platform. On
-macOS the app is signed ad hoc automatically: you do not need an Apple developer account.
-
-| Command | What it does |
-| --- | --- |
-| `npm run dev` | Run the app in development mode with hot reload |
-| `npm run build` | Type-check and compile into `out/` |
-| `npm run pack:dir` / `npm run pack:mac:dir` / `npm run pack:linux:dir` | Package without an installer (`dist/win-unpacked`, `dist/mac-arm64`, `dist/linux-unpacked`) |
-| `npm run release:win` / `npm run release:mac` / `npm run release:linux` | Build the installer for the current platform, without publishing |
-| `npm run typecheck` | Type-check the main process, the interface and the e2e suite |
-| `npm run lint` | ESLint over the whole repository |
-| `npm run test:<name>` | Run one test script (see `package.json`) |
-| `npm run test:e2e` | Run the Playwright suite against the packaged app |
+Each platform is built on that platform. Tests and code organization are covered in
+[CONTRIBUTING.en.md](./CONTRIBUTING.en.md).
 
 ## Architecture
 
 ```
-            ┌──────────── Tessera (host) ────────────┐
-            │  editor · explorer · Git · settings    │
-            └───────┬───────────────┬────────────────┘
-                    │ IPC           │ IPC
-          ┌─────────▼──────┐  ┌─────▼──────────┐
-          │ workspace A    │  │ workspace B    │   one container each
-          │ /workspace/…   │  │ /workspace/…   │   only its own projects
-          │ /agent-config  │  │ /agent-config  │   its own account, mounted
-          │ claude · codex │  │ claude · codex │   only while the agent runs
-          └────────────────┘  └────────────────┘
+            ┌─────────────── Tessera (your computer) ────────────┐
+            │ editor · explorer · Git · terminals · native       │
+            │ agents · SSH connections · databases               │
+            └───────┬───────────────────┬───────────────┬────────┘
+                    │                   │               │
+          ┌─────────▼──────┐  ┌─────────▼──────┐  ┌─────▼──────────┐
+          │ profile A      │  │ profile A      │  │ profile B      │  one container
+          │ account 1      │  │ account 2      │  │ account 1      │  per Docker account,
+          │ its projects   │  │ its projects   │  │ its projects   │  with its projects
+          │ its session    │  │ its session    │  │ its session    │  and its session
+          └────────────────┘  └────────────────┘  └────────────────┘
 ```
 
-- Electron, TypeScript and React, with electron-vite. Monaco for the editor, xterm.js and
-  node-pty for the terminals, the system's `git` binary for Git, the system's OpenSSH
-  client for SSH and SFTP, and Docker for the sandbox.
-- The editor, the explorer and Git run on your computer (they are your tools); the agents
-  run on your computer or, if you pick a Docker account, in the workspace's container; the
-  bottom terminal is always native.
-- The interface runs with `contextIsolation` and `sandbox` enabled and talks to the main
-  process only through typed IPC. Two rules cross all of it:
-  - **The interface never sees or sends host paths.** Everything travels as paths relative
-    to the project folder, and the main process translates them.
-  - **Every IPC channel is declared** in `src/shared/*-ipc.ts`, with its request and
-    response types, and exposed through `src/preload/`.
-- The sandbox image is built from [`docker/sandbox/`](./docker/sandbox/).
-
-```
-src/
-  main/       Electron main process: sandbox, agents, Git, files, databases, updates
-  preload/    the typed bridge exposed to the interface
-  renderer/   React interface, organized by feature
-  shared/     IPC contracts and pure logic used by both sides
-  tdb/        the database CLI that agents use
-  tssh/       the SSH connections CLI that agents use
-  askpass/    the helper that hands the saved password to the OpenSSH client
-docker/       the sandbox image
-e2e/          Playwright suite against the packaged app
-```
-
-The code standard is in [`docs/ESTANDAR_CODIGO.md`](./docs/ESTANDAR_CODIGO.md) and the
-design decisions are recorded in [`docs/decisiones/`](./docs/decisiones/README.md) (both
-in Spanish).
-
-## Tests
-
-```bash
-npm run typecheck
-npm run lint
-npm run test:<name>                   # one test script
-node scripts/pruebas/bateria.mjs git  # every test:* whose name matches a regex, one after another
-npm run test:e2e                      # Playwright against the PACKAGED app
-```
-
-- Unit tests are `test-*.mts` files next to the module they test, run with plain `node`
-  (native type stripping). There is no test framework and no aggregate `npm test`; each one
-  has its own `test:<name>` script, and about thirty of them need Docker running.
-- `test:cabeceras`, `test:comentarios` and `test:menciones` check the code standard.
-- The end-to-end suite drives the packaged app (`dist/win-unpacked`,
-  `dist/mac-arm64/Tessera.app` or `dist/linux-unpacked`), so rebuild it with
-  `npm run pack:dir`, `npm run pack:mac:dir` or `npm run pack:linux:dir` after changing
-  application code.
+Electron, TypeScript and React. Monaco for the editor, xterm.js and node-pty for terminals, the system `git` binary for
+Git, the system OpenSSH client for SSH and SFTP, and Docker for containers. Design decisions are in
+[`docs/decisiones/`](./docs/decisiones/README.md).
 
 ## Contributing
 
-Issues and pull requests are welcome, in English or in Spanish. Please read
-[CONTRIBUTING.en.md](./CONTRIBUTING.en.md) first: the code is written in Spanish, and Windows,
-macOS and Linux are all first-class platforms. Report vulnerabilities privately as described in
+Issues and pull requests are welcome, in English or Spanish. Please read
+[CONTRIBUTING.en.md](./CONTRIBUTING.en.md) first. Report vulnerabilities privately, as explained in
 [SECURITY.en.md](./SECURITY.en.md). Everyone taking part is expected to follow the
-[Code of Conduct](./CODE_OF_CONDUCT.en.md).
+[Code of conduct](./CODE_OF_CONDUCT.en.md).
 
 ## License
 
@@ -572,5 +423,5 @@ Tessera includes third-party software under its own licenses; see
 Made by **Noé Roberto Vázquez Herrera** · [GitHub](https://github.com/NRVH) ·
 [LinkedIn](https://www.linkedin.com/in/noe-vazquez-03863423a/)
 
-If Tessera is useful to you and you want to support its development, you can do so through
-**[PayPal](https://paypal.me/NoeRvH)**. Thank you!
+If you find Tessera useful and want to support its development, you can do so through
+**[PayPal](https://paypal.me/NoeRvH)**.

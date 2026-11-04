@@ -9,7 +9,7 @@ import type { Articulo } from '../modelo.ts'
 
 const es: Articulo = {
   resumen:
-    'Un proyecto es una carpeta abierta en un perfil, con su agente, su editor, git y sus terminales. Tessera nunca cambia la carpeta por abrirla o cerrarla.',
+    'Un proyecto es una carpeta abierta en un perfil, con su agente, su editor, git y sus terminales. Abrir o cerrar un proyecto no modifica la carpeta.',
   secciones: [
     {
       ancla: 'abrir',
@@ -17,19 +17,19 @@ const es: Articulo = {
       bloques: [
         {
           pasos: [
-            'Pulsa el **+** de la barra de proyectos (**Abrir una carpeta como proyecto**).',
-            'Elige la carpeta, por ejemplo `tienda-web`.',
-            'Se abre como una pestaña del perfil activo y su agente arranca en esa carpeta.'
+            'Haga clic en el **+** de la barra de proyectos (**Abrir una carpeta como proyecto**).',
+            'Seleccione la carpeta, por ejemplo `tienda-web`.',
+            'La carpeta se abre como una pestaña del perfil activo y su [agente](glosario/agente) se inicia en ella.'
           ]
         },
-        'También puedes abrir carpetas desde {gestorArchivos}, si lo activas en **Configuración › Integración con el sistema**. Si abres así una carpeta que ya está abierta en algún perfil, Tessera te lleva a ella en vez de abrirla dos veces.'
+        'También se pueden abrir carpetas desde {gestorArchivos}, si esta opción se activa en **Configuración › Integración con el sistema**. Si la carpeta ya está abierta en algún perfil, Tessera cambia a ese proyecto en lugar de abrirlo otra vez.'
       ]
     },
     {
       ancla: 'varios-repositorios',
       titulo: 'Un repositorio o varios',
       bloques: [
-        'Un proyecto puede ser un solo repositorio o una carpeta que contiene varios, también agrupados en subcarpetas (por ejemplo `pedidos/api-pedidos` y `pedidos/web-pedidos`). La vista de [Git](git) los encuentra solos y te deja trabajar con cada uno.'
+        'Un proyecto puede ser un solo repositorio o una carpeta que contiene varios, también agrupados en subcarpetas (por ejemplo, `pedidos/api-pedidos` y `pedidos/web-pedidos`). La vista de [Git](git) los detecta automáticamente y permite trabajar con cada uno por separado.'
       ]
     },
     {
@@ -38,9 +38,9 @@ const es: Articulo = {
       bloques: [
         {
           lista: [
-            'Arrastra una pestaña para cambiar el orden. Ese orden es también el del [mosaico](mosaico).',
-            'Una pestaña atenuada tiene su agente hibernado para ahorrar memoria: un clic la reanuda. Ver [Hibernar y reanudar](hibernar).',
-            'Con clic derecho: **Cambiar «tienda-web» por otra carpeta…** y **Cerrar**.'
+            'Arrastre una pestaña para cambiar el orden. El [mosaico](mosaico) sigue ese mismo orden.',
+            'Una pestaña atenuada indica que su agente está hibernado para ahorrar memoria. Haga clic en ella para reanudarlo. Consulte [Hibernar y reanudar](hibernar).',
+            'Haga clic con el botón derecho en una pestaña para ver **Cambiar «tienda-web» por otra carpeta…** y **Cerrar**.'
           ]
         }
       ]
@@ -49,10 +49,10 @@ const es: Articulo = {
       ancla: 'cerrar',
       titulo: 'Cerrar o cambiar de carpeta',
       bloques: [
-        'Cerrar un proyecto cierra sus pestañas y su agente. Tessera siempre pregunta antes.',
-        'Cambiarlo por otra carpeta es lo mismo: se cierra el proyecto y se abre la carpeta nueva en su lugar.',
+        'Cerrar un proyecto cierra sus pestañas y su agente. Tessera siempre pide confirmación antes.',
+        'Cambiar el proyecto por otra carpeta funciona igual: se cierra el proyecto y la carpeta nueva se abre en su lugar. Si se selecciona la misma carpeta, no se cierra nada.',
         {
-          nota: 'Ninguna carpeta se toca, y la conversación del agente queda en su [historial](conversaciones) para retomarla cuando vuelvas a abrir el proyecto.'
+          nota: 'Ninguna carpeta se modifica, y la conversación del agente queda en su [historial](conversaciones) para retomarla al volver a abrir el proyecto.'
         }
       ]
     },
@@ -60,8 +60,8 @@ const es: Articulo = {
       ancla: 'al-volver',
       titulo: 'Al volver a abrir Tessera',
       bloques: [
-        'Cada perfil recupera sus proyectos tal como los dejaste. Para no gastar memoria, no arrancan todos los agentes a la vez: el de cada proyecto arranca cuando entras en él y retoma su última conversación.',
-        'Si un proyecto se abrió desde {gestorArchivos} solo para ver un archivo, su agente no arranca hasta que lo pidas con su botón **Iniciar** (por ejemplo, **Iniciar Claude Code**).'
+        'Cada perfil recupera sus proyectos tal como se dejaron. Para ahorrar memoria, los agentes no se inician todos al mismo tiempo: el agente de cada proyecto se inicia al entrar en ese proyecto y retoma su última conversación.',
+        'Si un proyecto se abrió desde {gestorArchivos} solo para ver un archivo, su agente no se inicia hasta que se solicite con el botón **Iniciar** (por ejemplo, **Iniciar Claude Code**).'
       ]
     }
   ]
@@ -79,17 +79,17 @@ const en: Articulo = {
           pasos: [
             'Click the **+** in the project bar (**Open a folder as a project**).',
             'Choose the folder, for example `tienda-web`.',
-            'The project opens as a tab in the active profile, and its agent starts in that folder.'
+            'The folder opens as a tab in the active profile, and its [agent](glosario/agente) starts there.'
           ]
         },
-        'You can also open folders from {gestorArchivos} if you turn this on in **Settings › System integration**. If you open a folder this way and it is already open in a profile, Tessera switches to it instead of opening it twice.'
+        'You can also open folders from {gestorArchivos} if you turn this on in **Settings › System integration**. If the folder is already open in a profile, Tessera switches to that project instead of opening it again.'
       ]
     },
     {
       ancla: 'varios-repositorios',
       titulo: 'One repository or several',
       bloques: [
-        'A project can be a single repository or a folder that contains several repositories, including repositories grouped in subfolders (for example, `pedidos/api-pedidos` and `pedidos/web-pedidos`). The [Git](git) view finds them automatically and lets you work with each one.'
+        'A project can be a single repository or a folder that contains several repositories, including repositories grouped in subfolders (for example, `pedidos/api-pedidos` and `pedidos/web-pedidos`). The [Git](git) view finds them automatically and lets you work with each one separately.'
       ]
     },
     {
@@ -110,7 +110,7 @@ const en: Articulo = {
       titulo: 'Close or replace the folder',
       bloques: [
         'Closing a project closes its tabs and its agent. Tessera always asks you first.',
-        'Replacing the folder works the same way: the project closes, and the new folder opens in its place.',
+        'Replacing the folder works the same way: the project closes, and the new folder opens in its place. If you choose the same folder, nothing closes.',
         {
           nota: 'Tessera does not change any folder, and the agent’s conversation stays in its [history](conversaciones), so you can resume it when you open the project again.'
         }

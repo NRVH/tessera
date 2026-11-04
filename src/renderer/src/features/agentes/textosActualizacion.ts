@@ -18,14 +18,14 @@ export const txActualizacion = crearTextos(
       introA: 'Descarga e instala la última versión de ',
       introY: ' y ',
       introB:
-        ' reconstruyendo la imagen base (unos minutos) y reiniciando los contenedores. Los agentes que tengas abiertos se reiniciarán solos sobre la versión nueva.',
+        ' reconstruyendo la imagen base (unos minutos) y reiniciando los contenedores. Los agentes abiertos se reiniciarán automáticamente sobre la versión nueva.',
       okAntes: '✓ Agentes actualizados. Ahora: ',
       okSep: ' · ',
       okDespues: '.',
       fallo: '✕ No se pudo actualizar: ',
       cancelar: 'Cancelar',
       actualizar: 'Actualizar',
-      trabajando: 'Actualizando… no cierres la app.'
+      trabajando: 'Actualizando… No cierre la aplicación.'
     },
     boton: {
       etiqueta: (tuEquipo: string) => `Actualizar los agentes de ${tuEquipo}`,
@@ -38,7 +38,7 @@ export const txActualizacion = crearTextos(
         terminado: 'terminando'
       },
       tituloEnCurso: (tuEquipo: string, fase: string) =>
-        `Actualizando los agentes de ${tuEquipo}: ${fase}. Pulsa para ver el progreso.`,
+        `Actualizando los agentes de ${tuEquipo}: ${fase}. Haga clic para ver el progreso.`,
       sesiones: sesionesEs,
       lista: (partes: string[]) =>
         partes.length <= 1 ? partes.join('') : `${partes.slice(0, -1).join(', ')} y ${partes[partes.length - 1]}`,
@@ -49,17 +49,17 @@ export const txActualizacion = crearTextos(
       saltoRepara: (etq: string, ultima: string | null) => `${etq} no responde: se puede reparar con ${ultima}`,
       noSePudo: (lista: string) => `no se pudo actualizar ${lista}`,
       ni: ' ni ',
-      noVolvio: (sesiones: string, n: number) => `${sesiones} no ${n === 1 ? 'volvió' : 'volvieron'} a arrancar`,
-      errorTitulo: (detalle: string) => `La actualización de los agentes tuvo problemas${detalle}. Pulsa para ver qué pasó.`,
+      noVolvio: (sesiones: string, n: number) => `${sesiones} no ${n === 1 ? 'volvió' : 'volvieron'} a iniciarse`,
+      errorTitulo: (detalle: string) => `La actualización de los agentes tuvo problemas${detalle}. Haga clic para ver qué ocurrió.`,
       reiniciadas: (sesiones: string, n: number) => `${sesiones} ${n === 1 ? 'reiniciada' : 'reiniciadas'}`,
-      okTitulo: (detalle: string) => `Agentes actualizados${detalle}. Pulsa para ver el resumen.`,
-      corre: (sesiones: string, n: number) => `${sesiones} ${n === 1 ? 'corre' : 'corren'} una versión anterior`,
+      okTitulo: (detalle: string) => `Agentes actualizados${detalle}. Haga clic para ver el resumen.`,
+      corre: (sesiones: string, n: number) => `${sesiones} ${n === 1 ? 'usa' : 'usan'} una versión anterior`,
       avisoTitulo: (tuEquipo: string, partes: string, espera: string) =>
-        `Hay novedades en los agentes de ${tuEquipo}: ${partes}.${espera} Pulsa para verlas.`,
+        `Hay novedades en los agentes de ${tuEquipo}: ${partes}.${espera} Haga clic para verlas.`,
       reposoSinEstado: (tuEquipo: string) => `Comprobar las versiones de Claude Code y Codex en ${tuEquipo}.`,
-      reposoManual: (partes: string) => `Hay una versión nueva que se instala a mano: ${partes}. Pulsa para ver cómo.`,
+      reposoManual: (partes: string) => `Hay una versión nueva que debe instalarse manualmente: ${partes}. Haga clic para ver cómo.`,
       reposoAlDia: (tuEquipo: string) =>
-        `Los agentes de ${tuEquipo} están al día. Pulsa para comprobarlo o reiniciarlos.`
+        `Los agentes de ${tuEquipo} están al día. Haga clic para comprobarlo o reiniciarlos.`
     },
     popover: {
       etiqueta: (tuEquipo: string) => `Agentes de ${tuEquipo}`,
@@ -72,13 +72,13 @@ export const txActualizacion = crearTextos(
       reiniciarIgualmente: (n: number) => `Reiniciar igualmente (${n})`,
       reparacion: (a: string | null) => `No responde: se reinstalará ${a}. `,
       faseB:
-        'Se detendrán sus sesiones antes de instalar (su ejecutable en uso bloquea la carpeta) y volverán solas en su conversación.',
+        'Se detendrán sus sesiones antes de instalar, porque el ejecutable en uso bloquea la carpeta, y se reiniciarán automáticamente en la misma conversación.',
       faseA: 'Se instala con sus sesiones abiertas; después se reinician.',
       binarioPendiente: (ultima: string | null, tuEquipo: string) =>
-        `${ultima ?? 'La versión nueva'} aún no está lista para ${tuEquipo}: el registro todavía no sirve su binario. Vuelve a comprobar en unos minutos.`,
-      manualConOrden: '. Orden a mano:',
+        `${ultima ?? 'La versión nueva'} aún no está lista para ${tuEquipo}: el registro todavía no ofrece su binario. Vuelva a comprobar en unos minutos.`,
+      manualConOrden: '. Ejecute manualmente esta orden:',
       manualSinOrden: '.',
-      bloqueado: 'No se instalará: otros programas tienen abierta su carpeta. Ciérralos y vuelve a comprobar.',
+      bloqueado: 'No se instalará: otros programas tienen abierta su carpeta. Ciérrelos y vuelva a comprobar.',
       noInstalado: 'No está instalado o no responde.',
       atrasadas: (n: number) =>
         `Ya está instalada; ${n === 1 ? 'hay 1 sesión' : `hay ${n} sesiones`} con una versión anterior.`,
@@ -89,9 +89,9 @@ export const txActualizacion = crearTextos(
       copiada: 'Copiada',
       copiar: 'Copiar',
       notaTrabajando: 'trabajando',
-      notaEspera: 'espera tu respuesta',
+      notaEspera: 'espera su respuesta',
       notaTextoSinEnviar: 'puede tener texto sin enviar',
-      notaSinRevisar: 'terminó sin revisar',
+      notaSinRevisar: 'terminó y aún no se ha revisado',
       seReiniciara: 'Se reiniciará',
       seReiniciaran: (n: number) => `Se reiniciarán ${n}`
     },
@@ -100,7 +100,7 @@ export const txActualizacion = crearTextos(
       reiniciando: 'Reiniciando',
       actualizando: 'Actualizando',
       titulo: (verbo: string, tuEquipo: string) => `${verbo} los agentes de ${tuEquipo}`,
-      noCierres: 'No cierres Tessera hasta que termine: puede haber sesiones detenidas esperando a volver.',
+      noCierres: 'No cierre Tessera hasta que termine: puede haber sesiones detenidas que aún no se han reiniciado.',
       descartar: 'Descartar',
       noSeHizoNada: 'No se hizo nada',
       noSePudoActualizar: 'no se pudo actualizar',
@@ -119,32 +119,32 @@ export const txActualizacion = crearTextos(
       instalado: (etq: string, despues: string | null) => `${etq} instalado${despues ? ` (${despues})` : ''}`,
       falloInstalar: (etq: string, detalle: string | undefined) => `${etq}: no se pudo actualizar${detalle ? ` — ${detalle}` : ''}`,
       reiniciada: (nombre: string) => `${nombre}: reiniciada`,
-      falloArrancar: (nombre: string, motivo: string | undefined) => `${nombre}: ${motivo ?? 'no volvió a arrancar'}`,
+      falloArrancar: (nombre: string, motivo: string | undefined) => `${nombre}: ${motivo ?? 'no volvió a iniciarse'}`,
       sinReiniciar: (nombre: string, motivo: string | undefined) => `${nombre}: sin reiniciar${motivo ? ` (${motivo})` : ''}`
     },
     motivos: {
       panelCambio: 'el panel cambió o se cerró',
       empezoATrabajar: 'empezó a trabajar',
-      esperaRespuesta: 'espera tu respuesta',
-      textoNuevo: 'empezaste a escribir en ella',
-      noArranco: 'no volvió a arrancar',
+      esperaRespuesta: 'espera su respuesta',
+      textoNuevo: 'se empezó a escribir en ella',
+      noArranco: 'no volvió a iniciarse',
       cerrada: 'se cerró antes de reiniciarla',
       sinResondeo: 'no se pudo volver a comprobar su versión',
       versionDesconocida: 'no se sabe con qué versión arrancó',
       alDia: 'ya corre la versión instalada',
       noNativa: 'ya no corre en modo nativo',
       seCerro: 'se cerró',
-      muerta: 'su proceso ya había salido',
-      ocupada: 'estaba a mitad de otro reinicio',
+      muerta: 'su proceso ya había terminado',
+      ocupada: 'estaba en medio de otro reinicio',
       noSePudoDetener: 'no se pudo detener',
       noSePudoDetenerCon: (detalle: string) => `no se pudo detener: ${detalle}`,
       noSePudoActualizarCli: (etq: string) => `no se pudo actualizar ${etq}`,
-      otraSesion: (etq: string, espera: boolean) => `otra sesión de ${etq} ${espera ? 'espera tu respuesta' : 'estaba trabajando'}`
+      otraSesion: (etq: string, espera: boolean) => `otra sesión de ${etq} ${espera ? 'espera su respuesta' : 'estaba trabajando'}`
     },
     plan: {
-      brew: 'Está instalado con Homebrew: se actualiza con su orden',
-      gestor: 'Está instalado con un gestor del sistema que Tessera no maneja',
-      desconocido: 'No se sabe cómo se instaló: actualízalo por donde lo instalaste',
+      brew: 'Está instalado con Homebrew: se actualiza con la orden de Homebrew',
+      gestor: 'Está instalado con un gestor de paquetes del sistema que Tessera no admite',
+      desconocido: 'No se sabe cómo se instaló: actualícelo con el mismo método con que lo instaló',
       sinOrden: 'Tessera no tiene una orden automática para esta instalación en este equipo',
       yaEnCurso: 'Ya hay una actualización en curso',
       nadaQueHacer: 'No hay nada que actualizar ni reiniciar',
@@ -152,8 +152,8 @@ export const txActualizacion = crearTextos(
         const agentes = (n: number): string => (n === 1 ? '1 agente' : `${n} agentes`)
         const esperan = (n: number): string => (n === 1 ? 'espera' : 'esperan')
         if (esperando === 0) return `Espera: ${agentes(trabajando)} trabajando`
-        if (trabajando === 0) return `Espera: ${agentes(esperando)} ${esperan(esperando)} tu respuesta`
-        return `Espera: ${agentes(trabajando)} trabajando y ${esperando} que ${esperan(esperando)} tu respuesta`
+        if (trabajando === 0) return `Espera: ${agentes(esperando)} ${esperan(esperando)} su respuesta`
+        return `Espera: ${agentes(trabajando)} trabajando y ${esperando} que ${esperan(esperando)} su respuesta`
       }
     },
     orquestador: {

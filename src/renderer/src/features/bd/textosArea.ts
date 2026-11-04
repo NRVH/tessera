@@ -19,10 +19,10 @@ export const txArea = crearTextos(
     elAreaDeBd: 'el área de bases de datos',
     nuevaConexion: 'Nueva conexión…',
     sinPerfilTitulo: 'Sin perfil activo',
-    sinPerfilPista: 'Elige un perfil en la barra de arriba para ver sus conexiones.',
+    sinPerfilPista: 'Elija un perfil en la barra superior para ver sus conexiones.',
     ningunaTablaTitulo: 'Ninguna tabla abierta',
     ningunaTablaPista: (abrir: string, nuevaConsola: string) =>
-      `Abre una tabla o una vista del árbol con ${abrir}, o una consola SQL con ${nuevaConsola}.`,
+      `Abra una tabla o una vista del árbol con ${abrir}, o una consola SQL con ${nuevaConsola}.`,
     // --- área ---
     renombrarConsola: 'Renombrar consola',
     nombreDeLaConsola: 'Nombre de la consola',

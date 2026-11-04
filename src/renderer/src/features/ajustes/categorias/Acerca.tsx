@@ -41,9 +41,7 @@ function EnlaceExterno({ url, children }: { url: string; children: React.ReactNo
  */
 function queHace(plataforma: Plataforma): readonly string[] {
   const n = nombresSistema(plataforma)
-  // El enfoque es «varios proyectos, varias cuentas de IA»; el mismo mensaje que el
-  // README, y si cambia uno cambia el otro. El modo nativo es la excepción que se elige
-  // a propósito, no la regla.
+  // El mismo mensaje que la presentación del README: si cambia uno, cambia el otro.
   return txCategorias().acerca.puntos(n.tuEquipo)
 }
 

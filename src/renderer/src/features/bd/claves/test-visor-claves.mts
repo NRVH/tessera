@@ -148,7 +148,7 @@ function main(): void {
   check(
     'aviso de un string cortado: cuánto se ve de cuánto',
     avisoTruncado({ tipo: 'string', valor: bin(...new Array(2048).fill(65)), bytes: 10 * 1024 * 1024, truncado: true }) ===
-      'Se ve el principio: 2,0 KB de 10 MB. Para leerlo entero, usa GETRANGE en la consola.' &&
+      'Se ve el principio: 2,0 KB de 10 MB. Para leerlo entero, use GETRANGE en la consola.' &&
       avisoTruncado({ tipo: 'string', valor: txt('x'), bytes: 1, truncado: false }) === null &&
       avisoTruncado({ tipo: 'json', texto: '{}', truncado: true }) !== null &&
       /ocupa 20 MB en memoria: el visor no lo lee/.test(avisoTruncado({ tipo: 'json', texto: '', truncado: true, omitidoBytes: 20 * 1024 * 1024 }) ?? ''),

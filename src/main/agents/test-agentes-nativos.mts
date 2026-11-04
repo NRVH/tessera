@@ -472,7 +472,7 @@ hr('(2) Sondas: una en vuelo por agente, sin caché de tiempo')
   const e = svc.estado()
   check(
     '(2g) una sonda fallida da null y un error legible (con el nombre del sistema, no a mano)',
-    vc === null && e.claude.instalada === null && (e.claude.error ?? '').includes('Claude Code') && (e.claude.error ?? '').includes('tu Windows'),
+    vc === null && e.claude.instalada === null && (e.claude.error ?? '').includes('Claude Code') && (e.claude.error ?? '').includes('su equipo Windows'),
     String(e.claude.error)
   )
 }
@@ -1004,7 +1004,7 @@ hr('(10) Mac: sin parar y sin tabla de procesos')
   check('(10d) y Claude con `claude update`', rc.ok && m.llamadas.includes('claude update') && rc.despues === '2.1.281', JSON.stringify(rc))
   m.ver.claude = null
   await svc.instalada('claude-code')
-  check('(10e) el error de sonda nombra el equipo de Mac', (svc.estado().claude.error ?? '').includes('tu Mac'), String(svc.estado().claude.error))
+  check('(10e) el error de sonda nombra el equipo de Mac', (svc.estado().claude.error ?? '').includes('su Mac'), String(svc.estado().claude.error))
 }
 
 // --- Codex por el cask de Homebrew: la última es la del CASK, no la de npm ---
@@ -1090,7 +1090,7 @@ hr('(10b) Binario de la plataforma aún sin servir, y reparar un Codex que no re
 // =============================================================================
 for (const plataforma of ['windows', 'mac'] as const) {
   const suf = plataforma === 'windows' ? 'win32-x64' : 'darwin-arm64'
-  const equipo = plataforma === 'windows' ? 'tu Windows' : 'tu Mac'
+  const equipo = plataforma === 'windows' ? 'su equipo Windows' : 'su Mac'
   const urlDoc = urlDocCodex(`0.156.1-${suf}`)
   {
     // El dist-tag ya apunta al binario, pero su documento aún da 404.

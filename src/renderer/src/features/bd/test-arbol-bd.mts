@@ -336,7 +336,7 @@ function seccionNivelBases(): void {
   const tEsq = textosSelectorConsola('esquema')
   check(
     'textos del selector de esquema: los de siempre',
-    tEsq.deLaConexion('HR') === 'Esquema de la conexión (HR)' && tEsq.tituloBoton('HR', false) === 'Esquema: HR. Pulsa para cambiar' && tEsq.datoActual('HR') === 'Esquema actual: HR' && tEsq.cambiando === 'Cambiando el esquema…' && tEsq.etiquetaBoton(null) === 'Esquema de la consola',
+    tEsq.deLaConexion('HR') === 'Esquema de la conexión (HR)' && tEsq.tituloBoton('HR', false) === 'Esquema: HR. Haga clic para cambiar' && tEsq.datoActual('HR') === 'Esquema actual: HR' && tEsq.cambiando === 'Cambiando el esquema…' && tEsq.etiquetaBoton(null) === 'Esquema de la consola',
     'ok'
   )
   check('selector de base: «Base de la conexión (X)» y USE', textosSelectorConsola('base').deLaConexion('pruebas') === 'Base de la conexión (pruebas)' && textosSelectorConsola('base').tituloBoton('x', false).includes('USE'), 'ok')
@@ -664,7 +664,7 @@ function seccionFamilias(): void {
   )
   check(
     'textoSinCoincidencias con tipo y patrón a la vez',
-    textoSinCoincidencias('a*', 'zset') === 'Ninguna clave de tipo ZSET casa con a*' && textoSinCoincidencias('a*') === 'Ninguna clave casa con a*',
+    textoSinCoincidencias('a*', 'zset') === 'Ninguna clave de tipo ZSET coincide con a*' && textoSinCoincidencias('a*') === 'Ninguna clave coincide con a*',
     textoSinCoincidencias('a*', 'zset')
   )
   check(

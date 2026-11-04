@@ -720,8 +720,8 @@ if (!shellTextos) {
     TESSERA_DB_SECRET_A1: 'x',
     TESSERA_DB_SECRET_A2: 'x'
   } as NodeJS.ProcessEnv
-  const MARCA = 'motor desconocido: actualiza Tessera'
-  const errorDe = (alias: string, motor: string): string => `"${alias}" es de un motor (${motor}) que este tdb no conoce: actualiza Tessera`
+  const MARCA = 'motor desconocido: actualice Tessera'
+  const errorDe = (alias: string, motor: string): string => `"${alias}" es de un motor (${motor}) que este tdb no conoce: actualice Tessera`
 
   const ls = correr(shellTextos, 'tdb ls', undefined, conAjenas)
   const lineaDe = (alias: string): string => ls.out.split(/\r?\n/).find((l) => l.includes(alias)) ?? ''
@@ -739,7 +739,7 @@ if (!shellTextos) {
   )
   comprobar(
     `${shellTextos}: debajo, la explicación nombra solo las de motor desconocido`,
-    ls.out.includes('Requieren una versión más nueva de Tessera: Local DuckDB, SQLSRV.') && ls.out.includes('actualiza Tessera.'),
+    ls.out.includes('Requieren una versión más nueva de Tessera: Local DuckDB, SQLSRV.') && ls.out.includes('actualice Tessera.'),
     ls.out.slice(-300)
   )
   comprobar(
@@ -796,7 +796,7 @@ if (!shellTextos) {
   // `ls --json` ya lo daba (la entrada entera).
   comprobar(
     `${shellTextos}: con --json, el error lleva \`motorDesconocido: true\` y el motor en \`motor\``,
-    pruebaJson?.ok === false && pruebaJson?.motorDesconocido === true && pruebaJson?.motor === 'db2' && String(pruebaJson?.error).includes('actualiza Tessera'),
+    pruebaJson?.ok === false && pruebaJson?.motorDesconocido === true && pruebaJson?.motor === 'db2' && String(pruebaJson?.error).includes('actualice Tessera'),
     JSON.stringify(pruebaJson)
   )
   comprobar(
@@ -856,7 +856,7 @@ if (!shellTextos) {
   // forma no tiene por qué venir de una versión más nueva —puede ser una edición a mano
   // del archivo—, y la UI lo dice así. `tdb` decía «actualiza Tessera» a secas.
   const errorForma = '"PG-SOCKET" está guardada de una forma que este tdb no reconoce.'
-  const origenForma = /versión más nueva de Tessera \(actualiza para usarla\) o de una\s+edición a mano del archivo; Tessera la conserva tal cual\./
+  const origenForma = /versión más nueva de Tessera \(actualice Tessera para usarla\) o de una\s+edición manual del archivo; Tessera la conserva sin cambios\./
 
   const ls = correr(shellTextos, 'tdb ls', undefined, conForma)
   const linea = ls.out.split(/\r?\n/).find((l) => l.includes('PG-SOCKET')) ?? ''
@@ -872,7 +872,7 @@ if (!shellTextos) {
   )
   comprobar(
     `${shellTextos}: debajo, la explicación la nombra con los DOS orígenes posibles`,
-    ls.out.includes('No se reconoce cómo están guardadas: PG-SOCKET.') && /versión más nueva de Tessera \(actualiza para usarlas\) o de una\s+edición a mano del archivo; Tessera las conserva tal cual\./.test(ls.out),
+    ls.out.includes('No se reconoce cómo están guardadas: PG-SOCKET.') && /versión más nueva de Tessera \(actualice Tessera para usarlas\) o de una\s+edición manual del archivo; Tessera las conserva sin cambios\./.test(ls.out),
     ls.out.slice(-400)
   )
   comprobar(
@@ -1010,7 +1010,7 @@ if (!shellTextos) {
   comprobar(
     `${shellTextos}: debajo, con quién comparte el id; y su PRODUCCIÓN no se afirma (no se puede usar)`,
     ls.out.includes('Comparten su identificador con otra conexión: Copia (con "Original").') &&
-      ls.out.includes('Elimina desde Tessera la que sobre.') &&
+      ls.out.includes('Elimine desde Tessera la que sobre.') &&
       !ls.out.includes('PRODUCCIÓN: Copia'),
     ls.out.slice(-500)
   )
@@ -1296,7 +1296,7 @@ if (!shellTextos) {
   )
   comprobar(
     `${shellTextos}: y lo dice: la conexión cambió desde que se abrió la terminal, que se recargue (código 1)`,
-    tras.code === 1 && /La conexión "Copia" cambió desde que se abrió esta terminal[\s\S]*Recarga la terminal/.test(tras.out),
+    tras.code === 1 && /La conexión "Copia" cambió desde que se abrió esta terminal[\s\S]*Reinicie la terminal/.test(tras.out),
     `code=${tras.code} ${tras.out.slice(0, 400)}`
   )
   const trasJson = jsonDe(correr(shellTextos, 'tdb test Copia --json', undefined, envRep).out)
@@ -1336,11 +1336,11 @@ if (!shellTextos) {
   escribirReg([{ ...EDITABLE, host: '127.0.0.1', port: pg.puerto }])
   const aManoSinPuente = await probar('Editable', terminalSinPuente(memoriaVieja, ['d2']))
   comprobar(
-    `${shellTextos}: sin puente, con el archivo editado a mano con Tessera abierta, una terminal RECARGADA tampoco la manda, y el mensaje dice «si sigue igual, reinicia Tessera»`,
+    `${shellTextos}: sin puente, con el archivo editado a mano con Tessera abierta, una terminal RECARGADA tampoco la manda, y el mensaje dice «si el problema persiste, reinicie Tessera»`,
     aManoSinPuente.code === 1 &&
       aManoSinPuente.recibidas.length === 0 &&
       aManoSinPuente.conexiones === 0 &&
-      /Recarga la terminal[\s\S]*si sigue igual[\s\S]*reinicia Tessera/.test(aManoSinPuente.out),
+      /Reinicie la terminal[\s\S]*si el problema persiste[\s\S]*reinicie Tessera/.test(aManoSinPuente.out),
     `code=${aManoSinPuente.code} recibidas=${JSON.stringify(aManoSinPuente.recibidas)} ${aManoSinPuente.out.slice(0, 400)}`
   )
   // NEGATIVO: lo que NO es el destino se edita sin reabrir nada (renombrarla, su entorno, su
@@ -1588,8 +1588,8 @@ if (!shellTextos) {
     comprobar(
       `${shellTextos}: y lo dice con su remedio (reiniciar Tessera, que relee el archivo), no «recarga la terminal»`,
       aMano.code === 1 &&
-        /La conexión "Copia" del registro no es la que tiene cargada Tessera[\s\S]*reinicia Tessera/.test(aMano.out) &&
-        !aMano.out.includes('Recarga la terminal'),
+        /La conexión "Copia" del registro no es la que tiene cargada Tessera[\s\S]*reinicie Tessera/.test(aMano.out) &&
+        !aMano.out.includes('Reinicie la terminal'),
       `code=${aMano.code} ${aMano.out.slice(0, 400)}`
     )
   }
@@ -1638,7 +1638,7 @@ if (!shellTextos) {
       TESSERA_DB_DESTINO_K1: HUELLA_K1
     }) as NodeJS.ProcessEnv
   const avisoFormato =
-    /no reconoce el formato del registro de conexiones \(db-connections\.json\),\s+así que no ve ninguna\. Puede venir de una versión más nueva de Tessera \(actualiza\s+para usarlas\) o de una edición a mano del archivo; Tessera no lo toca\./
+    /no reconoce el formato del registro de conexiones \(db-connections\.json\),\s+así que no ve ninguna\. Puede venir de una versión más nueva de Tessera \(actualice\s+Tessera para usarlas\) o de una edición manual del archivo; Tessera no lo modifica\./
   // Los consejos de los vacíos de siempre, que con este archivo mandan a donde no se puede.
   const mandaAHacer = /Añádelas|móntalas|Guárdala|El perfil tiene/
 
@@ -1753,7 +1753,7 @@ if (!shellTextos) {
   comprobar(
     `${shellTextos}: JSON roto y sin .bak: \`ls\` dice que no lo puede leer, y qué hacer`,
     plano(lsRoto.out).includes('no puede leer el registro de conexiones (db-connections.json): no es JSON válido') &&
-      /corrígelo .* reinicia Tessera/.test(plano(lsRoto.out)),
+      /corríjalo .* reinicie Tessera/.test(plano(lsRoto.out)),
     lsRoto.out.slice(0, 500)
   )
   comprobar(
@@ -1823,7 +1823,7 @@ if (!shellTextos) {
   comprobar(
     `${shellTextos}: no se deja abrir y su .bak SÍ se lee: bloqueado igual, y dice que la copia no se usa y qué hacer`,
     plano(lsCarpetaBak.out).includes('no se pudo abrir (EISDIR), y su copia de respaldo (db-connections.json.bak), aunque se lee, no se usa') &&
-      /revisa sus permisos.* reinicia Tessera/.test(plano(lsCarpetaBak.out)) &&
+      /revise sus permisos.* reinicie Tessera/.test(plano(lsCarpetaBak.out)) &&
       !lsCarpetaBak.out.includes('base-pg') &&
       !lsCarpetaBak.out.includes('No hay conexiones configuradas'),
     lsCarpetaBak.out.slice(0, 500)

@@ -14,8 +14,12 @@ modo, u otro agente). Tessera ya lee las conversaciones de todos los agentes y c
 
 ## Decisión
 
-- **Mismo agente** («Continuar esta conversación en <cuenta>», en el menú «⋯» de cada cuenta del selector que no
-  es la de ahora; la etiqueta nombra el destino, nunca «aquí»): Tessera
+- **Un solo lugar**: el botón «Continuar esta conversación» de la cabecera, siempre a la vista. Su popover enseña
+  primero las otras cuentas del mismo agente y luego los otros agentes, cada grupo diciendo qué se lleva. El selector
+  de cuenta queda para elegir y administrar: un clic allí cambia de cuenta sin llevarse la conversación. Continuar
+  tiene que verse sin pasar el ratón por nada. El botón no sale si no hay destino (en nativo, sin cuentas de Docker
+  ni otro agente), y el popover abierto se cierra si la sesión termina o empieza una actualización.
+- **Mismo agente** (su grupo, marcado «Conversación completa», con todas sus cuentas menos la de ahora): Tessera
   COPIA el transcript (y en Claude Code su carpeta hermana de subagentes) a donde el CLI de destino lo busca:
   Claude Code, `projects/<cwd del destino con lo no alfanumérico a «-»>/<id>.jsonl`; Codex, la misma ruta bajo
   `sessions/`, comprimido o no. El pane pasa a esa cuenta reanudándolo; si el agente tiene un turno en marcha
@@ -25,12 +29,12 @@ modo, u otro agente). Tessera ya lee las conversaciones de todos los agentes y c
   `cwd` de dentro sea el del otro modo; el aviso de arranque de esa sesión dice a qué ruta corresponden ahora.
 - **No pisar**: igual, se reutiliza; si lo de destino es el principio del origen (la conversación siguió aquí),
   se pone al día; si es otra cosa con el mismo id, error y no se copia nada.
-- **Agente distinto** («Continuar con <agente>…» en la cabecera, siempre a la vista, con las mismas tarjetas y el
-  título «¿Con qué cuenta de <agente>?»): un **traspaso derivado**, armado sin
+- **Agente distinto** (su grupo, marcado «Solo un resumen», fuera del mosaico, donde no se puede poner a la vista otro agente): un
+  **traspaso derivado**, armado sin
   un modelo: los últimos mensajes de texto de usuario y agente (sin herramientas, imágenes ni razonamiento), los
   más recientes dentro de un tope, y `git status --short` y `git log --oneline -5` en el host. Su pestaña se abre
-  con una conversación nueva cuyo primer mensaje pide leerlo con `tctx traspaso`, resumir y esperar; si estaba
-  trabajando, se pregunta antes. El origen sigue abierto.
+  con una conversación nueva cuyo primer mensaje pide leerlo con `tctx traspaso`, resumir y esperar; si tiene un
+  turno en marcha (trabajando o esperando una respuesta), se pregunta antes. El origen sigue abierto.
 - **El main prepara y el renderer abre**: `continuarEn` deja un pendiente en memoria y devuelve su id (y la
   conversación a reanudar); el pane de destino lo toma al abrir como cualquier apertura (`traspasoId`). Sin
   abrirse en 10 minutos caduca, y la entrada del store que lo espera lleva esa misma caducidad (contada desde
@@ -52,7 +56,7 @@ modo, u otro agente). Tessera ya lee las conversaciones de todos los agentes y c
 - La recuperación automática de un contenedor caído relanza la línea guardada: repite el primer mensaje.
 - Con una ruta de proyecto cuya carpeta de Claude Code pasaría de 200 caracteres no se sigue la conversación
   (un nombre de archivo no pasa de 255, y cómo la acorta Claude Code no es un contrato conocido): se dice y se
-  ofrece «Continuar con…».
+  ofrece continuar con otro agente.
 - `test:traspaso` fija rutas, no pisar, frase, armado, registro y `ctx.traspaso`; `test:tctx`, el CLI por pipe y
   buzón; `test:linea-arranque-agente`, el prompt ejecutado; `e2e/traspaso.spec.ts`, el recorrido.
 

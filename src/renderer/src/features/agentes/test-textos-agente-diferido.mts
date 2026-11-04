@@ -30,7 +30,7 @@ check(
 )
 check('(5) el título es el nombre del agente', win.titulo === 'Claude Code' && codex.titulo === 'Codex', `${win.titulo} / ${codex.titulo}`)
 check('(6) el botón dice qué agente inicia', win.accion === 'Iniciar Claude Code' && codex.accion === 'Iniciar Codex', `${win.accion} / ${codex.accion}`)
-check('(7) la pista nombra al agente elegido', codex.pista.includes('Codex no se inicia hasta que lo pidas'), codex.pista)
+check('(7) la pista nombra al agente elegido', codex.pista.includes('Codex no se inicia hasta que usted lo solicite'), codex.pista)
 check(
   '(8) el conmutador avisa de que mostrar la columna además inicia el agente',
   win.tituloConmutador === 'Mostrar la columna del agente e iniciar Claude Code' && codex.tituloConmutador.endsWith('iniciar Codex'),

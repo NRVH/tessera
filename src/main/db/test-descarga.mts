@@ -144,7 +144,7 @@ async function main(): Promise<void> {
     check(
       'el mensaje dice cuánto y qué hacer, sin nombrar el sistema',
       mensajeInactividad(60_000).includes('60 s sin enviar datos') &&
-        mensajeInactividad(60_000).includes('Vuelve a intentarlo') &&
+        mensajeInactividad(60_000).includes('Vuelva a intentarlo') &&
         !/Windows|macOS|Mac\b/.test(mensajeInactividad(60_000)),
       mensajeInactividad(60_000)
     )

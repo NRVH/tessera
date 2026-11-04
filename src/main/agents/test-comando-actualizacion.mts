@@ -464,7 +464,7 @@ hr('(7) clasificarErrorInstalacion')
     const r = clasificarErrorInstalacion({ salida: ebusy, codigo: 4082, tope: false, plataforma: 'windows', bloqueadores, agente: 'codex', orden: 'npm install -g x' })
     check(
       '(7a) EBUSY en Windows → bloqueado, dice «fuera de Tessera» y nombra a los que siguen',
-      r.motivo === 'bloqueado' && r.detalle.includes('fuera de Tessera') && r.detalle.includes('tu editor u otra terminal') && r.detalle.includes('codex.exe (pid 4242') && r.detalle.includes('node.exe (pid 77)') && r.ordenManual === 'npm install -g x',
+      r.motivo === 'bloqueado' && r.detalle.includes('fuera de Tessera') && r.detalle.includes('su editor u otra terminal') && r.detalle.includes('codex.exe (pid 4242') && r.detalle.includes('node.exe (pid 77)') && r.ordenManual === 'npm install -g x',
       JSON.stringify(r)
     )
   }
@@ -487,7 +487,7 @@ hr('(7) clasificarErrorInstalacion')
         r.detalle.includes("npm install -g '@openai/codex@0.156.1'") &&
         r.detalle.includes('antivirus') &&
         !r.detalle.includes('fuera de Tessera') &&
-        !r.detalle.includes('tu editor') &&
+        !r.detalle.includes('su editor') &&
         r.ordenManual === "npm install -g '@openai/codex@0.156.1'",
       JSON.stringify(r)
     )
@@ -546,7 +546,7 @@ hr('(7) clasificarErrorInstalacion')
       '(7c) EACCES en Mac → permisos, con la orden exacta y «tu Mac» (de nombresSistema), sin «administrador»',
       r.motivo === 'permisos' &&
         r.detalle.includes('codex update') &&
-        r.detalle.includes('tu Mac') &&
+        r.detalle.includes('su Mac') &&
         r.ordenManual === 'codex update' &&
         !r.detalle.includes('Windows') &&
         !r.detalle.includes('administrador'),
@@ -560,8 +560,8 @@ hr('(7) clasificarErrorInstalacion')
   {
     const r = clasificarErrorInstalacion({ salida: 'npm error code EACCES', codigo: 1, tope: false, plataforma: 'windows', bloqueadores: [], orden: 'npm install -g y' })
     check(
-      '(7e) EACCES en Windows → permisos, con «tu Windows» y como administrador (sin elevar fallaría igual)',
-      r.motivo === 'permisos' && r.detalle.includes('tu Windows') && r.detalle.includes('administrador') && !r.detalle.includes('Mac'),
+      '(7e) EACCES en Windows → permisos, con «su equipo Windows» y como administrador (sin elevar fallaría igual)',
+      r.motivo === 'permisos' && r.detalle.includes('su equipo Windows') && r.detalle.includes('administrador') && !r.detalle.includes('Mac'),
       JSON.stringify(r)
     )
   }

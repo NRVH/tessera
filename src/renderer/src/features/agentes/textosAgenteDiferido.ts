@@ -15,7 +15,7 @@ import type { Plataforma } from '../../../../shared/plataforma.ts'
 const tx = crearTextos(
   {
     pista: (gestor: string, nombre: string) =>
-      `Este proyecto se abrió desde ${gestor} para ver un archivo: ${nombre} no se inicia hasta que lo pidas.`,
+      `Este proyecto se abrió desde ${gestor} para ver un archivo: ${nombre} no se inicia hasta que usted lo solicite.`,
     accion: (nombre: string) => `Iniciar ${nombre}`,
     tituloConmutador: (nombre: string) => `Mostrar la columna del agente e iniciar ${nombre}`
   },

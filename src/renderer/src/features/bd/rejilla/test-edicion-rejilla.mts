@@ -907,7 +907,7 @@ function main(): void {
   check(
     '(19a) COMMIT con la conexión perdida: INCIERTO, lo dice el título, sin sentencia culpable, y el mensaje del main',
     perdido.estado.incierto === true &&
-      perdido.estado.titulo === 'No se sabe si se aplicó: refresca la tabla antes de reenviar' &&
+      perdido.estado.titulo === 'No se puede saber si se aplicó: refresque la tabla antes de reenviar' &&
       perdido.estado.indice === null &&
       /No se sabe si el COMMIT/.test(perdido.estado.mensaje),
     j(perdido.estado)
@@ -948,7 +948,7 @@ function main(): void {
   check(
     '(19e) un Stop que coincide con el COMMIT tampoco sabe si llegó: manda lo INCIERTO (título, mensaje y foco en Cancelar)',
     paradoEnCommit.estado.incierto === true &&
-      paradoEnCommit.estado.titulo.startsWith('No se sabe si se aplicó') &&
+      paradoEnCommit.estado.titulo.startsWith('No se puede saber si se aplicó') &&
       paradoEnCommit.estado.mensaje !== '' &&
       focoEnvio(paradoEnCommit.estado, false) === 'cancelar',
     j(paradoEnCommit.estado)
@@ -1026,7 +1026,7 @@ function main(): void {
     )
     check(
       '(19c7) el aviso dice qué pasó y qué hacer, sin nombrar el sistema',
-      /no se sabe|sin saber/i.test(AVISO_ENVIO_INCIERTO.titulo) && /Refresca/.test(AVISO_ENVIO_INCIERTO.texto),
+      /no se sabe|sin saber/i.test(AVISO_ENVIO_INCIERTO.titulo) && /Refresque/.test(AVISO_ENVIO_INCIERTO.texto),
       AVISO_ENVIO_INCIERTO.titulo
     )
   }

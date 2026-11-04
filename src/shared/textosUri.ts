@@ -10,12 +10,12 @@ export const txUri = crearTextos(
     opciones: {
       faltaClave: (trozo: string) => `Falta la clave en «${trozo}» (clave=valor).`,
       sinValor: (clave: string) => `La opción «${clave}» no lleva valor (clave=valor).`,
-      cifrado: (clave: string) => `El cifrado no va en las opciones («${clave}»): usa las casillas de TLS de la conexión.`,
+      cifrado: (clave: string) => `El cifrado no va en las opciones («${clave}»): utilice las casillas de TLS de la conexión.`,
       credenciales: (clave: string) => `Usuario y contraseña van en sus campos, no en las opciones («${clave}»).`,
       noAdmitida: (clave: string, admitidas: string) => `«${clave}» no es una opción admitida. Se admiten: ${admitidas}.`,
       repetida: (clave: string) => `La opción «${clave}» está repetida.`,
       porcientoValor: (clave: string) =>
-        `El valor de «${clave}» lleva un % que no es de un carácter codificado: escríbelo como %25.`,
+        `El valor de «${clave}» contiene un % que no forma parte de un carácter codificado: escríbalo como %25.`,
       booleana: (clave: string) => `«${clave}» vale true o false.`,
       entera: (clave: string) => `«${clave}» es un número entero.`,
       sinInterrogacion: 'Sin el «?» del principio: solo clave=valor&clave=valor.',
@@ -23,45 +23,45 @@ export const txUri = crearTextos(
       authSource: 'La base de autenticación (authSource) va en su campo, no en las opciones.',
       tlsContradice: 'tls y ssl dicen cosas distintas en la URI.',
       srvDirecta: 'Una URI mongodb+srv no admite directConnection=true.',
-      variosHosts: 'Con varios hosts no valen directConnection=true ni loadBalanced=true: quítalas o deja un solo host.',
+      variosHosts: 'Con varios hosts no son válidas las opciones directConnection=true ni loadBalanced=true: quítelas o deje un solo host.',
       sslModeMysql: (valor: string, admitidos: string) => `ssl-mode «${valor}» no es válido. Se admiten: ${admitidos}.`,
       boolMysql: (clave: string) => `${clave} tiene que ser true o false.`,
       sslModePostgres: (modo: string, admitidos: string) => `sslmode «${modo}» no es válido. Se admiten: ${admitidos}.`
     },
     uri: {
-      porcientoUsuario: 'El usuario lleva un % que no es de un carácter codificado: escríbelo como %25.',
-      porcientoPassword: 'La contraseña lleva un % que no es de un carácter codificado: escríbelo como %25.',
+      porcientoUsuario: 'El usuario contiene un % que no forma parte de un carácter codificado: escríbalo como %25.',
+      porcientoPassword: 'La contraseña contiene un % que no forma parte de un carácter codificado: escríbalo como %25.',
       faltaHost: 'Falta el host de la URI.',
-      empezarPor: (esperados: string) => `La URI tiene que empezar por ${esperados}.`,
+      empezarPor: (esperados: string) => `La URI debe empezar por ${esperados}.`,
       oSeparador: ' o ',
-      porcientoBase: 'La base lleva un % que no es de un carácter codificado.',
+      porcientoBase: 'La base de datos contiene un % que no forma parte de un carácter codificado.',
       faltaCorchete: (crudo: string) => `Falta el «]» de la dirección IPv6 «${crudo}».`,
       sobra: (tras: string) => `Sobra «${tras}» detrás de la dirección IPv6.`,
       hostInvalido: (crudo: string) => `El host «${crudo}» no es válido.`,
-      socketLocal: 'Tessera no se conecta por un socket local: pon un host y un puerto.',
+      socketLocal: 'Tessera no se conecta por un socket local: indique un host y un puerto.',
       puertoInvalido: (puerto: string) => `El puerto «${puerto}» no es válido (1-65535).`,
       srvUnHost: 'Una URI mongodb+srv lleva un solo nombre de host.',
       srvSinPuerto: 'Una URI mongodb+srv no lleva puerto: lo dan los registros DNS del host.',
-      variosHostsServidor: 'La URI lleva varios hosts y la conexión va a un servidor solo: pon el del servidor.',
+      variosHostsServidor: 'La URI contiene varios hosts, pero la conexión es a un único servidor: indique solo el host de ese servidor.',
       variosHostsRedis:
-        'La URI lleva varios hosts y esta URI va a un servidor solo: para Sentinel o Cluster, elige el modo en «Conexión a» y escribe los servidores en Host, separados por comas.',
+        'La URI contiene varios hosts, pero la conexión es a un único servidor: para Sentinel o Cluster, seleccione el modo en «Conexión a» y escriba los servidores en Host, separados por comas.',
       rutaBaseRedis: (invalida: string) => `En la ruta de la URI va el número de la base (/0, /1…). ${invalida}`
     },
     redis: {
-      base: (max: number, v: string) => `La base es un número entero de 0 a ${max} (vacía, la 0): «${v}» no lo es.`,
+      base: (max: number, v: string) => `La base de datos es un número entero de 0 a ${max} (si se deja vacía, es la 0): «${v}» no lo es.`,
       servidorInvalido: (texto: string) => `«${texto}» no es un servidor válido (host o host:puerto).`,
-      puertoServidor: (texto: string) => `El puerto de «${texto}» no es válido: tiene que ser un número de 1 a 65535.`,
-      demasiados: (max: number) => `Son más de ${max} servidores: con unos pocos basta, el resto se descubre.`,
+      puertoServidor: (texto: string) => `El puerto de «${texto}» no es válido: debe ser un número de 1 a 65535.`,
+      demasiados: (max: number) => `Hay más de ${max} servidores: bastan unos pocos, porque el resto se descubre automáticamente.`,
       topologiaInvalida: 'La topología (Sentinel o Cluster) no es válida.',
       sinTunel: (nombre: string) =>
-        `${nombre} no va por túnel SSH: el cliente se conecta a servidores que el túnel no lleva. Quita el túnel o elige «Un servidor».`,
-      clusterBase: 'En Cluster solo existe la base 0: deja la base vacía.',
-      maestro: 'El nombre del maestro no es válido (sin espacios).',
+        `${nombre} no va por túnel SSH: el cliente se conecta a servidores a los que el túnel no da acceso. Quite el túnel o seleccione «Un servidor».`,
+      clusterBase: 'En Cluster solo existe la base de datos 0: deje el campo vacío.',
+      maestro: 'El nombre del maestro no es válido (no puede contener espacios).',
       faltaServidor: 'Falta al menos un servidor.',
-      variosServidores: 'Hay varios servidores: elige Sentinel o Cluster, o deja uno solo.',
-      faltaMaestro: 'Falta el nombre del maestro que vigilan los sentinels.',
+      variosServidores: 'Hay varios servidores: seleccione Sentinel o Cluster, o deje uno solo.',
+      faltaMaestro: 'Falta el nombre del maestro que supervisan los sentinels.',
       secretoIlegible:
-        'La contraseña guardada no se puede leer en este equipo: vuelve a escribir la contraseña (y la de los sentinels, si la llevan) para cambiar cómo se conecta.'
+        'La contraseña guardada no se puede leer en este equipo: vuelva a escribir la contraseña (y la de los sentinels, si la tienen) para cambiar cómo se conecta.'
     }
   },
   {

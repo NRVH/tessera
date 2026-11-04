@@ -525,7 +525,7 @@ function main(): void {
       for (const forma of ['cursor', 'rownum', 'limitOffset', 'otra'] as const) {
         const r = construirConsultaTabla({ ...(d === 'oracle' ? { dialecto: d, objeto: ORA } : { dialecto: d, objeto: PG }), forma: forma as PeticionConsultaTabla['forma'], n: 5, desde: 0 })
         const admitida = antes[d].indexOf(forma) >= 0
-        const esperado = admitida ? null : `La forma de paginado «${forma}» no vale para ${d}.`
+        const esperado = admitida ? null : `La forma de paginado «${forma}» no es válida para ${d}.`
         const real = esErrorRejilla(r) ? r.error : null
         if (real !== esperado) malas.push(`${d}/${forma}: ${J(real)}`)
       }
@@ -539,8 +539,8 @@ function main(): void {
     )
     check(
       'PUBLIC en Oracle: el mensaje de siempre (tabla y Contar)',
-      f(tabla('oracle', { objeto: { esquema: 'PUBLIC', nombre: 'DUAL' } })) === 'PUBLIC no es un esquema: hay que resolver el sinónimo antes de consultarlo.' &&
-        f(construirConteo({ dialecto: 'oracle', objeto: { esquema: 'PUBLIC', nombre: 'X' } })) === 'PUBLIC no es un esquema: hay que resolver el sinónimo antes de consultarlo.',
+      f(tabla('oracle', { objeto: { esquema: 'PUBLIC', nombre: 'DUAL' } })) === 'PUBLIC no es un esquema: el sinónimo debe resolverse antes de consultarlo.' &&
+        f(construirConteo({ dialecto: 'oracle', objeto: { esquema: 'PUBLIC', nombre: 'X' } })) === 'PUBLIC no es un esquema: el sinónimo debe resolverse antes de consultarlo.',
       J(f(tabla('oracle', { objeto: { esquema: 'PUBLIC', nombre: 'DUAL' } })))
     )
     check(
@@ -697,7 +697,7 @@ function main(): void {
     const malDespues = err(k({ clave: { tipo: 'pk', columnas: ['a', 'b'] }, despues: ['1'] }))
     check('NEGATIVO: un alias que no es de rowid y una clave que no cuadra se rechazan', malAlias !== null && malDespues !== null, J([malAlias, malDespues]))
     const noAdmitida = err(construirConsultaTabla({ dialecto: 'postgres', objeto: PG, forma: 'keyset', n: 10, clave: { tipo: 'pk', columnas: ['id'] } }))
-    check('NEGATIVO: PG no admite keyset', noAdmitida !== null && /no vale para postgres/.test(noAdmitida.error), J(noAdmitida))
+    check('NEGATIVO: PG no admite keyset', noAdmitida !== null && /no es válida para postgres/.test(noAdmitida.error), J(noAdmitida))
     // Oracle NO cambia: la cabecera del ROWID sigue calificada con el objeto entero.
     const ora = ok(tabla('oracle', { rowid: true }))
     check('Oracle al byte: `"HR"."EMP".*, ROWIDTOCHAR(ROWID)`', ora.sql === `SELECT "HR"."EMP".*, ROWIDTOCHAR(ROWID) AS "${COLUMNA_ROWID}" FROM "HR"."EMP"`, ora.sql)

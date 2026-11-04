@@ -16,7 +16,7 @@ export const txIndice = crearTextos(
       herramientas: 'Herramientas de los agentes',
       'datos-y-conexiones': 'Datos y conexiones',
       'codigo-y-terminales': 'Código y terminales',
-      'tessera-y-tu-equipo': 'Tessera y tu equipo'
+      'tessera-y-tu-equipo': 'Tessera y su equipo'
     } satisfies Record<GrupoAcademyId, string>,
     titulos: {
       bienvenida: 'Qué es Tessera',
@@ -88,7 +88,7 @@ export const CLAVES_ACADEMY: Record<'es' | 'en', Record<ArticuloId, readonly str
     perfiles: ['espacio de trabajo', 'color', 'renombrar', 'eliminar', 'barra de perfiles', 'cambiar'],
     proyectos: ['carpeta', 'abrir', 'repositorio', 'pestañas', 'multi-repo', 'cambiar carpeta'],
     hibernar: ['hibernar', 'hibernado', 'reanudar', 'memoria', 'parar', 'inactividad', 'liberar'],
-    agentes: ['claude', 'codex', 'agente manual', 'pestañas de agente', 'ocultar', 'actualizar'],
+    agentes: ['claude', 'codex', 'agente propio', 'agente manual', 'pestañas de agente', 'ocultar', 'actualizar'],
     cuentas: ['cuenta', 'sesión', 'iniciar sesión', 'selector de cuenta', 'uso', 'límite', 'tarjeta'],
     'nativo-o-docker': ['nativo', 'docker', 'contenedor', 'sandbox', 'aislado', 'modo', 'montar'],
     'continuar-en-otro-agente': ['continuar', 'traspaso', 'pasar', 'otra cuenta', 'cambiar de agente', 'conversación'],
@@ -112,7 +112,7 @@ export const CLAVES_ACADEMY: Record<'es' | 'en', Record<ArticuloId, readonly str
     perfiles: ['workspace', 'color', 'rename', 'delete', 'profile bar', 'switch'],
     proyectos: ['folder', 'open', 'repository', 'tabs', 'multi-repo', 'change folder'],
     hibernar: ['hibernate', 'hibernated', 'resume', 'memory', 'stop', 'idle', 'free'],
-    agentes: ['claude', 'codex', 'manual agent', 'agent tabs', 'hide', 'update'],
+    agentes: ['claude', 'codex', 'custom agent', 'manual agent', 'agent tabs', 'hide', 'update'],
     cuentas: ['account', 'session', 'sign in', 'log in', 'account selector', 'usage', 'limit', 'card'],
     'nativo-o-docker': ['native', 'docker', 'container', 'sandbox', 'isolated', 'mode', 'mount'],
     'continuar-en-otro-agente': ['continue', 'handoff', 'hand over', 'another account', 'switch agent', 'conversation'],

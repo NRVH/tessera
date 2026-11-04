@@ -21,7 +21,7 @@ export const txFilasArbol = crearTextos(
       secuencia: 'secuencias',
       sinonimo: 'sinónimos',
       tipoObjeto: 'tipos de objeto',
-      tipoColeccion: 'tipos colección',
+      tipoColeccion: 'tipos de colección',
       tipo: 'tipos',
       disparador: 'disparadores',
       evento: 'eventos'
@@ -37,24 +37,24 @@ export const txFilasArbol = crearTextos(
     produccionEntreParentesis: 'producción',
     secretoIlegible: (almacen: string) =>
       'La contraseña guardada no se puede descifrar en este equipo. Se cifró con ' +
-      `${almacen}, que la ata al usuario y a la máquina donde se guardó: vuelve a escribirla.`,
+      `${almacen}, que la vincula al usuario y al equipo donde se guardó. Vuelva a escribirla.`,
     sinContrasena: 'Sin contraseña guardada.',
     subtipoSombra: 'Tabla interna de una tabla virtual: la mantiene el motor, no se edita.',
     subtipoSistema: 'Tabla interna del motor.',
     subtipoSinRowid: 'WITHOUT ROWID: se identifica por su clave primaria.',
     instalarCliente: 'Instalar cliente…',
-    reescribirContrasena: 'Vuelve a escribir la contraseña',
+    reescribirContrasena: 'Volver a escribir la contraseña',
     reintentar: 'Reintentar',
     // --- filasArbolBdTextos ---
     y: 'y',
     citado: (s: string) => `«${s}»`,
     unoMas: '1 más',
     masN: (n: number) => `${n} más`,
-    consolaALaPapelera: (nombre: string) => `Su consola «${nombre}» irá a la papelera.`,
-    consolasALaPapelera: (n: number) => `Sus ${n} consolas irán a la papelera.`,
+    consolaALaPapelera: (nombre: string) => `Su consola «${nombre}» se moverá a la papelera.`,
+    consolasALaPapelera: (n: number) => `Sus ${n} consolas se moverán a la papelera.`,
     eliminarConexion: (alias: string) =>
       `Se eliminará «${alias}» y su contraseña guardada. No se puede deshacer; la base de datos no se toca.`,
-    desmontarDeTodos: 'Se desmontará de todos los proyectos donde la tuvieras.',
+    desmontarDeTodos: 'Se desmontará de todos los proyectos donde esté montada.',
     desmontarDe: (lista: string) => `Se desmontará de ${lista}.`,
     revertirSinConfirmar: (lista: string) => `Se revertirán los cambios sin confirmar de ${lista}.`,
     descartarUnCambio: 'Se descartará 1 cambio sin enviar de sus pestañas de datos.',
@@ -62,25 +62,25 @@ export const txFilasArbol = crearTextos(
     // --- filasArbolBdAvisos ---
     tituloSoloAjenas: 'Ninguna conexión que esta versión pueda abrir',
     pistaSoloAjenas:
-      'Esta versión no sabe abrir las del árbol, y cada una dice por qué; se conservan tal cual. ' +
-      'Actualiza Tessera si vienen de una más nueva, o crea una aquí.',
+      'Esta versión no puede abrir las conexiones del árbol; cada una indica el motivo y se conserva sin cambios. ' +
+      'Actualice Tessera si proceden de una versión más reciente, o cree una conexión nueva aquí.',
     vacioMontajeConAjenas: (titulo: string) =>
-      `${titulo}: la vista Bases de datos enseña las de este perfil atenuadas, ` +
-      'cada una con su porqué. Crea allí una para montarla.',
-    vacioMontajeSinConexiones: 'Este perfil no tiene conexiones. Añádelas en la vista Bases de datos.',
+      `${titulo}: la vista Bases de datos muestra atenuadas las conexiones de este perfil, ` +
+      'cada una con su motivo. Cree allí una conexión para montarla.',
+    vacioMontajeSinConexiones: 'Este perfil no tiene conexiones. Añádalas en la vista Bases de datos.',
     tituloFormatoAjeno: 'No se puede usar el registro de conexiones',
     notaFormatoAjeno:
-      'Mientras tanto no se ve ninguna conexión ni se pueden crear, pero no se pierde nada: ' +
-      'el archivo no se modifica y las bases montadas en los proyectos se conservan.',
+      'Mientras tanto no se muestra ninguna conexión ni se pueden crear, pero no se pierde nada: ' +
+      'el archivo no se modifica y se conservan las bases montadas en los proyectos.',
     motivoFormatoAjeno: 'No disponible: no se puede usar el registro de conexiones',
     notaMontajeFormatoAjeno:
       'Las bases montadas aquí se conservan tal cual: vuelven a estar disponibles en cuanto ' +
       'Tessera pueda leer el registro.',
-    abrePerfil: 'Abre un perfil para usar las bases de datos',
+    abrePerfil: 'Abra un perfil para usar las bases de datos',
     sinConexionesTodavia: 'Todavía no hay conexiones',
     consolaNoDisponible: (motor: string) => `La consola de ${motor} todavía no está disponible en esta versión.`,
     sinConexionesTitulo: 'Sin conexiones',
-    sinConexionesPista: 'Crea la primera para explorar sus datos.',
+    sinConexionesPista: 'Cree la primera conexión para explorar sus datos.',
     // --- filasArbolBdAjenas ---
     textoAjena: 'Requiere una versión más nueva de Tessera',
     textoAjenaForma: 'Esta versión no reconoce cómo está guardada',
@@ -89,32 +89,32 @@ export const txFilasArbol = crearTextos(
     comparteCon: (otra: string) => `Comparte el identificador con ${otra}`,
     explicaEliminada:
       'Compartía el identificador con una conexión eliminada: Tessera lee las conexiones al ' +
-      'arrancar y hasta entonces la sigue tratando como repetida, así que reinicia Tessera para ' +
-      'usarla. Se conserva tal cual.',
+      'iniciarse y hasta entonces sigue tratándola como repetida; reinicie Tessera para ' +
+      'usarla. Se conserva sin cambios.',
     explicaComparte: (otra: string) =>
-      `Comparte el identificador con ${otra}: esta versión no puede distinguirlas, y todo lo que se ` +
-      `hace por ese identificador llega a la otra. Se conserva tal cual; elimínala si sobra.`,
+      `Comparte el identificador con ${otra}: esta versión no puede distinguirlas, y cualquier acción ` +
+      `realizada con ese identificador también afecta a la otra. Se conserva sin cambios; elimine la que no necesite.`,
     explicaMotor: (texto: string) =>
-      `${texto}: la creó una versión más nueva, y esta no conoce su motor ni sabe ` +
-      'abrirla. Se conserva tal cual; actualiza Tessera para usarla.',
+      `${texto}: la creó una versión más reciente, y esta no conoce su motor ni puede ` +
+      'abrirla. Se conserva sin cambios; actualice Tessera para usarla.',
     explicaForma: (texto: string) =>
-      `${texto}: puede venir de una versión más nueva de Tessera (actualiza ` +
-      'para usarla) o de una edición a mano del archivo. Se conserva tal cual, sin tocarla.',
+      `${texto}: puede proceder de una versión más reciente de Tessera (actualice Tessera ` +
+      'para usarla) o de una edición manual del archivo. Se conserva sin cambios.',
     eliminarConexionMenu: 'Eliminar conexión…',
     motorEtiqueta: (motor: string) => `Motor: ${motor}`,
     salidaMontaje: 'El agente no puede usarla con esta versión; aquí solo se puede desmontar.',
-    salidaArbol: 'Si ya no la quieres, elimínala: es lo único que esta versión puede hacer con ella.',
-    salidaArbolRepetida: 'Si ya no la quieres, elimínala.',
+    salidaArbol: 'Si ya no la necesita, elimínela: es la única acción que esta versión puede realizar con ella.',
+    salidaArbolRepetida: 'Si ya no la necesita, elimínela.',
     eliminarNoToca: (otra: string) => `Eliminarla no toca ${otra}: ni sus montajes ni sus consolas.`,
     compartidaNoSeToca: (otra: string) =>
       `«${otra}» comparte su identificador y no se toca: sus montajes y sus consolas siguen.`,
-    desmontarDeEstePerfil: 'Se desmontará de los proyectos de este perfil donde la tuvieras.',
+    desmontarDeEstePerfil: 'Se desmontará de los proyectos de este perfil donde esté montada.',
     otroPerfilNoSeToca:
       'La conexión de otro perfil que comparte su identificador no se toca: ni sus montajes ni sus consolas.',
     eliminarAjena: (alias: string) =>
       `Se eliminará «${alias}» y su contraseña guardada, si tiene. No se puede deshacer; la base de datos no se toca.`,
     esConexionDe: (motor: string, explicacion: string) => `Es una conexión de ${motor}. ${explicacion}`,
-    eliminarSoloSiNoQuieres: 'Eliminarla solo hace falta si ya no la quieres.',
+    eliminarSoloSiNoQuieres: 'Elimínela solo si ya no la necesita.',
     // --- filasArbolBdSesiones ---
     unaConsola: 'una consola',
     pestanasDatos: 'las pestañas de datos',
@@ -126,9 +126,9 @@ export const txFilasArbol = crearTextos(
     confirmarFallidaUna: 'Confirmar (la fallida se revierte)',
     confirmarFallidasVarias: 'Confirmar (las fallidas se revierten)',
     notaUnaFallo: (total: number) =>
-      `1 de las ${total} transacciones falló y se revertirá aunque confirmes: una transacción fallida solo se puede revertir.`,
+      `1 de las ${total} transacciones falló y se revertirá aunque se confirmen las demás: una transacción fallida solo se puede revertir.`,
     notaVariasFallan: (fallidas: number, total: number) =>
-      `${fallidas} de las ${total} transacciones fallaron y se revertirán aunque confirmes: una transacción fallida solo se puede revertir.`,
+      `${fallidas} de las ${total} transacciones fallaron y se revertirán aunque se confirmen las demás: una transacción fallida solo se puede revertir.`,
     revertidaUna: (alias: string, quien: string) =>
       `${alias}: se confirmó lo pendiente y se revirtió la transacción fallida${quien}.`,
     revertidasVarias: (alias: string, n: number, quien: string) =>
@@ -136,7 +136,7 @@ export const txFilasArbol = crearTextos(
     soloRevertirVarias: (n: number) =>
       `Las ${n} transacciones fallaron, y una transacción fallida solo se puede revertir.`,
     soloRevertirUna: 'La transacción falló: solo se puede revertir.',
-    desconectarSinSeleccion: 'Elige una conexión (o algo dentro de ella) para desconectarla',
+    desconectarSinSeleccion: 'Seleccione una conexión (o un elemento de ella) para desconectarla',
     desconectar: 'Desconectar',
     desconectarAlias: (alias: string) => `Desconectar ${alias}`,
     noConectada: (alias: string) => `${alias} no está conectada`

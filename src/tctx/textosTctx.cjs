@@ -139,13 +139,13 @@ const en = {
 
   terminalAjena:
     'This terminal was not opened by Tessera (TESSERA_DB_PIPE and TESSERA_DB_SESSION are missing): tctx only works in Tessera terminals and agents.',
-  tesseraNoContesta: 'Tessera is not responding: is it open? If it is, reload the terminal (or restart the agent).',
-  sesionNoReconocida: 'Tessera does not recognize this session: reload the terminal (or restart the agent).',
+  tesseraNoContesta: 'Tessera is not responding: is it open? If it is, restart the terminal (or restart the agent).',
+  sesionNoReconocida: 'Tessera does not recognize this session: restart the terminal (or restart the agent).',
   versionDistinta: 'The running Tessera does not support this version of tctx: restart it (or update it).',
   falloInterno: 'Tessera failed while handling the request (the details are in its log, logs/db.log).',
   respuestaIncomprensible: 'Tessera returned a response that cannot be interpreted.',
   sinReglas: 'This profile has no rules.',
-  sinPerfil: 'The profile of this session no longer exists: reload the terminal.',
+  sinPerfil: 'The profile of this session no longer exists: restart the terminal.',
   sinTraspaso: 'This session has no handoff: only a session that Tessera opened to continue another agent’s work has one, while it stays open.',
   propuestaVacia: 'The proposal is empty: send the whole new version of the rules.',
   propuestaLarga: (largo, max) => `The proposal has ${largo} characters and the rules allow at most ${max}: shorten it.`,
@@ -167,10 +167,10 @@ const en = {
       ? `From Docker, only your account is searched (${cuenta}): conversations from other accounts and native ones are not visible from here.`
       : 'From Docker, only your own account is searched: conversations from other accounts and native ones are not visible from here.',
 
-  sinContextoContenedor: 'This terminal does not have the Tessera context: reload the terminal (or restart the agent).',
-  buzonSinMontar: (buzon) => `The bridge to the host is not mounted (${buzon} does not exist): reload the terminal.`,
-  buzonNoResponde: 'The bridge to the host is not responding: reload the terminal; if the problem persists, restart Tessera.',
-  puenteSinRespuesta: (s) => `The bridge did not respond within ${s} s: check that Tessera is still open and reload the terminal.`,
+  sinContextoContenedor: 'This terminal does not have the Tessera context: restart the terminal (or restart the agent).',
+  buzonSinMontar: (buzon) => `The bridge to the host is not mounted (${buzon} does not exist): restart the terminal.`,
+  buzonNoResponde: 'The bridge to the host is not responding: restart the terminal; if the problem persists, restart Tessera.',
+  puenteSinRespuesta: (s) => `The bridge did not respond within ${s} s: check that Tessera is still open and restart the terminal.`,
 
   ayuda: (c, max) => `
   tctx — the Tessera profile rules for its agents, the handoff between agents and the search in past conversations

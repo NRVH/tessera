@@ -9,22 +9,22 @@ import type { Articulo } from '../modelo.ts'
 
 const es: Articulo = {
   resumen:
-    'Tessera se actualiza sola: baja la versión nueva en segundo plano y la aplica al cerrarla. Claude Code y Codex se ponen al día aparte, con un botón.',
+    'Tessera se actualiza automáticamente: descarga la versión nueva en segundo plano y la aplica al cerrarse. Claude Code y Codex se actualizan por separado, con un botón.',
   secciones: [
     {
       ancla: 'tessera',
       titulo: 'Cómo se actualiza Tessera',
       bloques: [
-        'Tessera comprueba si hay una versión nueva poco después de arrancar y luego cada pocos minutos. Si la hay, la descarga en segundo plano sin preguntar: puedes seguir trabajando.',
-        'Cuando está preparada, el botón de actualización de la barra de título lo indica. Tienes dos caminos:',
+        'Tessera comprueba si hay una versión nueva a los pocos segundos de iniciarse y, después, cada 5 minutos si su ventana tiene el foco y cada 30 minutos si está en segundo plano. Si hay una versión nueva, la descarga en segundo plano sin preguntar, y se puede seguir trabajando.',
+        'Cuando la versión nueva está preparada, el botón de actualización de la barra de título lo indica. Hay dos opciones:',
         {
           lista: [
-            '**Actualizar ahora**: cierra Tessera e instala la versión nueva enseguida.',
-            'No hacer nada: con **Aplicar al cerrar Tessera** activado, que lo está de serie, se instala la próxima vez que cierres la app, sin volver a abrirla.'
+            '**Actualizar ahora**: cierra Tessera, instala la versión nueva y vuelve a abrir Tessera.',
+            'No hacer nada: con **Aplicar al cerrar Tessera** activado, que es lo predeterminado, la versión nueva se instala la próxima vez que se cierre Tessera. En este caso, Tessera no se vuelve a abrir sola.'
           ]
         },
         {
-          nota: 'Una actualización nunca toca tus datos: perfiles, proyectos, conexiones, conversaciones y configuración siguen igual.'
+          nota: 'Una actualización no modifica sus datos: los perfiles, los proyectos, las conexiones, las conversaciones y la configuración se conservan.'
         }
       ]
     },
@@ -32,9 +32,9 @@ const es: Articulo = {
       ancla: 'configuracion',
       titulo: 'En Configuración',
       bloques: [
-        '**Configuración › Actualizaciones** enseña tu versión y en qué punto está la siguiente: **Buscar actualizaciones** comprueba al momento y **Reiniciar e instalar** aplica una versión ya preparada.',
-        '**Aplicar al cerrar Tessera** decide si la versión preparada se instala sola al cerrar. Si lo apagas, espera a que pulses el botón.',
-        'Si una versión no llega a instalarse, Tessera te lo dice y sigues en la anterior, con tus datos intactos. Lo intenta otra vez la próxima vez que la cierres.'
+        '**Configuración › Actualizaciones** muestra la versión actual y el estado de la siguiente. **Buscar actualizaciones** comprueba en ese momento si hay una versión nueva y **Reiniciar e instalar** aplica una versión ya preparada.',
+        '**Aplicar al cerrar Tessera** decide si la versión preparada se instala automáticamente al cerrar. Si se desactiva, la versión espera hasta que se pulse el botón.',
+        'Si una versión no llega a instalarse, Tessera lo indica y sigue en la versión anterior, con sus datos intactos. Tessera vuelve a intentarlo la próxima vez que se cierre. Después de dos intentos deja de reintentar, y el problema se resuelve cuando se publica una versión superior.'
       ]
     },
     {
@@ -42,40 +42,53 @@ const es: Articulo = {
       titulo: 'En cada sistema',
       bloques: [
         {
-          p: 'El instalador es por usuario, así que actualizar no pide permisos de administrador ni vuelve a enseñar el aviso de SmartScreen del primer arranque.',
+          p: 'El instalador es por usuario. Por ello, actualizar no pide permisos de administrador ni vuelve a mostrar el aviso de SmartScreen de la primera ejecución.',
           soloEn: ['windows']
         },
         {
-          p: 'Mientras se instala, también cuando se aplica al cerrar, una ventana enseña cada paso. Al terminar, **Abrir Tessera** la abre. Si algo falla, esa misma ventana te deja elegir: **Reintentar**, **Volver a la versión anterior** (repone la que tenías y la abre) o **Abrir el instalador** para hacerlo paso a paso.',
+          p: 'Durante la instalación, también cuando se aplica al cerrar, una ventana muestra cada paso. Al terminar, **Abrir Tessera** abre la aplicación. Si algo falla, esa misma ventana ofrece tres opciones: **Reintentar**, **Volver a la versión anterior** (restaura la versión que había y la abre) o **Abrir el instalador**, para realizar la instalación paso a paso.',
           soloEn: ['windows']
         },
         {
-          p: 'Tessera sustituye la app en su carpeta. Mientras lo hace con la app cerrada, una notificación te avisa al empezar y otra al terminar, con el resultado. Si está en una carpeta donde no puede escribir, no puede instalarse sola y te ofrece descargar la versión nueva para que la sustituyas tú. Tras cada actualización, el Llavero pregunta una vez si Tessera puede usar sus contraseñas: pulsa **Permitir siempre**.',
+          p: 'Tessera sustituye la aplicación en su carpeta. Cuando lo hace con la aplicación cerrada, una notificación avisa al empezar y otra al terminar, con el resultado. Si la aplicación está en una carpeta sin permiso de escritura, no puede instalarse automáticamente y ofrece descargar la versión nueva para sustituirla manualmente. Después de cada actualización, el Llavero pregunta una vez si Tessera puede usar sus contraseñas: pulse **Permitir siempre**.',
           soloEn: ['mac']
         },
         {
-          p: 'Se actualiza sola cuando la abres como AppImage: Tessera sustituye ese archivo por el nuevo antes de cerrarse, y si no puede, te lo dice en su ventana. Una copia que no corre como AppImage no puede instalarse sola y te ofrece descargar la versión nueva.',
+          p: 'Tessera se actualiza automáticamente cuando se ejecuta como AppImage: sustituye ese archivo por el nuevo antes de cerrarse y, si no puede, lo indica en su ventana. Una copia que no se ejecuta como AppImage no puede instalarse automáticamente y ofrece descargar la versión nueva.',
           soloEn: ['linux']
         }
       ]
     },
     {
       ancla: 'agentes-nativos',
-      titulo: 'Claude Code y Codex en tu equipo',
+      titulo: 'Claude Code y Codex en su equipo',
       bloques: [
-        'Los agentes [nativos](glosario/nativo) usan el Claude Code y el Codex instalados en {tuEquipo}. El botón **Actualizar los agentes de {tuEquipo}**, en la barra de título, comprueba sus versiones y se marca cuando hay una nueva.',
-        'Con **Actualizar y reiniciar**, Tessera instala la versión nueva y reinicia solo las sesiones que corren una anterior, cada una en su conversación. Se salta las que están trabajando, esperan tu respuesta o tienen texto sin enviar, y te dice cuáles quedaron sin reiniciar.',
-        'También lo tienes en **Configuración › Actualizaciones**, en el grupo Agentes. Si uno se instaló de una forma que Tessera no sabe actualizar, te da la orden para hacerlo a mano.'
+        'Los agentes [nativos](glosario/nativo) usan el Claude Code y el Codex instalados en {tuEquipo}. El botón **Actualizar los agentes de {tuEquipo}**, en la barra de título, comprueba sus versiones y se marca cuando hay una nueva. Para actualizar:',
+        {
+          pasos: [
+            'Haga clic en el botón. Se abre un panel con las versiones y con las sesiones que se reiniciarán.',
+            'Si el panel muestra un motivo de espera, como «Espera: 1 agente trabajando», espere a que el agente termine o responda a su pregunta. Mientras una sesión que debe reiniciarse esté trabajando o espere su respuesta, la acción no está disponible.',
+            'Pulse el botón de acción, cuyo texto dice lo que hará, por ejemplo «Actualizar Claude Code y reiniciar 2 sesiones». Tessera instala la versión nueva y reinicia solo las sesiones que usan una versión anterior, cada una en su conversación.'
+          ]
+        },
+        'Antes de actuar, el panel advierte de las sesiones que pueden tener texto sin enviar o un trabajo terminado sin revisar. Si una sesión empieza a trabajar, pide su respuesta o recibe texto nuevo durante el proceso, Tessera no la reinicia e indica cuáles quedaron sin reiniciar y por qué.',
+        'La misma información está en **Configuración › Actualizaciones**, en el grupo **Agentes**. Si un agente se instaló de una forma que Tessera no puede actualizar, el panel lo indica y, cuando la conoce, muestra la orden para actualizarlo manualmente.'
       ]
     },
     {
       ancla: 'agentes-docker',
       titulo: 'Los agentes en Docker',
       bloques: [
-        'Los agentes en Docker usan el Claude Code y el Codex de la imagen de su contenedor. Para ponerlos al día, pulsa **Actualizar agentes** en el panel de un agente en Docker: reconstruye la imagen con las últimas versiones (unos minutos) y reinicia los contenedores.',
-        'Los agentes que tengas abiertos se reinician solos sobre la versión nueva. Lo que un agente actualice a mano dentro de su contenedor se pierde al pararlo; esto, en cambio, dura. Lo explica [Contenedores de Docker](contenedores-docker/imagen).',
+        'Los agentes en Docker usan el Claude Code y el Codex incluidos en la imagen de su contenedor. Para actualizarlos:',
         {
-          nota: 'No cierres Tessera mientras se reconstruye la imagen.'
+          pasos: [
+            'En la cabecera de un agente en Docker, fuera del [mosaico](glosario/mosaico), pulse **Actualizar agentes**. Se abre un diálogo con el mismo título.',
+            'Pulse **Actualizar**. Tessera reconstruye la imagen con las últimas versiones (tarda unos minutos) y reinicia los contenedores. Al terminar, el diálogo muestra las versiones instaladas.'
+          ]
+        },
+        'Los agentes abiertos se reinician automáticamente con la versión nueva. Lo que un agente actualice manualmente dentro de su contenedor se pierde al detenerse el contenedor; una actualización de la imagen, en cambio, se conserva. Lo explica [Contenedores de Docker](contenedores-docker/imagen).',
+        {
+          nota: 'No cierre Tessera mientras se reconstruye la imagen.'
         }
       ]
     }
@@ -84,22 +97,22 @@ const es: Articulo = {
 
 const en: Articulo = {
   resumen:
-    'Tessera updates itself: it downloads the new version in the background and installs it when you quit. Claude Code and Codex are updated separately, with a button.',
+    'Tessera updates automatically: it downloads the new version in the background and installs it when it closes. Claude Code and Codex are updated separately, with a button.',
   secciones: [
     {
       ancla: 'tessera',
       titulo: 'How Tessera updates',
       bloques: [
-        'Tessera checks for a new version shortly after it starts, and then every few minutes. If a new version is available, Tessera downloads it in the background without asking, so you can keep working.',
-        'When the update is ready, the update button in the title bar shows it. You have two options:',
+        'Tessera checks for a new version a few seconds after it starts, and then every 5 minutes while its window has focus and every 30 minutes while it is in the background. If a new version is available, Tessera downloads it in the background without asking, so you can keep working.',
+        'When the new version is ready, the update button in the title bar shows it. You have two options:',
         {
           lista: [
-            '**Update now**: quits Tessera and installs the new version right away.',
-            'Do nothing: if **Apply when Tessera closes** is turned on (the default), the update installs the next time you quit, without reopening the app.'
+            '**Update now**: closes Tessera, installs the new version, and opens Tessera again.',
+            'Do nothing: with **Apply when Tessera closes** turned on, which is the default, the new version installs the next time Tessera closes. In this case, Tessera does not reopen on its own.'
           ]
         },
         {
-          nota: 'An update never changes your data: profiles, projects, connections, conversations, and settings stay the same.'
+          nota: 'An update does not change your data: profiles, projects, connections, conversations, and settings are kept.'
         }
       ]
     },
@@ -107,9 +120,9 @@ const en: Articulo = {
       ancla: 'configuracion',
       titulo: 'In Settings',
       bloques: [
-        '**Settings › Updates** shows your version and the status of the next one: **Check for updates** checks immediately, and **Restart and install** installs a version that is already downloaded.',
-        '**Apply when Tessera closes** controls whether a downloaded version installs automatically when you quit. If you turn it off, Tessera waits for you to click the button.',
-        'If a version fails to install, Tessera tells you, and you stay on the previous version with your data intact. Tessera tries again the next time you quit.'
+        '**Settings › Updates** shows the current version and the status of the next one. **Check for updates** checks for a new version immediately, and **Restart and install** applies a version that is already prepared.',
+        '**Apply when Tessera closes** controls whether a prepared version installs automatically on close. If you turn it off, the version waits until you click the button.',
+        'If a version fails to install, Tessera tells you and stays on the previous version, with your data intact. Tessera tries again the next time it closes. After two attempts it stops retrying, and the problem is resolved when a higher version is published.'
       ]
     },
     {
@@ -121,15 +134,15 @@ const en: Articulo = {
           soloEn: ['windows']
         },
         {
-          p: 'While it installs, also when the update is applied on quit, a window shows each step. When it finishes, **Open Tessera** opens the app. If something fails, the same window lets you choose: **Try again**, **Go back to the previous version** (restores the version you had and opens it), or **Open the installer** to do it step by step.',
+          p: 'During installation, also when the update is applied on close, a window shows each step. When it finishes, **Open Tessera** opens the app. If something fails, the same window offers three options: **Try again**, **Go back to the previous version** (restores the version you had and opens it), or **Open the installer**, to do the installation step by step.',
           soloEn: ['windows']
         },
         {
-          p: 'Tessera replaces the app in its folder. While it does this with the app closed, one notification tells you when it starts and another when it finishes, with the result. If the app is in a folder that Tessera cannot write to, the update cannot install itself, and Tessera offers the new version as a download so you can replace the app yourself. After each update, Keychain asks once whether Tessera can use its passwords: click **Always Allow**.',
+          p: 'Tessera replaces the app in its folder. When it does this with the app closed, one notification tells you when it starts and another when it finishes, with the result. If the app is in a folder without write permission, it cannot install the update automatically and offers the new version as a download, so that you can replace it manually. After each update, Keychain asks once whether Tessera can use its passwords: click **Always Allow**.',
           soloEn: ['mac']
         },
         {
-          p: 'Tessera updates itself when you run it as an AppImage: it replaces that file with the new one before quitting, and if it cannot, it tells you in its window. A copy that does not run as an AppImage cannot install updates itself, so Tessera offers the new version as a download.',
+          p: 'Tessera updates automatically when it runs as an AppImage: it replaces that file with the new one before closing and, if it cannot, tells you in its window. A copy that does not run as an AppImage cannot install updates automatically and offers the new version as a download.',
           soloEn: ['linux']
         }
       ]
@@ -138,19 +151,32 @@ const en: Articulo = {
       ancla: 'agentes-nativos',
       titulo: 'Claude Code and Codex on your computer',
       bloques: [
-        '[Native](glosario/nativo) agents use the Claude Code and Codex installed on {tuEquipo}. The **Update agents on {tuEquipo}** button, in the title bar, checks their versions and shows a badge when a new version is available.',
-        'With **Update and restart**, Tessera installs the new version and restarts only the sessions that run an older version, each in its own conversation. It skips agents that are working, are waiting for your answer, or have unsent text, and tells you which ones were not restarted.',
-        'The same option is in **Settings › Updates**, in the Agents group. If an agent was installed in a way that Tessera cannot update, Tessera shows you the command to update it manually.'
+        '[Native](glosario/nativo) agents use the Claude Code and Codex installed on {tuEquipo}. The **Update agents on {tuEquipo}** button, in the title bar, checks their versions and shows a badge when a new version is available. To update:',
+        {
+          pasos: [
+            'Click the button. A panel opens with the versions and the sessions that will restart.',
+            'If the panel shows a reason to wait, such as “Wait: 1 agent working”, wait until the agent finishes or answer its question. While a session that must restart is working or waiting for your reply, the action is not available.',
+            'Click the action button, whose text says what it will do, for example “Update Claude Code and restart 2 sessions”. Tessera installs the new version and restarts only the sessions running an older version, each in its own conversation.'
+          ]
+        },
+        'Before acting, the panel warns you about sessions that may have unsent text or finished work you have not reviewed. If a session starts working, asks for your reply, or receives new text during the process, Tessera does not restart it and tells you which sessions were not restarted and why.',
+        'The same information is in **Settings › Updates**, in the **Agents** group. If an agent was installed in a way that Tessera cannot update, the panel says so and, when Tessera knows the command, shows it so that you can update the agent manually.'
       ]
     },
     {
       ancla: 'agentes-docker',
       titulo: 'Agents in Docker',
       bloques: [
-        'Agents in Docker use the Claude Code and Codex included in their container image. To update them, click **Update agents** in the panel of an agent in Docker: Tessera rebuilds the image with the latest versions (this takes a few minutes) and restarts the containers.',
-        'Open agents restart automatically on the new version. Anything an agent updates manually inside its container is lost when the container stops; an update through the image, by contrast, persists. For details, see [Docker containers](contenedores-docker/imagen).',
+        'Agents in Docker use the Claude Code and Codex included in their container image. To update them:',
         {
-          nota: 'Do not quit Tessera while the image is being rebuilt.'
+          pasos: [
+            'In the header of an agent in Docker, outside the [mosaic](glosario/mosaico), click **Update agents**. A dialog with the same title opens.',
+            'Click **Update**. Tessera rebuilds the image with the latest versions (this takes a few minutes) and restarts the containers. When it finishes, the dialog shows the installed versions.'
+          ]
+        },
+        'Open agents restart automatically on the new version. Anything an agent updates manually inside its container is lost when the container stops; an update of the image, by contrast, is kept. For details, see [Docker containers](contenedores-docker/imagen).',
+        {
+          nota: 'Do not close Tessera while the image is being rebuilt.'
         }
       ]
     }

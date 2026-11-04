@@ -13,10 +13,10 @@ export const txConexionDialogo = crearTextos(
     // --- cabecera y fila de nombre ---
     editarConexion: 'Editar conexión',
     nuevaConexion: 'Nueva conexión',
-    ayudaNombreAntes: 'Llámala como quieras: el nombre es solo tuyo. El agente podrá explorarla con ',
-    ayudaNombreDespues: ' sin que le dictes credenciales.',
+    ayudaNombreAntes: 'Puede usar cualquier nombre: es solo una etiqueta para usted. El agente podrá explorar la conexión con ',
+    ayudaNombreDespues: ' sin que usted le proporcione credenciales.',
     nombre: 'Nombre',
-    nombreAyuda: '(el que uses para referirte a ella)',
+    nombreAyuda: '(el nombre con el que identifica la conexión)',
     phAlias: 'DEV-VENTAS',
     motor: 'Motor',
     // --- URI ---
@@ -25,7 +25,7 @@ export const txConexionDialogo = crearTextos(
     cancelar: 'Cancelar',
     pegarUri: 'Pegar URI…',
     uriRellenada: (fuera: string) =>
-      `Rellenado desde la URI. Estas opciones no se guardan y se dejaron fuera: ${fuera}.`,
+      `Campos completados desde la URI. Estas opciones no se guardan y se omitieron: ${fuera}.`,
     // --- credenciales ---
     usuario: 'Usuario',
     contrasena: 'Contraseña',
@@ -35,7 +35,7 @@ export const txConexionDialogo = crearTextos(
     // --- entorno, notas, prueba, pie ---
     entorno: 'Entorno',
     notas: 'Notas',
-    phNotas: 'Para qué es, quién la administra, qué no tocar…',
+    phNotas: 'Finalidad, responsable de la administración, aspectos que no deben modificarse…',
     probando: 'Probando…',
     confiarYProbar: 'Confiar en el certificado y probar',
     guardarYProbar: 'Guardar y probar',
@@ -48,28 +48,28 @@ export const txConexionDialogo = crearTextos(
     ningunArchivo: 'Ningún archivo elegido',
     elegir: 'Elegir…',
     crearNueva: 'Crear nueva…',
-    crearNuevaTitulo: 'Crea un archivo de base de datos nuevo y vacío',
+    crearNuevaTitulo: 'Crear un archivo de base de datos nuevo y vacío',
     // --- clientes ---
     clientesBd: 'Clientes de base de datos',
-    oracleNoPublica: 'Oracle ya no lo publica para descarga directa: bájalo a mano desde su web y señala la carpeta.',
-    oracleNoPublicaNota: 'Oracle ya no lo publica para descarga directa; hay que bajarlo a mano desde su web.',
+    oracleNoPublica: 'Oracle ya no ofrece este cliente para descarga directa. Descárguelo manualmente desde su sitio web y seleccione la carpeta.',
+    oracleNoPublicaNota: 'Oracle ya no ofrece este cliente para descarga directa; debe descargarse manualmente desde su sitio web.',
     descargarEInstalar: 'Descargar e instalar',
-    registrarClienteTitulo: 'Registrar un cliente que ya tengas descomprimido en este equipo',
+    registrarClienteTitulo: 'Registrar un cliente que ya esté descomprimido en este equipo',
     seleccionarCarpeta: 'Seleccionar carpeta…',
     descomprimiendo: 'Descomprimiendo…',
     instalando: 'Instalando…',
     descargando: (porcentaje: number) => `Descargando… ${porcentaje}%`,
     sinClientes: 'No hay clientes que instalar en este equipo.',
     instalado: 'instalado',
-    instaladoTuyo: ' (tuyo)',
+    instaladoTuyo: ' (registrado por usted)',
     descargar: (mb: number) => `Descargar (${mb} MB)`,
     soloOracle: 'Solo hacen falta para Oracle anterior a 12.1.',
     // --- topología de Redis ---
     ayudaSentinel:
-      'En Host van los sentinels separados por comas (sentinel1:26379, sentinel2:26379); el puerto de al lado vale para los que no lo digan. ' +
-      'Tessera les pregunta por el maestro y, tras un failover, vuelve a preguntar.',
+      'En Host se indican los sentinels separados por comas (sentinel1:26379, sentinel2:26379); el puerto contiguo se aplica a los que no especifican el suyo. ' +
+      'Tessera consulta a los sentinels cuál es el maestro y vuelve a consultarlo tras un failover.',
     ayudaCluster:
-      'En Host van uno o varios nodos separados por comas (nodo1:6379, nodo2:6379); el resto del cluster se descubre. En Cluster solo existe la base 0.',
+      'En Host se indican uno o varios nodos separados por comas (nodo1:6379, nodo2:6379); el resto del cluster se descubre automáticamente. En Cluster solo existe la base 0.',
     modoServidor: 'Un servidor',
     modoSentinel: 'Sentinel (maestro y réplicas)',
     modoCluster: 'Cluster',
@@ -83,9 +83,9 @@ export const txConexionDialogo = crearTextos(
     // --- túnel SSH ---
     ayudaTunel:
       'Tessera llega a la base a través de esa conexión SSH: el host y el puerto de arriba son los del servidor de base de datos visto desde el servidor SSH. ' +
-      'La huella del servidor SSH tiene que estar confirmada y su contraseña o clave, guardada.',
+      'La huella del servidor SSH debe estar confirmada y su contraseña o clave debe estar guardada.',
     sinTunelTopologia:
-      'Sentinel y Cluster no van por túnel SSH: Tessera se conecta a servidores que el túnel no lleva (el maestro que den los sentinels, los nodos del cluster). Para usar un túnel, elige «Un servidor».',
+      'Sentinel y Cluster no admiten túnel SSH: Tessera se conecta a servidores a los que el túnel no da acceso (el maestro que indican los sentinels y los nodos del cluster). Para usar un túnel, seleccione «Un servidor».',
     tunelSsh: 'Túnel SSH',
     ningunoSinSsh: 'Ninguno (este perfil no tiene conexiones SSH)',
     ningunoDirecta: 'Ninguno (conexión directa)',

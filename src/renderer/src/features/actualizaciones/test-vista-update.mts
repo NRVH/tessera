@@ -193,8 +193,8 @@ function main(): void {
     disponible.titulo
   )
   check(
-    'dice explícitamente que esta copia no puede instalarse sola',
-    disponible.titulo.includes('no puede instalarse sola'),
+    'dice explícitamente que esta copia no puede instalarse automáticamente',
+    disponible.titulo.includes('no puede instalarse automáticamente'),
     disponible.titulo
   )
   // La acción tiene que ser `abrir` y NO `instalar`. Con `instalar`, `alPulsar` manda

@@ -14,7 +14,8 @@ demás, la revisión.
   español: eso es un fallo. `test:textos` caza el del JSX (los nombres propios y términos que no se
   traducen van en su lista `PERMITIDOS`); el de un `throw` o un diálogo del main se revisa a mano. Las dos redacciones con ortografía y mayúsculas de frase, nunca en
   mayúsculas puras. Fuera quedan las instrucciones a los agentes de IA, los registros de diagnóstico
-  y el CHANGELOG (`docs/decisiones/app/idioma.md`).
+  y el CHANGELOG (`docs/decisiones/app/idioma.md`). El español es formal, trata de usted y no deja
+  lugar a dudas (`docs/decisiones/app/redaccion.md`).
 - Los identificadores ingleses que ya existen (`GitService`, `useTabs`…) no se traducen solo
   por idioma. Lo nuevo, en español.
 - **Nunca** cambian los nombres de los canales IPC ni las claves que se persisten
@@ -188,6 +189,7 @@ npm run test:menciones -- <rutas>
 npm run test:comentarios -- <rutas>
 npm run test:ciclos -- <rutas>
 npm run test:textos -- <rutas>
+npm run test:registro -- <rutas>
 ```
 
 - ESLint falla con lo que este estándar trata como error: el doble de los límites, las

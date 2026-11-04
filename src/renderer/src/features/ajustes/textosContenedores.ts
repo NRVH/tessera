@@ -9,54 +9,54 @@ import type { ColorSemaforo, PrimeroEnPararse } from '../../../../shared/semafor
 
 export const txContenedores = crearTextos(
   {
-    grupoLimite: 'Contenedores a la vez',
+    grupoLimite: 'Contenedores simultáneos',
     grupoLimiteAyuda:
-      'Cuenta todo lo que abres en modo Docker: los agentes de los proyectos, el de la vista de bases de datos, el de la terminal y las terminales Docker. Un agente trabajando ocupa entre 0,3 y 1,5 GB.',
+      'Incluye todo lo que se abre en modo Docker: los agentes de los proyectos y el agente de la vista de bases de datos. Un agente trabajando ocupa entre 0,3 y 1,5 GB.',
     limite: 'Límite de contenedores',
     sinLimite: 'Sin límite',
     sinLimiteHastaDocker: 'Sin límite hasta que Docker responda',
     contenedores: (n: number) => `${n} ${n === 1 ? 'contenedor' : 'contenedores'}`,
     color: { verde: 'Holgado', amarillo: 'Justo', rojo: 'Excesivo' } as Record<ColorSemaforo, string>,
     aviso: {
-      verde: 'Tu equipo los mantiene trabajando a la vez con holgura.',
+      verde: 'Su equipo puede mantenerlos todos trabajando al mismo tiempo con holgura.',
       amarillo:
-        'Muy justo: con todos trabajando puede haber lentitud, agentes detenidos y cierres inesperados de Tessera.',
-      rojo: 'Excesivo: con todos trabajando, alguno de sus agentes fallará a medio proceso. Te arriesgas a perder trabajo y a que Tessera se cierre.'
+        'Muy justo: si todos trabajan al mismo tiempo, puede haber lentitud, agentes detenidos y cierres inesperados de Tessera.',
+      rojo: 'Excesivo: si todos trabajan al mismo tiempo, alguno de sus agentes fallará a mitad de una tarea. Puede perderse trabajo y Tessera puede cerrarse.'
     } as Record<ColorSemaforo, string>,
     avisoSinLimite:
-      'Sin límite no hay red: con todos trabajando, alguno de sus agentes fallará a medio proceso. Te arriesgas a perder trabajo y a que Tessera se cierre.',
+      'Sin límite no hay protección: si todos trabajan al mismo tiempo, alguno de sus agentes fallará a mitad de una tarea. Puede perderse trabajo y Tessera puede cerrarse.',
     maquina: (gb: string, nucleos: number | null, recomendado: number) =>
       nucleos === null
         ? `Docker tiene ${gb} GB en este equipo: se recomiendan hasta ${recomendado}.`
         : `Docker tiene ${gb} GB y ${nucleos} ${nucleos === 1 ? 'núcleo' : 'núcleos'} en este equipo: se recomiendan hasta ${recomendado}.`,
-    ahora: (vivos: number) => (vivos === 1 ? 'Ahora corre 1.' : `Ahora corren ${vivos}.`),
-    noResponde: 'Docker no responde: el semáforo se calcula en cuanto vuelva.',
-    usarRecomendado: 'Usar el recomendado',
+    ahora: (vivos: number) => (vivos === 1 ? 'Ahora hay 1 en ejecución.' : `Ahora hay ${vivos} en ejecución.`),
+    noResponde: 'Docker no responde: el semáforo se calculará en cuanto Docker vuelva a responder.',
+    usarRecomendado: 'Usar el valor recomendado',
     grupoPolitica: 'Al llegar al límite',
     politicaAyuda:
-      'Antes de parar nada, Tessera para un contenedor que ya no tenga agentes. Lo que se para se hiberna: la conversación se retoma al volver, pero lo que estuviera haciendo se interrumpe. Si todos están protegidos, el agente nuevo no se abre y se explica por qué.',
+      'Para abrir otro agente cuando ya no hay espacio disponible, Tessera detiene un contenedor. Comienza por uno sin agentes; si no hay ninguno, aplica la opción elegida aquí. Los agentes del contenedor detenido se hibernan: la conversación se conserva, pero se interrumpe lo que estuvieran haciendo.',
     primero: {
       ultimos: {
-        label: 'Los últimos que abriste',
-        hint: 'Recomendado: protege los que llevan más tiempo con tareas largas.'
+        label: 'El último contenedor abierto',
+        hint: 'Recomendado: suele tener menos trabajo en curso que los contenedores abiertos antes.'
       },
-      primeros: { label: 'Los primeros que abriste', hint: 'Se paran los más antiguos.' },
-      inactivos: { label: 'Los que llevan más tiempo sin uso', hint: 'Se para el que lleva más sin entrada ni salida.' }
+      primeros: { label: 'El primer contenedor abierto', hint: 'Es el que lleva más tiempo abierto; puede tener una tarea larga en curso.' },
+      inactivos: { label: 'El contenedor con más tiempo sin actividad', hint: 'Es aquel cuyos agentes llevan más tiempo sin recibir ni mostrar nada.' }
     } as Record<PrimeroEnPararse, { label: string; hint: string }>,
-    proteger: 'No parar los que están trabajando mientras haya otro',
-    protegerAyuda: 'Un agente que está produciendo salida no se interrumpe si hay otro que parar.',
+    proteger: 'No detener contenedores con agentes trabajando',
+    protegerAyuda: 'Si todos tienen agentes trabajando, el agente nuevo no se abre y Tessera explica el motivo.',
     grupoSaturacion: 'Si Docker se satura',
     saturacionAyuda:
-      'Tessera mide la memoria de todos los contenedores de Docker. Cuando pasa del umbral durante ese tiempo, hiberna un agente según «Al llegar al límite» (qué parar primero y si se protegen los que trabajan). Nunca para el que estás mirando ni uno manual. Si todos los que quedan están trabajando, para uno trabajando: con Docker sin memoria caería uno igual, sin elegir. La conversación se retoma al volver.',
+      'Tessera mide la memoria de todos los contenedores de Docker. Si supera el umbral durante el tiempo indicado, hiberna un agente según «Al llegar al límite» (qué contenedor detener primero y si se protegen los que están trabajando). Nunca detiene el agente visible en pantalla ni un agente manual. Si todos los restantes están trabajando, detiene uno que esté trabajando: con Docker sin memoria, uno fallaría de todos modos y sin que usted pudiera elegir cuál. La conversación se reanuda cuando usted vuelve al agente.',
     umbral: 'Se considera saturado con la memoria de Docker por encima del',
     umbralValor: (pct: number) => `${pct} %`,
     duracion: 'durante',
     duracionValor: (s: number) => (s < 60 ? `${s} s` : `${s / 60} min`),
-    avisar: (s: number) => `Avisar ${s} s antes de parar, con la opción de elegir otro`,
-    avisarAyuda: 'Si lo desmarcas, se para sin aviso.',
-    grupoParadas: 'Últimas paradas',
+    avisar: (s: number) => `Avisar ${s} s antes de detener, con la opción de elegir otro`,
+    avisarAyuda: 'Si se desmarca, el contenedor se detiene sin aviso.',
+    grupoParadas: 'Últimos contenedores detenidos',
     actualizar: 'Actualizar',
-    sinParadas: 'Tessera no ha parado ningún contenedor.',
+    sinParadas: 'Tessera no ha detenido ningún contenedor.',
     motivoLimite: (n: number | null) =>
       n === null ? 'Límite de contenedores' : `Límite de ${n} ${n === 1 ? 'contenedor' : 'contenedores'}`,
     motivoSaturacion: (pct: number | null, umbral: number | null) =>
@@ -66,9 +66,9 @@ export const txContenedores = crearTextos(
     reglaNoProtege: 'sin proteger a los que trabajan'
   },
   {
-    grupoLimite: 'Containers at once',
+    grupoLimite: 'Simultaneous containers',
     grupoLimiteAyuda:
-      'It counts everything you open in Docker mode: the project agents, the database view agent, the terminal agent and the Docker terminals. A working agent takes between 0.3 and 1.5 GB.',
+      'It counts everything you open in Docker mode: the project agents and the database view agent. A working agent takes between 0.3 and 1.5 GB.',
     limite: 'Container limit',
     sinLimite: 'No limit',
     sinLimiteHastaDocker: 'No limit until Docker responds',
@@ -90,17 +90,17 @@ export const txContenedores = crearTextos(
     usarRecomendado: 'Use recommended value',
     grupoPolitica: 'When the limit is reached',
     politicaAyuda:
-      'First, Tessera stops a container that no longer has agents. A stopped agent is hibernated: the conversation resumes when you return, but whatever it was doing is interrupted. If all of them are protected, the new agent does not open and Tessera tells you why.',
+      'To open another agent when there is no room left, Tessera stops a container. It starts with one that has no agents; if there is none, it uses the option you choose here. Its agents are hibernated: the conversation is kept, but whatever they were doing is interrupted.',
     primero: {
       ultimos: {
-        label: 'The most recent ones you opened',
-        hint: 'Recommended: protects the agents that have been running long tasks the longest.'
+        label: 'The last container you opened',
+        hint: 'Recommended: it usually has less work in progress than the ones you opened earlier.'
       },
-      primeros: { label: 'The first ones you opened', hint: 'The oldest ones are stopped.' },
-      inactivos: { label: 'The ones idle the longest', hint: 'The one with the longest time without input or output is stopped.' }
+      primeros: { label: 'The first container you opened', hint: 'It has been open the longest and may have a long task in progress.' },
+      inactivos: { label: 'The container idle the longest', hint: 'Its agents have gone the longest without receiving or showing anything.' }
     } as Record<PrimeroEnPararse, { label: string; hint: string }>,
-    proteger: 'Do not stop working agents while another can be stopped',
-    protegerAyuda: 'An agent that is producing output is not interrupted if there is another one to stop.',
+    proteger: 'Do not stop containers with working agents',
+    protegerAyuda: 'If all of them have working agents, the new agent does not open and Tessera tells you why.',
     grupoSaturacion: 'If Docker gets saturated',
     saturacionAyuda:
       'Tessera measures the memory used by all Docker containers. When it stays above the threshold for that long, it hibernates an agent following “When the limit is reached” (what to stop first and whether working agents are protected). It never stops the agent on screen or a custom agent. If all the remaining ones are working, it stops a working one: with Docker out of memory, one would fail anyway, with no choice of which. The conversation resumes when you return.',
@@ -110,7 +110,7 @@ export const txContenedores = crearTextos(
     duracionValor: (s: number) => (s < 60 ? `${s} s` : `${s / 60} min`),
     avisar: (s: number) => `Warn ${s} s before stopping, so you can choose another`,
     avisarAyuda: 'If you clear it, Tessera stops the agent without warning.',
-    grupoParadas: 'Latest stops',
+    grupoParadas: 'Recently stopped containers',
     actualizar: 'Refresh',
     sinParadas: 'Tessera has not stopped any container.',
     motivoLimite: (n: number | null) =>

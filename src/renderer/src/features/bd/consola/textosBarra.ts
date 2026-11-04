@@ -8,23 +8,23 @@ import { crearTextos } from '../../../../../shared/i18n.ts'
 
 export const txBarraConsola = crearTextos(
   {
-    esperar: 'Espera a que termine la ejecución',
+    esperar: 'Espere a que termine la ejecución',
     soloLectura: 'La conexión es de solo lectura',
     txArchivo:
-      'Mientras esta transacción siga abierta, el archivo queda bloqueado: otras aplicaciones pueden no poder escribir en él. Confirma o revierte cuando acabes.',
+      'Mientras esta transacción siga abierta, el archivo queda bloqueado: otras aplicaciones pueden no poder escribir en él. Confirme o revierta la transacción cuando termine.',
     modoAuto: 'Tx: Auto',
     modoManual: 'Tx: Manual',
     txPendienteN: (n: number) => `Tx pendiente (${n})`,
     txPendiente: 'Tx pendiente',
     txAbierta: 'Tx abierta',
-    txFallida: 'Tx fallida: haz Rollback',
+    txFallida: 'Tx fallida: ejecute Rollback',
     confirmarCommit: 'Confirmar (Commit)',
     commitFallida: 'La transacción falló: solo se puede revertir',
     commitNinguna: 'No hay transacción que confirmar',
     revertirRollback: 'Revertir (Rollback)',
     rollbackNinguna: 'No hay transacción que revertir',
-    tituloModoAuto: 'Transacción: Auto. Pulsa para Manual',
-    tituloModoManual: 'Transacción: Manual. Pulsa para Auto',
+    tituloModoAuto: 'Transacción: Auto. Haga clic para cambiar a Manual',
+    tituloModoManual: 'Transacción: Manual. Haga clic para cambiar a Auto',
     // Botones de icono
     ejecutarTitulo: 'Ejecutar la sentencia del cursor o la selección',
     ejecutar: 'Ejecutar',
@@ -41,9 +41,9 @@ export const txBarraConsola = crearTextos(
     // Esquema
     esquemaConexionDe: (porDefecto: string) => `Esquema de la conexión (${porDefecto})`,
     esquemaConexion: 'Esquema de la conexión',
-    esquemaEsperar: 'Espera a que termine la ejecución para cambiar el esquema',
-    esquemaActual: (actual: string) => `Esquema: ${actual}. Pulsa para cambiar`,
-    esquemaConsola: 'Esquema de la consola. Pulsa para cambiar'
+    esquemaEsperar: 'Espere a que termine la ejecución para cambiar el esquema',
+    esquemaActual: (actual: string) => `Esquema: ${actual}. Haga clic para cambiar`,
+    esquemaConsola: 'Esquema de la consola. Haga clic para cambiar'
   },
   {
     esperar: 'Wait for the execution to finish',

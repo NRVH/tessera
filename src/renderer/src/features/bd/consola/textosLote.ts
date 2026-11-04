@@ -47,9 +47,9 @@ export const txLote = crearTextos(
       `${contexto}\n«${alias}» es una conexión de producción: «Confirmar (Commit)» hace definitivos los cambios.`,
     noSeConfirmo: (motivo: string) => `No se confirmó: ${motivo}`,
     // Progreso y pistas
-    pistaVariasPlan: 'Explicar el plan es de una sola sentencia: deja el cursor en una o selecciona solo una',
+    pistaVariasPlan: 'Explicar el plan solo admite una sentencia: coloque el cursor en una o seleccione solo una',
     pistaYaFormateado:
-      'Nada que cambiar: ya estaba formateado, o es algo que el formateador deja como está (PL/SQL, comandos…)',
+      'No hay nada que cambiar: el texto ya está formateado, o el formateador no modifica este contenido (PL/SQL, comandos…)',
     deteniendo: 'Deteniendo…',
     obteniendoPlan: 'Obteniendo el plan',
     ejecutandoDe: (n: number, total: number) => `Ejecutando ${n} de ${total}`,
@@ -64,7 +64,7 @@ export const txLote = crearTextos(
       `Se cerrará la conexión con ${alias} (todas sus sesiones) y el servidor revertirá lo que no esté confirmado.`,
     vacioConexion: 'No hay transacciones sin confirmar en esta conexión.',
     cabezaConsola: (alias: string) =>
-      `Se cerrará la sesión de esta consola con ${alias} y se revertirá lo que no esté confirmado en ella. Las demás consolas y pestañas de la conexión siguen como están.`,
+      `Se cerrará la sesión de esta consola con ${alias} y se revertirá lo que no esté confirmado en ella. Las demás consolas y pestañas de la conexión no se modifican.`,
     vacioConsola: 'Esta consola no tiene transacciones sin confirmar.',
     sePerderan: 'Se perderán:',
     lineaSinConfirmarN: (nombre: string, cant: string) => `· ${nombre}: ${cant} sin confirmar`,

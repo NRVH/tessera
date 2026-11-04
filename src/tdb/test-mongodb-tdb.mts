@@ -255,7 +255,7 @@ function guardia(interprete: boolean): void {
     const gx = ultimaJson(g.out)
     check(
       '#8: con contraseña guardada que no llegó (sin puente): «recarga la terminal», sin conectar',
-      g.code === 1 && /tiene contraseña guardada, pero no llegó/.test(gx?.error ?? '') && /Recarga la terminal/.test(gx?.error ?? ''),
+      g.code === 1 && /tiene contraseña guardada, pero no llegó/.test(gx?.error ?? '') && /Reinicie la terminal/.test(gx?.error ?? ''),
       g.out.trim()
     )
     // La otra mitad: sin contraseña guardada no es un error de contraseña: llega al adaptador

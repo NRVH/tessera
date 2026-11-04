@@ -19,10 +19,10 @@ export interface NombresSistema {
    */
   sistema: string
   /**
-   * El sistema cuando la frase habla del EQUIPO del usuario: «no sobre tu Mac»,
-   * «Abre en tu Windows con tu cuenta personal».
+   * El sistema cuando la frase habla del EQUIPO del usuario: «no sobre su Mac»,
+   * «Abre en su equipo Windows con su cuenta personal».
    *
-   * Es un campo aparte y no `sistema` con un «tu» delante porque «tu macOS» no se
+   * Es un campo aparte y no `sistema` con un «su» delante porque «su macOS» no se
    * dice: en Apple el equipo se llama Mac y el sistema macOS, y son dos palabras
    * distintas. En Windows coinciden, que es justo por lo que el problema no se veía.
    */
@@ -63,7 +63,7 @@ export interface NombresSistema {
 const TABLA: Record<Plataforma, NombresSistema> = {
   windows: {
     sistema: 'Windows',
-    tuEquipo: 'tu Windows',
+    tuEquipo: 'su equipo Windows',
     gestorArchivos: 'el Explorador',
     shellNativa: 'PowerShell',
     almacenSecretos: 'el cifrado de Windows (DPAPI)',
@@ -72,27 +72,27 @@ const TABLA: Record<Plataforma, NombresSistema> = {
   },
   mac: {
     sistema: 'macOS',
-    tuEquipo: 'tu Mac',
+    tuEquipo: 'su Mac',
     gestorArchivos: 'el Finder',
-    shellNativa: 'tu shell de inicio de sesión',
+    shellNativa: 'su shell de inicio de sesión',
     almacenSecretos: 'el Llavero de macOS',
     agenteClavesSsh: 'el llavero y el agente SSH',
     papelera: 'la Papelera'
   },
   linux: {
     sistema: 'Linux',
-    tuEquipo: 'tu equipo',
+    tuEquipo: 'su equipo',
     gestorArchivos: 'el gestor de archivos',
-    shellNativa: 'tu shell de inicio de sesión',
+    shellNativa: 'su shell de inicio de sesión',
     almacenSecretos: 'el llavero del escritorio (GNOME Keyring o KWallet)',
-    agenteClavesSsh: 'el agente SSH de tu sesión',
+    agenteClavesSsh: 'el agente SSH de su sesión',
     papelera: 'la Papelera'
   },
   otra: {
     sistema: 'el sistema',
-    tuEquipo: 'tu equipo',
+    tuEquipo: 'su equipo',
     gestorArchivos: 'el gestor de archivos',
-    shellNativa: 'tu shell de inicio de sesión',
+    shellNativa: 'su shell de inicio de sesión',
     almacenSecretos: 'el almacén de claves del escritorio',
     agenteClavesSsh: 'el agente SSH del sistema',
     papelera: 'la papelera'

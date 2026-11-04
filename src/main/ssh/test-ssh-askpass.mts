@@ -335,7 +335,7 @@ try {
   check('(c6) un código de un solo uso se cancela (sin el secreto)', otp.ok === false && otp.error === 'cancelada' && otp.respuesta === undefined, j(otp))
   check('(c6b) y el registro dice por qué, sin el texto', registroC[registroC.length - 1].includes('cancelada (desconocida)') && !registroC.some((m) => m.includes('Verification')), registroC[registroC.length - 1])
   const tras = askpassC.entorno(conexionC('c-pw'), FICHA_PESTANA, true)
-  check('(c7) tras una pregunta sin contestar, la pestaña siguiente se teclea, con aviso', !tras.conAskpass && j(tras.env) === '{}' && tras.aviso?.includes('pidió algo que Tessera no contesta') === true, String(tras.aviso))
+  check('(c7) tras una pregunta sin contestar, la pestaña siguiente se teclea, con aviso', !tras.conAskpass && j(tras.env) === '{}' && tras.aviso?.includes('solicitó un dato que Tessera no puede responder') === true, String(tras.aviso))
   check('(c8) «Probar» lo intenta igual', askpassC.entorno(conexionC('c-pw'), FICHA_PRUEBA, false).conAskpass, 'conAskpass')
   askpassC.alCambiarConexion('c-pw')
   check('(c9) editar la conexión lo olvida', askpassC.entorno(conexionC('c-pw'), FICHA_PESTANA, true).conAskpass, 'conAskpass')
@@ -559,8 +559,8 @@ try {
     check(
       '(d9) el detalle nunca lleva rutas: lo citado se tapa y una ruta suelta cae al código',
       detalleSinRutas('Load key "C:/Users/ana/clave": bad permissions\n', 255) === 'Load key «…»: bad permissions' &&
-        detalleSinRutas('no such identity: /Users/ana/clave: No such file\n', 255) === 'ssh salió con el código 255.' &&
-        detalleSinRutas("Warning: Permanently added '[h]:22' (ED25519) to the list of known hosts.\n", 0) === 'ssh salió con el código 0.' &&
+        detalleSinRutas('no such identity: /Users/ana/clave: No such file\n', 255) === 'ssh terminó con el código 255.' &&
+        detalleSinRutas("Warning: Permanently added '[h]:22' (ED25519) to the list of known hosts.\n", 0) === 'ssh terminó con el código 0.' &&
         detalleSinRutas('ssh: connect to host 10.0.0.5 port 22: No route to host\n', 255) === 'ssh: connect to host 10.0.0.5 port 22: No route to host',
       detalleSinRutas('Load key "C:/Users/ana/clave": bad permissions\n', 255)
     )

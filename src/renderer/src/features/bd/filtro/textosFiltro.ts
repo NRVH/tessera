@@ -39,7 +39,7 @@ export const txFiltro = crearTextos(
     aplicarTitulo: 'Aplicar el filtro (Intro)',
     aplicar: 'Aplicar',
     filtro: 'Filtro',
-    elige: 'elige…',
+    elige: 'elegir…',
     verdadero: 'verdadero',
     falso: 'falso'
   },

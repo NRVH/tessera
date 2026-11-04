@@ -1,9 +1,9 @@
 /* =============================================================================
    CUENTA DEL AGENTE — el botón de la cabecera (el icono de su modo) y su
    selector (`PopoverCuenta.tsx`): secciones con título pequeño, una tarjeta por cuenta con su
-   icono, nombre y detalle, la que se usa marcada con el acento, y las acciones de cada cuenta
-   (seguir la conversación allí y, en Docker, administrarla) apartadas a la derecha de su tarjeta,
-   solo al pasar por ella o llegar con el teclado.
+   icono, nombre y detalle, la que se usa marcada con el acento, y el menú para administrar cada
+   cuenta de Docker apartado a la derecha de su tarjeta, solo al pasar por ella o llegar con el
+   teclado. `PopoverTraspaso.tsx` usa las mismas tarjetas.
    ============================================================================= */
 
 /* El botón: el icono de dónde corre (el equipo o el contenedor) sobre una pieza sólida del color del
@@ -35,6 +35,9 @@
   box-shadow: var(--shadow-modal);
   color: var(--fg);
   font-size: var(--ui-font);
+}
+.cuenta-pop:focus {
+  outline: none;
 }
 
 /* El título con su botón ⓘ al lado. */
@@ -71,6 +74,32 @@
   font-weight: 600;
   letter-spacing: 0.04em;
   color: var(--fg-faint-modal);
+}
+
+/* Cabecera de un grupo de «Continuar esta conversación»: el agente de destino es lo primero que se lee,
+   y a su derecha, qué se lleva. */
+.continuar-grupo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 4px 2px;
+}
+.continuar-grupo-agente {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--perfil-claro);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.continuar-grupo-lleva {
+  flex: 0 0 auto;
+  padding: 1px 7px;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--fg-muted-modal);
 }
 
 .cuenta-vacio {

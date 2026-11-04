@@ -36,8 +36,8 @@ export const txSftp = crearTextos(
     permisos: 'Permisos',
     contenidoCarpeta: 'Contenido de la carpeta remota',
     carpetaVacia: 'Carpeta vacía',
-    sueltaAqui: 'Suelta aquí para subir a esta carpeta',
-    sueltaEn: (carpeta: string) => `Suelta para subir a «${carpeta}»`,
+    sueltaAqui: 'Suelte aquí para subir a esta carpeta',
+    sueltaEn: (carpeta: string) => `Suelte para subir a «${carpeta}»`,
     enlace: 'enlace',
     tipoCarpeta: 'carpeta',
     tipoArchivo: 'archivo',
@@ -46,7 +46,7 @@ export const txSftp = crearTextos(
     tipoEnlace: 'enlace',
     tipoEspecial: 'archivo especial',
     // Estados
-    seCorto: 'Se cortó la conexión',
+    seCorto: 'Se interrumpió la conexión',
     noSePudoAbrir: 'No se pudo abrir el explorador SFTP',
     reconectar: 'Reconectar',
     reintentar: 'Reintentar',
@@ -66,7 +66,7 @@ export const txSftp = crearTextos(
     tituloConflictos: (n: number) => (n === 1 ? 'Reemplazar 1 elemento' : `Reemplazar ${n} elementos`),
     yMas: (n: number) => `… y ${n} más`,
     yaExiste: (varios: boolean) => (varios ? 'Ya existen en el destino' : 'Ya existe en el destino'),
-    siContinuas: 'Si continúas, se reemplazarán.',
+    siContinuas: 'Si continúa, se reemplazarán.',
     mensajeBorrado: (cuantos: string) => `Se va a eliminar ${cuantos} del servidor.`,
     unElemento: (nombre: string) => `«${nombre}»`,
     carpetasConTodo: 'Las carpetas se eliminan con todo su contenido.',
@@ -80,7 +80,7 @@ export const txSftp = crearTextos(
     eliminarVarios: (n: number) => `Eliminar ${n} elementos…`,
     nuevaCarpetaMenu: 'Nueva carpeta…',
     // Nombres
-    escribeNombre: 'Escribe un nombre.',
+    escribeNombre: 'Escriba un nombre.',
     nombreInvalido: 'Ese nombre no es válido.',
     nombreConBarra: 'El nombre no puede llevar «/».',
     nombreCaracter: 'El nombre tiene un carácter no válido.'

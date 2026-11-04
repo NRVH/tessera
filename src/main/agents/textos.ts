@@ -14,39 +14,39 @@ export const txAgentes = crearTextos(
       claudeGestorJs: (metodo: string) =>
         `Claude Code está instalado con ${metodo}: Tessera solo lo actualiza por su cuenta si viene de npm o de su instalador`,
       claudeBrew: 'Claude Code está instalado con Homebrew: se actualiza con brew',
-      claudeGestor: 'Claude Code está instalado con un gestor de paquetes del sistema: actualízalo con ese gestor',
+      claudeGestor: 'Claude Code está instalado con un gestor de paquetes del sistema: actualícelo con ese gestor',
       claudeDesconocido: 'No se reconoce cómo está instalado Claude Code; su propio actualizador puede saberlo',
-      codexVitePlus: 'Codex está instalado con Vite+: ciérralo en todas partes y actualízalo con vp',
-      codexGestor: 'Codex está instalado con un gestor de paquetes del sistema: actualízalo con ese gestor',
+      codexVitePlus: 'Codex está instalado con Vite+: ciérrelo en todas partes y actualícelo con vp',
+      codexGestor: 'Codex está instalado con un gestor de paquetes del sistema: actualícelo con ese gestor',
       codexDesconocido: 'No se reconoce cómo está instalado Codex; Tessera solo lo actualiza si viene de npm, pnpm o bun',
       noReinstalable: (nombre: string) =>
-        `${nombre} no responde y Tessera no sabe reinstalarlo tal como está instalado: reinstálalo por donde lo instalaste`
+        `${nombre} no responde y Tessera no sabe reinstalarlo tal como está instalado: reinstálelo con el mismo método con que lo instaló`
     },
     fallos: {
       siguenAbiertos: (lista: string) => ` Siguen abiertos: ${lista}.`,
       servicioAppServer: ', el servicio app-server',
       bloqueado: (nombre: string, quienes: string) =>
         `Algún programa tiene abiertos archivos de ${nombre}: probablemente un ${nombre} abierto fuera de ` +
-        `Tessera (tu editor u otra terminal). Ciérralo y vuelve a intentarlo.${quienes}`,
-      elevarConOrden: (orden: string) => `ejecuta en una terminal abierta como administrador: ${orden}.`,
-      elevarSinOrden: 'actualízalo desde una terminal abierta como administrador.',
+        `Tessera (su editor u otra terminal). Ciérrelo y vuelva a intentarlo.${quienes}`,
+      elevarConOrden: (orden: string) => `ejecute en una terminal abierta como administrador: ${orden}.`,
+      elevarSinOrden: 'actualícelo desde una terminal abierta como administrador.',
       permisosWindows: (sistema: string, nombre: string, elevar: string) =>
-        `${sistema} no dejó escribir donde está instalado ${nombre}. Si es una carpeta ` +
+        `${sistema} no permitió escribir donde está instalado ${nombre}. Si es una carpeta ` +
         `protegida (por ejemplo, dentro de Program Files), ${elevar} Si no, puede que un antivirus ` +
-        'u otro programa tenga abiertos sus archivos: vuelve a intentarlo.',
+        'u otro programa tenga abiertos sus archivos: vuelva a intentarlo.',
       terminalAdmin: (tuEquipo: string) => `una terminal de ${tuEquipo} abierta como administrador`,
       terminal: (tuEquipo: string) => `una terminal de ${tuEquipo}`,
       sugerenciaLinux:
-        ' Si está en una carpeta del sistema, ejecútala con sudo o cambia el prefijo de npm a tu carpeta personal (npm config set prefix ~/.local).',
+        ' Si está en una carpeta del sistema, ejecútela con sudo o cambie el prefijo de npm a su carpeta personal (npm config set prefix ~/.local).',
       permisosConOrden: (nombre: string, terminal: string, orden: string, linux: string) =>
-        `No hay permiso para escribir donde está instalado ${nombre}. Ejecuta esta orden en ${terminal}: ${orden}${linux}`,
+        `No hay permiso para escribir donde está instalado ${nombre}. Ejecute esta orden en ${terminal}: ${orden}${linux}`,
       permisosSinOrden: (nombre: string, linux: string) => `No hay permiso para escribir donde está instalado ${nombre}.${linux}`,
-      red: (nombre: string) => `No se pudo descargar ${nombre}: falló la conexión. Comprueba la red y vuelve a intentarlo.`,
+      red: (nombre: string) => `No se pudo descargar ${nombre}: falló la conexión. Compruebe la red y vuelva a intentarlo.`,
       codigo: (c: number) => ` (código ${c})`,
       generico: (nombre: string, codigo: string, ultima: string) =>
         `La instalación de ${nombre} falló${codigo}${ultima ? `: ${ultima}` : '.'}`,
       tope: (nombre: string) =>
-        `La instalación de ${nombre} tardó demasiado y se detuvo. Puede que la red vaya lenta: vuelve a intentarlo.`
+        `La instalación de ${nombre} tardó demasiado y se detuvo. Puede que la red esté lenta: vuelva a intentarlo.`
     },
     nativos: {
       sondaTope: (nombre: string, bin: string) => `${nombre} no respondió a «${bin} --version» a tiempo.`,
@@ -56,17 +56,17 @@ export const txAgentes = crearTextos(
       ultimaDesconocida: (nombre: string, error: string | null) =>
         `No se sabe cuál es la última versión de ${nombre}${error ? `: ${error}` : '.'}`,
       binarioPendiente: (nombre: string, ultima: string, tuEquipo: string) =>
-        `${nombre} ${ultima} aún no está lista para ${tuEquipo}: el registro todavía no sirve su binario. ` +
-        'Vuelve a intentarlo en unos minutos.',
+        `${nombre} ${ultima} aún no está lista para ${tuEquipo}: el registro todavía no ofrece su binario. ` +
+        'Vuelva a intentarlo en unos minutos.',
       noSeLeyoInstalada: (nombre: string) => `No se pudo leer la versión instalada de ${nombre}.`,
       alDia: (nombre: string, version: string) => `${nombre} ya está al día (${version}).`,
       noSeParoNada: (n: number) =>
-        `No se paró nada: ${n === 1 ? 'una sesión no se podía parar' : `${n} sesiones no se podían parar`} (trabajando, esperando tu respuesta o ya no disponibles).`,
+        `No se detuvo ninguna sesión: ${n === 1 ? 'una sesión no se podía detener' : `${n} sesiones no se podían detener`} (trabajando, esperando su respuesta o ya no disponibles).`,
       sigueAbierto: (nombre: string, lista: string) =>
-        `${nombre} sigue abierto fuera de las sesiones que se pararon: ${lista}. ` +
-        'Ciérralo (tu editor u otra terminal) y vuelve a intentarlo.',
-      remedioReparar: (nombre: string) => `Vuelve a intentarlo en unos minutos con «Reparar ${nombre}».`,
-      remedioReinstalar: 'Vuelve a instalarlo por donde lo instalaste.',
+        `${nombre} sigue abierto fuera de las sesiones que se detuvieron: ${lista}. ` +
+        'Ciérrelo (su editor u otra terminal) y vuelva a intentarlo.',
+      remedioReparar: (nombre: string) => `Vuelva a intentarlo en unos minutos con «Reparar ${nombre}».`,
+      remedioReinstalar: 'Vuelva a instalarlo con el mismo método con que lo instaló.',
       causaCodex: (tuEquipo: string) => `: puede que su binario para ${tuEquipo} aún no estuviera disponible`,
       sinResponder: (nombre: string, bin: string, causa: string, remedio: string) =>
         `La instalación dejó ${nombre} sin responder a «${bin} --version»${causa}. ${remedio}`,
@@ -76,7 +76,7 @@ export const txAgentes = crearTextos(
       desconocido: 'Agente desconocido.',
       noSeComprobo: (nombre: string, err: string) => `No se pudo comprobar ${nombre}: ${err}`,
       fallo: (nombre: string, err: string) => `La actualización de ${nombre} falló: ${err}`,
-      aMano: (motivo: string, orden: string) => `${motivo}. A mano: ${orden}`
+      aMano: (motivo: string, orden: string) => `${motivo}. Ejecute manualmente: ${orden}`
     },
     ultimas: {
       sinDistTags: 'el registro de npm no devolvió dist-tags legibles',
@@ -84,7 +84,7 @@ export const txAgentes = crearTextos(
       codexNpmError: (err: string) => `No se pudo consultar la última versión de Codex: ${err}.`,
       codexFormula:
         'Codex está instalado con una fórmula de Homebrew que no es la oficial: no se puede saber cuál es ' +
-        'su última versión. Actualízalo con «brew upgrade codex».',
+        'su última versión. Actualícelo con «brew upgrade codex».',
       codexBrewSinVersion: 'Homebrew no da una versión exacta de Codex.',
       codexBrewError: (err: string) => `No se pudo consultar la última versión de Codex en Homebrew: ${err}.`,
       claudeNpmSinVersion: (canal: string) => `El registro de npm no da una versión exacta de Claude Code (${canal}).`,
@@ -93,20 +93,20 @@ export const txAgentes = crearTextos(
     },
     cupo: {
       sinSitio: (limite: number) =>
-        `Hay ${limite} contenedores de Docker abiertos, el límite que pusiste, y no se puede parar ninguno: ` +
-        'todos tienen agentes trabajando o son agentes manuales. Espera a que alguno termine, ciérralo, o ' +
-        'sube el límite en Configuración › Contenedores Docker.',
-      noSePudoParar: (id: string) => `No se pudo parar el contenedor "${id}" para hacer sitio: no se sabe de qué perfil es.`
+        `Hay ${limite} contenedores de Docker abiertos, el límite configurado, y no se puede detener ninguno: ` +
+        'todos tienen agentes trabajando o son agentes manuales. Espere a que alguno termine, ciérrelo o ' +
+        'suba el límite en Configuración › Contenedores Docker.',
+      noSePudoParar: (id: string) => `No se pudo detener el contenedor "${id}" para liberar espacio: no se sabe de qué perfil es.`
     },
     cuentas: {
       sinNombre: 'El nombre de la cuenta no puede estar vacío.',
       sinPerfil: 'Una cuenta requiere un perfil.',
       nombreRepetido: (nombre: string) => `Ya hay una cuenta llamada «${nombre}» para este agente en este perfil.`,
-      nombreLargo: (max: number) => `El nombre de la cuenta no puede pasar de ${max} caracteres.`,
+      nombreLargo: (max: number) => `El nombre de la cuenta no puede superar los ${max} caracteres.`,
       manualSinCierreSesion:
-        'Un agente manual no tiene un cierre de sesión que Tessera conozca: inicia y cierra sesión dentro de él, o elimina la cuenta.',
-      predeterminadaNoSeBorra: 'La cuenta predeterminada del perfil no se elimina: cierra su sesión.',
-      predeterminadaNoSeRenombra: 'La cuenta predeterminada del perfil no se renombra.',
+        'Un agente manual no tiene un cierre de sesión que Tessera conozca: inicie y cierre sesión dentro del agente, o elimine la cuenta.',
+      predeterminadaNoSeBorra: 'La cuenta predeterminada del perfil no se puede eliminar: cierre su sesión.',
+      predeterminadaNoSeRenombra: 'La cuenta predeterminada del perfil no se puede renombrar.',
       cuentaDesconocida: (id: string) => `Cuenta de agente desconocida: «${id}».`,
       agenteDesconocido: (id: string) => `Agente desconocido: «${id}».`,
       perfilDesconocido: (id: string) => `Perfil desconocido: «${id}».`,
@@ -117,14 +117,14 @@ export const txAgentes = crearTextos(
       enCursoTitulo: 'Ya hay un inicio de sesión de Codex en curso',
       enCurso: (cuenta: string, perfil: string) =>
         `Es el de la cuenta «${cuenta}» del perfil «${perfil}». Solo se puede iniciar sesión en una cuenta de Codex a la vez. ` +
-        'Termínalo (o cierra esa pestaña) y pulsa «Reintentar».',
+        'Termínelo (o cierre esa pestaña) y pulse «Reintentar».',
       mismaCuentaTitulo: (cuenta: string) => `La cuenta «${cuenta}» ya está iniciando sesión en otra pestaña`,
-      mismaCuenta: 'Termina el inicio de sesión en esa pestaña y pulsa «Reintentar».',
+      mismaCuenta: 'Termine el inicio de sesión en esa pestaña y pulse «Reintentar».',
       puertoOcupadoTitulo: 'El inicio de sesión de Codex no podrá terminar',
       puertoOcupadoDetalle: (cuenta: string, puerto: number, tuEquipo: string) =>
         `Tessera no pudo usar el puerto ${puerto} de ${tuEquipo}, al que vuelve el navegador al iniciar sesión en Codex: ` +
         'lo tiene otro programa (por ejemplo, un Codex que está iniciando sesión fuera de Tessera) o el sistema lo reserva. ' +
-        `Libéralo y vuelve a abrir la cuenta «${cuenta}».`
+        `Libérelo y vuelva a abrir la cuenta «${cuenta}».`
     },
     contexto: {
       comandoFallo: 'El comando del contexto falló',
@@ -132,13 +132,13 @@ export const txAgentes = crearTextos(
       sinSalida: 'sin salida',
       conMotivo: (queFalla: string, salida: string) => `${queFalla}: ${salida}`,
       sinFuente:
-        'La sesión abierta no tiene de dónde leer el contexto: reinicia el agente para usar la fuente que definiste.'
+        'La sesión abierta no tiene de dónde leer el contexto: reinicie el agente para usar la fuente definida.'
     },
     manual: {
       noValido: (error: string) => `Agente manual no válido: ${error}`,
       definicionAjena: (id: string) => `La definición no es la del agente "${id}".`,
       sesionInexistente: (id: string) => `No existe una sesión de agente con id "${id}".`,
-      cerradaEsperando: (id: string) => `La sesión de agente "${id}" se cerró mientras esperaba a la actualización.`
+      cerradaEsperando: (id: string) => `La sesión de agente "${id}" se cerró mientras esperaba la actualización.`
     }
   },
   {

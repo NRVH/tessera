@@ -136,20 +136,8 @@ function trozosDeEtiqueta(negrita: string): string[] {
  * opción, los glifos de un botón y el botón del Llavero de macOS.
  */
 const NEGRITAS_QUE_NO_SON_ETIQUETAS = new Set<string>([
-  'Arriba',
-  'A la izquierda',
-  'En el centro',
-  'a la derecha',
-  'Abajo',
-  'At the top',
-  'On the left',
-  'In the center',
-  'on the right',
-  'At the bottom',
-  'El mismo agente en otra cuenta',
-  'Otro agente',
-  'The same agent in another account',
-  'Another agent',
+  'Full Access', // de la interfaz de Codex, no de la de Tessera
+  '⋯', // un icono, sin texto en la interfaz
   'ⓘ',
   '▾',
   'Permitir siempre',

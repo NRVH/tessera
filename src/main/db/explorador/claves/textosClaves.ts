@@ -7,6 +7,6 @@
 import { crearTextos } from '../../../../shared/i18n.ts'
 
 export const txClaves = crearTextos(
-  { noSeGuardo: 'No se pudo guardar el archivo (sin permiso o el destino está en uso).' },
+  { noSeGuardo: 'No se pudo guardar el archivo (no hay permiso de escritura o el destino está en uso).' },
   { noSeGuardo: 'Could not save the file (no permission, or the destination is in use).' }
 )

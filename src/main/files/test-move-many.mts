@@ -256,7 +256,7 @@ try {
     )
     check(
       '6h',
-      (await rejects(() => svc.moveMany([''], 'destino'), /Origen inválido/i)) === '',
+      (await rejects(() => svc.moveMany([''], 'destino'), /El origen no es válido/i)) === '',
       'origen vacío'
     )
   }

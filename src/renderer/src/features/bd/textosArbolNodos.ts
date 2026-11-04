@@ -25,9 +25,9 @@ export const txArbolNodos = crearTextos(
       cargando: 'Cargando más claves…',
       reintentar: 'Reintentar'
     },
-    ningunaClaveCasa: (patron: string) => `Ninguna clave casa con ${patron}`,
+    ningunaClaveCasa: (patron: string) => `Ninguna clave coincide con ${patron}`,
     ningunaClaveDeTipo: (tipo: string) => `Ninguna clave de tipo ${tipo}`,
-    ningunaClaveDeTipoCasa: (tipo: string, patron: string) => `Ninguna clave de tipo ${tipo} casa con ${patron}`,
+    ningunaClaveDeTipoCasa: (tipo: string, patron: string) => `Ninguna clave de tipo ${tipo} coincide con ${patron}`,
     noSePudieronCargarMas: (m: string) => `No se pudieron cargar más: ${m}`,
     ningunaTodavia: (vueltas: number) =>
       `Ninguna todavía${vueltas > 0 ? ` tras ${vueltas} ${vueltas === 1 ? 'vuelta' : 'vueltas'}` : ''}`,

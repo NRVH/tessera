@@ -5610,7 +5610,7 @@ body {
 }
 .limite-escala {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   color: var(--fg-faint);
   font-size: calc(var(--ui-font) - 2px);
 }
@@ -6782,7 +6782,7 @@ body {
    display la fila reflowea y el título salta, y oculto así tampoco es enfocable.
    SE ESCONDEN ACCIONES, NO IDENTIDAD NI ESTADO: la cuenta del agente (`.cuenta-btn`) y las
    bases montadas (`.db-mount-btn`) se quedan a la vista, porque son la salvaguarda contra la
-   cuenta equivocada, y «Continuar con…» (`.pasar-btn`), que se busca junto a la cuenta: la
+   cuenta equivocada, y «Continuar esta conversación» (`.pasar-btn`), que se busca junto a la cuenta: la
    regla apunta a `.btn` y esos tres se exceptúan a mano. El ✕ de cada pestaña tampoco entra:
    pertenece a la pestaña, no al panel. */
 /* ESTADO VISIBLE. UNA SOLA LISTA CON `:is()`, y no cinco selectores repetidos en tres

@@ -24,6 +24,7 @@ import { ContextMenu, SEP } from '../../comun/ContextMenu'
 import { txPestanas } from './textos.ts'
 import { useRaizDelProyecto } from '../../comun/raizDelProyecto'
 import { etiquetaModPrincipal } from '../../util/atajos'
+import { nombresSistema } from '../../../../shared/nombresSistema'
 
 interface EditorTabsProps {
   tabs: EditorTab[]
@@ -165,6 +166,7 @@ function itemsMenuPestana(
 ): React.ComponentProps<typeof ContextMenu>['items'] {
   const kind = tabs[index]?.pane.kind
   const t = txPestanas()
+  const gestor = nombresSistema(window.tessera.plataforma).gestorArchivos
   return [
     // Solo en archivos: un sin título aún no existe en disco y un diff puede comparar
     // revisiones que no están, así que el explorador no tendría qué seleccionar.
@@ -172,13 +174,13 @@ function itemsMenuPestana(
       ? [
           {
             icon: <IconoAbrirFuera />,
-            label: t.abrirEnExplorador,
+            label: t.abrirEnExplorador(gestor),
             onClick: () => {
               const pane = tabs[index]?.pane
               if (pane?.kind !== 'file') return
               void window.tessera.files
                 .reveal({ raiz, path: pane.file.path })
-                .catch((err: unknown) => notifyError(t.noSePudoAbrirExplorador, err))
+                .catch((err: unknown) => notifyError(t.noSePudoAbrirExplorador(gestor), err))
             }
           },
           SEP

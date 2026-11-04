@@ -13,50 +13,50 @@ export const txIntegracion = crearTextos(
       soloWindows: 'Esta integración solo existe en Windows.',
       desarrollo:
         'No disponible en modo desarrollo: el ejecutable es el Electron de node_modules, ' +
-        'así que la entrada del menú abriría un Electron vacío en vez de Tessera. Prueba ' +
-        'esto en la Tessera instalada.',
+        'por lo que la entrada del menú abriría un Electron vacío en lugar de Tessera. Compruebe ' +
+        'esta función en la versión instalada de Tessera.',
       portable:
-        'No disponible en la versión portable: su ejecutable corre desde una carpeta ' +
-        'temporal que se borra al cerrar, así que la entrada del menú dejaría de funcionar ' +
-        'en cuanto salieras.',
+        'No disponible en la versión portable: su ejecutable se ejecuta desde una carpeta ' +
+        'temporal que se borra al cerrar, por lo que la entrada del menú dejaría de funcionar ' +
+        'en cuanto se cerrara Tessera.',
       rechazo: 'Windows rechazó el cambio.',
       errorRegistro: (error: string) => `No se pudo cambiar el registro de Windows: ${error}`,
       grupoMenu: 'Menú contextual del Explorador',
       grupoMenuAyuda:
-        'Añade «Abrir con Tessera» al menú del botón derecho. Se aplica al instante y se puede quitar igual de rápido: no hace falta reinstalar ni permisos de administrador. En Windows 11 aparece dentro de «Mostrar más opciones».',
+        'Añade «Abrir con Tessera» al menú del botón derecho. Se aplica de inmediato y puede quitarse igual de rápido: no requiere reinstalar ni permisos de administrador. En Windows 11 aparece dentro de «Mostrar más opciones».',
       carpetas: 'Carpetas y unidades',
       carpetasAyuda:
-        'Al hacer clic derecho sobre una carpeta, sobre el fondo de una carpeta abierta o sobre una unidad. Abre esa carpeta como proyecto.',
+        'Se muestra al hacer clic derecho sobre una carpeta, sobre el fondo de una carpeta abierta o sobre una unidad. Abre esa carpeta como proyecto.',
       carpetasEtiqueta: 'Abrir con Tessera en carpetas y unidades',
       archivos: 'Cualquier archivo',
       archivosAyuda:
-        'Al hacer clic derecho sobre un archivo, sea del tipo que sea. Abre su carpeta como proyecto y el archivo en el editor.',
+        'Se muestra al hacer clic derecho sobre un archivo de cualquier tipo. Abre su carpeta como proyecto y el archivo en el editor.',
       archivosEtiqueta: 'Abrir con Tessera en cualquier archivo',
       grupoAbrirCon: 'Abrir con Tessera',
       abrirConAyuda: [
         'Las extensiones marcadas ofrecen Tessera en el «Abrir con» de Windows. ',
         'No',
-        ' la convierten en la aplicación predeterminada: esa elección la firma Windows y solo puedes hacerla tú, desde su panel de aplicaciones predeterminadas.'
+        ' la convierten en la aplicación predeterminada: Windows protege esa elección y solo el usuario puede hacerla, desde el panel de aplicaciones predeterminadas del sistema.'
       ],
       sugeridas: 'Extensiones sugeridas',
-      sugeridasAyuda: 'Las que se editan a diario. Marca las que quieras poder abrir con Tessera.',
+      sugeridasAyuda: 'Las que se editan con más frecuencia. Marque las que desee poder abrir con Tessera.',
       sugeridasEtiqueta: 'Extensiones asociadas a Tessera',
       otrasExtensiones: 'Otras extensiones',
-      otrasAyuda: 'Separadas por espacios o comas. El punto se pone solo.',
+      otrasAyuda: 'Separadas por espacios o comas. Tessera añade el punto inicial.',
       otrasEtiqueta: 'Otras extensiones asociadas a Tessera',
       otrasPlaceholder: 'p. ej. .bat .ini (Intro para aplicar)',
       appPredeterminada: 'Aplicación predeterminada',
-      appPredeterminadaAyuda: 'Para que un doble clic abra Tessera directamente, elígela en el panel de Windows.',
+      appPredeterminadaAyuda: 'Para que un doble clic en un archivo lo abra directamente con Tessera, selecciónela en el panel de aplicaciones predeterminadas de Windows.',
       abrirAjustesWindows: 'Abrir ajustes de Windows'
     },
     finder: {
       soloMac: 'Esta integración solo existe en macOS.',
       desarrollo:
         'No disponible en modo desarrollo: el ejecutable es el Electron de node_modules, ' +
-        'así que la acción rápida abriría un Electron vacío en vez de Tessera. Prueba esto ' +
-        'en la Tessera instalada.',
+        'por lo que la acción rápida abriría un Electron vacío en lugar de Tessera. Compruebe esta ' +
+        'función en la versión instalada de Tessera.',
       sinBundle:
-        'No se ha podido localizar el paquete de Tessera (el .app), así que la acción ' +
+        'No se pudo localizar el paquete de Tessera (el .app), por lo que la acción ' +
         'rápida no sabría qué abrir.',
       rechazo: 'macOS rechazó el cambio.',
       errorAccion: (error: string) => `No se pudo cambiar la acción rápida del Finder: ${error}`,
@@ -64,7 +64,7 @@ export const txIntegracion = crearTextos(
       ayuda: [
         '«Abrir con › Tessera» sobre un ',
         'archivo',
-        ' ya funciona siempre: lo declara el propio paquete de la app y no hay nada que activar. Lo que se enciende aquí es la ',
+        ' ya funciona siempre: lo declara el propio paquete de la app y no hay nada que activar. Lo que se activa aquí es la ',
         'acción rápida',
         ' para ',
         'carpetas',
@@ -72,33 +72,33 @@ export const txIntegracion = crearTextos(
       ],
       accion: 'Acción rápida «Abrir en Tessera»',
       accionAyuda:
-        'Añade «Abrir en Tessera» al menú del botón derecho sobre una carpeta, dentro de «Servicios» / «Acciones rápidas». Abre esa carpeta como proyecto. Se aplica al instante y se quita igual: se instala en tu carpeta personal, sin permisos de administrador.',
+        'Añade «Abrir en Tessera» al menú del botón derecho sobre una carpeta, dentro de «Servicios» / «Acciones rápidas». Abre esa carpeta como proyecto. Se aplica de inmediato y puede quitarse igual de rápido: se instala en la carpeta personal del usuario, sin permisos de administrador.',
       accionEtiqueta: 'Acción rápida «Abrir en Tessera» en el Finder'
     },
     linux: {
       soloLinux: 'Esta integración solo existe en Linux.',
       desarrollo:
-        'No disponible en modo desarrollo: el ejecutable es el Electron de node_modules, así que ' +
-        'la entrada abriría un Electron vacío en vez de Tessera. Prueba esto en la Tessera instalada.',
+        'No disponible en modo desarrollo: el ejecutable es el Electron de node_modules, por lo que ' +
+        'la entrada abriría un Electron vacío en lugar de Tessera. Compruebe esta función en la versión instalada de Tessera.',
       ajeno:
-        'Ya hay un tessera.desktop en tu carpeta de aplicaciones que no creó Tessera; no se ' +
-        'sustituye. Bórralo si quieres que Tessera instale el suyo.',
+        'Ya existe un archivo tessera.desktop en la carpeta de aplicaciones del usuario que no creó Tessera, por lo que no se ' +
+        'sustituye. Elimínelo si desea que Tessera instale el suyo.',
       rechazo: 'El sistema rechazó el cambio.',
       errorAbrirCon: (error: string) => `No se pudo cambiar «Abrir con Tessera»: ${error}`,
       grupo: 'Gestor de archivos',
       grupoAyuda: (gestor: string) =>
-        `Añade «Abrir con Tessera» al menú del botón derecho sobre una carpeta en ${gestor} y pone Tessera en el lanzador de aplicaciones. No la convierte en la aplicación predeterminada para abrir carpetas.`,
+        `Añade «Abrir con Tessera» al menú del botón derecho sobre una carpeta en ${gestor} y agrega Tessera al lanzador de aplicaciones. No la establece como aplicación predeterminada para abrir carpetas.`,
       fila: '«Abrir con Tessera» en carpetas',
       filaAyuda:
-        'Abre esa carpeta como proyecto. Se aplica al instante y se quita igual: se instala en tu carpeta personal, sin permisos de administrador.',
+        'Abre esa carpeta como proyecto. Se aplica de inmediato y puede quitarse igual de rápido: se instala en la carpeta personal del usuario, sin permisos de administrador.',
       filaEtiqueta: (gestor: string) => `«Abrir con Tessera» en ${gestor}`
     },
     aviso: {
       titulo: (abrirEn: boolean, gestor: string) => `Nuevo: «${abrirEn ? 'Abrir en' : 'Abrir con'} Tessera» en ${gestor}`,
       cuerpo: (soloCarpetas: boolean) =>
-        'Actívalo en Configuración › Integración con el sistema para abrir ' +
+        'Actívelo en Configuración › Integración con el sistema para abrir ' +
         (soloCarpetas ? 'una carpeta' : 'una carpeta o un archivo') +
-        ' desde el botón derecho.'
+        ' desde el menú del botón derecho.'
     }
   },
   {
@@ -201,10 +201,10 @@ export const txCategorias = crearTextos(
       rol: 'Ingeniero de Software',
       lema: 'El IDE de escritorio para trabajar en varios proyectos y con varias cuentas de IA.',
       puntos: (tuEquipo: string): readonly string[] => [
-        'Cada espacio de trabajo tiene su propio sandbox y sus propias cuentas de IA: varias licencias conviven sin chocar ni mezclar conversaciones.',
-        `Claude Code y Codex solo ven los proyectos de su espacio, no ${tuEquipo}; solo el proyecto que tú elijas corre en nativo, con tu cuenta.`,
-        'Editor, explorador, Git, terminales y bases de datos junto a los agentes, cambiando de proyecto con una pestaña.',
-        'El mosaico enseña a la vez todos los agentes que trabajan, y un botón los pone al día sin cortar a ninguno.'
+        `Cada agente trabaja con la cuenta de ${tuEquipo} o con una cuenta aislada en Docker; varias cuentas pueden trabajar al mismo tiempo, según la capacidad del equipo.`,
+        'Una conversación puede continuar en otra cuenta del mismo agente, completa, o en otro agente, con un resumen.',
+        'Un agente en Docker solo ve los proyectos en los que trabaja; un agente nativo tiene los mismos permisos que usted.',
+        'Editor, explorador, Git, terminales, SSH y bases de datos junto a los agentes, y un mosaico para seguir hasta seis a la vez.'
       ],
       licencia: (licencia: string) => `Código abierto · licencia ${licencia}`,
       codigoFuente: 'Código fuente',
@@ -218,29 +218,29 @@ export const txCategorias = crearTextos(
       grupoPreferencias: 'Preferencias',
       alCerrar: 'Aplicar al cerrar Tessera',
       alCerrarAyuda:
-        'Cuando haya una actualización preparada, se instala al cerrar la app en vez de esperar a que pulses el botón. Cerrar Tessera no la vuelve a abrir.',
+        'Cuando hay una actualización preparada, se instala al cerrar la aplicación en lugar de esperar a que se pulse el botón. Después de instalarla, Tessera no se vuelve a abrir.',
       alCerrarEtiqueta: 'Aplicar la actualización al cerrar Tessera'
     },
     experimental: {
       grupo: 'Diagnóstico',
       salud: 'Registro de salud',
       saludAyuda:
-        'Guarda cada 5 minutos, en un archivo de este equipo, cuánta memoria y cuántos procesos usa Tessera, para encontrar fugas con el uso real. No guarda nada de tus proyectos ni sale del equipo. Solo existe en las versiones alpha.',
+        'Cada 5 minutos guarda en un archivo de este equipo la memoria y el número de procesos que usa Tessera, para detectar fugas de memoria durante el uso real. No guarda nada de sus proyectos ni sale del equipo. Solo está disponible en las versiones alpha.',
       saludEtiqueta: 'Guardar el registro de salud',
       volcados: 'Volcados de caída',
       volcadosAyuda:
-        'Si Tessera se cae, guarda en este equipo un volcado de la caída (los diez últimos) y lo anota en su registro de fallos al volver a abrirla, para encontrar la causa. Nunca sale del equipo, y puede contener datos que la app tenía en memoria. El cambio vale al reiniciar Tessera. Solo existe en las versiones alpha.',
+        'Si Tessera falla de forma inesperada, guarda en este equipo un volcado del fallo (los diez últimos) y lo anota en su registro de fallos al volver a abrirse, para poder encontrar la causa. Nunca sale del equipo y puede contener datos que la aplicación tenía en memoria. El cambio se aplica al reiniciar Tessera. Solo está disponible en las versiones alpha.',
       volcadosEtiqueta: 'Guardar volcados de caída'
     },
     copia: {
       grupo: 'Configuración de Tessera',
       grupoAyuda:
-        'Perfiles, conexiones SSH y de bases de datos (con sus contraseñas y claves), agentes definidos a mano y ajustes, en un archivo cifrado con una frase. Al importar se añade lo que falta y no se toca lo que ya hay.',
+        'Perfiles, conexiones SSH y de bases de datos (con sus contraseñas y claves), agentes definidos manualmente y ajustes, en un archivo cifrado con una frase de contraseña. Al importar se añade lo que falta y no se modifica lo que ya existe.',
       exportar: 'Exportar',
-      exportarAyuda: 'Elige qué perfiles y qué llevar.',
+      exportarAyuda: 'Seleccione qué perfiles y qué datos incluir.',
       exportarBoton: 'Exportar…',
       importar: 'Importar',
-      importarAyuda: 'Desde un archivo exportado en este u otro equipo, de cualquier sistema.',
+      importarAyuda: 'Desde un archivo exportado en este equipo o en otro, con cualquier sistema operativo.',
       importarBoton: 'Importar…'
     }
   },
@@ -249,10 +249,10 @@ export const txCategorias = crearTextos(
       rol: 'Software Engineer',
       lema: 'The desktop IDE for working across several projects and several AI accounts.',
       puntos: (tuEquipo: string): readonly string[] => [
-        'Each workspace has its own sandbox and its own AI accounts: several licenses coexist without clashing or mixing conversations.',
-        `Claude Code and Codex only see the projects in their workspace, not ${tuEquipo}; only the project you choose runs natively, with your account.`,
-        'Editor, explorer, Git, terminals and databases alongside the agents, switching projects with a tab.',
-        'The mosaic shows every working agent at once, and one button updates them all without interrupting any.'
+        `Each agent works with the account on ${tuEquipo} or with an isolated account in Docker; several accounts can work at the same time, depending on your computer.`,
+        'A conversation can continue in another account of the same agent, in full, or in another agent, as a summary.',
+        'An agent in Docker sees only the projects it works on; a native agent has your permissions.',
+        'Editor, explorer, Git, terminals, SSH and databases next to the agents, and a mosaic to follow up to six at once.'
       ],
       licencia: (licencia: string) => `Open source · ${licencia} license`,
       codigoFuente: 'Source code',
@@ -298,14 +298,14 @@ export const txBloquesUpdate = crearTextos(
   {
     update: {
       versionActual: (v: string) => `Versión actual: ${v}`,
-      sinFeed: 'Sin feed en desarrollo.',
-      descartarFallo: 'Deja de ofrecer esta versión.',
-      descartarAviso: 'Cierra el aviso.',
+      sinFeed: 'Sin canal de actualizaciones en modo desarrollo.',
+      descartarFallo: 'Se deja de ofrecer esta versión.',
+      descartarAviso: 'Cierra este aviso.',
       descartar: 'Descartar',
       entendido: 'Entendido',
-      instalarTitulo: 'Cierra Tessera, instala la versión nueva y la vuelve a abrir sola.',
+      instalarTitulo: 'Cierra Tessera, instala la versión nueva y vuelve a abrir Tessera automáticamente.',
       reiniciarInstalar: 'Reiniciar e instalar',
-      descargarTitulo: 'Abre la descarga en el navegador. Tessera no se cierra ni se reinstala sola.',
+      descargarTitulo: 'Abre la descarga en el navegador. Tessera no se cierra ni se reinstala automáticamente.',
       descargar: (v: string) => `Descargar ${v}`,
       reintentar: 'Reintentar',
       buscar: 'Buscar actualizaciones',
@@ -314,11 +314,11 @@ export const txBloquesUpdate = crearTextos(
     agentes: {
       sinComprobar: 'Todavía no se han comprobado los agentes.',
       soloNativos: (tuEquipo: string) =>
-        `Sólo los agentes que corren en ${tuEquipo}; los de Docker se actualizan con el botón de su panel.`,
+        `Solo los agentes que se ejecutan en ${tuEquipo}; los de Docker se actualizan con el botón de su panel.`,
       verDetalleTitulo: 'Abre el panel con el detalle de la última actualización.',
       verDetalle: 'Ver detalle',
       actualizarTitulo:
-        'Abre el panel del botón de la barra de título: ahí se ve qué sesiones se reiniciarán y se confirma.',
+        'Abre el panel del botón de la barra de título, donde se muestran las sesiones que se reiniciarán y se confirma la actualización.',
       actualizar: 'Actualizar…',
       buscar: 'Buscar actualizaciones'
     }
@@ -357,20 +357,20 @@ export const txLineasUpdate = crearTextos(
   {
     aviso: {
       noSePudo: (v: string) => `No se pudo aplicar la versión ${v}. `,
-      sigues: (v: string) => `Sigues en la ${v}.`,
-      agotado: ' Se dejó de intentar.',
+      sigues: (v: string) => `Se mantiene la versión ${v}.`,
+      agotado: ' Tessera dejó de reintentar.',
       actualizada: (desde: string, hasta: string) => `Actualizada de ${desde} a ${hasta}.`
     },
     preparadaAlCerrar: (v: string) => `La versión ${v} está preparada; se aplicará al cerrar Tessera.`,
-    preparadaEsperando: (v: string) => `La versión ${v} está preparada y esperando a que la instales.`,
+    preparadaEsperando: (v: string) => `La versión ${v} está preparada y pendiente de instalación.`,
     descargando: (v: string, pct: number) => `Descargando ${v}… ${pct}%`,
     disponible: (v: string) =>
-      `La versión ${v} está disponible. ` + 'Esta copia no puede instalarse sola: descárgala y sustituye la app.',
+      `La versión ${v} está disponible. ` + 'Esta copia no puede instalarse automáticamente: descargue la versión nueva y sustituya la aplicación.',
     buscando: 'Buscando actualizaciones…',
     instalando: 'Instalando…',
-    fallo: 'La comprobación falló.',
+    fallo: 'No se pudo completar la comprobación.',
     desarrollo: 'Modo desarrollo: el selector simula los estados (no hay instalador real).',
-    solas: 'Se comprueban solas en segundo plano.'
+    solas: 'Se comprueban automáticamente en segundo plano.'
   },
   {
     aviso: {
@@ -404,11 +404,12 @@ export const txLineasAgentes = crearTextos(
         `${instalada} · ${ultima} aún no está lista para ${tuEquipo}.`,
       disponible: (instalada: string, ultima: string) => `${instalada} → ${ultima} disponible.`,
       aMano: (ultima: string, orden: string | null) =>
-        `${ultima} disponible; se actualiza a mano${orden ? `: ${orden}` : '.'}`,
+        `${ultima} disponible; se actualiza manualmente${orden ? `: ${orden}` : '.'}`,
       alDia: (instalada: string) => `${instalada} · al día.`
     },
-    atrasadas: (n: number) => `${n === 1 ? '1 sesión corre' : `${n} sesiones corren`} una versión anterior a la instalada.`,
-    actualizando: 'Actualizando los agentes… (el detalle, en el botón de la barra de título)',
+    atrasadas: (n: number) =>
+      `${n === 1 ? '1 sesión se ejecuta' : `${n} sesiones se ejecutan`} con una versión anterior a la instalada.`,
+    actualizando: 'Actualizando los agentes… (el detalle está en el botón de la barra de título)',
     buscando: 'Buscando versiones nuevas…'
   },
   {

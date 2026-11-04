@@ -173,7 +173,7 @@ export function validarCambios(
         return { indice: i, mensaje: `Cambio ${i + 1}: la columna del ROWID no se escribe.` }
       }
       const col = porNombre.get(nombre)
-      if (!col) return { indice: i, mensaje: `Cambio ${i + 1}: la columna ${nombre} no existe en la tabla (vuelve a abrirla).` }
+      if (!col) return { indice: i, mensaje: `Cambio ${i + 1}: la columna ${nombre} no existe en la tabla (vuelva a abrirla).` }
       if (col.noEditable !== null) return { indice: i, mensaje: `Cambio ${i + 1}: ${nombre} no se puede editar. ${col.noEditable}` }
     }
   }

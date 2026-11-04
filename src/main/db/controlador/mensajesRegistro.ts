@@ -14,8 +14,8 @@
 export const MENSAJE_FORMATO_AJENO =
   'Esta versión de Tessera no reconoce el formato del registro de conexiones ' +
   '(db-connections.json) y no sabe escribirlo sin estropearlo, así que no lo toca. ' +
-  'Puede venir de una versión más nueva de Tessera (actualiza para añadir conexiones) ' +
-  'o de una edición a mano del archivo (corrígelo y reinicia Tessera, que lo lee al arrancar).'
+  'Puede venir de una versión más nueva de Tessera (actualice Tessera para añadir conexiones) ' +
+  'o de una edición manual del archivo (corríjalo y reinicie Tessera, que lo lee al iniciar).'
 
 /**
  * Por qué no se puede leer el registro: tiene contenido y no es JSON, o existe y no se deja abrir
@@ -44,13 +44,13 @@ export function mensajeRegistroIlegible(causa: CausaRegistroIlegible, respaldo: 
         : ''
   const remedio =
     causa.tipo === 'roto'
-      ? 'corrígelo (suele ser una edición a mano: una coma de más, una comilla sin cerrar)'
-      : 'revisa sus permisos, o si otro programa lo tiene abierto en exclusiva,'
+      ? 'corríjalo (suele ser una edición manual: una coma de más, una comilla sin cerrar)'
+      : 'revise sus permisos, o si otro programa lo tiene abierto en exclusiva,'
   // Lo que pasa mientras tanto no va aquí: lo dice cada superficie a su manera.
   return (
     `No se puede leer el registro de conexiones (db-connections.json): ${que}${copia}. ` +
-    `Tessera no lo toca para no perder lo que tiene dentro: ${remedio} y reinicia Tessera, ` +
-    'que lo lee al arrancar.'
+    `Tessera no lo toca para no perder lo que tiene dentro: ${remedio} y reinicie Tessera, ` +
+    'que lo lee al iniciar.'
   )
 }
 
@@ -90,7 +90,7 @@ export function mensajeRegistroRecuperado(sufijoCopia: string | null): string {
     : 'El registro de conexiones (db-connections.json) no era JSON válido: se recuperaron las ' +
         'conexiones de su copia de respaldo (db-connections.json.bak), a la que puede faltarle el ' +
         'último cambio, y el archivo dañado se conservó aparte, como ' +
-        `db-connections.json${sufijoCopia}, antes de sustituirlo: si echas algo en falta, está ahí.`
+        `db-connections.json${sufijoCopia}, antes de sustituirlo: si falta algún dato, está en ese archivo.`
 }
 
 /**
@@ -105,10 +105,10 @@ export function mensajeCopiaIlegibleFallida(codigo: string, fase: 'escribir' | '
     `(db-connections.json${SUFIJO_COPIA_ILEGIBLE}), `
   return fase === 'leer'
     ? `${inicio}pero ahora el archivo no se deja leer para copiarlo (${codigo}). El archivo no se ` +
-        'toca: revisa sus permisos, o si otro programa lo tiene abierto en exclusiva, y vuelve a ' +
+        'toca: revise sus permisos, o si otro programa lo tiene abierto en exclusiva, y vuelva a ' +
         'intentarlo.'
-    : `${inicio}que no se pudo escribir (${codigo}). El archivo no se toca: revisa los permisos ` +
-        'de su carpeta, o apártalo tú (muévelo a otro sitio) y vuelve a intentarlo.'
+    : `${inicio}que no se pudo escribir (${codigo}). El archivo no se toca: revise los permisos ` +
+        'de su carpeta, o aparte el archivo (muévalo a otra ubicación) y vuelva a intentarlo.'
 }
 
 /**
@@ -119,13 +119,13 @@ export function mensajeCopiaIlegibleFallida(codigo: string, fase: 'escribir' | '
 export function mensajeEscrituraRegistroFallida(codigo: string): string {
   const remedio =
     codigo === 'ENOSPC'
-      ? 'No queda espacio en el disco: libera espacio y vuelve a intentarlo.'
+      ? 'No queda espacio en el disco: libere espacio y vuelva a intentarlo.'
       : codigo === 'EBUSY'
-        ? 'Otro programa lo tiene abierto en exclusiva: ciérralo y vuelve a intentarlo.'
+        ? 'Otro programa lo tiene abierto en exclusiva: ciérrelo y vuelva a intentarlo.'
         : codigo === 'EACCES' || codigo === 'EPERM' || codigo === 'EROFS'
-          ? 'Revisa los permisos de su carpeta, o si otro programa (un antivirus, una sincronización ' +
-            'en la nube) lo tiene abierto, y vuelve a intentarlo.'
-          : 'Vuelve a intentarlo; si se repite, revisa los permisos de su carpeta y el espacio libre en el disco.'
+          ? 'Revise los permisos de su carpeta, o si otro programa (un antivirus, una sincronización ' +
+            'en la nube) lo tiene abierto, y vuelva a intentarlo.'
+          : 'Vuelva a intentarlo; si se repite, revise los permisos de su carpeta y el espacio libre en el disco.'
   return (
     `No se guardó el cambio: no se pudo escribir el registro de conexiones (db-connections.json) (${codigo}). ` +
     `El registro sigue como estaba. ${remedio}`

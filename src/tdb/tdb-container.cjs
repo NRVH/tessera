@@ -48,11 +48,11 @@ const TEXTOS = {
     sqlGrande: (mib) => `El SQL supera los ${mib} MiB que admite el puente al host.`,
     sinContexto:
       'Esta terminal no lleva el contexto de bases de datos de Tessera.\n' +
-      '    Recarga la terminal (o reinicia el agente) después de montar la base.',
-    sinBuzon: (buzon) => `El puente al host no está montado (${buzon} no existe).\n` + '    Recarga la terminal para que Tessera lo vuelva a montar.',
-    sinSenales: 'El puente al host está montado pero Tessera no da señales.\n' + '    Recarga la terminal; si sigue, reinicia Tessera.',
-    sinCentinela: 'El puente al host no responde (falta el centinela).\n' + '    Suele pasar tras recrearse el contenedor: recarga la terminal.',
-    sinRespuesta: (s) => `El puente no respondió en ${s} s.\n` + '    Comprueba que Tessera sigue abierta y recarga la terminal.'
+      '    Reinicie la terminal (o reinicie el agente) después de montar la base.',
+    sinBuzon: (buzon) => `El puente al host no está montado (${buzon} no existe).\n` + '    Reinicie la terminal para que Tessera lo vuelva a montar.',
+    sinSenales: 'El puente al host está montado, pero Tessera no responde.\n' + '    Reinicie la terminal; si el problema persiste, reinicie Tessera.',
+    sinCentinela: 'El puente al host no responde (falta el centinela).\n' + '    Suele ocurrir tras recrearse el contenedor: reinicie la terminal.',
+    sinRespuesta: (s) => `El puente no respondió en ${s} s.\n` + '    Compruebe que Tessera sigue abierta y reinicie la terminal.'
   },
   en: {
     faltaRutaFile: 'Missing path after --file.',
@@ -61,11 +61,11 @@ const TEXTOS = {
     sqlGrande: (mib) => `The SQL exceeds the ${mib} MiB limit of the bridge to the host.`,
     sinContexto:
       'This terminal does not have the Tessera database context.\n' +
-      '    Reload the terminal (or restart the agent) after mounting the database.',
-    sinBuzon: (buzon) => `The bridge to the host is not mounted (${buzon} does not exist).\n` + '    Reload the terminal so Tessera mounts it again.',
-    sinSenales: 'The bridge to the host is mounted, but Tessera is not responding.\n' + '    Reload the terminal; if the problem persists, restart Tessera.',
-    sinCentinela: 'The bridge to the host is not responding (the sentinel is missing).\n' + '    This usually happens after the container is recreated: reload the terminal.',
-    sinRespuesta: (s) => `The bridge did not respond within ${s} s.\n` + '    Check that Tessera is still open and reload the terminal.'
+      '    Restart the terminal (or restart the agent) after mounting the database.',
+    sinBuzon: (buzon) => `The bridge to the host is not mounted (${buzon} does not exist).\n` + '    Restart the terminal so Tessera mounts it again.',
+    sinSenales: 'The bridge to the host is mounted, but Tessera is not responding.\n' + '    Restart the terminal; if the problem persists, restart Tessera.',
+    sinCentinela: 'The bridge to the host is not responding (the sentinel is missing).\n' + '    This usually happens after the container is recreated: restart the terminal.',
+    sinRespuesta: (s) => `The bridge did not respond within ${s} s.\n` + '    Check that Tessera is still open and restart the terminal.'
   }
 }
 

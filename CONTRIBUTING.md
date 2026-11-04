@@ -54,6 +54,22 @@ Lo esencial:
 - **La interfaz nunca ve ni envía rutas del equipo**, y cada canal IPC se declara en
   `src/shared/*-ipc.ts` y se expone por `src/preload/`.
 
+## Cómo está organizado el código
+
+```
+src/
+  main/       proceso principal de Electron: contenedores, agentes, Git, archivos, bases de datos, actualizaciones
+  preload/    el puente tipado que se expone a la interfaz
+  renderer/   interfaz en React, organizada por funciones
+  shared/     contratos IPC y lógica pura que usan los dos lados
+  tdb/        el CLI de bases de datos que usan los agentes
+  tssh/       el CLI de conexiones SSH que usan los agentes
+  tctx/       el CLI de reglas, traspasos e historial que usan los agentes
+  askpass/    el ayudante que da la contraseña guardada al cliente OpenSSH
+docker/       la imagen de los contenedores
+e2e/          suite de Playwright contra la app empaquetada
+```
+
 ## Windows, macOS y Linux son de primera clase los tres
 
 Tessera corre en Windows, en macOS y en Linux, y ninguno es un port de otro. Para un pull

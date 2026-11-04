@@ -221,7 +221,7 @@ function main(): void {
     const p = transicion(enVuelo, { tipo: 'perdida', ahora: t(), commitEnCamino: true }).estado
     check(
       'perdida con el COMMIT en camino: SIN txPerdida (el renderer no pinta «revertida») y el aviso dice que no se sabe',
-      p.fase === 'perdida' && p.tx === 'ninguna' && p.aviso?.txPerdida === false && p.aviso.mensaje === MENSAJES.perdidaEnCommit && /no se sabe/.test(p.aviso.mensaje) && /Comprueba/.test(p.aviso.mensaje),
+      p.fase === 'perdida' && p.tx === 'ninguna' && p.aviso?.txPerdida === false && p.aviso.mensaje === MENSAJES.perdidaEnCommit && /no se sabe/.test(p.aviso.mensaje) && /Compruebe/.test(p.aviso.mensaje),
       JSON.stringify(p.aviso)
     )
     const c = transicion(enVuelo, { tipo: 'perdida', ahora: t(), caida: true, commitEnCamino: true }).estado

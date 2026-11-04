@@ -569,8 +569,7 @@ test.describe('capturas del README', () => {
     await foto(win, { readme: 'agentes' }, win.locator('.right-panel'))
   })
 
-  test('academy: menú del perfil y selector de cuenta con el menú de una tarjeta', async () => {
-    test.skip(!SOLO_ACADEMY, 'solo para la Academy')
+  test('menú del perfil, selector de cuenta y menú de continuar', async () => {
     const win = s.win
     await win.locator('.profile-tab[data-perfil-id="personal"]').click({ button: 'right' })
     const menu = win.locator('.ctx-menu')
@@ -587,13 +586,12 @@ test.describe('capturas del README', () => {
     await win.locator('.agent-pane:not(.hidden) .cuenta-btn').first().click()
     const pop = win.locator('.cuenta-pop')
     await expect(pop.locator('.cuenta-tarjeta', { hasText: 'Pruebas' })).toHaveCount(1)
-    await foto(win, { academy: ['selector-de-cuenta'] }, await abarcar([pop]), false)
-    const tarjeta = pop.locator('.cuenta-tarjeta', { hasText: 'Trabajo' })
-    await tarjeta.hover()
-    await pop.locator('.cuenta-accion[aria-label*="Trabajo"]').click()
-    await expect(menu).toBeVisible()
-    await foto(win, { academy: ['continuar-menu-cuenta'] }, await abarcar([pop, menu]), false)
+    await foto(win, { readme: 'cuentas', academy: ['selector-de-cuenta'] }, await abarcar([pop], 0), false)
     await win.keyboard.press('Escape')
+    await expect(pop).toHaveCount(0)
+    await win.locator('.agent-pane:not(.hidden) .pasar-btn').click()
+    await expect(pop.locator('.cuenta-tarjeta', { hasText: 'Pruebas' })).toHaveCount(1)
+    await foto(win, { readme: 'continuar', academy: ['continuar-conversacion'] }, await abarcar([pop], 0), false)
     await win.keyboard.press('Escape')
     await expect(pop).toHaveCount(0)
   })
@@ -693,7 +691,7 @@ test.describe('capturas del README', () => {
     await foto(win, { readme: 'configuracion' })
     await win.locator('.ajustes-riel-item[data-cat="contenedores"]').click()
     await win.waitForTimeout(800)
-    await foto(win, { academy: ['docker-limite'] }, win.locator('.ajustes-modal'))
+    await foto(win, { readme: 'limite-contenedores', academy: ['docker-limite'] }, win.locator('.ajustes-modal'))
     await win.keyboard.press('Escape')
     await expect(win.locator('.ajustes-modal')).toHaveCount(0)
   })

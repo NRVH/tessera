@@ -1,7 +1,7 @@
 // =============================================================================
-// «Continuar con <otro agente>…»: el botón de la cabecera y su popover, con las mismas tarjetas que el selector de
-// cuenta (la del sistema y las de Docker del otro agente). Elegir una pide el traspaso y pone a la vista ese
-// agente con una conversación nueva; si está trabajando, antes se pregunta.
+// «Continuar esta conversación»: el botón de la cabecera y su popover, único lugar desde el que se sigue el
+// trabajo en otro sitio. Primero las otras cuentas del mismo agente, que se llevan la conversación entera, y luego
+// los otros agentes, que reciben un resumen. Si el agente afectado tiene un turno en marcha, antes se pregunta.
 // Decisiones: docs/decisiones/agentes/traspaso-entre-agentes.md
 // =============================================================================
 import './cuentaAgente.css'
@@ -13,12 +13,13 @@ import { ConfirmDialog } from '../../comun/ConfirmDialog'
 import { EnCapaFlotante } from '../../comun/capaFlotante'
 import { AYUDA, BotonAyuda } from '../academy'
 import { agentTargetKey } from '../pestanas'
-import { isWorking } from './agentActivity.ts'
+import { turnoEnMarcha } from './agentActivity.ts'
+import { nombreAgente } from './agentPaneTipos'
 import type { PestanaAgente } from './agentesDelProyecto'
 import { continuarEn, type DestinoContinuar } from './continuarEn'
 import { IconoContenedor, IconoEquipo, IconoPasarA } from './iconosAgentPane'
-import { ANCHO_POPOVER, Tarjeta, cerrarConEscape, conMayuscula, useCierre, usePosicionPopover } from './PopoverCuenta'
-import { nombreVisible, vistaSelectorCuenta } from './selectorCuenta.ts'
+import { ANCHO_POPOVER, Tarjeta, cerrarConEscape, conMayuscula, puedeSeguirConversacion, useCierre, usePosicionPopover } from './PopoverCuenta'
+import { nombreVisible, otrasCuentas, type OtrasCuentas } from './selectorCuenta.ts'
 import { useStoreAgentes } from './store'
 import { txPane } from './textosPane.ts'
 import { txTraspaso } from './textosTraspaso.ts'
@@ -31,94 +32,148 @@ export function destinosTraspaso(m: ModeloAgentPane): PestanaAgente[] {
   return m.p.pestanasAgente.filter((x) => !x.manual && x.id !== m.p.target.agente)
 }
 
-/** Las cuentas de Docker del otro agente en este perfil; null mientras llegan. */
-function useCuentasDe(profileId: string, agente: string): AgentAccount[] | null {
-  const [lista, setLista] = useState<AgentAccount[] | null>(null)
+/** Las cuentas de Docker de otros agentes en este perfil, por agente; null mientras llegan. */
+function useCuentasDe(profileId: string, agentes: string[]): Record<string, AgentAccount[]> | null {
+  const [cuentas, setCuentas] = useState<Record<string, AgentAccount[]> | null>(null)
+  const clave = agentes.join('\n')
   useEffect(() => {
     let vivo = true
-    window.tessera.agentAccounts
-      .list({ profileId, agente: agente as AgentKind })
-      .then((l) => vivo && setLista(l))
-      .catch(() => vivo && setLista([]))
+    const pedir = clave === '' ? [] : clave.split('\n')
+    void Promise.all(
+      pedir.map(async (agente) => {
+        const lista = await window.tessera.agentAccounts.list({ profileId, agente: agente as AgentKind }).catch((): AgentAccount[] => [])
+        return [agente, lista] as const
+      })
+    ).then((pares) => {
+      if (vivo) setCuentas(Object.fromEntries(pares))
+    })
     return () => {
       vivo = false
     }
-  }, [profileId, agente])
-  return lista
+  }, [profileId, clave])
+  return cuentas
 }
 
-/** Las tarjetas de un agente de destino: su equipo y sus cuentas de Docker. */
-function SeccionDestino({
-  m,
-  destino,
-  onElegir,
-  onCerrar
-}: {
-  m: ModeloAgentPane
-  destino: PestanaAgente
-  onElegir: (d: DestinoContinuar) => void
-  onCerrar: () => void
+/** Un grupo de cuentas a las que continuar: el agente, qué se lleva y sus tarjetas. */
+function Grupo(p: {
+  nombre: string
+  lleva: string
+  llevaDetalle: string
+  agente: AgentKind
+  cuentas: OtrasCuentas | null
+  onElegir: (d: DestinoContinuar, donde: string) => void
 }): React.JSX.Element {
   const t = txPane().menus
-  const cuentas = useCuentasDe(m.p.target.profileId, destino.id)
   const sistema = nombresSistema(window.tessera.plataforma)
-  const vista = vistaSelectorCuenta(cuentas ?? [], null, 'disponible')
-  const agente = destino.id as AgentKind
+  const { agente, cuentas, onElegir } = p
   return (
-    <section className="cuenta-seccion" aria-label={txTraspaso().elegirDestino(destino.nombre)}>
-      <div className="cuenta-pop-cabecera">
-        <div className="cuenta-pop-titulo">{txTraspaso().elegirDestino(destino.nombre)}</div>
-        <BotonAyuda destino={AYUDA.continuarCon} alAbrir={onCerrar} />
+    <section className="cuenta-seccion" aria-label={txTraspaso().grupoAria(p.nombre, p.lleva)}>
+      <div className="continuar-grupo" title={p.llevaDetalle}>
+        <span className="continuar-grupo-agente">{p.nombre}</span>
+        <span className="continuar-grupo-lleva">{p.lleva}</span>
       </div>
-      {vista.nativa && (
-        <>
-          <div className="cuenta-seccion-titulo">{t.enTuEquipo}</div>
-          <Tarjeta
-            icono={<IconoEquipo />}
-            nombre={conMayuscula(sistema.tuEquipo)}
-            detalle={t.nativaDetalle(sistema.tuEquipo)}
-            actual={vista.nativa.actual}
-            onElegir={() => onElegir({ agente, modo: 'nativo', accountId: null })}
-          />
-        </>
-      )}
-      <div className="cuenta-seccion-titulo">{vista.nativa ? t.enDocker : t.cuentas}</div>
       {cuentas === null && <p className="cuenta-vacio">{txTraspaso().cargando}</p>}
-      {cuentas !== null && vista.docker.length === 0 && <p className="cuenta-vacio">{t.sinCuentasDockerContinuar}</p>}
-      {vista.docker.map((f) => (
+      {cuentas?.nativa && (
         <Tarjeta
-          key={f.cuenta.id}
-          icono={<IconoContenedor />}
-          nombre={nombreVisible(f.cuenta, t.predeterminada)}
-          detalle={t.dockerDetalle}
+          icono={<IconoEquipo />}
+          nombre={conMayuscula(sistema.tuEquipo)}
           actual={false}
-          onElegir={() => onElegir({ agente, modo: 'docker', accountId: f.cuenta.id })}
+          onElegir={() => onElegir({ agente, modo: 'nativo', accountId: null }, sistema.tuEquipo)}
         />
-      ))}
+      )}
+      {cuentas?.docker.map((c) => {
+        const nombre = nombreVisible(c, t.predeterminada)
+        return (
+          <Tarjeta
+            key={c.id}
+            icono={<IconoContenedor />}
+            nombre={nombre}
+            detalle={txTraspaso().detalleDocker}
+            actual={false}
+            onElegir={() => onElegir({ agente, modo: 'docker', accountId: c.id }, txTraspaso().cuentaCitada(nombre))}
+          />
+        )
+      })}
+      {cuentas !== null && !cuentas.nativa && cuentas.docker.length === 0 && <p className="cuenta-vacio">{t.sinCuentasDockerContinuar}</p>}
     </section>
   )
 }
 
-/** El popover, alineado por la derecha bajo su botón (encima si no cabe). */
-function PopoverTraspaso({ m, destinos, ancla, onCerrar }: { m: ModeloAgentPane; destinos: PestanaAgente[]; ancla: AnclaCuenta; onCerrar: () => void }): React.JSX.Element {
-  const raiz = useRef<HTMLDivElement>(null)
-  const [confirmar, setConfirmar] = useState<{ destino: DestinoContinuar; nombre: string } | null>(null)
-  useCierre(raiz, () => {
-    if (!confirmar) onCerrar()
-  })
-  const pos = usePosicionPopover(raiz, ancla, 0)
+/** Un grupo por cada otro agente del proyecto, con todas sus cuentas. */
+function GruposOtrosAgentes({ destinos, cuentas, onElegir }: { destinos: PestanaAgente[]; cuentas: Record<string, AgentAccount[]> | null; onElegir: (d: DestinoContinuar, otro: string) => void }): React.JSX.Element {
+  const t = txTraspaso()
+  return (
+    <>
+      {destinos.map((d) => {
+        const lista = cuentas?.[d.id]
+        return (
+          <Grupo
+            key={d.id}
+            nombre={d.nombre}
+            lleva={t.llevaResumen}
+            llevaDetalle={t.llevaResumenDetalle}
+            agente={d.id as AgentKind}
+            cuentas={lista ? otrasCuentas(lista, null, false) : null}
+            onElegir={(destino) => onElegir(destino, d.nombre)}
+          />
+        )
+      })}
+    </>
+  )
+}
+
+/** Lo que se pregunta antes de continuar, con el destino al que se irá si se confirma. */
+interface Confirmacion {
+  destino: DestinoContinuar
+  titulo: string
+  mensaje: string
+}
+
+/** Elegir un destino: continúa, o pregunta antes si el agente afectado tiene un turno en marcha. */
+function useContinuar(m: ModeloAgentPane, onCerrar: () => void): {
+  confirmar: Confirmacion | null
+  cancelar: () => void
+  pasar: (destino: DestinoContinuar) => void
+  elegirMismo: (destino: DestinoContinuar, donde: string) => void
+  elegirOtro: (destino: DestinoContinuar, otro: string) => void
+} {
+  const [confirmar, setConfirmar] = useState<Confirmacion | null>(null)
   const { target } = m.p
+  const t = txTraspaso()
+  const nombre = nombreAgente(m.p.pestanasAgente, target.agente)
   const pasar = (destino: DestinoContinuar): void => {
     const sesion = m.s.sessionId
     onCerrar()
     if (sesion) void continuarEn(target, sesion, destino)
   }
-  const elegir = (destino: DestinoContinuar, nombre: string): void => {
-    const clave = agentTargetKey(target.profileId, target.projectHostPath, destino.agente)
-    // Cortarle un turno en marcha al agente de destino no se hace sin preguntar.
-    if (isWorking(useStoreAgentes.getState().activity, clave)) setConfirmar({ destino, nombre })
-    else pasar(destino)
+  // Mismo agente: cerrar su sesión para abrirla en la otra cuenta le corta el turno en marcha.
+  const elegirMismo = (destino: DestinoContinuar, donde: string): void => {
+    if (turnoEnMarcha(useStoreAgentes.getState().activity, target.key)) {
+      setConfirmar({ destino, titulo: t.trabajandoTitulo(nombre), mensaje: t.seguirTrabajandoMensaje(nombre, donde) })
+    } else pasar(destino)
   }
+  // Otro agente: lo que se corta es el turno que tenga el de destino en este proyecto.
+  const elegirOtro = (destino: DestinoContinuar, otro: string): void => {
+    const clave = agentTargetKey(target.profileId, target.projectHostPath, destino.agente)
+    if (turnoEnMarcha(useStoreAgentes.getState().activity, clave)) {
+      setConfirmar({ destino, titulo: t.trabajandoTitulo(otro), mensaje: t.trabajandoMensaje(otro) })
+    } else pasar(destino)
+  }
+  return { confirmar, cancelar: () => setConfirmar(null), pasar, elegirMismo, elegirOtro }
+}
+
+/** El popover, alineado por la derecha bajo su botón (encima si no cabe). */
+function PopoverTraspaso({ m, destinos, ancla, onCerrar }: { m: ModeloAgentPane; destinos: PestanaAgente[]; ancla: AnclaCuenta; onCerrar: () => void }): React.JSX.Element {
+  const raiz = useRef<HTMLDivElement>(null)
+  const { confirmar, cancelar, pasar, elegirMismo, elegirOtro } = useContinuar(m, onCerrar)
+  const { target, hostMode } = m.p
+  const cuentas = useCuentasDe(target.profileId, destinos.map((d) => d.id))
+  useCierre(raiz, () => {
+    if (!confirmar) onCerrar()
+  })
+  // Vuelve a medirse también cuando las listas llegan vacías: la tarjeta del equipo sustituye a «Cargando».
+  const total = (cuentas ? 1 : 0) + Object.values(cuentas ?? {}).reduce((n, l) => n + l.length, 0) + (m.s.accounts?.length ?? 0)
+  const pos = usePosicionPopover(raiz, ancla, total)
   const t = txTraspaso()
   return (
     <EnCapaFlotante>
@@ -126,56 +181,86 @@ function PopoverTraspaso({ m, destinos, ancla, onCerrar }: { m: ModeloAgentPane;
         ref={raiz}
         className="cuenta-pop"
         role="menu"
-        aria-label={destinos.length === 1 ? t.pasarAAria(destinos[0].nombre) : t.pasarAAria(destinos.map((d) => d.nombre).join(', '))}
+        tabIndex={-1}
+        aria-label={t.titulo}
         style={{ left: pos.left, top: pos.top, width: ANCHO_POPOVER }}
         onKeyDown={(e) => {
           if (!confirmar) cerrarConEscape(e, onCerrar, m)
         }}
       >
-        {destinos.map((d) => (
-          <SeccionDestino key={d.id} m={m} destino={d} onElegir={(destino) => elegir(destino, d.nombre)} onCerrar={onCerrar} />
-        ))}
+        <div className="cuenta-pop-cabecera">
+          <div className="cuenta-pop-titulo">{t.titulo}</div>
+          <BotonAyuda destino={AYUDA.continuarCon} alAbrir={onCerrar} />
+        </div>
+        {puedeSeguirConversacion(m.p) && (
+          <Grupo
+            nombre={nombreAgente(m.p.pestanasAgente, target.agente)}
+            lleva={t.llevaCompleta}
+            llevaDetalle={t.llevaCompletaDetalle}
+            agente={target.agente as AgentKind}
+            cuentas={m.s.accounts ? otrasCuentas(m.s.accounts, m.currentAccount?.id ?? null, hostMode) : null}
+            onElegir={elegirMismo}
+          />
+        )}
+        <GruposOtrosAgentes destinos={destinos} cuentas={cuentas} onElegir={elegirOtro} />
       </div>
       {confirmar && (
         <ConfirmDialog
           danger
-          title={t.trabajandoTitulo(confirmar.nombre)}
-          message={t.trabajandoMensaje(confirmar.nombre)}
+          title={confirmar.titulo}
+          message={confirmar.mensaje}
           confirmLabel={t.seguir}
           cancelLabel={t.cancelar}
           onConfirm={() => pasar(confirmar.destino)}
-          onCancel={() => setConfirmar(null)}
+          onCancel={cancelar}
         />
       )}
     </EnCapaFlotante>
   )
 }
 
-/** El botón de la cabecera: solo con otro agente de serie en el proyecto y una sesión viva que pasar. */
-export function BotonPasarA({ m }: { m: ModeloAgentPane }): React.JSX.Element | null {
-  const [ancla, setAncla] = useState<AnclaCuenta | null>(null)
-  const destinos = destinosTraspaso(m)
-  if (destinos.length === 0) return null
+/** Qué dice el botón: lo que ofrece en este pane. */
+function etiquetaBoton(mismoAgente: boolean, destinos: PestanaAgente[]): string {
   const t = txTraspaso()
   const nombres = destinos.map((d) => d.nombre).join(', ')
+  if (mismoAgente && nombres) return t.continuarEnCuentaOCon(nombres)
+  return mismoAgente ? t.continuarEnCuenta : t.continuarCon(nombres)
+}
+
+/** El botón de la cabecera: si hay otra cuenta o agente que ofrecer; apagado sin una sesión viva que continuar. */
+export function BotonPasarA({ m }: { m: ModeloAgentPane }): React.JSX.Element | null {
+  const [ancla, setAncla] = useState<AnclaCuenta | null>(null)
+  const apagado = !m.s.sessionId || m.s.actualizando
+  // Abierto no puede seguir ofreciendo destinos: sin sesión no hay qué continuar, y a mitad de una actualización
+  // el orquestador cuenta con este pane tal como está.
+  useEffect(() => {
+    if (apagado) setAncla(null)
+  }, [apagado])
+  const destinos = destinosTraspaso(m)
+  const mismoAgente = puedeSeguirConversacion(m.p)
+  // En nativo y sin cuentas de Docker no hay otra cuenta del mismo agente a la que ir.
+  const hayOtraCuenta = mismoAgente && (!m.p.hostMode || (m.s.accounts?.length ?? 0) > 0)
+  if (destinos.length === 0 && !hayOtraCuenta) return null
+  const etiqueta = etiquetaBoton(mismoAgente, destinos)
   return (
     <>
       <button
         type="button"
         className="btn btn-icon pasar-btn"
-        disabled={!m.s.sessionId || m.s.actualizando}
+        disabled={apagado}
         onMouseDown={(e) => {
           if (ancla) e.stopPropagation()
         }}
         onClick={(e) => {
           if (ancla) return setAncla(null)
           const r = e.currentTarget.getBoundingClientRect()
+          m.cuenta.recargar()
           setAncla({ right: r.right, top: r.top, bottom: r.bottom })
         }}
         aria-haspopup="menu"
         aria-expanded={ancla !== null}
-        title={destinos.length === 1 ? t.pasarATitulo(nombres) : t.pasarA(nombres)}
-        aria-label={t.pasarAAria(nombres)}
+        title={m.s.sessionId ? etiqueta : txTraspaso().sinConversacion}
+        aria-label={etiqueta}
       >
         <IconoPasarA />
       </button>

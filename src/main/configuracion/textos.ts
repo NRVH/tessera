@@ -8,18 +8,18 @@ import { crearTextos } from '../../shared/i18n.ts'
 export const txConfiguracion = crearTextos(
   {
     filtro: 'Copia de la configuración de Tessera',
-    fraseCorta: (min: number) => `La frase tiene que tener al menos ${min} caracteres.`,
+    fraseCorta: (min: number) => `La frase de contraseña debe tener al menos ${min} caracteres.`,
     demasiadoGrande: 'El archivo es demasiado grande para ser una copia de Tessera.',
     noSeLeyo: 'No se pudo leer el archivo.',
-    soloLocales: 'Por seguridad, Tessera solo abre copias de este equipo; ábrela desde Configuración › Exportar e importar.',
-    noAbierto: 'El archivo ya no está abierto (pasó demasiado tiempo): vuelve a elegirlo.',
-    noAbiertoCorto: 'El archivo ya no está abierto: vuelve a elegirlo.',
-    contenidoIlegible: 'El contenido del archivo no se entiende.',
+    soloLocales: 'Por seguridad, Tessera solo abre copias de este equipo; ábralas desde Configuración › Exportar e importar.',
+    noAbierto: 'El archivo ya no está abierto (pasó demasiado tiempo): selecciónelo de nuevo.',
+    noAbiertoCorto: 'El archivo ya no está abierto: selecciónelo de nuevo.',
+    contenidoIlegible: 'No se pudo interpretar el contenido del archivo.',
     sshNoEsta: (nombre: string) =>
-      `El perfil «${nombre}» monta una carpeta .ssh que no está en este equipo: los agentes de Docker no verán tus llaves hasta que la cambies.`,
+      `El perfil «${nombre}» monta una carpeta .ssh que no existe en este equipo: los agentes de Docker no tendrán acceso a sus claves SSH hasta que se cambie esa carpeta.`,
     sinSecretoSsh: (alias: string) =>
-      `La conexión SSH «${alias}» se importó sin su contraseña: este equipo no tiene dónde guardarla, así que te la pedirá al conectar.`,
-    elegirPerfil: 'Elige al menos un perfil para exportar.',
+      `La conexión SSH «${alias}» se importó sin su contraseña porque este equipo no tiene dónde guardarla; se solicitará al conectar.`,
+    elegirPerfil: 'Seleccione al menos un perfil para exportar.',
     archivo: {
       sinCifrado: 'El archivo no dice cómo está cifrado.',
       cifradoDesconocido: 'El archivo usa un cifrado que esta versión de Tessera no conoce.',
@@ -28,26 +28,26 @@ export const txConfiguracion = crearTextos(
       faltaCifrado: 'Al archivo le falta parte del cifrado.',
       noEsCopia: 'El archivo no es una copia de la configuración de Tessera.',
       sinVersion: 'El archivo no dice su versión.',
-      masNueva: 'La copia es de una Tessera más nueva: actualiza Tessera para importarla.',
+      masNueva: 'La copia es de una versión de Tessera más nueva: actualice Tessera para importarla.',
       faltaContenido: 'Al archivo le falta parte del contenido.',
       incompleto: 'El archivo está incompleto.',
-      fraseMala: 'La frase no es la de este archivo (o el archivo está dañado).',
-      historialDanado: 'El historial del archivo está dañado o alguien lo cambió.',
+      fraseMala: 'La frase de contraseña no corresponde a este archivo, o el archivo está dañado.',
+      historialDanado: 'El historial del archivo está dañado o fue modificado.',
       historialIncompleto: 'El historial del archivo está incompleto: el archivo se cortó.',
-      cambioArchivo: 'El archivo cambió desde que se abrió: vuelve a elegirlo.'
+      cambioArchivo: 'El archivo cambió desde que se abrió: selecciónelo de nuevo.'
     },
     historial: {
       enlace: 'pasa por un enlace simbólico',
       fueraDeLaCuenta: 'no es una conversación o quedaría fuera de la carpeta de su cuenta',
-      distinto: 'en este equipo hay otra conversación con el mismo nombre; se conserva la de aquí',
-      otroFormato: 'en este equipo está con otra compresión; se conserva la de aquí',
-      abierta: 'está abierta en un agente de este equipo (o se usó hace unos minutos); se conserva la de aquí',
+      distinto: 'en este equipo hay otra conversación con el mismo nombre; se conserva la de este equipo',
+      otroFormato: 'en este equipo existe con otra compresión; se conserva la de este equipo',
+      abierta: 'está abierta en un agente de este equipo (o se usó hace unos minutos); se conserva la de este equipo',
       sinCuenta: (cuenta: string, motivo: string) => `no se pudo preparar la cuenta «${cuenta}»: ${motivo}`,
       sinProyecto: (carpeta: string) => `ningún proyecto abierto en este equipo se llama «${carpeta}»`,
       varios: (carpeta: string) => `hay varios proyectos abiertos que se llaman «${carpeta}»`,
       variosOrigen: (carpeta: string) => `en el otro equipo hay varios proyectos que se llaman «${carpeta}»`,
       larga: (carpeta: string) => `la ruta de «${carpeta}» en este equipo es demasiado larga para su carpeta de conversaciones`,
-      error: (motivo: string) => `El historial no se terminó de importar: ${motivo} Lo que ya entró se queda.`
+      error: (motivo: string) => `El historial no se terminó de importar: ${motivo} Lo ya importado se conserva.`
     }
   },
   {

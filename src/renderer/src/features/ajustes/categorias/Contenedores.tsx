@@ -88,7 +88,6 @@ function GrupoLimite({ limiteContenedores, onChangeLimiteContenedores }: PropsCa
           onChange={(e) => onChangeLimiteContenedores(limiteDePaso(Number(e.target.value), cortes))}
         />
         <div className="limite-escala" aria-hidden="true">
-          <span>{PASO_MINIMO}</span>
           <span>{t.sinLimite}</span>
         </div>
         {aviso !== null && (

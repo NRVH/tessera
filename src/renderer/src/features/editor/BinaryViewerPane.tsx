@@ -16,6 +16,7 @@ import type { DiffSide } from './diffEditorTipos'
 import type { ZipEntry } from '../../../../shared/files-ipc'
 import type { OpenFile } from './centerPane'
 import { txBinario, txVisorComun } from './textosVisores.ts'
+import { nombresSistema } from '../../../../shared/nombresSistema'
 
 interface BinaryViewerPaneProps {
   file: OpenFile
@@ -133,6 +134,7 @@ function CabeceraBinaria({
 }: CabeceraBinariaProps): React.JSX.Element {
   const t = txBinario()
   const comun = txVisorComun()
+  const mostrarEn = comun.mostrarEnExplorador(nombresSistema(window.tessera.plataforma).gestorArchivos)
   return (
     <header className="panel-header editor-header">
       {/* Sin rótulo de tipo ni ruta: la pestaña ya los dice. KIND_LABEL es el aria-label
@@ -159,8 +161,8 @@ function CabeceraBinaria({
         <button
           className="btn btn-icon"
           onClick={onReveal}
-          title={comun.mostrarEnExplorador}
-          aria-label={comun.mostrarEnExplorador}
+          title={mostrarEn}
+          aria-label={mostrarEn}
         >
           <FolderIcon />
         </button>

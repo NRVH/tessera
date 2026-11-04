@@ -277,7 +277,7 @@ test.describe('explorador de BD: edición en la rejilla', () => {
     expect(filasPsql(e!.pg, `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE ${EN_COMMIT}`)).toEqual(['t'])
 
     await expect(dialogo.locator('.db-envio-error-titulo')).toHaveText(
-      'No se sabe si se aplicó: refresca la tabla antes de reenviar',
+      'No se puede saber si se aplicó: refresque la tabla antes de reenviar',
       { timeout: 30_000 }
     )
     const enviar = dialogo.getByRole('button', { name: 'Enviar', exact: true })
@@ -300,7 +300,7 @@ test.describe('explorador de BD: edición en la rejilla', () => {
     // foco en Enviar, y un Intro reenviaba el lote que quizá ya se aplicó.
     await botonBarra(win, 'Enviar cambios').click()
     await expect(dialogo.locator('.db-envio-error-titulo'), 'reabierto, sigue avisando').toHaveText(
-      'El último envío quedó sin saber si se aplicó'
+      'No se sabe si el último envío se aplicó'
     )
     await expect(cancelar, 'reabierto, el foco sigue en Cancelar').toBeFocused()
     await expect(enviar, 'y Enviar sigue activo: informa, no prohíbe').toBeEnabled()

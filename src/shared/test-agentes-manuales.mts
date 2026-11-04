@@ -81,7 +81,7 @@ function json(): void {
   const enNativo = definicionDesdeJson(texto, [], false)
   check('pegada en nativo: sin las órdenes de instalación', enNativo.ok && enNativo.valor.instalacion === undefined, JSON.stringify(enNativo))
   const futura = definicionDesdeJson(JSON.stringify({ tessera: 'agente', version: 99, nombre: 'X', comando: 'x' }), [], false)
-  check('de una Tessera más nueva: error que lo dice', !futura.ok && /más nueva/.test(futura.error), JSON.stringify(futura))
+  check('de una Tessera más nueva: error que lo dice', !futura.ok && /más reciente/.test(futura.error), JSON.stringify(futura))
   const ajena = definicionDesdeJson('{"nombre":"X","comando":"x"}', [], false)
   check('un JSON que no es de Tessera: error', !ajena.ok, JSON.stringify(ajena))
   const roto = definicionDesdeJson('{no es json', [], false)

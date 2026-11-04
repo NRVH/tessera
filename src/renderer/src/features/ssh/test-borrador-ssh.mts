@@ -246,9 +246,9 @@ hr('(10) Qué pasará con la guardada: marcador, ayuda y aviso de una ilegible')
   const otraClave = { ...conClave, clave: claveElegida({ token: 't2', nombre: 'k2', tipo: 'RSA', cifrada: true }) }
   check('(10b) la frase guardada se conserva con su clave y se descarta con otra (C68)', destinoSecreto(conClave, conClave) === 'se-conserva' && destinoSecreto(otraClave, conClave) === 'se-descarta', `${destinoSecreto(conClave, conClave)} · ${destinoSecreto(otraClave, conClave)}`)
   check('(10c) marcador: «(sin cambios)» solo si se conserva', marcadorSecreto('se-conserva') === '(sin cambios)' && marcadorSecreto('nuevo') === '' && marcadorSecreto('ninguno') === '' && marcadorSecreto('se-olvida') === '(se olvidará al guardar)', 'sin cambios')
-  check('(10d) ayuda de un alta', ayudaSecreto('ninguno', false) === 'Se guarda cifrada; si la dejas vacía, la pedirá la terminal.', ayudaSecreto('ninguno', false))
+  check('(10d) ayuda de un alta', ayudaSecreto('ninguno', false) === 'Se guarda cifrada; si deja el campo vacío, la terminal la solicitará al conectar.', ayudaSecreto('ninguno', false))
   check('(10e) ayuda al descartar, distinta para la frase', ayudaSecreto('se-descarta', false).includes('servidor o usuario') && ayudaSecreto('se-descarta', true).includes('otra clave'), ayudaSecreto('se-descarta', true))
-  check('(10f) el aviso de una ilegible nombra el almacén que se le pasa', avisoSecretoIlegible(false, 'EL ALMACÉN') === 'La contraseña guardada no se puede leer con EL ALMACÉN. Vuelve a escribirla.' && avisoSecretoIlegible(true, 'X').startsWith('La frase guardada'), avisoSecretoIlegible(false, 'EL ALMACÉN'))
+  check('(10f) el aviso de una ilegible nombra el almacén que se le pasa', avisoSecretoIlegible(false, 'EL ALMACÉN') === 'La contraseña guardada no se puede leer con EL ALMACÉN. Vuelva a escribirla.' && avisoSecretoIlegible(true, 'X').startsWith('La frase guardada'), avisoSecretoIlegible(false, 'EL ALMACÉN'))
   check('(10g) el borrador trae si la guardada es ilegible', borradorDesde(conexion({ tieneSecreto: true, secretoIlegible: true })).secretoIlegible && !borradorDesde(conexion()).secretoIlegible, 'true · false')
 }
 

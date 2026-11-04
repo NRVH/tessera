@@ -101,14 +101,14 @@ hr('(5) El texto del aviso encaja con lo que falla')
 
   const soloRelativos = avisoVistaHtml('<link rel="stylesheet" href="a.css">') ?? ''
   check('sólo relativos: habla de la carpeta', soloRelativos.includes('sin su carpeta'), soloRelativos)
-  check('sólo relativos: NO habla de la red', !soloRelativos.includes('no sale a la red'))
+  check('sólo relativos: NO habla de la red', !soloRelativos.includes('no tiene acceso a la red'))
 
   const soloRed = avisoVistaHtml('<link rel="stylesheet" href="https://cdn.x/a.css">') ?? ''
-  check('sólo red: habla de la red', soloRed.includes('no sale a la red'), soloRed)
+  check('sólo red: habla de la red', soloRed.includes('no tiene acceso a la red'), soloRed)
   check('sólo red: NO habla de la carpeta', !soloRed.includes('sin su carpeta'))
 
   const ambos = avisoVistaHtml('<link rel="stylesheet" href="a.css"><script src="https://cdn.x/b.js"></script>') ?? ''
-  check('los dos: menciona las dos causas', ambos.includes('sin su carpeta') && ambos.includes('no sale a la red'), ambos)
+  check('los dos: menciona las dos causas', ambos.includes('sin su carpeta') && ambos.includes('no tiene acceso a la red'), ambos)
   check('y siempre recuerda que no hay JavaScript', ambos.includes('Tampoco se ejecuta JavaScript'))
 }
 

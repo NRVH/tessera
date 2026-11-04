@@ -223,7 +223,7 @@ function main(): void {
   )
   check(
     '(6g) servidor con campo sugiere revisar el filtro',
-    describirError(err('servidor', { campo: 'where' }), 'x').sugerencia === 'Revisa el filtro.',
+    describirError(err('servidor', { campo: 'where' }), 'x').sugerencia === 'Revise el filtro.',
     String(describirError(err('servidor', { campo: 'where' }), 'x').sugerencia)
   )
   const envuelto = new Error("Error invoking remote method 'dbx:tabla:abrir': Error: se cayó el canal")

@@ -4,7 +4,7 @@
 // pone el marco: la cabecera (pestañas, botón dividido con el lanzador de conexiones SSH, reinicio, pantalla
 // completa y ocultar) y el cuerpo. Cambiar de perfil, proyecto o terminal solo alterna cuál se ve; una
 // terminal muere cuando su pane se desmonta. A pantalla completa, la lista de conexiones es un riel a la
-// izquierda de la pila, con su conmutador al extremo izquierdo de la cabecera y sin la ▾ mientras se ve.
+// izquierda de la pila, y la cabecera no lleva la ▾ mientras se ve.
 // Decisiones: docs/decisiones/terminales/terminales-keep-alive-y-reinicio-limpio.md, docs/decisiones/terminales/riel-de-conexiones.md,
 // docs/decisiones/terminales/lanzador-de-conexiones.md
 // =============================================================================
