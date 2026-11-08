@@ -4,16 +4,16 @@
 // agente a mano y un ajuste; B importa (primero con la frase equivocada) eligiendo qué entra (una
 // conexión desmarcada, el túnel de una base que se marca con ella) y queda con lo elegido, con las
 // contraseñas legibles con SU almacén; otra B desmarca un perfil entero y no le llega nada de él. El
-// archivo no lleva secretos en claro, salvo exportado sin frase: entonces va sin cifrar, con su aviso
-// al exportar y al importar. Los diálogos nativos se sustituyen.
+// archivo no lleva secretos en claro, salvo exportado sin frase, con su aviso. Los archivos de las cuentas y las
+// reglas nativas se comparan con este equipo; sustituir pide confirmación. Los diálogos nativos se sustituyen.
 // Decisiones: docs/decisiones/configuracion/exportar-importar.md
 // =============================================================================
 
 import { expect, test, type Page } from '@playwright/test'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { abrirTessera, PLATAFORMA, type SesionTessera } from './tessera'
+import { abrirTessera, carpetasAgentes, PLATAFORMA, type SesionTessera } from './tessera'
 
 const FRASE = 'frase de prueba larga'
 const SECRETO_SSH = 'clave-ssh-de-prueba'
@@ -34,9 +34,15 @@ async function abrirCategoria(win: Page): Promise<void> {
 }
 
 test.describe.serial('Exportar e importar la configuración', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'tessera-copia-e2e-'))
-  const archivo = join(dir, 'copia.tessera')
+  // En `beforeAll`: el cuerpo de `describe` también corre al listar las pruebas, y esa carpeta no la borra nadie.
+  let dir = ''
+  let archivo = ''
   let s: SesionTessera | null = null
+
+  test.beforeAll(() => {
+    dir = mkdtempSync(join(tmpdir(), 'tessera-copia-e2e-'))
+    archivo = join(dir, 'copia.tessera')
+  })
 
   test.afterAll(async () => {
     await s?.cerrar()
@@ -74,7 +80,9 @@ test.describe.serial('Exportar e importar la configuración', () => {
     await modal.getByLabel('Repetir la frase de contraseña').fill(FRASE)
     await modal.getByRole('button', { name: 'Exportar…' }).click()
     await expect(modal).toContainText('Guardado en «copia.tessera»', { timeout: 30_000 })
-    await expect(modal).toContainText('2 conexión(es) SSH, 1 de bases de datos')
+    await expect(modal.locator('.modal-pie'), 'la exportación terminada se cierra con la ✕').toHaveCount(0)
+    await expect(modal.getByRole('button', { name: 'Cerrar', exact: true })).toHaveAttribute('title', 'Cerrar (Esc)')
+    await expect(modal).toContainText('2 conexiones SSH, 1 de bases de datos')
     const texto = readFileSync(archivo, 'utf8')
     expect(texto, 'ningún secreto ni nombre en claro en el archivo').not.toContain(SECRETO_BD)
     expect(texto).not.toContain(SECRETO_SSH)
@@ -114,7 +122,7 @@ test.describe.serial('Exportar e importar la configuración', () => {
     await expect(modal.locator('.copia-ya .copia-ya-existe').first(), 'y lo dice en su píldora').toHaveText('Ya existe')
     await modal.screenshot({ path: test.info().outputPath('importar.png') })
     await expect(casilla('Agente · Eco')).toBeChecked()
-    const ajustes = casilla('Ajustes de Tessera (sustituyen las preferencias de este equipo)')
+    const ajustes = casilla('Ajustes de Tessera (sustituyen los ajustes de este equipo)')
     await expect(ajustes, 'los ajustes, marcados de serie como todo').toBeChecked()
     await expect(modal.getByRole('checkbox', { name: 'Todo', exact: true }), 'con todo marcado, «Todo» también').toBeChecked()
     await casilla('SSH · suelta').uncheck()
@@ -128,7 +136,8 @@ test.describe.serial('Exportar e importar la configuración', () => {
     await expect(modal).toContainText('También se marca «salto»: «principal» la necesita.')
     await modal.getByRole('button', { name: 'Importar' }).click()
     await expect(modal).toContainText('Importado.', { timeout: 30_000 })
-    await expect(modal).toContainText('1 perfil(es) nuevo(s), 1 conexión(es) SSH, 1 de bases de datos y 1 agente(s) añadidos; ajustes aplicados')
+    await expect(modal.locator('.modal-pie'), 'la importación terminada no lleva pie').toHaveCount(0)
+    await expect(modal).toContainText('1 perfil nuevo, 1 conexión SSH, 1 de bases de datos y 1 agente propio; ajustes aplicados')
     const r = await win.evaluate(async () => {
       const conexiones = (await window.tessera.ssh.listar()).conexiones
       const bd = (await window.tessera.db.list('trabajo')).find((c) => c.alias === 'principal')
@@ -173,7 +182,7 @@ test.describe.serial('Exportar e importar la configuración', () => {
     await modal.getByRole('checkbox', { name: 'Agente · Eco' }).check()
     await importar.click()
     await expect(modal).toContainText('Importado.', { timeout: 30_000 })
-    await expect(modal).toContainText('0 perfil(es) nuevo(s), 0 conexión(es) SSH, 0 de bases de datos y 1 agente(s) añadidos.')
+    await expect(modal).toContainText('0 perfiles nuevos, 0 conexiones SSH, 0 de bases de datos y 1 agente propio.')
     const r = await win.evaluate(async () => ({
       perfiles: (await window.tessera.getProfiles()).map((p) => p.id),
       ssh: (await window.tessera.ssh.listar()).conexiones.length,
@@ -207,7 +216,7 @@ test.describe.serial('Exportar e importar la configuración', () => {
     await expect(modal.getByText('El archivo no estará cifrado'), 'NEGATIVO: el aviso no sale sin pedirlo').toHaveCount(0)
     await modal.getByRole('checkbox', { name: 'Exportar sin frase de contraseña' }).check()
     await expect(modal.getByLabel('Frase de contraseña', { exact: true }), 'sin frase no hay campos de frase').toHaveCount(0)
-    await expect(modal.getByRole('note')).toContainText('El archivo no estará cifrado')
+    await expect(modal.locator('.modal-aviso.es-aviso')).toContainText('El archivo no estará cifrado')
     await modal.getByRole('button', { name: 'Exportar…' }).click()
     await expect(modal).toContainText('Guardado en «sin-frase.tessera»', { timeout: 30_000 })
     await expect(modal, 'el resumen recuerda que va sin cifrar, no que guarde una frase').toContainText('El archivo no está cifrado')
@@ -224,12 +233,12 @@ test.describe.serial('Exportar e importar la configuración', () => {
     await abrirCategoria(b)
     await b.locator('.ajustes-modal').getByRole('button', { name: 'Importar…' }).click()
     const importar = b.locator('.copia-modal')
-    await expect(importar.getByRole('note')).toContainText('no está cifrado')
+    await expect(importar.locator('.modal-aviso.es-aviso')).toContainText('no está cifrado')
     await expect(importar.getByLabel('Frase de contraseña'), 'no se pide frase').toHaveCount(0)
     await importar.getByRole('button', { name: 'Continuar' }).click()
     const abierta = importar.getByRole('checkbox', { name: 'SSH · abierta' })
     await expect(abierta, 'sin cifrar, nada viene marcado: cualquiera pudo cambiar el archivo').not.toBeChecked({ timeout: 30_000 })
-    await expect(importar.getByRole('note'), 'y el aviso sigue sobre la lista').toContainText('no hay nada marcado')
+    await expect(importar.locator('.modal-aviso.es-aviso'), 'y el aviso sigue sobre la lista').toContainText('no hay nada marcado')
     await expect(importar.getByRole('button', { name: 'Importar' })).toBeDisabled()
     await abierta.check()
     await importar.getByRole('button', { name: 'Importar' }).click()
@@ -288,8 +297,12 @@ test.describe.serial('Exportar e importar la configuración', () => {
     await expect(modal.getByRole('checkbox', { name: 'SSH · salto' })).toBeChecked()
     await expect(modal.getByRole('checkbox', { name: 'Base de datos · principal' })).toBeChecked()
     await modal.getByRole('button', { name: 'Importar' }).click()
+    const aviso = win.getByRole('alertdialog')
+    await expect(aviso, 'sustituir unas reglas se confirma').toContainText('¿Sustituir 1 archivo de este equipo?')
+    await expect(aviso, 'y avisa de que no se recuperan').toContainText('No se podrá recuperar')
+    await aviso.getByRole('button', { name: 'Sustituir e importar' }).click()
     await expect(modal).toContainText('Importado.', { timeout: 30_000 })
-    await expect(modal).toContainText('0 perfil(es) nuevo(s), 1 conexión(es) SSH, 1 de bases de datos')
+    await expect(modal).toContainText('0 perfiles nuevos, 1 conexión SSH, 1 de bases de datos')
     await expect(modal).toContainText('Reglas del archivo aplicadas en «Trabajo».')
     const r = await win.evaluate(async () => {
       const perfiles = await window.tessera.getProfiles()
@@ -304,5 +317,132 @@ test.describe.serial('Exportar e importar la configuración', () => {
     expect(r.reglas, 'las reglas del archivo, en el perfil de aquí').toBe(REGLAS_ARCHIVO)
     expect(r.ssh, 'la conexión SSH, en el perfil de aquí').toBe('trabajo-pc')
     expect(r.bd, 'y la base, con su túnel').toEqual(['principal'])
+    await s.cerrar()
+    s = null
+  })
+
+  /** Una cuenta de Docker creada de verdad, con sus archivos escritos en su carpeta. */
+  async function cuentaConArchivos(win: Page, agente: 'claude-code' | 'codex', nombre: string, archivos: Record<string, string>): Promise<string> {
+    const carpeta = await win.evaluate(
+      async ({ agente, nombre }) => {
+        const c = await window.tessera.agentAccounts.create({ profileId: 'trabajo', agente, nombre })
+        return (await window.tessera.configAgente.leer({ agente, accountId: c.id }))!.carpeta
+      },
+      { agente, nombre }
+    )
+    mkdirSync(carpeta, { recursive: true })
+    for (const [n, texto] of Object.entries(archivos)) writeFileSync(join(carpeta, n), texto)
+    return carpeta
+  }
+
+  function sembrarNativos(datos: string, claude: string | null, codex: string | null): void {
+    const c = carpetasAgentes(datos)
+    mkdirSync(c.claude, { recursive: true })
+    mkdirSync(c.codex, { recursive: true })
+    if (claude !== null) writeFileSync(join(c.claude, 'CLAUDE.md'), claude)
+    if (codex !== null) writeFileSync(join(c.codex, 'AGENTS.md'), codex)
+    writeFileSync(join(c.codex, 'config.toml'), 'ruta = "solo-de-este-equipo"\n')
+  }
+
+  test('archivos de agentes: tres estados, nativos sin marcar, confirmación solo al sustituir y versión anterior', async () => {
+    const conArchivos = join(dir, 'con-archivos.tessera')
+    const trabajo = JSON.parse(PERFILES)[1]
+    s = await abrirTessera({}, {
+      sembrar: (datos) => {
+        writeFileSync(join(datos, 'profiles.json'), JSON.stringify([trabajo]))
+        sembrarNativos(datos, 'Regla nativa de Claude Code.\n', 'Regla nativa de Codex, del archivo.\n')
+      }
+    })
+    await cuentaConArchivos(s.win, 'codex', 'Uno', { 'AGENTS.md': 'Reglas de Uno, del archivo.\n', 'config.toml': 'model = "uno"\n' })
+    await cuentaConArchivos(s.win, 'claude-code', 'Dos', { 'CLAUDE.md': 'Reglas de Dos, iguales.\n', 'settings.json': '{ "model": "dos" }', '.credentials.json': '{"token":"SESION-QUE-NO-VIAJA"}' })
+    await s.app.evaluate(({ dialog }, r) => {
+      dialog.showSaveDialog = (async () => ({ canceled: false, filePath: r })) as typeof dialog.showSaveDialog
+    }, conArchivos)
+    await abrirCategoria(s.win)
+    await s.win.locator('.ajustes-modal').getByRole('button', { name: 'Exportar…' }).click()
+    const exportar = s.win.locator('.copia-modal')
+    await exportar.getByLabel('Frase de contraseña', { exact: true }).fill(FRASE)
+    await exportar.getByLabel('Repetir la frase de contraseña').fill(FRASE)
+    await exportar.getByRole('button', { name: 'Exportar…' }).click()
+    await expect(exportar).toContainText('Guardado en «con-archivos.tessera»', { timeout: 30_000 })
+    await expect(exportar).toContainText('2 cuentas de Docker')
+    await s.cerrar()
+
+    // B tiene las mismas cuentas por nombre: una con otro AGENTS.md y sin config.toml, la otra con el CLAUDE.md igual.
+    s = await abrirTessera({}, {
+      sembrar: (datos) => {
+        writeFileSync(join(datos, 'profiles.json'), JSON.stringify([trabajo]))
+        sembrarNativos(datos, null, 'Regla nativa de Codex, de este equipo.\n')
+      }
+    })
+    const win = s.win
+    const nativas = carpetasAgentes(s.datos)
+    await win.evaluate(() => window.tessera.agentAccounts.create({ profileId: 'trabajo', agente: 'codex', nombre: 'Tres' }).then(() => undefined))
+    const uno = await cuentaConArchivos(win, 'codex', 'Uno', { 'AGENTS.md': 'Reglas de Uno, de este equipo.\n' })
+    const dos = await cuentaConArchivos(win, 'claude-code', 'Dos', { 'CLAUDE.md': 'Reglas de Dos, iguales.\n' })
+    await s.app.evaluate(({ dialog }, r) => {
+      dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [r] })) as typeof dialog.showOpenDialog
+    }, conArchivos)
+    await s.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(900, 620))
+
+    async function abrirImportar(): Promise<ReturnType<Page['locator']>> {
+      await win.locator('.ajustes-modal').getByRole('button', { name: 'Importar…' }).click()
+      const modal = win.locator('.copia-modal')
+      await modal.getByLabel('Frase de contraseña', { exact: true }).fill(FRASE)
+      await modal.getByRole('button', { name: 'Abrir' }).click()
+      await expect(modal.getByLabel('Destino de «Trabajo»')).toBeVisible({ timeout: 30_000 })
+      return modal
+    }
+
+    await abrirCategoria(win)
+    const modal = await abrirImportar()
+    await expect(modal.getByRole('checkbox', { name: 'config.toml' }), 'falta aquí: marcado de serie').toBeChecked()
+    await expect(modal.getByRole('checkbox', { name: 'settings.json' })).toBeChecked()
+    await expect(modal.locator('.copia-ya', { hasText: 'CLAUDE.md' }), 'igual: sin casilla, con su píldora').toContainText('Igual')
+    await expect(modal.getByLabel('Qué hacer con AGENTS.md'), 'distinto: de serie se mantiene el de aquí').toHaveValue('mantener')
+    await expect(modal.getByRole('checkbox', { name: 'Reglas de Claude Code' }), 'NEGATIVO: la regla nativa que falta no viene marcada').not.toBeChecked()
+    await expect(modal.getByLabel('Reglas de Codex en este equipo')).toHaveValue('mantener')
+    // No desborda en la ventana mínima.
+    expect(await modal.locator('.modal-cuerpo').evaluate((el) => el.scrollWidth - el.clientWidth), 'la lista no desborda a 900×620').toBeLessThanOrEqual(0)
+    await modal.getByRole('button', { name: 'Ver diferencias' }).nth(0).click()
+    await expect(modal.getByTestId('propuesta-reglas-diff')).toBeVisible()
+    await modal.getByRole('button', { name: 'Importar' }).click()
+    await expect(win.getByRole('alertdialog'), 'NEGATIVO: si solo se crean archivos, sin confirmación').toHaveCount(0)
+    await expect(modal).toContainText('Importado.', { timeout: 30_000 })
+    await expect(modal.getByTestId('copia-archivos-hecho'), 'el resultado enumera lo creado').toContainText('config.toml')
+    expect(readFileSync(join(uno, 'config.toml'), 'utf8'), 'en la cuenta correspondiente').toBe('model = "uno"\n')
+    expect(readFileSync(join(uno, 'AGENTS.md'), 'utf8'), 'lo distinto no se tocó').toBe('Reglas de Uno, de este equipo.\n')
+    expect(readFileSync(join(dos, 'settings.json'), 'utf8')).toBe('{ "model": "dos" }')
+    expect(existsSync(join(dos, '.credentials.json')), 'NEGATIVO: las credenciales no viajan').toBe(false)
+    expect(existsSync(join(nativas.claude, 'CLAUDE.md')), 'NEGATIVO: la nativa sin marcar no se crea').toBe(false)
+    await modal.getByRole('button', { name: 'Cerrar' }).click()
+
+    const otra = await abrirImportar()
+    await otra.getByLabel('Qué hacer con AGENTS.md').selectOption('sustituir')
+    await otra.getByLabel('Reglas de Codex en este equipo').selectOption('sustituir')
+    await otra.getByRole('button', { name: 'Importar' }).click()
+    const aviso = win.getByRole('alertdialog')
+    await expect(aviso).toContainText('¿Sustituir 2 archivos de este equipo?')
+    await expect(aviso).toContainText('Reglas de Codex «Uno»')
+    await expect(aviso.locator('.copia-mono'), 'la ruta real del archivo, no una supuesta').toContainText('AGENTS.md')
+    await expect(aviso.locator('.copia-mono')).not.toContainText('~/.codex/')
+    const volver = aviso.getByRole('button', { name: 'Volver a la lista' })
+    await expect(volver, 'el foco empieza en volver').toBeFocused()
+    expect(await aviso.evaluate((el) => {
+      const c = el.getBoundingClientRect()
+      return el.scrollWidth <= el.clientWidth && c.top >= 0 && c.bottom <= window.innerHeight && c.left >= 0 && c.right <= window.innerWidth
+    }), 'el aviso cabe a 900×620').toBe(true)
+    await volver.click()
+    await expect(aviso).toHaveCount(0)
+    await expect(otra.getByLabel('Qué hacer con AGENTS.md'), 'volver conserva la elección').toHaveValue('sustituir')
+    await otra.getByRole('button', { name: 'Importar' }).click()
+    await aviso.getByRole('button', { name: 'Sustituir e importar' }).click()
+    await expect(otra).toContainText('Importado.', { timeout: 30_000 })
+    await expect(otra.getByTestId('copia-archivos-hecho')).toContainText('Archivos sustituidos')
+    expect(readFileSync(join(uno, 'AGENTS.md'), 'utf8'), 'sustituido').toBe('Reglas de Uno, del archivo.\n')
+    expect(readFileSync(join(uno, 'AGENTS.md.tessera-anterior'), 'utf8'), 'la versión anterior a salvo').toBe('Reglas de Uno, de este equipo.\n')
+    expect(readFileSync(join(nativas.codex, 'AGENTS.md'), 'utf8')).toBe('Regla nativa de Codex, del archivo.\n')
+    expect(readFileSync(join(nativas.codex, 'AGENTS.md.tessera-anterior'), 'utf8')).toBe('Regla nativa de Codex, de este equipo.\n')
+    expect(readFileSync(join(nativas.codex, 'config.toml'), 'utf8'), 'NEGATIVO: la configuración técnica nativa no viaja').toContain('solo-de-este-equipo')
   })
 })

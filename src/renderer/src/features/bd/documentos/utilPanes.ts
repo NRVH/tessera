@@ -4,7 +4,7 @@
 // Las usan `DbColeccionPane`, `DbClavePane` y sus hooks.
 // =============================================================================
 
-import { notify, notifyError } from '../../../comun/notifications'
+import { notifyError } from '../../../comun/notifications'
 import { txColeccionDocs } from './textosColeccionDocs'
 
 let contadorPeticiones = 0
@@ -15,10 +15,10 @@ export function nuevaPeticion(prefijo: string): string {
   return `${prefijo}-${Date.now().toString(36)}-${contadorPeticiones.toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 }
 
-/** Copia `texto` y avisa: «<que> copiado», o el error. */
-export function copiarTexto(texto: string, que: string): void {
-  void window.tessera.clipboard
+/** El control confirma el éxito; los errores conservan su aviso. */
+export function copiarTexto(texto: string, _que: string): Promise<boolean> {
+  return window.tessera.clipboard
     .write(texto)
-    .then(() => notify('success', txColeccionDocs().copiado(que)))
-    .catch((err: unknown) => notifyError(txColeccionDocs().noSePudoCopiar, err))
+    .then(() => true)
+    .catch((err: unknown) => { notifyError(txColeccionDocs().noSePudoCopiar, err); return false })
 }

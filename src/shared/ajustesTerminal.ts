@@ -22,9 +22,6 @@ const ID_PLEGADO = /^[A-Za-z0-9_-]{0,128}$/
 /** Lo que se guarda: perfil -> ids de los grupos plegados (`''` = «Sin grupo»). */
 export type SshGruposPlegadosPorPerfil = Record<string, string[]>
 
-/** Sin ningún grupo plegado: es lo que ve quien nunca plegó nada. */
-export const SSH_GRUPOS_PLEGADOS_POR_DEFECTO: SshGruposPlegadosPorPerfil = {}
-
 /**
  * El mapa de grupos plegados SANEADO. Se descarta la ENTRADA mala y nunca el mapa entero: está
  * indexado por perfil, y tirarlo por la clave de uno desplegaría los grupos de todos. Un perfil

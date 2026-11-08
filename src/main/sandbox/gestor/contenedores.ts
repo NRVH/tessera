@@ -18,8 +18,7 @@ import {
   containerNameFor,
   hostnameDe,
   idBase,
-  managedRootFor,
-  sshMountArgs
+  managedRootFor
 } from './nombres.ts'
 import type { NucleoSandbox } from './NucleoSandbox.ts'
 import type { DiagnosticoSandbox } from './diagnostico.ts'
@@ -163,9 +162,6 @@ export class ContenedoresSandbox {
       `type=bind,source=${managedRootFor(profile)},target=${WORKSPACE_ROOT},bind-propagation=rshared`,
       '--mount',
       `type=bind,source=${agentcfgRootFor(profile)},target=${AGENT_CONFIG_ROOT},bind-propagation=rshared`,
-      // `.ssh` del perfil (READ-ONLY, solo la suya) y las carpetas ssh globales.
-      ...sshMountArgs(profile),
-      ...this.montajes.globalSshMountArgs(),
       ...argsEtiquetaInstancia(),
       '-w',
       WORKSPACE_ROOT,

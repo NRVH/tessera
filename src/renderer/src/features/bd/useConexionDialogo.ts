@@ -1,10 +1,11 @@
 // =============================================================================
 // useConexionDialogo: todo lo que `DbConexionDialogo` sabe y hace, en el orden fijo de
-// sus hooks (formulario, foco de la URI, clientes, `useDialogo`, efectos). Devuelve la
+// sus hooks (formulario, foco de la URI, clientes y efectos). Devuelve la
 // VISTA que pinta el componente y las acciones ya atadas al render en curso.
 // Decisiones: docs/decisiones/bd/ui-conexion-dialogo.md
 // =============================================================================
 
+import { useRef } from 'react'
 import type { DbConnection, DriverRequerido, DriverStatus } from '../../../../shared/db-ipc'
 import { nombresSistema } from '../../../../shared/nombresSistema'
 import { descriptor as descriptorMotor, pideUsuarioYClave } from '../../../../shared/motores/index'
@@ -21,7 +22,6 @@ import {
   type FormularioMotor
 } from './camposConexion'
 import { avisoSecreto } from './filasArbolBd'
-import { useDialogo, type Dialogo } from '../../comun/useDialogo'
 import {
   useEstadoDrivers,
   useEstadoFormularioConexion,
@@ -63,7 +63,7 @@ export interface AccionesConexion {
 export interface VistaConexion {
   e: EstadoFormularioConexion
   d: EstadoDrivers
-  dialogo: Dialogo
+  camposRef: React.RefObject<HTMLDivElement>
   botonUriRef: React.RefObject<HTMLButtonElement>
   cambios: boolean
   descriptor: FormularioMotor
@@ -104,7 +104,7 @@ export function useConexionDialogo(p: OpcionesConexionDialogo): VistaConexion {
   const e = useEstadoFormularioConexion(p.perfilId, p.conexion, p.archivoInicial)
   const botonUriRef = useFocoBotonUri(e.uri.abierta)
   const d = useEstadoDrivers(p.requiereDriver, p.abrirClientes)
-  const dialogo = useDialogo({ onClose: p.onCerrar, cerrable: !e.guardando })
+  const camposRef = useRef<HTMLDivElement>(null)
   const cambios = hayCambios(e.borrador, e.original)
   const descriptor = descriptorDe(e.borrador.motor)
   useOcultarPassword(e.borrador.id ?? 'nuevo', e.setVerPassword)
@@ -122,10 +122,10 @@ export function useConexionDialogo(p: OpcionesConexionDialogo): VistaConexion {
     requiereDriver: p.requiereDriver,
     clientesRef: d.clientesRef
   })
-  const a = atarAcciones({ e, d, descriptor, cambios, refDialogo: dialogo.ref, onGuardada: p.onGuardada, onCerrar: p.onCerrar })
+  const a = atarAcciones({ e, d, descriptor, cambios, refDialogo: camposRef, onGuardada: p.onGuardada, onCerrar: p.onCerrar })
   useProbarTrasEditar(e.probarTrasEditar, e.setProbarTrasEditar, a.probar)
   return {
-    e, d, dialogo, botonUriRef, cambios, descriptor, a, verClientes, packRequerido,
+    e, d, camposRef, botonUriRef, cambios, descriptor, a, verClientes, packRequerido,
     conCredenciales: pideUsuarioYClave(descriptorMotor(e.borrador.motor)),
     pistaCredencial: placeholderCredencial(e.borrador.motor),
     marcados: e.marcarInvalidos ? camposAMarcar(e.borrador) : [],

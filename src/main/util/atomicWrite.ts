@@ -8,6 +8,7 @@
 // Decisiones: docs/decisiones/workspace/estado-persistido-crash-safe.md
 // =============================================================================
 
+import { randomUUID } from 'node:crypto'
 import {
   closeSync,
   existsSync,
@@ -16,9 +17,10 @@ import {
   openSync,
   readFileSync,
   renameSync,
+  rmSync,
   writeFileSync
 } from 'node:fs'
-import { mkdir, open, readFile, rename, writeFile } from 'node:fs/promises'
+import { mkdir, open, readFile, rename, unlink, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 
 /** ¿Contenido usable como respaldo? No vacío + JSON parseable (todos los consumidores
@@ -46,6 +48,69 @@ function sleepSync(ms: number): void {
 
 const RENAME_ATTEMPTS = 6
 
+/** `rename` con los reintentos ante los bloqueos transitorios de Windows. */
+export async function renombrarConReintentos(origen: string, destino: string): Promise<void> {
+  for (let i = 0; ; i++) {
+    try {
+      await rename(origen, destino)
+      return
+    } catch (err) {
+      if (i >= RENAME_ATTEMPTS - 1 || !isTransient(err)) throw err
+      await new Promise((r) => setTimeout(r, 30 * (i + 1)))
+    }
+  }
+}
+
+/**
+ * Para carpetas en las que escribe alguien de menos confianza, como las montadas en un contenedor: el
+ * temporal lleva un nombre imposible de adivinar y `wx` falla si ya existe, y `rename` sustituye un
+ * enlace en el destino en vez de seguirlo. Los nombres fijos de `writeFileAtomic` sí seguirían un enlace.
+ */
+export async function escribirSinSeguirEnlaces(destino: string, contenido: string, modo?: number): Promise<void> {
+  await mkdir(dirname(destino), { recursive: true })
+  const temporal = `${destino}.${randomUUID()}.tmp`
+  try {
+    const archivo = await open(temporal, 'wx', modo)
+    try {
+      await archivo.writeFile(contenido, 'utf-8')
+      await archivo.sync()
+    } finally {
+      await archivo.close()
+    }
+    await renombrarConReintentos(temporal, destino)
+  } catch (err) {
+    await unlink(temporal).catch(() => undefined)
+    throw err
+  }
+}
+
+/** Igual que `escribirSinSeguirEnlaces`, pero SÍNCRONO. */
+export function escribirSinSeguirEnlacesSync(destino: string, contenido: string): void {
+  mkdirSync(dirname(destino), { recursive: true })
+  const temporal = `${destino}.${randomUUID()}.tmp`
+  try {
+    const fd = openSync(temporal, 'wx')
+    try {
+      writeFileSync(fd, contenido, 'utf-8')
+      fsyncSync(fd)
+    } finally {
+      closeSync(fd)
+    }
+    for (let i = 0; ; i++) {
+      try {
+        renameSync(temporal, destino)
+        return
+      } catch (err) {
+        if (i >= RENAME_ATTEMPTS - 1 || !isTransient(err)) throw err
+        sleepSync(30 * (i + 1))
+      }
+    }
+  } catch (err) {
+    rmSync(temporal, { force: true })
+    throw err
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Async (para stores con escritura debounced/asíncrona: workspaceStateStore).
 // ---------------------------------------------------------------------------
@@ -62,15 +127,7 @@ export async function writeFileAtomic(target: string, data: string): Promise<voi
     await fh.close()
   }
   await backupCurrent(target)
-  for (let i = 0; ; i++) {
-    try {
-      await rename(tmp, target)
-      break
-    } catch (err) {
-      if (i >= RENAME_ATTEMPTS - 1 || !isTransient(err)) throw err
-      await new Promise((r) => setTimeout(r, 30 * (i + 1)))
-    }
-  }
+  await renombrarConReintentos(tmp, target)
   await fsyncDir(dirname(target))
 }
 

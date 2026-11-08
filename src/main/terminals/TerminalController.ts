@@ -183,7 +183,7 @@ export class TerminalController {
   /** Abre un shell del sistema en la ruta real del proyecto y cablea DATA/EXIT. */
   async open(req: OpenTerminalRequest): Promise<OpenTerminalResult> {
     const profile = this.profiles.get(req.profileId)
-    if (!profile) throw new Error(`Perfil desconocido: "${req.profileId}".`)
+    if (!profile) throw new Error(`Perfil desconocido: «${req.profileId}».`)
 
     this.log(`open() perfil=${profile.id} proyecto=${req.projectHostPath}`)
 
@@ -205,7 +205,7 @@ export class TerminalController {
    */
   async abrirSsh(req: OpenSshRequest): Promise<OpenTerminalResult> {
     const profile = this.profiles.get(req?.profileId)
-    if (!profile) throw new Error(`Perfil desconocido: "${req?.profileId}".`)
+    if (!profile) throw new Error(`Perfil desconocido: «${req?.profileId}».`)
     if (typeof req.conexionId !== 'string' || req.conexionId === '') throw new Error(txMain().terminales.faltaConexion)
     const { session, ssh } = await abrirSesionSsh(this.terminals, this.exigirLanzadorSsh(), profile, req.conexionId)
     this.log(`createSession [SSH] OK -> id=${session.id}`)

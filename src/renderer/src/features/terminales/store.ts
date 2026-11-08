@@ -3,7 +3,8 @@
 // pestañas SSH de cada perfil (lista y elegida por contexto). Vive por encima de los panes para que
 // las terminales sobrevivan a dejar de mirar el proyecto. Las reglas son las de shellTerminalsModel
 // y sshTabsModel (puros, con su prueba). Elegir o crear una terminal local suelta la SSH elegida
-// del contexto: el contexto de un proyecto es su clave, así que no hace falta pasarlo aparte.
+// del contexto: el contexto de un proyecto es su clave, así que no hace falta pasarlo aparte. Las
+// terminales guardadas en la sesión de cada proyecto se recrean la primera vez que se ve.
 // =============================================================================
 import { create } from 'zustand'
 import { cerrarLocal } from './cierreLocal'
@@ -13,6 +14,7 @@ import {
   initialShellTerminalsState,
   pruneProjects,
   renameTerminal,
+  restaurarTerminales,
   selectTerminal,
   type ShellTerminalsState
 } from './shellTerminalsModel'
@@ -47,13 +49,42 @@ function aplicar(f: (s: ShellTerminalsState) => ShellTerminalsState): void {
   useStoreTerminales.setState((s) => ({ shellTerminals: f(s.shellTerminals) }))
 }
 
+/** Las terminales que un proyecto tenía al cerrar: nombres en orden y el índice de la activa. */
+export interface TerminalesGuardadas {
+  nombres: readonly (string | undefined)[]
+  activa: number
+}
+
+/**
+ * Las guardadas de los proyectos que aún no se han visto en esta sesión (`perfil|ruta`). Se recrean al verse
+ * el proyecto con el panel abierto, en el mismo punto que la primera terminal de serie, así que restaurar
+ * no arranca shells que nadie mira. Hasta entonces se vuelven a guardar tal cual.
+ */
+const pendientes = new Map<string, TerminalesGuardadas>()
+
+/** Las terminales guardadas al arrancar, por proyecto. */
+export function fijarTerminalesPendientes(guardadas: ReadonlyMap<string, TerminalesGuardadas>): void {
+  pendientes.clear()
+  for (const [k, v] of guardadas) pendientes.set(k, v)
+}
+
+/** Las de un proyecto que todavía no se han recreado. */
+export function terminalesPendientes(key: string): TerminalesGuardadas | undefined {
+  return pendientes.get(key)
+}
+
 function aplicarSsh(f: (s: SshTabsState) => SshTabsState): void {
   useStoreTerminales.setState((s) => ({ ssh: f(s.ssh) }))
 }
 
 /** Acciones estables sobre las terminales de shell y las pestañas SSH. */
 export const accionesTerminales = {
-  asegurar: (key: string): void => aplicar((s) => ensureProject(s, key)),
+  /** La primera vez que se ve el proyecto con el panel abierto: sus terminales guardadas o la primera de serie. */
+  asegurar: (key: string): void => {
+    const guardadas = pendientes.get(key)
+    pendientes.delete(key)
+    aplicar((s) => (guardadas ? restaurarTerminales(s, key, guardadas.nombres, guardadas.activa) : ensureProject(s, key)))
+  },
   podar: (valid: string[]): void => aplicar((s) => pruneProjects(s, valid)),
   /** Nueva terminal local, activa y visible: suelta la SSH que se mirara en ese proyecto. */
   anadir: (key: string): void =>

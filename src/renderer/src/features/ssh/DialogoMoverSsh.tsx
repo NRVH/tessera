@@ -7,9 +7,9 @@
 
 import '../../comun/formularioModal.css'
 import './conexionesSsh.css'
-import { useId, useState } from 'react'
+import { useState } from 'react'
 import { notify } from '../../comun/notifications'
-import { alClicEnVelo, useDialogo } from '../../comun/useDialogo'
+import { AvisoModal, Modal, PieModal } from '../../comun/Modal'
 import type { SshConexion, SshGrupo } from '../../../../shared/ssh-ipc'
 import { mensajeDeErrorSsh } from './erroresSsh'
 import { ID_SIN_GRUPO, nombreSinGrupo, compararNombres } from './listaSsh'
@@ -71,49 +71,19 @@ function useMoverConexiones(perfilId: string, conexiones: readonly SshConexion[]
 }
 
 export function DialogoMoverSsh({ perfilId, conexiones }: { perfilId: string; conexiones: readonly SshConexion[] }): React.JSX.Element {
-  const idTitulo = useId()
   const { grupos, destino, setDestino, ocupado, ids, cambian, mover } = useMoverConexiones(perfilId, conexiones)
-  const dialogo = useDialogo({ onClose: accionesSsh.cerrarDialogo, cerrable: !ocupado })
   const t = txSsh()
   return (
-    <div className="modal-overlay" role="presentation" onMouseDown={alClicEnVelo(accionesSsh.cerrarDialogo)}>
-      <div
-        ref={dialogo.ref}
-        className="modal-card db-conexion-modal ssh-conexion-modal ssh-mover-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={idTitulo}
-        onKeyDown={dialogo.alPulsarTecla}
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        <form
-          className="dbc-form"
-          noValidate
-          onSubmit={(e) => {
-            e.preventDefault()
-            void mover()
-          }}
-        >
-          <div className="dbc-cabecera">
-            <div id={idTitulo} className="modal-title">
-              {t.moverTitulo(cuantasConexiones(conexiones.length))}
-            </div>
-          </div>
-          <div className="dbc-cuerpo">
-            <CampoDestino grupos={grupos} destino={destino} ocupado={ocupado} onElegir={setDestino} onNuevo={() => accionesSsh.nuevoGrupoCon(perfilId, ids)} />
-            {cambian.length === 0 && <p className="dbc-ayuda">{t.yaEstanTodas}</p>}
-          </div>
-          <div className="modal-actions dbc-acciones">
-            <span className="dbc-hueco" />
-            <button type="button" className="btn btn-ghost" onClick={accionesSsh.cerrarDialogo} disabled={ocupado}>
-              {t.cancelar}
-            </button>
-            <button type="submit" className="btn primary" disabled={ocupado || cambian.length === 0}>
-              {ocupado ? t.moviendo : t.mover}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal titulo={t.moverTitulo(cuantasConexiones(conexiones.length))} tamano="s"
+      className="db-conexion-modal ssh-conexion-modal ssh-mover-modal"
+      cerrable={!ocupado} ocupado={ocupado} cierraConVelo={false} onCerrar={accionesSsh.cerrarDialogo}
+      pie={<PieModal>
+        <button type="button" className="btn btn-ghost" onClick={accionesSsh.cerrarDialogo} disabled={ocupado}>{t.cancelar}</button>
+        <button type="button" className="btn primary" onClick={() => void mover()} disabled={ocupado || cambian.length === 0}>{ocupado ? t.moviendo : t.mover}</button>
+      </PieModal>}
+    >
+      <CampoDestino grupos={grupos} destino={destino} ocupado={ocupado} onElegir={setDestino} onNuevo={() => accionesSsh.nuevoGrupoCon(perfilId, ids)} />
+      {cambian.length === 0 && <AvisoModal tono="info">{t.yaEstanTodas}</AvisoModal>}
+    </Modal>
   )
 }

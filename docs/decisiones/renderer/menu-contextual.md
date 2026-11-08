@@ -1,7 +1,7 @@
 # El menú contextual agrupa con separadores y reserva dos columnas distintas: check e icono
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/comun/ContextMenu.tsx`, `contextMenuEstilos.ts` y `contextMenuModel.ts`;
+- **Ámbito:** `src/renderer/src/comun/ContextMenu.tsx`, `contextMenuEstilos.ts`, `contextMenuModel.ts` y `useSubmenu.ts`;
   el de los editores, `menuEditor.ts`, `menuEditorModelo.ts` y `MenuDeEditores.tsx`
 
 ## Contexto
@@ -12,8 +12,13 @@ etiquetas de todas las filas aunque solo algunas traigan check o icono.
 
 ## Decisión
 
-- Se agrupa con separadores, no con cabeceras de grupo: con menos de unas quince opciones la cabecera
-  ocupa tanto como lo que agrupa.
+- Se agrupa con separadores, nunca con títulos dentro del menú: saturan y ocupan tanto como lo que agrupan.
+- **Cuando un menú crece, lo poco frecuente o una familia de opciones con un nombre común va a un submenú**
+  (`{ label, submenu }`), como «Agentes en Docker» en el menú del perfil. Lo que se usa a diario se queda en el primer
+  nivel, un submenú de una sola opción no vale, y una lista de valores (una rama, un repositorio) sigue plana. Un solo
+  nivel. Se abre al detener el ratón (150 ms), con clic o con →, que también entra en uno abierto con el ratón; ← lo
+  cierra y Esc cierra solo el submenú si el foco está en él. Una fila apagada no despliega. No se cierra si el ratón va camino de él
+  aunque cruce otras filas, y junto al borde de la ventana se abre hacia el otro lado.
 - El check y el icono son DOS columnas independientes, cada una reservada en todo el menú en cuanto una
   sola fila la usa. Los sistemas de diseño que las tratan por separado (columna de marca y columna de
   imagen) lo hacen porque un menú puede combinar ambas.
@@ -44,4 +49,4 @@ etiquetas de todas las filas aunque solo algunas traigan check o icono.
 
 ## Descartes
 
-- Cabeceras de grupo con título: solo compensan en menús muy largos.
+- Títulos de grupo dentro del menú: saturan; lo que necesita un nombre va a un submenú.

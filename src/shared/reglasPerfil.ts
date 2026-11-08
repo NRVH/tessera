@@ -1,5 +1,5 @@
 // =============================================================================
-// Las reglas de un perfil (`Profile.reglas`): el tope de caracteres, su normalización al guardar y su
+// Las reglas de un perfil (`Profile.reglas`): el tope de caracteres y su aviso previo, su normalización al guardar y su
 // aplanado para la línea de arranque de los agentes. Puro: sin electron ni node, lo importan el main y el
 // renderer.
 // Decisiones: docs/decisiones/agentes/reglas-del-perfil.md
@@ -8,6 +8,15 @@ import { textoParaAviso } from './textoParaAviso.ts'
 
 /** Cuántos caracteres puede tener el texto de las reglas: con el resto del aviso tiene que caber en la línea de arranque. */
 export const MAX_REGLAS_PERFIL = 6000
+
+/**
+ * A partir de cuánto se avisa, antes del tope, de que las reglas ocupan contexto en cada sesión y de que lo que solo
+ * se consulta a veces va mejor en Documentos: al 80 %, cuando aún hay margen para reorganizarlas.
+ */
+export const UMBRAL_AVISO_REGLAS = Math.round(MAX_REGLAS_PERFIL * 0.8)
+
+/** Si unas reglas (ya normalizadas) están cerca del tope sin pasarlo. */
+export const reglasCercaDelTope = (largo: number): boolean => largo > UMBRAL_AVISO_REGLAS && largo <= MAX_REGLAS_PERFIL
 
 /** Cuántos caracteres puede tener el motivo de una propuesta de un agente (`tctx proponer --motivo`). */
 export const MAX_MOTIVO_PROPUESTA = 500

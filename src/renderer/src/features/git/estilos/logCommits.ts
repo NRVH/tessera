@@ -29,7 +29,7 @@ export const CSS_LOG_COMMITS = `/* --- Columna 2: lista de commits -------------
      quedado sin ella —.git-arbol-fila, .git-rama-fila y las cabeceras ya la
      llevan—. El asunto sigue siendo seleccionable en la ficha de detalle. */
   user-select: none;
-  transition: background 120ms ease;
+  transition: background var(--mov-rapido) var(--curva-estandar);
 }
 /* Commits que están EN la rama actual (alcanzables desde HEAD). VA ANTES que :hover y
    .activa: las tres reglas tienen la misma especificidad y manda el ORDEN, para que el
@@ -143,7 +143,7 @@ export const CSS_LOG_COMMITS = `/* --- Columna 2: lista de commits -------------
   color: var(--fg-faint);
   cursor: pointer;
   opacity: 0;
-  transition: color 120ms ease, background 120ms ease, opacity 120ms ease;
+  transition: color var(--mov-rapido) var(--curva-estandar), background var(--mov-rapido) var(--curva-estandar), opacity var(--mov-rapido) var(--curva-estandar);
 }
 /* Se revela con el hover de la FILA, no con el suyo, y también cuando la fila es
    .activa: es el patrón de .project-tab-close y .editor-tab-close de la hoja
@@ -264,7 +264,7 @@ export const CSS_LOG_COMMITS = `/* --- Columna 2: lista de commits -------------
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+  transition: background var(--mov-rapido) var(--curva-estandar), color var(--mov-rapido) var(--curva-estandar), border-color var(--mov-rapido) var(--curva-estandar);
 }
 .git-cargar-todo button:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.04);

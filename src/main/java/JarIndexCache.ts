@@ -119,22 +119,22 @@ export class JarIndexCache {
    * hasta MAX_JAR_ANIDADO_BYTES, MAYOR que el tope de la caché— y echarla la obliga
    * a re-inflarse entera en cada pulsación del chevron.
    *
-   * Se probó protegerla con `if (this.mapa.size <= 1) break` y se retiró por DOS
-   * motivos. Uno: solo la salvaba mientras era la ÚNICA de la caché, y en el flujo
-   * normal no lo es ni un instante —la petición siguiente mete el índice de su
-   * contenedor padre, `size` pasa a 2 y la gigante, que es la más antigua, sale la
-   * primera: ping-pong con 0% de aciertos re-inflando 128 MiB en CADA lectura. Y
-   * dos: cortaba el bucle entero, así que ni siquiera desalojaba a los demás.
+   * Protegerla con `if (this.mapa.size <= 1) break` no sirve, por DOS motivos. Uno:
+   * solo la salvaría mientras fuera la ÚNICA de la caché, y en el flujo normal no lo
+   * es ni un instante —la petición siguiente mete el índice de su contenedor padre,
+   * `size` pasa a 2 y la gigante, que es la más antigua, sale la primera: ping-pong
+   * con 0% de aciertos re-inflando 128 MiB en CADA lectura. Y dos: cortaría el bucle
+   * entero, así que ni siquiera desalojaría a los demás.
    *
    * Lo correcto es SALTARLA, no parar: se busca la víctima más antigua que sí se
    * pueda echar. Si no queda ninguna —solo hay gigantes— se para, porque seguir
    * sería girar en vano.
    *
    * PERO NO SE PROTEGEN TODAS, solo las GIGANTES_PROTEGIDAS más recientes. Con la
-   * protección abierta el consumo real era `maxBytes` + `maxEntradas` ×
+   * protección abierta el consumo real sería `maxBytes` + `maxEntradas` ×
    * MAX_JAR_ANIDADO_BYTES: 96 MiB de presupuesto declarado y hasta ~3 GiB de
    * verdad, alcanzable con un .war que lleve varios jars anidados de 100 MiB.
-   * Ninguna de las viejas hacía falta para lo que la protección resuelve, que es
+   * Ninguna de las viejas hace falta para lo que la protección resuelve, que es
    * que sobreviva la que se está usando AHORA.
    */
   private podar(): void {
@@ -168,11 +168,11 @@ export class JarIndexCache {
   /**
    * Bytes de lo que SÍ se puede desalojar, que es contra lo que se mide el tope.
    *
-   * Se probó medir `bytesUsados` a secas y se retiró: con una gigante dentro, el
-   * total ya supera `maxBytes` por sí solo, así que el bucle desalojaba TODO lo
-   * demás —incluida la entrada que se acababa de insertar, una y otra vez— y la
-   * caché se quedaba en la gigante y nada más. El resultado es peor que el problema
-   * original: cada uno de los otros jars vuelve a leer su índice en cada operación.
+   * Medir `bytesUsados` a secas no sirve: con una gigante dentro, el total ya supera
+   * `maxBytes` por sí solo, así que el bucle desalojaría TODO lo demás —incluida la
+   * entrada recién insertada, una y otra vez— y la caché se quedaría en la gigante y
+   * nada más. Sería peor que el problema original: cada uno de los otros jars
+   * volvería a leer su índice en cada operación.
    *
    * El precio explícito de proteger a las gigantes en uso es que el consumo real
    * puede llegar a `maxBytes` + GIGANTES_PROTEGIDAS × MAX_JAR_ANIDADO_BYTES. Las

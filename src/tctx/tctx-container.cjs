@@ -13,7 +13,7 @@ const path = require('node:path')
 const { randomUUID } = require('node:crypto')
 const { analizar } = require('./tctxArgumentos.cjs')
 const { leerTexto, plataformaDelProceso } = require('./tctxEntrada.cjs')
-const { exigirPuente, mostrar, peticionDe, textoAyuda } = require('./tctxOrdenes.cjs')
+const { exigirPuente, mostrar, peticionDe, textoAyuda, ejecutarDelegacion } = require('./tctxOrdenes.cjs')
 const { CODIGOS, ErrorTctx, aviso, salir } = require('./tctxSalida.cjs')
 const { textosTctx } = require('./textosTctx.cjs')
 
@@ -86,7 +86,7 @@ async function main(argv) {
     return 0
   }
   comprobarBuzon()
-  const texto = a.sub === 'proponer' ? await leerTexto(a.fuente, { plataforma: plataformaDelProceso(), cwd: process.cwd(), casa: os.homedir() }) : ''
+  const texto = a.fuente ? await leerTexto(a.fuente, { plataforma: plataformaDelProceso(), cwd: process.cwd(), casa: os.homedir(), delegacion: a.sub === 'delegar' || a.sub === 'tarea' }) : ''
   const { op, campos } = peticionDe(a, texto)
   const r = await preguntar(op, campos)
   // Sin `respuesta`, quien contestó fue el buzón (un programa que no conoce): su código y su salida de errores.
@@ -94,6 +94,12 @@ async function main(argv) {
     if (typeof r.stderr === 'string' && r.stderr) process.stderr.write(r.stderr)
     return typeof r.exitCode === 'number' ? r.exitCode : CODIGOS.puente
   }
+  if (a.sub === 'delegar' || a.sub === 'tarea') return ejecutarDelegacion(a, r.respuesta, async (operacion, datos) => {
+    comprobarBuzon()
+    const siguiente = await preguntar(operacion, datos)
+    if (siguiente.respuesta === undefined) throw new ErrorTctx(CODIGOS.puente, textosTctx().buzonNoResponde)
+    return siguiente.respuesta
+  })
   return mostrar(a, exigirPuente(r.respuesta))
 }
 

@@ -7,7 +7,7 @@
 
 Git·Log y la terminal se turnan en el hueco de abajo y los dos piden más sitio a veces. A pantalla
 completa el editor queda tapado, y con él las pestañas que se abren sin mirar: `Mod+N` o la
-búsqueda global abrían una pestaña que nadie veía.
+búsqueda global abrirían una pestaña que nadie ve.
 
 ## Decisión
 
@@ -24,7 +24,7 @@ búsqueda global abrían una pestaña que nadie veía.
 - **Lo que se pinta se deriva en el render** (`pantallaCompletaPedidaDe` + `pantallaCompletaCoherente`,
   puras): el panel que está en la franja, si su perfil lo dejó maximizado, fuera de la vista de
   datos y del mosaico. Nada se corrige en un efecto: al cambiar de perfil el primer render ya sale
-  bien, y el agente no recibe un resize de ida y vuelta (era un parpadeo visible). El store guarda
+  bien, y el agente no recibe un resize de ida y vuelta (sería un parpadeo visible). El store guarda
   además un ESPEJO de lo que se pinta (`franjaPantallaCompleta`) y del perfil a la vista, solo para
   los manejadores de eventos (atajos, aperturas), que no tienen el perfil.
 - Con el agente al lado y sin terminal que enseñar, la columna de la terminal se queda en su
@@ -37,8 +37,8 @@ búsqueda global abrían una pestaña que nadie veía.
   y el pty del agente recibiría dos resize.
 - El sitio del riel se mide SIEMPRE en `.shell-main`, que mide lo mismo plegada o no, y se le resta el
   agente si está al lado (`--cc-width` + su divisor; `sitioDelRiel`). Medir el cuerpo de la terminal
-  cambiaba de significado al plegar: el render que despliega llevaba la medida de la columna plegada y
-  el riel se desmontaba un instante (perdía filtro y foco). Plegada, el vecino del riel es el agente:
+  cambiaría de significado al plegar: el render que despliega llevaría la medida de la columna plegada y
+  el riel se desmontaría un instante (perdería filtro y foco). Plegada, el vecino del riel es el agente:
   solo cabe mientras le deja su mínimo (`CC_WIDTH_MIN`), y su tope de arrastre tampoco pasa de lo que
   cabría junto a la terminal desplegada, para que restaurarlas no pliegue el riel. El mínimo de la
   columna plegada (su cabecera) es un solo número: el panel lo pasa al CSS como `--columna-plegada-min`.
@@ -46,10 +46,10 @@ búsqueda global abrían una pestaña que nadie veía.
   sobre los archivos, con la misma disposición `.sin-terminal` (`agenteTerminalMaximizadoDe`: pedido,
   junto a la terminal y con alguna que tapar). Tapadas, sus pestañas no se dibujan: en una columna
   estrecha no dejan hacer nada y solo meten ruido, así que quedan reducidas a un chip con su número
-  («3 terminales»), como un panel plegado, y la columna tampoco lleva los botones del panel: cada
-  nivel de maximizado tiene un solo restaurar a la vista, y dos iconos iguales con efectos distintos
-  uno junto al otro se confunden. El del agente baja un nivel; con las terminales de vuelta, el de la
-  terminal baja el siguiente. Lo restauran, en el mismo clic para que la terminal llegue
+  («3 terminales»), como un panel plegado. Las acciones del modo no están en ninguna cabecera sino en
+  el riel, así que siguen a la vista con las terminales tapadas y nunca hay dos iconos iguales con
+  efectos distintos uno junto al otro: el restaurar del agente baja un nivel y el del riel baja el
+  panel. Lo restauran, en el mismo clic para que la terminal llegue
   visible y con el foco, ese chip, el botón del agente y conectar o abrir un SFTP desde el riel. Un
   `exit`, una sesión que se cae o cambiar de perfil no lo tocan. Cerrar el agente lo olvida: el
   siguiente arranca sin maximizar. Tapadas, las terminales no están a la vista y sueltan su contexto
@@ -58,15 +58,22 @@ búsqueda global abrían una pestaña que nadie veía.
 - **Que se note el modo:** con los mismos marcos, la vista se confunde con la del proyecto. Los proyectos son de la vista del proyecto: su banda se aparta (fuera del flujo, con su
   scroll intacto, como en el mosaico) y la franja sube a ocupar su alto; la fila de arriba, tapada,
   se compensa lo mismo para no cambiar de alto. La banda de perfiles no se toca: se cambia de
-  perfil desde aquí. El riel deja solo la salida, una flecha siempre con el color del perfil que hace lo mismo que el icono del panel
-  (cierra la franja; al volver a abrirla sigue maximizada): los demás iconos llevaban a vistas tapadas.
-  El botón de restaurar sigue bajando el panel a su alto.
+  perfil desde aquí.
+- **Las acciones del modo viven en el riel, no en las cabeceras** (`RielPantallaCompleta`): «Ocultar el
+  panel» cierra la franja (al reabrirla sigue maximizada); debajo, «Restaurar el panel» baja el panel a
+  su alto; y tras un filete, Terminal y Git·Log, el que se ve con el color del perfil, como en el riel
+  entero el icono de la zona donde se trabaja. Las cabeceras se quedan con lo suyo (la terminal, el reinicio; Git·Log, recargar), y un
+  solo «ocultar» sustituye a la flecha, al guion de la terminal y a la ✕ de Git·Log, que hacían lo mismo.
+  Las vistas laterales no están: llevarían a lo que el modo tapa.
+- **Pasar de un panel al otro desde el riel no sale del modo** (`pasarPantallaCompleta`): el elegido
+  entra maximizado y el que se deja sale, así que el maximizado acompaña a la franja y no se queda
+  esperando en el panel que se dejó. Cambiar de panel desde el riel entero sigue respetando lo de cada uno.
 - Solo CSS y sin desmontar: la fila de arriba sale del flujo con su tamaño y se apaga con
   `content-visibility` + `visibility`, como en el mosaico. Ni el editor ni los agentes de arriba
   reciben un resize. El panel maximizado SÍ cambia de tamaño y el pty de la terminal visible se
   redimensiona por su observador (espera de 120 ms): es lo buscado.
-- Salidas: el botón de restaurar (`fijo`: no se esconde en reposo), que baja el panel a su alto;
-  la flecha del riel, que lo cierra; y cualquier apertura de una pestaña del editor
+- Salidas: «Restaurar el panel» del riel, que baja el panel a su alto; «Ocultar el panel», que lo
+  cierra; y cualquier apertura de una pestaña del editor
   (`useAbrirPestana`, su único punto), que vale también para Git·Log. Moverse por los commits no
   abre nada ni sale (`aperturaDesdeGit`).
 - Atajo `Mod+Shift+↩`, solo con el foco DENTRO de la franja y sin mosaico (allí el mismo acorde

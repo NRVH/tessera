@@ -11,6 +11,11 @@
 .terminal-tab.ssh {
   padding-left: 6px;
 }
+@starting-style {
+  .terminal-tab.ssh {
+    padding-inline: 0;
+  }
+}
 .terminal-tab-icono {
   flex: 0 0 auto;
   display: inline-flex;
@@ -103,4 +108,35 @@
 .terminal-fin-ssh-nota {
   flex: 0 0 auto;
   color: var(--fg-faint);
+}
+
+/* Las capas de estado se funden sin desplazar ni escalar su contenido. */
+.terminal-pane .terminal-fundido {
+  --mov-y: 0px;
+  --mov-escala: 1;
+}
+.terminal-pane .terminal-conectando-cancelar {
+  transition:
+    opacity var(--mov-medio) var(--curva-estandar),
+    visibility var(--mov-medio) var(--curva-estandar),
+    color var(--mov-rapido) var(--curva-estandar);
+}
+.terminal-pane .terminal-conectando-cancelar:disabled {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.terminal-pane [data-saliendo] .terminal-conectando-cancelar {
+  pointer-events: none;
+}
+.terminal-tab .terminal-tab-dead {
+  opacity: 0;
+  color: var(--fg-faint);
+  transition:
+    opacity var(--mov-rapido) var(--curva-estandar),
+    color var(--mov-rapido) var(--curva-estandar);
+}
+.terminal-tab .terminal-tab-dead.visible {
+  opacity: 1;
+  color: var(--red);
 }

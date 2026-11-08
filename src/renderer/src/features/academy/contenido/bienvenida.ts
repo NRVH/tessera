@@ -27,11 +27,12 @@ const es: Articulo = {
         {
           lista: [
             'Arriba: la barra de perfiles y, debajo, las pestañas de los proyectos del perfil abierto.',
-            'A la izquierda: el riel, una columna estrecha de iconos. **Archivos**, **Git · Cambios** y **Conexiones a bases de datos** cambian la vista lateral; **Terminal** y **Git · Log** abren la franja inferior. Los iconos se pueden arrastrar de un grupo a otro.',
+            'A la izquierda: el riel, una columna estrecha de iconos que muestran su nombre al pasar el puntero. **Archivos**, **Git · Cambios** y **Bases de datos** cambian la vista lateral; **Terminal** y **Git · Historial** abren la franja inferior. Los iconos se pueden arrastrar de un grupo a otro.',
             'En el centro: el editor o la vista seleccionada. A la derecha: la columna del agente del proyecto.',
             'Abajo: la franja inferior, con la terminal o el historial de git, que ocupa el ancho de la vista lateral, el centro y la columna del agente.'
           ]
         },
+        'Configuración se abre con el engranaje de la barra de título o con `Ctrl+,` (`⌘,`).',
         { captura: 'ventana', alt: 'La ventana de Tessera con un perfil, sus proyectos, el editor y el agente' }
       ]
     },
@@ -41,9 +42,9 @@ const es: Articulo = {
       bloques: [
         {
           pasos: [
-            'Una instalación nueva se inicia con el perfil **Personal**. Para crear otro perfil, haga clic en el **+** del final de la barra de perfiles.',
+            'Una instalación nueva se inicia con el perfil **Personal**. Para crear otro perfil, haga clic en el **+** del final de la barra de perfiles (con el [selector compacto](perfiles/selector-compacto), use **Nuevo perfil** al pie de su lista).',
             'Para abrir un proyecto, haga clic en el **+** de la barra de proyectos y seleccione su carpeta. La carpeta aparece como una pestaña y su agente se inicia en ella.',
-            'Seleccione la cuenta del agente con el botón de cuenta de su cabecera: la de {tuEquipo} o una de Docker. [Cuentas de los agentes](cuentas) explica la diferencia.',
+            'Seleccione la cuenta del agente con el botón de la pantalla (o del cubo, en Docker), a la derecha de la cabecera del agente: la de {tuEquipo} o una de Docker. [Cuentas de los agentes](cuentas) explica la diferencia.',
             'Escriba su petición al agente. Cuando vuelva más adelante al proyecto, el agente retomará su última conversación.'
           ]
         }
@@ -87,11 +88,12 @@ const en: Articulo = {
         {
           lista: [
             'At the top: the profile bar and, below it, the tabs for the projects in the open profile.',
-            'On the left: the rail, a narrow column of icons. **Files**, **Git · Changes**, and **Database connections** change the side panel; **Terminal** and **Git · Log** open the bottom strip. You can drag the icons from one group to the other.',
+            'On the left: the rail, a narrow column of icons whose names appear on hover. **Files**, **Git · Changes**, and **Databases** change the side panel; **Terminal** and **Git · History** open the bottom strip. You can drag the icons from one group to the other.',
             'In the center: the editor or the view you choose. On the right: the agent column for the project.',
             'At the bottom: the bottom strip, with the terminal or the Git history, spanning the side panel, the center, and the agent column.'
           ]
         },
+        'Settings opens with the gear in the title bar or with `Ctrl+,` (`⌘,`).',
         { captura: 'ventana', alt: 'The Tessera window with a profile, its projects, the editor and the agent' }
       ]
     },
@@ -101,9 +103,9 @@ const en: Articulo = {
       bloques: [
         {
           pasos: [
-            'A new installation starts with the **Personal** profile. To create another profile, click the **+** at the end of the profile bar.',
+            'A new installation starts with the **Personal** profile. To create another profile, click the **+** at the end of the profile bar (with the [compact selector](perfiles/selector-compacto), use **New profile** at the bottom of its list).',
             'To open a project, click the **+** in the project bar and choose its folder. The folder appears as a tab, and its agent starts there.',
-            'Choose the agent’s account with the account button in the agent header: the account on {tuEquipo} or a Docker account. For the difference, see [Agent accounts](cuentas).',
+            'Choose the agent’s account with the screen button (or the cube, in Docker), on the right of the agent header: the account on {tuEquipo} or a Docker account. For the difference, see [Agent accounts](cuentas).',
             'Send the agent your request. When you return to the project later, the agent resumes its last conversation.'
           ]
         }

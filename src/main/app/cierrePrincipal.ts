@@ -13,10 +13,12 @@ import { CronometroCierre, TOPE_PTYS_MS, TOPE_VACIAR_CONSOLAS_MS, TOPE_WORKSPACE
 import { preguntarAntesDeSalir } from './cierre'
 import type { ReferenciasApp } from './referencias'
 import { txApp } from './textos.ts'
+import { guardarEstadoVentanaYa } from './ventana'
 
 /** Consolas, estado de las pestañas y sesiones de BD; el explorador queda listo para otra principal. */
 async function guardarLoDeLaVentana(refs: ReferenciasApp, cierre: CronometroCierre): Promise<void> {
   const win = refs.ventana
+  guardarEstadoVentanaYa()
   try {
     await cierre.etapa('vaciar-consolas', () => conTope(refs.explorador?.vaciarConsolas(win, ACUSE_VACIADO_MS), TOPE_VACIAR_CONSOLAS_MS), notaTope(TOPE_VACIAR_CONSOLAS_MS))
   } catch (err) {

@@ -21,8 +21,7 @@ import type {
   DbRejillaEdicionProps,
   EditorAbierto,
   EstadoRejilla,
-  MenuAbierto,
-  PasoMenu
+  MenuAbierto
 } from './rejillaTipos'
 
 /** Refs de la rejilla, espejo de las props y las filas tal como se ven. */
@@ -86,7 +85,6 @@ export function useEstadoRejilla(b: BaseRejilla): EstadoRejilla {
   const tokenEditorRef = useRef(0)
   const pendienteMostrarRef = useRef<Celda | null>(null)
   const vistaSelRef = useRef<VistaFilas>({ cambios: b.cambios, numServidor: b.numServidor })
-  const pasoPendienteRef = useRef<PasoMenu | null>(null)
   const focoAlEditorRef = useRef(false)
   return {
     menu,
@@ -102,7 +100,6 @@ export function useEstadoRejilla(b: BaseRejilla): EstadoRejilla {
     tokenEditorRef,
     pendienteMostrarRef,
     vistaSelRef,
-    pasoPendienteRef,
     focoAlEditorRef
   }
 }

@@ -22,9 +22,18 @@ export const REGLAS_CHANNELS = {
   RESUELTA: 'reglas:propuesta:resuelta'
 } as const
 
+/**
+ * El `profileId` con el que se guarda la propuesta de las reglas globales, que no son de ningún perfil. Un id
+ * de perfil no puede ser este: lleva caracteres que `validateProfileShape` no admite en un id.
+ */
+export const ID_REGLAS_GLOBALES = ':global'
+
 /** Una propuesta de un agente: la versión entera nueva de las reglas, nunca aprobada hasta que el usuario la acepte. */
 export interface PropuestaReglas {
+  /** El perfil cuyas reglas cambia, o `ID_REGLAS_GLOBALES`. */
   profileId: string
+  /** En una propuesta de las globales, el perfil desde el que se propuso. */
+  desdePerfil?: string
   /** El texto propuesto, ya normalizado (`normalizarReglas`). */
   texto: string
   /** Por qué, según el agente; vacío si no lo dio. */

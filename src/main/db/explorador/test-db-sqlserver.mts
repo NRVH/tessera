@@ -589,7 +589,7 @@ async function main(): Promise<void> {
     const siguen = await ejecutar('SELECT COUNT(*) FROM dbo.muchos')
     check('un DELETE se explica y NO se ejecuta; la sesión ya no está en SHOWPLAN', ed.ok && j(filasDe(siguen.ok ? siguen.valor : undefined)) === j([['1234']]), j([ed.ok ? ed.valor.nodos.length : ed, siguen.ok ? filasDe(siguen.valor) : siguen]))
     // el error de la sentencia explicada se UBICA en el
-    // texto (antes el prefijo se quitaba antes de lanzarlo y la ✗ no caía en ningún sitio).
+    // texto (el prefijo no se quita antes de lanzarlo; si no, la ✗ no caería en ningún sitio).
     const malExplicada = 'SELECT *\nFROM dbo.cliente\nWHER id = 1'
     const eMal = await ex.explicar({ perfilId: PERFIL, consolaId: k1, ejecucionId: 'e3', sql: malExplicada })
     const trasMal = await ejecutar('SELECT 42')

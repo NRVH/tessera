@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // =============================================================================
 // Prueba del aviso compuesto de arranque (npm run test:briefing-compuesto): el de bases como prefijo
-// exacto, el de SSH, el de las reglas del perfil y el anuncio de `tctx buscar` detrás y en ese orden, las reglas
-// ausentes o en blanco sin rastro, y el aviso con reglas llevado de verdad por la línea de arranque de los dos CLIs.
-// Decisiones: docs/decisiones/agentes/reglas-del-perfil.md, docs/decisiones/agentes/buscar-en-el-historial.md
+// exacto, el de SSH, el de las reglas (globales y del perfil) y el anuncio de `tctx buscar` detrás y en ese orden,
+// las reglas ausentes o en blanco sin rastro, y el aviso con reglas llevado de verdad por la línea de arranque de
+// los dos CLIs.
+// Decisiones: docs/decisiones/agentes/contexto-de-los-agentes.md, docs/decisiones/agentes/buscar-en-el-historial.md
 // =============================================================================
 
 import { spawnSync } from 'node:child_process'
@@ -13,8 +14,12 @@ import path from 'node:path'
 import { citarSh } from '../../shared/citarShell.ts'
 import { esWindows, type Plataforma } from '../../shared/plataforma.ts'
 import { MAX_REGLAS_PERFIL } from '../../shared/reglasPerfil.ts'
-import { AVISO_HISTORIAL, MAX_AVISO_CITADO, avisoReglasPerfil, briefingCompuesto } from './briefingCompuesto.ts'
-import { buildHostAgentLaunchCommand } from './lineaArranqueAgente.ts'
+import { AVISO_DOCUMENTOS, AVISO_HISTORIAL, MAX_AVISO_CITADO, avisoReglas, briefingCompuesto, largoCitado } from './briefingCompuesto.ts'
+import type { ContextoEfectivo } from '../../shared/contexto.ts'
+
+/** El contexto de un perfil con esas reglas, las globales que reciba y sus documentos. */
+const c = (perfil?: string, globales = '', documentos: string[] = []): ContextoEfectivo => ({ usaGlobal: true, reglasGlobales: globales, reglasPerfil: perfil ?? '', documentos })
+import { buildAgentLaunchCommand, buildHostAgentLaunchCommand } from './lineaArranqueAgente.ts'
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -49,25 +54,33 @@ function argvRecibido(shell: string, linea: string): string[] {
 
 function main(): void {
   hr('(1) El aviso de las reglas')
-  const aviso = avisoReglasPerfil(REGLAS) ?? ''
-  check('(1a) sin reglas, en blanco o ausentes: null', avisoReglasPerfil(undefined) === null && avisoReglasPerfil('') === null && avisoReglasPerfil(' \n\t \n') === null, '')
+  const aviso = avisoReglas(c(REGLAS)) ?? ''
+  check('(1a) sin reglas, en blanco o ausentes: null', avisoReglas(c()) === null && avisoReglas(c('')) === null && avisoReglas(c(' \n\t \n', ' \n')) === null, '')
   check('(1b) una sola línea, con la marca de salto y sin las reglas en crudo', !/[\r\n]/.test(aviso) && aviso.includes(' ¶ ') && aviso.includes('Reglas: Sube siempre a la rama del usuario'), aviso.slice(0, 120))
   check('(1c) explica que las propone y no las aplica, y cómo leer las vigentes', aviso.includes('`tctx proponer`') && aviso.includes('no lo des por aprobado') && aviso.includes('`tctx reglas`'), '')
   check('(1d) las comillas dobles y los backticks de las reglas no llegan, el apóstrofo recto y el $ sí', aviso.includes("O'Brien") && aviso.includes("'force push'") && aviso.includes('$HOME') && !aviso.includes('`git reset'), '')
+  const conGlobales = avisoReglas(c(REGLAS, 'Responde en español.')) ?? ''
+  check('(1e) con globales: las dos, cada una con su encabezado y las globales primero', conGlobales.indexOf('Reglas globales: Responde en español.') > 0 && conGlobales.indexOf('Reglas globales:') < conGlobales.indexOf('Reglas del perfil: Sube'), conGlobales.slice(-160))
+  check('(1f) solo globales: sin encabezado del perfil', (avisoReglas(c(undefined, 'Responde en español.')) ?? '').endsWith('Reglas globales: Responde en español.'), '')
+  check('(1g) dice cómo proponer las globales y sobre qué texto', aviso.includes('`tctx proponer --global`') && aviso.includes('`tctx reglas --perfil`'), '')
+  check('(1g2) con las dos, dice que prevalece la del perfil', conGlobales.includes('prevalece la del perfil'), '')
+  const sinGlobal = avisoReglas({ ...c(REGLAS), usaGlobal: false }) ?? ''
+  check('(1g3) NEGATIVO: a un perfil sin el global no se le ofrece proponerlas', !sinGlobal.includes('--global'), '')
+  check('(1h) el anuncio de tctx docs va si hay documentos de cualquier nivel', (briefingCompuesto({ bd: null, ssh: null, contexto: c(undefined, '', ['E:/Guias']) }) ?? '') === AVISO_DOCUMENTOS, '')
 
   hr('(2) Compuesto: bases, SSH y reglas, en ese orden')
-  const todo = briefingCompuesto({ bd: BD, ssh: SSH, reglas: REGLAS }) ?? ''
+  const todo = briefingCompuesto({ bd: BD, ssh: SSH, contexto: c(REGLAS) }) ?? ''
   check('(2a) el de bases es un prefijo byte a byte', todo.startsWith(BD), '')
   check('(2b) el orden es bases, SSH, reglas, separados por una línea en blanco', todo === `${BD}\n\n${SSH}\n\n${aviso}`, '')
-  check('(2c) sin reglas queda como antes (bases + SSH)', briefingCompuesto({ bd: BD, ssh: SSH, reglas: undefined }) === `${BD}\n\n${SSH}`, '')
-  check('(2d) reglas en blanco no dejan rastro', briefingCompuesto({ bd: BD, ssh: SSH, reglas: '  \n ' }) === `${BD}\n\n${SSH}`, '')
-  check('(2e) solo reglas: solo su aviso', briefingCompuesto({ bd: null, ssh: null, reglas: REGLAS }) === aviso, '')
-  check('(2f) sin nada: null', briefingCompuesto({ bd: null, ssh: null, reglas: undefined }) === null, '')
-  check('(2g) bases y reglas sin SSH', briefingCompuesto({ bd: BD, ssh: null, reglas: REGLAS }) === `${BD}\n\n${aviso}`, '')
+  check('(2c) sin reglas queda como antes (bases + SSH)', briefingCompuesto({ bd: BD, ssh: SSH, contexto: c() }) === `${BD}\n\n${SSH}`, '')
+  check('(2d) reglas en blanco no dejan rastro', briefingCompuesto({ bd: BD, ssh: SSH, contexto: c('  \n ') }) === `${BD}\n\n${SSH}`, '')
+  check('(2e) solo reglas: solo su aviso', briefingCompuesto({ bd: null, ssh: null, contexto: c(REGLAS) }) === aviso, '')
+  check('(2f) sin nada: null', briefingCompuesto({ bd: null, ssh: null, contexto: c() }) === null, '')
+  check('(2g) bases y reglas sin SSH', briefingCompuesto({ bd: BD, ssh: null, contexto: c(REGLAS) }) === `${BD}\n\n${aviso}`, '')
   const TRASPASO = 'Hay un traspaso: léelo con `tctx traspaso`.'
-  check('(2h) el del traspaso, el último; solo, también', briefingCompuesto({ bd: BD, ssh: SSH, reglas: REGLAS, traspaso: TRASPASO }) === `${BD}\n\n${SSH}\n\n${aviso}\n\n${TRASPASO}` && briefingCompuesto({ bd: null, ssh: null, reglas: undefined, traspaso: TRASPASO }) === TRASPASO, '')
-  check('(2i) el anuncio de tctx buscar, tras las reglas y antes del traspaso', briefingCompuesto({ bd: BD, ssh: SSH, reglas: REGLAS, historial: true, traspaso: TRASPASO }) === `${BD}\n\n${SSH}\n\n${aviso}\n\n${AVISO_HISTORIAL}\n\n${TRASPASO}`, '')
-  check('(2j) llega aunque el perfil no tenga reglas ni haya otro aviso', briefingCompuesto({ bd: null, ssh: null, reglas: undefined, historial: true }) === AVISO_HISTORIAL, '')
+  check('(2h) el del traspaso, el último; solo, también', briefingCompuesto({ bd: BD, ssh: SSH, contexto: c(REGLAS), traspaso: TRASPASO }) === `${BD}\n\n${SSH}\n\n${aviso}\n\n${TRASPASO}` && briefingCompuesto({ bd: null, ssh: null, contexto: c(), traspaso: TRASPASO }) === TRASPASO, '')
+  check('(2i) el anuncio de tctx buscar, tras las reglas y antes del traspaso', briefingCompuesto({ bd: BD, ssh: SSH, contexto: c(REGLAS), historial: true, traspaso: TRASPASO }) === `${BD}\n\n${SSH}\n\n${aviso}\n\n${AVISO_HISTORIAL}\n\n${TRASPASO}`, '')
+  check('(2j) llega aunque el perfil no tenga reglas ni haya otro aviso', briefingCompuesto({ bd: null, ssh: null, contexto: c(), historial: true }) === AVISO_HISTORIAL, '')
   check('(2k) nombra tctx buscar y el límite de Docker, en una línea y sin comillas dobles', AVISO_HISTORIAL.includes('`tctx buscar') && AVISO_HISTORIAL.includes('Docker') && !/["\r\n]/.test(AVISO_HISTORIAL), AVISO_HISTORIAL)
 
   hr('(3) La línea de arranque: Claude Code y Codex, en las dos formas')
@@ -84,21 +97,27 @@ function main(): void {
     const peorReglas = '"'.repeat(MAX_REGLAS_PERFIL)
     const bdGrande = `Bases montadas: ${"'base' ".repeat(150)}`
     const sshGrande = Array.from({ length: 30 }, (_, i) => `«alias${i}'${"'".repeat(30)}» (usuario@host${i}.${"'".repeat(40)}:22)`).join(', ')
-    const sinFallback = `${bdGrande}\n\n${sshGrande}\n\n${avisoReglasPerfil(peorReglas)}`
+    const sinFallback = `${bdGrande}\n\n${sshGrande}\n\n${avisoReglas(c(peorReglas))}`
     check('(3d) el peor caso, con el texto de las reglas, pasaría de 32767 caracteres citado', citarSh(sinFallback).length > 32767, `${citarSh(sinFallback).length} caracteres`)
-    const compuesto = briefingCompuesto({ bd: bdGrande, ssh: sshGrande, reglas: peorReglas }) ?? ''
+    const compuesto = briefingCompuesto({ bd: bdGrande, ssh: sshGrande, contexto: c(peorReglas) }) ?? ''
     check('(3e) con el tope, el aviso citado cabe con margen', citarSh(compuesto).length <= MAX_AVISO_CITADO, `${citarSh(compuesto).length} <= ${MAX_AVISO_CITADO}`)
     check('(3f) sin el texto de las reglas pero con la orden de leerlas, y el de bases sigue de prefijo', !compuesto.includes('Reglas: ') && compuesto.includes('léelas con `tctx reglas` antes de empezar') && compuesto.startsWith(bdGrande), compuesto.slice(-160))
     for (const p of ['windows', 'mac'] as Plataforma[]) {
       const lineas = [buildHostAgentLaunchCommand('claude', 'claude-code', ID, compuesto, p), buildHostAgentLaunchCommand('codex', 'codex', ID, compuesto, p)]
       check(`(3g ${p}) la línea de arranque de Claude Code y de Codex cabe en 32767`, lineas.every((l) => l.length < 32767), lineas.map((l) => l.length).join(' y '))
     }
-    const caben = briefingCompuesto({ bd: BD, ssh: SSH, reglas: '"'.repeat(MAX_REGLAS_PERFIL) }) ?? ''
+    const caben = briefingCompuesto({ bd: BD, ssh: SSH, contexto: c('"'.repeat(MAX_REGLAS_PERFIL)) }) ?? ''
     check('(3h) con avisos normales, las mismas reglas al tope siguen yendo enteras (cabe)', caben.includes('Reglas: ') && citarSh(caben).length <= MAX_AVISO_CITADO, `${citarSh(caben).length}`)
     const justo = 'x'.repeat(MAX_REGLAS_PERFIL)
-    check('(3i) reglas de texto corriente al tope: enteras', (briefingCompuesto({ bd: BD, ssh: SSH, reglas: justo }) ?? '').includes(justo), '')
-    const conBuscar = briefingCompuesto({ bd: bdGrande, ssh: sshGrande, reglas: peorReglas, historial: true }) ?? ''
+    check('(3i) reglas de texto corriente al tope: enteras', (briefingCompuesto({ bd: BD, ssh: SSH, contexto: c(justo) }) ?? '').includes(justo), '')
+    const conBuscar = briefingCompuesto({ bd: bdGrande, ssh: sshGrande, contexto: c(peorReglas), historial: true }) ?? ''
     check('(3j) el peor caso con el anuncio de tctx buscar: cabe y lo lleva', citarSh(conBuscar).length <= MAX_AVISO_CITADO && conBuscar.includes(AVISO_HISTORIAL), `${citarSh(conBuscar).length}`)
+    // En el contenedor la orden del CLI va citada otra vez dentro del `bash -c`: cada apóstrofo crece más.
+    const enContenedor = briefingCompuesto({ bd: BD, ssh: SSH, contexto: c('"'.repeat(MAX_REGLAS_PERFIL)), enContenedor: true }) ?? ''
+    check('(3k) NEGATIVO: en el contenedor, las mismas reglas al tope no caben y mandan a leerlas', !enContenedor.includes('Reglas: ') && largoCitado(enContenedor, true) <= MAX_AVISO_CITADO, `${largoCitado(caben, true)} citado dos veces`)
+    const lineaContenedor = buildAgentLaunchCommand('claude', 'claude-code', '/home/agente/.claude', undefined, undefined, enContenedor)
+    check('(3l) y la línea del contenedor cabe en 32767', lineaContenedor.length < 32767, `${lineaContenedor.length}`)
+    check('(3m) reglas de texto corriente al tope: enteras también en el contenedor', (briefingCompuesto({ bd: BD, ssh: SSH, contexto: c(justo), enContenedor: true }) ?? '').includes(justo), '')
   }
 
   hr('(4) EJECUCIÓN REAL: el binario recibe las reglas intactas en un shell POSIX')

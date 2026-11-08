@@ -115,6 +115,15 @@ function main(): void {
   const noTexto = validateProfileShape(conReglas(42))
   check('(d.4) que no sea texto se rechaza', noTexto.some((e) => e.includes('reglas')), `errores=${JSON.stringify(noTexto)}`)
 
+  // --- CASO (e): el id no se sale de las carpetas del perfil ----------------------
+  hr('CASO (e) - "id": nombra carpetas, así que no puede cambiar la ruta')
+  const conId = (id: string): unknown => ({ ...(conReglas(undefined) as object), id })
+  const malos = ['../fuera', 'a/b', 'a\\b', 'C:x', '..', '.', 'a\u0000b']
+  const rechazados = malos.filter((id) => validateProfileShape(conId(id)).some((e) => e.includes('"id"')))
+  check('(e.1) los ids que cambian la ruta se rechazan', rechazados.length === malos.length, `rechazados=${JSON.stringify(rechazados)}`)
+  const buenos = ['personal', 'trabajo-2', 'Equipo_A', 'v1.2']
+  check('(e.2) los ids normales siguen valiendo', buenos.every((id) => validateProfileShape(conId(id)).length === 0), '')
+
   // --- Reporte final -----------------------------------------------------------
   hr('RESULTADO DE VERIFICACIONES (PASS/FAIL)')
   for (const r of results) {

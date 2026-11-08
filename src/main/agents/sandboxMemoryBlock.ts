@@ -1,6 +1,6 @@
 // =============================================================================
-// Bloque gestionado que le explica al agente DÓNDE corre y qué puede hacer ahí (sudo, lo que
-// se pierde al recrear el contenedor, cómo capturar un PDF o un Office, Playwright). Es TEXTO
+// Bloque gestionado que le explica al agente DÓNDE corre y qué puede hacer ahí (Docker y los servicios
+// del equipo, sudo, lo que se pierde al recrear el contenedor, cómo capturar un PDF o un Office, Playwright). Es TEXTO
 // que lee el agente: cambiarlo cambia lo que hace. Puro, sin disco: el efecto vive en
 // `sandboxMemory.ts`. Nombra el sistema anfitrión, así que la plataforma entra por parámetro.
 // Decisiones: docs/decisiones/sandbox/contenedor-del-agente.md
@@ -30,6 +30,7 @@ export function bloqueSandbox(
 ): string {
   const lineas: string[] = [
     ...seccionEntorno(plataforma),
+    ...seccionEquipo(plataforma),
     ...seccionInstalar(ctx),
     ...seccionHorneadas(ctx),
     ...seccionDocumentos(ctx),
@@ -49,6 +50,42 @@ function seccionEntorno(plataforma: Plataforma): string[] {
     'La carpeta del proyecto, en `/workspace/<proyecto>`, es una carpeta REAL del disco',
     `de ${nombresSistema(plataforma).sistema} montada aquí: lo que escribas ahí es permanente.`,
     ''
+  ]
+}
+
+/**
+ * Lo que el contenedor no tiene o hace distinto que el equipo y que un agente solo descubre fallando: Docker,
+ * los servicios del equipo, el tope de `tdb` y, con anfitrión Windows, los archivos que vienen de allí.
+ */
+function seccionEquipo(plataforma: Plataforma): string[] {
+  const sistema = nombresSistema(plataforma).sistema
+  return [
+    '## Docker y los servicios del equipo',
+    '',
+    `- Aquí dentro no hay Docker (ni su orden ni su socket), aunque ${sistema} sí lo tenga. No digas que no hay`,
+    '  Docker: di que no se puede manejar desde aquí y, si hace falta, pídele al usuario que lo haga.',
+    // `host.docker.internal` lo pone Docker Desktop; el motor de Linux solo lo da si se pide al crear el contenedor.
+    ...(plataforma === 'linux'
+      ? []
+      : [
+          '- Los servicios que corren en el equipo se alcanzan en `host.docker.internal:<puerto>`, no en `localhost`.',
+          '  Si no responden, pregunta al usuario si están levantados antes de buscar otra causa.'
+        ]),
+    '- `tdb` descarta una respuesta de más de 8 MiB: limita con `--limit N` o parte la consulta.',
+    '',
+    ...(plataforma === 'windows'
+      ? [
+          '## Archivos que vienen de Windows',
+          '',
+          '- Un guion con fin de línea CRLF (`mvnw`, `*.sh`) no corre aquí: usa una copia convertida a LF fuera',
+          '  del proyecto, sin tocar el original.',
+          '- `node_modules`, `target`, `dist` y similares pueden traer binarios de Windows o no dejarse',
+          '  sobrescribir: compila en una copia fuera del proyecto.',
+          '- Si `git status` enseña muchos archivos cambiados sin cambios reales, mira',
+          '  `git diff --ignore-cr-at-eol --stat` antes de tocar nada.',
+          ''
+        ]
+      : [])
   ]
 }
 

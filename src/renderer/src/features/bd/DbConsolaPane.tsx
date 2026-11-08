@@ -7,6 +7,7 @@
 // Decisiones: docs/decisiones/bd/ui-consola-barra-y-pane.md
 // =============================================================================
 
+import { Presente } from '../../comun/Presente'
 import { useCallback, type ComponentProps } from 'react'
 import { createPortal } from 'react-dom'
 import type { DbConnection } from '../../../../shared/db-ipc'
@@ -121,6 +122,7 @@ function DialogoConsola({ d }: { d: Dialogo }): React.ReactPortal {
         message={d.mensaje}
         confirmLabel={d.confirmar}
         danger={d.peligro}
+        severidad={d.severidad ?? (d.peligro ? 'peligro' : 'info')}
         onConfirm={() => d.resolver(true)}
         onCancel={() => d.resolver(false)}
       />
@@ -168,7 +170,9 @@ export function DbConsolaPane(props: DbConsolaPaneProps): React.JSX.Element {
       <BarraConsola {...propsDeBarra(c, conexion, altoFila, editarConexion)} />
 
       {/* El guardado queda congelado hasta elegir. */}
-      {c.conflicto && <AvisoConflicto onCargarDelDisco={c.cargarDelDisco} onConservarLaMia={c.conservarLaMia} />}
+      <Presente visible={c.conflicto} className="mov-despliega">
+        <AvisoConflicto onCargarDelDisco={c.cargarDelDisco} onConservarLaMia={c.conservarLaMia} />
+      </Presente>
 
       <div ref={hostRef} className="db-consola-editor" />
 

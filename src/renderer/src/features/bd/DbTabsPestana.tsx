@@ -6,6 +6,7 @@
 // Decisiones: docs/decisiones/bd/ui-area-tira-de-pestanas.md
 // =============================================================================
 
+import { Cruce } from '../../comun/Presente'
 import type { DbMotor } from '../../../../shared/db-ipc'
 import { IconoClaveKv, IconoColeccion, IconoConsola, IconoDdl, IconoMotor, IconoObjetoBd } from './iconosBd'
 import { MarcaEntorno } from './MarcaEntorno'
@@ -71,11 +72,11 @@ function HuecoAspa({
 }): React.JSX.Element {
   return (
     <span className="editor-tab-slot">
-      {indicador && (
-        <span className="db-tab-indicador">
-          <Indicador tipo={indicador} />
-        </span>
-      )}
+      <span className="db-tab-indicador">
+        <Cruce clave={indicador ?? 'sin-indicador'} className="db-tab-cruce">
+          {indicador && <Indicador tipo={indicador} />}
+        </Cruce>
+      </span>
       <button
         className="editor-tab-close"
         aria-label={txArea().cerrarNombre(nombre)}

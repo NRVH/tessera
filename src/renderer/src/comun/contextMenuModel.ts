@@ -48,13 +48,68 @@ export interface ContextMenuSeparator {
   separator: true
 }
 
-export type ContextMenuEntry = ContextMenuItem | ContextMenuSeparator
+/** Una opción que despliega otras: un solo nivel. Agrupa lo poco frecuente o una familia con un nombre común. */
+export interface ContextMenuSubmenu {
+  label: string
+  submenu: (ContextMenuItem | ContextMenuSeparator)[]
+  icon?: ReactNode
+  disabled?: boolean
+  title?: string
+}
+
+export type ContextMenuEntry = ContextMenuItem | ContextMenuSeparator | ContextMenuSubmenu
 
 /** Atajo para construir menús: `SEP` es más legible que `{ separator: true }`. */
 export const SEP: ContextMenuSeparator = { separator: true }
 
 export function isSeparator(entry: ContextMenuEntry): entry is ContextMenuSeparator {
   return 'separator' in entry
+}
+
+export function esSubmenu(entry: ContextMenuEntry): entry is ContextMenuSubmenu {
+  return 'submenu' in entry
+}
+
+export interface Punto {
+  x: number
+  y: number
+}
+
+export interface Rectangulo {
+  left: number
+  top: number
+  width: number
+  height: number
+}
+
+/** Dónde se abre un submenú: a la derecha de su fila o, si no cabe, a la izquierda; siempre dentro de la ventana. */
+export function posicionSubmenu(
+  fila: Rectangulo,
+  panel: { width: number; height: number },
+  ventana: { width: number; height: number }
+): { left: number; top: number } {
+  const margen = 8
+  const separacion = 2
+  // El panel se sube lo que mide su relleno, para que su primera opción quede a la altura de la fila.
+  const relleno = 6
+  const derecha = fila.left + fila.width + separacion
+  const left = derecha + panel.width <= ventana.width - margen ? derecha : Math.max(margen, fila.left - panel.width - separacion)
+  return { left, top: Math.max(margen, Math.min(fila.top - relleno, ventana.height - panel.height - margen)) }
+}
+
+/**
+ * ¿El ratón va camino del submenú abierto? Mira si `actual` cae en el triángulo entre `anterior` y el borde cercano del
+ * panel: moverse en diagonal cruza otras filas del menú y no debe cerrarlo.
+ */
+export function seDirigeAlPanel(anterior: Punto, actual: Punto, panel: Rectangulo): boolean {
+  const borde = actual.x < panel.left ? panel.left : panel.left + panel.width
+  const a = { x: borde, y: panel.top }
+  const b = { x: borde, y: panel.top + panel.height }
+  const lado = (p: Punto, q: Punto): number => (p.x - actual.x) * (q.y - actual.y) - (q.x - actual.x) * (p.y - actual.y)
+  const d1 = lado(anterior, a)
+  const d2 = lado(a, b)
+  const d3 = lado(b, anterior)
+  return !((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0))
 }
 
 /**
@@ -70,8 +125,8 @@ export function isSeparator(entry: ContextMenuEntry): entry is ContextMenuSepara
  * Sin esta poda, un grupo que sale vacío deja una línea divisoria suelta (o dos
  * pegadas), que es justo el tipo de detalle que hace que un menú se vea descuidado.
  */
-export function normalizeEntries(entries: ContextMenuEntry[]): ContextMenuEntry[] {
-  const out: ContextMenuEntry[] = []
+export function normalizeEntries<T extends ContextMenuEntry>(entries: T[]): T[] {
+  const out: T[] = []
   for (const entry of entries) {
     if (isSeparator(entry)) {
       if (out.length === 0) continue // separador inicial

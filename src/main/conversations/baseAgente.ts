@@ -7,6 +7,7 @@ import os from 'node:os'
 import { join } from 'node:path'
 import type { AccountStore } from '../agents/AccountStore'
 import type { ConvAgent } from '../../shared/conversations-ipc'
+import { CARPETA_NATIVA_AGENTE } from '../../shared/configAgente-ipc.ts'
 
 /** Carpeta de credenciales de (agente, cuenta); `null` si la cuenta no existe o es de otro agente. */
 export type BaseDeCuenta = (agente: ConvAgent, accountId: string, host: boolean) => string | null
@@ -16,8 +17,8 @@ export type BaseDeCuenta = (agente: ConvAgent, accountId: string, host: boolean)
  * propios CLIs honran (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`). Lee el entorno en cada llamada.
  */
 export function baseNativaAgente(agente: ConvAgent): string {
-  if (agente === 'codex') return process.env.CODEX_HOME?.trim() || join(os.homedir(), '.codex')
-  return process.env.CLAUDE_CONFIG_DIR?.trim() || join(os.homedir(), '.claude')
+  if (agente === 'codex') return process.env.CODEX_HOME?.trim() || join(os.homedir(), CARPETA_NATIVA_AGENTE.codex)
+  return process.env.CLAUDE_CONFIG_DIR?.trim() || join(os.homedir(), CARPETA_NATIVA_AGENTE['claude-code'])
 }
 
 /** Resuelve la base de una cuenta: la nativa en modo host, la de `AccountStore` en el resto. */

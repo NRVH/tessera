@@ -14,11 +14,15 @@ export const CSS_LOG_COLUMNAS = `/* Cuerpo: las 3 columnas. FLEX y no grid ni co
    (Sin acentos graves en estos comentarios: este CSS vive en un template
    literal de TS y un backtick suelto lo cerraría a media hoja.) */
 .git-log-body {
+  transition: opacity var(--mov-entrada) var(--curva-estandar);
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
   align-items: stretch;
 }
+@starting-style { .git-log-body { opacity: 0; } }
+.git-log-panel > .pane-empty { transition: opacity var(--mov-entrada) var(--curva-estandar); }
+@starting-style { .git-log-panel > .pane-empty { opacity: 0; } }
 .git-log-col {
   display: flex;
   flex-direction: column;

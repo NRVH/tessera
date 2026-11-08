@@ -5,6 +5,9 @@
 // El estado y los efectos viven en `useBusquedaEnArchivos`; aquí solo se pinta.
 // Decisiones: docs/decisiones/busqueda/busqueda-en-archivos.md
 // =============================================================================
+import { createPortal } from 'react-dom'
+import { ID_CAPA_DIALOGOS } from '../../comun/Modal'
+import { useAbriendo } from '../../comun/presencia'
 import { AmbitoBusqueda } from './AmbitoBusqueda'
 import { CuerpoResultados } from './CuerpoResultados'
 import { EstadoVacioBusqueda } from './EstadoVacioBusqueda'
@@ -16,6 +19,7 @@ import { useBusquedaEnArchivos, type PropsBuscarEnArchivos } from './useBusqueda
 /** Modal de búsqueda de texto en los archivos del proyecto activo. */
 export function BuscarEnArchivosModal(props: PropsBuscarEnArchivos): React.JSX.Element {
   const b = useBusquedaEnArchivos(props)
+  const abriendo = useAbriendo()
   const { m, set, estado } = b
   const { projectName, proyectos, raizActiva, projectKey, onClose } = props
   const vacio =
@@ -27,7 +31,8 @@ export function BuscarEnArchivosModal(props: PropsBuscarEnArchivos): React.JSX.E
       />
     ) : null
 
-  return (
+  // En la capa de los diálogos, como `Modal`: abierta con su atajo sobre otro diálogo, queda encima de él.
+  return createPortal(
     <div className="modal-overlay" role="presentation" onMouseDown={onClose}>
       <div
         ref={b.dialogo}
@@ -38,6 +43,7 @@ export function BuscarEnArchivosModal(props: PropsBuscarEnArchivos): React.JSX.E
         onKeyDown={b.alPulsar}
         onMouseDown={(e) => e.stopPropagation()}
         style={{ ...b.vars, width: `${m.ancho}px`, height: `${m.alto}px` }}
+        {...abriendo}
       >
         <ManijasRedimension ancho={m.ancho} alto={m.alto} onResize={set.tam} />
         <CabeceraBusqueda projectName={projectName} onClose={onClose} />
@@ -68,6 +74,7 @@ export function BuscarEnArchivosModal(props: PropsBuscarEnArchivos): React.JSX.E
         />
         <PieBusqueda fila={b.fila} onAbrir={b.abrir} />
       </div>
-    </div>
+    </div>,
+    document.getElementById(ID_CAPA_DIALOGOS) ?? document.body
   )
 }

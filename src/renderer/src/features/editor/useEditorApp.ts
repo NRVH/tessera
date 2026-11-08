@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useEditorTabs, type UseEditorTabs } from './useEditorTabs'
-import { deriveTabId, editorTargetKey, perfilDeTarget, untitledName } from './editorTabsModel'
+import { deriveTabId, editorTargetKey, paneKeyEditor, perfilDeTarget, untitledName } from './editorTabsModel'
 import { siguienteMotivoCcOculto, type CenterPane, type OpenFile, type UntitledFile } from './centerPane'
 import { textModelKey, textModels } from './textModelRegistry'
 import type { EditorMeta } from './EditorPane'
@@ -48,33 +48,37 @@ export interface EditorApp {
   saveUntitledPane: (tabId: string, untitled: UntitledFile, content: string) => Promise<boolean>
 }
 
-/** Identidad única de un pane montado entre todos los targets (tab.id nunca contiene \u0000). */
-const paneKeyDe = (targetKey: string, tabId: string): string => `${targetKey}\u0000${tabId}`
-
 /** Traduce un conjunto por paneKey a ids de pestaña del target activo. */
 function idsDelActivo(marcados: Set<string>, tabs: UseEditorTabs['tabs'], key: string | null): Set<string> {
   const s = new Set<string>()
   if (key === null) return s
-  for (const tab of tabs) if (marcados.has(paneKeyDe(key, tab.id))) s.add(tab.id)
+  for (const tab of tabs) if (marcados.has(paneKeyEditor(key, tab.id))) s.add(tab.id)
   return s
 }
 
-/** Poda el estado por pane de los panes ya desmontados (los panes no reportan al desmontar). */
+/**
+ * Poda el estado por pane de los panes ya desmontados (los panes no reportan al desmontar). Las pestañas se
+ * leen del store al podar, no de `allPanes`: este efecto puede correr con la lista de un render anterior justo
+ * después de que se añadieran pestañas con su estado (la sesión restaurada), y se lo llevaría por delante.
+ */
 function usePodaPorPane(editorTabs: UseEditorTabs): void {
   useEffect(() => {
-    const montados = new Set(editorTabs.allPanes.map((p) => paneKeyDe(p.targetKey, p.tab.id)))
-    useStoreEditor.setState((s) => ({
-      dirtyTabIds: podarConjunto(s.dirtyTabIds, montados),
-      borradoTabIds: podarConjunto(s.borradoTabIds, montados),
-      reloadTokens: podarMapa(s.reloadTokens, montados),
-      saveTokens: podarMapa(s.saveTokens, montados),
-      editorMetaByKey: podarMapa(s.editorMetaByKey, montados),
-      convertReqByKey: podarMapa(s.convertReqByKey, montados),
-      reopenReqByKey: podarMapa(s.reopenReqByKey, montados),
-      revelarPorPane: podarMapa(s.revelarPorPane, montados),
-      // Aquí importa más: reabrir el mismo archivo recupera la misma clave.
-      modoVistaPorPane: podarMapa(s.modoVistaPorPane, montados)
-    }))
+    useStoreEditor.setState((s) => {
+      const montados = new Set<string>()
+      for (const [targetKey, st] of s.pestanasPorTarget) for (const tab of st.tabs) montados.add(paneKeyEditor(targetKey, tab.id))
+      return {
+        dirtyTabIds: podarConjunto(s.dirtyTabIds, montados),
+        borradoTabIds: podarConjunto(s.borradoTabIds, montados),
+        reloadTokens: podarMapa(s.reloadTokens, montados),
+        saveTokens: podarMapa(s.saveTokens, montados),
+        editorMetaByKey: podarMapa(s.editorMetaByKey, montados),
+        convertReqByKey: podarMapa(s.convertReqByKey, montados),
+        reopenReqByKey: podarMapa(s.reopenReqByKey, montados),
+        revelarPorPane: podarMapa(s.revelarPorPane, montados),
+        // Aquí importa más: reabrir el mismo archivo recupera la misma clave.
+        modoVistaPorPane: podarMapa(s.modoVistaPorPane, montados)
+      }
+    })
   }, [editorTabs.allPanes])
 }
 
@@ -91,7 +95,7 @@ function useCerrarPestana(editorTabs: UseEditorTabs, activeEditorKey: string | n
       }
       editorTabs.closeTab(id)
       if (activeEditorKey === null) return
-      const pk = paneKeyDe(activeEditorKey, id)
+      const pk = paneKeyEditor(activeEditorKey, id)
       useStoreEditor.setState((s) => {
         const cambios: Partial<typeof s> = { dirtyTabIds: conMarca(s.dirtyTabIds, pk, false) }
         if (s.modoVistaPorPane.has(pk)) {
@@ -126,7 +130,7 @@ function useAbrirPestana(
       editorTabs.openTab(pane, opts?.efimera === true)
       // Por token y no por el pane: dos coincidencias del mismo archivo son la misma pestaña.
       if (opts?.revelar && activeEditorKey !== null) {
-        const pk = paneKeyDe(activeEditorKey, deriveTabId(pane))
+        const pk = paneKeyEditor(activeEditorKey, deriveTabId(pane))
         const revelar = opts.revelar
         useStoreEditor.setState((s) => {
           const next = new Map(s.revelarPorPane)
@@ -148,7 +152,7 @@ function usePeticionesPane(
   const requestSaveTab = useCallback(
     (id: string) => {
       if (activeEditorKey === null) return
-      const pk = paneKeyDe(activeEditorKey, id)
+      const pk = paneKeyEditor(activeEditorKey, id)
       useStoreEditor.setState((s) => ({ saveTokens: subirTokens(s.saveTokens, [pk]) }))
     },
     [activeEditorKey]
@@ -156,7 +160,7 @@ function usePeticionesPane(
   const requestConvert = useCallback(
     (payload: { encodingId?: string; eol?: 'CRLF' | 'LF' }) => {
       if (activeEditorKey === null || activeId == null) return
-      const pk = paneKeyDe(activeEditorKey, activeId)
+      const pk = paneKeyEditor(activeEditorKey, activeId)
       useStoreEditor.setState((s) => {
         const next = new Map(s.convertReqByKey)
         next.set(pk, { token: (s.convertReqByKey.get(pk)?.token ?? 0) + 1, ...payload })
@@ -168,7 +172,7 @@ function usePeticionesPane(
   const requestReopenEncoding = useCallback(
     (encodingId: string) => {
       if (activeEditorKey === null || activeId == null) return
-      const pk = paneKeyDe(activeEditorKey, activeId)
+      const pk = paneKeyEditor(activeEditorKey, activeId)
       useStoreEditor.setState((s) => {
         const next = new Map(s.reopenReqByKey)
         next.set(pk, { token: (s.reopenReqByKey.get(pk)?.token ?? 0) + 1, encodingId })
@@ -226,7 +230,7 @@ function usePedirCierre(
   return useCallback(
     (id: string) => {
       const tab = editorTabs.tabs.find((t) => t.id === id)
-      const dirty = activeEditorKey !== null && dirtyTabIds.has(paneKeyDe(activeEditorKey, id))
+      const dirty = activeEditorKey !== null && dirtyTabIds.has(paneKeyEditor(activeEditorKey, id))
       const fijar = useStoreEditor.setState
       if (tab?.pane.kind === 'untitled' && dirty) {
         fijar({ pendingClose: { id, name: tab.pane.untitled.name, kind: 'untitled' } })
@@ -261,7 +265,7 @@ export function useEditorApp(tabs: UseTabs, vistas: Pick<VistasPorPerfil, 'salir
     return [...seen]
   }, [tabs.allOpenTargets])
   const editorTabs = useEditorTabs(activeEditorKey, validEditorKeys)
-  const paneKey = useCallback(paneKeyDe, [])
+  const paneKey = useCallback(paneKeyEditor, [])
   const { dirtyTabIds, borradoTabIds, editorMetaByKey } = useStoreEditor(
     useShallow((s) => ({ dirtyTabIds: s.dirtyTabIds, borradoTabIds: s.borradoTabIds, editorMetaByKey: s.editorMetaByKey }))
   )
@@ -288,7 +292,7 @@ export function useEditorApp(tabs: UseTabs, vistas: Pick<VistasPorPerfil, 'salir
   const activeId = editorTabs.activeId
   const activeEditorMeta = useMemo(() => {
     if (activeEditorKey === null || activeId == null) return null
-    return editorMetaByKey.get(paneKeyDe(activeEditorKey, activeId)) ?? null
+    return editorMetaByKey.get(paneKeyEditor(activeEditorKey, activeId)) ?? null
   }, [editorMetaByKey, activeEditorKey, activeId])
   const sinTitulo = useSinTitulo(editorTabs, activeEditorKey, openEditorTab)
   const requestCloseTab = usePedirCierre(editorTabs, activeEditorKey, dirtyTabIds, closeEditorTab)

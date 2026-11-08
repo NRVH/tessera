@@ -7,7 +7,6 @@
 // =============================================================================
 
 import { etiquetaEstado } from './diffEditorAvisos'
-import { txDiff } from './textos.ts'
 import { txImagen, txVisorComun } from './textosVisores.ts'
 import { etiquetaRevisiones } from '../git'
 import { deltaBytes, formatoBytes } from '../../util/formatoBytes'
@@ -152,7 +151,7 @@ function CabeceraImageDiff({
         <span className={`diff-status-pill status-${target.status}`}>
           {etiquetaEstado(target.status)}
         </span>
-        <span className="diff-revisiones" title={txDiff().revisionesQueSeComparan}>
+        <span className="diff-revisiones">
           {etiquetaRevisiones(target.commitHash)}
         </span>
       </span>

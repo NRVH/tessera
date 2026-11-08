@@ -269,6 +269,7 @@ test.describe('explorador de BD: edición en la rejilla', () => {
     const dialogo = dialogoEnvio(win)
     await dialogo.getByRole('button', { name: 'Enviar', exact: true }).click()
     await expect(dialogo.locator('.db-envio-estado')).toHaveText('Enviando…')
+    await expect(dialogo.getByRole('button', { name: 'Cerrar', exact: true })).toBeDisabled()
 
     // El UPDATE ya pasó y el COMMIT duerme en el disparador: se corta ESA sesión.
     await expect
@@ -502,7 +503,7 @@ test.describe('explorador de BD: edición en la rejilla', () => {
     await botonBarra(win, 'Enviar cambios').click()
     const dialogo = dialogoEnvio(win)
     await expect(dialogo).toBeVisible()
-    await expect(dialogo.locator('.db-envio-franja')).toContainText('PRODUCCIÓN')
+    await expect(dialogo.locator('.db-envio-franja')).toContainText('Producción')
     await expect(dialogo.locator('.db-envio-franja')).toContainText(ALIAS_PRODUCCION)
     await expect(dialogo.getByRole('button', { name: 'Enviar', exact: true })).toHaveCount(0)
     await expect(dialogo.getByRole('button', { name: 'Cancelar', exact: true }), 'en producción el foco va a Cancelar').toBeFocused()

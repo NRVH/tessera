@@ -36,7 +36,8 @@ import { PilaTerminales } from './PilaTerminales'
 import { PlusIcon } from './IconosTerminales'
 import { ZonaPestanas, type PropsNuevaTerminal, type Renombrando } from './PestanasTerminales'
 import { abiertasPorConexion, esPestanaSftp, sshPaneKey, type SshTabsState } from './sshTabsModel'
-import type { ShellTerminalsState } from './shellTerminalsModel'
+import { terminalPaneKey, type ShellTerminalsState } from './shellTerminalsModel'
+import { IndicadorDelegadas, origenesTerminales } from '../delegacion'
 import type { TerminalPaneApi, TerminalPaneInfo, TerminalProjectTarget } from './terminalPaneTipos'
 import { useFocoAlOcultarAgente } from './useFocoAlOcultarAgente'
 import { useInfoPanes } from './useInfoPanes'
@@ -332,6 +333,8 @@ export function TerminalsPanel(props: TerminalsPanelProps): React.JSX.Element {
   const botonNuevaRef = useRef<HTMLSpanElement>(null)
   const { infoByPane, apisRef, handleInfo, handleApi, activo } = usePanelTerminales(props)
   const { activePaneKey } = activo
+  const clavesDelegacion = (props.terminals[props.activeProjectKey ?? '']?.list ?? []).map((t) => terminalPaneKey(props.activeProjectKey!, t.id))
+  const origenesDelegacion = origenesTerminales(clavesDelegacion, infoByPane)
   const { riel, sinTerminal, tapadas } = useRielDelPanel(props, activo, cuerpoRef)
   const lista = datosListaSsh(props, activo)
 
@@ -366,8 +369,9 @@ export function TerminalsPanel(props: TerminalsPanelProps): React.JSX.Element {
           {props.pantallaCompleta && props.nombreProyecto && <span className="accent">{props.nombreProyecto}</span>}
         </span>
         <ZonaCabecera {...{ props, activo, infoByPane, renombrando, setRenombrando, nueva, tapadas }} enfocarTerminal={enfocarTerminal} reconectarSsh={reconectarSsh} />
-        {/* Tapadas, la columna es el resto plegado del panel y no lleva sus botones: el único restaurar a la
-            vista es el del agente, que baja un nivel; con las terminales de vuelta, el de aquí baja el siguiente. */}
+        <IndicadorDelegadas origenes={origenesDelegacion} />
+        {/* Tapadas, reiniciar sería a ciegas sobre una terminal que no se ve. Restaurar y ocultar el panel están
+            siempre en el riel, también tapadas: el restaurar del agente baja un nivel, el del riel el siguiente. */}
         {!tapadas && <AccionesPanel reinicio={reinicioDe(activo, apisRef)} onClosePanel={props.onClosePanel} pantallaCompleta={props.pantallaCompleta} onPantallaCompleta={alternarPantallaCompleta} />}
       </header>
       <LanzadorSsh

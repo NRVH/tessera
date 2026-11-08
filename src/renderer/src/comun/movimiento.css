@@ -1,0 +1,422 @@
+/* =============================================================================
+   EL MOVIMIENTO DE LA INTERFAZ: las duraciones y curvas de toda la app y las clases que animan lo que aparece y
+   desaparece. Todo lo que se mueve usa estas variables, así que «reducir movimiento» del sistema lo apaga en un solo
+   sitio (las duraciones pasan a cero). Las entradas son CSS puro (`@starting-style`); las salidas necesitan que el
+   elemento siga montado mientras se va, y eso lo da `usePresencia` (`data-saliendo`).
+   Decisiones: docs/decisiones/renderer/movimiento.md
+   ============================================================================= */
+:root {
+  /* Pasar el ratón, seleccionar, cambiar de color o de borde. */
+  --mov-rapido: 120ms;
+  /* Aparecer y desaparecer: menús, popovers, avisos, tooltips. */
+  --mov-medio: 180ms;
+  /* Bloques y paneles que entran o cambian. */
+  --mov-entrada: 240ms;
+  /* Lo que se va lo hace antes de lo que entra: la atención ya está en lo siguiente. */
+  --mov-salida: 140ms;
+  /* La confirmación con rebote de un control (la palomita de Guardar). */
+  --mov-confirma: 420ms;
+  --mov-giro: 800ms;
+
+  /* Ease a secas para color y opacidad; la de entrada desacelera al llegar, como los modales. */
+  --curva-estandar: ease;
+  --curva-lineal: linear;
+  --curva-entrada: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --curva-expandir: cubic-bezier(0.4, 0, 0.2, 1);
+  --curva-rebote: cubic-bezier(0.2, 0.9, 0.3, 1.3);
+
+  /* El cromo de los paneles (sus acciones al pasar el ratón) se invierte a propósito: aparece rápido y se retira
+     despacio, como los controles de un reproductor (styles.css, «ESTADO EN REPOSO»). */
+  --mov-cromo-aparece: 180ms;
+  --mov-cromo-retira: 350ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --mov-cromo-aparece: 0ms;
+    --mov-cromo-retira: 0ms;
+    --mov-rapido: 0ms;
+    --mov-medio: 0ms;
+    --mov-entrada: 0ms;
+    --mov-salida: 0ms;
+    --mov-confirma: 0ms;
+    --mov-giro: 0ms;
+  }
+}
+
+/* -----------------------------------------------------------------------------
+   APARECER: entra con un fundido desde un pequeño desplazamiento o escala, y sale con el gesto inverso, más corto.
+   De dónde viene se ajusta con `--mov-x`, `--mov-y` y `--mov-escala` (por defecto, 4 px desde abajo y al 98 %), o
+   con las variantes de abajo: un menú crece desde su botón, un panel lateral entra desde su borde.
+   ----------------------------------------------------------------------------- */
+/* Con `translate` y `scale` sueltos, no con `transform`: se suman al `transform` con que se coloque el elemento. */
+.mov-aparece {
+  --mov-x: 0px;
+  --mov-y: 4px;
+  --mov-escala: 0.98;
+  transition:
+    opacity var(--mov-medio) var(--curva-estandar),
+    translate var(--mov-medio) var(--curva-entrada),
+    scale var(--mov-medio) var(--curva-entrada);
+}
+@starting-style {
+  .mov-aparece {
+    opacity: 0;
+    translate: var(--mov-x) var(--mov-y);
+    scale: var(--mov-escala);
+  }
+}
+.mov-aparece[data-saliendo] {
+  opacity: 0;
+  translate: var(--mov-x) var(--mov-y);
+  scale: var(--mov-escala);
+  transition-duration: var(--mov-salida);
+  pointer-events: none;
+}
+
+/* Un panel lateral, desde el borde derecho. */
+.mov-aparece.mov-desde-derecha {
+  --mov-x: 24px;
+  --mov-y: 0px;
+  --mov-escala: 1;
+  transition-duration: var(--mov-entrada);
+}
+/* Un menú o popover que cuelga de su botón: casi sin recorrido, crece desde arriba. */
+.mov-aparece.mov-desde-arriba {
+  --mov-y: -3px;
+  transform-origin: top center;
+}
+
+/* Lo que se pinta en la capa flotante (menús y popovers por portal, `EnCapaFlotante`) entra igual, sin que cada uno
+   lo pida, y su salida la hace `despedida.ts`. Los diálogos van a su propia capa, con su propia entrada. */
+.mov-flotante > * {
+  transition:
+    opacity var(--mov-medio) var(--curva-estandar),
+    translate var(--mov-medio) var(--curva-entrada),
+    scale var(--mov-medio) var(--curva-entrada);
+}
+@starting-style {
+  .mov-flotante > * {
+    opacity: 0;
+    translate: 0 -3px;
+    scale: 0.98;
+  }
+}
+
+/* -----------------------------------------------------------------------------
+   DESPEDIDA: la copia inerte que deja al desmontarse un modal, un menú o un popover (`despedida.ts`). Trae las clases
+   del original, así que primero se le quita cualquier animación de entrada que repetiría.
+   ----------------------------------------------------------------------------- */
+.mov-despedida.mov-despedida,
+.mov-despedida.mov-despedida * {
+  animation: none;
+  transition: none;
+}
+.mov-despedida.mov-despedida {
+  animation: mov-despedida-fundido var(--mov-salida) var(--curva-estandar) forwards;
+}
+/* El modal: el velo se funde y la tarjeta baja un poco y se encoge, el gesto inverso de su entrada. La tarjeta es el
+   hijo del velo, tenga la clase que tenga (Configuración, Academy, la búsqueda tienen la suya). */
+.mov-despedida-modal.mov-despedida-modal > * {
+  animation: mov-despedida-baja var(--mov-salida) var(--curva-estandar) forwards;
+}
+.mov-despedida-flotante.mov-despedida-flotante {
+  animation-name: mov-despedida-flotante;
+}
+@keyframes mov-despedida-fundido {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes mov-despedida-baja {
+  to {
+    translate: 0 6px;
+    scale: 0.98;
+  }
+}
+@keyframes mov-despedida-flotante {
+  to {
+    opacity: 0;
+    translate: 0 -3px;
+    scale: 0.98;
+  }
+}
+
+/* -----------------------------------------------------------------------------
+   DESPLEGAR: un aviso o un bloque que entra en el flujo crece desde alto cero en vez de empujar lo de abajo de
+   golpe, y al irse se pliega. `interpolate-size` deja animar hasta `auto` sin medir.
+   ----------------------------------------------------------------------------- */
+/* El relleno, el margen y el borde se pliegan con el alto: un aviso con caja no deja su relleno a la vista. */
+.mov-despliega {
+  interpolate-size: allow-keywords;
+  overflow: hidden;
+  transition:
+    height var(--mov-entrada) var(--curva-expandir),
+    padding-block var(--mov-entrada) var(--curva-expandir),
+    margin-block var(--mov-entrada) var(--curva-expandir),
+    border-block-width var(--mov-entrada) var(--curva-expandir),
+    opacity var(--mov-medio) var(--curva-estandar);
+}
+@starting-style {
+  .mov-despliega {
+    height: 0;
+    padding-block: 0;
+    margin-block: 0;
+    border-block-width: 0;
+    opacity: 0;
+  }
+}
+.mov-despliega[data-saliendo] {
+  height: 0;
+  padding-block: 0;
+  margin-block: 0;
+  border-block-width: 0;
+  opacity: 0;
+  transition-duration: var(--mov-salida);
+}
+
+/* -----------------------------------------------------------------------------
+   CRUCE: dos contenidos en la misma celda, el que se va se funde mientras entra el nuevo (`Cruce.tsx`). La celda
+   mide lo que el más grande, así que el cambio no empuja nada.
+   ----------------------------------------------------------------------------- */
+.mov-cruce {
+  display: grid;
+}
+.mov-cruce > .mov-cruce-capa {
+  grid-area: 1 / 1;
+  min-width: 0;
+  transition: opacity var(--mov-medio) var(--curva-estandar);
+}
+@starting-style {
+  .mov-cruce > .mov-cruce-capa {
+    opacity: 0;
+  }
+}
+.mov-cruce > .mov-cruce-capa[data-saliendo] {
+  opacity: 0;
+  transition-duration: var(--mov-salida);
+  pointer-events: none;
+}
+/* Mientras entra su contenedor (`useAbriendo`), lo de dentro aparece con él: sin transición, `@starting-style` no
+   anima, y el diálogo no crece campo a campo mientras se abre. */
+[data-abriendo] :is(.mov-aparece, .mov-despliega, .mov-cruce > .mov-cruce-capa) {
+  transition: none;
+}
+
+/* -----------------------------------------------------------------------------
+   LA INTERFAZ PRINCIPAL: los paneles que se muestran y se ocultan sin desmontarse (la franja de terminales, la
+   columna del agente, el historial de git). El espacio se abre al
+   momento y el contenido entra con un fundido y un desplazamiento corto desde el lado del que nace: no se anima el
+   tamaño, que obligaría a la terminal y al editor a recolocarse en cada fotograma. Una animación que solo aplica
+   mientras el panel se ve se reproduce justo al mostrarse. Al ocultarse desaparece al momento: un panel que se
+   funde sigue ocupando su sitio en el layout, así que empuja a los demás y su terminal se comprime mientras dura.
+   ----------------------------------------------------------------------------- */
+@keyframes mov-panel-entra {
+  from {
+    opacity: 0;
+    translate: var(--mov-panel-x, 0) var(--mov-panel-y, 0);
+  }
+}
+/* Las vistas del lateral (Archivos, Git, Bases de datos) no entran: cambian al momento, como en cualquier IDE, porque el riel es un cambio de contexto que se
+   repite sin parar y su entrada hacía esperar a cada vista. La terminal a pantalla completa, tampoco: ocupa la
+   ventana entera, como una vista más. */
+.terminal-panel:not(.hidden):not(.franja-pantalla-completa *),
+.right-panel:not(.cc-hidden),
+.git-log-panel,
+.capa-viva:not(.oculta):not(.panel-lateral .capa-viva) > * {
+  animation: mov-panel-entra var(--mov-entrada) var(--curva-entrada);
+}
+/* La franja de abajo sube; la columna del agente entra desde la derecha. */
+.terminal-panel,
+.git-log-panel {
+  --mov-panel-y: 8px;
+}
+.right-panel {
+  --mov-panel-x: 12px;
+}
+/* Cambiar de agente es un conmutador, no un panel que entra: la cabecera con las pestañas y el pie se quedan
+   quietos (cada agente pinta los suyos, iguales salvo la pestaña activa) y solo su contenido se funde, sin
+   desplazarse. */
+@keyframes mov-contenido-funde {
+  from {
+    opacity: 0;
+  }
+}
+.agent-pane:not(.hidden) > :is(.terminal-host, .agent-empty-account) {
+  animation: mov-contenido-funde var(--mov-medio) var(--curva-estandar);
+}
+
+/* El reparto de la ventana (`useLayoutConTransicion`): cada zona con nombre viaja sobre una captura de su
+   sitio y su tamaño anteriores a los nuevos. La captura no se escala: se recorta desde su esquina superior
+   izquierda, así el texto nunca se estira. Los nombres solo existen mientras dura la transición. */
+.transicion-layout .panel-lateral {
+  view-transition-name: zona-lateral;
+}
+.transicion-layout .editor-area {
+  view-transition-name: zona-editor;
+}
+.transicion-layout .db-area {
+  view-transition-name: zona-bd;
+}
+.transicion-layout .right-panel {
+  view-transition-name: zona-agente;
+}
+.transicion-layout .terminal-panel {
+  view-transition-name: zona-terminales;
+}
+.transicion-layout .git-log-panel {
+  view-transition-name: zona-git;
+}
+::view-transition-group(*) {
+  animation-duration: var(--mov-entrada);
+  animation-timing-function: var(--curva-expandir);
+}
+/* Solo la imagen nueva, sin fundido: dos capturas fundiéndose duplican el texto. El marco que viaja la
+   recorta y, donde aún no llega, deja ver el fondo del panel y no un hueco. Lo que sale, sale al momento. */
+::view-transition-image-pair(*) {
+  overflow: hidden;
+  background: var(--bg);
+}
+::view-transition-image-pair(root) {
+  background: none;
+}
+::view-transition-old(*) {
+  display: none;
+}
+::view-transition-new(*) {
+  animation: none;
+  height: 100%;
+  object-fit: none;
+  object-position: left top;
+}
+/* El texto de una terminal no viaja: lo redibuja el programa cuando le llega el tamaño nuevo. Su captura se
+   ancla al lado fijo de la zona (el agente, a la derecha; las terminales, abajo y a la izquierda) y lo que se
+   mueve es el borde, que la descubre o la tapa sin desplazar el texto. */
+::view-transition-new(zona-agente) {
+  object-position: right top;
+}
+::view-transition-new(zona-terminales) {
+  object-position: left bottom;
+}
+/* UN CIERRE: la zona que se va lleva su propio nombre solo en la captura vieja (`data-transicion-se-va`, puesto
+   por `useLayoutConTransicion`), así que sale en su sitio y se desvanece mientras las que quedan viajan al suyo
+   y la ocupan. Sin ese nombre aparte, la columna del agente (que sigue en la página con otro contenido) se
+   encogería enseñando el contenido nuevo. Las que quedan siguen sin captura vieja: dos fundiéndose duplican
+   el texto. */
+.transicion-layout [data-transicion-se-va] {
+  view-transition-name: zona-que-se-va;
+}
+html.transicion-cierre::view-transition-old(zona-que-se-va) {
+  display: block;
+  height: 100%;
+  object-fit: none;
+  object-position: left top;
+  animation: mov-cierre-funde var(--mov-entrada) var(--curva-estandar) both;
+}
+@keyframes mov-cierre-funde {
+  to {
+    opacity: 0;
+  }
+}
+/* Al cambiar de tamaño, una terminal borra su lienzo, enseña un instante el texto viejo y luego el programa lo
+   redibuja (unos 200 ms). Mientras el borde barre, el texto de la zona que cambia de ancho se esconde y entra
+   con un fundido al terminar; un cambio de alto no vuelve a partir las líneas y no se toca. */
+.xterm-screen {
+  transition: opacity var(--mov-medio) var(--curva-estandar);
+}
+[data-transicion-redimensiona] .xterm-screen {
+  opacity: 0;
+  transition: none;
+}
+
+/* -----------------------------------------------------------------------------
+   LAS ACCIONES DE LA CABECERA DE UN PANEL (agente, terminal, git) se retiran en reposo (styles.css, «ESTADO EN
+   REPOSO»). Ocultas con `visibility` conservaban su caja y dejaban un hueco junto a lo que sí se ve (la cuenta, las
+   bases): aquí se pliegan del todo y, al pasar el ratón, se despliegan hacia la izquierda con su fundido. El margen
+   negativo compensa el `gap` de `.panel-actions`. Mismos selectores que styles.css, con `:root` delante para ganarles
+   sin depender del orden de las hojas.
+   ----------------------------------------------------------------------------- */
+:root .panel-actions {
+  interpolate-size: allow-keywords;
+}
+:root
+  :is(.terminal-panel, .agent-pane, .git-log-panel)
+  :is(.panel-actions .btn:not(.db-mount-btn):not(.cuenta-btn):not(.pasar-btn), .panel-actions .git-icon-btn):not(
+    .diff-header *
+  ) {
+  transition:
+    opacity var(--mov-cromo-aparece) var(--curva-estandar),
+    visibility 0s,
+    width var(--mov-cromo-aparece) var(--curva-expandir),
+    min-width var(--mov-cromo-aparece) var(--curva-expandir),
+    padding var(--mov-cromo-aparece) var(--curva-expandir),
+    margin var(--mov-cromo-aparece) var(--curva-expandir),
+    color var(--mov-rapido) var(--curva-estandar),
+    background var(--mov-rapido) var(--curva-estandar),
+    box-shadow var(--mov-rapido) var(--curva-estandar);
+}
+:root
+  :is(.terminal-panel, .agent-pane, .git-log-panel):not(:hover):not(:focus-within)
+  :is(
+    .panel-actions .btn:not(.db-mount-btn):not(.cuenta-btn):not(.pasar-btn):not(.abierto),
+    .panel-actions .git-icon-btn:not(.girando)
+  ):not(.diff-header *):not(.agent-pane .panel-header *) {
+  width: 0;
+  min-width: 0;
+  padding-inline: 0;
+  margin-inline-start: -6px;
+  overflow: hidden;
+  transition:
+    opacity var(--mov-cromo-retira) var(--curva-estandar),
+    visibility 0s linear var(--mov-cromo-retira),
+    width var(--mov-cromo-retira) var(--curva-expandir),
+    min-width var(--mov-cromo-retira) var(--curva-expandir),
+    padding var(--mov-cromo-retira) var(--curva-expandir),
+    margin var(--mov-cromo-retira) var(--curva-expandir),
+    color var(--mov-rapido) var(--curva-estandar),
+    background var(--mov-rapido) var(--curva-estandar),
+    box-shadow var(--mov-rapido) var(--curva-estandar);
+}
+
+/* Los controles conservan su identidad y pliegan su hueco al dejar de ofrecerse. */
+.control-plegable {
+  display: inline-flex;
+  interpolate-size: allow-keywords;
+  width: max-content;
+  overflow: hidden;
+  transition: width var(--mov-medio) var(--curva-expandir), opacity var(--mov-medio) var(--curva-estandar), margin var(--mov-medio) var(--curva-expandir);
+}
+.control-plegable.plegado {
+  width: 0;
+  opacity: 0;
+  margin-inline-start: -6px;
+  pointer-events: none;
+}
+.boton-reinicio-etiqueta.visible {
+  width: max-content;
+  margin-left: 6px;
+  opacity: 1;
+}
+.mov-insignia { --mov-y: 0px; --mov-escala: 0.7; }
+@media (prefers-reduced-motion: reduce) {
+  .project-tab-name-inner { transform: none !important; transition: none !important; }
+}
+
+.git-girando { animation: git-spin var(--mov-giro) var(--curva-lineal) infinite; }
+@media (prefers-reduced-motion: reduce) { .git-girando { animation: none; } }
+
+.uso-cruce { gap: inherit; min-width: 0; max-width: 100%; height: 16px; }
+.uso-cruce > .mov-cruce-capa {
+  display: flex;
+  align-items: center;
+  align-content: flex-start;
+  flex-wrap: wrap;
+  column-gap: inherit;
+  row-gap: 16px;
+  height: 16px;
+}
+.git-copiado { animation: mov-copia-confirma var(--mov-confirma) var(--curva-rebote) both; }
+.git-copiado-trazo { stroke-dasharray: 1; stroke-dashoffset: 0; transition: stroke-dashoffset var(--mov-entrada) var(--curva-estandar); }
+@starting-style { .git-copiado-trazo { stroke-dashoffset: 1; } }
+@keyframes mov-copia-confirma { from { scale: 0.65; } to { scale: 1; } }
+@media (prefers-reduced-motion: reduce) { .git-copiado { animation: none; } }

@@ -83,7 +83,7 @@ export function IconoRecargar({ girando }: { girando: boolean }): React.JSX.Elem
       fill="none"
       stroke="currentColor"
       strokeWidth="1.8"
-      style={girando ? { animation: 'git-spin 0.8s linear infinite' } : undefined}
+      className={girando ? 'git-girando' : undefined}
     >
       <path d="M20 11a8 8 0 1 0-2.3 5.6" strokeLinecap="round" />
       <path d="M20 5v6h-6" strokeLinecap="round" strokeLinejoin="round" />
@@ -95,7 +95,7 @@ export function IconoRecargar({ girando }: { girando: boolean }): React.JSX.Elem
 export function IconoCopiar({ copiado }: { copiado: boolean }): React.JSX.Element {
   return (
     <svg
-      className="icono-copiar"
+      className={`icono-copiar${copiado ? ' git-copiado' : ''}`}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -105,7 +105,7 @@ export function IconoCopiar({ copiado }: { copiado: boolean }): React.JSX.Elemen
       aria-hidden="true"
     >
       {copiado ? (
-        <path d="M5 12.5l4 4 10-10" />
+        <path className="git-copiado-trazo" pathLength={1} d="M5 12.5l4 4 10-10" />
       ) : (
         <>
           <rect x="9" y="9" width="11" height="11" rx="2" />

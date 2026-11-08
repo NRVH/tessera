@@ -40,11 +40,10 @@ export {
 export const VERSION_REGISTRO = 1
 
 /**
- * Motores que esta versión sabe usar. Lo demás es ajeno. Ya no es una lista a mano: son
- * los ids del registro de descriptores (`IDS_MOTORES`, en su orden), y se exporta con su
- * nombre de siempre porque la importan `lecturaSegura` y `test-shim`. Para PREGUNTAR si
- * un motor lo es, `esMotor` (`hasOwnProperty`, da lo mismo que el `includes` de antes con
- * cualquier valor: ni un no-texto ni «constructor» son motores); ver el ADR.
+ * Motores que esta versión sabe usar. Lo demás es ajeno. Son los ids del registro de
+ * descriptores (`IDS_MOTORES`, en su orden), y los importan `lecturaSegura` y
+ * `test-shim`. Para PREGUNTAR si un motor lo es, `esMotor` (`hasOwnProperty`: ni un
+ * no-texto ni «constructor» son motores); ver el ADR.
  */
 export const MOTORES_CONOCIDOS: readonly DbMotor[] = IDS_MOTORES
 
@@ -284,13 +283,13 @@ export interface LecturaConRespaldo {
  *   - nada (no existe, o cero bytes / solo espacios): vacío y escribible, como siempre.
  * Y un principal que NO SE DEJA ABRIR se bloquea SIEMPRE, aunque el `.bak` se lea: no se
  * puede guardar aparte lo que no se puede leer, y la primera escritura lo sustituiría
- * renombrando. Antes se usaba el `.bak`, que es UNA escritura más viejo: un bloqueo al
- * arrancar bastaba para que la primera escritura pusiera encima de lo último guardado lo
- * de la vez anterior.
+ * renombrando. El `.bak` es UNA escritura más viejo: usarlo haría que la primera
+ * escritura, tras un bloqueo al arrancar, pusiera encima de lo último guardado lo de la
+ * vez anterior.
  *
  * Es la regla de `ConnectionStore.read`, sacada aquí para que la use también quien busca
- * en el registro FUERA del store (el smoke de solo lectura, `buscarEnRegistro`): antes ese
- * buscaba en el principal a pelo, sin `.bak` ni formato ajeno, y podía encontrar lo que la
+ * en el registro FUERA del store (el smoke de solo lectura, `buscarEnRegistro`): buscar
+ * en el principal a pelo, sin `.bak` ni formato ajeno, podría encontrar lo que la
  * app no enseña o no ver lo que sí. `tdb` no puede importarla —corre suelto,
  * sin el código del main— y lleva una copia, `leerRegistroConexiones`, que fija `test-shim`.
  *
@@ -450,11 +449,10 @@ function tieneFormaConocida(c: Record<string, unknown>): boolean {
  *
  * Los valores entendidos se NORMALIZAN para USARLOS (los esquemas pierden duplicados, la
  * foto de la introspección gana `en: 0` si no lo traía), pero al disco vuelve el CRUDO
- * mientras nadie los cambie (`leidos`): antes se escribían normalizados, y
- * normalizar es RECONSTRUIR — `{ modo, porDefecto, esquemas }` y nada más—, así que
- * una clave que una versión más nueva guardara DENTRO (unos `patrones` en los esquemas,
- * un `totalBases` en la foto) o una lista más larga que el tope de esta se perdía en la
- * primera escritura rutinaria, igual que las ajenas antes de este módulo.
+ * mientras nadie los cambie (`leidos`): escribirlos normalizados sería RECONSTRUIR
+ * — `{ modo, porDefecto, esquemas }` y nada más—, así que una clave que una versión más
+ * nueva guardara DENTRO (unos `patrones` en los esquemas, un `totalBases` en la foto) o
+ * una lista más larga que el tope de esta se perdería en la primera escritura rutinaria.
  */
 export function separarConocida(crudo: Record<string, unknown>): EntradaConocida | null {
   if (!tieneFormaConocida(crudo)) return null
@@ -689,10 +687,10 @@ export function tipoEntradaPedida(ajena: unknown): TipoEntrada | undefined {
  * perfil de la quitada (`null` si no había ninguna o no traía perfil) y cuántas quedan
  * con ese mismo id.
  *
- * UNA SOLA ENTRADA. Antes se quitaban TODAS las del id, y una conocida y una
- * ajena que lo compartían —solo pasa por una edición a mano, o por pegar a mano una
- * conexión de otra versión— se iban juntas al eliminar una, sin que el diálogo, que
- * nombra solo la que se pulsó, lo dijera. `tipo` dice cuál: la fila que se pulsó sabe si
+ * UNA SOLA ENTRADA. Quitar TODAS las del id sacaría juntas a una conocida y una
+ * ajena que lo compartieran —solo pasa por una edición a mano, o por pegar a mano una
+ * conexión de otra versión— al eliminar una, sin que el diálogo, que nombra solo la
+ * que se pulsó, lo dijera. `tipo` dice cuál: la fila que se pulsó sabe si
  * es conocida o ajena. Sin él, la que resuelve ese id en el resto del store —la
  * conocida, que es la que ven `get`, `update` o `secretOf`— y si no hay, la primera
  * ajena. Dos del MISMO tipo con el mismo id (también a mano) se borran de una en una,

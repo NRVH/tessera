@@ -28,6 +28,7 @@ export interface FuenteHistorialCopia extends FuenteHistorial {
 
 /** Una cuenta de Docker de un perfil, con su carpeta (sin crearla). */
 export interface CuentaHistorial {
+  id: string
   agente: AgenteHistorial
   nombre: string
   predeterminada: boolean
@@ -62,7 +63,7 @@ export function cuentasDelHistorial(cuentas: Cuentas): Pick<DepsHistorial, 'cuen
   return {
     cuentasDe: (perfil) =>
       AGENTES.flatMap((agente) =>
-        cuentas.list(perfil, agente).map((a) => ({ agente, nombre: a.nombre, predeterminada: a.isDefault === true, base: cuentas.rutaDe(a) }))
+        cuentas.list(perfil, agente).map((a) => ({ id: a.id, agente, nombre: a.nombre, predeterminada: a.isDefault === true, base: cuentas.rutaDe(a) }))
       ),
     carpetaDestino: (perfil, agente, nombre, predeterminada) => {
       if (predeterminada) return cuentas.hostDirFor(cuentas.defaultFor(perfil, agente))

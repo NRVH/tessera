@@ -77,7 +77,7 @@ function montarA() {
 
 const { a, grupo, bastion, app, base, archivo } = montarA()
 const fuentes = { ssh: (id: string) => a.ssh.paraCopia(id), bd: (id: string) => a.bd.paraCopia(id) }
-const armado = armarContenido({ frase: 'x'.repeat(8), perfiles: [PERFIL as never], apartados: { ssh: true, bd: true, agentes: false, ajustes: false } }, fuentes)
+const armado = armarContenido({ frase: 'x'.repeat(8), perfiles: [PERFIL as never], apartados: { ssh: true, bd: true, agentes: false, configDocker: false, archivosCuentas: false, reglasNativas: false, ajustes: false } }, fuentes)
 // Por el camino de verdad: texto JSON (lo que se cifra) y vuelta a leer.
 const leido = leerContenido(JSON.stringify(armado.contenido))
 const contenido = leido!.contenido
@@ -132,7 +132,7 @@ const registroC = JSON.parse(readFileSync(path.join(c.dir, 'bd.json'), 'utf8'))
 registroC.connections[0].secretEnc = Buffer.from('Z:x').toString('base64')
 writeFileSync(path.join(c.dir, 'bd2.json'), JSON.stringify(registroC))
 const c2 = new ConnectionStore({ storePath: path.join(c.dir, 'bd2.json'), cifrado: cifradoDe('C') })
-const exportC = armarContenido({ frase: 'x'.repeat(8), perfiles: [PERFIL as never], apartados: { ssh: false, bd: true, agentes: false, ajustes: false } }, { ssh: () => ({ grupos: [], conexiones: [] }), bd: (id) => c2.paraCopia(id) })
+const exportC = armarContenido({ frase: 'x'.repeat(8), perfiles: [PERFIL as never], apartados: { ssh: false, bd: true, agentes: false, configDocker: false, archivosCuentas: false, reglasNativas: false, ajustes: false } }, { ssh: () => ({ grupos: [], conexiones: [] }), bd: (id) => c2.paraCopia(id) })
 check('sinSecreto la nombra', JSON.stringify(exportC.resumen.sinSecreto) === '["rota"]', JSON.stringify(exportC.resumen))
 check('y viaja sin secreto', exportC.contenido.bd?.[0]?.secreto === null, '')
 check('el archivo de B sigue existiendo y legible', existsSync(path.join(b.dir, 'bd.json')), '')

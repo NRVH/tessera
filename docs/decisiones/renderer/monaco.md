@@ -1,7 +1,7 @@
 # Monaco se configura en un solo sitio, con validadores apagados, tema solo hex y sin estados de Monarch que queden abiertos
 
 - **Estado:** vigente
-- **Ámbito:** `src/renderer/src/comun/monacoSetup.ts`, `monacoTema.ts` y `monacoLenguajes.ts`
+- **Ámbito:** `src/renderer/src/comun/monacoSetup.ts`, `monacoTema.ts`, `monacoLenguajes.ts` y `letraEditor.ts`
 
 ## Contexto
 
@@ -16,6 +16,11 @@ notación devuelve rojo, y Monarch no hace pop al final de línea.
 - `OPCIONES_BASE_MONACO` es el único sitio de las opciones comunes (copiadas a medias en cada pane, una
   clase descompilada salía con la fuente por defecto). Con `automaticLayout: false`, cada editor registra su
   `ResizeObserver` y llama a `layout()`; sin esa pata mide 0×0 y el pane sale en negro.
+- La letra del código (fuente y tamaño) es un ajuste del usuario (`comun/letraEditor.ts`). Las opciones base
+  llevan la letra predeterminada, la misma constante que las terminales, y la conservan los editores de bases
+  de datos. El editor, los diffs y los visores de archivos la sustituyen por `opcionesLetraEditor()` y se
+  registran con `conLetraEditor`, así que cambiar el ajuste actualiza los vivos con `updateOptions`. El alto de
+  línea crece con el tamaño (13 px → 20 px).
 - El editor de DIFF llama a `layout({ width, height })` con dimensiones explícitas: no propaga el alto sin
   ellas (lee su propio `style.height` y concluye que no cambió). Un editor de código vale sin argumentos.
 - Los diagnósticos de TS/JS, JSON y CSS se apagan (`apagarDiagnosticos`); el resaltado y el resto del

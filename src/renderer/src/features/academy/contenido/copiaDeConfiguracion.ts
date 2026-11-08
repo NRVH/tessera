@@ -38,6 +38,8 @@ const es: Articulo = {
             'Cada perfil, con sus [reglas](reglas-del-perfil).',
             'Las conexiones SSH, con sus contraseñas, claves y [huellas](glosario/huella), y las de bases de datos, con sus contraseñas.',
             'Los agentes definidos manualmente y los ajustes de Tessera (preferencias, no tamaños de los paneles).',
+            'El [contexto global de los agentes](reglas-del-perfil), con sus reglas y su configuración de Docker, y la configuración de Docker de cada perfil seleccionado; las reglas de cada perfil viajan con él. No incluye las carpetas de documentos.',
+            'Los archivos que usted escribe en cada cuenta de Docker (`CLAUDE.md` y `settings.json`, o `AGENTS.md` y `config.toml`) y las reglas de los agentes [nativos](glosario/nativo) (`CLAUDE.md`, `AGENTS.md`), sin su configuración técnica. Solo viaja lo que tiene contenido.',
             'No incluye los proyectos abiertos ni las sesiones iniciadas de los agentes.'
           ]
         },
@@ -67,7 +69,10 @@ const es: Articulo = {
         },
         'De forma predeterminada, cada perfil del archivo va al perfil de este equipo con el mismo nombre, aunque se hayan creado por separado en cada equipo. El perfil de este equipo conserva su nombre y su color, y solo recibe lo que le falta.',
         'Si el perfil de este equipo no tiene [reglas](reglas-del-perfil), recibe las del archivo. Si tiene otras, se elige entre **Mantener las de este equipo** (opción predeterminada) y **Sustituir por las del archivo**. **Ver diferencias** muestra las dos versiones.',
+        'Cada archivo de las cuentas de Docker aparece bajo su cuenta, y las reglas de los agentes nativos, en **Agentes nativos (de todo el equipo)**. Si este equipo no lo tiene, se puede importar: el de una cuenta viene marcado, y el de un agente nativo no, porque afecta a los agentes de todo el equipo. Si es igual, aparece como **Igual**. Si es distinto, se elige entre mantener el de este equipo (opción predeterminada) y sustituirlo, con **Ver diferencias** para comparar. Una cuenta que aquí no existe se crea sin sesión.',
+        'Si la importación va a sustituir algo que ya existe, un aviso lista qué y dónde antes de escribir; **Volver a la lista** conserva lo elegido. Tessera guarda la versión anterior de cada archivo, pero las reglas de un perfil y las reglas globales no se pueden recuperar. Si solo se crean archivos, no hay aviso y el resumen final los enumera.',
         'Lo que ya está en este equipo aparece como **Ya existe** y no se modifica. Si una conexión necesita otra (un bastión o un túnel SSH), las dos se marcan juntas. Importar dos veces el mismo archivo no duplica nada.',
+        'La configuración de Docker de cada perfil aparece bajo él, y el contexto global, aparte. Si este equipo no tiene, se importa. Si es la misma, aparece como **Igual**. Si es distinta, puede marcarla para sustituir la de este equipo, pero no viene marcada; la configuración anterior se recupera desde el editor de configuración. Las reglas globales solo se sustituyen si el archivo trae unas, y las anteriores no se pueden recuperar.',
         { nota: 'Un archivo exportado sin frase de contraseña muestra un aviso antes de abrirse (se continúa con **Continuar**) y no trae nada marcado, porque cualquiera pudo modificarlo. Marque solo lo que reconozca, sobre todo los agentes, que incluyen órdenes que se ejecutan; las reglas, que son instrucciones para los agentes; y los ajustes.' },
         { nota: 'Por seguridad, el doble clic solo abre archivos guardados en este equipo. Un archivo que esté en una ruta de red se importa con **Importar…**.' },
         { nota: 'El doble clic en un archivo `.tessera` solo funciona si se activó la integración con el escritorio en **Configuración › Integración con el sistema**. En caso contrario, impórtelo desde **Configuración › Exportar e importar**.', soloEn: ['linux'] }
@@ -123,6 +128,8 @@ const en: Articulo = {
             'Each profile, with its [rules](reglas-del-perfil).',
             'SSH connections, with their passwords, keys, and [fingerprints](glosario/huella), and database connections, with their passwords.',
             'Agents you defined manually and Tessera settings (preferences, not panel sizes).',
+            'The [global agent context](reglas-del-perfil), with its rules and Docker configuration, and the Docker configuration of each selected profile; each profile’s rules travel with it. It does not include document folders.',
+            'The files you write in each Docker account (`CLAUDE.md` and `settings.json`, or `AGENTS.md` and `config.toml`) and the rules of the [native](glosario/nativo) agents (`CLAUDE.md`, `AGENTS.md`), without their technical configuration. Only content that exists is included.',
             'It does not include open projects or the agents’ sign-in sessions.'
           ]
         },
@@ -152,7 +159,10 @@ const en: Articulo = {
         },
         'By default, each profile in the file goes to the profile on this computer with the same name, even if they were created separately on each computer. The profile on this computer keeps its name and color, and receives only what it is missing.',
         'If the profile on this computer has no [rules](reglas-del-perfil), it receives the file’s rules. If it has different rules, you choose between **Keep the ones here** (the default) and **Replace with the file’s rules**. **Show differences** shows both versions.',
+        'Each Docker account file appears under its account, and the rules of the native agents in **Native agents (for the whole computer)**. If this computer does not have one, you can import it: an account file is selected by default, and a native agent’s is not, because it affects the agents of the whole computer. If it is the same, it appears as **Identical**. If it is different, you choose between keeping the one on this computer (the default) and replacing it, and **Show differences** compares them. An account that does not exist here is created with no sign-in.',
+        'If the import is going to replace something that already exists, a warning lists what and where before writing; **Back to the list** keeps your selection. Tessera keeps the previous version of each file, but a profile’s rules and the global rules cannot be restored. If only new files are created, there is no warning and the final summary lists them.',
         'Items that already exist on this computer appear as **Already exists** and are not changed. If a connection depends on another one (a bastion or an SSH tunnel), both are selected together. Importing the same file twice does not create duplicates.',
+        'Each profile’s Docker configuration appears under it, and the global context separately. If this computer has none, it is imported. If it is the same, it appears as **Identical**. If it is different, you can select it to replace the one on this computer, but it is not selected by default; the previous configuration can be restored from the configuration editor. The global rules are replaced only if the file includes some, and the previous ones cannot be restored.',
         { nota: 'A file exported without a passphrase shows a warning before it opens (click **Continue** to proceed), and nothing is selected, because anyone could have modified it. Select only what you recognize, especially agents, which include commands that run; rules, which are instructions for the agents; and settings.' },
         { nota: 'For security, double-clicking opens only files saved on this computer. To import a file on a network path, use **Import…**.' },
         { nota: 'Double-clicking a `.tessera` file works only if you turned on desktop integration in **Settings › System integration**. Otherwise, import it from **Settings › Export and import**.', soloEn: ['linux'] }

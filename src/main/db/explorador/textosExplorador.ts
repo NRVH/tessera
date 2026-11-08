@@ -127,7 +127,7 @@ export const txFamilia = crearTextos(
     limiteConsolas: (max: number) =>
       `Esta conexión ya tiene ${max} consolas en ejecución al mismo tiempo. Espere a que termine alguna.`,
     sinConexion: 'La conexión ya no existe.',
-    motorDesconocido: (motor: string) => `Motor desconocido: "${motor}".`,
+    motorDesconocido: (motor: string) => `Motor desconocido: «${motor}».`,
     motorNoEsFamilia: (etiqueta: string, familia: string) =>
       `${etiqueta} no es un motor ${familia}: esta petición no es para esta conexión.`,
     consolaOtroPerfil: 'La consola no pertenece a este perfil.',
@@ -146,7 +146,7 @@ export const txFamilia = crearTextos(
     limiteConsolas: (max: number) =>
       `This connection already has ${max} consoles working at once. Wait for one to finish.`,
     sinConexion: 'The connection no longer exists.',
-    motorDesconocido: (motor: string) => `Unknown engine: "${motor}".`,
+    motorDesconocido: (motor: string) => `Unknown engine: “${motor}”.`,
     motorNoEsFamilia: (etiqueta: string, familia: string) =>
       `${etiqueta} is not a ${familia} engine: this request is not for this connection.`,
     consolaOtroPerfil: 'The console does not belong to this profile.',
@@ -228,13 +228,13 @@ export const txProduccion = crearTextos(
     commit: 'confirme el COMMIT antes de enviarlo',
     enviar: 'confirme los cambios antes de enviarlos',
     escritura: 'confirme la escritura antes de enviarla',
-    mensaje: (alias: string, accion: string) => `«${alias}» es una conexión de PRODUCCIÓN: ${accion}. No se envió nada.`
+    mensaje: (alias: string, accion: string) => `«${alias}» es una conexión de producción: ${accion}. No se envió nada.`
   },
   {
     commit: 'confirm the COMMIT before sending it',
     enviar: 'confirm the changes before submitting them',
     escritura: 'confirm the write before sending it',
-    mensaje: (alias: string, accion: string) => `“${alias}” is a PRODUCTION connection: ${accion}. Nothing was sent.`
+    mensaje: (alias: string, accion: string) => `“${alias}” is a production connection: ${accion}. Nothing was sent.`
   }
 )
 

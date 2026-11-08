@@ -239,7 +239,7 @@ async function correrLote(p: Piezas, d: Preguntas, setLoteMarcado: (l: number | 
   if (decision.tipo !== 'rechazado') {
     let confirmado = false
     if (decision.tipo === 'confirmar') {
-      const ok = await d.pedirConfirmacion({ ...decision.textos, peligro: true })
+      const ok = await d.pedirConfirmacion({ ...decision.textos, peligro: true, severidad: decision.destruye ? 'peligro' : 'advertencia' })
       if (!ok || hayEjecucion(r.estadoRef.current) || r.desmontadoRef.current) return
       confirmado = decision.produccion
     }

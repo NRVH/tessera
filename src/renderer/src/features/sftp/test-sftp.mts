@@ -156,7 +156,7 @@ function progreso(): void {
   check('se quita sola: hecha y cancelada, no el error', seQuitaSola('hecha') && seQuitaSola('cancelada') && !seQuitaSola('error') && !seQuitaSola('en-curso'), 'ok')
   check('verbos', verboOperacion(p({})) === 'Subiendo' && verboOperacion(p({ tipo: 'descarga', fase: 'hecha' })) === 'Descarga' && verboOperacion(p({ tipo: 'borrado', fase: 'error' })) === 'No se pudo eliminar', 'ok')
   check('avance en bytes y en elementos', textoAvance(p({ hechos: 1536, total: 10240 })) === '1,5 KB de 10 KB' && textoAvance(p({ tipo: 'borrado', hechos: 2, total: 5 })) === '2 de 5 elementos' && textoAvance(p({})) === '', textoAvance(p({ hechos: 1536, total: 10240 })))
-  check('título de conflictos: singular y plural', tituloConflictos(1) === 'Reemplazar 1 elemento' && tituloConflictos(3) === 'Reemplazar 3 elementos', 'ok')
+  check('título de conflictos: singular y plural', tituloConflictos(1) === '¿Reemplazar 1 elemento en el destino?' && tituloConflictos(3) === '¿Reemplazar 3 elementos en el destino?', 'ok')
   const nombres = Array.from({ length: 10 }, (_, i) => `f${i}`)
   const cuerpo = mensajeConflictos(nombres)
   check('conflictos: hasta 8 nombres y «y 2 más»', cuerpo.includes('• f7') && !cuerpo.includes('• f8') && cuerpo.includes('… y 2 más'), cuerpo.split('\n').slice(0, 3).join(' / '))

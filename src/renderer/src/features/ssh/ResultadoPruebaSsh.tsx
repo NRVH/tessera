@@ -1,11 +1,13 @@
 // =============================================================================
 // El resultado de «Probar» una conexión SSH en su diálogo, en una región `status` que se anuncia sola:
 // «Conectó en N ms» con la huella del servidor, o el motivo con una pista de qué mirar; con la huella
-// cambiada, en rojo y con «Olvidar la huella guardada…». Los textos son de `pistasPruebaSsh` (puro);
+// cambiada (o con otro tipo de clave que el guardado), en rojo y con «Olvidar la huella guardada…». Los textos son de `pistasPruebaSsh` (puro);
 // la plataforma llega por `window.tessera.plataforma`. Sin rutas: el main ya las quitó.
 // Decisiones: docs/decisiones/ssh/askpass-y-secretos.md
 // =============================================================================
 
+import { useRef } from 'react'
+import { Presente, Cruce } from '../../comun/Presente'
 import type { SshResultadoPrueba } from '../../../../shared/ssh-ipc'
 import { lineasHuella, textoResultadoPrueba } from './pistasPruebaSsh'
 import { txFormularioSsh } from './textosFormulario.ts'
@@ -20,7 +22,7 @@ export interface PropsResultadoPruebaSsh {
 }
 
 /** El resultado de «Probar», o nada si aún no se ha probado. */
-export function ResultadoPruebaSsh({ probando, resultado, host, onOlvidarHuella }: PropsResultadoPruebaSsh): React.JSX.Element | null {
+function ContenidoResultadoPruebaSsh({ probando, resultado, host, onOlvidarHuella }: PropsResultadoPruebaSsh): React.JSX.Element | null {
   if (!probando && resultado === null) return null
   if (probando || resultado === null) {
     return (
@@ -30,7 +32,9 @@ export function ResultadoPruebaSsh({ probando, resultado, host, onOlvidarHuella 
     )
   }
   const t = textoResultadoPrueba(resultado, host, window.tessera.plataforma)
-  const huellaCambiada = !resultado.ok && resultado.motivo === 'ssh-huella-cambiada'
+  // Con otro tipo de clave que el guardado, el remedio es el mismo: olvidar la guardada para confirmar la nueva.
+  const huellaCambiada =
+    !resultado.ok && (resultado.motivo === 'ssh-huella-cambiada' || (resultado.motivo === 'ssh-huella-sin-confirmar' && resultado.huellas.length > 0))
   return (
     <div className={`dbc-prueba ssh-prueba ${resultado.ok ? 'ok' : 'falla'}`} role="status" aria-live="polite">
       <div className="dbc-prueba-linea">
@@ -53,5 +57,18 @@ export function ResultadoPruebaSsh({ probando, resultado, host, onOlvidarHuella 
         </div>
       )}
     </div>
+  )
+}
+
+export function ResultadoPruebaSsh(p: PropsResultadoPruebaSsh): React.JSX.Element {
+  const ultimo = useRef(p)
+  if (p.probando || p.resultado) ultimo.current = p
+  const actual = ultimo.current
+  return (
+    <Presente visible={p.probando || p.resultado !== null} className="mov-despliega">
+      <Cruce clave={actual.probando ? 'probando' : actual.resultado?.ok ? 'ok' : 'falla'}>
+        <ContenidoResultadoPruebaSsh {...actual} />
+      </Cruce>
+    </Presente>
   )
 }

@@ -1,29 +1,30 @@
 // =============================================================================
 // El selector de cuenta del agente: un popover que cuelga del botón de cuenta de la cabecera, con
 // la cuenta del sistema (si el agente puede correr nativo) y sus cuentas de Docker en tarjetas, la
-// que usa marcada, y al pasar por una de Docker su botón «⋯», con un menú para administrarla (renombrar, cerrar
-// sesión, eliminar), apartado de la elección. Al pie, crear otra. Se cierra con un clic fuera, con Escape o al elegir.
+// que usa marcada, y al pasar por una de Docker su botón «⋯», con un menú para administrarla (editar su
+// configuración, renombrar, cerrar sesión, eliminar), apartado de la elección. Al pie, crear otra y abrir la
+// administración de las cuentas de todos los agentes. Se cierra con un clic fuera, con Escape o al elegir.
 // Llevarse la conversación a otra cuenta es de `PopoverTraspaso`.
 // Decisiones: docs/decisiones/agentes/modo-por-agente.md, docs/decisiones/agentes/traspaso-entre-agentes.md
 // =============================================================================
 import './cuentaAgente.css'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { IconoEliminar, IconoRenombrar } from '../../comun/iconosMenu'
-import { normalizarErrorIpc } from '../../../../shared/dockerErrors'
 import { EnCapaFlotante } from '../../comun/capaFlotante'
 import { AYUDA, BotonAyuda } from '../academy'
 import { HUECO, MARGEN, recolocar, type PosicionPopover } from '../../comun/popoverFlotante'
 import { nombresSistema } from '../../../../shared/nombresSistema'
-import { MAX_NOMBRE_CUENTA, type AgentAccount } from '../../../../shared/agent-accounts-ipc'
+import type { AgentAccount } from '../../../../shared/agent-accounts-ipc'
 import { nombreAgente } from './agentPaneTipos'
-import { IconoContenedor, IconoElegida, IconoEquipo, IconoMas, IconoMasAcciones, IconoSalir } from './iconosAgentPane'
-import { ContextMenu, SEP, type ContextMenuEntry } from '../../comun/ContextMenu'
+import { IconoContenedor, IconoElegida, IconoEquipo, IconoMas } from './iconosAgentPane'
 import type { ModoAgente } from './modoAgente'
-import { nombreVisible, vistaSelectorCuenta, type FilaCuenta } from './selectorCuenta.ts'
+import { nombreVisible, vistaSelectorCuenta } from './selectorCuenta.ts'
 import { txPane } from './textosPane.ts'
 import { esAgenteManual } from '../../../../shared/agentesManuales'
 import type { AnclaCuenta } from './useEstadoAgentPane'
 import type { ModeloAgentPane } from './useAgentPane'
+import { MenuCuenta, EditorNombre, entradasCuenta } from './controlesCuenta'
+import { abrirGestionAgentes } from './abrirGestion'
+import { IconoAjustes } from '../../comun/iconosMenu'
 
 /** Ancho de los popovers de tarjetas de cuenta. */
 export const ANCHO_POPOVER = 288
@@ -109,120 +110,6 @@ export function Tarjeta(p: {
   )
 }
 
-/**
- * El menú de una cuenta, tras su botón «⋯» (que aparece al pasar por la tarjeta o al llegar con el teclado):
- * agrupado por consecuencia, con eliminar al final y aislado. Ningún clic de la tarjeta cae en una acción: hace
- * falta abrir el menú.
- */
-function MenuCuenta({ nombre, entradas }: { nombre: string; entradas: ContextMenuEntry[] }): React.JSX.Element | null {
-  const boton = useRef<HTMLButtonElement>(null)
-  const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
-  if (!entradas.some((e) => e !== SEP)) return null
-  const abrir = (): void => {
-    const r = boton.current?.getBoundingClientRect()
-    if (r) setPos({ x: r.left, y: r.bottom + 4 })
-  }
-  return (
-    <>
-      <span className={`cuenta-tarjeta-acciones${pos ? ' abierto' : ''}`}>
-        <button
-          ref={boton}
-          type="button"
-          className="cuenta-accion"
-          title={txPane().menus.masAccionesDe(nombre)}
-          aria-label={txPane().menus.masAccionesDe(nombre)}
-          aria-haspopup="menu"
-          aria-expanded={pos !== null}
-          onClick={abrir}
-        >
-          <IconoMasAcciones />
-        </button>
-      </span>
-      {pos && <ContextMenu x={pos.x} y={pos.y} items={entradas} onClose={() => setPos(null)} disparador={boton} />}
-    </>
-  )
-}
-
-/** Las entradas del menú de una cuenta de Docker: renombrar y cerrar sesión; eliminar. */
-function entradasCuenta(f: FilaCuenta, m: ModeloAgentPane, onRenombrar: () => void): ContextMenuEntry[] {
-  const t = txPane().menus
-  // El selector no se cierra: el diálogo de confirmación va encima y, al terminar, se sigue aquí.
-  const confirmar = (kind: 'logout' | 'delete'): void => m.ui.setConfirm({ kind, account: f.cuenta })
-  const cambiar: ContextMenuEntry[] = []
-  if (f.puedeRenombrar) cambiar.push({ label: t.renombrarItem, icon: <IconoRenombrar />, onClick: onRenombrar })
-  if (f.puedeCerrarSesion) cambiar.push({ label: t.cerrarSesionItem, icon: <IconoSalir />, onClick: () => confirmar('logout') })
-  return [
-    ...cambiar,
-    ...(f.puedeEliminar ? [SEP, { label: t.eliminarItem, icon: <IconoEliminar />, danger: true, onClick: () => confirmar('delete') }] : [])
-  ]
-}
-
-/**
- * La tarjeta de una cuenta mientras se renombra: el nombre es un campo. Enter o salir del campo guardan,
- * Escape deja el que tenía; si el main lo rechaza (vacío, repetido), sigue editándose con el motivo.
- */
-function EditorNombre({ f, m, onTerminar }: { f: FilaCuenta; m: ModeloAgentPane; onTerminar: () => void }): React.JSX.Element {
-  const t = txPane().menus
-  const [valor, setValor] = useState(f.cuenta.nombre)
-  const [error, setError] = useState<string | null>(null)
-  const guardando = useRef(false)
-  // Escape desmonta el campo con el foco dentro y el navegador aún puede mandar su blur: no debe guardar.
-  const cancelado = useRef(false)
-  const guardar = (): void => {
-    if (guardando.current || cancelado.current) return
-    if (valor.trim() === f.cuenta.nombre) return onTerminar()
-    guardando.current = true
-    m.cuenta.handleRenameAccount(f.cuenta.id, valor).then(onTerminar, (err: unknown) => {
-      guardando.current = false
-      setError(normalizarErrorIpc(err instanceof Error ? err.message : String(err)))
-    })
-  }
-  return (
-    <div className={`cuenta-tarjeta-caja${f.actual ? ' actual' : ''}`}>
-      <div className={`cuenta-tarjeta editando${f.actual ? ' actual' : ''}`}>
-        <span className="cuenta-tarjeta-icono">
-          <IconoContenedor />
-        </span>
-        <span className="cuenta-tarjeta-texto">
-          <input
-            className="cuenta-tarjeta-campo"
-            aria-label={t.nombreCuenta}
-            aria-invalid={error !== null}
-            value={valor}
-            maxLength={MAX_NOMBRE_CUENTA}
-            autoFocus
-            onFocus={(e) => e.currentTarget.select()}
-            onChange={(e) => {
-              setValor(e.target.value)
-              setError(null)
-            }}
-            onBlur={guardar}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                guardar()
-              } else if (e.key === 'Escape') {
-                // Solo sale de la edición: el selector sigue abierto.
-                e.preventDefault()
-                e.stopPropagation()
-                cancelado.current = true
-                onTerminar()
-              }
-            }}
-          />
-          {error ? (
-            <span className="cuenta-tarjeta-error" role="alert">
-              {error}
-            </span>
-          ) : (
-            <span className="cuenta-tarjeta-detalle">{t.dockerDetalle}</span>
-          )}
-        </span>
-      </div>
-    </div>
-  )
-}
-
 /** Elegir una cuenta de Docker: con la del sistema en juego, también es pasar el agente a Docker. */
 function eligeDocker(m: ModeloAgentPane, cuenta: AgentAccount): void {
   const { onElegirModo, target } = m.p
@@ -264,11 +151,11 @@ function Secciones({ m, onCerrar }: { m: ModeloAgentPane; onCerrar: () => void }
         <div className="cuenta-seccion-titulo">{vista.nativa ? t.enDocker : t.cuentas}</div>
         {vista.docker.length === 0 && <p className="cuenta-vacio">{t.sinCuentasDocker}</p>}
         {vista.docker.map((f) => {
-          if (editando === f.cuenta.id) return <EditorNombre key={f.cuenta.id} f={f} m={m} onTerminar={() => setEditando(null)} />
+          if (editando === f.cuenta.id) return <EditorNombre key={f.cuenta.id} f={f} m={{ ...m, profileId: target.profileId }} onTerminar={() => setEditando(null)} />
           const nombre = nombreVisible(f.cuenta, t.predeterminada)
           return (
             <Tarjeta key={f.cuenta.id} icono={<IconoContenedor />} nombre={nombre} detalle={t.dockerDetalle} actual={f.actual} onElegir={() => elegir(() => eligeDocker(m, f.cuenta), f.actual)}>
-              <MenuCuenta nombre={nombre} entradas={entradasCuenta(f, m, () => setEditando(f.cuenta.id))} />
+              <MenuCuenta nombre={nombre} entradas={entradasCuenta(f, { ...m, profileId: target.profileId }, () => setEditando(f.cuenta.id), onCerrar)} />
             </Tarjeta>
           )
         })}
@@ -312,6 +199,21 @@ export function PopoverCuenta({ m, ancla, onCerrar }: { m: ModeloAgentPane; ancl
           <IconoMas />
           {m.p.onElegirModo ? t.nuevaCuentaDocker : t.nuevaCuenta}
         </button>
+        {/* Este selector solo enseña las cuentas de este agente; las de todos, también las de un agente oculto, se
+            administran en Configuración. Un agente manual no tiene allí sus cuentas. */}
+        {!esAgenteManual(m.p.target.agente) && (
+          <button
+            type="button"
+            className="cuenta-administrar"
+            onClick={() => {
+              onCerrar()
+              abrirGestionAgentes()
+            }}
+          >
+            <IconoAjustes />
+            {t.administrarCuentas}
+          </button>
+        )}
       </div>
     </EnCapaFlotante>
   )

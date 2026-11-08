@@ -1,4 +1,4 @@
-# El `title` lo enseña la app, igual en las dos plataformas
+# El `title` lo enseña la app, igual en todas las plataformas
 
 - **Estado:** vigente
 - **Ámbito:** `src/renderer/src/comun/TooltipPropio.tsx`, `comun/posicionTooltip.ts`, `comun/tooltipPropio.css` y `App.tsx`
@@ -14,8 +14,9 @@ así que en Mac los botones no decían nada al apuntarlos. En Windows sí sale, 
   de lo que está bajo el ratón en una caja de la app, con la piel de los menús. Vale para cualquier `title` sin que
   quien lo pone haga nada: los botones existentes y los que vengan. También el de un botón desactivado, cuyo motivo va
   en su envoltorio (`btn-envoltura`).
-- **Igual en las dos plataformas.** Montarlo solo en Mac dejaba en Windows dos globos a la vez (el del sistema y este),
-  y el usuario eligió el de la app. Para que el sistema no pinte el suyo, mientras el ratón está encima el `title` de
+- **Igual en todas las plataformas.** Montarlo solo en Mac dejaría en las demás dos globos a la vez (el del sistema y
+  este), y el de la app es el que lleva la piel de los menús. Para que el sistema no pinte el suyo, mientras el
+  ratón está encima el `title` de
   toda la cadena de ancestros con título se guarda en `data-titulo-propio` (guardar solo el del elemento haría que el
   sistema enseñara el del padre), y vuelve al salir, al pulsar o al perder el foco. Al pulsar vuelve en el acto: quien
   busque el `title` tras un clic (las pruebas, el propio código) lo encuentra. Al teclear o desplazar se oculta la caja
@@ -24,8 +25,11 @@ así que en Mac los botones no decían nada al apuntarlos. En Windows sí sale, 
 - Si el ancla desaparece de la página con el ratón encima (una lista que se repinta), no llega ningún `pointerout`:
   mientras la caja se ve, se comprueba cada 300 ms que siga ahí.
 - Un `title` que React reescribe mientras el ratón está encima se vuelve a guardar (`MutationObserver`).
-- Sale a los 500 ms con el ratón quieto, y sin esperar si el anterior SE VIO y se fue hace menos de 400 ms (pasar de un
-  botón al de al lado); barrer una barra sin pararse no enseña ninguno. Va centrado debajo; encima si abajo no cabe; nunca fuera de la ventana.
+- Sale a los 500 ms con el ratón quieto, siempre: encadenarlos sin espera los dejaría tapando las opciones al recorrer
+  una barra. Va centrado debajo; encima si abajo no cabe; nunca fuera de la ventana.
+- **No se enseña lo que ya se lee.** Un título igual al texto visible de su elemento solo sale si ese texto está
+  recortado. Un `title` lleva lo que no está a la vista: el nombre de un icono, por qué algo está desactivado, el valor
+  completo de un texto cortado o un dato adicional. No se pone en paneles o filas enteras ni repite la etiqueta.
 
 ## Consecuencias
 

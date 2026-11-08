@@ -13,9 +13,11 @@ import './conexionesSsh.css'
 import { useRef, useState } from 'react'
 import { ConfirmDialog } from '../../comun/ConfirmDialog'
 import { PromptDialog } from '../../comun/PromptDialog'
+import { AvisoConPresencia, AvisoModal, Modal } from '../../comun/Modal'
+import { AYUDA, BotonAyuda } from '../academy'
 import { etiquetaProbar, usaSecreto } from './borradorSsh'
 import {
-  CabeceraConexionSsh,
+  AccionImportarConexionSsh,
   CampoGrupoSsh,
   CasillaAgentesSsh,
   CampoNombreSsh,
@@ -79,24 +81,29 @@ function CuerpoConexionSsh({ v }: { v: VistaDialogoConexionSsh }): React.JSX.Ele
       <CampoUsuarioSsh borrador={borrador} marcados={marcados} editar={editar} />
       <SelectorMetodoSsh borrador={borrador} marcados={marcados} nombreRadio={v.nombreRadioMetodo} idAyuda={v.idAyudaMetodo} editar={editar} />
       {borrador.metodo === 'clave' && (
-        <CampoClaveSsh
-          clave={borrador.clave}
-          invalido={marcados.includes('clave')}
-          ocupado={v.clave.importando}
-          error={v.clave.error}
-          onElegir={() => void v.elegirClave()}
-          onSoltar={(archivo) => void v.soltarClave(archivo)}
-        />
+        <>
+          <CampoClaveSsh
+            clave={borrador.clave}
+            invalido={marcados.includes('clave')}
+            ocupado={v.clave.importando}
+            error={null}
+            onElegir={() => void v.elegirClave()}
+            onSoltar={(archivo) => void v.soltarClave(archivo)}
+          />
+          <AvisoConPresencia>{v.clave.error !== null && <AvisoModal tono="error">{v.clave.error}</AvisoModal>}</AvisoConPresencia>
+        </>
       )}
       {usaSecreto(borrador) && <CampoSecretoSsh borrador={borrador} destino={v.destinoSecreto} marcados={marcados} editar={editar} />}
       <CasillaAgentesSsh borrador={borrador} idAyuda={v.idAyudaAgentes} editar={editar} />
       <SeccionSaltoTunelesSsh borrador={borrador} bastiones={v.bastiones} marcados={marcados} editar={editar} />
-      {v.error !== null && (
-        <div className="dbc-error" role="alert">
-          {v.error}
-        </div>
-      )}
-      <ResultadoPruebaSsh probando={v.prueba.probando} resultado={v.prueba.resultado} host={borrador.host.trim()} onOlvidarHuella={v.pedirOlvidoHuella} />
+      <AvisoConPresencia>{v.error !== null && (
+        <AvisoModal tono="error">{v.error}</AvisoModal>
+      )}</AvisoConPresencia>
+      <AvisoConPresencia>{(v.prueba.probando || v.prueba.resultado !== null) && (
+        <AvisoModal tono={v.prueba.probando || !v.prueba.resultado ? 'info' : v.prueba.resultado.ok ? 'exito' : 'error'}>
+          <ResultadoPruebaSsh probando={v.prueba.probando} resultado={v.prueba.resultado} host={borrador.host.trim()} onOlvidarHuella={v.pedirOlvidoHuella} />
+        </AvisoModal>
+      )}</AvisoConPresencia>
     </>
   )
 }
@@ -132,55 +139,53 @@ function useImportarEnFormulario(o: OpcionesDialogoConexionSsh, editar: VistaDia
 export function DialogoConexionSsh(o: OpcionesDialogoConexionSsh): React.JSX.Element {
   const v = useDialogoConexionSsh(o)
   const { leyendo, nota, importar } = useImportarEnFormulario(o, v.editar, v.cambios)
+  const t = txFormularioSsh()
+  const ocupado = v.guardando || v.prueba.probando || v.clave.importando || leyendo
   return (
-    <div
-      className="modal-overlay"
-      role="presentation"
-      onMouseDown={() => {
-        if (!v.cambios && !v.guardando) o.onCerrar()
-      }}
-    >
-      <div
-        ref={v.dialogo.ref}
-        className="modal-card db-conexion-modal ssh-conexion-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={v.idTitulo}
-        onMouseDown={(e) => e.stopPropagation()}
-        onKeyDown={v.dialogo.alPulsarTecla}
-      >
-        <form
-          className="dbc-form"
-          noValidate
-          onSubmit={(e) => {
-            e.preventDefault()
-            void v.guardar()
-          }}
-        >
-          <CabeceraConexionSsh
-            idTitulo={v.idTitulo}
-            esEdicion={v.esEdicion}
-            importar={{ conCambios: v.cambios, ocupado: v.guardando || leyendo, leyendo, onImportar: () => void importar() }}
-          />
-          <div className="dbc-cuerpo">
-            {nota !== null && (
-              <p className="ssh-nota-importada" role="status">
-                {nota}
-              </p>
-            )}
-            <CuerpoConexionSsh v={v} />
-          </div>
+    <>
+      <Modal
+        titulo={v.esEdicion ? t.editarConexion : t.nuevaConexion}
+        ayuda={<BotonAyuda destino={AYUDA.conexionSsh} />}
+        subtitulo={!v.esEdicion ? t.ayudaAlta : undefined}
+        acciones={!v.esEdicion ? <AccionImportarConexionSsh importar={{ conCambios: v.cambios, ocupado, leyendo, onImportar: () => void importar() }} /> : undefined}
+        tamano="m"
+        className="db-conexion-modal ssh-conexion-modal"
+        cerrable={!v.guardando}
+        ocupado={ocupado}
+        cierraConVelo={!v.cambios}
+        onCerrar={o.onCerrar}
+        pie={
           <PieConexionSsh
+            formulario={v.idTitulo}
+            ocupado={ocupado}
             guardando={v.guardando}
             probando={v.prueba.probando}
             etiquetaProbar={etiquetaProbar(v.borrador, v.cambios)}
             onProbar={() => void v.probar()}
             onCerrar={o.onCerrar}
           />
+        }
+      >
+        <form
+          ref={v.formularioRef}
+          id={v.idTitulo}
+          className="dbc-form"
+          noValidate
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (!ocupado) void v.guardar()
+          }}
+        >
+          <div className="dbc-cuerpo">
+            <AvisoConPresencia>{nota !== null && (
+              <AvisoModal tono="info">{nota}</AvisoModal>
+            )}</AvisoConPresencia>
+            <CuerpoConexionSsh v={v} />
+          </div>
         </form>
-      </div>
+      </Modal>
       {v.grupoNuevo.abierto && <DialogoGrupoNuevo v={v} />}
       {v.prueba.confirmarOlvido && <ConfirmarOlvidoHuella v={v} />}
-    </div>
+    </>
   )
 }

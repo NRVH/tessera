@@ -64,6 +64,8 @@ export interface EditorPaneProps {
   reopenEncoding?: { token: number; encodingId: string }
   /** Clave del buffer compartido en el registro; ausente en los sin título. */
   modelKey?: string
-  /** Centra una línea y pone el cursor ahí (resultado de la búsqueda en archivos). */
+  /** Centra una línea y pone el cursor ahí (resultado de la búsqueda, o la posición guardada al reabrir). */
   revelar?: EditorRevelar
+  /** Modo de vista con que se abre (el guardado en la sesión del proyecto); sin él, el de serie del archivo. */
+  modoInicial?: ModoVista
 }

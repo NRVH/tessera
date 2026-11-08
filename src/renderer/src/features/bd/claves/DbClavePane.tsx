@@ -24,10 +24,8 @@ import { cuerpoClave } from './cuerpoClave'
 import { useEdicionClave } from './useEdicionClave'
 import { botonesEdicion, itemsFilaEdicion, nombreCampoDe } from './accionesEdicionClave'
 import { DialogoEdicionClave } from './DialogoEdicionClave'
-import { copiarTexto } from '../documentos/utilPanes'
 import { ContextMenu } from '../../../comun/ContextMenu'
-import { IconoCopiar } from '../../../comun/iconosMenu'
-import { BotonBarraBd } from '../rejilla/DatosBotonBarra'
+import { BotonBarraBd, BotonCopiarBd } from '../rejilla/DatosBotonBarra'
 import { MarcaEntorno } from '../MarcaEntorno'
 import { IconoConsola, IconoDetener, IconoExportar, IconoRefrescar, IconoVerValor } from '../iconosBd'
 import { useExportarClave, type ExportarClave } from './useExportarClave'
@@ -146,13 +144,9 @@ function accionesClave(
         <IconoDetener />
       </BotonBarraBd>
       <span className="panel-actions-sep" aria-hidden="true" />
-      <BotonBarraBd etiqueta={t.copiarNombre} titulo={t.copiarNombreTitulo} onClick={() => copiarTexto(p.nombre, t.nombre)}>
-        <IconoCopiar />
-      </BotonBarraBd>
+      <BotonCopiarBd etiqueta={t.copiarNombre} titulo={t.copiarNombreTitulo} texto={p.nombre} />
       {copiableValor !== null && (
-        <BotonBarraBd etiqueta={t.copiarValor} titulo={t.copiarValorTitulo} onClick={() => copiarTexto(copiableValor, t.valor)}>
-          <IconoCopiar />
-        </BotonBarraBd>
+        <BotonCopiarBd etiqueta={t.copiarValor} titulo={t.copiarValorTitulo} texto={copiableValor} />
       )}
       <BotonExportar exportacion={exportacion} sinClave={sinClave} />
       {tabla && (

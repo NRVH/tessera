@@ -37,6 +37,7 @@ export const CSS_CAMBIOS = `
   flex-direction: column;
 }
 .git-panel .working-changes > .working-changes-list,
+.git-panel .git-lista-con-estado > .working-changes-list,
 .git-panel .working-changes > .repo-list {
   flex: 1 1 auto;
   min-height: 0;
@@ -119,6 +120,10 @@ export const CSS_CAMBIOS = `
 .git-panel .repo-header .repo-branch {
   flex: 0 1 auto;
 }
+.git-panel .git-repo-derecha { margin-left: auto; min-width: 0; }
+.git-panel .git-repo-derecha > .mov-cruce-capa { display: flex; align-items: center; justify-content: flex-end; }
+.git-panel .git-rama-sucia { opacity: 0; transition: opacity var(--mov-rapido) var(--curva-estandar); }
+.git-panel .git-rama-sucia.visible { opacity: 1; }
 .git-panel .repo-header:focus-visible {
   outline: 1px solid var(--accent);
   outline-offset: -2px;
@@ -184,12 +189,17 @@ export const CSS_CAMBIOS = `
 }
 /* Acciones en lote. Aparecen SOLO con selección; el hueco ya estaba reservado. */
 .git-panel .subseccion-acciones {
+  opacity: 0;
+  visibility: hidden;
+  scale: 0.9;
+  transition: opacity var(--mov-medio) var(--curva-estandar), scale var(--mov-medio) var(--curva-entrada), visibility 0s linear var(--mov-medio);
   margin-left: auto;
   display: flex;
   align-items: center;
   gap: 4px;
   flex: 0 0 auto;
 }
+.git-panel .subseccion-acciones.visible { opacity: 1; visibility: visible; scale: 1; transition-delay: 0s; }
 .git-panel .subseccion-btn {
   height: 18px;
   padding: 0 7px;
@@ -204,7 +214,7 @@ export const CSS_CAMBIOS = `
   text-transform: none;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+  transition: background var(--mov-rapido) var(--curva-estandar), color var(--mov-rapido) var(--curva-estandar), border-color var(--mov-rapido) var(--curva-estandar);
 }
 .git-panel .subseccion-btn:hover {
   background: rgba(255, 255, 255, 0.06);

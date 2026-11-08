@@ -259,8 +259,8 @@ try {
   {
     const r = archivo({ conexiones: [cx('g1', { alias: 'Prod' }), cx('g2', { alias: 'Ajena', metodo: 'otro' }), cx('g3', { alias: 'De-B', profileId: 'pb' })] })
     const s = store(r)
-    check('(g1) alias repetido sin distinguir mayúsculas', error(() => s.crear(entrada({ alias: 'prod' })))?.includes('"Prod"') === true, String(error(() => s.crear(entrada({ alias: 'prod' })))))
-    check('(g2) cuenta el alias de una ajena del perfil', error(() => s.crear(entrada({ alias: 'ajena' })))?.includes('"Ajena"') === true, String(error(() => s.crear(entrada({ alias: 'ajena' })))))
+    check('(g1) alias repetido sin distinguir mayúsculas', error(() => s.crear(entrada({ alias: 'prod' })))?.includes('«Prod»') === true, String(error(() => s.crear(entrada({ alias: 'prod' })))))
+    check('(g2) cuenta el alias de una ajena del perfil', error(() => s.crear(entrada({ alias: 'ajena' })))?.includes('«Ajena»') === true, String(error(() => s.crear(entrada({ alias: 'ajena' })))))
     check('(g3) en otro perfil, el mismo alias vale', error(() => s.crear(entrada({ alias: 'de-b' }))) === null, 'alta en pa con el alias de pb')
     check('(g4) editar conservando el propio alias vale', error(() => s.editar('g1', { ...entrada(), alias: 'PROD' })) === null, 'g1 -> PROD')
     const malos: Array<[string, Partial<SshConexionInput>]> = [
@@ -479,8 +479,8 @@ try {
     const invocar = (canal: string, req?: unknown): unknown => handlers.get(canal)?.({}, req)
     const enviado = (canal: string, req?: unknown): string | null => error(() => invocar(canal, req))
     check(
-      '(o1) se registran los diecisiete canales invocables, con duplicar, mover y borrar varias, probar, olvidar la huella e importar y exportar OpenSSH',
-      handlers.size === 17 && handlers.has(SSH_CHANNELS.DUPLICAR) && handlers.has(SSH_CHANNELS.MOVER) && handlers.has(SSH_CHANNELS.BORRAR_VARIAS) && handlers.has(SSH_CHANNELS.IMPORTAR_OPENSSH) && handlers.has(SSH_CHANNELS.EXPORTAR_OPENSSH) && handlers.has(SSH_CHANNELS.PROBAR) && handlers.has(SSH_CHANNELS.HUELLA_OLVIDAR) && !handlers.has(SSH_CHANNELS.CAMBIO) && !handlers.has(SSH_CHANNELS.AVISO),
+      '(o1) se registran los veinte canales invocables, con duplicar, mover y borrar varias, probar, olvidar, reconocer, confiar y descartar la huella e importar y exportar OpenSSH',
+      handlers.size === 20 && handlers.has(SSH_CHANNELS.HUELLA_RECONOCER) && handlers.has(SSH_CHANNELS.HUELLA_CONFIAR) && handlers.has(SSH_CHANNELS.HUELLA_DESCARTAR) && handlers.has(SSH_CHANNELS.DUPLICAR) && handlers.has(SSH_CHANNELS.MOVER) && handlers.has(SSH_CHANNELS.BORRAR_VARIAS) && handlers.has(SSH_CHANNELS.IMPORTAR_OPENSSH) && handlers.has(SSH_CHANNELS.EXPORTAR_OPENSSH) && handlers.has(SSH_CHANNELS.PROBAR) && handlers.has(SSH_CHANNELS.HUELLA_OLVIDAR) && !handlers.has(SSH_CHANNELS.CAMBIO) && !handlers.has(SSH_CHANNELS.AVISO),
       [...handlers.keys()].join(' ')
     )
     const claveRara = enviado(SSH_CHANNELS.CREAR, { ...entrada(), metodo: 'clave', clave: { tipo: 'ruta', ruta: 'C:/x' } })
@@ -513,6 +513,12 @@ try {
     check('(o10) olvidar la huella por el canal la vacía y avisa con ssh:cambio', readFileSync(path.join(dirHuellas, conSecreto.id), 'utf-8') === '' && emitidos.length === antesOlvidar + 1, emitidos.slice(antesOlvidar).join(','))
     const sinEjecutar = await Promise.resolve(invocar(SSH_CHANNELS.PROBAR, { id: conSecreto.id })).then(() => null, (x: Error) => x.message)
     check('(o11) probar sin con qué correr ssh: un error claro', sinEjecutar?.includes('no puede probar') === true, String(sinEjecutar))
+    const reconocerRaro = enviado(SSH_CHANNELS.HUELLA_RECONOCER, { id: conSecreto.id, prueba: 'sí' })
+    check('(o12) reconocer con «prueba» que no es verdadero o falso: mal formada', reconocerRaro?.includes('mal formada') === true, String(reconocerRaro))
+    check('(o13) confiar sin ficha de texto: mal formada', enviado(SSH_CHANNELS.HUELLA_CONFIAR, { ficha: 7 })?.includes('mal formada') === true, String(enviado(SSH_CHANNELS.HUELLA_CONFIAR, { ficha: 7 })))
+    const antesConfiar = emitidos.length
+    const inventada = enviado(SSH_CHANNELS.HUELLA_CONFIAR, { ficha: 'inventada' })
+    check('(o14) confiar con una ficha que el main no emitió: no escribe ni avisa', inventada?.includes('caducó o ya se usó') === true && emitidos.length === antesConfiar && readFileSync(path.join(dirHuellas, conSecreto.id), 'utf-8') === '', String(inventada))
   }
 
   // ---------------------------------------------------------------------------
@@ -647,7 +653,7 @@ try {
 
     ctrl.crear(entrada({ alias: 'ocupado' }))
     const repetida = error(() => ctrl.crear(entrada({ alias: 'ocupado', ...ficha(a.token) })))
-    check('(p3) un alta que no valida devuelve la copia a provisional: la ficha sigue valiendo', repetida?.includes('"ocupado"') === true && provisionales().length === 1 && readdirSync(dirClavesP).length === 1, `${repetida} · ${readdirSync(dirClavesP).join(',')}`)
+    check('(p3) un alta que no valida devuelve la copia a provisional: la ficha sigue valiendo', repetida?.includes('«ocupado»') === true && provisionales().length === 1 && readdirSync(dirClavesP).length === 1, `${repetida} · ${readdirSync(dirClavesP).join(',')}`)
 
     const c = ctrl.crear(entrada({ alias: 'con-clave', ...ficha(a.token) }))
     const rutaC = path.join(dirClavesP, c.id)

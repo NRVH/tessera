@@ -9,8 +9,10 @@
 import { useEffect, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import {
+  DEFAULT_AGENTE_TERMINAL_ANCHO,
   DEFAULT_CC_WIDTH,
   DEFAULT_DB_AGENTE_WIDTH,
+  DEFAULT_GIT_HISTORIAL_WIDTH,
   DEFAULT_DB_RESULTADOS_ALTO,
   DEFAULT_GIT_LOG_ARCHIVOS_H,
   DEFAULT_GIT_LOG_DETALLE,
@@ -24,6 +26,7 @@ import { normalizarSaturacion } from '../../../../shared/saturacionDocker'
 import { SSH_RIEL_ANCHO_POR_DEFECTO } from '../../../../shared/ajustesTerminal'
 import { normalizarPreferenciaIdioma } from '../../../../shared/i18n'
 import { normalizarUiFont } from '../../theme/densidad'
+import { esTemaCodigo, TEMA_CODIGO_POR_DEFECTO } from '../../theme/temasCodigo'
 import { useStoreAjustes } from './store'
 import { useStoreLayout } from '../layout'
 import { useStoreAgenteTerminal, useStoreAgentes } from '../agentes'
@@ -56,6 +59,9 @@ export function buildSettings(): WorkspaceSettings {
     terminalResaltado: a.terminalAppearance.resaltar !== false,
     agentFontFamily: a.agentAppearance.fontFamily,
     agentFontSize: a.agentAppearance.fontSize,
+    editorFontFamily: a.editorAppearance.fontFamily,
+    editorFontSize: a.editorAppearance.fontSize,
+    editorTema: a.editorTema,
     uiFontSize: a.uiFontSize,
     explorerFontSize: a.explorerFontSize,
     gitFontSize: a.gitFontSize,
@@ -66,6 +72,8 @@ export function buildSettings(): WorkspaceSettings {
     gitLogRamasWidth: l.gitLogRamasWidth,
     gitLogDetalleWidth: l.gitLogDetalleWidth,
     gitLogArchivosHeight: l.gitLogArchivosH,
+    gitHistorialWidth: l.gitHistorialWidth,
+    agenteTerminalAncho: l.agenteTerminalAncho,
     dbMountsByProject: bd.dbMounts,
     paquetesExtraSandbox: a.paquetesSandbox,
     sandboxDepsNavegador: a.depsNavegadorSandbox,
@@ -160,7 +168,9 @@ function hidratarLayout(s: WorkspaceSettings): void {
     vistaPorPerfil: s.vistaLateralPorPerfil ?? {},
     panelPorPerfil: s.panelInferiorPorPerfil ?? {},
     dbAgenteWidth: s.dbAgenteWidth ?? DEFAULT_DB_AGENTE_WIDTH,
-    dbResultadosAlto: s.dbResultadosAlto ?? DEFAULT_DB_RESULTADOS_ALTO
+    dbResultadosAlto: s.dbResultadosAlto ?? DEFAULT_DB_RESULTADOS_ALTO,
+    gitHistorialWidth: s.gitHistorialWidth ?? DEFAULT_GIT_HISTORIAL_WIDTH,
+    agenteTerminalAncho: s.agenteTerminalAncho ?? DEFAULT_AGENTE_TERMINAL_ANCHO
   })
 }
 
@@ -179,6 +189,8 @@ function hidratarAjustes(s: WorkspaceSettings): void {
       resaltar: s.terminalResaltado !== false
     },
     agentAppearance: { fontFamily: s.agentFontFamily ?? '', fontSize: s.agentFontSize ?? 0 },
+    editorAppearance: { fontFamily: s.editorFontFamily ?? '', fontSize: s.editorFontSize ?? 0 },
+    editorTema: esTemaCodigo(s.editorTema) ? s.editorTema : TEMA_CODIGO_POR_DEFECTO,
     uiFontSize: normalizarUiFont(s.uiFontSize ?? 0),
     // Los overrides no pasan por normalizarUiFont: 0 significa «igual que la interfaz».
     explorerFontSize: s.explorerFontSize ?? 0,
@@ -268,7 +280,9 @@ export function usePersistenciaAjustes(): void {
       s.gitLogDetalleWidth,
       s.gitLogArchivosH,
       s.dbAgenteWidth,
-      s.dbResultadosAlto
+      s.dbResultadosAlto,
+      s.gitHistorialWidth,
+      s.agenteTerminalAncho
     ])
   )
   const rielAncho = useStoreSsh((s) => s.rielAncho)
@@ -288,6 +302,8 @@ function useCamposInmediatos(): unknown[] {
       s.idioma,
       s.terminalAppearance,
       s.agentAppearance,
+      s.editorAppearance,
+      s.editorTema,
       s.uiFontSize,
       s.explorerFontSize,
       s.gitFontSize,

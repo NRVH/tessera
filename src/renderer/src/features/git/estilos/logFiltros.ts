@@ -90,7 +90,7 @@ export const CSS_LOG_FILTROS = `/* --- Columna 2: barra de filtros -------------
   font-size: var(--ui-font);
   cursor: pointer;
   white-space: nowrap;
-  transition: background 140ms ease, color 140ms ease;
+  transition: background var(--mov-rapido) var(--curva-estandar), color var(--mov-rapido) var(--curva-estandar);
 }
 .git-filtro-btn:hover {
   background: rgba(255, 255, 255, 0.05);
@@ -103,8 +103,8 @@ export const CSS_LOG_FILTROS = `/* --- Columna 2: barra de filtros -------------
 /* Con un valor elegido, el filtro se ENCIENDE: hay que poder ver de un vistazo
    que la lista está acotada, o se lee como que el repo tiene menos commits.
 
-   ENCENDIDO = EL PERFIL, OSCURO, CON LETRA CLARA DEL MISMO MATIZ. Antes era el
-   lavado azul de acento, el único azul que quedaba en una ventana violeta. El plato
+   ENCENDIDO = EL PERFIL, OSCURO, CON LETRA CLARA DEL MISMO MATIZ: un lavado azul de
+   acento sería el único azul en una ventana violeta. El plato
    hondo (--sel-hondo) es opaco y no un lavado porque el filtro se lee como una
    PIEZA puesta, no como una fila resaltada; y la letra en --perfil-sobre-tinte es
    el contraste claro/oscuro dentro de un solo color. Va por ESA variable y no por

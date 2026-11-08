@@ -5,9 +5,9 @@
 
 ## Contexto
 
-Abrir un archivo suelto desde el gestor de archivos del sistema creaba un proyecto con su carpeta
-y arrancaba su agente (con sus servidores MCP), para un archivo que solo se quería mirar. Cada uno
-dejaba una sesión viva y una columna que le quitaba ancho al archivo.
+Abrir un archivo suelto desde el gestor de archivos del sistema crea un proyecto con su carpeta. Si
+eso arrancara su agente (con sus servidores MCP), un archivo que solo se quiere mirar dejaría una
+sesión viva y una columna que le quita ancho al archivo.
 
 ## Decisión
 

@@ -11,13 +11,16 @@ cinco proyectos abiertos son ~6,5 GB que nadie usa. En Docker lo caro es el cont
 ## Decisión
 
 - Se cierra SOLO el agente, y solo el nativo de proyectos que no están en pantalla (ni el activo
-  ni una casilla del mosaico). Las terminales no se tocan; Docker queda fuera de esta versión.
+  ni una casilla del mosaico). Las terminales no se tocan. Un agente en Docker no se hiberna por inactividad: lo
+  que cuesta es su contenedor, que tiene su propio límite (`sandbox/limite-de-contenedores.md`).
 - El renderer dice QUÉ hay en pantalla y lleva el temporizador; el main MIDE (reloj monotónico de
   la última E/S del pty), decide con una función pura y cierra en el mismo tick. La inactividad es
   el mínimo entre el tiempo sin E/S y el tiempo fuera de pantalla. Sin renderer, nadie hiberna.
 - Vetos, todo o nada por proyecto: trabajando, esperando respuesta, texto sin enviar, sin revisar,
   ocupada, contrapresión y TRABAJO PENDIENTE: el CLI calla con tareas en segundo plano o un `/loop`,
-  así que se lee del transcript y, si nadie lo vigila, se da por pendiente.
+  así que se lee del transcript y, si nadie lo vigila, se da por pendiente. Y TAREAS DELEGADAS en marcha
+  (`terminalAgente/hibernacion.ts`): la sesión que delegó las está esperando y hibernarla las cancelaría
+  ([delegar-en-cuentas-de-docker.md](delegar-en-cuentas-de-docker.md)).
 - El cierre no teclea nada (`^C` y `exit` son entrada en la TUI): mata el árbol (`taskkill /T /F`; en
   macOS, grupos con TERM y KILL), en una sola cola por proceso y con la marca de parada síncrona.
 - El main responde al soltar las sesiones y devuelve el chat ANCLADO de cada una, que el pane reanuda.

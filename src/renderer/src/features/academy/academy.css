@@ -19,6 +19,12 @@
 .academy-grupo + .academy-grupo {
   margin-top: 22px;
 }
+/* El grupo pedido desde las migajas se resalta con `.academy-destacada`: un poco de aire para el fondo. */
+.academy-grupo {
+  margin-inline: -8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+}
 
 .academy-grupo-titulo {
   margin: 0 0 10px;
@@ -126,47 +132,25 @@
 
 /* --- Lector ------------------------------------------------------------------ */
 
-/* Encima de todo lo que puede tener un ⓘ: también de lo que Configuración abre sobre sí misma
-   (el agente propio va en una capa a 2100). */
-.modal-overlay.academy-lector-velo {
-  z-index: 2200;
-}
-
-.academy-lector {
+.modal-card.academy-lector {
   /* Como toda superficie: declara la variable para escalar con el ajuste de interfaz. */
   font-size: var(--ui-font);
   container-type: inline-size;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
   width: min(1040px, 100%);
   height: min(860px, 100%);
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 12px;
   background: var(--bg-modal);
   box-shadow: var(--shadow-modal);
   color: var(--fg);
   outline: none;
-  animation: modal-pop 150ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .academy-lector {
-    animation: none;
-  }
 }
 
 .academy-lector-cabecera {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 18px 20px 16px 24px;
-  border-bottom: 1px solid var(--border-soft);
-  background: linear-gradient(
-    to bottom,
-    color-mix(in srgb, var(--accent) 8%, transparent),
-    transparent
-  );
 }
 
 .academy-lector-cabecera .academy-icono-articulo {
@@ -180,17 +164,33 @@
   height: calc(var(--ui-font) + 10px);
 }
 
-.academy-lector-titulos {
-  flex: 1;
-  min-width: 0;
-}
-
 .academy-lector-grupo {
   display: flex;
   align-items: center;
   gap: 6px;
   color: var(--fg-muted);
   font-size: calc(var(--ui-font) - 1px);
+}
+
+/* Cada migaja es un enlace al índice: el texto de las migajas, subrayado y en el acento al apuntarla. */
+.academy-migaja {
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: color var(--mov-rapido) var(--curva-estandar);
+}
+.academy-migaja:hover {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.academy-migaja:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .academy-lector-grupo svg {
@@ -204,14 +204,19 @@
   font-size: calc(var(--ui-font) + 8px);
   font-weight: 650;
   line-height: 1.2;
-  letter-spacing: -0.01em;
 }
 
-.academy-lector-cerrar {
-  align-self: flex-start;
+.academy-lector-contenido {
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+.academy-lector .modal-cabecera {
+  border-bottom: 1px solid var(--border-soft);
 }
 
 .academy-lector-cuerpo {
+  min-height: 0;
   display: grid;
   grid-template-columns: 210px minmax(0, 1fr);
   gap: 32px;
@@ -521,20 +526,24 @@
   }
 }
 
+/* En el pie fijo del lector (`.modal-pie`, con su filete arriba): el anterior a la izquierda y el siguiente a
+   la derecha, cada uno del ancho de su título y como mucho la mitad del pie. */
 .academy-pasar {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  flex: 1 1 auto;
+  display: flex;
+  justify-content: space-between;
   gap: 12px;
-  margin-top: 28px;
-  padding-top: 18px;
-  border-top: 1px solid var(--border-soft);
+}
+.academy-pasar-boton {
+  max-width: calc(50% - 6px);
 }
 
 .academy-pasar-boton {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 12px 14px;
+  gap: 1px;
+  min-width: 0;
+  padding: 6px 12px;
   border: 1px solid var(--border-soft);
   border-radius: 10px;
   background: none;
@@ -555,7 +564,8 @@
 }
 
 .academy-siguiente {
-  grid-column: 2;
+  margin-left: auto;
+  align-items: flex-end;
   text-align: right;
 }
 
@@ -567,6 +577,9 @@
 .academy-pasar-titulo {
   color: var(--accent);
   font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* --- Botón ⓘ ------------------------------------------------------------------ */

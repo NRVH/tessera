@@ -94,7 +94,7 @@ test.describe.serial('Agentes definidos manualmente', () => {
     await modal.getByLabel('Comando').fill('no-existe-tessera-xyz')
     await modal.getByRole('button', { name: 'Guardar' }).click()
     await expect(modal.getByRole('alert')).toContainText('no encuentra «no-existe-tessera-xyz»', { timeout: 20_000 })
-    await expect(modal.getByRole('button', { name: 'Guardar igualmente' })).toBeVisible()
+    await expect(modal.getByRole('button', { name: 'Guardar de todos modos', exact: true })).toBeVisible()
     await modal.getByRole('button', { name: 'Cancelar' }).click()
     await expect(modal).toHaveCount(0)
     await expect(pestana(win, 'Fantasma'), 'cancelar no lo guarda').toHaveCount(0)
@@ -229,6 +229,9 @@ test.describe.serial('Agentes definidos manualmente', () => {
     // El ojo oculta y vuelve a mostrar.
     await modal.getByRole('button', { name: 'Ocultar Codex' }).click()
     await expect(pestana(win, 'Codex')).toHaveCount(0)
+    const oculto = modal.locator('.gestion-agente[data-agente="codex"]')
+    await oculto.getByRole('button', { name: /^Expandir las cuentas de Docker de «Codex»/ }).click()
+    await expect(oculto.getByRole('button', { name: 'Nueva cuenta…', exact: true })).toBeVisible()
     await modal.getByRole('button', { name: 'Mostrar Codex' }).click()
     await expect(pestana(win, 'Codex')).toHaveCount(1)
     // El modo lista: un desplegable con el agente actual en vez de las pestañas.

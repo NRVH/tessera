@@ -4,6 +4,7 @@
 // el primero. Pura y sin dependencias, para probarla con `node` a secas (`test-loader.mts`).
 // =============================================================================
 
+import { MAX_CARPETAS_DOCUMENTOS } from '../../shared/documentosPerfil.ts'
 import { MAX_REGLAS_PERFIL } from '../../shared/reglasPerfil.ts'
 import type { Agente, AgenteConfig } from './types'
 
@@ -17,9 +18,27 @@ function isAgenteConfig(value: unknown): value is AgenteConfig {
   return true
 }
 
+/**
+ * El id nombra carpetas del perfil (capas compartidas, buzón del puente, cuentas): uno que llega en una copia de
+ * la configuración no puede salirse de ellas. Solo se rechaza lo que cambia la ruta, para no invalidar ids
+ * existentes con otros caracteres.
+ */
+export function idSeguroEnRutas(id: string): boolean {
+  // eslint-disable-next-line no-control-regex
+  return !/[/\\:\u0000-\u001f]/.test(id) && !id.includes('..') && id !== '.'
+}
+
 /** Las reglas, si vienen, son un texto dentro del tope. */
 function reglasValidas(reglas: unknown): boolean {
   return reglas === undefined || (typeof reglas === 'string' && reglas.length <= MAX_REGLAS_PERFIL)
+}
+
+function documentosValidos(documentos: unknown): boolean {
+  return (
+    Array.isArray(documentos) &&
+    documentos.length <= MAX_CARPETAS_DOCUMENTOS &&
+    documentos.every((d) => typeof d === 'string' && d.trim().length > 0)
+  )
 }
 
 /**
@@ -33,8 +52,12 @@ export function validateProfileShape(value: unknown): string[] {
     return ['el perfil debe ser un objeto']
   }
   const p = value as Record<string, unknown>
+  if (p.clavesSshPermitidas !== undefined && (!Array.isArray(p.clavesSshPermitidas) || !p.clavesSshPermitidas.every((ruta) => typeof ruta === 'string' && ruta.length > 0))) {
+    errors.push('"clavesSshPermitidas" debe ser un arreglo de rutas no vacías')
+  }
 
   if (typeof p.id !== 'string' || p.id.length === 0) errors.push('"id" debe ser un string no vacío')
+  else if (!idSeguroEnRutas(p.id)) errors.push('"id" no puede llevar separadores de ruta, «..» ni caracteres de control')
   if (typeof p.nombre !== 'string' || p.nombre.length === 0) errors.push('"nombre" debe ser un string no vacío')
   if (typeof p.color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(p.color)) {
     errors.push('"color" debe ser un hex de la forma #RRGGBB')
@@ -66,6 +89,17 @@ export function validateProfileShape(value: unknown): string[] {
   // "reglas" es OPCIONAL: texto de las reglas del perfil para los agentes, con tope.
   if (!reglasValidas(p.reglas)) {
     errors.push(`"reglas" (si se declara) debe ser un string de como mucho ${MAX_REGLAS_PERFIL} caracteres`)
+  }
+
+  // "contextoGlobal" es OPCIONAL: ausente, el perfil usa el contexto global de los agentes.
+  if (p.contextoGlobal !== undefined && p.contextoGlobal !== false) {
+    errors.push('"contextoGlobal" (si se declara) solo puede ser false')
+  }
+
+  // "documentos" es OPCIONAL: carpetas de documentos de referencia. No se exige que existan: una copia
+  // traída de otro equipo puede nombrar una que aquí no está, y `tctx docs` lo dice.
+  if (p.documentos !== undefined && !documentosValidos(p.documentos)) {
+    errors.push(`"documentos" (si se declara) debe ser un arreglo de como mucho ${MAX_CARPETAS_DOCUMENTOS} rutas no vacías`)
   }
 
   if (typeof p.sandbox !== 'object' || p.sandbox === null) {

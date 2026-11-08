@@ -7,6 +7,9 @@
 // Decisiones: docs/decisiones/bd/ui-rejilla-visor-fuente.md
 // =============================================================================
 
+import { useConfirmacionCopiar } from '../../comun/useConfirmacionCopiar'
+import { Presente } from '../../comun/Presente'
+import { Segmentado } from '../../comun/Segmentado'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { editor } from 'monaco-editor'
 import { tituloParteFuente, type DbErrorSql, type DbFuente, type DbRespuesta } from '../../../../shared/db-explorador-ipc'
@@ -20,7 +23,7 @@ import { EstadoVacio } from '../../comun/EstadoVacio'
 import { IconoConsola, IconoRefrescar } from './iconosBd'
 import { IconoCopiar } from '../../comun/iconosMenu'
 import { BotonBarraBd } from './rejilla/DatosBotonBarra'
-import { notify, notifyError } from '../../comun/notifications'
+import { notifyError } from '../../comun/notifications'
 import { describirError, errorDeInvoke, lenguajeFuente, rutaModeloFuente } from './panesBd'
 import { retenerSilencioCancelaciones } from './silencioCancelacionesMonaco'
 import { txPanes } from './textosPanes.ts'
@@ -254,11 +257,12 @@ function BarraFuente(p: BarraFuenteProps): React.JSX.Element {
   const partes = fuente?.partes ?? []
   const t = txPanes()
   const motivoSinTexto = !parteActual || parteActual.texto.trim() === '' ? t.sinTextoQueUsar : null
+  const { copiado, confirmar } = useConfirmacionCopiar()
   const copiar = (): void => {
     if (!parteActual) return
     window.tessera.clipboard
       .write(parteActual.texto)
-      .then(() => notify('success', t.copiado, partes.length > 1 ? tituloParteFuente(parteActual.titulo) : undefined))
+      .then(confirmar)
       .catch((err: unknown) => notifyError(t.noSePudoCopiar, err))
   }
   const abrirEnConsola = (): void => {
@@ -268,20 +272,13 @@ function BarraFuente(p: BarraFuenteProps): React.JSX.Element {
   return (
     <header className="panel-header db-barra">
       {partes.length > 1 && (
-        <div className="db-fuente-partes" role="radiogroup" aria-label={t.parteDeLaFuente}>
-          {partes.map((pt, i) => (
-            <button
-              key={pt.titulo}
-              type="button"
-              role="radio"
-              aria-checked={i === p.parte}
-              className="db-fuente-parte"
-              onClick={() => p.elegirParte(i)}
-            >
-              {tituloParteFuente(pt.titulo)}
-            </button>
-          ))}
-        </div>
+        <Segmentado
+          compacto
+          etiqueta={t.parteDeLaFuente}
+          opciones={partes.map((pt, i) => ({ valor: String(i), etiqueta: tituloParteFuente(pt.titulo) }))}
+          valor={String(p.parte)}
+          onCambio={(v) => p.elegirParte(Number(v))}
+        />
       )}
       <span className="db-barra-meta" title={fuente ? t.origen(fuente.origen) : undefined}>
         {p.cargando ? t.cargando : partes.length === 1 ? tituloParteFuente(partes[0].titulo) : ''}
@@ -296,7 +293,7 @@ function BarraFuente(p: BarraFuenteProps): React.JSX.Element {
         </BotonBarraBd>
         <span className="panel-actions-sep" aria-hidden="true" />
         <BotonBarraBd etiqueta={t.copiar} titulo={tituloCopiarFuente(partes, parteActual, esDdl)} motivo={motivoSinTexto} onClick={copiar}>
-          <IconoCopiar />
+          <IconoCopiar copiado={copiado} />
         </BotonBarraBd>
         <BotonBarraBd
           etiqueta={t.abrirEnConsola}
@@ -346,6 +343,8 @@ export function DbFuentePane(props: DbFuentePaneProps): React.JSX.Element {
   }
 
   const capa = capaFuente(error, esDdl, fuente)
+  const ultimaCapa = useRef(capa)
+  if (capa) ultimaCapa.current = capa
 
   return (
     <section
@@ -369,7 +368,7 @@ export function DbFuentePane(props: DbFuentePaneProps): React.JSX.Element {
 
       <div className="db-fuente-cuerpo">
         <div ref={refs.hostRef} className="db-fuente-host editor-host" />
-        {capa && <div className="db-fuente-capa">{capa}</div>}
+        <Presente visible={!!capa} className="db-fuente-capa mov-aparece">{ultimaCapa.current}</Presente>
       </div>
     </section>
   )

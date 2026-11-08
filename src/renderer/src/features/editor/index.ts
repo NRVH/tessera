@@ -6,7 +6,10 @@
 // =============================================================================
 export { useStoreEditor, subirTokens, type EstadoEditor } from './store'
 export type { EditorApp, OpcionesApertura } from './useEditorApp'
-export { editorTargetKey, raizDeTarget } from './editorTabsModel'
+export { editorTargetKey, paneKeyEditor, raizDeTarget } from './editorTabsModel'
+export type { EditorTab, EditorTabsState } from './editorTabsModel'
+export { modoInicialPara, type ModoVista } from './modoVista'
+export { alMoverCursor, cursorDe, recordarCursor } from './cursorPorArchivo'
 export type { OpenFile, CenterPane, MotivoCcOculto } from './centerPane'
 export { alternarColumnaAgente } from './centerPane'
 export { DiffEditorPane } from './DiffEditorPane'

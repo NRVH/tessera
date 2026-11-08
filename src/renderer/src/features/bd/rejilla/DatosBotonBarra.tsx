@@ -5,6 +5,10 @@
 // de datos (`DatosBarra.tsx`), fuente, colección, documento y clave.
 // =============================================================================
 
+import { useConfirmacionCopiar } from '../../../comun/useConfirmacionCopiar'
+import { IconoCopiar } from '../../../comun/iconosMenu'
+import { copiarTexto } from '../documentos/utilPanes'
+
 /** Botón de icono de barra; con `motivo` va apagado y el motivo sale en el `title`. */
 export function BotonBarraBd({
   etiqueta,
@@ -36,4 +40,12 @@ export function BotonBarraBd({
       </button>
     </span>
   )
+}
+
+/** La palomita confirma únicamente una escritura completada en el portapapeles. */
+export function BotonCopiarBd({ texto, etiqueta, titulo }: { texto: string; etiqueta: string; titulo: string }): React.JSX.Element {
+  const { copiado, confirmar } = useConfirmacionCopiar()
+  return <BotonBarraBd etiqueta={etiqueta} titulo={titulo} onClick={() => { void copiarTexto(texto, etiqueta).then((ok) => { if (ok) confirmar() }) }}>
+    <IconoCopiar copiado={copiado} />
+  </BotonBarraBd>
 }

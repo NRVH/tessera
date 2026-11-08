@@ -7,6 +7,8 @@
 // Decisiones: docs/decisiones/git/main-abanico-fondo-y-generacion.md
 // =============================================================================
 
+import { AsyncResource } from 'node:async_hooks'
+
 /** Prioridades. Menor número = antes. */
 export const PRIORIDAD = {
   /** Lo que el usuario está mirando ahora mismo. */
@@ -94,7 +96,7 @@ export class ColaGit {
   ): Promise<T> {
     return new Promise<T>((resolver, rechazar) => {
       this.cola.push({
-        fn: fn as () => Promise<unknown>,
+        fn: AsyncResource.bind(fn) as () => Promise<unknown>,
         prioridad,
         ambito,
         vigente,
@@ -187,3 +189,6 @@ export class ColaGit {
     return (t.ambito !== '' && this.cancelados.has(t.ambito)) || t.vigente?.() === false
   }
 }
+
+/** Cola compartida por las operaciones y las consultas de permisos. */
+export const colaGit = new ColaGit(16, 4)

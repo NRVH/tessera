@@ -14,7 +14,7 @@ import { montarAgenteFalso, type AgenteFalso } from './agenteFalso'
 import { filaTras } from './consolaAyudas'
 import { git } from './humoAyudas'
 import { esperarConsolaLista, monacoConsola } from './monaco'
-import { montarSshFalso, type SshFalso } from './sshFalso'
+import { montarSshFalso, sembrarHuellas, type SshFalso } from './sshFalso'
 import { MOD, type SesionTessera } from './tessera'
 
 export const PERFILES = ['uno', 'dos', 'tres', 'cuatro', 'cinco'] as const
@@ -153,7 +153,7 @@ export async function irAPerfil(win: Page, id: IdPerfil): Promise<void> {
 }
 
 /** Cambia la vista del lateral (por su etiqueta: el `title` se guarda aparte mientras el ratón está encima). */
-export async function vista(win: Page, etiqueta: 'Archivos' | 'Conexiones a bases de datos'): Promise<void> {
+export async function vista(win: Page, etiqueta: 'Archivos' | 'Bases de datos'): Promise<void> {
   await win.locator(`.activity-item[aria-label="${etiqueta}"]`).click()
   await asentar(win)
 }
@@ -241,7 +241,7 @@ export async function abrirConsola(win: Page, sql: string): Promise<void> {
 export async function cargarBase(s: SesionTessera, perfil: IdPerfil, proyecto: Proyecto): Promise<void> {
   const win = s.win
   await win.evaluate((r) => window.tessera.db.montarArchivo(r), { profileId: perfil, projectHostPath: proyecto.ruta, relPath: ARCHIVO_BD })
-  await vista(win, 'Conexiones a bases de datos')
+  await vista(win, 'Bases de datos')
   for (const t of TABLAS_ABIERTAS) await abrirTabla(win, perfil, t)
   await abrirConsola(win, 'select * from pedidos limit 1000')
   await abrirConsola(win, 'select c.ciudad, count(*) as n, sum(p.total) as total from pedidos p join clientes c on c.id = p.cliente group by c.ciudad')
@@ -274,8 +274,9 @@ export async function cerrarSsh(win: Page, alias: string): Promise<void> {
   await expect(pestana).toHaveCount(0, { timeout: 15_000 })
 }
 
-/** Crea las conexiones SSH del perfil (por la API del preload) y abre las dos primeras. */
-export async function cargarSsh(win: Page, perfil: IdPerfil): Promise<void> {
+/** Crea las conexiones SSH del perfil (por la API del preload), con su huella ya confirmada, y abre las dos primeras. */
+export async function cargarSsh(s: SesionTessera, perfil: IdPerfil): Promise<void> {
+  const win = s.win
   await win.evaluate(async (profileId) => {
     for (const [alias, host] of [
       ['Alfa', '192.0.2.10'],
@@ -285,6 +286,7 @@ export async function cargarSsh(win: Page, perfil: IdPerfil): Promise<void> {
       await window.tessera.ssh.crear({ profileId, alias, grupoId: null, host, puerto: 22, usuario: 'pruebas', metodo: 'sistema', disponibleAgentes: false })
     }
   }, perfil)
+  await sembrarHuellas(win, s.datos)
   // La vista de BD ocupa el centro entero: la terminal de abajo es la de la vista de archivos.
   await vista(win, 'Archivos')
   await abrirSsh(win, 'Alfa')
@@ -296,7 +298,7 @@ export async function cerrarProyecto(win: Page, p: Proyecto): Promise<void> {
   const pestana = win.locator('.tabs-projects .project-tab', { hasText: p.nombre }).first()
   await pestana.hover()
   await pestana.getByRole('button', { name: `Cerrar ${p.nombre}` }).click()
-  await win.getByRole('dialog', { name: 'Cerrar proyecto' }).getByRole('button', { name: `Cerrar «${p.nombre}»`, exact: true }).click()
+  await win.getByRole('dialog', { name: /Cerrar el proyecto/ }).getByRole('button', { name: `Cerrar «${p.nombre}»`, exact: true }).click()
   await expect(win.locator('.tabs-projects .project-tab', { hasText: p.nombre })).toHaveCount(0)
 }
 

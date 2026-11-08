@@ -30,10 +30,13 @@
   same agent (Claude Code to Claude Code, or Codex to Codex) brings the whole conversation. Moving
   between Claude Code and Codex brings a summary of the latest messages and the Git status.
 - **You decide how far each agent can reach.** In Docker, an agent sees only the projects it works
-  on. It uses databases and SSH servers by name, without receiving the passwords.
-- **You write instructions once.** Profile rules reach the Claude Code and Codex agents of that
-  profile, in any project and with any account. An agent can propose changes, but only you accept
-  them.
+  on. It uses databases and SSH servers by name, without receiving the passwords, and connects over
+  SSH only with the keys you enable, which never enter the container.
+- **You write instructions once.** Global rules reach the Claude Code and Codex agents of every
+  profile, and each profile's rules reach that profile's agents, in any project and with any
+  account. An agent can propose changes, but only you accept them.
+- **An agent shares out the work.** An agent on your computer can delegate tasks to its profile's
+  Docker accounts, without opening their windows, and receive the result.
 - **Everything in one place.** Editor, file explorer, Git, terminals, SSH connections and databases
   next to the agents, a grid to follow up to six agents at once, and a built-in guide, Tessera
   Academy.
@@ -182,6 +185,8 @@ Spanish. The **ⓘ** button in dialogs opens the matching section.
   in the title bar.
 - Tessera restores each profile's open projects without starting every agent at once: an agent starts
   when you enter its project.
+- **Each project reopens as you left it**: its files, view mode and cursor line, expanded folders and
+  terminals. The window returns to its monitor, with its size and position.
 - **Hibernating a profile** stops its containers and frees their memory; it resumes when you return.
 - **Idle native agents hibernate** after a few minutes (5 by default, or never) and resume their
   conversation when you return. This does not happen while the agent is working, waiting for a reply,
@@ -196,9 +201,18 @@ Spanish. The **ⓘ** button in dialogs opens the matching section.
   resumes its last conversation.
 - **Account usage** in the agent footer, with your plan's limits, and how much of the **context window**
   the conversation uses.
-- **Profile rules.** A text with your instructions (branches, what not to change, how to name commits)
-  that agents receive when they start. With `tctx proponer`, an agent proposes a change and you review
-  the difference before accepting it. You write them in **Rules for agents…**, in the profile menu.
+- **Delegating tasks.** An agent on your computer sends a task to a Docker account of its profile with
+  `tctx delegar`, waits for the result and carries on, without that account's terminal opening. With
+  `tctx cuentas` it sees each account's available usage (or lets Tessera pick the least used one), and with
+  `tctx tarea` it monitors, cancels or continues a long task. While tasks are running, an indicator in the
+  agent header shows them with their account and elapsed time, and lets you cancel them.
+- **Each account's files**, editable in Tessera: the configuration (`settings.json`, `config.toml`) and the
+  instructions (`CLAUDE.md`, `AGENTS.md`) of a Docker account or of the agent on your computer, in the
+  **Agent context** dialog. **Edit configuration…**, in a Docker account's **⋯** menu, opens it with that
+  account selected.
+- **Docker accounts in Settings › Agents.** Each agent expands its accounts there to create, rename, sign in
+  to or out of, and delete them, even when the agent is hidden. The account selector in the header leads
+  there with **Manage accounts…**.
 - **Search what was said.** With `tctx buscar`, an agent retrieves what was discussed in the project's
   conversations. In Docker, it searches only its own account.
 - **Agent windows.** A native agent in a separate window, with no profile or project, from **New agent
@@ -210,6 +224,26 @@ Spanish. The **ⓘ** button in dialogs opens the matching section.
   container.
 - **Any other terminal agent**, added by hand with its name, its command and where it runs. It has no
   history, account usage or automatic hibernation.
+
+### Agent context
+
+What the agents receive is organized in two levels: the **global** one, for the agents of every profile
+that uses it, and **each profile's**, added after it. Each profile decides whether it uses the global one.
+Each level has three parts:
+
+- **Rules.** A text with your instructions (branches, what not to change, how to name commits), the same
+  for Claude Code and Codex, that agents receive when they start, on your computer and in Docker. If a
+  profile rule contradicts a global one, the profile rule prevails. With `tctx proponer`, an agent proposes
+  a change and you review the difference before accepting it.
+- **Documents.** Folders on your computer with reference documents, such as a contract or a guide. They
+  are not loaded in every session: agents consult them by name with `tctx docs`, in Docker too.
+- **Docker configuration.** The model, permissions and MCP servers of the agents in Docker, for all
+  accounts or for one. It is applied when each session opens, without changing the account's files. An
+  agent reads it with `tctx config` and proposes changes with `tctx config proponer`.
+
+A profile's **Summary** shows what an agent receives: the rules and documents already combined with the
+global ones, how much they take up, and what Tessera adds on its own. Everything is edited in the **Agent
+context** dialog, which opens from **Settings › Agents** or with **Rules for agents…** in the profile menu.
 
 ### Native or in Docker, per agent
 
@@ -225,6 +259,10 @@ disk is out of its reach. It has `sudo` inside the container, with no extra Dock
 installs is lost when the container stops. To keep something, build it into the image from **Settings ›
 Projects**. **Codex in Docker** requires choosing **Full Access** with `/permissions`, because its own sandbox
 cannot start inside a container; Tessera does not turn that mode on for you.
+
+When it starts, the agent in Docker learns from Tessera what its container is like: what is lost when it
+is recreated, how to install tools, that there is no Docker inside, the limits of `tdb` and, on Windows and
+macOS, how to reach the services on your computer. That way it does not find out by failing.
 
 The bottom terminal is always native. A native agent is not isolated: it has your permissions, as if you had
 started it from a terminal.
@@ -242,6 +280,7 @@ database view agent. Jump to a tile, enlarge it, and leave with the same shortcu
 
 - **Monaco**, with syntax highlighting, find and replace, and tabs per project.
 - **Encoding and line endings** of each file, shown in the status bar and convertible.
+- **Code themes, font and size**: eleven themes for the editor, diffs, viewers and database editors.
 - **Markdown** with a rendered view (including Mermaid diagrams), a code view, or both with synchronized
   scrolling. HTML files have an isolated preview.
 - **Viewers** for PDF, Word (`.docx`), ZIP, images, audio and video.
@@ -264,6 +303,8 @@ database view agent. Jump to a tile, enlarge it, and leave with the same shortcu
   ask the agent to do it.
 - **History** with a branch graph, filters, commit details and the history of a single file.
 - **Editable diffs** on your working copy.
+- **Repository hooks ask for permission**: a new or changed hook is shown before it runs on your computer,
+  and you decide whether to run it, continue without it or cancel.
 - **Several repositories** in one project folder, also in subfolders (up to four levels).
 
 ### Terminals
@@ -283,13 +324,16 @@ database view agent. Jump to a tile, enlarge it, and leave with the same shortcu
 - **Connections per profile**, named and grouped, that open in terminal tabs.
 - **Three ways to authenticate**: password, key file or the system's keys. Passwords and key passphrases are
   stored encrypted.
+- **A new server's fingerprint is shown before the password is sent**, also for each bastion.
 - **Bastions and tunnels**: up to four hops, and local, remote and SOCKS tunnels.
 - **Reconnect** from the terminal itself, and SSH tabs come back when you open Tessera.
 - **Import and export** in the OpenSSH format (`~/.ssh/config`).
 - **SFTP explorer** to browse, create, rename, delete, upload and download, with progress.
 - **`tssh` for agents.** They run commands and copy files by the connection's name, without seeing the password
   or the key, and only on servers whose fingerprint a person has already accepted. The **Available to agents**
-  checkbox decides which ones they can use.
+  switch decides which ones they can use.
+- **SSH keys for agents in Docker.** Per profile, you enable which keys they can connect with. Private keys stay
+  on your computer: the agent asks Tessera for each signature. This does not limit native agents.
 
 ### Databases
 
@@ -314,7 +358,7 @@ database view agent. Jump to a tile, enlarge it, and leave with the same shortcu
 ![Settings with its categories and search box](assets/capturas/configuracion.png)
 
 - A window with a search box (Ctrl+, / ⌘,), with the interface in English or Spanish.
-- **Export and import** takes your profiles, connections, agents and preferences to another computer, in a
+- **Export and import** takes your profiles, connections, agents, agent rules and preferences to another computer, in a
   `.tessera` file encrypted with a passphrase. Optionally, the conversations too. When importing, each profile can
   be created as new or added to an existing one.
 

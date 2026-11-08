@@ -16,6 +16,7 @@ import type {
   DbValorBind
 } from '../../../../../shared/db-explorador-ipc'
 import type { DialectoSql } from '../../../../../shared/sql/dialectosSql'
+import type { SeveridadModal } from '../../../comun/Modal'
 import type { IndicadorPestana } from '../dbTabsModel'
 import type { AccionPestana as AccionPestanaResultado, BarraTx, EstadoConsola } from './estadoConsola'
 import type { MarcasLoteMonaco, ValidadorAvisos } from './monacoConsola'
@@ -38,6 +39,7 @@ export type DialogoConsola =
       mensaje: string
       confirmar: string
       peligro: boolean
+      severidad?: SeveridadModal
       resolver: (ok: boolean) => void
     }
   | {

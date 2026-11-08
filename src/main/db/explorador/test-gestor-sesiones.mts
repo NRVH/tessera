@@ -846,7 +846,7 @@ async function main(): Promise<void> {
       const { e, acciones, txDe } = await preparar()
       const f = e.falsos[0]
       const desc = await e.gestor.desconectar('c1', 'commit')
-      check('desconectar con «Confirmar» y pendiente + fallida: ok (antes fallaba a medias)', desc.ok, JSON.stringify(desc))
+      check('desconectar con «Confirmar» y pendiente + fallida: ok (sin fallar a medias)', desc.ok, JSON.stringify(desc))
       check(
         'la respuesta lista la fallida revertida (revertidasFallidas)',
         desc.ok && desc.valor.revertidasFallidas?.length === 1 && esKf(desc.valor.revertidasFallidas[0]),
@@ -3957,7 +3957,7 @@ async function main(): Promise<void> {
       return respuestaPorDefecto(p, fx)
     }
     await e.gestor.exportarTabla({ ...base, peticionId: 'exp-g' }, async () => {}, () => false)
-    check('exportar PG: `[…filtro, null, 0]` (antes `[null, 0]` a secas)', expSql[0] === '["Ana","2026-09-28","2026-09-29",null,0]', JSON.stringify(expSql))
+    check('exportar PG: `[…filtro, null, 0]` (lleva el filtro, no `[null, 0]` a secas)', expSql[0] === '["Ana","2026-09-28","2026-09-29",null,0]', JSON.stringify(expSql))
 
     // Oracle: cursor con binds por nombre; el respaldo ROWNUM, con `:hasta`/`:desde` junto a ellos.
     e.responder.actual = (p, fx) => {

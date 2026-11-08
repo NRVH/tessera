@@ -7,6 +7,7 @@
 // Decisiones: docs/decisiones/agentes/terminal-del-agente.md
 // =============================================================================
 
+import { Insignia } from '../../comun/Presente'
 import { ProfileDot } from '../pestanas'
 import { PuntoMosaico } from '../mosaico'
 import { etiquetaModPrincipal } from '../../util/atajos'
@@ -22,6 +23,8 @@ import {
 import type { ModeloAgentPane } from './useAgentPane'
 import { nombreVisible } from './selectorCuenta.ts'
 import { BotonPasarA } from './PopoverTraspaso'
+import { claveSesionAgente } from '../../../../shared/db-ipc'
+import { IndicadorDelegadas } from '../delegacion'
 
 interface PropsParte {
   m: ModeloAgentPane
@@ -45,11 +48,7 @@ function BotonBases({ m }: PropsParte): React.JSX.Element | null {
       aria-pressed={montaje.showDbMount}
     >
       <DbMountIcon />
-      {p.dbMounted.length > 0 && (
-        <span className="db-mount-badge" aria-hidden="true">
-          {p.dbMounted.length}
-        </span>
-      )}
+      <Insignia visible={!!(p.dbMounted.length > 0)} className="db-mount-badge">{p.dbMounted.length}</Insignia>
     </button>
   )
 }
@@ -330,7 +329,7 @@ function AccionesPanel({ m }: PropsParte): React.JSX.Element {
       <BotonPasarA m={m} />
       <BotonCuenta m={m} />
       {mosaico && <AccionesCasilla mosaico={mosaico} lugar={m.p.lugar} />}
-      {!mosaico && canExpand && <BotonMaximizar m={m} />}
+      {!mosaico && <span className={`control-plegable${canExpand ? '' : ' plegado'}`} aria-hidden={!canExpand} {...(!canExpand ? { inert: '' } as Record<string, string> : {})}><BotonMaximizar m={m} /></span>}
       {!mosaico && <BotonCerrar m={m} />}
     </div>
   )
@@ -373,6 +372,7 @@ export function CabeceraAgentPane({ m }: PropsParte): React.JSX.Element {
           </button>
         )}
       </span>
+      {m.s.sessionId && <IndicadorDelegadas origenes={[claveSesionAgente(m.s.sessionId)]} />}
       <AccionesPanel m={m} />
     </header>
   )

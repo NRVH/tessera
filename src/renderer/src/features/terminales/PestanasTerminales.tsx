@@ -74,11 +74,9 @@ function Pestana(p: PestanaProps): React.JSX.Element {
       ) : (
         <span className="terminal-tab-name">{nombre}</span>
       )}
-      {dead && !editando && (
-        <span className="terminal-tab-dead" title={txTerminales().shellTermino}>
+      <span className={`terminal-tab-dead${dead && !editando ? ' visible' : ''}`} aria-hidden={!dead || editando} title={txTerminales().shellTermino}>
           ●
         </span>
-      )}
       {/* La ✕ de la pestaña NO se esconde en reposo: pertenece a la pestaña, no al panel. */}
       <button
         className="terminal-tab-kill"

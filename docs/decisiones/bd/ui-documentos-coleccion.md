@@ -26,7 +26,7 @@ la política ([documentos-controlador.md](documentos-controlador.md)); aquí sol
   viaja son los cambios. Aceptarla en una conexión de producción (el botón ya dice «Ejecutar en
   producción») manda `confirmado`; si aun así el main devuelve `produccion` o `sinTransaccion`, se
   pregunta con foco en Cancelar y se reenvía con la confirmación de ese motivo.
-- **Siempre editable.** La casilla «Solo lectura» de la conexión es de los agentes: no limita al
+- **Siempre editable.** El interruptor «Solo lectura» de la conexión es de los agentes: no limita al
   usuario, y lo que el servidor no deje hacer lo dirá al enviar.
 - **Con una proyección aplicada el documento es parcial:** reemplazarlo entero borraría los campos
   ocultos y ese botón no se ofrece (por celdas sí, va por `$set`). Una fila sin `_id` no se edita.

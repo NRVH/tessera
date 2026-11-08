@@ -53,12 +53,12 @@ const es: Articulo = {
         {
           lista: [
             '**Renombrar** (también con doble clic en la pestaña) y **Cambiar color**.',
-            '**Red del contenedor Docker**: indica si los contenedores del perfil usan una red propia o la de {tuEquipo}. Cambiarla reinicia los contenedores y deja el perfil hibernado. Consulte [Contenedores de Docker](contenedores-docker).',
             '**Reglas para los agentes…**: instrucciones que los agentes del perfil reciben al iniciarse. Consulte [Reglas para los agentes](reglas-del-perfil).',
+            'Submenú **Agentes en Docker**, con lo que solo aplica a los agentes que trabajan en contenedores. **Red del contenedor** indica si usan una red propia o la de {tuEquipo}; cambiarla reinicia los contenedores y deja el perfil hibernado. Consulte [Contenedores de Docker](contenedores-docker). **Claves SSH…** elige con qué claves pueden conectarse. Consulte [Las claves SSH de los agentes](contenedores-docker/claves-ssh).',
             '**Hibernar el perfil…**: cierra sus agentes y terminales para liberar memoria. Consulte [Hibernar un perfil](hibernar/perfil).'
           ]
         },
-        { captura: 'menu-del-perfil', alt: 'El menú contextual de un perfil, con renombrar, color, red, reglas, hibernar y eliminar' }
+        { captura: 'menu-del-perfil', alt: 'El menú contextual de un perfil, con renombrar, color, reglas, el submenú de agentes en Docker, hibernar y eliminar' }
       ]
     },
     {
@@ -66,7 +66,7 @@ const es: Articulo = {
       titulo: 'Perfiles en un selector compacto',
       bloques: [
         'Si la barra de perfiles ocupa demasiado espacio, active **Configuración › Apariencia › Perfiles en un selector compacto**. La barra desaparece y la barra de título muestra un botón con el perfil activo; al hacer clic en él se despliegan los demás perfiles.',
-        'Esa lista ofrece las mismas acciones que la barra: crear, ordenar arrastrando, renombrar y el resto del menú del perfil.'
+        'Esa lista permite crear un perfil con **Nuevo perfil**, al pie, y ordenar los perfiles arrastrándolos. Abra el menú para renombrar y realizar las demás acciones con el botón **⋯** de cada perfil.'
       ]
     },
     {
@@ -133,12 +133,12 @@ const en: Articulo = {
         {
           lista: [
             '**Rename** (or double-click the tab) and **Change color**.',
-            '**Docker container network**: whether the profile’s containers use their own network or the network of {tuEquipo}. Changing it restarts the containers and leaves the profile hibernated. See [Docker containers](contenedores-docker).',
             '**Rules for agents…**: instructions that the profile’s agents receive when they start. See [Rules for agents](reglas-del-perfil).',
+            '**Agents in Docker** submenu, with what applies only to agents that work in containers. **Container network** shows whether they use their own network or the network of {tuEquipo}; changing it restarts the containers and leaves the profile hibernated. See [Docker containers](contenedores-docker). **SSH keys…** chooses which keys they can connect with. See [Agent SSH keys](contenedores-docker/claves-ssh).',
             '**Hibernate profile…**: closes its agents and terminals to free memory. See [Hibernate a profile](hibernar/perfil).'
           ]
         },
-        { captura: 'menu-del-perfil', alt: 'The shortcut menu of a profile, with rename, color, network, rules, hibernate, and delete' }
+        { captura: 'menu-del-perfil', alt: 'The shortcut menu of a profile, with rename, color, rules, the agents in Docker submenu, hibernate, and delete' }
       ]
     },
     {
@@ -146,7 +146,7 @@ const en: Articulo = {
       titulo: 'Profiles in a compact selector',
       bloques: [
         'If the profile bar takes up too much space, turn on **Settings › Appearance › Profiles in a compact selector**. The bar disappears, and the title bar shows a button with the active profile; click it to see the other profiles.',
-        'This list offers the same actions as the bar: create, drag to reorder, rename, and the rest of the profile menu.'
+        'This list lets you create a profile with **New profile** at the bottom and reorder profiles by dragging them. Open the menu to rename a profile and perform other actions with each profile’s **⋯** button.'
       ]
     },
     {

@@ -8,6 +8,7 @@
 
 import type { Profile } from '../../../../main/profiles/types.ts'
 import { MAX_REGLAS_PERFIL, normalizarReglas } from '../../../../shared/reglasPerfil.ts'
+import { normalizarCarpetasDocumentos } from '../../../../shared/documentosPerfil.ts'
 import type { DetectedRepo } from '../../../../shared/workspace-ipc.ts'
 import type { EstadoProyecto, OpenProject, ProfileTabs, TabsAction, TabsState } from './tabsModel.ts'
 
@@ -377,6 +378,42 @@ export function reducirSetProfileRedHost(state: TabsState, action: Accion<'setPr
         ? { ...p, sandbox: { ...p.sandbox, redHost: action.redHost } }
         : p
     )
+  }
+}
+
+/**
+ * Enciende o apaga el contexto global en un perfil. Encendido es lo de serie, así que solo se guarda apagado.
+ * Apagarlo no toca las cuentas de Docker: se quedan con lo que ya tenían escrito.
+ */
+export function reducirSetProfileContextoGlobal(state: TabsState, action: Accion<'setProfileContextoGlobal'>): TabsState {
+  const actual = state.profiles.find((p) => p.id === action.profileId)
+  if (!actual || (actual.contextoGlobal !== false) === action.usar) return state
+  return {
+    ...state,
+    profiles: state.profiles.map((p) => {
+      if (p.id !== action.profileId) return p
+      const siguiente: Profile = { ...p }
+      if (action.usar) delete siguiente.contextoGlobal
+      else siguiente.contextoGlobal = false
+      return siguiente
+    })
+  }
+}
+
+/** Fija las carpetas de documentos de un perfil: normalizadas, y sin ninguna quitan el campo. */
+export function reducirSetProfileDocumentos(state: TabsState, action: Accion<'setProfileDocumentos'>): TabsState {
+  const documentos = normalizarCarpetasDocumentos(action.documentos)
+  const actual = state.profiles.find((p) => p.id === action.profileId)
+  if (!actual || JSON.stringify(actual.documentos ?? []) === JSON.stringify(documentos)) return state
+  return {
+    ...state,
+    profiles: state.profiles.map((p) => {
+      if (p.id !== action.profileId) return p
+      const siguiente: Profile = { ...p }
+      if (documentos.length === 0) delete siguiente.documentos
+      else siguiente.documentos = documentos
+      return siguiente
+    })
   }
 }
 

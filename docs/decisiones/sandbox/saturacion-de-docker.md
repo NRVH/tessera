@@ -18,9 +18,9 @@ usuario culpa a Tessera. Tessera no decide qué sacrificar: aplica lo que el usu
   durante sus segundos (15 s–2 min, 30 s de serie) está saturado; un pico no basta. Sin medida no se
   decide nada: Docker que no responde no es Docker que se recuperó.
 - **Qué se para:** la misma política del límite (un contenedor sin agentes primero; después los últimos,
-  los primeros o los de más tiempo sin uso). Nunca uno a la vista, uno manual ni uno abriéndose; eso
-  también vale ya al hacer sitio por el límite. Si protege los que trabajan y no queda otro, se para uno
-  trabajando: con Docker sin memoria caería uno igual, y sin elegir.
+  los primeros o los de más tiempo sin uso). Nunca uno a la vista, uno manual, uno abriéndose ni uno con una
+  tarea delegada en marcha (`cupo.ts`); eso vale igual al hacer sitio por el límite. Si protege los que trabajan
+  y no queda otro, se para uno trabajando: con Docker sin memoria caería uno igual, y sin elegir.
 - **Aviso previo de serie:** dice qué se parará y espera 30 s, con «Parar otro», que vale para ese aviso.
   Si la memoria baja, se cancela. Sin aviso, se para al cumplirse el tiempo.
 - **Parar es hibernar:** cada agente recibe su salida (`parado-por-saturacion`) y «Reabrir» retoma la

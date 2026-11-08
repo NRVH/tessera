@@ -30,7 +30,7 @@ decide gestos que se pueden perder sin que se vea: un clic fuera, una contraseñ
 
 - Los clientes de base de datos: ver `ui-conexion-clientes.md`. Lo que viaja al main: `ui-conexion-borrador.md`.
 - Partir el componente no puede cambiar de dueño ni de orden su estado ni sus efectos: la prueba tras
-  «Confiar» lee `probar` del render que ya lleva la casilla.
+  «Confiar» lee `probar` del render que ya lleva el interruptor.
 
 ## Descartes
 

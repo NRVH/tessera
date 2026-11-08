@@ -81,8 +81,7 @@ export interface EntornoHostDiag {
   modo: 'pipe' | 'env'
   /**
    * ¿Es la terminal del espacio de datos del perfil? Solo INFORMATIVO: no cambia el
-   * ámbito (antes se llamaba `consola` y sí lo cambiaba). Es la misma marca que viaja
-   * a `tdb` para la redacción de sus mensajes.
+   * ámbito. Es la misma marca que viaja a `tdb` para la redacción de sus mensajes.
    */
   espacioDatos: boolean
   idsPedidos: number

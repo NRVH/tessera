@@ -115,7 +115,7 @@ function cambiarMuestreando(win: Page, nombre: string, ms = 1500): Promise<Fotog
 }
 
 /** El botón de una vista lateral en el riel de actividad. */
-function botonVista(win: Page, titulo: 'Archivos' | 'Git · Cambios' | 'Conexiones a bases de datos') {
+function botonVista(win: Page, titulo: 'Archivos' | 'Git · Cambios' | 'Bases de datos') {
   return win.locator(`.activity-item[title="${titulo}"]`)
 }
 
@@ -238,7 +238,7 @@ test.describe.serial('Cambiar de perfil A → B → A, fotograma a fotograma', (
   test('BD a medias en Personal, Archivos en Trabajo: al volver, el árbol y el diálogo están tal cual, y en Trabajo Esc y los atajos son suyos', async () => {
     const win = s.win
     // Personal en la vista de BD, con su conexión SQLite desplegada.
-    await botonVista(win, 'Conexiones a bases de datos').click()
+    await botonVista(win, 'Bases de datos').click()
     await win.evaluate(
       (r) =>
         window.tessera.db.create({

@@ -3,20 +3,22 @@
 // iconos de vista abren la columna lateral (radio: siempre hay una activa) y los de panel
 // la franja inferior (toggle). Un icono se arrastra dentro de su grupo o al otro: el grupo
 // decide dónde está el botón, no qué abre. Un grupo no puede quedarse vacío. Con la franja a
-// pantalla completa solo queda la flecha de volver.
+// pantalla completa lleva las acciones del modo: ocultar, restaurar y pasar al otro panel.
 // Depende de `util/reorderByDrag`, `util/gruposRiel` (la guarda del cruce) y los iconos de `../git` y `../bd`.
 // =============================================================================
 
+import { Insignia } from '../../comun/Presente'
 import { useState } from 'react'
 import { reorderByDrag } from '../../util/reorderByDrag'
 import { moverEntreGrupos } from '../../util/gruposRiel'
 import { IconoCambios, IconoRama } from '../git'
 import { IconoBd } from '../bd'
-import { IconoArchivos, IconoTerminal, IconoVolver } from '../../comun/iconosPanel'
+import { IconoArchivos, IconoOcultarPanel, IconoRestaurar, IconoTerminal } from '../../comun/iconosPanel'
+import { etiquetaAcorde } from '../../util/atajos'
 import type { ZonaEnfocada } from '../../util/zonaEnfocada'
 import { txLayout } from './textos.ts'
 import { panelConColor, vistaConColor } from './resaltadoRiel'
-import { useStoreLayout } from './store'
+import { fijarMaximizado, pasarPantallaCompleta, useStoreLayout } from './store'
 
 /** Vistas de la columna lateral. */
 export type ActivityView = 'files' | 'git' | 'db'
@@ -335,37 +337,110 @@ function pintarVista(vista: ActivityView, grupo: Grupo, ctx: ContextoRiel): Reac
       {...ctx.riel.props(vista, grupo)}
     >
       <Icon />
-      {badge && (
-        <span className="activity-badge" aria-hidden="true">
-          {badge.text}
-        </span>
-      )}
+      <Insignia visible={!!(badge)} className="activity-badge">{badge?.text}</Insignia>
     </button>
   )
 }
 
+/** La clase del riel a pantalla completa: la usan el atajo del modo y la búsqueda del icono tras salir. */
+export const CLASE_RIEL_MODO = 'riel-pantalla-completa'
+
+/** Lo enfocable de cada panel de la franja: la terminal que se ve y la lista de commits. */
+const FOCO_DEL_PANEL: Record<PanelInferior, string> = {
+  terminal: 'section.terminal-panel .terminal-pane[aria-hidden="false"] .xterm-helper-textarea',
+  gitlog: '.git-log-panel [role="listbox"]'
+}
+
+/** Enfoca el icono del panel en el riel entero (no en el de pantalla completa, que se está desmontando). */
+function enfocarIconoDelPanel(panel: PanelInferior): void {
+  requestAnimationFrame(() => {
+    const etiqueta = CSS.escape(panelesDelRiel()[panel].label)
+    document.querySelector<HTMLElement>(`.activity-bar:not(.${CLASE_RIEL_MODO}) .activity-item[aria-label="${etiqueta}"]`)?.focus()
+  })
+}
+
 /**
- * El riel a pantalla completa: los demás iconos llevarían a vistas que están tapadas, así que queda solo la
- * salida, que hace lo mismo que el icono del panel (cierra la franja; al volver a abrirla sigue maximizada).
+ * Lleva el foco al panel tras restaurarlo o pasar a él, para seguir trabajando donde se estaba: dejarlo en el
+ * riel haría que Intro o Espacio pulsaran el icono. Si el panel aún no tiene nada enfocable, al icono.
  */
-function RielVolver({ panel, onVolver }: { panel: PanelInferior; onVolver: (panel: PanelInferior) => void }): React.JSX.Element {
+function enfocarPanel(panel: PanelInferior): void {
+  requestAnimationFrame(() => {
+    const destino = document.querySelector<HTMLElement>(FOCO_DEL_PANEL[panel])
+    if (destino) destino.focus()
+    else enfocarIconoDelPanel(panel)
+  })
+}
+
+/**
+ * El riel a pantalla completa lleva las acciones del modo, que así no compiten con las de las cabeceras: restaurar
+ * (baja el panel a su alto), ocultar (cierra la franja; al reabrirla sigue maximizada) y pasar al otro panel de la
+ * franja sin salir del modo. Las vistas laterales no están: llevarían a lo que el modo tapa.
+ */
+function RielPantallaCompleta({ panel, onTogglePanel }: { panel: PanelInferior; onTogglePanel: (panel: PanelInferior) => void }): React.JSX.Element {
   const t = txLayout().riel
-  // Volver desmonta este botón: el foco pasa al icono del panel que se acaba de cerrar, en el riel entero,
-  // para que el teclado no se quede en el cuerpo de la ventana.
-  const volver = (): void => {
-    onVolver(panel)
-    requestAnimationFrame(() => {
-      const etiqueta = CSS.escape(panelesDelRiel()[panel].label)
-      document.querySelector<HTMLElement>(`.activity-bar .activity-item[aria-label="${etiqueta}"]`)?.focus()
-    })
+  const restaurar = (): void => {
+    fijarMaximizado(panel, false)
+    enfocarPanel(panel)
+  }
+  // Ocultar desmonta este riel y el panel: el foco pasa al icono del panel en el riel entero, para que el
+  // teclado no se quede en el cuerpo de la ventana.
+  const ocultar = (): void => {
+    onTogglePanel(panel)
+    enfocarIconoDelPanel(panel)
+  }
+  const pasarA = (otro: PanelInferior): void => {
+    if (otro === panel) return
+    pasarPantallaCompleta(panel, otro)
+    onTogglePanel(otro)
+    enfocarPanel(otro)
   }
   return (
-    <nav className="activity-bar" aria-label={t.barra}>
-      {/* Siempre con el relleno del perfil, como el icono de la zona donde trabajas: es la única salida del modo. */}
-      <button type="button" className="activity-item active enfocada" title={t.volverTitulo[panel]} aria-label={t.volver} onClick={volver}>
-        <IconoVolver />
-      </button>
+    <nav className={`activity-bar ${CLASE_RIEL_MODO}`} aria-label={t.barra}>
+      <div className="activity-grupo-arriba" role="group" aria-label={t.grupoPantallaCompleta}>
+        <button type="button" className="activity-item mov-aparece" title={t.ocultarTitulo[panel]} aria-label={t.ocultar[panel]} onClick={ocultar}>
+          <IconoOcultarPanel />
+        </button>
+        <button
+          type="button"
+          className="activity-item mov-aparece"
+          title={t.restaurarTitulo[panel](etiquetaAcorde('pantallaCompleta'))}
+          aria-label={t.restaurar[panel]}
+          onClick={restaurar}
+        >
+          <IconoRestaurar />
+        </button>
+      </div>
+      <div className="activity-sep" role="separator" aria-orientation="horizontal" />
+      <PanelesPantallaCompleta panel={panel} onElegir={pasarA} />
     </nav>
+  )
+}
+
+/** Los paneles de la franja en el riel a pantalla completa: el que se ve, con el color del perfil; el otro, para pasar a él. */
+function PanelesPantallaCompleta({ panel, onElegir }: { panel: PanelInferior; onElegir: (panel: PanelInferior) => void }): React.JSX.Element {
+  const t = txLayout().riel
+  return (
+    <div className="activity-grupo-arriba" role="group" aria-label={t.grupoPaneles}>
+      {PANELES_IDS.map((id) => {
+        const meta = panelesDelRiel()[id]
+        const Icon = meta.icon
+        const actual = id === panel
+        return (
+          <button
+            key={id}
+            type="button"
+            // El panel que se ve lleva el relleno del perfil, como en el riel entero el icono de la zona donde se trabaja.
+            className={`activity-item mov-aparece${actual ? ' active enfocada' : ''}`}
+            title={t.cambiarA[id]}
+            aria-label={meta.label}
+            aria-pressed={actual}
+            onClick={() => onElegir(id)}
+          >
+            <Icon />
+          </button>
+        )
+      })}
+    </div>
   )
 }
 
@@ -405,7 +480,7 @@ export function ActivityBar({
   const pintar = (id: string, grupo: Grupo): React.JSX.Element =>
     esPanel(id) ? pintarPanel(id, grupo, ctx) : pintarVista(id as ActivityView, grupo, ctx)
 
-  if (pantallaCompleta !== null) return <RielVolver panel={pantallaCompleta} onVolver={onTogglePanelInferior} />
+  if (pantallaCompleta !== null) return <RielPantallaCompleta panel={pantallaCompleta} onTogglePanel={onTogglePanelInferior} />
 
   return (
     <nav className="activity-bar" aria-label={txLayout().riel.barra}>

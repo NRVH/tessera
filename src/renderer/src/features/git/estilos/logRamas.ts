@@ -30,6 +30,9 @@ export const CSS_LOG_RAMAS = `/* --- Columna 1: árbol de ramas ----------------
   cursor: pointer;
   white-space: nowrap;
   user-select: none;
+  transition:
+    background var(--mov-rapido) var(--curva-estandar),
+    box-shadow var(--mov-rapido) var(--curva-estandar);
 }
 .git-rama-fila:hover {
   background: rgba(255, 255, 255, 0.05);
@@ -57,7 +60,7 @@ export const CSS_LOG_RAMAS = `/* --- Columna 1: árbol de ramas ----------------
 .git-rama-fila .chevron {
   width: 14px;
   height: 14px;
-  transition: transform 120ms ease;
+  transition: transform var(--mov-rapido) var(--curva-estandar);
 }
 .git-rama-fila .chevron.open {
   transform: rotate(90deg);
@@ -71,7 +74,7 @@ export const CSS_LOG_RAMAS = `/* --- Columna 1: árbol de ramas ----------------
   flex: 0 0 auto;
 }
 /* HEAD: la rama actual, arriba del todo y destacada, EN EL COLOR DEL PERFIL.
-   Antes era el azul de acento, que en esta app significa "fíjate en este dato"
+   No va en el azul de acento, que en esta app significa "fíjate en este dato"
    (conteos, avisos, enlaces). La rama en la que estás no es un aviso: es identidad,
    la misma pregunta que responde el perfil en el resto de la ventana, y por eso se
    pinta con su matiz. Va por --perfil-claro y no por --sel porque esto es LETRA;
@@ -110,7 +113,7 @@ export const CSS_LOG_RAMAS = `/* --- Columna 1: árbol de ramas ----------------
   width: 14px;
   height: 14px;
   flex: 0 0 auto;
-  transition: transform 120ms ease;
+  transition: transform var(--mov-rapido) var(--curva-estandar);
 }
 .git-ramas-grupo .chevron.open {
   transform: rotate(90deg);

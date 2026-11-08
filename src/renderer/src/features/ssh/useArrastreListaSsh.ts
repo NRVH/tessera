@@ -134,5 +134,3 @@ export function useArrastreListaSsh(e: EntradaArrastreSsh) {
     alSalir: () => setDestino(null)
   }
 }
-
-export type ArrastreListaSsh = ReturnType<typeof useArrastreListaSsh>

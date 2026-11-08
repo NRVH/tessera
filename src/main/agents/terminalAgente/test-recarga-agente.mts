@@ -8,6 +8,11 @@
 // =============================================================================
 
 import { register } from 'node:module'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
+const CARPETA_CUENTA = mkdtempSync(join(tmpdir(), 'tessera-recarga-'))
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -78,7 +83,10 @@ function montar(host: boolean, fallo: Fallo) {
       addProject: async () => {},
       mountAgentConfig: async () => ({ containerPath: '/cfg' })
     },
-    accounts: { get: () => ({ id: 'a1' }), hostDirFor: () => 'C:\\cfg' },
+    // La carpeta de la cuenta es de verdad: al relanzar se rehace en ella la capa compartida.
+    accounts: { get: () => ({ id: 'a1' }), hostDirFor: () => CARPETA_CUENTA },
+    capasCompartidas: () => [],
+    admiteSnapshotNativo: async () => false,
     terminals: {
       reloadSession: async (id: string) => {
         eventos.push('relanzar')
@@ -159,7 +167,11 @@ async function probarAnclaSinHerencia(host: boolean): Promise<void> {
   )
 }
 
-await main()
+try {
+  await main()
+} finally {
+  rmSync(CARPETA_CUENTA, { recursive: true, force: true })
+}
 const allPass = results.every(Boolean)
 hr(`VEREDICTO: ${results.filter(Boolean).length}/${results.length} PASS — ${allPass ? 'TODO PASS' : 'HAY FAIL'}`)
 process.exit(allPass ? 0 : 1)

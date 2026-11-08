@@ -187,11 +187,27 @@ function main() {
 /** La pantalla de un suceso, legible: `2560x1440@144Hz x1.5`, o `-`. */
 const pantalla = (v) => (v?.pantalla ? `${v.pantalla.ancho}x${v.pantalla.alto}@${v.pantalla.hz}Hz x${v.pantalla.escala}` : '-')
 
+/** Proporción de reposo y marcos inclusivos acumulados en los perfiles de los parones. */
+function informePilas(bloqueos) {
+  const pilas = bloqueos.flatMap((b) => b.pila ? [b.pila] : [])
+  const cubierto = pilas.reduce((suma, p) => suma + p.ms, 0)
+  const ocioso = pilas.reduce((suma, p) => suma + p.ocioso, 0)
+  console.log(`Bloqueos con pila: ${pilas.length}/${bloqueos.length}; tiempo cubierto: ${cubierto} ms; en reposo: ${cubierto > 0 ? `${redondear(ocioso / cubierto * 100)}%` : 'sin datos'}`)
+  if (cubierto > 0 && ocioso / cubierto >= 0.9) console.log('Casi todo es reposo: el main no estaba ocupado; el temporizador llegó tarde por el sistema.')
+  const marcos = new Map()
+  for (const pila of pilas) for (const { f, ms } of pila.arriba) marcos.set(f, (marcos.get(f) ?? 0) + ms)
+  if (marcos.size > 0) {
+    console.log('Marcos con más ms inclusivos sumados (hasta ocho por bloqueo)')
+    console.table([...marcos].sort((a, b) => b[1] - a[1]).slice(0, 15).map(([f, ms]) => ({ marco: f, ms })))
+  }
+}
+
 /** Bloqueos del main, ventana sin respuesta, lo lento de la ventana y los cambios de monitor. */
 function informeBloqueos(lineas) {
   const bloqueos = lineas.filter((l) => l.tipo === 'bloqueo-main')
   console.log(`\nBloqueos del proceso principal (>= 1 s): ${bloqueos.length}`)
   if (bloqueos.length > 0) {
+    informePilas(bloqueos)
     console.table(
       bloqueos.map((b) => ({
         cuando: b.t,

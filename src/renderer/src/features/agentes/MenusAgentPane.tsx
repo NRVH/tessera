@@ -4,20 +4,17 @@
 // confirmación, historial de conversaciones y actualizar agentes.
 // =============================================================================
 
-import { useState } from 'react'
 import { IconoAbrir } from '../../comun/iconosMenu'
 import { ContextMenu, SEP, type ContextMenuEntry } from '../../comun/ContextMenu'
-import { PromptDialog } from '../../comun/PromptDialog'
-import { ConfirmDialog } from '../../comun/ConfirmDialog'
 import { PuntoMosaico } from '../mosaico'
 import { AgentsUpdateModal } from './AgentsUpdateModal'
 import { ConversationsModal } from './ConversationsModal'
 import { HOST_ACCOUNT_ID, nombreAgente, type MosaicoPane } from './agentPaneTipos'
 import { esAgenteManual } from '../../../../shared/agentesManuales'
-import { normalizarErrorIpc } from '../../../../shared/dockerErrors'
 import { AgentContextMenu } from './iconosAgentPane'
 import { copySelection, pasteFromClipboard } from './terminalAgente'
-import { nombreVisible } from './selectorCuenta.ts'
+import { NuevaCuenta, ConfirmarCuenta, type OtroAgenteCuenta } from './DialogosCuenta'
+import { AGENTES_DELEGABLES, type AgenteDelegable } from '../../../../shared/delegacion-ipc'
 import { PopoverCuenta } from './PopoverCuenta'
 import { txPane } from './textosPane.ts'
 import type { ModeloAgentPane } from './useAgentPane'
@@ -74,66 +71,11 @@ function MenusTerminalYCasilla({ m }: PropsParte): React.JSX.Element {
   )
 }
 
-/** Confirmación de cerrar sesión o eliminar la cuenta. */
-function ConfirmarCuenta({ m, confirm }: PropsParte & { confirm: NonNullable<ModeloAgentPane['ui']['confirm']> }): React.JSX.Element {
-  const borrar = confirm.kind === 'delete'
-  const t = txPane().menus
-  const [ocupado, setOcupado] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  // Se cuenta al abrir: lo que diga es lo que el usuario confirmó.
-  const [otros] = useState(() => m.cuenta.otrosQueLaUsan(confirm.account.id))
-  const aviso = otros > 0 ? `\n\n${t.usadaPorOtros(otros)}` : ''
-  return (
-    <ConfirmDialog
-      danger={borrar}
-      ocupado={ocupado ? (borrar ? t.eliminando : t.cerrandoSesion) : null}
-      error={error}
-      title={borrar ? t.eliminarCuenta : t.cerrarSesion}
-      message={
-        borrar
-          ? t.mensajeEliminar(nombreVisible(confirm.account, t.predeterminada)) + aviso
-          : t.mensajeCerrarSesion(nombreVisible(confirm.account, t.predeterminada)) + aviso
-      }
-      confirmLabel={borrar ? t.eliminar : t.cerrarSesion}
-      // Se cierra cuando la acción terminó y la lista ya no la enseña: cerrar las sesiones o parar el
-      // contenedor tarda, y un diálogo cerrado antes deja ver como viva la cuenta que se está borrando.
-      onConfirm={() => {
-        const { kind, account } = confirm
-        setOcupado(true)
-        setError(null)
-        const accion = kind === 'delete' ? m.cuenta.handleDeleteAccount(account.id) : m.cuenta.handleLogoutAccount(account.id)
-        accion.then(
-          () => m.ui.setConfirm(null),
-          (err: unknown) => {
-            setOcupado(false)
-            setError(normalizarErrorIpc(err instanceof Error ? err.message : String(err)))
-          }
-        )
-      }}
-      onCancel={() => m.ui.setConfirm(null)}
-    />
-  )
-}
-
-/** El alta de una cuenta: si el main la rechaza (un nombre repetido), el diálogo sigue abierto y lo dice. */
-function NuevaCuenta({ m }: PropsParte): React.JSX.Element {
-  const t = txPane().menus
-  const [error, setError] = useState<string | null>(null)
-  const primera = (m.s.accounts ?? []).length === 0
-  return (
-    <PromptDialog
-      title={primera ? t.iniciarSesionTitulo(nombreAgente(m.p.pestanasAgente, m.p.target.agente)) : t.nuevaCuentaTitulo(nombreAgente(m.p.pestanasAgente, m.p.target.agente))}
-      label={t.nombreCuenta}
-      confirmLabel={t.crearEIniciar}
-      hint={t.nuevaCuentaAviso}
-      error={error}
-      onConfirm={(nm) => {
-        setError(null)
-        void m.cuenta.handleCreateAccount(nm).catch((err: unknown) => setError(normalizarErrorIpc(err instanceof Error ? err.message : String(err))))
-      }}
-      onCancel={() => m.ui.setAddingAccount(false)}
-    />
-  )
+/** En la cabecera de Claude Code o Codex, el alta deja elegir el agente de la cuenta; en un manual, no. */
+function otroAgenteDe(m: PropsParte['m']): OtroAgenteCuenta | undefined {
+  const agente = m.p.target.agente
+  if (!(AGENTES_DELEGABLES as readonly string[]).includes(agente)) return undefined
+  return { profileId: m.p.target.profileId, projectHostPath: m.p.target.projectHostPath, agente: agente as AgenteDelegable }
 }
 
 /** Menú de la cuenta, alta de la cuenta y su confirmación. */
@@ -144,8 +86,16 @@ function DialogosCuenta({ m }: PropsParte): React.JSX.Element {
   return (
     <>
       {ui.accountMenu && hayMenu && <PopoverCuenta m={m} ancla={ui.accountMenu} onCerrar={() => ui.setAccountMenu(null)} />}
-      {ui.addingAccount && <NuevaCuenta m={m} />}
-      {ui.confirm && <ConfirmarCuenta m={m} confirm={ui.confirm} />}
+      {ui.addingAccount && (
+        <NuevaCuenta
+          cuenta={m.cuenta}
+          primera={(m.s.accounts ?? []).length === 0}
+          nombre={nombreAgente(m.p.pestanasAgente, m.p.target.agente)}
+          onCerrar={() => ui.setAddingAccount(false)}
+          otro={otroAgenteDe(m)}
+        />
+      )}
+      {ui.confirm && <ConfirmarCuenta cuenta={m.cuenta} confirm={ui.confirm} onCerrar={() => ui.setConfirm(null)} />}
     </>
   )
 }

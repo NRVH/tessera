@@ -103,7 +103,8 @@ function preguntaCommit(r: RefsConsola): PreguntaConsola {
   const c = r.conexionRef.current
   return {
     ...confirmacionCommitProduccion({ alias: c.alias, sentenciasEnTx: r.estadoRef.current.sesion?.sentenciasEnTx ?? 0 }),
-    peligro: true
+    peligro: true,
+    severidad: 'advertencia'
   }
 }
 

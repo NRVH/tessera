@@ -29,9 +29,12 @@ cero, con su «Cargando…».
   actúa sobre lo de otra.
 - `CapaViva` dice a lo que lleva dentro si se ve (`useCapaVisible`); el contexto atraviesa el
   `memo`. Un diálogo con algo a medias (el alta o la edición de una conexión de BD) se queda montado
-  con su pieza, oculto e `inert`, y vuelve tal cual, con el foco donde estaba. Mientras está oculto
-  no tapa nada: sale de la pila de diálogos y no atiende Esc (`useDialogo`) ni Enter
-  (`ConfirmDialog`), y `hayModalAbierto` no lo cuenta, así que los atajos del que se ve siguen vivos.
+  con su pieza y vuelve tal cual, con el foco donde estaba. Como `Modal` lo pinta por portal en la capa
+  de los diálogos (`#capa-dialogos`), fuera de la caja de su pieza, la ocultación de esta no lo alcanza: su
+  velo lleva `hidden` mientras la pieza no se ve, y `.modal-overlay[hidden] { display: none }` (`styles.css`)
+  lo quita de la pantalla. Mientras está oculto no tapa nada: sale de la pila de diálogos y no atiende
+  Esc (`useDialogo`) ni Enter (`ConfirmDialog`), y `hayModalAbierto` no lo cuenta, así que los atajos
+  del que se ve siguen vivos.
 - Las capas se anidan: una `CapaViva` dentro de otra oculta tampoco se ve, aunque sea la elegida de
   las suyas. Su caja no cambia (ya la oculta la de fuera), pero `useCapaVisible` dice `false` y lo
   de dentro deja de actuar igual: el árbol del proyecto que se ve no escucha cambios de archivos, y
@@ -55,7 +58,7 @@ cero, con su «Cargando…».
 
 ## Consecuencias
 
-- Volver a lo reciente es instantáneo; volver a algo que salió de la lista es como antes, desde cero.
+- Volver a lo reciente es instantáneo; volver a algo que salió de la lista se monta desde cero.
   `e2e/cambio-perfil-fotogramas.spec.ts` lo vigila fotograma a fotograma: ninguno mezcla dos
   perfiles ni enseña «Cargando…» al volver, y el árbol vuelve con su carpeta y su desplazamiento.
 - Un selector de un e2e que busque filas debe filtrar por `:visible`, y uno del código por

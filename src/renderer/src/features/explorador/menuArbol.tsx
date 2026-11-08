@@ -135,12 +135,12 @@ function entradasCrear(c: ContextoMenu): ContextMenuEntry[] {
   return [
     {
       icon: <IconoArchivoNuevo />,
-      label: t.nuevoArchivo,
+      label: t.nuevoArchivoMenu,
       onClick: () => c.a.setDialog({ kind: 'newFile', dir: path })
     },
     {
       icon: <IconoCarpetaNueva />,
-      label: t.nuevaCarpeta,
+      label: t.nuevaCarpetaMenu,
       onClick: () => c.a.setDialog({ kind: 'newFolder', dir: path })
     },
     SEP

@@ -95,7 +95,7 @@ test.describe.serial('La lista de un select dentro de un modal', () => {
 
   test('diálogo de conexión de BD: el logo del motor sigue sobre el control, cada opción lleva el suyo y la lista sale por encima del formulario', async () => {
     const win = s.win
-    await win.locator('.activity-item[title="Conexiones a bases de datos"]').click()
+    await win.locator('.activity-item[title="Bases de datos"]').click()
     await expect(win.locator('.db-area:not(.hidden)')).toBeVisible()
     await win.locator('.db-arbol .sidebar-actions button[aria-label="Nueva conexión"]').click()
     const modal = win.locator('.db-conexion-modal')
@@ -125,7 +125,7 @@ test.describe.serial('La lista de un select dentro de un modal', () => {
     await win.keyboard.press(`${MOD}+Shift+F`)
     const modal = win.locator('.buscar-modal')
     await expect(modal).toBeVisible()
-    await modal.getByRole('button', { name: /carpeta/i }).first().click()
+    await modal.getByRole('radio', { name: /carpeta/i }).first().click()
     const select = modal.locator('.buscar-ambito-select')
     await expect(select, 'carga las carpetas de los proyectos abiertos').toBeEnabled({ timeout: 20_000 })
     expect(await select.locator('optgroup').count(), 'un grupo por proyecto').toBeGreaterThan(0)

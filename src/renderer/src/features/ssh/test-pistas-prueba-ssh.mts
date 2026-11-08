@@ -2,7 +2,7 @@
 // =============================================================================
 // Prueba de cómo se cuenta el resultado de «Probar» una conexión SSH (npm run test:pistas-prueba-ssh):
 // «Conectó en N ms», la huella como la enseña ssh-keygen, la pista de cada motivo (credenciales, VPN,
-// algoritmos, huella cambiada) y la de la red local de macOS solo allí, con «No route to host» hacia
+// algoritmos, huella cambiada o sin confirmar) y la de la red local de macOS solo allí, con «No route to host» hacia
 // una dirección privada y nombrando el sistema por `nombresSistema`. La plataforma, por parámetro.
 // Decisiones: docs/decisiones/ssh/askpass-y-secretos.md
 // =============================================================================
@@ -32,6 +32,12 @@ const fallo = (motivo: Extract<SshResultadoPrueba, { ok: false }>['motivo'], det
   detalle,
   ...extra
 })
+
+hr('0 - La huella sin confirmar (otro tipo de clave que el guardado)')
+{
+  const t = textoResultadoPrueba(fallo('ssh-huella-sin-confirmar'), 'srv', 'windows')
+  check('(0a) su título y su remedio: olvidar la guardada para confirmar la nueva', t.titulo.includes('no tiene la huella confirmada') && t.pista?.includes('olvide la huella guardada') === true, j(t))
+}
 
 hr('1 - Conectó, o solo se llegó')
 {

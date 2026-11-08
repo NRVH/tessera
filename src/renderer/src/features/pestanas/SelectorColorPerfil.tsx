@@ -5,6 +5,7 @@
 // también «Nuevo perfil»; `SelectorColorPerfil` es el popover bajo la pestaña.
 // Decisiones: docs/decisiones/renderer/color-de-perfil-cenizo.md
 // =============================================================================
+import { useDespedidaDe } from '../../comun/despedida'
 import { useEffect, useRef, useState } from 'react'
 import { MAX_COLORES_FIJADOS } from '../../../../shared/workspace-state-ipc'
 import type { Profile } from '../../../../main/profiles/types'
@@ -169,6 +170,7 @@ export function SelectorColorPerfil(p: {
   const { profile, onElegir, onCerrar } = p
   const original = useRef(profile.color)
   const ref = useRef<HTMLDivElement>(null)
+  useDespedidaDe(ref, 'flotante')
   useEffect(() => {
     const alTeclear = (e: KeyboardEvent): void => {
       if (e.key !== 'Escape') return
@@ -187,7 +189,7 @@ export function SelectorColorPerfil(p: {
     }
   }, [profile.id, profile.color, onElegir, onCerrar])
   return (
-    <div ref={ref} className="selector-color" role="dialog" aria-label={txPestanas().color.aria(profile.nombre)} style={{ left: p.x, top: p.y }}>
+    <div ref={ref} className="selector-color mov-aparece mov-desde-arriba" role="dialog" aria-label={txPestanas().color.aria(profile.nombre)} style={{ left: p.x, top: p.y }}>
       <div className="selector-color-titulo">{txPestanas().color.titulo(profile.nombre)}</div>
       <PaletaColorPerfil color={profile.color} onElegir={(c) => onElegir(profile.id, c)} onConfirmar={onCerrar} />
     </div>

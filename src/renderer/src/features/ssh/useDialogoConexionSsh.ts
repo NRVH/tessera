@@ -3,12 +3,11 @@
 // marcas tras intentar guardar, los grupos que se pueden elegir (también el recién creado desde el
 // diálogo anidado «Nuevo grupo…»), importar el archivo de clave, guardar (y conectar, si se vino del
 // menú), «Probar» (`usePruebaConexionSsh`) y el foco inicial. Devuelve la VISTA que pinta el componente
-// y las acciones. `useDialogo` va el PRIMERO: apunta a quién tenía el foco al montar.
+// y las acciones. El foco de los campos usa una referencia propia al formulario.
 // Decisiones: docs/decisiones/terminales/pestanas-ssh-del-perfil.md, docs/decisiones/ssh/askpass-y-secretos.md
 // =============================================================================
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { useDialogo, type Dialogo } from '../../comun/useDialogo'
 import type { SshClaveElegida, SshConexion, SshGrupo } from '../../../../shared/ssh-ipc'
 import {
   borradorDesde,
@@ -59,7 +58,7 @@ export interface EstadoClave {
 
 /** Lo que pinta `DialogoConexionSsh`. */
 export interface VistaDialogoConexionSsh extends PruebaSsh {
-  dialogo: Dialogo
+  formularioRef: React.RefObject<HTMLFormElement>
   idTitulo: string
   nombreRadioMetodo: string
   idAyudaMetodo: string
@@ -209,37 +208,36 @@ function useGuardadoSsh(o: OpcionesDialogoConexionSsh) {
 
 /** El estado, los efectos y las acciones del diálogo de una conexión SSH. */
 export function useDialogoConexionSsh(o: OpcionesDialogoConexionSsh): VistaDialogoConexionSsh {
-  // Solo estado antes de `useDialogo`: su efecto apunta al foco anterior y tiene que ir el primero.
   const g = useGuardadoSsh(o)
+  const formularioRef = useRef<HTMLFormElement>(null)
   const cambios = hayCambios(g.borrador, g.original)
   const prueba = usePruebaConexionSsh({
     guardadaSinCambios: () => (g.borrador.id !== undefined && !cambios ? g.borrador.id : null),
     // Como el botón principal: con una clave a medio importar no se guarda, o su ficha se perdería.
-    guardar: () => (importacion.clave.importando ? Promise.resolve(null) : g.guardarBorrador(dialogo.ref.current)),
+    guardar: () => (importacion.clave.importando ? Promise.resolve(null) : g.guardarBorrador(formularioRef.current)),
     ponerError: g.setError
   })
-  const dialogo = useDialogo({ onClose: o.onCerrar, cerrable: !g.guardando })
   const idTitulo = useId()
   const nombreRadioMetodo = useId()
   const idAyudaMetodo = useId()
   const idAyudaAgentes = useId()
   const esEdicion = o.conexion !== null
-  // Después de `useDialogo`, que apunta al foco anterior en su efecto: un `autoFocus` nativo lo pisaría.
+  // El efecto de Modal captura al iniciador del diálogo antes de enfocar este campo.
   const enfoqueInicial = useRef(o.enfocarGrupo ? 'grupo' : 'alias')
-  useEffect(() => enfocarCampo(dialogo.ref.current, enfoqueInicial.current as CampoSsh | 'grupo'), [dialogo.ref])
+  useEffect(() => enfocarCampo(formularioRef.current, enfoqueInicial.current as CampoSsh | 'grupo'), [])
 
   const editar: Editar = (parcial) => g.setBorrador((b) => conCambio(b, parcial))
   const importacion = useImportacionClave(o.perfilId, editar)
-  const grupo = useGrupoNuevo(o.perfilId, editar, dialogo.ref)
+  const grupo = useGrupoNuevo(o.perfilId, editar, formularioRef)
   const bastiones = useBastiones(o.perfilId, g.borrador.id)
   const guardar = async (): Promise<void> => {
     if (g.guardando || importacion.clave.importando) return
     // Lo ya guardado (por «Probar», o una edición sin tocar) no se vuelve a mandar.
-    const c = g.borrador.id !== undefined && !cambios ? g.guardada : await g.guardarBorrador(dialogo.ref.current)
+    const c = g.borrador.id !== undefined && !cambios ? g.guardada : await g.guardarBorrador(formularioRef.current)
     if (c !== null) o.onCerrar()
   }
   return {
-    dialogo, idTitulo, nombreRadioMetodo, idAyudaMetodo, idAyudaAgentes, esEdicion, cambios, editar, guardar, bastiones,
+    formularioRef, idTitulo, nombreRadioMetodo, idAyudaMetodo, idAyudaAgentes, esEdicion, cambios, editar, guardar, bastiones,
     borrador: g.borrador,
     guardando: g.guardando,
     error: g.error,

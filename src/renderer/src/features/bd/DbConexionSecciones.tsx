@@ -6,6 +6,7 @@
 // Decisiones: docs/decisiones/bd/ui-conexion-dialogo.md
 // =============================================================================
 
+import { Cruce } from '../../comun/Presente'
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ALIAS_MAX, type DbMotor, type DbTestResult } from '../../../../shared/db-ipc'
@@ -23,36 +24,14 @@ import {
   type EsquemaUri
 } from './camposConexion'
 import { pegarRecortado } from '../../util/pasteTrim'
-import { AYUDA, BotonAyuda } from '../academy'
 import { IconoMotor } from './iconosBd'
 import { IconoOjo } from '../../comun/iconosFormulario'
+import { FilaInterruptor } from '../../comun/piezasAjustes'
 import { uriCerrada, type EstadoUri } from './useConexionDialogoEstado'
 import { txConexionDialogo } from './textosConexionDialogo.ts'
 
 type Editar = (parcial: Partial<BorradorConexion>) => void
 type SetBorrador = React.Dispatch<React.SetStateAction<BorradorConexion>>
-
-/** El título y, en un alta, la frase de para qué sirve el nombre. */
-export function CabeceraConexion({ idTitulo, esEdicion }: { idTitulo: string; esEdicion: boolean }): React.JSX.Element {
-  const t = txConexionDialogo()
-  return (
-    <div className="dbc-cabecera">
-      <div className="dbc-titulo-fila">
-        <div id={idTitulo} className="modal-title">
-          {esEdicion ? t.editarConexion : t.nuevaConexion}
-        </div>
-        <BotonAyuda destino={AYUDA.conexionBd} />
-      </div>
-      {!esEdicion && (
-        <p className="dbc-ayuda">
-          {t.ayudaNombreAntes}
-          <code>tdb</code>
-          {t.ayudaNombreDespues}
-        </p>
-      )}
-    </div>
-  )
-}
 
 /** Nombre y motor, en una fila. */
 /**
@@ -282,14 +261,11 @@ export function CredencialesConexion({
 export function CasillaSoloLectura({ borrador, editar }: { borrador: BorradorConexion; editar: Editar }): React.JSX.Element {
   return (
     <>
-      <label className="dbc-check">
-        <input
-          type="checkbox"
-          checked={borrador.readonly}
-          onChange={(e) => editar({ readonly: e.target.checked })}
-        />
-        {etiquetaSoloLectura()}
-      </label>
+      <FilaInterruptor
+        etiqueta={etiquetaSoloLectura()}
+        activo={borrador.readonly}
+        onChange={() => editar({ readonly: !borrador.readonly })}
+      />
       <p className="dbc-ayuda">{ayudaSoloLectura(borrador.motor)}</p>
     </>
   )
@@ -369,6 +345,7 @@ export function ResultadoPrueba({
   const t = txConexionDialogo()
   return (
     <div className={`dbc-prueba${probando ? '' : resultado?.ok ? ' ok' : ' falla'}`} role="status" aria-live="polite">
+      <Cruce clave={probando || !resultado ? 'probando' : resultado.ok ? 'ok' : 'falla'}>
       {probando || !resultado ? (
         t.probando
       ) : (
@@ -389,37 +366,7 @@ export function ResultadoPrueba({
           )}
         </>
       )}
-    </div>
-  )
-}
-
-/** El pie: «Probar» a la izquierda (actúa sobre el servidor), Cancelar y Guardar a la derecha. */
-export function PieConexion({
-  probando,
-  guardando,
-  cambios,
-  onProbar,
-  onCerrar
-}: {
-  probando: boolean
-  guardando: boolean
-  cambios: boolean
-  onProbar: () => void
-  onCerrar: () => void
-}): React.JSX.Element {
-  const t = txConexionDialogo()
-  return (
-    <div className="modal-actions dbc-acciones">
-      <button type="button" className="btn" disabled={probando || guardando} onClick={onProbar}>
-        {probando ? t.probando : cambios ? t.guardarYProbar : t.probar}
-      </button>
-      <span className="dbc-hueco" />
-      <button type="button" className="btn btn-ghost" onClick={onCerrar} disabled={guardando}>
-        {t.cancelar}
-      </button>
-      <button type="submit" className="btn primary" disabled={guardando}>
-        {guardando ? t.guardando : t.guardar}
-      </button>
+      </Cruce>
     </div>
   )
 }

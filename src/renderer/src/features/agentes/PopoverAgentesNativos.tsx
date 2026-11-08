@@ -5,6 +5,7 @@
 // Decisiones: docs/decisiones/agentes/boton-agentes-nativos.md
 // =============================================================================
 
+import { IconoCopiar } from '../../comun/iconosMenu'
 import { useState } from 'react'
 import type { EstadoCli, SesionNativa } from '../../../../shared/agentes-nativos-ipc'
 import type { NombresSistema } from '../../../../shared/nombresSistema'
@@ -214,12 +215,13 @@ function FilaCli({ cli, plan, nombres }: { cli: EstadoCli; plan: PlanActualizaci
             type="button"
             className="btn"
             onClick={() => {
-              void navigator.clipboard.writeText(manual.orden ?? '')
-              setCopiado(true)
-              setTimeout(() => setCopiado(false), 1500)
+              void navigator.clipboard.writeText(manual.orden ?? '').then(() => {
+                setCopiado(true)
+                setTimeout(() => setCopiado(false), 1500)
+              }).catch(() => undefined)
             }}
           >
-            {copiado ? txActualizacion().popover.copiada : txActualizacion().popover.copiar}
+            <IconoCopiar copiado={copiado} />{txActualizacion().popover.copiar}
           </button>
         </div>
       ) : null}

@@ -2,8 +2,8 @@
 // Las dos operaciones de la copia de la configuración desde el renderer: armar lo que se exporta
 // (perfiles, agentes y ajustes, de los stores; las conexiones las pone el main) y aplicar lo que
 // se importa, solo lo elegido, en su orden: perfiles nuevos y reglas de los de aquí (guardados antes de
-// seguir), conexiones e historial (en el main, cada uno a su perfil de destino), agentes, ajustes y, si
-// llegaron agentes Docker con instalación, su capa de imagen.
+// seguir), conexiones, historial, configuración de Docker y archivos de agentes (en el main, cada uno a su perfil de
+// destino), agentes, ajustes y, si llegaron agentes Docker con instalación, su capa de imagen.
 // Lo puro vive en `shared/copiaConfiguracion.ts` (qué viaja y cómo se fusiona), `shared/destinoCopia.ts`
 // (a qué perfil va cada uno) y `shared/seleccionCopia.ts`.
 // Decisiones: docs/decisiones/configuracion/exportar-importar.md
@@ -98,7 +98,9 @@ export function vistaPrevia(d: Descifrado, destinos: Readonly<Record<string, str
       dockerPorPerfil: Object.fromEntries(Object.entries(s.agentesDockerPorPerfil).map(([p, l]) => [p, ids(l)]))
     },
     ajustes: d.ajustes !== undefined,
-    historial: d.historial
+    historial: d.historial,
+    configDocker: d.configDocker,
+    archivosAgentes: d.archivosAgentes
   })
 }
 
@@ -153,6 +155,11 @@ export async function importarCopia(token: string, d: Descifrado, sel: Seleccion
     ssh: sel.ssh,
     bd: sel.bd,
     historial: sel.historial,
+    configDocker: sel.configDocker,
+    configGlobal: sel.configGlobal,
+    archivosCuentas: sel.archivosCuentas,
+    cuentasNuevas: sel.cuentasNuevas,
+    reglasNativas: sel.reglasNativas,
     reasignar: plan.destinos,
     fusionados: plan.fusionados
   })

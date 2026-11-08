@@ -1,19 +1,28 @@
 // =============================================================================
 // Las órdenes de `tctx`, iguales en el equipo y en un contenedor: qué operación se pide al puente
-// (`ctx.reglas`, `ctx.proponer`, `ctx.traspaso`, `ctx.buscar`), cómo se lee su respuesta y la ayuda. Solo cambia
+// (reglas, documentos, búsqueda y delegación), cómo se lee su respuesta y la ayuda. Solo cambia
 // por dónde viaja la petición (el pipe en `tctx.cjs`, el buzón en `tctx-container.cjs`). El perfil y la sesión
 // los pone Tessera por el token: aquí no se nombran. Depende de `tctxArgumentos`, `tctxSalida` y `textosTctx`.
 // Decisiones: docs/decisiones/agentes/reglas-del-perfil.md, docs/decisiones/agentes/traspaso-entre-agentes.md,
-// docs/decisiones/agentes/buscar-en-el-historial.md
+// docs/decisiones/agentes/buscar-en-el-historial.md, docs/decisiones/agentes/delegar-en-cuentas-de-docker.md
 // =============================================================================
 'use strict'
 
 const { MAX_TEXTO_BUSCAR } = require('./tctxArgumentos.cjs')
-const { CODIGOS, ErrorTctx } = require('./tctxSalida.cjs')
+const { CODIGOS, ErrorTctx, aviso, MAX_ORDEN_BYTES } = require('./tctxSalida.cjs')
 const { textosTctx } = require('./textosTctx.cjs')
+const path = require('node:path')
 
 /** Lo que se espera a `buscar`: más que el tope de tiempo de la búsqueda en el main (`TOPES_DEFECTO.ms`). */
 const TOPE_BUSCAR_MS = 20_000
+/**
+ * Lo que se espera a `delegar` y a `tarea --cancelar|--continuar`: antes de contestar, Tessera comprueba Docker, lee el
+ * uso de las cuentas o espera a que la tarea se pare. Cortar antes dejaría una tarea lanzada sin su id.
+ */
+const TOPE_DELEGAR_MS = 60_000
+
+/** El tope de la petición de cada subcomando, o `undefined` para el del puente. */
+const topeDe = (a) => (a.sub === 'buscar' ? TOPE_BUSCAR_MS : a.sub === 'delegar' || a.sub === 'tarea' ? TOPE_DELEGAR_MS : undefined)
 
 /** Los topes de `src/shared/reglasPerfil.ts` (`MAX_REGLAS_PERFIL`, `MAX_MOTIVO_PROPUESTA`); los fija `test:tctx`. */
 const MAX_REGLAS = 6000
@@ -25,6 +34,8 @@ const MAX_MOTIVO = 500
 const MAX_TEXTO_ENVIADO = MAX_REGLAS * 2
 const MAX_MOTIVO_ENVIADO = MAX_MOTIVO * 4
 const MAX_PETICION = 30 * 1024
+/** El tope de `MAX_PROPUESTA_CONFIG` (`operacionConfigTctx.ts`), en KiB, para el mensaje. */
+const MAX_CONFIG_KIB = 24
 
 /** Los «no» del propio puente (no los de la operación), con el código 3. */
 function exigirPuente(r) {
@@ -43,14 +54,35 @@ function exigirPuente(r) {
 
 /** Cada rechazo de la operación: su código de salida y su texto (con los datos que trae la respuesta). */
 const RECHAZOS = {
+  ...Object.fromEntries([
+    'delegar-desde-docker', 'delegar-sin-proyecto', 'agente-no-delegable', 'cuenta-no-existe', 'cuenta-ambigua',
+    'ninguna-cuenta', 'sin-credencial', 'orden-vacia', 'orden-larga', 'archivo-fuera', 'archivo-no-existe',
+    'tarea-no-existe', 'tarea-sin-conversacion', 'sin-docker'
+  ].map((codigo) => [codigo, [CODIGOS.rechazo, (t, r) => t.rechazosDelegacion[codigo]({
+    ...r,
+    max: Number(r.max) || MAX_ORDEN_BYTES,
+    reinicio: r.reinicio === undefined ? '' : horaLocal(r.reinicio),
+    agente: NOMBRE_AGENTE[r.agente] || r.agente
+  })]])),
   vacia: [CODIGOS.rechazo, (t) => t.propuestaVacia],
   larga: [CODIGOS.rechazo, (t, r) => t.propuestaLarga(Number(r.largo) || 0, Number(r.max) || MAX_REGLAS)],
   igual: [CODIGOS.rechazo, (t) => t.propuestaIgual],
+  'sin-global': [CODIGOS.rechazo, (t) => t.sinGlobal],
   'motivo-largo': [CODIGOS.rechazo, (t, r) => t.motivoLargo(Number(r.max) || MAX_MOTIVO)],
   'sin-traspaso': [CODIGOS.rechazo, (t) => t.sinTraspaso],
   'busqueda-vacia': [CODIGOS.rechazo, (t) => t.faltaBusqueda],
   'busqueda-larga': [CODIGOS.rechazo, (t, r) => t.busquedaLarga(Number(r.max) || MAX_TEXTO_BUSCAR)],
   ocupado: [CODIGOS.rechazo, (t) => t.busquedaOcupada],
+  'sin-documentos': [CODIGOS.rechazo, (t) => t.sinDocumentos],
+  'doc-no-existe': [CODIGOS.rechazo, (t) => t.docNoExiste],
+  'doc-ambiguo': [CODIGOS.rechazo, (t, r) => t.docAmbiguo(Array.isArray(r.candidatos) ? r.candidatos.map(String) : [])],
+  'doc-grande': [CODIGOS.rechazo, (t, r) => t.docGrande(Math.ceil((Number(r.bytes) || 0) / 1024))],
+  'doc-no-texto': [CODIGOS.rechazo, (t) => t.docNoTexto],
+  'config-sin-agente': [CODIGOS.rechazo, (t) => t.configSinAgente],
+  'config-larga': [CODIGOS.rechazo, (t) => t.configLarga(MAX_CONFIG_KIB)],
+  'config-igual': [CODIGOS.rechazo, (t) => t.configIgual],
+  'config-sin-global': [CODIGOS.rechazo, (t) => t.configSinGlobal],
+  'config-sintaxis': [CODIGOS.rechazo, (t, r) => t.configSintaxis(Number(r.linea) || null, String(r.detalle ?? ''))],
   'sin-sesion': [CODIGOS.puente, (t) => t.sesionNoReconocida],
   'sin-perfil': [CODIGOS.puente, (t) => t.sinPerfil],
   peticion: [CODIGOS.puente, (t) => t.peticionInvalida]
@@ -64,44 +96,65 @@ function errorDeRechazo(r) {
   return new ErrorTctx(conocido[0], conocido[1](t, r))
 }
 
+/** `proponer --global` lleva el nivel; sin él, son las del perfil y no se manda. */
+const nivelDe = (a) => (a.nivel === 'global' ? { nivel: 'global' } : {})
+
 /** La operación y sus campos. En `proponer`, `texto` ya leído de su fuente; lo que no cabría se rechaza aquí. */
 function peticionDe(a, texto) {
+  if (a.sub === 'cuentas') return { op: 'ctx.cuentas', campos: {} }
+  if (['delegar', 'tarea'].includes(a.sub)) return peticionDelegacion(a, texto)
   if (a.sub === 'reglas') return { op: 'ctx.reglas', campos: {} }
   if (a.sub === 'traspaso') return { op: 'ctx.traspaso', campos: {} }
   if (a.sub === 'buscar') return { op: 'ctx.buscar', campos: { texto: a.texto, exacta: a.exacta === true, ...(a.max !== undefined ? { max: a.max } : {}) } }
+  if (a.sub === 'docs') return { op: 'ctx.docs', campos: a.nombre === undefined ? {} : { nombre: a.nombre } }
+  if (a.sub === 'config') return { op: 'ctx.config', campos: a.agente === undefined ? {} : { agente: a.agente } }
+  if (a.sub === 'config-proponer') return peticionConfig(a, texto)
   const t = textosTctx()
   if (texto.length > MAX_TEXTO_ENVIADO) throw new ErrorTctx(CODIGOS.rechazo, t.propuestaLarga(texto.length, MAX_REGLAS))
   if (a.motivo.length > MAX_MOTIVO_ENVIADO) throw new ErrorTctx(CODIGOS.rechazo, t.motivoLargo(MAX_MOTIVO))
-  const campos = { texto, motivo: a.motivo }
+  const campos = { texto, motivo: a.motivo, ...nivelDe(a) }
   // Escapado en JSON, un texto lleno de saltos o de controles crece hasta seis veces.
   if (JSON.stringify(campos).length > MAX_PETICION) throw new ErrorTctx(CODIGOS.rechazo, t.propuestaLarga(texto.length, MAX_REGLAS))
   return { op: 'ctx.proponer', campos }
 }
 
 /** Escribe lo que toca de una respuesta ya pasada por `exigirPuente` y devuelve el código de salida. */
+const conSalto = (texto) => (texto.endsWith('\n') ? texto : `${texto}\n`)
+
+/**
+ * Lo que escribe cada subcomando con una respuesta buena: el texto, o `null` si la respuesta no tiene la
+ * forma que se espera.
+ */
+const SALIDAS = {
+  cuentas: (a, r) => Array.isArray(r.cuentas) ? textoCuentas(r.cuentas) : null,
+  reglas: (a, r, t) => (typeof r.reglas === 'string' ? textoReglas(a, r, t) : null),
+  traspaso: (a, r) => (typeof r.traspaso === 'string' ? conSalto(r.traspaso) : null),
+  buscar: (a, r) => (Array.isArray(r.coincidencias) ? textoBusqueda(r) : null),
+  config: (a, r) => (Array.isArray(r.niveles) ? textoConfig(r) : null),
+  'config-proponer': (a, r, t) => `${t.configPropuestaEnviada}\n`,
+  docs: (a, r) => {
+    if (a.nombre !== undefined) return typeof r.contenido === 'string' ? conSalto(r.contenido) : null
+    return Array.isArray(r.documentos) ? textoDocumentos(r) : null
+  },
+  proponer: (a, r, t) => `${t.propuestaEnviada}\n`
+}
+
 function mostrar(a, r) {
   const t = textosTctx()
   if (r.ok !== true) throw errorDeRechazo(r)
-  if (a.sub === 'reglas') {
-    if (typeof r.reglas !== 'string') throw new ErrorTctx(CODIGOS.puente, t.respuestaIncomprensible)
-    process.stdout.write(r.reglas === '' ? `${t.sinReglas}\n` : `${r.reglas}\n`)
-    return 0
-  }
-  if (a.sub === 'traspaso') {
-    if (typeof r.traspaso !== 'string') throw new ErrorTctx(CODIGOS.puente, t.respuestaIncomprensible)
-    process.stdout.write(r.traspaso.endsWith('\n') ? r.traspaso : `${r.traspaso}\n`)
-    return 0
-  }
-  if (a.sub === 'buscar') {
-    if (!Array.isArray(r.coincidencias)) throw new ErrorTctx(CODIGOS.puente, t.respuestaIncomprensible)
-    process.stdout.write(textoBusqueda(r))
-    return 0
-  }
-  process.stdout.write(`${t.propuestaEnviada}\n`)
+  const salida = SALIDAS[a.sub](a, r, t)
+  if (salida === null) throw new ErrorTctx(CODIGOS.puente, t.respuestaIncomprensible)
+  process.stdout.write(salida)
   return 0
 }
 
 const NOMBRE_AGENTE = { 'claude-code': 'Claude Code', codex: 'Codex' }
+
+function peticionConfig(a, texto) {
+  const campos = { nivel: a.nivel, texto, motivo: a.motivo, ...(a.agente === undefined ? {} : { agente: a.agente }) }
+  if (JSON.stringify(campos).length > MAX_PETICION) throw new ErrorTctx(CODIGOS.rechazo, textosTctx().configLarga(MAX_CONFIG_KIB))
+  return { op: 'ctx.config.proponer', campos }
+}
 
 /**
  * El resultado de `buscar` en texto: cada coincidencia con su cabecera y su trozo, y las notas de lo que falta.
@@ -128,9 +181,153 @@ function textoBusqueda(r) {
   return `${lineas.join('\n')}\n`
 }
 
+/**
+ * Las reglas vigentes: las globales, si las hay, y las del perfil, cada una con su encabezado. Con un nivel, solo
+ * ese y tal cual, sin encabezado: es el texto que se edita y se propone entero.
+ */
+function textoReglas(a, r, t) {
+  const globales = typeof r.reglasGlobales === 'string' ? r.reglasGlobales : ''
+  if (a.nivel === 'perfil') return r.reglas === '' ? '' : `${r.reglas}\n`
+  if (a.nivel === 'global') return globales === '' ? '' : `${globales}\n`
+  if (globales === '') return r.reglas === '' ? `${t.sinReglas}\n` : `${r.reglas}\n`
+  const perfil = r.reglas === '' ? t.sinReglasPerfil : r.reglas
+  return `${t.encabezadoGlobales}\n${globales}\n\n${t.encabezadoPerfil}\n${perfil}\n\n${t.prevalecePerfil}\n`
+}
+
+/** Los niveles de `config`, cada archivo con su contenido entre separadores; uno vacío se dice. */
+function textoConfig(r) {
+  const t = textosTctx()
+  const lineas = [t.cabeceraConfig(NOMBRE_AGENTE[r.agente] || String(r.agente)), '']
+  for (const n of r.niveles) {
+    for (const archivo of [n.configuracion, n.instrucciones]) {
+      if (!archivo || typeof archivo !== 'object') continue
+      lineas.push(`=== ${t.nivelConfig[n.nivel] || n.nivel}: ${archivo.nombre} ===`)
+      lineas.push(typeof archivo.contenido === 'string' && archivo.contenido.trim() !== '' ? archivo.contenido.trimEnd() : t.archivoVacio, '')
+    }
+  }
+  lineas.push(t.comoProponerConfig)
+  return `${lineas.join('\n')}\n`
+}
+
+/** La lista de `docs`: un documento por línea, con su tamaño, y las notas de lo que falta. */
+function textoDocumentos(r) {
+  const t = textosTctx()
+  const lista = r.documentos.filter((d) => d !== null && typeof d === 'object' && typeof d.nombre === 'string')
+  const lineas = [lista.length === 0 ? t.docsVacia : t.cabeceraDocs(lista.length), '']
+  for (const d of lista) lineas.push(`  ${d.nombre}  (${Math.max(1, Math.ceil((Number(d.bytes) || 0) / 1024))} KiB)`)
+  if (lista.length > 0) lineas.push('', t.comoLeerDoc)
+  if (r.truncado === true) lineas.push(t.docsTruncado)
+  if (Array.isArray(r.noDisponibles) && r.noDisponibles.length > 0) lineas.push(t.carpetasNoDisponibles(r.noDisponibles.map(String)))
+  return `${lineas.join('\n')}\n`
+}
+
 /** El texto de la ayuda, con los códigos de salida y el tope de verdad. */
 function textoAyuda() {
   return textosTctx().ayuda(CODIGOS, MAX_REGLAS)
 }
 
-module.exports = { exigirPuente, peticionDe, mostrar, textoAyuda, textoBusqueda, MAX_REGLAS, MAX_MOTIVO, MAX_PETICION, TOPE_BUSCAR_MS }
+function peticionDelegacion(a, texto) {
+  let fuente = {}
+  if (a.sub === 'delegar' || a.accion === 'continuar') {
+    if (a.fuente.tipo === 'ruta') fuente = { archivo: path.resolve(process.cwd(), a.fuente.ruta) }
+    else {
+      if (!texto.trim()) throw errorDeRechazo({ rechazo: 'orden-vacia' })
+      if (Buffer.byteLength(texto, 'utf8') > MAX_ORDEN_BYTES) throw errorDeRechazo({ rechazo: 'orden-larga', max: MAX_ORDEN_BYTES })
+      fuente = { orden: texto }
+    }
+  }
+  const peticion =
+    a.sub === 'delegar'
+      ? { op: 'ctx.delegar', campos: { agente: a.agente, cuenta: a.cuenta, ...(a.soloLectura ? { soloLectura: true } : {}), ...fuente } }
+      : { op: 'ctx.tarea', campos: { id: a.id, ...(a.accion ? { accion: a.accion } : {}), ...fuente } }
+  // Escapada en JSON, una orden llena de saltos o de comillas crece: si ya no cabe en el puente, mejor `--archivo`.
+  if (JSON.stringify(peticion.campos).length > MAX_PETICION) throw errorDeRechazo({ rechazo: 'orden-larga', max: MAX_ORDEN_BYTES })
+  return peticion
+}
+
+const CODIGO_ESTADO = { hecha: 0, fallida: CODIGOS.fallida, cancelada: CODIGOS.cancelada, 'en-marcha': CODIGOS.enMarcha }
+const segundosDesde = (inicio, fin) => Math.max(0, Math.floor((fin - inicio) / 1000))
+
+function horaLocal(epoch, ahora = Date.now()) {
+  const fecha = new Date(epoch)
+  const dos = (n) => String(n).padStart(2, '0')
+  const hora = `${dos(fecha.getHours())}:${dos(fecha.getMinutes())}`
+  return fecha.toDateString() === new Date(ahora).toDateString() ? hora : `${fecha.getFullYear()}-${dos(fecha.getMonth() + 1)}-${dos(fecha.getDate())} ${hora}`
+}
+
+function textoCuentas(cuentas) {
+  const t = textosTctx()
+  const lineas = cuentas.map((c) => {
+    const ventanas = c.ventanas.map((v) => t.ventanaCuenta(v.etiqueta, v.porcentaje, v.reinicio === undefined ? t.reinicioDesconocido : horaLocal(v.reinicio)))
+    return [NOMBRE_AGENTE[c.agente], c.nombre, t.estadosCuenta[c.estado], ...ventanas, ...(c.enMarcha > 0 ? [t.tareasEnMarcha(c.enMarcha)] : [])].join(' · ')
+  })
+  if (!lineas.length) lineas.push(t.sinCuentas)
+  return `${[...lineas, t.comoDelegar].join('\n')}\n`
+}
+
+function tareaDe(respuesta) {
+  const r = exigirPuente(respuesta)
+  if (r.ok !== true) throw errorDeRechazo(r)
+  const tarea = r.tarea
+  if (!tarea || typeof tarea.id !== 'string' || !Object.hasOwn(CODIGO_ESTADO, tarea.estado) || !Array.isArray(tarea.actividad)) {
+    throw new ErrorTctx(CODIGOS.puente, textosTctx().respuestaIncomprensible)
+  }
+  return tarea
+}
+
+function mostrarFinal(tarea) {
+  const t = textosTctx()
+  if (tarea.estado === 'hecha') process.stdout.write(conSalto(tarea.resultado ?? ''))
+  else if (tarea.estado === 'fallida') {
+    aviso(`${t.motivosFallo[tarea.motivo] || t.falloDelegado}${tarea.detalle ? `: ${tarea.detalle}` : ''}`)
+    if (tarea.actividad.length) process.stderr.write(conSalto(tarea.actividad.join('\n')))
+  } else if (tarea.estado === 'cancelada') aviso(t.tareaCancelada(tarea.id))
+  return CODIGO_ESTADO[tarea.estado]
+}
+
+function mostrarTarea(tarea, ahora = Date.now()) {
+  const t = textosTctx()
+  process.stdout.write(`${t.estadoTarea(NOMBRE_AGENTE[tarea.agente], tarea.cuenta, t.estadosTarea[tarea.estado], segundosDesde(tarea.inicio, tarea.fin ?? ahora), segundosDesde(tarea.ultimaActividad, ahora), tarea.soloLectura)}\n`)
+  if (tarea.actividad.length && tarea.estado !== 'fallida') process.stdout.write(conSalto(tarea.actividad.join('\n')))
+  return mostrarFinal(tarea)
+}
+
+/** Reloj y pausa sustituibles para probar los reintentos sin esperar minutos. No hay tope total. */
+async function esperarTarea(inicial, consultar, { dormir = (ms) => new Promise((r) => setTimeout(r, ms)), ahora = Date.now } = {}) {
+  let tarea = inicial
+  let fallos = 0
+  let ultimoAviso = ahora()
+  for (;;) {
+    if (tarea.estado !== 'en-marcha') return mostrarFinal(tarea)
+    await dormir(2000)
+    try {
+      tarea = tareaDe(await consultar('ctx.tarea', { id: tarea.id }))
+      fallos = 0
+    } catch (e) {
+      if (!(e instanceof ErrorTctx) || e.codigo !== CODIGOS.puente) throw e
+      if (++fallos >= 5) throw new ErrorTctx(CODIGOS.puente, textosTctx().tareaSinPuente(tarea.id))
+    }
+    if (tarea.estado === 'en-marcha' && ahora() - ultimoAviso >= 30_000) {
+      aviso(textosTctx().progresoTarea(tarea.id, segundosDesde(tarea.inicio, ahora()), tarea.actividad.at(-1) || ''))
+      ultimoAviso = ahora()
+    }
+  }
+}
+
+async function ejecutarDelegacion(a, respuesta, consultar) {
+  const tarea = tareaDe(respuesta)
+  if (a.accion === 'cancelar') {
+    process.stdout.write(`${textosTctx().tareaCancelada(tarea.id)}\n`)
+    return 0
+  }
+  if (a.sub === 'tarea' && a.accion !== 'continuar') return mostrarTarea(tarea)
+  aviso(textosTctx().tareaLanzada(tarea.id, NOMBRE_AGENTE[tarea.agente], tarea.cuenta))
+  if (a.sinEsperar) {
+    process.stdout.write(`${tarea.id}\n`)
+    return 0
+  }
+  // `ctx.delegar` no incluye el resultado: incluso una tarea ya hecha se consulta una vez.
+  return esperarTarea(tarea.estado === 'hecha' ? { ...tarea, estado: 'en-marcha' } : tarea, consultar)
+}
+
+module.exports = { exigirPuente, errorDeRechazo, peticionDe, mostrar, textoAyuda, textoBusqueda, textoDocumentos, MAX_REGLAS, MAX_MOTIVO, MAX_PETICION, TOPE_BUSCAR_MS, topeDe, MAX_ORDEN_BYTES, horaLocal, ejecutarDelegacion, esperarTarea, mostrarTarea }

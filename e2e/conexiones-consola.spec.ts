@@ -3,7 +3,7 @@
 // empaquetada y contra un PostgreSQL de `postgresEfimero.ts`: un RAISE NOTICE anidado bajo
 // su sentencia en la Salida, el selector de esquema que llega a la SESIÓN (`current_schema()`
 // lo dice el servidor), «Ver DDL» en un Monaco de solo lectura, el arrastre de una pestaña
-// con el DnD de Chromium (y que un clic no es un arrastre) y «Cerrar a la derecha». Los
+// con el DnD de Chromium (y que un clic no es un arrastre) y «Cerrar las de la derecha». Los
 // errores de compilación con marcas son de Oracle y quedan para `test:db-oracle`.
 // En serie y compartiendo app; acordes por `MOD`.
 // =============================================================================
@@ -100,7 +100,7 @@ test.describe('explorador de BD: consola, árbol y pestañas (segunda entrega)',
   test('(0) conexión y consola', async () => {
     const win = s!.win
     await aLaVista(win)
-    await win.locator('.activity-item[title="Conexiones a bases de datos"]').click()
+    await win.locator('.activity-item[title="Bases de datos"]').click()
     await expect(win.locator('.db-area:not(.hidden)')).toBeVisible()
     const p = pg!
     const creada = await win.evaluate(
@@ -263,12 +263,12 @@ test.describe('explorador de BD: consola, árbol y pestañas (segunda entrega)',
   // (5) «CERRAR A LA DERECHA» desde el menú de la primera: se van la consola (sin nada
   // que preguntar: no ejecuta ni tiene tx) y el DDL. En la primera, «Cerrar a la
   // izquierda» sale deshabilitado.
-  test('(5) «Cerrar a la derecha» cierra las de su derecha', async () => {
+  test('(5) «Cerrar las de la derecha» cierra las de su derecha', async () => {
     const win = s!.win
     await pestana(win, 'profile').click({ button: 'right' })
-    expect(await entradaDeshabilitada(win, 'Cerrar a la izquierda'), 'nada a la izquierda de la primera').toBe(true)
-    expect(await entradaDeshabilitada(win, 'Cerrar a la derecha')).toBe(false)
-    await elegirDelMenu(win, 'Cerrar a la derecha')
+    expect(await entradaDeshabilitada(win, 'Cerrar las de la izquierda'), 'nada a la izquierda de la primera').toBe(true)
+    expect(await entradaDeshabilitada(win, 'Cerrar las de la derecha')).toBe(false)
+    await elegirDelMenu(win, 'Cerrar las de la derecha')
     await expect.poll(() => nombresPestanas(win)).toEqual(['profile'])
     await expect(pestana(win, 'profile')).toHaveClass(/\bactive\b/)
   })

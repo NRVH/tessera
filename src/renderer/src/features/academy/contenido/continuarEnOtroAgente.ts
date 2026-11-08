@@ -21,7 +21,7 @@ const es: Articulo = {
             '**Solo un resumen** (otro agente): Claude Code pasa el trabajo a Codex, o a la inversa. Una conversación no se puede copiar de un agente a otro, así que el agente de destino empieza una conversación nueva con un resumen del trabajo, denominado [traspaso](glosario/traspaso).'
           ]
         },
-        'Las dos opciones se encuentran en el botón **⇄** de la cabecera del agente, en el menú **Continuar esta conversación**. En ambos casos, la conversación de origen no cambia y sigue en su [historial](conversaciones).',
+        'Las dos opciones se encuentran en el botón de las dos flechas cruzadas (⇄), a la derecha de la cabecera del agente, junto al de la cuenta, en el menú **Continuar esta conversación**. En ambos casos, la conversación de origen no cambia y sigue en su [historial](conversaciones).',
         {
           nota: 'El botón está desactivado si no hay una conversación abierta o durante una actualización de los agentes, y no aparece si no existe otra cuenta ni otro agente de destino. El agente de la terminal no dispone de este botón.'
         }
@@ -33,7 +33,7 @@ const es: Articulo = {
       bloques: [
         {
           pasos: [
-            'En la cabecera del agente, haga clic en **⇄**.',
+            'En la cabecera del agente, haga clic en ⇄.',
             'En el grupo del agente actual, marcado **Conversación completa**, seleccione la cuenta de destino.',
             'El agente pasa a esa cuenta, en la misma pestaña, y reanuda la conversación.'
           ]
@@ -50,7 +50,7 @@ const es: Articulo = {
         'El grupo del otro agente, marcado **Solo un resumen**, aparece en el agente de un proyecto, fuera del [mosaico](mosaico), si el otro agente tiene una pestaña visible en ese proyecto.',
         {
           pasos: [
-            'En la cabecera del agente, haga clic en **⇄**.',
+            'En la cabecera del agente, haga clic en ⇄.',
             'En el grupo del otro agente, seleccione la cuenta con la que debe continuar.',
             'Tessera abre la pestaña de ese agente con una conversación nueva. Su primer mensaje le pide leer el traspaso con `tctx traspaso`, resumirlo y esperar sus instrucciones.'
           ]
@@ -82,8 +82,8 @@ const es: Articulo = {
             'Los [agentes propios](agentes/manuales) no pueden ser origen ni destino, porque Tessera no sabe leer sus conversaciones.',
             'Solo puede leer el traspaso la sesión que se abrió para recibirlo, y solo mientras esa sesión siga abierta. El traspaso no se guarda en disco ni en el repositorio.',
             'Codex en Docker necesita [acceso completo](nativo-o-docker/codex) para leer el traspaso.',
-            'Si el destino no se abre en 10 minutos, la operación caduca y hay que volver a solicitarla desde **⇄**.',
-            'Con una ruta de proyecto muy larga, Claude Code no puede seguir la conversación en otra cuenta. Tessera lo indica y se puede continuar con otro agente desde **⇄**.'
+            'Si el destino no se abre en 10 minutos, la operación caduca y hay que volver a solicitarla desde ⇄.',
+            'Con una ruta de proyecto muy larga, Claude Code no puede seguir la conversación en otra cuenta. Tessera lo indica y se puede continuar con otro agente desde ⇄.'
           ]
         }
       ]
@@ -105,7 +105,7 @@ const en: Articulo = {
             '**Summary only** (another agent): Claude Code passes the work to Codex, or the other way around. A conversation cannot be copied from one agent to the other, so the destination agent starts a new conversation with a summary of the work, called a [handoff](glosario/traspaso).'
           ]
         },
-        'Both options are in the **⇄** button in the agent header, in the **Continue this conversation** menu. In both cases, the original conversation does not change and stays in its [history](conversaciones).',
+        'Both options are in the crossed arrows button (⇄), on the right of the agent header, next to the account button, in the **Continue this conversation** menu. In both cases, the original conversation does not change and stays in its [history](conversaciones).',
         {
           nota: 'The button is disabled if no conversation is open or while the agents are updating, and it does not appear if there is no other account or agent to go to. The terminal agent does not have this button.'
         }
@@ -117,7 +117,7 @@ const en: Articulo = {
       bloques: [
         {
           pasos: [
-            'In the agent header, click **⇄**.',
+            'In the agent header, click ⇄.',
             'In the group for the current agent, marked **Full conversation**, choose the destination account.',
             'The agent switches to that account, in the same tab, and resumes the conversation.'
           ]
@@ -134,7 +134,7 @@ const en: Articulo = {
         'The group for the other agent, marked **Summary only**, appears for a project’s agent, outside the [mosaic](mosaico), if the other agent has a visible tab in that project.',
         {
           pasos: [
-            'In the agent header, click **⇄**.',
+            'In the agent header, click ⇄.',
             'In the group for the other agent, choose the account it should continue with.',
             'Tessera opens that agent’s tab with a new conversation. The first message asks the agent to read the handoff with `tctx traspaso`, summarize it, and wait for your instructions.'
           ]
@@ -166,8 +166,8 @@ const en: Articulo = {
             '[Custom agents](agentes/manuales) can be neither the origin nor the destination, because Tessera cannot read their conversations.',
             'Only the session opened to receive the handoff can read it, and only while that session stays open. The handoff is not saved to disk or to the repository.',
             'Codex in Docker needs [full access](nativo-o-docker/codex) to read the handoff.',
-            'If the destination does not open within 10 minutes, the operation expires and you have to request it again from **⇄**.',
-            'If the project path is very long, Claude Code cannot continue the conversation in another account. Tessera tells you, and you can continue with another agent from **⇄** instead.'
+            'If the destination does not open within 10 minutes, the operation expires and you have to request it again from ⇄.',
+            'If the project path is very long, Claude Code cannot continue the conversation in another account. Tessera tells you, and you can continue with another agent from ⇄ instead.'
           ]
         }
       ]

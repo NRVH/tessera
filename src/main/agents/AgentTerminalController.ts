@@ -26,6 +26,7 @@ import type { DatosLogin } from './loginCodex'
 import type { SesionNativa } from '../../shared/agentes-nativos-ipc'
 import type { TerminalService } from '../terminals/TerminalService'
 import { abrir } from './terminalAgente/apertura'
+import { ServicioDelegacion, type DepsDelegacion } from './delegacion/ServicioDelegacion'
 import { recargar } from './terminalAgente/recarga'
 import { cerrar, cerrarDeVentana, cerrarDonde, closeAllSessions, detenerVarias, disposeAll } from './terminalAgente/cierre'
 import type { IdAgente } from '../../shared/agentesManuales'
@@ -65,9 +66,22 @@ export class AgentTerminalController {
 
   private readonly vigia: VigiaSaturacion
 
+  private delegacion: ServicioDelegacion | null = null
+
   constructor(opts: AgentTerminalControllerOptions, vigia: OpcionesVigia = {}) {
     this.n = crearNucleo(opts)
     this.vigia = new VigiaSaturacion(this.n, vigia)
+  }
+
+  /** Las tareas delegadas, que corren en los contenedores de este controlador. Nace tarde: necesita el lector del uso. */
+  crearDelegacion(deps: DepsDelegacion): ServicioDelegacion {
+    this.delegacion = new ServicioDelegacion(this.n, deps)
+    return this.delegacion
+  }
+
+  /** La sesión con esa clave (de agente o de terminal) terminó: sus tareas delegadas se cancelan. */
+  alCerrarOrigenDelegacion(clave: string): void {
+    this.delegacion?.alCerrarOrigen(clave)
   }
 
   /** Lo que el renderer manda al vigía de la saturación; la primera vez lo pone a medir. */
@@ -198,7 +212,9 @@ export class AgentTerminalController {
    */
   sesionParaHistorial(sessionId: string): { profileId: string; agente: string; accountId: string; host: boolean } | null {
     const s = this.sessions.get(sessionId)
-    return s ? { profileId: s.profileId, agente: s.agente, accountId: s.accountId, host: s.host } : null
+    // Una tarea delegada no está en el mapa de sesiones, pero su token es el de un agente en Docker de su cuenta.
+    if (!s) return this.delegacion?.sesionDe(sessionId) ?? null
+    return { profileId: s.profileId, agente: s.agente, accountId: s.accountId, host: s.host }
   }
 
   /**
@@ -318,17 +334,29 @@ export class AgentTerminalController {
   }
 
   /** Cierra todas las sesiones de un perfil (hibernar). */
-  closeSessionsForProfile(profileId: string): Promise<string[]> {
+  async closeSessionsForProfile(profileId: string): Promise<string[]> {
+    await this.delegacion?.cancelarDonde((t) => t.profileId === profileId)
     return cerrarDonde(this.n, (s) => s.profileId === profileId)
   }
 
-  /** Cierra todas las sesiones de una cuenta en cualquier perfil (logout o borrado). */
-  closeSessionsForAccount(accountId: string): Promise<string[]> {
+  /** Cierra todas las sesiones de una cuenta en cualquier perfil (logout o borrado), también sus tareas delegadas. */
+  async closeSessionsForAccount(accountId: string): Promise<string[]> {
+    await this.delegacion?.cancelarDonde((t) => t.accountId === accountId)
     return cerrarDonde(this.n, (s) => s.accountId === accountId)
   }
 
+  /** Cuántas sesiones abiertas usan esa configuración: las nativas del agente o, con cuenta, las de ella en Docker. */
+  contarSesionesDeConfig(agente: IdAgente, accountId: string | null): number {
+    let total = 0
+    for (const s of this.sessions.values()) {
+      if (s.agente === agente && (accountId === null ? s.host : !s.host && s.accountId === accountId)) total++
+    }
+    return total
+  }
+
   /** Cierra las sesiones en contenedor de un agente en un perfil, de todas sus cuentas (eliminarlo). */
-  closeSessionsForAgente(profileId: string, agente: IdAgente): Promise<string[]> {
+  async closeSessionsForAgente(profileId: string, agente: IdAgente): Promise<string[]> {
+    await this.delegacion?.cancelarDonde((t) => t.profileId === profileId && t.agente === agente)
     return cerrarDonde(this.n, (s) => s.profileId === profileId && s.agente === agente && !s.host)
   }
 

@@ -5,8 +5,8 @@
 
 ## Contexto
 
-Con muchos proyectos abiertos, cambiar de perfil se notaba lento: cada render de la ventana
-repintaba los panes vivos de todos los perfiles. No había forma de verlo ni de impedir que volviera.
+Con muchos proyectos abiertos, cambiar de perfil se nota lento si cada render de la ventana repinta
+los panes vivos de todos los perfiles, y sin una medida nada impide que una prop nueva lo provoque.
 
 ## Decisión
 
@@ -23,10 +23,10 @@ repintaba los panes vivos de todos los perfiles. No había forma de verlo ni de 
 
 Medido con agentes falsos (peor caso por cambio; entre paréntesis, la primera visita):
 
-| Proyectos | Panes repintados, antes | después | Renders de pane, antes | después | Renders de App, antes | después |
-|---|---|---|---|---|---|---|
-| 4 | 8 (8) | 2 (3) | 72–80 (121) | 3 (12) | 10–11 | 8–9 |
-| 12 | 24 (24) | 2 (3) | 216–240 (361) | 3 (12) | 10–12 | 8–10 |
+| Proyectos | Panes repintados | Renders de pane | Renders de App |
+|---|---|---|---|
+| 4 | 2 (3) | 3 (12) | 8–9 |
+| 12 | 2 (3) | 3 (12) | 8–10 |
 
 ## Consecuencias
 

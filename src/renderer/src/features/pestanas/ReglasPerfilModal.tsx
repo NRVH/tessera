@@ -1,41 +1,29 @@
 // =============================================================================
-// ReglasPerfilModal: diálogo donde el usuario escribe las reglas de un perfil para sus agentes. Un texto
-// grande, su contador contra el tope (en rojo y sin poder guardar al pasarlo) y Guardar o Cancelar; si un
-// agente propuso un cambio, un aviso para revisarlo, y para editar una propuesta se abre con su texto.
-// Guarda el texto tal cual; normalizarlo y quitar el campo si queda vacío es cosa del reductor de pestañas.
-// Depende de comun/useDialogo y de shared/reglasPerfil; lo abren `DialogosPerfil` y `CapaPropuestasReglas`.
-// Decisiones: docs/decisiones/agentes/reglas-del-perfil.md
+// ReglasPerfilModal: el texto de una propuesta de reglas para editarlo antes de aceptarlo, las de un perfil
+// o las globales. Un texto grande, su contador contra el tope (en rojo y sin poder guardar al pasarlo; con un
+// aviso al acercarse) y
+// Guardar o Cancelar. Guarda el texto tal cual; normalizarlo es cosa de quien lo guarda. Las reglas vigentes
+// se editan en el contexto de los agentes. Depende de comun/Modal y de shared/reglasPerfil; lo abre
+// `CapaPropuestasReglas`.
+// Decisiones: docs/decisiones/agentes/contexto-de-los-agentes.md
 // =============================================================================
 import '../../comun/formularioModal.css'
 import './reglasPerfil.css'
 import { useId, useState } from 'react'
 import type { Profile } from '../../../../main/profiles/types'
-import { MAX_REGLAS_PERFIL, normalizarReglas } from '../../../../shared/reglasPerfil'
-import { alClicEnVelo, useDialogo } from '../../comun/useDialogo'
+import { ID_REGLAS_GLOBALES } from '../../../../shared/reglas-ipc'
+import { MAX_REGLAS_PERFIL, normalizarReglas, reglasCercaDelTope } from '../../../../shared/reglasPerfil'
+import { AvisoModal, Modal, PieModal } from '../../comun/Modal'
 import { AYUDA, BotonAyuda } from '../academy'
 import { txPestanas } from './textos.ts'
 
 interface ReglasPerfilModalProps {
-  profile: Profile
-  /** El texto con que se abre en vez de las vigentes (editar una propuesta antes de aceptarla). */
+  /** El perfil, o el nivel global con su id reservado. */
+  profile: Pick<Profile, 'id' | 'nombre' | 'reglas'>
+  /** El texto con que se abre en vez de las vigentes (el de la propuesta). */
   textoInicial?: string
-  /** Si hay una propuesta pendiente para este perfil: el diálogo lo avisa y deja revisarla. */
-  onRevisarPropuesta?: () => void
   onGuardar: (reglas: string) => void
   onCancel: () => void
-}
-
-/** El aviso de que hay una propuesta pendiente, con el botón para revisarla. */
-function AvisoPropuesta({ onRevisar }: { onRevisar: () => void }): React.JSX.Element {
-  const t = txPestanas().reglas
-  return (
-    <div className="reglas-aviso-propuesta" role="status">
-      <span>{t.hayPropuesta}</span>
-      <button type="button" className="btn btn-ghost" onClick={onRevisar}>
-        {t.revisarPropuesta}
-      </button>
-    </div>
-  )
 }
 
 /** El texto de las reglas y su contador contra el tope. */
@@ -61,66 +49,31 @@ function CampoReglas(p: { texto: string; largo: number; excedido: boolean; idAyu
         {p.excedido && `${t.demasiado} `}
         {t.contador(p.largo, MAX_REGLAS_PERFIL)}
       </span>
+      {reglasCercaDelTope(p.largo) && <AvisoModal tono="aviso">{t.cercaDelTope}</AvisoModal>}
     </div>
   )
 }
 
-/** Diálogo de las reglas de un perfil para sus agentes. */
-export function ReglasPerfilModal({ profile, textoInicial, onRevisarPropuesta, onGuardar, onCancel }: ReglasPerfilModalProps): React.JSX.Element {
-  const dialogo = useDialogo({ onClose: onCancel })
-  const idTitulo = useId()
+/** Diálogo de las reglas de un perfil, o de las globales, para editar una propuesta. */
+export function ReglasPerfilModal({ profile, textoInicial, onGuardar, onCancel }: ReglasPerfilModalProps): React.JSX.Element {
   const idAyuda = useId()
   const t = txPestanas().reglas
+  const global = profile.id === ID_REGLAS_GLOBALES
   const [texto, setTexto] = useState(textoInicial ?? profile.reglas ?? '')
   // El tope es el del texto que se guarda (ya normalizado), no el que se va tecleando.
   const largo = normalizarReglas(texto).length
   const excedido = largo > MAX_REGLAS_PERFIL
 
   return (
-    <div className="modal-overlay" role="presentation" onMouseDown={alClicEnVelo(onCancel)}>
-      <div
-        ref={dialogo.ref}
-        className="modal-card db-conexion-modal reglas-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={idTitulo}
-        onMouseDown={(e) => e.stopPropagation()}
-        onKeyDown={dialogo.alPulsarTecla}
-      >
-        <form
-          className="dbc-form"
-          noValidate
-          onSubmit={(e) => {
-            e.preventDefault()
-            if (!excedido) onGuardar(texto)
-          }}
-        >
-          <div className="dbc-cabecera">
-            <div className="dbc-titulo-fila">
-              <div id={idTitulo} className="modal-title">
-                {t.titulo(profile.nombre)}
-              </div>
-              <BotonAyuda destino={AYUDA.reglasDelPerfil} />
-            </div>
-            <div id={idAyuda} className="dbc-ayuda">
-              {t.mensaje}
-            </div>
-          </div>
-          <div className="dbc-cuerpo">
-            {onRevisarPropuesta && <AvisoPropuesta onRevisar={onRevisarPropuesta} />}
-            <CampoReglas texto={texto} largo={largo} excedido={excedido} idAyuda={idAyuda} onCambio={setTexto} />
-          </div>
-          <div className="modal-actions dbc-acciones">
-            <span className="dbc-hueco" />
-            <button type="button" className="btn btn-ghost" onClick={onCancel}>
-              {t.cancelar}
-            </button>
-            <button type="submit" className="btn primary" disabled={excedido}>
-              {t.guardar}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal titulo={global ? t.tituloGlobal : t.titulo(profile.nombre)} ayuda={<BotonAyuda destino={AYUDA.reglasDelPerfil} />}
+      tamano="m" className="db-conexion-modal reglas-modal" onCerrar={onCancel}
+      cierraConVelo={texto === (textoInicial ?? profile.reglas ?? '')}
+      pie={<PieModal>
+        <button type="button" className="btn btn-ghost" onClick={onCancel}>{t.cancelar}</button>
+        <button type="button" className="btn primary" disabled={excedido} onClick={() => onGuardar(texto)}>{t.guardar}</button>
+      </PieModal>}>
+      <div id={idAyuda} className="dbc-ayuda">{global ? t.mensajeGlobal : t.mensaje}</div>
+      <CampoReglas texto={texto} largo={largo} excedido={excedido} idAyuda={idAyuda} onCambio={setTexto} />
+    </Modal>
   )
 }

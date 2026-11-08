@@ -12,7 +12,6 @@ export const txTerminales = crearTextos(
     // Cabecera del panel
     panel: 'Terminal',
     reiniciarTerminal: 'Reiniciar terminal',
-    restaurarPanel: 'Restaurar el panel de terminal',
     maximizarPanel: 'Maximizar el panel de terminal',
     ocultarPanelTitulo: 'Ocultar el panel (las terminales siguen en ejecución)',
     ocultarPanelEtiqueta: 'Ocultar el panel de terminal',
@@ -81,9 +80,11 @@ export const txTerminales = crearTextos(
       'ssh-autenticacion': 'el servidor no aceptó las credenciales',
       'ssh-inalcanzable': 'el servidor no responde; compruebe si requiere una conexión VPN',
       'ssh-huella-cambiada': 'la huella del servidor no coincide con la guardada: el servidor pudo reinstalarse o alguien podría estar suplantándolo. Si conoce el motivo del cambio, use «Olvidar la huella guardada…» en el menú de la conexión (o en el del bastión, si la huella es la suya)',
+      'ssh-huella-sin-confirmar': 'la clave que presenta el servidor no tiene la huella confirmada. Si ya había una guardada, el servidor ofrece ahora otro tipo de clave: compruébelo y, si es legítimo, use «Olvidar la huella guardada…» en el menú de la conexión (o en el del bastión) y vuelva a conectar para confirmar la nueva',
       'ssh-algoritmos': 'el servidor solo ofrece algoritmos antiguos'
     },
     seCorto: 'Se cortó la conexión',
+    huellaNoConfirmada: 'No se confirmó la huella del servidor, así que no se envió ninguna credencial. Vuelva a conectar para comprobarla.',
     noSePudoConectar: 'No se pudo conectar',
     noSePudoConectarMotivo: (motivo: string) => `No se pudo conectar: ${motivo}`,
     sesionTerminoCodigo: (codigo: number | null) => `La sesión terminó (código ${codigo})`,
@@ -117,7 +118,6 @@ export const txTerminales = crearTextos(
   {
     panel: 'Terminal',
     reiniciarTerminal: 'Restart terminal',
-    restaurarPanel: 'Restore terminal panel',
     maximizarPanel: 'Maximize terminal panel',
     ocultarPanelTitulo: 'Hide panel (terminals keep running)',
     ocultarPanelEtiqueta: 'Hide terminal panel',
@@ -182,9 +182,11 @@ export const txTerminales = crearTextos(
       'ssh-autenticacion': 'the server did not accept the credentials',
       'ssh-inalcanzable': 'the server is not responding: are you connected to the VPN?',
       'ssh-huella-cambiada': 'the server’s fingerprint does not match the saved one: the server may have been reinstalled, or someone may be impersonating it. If you know why it changed, use “Forget saved fingerprint…” in the connection’s menu (or in the jump host’s menu, if the fingerprint is the jump host’s)',
+      'ssh-huella-sin-confirmar': 'the key the server presents does not have a confirmed fingerprint. If one was already saved, the server now offers another key type: check it and, if it is legitimate, use “Forget saved fingerprint…” in the connection’s menu (or in the jump host’s menu) and connect again to confirm the new one',
       'ssh-algoritmos': 'the server only offers outdated algorithms'
     },
     seCorto: 'The connection was lost',
+    huellaNoConfirmada: 'The server fingerprint was not confirmed, so no credentials were sent. Connect again to check it.',
     noSePudoConectar: 'Could not connect',
     noSePudoConectarMotivo: (motivo: string) => `Could not connect: ${motivo}`,
     sesionTerminoCodigo: (codigo: number | null) => `The session ended (code ${codigo})`,
@@ -193,7 +195,7 @@ export const txTerminales = crearTextos(
     sesionRelanzada: '── new shell: the previous one was closed when the project hibernated ──',
     fallo: (texto: string) => `could not restart the terminal: ${texto}`,
     shellTerminoCodigo: (codigo: number | null) => `the shell exited (code ${codigo}). `,
-    usaReabrir: 'Press Reopen to open another one.',
+    usaReabrir: 'Click “Reopen” to open another one.',
     reabrir: 'Reopen',
     reabriendo: 'Reopening…',
     tituloReintentarArranque: 'Retry startup: check Docker again and restart the container',

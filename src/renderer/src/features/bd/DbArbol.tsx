@@ -8,6 +8,7 @@
 // Decisiones: docs/decisiones/bd/ui-arbol-componente.md, docs/decisiones/renderer/vivos-y-ocultos.md
 // =============================================================================
 
+import { Presente } from '../../comun/Presente'
 import { useEffect, useId, useState, type Dispatch, type SetStateAction } from 'react'
 import './arbol.css'
 import type { DbArbolProps } from './propsBd'
@@ -106,7 +107,9 @@ export function DbArbol(props: DbArbolProps & DbArbolPropsExtra): React.JSX.Elem
   return (
     <div className="db-arbol" style={p.varsDensidad}>
       <CabeceraArbol a={a} />
-      {aviso && <AvisoArbolVista a={a} aviso={aviso} />}
+      <Presente visible={!!aviso} className="mov-despliega">
+        <AvisoArbolVista a={a} aviso={aviso} />
+      </Presente>
       {ui.busqueda !== null && <BusquedaArbol a={a} busqueda={ui.busqueda} />}
       <CuerpoArbol a={a} />
       <DialogosArbol a={a} />

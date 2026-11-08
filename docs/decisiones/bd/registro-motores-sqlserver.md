@@ -15,7 +15,7 @@ Driver `tedious` (JS puro) contra SQL Server 2012 o superior (`versionMinima: 11
 - **Solo lectura impuesto por Tessera** (`candadoSoloLectura: 'clasificadorYEnvoltorio'`): el servidor
   no tiene candado y ningún `EXEC` pasa en solo lectura, porque un procedimiento puede hacer `COMMIT`
   de la transacción de fuera (`rutinasConfirmanPorDentro: true`). El DDL es transaccional.
-- Cifrado verificado por defecto (`TLS_POR_DEFECTO`), con la casilla «Confiar en el certificado del servidor».
+- Cifrado verificado por defecto (`TLS_POR_DEFECTO`), con el interruptor «Confiar en el certificado del servidor».
 - `obligatorios` lleva host y puerto aunque haya instancia: la forma en disco de una conexión de red es
   host + puerto y el puerto se guarda (1433) aunque no se use, porque lo resuelve SQL Browser.
   `descartarAlGuardar: ['sid']` quita el SID que dejó Oracle.

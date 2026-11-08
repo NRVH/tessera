@@ -15,18 +15,19 @@ pegado a la ▾ (un clic errado lo disparaba) y con cinco grupos y veinte conexi
   enfocado (unas letras e Intro conectan), los grupos y, al pie, «Nueva conexión SSH…» y «Nuevo grupo…».
   Debajo, en su propia fila, «Nueva ventana de agente» (otra ventana y no una conexión del perfil:
   `agentes/ventana-de-agente.md`) con una «i» que explica qué es, porque el nombre solo no lo dice; cierra el lanzador.
-  Es el patrón de las terminales con pestañas: el «+» crea lo de siempre y la ▾ despliega lo demás. Ya no hay botón «Conexiones».
-- Cabecera: `[pestañas] [+][▾] … [⟳] │ [agente] [⤢] │ [—]`. El reinicio pasa al grupo de la derecha, separado por filetes, que
-  se funden con las acciones en reposo.
+  Es el patrón de las terminales con pestañas: el «+» crea lo de siempre y la ▾ despliega lo demás. No hay un botón
+  «Conexiones» aparte.
+- Cabecera: `[pestañas] [+][▾] … [⟳] [⤢] [—]`. El reinicio pasa a las acciones de la derecha, en el orden y con el
+  movimiento de las de Git·Log: se pliegan en reposo y entran desde la derecha al pasar el ratón, sin filetes.
 - En el lanzador solo hay UN grupo abierto: abrir uno cierra el otro, y al abrirlo no hay ninguno (todos, también «Sin grupo»,
   plegados: la ventana es pequeña y ver todo desplegado es ruido). No se recuerda el último ni se abre el de la
   conexión que se mira. Con filtro el acordeón no cuenta: salen las coincidencias de todos los grupos.
 - No hay sección de conexiones recientes: los grupos y el filtro bastan para llegar a una conexión, y en una ventana
   pequeña una sección más ocupa sitio y mete ruido.
 - Las altas: «Nueva conexión SSH…» queda en el pie del lanzador, en el menú de un grupo real (el del lanzador y el del riel) y
-  en la cabecera del riel; el botón del estado vacío del riel y la opción del menú de «Sin grupo» se quitaron (sin esa opción,
-  «Sin grupo» no tiene menú). Guardar un alta solo guarda, venga de donde venga: conectar es un gesto aparte.
-- El riel no cambia: varios grupos a la vez (`sshGruposPlegadosPorPerfil`). La lógica nueva es pura (`listaSsh.ts`).
+  en la cabecera del riel; ni el estado vacío del riel ni «Sin grupo» la repiten («Sin grupo» no tiene menú). Guardar un
+  alta solo guarda, venga de donde venga: conectar es un gesto aparte.
+- El riel admite varios grupos abiertos a la vez (`sshGruposPlegadosPorPerfil`). La lógica es pura (`listaSsh.ts`).
 
 ## Consecuencias
 
@@ -35,8 +36,8 @@ pegado a la ▾ (un clic errado lo disparaba) y con cinco grupos y veinte conexi
 - A pantalla completa con el riel a la vista la ▾ se QUITA del DOM (`sinFlecha` de `BotonDividido`; no se esconde: sin ella no
   queda hueco, parada de Tab ni nombre que anunciar) y vuelve con el riel plegado (`flechaLanzadorVisible`). Si el lanzador está
   abierto cuando el riel pasa a verse, se cierra (`lanzadorSeCierra`); si la ▾ se quita con el foco en ella, este pasa al «+».
-- A pantalla completa «Restaurar» y «Ocultar» (y en Git·Log, «Restaurar» y «Cerrar») van `fijo`: son las dos salidas del modo y
-  una fija con la otra escondida se leía como una avería.
+- A pantalla completa la cabecera no lleva «Restaurar» ni «Ocultar»: son del modo y van en el riel
+  (`docs/decisiones/layout/pantalla-completa-de-la-franja.md`); en la cabecera queda solo el reinicio.
 - El umbral de la cabecera (`@container terminalcab`) pasó de 520 a 560 px de contenedor, medido en la app empaquetada
   (Windows) con la etiqueta del reinicio forzada desplegada y la cabecera de 300 a 900 px: lo fijo de la cabecera mide ~216 px
   sin la etiqueta y ~321 con ella (cuesta ~105), y las pestañas dejan de caber enteras desde su ancho más esos ~321: con 1

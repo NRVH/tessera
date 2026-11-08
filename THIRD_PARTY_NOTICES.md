@@ -3,7 +3,7 @@
 Tessera se publica bajo la [licencia MIT](./LICENSE). Está construida sobre software escrito
 por otros, y lo distribuye, cada uno con su propia licencia. Este archivo enumera esos
 componentes, la licencia con la que Tessera usa cada uno y lo que sus licencias piden que se
-diga. Describe Tessera 0.83.1.
+diga. Describe Tessera 0.84.0.
 
 ## Cómo viaja el código de terceros con Tessera
 
@@ -142,6 +142,24 @@ El editor de código. Copyright (c) 2016 - present Microsoft Corporation. La fue
 Codicons incluida con Monaco es © Microsoft y tiene licencia Creative Commons Attribution 4.0
 International License (CC BY 4.0).
 
+### Paletas de los temas del código
+
+Los temas del código (Configuración › Apariencia › Editor de código) reproducen los colores de
+estas paletas, adaptados a los papeles del editor de Tessera; no se incluye ningún archivo suyo.
+
+| Tema | Autor | Licencia |
+| --- | --- | --- |
+| Dracula | Dracula Theme (Zeno Rocha y colaboradores) | MIT |
+| Monokai | Wimer Hazenberg | Paleta de libre uso, reproducida por la comunidad |
+| Tokyo Night | enkia | MIT |
+| Darcula | Sus autores originales | Apache-2.0 |
+| Dark+ | Microsoft Corporation | MIT |
+| GitHub Dark | GitHub, Inc. | MIT |
+| Gruvbox Dark | Pavel Pertsev | MIT |
+| Solarized Dark | Ethan Schoonover | MIT |
+| Cobalt2 | Wes Bos | MIT |
+| SynthWave '84 | Robb Owen | MIT |
+
 ### node-pty 1.1.0 (MIT)
 
 Pseudoterminales para las terminales y los agentes. Copyright (c) 2012-2015, Christopher
@@ -175,6 +193,7 @@ Apache-2.0, salvo estas:
 | Paquete | Versión | Licencia | Lo trae |
 | --- | --- | --- | --- |
 | argparse | 2.0.1 | Python-2.0 (PSF License) | `js-yaml`, una dependencia de `electron-updater` |
+| tweetnacl | 0.14.5 | Unlicense | `bcrypt-pbkdf` |
 | sax | 1.6.1 | BlueOak-1.0.0 | `builder-util-runtime`, una dependencia de `electron-updater` |
 | tslib | 2.8.1 | 0BSD | varios paquetes |
 | pako | 1.0.11 | MIT AND Zlib | `jszip` |
@@ -189,6 +208,7 @@ Sus textos de licencia viajan en la carpeta de cada paquete.
 | --- | --- | --- |
 | @mongodb-js/shell-bson-parser | 1.5.19 | Apache-2.0 |
 | acorn | 8.17.0 | MIT |
+| bcrypt-pbkdf | 1.0.2 | BSD-3-Clause |
 | electron-updater | 6.8.9 | MIT |
 | fflate | 0.8.3 | MIT |
 | iconv-lite | 0.7.3 | MIT |
@@ -202,6 +222,7 @@ Sus textos de licencia viajan en la carpeta de cada paquete.
 | oracledb | 6.10.0 | Apache-2.0 OR UPL-1.0 (elegida Apache-2.0) |
 | pg | 8.23.1 | MIT |
 | pg-cursor | 2.22.1 | MIT |
+| smol-toml | 1.9.1 | BSD-3-Clause |
 | tedious | 20.3.3 | MIT |
 
 ## Bibliotecas integradas en la interfaz

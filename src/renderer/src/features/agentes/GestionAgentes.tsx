@@ -7,7 +7,10 @@
 // =============================================================================
 import './selectorAgentes.css'
 import { useState } from 'react'
-import { createPortal } from 'react-dom'
+import { SobreAjustes } from './SobreAjustes'
+export { SobreAjustes } from './SobreAjustes'
+import { CuentasConfiguracion } from './CuentasConfiguracion'
+import { tieneCuentasDocker } from './modeloCuentasConfiguracion'
 import type { DefinicionAgente, IdAgente } from '../../../../shared/agentesManuales'
 import { useStorePestanas } from '../pestanas'
 import { agentesDelPerfil, sePuedeOcultar, type AgenteDelPerfil } from './agentesDelProyecto'
@@ -21,13 +24,8 @@ import { ConfirmarBorradoAgente } from './ConfirmarBorradoAgente'
 import { IconoAsa, IconoBorrar, IconoEditar, IconoOjo } from './iconosGestionAgentes'
 import { txSelector } from './textosSelectorAgentes.ts'
 
-/** Por encima del modal de Configuración: un portal a `<body>` con su propio apilamiento. */
-function SobreAjustes({ children }: { children: React.ReactNode }): React.JSX.Element {
-  return createPortal(<div className="sobre-ajustes">{children}</div>, document.body)
-}
-
 /** El perfil activo y su nombre. */
-function usePerfilActivo(): { profileId: string | null; nombre: string } {
+export function usePerfilActivo(): { profileId: string | null; nombre: string } {
   const tabs = useStorePestanas((s) => s.tabs)
   const profileId = tabs.activeProfileId
   if (!profileId) return { profileId: null, nombre: '' }
@@ -80,7 +78,7 @@ export function GestionAgentes(): React.JSX.Element {
       <ul className="gestion-agentes-lista" aria-label={t.perfil(perfil.nombre)}>
         {lista.map((a) => (
           <FilaAgente
-            key={a.pestana.id}
+            key={profileId + ':' + a.pestana.id}
             f={{ a, ids, visibles }}
             profileId={profileId}
             orden={orden}
@@ -153,6 +151,7 @@ function FilaAgente(p: {
           </BotonIcono>
         </>
       )}
+      {tieneCuentasDocker(a.modo) && <CuentasConfiguracion profileId={p.profileId} agente={id} nombre={nombre} manual={manual ?? undefined} />}
     </li>
   )
 }

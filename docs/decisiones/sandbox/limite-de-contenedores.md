@@ -12,14 +12,18 @@ usuario: Tessera tiene que decírselo claro y no morir por ello.
 
 ## Decisión
 
-- **Límite del usuario con semáforo.** Un ajuste por equipo (no se exporta) con una barra coloreada según la
-  memoria que tiene Docker (`docker info`): verde, todos trabajando a pleno caben en el 70 %; amarillo, a
-  medio gas en el 90 %; rojo, más allá. Hay «Sin límite», también en rojo. Sin ajuste vale el recomendado,
-  el último verde. Cuentan todos los contenedores de Tessera.
+- **Límite del usuario con semáforo.** Un ajuste por equipo (no se exporta) con un deslizador cuya pista se
+  rellena hasta el valor elegido y lleva la marca del recomendado (`Contenedores.tsx`, `limiteContenedores.ts`).
+  El color sale de la memoria que tiene Docker (`docker info`) y lo dicen el punto junto al valor y el aviso, no
+  la pista: verde, todos trabajando a pleno caben en el 70 %; amarillo, a medio gas en el 90 %; rojo, más allá.
+  El último paso es «Sin límite», también en rojo. Sin ajuste vale el recomendado, el último verde. Cuentan
+  todos los contenedores de Tessera.
 - **Al llegar al límite, al abrir un agente en Docker** (el cupo viaja en la petición, desde los ajustes):
   se para primero un contenedor de cuenta sin agentes; si no hay, el que diga la política (los últimos
   abiertos, por defecto, que protege las tareas largas; los primeros; o los de más tiempo sin uso). Nunca
-  el que se abre, uno a la vista, uno con un agente manual (no se sabe retomar su conversación) y, si así
+  el que se abre, uno a la vista, uno con un agente manual (no se sabe retomar su conversación), uno con una
+  tarea delegada en marcha (no tiene pestaña que la reabra: `cupo.ts`,
+  [delegar-en-cuentas-de-docker.md](../agentes/delegar-en-cuentas-de-docker.md)) y, si así
   se pide, nunca uno trabajando mientras haya otro. La parada y su constancia son las mismas que las de
   la saturación (`saturacion-de-docker.md`). Sus agentes se sueltan como en una hibernación: el renderer los
   marca y se retoman al volver, y un aviso dice qué se paró y con qué regla. Si no se puede parar ninguno,

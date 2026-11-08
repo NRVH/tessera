@@ -141,7 +141,7 @@ check(
 const sinPerfil = buscarEnRegistro(REGISTRO, 'dev-central', null)
 check('sin perfil conocido busca en todo el registro (como tdb)', sinPerfil.ok && sinPerfil.entrada.id === 'c-alfa', JSON.stringify(sinPerfil.ok ? sinPerfil.entrada.id : sinPerfil))
 
-// LA MISMA LECTURA que el main y `tdb` (antes leía el JSON a pelo).
+// LA MISMA LECTURA que el main y `tdb` (no el JSON a pelo).
 {
   const conBak = leerRegistroConRespaldo(
     disco({ 'r.json': '{ roto', 'r.json.bak': JSON.stringify(REGISTRO_EN_DISCO) }),

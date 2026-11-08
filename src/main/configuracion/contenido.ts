@@ -1,7 +1,9 @@
 // =============================================================================
 // Lo que va DENTRO de la copia cifrada: los perfiles y, según los apartados elegidos, sus
 // conexiones SSH (con secretos, claves y huellas) y de bases de datos (con sus contraseñas), los
-// agentes definidos a mano, los ajustes y el índice del historial. Arma el contenido al exportar, lo lee al importar
+// agentes definidos a mano, la configuración de Docker de los agentes, los archivos de las cuentas de Docker y las
+// reglas nativas, los ajustes y el índice del historial.
+// Arma el contenido al exportar, lo lee al importar
 // (perfiles validados como los de `profiles.json`), da su vista previa sin secretos y lo reduce a lo
 // elegido. Sin electron: las conexiones llegan por parámetro.
 // Decisiones: docs/decisiones/configuracion/exportar-importar.md
@@ -13,10 +15,13 @@ import type { AgentesCopia, AjustesCopia } from '../../shared/copiaConfiguracion
 import type { ConexionPrevia, PreviaConexiones, SeleccionConexiones } from '../../shared/seleccionCopia.ts'
 import type { Profile } from '../profiles/types.ts'
 import { validateProfileShape } from '../profiles/validate.ts'
+import { sinCarpetasDocumentos } from '../../shared/documentosPerfil.ts'
 import type { ConexionBdCopia } from '../db/copiaConexiones.ts'
 import { txConfiguracion } from './textos.ts'
 import type { ConexionSshCopia } from '../ssh/ConexionesSsh.ts'
 import type { GrupoSshPersistido } from '../ssh/conservarAlEditarSsh.ts'
+import { leerConfigDockerCopia, type ConfigDockerCopia } from '../agents/configAgente/copiaConfigCompartida.ts'
+import { leerArchivosAgentesCopia, type ArchivosAgentesCopia } from '../agents/configAgente/copiaArchivosAgentes.ts'
 
 export interface ContenidoCopia {
   perfiles: Profile[]
@@ -26,6 +31,9 @@ export interface ContenidoCopia {
   ajustes?: AjustesCopia
   /** El índice del historial que va en trozos detrás (versión 2 del archivo). */
   historial?: { fuentes: FuenteHistorialCopia[] }
+  configDocker?: ConfigDockerCopia
+  /** Los archivos de las cuentas de Docker y las reglas de los agentes nativos. */
+  archivosAgentes?: ArchivosAgentesCopia
 }
 
 const esAgenteHistorial = (v: unknown): v is AgenteHistorial => v === 'claude-code' || v === 'codex'
@@ -72,7 +80,7 @@ export function perfilesValidos(raw: unknown): { perfiles: Profile[]; invalidos:
 export function armarContenido(req: ExportarRequest, fuentes: FuentesConexiones): { contenido: ContenidoCopia; resumen: ResumenExportacion } {
   const { perfiles } = perfilesValidos(req.perfiles)
   if (perfiles.length === 0) throw new Error(txConfiguracion().elegirPerfil)
-  const contenido: ContenidoCopia = { perfiles }
+  const contenido: ContenidoCopia = { perfiles: perfiles.map(sinCarpetasDocumentos) }
   const resumen: ResumenExportacion = { perfiles: perfiles.length, ssh: 0, bd: 0, agentes: 0, sinSecreto: [], sinClave: [] }
   if (req.apartados.ssh) {
     const ssh: NonNullable<ContenidoCopia['ssh']> = { grupos: [], conexiones: [] }
@@ -116,12 +124,20 @@ export function leerContenido(texto: string): { contenido: ContenidoCopia; inval
   if (typeof raw !== 'object' || raw === null) return null
   const r = raw as Record<string, unknown>
   const { perfiles, invalidos } = perfilesValidos(r.perfiles)
-  const contenido: ContenidoCopia = { perfiles }
+  const contenido: ContenidoCopia = { perfiles: perfiles.map(sinCarpetasDocumentos) }
   if (typeof r.ssh === 'object' && r.ssh !== null) contenido.ssh = r.ssh as ContenidoCopia['ssh']
   if (Array.isArray(r.bd)) contenido.bd = r.bd as ContenidoCopia['bd']
   if (typeof r.agentes === 'object' && r.agentes !== null) contenido.agentes = r.agentes as AgentesCopia
   if (typeof r.ajustes === 'object' && r.ajustes !== null) contenido.ajustes = r.ajustes as AjustesCopia
   if (typeof r.historial === 'object' && r.historial !== null) contenido.historial = { fuentes: fuentesValidas(objeto(r.historial).fuentes) }
+  const configDocker = leerConfigDockerCopia(r.configDocker)
+  if (configDocker) {
+    // Solo la de los perfiles que se importan: la de uno inválido no tiene a dónde ir.
+    const ids = new Set(perfiles.map((p) => p.id))
+    contenido.configDocker = { ...configDocker, perfiles: Object.fromEntries(Object.entries(configDocker.perfiles).filter(([id]) => ids.has(id))) }
+  }
+  const archivosAgentes = leerArchivosAgentesCopia(r.archivosAgentes, new Set(perfiles.map((p) => p.id)))
+  if (archivosAgentes) contenido.archivosAgentes = archivosAgentes
   return { contenido, invalidos }
 }
 
@@ -154,14 +170,24 @@ export function previaConexiones(c: ContenidoCopia, yaEsta: { ssh: (id: string) 
 }
 
 /**
- * El contenido reducido a lo elegido: los perfiles, las conexiones por id y los grupos SSH que usan
- * las conexiones elegidas (el grupo viaja con su conexión). Un grupo vacío en el archivo entra con su perfil.
+ * El contenido reducido a lo elegido: los perfiles, las conexiones por id, los grupos SSH que usan
+ * las conexiones elegidas (el grupo viaja con su conexión) y la configuración de Docker elegida, la global
+ * y la de cada perfil. Un grupo vacío en el archivo entra con su perfil.
  */
-export function seleccionarContenido(c: ContenidoCopia, sel: Pick<SeleccionConexiones, 'perfiles' | 'ssh' | 'bd'>): ContenidoCopia {
+export function seleccionarContenido(c: ContenidoCopia, sel: Pick<SeleccionConexiones, 'perfiles' | 'ssh' | 'bd'> & Partial<Pick<SeleccionConexiones, 'configDocker' | 'configGlobal'>>): ContenidoCopia {
   const perfiles = new Set(sel.perfiles)
   const ssh = new Set(sel.ssh)
   const bd = new Set(sel.bd)
   const fuera: ContenidoCopia = { ...c, perfiles: c.perfiles.filter((p) => perfiles.has(p.id)) }
+  // Se elige aparte (`elegirArchivos`): sin la elección no tiene por qué salir de aquí.
+  delete fuera.archivosAgentes
+  delete fuera.configDocker
+  if (c.configDocker) {
+    const config = new Set(sel.configDocker ?? [])
+    const elegidos = Object.fromEntries(Object.entries(c.configDocker.perfiles).filter(([id]) => config.has(id) && perfiles.has(id)))
+    const global = sel.configGlobal === true ? c.configDocker.global : undefined
+    if (global || Object.keys(elegidos).length > 0) fuera.configDocker = { ...(global ? { global } : {}), perfiles: elegidos }
+  }
   if (c.ssh) {
     const todas = lista(c.ssh.conexiones)
     const conexiones = todas.filter((x) => ssh.has(texto(registroDe(x).id)))
@@ -179,7 +205,7 @@ export function seleccionarContenido(c: ContenidoCopia, sel: Pick<SeleccionConex
 
 /**
  * El contenido con cada perfil del archivo cambiado por el de aquí que lo recibe: el perfil, sus grupos y
- * conexiones SSH, sus bases y su historial. Un perfil sin destino se queda con su id.
+ * conexiones SSH, sus bases, su historial y su configuración de Docker. Un perfil sin destino se queda con su id.
  */
 export function reasignarContenido(c: ContenidoCopia, destinos: Readonly<Record<string, string>>): ContenidoCopia {
   const a = (perfil: string): string => (Object.prototype.hasOwnProperty.call(destinos, perfil) ? destinos[perfil] : perfil)
@@ -196,5 +222,6 @@ export function reasignarContenido(c: ContenidoCopia, destinos: Readonly<Record<
   }
   if (c.bd) fuera.bd = lista(c.bd).map(conPerfil)
   if (c.historial) fuera.historial = { fuentes: c.historial.fuentes.map((f) => (f.perfil === null ? f : { ...f, perfil: a(f.perfil) })) }
+  if (c.configDocker) fuera.configDocker = { ...c.configDocker, perfiles: Object.fromEntries(Object.entries(c.configDocker.perfiles).map(([id, capa]) => [a(id), capa])) }
   return fuera
 }

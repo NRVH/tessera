@@ -29,7 +29,7 @@ export const txFormularioSsh = crearTextos(
     autenticacion: 'Autenticación',
     ayudaContrasena: 'Tessera puede guardarla cifrada y proporcionarla automáticamente al conectar.',
     ayudaSistema: (agente: string) => `Usa ${agente} y las claves de la carpeta .ssh del usuario`,
-    ayudaClave: 'Tessera guarda una copia protegida de la clave; el archivo original no se toca.',
+    ayudaClave: 'Tessera guarda una copia protegida de la clave; el archivo original no se modifica.',
     disponibleAgentes: 'Disponible para los agentes',
     agentesSi: 'Los agentes del perfil pueden conectarse a este servidor sin ver la contraseña.',
     agentesNo: 'Los agentes del perfil no ven esta conexión ni pueden usarla.',
@@ -65,9 +65,9 @@ export const txFormularioSsh = crearTextos(
     anadirTunel: 'Añadir túnel',
     // Archivo de clave
     archivoClave: 'Archivo de clave',
-    elegirOSoltar: 'Seleccione el archivo o suéltelo aquí',
+    elegirOSoltar: 'Seleccionar el archivo o suéltelo aquí',
     importando: 'Importando…',
-    elegir: 'Elegir…',
+    elegir: 'Seleccionar…',
     // Secreto
     fraseClave: 'Frase de la clave',
     contrasena: 'Contraseña',
@@ -88,8 +88,8 @@ export const txFormularioSsh = crearTextos(
     // Diálogo
     nombreGrupo: 'Nombre del grupo',
     crear: 'Crear',
-    olvidarHuellaTitulo: 'Olvidar la huella guardada',
-    olvidarHuellaMensaje1: 'La próxima conexión aceptará la huella que presente el servidor, sea la que sea.',
+    olvidarHuellaTitulo: '¿Olvidar la huella guardada de este servidor?',
+    olvidarHuellaMensaje1: 'Se olvidará la huella guardada: la próxima conexión enseñará la huella que presente el servidor para que usted la confirme antes de conectar.',
     olvidarHuellaMensaje2: 'Hágalo solo si conoce el motivo del cambio (reinstalación del servidor, cambio de equipo…) o si la ha comprobado por otra vía.',
     olvidarYProbar: 'Olvidar y volver a probar',
     olvidarHuellaBoton: 'Olvidar la huella guardada…',
@@ -106,6 +106,9 @@ export const txFormularioSsh = crearTextos(
     huellaTitulo: 'La huella del servidor no coincide con la guardada.',
     huellaPista:
       'El servidor pudo reinstalarse o alguien podría estar suplantándolo. Si conoce el motivo del cambio, olvide la huella guardada.',
+    sinConfirmarTitulo: 'La clave que presenta el servidor no tiene la huella confirmada.',
+    sinConfirmarPista:
+      'Si ya había una huella guardada, el servidor ofrece ahora otro tipo de clave: compruébelo con su administrador y, si es legítimo, olvide la huella guardada para confirmar la nueva.',
     algoritmosTitulo: 'El servidor y este cliente SSH no tienen algoritmos en común.',
     algoritmosPista: 'Suele ocurrir con equipos antiguos.',
     tiempoTitulo: 'El servidor no respondió en 20 segundos.',
@@ -193,8 +196,8 @@ export const txFormularioSsh = crearTextos(
       `The saved ${esFrase ? 'passphrase' : 'password'} cannot be read with ${almacen}. Type it again.`,
     nombreGrupo: 'Group name',
     crear: 'Create',
-    olvidarHuellaTitulo: 'Forget saved fingerprint',
-    olvidarHuellaMensaje1: 'The next connection will accept whatever fingerprint the server presents.',
+    olvidarHuellaTitulo: 'Forget this server’s saved fingerprint?',
+    olvidarHuellaMensaje1: 'The saved fingerprint will be forgotten: the next connection will show the fingerprint the server presents so you can confirm it before connecting.',
     olvidarHuellaMensaje2: 'Do this only if you know why it changed (it was reinstalled, moved to another machine…) or if you have verified it another way.',
     olvidarYProbar: 'Forget and test again',
     olvidarHuellaBoton: 'Forget saved fingerprint…',
@@ -210,6 +213,9 @@ export const txFormularioSsh = crearTextos(
     huellaTitulo: 'The server’s fingerprint is not the one you have saved.',
     huellaPista:
       'It may have been reinstalled, or someone may be impersonating it. If you know why it changed, forget the saved one.',
+    sinConfirmarTitulo: 'The key the server presents does not have a confirmed fingerprint.',
+    sinConfirmarPista:
+      'If a fingerprint was already saved, the server now offers another key type: check with its administrator and, if it is legitimate, forget the saved fingerprint to confirm the new one.',
     algoritmosTitulo: 'The server and this SSH client have no algorithms in common.',
     algoritmosPista: 'This happens with old machines.',
     tiempoTitulo: 'The server did not respond within 20 seconds.',

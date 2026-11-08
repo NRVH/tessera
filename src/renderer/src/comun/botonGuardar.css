@@ -1,0 +1,113 @@
+/* =============================================================================
+   El botón de guardar que confirma en sí mismo (`BotonGuardar.tsx`). La etiqueta y la palomita comparten celda de
+   rejilla: el ancho es el de la etiqueta y nada alrededor se mueve. Al confirmar, la etiqueta se encoge y se va, el
+   fondo pasa al verde de «ok» y la palomita entra con un rebote corto mientras se dibuja; al volver, el gesto inverso.
+   Duraciones y curvas de `movimiento.css`: «reducir movimiento» las deja en cero.
+   ============================================================================= */
+.btn.boton-guardar {
+  display: inline-grid;
+  place-items: center;
+  transition:
+    background-color var(--mov-entrada) var(--curva-estandar),
+    color var(--mov-entrada) var(--curva-estandar);
+}
+.boton-guardar-capa {
+  grid-area: 1 / 1;
+  display: inline-flex;
+  align-items: center;
+}
+.boton-guardar-capa.reposo {
+  transition:
+    opacity var(--mov-medio) var(--curva-estandar),
+    transform var(--mov-medio) var(--curva-entrada);
+}
+.boton-guardar.ok .boton-guardar-capa.reposo {
+  opacity: 0;
+  transform: scale(0.8);
+}
+.boton-guardar-capa.exito {
+  opacity: 0;
+  transform: scale(0.5);
+  transition:
+    opacity var(--mov-salida) var(--curva-estandar),
+    transform var(--mov-salida) var(--curva-estandar);
+}
+.boton-guardar.ok .boton-guardar-capa.exito {
+  opacity: 1;
+  transform: none;
+  animation: boton-guardar-rebote var(--mov-confirma) var(--curva-rebote) 60ms both;
+}
+
+/* El rebote: pasa un poco de su tamaño y se asienta. */
+@keyframes boton-guardar-rebote {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* El verde de «ok» del tema, con la letra oscura del botón principal. Deshabilitado mientras confirma, pero sin
+   la atenuación de un deshabilitado: es un estado, no un botón apagado. */
+.btn.boton-guardar.ok,
+.btn.boton-guardar.ok:disabled {
+  opacity: 1;
+  background: var(--green);
+  color: var(--bg-deep);
+}
+
+/* La palomita se dibuja de un trazo mientras rebota. */
+.boton-guardar-palomita {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+.boton-guardar.ok .boton-guardar-palomita {
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset var(--mov-entrada) var(--curva-estandar) 140ms;
+}
+
+/* Descartar (`BotonDescartar.tsx`): entra desde la derecha, donde está Guardar, y sale hacia allí con un fundido.
+   `visibility` espera a que acabe el fundido al salir y cambia al instante al entrar. */
+.btn.boton-descartar {
+  opacity: 0;
+  transform: translateX(10px) scale(0.9);
+  visibility: hidden;
+  transition:
+    opacity var(--mov-medio) var(--curva-estandar),
+    transform var(--mov-entrada) var(--curva-entrada),
+    visibility 0s linear var(--mov-entrada),
+    background var(--mov-rapido) var(--curva-estandar),
+    color var(--mov-rapido) var(--curva-estandar);
+}
+.btn.boton-descartar.visible {
+  opacity: 1;
+  transform: none;
+  visibility: visible;
+  transition:
+    opacity var(--mov-medio) var(--curva-estandar),
+    transform var(--mov-entrada) var(--curva-entrada),
+    visibility 0s,
+    background var(--mov-rapido) var(--curva-estandar),
+    color var(--mov-rapido) var(--curva-estandar);
+}
+.btn.boton-descartar:disabled {
+  opacity: 0;
+}
+
+/* Las duraciones ya son cero con «reducir movimiento»; la animación del rebote y los recorridos se quitan aparte. */
+@media (prefers-reduced-motion: reduce) {
+  .boton-guardar.ok .boton-guardar-capa.exito {
+    animation: none;
+  }
+  .btn.boton-descartar,
+  .boton-guardar-capa.exito,
+  .boton-guardar.ok .boton-guardar-capa.reposo {
+    transform: none;
+  }
+}

@@ -28,7 +28,7 @@ y [sesiones-esquema-de-consola.md](sesiones-esquema-de-consola.md).
   resolvería, y un ancestro con `transform` o `contain` vuelve relativo el `fixed`. Los atajos de
   la sección no se atienden desde un diálogo ni desde un portal. Los popovers de esquemas, en
   [ui-consola-popovers.md](ui-consola-popovers.md).
-- **Parámetros:** sin selector de tipo; NULL es una casilla. **Tx pendiente:** el foco arranca en
+- **Parámetros:** sin selector de tipo; NULL es un interruptor. **Tx pendiente:** el foco arranca en
   Cancelar y, con la transacción fallida, no hay «Confirmar» (sería un ROLLBACK).
 - **Salida:** autodesplazamiento salvo que el usuario subió a leer; sin lista virtual.
 - **Lista de consolas:** por perfil, sin watcher (se relee al volver el foco); altas optimistas con

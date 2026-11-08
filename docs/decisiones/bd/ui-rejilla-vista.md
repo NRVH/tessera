@@ -22,9 +22,8 @@ El modelo (ventana, anchos, texto) está en [ui-rejilla-modelo-pintado.md](ui-re
   layout y unos rAF: `display:none` pone `scrollTop` a 0 sin avisar y se suelta un fotograma tarde.
 - Copiar va por el portapapeles de Tessera (el de Chromium no es fiable en un renderer aislado);
   `onCopy` es la red del menú Edición de macOS, que resuelve ⌘C sin keydown.
-- Menú de DOS PASOS (ni cascada ni trece filas planas): «Copiar como…» y «Exportar a archivo…»
-  sustituyen la lista en el sitio; el segundo paso MONTA otro menú, con `key`, que enfoca su primera
-  opción. Al cerrarse, el foco vuelve a la rejilla: tras «Copiar» quedaba en `<body>` sin flechas.
+- «Copiar como» y «Exportar a archivo» despliegan sus formatos en un submenú
+  (`renderer/menu-contextual.md`). Al cerrarse el menú, el foco vuelve a la rejilla: si no, queda en `<body>` sin flechas.
 - Orden: clic = esa columna (asc → desc → sin orden), Mayús+clic la añade o cicla; el ciclo es del
   dueño, por NOMBRE. El mousedown con Mayús se corta: extendería la selección de texto de la página.
 - Edición: lo pendiente es del dueño ([ui-rejilla-modelo-cambios.md](ui-rejilla-modelo-cambios.md)); la

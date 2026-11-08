@@ -78,7 +78,7 @@ test.describe('con el idioma fijado a inglés', () => {
     const modal = s.win.locator('.ajustes-modal')
     await s.win.locator('.ajustes-riel-item[data-cat="academy"]').click()
     const ids = await modal.locator('.academy-tarjeta').evaluateAll((els) => els.map((e) => e.getAttribute('data-articulo') ?? ''))
-    expect(ids).toHaveLength(22)
+    expect(ids).toHaveLength(23)
     const restos: string[] = []
     let capturas = 0
     for (const id of ids) {

@@ -5,6 +5,7 @@
 // propio: el estado vive en `DbClavePane` y sus hooks.
 // =============================================================================
 
+import { Cruce } from '../../../comun/Presente'
 import type { DbKvBytes, DbKvContenido } from '../../../../../shared/db-claves-ipc'
 import { avisoTruncado, resumenElementos, siguienteDe } from './visorClaves'
 import { txVisorClaves } from './textosVisorClaves'
@@ -93,7 +94,7 @@ function cuerpoTabla(e: EntradaCuerpo, contenido: DbKvContenido): React.JSX.Elem
                 <span className="db-kv-pie-contenido">
                   {resumen}
                   <button type="button" className="btn" disabled={cargandoMas} onClick={() => void cargarMas()}>
-                    {cargandoMas ? t.cargando : t.cargarMas}
+                    <Cruce clave={cargandoMas ? 'cargando' : 'mas'}>{cargandoMas ? t.cargando : t.cargarMas}</Cruce>
                   </button>
                 </span>
               ) : null

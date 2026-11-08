@@ -7,6 +7,8 @@
 // Decisiones: docs/decisiones/bd/ui-consola-barra-y-pane.md
 // =============================================================================
 
+import { Presente, Cruce } from '../../comun/Presente'
+import { useUltimoValor } from '../../comun/presencia'
 import { useEffect, useRef, useState } from 'react'
 import { tituloSoloLecturaAgentes } from './camposConexion'
 import { txConsolaBd } from './textosConsolaBd.ts'
@@ -80,7 +82,9 @@ function IdentidadConsola({
   anunciado: string
   textos: TextosSelectorConsola
 }): React.JSX.Element {
+  const ultimoEstado = useUltimoValor(estado)
   const tx = p.barraTx
+  const ultimaTx = useUltimoValor(tx.textoTx ? { texto: tx.textoTx, titulo: tx.tituloTx } : null)
   const t = txConsolaBd()
   return (
     <div className="db-consola-identidad">
@@ -95,7 +99,7 @@ function IdentidadConsola({
         </span>
       )}
       <span className="db-consola-dato">{tx.textoModo}</span>
-      {/* «RO» INFORMA de la casilla de los agentes: al usuario de la consola no lo
+      {/* La etiqueta INFORMA de la casilla de los agentes: al usuario de la consola no lo
           limita. La solo lectura de la SESIÓN (`tx.soloLectura`) la impone el main. */}
       {p.conexion.readonly && (
         <span className="db-consola-dato" title={tituloSoloLecturaAgentes()}>
@@ -107,16 +111,18 @@ function IdentidadConsola({
           {t.soloLectura}
         </span>
       )}
-      {tx.textoTx && (
-        <span className="db-consola-dato db-consola-tx" title={tx.tituloTx ?? undefined}>
-          {tx.textoTx}
+      <Presente como="span" visible={!!tx.textoTx} className="mov-aparece">
+        <span className="db-consola-dato db-consola-tx" title={ultimaTx?.titulo ?? undefined}>
+          {ultimaTx?.texto}
         </span>
-      )}
-      {estado && (
-        <span className="db-consola-estado" title={estado}>
-          {estado}
-        </span>
-      )}
+      </Presente>
+      <Presente como="span" visible={!!estado} className="mov-aparece db-consola-estado-presencia">
+        <Cruce clave={p.ejecutando ? 'ejecutando' : 'resultado'}>
+          <span className="db-consola-estado" title={estado ?? undefined}>
+            {ultimoEstado}
+          </span>
+        </Cruce>
+      </Presente>
       {/* Región viva SIEMPRE montada: una que aparece con el texto ya dentro no se anuncia. */}
       <span className="solo-lectores" aria-live="polite">
         {anunciado}

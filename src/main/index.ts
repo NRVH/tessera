@@ -22,10 +22,12 @@ import { LlegadaDePerfiles } from './profiles/llegadaDePerfiles'
 import { loadWorkspaceSettings, proyectosPersistidos } from './workspace/workspaceStateStore'
 import { componerBd } from './db/componer'
 import { componerSsh } from './ssh/componer'
-import { componerReglas } from './reglas/componer'
+import { componerReglas, type OperacionTctx } from './reglas/componer'
 import { RegistroTraspasos } from './traspaso/RegistroTraspasos'
 import { OP_TRASPASO, atenderTraspaso } from './traspaso/operacionTraspaso'
 import { OP_BUSCAR, OperacionBuscarHistorial } from './historial/operacionBuscar'
+import { OP_CUENTAS, OP_DELEGAR, OP_TAREA, OperacionDelegacion } from './agents/delegacion/operacionDelegacion'
+import { OP_CONFIG, OP_CONFIG_PROPONER, OperacionConfigTctx } from './agents/configAgente/operacionConfigTctx'
 import { limpiarMemoriaGlobal } from './db/agentMemory'
 import { dbLog } from './db/dbLog'
 import { aplicarExtrasSandbox, componerSesiones, crearCuentas } from './agents/componer'
@@ -44,12 +46,15 @@ import { SearchService } from './search/SearchService'
 import { registrarIpcBusqueda } from './search/ipc'
 import { GitService } from './git/GitService'
 import { registrarIpcGit } from './git/ipc'
+import { configurarHooksGit } from './git/adaptadores/hooksGit'
 import { confirmarDescarteNativo, confirmarDescarteLoteNativo } from './git/adaptadores/confirmacionesNativas'
 import { WorkspaceService } from './workspace/WorkspaceService'
 import { registrarIpcEstadoWorkspace, registrarIpcWorkspace } from './workspace/ipc'
 import { registrarIpcPerfiles } from './profiles/ipc'
 import { registrarIpcCopiaConfiguracion } from './configuracion/ipc'
 import { cuentasDelHistorial } from './configuracion/historialCopia'
+import { raizCompartida } from './agents/configAgente/creacion'
+import { AlmacenContextoGlobal } from './contexto/contextoGlobal'
 import { baseNativaAgente } from './conversations/baseAgente'
 import { plataformaActual } from '../shared/plataforma'
 import { registrarIpcShell } from './shell/ipc'
@@ -213,6 +218,7 @@ function componerArchivos(): void {
     confirmDiscard: confirmarDescarteNativo,
     confirmDiscardMany: confirmarDescarteLoteNativo
   })
+  configurarHooksGit(app.getPath('userData'))
   registrarIpcGit({ ipc: ipcMain, git })
   // Necesita a git (los bytes de cada revisión) y al disco del proyecto de cada petición, y al
   // descompilador del visor de clases.
@@ -312,6 +318,29 @@ function crearVentanasDelArranque(): void {
   for (const v of tomarVentanasARestaurar()) abrirVentanaAgente(v)
 }
 
+/**
+ * Las operaciones de `tctx` que no son de reglas: se registran ya con las demás, y las sesiones y las cuentas se les
+ * conectan al componerlas.
+ */
+function crearOperacionesTctx(traspasos: RegistroTraspasos): {
+  buscarHistorial: OperacionBuscarHistorial
+  configTctx: OperacionConfigTctx
+  delegacion: OperacionDelegacion
+  otras: OperacionTctx[]
+} {
+  const buscarHistorial = new OperacionBuscarHistorial()
+  const configTctx = new OperacionConfigTctx()
+  const delegacion = new OperacionDelegacion()
+  const otras: OperacionTctx[] = [
+    { op: OP_TRASPASO, manejar: (_p, s) => atenderTraspaso(traspasos, s) },
+    { op: OP_BUSCAR, manejar: (p, s) => buscarHistorial.atender(p, s) },
+    { op: OP_CONFIG, manejar: (p, s) => configTctx.atender(OP_CONFIG, p, s) },
+    { op: OP_CONFIG_PROPONER, manejar: (p, s) => configTctx.atender(OP_CONFIG_PROPONER, p, s) },
+    ...[OP_CUENTAS, OP_DELEGAR, OP_TAREA].map((op): OperacionTctx => ({ op, manejar: (p, s) => delegacion.atender(op, p, s) }))
+  ]
+  return { buscarHistorial, configTctx, delegacion, otras }
+}
+
 /** `whenReady`: compone la app por fases, registra TODO antes de crear la ventana y arranca. */
 async function arrancar(): Promise<void> {
   // El relevo no es Tessera: sale por aquí sin registrar una sola línea del arranque normal.
@@ -337,22 +366,21 @@ async function arrancar(): Promise<void> {
   const accounts = crearCuentas(perfiles)
   const dbController = componerBd(comun)
   // Antes de las sesiones: la terminal abre las conexiones SSH con este controlador.
-  const ssh = componerSsh({ ...comun, puente: dbController.puertaPuente, buzon: dbController.puertaBuzon, binDir: dbController.binDir })
+  const ssh = componerSsh({ ...comun, puente: dbController.puertaPuente, sesionDeToken: (token) => dbController.sesionDeToken(token), buzon: dbController.puertaBuzon, binDir: dbController.binDir })
   // En memoria: lo prepara «Continuar en…», lo toma la apertura del destino y lo lee `tctx traspaso`.
   const traspasos = new RegistroTraspasos()
-  // Se registra ya con las de `tctx`; las sesiones y las cuentas se le conectan al componerlas.
-  const buscarHistorial = new OperacionBuscarHistorial()
+  const { buscarHistorial, configTctx, delegacion, otras } = crearOperacionesTctx(traspasos)
+  // Lo leen `tctx` y el aviso de arranque de cada sesión.
+  const contexto = new AlmacenContextoGlobal({ ruta: join(app.getPath('userData'), 'contexto-global.json'), log: (m) => dbLog('contexto', m) })
   // `tctx` usa el mismo puente, buzón y carpeta de atajos que `tdb` y `tssh`.
   const reglas = componerReglas({
     ...comun,
+    contexto,
     puente: dbController.puertaPuente,
     buzon: dbController.puertaBuzon,
     sesionDeToken: (token) => dbController.sesionDeToken(token),
     binDir: dbController.binDir,
-    otrasOperaciones: [
-      { op: OP_TRASPASO, manejar: (_p, s) => atenderTraspaso(traspasos, s) },
-      { op: OP_BUSCAR, manejar: (p, s) => buscarHistorial.atender(p, s) }
-    ]
+    otrasOperaciones: otras
   })
   // Los túneles SSH de las bases usan las conexiones SSH del perfil.
   dbController.conectarSsh(ssh.controlador)
@@ -375,6 +403,12 @@ async function arrancar(): Promise<void> {
       baseNativa: baseNativaAgente,
       proyectos: proyectosPersistidos,
       conversacionesAbiertas: () => refs.agentes?.conversacionesAbiertas() ?? new Set()
+    },
+    configDocker: {
+      raiz: raizCompartida(app.getPath('userData')),
+      global: { leer: () => contexto.leer(), guardar: (c) => contexto.guardar(c) },
+      perfilesAqui: () => perfiles.lista.map((p) => p.id),
+      nombreAqui: (id) => perfiles.lista.find((p) => p.id === id)?.nombre
     }
   })
   registrarIpcAcercaDe({ ipc: ipcMain, reiniciar: () => void iniciarCierre(refs, { reabrir: true }) })
@@ -395,7 +429,10 @@ async function arrancar(): Promise<void> {
     espacioDatos: dbController.espacioDatos,
     propuestasReglas: reglas.propuestas,
     traspasos,
-    buscarHistorial
+    buscarHistorial,
+    configTctx,
+    contextoGlobal: () => contexto.leer(),
+    delegacion
   })
 
   componerRegistroSalud()

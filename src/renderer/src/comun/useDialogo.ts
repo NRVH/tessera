@@ -1,6 +1,7 @@
 // =============================================================================
 // useDialogo: el comportamiento de teclado y foco que comparten los modales — Esc,
-// devolución del foco a quien abrió y trampa de Tab opcional (`alPulsarTecla`).
+// devolución del foco a quien abrió, trampa de Tab opcional (`alPulsarTecla`) y la salida
+// animada al cerrarse (`despedida.ts`).
 // Es un hook y no un componente porque las cáscaras de los modales difieren y lo común
 // es el comportamiento. Se llama arriba del todo del componente, antes de cualquier
 // efecto que mueva el foco. Depende de React y de `pilaDialogos`: con varios diálogos
@@ -8,8 +9,9 @@
 // Decisiones: docs/decisiones/renderer/dialogos-foco-y-teclado.md
 // =============================================================================
 
-import { useEffect, useId, useRef } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef } from 'react'
 import { useCapaVisible } from './capaVisible'
+import { despedir } from './despedida.ts'
 import { apilar, desapilar, esCima } from './pilaDialogos'
 
 /** Enfocables de verdad para la trampa de Tab: `[tabindex="-1"]` queda fuera (tabs inactivos, botones ocultos). */
@@ -156,6 +158,17 @@ export function useDialogo({
 
   useDevolverFocoAlOpener(visible)
   useFocoAlVolver(ref, visible)
+
+  // Al desmontarse a la vista, el modal entero (velo y tarjeta) se despide con su salida en vez de desaparecer.
+  const visibleRef = useRef(visible)
+  visibleRef.current = visible
+  useLayoutEffect(() => {
+    const tarjeta = ref
+    return () => {
+      if (!visibleRef.current || !tarjeta.current) return
+      despedir(tarjeta.current.closest<HTMLElement>('.modal-overlay') ?? tarjeta.current, 'modal')
+    }
+  }, [])
 
   function alPulsarTecla(e: React.KeyboardEvent): void {
     if (e.key !== 'Tab' || esDeUnaListaDeSelect(e.target)) return

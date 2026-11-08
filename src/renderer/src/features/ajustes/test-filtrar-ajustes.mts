@@ -311,10 +311,10 @@ function main(): void {
     // rompe el test en vez de desaparecer de la pantalla en silencio.
     const ESPERADOS = [
       'abrir-con-linux', 'accion-rapida-finder',
-      'acerca', 'agente-fuente', 'agente-inactividad', 'agente-tamano', 'agentes-lista', 'banda',
+      'acerca', 'agente-fuente', 'agente-inactividad', 'agente-tamano', 'agentes-contexto', 'agentes-lista', 'banda',
       'copia-exportar', 'copia-importar',
       'db-filas-pagina', 'db-font', 'db-inactividad-consola', 'db-tx-inicial',
-      'explorer-font', 'git-font', 'idioma', 'limite-contenedores', 'limite-politica',
+      'editor-fuente', 'editor-tamano', 'editor-tema', 'explorer-font', 'git-font', 'idioma', 'limite-contenedores', 'limite-politica',
       'menu-windows-archivos', 'menu-windows-carpetas', 'menu-windows-extensiones',
       'paradas-registro', 'registro-salud', 'sandbox-docs', 'sandbox-navegador', 'sandbox-otros',
       'saturacion-aviso', 'saturacion-segundos', 'saturacion-umbral', 'selector-agentes',
@@ -490,7 +490,7 @@ function main(): void {
     // (un `.workflow` en `~/Library/Services`). Ahora la categoría se monta en las DOS
     // y lo que cambia es su contenido.
     check(
-      'en Mac la categoría de integración SÍ se monta (antes no existía allí)',
+      'en Mac la categoría de integración SÍ se monta',
       mac.some((c) => c.id === 'integracion'),
       mac.map((c) => c.id).join(',')
     )

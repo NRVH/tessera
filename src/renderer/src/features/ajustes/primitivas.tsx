@@ -31,29 +31,8 @@ export function TextoMarcado({
   )
 }
 
-/** Cabecera de grupo + sus filas. El grupo es lo que da jerarquía, no las cajas. */
-export function Grupo({
-  titulo,
-  ayuda,
-  children
-}: {
-  titulo: string
-  /**
-   * Describe el GRUPO entero ("la de Claude Code y Codex"). Vive aquí y no
-   * colgada de la primera fila porque ahí desaparecía en cuanto el buscador
-   * filtraba esa fila, y quedaba un "Tamaño" suelto sin decir de qué terminal.
-   */
-  ayuda?: React.ReactNode
-  children: React.ReactNode
-}): React.JSX.Element {
-  return (
-    <section className="ajustes-grupo">
-      <h3 className="ajustes-grupo-titulo">{titulo}</h3>
-      {ayuda !== undefined && <div className="ajustes-grupo-ayuda">{ayuda}</div>}
-      {children}
-    </section>
-  )
-}
+// La tarjeta del grupo y el interruptor viven en `comun/` porque los usan también otras ventanas.
+export { Grupo, Interruptor } from '../../comun/piezasAjustes'
 
 /**
  * LA fila canónica de un ajuste.
@@ -236,39 +215,6 @@ export function Radios<T extends string>({
         </label>
       ))}
     </div>
-  )
-}
-
-/** Interruptor ON/OFF. `role="switch"` de verdad, no una casilla disfrazada. */
-export function Interruptor({
-  activo,
-  onChange,
-  etiqueta,
-  deshabilitado = false
-}: {
-  activo: boolean
-  onChange: () => void
-  etiqueta: string
-  /**
-   * Apagado Y SIN RESPONDER. Existe porque hay un ajuste —la integración con el
-   * Explorador— que sencillamente no se puede aplicar en algunos entornos (en
-   * desarrollo, en la versión portable). Ignorar el clic en silencio no basta: un
-   * interruptor con aspecto normal que no se mueve se lee como que la app está rota.
-   */
-  deshabilitado?: boolean
-}): React.JSX.Element {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={activo}
-      aria-label={etiqueta}
-      disabled={deshabilitado}
-      className={`ajustes-switch${activo ? ' on' : ''}`}
-      onClick={onChange}
-    >
-      <span className="ajustes-switch-knob" aria-hidden="true" />
-    </button>
   )
 }
 

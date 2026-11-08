@@ -133,10 +133,10 @@ export interface TerminalDataMessage {
 
 /**
  * Por qué terminó una sesión SSH que salió con 255 (el código de los fallos del propio ssh): la
- * huella del servidor cambió, no se autenticó, no se llegó al servidor o se cortó la conexión, o
- * no hubo algoritmos en común.
+ * huella del servidor cambió o no está confirmada, no se autenticó, no se llegó al servidor o se
+ * cortó la conexión, o no hubo algoritmos en común.
  */
-export type MotivoSsh = 'ssh-huella-cambiada' | 'ssh-autenticacion' | 'ssh-inalcanzable' | 'ssh-algoritmos'
+export type MotivoSsh = 'ssh-huella-cambiada' | 'ssh-huella-sin-confirmar' | 'ssh-autenticacion' | 'ssh-inalcanzable' | 'ssh-algoritmos'
 
 /** Por qué terminó una sesión, si el main lo sabe: solo las SSH traen motivo. */
 export type TerminalExitReason = MotivoSsh

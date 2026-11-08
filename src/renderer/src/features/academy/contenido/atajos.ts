@@ -62,26 +62,26 @@ const es: Articulo = {
     },
     {
       ancla: 'terminal-y-git',
-      titulo: 'Terminal y Git · Log',
+      titulo: 'Terminal y Git · Historial',
       bloques: [
         {
           soloEn: ['windows', 'linux'],
           lista: [
-            '`Ctrl+Mayús+Intro`, con el foco en la terminal o en **Git · Log**, pone el panel a pantalla completa o lo restaura.',
+            '`Ctrl+Mayús+Intro`, con el foco en la terminal o en **Git · Historial**, pone el panel a pantalla completa o lo restaura.',
             '`Ctrl+C` copia lo seleccionado en la terminal (sin selección, interrumpe el programa en curso) y `Ctrl+V` pega.',
             '`Ctrl+F` busca en la salida de una terminal de shell o SSH; en la terminal de un agente, la tecla llega al agente.',
             '`Ctrl+Alt+B`, con la terminal a pantalla completa, muestra u oculta el [agente de la terminal](glosario/agente-de-la-terminal).',
-            '`Ctrl+C` en la lista de **Git · Log** copia el hash completo del commit.'
+            '`Ctrl+C` en la lista de **Git · Historial** copia el hash completo del commit.'
           ]
         },
         {
           soloEn: ['mac'],
           lista: [
-            '`⇧⌘↩`, con el foco en la terminal o en **Git · Log**, pone el panel a pantalla completa o lo restaura.',
+            '`⇧⌘↩`, con el foco en la terminal o en **Git · Historial**, pone el panel a pantalla completa o lo restaura.',
             '`⌘C` copia lo seleccionado en la terminal y `⌘V` pega; `⌃C` interrumpe el programa en curso.',
             '`⌘F` busca en la salida de una terminal de shell o SSH; en la terminal de un agente, la tecla llega al agente.',
             '`⌥⌘B`, con la terminal a pantalla completa, muestra u oculta el [agente de la terminal](glosario/agente-de-la-terminal).',
-            '`⌘C` en la lista de **Git · Log** copia el hash completo del commit.'
+            '`⌘C` en la lista de **Git · Historial** copia el hash completo del commit.'
           ]
         },
         { soloEn: ['windows', 'linux'], nota: 'Con el foco en la terminal, `Ctrl+N` llega a la shell y no abre una pestaña de archivo.' }
@@ -199,26 +199,26 @@ const en: Articulo = {
     },
     {
       ancla: 'terminal-y-git',
-      titulo: 'Terminal and Git · Log',
+      titulo: 'Terminal and Git · History',
       bloques: [
         {
           soloEn: ['windows', 'linux'],
           lista: [
-            '`Ctrl+Shift+Enter`, when the terminal or **Git · Log** has focus, switches the panel to full screen or restores it.',
+            '`Ctrl+Shift+Enter`, when the terminal or **Git · History** has focus, switches the panel to full screen or restores it.',
             '`Ctrl+C` copies the selection in the terminal (with nothing selected, it interrupts the running program), and `Ctrl+V` pastes.',
             '`Ctrl+F` searches the output of a shell or SSH terminal; in an agent’s terminal, the key goes to the agent.',
             '`Ctrl+Alt+B`, with the terminal in full screen, shows or hides the [terminal agent](glosario/agente-de-la-terminal).',
-            '`Ctrl+C` in the **Git · Log** list copies the full commit hash.'
+            '`Ctrl+C` in the **Git · History** list copies the full commit hash.'
           ]
         },
         {
           soloEn: ['mac'],
           lista: [
-            '`⇧⌘↩`, when the terminal or **Git · Log** has focus, switches the panel to full screen or restores it.',
+            '`⇧⌘↩`, when the terminal or **Git · History** has focus, switches the panel to full screen or restores it.',
             '`⌘C` copies the selection in the terminal, and `⌘V` pastes; `⌃C` interrupts the running program.',
             '`⌘F` searches the output of a shell or SSH terminal; in an agent’s terminal, the key goes to the agent.',
             '`⌥⌘B`, with the terminal in full screen, shows or hides the [terminal agent](glosario/agente-de-la-terminal).',
-            '`⌘C` in the **Git · Log** list copies the full commit hash.'
+            '`⌘C` in the **Git · History** list copies the full commit hash.'
           ]
         },
         { soloEn: ['windows', 'linux'], nota: 'When the terminal has focus, `Ctrl+N` goes to the shell and does not open a file tab.' }

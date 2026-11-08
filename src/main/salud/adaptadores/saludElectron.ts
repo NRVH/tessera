@@ -2,15 +2,23 @@
 // Las dependencias reales del registro de salud: métricas de procesos, suspensión, ventanas y
 // monitores de Electron, el vigía del bucle del main, el disco de `node:fs` y la ventana principal.
 // Es la única puerta a `electron` del registro; la compone `src/main/index.ts`. Solo lee números
-// y tipos: ninguna ruta ni contenido.
+// y tipos, y nombres del código sin rutas para las pilas: ningún contenido del usuario.
 // =============================================================================
 
 import { app, BrowserWindow, powerMonitor, screen } from 'electron'
 import { appendFileSync, mkdirSync, renameSync, statSync } from 'node:fs'
 import { freemem, totalmem } from 'node:os'
 import { join } from 'node:path'
+import type { Session } from 'node:inspector'
+import { lanzadaPorElArnes } from '../../../shared/arnesE2e'
 import { plataformaActual } from '../../../shared/plataforma'
-import { INTERVALO_VIGIA_MS, UMBRAL_BLOQUEO_MS, type DepsRegistroSalud, type EstadoVentanaSalud, type GpuSalud, type OyentesSalud } from '../../../shared/salud'
+import { INTERVALO_PERFIL_US, VENTANA_PERFIL_MS, INTERVALO_VIGIA_MS, UMBRAL_BLOQUEO_MS, VAR_SALUD_EN_PRUEBAS, type DepsRegistroSalud, type EstadoVentanaSalud, type GpuSalud, type OyentesSalud, type PilaBloqueo, type ResumidorPerfilSalud } from '../../../shared/salud'
+
+/** Lo que se usa del perfil de V8 aquí: la duración, para alinearlo con el reloj del vigía. */
+interface PerfilParado {
+  startTime: number
+  endTime: number
+}
 
 const MB = 1024 * 1024
 
@@ -62,14 +70,25 @@ async function leerGpu(): Promise<Omit<GpuSalud, 't' | 'tipo'> | null> {
  * El reloj sigue contando con el equipo suspendido: de `suspend` a `resume` no se mide nada, y el
  * primer intervalo tras despertar se descarta, llegue antes o después que el evento.
  */
-function vigilarBucle(alBloqueo: OyentesSalud['bloqueo']): () => void {
+function vigilarBucle(alBloqueo: OyentesSalud['bloqueo'], perfilador: PerfiladorMain): () => void {
   let anterior = performance.now()
   let suspendido = false
   const t = setInterval(() => {
     const ahora = performance.now()
-    const retraso = ahora - anterior - INTERVALO_VIGIA_MS
-    if (!suspendido && retraso >= UMBRAL_BLOQUEO_MS) alBloqueo(retraso, anterior, ahora)
+    const desde = anterior
+    const retraso = ahora - desde - INTERVALO_VIGIA_MS
     anterior = ahora
+    if (suspendido) return
+    if (retraso >= UMBRAL_BLOQUEO_MS) {
+      // El aviso sale cuando llega la pila, y sin ella si el perfil falla.
+      void perfilador.tomar(desde, ahora).then(
+        (pila) => alBloqueo(retraso, desde, ahora, pila),
+        () => alBloqueo(retraso, desde, ahora, null)
+      )
+    } else {
+      // La rotación solo ocurre en un tic sin parón: así nunca descarta las muestras de uno.
+      perfilador.quizaRotar(ahora)
+    }
   }, INTERVALO_VIGIA_MS)
   t.unref()
   const alSuspender = (): void => void (suspendido = true)
@@ -83,6 +102,87 @@ function vigilarBucle(alBloqueo: OyentesSalud['bloqueo']): () => void {
     clearInterval(t)
     powerMonitor.removeListener('suspend', alSuspender)
     powerMonitor.removeListener('resume', alDespertar)
+  }
+}
+
+/** El perfil de CPU del main mientras se graba. El inspector es opcional: si falla, los avisos salen sin pila. */
+interface PerfiladorMain {
+  /** Para el perfil en curso, resume [desde, hasta] y arranca otro; null sin inspector o sin muestras. */
+  tomar: (desde: number, hasta: number) => Promise<PilaBloqueo | null>
+  /** Reinicia el perfil si ya cubre `VENTANA_PERFIL_MS`, para que no crezca sin fin. */
+  quizaRotar: (ahora: number) => void
+  parar: () => void
+}
+
+/** Una orden al inspector; rechaza si la sesión ya se cerró. */
+function publicarPerfil(sesion: Session | null, metodo: string, parametros: object): Promise<{ profile?: PerfilParado }> {
+  return new Promise((ok, mal) => {
+    if (!sesion) return mal(new Error('sin perfil'))
+    sesion.post(metodo, parametros, (error, r) => (error ? mal(error) : ok((r ?? {}) as { profile?: PerfilParado })))
+  })
+}
+
+function perfilarMain(resumir?: ResumidorPerfilSalud): PerfiladorMain {
+  let sesion: Session | null = null
+  let inicio = performance.now()
+  // Una sola operación del inspector a la vez: arrancar, rotar o tomar.
+  let enCurso: Promise<unknown> | null = null
+  const parar = (): void => {
+    const s = sesion
+    sesion = null
+    try { s?.disconnect() } catch { /* ya desconectada */ }
+  }
+  const publicar = (metodo: string, parametros: object = {}): Promise<{ profile?: PerfilParado }> => publicarPerfil(sesion, metodo, parametros)
+  const enSerie = <T>(fn: () => Promise<T>): Promise<T | null> => {
+    if (enCurso || !sesion) return Promise.resolve(null)
+    const p = fn()
+      .catch(() => {
+        parar()
+        return null
+      })
+      .finally(() => {
+        enCurso = null
+      })
+    enCurso = p
+    return p
+  }
+  /** Para el perfil y arranca otro; devuelve el parado y el `performance.now()` en que se paró. */
+  const reiniciar = async (): Promise<{ perfil: PerfilParado; fin: number } | null> => {
+    const { profile } = await publicar('Profiler.stop')
+    const fin = performance.now()
+    await publicar('Profiler.start')
+    inicio = performance.now()
+    return profile ? { perfil: profile, fin } : null
+  }
+  try {
+    sesion = new (process.getBuiltinModule('node:inspector').Session)()
+    sesion.connect()
+    void enSerie(async () => {
+      await publicar('Profiler.enable')
+      await publicar('Profiler.setSamplingInterval', { interval: INTERVALO_PERFIL_US })
+      await publicar('Profiler.start')
+      inicio = performance.now()
+    })
+  } catch {
+    parar()
+  }
+  return {
+    parar,
+    tomar: (desde, hasta) =>
+      enSerie(async () => {
+        const r = await reiniciar()
+        if (!r || !resumir) return null
+        // Se alinea por el final: el perfil se para justo al acabar el parón, que es lo que interesa.
+        const inicioPerfil = r.fin - (r.perfil.endTime - r.perfil.startTime) / 1000
+        try {
+          return resumir(r.perfil, inicioPerfil, desde, hasta)
+        } catch {
+          return null
+        }
+      }),
+    quizaRotar: (ahora) => {
+      if (ahora - inicio >= VENTANA_PERFIL_MS) void enSerie(reiniciar)
+    }
   }
 }
 
@@ -114,7 +214,7 @@ function oirVentana(win: BrowserWindow, oy: OyentesSalud): () => void {
 }
 
 /** Ventanas (las que hay y las que se creen), monitores y vigía. Devuelve cómo soltarlo todo. */
-function oirVentanasYMonitores(oy: OyentesSalud): () => void {
+function oirVentanasYMonitores(oy: OyentesSalud, resumir?: ResumidorPerfilSalud): () => void {
   const soltar: Array<() => void> = BrowserWindow.getAllWindows().map((w) => oirVentana(w, oy))
   const alCrear = (_e: unknown, w: BrowserWindow): void => void soltar.push(oirVentana(w, oy))
   const alMetricas = (): void => oy.pantalla('metricas')
@@ -124,9 +224,11 @@ function oirVentanasYMonitores(oy: OyentesSalud): () => void {
   screen.on('display-metrics-changed', alMetricas)
   screen.on('display-added', alAnadir)
   screen.on('display-removed', alQuitar)
-  const pararVigia = vigilarBucle(oy.bloqueo)
+  const perfilador = perfilarMain(resumir)
+  const pararVigia = vigilarBucle(oy.bloqueo, perfilador)
   return () => {
     pararVigia()
+    perfilador.parar()
     app.removeListener('browser-window-created', alCrear)
     screen.removeListener('display-metrics-changed', alMetricas)
     screen.removeListener('display-added', alAnadir)
@@ -136,14 +238,14 @@ function oirVentanasYMonitores(oy: OyentesSalud): () => void {
 }
 
 /** Suspensión, caídas, ventanas, monitores y vigía. */
-function suscribir(oy: OyentesSalud): () => void {
+function suscribir(oy: OyentesSalud, resumir?: ResumidorPerfilSalud): () => void {
   const alRenderer = (_e: unknown, _wc: unknown, d: { reason: string; exitCode: number }): void => oy.rendererCaido(d.reason, d.exitCode)
   const alHijo = (_e: unknown, d: { type: string; reason: string; exitCode: number }): void => oy.hijoCaido(d.type, d.reason, d.exitCode)
   powerMonitor.on('suspend', oy.suspend)
   powerMonitor.on('resume', oy.resume)
   app.on('render-process-gone', alRenderer)
   app.on('child-process-gone', alHijo)
-  const soltarVentanas = oirVentanasYMonitores(oy)
+  const soltarVentanas = oirVentanasYMonitores(oy, resumir)
   return () => {
     soltarVentanas()
     powerMonitor.removeListener('suspend', oy.suspend)
@@ -156,6 +258,7 @@ function suscribir(oy: OyentesSalud): () => void {
 export function depsSaludElectron(o: OrigenesSalud): DepsRegistroSalud {
   return {
     version: o.version,
+    forzadoEnPruebas: lanzadaPorElArnes(process.argv) && process.env[VAR_SALUD_EN_PRUEBAS] === '1',
     plataforma: plataformaActual(),
     carpeta: o.carpeta,
     ahora: () => new Date(),

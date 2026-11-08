@@ -36,17 +36,18 @@ function esperarFinEjecucion(r: RefsConsola, maxMs: number): Promise<void> {
 
 function preguntaDetener(nombre: string): PreguntaConsola {
   return {
-    titulo: txPane().detenerTitulo,
+    titulo: txPane().detenerTitulo(nombre),
     mensaje: txPane().detenerMensaje(nombre),
     confirmar: txPane().detenerConfirmar,
-    peligro: true
+    peligro: true,
+    severidad: 'advertencia'
   }
 }
 
 /** Con un conflicto, si acepta se queda la del disco (no se escribe). */
 function preguntaConflicto(nombre: string): PreguntaConsola {
   return {
-    titulo: txPane().conflictoTitulo,
+    titulo: txPane().conflictoTitulo(nombre),
     mensaje: txPane().conflictoMensaje(nombre),
     confirmar: txPane().conflictoConfirmar,
     peligro: true

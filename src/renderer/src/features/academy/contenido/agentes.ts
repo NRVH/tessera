@@ -17,7 +17,8 @@ const es: Articulo = {
       bloques: [
         'En la columna derecha, cada [agente](glosario/agente) del proyecto tiene su pestaña. Cambiar de pestaña no cierra nada: cada agente conserva su sesión y su conversación.',
         'Para cada agente se elige por separado si se ejecuta en {tuEquipo} o en Docker, y con qué cuenta. Consulte [Nativo o en Docker](nativo-o-docker) y [Cuentas de los agentes](cuentas).',
-        'Si las pestañas ocupan demasiado espacio, se pueden sustituir por una lista desplegable en **Configuración › Agentes › Selector de agentes**.'
+        'Si las pestañas ocupan demasiado espacio, se pueden sustituir por una lista desplegable en **Configuración › Agentes › Selector de agentes**.',
+        'Un agente nativo también puede [delegar tareas en cuentas de Docker](delegar-tareas) de Claude Code o Codex del perfil, sobre el mismo proyecto, sin abrir sus ventanas.'
       ]
     },
     {
@@ -26,15 +27,17 @@ const es: Articulo = {
       bloques: [
         {
           lista: [
-            '**Historial de conversaciones**: las conversaciones anteriores de este proyecto, para retomarlas o eliminarlas. Consulte [Conversaciones](conversaciones).',
-            '**Nueva conversación**: la conversación actual se cierra y queda en el historial.',
-            '**Bases de datos montadas**: qué bases de datos puede usar el agente. Consulte [tdb](herramientas-de-los-agentes/tdb).',
-            '**⇄**: continúa la conversación en otra cuenta o pasa el trabajo a otro agente. Consulte [Continuar en otro agente o cuenta](continuar-en-otro-agente).',
-            'El botón de cuenta: indica dónde se ejecuta el agente y con qué cuenta. Consulte [Elegir la cuenta](cuentas/elegir).',
-            '**Maximizar**: el agente ocupa todo el espacio sin cerrar los archivos abiertos.'
+            'El botón del reloj con flecha (**Historial de conversaciones de este proyecto**), a la izquierda de la cabecera: las conversaciones anteriores de este proyecto, para retomarlas o eliminarlas. Consulte [Conversaciones](conversaciones).',
+            'El botón del bocadillo con + (**Nueva conversación: la actual se cierra y queda en el historial**), junto al reloj: la conversación actual se cierra y queda en el historial.',
+            'El botón del cilindro (**Dar al agente acceso a bases de datos**), a la derecha de la cabecera: qué bases de datos puede usar el agente. Si ya hay bases montadas, muestra su número y el texto emergente indica cuántas puede consultar el agente. Consulte [tdb](herramientas-de-los-agentes/tdb).',
+            'El botón de las dos flechas cruzadas (**Continuar en otra cuenta o con Codex**, si usa Claude Code y puede pasar a Codex), junto al de cuenta: continúa la conversación en otra cuenta o pasa el trabajo a otro agente. Consulte [Continuar en otro agente o cuenta](continuar-en-otro-agente).',
+            'El botón de la pantalla o del cubo, a la derecha de la cabecera (el texto emergente indica el agente y la cuenta): indica dónde se ejecuta el agente y con qué cuenta. Consulte [Elegir la cuenta](cuentas/elegir).',
+            'El botón de maximizar, a la derecha de la cuenta (por ejemplo, **Maximizar: Claude Code ocupa todo el espacio (sin cerrar archivos)**): el agente ocupa todo el espacio sin cerrar los archivos abiertos.',
+            'El botón de la nube con flecha (**Actualizar agentes (Codex y Claude Code) a la última versión**), a la izquierda de la cabecera: solo aparece en Docker y fuera del mosaico.',
+            'El botón ✕ (**Cerrar el agente de la terminal: termina su sesión y libera la memoria que ocupa (la conversación queda en el historial)**), al extremo derecho: solo aparece en el agente de la terminal.'
           ]
         },
-        'El pie muestra el uso de la cuenta y cuánto contexto lleva la conversación. En la terminal del agente se pueden pegar imágenes y archivos; si el agente está en Docker, Tessera los copia dentro de su contenedor para que pueda abrirlos.'
+        'Los botones del pie aparecen al pasar el puntero o al recibir el foco. Los de la cabecera permanecen visibles. El pie muestra el uso de la cuenta y cuánto contexto lleva la conversación. En la terminal del agente se pueden pegar imágenes y archivos; si el agente está en Docker, Tessera los copia dentro de su contenedor para que pueda abrirlos.'
       ]
     },
     {
@@ -55,7 +58,7 @@ const es: Articulo = {
       ancla: 'manuales',
       titulo: 'Añadir cualquier otro agente',
       bloques: [
-        'Si utiliza otro asistente que se ejecute en una terminal, añádalo con el **+** de las pestañas de agente (**Añadir un agente propio (por su comando)**). Un agente añadido de esta forma se denomina agente propio. Si el selector de agentes está en modo lista, la misma opción aparece en su desplegable.',
+        'Si utiliza otro asistente que se ejecute en una terminal, añádalo con el **+** de las pestañas del agente de un proyecto (**Añadir un agente propio (por su comando)**). También puede abrir **Configuración › Agentes** y seleccionar **Añadir un agente propio (por su comando)…**. Un agente añadido de esta forma se denomina agente propio. Si el selector de agentes está en modo lista, la misma opción aparece en su desplegable.',
         {
           pasos: [
             'Escriba su **Nombre** y su **Comando**, tal como se escribiría en la terminal del proyecto.',
@@ -80,7 +83,7 @@ const es: Articulo = {
             'Si se ejecuta en Docker, se quita de este perfil y se borran sus cuentas y lo que guardó en sus carpetas. Los archivos de los proyectos no se modifican.'
           ]
         },
-        'Con **Activar en la terminal**, también se puede elegir como agente de la [terminal](terminales/pantalla-completa) a pantalla completa.'
+        'Active el interruptor **Activar en la terminal** del formulario del agente para poder elegirlo también como agente de la [terminal](terminales/pantalla-completa) a pantalla completa.'
       ]
     },
     {
@@ -103,7 +106,8 @@ const en: Articulo = {
       bloques: [
         'In the right column, each [agent](glosario/agente) in the project has its own tab. Switching tabs does not close anything: each agent keeps its session and its conversation.',
         'For each agent, you choose separately where it runs, on {tuEquipo} or in Docker, and which account it uses. For details, see [Native or in Docker](nativo-o-docker) and [Agent accounts](cuentas).',
-        'If the tabs take up too much space, replace them with a drop-down in **Settings › Agents › Agent selector**.'
+        'If the tabs take up too much space, replace them with a drop-down in **Settings › Agents › Agent selector**.',
+        'A native agent can also [delegate tasks to Docker accounts](delegar-tareas) for Claude Code or Codex in the profile, on the same project, without opening their windows.'
       ]
     },
     {
@@ -112,15 +116,17 @@ const en: Articulo = {
       bloques: [
         {
           lista: [
-            '**Conversation history**: the earlier conversations in this project, which you can resume or delete. See [Conversations](conversaciones).',
-            '**New conversation**: closes the current conversation and keeps it in the history.',
-            '**Mounted databases**: which databases the agent can use. See [tdb](herramientas-de-los-agentes/tdb).',
-            '**⇄**: continues the conversation in another account or passes the work to another agent. See [Continue in another agent or account](continuar-en-otro-agente).',
-            'The account button: where the agent runs and which account it uses. See [Choose the account](cuentas/elegir).',
-            '**Maximize**: the agent fills the whole space without closing your open files.'
+            'The clock with an arrow button (**Conversation history of this project**), on the left of the header: the earlier conversations in this project, which you can resume or delete. See [Conversations](conversaciones).',
+            'The speech bubble with a + button (**New conversation: closes the current one and keeps it in the history**), next to the clock: closes the current conversation and keeps it in the history.',
+            'The cylinder button (**Give the agent access to databases**), on the right of the header: which databases the agent can use. If databases are already mounted, it shows their number and its tooltip says how many the agent can query. See [tdb](herramientas-de-los-agentes/tdb).',
+            'The crossed arrows button (**Continue in another account or with Codex**, when using Claude Code with Codex available), next to the account button: continues the conversation in another account or passes the work to another agent. See [Continue in another agent or account](continuar-en-otro-agente).',
+            'The screen or cube button, on the right of the header (its tooltip identifies the agent and account): where the agent runs and which account it uses. See [Choose the account](cuentas/elegir).',
+            'The maximize button, to the right of the account (for example, **Maximize: Claude Code takes all the space (without closing files)**): the agent fills the whole space without closing your open files.',
+            'The cloud with an arrow button (**Update agents (Codex and Claude Code) to the latest version**), on the left of the header: only in Docker and outside the mosaic.',
+            'The ✕ button (**Close the terminal agent: ends its session and frees the memory it uses (the conversation stays in the history)**), at the far right: only in the terminal agent.'
           ]
         },
-        'The footer shows the account usage and how much context the conversation uses. You can paste images and files into the agent’s terminal; if the agent runs in Docker, Tessera copies them into its container so the agent can open them.'
+        'Footer buttons appear on hover or keyboard focus. Header buttons stay visible. The footer shows the account usage and how much context the conversation uses. You can paste images and files into the agent’s terminal; if the agent runs in Docker, Tessera copies them into its container so the agent can open them.'
       ]
     },
     {
@@ -141,7 +147,7 @@ const en: Articulo = {
       ancla: 'manuales',
       titulo: 'Add any other agent',
       bloques: [
-        'If you use another assistant that runs in a terminal, add it with the **+** in the agent tabs (**Add custom agent (by command)**). An agent added this way is called a custom agent. If the agent selector is in list mode, the same option appears in its drop-down.',
+        'If you use another assistant that runs in a terminal, add it with the **+** in a project’s agent tabs (**Add custom agent (by command)**). You can also open **Settings › Agents** and select **Add custom agent (by command)…**. An agent added this way is called a custom agent. If the agent selector is in list mode, the same option appears in its drop-down.',
         {
           pasos: [
             'Enter its **Name** and its **Command**, exactly as you would type it in the project terminal.',
@@ -166,7 +172,7 @@ const en: Articulo = {
             'If it runs in Docker, it is removed from this profile, and Tessera deletes its accounts and the data it saved in its folders. Project files are not affected.'
           ]
         },
-        'If you turn on **Enable in the terminal**, you can also choose it as the full-screen [terminal](terminales/pantalla-completa) agent.'
+        'Turn on the **Enable in the terminal** switch in the agent form to also choose it as the full-screen [terminal](terminales/pantalla-completa) agent.'
       ]
     },
     {

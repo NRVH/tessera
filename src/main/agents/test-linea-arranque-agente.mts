@@ -13,6 +13,7 @@ import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { buildAgentLaunchCommand, buildHostAgentLaunchCommand, buildManualAgentLaunchCommand } from './lineaArranqueAgente.ts'
+import { crearSondaOpcion } from './sondaOpcionCli.ts'
 import { citarSh } from '../../shared/citarShell.ts'
 import { plataformaActual, type Plataforma } from '../../shared/plataforma.ts'
 
@@ -95,7 +96,7 @@ function argvRecibido(shell: string, linea: string): { argv: string[]; salida: s
 function casosAgenteManual(): void {
   hr('(M) Agente manual en el contenedor')
   const home = '/agent-config/m-lince/manual'
-  const linea = buildManualAgentLaunchCommand('npx lince --modo "rápido" && echo fin', home, null, { TESSERA_DB_MODE: 'docker' })
+  const linea = buildManualAgentLaunchCommand('npx lince --modo "rápido" && echo fin', home, { TESSERA_DB_MODE: 'docker' })
   check('(M1) HOME en su carpeta persistente', linea.includes(`HOME=${home} `), linea.slice(0, 160))
   check('(M2) sus .local/bin delante del PATH estándar', linea.includes(`PATH=${home}/.local/bin:/home/agente/.local/bin:/usr/local/sbin`), linea.slice(0, 200))
   check('(M3) NEGATIVO: ni la variable de cuenta de los de serie ni su aviso de arranque',
@@ -138,7 +139,7 @@ function casosPromptInicial(): void {
     check(`(P3) [${p}] sin prompt, la línea de siempre`, buildHostAgentLaunchCommand('claude', 'claude-code', undefined, null, p, null) === 'claude', '')
     check(`(P4) [${p}] uno que empezara por «-» no se pasa (sería una opción)`, buildHostAgentLaunchCommand('claude', 'claude-code', undefined, null, p, '--dangerously-skip-permissions') === 'claude', '')
   }
-  const contenedor = buildAgentLaunchCommand('codex', 'codex', '/agent-config/codex/a', null, undefined, undefined, BRIEFING, PROMPT)
+  const contenedor = buildAgentLaunchCommand('codex', 'codex', '/agent-config/codex/a', undefined, undefined, BRIEFING, PROMPT)
   check('(P5) en el contenedor, Codex: el prompt POSIX al final de su exec, tras el login', contenedor.includes(`&& exec codex -c features.daemon_auto_start=false -c `) && contenedor.includes(citarSh(` ${citarSh(LLEGA)}`).slice(1, -1)), contenedor.slice(-160))
   const dir = mkdtempSync(path.join(tmpdir(), 'tessera-prompt-'))
   try {
@@ -166,12 +167,135 @@ function casosPromptInicial(): void {
   }
 }
 
+/** Al reanudar Claude Code con aviso, que no reenvíe el prompt grabado: solo si su `--help` tiene la opción. */
+function casosSnapshot(): void {
+  hr('(S) Reanudar con aviso: el prompt de sistema se vuelve a componer, si el CLI lo admite')
+  // En el equipo lo decide el main (la shell del usuario puede ser fish): la línea solo lleva argumentos fijos.
+  for (const p of PLATAFORMAS) {
+    const con = buildHostAgentLaunchCommand('claude', 'claude-code', ID, BRIEFING, p, null, true)
+    check(`(S1) [${p}] reanudando con aviso y si el CLI la admite, la opción va tal cual, sin sustitución`, con.includes(' --system-prompt-snapshot off') && !con.includes('$('), con.slice(0, 160))
+    const sinReanudar = buildHostAgentLaunchCommand('claude', 'claude-code', undefined, BRIEFING, p, null, true)
+    const sinAviso = buildHostAgentLaunchCommand('claude', 'claude-code', ID, null, p, null, true)
+    const noAdmite = buildHostAgentLaunchCommand('claude', 'claude-code', ID, BRIEFING, p)
+    const codex = buildHostAgentLaunchCommand('codex', 'codex', ID, BRIEFING, p, null, true)
+    check(`(S2) [${p}] NEGATIVO: ni sin reanudar, ni sin aviso, ni si no la admite, ni en Codex`, ![sinReanudar, sinAviso, noAdmite, codex].some((l) => l.includes('snapshot')), '')
+  }
+  const condicion = '$(timeout 10 claude --help 2>/dev/null | grep -q -e --system-prompt-snapshot && echo --system-prompt-snapshot off)'
+  const contenedor = buildAgentLaunchCommand('claude', 'claude-code', '/agent-config/claude/a', ID, undefined, BRIEFING)
+  check('(S3) en el contenedor, condicionada a su --help en la propia línea, que es bash, y con tope', contenedor.includes(citarSh(condicion).slice(1, -1)), contenedor.slice(-200))
+  /** Que lleguen como dos argumentos, no fundidos en uno. */
+  const conOpcion = (a: string[]): boolean => a.some((x, i) => x === '--system-prompt-snapshot' && a[i + 1] === 'off')
+  if (hayBashConCoreutils()) {
+    const argvDe = (ayuda: string): string[] => conCliDeMentira('claude', ayuda, (env) => {
+      const r = spawnSync('bash', ['-c', `for a in ${condicion}; do printf 'ARG:%s\\n' "$a"; done`], { env, encoding: 'utf8', timeout: 30_000 })
+      return (r.stdout ?? '').split(/\r?\n/).filter((l) => l.startsWith('ARG:')).map((l) => l.slice(4))
+    })
+    const si = argvDe('  --system-prompt-snapshot <on|off>   Record')
+    check('(S4) bash del contenedor: si el CLI la tiene, llegan dos argumentos', conOpcion(si), j2(si))
+    const no = argvDe('Usage: claude [options]')
+    check('(S5) NEGATIVO: si no la tiene, ninguno', no.length === 0, j2(no))
+  } else {
+    saltar('(S4/S5) bash', 'no hay bash con grep y timeout en el PATH')
+  }
+  if (plataformaActual() !== 'windows') return saltar('(S6) PowerShell 5.1', 'solo en Windows')
+  const dir = mkdtempSync(path.join(tmpdir(), 'tessera-snapshot-'))
+  try {
+    const eco = path.join(dir, 'eco.cjs')
+    const salida = path.join(dir, 'argv.json')
+    writeFileSync(eco, "require('node:fs').writeFileSync(process.env.ECO_SALIDA, JSON.stringify(process.argv.slice(2)))\n")
+    const linea = buildHostAgentLaunchCommand(`& '${process.execPath}' '${eco}'`, 'claude-code', ID, BRIEFING, 'windows', null, true)
+    spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', linea], { env: { ...process.env, ECO_SALIDA: salida }, encoding: 'utf8', windowsHide: true, timeout: 60_000 })
+    const si = JSON.parse(readFileSync(salida, 'utf8')) as string[]
+    check('(S6) PowerShell 5.1: la opción, la reanudación y el aviso, cada uno entero', conOpcion(si) && si[0] === '--resume' && si[1] === ID && si.includes(PLANO), j2(si))
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
+/** La capa compartida de Docker: el CLI la superpone por la línea, sin que Tessera escriba en el archivo de la cuenta. */
+function casosCapa(): void {
+  hr('(C) Capa compartida de Docker en la línea del contenedor')
+  const cfg = '/agent-config/claude/a'
+  const claude = buildAgentLaunchCommand('claude', 'claude-code', cfg, undefined, undefined, null, null, true)
+  check('(C1) Claude Code: --settings con el archivo de la capa, en su carpeta', claude.includes(citarSh(`--settings ${citarSh(`${cfg}/tessera-contexto.settings.json`)}`).slice(1, -1)), claude.slice(-160))
+  const codex = buildAgentLaunchCommand('codex', 'codex', '/agent-config/codex/a', ID, undefined, null, null, true)
+  const condicion = "$(timeout 10 codex --help 2>/dev/null | grep -q -F '<name>.config.toml' && echo -p tessera)"
+  check('(C2) Codex: -p tessera, condicionado a que su --help describa los perfiles por archivo, con tope', codex.includes(citarSh(condicion).slice(1, -1)), codex.slice(-200))
+  const sin = [buildAgentLaunchCommand('claude', 'claude-code', cfg), buildAgentLaunchCommand('codex', 'codex', cfg)]
+  check('(C3) NEGATIVO: sin capa preparada, ni --settings ni -p', sin.every((l) => !l.includes('--settings') && !l.includes('-p tessera')), '')
+  if (!hayBashConCoreutils()) return saltar('(C4-C6) bash', 'no hay bash con grep y timeout en el PATH')
+  // El trozo de la línea que decide, contra un Codex de mentira con la ayuda nueva, la vieja y una que no sale.
+  const decide = (ayuda: string, cuelga = false): { salida: string; ms: number } =>
+    conCliDeMentira(
+      'codex',
+      ayuda,
+      (env) => {
+        const t0 = Date.now()
+        const r = spawnSync('bash', ['-c', `echo ${condicion}`], { env, encoding: 'utf8', timeout: 30_000 })
+        return { salida: (r.stdout ?? '').trim(), ms: Date.now() - t0 }
+      },
+      cuelga
+    )
+  const nueva = decide('  -p, --profile <CONFIG_PROFILE_V2>\n          Layer $CODEX_HOME/<name>.config.toml on top of the base user config')
+  check('(C4) con perfiles por archivo, recibe -p tessera', nueva.salida === '-p tessera', nueva.salida)
+  const vieja = decide('  -p, --profile <CONFIG_PROFILE>\n          Configuration profile from config.toml to specify default options')
+  check('(C5) NEGATIVO: con la ayuda vieja no lo recibe (buscaría una tabla que no existe)', vieja.salida === '', vieja.salida)
+  const colgado = decide('', true)
+  check('(C6) NEGATIVO: un CLI que no sale con --help no deja la sesión sin arrancar: el tope la suelta', colgado.salida === '' && colgado.ms < 20_000, `${colgado.ms} ms`)
+}
+
+/** bash con grep y timeout (coreutils), como el del contenedor. */
+function hayBashConCoreutils(): boolean {
+  return spawnSync('bash', ['-c', 'command -v grep && command -v timeout'], { encoding: 'utf8' }).status === 0
+}
+
+/** Corre `usar` con un CLI de mentira delante en el PATH: con `--help` imprime `ayuda` (o se cuelga) y sale. */
+function conCliDeMentira<T>(nombre: string, ayuda: string, usar: (env: NodeJS.ProcessEnv) => T, cuelga = false): T {
+  const dir = mkdtempSync(path.join(tmpdir(), 'tessera-cli-'))
+  try {
+    const cli = path.join(dir, nombre)
+    writeFileSync(cli, ['#!/bin/sh', cuelga ? 'sleep 30' : `printf '%s\\n' ${citarSh(ayuda)}`, ''].join('\n'), 'utf8')
+    chmodSync(cli, 0o755)
+    const enBash = spawnSync('bash', ['-c', `cygpath -u ${citarSh(dir)} 2>/dev/null || printf '%s' ${citarSh(dir)}`], { encoding: 'utf8' }).stdout.trim()
+    return usar({ ...process.env, PATH: `${enBash}${path.delimiter === ';' ? ':' : path.delimiter}${process.env.PATH ?? ''}` })
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
 /** Para las evidencias. */
 function j2(v: unknown): string {
   return JSON.stringify(v).slice(0, 200)
 }
 
-function main(): void {
+/** La sonda del main: si el `--help` nombra la opción, con caché del «sí» y del «no» por un rato. */
+async function casosSonda(): Promise<void> {
+  hr('(Q) La sonda de una opción del CLI del equipo')
+  let llamadas = 0
+  let ayuda = 'Usage: claude [options]'
+  let t = 0
+  const sonda = crearSondaOpcion({
+    orden: 'claude --help',
+    opcion: '--system-prompt-snapshot',
+    ahora: () => t,
+    vigenciaNoMs: 1000,
+    ejecutar: async () => {
+      llamadas++
+      return { ok: true, codigo: 0, salida: ayuda, tope: false }
+    }
+  })
+  const [a, b] = await Promise.all([sonda(), sonda()])
+  check('(Q1) sin la opción en la ayuda, no; dos a la vez comparten la sonda', !a && !b && llamadas === 1, `${llamadas}`)
+  ayuda = '  --system-prompt-snapshot <on|off>'
+  check('(Q2) un «no» vale un rato', !(await sonda()) && llamadas === 1, `${llamadas}`)
+  t = 2000
+  check('(Q3) pasado ese rato se vuelve a mirar (el CLI se actualizó)', (await sonda()) && llamadas === 2, `${llamadas}`)
+  check('(Q4) un «sí» se guarda', (await sonda()) && llamadas === 2, `${llamadas}`)
+  const caida = crearSondaOpcion({ orden: 'claude --help', opcion: 'x', ejecutar: async () => ({ ok: false, codigo: null, salida: '', tope: true }) })
+  check('(Q5) NEGATIVO: si la sonda falla o vence su tope, no', !(await caida()), '')
+}
+
+async function main(): Promise<void> {
   // ---------------------------------------------------------------------------
   hr('(1) Forma en Windows: la regla de PowerShell')
   // ---------------------------------------------------------------------------
@@ -381,6 +505,9 @@ function main(): void {
 
   casosAgenteManual()
   casosPromptInicial()
+  casosSnapshot()
+  casosCapa()
+  await casosSonda()
 
   // ---------------------------------------------------------------------------
   // Reporte final
@@ -401,4 +528,4 @@ function main(): void {
   process.exit(allPass ? 0 : 1)
 }
 
-main()
+await main()

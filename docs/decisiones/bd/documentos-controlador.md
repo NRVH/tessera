@@ -27,7 +27,7 @@ su sesión.
 - `atender` es el punto único de las operaciones con conexión: comprueba que existe, es de
   documentos y es del perfil; valida la FORMA (tipos, textos acotados, enteros en rango), y lo que
   no cuadra es `interno` «Petición inválida» sin tocar el gestor; y decide la POLÍTICA.
-- Política (`politicaDe`): `soloLectura` es la impuesta (`soloLecturaImpuesta.ts`; la casilla
+- Política (`politicaDe`): `soloLectura` es la impuesta (`soloLecturaImpuesta.ts`; el interruptor
   `readonly` es de los agentes), `produccion` sale del entorno y `confirmado` de la petición. La
   aplica el trabajador con su clasificador; el gestor solo la transporta. Barreras, con el renderer
   preguntando y el main como segunda: escritura en producción sin `confirmado` responde

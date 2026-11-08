@@ -177,6 +177,12 @@ async function real(): Promise<void> {
   const idClave = ctrl.crear({ profileId: 'pa', alias: 'clave', grupoId: null, host, puerto, usuario: 'clave', metodo: 'clave', clave: { tipo: 'elegida', token: elegida.token }, disponibleAgentes: true }).id
   const idMala = ctrl.crear({ profileId: 'pa', alias: 'mala', grupoId: null, host, puerto, usuario: 'pruebas', metodo: 'contrasena', disponibleAgentes: true, secreto: 'no-es-esta' }).id
 
+  // Una persona confirma las huellas (lo que hace el diálogo de un servidor nuevo): la sesión es estricta.
+  for (const id of [idPw, idClave, idMala]) {
+    const r = await ctrl.reconocerHuella({ id, prueba: true })
+    if (r.tipo === 'nueva') ctrl.confiarHuella({ ficha: r.ficha })
+  }
+
   const eventos: SftpProgreso[] = []
   const caidas: unknown[] = []
   const local = temporal('tessera-sftp-local-')
@@ -271,7 +277,7 @@ async function real(): Promise<void> {
     sesiones.cerrar('s1')
     await sleep(300)
     const cerrada = await sesiones.listar('s1', '/tmp')
-    check('(c19) cerrada la sesión, pedirle algo dice que se reconecte (y no hay caída que avisar)', !cerrada.ok && cerrada.error.includes('reconéctala') && caidas.length === 0, `${j(cerrada)} caidas=${j(caidas)}`)
+    check('(c19) cerrada la sesión, pedirle algo dice que se reconecte (y no hay caída que avisar)', !cerrada.ok && cerrada.error.includes('vuelva a conectarla') && caidas.length === 0, `${j(cerrada)} caidas=${j(caidas)}`)
     check('(c20) ninguna ficha queda viva', fichas.cuantas === 0, `${fichas.cuantas}`)
   } finally {
     sesiones.cerrarTodas()

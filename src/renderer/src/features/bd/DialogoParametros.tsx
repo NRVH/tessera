@@ -1,6 +1,6 @@
 // =============================================================================
 // DialogoParametros: los valores de los parámetros (`:id`, `$1`) de lo que se va a
-// ejecutar o explicar en la consola SQL. Uno por clave del lote, con su casilla NULL;
+// ejecutar o explicar en la consola SQL. Uno por clave del lote, con su interruptor NULL;
 // ENTER ejecuta desde cualquier campo y ESC cancela. Los campos, los valores iniciales
 // y el pie son de `consola/parametrosConsola.ts`; aquí solo se pinta y se devuelven
 // los `DbBinds` (o null). Va por portal desde el pane, como los demás diálogos.
@@ -18,7 +18,9 @@ import {
   type CampoParametro,
   type ValorCampo
 } from './consola/parametrosConsola'
-import { esDeUnaListaDeSelect, useDialogo } from '../../comun/useDialogo'
+import { esDeUnaListaDeSelect } from '../../comun/useDialogo'
+import { Modal, PieModal } from '../../comun/Modal'
+import { Interruptor } from '../../comun/piezasAjustes'
 import { txConsolaBd } from './textosConsolaBd.ts'
 
 export interface DialogoParametrosProps {
@@ -38,11 +40,11 @@ interface FilasParametros {
   valores: Record<string, ValorCampo>
   primeroNulo: boolean
   refs: MutableRefObject<Map<string, HTMLInputElement>>
-  primeroRef: MutableRefObject<HTMLInputElement | null>
+  primeroRef: MutableRefObject<HTMLElement | null>
   poner: (clave: string, cambio: Partial<ValorCampo>) => void
 }
 
-/** Un parámetro: su nombre, el campo de texto y la casilla NULL que lo deshabilita. */
+/** Un parámetro: su nombre, el campo de texto y el interruptor NULL que lo deshabilita. */
 function FilaParametro({ c, i, f }: { c: CampoParametro; i: number; f: FilasParametros }): React.JSX.Element {
   const { primeroNulo, refs, primeroRef, poner } = f
   const idCampo = `${f.idBase}-v${i}`
@@ -73,17 +75,18 @@ function FilaParametro({ c, i, f }: { c: CampoParametro; i: number; f: FilasPara
         autoComplete="off"
         onChange={(e) => poner(c.clave, { texto: e.target.value })}
       />
-      <label className="db-param-nulo" title={t.enviarNulo}>
-        <input
-          type="checkbox"
+      <label className="db-param-nulo">
+        <Interruptor
+          compacto
+          etiqueta="NULL"
           ref={(el) => {
             if (i === 0 && primeroNulo) primeroRef.current = el
           }}
-          checked={v.nulo}
-          onChange={(e) => {
-            const nulo = e.target.checked
+          activo={v.nulo}
+          onChange={() => {
+            const nulo = !v.nulo
             poner(c.clave, { nulo })
-            // Al desmarcar, el foco vuelve al campo que se acaba de habilitar.
+            // Al apagarlo, el foco vuelve al campo que se acaba de habilitar.
             if (!nulo) requestAnimationFrame(() => refs.current.get(c.clave)?.focus())
           }}
         />
@@ -94,36 +97,36 @@ function FilaParametro({ c, i, f }: { c: CampoParametro; i: number; f: FilasPara
 }
 
 /**
- * Enter acepta desde cualquier campo, también desde la casilla NULL. Esc sube (lo
+ * Enter acepta desde cualquier campo, también desde el interruptor NULL. Esc sube (lo
  * escucha `useDialogo` en `window`); las demás teclas no son de la consola de debajo.
  */
 function teclaParametros(
-  e: React.KeyboardEvent<HTMLDivElement>,
-  alPulsarTecla: (e: React.KeyboardEvent<HTMLDivElement>) => void,
+  e: React.KeyboardEvent<HTMLFormElement>,
   aceptar: () => void
 ): void {
   // Con la lista de un select desplegada, sus teclas son de la lista (es del DOM y burbujea).
   if (esDeUnaListaDeSelect(e.target)) return
-  alPulsarTecla(e)
   if (e.key === 'Escape') return
-  e.stopPropagation()
-  if (e.key === 'Enter' && !e.nativeEvent.isComposing && !(e.target instanceof HTMLButtonElement)) {
+  if (e.key !== 'Tab') e.stopPropagation()
+  // El interruptor NULL es un botón, pero Enter en él acepta como en los campos (alterna con Espacio).
+  const esBoton = e.target instanceof HTMLButtonElement && e.target.getAttribute('role') !== 'switch'
+  if (e.key === 'Enter' && !e.nativeEvent.isComposing && !esBoton) {
     e.preventDefault()
     aceptar()
   }
 }
 
 /**
- * El foco arranca en el primer campo con su texto seleccionado (o en su casilla NULL):
+ * El foco arranca en el primer campo con su texto seleccionado (o en su interruptor NULL):
  * lo normal es teclear encima del valor de la vez anterior o aceptarlo con Enter.
  */
-function useFocoInicial(): MutableRefObject<HTMLInputElement | null> {
-  const primeroRef = useRef<HTMLInputElement | null>(null)
+function useFocoInicial(): MutableRefObject<HTMLElement | null> {
+  const primeroRef = useRef<HTMLElement | null>(null)
   useEffect(() => {
     const el = primeroRef.current
     if (el) {
       el.focus()
-      if (el.type === 'text') el.select()
+      if (el instanceof HTMLInputElement && el.type === 'text') el.select()
     }
   }, [])
   return primeroRef
@@ -132,7 +135,6 @@ function useFocoInicial(): MutableRefObject<HTMLInputElement | null> {
 /** El diálogo de los valores de los parámetros; devuelve los `DbBinds` al aceptar. */
 export function DialogoParametros(p: DialogoParametrosProps): React.JSX.Element {
   const { campos, onAceptar, onCancelar } = p
-  const dlg = useDialogo({ onClose: onCancelar })
   const idBase = useId()
   const [valores, setValores] = useState<Record<string, ValorCampo>>(() => ({ ...p.iniciales }))
   const primeroRef = useFocoInicial()
@@ -146,45 +148,19 @@ export function DialogoParametros(p: DialogoParametrosProps): React.JSX.Element 
   const t = txConsolaBd()
 
   return (
-    <div className="modal-overlay" role="presentation" onMouseDown={onCancelar}>
-      <div
-        ref={dlg.ref}
-        className="modal-card db-parametros-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={`${idBase}-titulo`}
-        aria-describedby={`${idBase}-mensaje`}
-        onMouseDown={(e) => e.stopPropagation()}
-        onKeyDown={(e) => teclaParametros(e, dlg.alPulsarTecla, aceptar)}
-      >
-        <div className="modal-title" id={`${idBase}-titulo`}>
-          {t.parametros} <span className="db-param-alias">· {p.alias}</span>
+    <Modal titulo={<>{t.parametros} <span className="db-param-alias">· {p.alias}</span></>}
+      tamano="m" className="db-parametros-modal" subtitulo={p.mensaje} onCerrar={onCancelar}
+      pie={<PieModal>
+        <button type="button" className="btn btn-ghost" onClick={onCancelar}>{t.cancelar}</button>
+        <button type="button" className="btn primary" onClick={aceptar}>{p.accion === 'explicar' ? t.explicarPlan : t.ejecutar}</button>
+      </PieModal>}
+    >
+      <form className="db-param-form" onKeyDown={(e) => teclaParametros(e, aceptar)} onSubmit={(e) => { e.preventDefault(); aceptar() }}>
+        <div className="db-param-lista" role="group" aria-label={t.valoresParametros}>
+          {campos.map((c, i) => <FilaParametro key={c.clave} c={c} i={i} f={f} />)}
         </div>
-        <div className="modal-message" id={`${idBase}-mensaje`}>
-          {p.mensaje}
-        </div>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault()
-            aceptar()
-          }}
-        >
-          <div className="db-param-lista" role="group" aria-label={t.valoresParametros}>
-            {campos.map((c, i) => (
-              <FilaParametro key={c.clave} c={c} i={i} f={f} />
-            ))}
-          </div>
-          <div className="db-param-pie">{pieDialogoParametros(p.dialecto)}</div>
-          <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={onCancelar}>
-              {t.cancelar}
-            </button>
-            <button type="submit" className="btn primary">
-              {p.accion === 'explicar' ? t.explicarPlan : t.ejecutar}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div className="db-param-pie">{pieDialogoParametros(p.dialecto)}</div>
+      </form>
+    </Modal>
   )
 }

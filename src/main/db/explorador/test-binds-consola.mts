@@ -71,7 +71,7 @@ function main(): void {
   check('array en orden de número', rp.ok && j(rp.binds) === j(['a', 'b']), j(rp))
   const rh = bindsParaTrabajador(parametrosSql('select $1, $3', 'postgres'), { '1': 'a', '3': 'c' }, 'postgres')
   check('un hueco va como NULL (lo rechaza el servidor con su error)', rh.ok && j(rh.binds) === j(['a', null, 'c']), j(rh))
-  // `$n` por encima del tope del protocolo: sin reservar el array (antes, mil millones de NULL en el main).
+  // `$n` por encima del tope del protocolo: sin reservar el array (mil millones de NULL en el main).
   const t0 = Date.now()
   const rg = bindsParaTrabajador(parametrosSql('select $1000000000', 'postgres'), { '1000000000': 'x' }, 'postgres')
   const msG = Date.now() - t0
@@ -102,7 +102,7 @@ function main(): void {
     rTope.ok && Array.isArray(rTope.binds) ? `${rTope.binds.length}` : j(rTope)
   )
   const r01 = bindsParaTrabajador(parametrosSql('select $01', 'postgres'), { '1': 'b' }, 'postgres')
-  check('`$01` es `$1`: su valor llega (antes iba NULL)', r01.ok && j(r01.binds) === j(['b']), j(r01))
+  check('`$01` es `$1`: su valor llega (no va NULL)', r01.ok && j(r01.binds) === j(['b']), j(r01))
 
   hr('(5) Faltan')
   const rf = bindsParaTrabajador(parametrosSql('select * from t where a = :a and b = :"Be"', 'oracle'), { A: '1' }, 'oracle')

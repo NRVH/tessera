@@ -1,0 +1,245 @@
+/* El editor de la configuración de un agente: pestañas de archivo, Monaco y sus avisos. */
+.modal-card.config-agente-modal {
+  width: min(1080px, 100%);
+}
+.config-agente-ruta {
+  margin-top: 4px;
+  font-size: calc(var(--ui-font) - 1px);
+  color: var(--fg-faint);
+  overflow-wrap: anywhere;
+}
+.config-agente-cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.config-agente-pestanas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.config-agente-pestana {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--fg-muted);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    color var(--mov-rapido) var(--curva-estandar),
+    border-bottom-color var(--mov-rapido) var(--curva-estandar);
+}
+.config-agente-pestana:hover,
+.config-agente-pestana.activa {
+  color: var(--fg);
+}
+.config-agente-pestana.activa {
+  border-bottom-color: var(--accent);
+}
+.config-agente-pestana code {
+  font-size: calc(var(--ui-font) - 1px);
+  color: var(--fg-faint);
+}
+.config-agente-marca {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.config-agente-editor {
+  height: min(48vh, 480px);
+  min-height: 180px;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.config-agente-avisos {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.config-agente-avisos p,
+.config-agente-error p {
+  margin: 0;
+}
+.config-agente-aviso {
+  font-size: var(--ui-font);
+  color: var(--fg-muted);
+}
+.config-agente-error {
+  font-size: var(--ui-font);
+  color: var(--red);
+  overflow-wrap: anywhere;
+}
+.config-agente-acciones-aviso {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+.gestion-config {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.gestion-config-tarjeta {
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.gestion-config-nota {
+  margin: 0;
+  padding: 8px 12px;
+}
+.gestion-config-lista {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.gestion-config-fila {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 12px;
+}
+.gestion-config-fila + .gestion-config-fila {
+  border-top: 1px solid var(--border-soft);
+}
+.gestion-config-nombre {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.gestion-config-identidad {
+  display: block;
+  color: var(--fg);
+}
+.gestion-config-cuenta {
+  margin-left: 8px;
+  color: var(--fg-muted);
+}
+.gestion-config-intro {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.gestion-config-intro .ajustes-fila-ayuda {
+  margin: 0;
+}
+/* --- El diálogo: los niveles a la izquierda y el editor a la derecha ----------------------------
+   La lista tiene alto fijo y se desplaza sola: veinte cuentas no hacen crecer el diálogo. */
+.config-agente-marco {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 16px;
+  min-height: 0;
+}
+.config-agente-detalle {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.niveles {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: min(60vh, 560px);
+  padding-right: 8px;
+  border-right: 1px solid var(--border-soft);
+}
+.niveles-grupo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+  margin: 12px 8px 4px;
+  color: var(--fg-muted);
+  font-size: calc(var(--ui-font) - 1px);
+  font-weight: 600;
+}
+.niveles-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--fg-muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background var(--mov-rapido) var(--curva-estandar),
+    color var(--mov-rapido) var(--curva-estandar);
+}
+.niveles-item svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+.niveles-item:hover {
+  background: var(--hover-suave);
+  color: var(--fg);
+}
+.niveles-item.activo {
+  background: var(--sel-glow);
+  color: var(--fg);
+}
+.niveles-texto {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.niveles-detalle {
+  color: var(--fg-faint);
+  font-size: calc(var(--ui-font) - 1px);
+}
+.nivel-cabecera {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.nivel-titulo {
+  color: var(--fg);
+  font-size: calc(var(--ui-font) + 1px);
+  font-weight: 600;
+}
+.nivel-alcance {
+  display: block;
+  color: var(--fg-muted);
+  font-size: calc(var(--ui-font) - 1px);
+  line-height: 1.45;
+}
+.nivel-interruptor {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+}
+.nivel-interruptor-texto {
+  display: block;
+  color: var(--fg);
+}
+.gestion-config-archivos {
+  display: block;
+  margin-top: 1px;
+  font-size: calc(var(--ui-font) - 1px);
+  color: var(--fg-muted);
+}

@@ -36,9 +36,9 @@ export const txArea = crearTextos(
     error: 'Error',
     cerrarNombre: (nombre: string) => `Cerrar ${nombre}`,
     cerrar: 'Cerrar',
-    cerrarOtras: 'Cerrar otras',
-    cerrarIzquierda: 'Cerrar a la izquierda',
-    cerrarDerecha: 'Cerrar a la derecha',
+    cerrarOtras: 'Cerrar las demás',
+    cerrarIzquierda: 'Cerrar las de la izquierda',
+    cerrarDerecha: 'Cerrar las de la derecha',
     cerrarTodas: 'Cerrar todas',
     mostrarEnArbol: 'Mostrar en el árbol',
     renombrarConsolaPuntos: 'Renombrar consola…',
@@ -56,12 +56,12 @@ export const txArea = crearTextos(
     conexionesRecuperadas: 'Conexiones recuperadas de la copia de respaldo',
     noSePudieronLeerConexiones: 'No se pudieron leer las conexiones',
     montadaEnProyecto: (alias: string) => `«${alias}» montada en el proyecto`,
-    yaEstabaEnConexiones: 'Ya estaba en Conexiones. ',
-    seAnadioAConexiones: 'Se añadió a Conexiones. ',
+    yaEstabaEnConexiones: 'Ya estaba en «Bases de datos». ',
+    seAnadioAConexiones: 'Se añadió a «Bases de datos». ',
     agenteConsultaSoloLeer: 'El agente puede consultarla con tdb, solo para leer.',
     agenteConsulta: 'El agente puede consultarla con tdb.',
     noSePudoMontar: 'No se pudo montar la base de datos',
-    noSePudoPrepararAgenteDatos: 'No se pudo preparar el agente de datos'
+    noSePudoPrepararAgenteDatos: 'No se pudo preparar el agente de bases de datos'
   },
   {
     pestanaNoDisponible: 'Tab not available',
@@ -105,11 +105,11 @@ export const txArea = crearTextos(
     conexionesRecuperadas: 'Connections restored from the backup',
     noSePudieronLeerConexiones: 'Could not read the connections',
     montadaEnProyecto: (alias: string) => `“${alias}” mounted in the project`,
-    yaEstabaEnConexiones: 'Already in Connections. ',
-    seAnadioAConexiones: 'Added to Connections. ',
+    yaEstabaEnConexiones: 'Already in “Databases”. ',
+    seAnadioAConexiones: 'Added to “Databases”. ',
     agenteConsultaSoloLeer: 'The agent can query it with tdb (read-only).',
     agenteConsulta: 'The agent can query it with tdb.',
     noSePudoMontar: 'Could not mount the database',
-    noSePudoPrepararAgenteDatos: 'Could not prepare the data agent'
+    noSePudoPrepararAgenteDatos: 'Could not prepare the database agent'
   }
 )

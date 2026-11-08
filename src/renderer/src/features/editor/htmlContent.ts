@@ -43,11 +43,6 @@ export function renderDiagramaSuelto(texto: string): string {
   return `<div class="${CLASE_MERMAID}">${escaparTexto(texto)}</div>`
 }
 
-/** Sanea HTML arbitrario (p. ej. la salida de mammoth) antes de pintarlo. */
-export function sanitizeHtml(html: string): string {
-  return DOMPurify.sanitize(html)
-}
-
 /** Sanea el HTML de un .docx y convierte los enlaces en texto plano: nada es clicable. */
 export function sanitizeDocxHtml(html: string): string {
   return DOMPurify.sanitize(html, { FORBID_TAGS: ['a'] })

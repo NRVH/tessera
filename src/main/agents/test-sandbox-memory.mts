@@ -7,6 +7,10 @@
 // Decisiones: docs/decisiones/sandbox/contenedor-del-agente.md
 // =============================================================================
 
+import { lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { escribirBloqueSandbox } from './sandboxMemory.ts'
 import { bloqueSandbox, INICIO_SANDBOX, FIN_SANDBOX } from './sandboxMemoryBlock.ts'
 import { bloqueEspacioDatos, reemplazarBloque, INICIO, FIN } from '../db/agentMemoryBlock.ts'
 import { PRESET_DOCUMENTOS } from '../../shared/sandboxExtras.ts'
@@ -37,6 +41,16 @@ function linea(texto: string, aguja: string): string {
 function main(): void {
   const conPermiso = bloqueSandbox({ puedeInstalar: true, horneados: [], depsNavegador: false })
   const sinPermiso = bloqueSandbox({ puedeInstalar: false, horneados: [], depsNavegador: false })
+
+  // -------------------------------------------------------------------------
+  hr('0) Lo que el contenedor no tiene, por plataforma del anfitrión')
+  {
+    const ctx = { puedeInstalar: true, horneados: [], depsNavegador: false }
+    const [win, mac, lin] = (['windows', 'mac', 'linux'] as const).map((p) => bloqueSandbox(ctx, p))
+    check('en las tres: aquí no hay Docker, y el tope de tdb', [win, mac, lin].every((b) => b.includes('no hay Docker') && b.includes('8 MiB')), linea(lin, 'no hay Docker'))
+    check('host.docker.internal solo con Docker Desktop (Windows y Mac)', win.includes('host.docker.internal') && mac.includes('host.docker.internal') && !lin.includes('host.docker.internal'), '')
+    check('lo de CRLF y binarios de Windows, solo con anfitrión Windows', win.includes('CRLF') && !mac.includes('CRLF') && !lin.includes('CRLF'), linea(win, 'CRLF'))
+  }
 
   // -------------------------------------------------------------------------
   hr('1) DICE LA VERDAD sobre los permisos')
@@ -239,6 +253,37 @@ function main(): void {
     console.log(`${r.pass ? 'PASS' : 'FAIL'}  ${r.name}`)
     console.log(`      -> ${r.evidence}`)
   }
+  hr('Enlaces plantados en la carpeta montada')
+  {
+    const raiz = mkdtempSync(join(tmpdir(), 'tessera-sandbox-memory-'))
+    try {
+      const secreto = join(raiz, 'secreto.txt')
+      writeFileSync(secreto, 'NO-TOCAR')
+      const dir = join(raiz, 'cuenta')
+      mkdirSync(dir)
+      const ctx = { puedeInstalar: true, horneados: [], depsNavegador: false }
+      let hayEnlaces = true
+      try {
+        symlinkSync(secreto, join(dir, 'CLAUDE.md'))
+        symlinkSync(secreto, join(dir, 'AGENTS.md.tmp'))
+      } catch {
+        hayEnlaces = false
+        console.log('  PLATAFORMA: este usuario no puede crear enlaces simbólicos; se comprueba en Linux y macOS')
+      }
+      if (hayEnlaces) {
+        escribirBloqueSandbox(dir, 'claude-code', ctx)
+        check('un enlace en CLAUDE.md no se sigue', lstatSync(join(dir, 'CLAUDE.md')).isSymbolicLink() && readFileSync(secreto, 'utf8') === 'NO-TOCAR', readFileSync(secreto, 'utf8'))
+        escribirBloqueSandbox(dir, 'codex', ctx)
+        check('un enlace en el temporal de siempre no recibe la escritura', readFileSync(join(dir, 'AGENTS.md'), 'utf8').includes(INICIO_SANDBOX) && readFileSync(secreto, 'utf8') === 'NO-TOCAR', readFileSync(secreto, 'utf8'))
+      }
+      const normal = join(raiz, 'normal')
+      escribirBloqueSandbox(normal, 'codex', ctx)
+      check('sin enlaces escribe el bloque y no deja temporales', readdirSync(normal).join() === 'AGENTS.md', readdirSync(normal).join())
+    } finally {
+      rmSync(raiz, { recursive: true, force: true })
+    }
+  }
+
   const passed = results.filter((r) => r.pass).length
   const total = results.length
   const allPass = passed === total

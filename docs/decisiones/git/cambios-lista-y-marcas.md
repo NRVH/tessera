@@ -30,7 +30,7 @@ marcado tiene que ser exactamente lo que el backend recibe.
   la lista no depende de `marcadas`: si dependiera, cada clic reconstruiría la lista.
 - Con varios repos, la lista solo trae los que tienen cambios o un error (`reposConCambios`): los
   limpios no ocupan sitio, y sus ramas siguen en la vista del historial. Con la carga perezosa
-  (más de `UMBRAL_PEREZOSO` repos) se enseñan todos, como antes: esa carga pide lo que se ve, así
+  (más de `UMBRAL_PEREZOSO` repos) se enseñan todos: esa carga pide lo que se ve, así
   que un repo escondido por limpio no se volvería a pedir al ensuciarse, y cada refresco (que vacía
   los estados) haría aparecer y desaparecer la lista hasta pedir todos los repos.
 - Dentro de un repo de esa lista, «Cambios» va sin su cabecera cuando es la única sección

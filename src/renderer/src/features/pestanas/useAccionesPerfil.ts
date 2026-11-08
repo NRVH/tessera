@@ -34,7 +34,8 @@ interface OpcionesAcciones {
   working?: Set<string>
   onRecolorProfile: (profileId: string, color: string) => void
   onToggleRedHost: (profileId: string, redHost: boolean) => void
-  onSetReglas: (profileId: string, reglas: string) => void
+  /** Abre el contexto de los agentes en las reglas del perfil. */
+  onAbrirReglas: (profileId: string) => void
   onDeleteProfile: (profileId: string) => void
   onHibernateProfile: (profileId: string) => void
 }
@@ -47,6 +48,9 @@ export interface SelectorColorAbierto {
 }
 
 export interface AccionesPerfil extends AccionesReglas {
+  clavesSsh: string | null
+  abrirClavesSsh: (perfil: string) => void
+  cerrarClavesSsh: () => void
   deleting: Profile | null
   hibernating: HibernacionPendiente | null
   /** Perfil cuyo diálogo de red está abierto. */
@@ -70,8 +74,8 @@ export interface AccionesPerfil extends AccionesReglas {
   cancelarEliminar: () => void
 }
 
-/** Ancho del selector de color (`.selector-color`), para centrarlo bajo la pestaña. */
-const ANCHO_SELECTOR = 264
+/** Ancho del selector de color (`.selector-color` en styles.css, igual que «Nuevo perfil»), para centrarlo bajo la pestaña. */
+const ANCHO_SELECTOR = 300
 
 /**
  * «Cambiar color» abre el selector bajo la pestaña del perfil, centrado en ella y sin salirse
@@ -192,12 +196,13 @@ function useConsultaPerfil({ profiles, dotStates, working }: OpcionesAcciones): 
 
 /** Estado de los diálogos de perfil (eliminar, hibernar, red, reglas) y del selector de color. */
 export function useAccionesPerfil(opciones: OpcionesAcciones, cerrarMenu: () => void): AccionesPerfil {
-  const { onRecolorProfile, onToggleRedHost, onSetReglas, onDeleteProfile, onHibernateProfile } = opciones
+  const [clavesSsh, fijarClavesSsh] = useState<string | null>(null)
+  const { onRecolorProfile, onToggleRedHost, onAbrirReglas, onDeleteProfile, onHibernateProfile } = opciones
   const [deleting, setDeleting] = useState<Profile | null>(null)
   const [hibernating, setHibernating] = useState<HibernacionPendiente | null>(null)
   const consultar = useConsultaPerfil(opciones)
   const red = useCambioRed(consultar, onToggleRedHost, onHibernateProfile)
-  const reglas = useReglasPerfil(onSetReglas)
+  const reglas = useReglasPerfil(onAbrirReglas)
   const selectorColor = useSelectorColor(cerrarMenu, onRecolorProfile)
 
   // Hibernar mata los ptys del perfil: se pregunta si se corta algo (un agente trabajando o una
@@ -224,6 +229,9 @@ export function useAccionesPerfil(opciones: OpcionesAcciones, cerrarMenu: () => 
 
   return {
     ...selectorColor,
+    clavesSsh,
+    abrirClavesSsh: (perfil) => { cerrarMenu(); fijarClavesSsh(perfil) },
+    cerrarClavesSsh: () => fijarClavesSsh(null),
     ...red,
     deleting,
     hibernating,

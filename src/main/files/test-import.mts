@@ -188,7 +188,7 @@ try {
   )
   check(
     '4e',
-    (await rejects(() => svc.importFromHost([path.join(downloads, 'no.txt')], '', false), /No se pudo leer "no\.txt"/)) === '',
+    (await rejects(() => svc.importFromHost([path.join(downloads, 'no.txt')], '', false), /No se pudo leer «no\.txt»/)) === '',
     'un origen inexistente da un error legible y no deja nada a medias'
   )
 

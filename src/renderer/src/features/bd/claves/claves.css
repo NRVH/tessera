@@ -174,33 +174,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* El conmutador de modo: el molde de `.vista-modo-toggle` (pista, radio, segmento
-   apagado), con TEXTO en vez de iconos. El encendido es `btn-active`, la clase de todo lo
-   «puesto» de la app, que lleva el color del perfil. */
-.db-clave-modos {
-  display: inline-flex;
-  align-items: center;
-  flex: 0 0 auto;
-  border-radius: 6px;
-  background: var(--bg-surface);
-  padding: 1px;
-  gap: 1px;
-}
-.db-clave-modos .btn {
-  min-height: 0;
-  height: calc(var(--ui-font) + 9px);
-  padding: 0 9px;
-  border-radius: 5px;
-  background: transparent;
-  box-shadow: none;
-  color: var(--fg-faint);
-  font-size: max(9px, calc(var(--ui-font) - 1px));
-}
-.db-clave-modos .btn:hover:not(:disabled) {
-  background: var(--bg-surface-hi);
-  color: var(--fg-muted);
-}
-
 /* El aviso de un valor cortado (o del volcado hex con tope): una franja, no una caja. */
 .db-clave-aviso {
   flex: 0 0 auto;

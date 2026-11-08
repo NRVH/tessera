@@ -81,7 +81,7 @@ async function importarUna(c: Crudo, grupos: Map<string, string>, d: DepsCopiaSs
   try {
     if (typeof c.huellas === 'string' && c.huellas !== '') d.conexiones.escribirHuellas(id, c.huellas)
   } catch {
-    // La conexión ya está: sin sus huellas, aceptará la del servidor al conectar.
+    // La conexión ya está: sin sus huellas, la del servidor se confirma al conectar.
   }
   return null
 }

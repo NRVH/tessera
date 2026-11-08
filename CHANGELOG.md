@@ -8,7 +8,161 @@ Cada versión agrupa sus cambios en secciones, en este orden y solo las que teng
 Interfaz, Rendimiento y estabilidad, Instalación y actualizaciones, Correcciones y Seguridad. Una
 sección larga se divide en grupos por área.
 
-## [Sin publicar]
+## [0.84.0] - 2026-11-08
+
+### Novedades
+
+- **El contexto de los agentes, en un solo lugar.** Lo que reciben Claude Code y Codex se organiza en dos niveles,
+  el global, para todos los perfiles, y el de cada perfil, y en tres partes: reglas, documentos de referencia y
+  configuración de Docker. Se escribe una vez para los dos agentes, en su equipo y en Docker, y «Resumen» enseña el
+  resultado de un perfil tal como llega a sus agentes, con el origen de cada parte. Se abre desde Configuración › Agentes o con
+  «Reglas para los agentes…» en el menú de un perfil, y cada perfil decide si usa el global.
+- **Reglas globales.** Además de las de cada perfil, unas reglas para los agentes de todos los perfiles, que llegan al
+  iniciarse cada sesión. Los agentes las proponen con `tctx proponer --global` y usted decide.
+- **Documentos de referencia, también en Docker.** En el contexto, elija las carpetas con lo que no cabe en las
+  reglas, como un contrato o una guía. Los agentes los leen con `tctx docs` por su nombre, con la misma orden en
+  nativo y en Docker, y un documento citado con una ruta de otro equipo se encuentra igual.
+- **La misma configuración de Docker en varias cuentas.** La configuración técnica global y la de cada perfil
+  (`settings.json`, `config.toml`) se aplican a cada cuenta de Docker al abrir una sesión, encima de su configuración y
+  sin modificar sus archivos; prevalece la del perfil, y quitar una clave se nota en la sesión siguiente. Con
+  `tctx config proponer` un agente propone cambios, que no se aplican hasta que usted los acepta. La exportación de
+  la configuración lleva el contexto global a otro equipo, y al importarlo uno distinto del de ese equipo solo lo
+  sustituye si usted lo marca.
+- **Sus reglas de agentes viajan a otro equipo.** La exportación lleva, si lo elige, el `CLAUDE.md` y el
+  `settings.json`, o el `AGENTS.md` y el `config.toml`, de cada cuenta de Docker, y las reglas de sus agentes nativos, nunca
+  sus sesiones ni sus credenciales. Al importar, compara cada archivo con el de este equipo: lo que falta se trae, lo
+  igual se indica y lo distinto solo se sustituye si usted lo elige, con las diferencias a la vista.
+- **Confirmación antes de sustituir.** Si una importación va a sustituir algo existente, un aviso lista qué y dónde antes de
+  escribir, y dice qué se puede recuperar: Tessera guarda la versión anterior de los archivos, pero no de las reglas
+  del perfil ni de las globales.
+- **Edite los archivos de cada cuenta de Claude Code y Codex desde Tessera, también las de Docker.** En el contexto
+  de los agentes («En su equipo» y la configuración de cada cuenta de Docker) o con «Editar configuración…» en el menú
+  **⋯** de una cuenta, un editor abre sus archivos reales. Tessera no añade ninguna opción por su
+  cuenta. Comprueba la sintaxis antes de guardar, no sobrescribe un cambio del agente sin preguntar y permite
+  recuperar la versión anterior.
+- **Los agentes en Docker conocen las limitaciones del contenedor.** Tessera les indica que dentro no hay Docker,
+  cómo llegar a los servicios de su equipo, el tope de `tdb` y, en Windows, qué hacer con los finales de línea y las
+  carpetas de compilación, sin que tenga que escribirlo en sus reglas. El resumen del contexto lo muestra.
+- **Sus agentes nativos delegan tareas en las cuentas de Docker del perfil.** Con `tctx delegar`, un agente nativo o la
+  terminal manda una tarea a una cuenta de Claude Code o Codex en Docker, que trabaja sobre el mismo proyecto sin abrir
+  su ventana, y recibe el resultado. `tctx cuentas` muestra cada cuenta con su uso, y con `--cuenta auto` Tessera elige
+  la que tiene más disponible. Las tareas largas se vigilan, se cancelan o se continúan con `tctx tarea`. El agente
+  delegado puede hacer lo mismo que esa cuenta en su pestaña de Docker sobre ese proyecto (sus bases montadas, las
+  conexiones SSH del perfil, las reglas y los documentos), y nada fuera del proyecto. Un indicador en la cabecera
+  muestra las tareas en marcha y el motivo de las que fallan.
+- **Aviso antes de llenar las reglas.** Al pasar del 80 % del máximo, Tessera sugiere pasar a un documento lo que los
+  agentes solo consultan a veces, también al revisar la propuesta de un agente.
+- **Cada proyecto se reabre como lo dejó.** Al volver a abrir Tessera, cada proyecto recupera los archivos que
+  tenía abiertos, en su orden, con el que se estaba viendo, su modo de vista y la línea donde estaba el cursor; las
+  carpetas desplegadas del explorador; y sus terminales, con sus nombres (con un shell nuevo). Se recuerda por perfil
+  y proyecto, y solo se carga el proyecto que se ve, así que arrancar sigue siendo rápido.
+- **La ventana se abre donde se dejó.** En el mismo monitor, con su tamaño y su posición, o maximizada si lo
+  estaba. Si ese monitor ya no está conectado, se abre en el principal. También se recuerdan el ancho del agente de
+  la terminal a pantalla completa y el de la lista del historial de un archivo.
+- **Temas, fuente y tamaño del código.** En Configuración › Apariencia › Editor de código se elige el tema con el que se
+  pinta el código entre once, cada uno con una paleta propia: Tessera, Dracula, Monokai, Tokyo Night, Darcula, Dark+,
+  GitHub Dark, Gruvbox Dark, Solarized Dark, Cobalt2 y SynthWave '84, con una vista previa. Se aplica al editor, los diffs, los visores, los bloques de código de la
+  vista previa de Markdown y los editores de bases de datos. Un tema cambia los colores del texto: el fondo es siempre
+  el de Tessera, y las terminales conservan sus colores. Ahí mismo se eligen la fuente y el tamaño del código, con las mismas fuentes que las terminales. Todo se ve
+  al momento, sin reabrir nada.
+
+### Interfaz
+
+- **Los menús se agrupan con submenús.** «Copiar como» y «Exportar a archivo» de la rejilla y el filtro por tipo de Redis
+  despliegan sus opciones al apuntarlos, con el ratón o con el teclado.
+- **Menos tooltips y sin encadenarse.** Un tooltip ya no repite un texto que se lee completo, se retiraron los que no
+  aportaban información y todos esperan a que el ratón se detenga, de modo que no cubren las opciones al recorrerlas.
+- **Las diferencias de un archivo aparecen sin parpadeos.** El texto entra con un solo fundido y, con «Contraer los
+  fragmentos sin cambios», ya no se ve el archivo completo antes de plegarse.
+- **El menú del perfil agrupa lo que solo aplica en Docker.** La red del contenedor y las claves SSH aparecen en el
+  submenú «Agentes en Docker», y la ventana de claves indica que no limita a los agentes nativos.
+- **Los avisos importantes se distinguen de un vistazo.** Lo que Tessera advierte o le pide decidir lleva un icono de
+  peligro, advertencia o información. El título indica la consecuencia y el botón nombra la acción. Lo que destruye
+  datos avisa en rojo, también en producción y en Redis.
+- **Interruptores y casillas con el estilo de Tessera.** Las opciones de sí o no de bases de datos, SSH y agentes son
+  interruptores, y las listas para elegir varios elementos usan la casilla de la aplicación.
+- **La terminal y Git · Historial a pantalla completa tienen sus controles en la barra de iconos.** Restaurar el panel,
+  ocultarlo y pasar de la terminal al historial sin salir de la pantalla completa están siempre a la vista a la
+  izquierda, también con el agente de la terminal maximizado, que antes dejaba la terminal sin forma de volver. Un
+  solo «Ocultar el panel» sustituye a la flecha, al guion y a la ✕, que hacían lo mismo, y la cabecera del agente
+  ya no tiene al lado un «Restaurar» igual que el suyo. Fuera de pantalla completa, la cabecera de la terminal
+  ordena y anima sus botones como la de Git · Historial: reiniciar, maximizar y ocultar.
+- **Tessera Academy se recorre sin salir del artículo.** «Anterior» y «Siguiente» quedan en un pie fijo, a mano
+  desde cualquier punto de la lectura, y las migajas llevan al índice: «Tessera Academy», al principio, y el
+  tema, a sus artículos.
+- **Movimiento en toda la aplicación.** Paneles, archivos, diffs, pestañas, menús, diálogos y avisos aparecen
+  y se retiran con transiciones breves. Al abrir o cerrar un panel, o el primer y el último archivo, el resto de la
+  ventana se recoloca con suavidad y el texto de las terminales no se deforma. Si el sistema pide reducir el
+  movimiento, todo cambia al instante.
+- **Todos los diálogos siguen la misma forma.** El botón de cerrar está siempre arriba a la derecha, el contenido
+  desplaza sin mover la cabecera ni los botones, los avisos y errores tienen el mismo aspecto y los botones nunca
+  quedan pegados al texto.
+- **Cuentas de Docker de Codex desde la cabecera de Claude Code, y al revés.** «Nueva cuenta» permite elegir el
+  agente de la cuenta, de modo que puede crearla e iniciar sesión aunque el otro agente esté oculto.
+- **Iniciar sesión en una cuenta explica el error y permite reintentar** sin cerrar el diálogo.
+- **Cerrar un archivo, la terminal o el agente de la terminal se funde**, sin esperas ni huecos vacíos.
+- **Los desplegables y el filtro de una tabla usan la lista de Tessera**, con su barra de desplazamiento.
+- **Cambiar de vista es instantáneo.** Archivos, Git, Bases de datos y la terminal a pantalla completa aparecen al
+  momento, sin animación de entrada.
+- **Los diálogos se abren ya completos**, sin que sus campos se desplieguen uno a uno mientras aparecen.
+- **Las acciones de la cabecera del agente están siempre a la vista**, y cerrar el agente de la terminal maximizado
+  ya no muestra por un instante los botones del agente del proyecto.
+- **Configuración, más fácil de leer.** Cada sección va en su tarjeta, con el título en el color del perfil.
+- **Configuración › Agentes indica cuántas cuentas de Docker tiene cada agente**, en el botón que las despliega, y
+  el selector de cuenta de la cabecera lleva a «Administrar las cuentas…».
+- **Guardar confirma en el propio botón.** Al guardar, el botón muestra una marca de verificación en lugar de un
+  mensaje aparte, y en las reglas «Restaurar las reglas guardadas» deshace lo que aún no se ha guardado.
+- **Las acciones de la cabecera de un panel se pliegan** cuando no se usan, sin dejar un hueco, y reaparecen al
+  pasar el puntero.
+- **«Nuevo perfil» cabe siempre en la ventana**, también con muchos perfiles abiertos.
+- **Los colores brillantes de las terminales ya se distinguen de los normales.** Eran el mismo tono, así que un
+  programa que los usa para separar dos cosas, como la palabra cambiada dentro de una línea de un diff o los temas
+  ANSI de Claude Code, las mostraba iguales.
+- **El nombre del agente ya no se parte en la cabecera de la memoria de la conversación y del uso de la cuenta.**
+  Cuando falta sitio, es el título el que pasa a la línea siguiente.
+
+### Correcciones
+
+- **Al reanudar una conversación de Claude Code, el agente recibe las reglas vigentes.** Las versiones recientes de
+  Claude Code reutilizaban las del primer arranque de la conversación hasta compactarla, así que tras «Reiniciar el
+  agente» o al continuar una conversación en otra cuenta no llegaban los cambios ni las indicaciones del traspaso.
+- **Una sesión de Docker abre aunque las reglas tengan muchos apóstrofos o comillas.** La línea de arranque del
+  contenedor podía pasar del máximo del sistema; ahora, si no caben, el agente recibe la indicación de leerlas con
+  `tctx reglas`.
+- **«Buscar en archivos» se abre encima de otro diálogo**, y una prueba de conexión se puede cancelar.
+- **Importar una conexión SSH sin archivo de clave lo indica:** pide «Seleccione el archivo de clave».
+- **En Linux, la ventana sin maximizar vuelve con el tamaño y la posición** que tenía al cerrar.
+
+### Seguridad
+
+- **Un enlace plantado en la carpeta de una cuenta de Docker ya no alcanza otros archivos del equipo.** Al abrir una
+  sesión, Tessera actualiza un bloque en `CLAUDE.md` o `AGENTS.md`, en esa carpeta, que el contenedor puede escribir. Ya
+  no lee ni escribe a través de un enlace simbólico que un agente haya dejado allí.
+- **Un archivo de configuración importado ya no puede escribir fuera de las carpetas de Tessera.** Un perfil cuyo
+  identificador lleva separadores de ruta o «..» se rechaza al importar, en lugar de crear carpetas en otro lugar del
+  equipo.
+- **Motor de la aplicación actualizado.** Tessera pasa a Electron 43.8.7, que deja de confiar en unos certificados
+  intermedios comprometidos e incorpora los últimos parches de seguridad de su navegador.
+- **Un servidor SSH nuevo enseña su huella antes de recibir la contraseña.** La primera vez que prueba una conexión,
+  abre su terminal o su explorador SFTP, Tessera trae la huella del servidor sin enviar ninguna credencial y le pide que
+  la compruebe; solo con «Confiar y conectar» se guarda y se conecta. Vale también para las conexiones con clave y
+  para cada bastión, que se confirma antes que el destino. Un servidor que pasa a ofrecer otro tipo de clave que el
+  guardado ya no se acepta sin aviso.
+- **Los hooks de Git de un repositorio piden permiso antes de ejecutarse en su equipo.** Una escritura de Git desde el
+  panel (preparar, confirmar, cambiar de rama…) solo ejecuta los hooks que usted ya aceptó. Si hay uno nuevo o que
+  cambió, Tessera enseña cuál es, dónde está y su contenido, y usted elige ejecutarlo y recordarlo, continuar sin
+  ejecutarlo o cancelar. Lo que Git hace por su cuenta en segundo plano no ejecuta ningún hook.
+- **Las claves SSH privadas ya no entran en los contenedores de los agentes.** Un agente en Docker se conecta por SSH
+  pidiendo cada firma a Tessera, que solo firma con las claves activadas para ese perfil y no le entrega la clave. Se
+  eligen en el menú del perfil, submenú «Agentes en Docker», en «Claves SSH…». Los perfiles existentes conservan todas las
+  claves de su configuración SSH; los nuevos empiezan sin ninguna. Un servidor con entrada y clave propias usa solo esa
+  clave, y a cualquier otro se le ofrecen las activadas. La selección no limita a los agentes nativos, que se ejecutan
+  con su usuario del sistema.
+- **Borrar un perfil manda a la papelera su configuración de Docker.**
+- **Un proyecto abierto en Docker ya no puede hacer que Tessera actúe fuera de él.** Un enlace simbólico que un agente
+  deje en el proyecto ya no sirve para que Tessera escriba, copie o abra archivos de otras carpetas del equipo, y la
+  configuración de Git del repositorio ya no puede hacer que Tessera ejecute programas al leer sus cambios. La ventana
+  de Tessera tampoco navega a un archivo local.
 
 ## [0.83.1] - 2026-11-04
 

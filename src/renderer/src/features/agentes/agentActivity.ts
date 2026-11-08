@@ -125,10 +125,7 @@ function filtrarEspera(
   return new Map([...esperando].filter(([k]) => queda(k)))
 }
 
-/* AQUÍ VIVÍA `markAllSeen`, que apagaba TODOS los avisos de una vez porque mirar el
-   inspector de progreso era, por sí solo, revisarlos: la lista entera estaba delante.
-   Se fue con el inspector. Hoy el aviso se apaga target por target (`markSeen`), que
-   es lo correcto para las dos vistas que quedan: en la normal se apaga el de la
+/* El aviso se apaga target por target (`markSeen`): en la vista normal se apaga el de la
    terminal que traes al frente, y en el mosaico sólo el de la casilla que ENFOCAS —con
    seis a la vista, darlas por vistas todas borraría justo la señal de «¿quién me
    necesita?»—. */

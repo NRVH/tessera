@@ -46,7 +46,7 @@ const SIEMBRA = [
 test.describe.configure({ mode: 'serial' })
 
 /** Cambia de vista en el riel. */
-function botonVista(win: Page, titulo: 'Archivos' | 'Conexiones a bases de datos'): ReturnType<Page['locator']> {
+function botonVista(win: Page, titulo: 'Archivos' | 'Bases de datos'): ReturnType<Page['locator']> {
   return win.locator(`.activity-item[title="${titulo}"]`)
 }
 
@@ -123,7 +123,7 @@ test.describe('explorador de BD: SQLite', () => {
     await s!.app.evaluate(({ dialog }, r) => {
       dialog.showSaveDialog = (async () => ({ canceled: false, filePath: r })) as typeof dialog.showSaveDialog
     }, ruta)
-    await botonVista(win, 'Conexiones a bases de datos').click()
+    await botonVista(win, 'Bases de datos').click()
     await expect(win.locator('.db-area:not(.hidden)')).toBeVisible()
     await win.locator('.db-arbol .sidebar-actions button[aria-label="Nueva conexión"]').click()
     const modal = win.locator('.db-conexion-modal')
@@ -137,7 +137,7 @@ test.describe('explorador de BD: SQLite', () => {
     await expect(modal.locator('[data-campo="alias"]'), 'el nombre sale del archivo').toHaveValue(ALIAS)
     // Ahora la casilla solo limita a los agentes: una base creada nace con la
     // recomendada, como cualquier otra (el usuario escribe igual desde el explorador).
-    await expect(modal.locator('.dbc-check input[type="checkbox"]'), 'creada: con «Solo lectura para los agentes»').toBeChecked()
+    await expect(modal.getByRole('switch', { name: /^Solo lectura para los agentes/ }), 'creada: con «Solo lectura para los agentes»').toHaveAttribute('aria-checked', 'true')
     await modal.getByRole('button', { name: 'Guardar', exact: true }).click()
     await expect(modal).toHaveCount(0)
     const conexion = fila(win, 'conexion', ALIAS)
@@ -279,7 +279,7 @@ test.describe('explorador de BD: SQLite', () => {
   // título) y una escritura desde la consola entra (SQLite abierto en lectura-escritura).
   test('(6) la montada es de solo lectura para los agentes, no para el usuario', async () => {
     const win = s!.win
-    await botonVista(win, 'Conexiones a bases de datos').click()
+    await botonVista(win, 'Bases de datos').click()
     const montada = fila(win, 'conexion', COPIA)
     await expect(montada).toHaveCount(1)
     await expect(montada.locator('.db-chip-ro'), 'la marca RO se conserva, como información').toHaveAttribute('title', /agentes/)

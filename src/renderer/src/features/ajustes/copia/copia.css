@@ -4,8 +4,13 @@
    `formularioModal.css`.
    ============================================================================= */
 
-.copia-modal {
+.modal-card.copia-modal {
   width: min(520px, calc(100vw - 48px));
+}
+.copia-formulario {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .copia-lista {
@@ -46,8 +51,6 @@
 
 .copia-casilla input {
   margin-top: 2px;
-  /* El color del perfil, como el botón «Importar» y las demás elecciones de la app. */
-  accent-color: var(--accent);
 }
 
 .copia-grupo {
@@ -83,6 +86,49 @@
 .copia-ver-diff {
   font-size: 12px;
   padding: 2px 8px;
+}
+
+.copia-mono {
+  font-family: var(--mono, 'Cascadia Code', Consolas, 'SF Mono', Menlo, monospace);
+  font-size: 12px;
+}
+
+/* Lo de una cuenta cuelga de ella, un nivel por debajo de las cosas del perfil. */
+.copia-de-cuenta {
+  padding-left: 20px;
+}
+
+/* El aviso de lo que se va a sustituir: la lista se alinea con el mensaje, que empieza tras el sello. */
+.copia-cambios {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+
+.copia-cambios li {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 12.5px;
+}
+
+.copia-cambio-que {
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.copia-cambio-donde {
+  color: var(--fg-muted);
+  font-size: 12px;
+}
+
+.copia-cambio-aviso {
+  color: var(--yellow);
+  font-size: 12px;
 }
 
 /* El diff de las reglas, más bajo que en su revisión: va dentro de una lista. */
@@ -147,11 +193,6 @@
 
 .copia-resumen p {
   margin: 0;
-}
-
-.copia-ok {
-  font-size: 12.5px;
-  color: var(--green);
 }
 
 .copia-detalle {

@@ -53,7 +53,7 @@ export const txFilasArbol = crearTextos(
     consolaALaPapelera: (nombre: string) => `Su consola «${nombre}» se moverá a la papelera.`,
     consolasALaPapelera: (n: number) => `Sus ${n} consolas se moverán a la papelera.`,
     eliminarConexion: (alias: string) =>
-      `Se eliminará «${alias}» y su contraseña guardada. No se puede deshacer; la base de datos no se toca.`,
+      `Se eliminará «${alias}» y su contraseña guardada. No se puede deshacer; la base de datos no se modifica.`,
     desmontarDeTodos: 'Se desmontará de todos los proyectos donde esté montada.',
     desmontarDe: (lista: string) => `Se desmontará de ${lista}.`,
     revertirSinConfirmar: (lista: string) => `Se revertirán los cambios sin confirmar de ${lista}.`,
@@ -107,12 +107,12 @@ export const txFilasArbol = crearTextos(
     salidaArbolRepetida: 'Si ya no la necesita, elimínela.',
     eliminarNoToca: (otra: string) => `Eliminarla no toca ${otra}: ni sus montajes ni sus consolas.`,
     compartidaNoSeToca: (otra: string) =>
-      `«${otra}» comparte su identificador y no se toca: sus montajes y sus consolas siguen.`,
+      `«${otra}» comparte su identificador y no se modifica: sus montajes y sus consolas siguen.`,
     desmontarDeEstePerfil: 'Se desmontará de los proyectos de este perfil donde esté montada.',
     otroPerfilNoSeToca:
-      'La conexión de otro perfil que comparte su identificador no se toca: ni sus montajes ni sus consolas.',
+      'La conexión de otro perfil que comparte su identificador no se modifica: ni sus montajes ni sus consolas.',
     eliminarAjena: (alias: string) =>
-      `Se eliminará «${alias}» y su contraseña guardada, si tiene. No se puede deshacer; la base de datos no se toca.`,
+      `Se eliminará «${alias}» y su contraseña guardada, si tiene. No se puede deshacer; la base de datos no se modifica.`,
     esConexionDe: (motor: string, explicacion: string) => `Es una conexión de ${motor}. ${explicacion}`,
     eliminarSoloSiNoQuieres: 'Elimínela solo si ya no la necesita.',
     // --- filasArbolBdSesiones ---

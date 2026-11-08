@@ -1,5 +1,5 @@
 // =============================================================================
-// La ventana principal: tamaño por monitor, barra de título propia con los botones del
+// La ventana principal: posición y tamaño recordados, barra de título propia con los botones del
 // sistema alineados al zoom, atajos de ventana, guardián de `ready-to-show`, recuperación
 // del renderer y bloqueo de navegación. La crea `index.ts`; la X la delega en el cierre.
 // Decisiones: docs/decisiones/app/ventana-barra-de-titulo.md, docs/decisiones/app/ventana-arranque-y-recuperacion.md, docs/decisiones/app/atajos-y-menu.md
@@ -13,20 +13,31 @@ import {
   type Display,
   type Rectangle
 } from 'electron'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { esMac } from '../../shared/plataforma'
 import { ARGUMENTO_ALPHA, esVersionAlpha } from '../../shared/salud'
 import { ARGUMENTO_IDIOMA, idiomaActual } from '../../shared/i18n'
 import { loadWorkspaceSettings } from '../workspace/workspaceStateStore'
+import { writeFileAtomicSync } from '../util/atomicWrite'
 import { logUpdate } from '../update/logUpdate'
 import { atenderSegundaInstanciaPendiente, esArranqueTrasActualizar, traerAlFrente } from './instanciaUnica'
 import { MODO_CAPTURA } from './modoCaptura'
+import { navegacionPermitida } from './navegacionVentana'
+import {
+  ALTO_MINIMO_VENTANA as MIN_WINDOW_HEIGHT,
+  ANCHO_MINIMO_VENTANA as MIN_WINDOW_WIDTH,
+  encajarEnPantallas,
+  normalizarEstadoVentana,
+  type EstadoVentana
+} from './estadoVentana'
 
 /** Fracción del área útil del monitor que ocupa la ventana NO maximizada. */
 const RESTORE_RATIO = 0.8
-/** Suelo absoluto: por debajo el layout (explorador, editor y agente) va apretado. */
-const MIN_WINDOW_WIDTH = 900
-const MIN_WINDOW_HEIGHT = 620
+/** Archivo de `userData` con el último estado de la ventana principal: solo lo escribe el main. */
+const ARCHIVO_ESTADO = 'ventana.json'
+/** Espera tras el último movimiento o cambio de tamaño antes de escribir. */
+const GUARDAR_ESTADO_MS = 500
 /** Alto de la barra de título en CSS a zoom 100 %: gemelo de `--titlebar-h` del renderer. */
 const TITLEBAR_HEIGHT = 30
 /** Gemelos de `--bg-chrome` y `--fg` del tema del renderer. */
@@ -59,6 +70,69 @@ function proportionalBounds(display: Display): Rectangle {
     x: area.x + Math.round((area.width - width) / 2),
     y: area.y + Math.round((area.height - height) / 2)
   }
+}
+
+function rutaEstado(): string {
+  return join(app.getPath('userData'), ARCHIVO_ESTADO)
+}
+
+/** El estado guardado que sigue cayendo en algún monitor de ahora; null si no hay o ya no encaja. */
+function estadoGuardadoVigente(): EstadoVentana | null {
+  try {
+    const guardado = normalizarEstadoVentana(JSON.parse(readFileSync(rutaEstado(), 'utf-8')))
+    if (!guardado) return null
+    return encajarEnPantallas(
+      guardado,
+      screen.getAllDisplays().map((d) => ({ workArea: d.workArea }))
+    )
+  } catch {
+    return null
+  }
+}
+
+/** Escritura pendiente de la ventana principal viva; null si no hay ventana que vigilar. */
+let guardarEstadoPendiente: (() => void) | null = null
+
+/** Escribe ya el estado de la ventana principal si hay un cambio sin guardar. Lo llama el cierre. */
+export function guardarEstadoVentanaYa(): void {
+  guardarEstadoPendiente?.()
+}
+
+/**
+ * Guarda la posición, el tamaño sin maximizar y si está maximizada, con espera tras cada cambio. En
+ * pantalla completa o minimizada no guarda: esos bounds no son los que el usuario eligió.
+ */
+function instalarGuardadoDeEstado(window: BrowserWindow): void {
+  let temporizador: NodeJS.Timeout | null = null
+  const escribir = (): void => {
+    if (temporizador) clearTimeout(temporizador)
+    temporizador = null
+    if (window.isDestroyed() || window.isFullScreen() || window.isMinimized()) return
+    // Sin maximizar, los límites de ahora: en Linux `getNormalBounds` conserva los de antes de la última
+    // maximización aunque la ventana se haya movido o redimensionado después.
+    const maximizada = window.isMaximized()
+    const estado: EstadoVentana = { ...(maximizada ? window.getNormalBounds() : window.getBounds()), maximizada }
+    try {
+      writeFileAtomicSync(rutaEstado(), JSON.stringify(estado))
+    } catch (err) {
+      console.error('[ventana] no se pudo guardar el estado de la ventana:', err)
+    }
+  }
+  const programar = (): void => {
+    if (temporizador) clearTimeout(temporizador)
+    temporizador = setTimeout(escribir, GUARDAR_ESTADO_MS)
+    guardarEstadoPendiente = () => {
+      if (temporizador) escribir()
+    }
+  }
+  window.on('move', programar)
+  window.on('resize', programar)
+  window.on('maximize', programar)
+  window.on('unmaximize', programar)
+  window.once('closed', () => {
+    if (temporizador) clearTimeout(temporizador)
+    guardarEstadoPendiente = null
+  })
 }
 
 /**
@@ -158,14 +232,14 @@ export function instalarAtajos(window: BrowserWindow): void {
  * Muestra la ventana una sola vez, por `ready-to-show` o por el guardián: maximiza, deja
  * su línea en el registro, la trae al frente tras actualizar y alinea los botones.
  */
-function instalarMostrar(window: BrowserWindow): void {
+function instalarMostrar(window: BrowserWindow, maximizar: boolean): void {
   let mostrada = false
   const nacidaEn = Date.now()
   const mostrar = (motivo: 'ready-to-show' | 'guardián'): void => {
     if (mostrada || window.isDestroyed()) return
     mostrada = true
     clearTimeout(guardian)
-    if (!MODO_CAPTURA) window.maximize() // el modo captura usa el tamaño fijo del shot
+    if (maximizar) window.maximize()
     window.show()
     logUpdate(
       `ventana mostrada (${motivo}, +${Date.now() - nacidaEn} ms desde que se creó); ` +
@@ -188,8 +262,9 @@ function instalarMostrar(window: BrowserWindow): void {
 }
 
 /**
- * Re-encaja la ventana si acaba en otro monitor; un tamaño elegido a mano se respeta
- * mientras siga en el monitor para el que se eligió.
+ * Re-encaja la ventana si acaba en otro monitor (otra densidad de píxeles y otro tamaño de
+ * área útil); un tamaño elegido a mano, o recordado del arranque, se respeta mientras siga en
+ * el monitor para el que se eligió.
  */
 function instalarEncaje(window: BrowserWindow, monitorInicial: number): void {
   let sizedForDisplayId: number | null = monitorInicial
@@ -227,21 +302,9 @@ export function instalarRecuperacion(window: BrowserWindow, deps: Pick<DepsVenta
 
 /** El renderer nunca sale de su propio origen; los enlaces http(s) van al navegador. */
 export function bloquearNavegacion(window: BrowserWindow): void {
-  const appOrigin = (): string => {
-    try {
-      return new URL(window.webContents.getURL()).origin
-    } catch {
-      return ''
-    }
-  }
   window.webContents.on('will-navigate', (e, url) => {
-    let sameOrigin = false
-    try {
-      sameOrigin = new URL(url).origin === appOrigin()
-    } catch {
-      sameOrigin = false
-    }
-    if (sameOrigin) return // recargas/HMR del propio origen: permitidas
+    // Recargas y HMR de la propia página: permitidas (`navegacionPermitida`).
+    if (navegacionPermitida(window.webContents.getURL(), url)) return
     e.preventDefault()
     console.error(`[tessera] navegación BLOQUEADA (secuestro evitado): ${url}`)
     if (/^https?:\/\//i.test(url)) void shell.openExternal(url)
@@ -254,11 +317,25 @@ export function bloquearNavegacion(window: BrowserWindow): void {
 
 /** Crea la ventana principal en el monitor PRINCIPAL y carga el renderer. */
 export function crearVentana(deps: DepsVentana): BrowserWindow {
-  const startDisplay = screen.getPrimaryDisplay()
-  const window = new BrowserWindow(opcionesDeVentana(proportionalBounds(startDisplay)))
+  // El modo captura usa el tamaño fijo del shot: ni lee ni guarda el estado.
+  const recordado = MODO_CAPTURA ? null : estadoGuardadoVigente()
+  const startDisplay = recordado ? screen.getDisplayMatching(recordado) : screen.getPrimaryDisplay()
+  const inicio: Rectangle = recordado
+    ? { x: recordado.x, y: recordado.y, width: recordado.width, height: recordado.height }
+    : proportionalBounds(startDisplay)
+  const window = new BrowserWindow(opcionesDeVentana(inicio))
+  // Con monitores de distinta escala, el tamaño de creación se aplica con la escala del principal; ya
+  // creada en su monitor, se reponen los límites recordados para que queden en la escala de ese monitor.
+  if (recordado) {
+    const actual = window.getBounds()
+    if (actual.width !== inicio.width || actual.height !== inicio.height || actual.x !== inicio.x || actual.y !== inicio.y) {
+      window.setBounds(inicio)
+    }
+  }
   instalarAtajos(window)
-  instalarMostrar(window)
+  instalarMostrar(window, recordado ? recordado.maximizada : !MODO_CAPTURA)
   instalarEncaje(window, startDisplay.id)
+  if (!MODO_CAPTURA) instalarGuardadoDeEstado(window)
   instalarRecuperacion(window, deps)
   bloquearNavegacion(window)
 

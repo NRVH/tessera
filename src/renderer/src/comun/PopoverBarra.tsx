@@ -6,6 +6,7 @@
 // =============================================================================
 
 import type { ReactNode } from 'react'
+import { useDespedida } from './despedida.ts'
 
 interface PropsPopoverBarra {
   /** Nombre del diálogo para el lector de pantalla. */
@@ -17,8 +18,9 @@ interface PropsPopoverBarra {
 
 /** El panel que abre un botón de la barra de título. */
 export function PopoverBarra({ etiqueta, clase, children }: PropsPopoverBarra): React.JSX.Element {
+  const ref = useDespedida<HTMLDivElement>('flotante')
   return (
-    <div className={clase ? `actualizacion-pop ${clase}` : 'actualizacion-pop'} role="dialog" aria-label={etiqueta}>
+    <div ref={ref} className={clase ? `actualizacion-pop ${clase}` : 'actualizacion-pop'} role="dialog" aria-label={etiqueta}>
       {children}
     </div>
   )

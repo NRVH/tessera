@@ -151,10 +151,9 @@ console.log('\nEntorno de las terminales de modo Windows\n')
 
 // --- Espacio de datos: ve solo lo montado ------------------------------------
 {
-  // Se retiró la regla "la consola de datos ve todas": el agente del espacio de datos
-  // usa el selector de montaje como cualquier proyecto. Antes esta ruta NO definía el
-  // ámbito (ausente = todas) y recibía los secretos de todo el perfil; ahora, con
-  // nada montado, no ve ninguna.
+  // La consola de datos no ve todas: el agente del espacio de datos
+  // usa el selector de montaje como cualquier proyecto. Esta ruta define el ámbito
+  // (ausente = ninguna): con nada montado, no ve ninguna ni recibe secretos.
   const { env, diag } = construirEntornoHost(deps(), 'p1', ESPACIO, [])
   comprobar('el espacio de datos se sigue reconociendo por la ruta (solo diagnóstico)', diag.espacioDatos)
   comprobar('el espacio de datos DEFINE el ámbito, vacío si no hay nada montado', env[ENV_SCOPE] === '', JSON.stringify(env))

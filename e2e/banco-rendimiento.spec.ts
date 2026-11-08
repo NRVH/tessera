@@ -140,7 +140,7 @@ async function recorrer(s: SesionTessera, e: Escenario): Promise<void> {
     for (const p of suyos) await cargarProyecto(win, e, p, ++visitados)
     await win.locator('.tabs-projects .project-tab', { hasText: suyos[0].nombre }).first().click()
     await cargarBase(s, perfil, suyos[0])
-    await cargarSsh(win, perfil)
+    await cargarSsh(s, perfil)
     informe.escalado.push({ perfil, foto: await foto(s.app, win) })
     guardar()
   }
@@ -149,7 +149,7 @@ async function recorrer(s: SesionTessera, e: Escenario): Promise<void> {
   for (const perfil of PERFILES) {
     await vista(win, 'Archivos')
     const aPerfil = await medirGesto(win, () => irAPerfil(win, perfil))
-    const aBd = await medirGesto(win, () => vista(win, 'Conexiones a bases de datos'))
+    const aBd = await medirGesto(win, () => vista(win, 'Bases de datos'))
     informe.volver.push({ perfil, aPerfil, aBd })
   }
   guardar()
@@ -167,7 +167,7 @@ async function recorrer(s: SesionTessera, e: Escenario): Promise<void> {
 
   // CICLOS en el último perfil: abrir y cerrar lo mismo, y comparar.
   const ultimo = PERFILES[PERFILES.length - 1]
-  await vista(win, 'Conexiones a bases de datos')
+  await vista(win, 'Bases de datos')
   await ciclo(s, 'tabla', CICLOS, async () => {
     await abrirTabla(win, ultimo, TABLA_CICLO)
     await cerrarPestanaBd(win, TABLA_CICLO)

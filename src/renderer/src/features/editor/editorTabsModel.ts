@@ -41,6 +41,14 @@ export function editorTargetKey(profileId: string, projectHostPath: string): str
   return `${profileId}|${projectHostPath}`
 }
 
+/**
+ * Identidad única de un pane montado entre todos los targets (un id de pestaña nunca contiene `\u0000`). La de
+ * un archivo coincide con la clave de su modelo (`textModelKey`), porque su id es su ruta.
+ */
+export function paneKeyEditor(targetKey: string, tabId: string): string {
+  return `${targetKey}\u0000${tabId}`
+}
+
 /** El perfil de un target (`editorTargetKey`); '' sin target, la clave de «sin perfil». */
 export function perfilDeTarget(targetKey: string | null): string {
   if (targetKey === null) return ''

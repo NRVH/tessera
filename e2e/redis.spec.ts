@@ -131,7 +131,7 @@ test.describe('explorador de BD: Redis', () => {
     const win = s!.win
     const m = d!
     await aLaVista(win)
-    await win.locator('.activity-item[title="Conexiones a bases de datos"]').click()
+    await win.locator('.activity-item[title="Bases de datos"]').click()
     await expect(win.locator('.db-area:not(.hidden)')).toBeVisible()
     await win.locator('.db-arbol button[aria-label="Nueva conexión"]').first().click()
     const dlg = win.locator('.db-conexion-modal')
@@ -144,7 +144,7 @@ test.describe('explorador de BD: Redis', () => {
     await dlg.locator('[data-campo="user"]').fill(m.user)
     await dlg.locator('.dbc-pass input').fill(m.password)
     // `lector` es de lectura: la casilla de los agentes se deja marcada (lo recomendado).
-    await expect(dlg.getByLabel('Solo lectura para los agentes (recomendado)')).toBeChecked()
+    await expect(dlg.getByRole('switch', { name: 'Solo lectura para los agentes (recomendado)' })).toHaveAttribute('aria-checked', 'true')
     await dlg.getByRole('button', { name: 'Guardar y probar' }).click()
     await expect(dlg.locator('.dbc-prueba')).toHaveClass(/\bok\b/, { timeout: 60_000 })
     await dlg.getByRole('button', { name: 'Guardar', exact: true }).click()
@@ -206,7 +206,7 @@ test.describe('explorador de BD: Redis', () => {
 
     // string binario: abre en HEX.
     await abrir('binario', 'v-binario')
-    await expect(visor.locator('.db-clave-modos .btn-active')).toHaveText('Hex', { timeout: 30_000 })
+    await expect(visor.getByRole('radio', { name: 'Hex', exact: true })).toHaveAttribute('aria-checked', 'true', { timeout: 30_000 })
     await expect(visor.locator('.db-clave-texto.modo-hex')).toContainText('00 01 ff fe')
 
     // hash (dentro de su carpeta): tabla Campo / Valor y el detalle de la fila.
@@ -273,7 +273,8 @@ test.describe('explorador de BD: Redis', () => {
     await monacoConsola(win, { op: 'foco' })
     await win.keyboard.press(`${MOD}+Enter`)
     await expect(consola, 'el SET llega al servidor y el ACL del lector lo rechaza').toContainText(/NOPERM/, { timeout: 30_000 })
-    await expect(consola, 'NEGATIVO: no lo para la casilla de los agentes').not.toContainText(/solo lectura/i)
+    // En la salida, no en la barra: allí la etiqueta de la casilla informa sin limitar.
+    await expect(consola.locator('.db-salida-fila', { hasText: /solo lectura/i }), 'NEGATIVO: no lo para la casilla de los agentes').toHaveCount(0)
 
     // Y la clave no cambió.
     await monacoConsola(win, { op: 'fijar', texto: 'GET contador' })

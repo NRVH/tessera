@@ -4,7 +4,7 @@
 // que ninguno destaca sobre sus hermanos de la misma barra.
 // =============================================================================
 
-import { useEffect } from 'react'
+import { ContextMenu } from '../../comun/ContextMenu'
 import { txPane } from './textosPane.ts'
 
 interface AgentContextMenuProps {
@@ -18,23 +18,11 @@ interface AgentContextMenuProps {
 
 /** Menú contextual de la terminal del agente; se cierra con un clic fuera o Escape. */
 export function AgentContextMenu({ x, y, canCopy, onCopy, onPaste, onClose }: AgentContextMenuProps): React.JSX.Element {
-  useEffect(() => {
-    function onDown(): void { onClose() }
-    function onKey(e: KeyboardEvent): void { if (e.key === 'Escape') onClose() }
-    window.addEventListener('mousedown', onDown)
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('mousedown', onDown)
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [onClose])
-
-  return (
-    <div className="ctx-menu" style={{ top: y, left: x }} onMouseDown={(e) => e.stopPropagation()}>
-      <button className="ctx-menu-item" onClick={onCopy} disabled={!canCopy}>{txPane().menus.copiar}</button>
-      <button className="ctx-menu-item" onClick={onPaste}>{txPane().menus.pegar}</button>
-    </div>
-  )
+  const t = txPane().menus
+  return <ContextMenu x={x} y={y} onClose={onClose} items={[
+    { label: t.copiar, onClick: onCopy, disabled: !canCopy },
+    { label: t.pegar, onClick: onPaste }
+  ]} />
 }
 
 /** Chevron del selector de proyecto de una casilla: pequeño y atenuado. */
@@ -51,15 +39,6 @@ export function IconoCaret(): React.JSX.Element {
       aria-hidden="true"
     >
       <path d="M6 9l6 6 6-6" />
-    </svg>
-  )
-}
-
-/** Chevron hacia abajo del botón de cuenta (indica desplegable). */
-export function CaretIcon(): React.JSX.Element {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" width="11" height="11">
-      <path d="M4 6l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }

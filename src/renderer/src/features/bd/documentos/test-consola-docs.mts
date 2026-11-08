@@ -183,7 +183,7 @@ function main(): void {
   check('insertMany', r(0, 0, 3, 0) === '3 insertados', r(0, 0, 3, 0))
   check('updateMany', r(3, 2, 0, 0) === '3 coincidentes, 2 modificados', r(3, 2, 0, 0))
   check('coincide sin cambiar: dice 0 modificados', r(1, 0, 0, 0) === '1 coincidente, 0 modificados', r(1, 0, 0, 0))
-  check('deleteMany', r(0, 0, 0, 5) === '5 borrados', r(0, 0, 0, 5))
+  check('deleteMany', r(0, 0, 0, 5) === '5 eliminados', r(0, 0, 0, 5))
   check('nada', r(0, 0, 0, 0) === 'Ningún documento cambió', r(0, 0, 0, 0))
   check('miles con separador (cantidad)', /^12.345 insertados$/.test(r(0, 0, 12345, 0)), r(0, 0, 12345, 0))
 

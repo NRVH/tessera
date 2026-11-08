@@ -12,7 +12,7 @@ import type { DbConnection } from '../../../../../shared/db-ipc'
 import { PREFIJO_CONSOLA_VISOR, type DbKvPaginaClaves, type DbKvResultado, type DbKvTipo } from '../../../../../shared/db-claves-ipc'
 import type { DbRespuesta } from '../../../../../shared/db-explorador-ipc'
 import { esProduccion } from '../consola/produccionConsola'
-import { useDialogo } from '../../../comun/useDialogo'
+import { AvisoModal, PieModal } from '../../../comun/Modal'
 import { patronDeFiltro } from '../arbolClaves'
 import { errorDeInvoke, textoError } from '../panesBd'
 import { pintarBytes } from './bytesClaves'
@@ -190,19 +190,17 @@ function useBorradoPorPatron(p: PropsDialogoBorrarClaves): BorradoPorPatron {
     },
     volver: () => setFase({ f: 'editando' }),
     cerrar,
-    cerrable: fase.f !== 'borrando'
+    cerrable: fase.f !== 'borrando' && fase.f !== 'buscando'
   }
 }
 
 export function DialogoBorrarClaves(p: PropsDialogoBorrarClaves): React.JSX.Element {
   const idBase = useId()
   const b = useBorradoPorPatron(p)
-  const dlg = useDialogo({ onClose: b.cerrar, cerrable: b.cerrable })
   const produccion = esProduccion(p.conexion.entorno)
   return (
-    <MarcoDialogo dlg={dlg} conexion={p.conexion} titulo={txEdicionClaves().tituloBorrarPatron} base={p.base} onCerrar={b.cerrar}>
-      <CuerpoFase fase={b.fase} idBase={idBase} escrito={b.escrito} base={p.base} tipo={p.tipo} onEscrito={b.setEscrito} onBuscar={b.buscar} />
-      <BotonesFase
+    <MarcoDialogo conexion={p.conexion} titulo={txEdicionClaves().tituloBorrarPatron} base={p.base} onCerrar={b.cerrar}
+      cerrable={b.cerrable} pie={b.fase.f !== 'fin' ? <BotonesFase
         fase={b.fase}
         produccion={produccion}
         hayPatron={b.hayPatron}
@@ -211,7 +209,9 @@ export function DialogoBorrarClaves(p: PropsDialogoBorrarClaves): React.JSX.Elem
         onBorrar={b.borrar}
         onDetener={b.detener}
         onVolver={b.volver}
-      />
+      /> : undefined}
+    >
+      <CuerpoFase fase={b.fase} idBase={idBase} escrito={b.escrito} base={p.base} tipo={p.tipo} onEscrito={b.setEscrito} onBuscar={b.buscar} />
     </MarcoDialogo>
   )
 }
@@ -241,9 +241,9 @@ function CuerpoFase(p: {
       )
     case 'buscando':
       return (
-        <div className="db-envio-estado" role="status">
+        <AvisoModal tono="info">
           {t.buscando(textoClaves(fase.n))}
-        </div>
+        </AvisoModal>
       )
     case 'previa':
       return (
@@ -257,27 +257,34 @@ function CuerpoFase(p: {
       )
     case 'borrando':
       return (
-        <div className="db-envio-estado" role="status">
+        <AvisoModal tono="info">
           {t.borrando(fase.enviados, fase.lotes)}
-        </div>
+        </AvisoModal>
       )
     case 'fin':
-      return (
-        <>
-          {fase.error !== null && (
-            <div className="db-envio-error" role="alert">
-              <div className="db-envio-error-titulo">{t.noSePudo}</div>
-              <div className="db-envio-error-texto">{fase.error}</div>
-            </div>
-          )}
-          <div className="modal-message">
-            {fase.detenido ? t.detenido : ''}
-            {fase.borradas > 0 ? t.seBorraron(textoClaves(fase.borradas)) : t.ningunaBorrada}
-          </div>
-        </>
-      )
+      return <ResultadoBorrado fase={fase} />
   }
 }
+
+/** El resultado del borrado, con su error y el número de claves afectadas. */
+function ResultadoBorrado({ fase }: { fase: Extract<Fase, { f: 'fin' }> }): React.JSX.Element {
+  const t = txEdicionClaves()
+  return (
+    <>
+      {fase.error !== null && (
+        <AvisoModal tono="error">
+          <div className="db-envio-error-titulo">{t.noSePudo}</div>
+          <div className="db-envio-error-texto">{fase.error}</div>
+        </AvisoModal>
+      )}
+      <AvisoModal tono={fase.error ? "error" : fase.detenido ? "aviso" : "exito"}>
+        {fase.detenido ? t.detenido : ''}
+        {fase.borradas > 0 ? t.seBorraron(textoClaves(fase.borradas)) : t.ningunaBorrada}
+      </AvisoModal>
+    </>
+  )
+}
+
 
 function BotonesFase(p: {
   fase: Fase
@@ -293,49 +300,45 @@ function BotonesFase(p: {
   const t = txEdicionClaves()
   const cancelar = (
     <button type="button" className="btn btn-ghost" onClick={p.onCerrar}>
-      {fase.f === 'fin' ? t.cerrar : t.cancelar}
+      {t.cancelar}
     </button>
   )
   switch (fase.f) {
     case 'editando':
       return (
-        <div className="modal-actions">
+        <PieModal>
           {cancelar}
           <button type="button" className="btn primary" disabled={!p.hayPatron} onClick={p.onBuscar}>
             {t.buscar}
           </button>
-        </div>
+        </PieModal>
       )
     case 'buscando':
       return (
-        <div className="modal-actions">
-          {cancelar}
+        <PieModal>
           <button type="button" className="btn" onClick={p.onDetener}>
             {t.detener}
           </button>
-        </div>
+        </PieModal>
       )
     case 'previa':
       return (
-        <div className="modal-actions">
+        <PieModal auxiliares={<button type="button" className="btn" onClick={p.onVolver}>{t.cambiarPatron}</button>}>
           {cancelar}
-          <button type="button" className="btn" onClick={p.onVolver}>
-            {t.cambiarPatron}
-          </button>
-          <button type="button" className={`btn ${p.produccion ? 'db-envio-btn-prod' : 'danger'}`} disabled={fase.r.claves.length === 0} onClick={() => p.onBorrar(fase.r)}>
+          <button type="button" className={`btn danger${p.produccion ? ' db-envio-btn-prod' : ''}`} disabled={fase.r.claves.length === 0} onClick={() => p.onBorrar(fase.r)}>
             {p.produccion ? t.borrarEnProduccion : t.borrarN(textoClaves(fase.r.claves.length))}
           </button>
-        </div>
+        </PieModal>
       )
     case 'borrando':
       return (
-        <div className="modal-actions">
+        <PieModal>
           <button type="button" className="btn" onClick={p.onDetener}>
             {t.detener}
           </button>
-        </div>
+        </PieModal>
       )
     case 'fin':
-      return <div className="modal-actions">{cancelar}</div>
+      return <></>
   }
 }

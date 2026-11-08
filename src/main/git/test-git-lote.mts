@@ -908,7 +908,7 @@ async function main(): Promise<void> {
       const res = await git.stageFiles(rutas)
       const recortadas = res.filter((r) => !r.ok && (r.error ?? '').includes('demasiados archivos'))
       check(
-        '(15a) las 2 sobrantes se reportan como FALLO (antes se perdían)',
+        '(15a) las 2 sobrantes se reportan como FALLO (no se pierden)',
         recortadas.length === 2 &&
           recortadas.map((r) => r.path).sort().join(',') === 'sobrante-a.txt,sobrante-b.txt',
         JSON.stringify(recortadas)

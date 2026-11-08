@@ -1,15 +1,16 @@
 // =============================================================================
-// Las acciones de la cabecera del panel de terminales, a la derecha y en tres grupos separados por un
-// filete, de lo que más se usa a lo terminal: reiniciar la terminal local que se ve; maximizar
-// o restaurar el panel; y ocultarlo. Las acciones se ocultan en reposo con `visibility`, no `display`,
-// salvo restaurar y ocultar a pantalla completa: son las dos salidas del modo. El «+» y la ▾ de las
+// Las acciones de la cabecera del panel de terminales, a la derecha y en el orden de las de Git·Log:
+// reiniciar la terminal local que se ve, maximizar el panel y ocultarlo. En reposo se pliegan y, al
+// pasar el ratón, entran desde la derecha, como en Git·Log (`comun/movimiento.css`). A pantalla
+// completa queda solo reiniciar: restaurar y ocultar son del modo y van en el riel. El «+» y la ▾ de las
 // conexiones viven en las pestañas. El del agente de la terminal no está aquí: es el de la barra de estado.
 // Decisiones: docs/decisiones/terminales/terminales-keep-alive-y-reinicio-limpio.md, docs/decisiones/agentes/agente-de-la-terminal.md
 // =============================================================================
 
-import { IconoMaximizar, IconoRestaurar } from '../../comun/iconosPanel'
+import { useUltimoValor } from '../../comun/presencia'
+import { IconoMaximizar, IconoOcultarPanel } from '../../comun/iconosPanel'
 import { etiquetaAcorde } from '../../util/atajos'
-import { HideIcon, ReloadIcon } from './IconosTerminales'
+import { ReloadIcon } from './IconosTerminales'
 import type { SalidaBotonReinicio } from './reloadButton'
 import { txTerminales } from './textos.ts'
 
@@ -26,6 +27,7 @@ export interface ReinicioPanel {
  */
 function BotonReinicioTerminal({ reinicio }: { reinicio: ReinicioPanel }): React.JSX.Element {
   const { boton, etiqueta } = reinicio
+  const ultimaEtiqueta = useUltimoValor(boton.soloIcono ? null : boton.etiqueta)
   return (
     <button
       className={`btn btn-icon terminal-reload-btn${boton.soloIcono ? ' solo-icono' : ' boton-reinicio'}`}
@@ -36,17 +38,15 @@ function BotonReinicioTerminal({ reinicio }: { reinicio: ReinicioPanel }): React
     >
       <ReloadIcon />
       {/* ENVUELTA, no suelta como texto: el CSS la oculta cuando la cabecera se estrecha. */}
-      {!boton.soloIcono && <span className="terminal-reload-estado">{boton.etiqueta}</span>}
+      <span className={`boton-reinicio-etiqueta terminal-reload-estado${boton.soloIcono ? '' : ' visible'}`}><span>{ultimaEtiqueta}</span></span>
     </button>
   )
 }
 
-/** Un filete entre grupos de acciones: se funde con ellas en reposo. */
-function Filete(): React.JSX.Element {
-  return <span className="panel-actions-sep" aria-hidden="true" />
-}
-
-/** Las acciones de la cabecera: pantalla completa, reinicio y ocultar el panel. */
+/**
+ * Las acciones de la cabecera, en el orden de las de Git·Log: reiniciar, maximizar y ocultar el panel. A pantalla
+ * completa solo el reinicio: restaurar y ocultar son del modo y viven en el riel (`ActivityBar`, `RielPantallaCompleta`).
+ */
 export function AccionesPanel({
   reinicio,
   onClosePanel,
@@ -60,34 +60,28 @@ export function AccionesPanel({
   onPantallaCompleta: (pedir: boolean) => void
 }): React.JSX.Element {
   const t = txTerminales()
-  const etiquetaModo = pantallaCompleta ? t.restaurarPanel : t.maximizarPanel
-  // `fijo`: a pantalla completa restaurar y ocultar son las dos salidas del modo y no se esconden en reposo.
-  const fijo = pantallaCompleta ? ' fijo' : ''
+  if (pantallaCompleta) {
+    return <div className="panel-actions">{reinicio && <BotonReinicioTerminal reinicio={reinicio} />}</div>
+  }
   return (
     <div className="panel-actions">
+      {reinicio && <BotonReinicioTerminal reinicio={reinicio} />}
       <button
-        className={`btn btn-icon${fijo}`}
-        onClick={() => onPantallaCompleta(!pantallaCompleta)}
-        title={`${etiquetaModo} (${etiquetaAcorde('pantallaCompleta')})`}
-        aria-label={etiquetaModo}
+        className="btn btn-icon"
+        onClick={() => onPantallaCompleta(true)}
+        title={`${t.maximizarPanel} (${etiquetaAcorde('pantallaCompleta')})`}
+        aria-label={t.maximizarPanel}
       >
-        {pantallaCompleta ? <IconoRestaurar /> : <IconoMaximizar />}
+        <IconoMaximizar />
       </button>
-      <Filete />
-      {reinicio && (
-        <>
-          <BotonReinicioTerminal reinicio={reinicio} />
-          <Filete />
-        </>
-      )}
       {/* OCULTAR, no cerrar: las sesiones siguen vivas (por eso un guion y no una ✕). */}
       <button
-        className={`btn btn-icon${fijo}`}
+        className="btn btn-icon"
         onClick={onClosePanel}
         title={t.ocultarPanelTitulo}
         aria-label={t.ocultarPanelEtiqueta}
       >
-        <HideIcon />
+        <IconoOcultarPanel />
       </button>
     </div>
   )

@@ -18,7 +18,7 @@ quiere, no perder un Stop y no dar nada por enviado antes de tiempo. La rejilla 
   es del SERVIDOR y se consulta con el filtro aplicado, no con lo escrito a medias. Exportar manda los
   mismos campos, de la misma función, con lo APLICADO; los INSERT van a la tabla REAL calificada.
 - Se edita solo con identidad de fila y nunca mientras llega otro resultado (`sePuedeEditar`). La
-  casilla «Solo lectura» de la conexión no cuenta: es de los agentes. La columna oculta del ROWID
+  interruptor «Solo lectura» de la conexión no cuenta: es de los agentes. La columna oculta del ROWID
   sigue en el resultado, fuera de la rejilla, de «Copiar todo» y de la cabecera.
 - Consultar otra vez (Refrescar, filtro, orden, «Volver a ejecutar», «Revertir») y cerrar preguntan
   «Descartar N cambios» por portal; cerrar y salir lo hacen por `registroEdicion.ts`.

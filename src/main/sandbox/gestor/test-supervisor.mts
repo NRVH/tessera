@@ -57,7 +57,7 @@ class ProcesoFalso extends EventEmitter {
 }
 
 function nucleoCon(handles: Record<string, string>): NucleoSandbox {
-  const n = new NucleoSandbox('', null)
+  const n = new NucleoSandbox('')
   for (const [profileId, id] of Object.entries(handles)) {
     n.handles.set(profileId, { profileId, containerName: `tessera-${profileId}`, containerId: id, workspacePath: '/workspace', redHostAplicado: false })
   }

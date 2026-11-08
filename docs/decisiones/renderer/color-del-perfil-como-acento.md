@@ -25,7 +25,7 @@ no para leerse como letra.
 - Los botones de diálogo son tres pesos sin color propio: relleno (primario, letra `--bg-deep`
   sobre `--perfil-claro`), contorno (confirmar destructivo, `--confirmar-*`) y sin cuerpo
   (fantasma). Sin perfil el destructivo vuelve al rojo: con un solo azul, «Eliminar» y «Guardar»
-  saldrían iguales.
+  saldrían iguales. Un diálogo con sello de severidad también lo lleva en rojo (`renderer/modales.md`).
 - El rojo se queda donde es estado (error, archivo borrado) y en `--danger-*`: «Eliminar…» del
   menú contextual, «Descartar N» de Git y «Eliminar» de una conexión.
 

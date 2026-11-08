@@ -8,8 +8,9 @@
 // docs/decisiones/ssh/tssh-y-agentes.md
 // =============================================================================
 
+import { PieModal } from '../../comun/Modal'
 import { IconoCarpetaNueva } from '../../comun/iconosMenu'
-import { AYUDA, BotonAyuda } from '../academy'
+import { FilaInterruptor } from '../../comun/piezasAjustes'
 import { pegarRecortado } from '../../util/pasteTrim'
 import { nombresSistema } from '../../../../shared/nombresSistema'
 import { SSH_ALIAS_MAX, type SshGrupo, type SshMetodo } from '../../../../shared/ssh-ipc'
@@ -25,42 +26,24 @@ function invalido(marcados: readonly CampoSsh[], campo: CampoSsh): true | undefi
   return marcados.includes(campo) ? true : undefined
 }
 
-/** El título y, en un alta, para qué sirve. */
-export function CabeceraConexionSsh({
-  idTitulo,
-  esEdicion,
+/** La acción de importar del alta, a la izquierda del cierre de la cabecera. */
+export function AccionImportarConexionSsh({
   importar
 }: {
-  idTitulo: string
-  esEdicion: boolean
-  /** Solo en un alta: «Importar desde OpenSSH…», que cierra el formulario. Con algo escrito no se ofrece: se perdería. */
-  importar?: { onImportar: () => void; conCambios: boolean; ocupado: boolean; leyendo: boolean }
+  importar: { onImportar: () => void; conCambios: boolean; ocupado: boolean; leyendo: boolean }
 }): React.JSX.Element {
   const t = txFormularioSsh()
   return (
-    <div className="dbc-cabecera">
-      <div className="ssh-cabecera-titulo">
-        <div className="dbc-titulo-fila">
-          <div id={idTitulo} className="modal-title">
-            {esEdicion ? t.editarConexion : t.nuevaConexion}
-          </div>
-          <BotonAyuda destino={AYUDA.conexionSsh} />
-        </div>
-        {!esEdicion && importar && (
-          <button
-            type="button"
-            className="btn ssh-importar-boton"
-            disabled={importar.ocupado || importar.conCambios}
-            title={importar.conCambios ? t.importarConCambios : t.importarSinCambios}
-            onClick={importar.onImportar}
-          >
-            <IconoImportar />
-            {importar.leyendo ? t.leyendo : t.importarBoton}
-          </button>
-        )}
-      </div>
-      {!esEdicion && <p className="dbc-ayuda">{t.ayudaAlta}</p>}
-    </div>
+    <button
+      type="button"
+      className="btn ssh-importar-boton"
+      disabled={importar.ocupado || importar.conCambios}
+      title={importar.conCambios ? t.importarConCambios : t.importarSinCambios}
+      onClick={importar.onImportar}
+    >
+      <IconoImportar />
+      {importar.leyendo ? t.leyendo : t.importarBoton}
+    </button>
   )
 }
 
@@ -247,16 +230,13 @@ export function CasillaAgentesSsh({ borrador, idAyuda, editar }: { borrador: Bor
   const t = txFormularioSsh()
   return (
     <div className="ssh-agentes">
-      <label className="ssh-casilla">
-        <input
-          type="checkbox"
-          data-campo="agentes"
-          checked={borrador.disponibleAgentes}
-          aria-describedby={idAyuda}
-          onChange={(e) => editar({ disponibleAgentes: e.target.checked })}
-        />
-        {t.disponibleAgentes}
-      </label>
+      <FilaInterruptor
+        etiqueta={t.disponibleAgentes}
+        data-campo="agentes"
+        activo={borrador.disponibleAgentes}
+        aria-describedby={idAyuda}
+        onChange={() => editar({ disponibleAgentes: !borrador.disponibleAgentes })}
+      />
       <p id={idAyuda} className="dbc-ayuda">
         {borrador.disponibleAgentes ? t.agentesSi : t.agentesNo}
       </p>
@@ -269,12 +249,16 @@ export function CasillaAgentesSsh({ borrador, idAyuda, editar }: { borrador: Bor
  * el primario a la derecha.
  */
 export function PieConexionSsh({
+  formulario,
+  ocupado,
   guardando,
   probando,
   etiquetaProbar,
   onProbar,
   onCerrar
 }: {
+  formulario: string
+  ocupado: boolean
   guardando: boolean
   probando: boolean
   etiquetaProbar: string
@@ -283,17 +267,18 @@ export function PieConexionSsh({
 }): React.JSX.Element {
   const t = txFormularioSsh()
   return (
-    <div className="modal-actions dbc-acciones">
-      <button type="button" className="btn" disabled={guardando || probando} onClick={onProbar}>
+    <PieModal auxiliares={
+      <button type="button" className="btn" disabled={ocupado} onClick={onProbar}>
         {probando ? t.probando : etiquetaProbar}
       </button>
-      <span className="dbc-hueco" />
+    }>
+      {/* Solo guardar impide salir: una prueba contra un servidor que no responde se abandona con Cancelar. */}
       <button type="button" className="btn btn-ghost" onClick={onCerrar} disabled={guardando}>
         {t.cancelar}
       </button>
-      <button type="submit" className="btn primary" disabled={guardando}>
+      <button type="submit" form={formulario} className="btn primary" disabled={ocupado}>
         {guardando ? t.guardando : t.guardar}
       </button>
-    </div>
+    </PieModal>
   )
 }

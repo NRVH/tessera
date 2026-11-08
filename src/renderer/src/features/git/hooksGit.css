@@ -1,0 +1,61 @@
+/* =============================================================================
+   El diálogo de permiso de hooks (`PermisosHooksGit.tsx`), con la tarjeta y la fila de Configuración: una línea por
+   hook (nombre, ruta atenuada y recortada con su tooltip, estado y «Ver») y su contenido desplegable debajo, en
+   monoespaciada y con su propio desplazamiento para no desbordar el diálogo.
+   Decisiones: docs/decisiones/sandbox/proyecto-montado-no-confiable.md
+   ============================================================================= */
+/* El cruce envuelve el párrafo y la tarjeta en una sola capa: el aire entre ellos es el mismo `gap` del cuerpo. */
+.git-hooks-cruce > .mov-cruce-capa {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.git-hook-fila {
+  align-items: center;
+}
+.ajustes-fila-texto.git-hook-texto {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 10px;
+}
+.git-hook-nombre,
+.git-hook-ruta {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.git-hook-nombre {
+  flex: none;
+  font-family: var(--mono);
+  font-weight: 600;
+}
+.git-hook-ruta {
+  flex: 1 1 auto;
+  color: var(--fg-muted);
+  font-size: calc(var(--ui-font) - 1px);
+}
+.git-hook-estado {
+  color: var(--fg-muted);
+  font-size: calc(var(--ui-font) - 1px);
+}
+.git-hook-estado.cambiado {
+  color: var(--fg);
+}
+.git-hook-contenido {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  max-height: 220px;
+  overflow: auto;
+  border-radius: 6px;
+  background: var(--bg-deep);
+  font-family: var(--mono);
+  font-size: calc(var(--ui-font) - 1px);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.git-hook-nota {
+  margin: 0 0 8px;
+  color: var(--fg-faint);
+  font-size: calc(var(--ui-font) - 1px);
+}

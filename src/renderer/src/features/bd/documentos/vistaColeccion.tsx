@@ -6,6 +6,8 @@
 // Decisiones: docs/decisiones/bd/ui-documentos-coleccion.md
 // =============================================================================
 
+import { Insignia } from '../../../comun/Presente'
+import { Cruce } from '../../../comun/Presente'
 import type { DbConnection } from '../../../../../shared/db-ipc'
 import { camposDeConsulta, textoCambiosDocs, consultaFiltra, esCampoBarra, motivoNoGuiarCampo, type CampoBarra, type ModoFiltroDocs } from './coleccionDocs'
 import { BotonExportarDocs } from './BotonExportarDocs'
@@ -126,11 +128,7 @@ function botonesEdicion(e: EstadoConsulta, ed: EstadoEdicion, acc: AccionesVista
       >
         <span className="db-envio-icono">
           <IconoEnviar />
-          {pendientes > 0 && (
-            <span className="db-envio-cuenta" aria-hidden="true">
-              {pendientes > 99 ? '99+' : pendientes}
-            </span>
-          )}
+          <Insignia visible={!!(pendientes > 0)} className="db-envio-cuenta">{pendientes > 99 ? '99+' : pendientes}</Insignia>
         </span>
       </BotonBarraBd>
     </>
@@ -147,7 +145,9 @@ export function cabeceraColeccion(d: DatosVista): React.JSX.Element {
       <span className="db-barra-meta" title={`${base}.${coleccion}`}>
         {textoMeta(e)}
         {!e.cargando && e.detenida && <span className="db-barra-aviso">{t.detenida}</span>}
-        {ed.pendientes > 0 && <span className="db-barra-pendientes">{t.sinEnviar(textoCambiosDocs(ed.pendientes))}</span>}
+        <span className="db-barra-pendientes db-pendientes-reserva" data-visible={ed.pendientes > 0} aria-hidden={ed.pendientes === 0}>
+          {t.sinEnviar(textoCambiosDocs(Math.max(1, ed.pendientes)))}
+        </span>
       </span>
       <div className="panel-actions">
         {botonesGenerales(e, acc)}
@@ -272,7 +272,7 @@ function tablaColeccion(d: DatosVista, altoFila: number): React.JSX.Element {
       onCancelarEdicion={() => ed.setEditando(null)}
       onMenu={acc.menu}
       onFinAlcanzado={e.hayMas ? acc.cargarMas : undefined}
-      pie={e.hayMas ? <span className="db-docs-pie-texto">{e.cargandoMas ? t.cargandoMas : t.desplazaParaMas}</span> : null}
+      pie={e.hayMas ? <Cruce clave={e.cargandoMas ? 'cargando' : 'mas'}><span className="db-docs-pie-texto">{e.cargandoMas ? t.cargandoMas : t.desplazaParaMas}</span></Cruce> : null}
       etiquetaAria={t.documentosDe(`${base}.${coleccion}`)}
       orden={e.aplicado.orden}
       onOrdenar={acc.ordenar}

@@ -24,8 +24,8 @@ botón es una preferencia, no una propiedad de lo que abre.
 - El color del perfil marca el icono de la zona donde trabajas (`util/zonaEnfocada.ts`); el abierto sin el
   foco va en gris. Con el foco en el agente sigues en su vista: «Archivos» o «Conexiones a bases de datos»,
   (`features/layout/resaltadoRiel.ts`); los de git no, allí no hay agente.
-- Con la franja a pantalla completa el riel solo lleva la flecha de volver
-  (`docs/decisiones/layout/pantalla-completa-de-la-franja.md`).
+- Con la franja a pantalla completa el riel lleva las acciones del modo: ocultar, restaurar y pasar al
+  otro panel de la franja (`docs/decisiones/layout/pantalla-completa-de-la-franja.md`).
 - `activityBarOrder` y `bottomBarOrder` conservan su nombre (renombrarlos reiniciaría la preferencia
   de todo el mundo), pero su contrato es una PARTICIÓN, no dos conjuntos estancos.
 

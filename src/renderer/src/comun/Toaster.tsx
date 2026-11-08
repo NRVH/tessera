@@ -6,28 +6,35 @@
 // =============================================================================
 
 import { useToasts, dismiss, type Toast, type ToastKind } from './notifications'
+import { useListaConSalida } from './presencia.ts'
 import { txComun } from './textos.ts'
 import './toaster.css'
 
+const claveToast = (t: Toast): string => String(t.id)
+
 export function Toaster(): React.JSX.Element | null {
   const toasts = useToasts()
-  if (toasts.length === 0) return null
+  // El que se descarta sale deslizándose y la pila se cierra sobre su hueco, en vez de saltar.
+  const lista = useListaConSalida(toasts, claveToast)
+  if (lista.length === 0) return null
   return (
     <div className="toaster" aria-label={txComun().notificaciones}>
-      {toasts.map((t) => (
-        <ToastCard key={t.id} toast={t} />
+      {lista.map(({ item, saliendo }) => (
+        <ToastCard key={item.id} toast={item} saliendo={saliendo} />
       ))}
     </div>
   )
 }
 
-function ToastCard({ toast }: { toast: Toast }): React.JSX.Element {
+function ToastCard({ toast, saliendo }: { toast: Toast; saliendo: boolean }): React.JSX.Element {
   const loud = toast.kind === 'error' || toast.kind === 'warn'
   return (
     <div
       className={`toast toast-${toast.kind}`}
-      role={loud ? 'alert' : 'status'}
-      aria-live={loud ? 'assertive' : 'polite'}
+      role={saliendo ? undefined : loud ? 'alert' : 'status'}
+      aria-live={saliendo ? undefined : loud ? 'assertive' : 'polite'}
+      aria-hidden={saliendo || undefined}
+      {...(saliendo ? { 'data-saliendo': '' } : {})}
     >
       <span className="toast-icon" aria-hidden="true">
         <ToastGlyph kind={toast.kind} />

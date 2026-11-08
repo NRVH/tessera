@@ -20,6 +20,9 @@ import { buildHostAgentLaunchCommand } from '../agents/lineaArranqueAgente.ts'
 import { textoParaAviso } from '../../shared/textoParaAviso.ts'
 import { MAX_EN_AVISO, briefingSsh } from './briefingSsh.ts'
 import { buscarDisponible, catalogoAgentes } from './catalogoAgentes.ts'
+import type { ContextoEfectivo } from '../../shared/contexto.ts'
+
+const SIN_CONTEXTO: ContextoEfectivo = { usaGlobal: true, reglasGlobales: '', reglasPerfil: '', documentos: [] }
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -113,17 +116,17 @@ try {
   const avisoBd = briefingBasesAgente(bd, false) ?? ''
   const avisoSsh = briefingSsh(catalogoAgentes(lista([conexion({ alias: 'web' })]), 'pa')) ?? ''
   {
-    const compuesto = briefingCompuesto({ bd: avisoBd, ssh: avisoSsh, reglas: undefined }) ?? ''
+    const compuesto = briefingCompuesto({ bd: avisoBd, ssh: avisoSsh, contexto: SIN_CONTEXTO }) ?? ''
     check('(c1) el de bases es un prefijo byte a byte', avisoBd.length > 0 && compuesto.slice(0, avisoBd.length) === avisoBd && Buffer.from(compuesto).subarray(0, Buffer.byteLength(avisoBd)).equals(Buffer.from(avisoBd)), `${avisoBd.length} caracteres`)
     check('(c2) y el SSH va detrás, separado', compuesto === `${avisoBd}\n\n${avisoSsh}`, 'detrás')
-    check('(c3) sin SSH, el de bases tal cual (mismo objeto de texto)', briefingCompuesto({ bd: avisoBd, ssh: null, reglas: undefined }) === avisoBd, 'igual')
-    check('(c4) sin bases, solo el SSH; sin ninguno, null', briefingCompuesto({ bd: null, ssh: avisoSsh, reglas: undefined }) === avisoSsh && briefingCompuesto({ bd: null, ssh: null, reglas: undefined }) === null, 'null')
+    check('(c3) sin SSH, el de bases tal cual (mismo objeto de texto)', briefingCompuesto({ bd: avisoBd, ssh: null, contexto: SIN_CONTEXTO }) === avisoBd, 'igual')
+    check('(c4) sin bases, solo el SSH; sin ninguno, null', briefingCompuesto({ bd: null, ssh: avisoSsh, contexto: SIN_CONTEXTO }) === avisoSsh && briefingCompuesto({ bd: null, ssh: null, contexto: SIN_CONTEXTO }) === null, 'null')
   }
 
   // ---------------------------------------------------------------------------
   hr('D - La línea de arranque: Claude Code lo recibe por --append-system-prompt y Codex por -c developer_instructions')
   {
-    const compuesto = briefingCompuesto({ bd: avisoBd, ssh: avisoSsh, reglas: undefined })
+    const compuesto = briefingCompuesto({ bd: avisoBd, ssh: avisoSsh, contexto: SIN_CONTEXTO })
     for (const p of ['windows', 'mac'] as Plataforma[]) {
       const claude = buildHostAgentLaunchCommand('claude', 'claude-code', undefined, compuesto, p)
       const codex = buildHostAgentLaunchCommand('codex', 'codex', undefined, compuesto, p)
@@ -146,7 +149,7 @@ try {
       conexion({ alias: 'precio $HOME `ls` 100%', usuario: 'root' })
     ]
     const soloSsh = briefingSsh(catalogoAgentes(lista(trampa), 'pa')) ?? ''
-    const compuesto = briefingCompuesto({ bd: avisoBd, ssh: soloSsh, reglas: undefined })
+    const compuesto = briefingCompuesto({ bd: avisoBd, ssh: soloSsh, contexto: SIN_CONTEXTO })
     const esperado = (compuesto ?? '').replace(/\r?\n/g, ' ').trim()
     // El de bases lleva `"<SQL>"` y PowerShell 5.1 le quita esas comillas al pasarlo:
     // aquí se mira que el argumento no se parte y que el bloque SSH llega entero.
@@ -238,7 +241,8 @@ export async function resolve(spec, ctx, next) {
     const ctrl = new AgentTerminalController({
       profiles: [perfil as never],
       sandbox: {} as never,
-      accounts: {} as never,
+      // Sin cuentas de Docker: la apertura las consulta para saber si anuncia la delegación.
+      accounts: { list: () => [] } as never,
       eventos: { emitir: () => {}, hayDestino: () => false },
       portapapeles: { leerPng: () => null },
       getDbBriefing: () => avisoBd,

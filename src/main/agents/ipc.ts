@@ -28,8 +28,23 @@ import {
 } from '../../shared/agent-accounts-ipc'
 import type { IdAgenteManual } from '../../shared/agentesManuales'
 import { AGENTES_NATIVOS_CHANNELS, type InstalarRequest } from '../../shared/agentes-nativos-ipc'
+import {
+  CONFIG_AGENTE_CHANNELS,
+  capaDePropuesta,
+  type GuardarConfigRequest,
+  type LeerAnteriorConfigRequest,
+  type RefConfigAgente,
+  type ResolverPropuestaConfig,
+  type ResultadoGuardarConfig
+} from '../../shared/configAgente-ipc'
+import type { ServicioConfigAgente } from './configAgente/ServicioConfigAgente'
+import type { PropuestasConfig } from './configAgente/propuestasConfig'
 import type { AgentTerminalController } from './AgentTerminalController'
 import type { AccountStore } from './AccountStore'
+import { conCredencial } from './delegacion/cuentasDelegables'
+import { AGENTES_DELEGABLES } from '../../shared/delegacion-ipc'
+
+const esDelegable = (agente: string): boolean => (AGENTES_DELEGABLES as readonly string[]).includes(agente)
 import type { AgentesNativos } from './agentesNativos'
 import { sanearPeticion } from './politicaHibernacion'
 import { sanearConfigSaturacion } from '../../shared/saturacionDocker'
@@ -94,7 +109,10 @@ export function registrarIpcCuentas(deps: {
   soltarVigilanteUso: (id: string) => void
 }): void {
   const { ipc, cuentas, cerrarSesionesDeCuenta, cerrarSesionesDeAgente, olvidarUso, soltarVigilanteUso } = deps
-  ipc.handle(AGENT_ACCOUNT_CHANNELS.LIST, (_e, req: ListAccountsRequest) => cuentas.list(req.profileId, req.agente))
+  // Con si tiene la sesión iniciada: Configuración › Agentes lo enseña y el login sin pestaña espera a que aparezca.
+  ipc.handle(AGENT_ACCOUNT_CHANNELS.LIST, (_e, req: ListAccountsRequest) =>
+    cuentas.list(req.profileId, req.agente).map((c) => (esDelegable(c.agente) ? { ...c, conSesion: conCredencial(cuentas, c) } : c))
+  )
   ipc.handle(AGENT_ACCOUNT_CHANNELS.CREATE, (_e, req: CreateAccountRequest) => cuentas.create(req))
   ipc.handle(AGENT_ACCOUNT_CHANNELS.RENAME, (_e, req: RenameAccountRequest) => cuentas.rename(req?.id, req?.nombre))
   ipc.handle(AGENT_ACCOUNT_CHANNELS.LOGOUT, async (_e, req: LogoutAccountRequest) => {
@@ -119,6 +137,35 @@ export function registrarIpcCuentas(deps: {
     for (const a of creadas) soltarVigilanteUso(a.id)
     cuentas.olvidarAgenteManual(req.profileId, req.agente)
     for (const a of creadas) olvidarUso(a.id)
+  })
+}
+
+/** Registra los canales del editor de la configuración de un agente. */
+export function registrarIpcConfigAgente(deps: {
+  ipc: Pick<IpcMain, 'handle'>
+  servicio: ServicioConfigAgente
+  propuestas: Pick<PropuestasConfig, 'listar' | 'obtener' | 'quitar' | 'depurar'>
+  idsPerfiles: () => string[]
+}): void {
+  const { ipc, servicio, propuestas } = deps
+  ipc.handle(CONFIG_AGENTE_CHANNELS.LEER, (_e, ref: RefConfigAgente) => servicio.leer(ref))
+  ipc.handle(CONFIG_AGENTE_CHANNELS.LEER_ANTERIOR, (_e, req: LeerAnteriorConfigRequest) => servicio.leerAnterior(req?.ref, req?.tipo))
+  ipc.handle(CONFIG_AGENTE_CHANNELS.GUARDAR, (_e, req: GuardarConfigRequest) => servicio.guardar(req))
+  ipc.handle(CONFIG_AGENTE_CHANNELS.PROPUESTAS, () => {
+    propuestas.depurar(deps.idsPerfiles())
+    return propuestas.listar()
+  })
+  // Aceptar la escribe en su nivel y solo entonces la quita: si no se pudo escribir, sigue pendiente.
+  ipc.handle(CONFIG_AGENTE_CHANNELS.RESOLVER_PROPUESTA, async (_e, req: ResolverPropuestaConfig): Promise<ResultadoGuardarConfig | null> => {
+    const p = typeof req?.id === 'string' ? propuestas.obtener(req.id) : null
+    if (!p) return null
+    if (req.aceptar !== true) {
+      propuestas.quitar(p.id)
+      return null
+    }
+    const r = await servicio.guardar({ ref: { agente: p.agente, accountId: null, capa: capaDePropuesta(p) }, tipo: p.tipo, contenido: p.texto, versionLeida: null, sobrescribir: true })
+    if (r.estado === 'guardado') propuestas.quitar(p.id)
+    return r
   })
 }
 

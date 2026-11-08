@@ -189,7 +189,7 @@ function main(): void {
   check('peligroso: título y botón con el verbo', cp.titulo === '¿Ejecutar FLUSHDB?' && cp.confirmar === 'Ejecutar FLUSHDB', json(cp))
   check('peligroso: mensaje con motivo, alias y base', cp.mensaje.startsWith('Borra todas') && cp.mensaje.includes('«cache»') && cp.mensaje.includes('db2'), cp.mensaje)
   const cpp = confirmacionPeligroso({ verbo: 'FLUSHALL', alias: 'x', base: 0, mensaje: '', produccion: true })
-  check('peligroso en producción: lo dice', cpp.mensaje.includes('PRODUCCIÓN') && !cpp.mensaje.startsWith('\n'), cpp.mensaje)
+  check('peligroso en producción: lo dice', cpp.mensaje.includes('producción') && !cpp.mensaje.startsWith('\n'), cpp.mensaje)
 
   hr('(7) Base')
   check('base del resultado', baseTrasResultado(0, { base: 3 }) === 3, 'ok')

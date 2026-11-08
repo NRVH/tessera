@@ -257,7 +257,7 @@ async function main(): Promise<void> {
     String(packParaServidor(9.0, 'windows')?.id)
   )
   check(
-    'mac 11.2 -> IC 23 (antes null: la 11.2 no tenía cliente en Mac)',
+    'mac 11.2 -> IC 23 (no null: la 11.2 se sirve con el cliente 23 en Mac)',
     packParaServidor(11.2, 'mac')?.id === 'oracle-ic-23-macos-arm64',
     String(packParaServidor(11.2, 'mac')?.id)
   )
@@ -358,7 +358,7 @@ async function main(): Promise<void> {
     !dispMonterey.ok &&
       dispMonterey.motivo.includes('macOS 13') &&
       dispMonterey.motivo.includes('macOS 12') &&
-      dispMonterey.motivo.includes('Seleccionar carpeta'),
+      dispMonterey.motivo.includes('use «Seleccionar…»'),
     dispMonterey.ok ? 'ok' : dispMonterey.motivo
   )
   check(
@@ -533,7 +533,7 @@ async function main(): Promise<void> {
         'huella distinta: falla con SHA-256 y la alternativa, SIN ninguna orden (ni hdiutil)',
         errH !== null &&
           errH.includes('SHA-256') &&
-          errH.includes('Seleccionar carpeta') &&
+          errH.includes('use «Seleccionar…»') &&
           f.llamadas.length === 1 &&
           f.llamadas[0] === ic23?.url &&
           ej.ordenes.length === 0,
@@ -550,7 +550,7 @@ async function main(): Promise<void> {
     }
 
     // El zip de Windows baja por la MISMA descarga
-    // que el .dmg (`descarga.ts`): con el `fetch` de las opciones (antes, el global), el
+    // que el .dmg (`descarga.ts`): con el `fetch` de las opciones (no el global), el
     // mismo progreso y el plazo de inactividad. Lo demás del zip no cambia: se aplana por
     // basename, sin META-INF, y con sus mensajes de siempre.
     {
@@ -590,7 +590,7 @@ async function main(): Promise<void> {
       const errHtml = await falla(() => conTope(dmHtml.install('oracle-ic-19')))
       check(
         'windows: una página de error sigue diciendo «no es un ZIP», con la alternativa',
-        errHtml !== null && errHtml.includes('no es un ZIP') && errHtml.includes('Seleccionar carpeta'),
+        errHtml !== null && errHtml.includes('no es un ZIP') && errHtml.includes('use «Seleccionar…»'),
         String(errHtml)
       )
 
@@ -626,7 +626,7 @@ async function main(): Promise<void> {
         'windows: una descarga que se PARA acaba en error de inactividad (con la alternativa), no en espera eterna',
         errCol !== null &&
           errCol.includes('sin enviar datos') &&
-          errCol.includes('Seleccionar carpeta') &&
+          errCol.includes('use «Seleccionar…»') &&
           !errCol.includes('COLGADA') &&
           progresosCol[progresosCol.length - 1] === 'error',
         String(errCol)

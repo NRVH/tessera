@@ -1,7 +1,7 @@
 # Las cuentas de agente son por (perfil, agente), las que quiera el usuario, privadas del perfil y con solo metadatos en el registro
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/agents/AccountStore.ts`, los canales de `AGENT_ACCOUNT_CHANNELS` (`src/main/agents/ipc.ts`) y el selector de cuenta del agente (`MenusAgentPane.tsx`, `useCuentasAgente.ts`)
+- **Ámbito:** `src/main/agents/AccountStore.ts`, los canales de `AGENT_ACCOUNT_CHANNELS` (`src/main/agents/ipc.ts`) el selector de cuenta del agente (`MenusAgentPane.tsx`, `useCuentasAgente.ts`) y las cuentas de Configuración › Agentes (`CuentasConfiguracion.tsx`, `useLoginCuenta.ts`, `accionesCuentas.ts`)
 
 ## Contexto
 
@@ -39,6 +39,13 @@ trabajar con ellas a la vez en el mismo perfil; cada cuenta corre en su propio c
   respeta el `configDir` declarado del perfil.
 - Cerrar sesión y borrar una cuenta cierran antes sus sesiones vivas en cualquier perfil (para
   forzar el re-login o desmontar y poder borrar) y olvidan el uso cacheado.
+- **Dos entradas, las mismas cuentas y acciones**: el selector de la cabecera del agente y Configuración › Agentes, que
+  despliega las cuentas de Docker de cada agente aunque esté oculto. Ocultar un agente (porque se usa solo para
+  delegarle tareas) no puede dejar sin crear, administrar ni iniciar sesión en sus cuentas. La lista dice si cada cuenta
+  tiene la sesión iniciada (`conSesion`, mirado en el disco al listar) y su uso.
+- **Iniciar sesión sin pestaña**: un diálogo abre una sesión del agente con esa cuenta en el proyecto activo, con su
+  terminal, porque el login de los dos CLIs corre ahí. Se confirma y se cierra solo cuando la cuenta tiene la sesión
+  iniciada, y cerrarlo cierra la sesión: no deja ninguna abierta.
 
 ## Consecuencias
 

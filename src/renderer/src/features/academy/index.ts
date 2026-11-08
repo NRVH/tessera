@@ -7,7 +7,7 @@
 // =============================================================================
 export { BotonAyuda } from './BotonAyuda'
 export { AYUDA, type DestinoAyuda } from './ayudas'
-export { abrirAcademy } from './store'
+export { abrirAcademy, useStoreAcademy } from './store'
 export { LectorAcademy } from './LectorAcademy'
 export { PanelAcademy } from './PanelAcademy'
 export { IconoBirrete } from './iconosAcademy'

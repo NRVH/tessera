@@ -208,7 +208,7 @@ test.describe('explorador de BD: conexiones de un motor que esta versión no con
   test('(2) la ajena se ve atenuada al final del árbol y solo se puede eliminar', async () => {
     const win = s!.win
     await aLaVista(win)
-    await win.locator('.activity-item[title="Conexiones a bases de datos"]').click()
+    await win.locator('.activity-item[title="Bases de datos"]').click()
     await expect(win.locator('.db-area:not(.hidden)')).toBeVisible()
 
     const ajena = fila(win, 'ajena', ALIAS_AJENA)
@@ -233,7 +233,7 @@ test.describe('explorador de BD: conexiones de un motor que esta versión no con
     await expect(win.locator(PESTANAS)).toHaveCount(0)
     expect(await tiposDeFilas(win)).toEqual(['conexion', 'ajena'])
     await expect(win.locator('.db-conexion-modal')).toHaveCount(0)
-    await expect(win.getByRole('dialog', { name: 'Eliminar conexión' })).toHaveCount(0)
+    await expect(win.getByRole('dialog', { name: /Eliminar la conexión/ })).toHaveCount(0)
     await expect(ajena).toHaveAttribute('aria-selected', 'true')
 
     // El menú: SOLO eliminar.
@@ -246,7 +246,7 @@ test.describe('explorador de BD: conexiones de un motor que esta versión no con
     // la deja donde estaba.
     await ajena.click()
     await win.keyboard.press(PLATAFORMA === 'mac' ? 'Meta+Backspace' : 'Delete')
-    const dialogo = win.getByRole('dialog', { name: 'Eliminar conexión' })
+    const dialogo = win.getByRole('dialog', { name: /Eliminar la conexión/ })
     await expect(dialogo).toBeVisible()
     await expect(dialogo).toContainText(`«${ALIAS_AJENA}»`)
     await expect(dialogo).toContainText('actualice Tessera')
@@ -322,7 +322,7 @@ test.describe('explorador de BD: conexiones de un motor que esta versión no con
     const ajena = fila(win, 'ajena', ALIAS_AJENA)
     await ajena.click({ button: 'right' })
     await elegirDelMenu(win, 'Eliminar conexión…')
-    const dialogo = win.getByRole('dialog', { name: 'Eliminar conexión' })
+    const dialogo = win.getByRole('dialog', { name: /Eliminar la conexión/ })
     await expect(dialogo).toBeVisible()
     await dialogo.getByRole('button', { name: 'Eliminar', exact: true }).click()
 
@@ -468,7 +468,7 @@ test.describe('explorador de BD: el registro entero en un formato que esta versi
     // (b) El ÁRBOL: el aviso persistente en vez de «Sin conexiones», y el alta apagada
     // con su porqué (el main la rechazaría).
     await aLaVista(win)
-    await win.locator('.activity-item[title="Conexiones a bases de datos"]').click()
+    await win.locator('.activity-item[title="Bases de datos"]').click()
     const arbol = win.locator('.db-arbol')
     const avisoArbol = arbol.locator('.db-arbol-formato')
     await expect(avisoArbol, 'el árbol no enseña el aviso del formato ajeno').toBeVisible({ timeout: 15_000 })
@@ -614,7 +614,7 @@ test.describe('explorador de BD: un registro que no se puede leer y sin .bak', (
     // (b) El ÁRBOL: el aviso del main (qué no se pudo leer y qué hacer), con el título que
     // no afirma ninguna causa, y el alta apagada.
     await aLaVista(win)
-    await win.locator('.activity-item[title="Conexiones a bases de datos"]').click()
+    await win.locator('.activity-item[title="Bases de datos"]').click()
     const arbol = win.locator('.db-arbol')
     const avisoArbol = arbol.locator('.db-arbol-formato')
     await expect(avisoArbol, 'el árbol no enseña el aviso del registro ilegible').toBeVisible({ timeout: 15_000 })
@@ -795,7 +795,7 @@ test.describe('explorador de BD: un registro roto con un .bak legible', () => {
 
     // (c) EL ÁRBOL: la conexión del `.bak`, sin el aviso de registro bloqueado.
     await aLaVista(win)
-    await win.locator('.activity-item[title="Conexiones a bases de datos"]').click()
+    await win.locator('.activity-item[title="Bases de datos"]').click()
     await expect(fila(win, 'conexion', ALIAS_RESCATE), 'no se ven las conexiones del .bak').toHaveCount(1, { timeout: 15_000 })
     await expect(win.locator('.db-arbol .db-arbol-formato'), 'el registro rescatado se trató como bloqueado').toHaveCount(0)
 
@@ -937,7 +937,7 @@ test.describe('explorador de BD: dos entradas del registro con el mismo id', () 
     expect(montajesEnDisco(datos)[clave], 'la poda se llevó el montaje del id que comparten').toContain(ID_REP)
 
     await aLaVista(win)
-    await win.locator('.activity-item[title="Conexiones a bases de datos"]').click()
+    await win.locator('.activity-item[title="Bases de datos"]').click()
     await expect(win.locator('.db-area:not(.hidden)')).toBeVisible()
     const copia = fila(win, 'ajena', ALIAS_COPIA)
     await expect(copia, 'la copia no sale como ajena (era una segunda conocida con el mismo id)').toHaveCount(1, { timeout: 15_000 })
@@ -961,12 +961,12 @@ test.describe('explorador de BD: dos entradas del registro con el mismo id', () 
     const copia = fila(win, 'ajena', ALIAS_COPIA)
     await copia.click({ button: 'right' })
     await elegirDelMenu(win, 'Eliminar conexión…')
-    const dialogo = win.getByRole('dialog', { name: 'Eliminar conexión' })
+    const dialogo = win.getByRole('dialog', { name: /Eliminar la conexión/ })
     await expect(dialogo).toBeVisible()
     await expect(dialogo).toContainText(`«${ALIAS_COPIA}»`)
     await expect(dialogo).toContainText(TEXTO_COPIA)
     await expect(dialogo, 'el diálogo no dice que la original comparte el identificador').toContainText(
-      `«${ALIAS_REP}» comparte su identificador y no se toca`
+      `«${ALIAS_REP}» comparte su identificador y no se modifica: sus montajes y sus consolas siguen.`
     )
     await expect(dialogo, 'el diálogo anuncia un desmontaje que no va a pasar').not.toContainText('Se desmontará')
     await dialogo.getByRole('button', { name: 'Eliminar', exact: true }).click()
@@ -991,9 +991,9 @@ test.describe('explorador de BD: dos entradas del registro con el mismo id', () 
     const ajena = fila(win, 'ajena', ALIAS_REP_AJENA)
     await ajena.click()
     await win.keyboard.press(PLATAFORMA === 'mac' ? 'Meta+Backspace' : 'Delete')
-    const dialogo = win.getByRole('dialog', { name: 'Eliminar conexión' })
+    const dialogo = win.getByRole('dialog', { name: /Eliminar la conexión/ })
     await expect(dialogo).toBeVisible()
-    await expect(dialogo).toContainText(`«${ALIAS_REP}» comparte su identificador y no se toca`)
+    await expect(dialogo).toContainText(`«${ALIAS_REP}» comparte su identificador y no se modifica`)
     await dialogo.getByRole('button', { name: 'Eliminar', exact: true }).click()
 
     await expect(ajena).toHaveCount(0)
@@ -1157,19 +1157,19 @@ test.describe('explorador de BD: eliminar la copia de una conexión de otro perf
     ])
 
     await aLaVista(win)
-    await win.locator('.activity-item[title="Conexiones a bases de datos"]').click()
+    await win.locator('.activity-item[title="Bases de datos"]').click()
     await expect(win.locator('.db-area:not(.hidden)')).toBeVisible()
     const copia = fila(win, 'ajena', ALIAS_COPIA_CRUZADA)
     await expect(copia).toHaveCount(1, { timeout: 15_000 })
     await expect(copia).toContainText(TEXTO_COPIA_CRUZADA)
     await copia.click({ button: 'right' })
     await elegirDelMenu(win, 'Eliminar conexión…')
-    const dialogo = win.getByRole('dialog', { name: 'Eliminar conexión' })
+    const dialogo = win.getByRole('dialog', { name: /Eliminar la conexión/ })
     await expect(dialogo).toBeVisible()
     await expect(dialogo).toContainText('Se desmontará de los proyectos de este perfil donde esté montada.')
     await expect(dialogo).toContainText(`Su consola «${CONSOLA_COPIA.nombre}» se moverá a la papelera.`)
     await expect(dialogo, 'el diálogo cuenta la consola del otro perfil').not.toContainText(CONSOLA_ORIGINAL.nombre)
-    await expect(dialogo).toContainText('La conexión de otro perfil que comparte su identificador no se toca: ni sus montajes ni sus consolas.')
+    await expect(dialogo).toContainText('La conexión de otro perfil que comparte su identificador no se modifica: ni sus montajes ni sus consolas.')
     await expect(dialogo, 'el diálogo nombra la conexión del otro perfil').not.toContainText(ALIAS_CRUZADA)
     await dialogo.getByRole('button', { name: 'Eliminar', exact: true }).click()
 

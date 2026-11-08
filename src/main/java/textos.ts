@@ -28,11 +28,11 @@ export const txJava = crearTextos(
         `Se necesita un JDK ${requiere} o superior; el más reciente que se encontró es el ${mejor}.`,
       sinJavaMensaje:
         'No se encontró Java en este equipo. Para ver el código de una clase se necesita una instalación de Java ' +
-        '(cualquier versión desde la 6). Si tiene una en una ruta poco habitual, selecciónela con "Elegir java.exe…".'
+        '(cualquier versión desde la 6). Si tiene una en una ruta poco habitual, selecciónela con «Seleccionar…».'
     },
     dialogo: {
-      tituloWindows: 'Seleccione el ejecutable de Java (java.exe)',
-      tituloOtro: 'Seleccione el ejecutable de Java (java)',
+      tituloWindows: 'Seleccionar el ejecutable de Java (java.exe)',
+      tituloOtro: 'Seleccionar el ejecutable de Java (java)',
       filtro: 'Ejecutable de Java'
     },
     zip: {
@@ -60,7 +60,7 @@ export const txJava = crearTextos(
       nombreNoAdmitido: (nombre: string) => `Se ignoró una entrada con un nombre no admitido: ${nombre}`,
       masDeEntradas: (n: number) =>
         `El archivo tiene más de ${n.toLocaleString(localeActual())} entradas; se listaron las primeras.`,
-      repetidas: (n: number) => `Se ignoraron ${n} entrada(s) repetida(s); se conservó la primera de cada nombre.`,
+      repetidas: (n: number) => `${n === 1 ? 'Se ignoró 1 entrada repetida' : `Se ignoraron ${n} entradas repetidas`}; se conservó la primera de cada nombre.`,
       entradaGrande: (nombre: string, mb: number) =>
         `«${nombre}» ocupa ${mb} MB descomprimido y supera el máximo que Tessera abre.`,
       compresion: (nombre: string, metodo: number) =>
@@ -94,7 +94,7 @@ export const txJava = crearTextos(
         `It requires JDK ${requiere} or later; the newest one found is ${mejor}.`,
       sinJavaMensaje:
         'Java was not found on this computer. Viewing the code of a class requires a Java installation ' +
-        '(version 6 or later). If you have one in an unusual location, choose it with “Choose java.exe…”.'
+        '(version 6 or later). If you have one in an unusual location, choose it with “Choose…”.'
     },
     dialogo: {
       tituloWindows: 'Choose the Java executable (java.exe)',

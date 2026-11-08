@@ -1,6 +1,7 @@
 // =============================================================================
-// Persistencia de `workspace-state.json` (`userData`): el esqueleto de pestañas por perfil y el
-// slice de ajustes globales, dos slices del MISMO archivo que se mezclan al guardar. La verdad
+// Persistencia de `workspace-state.json` (`userData`): el esqueleto de pestañas por perfil, el
+// slice de ajustes globales y la sesión de cada proyecto, tres slices del MISMO archivo que se
+// mezclan al guardar. La verdad
 // vive en memoria; cada guardado programa una escritura asíncrona con debounce y
 // `flushWorkspaceState` la fuerza al cerrar. Lee cayendo al `.bak`, archiva intacto un archivo
 // de una versión más nueva antes de degradarlo y poda los proyectos ausentes con `stat` en
@@ -13,10 +14,12 @@ import { copyFile, readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { rutaUserData } from '../util/infoApp'
 import { writeFileAtomic } from '../util/atomicWrite'
+import { normalizarSesiones, type SesionProyecto } from '../../shared/sesionProyecto'
 import {
   clasificarPresencia,
   DEFAULT_SETTINGS,
   normalizeWorkspaceState,
+  proyectosAbiertosDe,
   pruneMissingProjects,
   raizDeVolumen,
   WORKSPACE_STATE_VERSION,
@@ -205,7 +208,28 @@ export function saveWorkspaceState(state: WorkspaceState): void {
     throw new Error('saveWorkspaceState: estado no serializable (no es un objeto).')
   }
   const base = ensureCurrent()
-  current = { ...normalized, settings: base.settings ?? normalized.settings }
+  // Las sesiones se podan contra el esqueleto nuevo: la de un proyecto recién cerrado se va con él.
+  current = {
+    ...normalized,
+    settings: base.settings ?? normalized.settings,
+    sesiones: normalizarSesiones(base.sesiones, proyectosAbiertosDe(normalized.byProfile))
+  }
+  scheduleWrite()
+}
+
+/** Lee SOLO la sesión de cada proyecto abierto (SÍNCRONO, desde memoria/disco). */
+export function loadSesionesProyecto(): Record<string, SesionProyecto> {
+  return ensureCurrent().sesiones ?? {}
+}
+
+/**
+ * Persiste SOLO la sesión de cada proyecto, PRESERVANDO el esqueleto y los ajustes. Lo recibido viene del
+ * renderer y se sanea entero (`normalizarSesiones`): rutas relativas, topes, y solo las de los proyectos
+ * abiertos. Se sanea solo este slice: llega con cada pausa al mover el cursor.
+ */
+export function saveSesionesProyecto(sesiones: unknown): void {
+  const base = ensureCurrent()
+  current = { ...base, sesiones: normalizarSesiones(sesiones, proyectosAbiertosDe(base.byProfile)) }
   scheduleWrite()
 }
 

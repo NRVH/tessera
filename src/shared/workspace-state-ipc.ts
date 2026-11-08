@@ -1,7 +1,8 @@
 // =============================================================================
 // Contrato IPC y saneado de la persistencia del workspace (`workspace-state.json`): qué
-// proyectos tenía abiertos cada perfil, cuál es el activo y los ajustes globales.
-// No persiste repos (se re-descubren) ni sesiones de agente (arrancan perezosas).
+// proyectos tenía abiertos cada perfil, cuál es el activo, los ajustes globales y la sesión de
+// cada proyecto (`sesionProyecto.ts`). No persiste repos (se re-descubren) ni sesiones de
+// agente (arrancan perezosas).
 // LOAD -> WorkspaceState | null (null = sin archivo); SAVE en cada cambio relevante y no
 // solo al salir, para sobrevivir a cierres sucios. Las rutas host son opacas.
 // Puro y con imports `.ts` (`ajustesBd.ts`, `ajustesAgente.ts`, `ajustesTerminal.ts`): lo cargan tests con `node`.
@@ -22,6 +23,7 @@ import {
 import { AGENTE_INACTIVIDAD_MIN_POR_DEFECTO, normalizarInactividadAgenteMin } from './ajustesAgente.ts'
 import { POLITICA_POR_DEFECTO, normalizarCupo, type PrimeroEnPararse } from './semaforoContenedores.ts'
 import { SATURACION_POR_DEFECTO, normalizarSaturacion } from './saturacionDocker.ts'
+import { normalizarSesiones, type SesionProyecto } from './sesionProyecto.ts'
 import {
   SSH_RIEL_ANCHO_POR_DEFECTO,
   normalizarAgenteTerminalVisible,
@@ -47,7 +49,11 @@ export const WORKSPACE_STATE_CHANNELS = {
   /** invoke: lee SOLO el slice de ajustes globales de UI (zoom, etc.). Sin argumentos. -> WorkspaceSettings. */
   LOAD_SETTINGS: 'workspaceState:loadSettings',
   /** invoke: persiste SOLO el slice de ajustes globales (preserva el esqueleto). WorkspaceSettings -> void. */
-  SAVE_SETTINGS: 'workspaceState:saveSettings'
+  SAVE_SETTINGS: 'workspaceState:saveSettings',
+  /** invoke: lee SOLO la sesión de cada proyecto. Sin argumentos. -> Record<string, SesionProyecto>. */
+  LOAD_SESIONES: 'workspaceState:loadSesiones',
+  /** invoke: persiste SOLO la sesión de cada proyecto (preserva los otros slices). Record<string, SesionProyecto> -> void. */
+  SAVE_SESIONES: 'workspaceState:saveSesiones'
 } as const
 
 /**
@@ -127,6 +133,17 @@ export interface WorkspaceSettings {
   agentFontFamily: string
   agentFontSize: number
   /**
+   * LETRA DEL EDITOR DE CÓDIGO (editor, diffs y visores de Monaco): familia ('' = la predeterminada) y
+   * tamaño en px (0 = el predeterminado). Ausentes => los predeterminados, que son lo que ya se veía.
+   */
+  editorFontFamily: string
+  editorFontSize: number
+  /**
+   * TEMA DEL CÓDIGO (id de `renderer/theme/temasCodigo.ts`): cómo se pinta el contenido de los archivos.
+   * Ausente o desconocido => el de serie, que el renderer resuelve; aquí solo se acota el texto.
+   */
+  editorTema: string
+  /**
    * TAMAÑO DE LETRA DE LA INTERFAZ en px (0 = el predeterminado, ver
    * `theme/densidad.ts`). Es la BASE: gobierna todo el chrome de la app
    * —pestañas, barra de estado, riel, el propio panel de ajustes, progreso de
@@ -181,6 +198,10 @@ export interface WorkspaceSettings {
    * dos: subirlo enseña más archivos, bajarlo enseña más mensaje.
    */
   gitLogArchivosHeight: number
+  /** Ancho (px) de la lista del historial de un archivo, en Git · Historial. */
+  gitHistorialWidth: number
+  /** Ancho (px) del agente de la terminal junto a la terminal a pantalla completa. */
+  agenteTerminalAncho: number
   /**
    * Bases de datos MONTADAS por proyecto: clave `${profileId}|${projectHostPath}`
    * -> ids de conexión. Solo esas se inyectan en la sesión de agente de ese
@@ -493,8 +514,8 @@ export const ACTIVITY_BAR_DEFAULT_ORDER: readonly string[] = ['files', 'git', 'd
 export const BOTTOM_BAR_DEFAULT_ORDER: readonly string[] = ['terminal', 'gitlog']
 
 /**
- * TODOS los iconos del riel: el conjunto canónico de verdad, ahora que los dos
- * grupos son una partición de él y no dos conjuntos estancos. El orden de esta
+ * TODOS los iconos del riel: el conjunto canónico de verdad; los dos grupos son una
+ * partición de él y no dos conjuntos estancos. El orden de esta
  * lista solo importa para repartir lo que falte.
  */
 export const RIEL_IDS: readonly string[] = [
@@ -553,6 +574,14 @@ export const GIT_LOG_ARCHIVOS_MIN = 60
 /** Techo solo para SANEAR; el real lo acota el alto vivo de la franja inferior. */
 export const GIT_LOG_ARCHIVOS_MAX = 2000
 
+/** Ancho por defecto de la lista del historial de un archivo; se acota con los de las columnas del log. */
+export const DEFAULT_GIT_HISTORIAL_WIDTH = 420
+/**
+ * Ancho por defecto del agente de la terminal junto a la terminal a pantalla completa: unas 80 columnas con la
+ * letra por defecto. El techo del archivo es el de la columna del agente; el real lo acota el ancho de ventana.
+ */
+export const DEFAULT_AGENTE_TERMINAL_ANCHO = 640
+
 /**
  * Ancho por defecto de la columna del agente en la vista de bases de datos. Algo
  * más ancho que el de la vista de archivos (340): la columna aparece A DEMANDA, casi
@@ -585,6 +614,9 @@ export const DEFAULT_SETTINGS: WorkspaceSettings = {
   terminalResaltado: true,
   agentFontFamily: '',
   agentFontSize: 0,
+  editorFontFamily: '',
+  editorFontSize: 0,
+  editorTema: 'tessera',
   uiFontSize: 0,
   explorerFontSize: 0,
   gitFontSize: 0,
@@ -594,6 +626,8 @@ export const DEFAULT_SETTINGS: WorkspaceSettings = {
   gitLogRamasWidth: DEFAULT_GIT_LOG_RAMAS,
   gitLogDetalleWidth: DEFAULT_GIT_LOG_DETALLE,
   gitLogArchivosHeight: DEFAULT_GIT_LOG_ARCHIVOS_H,
+  gitHistorialWidth: DEFAULT_GIT_HISTORIAL_WIDTH,
+  agenteTerminalAncho: DEFAULT_AGENTE_TERMINAL_ANCHO,
   dbMountsByProject: {},
   aplicarUpdateAlCerrar: true,
   registroSalud: true,
@@ -701,10 +735,25 @@ export interface WorkspaceState {
    * con defaults, así lo leído del disco lo trae siempre presente.
    */
   settings?: WorkspaceSettings
+  /**
+   * Lo que cada proyecto abierto recuerda entre sesiones (`perfil|ruta` -> pestañas del editor, carpetas del
+   * explorador y terminales locales): un TERCER slice, que el renderer guarda por su canal y el store preserva
+   * al guardar los otros dos. El saneado y los topes viven en `shared/sesionProyecto.ts`; la sesión de un
+   * proyecto que se cierra se olvida con él. Opcional por la misma razón que `settings`.
+   */
+  sesiones?: Record<string, SesionProyecto>
 }
 
 /** Versión de shape que este build escribe. Bump al migrar. */
 export const WORKSPACE_STATE_VERSION = 1 as const
+
+/**
+ * Las claves `perfil|ruta` de los proyectos abiertos: la misma forma que la de un target del editor y de las
+ * terminales. Con ellas se podan los ajustes y las sesiones de lo que ya no está abierto.
+ */
+export function proyectosAbiertosDe(byProfile: Readonly<Record<string, PersistedProfileTabs>>): string[] {
+  return Object.entries(byProfile).flatMap(([id, t]) => t.openProjects.map((p) => `${id}|${p.projectHostPath}`))
+}
 
 /** Estados de proyecto válidos (para normalizar entradas desconocidas). */
 const VALID_ESTADOS: readonly ProjectEstado[] = ['active', 'hibernated']
@@ -736,14 +785,13 @@ export function normalizeWorkspaceState(raw: unknown): WorkspaceState | null {
     }
   }
 
+  const proyectosAbiertos = proyectosAbiertosDe(byProfile)
   return {
     version: WORKSPACE_STATE_VERSION,
     activeProfileId,
     byProfile,
-    settings: normalizeSettings(
-      obj.settings,
-      Object.entries(byProfile).flatMap(([id, t]) => t.openProjects.map((p) => `${id}|${p.projectHostPath}`))
-    )
+    settings: normalizeSettings(obj.settings, proyectosAbiertos),
+    sesiones: normalizarSesiones(obj.sesiones, proyectosAbiertos)
   }
 }
 
@@ -924,6 +972,9 @@ function normalizarFuentes(
   | 'terminalResaltado'
   | 'agentFontFamily'
   | 'agentFontSize'
+  | 'editorFontFamily'
+  | 'editorFontSize'
+  | 'editorTema'
   | 'uiFontSize'
   | 'explorerFontSize'
   | 'gitFontSize'
@@ -940,6 +991,9 @@ function normalizarFuentes(
     terminalResaltado: obj.terminalResaltado !== false,
     agentFontFamily: typeof obj.agentFontFamily === 'string' ? obj.agentFontFamily.slice(0, 200) : terminalFontFamily,
     agentFontSize: tamanoTerminal(obj.agentFontSize, terminalFontSize),
+    editorFontFamily: typeof obj.editorFontFamily === 'string' ? obj.editorFontFamily.slice(0, 200) : DEFAULT_SETTINGS.editorFontFamily,
+    editorFontSize: tamanoTerminal(obj.editorFontSize, DEFAULT_SETTINGS.editorFontSize),
+    editorTema: typeof obj.editorTema === 'string' && obj.editorTema !== '' ? obj.editorTema.slice(0, 40) : DEFAULT_SETTINGS.editorTema,
     uiFontSize: tamanoUi(obj.uiFontSize),
     explorerFontSize: tamanoUi(obj.explorerFontSize),
     gitFontSize: tamanoUi(obj.gitFontSize)
@@ -957,6 +1011,8 @@ function normalizarTamanosPaneles(
   | 'gitLogRamasWidth'
   | 'gitLogDetalleWidth'
   | 'gitLogArchivosHeight'
+  | 'gitHistorialWidth'
+  | 'agenteTerminalAncho'
 > {
   // Anchos por vista: solo claves de vista conocidas y números en rango (un archivo de
   // otro monitor no debe dejar un panel inservible); las que falten caen al default.
@@ -980,7 +1036,9 @@ function normalizarTamanosPaneles(
       GIT_LOG_ARCHIVOS_MIN,
       GIT_LOG_ARCHIVOS_MAX,
       d.gitLogArchivosHeight
-    )
+    ),
+    gitHistorialWidth: numeroAcotado(obj.gitHistorialWidth, GIT_LOG_COL_MIN, GIT_LOG_COL_MAX, d.gitHistorialWidth),
+    agenteTerminalAncho: numeroAcotado(obj.agenteTerminalAncho, CC_WIDTH_MIN, CC_WIDTH_MAX, d.agenteTerminalAncho)
   }
 }
 

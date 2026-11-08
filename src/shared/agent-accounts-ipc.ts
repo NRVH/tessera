@@ -24,6 +24,11 @@ export interface AgentAccount {
    * agente manual (`CUENTA_AGENTE_MANUAL`) es su carpeta del perfil y no está en el registro.
    */
   isDefault?: boolean
+  /**
+   * Si la carpeta de la cuenta tiene la sesión iniciada (Claude Code y Codex). Solo lo trae la lista: lo mira el main
+   * al listar, en el disco del equipo.
+   */
+  conSesion?: boolean
 }
 
 /** Lo más largo que puede ser el nombre de una cuenta: el main lo exige y el campo del renderer lo limita. */

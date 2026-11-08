@@ -34,17 +34,6 @@ export function IconoArchivoNuevo(): React.JSX.Element {
   )
 }
 
-/** Cuenta nueva: una persona con un `+`. */
-export function IconoCuentaNueva(): React.JSX.Element {
-  return (
-    <Svg>
-      <circle cx="10" cy="8" r="3.5" />
-      <path d="M3.5 20a6.5 6.5 0 0 1 10.5-5.1" />
-      <path d="M18 14v6M15 17h6" />
-    </Svg>
-  )
-}
-
 /** Carpeta nueva: carpeta con un `+`. */
 export function IconoCarpetaNueva(): React.JSX.Element {
   return (
@@ -79,7 +68,15 @@ export function IconoCortar(): React.JSX.Element {
 }
 
 /** Copiar: dos hojas superpuestas. */
-export function IconoCopiar(): React.JSX.Element {
+export function IconoCopiar({ copiado = false }: { copiado?: boolean } = {}): React.JSX.Element {
+  if (copiado) {
+    return (
+      <svg className="icono-copiar git-copiado" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path className="git-copiado-trazo" pathLength={1} d="M5 12.5l4 4 10-10" />
+      </svg>
+    )
+  }
   return (
     <Svg>
       <rect x="9" y="9" width="11" height="12" rx="2" />
@@ -134,6 +131,26 @@ export function IconoGuardar(): React.JSX.Element {
     <Svg>
       <path d="M5 3h11l3 3v15H5z" />
       <path d="M8 3v6h7V3M8 21v-6h8v6" />
+    </Svg>
+  )
+}
+
+/** Lo que solo vale en Docker: un contenedor. */
+export function IconoContenedor(): React.JSX.Element {
+  return (
+    <Svg>
+      <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z" />
+      <path d="M4 7.5l8 4.5 8-4.5M12 12v9" />
+    </Svg>
+  )
+}
+
+/** Claves SSH: una llave. */
+export function IconoClavesSsh(): React.JSX.Element {
+  return (
+    <Svg>
+      <circle cx="8" cy="15" r="3.6" />
+      <path d="M10.6 12.4 19.5 3.5M15.5 7.5l2.6 2.6M18 5l2 2" />
     </Svg>
   )
 }

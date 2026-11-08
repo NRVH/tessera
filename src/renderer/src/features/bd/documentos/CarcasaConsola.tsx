@@ -59,6 +59,7 @@ export function CarcasaConsola({
             message={dialogo.mensaje}
             confirmLabel={dialogo.confirmar}
             danger={dialogo.peligro}
+            severidad={dialogo.severidad ?? (dialogo.peligro ? 'peligro' : 'info')}
             onConfirm={() => dialogo.resolver(true)}
             onCancel={() => dialogo.resolver(false)}
           />,

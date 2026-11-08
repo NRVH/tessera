@@ -161,9 +161,10 @@ function Buscador(p: {
           onSaltar={onSaltarCoincidencia}
         />
       )}
-      {consulta !== '' && (
         <button
-          className="git-icon-btn"
+          className={`git-icon-btn git-limpiar${consulta !== '' ? ' visible' : ''}`}
+          tabIndex={consulta !== '' ? 0 : -1}
+          aria-hidden={consulta === ''}
           onClick={() => onConsulta('')}
           title={t.limpiarBusqueda}
           aria-label={t.limpiarBusqueda}
@@ -172,7 +173,6 @@ function Buscador(p: {
             <path d="M4 4l8 8M12 4l-8 8" strokeLinecap="round" />
           </svg>
         </button>
-      )}
     </div>
   )
 }

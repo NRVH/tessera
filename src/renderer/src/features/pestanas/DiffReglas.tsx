@@ -10,6 +10,7 @@ import './reglasPerfil.css'
 import { useEffect, useRef } from 'react'
 import type { editor } from 'monaco-editor'
 import { MONACO_THEME, OPCIONES_BASE_MONACO, ensureMonaco } from '../../comun/monacoSetup'
+import { conLetraEditor, opcionesLetraEditor } from '../../comun/letraEditor'
 
 /** Por debajo de este ancho el diff va en línea: dos columnas de texto no se leerían. */
 const ANCHO_LADO_A_LADO = 640
@@ -23,8 +24,9 @@ interface Montado {
 /** Crea el editor y sus dos modelos contra `host`. */
 function montar(host: HTMLElement, original: string, modificado: string): Montado {
   const monaco = ensureMonaco()
-  const ed = monaco.editor.createDiffEditor(host, {
+  const ed = conLetraEditor(monaco.editor.createDiffEditor(host, {
     ...OPCIONES_BASE_MONACO,
+    ...opcionesLetraEditor(),
     theme: MONACO_THEME,
     readOnly: true,
     originalEditable: false,
@@ -38,7 +40,7 @@ function montar(host: HTMLElement, original: string, modificado: string): Montad
     wordWrap: 'on',
     diffWordWrap: 'on',
     lineNumbers: 'off'
-  })
+  }))
   const m: Montado = { ed, original: monaco.editor.createModel(original, 'markdown'), modificado: monaco.editor.createModel(modificado, 'markdown') }
   ed.setModel({ original: m.original, modified: m.modificado })
   ed.layout({ width: host.clientWidth, height: host.clientHeight })

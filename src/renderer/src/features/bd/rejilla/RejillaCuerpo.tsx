@@ -209,12 +209,11 @@ export function pildoraRejilla(r: Rejilla): React.JSX.Element | false {
   )
 }
 
-/** `key` por paso: el segundo paso MONTA otro menú, que enfoca su primera opción. */
 export function menuRejilla(r: Rejilla, cerrarMenu: () => void): React.ReactPortal | null {
   const { menu } = r
   if (!menu) return null
   return createPortal(
-    <ContextMenu key={menu.paso} x={menu.x} y={menu.y} items={itemsMenuRejilla(r)} onClose={cerrarMenu} />,
+    <ContextMenu x={menu.x} y={menu.y} items={itemsMenuRejilla(r)} onClose={cerrarMenu} />,
     document.body
   )
 }

@@ -15,7 +15,7 @@ const es: Articulo = {
       ancla: 'historial',
       titulo: 'El historial de un proyecto',
       bloques: [
-        'El botón con el icono de reloj de la cabecera del agente abre el **Historial de conversaciones de este proyecto**: las conversaciones de ese agente en ese proyecto con la cuenta que usa en ese momento, de la más reciente a la más antigua. Las de otras [cuentas](cuentas) aparecen al cambiar a ellas.',
+        'El botón con el icono de reloj de la cabecera del agente abre el diálogo **Conversaciones de Claude Code** (o del agente que use): las conversaciones de ese agente en ese proyecto con la cuenta que usa en ese momento, de la más reciente a la más antigua. Las de otras [cuentas](cuentas) aparecen al cambiar a ellas.',
         'El cuadro **Buscar conversación…** filtra por título. El [agente de la terminal](terminales/pantalla-completa) y el agente de la vista de [bases de datos](bases-de-datos) tienen su propio historial.'
       ]
     },
@@ -32,7 +32,7 @@ const es: Articulo = {
       ancla: 'renombrar-y-eliminar',
       titulo: 'Renombrar y eliminar',
       bloques: [
-        'Cada conversación del historial tiene dos botones:',
+        'Al pasar el puntero por una conversación del historial aparecen dos botones: el lápiz (**Renombrar conversación**) y la papelera (**Eliminar conversación**). Sus acciones son las siguientes:',
         {
           lista: [
             '**Renombrar conversación** le asigna un nombre propio en lugar del título automático. Para volver al título automático, deje el nombre vacío. Tessera guarda el nombre por separado: la conversación no cambia.',
@@ -75,7 +75,7 @@ const en: Articulo = {
       ancla: 'historial',
       titulo: 'Project history',
       bloques: [
-        'The clock button in the agent header opens the **Conversation history of this project**: the agent’s conversations in this project with the account it uses now, most recent first. Conversations from other [accounts](cuentas) appear when you switch to those accounts.',
+        'The clock button in the agent header opens the **Claude Code conversations** dialog (or the dialog for the agent you use): the agent’s conversations in this project with the account it uses now, most recent first. Conversations from other [accounts](cuentas) appear when you switch to those accounts.',
         'The **Search conversations…** box filters by title. The [terminal agent](terminales/pantalla-completa) and the agent of the [database](bases-de-datos) view each have their own history.'
       ]
     },
@@ -92,7 +92,7 @@ const en: Articulo = {
       ancla: 'renombrar-y-eliminar',
       titulo: 'Rename and delete',
       bloques: [
-        'Each conversation in the history has two buttons:',
+        'Hover over a conversation in the history to reveal two buttons: the pencil (**Rename conversation**) and the trash can (**Delete conversation**). Their actions are as follows:',
         {
           lista: [
             '**Rename conversation** replaces the automatic title with a name you choose. To restore the automatic title, leave the name empty. Tessera stores the name separately, so the conversation itself does not change.',

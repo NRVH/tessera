@@ -46,7 +46,10 @@
   border: 1px solid var(--border);
   border-radius: 5px;
   cursor: pointer;
-  transition: color 0.12s ease, border-color 0.12s ease;
+  transition:
+    color var(--mov-rapido) var(--curva-estandar),
+    border-color var(--mov-rapido) var(--curva-estandar),
+    background var(--mov-rapido) var(--curva-estandar);
 }
 .agent-switch-btn > span {
   overflow: hidden;
@@ -166,6 +169,7 @@
   border: 1px solid var(--border-soft);
   border-radius: 5px;
   cursor: pointer;
+  transition: border-color var(--mov-rapido) var(--curva-estandar);
 }
 .agent-lista-btn:hover {
   border-color: var(--fg-faint);

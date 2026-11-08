@@ -6,6 +6,7 @@
 // =============================================================================
 export type { UseTabs } from './useTabs'
 export { agentTargetKey, type OpenAgentTarget, type OpenProject } from './tabsModel'
+export { selectGlobalActiveProject } from './tabsModel'
 export { tintaPerfil, tintaResaltado, hexARgb } from './colorPerfil'
 export { ProfileTabs, ProfileDot } from './ProfileTabs'
 export { SelectorPerfil } from './SelectorPerfil'
@@ -13,4 +14,5 @@ export { ProjectTabs } from './ProjectTabs'
 export type { ProfileDotState, ProjectDotState } from './profileDotState'
 export { useStorePestanas, leerTabs, despacharTabs } from './store'
 export { DiffReglas } from './DiffReglas'
+export { useStorePropuestasReglas, revisarPropuesta } from './storePropuestasReglas'
 export type { usePuntosPerfil } from './usePuntosPerfil'

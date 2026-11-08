@@ -2169,7 +2169,7 @@ async function main(): Promise<void> {
         const nombre3 = String((await q(`SELECT nombre FROM ${E1} WHERE id = 3`))[0]?.[0])
         // Índice 0: las filas se bloquean POR LOTES antes de
         // ningún DML, así que el Stop cae esperando el candado del lote, cuyo primer cambio es
-        // el 0 (antes esperaba el de la fila del 2.º, justo antes de su UPDATE). Un Stop no
+        // el 0 (no el de la fila del 2.º, justo antes de su UPDATE). Un Stop no
         // señala fila en la rejilla (`estadoTrasFallo`: «Envío detenido»).
         check(
           `Stop de un envío que espera un bloqueo: cancelado en el índice 0, sin tocar nada${mayor >= 12 ? ' (la 12+ lo atiende al soltarse la fila)' : ' (ORA-01013)'}`,
@@ -2206,7 +2206,7 @@ async function main(): Promise<void> {
       const r8 = await enviar(E8, ROWID, [{ tipo: 'actualizar', clave: [rowid8], valores: { Z: 'nueva' } }])
       const z8 = String((await q(`SELECT z FROM ${E8} WHERE x = 1`))[0]?.[0])
       check(
-        '«Enviar» por ROWID escribe la columna nueva (antes: «no existe… vuelve a abrirla»)',
+        '«Enviar» por ROWID escribe la columna nueva sin pedir reabrir la tabla',
         r8.ok && r8.valor.tipo === 'hecho' && z8 === 'nueva',
         JSON.stringify({ r8, z8 })
       )
@@ -2246,7 +2246,7 @@ async function main(): Promise<void> {
       ])
       check('revertida la consola, el mismo envío se aplica entero', rSuelta.ok && rSuelta.valor.tipo === 'hecho' && (await nombreDe(2)) === 'Bea', JSON.stringify(rSuelta))
 
-      // --- el candado POR LOTES (antes, uno por fila: el doble de viajes) ---
+      // --- el candado POR LOTES (no uno por fila, que duplicaría los viajes) ---
       const ELOTE = `${PREFIJO}_ELOTE`
       const N10 = 2000
       await q(`CREATE TABLE ${ELOTE} (id NUMBER(10) PRIMARY KEY, v VARCHAR2(40))`)

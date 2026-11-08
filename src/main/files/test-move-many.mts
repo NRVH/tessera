@@ -164,7 +164,7 @@ try {
     await sembrar()
     const msg = await rejects(
       () => svc.moveMany(['origen/a.txt', 'otra/a.txt'], 'destino'),
-      /dos elementos llamados "a\.txt"/i
+      /dos elementos llamados «a\.txt»/i
     )
     check('5a', msg === '', msg || 'lanza con un mensaje que dice cuál es el nombre repetido')
     check('5b', await hay(enProy('origen', 'a.txt')), 'y no movió el primero antes de darse cuenta')
@@ -207,7 +207,7 @@ try {
     await sembrar()
     const msg = await rejects(
       () => svc.moveMany(['origen/a.txt', 'origen/fantasma.txt'], 'destino'),
-      /Ya no existe "fantasma\.txt"/i
+      /Ya no existe «fantasma\.txt»/i
     )
     check('5g', msg === '', msg || 'lanza nombrando el que faltaba')
     check('5h', await hay(enProy('origen', 'a.txt')), 'y el que sí existía NO se movió')

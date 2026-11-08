@@ -1,7 +1,7 @@
 // =============================================================================
 // Por qué terminó una sesión SSH que salió con 255 (o, en Windows, con -1), el código que ssh reserva
-// para sus propios fallos: huella cambiada, autenticación, servidor inalcanzable (o conexión cortada) o
-// algoritmos. Puro, con la plataforma como parámetro: mira solo las últimas líneas de la salida ya sin
+// para sus propios fallos: huella cambiada o sin confirmar, autenticación, servidor inalcanzable (o
+// conexión cortada) o algoritmos. Puro, con la plataforma como parámetro: mira solo las últimas líneas de la salida ya sin
 // ANSI y solo mensajes del cliente OpenSSH a principio de línea. Sin ninguno no hay motivo: el 255 pudo
 // darlo el comando remoto. Un `ssh` lanzado DENTRO de la sesión escribe los mismos mensajes; la huella
 // solo es de la conexión (o de su bastión) si el aviso nombra un `known_hosts` de la carpeta de huellas.
@@ -82,6 +82,19 @@ function nombraCarpeta(lineas: readonly string[], carpeta: string, plataforma: P
   return normal(lineas.join('')).includes(`${normal(carpeta).replace(/\/$/, '')}/`)
 }
 
+/** Lo que ssh dice, en estricto, de un servidor sin huella guardada (o solo con la de otro tipo de clave). */
+const HUELLA_SIN_CONFIRMAR = /^No \S{1,40} (?:host )?key is known for /
+
+/** Lo que matiza la clasificación según quién lanzó ssh. */
+export interface OpcionesClasificacion {
+  /**
+   * Una línea de una persona (pestaña, explorador SFTP, «Probar»): una huella desconocida en estricto es
+   * «sin confirmar», con su remedio (confirmarla), y no «cambiada». Ese aviso no lleva la ruta del
+   * `known_hosts`; si lo escribió un ssh del equipo remoto, el remedio que se propone no borra nada.
+   */
+  sinConfirmar?: boolean
+}
+
 /**
  * El motivo de la salida de una sesión SSH, o `undefined` si no salió por un fallo de ssh
  * (`esSalidaDeFalloSsh`: entonces el código es el del comando remoto, o el del cierre) o si ssh no
@@ -92,7 +105,8 @@ export function clasificarSalidaSsh(
   exitCode: number | null,
   cola: string,
   plataforma: Plataforma = plataformaActual(),
-  carpetaHuellas?: string
+  carpetaHuellas?: string,
+  opciones: OpcionesClasificacion = {}
 ): TerminalExitReason | undefined {
   if (!esSalidaDeFalloSsh(exitCode, plataforma)) return undefined
   const lineas = cola
@@ -103,6 +117,7 @@ export function clasificarSalidaSsh(
   const final = lineas.length - (lineas.length > 1 && DESPEDIDA.test(lineas[lineas.length - 1]) ? 2 : 1)
   const huellaPropia = carpetaHuellas === undefined || nombraCarpeta(lineas, carpetaHuellas, plataforma)
   const motivo = motivoMasReciente(lineas, final)
+  if (opciones.sinConfirmar === true && esSinConfirmar(motivo, lineas)) return 'ssh-huella-sin-confirmar'
   if (motivo === 'ssh-huella-cambiada') return huellaPropia ? motivo : undefined
   // Con un bastión, su aviso de huella va seguido del cierre del ssh exterior («Connection closed by
   // UNKNOWN port 65535»): ese cierre lo causó la huella, y es ella lo que hay que decir.
@@ -112,6 +127,12 @@ export function clasificarSalidaSsh(
 
 /** El final del aviso de huella de ssh: el mismo con la huella cambiada que con una desconocida en estricto. */
 const HUELLA_RECHAZADA = /^Host key verification failed/
+
+/** ¿Se negó ssh por una huella que no conoce (y no por una cambiada)? También la de un bastión, tras el cierre del exterior. */
+function esSinConfirmar(motivo: TerminalExitReason | undefined, lineas: readonly string[]): boolean {
+  const rechazada = motivo === 'ssh-huella-cambiada' || (motivo === 'ssh-inalcanzable' && lineas.some((l) => HUELLA_RECHAZADA.test(l)))
+  return rechazada && lineas.some((l) => HUELLA_SIN_CONFIRMAR.test(l))
+}
 
 /** De abajo arriba: gana el mensaje más reciente, porque la cola trae texto de antes. */
 function motivoMasReciente(lineas: readonly string[], final: number): TerminalExitReason | undefined {

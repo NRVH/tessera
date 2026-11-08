@@ -1,7 +1,7 @@
 // =============================================================================
 // Abrir y relanzar la sesión pty de una terminal (lo que hace un `TerminalPane` tras montar su
-// xterm): un shell de un proyecto o una conexión SSH guardada, según su origen. Sin React: recibe
-// el contexto del pane y devuelve promesas. Tras cada `await` se comprueba que `refs.term.current`
+// xterm): un shell de un proyecto o una conexión SSH guardada, según su origen; la SSH, con la huella
+// del servidor ya confirmada. Sin React: recibe el contexto del pane y devuelve promesas. Tras cada `await` se comprueba que `refs.term.current`
 // siga siendo el mismo terminal, porque el desmontaje destruye el xterm mientras el IPC está en vuelo.
 // Decisiones: docs/decisiones/terminales/terminales-keep-alive-y-reinicio-limpio.md
 // =============================================================================
@@ -9,6 +9,7 @@
 import type { Terminal } from '@xterm/xterm'
 import { normalizarErrorIpc } from '../../../../shared/dockerErrors'
 import type { OpenTerminalResult } from '../../../../shared/terminal-ipc'
+import { asegurarHuella } from '../ssh'
 import { bannerFinSsh } from './finSesionSsh'
 import { txTerminales } from './textos.ts'
 import type { EstadoSesion } from './useEstadoTerminalPane'
@@ -28,10 +29,22 @@ export interface ContextoSesion {
   fitAndSyncNow: () => void
 }
 
+/**
+ * Antes de que ssh se autentique: la huella del servidor (y la de sus bastiones) confirmada por la persona. Si no
+ * la confirma, no se conecta. Si no se pudo traer, se conecta igual: la línea estricta de ssh dice por qué no entra.
+ */
+async function huellaConfirmada(profileId: string, conexionId: string): Promise<void> {
+  const r = await asegurarHuella({ id: conexionId, profileId })
+  if (r.tipo === 'cancelada') throw new Error(txTerminales().huellaNoConfirmada)
+}
+
 /** Abre la sesión que dice el origen: SSH por `openSsh`, un shell de proyecto por `open`. */
-function abrirPty(c: ContextoSesion): Promise<OpenTerminalResult> {
+async function abrirPty(c: ContextoSesion): Promise<OpenTerminalResult> {
   const o = c.origen
-  if (o.tipo === 'ssh') return window.tessera.terminal.openSsh({ profileId: c.profileId, conexionId: o.conexionId })
+  if (o.tipo === 'ssh') {
+    await huellaConfirmada(c.profileId, o.conexionId)
+    return window.tessera.terminal.openSsh({ profileId: c.profileId, conexionId: o.conexionId })
+  }
   return window.tessera.terminal.open({
     profileId: c.profileId,
     projectHostPath: o.projectHostPath,
@@ -97,9 +110,11 @@ async function reabrir(c: ContextoSesion): Promise<void> {
 }
 
 /** Relanza el pty conservando el sessionId: un shell con el montaje de bases VIGENTE, o la conexión SSH con sus datos vigentes. */
-function relanzarPty(c: ContextoSesion, id: string): Promise<OpenTerminalResult> {
+async function relanzarPty(c: ContextoSesion, id: string): Promise<OpenTerminalResult> {
   // Recargar es la vía por la que se aplica un cambio de bases; una conexión SSH no tiene bases.
-  return c.origen.tipo === 'ssh' ? window.tessera.terminal.reload(id) : window.tessera.terminal.reload(id, c.refs.dbMounted.current)
+  if (c.origen.tipo !== 'ssh') return window.tessera.terminal.reload(id, c.refs.dbMounted.current)
+  await huellaConfirmada(c.profileId, c.origen.conexionId)
+  return window.tessera.terminal.reload(id)
 }
 
 /** Tras un relanzamiento que salió bien: pantalla limpia y sesión viva. */

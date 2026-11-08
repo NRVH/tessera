@@ -9,7 +9,7 @@
 import { useState } from 'react'
 import { ErrorBoundary } from '../../comun/ErrorBoundary'
 import { EstadoVacio, IconoTerminalVacia } from '../../comun/EstadoVacio'
-import { IconoServidor } from '../ssh'
+import { asegurarHuella, IconoServidor } from '../ssh'
 import { PlusIcon } from './IconosTerminales'
 import { terminalPaneKey } from './shellTerminalsModel'
 import { motivoFinSsh } from './finSesionSsh'
@@ -113,6 +113,10 @@ function PanesLocales({ panel, activo, onInfo, onApi }: PilaTerminalesProps): Re
 /** El motivo de un fallo del explorador SFTP, con las mismas palabras que el de una pestaña SSH que no conecta. */
 const textoMotivoSftp = (motivo: Parameters<typeof motivoFinSsh>[2]): string => motivoFinSsh(null, 0, motivo)
 
+/** La huella confirmada antes de abrir el explorador; si no se pudo traer, la apertura dice por qué. Estable: no reabre la sesión. */
+const confirmarHuellaSftp = async (profileId: string, conexionId: string): Promise<boolean> =>
+  (await asegurarHuella({ id: conexionId, profileId })).tipo !== 'cancelada'
+
 /** Monta su contenido la primera vez que es visible y ya no lo desmonta al ocultarse. */
 function TrasVerse({ visible, children }: { visible: boolean; children: React.ReactNode }): React.JSX.Element | null {
   const [visto, setVisto] = useState(visible)
@@ -146,6 +150,7 @@ function PanesSsh({ panel, activo, onInfo, onApi }: PilaTerminalesProps): React.
                     conexionId={tab.conexionId}
                     altoFila={panel.ssh.altoFila}
                     textoMotivo={textoMotivoSftp}
+                    confirmarHuella={confirmarHuellaSftp}
                   />
                 </TrasVerse>
               </div>

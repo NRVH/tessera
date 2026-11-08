@@ -169,10 +169,9 @@ hr('7. Clic DERECHO: respeta la selección si la fila está dentro')
 hr('8. Colapsar: la poda es la que deselecciona (ver la cabecera del módulo)')
 
 {
-  // Aquí vivía `colapsarSeleccion`, que SUBÍA la selección a la carpeta cerrada.
-  // Se retiró porque dejaba armado un `Supr` sobre la carpeta entera. Lo que queda
-  // es la poda, y esto fija que hace el trabajo: al colapsar, las filas de dentro
-  // salen del aplanado y con ellas su marca.
+  // Al colapsar no se sube la selección a la carpeta cerrada (dejaría armado un `Supr`
+  // sobre la carpeta entera): la poda hace el trabajo, y las filas de dentro salen del
+  // aplanado y con ellas su marca.
   const e = est(['src/main', 'src/main/App.tsx', 'docs'], 'src/main', 'src/main/App.tsx')
   const trasColapsar = podarSeleccion(e, new Set(['src', 'docs', 'lib/x.jar']))
   check('8a', cl(trasColapsar) === 'docs', 'lo que deja de verse deja de estar seleccionado')

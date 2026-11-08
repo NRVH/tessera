@@ -48,15 +48,16 @@ test('Configuración › Acerca de habla de «su Mac»', async () => {
   await expect(s.win.locator('.ajustes-modal')).toHaveCount(1)
   await s.win.locator('.ajustes-riel-item[data-cat="acerca"]').click()
   const puntos = s.win.locator('.ajustes-acerca-puntos li')
-  await expect(puntos).toHaveCount(4)
-  // La frase del sandbox nombra el equipo por el vocabulario compartido: lo que los
-  // agentes NO ven.
-  await expect(puntos.nth(1)).toContainText('no su Mac')
+  // La frase de las cuentas nombra el equipo por el vocabulario compartido.
+  await expect(puntos.nth(0)).toContainText('la cuenta de su Mac')
 })
 
 test('BARRIDO: ninguna categoría del modal nombra Windows', async () => {
   // Se recorre el riel entero, no sólo las dos categorías de arriba: el rótulo que se
-  // cuele mañana no tiene por qué caer donde cayó el de ayer.
+  // cuele mañana no tiene por qué caer donde cayó el de ayer. Abre el modal si no lo dejó
+  // abierto el caso anterior: tras un rojo, Playwright rehace la sesión.
+  if ((await s.win.locator('.ajustes-modal').count()) === 0) await s.win.keyboard.press(`${MOD}+,`)
+  await expect(s.win.locator('.ajustes-riel-item').first()).toBeVisible()
   const cats = await s.win.evaluate(() =>
     Array.from(document.querySelectorAll<HTMLElement>('.ajustes-riel-item')).map(
       (b) => b.dataset.cat ?? ''
@@ -100,18 +101,21 @@ test('BARRIDO: ninguna categoría del modal nombra Windows', async () => {
 test('el menú del perfil nombra el ESTADO de la red, no un sistema ni una promesa', async () => {
   // Otro archivo (`ProfileTabs.tsx`) y otro camino: los menús contextuales no pasan por
   // el modal de ajustes, así que un barrido del modal no los cubre. El rótulo dice en qué
-  // red ESTÁ este perfil («Red del contenedor Docker: aislada…»), cierto en las dos plataformas, y
+  // red ESTÁ este perfil («Red del contenedor: aislada…»), cierto en las dos plataformas, y
   // los puntos suspensivos anuncian el diálogo, que es quien explica dónde acaban los
   // puertos (con `nombresSistema` y el diagnóstico). Se fijan las tres mitades negativas:
   // ni «Windows» a pelo, ni una promesa sobre macOS, ni un rótulo-acción con palomita que
   // no hace nada visible y sin diálogo detrás.
   await s.win.locator('.profile-tab-name', { hasText: 'Personal' }).click({ button: 'right' })
-  const menu = s.win.locator('.ctx-menu')
-  await expect(menu).toHaveCount(1)
+  await expect(s.win.locator('.ctx-menu')).toHaveCount(1)
+  const fila = s.win.getByRole('menuitem', { name: 'Agentes en Docker' })
+  await fila.hover()
+  const menu = s.win.getByRole('menu', { name: 'Agentes en Docker' })
+  await expect(menu).toBeVisible()
   const texto = await menu.innerText()
-  expect(texto).toContain('Red del contenedor Docker:')
+  expect(texto).toContain('Red del contenedor:')
   expect(texto, 'los puntos suspensivos son la convención de "abre un diálogo"').toMatch(
-    /Red del contenedor Docker: (aislada|la de su equipo)…/
+    /Red del contenedor: (aislada|la de su equipo)…/
   )
   expect(texto).not.toContain('Windows')
   expect(texto, 'el rótulo no puede prometer que los puertos acaban en el Mac').not.toContain(
@@ -123,7 +127,7 @@ test('el menú del perfil nombra el ESTADO de la red, no un sistema ni una prome
   // borde izquierdo. Se comprueba por el DOM, que es lo único que no se puede "arreglar"
   // sin querer desde el CSS.
   await expect(
-    menu.locator('.ctx-menu-check'),
+    s.win.locator('.ctx-menu-check'),
     'ningún ítem del menú de perfil es ya un toggle'
   ).toHaveCount(0)
 

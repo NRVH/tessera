@@ -8,6 +8,7 @@
 import type { editor } from 'monaco-editor'
 import type { MutableRefObject } from 'react'
 import { ensureMonaco, MONACO_THEME, OPCIONES_BASE_MONACO } from '../../comun/monacoSetup'
+import { conLetraEditor, opcionesLetraEditor } from '../../comun/letraEditor'
 import type { DescompilarResult, MotorDescompilador, MotorPedido } from '../../../../shared/java-ipc'
 
 /** Etiqueta corta de cada motor para la barra. */
@@ -82,8 +83,9 @@ export function crearEditorJava(
 ): (() => void) | undefined {
   if (!host || editorRef.current) return
   const monaco = ensureMonaco()
-  const ed = monaco.editor.create(host, {
+  const ed = conLetraEditor(monaco.editor.create(host, {
     ...OPCIONES_BASE_MONACO,
+    ...opcionesLetraEditor(),
     value: '',
     language: 'java',
     theme: MONACO_THEME,
@@ -92,7 +94,7 @@ export function crearEditorJava(
     minimap: { enabled: true },
     // El espaciado lo genera el descompilador: no hay nada que vigilar ahí.
     renderWhitespace: 'none'
-  })
+  }))
   editorRef.current = ed
 
   // Reflow ante cualquier cambio de tamaño del host, incluido el paso de display:none a tener

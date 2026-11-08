@@ -2,18 +2,18 @@
 // El tooltip de la app: el texto del `title` de lo que está bajo el ratón, en una caja propia e igual
 // en las dos plataformas. Escucha en el documento y vale para cualquier `title` sin tocar a quien lo
 // pone: mientras el ratón está encima, el `title` de esa cadena se guarda aparte para que el sistema
-// no pinte también el suyo, y vuelve al salir o al pulsar. Posición en `posicionTooltip.ts`; estilo
-// en `tooltipPropio.css`.
+// no pinte también el suyo, y vuelve al salir o al pulsar. Si solo repite un texto que se lee entero,
+// no sale. Posición en `posicionTooltip.ts`; estilo en `tooltipPropio.css`.
 // Decisiones: docs/decisiones/renderer/tooltip-propio.md
 // =============================================================================
 
 import './tooltipPropio.css'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { posicionTooltip } from './posicionTooltip'
+import { posicionTooltip, repiteLoVisible } from './posicionTooltip'
+import { useDespedidaDe } from './despedida.ts'
 
-/** Lo que tarda en salir con el ratón quieto, y la ventana en la que el siguiente sale sin esperar. */
+/** Lo que tarda en salir con el ratón quieto, siempre: encadenarlos los dejaría tapando las opciones al recorrerlas. */
 const ESPERA_MS = 500
-const CALIENTE_MS = 400
 /** Cada cuánto se mira, con la caja a la vista, que su ancla siga en la página. */
 const VIGIA_MS = 300
 /** Donde se guarda el `title` mientras el ratón está encima. */
@@ -57,11 +57,8 @@ interface Visible {
 interface Escucha {
   cadena: HTMLElement[]
   temporizador: number | undefined
-  ocultoEn: number
   /** Se pulsó dentro de esta cadena: hasta salir de ella no se vuelve a enseñar. */
   pulsada: HTMLElement | null
-  /** La caja llegó a verse (solo entonces el siguiente sale sin esperar). */
-  visto: boolean
   /** Mientras se ve, comprueba que el ancla siga en la página: si desaparece, no hay `pointerout`. */
   vigia: number | undefined
   observador: MutationObserver
@@ -73,9 +70,13 @@ function callar(e: Escucha): void {
   window.clearTimeout(e.temporizador)
   window.clearInterval(e.vigia)
   e.vigia = undefined
-  if (e.visto) e.ocultoEn = Date.now()
-  e.visto = false
   e.setVisible(null)
+}
+
+/** ¿Algo dentro del ancla se ve cortado? Entonces un título igual a su texto sí aporta: lleva lo que falta. */
+function recortado(ancla: HTMLElement): boolean {
+  // Con margen de 1 px: los anchos se redondean y un texto entero puede medir uno de más.
+  return [ancla, ...ancla.querySelectorAll('*')].some((el) => el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).overflowX !== 'visible')
 }
 
 /** Devuelve los títulos guardados y oculta lo que hubiera. */
@@ -103,14 +104,13 @@ function alEntrar(e: Escucha, ev: PointerEvent): void {
   const mostrar = (): void => {
     const texto = tituloDe(ancla)
     if (e.cadena[0] !== ancla || !ancla.isConnected || texto === '') return
-    e.visto = true
+    if (repiteLoVisible(texto, ancla.innerText) && !recortado(ancla)) return
     e.setVisible({ texto, ancla })
     e.vigia = window.setInterval(() => {
       if (!ancla.isConnected) soltar(e)
     }, VIGIA_MS)
   }
-  if (Date.now() - e.ocultoEn < CALIENTE_MS) mostrar()
-  else e.temporizador = window.setTimeout(mostrar, ESPERA_MS)
+  e.temporizador = window.setTimeout(mostrar, ESPERA_MS)
 }
 
 /** El ratón salió: si fue fuera del ancla, se suelta. */
@@ -132,9 +132,7 @@ function escuchar(setVisible: (v: Visible | null) => void): () => void {
   const e: Escucha = {
     cadena: [],
     temporizador: undefined,
-    ocultoEn: 0,
     pulsada: null,
-    visto: false,
     vigia: undefined,
     // Un `title` que React reescribe mientras el ratón está encima se vuelve a guardar.
     observador: new MutationObserver((cambios) => {
@@ -147,18 +145,13 @@ function escuchar(setVisible: (v: Visible | null) => void): () => void {
   const pulsar = (): void => {
     e.pulsada = e.cadena[0] ?? null
     soltar(e)
-    e.ocultoEn = 0
   }
-  const quitar = (): void => {
-    soltar(e)
-    e.ocultoEn = 0
-  }
+  const quitar = (): void => soltar(e)
   const acallar = (ev: Event): void => {
     const ancla = e.cadena[0]
     // Un desplazamiento ajeno (la salida de una terminal que corre) no mueve el ancla: no la toca.
     if (ev.type === 'scroll' && ancla && ev.target instanceof Node && ev.target !== document && !ev.target.contains(ancla)) return
     callar(e)
-    e.ocultoEn = 0
   }
   const otros = ['keydown', 'wheel', 'scroll'] as const
   document.addEventListener('pointerover', entrar, true)
@@ -193,8 +186,15 @@ function CajaTooltip({ texto, ancla }: Visible): React.JSX.Element {
     const a = ancla.getBoundingClientRect()
     setPos(posicionTooltip(a, { width: t.offsetWidth, height: t.offsetHeight }, { width: window.innerWidth, height: window.innerHeight }))
   }, [texto, ancla])
+  useDespedidaDe(ref, 'flotante')
   return (
-    <div ref={ref} className="tooltip-propio" role="tooltip" style={pos ? { left: pos.left, top: pos.top } : { visibility: 'hidden', left: 0, top: 0 }}>
+    <div
+      ref={ref}
+      // Entra al quedar colocado: mientras se mide está oculto y no debe verse llegar desde otro sitio.
+      className={`tooltip-propio${pos ? ' colocado' : ''}`}
+      role="tooltip"
+      style={pos ? { left: pos.left, top: pos.top } : { visibility: 'hidden', left: 0, top: 0 }}
+    >
       {texto}
     </div>
   )

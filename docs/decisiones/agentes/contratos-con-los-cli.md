@@ -1,9 +1,10 @@
 # Lo que Tessera lee de Claude Code y Codex se reconoce por su forma, se vigila en uso y se sondea contra los CLIs instalados
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/transcripts/vigiaContratos.ts`, los lectores que lo usan (`conversations/ConversationsReader.ts`,
-  `context/ContextReader.ts`, `agents/TurnWatcher.ts`, `traspaso/`, `historial/`), su destino en `app/arranque.ts` y
-  `scripts/pruebas/sonda-agentes.mts`
+- **Ámbito:** `src/main/transcripts/vigiaContratos.ts`, los lectores que avisan con él
+  (`conversations/ConversationsReader.ts`, `context/ContextReader.ts`, `agents/TurnWatcher.ts`), su destino en `app/arranque.ts`, los que solo leen los
+  contratos sin vigilarlos (`traspaso/`, `historial/`, `configuracion/historialCopia.ts`,
+  `agents/delegacion/salidaDelegada.ts`) y `scripts/pruebas/sonda-agentes.mts`
 
 ## Contexto
 
@@ -48,8 +49,11 @@ había al escribirlas, así que siguen en verde.
 | Uso de la cuenta de Claude Code | Su API de uso con el token de `.credentials.json` | Uso de la cuenta | `test-usage` con un cuerpo capturado; errores visibles |
 | Protocolo de estado (OSC 7501); en Codex, sin sonda y con `app=codex` | Flujo del pty | Punto de estado y «te espera» | Sonda (el binario de cada uno lo emite), `test-agent-activity-tracker`, agente falso en `e2e/` |
 | Reanudar, aviso de arranque y carpeta de la cuenta (`--resume`, `resume`, `--append-system-prompt`, `-c developer_instructions`, `-c features.daemon_auto_start=false`, `CLAUDE_CONFIG_DIR`, `CODEX_HOME`) | Línea de arranque | Abrir y aislar cuentas | `test-linea-arranque-agente`; un flag desconocido da error visible al arrancar |
+| La capa compartida de Docker: `--settings <archivo>` de Claude Code (suma las listas de permisos) y `-p <nombre>` de Codex, que superpone `$CODEX_HOME/<nombre>.config.toml`, solo si su `--help` lo describe así | Línea de arranque del contenedor | Configuración de Docker del contexto | `test-linea-arranque-agente`, `test:config-compartida`; si Codex cambia la ayuda, arranca sin la capa |
+| `--system-prompt-snapshot off` de Claude Code al reanudar con aviso, solo si su `--help` nombra la opción | Línea de arranque | Que al reanudar lleguen las reglas vigentes y la frase del traspaso | `test-linea-arranque-agente` (con y sin la opción, dos argumentos en PowerShell y bash, la sonda); si cambia el nombre, se reanuda con el prompt grabado, sin error |
 | Dónde busca cada CLI una conversación para reanudarla: Claude Code, `projects/<cwd con lo no alfanumérico a «-»>/<id>.jsonl` (y su carpeta `<id>/`); Codex, por su id bajo `sessions/` (también `.jsonl.zst`); los dos la cargan con el `cwd` de otro modo dentro | Carpeta de la cuenta de destino | «Continuar esta conversación» con el mismo agente (`traspaso/`) | `test:traspaso` (rutas); si cambia, reanudar dice que no la encuentra, a la vista |
 | Primer mensaje como argumento posicional, el último de la línea (`claude … "<prompt>"`, `codex … "<prompt>"`) | Línea de arranque | «Continuar esta conversación» con otro agente | `test-linea-arranque-agente` (ejecutado en las shells); un argumento que no entienda da error visible al arrancar |
+| Eventos del modo no interactivo: `system`/`assistant`/`result` (con `session_id`) de `claude -p --output-format stream-json --verbose`, y `thread.started`/`item.*`/`turn.*` de `codex exec --json`; opciones `--resume`, `exec resume`, `--permission-mode plan`, `--dangerously-bypass-approvals-and-sandbox` | Salida del pty de la tarea, en el contenedor de la cuenta | Tareas delegadas (`agents/delegacion/salidaDelegada.ts`, `lineaDelegada.ts`) | `test:delegacion`, con eventos de los CLIs de verdad; sin sonda (costaría uso de una cuenta). Una forma que no entienda deja la tarea fallida con lo último que escribió |
 | `--version`, método de instalación, canal y registros de versiones | CLI, `.claude.json`, `settings.json`, npm | Actualizar los nativos | `test-agentes-nativos`; los fallos se ven en el botón |
 
 ## Consecuencias

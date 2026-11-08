@@ -10,7 +10,7 @@ import { crearTextos } from '../../../../shared/i18n.ts'
 const es = {
   parteCatalogo: 'Catálogo',
   parteSesion: 'Sesión',
-  pendiente: (parte: string, motor: string, que: string) => `${parte} de ${motor}: «${que}» todavía no está implementado.`,
+  pendiente: (parte: string, motor: string, que: string) => `${parte} de ${motor}: «${que}» no está disponible en esta versión.`,
   noDisponible: (que: string, motor: string) => `Catálogo: «${que}» no existe en ${motor}`,
   queNivelBases: 'nivel «Bases»',
   queSinonimos: 'sinónimos',
@@ -84,7 +84,7 @@ const es = {
 const en = {
   parteCatalogo: 'Catalog',
   parteSesion: 'Session',
-  pendiente: (parte: string, motor: string, que: string) => `${parte} of ${motor}: “${que}” is not implemented yet.`,
+  pendiente: (parte: string, motor: string, que: string) => `${parte} of ${motor}: “${que}” is not available in this version.`,
   noDisponible: (que: string, motor: string) => `Catalog: “${que}” does not exist in ${motor}`,
   queNivelBases: 'the “Databases” level',
   queSinonimos: 'synonyms',

@@ -1,8 +1,8 @@
 // =============================================================================
 // El tooltip de la app (`comun/TooltipPropio.tsx`) sobre la app empaquetada: sale con el texto del
 // `title` (también el de un botón desactivado, que va en su envoltorio), mientras está a la vista el
-// `title` se guarda aparte para que el sistema no pinte el suyo, y vuelve al salir o al pulsar.
-// La posición la fija `comun/test-posicion-tooltip.mts`. Agente falso (`agenteFalso.ts`).
+// `title` se guarda aparte para que el sistema no pinte el suyo, y vuelve al salir o al pulsar. Cada uno
+// espera a que el ratón se detenga y no sale si repite lo que ya se lee. La posición la fija `comun/test-posicion-tooltip.mts`. Agente falso (`agenteFalso.ts`).
 // =============================================================================
 
 import { expect, test } from '@playwright/test'
@@ -46,7 +46,7 @@ test.describe.serial('El tooltip de la app', () => {
 
   test('sale con el texto del title, el del sistema no (el title se guarda aparte), y al salir o pulsar vuelve', async () => {
     const win = s.win
-    await win.locator('.activity-item[title="Conexiones a bases de datos"]').click()
+    await win.locator('.activity-item[title="Bases de datos"]').click()
     const tip = win.locator('.tooltip-propio')
     const boton = win.locator('button[aria-label="Nueva consola"]').first()
 
@@ -76,13 +76,20 @@ test.describe.serial('El tooltip de la app', () => {
     await win.mouse.move(5, 500)
     await expect(boton, 'hasta salir').toHaveAttribute('title', TITULO)
 
-    // Barrer la barra sin pararse: el siguiente no sale de golpe (solo sale sin esperar tras uno que se vio).
-    await win.waitForTimeout(500)
-    await win.locator('button[aria-label="Nueva conexión"]').first().hover()
+    // Pasar de uno que se ve al de al lado: tampoco se encadena, el siguiente espera como el primero.
     await boton.hover()
+    await expect(tip).toHaveText(TITULO)
+    await win.locator('button[aria-label="Nueva conexión"]').first().hover()
     await win.waitForTimeout(250)
     await expect(tip, 'aún no: espera como el primero').toHaveCount(0)
-    await expect(tip).toHaveText(TITULO)
+    await expect(tip).not.toHaveCount(0)
+    await win.mouse.move(5, 500)
+    await expect(tip).toHaveCount(0)
+
+    // Un título que solo repite el texto que ya se lee no sale.
+    await win.locator('.profile-tab-name').first().hover()
+    await win.waitForTimeout(900)
+    await expect(tip, 'el nombre del perfil ya se lee').toHaveCount(0)
     await win.mouse.move(5, 500)
 
     // Pulsar lo quita y deja el title en su sitio en el acto.

@@ -7,6 +7,7 @@
 // Decisiones: docs/decisiones/bd/ui-documentos-consola.md
 // =============================================================================
 
+import { Presente } from '../../../comun/Presente'
 import { useCallback } from 'react'
 import { descriptor, esDeDocumentos, tieneNivelBases } from '../../../../../shared/motores/index'
 import { Splitter } from '../../../comun/Splitter'
@@ -150,7 +151,9 @@ export function DbConsolaDocsPane(p: PropsConsolaDocs): React.JSX.Element {
         historialAbierto={h.historialAbierto}
       />
 
-      {e.conflicto && <AvisoConflicto onCargarDelDisco={archivo.cargarDelDisco} onConservarLaMia={archivo.conservarLaMia} />}
+      <Presente visible={!!e.conflicto} className="mov-despliega">
+        <AvisoConflicto onCargarDelDisco={archivo.cargarDelDisco} onConservarLaMia={archivo.conservarLaMia} />
+      </Presente>
 
       <div ref={hostRef} className="db-consola-editor" />
 

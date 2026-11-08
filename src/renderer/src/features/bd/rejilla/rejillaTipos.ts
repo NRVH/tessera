@@ -50,13 +50,9 @@ export interface DbRejillaEdicionProps extends DbRejillaProps {
   conservarPosicionDe?: DatosRejilla | null
 }
 
-/** Paso del menú contextual de dos pasos. */
-export type PasoMenu = 'raiz' | 'copiarComo' | 'exportar'
-
 export interface MenuAbierto {
   x: number
   y: number
-  paso: PasoMenu
 }
 
 /** El editor abierto: sobre qué celda y cómo arrancó. */
@@ -130,8 +126,6 @@ export interface EstadoRejilla {
   pendienteMostrarRef: MutableRefObject<Celda | null>
   /** La vista en la que están expresadas la selección y el visor. */
   vistaSelRef: MutableRefObject<VistaFilas>
-  /** Segundo paso pedido por la entrada del menú que se acaba de pulsar. */
-  pasoPendienteRef: MutableRefObject<PasoMenu | null>
   /** La entrada pulsada abre el editor: el foco NO vuelve a la rejilla al cerrar. */
   focoAlEditorRef: MutableRefObject<boolean>
 }

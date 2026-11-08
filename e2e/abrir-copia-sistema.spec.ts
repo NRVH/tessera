@@ -74,7 +74,7 @@ test.describe.serial('Abrir un .tessera desde el sistema', () => {
     }, archivo)
     const r = await s.win.evaluate(async (frase) => {
       const perfiles = await window.tessera.getProfiles()
-      return window.tessera.copiaConfiguracion.exportar({ frase, perfiles, apartados: { ssh: false, bd: false, agentes: false, ajustes: false } })
+      return window.tessera.copiaConfiguracion.exportar({ frase, perfiles, apartados: { ssh: false, bd: false, agentes: false, configDocker: false, archivosCuentas: false, reglasNativas: false, ajustes: false } })
     }, FRASE)
     expect(r.estado).toBe('guardado')
     writeFileSync(roto, 'esto no es una copia de Tessera\n')

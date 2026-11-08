@@ -6,6 +6,9 @@
 // Depende de `shared/encodings`, `comun/notifications` y del tipo `EditorMeta` de `../editor`.
 // =============================================================================
 
+import { Presente } from '../../comun/Presente'
+import { useUltimoValor } from '../../comun/presencia'
+import { useDespedidaDe } from '../../comun/despedida'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { encodingLabel, encodingOpciones } from '../../../../shared/encodings'
 import { useToasts, dismissAll, type Toast } from '../../comun/notifications'
@@ -141,6 +144,7 @@ function BloqueIzquierdo({
   branch?: string | null
   lastProblem: Toast | undefined
 }): React.JSX.Element {
+  const problema = useUltimoValor(lastProblem ?? null)
   return (
     <div className="status-bar-left">
       {branch && (
@@ -149,17 +153,19 @@ function BloqueIzquierdo({
           <span className="status-bar-info-text">{branch}</span>
         </span>
       )}
-      {lastProblem && (
+      <Presente como="span" visible={!!lastProblem} className="mov-aparece">
+      {problema && (
         <button
           className="status-bar-btn status-bar-problem"
           onClick={() => dismissAll()}
-          title={txLayout().estado.tituloProblema(lastProblem.title, lastProblem.detail)}
-          aria-label={txLayout().estado.ariaProblema(lastProblem.title)}
+          title={txLayout().estado.tituloProblema(problema.title, problema.detail)}
+          aria-label={txLayout().estado.ariaProblema(problema.title)}
         >
           <ProblemIcon />
-          <span className="status-bar-problem-text">{lastProblem.title}</span>
+          <span className="status-bar-problem-text">{problema.title}</span>
         </button>
       )}
+      </Presente>
     </div>
   )
 }
@@ -305,6 +311,7 @@ interface StatusBarMenuProps {
  */
 function StatusBarMenu({ anchor, title, items, onPick, onClose }: StatusBarMenuProps): React.JSX.Element {
   const ref = useRef<HTMLDivElement>(null)
+  useDespedidaDe(ref, 'flotante')
   const left = useIzquierdaAcotada(ref, anchor.left)
   useCierreExterno(onClose)
 
@@ -315,7 +322,7 @@ function StatusBarMenu({ anchor, title, items, onPick, onClose }: StatusBarMenuP
   return (
     <div
       ref={ref}
-      className="statusbar-menu"
+      className="statusbar-menu mov-aparece mov-desde-arriba"
       role="menu"
       style={{ left, bottom, maxHeight }}
       onMouseDown={(e) => e.stopPropagation()}

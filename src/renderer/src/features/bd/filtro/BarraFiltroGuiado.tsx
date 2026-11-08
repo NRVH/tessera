@@ -26,6 +26,7 @@ import {
   type ColumnaFiltrable
 } from './modeloFiltro.ts'
 import { esDeUnaListaDeSelect } from '../../../comun/useDialogo'
+import { Segmentado } from '../../../comun/Segmentado'
 import { txFiltro } from './textosFiltro.ts'
 import './filtro.css'
 
@@ -233,27 +234,15 @@ function PieFiltro(props: {
       </button>
       {n === 0 && <span className="filtro-guiado-vacio">{t.sinFiltro}</span>}
       {n >= 2 && (
-        <span
-          className="filtro-guiado-union"
-          role="group"
-          aria-label={t.comoSeUnen}
+        <Segmentado
+          compacto
+          etiqueta={t.comoSeUnen}
           title={t.tituloUnion}
-        >
-          {(['todas', 'cualquiera'] as const).map((u) => (
-            <button
-              key={u}
-              type="button"
-              className={`btn${filtro.union === u ? ' btn-active' : ''}`}
-              aria-pressed={filtro.union === u}
-              disabled={deshabilitado}
-              onClick={() => {
-                if (filtro.union !== u) onCambiar({ ...filtro, union: u })
-              }}
-            >
-              {t.union[u]}
-            </button>
-          ))}
-        </span>
+          deshabilitado={deshabilitado}
+          opciones={(['todas', 'cualquiera'] as const).map((u) => ({ valor: u, etiqueta: t.union[u] }))}
+          valor={filtro.union}
+          onCambio={(union) => onCambiar({ ...filtro, union })}
+        />
       )}
       <span className="filtro-guiado-acciones">
         <button type="button" className="btn filtro-guiado-aplicar" title={t.aplicarTitulo} disabled={deshabilitado} onClick={onAplicar}>

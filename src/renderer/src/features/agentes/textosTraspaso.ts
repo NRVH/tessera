@@ -21,13 +21,13 @@ export const txTraspaso = crearTextos(
     llevaResumenDetalle: 'Inicia una conversación nueva con un resumen. La actual sigue abierta.',
     detalleDocker: 'Docker',
     noSePudo: 'No se pudo continuar en otro agente o cuenta',
-    trabajandoTitulo: (agente: string) => `${agente} está trabajando`,
+    trabajandoTitulo: (agente: string) => `¿Interrumpir el turno en marcha de ${agente}?`,
     trabajandoMensaje: (agente: string) =>
       `${agente} tiene un turno en marcha en este proyecto. Si continúa, se interrumpe y se abre una conversación nueva con el resumen; la anterior queda en su historial.`,
     seguirTrabajandoMensaje: (agente: string, donde: string) =>
       `${agente} tiene un turno en marcha. Si continúa, se interrumpe aquí y la conversación sigue en ${donde} desde el último punto guardado; la conversación de aquí no cambia.`,
     caducado: 'No se pudo abrir a tiempo la conversación en el destino. Vuelva a intentarlo desde ⇄ en la cabecera del agente.',
-    seguir: 'Continuar',
+    seguir: 'Interrumpir y continuar',
     cancelar: 'Cancelar',
     cargando: 'Cargando cuentas…'
   },
@@ -45,13 +45,13 @@ export const txTraspaso = crearTextos(
     llevaResumenDetalle: 'Starts a new conversation with a summary. This one stays open.',
     detalleDocker: 'Docker',
     noSePudo: 'Could not continue in another agent or account',
-    trabajandoTitulo: (agente: string) => `${agente} is working`,
+    trabajandoTitulo: (agente: string) => `Interrupt ${agente}’s running turn?`,
     trabajandoMensaje: (agente: string) =>
       `${agente} has a turn running in this project. If you continue, it is interrupted and a new conversation opens with the summary; the one it had stays in its history.`,
     seguirTrabajandoMensaje: (agente: string, donde: string) =>
       `${agente} has a turn running. If you continue, it is interrupted here and the conversation continues in ${donde} from the last point it saved; the one here does not change.`,
     caducado: 'The conversation could not be opened at the destination in time. Try again from ⇄ in the agent header.',
-    seguir: 'Continue',
+    seguir: 'Interrupt and continue',
     cancelar: 'Cancel',
     cargando: 'Loading accounts…'
   }

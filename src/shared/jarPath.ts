@@ -45,13 +45,12 @@ export interface RutaArchivo {
  * en `shared/rutasHost.ts`, que sí toma la plataforma). En este espacio una barra
  * invertida no es un separador: es un carácter del NOMBRE, en las dos plataformas.
  *
- * SE PROBÓ pasarle la plataforma y llamar a `normalizarRelativaProyecto`, para no
- * repetir la regla. Se retiró, y el motivo no es de estilo: ese módulo importa
- * `plataformaActual()`, que lee `process.platform`, y este archivo lo importa el
- * RENDERER (Sidebar → treeFlatten → jarPath), donde `process` no existe con
- * `contextIsolation` + `sandbox`. El resultado medido fue el panel del árbol de
- * archivos entero caído con «process is not defined» en la app empaquetada. Un módulo
- * de `shared/` que el renderer importa no puede depender de `process`.
+ * NO LLAMA a `normalizarRelativaProyecto` para no repetir la regla, y el motivo no es
+ * de estilo: ese módulo importa `plataformaActual()`, que lee `process.platform`, y este
+ * archivo lo importa el RENDERER (Sidebar → treeFlatten → jarPath), donde `process` no
+ * existe con `contextIsolation` + `sandbox`: el panel del árbol de archivos entero caería
+ * con «process is not defined» en la app empaquetada. Un módulo de `shared/` que el
+ * renderer importa no puede depender de `process`.
  *
  * SE EXPORTA (como `normalizarRutaVirtual`) porque fuera de aquí había una copia a
  * mano que además convertía `\` en `/`: `JarService.partirOEnRaiz`. Con una carpeta

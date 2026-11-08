@@ -1,0 +1,73 @@
+/* =============================================================================
+   LA CASILLA de elegir varias opciones de una lista: un `<input type="checkbox">` real (teclado, etiqueta y rol
+   nativos) con la misma caja que la casilla del panel de git: 12 px, radio 3, borde tenue y, marcada, relleno del
+   color de acento con la marca en el fondo. La marca se dibuja con un pseudoelemento y se descubre de abajo arriba.
+   Los sí o no no son casillas: son `Interruptor` (`comun/piezasAjustes.tsx`). Quedan fuera del estilo el interruptor
+   del popover de montaje (`.db-sw-input`, oculto) y la ficha de extensiones (`.ajustes-casilla`, cuya casilla no se ve).
+   Duraciones y curvas de `comun/movimiento.css`: con «reducir movimiento» no hay transición.
+   Decisiones: docs/decisiones/renderer/modales.md
+   ============================================================================= */
+
+/* Sin margen propio, con especificidad nula: cada lista coloca la casilla con el suyo. */
+:where(input[type='checkbox']) {
+  margin: 0;
+}
+
+input[type='checkbox']:not(.db-sw-input):not(.ajustes-casilla input) {
+  appearance: none;
+  position: relative;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--fg-faint);
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background var(--mov-rapido) var(--curva-estandar),
+    border-color var(--mov-rapido) var(--curva-estandar);
+}
+input[type='checkbox']:not(.db-sw-input):not(.ajustes-casilla input):hover:not(:checked, :indeterminate, :disabled) {
+  border-color: var(--fg-muted);
+}
+input[type='checkbox']:not(.db-sw-input):not(.ajustes-casilla input):checked,
+input[type='checkbox']:not(.db-sw-input):not(.ajustes-casilla input):indeterminate {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+input[type='checkbox']:not(.db-sw-input):not(.ajustes-casilla input):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+input[type='checkbox']:not(.db-sw-input):not(.ajustes-casilla input):disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* La marca: una L girada. Se descubre de abajo arriba (primero el trazo corto, luego el largo). */
+input[type='checkbox']:not(.db-sw-input):not(.ajustes-casilla input)::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2px;
+  height: 4px;
+  border: solid var(--bg);
+  border-width: 0 2px 2px 0;
+  transform: translate(-50%, -62%) rotate(45deg);
+  clip-path: inset(100% 0 0 0);
+  transition: clip-path var(--mov-rapido) var(--curva-estandar);
+}
+input[type='checkbox']:not(.db-sw-input):not(.ajustes-casilla input):checked::after {
+  clip-path: inset(0);
+}
+/* A medias (el perfil con parte de lo suyo marcada): una raya en lugar de la marca. */
+input[type='checkbox']:not(.db-sw-input):not(.ajustes-casilla input):indeterminate::after {
+  width: 6px;
+  height: 0;
+  border-width: 0 0 2px;
+  border-radius: 1px;
+  transform: translate(-50%, -50%);
+  clip-path: inset(0);
+}

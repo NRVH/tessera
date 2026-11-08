@@ -1,8 +1,8 @@
 // =============================================================================
 // Git·Log a pantalla completa sobre la app empaquetada: el botón de maximizar se revela
-// como sus hermanos, tapa lateral, editor y agente sin desmontarlos, los de restaurar y la X
-// se quedan fijos (son las dos salidas del modo), restaurar devuelve el alto de la franja y la
-// X a pantalla completa cierra y restaura. Moverse por los commits no abre nada; abrir un
+// como sus hermanos, tapa lateral, editor y agente sin desmontarlos, restaurar y ocultar viven
+// en el riel y no en la cabecera, restaurar devuelve el alto de la franja y ocultar a pantalla
+// completa cierra y, al reabrir, vuelve maximizado. Moverse por los commits no abre nada; abrir un
 // archivo, el historial o el fuente, o una pestaña desde fuera de Git (Mod+N), sale del modo.
 // La regla la fija `features/layout/test-layout-centro.mts`. Agente falso (`agenteFalso.ts`);
 // nada depende del sistema. `TESSERA_E2E_CAPTURAS` guarda capturas.
@@ -112,7 +112,7 @@ test.describe('Git·Log a pantalla completa', () => {
     if (m) await borrarTemporal(m.raiz)
   })
 
-  test('maximizar tapa el área de trabajo sin desmontar nada; restaurar y la X devuelven el layout', async () => {
+  test('maximizar tapa el área de trabajo sin desmontar nada; restaurar y ocultar, desde el riel, devuelven el layout', async () => {
     const win = s.win
     const shell = win.locator('.shell')
     const lateral = win.locator('.panel-lateral')
@@ -120,14 +120,15 @@ test.describe('Git·Log a pantalla completa', () => {
     const agente = win.locator('.right-panel.cc-panel')
     const panel = win.locator('.git-log-panel')
     const maximizar = panel.getByRole('button', { name: 'Maximizar el panel de Git' })
-    const restaurar = panel.getByRole('button', { name: 'Restaurar el panel de Git' })
-    const cerrar = panel.getByRole('button', { name: 'Cerrar el panel de Git' })
-    const recargar = panel.getByRole('button', { name: 'Recargar el historial y las ramas' })
+    const restaurar = win.locator('.activity-bar').getByRole('button', { name: 'Restaurar el panel de Git' })
+    const cerrar = panel.getByRole('button', { name: 'Ocultar el panel de Git' })
+    const ocultarRiel = win.locator('.activity-bar').getByRole('button', { name: 'Ocultar el panel de Git' })
+    const recargar = panel.getByRole('button', { name: 'Refrescar el historial y las ramas' })
 
     // --- Preparación: un archivo abierto (editor a la vista) y Git·Log en la franja ---
     await win.locator('.sidebar .tree-row:visible', { hasText: 'LEEME.txt' }).first().click({ timeout: 30_000 })
     await expect(win.locator('.editor-tab.active', { hasText: 'LEEME.txt' })).toHaveCount(1)
-    await win.getByRole('button', { name: 'Git · Log' }).click()
+    await win.getByRole('button', { name: 'Git · Historial' }).click()
     await expect(panel).toBeVisible()
     await expect(panel).toContainText('Primer commit de la prueba', { timeout: 30_000 })
     const altoFranja = await alto(panel)
@@ -156,15 +157,16 @@ test.describe('Git·Log a pantalla completa', () => {
       await expect(win.locator(cromo).first(), `${cromo} se queda`).toBeVisible()
     }
     await expect(win.locator('.tabs-projects'), 'la banda de proyectos se aparta').toBeHidden()
-    await expect(win.locator('.activity-bar .activity-item'), 'el riel deja solo la flecha de volver').toHaveCount(1)
+    await expect(win.locator('.activity-bar .activity-item'), 'el riel lleva restaurar, ocultar, Terminal y Git·Log').toHaveCount(4)
+    await expect(cerrar, 'la cabecera no repite las acciones del modo').toHaveCount(0)
     expect(await win.locator('.agent-pane').count(), 'los panes del agente siguen montados').toBe(panesAgente)
     await expect(win.locator('.editor-tab', { hasText: 'LEEME.txt' }), 'la pestaña sigue abierta').toHaveCount(1)
 
-    // --- Restaurar y la X están FIJOS: son las dos salidas del modo y se ven sin ratón ni foco ---
+    // --- Restaurar y ocultar viven en el riel: se ven sin ratón ni foco ---
     await enReposo(win)
     await expect(restaurar, 'restaurar no se esconde en reposo').toBeVisible()
-    await expect(cerrar, 'la X tampoco: es la otra salida del modo').toBeVisible()
-    await expect(recargar, 'y recargar, que no sale del modo, sí se esconde').toBeHidden()
+    await expect(ocultarRiel, 'ocultar tampoco').toBeVisible()
+    await expect(recargar, 'y recargar, en la cabecera, sí se esconde').toBeHidden()
     await capturar(win, 'git-pantalla-completa')
 
     // --- Restaurar devuelve el layout de antes, con el alto de la franja ---
@@ -176,20 +178,19 @@ test.describe('Git·Log a pantalla completa', () => {
     expect(await alto(panel), 'la franja recupera su alto').toBe(altoFranja)
     expect(await alto(editor), 'y el editor el suyo').toBe(altoEditor)
     await enReposo(win)
-    await expect(cerrar, 'fuera de pantalla completa la X vuelve a esconderse en reposo').toBeHidden()
+    await expect(cerrar, 'fuera de pantalla completa ocultar vuelve a la cabecera y se esconde en reposo').toBeHidden()
 
-    // --- La X a pantalla completa cierra Git; al reabrirlo vuelve como lo dejó: maximizado ---
+    // --- Ocultar a pantalla completa cierra Git; al reabrirlo vuelve como lo dejó: maximizado ---
     await panel.locator('.panel-header').first().hover()
     await maximizar.click()
     await expect(shell).toHaveClass(/\bgit-pantalla-completa\b/)
-    await panel.locator('.panel-header').first().hover()
-    await cerrar.click()
+    await ocultarRiel.click()
     await expect(panel).toHaveCount(0)
     await expect(shell).not.toHaveClass(/\bgit-pantalla-completa\b/)
     await expect(lateral).toBeVisible()
     await expect(editor).toBeVisible()
     await expect(agente).toBeVisible()
-    await win.getByRole('button', { name: 'Git · Log' }).click()
+    await win.getByRole('button', { name: 'Git · Historial' }).click()
     await expect(panel).toBeVisible()
     await expect(shell, 'reabrir Git lo devuelve maximizado: es lo último que eligió el usuario').toHaveClass(
       /\bgit-pantalla-completa\b/
@@ -205,7 +206,7 @@ test.describe('Git·Log a pantalla completa', () => {
     const agente = win.locator('.right-panel.cc-panel')
     const panel = win.locator('.git-log-panel')
     const maximizar = panel.getByRole('button', { name: 'Maximizar el panel de Git' })
-    const restaurar = panel.getByRole('button', { name: 'Restaurar el panel de Git' })
+    const restaurar = win.locator('.activity-bar').getByRole('button', { name: 'Restaurar el panel de Git' })
     const commits = panel.locator('.git-fila-commit')
     const detalle = panel.locator('.git-log-detalle')
     const asunto = detalle.locator('.git-detalle-asunto')

@@ -21,8 +21,10 @@ import {
 } from '../../shared/workspace-state-ipc'
 import type { WorkspaceService } from './WorkspaceService'
 import {
+  loadSesionesProyecto,
   loadWorkspaceSettings,
   loadWorkspaceState,
+  saveSesionesProyecto,
   saveWorkspaceSettings,
   saveWorkspaceState
 } from './workspaceStateStore'
@@ -67,4 +69,8 @@ export function registrarIpcEstadoWorkspace(deps: {
       deps.alGuardarAjustes(settings, e.sender)
     }
   )
+  ipc.handle(WORKSPACE_STATE_CHANNELS.LOAD_SESIONES, () => loadSesionesProyecto())
+  ipc.handle(WORKSPACE_STATE_CHANNELS.SAVE_SESIONES, (_e: IpcMainInvokeEvent, sesiones: unknown) => {
+    saveSesionesProyecto(sesiones)
+  })
 }

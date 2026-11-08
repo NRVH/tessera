@@ -84,7 +84,7 @@ function main(): void {
     check('un sustituto suelto ocupa 3 bytes (como Buffer)', bytesUtf8APuntosDeCodigo(suelto, Buffer.byteLength('a\uD800', 'utf8')) === 2, String(Buffer.byteLength('a\uD800', 'utf8')))
   }
   {
-    // LA cuenta de bytes UTF-8 de `shared/` (antes había cuatro
+    // LA cuenta de bytes UTF-8 de `shared/` (no hay otras
     // copias). La usan también el guion de Oracle de `formatosFilas` (SQL*Plus cuenta
     // bytes por línea), así que un cambio aquí se ve en las dos pruebas. Texto con lo
     // difícil: 1, 2, 3 y 4 bytes, un alto suelto, un bajo suelto, un par AL REVÉS, un alto

@@ -2,12 +2,14 @@
 // El «ssh» falso de las pruebas de interfaz de las conexiones SSH: un guion de Node que la app lanza en
 // lugar de OpenSSH (`TESSERA_SSH_BINARIO`), en su pty o sin consola («Probar»). Apunta su argv y cada
 // línea que recibe; si lleva `SSH_ASKPASS`, pregunta la contraseña como ssh y apunta «AUTH ok/fail» (sin
-// escribirla nunca); deja su huella en el known_hosts de la conexión (`accept-new`) o, si se le pide,
-// presenta otra; escribe «falso-ssh listo», hace eco y sale con `exit N`. Nada toca la red.
+// escribirla nunca); con la huella, como ssh: con `accept-new` deja la suya (o, si se le pide, otra) en un
+// known_hosts sin ella, y en estricto se niega si no la tiene o si presenta otra; escribe «falso-ssh listo»,
+// hace eco y sale con `exit N`. Nada toca la red.
 // =============================================================================
 
+import type { Page } from '@playwright/test'
 import { createHash } from 'node:crypto'
-import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -24,14 +26,45 @@ function cadenaSsh(datos: Buffer): Buffer {
   return Buffer.concat([largo, datos])
 }
 
-/** La clave de host del «servidor», en el formato de `known_hosts` (base64 del blob). */
-const BLOB_HOST = Buffer.concat([cadenaSsh(Buffer.from('ssh-ed25519')), cadenaSsh(Buffer.alloc(32, 42))]).toString('base64')
+/** Una clave de host Ed25519 del «servidor», en el formato de `known_hosts` (base64 del blob). */
+const blobHost = (relleno: number): string => Buffer.concat([cadenaSsh(Buffer.from('ssh-ed25519')), cadenaSsh(Buffer.alloc(32, relleno))]).toString('base64')
+const huellaDe = (blob: string): string => `ED25519 SHA256:${createHash('sha256').update(Buffer.from(blob, 'base64')).digest('base64').replace(/=+$/, '')}`
+
+/** La clave de siempre y la que presenta cuando se le pide que la cambie (como un servidor reinstalado). */
+const BLOB_HOST = blobHost(42)
+const BLOB_NUEVO = blobHost(7)
 
 /** La huella que la app enseña del «servidor», como la enseña ssh-keygen. */
-export const HUELLA_FALSA = `ED25519 SHA256:${createHash('sha256').update(Buffer.from(BLOB_HOST, 'base64')).digest('base64').replace(/=+$/, '')}`
+export const HUELLA_FALSA = huellaDe(BLOB_HOST)
 
 /** La huella que presenta cuando se le pide que la cambie. */
-export const HUELLA_NUEVA_FALSA = 'ED25519 SHA256:OtraHuellaDelServidorDePruebaE2E0123456789abc'
+export const HUELLA_NUEVA_FALSA = huellaDe(BLOB_NUEVO)
+
+/** El texto de la huella del falso tal como lo enseña el diálogo de un servidor nuevo (sin el tipo). */
+export const SHA256_FALSA = HUELLA_FALSA.replace('ED25519 ', '')
+
+/** Cómo escribe ssh el destino en `known_hosts`. */
+const patronHost = (host: string, puerto: number): string => (puerto === 22 ? host : `[${host}]:${puerto}`)
+
+/**
+ * Deja la huella del falso en el known_hosts de las conexiones que aún no la tienen, como si una persona ya la
+ * hubiera confirmado: para las pruebas que no tratan del diálogo de un servidor nuevo. `datos` es el `userData`.
+ */
+export async function sembrarHuellas(win: Page, datos: string): Promise<void> {
+  const conexiones = (await win.evaluate(() => window.tessera.ssh.listar())).conexiones
+  const dir = join(datos, 'ssh', 'huellas')
+  mkdirSync(dir, { recursive: true })
+  for (const c of conexiones) {
+    if (c.huellaServidor.length === 0) writeFileSync(join(dir, c.id), `${patronHost(c.host, c.puerto)} ssh-ed25519 ${BLOB_HOST}\n`)
+  }
+}
+
+/** Lo mismo antes de arrancar la app, para conexiones sembradas en su archivo. */
+export function sembrarHuellaAntes(datos: string, c: { id: string; host: string; puerto: number }): void {
+  const dir = join(datos, 'ssh', 'huellas')
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(join(dir, c.id), `${patronHost(c.host, c.puerto)} ssh-ed25519 ${BLOB_HOST}\n`)
+}
 
 /**
  * El guion. CommonJS y con los caracteres de control salidos de `String.fromCharCode`, no de
@@ -74,20 +107,29 @@ const BANNER_CAMBIADA = [
   'Host key verification failed.'
 ].join(CRLF)
 
-// Como accept-new: la huella del «servidor» al known_hosts propio de la conexión, si no estaba.
-function aceptarHuella() {
+// Como ssh con la huella: la clave que presenta (la de siempre o, si se le pide, otra) contra el known_hosts
+// de la línea. Sin ninguna del host, accept-new la añade y en estricto se niega; con otra, se niega siempre.
+// Devuelve el aviso con que se niega, o null si sigue.
+function comprobarHuella() {
   const archivo = (opcion('UserKnownHostsFile') || '').split('"').join('').split('%%').join('%')
-  if (!archivo) return
-  const linea = (puerto === 22 ? host : '[' + host + ']:' + puerto) + ' ssh-ed25519 ${BLOB_HOST}'
-  const actual = fs.existsSync(archivo) ? fs.readFileSync(archivo, 'utf8') : ''
-  if (!actual.includes(linea)) fs.appendFileSync(archivo, linea + NL)
+  const patron = puerto === 22 ? host : '[' + host + ']:' + puerto
+  const presenta = patron + ' ssh-ed25519 ' + (leer('.huella') === 'cambiada' ? '${BLOB_NUEVO}' : '${BLOB_HOST}')
+  const actual = archivo && fs.existsSync(archivo) ? fs.readFileSync(archivo, 'utf8') : ''
+  const delHost = actual.split(NL).filter((l) => l.startsWith(patron + ' '))
+  if (delHost.includes(presenta)) return null
+  if (delHost.length > 0) return BANNER_CAMBIADA
+  if (opcion('StrictHostKeyChecking') !== 'accept-new') {
+    return 'No ED25519 host key is known for ' + patron + ' and you have requested strict checking.' + CRLF + 'Host key verification failed.'
+  }
+  if (archivo) fs.appendFileSync(archivo, presenta + NL)
+  return null
 }
 
-// Con SSH_ASKPASS pregunta como ssh y compara con la que dejó la prueba; sin él, «none» no entra.
+// Con SSH_ASKPASS pregunta como ssh y compara con la que dejó la prueba; con «none» no pregunta ni entra.
 function autenticar() {
-  aceptarHuella()
+  if (opcion('PreferredAuthentications') === 'none') return false
   const askpass = process.env.SSH_ASKPASS
-  if (!askpass) return opcion('PreferredAuthentications') !== 'none'
+  if (!askpass) return true
   const r = spawnSync(askpass, [usuario + '@' + host + "'s password: "], { encoding: 'utf8', windowsHide: true })
   let dada = String(r.stdout || '')
   while (dada.endsWith(NL) || dada.endsWith(CR)) dada = dada.slice(0, -1)
@@ -96,10 +138,11 @@ function autenticar() {
   return ok
 }
 
+const negativaHuella = host === '${HOST_QUE_FALLA}' ? null : comprobarHuella()
 if (host === '${HOST_QUE_FALLA}') {
   process.stdout.write('ssh: Could not resolve hostname ${HOST_QUE_FALLA}' + CRLF, () => salir(255))
-} else if (leer('.huella') === 'cambiada') {
-  fallar(BANNER_CAMBIADA)
+} else if (negativaHuella !== null) {
+  fallar(negativaHuella)
 } else if (!autenticar()) {
   fallar(usuario + '@' + host + ': Permission denied (password).')
 } else if (orden !== '') {
@@ -145,8 +188,13 @@ export interface SshFalso {
   env: Record<string, string>
   /** Registro del guion, una línea por suceso. */
   registro: string
-  /** Los argumentos con que se lanzó ssh cada vez, en orden (lo que va DETRÁS del ejecutable). */
+  /**
+   * Los argumentos con que se lanzó ssh cada vez, en orden (lo que va DETRÁS del ejecutable), sin las conexiones que
+   * solo traen la huella de un servidor nuevo (`reconocimientos`).
+   */
   arranques: () => string[][]
+  /** Las conexiones que trajeron la huella de un servidor nuevo (la única línea con `accept-new`), en orden. */
+  reconocimientos: () => string[][]
   /** Las líneas que recibió, en orden y de todas las sesiones. */
   recibidas: () => string[]
   /** Cada vez que preguntó la contraseña por `SSH_ASKPASS`: 'ok' o 'fail' (nunca la contraseña). */
@@ -171,11 +219,14 @@ export function montarSshFalso(): SshFalso {
   const env = { TESSERA_SSH_BINARIO: JSON.stringify({ exe: process.execPath, args: [guion, registro] }) }
   const lineas = (): string[] => readFileSync(registro, 'utf8').split('\n').filter(Boolean)
   const de = (marca: string): string[] => lineas().filter((l) => l.startsWith(`${marca} `)).map((l) => l.slice(marca.length + 1))
+  const argvs = (): string[][] => de('ARGV').map((j) => JSON.parse(j) as string[])
+  const esReconocimiento = (a: string[]): boolean => a.includes('StrictHostKeyChecking=accept-new')
   return {
     raiz,
     env,
     registro,
-    arranques: () => de('ARGV').map((j) => JSON.parse(j) as string[]),
+    arranques: () => argvs().filter((a) => !esReconocimiento(a)),
+    reconocimientos: () => argvs().filter(esReconocimiento),
     recibidas: () => de('LINEA').map((j) => JSON.parse(j) as string),
     autenticaciones: () => de('AUTH'),
     retardo: (ms) => writeFileSync(`${registro}.retardo`, String(ms)),

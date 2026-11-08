@@ -9,11 +9,16 @@
 import { useId, useState } from 'react'
 import type { DbConnection } from '../../../../../shared/db-ipc'
 import { esProduccion } from '../consola/produccionConsola'
-import { alClicEnVelo, useDialogo, type Dialogo } from '../../../comun/useDialogo'
+import { AvisoModal, Modal, PieModal } from '../../../comun/Modal'
 import { comandoDeAccion, entradasIniciales, textosAccion, type AccionClave, type EntradasClave } from './edicionClaves'
 import type { EdicionClave } from './useEdicionClave'
 import { txEdicionClaves } from './textosEdicionClaves'
 import type { DbKvBytes } from '../../../../../shared/db-claves-ipc'
+
+/** Las teclas del formulario no accionan la consola que lo abrió. */
+function aislarTeclas(ev: React.KeyboardEvent<HTMLDivElement>): void {
+  if (ev.key !== 'Escape' && ev.key !== 'Tab') ev.stopPropagation()
+}
 
 export interface PropsDialogoEdicion {
   conexion: DbConnection
@@ -38,7 +43,7 @@ export function Cuadro(props: { id: string; etiqueta: string; valor: string; mul
     autoComplete: 'off'
   }
   return (
-    <>
+    <div className="modal-campo">
       <label className="modal-label" htmlFor={props.id}>
         {props.etiqueta}
       </label>
@@ -55,7 +60,7 @@ export function Cuadro(props: { id: string; etiqueta: string; valor: string; mul
           }}
         />
       )}
-    </>
+    </div>
   )
 }
 
@@ -65,68 +70,54 @@ export function Estado(props: { edicion: EdicionClave; motivo: string | null; er
   return (
     <>
       {props.errorPropio && (
-        <div className="db-envio-error" role="alert">
+        <AvisoModal tono="error">
           <div className="db-envio-error-titulo">{t.noSePudo}</div>
           <div className="db-envio-error-texto">{props.errorPropio}</div>
-        </div>
+        </AvisoModal>
       )}
       {aviso && (
-        <div className="db-envio-error" role="alert">
+        <AvisoModal tono="aviso">
           <div className="db-envio-error-titulo">{aviso.titulo}</div>
           <div className="db-envio-error-texto">{aviso.mensaje}</div>
-        </div>
+        </AvisoModal>
       )}
       {error && (
-        <div className="db-envio-error" role="alert">
+        <AvisoModal tono="error">
           <div className="db-envio-error-titulo">{t.noSePudo}</div>
           <div className="db-envio-error-texto">{error}</div>
-        </div>
+        </AvisoModal>
       )}
-      {props.motivo && !error && <div className="modal-hint">{props.motivo}</div>}
+      {props.motivo && !error && <AvisoModal tono="info">{props.motivo}</AvisoModal>}
       {enviando && (
-        <div className="db-envio-estado" role="status">
+        <AvisoModal tono="info"><span className="db-envio-estado">
           {t.ejecutando}
-        </div>
+        </span></AvisoModal>
       )}
     </>
   )
 }
 
-/** El marco de un diálogo de claves: velo, tarjeta con su franja de producción y el título con la base. */
+/** La carcasa de claves con la conexión y su base. */
 export function MarcoDialogo(p: {
-  dlg: Dialogo
   conexion: DbConnection
   titulo: string
   base: number
+  cerrable: boolean
+  pie?: React.ReactNode
   onCerrar: () => void
   children: React.ReactNode
 }): React.JSX.Element {
-  const idTitulo = useId()
   const produccion = esProduccion(p.conexion.entorno)
   return (
-    <div className="modal-overlay" role="presentation" onMouseDown={alClicEnVelo(p.onCerrar)}>
-      <div
-        ref={p.dlg.ref}
-        className={`modal-card db-envio-modal${produccion ? ' es-produccion' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={idTitulo}
-        onMouseDown={(ev) => ev.stopPropagation()}
-        onKeyDown={(ev) => {
-          p.dlg.alPulsarTecla(ev)
-          if (ev.key !== 'Escape') ev.stopPropagation()
-        }}
-      >
+    <Modal titulo={p.titulo} subtitulo={`db${p.base}`} tamano="m"
+      className={`db-envio-modal${produccion ? ' es-produccion' : ''}`}
+      cerrable={p.cerrable} ocupado={!p.cerrable} cierraConVelo={false} onCerrar={p.onCerrar} pie={p.pie}
+    >
+      <div className="db-envio-contenido" onKeyDown={aislarTeclas}>
         {produccion && <FranjaProduccion alias={p.conexion.alias} />}
-        <div className="db-envio-cuerpo">
-          <div className="modal-title db-envio-titulo" id={idTitulo}>
-            <span>{p.titulo}</span>
-            <span className="db-envio-tabla">· db{p.base}</span>
-          </div>
-          {p.children}
-        </div>
+        {p.children}
       </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -157,6 +148,7 @@ export function ComandoPrevio({ base, texto }: { base: number; texto: string }):
 /** Cancelar y el botón de la acción. Sin cuadro que rellenar, el foco va a la acción salvo en producción. */
 export function Botones(p: {
   edicion: EdicionClave
+  ocupado?: boolean
   clase: string
   texto: string
   listo: boolean
@@ -166,20 +158,19 @@ export function Botones(p: {
   onCancelar?: () => void
 }): React.JSX.Element {
   return (
-    <div className="modal-actions">
-      <button type="button" className="btn btn-ghost" onClick={p.onCancelar ?? p.edicion.cerrar} disabled={p.edicion.enviando}>
+    <PieModal>
+      <button type="button" className="btn btn-ghost" onClick={p.onCancelar ?? p.edicion.cerrar} disabled={p.edicion.enviando || p.ocupado}>
         {txEdicionClaves().cancelar}
       </button>
-      <button type="button" className={`btn ${p.clase}`} onClick={p.onEjecutar} disabled={!p.listo || p.edicion.enviando} autoFocus={p.focoEnEjecutar}>
+      <button type="button" className={`btn ${p.clase}`} onClick={p.onEjecutar} disabled={!p.listo || p.edicion.enviando || p.ocupado} autoFocus={p.focoEnEjecutar}>
         {p.texto}
       </button>
-    </div>
+    </PieModal>
   )
 }
 
 export function DialogoEdicionClave(p: PropsDialogoEdicion): React.JSX.Element {
   const { edicion, accion, conexion } = p
-  const dlg = useDialogo({ onClose: edicion.cerrar, cerrable: !edicion.enviando })
   const idBase = useId()
   const [e, setE] = useState<EntradasClave>(() => entradasIniciales(accion))
   const t = textosAccion(accion, p.nombreCampo)
@@ -189,47 +180,33 @@ export function DialogoEdicionClave(p: PropsDialogoEdicion): React.JSX.Element {
   const ejecutar = (): void => {
     if (cmd.ok) edicion.ejecutar(cmd.texto, accion.tipo === 'renombrar' ? e.uno : undefined)
   }
-  const claseBoton = produccion ? 'db-envio-btn-prod' : t.peligro || edicion.aviso ? 'danger' : 'primary'
+  const claseBoton = produccion ? 'danger db-envio-btn-prod' : t.peligro || edicion.aviso ? 'danger' : 'primary'
 
   return (
-    <div className="modal-overlay" role="presentation" onMouseDown={alClicEnVelo(edicion.cerrar)}>
-      <div
-        ref={dlg.ref}
-        className={`modal-card db-envio-modal${produccion ? ' es-produccion' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={`${idBase}-titulo`}
-        onMouseDown={(ev) => ev.stopPropagation()}
-        onKeyDown={(ev) => {
-          dlg.alPulsarTecla(ev)
-          if (ev.key !== 'Escape') ev.stopPropagation()
-        }}
-      >
+    <Modal titulo={t.titulo} subtitulo={p.nombre} tamano="m"
+      className={`db-envio-modal${produccion ? ' es-produccion' : ''}`}
+      cerrable={!edicion.enviando} ocupado={edicion.enviando} cierraConVelo={false} onCerrar={edicion.cerrar}
+      pie={<Botones edicion={edicion} clase={claseBoton} texto={boton} listo={cmd.ok} focoEnEjecutar={!t.etiqueta && !produccion} onEjecutar={ejecutar} />}
+    >
+      <div className="db-envio-contenido" onKeyDown={aislarTeclas}>
         {produccion && <FranjaProduccion alias={conexion.alias} />}
-        <div className="db-envio-cuerpo">
-          <div className="modal-title db-envio-titulo" id={`${idBase}-titulo`}>
-            <span>{t.titulo}</span>
-            <span className="db-envio-tabla">· {p.nombre}</span>
-          </div>
-          {t.etiqueta && (
-            <Cuadro
-              id={`${idBase}-uno`}
-              etiqueta={t.etiqueta}
-              valor={e.uno}
-              multilinea={t.multilinea}
-              foco
-              onCambio={(uno) => setE((x) => ({ ...x, uno }))}
-              onEnter={t.etiquetaDos ? () => undefined : ejecutar}
-            />
-          )}
-          {t.etiquetaDos && (
-            <Cuadro id={`${idBase}-dos`} etiqueta={t.etiquetaDos} valor={e.dos} multilinea={false} foco={false} onCambio={(dos) => setE((x) => ({ ...x, dos }))} onEnter={ejecutar} />
-          )}
-          <ComandoPrevio base={p.base} texto={cmd.ok ? cmd.texto : '—'} />
-          <Estado edicion={edicion} motivo={cmd.ok ? null : cmd.motivo} />
-          <Botones edicion={edicion} clase={claseBoton} texto={boton} listo={cmd.ok} focoEnEjecutar={!t.etiqueta && !produccion} onEjecutar={ejecutar} />
-        </div>
+        {t.etiqueta && (
+          <Cuadro
+            id={`${idBase}-uno`}
+            etiqueta={t.etiqueta}
+            valor={e.uno}
+            multilinea={t.multilinea}
+            foco
+            onCambio={(uno) => setE((x) => ({ ...x, uno }))}
+            onEnter={t.etiquetaDos ? () => undefined : ejecutar}
+          />
+        )}
+        {t.etiquetaDos && (
+          <Cuadro id={`${idBase}-dos`} etiqueta={t.etiquetaDos} valor={e.dos} multilinea={false} foco={false} onCambio={(dos) => setE((x) => ({ ...x, dos }))} onEnter={ejecutar} />
+        )}
+        <ComandoPrevio base={p.base} texto={cmd.ok ? cmd.texto : '—'} />
+        <Estado edicion={edicion} motivo={cmd.ok ? null : cmd.motivo} />
       </div>
-    </div>
+    </Modal>
   )
 }

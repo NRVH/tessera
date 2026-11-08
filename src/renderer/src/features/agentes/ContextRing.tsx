@@ -13,6 +13,7 @@ import type { ConvAgent } from '../../../../shared/conversations-ipc'
 import { formatoAntiguedad } from '../../util/formatoTiempo'
 import { formatoPorcentaje, varNivelUso } from './formatoUso'
 import { txContexto } from './textosContexto.ts'
+import { useDespedida } from '../../comun/despedida.ts'
 
 interface ContextRingProps {
   agente: ConvAgent
@@ -258,8 +259,10 @@ interface PopoverContextoProps {
 
 function PopoverContexto(p: PopoverContextoProps): React.JSX.Element {
   const { agente, snap, percent, anchor } = p
+  const ref = useDespedida<HTMLDivElement>('flotante')
   return (
     <div
+      ref={ref}
       className="agent-usage-pop"
       style={{ left: anchor.left, bottom: anchor.bottom }}
       role="tooltip"

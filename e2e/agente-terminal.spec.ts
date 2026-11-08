@@ -413,6 +413,8 @@ test.describe.serial('El agente de la terminal', () => {
     await riel.locator('.ssh-filtro').fill('')
     await expect(panel.locator('.terminal-tab.active')).toHaveCount(1)
     await expect(pila).toBeVisible()
+    // Las acciones de la cabecera se retiran sin el ratón encima (docs/decisiones/renderer/movimiento.md): se apunta.
+    await pane.locator('.panel-header').hover()
     await expect(pane.getByRole('button', { name: 'Maximizar Claude Code' })).toHaveCount(1)
 
     // El «+» junto al chip abre una terminal nueva en un solo gesto, y a la vista: no debajo del agente.
@@ -557,7 +559,8 @@ test.describe.serial('El agente de la terminal', () => {
       }
       await expect(panel.getByRole('button', { name: /^Restaurar terminales/ })).toBeInViewport({ ratio: 1 })
       await expect(cabecera.locator('.panel-actions'), `tapadas, la columna no lleva los botones del panel — ${caso}`).toHaveCount(0)
-      await expect(win.getByRole('button', { name: 'Restaurar el panel de terminal' }), `el restaurar a la vista es el del agente — ${caso}`).toHaveCount(0)    }
+      await expect(win.locator('.activity-bar').getByRole('button', { name: 'Restaurar el panel de terminal' }), `restaurar el panel sigue en el riel, también tapadas — ${caso}`).toBeVisible()
+    }
 
     for (const [ancho, alto] of [[1024, 700], [1366, 768], [1920, 1080]]) {
       await s.app.evaluate(({ BrowserWindow }, t) => BrowserWindow.getAllWindows()[0].setSize(t.ancho, t.alto), { ancho, alto })

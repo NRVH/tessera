@@ -12,6 +12,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { ArchivosDelCommit } from './ArchivosDelCommit'
 import { Splitter } from '../../comun/Splitter'
 import { EstadoVacio } from '../../comun/EstadoVacio'
+import { Cruce } from '../../comun/Presente'
 import { useRaizDelProyecto } from '../../comun/raizDelProyecto'
 import { IconoCopiar, IconoEtiqueta, IconoSinSeleccion } from './iconos'
 import { absoluteDate, hashCorto, relativeDate } from './modelo/formatoFecha'
@@ -185,10 +186,12 @@ function ListaRamas({ ramas, datos }: { ramas: string[]; datos: DatosDetalle }):
 function RamasDelCommit({ datos }: { datos: DatosDetalle }): React.JSX.Element {
   const { ramas, ramasError } = datos
   return (
-    <div className="git-detalle-ramas">
-      <MensajeRamas ramas={ramas} ramasError={ramasError} />
-      {!ramasError && ramas !== null && ramas.length > 0 && <ListaRamas ramas={ramas} datos={datos} />}
-    </div>
+    <Cruce className="git-detalle-ramas-cruce" clave={ramasError ? 'error' : ramas === null ? 'cargando' : 'ramas'}>
+      <div className="git-detalle-ramas">
+        <MensajeRamas ramas={ramas} ramasError={ramasError} />
+        {!ramasError && ramas !== null && ramas.length > 0 && <ListaRamas ramas={ramas} datos={datos} />}
+      </div>
+    </Cruce>
   )
 }
 
@@ -204,7 +207,9 @@ function FichaCommit(p: {
   return (
     <div className="git-detalle-meta">
       <div className="git-detalle-asunto">{asunto}</div>
-      {cuerpo !== '' && <div className="git-detalle-cuerpo">{cuerpo}</div>}
+      <Cruce className="git-detalle-cuerpo-cruce" clave={datos.detalle === null ? 'cargando' : commit.hash}>
+        <div className="git-detalle-cuerpo">{cuerpo || '\u00a0'}</div>
+      </Cruce>
       <div className="git-detalle-fila">
         <button
           type="button"

@@ -64,6 +64,8 @@ function textoFallo(r: Extract<SshResultadoPrueba, { ok: false }>, host: string,
       return { titulo: t.inalcanzableTitulo, pista: pistaInalcanzable(r.detalle, host, plataforma) }
     case 'ssh-huella-cambiada':
       return { titulo: t.huellaTitulo, pista: t.huellaPista }
+    case 'ssh-huella-sin-confirmar':
+      return { titulo: t.sinConfirmarTitulo, pista: t.sinConfirmarPista }
     case 'ssh-algoritmos':
       return { titulo: t.algoritmosTitulo, pista: t.algoritmosPista }
     case 'tiempo':

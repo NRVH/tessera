@@ -23,6 +23,9 @@ export const txAgentes = crearTextos(
         `${nombre} no responde y Tessera no sabe reinstalarlo tal como está instalado: reinstálelo con el mismo método con que lo instaló`
     },
     fallos: {
+      ordenesEnlazadas:
+        'La carpeta de órdenes de la cuenta es un enlace a otra ubicación, probablemente creado desde el contenedor: ' +
+        'por seguridad no se escribe a través de él. Elimínelo y vuelva a intentarlo.',
       siguenAbiertos: (lista: string) => ` Siguen abiertos: ${lista}.`,
       servicioAppServer: ', el servicio app-server',
       bloqueado: (nombre: string, quienes: string) =>
@@ -94,9 +97,9 @@ export const txAgentes = crearTextos(
     cupo: {
       sinSitio: (limite: number) =>
         `Hay ${limite} contenedores de Docker abiertos, el límite configurado, y no se puede detener ninguno: ` +
-        'todos tienen agentes trabajando o son agentes manuales. Espere a que alguno termine, ciérrelo o ' +
+        'todos tienen agentes trabajando o son agentes propios. Espere a que alguno termine, ciérrelo o ' +
         'suba el límite en Configuración › Contenedores Docker.',
-      noSePudoParar: (id: string) => `No se pudo detener el contenedor "${id}" para liberar espacio: no se sabe de qué perfil es.`
+      noSePudoParar: (id: string) => `No se pudo detener el contenedor «${id}» para liberar espacio: no se sabe de qué perfil es.`
     },
     cuentas: {
       sinNombre: 'El nombre de la cuenta no puede estar vacío.',
@@ -104,7 +107,7 @@ export const txAgentes = crearTextos(
       nombreRepetido: (nombre: string) => `Ya hay una cuenta llamada «${nombre}» para este agente en este perfil.`,
       nombreLargo: (max: number) => `El nombre de la cuenta no puede superar los ${max} caracteres.`,
       manualSinCierreSesion:
-        'Un agente manual no tiene un cierre de sesión que Tessera conozca: inicie y cierre sesión dentro del agente, o elimine la cuenta.',
+        'Un agente propio no tiene un cierre de sesión que Tessera conozca: inicie y cierre sesión dentro del agente, o elimine la cuenta.',
       predeterminadaNoSeBorra: 'La cuenta predeterminada del perfil no se puede eliminar: cierre su sesión.',
       predeterminadaNoSeRenombra: 'La cuenta predeterminada del perfil no se puede renombrar.',
       cuentaDesconocida: (id: string) => `Cuenta de agente desconocida: «${id}».`,
@@ -116,10 +119,10 @@ export const txAgentes = crearTextos(
       predeterminada: 'Predeterminada',
       enCursoTitulo: 'Ya hay un inicio de sesión de Codex en curso',
       enCurso: (cuenta: string, perfil: string) =>
-        `Es el de la cuenta «${cuenta}» del perfil «${perfil}». Solo se puede iniciar sesión en una cuenta de Codex a la vez. ` +
-        'Termínelo (o cierre esa pestaña) y pulse «Reintentar».',
+        `Es el de la cuenta «${cuenta}» del perfil «${perfil}». Solo se puede iniciar sesión en una cuenta de Codex al mismo tiempo. ` +
+        'Termínelo (o cierre esa pestaña) y haga clic en «Reintentar».',
       mismaCuentaTitulo: (cuenta: string) => `La cuenta «${cuenta}» ya está iniciando sesión en otra pestaña`,
-      mismaCuenta: 'Termine el inicio de sesión en esa pestaña y pulse «Reintentar».',
+      mismaCuenta: 'Termine el inicio de sesión en esa pestaña y haga clic en «Reintentar».',
       puertoOcupadoTitulo: 'El inicio de sesión de Codex no podrá terminar',
       puertoOcupadoDetalle: (cuenta: string, puerto: number, tuEquipo: string) =>
         `Tessera no pudo usar el puerto ${puerto} de ${tuEquipo}, al que vuelve el navegador al iniciar sesión en Codex: ` +
@@ -135,10 +138,10 @@ export const txAgentes = crearTextos(
         'La sesión abierta no tiene de dónde leer el contexto: reinicie el agente para usar la fuente definida.'
     },
     manual: {
-      noValido: (error: string) => `Agente manual no válido: ${error}`,
-      definicionAjena: (id: string) => `La definición no es la del agente "${id}".`,
-      sesionInexistente: (id: string) => `No existe una sesión de agente con id "${id}".`,
-      cerradaEsperando: (id: string) => `La sesión de agente "${id}" se cerró mientras esperaba la actualización.`
+      noValido: (error: string) => `Agente propio no válido: ${error}`,
+      definicionAjena: (id: string) => `La definición no es la del agente «${id}».`,
+      sesionInexistente: (id: string) => `No existe una sesión de agente con id «${id}».`,
+      cerradaEsperando: (id: string) => `La sesión de agente «${id}» se cerró mientras esperaba la actualización.`
     }
   },
   {
@@ -157,6 +160,9 @@ export const txAgentes = crearTextos(
         `${nombre} is not responding and Tessera cannot reinstall it the way it was installed: reinstall it with the same method you used to install it`
     },
     fallos: {
+      ordenesEnlazadas:
+        "The account's orders folder is a link to another location, probably created from the container: for " +
+        'security, nothing is written through it. Remove it and try again.',
       siguenAbiertos: (lista: string) => ` Still open: ${lista}.`,
       servicioAppServer: ', the app-server service',
       bloqueado: (nombre: string, quienes: string) =>
@@ -229,9 +235,9 @@ export const txAgentes = crearTextos(
     cupo: {
       sinSitio: (limite: number) =>
         `${limite} Docker containers are open, which is the limit you set, and none of them can be stopped: ` +
-        'they all have agents working or run manual agents. Wait for one to finish, close one, or ' +
+        'they all have agents working or run custom agents. Wait for one to finish, close one, or ' +
         'raise the limit in Settings › Docker containers.',
-      noSePudoParar: (id: string) => `Could not stop container "${id}" to make room: its profile is unknown.`
+      noSePudoParar: (id: string) => `Could not stop container “${id}” to make room: its profile is unknown.`
     },
     cuentas: {
       sinNombre: 'The account name cannot be empty.',
@@ -239,7 +245,7 @@ export const txAgentes = crearTextos(
       nombreRepetido: (nombre: string) => `This profile already has an account named “${nombre}” for this agent.`,
       nombreLargo: (max: number) => `The account name cannot be longer than ${max} characters.`,
       manualSinCierreSesion:
-        'Tessera does not know how to sign out of a manual agent: sign in and out inside the agent, or delete the account.',
+        'Tessera does not know how to sign out of a custom agent: sign in and out inside the agent, or delete the account.',
       predeterminadaNoSeBorra: 'The profile’s default account cannot be deleted: sign out of it instead.',
       predeterminadaNoSeRenombra: 'The profile’s default account cannot be renamed.',
       cuentaDesconocida: (id: string) => `Unknown agent account: “${id}”.`,
@@ -270,10 +276,10 @@ export const txAgentes = crearTextos(
         'The open session has no source to read the context from: restart the agent to use the source you defined.'
     },
     manual: {
-      noValido: (error: string) => `Invalid manual agent: ${error}`,
-      definicionAjena: (id: string) => `The definition does not belong to agent "${id}".`,
-      sesionInexistente: (id: string) => `There is no agent session with id "${id}".`,
-      cerradaEsperando: (id: string) => `Agent session "${id}" was closed while waiting for the update.`
+      noValido: (error: string) => `Invalid custom agent: ${error}`,
+      definicionAjena: (id: string) => `The definition does not belong to agent “${id}”.`,
+      sesionInexistente: (id: string) => `There is no agent session with id “${id}”.`,
+      cerradaEsperando: (id: string) => `Agent session “${id}” was closed while waiting for the update.`
     }
   }
 )

@@ -19,7 +19,8 @@ disparan ráfagas de guardados; y un build viejo puede abrir un archivo que escr
   arranca limpio en vez de lanzar.
 - El estado de workspace vive en memoria; cada guardado lo muta y programa UNA escritura
   asíncrona con debounce de 200 ms, serializadas en una cadena. `flushWorkspaceState` la fuerza
-  al cerrar. Esqueleto y ajustes son dos slices del mismo archivo: guardar uno preserva el otro.
+  al cerrar. Esqueleto, ajustes y la sesión de cada proyecto son tres slices del mismo archivo:
+  guardar uno preserva los otros (`workspace/sesion-de-cada-proyecto.md`).
 - Si el archivo persistido es de una versión de esquema MAYOR que la del build, se archiva una
   copia intacta en `workspace-state.v<N>.json` (una sola vez) antes de normalizarlo.
 - Al cargar se podan los proyectos cuya carpeta no está, con `stat` en paralelo. `ENOENT` es

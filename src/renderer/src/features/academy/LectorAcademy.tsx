@@ -1,19 +1,19 @@
 // =============================================================================
 // El lector de Tessera Academy: un modal propio, encima de lo que haya (Configuración o el diálogo
 // del ⓘ), con la cabecera del artículo, el índice de secciones fijo que marca la que se lee, el
-// cuerpo con su scroll y el paso al anterior y al siguiente. Esc o el velo lo cierran y se vuelve a
+// cuerpo con su scroll y, en el pie fijo, el paso al anterior y al siguiente. Esc o el velo lo cierran y se vuelve a
 // lo de debajo. Al abrirlo con una sección, la lleva arriba y la resalta un momento.
 // =============================================================================
 
 import { useEffect, useRef, useState } from 'react'
-import { alClicEnVelo, useDialogo } from '../../comun/useDialogo'
+import { Modal } from '../../comun/Modal'
 import { articulo } from './articulos'
 import { urlDeCaptura } from './capturas'
 import { IconoArticulo, IconoBirrete, IconoInfo } from './iconosAcademy'
-import { ARTICULOS_EN_ORDEN, INDICE_ACADEMY, tituloDe, type ArticuloId } from './indice'
+import { ARTICULOS_EN_ORDEN, INDICE_ACADEMY, tituloDe, type ArticuloId, type GrupoAcademyId } from './indice'
 import { textoPlano } from './marcado'
 import { seVeEn, tipoDeBloque, type Bloque, type Seccion } from './modelo'
-import { abrirAcademy, cerrarAcademy, useStoreAcademy } from './store'
+import { abrirAcademy, cerrarAcademy, irAlIndice, useStoreAcademy } from './store'
 import { TextoMarcado } from './TextoMarcado'
 import { txAcademy } from './textos'
 import { txIndice } from './textosIndice'
@@ -68,9 +68,30 @@ function BloqueArticulo({ bloque }: { bloque: Bloque }): React.JSX.Element | nul
 }
 
 /** El grupo del índice al que pertenece el artículo. */
-function grupoDe(id: ArticuloId): string {
-  const g = INDICE_ACADEMY.find((x) => (x.articulos as readonly string[]).includes(id))
-  return g ? txIndice().grupos[g.grupo] : ''
+function grupoDe(id: ArticuloId): GrupoAcademyId | null {
+  return INDICE_ACADEMY.find((x) => (x.articulos as readonly string[]).includes(id))?.grupo ?? null
+}
+
+/** Las migajas: «Tessera Academy» lleva al índice y el grupo, a su sitio en el índice. */
+function Migajas({ id }: { id: ArticuloId }): React.JSX.Element {
+  const t = txAcademy()
+  const grupo = grupoDe(id)
+  return (
+    <nav className="academy-lector-grupo" aria-label={t.migajas}>
+      <IconoBirrete />
+      <button type="button" className="academy-migaja" onClick={() => irAlIndice(null)} title={t.irAlIndice}>
+        {t.nombre}
+      </button>
+      {grupo && (
+        <>
+          <span aria-hidden="true">·</span>
+          <button type="button" className="academy-migaja" onClick={() => irAlIndice(grupo)} title={t.irAlGrupo(txIndice().grupos[grupo])}>
+            {txIndice().grupos[grupo]}
+          </button>
+        </>
+      )}
+    </nav>
+  )
 }
 
 /** Lleva la sección pedida arriba (o el principio, sin sección) cada vez que se pide. */
@@ -141,51 +162,21 @@ function useSeccionVisible(
 function Lector({ id, ancla, pedido }: { id: ArticuloId; ancla: string | null; pedido: number }): React.JSX.Element {
   const t = txAcademy()
   const a = articulo(id)
-  const { ref, alPulsarTecla } = useDialogo({ onClose: cerrarAcademy })
   const cuerpo = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    cuerpo.current?.closest('.modal-card')?.querySelector<HTMLButtonElement>('.modal-cerrar')?.focus({ preventScroll: true })
+  }, [id])
   useIrASeccion(cuerpo, id, ancla, pedido)
   const activa = useSeccionVisible(cuerpo, id, a.secciones, ancla, pedido)
-  // El foco entra en el lector al abrirlo y al pasar de artículo: si no, se queda en el ⓘ de
-  // debajo, y ni la trampa de Tab ni el teclado serían del lector.
-  useEffect(() => {
-    ref.current?.focus({ preventScroll: true })
-  }, [ref, id])
   const i = ARTICULOS_EN_ORDEN.indexOf(id)
   const anterior = i > 0 ? ARTICULOS_EN_ORDEN[i - 1] : null
   const siguiente = i < ARTICULOS_EN_ORDEN.length - 1 ? ARTICULOS_EN_ORDEN[i + 1] : null
 
   return (
-    <div className="modal-overlay academy-lector-velo" role="presentation" onMouseDown={alClicEnVelo(cerrarAcademy)}>
-      <div
-        ref={ref}
-        className="academy-lector"
-        tabIndex={-1}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={`academy-titulo-${id}`}
-        onKeyDown={alPulsarTecla}
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        <header className="academy-lector-cabecera">
-          <span className="academy-icono-articulo">
-            <IconoArticulo id={id} />
-          </span>
-          <div className="academy-lector-titulos">
-            <div className="academy-lector-grupo">
-              <IconoBirrete />
-              <span>{t.nombre}</span>
-              <span aria-hidden="true">·</span>
-              <span>{grupoDe(id)}</span>
-            </div>
-            <h2 id={`academy-titulo-${id}`} className="academy-titulo">
-              {tituloDe(id)}
-            </h2>
-          </div>
-          <button type="button" className="btn btn-icon academy-lector-cerrar" onClick={cerrarAcademy} title={t.cerrar} aria-label={t.cerrar}>
-            ✕
-          </button>
-        </header>
-
+    <Modal titulo={<span className="academy-lector-cabecera"><span className="academy-icono-articulo"><IconoArticulo id={id} /></span><span className="academy-titulo">{tituloDe(id)}</span></span>}
+      subtitulo={<Migajas id={id} />}
+      tamano="xl" className="academy-lector" cuerpoClassName="academy-lector-contenido" onCerrar={cerrarAcademy}
+      pie={<PasarArticulo anterior={anterior} siguiente={siguiente} />}>
         <div ref={cuerpo} className="academy-lector-cuerpo">
           <nav className="academy-lector-toc" aria-label={t.enEsteArticulo}>
             <div className="academy-lector-toc-titulo">{t.enEsteArticulo}</div>
@@ -212,24 +203,33 @@ function Lector({ id, ancla, pedido }: { id: ArticuloId; ancla: string | null; p
                 ))}
               </section>
             ))}
-            <nav className="academy-pasar">
-              {anterior && (
-                <button type="button" className="academy-pasar-boton" onClick={() => abrirAcademy(anterior)}>
-                  <span className="academy-pasar-etiqueta">{t.anteriorEtiqueta}</span>
-                  <span className="academy-pasar-titulo">‹ {tituloDe(anterior)}</span>
-                </button>
-              )}
-              {siguiente && (
-                <button type="button" className="academy-pasar-boton academy-siguiente" onClick={() => abrirAcademy(siguiente)}>
-                  <span className="academy-pasar-etiqueta">{t.siguienteEtiqueta}</span>
-                  <span className="academy-pasar-titulo">{tituloDe(siguiente)} ›</span>
-                </button>
-              )}
-            </nav>
           </article>
         </div>
-      </div>
-    </div>
+    </Modal>
+  )
+}
+
+/**
+ * El paso al artículo anterior y al siguiente, en el pie fijo del lector: se alcanza desde cualquier punto
+ * del artículo sin desplazarse hasta el final.
+ */
+function PasarArticulo({ anterior, siguiente }: { anterior: ArticuloId | null; siguiente: ArticuloId | null }): React.JSX.Element {
+  const t = txAcademy()
+  return (
+    <nav className="academy-pasar" aria-label={t.navegacionArticulos}>
+      {anterior && (
+        <button type="button" className="academy-pasar-boton" onClick={() => abrirAcademy(anterior)}>
+          <span className="academy-pasar-etiqueta">{t.anteriorEtiqueta}</span>
+          <span className="academy-pasar-titulo">‹ {tituloDe(anterior)}</span>
+        </button>
+      )}
+      {siguiente && (
+        <button type="button" className="academy-pasar-boton academy-siguiente" onClick={() => abrirAcademy(siguiente)}>
+          <span className="academy-pasar-etiqueta">{t.siguienteEtiqueta}</span>
+          <span className="academy-pasar-titulo">{tituloDe(siguiente)} ›</span>
+        </button>
+      )}
+    </nav>
   )
 }
 

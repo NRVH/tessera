@@ -5,8 +5,6 @@
 // Decisiones: docs/decisiones/bd/claves-controlador.md
 // =============================================================================
 
-import type { DbRespuesta } from './db-explorador-ipc.ts'
-
 export const KV_CHANNELS = {
   /**
    * invoke: DbKvPedirBases -> DbRespuesta<DbKvBases>. Cuántas bases hay (`CONFIG GET
@@ -174,6 +172,3 @@ export interface DbKvResultado {
   base: number
   ms: number
 }
-
-/** Para que el main y el preload tipen los handlers sin repetir la forma. */
-export type DbKvRespuestaIpc<T> = DbRespuesta<T>

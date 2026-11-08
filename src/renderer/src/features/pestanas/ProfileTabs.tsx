@@ -24,8 +24,8 @@ interface ProfileTabsProps {
   onRecolorProfile: (profileId: string, color: string) => void
   /** Activa/desactiva `redHost` (--network host): los puertos del perfil quedan en el equipo. */
   onToggleRedHost: (profileId: string, redHost: boolean) => void
-  /** Guarda las reglas del perfil para sus agentes (vacías, las quita). */
-  onSetReglas: (profileId: string, reglas: string) => void
+  /** Abre el contexto de los agentes en las reglas del perfil. */
+  onAbrirReglas: (profileId: string) => void
   onDeleteProfile: (profileId: string) => void
   onReorderProfiles: (orderedIds: string[]) => void
   /** Hiberna el perfil: mata su contenedor y marca sus proyectos hibernados. */

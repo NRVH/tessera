@@ -55,24 +55,26 @@ export interface Profile {
   color: string
   /** Agentes disponibles para este perfil, cada uno con su carpeta de credenciales aislada. */
   agentes: AgenteConfig[]
-  /**
-   * Carpeta `.ssh` del host (ruta Windows ABSOLUTA, p.ej. `C:\Users\x\.ssh`) que
-   * se montará READ-ONLY como `/home/agente/.ssh` dentro del contenedor del
-   * perfil, para que git/ssh del agente encuentren las llaves en `~/.ssh`.
-   *
-   * OPCIONAL: un perfil sin `sshDir` no monta nada — `~/.ssh` no existe en su
-   * contenedor y un push por SSH fallará con error claro (comportamiento seguro).
-   * Varios perfiles PUEDEN apuntar a la misma carpeta host (son binds
-   * independientes en contenedores distintos); el contenedor de un perfil monta
-   * SOLO su propia `.ssh`, nunca la de otro.
-   */
+  /** Carpeta SSH propia del perfil en el host: amplía su catálogo y nunca se monta. */
   sshDir?: string
+  /** Rutas host autorizadas para firmar: ausente conserva perfiles existentes; vacío deniega todas. */
+  clavesSshPermitidas?: string[]
   /**
    * Reglas para los agentes de este perfil (Markdown, como mucho `MAX_REGLAS_PERFIL` caracteres): las escribe
-   * o aprueba el usuario y llegan en el aviso de arranque de todo agente de serie del perfil.
-   * Ausente = sin reglas. Decisiones: docs/decisiones/agentes/reglas-del-perfil.md
+   * o aprueba el usuario y llegan en el aviso de arranque de todo agente de serie del perfil, detrás de las
+   * globales. Ausente = sin reglas. Decisiones: docs/decisiones/agentes/contexto-de-los-agentes.md
    */
   reglas?: string
+  /**
+   * Carpetas del equipo con documentos de referencia para los agentes del perfil, que los leen por su nombre con
+   * `tctx docs`. Ausente = ninguna. Decisiones: docs/decisiones/agentes/contexto-de-los-agentes.md
+   */
+  documentos?: string[]
+  /**
+   * `false` si el perfil no usa el contexto global: ni sus reglas, ni sus documentos, ni la configuración global
+   * de Docker. Ausente = lo usa. Decisiones: docs/decisiones/agentes/contexto-de-los-agentes.md
+   */
+  contextoGlobal?: false
   sandbox: {
     habilitado: boolean
     /**

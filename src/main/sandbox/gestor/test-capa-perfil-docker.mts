@@ -58,7 +58,7 @@ async function casos(capa: CapaPerfilSandbox, registro: string, nucleo: NucleoSa
   const r1 = await capa.aplicar(PERFIL, [ECO], (l) => lineas.push(l))
   check('construye y el programa quedó', r1.ok && r1.faltan.length === 0, JSON.stringify(r1))
   // El eco del guion puede no salir (el paso puede venir de la caché de Docker): se mira la línea de Tessera y el build.
-  check('el progreso llega línea a línea', lineas[0]?.startsWith('Instalando los agentes manuales') === true && lineas.length > 1, `${lineas.length} línea(s)`)
+  check('el progreso llega línea a línea', lineas[0]?.startsWith('Instalando los agentes propios') === true && lineas.length > 1, `${lineas.length} línea(s)`)
   check('el contenedor nacerá de la capa', (await capa.imagenPara(PERFIL)) === nombreImagenCapa(PERFIL), '')
   check('lo aplicado queda en el registro', JSON.parse(readFileSync(registro, 'utf8')).perfiles[PERFIL][0].id === 'm-eco', '')
 

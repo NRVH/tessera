@@ -32,10 +32,13 @@ export function opcionExperimentalActiva(version: string, ajuste: boolean, forza
   return (esVersionAlpha(version) || forzadoEnPruebas) && ajuste
 }
 
-/** ¿Se graba? Solo en alpha y con el ajuste encendido. */
-export function registroSaludActivo(version: string, ajuste: boolean): boolean {
-  return opcionExperimentalActiva(version, ajuste)
+/** ¿Se graba? Solo en alpha y con el ajuste encendido; `forzadoEnPruebas`, como en `opcionExperimentalActiva`. */
+export function registroSaludActivo(version: string, ajuste: boolean, forzadoEnPruebas = false): boolean {
+  return opcionExperimentalActiva(version, ajuste, forzadoEnPruebas)
 }
+
+/** Con el arnés de interfaz y esta variable a `1`, el paquete (que no es alpha) graba el registro. */
+export const VAR_SALUD_EN_PRUEBAS = 'TESSERA_SALUD'
 
 /** ¿Hay que rotar el archivo antes de seguir escribiendo? */
 export function debeRotar(tamanoBytes: number, tope: number = TOPE_ARCHIVO_BYTES): boolean {
@@ -94,6 +97,13 @@ export interface CaidaSalud {
 export const INTERVALO_VIGIA_MS = 250
 /** Un retraso del bucle del main por encima de esto es un bloqueo y se anota. */
 export const UMBRAL_BLOQUEO_MS = 1000
+/**
+ * Cada cuánto muestrea el perfil de CPU del main mientras se graba (µs). Un parón dura al menos un segundo:
+ * con 10 ms salen cien muestras, de sobra, y en reposo cuesta mucho menos que muestrear más a menudo.
+ */
+export const INTERVALO_PERFIL_US = 10_000
+/** El perfil se reinicia cada tanto para que no crezca sin fin; un parón se resume con el perfil en curso. */
+export const VENTANA_PERFIL_MS = 60_000
 /** Una petición de la ventana que tarda más que esto cuenta como lenta en la muestra. */
 export const IPC_LENTO_MS = 1000
 /** Cada cuánto resume la ventana lo que le ha ido lento (y solo si hubo algo). */
@@ -133,12 +143,28 @@ export interface LlamadaSalud {
   enCurso?: true
 }
 
+/**
+ * Lo que hacía el main durante un parón, de su perfil de CPU: ms en reposo (si es casi todo, el bucle no estaba
+ * ocupado y el temporizador llegó tarde por el sistema), en el recolector y en código nativo del motor, y los
+ * marcos con más tiempo inclusivo (`arriba`) y propio (`propias`), con el nombre de la función y su archivo.
+ */
+export interface PilaBloqueo {
+  muestras: number
+  ms: number
+  ocioso: number
+  recolector: number
+  programa: number
+  arriba: Array<{ f: string; ms: number }>
+  propias: Array<{ f: string; ms: number }>
+}
+
 /** El bucle del main se quedó parado: cuánto, y las peticiones que se solapan con el parón. */
 export interface BloqueoSalud extends ContextoSalud {
   t: string
   tipo: 'bloqueo-main'
   ms: number
   ipc: LlamadaSalud[]
+  pila?: PilaBloqueo
 }
 
 /** La ventana dejó de responder (`sin-respuesta`) o volvió (`responde`, con lo que duró). */
@@ -236,12 +262,18 @@ export interface OyentesSalud {
   pantalla: (motivo: PantallaSalud['motivo']) => void
   ventana: (evento: VentanaSalud['evento']) => void
   /** El bucle del main llegó `ms` tarde, entre `desde` y `hasta` (ms de `ahoraMs`). */
-  bloqueo: (ms: number, desde: number, hasta: number) => void
+  bloqueo: (ms: number, desde: number, hasta: number, pila?: PilaBloqueo | null) => void
 }
+
+
+/** Resume un perfil de CPU del main (`inicioMs` en el reloj de `ahoraMs`) a la pila de [desdeMs, hastaMs]. */
+export type ResumidorPerfilSalud = (perfil: unknown, inicioMs: number, desdeMs: number, hastaMs: number) => PilaBloqueo | null
 
 /** Todo lo que el registro necesita del mundo: así se prueba sin Electron ni disco. */
 export interface DepsRegistroSalud {
   version: string
+  /** Lo lanzó el arnés de interfaz pidiendo grabar (`VAR_SALUD_EN_PRUEBAS`): vale como alpha. */
+  forzadoEnPruebas?: boolean
   plataforma: string
   /** Carpeta de los registros (`<userData>/logs`). */
   carpeta: string
@@ -263,7 +295,8 @@ export interface DepsRegistroSalud {
   /** Memoria y nodos de la ventana; `null` si no hay ventana o no respondió a tiempo. */
   ventana: () => Promise<{ heapMb: number; nodos: number } | null>
   sesiones: () => { terminales: number; agentes: number }
-  suscribir: (oyentes: OyentesSalud) => () => void
+  /** `resumir` lo pone el registro (`pilaBloqueo.ts`): el adaptador no importa de su dominio. */
+  suscribir: (oyentes: OyentesSalud, resumir?: ResumidorPerfilSalud) => () => void
   /** Reloj monótono en ms (el de las peticiones y el vigía). */
   ahoraMs: () => number
   estadoVentana: () => EstadoVentanaSalud | null

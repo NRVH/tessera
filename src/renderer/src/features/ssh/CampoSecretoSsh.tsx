@@ -8,6 +8,7 @@
 
 import { useState } from 'react'
 import { IconoOjo } from '../../comun/iconosFormulario'
+import { AvisoModal } from '../../comun/Modal'
 import { pegarRecortado } from '../../util/pasteTrim'
 import { nombresSistema } from '../../../../shared/nombresSistema'
 import type { BorradorSsh, CampoSsh } from './borradorSsh'
@@ -63,9 +64,7 @@ export function CampoSecretoSsh({ borrador, destino, marcados, editar }: PropsCa
         </span>
       </label>
       {destino === 'se-conserva' && borrador.secretoIlegible && (
-        <div className="ssh-aviso-secreto" role="note">
-          {avisoSecretoIlegible(esFrase, nombresSistema(window.tessera.plataforma).almacenSecretos)}
-        </div>
+        <AvisoModal tono="aviso">{avisoSecretoIlegible(esFrase, nombresSistema(window.tessera.plataforma).almacenSecretos)}</AvisoModal>
       )}
       <div className="ssh-secreto-ayuda">
         <p className="dbc-ayuda">{ayudaSecreto(destino, esFrase)}</p>

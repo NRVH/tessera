@@ -1,6 +1,6 @@
 // =============================================================================
-// La sesión SFTP de una pestaña y lo que se ve de ella: abrirla al montarse (y cerrarla al
-// desmontarse), listar la carpeta, navegar, actualizar y reabrir tras un fallo o una caída
+// La sesión SFTP de una pestaña y lo que se ve de ella: abrirla al montarse, con la huella del
+// servidor ya confirmada (y cerrarla al desmontarse), listar la carpeta, navegar, actualizar y reabrir tras un fallo o una caída
 // volviendo a la carpeta en la que se estaba. Las respuestas de un listado viejo se descartan si
 // ya hay otro en marcha. Depende de `window.tessera.sftp` y de los módulos puros de la feature.
 // =============================================================================
@@ -10,6 +10,7 @@ import type { SftpEntrada } from '../../../../shared/sftp-ipc'
 import type { TerminalExitReason } from '../../../../shared/terminal-ipc'
 import { ordenarEntradas } from './listadoSftp'
 import { padreDe } from './rutasSftp'
+import { txSftp } from './textos.ts'
 
 /** Por qué no hay explorador: no abrió, no pudo listar la primera carpeta o la sesión se cayó. */
 export interface FalloSftp {
@@ -30,6 +31,8 @@ export interface PeticionSesionSftp {
   sesionId: string
   profileId: string
   conexionId: string
+  /** Antes de que ssh se autentique: la huella del servidor confirmada; `false` si la persona no la confirmó. */
+  confirmarHuella: (profileId: string, conexionId: string) => Promise<boolean>
 }
 
 type ResultadoCarga = { estado: 'ok' } | { estado: 'obsoleta' } | { estado: 'fallo'; error: string }
@@ -79,7 +82,7 @@ function useCarga(sesionId: string, viva: React.MutableRefObject<boolean>) {
 }
 
 /** La sesión SFTP de una pestaña, de su apertura a su cierre. */
-export function useSesionSftp({ sesionId, profileId, conexionId }: PeticionSesionSftp): SesionSftp {
+export function useSesionSftp({ sesionId, profileId, conexionId, confirmarHuella }: PeticionSesionSftp): SesionSftp {
   const viva = useRef(true)
   const { listado, cargando, rutaRef, cargar, invalidar } = useCarga(sesionId, viva)
   const [fase, setFase] = useState<FaseSftp>('conectando')
@@ -95,6 +98,10 @@ export function useSesionSftp({ sesionId, profileId, conexionId }: PeticionSesio
     invalidar()
     setFase('conectando')
     setFallo(null)
+    // Si no se pudo traer la huella, se abre igual: la línea estricta de ssh dice por qué no entra.
+    const confirmada = await confirmarHuella(profileId, conexionId).catch(() => true)
+    if (!viva.current) return
+    if (!confirmada) return fallar({ error: txSftp().huellaNoConfirmada, caida: false })
     const abierta = await window.tessera.sftp.abrir({ sesionId, profileId, conexionId })
     if (!viva.current) return
     if (!abierta.ok) return fallar({ error: abierta.error, motivo: abierta.motivo, caida: false })
@@ -104,7 +111,7 @@ export function useSesionSftp({ sesionId, profileId, conexionId }: PeticionSesio
     if (res.estado === 'fallo') res = await cargar(abierta.valor.inicio)
     if (res.estado === 'fallo') return fallar({ error: res.error, caida: false })
     if (res.estado === 'ok') setFase('lista')
-  }, [sesionId, profileId, conexionId, invalidar, cargar, rutaRef, fallar])
+  }, [sesionId, profileId, conexionId, confirmarHuella, invalidar, cargar, rutaRef, fallar])
 
   useEffect(() => {
     viva.current = true

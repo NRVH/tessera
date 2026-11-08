@@ -12,9 +12,9 @@ export const CSS_LOG_DETALLE = `/* --- Columna 3: detalle del commit -----------
    bloque se acota a la mitad de la columna para que los archivos —que es a lo
    que se le hace doble clic— nunca desaparezcan tras un mensaje largo. */
 /* Mitades de la tercera columna. El reparto lo manda el DIVISOR: la lista lleva su
-   alto en un style inline (flex-basis fijo) y la ficha se queda con lo que sobre.
-   Antes era al revés —la lista con flex:1 y la ficha con max-height:50%—, que dejaba
-   el mensaje de un commit largo en una rendija sin forma de agrandarlo. */
+   alto en un style inline (flex-basis fijo) y la ficha se queda con lo que sobre: con la
+   lista en flex:1 y la ficha con max-height:50%, el mensaje de un commit largo quedaría
+   en una rendija sin forma de agrandarlo. */
 .git-detalle-archivos {
   flex: 0 0 auto;
   min-height: 0;
@@ -40,6 +40,7 @@ export const CSS_LOG_DETALLE = `/* --- Columna 3: detalle del commit -----------
   word-break: break-word;
 }
 .git-detalle-cuerpo {
+  min-height: 1.5em;
   margin-top: 6px;
   color: var(--fg-muted);
   font-size: var(--ui-font);
@@ -89,7 +90,7 @@ export const CSS_LOG_DETALLE = `/* --- Columna 3: detalle del commit -----------
   padding: 2px 8px;
   letter-spacing: 0.02em;
   cursor: pointer;
-  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+  transition: background var(--mov-rapido) var(--curva-estandar), border-color var(--mov-rapido) var(--curva-estandar), color var(--mov-rapido) var(--curva-estandar);
 }
 .git-hash-chip:hover {
   background: color-mix(in srgb, var(--perfil) 26%, transparent);
@@ -112,6 +113,7 @@ export const CSS_LOG_DETALLE = `/* --- Columna 3: detalle del commit -----------
 }
 /* "En N ramas": los chips van envueltos, aquí sí hay sitio para dos líneas. */
 .git-detalle-ramas {
+  min-height: 39px;
   display: flex;
   align-items: center;
   flex-wrap: wrap;

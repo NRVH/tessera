@@ -133,6 +133,9 @@ src/renderer/src/
   util/, theme/
 ```
 
+- Todo diálogo usa la carcasa `comun/Modal.tsx` y todo conmutador de texto, `comun/Segmentado.tsx`: ninguna
+  feature monta los suyos ([`renderer/modales.md`](decisiones/renderer/modales.md)).
+
 - Zustand: `create` y selectores (`useShallow` para leer varios campos). Sin `persist` (se
   persiste por IPC) ni `immer`.
 - En el renderer no existe `process`: la plataforma llega por `window.tessera.plataforma`.

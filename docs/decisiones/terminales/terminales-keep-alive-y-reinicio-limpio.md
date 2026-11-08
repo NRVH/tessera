@@ -19,6 +19,9 @@ calcula posiciones absolutas y el prompt salía duplicado, con lo tecleado en la
   (`soltarContextosWebgl`): el addon quita su lienzo sin soltar el contexto.
 - El `id` de la ranura es un contador monótono (React key: reutilizarlo reciclaría el xterm de la
   terminal cerrada); el número visible es el hueco libre más bajo y se recicla.
+- Las terminales que un proyecto tenía al cerrar Tessera se recrean (shells nuevos, con sus nombres
+  y la activa) la primera vez que se ve con el panel abierto, en el mismo punto que la primera de
+  serie (`restaurarTerminales`): [sesion-de-cada-proyecto.md](../workspace/sesion-de-cada-proyecto.md).
 - Reiniciar hace `flow.reset()` y `term.reset()` (no `clear()`: hay que llevarse los modos) DESPUÉS
   de que `terminal.reload` haya salido bien, para que un fallo no borre el historial. Antes de
   arrancar el shell no se escribe nada: un banner movía el prompt dos filas.

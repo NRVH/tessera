@@ -99,7 +99,7 @@ test.describe.serial('explorador de BD: editar Redis desde el visor', () => {
     await expect(s.win.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
     const win = s.win
     await aLaVista(win)
-    await win.locator('.activity-item[title="Conexiones a bases de datos"]').click()
+    await win.locator('.activity-item[title="Bases de datos"]').click()
     await win.locator('.db-arbol button[aria-label="Nueva conexión"]').first().click()
     const dlg = win.locator('.db-conexion-modal')
     await dlg.locator('.dbc-motor-control select').selectOption('redis')
@@ -169,9 +169,9 @@ test.describe.serial('explorador de BD: editar Redis desde el visor', () => {
     await dlg.getByRole('button', { name: 'Añadir' }).click()
     await expect(visor().locator('.db-docs-fila')).toHaveCount(2, { timeout: 30_000 })
     await visor().locator('.db-docs-fila').filter({ hasText: 'edad' }).first().click({ button: 'right' })
-    await s!.win.getByRole('menuitem', { name: 'Borrar el campo…' }).click()
+    await s!.win.getByRole('menuitem', { name: 'Eliminar campo…' }).click()
     await expect(dialogo().getByLabel('Comando que se ejecutará')).toHaveText('HDEL edicion_hash edad')
-    await dialogo().getByRole('button', { name: 'Borrar el campo' }).click()
+    await dialogo().getByRole('button', { name: 'Eliminar campo' }).click()
     await expect(visor().locator('.db-docs-fila')).toHaveCount(1, { timeout: 30_000 })
   })
 
@@ -197,12 +197,12 @@ test.describe.serial('explorador de BD: editar Redis desde el visor', () => {
     await expect(fila(win, 'kv-clave', 'edicion_hash')).toHaveCount(0)
   })
 
-  test('(5) «Borrar la clave» enseña el DEL y la borra', async () => {
+  test('(5) «Eliminar clave» enseña el DEL y la borra', async () => {
     await abrirClave('edicion_texto')
-    await masAcciones('Borrar la clave…')
+    await masAcciones('Eliminar clave…')
     const dlg = dialogo()
     await expect(dlg.getByLabel('Comando que se ejecutará')).toHaveText('DEL edicion_texto')
-    await dlg.getByRole('button', { name: 'Borrar la clave' }).click()
+    await dlg.getByRole('button', { name: 'Eliminar clave' }).click()
     await expect(dlg).toHaveCount(0)
     await expect(visor()).toContainText('La clave ya no existe', { timeout: 30_000 })
     expect(await redis('EXISTS edicion_texto')).toEqual({ tipo: 'entero', valor: '0' })

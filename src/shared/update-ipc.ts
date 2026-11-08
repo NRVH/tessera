@@ -39,12 +39,10 @@ export const UPDATE_CHANNELS = {
  *   error       – falló un CHEQUEO (red, feed, descarga). NO el fallo de aplicar:
  *                 ése es `avisoFallo`, que es pegajoso.
  *
- * `available` CAMBIÓ DE SIGNIFICADO Y ES IMPORTANTE SABERLO. Antes era "esta
- * PLATAFORMA no puede dar el último paso" y describía macOS entero: allí el ciclo se
- * quedaba en avisar. Desde que macOS aplica sus actualizaciones con un relevo propio
- * (`main/update/relevoMac.ts`, `capacidades().autoInstalarUpdate` en `true`), lo que
- * `available` significa es "esta COPIA no puede", y las razones son de la copia, no
- * del sistema:
+ * `available` NO ES UN ESTADO DE PLATAFORMA. macOS aplica sus actualizaciones con un
+ * relevo propio (`main/update/relevoMac.ts`, `capacidades().autoInstalarUpdate` en
+ * `true`), así que `available` significa "esta COPIA no puede dar el último paso", y las
+ * razones son de la copia, no del sistema:
  *
  *   · no se sabe dónde está el `.app` (se corre desde un binario suelto);
  *   · el `.app` está donde no se puede escribir: `/Applications` instalado por otro
@@ -54,7 +52,7 @@ export const UPDATE_CHANNELS = {
  *
  * En los tres casos hay algo real que ofrecer —el .dmg, que una persona sí puede
  * instalar— y eso es lo que hace el botón. Es el respaldo honesto, no un estado de
- * segunda: por eso NO se retiró al portar el update de macOS.
+ * segunda: por eso existe también en macOS.
  *
  * Donde la app SÍ puede instalarse sola no hay un estado "available" separado de
  * "downloading": la descarga arranca sola e inmediatamente, así que sería un

@@ -9,9 +9,9 @@ Con firma ad-hoc el requisito designado de la app es el cdhash del binario, dist
 macOS ata a ese requisito los permisos de privacidad (TCC: Accesibilidad, grabación de pantalla,
 carpetas protegidas…), y tras cada actualización la app nueva no lo cumple: el permiso sigue marcado
 en Ajustes, pero ya no vale, y todo lo que corre en las terminales de Tessera (que heredan sus
-permisos) deja de tenerlo sin aviso. Medido al pasar de 0.74.0 a 0.76.1: `UI elements enabled` daba
-`false` desde las terminales de Tessera con la casilla marcada, y la grabación de pantalla también
-se perdió; volvió solo al quitar la app de la lista y añadirla de nuevo.
+permisos) deja de tenerlo sin aviso. Medido entre dos versiones ad-hoc: `UI elements enabled` da
+`false` desde las terminales de Tessera con la casilla marcada, y la grabación de pantalla también se
+pierde; solo vuelve al quitar la app de la lista y añadirla de nuevo.
 
 ## Decisión
 
@@ -39,8 +39,8 @@ se perdió; volvió solo al quitar la app de la lista y añadirla de nuevo.
 - **El Llavero sigue preguntando una vez por versión** («Tessera Safe Storage»). Medido: con un
   certificado propio, sin identificador de equipo (`TeamIdentifier=not set`), macOS separa los
   elementos del Llavero por cdhash igual que con ad-hoc. Solo un Developer ID lo resuelve.
-- Gatekeeper rechaza la primera apertura de una copia descargada igual que antes (`spctl` dice
-  `rejected`, ahora con el certificado de Tessera como `origin`): sigue haciendo falta «Abrir de todos modos».
+- Gatekeeper rechaza la primera apertura de una copia descargada igual que con la firma ad-hoc (`spctl`
+  dice `rejected`, con el certificado de Tessera como `origin`): hace falta «Abrir de todos modos».
 - La primera actualización desde una versión ad-hoc pierde los permisos una última vez; a partir de
   ahí se conservan.
 

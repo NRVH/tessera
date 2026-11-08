@@ -257,10 +257,10 @@ async function main(): Promise<void> {
     await accion(L, { tipo: 'anadir', de: 'list' }, 'dos')
     check('LSET cambia el elemento por su índice', (await accion(L, { tipo: 'elemento', indice: 1, actual: 'dos' }, 'DOS')) === 'Elemento guardado' && (await admin.call('LRANGE', L, 0, -1) as string[]).join() === 'uno,DOS', '')
     check('LSET fuera de rango: el error de Redis, tal cual', /index out of range/i.test(await accion(L, { tipo: 'elemento', indice: 9, actual: '' }, 'x')), '')
-    check('LREM quita el elemento', (await accion(L, { tipo: 'quitar', de: 'list', elemento: txt('uno') })) === 'Elemento borrado' && (await admin.call('LRANGE', L, 0, -1) as string[]).join() === 'DOS', '')
+    check('LREM quita el elemento', (await accion(L, { tipo: 'quitar', de: 'list', elemento: txt('uno') })) === 'Elemento eliminado' && (await admin.call('LRANGE', L, 0, -1) as string[]).join() === 'DOS', '')
     check('LREM de lo que ya no está: lo dice', (await accion(L, { tipo: 'quitar', de: 'list', elemento: txt('uno') })) === 'Ya no estaba.', '')
     check('set: SADD añade y un repetido se dice', (await accion(S, { tipo: 'anadir', de: 'set' }, 'a')) === 'Miembro añadido' && (await accion(S, { tipo: 'anadir', de: 'set' }, 'a')) === 'Ya era miembro del conjunto.', '')
-    check('set: SREM quita', (await accion(S, { tipo: 'quitar', de: 'set', elemento: txt('a') })) === 'Miembro borrado' && (await admin.exists(S)) === 0, 'el último miembro borra la clave')
+    check('set: SREM quita', (await accion(S, { tipo: 'quitar', de: 'set', elemento: txt('a') })) === 'Miembro eliminado' && (await admin.exists(S)) === 0, 'el último miembro borra la clave')
     check('zset: ZADD añade con su puntuación', (await accion(Z, { tipo: 'anadir', de: 'zset' }, 'ana', '1.5')) === 'Miembro añadido' && String(await admin.call('ZSCORE', Z, 'ana')) === '1.5', '')
     check('zset: ZADD de un miembro que ya está actualiza su puntuación', (await accion(Z, { tipo: 'anadir', de: 'zset' }, 'ana', '2')) === 'Puntuación actualizada', '')
     check('zset: ZADD XX cambia la puntuación del miembro', (await accion(Z, { tipo: 'puntuacion', miembro: txt('ana'), actual: '2' }, '7')) === 'Puntuación guardada' && String(await admin.call('ZSCORE', Z, 'ana')) === '7', '')
@@ -268,7 +268,7 @@ async function main(): Promise<void> {
     check('zset: ZADD XX de un miembro que ya no está NO lo crea', (await accion(Z, { tipo: 'puntuacion', miembro: txt('ana'), actual: '2' }, '7')) === 'Puntuación guardada' && (await admin.exists(Z)) === 0, '')
     check('stream: XADD * añade una entrada', (await accion(X, { tipo: 'anadir', de: 'stream' }, 'campo', 'valor')) === 'Entrada añadida' && Number(await admin.call('XLEN', X)) === 1, '')
     const id = String(((await admin.call('XRANGE', X, '-', '+')) as string[][])[0][0])
-    check('stream: XDEL borra por id', (await accion(X, { tipo: 'quitarEntrada', id })) === 'Entrada borrada' && (await accion(X, { tipo: 'quitarEntrada', id })) === 'La entrada ya no existía.', '')
+    check('stream: XDEL borra por id', (await accion(X, { tipo: 'quitarEntrada', id })) === 'Entrada eliminada' && (await accion(X, { tipo: 'quitarEntrada', id })) === 'La entrada ya no existía.', '')
     check('WRONGTYPE al añadir a una clave de otro tipo se dice', /WRONGTYPE/.test(await accion(L, { tipo: 'anadir', de: 'set' }, 'x')), '')
     // Crear: SET NX no pisa, y los demás tipos crean con su primer elemento.
     const N = `${TMP}:nueva`

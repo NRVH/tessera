@@ -1,7 +1,7 @@
 // =============================================================================
 // Pruebas de `copiaConfiguracion.ts`: la frase, qué ajustes viajan (y cuáles no), cómo se ponen
 // encima de los de ahora, la fusión de agentes (se añade lo que falta y lo que ya está no se toca) y
-// la elección de qué se importa (`seleccionCopia.ts`), con sus dependencias.
+// la elección de qué se importa (`seleccionCopia.ts`), con sus dependencias y la configuración de Docker.
 // Uso: node src/shared/test-copia-configuracion.mts
 // =============================================================================
 
@@ -23,18 +23,21 @@ import {
   haySeleccion,
   leerSeleccionConexiones,
   seleccionInicial,
+  seleccionTodo,
+  seleccionTrasCambiarDestino,
   todoMarcado,
   recuentoSeleccion,
   seleccionParaImportar,
   type ArbolImportar,
   type ConexionPrevia
 } from './seleccionCopia.ts'
+import { sustitucionesElegidas } from './sustitucionesCopia.ts'
 
 const resultados: { nombre: string; pasa: boolean; evidencia: string }[] = []
 function hr(titulo: string): void {
   console.log(`\n${'='.repeat(78)}\n${titulo}\n${'='.repeat(78)}`)
 }
-function check(nombre: string, pasa: boolean, evidencia: string): void {
+function check(nombre: string, pasa: boolean, evidencia = ''): void {
   resultados.push({ nombre, pasa, evidencia })
   console.log(`${pasa ? 'PASS' : 'FAIL'}  ${nombre}\n      -> ${evidencia}`)
 }
@@ -184,7 +187,7 @@ function seleccion(): void {
   check(
     'NEGATIVO: basura en la selección del IPC, vacía',
     j(leerSeleccionConexiones({ ssh: 'x', bd: [1, 'b'], historial: 'todo', reasignar: { a: 1, b: 'c', d: '' }, fusionados: 'a' })) ===
-      j({ perfiles: [], ssh: [], bd: ['b'], historial: [], reasignar: { b: 'c' }, fusionados: [] }),
+      j({ perfiles: [], ssh: [], bd: ['b'], historial: [], configDocker: [], configGlobal: false, archivosCuentas: [], cuentasNuevas: [], reglasNativas: [], reasignar: { b: 'c' }, fusionados: [] }),
     ''
   )
 }
@@ -209,11 +212,118 @@ function historial(): void {
   check('NEGATIVO: nada marcado (sin frase), nada', !haySeleccion(seleccionParaImportar(a, new Set())), '')
 }
 
+function configDocker(): void {
+  hr('(10) La configuración de Docker: la del perfil bajo él, la global aparte; la distinta no viene marcada')
+  const entrada = (destinos: Record<string, string | null>) =>
+    arbolImportar({
+      perfiles: [{ id: 'a', nombre: 'A' }, { id: 'b', nombre: 'B' }, { id: 'c', nombre: 'C' }],
+      destinos,
+      conexiones: { ssh: [], bd: [] },
+      agentesAqui: { nativos: new Set(), dockerPorPerfil: {} },
+      ajustes: false,
+      configDocker: { global: 'distinta', perfiles: { a: { x: 'igual' }, b: { x: 'distinta' }, c: {} } }
+    })
+  const a = entrada({ a: 'x', b: 'x', c: 'x' })
+  const de = (perfil: string) => a.perfiles.find((g) => g.perfil.id === perfil)?.hijos.find((h) => h.tipo === 'configDocker')
+  check('igual a la del destino, ya está', de('a')?.yaEsta === true, j(de('a')))
+  check('distinta, se puede marcar y avisa de que sustituye', de('b')?.yaEsta === false && de('b')?.sustituye === true, j(de('b')))
+  check('un destino sin configuración la trae', de('c')?.yaEsta === false && de('c')?.sustituye === undefined, j(de('c')))
+  const ini = seleccionParaImportar(a, seleccionInicial(a))
+  check('de serie solo entra la que no sustituye nada', j(ini.configDocker) === j(['c']) && ini.configGlobal === false, j(ini))
+  const conGlobal = seleccionParaImportar(a, new Set([a.configGlobal!.clave]))
+  check('la global sola ya es algo que importar, sin perfil', haySeleccion(conGlobal) && conGlobal.configGlobal && conGlobal.perfiles.length === 0, j(conGlobal))
+  const nuevo = entrada({ a: null, b: null, c: null })
+  check('a un perfil nuevo, siempre se trae', nuevo.perfiles.every((g) => g.hijos.some((h) => h.tipo === 'configDocker' && !h.yaEsta && !h.sustituye)), '')
+  const claveB = de('b')!.clave
+  const tras = alternar(a, seleccionInicial(a), a.perfiles[1].perfil.clave)
+  check('marcar el perfil entero no marca lo que sustituye', !tras.seleccion.has(claveB), j([...tras.seleccion]))
+  const deNuevo = entrada({ a: 'x', b: null, c: 'x' })
+  const claveNueva = deNuevo.perfiles[1].hijos[0].clave
+  const marcada = seleccionInicial(deNuevo)
+  check('a un perfil nuevo viene marcada', marcada.has(claveNueva), '')
+  check('cambiar el destino a uno con otra la desmarca', !seleccionTrasCambiarDestino(a, marcada, 'b', false).has(claveNueva), '')
+  const leida = leerSeleccionConexiones({ configDocker: ['a', 3], configGlobal: 'sí' })
+  check('NEGATIVO: la selección por IPC se sanea', j(leida.configDocker) === j(['a']) && leida.configGlobal === false, j(leida))
+}
+
+function archivosAgentes(): void {
+  hr('(11) Los archivos de los agentes: tres estados, cuentas nuevas y las reglas nativas nunca de serie')
+  const entrada = (destinos: Record<string, string | null>): ArbolImportar =>
+    arbolImportar({
+      perfiles: [{ id: 'a', nombre: 'A' }],
+      destinos,
+      conexiones: { ssh: [], bd: [] },
+      agentesAqui: { nativos: new Set(), dockerPorPerfil: {} },
+      ajustes: false,
+      configDocker: { global: 'distinta', partesGlobal: { reglas: true, configuracion: false }, perfiles: { a: { x: 'distinta' } } },
+      archivosAgentes: {
+        cuentas: [
+          { id: 'nueva', perfil: 'a', agente: 'claude-code', nombre: 'Trabajo', predeterminada: false, archivos: ['instrucciones', 'configuracion'], frente: {} },
+          { id: 'ya', perfil: 'a', agente: 'codex', nombre: 'Personal', predeterminada: false, archivos: ['instrucciones', 'configuracion'], frente: { x: { cuenta: 'Mía', archivos: { instrucciones: 'igual', configuracion: 'distinto' } } } },
+          { id: 'traer', perfil: 'a', agente: 'codex', nombre: 'Otra', predeterminada: false, archivos: ['configuracion'], frente: { x: { cuenta: 'Otra', archivos: { configuracion: 'traer' } } } }
+        ],
+        nativos: [{ agente: 'claude-code', ruta: '~/.claude/CLAUDE.md', estado: 'traer' }, { agente: 'codex', ruta: '/datos/codex/AGENTS.md', estado: 'distinto' }],
+        invalidos: []
+      }
+    })
+  const claveCuenta = JSON.stringify(['cuentaAgente', 'a', 'nueva'])
+  const claveDe = (id: string): string => JSON.stringify(['archivoCuenta', 'a', id])
+  const a = entrada({ a: 'x' })
+  const ini = seleccionInicial(a)
+  const hijo = (id: string): ArbolImportar['perfiles'][number]['hijos'][number] | undefined => a.perfiles[0].hijos.find((h) => h.id === id)
+  check('cuenta nueva y su archivo: casillas, marcadas de serie', ini.has(claveCuenta) && ini.has(claveDe('nueva/instrucciones')))
+  check('la cuenta que ya existe no se crea y se nombra como aquí', hijo('ya')?.yaEsta === true && hijo('ya')?.nombre === 'Mía')
+  check('igual: sin casilla', hijo('ya/instrucciones')?.archivo?.estado === 'igual' && hijo('ya/instrucciones')?.yaEsta === true && !ini.has(claveDe('ya/instrucciones')))
+  check('distinto: sin casilla, se elige aparte, no viene marcado', hijo('ya/configuracion')?.yaEsta === true && !ini.has(claveDe('ya/configuracion')))
+  check('falta en una cuenta que existe: casilla marcada', ini.has(claveDe('traer/configuracion')))
+  check('NEGATIVO: una regla nativa que falta no viene marcada de serie', !ini.has(a.reglasNativas[0].clave) && a.reglasNativas[0].yaEsta === false)
+  const conPerfil = alternar(a, new Set(), a.perfiles[0].perfil.clave)
+  check('NEGATIVO: la casilla del perfil tampoco marca nada nativo', !conPerfil.seleccion.has(a.reglasNativas[0].clave))
+  check('«Todo» sí marca la regla nativa que falta, como el global', seleccionTodo(a).has(a.reglasNativas[0].clave))
+  const sinCuenta = alternar(a, ini, claveCuenta)
+  check('desmarcar la cuenta nueva desmarca sus archivos, sin aviso por cada uno', !sinCuenta.seleccion.has(claveDe('nueva/instrucciones')) && !sinCuenta.seleccion.has(claveDe('nueva/configuracion')) && sinCuenta.avisos.length === 0)
+  const deNuevo = alternar(a, sinCuenta.seleccion, claveCuenta)
+  check('volver a marcarla los trae ya marcados', deNuevo.seleccion.has(claveDe('nueva/configuracion')))
+  const s0 = seleccionParaImportar(a, ini)
+  check('la cuenta nueva y sus archivos, en la selección', j(s0.cuentasNuevas) === j([{ perfil: 'a', cuenta: 'nueva' }]) && s0.archivosCuentas.some((x) => x.cuenta === 'nueva' && x.tipo === 'configuracion' && !x.sustituir))
+  check('NEGATIVO: un archivo igual o distinto sin elegir no se manda', !s0.archivosCuentas.some((x) => x.cuenta === 'ya'))
+  const distinto = hijo('ya/configuracion')!
+  const conSust = seleccionParaImportar(a, new Set(), new Set(), new Set([distinto.clave]))
+  check('sustituir un archivo distinto lo manda y mete su perfil sin marcar nada', j(conSust.perfiles) === j(['a']) && j(conSust.archivosCuentas) === j([{ perfil: 'a', cuenta: 'ya', tipo: 'configuracion', sustituir: true }]))
+  const nuevoPerfil = entrada({ a: null })
+  check('al cambiar a un destino sin la cuenta, su archivo no sigue elegido a escondidas', !seleccionTrasCambiarDestino(nuevoPerfil, new Set([claveDe('ya/configuracion')]), 'a', false).has(claveDe('ya/configuracion')))
+  check('a un perfil nuevo, todas sus cuentas se crean', nuevoPerfil.perfiles[0].hijos.filter((h) => h.tipo === 'cuentaAgente').every((h) => !h.yaEsta))
+  check('la regla nativa distinta: sin casilla', a.reglasNativas[1].yaEsta === true && a.reglasNativas[1].archivo?.estado === 'distinto')
+  const conNativa = seleccionParaImportar(a, new Set(), new Set(), new Set([a.reglasNativas[1].clave]))
+  check('sustituirla se manda aparte, sin perfil, y ya es algo que importar', j(conNativa.reglasNativas) === j([{ agente: 'codex', sustituir: true }]) && haySeleccion(conNativa) && conNativa.perfiles.length === 0)
+  const leida = leerSeleccionConexiones({ archivosCuentas: [{ perfil: 'a', cuenta: 'b', tipo: 'otro' }, { perfil: 'a', cuenta: 'b', tipo: 'instrucciones' }, 3], reglasNativas: [{ agente: 'manual' }, { agente: 'codex' }] })
+  check('NEGATIVO: la selección por IPC se sanea', leida.archivosCuentas.length === 1 && leida.archivosCuentas[0].sustituir === false && j(leida.reglasNativas) === j([{ agente: 'codex', sustituir: false }]))
+
+  hr('(12) Lo que se va a sustituir, para confirmarlo')
+  check('NEGATIVO: si solo se crea, nada que confirmar', sustitucionesElegidas(a, ini, new Set(), new Set()).length === 0)
+  const items = sustitucionesElegidas(a, new Set([a.configGlobal!.clave, hijo('a')?.clave ?? '']), new Set(), new Set([distinto.clave, a.reglasNativas[1].clave]))
+  check('archivos de cuenta y reglas nativas se listan y son recuperables', items.some((i) => i.clase === 'archivoCuenta' && i.recuperable && i.cuenta === 'Mía' && i.archivo === 'config.toml') && items.some((i) => i.clase === 'reglaNativa' && i.recuperable))
+  check('las reglas globales se marcan como no recuperables, y solo la parte que cambia', items.some((i) => i.clase === 'reglasGlobales' && !i.recuperable) && !items.some((i) => i.clase === 'configGlobal'))
+  const conReglas = arbolImportar({
+    perfiles: [{ id: 'p', nombre: 'P' }, { id: 'q', nombre: 'Q' }],
+    destinos: { p: 'd', q: 'd' },
+    reglas: { p: 'distintas', q: 'distintas' },
+    conexiones: { ssh: [], bd: [] },
+    agentesAqui: { nativos: new Set(), dockerPorPerfil: {} },
+    ajustes: true
+  })
+  const dosReglas = sustitucionesElegidas(conReglas, new Set(), new Set(['p', 'q']), new Set())
+  check('las reglas de un perfil no se recuperan, y dos perfiles al mismo destino cuentan una vez', dosReglas.length === 1 && dosReglas[0].clase === 'reglasPerfil' && !dosReglas[0].recuperable)
+  check('NEGATIVO: los ajustes no piden confirmación', sustitucionesElegidas(conReglas, new Set([conReglas.ajustes!.clave]), new Set(), new Set()).length === 0)
+}
+
 frase()
 ajustes()
 perfilesYAgentes()
 seleccion()
 historial()
+configDocker()
+archivosAgentes()
 const pasan = resultados.filter((r) => r.pasa).length
 const todo = pasan === resultados.length
 hr(`VEREDICTO: ${pasan}/${resultados.length} PASS — ${todo ? 'TODO PASS' : 'HAY FAIL'}`)

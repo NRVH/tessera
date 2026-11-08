@@ -9,6 +9,8 @@
 # comprobación. «latest» ignora los borradores, así que mientras falte algo nadie lo ve.
 # Decisiones: docs/decisiones/despliegue/releases-de-github.md
 # =============================================================================
+# POR QUÉ SHA Y SIN CACHÉ: lo que corre aquí acaba en el instalador de todos los usuarios y ve el
+# certificado de firma. Una etiqueta se puede mover y una caché la puede envenenar otra ejecución.
 name: Publicar
 
 on:
@@ -33,7 +35,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - id: version
         name: La etiqueta coincide con la versión del package.json
         shell: bash
@@ -52,15 +54,14 @@ jobs:
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: npm
       - run: npm ci
       # Lo mismo que en local: typecheck + electron-vite + electron-builder --win, sin publicar.
       - run: npm run release:win
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: windows
           if-no-files-found: error
@@ -82,11 +83,10 @@ jobs:
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       TESSERA_FIRMA_MAC_OBLIGATORIA: '1'
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: npm
       # El `postinstall` devuelve el bit de ejecución al spawn-helper de node-pty.
       - run: npm ci
       # El certificado (`.p12` en base64 y su clave, secretos del repo) entra en un llavero
@@ -134,7 +134,7 @@ jobs:
             echo "::error::dist/latest-mac.yml no lleva minimumSystemVersion en Darwin."
             exit 1
           }
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: mac
           if-no-files-found: error
@@ -151,11 +151,10 @@ jobs:
     needs: comprobar
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: npm
       # node-pty no trae binario para Linux: `npm ci` lo compila con el compilador del runner.
       - run: npm ci
       - run: npm run release:linux
@@ -168,7 +167,7 @@ jobs:
           ls -l dist
           ls dist/Tessera-linux-*.AppImage >/dev/null
           grep -q "^version: ${{ needs.comprobar.outputs.version }}\$" dist/latest-linux.yml
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: linux
           if-no-files-found: error
@@ -189,8 +188,8 @@ jobs:
       TAG: ${{ github.ref_name }}
       VERSION: ${{ needs.comprobar.outputs.version }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v8
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           path: artefactos
           merge-multiple: true

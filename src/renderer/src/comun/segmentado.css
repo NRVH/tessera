@@ -1,0 +1,56 @@
+/* =============================================================================
+   CONMUTADOR SEGMENTADO DE TEXTO — el de `Segmentado.tsx`. Pista con filete suave; la opción elegida, sobre el
+   color del perfil atenuado y con el texto en el color normal: el color del perfil marca sin gritar.
+   Decisiones: docs/decisiones/renderer/modales.md
+   ============================================================================= */
+
+.segmentado {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: stretch;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  height: 32px;
+  padding: 2px;
+  gap: 2px;
+  border: 1px solid var(--border-soft);
+  border-radius: 7px;
+}
+.segmentado.es-compacto {
+  align-self: center;
+  height: calc(var(--ui-row-h) + 2px);
+  padding: 1px;
+  gap: 1px;
+  border-radius: 6px;
+}
+.segmento {
+  padding: 0 12px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--fg-muted);
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--mov-rapido) var(--curva-estandar), color var(--mov-rapido) var(--curva-estandar);
+}
+.es-compacto .segmento {
+  padding: 0 9px;
+  border-radius: 4px;
+  font-size: max(9px, calc(var(--ui-font) - 1px));
+}
+.segmento:hover:not(:disabled) {
+  color: var(--fg);
+}
+.segmento[aria-checked='true'] {
+  background: var(--sel-glow);
+  color: var(--fg);
+}
+.segmento:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.segmento:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}

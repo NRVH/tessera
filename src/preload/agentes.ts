@@ -4,6 +4,8 @@
 // Canales y formas: los `src/shared/*-ipc.ts` de cada dominio.
 // =============================================================================
 import { ipcRenderer } from 'electron'
+import { CONTEXTO_CHANNELS } from '../shared/contexto-ipc'
+import type { ContextoGlobal } from '../shared/contexto'
 import {
   AGENTES_NATIVOS_CHANNELS,
   type EstadoAgentesNativos,
@@ -18,6 +20,16 @@ import {
   type CreateAccountRequest,
   type OlvidarAgenteManualRequest
 } from '../shared/agent-accounts-ipc'
+import { DOCUMENTOS_CHANNELS, type ResumenCarpetaDocumentos } from '../shared/documentos-ipc'
+import {
+  CONFIG_AGENTE_CHANNELS,
+  type ConfigAgenteLeida,
+  type GuardarConfigRequest,
+  type PropuestaConfig,
+  type RefConfigAgente,
+  type ResultadoGuardarConfig,
+  type TipoArchivoConfig
+} from '../shared/configAgente-ipc'
 import {
   CONVERSATION_CHANNELS,
   type ConversationSummary,
@@ -110,6 +122,48 @@ export interface AgentAccountsApi {
   olvidarAgenteManual: (req: OlvidarAgenteManualRequest) => Promise<void>
 }
 
+/** Las carpetas de documentos de referencia del perfil: elegir una y ver qué hay en las elegidas. */
+export interface DocumentosPerfilApi {
+  elegirCarpeta: () => Promise<string | null>
+  resumen: (carpetas: string[]) => Promise<ResumenCarpetaDocumentos[]>
+}
+
+export const documentosPerfil: DocumentosPerfilApi = {
+  elegirCarpeta: () => ipcRenderer.invoke(DOCUMENTOS_CHANNELS.ELEGIR_CARPETA),
+  resumen: (carpetas) => ipcRenderer.invoke(DOCUMENTOS_CHANNELS.RESUMEN, carpetas)
+}
+
+/** El contexto global de los agentes: reglas y documentos de todos los perfiles que lo usan. */
+export interface ContextoGlobalApi {
+  leer: () => Promise<ContextoGlobal>
+  /** Guarda las partes recibidas sobre lo vigente y devuelve el resultado, ya normalizado. */
+  guardar: (c: Partial<ContextoGlobal>) => Promise<ContextoGlobal>
+  onCambio: (cb: (c: ContextoGlobal) => void) => () => void
+}
+
+export const contextoGlobal: ContextoGlobalApi = {
+  leer: () => ipcRenderer.invoke(CONTEXTO_CHANNELS.LEER),
+  guardar: (c) => ipcRenderer.invoke(CONTEXTO_CHANNELS.GUARDAR, c),
+  onCambio: (cb) => {
+    const oyente = (_e: Electron.IpcRendererEvent, c: ContextoGlobal): void => cb(c)
+    ipcRenderer.on(CONTEXTO_CHANNELS.CAMBIO, oyente)
+    return () => ipcRenderer.removeListener(CONTEXTO_CHANNELS.CAMBIO, oyente)
+  }
+}
+
+/** Los archivos de configuración de un agente: se nombran por cuenta y tipo, nunca por ruta. */
+export interface ConfigAgenteApi {
+  leer: (ref: RefConfigAgente) => Promise<ConfigAgenteLeida | null>
+  leerAnterior: (ref: RefConfigAgente, tipo: TipoArchivoConfig) => Promise<string | null>
+  guardar: (req: GuardarConfigRequest) => Promise<ResultadoGuardarConfig>
+  /** Las propuestas pendientes de los agentes. */
+  propuestas: () => Promise<PropuestaConfig[]>
+  /** Acepta (la escribe en su nivel) o descarta una propuesta; null si ya no existe o se descartó. */
+  resolverPropuesta: (id: string, aceptar: boolean) => Promise<ResultadoGuardarConfig | null>
+  /** Ha llegado una propuesta. Devuelve la función que quita la suscripción. */
+  onPropuesta: (cb: (p: PropuestaConfig) => void) => () => void
+}
+
 /**
  * Panel de CONVERSACIONES (solo lectura): lista los transcripts que CC/Codex ya
  * persisten por perfil y devuelve el hilo renderizable de uno. No reanuda nada.
@@ -195,6 +249,19 @@ export const agentAccounts: AgentAccountsApi = {
   logout: (id) => ipcRenderer.invoke(AGENT_ACCOUNT_CHANNELS.LOGOUT, { id }),
   remove: (id) => ipcRenderer.invoke(AGENT_ACCOUNT_CHANNELS.DELETE, { id }),
   olvidarAgenteManual: (req) => ipcRenderer.invoke(AGENT_ACCOUNT_CHANNELS.OLVIDAR_AGENTE_MANUAL, req)
+}
+
+export const configAgente: ConfigAgenteApi = {
+  leer: (ref) => ipcRenderer.invoke(CONFIG_AGENTE_CHANNELS.LEER, ref),
+  leerAnterior: (ref, tipo) => ipcRenderer.invoke(CONFIG_AGENTE_CHANNELS.LEER_ANTERIOR, { ref, tipo }),
+  guardar: (req) => ipcRenderer.invoke(CONFIG_AGENTE_CHANNELS.GUARDAR, req),
+  propuestas: () => ipcRenderer.invoke(CONFIG_AGENTE_CHANNELS.PROPUESTAS),
+  resolverPropuesta: (id, aceptar) => ipcRenderer.invoke(CONFIG_AGENTE_CHANNELS.RESOLVER_PROPUESTA, { id, aceptar }),
+  onPropuesta: (cb) => {
+    const oyente = (_e: Electron.IpcRendererEvent, p: PropuestaConfig): void => cb(p)
+    ipcRenderer.on(CONFIG_AGENTE_CHANNELS.PROPUESTA_LLEGADA, oyente)
+    return () => ipcRenderer.removeListener(CONFIG_AGENTE_CHANNELS.PROPUESTA_LLEGADA, oyente)
+  }
 }
 
 export const hibernate: HibernateApi = {

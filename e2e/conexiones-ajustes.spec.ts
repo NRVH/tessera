@@ -103,7 +103,7 @@ test.describe('explorador de BD: ajustes de Configuración', () => {
     await s!.app.evaluate(({ dialog }, r) => {
       dialog.showSaveDialog = (async () => ({ canceled: false, filePath: r })) as typeof dialog.showSaveDialog
     }, ruta)
-    await win.locator('.activity-item[title="Conexiones a bases de datos"]').click()
+    await win.locator('.activity-item[title="Bases de datos"]').click()
     await expect(win.locator('.db-area:not(.hidden)')).toBeVisible()
     await win.locator('.db-arbol .sidebar-actions button[aria-label="Nueva conexión"]').click()
     const modal = win.locator('.db-conexion-modal')

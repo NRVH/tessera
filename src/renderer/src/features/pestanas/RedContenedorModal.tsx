@@ -2,15 +2,15 @@
 // RedContenedorModal: diálogo con el que se elige por dónde entran y salen las conexiones
 // del contenedor de un perfil (red aislada o red del anfitrión), con el diagnóstico previo
 // que llega del main ya redactado (`redContenedor.prevuelo`). «Aplicar» nunca se deshabilita.
-// Depende de comun/AvisoCaja, comun/useDialogo y de shared/nombresSistema; lo abre `ProfileTabs`.
+// Depende de comun/Modal y de shared/nombresSistema; lo abre `ProfileTabs`.
 // Decisiones: docs/decisiones/renderer/red-del-contenedor.md
 // =============================================================================
+import './reglasPerfil.css'
 import { useEffect, useRef, useState } from 'react'
 import type { Profile } from '../../../../main/profiles/types'
 import type { ResultadoRedPrevuelo } from '../../../../shared/sandbox-red-ipc'
 import { nombresSistema } from '../../../../shared/nombresSistema'
-import { AvisoCaja } from '../../comun/AvisoCaja'
-import { useDialogo } from '../../comun/useDialogo'
+import { AvisoModal, Modal, PieModal } from '../../comun/Modal'
 import { AYUDA, BotonAyuda } from '../academy'
 import { txPestanas } from './textos.ts'
 
@@ -172,15 +172,11 @@ function DetalleAnfitrion({
       {/* La salida por VPN va como información, nunca como comprobación en rojo: no se
           sabe qué host le importa al usuario, y darlo por caído sin probarlo sería mentir. */}
       {prevuelo?.notaEgress && (
-        <AvisoCaja titulo={t.salidaVpn} sugerencia={prevuelo.notaEgress} tono="info" />
+        <AvisoModal tono="info"><strong>{t.salidaVpn}</strong>{'\n'}{prevuelo.notaEgress}</AvisoModal>
       )}
 
       {prevuelo?.otroPerfilEnAnfitrion && (
-        <AvisoCaja
-          titulo={t.otroPerfil}
-          sugerencia={t.otroPerfilDetalle(tuEquipo)}
-          tono="error"
-        />
+        <AvisoModal tono="error"><strong>{t.otroPerfil}</strong>{'\n'}{t.otroPerfilDetalle(tuEquipo)}</AvisoModal>
       )}
     </>
   )
@@ -192,9 +188,6 @@ export function RedContenedorModal({
   onAplicar,
   onCancel
 }: RedContenedorModalProps): React.JSX.Element {
-  // Esc cierra aunque esté «comprobando…» mientras Docker contesta: el modal no tiene ningún
-  // estado que impida abandonarlo (el prevuelo se descarta al desmontar), así que siempre `cerrable`.
-  const dlg = useDialogo({ onClose: onCancel })
   const n = nombresSistema(window.tessera.plataforma)
   const t = txPestanas().red
   const actual: Eleccion = profile.sandbox?.redHost === true ? 'anfitrion' : 'aislada'
@@ -205,12 +198,14 @@ export function RedContenedorModal({
   const conFallas = eleccion === 'anfitrion' && prevuelo?.hayFallas === true
 
   return (
-    <div className="modal-overlay" onMouseDown={onCancel}>
-      <div ref={dlg.ref} className="modal-card red-modal" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-titulo-fila">
-          <div className="modal-title">{t.titulo(profile.nombre)}</div>
-          <BotonAyuda destino={AYUDA.redDelContenedor} />
-        </div>
+    <Modal titulo={t.titulo(profile.nombre)} ayuda={<BotonAyuda destino={AYUDA.redDelContenedor} />}
+      tamano="m" className="red-modal" onCerrar={onCancel} cierraConVelo={!cambia}
+      pie={<PieModal>
+        <button className="btn btn-ghost" onClick={onCancel}>{t.cancelar}</button>
+        <button className="btn primary" onClick={() => onAplicar(eleccion === 'anfitrion')}>
+          {conFallas ? t.aplicarIgualmente(profile.nombre) : t.aplicar(profile.nombre)}
+        </button>
+      </PieModal>}>
         <div className="modal-message">{t.mensaje}</div>
 
         <ElegirRed eleccion={eleccion} tuEquipo={n.tuEquipo} onElegir={setEleccion} />
@@ -220,24 +215,9 @@ export function RedContenedorModal({
         )}
 
         {prevuelo?.pendiente === true && !cambia && (
-          <AvisoCaja
-            titulo={t.sigueAnterior}
-            sugerencia={t.sigueAnteriorDetalle}
-            tono="info"
-          />
+          <AvisoModal tono="info"><strong>{t.sigueAnterior}</strong>{'\n'}{t.sigueAnteriorDetalle}</AvisoModal>
         )}
 
-        <div className="modal-actions">
-          <button className="btn btn-ghost" onClick={onCancel}>
-            {t.cancelar}
-          </button>
-          {/* Nunca deshabilitado: la sonda puede dar un falso negativo, y con el mismo modo
-              elegido el botón sigue siendo una forma legítima de reiniciar el contenedor. */}
-          <button className="btn primary" onClick={() => onAplicar(eleccion === 'anfitrion')}>
-            {conFallas ? t.aplicarIgualmente(profile.nombre) : t.aplicar(profile.nombre)}
-          </button>
-        </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

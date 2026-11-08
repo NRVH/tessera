@@ -15,7 +15,7 @@ export const txLote = crearTextos(
     dropObjeto: (verbo: string) => `${verbo}: borra el objeto`,
     tituloPeligro: (verbo: string) => `¿Ejecutar ${verbo} sin WHERE?`,
     tituloPeligros: '¿Ejecutar sentencias sin WHERE?',
-    mensajePeligros: (alias: string, cuerpo: string) => `En ${alias}:\n\n${cuerpo}`,
+    mensajePeligros: (alias: string, cuerpo: string) => `En «${alias}»:\n\n${cuerpo}`,
     ejecutarDeTodosModos: 'Ejecutar de todos modos',
     // Producción
     ejecutarEnProduccion: 'Ejecutar en producción',
@@ -38,8 +38,8 @@ export const txLote = crearTextos(
     efectoConPendientes: (cuantas: string) =>
       `confirma también los cambios sin confirmar de esta consola${cuantas} sin pasar por la confirmación del COMMIT, y ya no se podrán revertir.`,
     sujetoEfecto: (sujeto: string, efecto: string) => `${sujeto}: ${efecto}`,
-    tituloEjecutarProd: (alias: string) => `Producción: ¿ejecutar en ${alias}?`,
-    tituloConfirmarProd: (alias: string) => `Producción: ¿confirmar en ${alias}?`,
+    tituloEjecutarProd: (alias: string) => `Producción: ¿ejecutar en «${alias}»?`,
+    tituloConfirmarProd: (alias: string) => `Producción: ¿confirmar en «${alias}»?`,
     commitProd: (alias: string, cuantas: string) =>
       `«${alias}» es una conexión de producción.\n\n` +
       `El COMMIT hace definitivos los cambios pendientes de esta consola${cuantas}.`,
@@ -61,7 +61,7 @@ export const txLote = crearTextos(
     sesionDatos: 'la sesión de datos',
     // Forzar
     cabezaConexion: (alias: string) =>
-      `Se cerrará la conexión con ${alias} (todas sus sesiones) y el servidor revertirá lo que no esté confirmado.`,
+      `Se cerrará la conexión con «${alias}» (todas sus sesiones) y el servidor revertirá lo que no esté confirmado.`,
     vacioConexion: 'No hay transacciones sin confirmar en esta conexión.',
     cabezaConsola: (alias: string) =>
       `Se cerrará la sesión de esta consola con ${alias} y se revertirá lo que no esté confirmado en ella. Las demás consolas y pestañas de la conexión no se modifican.`,
@@ -79,7 +79,7 @@ export const txLote = crearTextos(
     dropObjeto: (verbo: string) => `${verbo}: drops the object`,
     tituloPeligro: (verbo: string) => `Run ${verbo} without WHERE?`,
     tituloPeligros: 'Run statements without WHERE?',
-    mensajePeligros: (alias: string, cuerpo: string) => `On ${alias}:\n\n${cuerpo}`,
+    mensajePeligros: (alias: string, cuerpo: string) => `On “${alias}”:\n\n${cuerpo}`,
     ejecutarDeTodosModos: 'Run anyway',
     ejecutarEnProduccion: 'Run in production',
     confirmarCommit: 'Commit',
@@ -101,8 +101,8 @@ export const txLote = crearTextos(
     efectoConPendientes: (cuantas: string) =>
       `it also commits this console’s uncommitted changes${cuantas} without the COMMIT confirmation, and they cannot be rolled back.`,
     sujetoEfecto: (sujeto: string, efecto: string) => `${sujeto}: ${efecto}`,
-    tituloEjecutarProd: (alias: string) => `Production: run on ${alias}?`,
-    tituloConfirmarProd: (alias: string) => `Production: commit on ${alias}?`,
+    tituloEjecutarProd: (alias: string) => `Production: run on “${alias}”?`,
+    tituloConfirmarProd: (alias: string) => `Production: commit on “${alias}”?`,
     commitProd: (alias: string, cuantas: string) =>
       `“${alias}” is a production connection.\n\n` +
       `COMMIT makes this console’s pending changes permanent${cuantas}.`,
@@ -122,10 +122,10 @@ export const txLote = crearTextos(
     otraConsola: 'a console from another profile',
     sesionDatos: 'the data session',
     cabezaConexion: (alias: string) =>
-      `The connection to ${alias} (all its sessions) will be closed, and the server will roll back any uncommitted changes.`,
+      `The connection to “${alias}” (all its sessions) will be closed, and the server will roll back any uncommitted changes.`,
     vacioConexion: 'There are no uncommitted transactions on this connection.',
     cabezaConsola: (alias: string) =>
-      `This console’s session with ${alias} will be closed, and its uncommitted changes will be rolled back. Other consoles and tabs on this connection are not affected.`,
+      `This console’s session with “${alias}” will be closed, and its uncommitted changes will be rolled back. Other consoles and tabs on this connection are not affected.`,
     vacioConsola: 'This console has no uncommitted transactions.',
     sePerderan: 'These will be lost:',
     lineaSinConfirmarN: (nombre: string, cant: string) => `· ${nombre}: ${cant} uncommitted`,

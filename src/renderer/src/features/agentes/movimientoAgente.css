@@ -1,0 +1,19 @@
+/* =============================================================================
+   El movimiento propio del panel del agente (docs/decisiones/renderer/movimiento.md): el panel de las bases que el
+   agente puede consultar cuelga de la cabecera y entra bajando un poco; su salida es la despedida de
+   `PopoverMontaje`. Duraciones y curvas de `comun/movimiento.css`.
+   ============================================================================= */
+.db-mount-pop {
+  transform-origin: top right;
+  transition:
+    opacity var(--mov-medio) var(--curva-estandar),
+    translate var(--mov-medio) var(--curva-entrada),
+    scale var(--mov-medio) var(--curva-entrada);
+}
+@starting-style {
+  .db-mount-pop {
+    opacity: 0;
+    translate: 0 -4px;
+    scale: 0.98;
+  }
+}

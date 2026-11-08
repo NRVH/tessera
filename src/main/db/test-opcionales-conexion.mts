@@ -41,7 +41,7 @@ const casos: Array<[Parameters<typeof validarOpcional>[0], Parameters<typeof val
   ['autenticacion', {}, null],
   ['autenticacion', { autenticacion: 'sql' }, null],
   ['autenticacion', { autenticacion: 'ntlm' }, null],
-  ['autenticacion', { autenticacion: 'kerberos' as never }, 'Autenticación desconocida: "kerberos".'],
+  ['autenticacion', { autenticacion: 'kerberos' as never }, 'Autenticación desconocida: «kerberos».'],
   ['dominio', { autenticacion: 'sql' }, null],
   ['dominio', {}, null],
   ['dominio', { autenticacion: 'ntlm' }, 'Falta el dominio de la cuenta.'],

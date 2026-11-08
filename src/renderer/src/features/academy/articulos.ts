@@ -17,6 +17,7 @@ import { txContinuarEnOtroAgente } from './contenido/continuarEnOtroAgente.ts'
 import { txConversaciones } from './contenido/conversaciones.ts'
 import { txCopiaDeConfiguracion } from './contenido/copiaDeConfiguracion.ts'
 import { txCuentas } from './contenido/cuentas.ts'
+import { txDelegarTareas } from './contenido/delegarTareas.ts'
 import { txEditorYExplorador } from './contenido/editorYExplorador.ts'
 import { txGit } from './contenido/git.ts'
 import { txGlosario } from './contenido/glosario.ts'
@@ -40,6 +41,7 @@ export const ARTICULOS: Record<ArticuloId, () => Textos<Articulo>> = {
   cuentas: txCuentas,
   'nativo-o-docker': txNativoODocker,
   'continuar-en-otro-agente': txContinuarEnOtroAgente,
+  'delegar-tareas': txDelegarTareas,
   'reglas-del-perfil': txReglasDelPerfil,
   conversaciones: txConversaciones,
   mosaico: txMosaico,

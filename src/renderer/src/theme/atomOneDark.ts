@@ -38,13 +38,13 @@ export const ATOM_ONE_DARK = {
   /**
    * LA CONSOLA DE LA SHELL DE ABAJO, y sólo ella.
    *
-   * Tiene color propio porque su trabajo es no parecerse a nada: se probó con el gris
-   * del marco y quedaba FUNDIDA con la barra de estado y la barra de título, o sea que
-   * el panel no se distinguía de la carcasa; y con `bgDeep` es tan oscura como la
-   * consola del AGENTE, y entonces las dos terminales se leen como la misma cosa
-   * cuando son dos sitios distintos con dos vidas distintas.
+   * Tiene color propio porque su trabajo es no parecerse a nada: con el gris del marco
+   * quedaría FUNDIDA con la barra de estado y la barra de título, o sea que el panel no
+   * se distinguiría de la carcasa; y con `bgDeep` sería tan oscura como la consola del
+   * AGENTE, y entonces las dos terminales se leerían como la misma cosa cuando son dos
+   * sitios distintos con dos vidas distintas.
    *
-   * Queda por debajo de `chrome` (más oscura que el contorno, como se pidió) y por
+   * Queda por debajo de `chrome` (más oscura que el contorno) y por
    * encima de `bg` y de `bgDeep` (no es negra). Su vecino más próximo en la paleta es
    * `surface`; conviven porque `surface` son CONTROLES pequeños —botones, inputs— y
    * esto es un área grande: nunca se comparan lado a lado a igualdad de tamaño.
@@ -99,13 +99,16 @@ export const XTERM_THEME_DARK = {
   magenta: ATOM_ONE_DARK.magenta,
   cyan: ATOM_ONE_DARK.cyan,
   white: ATOM_ONE_DARK.fg,
+  // Los «bright» son el mismo tono un 30 % más cerca del blanco. Iguales a los normales, un programa que
+  // los usa para distinguir dos cosas (la palabra cambiada dentro de la línea de un diff, por ejemplo)
+  // las pintaría igual.
   brightBlack: ATOM_ONE_DARK.fgFaint,
-  brightRed: ATOM_ONE_DARK.red,
-  brightGreen: ATOM_ONE_DARK.green,
-  brightYellow: ATOM_ONE_DARK.yellow,
-  brightBlue: ATOM_ONE_DARK.accent,
-  brightMagenta: ATOM_ONE_DARK.magenta,
-  brightCyan: ATOM_ONE_DARK.cyan,
+  brightRed: '#f4979e',
+  brightGreen: '#9ee0b8',
+  brightYellow: '#efd6a8',
+  brightBlue: '#97c2ff',
+  brightMagenta: '#d9aee9',
+  brightCyan: '#92d7dd',
   brightWhite: ATOM_ONE_DARK.white
 } as const
 
@@ -267,7 +270,7 @@ export const THEMES: Record<ThemeName, Record<string, string>> = {
      * LA FAMILIA DEL ROJO DE **ACCIÓN**, que no es el mismo que el de ESTADO.
      *
      * `--red` seguirá significando lo que significaba: borrado, conflicto, error,
-     * línea quitada del diff, rojo ANSI de la terminal. Estos tres son otra cosa —el
+     * línea quitada del diff, rojo ANSI de la terminal. Estos son otra cosa —el
      * cromo de un botón que aún no has pulsado— y se separan porque un botón nunca
      * debe pintarse con la densidad de un error: el error INFORMA de algo que ya
      * pasó, el botón ESPERA a que decidas.
@@ -283,9 +286,7 @@ export const THEMES: Record<ThemeName, Record<string, string>> = {
      * suposición de que siempre vive dentro de un modal. No la hornees.
      */
     '--danger-tinte': 'color-mix(in srgb, var(--red) 14%, transparent)',
-    '--danger-tinte-fuerte': 'color-mix(in srgb, var(--red) 22%, transparent)',
     '--danger-filete': 'color-mix(in srgb, var(--red) 45%, transparent)',
-    '--danger-filete-fuerte': 'color-mix(in srgb, var(--red) 60%, transparent)',
     /**
      * EL RELLENO TRANSLÚCIDO DE TODO LO FANTASMA (botones de icono, acciones sin
      * cuerpo, filas). Dos peldaños: `suave` para el hover y `fuerte` para el pulsado.

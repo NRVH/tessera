@@ -7,7 +7,8 @@
 // =============================================================================
 
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
-import { avisarRenombre, avisarRetiro, otrosQueUsan, registrarPaneConCuenta, type PaneConCuenta, type RetiroCuenta } from './retiroDeCuentas.ts'
+import { otrosQueUsan, registrarPaneConCuenta, type PaneConCuenta, type RetiroCuenta } from './retiroDeCuentas.ts'
+import { crearCuenta, renombrarCuenta, retirarCuenta } from './accionesCuentas'
 import type { AgentAccount } from '../../../../shared/agent-accounts-ipc'
 import type { PropsAgentPane } from './agentPaneTipos'
 import type { IdAgente } from '../../../../shared/agentesManuales'
@@ -148,7 +149,7 @@ function accionesCuenta(
     // Crea una cuenta, la selecciona y arranca su login. Si el main la rechaza (un nombre
     // repetido), lanza: el diálogo sigue abierto con el motivo y la pestaña no cambia de cuenta.
     handleCreateAccount: async (nombre) => {
-      const acc = await window.tessera.agentAccounts.create({ nombre, agente, profileId })
+      const acc = await crearCuenta(profileId, agente, nombre)
       setAddingAccount(false)
       // Corriendo nativo, una cuenta nueva es pasar a Docker con ella: el pane se remonta en ese modo.
       if (p.hostMode && p.onElegirModo) return p.onElegirModo(p.target.key, 'docker', acc.id)
@@ -156,20 +157,17 @@ function accionesCuenta(
     },
     // Si el main lo rechaza (vacío, repetido), lanza: la tarjeta sigue en edición con el motivo.
     handleRenameAccount: async (id, nombre) => {
-      await window.tessera.agentAccounts.rename(id, nombre)
-      avisarRenombre(id, yo)
+      await renombrarCuenta(id, nombre, yo)
       await loadAccounts(p, r, s)
     },
     // Borra la credencial (el main cierra antes sus sesiones, las de todos los panes): el que la
     // tenía abierta pide login de cero.
     handleLogoutAccount: async (id) => {
-      await window.tessera.agentAccounts.logout(id)
-      avisarRetiro(id, 'logout', yo)
+      await retirarCuenta(id, 'logout', yo)
       await trasRetirarSinFallar(p, r, s, id, 'logout')
     },
     handleDeleteAccount: async (id) => {
-      await window.tessera.agentAccounts.remove(id)
-      avisarRetiro(id, 'eliminada', yo)
+      await retirarCuenta(id, 'eliminada', yo)
       await trasRetirarSinFallar(p, r, s, id, 'eliminada')
     }
   }

@@ -6,6 +6,7 @@
 // =============================================================================
 import type { editor, IDisposable } from 'monaco-editor'
 import { ensureMonaco, MONACO_THEME, OPCIONES_BASE_MONACO } from '../../comun/monacoSetup'
+import { conLetraEditor, opcionesLetraEditor } from '../../comun/letraEditor'
 import { ModelSaveBlocked, textModels } from './textModelRegistry'
 import { UMBRAL_LADO_A_LADO, alCambiarAncho } from './modoDiff'
 import { hayColapsoPosible, opcionesColapso } from './colapsoDiff'
@@ -17,10 +18,11 @@ type Monaco = ReturnType<typeof ensureMonaco>
 
 /** Crea el diff editor: solo lectura de partida (fail-safe) y opciones base compartidas. */
 function crearDiffEditor(monaco: Monaco, host: HTMLElement, colapsar: boolean): editor.IStandaloneDiffEditor {
-  return monaco.editor.createDiffEditor(host, {
-    // Tipografía, guías, widgets y `automaticLayout: false` (con la obligación del
-    // ResizeObserver de este módulo) viven en monacoSetup para que los editores no diverjan.
+  return conLetraEditor(monaco.editor.createDiffEditor(host, {
+    // Guías, widgets y `automaticLayout: false` (con la obligación del ResizeObserver de este
+    // módulo) viven en monacoSetup para que los editores no diverjan; la letra, en el ajuste del editor.
     ...OPCIONES_BASE_MONACO,
+    ...opcionesLetraEditor(),
     theme: MONACO_THEME,
     // Se abre a edición solo cuando el buffer compartido queda instalado: cualquier
     // error, binario o truncado deja el diff no editable sin código extra.
@@ -42,7 +44,7 @@ function crearDiffEditor(monaco: Monaco, host: HTMLElement, colapsar: boolean): 
     // recuadro redondeado como las pastillas de las barras (`styles.css`, «diffViewport»).
     renderOverviewRuler: true,
     renderWhitespace: 'selection'
-  })
+  }))
 }
 
 /** Al recalcular Monaco el diff: cuenta cambios, decide si hay algo que plegar y salta al primero. */

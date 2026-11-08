@@ -7,11 +7,13 @@
 // Decisiones: docs/decisiones/ssh/explorador-sftp.md
 // =============================================================================
 
+import { Presente } from '../../comun/Presente'
 import './sftp.css'
 import { useRef, useState, type KeyboardEvent, type MouseEvent } from 'react'
 import { AvisoCaja } from '../../comun/AvisoCaja'
 import { EnCapaFlotante } from '../../comun/capaFlotante'
 import { ContextMenu } from '../../comun/ContextMenu'
+import { IconoCerrar } from '../../comun/iconosMenu'
 import { esModPrincipal } from '../../util/atajos'
 import { nombresSistema } from '../../../../shared/nombresSistema'
 import type { TerminalExitReason } from '../../../../shared/terminal-ipc'
@@ -39,6 +41,11 @@ export interface PropsExploradorSftp {
   altoFila: number
   /** El texto del motivo clasificado de un fallo SSH (huella cambiada…): lo pone quien aloja el explorador. */
   textoMotivo: (motivo: TerminalExitReason) => string
+  /**
+   * Antes de conectar, la huella del servidor confirmada por la persona; `false` si no la confirmó. Lo pone quien
+   * aloja el explorador, con identidad estable: cambiarla reabre la sesión.
+   */
+  confirmarHuella: (profileId: string, conexionId: string) => Promise<boolean>
 }
 
 /** El fallo de abrir la sesión o de su caída, con la salida de volver a intentarlo. */
@@ -112,6 +119,8 @@ function ExploradorListo({ p, sesion, listado }: PropsListo): React.JSX.Element 
     else sesion.actualizar()
   }
 
+  const ultimoAviso = useRef(sesion.aviso)
+  if (sesion.aviso) ultimoAviso.current = sesion.aviso
   return (
     <div className="sftp">
       <BarraSftp
@@ -130,14 +139,14 @@ function ExploradorListo({ p, sesion, listado }: PropsListo): React.JSX.Element 
         onRenombrar={acciones.pedirRenombrar}
         onEliminar={acciones.pedirBorrar}
       />
-      {sesion.aviso !== null && (
+      <Presente visible={sesion.aviso !== null} className="mov-despliega">
         <div className="sftp-aviso" role="alert">
-          <span className="sftp-aviso-texto">{sesion.aviso}</span>
+          <span className="sftp-aviso-texto">{ultimoAviso.current}</span>
           <button type="button" className="sftp-operacion-cerrar" aria-label={txSftp().cerrarAviso} title={txSftp().cerrarAviso} onClick={() => sesion.avisar(null)}>
-            ×
+            <IconoCerrar />
           </button>
         </div>
-      )}
+      </Presente>
       <ListaSftp
         entradas={listado.entradas}
         seleccion={vista.seleccion}

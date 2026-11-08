@@ -108,6 +108,7 @@ function textoDe(e: unknown): string {
 function textoDeCaida(motivo: TerminalExitReason | undefined, errores: string): string {
   const t = txSsh().sftp
   if (motivo === 'ssh-huella-cambiada') return t.huellaCambiada
+  if (motivo === 'ssh-huella-sin-confirmar') return t.huellaSinConfirmar
   if (motivo === 'ssh-autenticacion') return t.autenticacion
   if (motivo === 'ssh-inalcanzable') return t.inalcanzable
   if (motivo === 'ssh-algoritmos') return t.algoritmos

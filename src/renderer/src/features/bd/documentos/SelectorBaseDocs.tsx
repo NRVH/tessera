@@ -1,12 +1,13 @@
 // =============================================================================
 // El selector de la base de la consola de MongoDB: el popover de la consola SQL (sus mismas
 // clases `db-pop-*`) con la lista de `DOCS_CHANNELS.BASES`. No se reutiliza aquel porque lee
-// la caché de bases SQL. Va por portal a `document.body` y sin lista virtual: un servidor de
+// la caché de bases SQL. Va por portal a la capa flotante y sin lista virtual: un servidor de
 // MongoDB tiene decenas de bases, no miles.
 // =============================================================================
 
+import { Cruce } from '../../../comun/Presente'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { EnCapaFlotante } from '../../../comun/capaFlotante'
 import type { DbConnection } from '../../../../../shared/db-ipc'
 import type { DbDocBase } from '../../../../../shared/db-documentos-ipc'
 import { textoError } from '../consola/salidaConsola'
@@ -152,7 +153,8 @@ export function SelectorBaseDocs(p: {
   const mover = (dir: number): void => setActivo((a) => Math.max(0, Math.min(opciones.length - 1, a + dir)))
   const t = txConsolaDocs()
 
-  return createPortal(
+  return (
+    <EnCapaFlotante>
     <div
       ref={raizRef}
       className="db-esquemas-pop db-esquema-consola-pop"
@@ -162,6 +164,7 @@ export function SelectorBaseDocs(p: {
       onKeyDown={(e) => teclaSelector(e, { cerrar: () => cerrarRef.current(), elegir: () => elegir(activo), mover })}
     >
       <FiltroSelector alias={p.conexion.alias} filtroRef={filtroRef} filtro={filtro} placeholder={t.filtrarBases} onFiltro={setFiltro} />
+      <Cruce clave={bases ? 'lista' : error ? 'error' : 'cargando'}>
       <EstadoSelector cargando={!bases && !error} error={error} vacio={bases !== null && opciones.length === 0} onReintentar={reintentar} />
       {opciones.length > 0 && (
         <ListaBases
@@ -175,10 +178,11 @@ export function SelectorBaseDocs(p: {
           onElegir={elegir}
         />
       )}
+      </Cruce>
       <div className="db-pop-pie">
         <span className="db-pop-pista">{t.pistaSelector}</span>
       </div>
-    </div>,
-    document.body
+    </div>
+    </EnCapaFlotante>
   )
 }

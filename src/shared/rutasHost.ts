@@ -164,10 +164,10 @@ export function relativaPosixHost(ancestro: string, ruta: string): string | null
   const relativa = r.slice(conSeparador(a).length)
   // Sólo la familia Windows traduce `\` a `/`: ahí `\` ES el separador y el renderer
   // sólo acepta `/`. En POSIX el reemplazo NO es un no-op —la barra invertida es un
-  // carácter LEGAL de nombre de archivo, ver el ADR— y hacerlo convertía
-  // `a\b/c` en `a/b/c`, una ruta de dos carpetas que no existen. Se probó dejarlo
-  // común a las dos familias "porque el contrato de salida es el mismo" y se retiró
-  // por eso: el contrato es "separadores POSIX", no "sin barras invertidas".
+  // carácter LEGAL de nombre de archivo, ver el ADR— y hacerlo convertiría
+  // `a\b/c` en `a/b/c`, una ruta de dos carpetas que no existen. El contrato de salida
+  // es "separadores POSIX", no "sin barras invertidas", y por eso no es común a las
+  // dos familias.
   return familia(r) === 'win' ? relativa.replace(/\\/g, '/') : relativa
 }
 

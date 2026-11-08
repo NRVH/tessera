@@ -146,9 +146,14 @@ async function main(): Promise<void> {
     const idSinHuella = altaSsh('sin huella')
     // El bastión salta a sí mismo: el destino es el sshd del contenedor visto desde dentro.
     const idTras = altaSsh('tras el bastion', { host: '127.0.0.1', puerto: 22, saltoId: idSsh })
-    await ctrl.probar({ id: idSsh })
+    // Una persona confirma cada huella en el diálogo de un servidor nuevo (el bastión primero) antes de «Probar».
+    for (let i = 0; i < 3; i++) {
+      const r = await ctrl.reconocerHuella({ id: idTras, prueba: true })
+      if (r.tipo !== 'nueva') break
+      ctrl.confiarHuella({ ficha: r.ficha })
+    }
     const pruebaTras = await ctrl.probar({ id: idTras })
-    check('(0d) una persona confirma las huellas («Probar»), también tras el bastión', pruebaTras.ok === true, JSON.stringify(pruebaTras).slice(0, 160))
+    check('(0d) una persona confirma las huellas, también tras el bastión, y «Probar» entra', pruebaTras.ok === true, JSON.stringify(pruebaTras).slice(0, 160))
 
     hr('(1) tdb por el puente')
     const base = { profileId: 'pa', motor: 'postgres', host: '127.0.0.1', port: 5432, database: 'postgres', user: 'postgres', readonly: true }

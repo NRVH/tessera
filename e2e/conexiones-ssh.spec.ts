@@ -4,9 +4,9 @@
 // abrirlo, un solo grupo abierto), los grupos, el formulario y la lista de su selector «Grupo»,
 // «Guardar» (solo guarda), las pestañas SSH del perfil, «Reconectar», «No se pudo conectar», «Disponible para
 // los agentes», editar y eliminar, el archivo de clave y la contraseña guardada (el programa de contraseñas
-// de verdad contra el falso), «Probar» y «Olvidar la huella guardada», la ▾ con el perfil vacío a pantalla
-// completa y «Importar desde OpenSSH…». Nada toca la red.
-// `TESSERA_E2E_CAPTURAS` guarda capturas.
+// de verdad contra el falso), la huella de un servidor nuevo antes de autenticarse (en la primera terminal, en
+// «Probar» y con un bastión), «Probar» y «Olvidar la huella guardada», la ▾ con el perfil vacío a pantalla
+// completa y «Importar desde OpenSSH…». Nada toca la red. `TESSERA_E2E_CAPTURAS` guarda capturas.
 // =============================================================================
 
 import { expect, test, type Locator, type Page } from '@playwright/test'
@@ -14,7 +14,7 @@ import { generateKeyPairSync } from 'node:crypto'
 import { mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { montarAgenteFalso } from './agenteFalso'
-import { BANNER_FALSO, HOST_QUE_FALLA, HUELLA_FALSA, HUELLA_NUEVA_FALSA, montarSshFalso, type SshFalso } from './sshFalso'
+import { BANNER_FALSO, HOST_QUE_FALLA, HUELLA_FALSA, HUELLA_NUEVA_FALSA, SHA256_FALSA, montarSshFalso, sembrarHuellaAntes, type SshFalso } from './sshFalso'
 import { abrirTessera, borrarTemporal, MOD, PLATAFORMA, type SesionTessera } from './tessera'
 
 interface Montaje {
@@ -216,6 +216,27 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     await expect(popover()).toHaveCount(0)
   }
 
+  /** El diálogo de la huella de un servidor nuevo. */
+  const dialogoHuella = (): Locator => s.win.getByRole('dialog', { name: 'Compruebe la identidad de este servidor' })
+
+  /**
+   * La primera conexión a un servidor: se enseña su huella (con `texto`, si se pide) y la persona la confirma. Con
+   * `otraDetras` (un bastión sin huella), el diálogo del siguiente servidor puede abrirse enseguida.
+   */
+  async function confiarHuella(texto?: string, otraDetras = false): Promise<void> {
+    const d = dialogoHuella()
+    await expect(d, 'la primera vez se enseña la huella del servidor nuevo').toBeVisible({ timeout: 30_000 })
+    if (texto !== undefined) await expect(d).toContainText(texto)
+    await d.getByRole('button', { name: 'Confiar y conectar' }).click()
+    if (!otraDetras) await expect(d).toHaveCount(0)
+  }
+
+  /** Las huellas guardadas de una conexión, vistas por el main. */
+  async function huellasDe(alias: string): Promise<number | undefined> {
+    const l = await s.win.evaluate(() => window.tessera.ssh.listar())
+    return l.conexiones.find((x) => x.alias === alias)?.huellaServidor.length
+  }
+
   /** Abre el lanzador con la ▾ de la cabecera y, si se pide, deja abierto ese grupo. */
   async function abrirLista(grupo?: string): Promise<Locator> {
     await enCabecera(s.win)
@@ -244,11 +265,13 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     expect(cf && cp ? Math.round(cf.x - (cp.x + cp.width)) : null, 'dos píxeles entre las mitades').toBe(2)
     await capturar(win, 'ssh-boton-dividido')
 
-    // El reinicio ya no está pegado a la ▾: es el primero del grupo de la derecha, entre filetes.
+    // El reinicio ya no está pegado a la ▾: es el primero de las acciones de la derecha, como en Git·Log.
     const reiniciar = panel().getByRole('button', { name: 'Reiniciar terminal' })
     await expect(panel().locator('.panel-actions').getByRole('button', { name: 'Reiniciar terminal' }), 'el reinicio vive en las acciones de la derecha').toHaveCount(1)
     await expect(panel().locator('.terminal-tabs-zona').getByRole('button', { name: 'Reiniciar terminal' }), 'y no en la zona de pestañas').toHaveCount(0)
-    await expect(panel().locator('.panel-actions .panel-actions-sep'), 'dos filetes: reinicio | pantalla completa | ocultar').toHaveCount(2)
+    await expect(panel().locator('.panel-actions .panel-actions-sep'), 'sin filetes, como Git·Log').toHaveCount(0)
+    const nombres = await panel().locator('.panel-actions button').evaluateAll((bs) => bs.map((b) => b.getAttribute('aria-label')))
+    expect(nombres, 'en el orden de Git·Log: reiniciar, maximizar y ocultar').toEqual(['Reiniciar terminal', 'Maximizar el panel de terminal', 'Ocultar el panel de terminal'])
     const cr = await reiniciar.boundingBox()
     expect(cf && cr ? cr.x - (cf.x + cf.width) : 0, 'lejos de la ▾ (un clic errado ya no lo dispara)').toBeGreaterThan(100)
 
@@ -298,7 +321,7 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
 
     // Se deja todo como estaba: el riel a la vista y el panel restaurado.
     await ensancharVentana(s, riel, tamano)
-    await panel().getByRole('button', { name: 'Restaurar el panel de terminal' }).click()
+    await win.locator('.activity-bar').getByRole('button', { name: 'Restaurar el panel de terminal' }).click()
     await expect(win.locator('.shell')).not.toHaveClass(/\bterminal-pantalla-completa\b/)
   })
 
@@ -312,8 +335,9 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     await expect(popover(), 'abrir un diálogo cierra el lanzador').toHaveCount(0)
     const dialogo = win.getByRole('dialog', { name: 'Nuevo grupo' })
     await expect(dialogo).toBeVisible()
-    // Los botones no van pegados al campo: el mismo aire que deja el mensaje de una confirmación (18 px). Se
-    // sondea porque la tarjeta entra escalándose y solo al terminar la animación la medida es la final.
+    // Los botones no van pegados al campo: el aire de la carcasa común de los diálogos, el mismo que en una
+    // confirmación (20 px del cuerpo y 12 del pie, `comun/modal.css`). Se sondea porque la tarjeta entra escalándose
+    // y solo al terminar la animación la medida es la final.
     await expect
       .poll(
         async () => {
@@ -321,9 +345,9 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
           const crear = await dialogo.getByRole('button', { name: 'Crear' }).boundingBox()
           return campo && crear ? Math.round(crear.y - (campo.y + campo.height)) : null
         },
-        { message: 'entre el campo y los botones hay 18 px' }
+        { message: 'entre el campo y los botones hay 32 px' }
       )
-      .toBe(18)
+      .toBe(32)
     await dialogo.getByRole('textbox', { name: 'Nombre del grupo' }).fill('Servidores')
     await dialogo.getByRole('button', { name: 'Crear' }).click()
     await expect(dialogo).toHaveCount(0)
@@ -350,6 +374,8 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     const dialogo = win.getByRole('dialog', { name: 'Nueva conexión SSH' })
     await expect(dialogo).toBeVisible()
     await expect(campos(dialogo).alias, 'el nombre tiene el foco al abrir').toBeFocused()
+    await expect(dialogo.getByRole('button', { name: 'Cerrar', exact: true })).toHaveAttribute('title', 'Cerrar (Esc)')
+    await expect(dialogo.locator('.modal-pie').getByRole('button')).toHaveText(['Guardar y probar', 'Cancelar', 'Guardar'])
     await expect(campos(dialogo).puerto, 'el puerto nace en 22').toHaveValue('22')
     await expect(dialogo.getByRole('radio', { name: 'Contraseña' }), 'la contraseña es el método por defecto').toBeChecked()
     await expect(dialogo.getByText('Tessera puede guardarla cifrada y proporcionarla automáticamente al conectar.')).toBeVisible()
@@ -369,8 +395,8 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     await expect(anidado).toHaveCount(0)
     await expect(campos(dialogo).grupo.locator('option:checked'), 'el grupo recién creado queda elegido').toHaveText('Producción')
 
-    await win.keyboard.press('Escape')
-    await expect(dialogo, 'un segundo Esc cierra el formulario').toHaveCount(0)
+    await dialogo.getByRole('button', { name: 'Cerrar', exact: true }).click()
+    await expect(dialogo, 'la cruz cierra el formulario con cambios').toHaveCount(0)
   })
 
   test('el selector «Grupo» despliega la lista de Tessera, redondeada y por encima del modal; flechas, Intro, escribir y Esc la manejan sin cerrar el diálogo', async () => {
@@ -469,7 +495,32 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     m.ssh.retardo(2_500)
     await guardarYConectar(dialogo, 'Router')
 
+    // La primera vez, antes de autenticarse, la huella del servidor nuevo, traída por una conexión que no
+    // manda credenciales. Cancelar no guarda nada ni conecta.
+    const huella = dialogoHuella()
+    await expect(huella, 'la primera vez se enseña la huella del servidor nuevo').toBeVisible({ timeout: 30_000 })
+    await expect(huella).toContainText('Es la primera vez que Tessera se conecta a Router (192.0.2.10:2222).')
+    await expect(huella).toContainText('antes de enviar la contraseña')
+    await expect(huella.locator('.huella-nueva-algoritmo')).toHaveText('ED25519')
+    await expect(huella.locator('.huella-nueva-valor')).toHaveText(SHA256_FALSA)
+    await expect(huella.getByRole('button', { name: 'Cancelar' }), 'el foco empieza en Cancelar: confiar no va por reflejo').toBeFocused()
+    expect(m.ssh.reconocimientos().length, 'la huella se trajo con una conexión aparte').toBe(1)
+    expect(m.ssh.reconocimientos()[0], 'que no se autentica').toContain('PreferredAuthentications=none')
+    expect(m.ssh.arranques().length, 'y la sesión aún no se lanzó').toBe(0)
+    await capturar(win, 'ssh-huella-nueva')
+    await huella.getByRole('button', { name: 'Cancelar' }).click()
+    await expect(huella).toHaveCount(0)
     const pestana = panel().getByRole('tab', { name: 'Router, SSH' })
+    await expect(pestana, 'la pestaña queda, sin conectar').toBeVisible()
+    await expect(panel().locator('.terminal-pane[aria-hidden="false"]'), 'y dice por qué').toContainText('No se confirmó la huella del servidor')
+    expect(await huellasDe('Router'), 'cancelar no guardó ninguna huella').toBe(0)
+    expect(m.ssh.arranques().length, 'ni lanzó la sesión').toBe(0)
+
+    // «Reconectar» vuelve a preguntar; «Confiar y conectar» la guarda y la sesión sigue.
+    await panel().locator('.terminal-fin-ssh').getByRole('button', { name: 'Reconectar' }).click()
+    await confiarHuella('Router')
+    await expect.poll(() => huellasDe('Router'), { message: 'confiar guardó la huella' }).toBe(1)
+
     await expect(pestana, 'aparece la pestaña SSH').toBeVisible({ timeout: 30_000 })
     await expect(panel().locator('.terminal-tab.ssh')).toHaveCount(1)
     await expect(pestana.locator('.terminal-tab-icono svg'), 'con su icono de servidor').toBeVisible()
@@ -524,7 +575,7 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
       const p = win.locator('.tabs-projects .project-tab', { hasText: nombre }).first()
       await p.hover()
       await p.getByRole('button', { name: `Cerrar ${nombre}` }).click()
-      await win.getByRole('dialog', { name: 'Cerrar proyecto' }).getByRole('button', { name: `Cerrar «${nombre}»`, exact: true }).click()
+      await win.getByRole('dialog', { name: /Cerrar el proyecto/ }).getByRole('button', { name: `Cerrar «${nombre}»`, exact: true }).click()
       await expect(win.locator('.tabs-projects .project-tab', { hasText: nombre })).toHaveCount(0)
     }
     await cerrar('alfa')
@@ -558,7 +609,8 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     await esperarEnTerminal(win, 'La sesión terminó', 1, 'la xterm cuenta que terminó')
     await esperarEnTerminal(win, 'Pulse Intro', 1, 'y dice cómo volver a conectar')
     await expect(pestana, 'desconectada').toHaveAccessibleName('Router, SSH, desconectada')
-    await expect(pestana.locator('.terminal-tab-dead'), 'con el ● como único indicador').toBeVisible()
+    // El ● está siempre montado (no mueve el nombre) y se ve con `.visible`: docs/decisiones/renderer/movimiento.md.
+    await expect(pestana.locator('.terminal-tab-dead.visible'), 'con el ● como único indicador').toBeVisible()
     const franja = panel().locator('.terminal-fin-ssh')
     await expect(franja.locator('.terminal-fin-ssh-motivo'), 'la franja dice qué pasó').toHaveText('La sesión terminó')
     const reconectar = franja.getByRole('button', { name: 'Reconectar' })
@@ -580,7 +632,7 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     await esperarEnTerminal(win, BANNER_FALSO, 1, 'el banner nuevo aparece')
     await expect(franja, 'la franja se va al reconectar').toHaveCount(0)
     await expect(pestana, 'ya no está desconectada').toHaveAccessibleName('Router, SSH')
-    await expect(pestana.locator('.terminal-tab-dead')).toHaveCount(0)
+    await expect(pestana.locator('.terminal-tab-dead.visible')).toHaveCount(0)
   })
 
   /** Abre el formulario de una conexión nueva desde el menú de un grupo del lanzador (con el grupo ya elegido). */
@@ -645,19 +697,25 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     const dialogo = win.getByRole('dialog', { name: 'Nueva conexión SSH' })
     await expect(dialogo.getByRole('button', { name: 'Guardar', exact: true }), 'el alta solo guarda').toBeVisible()
     await expect(campos(dialogo).grupo.locator('option:checked'), 'con el grupo del que se abrió ya elegido').toHaveText('Producción')
-    const casilla = dialogo.getByRole('checkbox', { name: 'Disponible para los agentes' })
-    await expect(casilla, 'marcada por defecto en un alta').toBeChecked()
+    const casilla = dialogo.getByRole('switch', { name: 'Disponible para los agentes' })
+    await expect(casilla, 'activa por defecto en un alta').toHaveAttribute('aria-checked', 'true')
     const c = campos(dialogo)
     await c.alias.fill('Solo mía')
     await c.host.fill('192.0.2.30')
     await c.usuario.fill('pruebas')
-    await casilla.uncheck()
-    await expect(dialogo.getByText('Los agentes del perfil no ven esta conexión'), 'la ayuda dice qué significa desmarcarla').toBeVisible()
+    await casilla.click()
+    await expect(casilla).toHaveAttribute('aria-checked', 'false')
+    await expect(dialogo.getByText('Los agentes del perfil no ven esta conexión'), 'la ayuda dice qué significa desactivarla').toBeVisible()
+    // Pulsar el texto también alterna.
+    await dialogo.getByText('Disponible para los agentes', { exact: true }).click()
+    await expect(casilla).toHaveAttribute('aria-checked', 'true')
+    await casilla.click()
+    await expect(casilla).toHaveAttribute('aria-checked', 'false')
     await capturar(win, 'ssh-casilla-agentes')
     await dialogo.getByRole('button', { name: 'Guardar', exact: true }).click()
     await expect(dialogo).toHaveCount(0)
     await expect(panel().getByRole('tab', { name: /^Solo mía, SSH/ }), 'guardar desde el riel no abre la pestaña').toHaveCount(0)
-    await panel().getByRole('button', { name: 'Restaurar el panel de terminal' }).click()
+    await win.locator('.activity-bar').getByRole('button', { name: 'Restaurar el panel de terminal' }).click()
     await expect(win.locator('.shell')).not.toHaveClass(/\bterminal-pantalla-completa\b/)
 
     const abierta = await abrirLista('Producción')
@@ -666,7 +724,7 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     await abierta.getByRole('treeitem', { name: /^Solo mía,/ }).click({ button: 'right' })
     await menu('Editar…').click()
     const edicion = win.getByRole('dialog', { name: 'Editar conexión SSH' })
-    await expect(edicion.getByRole('checkbox', { name: 'Disponible para los agentes' }), 'la edición la conserva desmarcada').not.toBeChecked()
+    await expect(edicion.getByRole('switch', { name: 'Disponible para los agentes' }), 'la edición la conserva desactivada').toHaveAttribute('aria-checked', 'false')
     await edicion.getByRole('button', { name: 'Cancelar' }).click()
     await expect(edicion).toHaveCount(0)
   })
@@ -699,7 +757,7 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     const ultima = await abrirLista('Servidores')
     await ultima.getByRole('treeitem', { name: /^Router casa,/ }).click({ button: 'right' })
     await menu('Eliminar…').click()
-    const confirmar = win.getByRole('dialog', { name: 'Eliminar conexión' })
+    const confirmar = win.getByRole('dialog', { name: '¿Eliminar la conexión «Router casa»?' })
     await expect(confirmar).toBeVisible()
     await confirmar.getByRole('button', { name: 'Eliminar' }).click()
     await expect(confirmar).toHaveCount(0)
@@ -780,13 +838,16 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     await expect(lista.getByRole('treeitem', { name: /^Falla,/ }), 'el filtro no distingue tildes ni mayúsculas').toBeVisible()
     await expect(lista.getByRole('treeitem', { name: /^Servidores/ }), 'con filtro solo salen los grupos con coincidencias').toHaveCount(0)
     await filtro.fill('zzz')
-    await expect(lista.getByText('Ninguna conexión coincide con "zzz"')).toBeVisible()
+    await expect(lista.getByText('Ninguna conexión coincide con «zzz»')).toBeVisible()
     await filtro.fill('fal')
     await expect(filtro).toHaveAttribute('aria-activedescendant', /.+/)
 
     await win.keyboard.press('Enter')
     await expect(popover(), 'Intro conecta y cierra el popover').toHaveCount(0)
     await expect(panel().getByRole('tab', { name: /^Falla \(2\), SSH/ }), 'una segunda pestaña de la misma conexión lleva « (2)»').toBeVisible({ timeout: 30_000 })
+    // Antes de abrir la terminal se intenta traer la huella: se espera a que el intento acabe, que es cuando la
+    // terminal arranca y toma el foco, para que el Esc de abajo llegue a la lista y no a la terminal.
+    await expect(panel().getByRole('button', { name: 'Reconectar' })).toBeVisible({ timeout: 30_000 })
 
     await abrirLista()
     await win.keyboard.press('Escape')
@@ -834,7 +895,7 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     await win.keyboard.press('Escape')
     await expect(popover()).toHaveCount(0)
     await ensancharVentana(s, riel, tamano)
-    await panel().getByRole('button', { name: 'Restaurar el panel de terminal' }).click()
+    await win.locator('.activity-bar').getByRole('button', { name: 'Restaurar el panel de terminal' }).click()
     await expect(win.locator('.shell')).not.toHaveClass(/\bfranja-pantalla-completa\b/)
   })
 
@@ -864,16 +925,16 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     await c.host.fill('192.0.2.20')
     await c.usuario.fill('clave')
     await dialogo.getByRole('radio', { name: 'Archivo de clave' }).check()
-    await expect(dialogo.getByText('Tessera guarda una copia protegida de la clave; el archivo original no se toca.')).toBeVisible()
+    await expect(dialogo.getByText('Tessera guarda una copia protegida de la clave; el archivo original no se modifica.')).toBeVisible()
     const archivo = dialogo.locator('[data-campo="clave"]')
     await dialogo.getByRole('button', { name: 'Guardar', exact: true }).click()
     await expect(archivo, 'sin archivo, el alta marca el campo').toHaveAttribute('aria-invalid', 'true')
     await expect(archivo, 'y le da el foco').toBeFocused()
 
-    await dialogo.getByRole('button', { name: 'Elegir…' }).click()
+    await dialogo.getByRole('button', { name: 'Seleccionar…' }).click()
     await expect(dialogo.getByRole('alert'), 'la pública se rechaza diciendo qué elegir').toContainText('«id_e2e.pub» es la clave pública')
     await expect(archivo).toHaveValue('')
-    await dialogo.getByRole('button', { name: 'Elegir…' }).click()
+    await dialogo.getByRole('button', { name: 'Seleccionar…' }).click()
     await expect(archivo, 'de la privada, solo el nombre').toHaveValue('id_e2e.pem')
     await expect(dialogo.getByRole('alert')).toHaveCount(0)
     await expect(c.secreto, 'una clave con frase trae su campo').toBeVisible()
@@ -884,6 +945,8 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
 
     const antes = m.ssh.arranques().length
     await guardarYConectar(dialogo, 'Con clave')
+    // También solo con clave: la huella se confirma antes de identificarse.
+    await confiarHuella('antes de identificarse con su clave')
     await expect(panel().getByRole('tab', { name: 'Con clave, SSH' }), 'aparece la pestaña SSH').toBeVisible({ timeout: 30_000 })
     await expect.poll(() => m.ssh.arranques().length, { message: 'ssh se lanzó' }).toBe(antes + 1)
     const argv = m.ssh.arranques()[antes]
@@ -933,6 +996,9 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
 
     const antes = m.ssh.arranques().length
     await guardarYConectar(dialogo, 'Con contraseña')
+    await expect(dialogoHuella()).toBeVisible({ timeout: 30_000 })
+    expect(m.ssh.autenticaciones(), 'mientras no se confirma la huella, la contraseña guardada no sale').toEqual([])
+    await confiarHuella('antes de enviar la contraseña')
     await expect(panel().getByRole('tab', { name: 'Con contraseña, SSH' })).toBeVisible({ timeout: 30_000 })
     await expect.poll(() => m.ssh.autenticaciones(), { message: 'el falso la pidió por SSH_ASKPASS y casó', timeout: 30_000 }).toEqual(['ok'])
     await esperarEnTerminal(win, BANNER_FALSO, 1, 'entró sin que nadie tecleara la contraseña')
@@ -962,7 +1028,9 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     await expect(guardarYProbar, 'con cambios, «Guardar y probar»').toBeVisible()
     const antes = m.ssh.autenticaciones().length
     await guardarYProbar.click()
-    const estado = dialogo.getByRole('status')
+    // El resultado de «Probar»: el diálogo lleva además el aviso informativo de la carcasa, también con rol status, y
+    // mientras cambia de estado la copia que se funde; ninguno de los dos cuenta.
+    const estado = dialogo.locator('.mov-cruce-capa:not([data-saliendo]) > .ssh-prueba[role="status"]')
     await expect(estado, '«Probar» dice lo que tardó').toContainText(/Conexión establecida en \d+ ms/, { timeout: 30_000 })
     await expect(estado, 'y la huella del servidor, que guardó').toContainText(`Huella del servidor: ${HUELLA_FALSA}`)
     expect(m.ssh.autenticaciones().slice(antes), 'la contraseña se conservó: el programa de contraseñas la volvió a dar').toEqual(['ok'])
@@ -981,7 +1049,7 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     const dialogo = win.getByRole('dialog', { name: 'Editar conexión SSH' })
     m.ssh.huellaCambiada(true)
     await dialogo.getByRole('button', { name: 'Probar', exact: true }).click()
-    const estado = dialogo.getByRole('status')
+    const estado = dialogo.locator('.mov-cruce-capa:not([data-saliendo]) > .ssh-prueba[role="status"]')
     await expect(estado).toContainText('La huella del servidor no coincide con la guardada.', { timeout: 30_000 })
     await expect(estado, 'en rojo').toHaveClass(/falla/)
     await expect(estado, 'con la guardada').toContainText(`Huella guardada: ${HUELLA_FALSA}`)
@@ -1003,6 +1071,8 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     await capturar(win, 'ssh-olvidar-huella')
     await confirmar.getByRole('button', { name: 'Olvidar y volver a probar' }).click()
     await expect(confirmar).toHaveCount(0)
+    // Olvidada, la que presente el servidor se confirma como la de uno nuevo antes de volver a probar.
+    await confiarHuella(SHA256_FALSA)
     await expect(estado, 'olvidada, vuelve a probar y entra').toContainText(/Conexión establecida en \d+ ms/, { timeout: 30_000 })
     await expect(estado).toContainText(`Huella del servidor: ${HUELLA_FALSA}`)
     expect(readFileSync(knownHosts, 'utf8'), 'el known_hosts se vació: la vieja no está').not.toContain('ssh-rsa')
@@ -1043,6 +1113,71 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     await expect(popover()).toHaveCount(0)
   })
 
+  test('sin huella, «Probar» enseña la del servidor nuevo antes de mandar la contraseña: copiarla, que quepa en la ventana mínima, Cancelar no guarda nada y «Confiar y conectar» la guarda y prueba', async () => {
+    const win = s.win
+    const alias = 'Con contraseña editada'
+    expect(await huellasDe(alias), 'la prueba anterior la olvidó').toBe(0)
+    const lista = await abrirLista('Sin grupo')
+    await lista.getByRole('treeitem', { name: /^Con contraseña editada,/ }).click({ button: 'right' })
+    await menu('Editar…').click()
+    const dialogo = win.getByRole('dialog', { name: 'Editar conexión SSH' })
+    const autenticadas = m.ssh.autenticaciones().length
+    const lanzadas = m.ssh.arranques().length
+    await dialogo.getByRole('button', { name: 'Probar', exact: true }).click()
+    const huella = dialogoHuella()
+    await expect(huella, 'antes de probar, la huella del servidor nuevo').toBeVisible({ timeout: 30_000 })
+    await expect(huella).toContainText(`Es la primera vez que Tessera se conecta a ${alias} (192.0.2.30:22).`)
+    await expect(huella.locator('.huella-nueva-valor')).toHaveText(SHA256_FALSA)
+    expect(m.ssh.autenticaciones().length, 'la contraseña guardada no salió').toBe(autenticadas)
+    expect(m.ssh.arranques().length, 'ni se lanzó la prueba').toBe(lanzadas)
+
+    // ⧉ copia la huella y lo confirma en el propio botón.
+    await huella.getByRole('button', { name: 'Copiar la huella' }).click()
+    await expect(huella.getByRole('button', { name: 'Huella copiada' }), 'la confirmación va en el botón').toBeVisible()
+    expect(await s.app.evaluate(({ clipboard }) => clipboard.readText()), 'en el portapapeles, la huella').toBe(SHA256_FALSA)
+
+    // En la ventana mínima nada se sale y la huella se ve entera.
+    const antes = await s.app.evaluate(({ BrowserWindow }) => {
+      const w = BrowserWindow.getAllWindows()[0]
+      const [ancho, alto] = w.getSize()
+      w.setSize(900, 620)
+      return [ancho, alto] as [number, number]
+    })
+    await asentar(win)
+    const medidas = await huella.evaluate((card) => {
+      const valor = card.querySelector<HTMLElement>('.huella-nueva-valor')
+      const r = card.getBoundingClientRect()
+      const v = valor?.getBoundingClientRect()
+      return {
+        desborde: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        cortada: valor ? valor.scrollWidth - valor.clientWidth : -1,
+        dentro: v !== undefined && v.left >= r.left && v.right <= r.right,
+        enVentana: r.left >= 0 && r.right <= window.innerWidth
+      }
+    })
+    expect(medidas, 'sin desborde, la huella sin cortarse y la tarjeta dentro de la ventana').toEqual({ desborde: 0, cortada: 0, dentro: true, enVentana: true })
+    await capturar(win, 'ssh-huella-nueva-minima')
+    await s.app.evaluate(({ BrowserWindow }, [ancho, alto]) => BrowserWindow.getAllWindows()[0].setSize(ancho, alto), antes)
+
+    // Cancelar: nada guardado y nada probado.
+    await huella.getByRole('button', { name: 'Cancelar' }).click()
+    await expect(huella).toHaveCount(0)
+    await expect(dialogo, 'el diálogo de la conexión sigue').toBeVisible()
+    expect(await huellasDe(alias), 'cancelar no la guardó').toBe(0)
+    expect(m.ssh.arranques().length, 'ni probó').toBe(lanzadas)
+
+    // Confiar: queda guardada y «Probar» entra con la contraseña guardada.
+    await dialogo.getByRole('button', { name: 'Probar', exact: true }).click()
+    await confiarHuella(alias)
+    const estado = dialogo.locator('.mov-cruce-capa:not([data-saliendo]) > .ssh-prueba[role="status"]')
+    await expect(estado, 'confirmada, prueba y entra').toContainText(/Conexión establecida en \d+ ms/, { timeout: 30_000 })
+    await expect(estado).toContainText(`Huella del servidor: ${HUELLA_FALSA}`)
+    expect(await huellasDe(alias), 'confiar la guardó').toBe(1)
+    expect(m.ssh.autenticaciones().slice(autenticadas), 'y solo entonces salió la contraseña').toEqual(['ok'])
+    await win.keyboard.press('Escape')
+    await expect(dialogo).toHaveCount(0)
+  })
+
   test('«Nueva conexión SSH…» → «Importar desde OpenSSH…» (no en el lanzador; con el formulario vacío): varios Host abren la revisión (elegir, renombrar, grupo por fila y creado ahí); uno solo rellena el formulario', async () => {
     const win = s.win
     const dir = join(m.raiz, 'openssh')
@@ -1077,6 +1212,7 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     await lista.getByRole('button', { name: 'Nueva conexión SSH…' }).click()
     const alta = win.getByRole('dialog', { name: 'Nueva conexión SSH' })
     const importar = alta.getByRole('button', { name: 'Importar desde OpenSSH…' })
+    await expect(alta.locator('.modal-cabecera-acciones').getByRole('button')).toHaveText(['Importar desde OpenSSH…', ''])
     await campos(alta).alias.fill('a medias')
     await expect(importar, 'con algo escrito no se ofrece: se perdería').toBeDisabled()
     await campos(alta).alias.fill('')
@@ -1239,11 +1375,11 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
         const vh = window.innerHeight
         const r = dlg.getBoundingClientRect()
         if (r.left < 0 || r.top < 0 || r.right > vw + 0.5 || r.bottom > vh + 0.5) problemas.push(`el modal se sale de la ventana: ${JSON.stringify(r)} en ${vw}×${vh}`)
-        const cuerpo = dlg.querySelector('.dbc-cuerpo') as HTMLElement
+        const cuerpo = dlg.querySelector('.modal-cuerpo') as HTMLElement
         if (cuerpo.scrollWidth > cuerpo.clientWidth + 1) problemas.push(`el cuerpo tiene scroll horizontal: ${cuerpo.scrollWidth} > ${cuerpo.clientWidth}`)
         const lista = dlg.querySelector('.ssh-importar-lista') as HTMLElement
         if (lista.scrollHeight > lista.clientHeight + 1) problemas.push(`la lista recorta sus filas: ${lista.scrollHeight} > ${lista.clientHeight}`)
-        const pie = dlg.querySelector('.dbc-acciones button[type="submit"]') as HTMLElement
+        const pie = dlg.querySelector('.modal-pie .btn.primary') as HTMLElement
         const rp = pie.getBoundingClientRect()
         if (rp.bottom > vh || rp.right > vw) problemas.push('el botón de importar no se ve entero')
         const grupoBajo: boolean[] = []
@@ -1319,7 +1455,7 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
         await ultima.scrollIntoViewIfNeeded()
         await expect(ultima, `la última fila se alcanza — ${caso}`).toBeInViewport({ ratio: 1 })
         await capturarVentana(`ssh-importar-revision-${t.ancho}x${t.alto}-${t.zoom * 100}-final`)
-        await revision.locator('.dbc-cuerpo').evaluate((e) => e.scrollTo(0, 0))
+        await revision.locator('.modal-cuerpo').evaluate((e) => e.scrollTo(0, 0))
       }
     } finally {
       await ventana(1500, 950, zoomInicial)
@@ -1356,6 +1492,14 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     await dialogo.getByRole('button', { name: 'Quitar el túnel 2' }).click()
     const antes = m.ssh.arranques().length
     await guardarYConectar(dialogo, 'Tras el bastión')
+    // Ni el bastión ni el destino tienen huella: primero el bastión, al que se llega directo, y luego el destino.
+    await expect(dialogoHuella()).toContainText('Solo mía', { timeout: 30_000 })
+    await expect(dialogoHuella(), 'dice a qué conexión lleva el bastión').toContainText('Es el bastión por el que se llega a «Tras el bastión».')
+    await confiarHuella(undefined, true)
+    await expect(dialogoHuella()).toContainText('Tras el bastión (10.0.0.5:22)', { timeout: 30_000 })
+    await confiarHuella()
+    const reconocidos = m.ssh.reconocimientos().slice(-2).map((a) => a[a.indexOf('--') + 1])
+    expect(reconocidos, 'en el orden en que se llega').toEqual(['192.0.2.30', '10.0.0.5'])
     await expect.poll(() => m.ssh.arranques().length, { message: 'ssh se lanzó' }).toBe(antes + 1)
     const argv = m.ssh.arranques()[antes]
     const proxy = argv.find((a) => a.startsWith('ProxyCommand=')) ?? ''
@@ -1367,7 +1511,7 @@ test.describe.serial('Las conexiones SSH del perfil en la terminal', () => {
     const pregunta = win.getByRole('dialog', { name: 'Conexión SSH «Tras el bastión»' })
     await expect(pregunta, 'la contraseña del destino se pide en el diálogo').toBeVisible({ timeout: 30_000 })
     await expect(pregunta.getByText('Contraseña de pruebas@10.0.0.5')).toBeVisible()
-    await pregunta.getByRole('button', { name: 'Cancelar', exact: true }).click()
+    await pregunta.getByRole('button', { name: 'Cerrar', exact: true }).click()
     await expect(pregunta).toHaveCount(0)
 
     const edicion = await abrirLista()
@@ -1412,6 +1556,8 @@ test.describe.serial('Las pestañas SSH del arranque anterior vuelven, sin conec
         sembrar(datos, m)
         const conexion = { id: 'c-web', profileId: 'personal', alias: 'Web', host: '192.0.2.40', puerto: 22, usuario: 'pruebas', metodo: 'sistema', disponibleAgentes: true }
         writeFileSync(join(datos, 'ssh-connections.json'), JSON.stringify({ version: 1, grupos: [], conexiones: [conexion] }))
+        // Con la huella ya confirmada: lo que se prueba aquí es cuándo se conecta, no el diálogo de un servidor nuevo.
+        sembrarHuellaAntes(datos, conexion)
         const ruta = join(datos, 'workspace-state.json')
         const estado = JSON.parse(readFileSync(ruta, 'utf8')) as { settings: Record<string, unknown> }
         estado.settings.sshPestanasPorPerfil = {
@@ -1481,6 +1627,8 @@ test.describe.serial('Cerrar la terminal local con una pestaña SSH restaurada',
         sembrar(datos, m)
         const conexion = { id: 'c-web', profileId: 'personal', alias: 'Web', host: '192.0.2.40', puerto: 22, usuario: 'pruebas', metodo: 'sistema', disponibleAgentes: true }
         writeFileSync(join(datos, 'ssh-connections.json'), JSON.stringify({ version: 1, grupos: [], conexiones: [conexion] }))
+        // Con la huella ya confirmada: lo que se prueba aquí es cuándo se conecta, no el diálogo de un servidor nuevo.
+        sembrarHuellaAntes(datos, conexion)
         const ruta = join(datos, 'workspace-state.json')
         const estado = JSON.parse(readFileSync(ruta, 'utf8')) as { settings: Record<string, unknown> }
         estado.settings.sshPestanasPorPerfil = { personal: [{ conexionId: 'c-web', alias: 'Web' }] }

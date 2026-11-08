@@ -13,7 +13,7 @@ fechas con cero (`0000-00-00`), las horas negativas, el BIT o la geometría camb
 
 - **Cifrado**: sin cifrar por defecto (como PG); cifrando, se verifica la cadena con las CA del
   paquete y del sistema y el NOMBRE del servidor (`verifyIdentity`), o nada con «Confiar en el
-  certificado del servidor». Los errores de cifrado dicen qué casilla tocar (sin TLS en el servidor;
+  certificado del servidor». Los errores de cifrado dicen qué interruptor tocar (sin TLS en el servidor;
   servidor que exige TLS, 3159; certificado que no se verifica).
 - **Túnel**: `host` es el servidor REAL (el nombre del certificado) y un `stream` abre el socket al
   extremo local del túnel. Así se verifica igual con túnel que sin él.

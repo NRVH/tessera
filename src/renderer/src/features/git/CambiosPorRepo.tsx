@@ -15,6 +15,7 @@ import { useRaizDelProyecto } from '../../comun/raizDelProyecto'
 import { EstadoVacio } from '../../comun/EstadoVacio'
 import { EsperaCarga } from '../../comun/IndicadorCarga'
 import { ChevronArbol } from '../../comun/iconosArbol'
+import { Cruce } from '../../comun/Presente'
 import { VirtualList } from '../../comun/VirtualList'
 import { Casilla } from './Casilla'
 import { AccionesLote, CuerpoRepo } from './CuerpoRepo'
@@ -309,24 +310,23 @@ function CabeceraRepo(d: {
         <Casilla estado={marca} etiqueta={t.marcarTodo(d.etiqueta)} onAlternar={() => alternarMarcas(claves, marca !== 'llena')} />
       )}
       <span className="repo-name">{d.etiqueta}</span>
-      <span className="repo-derecha">
-        {/* Los botones no abren ni cierran el repo. */}
-        <span onClick={(e) => e.stopPropagation()}>
-          <AccionesLote seccion="unstaged" seleccion={seleccionCambios} acciones={acciones} />
-        </span>
-        {/* Mientras hay marcas, los botones ocupan el sitio del conteo y de la rama: el nombre no se recorta. */}
-        {seleccionCambios.length === 0 && conteo > 0 && <span className="repo-count">{conteo}</span>}
-        {seleccionCambios.length === 0 && d.status?.branch && (
-          <span className="repo-branch" title={t.ramaActual(d.status.branch)}>
-            <IconoRama />
-            {/* El asterisco marca "tiene cambios". */}
-            <span className="repo-branch-name">
-              {d.status.branch}
-              {conteo > 0 ? '*' : ''}
-            </span>
+      <Cruce className="git-repo-derecha" clave={seleccionCambios.length > 0 ? 'lote' : 'resumen'}>
+        {seleccionCambios.length > 0 ? (
+          <span className="repo-derecha" onClick={(e) => e.stopPropagation()}>
+            <AccionesLote seccion="unstaged" seleccion={seleccionCambios} acciones={acciones} />
+          </span>
+        ) : (
+          <span className="repo-derecha">
+            {conteo > 0 && <span className="repo-count">{conteo}</span>}
+            {d.status?.branch && (
+              <span className="repo-branch" title={t.ramaActual(d.status.branch)}>
+                <IconoRama />
+                <span className="repo-branch-name">{d.status.branch}<span className={`git-rama-sucia${conteo > 0 ? ' visible' : ''}`} aria-hidden={conteo === 0}>*</span></span>
+              </span>
+            )}
           </span>
         )}
-      </span>
+      </Cruce>
     </div>
   )
 }

@@ -7,7 +7,6 @@
 
 import { homedir } from 'node:os'
 import type { SandboxManager } from '../../sandbox/SandboxManager'
-import type { SshSetup } from '../../sandbox/sshSetup'
 import { TerminalService } from '../../terminals/TerminalService'
 import type { AccountStore } from '../AccountStore'
 import type { Agente, Profile } from '../../profiles/types'
@@ -24,6 +23,8 @@ import { PERFIL_VENTANA_AGENTE } from '../../../shared/ventana-agente-ipc'
 import type { VigiaSaturacionConfig } from '../../../shared/agent-terminal-ipc'
 import { RegistroParadas } from './registroParadas'
 import type { RegistroTraspasos } from '../../traspaso/RegistroTraspasos'
+import type { CapaAplicable } from '../configAgente/configCompartida'
+import { CONTEXTO_GLOBAL_VACIO, type ContextoGlobal } from '../../../shared/contexto'
 import { PUERTO_LOGIN_CODEX, PuenteLoginCodex } from '../loginCodex'
 import { unirConContenedor } from '../../sandbox/adaptadores/docker'
 import { SANDBOX_RED_CHANNELS, type AvisoRed } from '../../../shared/sandbox-red-ipc'
@@ -60,15 +61,17 @@ export const ACTIVITY_MAX_PAUSE_MS = 8000
 export const HOST_ACCOUNT_ID = 'windows-personal'
 
 /**
- * El perfil sintético de las ventanas de agente: sin sandbox, sin agentes declarados y nunca
- * persistido. El controlador lo tiene siempre en su registro (también tras `updateProfiles`).
+ * El perfil sintético de las ventanas de agente: sin sandbox, sin agentes declarados, sin el contexto global (sin
+ * `tctx` no podría leer los documentos que ese contexto anuncia) y nunca persistido. El controlador lo tiene siempre
+ * en su registro (también tras `updateProfiles`).
  */
 export const PERFIL_VENTANA: Profile = Object.freeze({
   id: PERFIL_VENTANA_AGENTE,
   nombre: '',
   color: '',
   agentes: [],
-  sandbox: { habilitado: false }
+  sandbox: { habilitado: false },
+  contextoGlobal: false
 }) as Profile
 
 /** ¿Es una sesión (o petición) de una ventana de agente? */
@@ -101,7 +104,6 @@ export interface AgentTerminalControllerOptions {
   /** Binario por agente (pruebas: un sustituto). */
   binaries?: Partial<Record<Agente, string>>
   /** Setup ssh global reproducido en el contenedor; null = sin ssh. */
-  sshSetup?: SshSetup | null
   /** Entorno de bases de datos y PATH de `tdb` para las sesiones nativas. */
   getHostEnv?: EntornoHost
   /** Aviso de las bases montadas para el system prompt; null si no hay ninguna. */
@@ -140,6 +142,12 @@ export interface AgentTerminalControllerOptions {
   loginCodex?: PuenteLoginCodex
   /** Los traspasos de «Continuar en…»: la apertura toma el suyo y el cierre lo olvida. Sin él, se ignoran. */
   traspasos?: PuertaTraspasos
+  /** Las capas de la configuración compartida que se aplican a una cuenta de Docker de ese perfil; sin él, ninguna. */
+  capasCompartidas?: (profile: Profile, agente: Agente) => CapaAplicable[]
+  /** El contexto global de los agentes, vigente; sin él, vacío. */
+  contextoGlobal?: () => ContextoGlobal
+  /** Si el Claude Code del equipo tiene `--system-prompt-snapshot` (`sondaOpcionCli.ts`); sin él, no. */
+  admiteSnapshotNativo?: () => Promise<boolean>
   /** Logger del main. */
   log?: (msg: string) => void
 }
@@ -199,8 +207,11 @@ export interface NucleoAgente {
   readonly sessions: Map<string, OpenAgentSession>
   /** Refcount de credenciales por `perfil/agente/cuenta`: el único. */
   readonly configRefs: Map<string, number>
+  /** Tareas delegadas en marcha por contenedor de cuenta: el límite y la saturación no paran uno con alguna. */
+  readonly delegadasPorContenedor: Map<string, number>
+  /** Tareas delegadas en marcha por sesión que las lanzó: la hibernación por inactividad no la duerme. */
+  readonly delegadasPorOrigen: Map<string, number>
   readonly binaries: Record<Agente, string>
-  readonly sshSetup: SshSetup | null
   readonly getHostEnv: EntornoHost
   readonly getDbBriefing: BriefingBd
   readonly getSshBriefing: (profileId: string) => string | null
@@ -229,6 +240,9 @@ export interface NucleoAgente {
   /** El único login de Codex en curso en los contenedores de cuenta y el puente de su vuelta. */
   readonly loginCodex: PuenteLoginCodex
   readonly traspasos: PuertaTraspasos | null
+  readonly capasCompartidas: (profile: Profile, agente: Agente) => CapaAplicable[]
+  readonly contextoGlobal: () => ContextoGlobal
+  readonly admiteSnapshotNativo: () => Promise<boolean>
   readonly log: (msg: string) => void
 }
 
@@ -267,7 +281,6 @@ function dependenciasInactividad(
 export function crearNucleo(opts: AgentTerminalControllerOptions): NucleoAgente {
   const profiles = new Map<string, Profile>()
   const terminals = new TerminalService(opts.sandbox)
-  const sshSetup = opts.sshSetup ?? null
   const bd = dependenciasBd(opts)
   const binaries = { ...DEFAULT_BINARIES, ...(opts.binaries ?? {}) }
   for (const p of opts.profiles) profiles.set(p.id, p)
@@ -280,8 +293,9 @@ export function crearNucleo(opts: AgentTerminalControllerOptions): NucleoAgente 
     profiles,
     sessions: new Map<string, OpenAgentSession>(),
     configRefs: new Map<string, number>(),
+    delegadasPorContenedor: new Map<string, number>(),
+    delegadasPorOrigen: new Map<string, number>(),
     binaries,
-    sshSetup,
     ...bd,
     carpetaVentana: opts.carpetaVentana ?? (() => homedir()),
     eventos: opts.eventos,
@@ -297,8 +311,18 @@ export function crearNucleo(opts: AgentTerminalControllerOptions): NucleoAgente 
     registroParadas: new RegistroParadas(opts.rutaRegistroParadas ?? null, log),
     vigia: { config: null },
     loginCodex: opts.loginCodex ?? puenteLoginCodex(opts.eventos),
-    traspasos: opts.traspasos ?? null,
+    ...dependenciasDeApertura(opts),
     log
+  }
+}
+
+/** Lo que la apertura toma de fuera: el traspaso pendiente, las capas de la configuración compartida y el contexto global. */
+function dependenciasDeApertura(opts: AgentTerminalControllerOptions): Pick<NucleoAgente, 'traspasos' | 'capasCompartidas' | 'contextoGlobal' | 'admiteSnapshotNativo'> {
+  return {
+    traspasos: opts.traspasos ?? null,
+    capasCompartidas: opts.capasCompartidas ?? (() => []),
+    contextoGlobal: opts.contextoGlobal ?? (() => CONTEXTO_GLOBAL_VACIO),
+    admiteSnapshotNativo: opts.admiteSnapshotNativo ?? (async () => false)
   }
 }
 

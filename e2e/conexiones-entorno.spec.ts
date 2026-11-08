@@ -114,7 +114,7 @@ test.describe('explorador de BD: entorno de producción', () => {
     const win = s!.win
     const p = pg!
     await aLaVista(win)
-    await win.locator('.activity-item[title="Conexiones a bases de datos"]').click()
+    await win.locator('.activity-item[title="Bases de datos"]').click()
     await expect(win.locator('.db-area:not(.hidden)')).toBeVisible()
     await win.locator('.db-arbol .sidebar-header button[aria-label="Nueva conexión"]').click()
     const dialogo = win.locator('.db-conexion-modal')
@@ -145,14 +145,15 @@ test.describe('explorador de BD: entorno de producción', () => {
     // ayuda de producción (la casilla es de los agentes: al usuario se le pide confirmar
     // igual). La mitad negativa: ni con ella marcada ni sin ella dice que se rechace nada.
     const ayuda = dialogo.locator('.dbc-entorno-ayuda')
-    const soloLectura = dialogo.getByLabel('Solo lectura para los agentes (recomendado)')
-    await expect(soloLectura).toBeChecked()
+    const soloLectura = dialogo.getByRole('switch', { name: 'Solo lectura para los agentes (recomendado)' })
+    await expect(soloLectura).toHaveAttribute('aria-checked', 'true')
     await expect(ayuda).toContainText('confirmación')
-    await expect(ayuda).toContainText('Tx Manual')
+    await expect(ayuda).toContainText('transacción manual')
     await expect(ayuda).not.toContainText('rechaza')
-    await soloLectura.uncheck()
+    await soloLectura.click()
+    await expect(soloLectura).toHaveAttribute('aria-checked', 'false')
     await expect(ayuda).toContainText('confirmación')
-    await expect(ayuda).toContainText('Tx Manual')
+    await expect(ayuda).toContainText('transacción manual')
 
     await dialogo.locator('button[type="submit"]').click()
     await expect(dialogo).toHaveCount(0, { timeout: 15_000 })
@@ -229,14 +230,15 @@ test.describe('explorador de BD: entorno de producción', () => {
     expect(nota(1), 'partida').toBe('<null>')
 
     await ejecutarTodoSeleccionado(win, sql)
-    const pregunta = confirmacion(win, /^Producción: ¿ejecutar en PG-PROD\?$/)
+    const pregunta = confirmacion(win, /^Producción: ¿ejecutar en «PG-PROD»\?$/)
     await expect(pregunta).toBeVisible()
     await expect(pregunta).toContainText(`«${ALIAS}» es una conexión de producción.`)
     await expect(pregunta).toContainText('La sentencia escribe: UPDATE.')
     const cancelar = pregunta.getByRole('button', { name: 'Cancelar' })
     const aceptar = pregunta.getByRole('button', { name: 'Ejecutar en producción' })
-    await expect(cancelar, 'destructivo: el foco arranca en Cancelar').toBeFocused()
-    await expect(aceptar).toHaveClass(/\bdanger\b/)
+    await expect(cancelar, 'un Enter reflejo no ejecuta: el foco arranca en Cancelar').toBeFocused()
+    await expect(pregunta.locator('.modal-sello.es-advertencia')).toBeVisible()
+    await expect(aceptar).toHaveClass(/\bprimary\b/)
     await cancelar.click()
     await expect(pregunta).toHaveCount(0)
     await esperarFinEjecucion(win)
@@ -266,7 +268,7 @@ test.describe('explorador de BD: entorno de producción', () => {
     const barraTx = win.locator(`${CONSOLA} .db-consola-tx`)
 
     await commit.click()
-    const pregunta = confirmacion(win, /^Producción: ¿confirmar en PG-PROD\?$/)
+    const pregunta = confirmacion(win, /^Producción: ¿confirmar en «PG-PROD»\?$/)
     await expect(pregunta).toBeVisible()
     await expect(pregunta).toContainText('El COMMIT hace definitivos los cambios pendientes')
     await pregunta.getByRole('button', { name: 'Cancelar' }).click()
@@ -283,7 +285,7 @@ test.describe('explorador de BD: entorno de producción', () => {
 
     // Rollback: otro UPDATE (aceptado) y se revierte SIN pregunta.
     await ejecutarTodoSeleccionado(win, "update public.profile set nota = 'e2e-deshacer' where id = 1")
-    await confirmacion(win, /^Producción: ¿ejecutar en PG-PROD\?$/).getByRole('button', { name: 'Ejecutar en producción' }).click()
+    await confirmacion(win, /^Producción: ¿ejecutar en «PG-PROD»\?$/).getByRole('button', { name: 'Ejecutar en producción' }).click()
     await esperarFinEjecucion(win)
     await expect(barraTx).toHaveText('Tx pendiente (1)')
     await rollback.click()

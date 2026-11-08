@@ -73,14 +73,14 @@ function useConfirmarRechazo(e: EstadoConsolaClaves): ConfirmarRechazo {
           mensaje: error.mensaje,
           produccion: esProduccion(con.entorno)
         })
-        const ok = await pedirConfirmacion({ ...t, peligro: true })
+        const ok = await pedirConfirmacion({ ...t, peligro: true, severidad: 'peligro' })
         if (ok) conf.confirmadoPeligroso = true
         return ok
       }
       if (error.motivo === 'produccion' && !conf.confirmado) {
         // La MISMA confirmación que las otras consolas; el main es la 2.ª barrera.
         const t = confirmacionLoteProduccion({ alias: con.alias, total: 1, escrituras: [{ indice: 0, verbo: verbo || txConsolaClaves().escritura }] })
-        const ok = await pedirConfirmacion({ ...t, peligro: true })
+        const ok = await pedirConfirmacion({ ...t, peligro: true, severidad: 'advertencia' })
         if (ok) conf.confirmado = true
         return ok
       }
@@ -174,7 +174,8 @@ function useAccionRegistro(e: EstadoConsolaClaves): (a: AccionSalida) => Promise
         titulo: t.forzarTitulo,
         mensaje: t.forzarMensaje(c.alias),
         confirmar: t.forzar,
-        peligro: true
+        peligro: true,
+        severidad: 'advertencia'
       })
       if (ok) await api.forzar(c.id).catch(() => undefined)
     },

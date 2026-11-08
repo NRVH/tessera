@@ -133,7 +133,7 @@ test.describe('continuar el trabajo en otro agente o cuenta', () => {
     await win.locator('.agent-pane:not(.hidden) .cuenta-btn').first().click()
     const trabajo = pop.locator('.cuenta-tarjeta', { hasText: 'Trabajo' })
     await trabajo.hover()
-    await pop.getByRole('button', { name: 'Más acciones de "Trabajo"' }).click()
+    await pop.getByRole('button', { name: 'Más acciones de «Trabajo»' }).click()
     const menu = win.locator('.ctx-menu')
     await expect(menu.getByRole('menuitem', { name: 'Renombrar' })).toBeVisible()
     await expect(menu.getByRole('menuitem', { name: /Continuar/ }), 'continuar solo se ofrece desde su botón').toHaveCount(0)

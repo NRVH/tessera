@@ -1,0 +1,122 @@
+// =============================================================================
+// Textos del editor de los archivos de configuración de un agente y de la revisión de sus propuestas.
+// Puro y sin JSX.
+// Decisiones: docs/decisiones/app/idioma.md
+// =============================================================================
+
+import { crearTextos } from '../../../../shared/i18n.ts'
+
+export const txConfigAgente = crearTextos(
+  {
+    carpeta: (ruta: string) => `Carpeta: ${ruta}`,
+    sesiones: (n: number) =>
+      `${n === 1 ? '1 sesión abierta usa' : `${n} sesiones abiertas usan`} estos archivos: los cambios se aplican con certeza en las sesiones nuevas`,
+    pestanas: 'Archivos de la cuenta',
+    configuracion: 'Configuración',
+    instrucciones: 'Instrucciones',
+    sinGuardarMarca: (nombre: string) => `${nombre}, con cambios sin guardar`,
+    editor: (archivo: string) => `Contenido de ${archivo}`,
+    noExiste: (archivo: string) => `${archivo} todavía no existe. Se creará al guardar.`,
+    referencia: 'Referencia de opciones',
+    anterior: 'Recuperar la versión anterior',
+    anteriorAyuda: 'Carga en el editor lo que había antes de la última vez que guardó desde Tessera. No se guarda hasta que haga clic en «Guardar».',
+    anteriorVacia: 'Ya no hay una versión anterior de este archivo.',
+    guardar: 'Guardar',
+    guardando: 'Guardando…',
+    guardado: 'Guardado',
+    cerrar: 'Cerrar',
+    cancelar: 'Cancelar',
+    cargando: 'Leyendo los archivos…',
+    errorLeer: (detalle: string) => `No se pudieron leer los archivos: ${detalle}`,
+    reintentar: 'Reintentar',
+    noDisponible: 'Esta cuenta ya no existe. Cierre este diálogo y elija otra.',
+    sintaxisEn: (linea: number, columna: number | null, detalle: string) =>
+      columna === null ? `Error de sintaxis en la línea ${linea}: ${detalle}. El archivo no se guardó.` : `Error de sintaxis en la línea ${linea}, columna ${columna}: ${detalle}. El archivo no se guardó.`,
+    sintaxis: (detalle: string) => `Error de sintaxis: ${detalle}. El archivo no se guardó.`,
+    raizJson: 'El archivo debe contener un objeto JSON, entre llaves. El archivo no se guardó.',
+    noUtf8: 'No se abre porque no está codificado en UTF-8, y guardarlo dañaría su contenido. Conviértalo a UTF-8 con otro editor.',
+    avisoBloqueDocker: 'Tessera mantiene en este archivo un bloque entre las marcas tessera:sandbox con los avisos del contenedor, y lo actualiza al abrir una sesión. Escriba sus instrucciones fuera de esas marcas.',
+    cambioExterno: 'El archivo cambió desde que se abrió, por ejemplo, porque lo escribió el agente. No se guardó nada.',
+    cargarArchivo: 'Cargar la versión del archivo',
+    sobrescribir: 'Sobrescribir con este texto',
+    errorGuardar: (detalle: string) => `No se pudo guardar: ${detalle}. El archivo anterior sigue intacto; puede volver a intentarlo.`,
+    noRegular: 'No se abre porque no es un archivo normal, por ejemplo, un enlace simbólico. Revise la carpeta de la cuenta.',
+    demasiadoGrande: 'No se abre ni se guarda porque supera el tamaño máximo de 1 MiB.',
+    avisoDeveloperInstructions:
+      'Tessera define developer_instructions al abrir una sesión cuando tiene avisos para el agente, y ese valor sustituye al de este archivo. Escriba esas indicaciones en las reglas del contexto o en el archivo de instrucciones de la cuenta.',
+    sinGuardarTitulo: 'Hay cambios sin guardar.',
+    descartar: 'Descartar los cambios',
+    seguir: 'Seguir editando',
+    fijadas: (lista: string) => `Al abrir una sesión, el agente aplica encima de este archivo ${lista}, sin escribirlas en él. Para cambiarlas, edite la configuración global de Docker o la del perfil.`,
+    origen: { global: 'global', perfil: 'del perfil' } as Record<'global' | 'perfil', string>,
+    nivelBase: 'Global',
+    nivelPerfil: (perfil: string) => `Perfil «${perfil}»`,
+    propuestaAviso: (agente: string, nivel: string) => `Un agente propone cambiar la configuración de ${agente}: ${nivel}.`,
+    propuestaRevisar: 'Revisar',
+    propuestaTitulo: (agente: string, nivel: string) => `Propuesta para la configuración de ${agente}: ${nivel}`,
+    propuestaAyuda: (global: boolean, perfil: string, proyecto: string | null) =>
+      `${global ? 'Si la acepta, se aplicará a las cuentas de Docker de todos los perfiles que usan la configuración global' : `Si la acepta, se aplicará a las cuentas de Docker del perfil «${perfil}»`} al abrir su próxima sesión.${proyecto ? ` La hizo un agente del proyecto «${proyecto}».` : ''}`,
+    propuestaMotivo: (motivo: string) => `Motivo del agente: ${motivo}`,
+    propuestaComparacion: (archivo: string) => `${archivo}: a la izquierda el archivo actual, a la derecha el propuesto.`,
+    propuestaAceptar: 'Aceptar',
+    propuestaDescartar: 'Descartar',
+    propuestaNoAplicada: 'No se pudo aplicar la propuesta: el archivo de ese nivel no se puede escribir. Sigue pendiente.',
+    propuestaRetirada: 'Esta propuesta ya no está pendiente: se resolvió, la sustituyó otra más reciente o su perfil ya no existe. No se aplicó.'
+  },
+  {
+    carpeta: (ruta: string) => `Folder: ${ruta}`,
+    sesiones: (n: number) =>
+      `${n === 1 ? '1 open session uses' : `${n} open sessions use`} these files: changes are guaranteed to apply to new sessions`,
+    pestanas: 'Account files',
+    configuracion: 'Configuration',
+    instrucciones: 'Instructions',
+    sinGuardarMarca: (nombre: string) => `${nombre}, with unsaved changes`,
+    editor: (archivo: string) => `Contents of ${archivo}`,
+    noExiste: (archivo: string) => `${archivo} does not exist yet. It will be created when you save.`,
+    referencia: 'Options reference',
+    anterior: 'Recover the previous version',
+    anteriorAyuda: 'Loads into the editor what was there before you last saved from Tessera. Nothing is saved until you click “Save”.',
+    anteriorVacia: 'There is no longer a previous version of this file.',
+    guardar: 'Save',
+    guardando: 'Saving…',
+    guardado: 'Saved',
+    cerrar: 'Close',
+    cancelar: 'Cancel',
+    cargando: 'Reading the files…',
+    errorLeer: (detalle: string) => `The files could not be read: ${detalle}`,
+    reintentar: 'Retry',
+    noDisponible: 'This account no longer exists. Close this dialog and choose another one.',
+    sintaxisEn: (linea: number, columna: number | null, detalle: string) =>
+      columna === null ? `Syntax error on line ${linea}: ${detalle}. The file was not saved.` : `Syntax error on line ${linea}, column ${columna}: ${detalle}. The file was not saved.`,
+    sintaxis: (detalle: string) => `Syntax error: ${detalle}. The file was not saved.`,
+    raizJson: 'The file must contain a JSON object, in braces. The file was not saved.',
+    noUtf8: 'This cannot be opened because it is not encoded in UTF-8, and saving it would damage its contents. Convert it to UTF-8 with another editor.',
+    avisoBloqueDocker: 'Tessera keeps a block in this file, between the tessera:sandbox markers, with the container notices, and updates it when a session opens. Write your instructions outside those markers.',
+    cambioExterno: 'The file changed after it was opened, for example, because the agent wrote to it. Nothing was saved.',
+    cargarArchivo: 'Load the version on disk',
+    sobrescribir: 'Overwrite with this text',
+    errorGuardar: (detalle: string) => `The file could not be saved: ${detalle}. The previous file is intact; you can try again.`,
+    noRegular: 'This cannot be opened because it is not a regular file, for example, a symbolic link. Check the account folder.',
+    demasiadoGrande: 'This cannot be opened or saved because it exceeds the 1 MiB limit.',
+    avisoDeveloperInstructions:
+      'Tessera sets developer_instructions when opening a session if it has notices for the agent, and that value replaces the one in this file. Write those instructions in the context rules or in the account’s instructions file.',
+    sinGuardarTitulo: 'There are unsaved changes.',
+    descartar: 'Discard changes',
+    seguir: 'Keep editing',
+    fijadas: (lista: string) => `When a session opens, the agent applies ${lista} on top of this file, without writing them into it. To change them, edit the global Docker configuration or the profile’s.`,
+    origen: { global: 'global', perfil: 'from the profile' } as Record<'global' | 'perfil', string>,
+    nivelBase: 'Global',
+    nivelPerfil: (perfil: string) => `“${perfil}” profile`,
+    propuestaAviso: (agente: string, nivel: string) => `An agent proposes changing the ${agente} configuration: ${nivel}.`,
+    propuestaRevisar: 'Review',
+    propuestaTitulo: (agente: string, nivel: string) => `Proposal for the ${agente} configuration: ${nivel}`,
+    propuestaAyuda: (global: boolean, perfil: string, proyecto: string | null) =>
+      `${global ? 'If you accept it, it will apply to the Docker accounts of every profile that uses the global configuration' : `If you accept it, it will apply to the Docker accounts of the “${perfil}” profile`} when their next session opens.${proyecto ? ` It was made by an agent of the “${proyecto}” project.` : ''}`,
+    propuestaMotivo: (motivo: string) => `Agent’s reason: ${motivo}`,
+    propuestaComparacion: (archivo: string) => `${archivo}: the current file on the left, the proposed one on the right.`,
+    propuestaAceptar: 'Accept',
+    propuestaDescartar: 'Discard',
+    propuestaNoAplicada: 'The proposal could not be applied: the file at that level cannot be written. It remains pending.',
+    propuestaRetirada: 'This proposal is no longer pending: it was resolved, a more recent one replaced it, or its profile no longer exists. It was not applied.'
+  }
+)

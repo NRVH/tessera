@@ -8,6 +8,10 @@
 // =============================================================================
 
 // El formulario común va ANTES que lo propio del diálogo: a igual especificidad gana la segunda.
+import { useRef } from 'react'
+import { Presente } from '../../comun/Presente'
+import { AvisoModal, Modal, PieModal } from '../../comun/Modal'
+import { AYUDA, BotonAyuda } from '../academy'
 import '../../comun/formularioModal.css'
 import './dialogo.css'
 // Los tokens de color de los entornos (los puntos del selector) viven con la marca.
@@ -19,13 +23,11 @@ import { CampoArchivo, FilasDelFormulario } from './DbConexionCampos'
 import { SelectorTunelSsh } from './DbConexionTunel'
 import { ClaveSentinels, SelectorTopologiaRedis } from './DbConexionTopologia'
 import {
-  CabeceraConexion,
   CampoNotas,
   CampoUri,
   CasillaSoloLectura,
   CredencialesConexion,
   FilaNombreMotor,
-  PieConexion,
   ResultadoPrueba,
   SelectorEntorno
 } from './DbConexionSecciones'
@@ -62,46 +64,46 @@ export function DbConexionDialogo({
 }: DbConexionDialogoProps): React.JSX.Element {
   const v = useConexionDialogo({ perfilId, conexion, archivoInicial, abrirClientes, requiereDriver, onGuardada, onCerrar })
   const { e } = v
+  const t = txConexionDialogo()
+  const ocupado = e.guardando || e.probando || e.eligiendo || v.d.instalando !== null
   return (
-    <div
-      className="modal-overlay"
-      role="presentation"
-      onMouseDown={() => {
-        if (!v.cambios && !e.guardando) onCerrar()
-      }}
+    <Modal
+      titulo={e.borrador.id !== undefined ? t.editarConexion : t.nuevaConexion}
+      ayuda={<BotonAyuda destino={AYUDA.conexionBd} />}
+      subtitulo={e.borrador.id === undefined ? <>{t.ayudaNombreAntes}<code>tdb</code>{t.ayudaNombreDespues}</> : undefined}
+      tamano="m"
+      className="db-conexion-modal"
+      // Solo guardar impide salir: una prueba contra un servidor que no responde se abandona con Cancelar o Esc.
+      cerrable={!e.guardando}
+      ocupado={ocupado}
+      cierraConVelo={!v.cambios}
+      onCerrar={onCerrar}
+      pie={
+        <PieModal auxiliares={
+          <button type="button" className="btn" disabled={ocupado} onClick={() => void v.a.probar()}>
+            {e.probando ? t.probando : v.cambios ? t.guardarYProbar : t.probar}
+          </button>
+        }>
+          <button type="button" className="btn btn-ghost" disabled={e.guardando} onClick={onCerrar}>{t.cancelar}</button>
+          <button type="submit" form={e.idTitulo} className="btn primary" disabled={ocupado}>{e.guardando ? t.guardando : t.guardar}</button>
+        </PieModal>
+      }
     >
-      <div
-        ref={v.dialogo.ref}
-        className="modal-card db-conexion-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={e.idTitulo}
-        onMouseDown={(ev) => ev.stopPropagation()}
-        onKeyDown={v.dialogo.alPulsarTecla}
+      <form
+        id={e.idTitulo}
+        className="dbc-form"
+        noValidate
+        onSubmit={(ev) => {
+          ev.preventDefault()
+          if (!ocupado) void v.a.guardar()
+        }}
       >
-        <form
-          className="dbc-form"
-          noValidate
-          onSubmit={(ev) => {
-            ev.preventDefault()
-            void v.a.guardar()
-          }}
-        >
-          <CabeceraConexion idTitulo={e.idTitulo} esEdicion={e.borrador.id !== undefined} />
-          <div className="dbc-cuerpo">
-            <FormularioConexion v={v} enfocarPassword={enfocarPassword} />
-            <PieDelCuerpo v={v} />
-          </div>
-          <PieConexion
-            probando={e.probando}
-            guardando={e.guardando}
-            cambios={v.cambios}
-            onProbar={() => void v.a.probar()}
-            onCerrar={onCerrar}
-          />
-        </form>
-      </div>
-    </div>
+        <div ref={v.camposRef} className="dbc-cuerpo">
+          <FormularioConexion v={v} enfocarPassword={enfocarPassword} />
+          <PieDelCuerpo v={v} />
+        </div>
+      </form>
+    </Modal>
   )
 }
 
@@ -109,12 +111,14 @@ export function DbConexionDialogo({
 function FormularioConexion({ v, enfocarPassword }: { v: VistaConexion; enfocarPassword: boolean }): React.JSX.Element {
   const { e, a, descriptor } = v
   const { borrador } = e
+  const ultimaUri = useRef(descriptor.uri)
+  if (descriptor.uri) ultimaUri.current = descriptor.uri
   const invalido = (c: CampoConexion): true | undefined => (v.marcados.includes(c) ? true : undefined)
   const filas = { borrador, marcados: v.marcados, onTexto: a.editarTexto, onEditar: a.editar, setBorrador: e.setBorrador }
   return (
     <>
       <FilaNombreMotor borrador={borrador} aliasInvalido={invalido('alias')} enfocarPassword={enfocarPassword} editar={a.editar} setBorrador={e.setBorrador} />
-      {descriptor.deArchivo && (
+      <Presente visible={!!(descriptor.deArchivo)} className="mov-despliega">
         <CampoArchivo
           nombre={borrador.archivo ?? ''}
           invalido={v.marcados.includes('archivo')}
@@ -122,11 +126,11 @@ function FormularioConexion({ v, enfocarPassword }: { v: VistaConexion; enfocarP
           onElegir={() => void a.elegirArchivo(false)}
           onCrear={() => void a.elegirArchivo(true)}
         />
-      )}
-      {descriptor.uri && <CampoUri esquema={descriptor.uri} uri={e.uri} setUri={e.setUri} botonRef={v.botonUriRef} aplicarUri={a.aplicarUri} />}
+      </Presente>
+      <Presente visible={!!descriptor.uri} className="mov-despliega">{ultimaUri.current && <CampoUri esquema={ultimaUri.current} uri={e.uri} setUri={e.setUri} botonRef={v.botonUriRef} aplicarUri={a.aplicarUri} />}</Presente>
       <SelectorTopologiaRedis borrador={borrador} invalido={v.marcados.includes('topologiaRedis')} editar={a.editar} setBorrador={e.setBorrador} />
       <FilasDelFormulario filas={descriptor.filas} ayudas={ayudasTrasFila} {...filas} />
-      {v.conCredenciales && (
+      <Presente visible={!!(v.conCredenciales)} className="mov-despliega">
         <CredencialesConexion
           borrador={borrador}
           userInvalido={invalido('user')}
@@ -136,8 +140,8 @@ function FormularioConexion({ v, enfocarPassword }: { v: VistaConexion; enfocarP
           setVerPassword={e.setVerPassword}
           editar={a.editar}
         />
-      )}
-      {v.conCredenciales && v.avisoPassword && <div className="dbc-aviso">{v.avisoPassword}</div>}
+      </Presente>
+      <Presente visible={!!(v.conCredenciales && v.avisoPassword)} className="mov-despliega"><AvisoModal tono="aviso">{v.avisoPassword}</AvisoModal></Presente>
       {v.conCredenciales && <ClaveSentinels borrador={borrador} editar={a.editar} />}
       <FilasDelFormulario filas={descriptor.filasTrasCredenciales} ayudas={ayudasTrasFilaCredenciales} {...filas} />
       <SelectorTunelSsh borrador={borrador} editar={a.editar} />
@@ -157,9 +161,11 @@ function PieDelCuerpo({ v }: { v: VistaConexion }): React.JSX.Element {
   }
   return (
     <>
-      {(e.probando || e.resultado) && (
-        <ResultadoPrueba probando={e.probando} resultado={e.resultado} borrador={e.borrador} guardando={e.guardando} onConfiar={confiar} />
-      )}
+      <Presente visible={e.probando || e.resultado !== null} className="mov-despliega">
+        <AvisoModal tono={e.probando || !e.resultado ? 'info' : e.resultado.ok ? 'exito' : 'error'}>
+          <ResultadoPrueba probando={e.probando} resultado={e.resultado} borrador={e.borrador} guardando={e.guardando} onConfiar={confiar} />
+        </AvisoModal>
+      </Presente>
       {d.requiere && v.verRequiere && <AvisoDriver v={v} requiere={d.requiere} />}
       {v.verClientes && (
         <details
@@ -180,9 +186,7 @@ function PieDelCuerpo({ v }: { v: VistaConexion }): React.JSX.Element {
         </details>
       )}
       {e.error && (
-        <div className="dbc-error" role="alert">
-          {e.error}
-        </div>
+        <AvisoModal tono="error">{e.error}</AvisoModal>
       )}
     </>
   )
@@ -193,7 +197,7 @@ function AvisoDriver({ v, requiere }: { v: VistaConexion; requiere: DriverRequer
   const { d, a, packRequerido } = v
   const t = txConexionDialogo()
   return (
-    <div className="dbc-driver-aviso" role="status">
+    <AvisoModal tono="info">
       <div>{requiere.motivo}</div>
       <div className="dbc-driver-botones">
         {packRequerido?.descargable === false ? (
@@ -220,6 +224,6 @@ function AvisoDriver({ v, requiere }: { v: VistaConexion; requiere: DriverRequer
           {t.seleccionarCarpeta}
         </button>
       </div>
-    </div>
+    </AvisoModal>
   )
 }

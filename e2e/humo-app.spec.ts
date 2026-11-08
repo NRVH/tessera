@@ -93,7 +93,7 @@ test.describe.serial('humo: lo que compone App.tsx', () => {
 
   test('diff desde el panel de cambios de git', async () => {
     const win = s.win
-    const cambios = win.getByRole('button', { name: /^Git · Cambios, 1 cambios sin confirmar$/ })
+    const cambios = win.getByRole('button', { name: /^Git · Cambios, 1 cambio sin confirmar$/ })
     await cambios.click()
     const panel = win.locator('.git-panel')
     const fila = panel.locator('.git-arbol-fila', { hasText: 'uno.txt' })
@@ -129,7 +129,7 @@ test.describe.serial('humo: lo que compone App.tsx', () => {
 
   test('historial de git: log, detalle de un commit y su archivo', async () => {
     const win = s.win
-    await win.getByRole('button', { name: 'Git · Log' }).click()
+    await win.getByRole('button', { name: 'Git · Historial' }).click()
     const commits = win.locator('.git-fila-commit')
     await expect(commits).toHaveCount(2)
     await expect(commits.nth(0)).toContainText('segundo commit: amplía dos.txt')

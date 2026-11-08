@@ -81,11 +81,10 @@ const txAvisosPlan = crearTextos(
   }
 )
 
-/** Los avisos del plan en el idioma activo; las constantes son el español fijo que comparan las pruebas. */
+/** Los avisos del plan en el idioma activo; la constante es el español fijo que comparan las pruebas. */
 export const avisoBindsOracle = (): string => txAvisosPlan().bindsOracle
 export const avisoPlanRecortado = (): string => txAvisosPlan().planRecortado
 export const AVISO_BINDS_ORACLE = avisosPlanEs.bindsOracle
-export const AVISO_PLAN_RECORTADO = avisosPlanEs.planRecortado
 
 /** Filas de `SQL_NODOS_ORACLE` -> nodos. */
 export function nodosOracle(filas: readonly (readonly unknown[])[]): DbNodoPlan[] {

@@ -20,7 +20,7 @@ export const txUpdate = crearTextos(
         'o reinstale Tessera manualmente; sus datos no se modifican.',
       danada:
         'La actualización se descargó dañada y se descartó por seguridad. ' +
-        'Se volverá a intentar automáticamente; si el problema persiste, hay que volver a publicar el instalador.',
+        'Se volverá a intentar automáticamente. Si el problema persiste, descargue el instalador desde la página de versiones.',
       sinVersion: (servidor: string) => `El servidor de actualizaciones (${servidor}) no tiene ninguna versión publicada.`,
       permisosMac: (sistema: string) =>
         `${sistema} bloqueó la actualización por falta de permisos. Suele ocurrir cuando ` +
@@ -91,7 +91,7 @@ export const txUpdate = crearTextos(
         'or reinstall Tessera manually; your data is not affected.',
       danada:
         'The downloaded update was corrupted and was discarded for security. ' +
-        'Tessera will retry automatically; if it keeps failing, republish the installer.',
+        'Tessera will retry automatically. If the problem persists, download the installer from the releases page.',
       sinVersion: (servidor: string) => `The update server (${servidor}) has no published version.`,
       permisosMac: (sistema: string) =>
         `${sistema} blocked the update because of permissions. This usually happens when ` +

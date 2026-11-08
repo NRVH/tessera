@@ -648,9 +648,9 @@ const EXT_TO_LANGUAGE: Record<string, string> = {
   fsi: 'fsharp',
   vb: 'vb',
   pas: 'pascal',
-  // Groovy: lenguaje PROPIO 'groovy' (registrado en monacoLenguajes). Antes iba a 'java',
-  // cuyo tokenizer rompe las comillas simples de Groovy ('literal de un char'), así que
-  // un `implementation 'com.example:Lib:1.0'` salía en trozos de colores.
+  // Groovy: lenguaje PROPIO 'groovy' (registrado en monacoLenguajes). El de 'java' rompe
+  // las comillas simples de Groovy ('literal de un char'), y un
+  // `implementation 'com.example:Lib:1.0'` saldría en trozos de colores.
   groovy: 'groovy',
   gradle: 'groovy',
 

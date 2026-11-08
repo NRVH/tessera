@@ -44,7 +44,7 @@ export const txGit = crearTextos(
     gitFalloSalida: (codigo: number) => `Git failed (exit code ${codigo}).`,
     sinRepo: 'There is no active repository.',
     sinRepoRuta: 'There is no repository for this path.',
-    proyectoDesconocido: 'This Git operation belongs to a project that isn’t open: nothing was done.',
+    proyectoDesconocido: 'This Git operation belongs to a project that is not open: nothing was done.',
     mensajeVacio: 'The commit message is empty.',
     demasiadosEnLote: (tope: number) => `Too many files in a batch (limit ${tope}).`,
     copiaNoLeida: (codigo: string) => `Could not read the copy on disk: ${codigo}`,

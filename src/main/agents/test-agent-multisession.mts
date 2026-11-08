@@ -203,9 +203,8 @@ async function main(): Promise<void> {
       `B_viva=${bLive} | B_mounts=${cfgsB.length} | A_scan_B=${aScanB} | contenedores_distintos=${containersDistinct}`
     )
 
-    // (Se retiró la antigua sección (5) "dos cuentas privadas del mismo perfil":
-    // el modelo es de UNA sola cuenta por (perfil, agente). El refcount de la MISMA
-    // cuenta compartida entre proyectos lo cubren (3)/(4) con s1/s2.)
+    // El modelo es de UNA sola cuenta por (perfil, agente). El refcount de la MISMA
+    // cuenta compartida entre proyectos lo cubren (3)/(4) con s1/s2.
 
     // --- (3) Cerrar UNA sesión de A NO desmonta el config (refcount>0) -----------
     hr('(3) close(A/proyecto-a): el config de A/claude sigue montado; A/proyecto-b sigue funcional')

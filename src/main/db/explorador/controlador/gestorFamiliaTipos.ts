@@ -104,10 +104,6 @@ export interface SesionFamilia {
 export const mensajeCerrando = (): string => txControlador().cerrando
 export const mensajeSinLanzar = (): string => txControlador().sinProceso
 export const mensajeForzada = (): string => txControlador().cierreForzado
-/** Los mismos textos en español (idioma por defecto), para quien los importa como valor fijo. */
-export const MENSAJE_CERRANDO = 'Tessera se está cerrando.'
-export const MENSAJE_SIN_LANZAR = 'No se pudo lanzar el proceso de la conexión.'
-export const MENSAJE_FORZADA = 'Se forzó el cierre de la conexión.'
 
 /**
  * Los campos COMUNES de la conexión que viaja al trabajador de una familia no SQL: con el

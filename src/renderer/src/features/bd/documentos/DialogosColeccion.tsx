@@ -58,15 +58,17 @@ function confirmacionEnvio(d: DatosDialogos): React.JSX.Element | null {
       message={t.produccionMensaje(textoCambiosDocs(pendientes), destino)}
       confirmLabel={t.ejecutarEnProduccion}
       danger
+      severidad="advertencia"
       onConfirm={() => d.onResponderConfirmacion(true)}
       onCancel={() => d.onResponderConfirmacion(false)}
     />
   ) : (
     <ConfirmDialog
-      title={t.sinTransaccionTitulo}
-      message={t.sinTransaccionMensaje(textoSinTransaccion(), textoCambiosDocs(pendientes))}
+      title={t.sinTransaccionTitulo(textoCambiosDocs(pendientes))}
+      message={textoSinTransaccion()}
       confirmLabel={t.enviarSinTransaccion}
       danger
+      severidad="advertencia"
       onConfirm={() => d.onResponderConfirmacion(true)}
       onCancel={() => d.onResponderConfirmacion(false)}
     />
@@ -85,7 +87,7 @@ export function dialogosColeccion(d: DatosDialogos): React.JSX.Element {
       {d.descarte &&
         createPortal(
           <ConfirmDialog
-            title={t.descartarSinEnviar(textoCambiosDocs(d.descarte.n))}
+            title={t.descartarTitulo(textoCambiosDocs(d.descarte.n))}
             message={t.descartarMensaje(`${d.base}.${d.coleccion}`, textoCambiosDocs(d.descarte.n))}
             confirmLabel={t.descartar}
             danger

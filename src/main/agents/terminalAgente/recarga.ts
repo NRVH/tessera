@@ -8,6 +8,8 @@
 
 import { buildAgentLaunchCommand, buildHostAgentLaunchCommand } from '../lineaArranqueAgente'
 import { briefingCompuesto } from '../briefingCompuesto'
+import { hayCuentasParaDelegar } from '../delegacion/cuentasDelegables'
+import { prepararCapaCompartida } from '../configAgente/configCompartida'
 import { claveSesionAgente } from '../../../shared/db-ipc'
 import { PREFIJO_DOCKER_NO_DISPONIBLE } from '../../../shared/dockerErrors'
 import type { Agente, Profile } from '../../profiles/types'
@@ -19,6 +21,7 @@ import { medidasDeProcesoNuevo } from './hibernacion'
 import { ACTIVITY_BOOT_GRACE_MS, type NucleoAgente, type OpenAgentSession } from './tipos'
 import { esSesionManual, recargarManual } from './aperturaManual'
 import { txAgentes } from '../textos.ts'
+import { contextoEfectivo } from '../../../shared/contexto'
 
 type Relanzamiento = { launch: string; extraEnv: Record<string, string> }
 
@@ -34,9 +37,9 @@ export async function recargar(
   manual?: unknown
 ): Promise<AgentOpenResult> {
   const open = n.sessions.get(sessionId)
-  if (!open) throw new Error(`No existe una sesión de agente con id "${sessionId}".`)
+  if (!open) throw new Error(`No existe una sesión de agente con id «${sessionId}».`)
   const profile = n.profiles.get(open.profileId)
-  if (!profile) throw new Error(`Perfil desconocido: "${open.profileId}".`)
+  if (!profile) throw new Error(`Perfil desconocido: «${open.profileId}».`)
   // Un agente manual no tiene candado de actualización, cuenta ni conversación que fijar.
   if (esSesionManual(open)) return recargarManual(n, open, profile, dbConnectionIds, manual)
 
@@ -81,14 +84,16 @@ function desarmarParaRelanzar(n: NucleoAgente, open: OpenAgentSession): void {
   open.activity.suppress(ACTIVITY_BOOT_GRACE_MS)
 }
 
-/** El aviso de arranque de la sesión al relanzarla: las reglas son las vigentes del perfil, no las de cuando se abrió. */
-function avisoDeArranque(n: NucleoAgente, open: OpenAgentSession, dbConnectionIds: string[]): string | null {
+/** El aviso de arranque de la sesión al relanzarla: el contexto es el vigente, no el de cuando se abrió. */
+function avisoDeArranque(n: NucleoAgente, open: OpenAgentSession, dbConnectionIds: string[], enContenedor: boolean): string | null {
   return briefingCompuesto({
     bd: n.getDbBriefing(open.profileId, open.projectHostPath, dbConnectionIds),
     ssh: n.getSshBriefing(open.profileId),
-    reglas: n.profiles.get(open.profileId)?.reglas,
+    contexto: contextoEfectivo(n.profiles.get(open.profileId) ?? {}, n.contextoGlobal()),
     historial: true,
-    traspaso: open.avisoTraspaso ?? null
+    traspaso: open.avisoTraspaso ?? null,
+    enContenedor,
+    delegacion: !enContenedor && hayCuentasParaDelegar(n.accounts, open.profileId)
   })
 }
 
@@ -100,6 +105,7 @@ async function recargarNativo(
   resumeSessionId: string | undefined
 ): Promise<AgentOpenResult> {
   const reanudar = fijarReanudacion(open, resumeSessionId)
+  const snapshot = dbConnectionIds !== undefined && deSerie(open) === 'claude-code' && !!reanudar && (await n.admiteSnapshotNativo())
   const overrides: Relanzamiento | undefined =
     dbConnectionIds !== undefined
       ? {
@@ -107,7 +113,10 @@ async function recargarNativo(
             n.binaries[deSerie(open)],
             deSerie(open),
             reanudar,
-            avisoDeArranque(n, open, dbConnectionIds)
+            avisoDeArranque(n, open, dbConnectionIds, false),
+            undefined,
+            undefined,
+            snapshot
           ),
           extraEnv: n.getHostEnv(open.profileId, open.projectHostPath, dbConnectionIds)
         }
@@ -140,6 +149,7 @@ function relanzamientoContenedor(
   open: OpenAgentSession,
   sessionId: string,
   configContainerPath: string,
+  conCapa: boolean,
   dbConnectionIds: string[],
   resumeSessionId: string | undefined
 ): Relanzamiento {
@@ -150,10 +160,11 @@ function relanzamientoContenedor(
       n.binaries[deSerie(open)],
       deSerie(open),
       configContainerPath,
-      n.sshSetup,
       reanudar,
       extraEnv,
-      avisoDeArranque(n, open, dbConnectionIds)
+      avisoDeArranque(n, open, dbConnectionIds, true),
+      undefined,
+      conCapa
     ),
     extraEnv
   }
@@ -173,7 +184,7 @@ async function recargarEnContenedor(
   if (!docker.ok) throw new Error(`${PREFIJO_DOCKER_NO_DISPONIBLE}\n${docker.detalle}`)
 
   const account = n.accounts.get(open.accountId)
-  if (!account) throw new Error(`Cuenta de agente desconocida: "${open.accountId}".`)
+  if (!account) throw new Error(`Cuenta de agente desconocida: «${open.accountId}».`)
   // Relanzar una cuenta sin credencial vuelve a iniciar sesión: la misma regla que al abrir.
   reservarLoginCodex(n, profile, open.agente, account, sessionId)
 
@@ -182,11 +193,14 @@ async function recargarEnContenedor(
   await n.sandbox.addProject(destino, open.projectHostPath)
   const hostConfigDir = n.accounts.hostDirFor(account)
   const cfgMount = await n.sandbox.mountAgentConfig(destino, open.agente, account.id, hostConfigDir)
+  // La capa compartida, como al abrir: la vigente, no la de cuando se abrió.
+  const agente = deSerie(open)
+  const conCapa = agente === 'claude-code' || agente === 'codex' ? await prepararCapaCompartida(hostConfigDir, agente, n.capasCompartidas(profile, agente), (m) => n.log(m)) : false
 
   // Sin lista de montajes (el reintento automático tras una caída) se relanza lo guardado.
   const overrides =
     dbConnectionIds !== undefined
-      ? relanzamientoContenedor(n, open, sessionId, cfgMount.containerPath, dbConnectionIds, resumeSessionId)
+      ? relanzamientoContenedor(n, open, sessionId, cfgMount.containerPath, conCapa, dbConnectionIds, resumeSessionId)
       : undefined
 
   desarmarParaRelanzar(n, open)

@@ -12,7 +12,8 @@ pty aún pausado por la contrapresión y la otra no.
 ## Decisión
 
 - Un solo montaje (`montarXterm`) con lo propio de cada pane por opciones: canal, tema, sesión del
-  momento, fin de la sesión, qué hacer con las rutas soltadas, `puedeBuscar` y cómo cerrar.
+  momento, fin de la sesión, qué hacer con las rutas soltadas, el buscador (`setSearchResults`: sin él no hay addon
+  ni Mod+F) y cómo cerrar.
 - Vive en `features/terminales` y no en `comun/` o `util/`: depende del portapapeles, la
   contrapresión y el pegado, que son de la feature; el agente lo importa por su `index.ts` (F5).
 - Desmontar reinicia el escritor PRIMERO, mientras la sesión aún se conoce: despausa el pty, cuyo

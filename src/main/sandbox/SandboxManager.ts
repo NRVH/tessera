@@ -9,7 +9,6 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import type { Profile } from '../profiles/types.ts'
 import type { IdAgente } from '../../shared/agentesManuales.ts'
-import type { SshSetup } from './sshSetup.ts'
 import type { SandboxExtras } from '../../shared/sandboxExtras.ts'
 import type { AvisoRed, ResultadoRedPrevuelo } from '../../shared/sandbox-red-ipc.ts'
 import { DB_BRIDGE_CONTAINER, cuentasDelPerfil, esDeCuenta, idBase } from './gestor/nombres.ts'
@@ -70,8 +69,8 @@ export class SandboxManager {
   /** Paradas diferidas de contenedores de cuenta sin agentes, por id. */
   private readonly paradasPendientes = new Map<string, ReturnType<typeof setTimeout>>()
 
-  constructor(dockerfileDir: string = DEFAULT_DOCKERFILE_DIR, sshSetup: SshSetup | null = null) {
-    this.n = new NucleoSandbox(dockerfileDir, sshSetup)
+  constructor(dockerfileDir: string = DEFAULT_DOCKERFILE_DIR) {
+    this.n = new NucleoSandbox(dockerfileDir)
     this.diag = new DiagnosticoSandbox(this.n)
     this.imagen = new ImagenSandbox(this.n)
     this.montajes = new MontajesSandbox(this.n)
@@ -138,10 +137,6 @@ export class SandboxManager {
     return DB_BRIDGE_CONTAINER
   }
 
-  /** (Re)fija el setup ssh global. Los contenedores ya vivos lo toman al recrearse. */
-  setSshSetup(setup: SshSetup | null): void {
-    this.n.setSshSetup(setup)
-  }
 
   /** (Re)fija los paquetes extra; la imagen se rehornea en el siguiente `ensureImage`. */
   setExtras(extras: SandboxExtras): void {

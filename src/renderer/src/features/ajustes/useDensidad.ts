@@ -1,12 +1,14 @@
 // =============================================================================
 // Densidad de la interfaz: el tamaño efectivo de cada superficie (explorador, git y
 // bases de datos) y sus alturas de fila, que las listas virtuales necesitan en JS,
-// y la publicación de la densidad base en :root antes del pintado.
+// y la publicación de la densidad base en :root antes del pintado. Aplica también la letra
+// del editor de código (`useLetraEditor`), el otro tamaño de letra que no es de una terminal.
 // =============================================================================
 import { useLayoutEffect, useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { altoCabecera, altoFila, fontTitulo, resolverTamano, resolverTamanoBd, variablesCss } from '../../theme/densidad'
 import { useStoreAjustes } from './store'
+import { useLetraEditor } from './useLetraEditor'
 
 /** Alturas y variables CSS de cada superficie. */
 export interface Densidad {
@@ -24,6 +26,7 @@ export interface Densidad {
 
 /** Densidad de cada superficie; publica la base en :root en un efecto de layout. */
 export function useDensidad(): Densidad {
+  useLetraEditor()
   const { uiFontSize, explorerFontSize, gitFontSize, dbFontSize } = useStoreAjustes(
     useShallow((s) => ({
       uiFontSize: s.uiFontSize,

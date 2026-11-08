@@ -34,6 +34,8 @@ function main(): void {
   check('alpha + ajuste encendido -> graba', registroSaludActivo('0.76.2-alpha.3', true), 'true')
   check('alpha + ajuste apagado -> no graba', !registroSaludActivo('0.76.2-alpha.3', false), 'false')
   check('pública + ajuste encendido -> no graba', !registroSaludActivo('0.76.2', true), 'false')
+  check('pública forzada por el arnés + ajuste -> graba', registroSaludActivo('0.76.2', true, true), 'true')
+  check('forzada por el arnés + ajuste apagado -> no graba', !registroSaludActivo('0.76.2', false, true), 'false')
   check('pública + ajuste apagado -> no graba', !registroSaludActivo('0.76.2', false), 'false')
 
   hr('(3) debeRotar')

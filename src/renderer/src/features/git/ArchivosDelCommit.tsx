@@ -18,6 +18,7 @@ import {
 import { FilaArbolArchivo } from './FilaArbolArchivo'
 import { VirtualList } from '../../comun/VirtualList'
 import { EsperaCarga } from '../../comun/IndicadorCarga'
+import { Cruce } from '../../comun/Presente'
 import { useRaizDelProyecto } from '../../comun/raizDelProyecto'
 import {
   aplanarArbolArchivos,
@@ -191,13 +192,13 @@ function EstadosArchivos(p: { error: string | null; archivos: FileChange[] | nul
   const { error, archivos } = p
   const t = txGit()
   return (
-    <>
+    <Cruce clave={error ? 'error' : archivos === null ? 'cargando' : archivos.length === 0 ? 'vacio' : 'lista'}>
       {error && <div className="git-error">{t.errorArchivos(error)}</div>}
       {!error && archivos === null && <EsperaCarga texto={t.cargandoArchivos} className="git-state-inline" />}
       {!error && archivos?.length === 0 && (
         <div className="git-state-inline">{t.commitSinArchivos}</div>
       )}
-    </>
+    </Cruce>
   )
 }
 

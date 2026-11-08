@@ -18,7 +18,7 @@ significa «bórrala», y la huella del destino se calcula sobre el registro: un
   cuentan; un archivo elegido de nuevo también, aunque se llame igual.
 - Entorno `null` no viaja: ausente es «sin entorno» también al editar.
 - Motor de archivo: viaja la FICHA del archivo nuevo, nunca una ruta; sin credenciales no se manda contraseña.
-  Una base creada conserva la casilla de los agentes como venga.
+  Una base creada conserva el interruptor de los agentes como venga.
 - Los opcionales (instancia, autenticación, dominio, cifrado, SRV, opciones) están SIEMPRE en el borrador, y
   solo viajan y cuentan como cambio con un motor que los declara (`usaOpcional`); el dominio, solo con una
   autenticación que lo pide. Oracle y PostgreSQL mandan la entrada de siempre, al byte.

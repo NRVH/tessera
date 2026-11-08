@@ -1,30 +1,30 @@
-# El SSH del usuario se monta READ-ONLY en todo contenedor y su config se traduce
+# El SSH del usuario se utiliza por permiso de perfil y sus claves privadas permanecen en el host
 
 - **Estado:** vigente
-- **Ámbito:** `src/main/sandbox/sshSetup.ts`, `gestor/montajes.ts`, `src/main/agents/gitInContainer.ts`
-
-## Contexto
-
-El usuario tiene UN `~/.ssh/config` con varios `Host <alias>` cuyas `IdentityFile` apuntan con rutas del host a
-`~/.ssh` o a carpetas hermanas. Dentro del contenedor esas rutas no existen.
+- **Ámbito:** `src/main/ssh/agente/`, `src/main/sandbox/gestor/montajes.ts`,
+  `gestor/nombres.ts`, `src/main/agents/gitInContainer.ts` y `src/tssh/ssh-agente.cjs`.
 
 ## Decisión
 
-- GLOBAL (decisión de producto): el mismo SSH para el contenedor de cualquier perfil; el config del usuario ya
-  distingue las cuentas por alias. La `.ssh` propia de un perfil (`sshDir`) se monta además, solo en el suyo.
-- Del lado host se descubren todas las carpetas que el config referencia y se reescribe el config con rutas
-  `/home/agente/<base>/…`; se montan READ-ONLY bajo `/mnt/tessera-ssh/<base>` y el preludio de git las copia a
-  `~/<base>` con 600.
-- La familia de rutas es un parámetro (`Plataforma`): en macOS las rutas se conservan POSIX. Convertir `/` en `\` sin
-  mirar la plataforma dejaba «0 carpetas» y ningún contenedor recibía llaves.
-- Si el config (o un `Include`) lleva `UseKeychain`, que el OpenSSH del contenedor trata como FATAL, se antepone
-  `IgnoreUnknown UseKeychain` como PRIMERA línea (ssh no lo aplica a lo que va antes). Los patrones de un
-  `IgnoreUnknown` del usuario se funden en el nuestro: ssh solo honra el primero.
+El SSH global no se monta en los contenedores. Tampoco se monta la carpeta SSH propia de un perfil.
+Cada perfil autoriza las claves del sistema o de su propia carpeta que sus agentes pueden utilizar.
+El catálogo reconoce los `IdentityFile` del config (incluidos sus includes) y los nombres estándar de `~/.ssh`.
+
+El host genera únicamente configuración y material público para las claves autorizadas. Los alias conservan
+sus destinos; cada `IdentityFile` apunta a una pública y su destino queda con `IdentitiesOnly`. El programa del contenedor
+abre un socket de agente SSH y pide al host identidades o firmas por el buzón autenticado. El token determina
+el perfil y cada firma vuelve a comprobar sus permisos. La frase y la privada nunca salen del host.
+
+El protocolo, los formatos admitidos, los límites, la auditoría y las reglas de compatibilidad se definen en
+[`agente-del-contenedor.md`](../ssh/agente-del-contenedor.md).
+No existe un contrato de montajes SSH ni un `sshSetup` que atraviese los lanzadores: todos preparan únicamente
+el socket y el material público mediante el buzón. El mismo preludio se aplica a las terminales Docker interactivas.
 
 ## Consecuencias
 
-`test:ssh-config` fija la traducción de las dos plataformas; `test:ssh` (con Docker) el montaje y el aislamiento.
-
-## Descartes
-
-- Quitar la línea `UseKeychain`: borrar opciones del usuario es peor que declararlas desconocidas.
+- Perfil existente sin lista: todas sus claves descubiertas permitidas; perfil nuevo: ninguna.
+- Las firmas se registran por perfil, huella y momento en `logs/ssh.log`.
+- El contenedor recibe `known_hosts`, públicas y config generado; nunca se copia una carpeta SSH completa.
+- `test:ssh-config` fija que las rutas privadas no aparecen ni se proponen montajes en ninguna plataforma.
+- Las pruebas del agente SSH ejercen claves reales, permisos y firmas sin Docker; la integración del socket
+  y las conexiones reales necesitan Docker.

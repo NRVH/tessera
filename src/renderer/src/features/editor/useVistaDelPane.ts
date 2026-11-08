@@ -117,10 +117,11 @@ export function useVistaDelPane(
   refs: RefsPane,
   path: string,
   visible: boolean,
-  buscable: boolean
+  buscable: boolean,
+  modoInicial?: ModoVista
 ): VistaDelPane {
   const previa = vistaPreviaDe(path)
-  const [modo, setModo] = useState<ModoVista>(() => modoInicialPara(path))
+  const [modo, setModo] = useState<ModoVista>(() => modoInicial ?? modoInicialPara(path))
   // Se poda contra la ruta actual: un pane en keep-alive puede cambiar de archivo.
   const modoEfectivo = modoAplicable(modo, path)
   const verCodigo = muestraCodigo(modoEfectivo)

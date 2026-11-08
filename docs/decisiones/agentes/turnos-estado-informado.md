@@ -23,10 +23,10 @@ preguntar, siempre que su salida sea una terminal, con `app=codex` en cada aviso
   agente enseña (un archivo, un log) no pueden apagar la deducción ni escribirle a ciegas en su entrada, y la despedida
   del proceso que muere tras un relanzamiento no cae sobre el nuevo.
 - **Un agente que informa sin preguntar se reconoce por su `app`** (`informaSinSonda`, hoy solo Codex): en su sesión
-  cuentan sin sonda los avisos que dicen ser él, y los demás se ignoran como antes. Un aviso falso que saliera en lo
+  cuentan sin sonda los avisos que dicen ser él, y los demás se ignoran. Un aviso falso que saliera en lo
   que enseña solo cambiaría el punto hasta su siguiente aviso. Su `clear` no lleva `app` y no se cuenta: el cierre
   del proceso ya lo apaga.
-- **Desde el primer aviso de una sesión, manda el agente.** El Enter ya no abre, y ni el BEL, ni el silencio, ni la
+- **Desde el primer aviso de una sesión, manda el agente.** El Enter no abre, y ni el BEL, ni el silencio, ni la
   marca del transcript cierran. Hasta ese aviso (y en un agente o una versión que no informa) sigue la deducción
   entera. Se decide por sesión y no por versión: no hay que saber qué CLI lo soporta.
 - **El tope sigue, contado desde el último `working`**: un agente que se cuelga sin cerrarse ni avisar no deja el punto

@@ -70,16 +70,20 @@ function useAppInfo(): AppInfo | null {
   return info
 }
 
+/** El crédito: «Creada por» y el autor, y debajo su puesto y sus perfiles en una sola línea. */
 function BloqueAutor(): React.JSX.Element {
+  const t = txCategorias().acerca
   return (
     <div className="ajustes-acerca-autor">
-      <span className="ajustes-acerca-autor-nombre">{AUTOR}</span>
-      <span className="ajustes-acerca-autor-rol">{txCategorias().acerca.rol}</span>
-      {/* Los perfiles del autor: son lo que lo distingue de cualquier homónimo. */}
-      <span className="ajustes-acerca-enlaces">
-        {ENLACES_AUTOR.map((e, i) => (
+      <span className="ajustes-acerca-autor-credito">
+        {t.creadaPor} <span className="ajustes-acerca-autor-nombre">{AUTOR}</span>
+      </span>
+      {/* El puesto y los perfiles del autor: son lo que lo distingue de cualquier homónimo. */}
+      <span className="ajustes-acerca-autor-rol">
+        {t.rol}
+        {ENLACES_AUTOR.map((e) => (
           <span key={e.url}>
-            {i > 0 ? ' · ' : null}
+            {' · '}
             <EnlaceExterno url={e.url}>{e.etiqueta}</EnlaceExterno>
           </span>
         ))}
@@ -100,6 +104,10 @@ function TarjetaAcerca(): React.JSX.Element {
       <h2 className="ajustes-acerca-nombre">Tessera</h2>
       <span className="ajustes-acerca-version">{info ? `v${info.version}` : '—'}</span>
 
+      {/* El crédito firma la identidad, pegado al nombre y la versión y separado del resumen por un filete:
+          entre el lema y la lista se leería como parte de lo que hace Tessera. */}
+      <BloqueAutor />
+
       <p className="ajustes-acerca-lema">{t.lema}</p>
 
       {/* La lista se alinea a la IZQUIERDA dentro de un bloque centrado: varias líneas
@@ -109,8 +117,6 @@ function TarjetaAcerca(): React.JSX.Element {
           <li key={linea}>{linea}</li>
         ))}
       </ul>
-
-      <BloqueAutor />
 
       {/* Licencia siempre; el enlace al código solo cuando el repositorio exista (ver
           `shared/proyecto.ts`): un enlace a un 404 es peor que no tener enlace. */}

@@ -4,12 +4,12 @@
 // (`acquire`) y lo suelta al limpiar, en cada corrida, con exactamente lo que adquirió.
 // Decisiones: docs/decisiones/editor/panes-en-keep-alive.md
 // =============================================================================
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { ensureMonaco } from '../../comun/monacoSetup'
 import { languageForFilename } from '../../../../shared/files-ipc'
 import { textModels } from './textModelRegistry'
 import { useRaizDelProyecto } from '../../comun/raizDelProyecto'
-import { modoInicialPara, vistaPreviaDe } from './modoVista'
+import { modoInicialPara, vistaPreviaDe, type ModoVista } from './modoVista'
 import { cargarVista, type EscritoresVista } from './useVistaDelPane'
 import type { EscritoresAviso, RefsPane } from './editorPaneRefs'
 import { txEditor } from './textos.ts'
@@ -25,11 +25,18 @@ interface Carga {
   escritores: EscritoresVista
   path: string
   name: string
+  /**
+   * El modo con que se abrió la pestaña (el guardado en la sesión del proyecto), una sola vez: lo devuelve en la
+   * primera carga y después nada, así un pane que pasa a otro archivo toma el de serie del nuevo.
+   */
+  tomarModoInicial: () => ModoVista | undefined
 }
 
-interface ParamsCarga extends Carga {
+interface ParamsCarga extends Omit<Carga, 'tomarModoInicial'> {
   untitledId: string | undefined
   modelKey: string | undefined
+  /** El modo con que se abrió la pestaña (el guardado en la sesión del proyecto); sin él, el de serie. */
+  modoInicial?: ModoVista
 }
 
 /** Modelo local vacío del buffer sin título: se crea una vez y se conserva al tomar nombre. */
@@ -104,7 +111,7 @@ function alAdquirir(c: Carga, key: string, shared: Compartido): void {
     set.setNotice(txEditor().archivoGrandeTruncado)
   }
   // Se repone en cada carga: el pane puede venir de otro archivo.
-  c.escritores.setModo(modoInicialPara(c.path))
+  c.escritores.setModo(c.tomarModoInicial() ?? modoInicialPara(c.path))
   cargarVista(c.escritores, vistaPreviaDe(c.path), shared.model.getValue())
 }
 
@@ -113,8 +120,15 @@ export function useCargaDelPane(p: ParamsCarga): void {
   const { refs, set, applyDirty, reportMeta, aplicarRevelado, escritores } = p
   const { path, name, untitledId, modelKey } = p
   const raiz = useRaizDelProyecto()
+  // El de la apertura, y solo para la primera carga: cambiar de modo después no vuelve a cargar el archivo.
+  const modoInicial = useRef(p.modoInicial)
   useEffect(() => {
-    const c: Carga = { refs, set, applyDirty, reportMeta, aplicarRevelado, escritores, path, name }
+    const tomarModoInicial = (): ModoVista | undefined => {
+      const m = modoInicial.current
+      modoInicial.current = undefined
+      return m
+    }
+    const c: Carga = { refs, set, applyDirty, reportMeta, aplicarRevelado, escritores, path, name, tomarModoInicial }
     let cancelled = false
     set.setLoadError(null)
     set.setNotice(null)

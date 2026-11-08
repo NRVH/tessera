@@ -178,7 +178,6 @@ hr('(7) La línea completa del agente en contenedor')
     'claude',
     'claude-code',
     '/agent-config/claude-code',
-    null,
     ID,
     ENTORNO,
     BRIEFING
@@ -202,7 +201,6 @@ hr('(7) La línea completa del agente en contenedor')
     'codex',
     'codex',
     '/agent-config/codex',
-    null,
     ID,
     ENTORNO,
     BRIEFING
@@ -220,7 +218,6 @@ hr('(7) La línea completa del agente en contenedor')
     'claude',
     'claude-code',
     '/agent-config/claude-code',
-    null,
     '; rm -rf /',
     ENTORNO
   )
@@ -329,7 +326,7 @@ hr('(9) El texto del aviso: proyecto sin cambios, espacio de datos sin «proyect
 
   // Y es ESE texto el que viaja en la línea de arranque del espacio (modo nativo en
   // producción; aquí la del contenedor, que es la que este test ya sabe leer).
-  const linea = buildAgentLaunchCommand('claude', 'claude-code', '/agent-config/claude-code', null, undefined, ENTORNO, espacio)
+  const linea = buildAgentLaunchCommand('claude', 'claude-code', '/agent-config/claude-code', undefined, ENTORNO, espacio)
   check(
     '(9g) la línea de arranque del espacio lleva el aviso nuevo, sin «este proyecto»',
     linea.includes('Como agente de datos del perfil') && !linea.includes('este proyecto'),

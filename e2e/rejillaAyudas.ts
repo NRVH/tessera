@@ -55,7 +55,7 @@ export async function asentar(win: Page): Promise<void> {
 }
 
 /** El botón de una vista en el riel, por su `title`. */
-export function botonVista(win: Page, titulo: 'Archivos' | 'Conexiones a bases de datos'): Locator {
+export function botonVista(win: Page, titulo: 'Archivos' | 'Bases de datos'): Locator {
   return win.locator(`.activity-item[title="${titulo}"]`)
 }
 
@@ -213,7 +213,7 @@ export async function arrancarRejilla(): Promise<EntornoRejilla | { motivo: stri
       w.setSize(1600, 1000)
     })
     await expect(s.win.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
-    await botonVista(s.win, 'Conexiones a bases de datos').click()
+    await botonVista(s.win, 'Bases de datos').click()
     await expect(s.win.locator('.db-area:not(.hidden)')).toBeVisible()
     const creada = await s.win.evaluate(
       (c) =>

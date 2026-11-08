@@ -578,7 +578,7 @@ function main(): void {
     check(`${m}: reglasDeMotor = REGLAS[dialecto]`, reglasDeMotor(m) === REGLAS[dialectoDeMotor(m)], '')
   }
   // Un motor fuera del registro no cae en otro dialecto ni da un TypeError anónimo: el
-  // mensaje es el de `descriptor()` (antes, «reading 'sql'»).
+  // mensaje es el de `descriptor()`.
   for (const raro of ['db2', 'constructor']) {
     let msg = ''
     try {

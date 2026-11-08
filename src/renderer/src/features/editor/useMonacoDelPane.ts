@@ -7,6 +7,8 @@
 import { useEffect } from 'react'
 import type { editor } from 'monaco-editor'
 import { ensureMonaco, MONACO_THEME, OPCIONES_BASE_MONACO } from '../../comun/monacoSetup'
+import { conLetraEditor, opcionesLetraEditor } from '../../comun/letraEditor'
+import { recordarCursor } from './cursorPorArchivo'
 import { esModPrincipal } from '../../util/atajos'
 import { ModelSaveBlocked, textModels } from './textModelRegistry'
 import type { EditorConvertReq } from './editorPaneTipos'
@@ -136,16 +138,17 @@ export function useMonacoDelPane(env: Entorno): void {
   const { refs, set, applyDirty, reportMeta } = env
   useEffect(() => {
     const monaco = ensureMonaco()
-    const ed = monaco.editor.create(refs.host.current as HTMLElement, {
-      // Tipografía, guías y `automaticLayout: false` (que obliga al ResizeObserver de
-      // abajo) viven en monacoSetup para que los tres editores no diverjan.
+    const ed = conLetraEditor(monaco.editor.create(refs.host.current as HTMLElement, {
+      // Guías y `automaticLayout: false` (que obliga al ResizeObserver de abajo) viven en
+      // monacoSetup para que los editores no diverjan; la letra, en el ajuste del editor.
       ...OPCIONES_BASE_MONACO,
+      ...opcionesLetraEditor(),
       value: '',
       theme: MONACO_THEME,
       readOnly: false,
       minimap: { enabled: false },
       renderWhitespace: 'selection'
-    })
+    }))
     refs.editor.current = ed
     const save = crearGuardado({ refs, set, applyDirty, reportMeta })
     refs.save.current = save
@@ -155,6 +158,11 @@ export function useMonacoDelPane(env: Entorno): void {
       void save()
     })
     const findKeyDisposable = localizarBuscador(ed, monaco)
+    // La posición del cursor se guarda con la sesión del proyecto, para volver a ella al reabrir.
+    const cursorDisposable = ed.onDidChangeCursorPosition((e) => {
+      const key = refs.modelKey.current
+      if (key !== undefined) recordarCursor(key, e.position.lineNumber, e.position.column)
+    })
     // Reflow ante cualquier cambio de tamaño del host: ventana y zoom global.
     const ro = new ResizeObserver(() => ed.layout())
     ro.observe(refs.host.current as HTMLElement)
@@ -162,6 +170,7 @@ export function useMonacoDelPane(env: Entorno): void {
     return () => {
       ro.disconnect()
       findKeyDisposable.dispose()
+      cursorDisposable.dispose()
       desmontar(refs, ed)
     }
   }, [refs, set, applyDirty, reportMeta])

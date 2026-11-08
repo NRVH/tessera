@@ -94,23 +94,12 @@
   cursor: not-allowed;
 }
 
-.dbc-check {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 12.5px;
-  color: var(--fg);
-  cursor: pointer;
-}
-.dbc-check input {
-  margin: 0;
-}
-/* El cifrado: sus dos casillas, una bajo otra y con el
+/* El cifrado: sus dos interruptores, uno bajo otro y con el
    mismo aire que «Solo lectura». */
 .dbc-cifrado {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 2px;
   min-width: 0;
 }
 
@@ -127,21 +116,6 @@
   color: var(--fg);
 }
 
-/* Falta un driver: aviso INFORMATIVO (no es un error del usuario), anclado al azul
-   de la paleta y no al del perfil, igual que el `.aviso` compartido. */
-.dbc-driver-aviso {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--azul);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--azul) 10%, var(--bg-elevated));
-  font-size: 12px;
-  line-height: 1.45;
-  color: var(--fg);
-}
 .dbc-driver-botones {
   display: flex;
   flex-wrap: wrap;
@@ -214,4 +188,16 @@
   font-size: 11.5px;
   line-height: 1.45;
   color: var(--fg-faint);
+}
+
+/* El resultado conserva su caja mientras el contenido se cruza. */
+.dbc-cuerpo .dbc-prueba,
+.dbc-cuerpo .dbc-prueba-linea {
+  transition:
+    color var(--mov-rapido) var(--curva-estandar),
+    border-color var(--mov-rapido) var(--curva-estandar),
+    background-color var(--mov-rapido) var(--curva-estandar);
+}
+.dbc-cuerpo > .mov-despliega {
+  flex: 0 0 auto;
 }

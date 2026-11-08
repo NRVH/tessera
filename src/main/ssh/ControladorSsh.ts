@@ -1,9 +1,9 @@
 // =============================================================================
 // Controlador de las conexiones SSH: atiende los canales de `ssh-ipc.ts` sobre `ConexionesSsh`, las claves
-// importadas, importar y exportar con OpenSSH y «Probar», avisa al renderer con `ssh:cambio` tras cada cambio (también de huellas) y
-// responde el entorno del cliente SSH. Para la terminal es el `LanzadorSshTerminal`: prepara la línea de
-// ssh de una conexión (con el programa de contraseñas si guarda un secreto, el salto por sus bastiones y sus
-// túneles) y clasifica su salida.
+// importadas, importar y exportar con OpenSSH, «Probar» y la huella de un servidor nuevo (traerla sin autenticarse y
+// guardarla cuando la persona la confirma), avisa al renderer con `ssh:cambio` tras cada cambio (también de huellas) y
+// responde el entorno del cliente SSH. Para la terminal es el `LanzadorSshTerminal`: prepara la línea de ssh de una
+// conexión (con el programa de contraseñas si guarda un secreto, sus bastiones y sus túneles) y clasifica su salida.
 // Sin `electron`: lo recibe todo por parámetro.
 // Decisiones: docs/decisiones/ssh/registro-y-claves.md, docs/decisiones/ssh/motor-linea-y-huellas.md,
 // docs/decisiones/ssh/claves-importadas.md, docs/decisiones/ssh/askpass-y-secretos.md
@@ -36,6 +36,7 @@ import {
   type SshEntorno,
   type SshExportacionOpenSsh,
   type SshExportarOpenSsh,
+  type SshFichaHuella,
   type SshGrupo,
   type SshGrupoBorrado,
   type SshImportarOpenSsh,
@@ -43,6 +44,8 @@ import {
   type SshListaConexiones,
   type SshOlvidarHuella,
   type SshProbar,
+  type SshReconocerHuella,
+  type SshReconocimiento,
   type SshRenombrarGrupo,
   type SshResultadoPrueba
 } from '../../shared/ssh-ipc.ts'
@@ -60,8 +63,16 @@ import { SIN_SECRETO, type AskpassSsh, type EntornoSecreto } from './controlador
 import { ErrorClave, type ClavesImportadas, type InstalacionClave } from './controlador/clavesImportadas.ts'
 import { importarSshDeCopia, type ResultadoCopiaSsh } from './controlador/copiaSsh.ts'
 import { exportarOpenSsh, leerConfigOpenSsh, usuarioLocal, type DepsExportacionOpenSsh } from './controlador/archivosOpenSsh.ts'
-import { citaDe, proxyDeSaltos, type DepsLineaSaltos } from './controlador/lineaSaltos.ts'
+import { citaDe, problemaDeSalto, proxyDeSaltos, type DepsLineaSaltos } from './controlador/lineaSaltos.ts'
 import { TOPE_PRUEBA_MS, resultadoPrueba, type EjecutarSsh } from './controlador/pruebaSsh.ts'
+import {
+  HuellasPendientes,
+  TOPE_RECONOCER_DIALOGO_MS,
+  crearTemporalHuellas,
+  desenlaceReconocer,
+  siguienteSinHuella,
+  type TemporalHuellas
+} from './controlador/reconocimientoHuella.ts'
 import { FICHA_PESTANA, FICHA_PRUEBA, FICHA_TUNEL } from './fichasAskpass.ts'
 import { huellasDeKnownHosts } from './huellasSsh.ts'
 import { mensajeSinCopiaClave, argumentosSsh } from './lineaSsh.ts'
@@ -94,6 +105,10 @@ export interface OpcionesControladorSsh {
   home?: string
   /** Dónde se escribe la configuración de los saltos (`adaptadores/configSaltos.ts`); sin ella no se salta por un bastión. */
   configSaltos?: DepsLineaSaltos['config']
+  /** El `known_hosts` temporal con que se trae la huella de un servidor nuevo (se sustituye en las pruebas). */
+  temporalHuellas?: () => TemporalHuellas
+  /** Las huellas que esperan a que la persona las confirme (se sustituye en las pruebas). */
+  pendientes?: HuellasPendientes
   plataforma?: Plataforma
   ahora?: () => number
   log?: (mensaje: string) => void
@@ -127,6 +142,8 @@ export class ControladorSsh implements LanzadorSshTerminal {
   private readonly exportacion: Pick<DepsExportacionOpenSsh, 'elegirDestino' | 'permisos'> | null
   private readonly home: string
   private readonly configSaltos: DepsLineaSaltos['config'] | null
+  private readonly temporalHuellas: () => TemporalHuellas
+  private readonly pendientes: HuellasPendientes
   private readonly plataforma: Plataforma
   private readonly ahora: () => number
   private readonly log: (mensaje: string) => void
@@ -145,7 +162,9 @@ export class ControladorSsh implements LanzadorSshTerminal {
     this.exportacion = opts.exportarOpenSsh ?? null
     this.home = opts.home ?? homedir()
     this.configSaltos = opts.configSaltos ?? null
+    this.temporalHuellas = opts.temporalHuellas ?? crearTemporalHuellas
     this.ahora = opts.ahora ?? Date.now
+    this.pendientes = opts.pendientes ?? new HuellasPendientes({ ahora: this.ahora })
     this.log = opts.log ?? ((m) => console.log(`[ssh] ${m}`))
   }
 
@@ -369,7 +388,7 @@ export class ControladorSsh implements LanzadorSshTerminal {
     return this.clavesImportadas().soltada(req.ruta, req.profileId)
   }
 
-  /** Olvida las huellas guardadas del servidor de una conexión: la próxima vez acepta la que presente. */
+  /** Olvida las huellas guardadas del servidor de una conexión: la próxima vez se confirma la que presente. */
   olvidarHuella(req: SshOlvidarHuella): void {
     this.cambiar(SSH_CHANNELS.HUELLA_OLVIDAR, () => this.conexiones.olvidarHuellas(req.id))
     this.avisarCambioConexion()
@@ -404,24 +423,102 @@ export class ControladorSsh implements LanzadorSshTerminal {
   }
 
   /**
-   * El `ProxyCommand` de los bastiones del destino, con su configuración escrita; `undefined` sin bastiones.
-   * Si no se puede, la ficha del programa de contraseñas (que aún no llegó a nadie) se revoca.
+   * El `ProxyCommand` de los bastiones del destino (o de `cadena`, los de uno de ellos), con su configuración
+   * escrita; `undefined` sin bastiones. Si no se puede, la ficha del programa de contraseñas (que aún no llegó
+   * a nadie) se revoca.
    */
-  private saltar(d: DestinoSsh, secreto: EntornoSecreto): string | undefined {
-    if (d.cadena.length === 0) return undefined
+  private saltar(d: DestinoSsh, secreto: EntornoSecreto, cadena: readonly ConexionSshPersistida[] = d.cadena): string | undefined {
+    if (cadena.length === 0) return undefined
     try {
       if (this.configSaltos === null) throw new Error(txSsh().registro.sinBastion)
       const deps = { rutaHuellas: (id: string) => this.conexiones.rutaHuellas(id), rutaClave: (id: string) => this.conexiones.rutaClave(id), existe: this.existe, config: this.configSaltos, plataforma: this.plataforma }
-      return proxyDeSaltos(d.cadena, { modo: 'humano', conAskpass: secreto.conAskpass, conDialogo: secreto.conDialogo, ssh: d.ssh, cita: d.cita }, deps)
+      return proxyDeSaltos(cadena, { modo: 'humano', conAskpass: secreto.conAskpass, conDialogo: secreto.conDialogo, ssh: d.ssh, cita: d.cita }, deps)
     } catch (e) {
       this.askpass?.soltar(secreto.ficha)
       throw e
     }
   }
 
-  /** Los `known_hosts` de la conexión y de sus bastiones, para saber al terminar si ssh guardó alguna huella. */
-  private huellasDeCadena(d: DestinoSsh): string {
-    return JSON.stringify([d.c, ...d.cadena].map((x) => this.conexiones.textoHuellas(x.id)))
+  /** ¿Tiene la conexión una huella guardada de su host y su puerto vigentes? */
+  private conHuella(x: ConexionSshPersistida): boolean {
+    return huellasDeKnownHosts(this.conexiones.textoHuellas(x.id) ?? '', x.host, x.puerto).length > 0
+  }
+
+  /**
+   * El secreto de los bastiones por los que se llega al servidor que se reconoce (ya confirmados): el suyo y
+   * nunca el de ese servidor. «Probar» no pregunta en un diálogo; una terminal o el explorador SFTP, sí.
+   */
+  private entornoSaltos(saltos: readonly ConexionSshPersistida[], prueba: boolean): EntornoSecreto {
+    if (saltos.length === 0 || this.askpass === null) return SIN_SECRETO
+    const [primero, ...resto] = saltos
+    return prueba ? this.askpass.entorno(primero, FICHA_PRUEBA, false, resto) : this.askpass.entornoSftp(primero, resto)
+  }
+
+  /**
+   * Antes de «Probar», una terminal o el explorador SFTP: si un servidor de la cadena (los bastiones primero, en el
+   * orden en que se llega) no tiene huella guardada, la trae sin autenticarse en él, con un `known_hosts` temporal
+   * y `accept-new`, y la deja pendiente de que la persona la confirme. Un servidor a la vez: tras confirmar, el
+   * renderer vuelve a preguntar.
+   */
+  async reconocerHuella(req: SshReconocerHuella): Promise<SshReconocimiento> {
+    if (this.ejecutar === null) throw new Error(txSsh().registro.sinReconocer)
+    const d = this.destino(req.id, req.profileId)
+    const conocidas = new Set<string>()
+    for (;;) {
+      const paso = siguienteSinHuella(d.c, d.cadena, (x) => conocidas.has(x.id) || this.conHuella(x))
+      if (paso === null) return { tipo: 'conocida' }
+      const { objetivo, saltos } = paso
+      const problema = objetivo === d.c ? null : problemaDeSalto(objetivo, { existe: this.existe, rutaClave: (id) => this.conexiones.rutaClave(id) })
+      if (problema !== null) throw new Error(problema)
+      const temporal = this.temporalHuellas()
+      let secreto = SIN_SECRETO
+      try {
+        secreto = this.entornoSaltos(saltos, req.prueba === true)
+        if (secreto.aviso !== undefined) this.log(`reconocer conexion=${objetivo.id}: ${secreto.aviso}`)
+        const proxyCommand = this.saltar(d, secreto, saltos)
+        const args = argumentosSsh(objetivo, {
+          modo: 'humano',
+          rutaHuellas: temporal.ruta,
+          plataforma: this.plataforma,
+          reconocer: true,
+          ...(proxyCommand === undefined ? {} : { proxyCommand })
+        })
+        const t0 = this.ahora()
+        const salida = await this.ejecutar(d.ssh.exe, [...d.ssh.args, ...args], {
+          topeMs: secreto.conDialogo ? TOPE_RECONOCER_DIALOGO_MS : TOPE_PRUEBA_MS,
+          quitarEnv: QUITAR_ENV_SSH,
+          extraEnv: secreto.env
+        })
+        const ms = this.ahora() - t0
+        this.log(`reconocer conexion=${objetivo.id} codigo=${salida.codigo ?? (salida.agotado ? 'tope' : '-')} ms=${ms}`)
+        const r = desenlaceReconocer(salida, temporal.leer(), objetivo, { ms, plataforma: this.plataforma })
+        if (r.tipo === 'conocida') { conocidas.add(objetivo.id); continue }
+        if (r.tipo !== 'nueva') return r
+        const ficha = this.pendientes.guardar({ conexionId: objetivo.id, host: objetivo.host, puerto: objetivo.puerto, lineas: r.lineas })
+        const { alias, host, puerto, metodo } = objetivo
+        return { tipo: 'nueva', ficha, alias, host, puerto, metodo, huellas: r.huellas, ...(objetivo === d.c ? {} : { bastionDe: d.c.alias }) }
+      } finally {
+        this.askpass?.soltar(secreto.ficha)
+        temporal.borrar()
+      }
+    }
+  }
+
+  /** La persona confirmó la huella de esa ficha: se guarda en el `known_hosts` de su conexión. */
+  confiarHuella(req: SshFichaHuella): void {
+    const p = this.pendientes.tomar(req.ficha)
+    if (p === null) throw new Error(txSsh().registro.huellaCaducada)
+    const c = this.conexiones.conexion(p.conexionId)
+    if (!c) throw new Error(txSsh().registro.noExisteSsh)
+    if (c.host.toLowerCase() !== p.host.toLowerCase() || c.puerto !== p.puerto) throw new Error(txSsh().registro.huellaConexionCambio)
+    this.cambiar(SSH_CHANNELS.HUELLA_CONFIAR, () => this.conexiones.anadirHuellas(p.conexionId, p.lineas))
+    this.log(`huella confirmada conexion=${p.conexionId}`)
+    this.avisarCambioConexion()
+  }
+
+  /** La persona no confirmó la huella de esa ficha: no se guarda nada. */
+  descartarHuella(req: SshFichaHuella): void {
+    this.pendientes.descartar(req.ficha)
   }
 
   /** Dice al renderer (y al registro) por qué una pestaña no usará el secreto guardado. */
@@ -433,7 +530,7 @@ export class ControladorSsh implements LanzadorSshTerminal {
 
   /**
    * La línea de ssh de una conexión del perfil, con sus datos vigentes (ver `LanzadorSshTerminal`). Al
-   * terminar, la ficha del programa de contraseñas se revoca y, si ssh guardó una huella, se avisa.
+   * terminar, la ficha del programa de contraseñas se revoca.
    */
   preparar(profileId: string, conexionId: string): PreparacionSsh {
     const d = this.destino(conexionId, profileId)
@@ -454,13 +551,11 @@ export class ControladorSsh implements LanzadorSshTerminal {
       ...(proxyCommand === undefined ? {} : { proxyCommand }),
       tuneles: c.tuneles ?? []
     })
-    const huellasAntes = this.huellasDeCadena(d)
     return {
       ejecutable: { archivo: ssh.exe, args: [...ssh.args, ...args], quitarEnv: [...QUITAR_ENV_SSH] },
       extraEnv: { TERM: 'xterm-256color', ...secreto.env },
       alTerminar: () => {
         this.askpass?.soltar(secreto.ficha)
-        if (this.huellasDeCadena(d) !== huellasAntes) this.eventos.emitir(SSH_CHANNELS.CAMBIO)
       },
       vincular: (matar) => this.askpass?.vincular(secreto.ficha, matar)
     }
@@ -470,7 +565,7 @@ export class ControladorSsh implements LanzadorSshTerminal {
    * La línea del explorador SFTP de una conexión del perfil: la de la pestaña (huella, clave y contraseña
    * guardada) con el subsistema `sftp` y sin terminal. El entorno es el de Tessera sin lo que ssh no debe
    * heredar, más el del programa de contraseñas, que pregunta al usuario lo que no tenga guardado.
-   * `alConectar` suelta la ficha y avisa de una huella nueva.
+   * `alConectar` suelta la ficha.
    */
   prepararSftp(profileId: string, conexionId: string): LineaSftp {
     const d = this.destino(conexionId, profileId)
@@ -491,7 +586,6 @@ export class ControladorSsh implements LanzadorSshTerminal {
     })
     const quitar = new Set(QUITAR_ENV_SSH.map((k) => k.toUpperCase()))
     const env: NodeJS.ProcessEnv = Object.fromEntries(Object.entries(process.env).filter(([k]) => !quitar.has(k.toUpperCase())))
-    const huellasAntes = this.huellasDeCadena(d)
     let soltada = false
     return {
       exe: ssh.exe,
@@ -501,7 +595,6 @@ export class ControladorSsh implements LanzadorSshTerminal {
         if (soltada) return
         soltada = true
         this.askpass?.soltar(secreto.ficha)
-        if (this.huellasDeCadena(d) !== huellasAntes) this.eventos.emitir(SSH_CHANNELS.CAMBIO)
       },
       vincular: (matar) => this.askpass?.vincular(secreto.ficha, matar)
     }
@@ -559,12 +652,13 @@ export class ControladorSsh implements LanzadorSshTerminal {
   }
 
   clasificar(exitCode: number | null, cola: string): TerminalExitReason | undefined {
-    return clasificarSalidaSsh(exitCode, cola, this.plataforma, this.conexiones.carpetaHuellas)
+    return clasificarSalidaSsh(exitCode, cola, this.plataforma, this.conexiones.carpetaHuellas, { sinConfirmar: true })
   }
 
   /**
-   * «Probar» la conexión GUARDADA: la línea de la pestaña sin terminal y con `exit 0`. Sin el secreto
-   * que el método pide, solo se comprueba que se llega (y se guarda la huella).
+   * «Probar» la conexión GUARDADA: la línea de la pestaña sin terminal y con `exit 0`, estricta con la huella
+   * (el renderer la hace confirmar antes con `reconocerHuella`). Sin el secreto que el método pide, solo se
+   * comprueba que se llega.
    */
   async probar(req: SshProbar): Promise<SshResultadoPrueba> {
     if (this.ejecutar === null) throw new Error(txSsh().registro.sinProbar)
@@ -582,8 +676,6 @@ export class ControladorSsh implements LanzadorSshTerminal {
       prueba: true,
       ...(proxyCommand === undefined ? {} : { proxyCommand })
     }
-    const huellasAntes = this.huellasDeCadena(d)
-    const antes = this.conexiones.textoHuellas(c.id)
     const t0 = this.ahora()
     const salida = await this.ejecutar(ssh.exe, [...ssh.args, ...argumentosSsh(c, opciones)], {
       topeMs: TOPE_PRUEBA_MS,
@@ -593,7 +685,6 @@ export class ControladorSsh implements LanzadorSshTerminal {
     const ms = this.ahora() - t0
     const preguntaSinContestar = this.askpass?.soltar(secreto.ficha) ?? false
     const despues = this.conexiones.textoHuellas(c.id)
-    if (despues !== antes || this.huellasDeCadena(d) !== huellasAntes) this.eventos.emitir(SSH_CHANNELS.CAMBIO)
     // Solo el código y lo que tardó: la salida de ssh lleva rutas y no va al registro.
     this.log(`probar conexion=${c.id} codigo=${salida.codigo ?? (salida.agotado ? 'tope' : '-')} ms=${ms}`)
     return resultadoPrueba(salida, {

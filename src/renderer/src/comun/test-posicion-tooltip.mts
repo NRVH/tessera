@@ -2,10 +2,10 @@
 // =============================================================================
 // Prueba de dónde va el tooltip de la app (`posicionTooltip.ts`; npm run test:posicion-tooltip):
 // centrado debajo, encima si abajo no cabe, y nunca fuera de la ventana, tampoco en una ventana
-// más pequeña que el propio tooltip.
+// más pequeña que el propio tooltip; y cuándo un título repite lo que ya se lee.
 // =============================================================================
 
-import { MARGEN, SEPARACION, posicionTooltip } from './posicionTooltip.ts'
+import { MARGEN, SEPARACION, posicionTooltip, repiteLoVisible } from './posicionTooltip.ts'
 
 function hr(title: string): void {
   console.log(`\n=== ${title} ===`)
@@ -30,6 +30,14 @@ hr('Posición')
   check('(3) pegado a un borde, no se sale por los lados', izq.left === MARGEN && der.left === V.width - MARGEN - T.width, j([izq, der]))
   const enano = posicionTooltip({ left: 10, top: 10, width: 20, height: 20 }, { width: 120, height: 40 }, { width: 300, height: 60 })
   check('(4) ventana diminuta: sin sitio ni arriba ni abajo, dentro por arriba', enano.top >= MARGEN && enano.top + 40 <= 60, j(enano))
+}
+
+hr('Repetir lo que ya se lee')
+{
+  check('(5) el mismo texto, aunque cambie espacios o mayúsculas', repiteLoVisible('Perfil  Alfa', ' perfil alfa\n'), '')
+  check('(6) con puntos suspensivos en la etiqueta, también', repiteLoVisible('Guardar', 'Guardar…') && repiteLoVisible('Guardar', 'Guardar…\n'), '')
+  check('(7) un icono sin texto conserva su tooltip', !repiteLoVisible('Cerrar', ''), '')
+  check('(8) un dato adicional no es repetir', !repiteLoVisible('api-pagos · hibernado', 'api-pagos'), '')
 }
 
 const allPass = results.every((r) => r.pass)

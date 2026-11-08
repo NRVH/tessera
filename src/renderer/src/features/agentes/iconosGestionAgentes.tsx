@@ -1,7 +1,7 @@
 // =============================================================================
 // Glifos de la lista de agentes de Configuración: asa de arrastre, ojo (abierto o tachado),
-// lápiz y papelera.
-// Trazo `currentColor` en 14 px, como los botones de icono; los usa `GestionAgentes`.
+// lápiz y papelera, y el panel lateral del resumen del contexto.
+// Trazo `currentColor` en 14 px, como los botones de icono; los usan `GestionAgentes` y el diálogo del contexto.
 // =============================================================================
 
 function Svg({ children }: { children: React.ReactNode }): React.JSX.Element {
@@ -26,6 +26,16 @@ export function IconoOjo({ abierto }: { abierto: boolean }): React.JSX.Element {
       <path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8 12.1 12.5 8 12.5 1.5 8 1.5 8z" />
       <circle cx="8" cy="8" r="1.9" />
       {!abierto && <path d="M2.5 13.5l11-11" />}
+    </Svg>
+  )
+}
+
+/** Un panel que se abre a la derecha: el resumen del contexto de un perfil. */
+export function IconoPanelDerecho(): React.JSX.Element {
+  return (
+    <Svg>
+      <rect x="2" y="2.5" width="12" height="11" rx="1.5" />
+      <path d="M9.5 2.5v11M11.2 5.5h1M11.2 7.5h1M11.2 9.5h1" />
     </Svg>
   )
 }

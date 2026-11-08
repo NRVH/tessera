@@ -9,24 +9,24 @@ import { crearTextos } from '../../shared/i18n.ts'
 export const txDb = crearTextos(
   {
     conexion: {
-      desconocida: (id: string) => `Conexión desconocida: "${id}".`,
+      desconocida: (id: string) => `Conexión desconocida: «${id}».`,
       seleccionEsquemas: 'La selección de esquemas no es válida.',
       seleccionBases: 'La selección de bases no es válida.',
       sinTuneles: 'Tessera aún no puede abrir túneles SSH.',
-      perfilNoExiste: 'Ese perfil no existe: no se prepara su espacio de datos.',
+      perfilNoExiste: 'Ese perfil no existe: no se preparan sus bases de datos.',
       sinAlmacen: (almacen: string, remedio: string) =>
         'No se puede guardar la contraseña: ' + `${almacen} no está disponible. ` + `Tessera nunca la guarda en claro.${remedio}`,
       formaInvalida: 'La conexión no tiene una forma válida.',
       idInvalido: 'La conexión no tiene un id válido.',
       sinNombreOPerfil: 'La conexión no tiene nombre o perfil.',
-      formaInvalidaDe: (alias: string) => `La conexión "${alias}" no tiene una forma válida.`
+      formaInvalidaDe: (alias: string) => `La conexión «${alias}» no tiene una forma válida.`
     },
     validacion: {
       requierePerfil: 'Una conexión requiere un perfil.',
       necesitaNombre: 'La conexión necesita un nombre.',
       nombreLargo: (max: number) => `El nombre no puede pasar de ${max} caracteres.`,
-      nombreRepetido: (alias: string) => `Este perfil ya tiene una conexión llamada "${alias}".`,
-      motorDesconocido: (motor: string) => `Motor desconocido: "${motor}".`,
+      nombreRepetido: (alias: string) => `Este perfil ya tiene una conexión llamada «${alias}».`,
+      motorDesconocido: (motor: string) => `Motor desconocido: «${motor}».`,
       sshNoExiste: 'La conexión SSH del túnel no existe en este perfil.',
       certificadoPorTunel: (etiqueta: string) =>
         `${etiqueta} no puede verificar su certificado a través de un túnel SSH: desmarque el cifrado (el túnel ya cifra el tramo hasta el servidor SSH) o quite el túnel.`,
@@ -42,7 +42,7 @@ export const txDb = crearTextos(
       instanciaPorTunel: 'Con túnel SSH, la conexión necesita el puerto y no la instancia: el túnel no lleva la consulta que la resuelve.',
       instanciaInvalida: 'La instancia no es válida.',
       instanciaSoloNombre: 'El campo de instancia admite solo su nombre (por ejemplo, SQLEXPRESS), sin el servidor ni el puerto.',
-      autenticacionDesconocida: (v: string) => `Autenticación desconocida: "${v}".`,
+      autenticacionDesconocida: (v: string) => `Autenticación desconocida: «${v}».`,
       dominioInvalido: 'El dominio no es válido.',
       faltaDominio: 'Falta el dominio de la cuenta.',
       cifradoInvalido: 'El cifrado de la conexión no es válido.',
@@ -68,10 +68,10 @@ export const txDb = crearTextos(
       motorNoEsDeArchivo: 'Ese motor no es de archivo.',
       noEsDelProyectoAbierto: 'Ese archivo no es del proyecto abierto en el explorador: ábralo desde su proyecto.',
       origenDesconocido: 'No se puede determinar el origen del archivo de la base de datos.',
-      elegirTitulo: (etiqueta: string) => `Elegir la base de datos ${etiqueta}`,
+      elegirTitulo: (etiqueta: string) => `Seleccionar la base de datos ${etiqueta}`,
       filtroBases: (etiqueta: string) => `Bases ${etiqueta}`,
       filtroTodos: 'Todos los archivos',
-      botonElegir: 'Elegir',
+      botonElegir: 'Seleccionar…',
       nuevaTitulo: (etiqueta: string) => `Nueva base de datos ${etiqueta}`,
       botonCrear: 'Crear'
     },
@@ -112,17 +112,17 @@ export const txDb = crearTextos(
         `La respuesta superó los ${mib} MiB y se descartó.\n` + `Acote la consulta (por ejemplo, con --limit).\n`
     },
     drivers: {
-      noDisponible: (packId: string) => `El driver "${packId}" no está disponible en este sistema.`,
-      desconocido: (packId: string) => `Driver desconocido: "${packId}".`,
+      noDisponible: (packId: string) => `El driver «${packId}» no está disponible en este sistema.`,
+      desconocido: (packId: string) => `Driver desconocido: «${packId}».`,
       noEncontrado: (centinela: string, ruta: string) =>
-        `No se encontró "${centinela}" en "${ruta}". Elija la carpeta del Instant Client (la que contiene ${centinela}).`,
+        `No se encontró «${centinela}» en «${ruta}». Elija la carpeta del Instant Client (la que contiene ${centinela}).`,
       oracleSinDescarga: (nombre: string) =>
         `Oracle ya no publica ${nombre} para descarga directa: solo queda en su ` +
         'archivo histórico, que exige iniciar sesión y aceptar la licencia en el ' +
-        'navegador. Descárguelo manualmente y use "Seleccionar carpeta…".',
-      sinContenido: (centinela: string) => `El paquete descargado no contiene "${centinela}".`,
+        'navegador. Descárguelo manualmente y use «Seleccionar…».',
+      sinContenido: (centinela: string) => `El paquete descargado no contiene «${centinela}».`,
       noSePudoInstalar: (nombre: string, mensaje: string) =>
-        `No se pudo instalar ${nombre}: ${mensaje}\n` + `Alternativa: descárguelo manualmente y use "Seleccionar carpeta…".`,
+        `No se pudo instalar ${nombre}: ${mensaje}\n` + `Alternativa: descárguelo manualmente y use «Seleccionar…».`,
       sinDescargaAutomatica: 'Este cliente no tiene descarga automática.',
       huellaNoCoincide: (bytes: number) =>
         `lo descargado (${bytes} bytes) no coincide con la huella SHA-256 publicada ` +
@@ -132,7 +132,7 @@ export const txDb = crearTextos(
       necesitaMacos: (nombre: string, minimo: number, actual: number) =>
         `${nombre} necesita macOS ${minimo} o posterior, y este Mac tiene ` +
         `macOS ${actual}: no se podrían cargar sus bibliotecas. Si dispone de un cliente que funcione ` +
-        'en este Mac, use "Seleccionar carpeta…".',
+        'en este Mac, use «Seleccionar…».',
       cubre: {
         'oracle-ic-19': 'Oracle 11.2 y superior',
         'oracle-ic-12.1': 'Oracle 10.2 a 11.1 (versiones anteriores a las que admite el cliente 19)',
@@ -146,16 +146,16 @@ export const txDb = crearTextos(
         'oracle-ic-12.1':
           'Oracle ya no publica Oracle Instant Client 12.1 (Basic Light) para descarga directa: ' +
           'solo queda en su archivo histórico, que exige iniciar sesión y aceptar la licencia ' +
-          'en el navegador. Descárguelo manualmente y use "Seleccionar carpeta…".'
+          'en el navegador. Descárguelo manualmente y use «Seleccionar…».'
       } as Record<string, string>,
-      carpetaTitulo: 'Elegir la carpeta del cliente de base de datos',
+      carpetaTitulo: 'Seleccionar la carpeta del cliente de base de datos',
       carpetaBoton: 'Usar esta carpeta',
       imagenVacia: 'la imagen de disco está vacía.',
-      imagenSinArchivo: (archivo: string) => `La imagen de disco no contiene "${archivo}".`,
+      imagenSinArchivo: (archivo: string) => `La imagen de disco no contiene «${archivo}».`,
       noSeMonto: (detalle: string) => `No se pudo montar la imagen de disco: ${detalle}`,
       noSeCopio: (detalle: string) => `No se pudo copiar el cliente desde la imagen de disco: ${detalle}`,
       firmaIncorrecta: (nombre: string, teamId: string, detalle: string) =>
-        `"${nombre}" no lleva la firma esperada del fabricante (Team ID ${teamId}): ${detalle}`
+        `«${nombre}» no lleva la firma esperada del fabricante (Team ID ${teamId}): ${detalle}`
     },
     descarga: {
       inactividad: (s: number) =>
@@ -166,9 +166,9 @@ export const txDb = crearTextos(
     },
     importacion: {
       sinContrasena: (alias: string) =>
-        `La base «${alias}» se importó sin su contraseña: este equipo no tiene dónde guardarla, por lo que Tessera se la solicitará al conectar.`,
+        `La conexión «${alias}» se importó sin su contraseña: este equipo no tiene dónde guardarla, por lo que Tessera se la solicitará al conectar.`,
       archivoAusente: (alias: string) =>
-        `La base «${alias}» apunta a un archivo que no está en este equipo: edite la conexión y elija el archivo correspondiente.`
+        `La conexión «${alias}» apunta a un archivo que no está en este equipo: edite la conexión y elija el archivo correspondiente.`
     },
     tuneles: {
       sshNoExiste: (alias: string) => `La conexión SSH del túnel de «${alias}» ya no existe: edite la conexión y elija otra.`,
@@ -180,48 +180,48 @@ export const txDb = crearTextos(
     sintaxis: {
       gramaticaDesconocida: 'Gramática desconocida.',
       peticionMalFormada: 'Petición de sintaxis mal formada.',
-      demasiadasSentencias: 'Demasiadas sentencias para validarlas a la vez.',
-      demasiadoTexto: 'Demasiado texto para validarlo a la vez.',
+      demasiadasSentencias: 'Demasiadas sentencias para validarlas al mismo tiempo.',
+      demasiadoTexto: 'Demasiado texto para validarlo al mismo tiempo.',
       gramaticaCaida: 'La gramática local dejó de responder; se restablecerá al reiniciar Tessera.',
       gramaticaNoCargo: 'No se pudo cargar la gramática local.'
     }
   },
   {
     conexion: {
-      desconocida: (id) => `Unknown connection: "${id}".`,
+      desconocida: (id) => `Unknown connection: “${id}”.`,
       seleccionEsquemas: 'The schema selection is not valid.',
       seleccionBases: 'The database selection is not valid.',
-      sinTuneles: 'Tessera can’t open SSH tunnels yet.',
-      perfilNoExiste: 'That profile does not exist: its data space is not prepared.',
+      sinTuneles: 'Tessera cannot open SSH tunnels yet.',
+      perfilNoExiste: 'That profile does not exist: its databases are not prepared.',
       sinAlmacen: (almacen, remedio) =>
-        `Can’t save the password: ${almacen} isn’t available. Tessera never stores it in plain text.${remedio}`,
+        `Cannot save the password: ${almacen} is not available. Tessera never stores it in plain text.${remedio}`,
       formaInvalida: 'The connection is not in a valid format.',
       idInvalido: 'The connection does not have a valid id.',
       sinNombreOPerfil: 'The connection has no name or profile.',
-      formaInvalidaDe: (alias) => `The connection "${alias}" is not in a valid format.`
+      formaInvalidaDe: (alias) => `The connection “${alias}” is not in a valid format.`
     },
     validacion: {
       requierePerfil: 'A connection requires a profile.',
       necesitaNombre: 'The connection needs a name.',
-      nombreLargo: (max) => `The name can’t be longer than ${max} characters.`,
-      nombreRepetido: (alias) => `This profile already has a connection named "${alias}".`,
-      motorDesconocido: (motor) => `Unknown engine: "${motor}".`,
+      nombreLargo: (max) => `The name cannot be longer than ${max} characters.`,
+      nombreRepetido: (alias) => `This profile already has a connection named “${alias}”.`,
+      motorDesconocido: (motor) => `Unknown engine: “${motor}”.`,
       sshNoExiste: 'The tunnel’s SSH connection does not exist in this profile.',
       certificadoPorTunel: (etiqueta) =>
-        `${etiqueta} can’t verify its certificate through an SSH tunnel: clear the encryption option (the tunnel already encrypts the connection to the SSH server) or remove the tunnel.`,
+        `${etiqueta} cannot verify its certificate through an SSH tunnel: clear the encryption option (the tunnel already encrypts the connection to the SSH server) or remove the tunnel.`,
       sinContrasena: (etiqueta) => `${etiqueta} does not use a password.`,
       contrasenaSentinels: 'The Sentinel password is not valid.'
     },
     opcionales: {
-      srvPorTunel: 'An SRV address (mongodb+srv) can’t go through an SSH tunnel: enter the server and port.',
+      srvPorTunel: 'An SRV address (mongodb+srv) cannot go through an SSH tunnel: enter the server and port.',
       redisPorTunel:
-        'Sentinel and Cluster can’t go through an SSH tunnel: the client connects to servers the tunnel doesn’t reach. Remove the tunnel or choose “Single server”.',
+        'Sentinel and Cluster cannot go through an SSH tunnel: the client connects to servers the tunnel does not reach. Remove the tunnel or choose “Single server”.',
       variosServidoresPorTunel: 'With an SSH tunnel, the connection accepts a single server.',
       replicaSetPorTunel: 'With an SSH tunnel, the connection goes directly to a single server: remove replicaSet and directConnection=false from the options.',
-      instanciaPorTunel: 'With an SSH tunnel, the connection needs the port, not the instance: the query that resolves the instance doesn’t go through the tunnel.',
+      instanciaPorTunel: 'With an SSH tunnel, the connection needs the port, not the instance: the query that resolves the instance does not go through the tunnel.',
       instanciaInvalida: 'The instance is not valid.',
       instanciaSoloNombre: 'The instance takes only its name (e.g. SQLEXPRESS), without the server or the port.',
-      autenticacionDesconocida: (v) => `Unknown authentication: "${v}".`,
+      autenticacionDesconocida: (v) => `Unknown authentication: “${v}”.`,
       dominioInvalido: 'The domain is not valid.',
       faltaDominio: 'The account domain is missing.',
       cifradoInvalido: 'The connection encryption setting is not valid.',
@@ -235,22 +235,22 @@ export const txDb = crearTextos(
       fichaOtroMotor: (elegido, pedido) => `That file was chosen for ${elegido}, not for ${pedido}: choose it again.`,
       proyectoDesconocido: 'Unknown project.',
       faltaArchivo: 'The file is missing.',
-      dentroDeComprimido: 'That file is inside an archive: it can’t be opened as a database.',
+      dentroDeComprimido: 'That file is inside an archive: it cannot be opened as a database.',
       fueraDelProyecto: 'That file is outside the project.',
-      enlaceFuera: (nombre) => `“${nombre}” is a link to a file outside the project: Tessera doesn’t open it as a database.`,
+      enlaceFuera: (nombre) => `“${nombre}” is a link to a file outside the project: Tessera does not open it as a database.`,
       noExiste: (nombre) => `“${nombre}” does not exist.`,
-      noSePudoLeer: (nombre, errno) => `Couldn’t read “${nombre}”${errno !== null ? ` (${errno})` : ''}.`,
+      noSePudoLeer: (nombre, errno) => `Could not read “${nombre}”${errno !== null ? ` (${errno})` : ''}.`,
       ningunaSabeAbrir: 'No file database knows how to open that file.',
       faltaRuta: 'The file path is missing.',
       rutaNoAbsoluta: (ruta) => `The file path must be absolute: ${ruta}`,
       noEsArchivoDelEquipo: 'That item is not a file on this computer.',
       motorNoEsDeArchivo: 'That engine is not a file-based engine.',
       noEsDelProyectoAbierto: 'That file does not belong to the project open in the explorer: open it from its project.',
-      origenDesconocido: 'Can’t tell where the database file comes from.',
+      origenDesconocido: 'Cannot tell where the database file comes from.',
       elegirTitulo: (etiqueta) => `Choose the ${etiqueta} database`,
       filtroBases: (etiqueta) => `${etiqueta} databases`,
       filtroTodos: 'All files',
-      botonElegir: 'Choose',
+      botonElegir: 'Choose…',
       nuevaTitulo: (etiqueta) => `New ${etiqueta} database`,
       botonCrear: 'Create'
     },
@@ -258,7 +258,7 @@ export const txDb = crearTextos(
       cambioEnVuelo: 'The connection changed while it was being tested. Test it again.',
       sinContrasenaGuardada: 'This connection has no saved password.',
       contrasenaIlegible: (almacen) =>
-        'The saved password can’t be decrypted on this computer.\n' +
+        'The saved password cannot be decrypted on this computer.\n' +
         `It is stored by ${almacen}, which ties it to your ` +
         'user and to this machine, so a profile copied from another computer (or an ' +
         'account change) leaves it unreadable. Edit the connection and enter it again.',
@@ -290,17 +290,17 @@ export const txDb = crearTextos(
         `The response exceeded ${mib} MiB and was discarded.\n` + `Narrow the query (for example with --limit).\n`
     },
     drivers: {
-      noDisponible: (packId) => `The driver "${packId}" is not available on this system.`,
-      desconocido: (packId) => `Unknown driver: "${packId}".`,
+      noDisponible: (packId) => `The driver “${packId}” is not available on this system.`,
+      desconocido: (packId) => `Unknown driver: “${packId}”.`,
       noEncontrado: (centinela, ruta) =>
-        `Couldn’t find "${centinela}" in "${ruta}". Choose the Instant Client folder (the one that contains ${centinela}).`,
+        `Could not find “${centinela}” in “${ruta}”. Choose the Instant Client folder (the one that contains ${centinela}).`,
       oracleSinDescarga: (nombre) =>
         `Oracle no longer publishes ${nombre} for direct download: it only remains in its ` +
         'historical archive, which requires signing in and accepting the license in the ' +
-        'browser. Download it manually and use “Select folder…”.',
-      sinContenido: (centinela) => `The downloaded package does not contain "${centinela}".`,
+        'browser. Download it manually and use “Choose…”.',
+      sinContenido: (centinela) => `The downloaded package does not contain “${centinela}”.`,
       noSePudoInstalar: (nombre, mensaje) =>
-        `Couldn’t install ${nombre}: ${mensaje}\n` + `Alternative: download it manually and use “Select folder…”.`,
+        `Could not install ${nombre}: ${mensaje}\n` + `Alternative: download it manually and use “Choose…”.`,
       sinDescargaAutomatica: 'This client has no automatic download.',
       huellaNoCoincide: (bytes) =>
         `the download (${bytes} bytes) does not match the package’s published SHA-256 fingerprint. ` +
@@ -309,8 +309,8 @@ export const txDb = crearTextos(
       noEsZip: 'The download is not a ZIP file (did the network return an error page?).',
       necesitaMacos: (nombre, minimo, actual) =>
         `${nombre} needs macOS ${minimo} or later, and this Mac has ` +
-        `macOS ${actual}: its libraries wouldn’t load. If you have a client that works ` +
-        'on this Mac, use “Select folder…”.',
+        `macOS ${actual}: its libraries would not load. If you have a client that works ` +
+        'on this Mac, use “Choose…”.',
       cubre: {
         'oracle-ic-19': 'Oracle 11.2 and later',
         'oracle-ic-12.1': 'Oracle 10.2 – 11.1 (older than the versions 19 supports)',
@@ -324,16 +324,16 @@ export const txDb = crearTextos(
         'oracle-ic-12.1':
           'Oracle no longer publishes Oracle Instant Client 12.1 (Basic Light) for direct download: ' +
           'it only remains in its historical archive, which requires signing in and accepting the license ' +
-          'in the browser. Download it manually and use “Select folder…”.'
+          'in the browser. Download it manually and use “Choose…”.'
       },
       carpetaTitulo: 'Choose the database client folder',
       carpetaBoton: 'Use this folder',
       imagenVacia: 'the disk image is empty.',
-      imagenSinArchivo: (archivo) => `The disk image does not contain "${archivo}".`,
-      noSeMonto: (detalle) => `Couldn’t mount the disk image: ${detalle}`,
-      noSeCopio: (detalle) => `Couldn’t copy the client from the disk image: ${detalle}`,
+      imagenSinArchivo: (archivo) => `The disk image does not contain “${archivo}”.`,
+      noSeMonto: (detalle) => `Could not mount the disk image: ${detalle}`,
+      noSeCopio: (detalle) => `Could not copy the client from the disk image: ${detalle}`,
       firmaIncorrecta: (nombre, teamId, detalle) =>
-        `"${nombre}" does not have the vendor’s expected signature (Team ID ${teamId}): ${detalle}`
+        `“${nombre}” does not have the vendor’s expected signature (Team ID ${teamId}): ${detalle}`
     },
     descarga: {
       inactividad: (s) =>
@@ -350,9 +350,9 @@ export const txDb = crearTextos(
     tuneles: {
       sshNoExiste: (alias) => `The SSH connection for the “${alias}” tunnel no longer exists: edit the connection and choose another.`,
       cerradoAlAbrir: 'The tunnel closed while it was opening.',
-      noSeAbrio: (alias, causa) => `Couldn’t open the SSH tunnel through “${alias}”${causa ? `: ${causa}` : '.'}`,
+      noSeAbrio: (alias, causa) => `Could not open the SSH tunnel through “${alias}”${causa ? `: ${causa}` : '.'}`,
       tiempoAgotado: (alias, s) => `The SSH tunnel through “${alias}” did not open within ${s} s.`,
-      sinPuerto: 'Couldn’t find a free port for the tunnel.'
+      sinPuerto: 'Could not find a free port for the tunnel.'
     },
     sintaxis: {
       gramaticaDesconocida: 'Unknown grammar.',
@@ -360,7 +360,7 @@ export const txDb = crearTextos(
       demasiadasSentencias: 'Too many statements to validate at once.',
       demasiadoTexto: 'Too much text to validate at once.',
       gramaticaCaida: 'The local grammar stopped responding; restart Tessera to restore it.',
-      gramaticaNoCargo: 'Couldn’t load the local grammar.'
+      gramaticaNoCargo: 'Could not load the local grammar.'
     }
   }
 )

@@ -27,7 +27,7 @@ export function RielActividad({ vistas, zonaEnfocada, worktreeCount }: Props): R
       active={vistas.activeView}
       onSelect={(view) => {
         // Elegir una vista es elegir verla: la franja que quedó maximizada sin pintarse (desde la vista
-        // de datos) no vuelve a taparla. A pantalla completa el riel solo tiene la flecha de volver.
+        // de datos) no vuelve a taparla. A pantalla completa el riel no tiene vistas: lleva las acciones del modo.
         salirDePantallaCompleta()
         vistas.setActiveView(view)
       }}

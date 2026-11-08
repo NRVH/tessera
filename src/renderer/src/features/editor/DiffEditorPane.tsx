@@ -6,9 +6,13 @@
 // Decisiones: docs/decisiones/editor/diff-editable.md
 // =============================================================================
 import { AvisoCaja } from '../../comun/AvisoCaja'
+import { useEffect, useRef, useState } from 'react'
+import { MS_ENTRADA, movimientoReducido } from '../../comun/presencia'
+import { Presente } from '../../comun/Presente'
 import { DiffCabecera } from './DiffCabecera'
 import { DiffLens } from './DiffLupa'
-import { useDiffEditor } from './useDiffEditor'
+import { useDiffEditor, useDiffListo } from './useDiffEditor'
+import { useEntradaContenido } from '../../comun/useEntradaContenido'
 import type { DiffEditorPaneProps } from './diffEditorTipos'
 
 /** Pane de diff de Monaco: un tab montado por diff, oculto (no desmontado) si no está activo. */
@@ -17,6 +21,18 @@ export function DiffEditorPane(pane: DiffEditorPaneProps): React.JSX.Element {
   const estado = useDiffEditor(pane)
   // El aviso externo gana: lo que se pinta y lo que se esconde salen los dos de aquí.
   const avisoVisible = aviso ?? estado.problem
+  const listo = useDiffListo(estado.numCambios !== null || !!avisoVisible, (pane.colapsarSinCambios ?? false) && estado.hayPlegable, estado.inst.diffEditorRef)
+  // Solo el texto: la cabecera no parpadea al cambiar de archivo, de modo o de plegado.
+  // Solo ya listo: una animación manda sobre el `opacity: 0` del host y enseñaría el texto sin plegar.
+  useEntradaContenido(JSON.stringify([pane.target, estado.modoEfectivo, pane.colapsarSinCambios ?? false]), visible && listo, estado.inst.hostRef)
+  const [avisoDesplegado, setAvisoDesplegado] = useState(false)
+  useEffect(() => {
+    if (!avisoVisible) { setAvisoDesplegado(false); return }
+    const t = setTimeout(() => setAvisoDesplegado(true), movimientoReducido() ? 0 : MS_ENTRADA)
+    return () => clearTimeout(t)
+  }, [avisoVisible])
+  const ultimoAviso = useRef(avisoVisible)
+  if (avisoVisible) ultimoAviso.current = avisoVisible
   return (
     <section
       className={`editor${visible ? '' : ' hidden'}`}
@@ -25,18 +41,20 @@ export function DiffEditorPane(pane: DiffEditorPaneProps): React.JSX.Element {
     >
       <DiffCabecera pane={pane} estado={estado} avisoVisible={avisoVisible} />
       {sobreElHost}
-      {avisoVisible && (
+      <Presente visible={!!avisoVisible} className="mov-despliega">
+        {ultimoAviso.current && (
         <AvisoCaja
-          titulo={avisoVisible.title}
-          sugerencia={avisoVisible.hint}
-          detalle={avisoVisible.detail}
+          titulo={ultimoAviso.current.title}
+          sugerencia={ultimoAviso.current.hint}
+          detalle={ultimoAviso.current.detail}
         />
-      )}
+        )}
+      </Presente>
       {/* El host no se desmonta al haber un problema: se oculta, para no recrear el editor. */}
       <div
         className="editor-host"
         ref={estado.inst.hostRef}
-        style={avisoVisible ? { display: 'none' } : undefined}
+        style={{ ...(avisoVisible && avisoDesplegado ? { visibility: 'hidden' } : {}), ...(listo ? {} : { opacity: 0 }) }}
       />
       {visible && !avisoVisible && estado.lens && <DiffLens lens={estado.lens} />}
     </section>

@@ -13,9 +13,10 @@ import { ModalBusqueda } from '../busqueda'
 import type { UseTabs } from '../pestanas'
 import { useStoreEditor, type EditorApp } from '../editor'
 import { IconoMotor, motivoSinConsola, useStoreBd, type BdApp } from '../bd'
-import { DialogosSsh, PreguntaAskpassSsh } from '../ssh'
+import { DialogoHuellaNuevaSsh, DialogosSsh, PreguntaAskpassSsh } from '../ssh'
 import type { SesionesNativas } from '../agentes'
 import { txLayout } from './textos.ts'
+import { PermisosHooksGit } from '../git'
 
 interface Props {
   tabs: UseTabs
@@ -33,7 +34,7 @@ function CerrarSinGuardar({ editor }: Pick<Props, 'editor'>): React.JSX.Element 
   const t = txLayout().cerrarSinGuardar
   return (
     <ConfirmDialog
-      title={t.titulo}
+      title={t.pregunta(pendingClose.name)}
       message={pendingClose.kind === 'diff' ? t.mensajeDiff(pendingClose.name) : t.mensajeArchivo(pendingClose.name)}
       confirmLabel={t.titulo}
       cancelLabel={t.cancelar}
@@ -72,12 +73,14 @@ function MenuConexiones({ bd }: Pick<Props, 'bd'>): React.JSX.Element | null {
 export function CapaModales({ tabs, perfilUI, editor, bd, sesiones, cambiarZoom }: Props): React.JSX.Element {
   return (
     <>
+      <PermisosHooksGit />
       <ModalAjustes sesiones={sesiones} cambiarZoom={cambiarZoom} />
       <ImportarDesdeSistema />
       <ModalBusqueda tabs={tabs} perfilUI={perfilUI} editor={editor} />
       <CerrarSinGuardar editor={editor} />
       <MenuConexiones bd={bd} />
       <DialogosSsh />
+      <DialogoHuellaNuevaSsh />
       <PreguntaAskpassSsh />
       <LectorAcademy />
     </>

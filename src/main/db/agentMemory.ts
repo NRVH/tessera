@@ -4,10 +4,10 @@
 // ninguna otra sesión lo ve. El texto lo genera `agentMemoryBlock.ts`; aquí solo el sistema de archivos.
 // Retira además el bloque que la primera versión dejaba en la memoria global del usuario.
 // =============================================================================
-import { existsSync, readFileSync } from 'node:fs'
+import { closeSync, constants, existsSync, lstatSync, openSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import path from 'node:path'
-import { writeFileAtomicSync } from '../util/atomicWrite.ts'
+import { escribirSinSeguirEnlacesSync, writeFileAtomicSync } from '../util/atomicWrite.ts'
 import { bloqueEspacioDatos, reemplazarBloque } from './agentMemoryBlock.ts'
 import type { DbConnection } from '../../shared/db-ipc.ts'
 
@@ -27,6 +27,8 @@ export interface MarcasBloque {
  * conserva. Sin escrituras inútiles: si el contenido no cambia, no se toca el archivo. No crea la
  * carpeta: la crea quien la prepara, y crearla aquí resucitaría la de un perfil que se está borrando.
  * Un archivo que falla se cuenta por `alFallar` con su NOMBRE y no impide el otro.
+ * La carpeta la monta con escritura el contenedor del agente, que puede dejar enlaces en ella: ni se lee ni se
+ * escribe a través de uno (`leerSinSeguirEnlace`, `escribirSinSeguirEnlacesSync`).
  */
 export function escribirBloqueContexto(
   dir: string,
@@ -37,13 +39,35 @@ export function escribirBloqueContexto(
   for (const nombre of ARCHIVOS_CONTEXTO) {
     const archivo = path.join(dir, nombre)
     try {
-      const actual = existsSync(archivo) ? readFileSync(archivo, 'utf-8') : ''
+      const actual = leerSinSeguirEnlace(archivo)
       const resultado = reemplazarBloque(actual, bloque, marcas.inicio, marcas.fin)
       if (resultado === actual) continue
-      writeFileAtomicSync(archivo, resultado)
+      escribirSinSeguirEnlacesSync(archivo, resultado)
     } catch (err) {
       alFallar(nombre, err)
     }
+  }
+}
+
+/**
+ * El contenido de un archivo de la carpeta compartida, sin seguir un enlace: '' si no existe, y lanza si en su
+ * lugar hay un enlace o algo que no es un archivo normal (leerlo traería al contexto, y de ahí al contenedor, un
+ * archivo del host). `O_NOFOLLOW` cierra además el hueco entre la comprobación y la apertura donde existe.
+ */
+function leerSinSeguirEnlace(archivo: string): string {
+  let esArchivo: boolean
+  try {
+    esArchivo = lstatSync(archivo).isFile()
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return ''
+    throw err
+  }
+  if (!esArchivo) throw new Error(`${path.basename(archivo)} no es un archivo normal: no se toca`)
+  const fd = openSync(archivo, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0))
+  try {
+    return readFileSync(fd, 'utf-8')
+  } finally {
+    closeSync(fd)
   }
 }
 

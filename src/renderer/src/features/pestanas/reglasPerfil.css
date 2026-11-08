@@ -8,6 +8,12 @@
 .modal-card.reglas-modal {
   width: min(640px, 100%);
 }
+.modal-card.red-modal {
+  overflow: hidden;
+}
+.red-modal .red-bloque {
+  margin: 0;
+}
 .dbc-campo textarea.reglas-texto {
   font-family: 'Cascadia Mono', Menlo, Consolas, ui-monospace, monospace;
   font-size: 12.5px;
@@ -22,18 +28,6 @@
 }
 .reglas-contador.excedido {
   color: var(--red);
-}
-
-/* El aviso de una propuesta pendiente dentro del diálogo de reglas. */
-.reglas-aviso-propuesta {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 12.5px;
-  color: var(--fg-muted);
-}
-.reglas-aviso-propuesta span {
-  flex: 1;
 }
 
 /* La revisión de una propuesta: el motivo y el diff, que ocupa el ancho que haya. */

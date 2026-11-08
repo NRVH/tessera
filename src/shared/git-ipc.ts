@@ -2,8 +2,8 @@
 // Contrato IPC de git (main <-> preload <-> UI): historia, diff, estado del working-tree y
 // escrituras (preparar, descartar, commit, ignorar). Todo es invoke (renderer -> main) salvo
 // `STATUS_PARCIAL`. Las rutas son POSIX relativas a la contenedora: el renderer nunca ve rutas
-// del host. Cada invoke lleva además la contenedora de su proyecto (`PeticionGit`). `COMMIT` no
-// tiene consumidor en la UI y se conserva porque `test:git-stage` lo usa.
+// del host. Cada invoke lleva además la contenedora de su proyecto (`PeticionGit`). `COMMIT`
+// devuelve el permiso pendiente antes de ejecutar hooks no aceptados.
 // Decisiones: docs/decisiones/git/main-escrituras-y-descartes.md,
 // docs/decisiones/workspace/peticiones-de-archivos-con-su-proyecto.md
 // =============================================================================
@@ -14,7 +14,7 @@ import type { EnProyecto } from './files-ipc'
  * pertenece. El main la atiende en la vista de ese proyecto (`GitService.paraRaiz`), nunca en el
  * anclado, para que un gesto de un proyecto no corra en los repos de otro.
  */
-export type PeticionGit<R = object> = R & EnProyecto
+export type PeticionGit<R = object> = R & EnProyecto & { resolucionHooks?: ResolucionHooks }
 
 export const GIT_CHANNELS = {
   /**
@@ -606,6 +606,7 @@ export interface ResultadoIgnorar {
 
 /** Petición de commit: mensaje (multilínea permitido). */
 export interface CommitRequest {
+  resolucionHooks?: ResolucionHooks
   message: string
   /**
    * Repo donde commitear (`repoHostPath`), validado como en MultiStatusRequest.
@@ -620,9 +621,23 @@ export interface CommitRequest {
  * staged, falta user.name/email, etc.). `hash` del commit creado si ok.
  */
 export interface CommitResult {
+  pendienteHooks?: HooksPendientes
   ok: boolean
   hash?: string
   error?: string
+}
+
+export interface ResolucionHooks {
+  ficha: string
+  decision: 'aceptar' | 'omitir'
+}
+
+export interface HooksPendientes {
+  ficha: string
+  repo: string
+  hooks: { nombre: string; ruta: string; estado: 'nuevo' | 'cambiado'; contenido: string; truncado: boolean }[]
+  /** La carpeta no se pudo inspeccionar entera: no se puede aceptar, y el contenido del hook explica por qué. */
+  incompleta?: boolean
 }
 
 /** Petición del blob del índice (versión staged) de un archivo. */

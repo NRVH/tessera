@@ -132,7 +132,7 @@ console.log('\nAutorización\n')
 
 console.log('\nEspacio de datos: ve solo lo montado\n')
 
-// Se retiró la regla "la consola de datos ve todas": el agente del espacio de datos
+// La consola de datos no ve todas: el agente del espacio de datos
 // del perfil usa el selector de montaje como cualquier proyecto. Estas comprobaciones
 // fijan que NINGUNA concesión sirve el perfil entero, y que la respuesta sigue
 // diciendo `consola: false`, que es lo que `tdb.cjs` lee para tratar el ámbito como

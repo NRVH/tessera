@@ -5,6 +5,7 @@
 // Decisiones: docs/decisiones/editor/diff-editable.md
 // =============================================================================
 import { etiquetaRevisiones, esDiffDeUnLado } from '../git'
+import { Cruce, Presente } from '../../comun/Presente'
 import { CONTEXTO_LINEAS } from './colapsoDiff'
 import { etiquetaEstado, etiquetaCuenta, tituloUnLado } from './diffEditorAvisos'
 import { txDiff } from './textos.ts'
@@ -183,21 +184,15 @@ function AccionesDerecha({ pane, estado, avisoVisible }: AccionesDerProps): Reac
   return (
     <div className="panel-actions diff-barra-der">
       {/* Con `title`: el aviso es lo único que encoge y el texto entero tiene que seguir a mano. */}
-      {saveError && (
-        <span className="editor-notice editor-notice-error" title={saveError}>
+      <Presente visible={!!saveError} como="span" className="editor-notice editor-notice-error mov-aparece" title={saveError ?? undefined}>
           {saveError}
-        </span>
-      )}
+      </Presente>
       {/* Tras guardar, la pestaña no se cierra sola: cerrarla bajo el cursor es hostil. */}
-      {editable && !hasChanges && !problem && (
-        <span className="editor-notice">{t.sinCambiosIndice}</span>
-      )}
+      <Presente visible={editable && !hasChanges && !problem} como="span" className="editor-notice mov-aparece">{t.sinCambiosIndice}</Presente>
       {/* Sin aviso y con la cuenta ya calculada: en otro caso "Sin diferencias" afirmaría lo no resuelto. */}
-      {!avisoVisible && numCambios !== null && (
-        <span className="diff-cuenta" title={t.diferenciasEntreRevisiones}>
-          {etiquetaCuenta(numCambios)}
-        </span>
-      )}
+      <Cruce className="diff-cuenta" clave={!avisoVisible && numCambios !== null ? String(numCambios) : 'vacio'}>
+        <span>{!avisoVisible && numCambios !== null ? etiquetaCuenta(numCambios) : '\u00a0'}</span>
+      </Cruce>
       <SelectorModo estado={estado} unLado={unLado} />
     </div>
   )
@@ -206,7 +201,7 @@ function AccionesDerecha({ pane, estado, avisoVisible }: AccionesDerProps): Reac
 function IdentidadDiff({ target }: { target: DiffTarget }): React.JSX.Element {
   return (
     <div className="diff-identidad">
-      <span className="diff-revisiones" title={txDiff().revisionesQueSeComparan}>
+      <span className="diff-revisiones">
         {etiquetaRevisiones(target.commitHash)}
       </span>
       {/* El `dir="ltr"` hace seguro el truncado por la izquierda (`.diff-ruta-larga`). */}

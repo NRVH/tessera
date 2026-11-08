@@ -372,7 +372,7 @@ export class ComprimidosService {
     if (fuente.tipo === 'nada') return null
     if (fuente.tipo === 'error') throw new ErrorZip(fuente.mensaje)
     if (dentro.length > MAX_ANIDAMIENTO) {
-      // El tope existe en `jarPath` y hasta ahora era una promesa que nadie cumplía.
+      // El tope existe en `jarPath` y aquí se hace cumplir.
       // Pasarse no sólo es caro (cada nivel materializa hasta MAX_CONTENEDOR_REVISION
       // en memoria): la ruta que se compone deja de poder parsearse, y el
       // descompilador acaba escribiendo la clase FUERA de su paquete sin avisar.

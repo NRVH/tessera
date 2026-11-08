@@ -19,7 +19,7 @@ campos. La descomposición y la validación de las opciones que se guardan (`opc
   teclea a mano, y la huella del destino lo cubre entero: la contraseña va solo a esa lista. Con varios no
   se añade `directConnection=true` (el driver descubre la topología entre ellos): con un solo miembro, una conexión tras un DNS sin SRV
   dejaría de funcionar si ese cayera.
-- El TLS sale de las opciones y va a las casillas (`DbTls`): `tls`/`ssl` a `cifrar`;
+- El TLS sale de las opciones y va a los interruptores (`DbTls`): `tls`/`ssl` a `cifrar`;
   `tlsAllowInvalidCertificates`/`tlsInsecure` a `confiarCertificado`. Sin decir nada: con `srv`, cifrar; sin
   `srv`, el valor por defecto del motor (sin cifrar), no `TLS_POR_DEFECTO`. `tlsAllowInvalidCertificates`
   sin `tls=true` no cifra, como en el driver. Las demás opciones de TLS van a `descartadas`.

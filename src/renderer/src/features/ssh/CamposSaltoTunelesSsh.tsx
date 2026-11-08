@@ -11,6 +11,7 @@ import type { SshConexion, SshTipoTunel } from '../../../../shared/ssh-ipc'
 import { SSH_TUNELES_MAX } from '../../../../shared/ssh-ipc'
 import { puertoValido, tunelNuevo, type BorradorSsh, type CampoSsh, type TunelBorrador } from './borradorSsh'
 import { txFormularioSsh } from './textosFormulario.ts'
+import { IconoCerrar } from '../../comun/iconosMenu'
 
 type Editar = (parcial: Partial<BorradorSsh>) => void
 
@@ -103,7 +104,7 @@ function FilaTunel({ t, i, marcar, cambiar, quitar }: { t: TunelBorrador; i: num
         />
         {t.tipo !== 'dinamico' && <DestinoTunel t={t} n={n} marcar={marcar} cambiar={cambiar} />}
         <button type="button" className="btn btn-icon ssh-tunel-quitar" onClick={quitar} title={tx.quitarTunel} aria-label={tx.quitarTunelN(n)}>
-          ×
+          <IconoCerrar />
         </button>
       </div>
       <p className="dbc-ayuda">{ayudaTunel(t)}</p>

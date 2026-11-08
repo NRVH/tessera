@@ -78,7 +78,8 @@ export function candidatos(n: NucleoAgente, vivos: readonly string[] = n.sandbox
         abiertoEn: s.length > 0 ? Math.min(...s.map((x) => x.lanzadaEn)) : null,
         ultimaActividad: s.length > 0 ? Math.max(...s.map((x) => x.ultimaEsAt)) : null,
         trabajando: s.some((x) => x.activity.state() === 'working'),
-        protegido: abriendo.has(id) || s.some((x) => x.manual !== null) || aLaVista(n, s)
+        // Una tarea delegada no tiene pestaña que la reabra: pararla perdería su trabajo.
+        protegido: abriendo.has(id) || s.some((x) => x.manual !== null) || aLaVista(n, s) || (n.delegadasPorContenedor.get(id) ?? 0) > 0
       }
     })
 }

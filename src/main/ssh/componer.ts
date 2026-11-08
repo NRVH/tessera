@@ -16,7 +16,7 @@ import type { PerfilesVivos } from '../profiles/types'
 import type { CandadoDeBorrado } from '../profiles/candadoDeBorrado'
 import type { LlegadaDePerfiles } from '../profiles/llegadaDePerfiles'
 import { cifradoDelSistema } from '../db/adaptadores/cifradoSistema'
-import type { PuertaPuente } from '../db/dbBridge'
+import type { PuertaPuente, SesionDelPuente } from '../db/dbBridge'
 import type { PuertaBuzon } from '../db/dockerBridge'
 import { dbLog } from '../db/dbLog'
 import { plataformaActual, type Plataforma } from '../../shared/plataforma'
@@ -42,6 +42,10 @@ import { registrarIpcSftp } from './sftp/ipc'
 import { SesionesSftp } from './sftp/SesionesSftp'
 import { lanzadorAskpassSh, rutaGuionAskpass, rutaProgramaAskpass } from './programaAskpass'
 import { txSsh } from './textos.ts'
+import { AgenteSshHost } from './agente/servicio'
+import { FrasesAgente } from './agente/frases'
+import { saveProfilesMutable } from '../profiles/store'
+import { registrarIpcAgenteSsh } from './agente/ipc'
 
 /** Lo que la composición de SSH recibe de `index.ts`. */
 export interface DepsSsh {
@@ -50,6 +54,7 @@ export interface DepsSsh {
   perfiles: PerfilesVivos
   /** El puente de `tdb`: el programa de contraseñas registra en él `ssh.askpass`, y `tssh` sus operaciones. */
   puente: PuertaPuente | null
+  sesionDeToken: (token: string) => SesionDelPuente | null
   /** El buzón de Docker del puente: `tssh` registra en él su programa para los proyectos en modo Docker. */
   buzon: PuertaBuzon | null
   /** La carpeta de los atajos de `tdb` (`bin/s<N>`), donde van también los de `tssh`. */
@@ -310,6 +315,31 @@ export function componerSsh(deps: DepsSsh): ComposicionSsh {
   const programa = prepararProgramaAskpass(userData, plataformaActual())
   const dialogo = new DialogoAskpass(emisorDeVentana(() => refs.ventana))
   const askpass = crearAskpass(conexiones, programa, puente, dialogo)
+  const frasesAgente = new FrasesAgente(join(userData, 'ssh', 'frases-agente.json'), cifradoDelSistema)
+  const agenteSsh = new AgenteSshHost({
+    perfiles: () => perfiles.lista,
+    sesion: deps.sesionDeToken,
+    dialogo,
+    fraseGuardada: (ruta) => {
+      const conexion = conexiones.listar().conexiones.find((c) => c.metodo === 'clave' && conexiones.rutaClave(c.id) === ruta)
+      return frasesAgente.leer(ruta) ?? (conexion ? conexiones.secretoDe(conexion.id) : null)
+    },
+    guardarFrase: (ruta, frase) => frasesAgente.guardar(ruta, frase),
+    auditar: crearRegistroTssh(join(userData, 'logs')),
+    dirTssh: join(app.getAppPath(), 'src', 'tssh')
+  })
+  deps.buzon?.registrarPrograma(agenteSsh.programa())
+  registrarIpcAgenteSsh({
+    ipc,
+    listar: (perfil) => agenteSsh.listar(perfil),
+    guardar: (perfil, rutas) => {
+      const siguientes = perfiles.lista.map((actual) => actual.id === perfil ? { ...actual, clavesSshPermitidas: rutas } : actual)
+      saveProfilesMutable(siguientes)
+      perfiles.lista = siguientes
+      refs.terminales?.updateProfiles(siguientes)
+      refs.agentes?.updateProfiles(siguientes)
+    }
+  })
   // El cliente SSH, para `tssh` y para el controlador. El ssh de las pruebas (`TESSERA_SSH_BINARIO`)
   // solo vale sin empaquetar o con la marca del arnés e2e.
   const admitePrueba = admiteBinarioDePrueba(app.isPackaged, process.argv)

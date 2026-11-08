@@ -12,7 +12,7 @@ import { expect, test, type JSHandle, type Locator, type Page } from '@playwrigh
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { montarAgenteFalso } from './agenteFalso'
-import { montarSshFalso, type SshFalso } from './sshFalso'
+import { montarSshFalso, sembrarHuellas, type SshFalso } from './sshFalso'
 import { abrirTessera, borrarTemporal, MOD, PLATAFORMA, type SesionTessera } from './tessera'
 
 /** La terminal que se ve, dentro del panel, y la misma desde la raíz (para mirar dónde está el foco). */
@@ -157,7 +157,7 @@ test.describe.serial('El riel de conexiones SSH a pantalla completa', () => {
   const popover = (): Locator => s.win.getByRole('dialog', { name: 'Conexiones SSH' })
   const fila = (alias: string): Locator => riel().getByRole('treeitem', { name: new RegExp(`^${alias},`) })
   const maximizar =(): Locator => panel().getByRole('button', { name: 'Maximizar el panel de terminal' })
-  const restaurar = (): Locator => panel().getByRole('button', { name: 'Restaurar el panel de terminal' })
+  const restaurar = (): Locator => s.win.locator('.activity-bar').getByRole('button', { name: 'Restaurar el panel de terminal' })
   /** El mismo botón por su etiqueta y no por su rol: el rol lo da por inexistente mientras se funde en reposo. */
   const maximizarSinRol = (): Locator => panel().locator('button[aria-label="Maximizar el panel de terminal"]')
 
@@ -168,9 +168,8 @@ test.describe.serial('El riel de conexiones SSH a pantalla completa', () => {
     await expect(s.win.locator('.shell')).toHaveClass(MODO_PANTALLA_COMPLETA)
   }
 
-  /** La devuelve a la franja con el botón de restaurar. */
+  /** La devuelve a la franja con el botón de restaurar del riel. */
   async function salirDePantallaCompleta(): Promise<void> {
-    await enCabecera(s.win)
     await restaurar().click()
     await expect(s.win.locator('.shell')).not.toHaveClass(/\bfranja-pantalla-completa\b/)
   }
@@ -249,7 +248,8 @@ test.describe.serial('El riel de conexiones SSH a pantalla completa', () => {
     await win.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
     await win.mouse.move(5, 5)
     await expect(panel().locator('button[aria-label="Nueva terminal"]'), 'en reposo las acciones se funden').toHaveCSS('visibility', 'hidden')
-    await expect(panel().locator('button[aria-label="Ocultar el panel de terminal"]'), 'salvo las dos salidas del modo, que se quedan fijas').toBeVisible()
+    await expect(panel().locator('button[aria-label="Ocultar el panel de terminal"]'), 'las salidas del modo no están en la cabecera').toHaveCount(0)
+    await expect(win.locator('.activity-bar').getByRole('button', { name: 'Ocultar el panel de terminal' }), 'sino en el riel, a la vista').toBeVisible()
     await expect(panel().locator('.panel-header > button'), 'ni un botón suelto antes del título: no hay conmutador del riel').toHaveCount(0)
     await expect(panel().getByRole('button', { name: /conexiones$/i }), 'ni «Ocultar las conexiones» ni «Mostrar las conexiones»').toHaveCount(0)
     await expect(riel().getByRole('button', { name: 'Ocultar la lista' }), 'y el riel no trae un botón para plegarse').toHaveCount(0)
@@ -286,6 +286,8 @@ test.describe.serial('El riel de conexiones SSH a pantalla completa', () => {
 
   test('un clic en una conexión solo la elige; el doble clic abre su pestaña, enfoca su xterm y marca su fila; Intro en el filtro hace lo mismo', async () => {
     const win = s.win
+    // Huellas ya confirmadas: el diálogo de un servidor nuevo lo cubre conexiones-ssh.spec.ts.
+    await sembrarHuellas(win, s.datos)
     await expect(fila('Router')).not.toHaveAttribute('aria-current', 'true')
     await fila('Router').click()
     await expect(fila('Router'), 'el clic la elige').toHaveAttribute('aria-selected', 'true')
@@ -361,11 +363,21 @@ test.describe.serial('El riel de conexiones SSH a pantalla completa', () => {
     expect([sinFlecha.ancho, sinFlecha.alto], 'el «+» mide 24×24').toEqual([24, 24])
     expect((await cajaDe(grupoNueva())).ancho, 'y el grupo no mide más que él: nada del hueco ni de la flecha').toBe(24)
 
-    // Tab: del «+» se pasa a las acciones de la derecha, sin una parada fantasma entre medias.
+    // Tab: del «+» se sale del grupo, sin una parada fantasma entre medias (a pantalla completa la cabecera
+    // no lleva acciones de modo; la siguiente parada es lo que venga después, a la vista).
     await nueva().focus()
     await win.keyboard.press('Tab')
     await expect
-      .poll(() => win.evaluate(() => Boolean(document.activeElement?.closest('.panel-actions'))), { message: 'la siguiente parada de Tab está en las acciones' })
+      .poll(
+        () =>
+          win.evaluate(() => {
+            const a = document.activeElement as HTMLElement | null
+            if (!a || a.closest('.boton-dividido')) return false
+            const r = a.getBoundingClientRect()
+            return r.width > 0 && r.height > 0 && getComputedStyle(a).visibility !== 'hidden'
+          }),
+        { message: 'la siguiente parada de Tab sale del grupo y es visible' }
+      )
       .toBe(true)
 
     // Plegado el riel, la ▾ vuelve (22×24, a 2 px del «+», que ni se mueve ni cambia de tamaño) y es la siguiente parada de Tab.
@@ -572,7 +584,9 @@ test.describe.serial('El riel de conexiones SSH a pantalla completa', () => {
     await win.keyboard.press('Escape')
     await expect(popover()).toHaveCount(0)
 
-    // Al abrir una conexión desde el riel, el lanzador no abre su grupo.
+    // Al abrir una conexión desde el riel, el lanzador no abre su grupo. Su huella, ya confirmada (el diálogo de un
+    // servidor nuevo lo cubre conexiones-ssh.spec.ts).
+    await sembrarHuellas(win, s.datos)
     await mostrarPorSitio()
     await riel().getByRole('treeitem', { name: /^Alfa 1,/ }).dblclick()
     await expect(panel().getByRole('tab', { name: 'Alfa 1, SSH' })).toBeVisible({ timeout: 30_000 })
@@ -615,6 +629,7 @@ test.describe.serial('El riel de conexiones SSH a pantalla completa', () => {
     await expect(win.getByRole('menuitem', { name: 'Eliminar 2 conexiones…' })).toBeVisible()
     await win.getByRole('menuitem', { name: 'Mover 2 conexiones a un grupo…' }).click()
     const mover = win.getByRole('dialog', { name: 'Mover 2 conexiones' })
+    await expect(mover.getByRole('button', { name: 'Cerrar', exact: true })).toBeEnabled()
     await mover.getByRole('combobox').selectOption({ label: 'Alfa' })
     await mover.getByRole('button', { name: 'Mover' }).click()
     await expect(mover).toHaveCount(0)
@@ -763,8 +778,7 @@ test.describe.serial('El riel de conexiones SSH con dos perfiles, a ventana estr
   }
 
   async function salirDePantallaCompleta(): Promise<void> {
-    await enCabecera(s.win)
-    await panel().getByRole('button', { name: 'Restaurar el panel de terminal' }).click()
+    await s.win.locator('.activity-bar').getByRole('button', { name: 'Restaurar el panel de terminal' }).click()
     await expect(s.win.locator('.shell')).not.toHaveClass(/\bfranja-pantalla-completa\b/)
   }
 

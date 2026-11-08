@@ -10,6 +10,7 @@
 import type { PrimeroEnPararse } from '../../../../shared/semaforoContenedores'
 import type { DbTxModo } from '../../../../shared/db-explorador-ipc'
 import type { TerminalAppearance } from '../../theme/terminalAppearance'
+import type { TemaCodigoId } from '../../theme/temasCodigo'
 import type { UseActualizacionNativa } from '../agentes'
 
 /** Todo lo que Configuración puede leer y cambiar. Lo compone `ModalAjustes` desde los stores. */
@@ -56,6 +57,12 @@ export interface AjustesProps {
   /** Apariencia de la terminal del AGENTE (CC/Codex), independiente de la anterior. */
   agentAppearance: TerminalAppearance
   onChangeAgentAppearance: (a: TerminalAppearance) => void
+  /** Letra del editor de código: editor, diffs y visores de Monaco. */
+  editorAppearance: TerminalAppearance
+  onChangeEditorAppearance: (a: TerminalAppearance) => void
+  /** Tema del código: cómo se pinta el contenido de los archivos. */
+  editorTema: TemaCodigoId
+  onChangeEditorTema: (t: TemaCodigoId) => void
   /** Tamaño de letra BASE de la interfaz en px (ver theme/densidad). */
   uiFontSize: number
   onChangeUiFontSize: (px: number) => void

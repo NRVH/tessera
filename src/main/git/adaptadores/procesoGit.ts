@@ -7,7 +7,9 @@
 
 import { execFile as execFileCb } from 'node:child_process'
 import { promisify } from 'node:util'
-import { ColaGit, PRIORIDAD, esCancelado, type Prioridad } from './colaGit'
+import { colaGit, PRIORIDAD, esCancelado, type Prioridad } from './colaGit'
+import { conDiffSeguro, entornoGit } from './configSegura'
+import { autorizarHooks } from './hooksGit'
 
 export { PRIORIDAD, esCancelado, type Prioridad }
 
@@ -52,21 +54,12 @@ const ESCRITURAS = new Set([
   'worktree'
 ])
 
-/** Cuántos `git` pueden estar vivos a la vez, en todo el proceso (medido: no se sube ni se baja). */
-const TOPE_GIT = 16
-/**
- * Cuántos de esos pueden ser relleno de FONDO (los repos que no se ven). Volver a una
- * contenedora con decenas de repos los pedía todos a la vez, compitiendo con lo visible.
- */
-const TOPE_FONDO = 4
-const colaGit = new ColaGit(TOPE_GIT, TOPE_FONDO)
-
 /**
  * Lanza git en `cwd` por la cola global. `ambito` vacío = no cancelable; un ámbito (el
  * abanico de `multiStatus`) además usa el techo corto. Las escrituras no llevan techo.
  * Con `vigente`, si al llegar su turno ya no interesa, no se lanza (ver `ColaGit.correr`).
  */
-export function ejecutarGit(
+export async function ejecutarGit(
   args: string[],
   cwd: string,
   prioridad: Prioridad = PRIORIDAD.PRONTO,
@@ -75,13 +68,17 @@ export function ejecutarGit(
 ): Promise<{ stdout: string; stderr: string }> {
   const escribe = ESCRITURAS.has(args[0] ?? '')
   // `--no-optional-locks` (bandera de `git`, va delante del subcomando) hace seguro matar una lectura.
-  const argv = escribe ? args : ['--no-optional-locks', ...args]
+  const argv = escribe ? conDiffSeguro(args) : ['--no-optional-locks', ...conDiffSeguro(args)]
   // El techo lo decide el ÁMBITO, no la prioridad: dentro del abanico también hay repos VISIBLE.
   const techo = ambito !== '' ? TIMEOUT_FONDO_MS : TIMEOUT_INTERACTIVO_MS
+  // La inspección usa la misma cola; debe terminar antes de reservar una plaza para la escritura.
+  const autorizado = escribe ? await autorizarHooks(args, cwd, await colaGit.correr(() => entornoGit(cwd), prioridad, ambito, vigente)) : undefined
   return colaGit.correr(
-    () =>
+    // Lo que el repo podría hacer ejecutar se anula justo antes de lanzarlo (`configSegura.ts`).
+    async () =>
       execFile('git', argv, {
         cwd,
+        env: autorizado ?? await entornoGit(cwd),
         maxBuffer: MAX_BUFFER,
         encoding: 'utf8',
         timeout: escribe ? 0 : techo,
@@ -94,8 +91,8 @@ export function ejecutarGit(
 }
 
 /** Git FUERA de la cola y sin techo (solo `rev-parse --show-toplevel` del repo activo). */
-export function gitSinCola(args: string[], cwd: string): Promise<{ stdout: string; stderr: string }> {
-  return execFile('git', args, { cwd, maxBuffer: MAX_BUFFER })
+export async function gitSinCola(args: string[], cwd: string): Promise<{ stdout: string; stderr: string }> {
+  return execFile('git', conDiffSeguro(args), { cwd, env: await entornoGit(cwd), maxBuffer: MAX_BUFFER })
 }
 
 /** Tira lo que quede EN COLA de un ámbito; devuelve cuántos trabajos tiró. */

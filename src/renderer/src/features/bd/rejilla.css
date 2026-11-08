@@ -447,40 +447,6 @@
 
 /* --- Pestaña de fuente ---------------------------------------------------------- */
 
-/* Conmutador de partes (Especificación / Cuerpo): TEXTO a la izquierda de la barra,
-   porque dice qué estás leyendo (identidad), no una acción. Segmentado: las dos
-   opciones se ven a la vez y la encendida es donde estás. */
-.db-fuente-partes {
-  flex: 0 0 auto;
-  display: inline-flex;
-  gap: 2px;
-  padding: 2px;
-  border-radius: 7px;
-  background: var(--bg-deep);
-}
-.db-fuente-parte {
-  padding: 1px 10px;
-  border: none;
-  border-radius: 5px;
-  background: transparent;
-  color: var(--fg-muted);
-  font: inherit;
-  font-size: max(9px, calc(var(--ui-font) - 1px));
-  line-height: 1.6;
-  cursor: pointer;
-}
-.db-fuente-parte:hover {
-  color: var(--fg);
-}
-.db-fuente-parte[aria-checked='true'] {
-  background: var(--sel-glow);
-  color: var(--sel);
-}
-.db-fuente-parte:focus-visible {
-  outline: 1px solid var(--accent);
-  outline-offset: 1px;
-}
-
 /* El host de Monaco NO se oculta nunca (un Monaco sin automaticLayout
    creado en una caja que mide cero se queda en 5x5 px para siempre). Ocupa el cuerpo
    por posición absoluta, y lo que tapa —el error, el vacío— es una CAPA opaca
@@ -528,27 +494,13 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
+}
+.db-visor-modal .db-visor-contenido {
+  padding: 0;
+  overflow: visible;
 }
 
-/* Cabecera: identidad (columna y metadatos) a la izquierda, el conmutador del JSON
-   detrás, y solo iconos a la derecha (piso de UX de las barras). */
-.db-visor-cab {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 40px;
-  padding: 6px 8px 6px 16px;
-  border-bottom: 1px solid var(--border);
-}
-.db-visor-identidad {
-  flex: 0 1 auto;
-  min-width: 0;
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-}
 .db-visor-columna {
   flex: 0 1 auto;
   min-width: 0;
@@ -570,41 +522,21 @@
   color: var(--fg-muted);
   font-variant-numeric: tabular-nums;
 }
-.db-visor-cab > .db-fuente-partes {
-  flex: 0 0 auto;
-}
-
-/* Líneas de estado bajo la cabecera: cargando, parcial, tope, error. Texto que se lee
-   una vez: tamaño de interfaz, sin cajas. */
 .db-visor-avisos {
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 8px;
   padding: 6px 16px;
   border-bottom: 1px solid var(--border-soft);
   font-size: 12px;
   line-height: 1.45;
 }
-.db-visor-aviso {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  min-width: 0;
-  color: var(--fg-muted);
-  font-variant-numeric: tabular-nums;
-}
-.db-visor-aviso.tono-aviso {
-  color: var(--yellow);
-}
-.db-visor-aviso.tono-error {
-  color: var(--red);
-}
 .db-visor-aviso-texto {
   min-width: 0;
   overflow-wrap: anywhere;
 }
-.db-visor-aviso .db-pildora-btn {
+.db-visor-avisos .db-pildora-btn {
   flex: 0 0 auto;
 }
 
@@ -804,12 +736,12 @@
   flex-direction: column;
   overflow: hidden;
 }
-.db-envio-cuerpo {
+.db-envio-contenido {
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 18px 20px 16px;
+  gap: 12px;
 }
 /* PRODUCCIÓN: franja roja de borde a borde, arriba del todo. Tinte y filete, no un
    rojo sólido con texto blanco: en el tema oscuro ese par no llega a 4,5:1. */
@@ -828,7 +760,6 @@
 .db-envio-franja-texto {
   flex: 0 0 auto;
   font-weight: 800;
-  letter-spacing: 0.08em;
 }
 .db-envio-franja-alias {
   min-width: 0;
@@ -837,28 +768,11 @@
   white-space: nowrap;
   font-weight: 600;
 }
-.db-envio-titulo {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  min-width: 0;
-  margin-bottom: 4px;
-}
-.db-envio-tabla {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: var(--mono, monospace);
-  font-weight: 500;
-  color: var(--fg-muted);
-}
 .db-envio-conexion {
   display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
-  margin-bottom: 10px;
   font-size: 12px;
   color: var(--fg-muted);
 }
@@ -869,14 +783,13 @@
   white-space: nowrap;
 }
 .modal-message.db-envio-mensaje {
-  margin-bottom: 10px;
+  margin: 0;
 }
 .db-envio-cab {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 4px;
 }
 .db-envio-cab-texto {
   font-size: 12px;
@@ -890,7 +803,7 @@
   flex: 1 1 auto;
   min-height: 60px;
   max-height: 320px;
-  margin: 0 0 12px;
+  margin: 0;
   padding: 6px 0;
   overflow: auto;
   border: 1px solid var(--border-soft);
@@ -921,13 +834,6 @@
 .db-envio-error {
   max-height: 120px;
   overflow: auto;
-  margin-bottom: 12px;
-  padding: 8px 10px;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--red) 12%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red) 45%, transparent);
-  font-size: 12px;
-  line-height: 1.5;
 }
 .db-envio-error-titulo {
   font-weight: 600;
@@ -941,22 +847,67 @@
   overflow-wrap: anywhere;
 }
 .db-envio-estado {
-  margin-bottom: 12px;
   font-size: 12px;
   color: var(--fg-muted);
 }
 /* «Ejecutar en producción»: contorno ROJO literal (no `.btn.danger`, que en los
    diálogos sigue al color del perfil; ver la cabecera de DialogoEnvio). */
-.btn.db-envio-btn-prod {
+.db-envio-modal .btn.db-envio-btn-prod {
   background: transparent;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red) 60%, transparent);
   color: var(--red-hi, var(--red));
   font-weight: 600;
 }
-.btn.db-envio-btn-prod:hover:not(:disabled) {
+.db-envio-modal .btn.db-envio-btn-prod:hover:not(:disabled) {
   background: color-mix(in srgb, var(--red) 17%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red) 75%, transparent);
 }
-.btn.db-envio-btn-prod:active:not(:disabled) {
+.db-envio-modal .btn.db-envio-btn-prod:active:not(:disabled) {
   background: color-mix(in srgb, var(--red) 28%, transparent);
+}
+
+/* Se reserva el espacio del contador aunque no haya cambios pendientes. */
+.db-barra-meta .db-pendientes-reserva {
+  display: inline-block;
+  min-inline-size: 18ch;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--mov-medio) var(--curva-estandar),
+    visibility var(--mov-medio) var(--curva-estandar);
+}
+.db-barra-meta .db-pendientes-reserva[data-visible="true"] {
+  opacity: 1;
+  visibility: visible;
+}
+.db-barra .btn.btn-icon {
+  transition:
+    opacity var(--mov-rapido) var(--curva-estandar),
+    color var(--mov-rapido) var(--curva-estandar),
+    background-color var(--mov-rapido) var(--curva-estandar),
+    border-color var(--mov-rapido) var(--curva-estandar);
+}
+.db-pildora .db-pildora-acciones {
+  display: grid;
+  flex: 0 0 auto;
+}
+.db-pildora .db-pildora-fragmento {
+  --mov-y: 0px;
+  --mov-escala: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.db-pildora-acciones > .db-pildora-fragmento {
+  grid-area: 1 / 1;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--mov-medio) var(--curva-estandar),
+    visibility var(--mov-medio) var(--curva-estandar);
+}
+.db-pildora-acciones > .db-pildora-fragmento[data-visible="true"] {
+  opacity: 1;
+  visibility: visible;
 }

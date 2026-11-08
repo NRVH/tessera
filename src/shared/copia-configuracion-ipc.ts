@@ -3,10 +3,12 @@
 // pone el renderer; el main añade las conexiones y sus secretos, cifra y guarda), ABRIR (elige el
 // archivo y lee su cabecera), DESCIFRAR (con la frase: devuelve perfiles, agentes, ajustes y la
 // lista de conexiones, nunca un secreto), CONEXIONES (da de alta las elegidas, que no salen del
-// main; también el historial elegido) y OLVIDAR; PREVIA_HISTORIAL para el diálogo de exportar; y la copia
+// main; también el historial y los archivos de agentes elegidos), DIFF_ARCHIVO (las dos versiones de un archivo de
+// agente distinto, al pedirlas) y OLVIDAR; PREVIA_HISTORIAL para el diálogo de exportar; y la copia
 // que llega del sistema (aviso HAY_PENDIENTE, recogida TOMAR_PENDIENTE). Lo sirve `src/main/configuracion/ipc.ts`.
 // =============================================================================
 
+import type { AgenteConConfig, TipoArchivoConfig } from './configAgente-ipc.ts'
 import type { AgentesCopia, AjustesCopia, ApartadosCopia } from './copiaConfiguracion.ts'
 import type { Plataforma } from './plataforma.ts'
 import type { PreviaConexiones, SeleccionConexiones } from './seleccionCopia.ts'
@@ -27,7 +29,9 @@ export const COPIA_CONFIGURACION_CHANNELS = {
   /** send (main -> renderer), sin datos: hay una copia del sistema que recoger con TOMAR_PENDIENTE. */
   HAY_PENDIENTE: 'copiaConfiguracion:hayPendiente',
   /** invoke: PreviaHistorialRequest -> FuenteHistorial[]. Lo que llevaría el historial, sin leer ninguna conversación. */
-  PREVIA_HISTORIAL: 'copiaConfiguracion:previaHistorial'
+  PREVIA_HISTORIAL: 'copiaConfiguracion:previaHistorial',
+  /** invoke: DiffArchivoRequest -> DiffArchivoResult. Las dos versiones de un archivo de agente distinto, solo si se pide verlas. */
+  DIFF_ARCHIVO: 'copiaConfiguracion:diffArchivo'
 } as const
 
 export type AgenteHistorial = 'claude-code' | 'codex'
@@ -87,6 +91,8 @@ export interface ResumenExportacion {
   agentes: number
   /** Solo si se pidió el historial. `saltadas`: archivos que desaparecieron o se bloquearon mientras se exportaba. */
   historial?: { conversaciones: number; bytes: number; saltadas: number }
+  /** Solo si se pidieron. `bloqueados`: los archivos que no viajan porque no se leen con seguridad, ya nombrados. */
+  archivosAgentes?: { cuentas: number; nativos: number; bloqueados: string[] }
   /** Conexiones cuyo secreto este equipo no puede descifrar: viajan sin él. */
   sinSecreto: string[]
   /** Conexiones SSH por clave cuya copia de la clave ya no está: en el otro equipo no se podrán importar. */
@@ -122,7 +128,68 @@ export type DescifrarResult =
       perfilesInvalidos: number
       /** El historial que trae, por cuenta; vacío si no trae. */
       historial: FuenteHistorial[]
+      /** Cómo queda la configuración de Docker que trae frente a la de este equipo, sin su contenido. */
+      configDocker: PreviaConfigDocker
+      /** Los archivos de las cuentas y las reglas nativas frente a los de este equipo, sin su contenido. */
+      archivosAgentes: PreviaArchivosAgentes
     }
+
+/** La configuración de Docker de una capa del archivo frente a la de su destino. */
+export type EstadoConfigDocker = 'traer' | 'igual' | 'distinta'
+
+/** `bloqueado`: el archivo de este equipo no se puede leer con seguridad (un enlace, demasiado grande, sin UTF-8). */
+export type EstadoArchivoAgente = 'traer' | 'igual' | 'distinto' | 'bloqueado'
+
+/** Una cuenta del archivo frente a la que le corresponde en un perfil de este equipo. */
+export interface CuentaAgenteAqui {
+  /** El nombre con que se llama aquí: la misma cuenta pudo cambiar de nombre. */
+  cuenta: string
+  archivos: Partial<Record<TipoArchivoConfig, EstadoArchivoAgente>>
+}
+
+export interface CuentaAgentePrevia {
+  id: string
+  /** El perfil del archivo del que cuelga. */
+  perfil: string
+  agente: AgenteConConfig
+  nombre: string
+  predeterminada: boolean
+  archivos: TipoArchivoConfig[]
+  /** Por id de perfil de aquí, su cuenta correspondiente; si falta, la cuenta se crearía. */
+  frente: Record<string, CuentaAgenteAqui>
+}
+
+export interface PreviaArchivosAgentes {
+  cuentas: CuentaAgentePrevia[]
+  nativos: Array<{ agente: AgenteConConfig; ruta: string; estado: EstadoArchivoAgente }>
+  /** Archivos del archivo importado que no se pueden escribir (forma, tamaño o sintaxis), ya nombrados. */
+  invalidos: string[]
+}
+
+/** De qué archivo de agente se piden las dos versiones. */
+export type ArchivoPedido =
+  | { origen: 'cuenta'; perfilAqui: string; perfil: string; cuenta: string; tipo: TipoArchivoConfig }
+  | { origen: 'nativo'; agente: AgenteConConfig }
+
+export interface DiffArchivoRequest {
+  token: string
+  archivo: ArchivoPedido
+}
+
+/** Solo lo que hace falta para el diff de un archivo distinto; null si ya no lo es o no se encuentra. */
+export type DiffArchivoResult = { aqui: string; archivo: string } | null
+
+export interface PreviaConfigDocker {
+  /** null: el archivo no trae configuración global. */
+  global: EstadoConfigDocker | null
+  /** Qué partes del global sustituirían algo que ya hay aquí: las reglas no tienen versión anterior. */
+  partesGlobal?: { reglas: boolean; configuracion: boolean }
+  /**
+   * Por perfil del archivo que trae la suya, su estado frente a cada perfil de aquí que ya tiene una; frente a
+   * cualquier otro, o a uno nuevo, se trae.
+   */
+  perfiles: Record<string, Record<string, EstadoConfigDocker>>
+}
 
 export interface ConexionesRequest {
   token: string
@@ -143,6 +210,10 @@ export interface ResultadoConexiones {
   revisar: string[]
   /** Solo si se eligió algo del historial. */
   historial?: ResumenHistorialImportado
+  /** Los niveles de la configuración de Docker que se escribieron, ya nombrados; ausente si ninguno. */
+  configDocker?: string[]
+  /** Los archivos de agentes escritos, ya nombrados; ausente si ninguno. */
+  archivosAgentes?: { creados: string[]; sustituidos: string[] }
 }
 
 /** Un archivo del historial que no se escribió, y por qué. */

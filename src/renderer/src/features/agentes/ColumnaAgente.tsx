@@ -37,6 +37,12 @@ interface Props {
   sesiones: SesionesNativas
   /** El agente de la terminal maximizado sobre las terminales, ya coherente (de App). */
   maximizarAgenteTerminal: { canExpand: boolean; expanded: boolean }
+  /**
+   * De quién es la columna en el reparto de destino. `agentes.lay` es el que se pinta, que durante un cambio
+   * animado va un render por detrás del agente activo: el foco se decide con este, o el agente que se activa en
+   * ese render se lo llevaría sin saber que cambió de dueño.
+   */
+  agenteDestino: SalidaLayoutCentro['agente']
 }
 
 /** Lo que el mosaico pinta en la columna; null fuera del mosaico. */
@@ -111,12 +117,12 @@ function useCambiaAgenteTerminal(agente: SalidaLayoutCentro['agente']): boolean 
 }
 
 /** Quién se lleva el teclado: la salida del mosaico y los cambios de dueño no; un gesto en el agente de la terminal sí. */
-function useFocoDeLaColumna(lay: SalidaLayoutCentro): { tokenFoco: number; sinRobarFoco: boolean; focoAgenteTerminal: boolean } {
+function useFocoDeLaColumna(agente: SalidaLayoutCentro['agente']): { tokenFoco: number; sinRobarFoco: boolean; focoAgenteTerminal: boolean } {
   const { tokenFocoMosaico, salidaSinFoco } = useStoreMosaico(
     useShallow((s) => ({ tokenFocoMosaico: s.tokenFocoMosaico, salidaSinFoco: s.salidaSinFoco }))
   )
   const focoPedido = useStoreAgenteTerminal((s) => s.focoPedido)
-  const cambia = useCambiaAgenteTerminal(lay.agente)
+  const cambia = useCambiaAgenteTerminal(agente)
   // Vive un commit: los panes (hijos) ya decidieron cuando corre este efecto del padre.
   useEffect(() => {
     if (focoPedido) soltarFocoAgenteTerminal()
@@ -148,7 +154,7 @@ export function ColumnaAgente(props: Props): React.JSX.Element {
   const lay = agentes.lay
   const accountByTarget = useStoreAgentes((s) => s.accountByTarget)
   const modoPorTarget = useStoreAgentes((s) => s.modoPorTarget)
-  const foco = useFocoDeLaColumna(lay)
+  const foco = useFocoDeLaColumna(props.agenteDestino)
   const dbMounts = useStoreBd((s) => s.dbMounts)
   const settingsLoaded = useStoreAjustes((s) => s.settingsLoaded)
   const mosaicoPanel = usePanelMosaico(props)

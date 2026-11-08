@@ -383,11 +383,14 @@ test.describe('actualizar los agentes nativos', () => {
         expect(argv.slice(0, 2), `${ETIQUETA[agente]} de ${proyecto} arrancó reanudando`).toEqual(argvReanudar(proyecto, agente))
         // Detrás, Codex sin su servidor compartido y el aviso de arranque: sin bases montadas, el
         // corto que dice que `tdb` existe.
+        // Claude Code, además, sin reutilizar el prompt grabado: su `--help` (el del agente falso) tiene la opción.
         const resto = agente === 'codex' ? argv.slice(4) : argv.slice(2)
         if (agente === 'codex') {
           expect(argv.slice(2, 4), `Codex de ${proyecto}, sin su servidor compartido`).toEqual(['-c', 'features.daemon_auto_start=false'])
+        } else {
+          expect(resto.slice(-2), `Claude Code de ${proyecto}, con el prompt de sistema vigente`).toEqual(['--system-prompt-snapshot', 'off'])
         }
-        expect(resto.length, `${ETIQUETA[agente]} de ${proyecto}: reanudar y el aviso, nada más`).toBe(2)
+        expect(resto.length, `${ETIQUETA[agente]} de ${proyecto}: reanudar y el aviso, nada más`).toBe(agente === 'codex' ? 2 : 4)
         expect(resto.join(' '), `${ETIQUETA[agente]} de ${proyecto} sabe de tdb sin bases montadas`).toContain('tdb ls')
       }
     }

@@ -155,34 +155,6 @@ select.filtro-guiado-valor {
   width: calc(var(--ui-row-h) + 2px);
 }
 
-/* «todas / cualquiera»: el molde de `.db-clave-modos` (pista, radio, segmento apagado),
-   con el encendido en `btn-active`, la clase de todo lo «puesto» de la app. */
-.filtro-guiado-union {
-  display: inline-flex;
-  align-items: center;
-  flex: 0 0 auto;
-  border-radius: 6px;
-  background: var(--bg-surface);
-  padding: 1px;
-  gap: 1px;
-}
-.filtro-guiado .filtro-guiado-union .btn {
-  height: calc(var(--ui-row-h));
-  padding: 0 9px;
-  border-radius: 5px;
-  background: transparent;
-  box-shadow: none;
-  color: var(--fg-faint);
-}
-.filtro-guiado .filtro-guiado-union .btn:hover:not(:disabled) {
-  background: var(--bg-surface-hi);
-  color: var(--fg-muted);
-}
-.filtro-guiado .filtro-guiado-union .btn.btn-active {
-  background: var(--sel-glow);
-  color: var(--sel);
-}
-
 /* El error en línea: el de `.db-filtro-error` (monoespaciada, roja, con tope de alto y
    desplazamiento propio: un mensaje de servidor puede ser largo). */
 .filtro-guiado-error {

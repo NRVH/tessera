@@ -333,11 +333,11 @@ export function briefingBasesAgente(
     ...(hayProduccion ? [REGLA_PRODUCCION] : []),
     '',
     // El aviso se hornea en la LÍNEA DE ARRANQUE, así que es una foto del momento
-    // del spawn. Como el montaje ahora se aplica EN CALIENTE, esa foto envejece
-    // durante la sesión: el usuario puede montar otra base a mitad de una
-    // conversación. Por eso el texto no enumera como verdad absoluta, avisa de que
-    // puede cambiar y manda comprobarlo; si no, el agente respondería "no tengo esa
-    // base" justo después de que la acabaras de montar.
+    // del spawn. Como el montaje se aplica EN CALIENTE, esa foto envejece durante la
+    // sesión: el usuario puede montar otra base a mitad de una conversación. Por eso
+    // el texto no enumera como verdad absoluta, avisa de que puede cambiar y manda
+    // comprobarlo; si no, el agente respondería "no tengo esa base" justo después de
+    // que la acabaras de montar.
     'ESA LISTA PUEDE CAMBIAR durante la sesión (se montan y desmontan en caliente).',
     'Ejecuta `tdb ls` para ver las que hay AHORA antes de darla por buena.',
     '',

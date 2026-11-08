@@ -16,7 +16,7 @@ import { PLATAFORMA, abrirTessera, rutaAppEmpaquetada, type SesionTessera } from
 
 const PACK = 'oracle-ic-23-macos-arm64'
 /** El `aviso` del pack (una prueba de interfaz no importa el main). */
-const AVISO = '11.2–18c están fuera del soporte de Oracle; probado.'
+const AVISO = 'Las versiones 11.2 a 18c están fuera del soporte de Oracle; Tessera las probó con este cliente.'
 
 test.describe('cliente Oracle de Mac: el .dmg de Oracle se instala y carga', () => {
   test.skip(

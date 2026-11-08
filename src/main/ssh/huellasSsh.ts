@@ -34,11 +34,15 @@ export function sha256DeClave(blobBase64: string): string | null {
   return createHash('sha256').update(blob).digest('base64').replace(/=+$/, '')
 }
 
-/** Las huellas de `host:puerto` en el texto de un `known_hosts`, sin repetir. */
-export function huellasDeKnownHosts(texto: string, host: string, puerto: number): SshHuella[] {
+/** Una línea de `known_hosts` que es la clave de `host:puerto`, con su huella; las demás no cuentan. */
+interface LineaHuella {
+  linea: string
+  huella: SshHuella
+}
+
+function lineasConHuella(texto: string, host: string, puerto: number): LineaHuella[] {
   const patron = patronKnownHosts(host, puerto)
-  const vistas = new Set<string>()
-  const huellas: SshHuella[] = []
+  const r: LineaHuella[] = []
   for (const linea of texto.split(/\r?\n/)) {
     const campos = linea.trim().split(/\s+/)
     if (campos[0] === '' || campos[0].startsWith('#')) continue
@@ -48,9 +52,28 @@ export function huellasDeKnownHosts(texto: string, host: string, puerto: number)
     const [nombres, algoritmo, blob] = campos
     if (!nombres.split(',').some((n) => casaNombre(n, patron))) continue
     const sha256 = sha256DeClave(blob)
-    if (sha256 === null || vistas.has(`${algoritmo} ${sha256}`)) continue
-    vistas.add(`${algoritmo} ${sha256}`)
-    huellas.push({ algoritmo, sha256 })
+    if (sha256 !== null) r.push({ linea: `${nombres} ${algoritmo} ${blob}`, huella: { algoritmo, sha256 } })
+  }
+  return r
+}
+
+/** Las huellas de `host:puerto` en el texto de un `known_hosts`, sin repetir. */
+export function huellasDeKnownHosts(texto: string, host: string, puerto: number): SshHuella[] {
+  const vistas = new Set<string>()
+  const huellas: SshHuella[] = []
+  for (const { huella } of lineasConHuella(texto, host, puerto)) {
+    const clave = `${huella.algoritmo} ${huella.sha256}`
+    if (vistas.has(clave)) continue
+    vistas.add(clave)
+    huellas.push(huella)
   }
   return huellas
+}
+
+/**
+ * Las líneas de `host:puerto` de un `known_hosts`, rehechas con sus tres campos y una por línea: lo único que
+ * se copia de un `known_hosts` temporal al de la conexión (ni comentarios, ni marcas, ni otros hosts).
+ */
+export function lineasDeKnownHosts(texto: string, host: string, puerto: number): string[] {
+  return [...new Set(lineasConHuella(texto, host, puerto).map((l) => l.linea))]
 }

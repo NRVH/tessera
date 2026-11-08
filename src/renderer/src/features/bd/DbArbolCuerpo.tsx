@@ -6,7 +6,7 @@
 // Decisiones: docs/decisiones/bd/ui-arbol-componente.md
 // =============================================================================
 
-import type { MouseEvent, ReactNode } from 'react'
+import { useRef, type MouseEvent, type ReactNode } from 'react'
 import { EsperaCarga } from '../../comun/IndicadorCarga'
 import { VirtualList } from '../../comun/VirtualList'
 import { contarCoincidencias, notaFormatoAjeno, tituloFormatoAjeno, type FilaArbol } from './filasArbolBd'
@@ -29,7 +29,11 @@ function IconoCerrar(): React.JSX.Element {
 }
 
 /** El aviso de la última acción (probar, desconectar, errores), con su acción si la tiene. */
-export function AvisoArbolVista({ a, aviso }: { a: CtxArbol; aviso: AvisoArbol }): React.JSX.Element {
+export function AvisoArbolVista({ a, aviso }: { a: CtxArbol; aviso: AvisoArbol | null }): React.JSX.Element | null {
+  const ultimo = useRef(aviso)
+  if (aviso) ultimo.current = aviso
+  aviso = aviso ?? ultimo.current
+  if (!aviso) return null
   return (
     <div className={`db-arbol-aviso ${aviso.tono}`} role={aviso.tono === 'error' ? 'alert' : 'status'}>
       <div className="db-arbol-aviso-texto">

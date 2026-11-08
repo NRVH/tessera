@@ -25,4 +25,4 @@ namespace de montaje del daemon, que solo alcanza root.
 
 ## Consecuencias
 
-`test:sandbox`, `test:sandbox:multi` y `test:agents` (con Docker) lo fijan; la limpieza, `limpieza-de-montajes.md`.
+`test:sandbox` y `test:sandbox:multi` (con Docker) lo fijan; la limpieza, `limpieza-de-montajes.md`.

@@ -6,6 +6,7 @@
 // Decisiones: docs/decisiones/bd/ui-datos-pestana.md
 // =============================================================================
 
+import { Insignia } from '../../../comun/Presente'
 import { dialectoDeMotor } from '../../../../../shared/sql/dialectosSql'
 import { nombreCalificado } from '../../../../../shared/sql/identificadoresSql'
 import { IconoCopiar } from '../../../comun/iconosMenu'
@@ -83,9 +84,9 @@ function metaDatos(v: VistaDatos): React.JSX.Element {
       {quieta && detenida && <span className="db-barra-aviso"> · {t.detenida}</span>}
       {quieta && sinEsperar && <span className="db-barra-aviso"> · {marcaSinEsperar()}</span>}
       {destino && !cargando && ` · ${t.sinonimoDeMin(destino)}`}
-      {editable && pendientes > 0 && (
-        <span className="db-barra-pendientes"> · {t.cambiosSinEnviar(textoCambios(pendientes))}</span>
-      )}
+      <span className="db-barra-pendientes db-pendientes-reserva" data-visible={editable && pendientes > 0} aria-hidden={!editable || pendientes === 0}>
+        {' · '}{t.cambiosSinEnviar(textoCambios(Math.max(1, pendientes)))}
+      </span>
       {!cargando && motivoNoEditable && (
         <span className="db-barra-no-editable"> · {t.noEditable(motivoNoEditable)}</span>
       )}
@@ -141,11 +142,7 @@ function botonesEdicion(v: VistaDatos): React.JSX.Element {
       >
         <span className="db-envio-icono">
           <IconoEnviar />
-          {pendientes > 0 && (
-            <span className="db-envio-cuenta" aria-hidden="true">
-              {pendientes > 99 ? '99+' : pendientes}
-            </span>
-          )}
+          <Insignia visible={!!(pendientes > 0)} className="db-envio-cuenta">{pendientes > 99 ? '99+' : pendientes}</Insignia>
         </span>
       </BotonBarraBd>
     </>

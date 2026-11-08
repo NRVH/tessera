@@ -1,0 +1,303 @@
+/* El diálogo del contexto de los agentes: los niveles a la izquierda y, a la derecha, el nivel con sus secciones.
+   El diálogo tiene alto fijo: lo que crece (las reglas, la lista de perfiles) se desplaza dentro. */
+.modal-card.contexto-modal {
+  width: min(1120px, 100%);
+}
+.contexto-modal-cuerpo {
+  overflow: hidden;
+}
+.contexto-confirmacion,
+.contexto-confirmacion > .mov-cruce-capa {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+.contexto-modal .config-agente-marco {
+  position: relative;
+  height: min(68vh, 680px);
+  flex: 1 1 auto;
+}
+
+/* El título del nivel con, a la derecha, el resumen de lo que reciben sus agentes. */
+.contexto-cabecera-fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+/* El botón estándar (chip con fondo y sombra), algo más alto que el de 24 px para ir junto al título. */
+.contexto-boton-resumen {
+  flex: none;
+  height: 28px;
+  padding: 0 12px;
+}
+
+/* El resumen: un panel de solo lectura que se abre sobre el lado derecho del detalle, con su propio scroll.
+   Tapa sin desplazar: lo de debajo no se mueve al abrirlo ni al cerrarlo. */
+.contexto-resumen {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  width: min(460px, 70%);
+  border-left: 1px solid var(--border-soft);
+  background: var(--bg-elevated);
+  box-shadow: -12px 0 24px rgba(0, 0, 0, 0.35);
+}
+.contexto-resumen-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.contexto-resumen-cuerpo {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px;
+}
+/* Lo nuevo de un nivel o una sección entra con un fundido corto (docs/decisiones/renderer/movimiento.md). */
+/* Mismo hueco que `.config-agente-detalle`: el editor de una cuenta pinta varios hijos aquí dentro. */
+.contexto-vista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  animation: contexto-vista-entra var(--mov-medio) var(--curva-entrada);
+}
+@keyframes contexto-vista-entra {
+  from {
+    opacity: 0;
+    translate: 0 4px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .contexto-vista {
+    animation: none;
+  }
+}
+.contexto-modal .config-agente-detalle {
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.contexto-riel {
+  max-height: none;
+  min-height: 0;
+  overflow-y: auto;
+}
+.contexto-riel .niveles-grupo:first-of-type {
+  margin-top: 14px;
+}
+.niveles-subtitulo {
+  margin: 4px 8px 2px;
+  color: var(--fg-faint);
+  font-size: calc(var(--ui-font) - 1px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.contexto-punto {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* Una sección: su ayuda, su contenido y su pie, en columna. */
+.contexto-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+.contexto-pie {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.contexto-reglas-texto {
+  width: 100%;
+  min-height: 260px;
+  height: min(40vh, 420px);
+  padding: 10px 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  background: var(--bg-deep);
+  color: var(--fg);
+  font-family: 'Cascadia Mono', Menlo, Consolas, ui-monospace, monospace;
+  font-size: 12.5px;
+  line-height: 1.5;
+  resize: vertical;
+}
+.contexto-reglas-texto:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+.contexto-contador {
+  font-size: calc(var(--ui-font) - 1.5px);
+  color: var(--fg-faint);
+  font-variant-numeric: tabular-nums;
+}
+.contexto-contador.excedido {
+  color: var(--red);
+}
+.contexto-aviso-propuesta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  color: var(--fg-muted);
+  font-size: calc(var(--ui-font) - 0.5px);
+}
+.contexto-aviso-propuesta span {
+  flex: 1;
+}
+
+/* El agente de la configuración de Docker: un selector segmentado, no pestañas, porque es un filtro del mismo nivel. */
+/* Agente y ámbito: una barra a la izquierda, con la misma altura y el mismo filete en los dos controles. Se parte
+   en dos líneas solo si falta ancho. Lo de debajo no se mueve al cambiar de ámbito: la línea de la carpeta o de a
+   qué se aplica está siempre, en una línea, y el cuerpo reserva el alto del editor mientras carga. */
+.contexto-docker-controles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+}
+.contexto-ambito {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.contexto-ambito label {
+  flex: none;
+  color: var(--fg-muted);
+}
+.modal-overlay .contexto-ambito select {
+  height: 32px;
+  min-width: 220px;
+  max-width: 360px;
+  padding-inline-start: 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+}
+.modal-overlay .contexto-ambito select:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.modal-overlay .contexto-ambito select:hover:not(:disabled) {
+  background: var(--hover-suave);
+}
+.modal-overlay .contexto-ambito select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+.contexto-ambito-vacio {
+  color: var(--fg-faint);
+  font-size: calc(var(--ui-font) - 1px);
+}
+/* `overflow: hidden` deja que una columna flexible la encoja a cero cuando el editor llena el alto: no encoge. */
+.contexto-modal .config-agente-ruta {
+  flex: none;
+  overflow: hidden;
+  overflow-wrap: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.contexto-modal .config-agente-cuerpo {
+  min-height: calc(min(48vh, 480px) + 44px);
+}
+
+/* El agente en su equipo no recibe el contexto: grupo aparte, al pie y separado por un filete. */
+.contexto-riel-equipo {
+  margin-top: 14px;
+  padding-top: 2px;
+  border-top: 1px solid var(--border-soft);
+}
+.contexto-riel .contexto-riel-equipo .niveles-grupo {
+  margin-top: 10px;
+}
+.contexto-riel-nota {
+  white-space: normal;
+}
+
+
+/* Lo que recibe un agente: cada parte con su encabezado, el texto tal cual llega. */
+.contexto-recibe-bloque {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.contexto-recibe-titulo {
+  margin: 0;
+  color: var(--perfil);
+  font-size: calc(var(--ui-font) - 0.5px);
+  font-weight: 600;
+}
+.contexto-recibe-texto {
+  margin: 0;
+  max-height: 220px;
+  overflow: auto;
+  padding: 8px 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  background: var(--bg-deep);
+  color: var(--fg);
+  font-family: 'Cascadia Mono', Menlo, Consolas, ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+/* Lo que añade Tessera: texto explicado, en viñetas, sin el aspecto de lo que escribe el usuario. */
+.contexto-recibe-tessera {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--fg-muted);
+  font-size: calc(var(--ui-font) - 0.5px);
+  line-height: 1.45;
+}
+.contexto-recibe-docs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.contexto-recibe-docs li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 3px 0;
+  color: var(--fg);
+}
+
+@media (max-width: 760px) {
+  .contexto-modal .config-agente-marco {
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+  }
+  .contexto-riel {
+    max-height: 180px;
+    padding-right: 0;
+    border-right: 0;
+    border-bottom: 1px solid var(--border-soft);
+  }
+}

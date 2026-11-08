@@ -21,7 +21,7 @@ larga, y con XACT_ABORT un Stop revierte la transacción entera.
   contarse como «1 fila afectada».
 - Autenticación `sql` o `ntlm` (JavaScript puro, funciona igual desde un Mac); sin Kerberos ni Entra. Una
   instancia con nombre va sin puerto (SQL Browser, UDP 1434). Por defecto se cifra y se VERIFICA, con las
-  CA del sistema además de las del paquete; con un certificado autofirmado el error dice qué casilla marcar.
+  CA del sistema además de las del paquete; con un certificado autofirmado el error dice qué interruptor activar.
 - Idioma «Español» (el número del error viaja aparte) y `dateFormat: 'ymd'`. `requestTimeout: 0` salvo que se
   pida uno; `abortTransactionOnError: false`; `useColumnNames: false`.
 - Las sesiones de árbol y de datos llevan `SET LOCK_TIMEOUT` (error 1222) y la de árbol además READ

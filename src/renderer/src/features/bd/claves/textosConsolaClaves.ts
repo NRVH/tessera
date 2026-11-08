@@ -10,14 +10,14 @@ import { crearTextos } from '../../../../../shared/i18n.ts'
 export const txConsolaClaves = crearTextos(
   {
     // --- barra ---
-    ejecutarCursor: (acorde: string) => `Ejecutar el comando del cursor o las líneas seleccionadas · ${acorde}`,
+    ejecutarCursor: (acorde: string) => `Ejecutar el comando del cursor o las líneas seleccionadas (${acorde})`,
     ejecutar: 'Ejecutar',
-    ejecutarTodoTitulo: (acordes: readonly string[]) => `Ejecutar todos los comandos · ${acordes.join(' o ')}`,
+    ejecutarTodoTitulo: (acordes: readonly string[]) => `Ejecutar todos los comandos (${acordes.join(' o ')})`,
     ejecutarTodo: 'Ejecutar todo',
-    detenerTitulo: (acorde: string) => `Detener · ${acorde}`,
+    detenerTitulo: (acorde: string) => `Detener (${acorde})`,
     detener: 'Detener',
     nadaEnEjecucion: 'No hay nada en ejecución',
-    historialTitulo: (acorde: string) => `Historial de comandos · ${acorde}`,
+    historialTitulo: (acorde: string) => `Historial de comandos (${acorde})`,
     historial: 'Historial de comandos',
     esperaParaCambiarBase: 'Espere a que termine la ejecución para cambiar la base',
     baseCambiar: (base: string) => `Base: ${base}. Haga clic para cambiar`,
@@ -61,7 +61,7 @@ export const txConsolaClaves = crearTextos(
     noSeEnvioMarca: 'No se envió',
     elComando: 'el comando',
     seEjecutaraEn: (alias: string, produccion: boolean, base: number) =>
-      `Se ejecutará en «${alias}»${produccion ? ', una conexión de PRODUCCIÓN,' : ''} sobre la base db${base}.`,
+      `Se ejecutará en «${alias}»${produccion ? ', una conexión de producción,' : ''} sobre la base db${base}.`,
     ejecutarVerboTitulo: (verbo: string) => `¿Ejecutar ${verbo}?`,
     ejecutarVerbo: (verbo: string) => `Ejecutar ${verbo}`,
     escritura: 'Escritura',
@@ -73,14 +73,14 @@ export const txConsolaClaves = crearTextos(
     forzar: 'Forzar'
   },
   {
-    ejecutarCursor: (acorde: string) => `Run the command at the cursor or the selected lines · ${acorde}`,
+    ejecutarCursor: (acorde: string) => `Run the command at the cursor or the selected lines (${acorde})`,
     ejecutar: 'Run',
-    ejecutarTodoTitulo: (acordes: readonly string[]) => `Run all commands · ${acordes.join(' or ')}`,
+    ejecutarTodoTitulo: (acordes: readonly string[]) => `Run all commands (${acordes.join(' or ')})`,
     ejecutarTodo: 'Run all',
-    detenerTitulo: (acorde: string) => `Stop · ${acorde}`,
+    detenerTitulo: (acorde: string) => `Stop (${acorde})`,
     detener: 'Stop',
     nadaEnEjecucion: 'Nothing is running',
-    historialTitulo: (acorde: string) => `Command history · ${acorde}`,
+    historialTitulo: (acorde: string) => `Command history (${acorde})`,
     historial: 'Command history',
     esperaParaCambiarBase: 'Wait for the execution to finish before changing the database',
     baseCambiar: (base: string) => `Database: ${base}. Click to change`,
@@ -119,7 +119,7 @@ export const txConsolaClaves = crearTextos(
     noSeEnvioMarca: 'Not sent',
     elComando: 'the command',
     seEjecutaraEn: (alias: string, produccion: boolean, base: number) =>
-      `It will run on “${alias}”${produccion ? ', a PRODUCTION connection,' : ''} in database db${base}.`,
+      `It will run on “${alias}”${produccion ? ', a production connection,' : ''} in database db${base}.`,
     ejecutarVerboTitulo: (verbo: string) => `Run ${verbo}?`,
     ejecutarVerbo: (verbo: string) => `Run ${verbo}`,
     escritura: 'Write',

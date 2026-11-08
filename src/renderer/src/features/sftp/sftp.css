@@ -280,7 +280,7 @@ button.sftp-miga:hover {
 .sftp-barra-relleno {
   height: 100%;
   background: var(--accent);
-  transition: width 120ms linear;
+  transition: width var(--mov-rapido) var(--curva-expandir);
 }
 .sftp-barra-avance.indeterminada .sftp-barra-relleno {
   width: 35%;
@@ -310,10 +310,21 @@ button.sftp-miga:hover {
   font-size: 16px;
   line-height: 1;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.sftp-operacion-cerrar svg {
+  width: 12px;
+  height: 12px;
 }
 .sftp-operacion-cerrar:hover {
   background: rgba(255, 255, 255, 0.08);
   color: var(--fg);
+}
+.sftp-operacion-cerrar svg {
+  width: 14px;
+  height: 14px;
 }
 
 /* ESTRECHO: primero se va Permisos, después Modificado; Nombre y Tamaño nunca. */
@@ -337,4 +348,27 @@ button.sftp-miga:hover {
   .sftp-barra-avance {
     flex-basis: 48px;
   }
+}
+
+.sftp > .mov-despliega {
+  flex: 0 0 auto;
+}
+.sftp-operaciones.mov-despliega {
+  overflow-y: auto;
+}
+.sftp-operacion-presencia {
+  interpolate-size: allow-keywords;
+  overflow: hidden;
+  transition:
+    height var(--mov-salida) var(--curva-expandir),
+    opacity var(--mov-salida) var(--curva-estandar);
+}
+.sftp-operacion-presencia[data-saliendo] {
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.sftp-operacion-verbo,
+.sftp-operacion-nombre {
+  transition: color var(--mov-rapido) var(--curva-estandar);
 }

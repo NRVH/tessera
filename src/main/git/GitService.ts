@@ -42,6 +42,13 @@ export type { GitServiceOptions }
 
 /** Servicio de git del main: historia, estado, blobs y escrituras del repo del proyecto activo. */
 export class GitService {
+  async reposDeEscritura(req: { raiz?: string; repo?: string; path?: string; paths?: string[] }): Promise<string[]> {
+    const rutas = req.paths ?? (req.path ? [req.path] : [])
+    const contextos = rutas.length
+      ? await Promise.all(rutas.map((ruta) => this.n.ctxForPath(ruta)))
+      : [await this.n.ctxForRepo(req.repo)]
+    return [...new Set(contextos.flatMap((ctx) => ctx ? [ctx.root] : []))]
+  }
   private readonly n: NucleoGit
   private readonly blobs: Blobs
   private readonly historial: Historial

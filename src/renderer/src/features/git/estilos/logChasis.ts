@@ -83,5 +83,9 @@ export const CSS_LOG_CHASIS = `
   background: rgba(255, 255, 255, 0.12);
   color: var(--fg);
 }
+.git-vista-tab-cerrar svg {
+  width: 14px;
+  height: 14px;
+}
 
 `

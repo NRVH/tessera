@@ -40,6 +40,7 @@ import { textoPendientes } from '../terminals/adaptadores/registroPtys'
 import { armarGuardianSalida } from './guardianSalida'
 import { plazoGuardian } from './planGuardianSalida'
 import { actualizarJumpList } from './integracionVentanas'
+import { guardarEstadoVentanaYa } from './ventana'
 import type { ReferenciasApp } from './referencias'
 import { opcionesReinicio } from './reinicio'
 import { txApp } from './textos.ts'
@@ -179,6 +180,7 @@ async function pararServicios(
   win: BrowserWindow | null,
   send: Enviar
 ): Promise<DockerPendiente | null> {
+  guardarEstadoVentanaYa()
   // Con acuse del renderer y con tope: pasado el tope se sigue y la escritura acaba sola.
   try {
     await cierre.etapa(

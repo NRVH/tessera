@@ -10,7 +10,7 @@ import { useState } from 'react'
 import { ContextMenu, type ContextMenuEntry } from '../../comun/ContextMenu'
 import { EnCapaFlotante } from '../../comun/capaFlotante'
 import { esAgenteManual, type DefinicionAgente, type IdAgente } from '../../../../shared/agentesManuales'
-import { useStoreAjustes } from '../ajustes'
+import { abrirGestionAgentes } from './abrirGestion'
 import { agentesDelPerfil, esManualNativo, todasDelProyecto, type PestanaAgente } from './agentesDelProyecto'
 import { soltarSobre } from './ordenAgentes.ts'
 import { fijarOrdenAgentes, useStoreAgentes } from './store'
@@ -35,11 +35,6 @@ interface PropsPestanas {
 type Menu = { x: number; y: number; items: ContextMenuEntry[]; origen?: 'noCaben' | 'lista' }
 type Modal = { inicial: DefinicionAgente | null } | null
 
-/** Abre Configuración en la categoría «Agentes». */
-function abrirGestion(): void {
-  useStoreAjustes.setState({ settingsOpen: true, ajustesCategoria: 'agentes' })
-}
-
 /** El estado de los menús y modales del selector, y el contexto con el que se arman sus menús. */
 function useSelector(p: PropsPestanas) {
   const [menu, setMenu] = useState<Menu | null>(null)
@@ -58,7 +53,7 @@ function useSelector(p: PropsPestanas) {
     onEditar: (d) => setModal({ inicial: d }),
     onBorrar: setBorrando,
     onAnadir: () => setModal({ inicial: null }),
-    onGestionar: abrirGestion
+    onGestionar: abrirGestionAgentes
   }
   const abrirEn = (e: React.MouseEvent, items: ContextMenuEntry[]): void => {
     e.preventDefault()

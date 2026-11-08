@@ -9,6 +9,7 @@
 import { useEffect } from 'react'
 import { ErrorBoundary } from '../../../comun/ErrorBoundary'
 import { CapaFlotante } from '../../../comun/capaFlotante'
+import { CapaDialogos } from '../../../comun/Modal'
 import { TooltipPropio } from '../../../comun/TooltipPropio'
 import { AgentAppearanceContext } from '../../../theme/terminalAppearance'
 import { PERFIL_VENTANA_AGENTE } from '../../../../../shared/ventana-agente-ipc'
@@ -93,6 +94,7 @@ export function VentanaAgente(): React.JSX.Element {
           {m.datos ? <Panes m={m} /> : <div className="ventana-agente-cargando">{txVentanaAgente().cargando}</div>}
         </main>
         <CapaFlotante />
+        <CapaDialogos />
         <TooltipPropio />
       </div>
     </AgentAppearanceContext.Provider>

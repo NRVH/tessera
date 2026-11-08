@@ -269,13 +269,15 @@ function menuKvBase(fila: FilaDe<'kv-base'>, { a, copiarNombre }: MenuFila): Con
     SEP,
     { label: tx.filtrarClaves, icon: <IconoFiltro />, onClick: () => a.e.setFiltrandoClaves({ ...filtro, actual: fila.patron }) },
     ...(fila.patron !== '' ? [{ label: tx.quitarFiltro, onClick: () => aplicarFiltroClaves(a, filtro, '') }] : []),
-    ...TIPOS_FILTRABLES.map(
-      (t): ContextMenuEntry => ({
-        label: tx.soloTipo(etiquetaTipo(t)),
+    {
+      label: tx.filtrarPorTipo,
+      icon: <IconoFiltro />,
+      submenu: TIPOS_FILTRABLES.map((t) => ({
+        label: etiquetaTipo(t),
         checked: fila.tipo === t,
         onClick: () => aplicarFiltroTipoClaves(a, filtro, fila.tipo === t ? undefined : t)
-      })
-    ),
+      }))
+    },
     SEP,
     copiarNombre,
     SEP,

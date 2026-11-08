@@ -4,6 +4,10 @@
 // detalle de la fila elegida. Las usa `DbClavePane`; la lógica está en `visorClaves.ts`.
 // =============================================================================
 
+import { useConfirmacionCopiar } from '../../../comun/useConfirmacionCopiar'
+import { useRef } from 'react'
+import { Presente } from '../../../comun/Presente'
+import { Segmentado } from '../../../comun/Segmentado'
 import { useMemo, useState } from 'react'
 import type { DbKvBytes } from '../../../../../shared/db-claves-ipc'
 import { pintarBytes, tamanoBytes } from './bytesClaves'
@@ -30,13 +34,7 @@ export function textoParte(x: ParteDetalle): string {
 /** El conmutador de modo (Texto / JSON / Hex) de unos bytes. */
 function Modos({ modos, actual, onModo }: { modos: readonly ModoVista[]; actual: ModoVista; onModo: (m: ModoVista) => void }): React.JSX.Element {
   return (
-    <span className="db-clave-modos" role="group" aria-label={txVisorClaves().verComo}>
-      {modos.map((m) => (
-        <button key={m} type="button" className={`btn${m === actual ? ' btn-active' : ''}`} aria-pressed={m === actual} onClick={() => onModo(m)}>
-          {etiquetaModo(m)}
-        </button>
-      ))}
-    </span>
+    <Segmentado compacto etiqueta={txVisorClaves().verComo} opciones={modos.map((m) => ({ valor: m, etiqueta: etiquetaModo(m) }))} valor={actual} onCambio={onModo} />
   )
 }
 
@@ -89,6 +87,8 @@ export function VistaBytes({
   const recortado = useMemo(() => modo === 'hex' && textoEnModo(bytes, 'hex').recortado, [bytes, modo])
   const tamano = soloTexto ? null : tamanoBytes(bytes)
   const t = txVisorClaves()
+  const ultimoAviso = useRef(aviso)
+  if (aviso) ultimoAviso.current = aviso
   return (
     <>
       <div className="db-clave-sub">
@@ -98,15 +98,16 @@ export function VistaBytes({
           {tamano !== null && ` · ${bytesLegibles(tamano)}${aviso ? t.leidos : ''}`}
         </span>
       </div>
-      {aviso && <div className="db-clave-aviso">{aviso}</div>}
-      {recortado && <div className="db-clave-aviso">{t.hexRecortado}</div>}
+      <Presente visible={!!aviso} className="mov-despliega"><div className="db-clave-aviso">{ultimoAviso.current}</div></Presente>
+      <Presente visible={recortado} className="mov-despliega"><div className="db-clave-aviso">{t.hexRecortado}</div></Presente>
       <TextoEnModo bytes={bytes} modo={modo} />
     </>
   )
 }
 
 /** Una parte del detalle de la fila elegida (un campo, un valor, un ID…). */
-export function ParteVista({ parte, onCopiar }: { parte: ParteDetalle; onCopiar: () => void }): React.JSX.Element {
+export function ParteVista({ parte, onCopiar }: { parte: ParteDetalle; onCopiar: () => Promise<boolean> }): React.JSX.Element {
+  const { copiado, confirmar } = useConfirmacionCopiar()
   const bytes = 'bytes' in parte ? parte.bytes : null
   const [modoElegido, setModoElegido] = useState<ModoVista | null>(null)
   const modos = useMemo(() => (bytes ? modosDe(bytes) : []), [bytes])
@@ -119,8 +120,8 @@ export function ParteVista({ parte, onCopiar }: { parte: ParteDetalle; onCopiar:
         </span>
         {bytes && <span className="db-clave-parte-tamano">{bytesLegibles(tamanoBytes(bytes))}</span>}
         {bytes && modos.length > 1 && <Modos modos={modos} actual={modo} onModo={setModoElegido} />}
-        <BotonBarraBd etiqueta={txVisorClaves().copiarParte(parte.titulo)} titulo={txVisorClaves().copiarParte(parte.titulo)} onClick={onCopiar}>
-          <IconoCopiar />
+        <BotonBarraBd etiqueta={txVisorClaves().copiarParte(parte.titulo)} titulo={txVisorClaves().copiarParte(parte.titulo)} onClick={() => { void onCopiar().then((ok) => { if (ok) confirmar() }) }}>
+          <IconoCopiar copiado={copiado} />
         </BotonBarraBd>
       </div>
       {bytes ? (

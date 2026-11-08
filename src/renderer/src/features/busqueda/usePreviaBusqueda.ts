@@ -8,6 +8,7 @@ import { useEffect } from 'react'
 import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from 'react'
 import type { editor } from 'monaco-editor'
 import { BARRAS_MONACO, MONACO_THEME, OPCIONES_BASE_MONACO, ensureMonaco } from '../../comun/monacoSetup'
+import { conLetraEditor, opcionesLetraEditor } from '../../comun/letraEditor'
 import { languageForFilename } from '../../../../shared/files-ipc'
 import type { CoincidenciaArchivo } from '../../../../shared/search-ipc'
 import { txBusqueda } from './textos.ts'
@@ -67,8 +68,9 @@ export function useEditorPrevia({
     const host = hostRef.current
     if (!host || editorRef.current) return
     const monaco = ensureMonaco()
-    const ed = monaco.editor.create(host, {
+    const ed = conLetraEditor(monaco.editor.create(host, {
       ...OPCIONES_BASE_MONACO,
+      ...opcionesLetraEditor(),
       value: '',
       language: 'plaintext',
       theme: MONACO_THEME,
@@ -80,7 +82,7 @@ export function useEditorPrevia({
       renderLineHighlight: 'none',
       cursorBlinking: 'solid',
       scrollbar: { ...BARRAS_MONACO, alwaysConsumeMouseWheel: false }
-    })
+    }))
     editorRef.current = ed
     decoracionesRef.current = ed.createDecorationsCollection([])
 

@@ -381,6 +381,8 @@ if (keygen === null || binarios.dePrueba) {
         const r = spawnSync(ssh, linea(rutaClave), { encoding: 'utf-8', windowsHide: true, timeout: 30_000, env: sinAskpass })
         return { status: r.status, errores: String(r.stderr), ultima: String(r.stderr).trim().split(/\r?\n/).slice(-2).join(' | ') }
       }
+      // La huella se confirma antes de autenticarse: la línea de reconocer, que no se autentica, la deja en el archivo.
+      spawnSync(ssh, argumentosSsh({ host, puerto: Number(puerto), usuario: 'clave', metodo: 'clave' }, { modo: 'humano', rutaHuellas: huellas, rutaClave: instalada, reconocer: true }), { encoding: 'utf-8', windowsHide: true, timeout: 30_000, env: sinAskpass })
       const ok = correr(instalada)
       check('(i1) ssh entra con la copia importada (usuario «clave», solo clave pública) y «exit 0» sale con 0', ok.status === 0, `status=${ok.status} ${ok.ultima}`)
       check('(i2) y eso con «%», «ñ» y un espacio en la ruta de la clave (IdentityFile por -o)', instalada.includes('%') && instalada.includes('ñ'), instalada.replace(raiz, '<raíz>'))

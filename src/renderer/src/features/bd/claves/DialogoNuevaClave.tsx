@@ -10,7 +10,6 @@
 import { useEffect, useId, useState } from 'react'
 import type { DbConnection } from '../../../../../shared/db-ipc'
 import { esProduccion } from '../consola/produccionConsola'
-import { useDialogo } from '../../../comun/useDialogo'
 import { errorDeInvoke, textoError } from '../panesBd'
 import { bytesDeTexto } from './bytesClaves'
 import type { EntradasClave } from './edicionClaves'
@@ -51,7 +50,6 @@ export function DialogoNuevaClave(p: PropsDialogoNuevaClave): React.JSX.Element 
     p.onCerrar()
     p.alCrear(nuevo ?? nombre)
   })
-  const dlg = useDialogo({ onClose: p.onCerrar, cerrable: !edicion.enviando && !comprobando })
   // La acción abierta es lo que habilita `ejecutar` del hook; el contenido lo pone este diálogo.
   const { abrir } = edicion
   useEffect(() => {
@@ -74,33 +72,35 @@ export function DialogoNuevaClave(p: PropsDialogoNuevaClave): React.JSX.Element 
   }
 
   return (
-    <MarcoDialogo dlg={dlg} conexion={conexion} titulo={tx.nuevaClave} base={base} onCerrar={p.onCerrar}>
+    <MarcoDialogo conexion={conexion} titulo={tx.nuevaClave} base={base} onCerrar={p.onCerrar}
+      cerrable={!edicion.enviando && !comprobando} pie={<Botones
+        edicion={edicion}
+        ocupado={comprobando}
+        clase={produccion ? 'danger db-envio-btn-prod' : 'primary'}
+        texto={edicion.aviso ? edicion.aviso.confirmar : produccion ? tx.ejecutarEnProduccion : tx.crear}
+        listo={cmd.ok && !comprobando}
+        focoEnEjecutar={false}
+        onEjecutar={ejecutar}
+        onCancelar={p.onCerrar}
+      />}
+    >
       <Cuadro id={`${idBase}-nombre`} etiqueta={tx.nombre} valor={nombre} multilinea={false} foco onCambio={setNombre} onEnter={() => undefined} />
-      <label className="modal-label" htmlFor={`${idBase}-tipo`}>
-        {tx.tipo}
-      </label>
-      <select id={`${idBase}-tipo`} className="modal-input" value={tipo} onChange={(ev) => setTipo(ev.target.value as TipoCreable)}>
-        {TIPOS_CREABLES.map((t) => (
-          <option key={t} value={t}>
-            {etiquetaTipo(t)}
-          </option>
-        ))}
-      </select>
+      <div className="modal-campo">
+        <label className="modal-label" htmlFor={`${idBase}-tipo`}>{tx.tipo}</label>
+        <select id={`${idBase}-tipo`} className="modal-input" value={tipo} onChange={(ev) => setTipo(ev.target.value as TipoCreable)}>
+          {TIPOS_CREABLES.map((t) => (
+            <option key={t} value={t}>
+              {etiquetaTipo(t)}
+            </option>
+          ))}
+        </select>
+      </div>
       <Cuadro id={`${idBase}-uno`} etiqueta={cuadros.etiqueta} valor={e.uno} multilinea={cuadros.multilinea} foco={false} onCambio={(uno) => setE((x) => ({ ...x, uno }))} onEnter={() => undefined} />
       {cuadros.etiquetaDos && (
         <Cuadro id={`${idBase}-dos`} etiqueta={cuadros.etiquetaDos} valor={e.dos} multilinea={false} foco={false} onCambio={(dos) => setE((x) => ({ ...x, dos }))} onEnter={ejecutar} />
       )}
       <ComandoPrevio base={base} texto={cmd.ok ? cmd.texto : '—'} />
       <Estado edicion={edicion} motivo={cmd.ok ? null : cmd.motivo} errorPropio={ocupada} />
-      <Botones
-        edicion={edicion}
-        clase={produccion ? 'db-envio-btn-prod' : 'primary'}
-        texto={edicion.aviso ? edicion.aviso.confirmar : produccion ? tx.ejecutarEnProduccion : tx.crear}
-        listo={cmd.ok && !comprobando}
-        focoEnEjecutar={false}
-        onEjecutar={ejecutar}
-        onCancelar={p.onCerrar}
-      />
     </MarcoDialogo>
   )
 }

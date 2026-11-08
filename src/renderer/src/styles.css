@@ -82,9 +82,8 @@
      FIJO, no relativo a --ui-font, con el mismo criterio que `.pane-empty-icon`: es un
      dibujo, no texto. 15 px es el valor con el que el árbol lleva viviendo. */
   --icono-archivo: 15px;
-  /* Ancho reservado para la columna de Claude Code (derecha del shell-body) y
-     alto de la fila inferior de terminal. Fijos por ahora; el redimensionado con
-     splitters llega en la Parte 2. */
+  /* Ancho reservado para la columna del agente (derecha del shell-body); los splitters
+     lo redimensionan. */
   --cc-width: 340px;
   /* Alto de la FRANJA INFERIOR, que se turnan la terminal y el panel de Git·Log
      (son excluyentes: solo una ocupa el hueco a la vez, así que un solo alto). */
@@ -151,9 +150,9 @@
   border-radius: 999px;
   min-height: 32px; /* nunca diminuto en listas largas */
   transition:
-    background-color 160ms ease,
-    border-width 140ms ease,
-    border-color 160ms ease;
+    background-color var(--mov-rapido) var(--curva-estandar),
+    border-width var(--mov-rapido) var(--curva-expandir),
+    border-color var(--mov-rapido) var(--curva-estandar);
 }
 
 /* Con el ratón en la zona, o mientras se desplaza, la pastilla aparece. */
@@ -295,8 +294,8 @@ body {
   --azul: var(--accent);
   /* EL BOTÓN DESTRUCTIVO DE LOS DIÁLOGOS tiene tokens propios y no la familia
      `--danger-*`: esa la comparten el "Eliminar…" del menú contextual, el "Descartar N"
-     de Git y el "Eliminar" de una conexión, que SIGUEN EN ROJO. Lo que se mudó al perfil
-     es el botón de confirmar de los nueve flujos de `ConfirmDialog`.
+     de Git y el "Eliminar" de una conexión, que van en rojo. El color del perfil es el del
+     botón de confirmar destructivo; junto a un sello de severidad, `modal.css` lo vuelve a poner en rojo.
      SIN PERFIL SE QUEDA EL ROJO: sin perfil el color del perfil ES el azul de acento y
      "Eliminar" y "Guardar" saldrían iguales. App publica el override en `.shell` SOLO
      cuando hay perfil con color. DOS TONOS, como el rojo: `--perfil-claro` mide 4,96:1
@@ -387,7 +386,7 @@ body {
   --confirmar-filete-fuerte: color-mix(in srgb, var(--confirmar-color) 70%, transparent);
 }
 
-/* Fila horizontal de columnas (lo que .shell era antes): ocupa el alto restante
+/* Fila horizontal de columnas: ocupa el alto restante
    bajo la banda de tabs. min-height:0 para que las columnas con scroll interno
    (explorador, editor, terminal) no desborden el shell.
 
@@ -501,9 +500,9 @@ body {
 
 /* Contenedor vertical del bloque superior: la BARRA DE TÍTULO (perfiles + acciones
    de ventana) sobre la banda de proyectos. Las dos son marco, así que las dos van
-   en gris y no hay costura entre ellas: el borde y la sombra que separaban esto del
-   body se retiraron porque ahora el que separa es el canal de gris del lienzo, y un
-   hairline + un canal de 6 px se leen como una raya doble. */
+   en gris y no hay costura entre ellas: sin borde ni sombra hacia el body, porque lo que
+   separa es el canal de gris del lienzo, y un hairline + un canal de 6 px se leen como
+   una raya doble. */
 .tabs-bar {
   flex: 0 0 auto;
   display: flex;
@@ -550,11 +549,9 @@ body {
   padding-left: 0;
 }
 
-/* Aquí vivía `.titlebar-marca` (glifo + "Tessera" en la esquina izquierda). Se
-   retiró: las pestañas de perfil van en la fila de justo debajo, cada una con su
-   nombre y su color, y una segunda etiqueta con nombre pegada a la esquina competía
-   con ellas y se perdía en el intento. La marca se mudó al CENTRO de la barra de
-   estado (`.status-bar-marca`), donde no pelea con nada.
+/* La marca va en el CENTRO de la barra de estado (`.status-bar-marca`): las pestañas de
+   perfil, en la fila de justo debajo, ya llevan cada una su nombre y su color, y una
+   segunda etiqueta con nombre en la esquina competiría con ellas.
 
    Asa de arrastre: se come TODA la franja hasta el aviso de actualización. Es por
    donde se mueve la ventana y donde el doble clic la maximiza; siendo `flex: 1` no
@@ -650,7 +647,7 @@ body {
   background: transparent;
   color: var(--fg-muted);
   cursor: pointer;
-  transition: color 120ms ease, background 120ms ease;
+  transition: color var(--mov-rapido) var(--curva-estandar), background var(--mov-rapido) var(--curva-estandar);
 }
 .titlebar-btn svg {
   width: 15px;
@@ -786,7 +783,7 @@ body {
   stroke: currentColor;
   stroke-width: 2;
   stroke-linecap: round;
-  transition: stroke-dasharray 0.25s ease;
+  transition: stroke-dasharray var(--mov-entrada) var(--curva-expandir);
 }
 .boton-actualizacion-anillo.es-indeterminado {
   animation: profile-dot-spin 0.9s linear infinite;
@@ -867,7 +864,15 @@ body {
   /* LA SILUETA VIVE AQUÍ Y NO EN `.active`: es la MISMA cápsula para el hover y para la
      activa, así que el radio es de la pestaña, no del estado. */
   border-radius: 8px;
-  transition: color 120ms ease, background 120ms ease, box-shadow 120ms ease;
+  transition:
+    color var(--mov-rapido) var(--curva-estandar),
+    background var(--mov-rapido) var(--curva-estandar),
+    box-shadow var(--mov-rapido) var(--curva-estandar),
+    flex-grow var(--mov-medio) var(--curva-entrada),
+    padding-inline var(--mov-medio) var(--curva-entrada),
+    opacity var(--mov-medio) var(--curva-entrada);
+  overflow: clip;
+  interpolate-size: allow-keywords;
 }
 
 .profile-tab:hover {
@@ -987,16 +992,6 @@ body {
   }
 }
 
-/* Aquí vivía `.tab-attention-pip`: un SEGUNDO punto verde, y latiendo, en la
-   pestaña de proyecto cuando su agente terminaba sin revisar. Se retiró porque
-   duplicaba señal en la misma barra: la pestaña de PROYECTO ya tiene un glifo que
-   carga modo y estado de sesión (fundir el dot suelto en él fue justo lo que hizo
-   el rediseño oscuro), y la de PERFIL tiene su dot, que funde color + atención +
-   "trabajando" en una pieza. Con él se fue `@keyframes activity-pulse`, que no
-   tenía otro consumidor; el latido del dot de perfil es `profile-dot-breathe`, que
-   sigue vivo. Qué proyecto terminó lo dice el MOSAICO de agentes (antes, el inspector
-   de Progreso y el badge de su icono del riel, retirados con él). */
-
 /* MODO MINIMALISTA DE PERFILES: sin banda, una pastilla en el CENTRO de la barra de título con
    el punto y el nombre del perfil activo, y su lista al pulsarla. Centrada respecto a la VENTANA y
    no al hueco libre: así no se mueve cuando aparece la etiqueta del botón de agentes o el aviso de
@@ -1034,7 +1029,7 @@ body {
   box-shadow:
     inset 0 0 0 1px color-mix(in srgb, var(--profile-color, var(--accent)) 70%, transparent),
     0 0 8px color-mix(in srgb, var(--profile-color, var(--accent)) 18%, transparent);
-  transition: background 120ms ease;
+  transition: background var(--mov-rapido) var(--curva-estandar);
 }
 .selector-perfil-pastilla:hover,
 .selector-perfil-pastilla.abierto {
@@ -1231,7 +1226,7 @@ body {
   font-size: 18px;
   line-height: 1;
   cursor: pointer;
-  transition: color 120ms ease, background 120ms ease;
+  transition: color var(--mov-rapido) var(--curva-estandar), background var(--mov-rapido) var(--curva-estandar);
 }
 .profile-add-btn:hover {
   color: var(--fg);
@@ -1239,10 +1234,12 @@ body {
 }
 
 /* Popover de creación de perfil (nombre + color). */
+/* 300 px: la fila del color personalizado (muestra, código y dos botones) cabe en una línea. */
 .profile-create {
   position: fixed;
   z-index: 1000;
-  width: 264px;
+  width: 300px;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1285,7 +1282,7 @@ body {
 .selector-color {
   position: fixed;
   z-index: 1000;
-  width: 264px;
+  width: 300px;
   box-sizing: border-box;
   padding: 12px;
   border: 1px solid var(--border);
@@ -1329,7 +1326,7 @@ body {
   border-radius: 50%;
   cursor: pointer;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
-  transition: transform 120ms ease, box-shadow 120ms ease;
+  transition: transform var(--mov-rapido) var(--curva-estandar), box-shadow var(--mov-rapido) var(--curva-estandar);
 }
 .selector-color-muestra:hover {
   transform: scale(1.12);
@@ -1425,10 +1422,7 @@ body {
   gap: 6px;
   margin-top: 2px;
 }
-/* Aquí vivía un override del primario que APLANABA el degradado a mano, porque el
-   halo azul del `.btn.primary` de entonces no cabía en un popover. Se retiró cuando
-   el primario pasó a ser plano de serie: repetía exactamente lo mismo. Lo único que
-   no era redundante era este `:disabled` más apagado que el 0,5 general. */
+/* El `:disabled` va más apagado que el 0,5 general. */
 .profile-create-actions .btn.primary:disabled {
   opacity: 0.4;
 }
@@ -1471,7 +1465,16 @@ body {
   cursor: pointer;
   white-space: nowrap;
   user-select: none;
-  transition: color 120ms ease, background 120ms ease;
+  min-width: 0;
+  overflow: clip;
+  interpolate-size: allow-keywords;
+  transition:
+    color var(--mov-rapido) var(--curva-estandar),
+    background var(--mov-rapido) var(--curva-estandar),
+    box-shadow var(--mov-rapido) var(--curva-estandar),
+    flex-basis var(--mov-medio) var(--curva-entrada),
+    padding-inline var(--mov-medio) var(--curva-entrada),
+    opacity var(--mov-medio) var(--curva-entrada);
 }
 
 .project-tab:hover {
@@ -1504,7 +1507,7 @@ body {
   white-space: nowrap;
   vertical-align: bottom;
   /* Regreso suave al salir el cursor (el marquee de ida fija su propia duración). */
-  transition: transform 0.3s ease;
+  transition: transform var(--mov-entrada) var(--curva-estandar);
 }
 /* Al hover, si el nombre no cabía (clase `marquee` con --transform inline), se
    suelta el recorte y se desliza para leerlo entero; al salir vuelve al inicio. */
@@ -1568,8 +1571,8 @@ body {
   border-radius: 50%;
   box-sizing: border-box;
 }
-/* .project-dot.live/.hibernated se retiraron con ProjectDot (ahora ModeGlyph pinta
-   el estado en su propio glifo). Solo sobrevive el spinner de "despertando". */
+/* El estado del proyecto lo pinta ModeGlyph en su propio glifo; este punto solo muestra
+   el spinner de "despertando". */
 .project-dot.spinner {
   background: transparent;
   border: 1.5px solid var(--border);
@@ -1578,9 +1581,8 @@ body {
 }
 
 /* MODO WINDOWS (host nativo, cuenta personal, SIN Docker): el ÚNICO distintivo es el
-   ModeGlyph ámbar (monitor) de la pestaña del proyecto en ProjectTabs. Se retiraron
-   los chips "Windows · personal" (header del agente) y "Windows" (terminal): eran
-   redundantes con ese glifo y rompían la coherencia de color (azul vs. ámbar). */
+   ModeGlyph ámbar (monitor) de la pestaña del proyecto en ProjectTabs; ni el header del
+   agente ni la terminal llevan chip de modo. */
 
 /* La "x" de cerrar: tenue por defecto, nítida al hover de la pestaña o del botón. */
 .project-tab-close {
@@ -1596,7 +1598,7 @@ body {
   color: var(--fg-faint);
   cursor: pointer;
   opacity: 0;
-  transition: color 120ms ease, background 120ms ease, opacity 120ms ease;
+  transition: color var(--mov-rapido) var(--curva-estandar), background var(--mov-rapido) var(--curva-estandar), opacity var(--mov-rapido) var(--curva-estandar);
 }
 
 .project-tab:hover .project-tab-close,
@@ -1631,7 +1633,7 @@ body {
   background: transparent;
   color: var(--fg-faint);
   cursor: pointer;
-  transition: color 120ms ease, background 120ms ease;
+  transition: color var(--mov-rapido) var(--curva-estandar), background var(--mov-rapido) var(--curva-estandar);
 }
 
 .project-tab-add:hover:not(:disabled) {
@@ -1706,10 +1708,9 @@ body {
   flex: 1 1 auto;
 }
 
-/* Hairline entre los dos grupos del riel. Antes SIGNIFICABA "los de abajo abren
-   otra cosa"; desde que se pueden arrastrar de un grupo al otro solo separa lo
-   que el usuario ha puesto a cada lado. Lo que abre cada icono no cambia por
-   moverlo: Git·Log sigue ocupando la franja inferior aunque esté arriba. */
+/* Hairline entre los dos grupos del riel. Los iconos se arrastran de un grupo al otro,
+   así que solo separa lo que el usuario ha puesto a cada lado. Lo que abre cada icono no
+   cambia por moverlo: Git·Log ocupa la franja inferior aunque esté arriba. */
 .activity-sep {
   width: 22px;
   height: 1px;
@@ -1730,7 +1731,7 @@ body {
   cursor: pointer;
   border-radius: 8px;
   position: relative;
-  transition: color 120ms ease, background 120ms ease;
+  transition: color var(--mov-rapido) var(--curva-estandar), background var(--mov-rapido) var(--curva-estandar);
 }
 
 .activity-item:hover:not(:disabled) {
@@ -1743,9 +1744,9 @@ body {
    escribiendo.
    ABIERTA, SIN EL FOCO -> relleno gris. Dice "esto está abierto".
    ABIERTA, CON EL FOCO -> relleno del color del PERFIL. Dice "aquí van tus teclas".
-   El relleno sustituye a la barrita vertical de acento que había antes: una barra de 2 px
-   no admite dos niveles legibles, y dos barras de tonos parecidos a 8 px de distancia se
-   leen como un degradado, no como dos estados. */
+   Es un relleno y no una barrita vertical de acento: una barra de 2 px no admite dos
+   niveles legibles, y dos barras de tonos parecidos a 8 px de distancia se leen como un
+   degradado, no como dos estados. */
 .activity-item.active {
   color: var(--fg);
   background: rgba(255, 255, 255, 0.09);
@@ -1794,9 +1795,7 @@ body {
    Code). Anclado a la esquina inferior-derecha del .activity-item (ya relative).
    Es un <span> REAL y no un pseudo-elemento: tiene que pintarse ENCIMA del relleno
    del ítem activo y llevar `pointer-events: none` para no interceptar el clic del
-   botón, y un `::before` no daría lo segundo sin heredar los problemas del primero.
-   (Antes la razón era otra —el marcador del ítem activo ocupaba el `::before`—, y
-   ese marcador ya no existe: lo sustituyó el relleno.) */
+   botón, y un `::before` no daría lo segundo sin heredar los problemas del primero. */
 .activity-badge {
   position: absolute;
   bottom: 3px;
@@ -1806,10 +1805,9 @@ body {
   padding: 0 4px;
   border-radius: 999px;
   /* COLOR DEL PERFIL, no el acento fijo. El riel ya identifica el perfil por el color
-     del icono activo, y tener el contador en un azul ajeno rompía esa lectura: con
-     cuatro perfiles abiertos, el "36 cambios" era del mismo azul en todos. `--perfil`
-     cae al acento cuando no hay perfil o no tiene color (ver :root), así que el caso
-     sin color queda exactamente como estaba. */
+     del icono activo, y un contador en un azul ajeno rompería esa lectura: con cuatro
+     perfiles abiertos, el "36 cambios" sería del mismo azul en todos. `--perfil` cae al
+     acento cuando no hay perfil o no tiene color (ver :root). */
   background: var(--perfil);
   color: var(--bg);
   font-size: 10px;
@@ -1819,14 +1817,6 @@ body {
   box-sizing: border-box;
   pointer-events: none;
 }
-
-/* Aquí vivían las dos señales del inspector de Progreso sobre su icono del riel:
-   `.activity-badge.attention` (el badge VERDE de "hay trabajo terminado que no has
-   visto", verde a propósito para no confundirse con los otros dos indicadores, que
-   informan y sí llevan el color del perfil) y `.activity-working-dot` (el punto de
-   "algún agente está pensando"). Se fueron con el icono: el mosaico enseña las
-   terminales que trabajan, y por perfil lo sigue diciendo el dot de su pestaña. El
-   único badge que queda en el riel es el de git, que no tiene variantes. */
 
 /* Reordenar iconos de la barra (drag&drop): feedback discreto. */
 .activity-item.dragging {
@@ -1847,8 +1837,7 @@ body {
   outline-offset: -3px;
   background: var(--accent-glow);
 }
-/* Los dos grupos son ahora <div role="group"> de verdad (antes el de arriba eran
-   botones sueltos hijos del riel), así que cada uno repite la columna: si no, los
+/* Los dos grupos son <div role="group">, así que cada uno repite la columna: si no, los
    iconos se apilarían en fila dentro de su caja. El de abajo lleva además un
    min-height para tener "hueco" donde soltar — sin él mide exactamente lo que
    sus iconos y no habría dónde apuntar. */
@@ -1981,6 +1970,7 @@ body {
 }
 /* Carpeta destino mientras se arrastra algo válido encima (drag & drop mover). */
 .tree-row.drop-over {
+  transition: none;
   background: rgba(97, 175, 239, 0.22);
   box-shadow: inset 0 0 0 1px var(--accent);
 }
@@ -1992,12 +1982,11 @@ body {
 .tree-row.cut > * {
   opacity: 0.45;
 }
-/* El FANTASMA de arrastre ya NO es un nodo del DOM: desde que varios archivos salen
-   por `startDrag` (la única API que entrega N ficheros al sistema), el gesto es un
-   arrastre NATIVO y lo que lo acompaña tiene que ser una IMAGEN, no un elemento. Se
-   dibuja con un canvas en `arrastreArbol.ts` (`pintarFantasma`), leyendo estas mismas
-   variables, así que sigue teniendo el aspecto del panel. Aquí no queda nada que
-   estilar; la nota se conserva para que nadie busque las reglas que había. */
+/* El FANTASMA de arrastre no es un nodo del DOM: varios archivos salen por `startDrag`
+   (la única API que entrega N ficheros al sistema), el gesto es un arrastre NATIVO y lo
+   que lo acompaña es una IMAGEN. Se dibuja con un canvas en `arrastreArbol.ts`
+   (`pintarFantasma`), leyendo estas mismas variables, así que tiene el aspecto del
+   panel. */
 
 /* Banner efímero de error de una operación de archivos (p. ej. colisión al mover). */
 .tree-op-error {
@@ -2035,6 +2024,7 @@ body {
    componente según la profundidad; aquí solo el mínimo derecho. El alto lo manda
    --ui-row-h, el MISMO número que Sidebar pasa a VirtualList como itemHeight. */
 .tree-row {
+  transition: background var(--mov-rapido) var(--curva-estandar), color var(--mov-rapido) var(--curva-estandar);
   display: flex;
   align-items: center;
   gap: 4px;
@@ -2067,8 +2057,8 @@ body {
 
 /* SELECCIÓN MÚLTIPLE del explorador (Ctrl+clic, Shift+clic).
    Va DESPUÉS de `.active` a propósito: el caso normal —un clic en un archivo, que lo
-   abre Y lo selecciona— tiene que verse exactamente igual que antes de que existiera
-   la selección múltiple, así que comparte el mismo relleno. Lo que distingue a una
+   abre Y lo selecciona— tiene que verse igual que una fila activa sin selección
+   múltiple, así que comparte el mismo relleno. Lo que distingue a una
    fila seleccionada de la que está abierta en el editor es la BARRA lateral, que se
    lee sin sumar un cuarto tinte a los tres que ya conviven aquí (--sel-tenue de la
    carpeta "actual", --sel-glow de la activa y el azul del destino de un arrastre). */
@@ -2253,7 +2243,7 @@ body {
   height: 14px;
   flex: 0 0 14px;
   color: var(--fg-faint);
-  transition: transform 100ms ease;
+  transition: transform var(--mov-rapido) var(--curva-estandar);
 }
 
 .chevron.open {
@@ -2266,7 +2256,7 @@ body {
   flex: 0 0 var(--icono-archivo);
 }
 
-/* La carpeta ya no toma color del tema: su stroke/fill los fija FolderIcon según
+/* La carpeta no toma color del tema: su stroke/fill los fija FolderIcon según
    el estado (abierta/cerrada). Solo el documento genérico usa currentColor. */
 .tree-icon.file {
   color: var(--fg-faint);
@@ -2365,12 +2355,12 @@ body {
    sin filete. overflow-x: los excedentes hacen scroll sin romper el layout. */
 .editor-tabs {
   flex: 0 0 auto;
-  /* DERIVADA de la escalera, no clavada en 32px. A --ui-font: 12px da exactamente los
-     mismos 32 de antes (altoFila 20 -> altoCabecera 26 -> +6), pero ahora la tira SIGUE
-     A LA LETRA: con la interfaz al mínimo la tira antes no encogía y la letra sí, y eso
-     invertía la jerarquía que la escalera existe para evitar.
+  /* DERIVADA de la escalera, no clavada en 32px. A --ui-font: 12px da 32 (altoFila 20 ->
+     altoCabecera 26 -> +6) y la tira SIGUE A LA LETRA: con la interfaz al mínimo una
+     tira fija no encogería y la letra sí, e invertiría la jerarquía que la escalera
+     existe para evitar.
      Con TECHO en 32 px, el mismo que la etiqueta (ver `.editor-tab`): por encima de la
-     interfaz por defecto la tira ya no crece con la letra. */
+     interfaz por defecto la tira no crece con la letra. */
   height: min(calc(var(--ui-head-h) + 6px), 32px);
   display: flex;
   align-items: center;
@@ -2441,7 +2431,17 @@ body {
   cursor: pointer;
   white-space: nowrap;
   user-select: none;
-  transition: color 120ms ease, background 120ms ease;
+  width: auto;
+  min-width: 0;
+  overflow: clip;
+  interpolate-size: allow-keywords;
+  transition:
+    color var(--mov-rapido) var(--curva-estandar),
+    background var(--mov-rapido) var(--curva-estandar),
+    box-shadow var(--mov-rapido) var(--curva-estandar),
+    width var(--mov-medio) var(--curva-entrada),
+    padding-inline var(--mov-medio) var(--curva-entrada),
+    opacity var(--mov-medio) var(--curva-entrada);
 }
 
 .editor-tab:hover {
@@ -2475,6 +2475,7 @@ body {
    verlo de dos tallas distintas delata que son dos implementaciones. El gap de 6px de
    .editor-tab hace de separación al texto. */
 .editor-tab-icon {
+  transition: opacity var(--mov-rapido) var(--curva-estandar);
   width: var(--icono-archivo);
   height: var(--icono-archivo);
   flex: 0 0 var(--icono-archivo);
@@ -2487,6 +2488,7 @@ body {
 }
 
 .editor-tab-name {
+  transition: color var(--mov-rapido) var(--curva-estandar), text-decoration-color var(--mov-rapido) var(--curva-estandar);
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 160px;
@@ -2526,6 +2528,7 @@ body {
    Lleva el color del PERFIL por lo mismo que el badge de cambios del riel: es un
    indicador de ESTADO de este espacio de trabajo, no cromo de la aplicación. */
 .editor-tab-dot {
+  transition: opacity var(--mov-rapido) var(--curva-estandar), scale var(--mov-rapido) var(--curva-estandar), background var(--mov-rapido) var(--curva-estandar);
   width: 8px;
   height: 8px;
   border-radius: 50%;
@@ -2547,7 +2550,8 @@ body {
   color: var(--fg-faint);
   cursor: pointer;
   opacity: 0;
-  transition: color 120ms ease, background 120ms ease, opacity 120ms ease;
+  scale: 0.8;
+  transition: color var(--mov-rapido) var(--curva-estandar), background var(--mov-rapido) var(--curva-estandar), opacity var(--mov-rapido) var(--curva-estandar), scale var(--mov-rapido) var(--curva-estandar);
 }
 
 .editor-tab-close:hover {
@@ -2564,15 +2568,18 @@ body {
 .editor-tab:not(.dirty):hover .editor-tab-close,
 .editor-tab:not(.dirty).active .editor-tab-close {
   opacity: 1;
+  scale: 1;
 }
 
 /* Sucia: dot en reposo; al hover, el dot cede su hueco a la x. */
 .editor-tab.dirty:hover .editor-tab-dot {
-  display: none;
+  opacity: 0;
+  scale: 0.8;
 }
 
 .editor-tab.dirty:hover .editor-tab-close {
   opacity: 1;
+  scale: 1;
 }
 
 /* BORRADA EN DISCO: el archivo ya no existe pero su buffer sigue abierto. La pestaña NO
@@ -2580,8 +2587,8 @@ body {
    que hacer» (un Ctrl+S lo recrea). El tachado va en el NOMBRE, no en la pestaña entera.
    AMARILLO y no rojo: rojo diría «error», y esto no lo es —el contenido está intacto y es
    recuperable—. Es un aviso, que es lo que `--yellow` significa en el resto de la app. El
-   punto ganaba antes el color del perfil por ser «sucio»; con el archivo borrado manda el
-   amarillo, porque la señal urgente es que ya no está en disco. */
+   punto de «sucio» toma el color del perfil; con el archivo borrado manda el amarillo,
+   porque la señal urgente es que ya no está en disco. */
 .editor-tab.borrado .editor-tab-name {
   text-decoration: line-through;
   /* `--fg-muted` y no el color de git: un archivo que no existe no tiene estado en
@@ -2600,13 +2607,26 @@ body {
    clase `dirty`: sin esto se quedaba con el punto puesto tapando la x. (La x en sí
    ya la destapan las reglas de arriba en los dos casos.) */
 .editor-tab.borrado:hover .editor-tab-dot {
-  display: none;
+  opacity: 0;
+  scale: 0.8;
+}
+.editor-tabs-desborde {
+  opacity: 0;
+  visibility: hidden;
+  scale: 0.9;
+  transition: opacity var(--mov-medio) var(--curva-estandar), scale var(--mov-medio) var(--curva-entrada), visibility 0s linear var(--mov-medio);
+}
+.editor-tabs-desborde.visible {
+  opacity: 1;
+  visibility: visible;
+  scale: 1;
+  transition-delay: 0s;
 }
 
 
 /* Editor bajo demanda: se monta DENTRO de .editor-area SOLO cuando hay un archivo
    o diff abierto; la llena entera. El separador con la columna CC lo pone CC con
-   su border-left, así que el editor ya no lleva border-right. */
+   su border-left, así que el editor no lleva border-right. */
 .editor {
   /* Ancla del overlay del buscador (.search-box) en las vistas renderizadas de
      .md y .docx, igual que .terminal-panel/.agent-pane lo son en las terminales.
@@ -2668,14 +2688,8 @@ body {
   color: var(--red);
 }
 
-/* AQUÍ VIVÍA `.dirty-dot`, la bolita de "sin guardar" del header del editor. Se fue con
-   ese header: el punto de sucio de la PESTAÑA (`.editor-tab-dot`) dice exactamente lo
-   mismo, lo dice para TODOS los archivos abiertos a la vez y no sólo para el que miras, y
-   está donde ya estás mirando. Era la misma señal dos veces a diez píxeles de distancia. */
-
 /* Caja de aviso (componente AvisoCaja): titular + qué hacer + detalle plegado.
-   Nació para el visor de diff y hoy la comparten el diff, el arranque del agente y
-   el de la terminal — por eso el nombre ya no dice "diff".
+   La comparten el diff, el arranque del agente y el de la terminal.
    DOS TONOS: 'info' (carril de acento) para situaciones NORMALES sin resultado —una
    carpeta no tiene diff—, que pintadas de rojo asustarían sin motivo; y 'error'
    (carril rojo) para lo que de verdad bloquea, como Docker apagado. */
@@ -2797,8 +2811,7 @@ body {
 }
 /* QUIÉN CEDE CUANDO NO CABE. El piso de arriba no tiene nada elástico —los dos
    grupos son `flex: 0 0 auto` por herencia de `.panel-actions`—, y en la cabecera
-   de una sola fila eso lo absorbía el `min-width: 0` del título, que ya no vive
-   aquí. Con un aviso puesto ("Sin cambios respecto al índice", o un error de
+   de una sola fila el título no es elástico aquí. Con un aviso puesto ("Sin cambios respecto al índice", o un error de
    guardado) en un editor estrecho, el grupo de la derecha no podía encogerse y
    empujaba el selector de modo fuera del panel.
    Así que el grupo derecho SÍ encoge, y lo que cede dentro es el aviso: el
@@ -2867,7 +2880,8 @@ body {
   /* SEGUNDO en ceder, detrás del aviso: entre quedarse sin ver el número y
      quedarse sin poder cambiar de vista, se sacrifica el número. Lo que no cede
      nunca es el selector de modo, que es un control. */
-  flex: 0 1 auto;
+  flex: 0 1 18ch;
+  width: 18ch;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2881,8 +2895,8 @@ body {
 
 /* Diff editor: pill de status + revisiones comparadas. Van con el NOMBRE del
    archivo, no con los botones: describen lo que estás mirando, así que son
-   identidad y no acciones. Antes vivían dentro de `.panel-actions` y se leían
-   como controles apagados. */
+   identidad y no acciones: dentro de `.panel-actions` se leerían como controles
+   apagados. */
 .diff-status-pill {
   flex: 0 0 auto;
   margin-left: 8px;
@@ -3020,10 +3034,10 @@ body {
   min-height: 0;
   display: grid;
   /* `auto-fit` + `minmax` y NO una consulta de ancho: por debajo de ~260 px por
-     columna las dos se apilan solas. Se probó una `@container` sobre el área del
-     editor y se descartó — `container-type` implica `contain`, que convierte en
-     `absolute` todo `position: fixed` descendiente, y ahí dentro viven la lupa del
-     diff (z-index 1400) y el buscador. El mismo aviso que ya lleva `.shell-main`.
+     columna las dos se apilan solas. Una `@container` sobre el área del editor no
+     sirve: `container-type` implica `contain`, que convierte en `absolute` todo
+     `position: fixed` descendiente, y ahí dentro viven la lupa del diff (z-index 1400)
+     y el buscador. El mismo aviso que lleva `.shell-main`.
      Las columnas quedan IGUALES (`1fr`) aunque las imágenes midan distinto: el ojo
      compara tamaños por el hueco que ocupan, así que darle a cada una el ancho de
      su contenido haría parecer que una creció cuando la otra sólo es más estrecha. */
@@ -3086,10 +3100,9 @@ body {
   font-size: max(9px, calc(var(--ui-font) - 1px));
   color: var(--fg-muted);
 }
-/* El delta de peso va PEGADO al peso al que se refiere. Se probó empujarlo al borde
-   derecho con `margin-left: auto` —es lo único de la fila que compara en vez de
-   describir— y se retiró en cuanto se vio en la app: con el pane ancho quedaba a un
-   palmo de la cifra, y un "−11 KB" suelto en la esquina no dice de qué es menos. */
+/* El delta de peso va PEGADO al peso al que se refiere: en el borde derecho, con el pane
+   ancho quedaría a un palmo de la cifra, y un "−11 KB" suelto en la esquina no dice de
+   qué es menos. */
 .image-diff-delta {
   color: var(--fg-faint);
 }
@@ -3129,11 +3142,9 @@ body {
 /* AQUÍ NO HAY REGLA PARA EL SEGMENTO ENCENDIDO, y es a propósito. El encendido es
    `btn-active`, la MISMA clase que los demás toggles de la app, y su color lo pone
    `.btn.btn-active` (más abajo en la hoja, así que gana el empate de especificidad
-   contra estas dos reglas y contra su hover). Antes había aquí un duplicado con
-   `--accent-glow` que sí ganaba —por ir más pegado—, y era el único cromo de la
-   ventana que seguía azul en un perfil verde: el resto de lo "puesto" ya se pinta
-   con el color del perfil. Lo único que aporta este bloque es la piel del
-   segmento apagado (transparente y con el radio interior). */
+   contra estas dos reglas y contra su hover); así el segmento encendido toma el color
+   del perfil como el resto de lo "puesto". Lo único que aporta este bloque es la piel
+   del segmento apagado (transparente y con el radio interior). */
 
 /* Control segmentado del MODO DE VISTA (solo editor / editor y vista / solo vista),
    en la cabecera del editor. Hereda el molde de `.diff-modo-toggle` —misma pista,
@@ -3175,6 +3186,7 @@ body {
   padding: 6px 0;
   border: 1px solid var(--border-soft);
   border-radius: 8px;
+  /* El texto y las marcas del diff, del tema del código: la lupa es un trozo del diff. */
   background: var(--bg);
   box-shadow: 0 10px 34px rgba(0, 0, 0, 0.55);
   pointer-events: none;
@@ -3194,10 +3206,10 @@ body {
    poder navegar CUALQUIER cambio en la lupa sin hacer clic. */
 .diff-lens-row.add,
 .diff-lens-row.change {
-  background: rgba(116, 211, 154, 0.16);
+  background: color-mix(in srgb, var(--codigo-insertado, #74d39a) 16%, transparent);
 }
 .diff-lens-row.del {
-  background: rgba(239, 107, 116, 0.16);
+  background: color-mix(in srgb, var(--codigo-eliminado, #ef6b74) 16%, transparent);
 }
 /* La línea APUNTADA por el cursor: barra de acento a la izquierda (inset shadow), que
    se COMPONE con el verde del diff en vez de taparlo. */
@@ -3215,12 +3227,12 @@ body {
   flex: 1 1 auto;
   white-space: pre;
   overflow: hidden;
-  color: var(--fg);
+  color: var(--codigo-texto, var(--fg));
 }
 
 /* CUERPO del editor: el host de Monaco y la vista renderizada.
 
-   En COLUMNA por defecto, que es como estaban antes sueltos dentro de `.editor`:
+   En COLUMNA por defecto:
    sólo se monta uno de los dos, así que la dirección da igual y el `flex: 1 1 auto`
    de cada hijo sigue valiendo tal cual. En VISTA DIVIDIDA pasa a FILA y los dos se
    reparten el ancho a partes iguales.
@@ -3229,6 +3241,7 @@ body {
    dividir cambiaría el PADRE del host de Monaco, y mover un nodo de sitio en el DOM
    lo desmonta y lo vuelve a montar — el editor perdería modelo, undo y scroll. */
 .editor-cuerpo {
+  position: relative;
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
@@ -3263,9 +3276,24 @@ body {
   overflow: hidden;
 }
 
-/* Columna derecha (antes la terminal; ahora la zona de Claude Code). Ancho fijo
-   reservado con --cc-width; el redimensionado llega en la Parte 2. El border-left
-   es el separador con el área central de editor. */
+/* Conserva el host con dimensiones para que Monaco mantenga modelo, scroll y medidas. */
+.editor-host.editor-host-oculto {
+  position: absolute;
+  inset: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.editor-contenido-entrada {
+  animation: editor-fundido var(--mov-medio) var(--curva-estandar);
+}
+@keyframes editor-fundido {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Columna derecha: la zona del agente. Ancho reservado con --cc-width, que el splitter
+   modifica. El border-left es el separador con el área central de editor. */
 .right-panel {
   flex: 0 0 var(--cc-width);
   /* Suelo duro: la columna del agente nunca baja de 330px (ni por el splitter, ni
@@ -3537,7 +3565,7 @@ body {
   line-height: 1;
   white-space: nowrap;
   cursor: pointer;
-  transition: color 120ms ease, background 120ms ease;
+  transition: color var(--mov-rapido) var(--curva-estandar), background var(--mov-rapido) var(--curva-estandar);
 }
 .terminales-tapadas-n {
   font-variant-numeric: tabular-nums;
@@ -3620,7 +3648,7 @@ body {
   border: 2px solid color-mix(in srgb, var(--perfil) 55%, transparent);
   border-radius: inherit;
   pointer-events: none;
-  transition: border-color 120ms ease;
+  transition: border-color var(--mov-rapido) var(--curva-estandar);
 }
 /* El foco sube el MISMO trazo en las dos dimensiones que tiene —color pleno y un
    píxel más— porque con un color distinto por perfil "más brillante" no basta: no hay
@@ -3814,7 +3842,7 @@ body {
   font: inherit;
   white-space: nowrap;
   cursor: pointer;
-  transition: color 120ms ease, background 120ms ease;
+  transition: color var(--mov-rapido) var(--curva-estandar), background var(--mov-rapido) var(--curva-estandar);
 }
 .barra-mosaico-selector {
   flex: 0 0 auto;
@@ -3920,8 +3948,8 @@ body {
   white-space: nowrap;
 }
 
-/* Los VISORES de archivo ya no anteponen su palabra a la ruta: la pestaña dice qué es,
-   con su icono. Sin rótulo delante, el margin-left era una sangría fantasma de 8 px.
+/* Los VISORES de archivo no anteponen su palabra a la ruta: la pestaña dice qué es, con
+   su icono. Sin rótulo delante, el margin-left sería una sangría fantasma de 8 px.
    LA MARCA ES UNA CLASE, `.sola`, Y NO LA POSICIÓN: `:first-child` cuenta hijos
    ELEMENTO, así que un rótulo escrito como texto suelto en el JSX no cuenta, el nombre
    del repo pasaba por primer hijo y salía «GITtessera», pegado. Con la clase, "voy
@@ -3937,8 +3965,8 @@ body {
    `flex: 0 0 auto` para que el par NO se comprima: quien cede es el texto del toggle
    (la container query de 430px lo abrevia), nunca estos iconos ni el de maximizar.
    HOLGURA MEDIDA EN LA APP: en el peor caso (modo Docker con los dos agentes, todas las
-   acciones y la columna en su mínimo de 330px, `CC_WIDTH_MIN`) quedan 20px; antes de
-   estos dos botones eran 82. Cualquier icono nuevo aquí hay que medirlo a 330px y en
+   acciones y la columna en su mínimo de 330px, `CC_WIDTH_MIN`) quedan 20px.
+   Cualquier icono nuevo aquí hay que medirlo a 330px y en
    modo Docker; lo que se rompe si no cabe es el botón de maximizar, el último. */
 .panel-title-actions {
   display: inline-flex;
@@ -4068,7 +4096,7 @@ body {
   overflow: hidden;
   /* Vuelve más rápido de lo que se fue: al retirar el ratón el botón ya se está
      cerrando y el hueco es suyo otra vez. Sincronizado con la etiqueta (ver abajo). */
-  transition: opacity 140ms ease;
+  transition: opacity var(--mov-rapido) var(--curva-estandar);
 }
 
 /* Al desplegarse la etiqueta del botón de reinicio, el grupo informativo se APAGA.
@@ -4087,7 +4115,7 @@ body {
   flex-shrink: 1000;
   /* Se apaga al ritmo al que la etiqueta se abre (280 ms), no antes: si desapareciera
      de golpe se leería como un parpadeo del footer en vez de como una cesión de sitio. */
-  transition: opacity 200ms ease;
+  transition: opacity var(--mov-rapido) var(--curva-estandar);
 }
 
 /* Dos cápsulas por significado: la CUENTA (sus ventanas, en tramos separados por un
@@ -4154,7 +4182,7 @@ body {
   display: block;
   height: 100%;
   border-radius: 2px;
-  transition: width 0.25s ease;
+  transition: width var(--mov-entrada) var(--curva-expandir);
 }
 
 .agent-usage-empty {
@@ -4181,6 +4209,16 @@ body {
      en vez de pasar a la línea siguiente. */
   white-space: normal;
   overflow-wrap: anywhere; /* una ruta o un id sin espacios tampoco debe desbordar */
+  /* Nace del pie: entra subiendo un poco (docs/decisiones/renderer/movimiento.md). La salida es su despedida. */
+  transition:
+    opacity var(--mov-medio) var(--curva-estandar),
+    translate var(--mov-medio) var(--curva-entrada);
+}
+@starting-style {
+  .agent-usage-pop {
+    opacity: 0;
+    translate: 0 4px;
+  }
 }
 
 .agent-usage-pop-title {
@@ -4195,6 +4233,9 @@ body {
   color: var(--fg-faint);
 }
 .agent-usage-pop-agent {
+  /* El nombre del agente no se parte ni cede ancho: si falta sitio, es el título el que pasa a otra línea. */
+  flex-shrink: 0;
+  white-space: nowrap;
   text-transform: none;
   letter-spacing: 0;
   color: var(--fg-muted);
@@ -4219,7 +4260,7 @@ body {
   display: block;
   height: 100%;
   border-radius: 3px;
-  transition: width 0.25s ease;
+  transition: width var(--mov-entrada) var(--curva-expandir);
 }
 .agent-usage-reset {
   margin-top: 3px;
@@ -4325,7 +4366,7 @@ body {
   /* Empieza a las 12 en punto y crece en sentido horario, como cualquier medidor. */
   transform: rotate(-90deg);
   transform-origin: 50% 50%; /* el `scale` del hover debe crecer desde el centro */
-  transition: transform 0.12s ease;
+  transition: transform var(--mov-rapido) var(--curva-estandar);
 }
 @media (prefers-reduced-motion: reduce) {
   .agent-context-ring {
@@ -4336,13 +4377,13 @@ body {
   fill: none;
   stroke: var(--border);
   stroke-width: 4;
-  transition: stroke 0.12s ease;
+  transition: stroke var(--mov-rapido) var(--curva-estandar);
 }
 .agent-context-fill {
   fill: none;
   stroke-width: 4;
   stroke-linecap: round;
-  transition: stroke-dasharray 0.25s ease;
+  transition: stroke-dasharray var(--mov-entrada) var(--curva-expandir);
 }
 
 .agent-context-pct {
@@ -4520,7 +4561,7 @@ body {
    botón — azul sobre azul, 1,00:1, incumple WCAG 2.2 SC 2.4.11. Ya pasaba con el
    degradado; al aplanar deja de haber ni siquiera un borde de gradiente que lo
    insinúe. Se cambia SÓLO el color: el offset negativo es lo que impide que el
-   anillo se salga de la fila de `.modal-actions`. */
+   anillo se salga de la fila del pie del diálogo (`.modal-pie`). */
 .btn:is(.primary, .btn-primary):focus-visible {
   outline-color: var(--bg-deep);
 }
@@ -4542,7 +4583,7 @@ body {
   /* `box-shadow` entra en la lista por las variantes de CONTORNO (destructivo,
      fantasma dentro del modal): sin él el filete aparecería de golpe mientras el
      fondo se funde, y el botón se vería partido en dos tiempos. */
-  transition: color 120ms ease, background 120ms ease, box-shadow 120ms ease;
+  transition: color var(--mov-rapido) var(--curva-estandar), background var(--mov-rapido) var(--curva-estandar), box-shadow var(--mov-rapido) var(--curva-estandar);
 }
 
 .btn:hover:not(:disabled) {
@@ -4596,9 +4637,9 @@ body {
      limpio en vez de pesado. La asimetría está SOLO en la duración: cambiar además la
      curva en la vuelta hace que el gesto no se sienta reversible. */
   transition:
-    width 180ms cubic-bezier(0.4, 0, 0.2, 1),
-    margin-left 180ms cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 120ms ease;
+    width var(--mov-medio) var(--curva-expandir),
+    margin-left var(--mov-medio) var(--curva-expandir),
+    opacity var(--mov-rapido) var(--curva-estandar);
 }
 .boton-reinicio-etiqueta > span {
   display: block;
@@ -4628,9 +4669,9 @@ body {
      que se abre en su sitio. El texto entra con 60 ms de retardo para que primero se
      abra el hueco y las letras no se vean apretujarse contra el borde. */
   transition:
-    width 280ms cubic-bezier(0.4, 0, 0.2, 1),
-    margin-left 280ms cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 180ms ease 60ms;
+    width var(--mov-medio) var(--curva-expandir),
+    margin-left var(--mov-medio) var(--curva-expandir),
+    opacity var(--mov-cromo-aparece) var(--curva-estandar);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -4651,10 +4692,6 @@ body {
   height: 14px;
 }
 
-/* Aquí vivía `.btn.primary`, copia LITERAL de `.btn.btn-primary`. Las dos clases
-   siguen existiendo (hay usos de las dos en los .tsx) pero comparten una sola regla,
-   arriba, con `:is()`. */
-
 /* DESTRUCTIVO — CONTORNO tenue, no bloque. Único consumidor: el botón de confirmar de
    `ConfirmDialog` cuando `danger` (nueve flujos de borrado).
    POR QUÉ SE APAGA EL BLOQUE ROJO: `#fff` sobre `--red` da 2,99:1, bajo AA, y la pieza
@@ -4663,16 +4700,14 @@ body {
    EL TEXTO SUBE A `--red-hi` AL TOCARLO, y es obligatorio: `--red` sobre su propio tinte
    da 4,03:1 al 17 % y 3,72:1 al 22 %; `--red-hi` los devuelve a 4,95 y 4,64.
    EL FILETE VA POR `inset` Y NO POR `border`: `.btn` declara `border: none` y un borde
-   real cambiaría la caja dentro de los 30 px de `.modal-actions`.
+   real cambiaría la caja dentro de los 30 px del pie del diálogo (`.modal-pie`).
    ========================================================================== */
-/* EL COLOR YA NO ES EL ROJO SINO EL DEL PERFIL, y lo que sostiene la lectura de "esto es
-   lo destructivo" pasa a ser SOLO LA FORMA: contorno sin cuerpo aquí, relleno macizo en
-   el primario (tres pesos: relleno > contorno > sin cuerpo; ver el ADR del acento).
-   LO QUE SE PIERDE, dicho en voz alta: el rojo era una señal que no hay que aprender. El
-   rojo NO se va de la app: se queda donde codifica un ESTADO (un error, un archivo
-   borrado) y en las otras tres familias destructivas —"Eliminar…" del menú contextual,
-   "Descartar N" de Git y "Eliminar" de una conexión—, con `--danger-*`. Aquí manda
-   `--confirmar-*` (ver :root). */
+/* EL COLOR ES EL DEL PERFIL, no el rojo, y lo que sostiene la lectura de "esto es lo
+   destructivo" es SOLO LA FORMA: contorno sin cuerpo aquí, relleno macizo en el primario
+   (tres pesos: relleno > contorno > sin cuerpo; ver el ADR del acento). El rojo se
+   reserva para lo que codifica un ESTADO (un error, un archivo borrado) y para las otras
+   tres familias destructivas —"Eliminar…" del menú contextual, "Descartar N" de Git y
+   "Eliminar" de una conexión—, con `--danger-*`. Aquí manda `--confirmar-*` (ver :root). */
 .btn.danger {
   background: transparent;
   box-shadow: inset 0 0 0 1px var(--confirmar-filete);
@@ -4718,7 +4753,7 @@ body {
    Se cambia el COLOR y no la forma: sigue siendo el anillo de 1 px de toda
    la app, en `--fg-muted`, que sobre la tarjeta del modal da 4,59:1 (el mismo par que
    la etiqueta de arriba), por encima del 3:1 que pide WCAG 2.4.11. */
-.modal-actions .btn.btn-ghost:focus-visible {
+.modal-pie .btn.btn-ghost:focus-visible {
   outline-color: var(--fg-muted);
 }
 
@@ -4754,7 +4789,7 @@ body {
   padding: 24px;
   background: var(--scrim);
   backdrop-filter: blur(2px);
-  animation: modal-fade 120ms ease;
+  animation: modal-fade var(--mov-medio) var(--curva-estandar);
 
   /* LAS VARIABLES QUE SE REPUBLICAN PORQUE LA TARJETA ES MÁS CLARA. Mismo patrón que la
      densidad (theme/densidad.ts): no se inventan nombres, se republican los MISMOS y toda
@@ -4773,30 +4808,19 @@ body {
   --hover-suave: rgba(255, 255, 255, 0.08);
   --hover-fuerte: rgba(255, 255, 255, 0.14);
   --danger-tinte: color-mix(in srgb, var(--red) 17%, transparent);
-  /* 30 % y no 22 %: si el pulsado se quedara en el valor de la raíz, el salto
-     hover -> pulsado se encogería de 8 puntos de alfa a 5 justo aquí, que es el
-     ÚNICO sitio donde este estado se pinta (`.btn.danger` sólo existe dentro de un
-     diálogo). Sería la retroalimentación de pulsar más floja de la app en los nueve
-     flujos de borrado, y por el mismo argumento de dL* que justifica los otros. */
-  --danger-tinte-fuerte: color-mix(in srgb, var(--red) 30%, transparent);
   --danger-filete: color-mix(in srgb, var(--red) 55%, transparent);
-  --danger-filete-fuerte: color-mix(in srgb, var(--red) 70%, transparent);
 }
-/* Un modal abierto desde otro (Configuración desde un ⓘ) sube un nivel: con el mismo z-index
-   mandaría el orden del DOM, y el diálogo de origen puede venir después. */
-.modal-overlay.modal-encima {
-  z-index: 2010;
+/* El diálogo de un perfil que no se ve sigue montado (conserva lo escrito), pero no se pinta ni bloquea la ventana:
+   `display: flex` de arriba anularía el `hidden` que le pone `Modal`. */
+.modal-overlay[hidden] {
+  display: none;
 }
 
-/* Un modal ANIDADO en otro apilaba dos velos (ConversationsModal monta un PromptDialog
-   y un ConfirmDialog dentro de su overlay): dos capas al 50 % daban un 75 % efectivo y
-   DOS `backdrop-filter: blur(2px)` sobre el mismo píxel.
-   PERO EL VELO DE DENTRO NO SE PUEDE QUITAR DEL TODO: el diálogo anidado y la tarjeta de
-   Conversaciones son HERMANOS en el overlay exterior, así que el velo de fuera se pinta
-   POR DEBAJO DE LAS DOS y nunca atenúa la lista; sin el de dentro, la lista quedaría a
-   plena luz detrás del diálogo, con aspecto de pulsable siendo inerte. Se rebaja: 0,32
-   sobre 0,5 da ~0,66. El DESENFOQUE sí sobra: repetirlo sólo cuesta una pasada de GPU. */
-.modal-overlay .modal-overlay {
+/* Un diálogo abierto sobre otro (`modal-anidado`, que pone `Modal` si al abrirse ya había uno) lleva un velo más
+   ligero: dos velos al 50 % darían un 75 % y dos desenfoques sobre el mismo píxel. Sin el suyo, el diálogo de debajo
+   quedaría a plena luz, con aspecto de pulsable siendo inerte: se rebaja a 0,32 (sobre 0,5 da ~0,66) y sin
+   desenfoque, que repetido solo cuesta una pasada de GPU. */
+.modal-overlay.modal-anidado {
   background: color-mix(in srgb, #000 32%, transparent);
   backdrop-filter: none;
   animation: none;
@@ -4817,12 +4841,11 @@ body {
   border-radius: 12px;
   background: var(--bg-modal);
   box-shadow: var(--shadow-modal);
-  animation: modal-pop 150ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: modal-pop var(--mov-entrada) var(--curva-entrada);
 }
 
-/* `modal-pop` mueve la tarjeta (`translateY(8px) scale(0.98)`) y NINGUNA de las
-   cinco guardas de movimiento reducido que ya había en la hoja lo cubría. Ahora que
-   la animación vive en un solo sitio, taparlo cuesta cuatro líneas. */
+/* `modal-pop` mueve la tarjeta (`translateY(8px) scale(0.98)`): con movimiento reducido
+   se desactiva. */
 @media (prefers-reduced-motion: reduce) {
   .modal-overlay,
   :is(.modal-card, .ajustes-modal, .conv-modal, .agents-update-modal, .buscar-modal) {
@@ -4860,16 +4883,6 @@ body {
   margin-bottom: 18px;
 }
 
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
-.modal-actions .btn {
-  height: 30px;
-  padding: 0 14px;
-}
-
 /* Input del PromptDialog (crear/renombrar). */
 .modal-label {
   display: block;
@@ -4892,12 +4905,6 @@ body {
 .modal-input:focus {
   border-color: var(--accent);
 }
-.modal-error {
-  margin-top: 8px;
-  font-size: 12px;
-  color: var(--red);
-  white-space: pre-wrap;
-}
 /* El aro del botón de confirmar mientras su acción corre (`ConfirmDialog` con `ocupado`). */
 .modal-girando {
   display: inline-block;
@@ -4916,11 +4923,6 @@ body {
   font-size: 11.5px;
   line-height: 1.45;
   color: var(--fg-faint);
-}
-/* Los botones de PromptDialog van tras el campo, su nota o su error: el mismo aire (18 px) que
-   deja `.modal-message` antes de los de ConfirmDialog; sin él tocarían el campo. */
-:is(.modal-input, .modal-hint, .modal-error) + .modal-actions {
-  margin-top: 18px;
 }
 
 /* ==========================================================================
@@ -4959,29 +4961,19 @@ body {
      contenedor en el cuerpo la regla que colapsa el riel (`grid-template-columns`, del
      cuerpo) se ignoraba en silencio. Es el card y no un `@media` porque el card mide un
      porcentaje del viewport. `container-type` implica `contain`, que convierte en
-     `absolute` cualquier `position: fixed` descendiente: aquí es seguro porque el modal
-     no abre menús propios, y la lista de un select va a la capa superior, que `contain`
-     no alcanza (`comun/selectDesplegable.css`). */
+     `absolute` cualquier `position: fixed` descendiente. Los menús y los diálogos propios
+     se montan en sus capas externas; la lista de un select va a la capa superior, que
+     `contain` no alcanza (`comun/selectDesplegable.css`). */
   container-type: inline-size;
   container-name: ajustesmodal;
 }
-.ajustes-modal-header {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+.ajustes-modal > .ajustes-modal-contenido {
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+.ajustes-modal .modal-cabecera {
   border-bottom: 1px solid var(--border);
-}
-.ajustes-modal-titulo {
-  flex: 0 0 auto;
-  margin: 0;
-  color: var(--fg);
-  font-size: calc(var(--ui-font) + 1px);
-  font-weight: 600;
-}
-.ajustes-modal-cerrar {
-  flex: 0 0 auto;
 }
 .ajustes-modal-cuerpo {
   flex: 1 1 auto;
@@ -5018,7 +5010,7 @@ body {
   font-size: var(--ui-font);
   text-align: left;
   cursor: pointer;
-  transition: background 140ms ease, color 140ms ease;
+  transition: background var(--mov-rapido) var(--curva-estandar), color var(--mov-rapido) var(--curva-estandar);
 }
 .ajustes-riel-item:hover {
   background: rgba(255, 255, 255, 0.05);
@@ -5182,16 +5174,21 @@ body {
 }
 
 /* --- Grupos y subgrupos --------------------------------------------------- */
+/* CADA GRUPO ES UNA TARJETA SUTIL, como los paneles del explorador y la terminal: su borde dice dónde empieza y
+   dónde acaba la sección sin tener que leer. Su título es lo primero que se lee, en el color del perfil; los
+   botones y lo elegido quedan neutros para no competir con él. */
 .ajustes-grupo {
-  margin-bottom: 20px;
+  margin-bottom: 12px;
+  padding: 12px 14px 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--fg) 3%, transparent);
 }
 .ajustes-grupo-titulo {
-  margin: 0 0 8px;
-  color: var(--fg-muted);
-  font-size: max(9px, calc(var(--ui-font) - 2px));
+  margin: 0 0 10px;
+  color: var(--perfil);
+  font-size: calc(var(--ui-font) + 2px);
   font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
 }
 /* Explica el GRUPO entero ("la de Claude Code y Codex"), así que se lee como la
    ayuda de una fila pero pegada al título, no colgada de uno de sus ajustes —
@@ -5203,11 +5200,6 @@ body {
   font-size: calc(var(--ui-font) - 1px);
   line-height: 1.45;
 }
-/* Aquí vivía `.ajustes-subgrupo*`. Murió con el riel: lo que era
-   Grupo > Subgrupo > Fila dentro de un panel plano es ahora
-   Categoría > Grupo > Fila, los mismos tres niveles con uno menos de markup. La
-   ayuda del subgrupo se mudó al grupo (arriba), que es lo único que se usaba. */
-
 /* --- LA fila canónica ------------------------------------------------------
    Etiqueta (con su ayuda debajo) a la izquierda, control a la derecha. El
    `align-items: flex-start` es lo que mantiene el control arriba cuando la ayuda
@@ -5248,6 +5240,49 @@ body {
   gap: 4px;
   flex: 0 0 auto;
 }
+/* Con ayuda, el control baja hasta quedar centrado entre la etiqueta y la primera línea de la ayuda: arriba
+   del todo se leía por encima del texto. Sigue sin depender de lo larga que sea la ayuda, así que no baila. */
+.ajustes-fila:has(> .ajustes-fila-texto > .ajustes-fila-ayuda) > .ajustes-fila-control {
+  margin-top: 6px;
+}
+/* El tema del código: los colores del elegido sobre su fondo, junto al selector, y la vista previa. */
+.ajustes-tema-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.ajustes-tema-muestras {
+  display: inline-flex;
+  gap: 3px;
+  padding: 5px 6px;
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+}
+.ajustes-tema-muestra {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+.ajustes-previa-codigo {
+  margin: 2px 0 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--codigo-texto);
+  /* La fuente y el tamaño, los del editor (los pone el componente). */
+  line-height: 1.6;
+  white-space: pre;
+  overflow-x: auto;
+}
+.ajustes-previa-codigo pre {
+  margin: 0;
+  font: inherit;
+}
+/* Sin ayuda, la etiqueta es una sola línea: se centra con el control, más alto que ella. */
+.ajustes-fila:not(:has(> .ajustes-fila-texto > .ajustes-fila-ayuda)) {
+  align-items: center;
+}
 /* Dato informativo (el renderizado de xterm): se lee como valor, no como control. */
 .ajustes-dato {
   color: var(--fg-muted);
@@ -5269,7 +5304,7 @@ body {
   background: transparent;
   color: var(--fg-faint);
   cursor: pointer;
-  transition: background 140ms ease, color 140ms ease;
+  transition: background var(--mov-rapido) var(--curva-estandar), color var(--mov-rapido) var(--curva-estandar);
 }
 .ajustes-restablecer:hover {
   background: var(--hover-suave);
@@ -5315,7 +5350,7 @@ body {
   font-size: calc(var(--ui-font) + 3px);
   line-height: 1;
   cursor: pointer;
-  transition: background 140ms ease, color 140ms ease;
+  transition: background var(--mov-rapido) var(--curva-estandar), color var(--mov-rapido) var(--curva-estandar);
 }
 .ajustes-stepper-btn:hover:not(:disabled) {
   background: var(--hover-suave);
@@ -5390,9 +5425,9 @@ body {
   cursor: pointer;
   user-select: none;
   transition:
-    background 120ms ease,
-    border-color 120ms ease,
-    color 120ms ease;
+    background var(--mov-rapido) var(--curva-estandar),
+    border-color var(--mov-rapido) var(--curva-estandar),
+    color var(--mov-rapido) var(--curva-estandar);
 }
 .ajustes-casilla input {
   appearance: none;
@@ -5468,7 +5503,7 @@ body {
   background: rgba(255, 255, 255, 0.16);
   cursor: pointer;
   position: relative;
-  transition: background 150ms ease;
+  transition: background var(--mov-rapido) var(--curva-estandar);
 }
 .ajustes-switch.on {
   background: var(--accent);
@@ -5482,17 +5517,34 @@ body {
   border-radius: 50%;
   background: #fff;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
-  transition: transform 150ms ease;
+  transition: transform var(--mov-rapido) var(--curva-estandar);
 }
 .ajustes-switch.on .ajustes-switch-knob {
   transform: translateX(16px);
+}
+/* Compacto: cabe en una fila de campos o una barra de herramientas sin subirles el alto. */
+.ajustes-switch.compacto {
+  width: 28px;
+  height: 16px;
+}
+.ajustes-switch.compacto .ajustes-switch-knob {
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+}
+.ajustes-switch.compacto.on .ajustes-switch-knob {
+  transform: translateX(12px);
+}
+/* El texto de una fila de sí o no alterna el interruptor al pulsarlo. */
+.ajustes-fila-alternar {
+  cursor: pointer;
 }
 
 /* --- Radios (elegir entre opciones excluyentes) ---------------------------
    Único sitio donde la TARJETA sobrevive: aquí sí encierra una unidad que se
    elige entera, y el borde de acento es lo que dice cuál está activa. */
-/* `.ajustes-radios-titulo` se retiró: el título del bloque lo pone ahora la
-   cabecera del grupo ("Al abrir un proyecto nuevo"), que es lo que era. */
+/* El título del bloque lo pone la cabecera del grupo ("Al abrir un proyecto nuevo"). */
 .ajustes-radios {
   display: flex;
   flex-direction: column;
@@ -5506,14 +5558,14 @@ body {
   border: 1px solid var(--border-soft);
   border-radius: 8px;
   cursor: pointer;
-  transition: border-color 140ms ease, background 140ms ease;
+  transition: border-color var(--mov-rapido) var(--curva-estandar), background var(--mov-rapido) var(--curva-estandar);
 }
 .ajustes-radio:hover {
   border-color: var(--border);
 }
+/* La elegida se marca con el borde y el punto: un relleno de color competiría con los títulos de grupo. */
 .ajustes-radio.checked {
   border-color: var(--accent);
-  background: var(--accent-glow);
 }
 .ajustes-radio input {
   margin: 2px 0 0;
@@ -5526,10 +5578,13 @@ body {
   min-width: 0;
 }
 
-/* --- Límite de contenedores (deslizador con semáforo) ----------------------
-   La pista lleva el degradado de los cortes del equipo (`--limite-pista`, puesto inline);
-   el último paso de la barra es «Sin límite» y cae en el tramo rojo. */
+/* --- Límite de contenedores (deslizador) ------------------------------------
+   La pista es neutra y se rellena hasta la posición elegida (`--limite-pista`, puesto inline); una marca
+   señala el recomendado. El riesgo solo lo dicen el punto y el aviso, y solo en amarillo o rojo: pintado en
+   toda la pista competía con los títulos de sección. El último paso de la barra es «Sin límite». */
 .limite-bloque {
+  --limite-relleno: color-mix(in srgb, var(--fg) 72%, transparent);
+  --limite-vacio: color-mix(in srgb, var(--fg) 12%, transparent);
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -5554,9 +5609,6 @@ body {
   height: 10px;
   border-radius: 50%;
   background: var(--fg-faint);
-}
-.limite-valor.verde .limite-punto {
-  background: var(--green);
 }
 .limite-valor.amarillo .limite-punto {
   background: var(--yellow);
@@ -5588,10 +5640,25 @@ body {
   cursor: not-allowed;
   opacity: 0.5;
 }
+.limite-pista-caja {
+  position: relative;
+}
 .limite-barra::-webkit-slider-runnable-track {
-  height: 8px;
-  border-radius: 4px;
+  height: 6px;
+  border-radius: 3px;
   background: var(--limite-pista);
+}
+/* Un triángulo por encima de la pista y no una raya sobre ella: el pulgar, al pasar por el recomendado, la taparía. */
+.limite-marca {
+  position: absolute;
+  top: -6px;
+  width: 0;
+  height: 0;
+  margin-left: -5px;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid var(--fg-muted);
+  pointer-events: none;
 }
 .limite-barra::-webkit-slider-thumb {
   width: 18px;
@@ -5609,10 +5676,19 @@ body {
   border-radius: 4px;
 }
 .limite-escala {
+  position: relative;
   display: flex;
   justify-content: flex-end;
+  min-height: 1.4em;
   color: var(--fg-faint);
   font-size: calc(var(--ui-font) - 2px);
+}
+.limite-escala-recomendado {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  color: var(--fg-muted);
+  white-space: nowrap;
 }
 .limite-aviso {
   margin: 0;
@@ -5620,7 +5696,7 @@ body {
   line-height: 1.45;
 }
 .limite-aviso.verde {
-  color: var(--green);
+  color: var(--fg-muted);
 }
 .limite-aviso.amarillo {
   color: var(--yellow);
@@ -5777,7 +5853,10 @@ body {
   /* En `ch` y no en px: el modal mide 880 px y una línea de 110 caracteres no se
      lee. El límite es de MEDIDA tipográfica, así que se expresa en caracteres. */
   max-width: 46ch;
-  margin: 14px 0 0;
+  /* El filete separa la identidad firmada (nombre, versión y crédito) de lo que hace Tessera. */
+  margin: 18px 0 0;
+  padding-top: 18px;
+  border-top: 1px solid var(--border-soft);
   font-size: var(--ui-font);
   line-height: 1.55;
   color: var(--fg);
@@ -5816,15 +5895,21 @@ body {
   opacity: 0.75;
 }
 
+/* El crédito, bajo la versión: una línea «Creada por …» y otra con el puesto y los perfiles, en el
+   cuerpo pequeño de la firma; el nombre destaca solo por el peso. */
 .ajustes-acerca-autor {
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  margin-top: 26px;
+  gap: 2px;
+  margin-top: 10px;
+}
+
+.ajustes-acerca-autor-credito {
+  font-size: var(--ui-font);
+  color: var(--fg-muted);
 }
 
 .ajustes-acerca-autor-nombre {
-  font-size: calc(var(--ui-font) + 1px);
   font-weight: 600;
   color: var(--fg);
 }
@@ -5833,8 +5918,15 @@ body {
   font-size: calc(var(--ui-font) - 1px);
   color: var(--fg-muted);
 }
+.ajustes-acerca-autor-rol a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.ajustes-acerca-autor-rol a:hover {
+  text-decoration: underline;
+}
 
-/* Licencia y enlace al código: un renglón discreto entre el autor y el entorno. */
+/* Licencia y enlace al código: un renglón discreto entre lo que hace y el entorno. */
 .ajustes-acerca-enlaces {
   margin: 14px 0 0;
   font-size: calc(var(--ui-font) - 1px);
@@ -5847,11 +5939,6 @@ body {
 .ajustes-acerca-enlaces a:hover {
   text-decoration: underline;
 }
-/* Los perfiles del autor van pegados a su nombre y su rol, no separados como el
-   renglón de la licencia. */
-.ajustes-acerca-autor .ajustes-acerca-enlaces {
-  margin-top: 4px;
-}
 
 .ajustes-acerca-runtime {
   width: 100%;
@@ -5863,13 +5950,6 @@ body {
   color: var(--fg-faint);
   font-variant-numeric: tabular-nums;
 }
-
-/* Aquí vivían `.settings-radio*` y `.settings-switch*`. Se BORRARON al rediseñar
-   el panel: sus equivalentes son `.ajustes-radio*` y `.ajustes-switch*`, casi
-   idénticos, y dejar los dos juegos convivía mal — el siguiente que fuera a
-   retocar el interruptor habría editado el bloque muerto sin ver ningún cambio.
-   (El bloque `.settings-update*` de arriba SÍ está vivo: la sección de
-   actualizaciones no se reescribió.) */
 
 /* Modal ¿Windows o Docker? (modo "Preguntar siempre"). */
 .project-mode-choices {
@@ -5894,7 +5974,7 @@ body {
   background: transparent;
   color: var(--fg);
   cursor: pointer;
-  transition: background 120ms ease, border-color 120ms ease;
+  transition: background var(--mov-rapido) var(--curva-estandar), border-color var(--mov-rapido) var(--curva-estandar);
 }
 .project-mode-choice:hover {
   background: var(--hover-suave);
@@ -6013,45 +6093,7 @@ body {
   overflow: hidden;
 }
 
-.conv-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--border);
-  flex: 0 0 auto;
-}
-.conv-header-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--fg);
-}
-.conv-header-title > span:nth-of-type(1) {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.conv-header-profile {
-  flex: 0 0 auto;
-  color: var(--accent);
-  font-weight: 500;
-}
-.conv-close {
-  flex: 0 0 auto;
-  font-size: 13px;
-  line-height: 1;
-}
 
-.conv-search-wrap {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--border);
-  flex: 0 0 auto;
-}
 .conv-search {
   width: 100%;
   height: 32px;
@@ -6082,21 +6124,15 @@ body {
   line-height: 1.5;
   text-align: center;
 }
-.conv-error {
-  color: var(--red);
-  text-align: left;
-}
 
 .conv-item {
   display: flex;
   align-items: stretch;
   border-bottom: 1px solid var(--border-soft, var(--border));
 }
-/* EL HOVER IBA HACIA ABAJO. Se iluminaba con `--bg` (#16171d), que sobre la tarjeta
-   de modal es MÁS OSCURO que la fila: -6,4 de claridad, o sea que pasar el ratón se
-   leía como pulsar. Y antes tampoco funcionaba: sobre `--bg-elevated` la diferencia
-   era de 1,5, prácticamente invisible. Un alfa blanco sube siempre, mida lo que mida
-   el fondo. */
+/* El hover es un alfa blanco y no un fondo opaco: `--bg` sobre la tarjeta de modal es
+   MÁS OSCURO que la fila (-6,4 de claridad) y se leería como pulsar, y `--bg-elevated`
+   apenas se distingue (1,5). Un alfa blanco sube siempre, mida lo que mida el fondo. */
 .conv-item:hover {
   background: var(--hover-suave);
 }
@@ -6162,18 +6198,11 @@ body {
   color: var(--accent);
 }
 
-.conv-footer {
-  flex: 0 0 auto;
-  padding: 9px 14px;
-  border-top: 1px solid var(--border);
-  font-size: 11px;
-  color: var(--fg-faint);
-}
 
 /* ==========================================================================
    Modal "Actualizar agentes": intro + log de build en vivo + resultado.
    ========================================================================== */
-.agents-update-modal {
+.modal-card.agents-update-modal {
   width: min(620px, 92vw);
   max-height: 82vh;
   display: flex;
@@ -6187,8 +6216,6 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 14px;
-  overflow: hidden;
 }
 .agents-update-intro {
   margin: 0;
@@ -6199,6 +6226,7 @@ body {
 .agents-update-log {
   flex: 1;
   min-height: 160px;
+  max-height: 48vh;
   overflow-y: auto;
   padding: 10px 12px;
   border: 1px solid var(--border);
@@ -6218,29 +6246,9 @@ body {
 .agents-update-line.dim {
   color: var(--fg-faint);
 }
-.agents-update-result {
-  flex: 0 0 auto;
-  font-size: 13px;
-  line-height: 1.5;
-}
 /* Sin fallback: el `#98c379` que llevaba era el verde de la paleta ANTERIOR y llevaba
    tiempo mintiendo sobre el tema (el token vale #74d39a). Un fallback que no coincide
    con su token es peor que ninguno, porque nunca se dispara y nadie lo revisa. */
-.agents-update-result.ok {
-  color: var(--green);
-}
-.agents-update-result.err {
-  color: var(--red);
-}
-.agents-update-footer {
-  flex: 0 0 auto;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 14px;
-  border-top: 1px solid var(--border);
-}
 .agents-update-working {
   font-size: 12px;
   color: var(--fg-muted);
@@ -6271,13 +6279,6 @@ body {
   margin-left: 8px;
 }
 
-/* AQUÍ VIVÍA LA FAMILIA `.status-pill` (el LED + «activo»/«cerrado (exit 1)» de la
-   cabecera del agente, con su truncado y sus variantes live/dead). Se quedó sin DOM
-   cuando el pane dejó de pintar la píldora de estado —los estados que importan los
-   dice el banner de la propia terminal y la etiqueta del botón del pie—, así que eran
-   ~40 líneas que ya no podían aplicarse a nada. Ojo: `.diff-status-pill` (la A/M/D/R
-   del diff) NO es de esta familia y sigue viva, con sus propias reglas. */
-
 /* Terminal ON-DEMAND: fila INFERIOR DE .shell-main. Comparte el hueco —y la variable de
    alto— con el panel de Git·Log, que se turna con ella.
    NO es hermana de .shell-body ni ocupa el ancho completo: está dentro de .shell-main
@@ -6298,8 +6299,8 @@ body {
   display: none;
 }
 
-/* Cuerpo del panel: la PILA de terminales. La lista lateral de 180 px que había
-   aquí se retiró; ahora se cambia de terminal por las pestañas de la cabecera. */
+/* Cuerpo del panel: la PILA de terminales; se cambia de terminal por las pestañas de la
+   cabecera. */
 .terminal-body {
   flex: 1 1 auto;
   min-height: 0;
@@ -6601,6 +6602,10 @@ body {
   font-size: 10px;
   cursor: pointer;
 }
+.terminal-image-chip-close svg {
+  width: 10px;
+  height: 10px;
+}
 .terminal-image-chip-close:hover {
   color: var(--fg);
   background: var(--bg-surface-hi);
@@ -6682,7 +6687,50 @@ body {
   line-height: 22px;
   cursor: pointer;
   user-select: none;
-  transition: color 120ms ease, background 120ms ease;
+  width: auto;
+  min-width: 0;
+  overflow: clip;
+  interpolate-size: allow-keywords;
+  transition:
+    color var(--mov-rapido) var(--curva-estandar),
+    background var(--mov-rapido) var(--curva-estandar),
+    box-shadow var(--mov-rapido) var(--curva-estandar),
+    width var(--mov-medio) var(--curva-entrada),
+    padding-inline var(--mov-medio) var(--curva-entrada),
+    opacity var(--mov-medio) var(--curva-entrada);
+}
+
+@starting-style {
+  .editor-tab,
+  .terminal-tab {
+    width: 0;
+    padding-inline: 0;
+    opacity: 0;
+  }
+  .project-tab {
+    flex-basis: 0;
+    padding-inline: 0;
+    opacity: 0;
+  }
+  /* La base sigue en cero: el crecimiento reparte el espacio entre los perfiles. */
+  .profile-tab {
+    flex-grow: 0;
+    padding-inline: 0;
+    opacity: 0;
+  }
+}
+
+/* Las marcas de inserción sobresalen de la pestaña durante el arrastre. */
+.editor-tab.soltar-antes,
+.editor-tab.soltar-despues,
+.project-tab.soltar-antes,
+.project-tab.soltar-despues {
+  overflow: visible;
+}
+.editor-tab.arrastrando,
+.project-tab.arrastrando,
+.profile-tab.dragging {
+  transition-property: color, background, box-shadow;
 }
 
 .terminal-tab:hover {
@@ -6784,7 +6832,8 @@ body {
    bases montadas (`.db-mount-btn`) se quedan a la vista, porque son la salvaguarda contra la
    cuenta equivocada, y «Continuar esta conversación» (`.pasar-btn`), que se busca junto a la cuenta: la
    regla apunta a `.btn` y esos tres se exceptúan a mano. El ✕ de cada pestaña tampoco entra:
-   pertenece a la pestaña, no al panel. */
+   pertenece a la pestaña, no al panel. LA CABECERA DEL AGENTE NO SE RETIRA: es la columna con la que se trabaja
+   todo el tiempo, y sus acciones aparecían y desaparecían cada vez que el ratón entraba o salía de ella. */
 /* ESTADO VISIBLE. UNA SOLA LISTA CON `:is()`, y no cinco selectores repetidos en tres
    bloques: añadir un panel abajo obligaba a editar tres listas y a restituir la
    transición en dos, y olvidar una da un botón que no se funde o que ignora
@@ -6799,15 +6848,13 @@ body {
     .panel-actions .btn:not(.db-mount-btn):not(.cuenta-btn):not(.pasar-btn),
     .panel-actions .git-icon-btn,
     /* Historial y chat nuevo viven en `.panel-title-actions` (izquierda, pegados al
-       toggle) pero siguen siendo ACCIONES: se revelan al pasar el ratón igual que
-       cuando estaban a la derecha. Mudarlos de sitio no debía cambiar CUÁNDO se ven. */
+       toggle) pero son ACCIONES como las de la derecha: se revelan al pasar el ratón
+       igual. Su sitio no cambia CUÁNDO se ven. */
     .panel-title-actions .btn,
-    /* "Actualizar agentes" ENTRA AQUÍ AHORA, y no es un extra: es la única acción de
-       la cabecera que se quedaba fuera del revelado, y con los dos botones nuevos
-       delante el descuido se volvió visible. Como `visibility: hidden` conserva la
-       caja (a propósito, para no reflotar el layout), en reposo quedaban 70 px de
-       hueco entre el toggle y este botón, que flotaba solo en mitad de la nada.
-       Medido en la app: `huecoEntreToggleYActualizar: 70`. */
+    /* "Actualizar agentes" entra en el revelado como el resto de acciones de la
+       cabecera: como `visibility: hidden` conserva la caja (a propósito, para no
+       reflotar el layout), si quedara fuera habría en reposo un hueco de 70 px entre
+       el toggle y este botón, que flotaría solo en mitad de la nada. */
     .panel-name-btn,
     .terminal-tabs-add,
     .terminal-reload-btn,
@@ -6815,11 +6862,11 @@ body {
   ):not(.diff-header *) {
   visibility: visible;
   transition:
-    opacity 180ms ease,
+    opacity var(--mov-cromo-aparece) var(--curva-estandar),
     visibility 0s,
-    color 120ms ease,
-    background 120ms ease,
-    box-shadow 120ms ease;
+    color var(--mov-rapido) var(--curva-estandar),
+    background var(--mov-rapido) var(--curva-estandar),
+    box-shadow var(--mov-rapido) var(--curva-estandar);
 }
 
 /* EL `:not(.diff-header *)` DE LOS DOS BLOQUES: el historial de un archivo monta un visor
@@ -6830,34 +6877,33 @@ body {
    «Retirarse cuesta menos» vale para lo que entra y sale en un flujo; esto es cromo
    ambiental que se retira SOLO, como los controles de un reproductor de vídeo: aparecer
    instantáneo, irse despacio (con 120 ms se veía como un corte). Misma CURVA (`ease`).
-   EL RETARDO DE `visibility` ES EL TRUCO: no interpola, así que sin `0s linear 350ms`
+   EL RETARDO DE `visibility` ES EL TRUCO: no interpola, así que sin `0s linear var(--mov-cromo-retira)`
    desaparecería en el fotograma cero; y a opacidad cero seguiría recibiendo clics. */
 :is(.terminal-panel, .agent-pane, .git-log-panel):not(:hover):not(:focus-within)
   :is(
-    /* `fijo`: a pantalla completa, las DOS salidas del modo (restaurar y ocultar o cerrar el panel) se
-       quedan a la vista juntas: una fija y la otra escondida se leen como una avería. `abierto`: el botón
-       cuyo menú o lista flotante está desplegado (va fuera del panel y le quita el foco). */
-    .panel-actions .btn:not(.db-mount-btn):not(.cuenta-btn):not(.pasar-btn):not(.fijo):not(.abierto),
+    /* `abierto`: el botón cuyo menú o lista flotante está desplegado (va fuera del panel y le quita el
+       foco). Las salidas de pantalla completa no están aquí: viven en el riel, que no se retira. */
+    .panel-actions .btn:not(.db-mount-btn):not(.cuenta-btn):not(.pasar-btn):not(.abierto),
     /* MIENTRAS GIRA NO SE ESCONDE: ese icono deja de ser una acción y pasa a ser el
        ÚNICO aviso de que el historial se está recargando. Es la misma línea que ya
        exceptúa a la cuenta del agente y a las bases montadas — se esconden acciones,
-       no estado. Y el `fijo` (restaurar y cerrar a pantalla completa) tampoco: son las salidas del modo. */
-    .panel-actions .git-icon-btn:not(.girando):not(.fijo),
+       no estado. */
+    .panel-actions .git-icon-btn:not(.girando),
     .panel-title-actions .btn,
     .panel-name-btn,
     /* En la columna plegada el «+» es lo único que hay junto al título: se queda fijo, como el chip. */
     .terminal-tabs-add:not(.abierto):not(.sin-terminal *),
     .terminal-reload-btn,
     .agent-pane-footer .btn
-  ):not(.diff-header *) {
+  ):not(.diff-header *):not(.agent-pane .panel-header *) {
   opacity: 0;
   visibility: hidden;
   transition:
-    opacity 350ms ease,
-    visibility 0s linear 350ms,
-    color 120ms ease,
-    background 120ms ease,
-    box-shadow 120ms ease;
+    opacity var(--mov-cromo-retira) var(--curva-estandar),
+    visibility 0s linear var(--mov-cromo-retira),
+    color var(--mov-rapido) var(--curva-estandar),
+    background var(--mov-rapido) var(--curva-estandar),
+    box-shadow var(--mov-rapido) var(--curva-estandar);
 }
 
 /* Las DOS formas, y la del reposo no sobra: `transition: none` solo gana si empata o
@@ -6889,46 +6935,10 @@ body {
   }
 }
 
-/* LOS FILETES DE LA CABECERA DE LA TERMINAL son de sus acciones: con ellas escondidas en
-   reposo no pueden quedarse solos, como dos rayas sin nada entre medias. Mismo fundido que
-   los botones (aparecer rápido, irse despacio) y mismo gesto para quien pide menos movimiento. */
-.terminal-panel .panel-header .panel-actions-sep {
-  transition: opacity 180ms ease;
-}
-/* El filete que sigue a un botón `fijo` (a pantalla completa, entre «Restaurar» y «Ocultar») tampoco se
-   funde: separa dos botones que se quedan a la vista y solo se vería la raya desaparecer. */
-.terminal-panel:not(:hover):not(:focus-within) .panel-header .panel-actions-sep:not(.fijo + .panel-actions-sep) {
-  opacity: 0;
-  transition: opacity 350ms ease;
-}
-@media (prefers-reduced-motion: reduce) {
-  .terminal-panel .panel-header .panel-actions-sep,
-  .terminal-panel:not(:hover):not(:focus-within) .panel-header .panel-actions-sep {
-    transition: none;
-  }
-}
-
-/* Aquí `.btn.btn-icon` se REDECLARABA con `padding: 4px 6px` y, por ir más abajo en
-   la hoja, pisaba en silencio el `padding: 0` de `.btn-icon` para TODA la app. No era
-   un ajuste: con `box-sizing: border-box`, `width: 24px` y `height: 24px`, esos 6 px
-   por lado dejaban una caja de contenido de 12 px para un `svg` de 14, así que el
-   icono se salía y sólo lo recentraba el `justify-content`. Se retira; el molde
-   vuelve a ser uno solo. Si algún icono concreto queda apretado, la corrección va
-   SCOPED a su cabecera, nunca otra vez global. */
-
-/* Aquí vivía `.terminal-add-btn`: el "+" de nueva terminal con recuadro, 30x28 y
-   color --fg. Se RETIRÓ. Era el único botón de cabecera de toda la app con
-   contorno, y al ponerlo junto a la vista de Git —cuyos `git-icon-btn` son gris
-   plano sin borde, igual que el `.btn.btn-icon` de aquí arriba— la diferencia
-   cantaba. El "+" y el "✕" del header usan ahora `btn btn-icon` pelado, que es el
-   acabado del header del agente, los visores, el diff y los modales. */
-
-/* AQUÍ VIVÍA `.terminal-panel-footer`, la franja de 34 px que alojaba "Reiniciar"
-   abajo-derecha. Se RETIRÓ con el elemento: existía para un solo botón, le quitaba
-   alto a la consola —lo único que se mira en este panel— y dejaba el botón lejos de
-   la pestaña sobre la que actúa. El botón vive ahora en la cabecera, el primero del
-   grupo de acciones de la derecha. Con él se fue su container query (`terminalfooter`),
-   que sólo servía para callar la etiqueta cuando el PIE se estrechaba. */
+/* "Reiniciar" vive en la cabecera, el primero del grupo de acciones de la derecha, junto a
+   la pestaña sobre la que actúa. El "+" y el "✕" del header usan `btn btn-icon` pelado,
+   el mismo acabado que el header del agente, los visores, el diff y los modales. Si un
+   icono concreto queda apretado, la corrección va acotada a su cabecera, nunca global. */
 .terminal-reload-btn {
   height: 24px;
   flex: 0 0 auto;
@@ -6961,7 +6971,7 @@ body {
      de alto; las píldoras de 20 px sobresalen 1 px sobre el relleno, que es gris igual. */
   padding: 0 6px var(--lienzo-gutter);
   /* MARCO: el pie del contorno gris, hermano de la barra de título y del riel. El
-     `border-top` se fue por lo mismo que el del riel: ya separa el canal del lienzo. */
+     sin `border-top`, como el riel: ya separa el canal del lienzo. */
   background: var(--bg-chrome);
 }
 
@@ -7010,7 +7020,7 @@ body {
   color: var(--fg-muted);
   font-size: calc(var(--ui-font) - 1px);
   cursor: pointer;
-  transition: color 120ms ease, background 120ms ease;
+  transition: color var(--mov-rapido) var(--curva-estandar), background var(--mov-rapido) var(--curva-estandar);
 }
 
 .status-bar-btn:hover {
@@ -7058,14 +7068,9 @@ body {
   max-width: 220px;
 }
 
-/* SE PROBÓ SUBIR LA RAMA UN PELDAÑO (a `--ui-font`, +1 px sobre sus vecinos) con el
-   argumento de que desde que abre el bloque izquierdo es el ancla del renglón. Se
-   MIRÓ EN LA APP y se retiró: más grande no se ve mejor, se ve desparejo. Todos los
-   chips de la barra comparten tamaño; lo que distingue a la rama es DÓNDE está. */
-
-/* Bloque derecho de la barra de estado (EOL + encoding), anclado al borde derecho. */
-/* El `margin-left: auto` que lo empujaba a la derecha se fue con el flex: ahora es
-   la tercera columna de la rejilla y se alinea al final de la suya. */
+/* Bloque derecho de la barra de estado (EOL + encoding), anclado al borde derecho: es la
+   tercera columna de la rejilla y se alinea al final de la suya. Todos los chips de la
+   barra comparten tamaño; lo que distingue a la rama es DÓNDE está. */
 .status-bar-right {
   grid-column: 3;
   min-width: 0;
@@ -7120,7 +7125,8 @@ body {
   border-radius: 9px;
   background: var(--bg-surface);
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4), var(--shadow-chip);
-  animation: toast-in 140ms ease;
+  animation: toast-in var(--mov-medio) var(--curva-entrada);
+  interpolate-size: allow-keywords;
 }
 @keyframes toast-in {
   from {
@@ -7130,6 +7136,28 @@ body {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+/* El que se va (`Toaster` lo deja montado mientras sale): se desliza hacia el borde y, ya invisible, cierra su hueco
+   con el margen negativo que compensa el `gap` de la pila, para que los demás bajen suaves y no de golpe. */
+.toast[data-saliendo] {
+  overflow: hidden;
+  pointer-events: none;
+  animation: toast-sale var(--mov-entrada) var(--curva-estandar) forwards;
+}
+@keyframes toast-sale {
+  45% {
+    opacity: 0;
+    transform: translateX(16px);
+    height: auto;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(16px);
+    height: 0;
+    padding-block: 0;
+    border-width: 0;
+    margin-block-start: -8px;
   }
 }
 
@@ -7204,7 +7232,7 @@ body {
   background: transparent;
   color: var(--fg-faint);
   cursor: pointer;
-  transition: color 120ms ease, background 120ms ease;
+  transition: color var(--mov-rapido) var(--curva-estandar), background var(--mov-rapido) var(--curva-estandar);
 }
 .toast-close:hover {
   color: var(--fg);
@@ -7237,13 +7265,6 @@ body {
     0 -12px 32px -6px rgba(0, 0, 0, 0.55);
   font-size: var(--ui-font);
   transform-origin: bottom left;
-  animation: statusbar-menu-aparece 110ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-@keyframes statusbar-menu-aparece {
-  from {
-    opacity: 0;
-    transform: translateY(3px) scale(0.98);
-  }
 }
 @media (prefers-reduced-motion: reduce) {
   .statusbar-menu {
@@ -7310,10 +7331,10 @@ body {
   position: absolute;
   background: var(--border);
   transition:
-    background 120ms ease,
-    width 120ms ease,
-    height 120ms ease,
-    transform 120ms ease;
+    background var(--mov-rapido) var(--curva-estandar),
+    width var(--mov-rapido) var(--curva-expandir),
+    height var(--mov-rapido) var(--curva-estandar),
+    transform var(--mov-rapido) var(--curva-estandar);
 }
 
 .splitter-vertical {
@@ -7450,17 +7471,15 @@ body.consultando-perfil * {
   display: flex;
   align-items: center;
   justify-content: center;
-  /* Sin fallbacks: los que llevaban (#16191d aquí y #21252b en la tarjeta) eran de la
-     paleta ANTERIOR y no coincidían con sus tokens (#101116 y #131419). Un fallback
-     que miente es peor que ninguno: nunca se dispara, así que nadie lo revisa. */
+  /* Sin fallbacks: un fallback que no coincide con su token miente y, como nunca se
+     dispara, nadie lo revisa. */
   background: color-mix(in srgb, var(--bg-deep) 82%, transparent);
   backdrop-filter: blur(3px);
-  /* Zona de arrastre. Antes esto significaba "que no se pueda arrastrar la ventana
-     por debajo" (había barra de título nativa y el overlay la tapaba); ahora que la
-     barra es nuestra y queda debajo del overlay, lo que hace es SER la zona de
-     arrastre mientras se cierra, para que la ventana se pueda seguir moviendo. No se
-     come nada: este overlay no tiene un solo elemento interactivo. Los botones
-     ─ □ ✕ siguen encima y funcionando, porque los pinta el SO sobre el contenido. */
+  /* Zona de arrastre: la barra de título es propia y queda debajo del overlay, así que
+     el overlay es la zona de arrastre mientras se cierra, para que la ventana se pueda
+     seguir moviendo. No se come nada: este overlay no tiene un solo elemento
+     interactivo. Los botones ─ □ ✕ siguen encima y funcionando, porque los pinta el SO
+     sobre el contenido. */
   -webkit-app-region: drag;
 }
 
@@ -7504,7 +7523,7 @@ body.consultando-perfil * {
   border-radius: 3px;
   background: var(--accent);
   width: 0;
-  transition: width 0.25s ease;
+  transition: width var(--mov-entrada) var(--curva-expandir);
 }
 
 /* Indeterminada: mientras no sabemos el total (fase inicial) o en desmontaje/
@@ -7605,12 +7624,6 @@ body.consultando-perfil * {
    (PDF / Word / comprimidos). Comparten la cáscara .editor, así que heredan
    header, .hidden y el layout de columna; aquí solo el contenido propio.
    ========================================================================== */
-
-/* Botón del header en estado "activo" (toggle de markdown en vista bonita). */
-/* Aquí vivía una PRIMERA declaración de `.btn.btn-active` en acento SÓLIDO. Estaba
-   muerta: más abajo hay otra con el mismo peso (0,2,0) y aspecto distinto —tinte al
-   14 %— que ganaba por orden, así que ésta no pintaba nada y nadie se enteraba.
-   Se retira; la buena queda documentada en su sitio. */
 
 /* Vista renderizada de Markdown: ocupa el hueco del editor y hace scroll propio.
    Estilo sobrio tipo documento (interlineado cómodo, código monoespaciado).
@@ -7721,8 +7734,8 @@ body.consultando-perfil * {
 }
 
 /* Docx vive dentro de .binary-viewer-body, que es el scroller: el docx-preview es un
-   bloque de altura natural que desborda y deja scrollear el body (antes tenía su
-   propio overflow anidado y el scroll no funcionaba). */
+   bloque de altura natural que desborda y deja scrollear el body: un overflow anidado
+   propio impediría el scroll. */
 .docx-preview {
   flex: 0 0 auto;
   overflow: visible;
@@ -7777,16 +7790,20 @@ body.consultando-perfil * {
 .markdown-preview li {
   margin: 0.25em 0;
 }
+/* El texto del código del documento sigue el tema del código (`comun/temaCodigo.ts`); su fondo y el resto
+   del documento, los colores de Tessera. */
 .markdown-preview code {
   font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
   font-size: 0.88em;
   background: var(--bg-elevated);
+  color: var(--codigo-texto, inherit);
   border: 1px solid var(--border-soft);
   border-radius: 4px;
   padding: 0.12em 0.4em;
 }
 .markdown-preview pre {
-  background: var(--bg-deep, var(--bg-elevated));
+  background: var(--bg-deep);
+  color: var(--codigo-texto, inherit);
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 12px 14px;
@@ -7935,6 +7952,26 @@ body.consultando-perfil * {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+.image-meta-reserva { flex: 0 1 24ch; width: 24ch; min-width: 0; overflow: hidden; }
+.image-aviso { flex: 0 1 18ch; width: 18ch; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.image-aviso,
+.image-toolbar {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--mov-medio) var(--curva-estandar), visibility var(--mov-salida) var(--curva-estandar);
+  transition-behavior: allow-discrete;
+}
+.image-aviso.visible,
+.image-toolbar.visible { opacity: 1; visibility: visible; }
+.image-estado {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.image-estado > .mov-cruce-capa { display: flex; align-items: center; justify-content: center; }
+.image-estado .image-fallback { pointer-events: auto; background: var(--bg-surface); }
+.image-estado > .mov-cruce-capa[data-saliendo] * { pointer-events: none; }
 
 /* Área de la imagen: recorta el contenido y CENTRA el <img> sin transformar (su
    posición base es el centro, sobre el que actúan translate/scale/rotate). Fondo a
@@ -7964,6 +8001,8 @@ body.consultando-perfil * {
    transformación por `transform`; origen en el centro para que rotar/escalar no
    muevan el centro. */
 .image-canvas {
+  opacity: 0;
+  transition: opacity var(--mov-entrada) var(--curva-estandar);
   transform-origin: center center;
   max-width: none;
   max-height: none;
@@ -7973,6 +8012,7 @@ body.consultando-perfil * {
   /* Sombra tenue para despegar la imagen del tablero. */
   box-shadow: 0 2px 16px rgba(0, 0, 0, 0.35);
 }
+.image-canvas.visible { opacity: 1; }
 
 /* Barra flotante de controles, abajo-centro del área. */
 .image-toolbar {
@@ -8110,6 +8150,19 @@ body.consultando-perfil * {
   cursor: default;
   text-align: left;
   white-space: normal;
+  /* Cuelga de su botón: entra bajando un poco; la salida es su despedida (`PopoverBarra`). */
+  transform-origin: top right;
+  transition:
+    opacity var(--mov-medio) var(--curva-estandar),
+    translate var(--mov-medio) var(--curva-entrada),
+    scale var(--mov-medio) var(--curva-entrada);
+}
+@starting-style {
+  .actualizacion-pop {
+    opacity: 0;
+    translate: 0 -3px;
+    scale: 0.98;
+  }
 }
 
 .actualizacion-pop-bloque + .actualizacion-pop-bloque {
@@ -8464,8 +8517,8 @@ body.consultando-perfil * {
   cursor: pointer;
   min-width: 0;
   transition:
-    background 0.14s ease,
-    color 0.14s ease;
+    background var(--mov-rapido) var(--curva-estandar),
+    color var(--mov-rapido) var(--curva-estandar);
 }
 .db-mount-item:hover {
   background: color-mix(in srgb, var(--perfil) 14%, transparent);
@@ -8502,8 +8555,8 @@ body.consultando-perfil * {
   background: rgba(255, 255, 255, 0.13);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
   transition:
-    background 0.18s ease,
-    box-shadow 0.18s ease;
+    background var(--mov-rapido) var(--curva-estandar),
+    box-shadow var(--mov-rapido) var(--curva-estandar);
 }
 .db-sw-knob {
   position: absolute;
@@ -8514,7 +8567,7 @@ body.consultando-perfil * {
   border-radius: 50%;
   background: #e9edf3;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
-  transition: transform 0.18s cubic-bezier(0.3, 0.9, 0.4, 1);
+  transition: transform var(--mov-rapido) var(--curva-estandar);
 }
 .db-sw-input:checked + .db-sw {
   background: color-mix(in srgb, var(--perfil) 78%, transparent);
@@ -8735,6 +8788,10 @@ body.consultando-perfil * {
   color: var(--fg-faint);
 }
 .buscar-limpiar {
+  opacity: 0;
+  visibility: hidden;
+  scale: 0.9;
+  transition: opacity var(--mov-medio) var(--curva-estandar), scale var(--mov-medio) var(--curva-entrada), visibility 0s linear var(--mov-medio);
   flex: 0 0 auto;
   border: none;
   background: transparent;
@@ -8745,6 +8802,12 @@ body.consultando-perfil * {
   line-height: 1;
   font-size: calc(var(--ui-font) - 1px);
 }
+.buscar-limpiar.visible { opacity: 1; visibility: visible; scale: 1; transition-delay: 0s; }
+.buscar-limpiar { display: inline-flex; align-items: center; }
+.buscar-limpiar svg { width: 12px; height: 12px; }
+.buscar-tapa-fundido { transition: opacity var(--mov-medio) var(--curva-estandar); }
+@starting-style { .buscar-tapa-fundido { opacity: 0; } }
+.buscar-tapa-fundido[data-saliendo] { opacity: 0; pointer-events: none; transition-duration: var(--mov-salida); }
 .buscar-limpiar:hover {
   color: var(--fg);
   background: var(--hover-suave);
@@ -8839,6 +8902,7 @@ body.consultando-perfil * {
   min-height: 0;
 }
 .buscar-fila {
+  transition: background var(--mov-rapido) var(--curva-estandar), color var(--mov-rapido) var(--curva-estandar);
   display: flex;
   align-items: center;
   gap: 12px;
@@ -8874,11 +8938,11 @@ body.consultando-perfil * {
   color: var(--fg);
 }
 /* TODAS las coincidencias en NARANJA CON LETRA CASI NEGRA, también las de las filas no
-   seleccionadas: es lo legible. Antes (a) las inactivas iban en el azul apagado
-   `--search-match`, que en una lista donde CADA fila tiene una coincidencia no distinguía
-   nada —lo que marca la selección es el fondo de la fila—; (b) la letra clara sobre el
-   ámbar oscuro daba 2,1:1. El par `--search-hit*` es distinto del de la vista previa a
-   propósito: allí el resaltado va ENCIMA del código coloreado y solo puede teñir el fondo. */
+   seleccionadas: el azul apagado `--search-match` no distinguiría nada en una lista donde
+   CADA fila tiene una coincidencia (lo que marca la selección es el fondo de la fila) y la
+   letra clara sobre el ámbar oscuro daría 2,1:1. El par `--search-hit*` es distinto del de la
+   vista previa a propósito: allí el resaltado va ENCIMA del código coloreado y solo puede
+   teñir el fondo. */
 .buscar-fila-match {
   /* EL COLOR DEL PERFIL, igual que el resaltado del historial de git: buscar en un
      perfil se ve del color de ese perfil. El ámbar `--search-hit` queda de reserva
@@ -8893,10 +8957,10 @@ body.consultando-perfil * {
    la izquierda, dónde está a la derecha: las dos cosas que se leen quedan en los extremos. */
 .buscar-fila-meta {
   flex: 0 0 auto;
-  /* `margin-left: auto` y no confiar en que el texto crezca: desde que el texto
-     tiene tope de la mitad, ya NO hay nadie que se coma el hueco sobrante, y sin
-     esto el nombre del archivo se quedaría pegado al final del texto —a media
-     fila, distinto en cada una— en vez de en su columna de la derecha. */
+  /* `margin-left: auto` y no confiar en que el texto crezca: el texto tiene tope de la
+     mitad, así que nadie se come el hueco sobrante, y sin esto el nombre del archivo
+     quedaría pegado al final del texto —a media fila, distinto en cada una— en vez de
+     en su columna de la derecha. */
   margin-left: auto;
   display: flex;
   align-items: baseline;
@@ -8950,6 +9014,8 @@ body.consultando-perfil * {
   display: flex;
   background: var(--bg-modal);
 }
+.buscar-tapa-contenido { flex: 1; min-width: 0; }
+.buscar-tapa-contenido > .mov-cruce-capa { display: flex; }
 /* `.pane-empty` trae `min-height` (ver el gotcha de su CSS: con `height:100%` dentro
    de una columna flex colapsa a cero); aquí además tiene que CRECER para quedar
    centrado en todo el hueco, no pegado arriba. */
@@ -9050,14 +9116,19 @@ body.consultando-perfil * {
   border-radius: 2px;
 }
 
+/* El pie y sus botones, con las medidas del pie estándar de los diálogos (`comun/modal.css`). */
 .buscar-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 9px 12px;
-  border-top: 1px solid var(--border);
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--border-soft);
   flex: 0 0 auto;
+}
+.buscar-footer .btn {
+  height: 30px;
+  padding: 0 14px;
 }
 .buscar-footer-pista {
   color: var(--fg-faint);

@@ -7,14 +7,17 @@
 // Decisiones: docs/decisiones/git/log-identidad-y-anclaje.md
 // =============================================================================
 
+import { Presente } from '../../comun/Presente'
+import { useUltimoValor } from '../../comun/presencia'
 import { useLayoutEffect } from 'react'
 import { EstadoVacio, IconoCarpetaVacia } from '../../comun/EstadoVacio'
 import { Splitter } from '../../comun/Splitter'
+import { IconoCerrar } from '../../comun/iconosMenu'
 import { ArbolRamas } from './ArbolRamas'
 import { DetalleCommit } from './DetalleCommit'
 import { asegurarEstilosGit } from './estilosGit'
 import { HistorialArchivo } from './HistorialArchivo'
-import { IconoMaximizar, IconoRestaurar } from '../../comun/iconosPanel'
+import { IconoMaximizar, IconoOcultarPanel } from '../../comun/iconosPanel'
 import { etiquetaAcorde } from '../../util/atajos'
 import { IconoGitVacio, IconoRecargar } from './iconos'
 import { ColumnaCentro } from './ListaCommits'
@@ -95,9 +98,6 @@ function CabeceraLog(p: {
   onClose: () => void
 }): React.JSX.Element {
   const t = txGit()
-  const etiquetaModo = p.pantallaCompleta ? t.restaurarPanel : t.maximizarPanel
-  // `fijo`: a pantalla completa restaurar y cerrar son las dos salidas del modo y no se esconden en reposo.
-  const fijo = p.pantallaCompleta ? ' fijo' : ''
   return (
     <header className="panel-header">
       <span className="panel-title">
@@ -115,24 +115,22 @@ function CabeceraLog(p: {
         >
           <IconoRecargar girando={p.cargando} />
         </button>
-        <button
-          className={`git-icon-btn${fijo}`}
-          onClick={() => p.onPantallaCompleta(!p.pantallaCompleta)}
-          title={`${p.pantallaCompleta ? t.restaurarTitulo : t.maximizarTitulo} (${etiquetaAcorde('pantallaCompleta')})`}
-          aria-label={etiquetaModo}
-        >
-          {p.pantallaCompleta ? <IconoRestaurar /> : <IconoMaximizar />}
-        </button>
-        <button
-          className={`git-icon-btn${fijo}`}
-          onClick={p.onClose}
-          title={t.cerrarPanel}
-          aria-label={t.cerrarPanel}
-        >
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6">
-            <path d="M4 4l8 8M12 4l-8 8" strokeLinecap="round" />
-          </svg>
-        </button>
+        {/* A pantalla completa, restaurar y ocultar son del modo y viven en el riel (`RielPantallaCompleta`). */}
+        {!p.pantallaCompleta && (
+          <>
+            <button
+              className="git-icon-btn"
+              onClick={() => p.onPantallaCompleta(true)}
+              title={`${t.maximizarTitulo} (${etiquetaAcorde('pantallaCompleta')})`}
+              aria-label={t.maximizarPanel}
+            >
+              <IconoMaximizar />
+            </button>
+            <button className="git-icon-btn" onClick={p.onClose} title={t.ocultarPanel} aria-label={t.ocultarPanel}>
+              <IconoOcultarPanel />
+            </button>
+          </>
+        )}
       </div>
     </header>
   )
@@ -175,7 +173,7 @@ function PestanasVistas(p: {
             p.onCerrarHistorial()
           }}
         >
-          ×
+          <IconoCerrar />
         </span>
       </button>
     </div>
@@ -249,17 +247,18 @@ function CuerpoLog({ props, e }: { props: GitLogPanelProps; e: EstadoLog }): Rea
 /** Pestañas (si hay historial abierto) y la vista elegida: historial del archivo o log. */
 function ContenidoLog({ props, e }: { props: GitLogPanelProps; e: EstadoLog }): React.JSX.Element {
   const { historial } = props
+  const ultimoHistorial = useUltimoValor(historial)
   const { vistaHistorial, setVistaHistorial } = e.historial
   return (
     <>
-      {historial !== null && (
+      <Presente visible={historial !== null} className="mov-despliega">
         <PestanasVistas
-          historial={historial}
+          historial={ultimoHistorial ?? ''}
           vistaHistorial={vistaHistorial}
           setVistaHistorial={setVistaHistorial}
           onCerrarHistorial={props.onCerrarHistorial}
         />
-      )}
+      </Presente>
       {vistaHistorial && historial !== null ? (
         <HistorialArchivo
           // Por ruta: cambiar de archivo tiene que empezar de cero, no reutilizar el anterior.

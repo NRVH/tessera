@@ -15,7 +15,7 @@ const es: Articulo = {
       ancla: 'entrar',
       titulo: 'Entrar y salir del mosaico',
       bloques: [
-        'Haga clic en **Mosaico de agentes** en la barra de título (disponible cuando hay algún agente en ejecución) o use el teclado:',
+        'Haga clic en el primer botón de la barra de título, a la izquierda, para abrir el mosaico (el texto emergente indica «Mosaico de agentes: todas las terminales en ejecución visibles», seguido del atajo). No está disponible sin agentes en ejecución; antes debe [abrir un proyecto](proyectos/abrir) o [mostrar un agente de datos](bases-de-datos/agente-de-datos). También puede usar el teclado:',
         {
           lista: [
             '`Ctrl+Mayús+M` abre y cierra el mosaico.',
@@ -55,8 +55,8 @@ const es: Articulo = {
       ancla: 'elegir',
       titulo: 'Elegir qué se ve y cómo',
       bloques: [
-        'El selector de la barra del mosaico marca qué proyectos se muestran, como máximo seis. Si ya hay seis, añadir otro sustituye al usado hace más tiempo. Los proyectos sin agente en ejecución lo inician al añadirse, y los hibernados se reanudan. Ninguna casilla se añade automáticamente, y una casilla permanece aunque su agente se detenga: solo desaparece si usted la quita o si su proyecto se cierra o se hiberna.',
-        '**Distribución** define la forma de la rejilla: **Automático** (según el número de casillas y la forma de la ventana), **Cuadrícula**, **Columnas**, **Filas** o **Principal y pila**. Si la seleccionada no cabe en la ventana, se usa **Automático** hasta que haya espacio disponible.'
+        'El botón de la barra del mosaico con el número de casillas elegidas y el total de proyectos disponibles (por ejemplo, **2 de 8**) marca qué proyectos se muestran, como máximo seis. Si ya hay seis, añadir otro sustituye al usado hace más tiempo. Los proyectos sin agente en ejecución lo inician al añadirse, y los hibernados se reanudan. Ninguna casilla se añade automáticamente, y una casilla permanece aunque su agente se detenga: solo desaparece si usted la quita o si su proyecto se cierra o se hiberna.',
+        'Los botones de icono de distribución de la barra del mosaico eligen la forma de la rejilla. Al pasar el puntero, cada botón indica su función: **Automático: distribuye según el número de agentes y la forma de la ventana**, **Cuadrícula: filas y columnas equilibradas (4 en 2 × 2, 6 en 3 × 2), aunque Automático prefiera otra forma**, **Columnas: todas lado a lado**, **Filas: todas una debajo de otra** o **Principal y pila: la primera grande a la izquierda y las demás apiladas a la derecha**. Si la seleccionada no cabe en la ventana, se usa el modo automático hasta que haya espacio disponible.'
       ]
     },
     {
@@ -95,7 +95,7 @@ const en: Articulo = {
       ancla: 'entrar',
       titulo: 'Open and close the mosaic',
       bloques: [
-        'Click **Agent mosaic** in the title bar (available when at least one agent is running), or use the keyboard:',
+        'Click the first button on the left of the title bar to open the mosaic (its tooltip says “Agent mosaic: every running terminal in view”, followed by the shortcut). It is unavailable without running agents; first [open a project](proyectos/abrir) or [show a data agent](bases-de-datos/agente-de-datos). You can also use the keyboard:',
         {
           lista: [
             '`Ctrl+Shift+M` opens and closes the mosaic.',
@@ -135,8 +135,8 @@ const en: Articulo = {
       ancla: 'elegir',
       titulo: 'Choose what appears and how',
       bloques: [
-        'The selector in the mosaic bar sets which projects appear, up to six. If there are already six, adding another replaces the least recently used one. Projects with no running agent start it when you add them, and hibernated ones resume. Tiles are never added automatically, and a tile stays even if its agent stops: it disappears only if you remove it or its project closes or hibernates.',
-        '**Layout** sets the shape of the grid: **Automatic** (based on the number of tiles and the shape of the window), **Grid**, **Columns**, **Rows**, or **Main and stack**. If the layout you choose does not fit in the window, Tessera uses **Automatic** until there is enough space.'
+        'The button in the mosaic bar showing the selected tile count and the total available projects (for example, **2 of 8**) sets which projects appear, up to six. If there are already six, adding another replaces the least recently used one. Projects with no running agent start it when you add them, and hibernated ones resume. Tiles are never added automatically, and a tile stays even if its agent stops: it disappears only if you remove it or its project closes or hibernates.',
+        'The layout icon buttons in the mosaic bar choose the grid shape. On hover, each button describes its function: **Automatic: arranges them by how many there are and the shape of the window**, **Grid: balanced rows and columns (4 in 2 × 2, 6 in 3 × 2), even if Automatic prefers another shape**, **Columns: all side by side**, **Rows: all one below the other**, or **Main and stack: the first one large on the left and the rest stacked on the right**. If the chosen layout does not fit in the window, the automatic layout is used until there is enough space.'
       ]
     },
     {

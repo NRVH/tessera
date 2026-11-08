@@ -48,7 +48,7 @@ async function capturar(win: Page, nombre: string): Promise<void> {
  * El botón de una vista en el riel, por su `title`. No por `aria-label`: el de Git
  * lleva pegado el número de cambios («Git · Cambios, 1 cambios sin confirmar»).
  */
-function botonVista(win: Page, titulo: 'Archivos' | 'Git · Cambios' | 'Conexiones a bases de datos'): Locator {
+function botonVista(win: Page, titulo: 'Archivos' | 'Git · Cambios' | 'Bases de datos'): Locator {
   return win.locator(`.activity-item[title="${titulo}"]`)
 }
 
@@ -345,7 +345,7 @@ test.describe('explorador de bases de datos', () => {
   // por `db.onChanged` sin tocar nada (la suscripción que el panel viejo no tenía).
   test('(1) al entrar, estado vacío en el centro y sin columna del agente', async () => {
     const win = s!.win
-    await botonVista(win, 'Conexiones a bases de datos').click()
+    await botonVista(win, 'Bases de datos').click()
     const area = win.locator('.db-area:not(.hidden)')
     await expect(area).toBeVisible()
     await expect(area.locator('.pane-empty-title')).toHaveText('Sin conexiones')
@@ -465,8 +465,13 @@ test.describe('explorador de bases de datos', () => {
     await win.locator('.db-arbol .sidebar-header button[aria-label="Nueva conexión"]').click()
     const dialogo = win.locator('.db-conexion-modal')
     await expect(dialogo).toBeVisible()
+    await expect(dialogo.getByRole('button', { name: 'Cerrar', exact: true })).toHaveAttribute('title', 'Cerrar (Esc)')
+    await expect(dialogo.locator('.modal-pie').getByRole('button')).toHaveText(['Guardar y probar', 'Cancelar', 'Guardar'])
     await capturar(win, '05-dialogo-nueva-conexion')
     await win.keyboard.press('Escape')
+    await expect(dialogo).toHaveCount(0)
+    await win.locator('.db-arbol .sidebar-header button[aria-label="Nueva conexión"]').click()
+    await dialogo.getByRole('button', { name: 'Cerrar', exact: true }).click()
     await expect(dialogo).toHaveCount(0)
   })
 
@@ -732,7 +737,7 @@ test.describe('explorador de bases de datos', () => {
     // Dos condiciones: «nota está vacío» y «cliente_id = 1». Todas → la 10; cualquiera → las 3.
     await condicion(1).getByRole('combobox', { name: 'Operador' }).selectOption({ label: 'está vacío' })
     await expect(condicion(1).getByRole('textbox'), '«está vacío» no lleva valor').toHaveCount(0)
-    await expect(barra.getByRole('group', { name: 'Cómo se unen las condiciones' }), 'con una condición no hay conmutador').toHaveCount(0)
+    await expect(barra.getByRole('radiogroup', { name: 'Cómo se unen las condiciones' }), 'con una condición no hay conmutador').toHaveCount(0)
     await anadir.click()
     await condicion(2).getByRole('combobox', { name: 'Columna' }).selectOption('cliente_id')
     await expect(condicion(2).getByRole('combobox', { name: 'Operador' }), 'número: nace en «=»').toHaveValue('igual')
@@ -741,9 +746,9 @@ test.describe('explorador de bases de datos', () => {
     await condicion(2).getByRole('textbox', { name: 'Valor' }).press('Enter')
     await expect(filas).toHaveCount(1, { timeout: 15_000 })
     await expect(celda(win, 0, 0)).toHaveText('10')
-    const union = barra.getByRole('group', { name: 'Cómo se unen las condiciones' })
-    await union.getByRole('button', { name: 'cualquiera', exact: true }).click()
-    await expect(union.getByRole('button', { name: 'cualquiera', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    const union = barra.getByRole('radiogroup', { name: 'Cómo se unen las condiciones' })
+    await union.getByRole('radio', { name: 'cualquiera', exact: true }).click()
+    await expect(union.getByRole('radio', { name: 'cualquiera', exact: true })).toHaveAttribute('aria-checked', 'true')
     await expect(condicion(2).locator('.filtro-guiado-conector'), 'y pasa a «o …»').toHaveText('o')
     await barra.getByRole('button', { name: 'Aplicar', exact: true }).click()
     await expect(filas).toHaveCount(3, { timeout: 15_000 })
@@ -769,11 +774,11 @@ test.describe('explorador de bases de datos', () => {
     // Quitar una y aplicar (queda «nota está vacío»: la 10 y la 12); quitar la otra y
     // aplicar: la tabla entera. Cada paso cambia el número de filas, así que cada espera
     // es de SU consulta y no de la anterior.
-    await condicion(2).getByRole('button', { name: 'Quitar la condición 2' }).click()
-    await expect(condicion(1).getByRole('button', { name: 'Quitar la condición 1' }), 'el foco pasa al aspa de la que queda').toBeFocused()
+    await condicion(2).getByRole('button', { name: 'Quitar condición 2' }).click()
+    await expect(condicion(1).getByRole('button', { name: 'Quitar condición 1' }), 'el foco pasa al aspa de la que queda').toBeFocused()
     await barra.getByRole('button', { name: 'Aplicar', exact: true }).click()
     await expect(filas).toHaveCount(2, { timeout: 15_000 })
-    await condicion(1).getByRole('button', { name: 'Quitar la condición 1' }).click()
+    await condicion(1).getByRole('button', { name: 'Quitar condición 1' }).click()
     await expect(anadir, 'sin filas, el foco vuelve a «+ Condición»').toBeFocused()
     await barra.getByRole('button', { name: 'Aplicar', exact: true }).click()
     await expect(filas).toHaveCount(3, { timeout: 15_000 })
@@ -1200,6 +1205,8 @@ test.describe('explorador de bases de datos', () => {
     await expect(win.locator('.db-area')).toBeHidden()
     await fila(win, 'objeto', 'cliente').dblclick()
     await expect(win.locator('.db-area')).toBeVisible()
+    // Las acciones de la cabecera se retiran sin el ratón encima (docs/decisiones/renderer/movimiento.md): se apunta.
+    await pane.locator('.panel-header').hover()
     await expect(pane.locator('button[aria-label^="Maximizar"]')).toBeVisible()
     await win.locator(PESTANAS, { hasText: activa }).first().click()
 
@@ -1246,7 +1253,7 @@ test.describe('explorador de bases de datos', () => {
   // cuenta ofrece pasar a una de Docker o crearla. No hay glifo de modo: Docker es del agente, no del espacio.
   test('(9d) el agente de datos corre nativo y su botón de cuenta ofrece Docker, sin glifo de modo', async () => {
     const win = s!.win
-    await botonVista(win, 'Conexiones a bases de datos').click()
+    await botonVista(win, 'Bases de datos').click()
     await monacoConsola(win, { op: 'foco' })
     await win.keyboard.press(ACORDE_AGENTE)
     const pane = win.locator('.right-panel .agent-pane:not(.hidden)')
@@ -1284,7 +1291,7 @@ test.describe('explorador de bases de datos', () => {
     const precio = (): string => p.psql("select precio from ventas.producto where nombre = 'tornillo';").out
     const confirmado = precio()
 
-    await botonVista(win, 'Conexiones a bases de datos').click()
+    await botonVista(win, 'Bases de datos').click()
     await win.locator('.db-area:not(.hidden) .db-tabs [role="tab"]', { hasText: 'consola_1' }).click()
     await esperarConsolaLista(win)
     const modo = win.locator(`${CONSOLA} .db-consola-tx-modo`)

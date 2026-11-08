@@ -16,6 +16,7 @@ import {
   type ProjectDotState
 } from '../pestanas'
 import { BotonActualizacion } from '../actualizaciones'
+import { abrirContexto } from '../agentes'
 import { etiquetaModPrincipal } from '../../util/atajos'
 import { txLayout } from './textos.ts'
 
@@ -207,7 +208,7 @@ function propsDePerfiles(tabs: UseTabs): {
   onRenameProfile: UseTabs['renameProfile']
   onRecolorProfile: UseTabs['recolorProfile']
   onToggleRedHost: UseTabs['setProfileRedHost']
-  onSetReglas: UseTabs['setProfileReglas']
+  onAbrirReglas: (profileId: string) => void
   onDeleteProfile: UseTabs['deleteProfile']
   onReorderProfiles: UseTabs['reorderProfiles']
   onHibernateProfile: UseTabs['hibernateProfile']
@@ -220,7 +221,7 @@ function propsDePerfiles(tabs: UseTabs): {
     onRenameProfile: tabs.renameProfile,
     onRecolorProfile: tabs.recolorProfile,
     onToggleRedHost: tabs.setProfileRedHost,
-    onSetReglas: tabs.setProfileReglas,
+    onAbrirReglas: (profileId) => abrirContexto({ nivel: { tipo: 'perfil', profileId }, seccion: 'reglas' }),
     onDeleteProfile: tabs.deleteProfile,
     onReorderProfiles: tabs.reorderProfiles,
     onHibernateProfile: tabs.hibernateProfile

@@ -33,9 +33,8 @@ export const txBinario = crearTextos(
       `${etiqueta}: abre el archivo con su aplicación predeterminada del sistema (con todo su formato)`,
     noSePudoAbrir: 'No se pudo abrir el archivo',
     buscarEnDocumento: 'Buscar en el documento',
-    queVersion: 'Versión que se muestra',
     zipResumen: (archivos: number, carpetas: number, tamano: string) =>
-      `${archivos} archivo(s)${carpetas > 0 ? `, ${carpetas} carpeta(s)` : ''} · ${tamano} sin comprimir`,
+      `${archivos} ${archivos === 1 ? 'archivo' : 'archivos'}${carpetas > 0 ? `, ${carpetas} ${carpetas === 1 ? 'carpeta' : 'carpetas'}` : ''} · ${tamano} sin comprimir`,
     archivoVacio: 'El archivo comprimido está vacío.',
     colNombre: 'Nombre',
     colTamano: 'Tamaño',
@@ -50,7 +49,7 @@ export const txBinario = crearTextos(
     noReproducible:
       'Este formato no se puede reproducir aquí. Ábralo con la aplicación predeterminada del sistema.',
     convertido: (n: number) =>
-      `Convertido con ${n} aviso(s) de formato. Use «Abrir en Word» para ver el documento con su formato original.`
+      `Convertido con ${n} ${n === 1 ? 'aviso' : 'avisos'} de formato. Haga clic en «Abrir en Word» para ver el documento con su formato original.`
   },
   {
     tipoPdf: 'PDF',
@@ -61,7 +60,6 @@ export const txBinario = crearTextos(
       `${etiqueta}: opens the file in its default app (full fidelity)`,
     noSePudoAbrir: 'Could not open the file',
     buscarEnDocumento: 'Find in document',
-    queVersion: 'Version shown',
     zipResumen: (archivos: number, carpetas: number, tamano: string) =>
       `${archivos} file${archivos === 1 ? '' : 's'}${carpetas > 0 ? `, ${carpetas} folder${carpetas === 1 ? '' : 's'}` : ''} · ${tamano} uncompressed`,
     archivoVacio: 'The archive is empty.',
@@ -76,7 +74,7 @@ export const txBinario = crearTextos(
     mediaNoExiste: 'The file does not exist in this revision.',
     noReproducible: 'This format cannot be played here. Open it in its default app.',
     convertido: (n: number) =>
-      `Converted with ${n} formatting warning${n === 1 ? '' : 's'}. Use “Open in Word” to see it as is.`
+      `Converted with ${n} formatting warning${n === 1 ? '' : 's'}. Click “Open in Word” to see it as is.`
   }
 )
 
@@ -87,7 +85,6 @@ export const txImagen = crearTextos(
     imagenClic: 'Imagen — haga clic para ver el código SVG',
     codigoSvgAria: 'Código SVG (cambiar a imagen)',
     imagenAria: 'Imagen (cambiar a código SVG)',
-    abrirExternamenteTitulo: 'Abrir externamente: abre la imagen con su aplicación predeterminada del sistema',
     mostrarEnCarpeta: 'Mostrar en la carpeta',
     controlesZoom: 'Controles de zoom',
     alejar: 'Alejar',
@@ -127,7 +124,6 @@ export const txImagen = crearTextos(
     imagenClic: 'Image — click to see the SVG code',
     codigoSvgAria: 'SVG code (switch to image)',
     imagenAria: 'Image (switch to SVG code)',
-    abrirExternamenteTitulo: 'Open externally: opens the image in its default app',
     mostrarEnCarpeta: 'Show in folder',
     controlesZoom: 'Zoom controls',
     alejar: 'Zoom out',
@@ -175,8 +171,8 @@ export const txJava = crearTextos(
     probarCon: (motor: string) => `Probar con ${motor}`,
     buscandoJava: 'Buscando Java…',
     volverADetectar: 'Volver a detectar Java',
-    elegirJavaExe: 'Elegir java.exe…',
-    elegirJava: 'Elegir java…',
+    elegirJavaExe: 'Seleccionar…',
+    elegirJava: 'Seleccionar…',
     ocultarDetalle: 'Ocultar detalle',
     verDetalle: 'Ver detalle',
     falloSinDetalle: 'La clase no se pudo descompilar y el motor no dio ninguna explicación.'
@@ -193,8 +189,8 @@ export const txJava = crearTextos(
     probarCon: (motor: string) => `Try with ${motor}`,
     buscandoJava: 'Looking for Java…',
     volverADetectar: 'Detect Java again',
-    elegirJavaExe: 'Choose java.exe…',
-    elegirJava: 'Choose java…',
+    elegirJavaExe: 'Choose…',
+    elegirJava: 'Choose…',
     ocultarDetalle: 'Hide details',
     verDetalle: 'Show details',
     falloSinDetalle: 'The class could not be decompiled and the engine gave no explanation.'

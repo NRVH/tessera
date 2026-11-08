@@ -1,0 +1,221 @@
+/* =============================================================================
+   MODAL ESTÁNDAR — la carcasa de `Modal.tsx`: cabecera (título, ⓘ, acciones y la ✕ arriba a la derecha), cuerpo
+   que desplaza y pie opcional, con los tamaños S/M/L/XL. El cromo de la tarjeta (filete, radio, fondo, sombra) y el
+   velo son los comunes de `styles.css`; aquí solo la estructura y los espaciados, que son los mismos en todos.
+   Decisiones: docs/decisiones/renderer/modales.md
+   ============================================================================= */
+
+/* La capa: no crea contexto de apilamiento ni de contención; sus hijos son `position: fixed`. */
+.capa-dialogos {
+  display: contents;
+}
+
+.modal-card.modal-estandar {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  max-height: calc(100vh - 48px);
+  max-width: 100%;
+}
+.modal-card.modal-s {
+  width: min(420px, 100%);
+}
+.modal-card.modal-m {
+  width: min(560px, 100%);
+}
+.modal-card.modal-l {
+  width: min(960px, 100%);
+  height: min(680px, 100%);
+}
+.modal-card.modal-xl {
+  width: min(1120px, 100%);
+}
+
+.modal-cabecera {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 12px 12px 20px;
+  flex: 0 0 auto;
+}
+/* El sello de severidad, a la izquierda del título. El mensaje se alinea con el título (36 del sello + 12 de hueco);
+   lo que ocupa el ancho, como una tarjeta de datos, no se sangra. */
+.modal-sello {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+}
+.modal-sello svg {
+  width: 20px;
+  height: 20px;
+}
+.modal-sello.es-peligro {
+  color: var(--red-hi);
+  background: color-mix(in srgb, var(--red) 18%, transparent);
+}
+.modal-sello.es-advertencia {
+  color: var(--yellow);
+  background: color-mix(in srgb, var(--yellow) 16%, transparent);
+}
+.modal-sello.es-info {
+  color: var(--azul);
+  background: color-mix(in srgb, var(--azul) 16%, transparent);
+}
+/* Junto a un sello, el botón de peligro va en el mismo rojo: el color del perfil le quitaría el aviso. */
+.modal-con-sello {
+  --confirmar-color: var(--red);
+  --confirmar-color-fuerte: var(--red-hi);
+  --confirmar-tinte: var(--danger-tinte);
+  --confirmar-filete: var(--danger-filete);
+  --confirmar-tinte-fuerte: color-mix(in srgb, var(--red) 24%, transparent);
+  --confirmar-filete-fuerte: color-mix(in srgb, var(--red) 70%, transparent);
+}
+.modal-con-sello .btn.danger {
+  background: var(--confirmar-tinte);
+}
+.modal-con-sello .modal-cuerpo .modal-message,
+.modal-s.modal-con-sello .modal-aviso {
+  margin-left: 48px;
+}
+.modal-con-sello .modal-title {
+  padding-block: 3px;
+}
+.modal-titulos {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.modal-estandar .modal-titulo-fila {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+}
+.modal-estandar .modal-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 22px;
+  color: var(--fg);
+}
+.modal-subtitulo {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--fg-faint);
+}
+.modal-cabecera-centro {
+  flex: 1 1 220px;
+  min-width: 160px;
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+}
+/* Con algo en el centro, el título no se estira y un subtítulo largo se parte en líneas: el centro conserva su sitio. */
+.modal-cabecera:has(.modal-cabecera-centro) .modal-titulos {
+  flex: 0 1 auto;
+}
+.modal-cabecera-acciones {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  min-height: 28px;
+}
+.modal-cerrar.btn.btn-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+}
+
+/* El cuerpo es lo único que desplaza: cabecera y pie quedan siempre a la vista. Su relleno inferior es el aire hasta
+   el pie, igual en todos: ningún elemento depende de su propio margen. */
+.modal-cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 20px 20px;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+}
+
+/* Dentro de la carcasa, el aire entre bloques es el `gap` del cuerpo: los márgenes sueltos de las piezas antiguas
+   (`.modal-message`, `.modal-hint`) no cuentan aquí. */
+.modal-estandar .modal-message {
+  margin: 0;
+}
+.modal-campo {
+  display: flex;
+  flex-direction: column;
+}
+.modal-estandar .modal-label {
+  margin-bottom: 6px;
+}
+.modal-estandar .modal-hint {
+  margin-top: 6px;
+}
+
+.modal-pie {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px 16px;
+  flex: 0 0 auto;
+}
+.modal-m .modal-pie,
+.modal-l .modal-pie,
+.modal-xl .modal-pie {
+  border-top: 1px solid var(--border-soft);
+}
+.modal-pie .btn {
+  height: 30px;
+  padding: 0 14px;
+}
+.modal-pie-auxiliares {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.modal-pie-hueco {
+  flex: 1 1 auto;
+}
+
+/* Un aviso: error, aviso, información o éxito, con el filete izquierdo de su tono. */
+.modal-aviso {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.modal-aviso.es-error {
+  border-color: color-mix(in srgb, var(--red) 55%, var(--border));
+  background: color-mix(in srgb, var(--red) 10%, transparent);
+  color: var(--red);
+}
+.modal-aviso.es-aviso {
+  border-color: color-mix(in srgb, var(--yellow) 45%, var(--border));
+  border-left-color: var(--yellow);
+  background: color-mix(in srgb, var(--yellow) 7%, transparent);
+  color: var(--fg);
+}
+.modal-aviso.es-info {
+  border-left-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  color: var(--fg-muted);
+}
+.modal-aviso.es-exito {
+  border-color: color-mix(in srgb, var(--green) 55%, var(--border));
+  background: color-mix(in srgb, var(--green) 8%, transparent);
+  color: var(--fg);
+}

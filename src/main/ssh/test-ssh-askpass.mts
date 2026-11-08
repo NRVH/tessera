@@ -4,8 +4,8 @@
 // y negativas: OTP, PIN, huella, truncadas, de otra conexión o de otra clave), las fichas, el controlador del
 // askpass sobre un puente real, el lanzador `sh` y el guion de Node, y el `.exe` de Windows de verdad. Con
 // TESSERA_TEST_SSH (`bash scripts/pruebas/ssh.sh correr npm run -s test:ssh-askpass`): «Probar» y una pestaña
-// reales con contraseña, keyboard-interactive y frase; una mala, una sola pregunta; la huella cambiada; y el
-// salto por bastiones (cada uno con su contraseña) y un túnel local.
+// reales con contraseña, keyboard-interactive y frase; una mala, una sola pregunta; sin la huella confirmada
+// no sale ninguna; la huella cambiada; y el salto por bastiones (cada uno con su contraseña) y un túnel local.
 // Decisiones: docs/decisiones/ssh/askpass-y-secretos.md
 // =============================================================================
 
@@ -74,6 +74,16 @@ async function esperarHasta(cond: () => boolean, ms: number): Promise<boolean> {
     await sleep(50)
   }
   return true
+}
+
+/** La persona confirma la huella de cada servidor de la cadena, como en el diálogo del renderer; dice en qué quedó. */
+async function confirmarHuellas(ctrl: ControladorSsh, id: string, prueba = true): Promise<string> {
+  for (let i = 0; i < 6; i++) {
+    const r = await ctrl.reconocerHuella({ id, prueba })
+    if (r.tipo !== 'nueva') return r.tipo === 'fallo' ? `fallo ${r.resultado.motivo}` : r.tipo
+    ctrl.confiarHuella({ ficha: r.ficha })
+  }
+  return 'tope'
 }
 
 const RAIZ_REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
@@ -634,7 +644,7 @@ try {
   }
 
   // ---------------------------------------------------------------------------
-  hr('H - La pestaña: la línea con el askpass, el aviso cuando no se puede y el ssh:cambio de una huella nueva (C53)')
+  hr('H - La pestaña: la línea con el askpass, estricta con la huella, y el aviso cuando no se puede')
   {
     const emitidos: Array<[string, unknown]> = []
     const binarios = (): BinariosSsh => ({ ssh: { exe: 'ssh', args: [] }, scp: null, sshKeygen: null, origen: 'sistema', aviso: null, dePrueba: false })
@@ -651,9 +661,9 @@ try {
     check('(h3) sin huella nueva, terminar no avisa', emitidos.length === antes, j(emitidos.slice(antes)))
     const p2 = ctrlH.preparar('pa', 'c-pw')
     const vivas = fichasC.cuantas
-    writeFileSync(conexionesC.rutaHuellas('c-pw'), '[127.0.0.1]:2222 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5\n')
     p2.alTerminar?.()
-    check('(h4) C53: si ese ssh guardó una huella, al terminar avisa con ssh:cambio', emitidos.slice(antes).some(([c]) => c === SSH_CHANNELS.CAMBIO), j(emitidos.slice(antes)))
+    // La pestaña ya no guarda huellas (estricta): las guarda la persona al confirmarlas, y eso avisa por su canal.
+    check('(h4) la pestaña es estricta con la huella: ssh no guarda ninguna', p2.ejecutable.args.includes('StrictHostKeyChecking=yes') && !p2.ejecutable.args.some((a) => a.includes('accept-new')), j(p2.ejecutable.args))
     check('(h5) y su ficha se revoca', fichasC.cuantas === vivas - 1, `${vivas} -> ${fichasC.cuantas}`)
     const pIl = ctrlH.preparar('pa', 'c-ilegible')
     const aviso = emitidos.find(([c]) => c === SSH_CHANNELS.AVISO)?.[1] as SshAviso | undefined
@@ -781,6 +791,7 @@ async function pruebaReal(programaWindows: string | null, guion: string): Promis
   const alta = (alias: string, usuario: string, extra: Partial<SshConexionInput> = {}): string =>
     ctrl.crear({ profileId: 'pa', alias, grupoId: null, host, puerto, usuario, metodo: 'contrasena', disponibleAgentes: true, ...extra }).id
   const probar = async (id: string): Promise<{ r: SshResultadoPrueba; preguntas: string[] }> => {
+    await confirmarHuellas(ctrl, id)
     const antes = preguntas.length
     const r = await ctrl.probar({ id })
     return { r, preguntas: preguntas.slice(antes) }
@@ -788,10 +799,26 @@ async function pruebaReal(programaWindows: string | null, guion: string): Promis
   const resumen = (r: SshResultadoPrueba): string => (r.ok ? `ok ${r.ms} ms soloAlcance=${r.soloAlcance} huellas=${r.huellas.length}` : `${r.motivo} «${r.detalle}» ${r.ms} ms`)
 
   const idPw = alta('pruebas', 'pruebas', { secreto: contrasena })
+  // Sin la huella confirmada, la contraseña no sale: ssh, estricto, se para antes de autenticarse.
+  const antesSin = preguntas.length
+  const sinConfirmar = await ctrl.probar({ id: idPw })
+  check(
+    '(g0) sin la huella confirmada, «Probar» no entra ni pide la contraseña al programa: «sin confirmar»',
+    !sinConfirmar.ok && sinConfirmar.motivo === 'ssh-huella-sin-confirmar' && preguntas.length === antesSin,
+    `${resumen(sinConfirmar)} preguntas=${j(preguntas.slice(antesSin))}`
+  )
+  const rec = await ctrl.reconocerHuella({ id: idPw, prueba: true })
+  check(
+    '(g0b) reconocer trae la huella sin ninguna pregunta y no la guarda hasta confirmarla',
+    rec.tipo === 'nueva' && rec.huellas.length >= 1 && preguntas.length === antesSin && (conexiones.textoHuellas(idPw) ?? '') === '',
+    j(rec)
+  )
   const emitidosAntes = emitidos.length
+  if (rec.tipo === 'nueva') ctrl.confiarHuella({ ficha: rec.ficha })
+  check('(g0c) confiar la guarda y avisa con ssh:cambio', (conexiones.textoHuellas(idPw) ?? '') !== '' && emitidos.slice(emitidosAntes).includes(SSH_CHANNELS.CAMBIO), j(emitidos.slice(emitidosAntes)))
   const pw = await probar(idPw)
   check('(g1) contraseña guardada: «Probar» entra sin teclear nada, con UNA pregunta', pw.r.ok && !pw.r.soloAlcance && pw.preguntas.length === 1 && pw.preguntas[0] === `pruebas@${host}'s password: `, `${resumen(pw.r)} preguntas=${j(pw.preguntas)}`)
-  check('(g2) accept-new guardó la huella y «Probar» avisó con ssh:cambio (C53)', pw.r.huellas.length >= 1 && emitidos.slice(emitidosAntes).includes(SSH_CHANNELS.CAMBIO), `${j(pw.r.huellas)} emitidos=${j(emitidos.slice(emitidosAntes))}`)
+  check('(g2) la huella confirmada es la del servidor al que se entró', rec.tipo === 'nueva' && pw.r.huellas[0]?.sha256 === rec.huellas[0]?.sha256, `${j(pw.r.huellas)}`)
   check('(g3) el programa vive en una carpeta con espacios y «ñ», y ssh lo lanza igual', programa.includes(' ') && programa.includes('ñ') && pw.r.ok, programa.replace(raiz, '<raíz>'))
 
   const idKbd = alta('kbd', 'kbd', { secreto: contrasena })
@@ -835,15 +862,16 @@ async function pruebaReal(programaWindows: string | null, guion: string): Promis
   )
   ctrl.olvidarHuella({ id: idPw })
   const tras = await probar(idPw)
-  check('(g10) tras «Olvidar la huella guardada», vuelve a entrar y la guarda otra vez', tras.r.ok && tras.r.huellas[0]?.sha256 === huellaReal?.sha256, resumen(tras.r))
+  check('(g10) tras «Olvidar la huella guardada», se confirma otra vez y vuelve a entrar', tras.r.ok && tras.r.huellas[0]?.sha256 === huellaReal?.sha256, resumen(tras.r))
 
   // Sin ficha válida: el askpass cancela y ssh no entra (y la línea fija llega a su salida de errores).
   const linea = argumentosSsh({ host, puerto, usuario: 'pruebas', metodo: 'contrasena' }, { modo: 'humano', rutaHuellas: conexiones.rutaHuellas(idPw), plataforma, conAskpass: true })
   const sinFicha = await correr(binarios.ssh.exe, [...linea.slice(0, -2), '-T', '-n', '--', host, 'exit', '0'], entornoCon(entornoAskpass({ programa, pipe: puente.pipe, token: 'inventado', plataforma, exe: process.execPath })), 30_000)
   check('(g11) con una ficha inventada, el askpass cancela: 255 y la línea fija en la salida de ssh', sinFicha.codigo === 255 && sinFicha.errores.includes(MENSAJE_NO), `codigo=${sinFicha.codigo}`)
 
-  // Sin huella guardada: la pestaña la guarda y, al cerrarla, avisa (C53).
+  // La pestaña, con la huella confirmada otra vez tras olvidarla.
   ctrl.olvidarHuella({ id: idPw })
+  await confirmarHuellas(ctrl, idPw, false)
   await pestanaReal(ctrl, fichas, idPw, emitidos)
   await dialogoReal(ctrl, alta, { preguntadas, respuestasUsuario }, contrasena, host)
   await bastionReal({ ctrl, alta, probar, resumen, usuario: { preguntadas, respuestasUsuario }, contrasena, idBastion: idPw, host, puerto, raiz })
@@ -912,6 +940,10 @@ async function bastionReal(b: PruebaBastion): Promise<void> {
   )
   const sinGuardar = b.alta('bastión sin guardar', 'pruebas', { host: b.host, puerto: b.puerto })
   const porSinGuardar = b.alta('por el bastión sin guardar', 'pruebas', { host: 'localhost', puerto: 22, secreto: b.contrasena, saltoId: sinGuardar })
+  // El bastión primero (directo) y luego el destino a través de él: su contraseña, en el diálogo.
+  b.usuario.respuestasUsuario.push(b.contrasena)
+  const confirmadas = await confirmarHuellas(b.ctrl, porSinGuardar, false)
+  check('(j3b) con un bastión sin huella, se confirma él primero y luego el destino a través de él', confirmadas === 'conocida', confirmadas)
   const prep = b.ctrl.preparar('pa', porSinGuardar)
   b.usuario.respuestasUsuario.push(b.contrasena)
   const antes = b.usuario.preguntadas.length
@@ -925,6 +957,7 @@ async function bastionReal(b: PruebaBastion): Promise<void> {
   )
   const local = await puertoLibre()
   const conTunel = b.alta('con túnel', 'pruebas', { secreto: b.contrasena, tuneles: [{ tipo: 'local', puerto: local, destinoHost: 'localhost', destinoPuerto: 22 }] })
+  await confirmarHuellas(b.ctrl, conTunel, false)
   const pt = b.ctrl.preparar('pa', conTunel)
   const vivo = ejecutarCorto(pt.ejecutable.archivo, [...pt.ejecutable.args, 'sleep 6'], { topeMs: 40_000, quitarEnv: QUITAR_ENV_SSH, extraEnv: pt.extraEnv })
   let saludo = ''
@@ -966,7 +999,7 @@ async function pestanaReal(ctrl: ControladorSsh, fichas: FichasAskpass, idPw: st
   const emitidosAntes = emitidos.length
   await terminal.close(sessionId)
   check('(g14) al cerrar la pestaña, su ficha se revoca', fichas.cuantas === antes, `${fichas.cuantas}`)
-  check('(g15) C53: la pestaña guardó la huella y, al terminar, avisó con ssh:cambio', emitidos.slice(emitidosAntes).includes(SSH_CHANNELS.CAMBIO), j(emitidos.slice(emitidosAntes)))
+  check('(g15) la pestaña no guarda huellas (estricta): al cerrarla no hay ssh:cambio', !emitidos.slice(emitidosAntes).includes(SSH_CHANNELS.CAMBIO), j(emitidos.slice(emitidosAntes)))
 }
 
 /** Lo que de verdad contesta el usuario en el diálogo (guionizado por `respuestasUsuario`). */
@@ -985,6 +1018,7 @@ async function dialogoReal(
 ): Promise<void> {
   // La línea de la pestaña con una orden remota detrás: sin terminal, sale con el código de la orden.
   const idMala = alta('guardada mala', 'pruebas', { secreto: 'no-es-la-buena' })
+  await confirmarHuellas(ctrl, idMala, false)
   const prepMala = ctrl.preparar('pa', idMala)
   respuestasUsuario.push(contrasena)
   const antesMala = preguntadas.length
@@ -999,6 +1033,7 @@ async function dialogoReal(
 
   // El explorador SFTP de una conexión SIN contraseña guardada: el subsistema, con la entrada cerrada.
   const idSinGuardar = alta('sin guardar', 'pruebas')
+  await confirmarHuellas(ctrl, idSinGuardar, false)
   const lineaSftp = ctrl.prepararSftp('pa', idSinGuardar)
   respuestasUsuario.push(contrasena)
   const antesSftp = preguntadas.length

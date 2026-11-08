@@ -26,8 +26,11 @@ ayuda fuera de la app se desfasa y no se encuentra desde el diálogo que la nece
 - La categoría es solo el índice: una rejilla de tarjetas por grupo, a todo el ancho. Cada artículo
   se lee en su propio modal, el lector (`LectorAcademy`, en la capa de modales de la raíz y un nivel
   de z-index por encima, `modal-encima`): cabecera con su icono, índice de secciones fijo que marca
-  la que se lee (en un lector estrecho pasa arriba como pastillas), cuerpo con scroll y paso al
-  anterior y al siguiente. Esc lo cierra y se vuelve a lo de debajo. Los atajos entre comillas
+  la que se lee (en un lector estrecho pasa arriba como pastillas), cuerpo con scroll y, en un pie
+  fijo, el paso al anterior y al siguiente, alcanzable desde cualquier punto del artículo. Esc lo
+  cierra y se vuelve a lo de debajo. Sus migajas llevan al índice: «Tessera Academy», al principio, y
+  el grupo, a ese grupo resaltado un momento. Las atiende Configuración (`ModalAjustes`), que es quien
+  depende de Academy, por un contador del store de Academy (`irAlIndice`). Los atajos entre comillas
   invertidas se pintan como teclas.
 - El botón ⓘ (`BotonAyuda`) va junto al título de un diálogo o popover y abre el lector en la
   sección que lo explica, sin abrir Configuración: el diálogo se queda debajo, intacto, y un

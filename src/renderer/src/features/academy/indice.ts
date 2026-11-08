@@ -17,6 +17,7 @@ export const INDICE_ACADEMY = [
       'cuentas',
       'nativo-o-docker',
       'continuar-en-otro-agente',
+      'delegar-tareas',
       'reglas-del-perfil',
       'conversaciones',
       'mosaico'

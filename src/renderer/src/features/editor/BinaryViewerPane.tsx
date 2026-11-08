@@ -5,11 +5,13 @@
 // Decisiones: docs/decisiones/editor/visores-de-archivos.md
 // =============================================================================
 
+import { Presente } from '../../comun/Presente'
 import { useCallback, useEffect, useRef } from 'react'
 import { SearchBox } from '../../comun/SearchBox'
 import { AvisoCaja } from '../../comun/AvisoCaja'
 import { formatoBytes as formatBytes } from '../../util/formatoBytes'
 import { useBinaryViewer } from './useBinaryViewer'
+import { useEntradaContenido } from '../../comun/useEntradaContenido'
 import { CloseIcon, ExternalIcon, FolderIcon } from './iconosVisor'
 import type { KindBinario } from './binaryViewerCarga'
 import type { DiffSide } from './diffEditorTipos'
@@ -60,13 +62,12 @@ export function BinaryViewerPane({
   onClose
 }: BinaryViewerPaneProps): React.JSX.Element {
   const v = useBinaryViewer({ file, kind, buscable, bytesLado })
+  const entradaRef = useEntradaContenido(JSON.stringify([file.path, kind, bytesLado, v.loading]), visible)
   const { busqueda } = v
   const t = txBinario()
   const comun = txVisorComun()
-
   return (
-    <section
-      className={`editor binary-viewer${visible ? '' : ' hidden'}`}
+    <section ref={entradaRef} className={`editor binary-viewer${visible ? '' : ' hidden'}`}
       aria-label={etiquetaTipo(kind)}
       aria-hidden={!visible}
     >
@@ -78,7 +79,6 @@ export function BinaryViewerPane({
         onReveal={() => void v.revealInFolder()}
         onClose={onClose}
       />
-
       {v.error ? (
         <AvisoCaja tono="error" titulo={t.noSePudoAbrir} {...textoDelFallo(v.error)} />
       ) : v.loading ? (
@@ -100,7 +100,7 @@ export function BinaryViewerPane({
       ) : kind === 'zip' && v.zipEntries ? (
         <ZipListing entries={v.zipEntries} />
       ) : null}
-      {busqueda.abierto && (
+      <Presente visible={busqueda.abierto} className="mov-aparece mov-desde-arriba" style={{ position: 'absolute', top: 0, right: 0, zIndex: 3 }}>
         <SearchBox
           className="en-documento"
           ariaLabel={t.buscarEnDocumento}
@@ -110,7 +110,7 @@ export function BinaryViewerPane({
           results={busqueda.resultados}
           onClose={busqueda.cerrar}
         />
-      )}
+      </Presente>
     </section>
   )
 }
@@ -143,7 +143,7 @@ function CabeceraBinaria({
         {/* Qué revisión se ve: solo desde un diff. Estos formatos no se comparan, así que se
             pinta siempre el archivo del disco y sin este rótulo el pane mentiría. */}
         {revision && (
-          <span className="diff-revisiones" title={t.queVersion}>
+          <span className="diff-revisiones">
             {revision}
           </span>
         )}

@@ -5,6 +5,31 @@
 // =============================================================================
 import { crearTextos } from '../../../shared/i18n.ts'
 
+export const txHooks = crearTextos(
+  {
+    inspeccionIncompleta: (motivo: 'enlace' | 'limite' | 'otro', ruta: string) =>
+      `No se pueden aceptar estos hooks: ${
+        motivo === 'enlace'
+          ? `«${ruta}» es un enlace simbólico, y solo se aceptan hooks que sean archivos dentro de su carpeta`
+          : motivo === 'limite'
+            ? `en «${ruta}» se supera un límite de inspección (1024 entradas, 256 archivos, 1 MiB por archivo, 8 MiB en total)`
+            : `«${ruta}» no es un archivo ni una carpeta que se pueda leer`
+      }. Corrija la carpeta de hooks o continúe sin ejecutarlos.`,
+    fichaInvalida: 'El permiso de hooks ha caducado o no corresponde a esta operación. Vuelva a intentarlo.'
+  },
+  {
+    inspeccionIncompleta: (motivo: 'enlace' | 'limite' | 'otro', ruta: string) =>
+      `These hooks cannot be accepted: ${
+        motivo === 'enlace'
+          ? `“${ruta}” is a symbolic link, and only hooks that are files inside their folder can be accepted`
+          : motivo === 'limite'
+            ? `“${ruta}” exceeds an inspection limit (1024 entries, 256 files, 1 MiB per file, 8 MiB total)`
+            : `“${ruta}” is not a readable file or folder`
+      }. Please fix the hooks folder or continue without running them.`,
+    fichaInvalida: 'The hook permission has expired or does not match this operation. Please try again.'
+  }
+)
+
 export const txConfirmaciones = crearTextos(
   {
     cancelar: 'Cancelar',
@@ -12,8 +37,8 @@ export const txConfirmaciones = crearTextos(
     eliminar: 'Eliminar del disco',
     descartarYEliminar: 'Descartar y eliminar',
     titulo: 'Descartar cambios',
-    unoPregunta: (nombre: string) => `¿Descartar los cambios de "${nombre}"?`,
-    unoBorrarPregunta: (nombre: string) => `¿Descartar "${nombre}"?`,
+    unoPregunta: (nombre: string) => `¿Descartar los cambios de «${nombre}»?`,
+    unoBorrarPregunta: (nombre: string) => `¿Descartar «${nombre}»?`,
     variosPregunta: (n: number) => `¿Descartar los cambios de ${n} archivos?`,
     unoDetalle:
       'El archivo vuelve a su versión del último commit: sus cambios sin confirmar se pierden y no se pueden recuperar.',
@@ -31,8 +56,8 @@ export const txConfirmaciones = crearTextos(
     eliminar: 'Delete from disk',
     descartarYEliminar: 'Discard and delete',
     titulo: 'Discard changes',
-    unoPregunta: (nombre: string) => `Discard the changes to "${nombre}"?`,
-    unoBorrarPregunta: (nombre: string) => `Discard "${nombre}"?`,
+    unoPregunta: (nombre: string) => `Discard the changes to “${nombre}”?`,
+    unoBorrarPregunta: (nombre: string) => `Discard “${nombre}”?`,
     variosPregunta: (n: number) => `Discard the changes to ${n} files?`,
     unoDetalle:
       'It reverts to its version in the last commit: its uncommitted changes are lost, and you cannot undo this.',

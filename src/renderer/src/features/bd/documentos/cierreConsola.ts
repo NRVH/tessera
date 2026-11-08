@@ -43,10 +43,11 @@ export async function confirmarCierre(e: EstadoCierreConsola, detener: () => voi
   const nombre = e.consolaRef.current.nombre
   if (preguntasDeCierre(e).includes('detener')) {
     const ok = await e.pedirConfirmacion({
-      titulo: txConsolaComun().detenerYCerrarTitulo,
+      titulo: txConsolaComun().detenerYCerrarTitulo(nombre),
       mensaje: txConsolaComun().detenerYCerrarMensaje(nombre),
       confirmar: txConsolaComun().detenerYCerrar,
-      peligro: true
+      peligro: true,
+      severidad: 'advertencia'
     })
     if (!ok) return false
     detener()
@@ -56,7 +57,7 @@ export async function confirmarCierre(e: EstadoCierreConsola, detener: () => voi
   }
   if (preguntasDeCierre(e).includes('conflicto')) {
     return e.pedirConfirmacion({
-      titulo: txConsolaComun().archivoCambio,
+      titulo: txConsolaComun().conflictoCerrarTitulo(nombre),
       mensaje: txConsolaComun().conflictoMensaje(nombre),
       confirmar: txConsolaComun().cerrarSinGuardar,
       peligro: true

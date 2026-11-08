@@ -5,7 +5,7 @@
 // volver a uno, está tal cual se dejó. Recuerda las carpetas abiertas de los que salen de la lista.
 // Decisiones: docs/decisiones/explorador/arbol-de-archivos.md
 // =============================================================================
-import { memo, useCallback, useRef } from 'react'
+import { memo, useCallback } from 'react'
 import { useCapaVisible } from '../../comun/capaVisible'
 import { EstadoVacio, IconoCarpetaVacia } from '../../comun/EstadoVacio'
 import { CapaViva, useVivosRecientes } from '../../comun/useVivosRecientes'
@@ -15,6 +15,7 @@ import type { OpenProject } from '../pestanas'
 import type { WorktreeDecorations } from '../git'
 import { txExplorador } from './textos.ts'
 import { FileTree } from './FileTree'
+import { recordarCarpetas, useStoreExplorador } from './store'
 import type { BasesDeArchivoSidebar } from './tiposArbol'
 
 export type { BasesDeArchivoSidebar } from './tiposArbol'
@@ -75,17 +76,25 @@ const FileTreeVivo = memo(
 /** Panel lateral con el árbol de archivos del proyecto que se ve. */
 export function Sidebar(props: SidebarProps): React.JSX.Element {
   const { altoFila, varsDensidad, perfilId, activeProject, abiertos } = props
-  // Carpetas abiertas de los árboles que salen de la lista viva: si se vuelve a ellos, se restauran.
-  // Es de sesión (un ref, sin disco).
-  const expandedByProject = useRef<Map<string, Set<string>>>(new Map())
-  const rememberExpanded = useCallback((projectHostPath: string, expanded: Set<string>) => {
-    expandedByProject.current.set(projectHostPath, expanded)
-  }, [])
+  // Carpetas abiertas de cada árbol: si se vuelve a él, o en el próximo arranque, se restauran (se guardan
+  // con la sesión del proyecto). Se leen sin suscribirse: solo cuentan al montarse el árbol.
+  const rememberExpanded = useCallback(
+    (projectHostPath: string, expanded: Set<string>) => {
+      if (perfilId !== null) recordarCarpetas(`${perfilId}|${projectHostPath}`, expanded)
+    },
+    [perfilId]
+  )
+  const carpetasDe = (projectHostPath: string): Set<string> | undefined => {
+    const c = perfilId === null ? undefined : useStoreExplorador.getState().carpetasPorProyecto[`${perfilId}|${projectHostPath}`]
+    return c ? new Set(c) : undefined
+  }
   const activo: ArbolVivo | null =
     activeProject && perfilId !== null
       ? { clave: `${perfilId}|${activeProject.projectHostPath}`, projectHostPath: activeProject.projectHostPath, name: activeProject.name }
       : null
   const vivos = useVivosRecientes(activo, abiertos, mismoArbol)
+  // Un árbol montado antes de que lleguen las carpetas guardadas nacería plegado (es un instante al arrancar).
+  const carpetasListas = useStoreExplorador((s) => s.carpetasListas)
   // Con el lateral de archivos oculto (se mira otra vista), el árbol del proyecto tampoco se ve: no
   // escucha cambios ni atiende menús, y se recarga al volver a verse.
   const lateralSeVe = useCapaVisible()
@@ -103,7 +112,7 @@ export function Sidebar(props: SidebarProps): React.JSX.Element {
           </div>
         </>
       )}
-      {vivos.map((a) => {
+      {carpetasListas && vivos.map((a) => {
         const visto = a.clave === activo?.clave
         return (
           <CapaViva key={a.clave} visible={visto}>
@@ -112,7 +121,7 @@ export function Sidebar(props: SidebarProps): React.JSX.Element {
               projectName={a.name}
               activo={visto && lateralSeVe}
               altoFila={altoFila}
-              initialExpanded={expandedByProject.current.get(a.projectHostPath)}
+              initialExpanded={carpetasDe(a.projectHostPath)}
               onExpandedChange={rememberExpanded}
               openFile={visto ? props.openFile : null}
               decorations={visto ? props.decorations : null}

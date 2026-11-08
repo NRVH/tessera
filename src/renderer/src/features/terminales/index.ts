@@ -6,8 +6,9 @@
 // botón de reinicio). El hook lo compone solo App.tsx y está en `app.ts`
 // (docs/decisiones/renderer/barriles-sin-ciclos.md).
 // =============================================================================
-export { useStoreTerminales, accionesTerminales } from './store'
+export { useStoreTerminales, accionesTerminales, fijarTerminalesPendientes, terminalesPendientes, type TerminalesGuardadas } from './store'
 export { pestanasAGuardar } from './sshTabsModel'
+export type { ProjectTerminals } from './shellTerminalsModel'
 export type { TerminalesApp } from './useTerminalesApp'
 export { TerminalsPanel } from './TerminalsPanel'
 export { TerminalImageChips, type PastedImagePreview } from './TerminalImageChips'
@@ -16,6 +17,7 @@ export type { FlowWriter } from './flowControl'
 export { debeAbrirMenuContextual, laAppUsaElRaton } from './comportamientoTerminal'
 export { botonReinicio, textosReinicio } from './reloadButton'
 export { montarXterm, alternarWebgl, type OpcionesMontaje } from './montajeXterm'
+export type { RefsXterm } from './sesionXterm'
 export { useAparienciaXterm } from './useAparienciaXterm'
 export { ajustarXterm, ajustarConRebote } from './ajusteTamano'
 export { buscarEnXterm, cerrarBuscadorXterm, copiarSeleccion } from './buscadorXterm'

@@ -691,7 +691,7 @@ function main(): void {
 
   hr('(11) Una sola cuenta de bytes y un solo conjunto de especiales')
   // #7: los trozos y las líneas del guion de Oracle se miden con LA cuenta de bytes de
-  // `posicionErrorSql` (antes había aquí dos copias más). Se fija en los TOPES exactos, que
+  // `posicionErrorSql` (no hay copias propias). Se fija en los TOPES exactos, que
   // es donde una cuenta distinta se nota: un trozo de literal llega a 2000 bytes justos y
   // el carácter siguiente pasa al otro; una línea llega a 2400 justos, y con uno más se parte.
   const EMOJI = '\u{1F600}'

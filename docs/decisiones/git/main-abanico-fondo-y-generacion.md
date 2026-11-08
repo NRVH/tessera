@@ -27,8 +27,8 @@ la MISMA contenedora no descartaba lo encolado de la anterior, cuyas respuestas 
 
 ## Consecuencias
 
-- Se sigue preguntando por TODOS los repos: la corrección es la de antes. Lo que cambia es que el
-  fondo llega en más tandas, con la semilla pintada mientras tanto.
+- Se pregunta por TODOS los repos, así que el resultado final es completo; el fondo llega en varias
+  tandas, con la semilla pintada mientras tanto.
 - Supone que el renderer no pide una generación vieja después de una nueva. Un llamador que lo
   rompa cancelaría la tanda vigente: lo fija `test:estado-abanico`.
 

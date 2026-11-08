@@ -81,7 +81,8 @@ alfabético.
   metadatos en el registro.
 - [agentes/hibernacion-por-inactividad.md](agentes/hibernacion-por-inactividad.md) — el agente
   nativo de un proyecto fuera de pantalla se cierra solo tras N minutos sin E/S, matando su árbol sin
-  teclear nada, con vetos (trabajando, segundo plano, sin revisar…) y un estado propio en el renderer.
+  teclear nada, con vetos (trabajando, segundo plano, tareas delegadas, sin revisar…) y un estado propio en el
+  renderer.
 - [agentes/nativos-actualizacion-del-host.md](agentes/nativos-actualizacion-del-host.md) — la
   versión instalada la dice el binario, la última su canal y su método, y un candado retiene las
   aperturas.
@@ -101,8 +102,16 @@ alfabético.
   del agente toma el refcount de su credencial antes de tocar Docker y nunca para el contenedor.
 - [agentes/buscar-en-el-historial.md](agentes/buscar-en-el-historial.md) — `tctx buscar`: el agente busca en
   las conversaciones de su proyecto cuando lo necesita; en Docker, solo en las de su cuenta.
+- [agentes/delegar-en-cuentas-de-docker.md](agentes/delegar-en-cuentas-de-docker.md) — `tctx delegar`: un
+  agente nativo manda tareas a las cuentas de Docker de su perfil y lee el resultado, sin abrir su ventana.
 - [agentes/traspaso-entre-agentes.md](agentes/traspaso-entre-agentes.md) — «Continuar esta conversación»: el mismo
   agente sigue la misma conversación (se copia a la cuenta de destino); otro recibe un traspaso derivado.
+- [agentes/configuracion-editable.md](agentes/configuracion-editable.md) — la configuración de un agente se edita en
+  sus archivos reales, sin opciones propias de Tessera, sin pisar lo que escribe el CLI ni seguir enlaces.
+- [agentes/contexto-de-los-agentes.md](agentes/contexto-de-los-agentes.md) — el contexto de los agentes se organiza
+  por lo que es (reglas, documentos, configuración de Docker) en dos niveles, global y perfil, y un solo diálogo.
+- [agentes/documentos-del-perfil.md](agentes/documentos-del-perfil.md) — los agentes leen los documentos de
+  referencia del global y del perfil con `tctx docs`, por su nombre, igual en nativo y en Docker.
 - [agentes/reglas-del-perfil.md](agentes/reglas-del-perfil.md) — las reglas del perfil las escribe o
   aprueba el usuario (un agente solo las propone con `tctx`) y llegan en el arranque a todo agente del perfil.
 - [agentes/modo-por-agente.md](agentes/modo-por-agente.md) — los proyectos no tienen modo: cada
@@ -205,7 +214,7 @@ alfabético.
   también con `realpath`.
 - [bd/conexiones-campos-opcionales.md](bd/conexiones-campos-opcionales.md) — un motor guarda solo
   los opcionales que declara, y el registro de Oracle y PostgreSQL no cambia ni un byte.
-- [bd/conexiones-cifrado.md](bd/conexiones-cifrado.md) — el cifrado es el mismo par de casillas en
+- [bd/conexiones-cifrado.md](bd/conexiones-cifrado.md) — el cifrado es el mismo par de interruptores en
   todos los motores de red (confiar o verificar, con las CA del sistema), y Oracle solo verifica.
 - [bd/conexiones-edicion-y-ganchos.md](bd/conexiones-edicion-y-ganchos.md) — editar una conexión
   se bloquea antes de tocar el registro si hay una transacción pendiente, y los ganchos no
@@ -334,7 +343,7 @@ alfabético.
 - [bd/sesiones-protocolo-del-trabajador.md](bd/sesiones-protocolo-del-trabajador.md) — el proceso
   de sesión es Electron haciendo de Node, habla por el canal de `fork` y no decide nada.
 - [bd/sesiones-solo-lectura-impuesta.md](bd/sesiones-solo-lectura-impuesta.md) — el explorador
-  obedece la solo lectura que se le impone, no la casilla de la conexión, que es de los agentes.
+  obedece la solo lectura que se le impone, no el interruptor de la conexión, que es de los agentes.
 - [bd/sql-avisos-lexicos.md](bd/sql-avisos-lexicos.md) — los avisos de la consola son léxicos y no
   bloquean: orientan, y decide el servidor.
 - [bd/sql-dml-rejilla-un-constructor.md](bd/sql-dml-rejilla-un-constructor.md) — «Enviar» construye
@@ -490,7 +499,7 @@ alfabético.
 - [bd/uri-mongodb-al-pegar.md](bd/uri-mongodb-al-pegar.md) — «Pegar URI» de MongoDB rechaza lo que
   el driver rechaza y guarda campos, no la URI.
 - [bd/uri-postgres-al-pegar.md](bd/uri-postgres-al-pegar.md) — «Pegar URI» de PostgreSQL traduce
-  `sslmode` a las dos casillas de cifrado y descarta el resto de opciones diciéndolo.
+  `sslmode` a los dos interruptores de cifrado y descarta el resto de opciones diciéndolo.
 - [bd/uri-redis-al-pegar.md](bd/uri-redis-al-pegar.md) — «Pegar URI» de Redis lee las credenciales
   como ioredis y descarta las opciones.
 
@@ -655,7 +664,8 @@ alfabético.
   y oculto de la columna del agente son de cada perfil; con los dos a la vez manda el oculto.
 - [layout/pantalla-completa-de-la-franja.md](layout/pantalla-completa-de-la-franja.md) — la franja
   inferior se maximiza con un solo estado coherente, solo con CSS y sin desmontar; la banda de
-  proyectos se aparta, el riel deja solo la flecha de volver, abrir una pestaña sale del modo, y el
+  proyectos se aparta, el riel lleva las acciones del modo (ocultar, restaurar y pasar al otro panel),
+  abrir una pestaña sale del modo, y el
   atajo solo vale con el foco en la franja.
 
 ### mosaico
@@ -709,8 +719,10 @@ alfabético.
 - [renderer/densidad-de-interfaz.md](renderer/densidad-de-interfaz.md) — las alturas de la
   densidad se calculan en un solo módulo, con una base y superficies que la heredan.
 - [renderer/dialogos-foco-y-teclado.md](renderer/dialogos-foco-y-teclado.md) — los diálogos
-  comparten un hook de foco y teclado llamado antes que ningún efecto, y el foco vuelve por la
-  cadena de ancestros.
+  comparten un hook de foco y teclado, que llama la carcasa `Modal`, antes que ningún efecto, y el foco
+  vuelve por la cadena de ancestros.
+- [renderer/modales.md](renderer/modales.md) — todo diálogo usa la carcasa `Modal`: la ✕ siempre arriba a la derecha,
+  pie solo si hay algo que confirmar, avisos en el cuerpo y su propia capa encima de todo.
 - [renderer/escalera-de-tamanos.md](renderer/escalera-de-tamanos.md) — los tamaños de letra del
   chrome son cuatro peldaños relativos a `--ui-font`, nunca píxeles fijos.
 - [renderer/estado-de-app.md](renderer/estado-de-app.md) — el estado de la ventana vive en
@@ -727,10 +739,13 @@ alfabético.
 - [renderer/lista-virtual.md](renderer/lista-virtual.md) — la lista virtual mide su viewport en un
   efecto de layout y avisa del rango visible desde un efecto, comparando la identidad de `items`.
 - [renderer/menu-contextual.md](renderer/menu-contextual.md) — el menú contextual agrupa con
-  separadores y reserva dos columnas independientes, check e icono.
+  separadores, lleva a un submenú lo que lo saturaría y reserva dos columnas independientes, check e icono.
 - [renderer/monaco.md](renderer/monaco.md) — Monaco se configura en un solo sitio, con
   validadores apagados, tema solo hex, sin estados de Monarch que queden abiertos y `layout` con
   medidas explícitas en el diff.
+- [renderer/temas-de-codigo.md](renderer/temas-de-codigo.md) — el código se pinta con un tema
+  elegible (una paleta por papel), independiente del marco de la aplicación, que se aplica a la vez
+  a todos los editores.
 - [renderer/objetivo-de-git-derivado.md](renderer/objetivo-de-git-derivado.md) — todo pinta el
   perfil y el proyecto que se ven (`objetivoVisto`), y solo lo que pide contra la raíz anclada sin
   decir su proyecto espera al backend confirmado.
@@ -743,13 +758,16 @@ alfabético.
 - [renderer/reordenar-proyectos-arrastrando.md](renderer/reordenar-proyectos-arrastrando.md) —
   los proyectos de un perfil se reordenan arrastrando su pestaña con la regla de los perfiles;
   arrastrar no activa, y el reductor solo acepta exactamente las rutas abiertas.
+- [renderer/movimiento.md](renderer/movimiento.md) — lo que se mueve usa unas pocas duraciones y curvas
+  comunes y seis patrones (aparecer, desplegar, cruce, confirmación en el control, siempre montado,
+  estado suave); las salidas esperan a terminar y «reducir movimiento» se respeta en un solo sitio.
 - [renderer/riel-en-dos-grupos.md](renderer/riel-en-dos-grupos.md) — los iconos del riel se reparten
   en dos grupos que decide el usuario, moverlos no cambia qué abren y ninguno puede quedarse vacío.
-- [renderer/select-con-lista-propia.md](renderer/select-con-lista-propia.md) — la lista de un
-  select de modal es la «select personalizable» del motor con la piel de los menús de Tessera, y
-  su Esc cierra solo la lista.
+- [renderer/select-con-lista-propia.md](renderer/select-con-lista-propia.md) — la lista de todo
+  select es la «select personalizable» del motor con la piel de los menús de Tessera y su barra de
+  desplazamiento, y su Esc cierra solo la lista.
 - [renderer/tooltip-propio.md](renderer/tooltip-propio.md) — el `title` lo enseña una caja de la app,
-  igual en las dos plataformas, y el del sistema se retira mientras el ratón está encima.
+  igual en todas las plataformas, y el del sistema se retira mientras el ratón está encima.
 - [renderer/vivos-y-ocultos.md](renderer/vivos-y-ocultos.md) — lo que se deja en un perfil o un
   proyecto (su árbol, su lista SSH) sigue montado y oculto conservando su caja, para volver tal cual.
 
@@ -761,6 +779,8 @@ alfabético.
   en su propio contenedor; el del perfil queda para la terminal.
 - [sandbox/contenedores-propios.md](sandbox/contenedores-propios.md) — Tessera solo para o borra
   un contenedor con su prefijo y nacido de su imagen.
+- [sandbox/el-agente-pide-tessera-ejecuta.md](sandbox/el-agente-pide-tessera-ejecuta.md) — los secretos y el acceso
+  al host no entran al contenedor: el agente los pide por las órdenes de Tessera, que comprueban qué puede pedir.
 - [sandbox/gestor-concurrencia.md](sandbox/gestor-concurrencia.md) — el gestor del sandbox
   serializa por perfil, coalesce creaciones y builds, y no confunde «no sé» con «no existe».
 - [sandbox/hibernacion-manual.md](sandbox/hibernacion-manual.md) — la hibernación del contenedor es
@@ -773,14 +793,16 @@ alfabético.
   borra cuando awk afirma que no queda nada montado debajo.
 - [sandbox/montajes-en-caliente.md](sandbox/montajes-en-caliente.md) — proyectos y credenciales
   se montan en caliente con un helper privilegiado efímero.
+- [sandbox/proyecto-montado-no-confiable.md](sandbox/proyecto-montado-no-confiable.md) — lo que el contenedor
+  puede escribir (enlaces, junctions, configuración de git) no decide qué lee, escribe o ejecuta el main en el host.
 - [sandbox/raices-por-plataforma.md](sandbox/raices-por-plataforma.md) — las raíces gestionadas
   viven en la VM en Windows y bajo `userData` en macOS.
 - [sandbox/red-del-anfitrion.md](sandbox/red-del-anfitrion.md) — la red del anfitrión se mide con
   una sonda real; el prevuelo informa y no bloquea.
 - [sandbox/saturacion-de-docker.md](sandbox/saturacion-de-docker.md) — si la memoria de Docker se
   satura, Tessera para un contenedor según la política del usuario, con aviso previo y constancia.
-- [sandbox/ssh-global.md](sandbox/ssh-global.md) — el SSH del usuario se monta de solo lectura en
-  todo contenedor y su config se traduce.
+- [sandbox/ssh-global.md](sandbox/ssh-global.md) — el SSH del usuario se utiliza por permiso de
+  perfil y sus claves privadas permanecen en el host.
 - [sandbox/supervisor-de-contenedores.md](sandbox/supervisor-de-contenedores.md) — un supervisor
   escucha los eventos de Docker y las sesiones se recuperan solas, con esperas y al volver Docker.
 - [sandbox/usuario-de-la-imagen-en-linux.md](sandbox/usuario-de-la-imagen-en-linux.md) — en Linux la
@@ -828,11 +850,14 @@ alfabético.
   nivel viven en un registro propio por perfil, calcado del de BD sin compartir código; el secreto
   es de solo escritura y al arrancar solo se podan entradas, nunca archivos.
 - [ssh/motor-linea-y-huellas.md](ssh/motor-linea-y-huellas.md) — OpenSSH del sistema con ruta
-  fija y `-F none`; una huella por conexión, `accept-new` para la persona y estricto para el
-  agente; la sesión es el propio `ssh` en el pty y se cierra sin teclear.
+  fija y `-F none`; una huella por conexión, estricta siempre: la de un servidor nuevo se trae sin
+  credenciales y la confirma una persona antes de autenticarse; la sesión es el propio `ssh` en el
+  pty y se cierra sin teclear.
+- [ssh/agente-del-contenedor.md](ssh/agente-del-contenedor.md) — las claves privadas se quedan en el
+  host y Tessera firma por el contenedor solo con las claves activadas del perfil.
 - [ssh/tssh-y-agentes.md](ssh/tssh-y-agentes.md) — los agentes nativos usan las conexiones del
   perfil con `tssh`, de vocabulario cerrado, que pide la línea al puente (ámbito: el perfil) y nunca
-  ve un secreto; la casilla «Disponible para los agentes» es un contrato, no un cerrojo.
+  ve un secreto; el interruptor «Disponible para los agentes» es un contrato, no un cerrojo.
 - [ssh/explorador-sftp.md](ssh/explorador-sftp.md) — el explorador SFTP habla el protocolo SFTP v3
   sobre `ssh -s sftp` del sistema (la línea, la huella y el secreto de la pestaña), en una pestaña del
   perfil; nunca deja un archivo a medias encima de uno bueno ni pisa sin confirmar.
@@ -889,6 +914,9 @@ alfabético.
 - [workspace/estado-persistido-crash-safe.md](workspace/estado-persistido-crash-safe.md) — los JSON
   de estado se escriben crash-safe desde una copia en memoria con debounce, y una versión más nueva
   se archiva antes de degradarla.
+- [workspace/sesion-de-cada-proyecto.md](workspace/sesion-de-cada-proyecto.md) — cada proyecto
+  recuerda sus pestañas del editor (con modo y cursor), sus carpetas desplegadas y sus terminales;
+  vuelven la primera vez que se ve, saneadas y en un slice propio del archivo.
 - [workspace/peticiones-de-archivos-con-su-proyecto.md](workspace/peticiones-de-archivos-con-su-proyecto.md)
   — cada petición de archivos, de git o del diff de comprimidos lleva la contenedora de su proyecto
   y el main la atiende en el suyo, no en el anclado: un gesto del proyecto anterior nunca cae en la

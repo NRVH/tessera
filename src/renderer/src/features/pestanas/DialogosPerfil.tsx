@@ -1,15 +1,14 @@
 // =============================================================================
 // DialogosPerfil: los diálogos de la banda de perfiles (confirmar hibernación, cambio de red y
-// eliminación, red del contenedor y reglas para los agentes). Sin estado propio: monta el que
-// tenga abierto `useAccionesPerfil` (el de reglas avisa si hay una propuesta pendiente, del store de
-// propuestas). Dependen de comun/ConfirmDialog, de los modales de red y de reglas y de shared/nombresSistema.
+// eliminación, y red del contenedor). Sin estado propio: monta el que tenga abierto `useAccionesPerfil`.
+// Las reglas para los agentes se editan en el contexto de los agentes, que tiene su propia capa.
+// Dependen de comun/ConfirmDialog, del modal de red y de shared/nombresSistema.
 // Decisiones: docs/decisiones/renderer/red-del-contenedor.md
 // =============================================================================
 import { ConfirmDialog } from '../../comun/ConfirmDialog'
 import { AYUDA, BotonAyuda } from '../academy'
 import { RedContenedorModal } from './RedContenedorModal'
-import { ReglasPerfilModal } from './ReglasPerfilModal'
-import { useStorePropuestasReglas } from './storePropuestasReglas'
+import { ClavesAgenteModal } from './ClavesAgenteModal'
 import { nombresSistema } from '../../../../shared/nombresSistema'
 import type { Profile } from '../../../../main/profiles/types'
 import { txPestanas } from './textos.ts'
@@ -49,6 +48,7 @@ function ConfirmarHibernacion({
       // `danger` aunque no se borre nada: sin él ConfirmDialog enfoca CONFIRMAR, y este
       // diálogo sale justo tras teclear en una terminal, cuando un Enter suelto es más probable.
       danger
+      severidad="advertencia"
       onConfirm={onConfirm}
       onCancel={onCancel}
     />
@@ -74,6 +74,7 @@ function ConfirmarCambioRed({
       cancelLabel={t.cancelar}
       // Como hibernar: se corta un turno, y el foco en «Cancelar» evita el Enter reflejo.
       danger
+      severidad="advertencia"
       onConfirm={onConfirm}
       onCancel={onCancel}
     />
@@ -125,33 +126,6 @@ function ModalRedPerfil({
   )
 }
 
-/** Diálogo de reglas para los agentes del perfil `profileId` (nada si ya no existe), con el aviso si hay una propuesta. */
-function ModalReglasDelPerfil({
-  profiles,
-  profileId,
-  onCancel,
-  onGuardar,
-  onRevisarPropuesta
-}: {
-  profiles: Profile[]
-  profileId: string
-  onCancel: () => void
-  onGuardar: (profileId: string, reglas: string) => void
-  onRevisarPropuesta: (profileId: string) => void
-}): React.JSX.Element | null {
-  const hayPropuesta = useStorePropuestasReglas((s) => s.pendientes.has(profileId))
-  const p = profiles.find((x) => x.id === profileId)
-  if (!p) return null
-  return (
-    <ReglasPerfilModal
-      profile={p}
-      onCancel={onCancel}
-      onGuardar={(reglas) => onGuardar(p.id, reglas)}
-      onRevisarPropuesta={hayPropuesta ? () => onRevisarPropuesta(p.id) : undefined}
-    />
-  )
-}
-
 /** Los diálogos de la banda: se monta el que `acciones` tenga abierto. */
 export function DialogosPerfil({
   profiles,
@@ -162,6 +136,7 @@ export function DialogosPerfil({
 }): React.JSX.Element {
   return (
     <>
+      {acciones.clavesSsh !== null && profiles.filter((perfil) => perfil.id === acciones.clavesSsh).map((perfil) => <ClavesAgenteModal key={perfil.id} perfil={perfil} alCerrar={acciones.cerrarClavesSsh} />)}
       {acciones.hibernating && (
         <ConfirmarHibernacion
           hibernating={acciones.hibernating}
@@ -188,16 +163,6 @@ export function DialogosPerfil({
           profileId={acciones.redModal}
           onCancel={acciones.cerrarRed}
           onAplicar={acciones.aplicarRed}
-        />
-      )}
-
-      {acciones.reglasModal !== null && (
-        <ModalReglasDelPerfil
-          profiles={profiles}
-          profileId={acciones.reglasModal}
-          onCancel={acciones.cerrarReglas}
-          onGuardar={acciones.guardarReglas}
-          onRevisarPropuesta={acciones.revisarPropuesta}
         />
       )}
     </>

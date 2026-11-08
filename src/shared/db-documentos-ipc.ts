@@ -5,7 +5,7 @@
 // Decisiones: docs/decisiones/bd/documentos-controlador.md
 // =============================================================================
 
-import type { DbPlan, DbRespuesta } from './db-explorador-ipc.ts'
+import type { DbPlan } from './db-explorador-ipc.ts'
 import type { DbFiltroGuiado, DbOrdenColumna } from './filtroGuiado.ts'
 
 export const DOCS_CHANNELS = {
@@ -246,6 +246,3 @@ export interface DbDocResultadoEnvio {
   /** El que falló (índice en `cambios`) y por qué; ausente si entraron todos. */
   fallo?: { indice: number; mensaje: string; codigo?: string }
 }
-
-/** Para que el main y el preload tipen los handlers sin repetir la forma. */
-export type DbDocRespuesta<T> = DbRespuesta<T>

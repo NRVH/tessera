@@ -4,8 +4,10 @@
 // Monaco nuevo por pulsación de tecla.
 // Decisiones: docs/decisiones/busqueda/vista-previa-monaco.md
 // =============================================================================
-import type { Dispatch, SetStateAction } from 'react'
+import { type Dispatch, type SetStateAction } from 'react'
 import { VirtualList } from '../../comun/VirtualList'
+import { Cruce, Presente } from '../../comun/Presente'
+import { useUltimoValor } from '../../comun/presencia'
 import { Splitter } from '../../comun/Splitter'
 import { FilaResultado } from './FilaResultado'
 import { VistaPreviaBusqueda } from './VistaPreviaBusqueda'
@@ -48,6 +50,9 @@ export function CuerpoResultados({
   vacio
 }: CuerpoResultadosProps): React.JSX.Element {
   const t = txBusqueda()
+  const ultimoVacio = useUltimoValor(vacio)
+  const claveTapa = estado.error !== null ? 'error' : query.trim() === '' ? 'sin-consulta' : estado.buscando ? 'buscando' : 'sin-resultados'
+  const ultimaClave = useUltimoValor(vacio !== null ? claveTapa : null)
   return (
     <div className="buscar-cuerpo">
       <VirtualList
@@ -83,7 +88,9 @@ export function CuerpoResultados({
         <VistaPreviaBusqueda fila={fila} query={query.trim()} opts={opts} projectKey={projectKey} />
       </div>
 
-      {vacio !== null && <div className="buscar-cuerpo-tapa">{vacio}</div>}
+      <Presente visible={vacio !== null} className="buscar-cuerpo-tapa buscar-tapa-fundido">
+        <Cruce className="buscar-tapa-contenido" clave={ultimaClave ?? claveTapa}>{ultimoVacio}</Cruce>
+      </Presente>
     </div>
   )
 }

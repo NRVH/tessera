@@ -2,9 +2,9 @@
 // Los argumentos de `ssh` (y de `scp`, para `tssh cp`) para una conexión: `-F none` y unas opciones `-o`
 // decididas aquí, para que la configuración del usuario no cuele multiplexado ni comandos; el `known_hosts`
 // PROPIO de la conexión, la copia importada de su clave si la usa, siempre `--` antes del host y, en
-// «Probar», `exit 0` detrás; el salto por el bastión y los túneles de la pestaña si los tiene. El modo agente
-// es estricto con la huella y nunca pregunta. Puro, con la
-// plataforma como parámetro: rutas con barras normales en Windows, `%` doblado y entre comillas.
+// «Probar», `exit 0` detrás; el salto por el bastión y los túneles de la pestaña si los tiene. Toda línea es
+// estricta con la huella salvo la de reconocer un servidor nuevo, que no se autentica; el modo agente nunca
+// pregunta. Puro, con la plataforma como parámetro: rutas con barras normales en Windows, `%` doblado y entre comillas.
 // Decisiones: docs/decisiones/ssh/motor-linea-y-huellas.md, docs/decisiones/ssh/claves-importadas.md,
 // docs/decisiones/ssh/askpass-y-secretos.md, docs/decisiones/ssh/tssh-y-agentes.md
 // =============================================================================
@@ -67,6 +67,12 @@ export interface OpcionesLineaSsh {
    * 'agente' (huella ya confirmada, sin preguntar) salvo en que este reenvío sí se abre.
    */
   reenvioBd?: { puertoLocal: number; host: string; puerto: number }
+  /**
+   * Traer la huella de un servidor sin huella guardada: la única línea con `accept-new`, sobre un `known_hosts`
+   * temporal (`rutaHuellas`), y solo con el método `none`, así que no sale ningún secreto ni clave hacia él.
+   * Sin terminal ni reenvíos y con `exit 0` detrás, por si el servidor deja entrar sin credenciales.
+   */
+  reconocer?: boolean
 }
 
 /** Una conexión con archivo de clave cuya copia no está: sin ella ssh probaría las claves por defecto. */
@@ -90,8 +96,11 @@ export function citarRutaOpcion(ruta: string, plataforma: Plataforma = plataform
  * defecto del usuario (medido con el ssh 9.5 de Windows).
  */
 function opcionesDeMetodo(destino: DestinoLineaSsh, opts: OpcionesLineaSsh, plataforma: Plataforma): string[] {
+  if (opts.reconocer) {
+    return ['PreferredAuthentications=none', 'PubkeyAuthentication=no', 'PasswordAuthentication=no', 'KbdInteractiveAuthentication=no']
+  }
   if (destino.metodo === 'contrasena') {
-    // Sin contraseña que dar, «Probar» solo saluda: llega, guarda la huella y el servidor dice qué métodos admite.
+    // Sin contraseña que dar, «Probar» solo saluda: llega y el servidor dice qué métodos admite.
     const metodos = opts.prueba && !opts.conAskpass ? 'none' : 'password,keyboard-interactive'
     return [`PreferredAuthentications=${metodos}`, 'PubkeyAuthentication=no']
   }
@@ -105,17 +114,18 @@ function opcionesDeMetodo(destino: DestinoLineaSsh, opts: OpcionesLineaSsh, plat
  * nadie (una prueba o un agente sin él).
  */
 function opcionesDePreguntas(opts: OpcionesLineaSsh): string[] {
+  if (opts.reconocer) return ['BatchMode=yes']
   if (opts.conAskpass) return [`NumberOfPasswordPrompts=${opts.conDialogo ? 3 : 1}`]
   return opts.prueba || opts.modo === 'agente' || opts.subsistemaSftp || opts.salto ? ['BatchMode=yes'] : []
 }
 
 /**
- * Lo que añade el modo agente (y un bastión): ni redirecciones ni órdenes locales. Con `-F none` ya son los
- * valores por defecto; ir explícitas hace que la línea las niegue aunque alguien añada algo delante.
+ * Lo que añade el modo agente (y un bastión, y reconocer un servidor): ni redirecciones ni órdenes locales. Con
+ * `-F none` ya son los valores por defecto; ir explícitas hace que la línea las niegue aunque alguien añada algo delante.
  */
 function opcionesDeModo(opts: OpcionesLineaSsh): string[] {
   if (opts.reenvioBd) return ['ExitOnForwardFailure=yes', 'ForwardAgent=no', 'ForwardX11=no', 'PermitLocalCommand=no']
-  return opts.modo === 'agente' || opts.salto ? ['ClearAllForwardings=yes', 'ForwardAgent=no', 'ForwardX11=no', 'PermitLocalCommand=no'] : []
+  return opts.modo === 'agente' || opts.salto || opts.reconocer ? ['ClearAllForwardings=yes', 'ForwardAgent=no', 'ForwardX11=no', 'PermitLocalCommand=no'] : []
 }
 
 /**
@@ -127,7 +137,8 @@ export function opcionesSsh(destino: DestinoLineaSsh, opts: OpcionesLineaSsh, pl
     'ControlMaster=no',
     'ControlPath=none',
     `UserKnownHostsFile=${citarRutaOpcion(opts.rutaHuellas, plataforma)}`,
-    `StrictHostKeyChecking=${opts.modo === 'agente' ? 'yes' : 'accept-new'}`,
+    // Ninguna línea que se autentica acepta una huella sola: la primera la confirma una persona (`reconocer`).
+    `StrictHostKeyChecking=${opts.reconocer ? 'accept-new' : 'yes'}`,
     'CheckHostIP=no',
     'UpdateHostKeys=no',
     'ConnectTimeout=10',
@@ -150,7 +161,7 @@ function hostDeReenvio(host: string): string {
  * puerto a la red, pero con `GatewayPorts` en otro sitio podría; aquí no hay otro sitio (`-F none`).
  */
 function argumentosTuneles(opts: OpcionesLineaSsh): string[] {
-  if (opts.modo !== 'humano' || opts.prueba || opts.orden || opts.subsistemaSftp) return []
+  if (opts.modo !== 'humano' || opts.prueba || opts.orden || opts.subsistemaSftp || opts.reconocer) return []
   return (opts.tuneles ?? []).flatMap((t) => {
     if (t.tipo === 'dinamico') return ['-D', `127.0.0.1:${t.puerto}`]
     const destino = `${hostDeReenvio(t.destinoHost ?? '')}:${t.destinoPuerto}`
@@ -165,16 +176,16 @@ function sinTerminal(opts: OpcionesLineaSsh): string[] {
     // `-v`: ssh dice en stderr cuándo empieza la sesión, y solo llega ahí si el reenvío ya escucha (ver `GestorTuneles`).
     return ['-v', '-N', '-T', '-n', '-L', `127.0.0.1:${r.puertoLocal}:${hostDeReenvio(r.host)}:${r.puerto}`]
   }
-  if (opts.prueba) return ['-T', '-n']
+  if (opts.prueba || opts.reconocer) return ['-T', '-n']
   if (opts.subsistemaSftp) return ['-T', '-s']
   if (opts.orden) return opts.orden.conEntrada ? ['-T'] : ['-T', '-n']
   return []
 }
 
 /**
- * La línea de `ssh` sin el ejecutable. 'humano' acepta la huella de un servidor nuevo
- * (`accept-new`) y 'agente' solo los que ya confirmó un humano. Con contraseña no se prueban
- * claves; con archivo de clave, solo esa (ni las del agente de claves ni las de `~/.ssh`).
+ * La línea de `ssh` sin el ejecutable. Las dos, 'humano' y 'agente', solo con servidores cuya huella ya
+ * confirmó una persona; la de `reconocer` la trae. Con contraseña no se prueban claves; con archivo de
+ * clave, solo esa (ni las del agente de claves ni las de `~/.ssh`).
  */
 export function argumentosSsh(destino: DestinoLineaSsh, opts: OpcionesLineaSsh): string[] {
   const plataforma = opts.plataforma ?? plataformaActual()
@@ -190,7 +201,7 @@ export function argumentosSsh(destino: DestinoLineaSsh, opts: OpcionesLineaSsh):
     ...sinTerminal(opts),
     '--',
     destino.host,
-    ...(opts.prueba ? ['exit', '0'] : opts.subsistemaSftp ? ['sftp'] : [])
+    ...(opts.prueba || opts.reconocer ? ['exit', '0'] : opts.subsistemaSftp ? ['sftp'] : [])
   ]
 }
 

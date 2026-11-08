@@ -51,7 +51,7 @@ export function registrarIpcAgentesManuales(deps: DepsIpc): void {
   })
   ipc.handle(AGENTES_MANUALES_CHANNELS.APLICAR_CAPA, async (_e, req: AplicarCapaRequest): Promise<AplicarCapaResult> => {
     const perfil = perfiles().find((p) => p.id === req?.profileId)
-    if (!perfil) return { ok: false, faltan: [], error: `Perfil desconocido: "${String(req?.profileId)}".` }
+    if (!perfil) return { ok: false, faltan: [], error: `Perfil desconocido: «${String(req?.profileId)}».` }
     // Las definiciones se vuelven a validar aquí: sus órdenes corren como root en el build.
     const inst = instalacionesDe(normalizarDefiniciones(req.definiciones, true))
     return sandbox.aplicarCapa(perfil, inst, (linea) => emisor.emitir(AGENTES_MANUALES_CHANNELS.PROGRESO, { profileId: perfil.id, linea }))
@@ -73,7 +73,7 @@ function depsContexto(deps: DepsIpc): DepsContexto {
     },
     ejecutarEnContenedor: async (s, orden) => {
       const perfil = deps.perfiles().find((p) => p.id === s.profileId)
-      if (!perfil) return { ok: false, salida: `Perfil desconocido: "${s.profileId}".` }
+      if (!perfil) return { ok: false, salida: `Perfil desconocido: «${s.profileId}».` }
       const r = await deps.sandbox.exec(contenedorDe(perfil, s.agente, s.accountId), orden, { project: s.projectHostPath })
       return { ok: r.exitCode === 0, salida: r.exitCode === 0 ? r.stdout : r.stderr || r.stdout }
     },

@@ -88,13 +88,15 @@ test('propuesta de reglas: tctx proponer, aviso, revisión con diff, aceptar y t
     // Comillas dobles sin nada que expandir: la misma línea vale en PowerShell y en sh.
     await teclear(win, `tctx proponer --texto "${PROPUESTA}" --motivo "${MOTIVO}"`)
 
-    const aviso = win.locator('.toast', { hasText: 'Un agente propone cambiar las reglas de "Personal"' })
+    const aviso = win.locator('.toast', { hasText: 'Un agente propone cambiar las reglas de «Personal»' })
     await expect(aviso, 'llega el aviso de la propuesta').toBeVisible({ timeout: 30_000 })
     expect(await reglasGuardadas(), 'una propuesta no cambia las reglas').toBe(VIGENTES)
     await aviso.locator('.toast-accion', { hasText: 'Revisar' }).click()
 
-    const revision = win.getByRole('dialog', { name: 'Propuesta de reglas para "Personal"' })
+    const revision = win.getByRole('dialog', { name: 'Propuesta de reglas para «Personal»' })
     await expect(revision).toBeVisible()
+    await expect(revision.getByRole('button', { name: 'Cerrar', exact: true })).toHaveAttribute('title', 'Cerrar (Esc)')
+    await expect(revision.locator('.modal-pie-auxiliares .btn.danger')).toContainText('Descartar')
     await expect(revision.getByTestId('propuesta-reglas-motivo'), 'el motivo del agente').toHaveText(MOTIVO)
     const diff = revision.getByTestId('propuesta-reglas-diff')
     await expect(diff.locator('.monaco-diff-editor'), 'el diff de Monaco').toBeVisible()
@@ -107,9 +109,9 @@ test('propuesta de reglas: tctx proponer, aviso, revisión con diff, aceptar y t
 
     await win.locator('.profile-tab[data-perfil-id="personal"]').click({ button: 'right' })
     await win.getByRole('menuitem', { name: 'Reglas para los agentes…' }).click()
-    const dialogoReglas = win.getByRole('dialog', { name: /Reglas del perfil/ })
-    await expect(dialogoReglas.getByText('Un agente propone un cambio a estas reglas.'), 'la propuesta sigue pendiente y el diálogo lo avisa').toBeVisible()
-    await dialogoReglas.getByRole('button', { name: 'Revisar propuesta' }).click()
+    const dialogoReglas = win.getByRole('dialog', { name: 'Contexto de los agentes' })
+    await expect(dialogoReglas.getByText('Un agente propuso cambiar estas reglas.'), 'la propuesta sigue pendiente y el diálogo lo avisa').toBeVisible()
+    await dialogoReglas.getByRole('button', { name: 'Revisar la propuesta' }).click()
     await expect(dialogoReglas).toHaveCount(0)
     await expect(revision).toBeVisible()
 

@@ -915,7 +915,7 @@ async function main(): Promise<void> {
     check('al acabar, esa conexión se cierra', (await conexionesExportar()) === '0', 'ninguna «Tessera/explorador exportar» en pg_stat_activity')
     const datosC1 = ex.gestor.sesiones().filter((x) => x.ref.rol === 'datos' && x.conexionId === 'c1')
     check(
-      'ni la efímera se emite ni se lista, ni la sesión `datos` se ocupó (antes, un turno por página)',
+      'ni la efímera se emite ni se lista, ni la sesión `datos` se ocupó (sin un turno por página)',
       evDatosInst.length === 0 && datosC1.length <= 1,
       JSON.stringify({ eventos: evDatosInst.map((e) => (e.payload as DbEstadoSesion).fase), datos: datosC1.map((x) => x.fase) })
     )
@@ -1755,7 +1755,7 @@ INSERT INTO edicion.alterada VALUES (1, 'uno');
       )
       const rAlt = await enviar('alterada', PK_ID, [{ tipo: 'actualizar', clave: ['1'], valores: { nueva: 'desde fuera' } }])
       check(
-        '«Enviar» escribe la columna nueva (antes: «no existe… vuelve a abrirla», y reabrir no lo arreglaba)',
+        '«Enviar» escribe la columna nueva sin pedir reabrir la tabla',
         rAlt.ok && rAlt.valor.tipo === 'hecho' && psql('SELECT nueva FROM edicion.alterada WHERE id = 1') === 'desde fuera',
         JSON.stringify(rAlt)
       )

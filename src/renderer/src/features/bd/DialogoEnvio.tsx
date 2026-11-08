@@ -7,17 +7,19 @@
 // Decisiones: docs/decisiones/bd/ui-rejilla-editor-y-envio.md
 // =============================================================================
 
-import { useEffect, useId, useRef } from 'react'
+import { useConfirmacionCopiar } from '../../comun/useConfirmacionCopiar'
+import { Cruce, Presente } from '../../comun/Presente'
+import { useEffect, useRef } from 'react'
 import type { DbEntorno } from '../../../../shared/db-ipc'
-import { esDeUnaListaDeSelect, useDialogo } from '../../comun/useDialogo'
+import { esDeUnaListaDeSelect } from '../../comun/useDialogo'
+import { AvisoModal, Modal, PieModal } from '../../comun/Modal'
 import { IconoCopiar } from '../../comun/iconosMenu'
 import { MarcaEntorno } from './MarcaEntorno'
-import { notify, notifyError } from '../../comun/notifications'
+import { notifyError } from '../../comun/notifications'
 import {
   avisoEnvioIncierto,
   esEnvioIncierto,
   focoEnvio,
-  textoCambios,
   type EstadoEnvio,
   type FocoEnvio
 } from './rejilla/cambiosRejilla'
@@ -112,10 +114,11 @@ function SqlEnvio(props: {
   rotulos: Rotulos
 }): React.JSX.Element {
   const { lineas, indiceError, rotulos } = props
+  const { copiado, confirmar } = useConfirmacionCopiar()
   const copiar = (): void => {
     window.tessera.clipboard
       .write(lineas.join('\n'))
-      .then(() => notify('success', rotulos.copiado, txConsolaBd().enElPortapapeles(textoCambios(lineas.length))))
+      .then(confirmar)
       .catch((err: unknown) => notifyError(txConsolaBd().noSePudoCopiar, err))
   }
   return (
@@ -123,7 +126,7 @@ function SqlEnvio(props: {
       <div className="db-envio-cab">
         <span className="db-envio-cab-texto">{rotulos.cabecera}</span>
         <button type="button" className="btn btn-icon" onClick={copiar} title={rotulos.copiar} aria-label={rotulos.copiar}>
-          <IconoCopiar />
+          <IconoCopiar copiado={copiado} />
         </button>
       </div>
       <pre ref={props.preRef} className="db-envio-sql" tabIndex={0} aria-label={rotulos.cabecera}>
@@ -145,26 +148,28 @@ function SqlEnvio(props: {
 /** Aviso de COMMIT incierto, error del envío y «Enviando…», en ese orden. */
 function EstadoDelEnvio({ estado }: { estado: EstadoEnvio }): React.JSX.Element {
   return (
-    <>
+    <Presente visible={estado.tipo !== 'listo' || esEnvioIncierto(estado)} className="mov-despliega">
+      <Cruce clave={estado.tipo}>
       {estado.tipo === 'listo' && esEnvioIncierto(estado) && (
         // Reabierto tras un COMMIT incierto: la duda sigue en pie hasta refrescar.
-        <div className="db-envio-error" role="alert">
+        <AvisoModal tono="error"><div className="db-envio-error">
           <div className="db-envio-error-titulo">{avisoEnvioIncierto().titulo}</div>
           <div className="db-envio-error-texto">{avisoEnvioIncierto().texto}</div>
-        </div>
+        </div></AvisoModal>
       )}
       {estado.tipo === 'error' && (
-        <div className="db-envio-error" role="alert">
+        <AvisoModal tono="error"><div className="db-envio-error">
           <div className="db-envio-error-titulo">{estado.titulo}</div>
           {estado.mensaje && <div className="db-envio-error-texto">{estado.mensaje}</div>}
-        </div>
+        </div></AvisoModal>
       )}
       {estado.tipo === 'enviando' && (
-        <div className="db-envio-estado" role="status">
+        <AvisoModal tono="info"><span className="db-envio-estado">
           {txConsolaBd().enviando}
-        </div>
+        </span></AvisoModal>
       )}
-    </>
+      </Cruce>
+    </Presente>
   )
 }
 
@@ -177,7 +182,7 @@ function AccionesEnvio(props: {
   const { p, produccion, refs } = props
   const t = txConsolaBd()
   return (
-    <div className="modal-actions">
+    <PieModal>
       {p.estado.tipo === 'enviando' ? (
         <button ref={refs.detenerRef} type="button" className="btn btn-ghost" onClick={p.onDetener}>
           {t.detener}
@@ -191,14 +196,14 @@ function AccionesEnvio(props: {
           <button
             ref={refs.enviarRef}
             type="button"
-            className={`btn ${produccion ? 'db-envio-btn-prod' : 'primary'}`}
+            className={`btn ${produccion ? 'danger db-envio-btn-prod' : 'primary'}`}
             onClick={p.onEnviar}
           >
             {produccion ? t.ejecutarEnProduccion : t.enviar}
           </button>
         </>
       )}
-    </div>
+    </PieModal>
   )
 }
 
@@ -206,8 +211,6 @@ export function DialogoEnvio(p: DialogoEnvioProps): React.JSX.Element {
   const enviando = p.estado.tipo === 'enviando'
   const produccion = p.entorno === 'produccion'
   // Mientras envía no se cierra (ni Esc ni el velo): el único botón es «Detener».
-  const dlg = useDialogo({ onClose: p.onCerrar, cerrable: !enviando })
-  const idBase = useId()
   const indiceError = p.estado.tipo === 'error' ? p.estado.indice : null
   const refs = useFocoEnvio(p, produccion, indiceError)
 
@@ -216,48 +219,30 @@ export function DialogoEnvio(p: DialogoEnvioProps): React.JSX.Element {
   const titulo = n === 1 ? t.enviarUnCambio : t.enviarCambios(n)
 
   return (
-    <div className="modal-overlay" role="presentation" onMouseDown={() => !enviando && p.onCerrar()}>
-      {/* Dos clases: el CSS del componente se inyecta antes que styles.css. Las teclas no suben
-          por el árbol de React salvo Esc (la rejilla no debe ver un Intro tecleado aquí). */}
-      <div
-        ref={dlg.ref}
-        className={`modal-card db-envio-modal${produccion ? ' es-produccion' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={`${idBase}-titulo`}
-        aria-describedby={`${idBase}-mensaje`}
-        onMouseDown={(e) => e.stopPropagation()}
-        onKeyDown={(e) => {
-          // Con la lista de un select desplegada, sus teclas son de la lista (es del DOM y burbujea).
-          if (esDeUnaListaDeSelect(e.target)) return
-          dlg.alPulsarTecla(e)
-          if (e.key !== 'Escape') e.stopPropagation()
-        }}
-      >
-        {produccion && (
-          <div className="db-envio-franja" role="note">
-            <span className="db-envio-franja-texto">{t.produccion}</span>
-            <span className="db-envio-franja-alias">· {p.alias}</span>
-          </div>
-        )}
-        <div className="db-envio-cuerpo">
-          <div className="modal-title db-envio-titulo" id={`${idBase}-titulo`}>
-            <span>{titulo}</span>
-            <span className="db-envio-tabla">· {p.tabla}</span>
-          </div>
-          <div className="db-envio-conexion">
-            {!produccion && <MarcaEntorno entorno={p.entorno} />}
-            <span className="db-envio-alias">{p.alias}</span>
-          </div>
-          <div className="modal-message db-envio-mensaje" id={`${idBase}-mensaje`}>
-            {p.resumen ? `${p.resumen}, ` : ''}
-            {p.mensaje ?? t.enUnaTransaccion}
-          </div>
-          <SqlEnvio lineas={p.lineas} indiceError={indiceError} preRef={refs.preRef} rotulos={rotulosDe(p.lenguaje ?? 'sql')} />
-          <EstadoDelEnvio estado={p.estado} />
-          <AccionesEnvio p={p} produccion={produccion} refs={refs} />
+    <Modal titulo={titulo} subtitulo={p.tabla} tamano="m"
+      className={`db-envio-modal${produccion ? ' es-produccion' : ''}`}
+      cerrable={!enviando} ocupado={enviando} cierraConVelo={!enviando} onCerrar={p.onCerrar}
+      pie={<AccionesEnvio p={p} produccion={produccion} refs={refs} />}
+    >
+      <div className="db-envio-contenido" onKeyDown={(e) => {
+        if (esDeUnaListaDeSelect(e.target)) return
+        if (e.key !== 'Escape' && e.key !== 'Tab') e.stopPropagation()
+      }}>
+        {produccion && <div className="db-envio-franja" role="note">
+          <span className="db-envio-franja-texto">{t.produccion}</span>
+          <span className="db-envio-franja-alias">· {p.alias}</span>
+        </div>}
+        <div className="db-envio-conexion">
+          {!produccion && <MarcaEntorno entorno={p.entorno} />}
+          <span className="db-envio-alias">{p.alias}</span>
         </div>
+        <div className="modal-message db-envio-mensaje">
+          {p.resumen ? `${p.resumen}, ` : ''}
+          {p.mensaje ?? t.enUnaTransaccion}
+        </div>
+        <SqlEnvio lineas={p.lineas} indiceError={indiceError} preRef={refs.preRef} rotulos={rotulosDe(p.lenguaje ?? 'sql')} />
+        <EstadoDelEnvio estado={p.estado} />
       </div>
-    </div>
+    </Modal>
   )
 }

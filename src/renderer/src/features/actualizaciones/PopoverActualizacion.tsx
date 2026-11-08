@@ -6,6 +6,7 @@
 // Decisiones: docs/decisiones/renderer/actualizaciones-de-la-app.md
 // =============================================================================
 
+import { IconoCopiar } from '../../comun/iconosMenu'
 import type { UpdateState } from '../../../../shared/update-ipc'
 import { PopoverBarra } from '../../comun/PopoverBarra'
 import { textoUltimoChequeo } from './textoUpdate'
@@ -207,12 +208,13 @@ function BloqueError({
         {errorDetail ? (
           <BotonPop
             onClick={() => {
-              void navigator.clipboard.writeText(errorDetail)
-              setCopiado(true)
-              setTimeout(() => setCopiado(false), 1500)
+              void navigator.clipboard.writeText(errorDetail).then(() => {
+                setCopiado(true)
+                setTimeout(() => setCopiado(false), 1500)
+              }).catch(() => undefined)
             }}
           >
-            {copiado ? t.copiado : t.copiarDetalles}
+            <IconoCopiar copiado={copiado} />{t.copiarDetalles}
           </BotonPop>
         ) : null}
         <BotonPop

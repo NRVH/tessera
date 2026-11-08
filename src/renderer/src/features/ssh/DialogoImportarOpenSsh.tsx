@@ -9,11 +9,11 @@
 
 import '../../comun/formularioModal.css'
 import './conexionesSsh.css'
-import { createElement, useId, useState } from 'react'
+import { createElement, useState } from 'react'
 import { notify } from '../../comun/notifications'
 import { PromptDialog } from '../../comun/PromptDialog'
 import { IconoCarpetaNueva } from '../../comun/iconosMenu'
-import { useDialogo } from '../../comun/useDialogo'
+import { AvisoModal, Modal, PieModal } from '../../comun/Modal'
 import type { SshGrupo, SshLecturaOpenSsh } from '../../../../shared/ssh-ipc'
 import { METODOS_OFRECIDOS } from './borradorSsh'
 import { opcionesMetodo, ayudaDeMetodo } from './CamposConexionSsh'
@@ -206,9 +206,7 @@ function FilaRevision({ f, problema, perfilId, ocupado, grupos, grupoId, onCambi
         </div>
         {f.candidata.claveNoUsable && f.metodo !== 'clave' && <div className="ssh-importar-ayuda">{t.claveInutilAviso}</div>}
         {error !== null && (
-          <div className="ssh-importar-error" role="alert">
-            {error}
-          </div>
+          <AvisoModal tono="error">{error}</AvisoModal>
         )}
       </div>
     </li>
@@ -321,61 +319,42 @@ function useFilasImportacion(perfilId: string, lectura: SshLecturaOpenSsh, grupo
 }
 
 export function DialogoImportarOpenSsh({ perfilId, lectura, onCerrar }: PropsDialogoImportarOpenSsh): React.JSX.Element {
-  const idTitulo = useId()
   const g = useGruposImportacion(perfilId)
   const r = useFilasImportacion(perfilId, lectura, g.grupos)
   const { filas, existentes, elegidas, listo, ocupado } = r
-  const dialogo = useDialogo({ onClose: onCerrar, cerrable: !ocupado })
   const t = txSsh()
   return (
-    <div className="modal-overlay" role="presentation">
-      <div ref={dialogo.ref} className="modal-card db-conexion-modal ssh-conexion-modal ssh-importar-modal" role="dialog" aria-modal="true" aria-labelledby={idTitulo} onKeyDown={dialogo.alPulsarTecla}>
-        <form
-          className="dbc-form"
-          noValidate
-          onSubmit={(e) => {
-            e.preventDefault()
-            void r.importar()
-          }}
-        >
-          <div className="dbc-cabecera">
-            <div id={idTitulo} className="modal-title">
-              {t.importarTitulo}
-            </div>
-            <p className="dbc-ayuda">{t.importarAyuda(lectura.candidatas.length, lectura.archivo)}</p>
-          </div>
-          <div className="dbc-cuerpo">
-            <CampoGrupoMarcadas grupos={g.grupos} valor={r.comun} desactivado={ocupado || elegidas === 0} onElegir={(id) => r.ponerGrupo('marcadas', id)} onNuevo={() => g.abrirNuevo('marcadas')} />
-            <ul className="ssh-importar-lista" aria-label={t.conexionesDelArchivo}>
-              {filas.map((f, i) => (
-                <FilaRevision
-                  key={`${f.candidata.alias}-${i}`}
-                  f={f}
-                  problema={problemaDeFila(f, filas, existentes)}
-                  perfilId={perfilId}
-                  ocupado={ocupado}
-                  grupos={g.grupos}
-                  grupoId={grupoVigente(f, r.vigentes)}
-                  onCambiar={(c) => r.cambiar(i, c)}
-                  onMarcar={(elegida) => r.marcar(i, elegida)}
-                  onNuevoGrupo={() => g.abrirNuevo(i)}
-                />
-              ))}
-            </ul>
-            {textoNoSeImporta(lectura) !== null && <p className="dbc-ayuda">{textoNoSeImporta(lectura)}</p>}
-          </div>
-          <div className="modal-actions dbc-acciones">
-            <span className="dbc-hueco" />
-            <button type="button" className="btn btn-ghost" onClick={onCerrar} disabled={ocupado}>
-              {t.cancelar}
-            </button>
-            <button type="submit" className="btn primary" disabled={!listo || ocupado}>
-              {ocupado ? t.importandoPuntos : elegidas === 1 ? t.importarUna : t.importarN(elegidas)}
-            </button>
-          </div>
-        </form>
-      </div>
+    <>
+      <Modal titulo={t.importarTitulo} subtitulo={t.importarAyuda(lectura.candidatas.length, lectura.archivo)}
+        tamano="xl" className="db-conexion-modal ssh-conexion-modal ssh-importar-modal"
+        cerrable={!ocupado} ocupado={ocupado} cierraConVelo={false} onCerrar={onCerrar}
+        pie={<PieModal>
+          <button type="button" className="btn btn-ghost" onClick={onCerrar} disabled={ocupado}>{t.cancelar}</button>
+          <button type="button" className="btn primary" onClick={() => void r.importar()} disabled={!listo || ocupado}>
+            {ocupado ? t.importandoPuntos : elegidas === 1 ? t.importarUna : t.importarN(elegidas)}
+          </button>
+        </PieModal>}
+      >
+        <CampoGrupoMarcadas grupos={g.grupos} valor={r.comun} desactivado={ocupado || elegidas === 0} onElegir={(id) => r.ponerGrupo('marcadas', id)} onNuevo={() => g.abrirNuevo('marcadas')} />
+        <ul className="ssh-importar-lista" aria-label={t.conexionesDelArchivo}>
+          {filas.map((f, i) => (
+            <FilaRevision
+              key={`${f.candidata.alias}-${i}`}
+              f={f}
+              problema={problemaDeFila(f, filas, existentes)}
+              perfilId={perfilId}
+              ocupado={ocupado}
+              grupos={g.grupos}
+              grupoId={grupoVigente(f, r.vigentes)}
+              onCambiar={(c) => r.cambiar(i, c)}
+              onMarcar={(elegida) => r.marcar(i, elegida)}
+              onNuevoGrupo={() => g.abrirNuevo(i)}
+            />
+          ))}
+        </ul>
+        {textoNoSeImporta(lectura) !== null && <AvisoModal tono="aviso">{textoNoSeImporta(lectura)}</AvisoModal>}
+      </Modal>
       {g.nuevo !== null && <DialogoGrupoNuevo para={g.nuevo.para} error={g.nuevo.error} filas={filas} onCrear={(nombre) => void g.crear(nombre, r.ponerGrupo)} onCancelar={g.cerrarNuevo} />}
-    </div>
+    </>
   )
 }

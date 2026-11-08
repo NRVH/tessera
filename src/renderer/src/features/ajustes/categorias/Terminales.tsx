@@ -1,8 +1,8 @@
 // =============================================================================
 // Categoría TERMINALES: la de shell y la del agente, con apariencias INDEPENDIENTES
 // (no se usan igual: en la del agente se lee conversación larga, en la de shell salida
-// de comandos que tiene que caber). `GrupoTerminal` se instancia dos veces con estado
-// distinto. Las claves conservan el nombre `terminal*` para el shell: renombrarlas
+// de comandos que tiene que caber). `GrupoTerminal` se instancia dos veces aquí, con estado
+// distinto, y una tercera en Apariencia para el editor de código. Las claves conservan el nombre `terminal*` para el shell: renombrarlas
 // resetearía el ajuste guardado. El fondo no es configurable (ver theme/terminalAppearance).
 // «Renderizado» va aparte y al final: es un dato de xterm en general, no de una terminal.
 // =============================================================================
@@ -72,8 +72,11 @@ function FilaResaltado({ activo, onChange }: { activo: boolean; onChange: () => 
   )
 }
 
-/** Fuente + tamaño de UNA terminal y, en la de shell, el resaltado. Se instancia dos veces con estado distinto. */
-function GrupoTerminal({
+/**
+ * Fuente + tamaño de UNA superficie de letra monoespaciada y, en la terminal de shell, el resaltado. Lo usan
+ * las dos terminales y el editor de código (`Apariencia`), con el mismo catálogo de fuentes.
+ */
+export function GrupoTerminal({
   titulo,
   ayuda,
   idFuente,
@@ -82,10 +85,13 @@ function GrupoTerminal({
   nombre,
   appearance,
   onChange,
-  ve
+  ve,
+  antes
 }: {
   titulo: string
   ayuda?: string
+  /** Filas propias de la superficie antes de fuente y tamaño (el tema del editor de código). */
+  antes?: React.ReactNode
   idFuente: string
   idTamano: string
   /** Solo la de shell: la del agente pinta su propia interfaz. */
@@ -97,13 +103,14 @@ function GrupoTerminal({
   ve: (id: string) => boolean
 }): React.JSX.Element | null {
   const conResaltado = idResaltado !== undefined && ve(idResaltado)
-  if (!ve(idFuente) && !ve(idTamano) && !conResaltado) return null
+  if (!antes && !ve(idFuente) && !ve(idTamano) && !conResaltado) return null
   const update = (partial: Partial<TerminalAppearance>): void => onChange({ ...appearance, ...partial })
   const size = appearance.fontSize || DEFAULT_TERMINAL_FONT_SIZE
   const t = txTerminales()
   const opciones = TERMINAL_FONT_OPTIONS.map((o) => (o.value === '' ? { ...o, label: t.predeterminada } : o))
   return (
     <Grupo titulo={titulo} ayuda={ayuda}>
+      {antes}
       {ve(idFuente) && (
         <Fila
           etiqueta={t.fuente}

@@ -8,6 +8,8 @@
 // Decisiones: docs/decisiones/agentes/pane-del-agente-sin-re-render.md
 // =============================================================================
 
+import { Presente } from '../../comun/Presente'
+import { useUltimoValor } from '../../comun/presencia'
 import { memo } from 'react'
 import { AvisoCaja } from '../../comun/AvisoCaja'
 import { TerminalImageChips } from '../terminales'
@@ -63,6 +65,7 @@ function AgentTerminalPaneSinMemo(props: AgentTerminalPaneProps): React.JSX.Elem
   contarRender('AgentTerminalPane', props.target.key)
   const m = useAgentPane(props)
   const { p, s } = m
+  const ultimoError = useUltimoValor(s.error || null)
   const { mosaico } = p
   return (
     <div
@@ -79,7 +82,7 @@ function AgentTerminalPaneSinMemo(props: AgentTerminalPaneProps): React.JSX.Elem
       <CabeceraAgentPane m={m} />
       {m.montaje.showDbMount && <PopoverMontaje m={m} />}
       {/* El error llega envuelto por el IPC: `clasificarErrorArranque` lo desenvuelve. */}
-      {s.error && <AvisoCaja tono="error" {...clasificarErrorArranque(s.error, txPane().terminal.noSePudoIniciar)} />}
+      <Presente visible={!!s.error} className="mov-despliega">{ultimoError && <AvisoCaja tono="error" {...clasificarErrorArranque(ultimoError, txPane().terminal.noSePudoIniciar)} />}</Presente>
       {m.showSelector && <SinCuenta m={m} />}
       <CuerpoTerminal m={m} />
       <PieAgentPane m={m} />

@@ -32,7 +32,7 @@ test('renombrar y eliminar cuentas de Docker desde el selector, que sigue abiert
     // Las acciones van en el menú «⋯» de cada tarjeta: Escape lo cierra a él y el selector sigue.
     const menuDe = async (nombre: string): Promise<void> => {
       await tarjeta(nombre).hover()
-      await pop.getByRole('button', { name: `Más acciones de "${nombre}"` }).click()
+      await pop.getByRole('button', { name: `Más acciones de «${nombre}»` }).click()
       await expect(win.locator('.ctx-menu')).toBeVisible()
     }
     await menuDe('Trabajo')

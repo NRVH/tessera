@@ -89,7 +89,7 @@ export const txVisorClaves = crearTextos(
     tipoNoLeible: (tipo: string) => `El visor no puede leer el tipo ${tipo}`,
     tipoNoLeiblePista: 'Lo añade un módulo del servidor. Puede leer la clave desde la consola con los comandos de ese módulo.',
     lecturaDetenida: 'Lectura detenida',
-    lecturaDetenidaPista: 'Pulse Refrescar para volver a leer la clave.',
+    lecturaDetenidaPista: 'Haga clic en «Refrescar» para volver a leer la clave.',
     claveYaNoExiste: 'La clave ya no existe',
     claveYaNoExistePista: 'Se borró o caducó después de listarla. Refresque el árbol para ver las claves que quedan.',
     documentoGrande: 'Documento demasiado grande para el visor',

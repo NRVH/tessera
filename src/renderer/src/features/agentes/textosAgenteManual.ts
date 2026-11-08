@@ -22,7 +22,7 @@ export const txAgenteManual = crearTextos(
     reanudarAyuda:
       'Se añade al comando al abrir el proyecto para retomar la última conversación; «Nueva conversación» inicia el agente sin esta parte.',
     limites:
-      'Un agente definido manualmente no tiene historial de conversaciones, uso de la cuenta, aviso de fin de turno ni hibernación automática: Tessera no sabe leer esas cosas de un programa que no conoce.',
+      'Un agente propio no tiene historial de conversaciones, uso de la cuenta, aviso de fin de turno ni hibernación automática: Tessera no sabe leer esas cosas de un programa que no conoce.',
     activarTerminal: 'Activar en la terminal',
     terminalAyudaA:
       'También se podrá elegir como agente de la terminal a pantalla completa. Allí Tessera le entrega el contexto de sus servidores y bases de datos únicamente en un archivo ',
@@ -53,7 +53,7 @@ export const txAgenteManual = crearTextos(
     pegarTitulo: 'Rellenar el formulario con una definición copiada (JSON)',
     cancelar: 'Cancelar',
     instalando: 'Instalando…',
-    guardarIgualmente: 'Guardar igualmente',
+    guardarIgualmente: 'Guardar de todos modos',
     guardar: 'Guardar',
     editar: (nombre: string) => `Editar ${nombre}`,
     agenteNuevo: 'Agente nuevo',

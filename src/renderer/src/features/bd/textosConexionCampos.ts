@@ -35,7 +35,7 @@ export const txConexionCampos = crearTextos(
     ayudaEntornoDesarrollo: 'Marca verde en el árbol, en las pestañas de esta conexión y en la barra de sus consolas.',
     ayudaEntornoPruebas: 'Marca ámbar en el árbol, en las pestañas de esta conexión y en la barra de sus consolas.',
     ayudaEntornoProduccion:
-      'Marca roja, y Tessera pide confirmación antes de cada escritura (DML, DDL, PL/SQL y COMMIT, y al enviar los cambios de la rejilla). Las consolas nuevas de esta conexión se inician en Tx Manual.',
+      'Marca roja, y Tessera pide confirmación antes de cada escritura (DML, DDL, PL/SQL y COMMIT, y al enviar los cambios de la rejilla). Las consolas nuevas de esta conexión se inician en transacción manual.',
     // --- presentación por motor ---
     host: 'Host',
     puerto: 'Puerto',

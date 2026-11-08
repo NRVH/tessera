@@ -1,6 +1,7 @@
 // =============================================================================
 // El mundo falso de los agentes para las pruebas de interfaz: `claude`, `codex` y `npm` de mentira
-// en el PATH y un registro de versiones por HTTP local. `--version` contesta de un fichero; `update`
+// en el PATH y un registro de versiones por HTTP local. `--version` contesta de un fichero; `--help`, con las
+// opciones que Tessera sondea; `update`
 // sube esa versión; lo demás es el AGENTE (tty crudo, apunta argv, pid, el puente de su sesión y cada byte; sale al segundo
 // ^C; `fin` toca la campana; con `informa`, sondea el estado informado y `osc:<cuerpo>` lo informa).
 // El paquete de Codex tiene la forma de npm y su `codex.exe` (copia del Node de las pruebas) cuelga
@@ -136,6 +137,16 @@ function version() {
   process.exit(0)
 }
 
+// La ayuda, como la de una versión actual: las opciones que Tessera sondea antes de lanzar.
+function ayuda() {
+  process.stdout.write(
+    (agente === 'codex'
+      ? '  -p, --profile <CONFIG_PROFILE_V2>' + NL + '          Layer $CODEX_HOME/<name>.config.toml on top of the base user config'
+      : '  --system-prompt-snapshot <on|off>     Record the system prompt once per conversation') + NL
+  )
+  process.exit(0)
+}
+
 function update() {
   const falla = existe(agente + '.update-falla')
   apunta('update', { argv: args, ok: !falla })
@@ -208,6 +219,7 @@ function agenteVivo() {
 
 if (agente === 'npm') npm()
 else if (args[0] === '--version' || args[0] === '-v') version()
+else if (args[0] === '--help') ayuda()
 else if (args[0] === 'update') update()
 else agenteVivo()
 `

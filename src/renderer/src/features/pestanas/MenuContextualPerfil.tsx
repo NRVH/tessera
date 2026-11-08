@@ -4,10 +4,11 @@
 // vida, destructivo). Eliminar queda al final, aislado por un separador y en rojo.
 // Sin estado propio: `ProfileTabs` le pasa las acciones. Depende de comun/ContextMenu.
 // =============================================================================
-import { IconoAjustes, IconoDescartar, IconoEliminar, IconoRed, IconoReglas, IconoRenombrar } from '../../comun/iconosMenu'
+import { IconoAjustes, IconoClavesSsh, IconoContenedor, IconoDescartar, IconoEliminar, IconoRed, IconoReglas, IconoRenombrar } from '../../comun/iconosMenu'
 import { ContextMenu, SEP } from '../../comun/ContextMenu'
 import type { Profile } from '../../../../main/profiles/types'
 import { txPestanas } from './textos.ts'
+import { txClavesAgente } from './textosClavesAgente.ts'
 
 interface MenuContextualPerfilProps {
   x: number
@@ -19,6 +20,7 @@ interface MenuContextualPerfilProps {
   onRename: (profile: Profile) => void
   onColor: (profile: Profile) => void
   onRed: (profileId: string) => void
+  alClavesSsh: (perfil: string) => void
   onReglas: (profileId: string) => void
   onHibernate: (profile: Profile) => void
   onDelete: (profile: Profile) => void
@@ -34,6 +36,7 @@ export function MenuContextualPerfil({
   onRename,
   onColor,
   onRed,
+  alClavesSsh,
   onReglas,
   onHibernate,
   onDelete
@@ -49,17 +52,25 @@ export function MenuContextualPerfil({
         { icon: <IconoAjustes />, label: t.cambiarColor, onClick: () => onColor(profile) },
         SEP,
         {
-          // Abre un diálogo (los puntos suspensivos lo indican) y el rótulo nombra el modo
-          // ACTUAL, que es cierto en las dos plataformas; dónde acaban los puertos lo dice
-          // el diálogo, con el nombre del sistema de quien mira.
-          icon: <IconoRed />,
-          label: t.red(profile.sandbox?.redHost === true),
-          onClick: () => onRed(profile.id)
-        },
-        {
           icon: <IconoReglas />,
           label: t.reglas,
           onClick: () => onReglas(profile.id)
+        },
+        // Las reglas valen para todos los agentes; esto, solo para los que trabajan en contenedores.
+        {
+          icon: <IconoContenedor />,
+          label: t.agentesDocker,
+          submenu: [
+            {
+              // Abre un diálogo (los puntos suspensivos lo indican) y el rótulo nombra el modo
+              // ACTUAL, que es cierto en las dos plataformas; dónde acaban los puertos lo dice
+              // el diálogo, con el nombre del sistema de quien mira.
+              icon: <IconoRed />,
+              label: t.red(profile.sandbox?.redHost === true),
+              onClick: () => onRed(profile.id)
+            },
+            { icon: <IconoClavesSsh />, label: txClavesAgente().menu, onClick: () => alClavesSsh(profile.id) }
+          ]
         },
         SEP,
         {

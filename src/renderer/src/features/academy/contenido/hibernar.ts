@@ -15,7 +15,7 @@ const es: Articulo = {
       ancla: 'perfil',
       titulo: 'Hibernar un perfil',
       bloques: [
-        'Haga clic con el botón derecho en un perfil y seleccione **Hibernar el perfil…**. Tessera cierra sus agentes y sus terminales y detiene sus [contenedores de Docker](contenedores-docker); sus sesiones SSH siguen abiertas. El perfil permanece en la barra, atenuado.',
+        'Haga clic con el botón derecho en un perfil (o haga clic en su botón **⋯** en el selector compacto) y seleccione **Hibernar el perfil…**. Tessera cierra sus agentes y sus terminales y detiene sus [contenedores de Docker](contenedores-docker); sus sesiones SSH siguen abiertas. El perfil permanece en la barra, atenuado.',
         'Tessera solo pide confirmación si hibernar interrumpiría algo: un agente que está trabajando o una terminal que ejecuta un comando. Si no puede comprobarlo, pide confirmación igualmente.',
         { nota: 'Cambiar de perfil nunca hiberna nada: el perfil anterior sigue trabajando en segundo plano.' }
       ]
@@ -62,7 +62,7 @@ const en: Articulo = {
       ancla: 'perfil',
       titulo: 'Hibernate a profile',
       bloques: [
-        'Right-click a profile and select **Hibernate profile…**. Tessera closes its agents and terminals and stops its [Docker containers](contenedores-docker); its SSH sessions stay open. The profile stays in the bar, dimmed.',
+        'Right-click a profile (or click its **⋯** button in the compact selector) and select **Hibernate profile…**. Tessera closes its agents and terminals and stops its [Docker containers](contenedores-docker); its SSH sessions stay open. The profile stays in the bar, dimmed.',
         'Tessera asks you first only if hibernating would interrupt something: an agent that is working or a terminal that is running a command. If Tessera cannot check, it asks anyway.',
         { nota: 'Switching profiles never hibernates anything: the profile you leave keeps running in the background.' }
       ]
@@ -85,7 +85,7 @@ const en: Articulo = {
             'It never happens while an agent in the project is working, is waiting for your reply, has unsent text, has finished and you have not reviewed the result, or has left a task running in the background.',
             'The agents of a project hibernate all together or not at all, so it also does not happen if one of them runs in Docker.',
             'Its tab appears dimmed. Click the tab to resume the agent in its conversation.',
-            'To change the delay, go to **Settings › Projects › Hibernate idle agents after**. The default is 5 minutes; you can also choose “Never”.'
+            'To change the delay, go to **Settings › Projects › Hibernate an idle agent after**. The default is 5 minutes; you can also choose “Never”.'
           ]
         },
         'If your computer is low on memory, the delay drops to 2 minutes, and Tessera offers **Hibernate idle agents now**. If you chose “Never”, the delay does not change.'

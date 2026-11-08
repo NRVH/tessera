@@ -28,14 +28,14 @@ const es: Articulo = {
       ancla: 'riel',
       titulo: 'Riel',
       bloques: [
-        'La barra vertical de iconos del borde izquierdo de la ventana. Abre los archivos, Git · Cambios, las conexiones a bases de datos, la terminal y Git · Log. Ver [Qué es Tessera](bienvenida).'
+        'La barra vertical de iconos del borde izquierdo de la ventana. Abre los archivos, Git · Cambios, las conexiones a bases de datos, la terminal y Git · Historial. Ver [Qué es Tessera](bienvenida).'
       ]
     },
     {
       ancla: 'panel-inferior',
       titulo: 'Panel inferior',
       bloques: [
-        'El área de la parte inferior de la ventana donde se muestra la terminal o Git · Log, uno de los dos cada vez. Ver [Terminales](terminales) y [Git · Log](git/log).'
+        'El área de la parte inferior de la ventana donde se muestra la terminal o Git · Historial, uno de los dos cada vez. Ver [Terminales](terminales) y [Git · Historial](git/log).'
       ]
     },
     {
@@ -49,14 +49,14 @@ const es: Articulo = {
       ancla: 'agente-de-datos',
       titulo: 'Agente de datos',
       bloques: [
-        'El agente de la vista de bases de datos de un perfil. No pertenece a ningún proyecto y trabaja con las bases que tiene montadas. Ver [Atajos de teclado](atajos/bases-de-datos).'
+        'El agente de la vista de bases de datos de un perfil. No pertenece a ningún proyecto y trabaja con las bases que tiene montadas. Ver [El agente de datos](bases-de-datos/agente-de-datos).'
       ]
     },
     {
       ancla: 'agente-de-la-terminal',
       titulo: 'Agente de la terminal',
       bloques: [
-        'El agente que acompaña a la terminal cuando está a pantalla completa. No pertenece a ningún proyecto. Ver [Atajos de teclado](atajos/terminal-y-git).'
+        'El agente que acompaña a la terminal cuando está a pantalla completa. No pertenece a ningún proyecto. Ver [Pantalla completa y su agente](terminales/pantalla-completa).'
       ]
     },
     {
@@ -124,14 +124,14 @@ const es: Articulo = {
       ancla: 'tdb',
       titulo: 'tdb, tssh y tctx',
       bloques: [
-        'Los comandos que Tessera proporciona a los agentes: `tdb` consulta las bases de datos montadas, `tssh` usa servidores SSH y `tctx` da acceso a las reglas, los traspasos y el historial de conversaciones. Los agentes los usan sin ver ninguna contraseña. Ver [tdb, tssh y tctx](herramientas-de-los-agentes).'
+        'Los comandos que Tessera proporciona a los agentes: `tdb` consulta las bases de datos montadas, `tssh` usa servidores SSH y `tctx` da acceso a las reglas, los documentos, la configuración de Docker, los traspasos, el historial y la [delegación de tareas](delegar-tareas). Los agentes los usan sin ver ninguna contraseña. Ver [tdb, tssh y tctx](herramientas-de-los-agentes).'
       ]
     },
     {
       ancla: 'huella',
       titulo: 'Huella',
       bloques: [
-        'El identificador criptográfico de un servidor SSH, que permite comprobar que sigue siendo el mismo. Una persona la acepta la primera vez que se conecta, desde la terminal de Tessera o con la prueba de la conexión; hasta entonces, los agentes y los túneles no pueden usar ese servidor. Si la huella cambia, Tessera rechaza la conexión. Ver [Conexiones SSH](ssh).'
+        'El identificador criptográfico de un servidor SSH, que permite comprobar que sigue siendo el mismo. Una persona la comprueba y la confirma la primera vez que se conecta, desde la terminal de Tessera o con la prueba de la conexión, antes de enviar ninguna credencial; hasta entonces, nadie se autentica en ese servidor, tampoco los agentes ni los túneles. Si la huella cambia, Tessera rechaza la conexión. Ver [Conexiones SSH](ssh).'
       ]
     },
     {
@@ -172,14 +172,14 @@ const en: Articulo = {
       ancla: 'riel',
       titulo: 'Rail',
       bloques: [
-        'The vertical bar of icons on the left edge of the window. It opens the files, Git · Changes, the database connections, the terminal, and Git · Log. See [What is Tessera?](bienvenida).'
+        'The vertical bar of icons on the left edge of the window. It opens the files, Git · Changes, the database connections, the terminal, and Git · History. See [What is Tessera?](bienvenida).'
       ]
     },
     {
       ancla: 'panel-inferior',
       titulo: 'Bottom panel',
       bloques: [
-        'The area at the bottom of the window that shows the terminal or Git · Log, one of the two at a time. See [Terminals](terminales) and [Git · Log](git/log).'
+        'The area at the bottom of the window that shows the terminal or Git · History, one of the two at a time. See [Terminals](terminales) and [Git · History](git/log).'
       ]
     },
     {
@@ -193,14 +193,14 @@ const en: Articulo = {
       ancla: 'agente-de-datos',
       titulo: 'Data agent',
       bloques: [
-        'The agent of a profile’s databases view. It does not belong to any project and works with the databases mounted for it. See [Keyboard shortcuts](atajos/bases-de-datos).'
+        'The agent of a profile’s databases view. It does not belong to any project and works with the databases mounted for it. See [The data agent](bases-de-datos/agente-de-datos).'
       ]
     },
     {
       ancla: 'agente-de-la-terminal',
       titulo: 'Terminal agent',
       bloques: [
-        'The agent that accompanies the terminal when it is in full screen. It does not belong to any project. See [Keyboard shortcuts](atajos/terminal-y-git).'
+        'The agent that accompanies the terminal when it is in full screen. It does not belong to any project. See [Full screen and the terminal agent](terminales/pantalla-completa).'
       ]
     },
     {
@@ -268,14 +268,14 @@ const en: Articulo = {
       ancla: 'tdb',
       titulo: 'tdb, tssh, and tctx',
       bloques: [
-        'The commands that Tessera gives the agents: `tdb` queries the mounted databases, `tssh` uses SSH servers, and `tctx` gives access to the rules, the handoffs, and the conversation history. The agents use them without seeing any passwords. See [tdb, tssh, and tctx](herramientas-de-los-agentes).'
+        'The commands that Tessera gives the agents: `tdb` queries the mounted databases, `tssh` uses SSH servers, and `tctx` gives access to rules, documents, Docker configuration, handoffs, history, and [task delegation](delegar-tareas). The agents use them without seeing any passwords. See [tdb, tssh, and tctx](herramientas-de-los-agentes).'
       ]
     },
     {
       ancla: 'huella',
       titulo: 'Fingerprint',
       bloques: [
-        'The cryptographic identifier of an SSH server, which makes it possible to check that it is still the same server. A person accepts it the first time they connect, from the Tessera terminal or with the connection test; until then, agents and tunnels cannot use that server. If the fingerprint changes, Tessera rejects the connection. See [SSH connections](ssh).'
+        'The cryptographic identifier of an SSH server, which makes it possible to check that it is still the same server. A person checks and confirms it the first time they connect, from the Tessera terminal or with the connection test, before any credentials are sent; until then, nobody signs in to that server, not even agents or tunnels. If the fingerprint changes, Tessera rejects the connection. See [SSH connections](ssh).'
       ]
     },
     {

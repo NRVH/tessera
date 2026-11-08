@@ -6,6 +6,8 @@
 // Decisiones: docs/decisiones/bd/ui-resultados-pildora-de-filas.md
 // =============================================================================
 
+import { useRef } from 'react'
+import { Presente } from '../../comun/Presente'
 import { textoPildora } from './panesBd'
 import { textoTrayendo } from './rejilla/traerTodas'
 import { textoExportando } from './rejilla/exportarBd'
@@ -107,43 +109,41 @@ function Exportando({ filas, onCancelar }: { filas: number; onCancelar?: () => v
 export function PildoraFilas(props: PildoraFilasProps): React.JSX.Element {
   const { hayMas, sinLector, onTraerTodas, onDetenerTraerTodas, exportando = null } = props
   const trayendoTodas = props.trayendoTodas ?? false
+  const ultimoSinLector = useRef(sinLector)
+  const ultimaExportacion = useRef(exportando)
+  if (sinLector) ultimoSinLector.current = sinLector
+  if (exportando) ultimaExportacion.current = exportando
   const traible = onTraerTodas !== undefined && hayMas && !sinLector && !trayendoTodas
 
   return (
     <div className="db-pildora">
       <Recuento {...props} trayendoTodas={trayendoTodas} />
-      {trayendoTodas && onDetenerTraerTodas && (
-        <>
+      <span className="db-pildora-acciones">
+        <span className="db-pildora-fragmento" data-visible={trayendoTodas && !!onDetenerTraerTodas} aria-hidden={!trayendoTodas || !onDetenerTraerTodas}>
           <Sep />
-          <button
-            type="button"
-            className="db-pildora-btn"
-            onClick={onDetenerTraerTodas}
-            title={txPanes().dejarDeTraer}
-            aria-label={txPanes().detenerTraerTodas}
-          >
+          <button type="button" className="db-pildora-btn" onClick={onDetenerTraerTodas} disabled={!trayendoTodas || !onDetenerTraerTodas} title={txPanes().dejarDeTraer} aria-label={txPanes().detenerTraerTodas}>
             {txPanes().detener}
           </button>
-        </>
-      )}
-      {traible && (
-        <>
+        </span>
+        <span className="db-pildora-fragmento" data-visible={traible} aria-hidden={!traible}>
           <Sep />
-          <button type="button" className="db-pildora-btn db-pildora-traer" onClick={onTraerTodas} title={txPanes().traerTitulo}>
+          <button type="button" className="db-pildora-btn db-pildora-traer" onClick={onTraerTodas} disabled={!traible} title={txPanes().traerTitulo}>
             {txPanes().traerTodas}
           </button>
-        </>
-      )}
-      {props.sinOrdenEstable && hayMas && (
-        <>
+        </span>
+      </span>
+      <Presente visible={!!props.sinOrdenEstable && hayMas} como="span" className="mov-aparece db-pildora-fragmento">
           <Sep />
           <span className="db-pildora-aviso" title={txPanes().sinOrdenTitulo}>
             {txPanes().sinOrdenEstable}
           </span>
-        </>
-      )}
-      {sinLector && <SinLector motivo={sinLector} onVolverAEjecutar={props.onVolverAEjecutar} />}
-      {exportando && <Exportando filas={exportando.filas} onCancelar={props.onCancelarExportacion} />}
+      </Presente>
+      <Presente visible={!!sinLector} como="span" className="mov-aparece db-pildora-fragmento">
+        <SinLector motivo={ultimoSinLector.current ?? ''} onVolverAEjecutar={props.onVolverAEjecutar} />
+      </Presente>
+      <Presente visible={!!exportando} como="span" className="mov-aparece db-pildora-fragmento">
+        <Exportando filas={ultimaExportacion.current?.filas ?? 0} onCancelar={props.onCancelarExportacion} />
+      </Presente>
     </div>
   )
 }

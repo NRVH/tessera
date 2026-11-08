@@ -7,8 +7,9 @@
 // Decisiones: docs/decisiones/bd/ui-consola-historial.md
 // =============================================================================
 
+import { Presente } from '../../comun/Presente'
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react'
-import { createPortal } from 'react-dom'
+import { EnCapaFlotante } from '../../comun/capaFlotante'
 import type { DbEntradaHistorial } from '../../../../shared/db-explorador-ipc'
 import {
   textoBorrarTodo,
@@ -23,6 +24,7 @@ import {
 import { formatoDuracion } from './consola/marcasConsola'
 import { cantidad } from './consola/salidaConsola'
 import { IconoEliminar } from '../../comun/iconosMenu'
+import { Interruptor } from '../../comun/piezasAjustes'
 import { HUECO, MARGEN, recolocar, type PosicionPopover } from '../../comun/popoverFlotante'
 import { useCierreYFoco } from '../../comun/usePopoverFlotante'
 import { teclaHistorial, useHistorialConsultas, type HistorialConsultasProps } from './consola/useHistorialConsultas'
@@ -117,12 +119,13 @@ function ControlesHistorial({
         }}
       />
       <label className="db-hist-solo" title={t.soloLoEjecutadoEn(alias)}>
-        <input
-          type="checkbox"
-          checked={h.soloEsta}
-          onChange={(e) => {
+        <Interruptor
+          compacto
+          etiqueta={t.soloEstaConexion}
+          activo={h.soloEsta}
+          onChange={() => {
             h.enterEsperandoRef.current = false
-            h.setSoloEsta(e.target.checked)
+            h.setSoloEsta(!h.soloEsta)
           }}
         />
         {t.soloEstaConexion}
@@ -253,7 +256,7 @@ export function HistorialConsultas(p: HistorialConsultasProps): React.JSX.Elemen
       onKeyDown={(e) => teclaHistorial(e, h, plataforma, filtroRef.current)}
     >
       <CabeceraHistorial h={h} />
-      {h.confirmando && <FranjaBorrarTodo h={h} />}
+      <Presente visible={h.confirmando} className="mov-despliega"><FranjaBorrarTodo h={h} /></Presente>
       <ControlesHistorial h={h} filtroRef={filtroRef} idBase={idBase} alias={conexion.alias} />
       <EstadoHistorial h={h} />
       <div id={`${idBase}-lista`} className="db-hist-lista" role="listbox" aria-label={tx.consultasEjecutadas}>
@@ -265,5 +268,5 @@ export function HistorialConsultas(p: HistorialConsultasProps): React.JSX.Elemen
     </div>
   )
 
-  return createPortal(contenido, document.body)
+  return <EnCapaFlotante>{contenido}</EnCapaFlotante>
 }

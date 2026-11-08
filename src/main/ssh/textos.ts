@@ -31,7 +31,7 @@ export const txSsh = crearTextos(
       aliasFalta: 'La conexión necesita un nombre.',
       aliasLargo: (max: number) => `El nombre no puede superar los ${max} caracteres.`,
       aliasDosPuntos: 'El nombre de la conexión no puede llevar «:».',
-      aliasOcupado: (nombre: string) => `Este perfil ya tiene una conexión llamada "${nombre}".`,
+      aliasOcupado: (nombre: string) => `Este perfil ya tiene una conexión llamada «${nombre}».`,
       faltaClave: 'Seleccione el archivo de la clave privada.',
       secretoTexto: 'La contraseña debe ser un texto.',
       secretoSistema: 'Con «Claves del sistema» no se guarda ninguna contraseña.',
@@ -40,7 +40,7 @@ export const txSsh = crearTextos(
       secretoSaltos: (que: string) => `${que} no puede llevar saltos de línea ni el carácter nulo.`,
       secretoBytes: (que: string, max: number) => `${que} no puede superar los ${max} bytes.`,
       tunelForma: 'Un túnel no tiene la forma esperada.',
-      tunelTipo: (tipo: string) => `Tipo de túnel desconocido: "${tipo}".`,
+      tunelTipo: (tipo: string) => `Tipo de túnel desconocido: «${tipo}».`,
       tunelPuerto: 'El puerto de un túnel debe ser un entero entre 1 y 65535.',
       tunelDinamico: 'Un túnel dinámico (SOCKS) no lleva destino.',
       tunelDestino: (host: string) => `En el destino de un túnel: ${host}`,
@@ -56,12 +56,12 @@ export const txSsh = crearTextos(
       saltoCirculo: (alias: string) => `El bastión «${alias}» acaba pasando por esta misma conexión: se formaría un ciclo.`,
       saltoHueco: (alias: string) => `El bastión «${alias}» pasa por una conexión que ya no existe: edítelo primero.`,
       sinPerfil: 'Una conexión requiere un perfil.',
-      metodoDesconocido: (m: string) => `Método de autenticación desconocido: "${m}".`,
+      metodoDesconocido: (m: string) => `Método de autenticación desconocido: «${m}».`,
       grupoNoExiste: 'Ese grupo ya no existe en este perfil.',
       grupoSinPerfil: 'Un grupo requiere un perfil.',
       grupoSinNombre: 'El grupo necesita un nombre.',
       grupoLargo: (max: number) => `El nombre del grupo no puede superar los ${max} caracteres.`,
-      grupoOcupado: (nombre: string) => `Este perfil ya tiene un grupo llamado "${nombre}".`
+      grupoOcupado: (nombre: string) => `Este perfil ya tiene un grupo llamado «${nombre}».`
     },
     registro: {
       idNoValido: 'El id de la conexión no es válido.',
@@ -73,21 +73,25 @@ export const txSsh = crearTextos(
       noExisteSsh: 'Esa conexión SSH ya no existe.',
       noEsDelPerfil: 'Esa conexión SSH no es de este perfil.',
       huellaNoOlvidada: (codigo: string) => `No se pudo olvidar la huella guardada (${codigo}).`,
+      huellaNoGuardada: (codigo: string) => `No se pudo guardar la huella del servidor (${codigo}).`,
+      huellaCaducada: 'La comprobación de la huella caducó o ya se usó: vuelva a conectar para comprobarla otra vez.',
+      huellaConexionCambio: 'La conexión cambió mientras se comprobaba la huella: vuelva a conectar para comprobarla otra vez.',
+      sinReconocer: 'Esta ventana de Tessera no puede comprobar la huella de un servidor SSH.',
       sinId: 'No se pudo asignar un id a la conexión: inténtelo de nuevo.',
       sinIdCopia: 'No se pudo asignar un id a la copia: inténtelo de nuevo.',
       cambiarPerfil: 'Una conexión no puede cambiar de perfil.',
-      formaInvalida: (alias: string) => `La conexión "${alias}" no tiene una forma válida.`,
+      formaInvalida: (alias: string) => `La conexión «${alias}» no tiene una forma válida.`,
       grupoNoExiste: 'Ese grupo ya no existe en este perfil.',
       grupoNoExisteSolo: 'Ese grupo ya no existe.',
-      datoMalo: (alias: string, error: string) => `La conexión "${alias}" tiene un dato no válido: ${error} Edítela para corregirlo.`,
-      tunelMalo: (alias: string, error: string) => `La conexión "${alias}" tiene un túnel no válido: ${error} Edítela para corregirlo.`,
+      datoMalo: (alias: string, error: string) => `La conexión «${alias}» tiene un dato no válido: ${error} Edítela para corregirlo.`,
+      tunelMalo: (alias: string, error: string) => `La conexión «${alias}» tiene un túnel no válido: ${error} Edítela para corregirlo.`,
       sinClaves: 'Esta ventana de Tessera no puede importar archivos de clave.',
       sinImportar: 'Esta ventana de Tessera no puede importar conexiones de OpenSSH.',
       sinExportar: 'Esta ventana de Tessera no puede exportar conexiones a OpenSSH.',
       sinBastion: 'Esta ventana de Tessera no puede conectar a través de un bastión.',
       sinProbar: 'Esta ventana de Tessera no puede probar conexiones SSH.',
       sinHuella: (alias: string) =>
-        `La huella del servidor SSH de «${alias}» no está confirmada: pulse «Probar» en esa conexión SSH ` +
+        `La huella del servidor SSH de «${alias}» no está confirmada: haga clic en «Probar» en esa conexión SSH ` +
         '(o conéctese una vez desde la terminal) y vuelva a intentarlo.',
       sinCopiaClave:
         'Esta conexión usa un archivo de clave y no se encuentra la copia que guardó Tessera: edite la conexión y vuelva a seleccionar el archivo.'
@@ -105,16 +109,16 @@ export const txSsh = crearTextos(
       noSeLeyo: 'No se pudo leer ese archivo como configuración de OpenSSH.',
       noSeEscribio: 'No se pudo escribir la exportación en esa carpeta.',
       sinConexiones: 'No hay conexiones que exportar.',
-      tituloImportar: 'Seleccione el archivo de configuración de OpenSSH',
+      tituloImportar: 'Seleccionar el archivo de configuración de OpenSSH',
       botonImportar: 'Importar',
       tituloExportar: 'Exportar las conexiones a OpenSSH',
       botonExportar: 'Exportar'
     },
     sftpDialogos: {
-      tituloDescarga: 'Seleccione dónde descargar',
+      tituloDescarga: 'Seleccionar el destino de la descarga',
       botonDescarga: 'Descargar aquí',
-      tituloSubirCarpeta: 'Seleccione la carpeta que desea subir',
-      tituloSubirArchivos: 'Seleccione los archivos que desea subir',
+      tituloSubirCarpeta: 'Seleccionar la carpeta que desea subir',
+      tituloSubirArchivos: 'Seleccionar los archivos que desea subir',
       botonSubir: 'Subir'
     },
     claves: {
@@ -122,8 +126,8 @@ export const txSsh = crearTextos(
       otroPerfil: 'Ese archivo de clave se seleccionó para otro perfil: vuelva a seleccionarlo.',
       sinProteger: 'No se pudo guardar una copia protegida de la clave: inténtelo de nuevo.',
       sinInstalar: 'No se pudo guardar la copia de la clave: inténtelo de nuevo.',
-      tituloElegir: 'Seleccione el archivo de la clave privada',
-      botonElegir: 'Elegir',
+      tituloElegir: 'Seleccionar el archivo de la clave privada',
+      botonElegir: 'Seleccionar…',
       noEsArchivo: 'Ese elemento no es un archivo del equipo.',
       copiaPerdida: (nombre: string) =>
         `No se encuentra la copia de la clave «${nombre}»: edite la conexión y vuelva a seleccionar el archivo.`,
@@ -155,7 +159,7 @@ export const txSsh = crearTextos(
       lecturaCarpeta: (n: string) => `«${n}» es una carpeta: seleccione el archivo de la clave.`,
       lecturaFallo: (n: string, codigo: string) => `No se pudo leer «${n}» (${codigo}).`,
       permisosMac: (sistema: string, n: string) =>
-        `${sistema} no permite a Tessera leer «${n}». Selecciónela con «Elegir…» o dé acceso a Tessera en Ajustes del Sistema › Privacidad y seguridad.`,
+        `${sistema} no permite a Tessera leer «${n}». Selecciónela con «Seleccionar…» o dé acceso a Tessera en Ajustes del Sistema › Privacidad y seguridad.`,
       permisosOtra: (sistema: string, n: string) =>
         `${sistema} no permite a Tessera leer «${n}»: compruebe que el usuario actual puede abrirla, o cópiela a otra carpeta y selecciónela desde allí.`
     },
@@ -180,6 +184,8 @@ export const txSsh = crearTextos(
       fallo: 'La operación falló.',
       huellaCambiada:
         'La huella del servidor no coincide con la confirmada: alguien podría estar suplantándolo. Compruébelo antes de continuar.',
+      huellaSinConfirmar:
+        'El servidor presenta una clave cuya huella no está confirmada. Si la conexión ya tenía una huella guardada, el servidor ofrece ahora otro tipo de clave: compruébela antes de olvidar la guardada.',
       autenticacion:
         'El servidor rechazó la autenticación (o se canceló la pregunta). Vuelva a abrir el explorador y escriba la contraseña, o guárdela en la conexión.',
       inalcanzable: 'No se pudo conectar con el servidor. Compruebe la VPN, la red y el puerto.',
@@ -251,7 +257,7 @@ export const txSsh = crearTextos(
       aliasFalta: 'The connection needs a name.',
       aliasLargo: (max: number) => `The name cannot be longer than ${max} characters.`,
       aliasDosPuntos: 'The connection name cannot contain “:”.',
-      aliasOcupado: (nombre: string) => `This profile already has a connection named "${nombre}".`,
+      aliasOcupado: (nombre: string) => `This profile already has a connection named “${nombre}”.`,
       faltaClave: 'Choose the private key file.',
       secretoTexto: 'The password must be text.',
       secretoSistema: 'No password is saved with “System keys”.',
@@ -260,7 +266,7 @@ export const txSsh = crearTextos(
       secretoSaltos: (que: string) => `${que} cannot contain line breaks or the null character.`,
       secretoBytes: (que: string, max: number) => `${que} cannot be longer than ${max} bytes.`,
       tunelForma: 'A tunnel does not have the expected format.',
-      tunelTipo: (tipo: string) => `Unknown tunnel type: "${tipo}".`,
+      tunelTipo: (tipo: string) => `Unknown tunnel type: “${tipo}”.`,
       tunelPuerto: 'A tunnel port must be an integer between 1 and 65535.',
       tunelDinamico: 'A dynamic (SOCKS) tunnel has no destination.',
       tunelDestino: (host: string) => `In a tunnel destination: ${host}`,
@@ -276,12 +282,12 @@ export const txSsh = crearTextos(
       saltoCirculo: (alias: string) => `Bastion “${alias}” eventually jumps through this same connection, which would create a loop.`,
       saltoHueco: (alias: string) => `Bastion “${alias}” jumps through a connection that no longer exists: edit it first.`,
       sinPerfil: 'A connection requires a profile.',
-      metodoDesconocido: (m: string) => `Unknown authentication method: "${m}".`,
+      metodoDesconocido: (m: string) => `Unknown authentication method: “${m}”.`,
       grupoNoExiste: 'That group no longer exists in this profile.',
       grupoSinPerfil: 'A group requires a profile.',
       grupoSinNombre: 'The group needs a name.',
       grupoLargo: (max: number) => `The group name cannot be longer than ${max} characters.`,
-      grupoOcupado: (nombre: string) => `This profile already has a group named "${nombre}".`
+      grupoOcupado: (nombre: string) => `This profile already has a group named “${nombre}”.`
     },
     registro: {
       idNoValido: 'The connection id is not valid.',
@@ -293,14 +299,18 @@ export const txSsh = crearTextos(
       noExisteSsh: 'That SSH connection no longer exists.',
       noEsDelPerfil: 'That SSH connection does not belong to this profile.',
       huellaNoOlvidada: (codigo: string) => `Could not forget the saved fingerprint (${codigo}).`,
+      huellaNoGuardada: (codigo: string) => `Could not save the server fingerprint (${codigo}).`,
+      huellaCaducada: 'The fingerprint check expired or was already used: connect again to check it once more.',
+      huellaConexionCambio: 'The connection changed while its fingerprint was being checked: connect again to check it once more.',
+      sinReconocer: 'This Tessera window cannot check the fingerprint of an SSH server.',
       sinId: 'Could not assign an id to the connection: try again.',
       sinIdCopia: 'Could not assign an id to the copy: try again.',
       cambiarPerfil: 'A connection cannot change profile.',
-      formaInvalida: (alias: string) => `Connection "${alias}" does not have a valid format.`,
+      formaInvalida: (alias: string) => `Connection “${alias}” does not have a valid format.`,
       grupoNoExiste: 'That group no longer exists in this profile.',
       grupoNoExisteSolo: 'That group no longer exists.',
-      datoMalo: (alias: string, error: string) => `Connection "${alias}" has an invalid value: ${error} Edit it to fix it.`,
-      tunelMalo: (alias: string, error: string) => `Connection "${alias}" has an invalid tunnel: ${error} Edit it to fix it.`,
+      datoMalo: (alias: string, error: string) => `Connection “${alias}” has an invalid value: ${error} Edit it to fix it.`,
+      tunelMalo: (alias: string, error: string) => `Connection “${alias}” has an invalid tunnel: ${error} Edit it to fix it.`,
       sinClaves: 'This Tessera window cannot import key files.',
       sinImportar: 'This Tessera window cannot import OpenSSH connections.',
       sinExportar: 'This Tessera window cannot export connections to OpenSSH.',
@@ -343,7 +353,7 @@ export const txSsh = crearTextos(
       sinProteger: 'A protected copy of the key could not be saved: try again.',
       sinInstalar: 'The copy of the key could not be saved: try again.',
       tituloElegir: 'Choose the private key file',
-      botonElegir: 'Choose',
+      botonElegir: 'Choose…',
       noEsArchivo: 'That item is not a file on this computer.',
       copiaPerdida: (nombre: string) =>
         `The copy of key “${nombre}” cannot be found: edit the connection and choose the file again.`,
@@ -400,6 +410,8 @@ export const txSsh = crearTextos(
       fallo: 'The operation failed.',
       huellaCambiada:
         'The server fingerprint does not match the one you confirmed: someone might be impersonating the server. Verify it before continuing.',
+      huellaSinConfirmar:
+        'The server presents a key whose fingerprint is not confirmed. If the connection already had a saved fingerprint, the server now offers another key type: verify it before forgetting the saved one.',
       autenticacion:
         'The server rejected the authentication (or the prompt was canceled). Open the explorer again and type the password, or save it in the connection.',
       inalcanzable: 'Could not reach the server (VPN, network or port?).',

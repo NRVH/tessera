@@ -20,7 +20,8 @@ la versión estable.
 - Una muestra cada 5 minutos con un `setTimeout` re-armable y sin retener el proceso (no `setInterval`: tras una
   suspensión dispararía en ráfaga), más una línea por suspensión, reanudación y proceso caído. JSON por línea en
   `logs/salud.jsonl`, con rotación a `salud.1.jsonl` a los 5 MB.
-- Solo números y tipos: nunca órdenes, rutas, nombres ni datos. Nada sale del equipo.
+- Solo números, tipos y nombres del código de la app en las pilas: nunca órdenes, rutas ni datos del usuario.
+  Nada sale del equipo.
 - Lo de Electron entra por dependencias (`DepsRegistroSalud`), así que la lógica se prueba sin Electron.
 - El análisis agrupa por número de sesiones abiertas antes de calcular la pendiente de cada proceso.
 
@@ -36,6 +37,16 @@ monitor de la ventana con su escala y frecuencia, memoria libre del equipo y pro
   fin en un anillo acotado; las lentas (`IPC_LENTO_MS`) salen por canal en cada muestra.
 - **Ventana sin respuesta** (`sin-respuesta` / `responde`, con lo que duró), cambios de monitor y de sus métricas
   (`pantalla`), minimizar, restaurar, ocultar y mostrar (`ventana`), y la GPU por ids una vez por arranque (`gpu`).
+- **Pila del main** (`pila`, opcional en `bloqueo-main`): un perfil de CPU muestrea cada 10 ms mientras el
+  registro está suscrito; se reinicia al detectar un parón y, para no crecer, cada 60 s, siempre desde un tic del
+  vigía sin parón (así la rotación nunca descarta las muestras de uno ni falsea su duración), y se alinea con el
+  reloj del vigía por el instante en que se para. `src/main/salud/pilaBloqueo.ts`
+  recorta las muestras al parón y guarda su cuenta, duración cubierta, ms en reposo (`ocioso`), en el recolector y
+  en código nativo del motor (`programa`), hasta ocho marcos por tiempo inclusivo y cinco hojas por tiempo propio.
+  Solo guarda nombres del código de la app (función, archivo y línea, sin rutas), nunca el perfil completo. Si el
+  inspector falla, el bloqueo sale sin pila. Un parón casi todo en reposo indica que el main no estaba ocupado: el
+  temporizador llegó tarde por el sistema. El analizador suma los marcos y muestra esa fracción sobre el tiempo
+  cubierto.
 - **Desde la ventana**: tareas largas, fotogramas largos y entradas (teclas, clics) que tardaron en pintarse, que
   el navegador ya mide (`PerformanceObserver`), en un resumen por minuto solo si hubo algo (`renderer-lento`), y si
   la ventana quedó tapada o vuelve a verse. La ventana es un proceso de menos confianza: el main sanea (solo números

@@ -6,7 +6,7 @@
 // Uso: node src/shared/test-destino-copia.mts
 // =============================================================================
 
-import { destinoPorDefecto, destinosPorDefecto, estadoReglas, planPerfiles, reasignarAgentes, type EstadoReglas } from './destinoCopia.ts'
+import { destinoPorDefecto, destinosPorDefecto, emparejarCuenta, estadoReglas, planPerfiles, reasignarAgentes, type EstadoReglas } from './destinoCopia.ts'
 import { agentesSeleccionados, arbolImportar, haySeleccion, seleccionInicial, seleccionParaImportar, seleccionTrasCambiarDestino, type ArbolImportar } from './seleccionCopia.ts'
 import { fusionarAgentes } from './copiaConfiguracion.ts'
 import type { DefinicionAgente } from './agentesManuales.ts'
@@ -179,9 +179,22 @@ function plan(): void {
   check('dos perfiles al mismo destino: manda el primero, el segundo no pisa', j(dosAlMismo.reglas) === j([{ perfil: 'personal', reglas: 'Reglas de a.' }]), j(dosAlMismo.reglas))
 }
 
+function cuentas(): void {
+  hr('Qué cuenta de aquí corresponde a una del archivo')
+  const c = (id: string, agente: string, nombre: string, predeterminada = false) => ({ id, agente, nombre, predeterminada })
+  const aqui = [c('d-1', 'claude-code', 'Predeterminada', true), c('u-9', 'codex', 'Trabajo'), c('u-8', 'codex', 'Personal')]
+  check('la predeterminada con la predeterminada, aunque otro id', emparejarCuenta(c('d-2', 'claude-code', 'Predeterminada', true), aqui)?.id === 'd-1', '')
+  check('la misma cuenta renombrada aquí: por su id', emparejarCuenta(c('u-9', 'codex', 'Antes se llamaba así'), aqui)?.id === 'u-9', '')
+  check('creada a mano en otro equipo: por el nombre, sin distinguir mayúsculas', emparejarCuenta(c('otro-id', 'codex', ' personal '), aqui)?.id === 'u-8', '')
+  check('NEGATIVO: un nombre de otro agente no empareja', emparejarCuenta(c('x', 'claude-code', 'Trabajo'), aqui) === null, '')
+  check('NEGATIVO: una predeterminada no empareja con una creada', emparejarCuenta(c('x', 'codex', 'Trabajo', true), aqui) === null, '')
+  check('NEGATIVO: sin coincidencia, habría que crearla', emparejarCuenta(c('x', 'codex', 'Nueva'), aqui) === null, '')
+}
+
 destinos()
 arbolYSeleccion()
 plan()
+cuentas()
 const pasan = resultados.filter((r) => r.pasa).length
 const todo = pasan === resultados.length
 hr(`VEREDICTO: ${pasan}/${resultados.length} PASS — ${todo ? 'TODO PASS' : 'HAY FAIL'}`)

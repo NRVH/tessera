@@ -1,5 +1,6 @@
 // =============================================================================
-// El almacén de las propuestas de reglas pendientes, una por perfil (la nueva sustituye a la anterior), en
+// El almacén de las propuestas de reglas pendientes, una por perfil y otra para las globales, con su id
+// reservado (la nueva sustituye a la anterior), en
 // `<userData>/reglas-propuestas.json` con escritura atómica y respaldo `.bak`. Lo de un perfil que ya no
 // existe no se devuelve ni se vuelve a escribir, y su borrado lo quita. Sin electron: la ruta y la lista
 // de perfiles llegan por parámetro. Lo componen `componer.ts` y las operaciones de `tctx`.
@@ -40,13 +41,21 @@ function esPropuesta(v: unknown): v is PropuestaReglas {
     p.motivo.length <= MAX_MOTIVO_PROPUESTA &&
     typeof p.en === 'number' &&
     Number.isFinite(p.en) &&
-    (p.proyecto === undefined || typeof p.proyecto === 'string')
+    (p.proyecto === undefined || typeof p.proyecto === 'string') &&
+    (p.desdePerfil === undefined || typeof p.desdePerfil === 'string')
   )
 }
 
 /** Solo los campos de una propuesta, sin lo que trajera de más. */
 function limpia(p: PropuestaReglas): PropuestaReglas {
-  return { profileId: p.profileId, texto: p.texto, motivo: p.motivo, en: p.en, ...(p.proyecto ? { proyecto: p.proyecto } : {}) }
+  return {
+    profileId: p.profileId,
+    texto: p.texto,
+    motivo: p.motivo,
+    en: p.en,
+    ...(p.proyecto ? { proyecto: p.proyecto } : {}),
+    ...(p.desdePerfil ? { desdePerfil: p.desdePerfil } : {})
+  }
 }
 
 /** Las propuestas de un archivo: lista (aunque vacía) si es JSON legible; `null` si no existe o está corrupto. */

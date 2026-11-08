@@ -6,6 +6,8 @@
 // Decisiones: docs/decisiones/explorador/arbol-de-archivos.md
 // =============================================================================
 import { EsperaCarga } from '../../comun/IndicadorCarga'
+import { Presente } from '../../comun/Presente'
+import { useUltimoValor } from '../../comun/presencia'
 import { VirtualList } from '../../comun/VirtualList'
 import { RaizDelProyecto } from '../../comun/raizDelProyecto'
 import { DialogosArbol } from './DialogosArbol'
@@ -102,10 +104,11 @@ function CuerpoArbol({ arbol }: { arbol: Arbol }): React.JSX.Element {
 /** Árbol de archivos de un proyecto. */
 export function FileTree(props: PropsFileTree): React.JSX.Element {
   const arbol = useArbol(props)
+  const ultimoError = useUltimoValor(arbol.opError || null)
   return (
     <RaizDelProyecto.Provider value={props.projectHostPath}>
       <CabeceraArbol arbol={arbol} />
-      {arbol.opError && <div className="tree-op-error">{arbol.opError}</div>}
+      <Presente visible={!!arbol.opError} className="mov-despliega"><div className="tree-op-error">{ultimoError}</div></Presente>
       <CuerpoArbol arbol={arbol} />
       <MenuContextualArbol arbol={arbol} />
       <DialogosArbol arbol={arbol} />

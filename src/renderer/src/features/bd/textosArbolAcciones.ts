@@ -38,7 +38,7 @@ export const txArbolAcciones = crearTextos(
     abrirFuente: (acorde: string) => `Abrir fuente (${acorde})`,
     filtrarClaves: 'Filtrar claves…',
     quitarFiltro: 'Quitar el filtro',
-    soloTipo: (tipo: string) => `Solo ${tipo}`,
+    filtrarPorTipo: 'Filtrar por tipo',
     nuevaClave: 'Nueva clave…',
     borrarPorPatron: 'Borrar claves por patrón…',
     filtrarPorPrefijo: (prefijo: string) => `Filtrar por ${prefijo}*`,
@@ -47,11 +47,11 @@ export const txArbolAcciones = crearTextos(
     abrirConAcorde: (acorde: string) => `Abrir (${acorde})`,
     copiarNombre: 'Copiar nombre',
     nuevaConexion: 'Nueva conexión…',
-    plegarTodo: 'Plegar todo',
+    plegarTodo: 'Contraer todo',
     // --- diálogos ---
-    tituloEliminarConexion: 'Eliminar conexión',
+    tituloEliminarConexion: (alias: string) => `¿Eliminar la conexión «${alias}»?`,
     eliminar: 'Eliminar',
-    tituloEliminarConsola: 'Eliminar consola',
+    tituloEliminarConsola: (nombre: string) => `¿Eliminar la consola «${nombre}»?`,
     consolaALaPapelera: (nombre: string) => `«${nombre}.sql» se moverá a la papelera y podrá recuperarse desde ella.`,
     tituloRenombrar: 'Renombrar consola',
     etiquetaNombre: 'Nombre',
@@ -68,7 +68,7 @@ export const txArbolAcciones = crearTextos(
     probandoAlias: (alias: string) => `Probando ${alias}…`,
     instalarCliente: 'Instalar cliente…',
     txFallidasRevertidas: 'Transacciones fallidas revertidas',
-    txSinConfirmar: 'Transacciones sin confirmar',
+    txSinConfirmar: '¿Qué hacer con las transacciones sin confirmar?',
     desconectarConCambios: (alias: string, nombres: readonly string[], soloRevertir: boolean) =>
       `${alias} tiene cambios sin confirmar` +
       (nombres.length > 0 ? ` en ${nombres.join(', ')}` : '') +
@@ -77,7 +77,7 @@ export const txArbolAcciones = crearTextos(
         : '. Para desconectar, primero debe confirmarlos o revertirlos.'),
     noSePudoDesconectar: (alias: string, m: string) => `No se pudo desconectar ${alias}: ${m}`,
     noSePudoEliminarAlias: (alias: string, m: string) => `No se pudo eliminar ${alias}: ${m}`,
-    txConsolaSinConfirmar: 'Transacción sin confirmar',
+    txConsolaSinConfirmar: '¿Qué hacer con la transacción sin confirmar?',
     consolaConCambios: (nombre: string) =>
       `«${nombre}» tiene cambios sin confirmar. Antes de eliminarla, decida qué hacer con ellos.`,
     noSePudoEliminarConsola: (nombre: string, m: string) => `No se pudo eliminar «${nombre}»: ${m}`,
@@ -117,7 +117,7 @@ export const txArbolAcciones = crearTextos(
     abrirFuente: (acorde: string) => `Open source (${acorde})`,
     filtrarClaves: 'Filter keys…',
     quitarFiltro: 'Remove filter',
-    soloTipo: (tipo: string) => `Only ${tipo}`,
+    filtrarPorTipo: 'Filter by type',
     nuevaClave: 'New key…',
     borrarPorPatron: 'Delete keys by pattern…',
     filtrarPorPrefijo: (prefijo: string) => `Filter by ${prefijo}*`,
@@ -127,9 +127,9 @@ export const txArbolAcciones = crearTextos(
     copiarNombre: 'Copy name',
     nuevaConexion: 'New connection…',
     plegarTodo: 'Collapse all',
-    tituloEliminarConexion: 'Delete connection',
+    tituloEliminarConexion: (alias: string) => `Delete the connection “${alias}”?`,
     eliminar: 'Delete',
-    tituloEliminarConsola: 'Delete console',
+    tituloEliminarConsola: (nombre: string) => `Delete the console “${nombre}”?`,
     consolaALaPapelera: (nombre: string) => `“${nombre}.sql” will be moved to the trash. You can restore it from there.`,
     tituloRenombrar: 'Rename console',
     etiquetaNombre: 'Name',
@@ -145,14 +145,14 @@ export const txArbolAcciones = crearTextos(
     probandoAlias: (alias: string) => `Testing ${alias}…`,
     instalarCliente: 'Install client…',
     txFallidasRevertidas: 'Failed transactions rolled back',
-    txSinConfirmar: 'Uncommitted transactions',
+    txSinConfirmar: 'What should happen to the uncommitted transactions?',
     desconectarConCambios: (alias: string, nombres: readonly string[], soloRevertir: boolean) =>
       `${alias} has uncommitted changes` +
       (nombres.length > 0 ? ` in ${nombres.join(', ')}` : '') +
       (soloRevertir ? '. Roll them back to disconnect.' : '. Commit or roll them back to disconnect.'),
     noSePudoDesconectar: (alias: string, m: string) => `Could not disconnect ${alias}: ${m}`,
     noSePudoEliminarAlias: (alias: string, m: string) => `Could not delete ${alias}: ${m}`,
-    txConsolaSinConfirmar: 'Uncommitted transaction',
+    txConsolaSinConfirmar: 'What should happen to the uncommitted transaction?',
     consolaConCambios: (nombre: string) =>
       `“${nombre}” has uncommitted changes. Choose what to do with them before deleting it.`,
     noSePudoEliminarConsola: (nombre: string, m: string) => `Could not delete “${nombre}”: ${m}`,

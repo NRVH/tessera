@@ -11,7 +11,7 @@ import { pathToFileURL } from 'node:url'
 import path from 'node:path'
 
 const here = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'))
-const { SEP, normalizeEntries, focusableIndices } = await import(
+const { SEP, normalizeEntries, focusableIndices, posicionSubmenu, seDirigeAlPanel } = await import(
   pathToFileURL(path.join(here, 'contextMenuModel.ts')).href
 )
 
@@ -118,6 +118,21 @@ check(
   JSON.stringify(focusableIndices([SEP, SEP])) === '[]',
   'sin ítems enfocables -> [] (el menú se enfoca a sí mismo, Esc sigue cerrando)'
 )
+
+console.log('\n=== Submenús: dónde se abren y cuándo no se cierran')
+
+const V = { width: 1000, height: 600 }
+const P = { width: 200, height: 100 }
+const derecha = posicionSubmenu({ left: 100, top: 50, width: 300, height: 28 }, P, V)
+check('12', derecha.left === 402 && derecha.top === 44, `a la derecha de su fila -> ${JSON.stringify(derecha)}`)
+const izquierda = posicionSubmenu({ left: 700, top: 50, width: 280, height: 28 }, P, V)
+check('13', izquierda.left === 498, `sin sitio a la derecha, a la izquierda -> ${JSON.stringify(izquierda)}`)
+const abajo = posicionSubmenu({ left: 100, top: 580, width: 300, height: 28 }, P, V)
+check('14', abajo.top === 492, `dentro de la ventana por abajo -> ${JSON.stringify(abajo)}`)
+const panel = { left: 400, top: 100, width: 200, height: 100 }
+check('15', seDirigeAlPanel({ x: 300, y: 80 }, { x: 330, y: 100 }, panel), 'en diagonal hacia el panel: lo mantiene')
+check('16', !seDirigeAlPanel({ x: 300, y: 80 }, { x: 280, y: 110 }, panel), 'alejándose: no')
+check('17', !seDirigeAlPanel({ x: 300, y: 120 }, { x: 300, y: 300 }, panel), 'en vertical por el menú: no')
 
 console.log('\n' + '='.repeat(78))
 console.log(`VEREDICTO: ${passed}/${passed + failed} PASS — ${failed === 0 ? 'TODO PASS' : 'HAY FAIL'}`)

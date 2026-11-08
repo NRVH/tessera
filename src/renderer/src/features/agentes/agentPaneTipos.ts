@@ -329,12 +329,6 @@ export const AGENT_LABEL: Record<AgentKind, string> = {
   codex: 'Codex'
 }
 
-/** Etiqueta CORTA del selector de agente, para la columna estrecha y el chip de la casilla. */
-export const AGENT_LABEL_SHORT: Record<AgentKind, string> = {
-  'claude-code': 'CC',
-  codex: 'Cdx'
-}
-
 /** Cómo se llama un agente ante el usuario: el nombre de su pestaña o, si no la hay, el de serie. */
 export function nombreAgente(pestanas: readonly PestanaAgente[], agente: IdAgente): string {
   const pestana = pestanas.find((x) => x.id === agente)

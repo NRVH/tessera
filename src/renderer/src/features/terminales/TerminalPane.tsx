@@ -8,7 +8,8 @@
 // Decisiones: docs/decisiones/terminales/terminales-keep-alive-y-reinicio-limpio.md
 // =============================================================================
 
-import { useContext } from 'react'
+import { Presente } from '../../comun/Presente'
+import { useContext, useRef } from 'react'
 import { AvisoCaja } from '../../comun/AvisoCaja'
 import { clasificarErrorArranque, normalizarErrorIpc } from '../../../../shared/dockerErrors'
 import type { SshConexion } from '../../../../shared/ssh-ipc'
@@ -87,18 +88,20 @@ export function TerminalPane(props: TerminalPaneProps): React.JSX.Element {
   const conexion = useStoreSsh((s) => (origen.tipo === 'ssh' ? conexionPorId(s, origen.conexionId) : undefined))
   const accionesSsh = useAccionesSsh(props, refs, estado, fitAndSyncNow, conexion !== undefined)
   const ssh = capasSsh(origen, estado, accionesSsh, conexion)
+  const ultimoError = useRef(estado.error)
+  if (estado.error) ultimoError.current = estado.error
 
   return (
     <div className={`terminal-pane${visible ? '' : ' hidden'}${esSsh ? ' ssh' : ''}`} aria-hidden={!visible}>
       {/* El mensaje llega ENVUELTO por el IPC de Electron; clasificarErrorArranque lo
           desenvuelve, respeta un aviso del main al usuario y pliega el detalle técnico. */}
-      {estado.error && !esSsh && (
-        <AvisoCaja tono="error" {...clasificarErrorArranque(estado.error, txTerminales().noSePudoAbrirTerminal)} />
-      )}
+      <Presente visible={!!(estado.error && !esSsh)} className="mov-aparece terminal-fundido">
+        <AvisoCaja tono="error" {...clasificarErrorArranque(ultimoError.current ?? '', txTerminales().noSePudoAbrirTerminal)} />
+      </Presente>
       {/* El main explica en español, sin rutas, por qué no abrió: se enseña tal cual, no plegado. */}
-      {estado.error && esSsh && (
-        <AvisoCaja tono="error" titulo={txTerminales().noSePudoAbrirConexionSsh} sugerencia={normalizarErrorIpc(estado.error)} />
-      )}
+      <Presente visible={!!(estado.error && esSsh)} className="mov-aparece terminal-fundido">
+        <AvisoCaja tono="error" titulo={txTerminales().noSePudoAbrirConexionSsh} sugerencia={normalizarErrorIpc(ultimoError.current ?? '')} />
+      </Presente>
       <div
         className="terminal-host"
         ref={refs.host}

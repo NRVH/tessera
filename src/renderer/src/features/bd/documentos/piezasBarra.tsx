@@ -6,6 +6,7 @@
 // Depende de `MarcaEntorno` y de los iconos de `bd`.
 // =============================================================================
 
+import { Cruce } from '../../../comun/Presente'
 import type { DbConnection } from '../../../../../shared/db-ipc'
 import { tituloSoloLecturaAgentes } from '../camposConexion'
 import { IconoCandado, IconoEsquema } from '../iconosBd'
@@ -116,7 +117,7 @@ export function BotonBase({
   )
 }
 
-/** La parte izquierda de la barra: alias, entorno, la base (`children`), «RO agentes» y el estado vivo. */
+/** La parte izquierda de la barra: alias, entorno, la base (`children`), la solo lectura de los agentes y el estado vivo. */
 export function IdentidadBarra({
   conexion,
   estado,
@@ -202,7 +203,7 @@ export function EstadoSelector({
 }): React.JSX.Element {
   const t = txConsolaComun()
   return (
-    <>
+    <Cruce clave={cargando ? 'cargando' : error ? 'error' : vacio ? 'vacio' : 'lista'}>
       {cargando && <div className="db-pop-estado">{t.cargandoBases}</div>}
       {error && (
         <div className="db-pop-estado error">
@@ -215,6 +216,6 @@ export function EstadoSelector({
         </div>
       )}
       {vacio && <div className="db-pop-estado">{t.ningunaBase}</div>}
-    </>
+    </Cruce>
   )
 }

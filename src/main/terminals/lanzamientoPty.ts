@@ -17,6 +17,7 @@ import { ASIGNACIONES_TERMINAL_CONTENEDOR, ENTORNO_COLOR, mergeEnv, primerPath }
 import { cleanEnv, envDocker } from './entornoDocker.ts'
 import { lanzarPty } from './adaptadores/pty.ts'
 import type { SessionRecord } from './tiposSesion.ts'
+import { argumentosShellContenedor } from '../agents/gitInContainer.ts'
 
 /**
  * El workspacePath neutro de un proyecto en el contenedor, según el registro de montajes del
@@ -34,7 +35,7 @@ export async function resolverWorkspacePath(sandbox: SandboxManager, profile: Pr
   if (byWorkspace) return byWorkspace.workspacePath
 
   throw new Error(
-    `El proyecto "${project}" no está montado en el perfil "${profile.id}". ` +
+    `El proyecto «${project}» no está montado en el perfil «${profile.id}». ` +
       'Llama a SandboxManager.addProject() antes de abrir una terminal.'
   )
 }
@@ -42,7 +43,7 @@ export async function resolverWorkspacePath(sandbox: SandboxManager, profile: Pr
 /** Pty en modo contenedor: `docker exec -it` con cwd neutro dentro del contenedor. */
 export function lanzarPtyDocker(record: SessionRecord): IPty {
   // Con `launch` (agente): `bash -lc <launch>`; sin él, el shell interactivo `bash -il`.
-  const shellArgs = record.launch ? ['bash', '-lc', record.launch] : ['bash', '-il']
+  const shellArgs = argumentosShellContenedor(record.launch)
   return lanzarPty(
     'docker',
     [
@@ -105,7 +106,7 @@ function sinVariables(env: Record<string, string>, nombres: readonly string[]): 
  */
 export function lanzarPtyDirecto(record: SessionRecord): IPty {
   const ejecutable = record.ejecutable
-  if (!ejecutable) throw new Error(`La sesión "${record.id}" no tiene un ejecutable propio que lanzar.`)
+  if (!ejecutable) throw new Error(`La sesión «${record.id}» no tiene un ejecutable propio que lanzar.`)
   const env = mergeEnv(sinVariables(cleanEnv(), ejecutable.quitarEnv ?? []), record.extraEnv)
   // Solo el nombre del ejecutable y cuántos argumentos: la línea lleva el destino de la conexión.
   dbLog(

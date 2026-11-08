@@ -1,7 +1,8 @@
 // =============================================================================
 // Composición de las reglas del perfil para los agentes, parte de la raíz de composición de la app: el
 // almacén de propuestas en `userData`, las operaciones de `tctx` (las suyas y las de otros dominios) en el
-// puente de `tdb` y su programa en el buzón de Docker, sus atajos en `bin/s<N>` y los canales de las propuestas. Lo llama `src/main/index.ts`
+// puente de `tdb` y su programa en el buzón de Docker, sus atajos en `bin/s<N>`, los canales de las propuestas, los
+// del contexto global y los de los documentos, que `tctx docs` sirve con los del perfil y los globales. Lo llama `src/main/index.ts`
 // tras las conexiones SSH; el borrado de un perfil quita su propuesta con lo que devuelve.
 // Decisiones: docs/decisiones/agentes/reglas-del-perfil.md
 // =============================================================================
@@ -9,14 +10,20 @@ import { app, type IpcMain } from 'electron'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import type { ReferenciasApp } from '../app/referencias'
-import type { PerfilesVivos } from '../profiles/types'
+import type { PerfilesVivos, Profile } from '../profiles/types'
+import type { AlmacenContextoGlobal } from '../contexto/contextoGlobal'
+import { registrarIpcContexto } from '../contexto/ipc'
+import { contextoEfectivo, usaContextoGlobal } from '../../shared/contexto'
 import type { PuertaPuente, RespuestaOperacion, SesionDelPuente } from '../db/dbBridge'
 import type { PuertaBuzon } from '../db/dockerBridge'
 import { dbLog } from '../db/dbLog'
-import { REGLAS_CHANNELS, type AvisoPropuesta } from '../../shared/reglas-ipc'
+import { ID_REGLAS_GLOBALES, REGLAS_CHANNELS, type AvisoPropuesta } from '../../shared/reglas-ipc'
 import { emisorDeVentana } from '../util/emisorEventos'
 import { escribirArchivosDeAtajo } from '../util/escrituraAtajos'
 import { generarAtajosPrograma } from '../util/atajosPrograma'
+import { atenderDocs, OP_DOCS } from '../documentos/operacionDocs'
+import { registrarIpcDocumentos } from '../documentos/ipc'
+import { txMain } from '../textos'
 import { programaTctx } from './buzonTctx'
 import { registrarIpcReglas } from './ipc'
 import { OperacionesReglas } from './operacionesReglas'
@@ -37,6 +44,8 @@ export interface DepsReglas {
   binDir: string
   /** Las operaciones de `tctx` de otros dominios (`ctx.traspaso`, `ctx.buscar`), con token de sesión: por el puente y por el buzón. */
   otrasOperaciones?: ReadonlyArray<OperacionTctx>
+  /** El contexto global de los agentes: sus reglas y sus documentos. */
+  contexto: AlmacenContextoGlobal
 }
 
 /** Una operación de `tctx` que atiende otro dominio; con una promesa, el puente y el buzón la esperan. */
@@ -64,26 +73,41 @@ function prepararAtajosTctx(binDir: string): void {
 
 /** Almacén, operaciones de `tctx` (puente y buzón), atajos y canales de las propuestas. */
 export function componerReglas(deps: DepsReglas): ComposicionReglas {
-  const { refs, ipc, perfiles } = deps
+  const { refs, ipc, perfiles, contexto } = deps
   const eventos = emisorDeVentana(() => refs.ventana)
+  const perfilDe = (id: string): Profile | undefined => perfiles.lista.find((x) => x.id === id)
   const propuestas = new PropuestasReglas({
     ruta: join(app.getPath('userData'), 'reglas-propuestas.json'),
-    // La lista se reasigna al guardar perfiles: se lee al usarse.
-    idsVivos: () => perfiles.lista.map((p) => p.id),
+    // La lista se reasigna al guardar perfiles: se lee al usarse. Las globales siempre tienen dueño.
+    idsVivos: () => [...perfiles.lista.map((p) => p.id), ID_REGLAS_GLOBALES],
     log: (m) => dbLog('reglas', m),
     alResolver: (profileId) => eventos.emitir(REGLAS_CHANNELS.RESUELTA, { profileId } satisfies AvisoPropuesta)
   })
   const operaciones = new OperacionesReglas({
     reglasDe: (id) => {
-      const p = perfiles.lista.find((x) => x.id === id)
+      const p = perfilDe(id)
       return p ? (p.reglas ?? '') : null
+    },
+    reglasGlobales: () => contexto.leer().reglas,
+    usaGlobales: (id) => {
+      const p = perfilDe(id)
+      return p ? usaContextoGlobal(p) : false
     },
     propuestas,
     alProponer: (profileId) => eventos.emitir(REGLAS_CHANNELS.PROPUESTA, { profileId } satisfies AvisoPropuesta),
     log: (m) => dbLog('reglas', m)
   })
   operaciones.registrar(deps.puente)
-  const otras = deps.otrasOperaciones ?? []
+  const carpetasDe = (id: string): readonly string[] | null => {
+    const p = perfilDe(id)
+    return p ? contextoEfectivo(p, contexto.leer()).documentos : null
+  }
+  // Una propuesta de las globales aceptada se resuelve cuando las reglas globales guardadas son las suyas.
+  const comoPerfilGlobal = (): { id: string; reglas: string } => ({ id: ID_REGLAS_GLOBALES, reglas: contexto.leer().reglas })
+  contexto.alCambiar(() => propuestas.alGuardarPerfiles([comoPerfilGlobal()]))
+  registrarIpcContexto({ ipc, almacen: contexto, eventos })
+  const docs: OperacionTctx = { op: OP_DOCS, manejar: (p, s) => atenderDocs({ carpetasDe }, p, s) }
+  const otras = [...(deps.otrasOperaciones ?? []), docs]
   for (const o of otras) deps.puente?.registrarOperacion(o.op, { token: 'sesion', manejar: (p, s) => o.manejar(p, s) })
   // El buzón tiene un solo programa `tctx`: atiende las de las reglas y las de los otros dominios.
   const atenderTodas = {
@@ -98,6 +122,7 @@ export function componerReglas(deps: DepsReglas): ComposicionReglas {
     }
   }
   prepararAtajosTctx(deps.binDir)
-  registrarIpcReglas({ ipc, propuestas, perfiles: () => perfiles.lista })
+  registrarIpcReglas({ ipc, propuestas, perfiles: () => [...perfiles.lista, comoPerfilGlobal()] })
+  registrarIpcDocumentos({ ipc, ventana: () => refs.ventana, titulo: () => txMain().elegirCarpetaDocumentos })
   return { propuestas }
 }

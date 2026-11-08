@@ -9,6 +9,7 @@
 import type { DiffEditorPane, DiffTarget } from '../editor'
 import { EstadoVacio } from '../../comun/EstadoVacio'
 import { EsperaCarga } from '../../comun/IndicadorCarga'
+import { Cruce } from '../../comun/Presente'
 import { IconoGitVacio } from './iconos'
 import { Splitter } from '../../comun/Splitter'
 import { VirtualList } from '../../comun/VirtualList'
@@ -50,28 +51,13 @@ export function HistorialArchivo(props: HistorialArchivoProps): React.JSX.Elemen
   const nombre = path.slice(path.lastIndexOf('/') + 1)
   const t = txGit()
 
-  if (error !== null) {
-    return (
-      <div className="git-log-body">
-        <AvisoCaja tono="error" titulo={t.errorHistorial} detalle={error} />
-      </div>
-    )
-  }
-
-  if (commits !== null && commits.length === 0) {
-    return (
-      <div className="git-log-body">
-        <EstadoVacio
-          icono={<IconoGitVacio />}
-          titulo={t.sinHistorialTitulo}
-          pista={t.sinHistorialPista(nombre)}
-        />
-      </div>
-    )
-  }
-
   return (
-    <div className="git-log-body">
+    <div className="git-log-body git-lista-con-estado">
+      <Cruce className="git-lista-tapa" clave={error !== null ? 'error' : commits?.length === 0 ? 'vacio' : 'lista'}>
+        {error !== null ? <AvisoCaja tono="error" titulo={t.errorHistorial} detalle={error} /> : commits?.length === 0 ? (
+          <EstadoVacio icono={<IconoGitVacio />} titulo={t.sinHistorialTitulo} pista={t.sinHistorialPista(nombre)} />
+        ) : null}
+      </Cruce>
       <div className="git-log-col git-historial-lista" style={{ flex: `0 0 ${anchoLista}px` }}>
         {listaDeCommits(historial, nombre, props)}
       </div>
@@ -104,7 +90,9 @@ function listaDeCommits(
       itemHeight={props.altoFila}
       getKey={(c) => c.hash}
       header={
-        commits === null ? <EsperaCarga texto={t.cargandoHistorialArchivo} className="git-state-inline" /> : null
+        <Cruce clave={commits === null ? 'cargando' : 'lista'}>
+          {commits === null ? <EsperaCarga texto={t.cargandoHistorialArchivo} className="git-state-inline" /> : null}
+        </Cruce>
       }
       renderItem={(c) => (
         <div

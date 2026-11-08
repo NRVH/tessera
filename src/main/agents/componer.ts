@@ -4,7 +4,8 @@
 // nativos, cuentas, conversaciones (y `tctx buscar`), uso, contexto, «Continuar en…», hibernación y el guardado de perfiles, con
 // sus `ipc.ts`. Lo llama `src/main/index.ts` con las referencias, `ipcMain` y lo ya compuesto.
 // =============================================================================
-import { app, BrowserWindow, webContents, type IpcMain } from 'electron'
+import { app, BrowserWindow, shell, webContents, type IpcMain } from 'electron'
+import { hijaDirectaALaPapelera } from '../util/carpetaDePerfil'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import os from 'node:os'
@@ -31,12 +32,13 @@ import { lanzadaPorElArnes } from '../../shared/arnesE2e'
 import { VigilanteMemoria } from './vigilanteMemoria'
 import type { EspacioTerminal } from '../ssh/controlador/espacioTerminal'
 import type { PropuestasReglas } from '../reglas/propuestasReglas'
+import type { ContextoGlobal } from '../../shared/contexto'
 import { borrarPerfiles, type DepsBorradoCompleto, type DuenoDeCarpeta } from '../profiles/borradoDePerfil'
 import { BorradosPendientes, borrarPorOrden, listaAGuardar, terminarBorradosPendientes } from '../profiles/ordenDeBorrado'
 import type { CandadoDeBorrado } from '../profiles/candadoDeBorrado'
 import type { LlegadaDePerfiles } from '../profiles/llegadaDePerfiles'
 import { SandboxManager, fijarBaseGestionada } from '../sandbox/SandboxManager'
-import { resolveSshSetup, type SshSetup } from '../sandbox/sshSetup'
+import { conservarPermisosSsh } from '../ssh/agente/permisos'
 import { registrarIpcRedSandbox, registrarIpcActualizarAgentes } from '../sandbox/ipc'
 import { TerminalController } from '../terminals/TerminalController'
 import { registrarIpcTerminal } from '../terminals/ipc'
@@ -61,8 +63,12 @@ import { registrarIpcHibernacion } from '../hibernate/ipc'
 import { AgentTerminalController } from './AgentTerminalController'
 import { AgentesNativos } from './agentesNativos'
 import { ejecutarEnShellNativa } from './ejecutorShell'
+import { crearSondaOpcion } from './sondaOpcionCli'
+import { OPCION_SNAPSHOT } from './lineaArranqueAgente'
 import { registrarIpcAgentesManuales } from './manuales/ipc'
-import { registrarIpcTerminalAgente, registrarIpcCuentas, registrarIpcAgentesNativos } from './ipc'
+import { registrarIpcTerminalAgente, registrarIpcCuentas, registrarIpcAgentesNativos, registrarIpcConfigAgente } from './ipc'
+import { capasCompartidasDe, crearConfigAgente, raizCompartida } from './configAgente/creacion'
+import type { OperacionConfigTctx } from './configAgente/operacionConfigTctx'
 import { portapapelesDelSistema } from './adaptadores/portapapeles'
 import { fetchTextoConTope } from './adaptadores/redElectron'
 import { AccountStore } from './AccountStore'
@@ -73,6 +79,9 @@ import type { RegistroTraspasos } from '../traspaso/RegistroTraspasos'
 import { ServicioTraspaso } from '../traspaso/ServicioTraspaso'
 import { registrarIpcTraspaso } from '../traspaso/ipc'
 import type { OperacionBuscarHistorial } from '../historial/operacionBuscar'
+import type { OperacionDelegacion } from './delegacion/operacionDelegacion'
+import { registrarIpcDelegacion } from './delegacion/ipc'
+import { DELEGACION_CHANNELS } from '../../shared/delegacion-ipc'
 import { TOPES_DEFECTO, buscarEnHistorial } from '../historial/buscarHistorial'
 
 /** Lo que la composición de las sesiones recibe de `index.ts`. */
@@ -98,6 +107,12 @@ export interface DepsSesiones {
   traspasos: RegistroTraspasos
   /** `tctx buscar`, ya registrada en el puente: aquí recibe las sesiones, las cuentas y el lector del historial. */
   buscarHistorial: Pick<OperacionBuscarHistorial, 'conectar'>
+  /** `tctx config`, ya registrada en el puente: aquí recibe las sesiones, el servicio y las propuestas. */
+  configTctx: Pick<OperacionConfigTctx, 'conectar'>
+  /** El contexto global de los agentes, vigente: lo lleva el aviso de arranque de cada sesión. */
+  contextoGlobal: () => ContextoGlobal
+  /** `tctx cuentas`, `delegar` y `tarea`, ya registradas en el puente: aquí reciben el servicio y las sesiones. */
+  delegacion: Pick<OperacionDelegacion, 'conectar'>
 }
 
 /** Pasa al sandbox los paquetes a hornear: solo marca la imagen como obsoleta, no la rehornea. */
@@ -117,24 +132,15 @@ export function crearCuentas(perfiles: PerfilesVivos): AccountStore {
 
 interface Sandbox {
   sharedSandbox: SandboxManager
-  sshSetup: SshSetup | null
   emisorSinContenido: EmisorEventos
 }
 
-/** El sandbox de los agentes, con el `.ssh` global y el puente de BD. */
+/** El sandbox de los agentes: las firmas SSH y las bases se sirven por el buzón. */
 function componerSandbox({ refs, ipc, perfiles, dbController }: DepsSesiones): Sandbox {
   const dockerfileDir = join(app.getAppPath(), 'docker', 'sandbox')
-  // `.ssh` global: se montan de solo lectura la carpeta y las hermanas que cite su `config`.
-  const sshDir = join(os.homedir(), '.ssh')
-  const sshSetup = resolveSshSetup(sshDir)
-  console.log(
-    `[tessera] ssh global: ${
-      sshSetup ? `${sshSetup.mounts.length} carpeta(s) desde ${sshDir}` : `sin .ssh en ${sshDir}`
-    }`
-  )
   // ANTES de construir el sandbox; en macOS la raíz vive bajo `userData` (ver `sandbox/rutasSandbox.ts`).
   fijarBaseGestionada(app.getPath('userData'))
-  const sharedSandbox = new SandboxManager(dockerfileDir, sshSetup)
+  const sharedSandbox = new SandboxManager(dockerfileDir)
   sharedSandbox.setDbBridge(
     (profileId) => dbController.prepararBuzonDocker(profileId),
     (profileId) => dbController.olvidarBuzonDocker(profileId)
@@ -163,7 +169,7 @@ function componerSandbox({ refs, ipc, perfiles, dbController }: DepsSesiones): S
   // Barrido de montajes colgados de un cierre sucio; `ensureContainer` lo espera. Bajo el
   // arnés de pruebas no se barren los heredados: pueden ser de la Tessera abierta del usuario.
   sharedSandbox.beginStartupSweep(!lanzadaPorElArnes(process.argv))
-  return { sharedSandbox, sshSetup, emisorSinContenido }
+  return { sharedSandbox, emisorSinContenido }
 }
 
 type EntornoHost = (profileId: string, projectHostPath: string, dbConnectionIds: string[]) => Record<string, string>
@@ -185,7 +191,11 @@ function componerTerminal({ refs, ipc, perfiles, dbController, ssh, borrados }: 
     eventos: emisorDeVentana(() => refs.ventana),
     getHostEnv: hostEnv,
     bindDbSession: (env, sessionId) => dbController.atarSesion(env, sessionId),
-    revokeDbSession: (sessionId) => dbController.revocarSesion(sessionId),
+    // Con su token se va quien vigila sus tareas delegadas: se cancelan.
+    revokeDbSession: (sessionId) => {
+      dbController.revocarSesion(sessionId)
+      refs.agentes?.alCerrarOrigenDelegacion(sessionId)
+    },
     lanzadorSsh: ssh,
     tablaProcesos: tablaProcesosDelSistema
   })
@@ -243,7 +253,6 @@ function componerSesionAgente(deps: DepsSesiones, sb: Sandbox, hostEnv: EntornoH
     eventos,
     carpetaVentana: () => carpetaVentanaAgente(),
     portapapeles: portapapelesDelSistema,
-    sshSetup: sb.sshSetup,
     anclas: anclasConversacion,
     getAgentBase: baseDeCuenta,
     turnos: refs.vigilanteTurnos,
@@ -253,7 +262,10 @@ function componerSesionAgente(deps: DepsSesiones, sb: Sandbox, hostEnv: EntornoH
     getContainerEnv: (perfil, proyecto, ids, buzon) =>
       dbController.entornoContenedor(perfil, proyecto, ids, buzon),
     bindDbSession: (env, sessionId) => dbController.atarSesion(env, sessionId),
-    revokeDbSession: (sessionId) => dbController.revocarSesion(sessionId),
+    revokeDbSession: (sessionId) => {
+      dbController.revocarSesion(sessionId)
+      refs.agentes?.alCerrarOrigenDelegacion(sessionId)
+    },
     // Enlace TARDÍO: el servicio de los agentes nativos nace después y necesita a este controlador.
     sondearVersion: (agente) => (refs.agentesNativos ? refs.agentesNativos.instalada(agente) : Promise.resolve(null)),
     esperarCandado: (agente) => (refs.agentesNativos ? refs.agentesNativos.esperarCandado(agente) : Promise.resolve()),
@@ -261,7 +273,10 @@ function componerSesionAgente(deps: DepsSesiones, sb: Sandbox, hostEnv: EntornoH
     // Solo la leen las pruebas de interfaz: acorta el umbral, no enciende la hibernación.
     inactividadPruebasMs: umbralPruebasDe(process.env.TESSERA_AGENTE_INACTIVIDAD_MS),
     rutaRegistroParadas: join(app.getPath('userData'), 'logs', 'paradas-contenedores.jsonl'),
-    traspasos: deps.traspasos
+    traspasos: deps.traspasos,
+    capasCompartidas: (perfil, agente) => capasCompartidasDe(app.getPath('userData'), perfil, agente),
+    contextoGlobal: deps.contextoGlobal,
+    admiteSnapshotNativo: crearSondaOpcion({ orden: 'claude --help', opcion: OPCION_SNAPSHOT, ejecutar: ejecutarEnShellNativa })
   })
   refs.agentes = agentController
   registrarIpcTerminalAgente({ ipc, agentes: agentController, esperarBorrado: (id) => deps.borrados.esperar(id) })
@@ -299,7 +314,8 @@ function componerAgentesNativos(refs: ReferenciasApp, controladorAgentes: AgentT
 }
 
 /** Cuentas, conversaciones (y su búsqueda), uso de cuenta y contexto de la conversación; devuelve el lector del contexto. */
-function componerCuentasYUso({ refs, ipc, accounts, buscarHistorial }: DepsSesiones, sesion: SesionAgente, aTodas: EmisorEventos): ContextReader {
+function componerCuentasYUso(deps: DepsSesiones, sesion: SesionAgente, aTodas: EmisorEventos): ContextReader {
+  const { refs, ipc, accounts, buscarHistorial, configTctx, perfiles } = deps
   // LOGOUT y DELETE cierran antes las sesiones vivas de esa cuenta, en cualquier perfil.
   registrarIpcCuentas({
     ipc,
@@ -310,6 +326,10 @@ function componerCuentasYUso({ refs, ipc, accounts, buscarHistorial }: DepsSesio
     olvidarUso: (id) => usage.forget(id),
     soltarVigilanteUso: (id) => usageWatcher.cerrar(id)
   })
+  const sesionesDe = (agente: 'claude-code' | 'codex', accountId: string | null): number => refs.agentes?.contarSesionesDeConfig(agente, accountId) ?? 0
+  const sesionAgente = (id: string): ReturnType<AgentTerminalController['sesionParaHistorial']> => sesion.agentController.sesionParaHistorial(id)
+  const config = crearConfigAgente({ userData: app.getPath('userData'), accounts, perfiles, sesionesDe, configTctx, sesionAgente, eventos: aTodas, log: (m) => dbLog('config-agente', m) })
+  registrarIpcConfigAgente({ ipc, ...config })
   // UNA sola instancia de títulos: dos sobre el mismo archivo se pisarían las escrituras.
   const titulos = crearTitulosConversacion(join(app.getPath('userData'), 'conversation-titles.json'))
   // Uno para el panel y la búsqueda: comparten la caché de resúmenes.
@@ -347,8 +367,31 @@ function componerCuentasYUso({ refs, ipc, accounts, buscarHistorial }: DepsSesio
   })
   refs.vigilanteUso = usageWatcher
   registrarIpcContexto({ ipc, contexto: new ServicioContexto({ lector: contexts, baseDe: sesion.baseDeCuenta }) })
-  registrarIpcUso({ ipc, uso: new ServicioUso({ lector: usage, vigilante: usageWatcher, baseDe: sesion.baseDeCuenta }) })
+  const uso = new ServicioUso({ lector: usage, vigilante: usageWatcher, baseDe: sesion.baseDeCuenta })
+  registrarIpcUso({ ipc, uso })
+  componerDelegacion(deps, sesion, uso, aTodas)
   return contexts
+}
+
+/** Las tareas delegadas: su servicio en el controlador de los agentes, `tctx` por el puente y el indicador por IPC. */
+function componerDelegacion({ ipc, delegacion }: DepsSesiones, sesion: SesionAgente, uso: ServicioUso, aTodas: EmisorEventos): void {
+  const servicio = sesion.agentController.crearDelegacion({
+    uso: async (agente, accountId) => {
+      const s = await uso.leer({ agente, accountId, mode: 'container' })
+      return s.windows.map((w) => ({ etiqueta: w.label, porcentaje: w.percent, ...(w.resetsAt !== undefined ? { reinicio: w.resetsAt } : {}) }))
+    },
+    emitir: (tareas) => aTodas.emitir(DELEGACION_CHANNELS.CAMBIO, tareas),
+    // La misma clave que usa el renderer para las bases montadas de un proyecto (`editorTargetKey`).
+    montajesDe: (profileId, proyecto) => loadWorkspaceSettings().dbMountsByProject?.[`${profileId}|${proyecto}`] ?? []
+  })
+  delegacion.conectar({
+    servicio,
+    sesionAgente: (id) => {
+      const s = sesion.agentController.sesionParaHistorial(id)
+      return s ? { profileId: s.profileId, host: s.host } : null
+    }
+  })
+  registrarIpcDelegacion({ ipc, servicio })
 }
 
 /**
@@ -393,6 +436,12 @@ function componerTraspaso({ ipc, accounts, traspasos }: DepsSesiones, sesion: Se
  * conversaciones vive en la cuenta y no se toca.
  * Con el candado del perfil, y cada paso mira `perfiles.lista` de ESE momento (`profiles/borradoDePerfil.ts`).
  */
+/** La capa de configuración de Docker de cada perfil (`<raíz>/perfiles/<id>`), como dueña de una carpeta del perfil. */
+function capaConfigDelPerfil(): DuenoDeCarpeta {
+  const base = join(raizCompartida(app.getPath('userData')), 'perfiles')
+  return { borrar: (profileId, idsVivos) => hijaDirectaALaPapelera(base, profileId, idsVivos, (ruta) => shell.trashItem(ruta)) }
+}
+
 function depsDeBorrado(deps: DepsSesiones, sharedSandbox: SandboxManager): DepsBorradoCompleto<Profile> {
   const { refs, perfiles, espacioTerminal, espacioDatos, ssh, dbController, borrados } = deps
   return {
@@ -412,7 +461,9 @@ function depsDeBorrado(deps: DepsSesiones, sharedSandbox: SandboxManager): DepsB
     // Cada dueño lleva su papelera desde que nace (`shell.trashItem`, en su composición).
     carpetas: [
       ['del agente de la terminal', espacioTerminal],
-      ['del espacio de datos', espacioDatos]
+      ['del espacio de datos', espacioDatos],
+      // Puede llevar secretos de servidores MCP: un perfil recreado con el mismo id no debe heredarla.
+      ['de la configuración de Docker del perfil', capaConfigDelPerfil()]
     ],
     log: (m) => console.log(m),
     error: (m, err) => console.error(m, err)
@@ -440,7 +491,7 @@ function registrarIpcGuardarPerfiles(deps: DepsSesiones, sharedSandbox: SandboxM
   ipc.handle(IPC_CHANNELS.SAVE_PROFILES, (_e, next: Profile[]) => {
     const { lista, retenidos } = listaAGuardar(perfiles.lista, next)
     for (const p of retenidos) console.error(`[tessera] el guardado no trae el perfil ${p.id}: se conserva (solo se borra con su orden)`)
-    fijarLista(lista)
+    fijarLista(conservarPermisosSsh(perfiles.lista, lista))
     // Las reglas aceptadas ya están en disco: solo ahora se quita su propuesta.
     deps.propuestasReglas.alGuardarPerfiles(lista)
   })

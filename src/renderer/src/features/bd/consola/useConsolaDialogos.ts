@@ -18,6 +18,7 @@ import {
   type AccionParametros,
   type CampoParametro
 } from './parametrosConsola'
+import type { SeveridadModal } from '../../../comun/Modal'
 import { contextoTxPendiente } from './produccionConsola'
 import type { DialogoConsola, OpcionesCorrer } from './tiposConsola'
 import type { NucleoConsola } from './useConsolaNucleo'
@@ -28,6 +29,8 @@ export interface PreguntaConsola {
   mensaje: string
   confirmar: string
   peligro: boolean
+  /** Sin indicar: peligro (todas las preguntas de la consola protegen el Enter). */
+  severidad?: SeveridadModal
 }
 
 type BindsDelLote = ReadonlyArray<DbBinds | undefined>

@@ -8,7 +8,7 @@
 import '../../../comun/formularioModal.css'
 import './copia.css'
 import { useId, useState } from 'react'
-import { alClicEnVelo, useDialogo } from '../../../comun/useDialogo'
+import { AvisoConPresencia, AvisoModal, Modal, PieModal } from '../../../comun/Modal'
 import { useStorePestanas } from '../../pestanas'
 import { MIN_FRASE, errorDeFrase, type ApartadosCopia } from '../../../../../shared/copiaConfiguracion'
 import type { ResumenExportacion } from '../../../../../shared/copia-configuracion-ipc'
@@ -18,22 +18,26 @@ import { HistorialExportar } from './HistorialExportar'
 import { formatoBytes } from '../../../util/formatoBytes'
 import { txCopia } from './textosCopia.ts'
 
-const CLAVES_APARTADOS: ReadonlyArray<keyof ApartadosCopia> = ['ssh', 'bd', 'agentes', 'ajustes']
+const CLAVES_APARTADOS: ReadonlyArray<keyof ApartadosCopia> = ['ssh', 'bd', 'agentes', 'configDocker', 'archivosCuentas', 'reglasNativas', 'ajustes']
 
 function Resumen({ nombre, r, sinFrase }: { nombre: string; r: ResumenExportacion; sinFrase: boolean }): React.JSX.Element {
   const t = txCopia()
   return (
     <div className="copia-resumen" role="status">
-      <p className="copia-ok">{t.exportar.guardado(nombre)}</p>
-      <p className={sinFrase ? 'dbc-error' : 'dbc-ayuda'}>{t.exportar.resumen(r.perfiles, r.ssh, r.bd, r.agentes, sinFrase)}</p>
+      <AvisoModal tono="exito">{t.exportar.guardado(nombre)}</AvisoModal>
+      <AvisoModal tono={sinFrase ? 'aviso' : 'info'}>{t.exportar.resumen(r.perfiles, r.ssh, r.bd, r.agentes, sinFrase)}</AvisoModal>
       {r.historial && <p className="dbc-ayuda">{t.exportar.resumenHistorial(r.historial.conversaciones, formatoBytes(r.historial.bytes))}</p>}
       {r.historial && r.historial.saltadas > 0 && <p className="dbc-ayuda">{t.exportar.historialSaltadas(r.historial.saltadas)}</p>}
-      {r.sinSecreto.length > 0 && (
-        <div className="dbc-error">{t.exportar.sinSecreto(t.comun.lista(r.sinSecreto))}</div>
-      )}
-      {r.sinClave.length > 0 && (
-        <div className="dbc-error">{t.exportar.sinClave(t.comun.lista(r.sinClave))}</div>
-      )}
+      {r.archivosAgentes && (r.archivosAgentes.cuentas > 0 || r.archivosAgentes.nativos > 0) && <p className="dbc-ayuda">{t.exportar.resumenArchivos(r.archivosAgentes.cuentas, r.archivosAgentes.nativos)}</p>}
+      <AvisoConPresencia>{r.archivosAgentes && r.archivosAgentes.bloqueados.length > 0 && (
+        <AvisoModal tono="aviso">{t.exportar.archivosBloqueados(t.comun.lista(r.archivosAgentes.bloqueados))}</AvisoModal>
+      )}</AvisoConPresencia>
+      <AvisoConPresencia>{r.sinSecreto.length > 0 && (
+        <AvisoModal tono="aviso">{t.exportar.sinSecreto(t.comun.lista(r.sinSecreto))}</AvisoModal>
+      )}</AvisoConPresencia>
+      <AvisoConPresencia>{r.sinClave.length > 0 && (
+        <AvisoModal tono="aviso">{t.exportar.sinClave(t.comun.lista(r.sinClave))}</AvisoModal>
+      )}</AvisoConPresencia>
     </div>
   )
 }
@@ -41,7 +45,7 @@ function Resumen({ nombre, r, sinFrase }: { nombre: string; r: ResumenExportacio
 function useExportar(onCerrar: () => void) {
   const perfiles = useStorePestanas((s) => s.tabs.profiles)
   const [elegidos, setElegidos] = useState<string[]>(() => perfiles.map((p) => p.id))
-  const [apartados, setApartados] = useState<ApartadosCopia>({ ssh: true, bd: true, agentes: true, ajustes: true })
+  const [apartados, setApartados] = useState<ApartadosCopia>({ ssh: true, bd: true, agentes: true, configDocker: true, archivosCuentas: true, reglasNativas: true, ajustes: true })
   const [frase, setFrase] = useState('')
   const [repetida, setRepetida] = useState('')
   const [sinFrase, setSinFrase] = useState(false)
@@ -104,47 +108,32 @@ function Campos({ v }: { v: ReturnType<typeof useExportar> }): React.JSX.Element
         </>
       )}
       <Casilla etiqueta={t.exportar.sinFrase} marcada={v.sinFrase} onCambio={v.alternarSinFrase} />
-      {/* Sin frase el archivo lleva contraseñas y claves en claro: se dice en rojo y sin rodeos. */}
-      {v.sinFrase && (
-        <div className="dbc-error" role="note">
+      {/* Sin frase el archivo lleva contraseñas y claves en claro. */}
+      <AvisoConPresencia>{v.sinFrase && (
+        <AvisoModal tono="aviso">
           {t.exportar.sinFraseAviso}
-        </div>
-      )}
+        </AvisoModal>
+      )}</AvisoConPresencia>
     </>
   )
 }
 
 export function ModalExportar({ onCerrar }: { onCerrar: () => void }): React.JSX.Element {
+  const formulario = useId()
   const v = useExportar(onCerrar)
   const ocupado = v.estado.tipo === 'guardando'
-  const dialogo = useDialogo({ onClose: onCerrar, cerrable: !ocupado })
-  const idTitulo = useId()
   const t = txCopia()
   return (
-    <div className="modal-overlay" role="presentation" onMouseDown={ocupado ? undefined : alClicEnVelo(onCerrar)}>
-      <div ref={dialogo.ref} className="modal-card db-conexion-modal copia-modal" role="dialog" aria-modal="true" aria-labelledby={idTitulo} onMouseDown={(e) => e.stopPropagation()} onKeyDown={dialogo.alPulsarTecla}>
-        <form className="dbc-form" noValidate onSubmit={(e) => { e.preventDefault(); void v.exportar() }}>
-          <div className="dbc-cabecera">
-            <div id={idTitulo} className="modal-title">{t.exportar.titulo}</div>
-            <div className="dbc-ayuda">{t.exportar.subtitulo}</div>
-          </div>
-          <div className="dbc-cuerpo">
-            {v.estado.tipo === 'hecho' ? <Resumen nombre={v.estado.nombre} r={v.estado.resumen} sinFrase={v.sinFrase} /> : <Campos v={v} />}
-            {v.error && <div className="dbc-error" role="alert">{v.error}</div>}
-          </div>
-          <div className="modal-actions dbc-acciones">
-            <span className="dbc-hueco" />
-            {v.estado.tipo === 'hecho' ? (
-              <button type="button" className="btn primary" onClick={onCerrar}>{t.comun.cerrar}</button>
-            ) : (
-              <>
-                <button type="button" className="btn btn-ghost" disabled={ocupado} onClick={onCerrar}>{t.comun.cancelar}</button>
-                <button type="submit" className="btn primary" disabled={ocupado}>{ocupado ? t.exportar.exportando : t.exportar.exportar}</button>
-              </>
-            )}
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal titulo={t.exportar.titulo} subtitulo={t.exportar.subtitulo} tamano="m" className="db-conexion-modal copia-modal"
+      onCerrar={onCerrar} cerrable={!ocupado} cierraConVelo={v.estado.tipo === 'hecho'} ocupado={ocupado}
+      pie={v.estado.tipo !== 'hecho' ? <PieModal>
+        <button type="button" className="btn btn-ghost" disabled={ocupado} onClick={onCerrar}>{t.comun.cancelar}</button>
+        <button type="submit" form={formulario} className="btn primary" disabled={ocupado}>{ocupado ? t.exportar.exportando : t.exportar.exportar}</button>
+      </PieModal> : undefined}>
+      <form id={formulario} className="copia-formulario" noValidate onSubmit={(e) => { e.preventDefault(); if (!ocupado && v.estado.tipo !== 'hecho') void v.exportar() }}>
+      {v.estado.tipo === 'hecho' ? <Resumen nombre={v.estado.nombre} r={v.estado.resumen} sinFrase={v.sinFrase} /> : <Campos v={v} />}
+      <AvisoConPresencia>{v.error && <AvisoModal tono="error">{v.error}</AvisoModal>}</AvisoConPresencia>
+      </form>
+    </Modal>
   )
 }

@@ -277,16 +277,6 @@ export async function formatearSql(texto: string, motor: DbMotor): Promise<strin
   return formatearTexto(texto, dialectoDeMotor(motor), f).texto
 }
 
-/** Como `formatearSql`, con los reemplazos y las sentencias que se dejaron (y por qué). */
-export async function formatearSqlDetallado(
-  texto: string,
-  motor: DbMotor,
-  rango?: { desde: number; hasta: number }
-): Promise<ResultadoFormato> {
-  const f = await cargarFormateador()
-  return formatearTexto(texto, dialectoDeMotor(motor), f, rango)
-}
-
 // --- El cursor ----------------------------------------------------------------------
 
 function esBlancoCar(c: string): boolean {

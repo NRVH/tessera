@@ -57,7 +57,7 @@ const es: Articulo = {
         'El menú contextual de un archivo sin versionar ofrece dos opciones:',
         {
           lista: [
-            '**Agregar a .gitignore** añade el archivo a `.gitignore`. Ese cambio es un cambio más del repositorio: afecta a todas las personas que usan el repositorio cuando se confirma y se sube.',
+            '**Añadir a .gitignore** añade el archivo a `.gitignore`. Ese cambio es un cambio más del repositorio: afecta a todas las personas que usan el repositorio cuando se confirma y se sube.',
             '**Ignorar solo en este equipo (.git/info/exclude)** lo ignora solo en su copia del repositorio y no se comparte.'
           ]
         },
@@ -65,10 +65,27 @@ const es: Articulo = {
       ]
     },
     {
-      ancla: 'log',
-      titulo: 'Git · Log: el historial',
+      ancla: 'hooks',
+      titulo: 'Permiso de los hooks',
       bloques: [
-        '**Git · Log**, en el [riel](glosario/riel), abre el historial en el [panel inferior](glosario/panel-inferior), el mismo espacio que la terminal: se muestra uno u otro. A la izquierda aparecen las ramas; en el centro, los commits con su grafo; a la derecha, el detalle del commit seleccionado y sus archivos.',
+        'Un hook es un programa del repositorio que Git ejecuta en {tuEquipo} al preparar archivos, confirmar o cambiar de rama. Para que un repositorio no pueda ejecutar nada sin su conocimiento, una escritura de Git desde el panel solo ejecuta los hooks que usted ya aceptó.',
+        'Si hay uno nuevo o que cambió, Tessera lo enseña antes de continuar. **Ver** despliega su contenido. Elija una de estas opciones:',
+        {
+          lista: [
+            '**Ejecutar y recordar**: ejecuta los hooks y no vuelve a preguntar mientras no cambien.',
+            '**Continuar sin ejecutarlos**: hace la operación sin ejecutar los hooks.',
+            '**Cancelar**: no hace la operación.'
+          ]
+        },
+        'Si la carpeta de hooks contiene un enlace simbólico o supera los límites de inspección, el diálogo indica qué lo impide y no permite aceptarlos: corrija la carpeta o continúe sin ejecutarlos.',
+        { nota: 'Un hook aceptado se ejecuta con los permisos de su usuario. Acepte solo los que reconozca.' }
+      ]
+    },
+    {
+      ancla: 'log',
+      titulo: 'Git · Historial: el historial',
+      bloques: [
+        '**Git · Historial**, en el [riel](glosario/riel), abre el historial en el [panel inferior](glosario/panel-inferior), el mismo espacio que la terminal: se muestra uno u otro. A la izquierda aparecen las ramas; en el centro, los commits con su grafo; a la derecha, el detalle del commit seleccionado y sus archivos.',
         {
           lista: [
             'Para filtrar, haga clic en una rama del árbol (o en **Todas las ramas**) o use **Usuario**, **Fecha** o **Texto o hash**.',
@@ -77,8 +94,8 @@ const es: Articulo = {
             'Para mantener la velocidad, solo se cargan los últimos commits. Los filtros de usuario, fecha y texto se aplican únicamente a lo cargado, y un aviso lo indica; el filtro de rama consulta siempre el repositorio. **Cargar el historial completo** carga el resto.'
           ]
         },
-        'Para ampliarlo, use **Maximizar el panel de Git** o pulse `Ctrl+Mayús+Intro` (`⇧⌘↩`) con el foco en el historial. El panel ocupa toda el área de trabajo sin cerrar nada, y **Restaurar el panel de Git** lo devuelve a su lugar.',
-        { captura: 'git-log-con-diff', alt: 'Git · Log con la columna de ramas, la lista de commits con su grafo y el detalle de un commit, y su diff abierto arriba.' }
+        'Para ampliarlo, use el botón de maximizar (**Maximizar el panel de Git**) de la cabecera del historial, que aparece al pasar el puntero o al recibir el foco, o pulse `Ctrl+Mayús+Intro` (`⇧⌘↩`) con el foco en el historial. El panel ocupa toda el área de trabajo sin cerrar nada. Para devolverlo a su lugar, use **Restaurar el panel de Git** en la barra de iconos de la izquierda, o la misma combinación de teclas.',
+        { captura: 'git-log-con-diff', alt: 'Git · Historial con la columna de ramas, la lista de commits con su grafo y el detalle de un commit, y su diff abierto arriba.' }
       ]
     },
     {
@@ -87,7 +104,7 @@ const es: Articulo = {
       bloques: [
         {
           pasos: [
-            'Haga clic derecho en un archivo del explorador y seleccione **Historial del archivo**. Se abre una pestaña junto a **Git · Log** con los commits que modificaron el archivo, incluidos los anteriores a un cambio de nombre.',
+            'Haga clic derecho en un archivo del explorador y seleccione **Historial del archivo**. Se abre una pestaña junto a **Git · Historial** con los commits que modificaron el archivo, incluidos los anteriores a un cambio de nombre.',
             'Revise el commit más reciente, que queda seleccionado automáticamente, o seleccione otro. El diff muestra qué cambió en ese commit.'
           ]
         },
@@ -164,10 +181,27 @@ const en: Articulo = {
       ]
     },
     {
-      ancla: 'log',
-      titulo: 'Git · Log: the history',
+      ancla: 'hooks',
+      titulo: 'Hook permission',
       bloques: [
-        '**Git · Log**, in the [rail](glosario/riel), opens the history in the [bottom panel](glosario/panel-inferior), the same space as the terminal, so you see one or the other. On the left are the branches; in the middle, the commits with their graph; on the right, the details and files of the selected commit.',
+        'A hook is a program in the repository that Git runs on {tuEquipo} when staging files, committing, or switching branches. So that a repository cannot run anything without your knowledge, a Git write from the panel runs only the hooks you have already accepted.',
+        'If there is a new or changed one, Tessera shows it before continuing. **View** expands its content. Choose one of these options:',
+        {
+          lista: [
+            '**Run and remember**: runs the hooks and does not ask again while they stay the same.',
+            '**Continue without running them**: performs the operation without running the hooks.',
+            '**Cancel**: does not perform the operation.'
+          ]
+        },
+        'If the hooks folder contains a symbolic link or exceeds the inspection limits, the dialog states what prevents it and does not allow accepting them: fix the folder or continue without running them.',
+        { nota: 'An accepted hook runs with your user’s permissions. Accept only the ones you recognize.' }
+      ]
+    },
+    {
+      ancla: 'log',
+      titulo: 'Git · History: the history',
+      bloques: [
+        '**Git · History**, in the [rail](glosario/riel), opens the history in the [bottom panel](glosario/panel-inferior), the same space as the terminal, so you see one or the other. On the left are the branches; in the middle, the commits with their graph; on the right, the details and files of the selected commit.',
         {
           lista: [
             'To filter, click a branch in the tree (or **All branches**), or use **User**, **Date**, or **Text or hash**.',
@@ -176,8 +210,8 @@ const en: Articulo = {
             'To stay fast, only the latest commits are loaded. The user, date, and text filters apply only to what is loaded, and a notice says so; the branch filter always queries the repository. **Load full history** loads the rest.'
           ]
         },
-        'To enlarge it, use **Maximize Git panel**, or press `Ctrl+Shift+Enter` (`⇧⌘↩`) while the history has focus. The panel fills the whole work area without closing anything, and **Restore Git panel** puts it back.',
-        { captura: 'git-log-con-diff', alt: 'Git · Log with the branches column, the commit list with its graph, the details of a commit, and its diff open above.' }
+        'To enlarge it, use the maximize button (**Maximize Git panel**) in the history header, which appears on hover or keyboard focus, or press `Ctrl+Shift+Enter` (`⇧⌘↩`) while the history has focus. The panel fills the whole work area without closing anything. To put it back, use **Restore Git panel** in the icon bar on the left, or the same key combination.',
+        { captura: 'git-log-con-diff', alt: 'Git · History with the branches column, the commit list with its graph, the details of a commit, and its diff open above.' }
       ]
     },
     {
@@ -186,7 +220,7 @@ const en: Articulo = {
       bloques: [
         {
           pasos: [
-            'Right-click a file in the explorer and select **File history**. A tab opens next to **Git · Log** with the commits that changed the file, including commits from before it was renamed.',
+            'Right-click a file in the explorer and select **File history**. A tab opens next to **Git · History** with the commits that changed the file, including commits from before it was renamed.',
             'Review the most recent commit, which is selected automatically, or select another one. The diff shows what changed in that commit.'
           ]
         },

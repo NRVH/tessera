@@ -7,8 +7,11 @@
 
 import { buildAgentLaunchCommand, buildHostAgentLaunchCommand } from '../lineaArranqueAgente'
 import { briefingCompuesto } from '../briefingCompuesto'
+import { hayCuentasParaDelegar } from '../delegacion/cuentasDelegables'
 import { claveSesionAgente } from '../../../shared/db-ipc'
 import { escribirBloqueSandbox } from '../sandboxMemory'
+import { prepararCapaCompartida } from '../configAgente/configCompartida'
+import { contextoEfectivo } from '../../../shared/contexto'
 import { AGENTES_DISPONIBLES, type Agente, type Profile } from '../../profiles/types'
 import { PREFIJO_DOCKER_NO_DISPONIBLE } from '../../../shared/dockerErrors'
 import {
@@ -67,12 +70,12 @@ function suscribirDatos(n: NucleoAgente, sessionId: string, activity: ActivityTr
 /** La cuenta pedida o la predeterminada del (perfil, agente); nunca la de otro perfil. */
 function resolverCuenta(n: NucleoAgente, profile: Profile, agente: Agente, req: AgentOpenRequest): AgentAccount {
   const account = req.accountId ? n.accounts.get(req.accountId) : n.accounts.defaultFor(profile.id, agente)
-  if (!account) throw new Error(`Cuenta de agente desconocida: "${req.accountId}".`)
+  if (!account) throw new Error(`Cuenta de agente desconocida: «${req.accountId}».`)
   if (account.agente !== agente) {
-    throw new Error(`La cuenta "${account.id}" no es del agente "${agente}".`)
+    throw new Error(`La cuenta «${account.id}» no es del agente «${agente}».`)
   }
   if (account.profileId !== profile.id) {
-    throw new Error(`La cuenta "${account.id}" no pertenece al perfil "${profile.id}".`)
+    throw new Error(`La cuenta «${account.id}» no pertenece al perfil «${profile.id}».`)
   }
   return account
 }
@@ -103,11 +106,11 @@ export async function abrir(n: NucleoAgente, req: AgentOpenRequest, ventana?: nu
  */
 async function abrirSinDueno(n: NucleoAgente, req: AgentOpenRequest): Promise<AgentOpenResult> {
   const profile = n.profiles.get(req.profileId)
-  if (!profile) throw new Error(`Perfil desconocido: "${req.profileId}".`)
+  if (!profile) throw new Error(`Perfil desconocido: «${req.profileId}».`)
   if (esAgenteManual(req.agente)) return abrirManual(n, profile, req)
   const agente = req.agente as Agente
   if (!AGENTES_DISPONIBLES.includes(agente)) {
-    throw new Error(`Agente desconocido: "${agente}".`)
+    throw new Error(`Agente desconocido: «${agente}».`)
   }
   if (req.mode === 'host') return abrirNativo(n, profile, agente, req)
 
@@ -135,14 +138,17 @@ async function abrirSinDueno(n: NucleoAgente, req: AgentOpenRequest): Promise<Ag
   }
 }
 
-/** El contenedor de la cuenta, el proyecto, la credencial montada y la memoria del sandbox que el CLI lee al arrancar. */
-async function prepararContenedor(
+/**
+ * El contenedor de la cuenta, el proyecto, la credencial montada y la memoria del sandbox que el CLI lee al arrancar.
+ * También lo usa una tarea delegada (`agents/delegacion/`), que corre en el mismo contenedor que la pestaña.
+ */
+export async function prepararContenedor(
   n: NucleoAgente,
   profile: Profile,
   agente: Agente,
   account: AgentAccount,
   req: AgentOpenRequest
-): Promise<{ projectHostPath: string; configContainerPath: string }> {
+): Promise<{ projectHostPath: string; configContainerPath: string; conCapa: boolean }> {
   const docker = await n.sandbox.checkDocker()
   if (!docker.ok) throw new Error(`${PREFIJO_DOCKER_NO_DISPONIBLE}\n${docker.detalle}`)
 
@@ -154,6 +160,9 @@ async function prepararContenedor(
   const hostConfigDir = n.accounts.hostDirFor(account)
   const cfgMount = await n.sandbox.mountAgentConfig(destino, agente, account.id, hostConfigDir)
   n.log(`mountAgentConfig OK -> ${agente}/${account.id} => ${cfgMount.containerPath} (host=${hostConfigDir})`)
+
+  // Antes de que arranque el CLI: lee su configuración al empezar.
+  const conCapa = agente === 'claude-code' || agente === 'codex' ? await prepararCapaCompartida(hostConfigDir, agente, n.capasCompartidas(profile, agente), (m) => n.log(m)) : false
 
   // Las capacidades se preguntan al contenedor vivo (su imagen), no a los ajustes.
   const caps = await n.sandbox.capacidades(destino)
@@ -167,20 +176,30 @@ async function prepararContenedor(
     },
     (m) => n.log(m)
   )
-  return { projectHostPath: mount.projectHostPath, configContainerPath: cfgMount.containerPath }
+  return { projectHostPath: mount.projectHostPath, configContainerPath: cfgMount.containerPath, conCapa }
 }
 
 /**
  * El de bases tal cual delante y, detrás, el de SSH (también en Docker hay `tssh`, por el buzón del puente) y
- * las reglas del perfil, que se leen del perfil vivo al abrir.
+ * el contexto (reglas globales y del perfil, documentos), que se lee del perfil vivo y del global al abrir.
  */
-function avisoDeArranque(n: NucleoAgente, profile: Profile, projectHostPath: string, dbIds: string[], traspaso: TraspasoPendiente | null): string | null {
+function avisoDeArranque(
+  n: NucleoAgente,
+  profile: Profile,
+  projectHostPath: string,
+  dbIds: string[],
+  traspaso: TraspasoPendiente | null,
+  enContenedor: boolean
+): string | null {
   return briefingCompuesto({
     bd: n.getDbBriefing(profile.id, projectHostPath, dbIds),
     ssh: n.getSshBriefing(profile.id),
-    reglas: profile.reglas,
+    contexto: contextoEfectivo(profile, n.contextoGlobal()),
     historial: true,
-    traspaso: traspaso?.aviso ?? null
+    traspaso: traspaso?.aviso ?? null,
+    enContenedor,
+    // Solo delega una sesión nativa, y solo hay a quién si el perfil tiene una cuenta de Docker con sesión.
+    delegacion: !enContenedor && hayCuentasParaDelegar(n.accounts, profile.id)
   })
 }
 
@@ -217,10 +236,10 @@ function lineaEnContenedor(
   profile: Profile,
   agente: Agente,
   req: AgentOpenRequest,
-  o: { configPath: string; extraEnv: Record<string, string>; traspaso: TraspasoPendiente | null }
+  o: { configPath: string; conCapa: boolean; extraEnv: Record<string, string>; traspaso: TraspasoPendiente | null }
 ): string {
-  const aviso = avisoDeArranque(n, profile, req.projectHostPath, req.dbConnectionIds ?? [], o.traspaso)
-  return buildAgentLaunchCommand(n.binaries[agente], agente, o.configPath, n.sshSetup, req.resumeSessionId, o.extraEnv, aviso, o.traspaso?.promptInicial)
+  const aviso = avisoDeArranque(n, profile, req.projectHostPath, req.dbConnectionIds ?? [], o.traspaso, true)
+  return buildAgentLaunchCommand(n.binaries[agente], agente, o.configPath, req.resumeSessionId, o.extraEnv, aviso, o.traspaso?.promptInicial, o.conCapa)
 }
 
 async function abrirEnContenedor(
@@ -236,7 +255,7 @@ async function abrirEnContenedor(
   const extraEnv = n.getContainerEnv(profile.id, req.projectHostPath, req.dbConnectionIds ?? [], n.sandbox.dbBridgeContainerPath)
   const traspaso = traspasoDe(n, profile, agente, req)
   const session = await devolviendoSiFalla(n, req, traspaso, () => {
-    const launch = lineaEnContenedor(n, profile, agente, req, { configPath: preparado.configContainerPath, extraEnv, traspaso })
+    const launch = lineaEnContenedor(n, profile, agente, req, { configPath: preparado.configContainerPath, conCapa: preparado.conCapa, extraEnv, traspaso })
     return n.terminals.createSession(destino, { project: req.projectHostPath, launch, extraEnv, tamano: req.tamano })
   })
   n.bindDbSession(extraEnv, claveSesionAgente(session.id))
@@ -309,8 +328,10 @@ async function abrirNativo(
   await n.esperarCandado(agente)
   const traspaso = traspasoDe(n, profile, agente, req)
   const { session, extraEnv } = await devolviendoSiFalla(n, req, traspaso, async () => {
-    const briefing = avisoDeArranque(n, profile, req.projectHostPath, dbIds, traspaso)
-    const launch = buildHostAgentLaunchCommand(n.binaries[agente], agente, req.resumeSessionId, briefing, undefined, traspaso?.promptInicial)
+    const briefing = avisoDeArranque(n, profile, req.projectHostPath, dbIds, traspaso, false)
+    // Solo se sondea al reanudar Claude Code: es lo único que lo necesita.
+    const snapshot = agente === 'claude-code' && !!req.resumeSessionId && (await n.admiteSnapshotNativo())
+    const launch = buildHostAgentLaunchCommand(n.binaries[agente], agente, req.resumeSessionId, briefing, undefined, traspaso?.promptInicial, snapshot)
     const env = n.getHostEnv(profile.id, req.projectHostPath, dbIds)
     return { extraEnv: env, session: await n.terminals.createSession(profile, { project: req.projectHostPath, launch, host: true, extraEnv: env, tamano: req.tamano }) }
   })

@@ -14,6 +14,7 @@ export const txContenedores = crearTextos(
       'Incluye todo lo que se abre en modo Docker: los agentes de los proyectos y el agente de la vista de bases de datos. Un agente trabajando ocupa entre 0,3 y 1,5 GB.',
     limite: 'Límite de contenedores',
     sinLimite: 'Sin límite',
+    recomendado: (n: number) => `Recomendado: ${n}`,
     sinLimiteHastaDocker: 'Sin límite hasta que Docker responda',
     contenedores: (n: number) => `${n} ${n === 1 ? 'contenedor' : 'contenedores'}`,
     color: { verde: 'Holgado', amarillo: 'Justo', rojo: 'Excesivo' } as Record<ColorSemaforo, string>,
@@ -47,7 +48,7 @@ export const txContenedores = crearTextos(
     protegerAyuda: 'Si todos tienen agentes trabajando, el agente nuevo no se abre y Tessera explica el motivo.',
     grupoSaturacion: 'Si Docker se satura',
     saturacionAyuda:
-      'Tessera mide la memoria de todos los contenedores de Docker. Si supera el umbral durante el tiempo indicado, hiberna un agente según «Al llegar al límite» (qué contenedor detener primero y si se protegen los que están trabajando). Nunca detiene el agente visible en pantalla ni un agente manual. Si todos los restantes están trabajando, detiene uno que esté trabajando: con Docker sin memoria, uno fallaría de todos modos y sin que usted pudiera elegir cuál. La conversación se reanuda cuando usted vuelve al agente.',
+      'Tessera mide la memoria de todos los contenedores de Docker. Si supera el umbral durante el tiempo indicado, hiberna un agente según «Al llegar al límite» (qué contenedor detener primero y si se protegen los que están trabajando). Nunca detiene el agente visible en pantalla ni un agente propio. Si todos los restantes están trabajando, detiene uno que esté trabajando: con Docker sin memoria, uno fallaría de todos modos y sin que usted pudiera elegir cuál. La conversación se reanuda cuando usted vuelve al agente.',
     umbral: 'Se considera saturado con la memoria de Docker por encima del',
     umbralValor: (pct: number) => `${pct} %`,
     duracion: 'durante',
@@ -55,7 +56,7 @@ export const txContenedores = crearTextos(
     avisar: (s: number) => `Avisar ${s} s antes de detener, con la opción de elegir otro`,
     avisarAyuda: 'Si se desmarca, el contenedor se detiene sin aviso.',
     grupoParadas: 'Últimos contenedores detenidos',
-    actualizar: 'Actualizar',
+    actualizar: 'Refrescar',
     sinParadas: 'Tessera no ha detenido ningún contenedor.',
     motivoLimite: (n: number | null) =>
       n === null ? 'Límite de contenedores' : `Límite de ${n} ${n === 1 ? 'contenedor' : 'contenedores'}`,
@@ -71,6 +72,7 @@ export const txContenedores = crearTextos(
       'It counts everything you open in Docker mode: the project agents and the database view agent. A working agent takes between 0.3 and 1.5 GB.',
     limite: 'Container limit',
     sinLimite: 'No limit',
+    recomendado: (n: number) => `Recommended: ${n}`,
     sinLimiteHastaDocker: 'No limit until Docker responds',
     contenedores: (n: number) => `${n} ${n === 1 ? 'container' : 'containers'}`,
     color: { verde: 'Comfortable', amarillo: 'Tight', rojo: 'Excessive' } as Record<ColorSemaforo, string>,

@@ -22,6 +22,7 @@ import {
   type CambioSegundoPlano
 } from '../../transcripts/tareasSegundoPlano'
 import { basenameSuelto } from '../../conversations/slugProyecto'
+import { claveSesionAgente } from '../../../shared/db-ipc'
 import { dbLog } from '../../db/dbLog'
 import { decidirHibernacion, type DecisionHibernacion, type SesionMedida } from '../politicaHibernacion'
 import { umbralConMemoria } from '../presionMemoria'
@@ -43,6 +44,8 @@ export function medidasDeProcesoNuevo(
  */
 function trabajoPendiente(n: NucleoAgente, s: OpenAgentSession, ahora: number): boolean {
   if (haySegundoPlano(s.segundoPlano, ahora)) return true
+  // Una sesión con tareas delegadas en marcha las está esperando: hibernarla las cancelaría.
+  if ((n.delegadasPorOrigen.get(claveSesionAgente(s.sessionId)) ?? 0) > 0) return true
   return s.agente === 'claude-code' && n.turnos?.vigila(s.sessionId) !== true
 }
 

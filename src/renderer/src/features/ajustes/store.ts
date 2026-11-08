@@ -17,6 +17,7 @@ import { POLITICA_POR_DEFECTO, type PrimeroEnPararse } from '../../../../shared/
 import { SATURACION_POR_DEFECTO } from '../../../../shared/saturacionDocker'
 import { DEFAULT_TERMINAL_APPEARANCE, type TerminalAppearance } from '../../theme/terminalAppearance'
 import { UI_FONT_DEFAULT } from '../../theme/densidad'
+import { TEMA_CODIGO_POR_DEFECTO, type TemaCodigoId } from '../../theme/temasCodigo'
 import { resolverCategoria, type CategoriaId } from './catalogo'
 
 /** Ajustes globales persistidos y estado del modal de Configuración. */
@@ -39,6 +40,10 @@ export interface EstadoAjustes {
   idiomaAlArrancar: PreferenciaIdioma
   terminalAppearance: TerminalAppearance
   agentAppearance: TerminalAppearance
+  /** Letra del editor de código (Monaco): familia y tamaño, con la convención de las terminales. */
+  editorAppearance: TerminalAppearance
+  /** Tema del código (`theme/temasCodigo.ts`). */
+  editorTema: TemaCodigoId
   uiFontSize: number
   /** Overrides de tamaño: 0 = hereda de la interfaz. */
   explorerFontSize: number
@@ -89,6 +94,8 @@ export const useStoreAjustes = create<EstadoAjustes>()((set) => ({
   idiomaAlArrancar: 'sistema',
   terminalAppearance: DEFAULT_TERMINAL_APPEARANCE,
   agentAppearance: DEFAULT_TERMINAL_APPEARANCE,
+  editorAppearance: DEFAULT_TERMINAL_APPEARANCE,
+  editorTema: TEMA_CODIGO_POR_DEFECTO,
   uiFontSize: UI_FONT_DEFAULT,
   explorerFontSize: 0,
   gitFontSize: 0,

@@ -112,7 +112,7 @@ export const txIntegracion = crearTextos(
         'Not available in the portable version: its executable runs from a temporary folder ' +
         'that is deleted on exit, so the menu entry would stop working as soon as you quit.',
       rechazo: 'Windows rejected the change.',
-      errorRegistro: (error: string) => `Couldn’t change the Windows registry: ${error}`,
+      errorRegistro: (error: string) => `Could not change the Windows registry: ${error}`,
       grupoMenu: 'File Explorer context menu',
       grupoMenuAyuda:
         'Adds “Open with Tessera” to the right-click menu. It applies immediately and you can remove it just as quickly, with no reinstall or administrator permissions. On Windows 11 it appears under “Show more options”.',
@@ -149,9 +149,9 @@ export const txIntegracion = crearTextos(
         'installed Tessera.',
       sinBundle:
         'Tessera’s package (the .app) could not be located, so the quick action ' +
-        'wouldn’t know what to open.',
+        'would not know what to open.',
       rechazo: 'macOS rejected the change.',
-      errorAccion: (error: string) => `Couldn’t change the Finder quick action: ${error}`,
+      errorAccion: (error: string) => `Could not change the Finder quick action: ${error}`,
       grupo: 'Finder context menu',
       ayuda: [
         '“Open with › Tessera” on a ',
@@ -160,7 +160,7 @@ export const txIntegracion = crearTextos(
         'quick action',
         ' for ',
         'folders',
-        ', which macOS doesn’t provide by default.'
+        ', which macOS does not provide by default.'
       ],
       accion: 'Quick action “Open in Tessera”',
       accionAyuda:
@@ -173,13 +173,13 @@ export const txIntegracion = crearTextos(
         'Not available in development mode: the executable is the Electron from node_modules, so ' +
         'the entry would open an empty Electron instead of Tessera. Try this in the installed Tessera.',
       ajeno:
-        'There is already a tessera.desktop in your applications folder that Tessera didn’t create; ' +
-        'it won’t be replaced. Delete it if you want Tessera to install its own.',
+        'There is already a tessera.desktop in your applications folder that Tessera did not create; ' +
+        'it will not be replaced. Delete it if you want Tessera to install its own.',
       rechazo: 'The system rejected the change.',
-      errorAbrirCon: (error: string) => `Couldn’t change “Open with Tessera”: ${error}`,
+      errorAbrirCon: (error: string) => `Could not change “Open with Tessera”: ${error}`,
       grupo: 'File manager',
       grupoAyuda: (gestor: string) =>
-        `Adds “Open with Tessera” to the right-click menu on a folder in ${gestor} and puts Tessera in the application launcher. It doesn’t make it the default application for opening folders.`,
+        `Adds “Open with Tessera” to the right-click menu on a folder in ${gestor} and puts Tessera in the application launcher. It does not make it the default application for opening folders.`,
       fila: '“Open with Tessera” on folders',
       filaAyuda:
         'Opens that folder as a project. It applies immediately and you can remove it just as quickly: it installs in your home folder, with no administrator permissions.',
@@ -199,12 +199,15 @@ export const txCategorias = crearTextos(
   {
     acerca: {
       rol: 'Ingeniero de Software',
+      creadaPor: 'Creada por',
       lema: 'El IDE de escritorio para trabajar en varios proyectos y con varias cuentas de IA.',
       puntos: (tuEquipo: string): readonly string[] => [
-        `Cada agente trabaja con la cuenta de ${tuEquipo} o con una cuenta aislada en Docker; varias cuentas pueden trabajar al mismo tiempo, según la capacidad del equipo.`,
+        `Cada agente trabaja con la cuenta de ${tuEquipo} o con una cuenta de Docker; varias cuentas pueden trabajar al mismo tiempo, según la capacidad del equipo.`,
         'Una conversación puede continuar en otra cuenta del mismo agente, completa, o en otro agente, con un resumen.',
-        'Un agente en Docker solo ve los proyectos en los que trabaja; un agente nativo tiene los mismos permisos que usted.',
-        'Editor, explorador, Git, terminales, SSH y bases de datos junto a los agentes, y un mosaico para seguir hasta seis a la vez.'
+        'Un agente en Docker solo ve los proyectos en los que trabaja, y usa las bases de datos y los servidores SSH por su nombre, sin recibir las contraseñas ni las claves privadas; un agente nativo tiene los mismos permisos que usted.',
+        'Las reglas globales y las de cada perfil llegan a todos los agentes de Claude Code y Codex que les corresponden; un agente puede proponer cambios, pero solo usted los acepta.',
+        'Un agente de su equipo puede delegar tareas en las cuentas de Docker de su perfil y recibir el resultado.',
+        'Editor, explorador, Git, terminales, SSH y bases de datos junto a los agentes, un mosaico para seguir hasta seis al mismo tiempo y una guía integrada, Tessera Academy.'
       ],
       licencia: (licencia: string) => `Código abierto · licencia ${licencia}`,
       codigoFuente: 'Código fuente',
@@ -215,10 +218,10 @@ export const txCategorias = crearTextos(
     actualizaciones: {
       grupoTessera: 'Tessera',
       grupoAgentes: 'Agentes',
-      grupoPreferencias: 'Preferencias',
+      grupoPreferencias: 'Al cerrar Tessera',
       alCerrar: 'Aplicar al cerrar Tessera',
       alCerrarAyuda:
-        'Cuando hay una actualización preparada, se instala al cerrar la aplicación en lugar de esperar a que se pulse el botón. Después de instalarla, Tessera no se vuelve a abrir.',
+        'Cuando hay una actualización preparada, se instala al cerrar la aplicación en lugar de esperar a que haga clic en el botón. Después de instalarla, Tessera no se vuelve a abrir.',
       alCerrarEtiqueta: 'Aplicar la actualización al cerrar Tessera'
     },
     experimental: {
@@ -227,15 +230,15 @@ export const txCategorias = crearTextos(
       saludAyuda:
         'Cada 5 minutos guarda en un archivo de este equipo la memoria y el número de procesos que usa Tessera, para detectar fugas de memoria durante el uso real. No guarda nada de sus proyectos ni sale del equipo. Solo está disponible en las versiones alpha.',
       saludEtiqueta: 'Guardar el registro de salud',
-      volcados: 'Volcados de caída',
+      volcados: 'Volcados de fallos',
       volcadosAyuda:
         'Si Tessera falla de forma inesperada, guarda en este equipo un volcado del fallo (los diez últimos) y lo anota en su registro de fallos al volver a abrirse, para poder encontrar la causa. Nunca sale del equipo y puede contener datos que la aplicación tenía en memoria. El cambio se aplica al reiniciar Tessera. Solo está disponible en las versiones alpha.',
       volcadosEtiqueta: 'Guardar volcados de caída'
     },
     copia: {
-      grupo: 'Configuración de Tessera',
+      grupo: 'Copia de la configuración',
       grupoAyuda:
-        'Perfiles, conexiones SSH y de bases de datos (con sus contraseñas y claves), agentes definidos manualmente y ajustes, en un archivo cifrado con una frase de contraseña. Al importar se añade lo que falta y no se modifica lo que ya existe.',
+        'Perfiles, conexiones SSH y de bases de datos (con sus contraseñas y claves), agentes propios y ajustes, en un archivo cifrado con una frase de contraseña. Al importar se añade lo que falta y no se modifica lo que ya existe.',
       exportar: 'Exportar',
       exportarAyuda: 'Seleccione qué perfiles y qué datos incluir.',
       exportarBoton: 'Exportar…',
@@ -247,12 +250,15 @@ export const txCategorias = crearTextos(
   {
     acerca: {
       rol: 'Software Engineer',
+      creadaPor: 'Created by',
       lema: 'The desktop IDE for working across several projects and several AI accounts.',
       puntos: (tuEquipo: string): readonly string[] => [
-        `Each agent works with the account on ${tuEquipo} or with an isolated account in Docker; several accounts can work at the same time, depending on your computer.`,
+        `Each agent works with the account on ${tuEquipo} or with a Docker account; several accounts can work at the same time, depending on your computer’s capacity.`,
         'A conversation can continue in another account of the same agent, in full, or in another agent, as a summary.',
-        'An agent in Docker sees only the projects it works on; a native agent has your permissions.',
-        'Editor, explorer, Git, terminals, SSH and databases next to the agents, and a mosaic to follow up to six at once.'
+        'An agent in Docker sees only the projects it works on, and uses databases and SSH servers by name, without receiving the passwords or private keys; a native agent has your permissions.',
+        'Global rules and each profile’s rules reach every Claude Code and Codex agent they apply to; an agent can propose changes, but only you accept them.',
+        'An agent on your computer can delegate tasks to its profile’s Docker accounts and receive the result.',
+        'Editor, explorer, Git, terminals, SSH and databases next to the agents, a mosaic to follow up to six at once, and a built-in guide, Tessera Academy.'
       ],
       licencia: (licencia: string) => `Open source · ${licencia} license`,
       codigoFuente: 'Source code',
@@ -263,7 +269,7 @@ export const txCategorias = crearTextos(
     actualizaciones: {
       grupoTessera: 'Tessera',
       grupoAgentes: 'Agents',
-      grupoPreferencias: 'Preferences',
+      grupoPreferencias: 'On quit',
       alCerrar: 'Apply when Tessera closes',
       alCerrarAyuda:
         'When an update is ready, it is installed when the app closes instead of waiting for you to click the button. Tessera does not reopen afterward.',
@@ -281,7 +287,7 @@ export const txCategorias = crearTextos(
       volcadosEtiqueta: 'Save crash dumps'
     },
     copia: {
-      grupo: 'Tessera settings',
+      grupo: 'Settings backup',
       grupoAyuda:
         'Profiles, SSH and database connections (with their passwords and keys), custom agents and settings, in a file encrypted with a passphrase. When you import, Tessera adds what is missing and keeps what is already there.',
       exportar: 'Export',
@@ -300,7 +306,6 @@ export const txBloquesUpdate = crearTextos(
       versionActual: (v: string) => `Versión actual: ${v}`,
       sinFeed: 'Sin canal de actualizaciones en modo desarrollo.',
       descartarFallo: 'Se deja de ofrecer esta versión.',
-      descartarAviso: 'Cierra este aviso.',
       descartar: 'Descartar',
       entendido: 'Entendido',
       instalarTitulo: 'Cierra Tessera, instala la versión nueva y vuelve a abrir Tessera automáticamente.',
@@ -315,7 +320,6 @@ export const txBloquesUpdate = crearTextos(
       sinComprobar: 'Todavía no se han comprobado los agentes.',
       soloNativos: (tuEquipo: string) =>
         `Solo los agentes que se ejecutan en ${tuEquipo}; los de Docker se actualizan con el botón de su panel.`,
-      verDetalleTitulo: 'Abre el panel con el detalle de la última actualización.',
       verDetalle: 'Ver detalle',
       actualizarTitulo:
         'Abre el panel del botón de la barra de título, donde se muestran las sesiones que se reiniciarán y se confirma la actualización.',
@@ -328,22 +332,20 @@ export const txBloquesUpdate = crearTextos(
       versionActual: (v: string) => `Current version: ${v}`,
       sinFeed: 'No update feed in development.',
       descartarFallo: 'Stops offering this version.',
-      descartarAviso: 'Closes the notice.',
       descartar: 'Dismiss',
       entendido: 'Got it',
       instalarTitulo: 'Quits Tessera, installs the new version and reopens it automatically.',
       reiniciarInstalar: 'Restart and install',
-      descargarTitulo: 'Opens the download in your browser. Tessera doesn’t quit or reinstall itself.',
+      descargarTitulo: 'Opens the download in your browser. Tessera does not quit or reinstall itself.',
       descargar: (v: string) => `Download ${v}`,
       reintentar: 'Retry',
       buscar: 'Check for updates',
       estadoSimulado: 'Simulated state'
     },
     agentes: {
-      sinComprobar: 'The agents haven’t been checked yet.',
+      sinComprobar: 'The agents have not been checked yet.',
       soloNativos: (tuEquipo: string) =>
         `Only the agents that run on ${tuEquipo}; Docker agents are updated with the button in their panel.`,
-      verDetalleTitulo: 'Opens the panel with the details of the last update.',
       verDetalle: 'View details',
       actualizarTitulo:
         'Opens the title bar button’s panel, where you can see which sessions will restart and confirm.',
@@ -383,7 +385,7 @@ export const txLineasUpdate = crearTextos(
     preparadaEsperando: (v: string) => `Version ${v} is ready and waiting for you to install it.`,
     descargando: (v: string, pct: number) => `Downloading ${v}… ${pct}%`,
     disponible: (v: string) =>
-      `Version ${v} is available. ` + 'This copy can’t install itself: download it and replace the app.',
+      `Version ${v} is available. ` + 'This copy cannot install itself: download it and replace the app.',
     buscando: 'Checking for updates…',
     instalando: 'Installing…',
     fallo: 'The check failed.',
@@ -420,7 +422,7 @@ export const txLineasAgentes = crearTextos(
       repararCuando: (base: string, ultima: string, tuEquipo: string) =>
         `${base} You can repair it once ${ultima} is ready for ${tuEquipo}.`,
       aunNoLista: (instalada: string, ultima: string, tuEquipo: string) =>
-        `${instalada} · ${ultima} isn’t ready for ${tuEquipo} yet.`,
+        `${instalada} · ${ultima} is not ready for ${tuEquipo} yet.`,
       disponible: (instalada: string, ultima: string) => `${instalada} → ${ultima} available.`,
       aMano: (ultima: string, orden: string | null) =>
         `${ultima} available; update it manually${orden ? `: ${orden}` : '.'}`,

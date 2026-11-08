@@ -16,9 +16,13 @@ import { ARGUMENTO_ALPHA, type ResumenRenderer } from '../shared/salud'
 import { idiomaDeArgumentos, type Idioma } from '../shared/i18n'
 import { SALUD_CHANNELS } from '../shared/salud-ipc'
 import type { Profile } from '../main/profiles/types'
+import { CANAL_CLAVES_AGENTE, CANAL_GUARDAR_CLAVES_AGENTE, type ApiClavesAgente } from '../shared/ssh-agente-ipc'
 import { type TerminalApi, type AgentTerminalApi, terminal, agentTerminal } from './terminales'
 import {
   type AgentAccountsApi,
+  type ConfigAgenteApi,
+  type DocumentosPerfilApi,
+  type ContextoGlobalApi,
   type HibernateApi,
   type ConversationsApi,
   type AgentsUpdateApi,
@@ -29,6 +33,9 @@ import {
   type UsageApi,
   type ContextApi,
   agentAccounts,
+  configAgente,
+  documentosPerfil,
+  contextoGlobal,
   hibernate,
   conversations,
   agentsUpdate,
@@ -63,10 +70,12 @@ import {
   comprimidos,
   search
 } from './archivos'
+// Incluye la resolución de permisos de hooks vinculada al commit que abrió el diálogo.
 import { type GitApi, git } from './git'
 import { type VentanaAgenteApi, ventanaAgente } from './ventanaAgente'
 import { type ReglasApi, reglas } from './reglas'
 import { type TraspasoApi, traspaso } from './traspaso'
+import { type DelegacionApi, delegacion } from './delegacion'
 import {
   type WorkspaceApi,
   type ShutdownApi,
@@ -87,6 +96,7 @@ import {
 } from './aplicacion'
 
 export interface TesseraApi {
+  clavesAgente: ApiClavesAgente
   getProfiles: () => Promise<Profile[]>
   /** Persiste el arreglo COMPLETO de perfiles (alta/nombre/orden/color). Nunca borra uno que falte. */
   saveProfiles: (profiles: Profile[]) => Promise<void>
@@ -141,6 +151,9 @@ export interface TesseraApi {
   terminal: TerminalApi
   agentTerminal: AgentTerminalApi
   agentAccounts: AgentAccountsApi
+  configAgente: ConfigAgenteApi
+  documentosPerfil: DocumentosPerfilApi
+  contextoGlobal: ContextoGlobalApi
   db: DbApi
   dbExplorador: DbExploradorApi
   dbDocumentos: DbDocumentosApi
@@ -174,11 +187,16 @@ export interface TesseraApi {
   ventanaAgente: VentanaAgenteApi
   reglas: ReglasApi
   traspaso: TraspasoApi
+  delegacion: DelegacionApi
 }
 
 const api: TesseraApi = {
   getProfiles: () => ipcRenderer.invoke(IPC_CHANNELS.GET_PROFILES),
   saveProfiles: (profiles) => ipcRenderer.invoke(IPC_CHANNELS.SAVE_PROFILES, profiles),
+  clavesAgente: {
+    listar: (perfil) => ipcRenderer.invoke(CANAL_CLAVES_AGENTE, perfil),
+    guardar: (perfil, rutas) => ipcRenderer.invoke(CANAL_GUARDAR_CLAVES_AGENTE, perfil, rutas)
+  },
   deleteProfile: (profileId) => ipcRenderer.invoke(IPC_CHANNELS.DELETE_PROFILE, profileId),
   openExternal: (url) => ipcRenderer.invoke(IPC_CHANNELS.OPEN_EXTERNAL_URL, url),
   getPathForFile: (file) => webUtils.getPathForFile(file),
@@ -198,6 +216,9 @@ const api: TesseraApi = {
   terminal,
   agentTerminal,
   agentAccounts,
+  configAgente,
+  documentosPerfil,
+  contextoGlobal,
   db,
   dbExplorador,
   dbDocumentos,
@@ -230,7 +251,8 @@ const api: TesseraApi = {
   copiaConfiguracion,
   ventanaAgente,
   reglas,
-  traspaso
+  traspaso,
+  delegacion
 }
 
 if (!process.contextIsolated) {

@@ -302,7 +302,7 @@ function main(): void {
     { tipo: 'insertar', documento: '{}' },
     { tipo: 'borrar', idEjson: OID }
   ])
-  check('el resumen cuenta reemplazar como actualización', resumen === '2 actualizaciones, 1 inserción y 1 borrado', resumen)
+  check('el resumen cuenta reemplazar como actualización', resumen === '2 actualizaciones, 1 inserción y 1 eliminación', resumen)
 
   hr('RESULTADO (PASS/FAIL)')
   for (const res of results) {

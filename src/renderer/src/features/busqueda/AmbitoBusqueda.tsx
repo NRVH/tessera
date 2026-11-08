@@ -4,7 +4,10 @@
 // porque un `<option>` no admite CSS. Elegir una carpeta de otro proyecto lo activa.
 // Decisiones: docs/decisiones/busqueda/busqueda-en-archivos.md
 // =============================================================================
+import { Segmentado } from '../../comun/Segmentado'
 import { useMemo } from 'react'
+import { Presente } from '../../comun/Presente'
+import { useUltimoValor } from '../../comun/presencia'
 import type { CarpetasResult, ProyectoBuscable } from '../../../../shared/search-ipc'
 import { useCarpetasBusqueda } from './useCarpetasBusqueda'
 import { txBusqueda } from './textos.ts'
@@ -110,9 +113,9 @@ export function AmbitoBusqueda({
               </optgroup>
             ))}
           </select>
-          <NotasAmbito error={error} activando={activando} datos={datos} />
         </>
       )}
+      <NotasAmbito visible={modo === 'carpeta'} error={error} activando={activando} datos={datos} />
     </div>
   )
 }
@@ -121,48 +124,36 @@ export function AmbitoBusqueda({
 function ModosAmbito({ modo, onModo }: { modo: Modo; onModo: (m: Modo) => void }): React.JSX.Element {
   const t = txBusqueda()
   return (
-    <div className="buscar-ambito-modos" role="group" aria-label={t.ambitoBusqueda}>
-      <button
-        type="button"
-        className={`buscar-ambito-modo${modo === 'proyecto' ? ' activo' : ''}`}
-        onClick={() => onModo('proyecto')}
-        aria-pressed={modo === 'proyecto'}
-      >
-        {t.enElProyecto}
-      </button>
-      <button
-        type="button"
-        className={`buscar-ambito-modo${modo === 'carpeta' ? ' activo' : ''}`}
-        onClick={() => onModo('carpeta')}
-        aria-pressed={modo === 'carpeta'}
-      >
-        {t.enUnaCarpeta}
-      </button>
-    </div>
+    <Segmentado compacto etiqueta={t.ambitoBusqueda} valor={modo} onCambio={onModo}
+      opciones={[{ valor: 'proyecto', etiqueta: t.enElProyecto }, { valor: 'carpeta', etiqueta: t.enUnaCarpeta }]} />
   )
 }
 
 /** La nota junto al select: el error, el cambio de proyecto en curso o los avisos de lectura. */
 function NotasAmbito({
+  visible,
   error,
   activando,
   datos
 }: {
+  visible: boolean
   error: string | null
   activando: boolean
   datos: CarpetasResult | null
 }): React.JSX.Element {
   const avisos = (datos?.proyectos ?? []).filter((p) => p.error !== undefined || p.truncado)
   const t = txBusqueda()
+  const ultimoError = useUltimoValor(error)
+  const ultimosAvisos = useUltimoValor(avisos.length > 0 ? avisos : null) ?? []
   return (
     <>
-      {error !== null && <span className="buscar-ambito-nota es-error">{error}</span>}
-      {activando && <span className="buscar-ambito-nota">{t.cambiandoProyecto}</span>}
-      {error === null && !activando && avisos.length > 0 && (
-        <span className="buscar-ambito-nota" title={avisos.map(textoAviso).join('\n')}>
-          {avisos.length === 1 ? textoAviso(avisos[0]) : t.proyectosConAvisos(avisos.length)}
+      <Presente visible={visible && error !== null} className="mov-despliega"><span className="buscar-ambito-nota es-error">{ultimoError}</span></Presente>
+      <Presente visible={visible && activando} className="mov-despliega"><span className="buscar-ambito-nota">{t.cambiandoProyecto}</span></Presente>
+      <Presente visible={visible && error === null && !activando && avisos.length > 0} className="mov-despliega">
+        <span className="buscar-ambito-nota" title={ultimosAvisos.map(textoAviso).join('\n')}>
+          {ultimosAvisos.length === 1 ? textoAviso(ultimosAvisos[0]) : t.proyectosConAvisos(ultimosAvisos.length)}
         </span>
-      )}
+      </Presente>
     </>
   )
 }

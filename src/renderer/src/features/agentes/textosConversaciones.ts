@@ -10,8 +10,8 @@ import { crearTextos } from '../../../../shared/i18n.ts'
 export const txConversaciones = crearTextos(
   {
     eliminarTitulo: 'Eliminar conversación',
-    eliminarMensaje: (titulo: string) =>
-      `¿Eliminar "${titulo}"?\nLa conversación se borra de este equipo y no se puede recuperar.`,
+    eliminarPregunta: (titulo: string) => `¿Eliminar la conversación «${titulo}»?`,
+    eliminarMensaje: () => 'La conversación se borra de este equipo y no se puede recuperar.',
     eliminar: 'Eliminar',
     titulo: (agente: string) => `Conversaciones de ${agente}`,
     cerrar: 'Cerrar (Esc)',
@@ -30,15 +30,15 @@ export const txConversaciones = crearTextos(
     renombrar: 'Renombrar conversación',
     nombre: 'Nombre',
     guardar: 'Guardar',
-    pistaConNombre: (automatico: string) => `Si se deja vacío, se usa el título automático:\n"${automatico}"`,
-    pistaSinNombre: (automatico: string) => `Título automático actual:\n"${automatico}"`,
+    pistaConNombre: (automatico: string) => `Si se deja vacío, se usa el título automático:\n«${automatico}»`,
+    pistaSinNombre: (automatico: string) => `Título automático actual:\n«${automatico}»`,
     hoy: (hora: string) => `hoy ${hora}`,
     ayer: (hora: string) => `ayer ${hora}`
   },
   {
     eliminarTitulo: 'Delete conversation',
-    eliminarMensaje: (titulo: string) =>
-      `Delete “${titulo}”?\nThe conversation is deleted from this computer and cannot be recovered.`,
+    eliminarPregunta: (titulo: string) => `Delete the conversation “${titulo}”?`,
+    eliminarMensaje: () => 'The conversation is deleted from this computer and cannot be recovered.',
     eliminar: 'Delete',
     titulo: (agente: string) => `${agente} conversations`,
     cerrar: 'Close (Esc)',

@@ -144,11 +144,9 @@ export function PestanaSsh(p: PestanaSshProps): React.JSX.Element {
       ) : (
         <span className="terminal-tab-name">{nombre}</span>
       )}
-      {dead && !editando && (
-        <span className="terminal-tab-dead" title={txTerminales().sesionTermino}>
+      <span className={`terminal-tab-dead${dead && !editando ? ' visible' : ''}`} aria-hidden={!dead || editando} title={txTerminales().sesionTermino}>
           ●
         </span>
-      )}
       <BotonCerrar nombre={nombre} onCerrar={() => p.onClose(tab.id)} />
     </div>
     {/* Hermano de la pestaña y no hijo: un clic en el menú no debe burbujear hasta seleccionarla. */}

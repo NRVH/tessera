@@ -23,3 +23,13 @@
   overflow-wrap: anywhere;
   pointer-events: none;
 }
+/* Un fundido corto al quedar colocado: el tooltip ya ha esperado lo suyo, no debe hacerse esperar más. */
+.tooltip-propio.colocado {
+  animation: tooltip-aparece var(--mov-rapido) var(--curva-entrada);
+}
+@keyframes tooltip-aparece {
+  from {
+    opacity: 0;
+    translate: 0 2px;
+  }
+}

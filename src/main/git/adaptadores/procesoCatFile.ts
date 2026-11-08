@@ -8,18 +8,20 @@
 
 import { spawn } from 'node:child_process'
 import { ParserCatFile, type BlobBruto, type EstadoParser } from './catFileLote'
+import { entornoGit } from './configSegura'
 
 /**
  * Una tanda de `cat-file --batch` en `cwd`: lee hasta completar `revs` o hasta un objeto que
  * supere `maxBytes`, y devuelve en `cortadoEn` el índice del que cortó (-1 si ninguno).
  */
-export function leerLoteCatFile(
+export async function leerLoteCatFile(
   revs: readonly string[],
   cwd: string,
   maxBytes: number
 ): Promise<{ resultados: BlobBruto[]; cortadoEn: number }> {
+  const env = await entornoGit(cwd)
   return new Promise((resolve, reject) => {
-    const child = spawn('git', ['cat-file', '--batch'], { cwd })
+    const child = spawn('git', ['cat-file', '--batch'], { cwd, env })
     const parser = new ParserCatFile(revs.length, maxBytes)
     const errChunks: Buffer[] = []
     let settled = false
@@ -79,9 +81,11 @@ const TECHO_FILTRADO_MS = 60_000
  * `git cat-file --filters --path`. `null` si pasan de `maxBytes`, y ahí se corta. Un fallo lleva
  * `code` (la salida de git) o `killed` (el techo), como un error de `execFile`.
  */
-export function leerBlobFiltrado(oid: string, ruta: string, cwd: string, maxBytes: number): Promise<Buffer | null> {
+export async function leerBlobFiltrado(oid: string, ruta: string, cwd: string, maxBytes: number): Promise<Buffer | null> {
+  // `--filters` pasa el blob por los filtros del repo: sin anular los locales, ejecutaría el suyo.
+  const env = await entornoGit(cwd)
   return new Promise((resolve, reject) => {
-    const child = spawn('git', ['cat-file', '--filters', `--path=${ruta}`, oid], { cwd })
+    const child = spawn('git', ['cat-file', '--filters', `--path=${ruta}`, oid], { cwd, env })
     const trozos: Buffer[] = []
     const errChunks: Buffer[] = []
     let total = 0

@@ -9,11 +9,12 @@ import { SIN_LIMITE, cortesSemaforo } from '../../../../shared/semaforoContenedo
 import {
   PASO_MINIMO,
   cupoDeApertura,
-  degradadoPista,
   limiteDePaso,
-  paradasDegradado,
   pasoDeLimite,
-  pasoMaximo
+  pasoMaximo,
+  pistaConRelleno,
+  porcentajeDePaso,
+  posicionMarca
 } from './limiteContenedores.ts'
 
 function hr(title: string): void {
@@ -47,13 +48,13 @@ function pasos(): void {
 }
 
 function degradado(): void {
-  hr('(2) degradado de la pista')
-  const p = paradasDegradado(c)
-  check('verde antes que amarillo y amarillo antes del final', p.verdeHasta > 0 && p.verdeHasta < p.amarilloHasta && p.amarilloHasta < 100, j(p))
-  const css = degradadoPista(c)
-  check('el degradado nombra los tres colores en orden', css.indexOf('--green') < css.indexOf('--yellow') && css.indexOf('--yellow') < css.indexOf('--red'), css)
+  hr('(2) relleno de la pista y marca del recomendado')
+  check('el primer paso no rellena nada', pistaConRelleno(PASO_MINIMO, c).includes('var(--limite-relleno) 0.00%'), pistaConRelleno(PASO_MINIMO, c))
+  check('«Sin límite» rellena la pista entera', pistaConRelleno(pasoMaximo(c), c).includes('100.00%, var(--limite-vacio) 100.00%'), pistaConRelleno(pasoMaximo(c), c))
+  check('la pista no lleva colores de estado', !/green|yellow|red/.test(pistaConRelleno(c.verdeHasta, c)), '')
+  check('la marca de los extremos cae en el centro del pulgar', posicionMarca(PASO_MINIMO, c) === 'calc(0.00% + 9.00px)' && posicionMarca(pasoMaximo(c), c) === 'calc(100.00% + -9.00px)', '')
   const mem = cortesSemaforo(0)
-  check('sin memoria no se rompe: cortes de serie', mem.verdeHasta >= 1 && mem.maximo >= 8 && Number.isFinite(paradasDegradado(mem).verdeHasta), j(mem))
+  check('sin memoria no se rompe: cortes de serie', mem.verdeHasta >= 1 && mem.maximo >= 8 && Number.isFinite(porcentajeDePaso(mem.verdeHasta, mem)), j(mem))
 }
 
 function cupo(): void {

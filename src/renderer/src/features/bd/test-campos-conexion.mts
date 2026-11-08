@@ -569,16 +569,16 @@ hr('(9) entorno: opciones, radio y ayuda')
   check('los values del radio son distintos', new Set(OPCIONES_ENTORNO.map((o) => valorRadioEntorno(o.valor))).size === OPCIONES_ENTORNO.length, 'únicos')
 
   // La ayuda dice lo que cambia. NO depende de «Solo lectura» (es de
-  // los agentes): una producción marcada pide confirmación y nace en Tx Manual igual.
+  // los agentes): una producción marcada pide confirmación y nace en transacción manual igual.
   const prod = ayudaEntorno('produccion')
   check('producción: promete confirmación', /confirmaci[oó]n/i.test(prod), prod)
-  check('producción: promete Tx Manual', /Tx Manual/.test(prod), prod)
+  check('producción: promete transacción manual', /transacción manual/.test(prod), prod)
   check('producción: nombra el rojo', /roj/.test(prod), prod)
   check('NEGATIVO: producción ya no dice que las escrituras se rechacen sin preguntar', !/rechaza/i.test(prod) && !/Solo lectura/.test(prod), prod)
   for (const e of ['desarrollo', 'pruebas'] as const) {
     const a = ayudaEntorno(e)
     check(`${e}: no promete confirmación`, !/confirmaci[oó]n/i.test(a), a)
-    check(`${e}: no promete Tx Manual`, !/Manual/.test(a), a)
+    check(`${e}: no promete transacción manual`, !/transacción manual/.test(a), a)
   }
   check('sin entorno: dice que no hay ni marcas ni confirmaciones', ayudaEntorno(null) === 'Sin marcas ni confirmaciones.', ayudaEntorno(null))
   check('desarrollo nombra el verde', /verde/.test(ayudaEntorno('desarrollo')), ayudaEntorno('desarrollo'))

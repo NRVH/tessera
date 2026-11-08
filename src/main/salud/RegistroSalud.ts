@@ -23,6 +23,7 @@ import {
   type OyentesSalud,
   type ProcesoSalud
 } from '../../shared/salud.ts'
+import { resumirPila, type PerfilCpu } from './pilaBloqueo.ts'
 
 /** Tiempo máximo que se espera a la ventana antes de anotar la muestra sin ella. */
 export const TOPE_VENTANA_MS = 3000
@@ -75,7 +76,7 @@ export class RegistroSalud {
    * temporizador ni oyente vivo.
    */
   fijarAjuste(ajuste: boolean): void {
-    const debe = registroSaludActivo(this.deps.version, ajuste)
+    const debe = registroSaludActivo(this.deps.version, ajuste, this.deps.forzadoEnPruebas === true)
     if (debe === this.encendido) return
     if (debe) this.encender()
     else this.detener()
@@ -116,7 +117,7 @@ export class RegistroSalud {
       void this.lineaGpu()
     }
     try {
-      this.quitarOyentes = this.deps.suscribir(this.oyentes())
+      this.quitarOyentes = this.deps.suscribir(this.oyentes(), (perfil, inicio, desde, hasta) => resumirPila(perfil as PerfilCpu, inicio, desde, hasta))
     } catch {
       this.quitarOyentes = null
     }
@@ -147,9 +148,9 @@ export class RegistroSalud {
       pantalla: (motivo) =>
         this.escribir({ t: this.marca(), tipo: 'pantalla', motivo, ventana: this.seguro(() => this.deps.estadoVentana(), null), monitores: this.seguro(() => this.deps.monitores(), 0) }),
       ventana: (evento) => this.escribir({ t: this.marca(), tipo: 'ventana', evento }),
-      bloqueo: (ms, desde, hasta) => {
+      bloqueo: (ms, desde, hasta, pila) => {
         const ipc = this.seguro(() => this.deps.ipcEn(desde, hasta), [])
-        this.escribir({ t: this.marca(), tipo: 'bloqueo-main', ms: Math.round(ms), ipc, ...this.contexto() })
+        this.escribir({ t: this.marca(), tipo: 'bloqueo-main', ms: Math.round(ms), ipc, ...this.contexto(), ...(pila == null ? {} : { pila }) })
       }
     }
   }

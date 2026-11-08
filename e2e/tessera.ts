@@ -97,6 +97,8 @@ export function carpetasAgentes(datos: string): { claude: string; codex: string 
   return { claude: join(datos, 'e2e-agentes', 'claude'), codex: join(datos, 'e2e-agentes', 'codex') }
 }
 
+export function carpetaSshPruebas(datos: string): string { return join(datos, 'e2e-ssh') }
+
 /**
  * Base de los registros de versiones cuando el spec no trae los suyos. El puerto 9
  * (`discard`) está en la lista de puertos vetados de Chromium: `net.fetch` falla al
@@ -248,7 +250,11 @@ export interface SesionTessera {
   datos: string
   /** `CLAUDE_CONFIG_DIR` y `CODEX_HOME` de esta prueba (ver `carpetasAgentes`). */
   agentes: { claude: string; codex: string }
-  cerrar: () => Promise<void>
+  /**
+   * Cierra la app por su camino normal y borra el `userData`. Con `conservarDatos`, lo deja para que la
+   * prueba lo copie en un arranque siguiente (y lo borre ella con `borrarTemporal`).
+   */
+  cerrar: (opciones?: { conservarDatos?: boolean }) => Promise<void>
 }
 
 export interface OpcionesArranque {
@@ -259,6 +265,8 @@ export interface OpcionesArranque {
    * disparar). Es la única forma de abrir un proyecto en una prueba sin diálogo nativo.
    */
   args?: string[]
+  /** Con las animaciones de la app: por defecto la prueba corre con «reducir movimiento», con la interfaz quieta. */
+  conMovimiento?: boolean
   /**
    * Se llama con el `userData` recién creado y ANTES de arrancar la app. Para sembrar
    * `profiles.json` o un `workspace-state.json` de partida.
@@ -352,6 +360,7 @@ export async function abrirTessera(
   // instalador»: es lo que decide cómo se actualiza, y así ninguna prueba depende de
   // cómo lo tenga instalado quien las corre.
   const agentes = carpetasAgentes(datos)
+  mkdirSync(carpetaSshPruebas(datos), { recursive: true })
   mkdirSync(agentes.claude, { recursive: true })
   mkdirSync(agentes.codex, { recursive: true })
   writeFileSync(join(agentes.claude, '.claude.json'), JSON.stringify({ installMethod: 'native' }))
@@ -383,23 +392,37 @@ export async function abrirTessera(
     // En español aunque el equipo esté en otro idioma: los selectores buscan los textos. El spec
     // del idioma lanza la app en inglés con su propio `env`.
     TESSERA_FORZAR_IDIOMA: 'es',
-    ...env
+    ...env,
+    TESSERA_E2E_SSH_DIR: carpetaSshPruebas(datos)
   } as Record<string, string>
   delete entorno.ELECTRON_RUN_AS_NODE
   const app = await electron.launch({
     executablePath: ruta,
-    args: [`--user-data-dir=${datos}`, ARG_ARNES_E2E, ...ARGS_LLAVERO, ...(opts.args ?? [])], // sin la marca, nada de ssh falso
+    args: [
+      `--user-data-dir=${datos}`,
+      ARG_ARNES_E2E,
+      ...ARGS_LLAVERO,
+      ...(opts.args ?? [])
+    ], // sin la marca, nada de ssh falso
     env: entorno,
     timeout: 90_000
   })
   const win = await app.firstWindow({ timeout: 90_000 })
+  // Con «reducir movimiento» (docs/decisiones/renderer/movimiento.md), emulado en cada ventana que se abra: sin
+  // entradas ni salidas animadas, la prueba mide la interfaz quieta y no encuentra la copia que deja un menú o un
+  // diálogo al irse. Un spec que pruebe el movimiento lo pide con `conMovimiento`.
+  if (!opts.conMovimiento) {
+    const quieta = (p: Page): Promise<void> => p.emulateMedia({ reducedMotion: 'reduce' }).catch(() => undefined)
+    await quieta(win)
+    app.on('window', (p) => void quieta(p))
+  }
   await moverAPantallaElegida(app)
   await win.waitForLoadState('domcontentloaded')
   // La barra de título es lo primero que pinta el renderer; sin esperarla, una
   // prueba rápida puede consultar el DOM antes de que exista nada que consultar.
   await win.waitForSelector(opts.esperar ?? '.titlebar', { timeout: 30_000 })
 
-  const cerrar = async (): Promise<void> => {
+  const cerrar = async (opciones?: { conservarDatos?: boolean }): Promise<void> => {
     // RED DEL CIERRE, para TODA la suite. Cerrar pasa por el
     // diálogo NATIVO de salida del explorador de BD, que pregunta si hay transacciones
     // pendientes o cambios de la rejilla sin enviar. Una prueba que falle a medias deja
@@ -425,7 +448,7 @@ export async function abrirTessera(
     const t0 = Date.now()
     const { colgado, arbol } = await cerrarConTope(app)
     explicarCierreLento(datos, Date.now() - t0, colgado, arbol)
-    await borrarTemporal(datos)
+    if (!opciones?.conservarDatos) await borrarTemporal(datos)
   }
 
   return { app, win, datos, agentes, cerrar }

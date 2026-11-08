@@ -1,0 +1,96 @@
+/* =============================================================================
+   Cuentas de Docker en Configuración y terminal de inicio de sesión.
+   Decisiones: docs/decisiones/agentes/cuentas-por-perfil-y-agente.md
+   ============================================================================= */
+.gestion-agente {
+  flex-wrap: wrap;
+}
+/* Pastilla con el icono de contenedor, el número de cuentas y el chevron: se lee como «aquí hay cuentas». */
+.btn.cuentas-desplegar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 6px 0 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--fg-muted);
+  font-size: calc(var(--ui-font) - 1px);
+  font-variant-numeric: tabular-nums;
+}
+.btn.cuentas-desplegar:hover,
+.btn.cuentas-desplegar[aria-expanded="true"] {
+  border-color: var(--border);
+  color: var(--fg);
+}
+.cuentas-desplegar svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+.cuentas-desplegar svg:last-child {
+  transition: transform var(--mov-medio) var(--curva-estandar);
+  transform: rotate(-90deg);
+}
+.cuentas-desplegar[aria-expanded="true"] svg:last-child {
+  transform: rotate(0);
+}
+.cuentas-configuracion {
+  flex: 0 0 100%;
+  min-width: 0;
+  padding: 0 6px 6px 22px;
+}
+.cuentas-configuracion-lista {
+  max-height: 280px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.cuentas-configuracion-fila {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--ui-row-h);
+}
+.cuenta-punto {
+  flex: 0 0 8px;
+  height: 8px;
+  border: 1px solid var(--fg-faint);
+  border-radius: 50%;
+  transition: background var(--mov-rapido) var(--curva-estandar);
+}
+.cuenta-punto.con-sesion {
+  background: var(--green);
+  border-color: var(--green);
+}
+.cuentas-configuracion-nombre {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cuentas-configuracion-estado {
+  flex: 1;
+  color: var(--fg-faint);
+  font-size: calc(var(--ui-font) - 1px);
+}
+.cuentas-configuracion-fila .cuenta-tarjeta-acciones {
+  position: static;
+  transform: none;
+  opacity: 1;
+  pointer-events: auto;
+}
+.modal-card.cuentas-login {
+  width: min(880px, 90vw);
+}
+.cuentas-login-terminal {
+  flex: 1 1 auto;
+  min-height: 160px;
+  overflow: hidden;
+}
+
+
+.cuentas-login-estado {
+  font-size: 12px;
+  color: var(--fg-muted);
+}

@@ -4,6 +4,8 @@
 // etiqueta se mantiene, la regla de «icono sin texto» es de las barras.
 // =============================================================================
 import type { RefObject } from 'react'
+import '../../comun/modal.css'
+import { IconoCerrar } from '../../comun/iconosMenu'
 import { TogglesBusqueda } from '../../comun/TogglesBusqueda'
 import { pegarRecortado } from '../../util/pasteTrim'
 import type { CoincidenciaArchivo } from '../../../../shared/search-ipc'
@@ -25,8 +27,9 @@ export function CabeceraBusqueda({
         <span>{t.buscarEnArchivos}</span>
         {projectName !== '' && <span className="buscar-header-proyecto">{projectName}</span>}
       </div>
-      <button className="btn btn-icon" onClick={onClose} title={t.cerrarEsc} aria-label={t.cerrar}>
-        ✕
+      {/* La ✕ estándar de los diálogos (`Modal`): este conserva su cáscara porque se redimensiona por los bordes. */}
+      <button type="button" className="btn btn-icon modal-cerrar" onClick={onClose} title={t.cerrarEsc} aria-label={t.cerrar}>
+        <IconoCerrar />
       </button>
     </header>
   )
@@ -70,10 +73,11 @@ export function CampoBusqueda({
           aria-label={t.textoABuscar}
           autoFocus
         />
-        {query !== '' && (
           <button
             type="button"
-            className="buscar-limpiar"
+            className={`buscar-limpiar${query !== '' ? ' visible' : ''}`}
+            tabIndex={query !== '' ? 0 : -1}
+            aria-hidden={query === ''}
             onClick={() => {
               onQuery('')
               inputRef.current?.focus()
@@ -81,9 +85,8 @@ export function CampoBusqueda({
             title={t.limpiar}
             aria-label={t.limpiarBusqueda}
           >
-            ✕
+            <IconoCerrar />
           </button>
-        )}
         <TogglesBusqueda opts={opts} onChange={onOpts} />
       </div>
       {children}

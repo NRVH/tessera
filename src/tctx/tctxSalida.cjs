@@ -8,8 +8,8 @@
 
 const { textosTctx } = require('./textosTctx.cjs')
 
-/** 2 uso, 3 puente (como `tdb` y `tssh`) y 4 propuesta rechazada. */
-const CODIGOS = Object.freeze({ uso: 2, puente: 3, rechazo: 4 })
+/** 2 uso, 3 puente (como `tdb` y `tssh`), 4 rechazo, 5 fallida, 6 cancelada y 7 en marcha. */
+const CODIGOS = Object.freeze({ uso: 2, puente: 3, rechazo: 4, fallida: 5, cancelada: 6, enMarcha: 7 })
 
 /** Un fallo de `tctx` con su código de salida. */
 class ErrorTctx extends Error {
@@ -35,4 +35,6 @@ function salir(codigo) {
   process.stdout.write('', () => process.stderr.write('', () => process.exit(codigo)))
 }
 
-module.exports = { CODIGOS, ErrorTctx, errorDeUso, aviso, salir }
+/** Debe coincidir con `MAX_ORDEN_BYTES` de `shared/delegacion-ipc.ts`; el cliente viaja sin TypeScript. */
+const MAX_ORDEN_BYTES = 24 * 1024
+module.exports = { CODIGOS, ErrorTctx, errorDeUso, aviso, salir, MAX_ORDEN_BYTES }

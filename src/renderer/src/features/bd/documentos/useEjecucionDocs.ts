@@ -162,7 +162,8 @@ function useAccionSalida(e: EstadoConsolaDocs): (a: AccionSalida) => Promise<voi
         titulo: t.forzarTitulo,
         mensaje: t.forzarMensaje(c.alias),
         confirmar: t.forzar,
-        peligro: true
+        peligro: true,
+        severidad: 'advertencia'
       })
       if (ok) await api.forzar(c.id).catch(() => undefined)
     },

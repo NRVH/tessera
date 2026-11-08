@@ -1,13 +1,14 @@
 // =============================================================================
 // «Probar» (o «Guardar y probar») en el diálogo de una conexión SSH: se prueba SIEMPRE lo guardado, así
-// que con cambios primero se guarda; y «Olvidar la huella guardada…», con su confirmación anidada, que
-// olvida y vuelve a probar. El guardado lo pone `useDialogoConexionSsh`; aquí, el estado de la prueba.
+// que con cambios primero se guarda, y la huella de un servidor nuevo se confirma antes de entrar; y
+// «Olvidar la huella guardada…», con su confirmación anidada, que olvida y vuelve a probar. El guardado lo pone `useDialogoConexionSsh`; aquí, el estado de la prueba.
 // Decisiones: docs/decisiones/ssh/askpass-y-secretos.md
 // =============================================================================
 
 import { useState } from 'react'
 import type { SshConexion, SshResultadoPrueba } from '../../../../shared/ssh-ipc'
 import { mensajeDeErrorSsh } from './erroresSsh'
+import { asegurarHuella } from './storeHuellaNueva'
 
 /** El estado de la prueba: si está en curso, lo último que salió y la confirmación de olvidar la huella. */
 export interface EstadoPruebaSsh {
@@ -42,6 +43,12 @@ export function usePruebaConexionSsh(o: OpcionesPruebaSsh): PruebaSsh {
   const probarId = async (id: string): Promise<void> => {
     setPrueba({ probando: true, resultado: null, confirmarOlvido: false })
     try {
+      // Antes de entrar, la huella de un servidor nuevo (y la de sus bastiones) la confirma la persona.
+      const huella = await asegurarHuella({ id, prueba: true })
+      if (huella.tipo !== 'lista') {
+        setPrueba({ probando: false, resultado: huella.tipo === 'fallo' ? huella.resultado : null, confirmarOlvido: false })
+        return
+      }
       const resultado = await window.tessera.ssh.probar({ id })
       setPrueba({ probando: false, resultado, confirmarOlvido: false })
     } catch (err) {

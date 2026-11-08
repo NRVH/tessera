@@ -1,0 +1,35 @@
+/* =============================================================================
+   La ventana de claves SSH de los agentes (`ClavesAgenteModal.tsx`): la tarjeta y la fila de Configuración, con el
+   nombre y la carpeta de cada clave en una sola línea y la lista con su propio desplazamiento, para que veinte claves
+   no hagan crecer la ventana. Lo largo se recorta con puntos suspensivos; el tooltip lleva los alias.
+   Decisiones: docs/decisiones/ssh/agente-del-contenedor.md
+   ============================================================================= */
+.claves-agente-lista {
+  max-height: min(320px, 34vh);
+  overflow-y: auto;
+  min-width: 0;
+}
+.claves-agente-fila {
+  align-items: center;
+}
+.ajustes-fila-texto.claves-agente-texto {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 10px;
+}
+.claves-agente-nombre,
+.claves-agente-carpeta {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.claves-agente-nombre {
+  flex: 0 1 auto;
+  font-weight: 600;
+}
+.claves-agente-carpeta {
+  flex: 1 1 auto;
+  color: var(--fg-muted);
+  font-size: calc(var(--ui-font) - 1px);
+}

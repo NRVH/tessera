@@ -234,7 +234,7 @@ test.describe('explorador de BD: SQL Server', () => {
     const win = s!.win
     const p = ms!
     await aLaVista(win)
-    await win.locator('.activity-item[title="Conexiones a bases de datos"]').click()
+    await win.locator('.activity-item[title="Bases de datos"]').click()
     await expect(win.locator('.db-area:not(.hidden)')).toBeVisible()
     await win.locator('.db-arbol button[aria-label="Nueva conexión"]').first().click()
     const d = win.locator('.db-conexion-modal')
@@ -250,9 +250,9 @@ test.describe('explorador de BD: SQL Server', () => {
     await d.locator('select[data-campo="autenticacion"]').selectOption('sql')
     await expect(d.locator('[data-campo="dominio"]')).toHaveCount(0)
     // El cifrado: cifrar y verificar por defecto.
-    await expect(d.getByLabel('Cifrar la conexión')).toBeChecked()
-    const confiar = d.getByLabel('Confiar en el certificado del servidor')
-    await expect(confiar).not.toBeChecked()
+    await expect(d.getByRole('switch', { name: 'Cifrar la conexión' })).toHaveAttribute('aria-checked', 'true')
+    const confiar = d.getByRole('switch', { name: 'Confiar en el certificado del servidor' })
+    await expect(confiar).toHaveAttribute('aria-checked', 'false')
     // Solo lectura PARA LOS AGENTES: aquí lo impone Tessera (tdb), no el servidor.
     await expect(d).toContainText('Tessera impone el modo de solo lectura; para una garantía real, use un usuario con db_datareader')
     await expect(d).toContainText('Usted no tiene esa limitación')
@@ -263,7 +263,7 @@ test.describe('explorador de BD: SQL Server', () => {
     await d.locator('[data-campo="user"]').fill('tessera')
     await d.locator('.dbc-pass input').fill(p.password)
     // Sin la casilla de los agentes; la que la lleva es la fija.
-    await d.getByLabel('Solo lectura para los agentes (recomendado)').uncheck()
+    await d.getByRole('switch', { name: 'Solo lectura para los agentes (recomendado)' }).click()
 
     // «Guardar y probar»: el certificado del contenedor es autofirmado → falla y lo dice.
     await d.getByRole('button', { name: 'Guardar y probar' }).click()
@@ -272,7 +272,7 @@ test.describe('explorador de BD: SQL Server', () => {
     await expect(prueba).toContainText('«Confiar en el certificado del servidor»')
     await d.getByRole('button', { name: 'Confiar en el certificado y probar' }).click()
     await expect(prueba).toHaveClass(/\bok\b/, { timeout: 60_000 })
-    await expect(confiar).toBeChecked()
+    await expect(confiar).toHaveAttribute('aria-checked', 'true')
     const c = await conexionPorAlias(win, ALIAS)
     expect(c?.tls, 'la casilla se guardó').toEqual({ cifrar: true, confiarCertificado: true })
     expect(c?.database ?? '', 'sin base fija').toBe('')

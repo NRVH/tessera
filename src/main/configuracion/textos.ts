@@ -20,6 +20,24 @@ export const txConfiguracion = crearTextos(
     sinSecretoSsh: (alias: string) =>
       `La conexión SSH «${alias}» se importó sin su contraseña porque este equipo no tiene dónde guardarla; se solicitará al conectar.`,
     elegirPerfil: 'Seleccione al menos un perfil para exportar.',
+    configGlobal: 'el contexto global de los agentes',
+    configPerfil: (perfil: string) => `la configuración de Docker del perfil «${perfil}»`,
+    configNoImportada: (nivel: string) =>
+      `No se importó del todo ${nivel}: alguno de sus archivos tiene errores de sintaxis o no se puede escribir. Revíselo en Configuración › Agentes › Contexto de los agentes.`,
+    archivosAgentes: {
+      agentes: { 'claude-code': 'Claude Code', codex: 'Codex' },
+      predeterminada: 'Predeterminada',
+      deCuenta: (archivo: string, agente: string, cuenta: string, perfil: string) => `${archivo} de la cuenta de ${agente} «${cuenta}» (perfil «${perfil}»)`,
+      nativo: (archivo: string, agente: string) => `${archivo} de ${agente} en este equipo`,
+      noImportado: (que: string, motivo: string) => `No se importó ${que}: ${motivo}`,
+      motivos: {
+        invalido: 'su contenido no es válido o tiene errores de sintaxis.',
+        bloqueado: 'el archivo de este equipo no se puede leer ni escribir con seguridad.',
+        cambio: 'cambió en este equipo después de revisar la lista. Vuelva a importar para elegir.',
+        'sin-cuenta': 'su cuenta no existe en este equipo y no se eligió crearla.',
+        error: 'no se pudo escribir en este equipo.'
+      }
+    },
     archivo: {
       sinCifrado: 'El archivo no dice cómo está cifrado.',
       cifradoDesconocido: 'El archivo usa un cifrado que esta versión de Tessera no conoce.',
@@ -64,6 +82,24 @@ export const txConfiguracion = crearTextos(
     sinSecretoSsh: (alias: string) =>
       `The SSH connection “${alias}” was imported without its password: this computer has nowhere to store it, so Tessera will ask for it when you connect.`,
     elegirPerfil: 'Choose at least one profile to export.',
+    configGlobal: 'the global agent context',
+    configPerfil: (perfil: string) => `the Docker configuration of profile “${perfil}”`,
+    configNoImportada: (nivel: string) =>
+      `Not all of ${nivel} was imported: one of its files has syntax errors or cannot be written. Review it in Settings › Agents › Agent context.`,
+    archivosAgentes: {
+      agentes: { 'claude-code': 'Claude Code', codex: 'Codex' },
+      predeterminada: 'Default',
+      deCuenta: (archivo: string, agente: string, cuenta: string, perfil: string) => `${archivo} of the ${agente} account “${cuenta}” (profile “${perfil}”)`,
+      nativo: (archivo: string, agente: string) => `${archivo} of ${agente} on this computer`,
+      noImportado: (que: string, motivo: string) => `${que} was not imported: ${motivo}`,
+      motivos: {
+        invalido: 'its content is not valid or has syntax errors.',
+        bloqueado: 'the file on this computer cannot be read or written safely.',
+        cambio: 'it changed on this computer after you reviewed the list. Import again to choose.',
+        'sin-cuenta': 'its account does not exist on this computer and creating it was not chosen.',
+        error: 'it could not be written on this computer.'
+      }
+    },
     archivo: {
       sinCifrado: 'The file does not specify how it is encrypted.',
       cifradoDesconocido: 'The file uses an encryption method that this version of Tessera does not support.',

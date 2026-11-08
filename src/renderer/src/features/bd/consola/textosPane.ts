@@ -13,17 +13,17 @@ export const txPane = crearTextos(
     noSePudoLeer: (motivo: string) => `No se pudo leer la consola: ${motivo}`,
     noSePudoGuardar: (motivo: string) => `No se pudo guardar la consola: ${motivo}`,
     contextoCierre: 'Antes de cerrar la consola, confirme o revierta su transacción.',
-    contextoAuto: 'Antes de pasar a Tx Auto, confirme o revierta la transacción.',
-    detenerTitulo: '¿Detener y cerrar?',
-    detenerMensaje: (nombre: string) => `${nombre} está ejecutando una sentencia. Se detendrá la ejecución en curso y se cerrará la pestaña.`,
+    contextoAuto: 'Antes de pasar a transacción automática, confirme o revierta la transacción.',
+    detenerTitulo: (nombre: string) => `¿Detener la ejecución y cerrar ${nombre}?`,
+    detenerMensaje: (nombre: string) => `Se detendrá la ejecución en curso y se cerrará la pestaña. ${nombre} está ejecutando una sentencia.`,
     detenerConfirmar: 'Detener y cerrar',
-    conflictoTitulo: 'El archivo cambió fuera de Tessera',
+    conflictoTitulo: (nombre: string) => `¿Cerrar ${nombre} y perder sus cambios?`,
     conflictoMensaje: (nombre: string) =>
-      `${nombre} tiene cambios sin guardar y el archivo cambió fuera de Tessera. Si la cierra, se conservará la versión del disco y se perderán sus cambios.`,
+      `Si la cierra, se conservará la versión del disco y se perderán sus cambios. ${nombre} tiene cambios sin guardar y el archivo cambió fuera de Tessera.`,
     conflictoConfirmar: 'Cerrar sin guardar',
     noSePudoCerrar: (motivo: string) => `No se pudo cerrar la sesión: ${motivo}`,
-    forzarSesion: 'Forzar el cierre de la sesión',
-    forzarConexion: 'Forzar el cierre de la conexión',
+    forzarSesion: '¿Forzar el cierre de la sesión?',
+    forzarConexion: '¿Forzar el cierre de la conexión?',
     forzarConfirmar: 'Forzar el cierre',
     noSePudoForzar: (motivo: string) => `No se pudo forzar el cierre: ${motivo}`,
     noSePudoCambiarEsquema: (motivo: string) => `No se pudo cambiar el esquema: ${motivo}`,
@@ -50,17 +50,17 @@ export const txPane = crearTextos(
     noSePudoLeer: (motivo: string) => `Could not read the console: ${motivo}`,
     noSePudoGuardar: (motivo: string) => `Could not save the console: ${motivo}`,
     contextoCierre: 'To close the console, commit or roll back first.',
-    contextoAuto: 'To switch to Tx Auto, commit or roll back first.',
-    detenerTitulo: 'Stop and close?',
-    detenerMensaje: (nombre: string) => `${nombre} is running. Closing the tab stops the current execution.`,
+    contextoAuto: 'To switch to auto-commit, commit or roll back first.',
+    detenerTitulo: (nombre: string) => `Stop the execution and close ${nombre}?`,
+    detenerMensaje: (nombre: string) => `Closing the tab stops the current execution. ${nombre} is running.`,
     detenerConfirmar: 'Stop and close',
-    conflictoTitulo: 'The file changed outside Tessera',
+    conflictoTitulo: (nombre: string) => `Close ${nombre} and lose your changes?`,
     conflictoMensaje: (nombre: string) =>
-      `${nombre} has unsaved changes and the file changed outside Tessera. If you close it, the version on disk is kept and your changes are lost.`,
+      `If you close it, the version on disk is kept and your changes are lost. ${nombre} has unsaved changes and the file changed outside Tessera.`,
     conflictoConfirmar: 'Close without saving',
     noSePudoCerrar: (motivo: string) => `Could not close the session: ${motivo}`,
-    forzarSesion: 'Force the session to close',
-    forzarConexion: 'Force the connection to close',
+    forzarSesion: 'Force the session to close?',
+    forzarConexion: 'Force the connection to close?',
     forzarConfirmar: 'Force close',
     noSePudoForzar: (motivo: string) => `Could not force close: ${motivo}`,
     noSePudoCambiarEsquema: (motivo: string) => `Could not change the schema: ${motivo}`,
@@ -155,7 +155,7 @@ export const txParametros = crearTextos(
     valoresEjecutarN: (cant: string) => `Valores para ejecutar ${cant} del lote`,
     sentencia: 'sentencia',
     sentencias: 'sentencias',
-    finDialogo: (que: string) => `${que}. Se envían como texto y el servidor los convierte al tipo de su sitio.`
+    finDialogo: (que: string) => `${que}. Se envían como texto y el servidor los convierte al tipo de la columna de destino.`
   },
   {
     nPuntoOrden: (clave: string) => `? #${clave}`,
@@ -169,6 +169,6 @@ export const txParametros = crearTextos(
     valoresEjecutarN: (cant: string) => `Values to run ${cant} in the batch`,
     sentencia: 'statement',
     sentencias: 'statements',
-    finDialogo: (que: string) => `${que}. They are sent as text, and the server converts them to the type expected at each position.`
+    finDialogo: (que: string) => `${que}. They are sent as text, and the server converts them to the destination column’s type.`
   }
 )

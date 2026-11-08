@@ -357,7 +357,7 @@ async function main(): Promise<void> {
         JSON.stringify(r)
       )
       check(
-        '(11d2) resuelve muy por debajo del timeout de 5000 ms (antes: 5005 ms)',
+        '(11d2) resuelve muy por debajo del timeout de 5000 ms',
         ms < 2000,
         `${ms} ms`
       )

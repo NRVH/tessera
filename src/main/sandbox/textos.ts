@@ -27,59 +27,59 @@ export const txSandbox = crearTextos(
       listo: 'Listo'
     },
     contenedores: {
-      noSeCreo: (nombre: string, err: string) => `No se pudo crear el contenedor "${nombre}": ${err}`,
-      noSeDetuvo: (nombre: string, err: string) => `No se pudo detener el contenedor "${nombre}": ${err}`,
-      noSeElimino: (nombre: string, err: string) => `No se pudo eliminar el contenedor "${nombre}": ${err}`
+      noSeCreo: (nombre: string, err: string) => `No se pudo crear el contenedor «${nombre}»: ${err}`,
+      noSeDetuvo: (nombre: string, err: string) => `No se pudo detener el contenedor «${nombre}»: ${err}`,
+      noSeElimino: (nombre: string, err: string) => `No se pudo eliminar el contenedor «${nombre}»: ${err}`
     },
     montajes: {
       nsenterSalio: (status: number | null) => `nsenter salió con ${status}`,
       noSePrepararon: (descripcion: string, raiz: string, motivo: string) =>
         `No se pudo preparar ${descripcion} (${raiz}): ${motivo}`,
       noSeMontoProyecto: (proyecto: string, perfil: string, motivo: string) =>
-        `No se pudo montar el proyecto "${proyecto}" en el perfil "${perfil}": ${motivo}`,
+        `No se pudo montar el proyecto «${proyecto}» en el perfil «${perfil}»: ${motivo}`,
       noSeDesmontoProyecto: (proyecto: string, perfil: string, motivo: string) =>
-        `No se pudo desmontar el proyecto "${proyecto}" del perfil "${perfil}": ${motivo}`,
+        `No se pudo desmontar el proyecto «${proyecto}» del perfil «${perfil}»: ${motivo}`,
       noSeMontaronCredenciales: (agente: string, perfil: string, motivo: string) =>
-        `No se pudieron montar las credenciales del agente "${agente}" del perfil "${perfil}": ${motivo}`,
+        `No se pudieron montar las credenciales del agente «${agente}» del perfil «${perfil}»: ${motivo}`,
       noSeDesmontaronCredenciales: (agente: string, perfil: string, motivo: string) =>
-        `No se pudieron desmontar las credenciales del agente "${agente}" del perfil "${perfil}": ${motivo}`
+        `No se pudieron desmontar las credenciales del agente «${agente}» del perfil «${perfil}»: ${motivo}`
     },
     imagen: {
       preparando: (motivo: string) => `La imagen del sandbox ${motivo}: preparándola…`,
       desactualizada: 'está desactualizada',
       noExiste: 'no existe',
       lista: 'Imagen del sandbox lista.',
-      noSeConstruyo: (imagen: string, dir: string) => `No se pudo construir la imagen "${imagen}" desde "${dir}".`,
+      noSeConstruyo: (imagen: string, dir: string) => `No se pudo construir la imagen «${imagen}» desde «${dir}».`,
       extrasFallidos:
         'No se pudieron instalar los paquetes extra (¿algún nombre no existe en Debian?). ' +
-        'El sandbox se construye sin ellos; revíselos en Configuración → Proyectos → Sandbox de Docker.',
+        'El sandbox se construye sin ellos; revíselos en Configuración › Proyectos › Sandbox de Docker.',
       listaSinExtras: 'Imagen del sandbox lista (sin los paquetes extra).',
       fallaReconstruccion: (imagen: string, codigo: number | null) =>
-        `Falló la reconstrucción de la imagen "${imagen}" (docker build salió con ${codigo}).`
+        `Falló la reconstrucción de la imagen «${imagen}» (docker build salió con ${codigo}).`
     },
     capa: {
-      sinCapa: 'No se pudo preparar la capa de los agentes manuales de este perfil: se usa la imagen base, sin ellos.',
-      instalando: 'Instalando los agentes manuales en la imagen de este perfil…',
+      sinCapa: 'No se pudo preparar la capa de los agentes propios de este perfil: se usa la imagen base, sin ellos.',
+      instalando: 'Instalando los agentes propios en la imagen de este perfil…',
       fallo: 'Falló la instalación (revise el registro anterior).',
       noSeComprobo: (detalle: string) => `Se instaló, pero no se pudo comprobar la imagen: ${detalle}`
     },
     diagnostico: {
-      daemon: 'El daemon de Docker no responde.',
+      daemon: 'El motor de Docker no responde.',
       queVerificar: 'Qué verificar:',
       salidaIlegible: (nombre: string) =>
         `docker inspect ${nombre} devolvió una salida que no se pudo interpretar; ` +
-        'no se toca nada del perfil hasta poder consultarlo.',
+        'no se modifica nada del perfil hasta poder consultarlo.',
       dockerSalio: (status: number | null) => `docker salió con ${status}`,
       noSeConsulto: (nombre: string, motivo: string) =>
-        `No se pudo consultar el estado del contenedor "${nombre}" (${motivo}). ` +
+        `No se pudo consultar el estado del contenedor «${nombre}» (${motivo}). ` +
         'No se recrea ni se desmonta nada: el contenedor podría seguir en ejecución.'
     },
     red: {
       sondaTitulo: (tuEquipo: string) => `La red del anfitrión no está llegando a ${tuEquipo}`,
       sondaDetalle: (perfil: string, tuEquipo: string) =>
-        `El contenedor de “${perfil}” se creó solicitando la red del anfitrión, pero una prueba real no llegó a ` +
+        `El contenedor de «${perfil}» se creó solicitando la red del anfitrión, pero una prueba real no llegó a ` +
         `${tuEquipo}. Suele deberse a que «Enable host networking» está desactivado en Docker Desktop (Settings › Resources › ` +
-        'Network). Abra «Red del contenedor…» en el menú del perfil para ver el diagnóstico completo.'
+        'Network). Abra «Red del contenedor» en el menú del perfil, dentro de «Agentes en Docker», para ver el diagnóstico completo.'
     },
     prevuelo: {
       motorTitulo: 'Docker responde',
@@ -98,7 +98,7 @@ export const txSandbox = crearTextos(
       ajusteDesconocido:
         'No se pudo leer la configuración de Docker Desktop. Lo que decide es la comprobación del tráfico, más abajo.',
       ajusteApagado:
-        'Está desactivado, y viene así de fábrica. Actívelo en Docker Desktop › Settings › Resources › Network y pulse «Apply and restart».',
+        'Está desactivado, y viene así de fábrica. Actívelo en Docker Desktop › Settings › Resources › Network y haga clic en «Apply and restart».',
       ajusteOk: '«Enable host networking» activado',
       aislamientoTitulo: '«Enhanced Container Isolation» desactivado',
       aislamientoDesconocido: 'No se pudo leer la configuración de Docker Desktop.',
@@ -137,51 +137,51 @@ export const txSandbox = crearTextos(
       listo: 'Done'
     },
     contenedores: {
-      noSeCreo: (nombre: string, err: string) => `Could not create container "${nombre}": ${err}`,
-      noSeDetuvo: (nombre: string, err: string) => `Could not stop container "${nombre}": ${err}`,
-      noSeElimino: (nombre: string, err: string) => `Could not remove container "${nombre}": ${err}`
+      noSeCreo: (nombre: string, err: string) => `Could not create container “${nombre}”: ${err}`,
+      noSeDetuvo: (nombre: string, err: string) => `Could not stop container “${nombre}”: ${err}`,
+      noSeElimino: (nombre: string, err: string) => `Could not remove container “${nombre}”: ${err}`
     },
     montajes: {
       nsenterSalio: (status: number | null) => `nsenter exited with code ${status}`,
       noSePrepararon: (descripcion: string, raiz: string, motivo: string) =>
         `Could not prepare ${descripcion} (${raiz}): ${motivo}`,
       noSeMontoProyecto: (proyecto: string, perfil: string, motivo: string) =>
-        `Could not mount project "${proyecto}" in profile "${perfil}": ${motivo}`,
+        `Could not mount project “${proyecto}” in profile “${perfil}”: ${motivo}`,
       noSeDesmontoProyecto: (proyecto: string, perfil: string, motivo: string) =>
-        `Could not unmount project "${proyecto}" from profile "${perfil}": ${motivo}`,
+        `Could not unmount project “${proyecto}” from profile “${perfil}”: ${motivo}`,
       noSeMontaronCredenciales: (agente: string, perfil: string, motivo: string) =>
-        `Could not mount the credentials of agent "${agente}" in profile "${perfil}": ${motivo}`,
+        `Could not mount the credentials of agent “${agente}” in profile “${perfil}”: ${motivo}`,
       noSeDesmontaronCredenciales: (agente: string, perfil: string, motivo: string) =>
-        `Could not unmount the credentials of agent "${agente}" from profile "${perfil}": ${motivo}`
+        `Could not unmount the credentials of agent “${agente}” from profile “${perfil}”: ${motivo}`
     },
     imagen: {
       preparando: (motivo: string) => `The Docker sandbox image ${motivo}: preparing it…`,
       desactualizada: 'is out of date',
       noExiste: 'does not exist',
       lista: 'Docker sandbox image ready.',
-      noSeConstruyo: (imagen: string, dir: string) => `Could not build image "${imagen}" from "${dir}".`,
+      noSeConstruyo: (imagen: string, dir: string) => `Could not build image “${imagen}” from “${dir}”.`,
       extrasFallidos:
         'The extra packages could not be installed (is one of the names missing from Debian?). ' +
-        'The sandbox is being built WITHOUT them; check them in Settings → Projects → Docker sandbox.',
+        'The sandbox is being built without them; check them in Settings › Projects › Docker sandbox.',
       listaSinExtras: 'Docker sandbox image ready (without the extra packages).',
       fallaReconstruccion: (imagen: string, codigo: number | null) =>
-        `Rebuilding image "${imagen}" failed (docker build exited with code ${codigo}).`
+        `Rebuilding image “${imagen}” failed (docker build exited with code ${codigo}).`
     },
     capa: {
-      sinCapa: "Could not prepare this profile's manual-agents layer: Tessera uses the base image without them.",
-      instalando: "Installing the manual agents into this profile's image…",
+      sinCapa: "Could not prepare this profile's custom-agent layer: Tessera uses the base image without them.",
+      instalando: "Installing the custom agents into this profile's image…",
       fallo: 'The installation failed (see the log above).',
       noSeComprobo: (detalle: string) => `It was installed, but the image could not be checked: ${detalle}`
     },
     diagnostico: {
-      daemon: 'The Docker daemon is not responding.',
+      daemon: 'The Docker engine is not responding.',
       queVerificar: 'What to check:',
       salidaIlegible: (nombre: string) =>
         `docker inspect ${nombre} returned output that could not be interpreted; ` +
         "Tessera does not change anything in the profile until it can query the container.",
       dockerSalio: (status: number | null) => `docker exited with code ${status}`,
       noSeConsulto: (nombre: string, motivo: string) =>
-        `Could not query the state of container "${nombre}" (${motivo}). ` +
+        `Could not query the state of container “${nombre}” (${motivo}). ` +
         'Nothing is recreated or unmounted: it might still be running.'
     },
     red: {
@@ -189,7 +189,7 @@ export const txSandbox = crearTextos(
       sondaDetalle: (perfil: string, tuEquipo: string) =>
         `The container for “${perfil}” was created with the host network, but a real test did not reach ` +
         `${tuEquipo}. This usually happens because “Enable host networking” is off in Docker Desktop (Settings › Resources › ` +
-        'Network). Open “Container network…” in the profile menu to see the full diagnosis.'
+        'Network). Open “Container network” in the profile menu, under “Agents in Docker”, to see the full diagnosis.'
     },
     prevuelo: {
       motorTitulo: 'Docker is responding',

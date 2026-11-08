@@ -21,9 +21,9 @@ cierre para actualizarse, justo después de matar las pseudoconsolas, sin ningun
   del registro de salud). En el arnés de interfaz, cuyo paquete no es alpha, `TESSERA_VOLCADOS=1` junto a su
   marca hace las veces de alpha, pero el ajuste sigue mandando: así se prueba también el interruptor.
 - `crashReporter.start({ uploadToServer: false })` al cargar el módulo del main, justo DESPUÉS de `prepararProceso`:
-  antes, la carpeta de volcados se resolvía con el `userData` de fábrica, el de la app instalada, y una Tessera de
-  desarrollo o el relevo habrían anotado y borrado los volcados de esa. Por lo mismo `crashDumps` se fija a mano a
-  `<userData>/Crashpad`. Así tampoco arranca el registrador en la segunda instancia que sale nada más cargar. Cubre
+  antes de él, la carpeta de volcados se resolvería con el `userData` de fábrica, el de la app instalada, y una
+  Tessera de desarrollo o el relevo anotarían y borrarían los volcados de esa. Por lo mismo `crashDumps` se fija a
+  mano a `<userData>/Crashpad`. Así tampoco arranca el registrador en la segunda instancia que sale nada más cargar. Cubre
   el main, el renderer, la GPU y los procesos de utilidad, también en el relevo (en su propio `userData`, que nadie
   revisa: sus volcados se buscan a mano). Nada sale del equipo.
 - Los volcados quedan en `<userData>/Crashpad`; los que el registrador aún escribe (`new/`) no se tocan. El arranque anota

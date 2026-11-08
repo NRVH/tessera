@@ -7,8 +7,7 @@
 // =============================================================================
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { hayDialogos } from '../../comun/pilaDialogos'
-import { useDialogo } from '../../comun/useDialogo'
+import { Modal } from '../../comun/Modal'
 import { gruposAcademy, PanelAcademy } from '../academy'
 import { categoriasVisibles, conAcademy, type CategoriaId } from './catalogo'
 import {
@@ -17,7 +16,7 @@ import {
   gruposDe,
   sinResultados
 } from './filtrarAjustes'
-import { CabeceraModal, RielCategorias } from './PartesModal'
+import { CabeceraAjustes, RielCategorias } from './PartesModal'
 import type { AjustesProps, PropsCategoria } from './tipos'
 import { txModal } from './textos.ts'
 import { useRielAjustes } from './useRielAjustes'
@@ -222,10 +221,6 @@ export function SettingsModal({
   const { consulta, setConsulta, hayConsulta, conteo, ve, vacio, conResultados, alPulsarEnBuscador } =
     useConsultaAjustes()
 
-  // Abierta con Ctrl+, sobre otro diálogo que va después en el DOM con el mismo z-index (buscar en
-  // archivos, cerrar sin guardar), Configuración tiene que quedar encima de él.
-  const [encimaDeOtro] = useState(hayDialogos)
-  const { ref, alPulsarTecla } = useDialogo({ onClose })
   const buscadorRef = useRef<HTMLInputElement>(null)
   const { rielRef, bloques, irA, alPulsarEnRiel } = useRielAjustes(
     categoria,
@@ -240,26 +235,8 @@ export function SettingsModal({
   }, [])
 
   return (
-    <div className={`modal-overlay${encimaDeOtro ? ' modal-encima' : ''}`} role="presentation" onMouseDown={onClose}>
-      <div
-        ref={ref}
-        className="ajustes-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="ajustes-titulo"
-        onKeyDown={alPulsarTecla}
-        // mousedown y no click: así arrastrar una selección desde dentro y soltar
-        // fuera no cierra el modal.
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        <CabeceraModal
-          consulta={consulta}
-          onConsulta={setConsulta}
-          buscadorRef={buscadorRef}
-          alPulsarEnBuscador={alPulsarEnBuscador}
-          onClose={onClose}
-        />
-
+    <Modal titulo={txModal().configuracion} tamano="l" className="ajustes-modal" cuerpoClassName="ajustes-modal-contenido" onCerrar={onClose}
+      centro={<CabeceraAjustes consulta={consulta} onConsulta={setConsulta} buscadorRef={buscadorRef} alPulsarEnBuscador={alPulsarEnBuscador} />}>
         <div className="ajustes-modal-cuerpo">
           <RielCategorias
             rielRef={rielRef}
@@ -279,7 +256,6 @@ export function SettingsModal({
             ajustes={ajustes}
           />
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

@@ -35,7 +35,7 @@ async function ventanasVisibles(win: Page): Promise<string[]> {
     Array.from(document.querySelectorAll<HTMLElement>('.agent-pane:not(.hidden) .agent-usage-item'))
       .filter((el) => {
         const caja = el.getBoundingClientRect()
-        const marco = el.parentElement!.getBoundingClientRect()
+        const marco = el.closest('.agent-usage')!.getBoundingClientRect()
         return caja.width > 0 && caja.bottom <= marco.bottom + 0.5
       })
       .map((el) => `${el.querySelector('.agent-usage-label')?.textContent} ${el.querySelector('.agent-usage-pct')?.textContent}`)

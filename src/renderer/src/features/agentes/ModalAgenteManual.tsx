@@ -9,7 +9,8 @@
 import '../../comun/formularioModal.css'
 import './agentesManuales.css'
 import { useId } from 'react'
-import { alClicEnVelo, useDialogo } from '../../comun/useDialogo'
+import { AvisoConPresencia, AvisoModal, Modal, PieModal } from '../../comun/Modal'
+import { FilaInterruptor } from '../../comun/piezasAjustes'
 import { AYUDA, BotonAyuda } from '../academy'
 import { MAX_COMANDO, MAX_INSTALACION, MAX_NOMBRE, MAX_REANUDAR } from '../../../../shared/agentesManuales'
 import { MAX_CAMPO, MAX_VALOR_FUENTE } from '../../../../shared/contextoAgenteManual'
@@ -130,22 +131,20 @@ function CamposAgente({ v }: { v: VistaModalAgente }): React.JSX.Element {
 }
 
 function CasillaTerminal({ v }: { v: VistaModalAgente }): React.JSX.Element {
-  const id = useId()
   const t = txAgenteManual()
   return (
-    <div className="agman-casilla">
-      <input id={id} type="checkbox" checked={v.b.enTerminal} aria-describedby={`${id}-ayuda`} onChange={(e) => v.editar({ enTerminal: e.target.checked })} />
-      <div>
-        <label className="agman-casilla-titulo" htmlFor={id}>
-          {t.activarTerminal}
-        </label>
-        <span id={`${id}-ayuda`} className="dbc-ayuda">
+    <FilaInterruptor
+      etiqueta={t.activarTerminal}
+      ayuda={
+        <>
           {t.terminalAyudaA}
           <code>AGENTS.md</code>
           {t.terminalAyudaB}
-        </span>
-      </div>
-    </div>
+        </>
+      }
+      activo={v.b.enTerminal}
+      onChange={() => v.editar({ enTerminal: !v.b.enTerminal })}
+    />
   )
 }
 
@@ -201,82 +200,52 @@ function ProgresoInstalacion({ v }: { v: VistaModalAgente }): React.JSX.Element 
       <pre className="agman-log" aria-live="polite">
         {fase.lineas.join('\n') || t.preparando}
       </pre>
-      {r && !r.ok && <div className="dbc-error" role="alert">{r.error ?? t.falloInstalacion}</div>}
-      {r?.ok && r.faltan.length > 0 && (
-        <div className="dbc-error" role="alert">
+      <AvisoConPresencia>{r && !r.ok && <AvisoModal tono="error">{r.error ?? t.falloInstalacion}</AvisoModal>}</AvisoConPresencia>
+      <AvisoConPresencia>{r?.ok && r.faltan.length > 0 && (
+        <AvisoModal tono="error">
           {t.faltan(r.faltan.map(comillas).join(', '))}
-        </div>
-      )}
-      {r?.ok && r.faltan.length === 0 && <div className="agman-ok" role="status">{t.listo}</div>}
+        </AvisoModal>
+      )}</AvisoConPresencia>
+      <AvisoConPresencia>{r?.ok && r.faltan.length === 0 && <AvisoModal tono="exito">{t.listo}</AvisoModal>}</AvisoConPresencia>
     </div>
   )
 }
 
-function Pie({ v, onCerrar }: { v: VistaModalAgente; onCerrar: () => void }): React.JSX.Element {
+function Pie({ v, onCerrar, formulario }: { v: VistaModalAgente; onCerrar: () => void; formulario: string }): React.JSX.Element {
   const { fase } = v
   const t = txAgenteManual()
-  if (fase.tipo === 'instalado') {
-    return (
-      <div className="modal-actions dbc-acciones">
-        <span className="dbc-hueco" />
-        <button type="button" className="btn primary" onClick={onCerrar}>{t.cerrar}</button>
-      </div>
-    )
-  }
   const instalando = fase.tipo === 'instalando'
   return (
-    <div className="modal-actions dbc-acciones">
-      <button type="button" className="btn" disabled={instalando} onClick={() => void v.pegar()} title={t.pegarTitulo}>
-        {t.pegarDefinicion}
-      </button>
-      <span className="dbc-hueco" />
+    <PieModal auxiliares={<button type="button" className="btn" disabled={instalando} onClick={() => void v.pegar()} title={t.pegarTitulo}>{t.pegarDefinicion}</button>}>
       <button type="button" className="btn btn-ghost" disabled={instalando} onClick={onCerrar}>{t.cancelar}</button>
-      <button type="submit" className="btn primary" disabled={instalando}>
+      <button type="submit" form={formulario} className="btn primary" disabled={instalando}>
         {instalando ? t.instalando : fase.tipo === 'sin-programa' ? t.guardarIgualmente : t.guardar}
       </button>
-    </div>
+    </PieModal>
   )
 }
 
 export function ModalAgenteManual(o: OpcionesModalAgente): React.JSX.Element {
   const v = useModalAgenteManual(o)
   const ocupado = v.fase.tipo === 'instalando'
-  const dialogo = useDialogo({ onClose: o.onCerrar, cerrable: !ocupado })
-  const idTitulo = useId()
+  const formulario = useId()
   const t = txAgenteManual()
   return (
-    <div className="modal-overlay" role="presentation" onMouseDown={ocupado ? undefined : alClicEnVelo(o.onCerrar)}>
-      <div
-        ref={dialogo.ref}
-        className="modal-card db-conexion-modal agman-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={idTitulo}
-        onMouseDown={(e) => e.stopPropagation()}
-        onKeyDown={dialogo.alPulsarTecla}
-      >
-        <form className="dbc-form" noValidate onSubmit={(e) => { e.preventDefault(); void v.guardar() }}>
-          <div className="dbc-cabecera">
-            <div className="dbc-titulo-fila">
-              <div id={idTitulo} className="modal-title">{o.inicial ? t.editar(o.inicial.nombre) : t.agenteNuevo}</div>
-              <BotonAyuda destino={AYUDA.agenteManual} />
-            </div>
-            <div className="dbc-ayuda">{v.nativo ? t.ambitoNativo : t.ambitoDocker}</div>
-          </div>
-          <div className="dbc-cuerpo">
+    <Modal titulo={o.inicial ? t.editar(o.inicial.nombre) : t.agenteNuevo} ayuda={<BotonAyuda destino={AYUDA.agenteManual} />}
+      subtitulo={v.nativo ? t.ambitoNativo : t.ambitoDocker} tamano="m" className="db-conexion-modal agman-modal"
+      onCerrar={o.onCerrar} cerrable={!ocupado} ocupado={ocupado} cierraConVelo={v.fase.tipo === 'instalado'}
+      pie={v.fase.tipo !== 'instalado' ? <Pie v={v} onCerrar={o.onCerrar} formulario={formulario} /> : undefined}>
+      <form id={formulario} className="agman-formulario" noValidate onSubmit={(e) => { e.preventDefault(); if (!ocupado && v.fase.tipo !== 'instalado') void v.guardar() }}>
             {v.fase.tipo === 'editando' || v.fase.tipo === 'sin-programa' ? <CamposAgente v={v} /> : <ProgresoInstalacion v={v} />}
-            {v.fase.tipo === 'sin-programa' && (
-              <div className="dbc-error" role="alert">
+            <AvisoConPresencia>{v.fase.tipo === 'sin-programa' && (
+              <AvisoModal tono="error">
                 {t.sinProgramaA}
                 {v.fase.programa}
                 {t.sinProgramaB}
-              </div>
-            )}
-            {v.error && <div className="dbc-error" role="alert">{v.error}</div>}
-          </div>
-          <Pie v={v} onCerrar={o.onCerrar} />
-        </form>
-      </div>
-    </div>
+              </AvisoModal>
+            )}</AvisoConPresencia>
+            <AvisoConPresencia>{v.error && <AvisoModal tono="error">{v.error}</AvisoModal>}</AvisoConPresencia>
+      </form>
+    </Modal>
   )
 }

@@ -29,6 +29,7 @@ import {
   type SshEspacioTerminal,
   type SshExportacionOpenSsh,
   type SshExportarOpenSsh,
+  type SshFichaHuella,
   type SshGrupo,
   type SshGrupoBorrado,
   type SshImportarOpenSsh,
@@ -38,6 +39,8 @@ import {
   type SshPreguntaAskpass,
   type SshPreguntaRetirada,
   type SshProbar,
+  type SshReconocerHuella,
+  type SshReconocimiento,
   type SshRenombrarGrupo,
   type SshRespuestaAskpass,
   type SshResultadoPrueba
@@ -79,6 +82,12 @@ export interface SshApi {
   probar: (req: SshProbar) => Promise<SshResultadoPrueba>
   /** Olvida las huellas guardadas del servidor de una conexión. */
   olvidarHuella: (req: SshOlvidarHuella) => Promise<void>
+  /** Si un servidor de la cadena no tiene huella, la trae sin autenticarse y la deja pendiente con una ficha. */
+  reconocerHuella: (req: SshReconocerHuella) => Promise<SshReconocimiento>
+  /** La persona confirmó la huella pendiente de esa ficha: queda guardada. */
+  confiarHuella: (req: SshFichaHuella) => Promise<void>
+  /** La persona no la confirmó: se descarta sin guardar nada. */
+  descartarHuella: (req: SshFichaHuella) => Promise<void>
   /** Prepara la carpeta del agente de la terminal del perfil (la crea y siembra su contexto) y la devuelve. */
   asegurarEspacio: (req: SshEspacioAsegurar) => Promise<SshEspacioTerminal>
   /** La carpeta del agente de la terminal de cada perfil, sin crearla. */
@@ -117,6 +126,9 @@ export const ssh: SshApi = {
   exportarOpenSsh: (req) => ipcRenderer.invoke(SSH_CHANNELS.EXPORTAR_OPENSSH, req),
   probar: (req) => ipcRenderer.invoke(SSH_CHANNELS.PROBAR, req),
   olvidarHuella: (req) => ipcRenderer.invoke(SSH_CHANNELS.HUELLA_OLVIDAR, req),
+  reconocerHuella: (req) => ipcRenderer.invoke(SSH_CHANNELS.HUELLA_RECONOCER, req),
+  confiarHuella: (req) => ipcRenderer.invoke(SSH_CHANNELS.HUELLA_CONFIAR, req),
+  descartarHuella: (req) => ipcRenderer.invoke(SSH_CHANNELS.HUELLA_DESCARTAR, req),
   asegurarEspacio: (req) => ipcRenderer.invoke(SSH_CHANNELS.ESPACIO_ASEGURAR, req),
   rutasEspacio: (req) => ipcRenderer.invoke(SSH_CHANNELS.ESPACIO_RUTAS, req),
   onCambio: (cb) => {

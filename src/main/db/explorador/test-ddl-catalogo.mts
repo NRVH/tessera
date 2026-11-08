@@ -293,7 +293,7 @@ async function main(): Promise<void> {
       JSON.stringify(particion)
     )
     check(
-      'partición: el ATTACH va DESPUÉS de los CREATE INDEX (antes, el CREATE INDEX falla con «ya existe»)',
+      'partición: el ATTACH va DESPUÉS de los CREATE INDEX (si no, el CREATE INDEX falla con «ya existe»)',
       particion.indexOf('ATTACH PARTITION') > particion.lastIndexOf('CREATE INDEX') && !particion.includes('INHERITS'),
       'ok'
     )

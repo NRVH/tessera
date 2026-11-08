@@ -74,9 +74,8 @@ export function esLinux(): boolean {
  * cosas que en macOS sobran).
  *
  * Cada campo se documenta con el PORQUÉ de su valor, no con lo que vale. Y cada campo
- * tiene que tener LECTOR: se declaró `portapapelesDeArchivos` y se retiró, porque era
- * `true` en las dos plataformas y ninguna superficie la consultaba; una capacidad sin
- * lector es documentación disfrazada de contrato. Lo que decide si el explorador ofrece
+ * tiene que tener LECTOR: una capacidad que es igual en las dos plataformas y que
+ * ninguna superficie consulta es documentación disfrazada de contrato. Lo que decide si el explorador ofrece
  * "Pegar" sobre archivos del sistema sigue siendo la implementación de
  * `main/clipboard` (CF_HDROP en Windows, `NSFilenamesPboardType`/`public.file-url`
  * en macOS), no una casilla

@@ -156,7 +156,7 @@ hr('(3) El filtro: sin tildes ni mayúsculas, todas las palabras, y en qué camp
   check('los grupos sin coincidencias desaparecen', !ver(filas({ filtro: 'nube' })).includes('Bases'), ver(filas({ filtro: 'nube' })))
   check('con espacios de más y en mayúsculas sigue casando', ver(filas({ filtro: '  NUBE  ' })) === '[Árboles 1] | Nube', ver(filas({ filtro: '  NUBE  ' })))
   check('sin coincidencias no hay filas', filas({ filtro: 'zzz' }).length === 0, String(filas({ filtro: 'zzz' }).length))
-  check('el texto del estado sin coincidencias', textoSinCoincidencias(' zz ') === 'Ninguna conexión coincide con "zz"', textoSinCoincidencias(' zz '))
+  check('el texto del estado sin coincidencias', textoSinCoincidencias(' zz ') === 'Ninguna conexión coincide con «zz»', textoSinCoincidencias(' zz '))
 }
 
 hr('(4) Mitades negativas del filtro: nunca por puerto ni por id')

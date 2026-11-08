@@ -106,7 +106,7 @@ export async function arrancarEdicion(): Promise<EntornoEdicion | { motivo: stri
       w.setSize(1600, 1000)
     })
     await expect(s.win.locator('.tabs-projects .project-tab')).toHaveCount(1, { timeout: 30_000 })
-    await botonVista(s.win, 'Conexiones a bases de datos').click()
+    await botonVista(s.win, 'Bases de datos').click()
     await expect(s.win.locator('.db-area:not(.hidden)')).toBeVisible()
     for (const c of [
       { alias: ALIAS_ESCRITURA, readonly: false },

@@ -220,3 +220,13 @@
     border-right-color: var(--accent);
   }
 }
+
+.db-tab-cruce > .mov-cruce-capa {
+  display: grid;
+  place-items: center;
+  transition-duration: var(--mov-rapido);
+}
+.db-consola > .mov-despliega,
+.db-arbol > .mov-despliega {
+  flex: 0 0 auto;
+}

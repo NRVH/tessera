@@ -128,7 +128,11 @@ hr('3 - La configuración generada')
   check('(3c) su propio known_hosts y, con clave, su copia', bloques[0].includes('UserKnownHostsFile="C:/datos/ssh/huellas/b1"') && bloques[1].includes('IdentityFile="C:/datos/ssh/claves/b2"'), 'sí')
   check('(3d) el primero salta hacia el segundo; el último no salta', bloques[0].includes('ProxyCommand=PROXY-1') && !bloques[1].includes('ProxyCommand'), 'PROXY-1')
   check('(3e) un bastión nunca reenvía nada más que el salto', bloques.every((x) => x.includes('ClearAllForwardings=yes') && x.includes('ForwardAgent=no')), 'ClearAllForwardings en los dos')
-  check('(3f) humano: accept-new, y con diálogo, tres intentos', bloques[0].includes('StrictHostKeyChecking=accept-new') && bloques[0].includes('NumberOfPasswordPrompts=3'), 'sí')
+  check(
+    '(3f) humano: estricto con la huella del bastión (confirmada antes), y con diálogo, tres intentos',
+    bloques.every((x) => x.includes('StrictHostKeyChecking=yes') && !x.includes('accept-new')) && bloques[0].includes('NumberOfPasswordPrompts=3'),
+    'sí'
+  )
   const a = configSaltos([b1], opciones('agente', false))
   check('(3g) agente sin programa: huella estricta y BatchMode (nadie teclea en un bastión)', a.includes('StrictHostKeyChecking=yes') && a.includes('BatchMode=yes'), 'sí')
   const sinAskpassHumano = configSaltos([b1], opciones('humano', false))

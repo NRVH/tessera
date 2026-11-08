@@ -1,6 +1,6 @@
 // =============================================================================
 // La rejilla del explorador de BD («uso diario») sobre la app empaquetada y contra un
-// PostgreSQL de `postgresEfimero.ts` (`rejillaAyudas.ts`): el menú de dos pasos de «Copiar
+// PostgreSQL de `postgresEfimero.ts` (`rejillaAyudas.ts`): el submenú de «Copiar
 // como» que escribe en el portapapeles del sistema, Mayús+Intro con sus mitades negativas
 // y el visor por portal con un Monaco que nace con caja, «Traer todas» por `leerMas`, y
 // exportar con `dialog.showSaveDialog` sustituido EN EL MAIN (el camino desde el IPC es el
@@ -75,9 +75,9 @@ test.describe('rejilla del explorador: copiar como, visor, traer todas y exporta
     if (dirExport) await borrarTemporal(dirExport)
   })
 
-  // (1) «COPIAR COMO» DESDE EL MENÚ, en dos pasos. La raíz trae lo de todos los días
-  // (Ver valor, Copiar, Copiar con cabeceras) y las dos entradas con «…» que abren el
-  // segundo paso en el mismo sitio. CSV con cabecera y CRLF; INSERT con la tabla
+  // (1) «COPIAR COMO» DESDE EL MENÚ. La raíz trae lo de todos los días (Ver valor,
+  // Copiar, Copiar con cabeceras) y las dos entradas que despliegan sus formatos en un
+  // submenú. CSV con cabecera y CRLF; INSERT con la tabla
   // calificada que da la pestaña.
   test('(1) «Copiar como» CSV y SQL INSERT desde el menú contextual', async () => {
     const win = e!.s.win
@@ -96,9 +96,9 @@ test.describe('rejilla del explorador: copiar como, visor, traer todas y exporta
         '—',
         'Copiar',
         'Copiar con cabeceras',
-        'Copiar como…',
+        'Copiar como',
         '—',
-        'Exportar a archivo…',
+        'Exportar a archivo',
         'Traer todas las filas',
         // `grande` tiene PK, así que es editable y el menú suma la edición al
         // final (lo destructivo, abajo del todo).
@@ -108,21 +108,17 @@ test.describe('rejilla del explorador: copiar como, visor, traer todas y exporta
         'Revertir selección',
         '—',
         'Añadir fila',
-        'Borrar 2 filas'
+        'Eliminar 2 filas'
       ])
-      await opcionMenu(win, 'Copiar como…').click()
-      // Segundo paso: el MISMO menú con otra lista, el título apagado arriba y el foco
-      // en la primera opción que se puede elegir.
-      expect(await entradasMenu(win)).toEqual(['Copiar como', 'CSV', 'JSON', 'SQL INSERT', 'Markdown'])
-      await expect(opcionMenu(win, 'Copiar como')).toBeDisabled()
-      await expect(opcionMenu(win, 'CSV')).toBeFocused()
+      await opcionMenu(win, 'Copiar como').click()
+      await expect(win.getByRole('menu', { name: 'Copiar como' }).getByRole('menuitem')).toHaveText(['CSV', 'JSON', 'SQL INSERT', 'Markdown'])
       await opcionMenu(win, 'CSV').click()
       await expect(win.locator('.ctx-menu')).toHaveCount(0)
       await expect.poll(() => leerPortapapeles(win), { message: 'el rango en CSV' }).toBe('id,nombre\n1,fila 1\n2,fila 2')
       await expect(win.locator(`${PANE} .db-rejilla`), 'el foco vuelve a la rejilla').toBeFocused()
 
       await celda(win, 0, 1).click({ button: 'right' })
-      await opcionMenu(win, 'Copiar como…').click()
+      await opcionMenu(win, 'Copiar como').click()
       await opcionMenu(win, 'SQL INSERT').click()
       await expect
         .poll(() => leerPortapapeles(win), { message: 'el rango en INSERT' })
@@ -168,10 +164,25 @@ test.describe('rejilla del explorador: copiar como, visor, traer todas y exporta
     // Monaco NACIÓ con caja: pinta líneas (a 0 px se queda en 5×5 y no pinta ninguna).
     await expect(visor.locator('.db-visor-host .view-line').first()).toBeVisible()
 
+    await visor.locator('.db-visor-host .view-line').first().click()
+    await win.keyboard.press(`${MOD}+f`)
+    const buscador = visor.locator('.find-widget.visible')
+    await expect(buscador).toBeVisible()
+    await expect.poll(async () => {
+      const marcoVisor = await visor.boundingBox()
+      const marcoBuscador = await buscador.boundingBox()
+      return !!marcoVisor && !!marcoBuscador &&
+        marcoBuscador.x >= marcoVisor.x && marcoBuscador.y >= marcoVisor.y &&
+        marcoBuscador.x + marcoBuscador.width <= marcoVisor.x + marcoVisor.width + 1 &&
+        marcoBuscador.y + marcoBuscador.height <= marcoVisor.y + marcoVisor.height + 1
+    }, { message: 'el buscador de Monaco queda dentro del visor' }).toBe(true)
+    await win.keyboard.press('Escape')
+    await expect(buscador).not.toBeVisible()
+
     await visor.getByRole('radio', { name: 'Crudo' }).click()
     await expect.poll(() => monacoEn(win, HOST_VISOR, { op: 'texto' })).toBe('{"n": 1, "grande": 12345678901234567890}')
 
-    await win.keyboard.press('Escape')
+    await visor.getByRole('button', { name: 'Cerrar', exact: true }).click()
     await expect(visor).toHaveCount(0)
     await expect(win.locator(`${PANE} .db-rejilla`), 'el foco vuelve a la rejilla').toBeFocused()
     await expect(celda(win, 0, 2)).toHaveClass(/\bfoco\b/)
@@ -192,8 +203,8 @@ test.describe('rejilla del explorador: copiar como, visor, traer todas y exporta
         timeout: 30_000
       })
       .toBe(LARGO_FILA_1)
-    await expect(visor.locator('.db-visor-aviso.tono-error')).toHaveCount(0)
-    await expect(visor.locator('.db-visor-aviso'), 'ya no queda aviso de «parcial» ni de «cargando»').toHaveCount(0)
+    await expect(visor.locator('.modal-aviso.es-error')).toHaveCount(0)
+    await expect(visor.locator('.modal-aviso'), 'no queda aviso de «parcial» ni de «cargando»').toHaveCount(0)
     await win.keyboard.press('Escape')
     await expect(visor).toHaveCount(0)
   })
@@ -216,7 +227,8 @@ test.describe('rejilla del explorador: copiar como, visor, traer todas y exporta
     await expect(textoPildora(win)).toHaveText('500+ filas')
     await win.locator(`${PANE} .db-pildora-traer`).click()
     await expect(textoPildora(win), 'trae hasta la última').toHaveText(`${FILAS_GRANDE} filas`, { timeout: 60_000 })
-    await expect(win.locator(`${PANE} .db-pildora-traer`)).toHaveCount(0)
+    // Siempre montado para no mover la píldora: se comprueba que ya no se ve (docs/decisiones/renderer/movimiento.md).
+    await expect(win.locator(`${PANE} .db-pildora-traer`)).toBeHidden()
 
     await celda(win, 0, 0).click({ button: 'right' })
     await expect(opcionMenu(win, 'Traer todas las filas')).toBeDisabled()
@@ -289,7 +301,7 @@ test.describe('rejilla del explorador: copiar como, visor, traer todas y exporta
     await win.keyboard.press('Shift+Enter')
     const visor = win.locator(VISOR)
     await expect(visor).toBeVisible()
-    await expect(visor.locator('.db-visor-aviso.tono-aviso')).toContainText('La tabla no tiene clave primaria')
+    await expect(visor.locator('.modal-aviso.es-aviso')).toContainText('La tabla no tiene clave primaria')
     await expect(visor.locator('.db-visor-meta')).toContainText(`70${NBSP}000 caracteres`)
     await win.keyboard.press('Escape')
     await expect(visor).toHaveCount(0)

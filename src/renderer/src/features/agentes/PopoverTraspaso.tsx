@@ -207,6 +207,7 @@ function PopoverTraspaso({ m, destinos, ancla, onCerrar }: { m: ModeloAgentPane;
       {confirmar && (
         <ConfirmDialog
           danger
+          severidad="advertencia"
           title={confirmar.titulo}
           message={confirmar.mensaje}
           confirmLabel={t.seguir}

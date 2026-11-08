@@ -13,6 +13,8 @@ import { arrancarRenderer } from './util/arranqueRenderer'
 import '@xterm/xterm/css/xterm.css'
 import './styles.css'
 import './comun/selectDesplegable.css'
+import './comun/movimiento.css'
+import './comun/casillas.css'
 
 arrancarRenderer()
 

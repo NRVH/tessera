@@ -6,6 +6,7 @@
 // Decisiones: docs/decisiones/bd/ui-conexion-clientes.md
 // =============================================================================
 
+import { Presente } from '../../comun/Presente'
 import type { DriverProgress, DriverStatus } from '../../../../shared/db-ipc'
 import { ayudaSinClientes } from './camposConexion'
 import { txConexionDialogo } from './textosConexionDialogo.ts'
@@ -50,12 +51,12 @@ export function DriversLista({
   const t = txConexionDialogo()
   return (
     <div className="dbc-drivers">
-      {drivers.length === 0 && <p className="dbc-ayuda">{t.sinClientes}</p>}
+      <Presente visible={drivers.length === 0} className="mov-despliega"><p className="dbc-ayuda">{t.sinClientes}</p></Presente>
       {drivers.map((d) => (
         <div key={d.id} className={`dbc-driver${resaltado === d.id ? ' resaltado' : ''}`}>
           <div className="dbc-driver-nombre">{d.nombre}</div>
           <div className="dbc-driver-cubre">{d.cubre}</div>
-          {d.aviso && <div className="dbc-driver-soporte">{d.aviso}</div>}
+          <Presente visible={!!d.aviso} className="mov-despliega"><div className="dbc-driver-soporte">{d.aviso}</div></Presente>
           <div className="dbc-driver-estado">
             {d.instalado ? (
               <span className="ok">{t.instalado}{d.externo ? t.instaladoTuyo : ''}</span>

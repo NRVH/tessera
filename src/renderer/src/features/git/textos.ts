@@ -9,6 +9,17 @@ import { crearTextos } from '../../../../shared/i18n.ts'
 
 export const txGit = crearTextos(
   {
+    hooksTitulo: (repo: string) => `¿Permitir que «${repo}» ejecute sus hooks?`,
+    hooksTituloIncompleta: (repo: string) => `Los hooks de «${repo}» no se pueden aceptar`,
+    hooksGrupo: 'Hooks por aceptar',
+    hooksAceptar: 'Ejecutar y recordar',
+    hooksContinuar: 'Continuar sin ejecutarlos',
+    hooksDetalleGeneral: 'Este repositorio puede ejecutar estos programas en su equipo al continuar. No los ha aceptado antes o cambiaron desde entonces.',
+    hooksCancelar: 'Cancelar',
+    hooksVer: 'Ver',
+    hooksNuevo: 'nuevo',
+    hooksCambiado: 'cambiado',
+    hooksTruncado: 'Se muestran los primeros 32 KiB.',
     // Cabeceras, estados vacíos y de carga
     sinProyectoTitulo: 'Sin proyecto abierto',
     sinProyectoCambios: 'Abra un proyecto para ver sus cambios de Git.',
@@ -32,7 +43,7 @@ export const txGit = crearTextos(
     cambios: 'Cambios',
     plegarRepos: 'Contraer todos los repositorios',
     desplegarRepos: 'Expandir los repositorios con cambios',
-    recargarCambios: 'Recargar los cambios',
+    recargarCambios: 'Refrescar los cambios',
     repoActivo: 'Repositorio activo (el del historial de abajo)',
     repoAbrir: 'Ver el historial de este repositorio en el panel de abajo',
     ramaActual: (rama: string) => `Rama actual: ${rama}`,
@@ -49,14 +60,14 @@ export const txGit = crearTextos(
 
     // Botones de lote
     quitarN: (n: number) => `Quitar ${n} de preparados`,
-    quitarNTitulo: (n: number) => `Quitar ${n} archivos de preparados; sus cambios se conservan`,
-    marcarResueltosN: (n: number) => `Marcar ${n} como resueltos`,
-    marcarResueltosNTitulo: (n: number) => `Marcar ${n} archivos como resueltos`,
+    quitarNTitulo: (n: number) => `Quitar ${n} ${n === 1 ? 'archivo' : 'archivos'} de preparados; sus cambios se conservan`,
+    marcarResueltosN: (n: number) => `Marcar ${n} como ${n === 1 ? 'resuelto' : 'resueltos'}`,
+    marcarResueltosNTitulo: (n: number) => `Marcar ${n} ${n === 1 ? 'archivo' : 'archivos'} como ${n === 1 ? 'resuelto' : 'resueltos'}`,
     prepararN: (n: number) => `Preparar ${n}`,
-    prepararNTitulo: (n: number) => `Preparar ${n} archivos`,
+    prepararNTitulo: (n: number) => `Preparar ${n} ${n === 1 ? 'archivo' : 'archivos'}`,
     descartarN: (n: number) => `Descartar ${n}`,
     descartarNTitulo: (n: number) =>
-      `Restaura ${n} archivos a su versión de Git: sus cambios se pierden y los archivos nuevos se eliminan del disco`,
+      `Restaura ${n} ${n === 1 ? 'archivo' : 'archivos'} a su versión de Git: sus cambios se pierden y los archivos nuevos se eliminan del disco`,
 
     // Menú contextual de una fila de Cambios
     abrirArchivo: 'Abrir archivo',
@@ -64,16 +75,16 @@ export const txGit = crearTextos(
     quitarDePreparados: 'Quitar de preparados',
     marcarResuelto: 'Marcar como resuelto',
     preparar: 'Preparar',
-    agregarGitignore: 'Agregar a .gitignore',
-    agregarGitignoreN: (n: number) => `Agregar ${n} a .gitignore`,
+    agregarGitignore: 'Añadir a .gitignore',
+    agregarGitignoreN: (n: number) => `Añadir ${n} a .gitignore`,
     agregarExclusionLocal: 'Ignorar solo en este equipo (.git/info/exclude)',
     agregarExclusionLocalN: (n: number) => `Ignorar ${n} solo en este equipo (.git/info/exclude)`,
     descartarCambios: 'Descartar cambios (restaura la versión de Git)',
-    descartarArchivosN: (n: number) => `Descartar ${n} archivos…`,
+    descartarArchivosN: (n: number) => `Descartar ${n} ${n === 1 ? 'archivo' : 'archivos'}…`,
 
     // Fila de archivo
     archivosDeCarpeta: (n: number) => `${n} ${n === 1 ? 'archivo' : 'archivos'}`,
-    dobleClicDiferencias: 'Doble clic para ver las diferencias',
+    dobleClicDiferencias: 'Haga doble clic para ver las diferencias',
     letras: {
       A: 'Añadido',
       M: 'Modificado',
@@ -88,12 +99,10 @@ export const txGit = crearTextos(
 
     // Panel de Log: cabecera y vistas
     panelHistorial: 'Historial de Git',
-    recargarHistorial: 'Recargar el historial y las ramas',
-    restaurarPanel: 'Restaurar el panel de Git',
+    recargarHistorial: 'Refrescar el historial y las ramas',
     maximizarPanel: 'Maximizar el panel de Git',
-    restaurarTitulo: 'Restaurar: el panel de Git vuelve a la parte inferior',
     maximizarTitulo: 'Maximizar: el panel de Git ocupa toda el área de trabajo (sin cerrar nada)',
-    cerrarPanel: 'Cerrar el panel de Git',
+    ocultarPanel: 'Ocultar el panel de Git',
     vistasGit: 'Vistas de Git',
     historialDe: (nombre: string) => `Historial: ${nombre}`,
     cerrarHistorial: 'Cerrar el historial',
@@ -101,12 +110,11 @@ export const txGit = crearTextos(
     anchoDetalle: 'Ancho de la columna de detalle',
 
     // Árbol de ramas
-    repoDelHistorial: 'Repositorio del historial (haga clic para cambiar)',
+    repoDelHistorial: 'Repositorio del historial. Haga clic para cambiar',
     ramas: 'Ramas',
     repositorio: 'Repositorio',
     cargandoRamas: 'Cargando ramas…',
     sinRamas: 'Este repositorio no tiene ramas.',
-    verTodasRamasTitulo: 'Ver el historial de todas las ramas',
     todasLasRamas: 'Todas las ramas',
     ramaActualHead: (rama: string) => `${rama} — rama actual (HEAD)`,
     ramaQuitarFiltro: (rama: string) => `${rama} — haga clic para quitar el filtro`,
@@ -116,7 +124,7 @@ export const txGit = crearTextos(
     remoto: 'Remoto',
 
     // Barra de filtros
-    sinResultados: 'sin resultados',
+    sinResultados: 'Sin resultados',
     coincidenciaAnteriorTitulo: 'Coincidencia anterior (Mayús+Intro)',
     coincidenciaAnterior: 'Coincidencia anterior',
     coincidenciaSiguienteTitulo: 'Coincidencia siguiente (Intro)',
@@ -187,14 +195,14 @@ export const txGit = crearTextos(
     errorHistorial: 'No se pudo leer el historial',
     sinHistorialTitulo: 'Sin historial',
     sinHistorialPista: (nombre: string) =>
-      `Git no registra ningún commit que haya modificado "${nombre}". Es posible que sea un archivo nuevo que todavía no se ha confirmado.`,
+      `Git no registra ningún commit que haya modificado «${nombre}». Es posible que sea un archivo nuevo que todavía no se ha confirmado.`,
     anchoListaArchivo: 'Ancho de la lista de commits del archivo',
     commitsDe: (nombre: string) => `Commits de ${nombre}`,
     cargandoHistorialArchivo: 'Cargando el historial…',
     errorDiff: 'No se pudo preparar el diff',
     noTocaArchivoTitulo: 'Este commit no modifica el archivo con este nombre',
     noTocaArchivoDetalle: (nombre: string) =>
-      `El historial de "${nombre}" incluye cambios de nombre, por lo que la lista contiene commits en los que el archivo se llamaba de otra forma. En esos commits no hay un cambio que comparar con el nombre actual.`,
+      `El historial de «${nombre}» incluye cambios de nombre, por lo que la lista contiene commits en los que el archivo se llamaba de otra forma. En esos commits no hay un cambio que comparar con el nombre actual.`,
     elegirCommit: 'Seleccione un commit para ver qué cambió.',
     preparandoDiff: 'Preparando el diff…',
 
@@ -222,6 +230,17 @@ export const txGit = crearTextos(
     haceDias: (n: number) => `hace ${n} día${n === 1 ? '' : 's'}`
   },
   {
+    hooksTitulo: (repo: string) => `Allow “${repo}” to run its hooks?`,
+    hooksTituloIncompleta: (repo: string) => `The hooks in “${repo}” cannot be accepted`,
+    hooksGrupo: 'Hooks to accept',
+    hooksAceptar: 'Run and remember',
+    hooksContinuar: 'Continue without running them',
+    hooksDetalleGeneral: 'This repository may run these programs on your computer when continuing. You have not accepted them before, or they have changed.',
+    hooksCancelar: 'Cancel',
+    hooksVer: 'View',
+    hooksNuevo: 'new',
+    hooksCambiado: 'changed',
+    hooksTruncado: 'Showing the first 32 KiB.',
     sinProyectoTitulo: 'No project open',
     sinProyectoCambios: 'Open a project to see its Git changes.',
     sinProyectoHistorial: 'Open a project to see its Git history.',
@@ -244,7 +263,7 @@ export const txGit = crearTextos(
     cambios: 'Changes',
     plegarRepos: 'Collapse all repositories',
     desplegarRepos: 'Expand repositories with changes',
-    recargarCambios: 'Reload changes',
+    recargarCambios: 'Refresh changes',
     repoActivo: 'Active repository (the one shown in the history below)',
     repoAbrir: 'Show this repository’s history in the panel below',
     ramaActual: (rama: string) => `Current branch: ${rama}`,
@@ -259,14 +278,14 @@ export const txGit = crearTextos(
     },
 
     quitarN: (n: number) => `Unstage ${n}`,
-    quitarNTitulo: (n: number) => `Unstage ${n} files; their changes are kept`,
+    quitarNTitulo: (n: number) => `Unstage ${n} ${n === 1 ? 'file' : 'files'}; their changes are kept`,
     marcarResueltosN: (n: number) => `Mark ${n} as resolved`,
-    marcarResueltosNTitulo: (n: number) => `Mark ${n} files as resolved`,
+    marcarResueltosNTitulo: (n: number) => `Mark ${n} ${n === 1 ? 'file' : 'files'} as resolved`,
     prepararN: (n: number) => `Stage ${n}`,
-    prepararNTitulo: (n: number) => `Stage ${n} files`,
+    prepararNTitulo: (n: number) => `Stage ${n} ${n === 1 ? 'file' : 'files'}`,
     descartarN: (n: number) => `Discard ${n}`,
     descartarNTitulo: (n: number) =>
-      `Restores ${n} files to their Git version: their changes are lost and new files are deleted from disk`,
+      `Restores ${n} ${n === 1 ? 'file' : 'files'} to their Git version: their changes are lost and new files are deleted from disk`,
 
     abrirArchivo: 'Open file',
     mostrarEn: (gestor: string) => `Show in ${gestor}`,
@@ -278,7 +297,7 @@ export const txGit = crearTextos(
     agregarExclusionLocal: 'Ignore on this computer only (.git/info/exclude)',
     agregarExclusionLocalN: (n: number) => `Ignore ${n} on this computer only (.git/info/exclude)`,
     descartarCambios: 'Discard changes (restore the Git version)',
-    descartarArchivosN: (n: number) => `Discard ${n} files…`,
+    descartarArchivosN: (n: number) => `Discard ${n} ${n === 1 ? 'file' : 'files'}…`,
 
     archivosDeCarpeta: (n: number) => `${n} ${n === 1 ? 'file' : 'files'}`,
     dobleClicDiferencias: 'Double-click to see the differences',
@@ -295,24 +314,21 @@ export const txGit = crearTextos(
     headIndice: 'HEAD ↔ Index',
 
     panelHistorial: 'Git history',
-    recargarHistorial: 'Reload history and branches',
-    restaurarPanel: 'Restore Git panel',
+    recargarHistorial: 'Refresh history and branches',
     maximizarPanel: 'Maximize Git panel',
-    restaurarTitulo: 'Restore: Git returns to the bottom panel',
     maximizarTitulo: 'Maximize: Git fills the whole work area (nothing is closed)',
-    cerrarPanel: 'Close Git panel',
+    ocultarPanel: 'Hide Git panel',
     vistasGit: 'Git views',
     historialDe: (nombre: string) => `History: ${nombre}`,
     cerrarHistorial: 'Close history',
     anchoRamas: 'Branches column width',
     anchoDetalle: 'Details column width',
 
-    repoDelHistorial: 'History repository (click to change)',
+    repoDelHistorial: 'History repository. Click to change',
     ramas: 'Branches',
     repositorio: 'Repository',
     cargandoRamas: 'Loading branches…',
     sinRamas: 'This repository has no branches.',
-    verTodasRamasTitulo: 'Show the history of all branches',
     todasLasRamas: 'All branches',
     ramaActualHead: (rama: string) => `${rama} — current branch (HEAD)`,
     ramaQuitarFiltro: (rama: string) => `${rama} — click to clear the filter`,
@@ -321,7 +337,7 @@ export const txGit = crearTextos(
     local: 'Local',
     remoto: 'Remote',
 
-    sinResultados: 'no results',
+    sinResultados: 'No results',
     coincidenciaAnteriorTitulo: 'Previous match (Shift+Enter)',
     coincidenciaAnterior: 'Previous match',
     coincidenciaSiguienteTitulo: 'Next match (Enter)',

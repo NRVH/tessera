@@ -14,6 +14,7 @@ import { montarAgenteFalso, type AgenteFalso } from './agenteFalso'
 import { abrirConsolaNueva, ejecutarTodoSeleccionado, esperarFinEjecucion, desplegar, fila, filaTras } from './consolaAyudas'
 import { monacoConsola } from './monaco'
 import { arrancarPostgres, type PostgresEfimero } from './postgresEfimero'
+import { sembrarHuellas } from './sshFalso'
 import { abrirTessera, borrarTemporal, carpetasAgentes, MOD, PLATAFORMA, type SesionTessera } from './tessera'
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
@@ -32,6 +33,7 @@ const L =
     ? {
         dividida: 'Editor and preview',
         gitCambios: /^Git · Changes/,
+        gitHistorial: 'Git · History',
         terminal: 'Terminal',
         nuevaTerminal: 'New terminal',
         maximizar: 'Maximize terminal panel',
@@ -40,13 +42,14 @@ const L =
         editarSsh: 'Edit SSH connection',
         diferencias: 'Differences',
         archivos: 'Files',
-        conexionesBd: 'Database connections',
+        conexionesBd: 'Databases',
         tablas: 'tables',
         mosaico: 'Agent mosaic'
       }
     : {
         dividida: 'Editor y vista previa',
         gitCambios: /^Git · Cambios/,
+        gitHistorial: 'Git · Historial',
         terminal: 'Terminal',
         nuevaTerminal: 'Nueva terminal',
         maximizar: 'Maximizar el panel de terminal',
@@ -55,7 +58,7 @@ const L =
         editarSsh: 'Editar conexión SSH',
         diferencias: 'Diferencias',
         archivos: 'Archivos',
-        conexionesBd: 'Conexiones a bases de datos',
+        conexionesBd: 'Bases de datos',
         tablas: 'tablas',
         mosaico: 'Mosaico de agentes'
       }
@@ -215,12 +218,12 @@ const CONVERSACION_DEMO = {
 
 /**
  * Programa del agente de demostración: pinta una conversación fija, sin pid, ruta ni
- * latido, y deja pasar `--version`, `update` y `npm` al agente falso de siempre.
+ * latido, y deja pasar `--version`, `--help`, `update` y `npm` al agente falso de siempre.
  */
 function programaDemo(original: string): string {
   return `'use strict'
 const [estado, agente, ...args] = process.argv.slice(2)
-if (agente === 'npm' || ['--version', '-v', 'update'].includes(args[0])) {
+if (agente === 'npm' || ['--version', '-v', '--help', 'update'].includes(args[0])) {
   require(${JSON.stringify(original)})
   return
 }
@@ -611,7 +614,7 @@ test.describe('capturas del README', () => {
     await win.getByRole('button', { name: L.gitCambios }).click()
     await win.locator('.git-panel .git-arbol-fila', { hasText: 'carrito.ts' }).dblclick()
     await expect(win.locator('.monaco-diff-editor').filter({ visible: true })).toContainText('envio')
-    await win.getByRole('button', { name: 'Git · Log' }).click()
+    await win.getByRole('button', { name: L.gitHistorial }).click()
     await expect(win.locator('.git-fila-commit').first()).toBeVisible()
     await win.locator('.git-fila-commit', { hasText: 'fix: redondeo del IVA' }).click()
     await expect(win.locator('.git-log-detalle .git-detalle-asunto')).toHaveText('fix: redondeo del IVA en el carrito')
@@ -655,6 +658,8 @@ test.describe('capturas del README', () => {
       await crear('staging', pruebas.id, '192.0.2.20', 'deploy')
       await crear('nas-casa', null, '192.0.2.30', 'admin')
     })
+    // Huellas ya confirmadas: la captura es la de una sesión, no la del diálogo de un servidor nuevo.
+    await sembrarHuellas(win, s.datos)
     const panel = win.locator('section.terminal-panel')
     await panel.getByRole('button', { name: L.maximizar }).click()
     const riel = win.locator('aside.ssh-riel')
@@ -679,7 +684,7 @@ test.describe('capturas del README', () => {
     await foto(win, { readme: 'ssh-conexion' }, dialogo)
     await win.keyboard.press('Escape')
     await expect(dialogo).toHaveCount(0)
-    await panel.getByRole('button', { name: L.restaurar }).click()
+    await win.locator('.activity-bar').getByRole('button', { name: L.restaurar }).click()
   })
 
   test('configuración', async () => {

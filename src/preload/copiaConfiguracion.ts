@@ -7,7 +7,9 @@ import { ipcRenderer } from 'electron'
 import {
   COPIA_CONFIGURACION_CHANNELS as C,
   type AbrirResult,
+  type ArchivoPedido,
   type DescifrarResult,
+  type DiffArchivoResult,
   type ExportarRequest,
   type ExportarResult,
   type FuenteHistorial,
@@ -27,6 +29,8 @@ export interface CopiaConfiguracionApi {
   conexiones: (token: string, seleccion: SeleccionConexiones) => Promise<ResultadoConexiones>
   /** Cuántas conversaciones y cuánto ocupan por cuenta, para el diálogo de exportar. */
   previaHistorial: (req: PreviaHistorialRequest) => Promise<FuenteHistorial[]>
+  /** Las dos versiones de un archivo de agente distinto, solo si el usuario pide ver el diff. */
+  diffArchivo: (token: string, archivo: ArchivoPedido) => Promise<DiffArchivoResult>
   /** Suelta el archivo abierto sin importar. */
   olvidar: (token: string) => Promise<void>
   /** Abre la copia que llegó del sistema (doble clic en un `.tessera`), o `null` si no hay ninguna. */
@@ -41,6 +45,7 @@ export const copiaConfiguracion: CopiaConfiguracionApi = {
   descifrar: (token, frase) => ipcRenderer.invoke(C.DESCIFRAR, { token, frase }),
   conexiones: (token, seleccion) => ipcRenderer.invoke(C.CONEXIONES, { token, seleccion }),
   previaHistorial: (req) => ipcRenderer.invoke(C.PREVIA_HISTORIAL, req),
+  diffArchivo: (token, archivo) => ipcRenderer.invoke(C.DIFF_ARCHIVO, { token, archivo }),
   olvidar: (token) => ipcRenderer.invoke(C.OLVIDAR, { token }),
   tomarPendiente: () => ipcRenderer.invoke(C.TOMAR_PENDIENTE),
   onPendiente: (cb) => {

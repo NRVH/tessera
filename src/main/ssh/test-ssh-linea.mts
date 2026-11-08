@@ -121,7 +121,7 @@ hr('2 - La línea de ssh por método, modo y plataforma')
     '-o', 'ControlMaster=no',
     '-o', 'ControlPath=none',
     '-o', 'UserKnownHostsFile="C:/Users/Ana María/AppData/Roaming/Tessera/ssh/huellas/abc"',
-    '-o', 'StrictHostKeyChecking=accept-new',
+    '-o', 'StrictHostKeyChecking=yes',
     '-o', 'CheckHostIP=no',
     '-o', 'UpdateHostKeys=no',
     '-o', 'ConnectTimeout=10',
@@ -186,6 +186,43 @@ hr('2 - La línea de ssh por método, modo y plataforma')
   }
   const sinClave = argumentosSsh({ ...destino, metodo: 'sistema' }, { modo: 'humano', rutaHuellas: '/tmp/h', rutaClave: '/tmp/clave', plataforma: 'mac' })
   check('(2j) con otro método, una rutaClave sobrante no entra en la línea', !sinClave.some((a) => a.startsWith('IdentityFile') || a.startsWith('IdentitiesOnly')), sinClave.join(' '))
+
+  // Ninguna línea de una persona acepta una huella sola: la pestaña, «Probar» (con y sin secreto), el SFTP y un bastión.
+  const humanas: Array<[string, Parameters<typeof argumentosSsh>[1]]> = [
+    ['pestaña', { modo: 'humano', rutaHuellas: '/tmp/h', plataforma: 'mac', tuneles: [{ tipo: 'local', puerto: 8080, destinoHost: 'db', destinoPuerto: 5432 }] }],
+    ['«Probar» sin secreto', { modo: 'humano', rutaHuellas: '/tmp/h', plataforma: 'windows', prueba: true }],
+    ['«Probar» con secreto', { modo: 'humano', rutaHuellas: '/tmp/h', plataforma: 'linux', prueba: true, conAskpass: true }],
+    ['explorador SFTP', { modo: 'humano', rutaHuellas: '/tmp/h', plataforma: 'mac', subsistemaSftp: true, conAskpass: true, conDialogo: true }],
+    ['bastión', { modo: 'humano', rutaHuellas: '/tmp/h', plataforma: 'windows', salto: true }]
+  ]
+  for (const [nombre, opts] of humanas) {
+    const l = argumentosSsh(destino, opts)
+    check(`(2k) ${nombre}: estricta (StrictHostKeyChecking=yes), nunca accept-new`, l.includes('StrictHostKeyChecking=yes') && !l.some((a) => a.includes('accept-new')), l.join(' '))
+  }
+
+  // Reconocer un servidor nuevo: accept-new sobre el temporal y sin ningún método que mande algo, sea cual sea el de la conexión.
+  for (const metodo of ['contrasena', 'clave', 'sistema'] as const) {
+    const r = argumentosSsh({ ...destino, metodo }, { modo: 'humano', rutaHuellas: 'C:\\Temp\\tessera-huella-x\\known_hosts', plataforma: 'windows', reconocer: true, tuneles: [{ tipo: 'dinamico', puerto: 1080 }] })
+    const opciones = r.filter((_, i) => r[i - 1] === '-o')
+    check(
+      `(2l) reconocer (${metodo}): accept-new en el known_hosts temporal`,
+      opciones.includes('StrictHostKeyChecking=accept-new') && opciones.includes('UserKnownHostsFile="C:/Temp/tessera-huella-x/known_hosts"'),
+      opciones.join(' ')
+    )
+    check(
+      `(2m) reconocer (${metodo}): solo «none», sin clave, ni contraseña, ni teclado, ni programa de contraseñas`,
+      opciones.includes('PreferredAuthentications=none') &&
+        ['PubkeyAuthentication=no', 'PasswordAuthentication=no', 'KbdInteractiveAuthentication=no', 'BatchMode=yes'].every((o) => opciones.includes(o)) &&
+        !opciones.some((o) => o.startsWith('IdentityFile') || o.startsWith('NumberOfPasswordPrompts')),
+      opciones.join(' ')
+    )
+    check(
+      `(2n) reconocer (${metodo}): sin reenvíos ni túneles, sin terminal y con «exit 0»`,
+      ['ClearAllForwardings=yes', 'ForwardAgent=no', 'PermitLocalCommand=no'].every((o) => opciones.includes(o)) &&
+        !r.includes('-D') && !r.includes('-L') && r.includes('-T') && r.includes('-n') && r.slice(-3).join(' ') === '192.0.2.10 exit 0',
+      r.join(' ')
+    )
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -289,6 +326,17 @@ hr('4 - Por qué salió con 255: solo mensajes de ssh a principio de línea (y n
   check('(4h11) …también en «Probar», sin carpeta', String(clasificarSalidaSsh(255, bastion, 'windows')) === 'ssh-huella-cambiada', String(clasificarSalidaSsh(255, bastion, 'windows')))
   const anidadaYCorte = `${anidada}Connection closed by 192.0.2.1 port 22\r\n`
   check('(4h12) la de un ssh remoto seguida de un cierre de verdad: inalcanzable, no huella', huellaDe(anidadaYCorte, carpetaWin, 'windows') === 'ssh-inalcanzable', huellaDe(anidadaYCorte, carpetaWin, 'windows'))
+  // En las líneas de una persona, una huella desconocida en estricto es «sin confirmar» (su remedio es confirmarla), con
+  // carpeta o sin ella, también la de un bastión; la cambiada sigue siéndolo; el agente lo sigue viendo como antes.
+  const sinConfirmar = 'No ED25519 host key is known for 192.0.2.1 and you have requested strict checking.\r\nHost key verification failed.\r\n'
+  const persona = (cola: string, carpeta?: string): string => String(clasificarSalidaSsh(255, cola, 'windows', carpeta, { sinConfirmar: true }))
+  check('(4s1) persona, sin carpeta («Probar»): sin confirmar', persona(sinConfirmar) === 'ssh-huella-sin-confirmar', persona(sinConfirmar))
+  check('(4s2) persona, con carpeta (pestaña, SFTP): sin confirmar', persona(sinConfirmar, carpetaWin) === 'ssh-huella-sin-confirmar', persona(sinConfirmar, carpetaWin))
+  const bastionSinConfirmar = `No ED25519 host key is known for 192.0.2.9 and you have requested strict checking.\r\nHost key verification failed.\r\nConnection closed by UNKNOWN port 65535\r\n`
+  check('(4s3) persona: la del bastión gana al cierre del ssh exterior', persona(bastionSinConfirmar, carpetaWin) === 'ssh-huella-sin-confirmar', persona(bastionSinConfirmar, carpetaWin))
+  check('(4s4) persona: la cambiada sigue siendo cambiada', persona(avisoHuella(rutaWin), carpetaWin) === 'ssh-huella-cambiada', persona(avisoHuella(rutaWin), carpetaWin))
+  check('(4s5) agente (sin la opción): como siempre, sin motivo con carpeta', huellaDe(sinConfirmar, carpetaWin, 'windows') === 'undefined', huellaDe(sinConfirmar, carpetaWin, 'windows'))
+  check('(4s6) persona: un 0 no tiene motivo aunque lleve el aviso', clasificarSalidaSsh(0, sinConfirmar, 'windows', carpetaWin, { sinConfirmar: true }) === undefined, 'sin motivo')
   check('(4h9) los demás motivos no dependen de la carpeta', clasificarSalidaSsh(255, 'Permission denied (publickey).\r\n', 'windows', carpetaWin) === 'ssh-autenticacion', String(clasificarSalidaSsh(255, 'Permission denied (publickey).\r\n', 'windows', carpetaWin)))
   const negativos: Array<[string, number | null]> = [['salida 0', 0], ['salida 1 (cierre)', 1], ['salida 3 (exit remoto)', 3], ['sin código', null]]
   for (const [nombre, codigo] of negativos) {
@@ -343,7 +391,14 @@ hr('5 - REAL: `ssh -G` lee la línea generada como se pretende')
     const leida = (g.get('userknownhostsfile') ?? '').replace(/^"(.*)"$/, '$1')
     check('(5a) userknownhostsfile: la ruta entera, con su espacio, su «ñ» y un solo %', leida === esperada, `${leida} (esperada ${esperada})`)
     check('(5b) port, user y hostname', g.get('port') === '2222' && g.get('user') === 'pruebas' && g.get('hostname') === '192.0.2.10', `${g.get('port')} ${g.get('user')} ${g.get('hostname')}`)
-    check('(5c) accept-new y solo contraseña', g.get('stricthostkeychecking') === 'accept-new' && g.get('preferredauthentications') === 'password,keyboard-interactive' && /^(no|false)$/.test(g.get('pubkeyauthentication') ?? ''), `${g.get('stricthostkeychecking')} ${g.get('preferredauthentications')} ${g.get('pubkeyauthentication')}`)
+    const reconocer = spawnSync(b.ssh.exe, ['-G', ...argumentosSsh(destino, { modo: 'humano', rutaHuellas: ruta, reconocer: true })], { encoding: 'utf-8', windowsHide: true })
+    const vistoR = String(reconocer.stdout).toLowerCase()
+    check(
+      '(5r) el ssh del sistema acepta la línea de reconocer: accept-new, solo «none» y sin preguntar',
+      reconocer.status === 0 && ['stricthostkeychecking accept-new', 'preferredauthentications none', 'batchmode yes', 'kbdinteractiveauthentication no', 'passwordauthentication no'].every((l) => vistoR.includes(l)),
+      `status=${reconocer.status} ${(reconocer.stderr ?? '').slice(0, 160)}`
+    )
+    check('(5c) estricta y solo contraseña', /^(true|yes)$/.test(g.get('stricthostkeychecking') ?? '') && g.get('preferredauthentications') === 'password,keyboard-interactive' && /^(no|false)$/.test(g.get('pubkeyauthentication') ?? ''), `${g.get('stricthostkeychecking')} ${g.get('preferredauthentications')} ${g.get('pubkeyauthentication')}`)
     const s = correr({ ...destino, metodo: 'sistema' })
     // Sin la opción, `-G` no la imprime: queda la lista por defecto, que empieza por las claves.
     check('(5d) con claves del sistema no se fuerza ningún método y las claves siguen', (s.get('preferredauthentications') ?? 'publickey').includes('publickey') && /^(yes|true)$/.test(s.get('pubkeyauthentication') ?? ''), `${s.get('preferredauthentications') ?? '(por defecto)'} ${s.get('pubkeyauthentication')}`)

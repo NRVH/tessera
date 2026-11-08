@@ -8,7 +8,9 @@ import { create } from 'zustand'
 import {
   ACTIVITY_BAR_DEFAULT_ORDER,
   BOTTOM_BAR_DEFAULT_ORDER,
+  DEFAULT_AGENTE_TERMINAL_ANCHO,
   DEFAULT_CC_WIDTH,
+  DEFAULT_GIT_HISTORIAL_WIDTH,
   DEFAULT_DB_AGENTE_WIDTH,
   DEFAULT_DB_RESULTADOS_ALTO,
   DEFAULT_GIT_LOG_ARCHIVOS_H,
@@ -34,9 +36,9 @@ export interface EstadoLayout {
   gitLogRamasWidth: number
   gitLogDetalleWidth: number
   gitLogArchivosH: number
-  /** Ancho de la lista del historial de un archivo; solo de la sesión. */
+  /** Ancho de la lista del historial de un archivo. */
   gitHistorialWidth: number
-  /** Ancho del agente de la terminal junto a la terminal a pantalla completa; solo de la sesión. */
+  /** Ancho del agente de la terminal junto a la terminal a pantalla completa. */
   agenteTerminalAncho: number
   activityBarOrder: string[]
   bottomBarOrder: string[]
@@ -58,7 +60,7 @@ export interface EstadoLayout {
  * terminal también conserva sus 80 (el riel de conexiones se pliega solo si no cabe). En macOS la
  * letra por defecto es más ancha y son 78 y 78: 80 y 80 no caben a 1366 px.
  */
-export const AGENTE_TERMINAL_ANCHO_POR_DEFECTO = 640
+export const AGENTE_TERMINAL_ANCHO_POR_DEFECTO = DEFAULT_AGENTE_TERMINAL_ANCHO
 
 /** Estado del layout de la ventana. */
 export const useStoreLayout = create<EstadoLayout>()(() => ({
@@ -73,7 +75,7 @@ export const useStoreLayout = create<EstadoLayout>()(() => ({
   gitLogRamasWidth: DEFAULT_GIT_LOG_RAMAS,
   gitLogDetalleWidth: DEFAULT_GIT_LOG_DETALLE,
   gitLogArchivosH: DEFAULT_GIT_LOG_ARCHIVOS_H,
-  gitHistorialWidth: 420,
+  gitHistorialWidth: DEFAULT_GIT_HISTORIAL_WIDTH,
   agenteTerminalAncho: AGENTE_TERMINAL_ANCHO_POR_DEFECTO,
   activityBarOrder: [...ACTIVITY_BAR_DEFAULT_ORDER],
   bottomBarOrder: [...BOTTOM_BAR_DEFAULT_ORDER],
@@ -93,6 +95,17 @@ export function fijarMaximizado(
     const siguiente = conMaximizado(s.maximizadoPorPerfil, perfil, clave, valor)
     return siguiente === s.maximizadoPorPerfil ? s : { maximizadoPorPerfil: siguiente }
   })
+}
+
+/**
+ * Pasa la pantalla completa de un panel de la franja al otro (el riel a pantalla completa): el elegido entra
+ * maximizado y el que se deja sale del modo, así que el maximizado acompaña a la franja y no se queda
+ * esperando en el panel que se dejó. Quien llama pone después el elegido en la franja.
+ */
+export function pasarPantallaCompleta(de: PanelInferiorCentro, a: PanelInferiorCentro): void {
+  if (de === a) return
+  fijarMaximizado(a, true)
+  fijarMaximizado(de, false)
 }
 
 /** Cambia la columna del agente de `perfil` ('' = sin perfil; de serie, el que está a la vista); no repinta si no cambia nada. */

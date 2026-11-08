@@ -5,7 +5,6 @@
 // Decisiones: docs/decisiones/sandbox/gestor-concurrencia.md
 // =============================================================================
 import os from 'node:os'
-import type { SshSetup } from '../sshSetup.ts'
 import { EXTRAS_VACIOS, type SandboxExtras } from '../../../shared/sandboxExtras.ts'
 import { KeyedMutex } from '../../util/mutex.ts'
 import type { AvisoRed } from '../../../shared/sandbox-red-ipc.ts'
@@ -48,8 +47,6 @@ export class NucleoSandbox {
   startupSweep: Promise<void> | null = null
   /** Serializa por perfil el ciclo de vida del contenedor y sus montajes. */
   readonly profileLock = new KeyedMutex()
-  /** Setup ssh GLOBAL que se monta READ-ONLY en todo contenedor; `null` = sin ssh. */
-  sshSetup: SshSetup | null = null
   /** Paquetes extra a hornear; cambiarlos deja la imagen obsoleta (van en el sello). */
   extras: SandboxExtras = EXTRAS_VACIOS
   /** Uid y gid del `agente` horneado; `null` = el de la imagen (fuera de Linux). Va en el sello. */
@@ -110,9 +107,8 @@ export class NucleoSandbox {
     return en !== undefined && ahora - en < ventanaMs
   }
 
-  constructor(dockerfileDir: string, sshSetup: SshSetup | null) {
+  constructor(dockerfileDir: string) {
     this.dockerfileDir = dockerfileDir
-    this.sshSetup = sshSetup
   }
 
   /** Cablea el puente de BD: `preparar` en cada `ensureContainer`, `olvidar` en cada `stopContainer`. */
@@ -124,10 +120,6 @@ export class NucleoSandbox {
     this.olvidarBuzonDb = olvidarBuzon ?? null
   }
 
-  /** (Re)fija el setup ssh global. Los contenedores ya vivos lo toman al recrearse. */
-  setSshSetup(setup: SshSetup | null): void {
-    this.sshSetup = setup
-  }
 
   /** (Re)fija los extras; no reconstruye nada: la imagen se rehornea en el siguiente `ensureImage`. */
   setExtras(extras: SandboxExtras): void {

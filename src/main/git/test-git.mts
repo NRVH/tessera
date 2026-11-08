@@ -562,7 +562,7 @@ async function main(): Promise<void> {
     )
 
     // (17) workingBlob con ruta contenedora-relativa: lee el disco de sub/, no de la
-    // raíz del repo (antes devolvía exists:false y el visor de diff se rompía).
+    // raíz del repo (con exists:false el visor de diff se rompería).
     await checkThrows(
       '(17) workingBlob("dentro.md") lee <repo>/sub/dentro.md (exists:true)',
       async () => {

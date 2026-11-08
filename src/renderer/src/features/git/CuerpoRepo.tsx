@@ -9,6 +9,7 @@
 import type { RepoStatus, WorkingChange } from '../../../../shared/git-ipc'
 import { EstadoVacio } from '../../comun/EstadoVacio'
 import { EsperaCarga } from '../../comun/IndicadorCarga'
+import { Cruce } from '../../comun/Presente'
 import { VirtualList } from '../../comun/VirtualList'
 import { useRaizDelProyecto } from '../../comun/raizDelProyecto'
 import { FilaArbolArchivo } from './FilaArbolArchivo'
@@ -25,6 +26,7 @@ import {
 } from './modelo/seccionesCambios'
 import { txGit } from './textos.ts'
 import { useListaCambios, type ListaCambios } from './useListaCambios'
+import { useEntradaContenido } from '../../comun/useEntradaContenido'
 
 interface PropsCuerpoRepo {
   /** En una .repo-section (multi-repo) no se virtualiza: el scroll es del padre. */
@@ -51,6 +53,7 @@ interface PropsCuerpoRepo {
 export function CuerpoRepo(props: PropsCuerpoRepo): React.JSX.Element {
   const { anidado, status, cargando, altoFila, altoCabecera, marcadas, acciones } = props
   const changes = status?.changes ?? null
+  const entradaRef = useEntradaContenido(claveContenido(status))
   const lista = useListaCambios(changes, marcadas, altoCabecera, altoFila, anidado)
   const raiz = useRaizDelProyecto()
   const pintarItem = (item: ItemCambio): React.JSX.Element => {
@@ -62,13 +65,16 @@ export function CuerpoRepo(props: PropsCuerpoRepo): React.JSX.Element {
   // una sección de repo el centrado de 100% empujaría a los repos de abajo.
   const limpio = status !== null && !status.error && changes?.length === 0
   const t = txGit()
+  const claveEstado = status?.error ? 'error' : !status && cargando ? 'cargando' : limpio ? 'limpio' : 'lista'
 
   // ANIDADO (multi-repo): sin scroll propio -> lista plana.
   if (anidado) {
     return (
-      <div className="working-changes-list">
-        {estados}
-        {limpio && <div className="git-state-inline">{t.sinCambiosLinea}</div>}
+      <div ref={entradaRef} className="working-changes-list">
+        <Cruce clave={claveEstado}>
+          {estados}
+          {limpio && <div className="git-state-inline">{t.sinCambiosLinea}</div>}
+        </Cruce>
         {lista.items.map((item) => (
           <div key={item.id}>{pintarItem(item)}</div>
         ))}
@@ -76,28 +82,27 @@ export function CuerpoRepo(props: PropsCuerpoRepo): React.JSX.Element {
     )
   }
 
-  if (limpio) {
-    return (
-      <EstadoVacio
-        icono={<IconoTodoLimpio />}
-        titulo={t.sinCambiosTitulo}
-        pista={t.sinCambiosPista}
-      />
-    )
-  }
-
   // REPO ÚNICO: la lista es su propio scroller -> VIRTUALIZADA.
   return (
-    <VirtualList<ItemCambio>
-      className="working-changes-list"
-      ariaLabel={t.cambiosWorkingTree}
-      items={lista.items}
-      itemHeight={lista.altoItem}
-      getKey={(item) => item.id}
-      header={estados}
-      renderItem={(item) => pintarItem(item)}
-    />
+    <div ref={entradaRef} className="git-lista-con-estado">
+      <VirtualList<ItemCambio>
+        className="working-changes-list"
+        ariaLabel={t.cambiosWorkingTree}
+        items={lista.items}
+        itemHeight={lista.altoItem}
+        getKey={(item) => item.id}
+        header={<Cruce clave={claveEstado}>{estados}</Cruce>}
+        renderItem={(item) => pintarItem(item)}
+      />
+      <Cruce className="git-lista-tapa" clave={limpio ? 'limpio' : 'lista'}>
+        {limpio ? <EstadoVacio icono={<IconoTodoLimpio />} titulo={t.sinCambiosTitulo} pista={t.sinCambiosPista} /> : null}
+      </Cruce>
+    </div>
   )
+}
+
+function claveContenido(status: RepoStatus | null): string {
+  return JSON.stringify([status?.repo, status?.branch])
 }
 
 /** Qué archivos toca el menú abierto desde una fila (ver ObjetivoMenu). */
@@ -124,7 +129,7 @@ function cabeceraSubseccion(
       <span className="subseccion-titulo">
         {item.label} ({item.total})
       </span>
-      {n > 0 && <span className="subseccion-marcadas">· {n}</span>}
+      <Cruce className="subseccion-marcadas" clave={String(n)}><span>{n > 0 ? `· ${n}` : '\u00a0'}</span></Cruce>
       <AccionesLote seccion={item.seccion} seleccion={seleccion} acciones={acciones} />
     </div>
   )
@@ -142,16 +147,15 @@ export function AccionesLote({
   seccion: Seccion
   seleccion: string[]
   acciones: ManejadoresArchivo
-}): React.JSX.Element | null {
+}): React.JSX.Element {
   const n = seleccion.length
-  if (n === 0) return null
   const puedePreparar = seccion !== 'staged' && acciones.onStageMany
   // Descartar no se ofrece en conflictos: el lote lo revertiría a HEAD y perdería la resolución.
   const puedeDescartar = seccion !== 'staged' && seccion !== 'conflict' && acciones.onDiscardMany
   const t = txGit()
   const etiquetaPreparar = seccion === 'conflict' ? t.marcarResueltosN(n) : t.prepararN(n)
   return (
-    <span className="subseccion-acciones">
+    <span className={`subseccion-acciones${n > 0 ? ' visible' : ''}`} aria-hidden={n === 0}>
       {seccion === 'staged' && acciones.onUnstageMany && (
         <BotonLote accion="quitar" texto={t.quitarN(n)} titulo={t.quitarNTitulo(n)} onClick={() => acciones.onUnstageMany?.(seleccion)} />
       )}

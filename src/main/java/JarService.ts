@@ -67,12 +67,12 @@ interface ContenedorAbierto {
 /**
  * Índices por nombre, memorizados POR ÍNDICE y no por apertura.
  *
- * Se probó colgar el memo de una clausura dentro del `ContenedorAbierto` y se
- * retiró: ese objeto se construye NUEVO en cada acierto de caché, así que el Map se
- * rehacía entero para consultar UNA sola clave y el memo moría con la petición.
- * Descompilar una clase Swing con 25 anónimas en un jar de 60 000 entradas
- * construía 25 Maps completos: medido, ~22x MÁS LENTO que el `find` lineal al que
- * venía a sustituir, y con 25 tablas hash grandes de basura para el GC.
+ * El memo no puede colgar de una clausura dentro del `ContenedorAbierto`: ese objeto se
+ * construye NUEVO en cada acierto de caché, así que el Map se rehacería entero para
+ * consultar UNA sola clave y el memo moriría con la petición. Descompilar una clase
+ * Swing con 25 anónimas en un jar de 60 000 entradas construiría 25 Maps completos:
+ * medido, ~22x MÁS LENTO que el `find` lineal, y con 25 tablas hash grandes de basura
+ * para el GC.
  *
  * Colgado del `IndiceZip` —que es justo lo que la caché conserva— el Map sobrevive
  * entre peticiones, y no puede quedar obsoleto porque la clave de caché ya lleva

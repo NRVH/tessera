@@ -266,22 +266,6 @@ export function conexionDeFila(fila: FilaBd): string | null {
   return fila.conexionId
 }
 
-/** El esquema de una fila, si tiene (para «Refrescar» de lo que cuelga de él). */
-export function esquemaDeFila(fila: FilaBd): string | null {
-  switch (fila.kind) {
-    case 'esquema':
-    case 'carpeta':
-    case 'objeto':
-    case 'carpeta-detalle':
-    case 'columna':
-    case 'indice':
-    case 'restriccion':
-      return fila.esquema
-    default:
-      return null
-  }
-}
-
 /**
  * La BASE de una fila en una conexión con nivel «Bases» (la propia de una fila de base, o la de
  * lo que cuelga de ella); null en las demás. «Refrescar» y abrir una consola desde ella la usan.

@@ -248,7 +248,7 @@ export class Exportador {
       throw new ErrorGestor('ocupada', txExportacion().idEnCurso)
     }
     // Apuntada ANTES de nada y en este mismo turno: desde aquí un Stop con este id la
-    // encuentra (ver la cabecera, STOP). Antes se apuntaba después del diálogo.
+    // encuentra (ver la cabecera, STOP), también durante el diálogo.
     const marca = { cancelada: false }
     this.enCurso.set(p.peticionId, marca)
     try {

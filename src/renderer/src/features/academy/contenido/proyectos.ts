@@ -61,6 +61,7 @@ const es: Articulo = {
       titulo: 'Al volver a abrir Tessera',
       bloques: [
         'Cada perfil recupera sus proyectos tal como se dejaron. Para ahorrar memoria, los agentes no se inician todos al mismo tiempo: el agente de cada proyecto se inicia al entrar en ese proyecto y retoma su última conversación.',
+        'Cada proyecto recupera también sus archivos abiertos, en su orden, con su modo de vista y la línea del cursor, las carpetas desplegadas del explorador y sus terminales, con sus nombres y una shell nueva. La ventana vuelve a su monitor, con su tamaño y su posición; si ese monitor ya no está conectado, se abre en el principal.',
         'Si un proyecto se abrió desde {gestorArchivos} solo para ver un archivo, su agente no se inicia hasta que se solicite con el botón **Iniciar** (por ejemplo, **Iniciar Claude Code**).'
       ]
     }
@@ -121,6 +122,7 @@ const en: Articulo = {
       titulo: 'When you open Tessera again',
       bloques: [
         'Each profile restores its projects as you left them. To save memory, the agents do not all start at once: the agent of each project starts when you open that project, and it resumes its last conversation.',
+        'Each project also restores its open files, in order, with their view mode and cursor line, the expanded folders of the explorer, and its terminals, with their names and a new shell. The window returns to its monitor, with its size and position; if that monitor is no longer connected, it opens on the main one.',
         'If you opened a project from {gestorArchivos} only to view a file, its agent does not start until you click its **Start** button (for example, **Start Claude Code**).'
       ]
     }

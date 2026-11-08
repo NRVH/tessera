@@ -9,6 +9,14 @@ import { META, MICRO } from './escalera'
 
 /** CSS común a Cambios y a Log (raíz `.git-ui`). */
 export const CSS_COMPARTIDO = `
+.git-ui .git-lista-con-estado { position: relative; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.git-ui .git-log-body.git-lista-con-estado { flex-direction: row; }
+.git-ui .git-lista-tapa { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+.git-ui .git-lista-tapa > .mov-cruce-capa { display: flex; flex-direction: column; }
+.git-ui .git-lista-tapa > .mov-cruce-capa:has(> *) { background: var(--bg-surface); pointer-events: auto; }
+.git-ui .git-lista-tapa > .mov-cruce-capa > * { background: var(--bg-surface); pointer-events: auto; }
+.git-ui .git-lista-tapa > .mov-cruce-capa[data-saliendo],
+.git-ui .git-lista-tapa > .mov-cruce-capa[data-saliendo] * { pointer-events: none; }
 @keyframes git-spin { to { transform: rotate(360deg); } }
 
 /* La superficie CONSUME su propia --ui-font. Imprescindible aunque casi todas
@@ -119,6 +127,7 @@ export const CSS_COMPARTIDO = `
 
 /* --- Casilla tri-estado ----------------------------------------------------- */
 .git-ui .git-casilla {
+  position: relative;
   flex: 0 0 12px;
   display: inline-flex;
   align-items: center;
@@ -140,6 +149,19 @@ export const CSS_COMPARTIDO = `
   width: 10px;
   height: 10px;
 }
+.git-ui .git-casilla-trazo {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset var(--mov-rapido) var(--curva-estandar);
+}
+.git-ui .git-casilla.llena .git-casilla-trazo { stroke-dashoffset: 0; }
+.git-ui .git-casilla:not(.llena) svg:has(.git-casilla-trazo) { position: absolute; }
+.git-ui .git-copiado { animation: boton-guardar-rebote var(--mov-confirma) var(--curva-rebote) both; }
+.git-ui .git-copiado-trazo { stroke-dasharray: 1; stroke-dashoffset: 0; transition: stroke-dashoffset var(--mov-entrada) var(--curva-estandar); }
+@starting-style { .git-ui .git-copiado-trazo { stroke-dashoffset: 1; } }
+.git-ui .git-limpiar { opacity: 0; visibility: hidden; scale: 0.9; transition: opacity var(--mov-medio) var(--curva-estandar), scale var(--mov-medio) var(--curva-entrada), visibility 0s linear var(--mov-medio); }
+.git-ui .git-limpiar.visible { opacity: 1; visibility: visible; scale: 1; transition-delay: 0s; }
+@media (prefers-reduced-motion: reduce) { .git-ui .git-copiado { animation: none; } }
 .git-ui .git-arbol-fila:hover .git-casilla.vacia {
   border-color: var(--fg-muted);
 }
@@ -179,7 +201,7 @@ export const CSS_COMPARTIDO = `
   background: transparent;
   color: var(--fg-muted);
   cursor: pointer;
-  transition: background 140ms ease, color 140ms ease, opacity 140ms ease;
+  transition: background var(--mov-rapido) var(--curva-estandar), color var(--mov-rapido) var(--curva-estandar), opacity var(--mov-rapido) var(--curva-estandar);
 }
 .git-ui .git-icon-btn:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.06);

@@ -406,7 +406,7 @@ async function main(): Promise<void> {
   const lec8b = lectorDeBuffer(z64Archivo)
   const idx8b = await leerIndice(lec8b)
   check(
-    'ZIP64 de archivo: se listan las 3 entradas (antes salía VACÍO en silencio)',
+    'ZIP64 de archivo: se listan las 3 entradas (no sale VACÍO en silencio)',
     idx8b.entradas.length === 3,
     `${idx8b.entradas.length} entradas: ${idx8b.entradas.map((e) => e.nombre).join(', ') || '(ninguna)'}`
   )

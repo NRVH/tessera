@@ -661,7 +661,7 @@ function main(): void {
     check(
       'Auto sin tx: sin contador, ✓ y ↶ deshabilitados con title',
       nada.textoTx === null && !nada.puedeCommit && !nada.puedeRollback && nada.tituloCommit === 'No hay transacción que confirmar' &&
-        nada.tituloModo === 'Transacción: Auto. Haga clic para cambiar a Manual' && !nada.modoPulsado && nada.puedeCambiarModo,
+        nada.tituloModo === 'Transacción automática. Haga clic para cambiar a transacción manual' && !nada.modoPulsado && nada.puedeCambiarModo,
       JSON.stringify(nada)
     )
     const abierta = estadoBarraTx(sesion({ tx: 'abierta' }))
@@ -669,7 +669,7 @@ function main(): void {
     const fallida = estadoBarraTx(sesion({ txModo: 'manual', tx: 'fallida', sentenciasEnTx: 1 }))
     check(
       'fallida: solo Rollback',
-      !fallida.puedeCommit && fallida.puedeRollback && fallida.textoTx === 'Tx fallida: ejecute Rollback' &&
+      !fallida.puedeCommit && fallida.puedeRollback && fallida.textoTx === 'Tx fallida: revierta la transacción' &&
         fallida.tituloCommit === 'La transacción falló: solo se puede revertir',
       JSON.stringify(fallida)
     )

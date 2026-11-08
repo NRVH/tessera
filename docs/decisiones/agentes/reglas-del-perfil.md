@@ -4,8 +4,9 @@
 - **Ámbito:** `src/main/profiles/` (`types.ts` `reglas`, `validate.ts`, `borradoDePerfil.ts`), `src/shared/reglasPerfil.ts`,
   `src/shared/reglas-ipc.ts`, `src/main/agents/briefingCompuesto.ts`, `terminalAgente/apertura.ts` y `recarga.ts`, `src/tctx/`,
   `src/main/reglas/` (`propuestasReglas.ts`, `operacionesReglas.ts`, `buzonTctx.ts`, `ipc.ts`, `componer.ts`),
-  `src/main/util/atajosPrograma.ts`, `DbBridge.sesionDeToken` y, en `features/pestanas/`, `ReglasPerfilModal`,
-  `CapaPropuestasReglas`, `PropuestaReglasModal`, `DiffReglas` y `storePropuestasReglas`
+  `src/main/util/atajosPrograma.ts`, `DbBridge.sesionDeToken`, en `features/pestanas/`, `ReglasPerfilModal`,
+  `CapaPropuestasReglas`, `PropuestaReglasModal`, `DiffReglas` y `storePropuestasReglas`, y el panel de reglas de
+  `features/agentes/contexto/`
 
 ## Contexto
 
@@ -21,10 +22,13 @@ se queden viejas, y dejar que los agentes las escriban solas las llena de ruido 
   Importado a un perfil de aquí que ya tiene otras, se mantienen las de aquí salvo que se elija
   sustituirlas, viendo el mismo diff que en una propuesta ([exportar-importar.md](../configuracion/exportar-importar.md)).
   Tiene tope (`MAX_REGLAS_PERFIL`): con el resto del aviso tiene que caber en la línea de arranque.
-- **Lo escribe o lo aprueba el usuario.** Se edita en el diálogo «Reglas para los agentes» del menú del
-  perfil. Un agente no lo cambia: lo **propone** con `tctx proponer` (la versión entera nueva, con un
-  motivo) y la propuesta queda pendiente hasta que el usuario ve el cambio exacto y la acepta, la edita o la
-  descarta. Hay una propuesta pendiente por perfil; una nueva sustituye a la anterior.
+- **Además de las del perfil, hay reglas globales**, para los agentes de todos los perfiles que usan el contexto
+  global, con el mismo tope y el mismo camino ([contexto-de-los-agentes.md](contexto-de-los-agentes.md)).
+- **Lo escribe o lo aprueba el usuario.** Se edita en el contexto de los agentes, al que lleva «Reglas para los
+  agentes…» del menú del perfil. Un agente no lo cambia: lo **propone** con `tctx proponer` (la versión entera
+  nueva, con un motivo; con `--global`, de las globales) y la propuesta queda pendiente hasta que el usuario ve el
+  cambio exacto y la acepta, la edita o la descarta. Hay una propuesta pendiente por perfil y otra para las
+  globales; una nueva sustituye a la anterior.
 - **Llega en el arranque a todo agente del perfil** que reciba aviso (de serie, nativo o en Docker, de
   cualquier cuenta, el de la terminal y el de datos), detrás del de bases y el de SSH, como instrucciones
   del usuario. La línea de arranque aplana el aviso a una línea, así que cada salto de línea de las reglas
@@ -40,9 +44,10 @@ se queden viejas, y dejar que los agentes las escriban solas las llena de ruido 
   registra también las operaciones de `tctx` de otros dominios, y espera las que contestan con una promesa). En Docker el buzón la atiende sin lanzar ningún proceso. El texto llega por `--archivo` (lo recomendado: no
   pasa por las comillas de ninguna shell; lee UTF-8 y el UTF-16 de `Out-File`), por la entrada (`-`) o por
   `--texto`. Para que quepan unas reglas enteras, el tope de una petición del puente es de 32 KiB.
-- **Una propuesta pendiente por perfil** en `<userData>/reglas-propuestas.json`; se ignora la de un perfil
-  que no existe y el borrado del perfil la quita. Al llegar, un aviso con «Revisar»; como se pierde sin
-  ventana, la interfaz pide las pendientes al montar y al abrir el diálogo de reglas. La revisión enseña el
+- **Una propuesta pendiente por perfil** en `<userData>/reglas-propuestas.json`, y la de las globales con el id
+  reservado `ID_REGLAS_GLOBALES`; se ignora la de un perfil que no existe y el borrado del perfil la quita. Al
+  llegar, un aviso con «Revisar»; como se pierde sin ventana, la interfaz pide las pendientes al montar y al abrir
+  las reglas de un perfil. La de las globales se resuelve cuando el main guarda unas globales iguales. La revisión enseña el
   diff entre las vigentes de ESE momento y la propuesta; aceptar o editar la guarda el renderer (dueño de los
   perfiles) y anota en el main que se resuelva al guardarse esas reglas: el main la quita cuando el guardado
   de perfiles trae las reglas aceptadas, y solo si sigue siendo la misma propuesta. Hasta entonces sigue

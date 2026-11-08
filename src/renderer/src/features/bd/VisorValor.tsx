@@ -7,7 +7,10 @@
 // Decisiones: docs/decisiones/bd/ui-rejilla-visor-valor.md
 // =============================================================================
 
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useConfirmacionCopiar } from '../../comun/useConfirmacionCopiar'
+import { Presente } from '../../comun/Presente'
+import { Segmentado } from '../../comun/Segmentado'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { editor } from 'monaco-editor'
 import type {
   DbCelda,
@@ -17,9 +20,9 @@ import type {
   DbValor
 } from '../../../../shared/db-explorador-ipc'
 import { BARRAS_MONACO, MONACO_THEME, OPCIONES_BASE_MONACO, ensureMonaco } from '../../comun/monacoSetup'
-import { useDialogo } from '../../comun/useDialogo'
+import { AvisoModal, Modal } from '../../comun/Modal'
 import { EstadoVacio } from '../../comun/EstadoVacio'
-import { IconoCerrar, IconoCopiar } from '../../comun/iconosMenu'
+import { IconoCopiar } from '../../comun/iconosMenu'
 import { notify, notifyError } from '../../comun/notifications'
 import {
   avisoParcial,
@@ -278,74 +281,51 @@ function capaDelVisor(modo: ModoVisor, crudo: string, hex: HexAgrupado | null): 
 /** «Formateado / Crudo»: dice qué se está leyendo (identidad, como las partes de la fuente). */
 function ConmutadorJson(p: { vistaJson: VistaJson; setVistaJson: (v: VistaJson) => void }): React.JSX.Element {
   return (
-    <div className="db-fuente-partes" role="radiogroup" aria-label={txPanes().vistaJson}>
-      {(['formateado', 'crudo'] as const).map((v) => (
-        <button
-          key={v}
-          type="button"
-          role="radio"
-          aria-checked={p.vistaJson === v}
-          className="db-fuente-parte"
-          onClick={() => p.setVistaJson(v)}
-        >
-          {v === 'formateado' ? txPanes().formateado : txPanes().crudo}
-        </button>
-      ))}
-    </div>
+    <Segmentado
+      compacto
+      etiqueta={txPanes().vistaJson}
+      opciones={[
+        { valor: 'formateado', etiqueta: txPanes().formateado },
+        { valor: 'crudo', etiqueta: txPanes().crudo }
+      ]}
+      valor={p.vistaJson}
+      onCambio={p.setVistaJson}
+    />
   )
 }
 
-/** Cabecera: columna y metadatos, conmutador del JSON, «Copiar» y cerrar. */
-function CabeceraVisor(p: {
-  columna: DbColumnaResultado
-  idTitulo: string
-  meta: string
+/** Acción para copiar el valor visible. */
+function AccionesVisor(p: {
   modo: ModoVisor
   vistaJson: VistaJson
-  setVistaJson: (v: VistaJson) => void
   aCopiar: string
   incompleto: boolean
-  onCerrar: () => void
 }): React.JSX.Element {
-  const { columna, modo, vistaJson, incompleto } = p
+  const { modo, vistaJson, incompleto } = p
   const t = txPanes()
+  const { copiado, confirmar } = useConfirmacionCopiar()
   const copiar = (): void => {
     window.tessera.clipboard
       .write(p.aCopiar)
       .then(() => {
         if (incompleto) notify('warn', t.copiadoRecortado, t.copiadoRecortadoDetalle)
-        else notify('success', t.copiado)
+        else confirmar()
       })
       .catch((err: unknown) => notifyError(t.noSePudoCopiar, err))
   }
   return (
-    <header className="db-visor-cab">
-      <div className="db-visor-identidad">
-        <span className="db-visor-columna" id={p.idTitulo} title={columna.nombre}>
-          {columna.nombre}
-        </span>
-        <span className="db-visor-meta">{p.meta}</span>
-      </div>
-      {modo === 'json' && <ConmutadorJson vistaJson={vistaJson} setVistaJson={p.setVistaJson} />}
-      <div className="panel-actions">
-        <span className="btn-envoltura" title={modo === 'nulo' ? t.nuloNoCopia : undefined}>
-          <button
-            type="button"
-            className="btn btn-icon"
-            onClick={copiar}
-            disabled={modo === 'nulo'}
-            title={modo === 'nulo' ? undefined : tituloCopiar(modo, vistaJson)}
-            aria-label={t.copiar}
-          >
-            <IconoCopiar />
-          </button>
-        </span>
-        <span className="panel-actions-sep" aria-hidden="true" />
-        <button type="button" className="btn btn-icon" onClick={p.onCerrar} title={t.cerrarEsc} aria-label={t.cerrar}>
-          <IconoCerrar />
-        </button>
-      </div>
-    </header>
+    <span className="btn-envoltura" title={modo === 'nulo' ? t.nuloNoCopia : undefined}>
+      <button
+        type="button"
+        className="btn btn-icon"
+        onClick={copiar}
+        disabled={modo === 'nulo'}
+        title={modo === 'nulo' ? undefined : tituloCopiar(modo, vistaJson)}
+        aria-label={t.copiar}
+      >
+        <IconoCopiar copiado={copiado} />
+      </button>
+    </span>
   )
 }
 
@@ -357,12 +337,10 @@ function AvisosVisor(p: { avisos: Aviso[]; error: DbErrorSql | null; reintentar:
   return (
     <div className="db-visor-avisos">
       {avisos.map((a) => (
-        <div key={a.texto} className={`db-visor-aviso${a.tono === 'aviso' ? ' tono-aviso' : ''}`} role="status">
-          {a.texto}
-        </div>
+        <AvisoModal key={a.texto} tono={a.tono}>{a.texto}</AvisoModal>
       ))}
       {error && (
-        <div className="db-visor-aviso tono-error" role="alert">
+        <AvisoModal tono="error">
           <span className="db-visor-aviso-texto">
             {t.noSePudoCargarValor}
             {error.codigo ? `[${error.codigo}] ` : ''}
@@ -371,7 +349,7 @@ function AvisosVisor(p: { avisos: Aviso[]; error: DbErrorSql | null; reintentar:
           <button type="button" className="db-pildora-btn" onClick={p.reintentar}>
             {t.reintentar}
           </button>
-        </div>
+        </AvisoModal>
       )}
     </div>
   )
@@ -379,8 +357,6 @@ function AvisosVisor(p: { avisos: Aviso[]; error: DbErrorSql | null; reintentar:
 
 export function VisorValor(props: VisorValorProps): React.JSX.Element {
   const { columna, longitudOriginal, onCerrar } = props
-  const dlg = useDialogo({ onClose: onCerrar })
-  const idTitulo = useId()
   const recortada = longitudOriginal !== undefined
   const puedeCompletar = recortada && props.cargarCompleto !== undefined
   const { completo, cargando, error, cargar } = useValorCompleto(props, puedeCompletar)
@@ -402,37 +378,22 @@ export function VisorValor(props: VisorValorProps): React.JSX.Element {
   const meta = metadatosVisor(tipoVisible(columna), modo, longitudTotal)
   const avisos = avisosDelVisor({ props, modo, binario, cargando, completo, puedeCompletar, hex })
   const capa = capaDelVisor(modo, crudo, hex)
+  const ultimaCapa = useRef(capa)
+  if (capa) ultimaCapa.current = capa
 
   return (
-    <div className="modal-overlay" role="presentation" onMouseDown={onCerrar}>
-      <div
-        ref={dlg.ref}
-        className="modal-card db-visor-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={idTitulo}
-        onMouseDown={(e) => e.stopPropagation()}
-        onKeyDown={dlg.alPulsarTecla}
-      >
-        <CabeceraVisor
-          columna={columna}
-          idTitulo={idTitulo}
-          meta={meta}
-          modo={modo}
-          vistaJson={vistaJson}
-          setVistaJson={setVistaJson}
-          // Se copia el VALOR (el hex `0x…` en binario, no el volcado: es lo que se puede
-          // volver a usar), salvo el JSON, que se copia como se está leyendo.
-          aCopiar={modo === 'json' ? texto : crudo}
-          incompleto={recortada && (completo === null || completo.recortado)}
-          onCerrar={onCerrar}
-        />
-        <AvisosVisor avisos={avisos} error={error} reintentar={() => void cargar()} />
-        <div className="db-visor-cuerpo">
-          <div ref={hostRef} className="db-visor-host" />
-          {capa && <div className="db-visor-capa">{capa}</div>}
-        </div>
+    <Modal titulo={<span className="db-visor-columna" title={columna.nombre}>{columna.nombre}</span>}
+      subtitulo={<span className="db-visor-meta">{meta}</span>} tamano="l" className="db-visor-modal"
+      cuerpoClassName="db-visor-contenido" onCerrar={onCerrar}
+      centro={modo === 'json' ? <ConmutadorJson vistaJson={vistaJson} setVistaJson={setVistaJson} /> : undefined}
+      acciones={<AccionesVisor modo={modo} vistaJson={vistaJson} aCopiar={modo === 'json' ? texto : crudo}
+        incompleto={recortada && (completo === null || completo.recortado)} />}
+    >
+      <AvisosVisor avisos={avisos} error={error} reintentar={() => void cargar()} />
+      <div className="db-visor-cuerpo">
+        <div ref={hostRef} className="db-visor-host" />
+        <Presente visible={!!capa} className="db-visor-capa mov-aparece">{ultimaCapa.current}</Presente>
       </div>
-    </div>
+    </Modal>
   )
 }

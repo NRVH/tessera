@@ -248,7 +248,7 @@ hr('C - De punta a punta: exportar y volver a importar')
     } catch (e) {
       rechazo = e instanceof Error ? e.message : String(e)
     }
-    check('(c9) un host editado a mano que no vale: no se exporta nada y se dice cuál', rechazo.includes('"bastion"') && !existsSync(path.join(raiz, 'inyectado')), rechazo)
+    check('(c9) un host editado a mano que no vale: no se exporta nada y se dice cuál', rechazo.includes('«bastion»') && !existsSync(path.join(raiz, 'inyectado')), rechazo)
     let lanzo = false
     try {
       valorOpenSsh('a\nb')

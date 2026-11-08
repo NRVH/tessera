@@ -4,7 +4,11 @@
 // (`useCrearPerfil`); aquí solo se registra el cierre por teclado y ratón.
 // Depende de util/pasteTrim.
 // =============================================================================
-import { useEffect } from 'react'
+import { useDespedidaDe } from '../../comun/despedida'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+
+/** Lo que el popover se separa del borde de la ventana cuando no cabe donde se abre. */
+const MARGEN = 8
 import { pegarRecortado } from '../../util/pasteTrim'
 import { PaletaColorPerfil } from './SelectorColorPerfil'
 import { txPestanas } from './textos.ts'
@@ -49,11 +53,20 @@ export function CrearPerfilPopover({
 }): React.JSX.Element {
   useCierrePopover(onCancel)
   const t = txPestanas().perfil
+  // Se abre en la X de su botón; con el botón cerca del borde derecho no cabría: se mide y se mete en la ventana.
+  const ref = useRef<HTMLDivElement>(null)
+  useDespedidaDe(ref, 'flotante')
+  const [left, setLeft] = useState(x)
+  useLayoutEffect(() => {
+    const ancho = ref.current?.offsetWidth ?? 0
+    setLeft(Math.max(MARGEN, Math.min(x, window.innerWidth - ancho - MARGEN)))
+  }, [x])
 
   return (
     <div
-      className="profile-create"
-      style={{ top: y, left: x }}
+      ref={ref}
+      className="profile-create mov-aparece mov-desde-arriba"
+      style={{ top: y, left }}
       onMouseDown={(e) => e.stopPropagation()}
     >
       <div className="profile-create-title">{t.nuevo}</div>

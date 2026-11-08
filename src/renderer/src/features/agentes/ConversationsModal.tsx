@@ -11,7 +11,7 @@ import type { ConversationSummary, ConvAgent, ConvRunMode } from '../../../../sh
 import { ConfirmDialog } from '../../comun/ConfirmDialog'
 import { pegarRecortado } from '../../util/pasteTrim'
 import { PromptDialog } from '../../comun/PromptDialog'
-import { useDialogo } from '../../comun/useDialogo'
+import { AvisoConPresencia, AvisoModal, Modal } from '../../comun/Modal'
 import { txConversaciones } from './textosConversaciones.ts'
 import { lugarHistorial, type LugarAgente } from './textosMontajeBases'
 
@@ -128,9 +128,6 @@ function filtrar(list: ConversationSummary[] | null, query: string): Conversatio
 /** Modal del historial de conversaciones del agente activo en el proyecto. */
 export function ConversationsModal(props: ConversationsModalProps): React.JSX.Element {
   const { agente, accountId, projectHostPath, lugar: dondeVive = 'proyecto', mode = 'container', onClose } = props
-  // Esc por la pila de diálogos: el renombrado y el borrado se montan encima, y un solo Esc
-  // cierra únicamente el de arriba.
-  useDialogo({ onClose })
   const [query, setQuery] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<ConversationSummary | null>(null)
   const [renaming, setRenaming] = useState<ConversationSummary | null>(null)
@@ -147,7 +144,7 @@ export function ConversationsModal(props: ConversationsModalProps): React.JSX.El
   const t = txConversaciones()
 
   return (
-    <div className="modal-overlay" role="presentation" onMouseDown={onClose}>
+    <>
       <PanelConversaciones
         agente={agente}
         accentColor={props.accentColor}
@@ -175,8 +172,8 @@ export function ConversationsModal(props: ConversationsModalProps): React.JSX.El
       {confirmDelete && (
         <ConfirmDialog
           danger
-          title={t.eliminarTitulo}
-          message={t.eliminarMensaje(displayTitle(confirmDelete))}
+          title={t.eliminarPregunta(displayTitle(confirmDelete))}
+          message={t.eliminarMensaje()}
           confirmLabel={t.eliminar}
           onConfirm={() => {
             setConfirmDelete(null)
@@ -185,32 +182,7 @@ export function ConversationsModal(props: ConversationsModalProps): React.JSX.El
           onCancel={() => setConfirmDelete(null)}
         />
       )}
-    </div>
-  )
-}
-
-interface CabeceraConversacionesProps {
-  agente: ConvAgent
-  accentColor: string | null
-  cabecera: string | null
-  onClose: () => void
-}
-
-function CabeceraConversaciones({ agente, accentColor, cabecera, onClose }: CabeceraConversacionesProps): React.JSX.Element {
-  const t = txConversaciones()
-  return (
-    <header className="conv-header">
-      <div className="conv-header-title">
-        {accentColor && (
-          <span className="profile-dot" style={{ background: accentColor }} aria-hidden="true" />
-        )}
-        <span>{t.titulo(AGENT_LABEL[agente])}</span>
-        {cabecera && <span className="conv-header-profile">{cabecera}</span>}
-      </div>
-      <button className="btn btn-icon conv-close" onClick={onClose} title={t.cerrar} aria-label={t.cerrarAria}>
-        ✕
-      </button>
-    </header>
+    </>
   )
 }
 
@@ -238,26 +210,16 @@ function PanelConversaciones(p: PanelConversacionesProps): React.JSX.Element {
   const { agente, query, setQuery, onClose } = p
   const t = txConversaciones()
   return (
-    <div
-      className="conv-modal"
-      role="dialog"
-      aria-modal="true"
-      aria-label={t.titulo(AGENT_LABEL[agente])}
-      onMouseDown={(e) => e.stopPropagation()}
-    >
-      <CabeceraConversaciones agente={agente} accentColor={p.accentColor} cabecera={p.lugar.cabecera} onClose={onClose} />
-
-      <div className="conv-search-wrap">
-        <input
+    <Modal titulo={<>{p.accentColor && <span className="profile-dot" style={{ background: p.accentColor }} aria-hidden="true" />}{t.titulo(AGENT_LABEL[agente])}</>}
+      subtitulo={<>{p.lugar.cabecera} · {t.pie}</>} centro={<input
           className="conv-search"
           placeholder={t.buscar}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onPaste={pegarRecortado(setQuery)}
           autoFocus
-        />
-      </div>
-
+        />}
+      className="conv-modal" tamano="m" onCerrar={onClose}>
       <div className="conv-list-scroll">
         <EstadoLista {...p.estado} agente={agente} enVacio={p.lugar.enVacio} />
         {p.estado.filtered.map((c) => (
@@ -274,8 +236,7 @@ function PanelConversaciones(p: PanelConversacionesProps): React.JSX.Element {
         ))}
       </div>
 
-      <footer className="conv-footer">{t.pie}</footer>
-    </div>
+    </Modal>
   )
 }
 
@@ -291,7 +252,7 @@ function EstadoLista({
   return (
     <>
       {list === null && !error && <div className="conv-empty">{t.cargando}</div>}
-      {error && <div className="conv-empty conv-error">{t.errorLeer}{'\n'}{error}</div>}
+      <AvisoConPresencia>{error && <AvisoModal tono="error">{t.errorLeer}{'\n'}{error}</AvisoModal>}</AvisoConPresencia>
       {list !== null && !error && filtered.length === 0 && (
         <div className="conv-empty">
           {!accountId

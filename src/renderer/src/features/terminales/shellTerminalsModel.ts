@@ -86,6 +86,33 @@ export function ensureProject(state: ShellTerminalsState, key: string): ShellTer
   return { ...state, [key]: { list: [{ id: 't1', n: 1, indice: 1 }], activeId: 't1', nextN: 2 } }
 }
 
+/** ¿Es la entrada que deja `ensureProject`, sin tocar? */
+function deSerie(p: ProjectTerminals | undefined): boolean {
+  return p !== undefined && p.nextN === 2 && p.list.length === 1 && p.list[0].id === 't1' && p.list[0].nombre === undefined
+}
+
+/**
+ * Recrea las terminales que un proyecto tenía al cerrar (shells nuevos, con sus nombres y la activa). Solo si
+ * aún no tiene ninguna o tiene la primera de serie, que conserva su id (y con él su pane): nunca pisa lo que el
+ * usuario ya abrió en esta sesión. `activa` es el índice en `nombres`.
+ */
+export function restaurarTerminales(
+  state: ShellTerminalsState,
+  key: string,
+  nombres: readonly (string | undefined)[],
+  activa: number
+): ShellTerminalsState {
+  if (nombres.length === 0 || (state[key] !== undefined && !deSerie(state[key]))) return state
+  const list: ShellTerminal[] = nombres.map((nombre, i) => ({
+    id: `t${i + 1}`,
+    n: i + 1,
+    indice: i + 1,
+    ...(nombre !== undefined && nombre !== '' && nombre !== nombreAutomatico(i + 1) ? { nombre } : {})
+  }))
+  const activeId = list[activa >= 0 && activa < list.length ? activa : 0].id
+  return { ...state, [key]: { list, activeId, nextN: list.length + 1 } }
+}
+
 /** Añade una terminal al final y la deja ACTIVA (es lo que hace el "+"). */
 export function addTerminal(state: ShellTerminalsState, key: string): ShellTerminalsState {
   const cur = state[key] ?? { list: [], activeId: null, nextN: 1 }

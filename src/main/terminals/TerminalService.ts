@@ -208,7 +208,7 @@ export class TerminalService {
     // abajo se salta el cierre elegante, que teclearía `exit` en el agente.
     if (record.parada) await record.parada
     // Lo que se esperaba era un cierre: relanzar ahí dejaría un pty fuera del mapa.
-    if (record.closing) throw new Error(`La sesión "${sessionId}" se cerró mientras esperaba para reiniciarse.`)
+    if (record.closing) throw new Error(`La sesión «${sessionId}» se cerró mientras esperaba para reiniciarse.`)
 
     if (record.exitCode === null) {
       record.reloading = true
@@ -242,7 +242,7 @@ export class TerminalService {
     // Mientras se esperaba la muerte del viejo, el cierre de la app pudo llevarse la sesión: relanzar
     // ahí dejaría un pty fuera del mapa que nadie mataría.
     if (record.closing || this.sessions.get(sessionId) !== record) {
-      throw new Error(`La sesión "${sessionId}" se cerró mientras se reiniciaba.`)
+      throw new Error(`La sesión «${sessionId}» se cerró mientras se reiniciaba.`)
     }
     this.exigirSinApagar()
     record.exitCode = null
@@ -289,10 +289,10 @@ export class TerminalService {
     const record = this.sessions.get(sessionId)
     if (!record) return
     if (!record.host || !record.launch) {
-      throw new Error(`La sesión "${sessionId}" no es de un agente nativo: no se cierra por su árbol.`)
+      throw new Error(`La sesión «${sessionId}» no es de un agente nativo: no se cierra por su árbol.`)
     }
     if (record.parada || record.reloading || record.closing) {
-      throw new Error(`La sesión "${sessionId}" está a mitad de una parada, de un reinicio o de un cierre.`)
+      throw new Error(`La sesión «${sessionId}» está a mitad de una parada, de un reinicio o de un cierre.`)
     }
     record.closing = true
     record.detenida = true
@@ -529,7 +529,7 @@ export class TerminalService {
 
   private require(sessionId: string): SessionRecord {
     const record = this.sessions.get(sessionId)
-    if (!record) throw new Error(`No existe una sesión de terminal con id "${sessionId}".`)
+    if (!record) throw new Error(`No existe una sesión de terminal con id «${sessionId}».`)
     return record
   }
 

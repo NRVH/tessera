@@ -273,8 +273,8 @@ async function main(): Promise<void> {
     check('enumera las 2 ramas locales', ramas.length === 2, JSON.stringify(ramas.map((b) => b.name)))
     const mainBranch = ramas.find((b) => b.name === 'main')
     check('main está marcada como current', mainBranch?.current === true, String(mainBranch?.current))
-    // El sha de la punta NO se expone (se retiró `Branch.tip`: nadie lo leía). Se
-    // comprueba que el contrato quedó limpio, no solo que "no se usa".
+    // El sha de la punta NO se expone (`Branch` no tiene `tip`). Se comprueba que el
+    // contrato está limpio, no solo que "no se usa".
     check(
       'ninguna rama trae campos de más',
       ramas.every((b) => Object.keys(b).sort().join(',') === 'current,name,remote'),

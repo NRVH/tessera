@@ -9,11 +9,9 @@ import { useMemo } from 'react'
 import { formatearDocumento, formatearTokens, tokenizar, type FilaDocs } from './coleccionDocs'
 import type { EstadoEdicion } from './useEdicionColeccion'
 import { sinIdentidad } from './edicionColeccion'
-import { copiarTexto } from './utilPanes'
 import { txColeccionDocs } from './textosColeccionDocs'
 import { EstadoVacio } from '../../../comun/EstadoVacio'
-import { IconoCopiar } from '../../../comun/iconosMenu'
-import { BotonBarraBd } from '../rejilla/DatosBotonBarra'
+import { BotonBarraBd, BotonCopiarBd } from '../rejilla/DatosBotonBarra'
 import { IconoEditar } from '../iconosEdicion'
 
 /** Un documento más grande que esto se enseña sin colorear (miles de nodos por nada). */
@@ -77,9 +75,7 @@ function cabeceraPanel(d: DatosPanel): React.JSX.Element {
         </BotonBarraBd>
       )}
       {filaSel && (
-        <BotonBarraBd etiqueta={t.copiarDocumento} titulo={t.copiarElDocumento} onClick={() => copiarTexto(formatearDocumento(filaSel.documento.texto), t.documento)}>
-          <IconoCopiar />
-        </BotonBarraBd>
+        <BotonCopiarBd etiqueta={t.copiarDocumento} titulo={t.copiarElDocumento} texto={formatearDocumento(filaSel.documento.texto)} />
       )}
     </div>
   )

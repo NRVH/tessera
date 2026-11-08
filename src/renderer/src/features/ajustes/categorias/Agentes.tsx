@@ -1,10 +1,10 @@
 // =============================================================================
 // Categoría AGENTES: la lista de agentes del perfil activo (ordenar, mostrar u ocultar, editar,
-// borrar y añadir; la pinta `GestionAgentes` de la feature de agentes) y el selector de la
-// cabecera del agente, pestañas o lista, que vale para toda la aplicación.
+// borrar y añadir; la pinta `GestionAgentes` de la feature de agentes), la entrada al contexto de los agentes
+// y el selector de la cabecera del agente, pestañas o lista, que vale para toda la aplicación.
 // =============================================================================
 
-import { useStoreAgentes, fijarSelectorAgentes, GestionAgentes, textosSelectorAgentes } from '../../agentes'
+import { useStoreAgentes, fijarSelectorAgentes, GestionAgentes, EntradaContexto, textosSelectorAgentes } from '../../agentes'
 import { normalizarSelectorAgentes } from '../../../../../shared/agentesManuales'
 import { Fila, Grupo, Selector } from '../primitivas'
 import type { PropsCategoria } from '../tipos'
@@ -19,6 +19,11 @@ export function Agentes({ ve }: PropsCategoria): React.JSX.Element {
       {ve('agentes-lista') && (
         <Grupo titulo={grupos['Agentes del perfil']}>
           <GestionAgentes />
+        </Grupo>
+      )}
+      {ve('agentes-contexto') && (
+        <Grupo titulo={grupos['Contexto de los agentes']}>
+          <EntradaContexto />
         </Grupo>
       )}
       {ve('selector-agentes') && (

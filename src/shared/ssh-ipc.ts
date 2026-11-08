@@ -55,8 +55,18 @@ export const SSH_CHANNELS = {
   EXPORTAR_OPENSSH: 'ssh:exportar:openssh',
   /** invoke: prueba la conexión GUARDADA (no lo que tenga el formulario) con la línea de la pestaña. SshProbar -> SshResultadoPrueba. */
   PROBAR: 'ssh:probar',
-  /** invoke: olvida las huellas guardadas del servidor; la próxima conexión acepta la que presente. SshOlvidarHuella -> void. */
+  /** invoke: olvida las huellas guardadas del servidor; la próxima conexión enseña la que presente para confirmarla. SshOlvidarHuella -> void. */
   HUELLA_OLVIDAR: 'ssh:huella:olvidar',
+  /**
+   * invoke: antes de «Probar», abrir una terminal o el explorador SFTP. Si un servidor de la cadena (bastiones
+   * primero, en el orden en que se llega) no tiene huella guardada, la trae sin autenticarse y la deja pendiente
+   * con una ficha de un solo uso. SshReconocerHuella -> SshReconocimiento.
+   */
+  HUELLA_RECONOCER: 'ssh:huella:reconocer',
+  /** invoke: la persona confirmó la huella pendiente de esa ficha: queda guardada. SshFichaHuella -> void. */
+  HUELLA_CONFIAR: 'ssh:huella:confiar',
+  /** invoke: la persona no la confirmó: se descarta sin guardar nada. SshFichaHuella -> void. */
+  HUELLA_DESCARTAR: 'ssh:huella:descartar',
   /**
    * invoke: crea si hace falta la carpeta del agente de la terminal del perfil y siembra su contexto
    * (las conexiones). SshEspacioAsegurar -> SshEspacioTerminal.
@@ -417,6 +427,44 @@ export interface SshOlvidarHuella {
   id: string
 }
 
+/**
+ * Petición de `HUELLA_RECONOCER`: la conexión (de ese perfil, si se dice) y si es para «Probar», que no pregunta
+ * en un diálogo lo que un bastión no tenga guardado.
+ */
+export interface SshReconocerHuella {
+  id: string
+  profileId?: string
+  prueba?: boolean
+}
+
+/** La huella de un servidor que Tessera aún no conoce, para que la persona la compruebe. */
+export interface SshHuellaNueva {
+  /** De un solo uso y con caducidad corta: la única forma de confirmarla. */
+  ficha: string
+  /** La conexión del servidor (la pedida o uno de sus bastiones). */
+  alias: string
+  host: string
+  puerto: number
+  metodo: SshMetodo
+  huellas: SshHuella[]
+  /** Si es un bastión: el alias de la conexión a la que se llega a través de él. */
+  bastionDe?: string
+}
+
+/**
+ * Lo que responde `HUELLA_RECONOCER`: todo con huella ('conocida'), una que confirmar ('nueva') o no se pudo traer
+ * ('fallo', con el resultado como el de «Probar»).
+ */
+export type SshReconocimiento =
+  | { tipo: 'conocida' }
+  | ({ tipo: 'nueva' } & SshHuellaNueva)
+  | { tipo: 'fallo'; resultado: Extract<SshResultadoPrueba, { ok: false }> }
+
+/** Petición de `HUELLA_CONFIAR` y de `HUELLA_DESCARTAR`. */
+export interface SshFichaHuella {
+  ficha: string
+}
+
 /** Por qué falló «Probar»: los motivos de la salida de una sesión SSH, el tope de tiempo u otro. */
 export type SshMotivoPrueba = TerminalExitReason | 'tiempo' | 'otro'
 
@@ -430,7 +478,7 @@ interface ResultadoPruebaBase {
 
 /**
  * Lo que responde `PROBAR`: nunca rutas ni la salida de ssh tal cual. `soloAlcance`: sin el secreto
- * que el método necesita no se prueba a entrar; se llegó al servidor y su huella quedó guardada.
+ * que el método necesita no se prueba a entrar; se llegó al servidor con su huella ya confirmada.
  */
 export type SshResultadoPrueba =
   | (ResultadoPruebaBase & { ok: true; soloAlcance: boolean })
@@ -475,9 +523,6 @@ export interface SshRespuestaAskpass {
   id: string
   respuesta: string | null
 }
-
-/** Lo que pide un agente con `tssh`: una orden remota, una copia o la prueba de `tssh doctor <alias>`. */
-export type SshUsoTssh = 'run' | 'cp' | 'doctor'
 
 /** Petición de `ESPACIO_ASEGURAR`: el perfil. El nombre que se escribe en el contexto lo pone el main. */
 export interface SshEspacioAsegurar {

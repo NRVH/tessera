@@ -6,9 +6,10 @@
 // Decisiones: docs/decisiones/ssh/askpass-y-secretos.md
 // =============================================================================
 
+import { Presente } from '../../comun/Presente'
 import { useEffect, useRef, useState } from 'react'
 import type { SshPreguntaAskpass } from '../../../../shared/ssh-ipc'
-import { useDialogo } from '../../comun/useDialogo'
+import { AvisoModal, Modal, PieModal } from '../../comun/Modal'
 import { txSsh } from './textos.ts'
 import './conexionesSsh.css'
 
@@ -33,30 +34,24 @@ function usePreguntasAskpass(): { actual: SshPreguntaAskpass | null; contestar: 
 /** La pregunta y su campo. */
 function DialogoPregunta({ p, contestar }: { p: SshPreguntaAskpass; contestar: (respuesta: string | null) => void }): React.JSX.Element {
   const cancelar = (): void => contestar(null)
-  const dlg = useDialogo({ onClose: cancelar })
   const [valor, setValor] = useState('')
   const campo = useRef<HTMLInputElement>(null)
   useEffect(() => campo.current?.focus(), [])
   const enviar = (): void => contestar(valor)
   const t = txSsh()
   return (
-    // Un clic fuera NO cancela: cancelar corta la conexión, y volver de otra ventana a por el código no es eso.
-    <div className="modal-overlay" role="presentation">
-      <div
-        ref={dlg.ref}
-        className="modal-card pregunta-askpass"
-        role="dialog"
-        aria-modal="true"
-        aria-label={t.askConexion(p.alias)}
-        onKeyDown={dlg.alPulsarTecla}
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        <div className="modal-title">{t.askConexion(p.alias)}</div>
-        {p.rechazada && <div className="modal-message">{t.askRechazada}</div>}
+    <Modal titulo={t.askConexion(p.alias)} tamano="s" className="pregunta-askpass" cierraConVelo={false} onCerrar={cancelar}
+      pie={<PieModal>
+        <button type="button" className="btn btn-ghost" onClick={cancelar}>{t.cancelar}</button>
+        <button type="button" className="btn primary" onClick={enviar}>{t.askEnviar}</button>
+      </PieModal>}
+    >
+      <Presente visible={p.rechazada} className="mov-despliega"><AvisoModal tono="aviso">{t.askRechazada}</AvisoModal></Presente>
+      <div className="modal-campo">
         <label className="modal-label" htmlFor="pregunta-askpass-campo">
           {p.delServidor ? t.askServidorPregunta : p.texto}
         </label>
-        {p.delServidor && <div className="pregunta-askpass-servidor">{p.texto}</div>}
+        <Presente visible={p.delServidor} className="mov-despliega"><div className="pregunta-askpass-servidor">{p.texto}</div></Presente>
         <input
           id="pregunta-askpass-campo"
           ref={campo}
@@ -73,16 +68,8 @@ function DialogoPregunta({ p, contestar }: { p: SshPreguntaAskpass; contestar: (
           autoComplete="off"
         />
         <div className="modal-hint">{t.askNoSeGuarda}</div>
-        <div className="modal-actions">
-          <button className="btn btn-ghost" onClick={cancelar}>
-            {t.cancelar}
-          </button>
-          <button className="btn primary" onClick={enviar}>
-            {t.askEnviar}
-          </button>
-        </div>
       </div>
-    </div>
+    </Modal>
   )
 }
 

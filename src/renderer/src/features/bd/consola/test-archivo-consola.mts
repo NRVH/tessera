@@ -407,14 +407,14 @@ async function main(): Promise<void> {
     check('sin preguntas, confirmarCierre no pregunta y deja cerrar', (await confirmarCierre(libre.e, () => undefined)) && libre.preguntas.length === 0, JSON.stringify(libre.preguntas))
     const conConflicto = estado(null, { texto: 'y' }, [false])
     const cerro = await confirmarCierre(conConflicto.e, () => undefined)
-    check('con conflicto pregunta, y un «no» no cierra', !cerro && JSON.stringify(conConflicto.preguntas) === '["El archivo cambió fuera de Tessera"]', JSON.stringify(conConflicto.preguntas))
+    check('con conflicto pregunta, y un «no» no cierra', !cerro && JSON.stringify(conConflicto.preguntas) === '["¿Cerrar c.mongo y perder sus cambios?"]', JSON.stringify(conConflicto.preguntas))
     const detenido = estado(corriendo, null, [true])
     let detuvo = false
     const cierra = await confirmarCierre(detenido.e, () => {
       detuvo = true
       detenido.e.enCursoRef.current = null
     })
-    check('corriendo: «¿Detener y cerrar?», detiene y cierra', cierra && detuvo && JSON.stringify(detenido.preguntas) === '["¿Detener y cerrar?"]', JSON.stringify(detenido.preguntas))
+    check('corriendo: pregunta por detener, detiene y cierra', cierra && detuvo && JSON.stringify(detenido.preguntas) === '["¿Detener la ejecución y cerrar c.mongo?"]', JSON.stringify(detenido.preguntas))
   }
 
   hr('Teclado de las tablas de documentos y claves')

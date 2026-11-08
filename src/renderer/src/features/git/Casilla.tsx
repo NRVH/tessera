@@ -38,11 +38,9 @@ export function Casilla({
         e.stopPropagation()
       }}
     >
-      {estado === 'llena' && (
         <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-          <path d="M2.5 6.2l2.4 2.4 4.6-5" strokeLinecap="round" strokeLinejoin="round" />
+          <path className="git-casilla-trazo" pathLength={1} d="M2.5 6.2l2.4 2.4 4.6-5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
-      )}
       {estado === 'parcial' && (
         <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
           <path d="M3 6h6" strokeLinecap="round" />

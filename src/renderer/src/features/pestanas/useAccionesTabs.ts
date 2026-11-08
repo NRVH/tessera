@@ -210,7 +210,8 @@ export function useAccionesCrudPerfiles(): AccionesCrudPerfiles {
       nombre: clean,
       color: /^#[0-9a-fA-F]{6}$/.test(color) ? color : '#61afef',
       agentes: [{ tipo: 'claude-code', configDir: `./.tessera/perfiles/${id}/claude` }],
-      sandbox: { habilitado: false }
+      sandbox: { habilitado: false },
+      clavesSshPermitidas: []
     }
     dispatch({ type: 'addProfile', profile })
   }, [])

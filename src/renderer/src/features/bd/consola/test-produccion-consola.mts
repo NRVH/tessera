@@ -151,7 +151,7 @@ hr('(2) resumenVerbos')
 hr('(3) textos de la confirmación del lote')
 {
   const una = confirmacionLoteProduccion({ alias: 'PROD-VENTAS', total: 1, escrituras: [{ indice: 0, verbo: 'UPDATE' }] })
-  check('título con el alias', una.titulo === 'Producción: ¿ejecutar en PROD-VENTAS?', una.titulo)
+  check('título con el alias', una.titulo === 'Producción: ¿ejecutar en «PROD-VENTAS»?', una.titulo)
   check('mensaje: el alias y que es producción', una.mensaje.startsWith('«PROD-VENTAS» es una conexión de producción.'), j(una.mensaje))
   check('una de una', una.mensaje.indexOf('La sentencia escribe: UPDATE.') !== -1, j(una.mensaje))
   check('botón', una.confirmar === ETIQUETA_EJECUTAR_PRODUCCION && una.confirmar === 'Ejecutar en producción', una.confirmar)
@@ -178,7 +178,7 @@ hr('(3) textos de la confirmación del lote')
   check('los peligros van DENTRO', conPeligro.mensaje.endsWith('· DELETE sin WHERE: afecta a todas las filas de la tabla\n   DELETE FROM t'), j(conPeligro.mensaje))
   const largo = 'A'.repeat(60) + 'FIN'
   const conLargo = confirmacionLoteProduccion({ alias: largo, total: 1, escrituras: [{ indice: 0, verbo: 'UPDATE' }] })
-  check('alias largo: recortado en el título', conLargo.titulo.indexOf('…') !== -1 && conLargo.titulo.endsWith('FIN?'), conLargo.titulo)
+  check('alias largo: recortado en el título', conLargo.titulo.indexOf('…') !== -1 && conLargo.titulo.endsWith('FIN»?'), conLargo.titulo)
   check('y ENTERO en el mensaje', conLargo.mensaje.indexOf(`«${largo}»`) !== -1, 'entero')
 }
 
@@ -204,6 +204,7 @@ hr('(4) decidirLote: solo lectura, peligros y producción en una decisión')
   )
   const prodWhere = decidirLote(conWhere, { ...base, soloLectura: false, entorno: 'produccion' })
   check('producción + UPDATE con WHERE: pregunta igual', prodWhere.tipo === 'confirmar' && prodWhere.produccion, j(prodWhere))
+  check('solo el lote que destruye va como peligro', prod.tipo === 'confirmar' && prod.destruye && prodWhere.tipo === 'confirmar' && !prodWhere.destruye, j([prod, prodWhere]))
   const prodSelect = decidirLote(select, { ...base, soloLectura: false, entorno: 'produccion' })
   check('producción + SELECT: libre (no confirma)', prodSelect.tipo === 'libre', j(prodSelect))
 
@@ -211,7 +212,7 @@ hr('(4) decidirLote: solo lectura, peligros y producción en una decisión')
     const fuera = decidirLote(sinWhere, { ...base, soloLectura: false, entorno: e })
     check(
       `${e ?? 'sin entorno'} + sin WHERE: el diálogo de siempre, SIN confirmado`,
-      fuera.tipo === 'confirmar' && !fuera.produccion && fuera.textos.titulo === '¿Ejecutar DELETE sin WHERE?' && fuera.textos.confirmar === 'Ejecutar de todos modos' && fuera.textos.mensaje.startsWith('En PROD:'),
+      fuera.tipo === 'confirmar' && !fuera.produccion && fuera.textos.titulo === '¿Ejecutar DELETE sin WHERE?' && fuera.textos.confirmar === 'Ejecutar de todos modos' && fuera.textos.mensaje.startsWith('En «PROD»:'),
       j(fuera)
     )
     const libre = decidirLote(conWhere, { ...base, soloLectura: false, entorno: e })
@@ -227,7 +228,7 @@ hr('(5) Commit de la barra')
     check(`${e ?? String(e)}: no pregunta`, !commitPideConfirmacion(e), 'false')
   }
   const t = confirmacionCommitProduccion({ alias: 'PROD-VENTAS', sentenciasEnTx: 3 })
-  check('título con el alias', t.titulo === 'Producción: ¿confirmar en PROD-VENTAS?', t.titulo)
+  check('título con el alias', t.titulo === 'Producción: ¿confirmar en «PROD-VENTAS»?', t.titulo)
   check('mensaje: producción y cuántas', t.mensaje.indexOf('«PROD-VENTAS» es una conexión de producción.') === 0 && t.mensaje.indexOf('(3 sentencias)') !== -1, j(t.mensaje))
   check('botón', t.confirmar === ETIQUETA_COMMIT_PRODUCCION, t.confirmar)
   const sinCuenta = confirmacionCommitProduccion({ alias: 'P', sentenciasEnTx: 0 })

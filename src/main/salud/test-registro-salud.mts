@@ -136,9 +136,16 @@ async function bloqueos(): Promise<void> {
   await new Promise((res) => setTimeout(res, 5))
   b.oyentes.actual?.bloqueo(1834.6, 5000, 6834.6)
   const bl = lineas(b).find((l) => l.tipo === 'bloqueo-main') as Record<string, any>
+  check('sin pila conserva la línea sin ese campo', !('pila' in bl), JSON.stringify(bl))
+  const intervaloPedido = pedido
+  const pila = { muestras: 12, ms: 24, ocioso: 2, recolector: 0, programa: 0, arriba: [{ f: 'hacer main.js:5', ms: 22 }], propias: [{ f: 'hacer main.js:5', ms: 22 }] }
+  b.oyentes.actual?.bloqueo(1200, 7000, 8450, pila)
+  check('la pila acompaña al bloqueo en el registro', j(lineas(b).at(-1)?.pila) === j(pila), JSON.stringify(lineas(b).at(-1)))
+  b.oyentes.actual?.bloqueo(1200, 9000, 10450, null)
+  check('una pila nula se omite del registro', !('pila' in lineas(b).at(-1)!), JSON.stringify(lineas(b).at(-1)))
   check(
     'bloqueo del main: cuánto, las peticiones del intervalo y el contexto (ventana, equipo, procesos)',
-    bl.ms === 1835 && bl.ipc.length === 2 && bl.ipc[0].canal === 'git:log' && bl.ventana.pantalla.hz === 144 && bl.sistema.libreMb === 6000 && bl.procesos.main.mb === 100 && j(pedido) === j([5000, 6834.6]),
+    bl.ms === 1835 && bl.ipc.length === 2 && bl.ipc[0].canal === 'git:log' && bl.ventana.pantalla.hz === 144 && bl.sistema.libreMb === 6000 && bl.procesos.main.mb === 100 && j(intervaloPedido) === j([5000, 6834.6]),
     JSON.stringify(bl)
   )
   b.oyentes.actual?.sinRespuesta()

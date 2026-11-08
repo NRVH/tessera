@@ -1,16 +1,16 @@
 // =============================================================================
 // PromptDialog: modal de una línea de texto (gemelo de ConfirmDialog) para pedir un nombre al
-// crear o renombrar. Esc cancela y Enter confirma; reutiliza la cáscara `.modal-*`.
+// crear o renombrar, sobre la carcasa común (`Modal`, tamaño S, con su ✕). Esc cancela y Enter confirma.
 // Solo valida que no esté vacío: la validación de caracteres y colisiones vive en el main y
 // su error vuelve por `error`. El campo arranca enfocado y con el texto preseleccionado.
-// Esc, devolución del foco y trampa de Tab son de `useDialogo`. Depende de él y de `util/pasteTrim`.
-// Decisiones: docs/decisiones/renderer/dialogos-foco-y-teclado.md
+// Depende de `Modal` y de `util/pasteTrim`.
+// Decisiones: docs/decisiones/renderer/dialogos-foco-y-teclado.md, docs/decisiones/renderer/modales.md
 // =============================================================================
 
-import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react'
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type RefObject } from 'react'
 import { pegarRecortado } from '../util/pasteTrim'
 import { txComun } from './textos.ts'
-import { alClicEnVelo, useDialogo } from './useDialogo'
+import { AvisoConPresencia, AvisoModal, Modal, PieModal } from './Modal'
 
 /** Enfoca el campo al montar y selecciona todo, o solo el nombre sin extensión si `selectBasename`. */
 function useSeleccionInicial(
@@ -60,6 +60,8 @@ interface PromptDialogProps {
   allowEmpty?: boolean
   /** Nota bajo el input (p. ej. qué ocurre si lo dejas vacío). */
   hint?: string
+  /** Lo que va entre el título y el campo (p. ej. una elección que acompaña al nombre). */
+  children?: React.ReactNode
   onConfirm: (value: string) => void
   onCancel: () => void
 }
@@ -73,13 +75,13 @@ export function PromptDialog({
   error = null,
   allowEmpty = false,
   hint,
+  children,
   onConfirm,
   onCancel
 }: PromptDialogProps): React.JSX.Element {
-  // El primer hook: apunta a quién tenía el foco al montar, antes de que el campo lo tome.
-  const dlg = useDialogo({ onClose: onCancel })
   const [value, setValue] = useState(initialValue)
   const inputRef = useRef<HTMLInputElement>(null)
+  const idCampo = useId()
 
   useSeleccionInicial(inputRef, initialValue, selectBasename)
 
@@ -89,22 +91,28 @@ export function PromptDialog({
   }
 
   return (
-    <div className="modal-overlay" role="presentation" onMouseDown={alClicEnVelo(onCancel)}>
-      <div
-        ref={dlg.ref}
-        className="modal-card"
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        onKeyDown={dlg.alPulsarTecla}
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        <div className="modal-title">{title}</div>
-        <label className="modal-label" htmlFor="prompt-input">
+    <Modal
+      titulo={title}
+      tamano="s"
+      onCerrar={onCancel}
+      pie={
+        <PieModal>
+          <button type="button" className="btn btn-ghost" onClick={onCancel}>
+            {txComun().cancelar}
+          </button>
+          <button type="button" className="btn primary" onClick={submit} disabled={!allowEmpty && !value.trim()}>
+            {confirmLabel ?? txComun().crear}
+          </button>
+        </PieModal>
+      }
+    >
+      {children}
+      <div className="modal-campo">
+        <label className="modal-label" htmlFor={idCampo}>
           {label}
         </label>
         <input
-          id="prompt-input"
+          id={idCampo}
           ref={inputRef}
           className="modal-input"
           value={value}
@@ -116,16 +124,8 @@ export function PromptDialog({
           autoComplete="off"
         />
         {hint && <div className="modal-hint">{hint}</div>}
-        {error && <div className="modal-error">{error}</div>}
-        <div className="modal-actions">
-          <button className="btn btn-ghost" onClick={onCancel}>
-            {txComun().cancelar}
-          </button>
-          <button className="btn primary" onClick={submit} disabled={!allowEmpty && !value.trim()}>
-            {confirmLabel ?? txComun().crear}
-          </button>
-        </div>
       </div>
-    </div>
+      <AvisoConPresencia>{error && <AvisoModal tono="error">{error}</AvisoModal>}</AvisoConPresencia>
+    </Modal>
   )
 }

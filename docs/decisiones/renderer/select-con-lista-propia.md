@@ -1,18 +1,21 @@
-# La lista de un select de modal es la «select personalizable» del motor, con la piel de los menús de Tessera
+# La lista de un select es la «select personalizable» del motor, con la piel de los menús de Tessera
 
 - **Estado:** vigente
 - **Ámbito:** `src/renderer/src/comun/selectDesplegable.css` (se importa desde `main.tsx`), `comun/useDialogo.ts` y `features/bd/dialogo.css`
 
 ## Contexto
 
-La lista de un `<select>` era la del sistema: cuadrada y con el azul de la plataforma, fuera del tema, cuando todos los demás
-menús de Tessera (el contextual, los popovers) son propios. En macOS era además el menú nativo del sistema.
+La lista nativa de un `<select>` es la del sistema: cuadrada y con el azul de la plataforma, fuera del tema, cuando todos los
+demás menús de Tessera (el contextual, los popovers) son propios. En macOS es además el menú nativo del sistema.
 
 ## Decisión
 
-- `appearance: base-select` en el control y en `::picker(select)`, para los `select` de un modal (`.modal-overlay select`) y no
-  para los de una barra. La lista es un popover de la capa superior: ni la recorta el cuerpo con scroll del modal ni la mueve
-  su animación, y el motor la coloca, la voltea si abajo no cabe y la cierra al pulsar fuera.
+- `appearance: base-select` en el control y en `::picker(select)`, para todo `select` desplegable, en los modales y en las
+  barras (el ámbito de la búsqueda, el filtro de una tabla): ninguna lista de Tessera es la del sistema. La lista es un popover
+  de la capa superior: ni la recorta el cuerpo con scroll del modal ni la mueve su animación, y el motor la coloca, la voltea
+  si abajo no cabe y la cierra al pulsar fuera.
+- La barra de desplazamiento de la lista es la pastilla global, con sus reglas propias: la de `styles.css` no alcanza a un
+  pseudoelemento de la capa superior. Se ve siempre mientras la lista está abierta.
 - La lista copia lo del menú contextual (fondo `--bg-modal`, filete suave, radio de 10 px, sombra, resaltado con el
   color del perfil al 28 %, lo elegido marcado en ese color) y se limita a 320 px o al 45 % de la ventana.
 - El control CERRADO conserva el aspecto que le da la hoja de cada select: el modo base centra mal, deja envolver el texto y
@@ -25,11 +28,12 @@ menús de Tessera (el contextual, los popovers) son propios. En macOS era ademá
 
 ## Consecuencias
 
-- Con el control cerrado, las flechas abren la lista (en Windows el nativo cambiaba el valor en sitio). Con un texto más largo
+- Con el control cerrado, las flechas abren la lista (el nativo de Windows cambia el valor en sitio). Con un texto más largo
   que la caja se recorta y la flecha se pierde.
-- En macOS el select pasa a verse igual que en Windows, porque los menús de Tessera ya son propios en las dos plataformas. Es
-  el mismo motor y el mismo CSS, pero queda sin verificar allí: hay que mirarlo en un Mac.
-- Un select nuevo dentro de un modal la hereda sin hacer nada; uno fuera de un modal sigue nativo.
+- En macOS el select se ve igual que en Windows, porque los menús de Tessera son propios en todas las plataformas. Es el
+  mismo motor y el mismo CSS, pero queda sin verificar allí: hay que mirarlo en un Mac.
+- Un select nuevo la hereda sin hacer nada, esté donde esté. Si su barra atiende Esc o Intro, tiene que dejar pasar los que
+  vienen de una lista abierta (`esDeUnaListaDeSelect`), como el filtro de una tabla.
 
 ## Descartes
 

@@ -41,6 +41,7 @@ export function CapasPerfil({
           onRename={renombrado.startRename}
           onColor={acciones.openColorPicker}
           onRed={acciones.abrirRed}
+          alClavesSsh={acciones.abrirClavesSsh}
           onReglas={acciones.abrirReglas}
           onHibernate={acciones.requestHibernate}
           onDelete={acciones.requestDelete}

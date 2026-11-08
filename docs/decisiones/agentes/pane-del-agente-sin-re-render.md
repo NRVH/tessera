@@ -17,7 +17,8 @@ coste crecía con el total de proyectos abiertos (medido en `calidad/presupuesto
 - Los avisos del pane reciben la clave o el perfil (`onStatusChange(key, …)`, `onSelectAgent(profileId, …)`)
   y la columna pasa a todos las MISMAS funciones, las del store. Dentro del pane, las refs guardan
   la versión ya ligada a su target.
-- Las listas compartidas (`agentsInProfile`, las bases montadas vacías) son constantes congeladas.
+- Las pestañas de agente (`pestanasAgente`) salen de `pestanasEstables` (`agentesDelProyecto.ts`), que devuelve la
+  MISMA lista mientras no cambie la fuente; sus vacíos y el de las bases montadas son constantes congeladas.
 - `canExpand` y `expanded` solo llegan al pane activo: los pinta el botón de maximizar, que solo
   existe ahí, y cambian cada vez que el proyecto activo pasa de tener pestañas a no tenerlas.
 - Una acción del store que no cambia nada devuelve el MISMO estado: con `{}` Zustand avisa a todos.

@@ -1,7 +1,7 @@
 // =============================================================================
-// iconosPanel: los glifos de cabecera que comparten varios paneles (maximizar y restaurar: la
-// columna del agente, el historial de git y la terminal de abajo; la columna del agente: la barra
-// de estado y la terminal a pantalla completa), para que ninguno tenga una copia de otro, y los de
+// iconosPanel: los glifos de cabecera que comparten varios paneles (maximizar, restaurar y ocultar:
+// la columna del agente, el historial de git, la terminal de abajo y el riel a pantalla completa; la
+// columna del agente: la barra de estado), para que ninguno tenga una copia de otro, y los de
 // archivos y terminal del riel, que repite el pie del agente para decir dónde vive. Molde de
 // `iconosMenu` (viewBox 24, `currentColor` y sin tamaño en línea: lo pone el CSS del botón) pero
 // con trazo 1.8, el de los demás botones de cabecera (`IconosTerminales`). Sin dependencias.
@@ -70,12 +70,12 @@ export function IconoTerminal(): React.JSX.Element {
   )
 }
 
-/** Volver: una flecha hacia la izquierda, del trazo del riel. */
-export function IconoVolver(): React.JSX.Element {
+/** Ocultar el panel: un guion, no una ✕, porque lo que hay dentro sigue vivo. */
+export function IconoOcultarPanel(): React.JSX.Element {
   return (
-    <SvgRiel>
-      <path d="M19 12H5M11 6l-6 6 6 6" />
-    </SvgRiel>
+    <Svg>
+      <path d="M6 12h12" />
+    </Svg>
   )
 }
 

@@ -24,11 +24,12 @@ export const txConsolaComun = crearTextos(
     cargarDelDisco: 'Cargar la versión del disco',
     conservarLaMia: 'Conservar mi versión',
     // --- cierre ---
-    detenerYCerrarTitulo: '¿Detener y cerrar?',
-    detenerYCerrarMensaje: (nombre: string) => `${nombre} está ejecutando una sentencia. Se detendrá la ejecución en curso y se cerrará la pestaña.`,
+    detenerYCerrarTitulo: (nombre: string) => `¿Detener la ejecución y cerrar ${nombre}?`,
+    detenerYCerrarMensaje: (nombre: string) => `Se detendrá la ejecución en curso y se cerrará la pestaña. ${nombre} está ejecutando una sentencia.`,
     detenerYCerrar: 'Detener y cerrar',
+    conflictoCerrarTitulo: (nombre: string) => `¿Cerrar ${nombre} y perder sus cambios?`,
     conflictoMensaje: (nombre: string) =>
-      `${nombre} tiene cambios sin guardar y el archivo cambió fuera de Tessera. Si la cierra, se conservará la versión del disco y se perderán sus cambios.`,
+      `Si la cierra, se conservará la versión del disco y se perderán sus cambios. ${nombre} tiene cambios sin guardar y el archivo cambió fuera de Tessera.`,
     cerrarSinGuardar: 'Cerrar sin guardar',
     // --- errores y estado ---
     errorDesconocido: 'Error desconocido',
@@ -50,11 +51,12 @@ export const txConsolaComun = crearTextos(
     archivoCambio: 'The file changed outside Tessera',
     cargarDelDisco: 'Load from disk',
     conservarLaMia: 'Keep mine',
-    detenerYCerrarTitulo: 'Stop and close?',
-    detenerYCerrarMensaje: (nombre: string) => `${nombre} is running. Closing the tab stops the current execution.`,
+    detenerYCerrarTitulo: (nombre: string) => `Stop the execution and close ${nombre}?`,
+    detenerYCerrarMensaje: (nombre: string) => `Closing the tab stops the current execution. ${nombre} is running.`,
     detenerYCerrar: 'Stop and close',
+    conflictoCerrarTitulo: (nombre: string) => `Close ${nombre} and lose your changes?`,
     conflictoMensaje: (nombre: string) =>
-      `${nombre} has unsaved changes and the file changed outside Tessera. If you close it, the version on disk is kept and your changes are lost.`,
+      `If you close it, the version on disk is kept and your changes are lost. ${nombre} has unsaved changes and the file changed outside Tessera.`,
     cerrarSinGuardar: 'Close without saving',
     errorDesconocido: 'Unknown error',
     ejecutando: 'Running',

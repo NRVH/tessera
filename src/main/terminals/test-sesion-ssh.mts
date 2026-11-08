@@ -22,6 +22,7 @@ import { clasificarSalidaSsh } from '../ssh/clasificacionSalida.ts'
 import { ConexionesSsh } from '../ssh/ConexionesSsh.ts'
 import { ControladorSsh } from '../ssh/ControladorSsh.ts'
 import { resolverBinariosSsh, type BinariosSsh } from '../ssh/binariosSsh.ts'
+import { ejecutarCorto } from '../ssh/adaptadores/permisosClave.ts'
 
 // El controlador importa VALORES sin extensión: este resolver los reintenta con `.ts`. Deja
 // `electron` inerte para que un import futuro de su cadena no rompa la prueba.
@@ -304,10 +305,21 @@ async function pasoReal(): Promise<void> {
   const dirReal = path.join(tmp, 'real')
   mkdirSync(path.join(dirReal, 'huellas'), { recursive: true })
   const conexiones = new ConexionesSsh({ storePath: path.join(dirReal, 'ssh-connections.json'), dirHuellas: path.join(dirReal, 'huellas'), dirClaves: path.join(dirReal, 'claves'), log: () => {} })
-  const ssh = new ControladorSsh({ conexiones, eventos: { emitir: () => {}, hayDestino: () => false }, log: () => {} })
+  const ssh = new ControladorSsh({ conexiones, eventos: { emitir: () => {}, hayDestino: () => false }, ejecutar: ejecutarCorto, log: () => {} })
   const c = ssh.crear({ profileId: PERFIL.id, alias: 'pruebas', grupoId: null, host, puerto: Number(puerto), usuario: 'pruebas', metodo: 'contrasena', disponibleAgentes: true })
   const ev = new Eventos()
   const ctrl = controlador(ev, ssh)
+  // Sin la huella confirmada, la pestaña (estricta) se para antes de autenticarse y dice por qué.
+  const previa = await ctrl.abrirSsh({ profileId: PERFIL.id, conexionId: c.id })
+  await esperarHasta(() => ev.salidas.has(previa.sessionId), 20000)
+  check(
+    '(8-) sin la huella confirmada no llega a pedir la contraseña: «sin confirmar»',
+    JSON.stringify(ev.salidas.get(previa.sessionId) ?? null).includes('ssh-huella-sin-confirmar') && !/password:/i.test(ev.texto(previa.sessionId)),
+    JSON.stringify(ev.salidas.get(previa.sessionId) ?? null)
+  )
+  await ctrl.close(previa.sessionId)
+  const rec = await ssh.reconocerHuella({ id: c.id, profileId: PERFIL.id })
+  if (rec.tipo === 'nueva') ssh.confiarHuella({ ficha: rec.ficha })
   const { sessionId } = await ctrl.abrirSsh({ profileId: PERFIL.id, conexionId: c.id })
   const pidio = await esperarHasta(() => /password:\s*$/i.test(ev.texto(sessionId)), 20000)
   check('(8a) ssh pide la contraseña en la terminal', pidio, `últimos=${JSON.stringify(ev.texto(sessionId).slice(-40))}`)
@@ -318,7 +330,7 @@ async function pasoReal(): Promise<void> {
   await esperarHasta(() => ev.salidas.has(sessionId), 20000)
   check('(8c) `exit 3` remoto llega como 3 y sin motivo', JSON.stringify(ev.salidas.get(sessionId)) === JSON.stringify([{ sessionId, exitCode: 3 }]), JSON.stringify(ev.salidas.get(sessionId)))
   const huellas = ssh.listar().conexiones[0]?.huellaServidor ?? []
-  check('(8d) accept-new dejó la huella en el known_hosts de la conexión', existsSync(conexiones.rutaHuellas(c.id)) && huellas.length === 1, JSON.stringify(huellas))
+  check('(8d) la huella confirmada está en el known_hosts de la conexión, y la sesión no añadió otra', existsSync(conexiones.rutaHuellas(c.id)) && huellas.length === 1, JSON.stringify(huellas))
 
   // Contraseña mala: ssh pregunta hasta tres veces y sale con 255.
   ev.datos.set(sessionId, '')

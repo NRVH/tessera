@@ -346,7 +346,7 @@ if (process.platform !== 'linux') {
       console.log('  [NO APLICA] (G6) como root se lee igual')
     } else {
       check(
-        '(G6) NEGATIVO: un mimeapps.list ilegible no se sustituye (antes se perdían sus asociaciones)',
+        '(G6) NEGATIVO: un mimeapps.list ilegible no se sustituye (se conservan sus asociaciones)',
         !r6.ok && (await readFile(mimeapps, 'utf8')) === ajenoMime && (await leerDesktopInstalado(carpetaDatos({ home }))) === null,
         JSON.stringify(r6)
       )

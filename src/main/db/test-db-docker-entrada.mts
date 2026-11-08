@@ -134,7 +134,7 @@ async function main(): Promise<void> {
     const antes = recibidas.length
     const r = await cliente(['query', 'nobase', '--stdin'], "SELECT 'hola' AS x\n")
     const rec = ultima()
-    check('termina en el acto (antes: colgado hasta el tope)', r.ms < RAPIDO_MS, `${r.ms} ms`)
+    check('termina en el acto (sin colgarse hasta el tope)', r.ms < RAPIDO_MS, `${r.ms} ms`)
     check('el host recibió UNA petición', recibidas.length === antes + 1, `${recibidas.length - antes}`)
     check('la argv conserva --stdin', JSON.stringify(rec?.argv) === JSON.stringify(['query', 'nobase', '--stdin']), JSON.stringify(rec?.argv))
     check('el SQL llega como entrada', rec?.entrada === "SELECT 'hola' AS x\n", JSON.stringify(rec?.entrada))

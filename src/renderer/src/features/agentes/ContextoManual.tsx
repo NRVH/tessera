@@ -11,6 +11,7 @@ import type { LecturaContexto } from '../../../../shared/contextoAgenteManual'
 import { AnilloContexto, formatTokens } from './ContextRing'
 import { formatoPorcentaje, varNivelUso } from './formatoUso'
 import { txContexto } from './textosContexto.ts'
+import { useDespedida } from '../../comun/despedida.ts'
 
 /** Cada cuánto se relee: un comando ajeno cuesta un proceso por lectura. */
 const SONDEO_MS = 15_000
@@ -67,15 +68,22 @@ export function ContextoManual({ nombre, sessionId, enabled }: Props): React.JSX
         <AnilloContexto percent={percent} />
         <span className="agent-context-pct">{percent === null ? '—' : formatoPorcentaje(percent)}</span>
       </span>
-      {anchor && (
-        <div className="agent-usage-pop" style={{ left: anchor.left, bottom: anchor.bottom }} role="tooltip">
-          <div className="agent-usage-pop-title">
-            {t.tituloAgente}
-            <span className="agent-usage-pop-agent">{nombre}</span>
-          </div>
-          <DetalleManual lectura={lectura} />
-        </div>
-      )}
+      {anchor && <PopoverManual anchor={anchor} nombre={nombre} lectura={lectura} />}
+    </div>
+  )
+}
+
+/** El desplegable del anillo; un componente propio para que se despida al irse el ratón. */
+function PopoverManual(p: { anchor: { left: number; bottom: number }; nombre: string; lectura: LecturaContexto | null }): React.JSX.Element {
+  const t = txContexto().contexto
+  const ref = useDespedida<HTMLDivElement>('flotante')
+  return (
+    <div ref={ref} className="agent-usage-pop" style={{ left: p.anchor.left, bottom: p.anchor.bottom }} role="tooltip">
+      <div className="agent-usage-pop-title">
+        {t.tituloAgente}
+        <span className="agent-usage-pop-agent">{p.nombre}</span>
+      </div>
+      <DetalleManual lectura={p.lectura} />
     </div>
   )
 }

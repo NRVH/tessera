@@ -113,7 +113,7 @@ test.describe('explorador de BD: productividad SQL en el editor', () => {
   test('(0) conexión y consola', async () => {
     const win = s!.win
     await aLaVista(win)
-    await win.locator('.activity-item[title="Conexiones a bases de datos"]').click()
+    await win.locator('.activity-item[title="Bases de datos"]').click()
     await expect(win.locator('.db-area:not(.hidden)')).toBeVisible()
     const p = pg!
     const creada = await win.evaluate(

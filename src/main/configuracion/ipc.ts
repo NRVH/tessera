@@ -1,8 +1,8 @@
 // =============================================================================
 // IPC de la copia de la configuración: exportar (armar, cifrar con la frase y guardar con el diálogo
 // nativo; con historial, en trozos) e importar en tres pasos (abrir y leer la cabecera, descifrar con la
-// frase y, ya fusionados los perfiles en el renderer, dar de alta las conexiones y el historial elegidos,
-// cada uno en su perfil de destino).
+// frase y, ya fusionados los perfiles en el renderer, dar de alta las conexiones, el historial, la
+// configuración de Docker y los archivos de los agentes elegidos, cada uno en su perfil de destino).
 // Lo descifrado (y la clave) se queda en el main hasta CONEXIONES u OLVIDAR: ningún secreto cruza al
 // renderer. Un `.tessera` abierto desde el sistema se abre igual, sin diálogo (`copiasPendientes.ts`).
 // Decisiones: docs/decisiones/configuracion/exportar-importar.md
@@ -19,6 +19,8 @@ import {
   type ConexionesRequest,
   type DescifrarRequest,
   type DescifrarResult,
+  type DiffArchivoRequest,
+  type DiffArchivoResult,
   type ExportarRequest,
   type ExportarResult,
   type FuenteHistorial,
@@ -35,7 +37,7 @@ import { descifrarCopia, prepararCopia, type ArchivoCopia } from './cifradoFrase
 import { txConfiguracion } from './textos.ts'
 import { conectarAvisoCopias, tomarCopiaPendiente } from './copiasPendientes'
 import { copiaDelSistemaAceptable } from './rutaCopiaSistema'
-import { leerSeleccionConexiones } from '../../shared/seleccionCopia'
+import { leerSeleccionConexiones, type SeleccionConexiones } from '../../shared/seleccionCopia'
 import {
   armarContenido,
   leerContenido,
@@ -49,6 +51,17 @@ import {
 import { ImportadorHistorial, escribirHistorial, recogerHistorial, type DepsHistorial } from './historialCopia'
 import { listarConCache } from './inclusionHistorial'
 import { EscritorCopia, leerCabeceraCopia, leerTrozos, selloDe } from './trozosCopia'
+import type { CapaCompartida } from '../../shared/configAgente-ipc'
+import { capasParaCopia, importarConfigDocker, previaConfigDocker, type EntornoContexto } from '../agents/configAgente/copiaConfigCompartida'
+import {
+  archivosParaCopia,
+  diferenciaArchivo,
+  elegirArchivos,
+  importarArchivosAgentes,
+  previaArchivosAgentes,
+  type ArchivoNombrado,
+  type ResultadoArchivos
+} from '../agents/configAgente/copiaArchivosAgentes'
 
 /** Cuánto vive un archivo abierto (y lo descifrado de él) sin importarse ni soltarse. */
 const VIDA_ABIERTO_MS = 15 * 60_000
@@ -67,6 +80,8 @@ export interface DepsCopiaConfiguracion {
   /** ¿Hay ya en este equipo una conexión con ese id? Para marcarla en la vista previa. */
   yaEsta: { ssh: (id: string) => boolean; bd: (id: string) => boolean }
   historial: DepsHistorial
+  /** El contexto de los agentes: la raíz de sus capas de Docker, el global y los perfiles de este equipo, que pueden recibirlo. */
+  configDocker: EntornoContexto & { perfilesAqui: () => string[]; nombreAqui: (id: string) => string | undefined }
 }
 
 interface Abierto {
@@ -89,6 +104,11 @@ async function exportar(d: DepsCopiaConfiguracion, req: ExportarRequest): Promis
   const sinFrase = req?.sinFrase === true
   if (!sinFrase && (typeof req?.frase !== 'string' || req.frase.length < MIN_FRASE)) throw new Error(txConfiguracion().fraseCorta(MIN_FRASE))
   const { contenido, resumen } = armarContenido(req, d.fuentes)
+  if (req.apartados.configDocker === true) {
+    const config = await capasParaCopia(d.configDocker, contenido.perfiles.map((p) => p.id))
+    if (config) contenido.configDocker = config
+  }
+  await anadirArchivosAgentes(d, req, contenido, resumen)
   const r = await guardarConDialogo('copia-configuracion', nombrePropuesto(), { filters: filtros() }, { ventana: d.ventana() })
   if (r.canceled || !r.filePath) return { estado: 'cancelado' }
   const meta = { plataforma: d.plataforma, app: d.version }
@@ -100,6 +120,31 @@ async function exportar(d: DepsCopiaConfiguracion, req: ExportarRequest): Promis
   }
   await exportarConHistorial(d, r.filePath, { contenido, resumen, frase, nativo: req.historial.nativo === true, meta })
   return { estado: 'guardado', nombre: path.basename(r.filePath), resumen }
+}
+
+/** Cómo se nombra un archivo de agente en los avisos: con su cuenta y su perfil, o como del equipo. */
+function etiquetaArchivo(a: ArchivoNombrado, nombreDePerfil: (id: string) => string): string {
+  const tx = txConfiguracion().archivosAgentes
+  return a.cuenta
+    ? tx.deCuenta(a.nombre, tx.agentes[a.agente], a.cuenta.predeterminada ? tx.predeterminada : a.cuenta.nombre, nombreDePerfil(a.cuenta.perfil))
+    : tx.nativo(a.nombre, tx.agentes[a.agente])
+}
+
+const nombreEn = (c: ContenidoCopia) => (id: string): string => c.perfiles.find((p) => p.id === id)?.nombre ?? id
+/** Ya importado, el id es el del destino: el perfil se llama como aquí, no como en el archivo. */
+const nombreDestino = (d: DepsCopiaConfiguracion, c: ContenidoCopia) => (id: string): string => d.configDocker.nombreAqui(id) ?? nombreEn(c)(id)
+
+/** Los archivos de los agentes pedidos: solo lo que existe, y lo que no se puede leer con seguridad se dice. */
+async function anadirArchivosAgentes(d: DepsCopiaConfiguracion, req: ExportarRequest, contenido: ContenidoCopia, resumen: ResumenExportacion): Promise<void> {
+  const pide = { cuentas: req.apartados.archivosCuentas === true, nativos: req.apartados.reglasNativas === true }
+  if (!pide.cuentas && !pide.nativos) return
+  const { archivos, bloqueados } = await archivosParaCopia(d.historial, contenido.perfiles.map((p) => p.id), pide)
+  if (archivos) contenido.archivosAgentes = archivos
+  resumen.archivosAgentes = {
+    cuentas: archivos?.cuentas.length ?? 0,
+    nativos: Object.keys(archivos?.nativos ?? {}).length,
+    bloqueados: bloqueados.map((b) => etiquetaArchivo(b, nombreEn(contenido)))
+  }
 }
 
 /** El archivo de la versión 2: el contenido con el índice del historial y, detrás, las conversaciones en trozos. */
@@ -195,8 +240,50 @@ async function descifrar(d: DepsCopiaConfiguracion, abiertos: Map<string, Abiert
     conexiones: previaConexiones(leido.contenido, d.yaEsta),
     perfilesInvalidos: leido.invalidos,
     // Sin la primera línea de la versión 2 no hay trozos que leer: un índice suelto no se ofrece.
-    historial: a.hashLinea === null ? [] : previaHistorial(leido.contenido)
+    historial: a.hashLinea === null ? [] : previaHistorial(leido.contenido),
+    configDocker: await previaConfigDocker(d.configDocker, leido.contenido.configDocker, d.configDocker.perfilesAqui()),
+    archivosAgentes: {
+      ...(await previaArchivosAgentes(d.historial, leido.contenido.archivosAgentes, d.configDocker.perfilesAqui())),
+      invalidos: (leido.contenido.archivosAgentes?.invalidos ?? []).map((i) => etiquetaArchivo(i, nombreEn(leido.contenido)))
+    }
   }
+}
+
+/** Las dos versiones de un archivo de agente distinto, solo cuando se piden para verlas. */
+async function diffArchivo(d: DepsCopiaConfiguracion, abiertos: Map<string, Abierto>, req: DiffArchivoRequest): Promise<DiffArchivoResult> {
+  const a = abiertos.get(req?.token)
+  if (!a?.contenido) return null
+  return diferenciaArchivo(d.historial, a.contenido.archivosAgentes, req.archivo, d.configDocker.perfilesAqui())
+}
+
+/** Los archivos de agentes elegidos, ya en su destino: lo escrito y lo que hay que revisar, nombrados. */
+async function importarArchivos(d: DepsCopiaConfiguracion, a: Abierto, c: ContenidoCopia, seleccion: SeleccionConexiones): Promise<{ creados: string[]; sustituidos: string[]; revisar: string[] }> {
+  const elegidos = elegirArchivos(a.contenido?.archivosAgentes, seleccion)
+  const r: ResultadoArchivos = await importarArchivosAgentes(d.historial, elegidos, d.configDocker.perfilesAqui())
+  const tx = txConfiguracion().archivosAgentes
+  // Los que no son válidos ya se avisaron al abrir el archivo y nunca se ofrecieron.
+  const etiqueta = (x: ArchivoNombrado): string => etiquetaArchivo(x, nombreDestino(d, c))
+  return {
+    creados: r.creados.map(etiqueta),
+    sustituidos: r.sustituidos.map(etiqueta),
+    revisar: r.revisar.map((x) => tx.noImportado(etiqueta(x.archivo), tx.motivos[x.motivo]))
+  }
+}
+
+/** La configuración de Docker elegida, ya en su destino: qué niveles se escribieron y cuáles no se pudieron. */
+async function importarConfig(d: DepsCopiaConfiguracion, c: ContenidoCopia): Promise<{ hechos: string[]; revisar: string[] }> {
+  if (!c.configDocker) return { hechos: [], revisar: [] }
+  const tx = txConfiguracion()
+  const nombre = (capa: CapaCompartida): string =>
+    capa.tipo === 'global' ? tx.configGlobal : tx.configPerfil(nombreDestino(d, c)(capa.profileId))
+  const pedidas: CapaCompartida[] = [
+    ...(c.configDocker.global ? [{ tipo: 'global' } as const] : []),
+    ...Object.keys(c.configDocker.perfiles).map((profileId) => ({ tipo: 'perfil', profileId }) as const)
+  ]
+  const fallidas = await importarConfigDocker(d.configDocker, c.configDocker, d.configDocker.perfilesAqui())
+  const claves = new Set(fallidas.map((f) => JSON.stringify(f)))
+  const fallo = (x: CapaCompartida): boolean => claves.has(JSON.stringify(x))
+  return { hechos: pedidas.filter((x) => !fallo(x)).map(nombre), revisar: fallidas.map((x) => tx.configNoImportada(nombre(x))) }
 }
 
 /**
@@ -241,11 +328,15 @@ async function conexiones(d: DepsCopiaConfiguracion, abiertos: Map<string, Abier
   const bd = d.importarBd(c.bd, perfiles)
   const sinSecretoSsh = ssh.sinSecreto.map((a) => txConfiguracion().sinSecretoSsh(a))
   const historial = await importarHistorial(d, a, c, seleccion.historial)
+  const config = await importarConfig(d, c)
+  const archivos = await importarArchivos(d, a, c, seleccion)
   return {
     ssh: { anadidas: ssh.anadidas, saltadas: ssh.saltadas },
     bd: { anadidas: bd.anadidas, saltadas: bd.saltadas },
-    revisar: [...revisarDePerfiles, ...sinSecretoSsh, ...bd.revisar],
-    ...(historial ? { historial } : {})
+    revisar: [...revisarDePerfiles, ...sinSecretoSsh, ...bd.revisar, ...config.revisar, ...archivos.revisar],
+    ...(historial ? { historial } : {}),
+    ...(config.hechos.length > 0 ? { configDocker: config.hechos } : {}),
+    ...(archivos.creados.length > 0 || archivos.sustituidos.length > 0 ? { archivosAgentes: { creados: archivos.creados, sustituidos: archivos.sustituidos } } : {})
   }
 }
 
@@ -257,6 +348,7 @@ export function registrarIpcCopiaConfiguracion(d: DepsCopiaConfiguracion): void 
   d.ipc.handle(C.DESCIFRAR, (_e, req: DescifrarRequest) => descifrar(d, abiertos, req))
   d.ipc.handle(C.CONEXIONES, (_e, req: ConexionesRequest) => conexiones(d, abiertos, req))
   d.ipc.handle(C.PREVIA_HISTORIAL, (_e, req: PreviaHistorialRequest) => previaHistorialExportar(d, req, listarPrevia))
+  d.ipc.handle(C.DIFF_ARCHIVO, (_e, req: DiffArchivoRequest) => diffArchivo(d, abiertos, req))
   d.ipc.handle(C.OLVIDAR, (_e, req: { token?: unknown }) => {
     if (typeof req?.token === 'string') abiertos.delete(req.token)
   })

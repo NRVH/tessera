@@ -103,12 +103,11 @@ function carpetasConocidas(): string[] {
  * `Program Files\Java` reescribe el directorio padre). Calcular la huella cuesta un
  * `stat` por carpeta conocida —microsegundos— frente a los ~18 s del sondeo entero.
  *
- * Se probó fiarse de lo recordado a secas, con solo un `existsSync` por ruta, y se
- * retiró: convertía la lista de la PRIMERA sesión en permanente. Un equipo que
- * entonces solo tenía un JDK 8 seguía diciendo "el más nuevo que se encontró es 8"
- * en todas las sesiones siguientes, aunque el usuario instalara un JDK 21 después;
- * la única cura era borrar java-runtime.json a mano. Recordar no puede significar
- * no volver a mirar JAMÁS.
+ * Fiarse de lo recordado a secas, con solo un `existsSync` por ruta, convertiría la
+ * lista de la PRIMERA sesión en permanente: un equipo que solo tuviera un JDK 8
+ * seguiría diciendo "el más nuevo que se encontró es 8" en todas las sesiones
+ * siguientes, aunque el usuario instalara un JDK 21 después. Recordar no puede
+ * significar no volver a mirar JAMÁS.
  */
 async function selloEntorno(jvms: readonly JavaVisible[]): Promise<string> {
   const partes = [process.env.JAVA_HOME ?? '', process.env.PATH ?? '']

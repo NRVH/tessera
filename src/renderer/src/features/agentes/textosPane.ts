@@ -13,9 +13,9 @@ export const txPane = crearTextos(
       basesAria: 'Bases de datos montadas',
       elegirProyecto: (perfil: string, proyecto: string, agente: string) =>
         `${perfil} · ${proyecto} · ${agente} — elegir qué proyecto se ve aquí`,
-      otroEsperando: (nombre: string) => `${nombre} espera su respuesta en este proyecto: pulse para verlo en esta casilla`,
-      otroTrabajando: (nombre: string) => `${nombre} está trabajando en este proyecto: pulse para verlo en esta casilla`,
-      otroSinVer: (nombre: string) => `${nombre} terminó y aún no se ha revisado: pulse para verlo en esta casilla`,
+      otroEsperando: (nombre: string) => `${nombre} espera su respuesta en este proyecto: haga clic para verlo en esta casilla`,
+      otroTrabajando: (nombre: string) => `${nombre} está trabajando en este proyecto: haga clic para verlo en esta casilla`,
+      otroSinVer: (nombre: string) => `${nombre} terminó y aún no se ha revisado: haga clic para verlo en esta casilla`,
       otroVer: (nombre: string) => `Ver ${nombre} de este proyecto en esta casilla`,
       cambiarA: (nombre: string) => `Cambiar a ${nombre}`,
       historialAria: 'Historial de conversaciones',
@@ -66,52 +66,58 @@ export const txPane = crearTextos(
       despertarTitulo: 'Tessera hibernó este agente porque no se estaba usando, para ahorrar memoria. Reanúdelo para continuar donde lo dejó.',
       despertar: 'Reanudar',
       lugarTerminal: 'Agente de la terminal',
-      lugarDatos: 'Agente de base de datos',
-      lugarProyectoTitulo: (proyecto: string) => `Agente del proyecto ${proyecto}`,
+      lugarDatos: 'Agente de bases de datos',
+      lugarProyectoTitulo: (proyecto: string) => `Agente del proyecto «${proyecto}»`,
       lugarVentana: 'Carpeta de usuario',
       lugarVentanaTitulo: 'Agente en su carpeta de usuario, sin proyecto'
     },
     menus: {
       terminalAbierta: ' (terminal abierta)',
       dormido: ' (hibernado)',
-      abrirOtro: (perfil: string) => `Abrir otro proyecto en ${perfil}…`,
+      abrirOtro: (perfil: string) => `Abrir otro proyecto en «${perfil}»…`,
       sinCuenta: 'sin cuenta',
       cuentaDe: (agente: string) => `Cuenta de ${agente}`,
       cuentaDeAyuda: (puedeSeguir: boolean) =>
         'Cada cuenta tiene sus propias conversaciones. Al cambiar, el agente se abre con la otra' +
         (puedeSeguir ? '; para llevar esta conversación a la otra cuenta, use ⇄ en la cabecera.' : '.'),
       enTuEquipo: 'En su equipo',
-      enDocker: 'Cuentas aisladas (Docker)',
+      enDocker: 'Cuentas de Docker',
       cuentas: 'Cuentas',
       nativaDetalle: (tuEquipo: string) => `Cuenta de ${tuEquipo}`,
       dockerDetalle: 'Aislada; funciona junto a las demás',
       sinCuentasDocker: 'Aún no hay cuentas de Docker. Cree una para usar varias simultáneamente.',
       sinCuentasDockerContinuar: 'Aún no hay cuentas de Docker; se crean desde el botón de cuenta del agente.',
       nuevaCuentaDocker: 'Nueva cuenta de Docker…',
+      administrarCuentas: 'Administrar las cuentas…',
       enUso: 'En uso',
-      masAccionesDe: (nombre: string) => `Más acciones de "${nombre}"`,
+      masAccionesDe: (nombre: string) => `Más acciones de «${nombre}»`,
+      configuracionItem: 'Editar configuración…',
       renombrarItem: 'Renombrar',
       cerrarSesionItem: 'Cerrar sesión…',
       eliminarItem: 'Eliminar cuenta…',
-      eliminarCuenta: 'Eliminar cuenta',
+      eliminarCuenta: (nombre: string) => `¿Eliminar la cuenta «${nombre}»?`,
       cerrarSesion: 'Cerrar sesión',
-      mensajeEliminar: (nombre: string) =>
-        `¿Eliminar la cuenta "${nombre}"? Se borran de este equipo su sesión iniciada y todas sus conversaciones, y no se pueden recuperar. Su cuenta del proveedor no cambia.`,
-      mensajeCerrarSesion: (nombre: string) =>
-        `¿Cerrar sesión de "${nombre}"? Deberá iniciar sesión otra vez para volver a usarla.`,
-      eliminar: 'Eliminar',
+      cerrarSesionPregunta: (nombre: string) => `¿Cerrar la sesión de «${nombre}»?`,
+      mensajeEliminar: () =>
+        'Se borran de este equipo su sesión iniciada y todas sus conversaciones, y no se pueden recuperar. Su cuenta del proveedor no cambia.',
+      mensajeCerrarSesion: () => 'Deberá iniciar sesión otra vez para volver a usar la cuenta.',
+      eliminar: 'Eliminar cuenta',
       eliminando: 'Eliminando…',
       usadaPorOtros: (n: number) =>
         n === 1
-          ? 'Otro agente abierto la está usando: su sesión se cerrará.'
-          : `${n} agentes abiertos la están usando: sus sesiones se cerrarán.`,
+          ? 'Otro agente abierto la está usando: ese agente se detendrá.'
+          : `${n} agentes abiertos la están usando: esos agentes se detendrán.`,
       cerrandoSesion: 'Cerrando sesión…',
-      iniciarSesionTitulo: (agente: string) => `Iniciar sesión — ${agente}`,
+      iniciarSesionTitulo: (agente: string) => `Iniciar sesión en ${agente}`,
       nuevaCuenta: 'Nueva cuenta…',
       predeterminada: 'Predeterminada',
-      nuevaCuentaTitulo: (agente: string) => `Nueva cuenta — ${agente}`,
+      nuevaCuentaTitulo: (agente: string) => `Nueva cuenta de ${agente}`,
+      nuevaCuentaDockerTitulo: 'Nueva cuenta de Docker',
       nuevaCuentaAviso:
         'La cuenta se ejecuta aislada en Docker, de modo que se pueden usar varias simultáneamente. Al crearla, este agente pasa a usarla con su propio historial.',
+      nuevaCuentaOtroAviso: (agente: string) =>
+        `La cuenta se ejecuta aislada en Docker. Esta pestaña sigue igual: después de crearla se abre el inicio de sesión de ${agente}, y la cuenta queda disponible para sus pestañas y para tctx delegar.`,
+      agenteDeLaCuenta: 'Agente de la cuenta',
       nombreCuenta: 'Nombre para reconocerla (p. ej., Trabajo)',
       crearEIniciar: 'Crear e iniciar sesión',
       copiar: 'Copiar',
@@ -125,13 +131,13 @@ export const txPane = crearTextos(
       copiarDefinicion: 'Copiar definición (JSON)',
       eliminarItem: 'Eliminar…',
       masAria: 'Añadir un agente propio (por su comando)',
-      eliminarTitulo: (nombre: string) => `Eliminar ${nombre}`,
+      eliminarTitulo: (nombre: string) => `¿Eliminar el agente «${nombre}»?`,
       eliminarMensaje: (nativo: boolean) =>
         nativo
           ? 'Se quita de todos los proyectos, en todos los perfiles, y se cierra su terminal si está abierta. ' +
             'Lo que el agente guardó en su carpeta personal se conserva.'
           : 'Se quita de todos los proyectos de este perfil y se cierran sus terminales. También se borran sus cuentas ' +
-            'y lo que guardó en sus carpetas, con su sesión iniciada y su configuración. Los archivos de los proyectos no se tocan.',
+            'y lo que guardó en sus carpetas, con su sesión iniciada y su configuración. Los archivos de los proyectos no se modifican.',
       noSeBorraronCuentas: 'No se pudieron borrar las cuentas del agente',
       eliminar: 'Eliminar'
     },
@@ -218,49 +224,55 @@ export const txPane = crearTextos(
       despertar: 'Resume',
       lugarTerminal: 'Terminal agent',
       lugarDatos: 'Database agent',
-      lugarProyectoTitulo: (proyecto: string) => `Agent of the project ${proyecto}`,
+      lugarProyectoTitulo: (proyecto: string) => `Project agent: “${proyecto}”`,
       lugarVentana: 'User folder',
       lugarVentanaTitulo: 'Agent in your user folder, without a project'
     },
     menus: {
       terminalAbierta: ' (terminal open)',
       dormido: ' (hibernated)',
-      abrirOtro: (perfil: string) => `Open another project in ${perfil}…`,
+      abrirOtro: (perfil: string) => `Open another project in “${perfil}”…`,
       sinCuenta: 'no account',
       cuentaDe: (agente: string) => `${agente} account`,
       cuentaDeAyuda: (puedeSeguir: boolean) =>
         'Each account has its own conversations. When you switch, the agent opens with the new account' +
-        (puedeSeguir ? '; to keep this conversation, use ⇄ in the header.' : '.'),
+        (puedeSeguir ? '; to move this conversation to the other account, use ⇄ in the header.' : '.'),
       enTuEquipo: 'On your computer',
-      enDocker: 'Isolated accounts (Docker)',
+      enDocker: 'Docker accounts',
       cuentas: 'Accounts',
       nativaDetalle: (tuEquipo: string) => `Account on ${tuEquipo}`,
       dockerDetalle: 'Isolated; runs alongside the others',
       sinCuentasDocker: 'No Docker accounts yet. Create one to use several at once.',
       sinCuentasDockerContinuar: 'No Docker accounts yet; create them from the agent’s account button.',
       nuevaCuentaDocker: 'New Docker account…',
+      administrarCuentas: 'Manage accounts…',
       enUso: 'In use',
       masAccionesDe: (nombre: string) => `More actions for “${nombre}”`,
+      configuracionItem: 'Edit configuration…',
       renombrarItem: 'Rename',
       cerrarSesionItem: 'Sign out…',
       eliminarItem: 'Delete account…',
-      eliminarCuenta: 'Delete account',
+      eliminarCuenta: (nombre: string) => `Delete the account “${nombre}”?`,
       cerrarSesion: 'Sign out',
-      mensajeEliminar: (nombre: string) =>
-        `Delete the account “${nombre}”? Its sign-in and all its conversations are erased from this computer and cannot be recovered. Your provider account does not change.`,
-      mensajeCerrarSesion: (nombre: string) =>
-        `Sign out of “${nombre}”? You need to sign in again to use it.`,
-      eliminar: 'Delete',
+      cerrarSesionPregunta: (nombre: string) => `Sign out of “${nombre}”?`,
+      mensajeEliminar: () =>
+        'Its sign-in and all its conversations are erased from this computer and cannot be recovered. Your provider account does not change.',
+      mensajeCerrarSesion: () => 'You need to sign in again to use the account.',
+      eliminar: 'Delete account',
       eliminando: 'Deleting…',
       usadaPorOtros: (n: number) =>
-        n === 1 ? 'Another open agent is using it: its session will be closed.' : `${n} open agents are using it: their sessions will be closed.`,
+        n === 1 ? 'Another open agent is using it: that agent will stop.' : `${n} open agents are using it: those agents will stop.`,
       cerrandoSesion: 'Signing out…',
-      iniciarSesionTitulo: (agente: string) => `Sign in — ${agente}`,
+      iniciarSesionTitulo: (agente: string) => `Sign in to ${agente}`,
       nuevaCuenta: 'New account…',
       predeterminada: 'Default',
-      nuevaCuentaTitulo: (agente: string) => `New account — ${agente}`,
+      nuevaCuentaTitulo: (agente: string) => `New ${agente} account`,
+      nuevaCuentaDockerTitulo: 'New Docker account',
       nuevaCuentaAviso:
         'The account runs isolated in Docker, so you can use several at once. Once created, this agent switches to it, with its own history.',
+      nuevaCuentaOtroAviso: (agente: string) =>
+        `The account runs isolated in Docker. This tab stays as it is: once created, ${agente} sign-in opens, and the account becomes available to its tabs and to tctx delegar.`,
+      agenteDeLaCuenta: 'Account agent',
       nombreCuenta: 'A name to recognize it (e.g., Work)',
       crearEIniciar: 'Create and sign in',
       copiar: 'Copy',
@@ -274,13 +286,13 @@ export const txPane = crearTextos(
       copiarDefinicion: 'Copy definition (JSON)',
       eliminarItem: 'Delete…',
       masAria: 'Add custom agent (by command)',
-      eliminarTitulo: (nombre: string) => `Delete ${nombre}`,
+      eliminarTitulo: (nombre: string) => `Delete the agent “${nombre}”?`,
       eliminarMensaje: (nativo: boolean) =>
         nativo
           ? 'It is removed from all projects, in all profiles, and its terminal is closed if it is open. ' +
             'What the agent saved in your home folder is kept.'
           : 'It is removed from all of this profile’s projects and its terminals are closed. Its accounts and what it saved ' +
-            'in its folders are deleted too, including its sign-in and settings. Project files are not touched.',
+            'in its folders are deleted too, including its sign-in and settings. Project files are not modified.',
       noSeBorraronCuentas: 'Could not delete the agent’s accounts',
       eliminar: 'Delete'
     },

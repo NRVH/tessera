@@ -39,9 +39,9 @@ function BotonDescartar({ u }: { u: UpdateAjustes }): React.JSX.Element | null {
   const t = txBloquesUpdate().update
   return (
     <button
-      className="btn btn-ghost"
+      className="btn"
       onClick={() => descartar(fallo ? 'fallo' : 'aplicada')}
-      title={fallo ? t.descartarFallo : t.descartarAviso}
+      title={fallo ? t.descartarFallo : undefined}
     >
       {fallo ? t.descartar : t.entendido}
     </button>
@@ -67,7 +67,7 @@ function BotonPrincipal({ u }: { u: UpdateAjustes }): React.JSX.Element {
     )
   }
   return (
-    <button className="btn btn-ghost" onClick={check} disabled={busy}>
+    <button className="btn" onClick={check} disabled={busy}>
       {status === 'error' ? t.reintentar : t.buscar}
     </button>
   )
@@ -83,7 +83,7 @@ function AccionesUpdate({ u }: { u: UpdateAjustes }): React.JSX.Element {
       {/* En `available` comprobar sigue teniendo sentido: quizá ya hay una versión más
           nueva que la anunciada. En `ready`, `check()` sale temprano. */}
       {status === 'available' ? (
-        <button className="btn btn-ghost" onClick={check} disabled={busy}>
+        <button className="btn" onClick={check} disabled={busy}>
           {t.buscar}
         </button>
       ) : null}

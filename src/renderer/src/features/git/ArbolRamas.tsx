@@ -8,9 +8,11 @@
 // =============================================================================
 
 import { useMemo, useState } from 'react'
+import { useEntradaContenido } from '../../comun/useEntradaContenido'
 import { useShallow } from 'zustand/react/shallow'
 import { ContextMenu } from '../../comun/ContextMenu'
 import { EsperaCarga } from '../../comun/IndicadorCarga'
+import { Presente } from '../../comun/Presente'
 import { fijarVistaLog, useStoreGit } from './store'
 import { alternarCerrado, vistaLogDe } from './modelo/vistaLogPorRepo'
 import { IconoDesplegar, IconoRama } from './iconos'
@@ -74,7 +76,7 @@ function renderNodos(nodos: readonly NodoRama[], nivel: number, c: ContextoNodos
           <span className="git-rama-nombre">{nodo.nombre}</span>
           <span className="git-rama-total">{nodo.total}</span>
         </button>,
-        ...(abierta ? renderNodos(nodo.hijos, nivel + 1, c) : [])
+        <Presente key={`h:${nodo.ruta}`} visible={abierta} className="mov-despliega">{renderNodos(nodo.hijos, nivel + 1, c)}</Presente>
       ]
     }
     const activa = c.ramaActiva === nodo.rama.name
@@ -124,7 +126,7 @@ function FilaFija(p: {
   clase: string
   activa: boolean
   onClick: () => void
-  title: string
+  title?: string
   texto: string
 }): React.JSX.Element {
   return (
@@ -180,6 +182,7 @@ interface PropsArbolRamas {
 }
 
 export function ArbolRamas(p: PropsArbolRamas): React.JSX.Element {
+  const entradaRef = useEntradaContenido(JSON.stringify([p.repoActivo, p.branches === null]))
   const { branches, ramaActiva, repos, repoLabels, repoActivo, onSeleccionarRama } = p
   const arbol = useMemo(() => construirArbolRamas(branches ?? []), [branches])
   const plegado = usePlegado(repoActivo)
@@ -188,7 +191,7 @@ export function ArbolRamas(p: PropsArbolRamas): React.JSX.Element {
   const head = arbol.head
   const t = txGit()
   return (
-    <div className="git-log-col git-log-ramas">
+    <div ref={entradaRef} className="git-log-col git-log-ramas">
       <CabeceraRamas
         multiRepo={repos !== null && repos.length > 1}
         nombreRepo={(repoActivo && repoLabels.get(repoActivo)) ?? t.repositorio}
@@ -203,7 +206,6 @@ export function ArbolRamas(p: PropsArbolRamas): React.JSX.Element {
               clase={`git-rama-fila${ramaActiva === null ? ' activa' : ''}`}
               activa={ramaActiva === null}
               onClick={() => onSeleccionarRama(null)}
-              title={t.verTodasRamasTitulo}
               texto={t.todasLasRamas}
             />
           )}

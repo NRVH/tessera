@@ -258,12 +258,12 @@ try {
   }
 
   // ---------------------------------------------------------------------------
-  hr('C - La línea en modo agente (ssh y scp) y la del humano, que no cambia')
+  hr('C - La línea en modo agente (ssh y scp) y la del humano, sin las opciones del agente')
   {
     const destino = { host: '192.0.2.10', puerto: 2222, usuario: 'DOMINIO\\nadie', metodo: 'contrasena' as const }
     const base = { rutaHuellas: 'C:\\datos\\ssh\\huellas\\c1', plataforma: 'windows' as Plataforma }
     const humano = argumentosSsh(destino, { ...base, modo: 'humano' })
-    check('(c1) el humano, como siempre: accept-new, sin BatchMode ni opciones de agente', humano.includes('StrictHostKeyChecking=accept-new') && !humano.includes('BatchMode=yes') && !humano.includes('ClearAllForwardings=yes') && !humano.includes('-T'), humano.join(' '))
+    check('(c1) el humano: estricto con la huella (la confirmó antes), sin BatchMode ni opciones de agente', humano.includes('StrictHostKeyChecking=yes') && !humano.includes('BatchMode=yes') && !humano.includes('ClearAllForwardings=yes') && !humano.includes('-T'), humano.join(' '))
     const sinSecreto = argumentosSsh(destino, { ...base, modo: 'agente', orden: { conEntrada: false } })
     check('(c2) agente sin secreto: estricto, BatchMode y sin redirecciones ni orden local', ['StrictHostKeyChecking=yes', 'BatchMode=yes', 'ClearAllForwardings=yes', 'ForwardAgent=no', 'ForwardX11=no', 'PermitLocalCommand=no'].every((o) => sinSecreto.includes(o)), sinSecreto.join(' '))
     check('(c3) tssh run: -T -n delante del --, y el host el último (la orden va detrás)', sinSecreto.slice(-4).join(' ') === '-T -n -- 192.0.2.10', sinSecreto.slice(-4).join(' '))
@@ -639,8 +639,11 @@ async function pruebaReal(): Promise<void> {
   const idOculta = alta('oculta', 'pruebas', { secreto: contrasena, disponibleAgentes: false })
   alta('nueva', 'pruebas', { secreto: contrasena })
   const idComillas = alta(`srv ${String.fromCharCode(0x2019)}uno${String.fromCharCode(0x2019)}`, 'pruebas', { secreto: contrasena })
-  // Una persona confirma las huellas con «Probar» (accept-new); «nueva» se queda sin confirmar.
-  for (const id of [idPw, idClave, idOculta, idComillas]) await ctrl.probar({ id })
+  // Una persona confirma las huellas (lo que hace el diálogo de un servidor nuevo); «nueva» se queda sin confirmar.
+  for (const id of [idPw, idClave, idOculta, idComillas]) {
+    const r = await ctrl.reconocerHuella({ id, prueba: true })
+    if (r.tipo === 'nueva') ctrl.confiarHuella({ ficha: r.ficha })
+  }
   const env = entornoLimpio({ TESSERA_DB_PIPE: puente.pipe, TESSERA_DB_SESSION: puente.mint('pa', 'C:\\proyecto') })
   const tssh = (args: string[], o: { entrada?: string; cwd?: string } = {}): Promise<Salida> => correr(process.execPath, [TSSH, ...args], { env, cwd: o.cwd ?? raiz, entrada: o.entrada })
 
@@ -689,7 +692,7 @@ async function pruebaReal(): Promise<void> {
   const doctor = await tssh(['doctor', 'clave'])
   check('(g13) tssh doctor clave: conecta de verdad (prueba en modo agente)', doctor.codigo === 0 && doctor.salida.includes('conecta (') && doctor.salida.includes('Todo en orden'), `codigo=${doctor.codigo} ${doctor.salida.split('\n').slice(-4).join(' ')}`)
   const tope = await tssh(['run', 'clave', '--timeout', '1', '--', 'sleep 6'])
-  check('(g14) --timeout: corta y sale con 124', tope.codigo === CODIGOS.tope && tope.ms < 5000 && tope.errores.includes('se agotó el tope'), `codigo=${tope.codigo} ${tope.ms} ms`)
+  check('(g14) --timeout: corta y sale con 124', tope.codigo === CODIGOS.tope && tope.ms < 5000 && tope.errores.includes('se agotó el límite'), `codigo=${tope.codigo} ${tope.ms} ms`)
   const patron = puerto === 22 ? host : `[${host}]:${puerto}`
   writeFileSync(conexiones.rutaHuellas(idClave), `${patron} ssh-ed25519 ${claveEd25519Ajena()}\n`)
   const cambiada = await tssh(['run', 'clave', '--', 'true'])

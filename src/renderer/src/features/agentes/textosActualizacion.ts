@@ -14,6 +14,7 @@ export const txActualizacion = crearTextos(
   {
     modal: {
       titulo: 'Actualizar agentes',
+      agentes: 'Codex · Claude Code',
       cerrar: 'Cerrar',
       introA: 'Descarga e instala la última versión de ',
       introY: ' y ',
@@ -24,7 +25,7 @@ export const txActualizacion = crearTextos(
       okDespues: '.',
       fallo: '✕ No se pudo actualizar: ',
       cancelar: 'Cancelar',
-      actualizar: 'Actualizar',
+      actualizar: 'Refrescar',
       trabajando: 'Actualizando… No cierre la aplicación.'
     },
     boton: {
@@ -131,8 +132,8 @@ export const txActualizacion = crearTextos(
       cerrada: 'se cerró antes de reiniciarla',
       sinResondeo: 'no se pudo volver a comprobar su versión',
       versionDesconocida: 'no se sabe con qué versión arrancó',
-      alDia: 'ya corre la versión instalada',
-      noNativa: 'ya no corre en modo nativo',
+      alDia: 'ya ejecuta la versión instalada',
+      noNativa: 'ya no se ejecuta en su equipo',
       seCerro: 'se cerró',
       muerta: 'su proceso ya había terminado',
       ocupada: 'estaba en medio de otro reinicio',
@@ -175,6 +176,7 @@ export const txActualizacion = crearTextos(
   {
     modal: {
       titulo: 'Update agents',
+      agentes: 'Codex · Claude Code',
       cerrar: 'Close',
       introA: 'Downloads and installs the latest version of ',
       introY: ' and ',
@@ -185,7 +187,7 @@ export const txActualizacion = crearTextos(
       okDespues: '.',
       fallo: '✕ Could not update: ',
       cancelar: 'Cancel',
-      actualizar: 'Update',
+      actualizar: 'Refresh',
       trabajando: 'Updating… Do not close the app.'
     },
     boton: {
@@ -296,7 +298,7 @@ export const txActualizacion = crearTextos(
       sinResondeo: 'its version could not be checked again',
       versionDesconocida: 'the version it started with is unknown',
       alDia: 'already runs the installed version',
-      noNativa: 'no longer runs in native mode',
+      noNativa: 'no longer runs on your computer',
       seCerro: 'was closed',
       muerta: 'its process had already exited',
       ocupada: 'was in the middle of another restart',

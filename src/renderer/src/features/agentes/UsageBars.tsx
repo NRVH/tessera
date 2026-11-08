@@ -6,6 +6,7 @@
 // es una franja de 34 px y un ancestro con overflow lo recortaría.
 // =============================================================================
 
+import { Cruce } from '../../comun/Presente'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   proximoReset,
@@ -18,6 +19,7 @@ import type { ConvAgent } from '../../../../shared/conversations-ipc'
 import { formatoAntiguedad, formatoReinicio } from '../../util/formatoTiempo'
 import { etiquetaCortaUso, etiquetaLargaUso, formatoPorcentaje, tramoVentanas, varNivelUso } from './formatoUso'
 import { txContexto } from './textosContexto.ts'
+import { useDespedida } from '../../comun/despedida.ts'
 
 interface UsageBarsProps {
   agente: ConvAgent
@@ -177,6 +179,7 @@ export function UsageBars(props: UsageBarsProps): React.JSX.Element | null {
       aria-label={txContexto().uso.aria}
       data-ventanas={tramoVentanas(windows.length)}
     >
+      <Cruce clave={windows.length ? 'barras' : 'vacio'} className="uso-cruce">
       {windows.length ? (
         windows.map((w) => (
           <span className="agent-usage-item" key={w.key}>
@@ -192,6 +195,7 @@ export function UsageBars(props: UsageBarsProps): React.JSX.Element | null {
       ) : (
         <span className="agent-usage-empty">{txContexto().uso.sinDatos}</span>
       )}
+      </Cruce>
 
       {open && anchor && (
         <PopoverUso agente={agente} snap={snap} windows={windows} anchor={anchor} ahora={ahora} />
@@ -210,8 +214,10 @@ interface PopoverUsoProps {
 
 function PopoverUso({ agente, snap, windows, anchor, ahora }: PopoverUsoProps): React.JSX.Element {
   const t = txContexto().uso
+  const ref = useDespedida<HTMLDivElement>('flotante')
   return (
     <div
+      ref={ref}
       className="agent-usage-pop"
       style={{ left: anchor.left, bottom: anchor.bottom }}
       role="tooltip"

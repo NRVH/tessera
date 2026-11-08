@@ -7,8 +7,9 @@
 // Decisiones: docs/decisiones/bd/ui-consola-popovers.md
 // =============================================================================
 
+import { Cruce } from '../../comun/Presente'
 import { useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { createPortal } from 'react-dom'
+import { EnCapaFlotante } from '../../comun/capaFlotante'
 import './arbol.css'
 import type { DbConnection } from '../../../../shared/db-ipc'
 import type { DbEsquema } from '../../../../shared/db-explorador-ipc'
@@ -206,9 +207,11 @@ export function DbEsquemasPopover(props: PropsEsquemasPopover): React.JSX.Elemen
         }}
       />
 
+      <Cruce clave={s.resp ? 'lista' : s.errorCarga ? 'error' : 'cargando'}>
       <EstadoCargaPopover hayLista={s.resp !== null} errorCarga={s.errorCarga} cargando={t.cargando} onReintentar={s.reintentar} />
 
       {s.resp && <ListaEsquemas v={v} t={t} />}
+      </Cruce>
 
       {s.error && (
         <div className="db-pop-error" role="alert">
@@ -223,5 +226,5 @@ export function DbEsquemasPopover(props: PropsEsquemasPopover): React.JSX.Elemen
     </div>
   )
 
-  return createPortal(contenido, document.body)
+  return <EnCapaFlotante>{contenido}</EnCapaFlotante>
 }

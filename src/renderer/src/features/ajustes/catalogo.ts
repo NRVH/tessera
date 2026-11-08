@@ -67,6 +67,18 @@ export const CATEGORIAS = [
         ]
       },
       {
+        titulo: 'Editor de código',
+        ajustes: [
+          {
+            id: 'editor-tema',
+            etiqueta: 'Tema',
+            claves: ['tema', 'colores', 'esquema', 'sintaxis', 'resaltado', 'editor', 'código', 'oscuro', 'dracula', 'monokai', 'tokyo', 'darcula', 'dark+', 'github', 'gruvbox', 'solarized', 'cobalt', 'synthwave']
+          },
+          { id: 'editor-fuente', etiqueta: 'Fuente', claves: ['tipografía', 'letra', 'editor', 'código', 'archivos', 'diff'] },
+          { id: 'editor-tamano', etiqueta: 'Tamaño', claves: ['letra', 'fuente', 'editor', 'código', 'archivos', 'diff'] }
+        ]
+      },
+      {
         titulo: 'Barra de perfiles',
         ajustes: [
           {
@@ -223,6 +235,19 @@ export const CATEGORIAS = [
             id: 'agentes-lista',
             etiqueta: 'Agentes',
             claves: ['agentes', 'claude', 'codex', 'ocultar', 'mostrar', 'orden', 'ordenar', 'añadir', 'manual', 'pestañas', 'gestionar']
+          }
+        ]
+      },
+      {
+        titulo: 'Contexto de los agentes',
+        ajustes: [
+          {
+            id: 'agentes-contexto',
+            etiqueta: 'Contexto de los agentes',
+            claves: [
+              'contexto', 'reglas', 'global', 'perfil', 'documentos', 'documentación', 'carpeta', 'referencia', 'contrato', 'tctx', 'docs',
+              'configuración', 'archivo', 'config.toml', 'settings.json', 'claude.md', 'agents.md', 'instrucciones', 'modelo', 'docker', 'cuenta', 'codex', 'claude'
+            ]
           }
         ]
       },

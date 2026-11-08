@@ -1,7 +1,7 @@
 // =============================================================================
 // Qué icono del riel lleva el color del perfil: el de la zona donde trabajas. Con el foco en el agente
 // sigues en la vista que lo acompaña: «Archivos» o «Conexiones a bases de datos» si es la abierta. Los de
-// git no: allí no hay agente. A pantalla completa el riel solo tiene la flecha de volver. Puro; lo usa
+// git no: allí no hay agente. A pantalla completa el riel lleva las acciones del modo y no pasa por aquí. Puro; lo usa
 // `ActivityBar`.
 // Decisiones: docs/decisiones/renderer/riel-en-dos-grupos.md
 // =============================================================================

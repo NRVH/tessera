@@ -4,8 +4,10 @@
 // un fragmento (sin envoltorio: el CSS selecciona por la estructura del pane).
 // =============================================================================
 
+import { ContextMenu } from '../../comun/ContextMenu'
+import { Presente } from '../../comun/Presente'
 import './sshTerminal.css'
-import { useEffect } from 'react'
+import { useRef } from 'react'
 import { SearchBox } from '../../comun/SearchBox'
 import { TerminalImageChips } from './TerminalImageChips'
 import { txTerminales } from './textos.ts'
@@ -32,32 +34,11 @@ function TerminalContextMenu({
   onPaste,
   onClose
 }: TerminalContextMenuProps): React.JSX.Element {
-  useEffect(() => {
-    function onDown(): void {
-      onClose()
-    }
-    function onKey(e: KeyboardEvent): void {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('mousedown', onDown)
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('mousedown', onDown)
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [onClose])
-
   const t = txTerminales()
-  return (
-    <div className="ctx-menu" style={{ top: y, left: x }} onMouseDown={(e) => e.stopPropagation()}>
-      <button className="ctx-menu-item" onClick={onCopy} disabled={!canCopy}>
-        {t.copiar}
-      </button>
-      <button className="ctx-menu-item" onClick={onPaste}>
-        {t.pegar}
-      </button>
-    </div>
-  )
+  return <ContextMenu x={x} y={y} onClose={onClose} items={[
+    { label: t.copiar, onClick: onCopy, disabled: !canCopy },
+    { label: t.pegar, onClick: onPaste }
+  ]} />
 }
 
 /** Lo que una sesión SSH pinta sobre su xterm; los dos `null` en una local. */
@@ -72,7 +53,7 @@ export interface CapasSsh {
 function FranjaFinSsh({ fin }: { fin: NonNullable<CapasSsh['fin']> }): React.JSX.Element {
   const t = txTerminales()
   return (
-    <div className="terminal-fin-ssh" role="status">
+    <>
       <span className="terminal-fin-ssh-motivo">{fin.motivo}</span>
       {fin.onReconectar ? (
         <button className="btn terminal-fin-ssh-boton" onClick={fin.onReconectar} disabled={fin.enVuelo} title={t.reconectarIntro}>
@@ -81,7 +62,7 @@ function FranjaFinSsh({ fin }: { fin: NonNullable<CapasSsh['fin']> }): React.JSX
       ) : (
         <span className="terminal-fin-ssh-nota">{t.conexionEliminada}</span>
       )}
-    </div>
+    </>
   )
 }
 
@@ -94,29 +75,36 @@ const SIN_SSH: CapasSsh = { conectando: null, fin: null }
 export function CapasTerminal({ ui, ssh = SIN_SSH }: { ui: InterfazTerminal; ssh?: CapasSsh }): React.JSX.Element {
   const { ctxMenu, setCtxMenu } = ui
   const { conectando, fin } = ssh
+  const ultimoConectando = useRef(conectando)
+  const ultimoFin = useRef(fin)
+  if (conectando) ultimoConectando.current = conectando
+  if (fin) ultimoFin.current = fin
   return (
     <>
       {/* Capa ABSOLUTA: no empuja ni encoge la xterm; solo «Cancelar» recibe el ratón. */}
-      {conectando !== null && (
-        <div className="terminal-conectando" role="status">
-          <span className="terminal-conectando-texto">{conectando.texto}</span>
-          {conectando.onCancelar && (
-            <button className="terminal-conectando-cancelar" onClick={conectando.onCancelar}>
-              {txTerminales().cancelar}
-            </button>
-          )}
-        </div>
-      )}
-      {fin !== null && <FranjaFinSsh fin={fin} />}
+      <Presente visible={conectando !== null} className="terminal-conectando mov-aparece terminal-fundido" role="status">
+        <span className="terminal-conectando-texto">{ultimoConectando.current?.texto}</span>
+        <button
+          className="terminal-conectando-cancelar"
+          onClick={conectando?.onCancelar ?? undefined}
+          disabled={!conectando?.onCancelar}
+          aria-hidden={!conectando?.onCancelar}
+        >
+          {txTerminales().cancelar}
+        </button>
+      </Presente>
+      <Presente visible={fin !== null} className="terminal-fin-ssh mov-aparece terminal-fundido" role="status">
+        {ultimoFin.current && <FranjaFinSsh fin={ultimoFin.current} />}
+      </Presente>
       {/* Buscar y navegar van al mismo runSearch: el SearchAddon reancla desde la posición actual. */}
-      {ui.searchOpen && (
+      <Presente visible={ui.searchOpen} className="mov-aparece mov-desde-arriba" style={{ position: 'absolute', top: 0, right: 0, zIndex: 3 }}>
         <SearchBox
           onFind={(q, o) => ui.runSearch(q, o, 'next')}
           onNavigate={ui.runSearch}
           results={ui.searchResults}
           onClose={ui.closeSearch}
         />
-      )}
+      </Presente>
       <TerminalImageChips
         items={ui.imagePreviews}
         onDismiss={(id) => ui.setImagePreviews((prev) => prev.filter((x) => x.id !== id))}

@@ -5,8 +5,11 @@
 // su texto, se cierra a mano) o cancelada. Presentación pura sobre `operacionesSftp`.
 // =============================================================================
 
+import { useListaConSalida } from '../../comun/presencia'
+import { Presente, Cruce } from '../../comun/Presente'
 import { esFinal, porcentaje, textoAvance, verboOperacion, type OperacionSftp } from './operacionesSftp'
 import { txSftp } from './textos.ts'
+import { IconoCerrar } from '../../comun/iconosMenu'
 
 export interface PropsTiraOperaciones {
   operaciones: readonly OperacionSftp[]
@@ -57,7 +60,7 @@ function Fila({ o, p }: { o: OperacionSftp; p: PropsTiraOperaciones }): React.JS
       )}
       {final && (
         <button type="button" className="sftp-operacion-cerrar" aria-label={t.quitarDeLista} title={t.quitarDeLista} onClick={() => p.onCerrar(o.opId)}>
-          ×
+          <IconoCerrar />
         </button>
       )}
     </div>
@@ -65,12 +68,16 @@ function Fila({ o, p }: { o: OperacionSftp; p: PropsTiraOperaciones }): React.JS
 }
 
 export function TiraOperacionesSftp(p: PropsTiraOperaciones): React.JSX.Element | null {
-  if (p.operaciones.length === 0) return null
+  const lista = useListaConSalida(p.operaciones, claveOperacion)
   return (
-    <div className="sftp-operaciones" aria-label={txSftp().operaciones}>
-      {p.operaciones.map((o) => (
-        <Fila key={o.opId} o={o} p={p} />
+    <Presente visible={lista.length > 0} className="sftp-operaciones mov-despliega" aria-label={txSftp().operaciones}>
+      {lista.map(({ item: o, saliendo }) => (
+        <div key={o.opId} className="sftp-operacion-presencia" data-saliendo={saliendo ? '' : undefined} ref={(nodo) => { nodo?.toggleAttribute('inert', saliendo) }}>
+          <Cruce clave={o.fase}><Fila o={o} p={p} /></Cruce>
+        </div>
       ))}
-    </div>
+    </Presente>
   )
 }
+
+const claveOperacion = (o: OperacionSftp): string => o.opId

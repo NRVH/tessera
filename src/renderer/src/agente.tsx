@@ -14,6 +14,8 @@ import { txVentanaAgente } from './features/agentes/ventanaAgente/textosVentana.
 import '@xterm/xterm/css/xterm.css'
 import './styles.css'
 import './comun/selectDesplegable.css'
+import './comun/movimiento.css'
+import './comun/casillas.css'
 import './features/agentes/ventanaAgente/ventanaAgente.css'
 
 arrancarRenderer()

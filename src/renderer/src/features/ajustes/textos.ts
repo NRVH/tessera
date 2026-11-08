@@ -71,8 +71,18 @@ export const txApariencia = crearTextos(
     letraInterfaz: 'el tamaño de letra de la interfaz',
     explorador: 'Explorador',
     letraExplorador: 'el tamaño de letra del explorador',
-    vistaGit: 'Vista de git',
-    letraGit: 'el tamaño de letra de la vista de git',
+    vistaGit: 'Vista de Git',
+    letraGit: 'el tamaño de letra de la vista de Git',
+    grupoEditor: 'Editor de código',
+    ayudaEditor:
+      'Se aplica al editor, a los diffs, a los visores de archivos y a los editores de bases de datos; el tema, también a los bloques de código de la vista previa de Markdown. El marco de Tessera y las terminales conservan sus colores.',
+    nombreEditor: 'del editor de código',
+    tema: 'Tema',
+    temaEtiqueta: 'Tema del código',
+    temaTessera: 'Tessera (predeterminado)',
+    previaTema: 'Vista previa del tema del código',
+    muestraCodigo:
+      '// Vista previa del tema\nexport function saludar(nombre: string, veces = 3): string {\n  const saludo = `Hola, ${nombre}`\n  return saludo.repeat(veces) // también los comentarios\n}',
     grupoBarra: 'Barra de perfiles',
     minimalista: 'Perfiles en un selector compacto',
     minimalistaAyuda: 'Sustituye la banda de perfiles por un selector compacto en la barra de título.'
@@ -89,12 +99,22 @@ export const txApariencia = crearTextos(
     grupoTamanos: 'Size and scale',
     interfaz: 'Interface',
     interfazAyuda: (alto: number) =>
-      `Tabs, status bar and panels. ${alto} px rows. Doesn’t affect the editor or terminals, which have their own size.`,
+      `Tabs, status bar and panels. ${alto} px rows. Does not affect the editor or terminals, which have their own size.`,
     letraInterfaz: 'the interface font size',
     explorador: 'Explorer',
     letraExplorador: 'the Explorer font size',
     vistaGit: 'Git view',
     letraGit: 'the Git view font size',
+    grupoEditor: 'Code editor',
+    ayudaEditor:
+      'Applies to the editor, diffs, file viewers and database editors; the theme also applies to the code blocks in the Markdown preview. Tessera’s frame and the terminals keep their colors.',
+    nombreEditor: 'the code editor',
+    tema: 'Theme',
+    temaEtiqueta: 'Code theme',
+    temaTessera: 'Tessera (default)',
+    previaTema: 'Code theme preview',
+    muestraCodigo:
+      '// Theme preview\nexport function greet(name: string, times = 3): string {\n  const greeting = `Hello, ${name}`\n  return greeting.repeat(times) // comments too\n}',
     grupoBarra: 'Profile bar',
     minimalista: 'Profiles in a compact selector',
     minimalistaAyuda: 'Replaces the profile strip with a compact selector in the title bar.'
@@ -106,12 +126,13 @@ export const txTerminales = crearTextos(
     grupoTerminal: 'Terminal',
     grupoAgente: 'Terminal del agente',
     ayudaAgente: 'Terminal de Claude Code y Codex, independiente de la terminal anterior.',
-    nombreTerminal: 'la terminal',
-    nombreAgente: 'la terminal del agente',
+    // Con su preposición: «del editor» no se arma con «de» + «el editor».
+    nombreTerminal: 'de la terminal',
+    nombreAgente: 'de la terminal del agente',
     fuente: 'Fuente',
-    fuenteDe: (nombre: string) => `Fuente de ${nombre}`,
+    fuenteDe: (nombre: string) => `Fuente ${nombre}`,
     tamano: 'Tamaño',
-    tamanoDe: (nombre: string) => `el tamaño de ${nombre}`,
+    tamanoDe: (nombre: string) => `el tamaño ${nombre}`,
     predeterminada: 'Predeterminada',
     resaltar: 'Resaltar logs y salidas',
     resaltarAyuda:
@@ -154,7 +175,7 @@ export const txProyectos = crearTextos(
     sandboxAyuda: [
       'El agente puede instalar cualquier paquete dentro del contenedor (dispone de ',
       'sudo',
-      '), pero lo instalado se pierde al hibernar el perfil o al cerrar Tessera. Lo que se marque aquí se incluye en la imagen y se conserva. Se aplica al reconstruir la imagen: la próxima vez que se abra un agente o al pulsar «Actualizar agentes».'
+      '), pero lo instalado se pierde al hibernar el perfil o al cerrar Tessera. Lo que se marque aquí se incluye en la imagen y se conserva. Se aplica al reconstruir la imagen: la próxima vez que se abra un agente o al hacer clic en «Actualizar agentes».'
     ],
     navegador: 'Navegador de pruebas',
     navegadorAyuda:
@@ -181,13 +202,13 @@ export const txProyectos = crearTextos(
     ],
     navegador: 'Test browser',
     navegadorAyuda:
-      'The system libraries Chromium needs (playwright install-deps). It doesn’t include the browser: that is installed inside the project.',
+      'The system libraries Chromium needs (playwright install-deps). It does not include the browser: that is installed inside the project.',
     hornearNavegador: 'Include the Chromium system libraries in the image',
     otros: 'Other packages',
     otrosAyuda: 'Debian package names separated by spaces.',
     otrosEtiqueta: 'Other packages to include in the sandbox image',
     otrosPlaceholder: 'e.g. jq ripgrep',
-    hibernar: 'Hibernate idle agents after',
+    hibernar: 'Hibernate an idle agent after',
     volver5: 'Reset to 5 minutes',
     grupoSegundoPlano: 'Background agents'
   }
@@ -238,7 +259,7 @@ export const txBd = crearTextos(
     grupoResultados: 'Results',
     filasPorPagina: 'Rows per page',
     filasAyuda:
-      'How many rows are read at a time in tables and in console results. It applies to the next read; what is already loaded doesn’t change.',
+      'How many rows are read at a time in tables and in console results. It applies to the next read; what is already loaded does not change.',
     volverAFilas: (filas: string) => `Reset to ${filas}`,
     cerrarInactiva: 'Close the idle session after',
     inactividadNunca:
@@ -247,7 +268,7 @@ export const txBd = crearTextos(
       'An idle console releases its session and reopens it when you use it again; anything set with ALTER SESSION or SET is lost. A console with uncommitted changes is never closed.',
     volver30: 'Reset to 30 minutes',
     grupoConsolas: 'Consoles',
-    transaccion: 'Transaction mode for new consoles',
+    transaccion: 'Transaction mode on open',
     volverAutomatica: 'Reset to Automatic'
   }
 )

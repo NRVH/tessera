@@ -2,12 +2,13 @@
 // El selector de la base de la consola de Redis: el popover de las otras consolas (sus mismas
 // clases `db-pop-*`) con las bases NUMERADAS de `KV_CHANNELS.BASES` (`basesDeClaves`, la misma
 // lista que el árbol; si la petición falla, las del descriptor y el error encima con
-// «Reintentar»). El filtro acepta `3` o `db3`. Va por portal a `document.body` y sin lista
+// «Reintentar»). El filtro acepta `3` o `db3`. Va por portal a la capa flotante y sin lista
 // virtual: un servidor de Redis tiene 16 bases por defecto, no miles.
 // =============================================================================
 
+import { Cruce } from '../../../comun/Presente'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { EnCapaFlotante } from '../../../comun/capaFlotante'
 import type { DbConnection } from '../../../../../shared/db-ipc'
 import type { DbKvBases } from '../../../../../shared/db-claves-ipc'
 import { descriptor, esDeClaves } from '../../../../../shared/motores/index'
@@ -176,7 +177,8 @@ export function SelectorBaseClaves(p: {
   const mover = (dir: number): void => setActivo((a) => Math.max(0, Math.min(opciones.length - 1, a + dir)))
   const t = txConsolaClaves()
 
-  return createPortal(
+  return (
+    <EnCapaFlotante>
     <div
       ref={raizRef}
       className="db-esquemas-pop db-esquema-consola-pop"
@@ -186,6 +188,7 @@ export function SelectorBaseClaves(p: {
       onKeyDown={(e) => teclaSelector(e, { cerrar: () => cerrarRef.current(), elegir: () => elegir(activo), mover })}
     >
       <FiltroSelector alias={p.conexion.alias} filtroRef={filtroRef} filtro={filtro} placeholder={t.filtrarBases} onFiltro={setFiltro} />
+      <Cruce clave={cargando ? 'cargando' : error ? 'error' : 'lista'}>
       <EstadoSelector
         cargando={cargando && !error}
         error={error}
@@ -204,10 +207,11 @@ export function SelectorBaseClaves(p: {
           onElegir={elegir}
         />
       )}
+      </Cruce>
       <div className="db-pop-pie">
         <span className="db-pop-pista">{t.pistaSelector}</span>
       </div>
-    </div>,
-    document.body
+    </div>
+    </EnCapaFlotante>
   )
 }

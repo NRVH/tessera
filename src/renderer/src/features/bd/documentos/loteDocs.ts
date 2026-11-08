@@ -103,7 +103,7 @@ function pintarError(d: DepsLote, lote: LoteDocs, i: number, s: SentenciaShell, 
 function confirmarProduccion(d: DepsLote, s: SentenciaShell): Promise<boolean> {
   const c = d.conexionRef.current
   const t = confirmacionLoteProduccion({ alias: c.alias, total: 1, escrituras: [{ indice: 0, verbo: verboSentencia(s.texto) }] })
-  return d.pedirConfirmacion({ ...t, peligro: true })
+  return d.pedirConfirmacion({ ...t, peligro: true, severidad: 'advertencia' })
 }
 
 /** Ejecuta la sentencia `i` del lote y dice cómo sigue el bucle. */

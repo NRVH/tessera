@@ -4,8 +4,10 @@
 // 7 s o al pulsar la ✕. Lo comparten la terminal de shell y la del agente.
 // =============================================================================
 
+import { useListaConSalida } from '../../comun/presencia'
 import { useEffect, useRef } from 'react'
 import { txTerminales } from './textos.ts'
+import { IconoCerrar } from '../../comun/iconosMenu'
 
 /** Miniatura de una imagen pegada, identificada para poder descartarla. */
 export interface PastedImagePreview {
@@ -21,11 +23,12 @@ interface TerminalImageChipsProps {
 
 /** Fila de miniaturas de imágenes pegadas; no pinta nada si no hay ninguna. */
 export function TerminalImageChips({ items, onDismiss }: TerminalImageChipsProps): React.JSX.Element | null {
-  if (!items.length) return null
+  const lista = useListaConSalida(items, claveMiniatura)
+  if (!lista.length) return null
   return (
     <div className="terminal-image-chips">
-      {items.map((it) => (
-        <TerminalImageChip key={it.id} url={it.url} onDismiss={() => onDismiss(it.id)} />
+      {lista.map(({ item: it, saliendo }) => (
+        <TerminalImageChip key={it.id} saliendo={saliendo} url={it.url} onDismiss={() => onDismiss(it.id)} />
       ))}
     </div>
   )
@@ -34,7 +37,9 @@ export function TerminalImageChips({ items, onDismiss }: TerminalImageChipsProps
 /** Duración antes de autodescartar una miniatura pegada. */
 const CHIP_TTL_MS = 7000
 
-function TerminalImageChip({ url, onDismiss }: { url: string; onDismiss: () => void }): React.JSX.Element {
+const claveMiniatura = (item: PastedImagePreview): string => String(item.id)
+
+function TerminalImageChip({ url, onDismiss, saliendo }: { url: string; onDismiss: () => void; saliendo: boolean }): React.JSX.Element {
   // onDismiss se recrea en cada render del padre; en un ref para que el temporizador
   // (montado una sola vez) no se reinicie ni capture una versión obsoleta.
   const dismissRef = useRef(onDismiss)
@@ -46,7 +51,7 @@ function TerminalImageChip({ url, onDismiss }: { url: string; onDismiss: () => v
   const t = txTerminales()
 
   return (
-    <div className="terminal-image-chip" title={t.imagenPegada}>
+    <div className="terminal-image-chip mov-aparece" data-saliendo={saliendo ? '' : undefined}>
       <img src={url} alt={t.imagenPegada} draggable={false} />
       <button
         type="button"
@@ -55,7 +60,7 @@ function TerminalImageChip({ url, onDismiss }: { url: string; onDismiss: () => v
         title={t.descartar}
         aria-label={t.descartarMiniatura}
       >
-        ✕
+        <IconoCerrar />
       </button>
     </div>
   )

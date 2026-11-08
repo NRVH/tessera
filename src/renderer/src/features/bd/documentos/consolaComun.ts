@@ -7,6 +7,7 @@
 // =============================================================================
 
 import type { DbRespuesta } from '../../../../../shared/db-explorador-ipc'
+import type { SeveridadModal } from '../../../comun/Modal'
 import { DB_RESULTADOS_ALTO_MIN } from '../../../../../shared/workspace-state-ipc.ts'
 import { txConsolaComun } from './textosConsolaComun.ts'
 
@@ -37,6 +38,8 @@ export interface Dialogo {
   mensaje: string
   confirmar: string
   peligro: boolean
+  /** Sin indicar: peligro si `peligro`, información si no. */
+  severidad?: SeveridadModal
   resolver: (ok: boolean) => void
 }
 

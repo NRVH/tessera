@@ -1,7 +1,7 @@
 // =============================================================================
-// Avisos permanentes del sandbox: el rebuild automático de la imagen (solo las
-// líneas marcadas con `fase`) y los avisos de la red del contenedor que empuja el
+// Avisos permanentes de error del sandbox y de la red del contenedor que empuja el
 // main cuando no hay ningún diálogo abierto. Suscripciones IPC de por vida.
+// El arranque del agente confirma el éxito de la preparación del sandbox.
 // =============================================================================
 import { useEffect } from 'react'
 import { notify } from '../../comun/notifications'
@@ -13,9 +13,7 @@ export function useAvisosSandbox(): void {
     () =>
       window.tessera.agentsUpdate.onProgress((p) => {
         const t = txSesion()
-        if (p.fase === 'inicio') notify('info', t.sandboxPreparando, p.line)
-        else if (p.fase === 'fin') notify('success', t.sandboxListo, p.line)
-        else if (p.fase === 'error') notify('warn', t.sandboxPaquetes, p.line)
+        if (p.fase === 'error') notify('warn', t.sandboxPaquetes, p.line)
       }),
     []
   )

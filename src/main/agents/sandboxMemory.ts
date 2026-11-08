@@ -5,10 +5,10 @@
 // notas del usuario y el bloque de bases de datos se conservan.
 // Decisiones: docs/decisiones/sandbox/contenedor-del-agente.md
 // =============================================================================
-import { existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { lstatSync, mkdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 // Extensión explícita: cuelga de los imports ESTÁTICOS del test `.mts` de agentes.
-import { writeFileAtomicSync } from '../util/atomicWrite.ts'
+import { escribirSinSeguirEnlacesSync } from '../util/atomicWrite.ts'
 import { reemplazarBloque } from '../db/agentMemoryBlock.ts'
 import { INICIO_SANDBOX, FIN_SANDBOX, bloqueSandbox, type ContextoSandbox } from './sandboxMemoryBlock.ts'
 import type { Agente } from '../profiles/types'
@@ -34,11 +34,18 @@ export function escribirBloqueSandbox(
 ): void {
   const archivo = path.join(dir, ARCHIVO_POR_AGENTE[agente])
   try {
-    const actual = existsSync(archivo) ? readFileSync(archivo, 'utf-8') : ''
+    // La carpeta está montada con escritura en el contenedor: leer a través de un enlace plantado metería
+    // un archivo del equipo en ella.
+    const info = lstatSync(archivo, { throwIfNoEntry: false })
+    if (info && !info.isFile()) {
+      log?.(`${archivo} no es un archivo normal: no se escribe el contexto del sandbox`)
+      return
+    }
+    const actual = info ? readFileSync(archivo, 'utf-8') : ''
     const resultado = reemplazarBloque(actual, bloqueSandbox(ctx), INICIO_SANDBOX, FIN_SANDBOX)
     if (resultado === actual) return
     mkdirSync(dir, { recursive: true })
-    writeFileAtomicSync(archivo, resultado)
+    escribirSinSeguirEnlacesSync(archivo, resultado)
   } catch (err) {
     log?.(`no se pudo escribir el contexto del sandbox en ${archivo}: ${String(err)}`)
   }

@@ -49,6 +49,7 @@ function destino(): { ok: true; d: DestinoMongo } | { ok: false; motivo: string 
 }
 
 const PANE = '.db-area:not(.hidden) .db-pane:not(.hidden) .db-coleccion'
+const PENDIENTES = '.db-barra-pendientes[data-visible="true"]'
 
 test.describe('explorador de BD: MongoDB', () => {
   let s: SesionTessera | null = null
@@ -107,7 +108,7 @@ test.describe('explorador de BD: MongoDB', () => {
     const win = s!.win
     const m = d!
     await aLaVista(win)
-    await win.locator('.activity-item[title="Conexiones a bases de datos"]').click()
+    await win.locator('.activity-item[title="Bases de datos"]').click()
     await expect(win.locator('.db-area:not(.hidden)')).toBeVisible()
     await win.locator('.db-arbol button[aria-label="Nueva conexión"]').first().click()
     const dlg = win.locator('.db-conexion-modal')
@@ -121,7 +122,7 @@ test.describe('explorador de BD: MongoDB', () => {
     await dlg.locator('.dbc-pass input').fill(m.password)
     await dlg.locator('[data-campo="database"]').fill(m.database)
     // `lector` tiene rol `read`: la casilla de los agentes se deja marcada (lo recomendado).
-    await expect(dlg.getByLabel('Solo lectura para los agentes (recomendado)')).toBeChecked()
+    await expect(dlg.getByRole('switch', { name: 'Solo lectura para los agentes (recomendado)' })).toHaveAttribute('aria-checked', 'true')
     await dlg.getByRole('button', { name: 'Guardar y probar' }).click()
     await expect(dlg.locator('.dbc-prueba')).toHaveClass(/\bok\b/, { timeout: 60_000 })
     await dlg.getByRole('button', { name: 'Guardar', exact: true }).click()
@@ -182,8 +183,8 @@ test.describe('explorador de BD: MongoDB', () => {
     // Esc restaura lo aplicado; quitando las dos condiciones y aplicando, todos otra vez.
     await valores.nth(2).press('Escape')
     await expect(valores.nth(2)).toHaveValue('40')
-    await pane.getByRole('button', { name: /quitar la condición/i }).nth(1).click()
-    await pane.getByRole('button', { name: /quitar la condición/i }).first().click()
+    await pane.getByRole('button', { name: /quitar condición/i }).nth(1).click()
+    await pane.getByRole('button', { name: /quitar condición/i }).first().click()
     await pane.getByRole('button', { name: 'Aplicar', exact: true }).click()
     await expect(pane.locator('.db-docs-fila')).toHaveCount(4, { timeout: 30_000 })
   })
@@ -297,7 +298,8 @@ test.describe('explorador de BD: MongoDB', () => {
     await expect(pane.locator('.db-docs-editor'), 'el doble clic abre el editor').toHaveCount(1)
     await win.keyboard.press('Escape')
     await expect(pane.locator('.db-docs-editor')).toHaveCount(0)
-    await expect(pane.locator('.db-barra-pendientes'), 'cancelar no deja nada pendiente').toHaveCount(0)
+    // La barra de pendientes reserva su sitio siempre: lo que cuenta es si se muestra.
+    await expect(pane.locator(PENDIENTES), 'cancelar no deja nada pendiente').toHaveCount(0)
   })
 
   // (5) «Enviar» abre la vista previa con una orden del shell por cambio, como la rejilla SQL
@@ -310,7 +312,7 @@ test.describe('explorador de BD: MongoDB', () => {
     await expect(editor).toHaveCount(1)
     await editor.fill('"Anita"')
     await editor.press('Enter')
-    await expect(pane.locator('.db-barra-pendientes'), 'el cambio queda pendiente').toHaveCount(1)
+    await expect(pane.locator(PENDIENTES), 'el cambio queda pendiente').toHaveCount(1)
     await pane.locator('button[aria-label="Enviar cambios"]').click()
     const dlg = win.getByRole('dialog', { name: /Enviar 1 cambio/ })
     await expect(dlg).toBeVisible()
@@ -320,7 +322,7 @@ test.describe('explorador de BD: MongoDB', () => {
     await expect(dlg).toContainText('1 actualización')
     await dlg.getByRole('button', { name: 'Cancelar' }).click()
     await expect(dlg).toHaveCount(0)
-    await expect(pane.locator('.db-barra-pendientes'), 'cancelar la vista previa no envía').toHaveCount(1)
+    await expect(pane.locator(PENDIENTES), 'cancelar la vista previa no envía').toHaveCount(1)
   })
 
   // (6) La CONSOLA tiene lo de la de SQL: una pestaña por resultado al ejecutar varias órdenes,

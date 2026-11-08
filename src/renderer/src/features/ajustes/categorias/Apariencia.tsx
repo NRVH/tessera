@@ -1,6 +1,6 @@
 // =============================================================================
 // Categoría APARIENCIA: idioma, tamaños de letra de la interfaz, el explorador y la vista
-// de git, zoom de la ventana y colapso de la banda de perfiles.
+// de git, zoom de la ventana, tema, fuente y tamaño del editor de código y colapso de la banda de perfiles.
 // «Interfaz» es la BASE; «Explorador» y «Vista de git» heredan de ella y enseñan
 // su tamaño efectivo, con una flecha para volver a heredar. El zoom escala TODO
 // (editor y terminales incluidos) y se mueve por niveles pero se lee en porcentajes.
@@ -20,6 +20,8 @@ import type { PropsCategoria } from '../tipos'
 import { etiquetaModPrincipal } from '../../../util/atajos'
 import { txApariencia } from '../textos.ts'
 import { GrupoIdioma } from './GrupoIdioma'
+import { GrupoTerminal } from './Terminales'
+import { FilaTemaCodigo } from './TemaCodigo'
 
 /** Nivel de zoom -> lo que se lee. Cada paso de webFrame es un factor de 1,2. */
 function porcentajeZoom(nivel: number): string {
@@ -156,6 +158,17 @@ export function Apariencia(props: PropsCategoria): React.JSX.Element {
     <>
       {ve('idioma') && <GrupoIdioma />}
       {hayTamanos && <GrupoTamanos {...props} />}
+      <GrupoTerminal
+        titulo={t.grupoEditor}
+        ayuda={t.ayudaEditor}
+        idFuente="editor-fuente"
+        idTamano="editor-tamano"
+        nombre={t.nombreEditor}
+        appearance={props.editorAppearance}
+        onChange={props.onChangeEditorAppearance}
+        ve={ve}
+        antes={ve('editor-tema') ? <FilaTemaCodigo tema={props.editorTema} letra={props.editorAppearance} onChange={props.onChangeEditorTema} /> : undefined}
+      />
 
       {ve('banda') && (
         <Grupo titulo={t.grupoBarra}>

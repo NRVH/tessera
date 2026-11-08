@@ -116,7 +116,7 @@ async function abrirManualEnContenedor(
 ): Promise<AgentOpenResult> {
   const preparado = await prepararContenedorManual(n, profile, def, req.projectHostPath, cuenta, req.cupo)
   const extraEnv = n.getContainerEnv(profile.id, req.projectHostPath, req.dbConnectionIds ?? [], n.sandbox.dbBridgeContainerPath)
-  const launch = buildManualAgentLaunchCommand(invocacionAgenteManual(def, reanudar), preparado.home, n.sshSetup, extraEnv)
+  const launch = buildManualAgentLaunchCommand(invocacionAgenteManual(def, reanudar), preparado.home, extraEnv)
   const destino = contenedorDe(profile, def.id, cuenta)
   const session = await n.terminals.createSession(destino, { project: req.projectHostPath, launch, extraEnv, tamano: req.tamano })
   n.bindDbSession(extraEnv, claveSesionAgente(session.id))
@@ -209,7 +209,7 @@ export async function recargarManual(
     home = (await prepararContenedorManual(n, profile, open.manual, open.projectHostPath, open.accountId)).home
     open.homeManual = home
     extraEnv = n.getContainerEnv(open.profileId, open.projectHostPath, ids, n.sandbox.dbBridgeContainerPath)
-    launch = buildManualAgentLaunchCommand(invocacionAgenteManual(open.manual, true), home, n.sshSetup, extraEnv)
+    launch = buildManualAgentLaunchCommand(invocacionAgenteManual(open.manual, true), home, extraEnv)
   }
   n.bindDbSession(extraEnv, claveSesionAgente(open.sessionId))
   const session = await n.terminals.reloadSession(open.sessionId, { launch, extraEnv })

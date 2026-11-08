@@ -37,11 +37,11 @@ const txDocker = crearTextos(
   {
     pasosWindows: [
       '  1. WSL2 activo:  wsl --status   /   wsl -l -v  (debe haber una distro en VERSION 2)',
-      '  2. Docker Desktop abierto y con el motor en estado "Running".',
+      '  2. Docker Desktop abierto y con el motor en estado «Running».',
       '  3. Reintentar:   docker info'
     ] as readonly string[],
     pasosMac: [
-      '  1. Docker Desktop instalado y abierto, con el motor en "Running".',
+      '  1. Docker Desktop instalado y abierto, con el motor en «Running».',
       '  2. `docker` visible desde la app: Docker Desktop lo deja en `/usr/local/bin/docker`; en Terminal, `which docker`.',
       '  3. Reintentar:   docker info'
     ] as readonly string[],
@@ -51,7 +51,7 @@ const txDocker = crearTextos(
       '  3. Reintentar:   docker info'
     ] as readonly string[],
     pasosOtra: [
-      '  1. El daemon de Docker en marcha (Docker Desktop abierto, o el servicio `docker` activo).',
+      '  1. El motor de Docker en marcha (Docker Desktop abierto, o el servicio `docker` activo).',
       '  2. `docker` visible desde la app: en una terminal, `which docker`.',
       '  3. Reintentar:   docker info'
     ] as readonly string[],
@@ -59,64 +59,64 @@ const txDocker = crearTextos(
       'Docker funciona en modo sin root (rootless), y el sandbox de Tessera no puede montar los proyectos en él.',
       '',
       'Qué hacer:',
-      '  1. Abra este proyecto en modo nativo (Configuración → Proyectos), sin contenedor, o',
+      '  1. Abra este proyecto en modo nativo (Configuración › Proyectos), sin contenedor, o',
       '  2. use el Docker del sistema: sudo systemctl enable --now docker y añada su usuario al grupo docker.'
     ].join('\n'),
     salida: {
       ok: {
         titulo: 'El agente terminó',
-        sugerencia: 'La sesión terminó con normalidad. Haga clic en "Reabrir" para volver a iniciar el agente en este panel.'
+        sugerencia: 'La sesión terminó con normalidad. Haga clic en «Reabrir» para volver a iniciar el agente en este panel.'
       },
       'container-down': {
         titulo: 'El contenedor del perfil dejó de responder',
         sugerencia:
-          'Docker sigue en funcionamiento, por lo que Tessera puede recrear el contenedor desde cero y recuperar sus credenciales. Si no lo logra, pulse "Reintentar".'
+          'Docker sigue en funcionamiento, por lo que Tessera puede recrear el contenedor desde cero y recuperar sus credenciales. Si no lo logra, haga clic en «Reintentar».'
       },
       'daemon-down': {
         titulo: 'Docker no está disponible',
         sugerencia:
-          'Tessera no puede iniciar Docker por usted. Abra Docker Desktop: en cuanto el motor esté en "Running", las sesiones abiertas se recuperan automáticamente; si no, pulse "Reintentar".'
+          'Tessera no puede iniciar Docker por usted. Abra Docker Desktop: en cuanto el motor esté en «Running», las sesiones abiertas se recuperan automáticamente; si no, haga clic en «Reintentar».'
       },
       unknown: {
         titulo: 'No se pudo determinar la causa',
         sugerencia:
-          'El diagnóstico de Docker falló, por lo que Tessera no sabe si fue una salida normal o un fallo. Revise Docker Desktop y pulse "Reintentar".'
+          'El diagnóstico de Docker falló, por lo que Tessera no sabe si fue una salida normal o un fallo. Revise Docker Desktop y haga clic en «Reintentar».'
       },
       'sin-memoria': {
         titulo: 'El agente terminó con poca memoria en el equipo',
-        sugerencia: 'Cierre los programas o proyectos que no utilice y pulse "Reabrir": la conversación se reanuda donde se interrumpió.'
+        sugerencia: 'Cierre los programas o proyectos que no utilice y haga clic en «Reabrir»: la conversación se reanuda donde se interrumpió.'
       },
       'parado-por-limite': {
         titulo: 'Tessera detuvo este agente para liberar espacio',
         sugerencia:
-          'Se alcanzó el límite de contenedores de Docker al abrir otro agente, y la política configurada eligió este. Haga clic en "Reabrir": la conversación se reanuda donde se interrumpió.'
+          'Se alcanzó el límite de contenedores de Docker al abrir otro agente, y la política configurada eligió este. Haga clic en «Reabrir»: la conversación se reanuda donde se interrumpió.'
       },
       'parado-por-saturacion': {
         titulo: 'Tessera detuvo este agente porque Docker se quedaba sin memoria',
         sugerencia:
-          'La memoria de Docker superó el umbral configurado durante el tiempo indicado, y la política configurada eligió este agente. Haga clic en "Reabrir" cuando haya memoria disponible: la conversación se reanuda donde se interrumpió.'
+          'La memoria de Docker superó el umbral configurado durante el tiempo indicado, y la política configurada eligió este agente. Haga clic en «Reabrir» cuando haya memoria disponible: la conversación se reanuda donde se interrumpió.'
       }
     } as Record<AgentExitReason, TextoSalida>,
     sinMemoriaContenedor: {
       titulo: 'Docker se quedó sin memoria',
       sugerencia:
-        'El sistema detuvo el proceso al agotarse la memoria asignada a Docker. Cierre los agentes que no utilice, o asigne más memoria en Docker Desktop, y pulse "Reabrir": la conversación se reanuda donde se interrumpió.'
+        'El sistema detuvo el proceso al agotarse la memoria asignada a Docker. Cierre los agentes que no utilice, o asigne más memoria en Docker Desktop, y haga clic en «Reabrir»: la conversación se reanuda donde se interrumpió.'
     },
     // En Linux Docker usa la memoria del equipo: no hay un ajuste que subir.
     sinMemoriaContenedorLinux: {
       titulo: 'El equipo se quedó sin memoria',
       sugerencia:
-        'El sistema detuvo este proceso de Docker al agotarse la memoria. Cierre los agentes o los programas que no utilice y pulse "Reabrir": la conversación se reanuda donde se interrumpió.'
+        'El sistema detuvo este proceso de Docker al agotarse la memoria. Cierre los agentes o los programas que no utilice y haga clic en «Reabrir»: la conversación se reanuda donde se interrumpió.'
     }
   },
   {
     pasosWindows: [
       '  1. WSL2 running:  wsl --status   /   wsl -l -v  (there must be a distro on VERSION 2)',
-      '  2. Docker Desktop open, with the engine in the "Running" state.',
+      '  2. Docker Desktop open, with the engine in the “Running” state.',
       '  3. Try again:   docker info'
     ],
     pasosMac: [
-      '  1. Docker Desktop installed and open, with the engine "Running".',
+      '  1. Docker Desktop installed and open, with the engine “Running”.',
       '  2. `docker` visible to the app: Docker Desktop puts it at `/usr/local/bin/docker`; in Terminal, `which docker`.',
       '  3. Try again:   docker info'
     ],
@@ -126,7 +126,7 @@ const txDocker = crearTextos(
       '  3. Try again:   docker info'
     ],
     pasosOtra: [
-      '  1. The Docker daemon running (Docker Desktop open, or the `docker` service active).',
+      '  1. The Docker engine running (Docker Desktop open, or the `docker` service active).',
       '  2. `docker` visible to the app: in a terminal, `which docker`.',
       '  3. Try again:   docker info'
     ],
@@ -134,53 +134,53 @@ const txDocker = crearTextos(
       'Docker is running in rootless mode, and the Tessera sandbox cannot mount projects in it.',
       '',
       'What to do:',
-      '  1. Open this project in native mode (Settings → Projects), without a container, or',
+      '  1. Open this project in native mode (Settings › Projects), without a container, or',
       '  2. use the system Docker: sudo systemctl enable --now docker and add your user to the docker group.'
     ].join('\n'),
     salida: {
       ok: {
         titulo: 'The agent finished',
-        sugerencia: 'The session ended normally. Click "Reopen" to launch it again in this pane.'
+        sugerencia: 'The session ended normally. Click “Reopen” to start the agent again in this pane.'
       },
       'container-down': {
         titulo: 'The profile container stopped',
         sugerencia:
-          'Docker is still running, so Tessera can recreate the container from scratch and recover your credentials. If that fails, click "Retry".'
+          'Docker is still running, so Tessera can recreate the container from scratch and recover your credentials. If that fails, click “Retry”.'
       },
       'daemon-down': {
         titulo: 'Docker is not available',
         sugerencia:
-          'Tessera cannot start Docker for you. Open Docker Desktop: as soon as the engine is "Running", open sessions recover automatically; if not, click "Retry".'
+          'Tessera cannot start Docker for you. Open Docker Desktop: as soon as the engine is “Running”, open sessions recover automatically; if not, click “Retry”.'
       },
       unknown: {
         titulo: 'The cause could not be determined',
         sugerencia:
-          'The Docker check failed, so Tessera does not know whether it was a normal exit or a crash. Check Docker Desktop and click "Retry".'
+          'The Docker check failed, so Tessera does not know whether it was a normal exit or a crash. Check Docker Desktop and click “Retry”.'
       },
       'sin-memoria': {
         titulo: 'The agent ended while the computer was low on memory',
-        sugerencia: 'Close programs or projects you are not using and click "Reopen": the conversation resumes where it stopped.'
+        sugerencia: 'Close programs or projects you are not using and click “Reopen”: the conversation resumes where it stopped.'
       },
       'parado-por-limite': {
         titulo: 'Tessera stopped this agent to make room',
         sugerencia:
-          'The Docker container limit was reached while opening another agent, and your policy selected this one. Click "Reopen": the conversation resumes where it stopped.'
+          'The Docker container limit was reached while opening another agent, and your policy selected this one. Click “Reopen”: the conversation resumes where it stopped.'
       },
       'parado-por-saturacion': {
         titulo: 'Tessera stopped this agent because Docker was running out of memory',
         sugerencia:
-          'Docker memory stayed above the threshold in your settings for the time you set, and your policy selected this one. Click "Reopen" when there is room: the conversation resumes where it stopped.'
+          'Docker memory stayed above the threshold in your settings for the time you set, and your policy selected this one. Click “Reopen” when there is room: the conversation resumes where it stopped.'
       }
     },
     sinMemoriaContenedor: {
       titulo: 'Docker ran out of memory',
       sugerencia:
-        'The system stopped it when Docker’s memory ran out. Close agents you are not using, or give Docker more memory in Docker Desktop, and click "Reopen": the conversation resumes where it stopped.'
+        'The system stopped it when Docker’s memory ran out. Close agents you are not using, or give Docker more memory in Docker Desktop, and click “Reopen”: the conversation resumes where it stopped.'
     },
     sinMemoriaContenedorLinux: {
       titulo: 'The computer ran out of memory',
       sugerencia:
-        'The system stopped this Docker process when memory ran out. Close agents or programs you are not using and click "Reopen": the conversation resumes where it stopped.'
+        'The system stopped this Docker process when memory ran out. Close agents or programs you are not using and click “Reopen”: the conversation resumes where it stopped.'
     }
   }
 )

@@ -6,6 +6,7 @@
 // =============================================================================
 
 import type { CommitResult, ResultadoArchivo, WriteResult } from '../../shared/git-ipc'
+import { PendienteHooks } from './adaptadores/hooksGit'
 import { FS, rutaNoValida, errMessage, errStderr, errorDeGit } from './errores'
 import { txGit } from './textos.ts'
 import { agruparPorRepo, carpetasDeSalida, pathspecDe, pathspecLiteral, trocearPathspecs } from './lotes'
@@ -133,6 +134,7 @@ export class Preparar {
       try {
         await this.n.git(['commit', '-m', message], ctx)
       } catch (err) {
+        if (err instanceof PendienteHooks) return { ok: false, pendienteHooks: err.pendiente }
         // El stderr de git ya es legible («nothing to commit», «Please tell me who you are»).
         return { ok: false, error: errStderr(err) || errMessage(err) }
       }

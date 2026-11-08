@@ -15,12 +15,12 @@ const es: Articulo = {
       ancla: 'por-cuenta',
       titulo: 'Un contenedor por cuenta',
       bloques: [
-        'Cuando un agente usa una cuenta de **Cuentas aisladas (Docker)**, en el botón de cuenta de su cabecera, Tessera inicia un [contenedor](glosario/contenedor) para esa cuenta dentro del perfil. Cada cuenta tiene el suyo, de modo que ninguna puede leer la sesión iniciada de otra. Cuándo conviene este modo se explica en [Nativo o en Docker](nativo-o-docker). El contenedor incluye únicamente lo siguiente:',
+        'Cuando un agente usa una cuenta de Docker ([Elegir la cuenta](cuentas/elegir)), Tessera inicia un [contenedor](glosario/contenedor) para esa cuenta dentro del perfil. Cada cuenta tiene el suyo, de modo que ninguna puede leer la sesión iniciada de otra. Cuándo conviene este modo se explica en [Nativo o en Docker](nativo-o-docker). El contenedor incluye únicamente lo siguiente:',
         {
           lista: [
             'Las carpetas de los proyectos en los que trabaja el agente, en `/workspace/<carpeta>`. Son sus archivos: lo que el agente cambia allí, cambia en su disco.',
             'La carpeta de la cuenta, con su sesión iniciada y su configuración. Esta carpeta se conserva cuando el contenedor se detiene.',
-            'Sus claves SSH, en solo lectura, para que git por SSH funcione con sus propios alias de host.'
+            'Las claves públicas SSH que usted active para el perfil, para que git por SSH funcione con sus propios alias de host. Las claves privadas no entran en el contenedor.'
           ]
         },
         'No se incluye nada más de su disco. El agente dispone de `sudo` dentro del contenedor para instalar lo que necesite, pero lo instalado se pierde cuando el contenedor se detiene. Para conservar una herramienta, inclúyala en la [imagen](contenedores-docker/imagen).'
@@ -48,7 +48,7 @@ const es: Articulo = {
       ancla: 'red',
       titulo: 'La red del contenedor',
       bloques: [
-        'En el menú que se abre con clic derecho sobre el perfil, **Red del contenedor Docker** define por dónde entran y salen las conexiones de sus contenedores:',
+        'En el menú que se abre con clic derecho sobre el perfil (en el selector compacto, con el botón **⋯** del perfil), **Red del contenedor**, en el submenú **Agentes en Docker**, muestra la red actual y permite definir por dónde entran y salen las conexiones de sus contenedores:',
         {
           lista: [
             '**Propia** (recomendada): el contenedor tiene su propia red y sus propios puertos. Un servidor iniciado por el agente no se puede abrir desde su navegador.',
@@ -63,11 +63,28 @@ const es: Articulo = {
       ]
     },
     {
+      ancla: 'claves-ssh',
+      titulo: 'Las claves SSH de los agentes',
+      bloques: [
+        'Un agente en Docker no recibe sus claves SSH privadas. Cuando necesita conectarse, por ejemplo con `git push`, pide cada firma a Tessera, que la realiza en su equipo y solo con las claves que usted haya activado para ese perfil.',
+        'Para elegirlas, abra el menú del perfil y, en el submenú **Agentes en Docker**, seleccione **Claves SSH…**:',
+        {
+          lista: [
+            'La lista reúne las claves de su configuración SSH y de la carpeta SSH del perfil.',
+            'Un servidor con entrada y clave propias en su configuración SSH usa solo esa clave. A cualquier otro servidor se le ofrecen todas las claves activadas, primero las de nombre estándar.',
+            'Un perfil nuevo empieza sin ninguna clave activada. Un perfil que ya existía conserva todas sus claves hasta que usted guarde una selección.',
+            'Si una clave tiene frase de contraseña, Tessera se la solicita en su equipo. El agente nunca la recibe.'
+          ]
+        },
+        'Esta selección no limita a los agentes nativos: se ejecutan con su usuario del sistema y pueden leer las claves de su equipo. Para mantener separadas las claves de cada perfil, trabaje esos proyectos en Docker. Consulte [Nativo o Docker](nativo-o-docker).'
+      ]
+    },
+    {
       ancla: 'limite',
       titulo: 'Límite de contenedores',
       bloques: [
         'Cada agente trabajando ocupa entre 0,3 y 1,5 GB. En **Configuración › Contenedores Docker › Límite de contenedores** se elige cuántos contenedores pueden ejecutarse al mismo tiempo. Según la memoria que tiene Docker en {tuEquipo}, un semáforo indica si el valor es **Holgado**, **Justo** o **Excesivo**. Si no se elige ningún valor, se aplica el recomendado.',
-        'Al llegar al límite y abrir otro agente en Docker, Tessera detiene primero un contenedor sin agentes. Si no hay ninguno, detiene el que indique la opción elegida en **Al llegar al límite**:',
+        'Al llegar al límite y abrir otro agente en Docker, Tessera detiene primero un contenedor sin agentes. Si no hay ninguno, detiene el que indique la opción **Qué contenedor detener primero**, del grupo **Al llegar al límite**:',
         {
           lista: [
             '**El último contenedor abierto** (recomendado, porque suele tener menos trabajo en curso).',
@@ -87,7 +104,7 @@ const es: Articulo = {
       ancla: 'saturacion',
       titulo: 'Si Docker se satura',
       bloques: [
-        'Aunque no se abra nada nuevo, muchos agentes trabajando pueden agotar la memoria de Docker, y entonces puede fallar cualquier proceso. Para evitarlo, Tessera mide la memoria de todos los contenedores de Docker. Si supera el umbral durante un tiempo (de forma predeterminada, 90 % durante 30 segundos, valores que se cambian en la misma sección), Tessera detiene un contenedor con la misma regla que el límite, y sus agentes quedan hibernados.',
+        'Aunque no se abra nada nuevo, muchos agentes trabajando pueden agotar la memoria de Docker, y entonces puede fallar cualquier proceso. Para evitarlo, Tessera mide la memoria de todos los contenedores de Docker. Si supera el umbral durante un tiempo (de forma predeterminada, 90 % durante 30 segundos, valores que se cambian en **Configuración › Contenedores Docker › Si Docker se satura**), Tessera detiene un contenedor con la misma regla que el límite, y sus agentes quedan hibernados.',
         'Antes de detenerlo, avisa durante 30 segundos y permite elegir otro con **Detener otro**. Si la memoria baja, el aviso se retira. Tessera nunca detiene el agente visible en pantalla. Si todos los restantes están trabajando, detiene uno de ellos de todos modos: sin memoria, alguno fallaría igualmente y sin posibilidad de elegir cuál.',
         'Cada contenedor detenido, por el límite o por la saturación, se anuncia y queda registrado en **Configuración › Contenedores Docker › Últimos contenedores detenidos**.'
       ]
@@ -118,12 +135,12 @@ const en: Articulo = {
       ancla: 'por-cuenta',
       titulo: 'One container per account',
       bloques: [
-        'When an agent uses an account from **Isolated accounts (Docker)**, in the account button of its header, Tessera starts a [container](glosario/contenedor) for that account in the profile. Each account has its own container, so no account can read another account’s sign-in session. To decide when this mode is worth using, see [Native or in Docker](nativo-o-docker). The container includes only the following:',
+        'When an agent uses an account in Docker ([Choose the account](cuentas/elegir)), Tessera starts a [container](glosario/contenedor) for that account in the profile. Each account has its own container, so no account can read another account’s sign-in session. To decide when this mode is worth using, see [Native or in Docker](nativo-o-docker). The container includes only the following:',
         {
           lista: [
             'The folders of the projects the agent works on, at `/workspace/<folder>`. These are your files: what the agent changes there changes on your disk.',
             'The account folder, with its sign-in session and settings. This folder is kept when the container stops.',
-            'Your SSH keys, as read-only, so that Git over SSH works with your own host aliases.'
+            'The public SSH keys you enable for the profile, so that Git over SSH works with your own host aliases. Private keys do not enter the container.'
           ]
         },
         'Nothing else from your disk is available. The agent has `sudo` inside the container to install what it needs, but anything installed this way is lost when the container stops. To keep a tool, add it to the [image](contenedores-docker/imagen).'
@@ -151,7 +168,7 @@ const en: Articulo = {
       ancla: 'red',
       titulo: 'The container network',
       bloques: [
-        'In the menu that opens when you right-click the profile, **Docker container network** defines how connections reach and leave its containers:',
+        'In the menu that opens when you right-click the profile (in the compact selector, use the profile’s **⋯** button), **Container network**, in the **Agents in Docker** submenu, shows the current network and lets you define how connections reach and leave its containers:',
         {
           lista: [
             '**Own network** (recommended): the container has its own network and its own ports. You cannot open a server started by the agent from your browser.',
@@ -166,11 +183,28 @@ const en: Articulo = {
       ]
     },
     {
+      ancla: 'claves-ssh',
+      titulo: 'Agent SSH keys',
+      bloques: [
+        'An agent in Docker does not receive your private SSH keys. When it needs to connect, for example with `git push`, it asks Tessera for each signature, and Tessera signs on your computer, only with the keys you have enabled for that profile.',
+        'To choose them, open the profile menu and, in the **Agents in Docker** submenu, select **SSH keys…**:',
+        {
+          lista: [
+            'The list brings together the keys from your SSH configuration and from the profile’s SSH folder.',
+            'A server with its own entry and key in your SSH configuration uses only that key. Any other server is offered all the enabled keys, standard names first.',
+            'A new profile starts with no keys enabled. A profile that already existed keeps all its keys until you save a selection.',
+            'If a key has a passphrase, Tessera asks you for it on your computer. The agent never receives it.'
+          ]
+        },
+        'This selection does not limit native agents: they run with your system user and can read the keys on your computer. To keep each profile’s keys separate, work on those projects in Docker. See [Native or Docker](nativo-o-docker).'
+      ]
+    },
+    {
       ancla: 'limite',
       titulo: 'Container limit',
       bloques: [
         'Each working agent uses 0.3 to 1.5 GB. In **Settings › Docker containers › Container limit**, you choose how many containers can run at once. Based on the memory available to Docker on {tuEquipo}, a traffic light shows whether the value is **Comfortable**, **Tight**, or **Excessive**. If you do not choose a value, the recommended one applies.',
-        'When the limit is reached and you open another agent in Docker, Tessera first stops a container with no agents. If there is none, it stops the one indicated by the option you choose in **When the limit is reached**:',
+        'When the limit is reached and you open another agent in Docker, Tessera first stops a container with no agents. If there is none, it stops the one indicated by the **Which container to stop first** option in the **When the limit is reached** group:',
         {
           lista: [
             '**The last container you opened** (recommended, because it usually has less work in progress).',
@@ -190,7 +224,7 @@ const en: Articulo = {
       ancla: 'saturacion',
       titulo: 'If Docker gets saturated',
       bloques: [
-        'Even if nothing new opens, many working agents can use up Docker’s memory, and then any process can fail. To prevent this, Tessera measures the memory of all Docker containers. If usage stays above the threshold for a while (by default, 90% for 30 seconds; you can change these values in the same section), Tessera stops a container using the same rule as the limit, and its agents are hibernated.',
+        'Even if nothing new opens, many working agents can use up Docker’s memory, and then any process can fail. To prevent this, Tessera measures the memory of all Docker containers. If usage stays above the threshold for a while (by default, 90% for 30 seconds; you can change these values in **Settings › Docker containers › If Docker gets saturated**), Tessera stops a container using the same rule as the limit, and its agents are hibernated.',
         'Before stopping it, Tessera warns you for 30 seconds and lets you choose a different one with **Stop another one**. If memory usage drops, the warning disappears. Tessera never stops the agent visible on screen. If all the remaining agents are working, Tessera stops one of them anyway: without memory, one would fail regardless, with no choice of which.',
         'Every stopped container, whether caused by the limit or by saturation, is announced and recorded in **Settings › Docker containers › Recently stopped containers**.'
       ]

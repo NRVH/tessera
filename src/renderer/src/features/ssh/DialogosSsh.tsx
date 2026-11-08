@@ -81,7 +81,7 @@ function ConfirmarEliminarConexion({ conexion }: { conexion: SshConexion }): Rea
   return (
     <ConfirmDialog
       danger
-      title={t.eliminarConexionTitulo}
+      title={t.eliminarConexionTitulo(conexion.alias)}
       message={`${t.eliminarConexionMensaje(conexion.alias)}\n${t.pestanasSiguen}`}
       confirmLabel={t.eliminarBoton}
       onConfirm={() => void eliminar()}
@@ -105,8 +105,8 @@ function ConfirmarOlvidarHuella({ conexion }: { conexion: SshConexion }): React.
   return (
     <ConfirmDialog
       danger
-      title={t.olvidarHuellaTitulo}
-      message={`${txSsh().olvidarHuellaPregunta(conexion.alias)}\n${t.olvidarHuellaMensaje1}\n${t.olvidarHuellaMensaje2}`}
+      title={txSsh().olvidarHuellaPregunta(conexion.alias)}
+      message={`${t.olvidarHuellaMensaje1}\n${t.olvidarHuellaMensaje2}`}
       confirmLabel={txSsh().olvidarBoton}
       onConfirm={() => void olvidar()}
       onCancel={accionesSsh.cerrarDialogo}
@@ -157,7 +157,7 @@ function ConfirmarEliminarGrupo({ grupo, conexiones }: { grupo: SshGrupo; conexi
   return (
     <ConfirmDialog
       danger
-      title={t.eliminarGrupoTitulo}
+      title={t.eliminarGrupoTitulo(grupo.nombre)}
       message={`${t.eliminarGrupoMensaje(grupo.nombre)}\n${textoConexionesDelGrupo(conexiones)}`}
       confirmLabel={t.eliminarBoton}
       onConfirm={() => void eliminar()}

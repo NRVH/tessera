@@ -5,13 +5,15 @@
 // Cada pestaña monta su pane y solo el activo se ve. Se compone de hooks propios.
 // Decisiones: docs/decisiones/editor/panes-en-keep-alive.md
 // =============================================================================
-import { useContext } from 'react'
+import { useContext, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useVisibleLayout } from '../../comun/useVisibleLayout'
 import { SlotAccionesTira } from './slotAccionesTira'
 import { SearchBox } from '../../comun/SearchBox'
 import { AvisoCaja } from '../../comun/AvisoCaja'
+import { Presente } from '../../comun/Presente'
 import { ControlModoVista } from './ControlModoVista'
+import { useEntradaContenido } from '../../comun/useEntradaContenido'
 import { txEditor } from './textos.ts'
 import type { EditorPaneProps } from './editorPaneTipos'
 import { useAvisosPane, useNotificacionesPane, useRefsPane } from './editorPaneRefs'
@@ -53,12 +55,14 @@ function AvisosEditor(p: {
   notice: string | null
 }): React.JSX.Element {
   const t = txEditor()
+  const anteriores = useRef(p)
+  anteriores.current = { loadError: p.loadError ?? anteriores.current.loadError, saveError: p.saveError ?? anteriores.current.saveError, notice: p.notice ?? anteriores.current.notice }
   return (
     <>
-      {p.loadError && <AvisoCaja tono="error" titulo={t.noSePudoAbrirArchivo} detalle={p.loadError} />}
+      <Presente visible={!!p.loadError} className="mov-despliega"><AvisoCaja tono="error" titulo={t.noSePudoAbrirArchivo} detalle={anteriores.current.loadError ?? undefined} /></Presente>
       {/* En `sugerencia` y no en `detalle`: éste va dentro de un <details> cerrado. */}
-      {p.saveError && <AvisoCaja tono="error" titulo={t.noSePudoGuardar} sugerencia={p.saveError} />}
-      {p.notice && <AvisoCaja tono="info" titulo={p.notice} />}
+      <Presente visible={!!p.saveError} className="mov-despliega"><AvisoCaja tono="error" titulo={t.noSePudoGuardar} sugerencia={anteriores.current.saveError ?? undefined} /></Presente>
+      <Presente visible={!!p.notice} className="mov-despliega"><AvisoCaja tono="info" titulo={anteriores.current.notice ?? ''} /></Presente>
     </>
   )
 }
@@ -78,7 +82,7 @@ function CuerpoEditor({
     // El envoltorio va siempre montado: mover el host de Monaco de padre lo desmonta y
     // pierde modelo, undo y scroll. Solo cambia la dirección del flex.
     <div className={`editor-cuerpo${vista.dividida ? ' dividida' : ''}`}>
-      <div className="editor-host" ref={hostRef} style={verCodigo ? undefined : { display: 'none' }} />
+      <div className={`editor-host${verCodigo ? '' : ' editor-host-oculto'}`} ref={hostRef} />
       {previa === 'html' && verVista && (
         <div className="html-preview">
           {vista.avisoHtml !== null && <p className="html-preview-aviso">{vista.avisoHtml}</p>}
@@ -115,7 +119,7 @@ export function EditorPane(props: EditorPaneProps): React.JSX.Element {
   const refs = useRefsPane(props)
   const { loadError, notice, saveError, set } = useAvisosPane()
   const aplicarRevelado = useRevelarLinea(refs, props.revelar)
-  const vista = useVistaDelPane(refs, file.path, visible, buscable)
+  const vista = useVistaDelPane(refs, file.path, visible, buscable, props.modoInicial)
   const { applyDirty, reportMeta } = useNotificacionesPane(refs)
   const { escritores } = vista
   const env = { refs, set, reportMeta }
@@ -129,7 +133,8 @@ export function EditorPane(props: EditorPaneProps): React.JSX.Element {
     path: file.path,
     name: file.name,
     untitledId: props.untitledId,
-    modelKey
+    modelKey,
+    modoInicial: props.modoInicial
   })
   useGuardarPorToken(refs, props.saveToken)
   useConvertirPorToken(refs, props.convert)
@@ -143,8 +148,10 @@ export function EditorPane(props: EditorPaneProps): React.JSX.Element {
   useSeguirModelo(refs, { ...vista, visible, modelKey })
 
   const { busqueda } = vista
+  const entradaRef = useEntradaContenido(JSON.stringify([modelKey, file.path, vista.modoEfectivo, vista.modeloToken]), visible)
   return (
     <section
+      ref={entradaRef}
       className={`editor${visible ? '' : ' hidden'}`}
       aria-label="Editor"
       aria-hidden={!visible}
@@ -152,7 +159,7 @@ export function EditorPane(props: EditorPaneProps): React.JSX.Element {
       <ModoEnLaTira vista={vista} visible={visible} />
       <AvisosEditor loadError={loadError} saveError={saveError} notice={notice} />
       <CuerpoEditor vista={vista} hostRef={refs.host} nombre={file.name} />
-      {busqueda.abierto && (
+      <Presente visible={busqueda.abierto} className="mov-aparece mov-desde-arriba" style={{ position: 'absolute', top: 0, right: 0 }}>
         <SearchBox
           className="en-documento sin-cabecera"
           ariaLabel={txEditor().buscarEnDocumento}
@@ -162,7 +169,7 @@ export function EditorPane(props: EditorPaneProps): React.JSX.Element {
           results={busqueda.resultados}
           onClose={busqueda.cerrar}
         />
-      )}
+      </Presente>
     </section>
   )
 }

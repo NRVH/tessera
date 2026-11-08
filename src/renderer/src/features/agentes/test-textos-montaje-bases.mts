@@ -135,8 +135,8 @@ function main(): void {
     )
     const espacio = rotuloHistorialConversaciones('datos')
     check(
-      '(M10) en el espacio de datos, «del agente de datos»',
-      espacio === 'Historial de conversaciones del agente de datos',
+      '(M10) en el espacio de datos, «del agente de bases de datos»',
+      espacio === 'Historial de conversaciones del agente de bases de datos',
       espacio
     )
     check('(M11) y sin «proyecto» ni «consola»', !/proyecto|consola/i.test(espacio), espacio)
@@ -145,7 +145,7 @@ function main(): void {
   // ---------------------------------------------------------------------------
   // (M12) Modal de historial: en un proyecto, el nombre de su carpeta (lo de antes,
   // con «este proyecto» si la ruta no da nombre); en el espacio de datos, NUNCA el
-  // nombre de la carpeta (es el ID del perfil), sino «agente de datos».
+  // nombre de la carpeta (es el ID del perfil), sino «agente de bases de datos».
   // ---------------------------------------------------------------------------
   {
     const deProyecto = lugarHistorial('proyecto', 'D:\\Proyectos\\tessera')
@@ -164,9 +164,9 @@ function main(): void {
     )
     const espacio = lugarHistorial('datos', 'C:\\Users\\u\\AppData\\Roaming\\Tessera\\conexiones\\a1b2c3d4')
     check(
-      '(M12) espacio de datos: «agente de datos», nunca el ID del perfil',
-      espacio.cabecera === 'agente de datos' &&
-        espacio.enVacio === 'en el agente de datos' &&
+      '(M12) espacio de datos: «agente de bases de datos», nunca el ID del perfil',
+      espacio.cabecera === 'agente de bases de datos' &&
+        espacio.enVacio === 'en el agente de bases de datos' &&
         !JSON.stringify(espacio).includes('a1b2c3d4'),
       JSON.stringify(espacio)
     )

@@ -29,9 +29,6 @@ export const PRIVILEGED_HELPER_IMAGE = 'alpine'
 /** Punto de montaje interno del contenedor donde aparece la raíz del perfil. */
 export const WORKSPACE_ROOT = '/workspace'
 
-/** `~/.ssh` del usuario neutro: ahí se monta READ-ONLY la `.ssh` del perfil, si la declara. */
-export const SSH_MOUNT_TARGET = '/home/agente/.ssh'
-
 /** Raíz neutra de las credenciales por agente (`/agent-config/<tipo>`), fuera de `/workspace`. */
 export const AGENT_CONFIG_ROOT = '/agent-config'
 
@@ -143,15 +140,6 @@ export function toDaemonPath(hostAbs: string): string {
   return aRutaDelDaemon(normalizeHostPath(hostAbs))
 }
 
-/**
- * `--mount` READ-ONLY de la `.ssh` del perfil, o `[]` si no declara `sshDir`. El
- * `known_hosts` escribible vive fuera de este bind (lo fija el lanzador del agente).
- */
-export function sshMountArgs(profile: Profile): string[] {
-  if (!profile.sshDir) return []
-  const daemonPath = toDaemonPath(profile.sshDir)
-  return ['--mount', `type=bind,source=${daemonPath},target=${SSH_MOUNT_TARGET},readonly`]
-}
 
 /** Subdirectorio seguro (sin traversal) a partir del basename del proyecto. */
 export function sanitizeWorkspaceName(basename: string): string {

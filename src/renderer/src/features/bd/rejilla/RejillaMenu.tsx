@@ -1,15 +1,14 @@
 // =============================================================================
-// Menú contextual de la rejilla de datos, de DOS PASOS: «Copiar como…» y «Exportar a
-// archivo…» sustituyen el menú, en el mismo sitio, por la lista de formatos. Lo que
-// necesita al servidor (exportar, traer todas) solo aparece si el dueño lo sabe hacer;
-// la edición va al final, en dos grupos (la celda; las filas).
+// Menú contextual de la rejilla de datos: «Copiar como» y «Exportar a archivo» despliegan
+// sus formatos en un submenú. Lo que necesita al servidor (exportar, traer todas) solo
+// aparece si el dueño lo sabe hacer; la edición va al final, en dos grupos (la celda; las filas).
 // Decisiones: docs/decisiones/bd/ui-rejilla-vista.md
 // =============================================================================
 
 import { useCallback } from 'react'
 import type { DbFormatoFilas } from '../../../../../shared/db-explorador-ipc'
 import { NOMBRE_FORMATO } from '../../../../../shared/formatosFilas'
-import { SEP, type ContextMenuEntry } from '../../../comun/ContextMenu'
+import { SEP, type ContextMenuEntry, type ContextMenuSubmenu } from '../../../comun/ContextMenu'
 import { IconoCopiar } from '../../../comun/iconosMenu'
 import { IconoExportar, IconoTraerTodas, IconoVerValor } from '../iconosBd'
 import { IconoAnadirFila, IconoBorrarFilas, IconoEditar, IconoNulo, IconoRevertir } from '../iconosEdicion'
@@ -71,55 +70,40 @@ export function alMenuContextual(r: Rejilla, e: React.MouseEvent<HTMLDivElement>
       r.setSel(filaCompleta(null, z.f, { filas: r.numFilas, columnas: r.numCols }, false))
     }
   }
-  r.setMenu({ x: punto.x, y: punto.y, paso: 'raiz' })
+  r.setMenu({ x: punto.x, y: punto.y })
 }
 
-/**
- * `ContextMenu` llama a `onClose` justo después del `onClick` de la entrada: con un paso
- * pendiente, el menú cambia de lista en el mismo sitio. Si no, el foco vuelve a la
- * rejilla (tras «Ver valor» también: así el visor lo devuelve a ella al cerrarse).
- */
+/** `ContextMenu` llama a `onClose` tras elegir: el foco vuelve a la rejilla (tras «Ver valor» también, y el visor lo devuelve a ella). */
 export function useCerrarMenu(r: Rejilla): () => void {
-  const { pasoPendienteRef, focoAlEditorRef, setMenu, raizRef } = r
+  const { focoAlEditorRef, setMenu, raizRef } = r
   return useCallback((): void => {
-    const paso = pasoPendienteRef.current
-    pasoPendienteRef.current = null
-    if (paso) {
-      setMenu((m) => (m ? { ...m, paso } : m))
-      return
-    }
     setMenu(null)
     if (focoAlEditorRef.current) {
       focoAlEditorRef.current = false
       return
     }
     raizRef.current?.focus({ preventScroll: true })
-  }, [pasoPendienteRef, focoAlEditorRef, setMenu, raizRef])
+  }, [focoAlEditorRef, setMenu, raizRef])
 }
 
-function itemsCopiarComo(r: Rejilla, sinSeleccion: boolean): ContextMenuEntry[] {
-  return [
-    // Título del paso: fila apagada (no enfocable).
-    { label: txRejilla().copiarComo, onClick: () => undefined, disabled: true },
-    ...FORMATOS_COPIAR_COMO.map(
-      (f): ContextMenuEntry => ({ label: NOMBRE_FORMATO[f], icon: <IconoFormato formato={f} />, onClick: () => copiar(r, f), disabled: sinSeleccion })
-    )
-  ]
+function itemsCopiarComo(r: Rejilla, sinSeleccion: boolean): ContextMenuSubmenu {
+  return {
+    label: txRejilla().copiarComo,
+    icon: <IconoCopiar />,
+    disabled: sinSeleccion,
+    submenu: FORMATOS_COPIAR_COMO.map((f) => ({ label: NOMBRE_FORMATO[f], icon: <IconoFormato formato={f} />, onClick: () => copiar(r, f) }))
+  }
 }
 
-function itemsExportar(r: Rejilla): ContextMenuEntry[] {
-  const { onExportar, exportando = null } = r.props
-  return [
-    { label: txRejilla().exportarArchivoMenu, onClick: () => undefined, disabled: true },
-    ...FORMATOS_EXPORTAR.map(
-      (f: DbFormatoFilas): ContextMenuEntry => ({
-        label: `${NOMBRE_FORMATO[f]}…`,
-        icon: <IconoFormato formato={f} />,
-        onClick: () => onExportar?.(f),
-        disabled: exportando !== null
-      })
-    )
-  ]
+function itemsExportar(r: Rejilla): ContextMenuSubmenu {
+  const { datos, onExportar, exportando = null } = r.props
+  return {
+    label: txRejilla().exportarArchivoMenu,
+    icon: <IconoExportar />,
+    // Con una exportación en marcha no se lanza otra (el dueño la ignoraría).
+    disabled: exportando !== null || datos === null,
+    submenu: FORMATOS_EXPORTAR.map((f: DbFormatoFilas) => ({ label: `${NOMBRE_FORMATO[f]}…`, icon: <IconoFormato formato={f} />, onClick: () => onExportar?.(f) }))
+  }
 }
 
 function itemsVerYCopiar(r: Rejilla, sinSeleccion: boolean): ContextMenuEntry[] {
@@ -136,32 +120,15 @@ function itemsVerYCopiar(r: Rejilla, sinSeleccion: boolean): ContextMenuEntry[] 
     SEP,
     { label: t.copiar, icon: <IconoCopiar />, onClick: () => copiar(r, 'tsv'), disabled: sinSeleccion },
     { label: t.copiarConCabeceras, icon: <IconoCopiar />, onClick: () => copiar(r, 'tsvCabecera'), disabled: sinSeleccion },
-    {
-      label: t.copiarComoEtc,
-      icon: <IconoCopiar />,
-      onClick: () => {
-        r.pasoPendienteRef.current = 'copiarComo'
-      },
-      disabled: sinSeleccion
-    }
+    itemsCopiarComo(r, sinSeleccion)
   ]
 }
 
 function itemsServidor(r: Rejilla): ContextMenuEntry[] {
-  const { datos, onExportar, onTraerTodas, exportando = null, trayendoTodas = false, sinLector } = r.props
+  const { datos, onExportar, onTraerTodas, trayendoTodas = false, sinLector } = r.props
   const items: ContextMenuEntry[] = []
   if (onExportar || onTraerTodas) items.push(SEP)
-  if (onExportar) {
-    items.push({
-      label: txRejilla().exportarArchivoEtc,
-      icon: <IconoExportar />,
-      onClick: () => {
-        r.pasoPendienteRef.current = 'exportar'
-      },
-      // Con una exportación en marcha no se lanza otra (el dueño la ignoraría).
-      disabled: exportando !== null || datos === null
-    })
-  }
+  if (onExportar) items.push(itemsExportar(r))
   if (onTraerTodas) {
     const motivoTraer = motivoSinTraerTodas({
       hayDatos: datos !== null,
@@ -219,11 +186,9 @@ function itemsEdicion(r: Rejilla, sinSeleccion: boolean): ContextMenuEntry[] {
   ]
 }
 
-/** Las entradas del paso del menú que está abierto. */
+/** Las entradas del menú abierto. */
 export function itemsMenuRejilla(r: Rejilla): ContextMenuEntry[] {
   const sinSeleccion = !r.sel || r.numFilas === 0
-  if (r.menu?.paso === 'copiarComo') return itemsCopiarComo(r, sinSeleccion)
-  if (r.menu?.paso === 'exportar') return itemsExportar(r)
   const items = [...itemsVerYCopiar(r, sinSeleccion), ...itemsServidor(r)]
   if (r.edicion && r.menu !== null) items.push(...itemsEdicion(r, sinSeleccion))
   return items

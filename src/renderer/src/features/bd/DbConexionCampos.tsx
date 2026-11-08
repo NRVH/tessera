@@ -20,6 +20,7 @@ import {
   type DefCampo
 } from './camposConexion'
 import { pegarRecortado } from '../../util/pasteTrim'
+import { FilaInterruptor } from '../../comun/piezasAjustes'
 import { txConexionDialogo } from './textosConexionDialogo.ts'
 
 /** El `ancho` del descriptor, en las clases de este diálogo. `medio` es `.dbc-sid` (ver `dialogo.css`). */
@@ -42,44 +43,40 @@ interface PropsCampo {
 
 type DefDe<T extends DefCampo['tipo']> = Extract<DefCampo, { tipo: T }>
 
-/** Una casilla sola (el SRV), con el mismo aire que las del cifrado. */
+/** Un interruptor solo (el SRV), con el mismo aire que los del cifrado. */
 function casillaSrv(def: DefDe<'casilla'>, p: PropsCampo): React.JSX.Element {
   return (
     <div className={`dbc-cifrado ${CLASE_ANCHO[def.ancho]}`}>
-      <label className="dbc-check">
-        <input type="checkbox" data-campo={def.campo} checked={p.borrador.srv} onChange={(e) => p.onSrv(e.target.checked)} />
-        {def.etiqueta}
-      </label>
+      <FilaInterruptor
+        etiqueta={def.etiqueta}
+        data-campo={def.campo}
+        activo={p.borrador.srv}
+        onChange={() => p.onSrv(!p.borrador.srv)}
+      />
     </div>
   )
 }
 
 /**
- * Las dos casillas de `DbTls`. Sin <label> de campo alrededor (cada casilla es ya su
- * <label>) ni `.dbc-campo`, cuyas reglas de input deformarían las casillas.
+ * Los dos interruptores de `DbTls`. Sin <label> de campo alrededor (cada fila lleva ya
+ * el suyo) ni `.dbc-campo`, cuyas reglas de input deformarían los controles.
  */
 function casillasCifrado(def: DefDe<'cifrado'>, p: PropsCampo): React.JSX.Element {
   const { borrador, onEditar } = p
   return (
     <div className={`dbc-cifrado ${CLASE_ANCHO[def.ancho]}`} data-campo={def.campo}>
-      <label className="dbc-check">
-        <input
-          type="checkbox"
-          checked={borrador.tls.cifrar}
-          onChange={(e) => onEditar({ tls: { ...borrador.tls, cifrar: e.target.checked } })}
-        />
-        {def.etiqueta}
-      </label>
+      <FilaInterruptor
+        etiqueta={def.etiqueta}
+        activo={borrador.tls.cifrar}
+        onChange={() => onEditar({ tls: { ...borrador.tls, cifrar: !borrador.tls.cifrar } })}
+      />
       {def.etiquetaConfiar !== null && (
-        <label className="dbc-check">
-          <input
-            type="checkbox"
-            data-casilla="confiarCertificado"
-            checked={borrador.tls.confiarCertificado}
-            onChange={(e) => onEditar({ tls: { ...borrador.tls, confiarCertificado: e.target.checked } })}
-          />
-          {def.etiquetaConfiar}
-        </label>
+        <FilaInterruptor
+          etiqueta={def.etiquetaConfiar}
+          data-casilla="confiarCertificado"
+          activo={borrador.tls.confiarCertificado}
+          onChange={() => onEditar({ tls: { ...borrador.tls, confiarCertificado: !borrador.tls.confiarCertificado } })}
+        />
       )}
     </div>
   )

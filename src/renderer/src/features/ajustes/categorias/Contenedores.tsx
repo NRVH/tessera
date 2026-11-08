@@ -1,6 +1,6 @@
 // =============================================================================
-// Categoría CONTENEDORES DOCKER: cuántos contenedores aguanta el equipo a la vez (deslizador con
-// semáforo según la memoria de Docker, y un último paso «Sin límite») y qué se para primero al
+// Categoría CONTENEDORES DOCKER: cuántos contenedores aguanta el equipo a la vez (deslizador con la marca
+// del recomendado según la memoria de Docker, un aviso si hay riesgo y un último paso «Sin límite») y qué se para primero al
 // llegar a él, cuándo se considera saturado Docker y las últimas paradas que hizo Tessera. Sin respuesta de Docker no hay cortes que calcular: el deslizador queda
 // deshabilitado. Lógica del deslizador en `limiteContenedores.ts`.
 // Decisiones: docs/decisiones/sandbox/limite-de-contenedores.md
@@ -21,7 +21,7 @@ import {
 } from '../../../../../shared/semaforoContenedores'
 import { Fila, Grupo, Interruptor, Radios, Selector } from '../primitivas'
 import { filaDeConstancia, masRecientes } from '../constanciasParadas'
-import { degradadoPista, limiteDePaso, PASO_MINIMO, pasoDeLimite, pasoMaximo } from '../limiteContenedores'
+import { limiteDePaso, PASO_MINIMO, pasoDeLimite, pasoMaximo, pistaConRelleno, posicionMarca } from '../limiteContenedores'
 import { refrescarRecursosDocker, useStoreRecursosDocker } from '../storeRecursosDocker'
 import { txContenedores } from '../textosContenedores.ts'
 import type { PropsCategoria } from '../tipos'
@@ -74,21 +74,29 @@ function GrupoLimite({ limiteContenedores, onChangeLimiteContenedores }: PropsCa
             </button>
           )}
         </div>
-        <input
-          type="range"
-          className="limite-barra"
-          style={{ ['--limite-pista' as string]: degradadoPista(cortes) }}
-          min={PASO_MINIMO}
-          max={pasoMaximo(cortes)}
-          step={1}
-          value={pasoDeLimite(limite, cortes)}
-          disabled={memoria === null}
-          aria-label={t.limite}
-          aria-valuetext={texto}
-          onChange={(e) => onChangeLimiteContenedores(limiteDePaso(Number(e.target.value), cortes))}
-        />
+        <div className="limite-pista-caja">
+          <input
+            type="range"
+            className="limite-barra"
+            style={{ ['--limite-pista' as string]: pistaConRelleno(pasoDeLimite(limite, cortes), cortes) }}
+            min={PASO_MINIMO}
+            max={pasoMaximo(cortes)}
+            step={1}
+            value={pasoDeLimite(limite, cortes)}
+            disabled={memoria === null}
+            aria-label={t.limite}
+            aria-valuetext={texto}
+            onChange={(e) => onChangeLimiteContenedores(limiteDePaso(Number(e.target.value), cortes))}
+          />
+          {memoria !== null && <span className="limite-marca" style={{ left: posicionMarca(cortes.verdeHasta, cortes) }} aria-hidden="true" />}
+        </div>
         <div className="limite-escala" aria-hidden="true">
-          <span>{t.sinLimite}</span>
+          {memoria !== null && (
+            <span className="limite-escala-recomendado" style={{ left: posicionMarca(cortes.verdeHasta, cortes) }}>
+              {t.recomendado(cortes.verdeHasta)}
+            </span>
+          )}
+          <span className="limite-escala-fin">{t.sinLimite}</span>
         </div>
         {aviso !== null && (
           <p className={`limite-aviso ${color}`} role="status">

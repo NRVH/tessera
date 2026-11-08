@@ -104,7 +104,7 @@ test.describe('explorador de BD: productividad SQL en la consola', () => {
   test('(0) conexión y consola', async () => {
     const win = s!.win
     await aLaVista(win)
-    await win.locator('.activity-item[title="Conexiones a bases de datos"]').click()
+    await win.locator('.activity-item[title="Bases de datos"]').click()
     await expect(win.locator('.db-area:not(.hidden)')).toBeVisible()
     const p = pg!
     const creada = await win.evaluate(
@@ -141,6 +141,7 @@ test.describe('explorador de BD: productividad SQL en la consola', () => {
     await win.locator(`${CONSOLA} .db-consola-run`).click()
     const dlg = dialogoParametros(win)
     await expect(dlg).toBeVisible()
+    await expect(dlg.getByRole('button', { name: 'Cerrar', exact: true })).toBeEnabled()
     const campo = campoParametro(win, '$1')
     await expect(campo).toBeFocused()
     await campo.fill('2')
@@ -231,7 +232,7 @@ test.describe('explorador de BD: productividad SQL en la consola', () => {
     await win.keyboard.press(ACORDE_HISTORIAL)
     const pop = popoverHistorial(win)
     await expect(pop).toBeVisible()
-    await expect(pop.locator('.db-hist-solo input')).toBeChecked()
+    await expect(pop.locator('.db-hist-solo').getByRole('switch')).toHaveAttribute('aria-checked', 'true')
     await esperarEntradaHistorial(win, CON_PARAMETRO)
     // El filtro acota (lo aplica el main): solo la del parámetro.
     await pop.locator('.db-hist-filtro').fill('where id = $1')

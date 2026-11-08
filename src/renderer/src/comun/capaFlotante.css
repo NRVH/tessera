@@ -3,6 +3,7 @@
    `transform`, `filter`, `contain`, `container-type` ni `z-index` aquí: convertiría al contenedor
    en bloque de sus descendientes fijos, justo lo que existe para evitar.
    Decisiones: docs/decisiones/renderer/boton-dividido-y-capa-flotante.md */
-.capa-flotante {
+.capa-flotante,
+.mov-flotante {
   display: contents;
 }

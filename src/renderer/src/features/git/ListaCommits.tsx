@@ -9,9 +9,11 @@
 import { cargaOcupa, type FaseCarga } from '../../comun/cargaDiferida'
 import { EstadoVacio } from '../../comun/EstadoVacio'
 import { IndicadorCarga } from '../../comun/IndicadorCarga'
+import { Cruce } from '../../comun/Presente'
 import { useCargaDiferida } from '../../comun/useCargaDiferida'
 import { VirtualList } from '../../comun/VirtualList'
 import { BarraFiltros } from './BarraFiltros'
+import { useEntradaContenido } from '../../comun/useEntradaContenido'
 import { SIN_COMMITS } from './constantesLog'
 import { FilaCommit } from './FilaCommit'
 import { IconoGitVacio } from './iconos'
@@ -47,14 +49,14 @@ function EncabezadoLista({ e, carga }: { e: EstadoLog; carga: FaseCarga | null }
   const lista = e.vista.visibles ?? SIN_COMMITS
   const t = txGit()
   return (
-    <>
+    <Cruce clave={error ? 'error' : carga !== null ? 'cargando' : 'lista'}>
       {error && <div className="git-error">{t.errorHistoria}{'\n'}{error}</div>}
       {carga !== null && <IndicadorCarga fase={carga} texto={t.cargandoHistorial} className="git-state" />}
       {carga === null && !error && commits !== null && commits.length > 0 && lista.length === 0 && (
         <div className="git-state">{t.ningunCommitCoincide}</div>
       )}
       {carga === null && <AvisoOculto e={e} />}
-    </>
+    </Cruce>
   )
 }
 
@@ -84,7 +86,9 @@ function ListaCommits({ e, altoFila }: { e: EstadoLog; altoFila: number }): Reac
   // Mientras el aviso cumple su mínimo visible, los commits que ya llegaron esperan detrás.
   // Con error no ocupa: el aviso y el error no se ven a la vez.
   const ocupa = !e.datos.error && cargaOcupa(cargando, fase)
+  const entradaRef = useEntradaContenido(JSON.stringify([e.id.repoHostPath, e.filtros.rama, ocupa]))
   return (
+    <div ref={entradaRef} className="git-lista-con-estado">
     <VirtualList<Commit>
       className="git-historial"
       ariaLabel={txGit().historialDeCommits}
@@ -123,6 +127,7 @@ function ListaCommits({ e, altoFila }: { e: EstadoLog; altoFila: number }): Reac
         />
       )}
     />
+    </div>
   )
 }
 
@@ -160,15 +165,18 @@ export function ColumnaCentro(p: {
       />
       {/* El vacío va aquí y no en el `header` de la lista: dentro, el centrado se calcula
           contra el contenedor de scroll y el mensaje queda arriba. */}
-      {!e.datos.error && e.datos.commits?.length === 0 ? (
-        <EstadoVacio
-          icono={<IconoGitVacio />}
-          titulo={txGit().sinCommitsTitulo}
-          pista={txGit().sinCommitsPista}
-        />
-      ) : (
+      <div className="git-lista-con-estado">
         <ListaCommits e={e} altoFila={altoFila} />
-      )}
+        <Cruce className="git-lista-tapa" clave={!e.datos.error && e.datos.commits?.length === 0 ? 'vacio' : 'lista'}>
+          {!e.datos.error && e.datos.commits?.length === 0 ? (
+            <EstadoVacio
+              icono={<IconoGitVacio />}
+              titulo={txGit().sinCommitsTitulo}
+              pista={txGit().sinCommitsPista}
+            />
+          ) : null}
+        </Cruce>
+      </div>
     </div>
   )
 }

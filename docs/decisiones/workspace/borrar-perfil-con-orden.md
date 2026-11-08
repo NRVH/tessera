@@ -26,12 +26,14 @@ reconstruya la lista) o un `profiles.json` resembrado se llevaría datos sin que
   caja) se olvidan sin tocar nada.
 - Las conexiones de bases de datos se borran con el perfil, como las SSH.
 - **Las carpetas del perfil van a la PAPELERA del sistema, nunca en firme**, para que un borrado se
-  pueda deshacer: la carpeta del agente de la terminal (`<userData>/terminal/<perfil>`, con sus notas)
-  y su espacio de datos (`conexiones/<perfil>`, con sus consolas). Sus conexiones SSH y de bases de
+  pueda deshacer: la carpeta del agente de la terminal (`<userData>/terminal/<perfil>`, con sus notas),
+  su espacio de datos (`conexiones/<perfil>`, con sus consolas) y su capa de la configuración de Docker
+  de los agentes (`config-compartida-docker/perfiles/<perfil>`, que puede llevar secretos de servidores
+  MCP: un perfil recreado con el mismo id no debe heredarla). Sus conexiones SSH y de bases de
   datos y su historial de consultas se borran aparte. Lo hace solo la orden de borrar el perfil
-  (`profiles:delete`), tras cerrar sus sesiones, por una sola vía: los dos dueños (`EspacioTerminal` y
-  `EspacioDatos`) le llegan como dependencia y cada uno lleva `shell.trashItem` inyectado UNA vez, al
-  nacer en su composición. El diálogo de borrar el perfil lo dice, con el nombre de la papelera de cada
+  (`profiles:delete`), tras cerrar sus sesiones, por una sola vía: los dueños (`EspacioTerminal`,
+  `EspacioDatos` y la capa de configuración) le llegan como dependencia y cada uno lleva `shell.trashItem`
+  inyectado UNA vez, al nacer en su composición. El diálogo de borrar el perfil lo dice, con el nombre de la papelera de cada
   sistema (`shared/nombresSistema.ts`).
 - **Validación previa a la papelera**, la misma que al crear la carpeta (`util/carpetaDePerfil.ts`, común
   a las dos): en las dos plataformas, sin puntos ni espacios al final ni `:`; los nombres de dispositivo

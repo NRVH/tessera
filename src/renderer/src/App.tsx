@@ -6,8 +6,10 @@
 // Decisiones: docs/decisiones/renderer/estado-de-app.md
 // Decisiones: docs/decisiones/layout/estructura-de-la-ventana.md
 // =============================================================================
+import { useMovimientoContexto } from './comun/useMovimientoContexto'
 import { useShallow } from 'zustand/react/shallow'
 import { CapaFlotante } from './comun/capaFlotante'
+import { CapaDialogos } from './comun/Modal'
 import { Toaster } from './comun/Toaster'
 import { TooltipPropio } from './comun/TooltipPropio'
 import { MenuDeEditores } from './comun/MenuDeEditores'
@@ -28,6 +30,7 @@ import {
   useAtajosGlobales,
   useEstiloShell,
   useEspejoPantallaCompleta,
+  useLayoutConTransicion,
   useTamanos,
   useVistasPorPerfil
 } from './features/layout/app'
@@ -38,6 +41,8 @@ import { agenteTerminalMaximizadoDe, useStoreLayout, type SalidaLayoutCentro } f
 import { useConexionesSsh } from './features/ssh/app'
 import {
   ColumnaAgente,
+  CapaContexto,
+  CapaPropuestasConfig,
   useActividadAgentes,
   useAgenteTerminal,
   useAgentesApp,
@@ -54,6 +59,7 @@ import { CentroBd, useBdApp, useEspaciosDatos, useMontajesBd } from './features/
 import { useStoreMosaico } from './features/mosaico'
 import { useMosaico } from './features/mosaico/app'
 import { useAccionesGit, useEstadoGit } from './features/git/app'
+import { useSesionProyectos } from './features/sesion'
 
 /** La primera mitad de los hooks de la ventana (pestañas, vistas, editor, columna y agentes). */
 function usePrimerosDeLaVentana() {
@@ -63,6 +69,7 @@ function usePrimerosDeLaVentana() {
   const vistas = useVistasPorPerfil(tabs)
   useAvisosSandbox()
   const editor = useEditorApp(tabs, vistas)
+  useSesionProyectos(editor.activeEditorKey)
   const terminales = useTerminalesApp(tabs, vistas.terminalVisible)
   const columna = useColumnaAgente(editor, tabs)
   const densidad = useDensidad()
@@ -144,6 +151,16 @@ function useMaximizados(conTerminales: boolean, agentes: AgentesApp, tabs: Retur
   return { franjaPantallaCompleta, maximizarAgenteTerminal }
 }
 
+/** Los agentes con el reparto que se pinta, que cambia animado salvo en el mosaico. */
+function useRepartoAnimado(agentes: AgentesApp, vista: string, tabs: ReturnType<typeof useTabs>): { agentes: AgentesApp; mosaicoActivo: boolean } {
+  const mosaicoActivo = useStoreMosaico((s) => s.mosaicoActivo)
+  // Entrar o salir de la terminal a pantalla completa también cambia el contexto entero, como cambiar de vista.
+  const contexto = JSON.stringify([vista, agentes.pantallaCompleta, tabs.activeProfile?.id, tabs.activeProject?.projectHostPath])
+  const conReparto = useLayoutConTransicion(agentes, !mosaicoActivo, contexto)
+  useMovimientoContexto(contexto)
+  return { agentes: conReparto, mosaicoActivo }
+}
+
 /** Lo que flota sobre todo sin depender del estado de la app: el cierre, los avisos, el tooltip y el menú de los editores. */
 function CapasDeAviso(): React.JSX.Element {
   return (
@@ -152,6 +169,8 @@ function CapasDeAviso(): React.JSX.Element {
       <Toaster />
       <TooltipPropio />
       <MenuDeEditores />
+      <CapaContexto />
+      <CapaPropuestasConfig />
     </>
   )
 }
@@ -159,13 +178,13 @@ function CapasDeAviso(): React.JSX.Element {
 function App(): React.JSX.Element {
   contarRender('App')
   const f = useFeaturesDeLaVentana()
-  const { tabs, vistas, editor, terminales, conTerminales, columna, densidad, espacios, agenteTerminal, tamanos, agentes, actividad } = f
+  const { tabs, vistas, editor, terminales, conTerminales, columna, densidad, espacios, agenteTerminal, tamanos, actividad } = f
   const { tintas, mosaico, sesiones, montajes, bd, puntos, git, accionesGit, cambiarZoom } = f
   const zonaEnfocada = useZonaEnfocada()
   const apariencia = useStoreAjustes(
     useShallow((s) => ({ terminal: s.terminalAppearance, agente: s.agentAppearance }))
   )
-  const mosaicoActivo = useStoreMosaico((s) => s.mosaicoActivo)
+  const { agentes, mosaicoActivo } = useRepartoAnimado(f.agentes, vistas.activeView, tabs)
   const lay = agentes.lay
   const shellStyle = useEstiloShell(tintas, tamanos, lay.divisorAgente)
   const { franjaPantallaCompleta, maximizarAgenteTerminal } = useMaximizados(conTerminales, agentes, tabs)
@@ -188,7 +207,7 @@ function App(): React.JSX.Element {
                 <CentroBd bd={bd} enConexiones={vistas.enConexiones} oculta={lay.dbAreaOculta} densidad={densidad} />
                 <ColumnaAgente
                   {...{ tabs, tamanos, agentes, columna, mosaico, actividad, espacios, agenteTerminal, montajes, sesiones }}
-                  maximizarAgenteTerminal={maximizarAgenteTerminal}
+                  {...{ maximizarAgenteTerminal, agenteDestino: f.agentes.lay.agente }}
                 />
               </div>
               <FranjaInferior
@@ -213,6 +232,8 @@ function App(): React.JSX.Element {
           <CapaFlotante />
           <CapaModales {...{ tabs, editor, bd, sesiones, cambiarZoom }} perfilUI={vistas.perfilUI} />
           <CapaPropuestasReglas profiles={tabs.profiles} onSetReglas={tabs.setProfileReglas} />
+          {/* Después de todo lo que puede abrir un diálogo: uno abierto desde otro queda siempre encima. */}
+          <CapaDialogos />
           <CapasDeAviso />
         </div>
       </AgentAppearanceContext.Provider>

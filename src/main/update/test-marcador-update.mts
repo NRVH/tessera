@@ -628,9 +628,7 @@ function main(): void {
     instalar({ instaladorEnDisco: false, motorArmado: true }).via === 'abortar',
     'el fichero es condición previa a todo'
   )
-  // (G6) fue "el origen no decide si se PUEDE": afirmaba que un campo daba igual, o
-  // sea que el campo sobraba. El repaso de código lo señaló y `origen` se retiró de
-  // `EntradaInstalar`; con él se va su prueba. Lo que decide qué pasa DESPUÉS de un
+  // `EntradaInstalar` no lleva `origen`. Lo que decide qué pasa DESPUÉS de un
   // aborto (plan B o salir) vive en `iniciarCierre` (`app/cierre.ts`), no aquí.
   check(
     '(G6) los dos motivos sin motor son distintos entre sí y ninguno bloquea',

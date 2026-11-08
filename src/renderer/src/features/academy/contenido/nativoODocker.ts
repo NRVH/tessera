@@ -29,7 +29,7 @@ const es: Articulo = {
         {
           lista: [
             'Los proyectos del [perfil](glosario/perfil) en los que trabaja esa cuenta aparecen en `/workspace/<carpeta>`, por ejemplo `/workspace/tienda-web`. Son los archivos de su disco: lo que el agente cambia allí, cambia en su disco.',
-            'Del resto de su disco solo se incluyen las credenciales de esa cuenta y, en solo lectura, sus claves SSH, para que git por SSH siga funcionando.',
+            'Del resto de su disco solo se incluyen las credenciales de esa cuenta y las claves públicas SSH que usted active para el perfil. Las claves privadas permanecen en su equipo y Tessera firma por el agente, para que git por SSH siga funcionando.',
             'El agente puede instalar herramientas con `sudo`, pero lo instalado se pierde cuando el contenedor se detiene.',
             'Para disponer siempre de herramientas de documentos, de las bibliotecas de un navegador de pruebas o de otros paquetes, inclúyalos en la imagen, que es la plantilla de la que nacen los contenedores. Se hace en **Configuración › Proyectos › Sandbox de Docker** y lo explica [La imagen y los paquetes adicionales](contenedores-docker/imagen).'
           ]
@@ -59,8 +59,8 @@ const es: Articulo = {
       bloques: [
         {
           pasos: [
-            'En la cabecera del agente, haga clic en su botón de cuenta.',
-            'Seleccione la tarjeta de **En su equipo** para pasar a nativo, o una cuenta de **Cuentas aisladas (Docker)** para pasar a Docker. El agente se vuelve a abrir en el modo elegido.'
+            'En la cabecera del agente, a la derecha, haga clic en el botón de la pantalla o del cubo. El agente de la terminal y los agentes propios nativos no tienen este botón; los propios en Docker no permiten cambiar a nativo.',
+            'Seleccione la tarjeta de **En su equipo** para pasar a nativo, o una cuenta de **Cuentas de Docker** para pasar a Docker. El agente se vuelve a abrir en el modo elegido.'
           ]
         },
         'El selector se explica en [Elegir la cuenta](cuentas/elegir).',
@@ -125,7 +125,7 @@ const en: Articulo = {
         {
           lista: [
             'The [profile](glosario/perfil)’s projects that this account works on appear at `/workspace/<folder>`, for example `/workspace/tienda-web`. These are the files on your disk: what the agent changes there changes on your disk.',
-            'From the rest of your disk, only that account’s credentials and, as read-only, your SSH keys are available, so Git over SSH keeps working.',
+            'From the rest of your disk, only that account’s credentials and the public SSH keys you enable for the profile are available. Private keys stay on your computer, and Tessera signs for the agent so Git over SSH keeps working.',
             'The agent can install tools with `sudo`, but anything installed this way is lost when the container stops.',
             'To make document tools, the libraries for a test browser, or other packages always available, add them to the image, which is the template that containers are created from. You do this in **Settings › Projects › Docker sandbox**, as explained in [The image and extra packages](contenedores-docker/imagen).'
           ]
@@ -155,8 +155,8 @@ const en: Articulo = {
       bloques: [
         {
           pasos: [
-            'In the agent header, click its account button.',
-            'Select the **On your computer** card to switch to native, or an account under **Isolated accounts (Docker)** to switch to Docker. The agent reopens in the chosen mode.'
+            'On the right of the agent header, click the screen or cube button. The terminal agent and native custom agents do not have this button; custom agents in Docker cannot switch to native mode.',
+            'Select the **On your computer** card to switch to native, or an account under **Docker accounts** to switch to Docker. The agent reopens in the chosen mode.'
           ]
         },
         'The selector is explained in [Choose the account](cuentas/elegir).',

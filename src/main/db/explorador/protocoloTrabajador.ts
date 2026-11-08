@@ -365,8 +365,6 @@ export interface ErrorTrabajador {
 
 /** Código de `ErrorTrabajador` cuando `leer`/`cerrarLector` no encuentra el cursor. */
 export const CODIGO_LECTOR_DESCONOCIDO = 'TESSERA-LECTOR'
-/** Código cuando se opera sobre una sesión que no existe en el trabajador. */
-export const CODIGO_SESION_DESCONOCIDA = 'TESSERA-SESION'
 
 interface ComunResultado {
   avisos?: string[]
@@ -650,8 +648,6 @@ export type RespuestaTrabajador =
 export type EventoTrabajador =
   | { ev: 'perdida'; sesion: string; error: ErrorTrabajador }
   | { ev: 'fatal'; mensaje: string }
-
-export type MensajeTrabajador = RespuestaTrabajador | EventoTrabajador
 
 export {
   clasificarMensaje,

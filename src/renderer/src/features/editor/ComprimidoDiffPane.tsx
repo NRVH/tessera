@@ -16,7 +16,6 @@ import { FilaArbolArchivo, etiquetaRevisiones, type FilaArbol } from '../git'
 import { MIN_LISTA, maxLista, migas, tituloEntrada } from './comprimidoDiffModelo'
 import { useComprimidoDiff } from './useComprimidoDiff'
 import type { EntradaComparada, ProcedenciaJava } from '../../../../shared/comprimidos-ipc'
-import { txDiff } from './textos.ts'
 import { txComprimido } from './textosVisores.ts'
 
 export interface ComprimidoDiffPaneProps {
@@ -76,7 +75,7 @@ function IdentidadComprimido({ target, c }: { target: DiffTarget; c: EstadoCompr
   const { dentro, setDentro, seleccionada, procedencia } = c
   return (
     <div className="diff-identidad">
-      <span className="diff-revisiones" title={txDiff().revisionesQueSeComparan}>
+      <span className="diff-revisiones">
         {etiquetaRevisiones(target.commitHash)}
       </span>
       <span className="diff-ruta comprimido-miga">

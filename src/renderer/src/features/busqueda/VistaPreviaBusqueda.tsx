@@ -9,6 +9,7 @@ import { useRef, useState } from 'react'
 import type { editor } from 'monaco-editor'
 import { useVisibleLayout } from '../../comun/useVisibleLayout'
 import { EstadoVacio } from '../../comun/EstadoVacio'
+import { Presente } from '../../comun/Presente'
 import { carpetaDe } from './filasResultado'
 import { txBusqueda } from './textos.ts'
 import {
@@ -92,11 +93,9 @@ export function VistaPreviaBusqueda({
       {/* El host nunca se oculta: con `display:none` Monaco nace midiendo 0×0 y no pinta. */}
       <div className="buscar-previa-cuerpo">
         <div className="buscar-previa-editor" ref={hostRef} />
-        {!hayCodigo && (
-          <div className="buscar-previa-tapa">
+        <Presente visible={!hayCodigo} className="buscar-previa-tapa buscar-tapa-fundido">
             <TapaPrevia fila={fila} aviso={error ?? (alDia ? cargado.aviso : null)} />
-          </div>
-        )}
+        </Presente>
       </div>
     </div>
   )

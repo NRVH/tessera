@@ -73,7 +73,7 @@ export function textoAvance(o: OperacionSftp): string {
   return `${formatoTamano(o.hechos)} de ${formatoTamano(o.total)}`
 }
 
-/** El título del aviso de un plan con conflictos: «Reemplazar 1 elemento» / «Reemplazar 3 elementos». */
+/** El título del aviso de un plan con conflictos: «¿Reemplazar 1 elemento en el destino?» / «¿Reemplazar 3 elementos en el destino?». */
 export function tituloConflictos(n: number): string {
   return txSftp().tituloConflictos(n)
 }

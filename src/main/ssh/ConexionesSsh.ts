@@ -308,8 +308,24 @@ export class ConexionesSsh {
   }
 
   /**
-   * Olvida las huellas guardadas del servidor: la próxima conexión acepta la que presente. Se vacía con
-   * escritura atómica (con reintentos si un ssh lo tiene abierto) en vez de borrarlo a pelo.
+   * Añade al `known_hosts` de la conexión las líneas de una huella que la persona confirmó, detrás de lo que
+   * hubiera; con la misma escritura atómica que al olvidarlas.
+   */
+  anadirHuellas(id: string, lineas: readonly string[]): void {
+    if (!conexionesConocidas(this.reg).some((c) => c.id === id)) throw new Error(txSsh().registro.noExiste)
+    const ruta = this.rutaHuellas(id)
+    const previo = this.textoHuellas(id) ?? ''
+    const base = previo === '' || previo.endsWith('\n') ? previo : `${previo}\n`
+    try {
+      writeFileAtomicSync(ruta, `${base}${lineas.map((l) => `${l}\n`).join('')}`)
+    } catch (e) {
+      throw new Error(txSsh().registro.huellaNoGuardada(codigoDeError(e)), { cause: e })
+    }
+  }
+
+  /**
+   * Olvida las huellas guardadas del servidor: la próxima conexión enseña la que presente para que la persona
+   * la confirme. Se vacía con escritura atómica (con reintentos si un ssh lo tiene abierto) en vez de borrarlo a pelo.
    */
   olvidarHuellas(id: string): void {
     if (!conexionesConocidas(this.reg).some((c) => c.id === id)) throw new Error(txSsh().registro.noExiste)
@@ -379,7 +395,7 @@ export class ConexionesSsh {
 
   /**
    * Copia una conexión conocida del perfil con otro nombre («… (1)», «… (2)»…): sus datos, su grupo, su bastión, sus
-   * túneles y su secreto cifrado (el mismo almacén lo descifra); sin sus huellas, que la copia acepta al conectar,
+   * túneles y su secreto cifrado (el mismo almacén lo descifra); sin sus huellas, que la copia confirma al conectar,
    * ni lo que esta versión no entiende. Con el método 'clave', `instalada` es la copia de su clave que quien llama
    * ya dejó en `ssh/claves/<id>`.
    */

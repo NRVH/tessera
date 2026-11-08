@@ -160,10 +160,12 @@ function sembrarCuentas(): void {
 
 // --- Agente falso --------------------------------------------------------------------------
 
+// Los tres contestan `--help` y salen, como los CLIs reales: la línea del contenedor lo pregunta antes de arrancar.
 // Vuelca a /tmp del contenedor lo que ve (variables, credenciales alcanzables) y se queda vivo;
 // con `login` simula el inicio de sesión por navegador: escucha en el 1455 del contenedor, como Codex,
 // y al volver el navegador guarda en `auth.json` el código que trae.
-const AGENTE_FALSO = String.raw`b=$(basename "$(pwd)")
+const AGENTE_FALSO = String.raw`[ "$1" = --help ] && exit 0
+b=$(basename "$(pwd)")
 if [ "$1" = login ]; then
   echo "LOGIN $b $(date +%s)" >> /tmp/logins
   node -e "require('http').createServer((q,r)=>{if(!q.url.startsWith('/auth/callback')){r.end('no');return}const c=new URL(q.url,'http://x').searchParams.get('code');require('fs').writeFileSync(process.env.CODEX_HOME+'/auth.json',JSON.stringify({token:'LOGIN_OK_'+c}));r.end('OK '+c,()=>process.exit(0))}).listen(1455,'127.0.0.1')" || exit 1
@@ -189,12 +191,14 @@ exec sleep 600
 const BINARIO_FALSO = 'sh ./.fake-agente.sh'
 
 // Agente que no calla: tras un Enter el rastreador de actividad lo ve trabajando mientras dure.
-const AGENTE_OCUPADO = String.raw`while :; do echo trabajando; sleep 0.3; done
+const AGENTE_OCUPADO = String.raw`[ "$1" = --help ] && exit 0
+while :; do echo trabajando; sleep 0.3; done
 `
 
 // Codex con la sesión caducada: arranca con una credencial vieja y empieza él el login por navegador,
 // con el enlace partido en dos líneas y con colores, como lo pinta una interfaz de terminal.
-const AGENTE_CADUCADO = String.raw`printf '\033[2mSign in with ChatGPT:\033[0m\r\n'
+const AGENTE_CADUCADO = String.raw`[ "$1" = --help ] && exit 0
+printf '\033[2mSign in with ChatGPT:\033[0m\r\n'
 printf '%s\r\n' 'https://auth.openai.com/oauth/authorize?response_type=code&redirect_uri=http%3A%2F%2F127.0' '.0.1%3A1455%2Fauth%2Fcallback&state=s'
 node -e "require('http').createServer((q,r)=>{if(!q.url.startsWith('/auth/callback')){r.end('no');return}const c=new URL(q.url,'http://x').searchParams.get('code');require('fs').writeFileSync(process.env.CODEX_HOME+'/auth.json',JSON.stringify({token:'LOGIN_OK_'+c}));r.end('OK '+c,()=>process.exit(0))}).listen(1455,'127.0.0.1')"
 exec sleep 600

@@ -14,13 +14,13 @@ import { focusableIndices, type ContextMenuEntry } from './contextMenuModel'
  * DOM del menú, cuando el foco aún está en él; después ya habría caído en `<body>`. Si el
  * foco se había ido a otro sitio (un clic fuera en un campo) no se toca.
  */
-export function useDevolverFoco(menuRef: RefObject<HTMLDivElement>, disparador?: RefObject<HTMLElement>): void {
+export function useDevolverFoco(menuRef: RefObject<HTMLDivElement>, disparador?: RefObject<HTMLElement>, panelRef?: RefObject<HTMLDivElement>): void {
   useLayoutEffect(
     () => () => {
-      const menu = menuRef.current
-      if (menu && menu.contains(document.activeElement)) disparador?.current?.focus({ preventScroll: true })
+      const dentro = (el: HTMLDivElement | null | undefined): boolean => el?.contains(document.activeElement) === true
+      if (dentro(menuRef.current) || dentro(panelRef?.current)) disparador?.current?.focus({ preventScroll: true })
     },
-    [menuRef, disparador]
+    [menuRef, disparador, panelRef]
   )
 }
 
@@ -44,12 +44,25 @@ export function usePosicionMenu(
   return pos
 }
 
-/** Foco inicial en el menú y teclado (↑/↓ con wrap, Inicio/Fin, Escape) sobre las entradas enfocables. */
+/** Lo que cambia entre el menú y su submenú, que comparten la misma ventana de teclado. */
+export interface OpcionesNavegacion {
+  /** El submenú abierto con el ratón no se lleva el foco. */
+  enfocarAlAbrir?: boolean
+  /** El foco está en el otro panel: estas teclas son suyas. */
+  suspendido?: () => boolean
+  /** El menú y su submenú escuchan en la misma ventana: Esc en el submenú no debe llegar también al menú. */
+  consumirEscape?: boolean
+  /** ← o → sobre la entrada `indice`, o -1 si el foco no está en una. */
+  alLado?: (tecla: 'ArrowLeft' | 'ArrowRight', indice: number) => void
+}
+
+/** Foco inicial en el menú y teclado (↑/↓ con wrap, Inicio/Fin, Escape, ←/→) sobre las entradas enfocables. */
 export function useNavegacionMenu(
   entries: ContextMenuEntry[],
   menuRef: RefObject<HTMLDivElement>,
   itemRefs: MutableRefObject<(HTMLButtonElement | null)[]>,
-  onClose: () => void
+  onClose: () => void,
+  { enfocarAlAbrir = true, suspendido, consumirEscape = false, alLado }: OpcionesNavegacion = {}
 ): void {
   /** Índices de las entradas ENFOCABLES (ni separador ni deshabilitada). */
   const focusable = useMemo(() => focusableIndices(entries), [entries])
@@ -70,6 +83,7 @@ export function useNavegacionMenu(
   // Al abrirse el foco entra en la primera opción; sin ítems enfocables se enfoca el contenedor
   // para que Esc siga valiendo.
   useEffect(() => {
+    if (!enfocarAlAbrir) return
     if (focusable.length > 0) focusAt(0)
     else menuRef.current?.focus()
     // Solo al montar (y si cambia el conjunto enfocable, que en la práctica no ocurre
@@ -82,11 +96,17 @@ export function useNavegacionMenu(
       onClose()
     }
     function onKey(e: KeyboardEvent): void {
+      if (suspendido?.() || e.defaultPrevented) return
       if (e.key === 'Escape') {
+        if (consumirEscape) e.preventDefault()
         onClose()
         return
       }
-      if (e.key === 'ArrowDown') {
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault()
+        const nth = currentNth()
+        alLado?.(e.key, nth === -1 ? -1 : focusable[nth])
+      } else if (e.key === 'ArrowDown') {
         e.preventDefault() // no scrollear la página detrás del menú
         focusAt(currentNth() + 1)
       } else if (e.key === 'ArrowUp') {

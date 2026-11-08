@@ -649,7 +649,7 @@ test.describe('mosaico de agentes', () => {
     // controles para lo mismo.
     await expect(win.locator('.ctx-menu-item', { hasText: 'gamma' })).toHaveCount(0)
     await expect(win.locator('.ctx-menu-item', { hasText: 'delta' })).toHaveCount(0)
-    await expect(win.locator('.ctx-menu-item', { hasText: 'Abrir otro proyecto en Personal' })).toHaveCount(1)
+    await expect(win.getByRole('menuitem', { name: 'Abrir otro proyecto en «Personal»…', exact: true })).toHaveCount(1)
     await win.locator('.ctx-menu-item', { hasText: 'beta' }).first().click()
     await expect.poll(async () => (await casillas(win))[0]?.nombre ?? '').toContain('Personal · beta')
     expect((await casillas(win)).length, 'sigue habiendo UNA casilla, la misma').toBe(1)
@@ -725,7 +725,7 @@ test.describe('mosaico de agentes', () => {
     const antes = arranques(m.log).length
     const casillaAlfa = win.locator('.right-panel.cc-mosaico > .agent-pane[aria-label*="Personal · alfa"]')
     await casillaAlfa.locator('.casilla-nombre-btn').click()
-    await win.locator('.ctx-menu-item', { hasText: 'Abrir otro proyecto en Personal' }).click()
+    await win.getByRole('menuitem', { name: 'Abrir otro proyecto en «Personal»…', exact: true }).click()
 
     await expect
       .poll(async () => (await casillas(win)).map((c) => c.nombre).join(' | '), {
@@ -748,10 +748,10 @@ test.describe('mosaico de agentes', () => {
   // en una casilla no abre otra sesión: es el MISMO pane.
   test('el agente de datos entra en el mosaico como «Bases de datos» e «Ir a» vuelve a esa vista', async () => {
     const win = s.win
-    const rielDatos = win.locator('.activity-item[title="Conexiones a bases de datos"]')
+    const rielDatos = win.locator('.activity-item[title="Bases de datos"]')
     await rielDatos.click()
     const antes = arranques(m.log).length
-    await win.locator('.status-bar-btn[title^="Mostrar el agente de datos"]').click()
+    await win.locator('.status-bar-btn[title^="Mostrar el agente de bases de datos"]').click()
     await expect.poll(() => arranques(m.log).length, { timeout: 60_000 }).toBe(antes + 1)
     const pane = win.locator('.right-panel > .agent-pane:not(.hidden)')
     await expect(pane).toHaveCount(1)

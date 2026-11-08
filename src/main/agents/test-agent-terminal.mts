@@ -70,11 +70,11 @@ const P_B: Profile = {
 }
 const ALL = [P_A, P_B]
 
-// Stand-in: vuelca entorno + lista ~/.ssh_active a ficheros, luego duerme para
-// mantener viva la sesión mientras el test inspecciona el contenedor.
+// Stand-in: vuelca el entorno, lo que hay en ~/.ssh y cuántos archivos de clave PRIVADA quedan a su alcance (en
+// el home), luego duerme para mantener viva la sesión mientras el test inspecciona el contenedor.
 const STANDIN =
-  `sh -c 'env > /tmp/sess-env; ls -la "$HOME/.ssh_active" > /tmp/sess-ssh 2>&1; ` +
-  `stat -c %a "$HOME/.ssh_active/id_ed25519" > /tmp/sess-keymode 2>/dev/null; sleep 600'`
+  `sh -c 'env > /tmp/sess-env; ls -la "$HOME/.ssh" > /tmp/sess-ssh 2>&1; ` +
+  `grep -rlE "PRIVATE KEY" "$HOME" 2>/dev/null | wc -l > /tmp/sess-privadas; sleep 600'`
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -276,24 +276,25 @@ async function main(): Promise<void> {
     )
 
     // --- (b) el preludio ssh/git corrió ---------------------------------------
-    hr('(b) preludio ssh/git corrió: ~/.ssh_active con llave a 600, git-ssh.sh, GIT_SSH_COMMAND + safe.directory en el env')
+    hr('(b) preludio ssh/git corrió: agente SSH de Tessera, GIT_SSH_COMMAND + safe.directory en el env, ninguna clave privada')
     const gitSsh = field(envDump, 'GIT_SSH_COMMAND')
+    const agenteSsh = field(envDump, 'SSH_AUTH_SOCK')
     const safeDirKey = field(envDump, 'GIT_CONFIG_KEY_0')
     const safeDirVal = field(envDump, 'GIT_CONFIG_VALUE_0')
     const term = field(envDump, 'TERM')
-    const keyMode = (await sandbox.exec(C, 'cat /tmp/sess-keymode 2>/dev/null')).stdout.trim()
-    const wrapOk = (await sandbox.exec(C, 'test -x /home/agente/.ssh_active/git-ssh.sh && echo YES || echo NO')).stdout.trim()
+    const privadas = (await sandbox.exec(C, 'cat /tmp/sess-privadas 2>/dev/null')).stdout.trim()
     const sshList = (await sandbox.exec(C, 'cat /tmp/sess-ssh 2>/dev/null')).stdout
-    console.log('--- ~/.ssh_active (visto por el stand-in) ---\n' + sshList.trim())
+    console.log('--- ~/.ssh (visto por el stand-in) ---\n' + sshList.trim())
     check(
-      '(b) GIT_SSH_COMMAND + safe.directory en el env de la sesión; llave copiada a 600; git-ssh.sh ejecutable; TERM seteado',
-      gitSsh === '/home/agente/.ssh_active/git-ssh.sh' &&
+      // El socket del agente solo existe con el buzón del puente montado, que este entorno no monta: lo cubre
+      // `test:gitcontainer`. Aquí basta con que no quede ninguna clave privada.
+      '(b) GIT_SSH_COMMAND + safe.directory en el env de la sesión; ninguna clave privada en el home; TERM seteado',
+      gitSsh === 'ssh -F /home/agente/.ssh/config' &&
         safeDirKey === 'safe.directory' &&
         safeDirVal === '*' &&
-        keyMode === '600' &&
-        wrapOk === 'YES' &&
+        privadas === '0' &&
         term === 'xterm-256color',
-      `GIT_SSH_COMMAND=${gitSsh} | safe.directory=${safeDirKey}=${safeDirVal} | keymode=${keyMode} | wrapper_x=${wrapOk} | TERM=${term}`
+      `GIT_SSH_COMMAND=${gitSsh} | SSH_AUTH_SOCK=${agenteSsh ? 'sí' : 'no'} | safe.directory=${safeDirKey}=${safeDirVal} | privadas=${privadas} | TERM=${term}`
     )
 
     // --- (c) reload conserva el sessionId y la sesión sobrevive ----------------
@@ -315,7 +316,7 @@ async function main(): Promise<void> {
     // --- (e) Aislamiento (antes de cerrar): solo su configDir, nada del otro ----
     hr('(e) Aislamiento: A monta SOLO claude-code; no alcanza codex ni el secreto de B')
     // Comodín de cuenta: la credencial vive en `/agent-config/<tipo>/<cuenta>`, y la ruta
-    // sin cuenta daría BLOCKED aunque estuviera montada (ver (c) en `test-agents.mts`).
+    // sin cuenta daría BLOCKED aunque estuviera montada.
     const isoCmd = [
       `echo "LIST=$(ls /agent-config 2>/dev/null | tr '\\n' ',')"`,
       'if cat /agent-config/codex/*/credentials.json 2>/dev/null; then echo "CODEX=REACHABLE"; else echo "CODEX=BLOCKED"; fi',

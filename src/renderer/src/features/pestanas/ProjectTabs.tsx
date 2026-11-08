@@ -5,6 +5,7 @@
 // No dispara el backend: reporta la intención a `useTabs`. Depende de comun/ContextMenu y ConfirmDialog.
 // Decisiones: docs/decisiones/renderer/reordenar-proyectos-arrastrando.md
 // =============================================================================
+import { movimientoReducido } from '../../comun/presencia'
 import { useEffect, useRef, useState } from 'react'
 import { useArrastreProyectos, type ArrastreProyectos } from './useArrastreProyectos'
 import { IconoAbrir, IconoCerrar } from '../../comun/iconosMenu'
@@ -52,7 +53,7 @@ function TabName({ name }: { name: string }): React.JSX.Element {
   const [shift, setShift] = useState(0)
   function onEnter(): void {
     const el = innerRef.current
-    if (!el) return
+    if (!el || movimientoReducido()) return
     // scrollWidth (contenido completo) menos el ancho visible = px que sobran.
     const overflow = el.scrollWidth - el.clientWidth
     setShift(overflow > 1 ? overflow : 0)
@@ -123,11 +124,11 @@ function GlifoProyecto({ state }: { state: ProjectDotState }): React.JSX.Element
   return <IconoProyecto color={state === 'hibernated' ? 'var(--fg-faint)' : 'var(--fg-muted)'} />
 }
 
-function tituloDePestana(project: OpenProject): string {
+/** Solo si hay un estado que contar: un nombre largo ya se lee entero con el desplazamiento al apuntarlo. */
+function tituloDePestana(project: OpenProject): string | undefined {
   const t = txPestanas().proyectos
-  const dormido = project.estado === 'agente-hibernado' ? t.agenteHibernado : ''
-  const nombre = project.estado === 'hibernated' ? t.hibernado(project.name) : project.name
-  return `${nombre}${dormido}`
+  if (project.estado === 'hibernated') return t.hibernado(project.name)
+  return project.estado === 'agente-hibernado' ? `${project.name}${t.agenteHibernado}` : undefined
 }
 
 interface PestanaProyectoProps {
@@ -264,7 +265,8 @@ function ConfirmarCierre({
     <ConfirmDialog
       // danger: enfoca "Cancelar", así un Enter reflejo no confirma el cierre.
       danger
-      title={t.cerrarTitulo}
+      severidad="advertencia"
+      title={t.cerrarTitulo(project.name)}
       message={t.cerrarMensaje}
       confirmLabel={t.cerrarConfirmar(project.name)}
       cancelLabel={t.cancelar}
@@ -287,6 +289,7 @@ function ConfirmarReemplazoDialogo({ pendiente, onRespuesta }: { pendiente: Reem
     <ConfirmDialog
       // danger: enfoca "Cancelar", así un Enter reflejo no cierra el proyecto.
       danger
+      severidad="advertencia"
       title={t.reemplazarTitulo(pendiente.project.name)}
       message={t.reemplazarMensaje(pendiente.project.name, pendiente.nueva.name)}
       confirmLabel={t.reemplazar(pendiente.nueva.name)}

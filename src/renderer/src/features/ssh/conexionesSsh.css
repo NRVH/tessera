@@ -327,19 +327,6 @@
 .modal-card.db-conexion-modal.ssh-conexion-modal {
   width: min(480px, 100%);
 }
-/* El título y, a su derecha, «Importar desde OpenSSH…» como botón pequeño: es secundario y no cabe en
-   el pie con los otros tres sin partirse en dos líneas. El título centra con el botón y deja aire con el
-   subtítulo, para que no se lean juntos. */
-.ssh-cabecera-titulo {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-.dbc-cabecera .ssh-cabecera-titulo .modal-title {
-  margin-bottom: 0;
-}
 .btn.ssh-importar-boton {
   flex: 0 0 auto;
   white-space: nowrap;
@@ -347,17 +334,6 @@
 .btn.ssh-importar-boton svg {
   width: 13px;
   height: 13px;
-}
-/* La nota de un alta rellenada desde un archivo de OpenSSH: qué se leyó y qué falta revisar. */
-.ssh-nota-importada {
-  margin: 0 0 12px;
-  padding: 8px 10px;
-  border-radius: 6px;
-  background: var(--sel-tenue);
-  box-shadow: inset 2px 0 0 var(--accent);
-  color: var(--fg-muted);
-  font-size: 12px;
-  line-height: 1.45;
 }
 
 /* La revisión de un archivo con varios Host: una fila por Host, con el nombre y el usuario editables. */
@@ -601,14 +577,9 @@
   outline: 1px solid var(--accent);
   outline-offset: 1px;
 }
-.ssh-importar-error {
-  margin-top: 4px;
-  color: var(--red);
-  font-size: 11px;
-}
 
 /* Los botones del pie no se parten en dos líneas: su caja mide 30 px. */
-.ssh-conexion-modal .dbc-acciones .btn {
+.ssh-conexion-modal .modal-pie .btn {
   white-space: nowrap;
 }
 /* El botón de «Nuevo grupo…» se alinea con el borde de abajo del selector, no con su etiqueta. */
@@ -684,23 +655,12 @@
   gap: 6px;
   min-width: 0;
 }
-/* «Disponible para los agentes»: la casilla y, debajo, qué significa marcarla. */
+/* «Disponible para los agentes»: el interruptor y, debajo, qué significa activarlo. */
 .ssh-agentes {
   display: flex;
   flex-direction: column;
   gap: 4px;
   min-width: 0;
-}
-.ssh-casilla {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 12.5px;
-  color: var(--fg);
-  cursor: pointer;
-}
-.ssh-casilla input {
-  margin: 0;
 }
 .ssh-secreto-ayuda {
   display: flex;
@@ -723,17 +683,6 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
-/* Una guardada que este equipo no puede leer: aviso en ámbar, no error (se arregla escribiéndola). */
-.ssh-aviso-secreto {
-  padding: 7px 10px;
-  border: 1px solid color-mix(in srgb, var(--yellow) 45%, var(--border));
-  border-left: 3px solid var(--yellow);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--yellow) 7%, transparent);
-  font-size: 12px;
-  line-height: 1.45;
-  color: var(--fg);
-}
 
 /* El resultado de «Probar»: la pista en el color del texto, la huella y el detalle en mono (formularioModal). */
 .ssh-prueba-pista {
@@ -747,7 +696,7 @@
 
 /* Lo que pregunta el servidor en el diálogo del programa de contraseñas: suyo, en mono y enmarcado. */
 .pregunta-askpass-servidor {
-  margin-bottom: 10px;
+  margin-bottom: 6px;
   padding: 6px 10px;
   border-left: 3px solid var(--border);
   border-radius: 4px;
@@ -758,6 +707,30 @@
   color: var(--fg);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+/* La huella de un servidor nuevo, como fila de una tarjeta de Configuración: el tipo, el valor en mono y copiarla.
+   La huella nunca se recorta con puntos suspensivos: si no cabe, parte la línea antes que salirse de la tarjeta. */
+.huella-nueva-fila {
+  align-items: center;
+  min-width: 0;
+}
+.huella-nueva-algoritmo {
+  flex: none;
+  font-weight: 600;
+}
+.huella-nueva-valor {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono, 'Cascadia Code', Consolas, 'SF Mono', Menlo, monospace);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--fg);
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+.huella-nueva-fila > .btn-icon {
+  flex: none;
 }
 
 /* «Bastión y túneles»: plegable, con su resumen como una etiqueta más del formulario. */
@@ -819,4 +792,12 @@
   width: 26px;
   height: 26px;
   margin-left: auto;
+}
+
+.ssh-prueba.dbc-prueba,
+.ssh-prueba .dbc-prueba-linea {
+  transition:
+    color var(--mov-rapido) var(--curva-estandar),
+    border-color var(--mov-rapido) var(--curva-estandar),
+    background-color var(--mov-rapido) var(--curva-estandar);
 }

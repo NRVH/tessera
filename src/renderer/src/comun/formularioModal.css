@@ -1,7 +1,6 @@
 /* =============================================================================
-   FORMULARIO DE UN MODAL con campos (los diálogos de conexión de BD y de SSH): tarjeta,
-   cabecera, cuerpo que scrollea, filas, campos, conmutador de radios, ayudas, error, la
-   contraseña con su ojo, el resultado de «Probar» y el pie.
+   FORMULARIO DE UN MODAL con campos (los diálogos de conexión de BD y de SSH): filas,
+   campos, conmutador de radios, ayudas, la contraseña con su ojo y el resultado de «Probar».
    Es lo común de `bd/dialogo.css`; las clases conservan su nombre `dbc-*`. Sin
    `container-type` en la tarjeta (implica `contain`, que volvería absoluto un `position:
    fixed` de dentro, como el diálogo anidado «Nuevo grupo…»). Lo propio de cada diálogo va en
@@ -9,16 +8,7 @@
    Decisiones: docs/decisiones/bd/ui-conexion-dialogo.md
    ============================================================================= */
 
-/* Más ancho que el ConfirmDialog (420 px): host y puerto, y usuario y contraseña,
-   van de dos en dos. Alto acotado al viewport con el CUERPO scrolleable: cabecera y
-   botones siempre a la vista, que es donde está «Guardar». El velo ya deja 24 px de
-   margen por lado. */
 .modal-card.db-conexion-modal {
-  width: min(560px, 100%);
-  max-height: calc(100vh - 48px);
-  padding: 0;
-  display: flex;
-  flex-direction: column;
   font-size: 12.5px;
   color: var(--fg);
 }
@@ -26,36 +16,16 @@
 .dbc-form {
   display: flex;
   flex-direction: column;
-  flex: 1 1 auto;
-  min-height: 0;
-}
-
-.dbc-cabecera {
   flex: 0 0 auto;
-  padding: 18px 20px 4px;
-}
-.dbc-cabecera .modal-title {
-  margin-bottom: 4px;
-}
-/* El título con su botón ⓘ al lado, fuera del título para no entrar en el nombre del diálogo. */
-.dbc-titulo-fila {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 4px;
-}
-.dbc-titulo-fila .modal-title {
-  margin-bottom: 0;
+  min-height: 0;
 }
 
 .dbc-cuerpo {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
-  overflow: auto;
-  padding: 8px 20px 14px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 /* Fila de campos: reparte el ancho y nunca desborda la tarjeta. */
@@ -100,6 +70,9 @@
   font-family: inherit;
   font-size: 13px;
   outline: none;
+  transition:
+    border-color var(--mov-rapido) var(--curva-estandar),
+    box-shadow var(--mov-rapido) var(--curva-estandar);
 }
 .dbc-campo input,
 .dbc-campo select {
@@ -166,7 +139,7 @@
   font-size: 12.5px;
   white-space: nowrap;
   cursor: pointer;
-  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+  transition: border-color var(--mov-rapido) var(--curva-estandar), background var(--mov-rapido) var(--curva-estandar), color var(--mov-rapido) var(--curva-estandar);
 }
 .dbc-entorno-desarrollo {
   --entorno-color: var(--entorno-desarrollo);
@@ -334,13 +307,12 @@
   color: var(--fg-faint);
 }
 
-/* Pie: lo que actúa sobre el servidor a la izquierda, Cancelar/Guardar a la derecha (actúan
-   sobre el diálogo). */
-.dbc-acciones {
-  flex: 0 0 auto;
-  align-items: center;
-  padding: 12px 20px 16px;
-  border-top: 1px solid var(--border-soft);
+/* La caja del resultado la aporta AvisoModal; se conserva la estructura de sus detalles. */
+.modal-aviso .dbc-prueba {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
 }
 .dbc-hueco {
   flex: 1 1 auto;

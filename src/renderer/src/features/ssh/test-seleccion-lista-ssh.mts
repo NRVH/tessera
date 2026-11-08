@@ -123,7 +123,7 @@ hr('(4) Textos')
 {
   check('una y varias', cuantasConexiones(1) === '1 conexión' && cuantasConexiones(3) === '3 conexiones', cuantasConexiones(3))
   const corto = mensajeEliminarVarias(['web 1', 'web 2'])
-  check('borrar varias: cuántas, cuáles y qué pasa con sus pestañas', corto === '¿Eliminar 2 conexiones?\n• web 1\n• web 2\nLas pestañas que tengan abiertas siguen funcionando, pero ya no se podrán reconectar.', corto)
+  check('borrar varias: cuántas, cuáles y qué pasa con sus pestañas', corto === 'Se eliminarán 2 conexiones:\n• web 1\n• web 2\nLas pestañas que tengan abiertas siguen funcionando, pero ya no se podrán reconectar.', corto)
   const largo = mensajeEliminarVarias(Array.from({ length: 13 }, (_, i) => `srv ${i + 1}`))
   check('con más de diez, las diez primeras y «… y N más»', largo.includes('• srv 10\n… y 3 más') && !largo.includes('srv 11'), largo.split('\n').slice(-3).join(' / '))
 }

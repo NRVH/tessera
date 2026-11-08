@@ -30,6 +30,8 @@ import {
   reducirSetActiveProject,
   reducirSetActiveRepo,
   reducirSetProfileReglas,
+  reducirSetProfileDocumentos,
+  reducirSetProfileContextoGlobal,
   reducirSetProfileRedHost,
   reducirSetScannedRepos,
   reducirWakeProject,
@@ -200,6 +202,11 @@ export type TabsAction =
   | { type: 'recolorProfile'; profileId: string; color: string }
   | { type: 'setProfileRedHost'; profileId: string; redHost: boolean }
   | { type: 'setProfileReglas'; profileId: string; reglas: string }
+  | { type: 'fijarClavesSsh'; perfil: string; claves: string[] }
+  /** Sustituye las carpetas de documentos de referencia del perfil (vacía: las quita). */
+  | { type: 'setProfileDocumentos'; profileId: string; documentos: string[] }
+  /** Si el perfil usa el contexto global de los agentes. */
+  | { type: 'setProfileContextoGlobal'; profileId: string; usar: boolean }
   /** Elimina un perfil (y su estado de sesión); si era el activo, hereda un vecino. */
   | { type: 'deleteProfile'; profileId: string }
   /** Reordena los perfiles a la secuencia de ids dada (drag & drop). */
@@ -380,6 +387,12 @@ function reducirReposYPerfiles(
       return reducirSetProfileRedHost(state, action)
     case 'setProfileReglas':
       return reducirSetProfileReglas(state, action)
+    case 'fijarClavesSsh':
+      return { ...state, profiles: state.profiles.map((perfil) => perfil.id === action.perfil ? { ...perfil, clavesSshPermitidas: action.claves } : perfil) }
+    case 'setProfileDocumentos':
+      return reducirSetProfileDocumentos(state, action)
+    case 'setProfileContextoGlobal':
+      return reducirSetProfileContextoGlobal(state, action)
     case 'deleteProfile':
       return reducirDeleteProfile(state, action)
     case 'reorderProfiles':

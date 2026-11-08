@@ -30,7 +30,7 @@ descarte de la lista lateral en `terminales-keep-alive-y-reinicio-limpio.md`).
   Intro, como en una lista fija de archivos. En el lanzador, que es un menú que se cierra, un clic conecta.
 - Marca la conexión de la pestaña SSH que se ve (`aria-current`) y cuenta las abiertas de cada una.
 - Sin conexiones, su cuerpo solo dice «Sin conexiones SSH en este perfil»: el alta es la de su cabecera (no hay botón repetido en
-  el estado vacío). Su alta solo guarda (`OrigenAltaSsh` `'lista'`); «Sin grupo» no tiene menú.
+  el estado vacío). Su alta solo guarda, no conecta; «Sin grupo» no tiene menú.
 
 ## Varias a la vez (`seleccionListaSsh.ts`, `useArrastreListaSsh.ts`)
 

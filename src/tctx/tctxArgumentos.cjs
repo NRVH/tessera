@@ -1,31 +1,38 @@
 // =============================================================================
-// Los argumentos de `tctx`: el vocabulario cerrado (`reglas`, `proponer`, `traspaso`, `buscar`, `help`), las
-// opciones de `proponer`, con el texto de una sola fuente (`--archivo`, `--texto` o `-`, la entrada estándar), y
-// las de `buscar`. Puro: lanza `ErrorTctx` de uso (código 2). Lo usan `tctx.cjs` y `tctx-container.cjs`.
-// Decisiones: docs/decisiones/agentes/reglas-del-perfil.md, docs/decisiones/agentes/buscar-en-el-historial.md
+// Los argumentos de `tctx`: el vocabulario cerrado (`reglas`, `proponer`, `traspaso`, `buscar`, `docs`, `config`,
+// `cuentas`, `delegar`, `tarea`, `help`), las opciones de cada orden, con el texto de una sola fuente (`--archivo`,
+// `--texto` o `-`, la entrada estándar) donde lo hay. Puro: lanza `ErrorTctx` de uso (código 2). Lo usan `tctx.cjs`
+// y `tctx-container.cjs`.
+// Decisiones: docs/decisiones/agentes/contexto-de-los-agentes.md, docs/decisiones/agentes/buscar-en-el-historial.md,
+// docs/decisiones/agentes/delegar-en-cuentas-de-docker.md
 // =============================================================================
 'use strict'
 
 const { errorDeUso } = require('./tctxSalida.cjs')
 const { textosTctx } = require('./textosTctx.cjs')
 
-/** Las opciones de `proponer` que llevan valor, y el campo donde va. */
+/** Las opciones de `proponer` que llevan valor, y el campo donde va. `config proponer` admite además las suyas. */
 const CON_VALOR = { '--archivo': 'archivo', '--texto': 'texto', '--motivo': 'motivo' }
+const CON_VALOR_CONFIG = { ...CON_VALOR, '--nivel': 'nivel', '--agente': 'agente' }
 
 /** La opción con valor en la posición `i` (`--x v` o `--x=v`): su nombre, su valor y cuántos argumentos usa. */
-function opcionConValor(args, i) {
+function opcionConValor(args, i, opciones = CON_VALOR) {
   const a = args[i]
   const igual = a.indexOf('=')
   const nombre = igual > 0 ? a.slice(0, igual) : a
-  if (!(nombre in CON_VALOR)) return null
-  if (igual > 0) return { campo: CON_VALOR[nombre], valor: a.slice(igual + 1), usados: 1 }
+  if (!(nombre in opciones)) return null
+  if (igual > 0) return { campo: opciones[nombre], valor: a.slice(igual + 1), usados: 1 }
   if (i + 1 >= args.length) throw errorDeUso(textosTctx().faltaValor(nombre))
-  return { campo: CON_VALOR[nombre], valor: args[i + 1], usados: 2 }
+  return { campo: opciones[nombre], valor: args[i + 1], usados: 2 }
 }
 
-/** `proponer (--archivo R | --texto T | -) [--motivo M]`: exactamente una fuente del texto. */
-function analizarProponer(args) {
-  const r = { sub: 'proponer', fuente: null, motivo: '' }
+/**
+ * `proponer (--archivo R | --texto T | -) [--motivo M] [--global]`: exactamente una fuente del texto; `--global`
+ * propone las reglas globales en vez de las del perfil. Con `config`, en su lugar `--nivel` y `--agente`, que
+ * quedan en el resultado.
+ */
+function analizarProponer(args, config = false) {
+  const r = config ? { sub: 'config-proponer', fuente: null, motivo: '' } : { sub: 'proponer', fuente: null, motivo: '' }
   const fuentes = []
   let i = 0
   while (i < args.length) {
@@ -35,15 +42,45 @@ function analizarProponer(args) {
       i++
       continue
     }
-    const o = opcionConValor(args, i)
+    if (a === '--global' && !config) {
+      r.nivel = 'global'
+      i++
+      continue
+    }
+    const o = opcionConValor(args, i, config ? CON_VALOR_CONFIG : CON_VALOR)
     if (o === null) throw errorDeUso(textosTctx().proponerSinOpcion(a))
-    if (o.campo === 'motivo') r.motivo = o.valor
-    else fuentes.push(o.campo === 'archivo' ? { tipo: 'archivo', ruta: o.valor } : { tipo: 'texto', texto: o.valor })
+    const fuente = FUENTES[o.campo]
+    if (fuente) fuentes.push(fuente(o.valor))
+    else r[o.campo] = o.valor
     i += o.usados
   }
   if (fuentes.length === 0) throw errorDeUso(textosTctx().faltaFuente)
   if (fuentes.length > 1) throw errorDeUso(textosTctx().dosFuentes)
   r.fuente = fuentes[0]
+  if (config) exigirNivel(r)
+  return r
+}
+
+/** Las opciones que dan el texto; las demás (motivo, nivel, agente) son campos del resultado. */
+const FUENTES = {
+  archivo: (ruta) => ({ tipo: 'archivo', ruta }),
+  texto: (texto) => ({ tipo: 'texto', texto })
+}
+
+function exigirNivel(r) {
+  if (r.nivel !== 'global' && r.nivel !== 'perfil') throw errorDeUso(textosTctx().configNivel)
+}
+
+/** `config [--agente A]` lo muestra; `config proponer …` propone el archivo de configuración entero nuevo de un nivel. */
+function analizarConfig(args) {
+  if (args[0] === 'proponer') return analizarProponer(args.slice(1), true)
+  const r = { sub: 'config' }
+  for (let i = 0; i < args.length; ) {
+    const o = opcionConValor(args, i, { '--agente': 'agente' })
+    if (o === null) throw errorDeUso(textosTctx().configSinOpcion(args[i]))
+    r.agente = o.valor
+    i += o.usados
+  }
   return r
 }
 
@@ -84,21 +121,79 @@ function analizarBuscar(args) {
   return max === undefined ? { sub: 'buscar', texto, exacta } : { sub: 'buscar', texto, exacta, max }
 }
 
+function analizarReglas(resto) {
+  if (resto.length === 1 && (resto[0] === '--perfil' || resto[0] === '--global')) return { sub: 'reglas', nivel: resto[0].slice(2) }
+  if (resto.length > 0) throw errorDeUso(textosTctx().reglasNoLleva(resto[0]))
+  return { sub: 'reglas' }
+}
+
 /** Los argumentos de `tctx` (sin el ejecutable ni el guion). Sin ninguno, la ayuda. */
 function analizar(argv) {
   const [sub, ...resto] = argv
-  if (sub === undefined || sub === 'help' || sub === '--help' || sub === '-h') return { sub: 'help' }
-  if (sub === 'reglas') {
-    if (resto.length > 0) throw errorDeUso(textosTctx().reglasNoLleva(resto[0]))
-    return { sub: 'reglas' }
-  }
+  if ([undefined, 'help', '--help', '-h'].includes(sub)) return { sub: 'help' }
+  // `reglas` da los dos niveles con su encabezado; `--perfil` o `--global`, uno solo tal cual, para editarlo y proponerlo.
+  if (sub === 'reglas') return analizarReglas(resto)
   if (sub === 'proponer') return analizarProponer(resto)
+  if (sub === 'cuentas') {
+    if (resto.length) throw errorDeUso(textosTctx().delegacionUso)
+    return { sub }
+  }
+  if (sub === 'delegar' || sub === 'tarea') return analizarDelegacion(sub, resto)
   if (sub === 'traspaso') {
     if (resto.length > 0) throw errorDeUso(textosTctx().traspasoNoLleva(resto[0]))
     return { sub: 'traspaso' }
   }
   if (sub === 'buscar') return analizarBuscar(resto)
+  if (sub === 'config') return analizarConfig(resto)
+  // `docs` sin nada lista; con un nombre, lo lee. Las palabras sueltas se unen: un nombre puede llevar espacios.
+  if (sub === 'docs') {
+    const nombre = resto.join(' ').trim()
+    return nombre === '' ? { sub: 'docs' } : { sub: 'docs', nombre }
+  }
   throw errorDeUso(textosTctx().subcomandoDesconocido(sub))
+}
+
+function analizarDelegacion(sub, args) {
+  const t = textosTctx()
+  const r = sub === 'delegar' ? { sub, cuenta: 'auto' } : { sub, id: args[0] }
+  if (sub === 'tarea' && (!r.id || r.id.startsWith('-'))) throw errorDeUso(t.delegacionUso)
+  const vistos = new Set()
+  const indicadores = sub === 'delegar'
+    ? { '-': 'entrada', '--sin-esperar': 'sinEsperar', '--solo-lectura': 'soloLectura' }
+    : { '-': 'entrada', '--sin-esperar': 'sinEsperar', '--cancelar': 'cancelar', '--continuar': 'continuar' }
+  for (let i = sub === 'tarea' ? 1 : 0; i < args.length;) {
+    const a = args[i]
+    const nombre = a.split('=')[0]
+    if (vistos.has(nombre)) throw errorDeUso(t.delegacionUso)
+    vistos.add(nombre)
+    if (Object.hasOwn(indicadores, a)) r[indicadores[a]] = true
+    else {
+      const o = opcionConValor(args, i, sub === 'delegar' ? { '--agente': 'agente', '--cuenta': 'cuenta', '--archivo': 'archivo' } : { '--archivo': 'archivo' })
+      if (!o || !o.valor || o.valor.startsWith('--')) throw errorDeUso(t.delegacionUso)
+      r[o.campo] = o.valor
+      i += o.usados
+      continue
+    }
+    i++
+  }
+  return completarDelegacion(r)
+}
+
+function completarDelegacion(r) {
+  const t = textosTctx()
+  if (r.cancelar && r.continuar) throw errorDeUso(t.delegacionUso)
+  if (r.cancelar) r.accion = 'cancelar'
+  if (r.continuar) r.accion = 'continuar'
+  if (r.sub === 'delegar' && !['claude-code', 'codex'].includes(r.agente)) throw errorDeUso(t.delegacionUso)
+  const llevaOrden = r.sub === 'delegar' || r.continuar
+  if (!llevaOrden && [r.entrada, r.archivo, r.sinEsperar].some(Boolean)) throw errorDeUso(t.delegacionUso)
+  if (r.entrada && r.archivo) throw errorDeUso(t.delegacionUso)
+  if (llevaOrden) r.fuente = r.archivo ? { tipo: 'ruta', ruta: r.archivo } : { tipo: 'entrada' }
+  delete r.archivo
+  delete r.entrada
+  delete r.cancelar
+  delete r.continuar
+  return r
 }
 
 module.exports = { analizar, MAX_TEXTO_BUSCAR, MAX_RESULTADOS }

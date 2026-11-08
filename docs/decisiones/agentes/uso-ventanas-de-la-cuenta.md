@@ -5,10 +5,10 @@
 
 ## Contexto
 
-La línea compacta del pie enseñaba siempre las dos primeras ventanas (`5h` y `7d`). Claude Code
-lleva dos límites semanales (el general y el de un modelo, hoy Fable), y el segundo solo se veía
-al desplegar. Qué límites hay depende del plan y cambia: un modelo deja de tener el suyo, aparece
-otro, o todo se homologa en uno.
+Una línea compacta que enseñe siempre las dos primeras ventanas (`5h` y `7d`) deja fuera las demás:
+Claude Code puede llevar dos límites semanales (el general y el de un modelo concreto), y el segundo
+solo se vería al desplegar. Qué límites hay depende del plan y cambia: un modelo deja de tener el suyo,
+aparece otro, o todo se homologa en uno.
 
 ## Decisión
 

@@ -33,8 +33,8 @@ export function useCrearPerfil(
 
   function openCreate(): void {
     const rect = addBtnRef.current?.getBoundingClientRect()
-    const width = 240
-    const left = rect ? Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)) : 100
+    // Que quepa en la ventana lo decide el popover, que conoce su ancho real (`CrearPerfilPopover`).
+    const left = rect ? rect.left : 100
     setNewName('')
     setNewColor(pickDefaultColor(profiles))
     setCreating({ x: left, y: rect ? rect.bottom + 4 : 44 })

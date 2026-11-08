@@ -24,7 +24,7 @@ estado que acaba de producir la acción anterior. El main está en `transaccione
 - **Pestañas**: las reglas de sustituir y activar son las de [ui-rejilla-modelo-resultados.md](ui-rejilla-modelo-resultados.md);
   varios conjuntos por sentencia son subpestañas «Resultado k.j», `noReleible`.
 - **Avisos del main** (commit implícito de un DDL) no se duplican; los de sesión, una vez. Los
-  parámetros los detecta `shared/sql/parametrosSql.ts`: un campo por clave, NULL es una casilla.
+  parámetros los detecta `shared/sql/parametrosSql.ts`: un campo por clave, NULL es un interruptor.
 - **Forzar tiene alcance**: con un proceso por consola (SQLite) solo cierra esa sesión.
 - **El motor es un hook dueño del modelo** (`useConsola` y sus piezas `useConsola*.ts`): la consola
   carga, guarda y ejecuta aunque su pestaña no se haya mirado nunca, y al cerrarse no puede perder el

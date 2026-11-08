@@ -256,7 +256,7 @@ async function correr(tmp: string): Promise<void> {
   const l5 = llaveroDe(bloque('tok-del-mac'))
   const real = await leerCredencialesClaude(comoEnMac, 'host', 'mac', l5.lector, homeReal)
   check(
-    '(6a) macOS/host: hay token (antes de este módulo esto era `no-credentials`)',
+    '(6a) macOS/host: hay token (no `no-credentials`)',
     real.clase === 'token' && real.token === 'tok-del-mac',
     JSON.stringify(real)
   )

@@ -11,8 +11,10 @@ export type DestinoAyuda = ArticuloId | `${ArticuloId}/${string}`
 
 export const AYUDA = {
   selectorCuenta: 'cuentas/elegir',
+  configuracionCuenta: 'cuentas/configuracion',
   continuarCon: 'continuar-en-otro-agente',
   reglasDelPerfil: 'reglas-del-perfil',
+  contextoDeLosAgentes: 'reglas-del-perfil',
   propuestaDeReglas: 'reglas-del-perfil/propuestas',
   basesDelAgente: 'herramientas-de-los-agentes/tdb',
   hibernarPerfil: 'hibernar/perfil',

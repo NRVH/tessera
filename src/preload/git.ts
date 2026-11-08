@@ -23,6 +23,8 @@ import {
   type WorkingChange,
   type WriteResult,
   type CommitResult,
+  type ResolucionHooks,
+  type HooksPendientes,
   type CommitDetail,
   type CommitsRamaActualResult
 } from '../shared/git-ipc'
@@ -33,6 +35,8 @@ import {
  * ella (POSIX), igual que en FilesApi.
  */
 export interface GitApi {
+  onPermisoHooks: (cb: (pendiente: HooksPendientes) => void) => () => void
+  resolverPermisoHooks: (ficha: string, decision?: ResolucionHooks['decision']) => void
   /**
    * Historia de commits del proyecto. Sin `branch`: todas las ramas (como
    * siempre); con `branch`: acotada a esa rama. `limit` acota el número de commits
@@ -87,7 +91,7 @@ export interface GitApi {
   /** Añade patrones a .git/info/exclude (local: nunca se sube). */
   ignorarEnExcludeLocal: (raiz: string, paths: string[]) => Promise<ResultadoIgnorar>
   /** Crea un commit con lo staged. `repo` = en cuál (omitido: el de la contenedora). */
-  commit: (raiz: string, message: string, repo?: string) => Promise<CommitResult>
+  commit: (raiz: string, message: string, repo?: string, resolucionHooks?: ResolucionHooks) => Promise<CommitResult>
   /** Contenido de un archivo en el índice (versión staged). */
   indexBlob: (raiz: string, path: string) => Promise<BlobResult>
   /** Detalle completo de un commit (cuerpo del mensaje + committer); null si no existe. */
@@ -103,7 +107,32 @@ export interface GitApi {
   commitsRamaActual: (raiz: string, repo?: string, hashes?: readonly string[]) => Promise<CommitsRamaActualResult>
 }
 
+const oyentesHooks = new Set<(pendiente: HooksPendientes) => void>()
+const permisosHooks = new Map<string, (decision?: ResolucionHooks['decision']) => void>()
+
+async function invocarEscritura(canal: string, peticion: object, cancelado: unknown): Promise<unknown> {
+  let resolucionHooks: ResolucionHooks | undefined
+  for (;;) {
+    const resultado = await ipcRenderer.invoke(canal, { ...peticion, resolucionHooks })
+    const pendiente: HooksPendientes | undefined = resultado?.pendienteHooks
+    if (!pendiente) return resultado
+    if (!oyentesHooks.size) return cancelado
+    const decision = await new Promise<ResolucionHooks['decision'] | undefined>((resolver) => {
+      permisosHooks.set(pendiente.ficha, resolver)
+      for (const oyente of oyentesHooks) oyente(pendiente)
+    })
+    permisosHooks.delete(pendiente.ficha)
+    if (!decision) return cancelado
+    resolucionHooks = { ficha: pendiente.ficha, decision }
+  }
+}
+
 export const git: GitApi = {
+  onPermisoHooks: (cb) => {
+    oyentesHooks.add(cb)
+    return () => { oyentesHooks.delete(cb); if (!oyentesHooks.size) for (const resolver of permisosHooks.values()) resolver() }
+  },
+  resolverPermisoHooks: (ficha, decision) => permisosHooks.get(ficha)?.(decision),
   listCommits: (raiz, branch, limit, repo) =>
     ipcRenderer.invoke(GIT_CHANNELS.LIST_COMMITS, { raiz, branch, limit, repo }),
   listBranches: (raiz, repo) => ipcRenderer.invoke(GIT_CHANNELS.LIST_BRANCHES, { raiz, repo }),
@@ -122,16 +151,16 @@ export const git: GitApi = {
     return () => ipcRenderer.removeListener(GIT_CHANNELS.STATUS_PARCIAL, h)
   },
   workingBlob: (raiz, path) => ipcRenderer.invoke(GIT_CHANNELS.WORKING_BLOB, { raiz, path }),
-  discardChanges: (raiz, path) => ipcRenderer.invoke(GIT_CHANNELS.DISCARD_CHANGES, { raiz, path }),
-  stageFile: (raiz, path) => ipcRenderer.invoke(GIT_CHANNELS.STAGE_FILE, { raiz, path }),
-  unstageFile: (raiz, path) => ipcRenderer.invoke(GIT_CHANNELS.UNSTAGE_FILE, { raiz, path }),
-  stageFiles: (raiz, paths) => ipcRenderer.invoke(GIT_CHANNELS.STAGE_FILES, { raiz, paths }),
-  unstageFiles: (raiz, paths) => ipcRenderer.invoke(GIT_CHANNELS.UNSTAGE_FILES, { raiz, paths }),
-  discardChangesMany: (raiz, paths) => ipcRenderer.invoke(GIT_CHANNELS.DISCARD_CHANGES_MANY, { raiz, paths }),
-  ignorarEnGitignore: (raiz, paths) => ipcRenderer.invoke(GIT_CHANNELS.IGNORAR_GITIGNORE, { raiz, paths }),
+  discardChanges: (raiz, path) => invocarEscritura(GIT_CHANNELS.DISCARD_CHANGES, { raiz, path }, { ok: false }) as Promise<DiscardChangesResult>,
+  stageFile: (raiz, path) => invocarEscritura(GIT_CHANNELS.STAGE_FILE, { raiz, path }, { ok: false }) as Promise<WriteResult>,
+  unstageFile: (raiz, path) => invocarEscritura(GIT_CHANNELS.UNSTAGE_FILE, { raiz, path }, { ok: false }) as Promise<WriteResult>,
+  stageFiles: (raiz, paths) => invocarEscritura(GIT_CHANNELS.STAGE_FILES, { raiz, paths }, []) as Promise<ResultadoArchivo[]>,
+  unstageFiles: (raiz, paths) => invocarEscritura(GIT_CHANNELS.UNSTAGE_FILES, { raiz, paths }, []) as Promise<ResultadoArchivo[]>,
+  discardChangesMany: (raiz, paths) => invocarEscritura(GIT_CHANNELS.DISCARD_CHANGES_MANY, { raiz, paths }, []) as Promise<ResultadoDescarte[]>,
+  ignorarEnGitignore: (raiz, paths) => invocarEscritura(GIT_CHANNELS.IGNORAR_GITIGNORE, { raiz, paths }, { patrones: [], ignorados: [], omitidos: [] }) as Promise<ResultadoIgnorar>,
   ignorarEnExcludeLocal: (raiz, paths) =>
-    ipcRenderer.invoke(GIT_CHANNELS.IGNORAR_EXCLUDE_LOCAL, { raiz, paths }),
-  commit: (raiz, message, repo) => ipcRenderer.invoke(GIT_CHANNELS.COMMIT, { raiz, message, repo }),
+    invocarEscritura(GIT_CHANNELS.IGNORAR_EXCLUDE_LOCAL, { raiz, paths }, { patrones: [], ignorados: [], omitidos: [] }) as Promise<ResultadoIgnorar>,
+  commit: (raiz, message, repo, resolucionHooks) => ipcRenderer.invoke(GIT_CHANNELS.COMMIT, { raiz, message, repo, resolucionHooks }),
   indexBlob: (raiz, path) => ipcRenderer.invoke(GIT_CHANNELS.INDEX_BLOB, { raiz, path }),
   commitDetail: (raiz, hash, repo) => ipcRenderer.invoke(GIT_CHANNELS.COMMIT_DETAIL, { raiz, hash, repo }),
   branchesContaining: (raiz, hash, repo) =>

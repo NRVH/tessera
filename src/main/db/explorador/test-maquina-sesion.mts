@@ -268,7 +268,7 @@ function main(): void {
     )
 
     // Qué sentencia de consola lleva una confirmación en camino. El tercer argumento son las
-    // capacidades de la sesión del motor (antes un booleano `oracle`).
+    // capacidades de la sesión del motor.
     const O = MOTORES.oracle.sesion
     const P = MOTORES.postgres.sesion
     const st = (clase: ClaseSentencia, verbo = 'X'): { clase: ClaseSentencia; verbo: string } => ({ clase, verbo })

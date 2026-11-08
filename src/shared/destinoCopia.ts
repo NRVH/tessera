@@ -8,6 +8,7 @@
 // =============================================================================
 
 import { normalizarReglas } from './reglasPerfil.ts'
+import { sinCarpetasDocumentos } from './documentosPerfil.ts'
 
 interface Nombrado {
   id: string
@@ -31,6 +32,26 @@ export function destinoPorDefecto(p: Nombrado, aqui: readonly Nombrado[]): strin
 /** El destino de serie de cada perfil del archivo, por su id. */
 export function destinosPorDefecto(copia: readonly Nombrado[], aqui: readonly Nombrado[]): Record<string, string | null> {
   return Object.fromEntries(copia.map((p) => [p.id, destinoPorDefecto(p, aqui)]))
+}
+
+/** Lo que hace falta para saber qué cuenta de aquí es la misma que una del archivo. */
+export interface CuentaComparable {
+  id: string
+  agente: string
+  nombre: string
+  predeterminada: boolean
+}
+
+/**
+ * La cuenta de aquí que corresponde a una del archivo, entre las de un perfil de destino: la predeterminada con la
+ * predeterminada; las demás por su id, por si aquí cambió de nombre, y si no por el nombre, porque la misma cuenta
+ * creada en otro equipo tiene otro id. null: habría que crearla.
+ */
+export function emparejarCuenta<C extends CuentaComparable>(archivo: CuentaComparable, aqui: readonly C[]): C | null {
+  const delAgente = aqui.filter((c) => c.agente === archivo.agente)
+  if (archivo.predeterminada) return delAgente.find((c) => c.predeterminada) ?? null
+  const creadas = delAgente.filter((c) => !c.predeterminada)
+  return creadas.find((c) => c.id === archivo.id) ?? creadas.find((c) => claveNombre(c.nombre) === claveNombre(archivo.nombre)) ?? null
 }
 
 /**
@@ -110,7 +131,9 @@ export function planPerfiles<P extends PerfilDeCopia>(aqui: readonly { id: strin
     }
     const id = ocupados.has(p.id) ? idLibre(p.id, ocupados) : p.id
     ocupados.add(id)
-    plan.nuevos.push(id === p.id ? p : conOtroId(p, id))
+    // Las carpetas de documentos no se traen nunca, ni de una copia hecha antes de que el export las quitara.
+    const limpio = sinCarpetasDocumentos(p)
+    plan.nuevos.push(id === p.id ? limpio : conOtroId(limpio, id))
     plan.destinos[p.id] = id
   }
   return plan

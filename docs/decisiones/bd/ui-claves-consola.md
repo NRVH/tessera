@@ -21,7 +21,7 @@ de uno en uno.
   `confirmadoPeligroso`; ante `produccion`, la confirmación de las otras consolas y `confirmado`.
   Cada marca se pone SOLO tras el diálogo de su motivo y se reenvía tal cual; como mucho, dos vueltas.
   Si el usuario rechaza, el comando queda «No se envió» y el lote para. Un rechazo por solo lectura
-  impuesta se enseña y se para (la casilla `readonly` de la conexión es de los agentes).
+  impuesta se enseña y se para (el interruptor `readonly` de la conexión es de los agentes).
 - **Un comando por línea**, sin divisor como el de SQL o el del shell de documentos. Se ignoran las
   líneas en blanco y las que empiezan por `#`; un `#` en medio no es comentario (`SET a #1` es un
   valor legítimo). Se envía la línea sin blancos y su `desplazamiento` es el de su primer carácter,

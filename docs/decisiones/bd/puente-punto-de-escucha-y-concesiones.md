@@ -4,7 +4,7 @@
 - **Ámbito:** `src/main/db/dbBridge.ts`, `puntoEscucha.ts` y las operaciones `ssh.*` que se registran en él
 ## Contexto
 
-El ámbito y las contraseñas como variables del pty quedarían congeladas en el `spawn`: marcar una casilla no
+El ámbito y las contraseñas como variables del pty quedarían congeladas en el `spawn`: activar un interruptor no
 haría nada hasta reiniciar la sesión del agente. Con el puente, `tdb` pregunta a Tessera en cada invocación y
 montar o desmontar aplica al momento, sin perder la conversación.
 

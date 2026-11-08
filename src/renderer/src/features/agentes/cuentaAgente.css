@@ -132,6 +132,9 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
+  transition:
+    background var(--mov-rapido) var(--curva-estandar),
+    border-color var(--mov-rapido) var(--curva-estandar);
 }
 .cuenta-tarjeta:hover,
 .cuenta-tarjeta:focus-visible {
@@ -227,7 +230,7 @@
   transform: translateY(-50%);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.12s ease;
+  transition: opacity var(--mov-rapido) var(--curva-estandar);
 }
 .cuenta-tarjeta-caja:hover .cuenta-tarjeta-acciones,
 .cuenta-tarjeta-caja:focus-within .cuenta-tarjeta-acciones,
@@ -280,4 +283,39 @@
   background: var(--hover-suave);
   color: var(--fg);
   outline: none;
+}
+
+/* Administrar las cuentas: una acción secundaria bajo «Nueva cuenta», sin contorno, para que no compita con ella. */
+.cuenta-administrar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 4px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.cuenta-administrar svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+.cuenta-administrar:hover,
+.cuenta-administrar:focus-visible {
+  background: var(--hover-suave);
+  color: var(--fg);
+  outline: none;
+}
+
+/* La elección del agente en el alta de una cuenta: su etiqueta y el conmutador segmentado común. */
+.cuenta-agente-eleccion {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }

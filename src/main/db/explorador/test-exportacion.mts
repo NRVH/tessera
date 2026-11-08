@@ -262,7 +262,7 @@ async function main(): Promise<void> {
       `${ePrep?.error.motivo} · diálogos abiertos=${dialogos.length - dialogosAntes}`
     )
     check(
-      'otra petición con el mismo id MIENTRAS se prepara: ocupada (antes pasaba, porque aún no estaba apuntada)',
+      'otra petición con el mismo id MIENTRAS se prepara: ocupada (el id ya está apuntado antes de preparar)',
       otraIgual?.error.motivo === 'ocupada' && !ex.enMarcha(idPrep),
       `${otraIgual?.error.motivo} · sigue en marcha=${ex.enMarcha(idPrep)}`
     )

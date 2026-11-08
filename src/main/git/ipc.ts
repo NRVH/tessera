@@ -29,11 +29,36 @@ import {
   type WorkingBlobRequest
 } from '../../shared/git-ipc'
 import type { GitService } from './GitService'
+import { conPeticionHooks, hooksDeOperacion, PendienteHooks, pendienteDePeticion, prepararHooksOperacion } from './adaptadores/hooksGit'
+import { entornoGit } from './adaptadores/configSegura'
 
 type Ipc = Pick<IpcMain, 'handle'>
 
 /** Registra un canal en la vista del proyecto de cada petición, nunca en la del anclado. */
 type EnProyecto = <R>(canal: string, fn: (svc: GitService, req: PeticionGit<R>) => unknown) => void
+
+const escriturasDeInterfaz = new Set<string>([
+  GIT_CHANNELS.COMMIT, GIT_CHANNELS.STAGE_FILE, GIT_CHANNELS.UNSTAGE_FILE,
+  GIT_CHANNELS.STAGE_FILES, GIT_CHANNELS.UNSTAGE_FILES, GIT_CHANNELS.DISCARD_CHANGES,
+  GIT_CHANNELS.DISCARD_CHANGES_MANY
+])
+
+async function escribirDesdeInterfaz<R>(evento: IpcMainInvokeEvent, canal: string, git: GitService, req: PeticionGit<R>, operar: () => unknown): Promise<unknown> {
+  return conPeticionHooks(evento.sender?.id ?? 0, req.resolucionHooks, async () => {
+    const { resolucionHooks: _resolucion, ...peticion } = req
+    try {
+      const verbo = canal === GIT_CHANNELS.COMMIT ? 'commit'
+        : canal === GIT_CHANNELS.DISCARD_CHANGES || canal === GIT_CHANNELS.DISCARD_CHANGES_MANY ? 'checkout' : 'add'
+      await prepararHooksOperacion([canal, JSON.stringify(peticion)], await git.reposDeEscritura(req), entornoGit, hooksDeOperacion([verbo]))
+      const resultado = await operar()
+      const pendiente = pendienteDePeticion()
+      return pendiente ? { ok: false, pendienteHooks: pendiente } : resultado
+    } catch (error) {
+      if (error instanceof PendienteHooks) return { ok: false, pendienteHooks: error.pendiente }
+      throw error
+    }
+  })
+}
 
 /** Historia, blobs y estado: los diez primeros canales, en su orden de registro. */
 function registrarConsultas(enProyecto: EnProyecto): void {
@@ -83,7 +108,13 @@ function registrarEscrituras(enProyecto: EnProyecto): void {
 /** Registra los 23 handlers de git en `ipc` y anuncia en el log si hay proyecto activo. */
 export function registrarIpcGit(deps: { ipc: Ipc; git: GitService }): void {
   const enProyecto: EnProyecto = <R>(canal: string, fn: (svc: GitService, req: PeticionGit<R>) => unknown) => {
-    deps.ipc.handle(canal, (_e: IpcMainInvokeEvent, req: PeticionGit<R>) => fn(deps.git.paraRaiz(req?.raiz), req))
+    deps.ipc.handle(canal, (evento: IpcMainInvokeEvent, req: PeticionGit<R>) => {
+      const git = deps.git.paraRaiz(req?.raiz)
+      const operar = (): unknown => fn(git, req)
+      return escriturasDeInterfaz.has(canal)
+        ? escribirDesdeInterfaz(evento, canal, git, req, operar)
+        : operar()
+    })
   }
   registrarConsultas(enProyecto)
   registrarEscrituras(enProyecto)

@@ -1,9 +1,9 @@
 // =============================================================================
 // La terminal de abajo a pantalla completa sobre la app empaquetada: el botón de maximizar se
 // revela como sus hermanos, tapa lateral, editor y agente sin desmontarlos, la terminal crece y
-// no se remonta, y los de restaurar y ocultar (las dos salidas del modo) se quedan fijos; con el
-// botón, maximizar y restaurar devuelven el foco a la xterm. Ctrl+`, cambiar a Git·Log y abrir una
-// pestaña (Mod+N) salen del modo; Mod+Shift+↩ lo alterna solo con el foco en la franja y no manda
+// no se remonta, y restaurar y ocultar viven en el riel, a la vista y no en la cabecera, junto a
+// Terminal y Git·Log, que pasan de uno a otro sin salir del modo; maximizar devuelve el foco a la
+// xterm. Ctrl+` y abrir una pestaña (Mod+N) salen del modo; Mod+Shift+↩ lo alterna solo con el foco en la franja y no manda
 // un CR a la shell. La regla la fija `features/layout/test-layout-centro.mts`. Agente falso
 // (`agenteFalso.ts`); nada depende del sistema. `TESSERA_E2E_CAPTURAS` guarda capturas.
 // =============================================================================
@@ -186,8 +186,10 @@ test.describe.serial('La terminal a pantalla completa', () => {
     const panel = win.locator('section.terminal-panel')
     const pantalla = panel.locator('.terminal-pane[aria-hidden="false"] .xterm-screen')
     const maximizar = panel.getByRole('button', { name: 'Maximizar el panel de terminal' })
-    const restaurar = panel.getByRole('button', { name: 'Restaurar el panel de terminal' })
     const ocultar = panel.getByRole('button', { name: 'Ocultar el panel de terminal' })
+    const rielModo = win.locator('.activity-bar')
+    const restaurar = rielModo.getByRole('button', { name: 'Restaurar el panel de terminal' })
+    const ocultarRiel = rielModo.getByRole('button', { name: 'Ocultar el panel de terminal' })
 
     // --- Preparación: un archivo abierto (editor a la vista), la terminal en la franja y un marcador escrito ---
     await win.locator('.sidebar .tree-row:visible', { hasText: 'LEEME.txt' }).first().click({ timeout: 30_000 })
@@ -245,15 +247,16 @@ test.describe.serial('La terminal a pantalla completa', () => {
     for (const cromo of ['.titlebar', '.tabs-profiles', '.activity-bar', '.status-bar']) {
       await expect(win.locator(cromo).first(), `${cromo} se queda`).toBeVisible()
     }
-    // Que se note el modo: los proyectos se apartan y el riel deja solo la flecha de volver.
+    // Que se note el modo: los proyectos se apartan y el riel lleva las acciones del modo.
     await expect(win.locator('.tabs-projects'), 'la banda de proyectos se aparta').toBeHidden()
     expect(await altoFila(), 'la fila tapada conserva su alto: el agente de la columna no recibe un resize').toBe(altoFilaAntes)
-    await expect(win.locator('.activity-bar .activity-item'), 'el riel deja un solo icono').toHaveCount(1)
-    await expect(win.getByRole('button', { name: 'Volver al proyecto', exact: true }), 'con el color del perfil').toHaveClass(/\benfocada\b/)
-    await expect(win.getByRole('button', { name: 'Volver al proyecto', exact: true })).toHaveAttribute(
-      'title',
-      'Cierra la terminal y vuelve al proyecto'
-    )
+    await expect(rielModo.locator('.activity-item'), 'restaurar, ocultar, Terminal y Git·Log').toHaveCount(4)
+    await expect(rielModo.getByRole('button', { name: 'Terminal', exact: true }), 'el panel que se ve lleva el color del perfil').toHaveClass(/\benfocada\b/)
+    await expect(rielModo.getByRole('button', { name: 'Terminal', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    await expect(ocultarRiel, 'ocultar no lo lleva').not.toHaveClass(/\benfocada\b/)
+    await expect(restaurar, 'ni restaurar').not.toHaveClass(/\benfocada\b/)
+    await expect(panel.getByRole('button', { name: 'Restaurar el panel de terminal' }), 'la cabecera no repite las acciones del modo').toHaveCount(0)
+    await expect(ocultar, 'ni ocultar').toHaveCount(0)
     expect(await win.locator('.agent-pane').count(), 'los panes del agente siguen montados').toBe(panesAgente)
     await expect(win.locator('.editor-tab', { hasText: 'LEEME.txt' }), 'la pestaña sigue abierta').toHaveCount(1)
 
@@ -264,18 +267,18 @@ test.describe.serial('La terminal a pantalla completa', () => {
     expect(await marcados(), 'ningún pane de terminal se remontó').toBe(panesTerminal)
     expect(await contarEnTerminal(win, MARCADOR), 'lo escrito antes sigue en pantalla').toBe(1)
 
-    // --- Restaurar y ocultar están FIJOS: son las dos salidas del modo y se ven sin ratón ni foco ---
+    // --- Restaurar y ocultar viven en el riel: se ven sin ratón ni foco ---
     await enReposo(win)
     await expect(restaurar, 'restaurar no se esconde en reposo').toBeVisible()
-    await expect(ocultar, 'ocultar tampoco: es la otra salida del modo').toBeVisible()
-    await expect(panel.locator('.terminal-reload-btn'), 'y reiniciar, que no sale del modo, sí se esconde').toBeHidden()
-    await expect(restaurar).toHaveAttribute('title', `Restaurar el panel de terminal (${ACORDE})`)
+    await expect(ocultarRiel, 'ocultar tampoco').toBeVisible()
+    await expect(panel.locator('.terminal-reload-btn'), 'y reiniciar, en la cabecera, sí se esconde').toBeHidden()
+    await expect(restaurar).toHaveAttribute('title', `Restaurar: la terminal vuelve a la parte inferior (${ACORDE})`)
     await capturar(win, 'terminal-pantalla-completa')
 
     // --- Restaurar devuelve el layout de antes, con el alto de la franja y la terminal viva ---
     await restaurar.click()
     await expect(shell).not.toHaveClass(/\bfranja-pantalla-completa\b/)
-    await comprobarFocoEnLaTerminal(win, 'restaurar')
+    await comprobarFocoEnLaTerminal(win, 'restaurar desde el riel')
     await expect(lateral).toBeVisible()
     await expect(editor).toBeVisible()
     await expect(agente).toBeVisible()
@@ -290,7 +293,7 @@ test.describe.serial('La terminal a pantalla completa', () => {
     expect(await contarEnTerminal(win, MARCADOR), 'y lo escrito sigue en pantalla').toBe(1)
   })
 
-  test('cerrar con Ctrl+` y cambiar a Git·Log lo recuerdan por ventana; la flecha del riel la cierra; abrir una pestaña (Mod+N) o restaurar sí lo restauran', async () => {
+  test('cerrar con Ctrl+` y cambiar a Git·Log lo recuerdan por ventana; ocultar desde el riel la cierra, pasar al otro panel desde el riel no sale del modo; abrir una pestaña (Mod+N) o restaurar sí lo restauran', async () => {
     const win = s.win
     const shell = win.locator('.shell')
     const lateral = win.locator('.panel-lateral')
@@ -323,40 +326,44 @@ test.describe.serial('La terminal a pantalla completa', () => {
     await expect(panel).toBeVisible()
     await expect(shell, 'reabrirla la devuelve maximizada: es lo último que eligió').toHaveClass(/\bterminal-pantalla-completa\b/)
 
-    // --- La flecha del riel hace lo mismo que el icono del panel: la cierra y los proyectos vuelven ---
-    const volver = riel('Volver al proyecto')
-    await volver.click()
+    // --- «Ocultar el panel» del riel hace lo mismo que Ctrl+`: la cierra y los proyectos vuelven ---
+    await riel('Ocultar el panel de terminal').click()
     await expect(shell, 'cerrada, no se pinta el modo').not.toHaveClass(modo)
     await expect(win.locator('section.terminal-panel:not(.hidden)')).toHaveCount(0)
     await expect(win.locator('.tabs-projects'), 'los proyectos vuelven').toBeVisible()
     await expect(win.locator('.activity-bar .activity-item'), 'y el riel entero').toHaveCount(5)
     await expect(riel('Terminal'), 'el foco no se pierde: pasa al icono del panel que se cerró').toBeFocused()
 
-    // --- Cambiar a Git·Log: cada ventana guarda lo suyo ---
-    await riel('Git · Log').click()
+    // --- Desde el riel entero, cada ventana guarda lo suyo ---
+    await riel('Git · Historial').click()
     await expect(git).toBeVisible()
     await expect(shell, 'Git llega como estaba: sin maximizar').not.toHaveClass(modo)
     await expect(panel).toBeHidden()
     await git.locator('.panel-header').first().hover()
     await git.getByRole('button', { name: 'Maximizar el panel de Git' }).click()
     await expect(shell).toHaveClass(/\bgit-pantalla-completa\b/)
-    await expect(volver).toHaveAttribute('title', 'Cierra el historial de Git y vuelve al proyecto')
-    await volver.click()
+    await expect(git.getByRole('button', { name: 'Ocultar el panel de Git' }), 'la cabecera de Git no repite las acciones del modo').toHaveCount(0)
+    await riel('Ocultar el panel de Git').click()
     await riel('Terminal').click()
     await expect(panel).toBeVisible()
     await expect(shell, 'volver a la terminal la devuelve maximizada').toHaveClass(/\bterminal-pantalla-completa\b/)
-    await volver.click()
-    await riel('Git · Log').click()
-    await expect(shell, 'y volver a Git, también').toHaveClass(/\bgit-pantalla-completa\b/)
-    await git.locator('.panel-header').first().hover()
-    await git.getByRole('button', { name: 'Restaurar el panel de Git' }).click()
-    await expect(shell).not.toHaveClass(modo)
+
+    // --- Desde el riel a pantalla completa, pasar al otro panel no sale del modo y el maximizado lo acompaña ---
+    await riel('Git · Historial').click()
+    await expect(git).toBeVisible()
+    await expect(shell, 'Git entra a pantalla completa').toHaveClass(/\bgit-pantalla-completa\b/)
+    await expect(riel('Git · Historial')).toHaveAttribute('aria-pressed', 'true')
     await riel('Terminal').click()
-    await expect(shell).toHaveClass(/\bterminal-pantalla-completa\b/)
+    await expect(shell, 'y la terminal también').toHaveClass(/\bterminal-pantalla-completa\b/)
+    await riel('Git · Historial').click()
+    await riel('Restaurar el panel de Git').click()
+    await expect(shell, 'restaurar Git sale del modo').not.toHaveClass(modo)
+    await riel('Terminal').click()
+    await expect(shell, 'y la terminal, que se dejó al pasar, ya no estaba maximizada').not.toHaveClass(modo)
+    await maximizarTerminal()
 
     // --- Restaurar la devuelve a su tamaño, sin cerrarla, y eso queda ---
-    await panel.locator('.panel-header').first().hover()
-    await panel.getByRole('button', { name: 'Restaurar el panel de terminal' }).click()
+    await riel('Restaurar el panel de terminal').click()
     await expect(shell, 'restaurar sale del modo').not.toHaveClass(modo)
     await expect(panel, 'sin cerrar la terminal').toBeVisible()
     await win.keyboard.press('Control+`')
@@ -428,7 +435,7 @@ test.describe.serial('La terminal a pantalla completa', () => {
     await expect(shell, 'con el foco en el explorador no alterna').not.toHaveClass(/\bfranja-pantalla-completa\b/)
 
     // --- En Git·Log alterna el suyo: es el panel que se ve ---
-    await win.getByRole('button', { name: 'Git · Log', exact: true }).click()
+    await win.getByRole('button', { name: 'Git · Historial', exact: true }).click()
     await expect(git).toBeVisible()
     await expect(git.locator('.git-fila-commit').first()).toBeVisible({ timeout: 30_000 })
     await git.locator('.git-fila-commit').first().click()
@@ -437,5 +444,13 @@ test.describe.serial('La terminal a pantalla completa', () => {
     await expect(shell).not.toHaveClass(/\bterminal-pantalla-completa\b/)
     await win.keyboard.press(acorde)
     await expect(shell).not.toHaveClass(/\bfranja-pantalla-completa\b/)
+
+    // --- Con el foco en el riel del modo (su «Restaurar» anuncia el acorde), el acorde restaura ---
+    await git.locator('.git-fila-commit').first().click()
+    await win.keyboard.press(acorde)
+    await expect(shell).toHaveClass(/\bgit-pantalla-completa\b/)
+    await win.locator('.activity-bar').getByRole('button', { name: 'Ocultar el panel de Git' }).focus()
+    await win.keyboard.press(acorde)
+    await expect(shell, 'con el foco en el riel del modo, el acorde restaura').not.toHaveClass(/\bfranja-pantalla-completa\b/)
   })
 })

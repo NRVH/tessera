@@ -1,15 +1,15 @@
 // =============================================================================
-// El texto de `tctx proponer`, de su fuente: un argumento, un archivo (UTF-8 o el UTF-16 que deja
-// `Out-File` de PowerShell, con o sin marca de orden de bytes) o la entrada estándar, con tope. En
-// Windows, una ruta del shell de Git (`/c/…`) se traduce: el atajo `sh` le pide a MSYS que no convierta
-// nada, para no tocar el texto. Lo usan `tctx.cjs` y `tctx-container.cjs`.
-// Decisiones: docs/decisiones/agentes/reglas-del-perfil.md
+// El texto de `tctx proponer` y `tctx config proponer`, y la orden de `tctx delegar` y `tctx tarea --continuar`, de
+// su fuente: un argumento, un archivo (UTF-8 o el UTF-16 que deja `Out-File` de PowerShell, con o sin marca de
+// orden de bytes) o la entrada estándar, con tope. En Windows, una ruta del shell de Git (`/c/…`) se traduce: el
+// atajo `sh` le pide a MSYS que no convierta nada, para no tocar el texto. Lo usan `tctx.cjs` y `tctx-container.cjs`.
+// Decisiones: docs/decisiones/agentes/contexto-de-los-agentes.md, docs/decisiones/agentes/delegar-en-cuentas-de-docker.md
 // =============================================================================
 'use strict'
 
 const fs = require('node:fs')
 const path = require('node:path')
-const { errorDeUso } = require('./tctxSalida.cjs')
+const { errorDeUso, ErrorTctx, CODIGOS, MAX_ORDEN_BYTES } = require('./tctxSalida.cjs')
 const { textosTctx } = require('./textosTctx.cjs')
 
 /** Lo que se lee como mucho de un archivo o de la entrada: unas reglas caben de sobra. */
@@ -76,7 +76,7 @@ const TOPE_ENTRADA_MS = 30_000
  * Sin tubería (una terminal) no hay fin que esperar: es un error de uso. Con ella, el tope de tiempo
  * evita colgarse si quien la abrió no la cierra.
  */
-function leerEntrada(entrada = process.stdin, topeMs = TOPE_ENTRADA_MS) {
+function leerEntrada(entrada = process.stdin, topeMs = TOPE_ENTRADA_MS, { maxBytes = MAX_BYTES, errorGrande = () => errorDeUso(textosTctx().entradaGrande(MAX_BYTES / 1024)) } = {}) {
   return new Promise((resolve, reject) => {
     if (entrada.isTTY) {
       reject(errorDeUso(textosTctx().entradaSinTuberia))
@@ -84,23 +84,39 @@ function leerEntrada(entrada = process.stdin, topeMs = TOPE_ENTRADA_MS) {
     }
     const trozos = []
     let bytes = 0
-    const reloj = setTimeout(() => reject(errorDeUso(textosTctx().entradaSinFin(topeMs / 1000))), topeMs)
+    const reloj = setTimeout(() => fin(reject)(errorDeUso(textosTctx().entradaSinFin(topeMs / 1000))), topeMs)
     const fin = (accion) => (valor) => {
       clearTimeout(reloj)
+      entrada.removeListener('data', datos)
+      entrada.removeListener('end', terminar)
+      entrada.removeListener('error', fallar)
+      entrada.pause()
       accion(valor)
     }
-    entrada.on('data', (t) => {
+    const datos = (t) => {
       bytes += t.length
-      if (bytes > MAX_BYTES) fin(reject)(errorDeUso(textosTctx().entradaGrande(MAX_BYTES / 1024)))
+      if (bytes > maxBytes) fin(reject)(errorGrande())
       else trozos.push(t)
-    })
-    entrada.on('end', () => fin(resolve)(decodificar(Buffer.concat(trozos))))
-    entrada.on('error', fin(reject))
+    }
+    const terminar = () => fin(resolve)(decodificar(Buffer.concat(trozos)))
+    const fallar = fin(reject)
+    entrada.on('data', datos)
+    entrada.on('end', terminar)
+    entrada.on('error', fallar)
   })
 }
 
 /** El texto de la fuente que dio `analizar`. */
 async function leerTexto(fuente, opciones) {
+  if (fuente.tipo === 'ruta') {
+    if (!process.stdin.isTTY) await leerEntrada(process.stdin, TOPE_ENTRADA_MS, { maxBytes: 0, errorGrande: () => errorDeUso(textosTctx().delegacionUso) })
+    return ''
+  }
+  if (opciones?.delegacion) {
+    if (process.stdin.isTTY) throw errorDeUso(textosTctx().delegacionUso)
+    // UTF-16 puede ocupar el doble; el tope UTF-8 se comprueba después de decodificar, al formar la petición.
+    return leerEntrada(process.stdin, TOPE_ENTRADA_MS, { maxBytes: MAX_ORDEN_BYTES * 2 + 3, errorGrande: () => new ErrorTctx(CODIGOS.rechazo, textosTctx().rechazosDelegacion['orden-larga']({ max: MAX_ORDEN_BYTES })) })
+  }
   if (fuente.tipo === 'texto') return fuente.texto
   if (fuente.tipo === 'archivo') return leerArchivo(rutaDeArchivo(fuente.ruta, opciones))
   return leerEntrada()

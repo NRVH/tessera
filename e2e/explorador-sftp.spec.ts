@@ -1,12 +1,13 @@
 // =============================================================================
-// El explorador SFTP de verdad (E24), contra el servidor SSH de pruebas y con el OpenSSH del sistema: se
+// El explorador SFTP de verdad (E24), contra el servidor SSH de pruebas y con el OpenSSH del sistema: la primera
+// vez confirma la huella del servidor nuevo (traída sin credenciales); se
 // abre desde el menú de la conexión con su contraseña guardada, lista la carpeta de inicio, crea una carpeta,
 // entra y sale, y la borra con su confirmación; sin contraseña guardada, la pide en el diálogo de Tessera.
 // Solo corre con el servidor de pruebas levantado:
 // `bash scripts/pruebas/ssh.sh correr npx playwright test e2e/explorador-sftp.spec.ts`; si no, se salta.
 // =============================================================================
 
-import { expect, test, type Locator } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { montarAgenteFalso } from './agenteFalso'
@@ -14,6 +15,16 @@ import { abrirTessera, borrarTemporal, type SesionTessera } from './tessera'
 
 const DESTINO = process.env.TESSERA_TEST_SSH
 const SECRETOS = process.env.TESSERA_TEST_SSH_DIR
+
+/** La huella del servidor nuevo, traída sin credenciales: se enseña con su alias y se confirma. */
+async function confiarHuella(win: Page, alias: string): Promise<void> {
+  const huella = win.getByRole('dialog', { name: 'Compruebe la identidad de este servidor' })
+  await expect(huella, 'la primera vez se enseña la huella del servidor').toBeVisible({ timeout: 30_000 })
+  await expect(huella).toContainText(alias)
+  await expect(huella.locator('.huella-nueva-valor').first()).toHaveText(/^SHA256:[A-Za-z0-9+/]{43}$/)
+  await huella.getByRole('button', { name: 'Confiar y conectar' }).click()
+  await expect(huella).toHaveCount(0)
+}
 
 test.describe.serial('El explorador SFTP contra un servidor de verdad', () => {
   test.skip(!DESTINO || !SECRETOS, 'sin TESSERA_TEST_SSH: corre con scripts/pruebas/ssh.sh correr')
@@ -64,6 +75,8 @@ test.describe.serial('El explorador SFTP contra un servidor de verdad', () => {
     // Sin grupos, la conexión sale suelta, sin cabecera «Sin grupo».
     await lista.getByRole('treeitem', { name: /^Servidor,/ }).click({ button: 'right' })
     await win.getByRole('menuitem', { name: 'Abrir explorador SFTP' }).click()
+    // La primera vez, antes de autenticarse, la huella del servidor de verdad: se trae sin credenciales y se confirma.
+    await confiarHuella(win, 'Servidor')
 
     await expect(panel().getByRole('tab', { name: 'SFTP · Servidor, archivos remotos por SFTP' })).toBeVisible({ timeout: 30_000 })
     const explorador = panel().locator('.terminal-pane:visible')
@@ -74,6 +87,8 @@ test.describe.serial('El explorador SFTP contra un servidor de verdad', () => {
     const nombre = `e2e-${process.pid} ñ`
     await barra.getByRole('button', { name: 'Nueva carpeta' }).click()
     const dialogo = win.getByRole('dialog', { name: 'Nueva carpeta' })
+    await expect(dialogo.getByRole('button', { name: 'Cerrar', exact: true })).toBeEnabled()
+    expect(await dialogo.evaluate((e) => e.closest('.sftp') === null), 'el diálogo vive fuera del contenedor SFTP').toBe(true)
     await dialogo.getByRole('textbox').fill(nombre)
     await dialogo.getByRole('textbox').press('Enter')
     const fila = explorador.getByRole('option', { name: new RegExp(`^${nombre}, `) })
@@ -89,7 +104,7 @@ test.describe.serial('El explorador SFTP contra un servidor de verdad', () => {
     await fila.dispatchEvent('dragenter', { dataTransfer: arrastre })
     await fila.dispatchEvent('dragover', { dataTransfer: arrastre })
     await expect(fila, 'la carpeta bajo el puntero se resalta').toHaveClass(/soltar-aqui/)
-    await expect(explorador.locator('.sftp-aviso-soltar')).toHaveText(`Suelta para subir a «${nombre}»`)
+    await expect(explorador.locator('.sftp-aviso-soltar')).toHaveText(`Suelte para subir a «${nombre}»`)
     await fila.dispatchEvent('dragleave', { dataTransfer: arrastre })
     await expect(fila).not.toHaveClass(/soltar-aqui/)
     // Captura opcional, solo si quien corre la prueba pide dónde guardarla.
@@ -101,7 +116,7 @@ test.describe.serial('El explorador SFTP contra un servidor de verdad', () => {
 
     await fila.click()
     await barra.getByRole('button', { name: 'Eliminar' }).click()
-    const confirmar = win.getByRole('dialog', { name: 'Eliminar 1 elemento' })
+    const confirmar = win.getByRole('dialog', { name: '¿Eliminar 1 elemento del servidor?' })
     await confirmar.getByRole('button', { name: 'Eliminar', exact: true }).click()
     await expect(fila, 'se borró y la lista se refrescó').toHaveCount(0, { timeout: 15_000 })
   })
@@ -120,6 +135,7 @@ test.describe.serial('El explorador SFTP contra un servidor de verdad', () => {
     const lista = win.getByRole('dialog', { name: 'Conexiones SSH' })
     await lista.getByRole('treeitem', { name: /^Sin guardar,/ }).click({ button: 'right' })
     await win.getByRole('menuitem', { name: 'Abrir explorador SFTP' }).click()
+    await confiarHuella(win, 'Sin guardar')
 
     const pregunta = win.getByRole('dialog', { name: 'Conexión SSH «Sin guardar»' })
     await expect(pregunta, 'el explorador pregunta la contraseña').toBeVisible({ timeout: 30_000 })

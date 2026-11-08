@@ -1066,8 +1066,8 @@ if (!shellTextos) {
   // DELANTE de la original (gana la primera), una ajena de motor o de forma delante (no
   // cuenta como «anterior»), una primera de otro perfil, tres con el mismo id, y la mitad
   // negativa: ids distintos (también por mayúsculas: un id no se compara sin distinguirlas).
-  // Un motor que esta versión no conoce (antes era una SQLite; hoy
-  // SQLite se conoce y su FORMA es otra: ver los casos de abajo).
+  // Un motor que esta versión no conoce (SQLite se conoce y su FORMA es otra: ver los
+  // casos de abajo).
   const LITE = { id: 'r1', profileId: 'p1', alias: 'Lite', motor: 'db2', instancia: 'SQLEXPRESS' }
   const ROTA = { ...ORIGINAL, alias: 'Rota', port: 'x' }
   // la FORMA de cada motor sale de su descriptor en los tres sitios (main, `tdb`,

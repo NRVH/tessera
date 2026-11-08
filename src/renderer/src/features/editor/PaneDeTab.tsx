@@ -18,7 +18,7 @@ import { ImageViewerPane } from './ImageViewerPane'
 import { JavaClassPane } from './JavaClassPane'
 import { textModelKey } from './textModelRegistry'
 import { isSvgPath, viewerKindForPath, type FileViewerKind } from './viewerKind'
-import { setModoVistaPane, setPaneMeta, setTabBorrado, setTabDirty, type EstadoEditor } from './store'
+import { setModoVistaPane, setPaneMeta, setTabBorrado, setTabDirty, useStoreEditor, type EstadoEditor } from './store'
 import type { EditorApp } from './useEditorApp'
 
 /** Todo lo que un pane necesita de la ventana. */
@@ -152,6 +152,8 @@ function paneDeArchivo(p: Pane, file: { path: string; name: string }, c: Context
         reopenEncoding={c.estado.reopenReqByKey.get(pk)}
         modelKey={textModelKey(targetKey, file.path)}
         revelar={c.estado.revelarPorPane.get(pk)}
+        // Solo cuenta al montarse (el pane guarda su modo): se lee sin suscribirse, así cambiar de modo no repinta las demás.
+        modoInicial={useStoreEditor.getState().modoVistaPorPane.get(pk)}
       />
     )
   }

@@ -32,6 +32,7 @@ import { ConversationsReader } from '../conversations/ConversationsReader.ts'
 import { MAX_TEXTO_BUSQUEDA } from '../historial/coincidencia.ts'
 import { MAX_RESULTADOS_TOPE, TOPES_DEFECTO, buscarEnHistorial, fechaLocalDe } from '../historial/buscarHistorial.ts'
 import { OP_BUSCAR, OperacionBuscarHistorial } from '../historial/operacionBuscar.ts'
+import { MAX_ORDEN_BYTES, type VistaTareaConResultado } from '../../shared/delegacion-ipc.ts'
 
 function hr(title: string): void {
   console.log('\n' + '='.repeat(78))
@@ -44,6 +45,9 @@ function check(name: string, pass: boolean, evidence: string): void {
   console.log(`  [${pass ? 'PASS' : 'FAIL'}] ${name} -> ${evidence}`)
 }
 const j = (v: unknown): string => JSON.stringify(v)
+
+/** Las operaciones de las reglas sin reglas globales. */
+const SIN_GLOBALES = { reglasGlobales: (): string => '', usaGlobales: (): boolean => true }
 
 const RAIZ_REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
 const DIR_TCTX = path.join(RAIZ_REPO, 'src', 'tctx')
@@ -140,7 +144,7 @@ async function puenteConReglas(): Promise<{ puente: DbBridge; almacen: Propuesta
   const almacen = new PropuestasReglas({ ruta: path.join(dir, 'reglas-propuestas.json'), idsVivos: () => [...perfiles.keys()], log: () => {} })
   const avisos: string[] = []
   const puente = new DbBridge({ conexionesDelPerfil: () => [], secretoDe: () => null, log: () => {} })
-  new OperacionesReglas({ reglasDe: (id) => perfiles.get(id) ?? null, propuestas: almacen, alProponer: (id) => avisos.push(id) }).registrar(puente)
+  new OperacionesReglas({ reglasDe: (id) => perfiles.get(id) ?? null, ...SIN_GLOBALES, propuestas: almacen, alProponer: (id) => avisos.push(id) }).registrar(puente)
   puente.start()
   const limite = Date.now() + 3000
   while (!puente.listo && Date.now() < limite) await new Promise((r) => setTimeout(r, 50))
@@ -158,6 +162,22 @@ try {
     check('(a4) --texto=… y --motivo=…, en cualquier orden', j(texto.fuente) === j({ tipo: 'texto', texto: 'Una regla con = y "comillas"' }) && texto.motivo === 'm', j(texto))
     check('(a5) «-» es la entrada estándar', j(analizar(['proponer', '-']).fuente) === j({ tipo: 'entrada' }), j(analizar(['proponer', '-'])))
     check('(a5b) traspaso', j(analizar(['traspaso'])) === j({ sub: 'traspaso' }), j(analizar(['traspaso'])))
+    check('(a5c) docs sin nombre lista', j(analizar(['docs'])) === j({ sub: 'docs' }), j(analizar(['docs'])))
+    check('(a5e) config sin opciones', j(analizar(['config'])) === j({ sub: 'config' }), j(analizar(['config'])))
+    const prop = analizar(['config', 'proponer', '--nivel', 'global', '--texto', 'a = 1', '--motivo', 'm'])
+    check('(a5f) config proponer con nivel y motivo', prop.sub === 'config-proponer' && prop.nivel === 'global' && prop.motivo === 'm' && (prop.fuente as { tipo?: string } | null)?.tipo === 'texto', j(prop))
+    let sinNivel = ''
+    try {
+      analizar(['config', 'proponer', '--texto', 'a'])
+    } catch (e) {
+      sinNivel = String((e as Error).message)
+    }
+    check('(a5g) config proponer sin --nivel es un error de uso', sinNivel.includes('--nivel'), sinNivel)
+    const global = analizar(['proponer', '--global', '--texto', 'Regla para todos'])
+    check('(a5h) proponer --global propone las reglas globales', global.sub === 'proponer' && global.nivel === 'global', j(global))
+    check('(a5i) sin --global, las del perfil', analizar(['proponer', '-']).nivel === undefined, '')
+    check('(a5j) reglas --perfil y --global piden un solo nivel', analizar(['reglas', '--perfil']).nivel === 'perfil' && analizar(['reglas', '--global']).nivel === 'global', '')
+    check('(a5d) docs con un nombre con espacios', j(analizar(['docs', 'guia', 'final.md'])) === j({ sub: 'docs', nombre: 'guia final.md' }), j(analizar(['docs', 'guia', 'final.md'])))
     const malos: Array<[string, string[]]> = [
       ['subcomando desconocido', ['borrar']],
       ['reglas con argumentos', ['reglas', 'x']],
@@ -185,7 +205,7 @@ try {
 
   hr('B - Los mismos códigos, topes y textos en los dos lados')
   {
-    check('(b1) los códigos de tctx son los del main', j(CODIGOS) === j(CODIGOS_TCTX), `${j(CODIGOS)} ${j(CODIGOS_TCTX)}`)
+    check('(b1) los códigos compartidos de tctx son los del main', Object.entries(CODIGOS_TCTX).every(([clave, valor]) => CODIGOS[clave] === valor), `${j(CODIGOS)} ${j(CODIGOS_TCTX)}`)
     check('(b2) los topes de tctx son los de shared/reglasPerfil', ordenes.MAX_REGLAS === MAX_REGLAS_PERFIL && ordenes.MAX_MOTIVO === MAX_MOTIVO_PROPUESTA, `${ordenes.MAX_REGLAS} ${ordenes.MAX_MOTIVO}`)
     const dif = diferencias(es, en, 'textos')
     check('(b3) español e inglés con las mismas claves y aridad', dif.length === 0, dif.join('; ') || `${Object.keys(es).length} claves`)
@@ -321,7 +341,7 @@ try {
       ejecutar: async () => ({ exitCode: 0, stdout: '', stderr: '' }),
       log: () => {}
     })
-    buzonDocker.registrarPrograma(programaTctx({ dirTctx: DIR_TCTX, sesionDeToken: (t) => puente.sesionDeToken(t), operaciones: new OperacionesReglas({ reglasDe: (id) => (id === 'pa' ? 'Regla A' : null), propuestas: almacen, alProponer: () => {} }) }))
+    buzonDocker.registrarPrograma(programaTctx({ dirTctx: DIR_TCTX, sesionDeToken: (t) => puente.sesionDeToken(t), operaciones: new OperacionesReglas({ reglasDe: (id) => (id === 'pa' ? 'Regla A' : null), ...SIN_GLOBALES, propuestas: almacen, alProponer: () => {} }) }))
     const buzon = buzonDocker.prepararPerfil('pa')
     const lanzador = existsSync(path.join(buzon, 'tctx')) ? readFileSync(path.join(buzon, 'tctx'), 'utf-8') : ''
     check('(f1) el buzón trae el cliente, sus módulos y un lanzador sh con LF', ['tctx-cliente.cjs', 'tctxEntrada.cjs', 'tctxOrdenes.cjs', 'textosTctx.cjs'].every((n) => existsSync(path.join(buzon, n))) && lanzador.startsWith('#!/bin/sh\n') && !lanzador.includes('\r'), lanzador.split('\n').at(-2) ?? '')
@@ -371,7 +391,7 @@ try {
 
     const raiz = temporal('tessera-tctx-buzon-traspaso-')
     const buzonDocker = new DockerBridge({ raiz, clienteOrigen: path.join(RAIZ_REPO, 'src', 'tdb', 'tdb-container.cjs'), ejecutar: async () => ({ exitCode: 0, stdout: '', stderr: '' }), log: () => {} })
-    const reglas = new OperacionesReglas({ reglasDe: (pid) => (pid === 'pa' ? 'Regla A' : null), propuestas: almacen, alProponer: () => {} })
+    const reglas = new OperacionesReglas({ reglasDe: (pid) => (pid === 'pa' ? 'Regla A' : null), ...SIN_GLOBALES, propuestas: almacen, alProponer: () => {} })
     // Como en `reglas/componer.ts`: el programa del buzón atiende las de las reglas y las de otros dominios.
     const operaciones = { atender: (op: unknown, p: Readonly<Record<string, unknown>>, s: SesionDelPuente): RespuestaOperacion => (op === OP_TRASPASO ? atenderTraspaso(registro, s) : reglas.atender(op, p, s)) }
     buzonDocker.registrarPrograma(programaTctx({ dirTctx: DIR_TCTX, sesionDeToken: (t) => puente.sesionDeToken(t), operaciones }))
@@ -447,7 +467,7 @@ try {
 
     const raizBuzon = temporal('tessera-tctx-buzon-buscar-')
     const buzonDocker = new DockerBridge({ raiz: raizBuzon, clienteOrigen: path.join(RAIZ_REPO, 'src', 'tdb', 'tdb-container.cjs'), ejecutar: async () => ({ exitCode: 0, stdout: '', stderr: '' }), log: () => {} })
-    const reglas = new OperacionesReglas({ reglasDe: (pid) => (pid === 'pa' ? 'Regla A' : null), propuestas: almacen, alProponer: () => {} })
+    const reglas = new OperacionesReglas({ reglasDe: (pid) => (pid === 'pa' ? 'Regla A' : null), ...SIN_GLOBALES, propuestas: almacen, alProponer: () => {} })
     // Como en `reglas/componer.ts`: el programa del buzón atiende también las de otros dominios, con promesa.
     const operaciones = { atender: (op: unknown, p: Readonly<Record<string, unknown>>, s: SesionDelPuente): RespuestaOperacion | Promise<RespuestaOperacion> => (op === OP_BUSCAR ? operacion.atender(p, s) : reglas.atender(op, p, s)) }
     buzonDocker.registrarPrograma(programaTctx({ dirTctx: DIR_TCTX, sesionDeToken: (t) => puente.sesionDeToken(t), operaciones }))
@@ -455,7 +475,7 @@ try {
     const cliente = (args: string[], token: string): Promise<Salida> =>
       correr(process.execPath, [path.join(buzon, 'tctx-cliente.cjs'), 'buscar', ...args], { env: entornoLimpio({ TESSERA_DB_BRIDGE: buzon, TESSERA_DB_SESSION: token }) })
     const deDocker = await cliente(['migracion'], tokenDock)
-    check('(h9) por el buzón, un agente en Docker: solo su cuenta, y lo dice', deDocker.codigo === 0 && deDocker.salida.startsWith('1 coincidencia ') && deDocker.salida.includes('Codex · Personal') && !deDocker.salida.includes('Nativa') && deDocker.salida.includes('Desde Docker solo se busca en tu cuenta (Codex · Personal)'), `codigo=${deDocker.codigo} ${j(deDocker.salida)} ${deDocker.errores}`)
+    check('(h9) por el buzón, un agente en Docker: solo su cuenta, y lo dice', deDocker.codigo === 0 && deDocker.salida.startsWith('1 coincidencia ') && deDocker.salida.includes('Codex · Personal') && !deDocker.salida.includes('Nativa') && deDocker.salida.includes('Desde Docker solo se busca en su cuenta (Codex · Personal)'), `codigo=${deDocker.codigo} ${j(deDocker.salida)} ${deDocker.errores}`)
     const nativaPorBuzon = await cliente(['migracion'], tokenNat)
     check('(h10) por el buzón, el mismo token nativo ve lo mismo que por el pipe', nativaPorBuzon.codigo === 0 && nativaPorBuzon.salida === todas.salida, j(nativaPorBuzon.salida.slice(0, 80)))
     buzonDocker.stop()
@@ -471,6 +491,169 @@ try {
     } else {
       console.log('  (no es Windows: PowerShell no aplica)')
     }
+    puente.stop()
+  }
+  hr('I - Delegación: argumentos, campos, estados, espera e interrupción del cliente')
+  {
+    const clienteOrdenes = requerir(path.join(DIR_TCTX, 'tctxOrdenes.cjs')) as {
+      peticionDe: (a: Record<string, unknown>, texto: string) => { op: string; campos: Record<string, unknown> }
+      errorDeRechazo: (r: Record<string, unknown>) => Error & { codigo: number }
+    }
+    const clienteSalida = requerir(path.join(DIR_TCTX, 'tctxOrdenes.cjs')) as {
+      MAX_ORDEN_BYTES: number
+      horaLocal: (epoch: number, ahora?: number) => string
+      esperarTarea: (t: VistaTareaConResultado, consultar: (op: string, campos: Record<string, unknown>) => Promise<unknown>, reloj: { dormir: (ms: number) => Promise<void>; ahora: () => number }) => Promise<number>
+    }
+    check('(i1) cuentas sin campos', j(clienteOrdenes.peticionDe(analizar(['cuentas']), '')) === j({ op: 'ctx.cuentas', campos: {} }), '')
+    const delegar = analizar(['delegar', '--agente', 'codex', '--solo-lectura', '--sin-esperar'])
+    check('(i2) delegar: auto y campos exactos, sin opciones locales', j(clienteOrdenes.peticionDe(delegar, 'Revise ñ\n')) === j({ op: 'ctx.delegar', campos: { agente: 'codex', cuenta: 'auto', soloLectura: true, orden: 'Revise ñ\n' } }), '')
+    check('(i3) cuenta explícita y entrada con guion', analizar(['delegar', '-', '--cuenta=Personal', '--agente=claude-code']).cuenta === 'Personal', '')
+    for (const argv of [
+      ['cuentas', 'x'], ['delegar'], ['delegar', '--agente', 'otro'], ['delegar', '--agente', 'codex', '--archivo'],
+      ['delegar', '--agente', 'codex', '--cuenta='], ['delegar', '--agente', 'codex', '--archivo', 'x', '-'],
+      ['delegar', '--agente', 'codex', '--texto', 'x'], ['delegar', '--agente', 'codex', '--agente', 'codex'],
+      ['tarea'], ['tarea', 'id', '--cancelar', '--continuar'], ['tarea', 'id', '--archivo', 'x'],
+      ['tarea', 'id', '--sin-esperar'], ['tarea', 'id', '--cancelar', '-'], ['tarea', 'id', '--continuar', '--solo-lectura'],
+      ['tarea', 'id', '--continuar', '--archivo=x', '-']
+    ]) check('(i4) combinación incorrecta: código 2', codigoDe(() => analizar(argv)) === 2, j(argv))
+    for (const sub of [['delegar', '--agente=codex'], ['tarea', 'id', '--continuar']]) {
+      const peticion = clienteOrdenes.peticionDe(analizar([...sub, '--archivo', 'no-existe.md']), '')
+      const esperado = sub[0] === 'delegar' ? { agente: 'codex', cuenta: 'auto', archivo: path.resolve('no-existe.md') } : { id: 'id', accion: 'continuar', archivo: path.resolve('no-existe.md') }
+      check('(i5) --archivo: ruta absoluta, sin leer el archivo ni mandar orden', j(peticion.campos) === j(esperado), j(peticion))
+    }
+    check('(i6) tope idéntico al contrato y medido en bytes UTF-8', clienteSalida.MAX_ORDEN_BYTES === MAX_ORDEN_BYTES && codigoDe(() => clienteOrdenes.peticionDe(delegar, 'ñ'.repeat(MAX_ORDEN_BYTES / 2 + 1))) === 4 && codigoDe(() => clienteOrdenes.peticionDe(delegar, 'ñ'.repeat(MAX_ORDEN_BYTES / 2))) === null, '')
+    check('(i7) orden vacía rechazada', codigoDe(() => clienteOrdenes.peticionDe(delegar, ' \n')) === 4, '')
+    const hoy = new Date(2026, 10, 6, 9, 5).getTime()
+    check('(i8) reinicios en hora local: hora hoy y fecha otro día', clienteSalida.horaLocal(hoy, hoy) === '09:05' && clienteSalida.horaLocal(hoy, hoy + 86400000) === '2026-11-06 09:05', '')
+    const { puente } = await puenteConReglas()
+    const token = puente.mint('pa', RAIZ_REPO)
+    const env = entornoLimpio({ TESSERA_DB_PIPE: puente.pipe, TESSERA_DB_SESSION: token })
+    let tarea: VistaTareaConResultado = { id: 't-1', origen: 'agent:prueba', profileId: 'pa', agente: 'codex', cuenta: 'Personal', soloLectura: true, estado: 'en-marcha', resumen: 'Revise', inicio: Date.now() - 32000, ultimaActividad: Date.now() - 2000, actividad: ['leyendo', 'última línea'] }
+    const peticiones: Array<{ op: string; campos: Record<string, unknown> }> = []
+    let sinCuentas = false
+    let rechazo = ''
+    for (const op of ['ctx.cuentas', 'ctx.delegar', 'ctx.tarea']) puente.registrarOperacion(op, { token: 'sesion', manejar: (p) => {
+      peticiones.push({ op, campos: Object.fromEntries(Object.entries(p).filter(([k]) => !['op', 'token', 'v'].includes(k))) })
+      if (rechazo) return { ok: false, rechazo }
+      if (op === 'ctx.cuentas') return { ok: true, cuentas: sinCuentas ? [] : [{ agente: 'codex', nombre: 'Personal', estado: 'lista', ventanas: [{ etiqueta: '5 h', porcentaje: 34, reinicio: hoy }], enMarcha: 2 }] }
+      return { ok: true, tarea: p.accion === 'cancelar' ? { ...tarea, estado: 'cancelada' } : tarea }
+    } })
+    const tctx = (args: string[], texto = '', extra: Record<string, string> = {}): Promise<Salida> => correr(process.execPath, [TCTX, ...args], { env: { ...env, ...extra }, entrada: texto })
+    const cuentas = await tctx(['cuentas'])
+    check('(i9) cuentas: agente, nombre, uso, tareas y cómo delegar', cuentas.codigo === 0 && ['Codex · Personal · lista', '34 %', '2 tareas en marcha', 'tctx delegar'].every((s) => cuentas.salida.includes(s)), cuentas.salida.trim())
+    sinCuentas = true
+    const vacias = await tctx(['cuentas'])
+    check('(i10) sin cuentas: perfil y ambos agentes', vacias.salida.includes('no tiene cuentas de Docker de Claude Code ni de Codex'), vacias.salida.trim())
+    const lanzada = await tctx(['delegar', '--agente=codex', '--sin-esperar'], 'Revise')
+    check('(i11) sin esperar: id solo en stdout y anuncio primero en stderr', lanzada.codigo === 0 && lanzada.salida === 't-1\n' && lanzada.errores.startsWith('tctx: Tarea t-1 · Codex · Personal.') && lanzada.errores.includes('tctx tarea t-1'), j(lanzada))
+    const porArchivo = await tctx(['delegar', '--agente=codex', '--archivo=no-existe.md', '--sin-esperar'])
+    check('(i12) archivo inexistente enviado sin lectura local', porArchivo.codigo === 0 && peticiones.at(-1)?.campos.archivo === path.resolve('no-existe.md'), j(peticiones.at(-1)))
+    const antes = peticiones.length
+    const dos = await tctx(['delegar', '--agente=codex', '--archivo=x'], 'otra fuente')
+    const larga = await tctx(['delegar', '--agente=codex'], 'ñ'.repeat(MAX_ORDEN_BYTES))
+    const vacia = await tctx(['delegar', '--agente=codex'])
+    check('(i13) dos fuentes, exceso y vacío rechazados antes del puente', dos.codigo === 2 && larga.codigo === 4 && vacia.codigo === 4 && peticiones.length === antes, `${dos.codigo}, ${larga.codigo}, ${vacia.codigo}`)
+    for (const [estado, codigo] of [['en-marcha', 7], ['hecha', 0], ['fallida', 5], ['cancelada', 6]] as const) {
+      tarea = { ...tarea, estado, resultado: 'Resultado final', motivo: 'agente', detalle: 'detalle del fallo' }
+      const vista = await tctx(['tarea', 't-1'])
+      check('(i14) consulta del estado y código', vista.codigo === codigo && vista.salida.includes(`Codex · Personal · ${estado === 'en-marcha' ? 'en marcha' : estado}`) && vista.salida.includes('solo lectura') && vista.salida.includes('última actividad hace') && (estado !== 'hecha' || vista.salida.endsWith('Resultado final\n')) && (estado !== 'fallida' || vista.errores.includes('detalle del fallo') && vista.errores.includes('última línea')), `${estado}: ${j(vista)}`)
+      if (estado === 'fallida' || estado === 'cancelada') {
+        const final = await tctx(['delegar', '--agente=codex'], 'Revise')
+        check('(i14b) final inmediato al delegar: anuncio, código y sin consulta innecesaria', final.codigo === codigo && final.salida === '' && final.errores.startsWith('tctx: Tarea t-1') && peticiones.at(-1)?.op === 'ctx.delegar', j(final))
+      }
+    }
+    const cancelar = await tctx(['tarea', 't-1', '--cancelar'])
+    check('(i15) cancelación explícita: código 0 y campos exactos', cancelar.codigo === 0 && cancelar.salida.includes('cancelada') && j(peticiones.at(-1)?.campos) === j({ id: 't-1', accion: 'cancelar' }), j(cancelar))
+    const continuar = await tctx(['tarea', 't-1', '--continuar', '--sin-esperar'], 'Continúe')
+    check('(i16) continuar: orden nueva, espera opcional e id', continuar.codigo === 0 && continuar.salida === 't-1\n' && j(peticiones.at(-1)?.campos) === j({ id: 't-1', accion: 'continuar', orden: 'Continúe' }), j(continuar))
+    for (const codigo of Object.keys(es.rechazosDelegacion as object)) {
+      rechazo = codigo
+      const rechazada = await tctx(['cuentas'])
+      check('(i17) cada rechazo del contrato tiene texto y código 4', rechazada.codigo === 4 && rechazada.errores.length > 30, `${codigo}: ${rechazada.errores.trim()}`)
+    }
+    rechazo = ''
+    const datosRechazo = clienteOrdenes.errorDeRechazo({ rechazo: 'ninguna-cuenta', agente: 'codex', reinicio: hoy }).message
+    check('(i18) datos del rechazo: agente, reinicio y orientación', datosRechazo.includes('Codex') && datosRechazo.includes('09:05') && datosRechazo.includes('tctx cuentas') && clienteOrdenes.errorDeRechazo({ rechazo: 'cuenta-ambigua', candidatos: ['A', 'B'] }).message.includes('A, B') && clienteOrdenes.errorDeRechazo({ rechazo: 'cuenta-no-existe', disponibles: ['C'] }).message.includes('C'), datosRechazo)
+    const ingles = await tctx(['tarea', 't-1'], '', { TESSERA_IDIOMA: 'en' })
+    check('(i19) estado en inglés', ingles.salida.includes('cancelled') && ingles.salida.includes('read only'), j(ingles))
+    const ayuda = await tctx(['help'])
+    check('(i20) ayuda: órdenes, espera, interrupción y códigos', ['tctx cuentas', 'tctx delegar', 'tctx tarea', '--sin-esperar', 'se interrumpe', 'tarea fallida', 'tarea cancelada', 'tarea en marcha'].every((s) => ayuda.salida.includes(s)), '')
+    for (const motivo of ['sin-credencial', 'sin-uso', 'docker', 'agente', 'origen-cerrado', 'cancelada-por-usuario'] as const) {
+      tarea = { ...tarea, estado: 'fallida', motivo, detalle: undefined }
+      const fallo = await tctx(['tarea', 't-1'])
+      check('(i20b) cada motivo de fallo tiene explicación y actividad', fallo.codigo === 5 && fallo.errores.includes((es.motivosFallo as Record<string, string>)[motivo]) && fallo.errores.includes('última línea'), motivo)
+    }
+
+    tarea = { ...tarea, estado: 'en-marcha' }
+    const salidaOriginal = process.stdout.write
+    const erroresOriginal = process.stderr.write
+    let capturada = ''
+    let avisos = ''
+    process.stdout.write = ((texto: string) => { capturada += texto; return true }) as typeof process.stdout.write
+    process.stderr.write = ((texto: string) => { avisos += texto; return true }) as typeof process.stderr.write
+    const evidencias: Array<[string, boolean, string]> = []
+    try {
+      for (const fallosPrevios of [0, 1, 5]) {
+        let vueltas = 0
+        let tiempo = tarea.inicio
+        const consultas: string[] = []
+        let codigo = -1
+        capturada = ''
+        avisos = ''
+        try {
+          codigo = await clienteSalida.esperarTarea(tarea, async (op, campos) => {
+            consultas.push(`${op}:${j(campos)}`)
+            vueltas++
+            if (vueltas <= fallosPrevios) return null
+            return { ok: true, tarea: { ...tarea, estado: vueltas === fallosPrevios + 1 ? 'en-marcha' : 'hecha', resultado: 'Listo' } }
+          }, { dormir: async (ms) => { if (ms !== 2000) throw new Error('Sondeo incorrecto'); tiempo += 30000 }, ahora: () => tiempo })
+        } catch (e) {
+          codigo = (e as { codigo: number }).codigo
+          avisos += (e as Error).message
+        }
+        evidencias.push(['(i21) espera y reintentos con puente falso', codigo === (fallosPrevios === 5 ? 3 : 0) && vueltas === (fallosPrevios === 5 ? 5 : fallosPrevios + 2) && consultas.every((s) => s === 'ctx.tarea:{"id":"t-1"}') && (fallosPrevios === 5 ? avisos.includes('puede seguir en marcha') && avisos.includes('tctx tarea t-1') : capturada === 'Listo\n' && avisos.includes('última línea')), `fallos=${fallosPrevios}, vueltas=${vueltas}, código=${codigo}`])
+      }
+      for (const [estado, esperado] of [['fallida', 5], ['cancelada', 6]] as const) {
+        capturada = ''
+        avisos = ''
+        const codigo = await clienteSalida.esperarTarea(tarea, async () => ({ ok: true, tarea: { ...tarea, estado, motivo: 'docker', detalle: 'Detalle' } }), { dormir: async () => {}, ahora: Date.now })
+        evidencias.push(['(i21b) espera: fallo o cancelación por stderr', codigo === esperado && capturada === '' && (estado === 'fallida' ? avisos.includes('Detalle') && avisos.includes('última línea') : avisos.includes('cancelada')), `${estado}: ${codigo}`])
+      }
+      let vueltas = 0
+      const codigo = await clienteSalida.esperarTarea(tarea, async () => {
+        vueltas++
+        if (![5, 10].includes(vueltas)) return null
+        return { ok: true, tarea: { ...tarea, estado: vueltas === 10 ? 'hecha' : 'en-marcha', resultado: 'Recuperada' } }
+      }, { dormir: async () => {}, ahora: Date.now })
+      evidencias.push(['(i21c) una consulta buena reinicia el contador de fallos consecutivos', codigo === 0 && vueltas === 10, `vueltas=${vueltas}, código=${codigo}`])
+    } finally {
+      process.stdout.write = salidaOriginal
+      process.stderr.write = erroresOriginal
+    }
+    for (const evidencia of evidencias) check(...evidencia)
+    for (const senal of ['SIGINT', 'SIGTERM'] as const) {
+      const inicioCorte = peticiones.length
+      await new Promise<void>((resolve, reject) => {
+        const hijo = spawn(process.execPath, [TCTX, 'delegar', '--agente=codex'], { env, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] })
+        const tope = setTimeout(() => { hijo.kill(); reject(new Error('No llegó el anuncio de delegación')) }, 5000)
+        hijo.stdin.end('Una tarea larga')
+        hijo.stderr.once('data', () => hijo.kill(senal))
+        hijo.on('error', reject)
+        hijo.on('close', () => { clearTimeout(tope); resolve() })
+      })
+      check('(i22) interrumpir el cliente no manda cancelación', peticiones.length > inicioCorte && peticiones.slice(inicioCorte).every((p) => p.campos.accion !== 'cancelar'), `${senal}: ${j(peticiones.slice(inicioCorte))}`)
+    }
+    tarea = { ...tarea, estado: 'hecha', resultado: 'Resultado consultado' }
+    const esperada = await tctx(['delegar', '--agente=codex'], 'Termine')
+    check('(i22b) delegar espera y consulta el resultado aunque la respuesta inicial ya diga hecha', esperada.codigo === 0 && esperada.salida === 'Resultado consultado\n' && j(peticiones.at(-1)) === j({ op: 'ctx.tarea', campos: { id: 't-1' } }), j(esperada))
+
+    const raiz = temporal('tessera-tctx-buzon-delegar-')
+    const buzonDocker = new DockerBridge({ raiz, clienteOrigen: path.join(RAIZ_REPO, 'src', 'tdb', 'tdb-container.cjs'), ejecutar: async () => ({ exitCode: 0, stdout: '', stderr: '' }), log: () => {} })
+    buzonDocker.registrarPrograma(programaTctx({ dirTctx: DIR_TCTX, sesionDeToken: (t) => puente.sesionDeToken(t), operaciones: { atender: () => ({ ok: true, tarea: { ...tarea, estado: 'hecha', resultado: 'Por buzón' } }) } }))
+    const buzon = buzonDocker.prepararPerfil('pa')
+    const porBuzon = await correr(process.execPath, [path.join(buzon, 'tctx-cliente.cjs'), 'tarea', 't-1', '--continuar'], { env: entornoLimpio({ TESSERA_DB_BRIDGE: buzon, TESSERA_DB_SESSION: token }), entrada: 'Continúe' })
+    check('(i23) continuar por el buzón espera y obtiene el resultado', porBuzon.codigo === 0 && porBuzon.salida === 'Por buzón\n' && porBuzon.errores.includes('tctx tarea t-1'), j(porBuzon))
+    buzonDocker.stop()
     puente.stop()
   }
 } finally {

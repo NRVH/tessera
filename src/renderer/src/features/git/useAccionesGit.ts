@@ -100,8 +100,10 @@ async function prepararUno(raiz: string, path: string, preparar: boolean): Promi
   try {
     const result = preparar ? await window.tessera.git.stageFile(raiz, path) : await window.tessera.git.unstageFile(raiz, path)
     if (!result.ok) {
-      console.error(preparar ? '[app] stage falló:' : '[app] unstage falló:', result.error)
-      notifyError(titulo, result.error)
+      if (result.error) {
+        console.error(preparar ? '[app] stage falló:' : '[app] unstage falló:', result.error)
+        notifyError(titulo, result.error)
+      }
       return
     }
     bumpWorktree()

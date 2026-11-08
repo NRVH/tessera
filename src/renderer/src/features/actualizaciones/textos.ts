@@ -24,11 +24,11 @@ export const txActualizaciones = crearTextos(
       quienSinVersion: 'Una versión nueva de Tessera',
       descargar: (v: string) => `Descargar ${v}`,
       disponibleTitulo: (quien: string) =>
-        `${quien} está disponible. Esta copia no puede instalarse automáticamente: pulse para ver cómo hacerlo.`,
+        `${quien} está disponible. Esta copia no puede instalarse automáticamente: haga clic para ver cómo hacerlo.`,
       sinConfirmar: (v: string | null) =>
         `Tessera ${v} está preparada, pero falta confirmarla con el servidor. Haga clic para confirmarla e instalarla.`,
       alCerrar: (v: string | null) =>
-        `Tessera ${v} está preparada. Se aplicará automáticamente al cerrar; pulse para aplicarla ahora.`,
+        `Tessera ${v} está preparada. Se aplicará automáticamente al cerrar; haga clic para aplicarla ahora.`,
       preparada: (v: string | null) => `Tessera ${v} está preparada. Haga clic para reiniciar e instalarla.`,
       actualizarAhora: 'Actualizar ahora',
       instalando: 'Instalando…',
@@ -62,7 +62,7 @@ export const txActualizaciones = crearTextos(
       bajando: 'Se está descargando en segundo plano; puede seguir trabajando.',
       faltaConfirmar: 'Está descargada, pero falta confirmarla con el servidor antes de poder aplicarla.',
       seAplicaAlCerrar: 'Se aplicará automáticamente al cerrar Tessera. Después de instalarla, Tessera no se volverá a abrir.',
-      seAplicaAlPulsar: 'Se aplicará al pulsar “Actualizar ahora”.',
+      seAplicaAlPulsar: 'Se aplicará al hacer clic en «Actualizar ahora».',
       venia: ' Quedó preparada en el inicio anterior.',
       preparadaTitulo: 'Actualización preparada',
       descargandoTitulo: 'Descargando actualización',
@@ -96,7 +96,7 @@ export const txActualizaciones = crearTextos(
       quienSinVersion: 'A new version of Tessera',
       descargar: (v: string) => `Download ${v}`,
       disponibleTitulo: (quien: string) =>
-        `${quien} is available. This copy can’t install itself: click to see how.`,
+        `${quien} is available. This copy cannot install itself: click to see how.`,
       sinConfirmar: (v: string | null) =>
         `Tessera ${v} is ready, but the server still needs to confirm it. Click to confirm and install it.`,
       alCerrar: (v: string | null) =>
@@ -140,7 +140,7 @@ export const txActualizaciones = crearTextos(
       descargandoTitulo: 'Downloading update',
       actualizarAhora: 'Update now',
       disponibleTitulo: 'New version available',
-      noSePuedeSola: 'This copy can’t install itself: download it and replace the app.',
+      noSePuedeSola: 'This copy cannot install itself: download it and replace the app.',
       descargar: (v: string) => `Download ${v}`,
       errorTitulo: 'Check failed',
       reintentar: 'Retry',

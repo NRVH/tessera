@@ -88,7 +88,8 @@ async function forzarCierre(
     titulo: alcance === 'consola' ? txPane().forzarSesion : txPane().forzarConexion,
     mensaje: mensajeForzar(c.alias, txEnRiesgo(sesiones, c.id, nombres, soloConsola), alcance),
     confirmar: txPane().forzarConfirmar,
-    peligro: true
+    peligro: true,
+    severidad: 'advertencia'
   })
   if (!ok) return
   try {

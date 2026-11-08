@@ -29,6 +29,7 @@ export const txMain = crearTextos(
       vacio: 'No hay archivos ni imágenes en el portapapeles.'
     },
     abrirProyecto: 'Abrir proyecto',
+    elegirCarpetaDocumentos: 'Seleccionar la carpeta de documentos para los agentes',
     terminales: {
       faltaConexion: 'Falta la conexión SSH que abrir.',
       sinSsh: 'Las conexiones SSH no están disponibles en esta sesión de Tessera.'
@@ -57,6 +58,7 @@ export const txMain = crearTextos(
       vacio: 'There are no files or images on the clipboard.'
     },
     abrirProyecto: 'Open project',
+    elegirCarpetaDocumentos: 'Choose a documents folder for the agents',
     terminales: {
       faltaConexion: 'The SSH connection to open is missing.',
       sinSsh: 'SSH connections are not available in this Tessera session.'

@@ -222,7 +222,7 @@ hr('(2) El store con ajenas: borrar, podar, dar de alta, secretos')
   check('y nada de eso tocó el disco', readFileSync(ruta, 'utf-8') === antes, 'igual')
 
   const choque = intentar(() => store.create({ profileId: 'p1', alias: '  alta ', motor: 'postgres', host: 'h', port: 5432, database: 'd', user: 'u', readonly: true }))
-  check('el alias de una ajena también choca (tdb la ve y la UI la enseña)', !choque.ok && choque.error.includes('ya tiene una conexión llamada "Alta"'), choque.ok ? 'creó' : choque.error)
+  check('el alias de una ajena también choca (tdb la ve y la UI la enseña)', !choque.ok && choque.error.includes('ya tiene una conexión llamada «Alta»'), choque.ok ? 'creó' : choque.error)
   const nueva = store.create({ profileId: 'p1', alias: 'Nueva', motor: 'postgres', host: 'h', port: 5432, database: 'd', user: 'u', readonly: true })
   const d = disco(ruta)
   check('una nueva nace DETRÁS de todas, ajenas incluidas (orden 8 y no 1)', de(d, nueva.id)?.orden === 8, String(de(d, nueva.id)?.orden))
@@ -774,8 +774,7 @@ hr('(8) Un registro que NO SE PUEDE LEER no se sobrescribe')
     }),
     'ok'
   )
-  // EL USUARIO NUEVO, con el store real (antes solo estaba probado con el
-  // lector de mentira): ni archivo, ni `.bak`, ni siquiera la carpeta de `userData`. Tiene
+  // EL USUARIO NUEVO, con el store real (no con el lector de mentira): ni archivo, ni `.bak`, ni siquiera la carpeta de `userData`. Tiene
   // que arrancar vacío y sin aviso, y su primera alta crear el archivo.
   const nuevo = path.join(dir, 'userdata-nuevo', 'db-connections.json')
   const sn = new ConnectionStore({ storePath: nuevo })
@@ -1401,8 +1400,8 @@ hr('(11) El registro roto con .bak legible se guarda APARTE antes de sustituirlo
     )
   }
 
-  // (g) El principal que NO SE DEJA ABRIR, con un `.bak` legible: BLOQUEADO (antes se usaba
-  // el `.bak`, una escritura más viejo, y la primera escritura lo sustituía renombrando).
+  // (g) El principal que NO SE DEJA ABRIR, con un `.bak` legible: BLOQUEADO (usar
+  // el `.bak`, una escritura más viejo, haría que la primera escritura lo sustituyera renombrando).
   const bloq = mkdtempSync(path.join(dir, 'inaccesible-'))
   const rutaBloq = path.join(bloq, 'db-connections.json')
   mkdirSync(rutaBloq)
@@ -1752,7 +1751,7 @@ hr('(13) una conocida cuyo id YA TIENE otra anterior es AJENA (id repetido)')
     `${JSON.stringify(l2)} ${JSON.stringify(a2)}`
   )
   check(
-    'NEGATIVO: ni get ni secretOf ni los secretos de un perfil dan la copia (antes, abrir la de p2 desde su perfil abría la original de p1 con su contraseña)',
+    'NEGATIVO: ni get ni secretOf ni los secretos de un perfil dan la copia (abrir la de p2 desde su perfil no abre la original de p1 con su contraseña)',
     store.get('rep-1')?.alias === 'Original' &&
       store.get('rep-1')?.host === 'db.lan' &&
       store.secretOf('rep-1') === 'clave-original' &&
@@ -1760,7 +1759,7 @@ hr('(13) una conocida cuyo id YA TIENE otra anterior es AJENA (id repetido)')
     JSON.stringify({ get: store.get('rep-1')?.alias, secreto: store.secretOf('rep-1'), p2: store.secretsForProfile('p2') })
   )
   const choque = intentar(() => store.create({ profileId: 'p1', alias: 'Copia', motor: 'postgres', host: 'h', port: 5432, database: 'd', user: 'u', readonly: true }))
-  check('dar de alta otra con el alias de la copia choca, como con cualquier ajena (tdb las ve)', !choque.ok && /ya tiene una conexión llamada "Copia"/.test(choque.error), choque.ok ? 'se creó' : choque.error)
+  check('dar de alta otra con el alias de la copia choca, como con cualquier ajena (tdb las ve)', !choque.ok && /ya tiene una conexión llamada «Copia»/.test(choque.error), choque.ok ? 'se creó' : choque.error)
 
   // Las escrituras rutinarias no la tocan.
   store.marcarVerificada('rep-1', null, 1700000000000)
@@ -2525,7 +2524,7 @@ hr('(18) la limpieza POR PERFIL del explorador, cableada como en la app')
     JSON.stringify({ ej: ej.ok ? 'ok' : ej.error.mensaje, lanzados })
   )
   check(
-    'ni valida su esquema con el CATÁLOGO de la conexión de p1 (antes abría un proceso con sus credenciales antes de que el gestor se negara)',
+    'ni valida su esquema con el CATÁLOGO de la conexión de p1 (no abre un proceso con sus credenciales antes de que el gestor se niegue)',
     !esq.ok && esq.error.mensaje === 'La consola no pertenece a este perfil.' && lanzados.length === 0,
     JSON.stringify({ esq: esq.ok ? 'ok' : esq.error.mensaje, lanzados })
   )
@@ -2587,7 +2586,7 @@ hr('(19) El alta valida el motor y el destino con el descriptor')
   // del motor al final), tal como estaba ANTES del descriptor. Lo de antes de esa parte (perfil,
   // alias, nombre repetido) no cambió y aquí no se toca: cada alta lleva su alias.
   const deAntes = (input: DbConnectionInput): string | null => {
-    if (!(['oracle', 'postgres'] as readonly string[]).includes(input.motor)) return `Motor desconocido: "${input.motor}".`
+    if (!(['oracle', 'postgres'] as readonly string[]).includes(input.motor)) return `Motor desconocido: «${input.motor}».`
     const host = limpiarDestinoBd(input.host)
     if (!host) return 'Falta el host.'
     if (!Number.isInteger(input.port) || input.port < 1 || input.port > 65535) {
@@ -2610,9 +2609,9 @@ hr('(19) El alta valida el motor y el destino con el descriptor')
 
   const store = new ConnectionStore({ storePath: archivo({ version: 1, connections: [] }) })
   let k = 0
-  // La copia de «antes» es la de los motores de RED; la de un motor de archivo está
+  // Esta copia es la de los motores de RED; la de un motor de archivo está
   // en (21), y la de SQL Server (base opcional, campos opcionales), en (22). 'db2'
-  // hace de motor desconocido (antes lo hacía 'sqlite', y luego 'sqlserver').
+  // hace de motor desconocido.
   const MOTORES_PRUEBA = [
     // El cifrado y el túnel (los opcionales de Oracle y PG) no tocan la validación del destino.
     ...IDS_MOTORES.filter(
@@ -2654,9 +2653,9 @@ hr('(19) El alta valida el motor y el destino con el descriptor')
   // Que la matriz no sea vacía: cada mensaje del destino y del motor salió al menos una vez.
   const ESPERADOS = [
     'null',
-    'Motor desconocido: "db2".',
-    'Motor desconocido: "constructor".',
-    'Motor desconocido: "toString".',
+    'Motor desconocido: «db2».',
+    'Motor desconocido: «constructor».',
+    'Motor desconocido: «toString».',
     'Falta el host.',
     'El puerto debe ser un entero entre 1 y 65535.',
     'Falta el usuario.',
@@ -2911,7 +2910,7 @@ hr('(22) Una SQL Server en el registro (base opcional, instancia, dominio, cifra
   const instMala = intentar(() => store.create({ ...alta, alias: 'Inst mala', instancia: 'srv\\SQLEXPRESS' }))
   check('instancia con el servidor pegado: se dice qué va ahí', !instMala.ok && instMala.error.startsWith('El campo de instancia admite solo su nombre'), instMala.ok ? 'creó' : instMala.error)
   const autRara = intentar(() => store.create({ ...alta, alias: 'Aut rara', autenticacion: 'kerberos' as never }))
-  check('una autenticación desconocida se rechaza', !autRara.ok && autRara.error === 'Autenticación desconocida: "kerberos".', autRara.ok ? 'creó' : autRara.error)
+    check('una autenticación desconocida se rechaza', !autRara.ok && autRara.error === 'Autenticación desconocida: «kerberos».', autRara.ok ? 'creó' : autRara.error)
   const tlsMalo = intentar(() => store.create({ ...alta, alias: 'TLS malo', tls: { cifrar: 'si' } as never }))
   check('un cifrado mal formado se rechaza', !tlsMalo.ok && tlsMalo.error === 'El cifrado de la conexión no es válido.', tlsMalo.ok ? 'creó' : tlsMalo.error)
   const conBase = intentar(() => store.create({ ...alta, alias: 'Con base', database: ' ventas ', instancia: undefined, autenticacion: undefined, dominio: undefined, tls: undefined }))

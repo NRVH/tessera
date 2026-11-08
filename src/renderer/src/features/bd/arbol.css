@@ -146,6 +146,7 @@
   height: 6px;
   border-radius: 50%;
   box-shadow: 0 0 0 1.5px var(--bg-elevated);
+  transition: background var(--mov-rapido) var(--curva-estandar);
 }
 .db-sesion-punto.conectada {
   background: var(--green);
@@ -257,6 +258,9 @@
    lo conserva también apuntada o elegida. */
 .db-arbol :where(.tree-row) {
   color: var(--fg-datos);
+  transition:
+    background var(--mov-rapido) var(--curva-estandar),
+    color var(--mov-rapido) var(--curva-estandar);
 }
 .db-arbol :where(.tree-row.db-fila-conexion, .tree-row:hover, .tree-row.active) {
   color: var(--fg);
@@ -459,7 +463,7 @@
 }
 
 /* =============================================================================
-   POPOVER DE ESQUEMAS. Va por portal a <body>: estas reglas NO pueden depender de
+   POPOVER DE ESQUEMAS. Va por portal a la capa flotante: estas reglas NO pueden depender de
    estar dentro de `.db-arbol`. Recibe las variables de densidad del árbol en su
    propio `style`, así que `--ui-row-h` y `--ui-font` son las del árbol.
    Fondo `--bg-modal`: flota por encima de todo, como los menús y los modales.
@@ -529,6 +533,7 @@
   white-space: nowrap;
   user-select: none;
   cursor: pointer;
+  transition: background var(--mov-rapido) var(--curva-estandar);
 }
 .db-pop-fila:hover {
   background: var(--hover-suave, rgba(255, 255, 255, 0.06));

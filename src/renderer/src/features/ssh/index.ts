@@ -1,8 +1,8 @@
 // =============================================================================
 // API pública de la feature de conexiones SSH para las demás features: el store (conexiones,
 // grupos, diálogos, el lanzador y el riel), el lanzador de la cabecera, el riel de pantalla
-// completa y cómo se decide, los diálogos, el icono del servidor y cómo se escribe
-// el destino de una conexión. La carga desde el main la compone solo App.tsx y está en `app.ts`
+// completa y cómo se decide, los diálogos (también el de la huella de un servidor nuevo y lo que
+// se llama antes de conectar), el icono del servidor y cómo se escribe el destino de una conexión. La carga desde el main la compone solo App.tsx y está en `app.ts`
 // (docs/decisiones/renderer/barriles-sin-ciclos.md). Solo importa el icono de `features/sftp`: las
 // pestañas SSH y SFTP son de las terminales, que le inyectan lo que abre cada una.
 // =============================================================================
@@ -15,5 +15,7 @@ export { ID_LANZADOR_SSH } from './rielSsh'
 export type { DatosListaConexionesSsh } from './ListaConexionesSsh'
 export { DialogosSsh } from './DialogosSsh'
 export { PreguntaAskpassSsh } from './PreguntaAskpassSsh'
+export { DialogoHuellaNuevaSsh } from './DialogoHuellaNuevaSsh'
+export { asegurarHuella } from './storeHuellaNueva'
 export { IconoServidor, IconoServidorNuevo } from './iconosSsh'
 export { destinoSsh } from './listaSsh'

@@ -21,7 +21,9 @@ const es: Articulo = {
             'La barra de estado muestra la codificación y el fin de línea del archivo. Un clic en la codificación permite reabrir el archivo con otra o convertirlo; un clic en el fin de línea permite cambiarlo.',
             'Si un agente u otro programa modifica el archivo, la pestaña se actualiza automáticamente, salvo que tenga cambios sin guardar: en ese caso, su contenido no se modifica.',
             'Si el archivo se elimina del disco, la pestaña permanece abierta con el nombre tachado y conserva los cambios sin guardar. Al guardar, el archivo se crea de nuevo y la marca desaparece.',
-            '`Ctrl+N` o `⌘N` abre una pestaña **Sin título-1**, que todavía no es un archivo en el disco. Para guardarla, use **Guardar como…** en el menú contextual de la pestaña.'
+            '`Ctrl+N` o `⌘N` abre una pestaña **Sin título-1**, que todavía no es un archivo en el disco. Para guardarla, use **Guardar como…** en el menú contextual de la pestaña.',
+            'Al volver a abrir Tessera, cada proyecto recupera los archivos que tenía abiertos, con el que se estaba viendo, su modo de vista y la línea del cursor, y las carpetas desplegadas del explorador. Los archivos sin título, los diffs y los cambios sin guardar no se recuperan.',
+            'El tema, la fuente y el tamaño del código se eligen en **Configuración › Apariencia › Editor de código**, con una vista previa del tema, y se aplican al momento al editor, a los diffs, a los visores, a los bloques de código de la vista previa de Markdown y a los editores de bases de datos. Un tema cambia los colores del texto: el fondo es siempre el de Tessera, y las terminales conservan sus colores. El tamaño de letra del explorador está en **Configuración › Apariencia › Tamaño y escala**.'
           ]
         },
         { nota: 'Un archivo de más de 2 MiB se abre truncado (solo su inicio) y no se puede guardar, porque se perdería la parte que no se cargó.' }
@@ -31,7 +33,7 @@ const es: Articulo = {
       ancla: 'visores',
       titulo: 'Visores y vista previa',
       bloques: [
-        'Un archivo Markdown tiene tres modos: **Solo editor**, **Editor y vista previa** (con el desplazamiento sincronizado) y **Solo vista previa**. La vista previa dibuja los diagramas Mermaid.',
+        'En un archivo Markdown, los tres botones de icono de la derecha de la tira de pestañas eligen el modo (su nombre aparece al pasar el puntero): líneas de texto (**Solo editor**), panel dividido (**Editor y vista previa**, con el desplazamiento sincronizado) y página (**Solo vista previa**). La vista previa dibuja los diagramas Mermaid.',
         'Un archivo HTML se previsualiza de forma aislada: su JavaScript no se ejecuta, y un aviso indica qué recursos no se cargan.',
         'Sin instalar nada se pueden ver PDF, Word (`.docx`), ZIP, imágenes con zoom, audio y vídeo. Los archivos `.jar`, `.war`, `.ear` y `.aar` se despliegan en el explorador como si fueran carpetas. Los archivos `.class` se descompilan al abrirlos, para lo cual se necesita Java instalado en {tuEquipo}.',
         { nota: 'Los visores admiten archivos de hasta 50 MiB. Si un archivo supera ese tamaño o no se muestra correctamente, **Abrir externamente** lo abre con su aplicación predeterminada del sistema.' },
@@ -42,13 +44,13 @@ const es: Articulo = {
       ancla: 'diff',
       titulo: 'Comparar cambios',
       bloques: [
-        'Un diff muestra dos versiones de un archivo con sus diferencias marcadas. Se abre desde [Git](git): con doble clic en un archivo de **Git · Cambios**, o en **Git · Log**, con un clic en un commit o en uno de sus archivos.',
-        'Si el espacio disponible es suficiente, el diff se muestra lado a lado; en una columna estrecha, unificado (las dos versiones en una sola columna). Los botones **Vista lado a lado** y **Vista unificada** de su cabecera cambian el modo al instante; ese cambio se mantiene hasta que el ancho vuelve a cruzar el límite entre los dos modos.',
+        'Un diff muestra dos versiones de un archivo con sus diferencias marcadas. Se abre desde [Git](git): con doble clic en un archivo de **Git · Cambios**, o en **Git · Historial**, con un clic en un commit o en uno de sus archivos.',
+        'Si el espacio disponible es suficiente, el diff se muestra lado a lado; en una columna estrecha, unificado (las dos versiones en una sola columna). Los botones con dos columnas (**Vista lado a lado**) y una columna (**Vista unificada**) de su cabecera cambian el modo al instante; ese cambio se mantiene hasta que el ancho vuelve a cruzar el límite entre los dos modos. No están disponibles si un lado no existe, como en un archivo nuevo o eliminado.',
         {
           lista: [
             '`F7` y `Mayús+F7` saltan al cambio siguiente y al anterior.',
-            '**Contraer los fragmentos sin cambios** deja a la vista lo que cambió y unas pocas líneas alrededor. El mismo botón, **Mostrar el archivo completo**, deshace el efecto.',
-            '**Ir al archivo fuente** abre el archivo en la línea visible en pantalla. No está disponible si el archivo se eliminó o si lo que se compara no es un archivo del proyecto. En un diff del historial, la línea corresponde a la revisión anterior y puede no coincidir exactamente.',
+            'El botón de contraer de la cabecera (**Contraer los fragmentos sin cambios (4 líneas de contexto)**) queda pulsado mientras está activo y deja a la vista lo que cambió y unas pocas líneas alrededor. El mismo botón, **Mostrar el archivo completo**, deshace el efecto.',
+            'El botón del lápiz (**Ir al archivo fuente (lo abre en la línea visible en pantalla)**), en la cabecera, abre el archivo en la línea visible en pantalla. No está disponible si el archivo se eliminó o si lo que se compara no es un archivo del proyecto. En un diff del historial, la línea corresponde a la revisión anterior y puede no coincidir exactamente.',
             'Una imagen se compara mostrando **Antes** y **Después**, y un archivo comprimido o un `.jar`, entrada por entrada.'
           ]
         },
@@ -75,7 +77,7 @@ const es: Articulo = {
       titulo: 'Copiar, pegar y borrar',
       bloques: [
         'Copiar, cortar y pegar funcionan dentro del explorador con el menú contextual o con el teclado (`Ctrl+C`, `Ctrl+X`, `Ctrl+V`, o las mismas teclas con `⌘`). Sobre una carpeta se pega dentro de ella; sobre un archivo, junto a él. Si en el destino ya existe un elemento con ese nombre, el elemento pegado se renombra y no se sobrescribe nada.',
-        'Los archivos copiados en {gestorArchivos} se pueden pegar en Tessera, y una imagen copiada se pega con **Pegar imagen**. En sentido inverso no ocurre lo mismo: copiar en Tessera deja las rutas como texto en el portapapeles, para pegarlas en el editor o en un agente.',
+        'Los archivos copiados en {gestorArchivos} se pueden pegar en Tessera, y una imagen copiada se pega con la opción **Pegar imagen** del menú contextual del explorador; esa opción solo aparece si hay una imagen en el portapapeles. En sentido inverso no ocurre lo mismo: copiar en Tessera deja las rutas como texto en el portapapeles, para pegarlas en el editor o en un agente.',
         { nota: '**Eliminar archivo…** (o la tecla `Supr`, o `⌘⌫`) pide confirmación siempre y borra del disco sin pasar por {papelera}. Esta acción no se puede deshacer.' },
         'En un archivo modificado que no está en conflicto, el menú contextual ofrece también **Descartar cambios (restaura la versión de Git)**. Qué se pierde lo explica [Git](git/descartar).'
       ]
@@ -111,7 +113,9 @@ const en: Articulo = {
             'The status bar shows the file’s encoding and line endings. Click the encoding to reopen the file with another one or to convert it; click the line endings to change them.',
             'If an agent or another program changes the file, the tab updates automatically, unless it has unsaved changes: in that case, its content is left as it is.',
             'If the file is deleted from disk, the tab stays open with its name struck through and keeps any unsaved changes. Saving creates the file again and removes the mark.',
-            '`Ctrl+N` or `⌘N` opens an **Untitled-1** tab, which is not yet a file on disk. To save it, use **Save as…** in the tab’s context menu.'
+            '`Ctrl+N` or `⌘N` opens an **Untitled-1** tab, which is not yet a file on disk. To save it, use **Save as…** in the tab’s context menu.',
+            'When Tessera opens again, each project gets back the files it had open, with the one in view, its view mode and the cursor line, and the explorer folders that were expanded. Untitled files, diffs and unsaved changes are not brought back.',
+            'Choose the code theme, font and size in **Settings › Appearance › Code editor**, with a preview of the theme; they apply at once to the editor, diffs, viewers, the code blocks in the Markdown preview and the database editors. A theme changes the text colors: the background is always Tessera’s, and the terminals keep their colors. The explorer font size is in **Settings › Appearance › Size and scale**.'
           ]
         },
         { nota: 'A file larger than 2 MiB opens truncated (only its beginning) and cannot be saved, because the part that was not loaded would be lost.' }
@@ -121,7 +125,7 @@ const en: Articulo = {
       ancla: 'visores',
       titulo: 'Viewers and preview',
       bloques: [
-        'A Markdown file has three modes: **Editor only**, **Editor and preview** (with synchronized scrolling), and **Preview only**. The preview renders Mermaid diagrams.',
+        'In a Markdown file, the three icon buttons on the right of the tab strip choose the mode (their names appear on hover): text lines (**Editor only**), a split panel (**Editor and preview**, with synchronized scrolling), and a page (**Preview only**). The preview renders Mermaid diagrams.',
         'An HTML file is previewed in isolation: its JavaScript does not run, and a notice lists the resources that are not loaded.',
         'PDF, Word (`.docx`), ZIP, images (with zoom), audio, and video files open without installing anything. `.jar`, `.war`, `.ear`, and `.aar` files expand in the explorer as if they were folders. `.class` files are decompiled when you open them, which requires Java installed on {tuEquipo}.',
         { nota: 'Viewers support files up to 50 MiB. If a file exceeds that size or does not display correctly, **Open externally** opens it in its default system application.' },
@@ -132,13 +136,13 @@ const en: Articulo = {
       ancla: 'diff',
       titulo: 'Compare changes',
       bloques: [
-        'A diff shows two versions of a file with their differences marked. You open it from [Git](git): double-click a file in **Git · Changes**, or in **Git · Log**, click a commit or one of its files.',
-        'When there is enough space, the diff is side by side; in a narrow column, it is unified (both versions in one column). The **Side-by-side view** and **Unified view** buttons in its header switch the mode immediately; that choice lasts until the width crosses the limit between the two modes again.',
+        'A diff shows two versions of a file with their differences marked. You open it from [Git](git): double-click a file in **Git · Changes**, or in **Git · History**, click a commit or one of its files.',
+        'When there is enough space, the diff is side by side; in a narrow column, it is unified (both versions in one column). The two-column (**Side-by-side view**) and single-column (**Unified view**) buttons in its header switch the mode immediately; that choice lasts until the width crosses the limit between the two modes again. They are unavailable when one side does not exist, as with a new or deleted file.',
         {
           lista: [
             '`F7` and `Shift+F7` go to the next and previous change.',
-            '**Collapse unchanged sections** leaves visible what changed and a few lines around it. The same button, **Show full file**, reverses the effect.',
-            '**Jump to source** opens the file at the line visible on screen. It is not available if the file was deleted or if what is being compared is not a project file. In a diff from the history, the line belongs to the older revision and may not match exactly.',
+            'The collapse button in the header (**Collapse unchanged sections (4 lines of context)**) stays pressed while active and leaves visible what changed and a few lines around it. The same button, **Show full file**, reverses the effect.',
+            'The pencil button (**Jump to source (opens the file at the line you are viewing)**), in the header, opens the file at the line visible on screen. It is not available if the file was deleted or if what is being compared is not a project file. In a diff from the history, the line belongs to the older revision and may not match exactly.',
             'Images are compared by showing **Before** and **After**, and archives or `.jar` files are compared entry by entry.'
           ]
         },
@@ -165,7 +169,7 @@ const en: Articulo = {
       titulo: 'Copy, paste, and delete',
       bloques: [
         'Copy, cut, and paste work inside the explorer from the context menu or the keyboard (`Ctrl+C`, `Ctrl+X`, `Ctrl+V`, or the same keys with `⌘`). On a folder, items are pasted inside it; on a file, next to it. If an item with the same name already exists at the destination, the pasted item is renamed, and nothing is overwritten.',
-        'Files you copy in {gestorArchivos} can be pasted into Tessera, and a copied image can be pasted with **Paste image**. The reverse does not work the same way: copying in Tessera puts the paths on the clipboard as text, so you can paste them into the editor or an agent.',
+        'Files you copy in {gestorArchivos} can be pasted into Tessera, and a copied image can be pasted with the **Paste image** option in the explorer’s context menu; that option appears only when the clipboard contains an image. The reverse does not work the same way: copying in Tessera puts the paths on the clipboard as text, so you can paste them into the editor or an agent.',
         { nota: '**Delete file…** (or the `Del` key, or `⌘⌫`) always asks for confirmation and deletes from disk without using {papelera}. This cannot be undone.' },
         'For a modified file that is not in conflict, the context menu also offers **Discard changes (restore the Git version)**. [Git](git/descartar) explains what you lose.'
       ]

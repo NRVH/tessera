@@ -7,7 +7,6 @@
 import path from 'node:path'
 import type { Profile } from '../../profiles/types.ts'
 import { citarSh } from '../../../shared/citarShell.ts'
-import { SSH_RO_BASE } from '../sshSetup.ts'
 import { runDocker, type CommandResult } from '../adaptadores/docker.ts'
 import {
   DB_BRIDGE_CONTAINER,
@@ -228,18 +227,6 @@ export class MontajesSandbox {
     return [...this.mountsFor(profile.id).values()]
   }
 
-  /** Argumentos `--mount` READ-ONLY de las carpetas ssh globales (o `[]` si no hay). */
-  globalSshMountArgs(): string[] {
-    if (!this.n.sshSetup) return []
-    const args: string[] = []
-    for (const m of this.n.sshSetup.mounts) {
-      args.push(
-        '--mount',
-        `type=bind,source=${toDaemonPath(m.hostDir)},target=${SSH_RO_BASE}/${m.basename},readonly`
-      )
-    }
-    return args
-  }
 
   /**
    * Monta el buzón del puente de BD y enlaza `tdb`, `tssh` y `tctx` en el PATH del contenedor. Best-effort:

@@ -7,8 +7,9 @@
 // Decisiones: docs/decisiones/bd/ui-consola-popovers.md
 // =============================================================================
 
+import { Cruce } from '../../../comun/Presente'
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { EnCapaFlotante } from '../../../comun/capaFlotante'
 import type { DbConnection } from '../../../../../shared/db-ipc'
 import { VirtualList } from '../../../comun/VirtualList'
 import { IconoCommit } from '../iconosBd'
@@ -198,6 +199,7 @@ export function SelectorEsquemaConsola(props: PropsSelectorEsquema): React.JSX.E
         aria-label={s.t.filtrar}
         onChange={(e) => s.setFiltro(e.target.value)}
       />
+      <Cruce clave={s.resp ? 'lista' : s.errorCarga ? 'error' : 'cargando'}>
       <EstadoCargaPopover
         hayLista={s.resp !== null}
         errorCarga={s.errorCarga}
@@ -205,11 +207,12 @@ export function SelectorEsquemaConsola(props: PropsSelectorEsquema): React.JSX.E
         onReintentar={s.reintentar}
       />
       <ListaSelector s={s} idBase={idBase} altoFila={altoFila} />
+      </Cruce>
       <div className="db-pop-pie">
         <span className="db-pop-pista">{txPane().enterElige}</span>
       </div>
     </div>
   )
 
-  return createPortal(contenido, document.body)
+  return <EnCapaFlotante>{contenido}</EnCapaFlotante>
 }

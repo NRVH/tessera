@@ -21,7 +21,7 @@ function textosBorrado(d: DialogoBorrado): { title: string; message: string } {
   const aviso = d.hayCarpeta ? (varios ? t.avisoContenidoCarpetas : t.avisoContenido) : ''
   if (!varios) {
     return {
-      title: d.hayCarpeta ? t.eliminarCarpeta : t.eliminarArchivo,
+      title: d.hayCarpeta ? t.eliminarCarpeta(d.nombres[0]) : t.eliminarArchivo(d.nombres[0]),
       message: t.seguroEliminar(d.nombres[0], aviso)
     }
   }
@@ -67,7 +67,7 @@ export function DialogosArbol({ arbol }: { arbol: Arbol }): React.JSX.Element {
       {importConflict && (
         <ConfirmDialog
           danger
-          title={importConflict.conflicts.length > 1 ? t.reemplazarArchivos : t.reemplazarArchivo}
+          title={t.reemplazarTitulo(importConflict.conflicts.length)}
           message={t.yaExiste(
             importConflict.conflicts.length > 1,
             importConflict.conflicts.map((n) => `• ${n}`).join('\n')

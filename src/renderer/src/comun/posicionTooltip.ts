@@ -1,7 +1,7 @@
 // =============================================================================
 // Dónde va el tooltip propio respecto a lo que lo lleva: centrado debajo, encima si abajo no cabe,
-// y siempre dentro de la ventana con un margen. Puro (sin DOM), para probarlo bajo `node`. Lo usa
-// `TooltipPropio.tsx`.
+// y siempre dentro de la ventana con un margen; y si su texto solo repite lo que ya se lee. Puro (sin
+// DOM), para probarlo bajo `node`. Lo usa `TooltipPropio.tsx`.
 // Decisiones: docs/decisiones/renderer/tooltip-propio.md
 // =============================================================================
 
@@ -26,4 +26,12 @@ export function posicionTooltip(a: Caja, t: { width: number; height: number }, v
   const centrado = a.left + a.width / 2 - t.width / 2
   const left = Math.max(MARGEN, Math.min(centrado, v.width - MARGEN - t.width))
   return { left: Math.round(left), top: Math.round(Math.max(MARGEN, top)) }
+}
+
+const normalizado = (texto: string): string => texto.replace(/\s+/g, ' ').trim().replace(/…$/, '').trim().toLowerCase()
+
+/** ¿El título dice lo mismo que el texto a la vista de su elemento? Sin texto a la vista (un icono) nunca lo repite. */
+export function repiteLoVisible(titulo: string, visible: string): boolean {
+  const texto = normalizado(visible)
+  return texto !== '' && texto === normalizado(titulo)
 }

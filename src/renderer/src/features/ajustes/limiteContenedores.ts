@@ -1,7 +1,7 @@
 // =============================================================================
 // Lógica pura del deslizador del límite de contenedores: de la posición de la barra al valor
-// guardado y al revés (el último paso es «Sin límite»), el degradado verde-amarillo-rojo de su
-// pista y el cupo que viaja con cada apertura de un agente en Docker. Sin React.
+// guardado y al revés (el último paso es «Sin límite»), el relleno de su pista, la marca del valor
+// recomendado y el cupo que viaja con cada apertura de un agente en Docker. Sin React.
 // Depende de `shared/semaforoContenedores`.
 // =============================================================================
 
@@ -35,25 +35,26 @@ export function limiteDePaso(paso: number, cortes: CortesSemaforo): number {
 }
 
 /** Dónde cae una posición a lo largo de la pista, de 0 a 100. */
-function porcentajeDePaso(paso: number, cortes: CortesSemaforo): number {
+export function porcentajeDePaso(paso: number, cortes: CortesSemaforo): number {
   return ((paso - PASO_MINIMO) / (pasoMaximo(cortes) - PASO_MINIMO)) * 100
 }
 
 /**
- * Las paradas del degradado de la pista, en porcentaje: el color cambia a mitad de camino entre el
- * último paso de un color y el primero del siguiente, para que el pulgar sobre un paso se vea de su color.
+ * El `background` de la pista: rellena hasta la posición elegida y neutra después. El riesgo no se pinta en
+ * la pista: lo dicen el punto y el aviso, y solo cuando lo hay.
  */
-export function paradasDegradado(cortes: CortesSemaforo): { verdeHasta: number; amarilloHasta: number } {
-  const medio = (paso: number): number => (porcentajeDePaso(paso, cortes) + porcentajeDePaso(paso + 1, cortes)) / 2
-  return { verdeHasta: medio(cortes.verdeHasta), amarilloHasta: medio(cortes.amarilloHasta) }
+export function pistaConRelleno(paso: number, cortes: CortesSemaforo): string {
+  const p = porcentajeDePaso(paso, cortes).toFixed(2)
+  return `linear-gradient(to right, var(--limite-relleno) 0%, var(--limite-relleno) ${p}%, var(--limite-vacio) ${p}%, var(--limite-vacio) 100%)`
 }
 
-/** El `background` de la pista: verde, amarillo y rojo con los cortes del equipo. */
-export function degradadoPista(cortes: CortesSemaforo): string {
-  const p = paradasDegradado(cortes)
-  const v = p.verdeHasta.toFixed(2)
-  const a = p.amarilloHasta.toFixed(2)
-  return `linear-gradient(to right, var(--green) 0%, var(--green) ${v}%, var(--yellow) ${v}%, var(--yellow) ${a}%, var(--red) ${a}%, var(--red) 100%)`
+/**
+ * Dónde se dibuja una marca sobre la pista, alineada con el centro del pulgar de ese paso: el pulgar
+ * (18 px) no llega a los extremos, así que la posición se corrige con su medio ancho.
+ */
+export function posicionMarca(paso: number, cortes: CortesSemaforo): string {
+  const p = porcentajeDePaso(paso, cortes)
+  return `calc(${p.toFixed(2)}% + ${(9 - 0.18 * p).toFixed(2)}px)`
 }
 
 /**

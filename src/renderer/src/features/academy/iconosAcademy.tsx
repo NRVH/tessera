@@ -75,6 +75,14 @@ const TRAZOS: Record<ArticuloId, Trazo> = {
       <path d="M4 8h13l-3-3M20 16H7l3 3" />
     </>
   ),
+  'delegar-tareas': (
+    <>
+      <path d="M5 5v7h14M12 12v7M19 12v7" />
+      <circle cx="5" cy="4" r="2" />
+      <circle cx="12" cy="20" r="2" />
+      <circle cx="19" cy="20" r="2" />
+    </>
+  ),
   'reglas-del-perfil': (
     <>
       <rect x="5" y="4" width="14" height="17" rx="2" />

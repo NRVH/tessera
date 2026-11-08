@@ -256,7 +256,7 @@ async function main(): Promise<void> {
     const baseFutura = { motor: 'oracle' as const, soloLectura: false, sistema: esEsquemaDelSistema('oracle', 'CUENTA_23AI_NUEVA'), tipo: 'tabla' as const, remoto: false, pk: [] as string[] }
     const conMant = conMarcasDeTabla(baseFutura, tMant)
     check(
-      'una tabla SIN PK de una cuenta que mantiene Oracle y la lista no conoce: del sistema, NO editable (antes salía por ROWID)',
+      'una tabla SIN PK de una cuenta que mantiene Oracle y la lista no conoce: del sistema, NO editable (no se edita por ROWID)',
       !baseFutura.sistema && conMant.sistema && decidirIdentidad({ ...conMant, unica: null }).tipo === 'ninguna',
       j(decidirIdentidad({ ...conMant, unica: null }))
     )
@@ -507,7 +507,7 @@ async function main(): Promise<void> {
     check('NEGATIVO: con solo lectura impuesta tampoco (manda su guardia)', !exigeConfirmacion(prod, true, undefined), 'no')
     check('esProduccion', esProduccion(prod) && !esProduccion(dev) && !esProduccion({}), 'ok')
     const m = mensajeProduccion('ALFA-PROD', 'commit')
-    check('el mensaje nombra la conexión, dice producción y que no se envió nada', m.includes('«ALFA-PROD»') && /PRODUCCIÓN/.test(m) && /COMMIT/.test(m) && /No se envió nada/.test(m), m)
+    check('el mensaje nombra la conexión, dice producción y que no se envió nada', m.includes('«ALFA-PROD»') && /producción/.test(m) && /COMMIT/.test(m) && /No se envió nada/.test(m), m)
   }
 
   hr('(10) identidad en paralelo con la página, y la caché vieja')
@@ -842,9 +842,9 @@ async function main(): Promise<void> {
     check('NEGATIVO: en PG ninguna sentencia lleva bloqueo (va el lock_timeout de la transacción)', pg.ok && pg.sentencias.every((s) => s.bloqueo === undefined), pg.ok ? j(pg.sentencias) : j(pg))
     check('NEGATIVO: y en PG no hay candados de lote', pg.ok && lotesDeBloqueo('postgres', pg.sentencias).length === 0, 'ok')
 
-    // el candado POR LOTES (antes, un SELECT … FOR UPDATE por fila:
-    // un viaje más por cambio). Ahora la sentencia es la de la sesión
-    // de Oracle (`esperaBloqueo.sqlCandado`), con el texto de siempre.
+    // el candado POR LOTES (no un SELECT … FOR UPDATE por fila, que añadiría un
+    // viaje por cambio). La sentencia es la de la sesión
+    // de Oracle (`esperaBloqueo.sqlCandado`).
     const lotes3 = r.ok ? lotesDeBloqueo('oracle', r.sentencias) : []
     check(
       `el envío de 3 (UPDATE, INSERT, DELETE): UN candado con las dos filas, ROWID IN (…) FOR UPDATE WAIT ${ESPERA_BLOQUEO_ENVIO_S}, relleno a potencia de dos`,
@@ -966,7 +966,7 @@ async function main(): Promise<void> {
     // el código es de CADA motor (`esperaBloqueo.codigoVencida`), no de
     // un conjunto con los de todos: el de un motor no cuenta en el otro.
     check(
-      'el código de un motor no cuenta en el otro (antes, un conjunto común)',
+      'el código de un motor no cuenta en el otro (no hay un conjunto común)',
       !esEsperaDeBloqueo('postgres', 'ORA-30006') && !esEsperaDeBloqueo('oracle', '55P03'),
       'ok'
     )

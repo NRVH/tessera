@@ -33,6 +33,7 @@ import {
 } from '../layout'
 import { ocultarAgenteDb, useStoreBd, type EspaciosDatos } from '../bd'
 import { useStoreMosaico } from '../mosaico'
+import { useDelegacion } from '../delegacion'
 
 /** Targets de agente, el que se ve y el layout del centro. */
 export interface AgentesApp {
@@ -270,6 +271,7 @@ export function useAgentesApp(
   agenteTerminal: AgenteTerminalApp,
   contenido: ContenidoCentro
 ): AgentesApp {
+  useDelegacion()
   // El agente que se ve es el del proyecto que se ve: su sesión ya vive, no espera al backend.
   const visto = tabs.objetivoVisto
   const selectedAgentByProfile = useStoreAgentes((s) => s.selectedAgentByProfile)

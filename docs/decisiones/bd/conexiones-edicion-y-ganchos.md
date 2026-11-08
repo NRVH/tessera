@@ -14,7 +14,7 @@ construye después, así que se le habla por ganchos opcionales.
 - El orden de la edición es fijo: `soloCambiaLaCasillaDeAgentes` → `puedeEditarConexion` (bloquea con el
   mensaje del explorador si hay una transacción pendiente) → leer el registro previo → `update` → gancho
   `onConexionEditada` → `onChanged` → aviso a las vistas. El bloqueo va ANTES de tocar el registro. Si solo
-  cambia la casilla de los agentes no se retira nada y no se bloquea.
+  cambia el interruptor de los agentes no se retira nada y no se bloquea.
 - Un fallo de un gancho se registra y se traga: el registro ya está escrito, y propagarlo haría creer al
   renderer que la edición o el borrado fallaron.
 - Se borra la entrada pedida (`tipo`, alias y perfil de la fila): una conocida y una ajena solo comparten id

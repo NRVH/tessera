@@ -23,12 +23,12 @@ conexiones SSH por perfil ya tienen bastiones, huellas y secretos guardados; las
   conexiones (25 s de tope): la sonda sola daría por bueno a otro proceso que tomara el puerto entre que se eligió y
   ssh lo abrió, y le mandaría la contraseña de la base. Si ssh muere, la siguiente petición abre otro. Si cambia el
   destino de la base o cualquier conexión SSH (puede ser el bastión de cualquiera), la siguiente petición abre otro y
-  el de antes NO se mata: cortaría las sesiones que ya van por él, también una transacción sin confirmar (la casilla
+  el de antes NO se mata: cortaría las sesiones que ya van por él, también una transacción sin confirmar (el interruptor
   de los agentes se edita con una pendiente). Se matan al borrar la base o el perfil y al cerrar la app. No se cierra
   por inactividad: cerraría las sesiones abiertas del explorador.
 - Como un agente: solo servidores cuya huella ya confirmó una persona (si no, se dice que pulse «Probar» en la
   conexión SSH) y solo el secreto guardado, sin diálogo, porque también lo abre un `tdb` de un agente. Los saltos usan
-  el modo de la pestaña, pero con todas las huellas ya confirmadas `accept-new` no acepta nada nuevo.
+  el modo de la pestaña, que también es estricto con la huella.
 - `tdb` (también el de Docker, que corre en el anfitrión por el buzón) pide el extremo local con `db.tunel` tras
   comprobar la huella contra la entrada del disco. Lo autoriza su token de sesión si la base está en el ámbito
   VIGENTE. El token de «Probar» es de un solo uso y se gasta en `resolve`, así que `resolve` le da una ficha de túnel

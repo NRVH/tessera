@@ -30,6 +30,12 @@ export interface ApartadosCopia {
   ssh: boolean
   bd: boolean
   agentes: boolean
+  /** La configuración global de Docker de Claude Code y Codex y la de cada perfil elegido. */
+  configDocker: boolean
+  /** Los dos archivos de cada cuenta de Docker de los perfiles elegidos que el usuario escribe. */
+  archivosCuentas: boolean
+  /** Solo las instrucciones de los agentes nativos: su configuración técnica guarda rutas de este equipo. */
+  reglasNativas: boolean
   ajustes: boolean
 }
 
@@ -56,6 +62,9 @@ export const AJUSTES_EXPORTABLES = [
   'terminalResaltado',
   'agentFontFamily',
   'agentFontSize',
+  'editorFontFamily',
+  'editorFontSize',
+  'editorTema',
   'uiFontSize',
   'explorerFontSize',
   'gitFontSize',

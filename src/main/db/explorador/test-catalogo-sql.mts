@@ -288,7 +288,7 @@ async function main(): Promise<void> {
     ]
     const faltanDoc = DOC_11_2.filter((u) => !esEsquemaSistemaOracle(u))
     check(
-      'B3: TODAS las cuentas predefinidas documentadas de la 11.2 cuentan como del sistema (antes faltaban WK_TEST, WKSYS, WKPROXY y ASMSNMP)',
+      'B3: TODAS las cuentas predefinidas documentadas de la 11.2 cuentan como del sistema (incluidas WK_TEST, WKSYS, WKPROXY y ASMSNMP)',
       faltanDoc.length === 0,
       faltanDoc.length === 0 ? `${DOC_11_2.length} cuentas` : `faltan: ${faltanDoc.join(', ')}`
     )

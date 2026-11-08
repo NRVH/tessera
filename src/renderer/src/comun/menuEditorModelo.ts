@@ -18,8 +18,6 @@ export const ACCION = {
   seleccionarTodo: 'editor.action.selectAll'
 } as const
 
-export type IdAccionDeSerie = (typeof ACCION)[keyof typeof ACCION]
-
 /** Una acción que un panel añade al menú de su editor (ejecutar, historial…). */
 export interface AccionPropia {
   id: string

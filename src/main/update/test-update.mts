@@ -336,8 +336,7 @@ hr('(C) installDirLock — a QUIÉN matar para liberar la carpeta de instalació
 
 // El parseo de la tabla de procesos (objeto suelto, array, vacío, basura, sin ruta)
 // ya no vive aquí: es `parsearTablaProcesos` de procesosSistema.ts, probado en
-// src/main/agents/test-procesos-bloqueo.mts (2a-2e). El `parseProcessJson` que se
-// probaba aquí se retiró por no tener ningún uso de producción.
+// src/main/agents/test-procesos-bloqueo.mts (2a-2e).
 
 // ---------------------------------------------------------------------------
 // MAX_PATH: el verdadero "…: 2" del instalador (ver installDirPaths.ts). Se fija

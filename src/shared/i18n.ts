@@ -12,7 +12,6 @@ export type Idioma = 'es' | 'en'
 /** Lo que se guarda en los ajustes: `sistema` sigue al idioma del equipo. */
 export type PreferenciaIdioma = 'sistema' | Idioma
 
-export const IDIOMAS: readonly Idioma[] = ['es', 'en']
 /** Argumento con el que la ventana recibe el idioma resuelto (el renderer no tiene `process`). */
 export const ARGUMENTO_IDIOMA = '--tessera-idioma='
 /** Variable de entorno con el idioma resuelto: la pone el main y la heredan `tdb`, `tssh` y `tctx`. */

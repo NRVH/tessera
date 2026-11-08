@@ -91,7 +91,7 @@ export function peligros(
  */
 export type DecisionLote =
   | { tipo: 'rechazado'; bloqueadas: Bloqueo[] }
-  | { tipo: 'confirmar'; produccion: boolean; textos: TextosConfirmacion }
+  | { tipo: 'confirmar'; produccion: boolean; destruye: boolean; textos: TextosConfirmacion }
   | { tipo: 'libre' }
 
 /** Los textos del diálogo de los peligros FUERA de producción. */
@@ -130,6 +130,7 @@ export function decidirLote(
     return {
       tipo: 'confirmar',
       produccion: true,
+      destruye: lista.length > 0,
       textos: confirmacionLoteProduccion({
         alias: o.alias,
         total: sentencias.length,
@@ -142,7 +143,7 @@ export function decidirLote(
       })
     }
   }
-  if (lista.length > 0) return { tipo: 'confirmar', produccion: false, textos: textosPeligros(lista, o.alias) }
+  if (lista.length > 0) return { tipo: 'confirmar', produccion: false, destruye: true, textos: textosPeligros(lista, o.alias) }
   return { tipo: 'libre' }
 }
 

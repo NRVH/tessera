@@ -1,0 +1,55 @@
+/* =============================================================================
+   Indicador de estado persistente en la cabecera; el ancho acompaña la entrada y la salida.
+   Decisiones: docs/decisiones/agentes/delegar-en-cuentas-de-docker.md
+   ============================================================================= */
+.delegadas-presencia {
+  flex: 0 1 auto;
+  min-width: 0;
+  width: auto;
+  interpolate-size: allow-keywords;
+  margin-left: auto;
+  transition: width var(--mov-entrada) var(--curva-expandir), opacity var(--mov-medio) var(--curva-estandar), translate var(--mov-medio) var(--curva-entrada), scale var(--mov-medio) var(--curva-entrada);
+}
+.delegadas-presencia[data-saliendo] { width: 0; pointer-events: none; transition-duration: var(--mov-salida); }
+@starting-style { .delegadas-presencia { width: 0; } }
+.delegadas-chip {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 220px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--fg-muted);
+  background: var(--bg-deep);
+  transition: color var(--mov-rapido) var(--curva-estandar), border-color var(--mov-rapido) var(--curva-estandar);
+}
+.delegadas-chip.delegadas-hecha { color: var(--green); border-color: var(--green); }
+.delegadas-chip.delegadas-fallo, .delegadas-fila.delegadas-fallo { color: var(--red); }
+.delegadas-chip.delegadas-fallo { border-color: var(--red); }
+.delegadas-abrir, .delegadas-cancelar, .delegadas-descartar {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.delegadas-abrir { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 3px 6px; font-size: 11px; }
+.delegadas-etiqueta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.delegadas-tiempo { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+.delegadas-confirmacion { display: inline-flex; flex: 0 0 16px; }
+.delegadas-cancelar { flex: 0 0 auto; padding: 3px 5px; }
+.delegadas-abrir:hover, .delegadas-cancelar:hover, .delegadas-descartar:hover { background: var(--bg-surface); }
+.delegadas-presencia + .panel-actions { margin-left: 0; }
+.delegadas-ancla { position: fixed; z-index: 400; width: min(440px, calc(100vw - 16px)); }
+.delegadas-ancla .delegadas-pop { position: relative; top: auto; right: auto; width: 100%; min-width: 0; max-width: none; margin: 0; box-sizing: border-box; }
+.delegadas-lista { max-height: min(380px, 45vh); overflow-y: auto; overscroll-behavior: contain; }
+.delegadas-fila { padding: 10px; font-size: 12px; overflow-wrap: anywhere; }
+.delegadas-fila + .delegadas-fila { border-top: 1px solid var(--border); }
+.delegadas-fila-cabecera { display: flex; align-items: center; gap: 6px; }
+.delegadas-fila-cabecera strong { flex: 1; min-width: 0; }
+.delegadas-fila p { margin: 6px 0; }
+.delegadas-resumen { color: var(--fg-muted); }
+.delegadas-actividad { max-height: 160px; overflow: auto; white-space: pre-wrap; color: var(--fg); user-select: text; }
+.delegadas-descartar { padding: 4px 8px; border: 1px solid currentColor; }
+.delegadas-fila[data-saliendo] { pointer-events: none; }

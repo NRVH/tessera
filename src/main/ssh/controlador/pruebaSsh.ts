@@ -1,9 +1,9 @@
 // =============================================================================
-// «Probar» una conexión SSH: la misma línea que la pestaña (con `accept-new`, que guarda la huella: así el
-// agente, en estricto, solo usará hosts que ya confirmó una persona) sin terminal y con `exit 0`, tope de
-// 20 s y el programa de contraseñas si hay secreto. Devuelve lo que tardó y las huellas del servidor, o el
-// motivo con una línea SIN rutas: la salida de ssh no sale de aquí. Sin `electron`: ssh lo corre quien llama.
-// Decisiones: docs/decisiones/ssh/askpass-y-secretos.md
+// «Probar» una conexión SSH: la misma línea que la pestaña (estricta con la huella, que la persona ya
+// confirmó antes de probar) sin terminal y con `exit 0`, tope de 20 s y el programa de contraseñas si hay
+// secreto. Devuelve lo que tardó y las huellas del servidor, o el motivo con una línea SIN rutas: la salida
+// de ssh no sale de aquí. Sin `electron`: ssh lo corre quien llama.
+// Decisiones: docs/decisiones/ssh/askpass-y-secretos.md, docs/decisiones/ssh/motor-linea-y-huellas.md
 // =============================================================================
 
 import { plataformaActual, type Plataforma } from '../../../shared/plataforma.ts'
@@ -74,7 +74,7 @@ export function resultadoPrueba(s: SalidaSsh, x: ContextoResultadoPrueba): SshRe
   const plataforma = x.plataforma ?? plataformaActual()
   const falloSsh = esSalidaDeFalloSsh(s.codigo, plataforma)
   if (s.codigo !== null && !falloSsh) return { ...base, ok: true, soloAlcance: false }
-  const motivo: SshMotivoPrueba = (falloSsh ? clasificarSalidaSsh(s.codigo, s.errores, plataforma) : undefined) ?? 'otro'
+  const motivo: SshMotivoPrueba = (falloSsh ? clasificarSalidaSsh(s.codigo, s.errores, plataforma, undefined, { sinConfirmar: true }) : undefined) ?? 'otro'
   if (motivo === 'ssh-autenticacion' && x.soloAlcance && !x.preguntaSinContestar) return { ...base, ok: true, soloAlcance: true }
   const nueva = motivo === 'ssh-huella-cambiada' ? huellaPresentada(s.errores) : undefined
   return {

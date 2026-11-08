@@ -47,7 +47,8 @@ export function AreaEditor({ editor, gitStatusById, densidad, editorAreaOculta }
   // El hueco de acciones de la tira: el pane visible pinta ahí su modo de vista.
   const [slotAcciones, setSlotAcciones] = useState<HTMLElement | null>(null)
   const { editorTabs, activeEditorKey, paneKey } = editor
-  if (editorTabs.allPanes.length === 0) return null
+  // Sin panes sigue ocupando su sitio hasta que el reparto la oculta: el cambio de reparto se anima desde ahí.
+  if (editorTabs.allPanes.length === 0 && editorAreaOculta) return null
   const contexto: ContextoPane = {
     editor,
     estado,

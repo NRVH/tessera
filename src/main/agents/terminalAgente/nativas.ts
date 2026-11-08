@@ -54,9 +54,9 @@ export function pidsNativos(n: NucleoAgente, agente: Agente): number[] {
 /** La sesión y el contenedor donde corre (el de su cuenta), que es adonde se copian los archivos. */
 function sesionYPerfil(n: NucleoAgente, sessionId: string): { open: OpenAgentSession; profile: Profile } {
   const open = n.sessions.get(sessionId)
-  if (!open) throw new Error(`No existe una sesión de agente con id "${sessionId}".`)
+  if (!open) throw new Error(`No existe una sesión de agente con id «${sessionId}».`)
   const profile = n.profiles.get(open.profileId)
-  if (!profile) throw new Error(`Perfil desconocido: "${open.profileId}".`)
+  if (!profile) throw new Error(`Perfil desconocido: «${open.profileId}».`)
   return { open, profile: open.host ? profile : contenedorDe(profile, open.agente, open.accountId) }
 }
 

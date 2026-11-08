@@ -211,8 +211,3 @@ export function planDesdeJsonPg(json: string): { nodos: DbNodoPlan[]; texto: str
   visitarPg(raiz, null, 0, 0, acc)
   return { nodos: acc.nodos, texto: acc.lineas.join('\n'), recortado: acc.recortado }
 }
-
-/** El texto del plan de PG a partir de su JSON (lo mismo que `planDesdeJsonPg(json).texto`). */
-export function textoPlanPg(json: string): string {
-  return planDesdeJsonPg(json).texto
-}

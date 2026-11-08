@@ -1020,7 +1020,7 @@ async function main(): Promise<void> {
     K.columnas,
     claveBd.hoja('c1', 'ADMDEMO', 'tabla', 'APPLICATION', 'columnas', 'ID'),
     // La de la fila de una conexión AJENA: este módulo no la pinta, pero su clave sale
-    // de aquí (antes `filasArbolBd` la armaba con una copia del separador).
+    // de aquí (`filasArbolBd` no arma una copia del separador).
     claveBd.ajena('c1')
   ]
   check('claves de niveles distintos no chocan', new Set(todas).size === todas.length, `${todas.length} únicas`)

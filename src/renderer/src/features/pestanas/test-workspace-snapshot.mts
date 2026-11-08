@@ -27,6 +27,7 @@ import {
   raizDeVolumen,
   SIDEBAR_WIDTH_MAX,
   SIDEBAR_WIDTH_MIN,
+  TERMINAL_FONT_SIZE_MAX,
   type PresenciaProyecto,
   type WorkspaceState
 } from '../../../../shared/workspace-state-ipc.ts'
@@ -794,8 +795,8 @@ hr('(9) SETTINGS de LAYOUT: tamaños de panel y colapso del inspector')
       `junk=${logJunk?.gitLogRamasWidth}/${logJunk?.gitLogDetalleWidth}`
   )
 
-  // (9.3c) `gitChangesHeight` se RETIRÓ con el commit box de la vista de git. Un
-  // archivo viejo que aún lo traiga no debe resucitarlo: normalizeSettings
+  // (9.3c) `gitChangesHeight` ya no es un ajuste. Un archivo viejo que aún lo traiga
+  // no debe resucitarlo: normalizeSettings
   // reconstruye el objeto entero, así que la clave muerta se cae sola.
   const viejo = settingsOf({ gitChangesHeight: 300, ccWidth: 500 })
   check(
@@ -919,6 +920,23 @@ hr('(9) SETTINGS de LAYOUT: tamaños de panel y colapso del inspector')
     '(9.6) con agentFont*: cada terminal conserva el suyo, independientes',
     separado?.agentFontSize === 11 && separado?.terminalFontSize === 16,
     `shell=${separado?.terminalFontSize} agente=${separado?.agentFontSize}`
+  )
+  // La letra del editor de código: sin el campo, la predeterminada (no la de la terminal), y lo absurdo se sanea.
+  check(
+    '(9.6b) sin editorFont*: la predeterminada, no la de la terminal',
+    migrado?.editorFontFamily === '' && migrado?.editorFontSize === 0,
+    `editor=${JSON.stringify(migrado?.editorFontFamily)}/${migrado?.editorFontSize}`
+  )
+  const editorRaro = normalizeWorkspaceState({
+    version: 1,
+    activeProfileId: 'alfa',
+    byProfile: {},
+    settings: { editorFontFamily: 42, editorFontSize: 999 }
+  })?.settings as Record<string, unknown> | undefined
+  check(
+    '(9.6b) editorFont* inválidos: la familia cae a la predeterminada y el tamaño se acota',
+    editorRaro?.editorFontFamily === '' && editorRaro?.editorFontSize === TERMINAL_FONT_SIZE_MAX,
+    `editor=${JSON.stringify(editorRaro?.editorFontFamily)}/${editorRaro?.editorFontSize}`
   )
   // Tamaño de letra de la interfaz: 0 = predeterminado, y lo absurdo se acota.
   const ui = (v: unknown): unknown =>

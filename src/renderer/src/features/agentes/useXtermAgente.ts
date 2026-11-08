@@ -58,6 +58,9 @@ export function useMontajeXterm(p: PropsAgentPane, r: RefsAgentPane, ctx: Pick<C
   }, [activated, profileId, agente, projectHostPath])
 }
 
+/** Fotogramas que el foco espera a que la columna del pane se pinte (unos 500 ms). */
+const MAX_INTENTOS_FOCO = 30
+
 /** WebGL, ajuste al pintarse, foco a petición y tamaño al salir del mosaico. */
 export function useVisibilidadXterm(p: PropsAgentPane, r: RefsAgentPane, activated: boolean): void {
   const { enPantallaReal, mostradoReal, tokenFoco, enMosaico } = p
@@ -70,9 +73,15 @@ export function useVisibilidadXterm(p: PropsAgentPane, r: RefsAgentPane, activat
   useEffect(() => {
     if (!mostradoReal) return
     const enfocar = r.puedeEnfocar.current
-    const raf = requestAnimationFrame(() => {
-      fitAndSyncNow(r)
-      if (enfocar) r.term.current?.focus()
+    let intentos = 0
+    let raf = requestAnimationFrame(function paso() {
+      if (intentos === 0) fitAndSyncNow(r)
+      const term = r.term.current
+      if (!enfocar || !term) return
+      term.focus()
+      // En un cambio de reparto animado el pane se ve un fotograma antes que su columna, y el foco no entra en
+      // un contenedor oculto: se reintenta hasta que la columna aparece (como mucho, medio segundo).
+      if (!term.element?.contains(document.activeElement) && ++intentos < MAX_INTENTOS_FOCO) raf = requestAnimationFrame(paso)
     })
     return () => cancelAnimationFrame(raf)
     // eslint-disable-next-line react-hooks/exhaustive-deps

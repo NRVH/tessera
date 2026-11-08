@@ -54,6 +54,7 @@ import {
   losesDataOnEncode
 } from './textCodec'
 import { txArchivos } from './textos.ts'
+import { sigueDentroDeLaRaiz } from './rutaReal.ts'
 
 /** Tamaño máximo que se envía al editor (2 MiB). Más grande -> se trunca. */
 const MAX_FILE_BYTES = 2 * 1024 * 1024
@@ -254,6 +255,21 @@ export class FileService {
   }
 
   /**
+   * `resolveSafe` más la guarda de enlaces (`rutaReal.ts`): la misma ruta, solo si al seguir enlaces o junctions
+   * sigue dentro del proyecto, que el contenedor del agente puede llenar de ellos. La llevan las operaciones que
+   * escriben, copian, abren con el sistema o arrastran; leer no, porque solo lo enseña la ventana. `seguirUltimo:
+   * false` para lo que actúa sobre la entrada misma (borrar, renombrar o mover el origen): un enlace plantado tiene
+   * que poder quitarse.
+   */
+  private async resolveSeguro(relPosix: string, seguirUltimo = true): Promise<string> {
+    const abs: string = this.resolveSafe(relPosix)
+    if (!(await sigueDentroDeLaRaiz(this.root as string, abs, { seguirUltimo }))) {
+      throw new Error(txArchivos().fueraDelProyecto)
+    }
+    return abs
+  }
+
+  /**
    * Traducción cruda de ruta relativa del proyecto a ruta de Windows, con la guarda
    * anti-traversal. Es lo que usa `resolveSafe`, y se expone para que el servicio de
    * jars pueda resolver el CONTENEDOR (que sí es un fichero real) sin duplicar la
@@ -327,6 +343,7 @@ export class FileService {
       return this.jar!.listarDirectorio(this.absDelContenedor(relJar), relJar)
     }
 
+    // Leer sigue enlaces (un `npm link` se puede mirar): solo lo enseña la ventana. La guarda va en lo que escribe.
     const abs = this.resolveSafe(relPosix)
     const dirents = await fs.readdir(abs, { withFileTypes: true })
     const base = normalizarRelativaProyecto(relPosix).replace(/\/+$/, '')
@@ -399,7 +416,7 @@ export class FileService {
     const language = languageForFilename(path.basename(abs))
 
     const stat = await fs.stat(abs)
-    if (!stat.isFile()) throw new Error(`No es un archivo: "${rel}".`)
+    if (!stat.isFile()) throw new Error(`No es un archivo: «${rel}».`)
 
     const truncated = stat.size > MAX_FILE_BYTES
     const buffer = truncated ? await readPrefix(abs, MAX_FILE_BYTES) : await fs.readFile(abs)
@@ -453,7 +470,7 @@ export class FileService {
    * RENDERER (que es quien sabe si truncó al abrir); aquí se persiste lo que llega.
    */
   async writeFile(relPosix: string, content: string, encoding = 'utf8'): Promise<WriteFileResult> {
-    const abs = this.resolveSafe(relPosix)
+    const abs = await this.resolveSeguro(relPosix)
     const rel = normalizarRelativaProyecto(relPosix)
     // GUARDA ANTI-PÉRDIDA: escribir con un charset legacy que no representa algún
     // carácter lo sustituiría por '?' (corrupción silenciosa). Antes de escribir se
@@ -534,7 +551,7 @@ export class FileService {
    */
   private relFromHost(abs: string): string | null {
     if (this.root === null) return null
-    // La raíz no es "un archivo dentro" (antes lo decía el `rel === ''`).
+    // La raíz no es "un archivo dentro".
     if (samePath(abs, this.root)) return null
     if (!isInside(abs, this.root)) return null
     const raiz = this.root.endsWith(path.sep) ? this.root : this.root + path.sep
@@ -567,7 +584,7 @@ export class FileService {
     const abs = this.resolveSafe(relPosix)
     const rel = rel0
     const stat = await fs.stat(abs)
-    if (!stat.isFile()) throw new Error(`No es un archivo: "${rel}".`)
+    if (!stat.isFile()) throw new Error(`No es un archivo: «${rel}».`)
 
     const truncated = stat.size > MAX_BINARY_BYTES
     const buffer = truncated ? await readPrefix(abs, MAX_BINARY_BYTES) : await fs.readFile(abs)
@@ -648,7 +665,7 @@ export class FileService {
     }
     const abs = this.resolveSafe(relPosix)
     const stat = await fs.stat(abs)
-    if (!stat.isFile()) throw new Error(`No es un archivo: "${rel}".`)
+    if (!stat.isFile()) throw new Error(`No es un archivo: «${rel}».`)
     if (stat.size > MAX_BINARY_BYTES) throw new Error(siEsGrande)
     return fs.readFile(abs)
   }
@@ -667,7 +684,8 @@ export class FileService {
   async openPath(relPosix: string): Promise<string> {
     // Igual que reveal: se abre el .jar con la app del sistema, no una ruta que no
     // existe.
-    const abs = this.resolveSafe(this.colapsarAContenedor(relPosix))
+    // Con la guarda: abrir con la app del sistema un enlace que apunte fuera podría ejecutar un programa del host.
+    const abs = await this.resolveSeguro(this.colapsarAContenedor(relPosix))
     return this.escritorio.abrirRuta(abs)
   }
 
@@ -680,7 +698,7 @@ export class FileService {
     const clean = validateName(name)
     const dirRel = normalizarRelativaProyecto(dirRelPosix).replace(/\/+$/, '')
     const relPosix = dirRel ? `${dirRel}/${clean}` : clean
-    const abs = this.resolveSafe(relPosix)
+    const abs = await this.resolveSeguro(relPosix)
     // No pisar algo existente (archivo o carpeta con ese nombre).
     if (await exists(abs)) throw new Error(txArchivos().yaExiste(clean))
     if (kind === 'dir') {
@@ -709,12 +727,13 @@ export class FileService {
    */
   async rename(relPosix: string, newName: string): Promise<CreatedEntry> {
     const clean = validateName(newName)
-    const abs = this.resolveSafe(relPosix)
+    // Sin seguir el último tramo: renombrar un enlace renombra el enlace; basta con que su carpeta sea del proyecto.
+    const abs = await this.resolveSeguro(relPosix, false)
     const rel = normalizarRelativaProyecto(relPosix).replace(/\/+$/, '')
     const slash = rel.lastIndexOf('/')
     const parentRel = slash < 0 ? '' : rel.slice(0, slash)
     const destRel = parentRel ? `${parentRel}/${clean}` : clean
-    const destAbs = this.resolveSafe(destRel)
+    const destAbs = await this.resolveSeguro(destRel, false)
     if (destAbs === abs) return { path: rel } // mismo nombre EXACTO: no-op
     const soloOtraCaja = samePath(destAbs, abs)
     if (!soloOtraCaja && (await exists(destAbs))) throw new Error(txArchivos().yaExiste(clean))
@@ -745,7 +764,7 @@ export class FileService {
    */
   async moveMany(srcsRelPosix: readonly string[], destDirRelPosix: string): Promise<MoveResult> {
     const destDir = normalizarRelativaProyecto(destDirRelPosix).replace(/\/+$/, '')
-    const destDirAbs = this.resolveSafe(destDir)
+    const destDirAbs = await this.resolveSeguro(destDir)
     const destStat = await fs.stat(destDirAbs).catch(() => null)
     if (!destStat?.isDirectory()) throw new Error(txArchivos().destinoNoCarpeta)
 
@@ -781,7 +800,8 @@ export class FileService {
         throw new Error(txArchivos().dosElementos(name))
       }
       nombres.add(clave)
-      const srcAbs = this.resolveSafe(srcRel)
+      // Sin seguir el último tramo: mover un enlace mueve el enlace.
+      const srcAbs = await this.resolveSeguro(srcRel, false)
       // El origen tiene que EXISTIR, y se comprueba en la validación por lo mismo que
       // las colisiones: sin esto, una selección de hace unos segundos cuyo segundo
       // elemento acaba de borrar un build reventaba con un ENOENT crudo A MITAD del
@@ -789,7 +809,7 @@ export class FileService {
       // existe para impedir. El `stat` cuesta lo mismo que el `exists` del destino.
       if (!(await exists(srcAbs))) throw new Error(txArchivos().yaNoExiste(name))
       const rel = destDir ? `${destDir}/${name}` : name
-      jobs.push({ srcAbs, destAbs: this.resolveSafe(rel), rel, name })
+      jobs.push({ srcAbs, destAbs: await this.resolveSeguro(rel), rel, name })
     }
     if (jobs.length === 0) return { moved: [], conflicts: [] }
 
@@ -831,7 +851,7 @@ export class FileService {
     if (this.root === null) throw new Error(txArchivos().sinProyecto)
     const projectRoot = this.root
     const destDir = normalizarRelativaProyecto(req.destDir).replace(/\/+$/, '')
-    const destDirAbs = this.resolveSafe(destDir)
+    const destDirAbs = await this.resolveSeguro(destDir)
     const destStat = await fs.stat(destDirAbs).catch(() => null)
     if (!destStat?.isDirectory()) throw new Error(txArchivos().destinoNoCarpeta)
 
@@ -842,7 +862,8 @@ export class FileService {
     for (const src of req.srcs ?? []) {
       const srcRel = normalizarRelativaProyecto(src).replace(/\/+$/, '')
       if (!srcRel) throw new Error(txArchivos().origenInvalido)
-      sources.push(this.resolveSafe(srcRel))
+      // Siguiendo el enlace: copiar uno que apunte fuera traería al proyecto un archivo del host.
+      sources.push(await this.resolveSeguro(srcRel))
     }
     for (const hostPath of req.hostPaths ?? []) sources.push(path.resolve(hostPath))
     if (sources.length === 0) throw new Error(txArchivos().nadaQuePegar)
@@ -976,7 +997,7 @@ export class FileService {
     if (this.root === null) throw new Error(txArchivos().sinProyecto)
     const projectRoot = this.root
     const destDir = normalizarRelativaProyecto(destDirRelPosix).replace(/\/+$/, '')
-    const destDirAbs = this.resolveSafe(destDir)
+    const destDirAbs = await this.resolveSeguro(destDir)
     const destStat = await fs.stat(destDirAbs)
     if (!destStat.isDirectory()) throw new Error(txArchivos().destinoNoCarpeta)
 
@@ -998,7 +1019,7 @@ export class FileService {
       if (!srcStat) throw new Error(txArchivos().noSePudoLeer(name))
       if (!srcStat.isFile() && !srcStat.isDirectory()) throw new Error(txArchivos().noEsUnArchivo(name))
       const rel = destDir ? `${destDir}/${name}` : name
-      const destAbs = this.resolveSafe(rel)
+      const destAbs = await this.resolveSeguro(rel)
       // Meter una carpeta dentro de sí misma (o de un descendiente) recursaría sin fin.
       if (srcStat.isDirectory() && isInside(destDirAbs, srcAbs)) {
         throw new Error(txArchivos().noMoverEnSiMisma(name))
@@ -1082,7 +1103,7 @@ export class FileService {
     const abs: string[] = []
     for (const rel of relPosixList) {
       try {
-        const p = this.resolveSafe(rel)
+        const p = await this.resolveSeguro(rel)
         if (await exists(p)) abs.push(p)
       } catch {
         // Ruta inválida (virtual, fuera del proyecto): se omite. El resto del
@@ -1125,12 +1146,14 @@ export class FileService {
    *     vuelve en `fallidos` con su nombre.
    */
   async deleteMany(relPosixList: readonly string[]): Promise<DeleteResult> {
-    const objetivos = relPosixList.map((rel) => {
-      const abs = this.resolveSafe(rel)
+    const objetivos: { rel: string; abs: string }[] = []
+    for (const rel of relPosixList) {
+      // Sin seguir el último tramo: borrar un enlace quita el enlace, no lo que hay al otro lado.
+      const abs = await this.resolveSeguro(rel, false)
       // Guarda extra: nunca borrar la raíz del proyecto en sí.
       if (abs === this.root) throw new Error(txArchivos().noEliminarRaiz)
-      return { rel, abs }
-    })
+      objetivos.push({ rel, abs })
+    }
     const deleted: string[] = []
     const fallidos: string[] = []
     for (const { rel, abs } of objetivos) {

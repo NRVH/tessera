@@ -7,7 +7,10 @@
 // =============================================================================
 
 import { formatoBytes as formatBytes } from '../../util/formatoBytes'
+import { Cruce } from '../../comun/Presente'
+import { useUltimoValor } from '../../comun/presencia'
 import { useImageViewer } from './useImageViewer'
+import { useEntradaContenido } from '../../comun/useEntradaContenido'
 import { ZOOM_STEP } from './imageViewerGestos'
 import {
   CloseIcon,
@@ -35,11 +38,13 @@ type EstadoVisor = ReturnType<typeof useImageViewer>
 
 export function ImageViewerPane({ file, visible, onClose }: ImageViewerPaneProps): React.JSX.Element {
   const v = useImageViewer({ file, visible })
+  const entradaRef = useEntradaContenido(`${file.path}:${v.showSource}:${v.loading}`, visible)
   const t = txImagen()
   const comun = txVisorComun()
 
   return (
     <section
+      ref={entradaRef}
       className={`editor image-viewer${visible ? '' : ' hidden'}`}
       aria-label={t.aria}
       aria-hidden={!visible}
@@ -50,8 +55,6 @@ export function ImageViewerPane({ file, visible, onClose }: ImageViewerPaneProps
         <div className="binary-viewer-body">
           <pre className="image-source">{v.source ?? comun.cargando}</pre>
         </div>
-      ) : v.error ? (
-        <FalloImagen error={v.error} v={v} />
       ) : (
         <EscenarioImagen file={file} v={v} />
       )}
@@ -63,18 +66,19 @@ function CabeceraImagen({ v, onClose }: { v: EstadoVisor; onClose: () => void })
   const { notice, loading, error, nat, size, isSvg, showSource } = v
   const t = txImagen()
   const comun = txVisorComun()
+  const ultimoAviso = useUltimoValor(notice || null)
   const mostrarEn = comun.mostrarEnExplorador(nombresSistema(window.tessera.plataforma).gestorArchivos)
   return (
     <header className="panel-header editor-header">
       {/* Sin identidad a la izquierda (la pestaña ya dice nombre e icono): la barra existe
           porque aquí hay contenido propio, las medidas, el peso y el conmutador imagen⇄código. */}
       <div className="panel-actions">
-        {notice && <span className="editor-notice">{notice}</span>}
-        {!loading && !error && nat.w > 0 && (
+        <span className={`editor-notice image-aviso${notice ? ' visible' : ''}`} aria-hidden={!notice} title={notice ?? undefined}>{ultimoAviso}</span>
+        <Cruce className="image-meta-reserva" clave={!loading && !error && nat.w > 0 ? 'medidas' : 'vacio'}>
           <span className="image-meta">
-            {nat.w} × {nat.h} · {formatBytes(size)}
+            {!loading && !error && nat.w > 0 ? `${nat.w} × ${nat.h} · ${formatBytes(size)}` : '\u00a0'}
           </span>
-        )}
+        </Cruce>
         {/* Un solo botón de icono; el icono indica el modo en el que estás. */}
         {isSvg && (
           <button
@@ -90,7 +94,6 @@ function CabeceraImagen({ v, onClose }: { v: EstadoVisor; onClose: () => void })
         <button
           className="btn"
           onClick={() => void v.openExternally()}
-          title={t.abrirExternamenteTitulo}
         >
           <ExternalIcon />
           {comun.abrirExternamente}
@@ -131,7 +134,7 @@ function FalloImagen({ error, v }: { error: string; v: EstadoVisor }): React.JSX
 }
 
 function EscenarioImagen({ file, v }: { file: OpenFile; v: EstadoVisor }): React.JSX.Element {
-  const { loading, url, nat, view, rotation } = v
+  const { loading, error, url, nat, view, rotation } = v
   // Pixelado al ampliar mucho, para inspeccionar píxeles sin el borrón del suavizado.
   const rendering: React.CSSProperties['imageRendering'] = view.scale >= 3 ? 'pixelated' : 'auto'
   return (
@@ -141,10 +144,12 @@ function EscenarioImagen({ file, v }: { file: OpenFile; v: EstadoVisor }): React
       onPointerDown={v.onPointerDown}
       onDoubleClick={v.onDoubleClick}
     >
-      {loading && <div className="binary-viewer-status">{txVisorComun().cargando}</div>}
+      <Cruce className="image-estado" clave={error ? 'error' : loading ? 'cargando' : 'imagen'}>
+        {error ? <FalloImagen error={error} v={v} /> : loading ? <div className="binary-viewer-status">{txVisorComun().cargando}</div> : null}
+      </Cruce>
       {url && (
         <img
-          className="image-canvas"
+          className={`image-canvas${!loading && !error ? ' visible' : ''}`}
           src={url}
           alt={file.name}
           draggable={false}
@@ -154,12 +159,11 @@ function EscenarioImagen({ file, v }: { file: OpenFile; v: EstadoVisor }): React
             width: nat.w || undefined,
             height: nat.h || undefined,
             transform: `translate(${view.tx}px, ${view.ty}px) scale(${view.scale}) rotate(${rotation}deg)`,
-            imageRendering: rendering,
-            visibility: loading ? 'hidden' : 'visible'
+            imageRendering: rendering
           }}
         />
       )}
-      {!loading && <BarraZoom v={v} />}
+      <BarraZoom v={v} />
     </div>
   )
 }
@@ -168,7 +172,7 @@ function BarraZoom({ v }: { v: EstadoVisor }): React.JSX.Element {
   const zoomPct = Math.round(v.view.scale * 100)
   const t = txImagen()
   return (
-    <div className="image-toolbar" role="toolbar" aria-label={t.controlesZoom}>
+    <div className={`image-toolbar${!v.loading && !v.error ? ' visible' : ''}`} aria-hidden={v.loading || !!v.error} role="toolbar" aria-label={t.controlesZoom}>
       <button className="image-tool-btn" onClick={() => v.zoomBy(1 / ZOOM_STEP)} title={t.alejar} aria-label={t.alejar}>
         <MinusIcon />
       </button>

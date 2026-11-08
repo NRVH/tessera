@@ -35,7 +35,7 @@ import { COLUMNA_ROWID } from './sqlRejilla.ts'
 
 export type { BindsCatalogo, ConsultaCatalogo, DialectoCatalogo, FilaCatalogo } from './motores/tipos.ts'
 
-// --- Lo que se mudó a otro módulo y sigue saliendo de aquí -----------------------------
+// --- Reexportado desde los módulos de motores --------------------------------------------
 
 export { aBool, aLista, aNumero } from './motores/filasCatalogo.ts'
 export {

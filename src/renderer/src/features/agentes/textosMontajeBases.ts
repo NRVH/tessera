@@ -39,19 +39,19 @@ const tx = crearTextos(
     /** Complemento de lugar («en …») de cada sitio. */
     en: {
       proyecto: 'en este proyecto',
-      datos: 'en el agente de datos',
+      datos: 'en el agente de bases de datos',
       terminal: 'en el agente de la terminal',
       ventana: 'en su carpeta de usuario'
     } as Lugares,
     /** Complemento de pertenencia («de …») de cada sitio. */
     de: {
       proyecto: 'de este proyecto',
-      datos: 'del agente de datos',
+      datos: 'del agente de bases de datos',
       terminal: 'del agente de la terminal',
       ventana: 'de su carpeta de usuario'
     } as Lugares,
     /** Rótulo de la cabecera del modal en los agentes que no son de un proyecto. */
-    cabecera: { datos: 'agente de datos', terminal: 'agente de la terminal', ventana: 'carpeta de usuario' },
+    cabecera: { datos: 'agente de bases de datos', terminal: 'agente de la terminal', ventana: 'carpeta de usuario' },
     tituloBases: 'Bases que el agente puede consultar',
     rotuloMontadas: (n: number) => `El agente puede consultar ${n} ${n === 1 ? 'base' : 'bases'}`,
     rotuloMontar: 'Dar al agente acceso a bases de datos',
@@ -61,17 +61,17 @@ const tx = crearTextos(
   {
     en: {
       proyecto: 'in this project',
-      datos: 'in the data agent',
+      datos: 'in the database agent',
       terminal: 'in the terminal agent',
       ventana: 'in your user folder'
     },
     de: {
       proyecto: 'of this project',
-      datos: 'of the data agent',
+      datos: 'of the database agent',
       terminal: 'of the terminal agent',
       ventana: 'of your user folder'
     },
-    cabecera: { datos: 'data agent', terminal: 'terminal agent', ventana: 'user folder' },
+    cabecera: { datos: 'database agent', terminal: 'terminal agent', ventana: 'user folder' },
     tituloBases: 'Databases the agent can query',
     rotuloMontadas: (n: number) => `The agent can query ${n} database${n === 1 ? '' : 's'}`,
     rotuloMontar: 'Give the agent access to databases',

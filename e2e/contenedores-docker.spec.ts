@@ -50,7 +50,9 @@ test('la sección enseña el deslizador, el valor y las explicaciones', async ()
   await expect(s.win.locator('.ajustes-radios .ajustes-radio')).toHaveCount(3)
   await expect(s.win.locator('.ajustes-switch')).toHaveCount(2)
   await expect(s.win.locator('.ajustes-grupo-ayuda').nth(1)).toContainText('Tessera detiene un contenedor')
-  await expect(s.win.locator('.limite-escala')).toHaveText('Sin límite')
+  await expect(s.win.locator('.limite-escala-fin')).toHaveText('Sin límite')
+  // La marca del recomendado solo existe si Docker responde: sin memoria no hay recomendado.
+  if (memoria !== null) await expect(s.win.locator('.limite-escala-recomendado')).toHaveText(`Recomendado: ${cortes.verdeHasta}`)
   const dir = process.env.TESSERA_E2E_CAPTURAS
   if (dir) {
     mkdirSync(dir, { recursive: true })

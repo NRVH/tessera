@@ -126,7 +126,7 @@ test.describe.serial('capturas de referencia de App.tsx', () => {
 
   test('historial de git con el detalle de un commit', async () => {
     const win = s.win
-    await win.getByRole('button', { name: 'Git · Log' }).click()
+    await win.getByRole('button', { name: 'Git · Historial' }).click()
     await win.locator('.git-fila-commit', { hasText: 'segundo commit' }).click()
     await expect(win.locator('.git-log-detalle .git-detalle-asunto')).toHaveText('segundo commit: amplía dos.txt')
     // El commit abre el diff de su archivo: la captura no puede salir antes de que lo pinte.

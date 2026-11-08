@@ -16,7 +16,7 @@ const es: Articulo = {
       titulo: 'Cómo se actualiza Tessera',
       bloques: [
         'Tessera comprueba si hay una versión nueva a los pocos segundos de iniciarse y, después, cada 5 minutos si su ventana tiene el foco y cada 30 minutos si está en segundo plano. Si hay una versión nueva, la descarga en segundo plano sin preguntar, y se puede seguir trabajando.',
-        'Cuando la versión nueva está preparada, el botón de actualización de la barra de título lo indica. Hay dos opciones:',
+        'Cuando la versión nueva está preparada, el botón de actualización de la barra de título, junto al engranaje de Configuración, lo indica con un punto de color. Hay dos opciones:',
         {
           lista: [
             '**Actualizar ahora**: cierra Tessera, instala la versión nueva y vuelve a abrir Tessera.',
@@ -63,7 +63,7 @@ const es: Articulo = {
       ancla: 'agentes-nativos',
       titulo: 'Claude Code y Codex en su equipo',
       bloques: [
-        'Los agentes [nativos](glosario/nativo) usan el Claude Code y el Codex instalados en {tuEquipo}. El botón **Actualizar los agentes de {tuEquipo}**, en la barra de título, comprueba sus versiones y se marca cuando hay una nueva. Para actualizar:',
+        'Los agentes [nativos](glosario/nativo) usan el Claude Code y el Codex instalados en {tuEquipo}. El botón **Actualizar los agentes de {tuEquipo}**, en la barra de título, aparece cuando hay algún agente nativo abierto o novedades. Si no lo ve, use **Configuración › Actualizaciones**. El botón comprueba sus versiones y se marca cuando hay una nueva. Para actualizar:',
         {
           pasos: [
             'Haga clic en el botón. Se abre un panel con las versiones y con las sesiones que se reiniciarán.',
@@ -82,7 +82,7 @@ const es: Articulo = {
         'Los agentes en Docker usan el Claude Code y el Codex incluidos en la imagen de su contenedor. Para actualizarlos:',
         {
           pasos: [
-            'En la cabecera de un agente en Docker, fuera del [mosaico](glosario/mosaico), pulse **Actualizar agentes**. Se abre un diálogo con el mismo título.',
+            'En la cabecera de un agente en Docker, fuera del [mosaico](glosario/mosaico), pulse el botón de la nube con flecha (**Actualizar agentes (Codex y Claude Code) a la última versión**). Se abre un diálogo titulado **Actualizar agentes**.',
             'Pulse **Actualizar**. Tessera reconstruye la imagen con las últimas versiones (tarda unos minutos) y reinicia los contenedores. Al terminar, el diálogo muestra las versiones instaladas.'
           ]
         },
@@ -104,7 +104,7 @@ const en: Articulo = {
       titulo: 'How Tessera updates',
       bloques: [
         'Tessera checks for a new version a few seconds after it starts, and then every 5 minutes while its window has focus and every 30 minutes while it is in the background. If a new version is available, Tessera downloads it in the background without asking, so you can keep working.',
-        'When the new version is ready, the update button in the title bar shows it. You have two options:',
+        'When the new version is ready, the update button in the title bar, next to the Settings gear, shows it with a colored dot. You have two options:',
         {
           lista: [
             '**Update now**: closes Tessera, installs the new version, and opens Tessera again.',
@@ -151,7 +151,7 @@ const en: Articulo = {
       ancla: 'agentes-nativos',
       titulo: 'Claude Code and Codex on your computer',
       bloques: [
-        '[Native](glosario/nativo) agents use the Claude Code and Codex installed on {tuEquipo}. The **Update agents on {tuEquipo}** button, in the title bar, checks their versions and shows a badge when a new version is available. To update:',
+        '[Native](glosario/nativo) agents use the Claude Code and Codex installed on {tuEquipo}. The **Update agents on {tuEquipo}** button, in the title bar, appears when a native agent is open or updates are available. If you do not see it, use **Settings › Updates**. The button checks their versions and shows a badge when a new version is available. To update:',
         {
           pasos: [
             'Click the button. A panel opens with the versions and the sessions that will restart.',
@@ -170,7 +170,7 @@ const en: Articulo = {
         'Agents in Docker use the Claude Code and Codex included in their container image. To update them:',
         {
           pasos: [
-            'In the header of an agent in Docker, outside the [mosaic](glosario/mosaico), click **Update agents**. A dialog with the same title opens.',
+            'In the header of an agent in Docker, outside the [mosaic](glosario/mosaico), click the cloud with an arrow button (**Update agents (Codex and Claude Code) to the latest version**). A dialog titled **Update agents** opens.',
             'Click **Update**. Tessera rebuilds the image with the latest versions (this takes a few minutes) and restarts the containers. When it finishes, the dialog shows the installed versions.'
           ]
         },

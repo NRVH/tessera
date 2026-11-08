@@ -85,7 +85,7 @@ test.describe('pila de diálogos del historial de conversaciones', () => {
     const win = s.win
     await abrirHistorial(win)
     await win.locator('.conv-item-rename').first().click()
-    const prompt = win.locator('[role="dialog"][aria-label="Renombrar conversación"]')
+    const prompt = win.getByRole('dialog', { name: 'Renombrar conversación', exact: true })
     await expect(prompt).toBeVisible()
     // Esquina del velo del diálogo de encima, lejos de su tarjeta.
     await win.locator('.modal-overlay').last().click({ position: { x: 4, y: 4 } })

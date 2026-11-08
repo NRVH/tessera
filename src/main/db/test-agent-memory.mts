@@ -5,6 +5,10 @@
 // tocar el texto de Oracle y PG. (node src/main/db/test-agent-memory.mts)
 // Decisiones: docs/decisiones/bd/puente-textos-del-agente.md
 // =============================================================================
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { escribirBloqueContexto } from './agentMemory.ts'
 import { FIN, INICIO, bloqueEspacioDatos, reemplazarBloque } from './agentMemoryBlock.ts'
 import { briefingBasesAgente, nombreDialecto, REGLA_PRODUCCION } from './briefingAgente.ts'
 import { mensajeRegistroIlegible } from './registroConexiones.ts'
@@ -111,7 +115,7 @@ console.log('\nbloqueEspacioDatos\n')
   comprobar('no filtra la contraseña', !b.toLowerCase().includes('password') && !b.includes('tieneSecreto'))
   comprobar('dice que es solo lectura', b.includes('solo lectura'))
 
-  // Se retiró "el espacio de datos ve todas": la tabla es un CATÁLOGO y lo
+  // El espacio de datos no ve todas: la tabla es un CATÁLOGO y lo
   // consultable es lo montado. Si el texto no lo dijera, el agente daría por hecho
   // que puede consultar todo lo de la tabla y diagnosticaría una avería al fallar.
   comprobar(
@@ -124,7 +128,7 @@ console.log('\nbloqueEspacioDatos\n')
   )
   comprobar('la tabla se presenta como catálogo, no como lo consultable', plano.includes('NO significa que puedas consultarla'))
   comprobar('ya no titula la tabla como "disponibles"', !b.includes('Conexiones disponibles'))
-  comprobar('explica el cambio (antes veía todas)', plano.includes('Antes este espacio veía todas las conexiones del perfil; ya no.'))
+  comprobar('avisa de que el espacio ya no ve todas las conexiones del perfil', plano.includes('Antes este espacio veía todas las conexiones del perfil; ya no.'))
   comprobar('lista el id de cada conexión (para cruzarlo con consolas/indice.json)', b.includes('`x1`'))
 
   // Las consolas SQL del usuario viven en esta misma carpeta: el agente las verá.
@@ -427,6 +431,42 @@ console.log('\nMotores de otras familias: lista blanca, sin SQL y usuario opcion
   comprobar('bloque: la de Redis con usuario, el usuario', bloque.includes('| CACHE | redis | redis.lan:6379 | lector | solo lectura |'), bloque.split('\n').find((l) => l.includes('CACHE')) ?? '')
   comprobar('bloque: la frase de lista blanca, sin la de archivos', bloque.includes('lista blanca') && bloque.includes('usuario de solo lectura') && !bloque.includes('ARCHIVO, sin servidor'), '')
   comprobar('NEGATIVO: bloque con solo Oracle, sin lista blanca', !bloqueEspacioDatos('Alfa', [ora]).includes('lista blanca'), '')
+}
+
+// --- La carpeta la comparte el contenedor: escribir el contexto no sigue enlaces -----------------------------
+console.log('\nescribirBloqueContexto con enlaces del contenedor\n')
+{
+  const tmp = realpathSync(mkdtempSync(path.join(tmpdir(), 'tessera-contexto-')))
+  const dir = path.join(tmp, 'espacio')
+  const fuera = path.join(tmp, 'fuera.txt')
+  mkdirSync(dir)
+  writeFileSync(fuera, 'SECRETO DEL HOST')
+  const enlazar = (destino: string, enlace: string): boolean => {
+    try {
+      symlinkSync(destino, enlace, 'file')
+      return true
+    } catch {
+      return false
+    }
+  }
+  try {
+    const fallidos: string[] = []
+    if (enlazar(fuera, path.join(dir, 'CLAUDE.md')) && enlazar(path.join(tmp, 'pisado.txt'), path.join(dir, 'AGENTS.md.tmp'))) {
+      escribirBloqueContexto(dir, BLOQUE, {}, (nombre) => fallidos.push(nombre))
+      comprobar('un CLAUDE.md enlazado no se lee ni se escribe a través del enlace', readFileSync(fuera, 'utf-8') === 'SECRETO DEL HOST' && fallidos.includes('CLAUDE.md'), JSON.stringify(fallidos))
+      comprobar('nada del archivo de fuera llega a la carpeta compartida', !readdirSync(dir).some((n) => n !== 'CLAUDE.md' && n !== 'AGENTS.md.tmp' && readFileSync(path.join(dir, n), 'utf-8').includes('SECRETO')), readdirSync(dir).join(', '))
+      comprobar('un AGENTS.md.tmp enlazado no hace escribir fuera', !existsSync(path.join(tmp, 'pisado.txt')) && readFileSync(path.join(dir, 'AGENTS.md'), 'utf-8').includes('contenido gestionado'), readdirSync(tmp).join(', '))
+    } else console.log('  (omitido: este sistema no deja crear enlaces a archivo)')
+    const limpio = path.join(tmp, 'limpio')
+    mkdirSync(limpio)
+    writeFileSync(path.join(limpio, 'CLAUDE.md'), '# Mías\n')
+    escribirBloqueContexto(limpio, BLOQUE, {}, () => {})
+    const claude = readFileSync(path.join(limpio, 'CLAUDE.md'), 'utf-8')
+    comprobar('sin enlaces escribe como siempre y conserva lo del usuario', claude.includes('# Mías') && claude.includes('contenido gestionado'), claude)
+    comprobar('y no deja temporales', readdirSync(limpio).sort().join(',') === 'AGENTS.md,CLAUDE.md', readdirSync(limpio).join(','))
+  } finally {
+    rmSync(tmp, { recursive: true, force: true })
+  }
 }
 
 console.log(fallos === 0 ? '\n  TODO EN VERDE\n' : `\n  ${fallos} FALLO(S)\n`)

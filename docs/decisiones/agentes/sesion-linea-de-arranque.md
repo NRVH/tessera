@@ -28,12 +28,25 @@ entrecomillar, con `$` y backticks expandidos. Sin error visible.
   no deja crear espacios de nombres: lo elige el usuario y lo explica la Academy (`nativoODocker.ts`).
 - Codex arranca siempre con `-c features.daemon_auto_start=false`: si no, en macOS y en Linux (y en
   el contenedor) arranca un servidor compartido por cuenta, fuera de la terminal, que corre las órdenes
-  de todas sus sesiones con el entorno de la primera y no se para al cerrar la pestaña. En Windows ya
-  no llega a arrancarlo desde la terminal de Tessera. Una clave de `features` desconocida solo deja un
-  aviso en su registro, así que vale con cualquier versión; `--no-daemon` haría fallar a las viejas.
+  de todas sus sesiones con el entorno de la primera y no se para al cerrar la pestaña. En Windows no
+  llega a arrancarlo desde la terminal de Tessera. Una clave de `features` desconocida solo deja un
+  aviso en su registro, así que vale con cualquier versión; `--no-daemon` haría fallar a las anteriores.
   Un agente manual cuyo comando sea `codex` no la lleva: la línea de un manual es la del usuario, sin
   opciones añadidas, y puede ponerla él.
 - El id de reanudación solo si tiene forma de UUID: acaba dentro de un `sh -c`.
+- Claude Code graba el prompt de sistema en la primera petición y al reanudar reenvía el grabado aunque
+  la línea traiga otro aviso. Al reanudar con aviso se le añade `--system-prompt-snapshot off`, para que
+  lleguen las reglas vigentes y la frase de un traspaso, pero solo si su `--help` tiene la opción: una
+  versión que no la conoce no arrancaría con ella, y esa tampoco graba. Se mira por forma y no por versión. En el
+  contenedor, en la propia línea, que es bash (una décima de segundo), con `timeout 10`: la sustitución espera a que
+  la ayuda acabe, y un binario que no saliera dejaría la sesión sin arrancar. En el equipo lo sondea el main una vez por la
+  shell nativa (`sondaOpcionCli.ts`) y la línea lleva la opción tal cual: la shell del usuario puede ser fish, que no
+  parte una sustitución en argumentos y, en sus versiones viejas, ni la entiende. Un «sí» se guarda; un «no» se
+  vuelve a mirar a los diez minutos, por si el CLI se actualizó.
+  Codex no graba el suyo: `-c developer_instructions` llega en cada arranque.
+- En el contenedor, la configuración compartida de Docker entra también por la línea: `--settings <archivo>` en
+  Claude Code y `-p tessera` en Codex, este solo si su `--help` describe los perfiles por archivo
+  ([configuracion-editable.md](configuracion-editable.md)).
 
 ## Descartes
 

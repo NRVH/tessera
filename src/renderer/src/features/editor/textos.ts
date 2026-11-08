@@ -62,9 +62,9 @@ export const txPestanas = crearTextos(
     abrirEnExplorador: (gestor: string) => `Mostrar en ${gestor}`,
     noSePudoAbrirExplorador: (gestor: string) => `No se pudo abrir ${gestor}`,
     guardarComo: 'Guardar como…',
-    cerrarDerecha: 'Cerrar las pestañas de la derecha',
-    cerrarIzquierda: 'Cerrar las pestañas de la izquierda',
-    cerrarTodo: 'Cerrar todas las pestañas',
+    cerrarDerecha: 'Cerrar las de la derecha',
+    cerrarIzquierda: 'Cerrar las de la izquierda',
+    cerrarTodo: 'Cerrar todas',
     archivosAbiertos: 'Archivos abiertos',
     pestanasOcultas: 'Pestañas ocultas'
   },
@@ -80,8 +80,8 @@ export const txPestanas = crearTextos(
     abrirEnExplorador: (gestor: string) => `Show in ${gestor}`,
     noSePudoAbrirExplorador: (gestor: string) => `Could not open ${gestor}`,
     guardarComo: 'Save as…',
-    cerrarDerecha: 'Close tabs to the right',
-    cerrarIzquierda: 'Close tabs to the left',
+    cerrarDerecha: 'Close to the right',
+    cerrarIzquierda: 'Close to the left',
     cerrarTodo: 'Close all',
     archivosAbiertos: 'Open files',
     pestanasOcultas: 'Hidden tabs'
@@ -136,9 +136,7 @@ export const txDiff = crearTextos(
     modoDelDiff: 'Modo de vista del diff',
     ladoALado: 'Vista lado a lado',
     unificada: 'Vista unificada',
-    sinCambiosIndice: 'Sin cambios respecto al índice',
-    diferenciasEntreRevisiones: 'Diferencias entre las dos revisiones',
-    revisionesQueSeComparan: 'Revisiones que se comparan'
+    sinCambiosIndice: 'Sin cambios respecto al índice'
   },
   {
     unLado:
@@ -183,8 +181,6 @@ export const txDiff = crearTextos(
     modoDelDiff: 'Diff view mode',
     ladoALado: 'Side-by-side view',
     unificada: 'Unified view',
-    sinCambiosIndice: 'No changes compared to the index',
-    diferenciasEntreRevisiones: 'Differences between the two revisions',
-    revisionesQueSeComparan: 'Revisions being compared'
+    sinCambiosIndice: 'No changes compared to the index'
   }
 )

@@ -17,7 +17,7 @@ const es: Articulo = {
       bloques: [
         {
           pasos: [
-            'En el panel de terminal, abra **Conexiones SSH** y pulse **Nueva conexión SSH…**. Se abre el formulario.',
+            'Abra el panel con el icono de la terminal del riel. Al pasar el puntero por el panel o al recibir el foco, aparece el botón dividido + │ ▾ junto a sus pestañas; haga clic en la flecha ▾ (**Conexiones SSH: conectar, buscar o crear**) y, al pie de la lista, en **Nueva conexión SSH…**. Con la terminal a pantalla completa, la lista ya está a la izquierda. Sin proyecto abierto, use **Conectar por SSH…**. Se abre el formulario.',
             'Rellene **Nombre**, **Host**, **Puerto** y **Usuario**, y elija la **Autenticación**. Si sus servidores ya están en el archivo `config` de OpenSSH, **Importar desde OpenSSH…** rellena el formulario con ellos.',
             'Pulse **Guardar y probar**. Tessera guarda la conexión y comprueba que el servidor responde y que acepta las credenciales.'
           ]
@@ -30,7 +30,7 @@ const es: Articulo = {
             '**Claves del sistema**: usa {agenteClavesSsh} y las claves de su carpeta `.ssh`, igual que `ssh` en su propia terminal.'
           ]
         },
-        'La primera vez que se conecta, Tessera guarda la [huella](glosario/huella) del servidor, su identificador. Si en otra conexión no coincide, Tessera no se conecta: el servidor pudo reinstalarse o alguien podría estar suplantándolo. Si conoce el motivo del cambio, use **Olvidar la huella guardada…** en el menú de la conexión.',
+        'La primera vez que se conecta a un servidor (al probar la conexión, al abrir una terminal o el explorador SFTP), Tessera enseña su [huella](glosario/huella), su identificador, antes de enviarle la contraseña o de identificarse con la clave. Compruébela por otra vía, por ejemplo con su administrador, y pulse **Confiar y conectar**: Tessera la guarda y conecta. Si cancela, no se guarda nada ni se conecta. Con un bastión sin huella, se confirma primero la suya. Si en otra conexión no coincide, Tessera no se conecta: el servidor pudo reinstalarse o alguien podría estar suplantándolo. Si conoce el motivo del cambio, use **Olvidar la huella guardada…** en el menú de la conexión (clic derecho en ella, o su botón **⋯**, que aparece al pasar el puntero).',
         {
           nota: 'Si el servidor rechaza la contraseña guardada o solicita un segundo factor, Tessera lo pregunta en un diálogo. Esa respuesta no se guarda. **Probar** no puede responder a estas preguntas; se responden al abrir la sesión.'
         }
@@ -69,7 +69,7 @@ const es: Articulo = {
       ancla: 'sftp',
       titulo: 'Explorador SFTP',
       bloques: [
-        '**Abrir explorador SFTP**, en el menú de una conexión, abre sus archivos remotos en una pestaña. Allí se puede navegar, crear carpetas, renombrar, eliminar, y subir y descargar archivos y carpetas, también arrastrándolos. Antes de reemplazar algo, Tessera pide confirmación.',
+        '**Abrir explorador SFTP**, en el menú de una conexión (clic derecho en ella, o su botón **⋯**, que aparece al pasar el puntero), abre sus archivos remotos en una pestaña. Allí se puede navegar, crear carpetas, renombrar, eliminar, y subir y descargar archivos y carpetas, también arrastrándolos. Antes de reemplazar algo, Tessera pide confirmación.',
         'El explorador atraviesa el bastión igual que la terminal. Como no tiene una terminal donde escribir la contraseña, si falta la solicita en un diálogo.'
       ]
     },
@@ -80,9 +80,10 @@ const es: Articulo = {
         'Los agentes del perfil, nativos o en Docker, usan las conexiones con `tssh`: pueden listarlas, ejecutar una orden y copiar archivos, indicando el nombre de la conexión. Nunca ven la contraseña ni la clave. Lo explica [tdb, tssh y tctx](herramientas-de-los-agentes/tssh).',
         {
           lista: [
-            'Solo ven las conexiones con **Disponible para los agentes** marcada, que lo está de forma predeterminada. Desmárquela en las que no deban usar.',
+            'Solo ven las conexiones con el interruptor **Disponible para los agentes** activado, que lo está de forma predeterminada. Desactívelo en las que no deban usar.',
             'Solo se conectan a servidores cuya huella ya aceptó usted: si nunca se ha conectado a uno, pulse **Probar** una vez.',
-            'Pasan por el bastión de la conexión, pero nunca abren sus túneles.'
+            'Pasan por el bastión de la conexión, pero nunca abren sus túneles.',
+            'Para `git push` y otras conexiones SSH directas, los agentes en Docker usan solo las claves que usted active. Consulte [Las claves SSH de los agentes](contenedores-docker/claves-ssh).'
           ]
         }
       ]
@@ -100,7 +101,7 @@ const en: Articulo = {
       bloques: [
         {
           pasos: [
-            'In the terminal panel, open **SSH connections** and click **New SSH connection…**. The form opens.',
+            'Open the panel with the terminal icon in the rail. On hover over the panel or keyboard focus, the split + │ ▾ button appears next to its tabs; click the ▾ arrow (**SSH connections: connect, search or create**) and then **New SSH connection…** at the bottom of the list. In full screen, the list is already on the left. With no project open, use **Connect over SSH…**. The form opens.',
             'Fill in **Name**, **Host**, **Port**, and **User**, and choose the **Authentication** method. If your servers are already in your OpenSSH `config` file, **Import from OpenSSH…** fills in the form with them.',
             'Click **Save and test**. Tessera saves the connection and checks that the server responds and accepts the credentials.'
           ]
@@ -113,7 +114,7 @@ const en: Articulo = {
             '**System keys**: uses {agenteClavesSsh} and the keys in your `.ssh` folder, just like `ssh` in your own terminal.'
           ]
         },
-        'The first time you connect, Tessera saves the server’s [fingerprint](glosario/huella), its identifier. If it does not match on a later connection, Tessera does not connect: the server may have been reinstalled, or someone may be impersonating it. If you know why it changed, use **Forget saved fingerprint…** in the connection’s menu.',
+        'The first time you connect to a server (when testing the connection, opening a terminal or the SFTP explorer), Tessera shows its [fingerprint](glosario/huella), its identifier, before sending the password or signing in with the key. Verify it another way, for example with its administrator, and click **Trust and connect**: Tessera saves it and connects. If you cancel, nothing is saved and it does not connect. With a jump host that has no fingerprint, its fingerprint is confirmed first. If it does not match on a later connection, Tessera does not connect: the server may have been reinstalled, or someone may be impersonating it. If you know why it changed, use **Forget saved fingerprint…** in the connection’s menu (right-click it, or use its **⋯** button, which appears on hover).',
         {
           nota: 'If the server rejects the saved password or asks for a second factor, Tessera asks you in a dialog. That answer is not saved. **Test** cannot answer these questions; you answer them when you open the session.'
         }
@@ -152,7 +153,7 @@ const en: Articulo = {
       ancla: 'sftp',
       titulo: 'SFTP explorer',
       bloques: [
-        '**Open SFTP explorer**, in a connection’s menu, opens its remote files in a tab. There you can browse, create folders, rename, delete, and upload and download files and folders, including by dragging them. Tessera asks for confirmation before it replaces anything.',
+        '**Open SFTP explorer**, in a connection’s menu (right-click it, or use its **⋯** button, which appears on hover), opens its remote files in a tab. There you can browse, create folders, rename, delete, and upload and download files and folders, including by dragging them. Tessera asks for confirmation before it replaces anything.',
         'The explorer goes through the bastion, just like the terminal. Because it has no terminal to type the password in, it asks for a missing password in a dialog.'
       ]
     },
@@ -163,9 +164,10 @@ const en: Articulo = {
         'The profile’s agents, native or in Docker, use the connections through `tssh`: they can list them, run a command, and copy files, by giving the connection name. They never see the password or the key. For details, see [tdb, tssh, and tctx](herramientas-de-los-agentes/tssh).',
         {
           lista: [
-            'Agents see only connections with **Available to agents** selected, which is the default. Clear it on any connection they should not use.',
+            'Agents see only connections with the **Available to agents** switch turned on, which is the default. Turn it off on any connection they should not use.',
             'Agents connect only to servers whose fingerprint you have already accepted: if you have never connected to a server, click **Test** once.',
-            'Agents go through the connection’s bastion, but they never open its tunnels.'
+            'Agents go through the connection’s bastion, but they never open its tunnels.',
+            'For `git push` and other direct SSH connections, agents in Docker use only the keys you enable. See [Agent SSH keys](contenedores-docker/claves-ssh).'
           ]
         }
       ]

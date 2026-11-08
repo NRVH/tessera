@@ -11,7 +11,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import os from 'node:os'
 import path from 'node:path'
 import { MAX_MOTIVO_PROPUESTA, MAX_REGLAS_PERFIL } from '../../shared/reglasPerfil.ts'
-import { REGLAS_CHANNELS, type PropuestaReglas } from '../../shared/reglas-ipc.ts'
+import { ID_REGLAS_GLOBALES, REGLAS_CHANNELS, type PropuestaReglas } from '../../shared/reglas-ipc.ts'
 import { DbBridge } from '../db/dbBridge.ts'
 import { atenderTctx, programaTctx } from './buzonTctx.ts'
 import { registrarIpcReglas } from './ipc.ts'
@@ -38,6 +38,9 @@ function temporal(): string {
   return d
 }
 
+/** Las reglas globales del mundo de prueba; `sin-global` es el perfil que no las usa. */
+const globales = { texto: '' }
+
 function propuesta(profileId: string, texto: string, en: number, extra: Partial<PropuestaReglas> = {}): PropuestaReglas {
   return { profileId, texto, motivo: '', en, ...extra }
 }
@@ -52,11 +55,13 @@ function mundo(reglas: Record<string, string | undefined>): {
 } {
   const dir = temporal()
   const perfiles = new Map(Object.entries(reglas))
-  const almacen = new PropuestasReglas({ ruta: path.join(dir, 'reglas-propuestas.json'), idsVivos: () => [...perfiles.keys()], log: () => {} })
+  const almacen = new PropuestasReglas({ ruta: path.join(dir, 'reglas-propuestas.json'), idsVivos: () => [...perfiles.keys(), ID_REGLAS_GLOBALES], log: () => {} })
   const avisos: string[] = []
   let reloj = 1000
   const ops = new OperacionesReglas({
     reglasDe: (id) => (perfiles.has(id) ? (perfiles.get(id) ?? '') : null),
+    reglasGlobales: () => globales.texto,
+    usaGlobales: (id) => id !== 'sin-global',
     propuestas: almacen,
     alProponer: (id) => avisos.push(id),
     ahora: () => ++reloj
@@ -210,7 +215,7 @@ try {
     const deps = { dirTctx: path.join('src', 'tctx'), sesionDeToken: (t: string) => puente.sesionDeToken(t), operaciones: m.ops }
     const tokenA = puente.mint('pa', '/proyectos/web')
     const leidas = await atenderTctx({ v: 1, prog: 'tctx', token: tokenA, op: OP_REGLAS, profileId: 'pb' }, deps)
-    check('(e1) ctx.reglas: las del perfil del token, dentro de `respuesta`, con código 0', leidas.exitCode === 0 && j(leidas.respuesta) === j({ ok: true, reglas: 'Regla A' }), j(leidas))
+    check('(e1) ctx.reglas: las del perfil del token, dentro de `respuesta`, con código 0', leidas.exitCode === 0 && j(leidas.respuesta) === j({ ok: true, reglas: 'Regla A', reglasGlobales: '' }), j(leidas))
     const prop = await atenderTctx({ v: 1, prog: 'tctx', token: tokenA, op: OP_PROPONER, texto: 'Regla C', profileId: 'pb' }, deps)
     check('(e2) ctx.proponer: en el perfil del token', (prop.respuesta as { ok: boolean }).ok && m.almacen.obtener('pa')?.texto === 'Regla C' && m.almacen.obtener('pb') === null, j(prop))
     const ajeno = await atenderTctx({ v: 1, prog: 'tctx', token: 'inventado', op: OP_REGLAS }, deps)
@@ -219,6 +224,24 @@ try {
     check('(e4) sin token: no autorizado', j(sinToken.respuesta) === j({ ok: false, error: 'no autorizado' }), j(sinToken))
     const roto = await atenderTctx({ v: 1, token: tokenA, op: OP_REGLAS }, { ...deps, operaciones: { atender: () => { throw new Error('roto') } } })
     check('(e5) un fallo dentro: error interno, sin tumbar el buzón', j(roto.respuesta) === j({ ok: false, error: 'error interno' }), j(roto))
+    hr('F - Las reglas globales: se leen con las del perfil y se proponen aparte')
+    globales.texto = 'Regla global'
+    const conGlobales = await atenderTctx({ v: 1, prog: 'tctx', token: tokenA, op: OP_REGLAS }, deps)
+    check('(f1) ctx.reglas lleva las globales del perfil que las usa', j(conGlobales.respuesta) === j({ ok: true, reglas: 'Regla A', reglasGlobales: 'Regla global' }), j(conGlobales))
+    const m2 = mundo({ 'sin-global': 'Propia' })
+    check('(f2) y no a uno que no las usa', j(m2.ops.reglas({ profileId: 'sin-global' } as never)) === j({ ok: true, reglas: 'Propia', reglasGlobales: '' }), '')
+    const pg = await atenderTctx({ v: 1, prog: 'tctx', token: tokenA, op: OP_PROPONER, texto: 'Regla global nueva', nivel: 'global' }, deps)
+    const global = m.almacen.obtener(ID_REGLAS_GLOBALES)
+    check('(f3) --global la deja como propuesta de las globales, con el perfil que la propuso', (pg.respuesta as { ok: boolean }).ok && global?.texto === 'Regla global nueva' && global.desdePerfil === 'pa' && m.avisos.at(-1) === ID_REGLAS_GLOBALES, j(global))
+    const igualGlobal = await atenderTctx({ v: 1, prog: 'tctx', token: tokenA, op: OP_PROPONER, texto: 'Regla global', nivel: 'global' }, deps)
+    check('(f4) igual a las globales vigentes: se rechaza', j(igualGlobal.respuesta) === j({ ok: false, rechazo: 'igual' }), j(igualGlobal))
+    const nivelRaro = await atenderTctx({ v: 1, prog: 'tctx', token: tokenA, op: OP_PROPONER, texto: 'X', nivel: 'cuenta' }, deps)
+    check('(f5) NEGATIVO: otro nivel no se acepta', j(nivelRaro.respuesta) === j({ ok: false, rechazo: 'peticion' }), j(nivelRaro))
+    const sinGlobal = m2.ops.proponer({ texto: 'Sustituye todo', nivel: 'global' }, { profileId: 'sin-global', projectHostPath: '', espacioDatos: true } as never)
+    check('(f5b) NEGATIVO: un perfil sin el global no puede proponer las globales, que no ve', j(sinGlobal) === j({ ok: false, rechazo: 'sin-global' }) && m2.almacen.obtener(ID_REGLAS_GLOBALES) === null, j(sinGlobal))
+    m.almacen.resolverAlGuardar(ID_REGLAS_GLOBALES, global!.en, 'Regla global nueva')
+    check('(f6) aceptada, se resuelve al guardarse las globales', j(m.almacen.alGuardarPerfiles([{ id: ID_REGLAS_GLOBALES, reglas: 'Regla global nueva' }])) === j([ID_REGLAS_GLOBALES]) && m.almacen.obtener(ID_REGLAS_GLOBALES) === null, '')
+    globales.texto = ''
     const prog = programaTctx(deps)
     check('(e6) el programa: nombre tctx, su cliente entre sus archivos y los módulos que pide', prog.nombre === 'tctx' && prog.cliente in prog.archivos && ['tctxArgumentos.cjs', 'tctxEntrada.cjs', 'tctxOrdenes.cjs', 'tctxSalida.cjs', 'textosTctx.cjs'].every((n) => n in prog.archivos), j(Object.keys(prog.archivos)))
   }

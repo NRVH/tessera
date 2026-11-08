@@ -5,7 +5,16 @@
 // Decisiones: docs/decisiones/ssh/registro-y-claves.md
 // =============================================================================
 import type { IpcMain } from 'electron'
-import { SSH_CHANNELS, SSH_LOTE_MAX, type SshConexionInput, type SshExportarOpenSsh, type SshMetodo, type SshTipoTunel, type SshTunel } from '../../shared/ssh-ipc.ts'
+import {
+  SSH_CHANNELS,
+  SSH_LOTE_MAX,
+  type SshConexionInput,
+  type SshExportarOpenSsh,
+  type SshMetodo,
+  type SshReconocerHuella,
+  type SshTipoTunel,
+  type SshTunel
+} from '../../shared/ssh-ipc.ts'
 import { esObjeto } from '../util/valores.ts'
 import type { ControladorSsh } from './ControladorSsh.ts'
 import type { DialogoAskpass } from './controlador/dialogoAskpass.ts'
@@ -107,6 +116,25 @@ function peticionExportar(req: unknown): SshExportarOpenSsh {
   return { profileId: texto(o, 'profileId'), ...(o.ids === undefined ? {} : { ids: loteDe(o.ids) }) }
 }
 
+/** La petición de `HUELLA_RECONOCER`: la conexión y, si vienen, el perfil y si es para «Probar». */
+function peticionReconocer(req: unknown): SshReconocerHuella {
+  const o = objeto(req, 'la petición')
+  if (o.prueba !== undefined && typeof o.prueba !== 'boolean') throw new Error(`${MAL_FORMADA}: «prueba» tiene que ser verdadero o falso.`)
+  return {
+    id: texto(o, 'id'),
+    ...(o.profileId === undefined ? {} : { profileId: texto(o, 'profileId') }),
+    ...(o.prueba === undefined ? {} : { prueba: o.prueba })
+  }
+}
+
+/** Los canales de las huellas: olvidarlas, reconocer la de un servidor nuevo y confirmarla o descartarla por su ficha. */
+function registrarIpcHuellas(ipc: Pick<IpcMain, 'handle'>, ssh: ControladorSsh): void {
+  ipc.handle(SSH_CHANNELS.HUELLA_OLVIDAR, (_e, req: unknown) => ssh.olvidarHuella({ id: texto(objeto(req, 'la petición'), 'id') }))
+  ipc.handle(SSH_CHANNELS.HUELLA_RECONOCER, (_e, req: unknown) => ssh.reconocerHuella(peticionReconocer(req)))
+  ipc.handle(SSH_CHANNELS.HUELLA_CONFIAR, (_e, req: unknown) => ssh.confiarHuella({ ficha: texto(objeto(req, 'la petición'), 'ficha') }))
+  ipc.handle(SSH_CHANNELS.HUELLA_DESCARTAR, (_e, req: unknown) => ssh.descartarHuella({ ficha: texto(objeto(req, 'la petición'), 'ficha') }))
+}
+
 /** Los dos canales de la carpeta del agente de la terminal. */
 function registrarIpcEspacio(ipc: Pick<IpcMain, 'handle'>, espacio: EspacioTerminalIpc): void {
   ipc.handle(SSH_CHANNELS.ESPACIO_ASEGURAR, (_e, req: unknown) => espacio.asegurar(texto(objeto(req, 'la petición'), 'profileId')))
@@ -114,7 +142,7 @@ function registrarIpcEspacio(ipc: Pick<IpcMain, 'handle'>, espacio: EspacioTermi
 }
 
 /**
- * Registra los dieciséis canales invocables del controlador y, si llegan sus dependencias, los dos de la carpeta
+ * Registra los canales invocables del controlador y, si llegan sus dependencias, los dos de la carpeta
  * del agente de la terminal (`espacio`) y la respuesta del diálogo de contraseñas (`dialogo`). `CAMBIO`, `AVISO` y
  * las preguntas del diálogo los emite el main.
  */
@@ -165,7 +193,7 @@ export function registrarIpcSsh({ ipc, ssh, espacio, dialogo }: DependenciasIpcS
   ipc.handle(SSH_CHANNELS.IMPORTAR_OPENSSH, (_e, req: unknown) => ssh.leerOpenSsh({ profileId: texto(objeto(req, 'la petición'), 'profileId') }))
   ipc.handle(SSH_CHANNELS.EXPORTAR_OPENSSH, (_e, req: unknown) => ssh.exportarOpenSsh(peticionExportar(req)))
   ipc.handle(SSH_CHANNELS.PROBAR, (_e, req: unknown) => ssh.probar({ id: texto(objeto(req, 'la petición'), 'id') }))
-  ipc.handle(SSH_CHANNELS.HUELLA_OLVIDAR, (_e, req: unknown) => ssh.olvidarHuella({ id: texto(objeto(req, 'la petición'), 'id') }))
+  registrarIpcHuellas(ipc, ssh)
   if (espacio) registrarIpcEspacio(ipc, espacio)
   if (dialogo) {
     ipc.handle(SSH_CHANNELS.ASKPASS_RESPONDER, (_e, req: unknown) => {

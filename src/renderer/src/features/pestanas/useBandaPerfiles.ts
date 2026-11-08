@@ -21,7 +21,7 @@ interface OpcionesBanda {
   onRenameProfile: (profileId: string, nombre: string) => void
   onRecolorProfile: (profileId: string, color: string) => void
   onToggleRedHost: (profileId: string, redHost: boolean) => void
-  onSetReglas: (profileId: string, reglas: string) => void
+  onAbrirReglas: (profileId: string) => void
   onDeleteProfile: (profileId: string) => void
   onReorderProfiles: (orderedIds: string[]) => void
   onHibernateProfile: (profileId: string) => void

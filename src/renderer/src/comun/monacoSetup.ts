@@ -1,7 +1,7 @@
 // =============================================================================
 // Setup de Monaco para el renderer: cableado de los workers con el import `?worker` de Vite
-// (chunks servidos desde el propio origen; la CSP permite `worker-src 'self' blob:`), tema
-// `atom-one-dark`, lenguajes propios, el menú contextual de Tessera y apagado de los validadores. El zoom global no se toca
+// (chunks servidos desde el propio origen; la CSP permite `worker-src 'self' blob:`), el tema del
+// código activo, lenguajes propios, el menú contextual de Tessera y apagado de los validadores. El zoom global no se toca
 // aquí: escala todo el renderer y cada editor re-mide con su `ResizeObserver`.
 // Depende de `monacoTema.ts` y `monacoLenguajes.ts`; lo usan los paneles de editor y de BD.
 // Decisiones: docs/decisiones/renderer/monaco.md
@@ -19,11 +19,13 @@ import {
   registerMermaidLanguage,
   registerPropertiesLanguage
 } from './monacoLenguajes'
-import { buildAtomOneDarkTheme } from './monacoTema'
+import { temaMonacoDe } from './monacoTema'
+import { alCambiarTemaCodigo, paletaCodigoActiva } from './temaCodigo'
+import { DEFAULT_TERMINAL_FONT, DEFAULT_TERMINAL_FONT_SIZE } from '../theme/terminalAppearance'
 import { instalarMenuEditor } from './menuEditor'
 
-/** Id del tema de Monaco alineado con Atom One Dark. */
-export const MONACO_THEME = 'atom-one-dark'
+/** Id del único tema de Monaco: su contenido es el del tema del código activo (`comun/temaCodigo.ts`). */
+export const MONACO_THEME = 'tessera-codigo'
 
 /**
  * Las barras de Monaco, del mismo ancho que `--sb-size` de `styles.css`, que las pinta como la
@@ -36,15 +38,17 @@ export const BARRAS_MONACO: monaco.editor.IEditorScrollbarOptions = {
 }
 
 /**
- * Opciones que comparten todos los editores de la app (solo lo que es igual en todos; el resto
- * lo decide cada pane). `automaticLayout: false` es deliberado: quien use estas opciones debe
+ * Opciones que comparten todos los editores de la app (lo que es igual en todos, y la letra
+ * predeterminada, que el editor de código sustituye por la del ajuste; el resto lo decide cada pane). `automaticLayout: false` es deliberado: quien use estas opciones debe
  * registrar su propio `ResizeObserver` y llamar a `layout()`, o el editor mide 0×0 y el pane
  * queda en negro (ver `useVisibleLayout`). El de diff, con `layout({ width, height })`.
  */
 export const OPCIONES_BASE_MONACO: monaco.editor.IEditorOptions = {
   automaticLayout: false,
-  fontFamily: '"Cascadia Code", "Fira Code", Consolas, Menlo, "Courier New", monospace',
-  fontSize: 13,
+  // La letra predeterminada, la misma de las terminales: la conservan los editores de bases de datos, y el
+  // editor de código la sustituye por la del ajuste (`letraEditor.ts`).
+  fontFamily: DEFAULT_TERMINAL_FONT,
+  fontSize: DEFAULT_TERMINAL_FONT_SIZE,
   lineHeight: 20,
   scrollBeyondLastLine: false,
   // Solo se apagan las guías verticales de brackets; el color de los brackets se neutraliza
@@ -92,7 +96,16 @@ export function ensureMonaco(): typeof monaco {
     }
   }
 
-  monaco.editor.defineTheme(MONACO_THEME, buildAtomOneDarkTheme())
+  // Un solo id de tema, con el contenido del tema del código activo: los editores lo nombran al crearse
+  // (`theme: MONACO_THEME`), así que cambiar de tema redefine ese id y lo vuelve a aplicar a todos.
+  monaco.editor.defineTheme(MONACO_THEME, temaMonacoDe(paletaCodigoActiva()))
+  // Activo ya, aunque aún no se cree ningún editor: `colorize` (la vista previa del ajuste, la lupa del
+  // diff) pinta con el tema activo, que de serie es el claro de Monaco.
+  monaco.editor.setTheme(MONACO_THEME)
+  alCambiarTemaCodigo((p) => {
+    monaco.editor.defineTheme(MONACO_THEME, temaMonacoDe(p))
+    monaco.editor.setTheme(MONACO_THEME)
+  })
   instalarMenuEditor(monaco)
   apagarDiagnosticos()
   registerPropertiesLanguage()

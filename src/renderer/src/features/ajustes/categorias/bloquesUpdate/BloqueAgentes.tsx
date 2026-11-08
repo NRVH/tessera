@@ -63,7 +63,7 @@ function AccionesAgentes({
     <div className="settings-update-actions">
       {/* Con un resultado pendiente, el panel es donde se lee y se descarta. */}
       {r.resultado && !r.corriendo ? (
-        <button className="btn btn-ghost" onClick={onAbrir} title={t.verDetalleTitulo}>
+        <button className="btn" onClick={onAbrir}>
           {t.verDetalle}
         </button>
       ) : null}
@@ -74,7 +74,7 @@ function AccionesAgentes({
       ) : null}
       {/* `comprobar` y no `abrir`: `abrir` es la del panel y da su resumen por visto, y
           aquí ese resumen no se enseña, así que no puede retirarle el punto. */}
-      <button className="btn btn-ghost" onClick={act.comprobar} disabled={comprobando || r.corriendo}>
+      <button className="btn" onClick={act.comprobar} disabled={comprobando || r.corriendo}>
         {t.buscar}
       </button>
     </div>

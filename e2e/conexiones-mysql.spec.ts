@@ -180,7 +180,7 @@ test.describe('explorador de BD: MySQL', () => {
     const win = s!.win
     const p = my!
     await aLaVista(win)
-    await win.locator('.activity-item[title="Conexiones a bases de datos"]').click()
+    await win.locator('.activity-item[title="Bases de datos"]').click()
     await expect(win.locator('.db-area:not(.hidden)')).toBeVisible()
     await win.locator('.db-arbol button[aria-label="Nueva conexión"]').first().click()
     const d = win.locator('.db-conexion-modal')
@@ -189,7 +189,7 @@ test.describe('explorador de BD: MySQL', () => {
     await expect(d.locator('[data-campo="port"]'), 'el puerto de MySQL').toHaveValue('3306')
     await expect(d.locator('[data-campo="database"]')).toHaveAttribute('placeholder', /opcional/)
     await expect(d.locator('[data-campo="instancia"]')).toHaveCount(0)
-    await expect(d.getByLabel('Cifrar la conexión (TLS)')).not.toBeChecked()
+    await expect(d.getByRole('switch', { name: 'Cifrar la conexión (TLS)' })).toHaveAttribute('aria-checked', 'false')
     await expect(d).toContainText('el servidor abre sus transacciones en solo lectura')
     await expect(d).toContainText('Usted no tiene esa limitación')
 
@@ -198,9 +198,9 @@ test.describe('explorador de BD: MySQL', () => {
     await d.locator('[data-campo="port"]').fill(String(p.port))
     await d.locator('[data-campo="user"]').fill('tessera')
     await d.locator('.dbc-pass input').fill(p.password)
-    await d.getByLabel('Solo lectura para los agentes (recomendado)').uncheck()
+    await d.getByRole('switch', { name: 'Solo lectura para los agentes (recomendado)' }).click()
     // Cifrar y verificar: el certificado del contenedor es autofirmado → falla y lo dice.
-    await d.getByLabel('Cifrar la conexión (TLS)').check()
+    await d.getByRole('switch', { name: 'Cifrar la conexión (TLS)' }).click()
     await d.getByRole('button', { name: 'Guardar y probar' }).click()
     const prueba = d.locator('.dbc-prueba')
     await expect(prueba).toHaveClass(/\bfalla\b/, { timeout: 60_000 })

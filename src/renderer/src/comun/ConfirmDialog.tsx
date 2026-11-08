@@ -1,15 +1,13 @@
 // =============================================================================
-// ConfirmDialog: modal de confirmación propio, con los colores del tema. Esc cancela, Enter
-// confirma y el clic en el fondo cancela; al cerrarse devuelve el foco a quien lo abrió
-// (`useDialogo`). La variante `danger` pinta el botón de confirmar de contorno y arranca con
-// el foco en Cancelar. Depende de `useDialogo`.
-// Decisiones: docs/decisiones/renderer/dialogos-foco-y-teclado.md
+// ConfirmDialog: la pregunta de confirmar o cancelar una acción, sobre la carcasa común (`Modal`, tamaño S, con su ✕
+// arriba a la derecha, que es Cancelar). Enter confirma (salvo si es destructiva, que empieza con el foco en
+// Cancelar); ocupado, no atiende ni Enter, ni Esc, ni la ✕, ni el clic en el velo.
+// Decisiones: docs/decisiones/renderer/dialogos-foco-y-teclado.md, docs/decisiones/renderer/modales.md
 // =============================================================================
-
 import { useCallback, useEffect, useRef } from 'react'
 import { useCapaVisible } from './capaVisible'
+import { AvisoConPresencia, AvisoModal, Modal, PieModal, type SeveridadModal } from './Modal'
 import { txComun } from './textos.ts'
-import { alClicEnVelo, useDialogo } from './useDialogo'
 
 interface ConfirmDialogProps {
   title: string
@@ -17,8 +15,10 @@ interface ConfirmDialogProps {
   message: string
   confirmLabel?: string
   cancelLabel?: string
-  /** true = acción destructiva: confirmar de contorno, foco por defecto en Cancelar. */
+  /** true = foco por defecto en Cancelar y Enter no confirma: un Enter reflejo no debe ejecutar esto. */
   danger?: boolean
+  /** Sin indicar: peligro si `danger`, información si no. Lo que interrumpe sin destruir es `advertencia`. */
+  severidad?: SeveridadModal
   /**
    * Mientras la acción confirmada corre: el diálogo sigue abierto, sin botones ni cierre, y el de
    * confirmar dice este texto. Lo que tarda (cerrar sesiones, parar un contenedor) no debe dejar
@@ -68,6 +68,7 @@ export function ConfirmDialog({
   confirmLabel,
   cancelLabel,
   danger = false,
+  severidad = danger ? 'peligro' : 'info',
   ocupado = null,
   error = null,
   ayuda,
@@ -76,67 +77,49 @@ export function ConfirmDialog({
 }: ConfirmDialogProps): React.JSX.Element {
   const confirmRef = useRef<HTMLButtonElement>(null)
   const cancelRef = useRef<HTMLButtonElement>(null)
-  // Los callbacks van por ref y no como dependencias de los efectos: los llamadores los
-  // pasan en línea y relanzarían el efecto del foco en cada repintado del padre.
-  // Ocupado no atiende ni Enter, ni Escape, ni el clic en el fondo.
+  // La tarjeta la pinta `Modal`: se toma por el botón de confirmar, que vive dentro.
+  const tarjetaRef = useRef<HTMLDivElement | null>(null)
+  // Los callbacks van por ref: los llamadores los pasan en línea y relanzarían el efecto del foco en cada repintado.
   const onConfirmRef = useRef(onConfirm)
   onConfirmRef.current = ocupado !== null ? () => {} : onConfirm
   const onCancelRef = useRef(onCancel)
   onCancelRef.current = ocupado !== null ? () => {} : onCancel
-
-  // Esc y devolución del foco salen de `useDialogo`. Va ANTES del efecto del foco inicial:
-  // el hook apunta a quién tenía el foco al montar. Sin trampa de Tab (ver el ADR).
   const cerrar = useCallback((): void => onCancelRef.current(), [])
-  const { ref: cardRef } = useDialogo({ onClose: cerrar })
 
   useEffect(() => {
     // Foco inicial: Cancelar si es destructivo, si no el botón de confirmar. Una sola vez.
     if (danger) cancelRef.current?.focus()
     else confirmRef.current?.focus()
+    tarjetaRef.current = confirmRef.current?.closest<HTMLDivElement>('.modal-card') ?? null
   }, [danger])
 
-  useEnterConfirma(cardRef, danger, onConfirmRef)
+  useEnterConfirma(tarjetaRef, danger, onConfirmRef)
 
   return (
-    <div className="modal-overlay" role="presentation" onMouseDown={alClicEnVelo(() => onCancelRef.current())}>
-      <div
-        ref={cardRef}
-        className="modal-card"
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        aria-busy={ocupado !== null}
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        {ayuda ? (
-          <div className="modal-titulo-fila">
-            <div className="modal-title">{title}</div>
-            {ayuda}
-          </div>
-        ) : (
-          <div className="modal-title">{title}</div>
-        )}
-        <div className="modal-message">{message}</div>
-        {error && (
-          <div className="modal-error" role="alert">
-            {error}
-          </div>
-        )}
-        <div className="modal-actions">
-          <button ref={cancelRef} className="btn btn-ghost" onClick={onCancel} disabled={ocupado !== null}>
+    <Modal
+      titulo={title}
+      severidad={severidad}
+      ayuda={ayuda}
+      tamano="s"
+      // Sin trampa de Tab: una pregunta de dos botones (ver el ADR de foco y teclado).
+      trampaTab={false}
+      cerrable={ocupado === null}
+      ocupado={ocupado !== null}
+      onCerrar={cerrar}
+      pie={
+        <PieModal>
+          <button ref={cancelRef} type="button" className="btn btn-ghost" onClick={onCancel} disabled={ocupado !== null}>
             {cancelLabel ?? txComun().cancelar}
           </button>
-          <button
-            ref={confirmRef}
-            className={`btn ${danger ? 'danger' : 'primary'}`}
-            onClick={onConfirm}
-            disabled={ocupado !== null}
-          >
+          <button ref={confirmRef} type="button" className={`btn ${severidad === 'peligro' ? 'danger' : 'primary'}`} onClick={onConfirm} disabled={ocupado !== null}>
             {ocupado !== null && <span className="modal-girando" aria-hidden="true" />}
             {ocupado ?? confirmLabel ?? txComun().aceptar}
           </button>
-        </div>
-      </div>
-    </div>
+        </PieModal>
+      }
+    >
+      <div className="modal-message">{message}</div>
+      <AvisoConPresencia>{error && <AvisoModal tono="error">{error}</AvisoModal>}</AvisoConPresencia>
+    </Modal>
   )
 }

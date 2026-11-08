@@ -11,22 +11,33 @@ export const txLayout = crearTextos(
     riel: {
       archivos: 'Archivos',
       gitCambios: 'Git · Cambios',
-      conexiones: 'Conexiones a bases de datos',
+      conexiones: 'Bases de datos',
       terminal: 'Terminal',
       terminalTitulo: 'Terminal (Ctrl+`)',
-      gitLog: 'Git · Log',
+      gitLog: 'Git · Historial',
       gitLogTitulo: 'Historial de Git',
-      cambiosSinConfirmar: (n: number) => `${n} cambios sin confirmar`,
+      cambiosSinConfirmar: (n: number) => `${n} ${n === 1 ? 'cambio' : 'cambios'} sin confirmar`,
       barra: 'Barra de actividad',
       grupoSuperior: 'Grupo superior del riel',
       grupoInferior: 'Grupo inferior del riel',
-      volver: 'Volver al proyecto',
-      volverTitulo: { terminal: 'Cierra la terminal y vuelve al proyecto', gitlog: 'Cierra el historial de Git y vuelve al proyecto' }
+      grupoPantallaCompleta: 'Pantalla completa',
+      grupoPaneles: 'Paneles a pantalla completa',
+      restaurar: { terminal: 'Restaurar el panel de terminal', gitlog: 'Restaurar el panel de Git' },
+      restaurarTitulo: {
+        terminal: (acorde: string) => `Restaurar: la terminal vuelve a la parte inferior (${acorde})`,
+        gitlog: (acorde: string) => `Restaurar: el panel de Git vuelve a la parte inferior (${acorde})`
+      },
+      ocultar: { terminal: 'Ocultar el panel de terminal', gitlog: 'Ocultar el panel de Git' },
+      ocultarTitulo: {
+        terminal: 'Ocultar el panel (las terminales siguen en ejecución; al volver a abrirlo sigue a pantalla completa)',
+        gitlog: 'Ocultar el panel de Git (al volver a abrirlo sigue a pantalla completa)'
+      },
+      cambiarA: { terminal: 'Terminal a pantalla completa', gitlog: 'Historial de Git a pantalla completa' }
     },
     estado: {
       barra: 'Barra de estado',
-      ocultarAgenteDatos: (acorde: string) => `Ocultar el agente de datos (${acorde})`,
-      mostrarAgenteDatos: (acorde: string) => `Mostrar el agente de datos (${acorde})`,
+      ocultarAgenteDatos: (acorde: string) => `Ocultar el agente de bases de datos (${acorde})`,
+      mostrarAgenteDatos: (acorde: string) => `Mostrar el agente de bases de datos (${acorde})`,
       ocultarAgenteTerminal: (acorde: string) => `Ocultar el agente de la terminal, que sigue en ejecución (${acorde})`,
       mostrarAgenteTerminal: (acorde: string) => `Mostrar el agente de la terminal (${acorde})`,
       ocultarColumna: 'Ocultar el agente; sigue trabajando',
@@ -35,7 +46,7 @@ export const txLayout = crearTextos(
       tituloProblema: (titulo: string, detalle: string | undefined) =>
         `${titulo}${detalle ? `\n${detalle}` : ''}\n\nHaga clic para descartar`,
       ariaProblema: (titulo: string) => `Aviso: ${titulo}. Haga clic para descartar.`,
-      finDeLinea: 'Fin de línea (haga clic para cambiar)',
+      finDeLinea: 'Fin de línea. Haga clic para cambiar',
       codificacion: 'Codificación del archivo (reabrir / convertir)',
       menuEol: 'Fin de línea',
       menuAccion: 'Codificación',
@@ -51,7 +62,7 @@ export const txLayout = crearTextos(
       mosaico: 'En el mosaico de agentes, las terminales ocupan toda la ventana. Salga del mosaico para ocultar la columna.',
       sinPerfilDb: 'Elija un perfil en la barra superior para usar el agente de bases de datos',
       gitLogPantallaCompleta:
-        'A pantalla completa de Git no hay columna del agente. Pulse Restaurar en el panel para volver a mostrarla.'
+        'A pantalla completa de Git no hay columna del agente. Haga clic en «Restaurar el panel de Git», en la barra de iconos de la izquierda, para volver a mostrarla.'
     },
     titulo: {
       salirMosaico: (mod: string) => `Salir del mosaico (${mod}+Mayús+M)`,
@@ -71,9 +82,10 @@ export const txLayout = crearTextos(
     },
     cerrarSinGuardar: {
       titulo: 'Cerrar sin guardar',
+      pregunta: (nombre: string) => `¿Cerrar «${nombre}» sin guardar?`,
       mensajeDiff: (nombre: string) =>
-        `"${nombre}" tiene cambios sin guardar.\nSi cierra la comparación, se pierden: no se han escrito en disco.`,
-      mensajeArchivo: (nombre: string) => `"${nombre}" tiene cambios sin guardar.\nSi lo cierra, se pierden.`,
+        `Si cierra la comparación, se pierden los cambios sin guardar de «${nombre}»: no se han escrito en disco.`,
+      mensajeArchivo: (nombre: string) => `Si cierra «${nombre}», se pierden sus cambios sin guardar.`,
       cancelar: 'Cancelar'
     },
     cierre: {
@@ -88,22 +100,33 @@ export const txLayout = crearTextos(
     riel: {
       archivos: 'Files',
       gitCambios: 'Git · Changes',
-      conexiones: 'Database connections',
+      conexiones: 'Databases',
       terminal: 'Terminal',
       terminalTitulo: 'Terminal (Ctrl+`)',
-      gitLog: 'Git · Log',
+      gitLog: 'Git · History',
       gitLogTitulo: 'Git history',
       cambiosSinConfirmar: (n: number) => `${n} uncommitted change${n === 1 ? '' : 's'}`,
       barra: 'Activity bar',
       grupoSuperior: 'Sidebar top group',
       grupoInferior: 'Sidebar bottom group',
-      volver: 'Back to the project',
-      volverTitulo: { terminal: 'Closes the terminal and goes back to the project', gitlog: 'Closes the git history and goes back to the project' }
+      grupoPantallaCompleta: 'Full screen',
+      grupoPaneles: 'Full-screen panels',
+      restaurar: { terminal: 'Restore terminal panel', gitlog: 'Restore Git panel' },
+      restaurarTitulo: {
+        terminal: (acorde: string) => `Restore: the terminal returns to the bottom panel (${acorde})`,
+        gitlog: (acorde: string) => `Restore: Git returns to the bottom panel (${acorde})`
+      },
+      ocultar: { terminal: 'Hide terminal panel', gitlog: 'Hide Git panel' },
+      ocultarTitulo: {
+        terminal: 'Hide panel (terminals keep running; it reopens in full screen)',
+        gitlog: 'Hide Git panel (it reopens in full screen)'
+      },
+      cambiarA: { terminal: 'Terminal in full screen', gitlog: 'Git history in full screen' }
     },
     estado: {
       barra: 'Status bar',
-      ocultarAgenteDatos: (acorde: string) => `Hide the data agent (${acorde})`,
-      mostrarAgenteDatos: (acorde: string) => `Show the data agent (${acorde})`,
+      ocultarAgenteDatos: (acorde: string) => `Hide the database agent (${acorde})`,
+      mostrarAgenteDatos: (acorde: string) => `Show the database agent (${acorde})`,
       ocultarAgenteTerminal: (acorde: string) => `Hide the terminal agent, which keeps running (${acorde})`,
       mostrarAgenteTerminal: (acorde: string) => `Show the terminal agent (${acorde})`,
       ocultarColumna: 'Hide the agent; it keeps working',
@@ -112,7 +135,7 @@ export const txLayout = crearTextos(
       tituloProblema: (titulo: string, detalle: string | undefined) =>
         `${titulo}${detalle ? `\n${detalle}` : ''}\n\nClick to dismiss`,
       ariaProblema: (titulo: string) => `Warning: ${titulo}. Click to dismiss.`,
-      finDeLinea: 'Line ending (click to change)',
+      finDeLinea: 'Line ending. Click to change',
       codificacion: 'File encoding (reopen / convert)',
       menuEol: 'Line ending',
       menuAccion: 'Encoding',
@@ -128,7 +151,7 @@ export const txLayout = crearTextos(
       mosaico: 'In the agent mosaic the terminals take up the whole window. Leave the mosaic to hide the column.',
       sinPerfilDb: 'Choose a profile in the bar at the top to use the database agent',
       gitLogPantallaCompleta:
-        'In full-screen Git there is no agent column. Click Restore in the panel to see it again.'
+        'In full-screen Git there is no agent column. Click Restore Git panel, in the icon bar on the left, to see it again.'
     },
     titulo: {
       salirMosaico: (mod: string) => `Leave the mosaic (${mod}+Shift+M)`,
@@ -147,9 +170,10 @@ export const txLayout = crearTextos(
     },
     cerrarSinGuardar: {
       titulo: 'Close without saving',
+      pregunta: (nombre: string) => `Close “${nombre}” without saving?`,
       mensajeDiff: (nombre: string) =>
-        `“${nombre}” has unsaved changes.\nIf you close the diff, they are lost: they have not been written to disk.`,
-      mensajeArchivo: (nombre: string) => `“${nombre}” has unsaved changes.\nIf you close it, they are lost.`,
+        `If you close the diff, the unsaved changes in “${nombre}” are lost: they have not been written to disk.`,
+      mensajeArchivo: (nombre: string) => `If you close “${nombre}”, its unsaved changes are lost.`,
       cancelar: 'Cancel'
     },
     cierre: {

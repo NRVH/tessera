@@ -5,11 +5,11 @@
 
 ## Contexto
 
-La red del anfitrión (`--network host`) era un interruptor del menú del perfil y mentía por tres
-sitios: al soltar solo persistía el flag (un contenedor vivo no cambia de red: se aplica al
-recrearlo); no comprobaba sus requisitos de máquina (con «Enable host networking» apagado en
-Docker Desktop, `docker run` devuelve 0 igual y los puertos se quedan en la VM); y no decía lo que
-se pierde (`--hostname`, y dos perfiles en este modo comparten el espacio de puertos del equipo).
+La red del anfitrión (`--network host`) como un simple interruptor del menú del perfil mentiría por tres
+sitios: solo persistiría el flag (un contenedor vivo no cambia de red: se aplica al recrearlo); no
+comprobaría sus requisitos de máquina (con «Enable host networking» apagado en Docker Desktop,
+`docker run` devuelve 0 igual y los puertos se quedan en la VM); y no diría lo que se pierde
+(`--hostname`, y dos perfiles en este modo comparten el espacio de puertos del equipo).
 
 ## Decisión
 
@@ -22,10 +22,10 @@ se pierde (`--hostname`, y dos perfiles en este modo comparten el espacio de pue
 - Se confirma ANTES de persistir, con la regla de «Hibernar el perfil» (`pestanas/confirmaciones.ts`),
   porque aplicar lo hiberna: un agente trabajando o una terminal que ejecuta algo. Pregunta su propio
   diálogo («Cambiar la red de…»), que nombra los dos motivos, y el modo se guarda al confirmar;
-  guardar y luego preguntar dejaba, al cancelar, una red que su contenedor no tiene.
+  guardar y luego preguntar dejaría, al cancelar, una red que su contenedor no tiene.
 - La respuesta del prevuelo se descarta solo si el diálogo ya se cerró (ref de montaje), no con una
-  limpieza por ejecución: ésta dejaba `midiendo` en true para siempre si se alternaba la elección
-  mientras medía, y el candado impedía reintentar. Tampoco va `midiendo` en las dependencias.
+  limpieza por ejecución: ésta dejaría `midiendo` en true para siempre si se alterna la elección
+  mientras mide, y el candado impediría reintentar. Tampoco va `midiendo` en las dependencias.
 
 ## Consecuencias
 

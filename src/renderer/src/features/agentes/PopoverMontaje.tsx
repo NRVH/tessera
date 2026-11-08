@@ -17,6 +17,9 @@ import {
   filaMontajeAjena
 } from '../bd'
 import { AYUDA, BotonAyuda } from '../academy'
+import { useDespedida } from '../../comun/despedida.ts'
+import { IconoCerrar } from '../../comun/iconosMenu'
+import './movimientoAgente.css'
 import { textosMontajeBases } from './textosMontajeBases'
 import { txPane } from './textosPane.ts'
 import type { ModeloAgentPane } from './useAgentPane'
@@ -140,8 +143,11 @@ function CuerpoMontaje({ m }: { m: ModeloAgentPane }): React.JSX.Element {
 export function PopoverMontaje({ m }: { m: ModeloAgentPane }): React.JSX.Element {
   const { p, montaje } = m
   const textosBases = textosMontajeBases(p.dbMounted.length)
+  // Cuelga de la cabecera: entra bajando un poco (`movimientoAgente.css`) y al cerrarse se despide.
+  const ref = useDespedida<HTMLDivElement>('flotante')
   return (
     <div
+      ref={ref}
       className="db-mount-pop"
       style={{ ['--perfil' as string]: p.accentColor ?? 'var(--accent)' } as React.CSSProperties}
     >
@@ -155,7 +161,7 @@ export function PopoverMontaje({ m }: { m: ModeloAgentPane }): React.JSX.Element
           aria-label={txPane().montaje.cerrar}
           title={txPane().montaje.cerrar}
         >
-          ✕
+          <IconoCerrar />
         </button>
       </div>
       <CuerpoMontaje m={m} />

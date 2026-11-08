@@ -5,6 +5,7 @@
 // El zoom se aplica aquí, sin IPC, con `webFrame` (rango -3..5).
 // =============================================================================
 import { ipcRenderer, webFrame } from 'electron'
+import type { SesionProyecto } from '../shared/sesionProyecto'
 import {
   WORKSPACE_CHANNELS,
   type OpenProjectResult,
@@ -100,6 +101,10 @@ export interface WorkspaceApi {
   loadSettings: () => Promise<WorkspaceSettings>
   /** Persiste el slice de ajustes globales, preservando el esqueleto de tabs en disco. */
   saveSettings: (settings: WorkspaceSettings) => Promise<void>
+  /** Lee la sesión de cada proyecto abierto (pestañas, carpetas y terminales). */
+  loadSesiones: () => Promise<Record<string, SesionProyecto>>
+  /** Persiste la sesión de cada proyecto, preservando el esqueleto y los ajustes. */
+  saveSesiones: (sesiones: Record<string, SesionProyecto>) => Promise<void>
 }
 
 /** Cierre garantizado: el renderer solo ESCUCHA el progreso para pintar el overlay. */
@@ -208,7 +213,9 @@ export const workspace: WorkspaceApi = {
   loadState: () => ipcRenderer.invoke(WORKSPACE_STATE_CHANNELS.LOAD),
   saveState: (state) => ipcRenderer.invoke(WORKSPACE_STATE_CHANNELS.SAVE, state),
   loadSettings: () => ipcRenderer.invoke(WORKSPACE_STATE_CHANNELS.LOAD_SETTINGS),
-  saveSettings: (settings) => ipcRenderer.invoke(WORKSPACE_STATE_CHANNELS.SAVE_SETTINGS, settings)
+  saveSettings: (settings) => ipcRenderer.invoke(WORKSPACE_STATE_CHANNELS.SAVE_SETTINGS, settings),
+  loadSesiones: () => ipcRenderer.invoke(WORKSPACE_STATE_CHANNELS.LOAD_SESIONES),
+  saveSesiones: (sesiones) => ipcRenderer.invoke(WORKSPACE_STATE_CHANNELS.SAVE_SESIONES, sesiones)
 }
 
 /**

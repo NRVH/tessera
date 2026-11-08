@@ -92,11 +92,6 @@ export function textoResumen(r: ResumenCambios): string {
   return partes.slice(0, -1).join(', ') + t.y + partes[partes.length - 1]
 }
 
-/** ¿Nombran la misma fila? */
-export function mismaRef(a: RefFila, b: RefFila): boolean {
-  return a.tipo === b.tipo && (a.tipo === 'servidor' ? a.f === (b as { f: number }).f : a.id === (b as { id: number }).id)
-}
-
 /** La fila nueva con ese id, o undefined. */
 export function filaNueva(c: CambiosRejilla, id: number): FilaNueva | undefined {
   for (const n of c.nuevas) if (n.id === id) return n

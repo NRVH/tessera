@@ -541,19 +541,19 @@
   cursor: pointer;
   user-select: none;
 }
-.db-param-nulo input {
-  margin: 0;
-  accent-color: var(--accent);
-}
 .db-param-pie {
-  margin-bottom: 14px;
   color: var(--fg-faint);
   font-size: 11.5px;
+}
+.db-param-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 /* --- Popover del historial ------------------------------------------------------ */
 
-/* Va por portal a <body>: nada de esto puede depender de estar dentro de la consola.
+/* Va por portal a la capa flotante: nada de esto puede depender de estar dentro de la consola.
    El cromo es el de los otros popovers de la vista (`.db-esquemas-pop`): fondo
    `--bg-modal`, filete y sombra de modal. */
 .db-hist-pop {
@@ -648,10 +648,6 @@
   white-space: nowrap;
   cursor: pointer;
   user-select: none;
-}
-.db-hist-solo input {
-  margin: 0;
-  accent-color: var(--accent);
 }
 .db-hist-estado {
   display: flex;
@@ -899,4 +895,15 @@
 .db-plan-texto:focus-visible {
   outline: 1px solid var(--sel);
   outline-offset: -1px;
+}
+
+.db-consola-estado-presencia {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+.db-consola-estado-presencia .mov-cruce-capa {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

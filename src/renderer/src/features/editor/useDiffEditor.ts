@@ -4,7 +4,9 @@
 // instancia mutable es estable y va en las dependencias como ancla.
 // Decisiones: docs/decisiones/editor/diff-editable.md
 // =============================================================================
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type RefObject } from 'react'
+import type { editor } from 'monaco-editor'
+import { ensureMonaco } from '../../comun/monacoSetup'
 import { useVisibleLayout } from '../../comun/useVisibleLayout'
 import { esDiffDeUnLado } from '../git'
 import { hayModalAbierto } from '../../util/modalAbierto'
@@ -83,6 +85,49 @@ function useColapsoDiff(inst: InstanciaDiff, colapsarSinCambios: boolean): void 
       hideUnchangedRegions: opcionesColapso(colapsarSinCambios)
     })
   }, [inst, colapsarSinCambios])
+}
+
+/** Lo máximo que el texto espera al cálculo: un diff enorme se enseña aunque aún no esté plegado. */
+const TOPE_ESPERA_CALCULO_MS = 1500
+
+/** Lo máximo que se esperan las bandas de lo plegado una vez terminado el cálculo. */
+const TOPE_ESPERA_PLEGADO_MS = 400
+
+/**
+ * ¿Ya está plegado? El alto del contenido lo dice sin depender del DOM, donde aún pueden seguir las bandas del
+ * archivo anterior: plegar siempre deja menos alto que el de todas las líneas.
+ */
+function yaPlegado(ed: editor.IStandaloneDiffEditor | null): boolean {
+  const modificado = ed?.getModifiedEditor()
+  const lineas = modificado?.getModel()?.getLineCount() ?? 0
+  if (!modificado || lineas === 0) return false
+  return modificado.getContentHeight() < lineas * modificado.getOption(ensureMonaco().editor.EditorOption.lineHeight)
+}
+
+/**
+ * ¿Se puede enseñar el texto? Monaco pinta los dos lados enteros y pliega al terminar su cálculo asíncrono, unos cuadros
+ * después del aviso: sin esperar se vería el archivo completo. Dos cuadros de margen para que las bandas se pinten.
+ */
+export function useDiffListo(calculado: boolean, plegara: boolean, diff: RefObject<editor.IStandaloneDiffEditor | null>): boolean {
+  const [listo, setListo] = useState(false)
+  useEffect(() => {
+    if (!calculado) {
+      setListo(false)
+      const tope = setTimeout(() => setListo(true), TOPE_ESPERA_CALCULO_MS)
+      return () => clearTimeout(tope)
+    }
+    const inicio = performance.now()
+    let cuadro = 0
+    let margen = 2
+    const mirar = (): void => {
+      const aplicado = !plegara || yaPlegado(diff.current) || performance.now() - inicio > TOPE_ESPERA_PLEGADO_MS
+      if (aplicado && margen-- <= 0) setListo(true)
+      else cuadro = requestAnimationFrame(mirar)
+    }
+    cuadro = requestAnimationFrame(mirar)
+    return () => cancelAnimationFrame(cuadro)
+  }, [calculado, plegara, diff])
+  return listo
 }
 
 /** Todo el estado y los efectos del pane de diff. */

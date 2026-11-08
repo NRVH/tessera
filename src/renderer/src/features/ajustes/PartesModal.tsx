@@ -9,27 +9,21 @@ import type { CategoriaId, GrupoRiel } from './catalogo'
 import { ICONOS, IconoBuscarAjuste } from './iconos'
 import { txModal } from './textos.ts'
 
-/** Cabecera del modal: título, buscador y botón de cerrar. */
-export function CabeceraModal({
+/** Buscador del centro de la cabecera de Configuración. */
+export function CabeceraAjustes({
   consulta,
   onConsulta,
   buscadorRef,
-  alPulsarEnBuscador,
-  onClose
+  alPulsarEnBuscador
 }: {
   consulta: string
   onConsulta: (valor: string) => void
   buscadorRef: React.RefObject<HTMLInputElement>
   alPulsarEnBuscador: (e: React.KeyboardEvent) => void
-  onClose: () => void
 }): React.JSX.Element {
   const t = txModal()
   return (
-    <header className="ajustes-modal-header">
-      <h2 id="ajustes-titulo" className="ajustes-modal-titulo">
-        {t.configuracion}
-      </h2>
-      <div className="ajustes-buscador">
+    <div className="ajustes-buscador">
         <IconoBuscarAjuste />
         <input
           ref={buscadorRef}
@@ -41,17 +35,7 @@ export function CabeceraModal({
           aria-label={t.buscarAria}
           spellCheck={false}
         />
-      </div>
-      <button
-        type="button"
-        className="btn btn-icon ajustes-modal-cerrar"
-        onClick={onClose}
-        title={t.cerrarTitulo}
-        aria-label={t.cerrar}
-      >
-        ✕
-      </button>
-    </header>
+    </div>
   )
 }
 

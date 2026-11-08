@@ -11,7 +11,7 @@ import { useEffect, useRef } from 'react'
 import { ContextMenu } from '../../comun/ContextMenu'
 import { ConfirmDialog } from '../../comun/ConfirmDialog'
 import { PromptDialog } from '../../comun/PromptDialog'
-import { useDialogo } from '../../comun/useDialogo'
+import { AvisoModal, Modal, PieModal } from '../../comun/Modal'
 import { DbConexionDialogo } from './DbConexionDialogo'
 import { DbEsquemasPopover } from './DbEsquemasPopover'
 import type { DbConexionAjena, DbConnection } from '../../../../shared/db-ipc'
@@ -78,7 +78,7 @@ function ConfirmarConexion({ a, conexion }: { a: CtxArbol; conexion: DbConnectio
   const { proyectosMontada, consolas, sesiones } = a.p
   return (
     <ConfirmDialog
-      title={txArbolAcciones().tituloEliminarConexion}
+      title={txArbolAcciones().tituloEliminarConexion(conexion.alias)}
       message={textoEliminarConexion({
         alias: conexion.alias,
         proyectos: proyectosMontada ? proyectosMontada(conexion.id) : null,
@@ -104,7 +104,7 @@ function ConfirmarAjena({ a, ajena }: { a: CtxArbol; ajena: DbConexionAjena }): 
   const { proyectosMontada, consolas, conexiones } = a.p
   return (
     <ConfirmDialog
-      title={txArbolAcciones().tituloEliminarConexion}
+      title={txArbolAcciones().tituloEliminarConexion(ajena.alias)}
       message={textoEliminarAjena({
         alias: ajena.alias,
         motor: ajena.motor,
@@ -132,7 +132,7 @@ function ConfirmarAjena({ a, ajena }: { a: CtxArbol; ajena: DbConexionAjena }): 
 function ConfirmarConsola({ a, consola }: { a: CtxArbol; consola: DbConsolaInfo }): React.JSX.Element {
   return (
     <ConfirmDialog
-      title={txArbolAcciones().tituloEliminarConsola}
+      title={txArbolAcciones().tituloEliminarConsola(consola.nombre)}
       message={txArbolAcciones().consolaALaPapelera(consola.nombre)}
       confirmLabel={txArbolAcciones().eliminar}
       danger
@@ -258,7 +258,6 @@ export function DialogosArbol({ a }: { a: CtxArbol }): React.JSX.Element {
  * (`opcionesTxArbol`). El foco arranca en CANCELAR: las otras dos escriben o descartan.
  */
 function DialogoTxArbol({ peticion, onCerrar }: { peticion: PeticionTx; onCerrar: () => void }): React.JSX.Element {
-  const dialogo = useDialogo({ onClose: onCerrar })
   const cancelarRef = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     cancelarRef.current?.focus()
@@ -268,33 +267,23 @@ function DialogoTxArbol({ peticion, onCerrar }: { peticion: PeticionTx; onCerrar
     peticion.onResolver(r)
   }
   return (
-    <div className="modal-overlay" role="presentation" onMouseDown={onCerrar}>
-      <div
-        ref={dialogo.ref}
-        className="modal-card"
-        role="alertdialog"
-        aria-modal="true"
-        aria-label={peticion.titulo}
-        onMouseDown={(e) => e.stopPropagation()}
-        onKeyDown={dialogo.alPulsarTecla}
-      >
-        <div className="modal-title">{peticion.titulo}</div>
-        <div className="modal-message">{peticion.mensaje}</div>
-        {peticion.opciones.nota !== null && <div className="modal-message">{peticion.opciones.nota}</div>}
-        <div className="modal-actions">
-          <button ref={cancelarRef} type="button" className="btn btn-ghost" onClick={onCerrar}>
-            {txArbolAcciones().cancelar}
+    <Modal titulo={peticion.titulo} severidad="advertencia" tamano="s" rol="alertdialog" onCerrar={onCerrar} cierraConVelo={false}
+      pie={<PieModal>
+        <button ref={cancelarRef} type="button" className="btn btn-ghost" onClick={onCerrar}>
+          {txArbolAcciones().cancelar}
+        </button>
+        <button type="button" className="btn danger" onClick={() => resolver('rollback')}>
+          {peticion.opciones.revertir}
+        </button>
+        {peticion.opciones.confirmar !== null && (
+          <button type="button" className="btn primary" onClick={() => resolver('commit')}>
+            {peticion.opciones.confirmar}
           </button>
-          <button type="button" className="btn" onClick={() => resolver('rollback')}>
-            {peticion.opciones.revertir}
-          </button>
-          {peticion.opciones.confirmar !== null && (
-            <button type="button" className="btn" onClick={() => resolver('commit')}>
-              {peticion.opciones.confirmar}
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
+        )}
+      </PieModal>}
+    >
+      <div className="modal-message">{peticion.mensaje}</div>
+      {peticion.opciones.nota !== null && <AvisoModal tono="aviso">{peticion.opciones.nota}</AvisoModal>}
+    </Modal>
   )
 }

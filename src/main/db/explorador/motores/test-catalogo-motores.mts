@@ -332,8 +332,8 @@ async function main(): Promise<void> {
     check(`${m}: PK aparte, tipos declarados, sinónimos, PUBLIC y forma de la rejilla, los de antes`, j(ahora) === j(antes), j(ahora))
   }
 
-  hr('(6) Un motor desconocido lanza (antes caía en el SQL de PostgreSQL)')
-  const desconocido = 'db2' as DbMotor // (antes, 'sqlite')
+  hr('(6) Un motor desconocido lanza (no cae en el SQL de PostgreSQL)')
+  const desconocido = 'db2' as DbMotor
   const intentos: Array<[string, string | null]> = [
     ['sqlEsquemas', lanza(() => sqlEsquemas({ motor: desconocido, versionMayor: 3 }))],
     ['sqlFks', lanza(() => sqlFks({ motor: desconocido, versionMayor: 3 }, 'E', 'T'))],

@@ -144,8 +144,8 @@ function main(): void {
   check('(1b) textoCambios en singular y plural', textoCambios(1) === '1 cambio' && textoCambios(3) === '3 cambios', textoCambios(3))
   check(
     '(1c) textoResumen solo con lo que hay, «y» antes del último',
-    textoResumen({ actualizar: 1, insertar: 2, borrar: 1 }) === '1 actualización, 2 inserciones y 1 borrado' &&
-      textoResumen({ actualizar: 0, insertar: 0, borrar: 2 }) === '2 borrados' &&
+    textoResumen({ actualizar: 1, insertar: 2, borrar: 1 }) === '1 actualización, 2 inserciones y 1 eliminación' &&
+      textoResumen({ actualizar: 0, insertar: 0, borrar: 2 }) === '2 eliminaciones' &&
       textoResumen({ actualizar: 2, insertar: 1, borrar: 0 }) === '2 actualizaciones y 1 inserción',
     textoResumen({ actualizar: 1, insertar: 2, borrar: 1 })
   )
@@ -554,7 +554,7 @@ function main(): void {
   filaPerdida[1] = 'A' + String.fromCharCode(0xfffd) + 'B' // un VARCHAR2 leído con pérdida
   const cPerdida = aCambiosFila(borrarFilas(SIN_CAMBIOS, [S(0)]), { ...ctxOra, filas: [filaPerdida] })
   check(
-    '(9-bis o) un texto leído con pérdida (U+FFFD) no se manda, como en el main (antes la vista previa lo enseñaba y el main lo quitaba); el resto de la fila sí',
+    '(9-bis o) un texto leído con pérdida (U+FFFD) no se manda, como en el main (la vista previa no lo enseña); el resto de la fila sí',
     cPerdida.ok &&
       cPerdida.cambios[0]?.tipo === 'borrar' &&
       !('NOMBRE' in (cPerdida.cambios[0].originales ?? {})) &&
@@ -750,7 +750,7 @@ function main(): void {
   const valueDelTextarea = normalizarSaltos(conCrlf)
   check('(16a) normalizarSaltos: CRLF y CR pasan a LF', normalizarSaltos('a\r\nb\rc\nd') === 'a\nb\nc\nd', normalizarSaltos('a\r\nb\rc\nd'))
   check(
-    '(16b) F2 + Intro sin tocar un valor con CRLF NO es un cambio (antes lo era: se comparaba el value a pelo)',
+    '(16b) F2 + Intro sin tocar un valor con CRLF NO es un cambio (no se compara el value a pelo)',
     !textoEditorCambiado(false, conCrlf, valueDelTextarea),
     'sin cambio'
   )

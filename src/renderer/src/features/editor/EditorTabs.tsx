@@ -255,6 +255,8 @@ function useDesborde(listaRef: React.RefObject<HTMLDivElement>): boolean {
     medir()
     const observador = new ResizeObserver(medir)
     observador.observe(lista)
+    // La tira conserva su ancho mientras las pestañas nuevas crecen dentro de ella.
+    for (const elemento of elementosDe(lista)) observador.observe(elemento)
     return () => observador.disconnect()
   })
   return desborda
@@ -272,10 +274,16 @@ function useActivaALaVista(listaRef: React.RefObject<HTMLDivElement>, activeId: 
     const i = tabs.findIndex((t) => t.id === activeId)
     const el = i < 0 || !lista ? undefined : elementosDe(lista)[i]
     if (!lista || !el) return
-    const izquierda = el.offsetLeft
-    const derecha = izquierda + el.offsetWidth
-    if (izquierda < lista.scrollLeft) lista.scrollLeft = izquierda
-    else if (derecha > lista.scrollLeft + lista.clientWidth) lista.scrollLeft = derecha - lista.clientWidth
+    const mostrar = (): void => {
+      const izquierda = el.offsetLeft
+      const derecha = izquierda + el.offsetWidth
+      if (izquierda < lista.scrollLeft) lista.scrollLeft = izquierda
+      else if (derecha > lista.scrollLeft + lista.clientWidth) lista.scrollLeft = derecha - lista.clientWidth
+    }
+    mostrar()
+    const observador = new ResizeObserver(mostrar)
+    observador.observe(el)
+    return () => observador.disconnect()
   }, [listaRef, activeId, tabs])
 }
 
@@ -378,11 +386,9 @@ export function EditorTabs(props: EditorTabsProps): React.JSX.Element {
         ))}
       </div>
       <div className="editor-tabs-acciones">
-        {desborda && (
-          <button type="button" className="btn btn-icon editor-tabs-desborde" title={txPestanas().pestanasOcultas} aria-label={txPestanas().pestanasOcultas} onClick={abrirDesborde}>
+          <button type="button" className={`btn btn-icon editor-tabs-desborde${desborda ? ' visible' : ''}`} tabIndex={desborda ? 0 : -1} aria-hidden={!desborda} title={txPestanas().pestanasOcultas} aria-label={txPestanas().pestanasOcultas} onClick={abrirDesborde}>
             <ChevronIcon />
           </button>
-        )}
         <div ref={props.slotAccionesRef} className="editor-tabs-slot" />
       </div>
       {menu && <MenuPestana menu={menu} tabs={tabs} onCloseTab={onCloseTab} onSaveTab={onSaveTab} onClose={() => setMenu(null)} />}

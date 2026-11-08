@@ -8,8 +8,9 @@
 // =============================================================================
 
 import './capaFlotante.css'
-import type { ReactNode } from 'react'
+import { useLayoutEffect, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { despedir } from './despedida.ts'
 
 /** El id del `div` de la capa. Uno solo en toda la ventana. */
 export const ID_CAPA_FLOTANTE = 'capa-flotante'
@@ -24,5 +25,17 @@ export function CapaFlotante(): React.JSX.Element {
  * `App`, como en una prueba) cae a `<body>`: se ve, aunque sin el color del perfil.
  */
 export function EnCapaFlotante({ children }: { children: ReactNode }): React.JSX.Element {
-  return createPortal(children, document.getElementById(ID_CAPA_FLOTANTE) ?? document.body)
+  const envoltura = useRef<HTMLDivElement>(null)
+  // Lo que se pinta aquí (menús y popovers) entra con `movimiento.css` y, al quitarse, se despide con su salida. Los
+  // diálogos no pasan por aquí: van a su propia capa (`Modal`).
+  useLayoutEffect(() => {
+    const e = envoltura
+    return () => e.current?.querySelectorAll<HTMLElement>(':scope > *').forEach((el) => despedir(el, 'flotante'))
+  }, [])
+  return createPortal(
+    <div ref={envoltura} className="mov-flotante">
+      {children}
+    </div>,
+    document.getElementById(ID_CAPA_FLOTANTE) ?? document.body
+  )
 }

@@ -3,7 +3,7 @@
 // tiene el foco. Va en fase de CAPTURA, como el del mosaico: con la terminal enfocada xterm
 // convertiría el acorde en un CR y mandaría el prompt a medio escribir. Solo vale con el
 // foco dentro de la franja (o en el agente de la terminal, que solo se ve con ella a pantalla
-// completa), fuera del mosaico (allí el mismo acorde amplía una casilla) y sin un modal delante.
+// completa, o en el riel del modo, cuyo «Restaurar» lo anuncia), fuera del mosaico (allí el mismo acorde amplía una casilla) y sin un modal delante.
 // Decisiones: docs/decisiones/layout/pantalla-completa-de-la-franja.md
 // =============================================================================
 import { useEffect } from 'react'
@@ -11,6 +11,7 @@ import { esAlternarPantallaCompleta } from '../../util/atajos'
 import { hayModalAbierto } from '../../util/modalAbierto'
 import { panelDeLaFranja } from '../../util/zonaEnfocada'
 import { useStoreMosaico } from '../mosaico'
+import { CLASE_RIEL_MODO } from './ActivityBar'
 import { fijarMaximizado, useStoreLayout } from './store'
 
 /** El pane del agente de la terminal (`data-lugar` de `features/agentes/AgentTerminalPane.tsx`). */
@@ -24,8 +25,11 @@ const SEL_AGENTE_TERMINAL = '[data-lugar="terminal"]'
 function panelDelAcorde(destino: EventTarget | null): 'terminal' | 'gitlog' | null {
   const panel = panelDeLaFranja(destino)
   if (panel !== null) return panel
+  const enPantallaCompleta = useStoreLayout.getState().franjaPantallaCompleta
+  // El riel a pantalla completa lleva «Restaurar», que anuncia el acorde: con el foco en él, vale para el panel del modo.
+  if (destino instanceof Element && destino.closest(`.${CLASE_RIEL_MODO}`) !== null) return enPantallaCompleta
   const enAgenteTerminal = destino instanceof Element && destino.closest(SEL_AGENTE_TERMINAL) !== null
-  return enAgenteTerminal && useStoreLayout.getState().franjaPantallaCompleta === 'terminal' ? 'terminal' : null
+  return enAgenteTerminal && enPantallaCompleta === 'terminal' ? 'terminal' : null
 }
 
 /** Registra el atajo una sola vez; el estado vivo se lee del store al pulsar. */
